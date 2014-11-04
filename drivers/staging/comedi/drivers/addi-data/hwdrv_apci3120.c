@@ -44,8 +44,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
  * ADDON RELATED ADDITIONS
  */
 /* Constant */
-#define APCI3120_ENABLE_TRANSFER_ADD_ON_LOW		0x00
-#define APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH		0x1200
+#define APCI3120_ENABLE_TRANSFER_ADD_ON			0x12000000
 #define APCI3120_A2P_FIFO_MANAGEMENT			0x04000400L
 #define APCI3120_AMWEN_ENABLE				0x02
 #define APCI3120_A2P_FIFO_WRITE_ENABLE			0x01
@@ -57,12 +56,9 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_DISABLE_BUS_MASTER_PCI			0x0
 
 /* ADD_ON ::: this needed since apci supports 16 bit interface to add on */
-#define APCI3120_ADD_ON_AGCSTS_LOW	0x3C
-#define APCI3120_ADD_ON_AGCSTS_HIGH	(APCI3120_ADD_ON_AGCSTS_LOW + 2)
-#define APCI3120_ADD_ON_MWAR_LOW	0x24
-#define APCI3120_ADD_ON_MWAR_HIGH	(APCI3120_ADD_ON_MWAR_LOW + 2)
-#define APCI3120_ADD_ON_MWTC_LOW	0x058
-#define APCI3120_ADD_ON_MWTC_HIGH	(APCI3120_ADD_ON_MWTC_LOW + 2)
+#define APCI3120_ADD_ON_MWAR		0x24
+#define APCI3120_ADD_ON_AGCSTS		0x3c
+#define APCI3120_ADD_ON_MWTC		0x58
 
 /* AMCC */
 #define APCI3120_AMCC_OP_MCSR		0x3C
@@ -88,6 +84,20 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_TIMER_ENABLE		1
 
 #define APCI3120_COUNTER		3
+
+static void apci3120_addon_write(struct comedi_device *dev,
+				 unsigned int val, unsigned int reg)
+{
+	struct apci3120_private *devpriv = dev->private;
+
+	/* 16-bit interface for AMCC add-on registers */
+
+	outw(reg, devpriv->addon + 0);
+	outw(val & 0xffff, devpriv->addon + 2);
+
+	outw(reg + 2, devpriv->addon + 0);
+	outw((val >> 16) & 0xffff, devpriv->addon + 2);
+}
 
 static int apci3120_reset(struct comedi_device *dev)
 {
@@ -119,10 +129,7 @@ static int apci3120_cancel(struct comedi_device *dev,
 	outw(0, devpriv->addon + 4);
 
 	/* Disable Bus Master ADD ON */
-	outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
-	outw(0, devpriv->addon + 2);
-	outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
-	outw(0, devpriv->addon + 2);
+	apci3120_addon_write(dev, 0, APCI3120_ADD_ON_AGCSTS);
 
 	/* Disable BUS Master PCI */
 	outl(0, devpriv->amcc + AMCC_OP_REG_MCSR);
@@ -213,21 +220,11 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 static void apci3120_init_dma(struct comedi_device *dev,
 			      struct apci3120_dmabuf *dmabuf)
 {
-	struct apci3120_private *devpriv = dev->private;
+	/* DMA Start Address */
+	apci3120_addon_write(dev, dmabuf->hw, APCI3120_ADD_ON_MWAR);
 
-	/* DMA Start Address Low */
-	outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
-	outw(dmabuf->hw & 0xffff, devpriv->addon + 2);
-	/* DMA Start Address High */
-	outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->addon + 0);
-	outw((dmabuf->hw >> 16) & 0xffff, devpriv->addon + 2);
-
-	/* Nbr of acquisition LOW */
-	outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->addon + 0);
-	outw(dmabuf->use_size & 0xffff, devpriv->addon + 2);
-	/* Nbr of acquisition HIGH */
-	outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->addon + 0);
-	outw((dmabuf->use_size >> 16) & 0xffff, devpriv->addon + 2);
+	/* Nbr of acquisition */
+	apci3120_addon_write(dev, dmabuf->use_size, APCI3120_ADD_ON_MWTC);
 }
 
 static void apci3120_setup_dma(struct comedi_device *dev,
@@ -287,13 +284,9 @@ static void apci3120_setup_dma(struct comedi_device *dev,
 	outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
 	     devpriv->amcc + AMCC_OP_REG_AGCSTS);
 
-	/* changed  since 16 bit interface for add on */
 	/* ENABLE BUS MASTER */
-	outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
-	outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW, devpriv->addon + 2);
-
-	outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
-	outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->addon + 2);
+	apci3120_addon_write(dev, APCI3120_ENABLE_TRANSFER_ADD_ON,
+			     APCI3120_ADD_ON_AGCSTS);
 
 	/*
 	 * TO VERIFIED BEGIN JK 07.05.04: Comparison between WIN32 and Linux
@@ -468,11 +461,8 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
 		outl(ui_Tmp, devpriv->amcc + AMCC_OP_REG_AGCSTS);
 
-		/*  changed  since 16 bit interface for add on */
-		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW, devpriv->addon + 2);
-		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->addon + 2);	/*  0x1000 is out putted in windows driver */
+		apci3120_addon_write(dev, APCI3120_ENABLE_TRANSFER_ADD_ON,
+				     APCI3120_ADD_ON_AGCSTS);
 
 		apci3120_init_dma(dev, next_dmabuf);
 
@@ -510,11 +500,8 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
 		     devpriv->amcc + AMCC_OP_REG_AGCSTS);
 
-		/*  changed  since 16 bit interface for add on */
-		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW, devpriv->addon + 2);
-		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->addon + 2);
+		apci3120_addon_write(dev, APCI3120_ENABLE_TRANSFER_ADD_ON,
+				     APCI3120_ADD_ON_AGCSTS);
 		/*
 		 * A2P FIFO MANAGEMENT
 		 * A2P fifo reset & transfer control enable
