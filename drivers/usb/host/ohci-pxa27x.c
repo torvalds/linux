@@ -447,20 +447,13 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 		return -ENOMEM;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		pr_err("no resource of IORESOURCE_MEM");
-		retval = -ENXIO;
-		goto err;
-	}
-
-	hcd->rsrc_start = r->start;
-	hcd->rsrc_len = resource_size(r);
-
 	hcd->regs = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err;
 	}
+	hcd->rsrc_start = r->start;
+	hcd->rsrc_len = resource_size(r);
 
 	/* initialize "struct pxa27x_ohci" */
 	pxa_ohci = to_pxa27x_ohci(hcd);
