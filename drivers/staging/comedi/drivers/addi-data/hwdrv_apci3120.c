@@ -92,8 +92,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_DISABLE_EOS_INT	(~APCI3120_ENABLE_EOS_INT)
 #define APCI3120_ENABLE_EOC_INT		0x1
 #define APCI3120_DISABLE_EOC_INT	(~APCI3120_ENABLE_EOC_INT)
-#define APCI3120_DISABLE_ALL_INTERRUPT			\
-	(APCI3120_DISABLE_TIMER_INT & APCI3120_DISABLE_EOS_INT & APCI3120_DISABLE_EOC_INT)
 
 /* status register bits */
 #define APCI3120_EOC			0x8000
@@ -424,8 +422,9 @@ static int apci3120_cancel(struct comedi_device *dev,
 	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 
 	/* DISABLE_ALL_INTERRUPT */
-	outb(APCI3120_DISABLE_ALL_INTERRUPT,
-		dev->iobase + APCI3120_WRITE_MODE_SELECT);
+	devpriv->b_ModeSelectRegister = 0;
+	outb(devpriv->b_ModeSelectRegister,
+	     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 	apci3120_ai_reset_fifo(dev);
 	inw(dev->iobase + APCI3120_RD_STATUS);
