@@ -297,10 +297,8 @@ static int machine__write_buildid_table(struct machine *machine, int fd)
 	return err;
 }
 
-static int dsos__write_buildid_table(struct perf_header *header, int fd)
+static int perf_session__write_buildid_table(struct perf_session *session, int fd)
 {
-	struct perf_session *session = container_of(header,
-			struct perf_session, header);
 	struct rb_node *nd;
 	int err = machine__write_buildid_table(&session->machines.host, fd);
 
@@ -523,7 +521,7 @@ static int write_build_id(int fd, struct perf_header *h,
 	if (!perf_session__read_build_ids(session, true))
 		return -1;
 
-	err = dsos__write_buildid_table(h, fd);
+	err = perf_session__write_buildid_table(session, fd);
 	if (err < 0) {
 		pr_debug("failed to write buildid table\n");
 		return err;
