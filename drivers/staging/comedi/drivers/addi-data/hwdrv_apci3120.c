@@ -434,8 +434,10 @@ static int apci3120_cyclic_ai(int mode,
 
 	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
-	/*  If DMA is disabled */
-	if (!devpriv->us_UseDma) {
+	if (devpriv->us_UseDma) {
+		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
+		apci3120_setup_dma(dev, s);
+	} else {
 		/*  disable EOC and enable EOS */
 		devpriv->b_InterruptMode = APCI3120_EOS_MODE;
 
@@ -461,9 +463,6 @@ static int apci3120_cyclic_ai(int mode,
 			devpriv->b_Timer2Mode = APCI3120_COUNTER;
 			devpriv->b_Timer2Interrupt = 1;
 		}
-	} else {
-		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
-		apci3120_setup_dma(dev, s);
 	}
 
 	if (!devpriv->us_UseDma && cmd->stop_src == TRIG_COUNT)
