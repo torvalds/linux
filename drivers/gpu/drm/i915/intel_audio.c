@@ -132,14 +132,26 @@ static void g4x_audio_codec_enable(struct drm_connector *connector,
 
 static void hsw_audio_codec_disable(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = encoder->base.crtc;
-	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	enum pipe pipe = intel_crtc->pipe;
 	uint32_t tmp;
 
+	DRM_DEBUG_KMS("Disable audio codec on pipe %c\n", pipe_name(pipe));
+
+	/* Disable timestamps */
+	tmp = I915_READ(HSW_AUD_CFG(pipe));
+	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
+	tmp |= AUD_CONFIG_N_PROG_ENABLE;
+	tmp &= ~AUD_CONFIG_UPPER_N_MASK;
+	tmp &= ~AUD_CONFIG_LOWER_N_MASK;
+	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
+		tmp |= AUD_CONFIG_N_VALUE_INDEX;
+	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
+
+	/* Invalidate ELD */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-	tmp &= ~((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
+	tmp &= ~(AUDIO_ELD_VALID_A << (pipe * 4));
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 }
 
@@ -149,77 +161,52 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	uint8_t *eld = connector->eld;
-	uint32_t eldv;
+	enum pipe pipe = intel_crtc->pipe;
+	const uint8_t *eld = connector->eld;
 	uint32_t tmp;
 	int len, i;
-	enum pipe pipe = intel_crtc->pipe;
-	enum port port;
-	int hdmiw_hdmiedid = HSW_AUD_EDID_DATA(pipe);
-	int aud_cntl_st = HSW_AUD_DIP_ELD_CTRL(pipe);
-	int aud_config = HSW_AUD_CFG(pipe);
-	int aud_cntrl_st2 = HSW_AUD_PIN_ELD_CP_VLD;
 
-	/* Audio output enable */
-	DRM_DEBUG_DRIVER("HDMI audio: enable codec\n");
-	tmp = I915_READ(aud_cntrl_st2);
-	tmp |= (AUDIO_OUTPUT_ENABLE_A << (pipe * 4));
-	I915_WRITE(aud_cntrl_st2, tmp);
-	POSTING_READ(aud_cntrl_st2);
+	DRM_DEBUG_KMS("Enable audio codec on pipe %c, %u bytes ELD\n",
+		      pipe_name(pipe), eld[2]);
 
-	/* Set ELD valid state */
-	tmp = I915_READ(aud_cntrl_st2);
-	DRM_DEBUG_DRIVER("HDMI audio: pin eld vld status=0x%08x\n", tmp);
-	tmp |= (AUDIO_ELD_VALID_A << (pipe * 4));
-	I915_WRITE(aud_cntrl_st2, tmp);
-	tmp = I915_READ(aud_cntrl_st2);
-	DRM_DEBUG_DRIVER("HDMI audio: eld vld status=0x%08x\n", tmp);
-
-	/* Enable HDMI mode */
-	tmp = I915_READ(aud_config);
-	DRM_DEBUG_DRIVER("HDMI audio: audio conf: 0x%08x\n", tmp);
-	/* clear N_programing_enable and N_value_index */
-	tmp &= ~(AUD_CONFIG_N_VALUE_INDEX | AUD_CONFIG_N_PROG_ENABLE);
-	I915_WRITE(aud_config, tmp);
-
-	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(pipe));
-
-	eldv = AUDIO_ELD_VALID_A << (pipe * 4);
-
-	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
-		I915_WRITE(aud_config, AUD_CONFIG_N_VALUE_INDEX); /* 0x1 = DP */
-	else
-		I915_WRITE(aud_config, audio_config_hdmi_pixel_clock(mode));
-
-	if (intel_eld_uptodate(connector,
-			       aud_cntrl_st2, eldv,
-			       aud_cntl_st, IBX_ELD_ADDRESS_MASK,
-			       hdmiw_hdmiedid))
-		return;
-
-	tmp = I915_READ(aud_cntrl_st2);
-	tmp &= ~eldv;
-	I915_WRITE(aud_cntrl_st2, tmp);
-
-	tmp = I915_READ(aud_cntl_st);
-	tmp &= ~IBX_ELD_ADDRESS_MASK;
-	I915_WRITE(aud_cntl_st, tmp);
-	port = (tmp >> 29) & DIP_PORT_SEL_MASK;		/* DIP_Port_Select, 0x1 = PortB */
-	DRM_DEBUG_DRIVER("port num:%d\n", port);
-
-	len = min_t(int, eld[2], 21);	/* 84 bytes of hw ELD buffer */
-	DRM_DEBUG_DRIVER("ELD size %d\n", len);
-	for (i = 0; i < len; i++)
-		I915_WRITE(hdmiw_hdmiedid, *((uint32_t *)eld + i));
-
-	tmp = I915_READ(aud_cntrl_st2);
-	tmp |= eldv;
-	I915_WRITE(aud_cntrl_st2, tmp);
-
-	/* XXX: Transitional */
+	/* Enable audio presence detect, invalidate ELD */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-	tmp |= ((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
+	tmp |= AUDIO_OUTPUT_ENABLE_A << (pipe * 4);
+	tmp &= ~(AUDIO_ELD_VALID_A << (pipe * 4));
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+
+	/*
+	 * FIXME: We're supposed to wait for vblank here, but we have vblanks
+	 * disabled during the mode set. The proper fix would be to push the
+	 * rest of the setup into a vblank work item, queued here, but the
+	 * infrastructure is not there yet.
+	 */
+
+	/* Reset ELD write address */
+	tmp = I915_READ(HSW_AUD_DIP_ELD_CTRL(pipe));
+	tmp &= ~IBX_ELD_ADDRESS_MASK;
+	I915_WRITE(HSW_AUD_DIP_ELD_CTRL(pipe), tmp);
+
+	/* Up to 84 bytes of hw ELD buffer */
+	len = min_t(int, eld[2], 21);
+	for (i = 0; i < len; i++)
+		I915_WRITE(HSW_AUD_EDID_DATA(pipe), *((uint32_t *)eld + i));
+
+	/* ELD valid */
+	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+	tmp |= AUDIO_ELD_VALID_A << (pipe * 4);
+	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+
+	/* Enable timestamps */
+	tmp = I915_READ(HSW_AUD_CFG(pipe));
+	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
+	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
+	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
+	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
+		tmp |= AUD_CONFIG_N_VALUE_INDEX;
+	else
+		tmp |= audio_config_hdmi_pixel_clock(mode);
+	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
 }
 
 static void ilk_audio_codec_enable(struct drm_connector *connector,
