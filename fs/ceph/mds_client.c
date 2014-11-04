@@ -3744,6 +3744,20 @@ static struct ceph_msg *mds_alloc_msg(struct ceph_connection *con,
 	return msg;
 }
 
+static int sign_message(struct ceph_connection *con, struct ceph_msg *msg)
+{
+       struct ceph_mds_session *s = con->private;
+       struct ceph_auth_handshake *auth = &s->s_auth;
+       return ceph_auth_sign_message(auth, msg);
+}
+
+static int check_message_signature(struct ceph_connection *con, struct ceph_msg *msg)
+{
+       struct ceph_mds_session *s = con->private;
+       struct ceph_auth_handshake *auth = &s->s_auth;
+       return ceph_auth_check_message_signature(auth, msg);
+}
+
 static const struct ceph_connection_operations mds_con_ops = {
 	.get = con_get,
 	.put = con_put,
@@ -3753,6 +3767,8 @@ static const struct ceph_connection_operations mds_con_ops = {
 	.invalidate_authorizer = invalidate_authorizer,
 	.peer_reset = peer_reset,
 	.alloc_msg = mds_alloc_msg,
+	.sign_message = sign_message,
+	.check_message_signature = check_message_signature,
 };
 
 /* eof */

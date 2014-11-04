@@ -8,6 +8,7 @@
 
 #include <linux/ceph/decode.h>
 #include <linux/ceph/auth.h>
+#include <linux/ceph/messenger.h>
 
 #include "crypto.h"
 #include "auth_x.h"
@@ -567,6 +568,8 @@ static int ceph_x_create_authorizer(
 	auth->authorizer_buf_len = au->buf->vec.iov_len;
 	auth->authorizer_reply_buf = au->reply_buf;
 	auth->authorizer_reply_buf_len = sizeof (au->reply_buf);
+	auth->sign_message = ac->ops->sign_message;
+	auth->check_message_signature = ac->ops->check_message_signature;
 
 	return 0;
 }
@@ -667,6 +670,59 @@ static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
 		memset(&th->validity, 0, sizeof(th->validity));
 }
 
+static int calcu_signature(struct ceph_x_authorizer *au,
+			   struct ceph_msg *msg, __le64 *sig)
+{
+	int ret;
+	char tmp_enc[40];
+	__le32 tmp[5] = {
+		16u, msg->hdr.crc, msg->footer.front_crc,
+		msg->footer.middle_crc, msg->footer.data_crc,
+	};
+	ret = ceph_x_encrypt(&au->session_key, &tmp, sizeof(tmp),
+			     tmp_enc, sizeof(tmp_enc));
+	if (ret < 0)
+		return ret;
+	*sig = *(__le64*)(tmp_enc + 4);
+	return 0;
+}
+
+static int ceph_x_sign_message(struct ceph_auth_handshake *auth,
+			       struct ceph_msg *msg)
+{
+	int ret;
+	if (!auth->authorizer)
+		return 0;
+	ret = calcu_signature((struct ceph_x_authorizer *)auth->authorizer,
+			      msg, &msg->footer.sig);
+	if (ret < 0)
+		return ret;
+	msg->footer.flags |= CEPH_MSG_FOOTER_SIGNED;
+	return 0;
+}
+
+static int ceph_x_check_message_signature(struct ceph_auth_handshake *auth,
+					  struct ceph_msg *msg)
+{
+	__le64 sig_check;
+	int ret;
+
+	if (!auth->authorizer)
+		return 0;
+	ret = calcu_signature((struct ceph_x_authorizer *)auth->authorizer,
+			      msg, &sig_check);
+	if (ret < 0)
+		return ret;
+	if (sig_check == msg->footer.sig)
+		return 0;
+	if (msg->footer.flags & CEPH_MSG_FOOTER_SIGNED)
+		dout("ceph_x_check_message_signature %p has signature %llx "
+		     "expect %llx\n", msg, msg->footer.sig, sig_check);
+	else
+		dout("ceph_x_check_message_signature %p sender did not set "
+		     "CEPH_MSG_FOOTER_SIGNED\n", msg);
+	return -EBADMSG;
+}
 
 static const struct ceph_auth_client_ops ceph_x_ops = {
 	.name = "x",
@@ -681,6 +737,8 @@ static const struct ceph_auth_client_ops ceph_x_ops = {
 	.invalidate_authorizer = ceph_x_invalidate_authorizer,
 	.reset =  ceph_x_reset,
 	.destroy = ceph_x_destroy,
+	.sign_message = ceph_x_sign_message,
+	.check_message_signature = ceph_x_check_message_signature,
 };
 
 
