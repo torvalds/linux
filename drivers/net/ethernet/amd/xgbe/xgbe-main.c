@@ -264,12 +264,18 @@ static int xgbe_probe(struct platform_device *pdev)
 		pdata->awcache = XGBE_DMA_SYS_AWCACHE;
 	}
 
+	/* Check for per channel interrupt support */
+	if (of_property_read_bool(dev->of_node, XGBE_DMA_IRQS))
+		pdata->per_channel_irq = 1;
+
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		dev_err(dev, "platform_get_irq failed\n");
+		dev_err(dev, "platform_get_irq 0 failed\n");
 		goto err_io;
 	}
-	netdev->irq = ret;
+	pdata->dev_irq = ret;
+
+	netdev->irq = pdata->dev_irq;
 	netdev->base_addr = (unsigned long)pdata->xgmac_regs;
 
 	/* Set all the function pointers */

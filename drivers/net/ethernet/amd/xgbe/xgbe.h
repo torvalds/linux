@@ -173,6 +173,7 @@
 /* Device-tree clock names */
 #define XGBE_DMA_CLOCK		"dma_clk"
 #define XGBE_PTP_CLOCK		"ptp_clk"
+#define XGBE_DMA_IRQS		"amd,per-channel-interrupt"
 
 /* Timestamp support - values based on 50MHz PTP clock
  *   50MHz => 20 nsec
@@ -358,6 +359,12 @@ struct xgbe_channel {
 	/* Queue index and base address of queue's DMA registers */
 	unsigned int queue_index;
 	void __iomem *dma_regs;
+
+	/* Per channel interrupt irq number */
+	int dma_irq;
+
+	/* Netdev related settings */
+	struct napi_struct napi;
 
 	unsigned int saved_ier;
 
@@ -609,7 +616,8 @@ struct xgbe_prv_data {
 	/* XPCS indirect addressing mutex */
 	struct mutex xpcs_mutex;
 
-	int irq_number;
+	int dev_irq;
+	unsigned int per_channel_irq;
 
 	struct xgbe_hw_if hw_if;
 	struct xgbe_desc_if desc_if;
