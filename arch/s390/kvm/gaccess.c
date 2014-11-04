@@ -229,10 +229,12 @@ static void ipte_lock_simple(struct kvm_vcpu *vcpu)
 		goto out;
 	ic = &vcpu->kvm->arch.sca->ipte_control;
 	do {
-		old = ACCESS_ONCE(*ic);
+		old = *ic;
+		barrier();
 		while (old.k) {
 			cond_resched();
-			old = ACCESS_ONCE(*ic);
+			old = *ic;
+			barrier();
 		}
 		new = old;
 		new.k = 1;
@@ -251,7 +253,9 @@ static void ipte_unlock_simple(struct kvm_vcpu *vcpu)
 		goto out;
 	ic = &vcpu->kvm->arch.sca->ipte_control;
 	do {
-		new = old = ACCESS_ONCE(*ic);
+		old = *ic;
+		barrier();
+		new = old;
 		new.k = 0;
 	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
 	wake_up(&vcpu->kvm->arch.ipte_wq);
@@ -265,10 +269,12 @@ static void ipte_lock_siif(struct kvm_vcpu *vcpu)
 
 	ic = &vcpu->kvm->arch.sca->ipte_control;
 	do {
-		old = ACCESS_ONCE(*ic);
+		old = *ic;
+		barrier();
 		while (old.kg) {
 			cond_resched();
-			old = ACCESS_ONCE(*ic);
+			old = *ic;
+			barrier();
 		}
 		new = old;
 		new.k = 1;
@@ -282,7 +288,9 @@ static void ipte_unlock_siif(struct kvm_vcpu *vcpu)
 
 	ic = &vcpu->kvm->arch.sca->ipte_control;
 	do {
-		new = old = ACCESS_ONCE(*ic);
+		old = *ic;
+		barrier();
+		new = old;
 		new.kh--;
 		if (!new.kh)
 			new.k = 0;
