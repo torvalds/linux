@@ -81,6 +81,8 @@ static struct rfcomm_session *rfcomm_session_del(struct rfcomm_session *s);
 #define __test_cr(b)      (!!(b & 0x02))
 #define __test_pf(b)      (!!(b & 0x10))
 
+#define __session_dir(s)  ((s)->initiator ? 0x00 : 0x01)
+
 #define __addr(cr, dlci)       (((dlci & 0x3f) << 2) | (cr << 1) | 0x01)
 #define __ctrl(type, pf)       (((type & 0xef) | (pf << 4)))
 #define __dlci(dir, chn)       (((chn & 0x1f) << 1) | dir)
@@ -388,7 +390,7 @@ static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 			return err;
 	}
 
-	dlci = __dlci(!s->initiator, channel);
+	dlci = __dlci(__session_dir(s), channel);
 
 	/* Check if DLCI already exists */
 	if (rfcomm_dlc_get(s, dlci))
@@ -543,7 +545,7 @@ struct rfcomm_dlc *rfcomm_dlc_exists(bdaddr_t *src, bdaddr_t *dst, u8 channel)
 	rfcomm_lock();
 	s = rfcomm_session_get(src, dst);
 	if (s) {
-		dlci = __dlci(!s->initiator, channel);
+		dlci = __dlci(__session_dir(s), channel);
 		dlc = rfcomm_dlc_get(s, dlci);
 	}
 	rfcomm_unlock();
