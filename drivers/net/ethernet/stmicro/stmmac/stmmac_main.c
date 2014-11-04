@@ -276,6 +276,7 @@ static void stmmac_eee_ctrl_timer(unsigned long arg)
 bool stmmac_eee_init(struct stmmac_priv *priv)
 {
 	char *phy_bus_name = priv->plat->phy_bus_name;
+	unsigned long flags;
 	bool ret = false;
 
 	/* Using PCS we cannot dial with the phy registers at this stage
@@ -300,6 +301,7 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 			 * changed).
 			 * In that case the driver disable own timers.
 			 */
+			spin_lock_irqsave(&priv->lock, flags);
 			if (priv->eee_active) {
 				pr_debug("stmmac: disable EEE\n");
 				del_timer_sync(&priv->eee_ctrl_timer);
@@ -307,9 +309,11 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 							     tx_lpi_timer);
 			}
 			priv->eee_active = 0;
+			spin_unlock_irqrestore(&priv->lock, flags);
 			goto out;
 		}
 		/* Activate the EEE and start timers */
+		spin_lock_irqsave(&priv->lock, flags);
 		if (!priv->eee_active) {
 			priv->eee_active = 1;
 			init_timer(&priv->eee_ctrl_timer);
@@ -325,9 +329,10 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 		/* Set HW EEE according to the speed */
 		priv->hw->mac->set_eee_pls(priv->hw, priv->phydev->link);
 
-		pr_debug("stmmac: Energy-Efficient Ethernet initialized\n");
-
 		ret = true;
+		spin_unlock_irqrestore(&priv->lock, flags);
+
+		pr_debug("stmmac: Energy-Efficient Ethernet initialized\n");
 	}
 out:
 	return ret;
@@ -760,12 +765,12 @@ static void stmmac_adjust_link(struct net_device *dev)
 	if (new_state && netif_msg_link(priv))
 		phy_print_status(phydev);
 
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 	/* At this stage, it could be needed to setup the EEE or adjust some
 	 * MAC related HW registers.
 	 */
 	priv->eee_enabled = stmmac_eee_init(priv);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 /**
@@ -1704,8 +1709,6 @@ static int stmmac_hw_setup(struct net_device *dev)
 		priv->hw->dma->dump_regs(priv->ioaddr);
 	}
 	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
-
-	priv->eee_enabled = stmmac_eee_init(priv);
 
 	stmmac_init_tx_coalesce(priv);
 
