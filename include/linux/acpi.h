@@ -718,8 +718,8 @@ int acpi_dev_get_property(struct acpi_device *adev, const char *name,
 int acpi_dev_get_property_array(struct acpi_device *adev, const char *name,
 				acpi_object_type type,
 				const union acpi_object **obj);
-int acpi_dev_get_property_reference(struct acpi_device *adev, const char *name,
-				    const char *cells_name, size_t index,
+int acpi_dev_get_property_reference(struct acpi_device *adev,
+				    const char *name, size_t index,
 				    struct acpi_reference_args *args);
 
 int acpi_dev_prop_get(struct acpi_device *adev, const char *propname,

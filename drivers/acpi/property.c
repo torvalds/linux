@@ -273,25 +273,21 @@ EXPORT_SYMBOL_GPL(acpi_dev_get_property_array);
  * acpi_dev_get_property_reference - returns handle to the referenced object
  * @adev: ACPI device to get property
  * @name: Name of the property
- * @size_prop: Name of the "size" property in referenced object
  * @index: Index of the reference to return
  * @args: Location to store the returned reference with optional arguments
  *
  * Find property with @name, verifify that it is a package containing at least
  * one object reference and if so, store the ACPI device object pointer to the
- * target object in @args->adev.
+ * target object in @args->adev.  If the reference includes arguments, store
+ * them in the @args->args[] array.
  *
- * If the reference includes arguments (@size_prop is not %NULL) follow the
- * reference and check whether or not there is an integer property @size_prop
- * under the target object and if so, whether or not its value matches the
- * number of arguments that follow the reference.  If there's more than one
- * reference in the property value package, @index is used to select the one to
- * return.
+ * If there's more than one reference in the property value package, @index is
+ * used to select the one to return.
  *
  * Return: %0 on success, negative error code on failure.
  */
-int acpi_dev_get_property_reference(struct acpi_device *adev, const char *name,
-				    const char *size_prop, size_t index,
+int acpi_dev_get_property_reference(struct acpi_device *adev,
+				    const char *name, size_t index,
 				    struct acpi_reference_args *args)
 {
 	const union acpi_object *element, *end;
@@ -308,7 +304,7 @@ int acpi_dev_get_property_reference(struct acpi_device *adev, const char *name,
 	 * return that reference then.
 	 */
 	if (obj->type == ACPI_TYPE_LOCAL_REFERENCE) {
-		if (size_prop || index)
+		if (index)
 			return -EINVAL;
 
 		ret = acpi_bus_get_device(obj->reference.handle, &device);
@@ -348,42 +344,16 @@ int acpi_dev_get_property_reference(struct acpi_device *adev, const char *name,
 		element++;
 		nargs = 0;
 
-		if (size_prop) {
-			const union acpi_object *prop;
+		/* assume following integer elements are all args */
+		for (i = 0; element + i < end; i++) {
+			int type = element[i].type;
 
-			/*
-			 * Find out how many arguments the refenced object
-			 * expects by reading its size_prop property.
-			 */
-			ret = acpi_dev_get_property(device, size_prop,
-						    ACPI_TYPE_INTEGER, &prop);
-			if (ret)
-				return ret;
-
-			nargs = prop->integer.value;
-			if (nargs > MAX_ACPI_REFERENCE_ARGS
-			    || element + nargs > end)
+			if (type == ACPI_TYPE_INTEGER)
+				nargs++;
+			else if (type == ACPI_TYPE_LOCAL_REFERENCE)
+				break;
+			else
 				return -EPROTO;
-
-			/*
-			 * Skip to the start of the arguments and verify
-			 * that they all are in fact integers.
-			 */
-			for (i = 0; i < nargs; i++)
-				if (element[i].type != ACPI_TYPE_INTEGER)
-					return -EPROTO;
-		} else {
-			/* assume following integer elements are all args */
-			for (i = 0; element + i < end; i++) {
-				int type = element[i].type;
-
-				if (type == ACPI_TYPE_INTEGER)
-					nargs++;
-				else if (type == ACPI_TYPE_LOCAL_REFERENCE)
-					break;
-				else
-					return -EPROTO;
-			}
 		}
 
 		if (idx++ == index) {

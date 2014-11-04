@@ -405,7 +405,7 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 		dev_dbg(&adev->dev, "GPIO: looking up %s\n", propname);
 
 		memset(&args, 0, sizeof(args));
-		ret = acpi_dev_get_property_reference(adev, propname, NULL,
+		ret = acpi_dev_get_property_reference(adev, propname,
 						      index, &args);
 		if (ret) {
 			bool found = acpi_get_driver_gpio_data(adev, propname,
