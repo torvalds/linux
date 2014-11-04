@@ -360,7 +360,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	}
 	samplesinbuf = samplesinbuf >> 1;	/*  number of received samples */
 
-	if (devpriv->b_DmaDoubleBuffer) {
+	if (devpriv->use_double_buffer) {
 		struct apci3120_dmabuf *next_dmabuf;
 
 		next_dmabuf = &devpriv->dmabuf[1 - devpriv->ui_DmaActualBuffer];
@@ -381,7 +381,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		return;
 	}
 
-	if (devpriv->b_DmaDoubleBuffer) {
+	if (devpriv->use_double_buffer) {
 		/* switch dma buffers for next interrupt */
 		devpriv->ui_DmaActualBuffer = 1 - devpriv->ui_DmaActualBuffer;
 	} else {
