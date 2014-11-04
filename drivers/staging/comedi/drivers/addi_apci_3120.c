@@ -307,6 +307,10 @@ static void apci3120_set_chanlist(struct comedi_device *dev,
 	/* set scan length (PR) and scan start (PA) */
 	devpriv->ctrl = APCI3120_CTRL_PR(n_chan - 1) | APCI3120_CTRL_PA(0);
 	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
+
+	/* enable chanlist scanning if necessary */
+	if (n_chan > 1)
+		devpriv->mode |= APCI3120_MODE_SCAN_ENA;
 }
 
 #include "addi-data/hwdrv_apci3120.c"
