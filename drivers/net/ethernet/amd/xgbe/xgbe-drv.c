@@ -1185,13 +1185,13 @@ static void xgbe_packet_info(struct xgbe_prv_data *pdata,
 	packet->rdesc_count = 0;
 
 	if (xgbe_is_tso(skb)) {
-		/* TSO requires an extra desriptor if mss is different */
+		/* TSO requires an extra descriptor if mss is different */
 		if (skb_shinfo(skb)->gso_size != ring->tx.cur_mss) {
 			context_desc = 1;
 			packet->rdesc_count++;
 		}
 
-		/* TSO requires an extra desriptor for TSO header */
+		/* TSO requires an extra descriptor for TSO header */
 		packet->rdesc_count++;
 
 		XGMAC_SET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
