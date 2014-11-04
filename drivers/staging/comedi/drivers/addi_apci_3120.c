@@ -491,6 +491,18 @@ static void apci3120_dma_free(struct comedi_device *dev)
 	}
 }
 
+static void apci3120_reset(struct comedi_device *dev)
+{
+	/* disable all interrupt sources */
+	outb(0, dev->iobase + APCI3120_MODE_REG);
+
+	/* disable all counters, ext trigger, and reset scan */
+	outw(0, dev->iobase + APCI3120_CTRL_REG);
+
+	/* clear interrupt status */
+	inw(dev->iobase + APCI3120_STATUS_REG);
+}
+
 static int apci3120_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {

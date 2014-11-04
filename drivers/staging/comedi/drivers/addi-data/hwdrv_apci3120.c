@@ -72,18 +72,6 @@ static void apci3120_addon_write(struct comedi_device *dev,
 	outw((val >> 16) & 0xffff, devpriv->addon + APCI3120_ADDON_DATA_REG);
 }
 
-static void apci3120_reset(struct comedi_device *dev)
-{
-	/* disable all interrupt sources */
-	outb(0, dev->iobase + APCI3120_MODE_REG);
-
-	/* disable all counters, ext trigger, and reset scan */
-	outw(0, dev->iobase + APCI3120_CTRL_REG);
-
-	/* clear interrupt status */
-	inw(dev->iobase + APCI3120_STATUS_REG);
-}
-
 static int apci3120_cancel(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
