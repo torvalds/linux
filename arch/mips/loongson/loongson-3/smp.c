@@ -25,6 +25,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <loongson.h>
+#include <workarounds.h>
 
 #include "smp.h"
 
@@ -587,7 +588,7 @@ void loongson3_disable_clock(int cpu)
 	if (loongson_sysconf.cputype == Loongson_3A) {
 		LOONGSON_CHIPCFG(package_id) &= ~(1 << (12 + core_id));
 	} else if (loongson_sysconf.cputype == Loongson_3B) {
-		if (!cpuhotplug_workaround)
+		if (!(loongson_sysconf.workarounds & WORKAROUND_CPUHOTPLUG))
 			LOONGSON_FREQCTRL(package_id) &= ~(1 << (core_id * 4 + 3));
 	}
 }
@@ -600,7 +601,7 @@ void loongson3_enable_clock(int cpu)
 	if (loongson_sysconf.cputype == Loongson_3A) {
 		LOONGSON_CHIPCFG(package_id) |= 1 << (12 + core_id);
 	} else if (loongson_sysconf.cputype == Loongson_3B) {
-		if (!cpuhotplug_workaround)
+		if (!(loongson_sysconf.workarounds & WORKAROUND_CPUHOTPLUG))
 			LOONGSON_FREQCTRL(package_id) |= 1 << (core_id * 4 + 3);
 	}
 }
