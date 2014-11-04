@@ -158,11 +158,12 @@ int main(int argc, char **argv)
 	char *buffer_access;
 	int scan_size;
 	int noevents = 0;
+	int notrigger = 0;
 	char *dummy;
 
 	struct iio_channel_info *channels;
 
-	while ((c = getopt(argc, argv, "l:w:c:et:n:")) != -1) {
+	while ((c = getopt(argc, argv, "l:w:c:et:n:g")) != -1) {
 		switch (c) {
 		case 'n':
 			device_name = optarg;
@@ -183,6 +184,9 @@ int main(int argc, char **argv)
 		case 'l':
 			buf_len = strtoul(optarg, &dummy, 10);
 			break;
+		case 'g':
+			notrigger = 1;
+			break;
 		case '?':
 			return -1;
 		}
@@ -201,28 +205,32 @@ int main(int argc, char **argv)
 	printf("iio device number being used is %d\n", dev_num);
 
 	asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
-	if (trigger_name == NULL) {
-		/*
-		 * Build the trigger name. If it is device associated its
-		 * name is <device_name>_dev[n] where n matches the device
-		 * number found above
-		 */
-		ret = asprintf(&trigger_name,
-			       "%s-dev%d", device_name, dev_num);
-		if (ret < 0) {
-			ret = -ENOMEM;
-			goto error_ret;
-		}
-	}
 
-	/* Verify the trigger exists */
-	trig_num = find_type_by_name(trigger_name, "trigger");
-	if (trig_num < 0) {
-		printf("Failed to find the trigger %s\n", trigger_name);
-		ret = -ENODEV;
-		goto error_free_triggername;
-	}
-	printf("iio trigger number being used is %d\n", trig_num);
+	if (!notrigger) {
+		if (trigger_name == NULL) {
+			/*
+			 * Build the trigger name. If it is device associated
+			 * its name is <device_name>_dev[n] where n matches
+			 * the device number found above.
+			 */
+			ret = asprintf(&trigger_name,
+				       "%s-dev%d", device_name, dev_num);
+			if (ret < 0) {
+				ret = -ENOMEM;
+				goto error_ret;
+			}
+		}
+
+		/* Verify the trigger exists */
+		trig_num = find_type_by_name(trigger_name, "trigger");
+		if (trig_num < 0) {
+			printf("Failed to find the trigger %s\n", trigger_name);
+			ret = -ENODEV;
+			goto error_free_triggername;
+		}
+		printf("iio trigger number being used is %d\n", trig_num);
+	} else
+		printf("trigger-less mode selected\n");
 
 	/*
 	 * Parse the files in scan_elements to identify what channels are
@@ -246,14 +254,18 @@ int main(int argc, char **argv)
 		ret = -ENOMEM;
 		goto error_free_triggername;
 	}
-	printf("%s %s\n", dev_dir_name, trigger_name);
-	/* Set the device trigger to be the data ready trigger found above */
-	ret = write_sysfs_string_and_verify("trigger/current_trigger",
-					dev_dir_name,
-					trigger_name);
-	if (ret < 0) {
-		printf("Failed to write current_trigger file\n");
-		goto error_free_buf_dir_name;
+
+	if (!notrigger) {
+		printf("%s %s\n", dev_dir_name, trigger_name);
+		/* Set the device trigger to be the data ready trigger found
+		 * above */
+		ret = write_sysfs_string_and_verify("trigger/current_trigger",
+						    dev_dir_name,
+						    trigger_name);
+		if (ret < 0) {
+			printf("Failed to write current_trigger file\n");
+			goto error_free_buf_dir_name;
+		}
 	}
 
 	/* Setup ring buffer parameters */
@@ -323,9 +335,10 @@ int main(int argc, char **argv)
 	if (ret < 0)
 		goto error_close_buffer_access;
 
-	/* Disconnect the trigger - just write a dummy name. */
-	write_sysfs_string("trigger/current_trigger",
-			dev_dir_name, "NULL");
+	if (!notrigger)
+		/* Disconnect the trigger - just write a dummy name. */
+		write_sysfs_string("trigger/current_trigger",
+				   dev_dir_name, "NULL");
 
 error_close_buffer_access:
 	close(fp);
