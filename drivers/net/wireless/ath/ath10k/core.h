@@ -338,7 +338,7 @@ enum ath10k_state {
 	 * stopped in ath10k_core_restart() work holding conf_mutex. The state
 	 * RESTARTED means that the device is up and mac80211 has started hw
 	 * reconfiguration. Once mac80211 is done with the reconfiguration we
-	 * set the state to STATE_ON in restart_complete(). */
+	 * set the state to STATE_ON in reconfig_complete(). */
 	ATH10K_STATE_RESTARTING,
 	ATH10K_STATE_RESTARTED,
 

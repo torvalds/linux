@@ -895,9 +895,8 @@ static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 	return ret;
 }
 
-static void iwl_mvm_mac_restart_complete(struct ieee80211_hw *hw)
+static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
 	mutex_lock(&mvm->mutex);
@@ -913,6 +912,21 @@ static void iwl_mvm_mac_restart_complete(struct ieee80211_hw *hw)
 	iwl_mvm_unref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 	mutex_unlock(&mvm->mutex);
+}
+
+static void
+iwl_mvm_mac_reconfig_complete(struct ieee80211_hw *hw,
+			      enum ieee80211_reconfig_type reconfig_type)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	switch (reconfig_type) {
+	case IEEE80211_RECONFIG_TYPE_RESTART:
+		iwl_mvm_restart_complete(mvm);
+		break;
+	case IEEE80211_RECONFIG_TYPE_SUSPEND:
+		break;
+	}
 }
 
 void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
@@ -3058,7 +3072,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
 	.start = iwl_mvm_mac_start,
-	.restart_complete = iwl_mvm_mac_restart_complete,
+	.reconfig_complete = iwl_mvm_mac_reconfig_complete,
 	.stop = iwl_mvm_mac_stop,
 	.add_interface = iwl_mvm_mac_add_interface,
 	.remove_interface = iwl_mvm_mac_remove_interface,

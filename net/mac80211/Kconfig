@@ -33,6 +33,13 @@ config MAC80211_RC_MINSTREL_HT
 	---help---
 	  This option enables the 'minstrel_ht' TX rate control algorithm
 
+config MAC80211_RC_MINSTREL_VHT
+	bool "Minstrel 802.11ac support" if EXPERT
+	depends on MAC80211_RC_MINSTREL_HT
+	default n
+	---help---
+	  This option enables VHT in the 'minstrel_ht' TX rate control algorithm
+
 choice
 	prompt "Default rate control algorithm"
 	depends on MAC80211_HAS_RC
@@ -166,6 +173,17 @@ config MAC80211_HT_DEBUG
 
 	  It should not be selected on production systems as some
 	  of the messages are remotely triggerable.
+
+	  Do not select this option.
+
+config MAC80211_OCB_DEBUG
+	bool "Verbose OCB debugging"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out
+	  very verbose OCB debugging messages. It should not
+	  be selected on production systems as those messages
+	  are remotely triggerable.
 
 	  Do not select this option.
 

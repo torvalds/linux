@@ -214,7 +214,8 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 				    BSS_CHANGED_BEACON_ENABLED) &&
 			 sdata->vif.type != NL80211_IFTYPE_AP &&
 			 sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-			 sdata->vif.type != NL80211_IFTYPE_MESH_POINT))
+			 sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
+			 sdata->vif.type != NL80211_IFTYPE_OCB))
 		return;
 
 	if (WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE ||
@@ -631,6 +632,12 @@ static inline int drv_conf_tx(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
+	if (WARN_ONCE(params->cw_min == 0 ||
+		      params->cw_min > params->cw_max,
+		      "%s: invalid CW_min/CW_max: %d/%d\n",
+		      sdata->name, params->cw_min, params->cw_max))
+		return -EINVAL;
+
 	trace_drv_conf_tx(local, sdata, ac, params);
 	if (local->ops->conf_tx)
 		ret = local->ops->conf_tx(&local->hw, &sdata->vif,
@@ -764,12 +771,13 @@ static inline void drv_flush(struct ieee80211_local *local,
 }
 
 static inline void drv_channel_switch(struct ieee80211_local *local,
-				     struct ieee80211_channel_switch *ch_switch)
+				      struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_channel_switch *ch_switch)
 {
 	might_sleep();
 
-	trace_drv_channel_switch(local, ch_switch);
-	local->ops->channel_switch(&local->hw, ch_switch);
+	trace_drv_channel_switch(local, sdata, ch_switch);
+	local->ops->channel_switch(&local->hw, &sdata->vif, ch_switch);
 	trace_drv_return_void(local);
 }
 
@@ -1144,13 +1152,15 @@ static inline void drv_stop_ap(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
-static inline void drv_restart_complete(struct ieee80211_local *local)
+static inline void
+drv_reconfig_complete(struct ieee80211_local *local,
+		      enum ieee80211_reconfig_type reconfig_type)
 {
 	might_sleep();
 
-	trace_drv_restart_complete(local);
-	if (local->ops->restart_complete)
-		local->ops->restart_complete(&local->hw);
+	trace_drv_reconfig_complete(local, reconfig_type);
+	if (local->ops->reconfig_complete)
+		local->ops->reconfig_complete(&local->hw, reconfig_type);
 	trace_drv_return_void(local);
 }
 
@@ -1196,6 +1206,40 @@ drv_channel_switch_beacon(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
+static inline int
+drv_pre_channel_switch(struct ieee80211_sub_if_data *sdata,
+		       struct ieee80211_channel_switch *ch_switch)
+{
+	struct ieee80211_local *local = sdata->local;
+	int ret = 0;
+
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	trace_drv_pre_channel_switch(local, sdata, ch_switch);
+	if (local->ops->pre_channel_switch)
+		ret = local->ops->pre_channel_switch(&local->hw, &sdata->vif,
+						     ch_switch);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
+static inline int
+drv_post_channel_switch(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	int ret = 0;
+
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	trace_drv_post_channel_switch(local, sdata);
+	if (local->ops->post_channel_switch)
+		ret = local->ops->post_channel_switch(&local->hw, &sdata->vif);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
 static inline int drv_join_ibss(struct ieee80211_local *local,
 				struct ieee80211_sub_if_data *sdata)
 {
@@ -1234,6 +1278,20 @@ static inline u32 drv_get_expected_throughput(struct ieee80211_local *local,
 	if (local->ops->get_expected_throughput)
 		ret = local->ops->get_expected_throughput(sta);
 	trace_drv_return_u32(local, ret);
+
+	return ret;
+}
+
+static inline int drv_get_txpower(struct ieee80211_local *local,
+				  struct ieee80211_sub_if_data *sdata, int *dbm)
+{
+	int ret;
+
+	if (!local->ops->get_txpower)
+		return -EOPNOTSUPP;
+
+	ret = local->ops->get_txpower(&local->hw, &sdata->vif, dbm);
+	trace_drv_get_txpower(local, sdata, *dbm, ret);
 
 	return ret;
 }

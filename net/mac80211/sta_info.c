@@ -501,7 +501,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 	/* make the station visible */
 	sta_info_hash_add(local, sta);
 
-	list_add_rcu(&sta->list, &local->sta_list);
+	list_add_tail_rcu(&sta->list, &local->sta_list);
 
 	/* notify driver */
 	err = sta_info_insert_drv_state(local, sdata, sta);
@@ -1531,7 +1531,7 @@ void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta)
 		break;
 	case 0:
 		/* XXX: what is a good value? */
-		n_frames = 8;
+		n_frames = 128;
 		break;
 	}
 
