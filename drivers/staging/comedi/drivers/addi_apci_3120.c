@@ -108,7 +108,7 @@ struct apci3120_private {
 	struct apci3120_dmabuf dmabuf[2];
 	unsigned char do_bits;
 	unsigned char timer_mode;
-	unsigned char b_ModeSelectRegister;
+	unsigned char mode;
 	unsigned short ctrl;
 	unsigned char b_Timer2Mode;
 	unsigned char b_Timer2Interrupt;
