@@ -1570,7 +1570,6 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 		modeset = &fb_helper->crtc_info[i].mode_set;
 		if (modeset->num_connectors == 0) {
 			BUG_ON(modeset->fb);
-			BUG_ON(modeset->num_connectors);
 			if (modeset->mode)
 				drm_mode_destroy(dev, modeset->mode);
 			modeset->mode = NULL;
