@@ -25,6 +25,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/ramcfg.h>
+#include <subdev/bios/M0203.h>
 
 static u8
 nvbios_ramcfg_strap(struct nouveau_subdev *subdev)
@@ -54,12 +55,22 @@ nvbios_ramcfg_index(struct nouveau_subdev *subdev)
 	u8 strap = nvbios_ramcfg_strap(subdev);
 	u32 xlat = 0x00000000;
 	struct bit_entry bit_M;
+	struct nvbios_M0203E M0203E;
+	u8 ver, hdr;
 
 	if (!bit_entry(bios, 'M', &bit_M)) {
 		if (bit_M.version == 1 && bit_M.length >= 5)
 			xlat = nv_ro16(bios, bit_M.offset + 3);
-		if (bit_M.version == 2 && bit_M.length >= 3)
+		if (bit_M.version == 2 && bit_M.length >= 3) {
+			/*XXX: is M ever shorter than this?
+			 *     if not - what is xlat used for now?
+			 *     also - sigh..
+			 */
+			if (bit_M.length >= 7 &&
+			    nvbios_M0203Em(bios, strap, &ver, &hdr, &M0203E))
+				return M0203E.group;
 			xlat = nv_ro16(bios, bit_M.offset + 1);
+		}
 	}
 
 	if (xlat)
