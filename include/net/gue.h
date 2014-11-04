@@ -59,7 +59,10 @@ struct guehdr {
 
 /* Private flags in the private option extension */
 
-#define GUE_PFLAGS_ALL	(0)
+#define GUE_PFLAG_REMCSUM	htonl(1 << 31)
+#define GUE_PLEN_REMCSUM	4
+
+#define GUE_PFLAGS_ALL	(GUE_PFLAG_REMCSUM)
 
 /* Functions to compute options length corresponding to flags.
  * If we ever have a lot of flags this can be potentially be
