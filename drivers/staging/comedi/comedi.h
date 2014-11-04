@@ -367,6 +367,8 @@ enum comedi_support_level {
 #define COMEDI_BUFCONFIG _IOR(CIO, 13, struct comedi_bufconfig)
 #define COMEDI_BUFINFO _IOWR(CIO, 14, struct comedi_bufinfo)
 #define COMEDI_POLL _IO(CIO, 15)
+#define COMEDI_SETRSUBD _IO(CIO, 16)
+#define COMEDI_SETWSUBD _IO(CIO, 17)
 
 /* structures */
 
