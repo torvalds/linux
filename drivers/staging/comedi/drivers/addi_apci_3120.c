@@ -395,12 +395,6 @@ static void apci3120_exttrig_enable(struct comedi_device *dev, bool enable)
 	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 }
 
-static void apci3120_ai_reset_fifo(struct comedi_device *dev)
-{
-	/* a dummy read of APCI3120_TIMER_MODE_REG resets the ai FIFO */
-	inw(dev->iobase + APCI3120_TIMER_MODE_REG);
-}
-
 static void apci3120_set_chanlist(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  int n_chan, unsigned int *chanlist)
@@ -424,7 +418,8 @@ static void apci3120_set_chanlist(struct comedi_device *dev,
 		outw(val, dev->iobase + APCI3120_CHANLIST_REG);
 	}
 
-	apci3120_ai_reset_fifo(dev);
+	/* a dummy read of APCI3120_TIMER_MODE_REG resets the ai FIFO */
+	inw(dev->iobase + APCI3120_TIMER_MODE_REG);
 
 	/* set scan length (PR) and scan start (PA) */
 	devpriv->ctrl = APCI3120_CTRL_PR(n_chan - 1) | APCI3120_CTRL_PA(0);
