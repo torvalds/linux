@@ -104,21 +104,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI3120_COUNTER		3
 
-static int apci3120_ai_insn_config(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn,
-				   unsigned int *data)
-{
-	struct apci3120_private *devpriv = dev->private;
-
-	if (data[0] != APCI3120_EOC_MODE)
-		return -1;
-
-	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
-
-	return insn->n;
-}
-
 static int apci3120_setup_chan_list(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    int n_chan, unsigned int *chanlist)

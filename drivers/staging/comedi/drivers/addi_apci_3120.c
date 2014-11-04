@@ -381,7 +381,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 16;
 	s->maxdata	= this_board->ai_is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= &apci3120_ai_range;
-	s->insn_config	= apci3120_ai_insn_config;
 	s->insn_read	= apci3120_ai_insn_read;
 	if (0 /* dev->irq */) {
 		dev->read_subdev = s;
