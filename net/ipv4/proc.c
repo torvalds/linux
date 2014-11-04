@@ -296,12 +296,12 @@ static void icmpmsg_put_line(struct seq_file *seq, unsigned long *vals,
 	int j;
 
 	if (count) {
-		seq_printf(seq, "\nIcmpMsg:");
+		seq_puts(seq, "\nIcmpMsg:");
 		for (j = 0; j < count; ++j)
 			seq_printf(seq, " %sType%u",
 				type[j] & 0x100 ? "Out" : "In",
 				type[j] & 0xff);
-		seq_printf(seq, "\nIcmpMsg:");
+		seq_puts(seq, "\nIcmpMsg:");
 		for (j = 0; j < count; ++j)
 			seq_printf(seq, " %lu", vals[j]);
 	}
@@ -342,7 +342,7 @@ static void icmp_put(struct seq_file *seq)
 	seq_puts(seq, "\nIcmp: InMsgs InErrors InCsumErrors");
 	for (i = 0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " In%s", icmpmibmap[i].name);
-	seq_printf(seq, " OutMsgs OutErrors");
+	seq_puts(seq, " OutMsgs OutErrors");
 	for (i = 0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " Out%s", icmpmibmap[i].name);
 	seq_printf(seq, "\nIcmp: %lu %lu %lu",
