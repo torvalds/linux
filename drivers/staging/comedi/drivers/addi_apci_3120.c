@@ -19,6 +19,7 @@
 #define APCI3120_AO_REG(x)			(0x08 + (((x) / 4) * 2))
 #define APCI3120_AO_MUX(x)			(((x) & 0x3) << 14)
 #define APCI3120_AO_DATA(x)			((x) << 0)
+#define APCI3120_CTR0_TIMER_SEL(x)		((x) << 0)
 
 /*
  * PCI BAR 2 register map (devpriv->addon)

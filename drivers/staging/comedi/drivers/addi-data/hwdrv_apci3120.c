@@ -200,6 +200,26 @@ static const struct comedi_lrange range_apci3120_ai = {
 	}
 };
 
+static void apci3120_timer_write(struct comedi_device *dev,
+				 unsigned int timer, unsigned int val)
+{
+	struct apci3120_private *devpriv = dev->private;
+
+	/* write 16-bit value to timer (lower 16-bits of timer 2) */
+	outb(((devpriv->do_bits) & 0xF0) |
+	     APCI3120_CTR0_TIMER_SEL(timer),
+	     dev->iobase + APCI3120_TIMER_CRT0);
+	outw(val & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
+
+	if (timer == 2) {
+		/* write upper 16-bits to timer 2 */
+		outb(((devpriv->do_bits) & 0xF0) |
+		     APCI3120_CTR0_TIMER_SEL(timer + 1),
+		     dev->iobase + APCI3120_TIMER_CRT0);
+		outw((val >> 16) & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
+	}
+}
+
 static int apci3120_ai_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
@@ -312,7 +332,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 	unsigned int divisor;
 	unsigned int ns;
 	unsigned short us_TmpValue, i;
-	unsigned char b_Tmp;
 
 	/*  fix conversion time to 10 us */
 	if (!devpriv->ui_EocEosConversionTime)
@@ -390,13 +409,8 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			outw(devpriv->us_OutputRegister,
 			     dev->iobase + APCI3120_WR_ADDRESS);
 
-			/*  Select Timer 0 */
-			b_Tmp = ((devpriv->do_bits) & 0xF0) |
-				APCI3120_SELECT_TIMER_0_WORD;
-			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-
 			/* Set the conversion time */
-			outw(divisor, dev->iobase + APCI3120_TIMER_VALUE);
+			apci3120_timer_write(dev, 0, divisor);
 
 			us_TmpValue =
 				(unsigned short) inw(dev->iobase + APCI3120_RD_STATUS);
@@ -447,13 +461,8 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			outb(devpriv->b_TimerSelectMode,
 			     dev->iobase + APCI3120_TIMER_CRT1);
 
-			/* Select Timer 0 */
-			b_Tmp = ((devpriv->do_bits) & 0xF0) |
-				APCI3120_SELECT_TIMER_0_WORD;
-			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-
 			/* Set the conversion time */
-			outw(divisor, dev->iobase + APCI3120_TIMER_VALUE);
+			apci3120_timer_write(dev, 0, divisor);
 
 			/* Set the scan bit */
 			devpriv->b_ModeSelectRegister =
@@ -703,11 +712,9 @@ static int apci3120_cyclic_ai(int mode,
 {
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned char b_Tmp;
 	unsigned int divisor1 = 0;
 	unsigned int dmalen0 = 0;
 	unsigned int dmalen1 = 0;
-	unsigned int ui_TimerValue2 = 0;
 	unsigned int divisor0;
 
 	/* Resets the FIFO */
@@ -739,9 +746,6 @@ static int apci3120_cyclic_ai(int mode,
 
 	devpriv->ui_DmaActualBuffer = 0;
 
-	/* value for timer2  minus -2 has to be done */
-	ui_TimerValue2 = cmd->stop_arg - 2;
-
 	/* Initializes the sequence array */
 	if (!apci3120_setup_chan_list(dev, s, devpriv->ui_AiNbrofChannels,
 			cmd->chanlist, 0))
@@ -764,12 +768,8 @@ static int apci3120_cyclic_ai(int mode,
 		outb(devpriv->b_TimerSelectMode,
 			dev->iobase + APCI3120_TIMER_CRT1);
 
-		/* Select Timer 0 */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_0_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 		/* Set the conversion time */
-		outw(divisor0, dev->iobase + APCI3120_TIMER_VALUE);
+		apci3120_timer_write(dev, 0, divisor0);
 		break;
 
 	case 2:
@@ -780,12 +780,8 @@ static int apci3120_cyclic_ai(int mode,
 		outb(devpriv->b_TimerSelectMode,
 			dev->iobase + APCI3120_TIMER_CRT1);
 
-		/* Select Timer 1 */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_1_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		/* Set the conversion time */
-		outw(divisor1, dev->iobase + APCI3120_TIMER_VALUE);
+		/* Set the scan begin time */
+		apci3120_timer_write(dev, 1, divisor1);
 
 		/*  init timer0 in mode 2 */
 		devpriv->b_TimerSelectMode =
@@ -794,13 +790,8 @@ static int apci3120_cyclic_ai(int mode,
 		outb(devpriv->b_TimerSelectMode,
 			dev->iobase + APCI3120_TIMER_CRT1);
 
-		/* Select Timer 0 */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_0_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-
 		/* Set the conversion time */
-		outw(divisor0, dev->iobase + APCI3120_TIMER_VALUE);
+		apci3120_timer_write(dev, 0, divisor0);
 		break;
 
 	}
@@ -853,19 +844,8 @@ static int apci3120_cyclic_ai(int mode,
 			outb(devpriv->b_TimerSelectMode,
 				dev->iobase + APCI3120_TIMER_CRT1);
 
-			/* Writing LOW unsigned short */
-			b_Tmp = ((devpriv->do_bits) & 0xF0) |
-				APCI3120_SELECT_TIMER_2_LOW_WORD;
-			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-			outw(ui_TimerValue2 & 0xffff,
-				dev->iobase + APCI3120_TIMER_VALUE);
-
-			/* Writing HIGH unsigned short */
-			b_Tmp = ((devpriv->do_bits) & 0xF0) |
-				APCI3120_SELECT_TIMER_2_HIGH_WORD;
-			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-			outw((ui_TimerValue2 >> 16) & 0xffff,
-				dev->iobase + APCI3120_TIMER_VALUE);
+			/* Set the scan stop count (not sure about the -2) */
+			apci3120_timer_write(dev, 2, cmd->stop_arg - 2);
 
 			/* (2) Reset FC_TIMER BIT  Clearing timer status register */
 			inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
@@ -1437,7 +1417,6 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 {
 	struct apci3120_private *devpriv = dev->private;
 	unsigned int divisor;
-	unsigned char b_Tmp;
 
 	if (!data[1])
 		dev_err(dev->class_dev, "No timer constant!\n");
@@ -1471,26 +1450,9 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 		outb(devpriv->b_TimerSelectMode,
 		     dev->iobase + APCI3120_TIMER_CRT1);
 
-		/*
-		 * Configure the timer 2 for writing the LOW unsigned short of timer
-		 * is Delay value You must make a b_tmp variable with
-		 * DigitalOutPutRegister because at Address_1+APCI3120_TIMER_CRT0
-		 * you can set the digital output and configure the timer 2,and if
-		 * you don't make this, digital output are erase (Set to 0)
-		 */
+		/* Set timer 2 delay */
+		apci3120_timer_write(dev, 2, divisor);
 
-		/* Writing LOW unsigned short */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_2_LOW_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		outw(divisor & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
-
-		/* Writing HIGH unsigned short */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_2_HIGH_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		outw((divisor >> 16) & 0xffff,
-		     dev->iobase + APCI3120_TIMER_VALUE);
 		/*  timer2 in Timer mode enabled */
 		devpriv->b_Timer2Mode = APCI3120_TIMER;
 
@@ -1503,27 +1465,9 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 		outb(devpriv->b_TimerSelectMode,
 		     dev->iobase + APCI3120_TIMER_CRT1);
 
-		/*
-		 * Configure the timer 2 for writing the LOW unsigned short of timer
-		 * is Delay value You must make a b_tmp variable with
-		 * DigitalOutPutRegister because at Address_1+APCI3120_TIMER_CRT0
-		 * you can set the digital output and configure the timer 2,and if
-		 * you don't make this, digital output are erase (Set to 0)
-		 */
+		/* Set timer 2 delay */
+		apci3120_timer_write(dev, 2, divisor);
 
-		/* Writing LOW unsigned short */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_2_LOW_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		outw(divisor & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
-
-		/* Writing HIGH unsigned short */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_2_HIGH_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-
-		outw((divisor >> 16) & 0xffff,
-		     dev->iobase + APCI3120_TIMER_VALUE);
 		/* watchdog enabled */
 		devpriv->b_Timer2Mode = APCI3120_WATCHDOG;
 
@@ -1552,7 +1496,6 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 {
 	struct apci3120_private *devpriv = dev->private;
 	unsigned int divisor;
-	unsigned char b_Tmp;
 
 	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
 		&& (devpriv->b_Timer2Mode != APCI3120_TIMER)) {
@@ -1659,21 +1602,8 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 		divisor = apci3120_ns_to_timer(dev, 2, data[1],
 					       CMDF_ROUND_DOWN);
 
-		/* Writing LOW unsigned short */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_2_LOW_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-
-		outw(divisor & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
-
-		/* Writing HIGH unsigned short */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_2_HIGH_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-
-		outw((divisor >> 16) & 0xffff,
-		     dev->iobase + APCI3120_TIMER_VALUE);
-
+		/* Set timer 2 delay */
+		apci3120_timer_write(dev, 2, divisor);
 		break;
 	default:
 		return -EINVAL;	/*  Not a valid input */
