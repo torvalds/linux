@@ -99,4 +99,14 @@ struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
 			  const struct in6_addr *daddr, const __be16 dport,
 			  const int dif);
 #endif /* IS_ENABLED(CONFIG_IPV6) */
+
+#define INET6_MATCH(__sk, __net, __saddr, __daddr, __ports, __dif)	\
+	(((__sk)->sk_portpair == (__ports))			&&	\
+	 ((__sk)->sk_family == AF_INET6)			&&	\
+	 ipv6_addr_equal(&(__sk)->sk_v6_daddr, (__saddr))		&&	\
+	 ipv6_addr_equal(&(__sk)->sk_v6_rcv_saddr, (__daddr))	&&	\
+	 (!(__sk)->sk_bound_dev_if	||				\
+	   ((__sk)->sk_bound_dev_if == (__dif))) 		&&	\
+	 net_eq(sock_net(__sk), (__net)))
+
 #endif /* _INET6_HASHTABLES_H */
