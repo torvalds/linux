@@ -126,13 +126,15 @@ void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable)
 void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable)
 {
 	u16 mask = DCFM | DRPD | DPRPU | HSE | USBE;
-	u16 val  = DPRPU | HSE | USBE;
+	u16 val  = HSE | USBE;
 
 	/*
 	 * if enable
 	 *
 	 * - select Function mode
-	 * - D+ Line Pull-up
+	 * - D+ Line Pull-up is disabled
+	 *      When D+ Line Pull-up is enabled,
+	 *      calling usbhs_sys_function_pullup(,1)
 	 */
 	usbhs_bset(priv, SYSCFG, mask, enable ? val : 0);
 }

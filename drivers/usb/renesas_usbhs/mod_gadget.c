@@ -56,6 +56,7 @@ struct usbhsg_gpriv {
 #define USBHSG_STATUS_REGISTERD		(1 << 1)
 #define USBHSG_STATUS_WEDGE		(1 << 2)
 #define USBHSG_STATUS_SELF_POWERED	(1 << 3)
+#define USBHSG_STATUS_SOFT_CONNECT	(1 << 4)
 };
 
 struct usbhsg_recip_handle {
@@ -726,6 +727,25 @@ static struct usb_ep_ops usbhsg_ep_ops = {
 };
 
 /*
+ *		pullup control
+ */
+static int usbhsg_can_pullup(struct usbhs_priv *priv)
+{
+	struct usbhsg_gpriv *gpriv = usbhsg_priv_to_gpriv(priv);
+
+	return gpriv->driver &&
+	       usbhsg_status_has(gpriv, USBHSG_STATUS_SOFT_CONNECT);
+}
+
+static void usbhsg_update_pullup(struct usbhs_priv *priv)
+{
+	if (usbhsg_can_pullup(priv))
+		usbhs_sys_function_pullup(priv, 1);
+	else
+		usbhs_sys_function_pullup(priv, 0);
+}
+
+/*
  *		usb module start/end
  */
 static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
@@ -775,6 +795,7 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	 * - usb module
 	 */
 	usbhs_sys_function_ctrl(priv, 1);
+	usbhsg_update_pullup(priv);
 
 	/*
 	 * enable irq callback
@@ -880,8 +901,15 @@ static int usbhsg_pullup(struct usb_gadget *gadget, int is_on)
 {
 	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
 	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
+	unsigned long flags;
 
-	usbhs_sys_function_pullup(priv, is_on);
+	usbhs_lock(priv, flags);
+	if (is_on)
+		usbhsg_status_set(gpriv, USBHSG_STATUS_SOFT_CONNECT);
+	else
+		usbhsg_status_clr(gpriv, USBHSG_STATUS_SOFT_CONNECT);
+	usbhsg_update_pullup(priv);
+	usbhs_unlock(priv, flags);
 
 	return 0;
 }
