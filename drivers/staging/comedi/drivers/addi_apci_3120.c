@@ -15,6 +15,7 @@
 /*
  * PCI BAR 1 register map (dev->iobase)
  */
+#define APCI3120_CTRL_REG			0x00
 #define APCI3120_CTRL_EXT_TRIG			(1 << 15)
 #define APCI3120_CTRL_GATE(x)			(1 << (12 + (x)))
 #define APCI3120_CTRL_PR(x)			(((x) & 0xf) << 8)

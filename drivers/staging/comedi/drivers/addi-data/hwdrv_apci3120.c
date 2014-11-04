@@ -132,7 +132,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI3120_TIMER_STATUS_REGISTER	0x0d
 #define APCI3120_RD_STATUS		0x02
-#define APCI3120_WR_ADDRESS		0x00
 #define APCI3120_ENABLE_WATCHDOG	0x20
 #define APCI3120_DISABLE_WATCHDOG	(~APCI3120_ENABLE_WATCHDOG)
 #define APCI3120_ENABLE_TIMER_COUNTER	0x10
@@ -165,7 +164,7 @@ static void apci3120_timer_enable(struct comedi_device *dev,
 		devpriv->ctrl |= APCI3120_CTRL_GATE(timer);
 	else
 		devpriv->ctrl &= ~APCI3120_CTRL_GATE(timer);
-	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 }
 
 static int apci3120_ai_insn_config(struct comedi_device *dev,
@@ -245,7 +244,7 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 
 	/* set scan length (PR) and scan start (PA) */
 	devpriv->ctrl = APCI3120_CTRL_PR(n_chan - 1) | APCI3120_CTRL_PA(0);
-	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 
 	for (i = 0; i < n_chan; i++) {
 		/*  store range list to card */
@@ -471,7 +470,7 @@ static int apci3120_reset(struct comedi_device *dev)
 
 	/* disable all counters, ext trigger, and reset scan */
 	devpriv->ctrl = 0;
-	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 
 	inw(dev->iobase + 0);	/* make a dummy read */
 	inb(dev->iobase + APCI3120_RESET_FIFO);	/*  flush FIFO */
@@ -493,7 +492,7 @@ static void apci3120_exttrig_enable(struct comedi_device *dev, bool enable)
 		devpriv->ctrl |= APCI3120_CTRL_EXT_TRIG;
 	else
 		devpriv->ctrl &= ~APCI3120_CTRL_EXT_TRIG;
-	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 }
 
 static int apci3120_cancel(struct comedi_device *dev,
@@ -515,7 +514,7 @@ static int apci3120_cancel(struct comedi_device *dev,
 
 	/* disable all counters, ext trigger, and reset scan */
 	devpriv->ctrl = 0;
-	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 
 	/* DISABLE_ALL_INTERRUPT */
 	outb(APCI3120_DISABLE_ALL_INTERRUPT,
