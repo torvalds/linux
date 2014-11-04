@@ -89,9 +89,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_RD_STATUS		0x02
 #define APCI3120_RD_FIFO		0x00
 
-/* Enable external trigger bit in nWrAddress */
-#define APCI3120_ENABLE_EXT_TRIGGER	0x8000
-
 /* ANALOG OUTPUT AND INPUT DEFINE */
 #define APCI3120_UNIPOLAR		0x80
 #define APCI3120_BIPOLAR		0x00
@@ -484,7 +481,7 @@ static int apci3120_exttrig_enable(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
 
-	devpriv->ctrl |= APCI3120_ENABLE_EXT_TRIGGER;
+	devpriv->ctrl |= APCI3120_CTRL_EXT_TRIG;
 	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 	return 0;
 }
@@ -493,7 +490,7 @@ static int apci3120_exttrig_disable(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
 
-	devpriv->ctrl &= ~APCI3120_ENABLE_EXT_TRIGGER;
+	devpriv->ctrl &= ~APCI3120_CTRL_EXT_TRIG;
 	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 	return 0;
 }
