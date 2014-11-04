@@ -440,6 +440,23 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *);
 #define ACPI_COMPANION_SET(dev, adev)	do { } while (0)
 #define ACPI_HANDLE(dev)		(NULL)
 
+struct fwnode_handle;
+
+static inline bool is_acpi_node(struct fwnode_handle *fwnode)
+{
+	return false;
+}
+
+static inline struct acpi_device *acpi_node(struct fwnode_handle *fwnode)
+{
+	return NULL;
+}
+
+static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)
+{
+	return NULL;
+}
+
 static inline const char *acpi_dev_name(struct acpi_device *adev)
 {
 	return NULL;
@@ -681,6 +698,9 @@ int acpi_dev_prop_read_single(struct acpi_device *adev, const char *propname,
 			      enum dev_prop_type proptype, void *val);
 int acpi_dev_prop_read(struct acpi_device *adev, const char *propname,
 		       enum dev_prop_type proptype, void *val, size_t nval);
+
+struct acpi_device *acpi_get_next_child(struct device *dev,
+					struct acpi_device *child);
 #else
 static inline int acpi_dev_get_property(struct acpi_device *adev,
 					const char *name, acpi_object_type type,
@@ -723,6 +743,12 @@ static inline int acpi_dev_prop_read(struct acpi_device *adev,
 				     void *val, size_t nval)
 {
 	return -ENXIO;
+}
+
+static inline struct acpi_device *acpi_get_next_child(struct device *dev,
+						      struct acpi_device *child)
+{
+	return NULL;
 }
 
 #endif

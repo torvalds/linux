@@ -1389,6 +1389,26 @@ int acpi_device_add(struct acpi_device *device,
 	return result;
 }
 
+struct acpi_device *acpi_get_next_child(struct device *dev,
+					struct acpi_device *child)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct list_head *head, *next;
+
+	if (!adev)
+		return NULL;
+
+	head = &adev->children;
+	if (list_empty(head))
+		return NULL;
+
+	if (!child)
+		return list_first_entry(head, struct acpi_device, node);
+
+	next = child->node.next;
+	return next == head ? NULL : list_entry(next, struct acpi_device, node);
+}
+
 /* --------------------------------------------------------------------------
                                  Driver Management
    -------------------------------------------------------------------------- */
@@ -2008,6 +2028,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->device_type = type;
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
+	device->fwnode.type = FWNODE_ACPI;
 	acpi_set_device_status(device, sta);
 	acpi_device_get_busid(device);
 	acpi_set_pnp_ids(handle, &device->pnp, type);
