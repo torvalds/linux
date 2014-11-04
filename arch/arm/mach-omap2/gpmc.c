@@ -118,6 +118,15 @@
  */
 #define	GPMC_NR_IRQ		2
 
+struct gpmc_cs_data {
+	const char *name;
+
+#define GPMC_CS_RESERVED	(1 << 0)
+	u32 flags;
+
+	struct resource mem;
+};
+
 struct gpmc_client_irq	{
 	unsigned		irq;
 	u32			bitmask;
@@ -155,10 +164,9 @@ static struct irq_chip gpmc_irq_chip;
 static int gpmc_irq_start;
 
 static struct resource	gpmc_mem_root;
-static struct resource	gpmc_cs_mem[GPMC_CS_NUM];
+static struct gpmc_cs_data gpmc_cs[GPMC_CS_NUM];
 static DEFINE_SPINLOCK(gpmc_mem_lock);
 /* Define chip-selects as reserved by default until probe completes */
-static unsigned int gpmc_cs_map = ((1 << GPMC_CS_NUM) - 1);
 static unsigned int gpmc_cs_num = GPMC_CS_NUM;
 static unsigned int gpmc_nr_waitpins;
 static struct device *gpmc_dev;
@@ -460,13 +468,30 @@ static int gpmc_cs_mem_enabled(int cs)
 
 static void gpmc_cs_set_reserved(int cs, int reserved)
 {
-	gpmc_cs_map &= ~(1 << cs);
-	gpmc_cs_map |= (reserved ? 1 : 0) << cs;
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+
+	gpmc->flags |= GPMC_CS_RESERVED;
 }
 
 static bool gpmc_cs_reserved(int cs)
 {
-	return gpmc_cs_map & (1 << cs);
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+
+	return gpmc->flags & GPMC_CS_RESERVED;
+}
+
+static void gpmc_cs_set_name(int cs, const char *name)
+{
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+
+	gpmc->name = name;
+}
+
+const char *gpmc_cs_get_name(int cs)
+{
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+
+	return gpmc->name;
 }
 
 static unsigned long gpmc_mem_align(unsigned long size)
@@ -485,7 +510,8 @@ static unsigned long gpmc_mem_align(unsigned long size)
 
 static int gpmc_cs_insert_mem(int cs, unsigned long base, unsigned long size)
 {
-	struct resource	*res = &gpmc_cs_mem[cs];
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+	struct resource *res = &gpmc->mem;
 	int r;
 
 	size = gpmc_mem_align(size);
@@ -500,7 +526,8 @@ static int gpmc_cs_insert_mem(int cs, unsigned long base, unsigned long size)
 
 static int gpmc_cs_delete_mem(int cs)
 {
-	struct resource	*res = &gpmc_cs_mem[cs];
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+	struct resource *res = &gpmc->mem;
 	int r;
 
 	spin_lock(&gpmc_mem_lock);
@@ -557,7 +584,8 @@ static int gpmc_cs_remap(int cs, u32 base)
 
 int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 {
-	struct resource *res = &gpmc_cs_mem[cs];
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+	struct resource *res = &gpmc->mem;
 	int r = -1;
 
 	if (cs > gpmc_cs_num) {
@@ -597,7 +625,8 @@ EXPORT_SYMBOL(gpmc_cs_request);
 
 void gpmc_cs_free(int cs)
 {
-	struct resource	*res = &gpmc_cs_mem[cs];
+	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
+	struct resource *res = &gpmc->mem;
 
 	spin_lock(&gpmc_mem_lock);
 	if (cs >= gpmc_cs_num || cs < 0 || !gpmc_cs_reserved(cs)) {
@@ -1511,6 +1540,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	struct gpmc_timings gpmc_t;
 	struct resource res;
 	unsigned long base;
+	const char *name;
 	int ret, cs;
 
 	if (of_property_read_u32(child, "reg", &cs) < 0) {
@@ -1525,11 +1555,21 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
+	/*
+	 * Check if we have multiple instances of the same device
+	 * on a single chip select. If so, use the already initialized
+	 * timings.
+	 */
+	name = gpmc_cs_get_name(cs);
+	if (name && child->name && of_node_cmp(child->name, name) == 0)
+			goto no_timings;
+
 	ret = gpmc_cs_request(cs, resource_size(&res), &base);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot request GPMC CS %d\n", cs);
 		return ret;
 	}
+	gpmc_cs_set_name(cs, child->name);
 
 	/*
 	 * For some GPMC devices we still need to rely on the bootloader
@@ -1707,9 +1747,6 @@ static int gpmc_probe(struct platform_device *pdev)
 
 	if (gpmc_setup_irq() < 0)
 		dev_warn(gpmc_dev, "gpmc_setup_irq failed\n");
-
-	/* Now the GPMC is initialised, unreserve the chip-selects */
-	gpmc_cs_map = 0;
 
 	if (!pdev->dev.of_node) {
 		gpmc_cs_num	 = GPMC_CS_NUM;
