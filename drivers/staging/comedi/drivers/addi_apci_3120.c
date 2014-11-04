@@ -115,7 +115,6 @@ struct apci3120_private {
 	unsigned int osc_base;
 	unsigned int ui_AiNbrofChannels;
 	unsigned int ui_AiChannelList[32];
-	unsigned int ui_AiReadData[32];
 	unsigned short us_UseDma;
 	unsigned char b_DmaDoubleBuffer;
 	unsigned int ui_DmaActualBuffer;

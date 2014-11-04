@@ -147,7 +147,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 	struct apci3120_private *devpriv = dev->private;
 	unsigned int divisor;
 	unsigned int ns;
-	unsigned short us_TmpValue, i;
+	unsigned short us_TmpValue;
 
 	/*  fix conversion time to 10 us */
 	ns = 10000;
@@ -157,8 +157,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 	devpriv->mode = 0;
 
 	if (insn->unused[0] == 222) {	/*  second insn read */
-		for (i = 0; i < insn->n; i++)
-			data[i] = devpriv->ui_AiReadData[i];
 	} else {
 		devpriv->tsk_Current = current;	/*  Save the current process task structure */
 
