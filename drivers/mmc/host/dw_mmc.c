@@ -919,7 +919,7 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 		/* enable clock; only low power if no SDIO */
 		clk_en_a = SDMMC_CLKEN_ENABLE << slot->id;
-		if (!(mci_readl(host, INTMASK) & SDMMC_INT_SDIO(slot->id)))
+		if (!(mci_readl(host, INTMASK) & SDMMC_INT_SDIO(slot->sdio_id)))
 			clk_en_a |= SDMMC_CLKEN_LOW_PWR << slot->id;
 		mci_writel(host, CLKENA, clk_en_a);
 
@@ -1280,10 +1280,10 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 		dw_mci_disable_low_power(slot);
 
 		mci_writel(host, INTMASK,
-			   (int_mask | SDMMC_INT_SDIO(slot->id)));
+			   (int_mask | SDMMC_INT_SDIO(slot->sdio_id)));
 	} else {
 		mci_writel(host, INTMASK,
-			   (int_mask & ~SDMMC_INT_SDIO(slot->id)));
+			   (int_mask & ~SDMMC_INT_SDIO(slot->sdio_id)));
 	}
 }
 
@@ -2152,8 +2152,9 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		/* Handle SDIO Interrupts */
 		for (i = 0; i < host->num_slots; i++) {
 			struct dw_mci_slot *slot = host->slot[i];
-			if (pending & SDMMC_INT_SDIO(i)) {
-				mci_writel(host, RINTSTS, SDMMC_INT_SDIO(i));
+			if (pending & SDMMC_INT_SDIO(slot->sdio_id)) {
+				mci_writel(host, RINTSTS,
+					   SDMMC_INT_SDIO(slot->sdio_id));
 				mmc_signal_sdio_irq(slot->mmc);
 			}
 		}
@@ -2252,6 +2253,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 
 	slot = mmc_priv(mmc);
 	slot->id = id;
+	slot->sdio_id = host->sdio_id0 + id;
 	slot->mmc = mmc;
 	slot->host = host;
 	host->slot[id] = slot;

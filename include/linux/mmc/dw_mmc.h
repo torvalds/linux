@@ -97,6 +97,7 @@ struct mmc_data;
  * @quirks: Set of quirks that apply to specific versions of the IP.
  * @irq_flags: The flags to be passed to request_irq.
  * @irq: The irq value to be passed to request_irq.
+ * @sdio_id0: Number of slot0 in the SDIO interrupt registers.
  *
  * Locking
  * =======
@@ -193,6 +194,8 @@ struct dw_mci {
 	bool			vqmmc_enabled;
 	unsigned long		irq_flags; /* IRQ flags */
 	int			irq;
+
+	int			sdio_id0;
 };
 
 /* DMA ops for Internal/External DMAC interface */
