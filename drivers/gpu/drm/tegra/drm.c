@@ -118,6 +118,8 @@ static int tegra_drm_unload(struct drm_device *drm)
 		drm_mm_takedown(&tegra->mm);
 	}
 
+	kfree(tegra);
+
 	return 0;
 }
 
