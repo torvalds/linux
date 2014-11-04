@@ -1447,7 +1447,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int ret;
 	bool tx_probe = false;
 
-	pr_debug("%s: %s on i2c-%d (%s), client addr=0x%02x\n",
+	dev_dbg(&client->dev, "%s: %s on i2c-%d (%s), client addr=0x%02x\n",
 		__func__, id->name, adap->nr, adap->name, client->addr);
 
 	/*
@@ -1631,7 +1631,7 @@ out_put_xx:
 out_put_ir:
 	put_ir_device(ir, true);
 out_no_ir:
-	dev_err(ir->l.dev, "%s: probing IR %s on %s (i2c-%d) failed with %d\n",
+	dev_err(&client->dev, "%s: probing IR %s on %s (i2c-%d) failed with %d\n",
 		    __func__, tx_probe ? "Tx" : "Rx", adap->name, adap->nr,
 		   ret);
 	mutex_unlock(&ir_devices_lock);
