@@ -138,6 +138,15 @@ static const char * const mc5_mce_desc[] = {
 	"Retire status queue"
 };
 
+static const char * const mc6_mce_desc[] = {
+	"Hardware Assertion",
+	"Free List",
+	"Physical Register File",
+	"Retire Queue",
+	"Scheduler table",
+	"Status Register File",
+};
+
 static bool f12h_mc0_mce(u16 ec, u8 xec)
 {
 	bool ret = false;
@@ -672,38 +681,10 @@ static void decode_mc6_mce(struct mce *m)
 
 	pr_emerg(HW_ERR "MC6 Error: ");
 
-	switch (xec) {
-	case 0x0:
-		pr_cont("Hardware Assertion");
-		break;
-
-	case 0x1:
-		pr_cont("Free List");
-		break;
-
-	case 0x2:
-		pr_cont("Physical Register File");
-		break;
-
-	case 0x3:
-		pr_cont("Retire Queue");
-		break;
-
-	case 0x4:
-		pr_cont("Scheduler table");
-		break;
-
-	case 0x5:
-		pr_cont("Status Register File");
-		break;
-
-	default:
+	if (xec > 0x5)
 		goto wrong_mc6_mce;
-		break;
-	}
 
-	pr_cont(" parity error.\n");
-
+	pr_cont("%s parity error.\n", mc6_mce_desc[xec]);
 	return;
 
  wrong_mc6_mce:
