@@ -577,14 +577,6 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 		usbhs_pipe_number(pipe),
 		pkt->length, pkt->actual, *is_done, pkt->zero);
 
-	/*
-	 * Transmission end
-	 */
-	if (*is_done) {
-		if (usbhs_pipe_is_dcp(pipe))
-			usbhs_dcp_control_transfer_done(pipe);
-	}
-
 	usbhsf_fifo_unselect(pipe, fifo);
 
 	return 0;
@@ -721,14 +713,6 @@ usbhs_fifo_read_end:
 	dev_dbg(dev, "  recv %d (%d/ %d/ %d/ %d)\n",
 		usbhs_pipe_number(pipe),
 		pkt->length, pkt->actual, *is_done, pkt->zero);
-
-	/*
-	 * Transmission end
-	 */
-	if (*is_done) {
-		if (usbhs_pipe_is_dcp(pipe))
-			usbhs_dcp_control_transfer_done(pipe);
-	}
 
 usbhs_fifo_read_busy:
 	usbhsf_fifo_unselect(pipe, fifo);
