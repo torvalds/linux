@@ -258,6 +258,7 @@ static int dw8250_probe_of(struct uart_port *p,
 	struct uart_8250_port *up = up_to_u8250p(p);
 	u32			val;
 	bool has_ucv = true;
+	int id;
 
 	if (of_device_is_compatible(np, "cavium,octeon-3860-uart")) {
 #ifdef __BIG_ENDIAN
@@ -300,6 +301,11 @@ static int dw8250_probe_of(struct uart_port *p,
 
 	if (!of_property_read_u32(np, "reg-shift", &val))
 		p->regshift = val;
+
+	/* get index of serial line, if found in DT aliases */
+	id = of_alias_get_id(np, "serial");
+	if (id >= 0)
+		p->line = id;
 
 	/* clock got configured through clk api, all done */
 	if (p->uartclk)
