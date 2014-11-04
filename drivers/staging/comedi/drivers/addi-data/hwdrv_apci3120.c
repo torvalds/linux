@@ -361,7 +361,7 @@ static int apci3120_cyclic_ai(int mode,
 	devpriv->ui_DmaActualBuffer = 0;
 
 	/* Initializes the sequence array */
-	if (!apci3120_setup_chan_list(dev, s, devpriv->ui_AiNbrofChannels,
+	if (!apci3120_setup_chan_list(dev, s, cmd->chanlist_len,
 			cmd->chanlist))
 		return -EINVAL;
 
@@ -605,9 +605,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	/* loading private structure with cmd structure inputs */
-	devpriv->ui_AiNbrofChannels = cmd->chanlist_len;
-
 	if (cmd->start_src == TRIG_EXT)
 		devpriv->b_ExttrigEnable = APCI3120_ENABLE;
 	else
@@ -752,6 +749,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short int_daq;
 	unsigned int int_amcc;
 
@@ -791,7 +789,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 			unsigned short val;
 			int i;
 
-			for (i = 0; i < devpriv->ui_AiNbrofChannels; i++) {
+			for (i = 0; i < cmd->chanlist_len; i++) {
 				val = inw(dev->iobase + 0);
 				comedi_buf_write_samples(s, &val, 1);
 			}

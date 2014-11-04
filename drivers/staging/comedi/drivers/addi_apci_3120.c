@@ -113,7 +113,6 @@ struct apci3120_private {
 	unsigned long amcc;
 	unsigned long addon;
 	unsigned int osc_base;
-	unsigned int ui_AiNbrofChannels;
 	unsigned int ui_AiChannelList[32];
 	unsigned short us_UseDma;
 	unsigned char b_DmaDoubleBuffer;
