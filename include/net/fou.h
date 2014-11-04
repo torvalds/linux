@@ -20,7 +20,19 @@ static size_t fou_encap_hlen(struct ip_tunnel_encap *e)
 
 static size_t gue_encap_hlen(struct ip_tunnel_encap *e)
 {
-	return sizeof(struct udphdr) + sizeof(struct guehdr);
+	size_t len;
+	bool need_priv = false;
+
+	len = sizeof(struct udphdr) + sizeof(struct guehdr);
+
+	if (e->flags & TUNNEL_ENCAP_FLAG_REMCSUM) {
+		len += GUE_PLEN_REMCSUM;
+		need_priv = true;
+	}
+
+	len += need_priv ? GUE_LEN_PRIV : 0;
+
+	return len;
 }
 
 #endif

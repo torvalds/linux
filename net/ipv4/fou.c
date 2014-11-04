@@ -562,10 +562,18 @@ int gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 	bool csum = !!(e->flags & TUNNEL_ENCAP_FLAG_CSUM);
 	int type = csum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
 	struct guehdr *guehdr;
-	size_t optlen = 0;
+	size_t hdrlen, optlen = 0;
 	__be16 sport;
 	void *data;
 	bool need_priv = false;
+
+	if ((e->flags & TUNNEL_ENCAP_FLAG_REMCSUM) &&
+	    skb->ip_summed == CHECKSUM_PARTIAL) {
+		csum = false;
+		optlen += GUE_PLEN_REMCSUM;
+		type |= SKB_GSO_TUNNEL_REMCSUM;
+		need_priv = true;
+	}
 
 	optlen += need_priv ? GUE_LEN_PRIV : 0;
 
@@ -578,7 +586,9 @@ int gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 	sport = e->sport ? : udp_flow_src_port(dev_net(skb->dev),
 					       skb, 0, 0, false);
 
-	skb_push(skb, sizeof(struct guehdr) + optlen);
+	hdrlen = sizeof(struct guehdr) + optlen;
+
+	skb_push(skb, hdrlen);
 
 	guehdr = (struct guehdr *)skb->data;
 
@@ -597,7 +607,26 @@ int gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 		*flags = 0;
 		data += GUE_LEN_PRIV;
 
-		/* Add private flags */
+		if (type & SKB_GSO_TUNNEL_REMCSUM) {
+			u16 csum_start = skb_checksum_start_offset(skb);
+			__be16 *pd = data;
+
+			if (csum_start < hdrlen)
+				return -EINVAL;
+
+			csum_start -= hdrlen;
+			pd[0] = htons(csum_start);
+			pd[1] = htons(csum_start + skb->csum_offset);
+
+			if (!skb_is_gso(skb)) {
+				skb->ip_summed = CHECKSUM_NONE;
+				skb->encapsulation = 0;
+			}
+
+			*flags |= GUE_PFLAG_REMCSUM;
+			data += GUE_PLEN_REMCSUM;
+		}
+
 	}
 
 	fou_build_udp(skb, e, fl4, protocol, sport);
