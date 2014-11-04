@@ -234,10 +234,10 @@ struct xgbe_packet_data {
 
 /* Common Rx and Tx descriptor mapping */
 struct xgbe_ring_desc {
-	unsigned int desc0;
-	unsigned int desc1;
-	unsigned int desc2;
-	unsigned int desc3;
+	u32 desc0;
+	u32 desc1;
+	u32 desc2;
+	u32 desc3;
 };
 
 /* Structure used to hold information related to the descriptor
