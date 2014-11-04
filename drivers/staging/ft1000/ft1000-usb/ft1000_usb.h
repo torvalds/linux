@@ -28,8 +28,6 @@ struct app_info_block {
 					*/
 } __packed;
 
-#define DEBUG(args...) pr_info(args)
-
 #define FALSE           0
 #define TRUE            1
 

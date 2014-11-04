@@ -4,6 +4,8 @@
  * This file is part of Express Card USB Driver
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -52,7 +54,7 @@ static int ft1000_control(struct ft1000_usb *ft1000dev, unsigned int pipe,
 	int ret;
 
 	if ((ft1000dev == NULL) || (ft1000dev->dev == NULL)) {
-		DEBUG("ft1000dev or ft1000dev->dev == NULL, failure\n");
+		pr_debug("ft1000dev or ft1000dev->dev == NULL, failure\n");
 		return -ENODEV;
 	}
 
@@ -212,7 +214,7 @@ int fix_ft1000_read_dpram32(struct ft1000_usb *ft1000dev, u16 indx,
 		*buffer++ = buf[pos++];
 		*buffer++ = buf[pos++];
 	} else {
-		DEBUG("fix_ft1000_read_dpram32: DPRAM32 Read failed\n");
+		pr_debug("DPRAM32 Read failed\n");
 		*buffer++ = 0;
 		*buffer++ = 0;
 		*buffer++ = 0;
@@ -246,7 +248,7 @@ int fix_ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer)
 		buf[pos2++] = *buffer++;
 		ret = ft1000_write_dpram32(ft1000dev, pos1, buf, 16);
 	} else {
-		DEBUG("fix_ft1000_write_dpram32: DPRAM32 Read failed\n");
+		pr_debug("DPRAM32 Read failed\n");
 		return ret;
 	}
 
@@ -270,8 +272,7 @@ int fix_ft1000_write_dpram32(struct ft1000_usb *ft1000dev, u16 indx, u8 *buffer)
 			for (i = 0; i < 16; i++) {
 				if (tempbuffer[i] != resultbuffer[i]) {
 					ret = -1;
-					DEBUG("%s Failed to write\n",
-					      __func__);
+					pr_debug("Failed to write\n");
 				}
 			}
 		}
@@ -292,14 +293,14 @@ static void card_reset_dsp(struct ft1000_usb *ft1000dev, bool value)
 				      FT1000_REG_SUP_CTRL);
 
 	if (value) {
-		DEBUG("Reset DSP\n");
+		pr_debug("Reset DSP\n");
 		status = ft1000_read_register(ft1000dev, &tempword,
 					      FT1000_REG_RESET);
 		tempword |= DSP_RESET_BIT;
 		status = ft1000_write_register(ft1000dev, tempword,
 					       FT1000_REG_RESET);
 	} else {
-		DEBUG("Activate DSP\n");
+		pr_debug("Activate DSP\n");
 		status = ft1000_read_register(ft1000dev, &tempword,
 					      FT1000_REG_RESET);
 		tempword |= DSP_ENCRYPTED;
@@ -329,7 +330,7 @@ int card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 	unsigned short temp;
 	unsigned char *commandbuf;
 
-	DEBUG("card_send_command: enter card_send_command... size=%d\n", size);
+	pr_debug("enter card_send_command... size=%d\n", size);
 
 	commandbuf = kmalloc(size + 2, GFP_KERNEL);
 	if (!commandbuf)
@@ -364,7 +365,7 @@ int card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 
 #if 0
 	if ((temp & 0x0100) == 0)
-		DEBUG("card_send_command: Message sent\n");
+		pr_debug("Message sent\n");
 #endif
 	return ret;
 }
@@ -390,7 +391,7 @@ int dsp_reload(struct ft1000_usb *ft1000dev)
 	status = ft1000_write_register(ft1000dev, tempword, FT1000_REG_RESET);
 	msleep(1000);
 	status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_RESET);
-	DEBUG("Reset Register = 0x%x\n", tempword);
+	pr_debug("Reset Register = 0x%x\n", tempword);
 
 	/* Toggle DSP reset */
 	card_reset_dsp(ft1000dev, 1);
@@ -405,7 +406,7 @@ int dsp_reload(struct ft1000_usb *ft1000dev)
 	status =
 		ft1000_read_dpram32(ft1000dev, FT1000_MAG_DPRAM_FEFE_INDX,
 				    (u8 *)&templong, 4);
-	DEBUG("templong (fefe) = 0x%8x\n", templong);
+	pr_debug("templong (fefe) = 0x%8x\n", templong);
 
 	/* call codeloader */
 	status = scram_dnldr(ft1000dev, pFileStart, FileLength);
@@ -414,8 +415,6 @@ int dsp_reload(struct ft1000_usb *ft1000dev)
 		return -EIO;
 
 	msleep(1000);
-
-	DEBUG("dsp_reload returned\n");
 
 	return 0;
 }
@@ -426,8 +425,6 @@ static void ft1000_reset_asic(struct net_device *dev)
 	struct ft1000_info *info = netdev_priv(dev);
 	struct ft1000_usb *ft1000dev = info->priv;
 	u16 tempword;
-
-	DEBUG("ft1000_hw:ft1000_reset_asic called\n");
 
 	/* Let's use the register provided by the Magnemite ASIC to reset the
 	 * ASIC and DSP.
@@ -442,10 +439,10 @@ static void ft1000_reset_asic(struct net_device *dev)
 
 	/* clear interrupts */
 	ft1000_read_register(ft1000dev, &tempword, FT1000_REG_SUP_ISR);
-	DEBUG("ft1000_hw: interrupt status register = 0x%x\n", tempword);
+	pr_debug("interrupt status register = 0x%x\n", tempword);
 	ft1000_write_register(ft1000dev, tempword, FT1000_REG_SUP_ISR);
 	ft1000_read_register(ft1000dev, &tempword, FT1000_REG_SUP_ISR);
-	DEBUG("ft1000_hw: interrupt status register = 0x%x\n", tempword);
+	pr_debug("interrupt status register = 0x%x\n", tempword);
 }
 
 static int ft1000_reset_card(struct net_device *dev)
@@ -455,15 +452,13 @@ static int ft1000_reset_card(struct net_device *dev)
 	u16 tempword;
 	struct prov_record *ptr;
 
-	DEBUG("ft1000_hw:ft1000_reset_card called.....\n");
-
 	ft1000dev->fCondResetPend = true;
 	info->CardReady = 0;
 	ft1000dev->fProvComplete = false;
 
 	/* Make sure we free any memory reserve for provisioning */
 	while (list_empty(&info->prov_list) == 0) {
-		DEBUG("ft1000_reset_card:deleting provisioning record\n");
+		pr_debug("deleting provisioning record\n");
 		ptr =
 			list_entry(info->prov_list.next, struct prov_record, list);
 		list_del(&ptr->list);
@@ -471,13 +466,13 @@ static int ft1000_reset_card(struct net_device *dev)
 		kfree(ptr);
 	}
 
-	DEBUG("ft1000_hw:ft1000_reset_card: reset asic\n");
+	pr_debug("reset asic\n");
 	ft1000_reset_asic(dev);
 
-	DEBUG("ft1000_hw:ft1000_reset_card: call dsp_reload\n");
+	pr_debug("call dsp_reload\n");
 	dsp_reload(ft1000dev);
 
-	DEBUG("dsp reload successful\n");
+	pr_debug("dsp reload successful\n");
 
 	mdelay(10);
 
@@ -486,7 +481,7 @@ static int ft1000_reset_card(struct net_device *dev)
 			     FT1000_MAG_HI_HO_INDX);
 	ft1000_read_dpram16(ft1000dev, FT1000_MAG_HI_HO, (u8 *)&tempword,
 			    FT1000_MAG_HI_HO_INDX);
-	DEBUG("ft1000_hw:ft1000_reset_card:hi_ho value = 0x%x\n", tempword);
+	pr_debug("hi_ho value = 0x%x\n", tempword);
 
 	info->CardReady = 1;
 
@@ -520,14 +515,13 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 *packet, u16 len)
 	struct pseudo_hdr hdr;
 
 	if (!pInfo->CardReady) {
-		DEBUG("ft1000_copy_down_pkt::Card Not Ready\n");
+		pr_debug("Card Not Ready\n");
 		return -ENODEV;
 	}
 
 	count = sizeof(struct pseudo_hdr) + len;
 	if (count > MAX_BUF_SIZE) {
-		DEBUG("Error:ft1000_copy_down_pkt:Message Size Overflow!\n");
-		DEBUG("size = %d\n", count);
+		pr_debug("Message Size Overflow! size = %d\n", count);
 		return -EINVAL;
 	}
 
@@ -564,7 +558,7 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 *packet, u16 len)
 	ret = usb_submit_urb(pFt1000Dev->tx_urb, GFP_ATOMIC);
 
 	if (ret) {
-		DEBUG("ft1000 failed tx_urb %d\n", ret);
+		pr_debug("failed tx_urb %d\n", ret);
 		return ret;
 	}
 	pInfo->stats.tx_packets++;
@@ -585,12 +579,12 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int maxlen, pipe;
 
 	if (skb == NULL) {
-		DEBUG("ft1000_hw: ft1000_start_xmit:skb == NULL!!!\n");
+		pr_debug("skb == NULL!!!\n");
 		return NETDEV_TX_OK;
 	}
 
 	if (pFt1000Dev->status & FT1000_STATUS_CLOSING) {
-		DEBUG("network driver is closed, return\n");
+		pr_debug("network driver is closed, return\n");
 		goto err;
 	}
 
@@ -602,13 +596,13 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (pInfo->mediastate == 0) {
 		/* Drop packet is mediastate is down */
-		DEBUG("ft1000_hw:ft1000_start_xmit:mediastate is down\n");
+		pr_debug("mediastate is down\n");
 		goto err;
 	}
 
 	if ((skb->len < ENET_HEADER_SIZE) || (skb->len > ENET_MAX_SIZE)) {
 		/* Drop packet which has invalid size */
-		DEBUG("ft1000_hw:ft1000_start_xmit:invalid ethernet length\n");
+		pr_debug("invalid ethernet length\n");
 		goto err;
 	}
 
@@ -628,7 +622,7 @@ static int ft1000_open(struct net_device *dev)
 	struct ft1000_usb *pFt1000Dev = pInfo->priv;
 	struct timeval tv;
 
-	DEBUG("ft1000_open is called for card %d\n", pFt1000Dev->CardNumber);
+	pr_debug("ft1000_open is called for card %d\n", pFt1000Dev->CardNumber);
 
 	pInfo->stats.rx_bytes = 0;
 	pInfo->stats.tx_bytes = 0;
@@ -676,11 +670,9 @@ int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
 	char card_nr[2];
 	u8 gCardIndex = 0;
 
-	DEBUG("Enter init_ft1000_netdev...\n");
-
 	netdev = alloc_etherdev(sizeof(struct ft1000_info));
 	if (!netdev) {
-		DEBUG("init_ft1000_netdev: can not allocate network device\n");
+		pr_debug("can not allocate network device\n");
 		return -ENOMEM;
 	}
 
@@ -690,7 +682,7 @@ int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
 
 	dev_alloc_name(netdev, netdev->name);
 
-	DEBUG("init_ft1000_netdev: network device name is %s\n", netdev->name);
+	pr_debug("network device name is %s\n", netdev->name);
 
 	if (strncmp(netdev->name, "eth", 3) == 0) {
 		card_nr[0] = netdev->name[3];
@@ -702,7 +694,7 @@ int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
 		}
 
 		ft1000dev->CardNumber = gCardIndex;
-		DEBUG("card number = %d\n", ft1000dev->CardNumber);
+		pr_debug("card number = %d\n", ft1000dev->CardNumber);
 	} else {
 		netdev_err(ft1000dev->net, "ft1000: Invalid device name\n");
 		ret_val = -ENXIO;
@@ -738,7 +730,7 @@ int init_ft1000_netdev(struct ft1000_usb *ft1000dev)
 
 	ft1000dev->net = netdev;
 
-	DEBUG("Initialize free_buff_lock and freercvpool\n");
+	pr_debug("Initialize free_buff_lock and freercvpool\n");
 	spin_lock_init(&free_buff_lock);
 
 	/* initialize a list of buffers to be use for queuing
@@ -790,7 +782,6 @@ int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
 
 	netdev = ft1000dev->net;
 	pInfo = netdev_priv(ft1000dev->net);
-	DEBUG("Enter reg_ft1000_netdev...\n");
 
 	ft1000_read_register(ft1000dev, &pInfo->AsicID, FT1000_REG_ASIC_ID);
 
@@ -799,14 +790,12 @@ int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
 
 	rc = register_netdev(netdev);
 	if (rc) {
-		DEBUG("reg_ft1000_netdev: could not register network device\n");
+		pr_debug("could not register network device\n");
 		free_netdev(netdev);
 		return rc;
 	}
 
 	ft1000_create_dev(ft1000dev);
-
-	DEBUG("reg_ft1000_netdev returned\n");
 
 	pInfo->CardReady = 1;
 
@@ -832,7 +821,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 	u16 *chksum;
 
 	if (ft1000dev->status & FT1000_STATUS_CLOSING) {
-		DEBUG("network driver is closed, return\n");
+		pr_debug("network driver is closed, return\n");
 		return 0;
 	}
 	/* Read length */
@@ -854,7 +843,7 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 	skb = dev_alloc_skb(len + 12 + 2);
 
 	if (skb == NULL) {
-		DEBUG("ft1000_copy_up_pkt: No Network buffers available\n");
+		pr_debug("No Network buffers available\n");
 		info->stats.rx_errors++;
 		ft1000_submit_rx_urb(info);
 		return -1;
@@ -905,7 +894,7 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
 	struct ft1000_usb *pFt1000Dev = info->priv;
 
 	if (pFt1000Dev->status & FT1000_STATUS_CLOSING) {
-		DEBUG("network driver is closed, return\n");
+		pr_debug("network driver is closed, return\n");
 		return -ENODEV;
 	}
 
@@ -919,8 +908,7 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
 	result = usb_submit_urb(pFt1000Dev->rx_urb, GFP_ATOMIC);
 
 	if (result) {
-		pr_err("ft1000_submit_rx_urb: submitting rx_urb %d failed\n",
-		       result);
+		pr_err("submitting rx_urb %d failed\n", result);
 		return result;
 	}
 
@@ -935,7 +923,7 @@ int ft1000_close(struct net_device *net)
 
 	ft1000dev->status |= FT1000_STATUS_CLOSING;
 
-	DEBUG("ft1000_close: pInfo=%p, ft1000dev=%p\n", pInfo, ft1000dev);
+	pr_debug("pInfo=%p, ft1000dev=%p\n", pInfo, ft1000dev);
 	netif_carrier_off(net);
 	netif_stop_queue(net);
 	ft1000dev->status &= ~FT1000_STATUS_CLOSING;
@@ -952,7 +940,7 @@ static int ft1000_chkcard(struct ft1000_usb *dev)
 	int status;
 
 	if (dev->fCondResetPend) {
-		DEBUG("ft1000_hw:ft1000_chkcard:Card is being reset, return FALSE\n");
+		pr_debug("Card is being reset, return FALSE\n");
 		return TRUE;
 	}
 	/* Mask register is used to check for device presence since it is never
@@ -960,7 +948,7 @@ static int ft1000_chkcard(struct ft1000_usb *dev)
 	 */
 	status = ft1000_read_register(dev, &tempword, FT1000_REG_SUP_IMASK);
 	if (tempword == 0) {
-		DEBUG("ft1000_hw:ft1000_chkcard: IMASK = 0 Card not detected\n");
+		pr_debug("IMASK = 0 Card not detected\n");
 		return FALSE;
 	}
 	/* The system will return the value of 0xffff for the version register
@@ -969,7 +957,7 @@ static int ft1000_chkcard(struct ft1000_usb *dev)
 	status = ft1000_read_register(dev, &tempword, FT1000_REG_ASIC_ID);
 	if (tempword != 0x1b01) {
 		dev->status |= FT1000_STATUS_CLOSING;
-		DEBUG("ft1000_hw:ft1000_chkcard: Version = 0xffff Card not detected\n");
+		pr_debug("Version = 0xffff Card not detected\n");
 		return FALSE;
 	}
 	return TRUE;
@@ -994,8 +982,7 @@ static bool ft1000_receive_cmd(struct ft1000_usb *dev, u16 *pbuffer,
 				    FT1000_MAG_PH_LEN_INDX);
 	size = ntohs(size) + PSEUDOSZ;
 	if (size > maxsz) {
-		DEBUG("FT1000:ft1000_receive_cmd:Invalid command length = %d\n",
-		      size);
+		pr_debug("Invalid command length = %d\n", size);
 		return FALSE;
 	}
 	ppseudohdr = (u16 *)pbuffer;
@@ -1058,17 +1045,15 @@ static int ft1000_dsp_prov(void *arg)
 	int status;
 	u16 TempShortBuf[256];
 
-	DEBUG("*** DspProv Entered\n");
-
 	while (list_empty(&info->prov_list) == 0) {
-		DEBUG("DSP Provisioning List Entry\n");
+		pr_debug("DSP Provisioning List Entry\n");
 
 		/* Check if doorbell is available */
-		DEBUG("check if doorbell is cleared\n");
+		pr_debug("check if doorbell is cleared\n");
 		status =
 			ft1000_read_register(dev, &tempword, FT1000_REG_DOORBELL);
 		if (status) {
-			DEBUG("ft1000_dsp_prov::ft1000_read_register error\n");
+			pr_debug("ft1000_read_register error\n");
 			break;
 		}
 
@@ -1076,7 +1061,7 @@ static int ft1000_dsp_prov(void *arg)
 			mdelay(10);
 			i++;
 			if (i == 10) {
-				DEBUG("FT1000:ft1000_dsp_prov:message drop\n");
+				pr_debug("message drop\n");
 				return -1;
 			}
 			ft1000_read_register(dev, &tempword,
@@ -1084,7 +1069,7 @@ static int ft1000_dsp_prov(void *arg)
 		}
 
 		if (!(tempword & FT1000_DB_DPRAM_TX)) {
-			DEBUG("*** Provision Data Sent to DSP\n");
+			pr_debug("*** Provision Data Sent to DSP\n");
 
 			/* Send provisioning data */
 			ptr =
@@ -1123,7 +1108,7 @@ static int ft1000_dsp_prov(void *arg)
 		usleep_range(9000, 11000);
 	}
 
-	DEBUG("DSP Provisioning List Entry finished\n");
+	pr_debug("DSP Provisioning List Entry finished\n");
 
 	msleep(100);
 
@@ -1158,37 +1143,26 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 	status = ft1000_read_dpram32(dev, 0x200, cmdbuffer, size);
 
 #ifdef JDEBUG
-	DEBUG("ft1000_proc_drvmsg:cmdbuffer\n");
-	for (i = 0; i < size; i += 5) {
-		if ((i + 5) < size)
-			DEBUG("0x%x, 0x%x, 0x%x, 0x%x, 0x%x\n", cmdbuffer[i],
-			      cmdbuffer[i + 1], cmdbuffer[i + 2],
-			      cmdbuffer[i + 3], cmdbuffer[i + 4]);
-		else {
-			for (j = i; j < size; j++)
-				DEBUG("0x%x ", cmdbuffer[j]);
-			DEBUG("\n");
-			break;
-		}
-	}
+	print_hex_dump_debug("cmdbuffer: ", HEX_DUMP_OFFSET, 16, 1,
+			     cmdbuffer, size, true);
 #endif
 	pdrvmsg = (struct drv_msg *)&cmdbuffer[2];
 	msgtype = ntohs(pdrvmsg->type);
-	DEBUG("ft1000_proc_drvmsg:Command message type = 0x%x\n", msgtype);
+	pr_debug("Command message type = 0x%x\n", msgtype);
 	switch (msgtype) {
 	case MEDIA_STATE:{
-		DEBUG("ft1000_proc_drvmsg:Command message type = MEDIA_STATE");
+		pr_debug("Command message type = MEDIA_STATE\n");
 		pmediamsg = (struct media_msg *)&cmdbuffer[0];
 		if (info->ProgConStat != 0xFF) {
 			if (pmediamsg->state) {
-				DEBUG("Media is up\n");
+				pr_debug("Media is up\n");
 				if (info->mediastate == 0) {
 					if (dev->NetDevRegDone)
 						netif_wake_queue(dev->net);
 					info->mediastate = 1;
 				}
 			} else {
-				DEBUG("Media is down\n");
+				pr_debug("Media is down\n");
 				if (info->mediastate == 1) {
 					info->mediastate = 0;
 					if (dev->NetDevRegDone)
@@ -1196,7 +1170,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 				}
 			}
 		} else {
-			DEBUG("Media is down\n");
+			pr_debug("Media is down\n");
 			if (info->mediastate == 1) {
 				info->mediastate = 0;
 				info->ConTm = 0;
@@ -1205,20 +1179,20 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 		break;
 	}
 	case DSP_INIT_MSG:{
-		DEBUG("ft1000_proc_drvmsg:Command message type = DSP_INIT_MSG");
+		pr_debug("Command message type = DSP_INIT_MSG\n");
 		pdspinitmsg = (struct dsp_init_msg *)&cmdbuffer[2];
 		memcpy(info->DspVer, pdspinitmsg->DspVer, DSPVERSZ);
-		DEBUG("DSPVER = 0x%2x 0x%2x 0x%2x 0x%2x\n",
-		      info->DspVer[0], info->DspVer[1], info->DspVer[2],
-		      info->DspVer[3]);
+		pr_debug("DSPVER = 0x%2x 0x%2x 0x%2x 0x%2x\n",
+			 info->DspVer[0], info->DspVer[1], info->DspVer[2],
+			 info->DspVer[3]);
 		memcpy(info->HwSerNum, pdspinitmsg->HwSerNum,
 		       HWSERNUMSZ);
 		memcpy(info->Sku, pdspinitmsg->Sku, SKUSZ);
 		memcpy(info->eui64, pdspinitmsg->eui64, EUISZ);
-		DEBUG("EUI64=%2x.%2x.%2x.%2x.%2x.%2x.%2x.%2x\n",
-		      info->eui64[0], info->eui64[1], info->eui64[2],
-		      info->eui64[3], info->eui64[4], info->eui64[5],
-		      info->eui64[6], info->eui64[7]);
+		pr_debug("EUI64=%2x.%2x.%2x.%2x.%2x.%2x.%2x.%2x\n",
+			 info->eui64[0], info->eui64[1], info->eui64[2],
+			 info->eui64[3], info->eui64[4], info->eui64[5],
+			 info->eui64[6], info->eui64[7]);
 		dev->net->dev_addr[0] = info->eui64[0];
 		dev->net->dev_addr[1] = info->eui64[1];
 		dev->net->dev_addr[2] = info->eui64[2];
@@ -1233,13 +1207,13 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 			memcpy(info->RfCalVer, pdspinitmsg->RfCalVer, CALVERSZ);
 			memcpy(info->RfCalDate, pdspinitmsg->RfCalDate,
 			       CALDATESZ);
-			DEBUG("RFCalVer = 0x%2x 0x%2x\n", info->RfCalVer[0],
-			      info->RfCalVer[1]);
+			pr_debug("RFCalVer = 0x%2x 0x%2x\n",
+				 info->RfCalVer[0], info->RfCalVer[1]);
 		}
 		break;
 	}
 	case DSP_PROVISION:{
-		DEBUG("ft1000_proc_drvmsg:Command message type = DSP_PROVISION\n");
+		pr_debug("Command message type = DSP_PROVISION\n");
 
 		/* kick off dspprov routine to start provisioning
 		 * Send provisioning data to DSP
@@ -1253,20 +1227,19 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 			dev->fProvComplete = true;
 			status = ft1000_write_register(dev, FT1000_DB_HB,
 						       FT1000_REG_DOORBELL);
-			DEBUG("FT1000:drivermsg:No more DSP provisioning data in dsp image\n");
+			pr_debug("No more DSP provisioning data in dsp image\n");
 		}
-		DEBUG("ft1000_proc_drvmsg:DSP PROVISION is done\n");
+		pr_debug("DSP PROVISION is done\n");
 		break;
 	}
 	case DSP_STORE_INFO:{
-		DEBUG("ft1000_proc_drvmsg:Command message type = DSP_STORE_INFO");
-		DEBUG("FT1000:drivermsg:Got DSP_STORE_INFO\n");
+		pr_debug("Command message type = DSP_STORE_INFO");
 		tempword = ntohs(pdrvmsg->length);
 		info->DSPInfoBlklen = tempword;
 		if (tempword < (MAX_DSP_SESS_REC - 4)) {
 			pmsg = (u16 *)&pdrvmsg->data[0];
 			for (i = 0; i < ((tempword + 1) / 2); i++) {
-				DEBUG("FT1000:drivermsg:dsp info data = 0x%x\n", *pmsg);
+				pr_debug("dsp info data = 0x%x\n", *pmsg);
 				info->DSPInfoBlk[i + 10] = *pmsg++;
 			}
 		} else {
@@ -1275,7 +1248,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 		break;
 	}
 	case DSP_GET_INFO:{
-		DEBUG("FT1000:drivermsg:Got DSP_GET_INFO\n");
+		pr_debug("Got DSP_GET_INFO\n");
 		/* copy dsp info block to dsp */
 		dev->DrvMsgPend = 1;
 		/* allow any outstanding ioctl to finish */
@@ -1331,7 +1304,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 		break;
 	}
 	case GET_DRV_ERR_RPT_MSG:{
-		DEBUG("FT1000:drivermsg:Got GET_DRV_ERR_RPT_MSG\n");
+		pr_debug("Got GET_DRV_ERR_RPT_MSG\n");
 		/* copy driver error message to dsp */
 		dev->DrvMsgPend = 1;
 		/* allow any outstanding ioctl to finish */
@@ -1399,7 +1372,6 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 	status = 0;
 out:
 	kfree(cmdbuffer);
-	DEBUG("return from ft1000_proc_drvmsg\n");
 	return status;
 }
 
@@ -1417,7 +1389,7 @@ static int dsp_broadcast_msg_id(struct ft1000_usb *dev)
 			< MAX_MSG_LIMIT)) {
 			pdpram_blk = ft1000_get_buffer(&freercvpool);
 			if (pdpram_blk == NULL) {
-				DEBUG("Out of memory in free receive command pool\n");
+				pr_debug("Out of memory in free receive command pool\n");
 				dev->app_info[i].nRxMsgMiss++;
 				return -1;
 			}
@@ -1437,7 +1409,7 @@ static int dsp_broadcast_msg_id(struct ft1000_usb *dev)
 			} else {
 				dev->app_info[i].nRxMsgMiss++;
 				ft1000_free_buffer(pdpram_blk, &freercvpool);
-				DEBUG("pdpram_blk::ft1000_get_buffer NULL\n");
+				pr_debug("ft1000_get_buffer NULL\n");
 				return -1;
 			}
 		}
@@ -1452,7 +1424,7 @@ static int handle_misc_portid(struct ft1000_usb *dev)
 
 	pdpram_blk = ft1000_get_buffer(&freercvpool);
 	if (pdpram_blk == NULL) {
-		DEBUG("Out of memory in free receive command pool\n");
+		pr_debug("Out of memory in free receive command pool\n");
 		return -1;
 	}
 	if (!ft1000_receive_cmd(dev, pdpram_blk->pbuffer, MAX_CMD_SQSIZE))
@@ -1465,7 +1437,8 @@ static int handle_misc_portid(struct ft1000_usb *dev)
 			break;
 	}
 	if (i == MAX_NUM_APP) {
-		DEBUG("FT1000:ft1000_parse_dpram_msg: No application matching id = %d\n", ((struct pseudo_hdr *)pdpram_blk->pbuffer)->portdest);
+		pr_debug("No application matching id = %d\n",
+			 ((struct pseudo_hdr *)pdpram_blk->pbuffer)->portdest);
 		goto exit_failure;
 	} else if (dev->app_info[i].NumOfMsg > MAX_MSG_LIMIT) {
 		goto exit_failure;
@@ -1495,7 +1468,7 @@ int ft1000_poll(void *dev_id)
 	u16 portid;
 
 	if (ft1000_chkcard(dev) == FALSE) {
-		DEBUG("ft1000_poll::ft1000_chkcard: failed\n");
+		pr_debug("failed\n");
 		return -1;
 	}
 	status = ft1000_read_register(dev, &tempword, FT1000_REG_DOORBELL);
@@ -1514,7 +1487,7 @@ int ft1000_poll(void *dev_id)
 			if (size < MAX_CMD_SQSIZE) {
 				switch (portid) {
 				case DRIVERID:
-					DEBUG("ft1000_poll: FT1000_REG_DOORBELL message type: FT1000_DB_DPRAM_RX : portid DRIVERID\n");
+					pr_debug("FT1000_REG_DOORBELL message type: FT1000_DB_DPRAM_RX : portid DRIVERID\n");
 					status = ft1000_proc_drvmsg(dev, size);
 					if (status != 0)
 						return status;
@@ -1527,7 +1500,8 @@ int ft1000_poll(void *dev_id)
 					break;
 				}
 			} else
-				DEBUG("FT1000:dpc:Invalid total length for SlowQ = %d\n", size);
+				pr_debug("Invalid total length for SlowQ = %d\n",
+					 size);
 			status = ft1000_write_register(dev,
 						       FT1000_DB_DPRAM_RX,
 						       FT1000_REG_DOORBELL);
@@ -1547,7 +1521,7 @@ int ft1000_poll(void *dev_id)
 					break;
 			}
 			if (i == 100) {
-				DEBUG("Unable to reset ASIC\n");
+				pr_debug("Unable to reset ASIC\n");
 				return 0;
 			}
 			usleep_range(9000, 11000);
@@ -1560,7 +1534,7 @@ int ft1000_poll(void *dev_id)
 						       FT1000_REG_DOORBELL);
 			usleep_range(9000, 11000);
 		} else if (tempword & FT1000_ASIC_RESET_REQ) {
-			DEBUG("ft1000_poll: FT1000_REG_DOORBELL message type:  FT1000_ASIC_RESET_REQ\n");
+			pr_debug("FT1000_REG_DOORBELL message type: FT1000_ASIC_RESET_REQ\n");
 			/* clear ASIC reset request from DSP */
 			status = ft1000_write_register(dev,
 						       FT1000_ASIC_RESET_REQ,
@@ -1579,7 +1553,7 @@ int ft1000_poll(void *dev_id)
 						       FT1000_ASIC_RESET_DSP,
 						       FT1000_REG_DOORBELL);
 		} else if (tempword & FT1000_DB_COND_RESET) {
-			DEBUG("ft1000_poll: FT1000_REG_DOORBELL message type:  FT1000_DB_COND_RESET\n");
+			pr_debug("FT1000_REG_DOORBELL message type: FT1000_DB_COND_RESET\n");
 			if (!dev->fAppMsgPend) {
 				/* Reset ASIC and DSP */
 				status = ft1000_read_dpram16(dev,
@@ -1600,7 +1574,7 @@ int ft1000_poll(void *dev_id)
 							     FT1000_MAG_DSP_TIMER3_INDX);
 				info->CardReady = 0;
 				info->DrvErrNum = DSP_CONDRESET_INFO;
-				DEBUG("ft1000_hw:DSP conditional reset requested\n");
+				pr_debug("DSP conditional reset requested\n");
 				info->ft1000_reset(dev->net);
 			} else {
 				dev->fProvComplete = false;
