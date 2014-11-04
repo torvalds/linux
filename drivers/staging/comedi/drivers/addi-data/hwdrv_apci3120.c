@@ -155,18 +155,6 @@ static const struct comedi_lrange range_apci3120_ai = {
 	}
 };
 
-static void apci3120_timer_enable(struct comedi_device *dev,
-				  unsigned int timer, bool enable)
-{
-	struct apci3120_private *devpriv = dev->private;
-
-	if (enable)
-		devpriv->ctrl |= APCI3120_CTRL_GATE(timer);
-	else
-		devpriv->ctrl &= ~APCI3120_CTRL_GATE(timer);
-	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
-}
-
 static int apci3120_ai_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,

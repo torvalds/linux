@@ -208,6 +208,18 @@ static void apci3120_timer_set_mode(struct comedi_device *dev,
 	outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_MODE_REG);
 }
 
+static void apci3120_timer_enable(struct comedi_device *dev,
+				  unsigned int timer, bool enable)
+{
+	struct apci3120_private *devpriv = dev->private;
+
+	if (enable)
+		devpriv->ctrl |= APCI3120_CTRL_GATE(timer);
+	else
+		devpriv->ctrl &= ~APCI3120_CTRL_GATE(timer);
+	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
+}
+
 #include "addi-data/hwdrv_apci3120.c"
 
 static void apci3120_dma_alloc(struct comedi_device *dev)
