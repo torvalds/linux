@@ -3426,6 +3426,15 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 				I915_WRITE(PLANE_WM_TRANS(pipe, i),
 						new->plane_trans[pipe][i]);
 			I915_WRITE(CUR_WM_TRANS(pipe), new->cursor_trans[pipe]);
+
+			for (i = 0; i < intel_num_planes(crtc); i++)
+				I915_WRITE(PLANE_BUF_CFG(pipe, i),
+					   new->ddb.plane[pipe][i].end << 16 |
+					   new->ddb.plane[pipe][i].start);
+
+			I915_WRITE(CUR_BUF_CFG(pipe),
+				   new->ddb.cursor[pipe].end << 16 |
+				   new->ddb.cursor[pipe].start);
 		}
 	}
 

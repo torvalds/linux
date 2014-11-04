@@ -4696,6 +4696,8 @@ enum punit_power_well {
 #define _PLANE_KEYMSK_2_A			0x70298
 #define _PLANE_KEYMAX_1_A			0x701a0
 #define _PLANE_KEYMAX_2_A			0x702a0
+#define _PLANE_BUF_CFG_1_A			0x7027c
+#define _PLANE_BUF_CFG_2_A			0x7037c
 
 #define _PLANE_CTL_1_B				0x71180
 #define _PLANE_CTL_2_B				0x71280
@@ -4772,6 +4774,20 @@ enum punit_power_well {
 #define _PLANE_KEYMAX_2(pipe) _PIPE(pipe, _PLANE_KEYMAX_2_A, _PLANE_KEYMAX_2_B)
 #define PLANE_KEYMAX(pipe, plane)	\
 	_PLANE(plane, _PLANE_KEYMAX_1(pipe), _PLANE_KEYMAX_2(pipe))
+
+#define _PLANE_BUF_CFG_1_B			0x7127c
+#define _PLANE_BUF_CFG_2_B			0x7137c
+#define _PLANE_BUF_CFG_1(pipe)	\
+	_PIPE(pipe, _PLANE_BUF_CFG_1_A, _PLANE_BUF_CFG_1_B)
+#define _PLANE_BUF_CFG_2(pipe)	\
+	_PIPE(pipe, _PLANE_BUF_CFG_2_A, _PLANE_BUF_CFG_2_B)
+#define PLANE_BUF_CFG(pipe, plane)	\
+	_PLANE(plane, _PLANE_BUF_CFG_1(pipe), _PLANE_BUF_CFG_2(pipe))
+
+/* SKL new cursor registers */
+#define _CUR_BUF_CFG_A				0x7017c
+#define _CUR_BUF_CFG_B				0x7117c
+#define CUR_BUF_CFG(pipe)	_PIPE(pipe, _CUR_BUF_CFG_A, _CUR_BUF_CFG_B)
 
 /* VBIOS regs */
 #define VGACNTRL		0x71400
