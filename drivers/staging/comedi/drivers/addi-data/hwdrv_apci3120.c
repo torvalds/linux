@@ -210,6 +210,26 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static void apci3120_init_dma(struct comedi_device *dev,
+			      struct apci3120_dmabuf *dmabuf)
+{
+	struct apci3120_private *devpriv = dev->private;
+
+	/* DMA Start Address Low */
+	outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
+	outw(dmabuf->hw & 0xffff, devpriv->addon + 2);
+	/* DMA Start Address High */
+	outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->addon + 0);
+	outw((dmabuf->hw >> 16) & 0xffff, devpriv->addon + 2);
+
+	/* Nbr of acquisition LOW */
+	outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->addon + 0);
+	outw(dmabuf->use_size & 0xffff, devpriv->addon + 2);
+	/* Nbr of acquisition HIGH */
+	outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->addon + 0);
+	outw((dmabuf->use_size >> 16) & 0xffff, devpriv->addon + 2);
+}
+
 static void apci3120_setup_dma(struct comedi_device *dev,
 			       struct comedi_subdevice *s)
 {
@@ -288,34 +308,7 @@ static void apci3120_setup_dma(struct comedi_device *dev,
 	outl(APCI3120_A2P_FIFO_MANAGEMENT,
 	     devpriv->amcc + APCI3120_AMCC_OP_MCSR);
 
-	/*
-	 * 3
-	 * beginning address of dma buf The 32 bit address of dma buffer
-	 * is converted into two 16 bit addresses Can done by using _attach
-	 * and put into into an array array used may be for differnet pages
-	 */
-
-	/* DMA Start Address Low */
-	outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
-	outw(dmabuf0->hw & 0xffff, devpriv->addon + 2);
-
-	/* DMA Start Address High */
-	outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->addon + 0);
-	outw((dmabuf0->hw >> 16) & 0xffff, devpriv->addon + 2);
-
-	/*
-	 * 4
-	 * amount of bytes to be transferred set transfer count used ADDON
-	 * MWTC register commented testing
-	 */
-
-	/* Nbr of acquisition LOW */
-	outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->addon + 0);
-	outw(dmabuf0->use_size & 0xffff, devpriv->addon + 2);
-
-	/* Nbr of acquisition HIGH */
-	outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->addon + 0);
-	outw((dmabuf0->use_size >> 16) & 0xffff, devpriv->addon + 2);
+	apci3120_init_dma(dev, dmabuf0);
 
 	/*
 	 * 5
@@ -481,21 +474,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
 		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->addon + 2);	/*  0x1000 is out putted in windows driver */
 
-		/* DMA Start Address Low */
-		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
-		outw(next_dmabuf->hw & 0xffff, devpriv->addon + 2);
-
-		/* DMA Start Address High */
-		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->addon + 0);
-		outw((next_dmabuf->hw >> 16) & 0xffff, devpriv->addon + 2);
-
-		/* Nbr of acquisition LOW */
-		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->addon + 0);
-		outw(next_dmabuf->use_size & 0xffff, devpriv->addon + 2);
-
-		/* Nbr of acquisition HIGH */
-		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->addon + 0);
-		outw((next_dmabuf->use_size > 16) & 0xffff, devpriv->addon + 2);
+		apci3120_init_dma(dev, next_dmabuf);
 
 		/*
 		 * To configure A2P FIFO
@@ -543,15 +522,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		outl(APCI3120_A2P_FIFO_MANAGEMENT,
 		     devpriv->amcc + AMCC_OP_REG_MCSR);
 
-		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
-		outw(dmabuf->hw & 0xffff, devpriv->addon + 2);
-		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->addon + 0);
-		outw((dmabuf->hw >> 16) & 0xffff, devpriv->addon + 2);
-
-		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->addon + 0);
-		outw(dmabuf->use_size & 0xffff, devpriv->addon + 2);
-		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->addon + 0);
-		outw((dmabuf->use_size >> 16) & 0xffff, devpriv->addon + 2);
+		apci3120_init_dma(dev, dmabuf);
 
 		/*
 		 * To configure A2P FIFO
