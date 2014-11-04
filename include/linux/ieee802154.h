@@ -209,7 +209,7 @@ static inline bool ieee802154_is_valid_extended_addr(const __le64 addr)
 	 * This is currently a workaround because neighbor discovery can't
 	 * deal with short addresses types right now.
 	 */
-	return ((addr != cpu_to_le64(0x0000000000000000ULL)) ||
+	return ((addr != cpu_to_le64(0x0000000000000000ULL)) &&
 		(addr != cpu_to_le64(0xffffffffffffffffULL)));
 }
 
