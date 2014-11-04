@@ -139,9 +139,6 @@ struct apci3120_private {
 	unsigned char timer_mode;
 	unsigned char mode;
 	unsigned short ctrl;
-	unsigned char b_Timer2Mode;
-	unsigned char b_Timer2Interrupt;
-	struct task_struct *tsk_Current;
 };
 
 /*
@@ -447,6 +444,83 @@ static int apci3120_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int apci3120_timer_insn_config(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_insn *insn,
+				      unsigned int *data)
+{
+	struct apci3120_private *devpriv = dev->private;
+	unsigned int divisor;
+	unsigned int status;
+	unsigned int mode;
+	unsigned int timer_mode;
+
+	switch (data[0]) {
+	case INSN_CONFIG_ARM:
+		apci3120_clr_timer2_interrupt(dev);
+		divisor = apci3120_ns_to_timer(dev, 2, data[1],
+					       CMDF_ROUND_DOWN);
+		apci3120_timer_write(dev, 2, divisor);
+		apci3120_timer_enable(dev, 2, true);
+		break;
+
+	case INSN_CONFIG_DISARM:
+		apci3120_timer_enable(dev, 2, false);
+		apci3120_clr_timer2_interrupt(dev);
+		break;
+
+	case INSN_CONFIG_GET_COUNTER_STATUS:
+		data[1] = 0;
+		data[2] = COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING |
+			  COMEDI_COUNTER_TERMINAL_COUNT;
+
+		if (devpriv->ctrl & APCI3120_CTRL_GATE(2)) {
+			data[1] |= COMEDI_COUNTER_ARMED;
+			data[1] |= COMEDI_COUNTER_COUNTING;
+		}
+		status = inw(dev->iobase + APCI3120_STATUS_REG);
+		if (status & APCI3120_STATUS_TIMER2_INT) {
+			data[1] &= ~COMEDI_COUNTER_COUNTING;
+			data[1] |= COMEDI_COUNTER_TERMINAL_COUNT;
+		}
+		break;
+
+	case INSN_CONFIG_SET_COUNTER_MODE:
+		switch (data[1]) {
+		case I8254_MODE0:
+			mode = APCI3120_MODE_TIMER2_AS_COUNTER;
+			timer_mode = APCI3120_TIMER_MODE0;
+			break;
+		case I8254_MODE2:
+			mode = APCI3120_MODE_TIMER2_AS_TIMER;
+			timer_mode = APCI3120_TIMER_MODE2;
+			break;
+		case I8254_MODE4:
+			mode = APCI3120_MODE_TIMER2_AS_TIMER;
+			timer_mode = APCI3120_TIMER_MODE4;
+			break;
+		case I8254_MODE5:
+			mode = APCI3120_MODE_TIMER2_AS_WDOG;
+			timer_mode = APCI3120_TIMER_MODE5;
+			break;
+		default:
+			return -EINVAL;
+		}
+		apci3120_timer_enable(dev, 2, false);
+		apci3120_clr_timer2_interrupt(dev);
+		apci3120_timer_set_mode(dev, 2, timer_mode);
+		devpriv->mode &= ~APCI3120_MODE_TIMER2_AS_MASK;
+		devpriv->mode |= mode;
+		outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return insn->n;
+}
+
 static int apci3120_timer_insn_read(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
@@ -627,11 +701,10 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	/* Timer subdevice */
 	s = &dev->subdevices[4];
 	s->type		= COMEDI_SUBD_TIMER;
-	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 1;
 	s->maxdata	= 0x00ffffff;
-	s->insn_write	= apci3120_write_insn_timer;
-	s->insn_config	= apci3120_config_insn_timer;
+	s->insn_config	= apci3120_timer_insn_config;
 	s->insn_read	= apci3120_timer_insn_read;
 
 	return 0;

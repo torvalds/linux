@@ -40,19 +40,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
   +----------+-----------+------------------------------------------------+
 */
 
-#define APCI3120_START			1
-#define APCI3120_STOP			0
-
-/* TIMER DEFINE */
-#define APCI3120_QUARTZ_A		70
-#define APCI3120_QUARTZ_B		50
-#define APCI3120_TIMER			1
-#define APCI3120_WATCHDOG		2
-#define APCI3120_TIMER_DISABLE		0
-#define APCI3120_TIMER_ENABLE		1
-
-#define APCI3120_COUNTER		3
-
 static void apci3120_addon_write(struct comedi_device *dev,
 				 unsigned int val, unsigned int reg)
 {
@@ -385,8 +372,6 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	if (devpriv->ctrl & APCI3120_CTRL_EXT_TRIG)
 		apci3120_exttrig_enable(dev, false);
 
-	apci3120_clr_timer2_interrupt(dev);
-
 	if (int_amcc & MASTER_ABORT_INT)
 		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
 	if (int_amcc & TARGET_ABORT_INT)
@@ -412,36 +397,16 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	}
 
 	if (status & APCI3120_STATUS_TIMER2_INT) {
-		switch (devpriv->b_Timer2Mode) {
-		case APCI3120_COUNTER:
-			break;
-
-		case APCI3120_TIMER:
-
-			/* Send a signal to from kernel to user space */
-			send_sig(SIGIO, devpriv->tsk_Current, 0);
-			break;
-
-		case APCI3120_WATCHDOG:
-
-			/* Send a signal to from kernel to user space */
-			send_sig(SIGIO, devpriv->tsk_Current, 0);
-			break;
-
-		default:
-			/*  disable Timer Interrupt */
-			devpriv->mode &= ~APCI3120_MODE_TIMER2_IRQ_ENA;
-			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-		}
-
+		/*
+		 * for safety...
+		 * timer2 interrupts are not enabled in the driver
+		 */
 		apci3120_clr_timer2_interrupt(dev);
 	}
 
 	if (status & APCI3120_STATUS_AMCC_INT) {
 		/* AMCC- Clear write complete interrupt (DMA) */
 		outl(AINT_WT_COMPLETE, devpriv->amcc + AMCC_OP_REG_INTCSR);
-
-		apci3120_clr_timer2_interrupt(dev);
 
 		/* do some data transfer */
 		apci3120_interrupt_dma(irq, d);
@@ -453,158 +418,4 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
-}
-
-/*
- * Configure Timer 2
- *
- * data[0] = TIMER configure as timer
- *	   = WATCHDOG configure as watchdog
- * data[1] = Timer constant
- * data[2] = Timer2 interrupt (1)enable or(0) disable
- */
-static int apci3120_config_insn_timer(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
-{
-	struct apci3120_private *devpriv = dev->private;
-	unsigned int divisor;
-
-	if (!data[1])
-		dev_err(dev->class_dev, "No timer constant!\n");
-
-	devpriv->b_Timer2Interrupt = (unsigned char) data[2];	/*  save info whether to enable or disable interrupt */
-
-	divisor = apci3120_ns_to_timer(dev, 2, data[1], CMDF_ROUND_DOWN);
-
-	apci3120_timer_enable(dev, 2, false);
-
-	/* disable timer 2 interrupt and reset operation mode (timer) */
-	devpriv->mode &= ~APCI3120_MODE_TIMER2_IRQ_ENA &
-			 ~APCI3120_MODE_TIMER2_AS_MASK;
-
-	/*  Disable Eoc and Eos Interrupts */
-	devpriv->mode &= ~APCI3120_MODE_EOC_IRQ_ENA &
-			 ~APCI3120_MODE_EOS_IRQ_ENA;
-	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-
-	if (data[0] == APCI3120_TIMER) {	/* initialize timer */
-		/* Set the Timer 2 in mode 2(Timer) */
-		apci3120_timer_set_mode(dev, 2, APCI3120_TIMER_MODE2);
-
-		/* Set timer 2 delay */
-		apci3120_timer_write(dev, 2, divisor);
-
-		/*  timer2 in Timer mode enabled */
-		devpriv->b_Timer2Mode = APCI3120_TIMER;
-	} else {			/*  Initialize Watch dog */
-		/* Set the Timer 2 in mode 5(Watchdog) */
-		apci3120_timer_set_mode(dev, 2, APCI3120_TIMER_MODE5);
-
-		/* Set timer 2 delay */
-		apci3120_timer_write(dev, 2, divisor);
-
-		/* watchdog enabled */
-		devpriv->b_Timer2Mode = APCI3120_WATCHDOG;
-
-	}
-
-	return insn->n;
-
-}
-
-/*
- * To start and stop the timer
- *
- * data[0] = 1 (start)
- *	   = 0 (stop)
- *	   = 2 (write new value)
- * data[1] = new value
- *
- * devpriv->b_Timer2Mode = 0 DISABLE
- *			 = 1 Timer
- *			 = 2 Watch dog
- */
-static int apci3120_write_insn_timer(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
-{
-	struct apci3120_private *devpriv = dev->private;
-	unsigned int divisor;
-
-	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
-		&& (devpriv->b_Timer2Mode != APCI3120_TIMER)) {
-		dev_err(dev->class_dev, "timer2 not configured\n");
-		return -EINVAL;
-	}
-
-	if (data[0] == 2) {	/*  write new value */
-		if (devpriv->b_Timer2Mode != APCI3120_TIMER) {
-			dev_err(dev->class_dev,
-				"timer2 not configured in TIMER MODE\n");
-			return -EINVAL;
-		}
-	}
-
-	switch (data[0]) {
-	case APCI3120_START:
-		apci3120_clr_timer2_interrupt(dev);
-
-		if (devpriv->b_Timer2Mode == APCI3120_TIMER) {	/* start timer */
-			/* Enable Timer */
-			devpriv->mode &= 0x0b;
-			devpriv->mode |= APCI3120_MODE_TIMER2_AS_TIMER;
-		} else {		/* start watch dog */
-			/* Enable WatchDog */
-			devpriv->mode &= 0x0b;
-			devpriv->mode |= APCI3120_MODE_TIMER2_AS_WDOG;
-		}
-
-		/* enable disable interrupt */
-		if (devpriv->b_Timer2Interrupt) {
-			devpriv->mode |= APCI3120_MODE_TIMER2_IRQ_ENA;
-
-			/*  save the task structure to pass info to user */
-			devpriv->tsk_Current = current;
-		} else {
-			devpriv->mode &= ~APCI3120_MODE_TIMER2_IRQ_ENA;
-		}
-		outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-
-		/* start timer */
-		if (devpriv->b_Timer2Mode == APCI3120_TIMER)
-			apci3120_timer_enable(dev, 2, true);
-		break;
-
-	case APCI3120_STOP:
-		/* disable timer 2 interrupt and reset operation mode (timer) */
-		devpriv->mode &= ~APCI3120_MODE_TIMER2_IRQ_ENA &
-				 ~APCI3120_MODE_TIMER2_AS_MASK;
-		outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-
-		apci3120_timer_enable(dev, 2, false);
-
-		apci3120_clr_timer2_interrupt(dev);
-		break;
-
-	case 2:		/* write new value to Timer */
-		if (devpriv->b_Timer2Mode != APCI3120_TIMER) {
-			dev_err(dev->class_dev,
-				"timer2 not configured in TIMER MODE\n");
-			return -EINVAL;
-		}
-
-		divisor = apci3120_ns_to_timer(dev, 2, data[1],
-					       CMDF_ROUND_DOWN);
-
-		/* Set timer 2 delay */
-		apci3120_timer_write(dev, 2, divisor);
-		break;
-	default:
-		return -EINVAL;	/*  Not a valid input */
-	}
-
-	return insn->n;
 }
