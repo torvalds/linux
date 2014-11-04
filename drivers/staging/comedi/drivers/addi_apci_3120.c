@@ -281,6 +281,19 @@ static void apci3120_ai_reset_fifo(struct comedi_device *dev)
 
 #include "addi-data/hwdrv_apci3120.c"
 
+static int apci3120_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + APCI3120_STATUS_REG);
+	data[1] = APCI3120_STATUS_TO_DI_BITS(status);
+
+	return insn->n;
+}
+
 static int apci3120_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
