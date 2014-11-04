@@ -2679,6 +2679,42 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_ddb_info(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct skl_ddb_allocation *ddb;
+	struct skl_ddb_entry *entry;
+	enum pipe pipe;
+	int plane;
+
+	drm_modeset_lock_all(dev);
+
+	ddb = &dev_priv->wm.skl_hw.ddb;
+
+	seq_printf(m, "%-15s%8s%8s%8s\n", "", "Start", "End", "Size");
+
+	for_each_pipe(dev_priv, pipe) {
+		seq_printf(m, "Pipe %c\n", pipe_name(pipe));
+
+		for_each_plane(pipe, plane) {
+			entry = &ddb->plane[pipe][plane];
+			seq_printf(m, "  Plane%-8d%8u%8u%8u\n", plane + 1,
+				   entry->start, entry->end,
+				   skl_ddb_entry_size(entry));
+		}
+
+		entry = &ddb->cursor[pipe];
+		seq_printf(m, "  %-13s%8u%8u%8u\n", "Cursor", entry->start,
+			   entry->end, skl_ddb_entry_size(entry));
+	}
+
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
 struct pipe_crc_info {
 	const char *name;
 	struct drm_device *dev;
@@ -4252,6 +4288,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},
 	{"i915_wa_registers", i915_wa_registers, 0},
+	{"i915_ddb_info", i915_ddb_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
