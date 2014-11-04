@@ -85,6 +85,8 @@
 #define GPMC_ECC_CTRL_ECCREG8		0x008
 #define GPMC_ECC_CTRL_ECCREG9		0x009
 
+#define GPMC_CONFIG_LIMITEDADDRESS		BIT(1)
+
 #define	GPMC_CONFIG2_CSEXTRADELAY		BIT(7)
 #define	GPMC_CONFIG3_ADVEXTRADELAY		BIT(7)
 #define	GPMC_CONFIG4_OEEXTRADELAY		BIT(7)
@@ -209,11 +211,6 @@ static u32 gpmc_cs_read_reg(int cs, int idx)
 static unsigned long gpmc_get_fclk_period(void)
 {
 	unsigned long rate = clk_get_rate(gpmc_l3_clk);
-
-	if (rate == 0) {
-		printk(KERN_WARNING "gpmc_l3_clk not enabled\n");
-		return 0;
-	}
 
 	rate /= 1000;
 	rate = 1000000000 / rate;	/* In picoseconds */
@@ -414,13 +411,8 @@ static inline void gpmc_cs_show_timings(int cs, const char *desc)
 }
 #endif
 
-#ifdef DEBUG
 static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 			       int time, const char *name)
-#else
-static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
-			       int time)
-#endif
 {
 	u32 l;
 	int ticks, mask, nr_bits;
@@ -430,15 +422,15 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 	else
 		ticks = gpmc_ns_to_ticks(time);
 	nr_bits = end_bit - st_bit + 1;
-	if (ticks >= 1 << nr_bits) {
-#ifdef DEBUG
-		printk(KERN_INFO "GPMC CS%d: %-10s* %3d ns, %3d ticks >= %d\n",
-				cs, name, time, ticks, 1 << nr_bits);
-#endif
+	mask = (1 << nr_bits) - 1;
+
+	if (ticks > mask) {
+		pr_err("%s: GPMC error! CS%d: %s: %d ns, %d ticks > %d\n",
+		       __func__, cs, name, time, ticks, mask);
+
 		return -1;
 	}
 
-	mask = (1 << nr_bits) - 1;
 	l = gpmc_cs_read_reg(cs, reg);
 #ifdef DEBUG
 	printk(KERN_INFO
@@ -453,16 +445,10 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 	return 0;
 }
 
-#ifdef DEBUG
 #define GPMC_SET_ONE(reg, st, end, field) \
 	if (set_gpmc_timing_reg(cs, (reg), (st), (end),		\
 			t->field, #field) < 0)			\
 		return -1
-#else
-#define GPMC_SET_ONE(reg, st, end, field) \
-	if (set_gpmc_timing_reg(cs, (reg), (st), (end), t->field) < 0) \
-		return -1
-#endif
 
 int gpmc_calc_divider(unsigned int sync_clk)
 {
@@ -539,7 +525,7 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 	return 0;
 }
 
-static int gpmc_cs_enable_mem(int cs, u32 base, u32 size)
+static int gpmc_cs_set_memconf(int cs, u32 base, u32 size)
 {
 	u32 l;
 	u32 mask;
@@ -561,6 +547,15 @@ static int gpmc_cs_enable_mem(int cs, u32 base, u32 size)
 	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG7, l);
 
 	return 0;
+}
+
+static void gpmc_cs_enable_mem(int cs)
+{
+	u32 l;
+
+	l = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG7);
+	l |= GPMC_CONFIG7_CSVALID;
+	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG7, l);
 }
 
 static void gpmc_cs_disable_mem(int cs)
@@ -693,18 +688,18 @@ static int gpmc_cs_remap(int cs, u32 base)
 	gpmc_cs_get_memconf(cs, &old_base, &size);
 	if (base == old_base)
 		return 0;
-	gpmc_cs_disable_mem(cs);
+
 	ret = gpmc_cs_delete_mem(cs);
 	if (ret < 0)
 		return ret;
+
 	ret = gpmc_cs_insert_mem(cs, base, size);
 	if (ret < 0)
 		return ret;
-	ret = gpmc_cs_enable_mem(cs, base, size);
-	if (ret < 0)
-		return ret;
 
-	return 0;
+	ret = gpmc_cs_set_memconf(cs, base, size);
+
+	return ret;
 }
 
 int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
@@ -734,12 +729,17 @@ int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 	if (r < 0)
 		goto out;
 
-	r = gpmc_cs_enable_mem(cs, res->start, resource_size(res));
+	/* Disable CS while changing base address and size mask */
+	gpmc_cs_disable_mem(cs);
+
+	r = gpmc_cs_set_memconf(cs, res->start, resource_size(res));
 	if (r < 0) {
 		release_resource(res);
 		goto out;
 	}
 
+	/* Enable CS */
+	gpmc_cs_enable_mem(cs);
 	*base = res->start;
 	gpmc_cs_set_reserved(cs, 1);
 out:
@@ -1667,6 +1667,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	unsigned long base;
 	const char *name;
 	int ret, cs;
+	u32 val;
 
 	if (of_property_read_u32(child, "reg", &cs) < 0) {
 		dev_err(&pdev->dev, "%s has no 'reg' property\n",
@@ -1712,6 +1713,9 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		goto no_timings;
 	}
 
+	/* CS must be disabled while making changes to gpmc configuration */
+	gpmc_cs_disable_mem(cs);
+
 	/*
 	 * FIXME: gpmc_cs_request() will map the CS to an arbitary
 	 * location in the gpmc address space. When booting with
@@ -1735,7 +1739,20 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	if (ret < 0)
 		goto err;
 
-	gpmc_cs_set_timings(cs, &gpmc_t);
+	ret = gpmc_cs_set_timings(cs, &gpmc_t);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to set gpmc timings for: %s\n",
+			child->name);
+		goto err;
+	}
+
+	/* Clear limited address i.e. enable A26-A11 */
+	val = gpmc_read_reg(GPMC_CONFIG);
+	val &= ~GPMC_CONFIG_LIMITEDADDRESS;
+	gpmc_write_reg(GPMC_CONFIG, val);
+
+	/* Enable CS region */
+	gpmc_cs_enable_mem(cs);
 
 no_timings:
 	if (of_platform_device_create(child, NULL, &pdev->dev))
@@ -1832,11 +1849,16 @@ static int gpmc_probe(struct platform_device *pdev)
 	else
 		gpmc_irq = res->start;
 
-	gpmc_l3_clk = clk_get(&pdev->dev, "fck");
+	gpmc_l3_clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(gpmc_l3_clk)) {
-		dev_err(&pdev->dev, "error: clk_get\n");
+		dev_err(&pdev->dev, "Failed to get GPMC fck\n");
 		gpmc_irq = 0;
 		return PTR_ERR(gpmc_l3_clk);
+	}
+
+	if (!clk_get_rate(gpmc_l3_clk)) {
+		dev_err(&pdev->dev, "Invalid GPMC fck clock rate\n");
+		return -EINVAL;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -1878,7 +1900,6 @@ static int gpmc_probe(struct platform_device *pdev)
 	rc = gpmc_probe_dt(pdev);
 	if (rc < 0) {
 		pm_runtime_put_sync(&pdev->dev);
-		clk_put(gpmc_l3_clk);
 		dev_err(gpmc_dev, "failed to probe DT parameters\n");
 		return rc;
 	}
