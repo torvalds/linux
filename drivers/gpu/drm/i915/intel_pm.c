@@ -3217,28 +3217,6 @@ static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 	return ret;
 }
 
-static void skl_compute_transition_wm(struct drm_crtc *crtc,
-				  struct skl_pipe_wm_parameters *params,
-				  struct skl_pipe_wm *pipe_wm)
-{
-	/*
-	 * For now it is suggested to use the LP0 wm val of corresponding
-	 * plane as transition wm val. This is done while computing results.
-	 */
-	if (!params->active)
-		return;
-}
-
-static uint32_t
-skl_compute_linetime_wm(struct drm_crtc *crtc, struct skl_pipe_wm_parameters *p)
-{
-	if (!intel_crtc_active(crtc))
-		return 0;
-
-	return DIV_ROUND_UP(8 * p->pipe_htotal * 1000, p->pixel_rate);
-
-}
-
 static bool skl_ddb_allocation_changed(const struct skl_ddb_allocation *new_ddb,
 				       const struct intel_crtc *intel_crtc)
 {
@@ -3382,6 +3360,28 @@ static void skl_compute_wm_level(const struct drm_i915_private *dev_priv,
 	result->cursor_en = skl_compute_plane_wm(p, &p->cursor, ddb_blocks,
 						 latency, &result->cursor_res_b,
 						 &result->cursor_res_l);
+}
+
+static uint32_t
+skl_compute_linetime_wm(struct drm_crtc *crtc, struct skl_pipe_wm_parameters *p)
+{
+	if (!intel_crtc_active(crtc))
+		return 0;
+
+	return DIV_ROUND_UP(8 * p->pipe_htotal * 1000, p->pixel_rate);
+
+}
+
+static void skl_compute_transition_wm(struct drm_crtc *crtc,
+				      struct skl_pipe_wm_parameters *params,
+				      struct skl_pipe_wm *pipe_wm)
+{
+	/*
+	 * For now it is suggested to use the LP0 wm val of corresponding
+	 * plane as transition wm val.
+	 */
+	if (!params->active)
+		return;
 }
 
 static void skl_compute_pipe_wm(struct drm_crtc *crtc,
