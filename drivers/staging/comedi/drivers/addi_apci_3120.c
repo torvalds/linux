@@ -318,6 +318,73 @@ static void apci3120_set_chanlist(struct comedi_device *dev,
 
 #include "addi-data/hwdrv_apci3120.c"
 
+static int apci3120_ai_cmdtest(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_cmd *cmd)
+{
+	unsigned int arg;
+	int err = 0;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
+	if (cmd->scan_begin_src == TRIG_TIMER)	/* Test Delay timing */
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, 100000);
+
+	/* minimum conversion time per sample is 10us */
+	err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
+
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/*  TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+
+	if (err)
+		return 3;
+
+	/* Step 4: fix up any arguments */
+
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		/* scan begin must be larger than the scan time */
+		arg = cmd->convert_arg * cmd->scan_end_arg;
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, arg);
+	}
+
+	if (err)
+		return 4;
+
+	/* Step 5: check channel list if it exists */
+
+	return 0;
+}
+
 static int apci3120_ai_eoc(struct comedi_device *dev,
 			   struct comedi_subdevice *s,
 			   struct comedi_insn *insn,
