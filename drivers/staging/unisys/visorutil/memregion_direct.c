@@ -101,7 +101,6 @@ visor_memregion_create_overlapped(struct memregion *parent, ulong offset,
 }
 EXPORT_SYMBOL_GPL(visor_memregion_create_overlapped);
 
-
 static BOOL
 mapit(struct memregion *memregion)
 {
@@ -176,7 +175,6 @@ visor_memregion_resize(struct memregion *memregion, ulong newsize)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_resize);
-
 
 static int
 memregion_readwrite(BOOL is_write,
