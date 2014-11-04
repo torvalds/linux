@@ -74,10 +74,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_START			1
 #define APCI3120_STOP			0
 
-#define APCI3120_EOC_MODE		1
-#define APCI3120_EOS_MODE		2
-#define APCI3120_DMA_MODE		3
-
 #define APCI3120_RD_FIFO		0x00
 
 /* software trigger dummy register */
@@ -96,8 +92,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 static int apci3120_reset(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
-
-	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 
 	/*  variables used in timer subdevice */
 	devpriv->b_Timer2Mode = 0;
@@ -144,8 +138,6 @@ static int apci3120_cancel(struct comedi_device *dev,
 
 	inw(dev->iobase + APCI3120_STATUS_REG);
 	devpriv->ui_DmaActualBuffer = 0;
-
-	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 
 	return 0;
 }
@@ -413,11 +405,8 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	apci3120_timer_write(dev, 0, divisor);
 
 	if (devpriv->us_UseDma) {
-		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
 		apci3120_setup_dma(dev, s);
 	} else {
-		devpriv->b_InterruptMode = APCI3120_EOS_MODE;
-
 		devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
 
 		if (cmd->stop_src == TRIG_COUNT) {
@@ -615,12 +604,12 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
 
 	if ((status & APCI3120_STATUS_EOC_INT) == 0 &&
-	    devpriv->b_InterruptMode == APCI3120_EOC_MODE) {
+	    (devpriv->mode & APCI3120_MODE_EOC_IRQ_ENA)) {
 		/* nothing to do... EOC mode is not currently used */
 	}
 
 	if ((status & APCI3120_STATUS_EOS_INT) &&
-	    devpriv->b_InterruptMode == APCI3120_EOS_MODE) {
+	    (devpriv->mode & APCI3120_MODE_EOS_IRQ_ENA)) {
 		unsigned short val;
 		int i;
 
@@ -663,8 +652,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		apci3120_clr_timer2_interrupt(dev);
 	}
 
-	if ((status & APCI3120_STATUS_AMCC_INT) &&
-	    devpriv->b_InterruptMode == APCI3120_DMA_MODE) {
+	if (status & APCI3120_STATUS_AMCC_INT) {
 		/* Clear Timer Write TC int */
 		outl(APCI3120_CLEAR_WRITE_TC_INT,
 			devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
