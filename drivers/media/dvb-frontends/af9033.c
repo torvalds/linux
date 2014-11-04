@@ -876,7 +876,12 @@ static int af9033_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 		*strength = u8tmp * 0xffff / 100;
 	} else {
 		ret = af9033_rd_reg(dev, 0x8000f7, &u8tmp);
-		ret |= af9033_rd_regs(dev, 0x80f900, buf, 7);
+		if (ret < 0)
+			goto err;
+
+		ret = af9033_rd_regs(dev, 0x80f900, buf, 7);
+		if (ret < 0)
+			goto err;
 
 		if (c->frequency <= 300000000)
 			gain_offset = 7; /* VHF */
@@ -900,9 +905,6 @@ static int af9033_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 		/* scale value to 0x0000-0xffff */
 		*strength = tmp * 0xffff / 100;
 	}
-
-	if (ret)
-		goto err;
 
 	return 0;
 
