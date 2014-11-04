@@ -71,9 +71,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 /* for transfer count enable bit */
 #define AGCSTS_TC_ENABLE	0x10000000
 
-#define APCI3120_DISABLE		0
-#define APCI3120_ENABLE			1
-
 #define APCI3120_START			1
 #define APCI3120_STOP			0
 
@@ -407,7 +404,7 @@ static int apci3120_cyclic_ai(int mode,
 						cmd->flags);
 	}
 
-	if (devpriv->b_ExttrigEnable == APCI3120_ENABLE)
+	if (devpriv->b_ExttrigEnable)
 		apci3120_exttrig_enable(dev, true);
 
 	switch (mode) {
@@ -438,7 +435,7 @@ static int apci3120_cyclic_ai(int mode,
 	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 	/*  If DMA is disabled */
-	if (devpriv->us_UseDma == APCI3120_DISABLE) {
+	if (!devpriv->us_UseDma) {
 		/*  disable EOC and enable EOS */
 		devpriv->b_InterruptMode = APCI3120_EOS_MODE;
 
@@ -462,15 +459,14 @@ static int apci3120_cyclic_ai(int mode,
 			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 			devpriv->b_Timer2Mode = APCI3120_COUNTER;
-			devpriv->b_Timer2Interrupt = APCI3120_ENABLE;
+			devpriv->b_Timer2Interrupt = 1;
 		}
 	} else {
 		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
 		apci3120_setup_dma(dev, s);
 	}
 
-	if (devpriv->us_UseDma == APCI3120_DISABLE &&
-	    cmd->stop_src == TRIG_COUNT)
+	if (!devpriv->us_UseDma && cmd->stop_src == TRIG_COUNT)
 		apci3120_timer_enable(dev, 2, true);
 
 	switch (mode) {
@@ -498,9 +494,9 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	if (cmd->start_src == TRIG_EXT)
-		devpriv->b_ExttrigEnable = APCI3120_ENABLE;
+		devpriv->b_ExttrigEnable = 1;
 	else
-		devpriv->b_ExttrigEnable = APCI3120_DISABLE;
+		devpriv->b_ExttrigEnable = 0;
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW)
 		return apci3120_cyclic_ai(1, dev, s);
@@ -656,9 +652,9 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 
 	outl(int_amcc | 0x00ff0000, devpriv->amcc + AMCC_OP_REG_INTCSR);
 
-	if (devpriv->b_ExttrigEnable == APCI3120_ENABLE) {
+	if (devpriv->b_ExttrigEnable) {
 		apci3120_exttrig_enable(dev, false);
-		devpriv->b_ExttrigEnable = APCI3120_DISABLE;
+		devpriv->b_ExttrigEnable = 0;
 	}
 
 	apci3120_clr_timer2_interrupt(dev);
@@ -841,7 +837,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 		}
 
 		/* enable disable interrupt */
-		if ((devpriv->b_Timer2Interrupt) == APCI3120_ENABLE) {
+		if (devpriv->b_Timer2Interrupt) {
 			devpriv->mode |= APCI3120_MODE_TIMER2_IRQ_ENA;
 
 			/*  save the task structure to pass info to user */
