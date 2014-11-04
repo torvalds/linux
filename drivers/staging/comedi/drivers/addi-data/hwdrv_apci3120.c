@@ -43,9 +43,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_START			1
 #define APCI3120_STOP			0
 
-/* software trigger dummy register */
-#define APCI3120_START_CONVERSION	0x02
-
 /* TIMER DEFINE */
 #define APCI3120_QUARTZ_A		70
 #define APCI3120_QUARTZ_B		50

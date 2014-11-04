@@ -22,6 +22,7 @@
 #define APCI3120_CTRL_GATE(x)			(1 << (12 + (x)))
 #define APCI3120_CTRL_PR(x)			(((x) & 0xf) << 8)
 #define APCI3120_CTRL_PA(x)			(((x) & 0xf) << 0)
+#define APCI3120_AI_SOFTTRIG_REG		0x02
 #define APCI3120_STATUS_REG			0x02
 #define APCI3120_STATUS_EOC_INT			(1 << 15)
 #define APCI3120_STATUS_AMCC_INT		(1 << 14)
