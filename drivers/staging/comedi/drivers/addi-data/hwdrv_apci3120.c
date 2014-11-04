@@ -92,8 +92,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_DISABLE_EOS_INT	(~APCI3120_ENABLE_EOS_INT)
 #define APCI3120_ENABLE_EOC_INT		0x1
 #define APCI3120_DISABLE_EOC_INT	(~APCI3120_ENABLE_EOC_INT)
-#define APCI3120_DISABLE_ALL_INTERRUPT_WITHOUT_TIMER	\
-	(APCI3120_DISABLE_EOS_INT & APCI3120_DISABLE_EOC_INT)
 #define APCI3120_DISABLE_ALL_INTERRUPT			\
 	(APCI3120_DISABLE_TIMER_INT & APCI3120_DISABLE_EOS_INT & APCI3120_DISABLE_EOC_INT)
 
@@ -270,11 +268,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 					APCI3120_ENABLE_EOC_INT;
 				inw(dev->iobase + 0);
 
-			} else {
-				devpriv->b_ModeSelectRegister =
-					devpriv->
-					b_ModeSelectRegister &
-					APCI3120_DISABLE_ALL_INTERRUPT_WITHOUT_TIMER;
 			}
 
 			outb(devpriv->b_ModeSelectRegister,
@@ -337,11 +330,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 					APCI3120_ENABLE_EOS_INT;
 				inw(dev->iobase + 0);
 
-			} else
-				devpriv->b_ModeSelectRegister =
-					devpriv->
-					b_ModeSelectRegister &
-					APCI3120_DISABLE_ALL_INTERRUPT_WITHOUT_TIMER;
+			}
 
 			outb(devpriv->b_ModeSelectRegister,
 			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
