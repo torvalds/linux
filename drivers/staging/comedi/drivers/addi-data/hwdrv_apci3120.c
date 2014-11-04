@@ -373,7 +373,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 				return -EINVAL;
 
 			/* Initialize Timer 0 mode 4 */
-			devpriv->timer_mode &= 0xfc;
+			devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(0);
 			devpriv->timer_mode |= APCI3120_TIMER_0_MODE_4;
 			outb(devpriv->timer_mode,
 			     dev->iobase + APCI3120_TIMER_CRT1);
@@ -456,7 +456,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 				return -EINVAL;
 
 			/* Initialize Timer 0 mode 2 */
-			devpriv->timer_mode &= 0xfc;
+			devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(0);
 			devpriv->timer_mode |= APCI3120_TIMER_0_MODE_2;
 			outb(devpriv->timer_mode,
 			     dev->iobase + APCI3120_TIMER_CRT1);
@@ -755,7 +755,7 @@ static int apci3120_cyclic_ai(int mode,
 	switch (mode) {
 	case 1:
 		/*  init timer0 in mode 2 */
-		devpriv->timer_mode &= 0xfc;
+		devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(0);
 		devpriv->timer_mode |= APCI3120_TIMER_0_MODE_2;
 		outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_CRT1);
 
@@ -765,7 +765,7 @@ static int apci3120_cyclic_ai(int mode,
 
 	case 2:
 		/*  init timer1 in mode 2 */
-		devpriv->timer_mode &= 0xf3;
+		devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(1);
 		devpriv->timer_mode |= APCI3120_TIMER_1_MODE_2;
 		outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_CRT1);
 
@@ -773,7 +773,7 @@ static int apci3120_cyclic_ai(int mode,
 		apci3120_timer_write(dev, 1, divisor1);
 
 		/*  init timer0 in mode 2 */
-		devpriv->timer_mode &= 0xfc;
+		devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(0);
 		devpriv->timer_mode |= APCI3120_TIMER_0_MODE_2;
 		outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_CRT1);
 
@@ -824,7 +824,7 @@ static int apci3120_cyclic_ai(int mode,
 				dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 			/* (1) Init timer 2 in mode 0 and write timer value */
-			devpriv->timer_mode &= 0x0f;
+			devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(2);
 			devpriv->timer_mode |= APCI3120_TIMER_2_MODE_0;
 			outb(devpriv->timer_mode,
 			     dev->iobase + APCI3120_TIMER_CRT1);
@@ -1422,7 +1422,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 	     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 	if (data[0] == APCI3120_TIMER) {	/* initialize timer */
 		/* Set the Timer 2 in mode 2(Timer) */
-		devpriv->timer_mode &= 0x0f;
+		devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(2);
 		devpriv->timer_mode |= APCI3120_TIMER_2_MODE_2;
 		outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_CRT1);
 
@@ -1435,7 +1435,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 	} else {			/*  Initialize Watch dog */
 
 		/* Set the Timer 2 in mode 5(Watchdog) */
-		devpriv->timer_mode &= 0x0f;
+		devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(2);
 		devpriv->timer_mode |= APCI3120_TIMER_2_MODE_5;
 		outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_CRT1);
 
