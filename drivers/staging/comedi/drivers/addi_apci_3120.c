@@ -286,10 +286,6 @@ static void apci3120_set_chanlist(struct comedi_device *dev,
 	struct apci3120_private *devpriv = dev->private;
 	int i;
 
-	/* set scan length (PR) and scan start (PA) */
-	devpriv->ctrl = APCI3120_CTRL_PR(n_chan - 1) | APCI3120_CTRL_PA(0);
-	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
-
 	/* set chanlist for scan */
 	for (i = 0; i < n_chan; i++) {
 		unsigned int chan = CR_CHAN(chanlist[i]);
@@ -307,6 +303,10 @@ static void apci3120_set_chanlist(struct comedi_device *dev,
 	}
 
 	apci3120_ai_reset_fifo(dev);
+
+	/* set scan length (PR) and scan start (PA) */
+	devpriv->ctrl = APCI3120_CTRL_PR(n_chan - 1) | APCI3120_CTRL_PA(0);
+	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 }
 
 #include "addi-data/hwdrv_apci3120.c"
