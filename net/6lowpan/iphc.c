@@ -512,8 +512,16 @@ static u8 lowpan_compress_addr_64(u8 **hc_ptr, u8 shift,
 
 static void compress_udp_header(u8 **hc_ptr, struct sk_buff *skb)
 {
-	struct udphdr *uh = udp_hdr(skb);
+	struct udphdr *uh;
 	u8 tmp;
+
+	/* In the case of RAW sockets the transport header is not set by
+	 * the ip6 stack so we must set it ourselves
+	 */
+	if (skb->transport_header == skb->network_header)
+		skb_set_transport_header(skb, sizeof(struct ipv6hdr));
+
+	uh = udp_hdr(skb);
 
 	if (((ntohs(uh->source) & LOWPAN_NHC_UDP_4BIT_MASK) ==
 	     LOWPAN_NHC_UDP_4BIT_PORT) &&
