@@ -120,12 +120,6 @@ static int ohci_octeon_drv_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res_mem == NULL) {
-		dev_err(&pdev->dev, "No register space assigned\n");
-		return -ENODEV;
-	}
-
 	/* Ohci is a 32-bit device. */
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret)
@@ -135,14 +129,14 @@ static int ohci_octeon_drv_probe(struct platform_device *pdev)
 	if (!hcd)
 		return -ENOMEM;
 
-	hcd->rsrc_start = res_mem->start;
-	hcd->rsrc_len = resource_size(res_mem);
-
+	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg_base = devm_ioremap_resource(&pdev->dev, res_mem);
 	if (IS_ERR(reg_base)) {
 		ret = PTR_ERR(reg_base);
 		goto err1;
 	}
+	hcd->rsrc_start = res_mem->start;
+	hcd->rsrc_len = resource_size(res_mem);
 
 	ohci_octeon_hw_start();
 
