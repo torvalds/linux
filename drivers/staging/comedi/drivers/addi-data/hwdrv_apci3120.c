@@ -156,6 +156,18 @@ static const struct comedi_lrange range_apci3120_ai = {
 	}
 };
 
+static void apci3120_timer_enable(struct comedi_device *dev,
+				  unsigned int timer, bool enable)
+{
+	struct apci3120_private *devpriv = dev->private;
+
+	if (enable)
+		devpriv->ctrl |= APCI3120_CTRL_GATE(timer);
+	else
+		devpriv->ctrl &= ~APCI3120_CTRL_GATE(timer);
+	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+}
+
 static int apci3120_ai_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
@@ -329,9 +341,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			outb(devpriv->b_ModeSelectRegister,
 			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
-			/*  Sets gate 0 */
-			devpriv->ctrl |= APCI3120_CTRL_GATE(0);
-			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+			apci3120_timer_enable(dev, 0, true);
 
 			/* Set the conversion time */
 			apci3120_timer_write(dev, 0, divisor);
@@ -402,9 +412,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 
 			inw(dev->iobase + APCI3120_RD_STATUS);
 
-			/* Sets gate 0 */
-			devpriv->ctrl |= APCI3120_CTRL_GATE(0);
-			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+			apci3120_timer_enable(dev, 0, true);
 
 			/* Start conversion */
 			outw(0, dev->iobase + APCI3120_START_CONVERSION);
@@ -887,25 +895,17 @@ static int apci3120_cyclic_ai(int mode,
 	}
 
 	if (devpriv->us_UseDma == APCI3120_DISABLE &&
-	    cmd->stop_src == TRIG_COUNT) {
-		/*  set gate 2   to start conversion */
-		devpriv->ctrl |= APCI3120_CTRL_GATE(2);
-		outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
-	}
+	    cmd->stop_src == TRIG_COUNT)
+		apci3120_timer_enable(dev, 2, true);
 
 	switch (mode) {
 	case 1:
-		/*  set gate 0   to start conversion */
-		devpriv->ctrl |= APCI3120_CTRL_GATE(0);
-		outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+		apci3120_timer_enable(dev, 0, true);
 		break;
 	case 2:
-		/*  set  gate 0 and gate 1 */
-		devpriv->ctrl |= APCI3120_CTRL_GATE(1) |
-				 APCI3120_CTRL_GATE(0);
-		outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+		apci3120_timer_enable(dev, 1, true);
+		apci3120_timer_enable(dev, 0, true);
 		break;
-
 	}
 
 	return 0;
@@ -1234,11 +1234,8 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 			/* do some data transfer */
 			apci3120_interrupt_dma(irq, d);
 		} else {
-			/* Stops the Timer */
-			outw(devpriv->ctrl &
-			     ~APCI3120_CTRL_GATE(0) &
-			     ~APCI3120_CTRL_GATE(1),
-			     dev->iobase + APCI3120_WR_ADDRESS);
+			apci3120_timer_enable(dev, 0, false);
+			apci3120_timer_enable(dev, 1, false);
 		}
 
 	}
@@ -1270,9 +1267,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 
 	divisor = apci3120_ns_to_timer(dev, 2, data[1], CMDF_ROUND_DOWN);
 
-	/* Reset gate 2 of Timer 2 to disable it (Set Bit D14 to 0) */
-	devpriv->ctrl &= ~APCI3120_CTRL_GATE(2);
-	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+	apci3120_timer_enable(dev, 2, false);
 
 	/*  Disable TIMER Interrupt */
 	devpriv->b_ModeSelectRegister =
@@ -1381,12 +1376,9 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 		outb(devpriv->b_ModeSelectRegister,
 		     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
-		if (devpriv->b_Timer2Mode == APCI3120_TIMER) {	/* start timer */
-			/* For Timer mode is  Gate2 must be activated	timer started */
-			devpriv->ctrl |= APCI3120_CTRL_GATE(2);
-			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
-		}
-
+		/* start timer */
+		if (devpriv->b_Timer2Mode == APCI3120_TIMER)
+			apci3120_timer_enable(dev, 2, true);
 		break;
 
 	case APCI3120_STOP:
