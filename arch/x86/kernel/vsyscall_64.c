@@ -206,6 +206,7 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 				  "seccomp tried to change syscall nr or ip");
 		do_exit(SIGSYS);
 	}
+	regs->orig_ax = -1;
 	if (tmp)
 		goto do_ret;  /* skip requested */
 
