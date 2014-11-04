@@ -149,7 +149,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI3120_TIMER_CRT1		0x0c
 
-#define APCI3120_TIMER_VALUE		0x04
 #define APCI3120_TIMER_STATUS_REGISTER	0x0d
 #define APCI3120_RD_STATUS		0x02
 #define APCI3120_WR_ADDRESS		0x00
@@ -191,14 +190,14 @@ static void apci3120_timer_write(struct comedi_device *dev,
 	outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
 	     APCI3120_CTR0_TIMER_SEL(timer),
 	     dev->iobase + APCI3120_CTR0_REG);
-	outw(val & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
+	outw(val & 0xffff, dev->iobase + APCI3120_TIMER_REG);
 
 	if (timer == 2) {
 		/* write upper 16-bits to timer 2 */
 		outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
 		     APCI3120_CTR0_TIMER_SEL(timer + 1),
 		     dev->iobase + APCI3120_CTR0_REG);
-		outw((val >> 16) & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
+		outw((val >> 16) & 0xffff, dev->iobase + APCI3120_TIMER_REG);
 	}
 }
 
@@ -212,14 +211,14 @@ static unsigned int apci3120_timer_read(struct comedi_device *dev,
 	outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
 	     APCI3120_CTR0_TIMER_SEL(timer),
 	     dev->iobase + APCI3120_CTR0_REG);
-	val = inw(dev->iobase + APCI3120_TIMER_VALUE);
+	val = inw(dev->iobase + APCI3120_TIMER_REG);
 
 	if (timer == 2) {
 		/* read upper 16-bits from timer 2 */
 		outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
 		     APCI3120_CTR0_TIMER_SEL(timer + 1),
 		     dev->iobase + APCI3120_CTR0_REG);
-		val |= (inw(dev->iobase + APCI3120_TIMER_VALUE) << 16);
+		val |= (inw(dev->iobase + APCI3120_TIMER_REG) << 16);
 	}
 
 	return val;
