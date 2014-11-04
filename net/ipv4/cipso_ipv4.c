@@ -539,7 +539,7 @@ doi_add_return:
 
 /**
  * cipso_v4_doi_free - Frees a DOI definition
- * @entry: the entry's RCU field
+ * @doi_def: the DOI definition
  *
  * Description:
  * This function frees all of the memory associated with a DOI definition.
