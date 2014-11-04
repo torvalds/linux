@@ -12,6 +12,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clock/maxim,max77802.h>
 #include "exynos5800.dtsi"
 
 / {
@@ -150,7 +151,7 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	max77802-pmic@9 {
+	max77802: max77802-pmic@9 {
 		compatible = "maxim,max77802";
 		interrupt-parent = <&gpx3>;
 		interrupts = <1 IRQ_TYPE_NONE>;
@@ -548,7 +549,7 @@
 	status = "okay";
 	num-slots = <1>;
 	broken-cd;
-	caps2-mmc-hs200-1_8v;
+	mmc-hs200-1_8v;
 	cap-mmc-highspeed;
 	non-removable;
 	card-detect-delay = <200>;
@@ -715,6 +716,8 @@
 
 &rtc {
 	status = "okay";
+	clocks = <&clock CLK_RTC>, <&max77802 MAX77802_CLK_32K_AP>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &spi_2 {
