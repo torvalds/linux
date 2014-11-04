@@ -96,7 +96,6 @@ static int apci3120_reset(struct comedi_device *dev)
 	/*  variables used in timer subdevice */
 	devpriv->b_Timer2Mode = 0;
 	devpriv->b_Timer2Interrupt = 0;
-	devpriv->b_ExttrigEnable = 0;	/*  Disable ext trigger */
 
 	/* Disable all interrupts, watchdog for the anolog output */
 	devpriv->mode = 0;
@@ -378,12 +377,8 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	/* load chanlist for command scan */
 	apci3120_set_chanlist(dev, s, cmd->chanlist_len, cmd->chanlist);
 
-	if (cmd->start_src == TRIG_EXT) {
-		devpriv->b_ExttrigEnable = 1;
+	if (cmd->start_src == TRIG_EXT)
 		apci3120_exttrig_enable(dev, true);
-	} else {
-		devpriv->b_ExttrigEnable = 0;
-	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/*
@@ -591,10 +586,8 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 
 	outl(int_amcc | 0x00ff0000, devpriv->amcc + AMCC_OP_REG_INTCSR);
 
-	if (devpriv->b_ExttrigEnable) {
+	if (devpriv->ctrl & APCI3120_CTRL_EXT_TRIG)
 		apci3120_exttrig_enable(dev, false);
-		devpriv->b_ExttrigEnable = 0;
-	}
 
 	apci3120_clr_timer2_interrupt(dev);
 
