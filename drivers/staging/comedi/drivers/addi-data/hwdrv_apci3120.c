@@ -91,7 +91,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI3120_DISABLE_EOS_INT	(~APCI3120_ENABLE_EOS_INT)
 #define APCI3120_ENABLE_EOC_INT		0x1
-#define APCI3120_DISABLE_EOC_INT	(~APCI3120_ENABLE_EOC_INT)
 
 /* status register bits */
 #define APCI3120_EOC			0x8000
@@ -968,7 +967,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 			send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
 		} else {
 			/* Disable EOC Interrupt */
-			devpriv->mode &= APCI3120_DISABLE_EOC_INT;
+			devpriv->mode &= ~APCI3120_ENABLE_EOC_INT;
 			outb(devpriv->mode,
 			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 		}
@@ -1096,7 +1095,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 			 ~APCI3120_ENABLE_TIMER_COUNTER;
 
 	/*  Disable Eoc and Eos Interrupts */
-	devpriv->mode &= APCI3120_DISABLE_EOC_INT & APCI3120_DISABLE_EOS_INT;
+	devpriv->mode &= ~APCI3120_ENABLE_EOC_INT & APCI3120_DISABLE_EOS_INT;
 	outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 	if (data[0] == APCI3120_TIMER) {	/* initialize timer */
