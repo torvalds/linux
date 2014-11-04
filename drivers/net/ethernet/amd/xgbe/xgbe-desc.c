@@ -138,15 +138,26 @@ static void xgbe_free_ring(struct xgbe_prv_data *pdata,
 		ring->rdata = NULL;
 	}
 
-	if (ring->rx_pa.pages) {
-		dma_unmap_page(pdata->dev, ring->rx_pa.pages_dma,
-			       ring->rx_pa.pages_len, DMA_FROM_DEVICE);
-		put_page(ring->rx_pa.pages);
+	if (ring->rx_hdr_pa.pages) {
+		dma_unmap_page(pdata->dev, ring->rx_hdr_pa.pages_dma,
+			       ring->rx_hdr_pa.pages_len, DMA_FROM_DEVICE);
+		put_page(ring->rx_hdr_pa.pages);
 
-		ring->rx_pa.pages = NULL;
-		ring->rx_pa.pages_len = 0;
-		ring->rx_pa.pages_offset = 0;
-		ring->rx_pa.pages_dma = 0;
+		ring->rx_hdr_pa.pages = NULL;
+		ring->rx_hdr_pa.pages_len = 0;
+		ring->rx_hdr_pa.pages_offset = 0;
+		ring->rx_hdr_pa.pages_dma = 0;
+	}
+
+	if (ring->rx_buf_pa.pages) {
+		dma_unmap_page(pdata->dev, ring->rx_buf_pa.pages_dma,
+			       ring->rx_buf_pa.pages_len, DMA_FROM_DEVICE);
+		put_page(ring->rx_buf_pa.pages);
+
+		ring->rx_buf_pa.pages = NULL;
+		ring->rx_buf_pa.pages_len = 0;
+		ring->rx_buf_pa.pages_offset = 0;
+		ring->rx_buf_pa.pages_dma = 0;
 	}
 
 	if (ring->rdesc) {
@@ -244,61 +255,92 @@ err_ring:
 	return ret;
 }
 
+static int xgbe_alloc_pages(struct xgbe_prv_data *pdata,
+			    struct xgbe_page_alloc *pa, gfp_t gfp, int order)
+{
+	struct page *pages = NULL;
+	dma_addr_t pages_dma;
+	int ret;
+
+	/* Try to obtain pages, decreasing order if necessary */
+	gfp |= __GFP_COLD | __GFP_COMP;
+	while (order >= 0) {
+		pages = alloc_pages(gfp, order);
+		if (pages)
+			break;
+
+		order--;
+	}
+	if (!pages)
+		return -ENOMEM;
+
+	/* Map the pages */
+	pages_dma = dma_map_page(pdata->dev, pages, 0,
+				 PAGE_SIZE << order, DMA_FROM_DEVICE);
+	ret = dma_mapping_error(pdata->dev, pages_dma);
+	if (ret) {
+		put_page(pages);
+		return ret;
+	}
+
+	pa->pages = pages;
+	pa->pages_len = PAGE_SIZE << order;
+	pa->pages_offset = 0;
+	pa->pages_dma = pages_dma;
+
+	return 0;
+}
+
+static void xgbe_set_buffer_data(struct xgbe_buffer_data *bd,
+				 struct xgbe_page_alloc *pa,
+				 unsigned int len)
+{
+	get_page(pa->pages);
+	bd->pa = *pa;
+
+	bd->dma = pa->pages_dma + pa->pages_offset;
+	bd->dma_len = len;
+
+	pa->pages_offset += len;
+	if ((pa->pages_offset + len) > pa->pages_len) {
+		/* This data descriptor is responsible for unmapping page(s) */
+		bd->pa_unmap = *pa;
+
+		/* Get a new allocation next time */
+		pa->pages = NULL;
+		pa->pages_len = 0;
+		pa->pages_offset = 0;
+		pa->pages_dma = 0;
+	}
+}
+
 static int xgbe_map_rx_buffer(struct xgbe_prv_data *pdata,
 			      struct xgbe_ring *ring,
 			      struct xgbe_ring_data *rdata)
 {
-	if (!ring->rx_pa.pages) {
-		struct page *pages = NULL;
-		dma_addr_t pages_dma;
-		gfp_t gfp;
-		int order, ret;
+	int order, ret;
 
-		/* Try to obtain pages, decreasing order if necessary */
-		gfp = GFP_ATOMIC | __GFP_COLD | __GFP_COMP;
-		order = max_t(int, PAGE_ALLOC_COSTLY_ORDER, 1);
-		while (--order >= 0) {
-			pages = alloc_pages(gfp, order);
-			if (pages)
-				break;
-		}
-		if (!pages)
-			return -ENOMEM;
-
-		/* Map the pages */
-		pages_dma = dma_map_page(pdata->dev, pages, 0,
-					 PAGE_SIZE << order, DMA_FROM_DEVICE);
-		ret = dma_mapping_error(pdata->dev, pages_dma);
-		if (ret) {
-			put_page(pages);
+	if (!ring->rx_hdr_pa.pages) {
+		ret = xgbe_alloc_pages(pdata, &ring->rx_hdr_pa, GFP_ATOMIC, 0);
+		if (ret)
 			return ret;
-		}
-
-		/* Set the values for this ring */
-		ring->rx_pa.pages = pages;
-		ring->rx_pa.pages_len = PAGE_SIZE << order;
-		ring->rx_pa.pages_offset = 0;
-		ring->rx_pa.pages_dma = pages_dma;
 	}
 
-	get_page(ring->rx_pa.pages);
-	rdata->rx_pa = ring->rx_pa;
-
-	rdata->rx_dma = ring->rx_pa.pages_dma + ring->rx_pa.pages_offset;
-	rdata->rx_dma_len = pdata->rx_buf_size;
-
-	ring->rx_pa.pages_offset += pdata->rx_buf_size;
-	if ((ring->rx_pa.pages_offset + pdata->rx_buf_size) >
-	    ring->rx_pa.pages_len) {
-		/* This data descriptor is responsible for unmapping page(s) */
-		rdata->rx_unmap = ring->rx_pa;
-
-		/* Get a new allocation next time */
-		ring->rx_pa.pages = NULL;
-		ring->rx_pa.pages_len = 0;
-		ring->rx_pa.pages_offset = 0;
-		ring->rx_pa.pages_dma = 0;
+	if (!ring->rx_buf_pa.pages) {
+		order = max_t(int, PAGE_ALLOC_COSTLY_ORDER - 1, 0);
+		ret = xgbe_alloc_pages(pdata, &ring->rx_buf_pa, GFP_ATOMIC,
+				       order);
+		if (ret)
+			return ret;
 	}
+
+	/* Set up the header page info */
+	xgbe_set_buffer_data(&rdata->rx_hdr, &ring->rx_hdr_pa,
+			     XGBE_SKB_ALLOC_SIZE);
+
+	/* Set up the buffer page info */
+	xgbe_set_buffer_data(&rdata->rx_buf, &ring->rx_buf_pa,
+			     pdata->rx_buf_size);
 
 	return 0;
 }
@@ -409,20 +451,28 @@ static void xgbe_unmap_rdata(struct xgbe_prv_data *pdata,
 		rdata->skb = NULL;
 	}
 
-	if (rdata->rx_pa.pages)
-		put_page(rdata->rx_pa.pages);
+	if (rdata->rx_hdr.pa.pages)
+		put_page(rdata->rx_hdr.pa.pages);
 
-	if (rdata->rx_unmap.pages) {
-		dma_unmap_page(pdata->dev, rdata->rx_unmap.pages_dma,
-			       rdata->rx_unmap.pages_len, DMA_FROM_DEVICE);
-		put_page(rdata->rx_unmap.pages);
+	if (rdata->rx_hdr.pa_unmap.pages) {
+		dma_unmap_page(pdata->dev, rdata->rx_hdr.pa_unmap.pages_dma,
+			       rdata->rx_hdr.pa_unmap.pages_len,
+			       DMA_FROM_DEVICE);
+		put_page(rdata->rx_hdr.pa_unmap.pages);
 	}
 
-	memset(&rdata->rx_pa, 0, sizeof(rdata->rx_pa));
-	memset(&rdata->rx_unmap, 0, sizeof(rdata->rx_unmap));
+	if (rdata->rx_buf.pa.pages)
+		put_page(rdata->rx_buf.pa.pages);
 
-	rdata->rx_dma = 0;
-	rdata->rx_dma_len = 0;
+	if (rdata->rx_buf.pa_unmap.pages) {
+		dma_unmap_page(pdata->dev, rdata->rx_buf.pa_unmap.pages_dma,
+			       rdata->rx_buf.pa_unmap.pages_len,
+			       DMA_FROM_DEVICE);
+		put_page(rdata->rx_buf.pa_unmap.pages);
+	}
+
+	memset(&rdata->rx_hdr, 0, sizeof(rdata->rx_hdr));
+	memset(&rdata->rx_buf, 0, sizeof(rdata->rx_buf));
 
 	rdata->tso_header = 0;
 	rdata->len = 0;

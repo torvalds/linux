@@ -143,6 +143,7 @@
 #define XGBE_RX_MIN_BUF_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 #define XGBE_RX_BUF_ALIGN	64
 #define XGBE_SKB_ALLOC_SIZE	256
+#define XGBE_SPH_HDSMS_SIZE	2	/* Keep in sync with SKB_ALLOC_SIZE */
 
 #define XGBE_MAX_DMA_CHANNELS	16
 #define XGBE_MAX_QUEUES		16
@@ -250,6 +251,15 @@ struct xgbe_page_alloc {
 	dma_addr_t pages_dma;
 };
 
+/* Ring entry buffer data */
+struct xgbe_buffer_data {
+	struct xgbe_page_alloc pa;
+	struct xgbe_page_alloc pa_unmap;
+
+	dma_addr_t dma;
+	unsigned int dma_len;
+};
+
 /* Structure used to hold information related to the descriptor
  * and the packet associated with the descriptor (always use
  * use the XGBE_GET_DESC_DATA macro to access this data from the ring)
@@ -263,12 +273,10 @@ struct xgbe_ring_data {
 	unsigned int skb_dma_len;	/* Length of SKB DMA area */
 	unsigned int tso_header;        /* TSO header indicator */
 
-	struct xgbe_page_alloc rx_pa;	/* Rx buffer page allocation */
-	struct xgbe_page_alloc rx_unmap;
+	struct xgbe_buffer_data rx_hdr;	/* Header locations */
+	struct xgbe_buffer_data rx_buf; /* Payload locations */
 
-	dma_addr_t rx_dma;		/* DMA address of Rx buffer */
-	unsigned int rx_dma_len;	/* Length of the Rx DMA buffer */
-
+	unsigned short hdr_len;		/* Length of received header */
 	unsigned short len;		/* Length of received Rx packet */
 
 	unsigned int interrupt;		/* Interrupt indicator */
@@ -308,7 +316,8 @@ struct xgbe_ring {
 	struct xgbe_ring_data *rdata;
 
 	/* Page allocation for RX buffers */
-	struct xgbe_page_alloc rx_pa;
+	struct xgbe_page_alloc rx_hdr_pa;
+	struct xgbe_page_alloc rx_buf_pa;
 
 	/* Ring index values
 	 *  cur   - Tx: index of descriptor to be used for current transfer

@@ -1620,31 +1620,25 @@ static void xgbe_rx_refresh(struct xgbe_channel *channel)
 
 static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
 				       struct xgbe_ring_data *rdata,
-				       unsigned int len)
+				       unsigned int *len)
 {
 	struct net_device *netdev = pdata->netdev;
 	struct sk_buff *skb;
 	u8 *packet;
 	unsigned int copy_len;
 
-	skb = netdev_alloc_skb_ip_align(netdev, XGBE_SKB_ALLOC_SIZE);
+	skb = netdev_alloc_skb_ip_align(netdev, rdata->rx_hdr.dma_len);
 	if (!skb)
 		return NULL;
 
-	packet = page_address(rdata->rx_pa.pages) + rdata->rx_pa.pages_offset;
-	copy_len = min_t(unsigned int, XGBE_SKB_ALLOC_SIZE, len);
+	packet = page_address(rdata->rx_hdr.pa.pages) +
+		 rdata->rx_hdr.pa.pages_offset;
+	copy_len = (rdata->hdr_len) ? rdata->hdr_len : *len;
+	copy_len = min(rdata->rx_hdr.dma_len, copy_len);
 	skb_copy_to_linear_data(skb, packet, copy_len);
 	skb_put(skb, copy_len);
 
-	rdata->rx_pa.pages_offset += copy_len;
-	len -= copy_len;
-	if (len)
-		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-				rdata->rx_pa.pages,
-				rdata->rx_pa.pages_offset,
-				len, rdata->rx_dma_len);
-	else
-		put_page(rdata->rx_pa.pages);
+	*len -= copy_len;
 
 	return skb;
 }
@@ -1757,10 +1751,6 @@ read_again:
 		ring->cur++;
 		ring->dirty++;
 
-		dma_sync_single_for_cpu(pdata->dev, rdata->rx_dma,
-					rdata->rx_dma_len,
-					DMA_FROM_DEVICE);
-
 		incomplete = XGMAC_GET_BITS(packet->attributes,
 					    RX_PACKET_ATTRIBUTES,
 					    INCOMPLETE);
@@ -1787,19 +1777,30 @@ read_again:
 			len += put_len;
 
 			if (!skb) {
-				skb = xgbe_create_skb(pdata, rdata, put_len);
+				dma_sync_single_for_cpu(pdata->dev,
+							rdata->rx_hdr.dma,
+							rdata->rx_hdr.dma_len,
+							DMA_FROM_DEVICE);
+
+				skb = xgbe_create_skb(pdata, rdata, &put_len);
 				if (!skb) {
 					error = 1;
 					goto read_again;
 				}
-			} else {
-				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-						rdata->rx_pa.pages,
-						rdata->rx_pa.pages_offset,
-						put_len, rdata->rx_dma_len);
 			}
 
-			rdata->rx_pa.pages = NULL;
+			if (put_len) {
+				dma_sync_single_for_cpu(pdata->dev,
+							rdata->rx_buf.dma,
+							rdata->rx_buf.dma_len,
+							DMA_FROM_DEVICE);
+
+				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+						rdata->rx_buf.pa.pages,
+						rdata->rx_buf.pa.pages_offset,
+						put_len, rdata->rx_buf.dma_len);
+				rdata->rx_buf.pa.pages = NULL;
+			}
 		}
 
 		if (incomplete || context_next)
@@ -1924,10 +1925,10 @@ void xgbe_dump_tx_desc(struct xgbe_ring *ring, unsigned int idx,
 	while (count--) {
 		rdata = XGBE_GET_DESC_DATA(ring, idx);
 		rdesc = rdata->rdesc;
-		DBGPR("TX_NORMAL_DESC[%d %s] = %08x:%08x:%08x:%08x\n", idx,
-		      (flag == 1) ? "QUEUED FOR TX" : "TX BY DEVICE",
-		      le32_to_cpu(rdesc->desc0), le32_to_cpu(rdesc->desc1),
-		      le32_to_cpu(rdesc->desc2), le32_to_cpu(rdesc->desc3));
+		pr_alert("TX_NORMAL_DESC[%d %s] = %08x:%08x:%08x:%08x\n", idx,
+			 (flag == 1) ? "QUEUED FOR TX" : "TX BY DEVICE",
+			 le32_to_cpu(rdesc->desc0), le32_to_cpu(rdesc->desc1),
+			 le32_to_cpu(rdesc->desc2), le32_to_cpu(rdesc->desc3));
 		idx++;
 	}
 }
@@ -1935,9 +1936,9 @@ void xgbe_dump_tx_desc(struct xgbe_ring *ring, unsigned int idx,
 void xgbe_dump_rx_desc(struct xgbe_ring *ring, struct xgbe_ring_desc *desc,
 		       unsigned int idx)
 {
-	DBGPR("RX_NORMAL_DESC[%d RX BY DEVICE] = %08x:%08x:%08x:%08x\n", idx,
-	      le32_to_cpu(desc->desc0), le32_to_cpu(desc->desc1),
-	      le32_to_cpu(desc->desc2), le32_to_cpu(desc->desc3));
+	pr_alert("RX_NORMAL_DESC[%d RX BY DEVICE] = %08x:%08x:%08x:%08x\n", idx,
+		 le32_to_cpu(desc->desc0), le32_to_cpu(desc->desc1),
+		 le32_to_cpu(desc->desc2), le32_to_cpu(desc->desc3));
 }
 
 void xgbe_print_pkt(struct net_device *netdev, struct sk_buff *skb, bool tx_rx)

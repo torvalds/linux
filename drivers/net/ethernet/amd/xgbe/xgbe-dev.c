@@ -335,6 +335,22 @@ static void xgbe_config_tso_mode(struct xgbe_prv_data *pdata)
 	}
 }
 
+static void xgbe_config_sph_mode(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_channel *channel;
+	unsigned int i;
+
+	channel = pdata->channel;
+	for (i = 0; i < pdata->channel_count; i++, channel++) {
+		if (!channel->rx_ring)
+			break;
+
+		XGMAC_DMA_IOWRITE_BITS(channel, DMA_CH_CR, SPH, 1);
+	}
+
+	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, HDSMS, XGBE_SPH_HDSMS_SIZE);
+}
+
 static int xgbe_disable_tx_flow_control(struct xgbe_prv_data *pdata)
 {
 	unsigned int max_q_count, q_count;
@@ -920,19 +936,19 @@ static void xgbe_rx_desc_reset(struct xgbe_ring_data *rdata)
 	struct xgbe_ring_desc *rdesc = rdata->rdesc;
 
 	/* Reset the Rx descriptor
-	 *   Set buffer 1 (lo) address to dma address (lo)
-	 *   Set buffer 1 (hi) address to dma address (hi)
-	 *   Set buffer 2 (lo) address to zero
-	 *   Set buffer 2 (hi) address to zero and set control bits
-	 *     OWN and INTE
+	 *   Set buffer 1 (lo) address to header dma address (lo)
+	 *   Set buffer 1 (hi) address to header dma address (hi)
+	 *   Set buffer 2 (lo) address to buffer dma address (lo)
+	 *   Set buffer 2 (hi) address to buffer dma address (hi) and
+	 *     set control bits OWN and INTE
 	 */
-	rdesc->desc0 = cpu_to_le32(lower_32_bits(rdata->rx_dma));
-	rdesc->desc1 = cpu_to_le32(upper_32_bits(rdata->rx_dma));
-	rdesc->desc2 = 0;
+	rdesc->desc0 = cpu_to_le32(lower_32_bits(rdata->rx_hdr.dma));
+	rdesc->desc1 = cpu_to_le32(upper_32_bits(rdata->rx_hdr.dma));
+	rdesc->desc2 = cpu_to_le32(lower_32_bits(rdata->rx_buf.dma));
+	rdesc->desc3 = cpu_to_le32(upper_32_bits(rdata->rx_buf.dma));
 
-	rdesc->desc3 = 0;
-	if (rdata->interrupt)
-		XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE, 1);
+	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE,
+			  rdata->interrupt ? 1 : 0);
 
 	/* Since the Rx DMA engine is likely running, make sure everything
 	 * is written to the descriptor(s) before setting the OWN bit
@@ -1421,6 +1437,11 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, CDA))
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 			       CONTEXT_NEXT, 1);
+
+	/* Get the header length */
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, FD))
+		rdata->hdr_len = XGMAC_GET_BITS_LE(rdesc->desc2,
+						   RX_NORMAL_DESC2, HL);
 
 	/* Get the packet length */
 	rdata->len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
@@ -2453,6 +2474,7 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_tx_coalesce(pdata);
 	xgbe_config_rx_buffer_size(pdata);
 	xgbe_config_tso_mode(pdata);
+	xgbe_config_sph_mode(pdata);
 	desc_if->wrapper_tx_desc_init(pdata);
 	desc_if->wrapper_rx_desc_init(pdata);
 	xgbe_enable_dma_interrupts(pdata);
