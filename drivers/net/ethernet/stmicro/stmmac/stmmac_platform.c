@@ -30,22 +30,14 @@
 #include "stmmac.h"
 
 static const struct of_device_id stmmac_dt_ids[] = {
-#ifdef CONFIG_DWMAC_MESON
+	/* SoC specific glue layers should come before generic bindings */
 	{ .compatible = "amlogic,meson6-dwmac", .data = &meson6_dwmac_data},
-#endif
-#ifdef CONFIG_DWMAC_SUNXI
 	{ .compatible = "allwinner,sun7i-a20-gmac", .data = &sun7i_gmac_data},
-#endif
-#ifdef CONFIG_DWMAC_STI
 	{ .compatible = "st,stih415-dwmac", .data = &stih4xx_dwmac_data},
 	{ .compatible = "st,stih416-dwmac", .data = &stih4xx_dwmac_data},
 	{ .compatible = "st,stid127-dwmac", .data = &stid127_dwmac_data},
 	{ .compatible = "st,stih407-dwmac", .data = &stih4xx_dwmac_data},
-#endif
-#ifdef CONFIG_DWMAC_SOCFPGA
 	{ .compatible = "altr,socfpga-stmmac", .data = &socfpga_gmac_data },
-#endif
-	/* SoC specific glue layers should come before generic bindings */
 	{ .compatible = "st,spear600-gmac"},
 	{ .compatible = "snps,dwmac-3.610"},
 	{ .compatible = "snps,dwmac-3.70a"},
