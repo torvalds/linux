@@ -1957,10 +1957,10 @@ struct drm_i915_gem_object {
 	unsigned long user_pin_count;
 	struct drm_file *pin_filp;
 
-	/** for phy allocated objects */
-	struct drm_dma_handle *phys_handle;
-
 	union {
+		/** for phy allocated objects */
+		struct drm_dma_handle *phys_handle;
+
 		struct i915_gem_userptr {
 			uintptr_t ptr;
 			unsigned read_only :1;
