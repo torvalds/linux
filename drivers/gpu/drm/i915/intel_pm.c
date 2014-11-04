@@ -3317,10 +3317,10 @@ static bool skl_compute_plane_wm(struct skl_pipe_wm_parameters *p,
 				   struct intel_plane_wm_parameters *p_params,
 				   uint16_t ddb_allocation,
 				   uint32_t mem_value,
-				   uint16_t *res_blocks, /* out */
-				   uint8_t *res_lines /* out */)
+				   uint16_t *out_blocks, /* out */
+				   uint8_t *out_lines /* out */)
 {
-	uint32_t method1, method2, plane_bytes_per_line;
+	uint32_t method1, method2, plane_bytes_per_line, res_blocks, res_lines;
 	uint32_t result_bytes;
 
 	if (mem_value == 0 || !p->active || !p_params->enabled)
@@ -3344,8 +3344,14 @@ static bool skl_compute_plane_wm(struct skl_pipe_wm_parameters *p,
 	else
 		result_bytes = method1;
 
-	*res_blocks = DIV_ROUND_UP(result_bytes, 512) + 1;
-	*res_lines = DIV_ROUND_UP(result_bytes, plane_bytes_per_line);
+	res_blocks = DIV_ROUND_UP(result_bytes, 512) + 1;
+	res_lines = DIV_ROUND_UP(result_bytes, plane_bytes_per_line);
+
+	if (res_blocks > ddb_allocation || res_lines > 31)
+		return false;
+
+	*out_blocks = res_blocks;
+	*out_lines = res_lines;
 
 	return true;
 }
@@ -3408,17 +3414,11 @@ static void skl_compute_wm_results(struct drm_device *dev,
 	enum pipe pipe = intel_crtc->pipe;
 
 	for (level = 0; level <= max_level; level++) {
-		uint16_t ddb_blocks;
 		uint32_t temp;
 		int i;
 
 		for (i = 0; i < intel_num_planes(intel_crtc); i++) {
 			temp = 0;
-			ddb_blocks = skl_ddb_entry_size(&r->ddb.plane[pipe][i]);
-
-			if ((p_wm->wm[level].plane_res_b[i] > ddb_blocks) ||
-				(p_wm->wm[level].plane_res_l[i] > 31))
-				p_wm->wm[level].plane_en[i] = false;
 
 			temp |= p_wm->wm[level].plane_res_l[i] <<
 					PLANE_WM_LINES_SHIFT;
@@ -3433,11 +3433,6 @@ static void skl_compute_wm_results(struct drm_device *dev,
 		}
 
 		temp = 0;
-		ddb_blocks = skl_ddb_entry_size(&r->ddb.cursor[pipe]);
-
-		if ((p_wm->wm[level].cursor_res_b > ddb_blocks) ||
-			(p_wm->wm[level].cursor_res_l > 31))
-			p_wm->wm[level].cursor_en = false;
 
 		temp |= p_wm->wm[level].cursor_res_l << PLANE_WM_LINES_SHIFT;
 		temp |= p_wm->wm[level].cursor_res_b;
