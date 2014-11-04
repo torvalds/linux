@@ -2105,7 +2105,7 @@ static int nvme_trans_do_nvme_io(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 
 		nvme_offset += unit_num_blocks;
 
-		nvme_sc = nvme_submit_io_cmd(dev, &c, NULL);
+		nvme_sc = nvme_submit_io_cmd(dev, ns, &c, NULL);
 		if (nvme_sc != NVME_SC_SUCCESS) {
 			nvme_unmap_user_pages(dev,
 				(is_write) ? DMA_TO_DEVICE : DMA_FROM_DEVICE,
@@ -2658,7 +2658,7 @@ static int nvme_trans_start_stop(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			c.common.opcode = nvme_cmd_flush;
 			c.common.nsid = cpu_to_le32(ns->ns_id);
 
-			nvme_sc = nvme_submit_io_cmd(ns->dev, &c, NULL);
+			nvme_sc = nvme_submit_io_cmd(ns->dev, ns, &c, NULL);
 			res = nvme_trans_status_code(hdr, nvme_sc);
 			if (res)
 				goto out;
@@ -2686,7 +2686,7 @@ static int nvme_trans_synchronize_cache(struct nvme_ns *ns,
 	c.common.opcode = nvme_cmd_flush;
 	c.common.nsid = cpu_to_le32(ns->ns_id);
 
-	nvme_sc = nvme_submit_io_cmd(ns->dev, &c, NULL);
+	nvme_sc = nvme_submit_io_cmd(ns->dev, ns, &c, NULL);
 
 	res = nvme_trans_status_code(hdr, nvme_sc);
 	if (res)
@@ -2894,7 +2894,7 @@ static int nvme_trans_unmap(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	c.dsm.nr = cpu_to_le32(ndesc - 1);
 	c.dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
 
-	nvme_sc = nvme_submit_io_cmd(dev, &c, NULL);
+	nvme_sc = nvme_submit_io_cmd(dev, ns, &c, NULL);
 	res = nvme_trans_status_code(hdr, nvme_sc);
 
 	dma_free_coherent(&dev->pci_dev->dev, ndesc * sizeof(*range),

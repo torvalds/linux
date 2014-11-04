@@ -19,6 +19,7 @@
 #include <linux/pci.h>
 #include <linux/miscdevice.h>
 #include <linux/kref.h>
+#include <linux/blk-mq.h>
 
 struct nvme_bar {
 	__u64			cap;	/* Controller Capabilities */
@@ -71,8 +72,10 @@ extern unsigned char nvme_io_timeout;
  */
 struct nvme_dev {
 	struct list_head node;
-	struct nvme_queue __rcu **queues;
-	unsigned short __percpu *io_queue;
+	struct nvme_queue **queues;
+	struct request_queue *admin_q;
+	struct blk_mq_tag_set tagset;
+	struct blk_mq_tag_set admin_tagset;
 	u32 __iomem *dbs;
 	struct pci_dev *pci_dev;
 	struct dma_pool *prp_page_pool;
@@ -91,7 +94,6 @@ struct nvme_dev {
 	struct miscdevice miscdev;
 	work_func_t reset_workfn;
 	struct work_struct reset_work;
-	struct work_struct cpu_work;
 	char name[12];
 	char serial[20];
 	char model[40];
@@ -135,7 +137,6 @@ struct nvme_iod {
 	int offset;		/* Of PRP list */
 	int nents;		/* Used in scatterlist */
 	int length;		/* Of data, in bytes */
-	unsigned long start_time;
 	dma_addr_t first_dma;
 	struct list_head node;
 	struct scatterlist sg[0];
@@ -153,12 +154,14 @@ static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
  */
 void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod);
 
-int nvme_setup_prps(struct nvme_dev *, struct nvme_iod *, int , gfp_t);
+int nvme_setup_prps(struct nvme_dev *, struct nvme_iod *, int, gfp_t);
 struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
 				unsigned long addr, unsigned length);
 void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
 			struct nvme_iod *iod);
-int nvme_submit_io_cmd(struct nvme_dev *, struct nvme_command *, u32 *);
+int nvme_submit_io_cmd(struct nvme_dev *, struct nvme_ns *,
+						struct nvme_command *, u32 *);
+int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns);
 int nvme_submit_admin_cmd(struct nvme_dev *, struct nvme_command *,
 							u32 *result);
 int nvme_identify(struct nvme_dev *, unsigned nsid, unsigned cns,
