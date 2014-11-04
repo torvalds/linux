@@ -102,9 +102,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_SEQ_RAM_ADDRESS	0x06
 #define APCI3120_RESET_FIFO		0x0c
 #define APCI3120_ENABLE_TIMER0		0x1000
-#define APCI3120_CLEAR_PR		0xf0ff
-#define APCI3120_CLEAR_PA		0xfff0
-#define APCI3120_CLEAR_PA_PR		(APCI3120_CLEAR_PR & APCI3120_CLEAR_PA)
 
 /* nWrMode_Select */
 #define APCI3120_ENABLE_SCAN		0x8
@@ -246,9 +243,8 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 	if (check)
 		return 1;
 
-	/* Code  to set the PA and PR...Here it set PA to 0 */
-	devpriv->ctrl &= APCI3120_CLEAR_PA_PR;
-	devpriv->ctrl = ((n_chan - 1) & 0xf) << 8;
+	/* set scan length (PR) and scan start (PA) */
+	devpriv->ctrl = APCI3120_CTRL_PR(n_chan - 1) | APCI3120_CTRL_PA(0);
 	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 	for (i = 0; i < n_chan; i++) {
@@ -292,7 +288,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 	/*  Clear software registers */
 	devpriv->timer_mode = 0;
 	devpriv->b_ModeSelectRegister = 0;
-	devpriv->ctrl = 0;
 
 	if (insn->unused[0] == 222) {	/*  second insn read */
 		for (i = 0; i < insn->n; i++)
@@ -347,7 +342,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 			/*  Sets gate 0 */
-			devpriv->ctrl &= APCI3120_CLEAR_PA_PR;
 			devpriv->ctrl |= APCI3120_ENABLE_TIMER0;
 			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
@@ -380,11 +374,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			inw(dev->iobase + 0);
 			/*  Clears the FIFO */
 			inw(dev->iobase + APCI3120_RESET_FIFO);
-			/*  clear PA PR  and disable timer 0 */
-
-			devpriv->ctrl &= APCI3120_CLEAR_PA_PR;
-			devpriv->ctrl |= APCI3120_DISABLE_TIMER0;
-			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 			if (!apci3120_setup_chan_list(dev, s,
 					devpriv->ui_AiNbrofChannels,
@@ -484,7 +473,7 @@ static int apci3120_reset(struct comedi_device *dev)
 	outb(devpriv->b_ModeSelectRegister,
 		dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
-	/*  Disables all counters, ext trigger and clears PA, PR */
+	/* disable all counters, ext trigger, and reset scan */
 	devpriv->ctrl = 0;
 	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
@@ -535,7 +524,7 @@ static int apci3120_cancel(struct comedi_device *dev,
 	/* Disable BUS Master PCI */
 	outl(0, devpriv->amcc + AMCC_OP_REG_MCSR);
 
-	/* stop all counters and disable external trigger */
+	/* disable all counters, ext trigger, and reset scan */
 	devpriv->ctrl = 0;
 	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
@@ -647,19 +636,11 @@ static int apci3120_cyclic_ai(int mode,
 
 	/*  clear software  registers */
 	devpriv->timer_mode = 0;
-	devpriv->ctrl = 0;
 	devpriv->b_ModeSelectRegister = 0;
 
 	/* Clear Timer Write TC int */
 	outl(APCI3120_CLEAR_WRITE_TC_INT,
 	     devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
-
-	/* Disables All Timer     */
-	/* Sets PR and PA to 0    */
-	devpriv->ctrl &= APCI3120_DISABLE_TIMER0 &
-			 APCI3120_DISABLE_TIMER1 &
-			 APCI3120_CLEAR_PA_PR;
-	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 	/* Resets the FIFO */
 	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
@@ -728,12 +709,7 @@ static int apci3120_cyclic_ai(int mode,
 			dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 		if (cmd->stop_src == TRIG_COUNT) {
-			/*
-			 * configure Timer2 For counting EOS Reset gate 2 of Timer 2 to
-			 * disable it (Set Bit D14 to 0)
-			 */
-			devpriv->ctrl &= APCI3120_DISABLE_TIMER2;
-			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+			/* configure Timer2 For counting EOS */
 
 			/*  DISABLE TIMER intERRUPT */
 			devpriv->b_ModeSelectRegister =
