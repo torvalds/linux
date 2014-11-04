@@ -310,8 +310,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 	/* load chanlist for single channel scan */
-	if (!apci3120_setup_chan_list(dev, s, 1, &insn->chanspec))
-		return -EINVAL;
+	apci3120_set_chanlist(dev, s, 1, &insn->chanspec);
 
 	/*
 	 * Timer 0 is used in MODE4 (software triggered strobe) to set the

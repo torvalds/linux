@@ -96,18 +96,12 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI3120_COUNTER		3
 
-static int apci3120_setup_chan_list(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    int n_chan, unsigned int *chanlist)
+static void apci3120_set_chanlist(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  int n_chan, unsigned int *chanlist)
 {
 	struct apci3120_private *devpriv = dev->private;
 	int i;
-
-	/* correct channel and range number check itself comedi/range.c */
-	if (n_chan < 1) {
-		dev_err(dev->class_dev, "range/channel list is empty!\n");
-		return 0;
-	}
 
 	/* set scan length (PR) and scan start (PA) */
 	devpriv->ctrl = APCI3120_CTRL_PR(n_chan - 1) | APCI3120_CTRL_PA(0);
@@ -128,7 +122,6 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 
 		outw(val, dev->iobase + APCI3120_CHANLIST_REG);
 	}
-	return 1;		/*  we can serve this with scan logic */
 }
 
 static int apci3120_reset(struct comedi_device *dev)
@@ -288,10 +281,8 @@ static int apci3120_cyclic_ai(int mode,
 
 	devpriv->ui_DmaActualBuffer = 0;
 
-	/* Initializes the sequence array */
-	if (!apci3120_setup_chan_list(dev, s, cmd->chanlist_len,
-			cmd->chanlist))
-		return -EINVAL;
+	/* load chanlist for command scan */
+	apci3120_set_chanlist(dev, s, cmd->chanlist_len, cmd->chanlist);
 
 	divisor0 = apci3120_ns_to_timer(dev, 0, cmd->convert_arg, cmd->flags);
 	if (mode == 2) {
