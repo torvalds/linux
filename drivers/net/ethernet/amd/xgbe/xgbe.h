@@ -557,6 +557,8 @@ struct xgbe_hw_if {
 	/* For Receive Side Scaling */
 	int (*enable_rss)(struct xgbe_prv_data *);
 	int (*disable_rss)(struct xgbe_prv_data *);
+	int (*set_rss_hash_key)(struct xgbe_prv_data *, const u8 *);
+	int (*set_rss_lookup_table)(struct xgbe_prv_data *, const u32 *);
 };
 
 struct xgbe_desc_if {

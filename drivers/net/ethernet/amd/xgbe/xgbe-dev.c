@@ -419,6 +419,24 @@ static int xgbe_write_rss_lookup_table(struct xgbe_prv_data *pdata)
 	return 0;
 }
 
+static int xgbe_set_rss_hash_key(struct xgbe_prv_data *pdata, const u8 *key)
+{
+	memcpy(pdata->rss_key, key, sizeof(pdata->rss_key));
+
+	return xgbe_write_rss_hash_key(pdata);
+}
+
+static int xgbe_set_rss_lookup_table(struct xgbe_prv_data *pdata,
+				     const u32 *table)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pdata->rss_table); i++)
+		XGMAC_SET_BITS(pdata->rss_table[i], MAC_RSSDR, DMCH, table[i]);
+
+	return xgbe_write_rss_lookup_table(pdata);
+}
+
 static int xgbe_enable_rss(struct xgbe_prv_data *pdata)
 {
 	int ret;
@@ -2759,6 +2777,8 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	/* For Receive Side Scaling */
 	hw_if->enable_rss = xgbe_enable_rss;
 	hw_if->disable_rss = xgbe_disable_rss;
+	hw_if->set_rss_hash_key = xgbe_set_rss_hash_key;
+	hw_if->set_rss_lookup_table = xgbe_set_rss_lookup_table;
 
 	DBGPR("<--xgbe_init_function_ptrs\n");
 }

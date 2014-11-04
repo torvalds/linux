@@ -481,6 +481,75 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+static int xgbe_get_rxnfc(struct net_device *netdev,
+			  struct ethtool_rxnfc *rxnfc, u32 *rule_locs)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	switch (rxnfc->cmd) {
+	case ETHTOOL_GRXRINGS:
+		rxnfc->data = pdata->rx_ring_count;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static u32 xgbe_get_rxfh_key_size(struct net_device *netdev)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	return sizeof(pdata->rss_key);
+}
+
+static u32 xgbe_get_rxfh_indir_size(struct net_device *netdev)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	return ARRAY_SIZE(pdata->rss_table);
+}
+
+static int xgbe_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int i;
+
+	if (indir) {
+		for (i = 0; i < ARRAY_SIZE(pdata->rss_table); i++)
+			indir[i] = XGMAC_GET_BITS(pdata->rss_table[i],
+						  MAC_RSSDR, DMCH);
+	}
+
+	if (key)
+		memcpy(key, pdata->rss_key, sizeof(pdata->rss_key));
+
+	return 0;
+}
+
+static int xgbe_set_rxfh(struct net_device *netdev, const u32 *indir,
+			 const u8 *key)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+	unsigned int ret;
+
+	if (indir) {
+		ret = hw_if->set_rss_lookup_table(pdata, indir);
+		if (ret)
+			return ret;
+	}
+
+	if (key) {
+		ret = hw_if->set_rss_hash_key(pdata, key);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int xgbe_get_ts_info(struct net_device *netdev,
 			    struct ethtool_ts_info *ts_info)
 {
@@ -526,6 +595,11 @@ static const struct ethtool_ops xgbe_ethtool_ops = {
 	.get_strings = xgbe_get_strings,
 	.get_ethtool_stats = xgbe_get_ethtool_stats,
 	.get_sset_count = xgbe_get_sset_count,
+	.get_rxnfc = xgbe_get_rxnfc,
+	.get_rxfh_key_size = xgbe_get_rxfh_key_size,
+	.get_rxfh_indir_size = xgbe_get_rxfh_indir_size,
+	.get_rxfh = xgbe_get_rxfh,
+	.set_rxfh = xgbe_set_rxfh,
 	.get_ts_info = xgbe_get_ts_info,
 };
 
