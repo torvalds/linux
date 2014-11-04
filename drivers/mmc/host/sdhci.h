@@ -266,6 +266,12 @@
 #define SDHCI_DEFAULT_BOUNDARY_SIZE  (512 * 1024)
 #define SDHCI_DEFAULT_BOUNDARY_ARG   (ilog2(SDHCI_DEFAULT_BOUNDARY_SIZE) - 12)
 
+/*
+ * Maximum segments assuming a 512KiB maximum requisition size and a minimum
+ * 4KiB page size.
+ */
+#define SDHCI_MAX_SEGS		128
+
 struct sdhci_ops {
 #ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS
 	u32		(*read_l)(struct sdhci_host *host, int reg);

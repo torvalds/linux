@@ -2877,8 +2877,8 @@ int sdhci_add_host(struct sdhci_host *host)
 		 * descriptor for each segment, plus 1 for a nop end descriptor,
 		 * all multipled by the descriptor size.
 		 */
-		host->adma_table_sz = (128 * 2 + 1) * 8;
-		host->align_buffer_sz = 128 * 4;
+		host->adma_table_sz = (SDHCI_MAX_SEGS * 2 + 1) * 8;
+		host->align_buffer_sz = SDHCI_MAX_SEGS * 4;
 		host->desc_sz = 8;
 		host->align_sz = 4;
 		host->align_mask = 3;
@@ -3192,11 +3192,11 @@ int sdhci_add_host(struct sdhci_host *host)
 	 * can do scatter/gather or not.
 	 */
 	if (host->flags & SDHCI_USE_ADMA)
-		mmc->max_segs = 128;
+		mmc->max_segs = SDHCI_MAX_SEGS;
 	else if (host->flags & SDHCI_USE_SDMA)
 		mmc->max_segs = 1;
 	else /* PIO */
-		mmc->max_segs = 128;
+		mmc->max_segs = SDHCI_MAX_SEGS;
 
 	/*
 	 * Maximum number of sectors in one transfer. Limited by DMA boundary
