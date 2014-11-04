@@ -114,9 +114,6 @@ static int apci3120_ai_insn_config(struct comedi_device *dev,
 	if (data[0] != APCI3120_EOC_MODE)
 		return -1;
 
-	/*  Check for Conversion time to be added */
-	devpriv->ui_EocEosConversionTime = data[2];
-
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 	if (data[1])
 		devpriv->b_EocEosInterrupt = APCI3120_ENABLE;
@@ -172,10 +169,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 	unsigned short us_TmpValue, i;
 
 	/*  fix conversion time to 10 us */
-	if (!devpriv->ui_EocEosConversionTime)
-		ns = 10000;
-	else
-		ns = devpriv->ui_EocEosConversionTime;
+	ns = 10000;
 
 	/*  Clear software registers */
 	devpriv->timer_mode = 0;
@@ -240,7 +234,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			dev_err(dev->class_dev, "inputs wrong\n");
 
 		}
-		devpriv->ui_EocEosConversionTime = 0;	/*  re initializing the variable */
 	}
 
 	return insn->n;
@@ -254,7 +247,6 @@ static int apci3120_reset(struct comedi_device *dev)
 	devpriv->ai_running = 0;
 	devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
-	devpriv->ui_EocEosConversionTime = 0;	/*  set eoc eos conv time to 0 */
 
 	/*  variables used in timer subdevice */
 	devpriv->b_Timer2Mode = 0;

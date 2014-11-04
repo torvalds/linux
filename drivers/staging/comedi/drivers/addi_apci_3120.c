@@ -129,7 +129,6 @@ struct apci3120_private {
 	unsigned int ai_running:1;
 	unsigned char b_InterruptMode;
 	unsigned char b_EocEosInterrupt;
-	unsigned int ui_EocEosConversionTime;
 	unsigned char b_ExttrigEnable;
 	struct task_struct *tsk_Current;
 };
