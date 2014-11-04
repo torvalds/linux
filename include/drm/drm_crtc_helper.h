@@ -81,6 +81,12 @@ struct drm_crtc_helper_funcs {
 
 	/* disable crtc when not in use - more explicit than dpms off */
 	void (*disable)(struct drm_crtc *crtc);
+
+	/* atomic helpers */
+	int (*atomic_check)(struct drm_crtc *crtc,
+			    struct drm_crtc_state *state);
+	void (*atomic_begin)(struct drm_crtc *crtc);
+	void (*atomic_flush)(struct drm_crtc *crtc);
 };
 
 /**
