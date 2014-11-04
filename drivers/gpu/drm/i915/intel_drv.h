@@ -1164,6 +1164,7 @@ void gen6_update_ring_freq(struct drm_device *dev);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
 void gen6_rps_boost(struct drm_i915_private *dev_priv);
 void ilk_wm_get_hw_state(struct drm_device *dev);
+void skl_wm_get_hw_state(struct drm_device *dev);
 
 
 /* intel_sdvo.c */

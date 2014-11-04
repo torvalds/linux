@@ -13266,7 +13266,9 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 		pll->on = false;
 	}
 
-	if (HAS_PCH_SPLIT(dev))
+	if (IS_GEN9(dev))
+		skl_wm_get_hw_state(dev);
+	else if (HAS_PCH_SPLIT(dev))
 		ilk_wm_get_hw_state(dev);
 
 	if (force_restore) {
