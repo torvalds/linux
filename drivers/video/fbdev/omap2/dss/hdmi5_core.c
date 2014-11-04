@@ -879,6 +879,9 @@ int hdmi5_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	/* only LPCM atm */
 	audio_format.type = HDMI_AUDIO_TYPE_LPCM;
 
+	/* only allowed option */
+	audio_format.sample_order = HDMI_AUDIO_SAMPLE_LEFT_FIRST;
+
 	/* disable start/stop signals of IEC 60958 blocks */
 	audio_format.en_sig_blk_strt_end = HDMI_AUDIO_BLOCK_SIG_STARTEND_ON;
 
