@@ -425,7 +425,7 @@
 	pinctrl-names = "default";
 
 	status = "okay";
-	clock-frequency = <400000>;
+	clock-frequency = <100000>;
 
 	composite-in@20 {
 		compatible = "adi,adv7180";
