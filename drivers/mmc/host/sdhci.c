@@ -464,7 +464,7 @@ static void sdhci_adma_mark_end(void *desc)
 {
 	u8 *dma_desc = desc;
 
-	dma_desc[0] |= 0x2; /* end */
+	dma_desc[0] |= ADMA2_END;
 }
 
 static int sdhci_adma_table_pre(struct sdhci_host *host,
@@ -532,7 +532,8 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 			}
 
 			/* tran, valid */
-			sdhci_adma_write_desc(desc, align_addr, offset, 0x21);
+			sdhci_adma_write_desc(desc, align_addr, offset,
+					      ADMA2_TRAN_VALID);
 
 			BUG_ON(offset > 65536);
 
@@ -548,7 +549,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 		BUG_ON(len > 65536);
 
 		/* tran, valid */
-		sdhci_adma_write_desc(desc, addr, len, 0x21);
+		sdhci_adma_write_desc(desc, addr, len, ADMA2_TRAN_VALID);
 		desc += host->desc_sz;
 
 		/*
@@ -572,7 +573,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 		*/
 
 		/* nop, end, valid */
-		sdhci_adma_write_desc(desc, 0, 0, 0x3);
+		sdhci_adma_write_desc(desc, 0, 0, ADMA2_NOP_END_VALID);
 	}
 
 	/*
@@ -2312,7 +2313,7 @@ static void sdhci_adma_show_error(struct sdhci_host *host)
 
 		desc += host->desc_sz;
 
-		if (attr & 2)
+		if (attr & ADMA2_END)
 			break;
 	}
 }
@@ -2877,11 +2878,13 @@ int sdhci_add_host(struct sdhci_host *host)
 		 * descriptor for each segment, plus 1 for a nop end descriptor,
 		 * all multipled by the descriptor size.
 		 */
-		host->adma_table_sz = (SDHCI_MAX_SEGS * 2 + 1) * 8;
-		host->align_buffer_sz = SDHCI_MAX_SEGS * 4;
-		host->desc_sz = 8;
-		host->align_sz = 4;
-		host->align_mask = 3;
+		host->adma_table_sz = (SDHCI_MAX_SEGS * 2 + 1) *
+				      SDHCI_ADMA2_32_DESC_SZ;
+		host->align_buffer_sz = SDHCI_MAX_SEGS *
+					SDHCI_ADMA2_32_ALIGN;
+		host->desc_sz = SDHCI_ADMA2_32_DESC_SZ;
+		host->align_sz = SDHCI_ADMA2_32_ALIGN;
+		host->align_mask = SDHCI_ADMA2_32_ALIGN - 1;
 		host->adma_table = dma_alloc_coherent(mmc_dev(mmc),
 						      host->adma_table_sz,
 						      &host->adma_addr,
