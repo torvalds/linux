@@ -462,11 +462,10 @@ static int apci3120_cyclic_ai(int mode,
 
 			devpriv->b_Timer2Mode = APCI3120_COUNTER;
 			devpriv->b_Timer2Interrupt = 1;
+
+			apci3120_timer_enable(dev, 2, true);
 		}
 	}
-
-	if (!devpriv->us_UseDma && cmd->stop_src == TRIG_COUNT)
-		apci3120_timer_enable(dev, 2, true);
 
 	switch (mode) {
 	case 1:
