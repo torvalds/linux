@@ -373,8 +373,9 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int divisor;
 
-	devpriv->mode = 0;
-	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
+	/* set default mode bits */
+	devpriv->mode = APCI3120_MODE_TIMER2_CLK_OSC |
+			APCI3120_MODE_TIMER2_AS_TIMER;
 
 	/* Clear Timer Write TC int */
 	outl(APCI3120_CLEAR_WRITE_TC_INT,
@@ -415,11 +416,9 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
 		apci3120_setup_dma(dev, s);
 	} else {
-		/*  disable EOC and enable EOS */
 		devpriv->b_InterruptMode = APCI3120_EOS_MODE;
 
 		devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
-		outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 		if (cmd->stop_src == TRIG_COUNT) {
 			/*
@@ -439,12 +438,14 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 			devpriv->mode |= APCI3120_MODE_TIMER2_AS_COUNTER |
 					 APCI3120_MODE_TIMER2_CLK_EOS |
 					 APCI3120_MODE_TIMER2_IRQ_ENA;
-			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 			devpriv->b_Timer2Mode = APCI3120_COUNTER;
 			devpriv->b_Timer2Interrupt = 1;
 		}
 	}
+
+	/* set mode to enable acquisition */
+	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 	if (cmd->scan_begin_src == TRIG_TIMER)
 		apci3120_timer_enable(dev, 1, true);
