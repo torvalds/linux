@@ -3374,14 +3374,18 @@ skl_compute_linetime_wm(struct drm_crtc *crtc, struct skl_pipe_wm_parameters *p)
 
 static void skl_compute_transition_wm(struct drm_crtc *crtc,
 				      struct skl_pipe_wm_parameters *params,
-				      struct skl_pipe_wm *pipe_wm)
+				      struct skl_wm_level *trans_wm /* out */)
 {
-	/*
-	 * For now it is suggested to use the LP0 wm val of corresponding
-	 * plane as transition wm val.
-	 */
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int i;
+
 	if (!params->active)
 		return;
+
+	/* Until we know more, just disable transition WMs */
+	for (i = 0; i < intel_num_planes(intel_crtc); i++)
+		trans_wm->plane_en[i] = false;
+	trans_wm->cursor_en = false;
 }
 
 static void skl_compute_pipe_wm(struct drm_crtc *crtc,
@@ -3401,7 +3405,7 @@ static void skl_compute_pipe_wm(struct drm_crtc *crtc,
 	}
 	pipe_wm->linetime = skl_compute_linetime_wm(crtc, params);
 
-	skl_compute_transition_wm(crtc, params, pipe_wm);
+	skl_compute_transition_wm(crtc, params, &pipe_wm->trans_wm);
 }
 
 static void skl_compute_wm_results(struct drm_device *dev,
@@ -3412,11 +3416,10 @@ static void skl_compute_wm_results(struct drm_device *dev,
 {
 	int level, max_level = ilk_wm_max_level(dev);
 	enum pipe pipe = intel_crtc->pipe;
+	uint32_t temp;
+	int i;
 
 	for (level = 0; level <= max_level; level++) {
-		uint32_t temp;
-		int i;
-
 		for (i = 0; i < intel_num_planes(intel_crtc); i++) {
 			temp = 0;
 
@@ -3427,9 +3430,6 @@ static void skl_compute_wm_results(struct drm_device *dev,
 				temp |= PLANE_WM_EN;
 
 			r->plane[pipe][i][level] = temp;
-			/* Use the LP0 WM value for transition WM for now. */
-			if (level == 0)
-				r->plane_trans[pipe][i] = temp;
 		}
 
 		temp = 0;
@@ -3441,11 +3441,27 @@ static void skl_compute_wm_results(struct drm_device *dev,
 			temp |= PLANE_WM_EN;
 
 		r->cursor[pipe][level] = temp;
-		/* Use the LP0 WM value for transition WM for now. */
-		if (level == 0)
-			r->cursor_trans[pipe] = temp;
 
 	}
+
+	/* transition WMs */
+	for (i = 0; i < intel_num_planes(intel_crtc); i++) {
+		temp = 0;
+		temp |= p_wm->trans_wm.plane_res_l[i] << PLANE_WM_LINES_SHIFT;
+		temp |= p_wm->trans_wm.plane_res_b[i];
+		if (p_wm->trans_wm.plane_en[i])
+			temp |= PLANE_WM_EN;
+
+		r->plane_trans[pipe][i] = temp;
+	}
+
+	temp = 0;
+	temp |= p_wm->trans_wm.cursor_res_l << PLANE_WM_LINES_SHIFT;
+	temp |= p_wm->trans_wm.cursor_res_b;
+	if (p_wm->trans_wm.cursor_en)
+		temp |= PLANE_WM_EN;
+
+	r->cursor_trans[pipe] = temp;
 
 	r->wm_linetime[pipe] = p_wm->linetime;
 }
