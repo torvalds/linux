@@ -86,15 +86,8 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_EOS_MODE		2
 #define APCI3120_DMA_MODE		3
 
-/* DIGITAL INPUT-OUTPUT DEFINE */
-
-#define APCI3120_DIGITAL_OUTPUT		0x0d
 #define APCI3120_RD_STATUS		0x02
 #define APCI3120_RD_FIFO		0x00
-
-/* digital output insn_write ON /OFF selection */
-#define	APCI3120_SET4DIGITALOUTPUTON	1
-#define APCI3120_SET4DIGITALOUTPUTOFF	0
 
 /* Enable external trigger bit in nWrAddress */
 #define APCI3120_ENABLE_EXT_TRIGGER	0x8000
@@ -110,7 +103,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_RESET_FIFO		0x0c
 #define APCI3120_TIMER_0_MODE_2		0x01
 #define APCI3120_TIMER_0_MODE_4		0x2
-#define APCI3120_SELECT_TIMER_0_WORD	0x00
 #define APCI3120_ENABLE_TIMER0		0x1000
 #define APCI3120_CLEAR_PR		0xf0ff
 #define APCI3120_CLEAR_PA		0xfff0
@@ -148,8 +140,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_ENABLE_TIMER_INT	0x04
 #define APCI3120_DISABLE_TIMER_INT	(~APCI3120_ENABLE_TIMER_INT)
 #define APCI3120_WRITE_MODE_SELECT	0x0e
-#define APCI3120_SELECT_TIMER_0_WORD	0x00
-#define APCI3120_SELECT_TIMER_1_WORD	0x01
 #define APCI3120_TIMER_1_MODE_2		0x4
 
 /* $$ BIT FOR MODE IN nCsTimerCtr1 */
@@ -157,11 +147,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_TIMER_2_MODE_2		0x10
 #define APCI3120_TIMER_2_MODE_5		0x30
 
-/* $$ BIT FOR MODE IN nCsTimerCtr0 */
-#define APCI3120_SELECT_TIMER_2_LOW_WORD	0x02
-#define APCI3120_SELECT_TIMER_2_HIGH_WORD	0x03
-
-#define APCI3120_TIMER_CRT0		0x0d
 #define APCI3120_TIMER_CRT1		0x0c
 
 #define APCI3120_TIMER_VALUE		0x04
@@ -206,16 +191,16 @@ static void apci3120_timer_write(struct comedi_device *dev,
 	struct apci3120_private *devpriv = dev->private;
 
 	/* write 16-bit value to timer (lower 16-bits of timer 2) */
-	outb(((devpriv->do_bits) & 0xF0) |
+	outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
 	     APCI3120_CTR0_TIMER_SEL(timer),
-	     dev->iobase + APCI3120_TIMER_CRT0);
+	     dev->iobase + APCI3120_CTR0_REG);
 	outw(val & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
 
 	if (timer == 2) {
 		/* write upper 16-bits to timer 2 */
-		outb(((devpriv->do_bits) & 0xF0) |
+		outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
 		     APCI3120_CTR0_TIMER_SEL(timer + 1),
-		     dev->iobase + APCI3120_TIMER_CRT0);
+		     dev->iobase + APCI3120_CTR0_REG);
 		outw((val >> 16) & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
 	}
 }
@@ -227,16 +212,16 @@ static unsigned int apci3120_timer_read(struct comedi_device *dev,
 	unsigned int val;
 
 	/* read 16-bit value from timer (lower 16-bits of timer 2) */
-	outb(((devpriv->do_bits) & 0xF0) |
+	outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
 	     APCI3120_CTR0_TIMER_SEL(timer),
-	     dev->iobase + APCI3120_TIMER_CRT0);
+	     dev->iobase + APCI3120_CTR0_REG);
 	val = inw(dev->iobase + APCI3120_TIMER_VALUE);
 
 	if (timer == 2) {
 		/* read upper 16-bits from timer 2 */
-		outb(((devpriv->do_bits) & 0xF0) |
+		outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
 		     APCI3120_CTR0_TIMER_SEL(timer + 1),
-		     dev->iobase + APCI3120_TIMER_CRT0);
+		     dev->iobase + APCI3120_CTR0_REG);
 		val |= (inw(dev->iobase + APCI3120_TIMER_VALUE) << 16);
 	}
 
@@ -1693,10 +1678,9 @@ static int apci3120_do_insn_bits(struct comedi_device *dev,
 	struct apci3120_private *devpriv = dev->private;
 
 	if (comedi_dio_update_state(s, data)) {
-		/* The do channels are bits 7:4 of the do register */
-		devpriv->do_bits = s->state << 4;
-
-		outb(devpriv->do_bits, dev->iobase + APCI3120_DIGITAL_OUTPUT);
+		devpriv->do_bits = s->state;
+		outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits),
+		     dev->iobase + APCI3120_CTR0_REG);
 	}
 
 	data[1] = s->state;
