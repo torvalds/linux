@@ -128,7 +128,6 @@ struct apci3120_private {
 	unsigned char b_Timer2Interrupt;
 	unsigned int ai_running:1;
 	unsigned char b_InterruptMode;
-	unsigned char b_EocEosInterrupt;
 	unsigned char b_ExttrigEnable;
 	struct task_struct *tsk_Current;
 };

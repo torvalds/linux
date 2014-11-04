@@ -115,10 +115,6 @@ static int apci3120_ai_insn_config(struct comedi_device *dev,
 		return -1;
 
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
-	if (data[1])
-		devpriv->b_EocEosInterrupt = APCI3120_ENABLE;
-	else
-		devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 
 	return insn->n;
 }
@@ -198,11 +194,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			/* Initialize Timer 0 mode 4 */
 			apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE4);
 
-			if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {
-				devpriv->mode |= APCI3120_MODE_EOC_IRQ_ENA;
-				inw(dev->iobase + 0);
-			}
-
 			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 			apci3120_timer_enable(dev, 0, true);
@@ -213,22 +204,17 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			us_TmpValue =
 				(unsigned short) inw(dev->iobase + APCI3120_RD_STATUS);
 
-			if (devpriv->b_EocEosInterrupt == APCI3120_DISABLE) {
+			do {
+				/*  Waiting for the end of conversion */
+				us_TmpValue = inw(dev->iobase +
+						  APCI3120_RD_STATUS);
+			} while ((us_TmpValue & APCI3120_EOC) == APCI3120_EOC);
 
-				do {
-					/*  Waiting for the end of conversion */
-					us_TmpValue = inw(dev->iobase +
-							  APCI3120_RD_STATUS);
-				} while ((us_TmpValue & APCI3120_EOC) ==
-					APCI3120_EOC);
+			/* Read the result in FIFO  and put it in insn data pointer */
+			us_TmpValue = inw(dev->iobase + 0);
+			*data = us_TmpValue;
 
-				/* Read the result in FIFO  and put it in insn data pointer */
-				us_TmpValue = inw(dev->iobase + 0);
-				*data = us_TmpValue;
-
-				apci3120_ai_reset_fifo(dev);
-			}
-
+			apci3120_ai_reset_fifo(dev);
 			break;
 		default:
 			dev_err(dev->class_dev, "inputs wrong\n");
@@ -245,7 +231,6 @@ static int apci3120_reset(struct comedi_device *dev)
 	struct apci3120_private *devpriv = dev->private;
 
 	devpriv->ai_running = 0;
-	devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 
 	/*  variables used in timer subdevice */
@@ -298,7 +283,6 @@ static int apci3120_cancel(struct comedi_device *dev,
 
 	devpriv->ai_running = 0;
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
-	devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 
 	return 0;
 }
@@ -448,7 +432,6 @@ static int apci3120_cyclic_ai(int mode,
 	if (devpriv->us_UseDma == APCI3120_DISABLE) {
 		/*  disable EOC and enable EOS */
 		devpriv->b_InterruptMode = APCI3120_EOS_MODE;
-		devpriv->b_EocEosInterrupt = APCI3120_ENABLE;
 
 		devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
 		outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
@@ -816,9 +799,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short int_daq;
-	unsigned int int_amcc, ui_Check;
-
-	ui_Check = 1;
+	unsigned int int_amcc;
 
 	int_daq = inw(dev->iobase + APCI3120_RD_STATUS) & 0xf000;	/*  get IRQ reasons */
 	int_amcc = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
@@ -845,41 +826,20 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
 
 	/*  Ckeck if EOC interrupt */
-	if (((int_daq & 0x8) == 0)
-		&& (devpriv->b_InterruptMode == APCI3120_EOC_MODE)) {
-		if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {
-
-			/*  Read the AI Value */
-			devpriv->ui_AiReadData[0] = inw(dev->iobase + 0);
-			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
-			send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
-		} else {
-			/* Disable EOC Interrupt */
-			devpriv->mode &= ~APCI3120_MODE_EOC_IRQ_ENA;
-			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-		}
+	if (((int_daq & 0x8) == 0) &&
+	    (devpriv->b_InterruptMode == APCI3120_EOC_MODE)) {
+		/* nothing to do... EOC mode is not currently used */
 	}
 
 	/*  Check If EOS interrupt */
 	if ((int_daq & 0x2) && (devpriv->b_InterruptMode == APCI3120_EOS_MODE)) {
-
-		if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {	/*  enable this in without DMA ??? */
-
-			if (devpriv->ai_running) {
-				ui_Check = 0;
-				apci3120_interrupt_handle_eos(dev);
-				devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
-				outb(devpriv->mode,
-				     dev->iobase + APCI3120_MODE_REG);
-			}
-		} else {
-			devpriv->mode &= ~APCI3120_MODE_EOS_IRQ_ENA;
+		if (devpriv->ai_running) {
+			apci3120_interrupt_handle_eos(dev);
+			devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
 			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;	/* Default settings */
-			devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 		}
-
 	}
+
 	/* Timer2 interrupt */
 	if (int_daq & 0x1) {
 
