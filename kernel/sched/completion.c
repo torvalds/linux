@@ -148,7 +148,7 @@ EXPORT_SYMBOL(wait_for_completion_timeout);
  *
  * This waits to be signaled for completion of a specific task. It is NOT
  * interruptible and there is no timeout. The caller is accounted as waiting
- * for IO.
+ * for IO (which traditionally means blkio only).
  */
 void __sched wait_for_completion_io(struct completion *x)
 {
@@ -163,7 +163,8 @@ EXPORT_SYMBOL(wait_for_completion_io);
  *
  * This waits for either a completion of a specific task to be signaled or for a
  * specified timeout to expire. The timeout is in jiffies. It is not
- * interruptible. The caller is accounted as waiting for IO.
+ * interruptible. The caller is accounted as waiting for IO (which traditionally
+ * means blkio only).
  *
  * Return: 0 if timed out, and positive (at least 1, or number of jiffies left
  * till timeout) if completed.
