@@ -2069,8 +2069,8 @@ static int rt5645_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
 	switch (level) {
-	case SND_SOC_BIAS_STANDBY:
-		if (SND_SOC_BIAS_OFF == codec->dapm.bias_level) {
+	case SND_SOC_BIAS_PREPARE:
+		if (SND_SOC_BIAS_STANDBY == codec->dapm.bias_level) {
 			snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
 				RT5645_PWR_VREF1 | RT5645_PWR_MB |
 				RT5645_PWR_BG | RT5645_PWR_VREF2,
@@ -2085,15 +2085,24 @@ static int rt5645_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 
+	case SND_SOC_BIAS_STANDBY:
+		snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
+			RT5645_PWR_VREF1 | RT5645_PWR_MB |
+			RT5645_PWR_BG | RT5645_PWR_VREF2,
+			RT5645_PWR_VREF1 | RT5645_PWR_MB |
+			RT5645_PWR_BG | RT5645_PWR_VREF2);
+		snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
+			RT5645_PWR_FV1 | RT5645_PWR_FV2,
+			RT5645_PWR_FV1 | RT5645_PWR_FV2);
+		break;
+
 	case SND_SOC_BIAS_OFF:
 		snd_soc_write(codec, RT5645_DEPOP_M2, 0x1100);
 		snd_soc_write(codec, RT5645_GEN_CTRL1, 0x0128);
-		snd_soc_write(codec, RT5645_PWR_DIG1, 0x0000);
-		snd_soc_write(codec, RT5645_PWR_DIG2, 0x0000);
-		snd_soc_write(codec, RT5645_PWR_VOL, 0x0000);
-		snd_soc_write(codec, RT5645_PWR_MIXER, 0x0000);
-		snd_soc_write(codec, RT5645_PWR_ANLG1, 0x0000);
-		snd_soc_write(codec, RT5645_PWR_ANLG2, 0x0000);
+		snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
+				RT5645_PWR_VREF1 | RT5645_PWR_MB |
+				RT5645_PWR_BG | RT5645_PWR_VREF2 |
+				RT5645_PWR_FV1 | RT5645_PWR_FV2, 0x0);
 		break;
 
 	default:
