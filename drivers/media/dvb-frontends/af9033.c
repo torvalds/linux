@@ -1103,7 +1103,7 @@ static void af9033_stat_work(struct work_struct *work)
 			snr_val *= 2;
 			break;
 		default:
-			goto err;
+			goto err_schedule_delayed_work;
 		}
 
 		/* read current modulation */
