@@ -170,6 +170,7 @@ static int xgbe_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	const u8 *mac_addr;
+	unsigned int i;
 	int ret;
 
 	DBGPR("--> xgbe_probe\n");
@@ -190,6 +191,7 @@ static int xgbe_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pdata->lock);
 	mutex_init(&pdata->xpcs_mutex);
+	mutex_init(&pdata->rss_mutex);
 	spin_lock_init(&pdata->tstamp_lock);
 
 	/* Set and validate the number of descriptors for a ring */
@@ -335,6 +337,17 @@ static int xgbe_probe(struct platform_device *pdev)
 		goto err_io;
 	}
 
+	/* Initialize RSS hash key and lookup table */
+	get_random_bytes(pdata->rss_key, sizeof(pdata->rss_key));
+
+	for (i = 0; i < XGBE_RSS_MAX_TABLE_SIZE; i++)
+		XGMAC_SET_BITS(pdata->rss_table[i], MAC_RSSDR, DMCH,
+			       i % pdata->rx_ring_count);
+
+	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, IP2TE, 1);
+	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, TCP4TE, 1);
+	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
+
 	/* Prepare to regsiter with MDIO */
 	pdata->mii_bus_id = kasprintf(GFP_KERNEL, "%s", pdev->name);
 	if (!pdata->mii_bus_id) {
@@ -364,6 +377,9 @@ static int xgbe_probe(struct platform_device *pdev)
 			      NETIF_F_HW_VLAN_CTAG_RX |
 			      NETIF_F_HW_VLAN_CTAG_TX |
 			      NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	if (pdata->hw_feat.rss)
+		netdev->hw_features |= NETIF_F_RXHASH;
 
 	netdev->vlan_features |= NETIF_F_SG |
 				 NETIF_F_IP_CSUM |

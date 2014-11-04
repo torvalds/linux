@@ -1661,11 +1661,20 @@ static int xgbe_set_features(struct net_device *netdev,
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	netdev_features_t rxcsum, rxvlan, rxvlan_filter;
+	netdev_features_t rxhash, rxcsum, rxvlan, rxvlan_filter;
+	int ret = 0;
 
+	rxhash = pdata->netdev_features & NETIF_F_RXHASH;
 	rxcsum = pdata->netdev_features & NETIF_F_RXCSUM;
 	rxvlan = pdata->netdev_features & NETIF_F_HW_VLAN_CTAG_RX;
 	rxvlan_filter = pdata->netdev_features & NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	if ((features & NETIF_F_RXHASH) && !rxhash)
+		ret = hw_if->enable_rss(pdata);
+	else if (!(features & NETIF_F_RXHASH) && rxhash)
+		ret = hw_if->disable_rss(pdata);
+	if (ret)
+		return ret;
 
 	if ((features & NETIF_F_RXCSUM) && !rxcsum)
 		hw_if->enable_rx_csum(pdata);
@@ -1959,6 +1968,11 @@ read_again:
 			hwtstamps = skb_hwtstamps(skb);
 			hwtstamps->hwtstamp = ns_to_ktime(nsec);
 		}
+
+		if (XGMAC_GET_BITS(packet->attributes,
+				   RX_PACKET_ATTRIBUTES, RSS_HASH))
+			skb_set_hash(skb, packet->rss_hash,
+				     packet->rss_hash_type);
 
 		skb->dev = netdev;
 		skb->protocol = eth_type_trans(skb, netdev);

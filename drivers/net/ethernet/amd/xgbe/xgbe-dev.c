@@ -351,6 +351,127 @@ static void xgbe_config_sph_mode(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, HDSMS, XGBE_SPH_HDSMS_SIZE);
 }
 
+static int xgbe_write_rss_reg(struct xgbe_prv_data *pdata, unsigned int type,
+			      unsigned int index, unsigned int val)
+{
+	unsigned int wait;
+	int ret = 0;
+
+	mutex_lock(&pdata->rss_mutex);
+
+	if (XGMAC_IOREAD_BITS(pdata, MAC_RSSAR, OB)) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	XGMAC_IOWRITE(pdata, MAC_RSSDR, val);
+
+	XGMAC_IOWRITE_BITS(pdata, MAC_RSSAR, RSSIA, index);
+	XGMAC_IOWRITE_BITS(pdata, MAC_RSSAR, ADDRT, type);
+	XGMAC_IOWRITE_BITS(pdata, MAC_RSSAR, CT, 0);
+	XGMAC_IOWRITE_BITS(pdata, MAC_RSSAR, OB, 1);
+
+	wait = 1000;
+	while (wait--) {
+		if (!XGMAC_IOREAD_BITS(pdata, MAC_RSSAR, OB))
+			goto unlock;
+
+		usleep_range(1000, 1500);
+	}
+
+	ret = -EBUSY;
+
+unlock:
+	mutex_unlock(&pdata->rss_mutex);
+
+	return ret;
+}
+
+static int xgbe_write_rss_hash_key(struct xgbe_prv_data *pdata)
+{
+	unsigned int key_regs = sizeof(pdata->rss_key) / sizeof(u32);
+	unsigned int *key = (unsigned int *)&pdata->rss_key;
+	int ret;
+
+	while (key_regs--) {
+		ret = xgbe_write_rss_reg(pdata, XGBE_RSS_HASH_KEY_TYPE,
+					 key_regs, *key++);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int xgbe_write_rss_lookup_table(struct xgbe_prv_data *pdata)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(pdata->rss_table); i++) {
+		ret = xgbe_write_rss_reg(pdata,
+					 XGBE_RSS_LOOKUP_TABLE_TYPE, i,
+					 pdata->rss_table[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int xgbe_enable_rss(struct xgbe_prv_data *pdata)
+{
+	int ret;
+
+	if (!pdata->hw_feat.rss)
+		return -EOPNOTSUPP;
+
+	/* Program the hash key */
+	ret = xgbe_write_rss_hash_key(pdata);
+	if (ret)
+		return ret;
+
+	/* Program the lookup table */
+	ret = xgbe_write_rss_lookup_table(pdata);
+	if (ret)
+		return ret;
+
+	/* Set the RSS options */
+	XGMAC_IOWRITE(pdata, MAC_RSSCR, pdata->rss_options);
+
+	/* Enable RSS */
+	XGMAC_IOWRITE_BITS(pdata, MAC_RSSCR, RSSE, 1);
+
+	return 0;
+}
+
+static int xgbe_disable_rss(struct xgbe_prv_data *pdata)
+{
+	if (!pdata->hw_feat.rss)
+		return -EOPNOTSUPP;
+
+	XGMAC_IOWRITE_BITS(pdata, MAC_RSSCR, RSSE, 0);
+
+	return 0;
+}
+
+static void xgbe_config_rss(struct xgbe_prv_data *pdata)
+{
+	int ret;
+
+	if (!pdata->hw_feat.rss)
+		return;
+
+	if (pdata->netdev->features & NETIF_F_RXHASH)
+		ret = xgbe_enable_rss(pdata);
+	else
+		ret = xgbe_disable_rss(pdata);
+
+	if (ret)
+		netdev_err(pdata->netdev,
+			   "error configuring RSS, RSS disabled\n");
+}
+
 static int xgbe_disable_tx_flow_control(struct xgbe_prv_data *pdata)
 {
 	unsigned int max_q_count, q_count;
@@ -1408,7 +1529,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	struct xgbe_ring_desc *rdesc;
 	struct xgbe_packet_data *packet = &ring->packet_data;
 	struct net_device *netdev = channel->pdata->netdev;
-	unsigned int err, etlt;
+	unsigned int err, etlt, l34t;
 
 	DBGPR("-->xgbe_dev_read: cur = %d\n", ring->cur);
 
@@ -1446,6 +1567,26 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, FD))
 		rdata->hdr_len = XGMAC_GET_BITS_LE(rdesc->desc2,
 						   RX_NORMAL_DESC2, HL);
+
+	/* Get the RSS hash */
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, RSV)) {
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       RSS_HASH, 1);
+
+		packet->rss_hash = le32_to_cpu(rdesc->desc1);
+
+		l34t = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, L34T);
+		switch (l34t) {
+		case RX_DESC3_L34T_IPV4_TCP:
+		case RX_DESC3_L34T_IPV4_UDP:
+		case RX_DESC3_L34T_IPV6_TCP:
+		case RX_DESC3_L34T_IPV6_UDP:
+			packet->rss_hash_type = PKT_HASH_TYPE_L4;
+
+		default:
+			packet->rss_hash_type = PKT_HASH_TYPE_L3;
+		}
+	}
 
 	/* Get the packet length */
 	rdata->len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
@@ -2479,6 +2620,7 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_rx_buffer_size(pdata);
 	xgbe_config_tso_mode(pdata);
 	xgbe_config_sph_mode(pdata);
+	xgbe_config_rss(pdata);
 	desc_if->wrapper_tx_desc_init(pdata);
 	desc_if->wrapper_rx_desc_init(pdata);
 	xgbe_enable_dma_interrupts(pdata);
@@ -2613,6 +2755,10 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	/* For Data Center Bridging config */
 	hw_if->config_dcb_tc = xgbe_config_dcb_tc;
 	hw_if->config_dcb_pfc = xgbe_config_dcb_pfc;
+
+	/* For Receive Side Scaling */
+	hw_if->enable_rss = xgbe_enable_rss;
+	hw_if->disable_rss = xgbe_disable_rss;
 
 	DBGPR("<--xgbe_init_function_ptrs\n");
 }

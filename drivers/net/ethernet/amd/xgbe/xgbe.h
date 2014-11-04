@@ -215,6 +215,12 @@
 /* Maximum MAC address hash table size (256 bits = 8 bytes) */
 #define XGBE_MAC_HASH_TABLE_SIZE	8
 
+/* Receive Side Scaling */
+#define XGBE_RSS_HASH_KEY_SIZE		40
+#define XGBE_RSS_MAX_TABLE_SIZE		256
+#define XGBE_RSS_LOOKUP_TABLE_TYPE	0
+#define XGBE_RSS_HASH_KEY_TYPE		1
+
 struct xgbe_prv_data;
 
 struct xgbe_packet_data {
@@ -233,6 +239,9 @@ struct xgbe_packet_data {
 	unsigned short vlan_ctag;
 
 	u64 rx_tstamp;
+
+	u32 rss_hash;
+	enum pkt_hash_types rss_hash_type;
 };
 
 /* Common Rx and Tx descriptor mapping */
@@ -544,6 +553,10 @@ struct xgbe_hw_if {
 	/* For Data Center Bridging config */
 	void (*config_dcb_tc)(struct xgbe_prv_data *);
 	void (*config_dcb_pfc)(struct xgbe_prv_data *);
+
+	/* For Receive Side Scaling */
+	int (*enable_rss)(struct xgbe_prv_data *);
+	int (*disable_rss)(struct xgbe_prv_data *);
 };
 
 struct xgbe_desc_if {
@@ -616,6 +629,9 @@ struct xgbe_prv_data {
 	/* XPCS indirect addressing mutex */
 	struct mutex xpcs_mutex;
 
+	/* RSS addressing mutex */
+	struct mutex rss_mutex;
+
 	int dev_irq;
 	unsigned int per_channel_irq;
 
@@ -667,6 +683,11 @@ struct xgbe_prv_data {
 	unsigned int pause_autoneg;
 	unsigned int tx_pause;
 	unsigned int rx_pause;
+
+	/* Receive Side Scaling settings */
+	u8 rss_key[XGBE_RSS_HASH_KEY_SIZE];
+	u32 rss_table[XGBE_RSS_MAX_TABLE_SIZE];
+	u32 rss_options;
 
 	/* MDIO settings */
 	struct module *phy_module;
