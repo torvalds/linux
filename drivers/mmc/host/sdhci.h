@@ -272,6 +272,13 @@
 /* ADMA2 32-bit DMA alignment */
 #define SDHCI_ADMA2_32_ALIGN	4
 
+/* ADMA2 32-bit descriptor */
+struct sdhci_adma2_32_desc {
+	__le16	cmd;
+	__le16	len;
+	__le32	addr;
+}  __packed __aligned(SDHCI_ADMA2_32_ALIGN);
+
 #define ADMA2_TRAN_VALID	0x21
 #define ADMA2_NOP_END_VALID	0x3
 #define ADMA2_END		0x2

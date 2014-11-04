@@ -448,23 +448,18 @@ static void sdhci_kunmap_atomic(void *buffer, unsigned long *flags)
 
 static void sdhci_adma_write_desc(void *desc, u32 addr, int len, unsigned cmd)
 {
-	__le32 *dataddr = (__le32 __force *)(desc + 4);
-	__le16 *cmdlen = (__le16 __force *)desc;
+	struct sdhci_adma2_32_desc *dma_desc = desc;
 
-	/* SDHCI specification says ADMA descriptors should be 4 byte
-	 * aligned, so using 16 or 32bit operations should be safe. */
-
-	cmdlen[0] = cpu_to_le16(cmd);
-	cmdlen[1] = cpu_to_le16(len);
-
-	dataddr[0] = cpu_to_le32(addr);
+	dma_desc->cmd = cpu_to_le16(cmd);
+	dma_desc->len = cpu_to_le16(len);
+	dma_desc->addr = cpu_to_le32(addr);
 }
 
 static void sdhci_adma_mark_end(void *desc)
 {
-	u8 *dma_desc = desc;
+	struct sdhci_adma2_32_desc *dma_desc = desc;
 
-	dma_desc[0] |= ADMA2_END;
+	dma_desc->cmd |= cpu_to_le16(ADMA2_END);
 }
 
 static int sdhci_adma_table_pre(struct sdhci_host *host,
@@ -2297,23 +2292,20 @@ static void sdhci_adma_show_error(struct sdhci_host *host)
 {
 	const char *name = mmc_hostname(host->mmc);
 	void *desc = host->adma_table;
-	__le32 *dma;
-	__le16 *len;
-	u8 attr;
 
 	sdhci_dumpregs(host);
 
 	while (true) {
-		dma = (__le32 *)(desc + 4);
-		len = (__le16 *)(desc + 2);
-		attr = *(u8 *)desc;
+		struct sdhci_adma2_32_desc *dma_desc = desc;
 
 		DBG("%s: %p: DMA 0x%08x, LEN 0x%04x, Attr=0x%02x\n",
-		    name, desc, le32_to_cpu(*dma), le16_to_cpu(*len), attr);
+		    name, desc, le32_to_cpu(dma_desc->addr),
+		    le16_to_cpu(dma_desc->len),
+		    le16_to_cpu(dma_desc->cmd));
 
 		desc += host->desc_sz;
 
-		if (attr & ADMA2_END)
+		if (dma_desc->cmd & cpu_to_le16(ADMA2_END))
 			break;
 	}
 }
