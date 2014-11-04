@@ -95,7 +95,7 @@ static int apci3120_cancel(struct comedi_device *dev,
 	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 	inw(dev->iobase + APCI3120_STATUS_REG);
-	devpriv->ui_DmaActualBuffer = 0;
+	devpriv->cur_dmabuf = 0;
 
 	return 0;
 }
@@ -266,7 +266,7 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	/* AMCC- Clear write complete interrupt (DMA) */
 	outl(AINT_WT_COMPLETE, devpriv->amcc + AMCC_OP_REG_INTCSR);
 
-	devpriv->ui_DmaActualBuffer = 0;
+	devpriv->cur_dmabuf = 0;
 
 	/* load chanlist for command scan */
 	apci3120_set_chanlist(dev, s, cmd->chanlist_len, cmd->chanlist);
@@ -347,7 +347,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	struct apci3120_dmabuf *dmabuf;
 	unsigned int samplesinbuf;
 
-	dmabuf = &devpriv->dmabuf[devpriv->ui_DmaActualBuffer];
+	dmabuf = &devpriv->dmabuf[devpriv->cur_dmabuf];
 
 	samplesinbuf = dmabuf->use_size - inl(devpriv->amcc + AMCC_OP_REG_MWTC);
 
@@ -363,7 +363,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	if (devpriv->use_double_buffer) {
 		struct apci3120_dmabuf *next_dmabuf;
 
-		next_dmabuf = &devpriv->dmabuf[1 - devpriv->ui_DmaActualBuffer];
+		next_dmabuf = &devpriv->dmabuf[!devpriv->cur_dmabuf];
 
 		/* start DMA on next buffer */
 		apci3120_init_dma(dev, next_dmabuf);
@@ -383,7 +383,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 
 	if (devpriv->use_double_buffer) {
 		/* switch dma buffers for next interrupt */
-		devpriv->ui_DmaActualBuffer = 1 - devpriv->ui_DmaActualBuffer;
+		devpriv->cur_dmabuf = !devpriv->cur_dmabuf;
 	} else {
 		/* restart DMA if is not using double buffering */
 		apci3120_init_dma(dev, dmabuf);

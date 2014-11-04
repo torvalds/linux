@@ -131,7 +131,7 @@ struct apci3120_private {
 	unsigned int osc_base;
 	unsigned int use_dma:1;
 	unsigned int use_double_buffer:1;
-	unsigned int ui_DmaActualBuffer;
+	unsigned int cur_dmabuf:1;
 	struct apci3120_dmabuf dmabuf[2];
 	unsigned char do_bits;
 	unsigned char timer_mode;
