@@ -3512,6 +3512,140 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 	}
 }
 
+/*
+ * When setting up a new DDB allocation arrangement, we need to correctly
+ * sequence the times at which the new allocations for the pipes are taken into
+ * account or we'll have pipes fetching from space previously allocated to
+ * another pipe.
+ *
+ * Roughly the sequence looks like:
+ *  1. re-allocate the pipe(s) with the allocation being reduced and not
+ *     overlapping with a previous light-up pipe (another way to put it is:
+ *     pipes with their new allocation strickly included into their old ones).
+ *  2. re-allocate the other pipes that get their allocation reduced
+ *  3. allocate the pipes having their allocation increased
+ *
+ * Steps 1. and 2. are here to take care of the following case:
+ * - Initially DDB looks like this:
+ *     |   B    |   C    |
+ * - enable pipe A.
+ * - pipe B has a reduced DDB allocation that overlaps with the old pipe C
+ *   allocation
+ *     |  A  |  B  |  C  |
+ *
+ * We need to sequence the re-allocation: C, B, A (and not B, C, A).
+ */
+
+static void skl_wm_flush_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	struct drm_device *dev = dev_priv->dev;
+	int plane;
+
+	for_each_plane(pipe, plane) {
+		I915_WRITE(PLANE_SURF(pipe, plane),
+			   I915_READ(PLANE_SURF(pipe, plane)));
+	}
+	I915_WRITE(CURBASE(pipe), I915_READ(CURBASE(pipe)));
+}
+
+static bool
+skl_ddb_allocation_included(const struct skl_ddb_allocation *old,
+			    const struct skl_ddb_allocation *new,
+			    enum pipe pipe)
+{
+	uint16_t old_size, new_size;
+
+	old_size = skl_ddb_entry_size(&old->pipe[pipe]);
+	new_size = skl_ddb_entry_size(&new->pipe[pipe]);
+
+	return old_size != new_size &&
+	       new->pipe[pipe].start >= old->pipe[pipe].start &&
+	       new->pipe[pipe].end <= old->pipe[pipe].end;
+}
+
+static void skl_flush_wm_values(struct drm_i915_private *dev_priv,
+				struct skl_wm_values *new_values)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct skl_ddb_allocation *cur_ddb, *new_ddb;
+	bool reallocated[I915_MAX_PIPES] = {false, false, false};
+	struct intel_crtc *crtc;
+	enum pipe pipe;
+
+	new_ddb = &new_values->ddb;
+	cur_ddb = &dev_priv->wm.skl_hw.ddb;
+
+	/*
+	 * First pass: flush the pipes with the new allocation contained into
+	 * the old space.
+	 *
+	 * We'll wait for the vblank on those pipes to ensure we can safely
+	 * re-allocate the freed space without this pipe fetching from it.
+	 */
+	for_each_intel_crtc(dev, crtc) {
+		if (!crtc->active)
+			continue;
+
+		pipe = crtc->pipe;
+
+		if (!skl_ddb_allocation_included(cur_ddb, new_ddb, pipe))
+			continue;
+
+		skl_wm_flush_pipe(dev_priv, pipe);
+		intel_wait_for_vblank(dev, pipe);
+
+		reallocated[pipe] = true;
+	}
+
+
+	/*
+	 * Second pass: flush the pipes that are having their allocation
+	 * reduced, but overlapping with a previous allocation.
+	 *
+	 * Here as well we need to wait for the vblank to make sure the freed
+	 * space is not used anymore.
+	 */
+	for_each_intel_crtc(dev, crtc) {
+		if (!crtc->active)
+			continue;
+
+		pipe = crtc->pipe;
+
+		if (reallocated[pipe])
+			continue;
+
+		if (skl_ddb_entry_size(&new_ddb->pipe[pipe]) <
+		    skl_ddb_entry_size(&cur_ddb->pipe[pipe])) {
+			skl_wm_flush_pipe(dev_priv, pipe);
+			intel_wait_for_vblank(dev, pipe);
+		}
+
+		reallocated[pipe] = true;
+	}
+
+	/*
+	 * Third pass: flush the pipes that got more space allocated.
+	 *
+	 * We don't need to actively wait for the update here, next vblank
+	 * will just get more DDB space with the correct WM values.
+	 */
+	for_each_intel_crtc(dev, crtc) {
+		if (!crtc->active)
+			continue;
+
+		pipe = crtc->pipe;
+
+		/*
+		 * At this point, only the pipes more space than before are
+		 * left to re-allocate.
+		 */
+		if (reallocated[pipe])
+			continue;
+
+		skl_wm_flush_pipe(dev_priv, pipe);
+	}
+}
+
 static bool skl_update_pipe_wm(struct drm_crtc *crtc,
 			       struct skl_pipe_wm_parameters *params,
 			       struct intel_wm_config *config,
@@ -3603,6 +3737,7 @@ static void skl_update_wm(struct drm_crtc *crtc)
 
 	skl_update_other_pipe_wm(dev, crtc, &config, results);
 	skl_write_wm_values(dev_priv, results);
+	skl_flush_wm_values(dev_priv, results);
 
 	/* store the new configuration */
 	dev_priv->wm.skl_hw = *results;
