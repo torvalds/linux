@@ -759,7 +759,6 @@ static const struct attribute_group vt8231_group = {
 
 static struct platform_driver vt8231_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "vt8231",
 	},
 	.probe	= vt8231_probe,

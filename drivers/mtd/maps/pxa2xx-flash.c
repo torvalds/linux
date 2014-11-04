@@ -131,7 +131,6 @@ static void pxa2xx_flash_shutdown(struct platform_device *dev)
 static struct platform_driver pxa2xx_flash_driver = {
 	.driver = {
 		.name		= "pxa2xx-flash",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= pxa2xx_flash_probe,
 	.remove		= pxa2xx_flash_remove,

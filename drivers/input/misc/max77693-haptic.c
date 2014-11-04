@@ -343,7 +343,6 @@ static SIMPLE_DEV_PM_OPS(max77693_haptic_pm_ops,
 static struct platform_driver max77693_haptic_driver = {
 	.driver		= {
 		.name	= "max77693-haptic",
-		.owner	= THIS_MODULE,
 		.pm	= &max77693_haptic_pm_ops,
 	},
 	.probe		= max77693_haptic_probe,

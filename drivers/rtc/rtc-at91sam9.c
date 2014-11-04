@@ -446,7 +446,6 @@ static struct platform_driver at91_rtc_driver = {
 	.shutdown	= at91_rtc_shutdown,
 	.driver		= {
 		.name	= "rtc-at91sam9",
-		.owner	= THIS_MODULE,
 		.pm	= &at91_rtc_pm_ops,
 	},
 };

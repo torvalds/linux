@@ -158,7 +158,6 @@ static struct platform_driver ot200_led_driver = {
 	.remove		= ot200_led_remove,
 	.driver		= {
 		.name	= "leds-ot200",
-		.owner	= THIS_MODULE,
 	},
 };
 

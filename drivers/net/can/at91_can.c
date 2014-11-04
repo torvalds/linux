@@ -1428,7 +1428,6 @@ static struct platform_driver at91_can_driver = {
 	.remove = at91_can_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(at91_can_dt_ids),
 	},
 	.id_table = at91_can_id_table,

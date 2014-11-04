@@ -652,7 +652,6 @@ static struct platform_driver snd_aica_driver = {
 	.remove = snd_aica_remove,
 	.driver = {
 		.name = SND_AICA_DRIVER,
-		.owner	= THIS_MODULE,
 	},
 };
 

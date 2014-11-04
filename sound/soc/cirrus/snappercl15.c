@@ -123,7 +123,6 @@ static int snappercl15_remove(struct platform_device *pdev)
 static struct platform_driver snappercl15_driver = {
 	.driver		= {
 		.name	= "snappercl15-audio",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= snappercl15_probe,
 	.remove		= snappercl15_remove,

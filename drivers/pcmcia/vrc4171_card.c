@@ -709,7 +709,6 @@ __setup("vrc4171_card=", vrc4171_card_setup);
 static struct platform_driver vrc4171_card_driver = {
 	.driver = {
 		.name		= vrc4171_card_name,
-		.owner		= THIS_MODULE,
 	},
 };
 

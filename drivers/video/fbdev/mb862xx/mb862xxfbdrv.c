@@ -835,7 +835,6 @@ static struct of_device_id of_platform_mb862xx_tbl[] = {
 static struct platform_driver of_platform_mb862xxfb_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_platform_mb862xx_tbl,
 	},
 	.probe		= of_platform_mb862xx_probe,

@@ -1042,7 +1042,6 @@ static struct platform_driver dummy_udc_driver = {
 	.resume		= dummy_udc_resume,
 	.driver		= {
 		.name	= (char *) gadget_name,
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -2612,7 +2611,6 @@ static struct platform_driver dummy_hcd_driver = {
 	.resume		= dummy_hcd_resume,
 	.driver		= {
 		.name	= (char *) driver_name,
-		.owner	= THIS_MODULE,
 	},
 };
 

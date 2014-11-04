@@ -226,7 +226,6 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 static struct platform_driver efi_rtc_driver = {
 	.driver = {
 		.name = "rtc-efi",
-		.owner = THIS_MODULE,
 	},
 };
 

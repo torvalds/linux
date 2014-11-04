@@ -961,7 +961,6 @@ static struct platform_driver arasan_cf_driver = {
 	.remove		= arasan_cf_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &arasan_cf_pm_ops,
 		.of_match_table = of_match_ptr(arasan_cf_id_table),
 	},

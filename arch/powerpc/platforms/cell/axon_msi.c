@@ -437,7 +437,6 @@ static struct platform_driver axon_msi_driver = {
 	.shutdown	= axon_msi_shutdown,
 	.driver = {
 		.name = "axon-msi",
-		.owner = THIS_MODULE,
 		.of_match_table = axon_msi_device_id,
 	},
 };

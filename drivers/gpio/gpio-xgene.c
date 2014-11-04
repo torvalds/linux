@@ -229,7 +229,6 @@ MODULE_DEVICE_TABLE(of, xgene_gpio_of_match);
 static struct platform_driver xgene_gpio_driver = {
 	.driver = {
 		.name = "xgene-gpio",
-		.owner = THIS_MODULE,
 		.of_match_table = xgene_gpio_of_match,
 		.pm     = XGENE_GPIO_PM_OPS,
 	},

@@ -599,7 +599,6 @@ MODULE_DEVICE_TABLE(platform, max14577_charger_id);
 
 static struct platform_driver max14577_charger_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "max14577-charger",
 	},
 	.probe		= max14577_charger_probe,

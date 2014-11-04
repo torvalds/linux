@@ -244,7 +244,6 @@ static int mmp_pcm_remove(struct platform_device *pdev)
 static struct platform_driver mmp_pcm_driver = {
 	.driver = {
 		.name = "mmp-pcm-audio",
-		.owner = THIS_MODULE,
 	},
 
 	.probe = mmp_pcm_probe,

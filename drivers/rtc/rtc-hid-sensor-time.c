@@ -331,7 +331,6 @@ static struct platform_driver hid_time_platform_driver = {
 	.id_table = hid_time_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= hid_time_probe,
 	.remove		= hid_time_remove,

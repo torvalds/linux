@@ -1543,7 +1543,6 @@ static struct platform_driver rcar_vin_driver = {
 	.remove		= rcar_vin_remove,
 	.driver		= {
 		.name		= DRV_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(rcar_vin_of_table),
 	},
 	.id_table	= rcar_vin_id_table,

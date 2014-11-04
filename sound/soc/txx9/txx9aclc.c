@@ -429,7 +429,6 @@ static int txx9aclc_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver txx9aclc_pcm_driver = {
 	.driver = {
 			.name = "txx9aclc-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = txx9aclc_soc_platform_probe,

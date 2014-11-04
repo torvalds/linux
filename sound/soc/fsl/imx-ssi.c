@@ -647,7 +647,6 @@ static struct platform_driver imx_ssi_driver = {
 
 	.driver = {
 		.name = "imx-ssi",
-		.owner = THIS_MODULE,
 	},
 };
 

@@ -1114,7 +1114,6 @@ static struct platform_driver msm_platform_driver = {
 	.probe = msm_serial_probe,
 	.driver = {
 		.name = "msm_serial",
-		.owner = THIS_MODULE,
 		.of_match_table = msm_match_table,
 	},
 };

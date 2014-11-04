@@ -1802,7 +1802,6 @@ static struct platform_driver amiga_serial_driver = {
 	.remove = __exit_p(amiga_serial_remove),
 	.driver   = {
 		.name	= "amiga-serial",
-		.owner	= THIS_MODULE,
 	},
 };
 

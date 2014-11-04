@@ -100,7 +100,6 @@ static void m68kspkr_shutdown(struct platform_device *dev)
 static struct platform_driver m68kspkr_platform_driver = {
 	.driver		= {
 		.name	= "m68kspkr",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= m68kspkr_probe,
 	.remove		= m68kspkr_remove,

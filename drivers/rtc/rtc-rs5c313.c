@@ -381,7 +381,6 @@ static int rs5c313_rtc_probe(struct platform_device *pdev)
 static struct platform_driver rs5c313_rtc_platform_driver = {
 	.driver         = {
 		.name   = DRV_NAME,
-		.owner  = THIS_MODULE,
 	},
 	.probe	= rs5c313_rtc_probe,
 };

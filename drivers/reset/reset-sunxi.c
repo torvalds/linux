@@ -179,7 +179,6 @@ static struct platform_driver sunxi_reset_driver = {
 	.remove	= sunxi_reset_remove,
 	.driver = {
 		.name		= "sunxi-reset",
-		.owner		= THIS_MODULE,
 		.of_match_table	= sunxi_reset_dt_ids,
 	},
 };

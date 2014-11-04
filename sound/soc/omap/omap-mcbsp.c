@@ -831,7 +831,6 @@ static int asoc_mcbsp_remove(struct platform_device *pdev)
 static struct platform_driver asoc_mcbsp_driver = {
 	.driver = {
 			.name = "omap-mcbsp",
-			.owner = THIS_MODULE,
 			.of_match_table = omap_mcbsp_of_match,
 	},
 

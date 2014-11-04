@@ -347,7 +347,6 @@ MODULE_DEVICE_TABLE(of, of_fun_match);
 static struct platform_driver of_fun_driver = {
 	.driver = {
 		.name = "fsl,upm-nand",
-		.owner = THIS_MODULE,
 		.of_match_table = of_fun_match,
 	},
 	.probe		= fun_probe,

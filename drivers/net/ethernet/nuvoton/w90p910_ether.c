@@ -1081,7 +1081,6 @@ static struct platform_driver w90p910_ether_driver = {
 	.remove		= w90p910_ether_remove,
 	.driver		= {
 		.name	= "nuc900-emc",
-		.owner	= THIS_MODULE,
 	},
 };
 

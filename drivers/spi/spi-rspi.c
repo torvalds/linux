@@ -1211,7 +1211,6 @@ static struct platform_driver rspi_driver = {
 	.id_table =	spi_driver_ids,
 	.driver		= {
 		.name = "renesas_spi",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(rspi_of_match),
 	},
 };

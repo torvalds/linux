@@ -138,7 +138,6 @@ static SIMPLE_DEV_PM_OPS(pm860x_onkey_pm_ops, pm860x_onkey_suspend, pm860x_onkey
 static struct platform_driver pm860x_onkey_driver = {
 	.driver		= {
 		.name	= "88pm860x-onkey",
-		.owner	= THIS_MODULE,
 		.pm	= &pm860x_onkey_pm_ops,
 	},
 	.probe		= pm860x_onkey_probe,

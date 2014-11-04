@@ -91,7 +91,6 @@ MODULE_DEVICE_TABLE(of, gsbi_dt_match);
 static struct platform_driver gsbi_driver = {
 	.driver = {
 		.name		= "gsbi",
-		.owner		= THIS_MODULE,
 		.of_match_table	= gsbi_dt_match,
 	},
 	.probe = gsbi_probe,

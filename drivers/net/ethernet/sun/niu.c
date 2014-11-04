@@ -10185,7 +10185,6 @@ MODULE_DEVICE_TABLE(of, niu_match);
 static struct platform_driver niu_of_driver = {
 	.driver = {
 		.name = "niu",
-		.owner = THIS_MODULE,
 		.of_match_table = niu_match,
 	},
 	.probe		= niu_of_probe,

@@ -225,7 +225,6 @@ static struct platform_driver arizona_haptics_driver = {
 	.remove		= arizona_haptics_remove,
 	.driver		= {
 		.name	= "arizona-haptics",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(arizona_haptics_driver);

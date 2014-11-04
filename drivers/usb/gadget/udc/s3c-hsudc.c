@@ -1354,7 +1354,6 @@ err_supplies:
 
 static struct platform_driver s3c_hsudc_driver = {
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "s3c-hsudc",
 	},
 	.probe		= s3c_hsudc_probe,

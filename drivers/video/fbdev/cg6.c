@@ -856,7 +856,6 @@ MODULE_DEVICE_TABLE(of, cg6_match);
 static struct platform_driver cg6_driver = {
 	.driver = {
 		.name = "cg6",
-		.owner = THIS_MODULE,
 		.of_match_table = cg6_match,
 	},
 	.probe		= cg6_probe,

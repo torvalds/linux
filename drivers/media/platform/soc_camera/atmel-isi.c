@@ -1068,7 +1068,6 @@ static struct platform_driver atmel_isi_driver = {
 	.remove		= atmel_isi_remove,
 	.driver		= {
 		.name = "atmel_isi",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(atmel_isi_of_match),
 	},
 };

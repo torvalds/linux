@@ -240,7 +240,6 @@ static struct platform_driver gpio_ir_recv_driver = {
 	.remove = gpio_ir_recv_remove,
 	.driver = {
 		.name   = GPIO_IR_DRIVER_NAME,
-		.owner  = THIS_MODULE,
 		.of_match_table = of_match_ptr(gpio_ir_recv_of_match),
 #ifdef CONFIG_PM
 		.pm	= &gpio_ir_recv_pm_ops,

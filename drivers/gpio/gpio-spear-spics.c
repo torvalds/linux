@@ -191,7 +191,6 @@ MODULE_DEVICE_TABLE(of, spics_gpio_of_match);
 static struct platform_driver spics_gpio_driver = {
 	.probe = spics_gpio_probe,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "spear-spics-gpio",
 		.of_match_table = spics_gpio_of_match,
 	},

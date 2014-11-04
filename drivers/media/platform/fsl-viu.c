@@ -1680,7 +1680,6 @@ static struct platform_driver viu_of_platform_driver = {
 #endif
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mpc512x_viu_of_match,
 	},
 };

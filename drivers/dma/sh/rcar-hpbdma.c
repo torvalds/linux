@@ -655,7 +655,6 @@ static struct platform_driver hpb_dmae_driver = {
 	.remove		= hpb_dmae_remove,
 	.shutdown	= hpb_dmae_shutdown,
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "hpb-dma-engine",
 	},
 };

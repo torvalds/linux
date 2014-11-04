@@ -1087,7 +1087,6 @@ MODULE_DEVICE_TABLE(of, fs_enet_match);
 
 static struct platform_driver fs_enet_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "fs_enet",
 		.of_match_table = fs_enet_match,
 	},

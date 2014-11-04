@@ -1055,7 +1055,6 @@ static struct platform_driver sun7i_a20_pinctrl_driver = {
 	.probe	= sun7i_a20_pinctrl_probe,
 	.driver	= {
 		.name		= "sun7i-a20-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= sun7i_a20_pinctrl_match,
 	},
 };

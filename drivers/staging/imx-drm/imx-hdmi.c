@@ -1754,7 +1754,6 @@ static struct platform_driver imx_hdmi_driver = {
 	.remove = imx_hdmi_platform_remove,
 	.driver = {
 		.name = "imx-hdmi",
-		.owner = THIS_MODULE,
 		.of_match_table = imx_hdmi_dt_ids,
 	},
 };

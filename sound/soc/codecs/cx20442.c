@@ -429,7 +429,6 @@ static int __exit cx20442_platform_remove(struct platform_device *pdev)
 static struct platform_driver cx20442_platform_driver = {
 	.driver = {
 		.name = "cx20442-codec",
-		.owner = THIS_MODULE,
 		},
 	.probe = cx20442_platform_probe,
 	.remove = __exit_p(cx20442_platform_remove),

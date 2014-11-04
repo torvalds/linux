@@ -591,7 +591,6 @@ static struct platform_driver giu_device_driver = {
 	.remove		= giu_remove,
 	.driver		= {
 		.name	= "GIU",
-		.owner	= THIS_MODULE,
 	},
 };
 

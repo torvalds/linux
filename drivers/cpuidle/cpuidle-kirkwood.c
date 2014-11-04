@@ -78,7 +78,6 @@ static struct platform_driver kirkwood_cpuidle_driver = {
 	.remove = kirkwood_cpuidle_remove,
 	.driver = {
 		   .name = "kirkwood_cpuidle",
-		   .owner = THIS_MODULE,
 		   },
 };
 

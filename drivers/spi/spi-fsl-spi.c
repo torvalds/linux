@@ -882,7 +882,6 @@ static int of_fsl_spi_remove(struct platform_device *ofdev)
 static struct platform_driver of_fsl_spi_driver = {
 	.driver = {
 		.name = "fsl_spi",
-		.owner = THIS_MODULE,
 		.of_match_table = of_fsl_spi_match,
 	},
 	.probe		= of_fsl_spi_probe,
@@ -929,7 +928,6 @@ static struct platform_driver mpc8xxx_spi_driver = {
 	.remove = plat_mpc8xxx_spi_remove,
 	.driver = {
 		.name = "mpc8xxx_spi",
-		.owner = THIS_MODULE,
 	},
 };
 

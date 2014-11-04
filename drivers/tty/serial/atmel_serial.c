@@ -2660,7 +2660,6 @@ static struct platform_driver atmel_serial_driver = {
 	.resume		= atmel_serial_resume,
 	.driver		= {
 		.name	= "atmel_usart",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(atmel_serial_dt_ids),
 	},
 };

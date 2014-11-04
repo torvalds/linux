@@ -374,7 +374,6 @@ static int ep93xx_gpio_probe(struct platform_device *pdev)
 static struct platform_driver ep93xx_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-ep93xx",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ep93xx_gpio_probe,
 };

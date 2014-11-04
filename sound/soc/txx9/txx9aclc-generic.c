@@ -66,7 +66,6 @@ static struct platform_driver txx9aclc_generic_driver = {
 	.remove = __exit_p(txx9aclc_generic_remove),
 	.driver = {
 		.name = "txx9aclc-generic",
-		.owner = THIS_MODULE,
 	},
 };
 

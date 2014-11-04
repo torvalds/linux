@@ -745,7 +745,6 @@ static struct platform_driver vt8500_platform_driver = {
 	.remove = vt8500_serial_remove,
 	.driver = {
 		.name = "vt8500_serial",
-		.owner = THIS_MODULE,
 		.of_match_table = wmt_dt_ids,
 	},
 };

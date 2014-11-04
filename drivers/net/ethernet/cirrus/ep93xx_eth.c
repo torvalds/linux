@@ -881,7 +881,6 @@ static struct platform_driver ep93xx_eth_driver = {
 	.remove		= ep93xx_eth_remove,
 	.driver		= {
 		.name	= "ep93xx-eth",
-		.owner	= THIS_MODULE,
 	},
 };
 

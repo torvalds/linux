@@ -970,7 +970,6 @@ static struct platform_driver sgio2audio_driver = {
 	.remove	= snd_sgio2audio_remove,
 	.driver = {
 		.name	= "sgio2audio",
-		.owner	= THIS_MODULE,
 	}
 };
 

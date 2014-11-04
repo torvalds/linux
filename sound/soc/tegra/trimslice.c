@@ -193,7 +193,6 @@ MODULE_DEVICE_TABLE(of, trimslice_of_match);
 static struct platform_driver tegra_snd_trimslice_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = trimslice_of_match,
 	},
 	.probe = tegra_snd_trimslice_probe,

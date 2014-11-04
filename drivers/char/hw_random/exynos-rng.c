@@ -169,7 +169,6 @@ static UNIVERSAL_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_runtime_suspend,
 static struct platform_driver exynos_rng_driver = {
 	.driver		= {
 		.name	= "exynos-rng",
-		.owner	= THIS_MODULE,
 		.pm	= &exynos_rng_pm_ops,
 	},
 	.probe		= exynos_rng_probe,

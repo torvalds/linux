@@ -432,7 +432,6 @@ static struct platform_driver nvec_power_driver = {
 	.remove = nvec_power_remove,
 	.driver = {
 		   .name = "nvec-power",
-		   .owner = THIS_MODULE,
 		   }
 };
 

@@ -895,7 +895,6 @@ MODULE_DEVICE_TABLE(of, bcm_kona_i2c_of_match);
 static struct platform_driver bcm_kona_i2c_driver = {
 	.driver = {
 		   .name = "bcm-kona-i2c",
-		   .owner = THIS_MODULE,
 		   .of_match_table = bcm_kona_i2c_of_match,
 		   },
 	.probe = bcm_kona_i2c_probe,

@@ -114,7 +114,6 @@ static const struct of_device_id snow_of_match[] = {
 static struct platform_driver snow_driver = {
 	.driver = {
 		.name = "snow-audio",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = snow_of_match,
 	},

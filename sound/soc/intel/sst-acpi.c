@@ -275,7 +275,6 @@ static struct platform_driver sst_acpi_driver = {
 	.remove = sst_acpi_remove,
 	.driver = {
 		.name = "sst-acpi",
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(sst_acpi_match),
 	},
 };

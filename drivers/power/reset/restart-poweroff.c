@@ -55,7 +55,6 @@ static struct platform_driver restart_poweroff_driver = {
 	.remove = restart_poweroff_remove,
 	.driver = {
 		.name = "poweroff-restart",
-		.owner = THIS_MODULE,
 		.of_match_table = of_restart_poweroff_match,
 	},
 };

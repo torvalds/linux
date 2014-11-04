@@ -1461,7 +1461,6 @@ static struct platform_driver au1000_eth_driver = {
 	.remove = au1000_remove,
 	.driver = {
 		.name   = "au1000-eth",
-		.owner  = THIS_MODULE,
 	},
 };
 

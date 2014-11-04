@@ -815,7 +815,6 @@ static struct platform_driver mxs_saif_driver = {
 
 	.driver = {
 		.name = "mxs-saif",
-		.owner = THIS_MODULE,
 		.of_match_table = mxs_saif_dt_ids,
 	},
 };

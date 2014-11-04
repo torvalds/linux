@@ -1465,7 +1465,6 @@ static struct platform_driver atmel_lcdfb_driver = {
 	.id_table	= atmel_lcdfb_devtypes,
 	.driver		= {
 		.name	= "atmel_lcdfb",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(atmel_lcdfb_dt_ids),
 	},
 };

@@ -338,7 +338,6 @@ static struct platform_driver regulator_virtual_consumer_driver = {
 	.remove		= regulator_virtual_remove,
 	.driver		= {
 		.name		= "reg-virt-consumer",
-		.owner		= THIS_MODULE,
 	},
 };
 

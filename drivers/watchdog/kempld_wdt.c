@@ -563,7 +563,6 @@ static int kempld_wdt_resume(struct platform_device *pdev)
 static struct platform_driver kempld_wdt_driver = {
 	.driver		= {
 		.name	= "kempld-wdt",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= kempld_wdt_probe,
 	.remove		= kempld_wdt_remove,

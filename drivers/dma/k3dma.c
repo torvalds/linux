@@ -822,7 +822,6 @@ static SIMPLE_DEV_PM_OPS(k3_dma_pmops, k3_dma_suspend, k3_dma_resume);
 static struct platform_driver k3_pdma_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner  = THIS_MODULE,
 		.pm	= &k3_dma_pmops,
 		.of_match_table = k3_pdma_dt_ids,
 	},

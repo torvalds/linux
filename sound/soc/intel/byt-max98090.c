@@ -181,7 +181,6 @@ static struct platform_driver byt_max98090_driver = {
 	.remove = byt_max98090_remove,
 	.driver = {
 		.name = "byt-max98090",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 };

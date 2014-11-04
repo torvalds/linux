@@ -1235,7 +1235,6 @@ static struct platform_driver __refdata sh_veu_pdrv = {
 	.remove		= sh_veu_remove,
 	.driver		= {
 		.name	= "sh_veu",
-		.owner	= THIS_MODULE,
 	},
 };
 

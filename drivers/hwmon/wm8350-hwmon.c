@@ -93,7 +93,6 @@ static struct platform_driver wm8350_hwmon_driver = {
 	.probe = wm8350_hwmon_probe,
 	.driver = {
 		.name = "wm8350-hwmon",
-		.owner = THIS_MODULE,
 	},
 };
 

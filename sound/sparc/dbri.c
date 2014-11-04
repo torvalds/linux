@@ -2686,7 +2686,6 @@ MODULE_DEVICE_TABLE(of, dbri_match);
 static struct platform_driver dbri_sbus_driver = {
 	.driver = {
 		.name = "dbri",
-		.owner = THIS_MODULE,
 		.of_match_table = dbri_match,
 	},
 	.probe		= dbri_probe,

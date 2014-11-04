@@ -643,7 +643,6 @@ MODULE_DEVICE_TABLE(of, imx6_pcie_of_match);
 static struct platform_driver imx6_pcie_driver = {
 	.driver = {
 		.name	= "imx6q-pcie",
-		.owner	= THIS_MODULE,
 		.of_match_table = imx6_pcie_of_match,
 	},
 	.shutdown = imx6_pcie_shutdown,

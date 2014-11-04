@@ -179,7 +179,6 @@ static struct platform_driver omap_hwspinlock_driver = {
 	.remove		= omap_hwspinlock_remove,
 	.driver		= {
 		.name	= "omap_hwspinlock",
-		.owner	= THIS_MODULE,
 	},
 };
 

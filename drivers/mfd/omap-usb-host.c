@@ -882,7 +882,6 @@ MODULE_DEVICE_TABLE(of, usbhs_omap_dt_ids);
 static struct platform_driver usbhs_omap_driver = {
 	.driver = {
 		.name		= (char *)usbhs_driver_name,
-		.owner		= THIS_MODULE,
 		.pm		= &usbhsomap_dev_pm_ops,
 		.of_match_table = usbhs_omap_dt_ids,
 	},

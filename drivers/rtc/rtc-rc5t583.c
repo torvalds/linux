@@ -310,7 +310,6 @@ static struct platform_driver rc5t583_rtc_driver = {
 	.probe		= rc5t583_rtc_probe,
 	.remove		= rc5t583_rtc_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "rtc-rc5t583",
 		.pm	= &rc5t583_rtc_pm_ops,
 	},

@@ -1679,7 +1679,6 @@ static int ks8851_remove(struct platform_device *pdev)
 static struct platform_driver ks8851_platform_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table	= of_match_ptr(ks8851_ml_dt_ids),
 	},
 	.probe = ks8851_probe,

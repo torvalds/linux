@@ -272,7 +272,6 @@ static int wm8350_led_remove(struct platform_device *pdev)
 static struct platform_driver wm8350_led_driver = {
 	.driver = {
 		   .name = "wm8350-led",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8350_led_probe,
 	.remove = wm8350_led_remove,

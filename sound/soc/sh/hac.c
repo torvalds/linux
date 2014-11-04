@@ -333,7 +333,6 @@ static int hac_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver hac_pcm_driver = {
 	.driver = {
 			.name = "hac-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = hac_soc_platform_probe,

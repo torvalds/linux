@@ -264,7 +264,6 @@ static struct platform_driver xgene_rtc_driver = {
 	.probe		= xgene_rtc_probe,
 	.remove		= xgene_rtc_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "xgene-rtc",
 		.pm = &xgene_rtc_pm_ops,
 		.of_match_table	= of_match_ptr(xgene_rtc_of_match),

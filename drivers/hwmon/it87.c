@@ -498,7 +498,6 @@ static void it87_init_device(struct platform_device *pdev);
 
 static struct platform_driver it87_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
 	.probe	= it87_probe,

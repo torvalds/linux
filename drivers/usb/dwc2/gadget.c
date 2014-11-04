@@ -3684,7 +3684,6 @@ MODULE_DEVICE_TABLE(of, s3c_hsotg_of_ids);
 static struct platform_driver s3c_hsotg_driver = {
 	.driver		= {
 		.name	= "s3c-hsotg",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(s3c_hsotg_of_ids),
 	},
 	.probe		= s3c_hsotg_probe,

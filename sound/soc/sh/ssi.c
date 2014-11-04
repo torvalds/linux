@@ -398,7 +398,6 @@ static int sh4_soc_dai_remove(struct platform_device *pdev)
 static struct platform_driver sh4_ssi_driver = {
 	.driver = {
 			.name = "sh4-ssi-dai",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = sh4_soc_dai_probe,

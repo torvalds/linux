@@ -899,7 +899,6 @@ static int hsw_pcm_dev_remove(struct platform_device *pdev)
 static struct platform_driver hsw_pcm_driver = {
 	.driver = {
 		.name = "haswell-pcm-audio",
-		.owner = THIS_MODULE,
 	},
 
 	.probe = hsw_pcm_dev_probe,

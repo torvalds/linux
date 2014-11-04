@@ -370,7 +370,6 @@ static struct platform_driver mc13xxx_rtc_driver = {
 	.remove = mc13xxx_rtc_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 

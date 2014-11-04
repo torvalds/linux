@@ -224,7 +224,6 @@ static struct platform_driver txx9aclc_ac97_driver = {
 	.remove		= txx9aclc_ac97_dev_remove,
 	.driver		= {
 		.name	= "txx9aclc-ac97",
-		.owner	= THIS_MODULE,
 	},
 };
 

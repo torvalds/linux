@@ -802,7 +802,6 @@ static int mc13783_codec_remove(struct platform_device *pdev)
 static struct platform_driver mc13783_codec_driver = {
 	.driver = {
 		.name	= "mc13783-codec",
-		.owner	= THIS_MODULE,
 	},
 	.remove = mc13783_codec_remove,
 };

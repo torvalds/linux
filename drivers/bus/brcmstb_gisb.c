@@ -276,7 +276,6 @@ static struct platform_driver brcmstb_gisb_arb_driver = {
 	.probe	= brcmstb_gisb_arb_probe,
 	.driver = {
 		.name	= "brcm-gisb-arb",
-		.owner	= THIS_MODULE,
 		.of_match_table = brcmstb_gisb_arb_of_match,
 	},
 };

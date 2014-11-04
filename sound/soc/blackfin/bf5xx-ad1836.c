@@ -104,7 +104,6 @@ static int bf5xx_ad1836_driver_remove(struct platform_device *pdev)
 static struct platform_driver bf5xx_ad1836_driver = {
 	.driver = {
 		.name = "bfin-snd-ad1836",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = bf5xx_ad1836_driver_probe,

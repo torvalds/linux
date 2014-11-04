@@ -341,7 +341,6 @@ static struct platform_driver stmp3xxx_rtcdrv = {
 	.remove		= stmp3xxx_rtc_remove,
 	.driver		= {
 		.name	= "stmp3xxx-rtc",
-		.owner	= THIS_MODULE,
 		.pm	= &stmp3xxx_rtc_pm_ops,
 		.of_match_table = rtc_dt_ids,
 	},

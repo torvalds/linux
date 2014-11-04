@@ -963,7 +963,6 @@ static struct platform_driver omap_venchw_driver = {
 	.remove         = __exit_p(omap_venchw_remove),
 	.driver         = {
 		.name   = "omapdss_venc",
-		.owner  = THIS_MODULE,
 		.pm	= &venc_pm_ops,
 		.of_match_table = venc_of_match,
 		.suppress_bind_attrs = true,

@@ -679,7 +679,6 @@ static struct platform_driver imx_ahci_driver = {
 	.remove = ata_platform_remove_one,
 	.driver = {
 		.name = "ahci-imx",
-		.owner = THIS_MODULE,
 		.of_match_table = imx_ahci_of_match,
 		.pm = &ahci_imx_pm_ops,
 	},

@@ -574,7 +574,6 @@ static int db1x_pcmcia_socket_remove(struct platform_device *pdev)
 static struct platform_driver db1x_pcmcia_socket_driver = {
 	.driver	= {
 		.name	= "db1xxx_pcmcia",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= db1x_pcmcia_socket_probe,
 	.remove		= db1x_pcmcia_socket_remove,

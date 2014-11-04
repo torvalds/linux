@@ -562,7 +562,6 @@ static struct platform_driver exynos_mipi_dsi_driver = {
 	.remove = exynos_mipi_dsi_remove,
 	.driver = {
 		   .name = "exynos-mipi-dsim",
-		   .owner = THIS_MODULE,
 		   .pm = &exynos_mipi_dsi_pm_ops,
 	},
 };

@@ -315,7 +315,6 @@ static int littlemill_probe(struct platform_device *pdev)
 static struct platform_driver littlemill_driver = {
 	.driver = {
 		.name = "littlemill",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = littlemill_probe,

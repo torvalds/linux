@@ -215,7 +215,6 @@ static struct platform_driver ci_hdrc_imx_driver = {
 	.remove = ci_hdrc_imx_remove,
 	.driver = {
 		.name = "imx_usb",
-		.owner = THIS_MODULE,
 		.of_match_table = ci_hdrc_imx_dt_ids,
 	 },
 };

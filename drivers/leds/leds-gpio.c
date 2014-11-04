@@ -287,7 +287,6 @@ static struct platform_driver gpio_led_driver = {
 	.remove		= gpio_led_remove,
 	.driver		= {
 		.name	= "leds-gpio",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(of_gpio_leds_match),
 	},
 };

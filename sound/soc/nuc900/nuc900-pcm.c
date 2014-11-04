@@ -347,7 +347,6 @@ static int nuc900_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver nuc900_pcm_driver = {
 	.driver = {
 			.name = "nuc900-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = nuc900_soc_platform_probe,

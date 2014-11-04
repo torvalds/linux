@@ -289,7 +289,6 @@ static struct platform_driver tegra_wdt_driver = {
 	.probe		= tegra_wdt_probe,
 	.remove		= tegra_wdt_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "tegra-wdt",
 		.pm	= &tegra_wdt_pm_ops,
 		.of_match_table = tegra_wdt_of_match,

@@ -195,7 +195,6 @@ static struct platform_driver pmic8xxx_pwrkey_driver = {
 	.remove		= pmic8xxx_pwrkey_remove,
 	.driver		= {
 		.name	= "pm8xxx-pwrkey",
-		.owner	= THIS_MODULE,
 		.pm	= &pm8xxx_pwr_key_pm_ops,
 		.of_match_table = pm8xxx_pwr_key_id_table,
 	},

@@ -847,7 +847,6 @@ static struct platform_driver mpc5121_nfc_driver = {
 	.remove		= mpc5121_nfc_remove,
 	.driver		= {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mpc5121_nfc_match,
 	},
 };

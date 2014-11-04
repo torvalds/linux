@@ -211,7 +211,6 @@ err_vdd_arm:
 static struct platform_driver exynos_cpufreq_platdrv = {
 	.driver = {
 		.name	= "exynos-cpufreq",
-		.owner	= THIS_MODULE,
 	},
 	.probe = exynos_cpufreq_probe,
 };

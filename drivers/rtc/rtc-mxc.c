@@ -489,7 +489,6 @@ static struct platform_driver mxc_rtc_driver = {
 	.driver = {
 		   .name	= "mxc_rtc",
 		   .pm		= &mxc_rtc_pm_ops,
-		   .owner	= THIS_MODULE,
 	},
 	.id_table = imx_rtc_devtype,
 	.probe = mxc_rtc_probe,

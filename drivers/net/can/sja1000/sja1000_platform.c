@@ -253,7 +253,6 @@ static struct platform_driver sp_driver = {
 	.remove = sp_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = sp_of_table,
 	},
 };

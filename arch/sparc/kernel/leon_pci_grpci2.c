@@ -900,7 +900,6 @@ static struct of_device_id grpci2_of_match[] = {
 static struct platform_driver grpci2_of_driver = {
 	.driver = {
 		.name = "grpci2",
-		.owner = THIS_MODULE,
 		.of_match_table = grpci2_of_match,
 	},
 	.probe = grpci2_of_probe,

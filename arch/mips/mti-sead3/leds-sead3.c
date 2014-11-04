@@ -70,7 +70,6 @@ static struct platform_driver sead3_led_driver = {
 	.remove		= sead3_led_remove,
 	.driver		= {
 		.name		= DRVNAME,
-		.owner		= THIS_MODULE,
 	},
 };
 

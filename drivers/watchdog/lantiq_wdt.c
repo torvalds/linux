@@ -232,7 +232,6 @@ static struct platform_driver ltq_wdt_driver = {
 	.remove = ltq_wdt_remove,
 	.driver = {
 		.name = "wdt",
-		.owner = THIS_MODULE,
 		.of_match_table = ltq_wdt_match,
 	},
 };

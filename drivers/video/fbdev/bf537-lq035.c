@@ -894,7 +894,6 @@ static struct platform_driver bfin_lq035_driver = {
 	.resume = bfin_lq035_resume,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 	},
 };
 

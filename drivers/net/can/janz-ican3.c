@@ -1910,7 +1910,6 @@ static int ican3_remove(struct platform_device *pdev)
 static struct platform_driver ican3_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ican3_probe,
 	.remove		= ican3_remove,

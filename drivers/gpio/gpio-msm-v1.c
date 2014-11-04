@@ -701,7 +701,6 @@ MODULE_DEVICE_TABLE(platform, gpio_msm_v1_device_ids);
 static struct platform_driver gpio_msm_v1_driver = {
 	.driver = {
 		.name = "gpio-msm-v1",
-		.owner = THIS_MODULE,
 	},
 	.probe = gpio_msm_v1_probe,
 	.id_table = gpio_msm_v1_device_ids,

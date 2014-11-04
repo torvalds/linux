@@ -605,7 +605,6 @@ static struct platform_driver lirc_parallel_driver = {
 	.resume	= lirc_parallel_resume,
 	.driver	= {
 		.name	= LIRC_DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

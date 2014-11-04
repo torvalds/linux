@@ -874,7 +874,6 @@ static struct platform_driver bcm_uart_platform_driver = {
 	.probe	= bcm_uart_probe,
 	.remove	= bcm_uart_remove,
 	.driver	= {
-		.owner = THIS_MODULE,
 		.name  = "bcm63xx_uart",
 		.of_match_table = bcm63xx_of_match,
 	},

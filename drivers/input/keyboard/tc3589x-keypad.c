@@ -505,7 +505,6 @@ static SIMPLE_DEV_PM_OPS(tc3589x_keypad_dev_pm_ops,
 static struct platform_driver tc3589x_keypad_driver = {
 	.driver	= {
 		.name	= "tc3589x-keypad",
-		.owner	= THIS_MODULE,
 		.pm	= &tc3589x_keypad_dev_pm_ops,
 	},
 	.probe	= tc3589x_keypad_probe,

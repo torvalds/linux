@@ -2687,7 +2687,6 @@ MODULE_DEVICE_TABLE(of, fore200e_sba_match);
 static struct platform_driver fore200e_sba_driver = {
 	.driver = {
 		.name = "fore_200e",
-		.owner = THIS_MODULE,
 		.of_match_table = fore200e_sba_match,
 	},
 	.probe		= fore200e_sba_probe,

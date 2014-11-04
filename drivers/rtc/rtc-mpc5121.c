@@ -411,7 +411,6 @@ static const struct of_device_id mpc5121_rtc_match[] = {
 static struct platform_driver mpc5121_rtc_driver = {
 	.driver = {
 		.name = "mpc5121-rtc",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(mpc5121_rtc_match),
 	},
 	.probe = mpc5121_rtc_probe,

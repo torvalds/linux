@@ -264,7 +264,6 @@ MODULE_DEVICE_TABLE(of, i2c_mux_pinctrl_of_match);
 static struct platform_driver i2c_mux_pinctrl_driver = {
 	.driver	= {
 		.name	= "i2c-mux-pinctrl",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(i2c_mux_pinctrl_of_match),
 	},
 	.probe	= i2c_mux_pinctrl_probe,

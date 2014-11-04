@@ -687,7 +687,6 @@ static struct pccard_operations pcc_operations = {
 static struct platform_driver pcc_driver = {
 	.driver = {
 		.name		= "cfc",
-		.owner		= THIS_MODULE,
 	},
 };
 

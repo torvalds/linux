@@ -120,7 +120,6 @@ static struct platform_driver h3_panel_driver = {
 	.resume		= h3_panel_resume,
 	.driver		= {
 		.name	= "lcd_h3",
-		.owner	= THIS_MODULE,
 	},
 };
 

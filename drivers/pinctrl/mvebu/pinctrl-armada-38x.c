@@ -448,7 +448,6 @@ static int armada_38x_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver armada_38x_pinctrl_driver = {
 	.driver = {
 		.name = "armada-38x-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(armada_38x_pinctrl_of_match),
 	},
 	.probe = armada_38x_pinctrl_probe,

@@ -384,7 +384,6 @@ static int stmpe_ts_remove(struct platform_device *pdev)
 static struct platform_driver stmpe_ts_driver = {
 	.driver = {
 		   .name = STMPE_TS_NAME,
-		   .owner = THIS_MODULE,
 		   },
 	.probe = stmpe_input_probe,
 	.remove = stmpe_ts_remove,

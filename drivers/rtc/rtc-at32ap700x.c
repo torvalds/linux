@@ -277,7 +277,6 @@ static struct platform_driver at32_rtc_driver = {
 	.remove		= __exit_p(at32_rtc_remove),
 	.driver		= {
 		.name	= "at32ap700x_rtc",
-		.owner	= THIS_MODULE,
 	},
 };
 

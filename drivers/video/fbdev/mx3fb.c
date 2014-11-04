@@ -1646,7 +1646,6 @@ static int mx3fb_remove(struct platform_device *dev)
 static struct platform_driver mx3fb_driver = {
 	.driver = {
 		.name = MX3FB_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = mx3fb_probe,
 	.remove = mx3fb_remove,

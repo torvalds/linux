@@ -473,7 +473,6 @@ static struct platform_driver efm32_i2c_driver = {
 
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = efm32_i2c_dt_ids,
 	},
 };

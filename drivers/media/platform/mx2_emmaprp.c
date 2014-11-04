@@ -1010,7 +1010,6 @@ static struct platform_driver emmaprp_pdrv = {
 	.remove		= emmaprp_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(emmaprp_pdrv);

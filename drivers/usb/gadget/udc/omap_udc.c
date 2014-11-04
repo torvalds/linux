@@ -3026,7 +3026,6 @@ static struct platform_driver udc_driver = {
 	.suspend	= omap_udc_suspend,
 	.resume		= omap_udc_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= (char *) driver_name,
 	},
 };

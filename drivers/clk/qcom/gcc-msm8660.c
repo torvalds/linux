@@ -2744,7 +2744,6 @@ static struct platform_driver gcc_msm8660_driver = {
 	.remove		= gcc_msm8660_remove,
 	.driver		= {
 		.name	= "gcc-msm8660",
-		.owner	= THIS_MODULE,
 		.of_match_table = gcc_msm8660_match_table,
 	},
 };

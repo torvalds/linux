@@ -261,7 +261,6 @@ static struct platform_driver dma_driver = {
 	.probe = ltq_dma_init,
 	.driver = {
 		.name = "dma-xway",
-		.owner = THIS_MODULE,
 		.of_match_table = dma_match,
 	},
 };

@@ -501,7 +501,6 @@ static int timbuart_remove(struct platform_device *dev)
 static struct platform_driver timbuart_platform_driver = {
 	.driver = {
 		.name	= "timb-uart",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= timbuart_probe,
 	.remove		= timbuart_remove,

@@ -604,7 +604,6 @@ static struct platform_driver imx_ldb_driver = {
 	.driver		= {
 		.of_match_table = imx_ldb_dt_ids,
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

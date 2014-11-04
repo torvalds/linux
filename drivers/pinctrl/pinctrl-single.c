@@ -2016,7 +2016,6 @@ static struct platform_driver pcs_driver = {
 	.probe		= pcs_probe,
 	.remove		= pcs_remove,
 	.driver = {
-		.owner		= THIS_MODULE,
 		.name		= DRIVER_NAME,
 		.of_match_table	= pcs_of_match,
 	},

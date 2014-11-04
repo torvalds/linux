@@ -420,7 +420,6 @@ static struct platform_driver tegra_rtc_driver = {
 	.shutdown	= tegra_rtc_shutdown,
 	.driver		= {
 		.name	= "tegra_rtc",
-		.owner	= THIS_MODULE,
 		.of_match_table = tegra_rtc_dt_match,
 		.pm	= &tegra_rtc_pm_ops,
 	},

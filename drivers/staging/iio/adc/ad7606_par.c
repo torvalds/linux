@@ -141,7 +141,6 @@ static struct platform_driver ad7606_driver = {
 	.id_table = ad7606_driver_ids,
 	.driver = {
 		.name	 = "ad7606",
-		.owner	= THIS_MODULE,
 		.pm    = AD7606_PAR_PM_OPS,
 	},
 };

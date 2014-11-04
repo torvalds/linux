@@ -1473,7 +1473,6 @@ static struct platform_driver atmel_aes_driver = {
 	.remove		= atmel_aes_remove,
 	.driver		= {
 		.name	= "atmel_aes",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(atmel_aes_dt_ids),
 	},
 };

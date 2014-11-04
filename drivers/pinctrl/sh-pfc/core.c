@@ -650,7 +650,6 @@ static struct platform_driver sh_pfc_driver = {
 	.id_table	= sh_pfc_id_table,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(sh_pfc_of_table),
 	},
 };

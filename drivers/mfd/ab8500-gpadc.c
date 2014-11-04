@@ -1044,7 +1044,6 @@ static struct platform_driver ab8500_gpadc_driver = {
 	.remove = ab8500_gpadc_remove,
 	.driver = {
 		.name = "ab8500-gpadc",
-		.owner = THIS_MODULE,
 		.pm = &ab8500_gpadc_pm_ops,
 	},
 };

@@ -376,7 +376,6 @@ static struct platform_driver omap_sdi_driver = {
 	.remove         = __exit_p(omap_sdi_remove),
 	.driver         = {
 		.name   = "omapdss_sdi",
-		.owner  = THIS_MODULE,
 		.suppress_bind_attrs = true,
 	},
 };

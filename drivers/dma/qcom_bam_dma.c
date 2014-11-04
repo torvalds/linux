@@ -1115,7 +1115,6 @@ static struct platform_driver bam_dma_driver = {
 	.remove = bam_dma_remove,
 	.driver = {
 		.name = "bam-dma-engine",
-		.owner = THIS_MODULE,
 		.of_match_table = bam_of_match,
 	},
 };

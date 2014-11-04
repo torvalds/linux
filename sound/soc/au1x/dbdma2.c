@@ -363,7 +363,6 @@ static int au1xpsc_pcm_drvremove(struct platform_device *pdev)
 static struct platform_driver au1xpsc_pcm_driver = {
 	.driver	= {
 		.name	= "au1xpsc-pcm",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= au1xpsc_pcm_drvprobe,
 	.remove		= au1xpsc_pcm_drvremove,

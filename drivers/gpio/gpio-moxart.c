@@ -142,7 +142,6 @@ static const struct of_device_id moxart_gpio_match[] = {
 static struct platform_driver moxart_gpio_driver = {
 	.driver	= {
 		.name		= "moxart-gpio",
-		.owner		= THIS_MODULE,
 		.of_match_table	= moxart_gpio_match,
 	},
 	.probe	= moxart_gpio_probe,

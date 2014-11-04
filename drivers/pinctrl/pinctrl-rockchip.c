@@ -1982,7 +1982,6 @@ static struct platform_driver rockchip_pinctrl_driver = {
 	.probe		= rockchip_pinctrl_probe,
 	.driver = {
 		.name	= "rockchip-pinctrl",
-		.owner	= THIS_MODULE,
 		.of_match_table = rockchip_pinctrl_dt_match,
 	},
 };

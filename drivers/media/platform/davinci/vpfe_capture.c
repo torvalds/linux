@@ -2031,7 +2031,6 @@ static const struct dev_pm_ops vpfe_dev_pm_ops = {
 static struct platform_driver vpfe_driver = {
 	.driver = {
 		.name = CAPTURE_DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &vpfe_dev_pm_ops,
 	},
 	.probe = vpfe_probe,

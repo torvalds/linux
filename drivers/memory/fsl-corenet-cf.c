@@ -237,7 +237,6 @@ static int ccf_remove(struct platform_device *pdev)
 static struct platform_driver ccf_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 		.of_match_table = ccf_matches,
 	},
 	.probe = ccf_probe,

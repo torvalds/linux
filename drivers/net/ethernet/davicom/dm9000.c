@@ -1749,7 +1749,6 @@ MODULE_DEVICE_TABLE(of, dm9000_of_matches);
 static struct platform_driver dm9000_driver = {
 	.driver	= {
 		.name    = "dm9000",
-		.owner	 = THIS_MODULE,
 		.pm	 = &dm9000_drv_pm_ops,
 		.of_match_table = of_match_ptr(dm9000_of_matches),
 	},

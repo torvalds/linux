@@ -1376,7 +1376,6 @@ static struct platform_driver dsicm_driver = {
 	.remove = __exit_p(dsicm_remove),
 	.driver = {
 		.name = "panel-dsi-cm",
-		.owner = THIS_MODULE,
 		.of_match_table = dsicm_of_match,
 		.suppress_bind_attrs = true,
 	},

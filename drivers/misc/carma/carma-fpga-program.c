@@ -1091,7 +1091,6 @@ static struct platform_driver fpga_of_driver = {
 	.driver		= {
 		.name		= drv_name,
 		.of_match_table	= fpga_of_match,
-		.owner		= THIS_MODULE,
 	},
 };
 

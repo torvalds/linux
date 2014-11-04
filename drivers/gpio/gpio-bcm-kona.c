@@ -668,7 +668,6 @@ err_irq_domain:
 static struct platform_driver bcm_kona_gpio_driver = {
 	.driver = {
 			.name = "bcm-kona-gpio",
-			.owner = THIS_MODULE,
 			.of_match_table = bcm_kona_gpio_of_match,
 	},
 	.probe = bcm_kona_gpio_probe,

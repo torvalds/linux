@@ -152,7 +152,6 @@ static SIMPLE_DEV_PM_OPS(tpm_atml_pm, tpm_pm_suspend, tpm_pm_resume);
 static struct platform_driver atml_drv = {
 	.driver = {
 		.name = "tpm_atmel",
-		.owner		= THIS_MODULE,
 		.pm		= &tpm_atml_pm,
 	},
 };

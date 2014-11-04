@@ -694,7 +694,6 @@ static struct platform_driver bcm2835_dma_driver = {
 	.remove	= bcm2835_dma_remove,
 	.driver = {
 		.name = "bcm2835-dma",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(bcm2835_dma_of_match),
 	},
 };

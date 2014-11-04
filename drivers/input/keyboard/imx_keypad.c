@@ -580,7 +580,6 @@ static SIMPLE_DEV_PM_OPS(imx_kbd_pm_ops, imx_kbd_suspend, imx_kbd_resume);
 static struct platform_driver imx_keypad_driver = {
 	.driver		= {
 		.name	= "imx-keypad",
-		.owner	= THIS_MODULE,
 		.pm	= &imx_kbd_pm_ops,
 		.of_match_table = of_match_ptr(imx_keypad_of_match),
 	},

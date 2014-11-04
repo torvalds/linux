@@ -194,7 +194,6 @@ int st_mmap_remove(struct platform_device *pdev)
 static struct platform_driver st_mmap_thermal_driver = {
 	.driver = {
 		.name	= "st_thermal_mmap",
-		.owner  = THIS_MODULE,
 		.pm     = &st_thermal_pm_ops,
 		.of_match_table = st_mmap_thermal_of_match,
 	},

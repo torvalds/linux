@@ -220,7 +220,6 @@ static int ssc_remove(struct platform_device *pdev)
 static struct platform_driver ssc_driver = {
 	.driver		= {
 		.name		= "ssc",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(atmel_ssc_dt_ids),
 	},
 	.id_table	= atmel_ssc_devtypes,

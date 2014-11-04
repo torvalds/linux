@@ -1997,7 +1997,6 @@ MODULE_DEVICE_TABLE(platform, s3c_udc_ids);
 static struct platform_driver udc_driver_24x0 = {
 	.driver		= {
 		.name	= "s3c24x0-usbgadget",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= s3c2410_udc_probe,
 	.remove		= s3c2410_udc_remove,

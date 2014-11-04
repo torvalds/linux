@@ -1045,7 +1045,6 @@ static struct platform_driver sahara_driver = {
 	.remove		= sahara_remove,
 	.driver		= {
 		.name	= SAHARA_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = sahara_dt_ids,
 	},
 	.id_table = sahara_platform_ids,

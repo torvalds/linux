@@ -3011,7 +3011,6 @@ static int parport_pc_platform_probe(struct platform_device *pdev)
 
 static struct platform_driver parport_pc_platform_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "parport_pc",
 	},
 	.probe		= parport_pc_platform_probe,

@@ -1010,7 +1010,6 @@ static const struct of_device_id pci_sun4v_match[] = {
 static struct platform_driver pci_sun4v_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = pci_sun4v_match,
 	},
 	.probe		= pci_sun4v_probe,
