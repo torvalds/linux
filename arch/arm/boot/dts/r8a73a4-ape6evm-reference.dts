@@ -94,6 +94,10 @@
 	voltage-tolerance = <1>; /* 1% */
 };
 
+&cmt1 {
+	status = "okay";
+};
+
 &pfc {
 	scifa0_pins: serial0 {
 		renesas,groups = "scifa0_data";
