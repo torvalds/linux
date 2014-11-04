@@ -1388,16 +1388,12 @@ struct ilk_wm_values {
 };
 
 struct skl_ddb_entry {
-	uint16_t start, end;	/* in number of blocks */
+	uint16_t start, end;	/* in number of blocks, 'end' is exclusive */
 };
 
 static inline uint16_t skl_ddb_entry_size(const struct skl_ddb_entry *entry)
 {
-	/* end not set, clearly no allocation here. start can be 0 though */
-	if (entry->end == 0)
-		return 0;
-
-	return entry->end - entry->start + 1;
+	return entry->end - entry->start;
 }
 
 static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,

@@ -3040,7 +3040,7 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 
 	pipe_size = ddb_size / config->num_pipes_active;
 	alloc->start = nth_active_pipe * ddb_size / config->num_pipes_active;
-	alloc->end = alloc->start + pipe_size - 1;
+	alloc->end = alloc->start + pipe_size;
 }
 
 static unsigned int skl_cursor_allocation(const struct intel_wm_config *config)
@@ -3055,6 +3055,8 @@ static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
 {
 	entry->start = reg & 0x3ff;
 	entry->end = (reg >> 16) & 0x3ff;
+	if (entry->end)
+		entry->end += 1;
 }
 
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
@@ -3131,7 +3133,7 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	}
 
 	cursor_blocks = skl_cursor_allocation(config);
-	ddb->cursor[pipe].start = alloc.end - cursor_blocks + 1;
+	ddb->cursor[pipe].start = alloc.end - cursor_blocks;
 	ddb->cursor[pipe].end = alloc.end;
 
 	alloc_size -= cursor_blocks;
@@ -3165,7 +3167,7 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 				       total_data_rate);
 
 		ddb->plane[pipe][plane].start = start;
-		ddb->plane[pipe][plane].end = start + plane_blocks - 1;
+		ddb->plane[pipe][plane].end = start + plane_blocks;
 
 		start += plane_blocks;
 	}
@@ -3453,6 +3455,15 @@ static void skl_compute_wm_results(struct drm_device *dev,
 	r->wm_linetime[pipe] = p_wm->linetime;
 }
 
+static void skl_ddb_entry_write(struct drm_i915_private *dev_priv, uint32_t reg,
+				const struct skl_ddb_entry *entry)
+{
+	if (entry->end)
+		I915_WRITE(reg, (entry->end - 1) << 16 | entry->start);
+	else
+		I915_WRITE(reg, 0);
+}
+
 static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 				const struct skl_wm_values *new)
 {
@@ -3480,13 +3491,12 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 			I915_WRITE(CUR_WM_TRANS(pipe), new->cursor_trans[pipe]);
 
 			for (i = 0; i < intel_num_planes(crtc); i++)
-				I915_WRITE(PLANE_BUF_CFG(pipe, i),
-					   new->ddb.plane[pipe][i].end << 16 |
-					   new->ddb.plane[pipe][i].start);
+				skl_ddb_entry_write(dev_priv,
+						    PLANE_BUF_CFG(pipe, i),
+						    &new->ddb.plane[pipe][i]);
 
-			I915_WRITE(CUR_BUF_CFG(pipe),
-				   new->ddb.cursor[pipe].end << 16 |
-				   new->ddb.cursor[pipe].start);
+			skl_ddb_entry_write(dev_priv, CUR_BUF_CFG(pipe),
+					    &new->ddb.cursor[pipe]);
 		}
 	}
 }
