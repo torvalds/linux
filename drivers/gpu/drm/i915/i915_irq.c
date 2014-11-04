@@ -1339,10 +1339,8 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 
 	if (gt_iir & (GT_BLT_CS_ERROR_INTERRUPT |
 		      GT_BSD_CS_ERROR_INTERRUPT |
-		      GT_RENDER_CS_MASTER_ERROR_INTERRUPT)) {
-		i915_handle_error(dev, false, "GT error interrupt 0x%08x",
-				  gt_iir);
-	}
+		      GT_RENDER_CS_MASTER_ERROR_INTERRUPT))
+		DRM_DEBUG("Command parser error, gt_iir 0x%08x\n", gt_iir);
 
 	if (gt_iir & GT_PARITY_ERROR(dev))
 		ivybridge_parity_error_irq_handler(dev, gt_iir);
@@ -1731,11 +1729,8 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
 			notify_ring(dev_priv->dev, &dev_priv->ring[VECS]);
 
-		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT) {
-			i915_handle_error(dev_priv->dev, false,
-					  "VEBOX CS error interrupt 0x%08x",
-					  pm_iir);
-		}
+		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
+			DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
 	}
 }
 
@@ -3746,9 +3741,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		 */
 		spin_lock(&dev_priv->irq_lock);
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev, false,
-					  "Command parser error, iir 0x%08x",
-					  iir);
+			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
 		for_each_pipe(dev_priv, pipe) {
 			int reg = PIPESTAT(pipe);
@@ -3929,9 +3922,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		 */
 		spin_lock(&dev_priv->irq_lock);
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev, false,
-					  "Command parser error, iir 0x%08x",
-					  iir);
+			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
 		for_each_pipe(dev_priv, pipe) {
 			int reg = PIPESTAT(pipe);
@@ -4154,9 +4145,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		 */
 		spin_lock(&dev_priv->irq_lock);
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev, false,
-					  "Command parser error, iir 0x%08x",
-					  iir);
+			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
 		for_each_pipe(dev_priv, pipe) {
 			int reg = PIPESTAT(pipe);
