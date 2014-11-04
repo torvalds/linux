@@ -131,7 +131,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_TIMER_DISABLE		0
 #define APCI3120_TIMER_ENABLE		1
 #define APCI3120_ENABLE_TIMER2		0x4000
-#define APCI3120_DISABLE_TIMER2		(~APCI3120_ENABLE_TIMER2)
 #define APCI3120_ENABLE_TIMER_INT	0x04
 #define APCI3120_DISABLE_TIMER_INT	(~APCI3120_ENABLE_TIMER_INT)
 #define APCI3120_WRITE_MODE_SELECT	0x0e
@@ -147,9 +146,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_ENABLE_TIMER0		0x1000
 #define APCI3120_ENABLE_TIMER1		0x2000
 #define APCI3120_ENABLE_TIMER2		0x4000
-#define APCI3120_DISABLE_TIMER0		(~APCI3120_ENABLE_TIMER0)
-#define APCI3120_DISABLE_TIMER1		(~APCI3120_ENABLE_TIMER1)
-#define APCI3120_DISABLE_TIMER2		(~APCI3120_ENABLE_TIMER2)
 
 #define APCI3120_TIMER2_SELECT_EOS	0xc0
 #define APCI3120_COUNTER		3
@@ -1254,10 +1250,10 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 			apci3120_interrupt_dma(irq, d);
 		} else {
 			/* Stops the Timer */
-			outw(devpriv->
-				ctrl & APCI3120_DISABLE_TIMER0 &
-				APCI3120_DISABLE_TIMER1,
-				dev->iobase + APCI3120_WR_ADDRESS);
+			outw(devpriv->ctrl &
+			     ~APCI3120_ENABLE_TIMER0 &
+			     ~APCI3120_ENABLE_TIMER1,
+			     dev->iobase + APCI3120_WR_ADDRESS);
 		}
 
 	}
@@ -1290,7 +1286,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 	divisor = apci3120_ns_to_timer(dev, 2, data[1], CMDF_ROUND_DOWN);
 
 	/* Reset gate 2 of Timer 2 to disable it (Set Bit D14 to 0) */
-	devpriv->ctrl &= APCI3120_DISABLE_TIMER2;
+	devpriv->ctrl &= ~APCI3120_ENABLE_TIMER2;
 	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 	/*  Disable TIMER Interrupt */
