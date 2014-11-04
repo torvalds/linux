@@ -40,6 +40,7 @@
 #define APCI3120_CTR0_REG			0x0d
 #define APCI3120_CTR0_DO_BITS(x)		((x) << 4)
 #define APCI3120_CTR0_TIMER_SEL(x)		((x) << 0)
+#define APCI3120_MODE_REG			0x0e
 #define APCI3120_MODE_TIMER2_CLK_OSC		(0 << 6)
 #define APCI3120_MODE_TIMER2_CLK_OUT1		(1 << 6)
 #define APCI3120_MODE_TIMER2_CLK_EOC		(2 << 6)

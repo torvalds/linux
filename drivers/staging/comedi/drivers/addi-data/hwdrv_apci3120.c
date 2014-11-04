@@ -98,7 +98,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_WATCHDOG		2
 #define APCI3120_TIMER_DISABLE		0
 #define APCI3120_TIMER_ENABLE		1
-#define APCI3120_WRITE_MODE_SELECT	0x0e
 
 #define APCI3120_RD_STATUS		0x02
 #define APCI3120_FC_TIMER		0x1000
@@ -240,8 +239,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 				inw(dev->iobase + 0);
 			}
 
-			outb(devpriv->mode,
-			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
+			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 			apci3120_timer_enable(dev, 0, true);
 
@@ -285,8 +283,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 
 			/* Set the scan bit */
 			devpriv->mode |= APCI3120_MODE_SCAN_ENA;
-			outb(devpriv->mode,
-			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
+			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 			/* If Interrupt function is loaded */
 			if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {
@@ -294,8 +291,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 				inw(dev->iobase + 0);
 			}
 
-			outb(devpriv->mode,
-			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
+			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 			inw(dev->iobase + APCI3120_RD_STATUS);
 
@@ -351,7 +347,7 @@ static int apci3120_reset(struct comedi_device *dev)
 
 	/* Disable all interrupts, watchdog for the anolog output */
 	devpriv->mode = 0;
-	outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
+	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 	/* disable all counters, ext trigger, and reset scan */
 	devpriv->ctrl = 0;
@@ -386,7 +382,7 @@ static int apci3120_cancel(struct comedi_device *dev,
 
 	/* DISABLE_ALL_INTERRUPT */
 	devpriv->mode = 0;
-	outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
+	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 	apci3120_ai_reset_fifo(dev);
 	inw(dev->iobase + APCI3120_RD_STATUS);
@@ -538,7 +534,7 @@ static int apci3120_cyclic_ai(int mode,
 
 	}
 
-	outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
+	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 	/*  If DMA is disabled */
 	if (devpriv->us_UseDma == APCI3120_DISABLE) {
@@ -547,7 +543,7 @@ static int apci3120_cyclic_ai(int mode,
 		devpriv->b_EocEosInterrupt = APCI3120_ENABLE;
 
 		devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
-		outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
+		outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 		if (cmd->stop_src == TRIG_COUNT) {
 			/* configure Timer2 For counting EOS */
@@ -563,8 +559,7 @@ static int apci3120_cyclic_ai(int mode,
 			devpriv->mode |= APCI3120_MODE_TIMER2_AS_COUNTER |
 					 APCI3120_MODE_TIMER2_CLK_EOS |
 					 APCI3120_MODE_TIMER2_IRQ_ENA;
-			outb(devpriv->mode,
-			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
+			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 			devpriv->b_Timer2Mode = APCI3120_COUNTER;
 			devpriv->b_Timer2Interrupt = APCI3120_ENABLE;
@@ -954,8 +949,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		} else {
 			/* Disable EOC Interrupt */
 			devpriv->mode &= ~APCI3120_MODE_EOC_IRQ_ENA;
-			outb(devpriv->mode,
-			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
+			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 		}
 	}
 
@@ -969,7 +963,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 				apci3120_interrupt_handle_eos(dev);
 				devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
 				outb(devpriv->mode,
-				     dev->iobase + APCI3120_WRITE_MODE_SELECT);
+				     dev->iobase + APCI3120_MODE_REG);
 			} else {
 				ui_Check = 0;
 				for (i = 0; i < devpriv->ui_AiNbrofChannels;
@@ -987,8 +981,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 
 		} else {
 			devpriv->mode &= ~APCI3120_MODE_EOS_IRQ_ENA;
-			outb(devpriv->mode,
-			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
+			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;	/* Default settings */
 			devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 		}
@@ -1000,8 +993,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		switch (devpriv->b_Timer2Mode) {
 		case APCI3120_COUNTER:
 			devpriv->mode &= ~APCI3120_MODE_EOS_IRQ_ENA;
-			outb(devpriv->mode,
-			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
+			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 			s->async->events |= COMEDI_CB_EOA;
 			break;
@@ -1019,11 +1011,9 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 			break;
 
 		default:
-
 			/*  disable Timer Interrupt */
 			devpriv->mode &= ~APCI3120_MODE_TIMER2_IRQ_ENA;
-			outb(devpriv->mode,
-			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
+			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 		}
 
 		apci3120_clr_timer2_interrupt(dev);
@@ -1083,7 +1073,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 	/*  Disable Eoc and Eos Interrupts */
 	devpriv->mode &= ~APCI3120_MODE_EOC_IRQ_ENA &
 			 ~APCI3120_MODE_EOS_IRQ_ENA;
-	outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
+	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 	if (data[0] == APCI3120_TIMER) {	/* initialize timer */
 		/* Set the Timer 2 in mode 2(Timer) */
@@ -1167,7 +1157,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 		} else {
 			devpriv->mode &= ~APCI3120_MODE_TIMER2_IRQ_ENA;
 		}
-		outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
+		outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 		/* start timer */
 		if (devpriv->b_Timer2Mode == APCI3120_TIMER)
@@ -1178,7 +1168,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 		/* disable timer 2 interrupt and reset operation mode (timer) */
 		devpriv->mode &= ~APCI3120_MODE_TIMER2_IRQ_ENA &
 				 ~APCI3120_MODE_TIMER2_AS_MASK;
-		outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
+		outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 		apci3120_timer_enable(dev, 2, false);
 
