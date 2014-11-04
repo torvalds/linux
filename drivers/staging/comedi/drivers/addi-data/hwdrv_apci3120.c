@@ -26,62 +26,6 @@ static int apci3120_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static int apci3120_ai_cmd(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
-{
-	struct apci3120_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int divisor;
-
-	/* set default mode bits */
-	devpriv->mode = APCI3120_MODE_TIMER2_CLK_OSC |
-			APCI3120_MODE_TIMER2_AS_TIMER;
-
-	/* AMCC- Clear write complete interrupt (DMA) */
-	outl(AINT_WT_COMPLETE, devpriv->amcc + AMCC_OP_REG_INTCSR);
-
-	devpriv->cur_dmabuf = 0;
-
-	/* load chanlist for command scan */
-	apci3120_set_chanlist(dev, s, cmd->chanlist_len, cmd->chanlist);
-
-	if (cmd->start_src == TRIG_EXT)
-		apci3120_exttrig_enable(dev, true);
-
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/*
-		 * Timer 1 is used in MODE2 (rate generator) to set the
-		 * start time for each scan.
-		 */
-		divisor = apci3120_ns_to_timer(dev, 1, cmd->scan_begin_arg,
-					       cmd->flags);
-		apci3120_timer_set_mode(dev, 1, APCI3120_TIMER_MODE2);
-		apci3120_timer_write(dev, 1, divisor);
-	}
-
-	/*
-	 * Timer 0 is used in MODE2 (rate generator) to set the conversion
-	 * time for each acquisition.
-	 */
-	divisor = apci3120_ns_to_timer(dev, 0, cmd->convert_arg, cmd->flags);
-	apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
-	apci3120_timer_write(dev, 0, divisor);
-
-	if (devpriv->use_dma)
-		apci3120_setup_dma(dev, s);
-	else
-		devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
-
-	/* set mode to enable acquisition */
-	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-
-	if (cmd->scan_begin_src == TRIG_TIMER)
-		apci3120_timer_enable(dev, 1, true);
-	apci3120_timer_enable(dev, 0, true);
-
-	return 0;
-}
-
 /*
  * This is a handler for the DMA interrupt.
  * This function copies the data to Comedi Buffer.
