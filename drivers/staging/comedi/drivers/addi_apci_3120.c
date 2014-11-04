@@ -15,6 +15,7 @@
 /*
  * PCI BAR 1 register map (dev->iobase)
  */
+#define APCI3120_STATUS_TO_VERSION(x)		(((x) >> 4) & 0xf)
 #define APCI3120_AO_REG(x)			(0x08 + (((x) / 4) * 2))
 #define APCI3120_AO_MUX(x)			(((x) & 0x3) << 14)
 #define APCI3120_AO_DATA(x)			((x) << 0)
@@ -22,6 +23,14 @@
 /*
  * PCI BAR 2 register map (devpriv->addon)
  */
+
+/*
+ * Board revisions
+ */
+#define APCI3120_REVA				0xa
+#define APCI3120_REVB				0xb
+#define APCI3120_REVA_OSC_BASE			70	/* 70ns = 14.29MHz */
+#define APCI3120_REVB_OSC_BASE			50	/* 50ns = 20MHz */
 
 enum apci3120_boardid {
 	BOARD_APCI3120,
@@ -55,6 +64,7 @@ struct apci3120_dmabuf {
 struct apci3120_private {
 	unsigned long amcc;
 	unsigned long addon;
+	unsigned int osc_base;
 	unsigned int ui_AiNbrofChannels;
 	unsigned int ui_AiChannelList[32];
 	unsigned int ui_AiReadData[32];
@@ -75,6 +85,59 @@ struct apci3120_private {
 	unsigned char b_ExttrigEnable;
 	struct task_struct *tsk_Current;
 };
+
+/*
+ * There are three timers on the board. They all use the same base
+ * clock with a fixed prescaler for each timer. The base clock used
+ * depends on the board version and type.
+ *
+ * APCI-3120 Rev A boards OSC = 14.29MHz base clock (~70ns)
+ * APCI-3120 Rev B boards OSC = 20MHz base clock (50ns)
+ * APCI-3001 boards OSC = 20MHz base clock (50ns)
+ *
+ * The prescalers for each timer are:
+ * Timer 0 CLK = OSC/10
+ * Timer 1 CLK = OSC/1000
+ * Timer 2 CLK = OSC/1000
+ */
+static unsigned int apci3120_ns_to_timer(struct comedi_device *dev,
+					 unsigned int timer,
+					 unsigned int ns,
+					 unsigned int flags)
+{
+	struct apci3120_private *devpriv = dev->private;
+	unsigned int prescale = (timer == 0) ? 10 : 1000;
+	unsigned int timer_base = devpriv->osc_base * prescale;
+	unsigned int divisor;
+
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_UP:
+		divisor = DIV_ROUND_UP(ns, timer_base);
+		break;
+	case CMDF_ROUND_DOWN:
+		divisor = ns / timer_base;
+		break;
+	case CMDF_ROUND_NEAREST:
+	default:
+		divisor = DIV_ROUND_CLOSEST(ns, timer_base);
+		break;
+	}
+
+	if (timer == 2) {
+		/* timer 2 is 24-bits */
+		if (divisor > 0x00ffffff)
+			divisor = 0x00ffffff;
+	} else {
+		/* timers 0 and 1 are 16-bits */
+		if (divisor > 0xffff)
+			divisor = 0xffff;
+	}
+	/* the timers require a minimum divisor of 2 */
+	if (divisor < 2)
+		divisor = 2;
+
+	return divisor;
+}
 
 #include "addi-data/hwdrv_apci3120.c"
 
@@ -131,6 +194,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	const struct apci3120_board *this_board = NULL;
 	struct apci3120_private *devpriv;
 	struct comedi_subdevice *s;
+	unsigned int status;
 	int ret;
 
 	if (context < ARRAY_SIZE(apci3120_boardtypes))
@@ -164,6 +228,13 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 			apci3120_dma_alloc(dev);
 		}
 	}
+
+	status = inw(dev->iobase + APCI3120_RD_STATUS);
+	if (APCI3120_STATUS_TO_VERSION(status) == APCI3120_REVB ||
+	    context == BOARD_APCI3001)
+		devpriv->osc_base = APCI3120_REVB_OSC_BASE;
+	else
+		devpriv->osc_base = APCI3120_REVA_OSC_BASE;
 
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)

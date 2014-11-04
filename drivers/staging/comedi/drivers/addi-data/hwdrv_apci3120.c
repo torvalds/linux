@@ -309,14 +309,16 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct apci3120_private *devpriv = dev->private;
-	unsigned short us_ConvertTiming, us_TmpValue, i;
+	unsigned int divisor;
+	unsigned int ns;
+	unsigned short us_TmpValue, i;
 	unsigned char b_Tmp;
 
 	/*  fix conversion time to 10 us */
 	if (!devpriv->ui_EocEosConversionTime)
-		us_ConvertTiming = 10;
+		ns = 10000;
 	else
-		us_ConvertTiming = (unsigned short) (devpriv->ui_EocEosConversionTime / 1000);	/*  nano to useconds */
+		ns = devpriv->ui_EocEosConversionTime;
 
 	/*  Clear software registers */
 	devpriv->b_TimerSelectMode = 0;
@@ -329,20 +331,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 	} else {
 		devpriv->tsk_Current = current;	/*  Save the current process task structure */
 
-		/*
-		 * Testing if board have the new Quartz and calculate the time value
-		 * to set in the timer
-		 */
-		us_TmpValue = inw(dev->iobase + APCI3120_RD_STATUS);
-
-		/* EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001 */
-		if ((us_TmpValue & 0x00B0) == 0x00B0
-			|| !strcmp(dev->board_name, "apci3001")) {
-			us_ConvertTiming = (us_ConvertTiming * 2) - 2;
-		} else {
-			us_ConvertTiming =
-				((us_ConvertTiming * 12926) / 10000) - 1;
-		}
+		divisor = apci3120_ns_to_timer(dev, 0, ns, CMDF_ROUND_NEAREST);
 
 		us_TmpValue = (unsigned short) devpriv->b_InterruptMode;
 
@@ -408,8 +397,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
 			/* Set the conversion time */
-			outw(us_ConvertTiming,
-			     dev->iobase + APCI3120_TIMER_VALUE);
+			outw(divisor, dev->iobase + APCI3120_TIMER_VALUE);
 
 			us_TmpValue =
 				(unsigned short) inw(dev->iobase + APCI3120_RD_STATUS);
@@ -467,8 +455,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
 			/* Set the conversion time */
-			outw(us_ConvertTiming,
-			     dev->iobase + APCI3120_TIMER_VALUE);
+			outw(divisor, dev->iobase + APCI3120_TIMER_VALUE);
 
 			/* Set the scan bit */
 			devpriv->b_ModeSelectRegister =
@@ -719,14 +706,11 @@ static int apci3120_cyclic_ai(int mode,
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned char b_Tmp;
-	unsigned int ui_DelayTiming = 0;
-	unsigned int ui_TimerValue1 = 0;
+	unsigned int divisor1 = 0;
 	unsigned int dmalen0 = 0;
 	unsigned int dmalen1 = 0;
 	unsigned int ui_TimerValue2 = 0;
-	unsigned int ui_TimerValue0;
-	unsigned int ui_ConvertTiming;
-	unsigned short us_TmpValue;
+	unsigned int divisor0;
 
 	/* Resets the FIFO */
 	inb(dev->iobase + APCI3120_RESET_FIFO);
@@ -759,42 +743,17 @@ static int apci3120_cyclic_ai(int mode,
 
 	/* value for timer2  minus -2 has to be done */
 	ui_TimerValue2 = cmd->stop_arg - 2;
-	ui_ConvertTiming = cmd->convert_arg;
-
-	if (mode == 2)
-		ui_DelayTiming = cmd->scan_begin_arg;
 
 	/* Initializes the sequence array */
 	if (!apci3120_setup_chan_list(dev, s, devpriv->ui_AiNbrofChannels,
 			cmd->chanlist, 0))
 		return -EINVAL;
 
-	us_TmpValue = (unsigned short) inw(dev->iobase + APCI3120_RD_STATUS);
-
-	/* EL241003 Begin: add this section to replace floats calculation by integer calculations */
-	/* EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001 */
-	if ((us_TmpValue & 0x00B0) == 0x00B0
-		|| !strcmp(dev->board_name, "apci3001")) {
-		ui_TimerValue0 = ui_ConvertTiming * 2 - 2000;
-		ui_TimerValue0 = ui_TimerValue0 / 1000;
-
-		if (mode == 2) {
-			ui_DelayTiming = ui_DelayTiming / 1000;
-			ui_TimerValue1 = ui_DelayTiming * 2 - 200;
-			ui_TimerValue1 = ui_TimerValue1 / 100;
-		}
-	} else {
-		ui_ConvertTiming = ui_ConvertTiming / 1000;
-		ui_TimerValue0 = ui_ConvertTiming * 12926 - 10000;
-		ui_TimerValue0 = ui_TimerValue0 / 10000;
-
-		if (mode == 2) {
-			ui_DelayTiming = ui_DelayTiming / 1000;
-			ui_TimerValue1 = ui_DelayTiming * 12926 - 1;
-			ui_TimerValue1 = ui_TimerValue1 / 1000000;
-		}
+	divisor0 = apci3120_ns_to_timer(dev, 0, cmd->convert_arg, cmd->flags);
+	if (mode == 2) {
+		divisor1 = apci3120_ns_to_timer(dev, 1, cmd->scan_begin_arg,
+						cmd->flags);
 	}
-	/* EL241003 End */
 
 	if (devpriv->b_ExttrigEnable == APCI3120_ENABLE)
 		apci3120_exttrig_enable(dev);	/*  activate EXT trigger */
@@ -813,8 +772,7 @@ static int apci3120_cyclic_ai(int mode,
 			APCI3120_SELECT_TIMER_0_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 		/* Set the conversion time */
-		outw(((unsigned short) ui_TimerValue0),
-			dev->iobase + APCI3120_TIMER_VALUE);
+		outw(divisor0, dev->iobase + APCI3120_TIMER_VALUE);
 		break;
 
 	case 2:
@@ -831,8 +789,7 @@ static int apci3120_cyclic_ai(int mode,
 			APCI3120_SELECT_TIMER_1_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 		/* Set the conversion time */
-		outw(((unsigned short) ui_TimerValue1),
-			dev->iobase + APCI3120_TIMER_VALUE);
+		outw(divisor1, dev->iobase + APCI3120_TIMER_VALUE);
 
 		/*  init timer0 in mode 2 */
 		devpriv->b_TimerSelectMode =
@@ -848,8 +805,7 @@ static int apci3120_cyclic_ai(int mode,
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
 		/* Set the conversion time */
-		outw(((unsigned short) ui_TimerValue0),
-			dev->iobase + APCI3120_TIMER_VALUE);
+		outw(divisor0, dev->iobase + APCI3120_TIMER_VALUE);
 		break;
 
 	}
@@ -1487,8 +1443,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				      unsigned int *data)
 {
 	struct apci3120_private *devpriv = dev->private;
-	unsigned int ui_Timervalue2;
-	unsigned short us_TmpValue;
+	unsigned int divisor;
 	unsigned char b_Tmp;
 
 	if (!data[1])
@@ -1496,22 +1451,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 
 	devpriv->b_Timer2Interrupt = (unsigned char) data[2];	/*  save info whether to enable or disable interrupt */
 
-	ui_Timervalue2 = data[1] / 1000;	/*  convert nano seconds  to u seconds */
-
-	us_TmpValue = inw(dev->iobase + APCI3120_RD_STATUS);
-
-	/*
-	 * EL250804: Testing if board APCI3120 have the new Quartz or if it
-	 * is an APCI3001 and calculate the time value to set in the timer
-	 */
-	if ((us_TmpValue & 0x00B0) == 0x00B0
-		|| !strcmp(dev->board_name, "apci3001")) {
-		/* Calculate the time value to set in the timer */
-		ui_Timervalue2 = ui_Timervalue2 / 50;
-	} else {
-		/* Calculate the time value to set in the timer */
-		ui_Timervalue2 = ui_Timervalue2 / 70;
-	}
+	divisor = apci3120_ns_to_timer(dev, 2, data[1], CMDF_ROUND_DOWN);
 
 	/* Reset gate 2 of Timer 2 to disable it (Set Bit D14 to 0) */
 	devpriv->us_OutputRegister =
@@ -1551,15 +1491,14 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		outw(ui_Timervalue2 & 0xffff,
-		     dev->iobase + APCI3120_TIMER_VALUE);
+		outw(divisor & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		outw((ui_Timervalue2 >> 16) & 0xffff,
+		outw((divisor >> 16) & 0xffff,
 		     dev->iobase + APCI3120_TIMER_VALUE);
 		/*  timer2 in Timer mode enabled */
 		devpriv->b_Timer2Mode = APCI3120_TIMER;
@@ -1586,8 +1525,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-		outw(ui_Timervalue2 & 0xffff,
-		     dev->iobase + APCI3120_TIMER_VALUE);
+		outw(divisor & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
 		b_Tmp = ((devpriv->
@@ -1595,7 +1533,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
-		outw((ui_Timervalue2 >> 16) & 0xffff,
+		outw((divisor >> 16) & 0xffff,
 		     dev->iobase + APCI3120_TIMER_VALUE);
 		/* watchdog enabled */
 		devpriv->b_Timer2Mode = APCI3120_WATCHDOG;
@@ -1624,8 +1562,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 				     unsigned int *data)
 {
 	struct apci3120_private *devpriv = dev->private;
-	unsigned int ui_Timervalue2 = 0;
-	unsigned short us_TmpValue;
+	unsigned int divisor;
 	unsigned char b_Tmp;
 
 	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
@@ -1640,11 +1577,6 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 				"timer2 not configured in TIMER MODE\n");
 			return -EINVAL;
 		}
-
-		if (data[1])
-			ui_Timervalue2 = data[1];
-		else
-			ui_Timervalue2 = 0;
 	}
 
 	switch (data[0]) {
@@ -1734,28 +1666,17 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 				"timer2 not configured in TIMER MODE\n");
 			return -EINVAL;
 		}
-		us_TmpValue = inw(dev->iobase + APCI3120_RD_STATUS);
 
-		/*
-		 * EL250804: Testing if board APCI3120 have the new Quartz or if it
-		 * is an APCI3001 and calculate the time value to set in the timer
-		 */
-		if ((us_TmpValue & 0x00B0) == 0x00B0
-			|| !strcmp(dev->board_name, "apci3001")) {
-			/* Calculate the time value to set in the timer */
-			ui_Timervalue2 = ui_Timervalue2 / 50;
-		} else {
-			/* Calculate the time value to set in the timer */
-			ui_Timervalue2 = ui_Timervalue2 / 70;
-		}
+		divisor = apci3120_ns_to_timer(dev, 2, data[1],
+					       CMDF_ROUND_DOWN);
+
 		/* Writing LOW unsigned short */
 		b_Tmp = ((devpriv->
 				b_DigitalOutputRegister) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
-		outw(ui_Timervalue2 & 0xffff,
-		     dev->iobase + APCI3120_TIMER_VALUE);
+		outw(divisor & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
 		b_Tmp = ((devpriv->
@@ -1763,7 +1684,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
-		outw((ui_Timervalue2 >> 16) & 0xffff,
+		outw((divisor >> 16) & 0xffff,
 		     dev->iobase + APCI3120_TIMER_VALUE);
 
 		break;
