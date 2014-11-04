@@ -45,7 +45,8 @@ struct charqueue *visor_charqueue_create(ulong nslots)
 	}
 	cq->alloc_size = alloc_size;
 	cq->nslots = nslots;
-	cq->head = cq->tail = 0;
+	cq->head = 0;
+	cq->tail = 0;
 	spin_lock_init(&cq->lock);
 	return cq;
 }
