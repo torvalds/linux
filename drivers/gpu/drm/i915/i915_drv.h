@@ -549,6 +549,7 @@ struct intel_uncore {
 
 	unsigned fw_rendercount;
 	unsigned fw_mediacount;
+	unsigned fw_blittercount;
 
 	struct timer_list force_wake_timer;
 };
@@ -2979,7 +2980,9 @@ int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
 
 #define FORCEWAKE_RENDER	(1 << 0)
 #define FORCEWAKE_MEDIA		(1 << 1)
-#define FORCEWAKE_ALL		(FORCEWAKE_RENDER | FORCEWAKE_MEDIA)
+#define FORCEWAKE_BLITTER	(1 << 2)
+#define FORCEWAKE_ALL		(FORCEWAKE_RENDER | FORCEWAKE_MEDIA | \
+					FORCEWAKE_BLITTER)
 
 
 #define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)

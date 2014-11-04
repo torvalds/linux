@@ -296,6 +296,154 @@ static void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static void __gen9_gt_force_wake_mt_reset(struct drm_i915_private *dev_priv)
+{
+	__raw_i915_write32(dev_priv, FORCEWAKE_RENDER_GEN9,
+			_MASKED_BIT_DISABLE(0xffff));
+
+	__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_GEN9,
+			_MASKED_BIT_DISABLE(0xffff));
+
+	__raw_i915_write32(dev_priv, FORCEWAKE_BLITTER_GEN9,
+			_MASKED_BIT_DISABLE(0xffff));
+}
+
+static void
+__gen9_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
+{
+	/* Check for Render Engine */
+	if (FORCEWAKE_RENDER & fw_engine) {
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_RENDER_GEN9) &
+						FORCEWAKE_KERNEL) == 0,
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: Render forcewake old ack to clear.\n");
+
+		__raw_i915_write32(dev_priv, FORCEWAKE_RENDER_GEN9,
+				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
+
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_RENDER_GEN9) &
+						FORCEWAKE_KERNEL),
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: waiting for Render to ack.\n");
+	}
+
+	/* Check for Media Engine */
+	if (FORCEWAKE_MEDIA & fw_engine) {
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_MEDIA_GEN9) &
+						FORCEWAKE_KERNEL) == 0,
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: Media forcewake old ack to clear.\n");
+
+		__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_GEN9,
+				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
+
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_MEDIA_GEN9) &
+						FORCEWAKE_KERNEL),
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: waiting for Media to ack.\n");
+	}
+
+	/* Check for Blitter Engine */
+	if (FORCEWAKE_BLITTER & fw_engine) {
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_BLITTER_GEN9) &
+						FORCEWAKE_KERNEL) == 0,
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: Blitter forcewake old ack to clear.\n");
+
+		__raw_i915_write32(dev_priv, FORCEWAKE_BLITTER_GEN9,
+				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
+
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_BLITTER_GEN9) &
+						FORCEWAKE_KERNEL),
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: waiting for Blitter to ack.\n");
+	}
+}
+
+static void
+__gen9_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
+{
+	/* Check for Render Engine */
+	if (FORCEWAKE_RENDER & fw_engine)
+		__raw_i915_write32(dev_priv, FORCEWAKE_RENDER_GEN9,
+				_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
+
+	/* Check for Media Engine */
+	if (FORCEWAKE_MEDIA & fw_engine)
+		__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_GEN9,
+				_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
+
+	/* Check for Blitter Engine */
+	if (FORCEWAKE_BLITTER & fw_engine)
+		__raw_i915_write32(dev_priv, FORCEWAKE_BLITTER_GEN9,
+				_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
+}
+
+static void
+gen9_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	if (FORCEWAKE_RENDER & fw_engine) {
+		if (dev_priv->uncore.fw_rendercount++ == 0)
+			dev_priv->uncore.funcs.force_wake_get(dev_priv,
+							FORCEWAKE_RENDER);
+	}
+
+	if (FORCEWAKE_MEDIA & fw_engine) {
+		if (dev_priv->uncore.fw_mediacount++ == 0)
+			dev_priv->uncore.funcs.force_wake_get(dev_priv,
+							FORCEWAKE_MEDIA);
+	}
+
+	if (FORCEWAKE_BLITTER & fw_engine) {
+		if (dev_priv->uncore.fw_blittercount++ == 0)
+			dev_priv->uncore.funcs.force_wake_get(dev_priv,
+							FORCEWAKE_BLITTER);
+	}
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static void
+gen9_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	if (FORCEWAKE_RENDER & fw_engine) {
+		WARN_ON(dev_priv->uncore.fw_rendercount == 0);
+		if (--dev_priv->uncore.fw_rendercount == 0)
+			dev_priv->uncore.funcs.force_wake_put(dev_priv,
+							FORCEWAKE_RENDER);
+	}
+
+	if (FORCEWAKE_MEDIA & fw_engine) {
+		WARN_ON(dev_priv->uncore.fw_mediacount == 0);
+		if (--dev_priv->uncore.fw_mediacount == 0)
+			dev_priv->uncore.funcs.force_wake_put(dev_priv,
+							FORCEWAKE_MEDIA);
+	}
+
+	if (FORCEWAKE_BLITTER & fw_engine) {
+		WARN_ON(dev_priv->uncore.fw_blittercount == 0);
+		if (--dev_priv->uncore.fw_blittercount == 0)
+			dev_priv->uncore.funcs.force_wake_put(dev_priv,
+							FORCEWAKE_BLITTER);
+	}
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
 static void gen6_force_wake_timer(unsigned long arg)
 {
 	struct drm_i915_private *dev_priv = (void *)arg;
@@ -334,6 +482,9 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev))
 		__gen7_gt_force_wake_mt_reset(dev_priv);
 
+	if (IS_GEN9(dev))
+		__gen9_gt_force_wake_mt_reset(dev_priv);
+
 	if (restore) { /* If reset with a user forcewake, try to restore */
 		unsigned fw = 0;
 
@@ -343,6 +494,15 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 
 			if (dev_priv->uncore.fw_mediacount)
 				fw |= FORCEWAKE_MEDIA;
+		} else if (IS_GEN9(dev)) {
+			if (dev_priv->uncore.fw_rendercount)
+				fw |= FORCEWAKE_RENDER;
+
+			if (dev_priv->uncore.fw_mediacount)
+				fw |= FORCEWAKE_MEDIA;
+
+			if (dev_priv->uncore.fw_blittercount)
+				fw |= FORCEWAKE_BLITTER;
 		} else {
 			if (dev_priv->uncore.forcewake_count)
 				fw = FORCEWAKE_ALL;
@@ -414,6 +574,10 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 
 	intel_runtime_pm_get(dev_priv);
 
+	/* Redirect to Gen9 specific routine */
+	if (IS_GEN9(dev_priv->dev))
+		return gen9_force_wake_get(dev_priv, fw_engine);
+
 	/* Redirect to VLV specific routine */
 	if (IS_VALLEYVIEW(dev_priv->dev))
 		return vlv_force_wake_get(dev_priv, fw_engine);
@@ -434,6 +598,12 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 
 	if (!dev_priv->uncore.funcs.force_wake_put)
 		return;
+
+	/* Redirect to Gen9 specific routine */
+	if (IS_GEN9(dev_priv->dev)) {
+		gen9_force_wake_put(dev_priv, fw_engine);
+		goto out;
+	}
 
 	/* Redirect to VLV specific routine */
 	if (IS_VALLEYVIEW(dev_priv->dev)) {
@@ -855,7 +1025,10 @@ void intel_uncore_init(struct drm_device *dev)
 
 	__intel_uncore_early_sanitize(dev, false);
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_GEN9(dev)) {
+		dev_priv->uncore.funcs.force_wake_get = __gen9_force_wake_get;
+		dev_priv->uncore.funcs.force_wake_put = __gen9_force_wake_put;
+	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __vlv_force_wake_get;
 		dev_priv->uncore.funcs.force_wake_put = __vlv_force_wake_put;
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
