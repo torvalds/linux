@@ -40,6 +40,10 @@
 #define APCI3120_CTR0_REG			0x0d
 #define APCI3120_CTR0_DO_BITS(x)		((x) << 4)
 #define APCI3120_CTR0_TIMER_SEL(x)		((x) << 0)
+#define APCI3120_MODE_SCAN_ENA			(1 << 3)
+#define APCI3120_MODE_TIMER2_IRQ_ENA		(1 << 2)
+#define APCI3120_MODE_EOS_IRQ_ENA		(1 << 1)
+#define APCI3120_MODE_EOC_IRQ_ENA		(1 << 0)
 
 /*
  * PCI BAR 2 register map (devpriv->addon)
