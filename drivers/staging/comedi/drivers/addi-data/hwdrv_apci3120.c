@@ -96,34 +96,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI3120_COUNTER		3
 
-static void apci3120_set_chanlist(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  int n_chan, unsigned int *chanlist)
-{
-	struct apci3120_private *devpriv = dev->private;
-	int i;
-
-	/* set scan length (PR) and scan start (PA) */
-	devpriv->ctrl = APCI3120_CTRL_PR(n_chan - 1) | APCI3120_CTRL_PA(0);
-	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
-
-	/* set chanlist for scan */
-	for (i = 0; i < n_chan; i++) {
-		unsigned int chan = CR_CHAN(chanlist[i]);
-		unsigned int range = CR_RANGE(chanlist[i]);
-		unsigned int val;
-
-		val = APCI3120_CHANLIST_MUX(chan) |
-		      APCI3120_CHANLIST_GAIN(range) |
-		      APCI3120_CHANLIST_INDEX(i);
-
-		if (comedi_range_is_unipolar(s, range))
-			val |= APCI3120_CHANLIST_UNIPOLAR;
-
-		outw(val, dev->iobase + APCI3120_CHANLIST_REG);
-	}
-}
-
 static int apci3120_reset(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
