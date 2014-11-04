@@ -81,7 +81,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_EOS_MODE		2
 #define APCI3120_DMA_MODE		3
 
-#define APCI3120_RD_STATUS		0x02
 #define APCI3120_RD_FIFO		0x00
 
 /* status register bits */
@@ -99,7 +98,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_TIMER_DISABLE		0
 #define APCI3120_TIMER_ENABLE		1
 
-#define APCI3120_RD_STATUS		0x02
 #define APCI3120_FC_TIMER		0x1000
 
 #define APCI3120_COUNTER		3
@@ -146,7 +144,7 @@ static int apci3120_ai_eoc(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inw(dev->iobase + APCI3120_RD_STATUS);
+	status = inw(dev->iobase + APCI3120_STATUS_REG);
 	if ((status & APCI3120_EOC) == 0)
 		return 0;
 	return -EBUSY;
@@ -220,7 +218,7 @@ static int apci3120_reset(struct comedi_device *dev)
 	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 
 	apci3120_ai_reset_fifo(dev);
-	inw(dev->iobase + APCI3120_RD_STATUS);	/*  flush A/D status register */
+	inw(dev->iobase + APCI3120_STATUS_REG);
 
 	return 0;
 }
@@ -251,7 +249,7 @@ static int apci3120_cancel(struct comedi_device *dev,
 	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 	apci3120_ai_reset_fifo(dev);
-	inw(dev->iobase + APCI3120_RD_STATUS);
+	inw(dev->iobase + APCI3120_STATUS_REG);
 	devpriv->ui_DmaActualBuffer = 0;
 
 	devpriv->ai_running = 0;
@@ -753,7 +751,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	unsigned short int_daq;
 	unsigned int int_amcc;
 
-	int_daq = inw(dev->iobase + APCI3120_RD_STATUS) & 0xf000;	/*  get IRQ reasons */
+	int_daq = inw(dev->iobase + APCI3120_STATUS_REG) & 0xf000;
 	int_amcc = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	if ((!int_daq) && (!(int_amcc & ANY_S593X_INT))) {
@@ -1030,8 +1028,7 @@ static int apci3120_read_insn_timer(struct comedi_device *dev,
 	if (devpriv->b_Timer2Mode == APCI3120_TIMER) {
 		data[0] = apci3120_timer_read(dev, 2);
 	} else {			/*  Read watch dog status */
-
-		us_StatusValue = inw(dev->iobase + APCI3120_RD_STATUS);
+		us_StatusValue = inw(dev->iobase + APCI3120_STATUS_REG);
 		us_StatusValue =
 			((us_StatusValue & APCI3120_FC_TIMER) >> 12) & 1;
 		if (us_StatusValue == 1)
@@ -1049,7 +1046,7 @@ static int apci3120_di_insn_bits(struct comedi_device *dev,
 	unsigned int val;
 
 	/* the input channels are bits 11:8 of the status reg */
-	val = inw(dev->iobase + APCI3120_RD_STATUS);
+	val = inw(dev->iobase + APCI3120_STATUS_REG);
 	data[1] = (val >> 8) & 0xf;
 
 	return insn->n;
@@ -1080,7 +1077,7 @@ static int apci3120_ao_ready(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inw(dev->iobase + APCI3120_RD_STATUS);
+	status = inw(dev->iobase + APCI3120_STATUS_REG);
 	if (status & 0x0001)	/* waiting for DA_READY */
 		return 0;
 	return -EBUSY;

@@ -20,6 +20,7 @@
 #define APCI3120_CTRL_GATE(x)			(1 << (12 + (x)))
 #define APCI3120_CTRL_PR(x)			(((x) & 0xf) << 8)
 #define APCI3120_CTRL_PA(x)			(((x) & 0xf) << 0)
+#define APCI3120_STATUS_REG			0x02
 #define APCI3120_STATUS_TO_VERSION(x)		(((x) >> 4) & 0xf)
 #define APCI3120_TIMER_REG			0x04
 #define APCI3120_CHANLIST_REG			0x06
@@ -360,7 +361,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 		}
 	}
 
-	status = inw(dev->iobase + APCI3120_RD_STATUS);
+	status = inw(dev->iobase + APCI3120_STATUS_REG);
 	if (APCI3120_STATUS_TO_VERSION(status) == APCI3120_REVB ||
 	    context == BOARD_APCI3001)
 		devpriv->osc_base = APCI3120_REVB_OSC_BASE;
