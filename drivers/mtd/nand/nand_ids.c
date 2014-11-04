@@ -178,6 +178,7 @@ struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_EON, "Eon"},
 	{NAND_MFR_SANDISK, "SanDisk"},
 	{NAND_MFR_INTEL, "Intel"},
+	{NAND_MFR_ATO, "ATO"},
 	{0x0, "Unknown"}
 };
 
