@@ -452,9 +452,9 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 			     rx_usecs);
 		return -EINVAL;
 	}
-	if (rx_frames > pdata->channel->rx_ring->rdesc_count) {
+	if (rx_frames > pdata->rx_desc_count) {
 		netdev_alert(netdev, "rx-frames is limited to %d frames\n",
-			     pdata->channel->rx_ring->rdesc_count);
+			     pdata->rx_desc_count);
 		return -EINVAL;
 	}
 
@@ -462,9 +462,9 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	tx_frames = ec->tx_max_coalesced_frames;
 
 	/* Check the bounds of values for Tx */
-	if (tx_frames > pdata->channel->tx_ring->rdesc_count) {
+	if (tx_frames > pdata->tx_desc_count) {
 		netdev_alert(netdev, "tx-frames is limited to %d frames\n",
-			     pdata->channel->tx_ring->rdesc_count);
+			     pdata->tx_desc_count);
 		return -EINVAL;
 	}
 

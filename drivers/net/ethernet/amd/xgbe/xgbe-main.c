@@ -133,60 +133,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(XGBE_DRV_VERSION);
 MODULE_DESCRIPTION(XGBE_DRV_DESC);
 
-static struct xgbe_channel *xgbe_alloc_rings(struct xgbe_prv_data *pdata)
-{
-	struct xgbe_channel *channel_mem, *channel;
-	struct xgbe_ring *tx_ring, *rx_ring;
-	unsigned int count, i;
-
-	DBGPR("-->xgbe_alloc_rings\n");
-
-	count = max_t(unsigned int, pdata->tx_ring_count, pdata->rx_ring_count);
-
-	channel_mem = devm_kcalloc(pdata->dev, count,
-				   sizeof(struct xgbe_channel), GFP_KERNEL);
-	if (!channel_mem)
-		return NULL;
-
-	tx_ring = devm_kcalloc(pdata->dev, pdata->tx_ring_count,
-			       sizeof(struct xgbe_ring), GFP_KERNEL);
-	if (!tx_ring)
-		return NULL;
-
-	rx_ring = devm_kcalloc(pdata->dev, pdata->rx_ring_count,
-			       sizeof(struct xgbe_ring), GFP_KERNEL);
-	if (!rx_ring)
-		return NULL;
-
-	for (i = 0, channel = channel_mem; i < count; i++, channel++) {
-		snprintf(channel->name, sizeof(channel->name), "channel-%d", i);
-		channel->pdata = pdata;
-		channel->queue_index = i;
-		channel->dma_regs = pdata->xgmac_regs + DMA_CH_BASE +
-				    (DMA_CH_INC * i);
-
-		if (i < pdata->tx_ring_count) {
-			spin_lock_init(&tx_ring->lock);
-			channel->tx_ring = tx_ring++;
-		}
-
-		if (i < pdata->rx_ring_count) {
-			spin_lock_init(&rx_ring->lock);
-			channel->rx_ring = rx_ring++;
-		}
-
-		DBGPR("  %s - queue_index=%u, dma_regs=%p, tx=%p, rx=%p\n",
-		      channel->name, channel->queue_index, channel->dma_regs,
-		      channel->tx_ring, channel->rx_ring);
-	}
-
-	pdata->channel_count = count;
-
-	DBGPR("<--xgbe_alloc_rings\n");
-
-	return channel_mem;
-}
-
 static void xgbe_default_config(struct xgbe_prv_data *pdata)
 {
 	DBGPR("-->xgbe_default_config\n");
@@ -380,14 +326,6 @@ static int xgbe_probe(struct platform_device *pdev)
 	ret = netif_set_real_num_rx_queues(netdev, pdata->rx_ring_count);
 	if (ret) {
 		dev_err(dev, "error setting real rx queue count\n");
-		goto err_io;
-	}
-
-	/* Allocate the rings for the DMA channels */
-	pdata->channel = xgbe_alloc_rings(pdata);
-	if (!pdata->channel) {
-		dev_err(dev, "ring allocation failed\n");
-		ret = -ENOMEM;
 		goto err_io;
 	}
 
