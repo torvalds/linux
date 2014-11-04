@@ -44,7 +44,13 @@
 
 #define MAX_TUNING_LOOP 40
 
-#define ADMA_SIZE	((128 * 2 + 1) * 4)
+/*
+ * The ADMA2 descriptor table size is calculated as the maximum number of
+ * segments (128), times 2 to allow for an alignment descriptor for each
+ * segment, plus 1 for a nop end descriptor, all multipled by the 32-bit
+ * descriptor size (8).
+ */
+#define ADMA_SIZE	((128 * 2 + 1) * 8)
 
 static unsigned int debug_quirks = 0;
 static unsigned int debug_quirks2;
