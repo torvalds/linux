@@ -112,7 +112,6 @@ static int apci3120_reset(struct comedi_device *dev)
 	devpriv->ctrl = 0;
 	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 
-	apci3120_ai_reset_fifo(dev);
 	inw(dev->iobase + APCI3120_STATUS_REG);
 
 	return 0;
@@ -143,7 +142,6 @@ static int apci3120_cancel(struct comedi_device *dev,
 	devpriv->mode = 0;
 	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
-	apci3120_ai_reset_fifo(dev);
 	inw(dev->iobase + APCI3120_STATUS_REG);
 	devpriv->ui_DmaActualBuffer = 0;
 
@@ -381,8 +379,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	/* Clear Timer Write TC int */
 	outl(APCI3120_CLEAR_WRITE_TC_INT,
 	     devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
-
-	apci3120_ai_reset_fifo(dev);
 
 	devpriv->ui_DmaActualBuffer = 0;
 

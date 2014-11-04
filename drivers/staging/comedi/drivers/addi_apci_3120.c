@@ -305,6 +305,8 @@ static void apci3120_set_chanlist(struct comedi_device *dev,
 
 		outw(val, dev->iobase + APCI3120_CHANLIST_REG);
 	}
+
+	apci3120_ai_reset_fifo(dev);
 }
 
 #include "addi-data/hwdrv_apci3120.c"
@@ -351,8 +353,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 
 	/* fixed conversion time of 10 us */
 	divisor = apci3120_ns_to_timer(dev, 0, 10000, CMDF_ROUND_NEAREST);
-
-	apci3120_ai_reset_fifo(dev);
 
 	for (i = 0; i < insn->n; i++) {
 		/* trigger conversion */
