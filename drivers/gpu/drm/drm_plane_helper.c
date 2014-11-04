@@ -27,7 +27,9 @@
 #include <drm/drmP.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_rect.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 
 #define SUBPIXEL_MASK 0xffff
 
@@ -464,7 +466,7 @@ out:
 		if (plane->funcs->atomic_destroy_state)
 			plane->funcs->atomic_destroy_state(plane, plane_state);
 		else
-			kfree(plane_state);
+			drm_atomic_helper_plane_destroy_state(plane, plane_state);
 	}
 
 	return ret;
@@ -505,15 +507,14 @@ int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (plane->funcs->atomic_duplicate_state)
 		plane_state = plane->funcs->atomic_duplicate_state(plane);
 	else if (plane->state)
-		plane_state = kmemdup(plane->state, sizeof(*plane_state),
-				      GFP_KERNEL);
+		plane_state = drm_atomic_helper_plane_duplicate_state(plane);
 	else
 		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
 	if (!plane_state)
 		return -ENOMEM;
 
 	plane_state->crtc = crtc;
-	plane_state->fb = fb;
+	drm_atomic_set_fb_for_plane(plane_state, fb);
 	plane_state->crtc_x = crtc_x;
 	plane_state->crtc_y = crtc_y;
 	plane_state->crtc_h = crtc_h;
@@ -552,15 +553,14 @@ int drm_plane_helper_disable(struct drm_plane *plane)
 	if (plane->funcs->atomic_duplicate_state)
 		plane_state = plane->funcs->atomic_duplicate_state(plane);
 	else if (plane->state)
-		plane_state = kmemdup(plane->state, sizeof(*plane_state),
-				      GFP_KERNEL);
+		plane_state = drm_atomic_helper_plane_duplicate_state(plane);
 	else
 		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
 	if (!plane_state)
 		return -ENOMEM;
 
 	plane_state->crtc = NULL;
-	plane_state->fb = NULL;
+	drm_atomic_set_fb_for_plane(plane_state, NULL);
 
 	return drm_plane_helper_commit(plane, plane_state, plane->fb);
 }

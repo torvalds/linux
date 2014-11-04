@@ -1182,7 +1182,7 @@ retry:
 	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
 	if (ret != 0)
 		goto fail;
-	plane_state->fb = fb;
+	drm_atomic_set_fb_for_plane(plane_state, fb);
 	plane_state->crtc_x = crtc_x;
 	plane_state->crtc_y = crtc_y;
 	plane_state->crtc_h = crtc_h;
@@ -1250,7 +1250,7 @@ retry:
 	ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
 	if (ret != 0)
 		goto fail;
-	plane_state->fb = NULL;
+	drm_atomic_set_fb_for_plane(plane_state, NULL);
 	plane_state->crtc_x = 0;
 	plane_state->crtc_y = 0;
 	plane_state->crtc_h = 0;
@@ -1422,7 +1422,7 @@ retry:
 	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
 	if (ret != 0)
 		goto fail;
-	primary_state->fb = set->fb;
+	drm_atomic_set_fb_for_plane(primary_state, set->fb);
 	primary_state->crtc_x = 0;
 	primary_state->crtc_y = 0;
 	primary_state->crtc_h = set->mode->vdisplay;
@@ -1694,7 +1694,7 @@ retry:
 	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
 	if (ret != 0)
 		goto fail;
-	plane_state->fb = fb;
+	drm_atomic_set_fb_for_plane(plane_state, fb);
 
 	ret = drm_atomic_async_commit(state);
 	if (ret != 0)
@@ -1808,6 +1808,9 @@ EXPORT_SYMBOL(drm_atomic_helper_crtc_destroy_state);
  */
 void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 {
+	if (plane->state && plane->state->fb)
+		drm_framebuffer_unreference(plane->state->fb);
+
 	kfree(plane->state);
 	plane->state = kzalloc(sizeof(*plane->state), GFP_KERNEL);
 }
@@ -1823,10 +1826,17 @@ EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
 struct drm_plane_state *
 drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane)
 {
+	struct drm_plane_state *state;
+
 	if (WARN_ON(!plane->state))
 		return NULL;
 
-	return kmemdup(plane->state, sizeof(*plane->state), GFP_KERNEL);
+	state = kmemdup(plane->state, sizeof(*plane->state), GFP_KERNEL);
+
+	if (state && state->fb)
+		drm_framebuffer_reference(state->fb);
+
+	return state;
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_duplicate_state);
 
@@ -1839,8 +1849,11 @@ EXPORT_SYMBOL(drm_atomic_helper_plane_duplicate_state);
  * subclassed plane state structure.
  */
 void drm_atomic_helper_plane_destroy_state(struct drm_plane *plane,
-					  struct drm_plane_state *state)
+					   struct drm_plane_state *state)
 {
+	if (state->fb)
+		drm_framebuffer_unreference(state->fb);
+
 	kfree(state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_destroy_state);

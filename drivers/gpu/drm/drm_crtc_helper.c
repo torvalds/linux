@@ -34,11 +34,13 @@
 #include <linux/moduleparam.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 
 /**
@@ -998,15 +1000,14 @@ int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (plane->funcs->atomic_duplicate_state)
 		plane_state = plane->funcs->atomic_duplicate_state(plane);
 	else if (plane->state)
-		plane_state = kmemdup(plane->state, sizeof(*plane_state),
-				      GFP_KERNEL);
+		plane_state = drm_atomic_helper_plane_duplicate_state(plane);
 	else
 		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
 	if (!plane_state)
 		return -ENOMEM;
 
 	plane_state->crtc = crtc;
-	plane_state->fb = crtc->primary->fb;
+	drm_atomic_set_fb_for_plane(plane_state, crtc->primary->fb);
 	plane_state->crtc_x = 0;
 	plane_state->crtc_y = 0;
 	plane_state->crtc_h = crtc->mode.vdisplay;

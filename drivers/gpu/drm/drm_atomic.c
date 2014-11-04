@@ -368,6 +368,34 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 EXPORT_SYMBOL(drm_atomic_set_crtc_for_plane);
 
 /**
+ * drm_atomic_set_fb_for_plane - set crtc for plane
+ * @plane_state: atomic state object for the plane
+ * @fb: fb to use for the plane
+ *
+ * Changing the assigned framebuffer for a plane requires us to grab a reference
+ * to the new fb and drop the reference to the old fb, if there is one. This
+ * function takes care of all these details besides updating the pointer in the
+ * state object itself.
+ */
+void
+drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
+			    struct drm_framebuffer *fb)
+{
+	if (plane_state->fb)
+		drm_framebuffer_unreference(plane_state->fb);
+	if (fb)
+		drm_framebuffer_reference(fb);
+	plane_state->fb = fb;
+
+	if (fb)
+		DRM_DEBUG_KMS("Set [FB:%d] for plane state %p\n",
+			      fb->base.id, plane_state);
+	else
+		DRM_DEBUG_KMS("Set [NOFB] for plane state %p\n", plane_state);
+}
+EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
+
+/**
  * drm_atomic_set_crtc_for_connector - set crtc for connector
  * @conn_state: atomic state object for the connector
  * @crtc: crtc to use for the connector
