@@ -606,7 +606,13 @@ static int max77802_pmic_probe(struct platform_device *pdev)
 		config.of_node = pdata->regulators[i].of_node;
 
 		ret = regmap_read(iodev->regmap, regulators[i].enable_reg, &val);
-		val = val >> shift & MAX77802_OPMODE_MASK;
+		if (ret < 0) {
+			dev_warn(&pdev->dev,
+				"cannot read current mode for %d\n", i);
+			val = MAX77802_OPMODE_NORMAL;
+		} else {
+			val = val >> shift & MAX77802_OPMODE_MASK;
+		}
 
 		/*
 		 * If the regulator is disabled and the system warm rebooted,
