@@ -291,6 +291,12 @@ static int af9033_init(struct dvb_frontend *fe)
 		if (clock_adc_lut[i].clock == dev->cfg.clock)
 			break;
 	}
+	if (i == ARRAY_SIZE(clock_adc_lut)) {
+		dev_err(&dev->client->dev,
+			"Couldn't find ADC config for clock=%d\n",
+			dev->cfg.clock);
+		goto err;
+	}
 
 	adc_cw = af9033_div(dev, clock_adc_lut[i].adc, 1000000ul, 19ul);
 	buf[0] = (adc_cw >>  0) & 0xff;
@@ -580,7 +586,15 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 				break;
 			}
 		}
-		ret =  af9033_wr_regs(dev, 0x800001,
+		if (i == ARRAY_SIZE(coeff_lut)) {
+			dev_err(&dev->client->dev,
+				"Couldn't find LUT config for clock=%d\n",
+				dev->cfg.clock);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		ret = af9033_wr_regs(dev, 0x800001,
 				coeff_lut[i].val, sizeof(coeff_lut[i].val));
 	}
 
@@ -591,6 +605,13 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 		for (i = 0; i < ARRAY_SIZE(clock_adc_lut); i++) {
 			if (clock_adc_lut[i].clock == dev->cfg.clock)
 				break;
+		}
+		if (i == ARRAY_SIZE(clock_adc_lut)) {
+			dev_err(&dev->client->dev,
+				"Couldn't find ADC clock for clock=%d\n",
+				dev->cfg.clock);
+			ret = -EINVAL;
+			goto err;
 		}
 		adc_freq = clock_adc_lut[i].adc;
 
