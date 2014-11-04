@@ -1031,24 +1031,6 @@ static int apci3120_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int apci3120_do_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct apci3120_private *devpriv = dev->private;
-
-	if (comedi_dio_update_state(s, data)) {
-		devpriv->do_bits = s->state;
-		outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits),
-		     dev->iobase + APCI3120_CTR0_REG);
-	}
-
-	data[1] = s->state;
-
-	return insn->n;
-}
-
 static int apci3120_ao_ready(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn,
