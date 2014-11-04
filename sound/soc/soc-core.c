@@ -1241,25 +1241,22 @@ static int soc_probe_link_components(struct snd_soc_card *card, int num,
 	return 0;
 }
 
-static int soc_probe_codec_dai(struct snd_soc_card *card,
-			       struct snd_soc_dai *codec_dai,
-			       int order)
+static int soc_probe_dai(struct snd_soc_dai *dai, int order)
 {
 	int ret;
 
-	if (!codec_dai->probed && codec_dai->driver->probe_order == order) {
-		if (codec_dai->driver->probe) {
-			ret = codec_dai->driver->probe(codec_dai);
+	if (!dai->probed && dai->driver->probe_order == order) {
+		if (dai->driver->probe) {
+			ret = dai->driver->probe(dai);
 			if (ret < 0) {
-				dev_err(codec_dai->dev,
-					"ASoC: failed to probe CODEC DAI %s: %d\n",
-					codec_dai->name, ret);
+				dev_err(dai->dev,
+					"ASoC: failed to probe DAI %s: %d\n",
+					dai->name, ret);
 				return ret;
 			}
 		}
 
-		/* mark codec_dai as probed and add to card dai list */
-		codec_dai->probed = 1;
+		dai->probed = 1;
 	}
 
 	return 0;
@@ -1318,24 +1315,13 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	/* set default power off timeout */
 	rtd->pmdown_time = pmdown_time;
 
-	/* probe the cpu_dai */
-	if (!cpu_dai->probed &&
-			cpu_dai->driver->probe_order == order) {
-		if (cpu_dai->driver->probe) {
-			ret = cpu_dai->driver->probe(cpu_dai);
-			if (ret < 0) {
-				dev_err(cpu_dai->dev,
-					"ASoC: failed to probe CPU DAI %s: %d\n",
-					cpu_dai->name, ret);
-				return ret;
-			}
-		}
-		cpu_dai->probed = 1;
-	}
+	ret = soc_probe_dai(cpu_dai, order);
+	if (ret)
+		return ret;
 
 	/* probe the CODEC DAI */
 	for (i = 0; i < rtd->num_codecs; i++) {
-		ret = soc_probe_codec_dai(card, rtd->codec_dais[i], order);
+		ret = soc_probe_dai(rtd->codec_dais[i], order);
 		if (ret)
 			return ret;
 	}
