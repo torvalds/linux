@@ -50,7 +50,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		dev_err(dev->class_dev, "Interrupted DMA transfer!\n");
 	if (samplesinbuf & 1) {
 		dev_err(dev->class_dev, "Odd count of bytes in DMA ring!\n");
-		apci3120_cancel(dev, s);
+		async->events |= COMEDI_CB_ERROR;
 		return;
 	}
 	samplesinbuf = samplesinbuf >> 1;	/*  number of received samples */
