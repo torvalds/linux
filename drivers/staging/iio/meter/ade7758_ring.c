@@ -92,7 +92,7 @@ static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 	unsigned channel;
 	int ret;
 
-	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
+	if (bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		return -EINVAL;
 
 	ret = iio_sw_buffer_preenable(indio_dev);
