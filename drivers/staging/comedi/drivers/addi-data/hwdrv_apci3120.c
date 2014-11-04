@@ -1404,9 +1404,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 		outb(devpriv->b_ModeSelectRegister,
 		     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
-		/*  Reset Gate 2 */
-		devpriv->ctrl &= APCI3120_DISABLE_TIMER_INT;
-		outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
+		apci3120_timer_enable(dev, 2, false);
 
 		/*  Reset FC_TIMER BIT */
 		inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
