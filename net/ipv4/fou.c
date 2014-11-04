@@ -487,6 +487,79 @@ static const struct genl_ops fou_nl_ops[] = {
 	},
 };
 
+static void fou_build_udp(struct sk_buff *skb, struct ip_tunnel_encap *e,
+			  struct flowi4 *fl4, u8 *protocol, __be16 sport)
+{
+	struct udphdr *uh;
+
+	skb_push(skb, sizeof(struct udphdr));
+	skb_reset_transport_header(skb);
+
+	uh = udp_hdr(skb);
+
+	uh->dest = e->dport;
+	uh->source = sport;
+	uh->len = htons(skb->len);
+	uh->check = 0;
+	udp_set_csum(!(e->flags & TUNNEL_ENCAP_FLAG_CSUM), skb,
+		     fl4->saddr, fl4->daddr, skb->len);
+
+	*protocol = IPPROTO_UDP;
+}
+
+int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
+		     u8 *protocol, struct flowi4 *fl4)
+{
+	bool csum = !!(e->flags & TUNNEL_ENCAP_FLAG_CSUM);
+	int type = csum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
+	__be16 sport;
+
+	skb = iptunnel_handle_offloads(skb, csum, type);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	sport = e->sport ? : udp_flow_src_port(dev_net(skb->dev),
+					       skb, 0, 0, false);
+	fou_build_udp(skb, e, fl4, protocol, sport);
+
+	return 0;
+}
+EXPORT_SYMBOL(fou_build_header);
+
+int gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
+		     u8 *protocol, struct flowi4 *fl4)
+{
+	bool csum = !!(e->flags & TUNNEL_ENCAP_FLAG_CSUM);
+	int type = csum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
+	struct guehdr *guehdr;
+	size_t hdr_len = sizeof(struct guehdr);
+	__be16 sport;
+
+	skb = iptunnel_handle_offloads(skb, csum, type);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	/* Get source port (based on flow hash) before skb_push */
+	sport = e->sport ? : udp_flow_src_port(dev_net(skb->dev),
+					       skb, 0, 0, false);
+
+	skb_push(skb, hdr_len);
+
+	guehdr = (struct guehdr *)skb->data;
+
+	guehdr->version = 0;
+	guehdr->hlen = 0;
+	guehdr->flags = 0;
+	guehdr->next_hdr = *protocol;
+
+	fou_build_udp(skb, e, fl4, protocol, sport);
+
+	return 0;
+}
+EXPORT_SYMBOL(gue_build_header);
+
 static int __init fou_init(void)
 {
 	int ret;
