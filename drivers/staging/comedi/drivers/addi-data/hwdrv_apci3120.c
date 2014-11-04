@@ -113,7 +113,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI3120_RD_STATUS		0x02
 #define APCI3120_ENABLE_WATCHDOG	0x20
-#define APCI3120_DISABLE_WATCHDOG	(~APCI3120_ENABLE_WATCHDOG)
 #define APCI3120_ENABLE_TIMER_COUNTER	0x10
 #define APCI3120_FC_TIMER		0x1000
 
@@ -1195,7 +1194,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 			devpriv->mode &= ~APCI3120_ENABLE_TIMER_COUNTER;
 		} else {
 			/* Disable WatchDog */
-			devpriv->mode &= APCI3120_DISABLE_WATCHDOG;
+			devpriv->mode &= ~APCI3120_ENABLE_WATCHDOG;
 		}
 		/*  Disable timer interrupt */
 		devpriv->mode &= APCI3120_DISABLE_TIMER_INT;
