@@ -109,7 +109,8 @@ mapit(struct memregion *memregion)
 
 	memregion->requested = FALSE;
 	if (!request_mem_region(physaddr, nbytes, MYDRVNAME))
-		ERRDRV("cannot reserve channel memory @0x%lx for 0x%lx-- no big deal", physaddr, nbytes);
+		ERRDRV("cannot reserve channel memory @0x%lx for 0x%lx-- no big deal",
+		       physaddr, nbytes);
 	else
 		memregion->requested = TRUE;
 	memregion->mapped = ioremap_cache(physaddr, nbytes);
