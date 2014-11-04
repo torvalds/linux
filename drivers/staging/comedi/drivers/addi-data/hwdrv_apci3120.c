@@ -1,17 +1,3 @@
-static void apci3120_addon_write(struct comedi_device *dev,
-				 unsigned int val, unsigned int reg)
-{
-	struct apci3120_private *devpriv = dev->private;
-
-	/* 16-bit interface for AMCC add-on registers */
-
-	outw(reg, devpriv->addon + APCI3120_ADDON_ADDR_REG);
-	outw(val & 0xffff, devpriv->addon + APCI3120_ADDON_DATA_REG);
-
-	outw(reg + 2, devpriv->addon + APCI3120_ADDON_ADDR_REG);
-	outw((val >> 16) & 0xffff, devpriv->addon + APCI3120_ADDON_DATA_REG);
-}
-
 static int apci3120_cancel(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
