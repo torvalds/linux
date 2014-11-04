@@ -20,6 +20,10 @@
 #define GPU_LEAKAGE_CH	1
 #define LOG_LEAKAGE_CH	2
 
+#define RK3288_PROCESS_V0	0
+#define RK3288_PROCESS_V1	1
+
 int rockchip_efuse_version(void);
+int rockchip_process_version(void);
 int rockchip_get_leakage(int ch);
 #endif
