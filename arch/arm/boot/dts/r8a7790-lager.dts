@@ -429,6 +429,8 @@
 	pinctrl-0 = <&iic2_pins>;
 	pinctrl-names = "default";
 
+	clock-frequency = <100000>;
+
 	composite-in@20 {
 		compatible = "adi,adv7180";
 		reg = <0x20>;
