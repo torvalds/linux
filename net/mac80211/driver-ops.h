@@ -1152,13 +1152,15 @@ static inline void drv_stop_ap(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
-static inline void drv_restart_complete(struct ieee80211_local *local)
+static inline void
+drv_reconfig_complete(struct ieee80211_local *local,
+		      enum ieee80211_reconfig_type reconfig_type)
 {
 	might_sleep();
 
-	trace_drv_restart_complete(local);
-	if (local->ops->restart_complete)
-		local->ops->restart_complete(&local->hw);
+	trace_drv_reconfig_complete(local, reconfig_type);
+	if (local->ops->reconfig_complete)
+		local->ops->reconfig_complete(&local->hw, reconfig_type);
 	trace_drv_return_void(local);
 }
 

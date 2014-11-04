@@ -2389,6 +2389,22 @@ enum ieee80211_roc_type {
 };
 
 /**
+ * enum ieee80211_reconfig_complete_type - reconfig type
+ *
+ * This enum is used by the reconfig_complete() callback to indicate what
+ * reconfiguration type was completed.
+ *
+ * @IEEE80211_RECONFIG_TYPE_RESTART: hw restart type
+ *	(also due to resume() callback returning 1)
+ * @IEEE80211_RECONFIG_TYPE_SUSPEND: suspend type (regardless
+ *	of wowlan configuration)
+ */
+enum ieee80211_reconfig_type {
+	IEEE80211_RECONFIG_TYPE_RESTART,
+	IEEE80211_RECONFIG_TYPE_SUSPEND,
+};
+
+/**
  * struct ieee80211_ops - callbacks from mac80211 to the driver
  *
  * This structure contains various callbacks that the driver may
@@ -2823,11 +2839,11 @@ enum ieee80211_roc_type {
  *	disabled/enabled via @bss_info_changed.
  * @stop_ap: Stop operation on the AP interface.
  *
- * @restart_complete: Called after a call to ieee80211_restart_hw(), when the
- *	reconfiguration has completed. This can help the driver implement the
- *	reconfiguration step. Also called when reconfiguring because the
- *	driver's resume function returned 1, as this is just like an "inline"
- *	hardware restart. This callback may sleep.
+ * @reconfig_complete: Called after a call to ieee80211_restart_hw() and
+ *	during resume, when the reconfiguration has completed.
+ *	This can help the driver implement the reconfiguration step (and
+ *	indicate mac80211 is ready to receive frames).
+ *	This callback may sleep.
  *
  * @ipv6_addr_change: IPv6 address assignment on the given interface changed.
  *	Currently, this is only called for managed or P2P client interfaces.
@@ -3050,7 +3066,8 @@ struct ieee80211_ops {
 				  int n_vifs,
 				  enum ieee80211_chanctx_switch_mode mode);
 
-	void (*restart_complete)(struct ieee80211_hw *hw);
+	void (*reconfig_complete)(struct ieee80211_hw *hw,
+				  enum ieee80211_reconfig_type reconfig_type);
 
 #if IS_ENABLED(CONFIG_IPV6)
 	void (*ipv6_addr_change)(struct ieee80211_hw *hw,

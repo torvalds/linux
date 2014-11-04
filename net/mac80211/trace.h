@@ -1562,9 +1562,26 @@ DEFINE_EVENT(local_sdata_evt, drv_stop_ap,
 	TP_ARGS(local, sdata)
 );
 
-DEFINE_EVENT(local_only_evt, drv_restart_complete,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+TRACE_EVENT(drv_reconfig_complete,
+	TP_PROTO(struct ieee80211_local *local,
+		 enum ieee80211_reconfig_type reconfig_type),
+	TP_ARGS(local, reconfig_type),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u8, reconfig_type)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->reconfig_type = reconfig_type;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  " reconfig_type:%d",
+		LOCAL_PR_ARG, __entry->reconfig_type
+	)
+
 );
 
 #if IS_ENABLED(CONFIG_IPV6)

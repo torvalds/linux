@@ -3929,9 +3929,13 @@ exit:
 }
 #endif
 
-static void ath10k_restart_complete(struct ieee80211_hw *hw)
+static void ath10k_reconfig_complete(struct ieee80211_hw *hw,
+				     enum ieee80211_reconfig_type reconfig_type)
 {
 	struct ath10k *ar = hw->priv;
+
+	if (reconfig_type != IEEE80211_RECONFIG_TYPE_RESTART)
+		return;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -4450,7 +4454,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.tx_last_beacon			= ath10k_tx_last_beacon,
 	.set_antenna			= ath10k_set_antenna,
 	.get_antenna			= ath10k_get_antenna,
-	.restart_complete		= ath10k_restart_complete,
+	.reconfig_complete		= ath10k_reconfig_complete,
 	.get_survey			= ath10k_get_survey,
 	.set_bitrate_mask		= ath10k_set_bitrate_mask,
 	.sta_rc_update			= ath10k_sta_rc_update,
