@@ -1315,11 +1315,6 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	dev_dbg(card->dev, "ASoC: probe %s dai link %d late %d\n",
 			card->name, num, order);
 
-	/* config components */
-	cpu_dai->card = card;
-	for (i = 0; i < rtd->num_codecs; i++)
-		rtd->codec_dais[i]->card = card;
-
 	/* set default power off timeout */
 	rtd->pmdown_time = pmdown_time;
 
@@ -2314,7 +2309,7 @@ EXPORT_SYMBOL_GPL(snd_soc_add_card_controls);
 int snd_soc_add_dai_controls(struct snd_soc_dai *dai,
 	const struct snd_kcontrol_new *controls, int num_controls)
 {
-	struct snd_card *card = dai->card->snd_card;
+	struct snd_card *card = dai->component->card->snd_card;
 
 	return snd_soc_add_controls(card, dai->dev, controls, num_controls,
 			NULL, dai);

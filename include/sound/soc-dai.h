@@ -275,8 +275,6 @@ struct snd_soc_dai {
 	unsigned int tx_mask;
 	unsigned int rx_mask;
 
-	struct snd_soc_card *card;
-
 	struct list_head list;
 };
 

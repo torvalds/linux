@@ -1043,7 +1043,7 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 	struct snd_soc_dapm_widget_list **list)
 {
-	struct snd_soc_card *card = dai->card;
+	struct snd_soc_card *card = dai->component->card;
 	struct snd_soc_dapm_widget *w;
 	int paths;
 
