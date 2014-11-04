@@ -68,6 +68,11 @@
 /*
  * PCI BAR 2 register map (devpriv->addon)
  */
+#define APCI3120_ADDON_ADDR_REG			0x00
+#define APCI3120_ADDON_DATA_REG			0x02
+#define APCI3120_ADDON_CTRL_REG			0x04
+#define APCI3120_ADDON_CTRL_AMWEN_ENA		(1 << 1)
+#define APCI3120_ADDON_CTRL_A2P_FIFO_ENA	(1 << 0)
 
 /*
  * Board revisions

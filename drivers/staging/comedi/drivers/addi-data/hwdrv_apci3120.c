@@ -44,12 +44,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
  * ADDON RELATED ADDITIONS
  */
 /* Constant */
-#define APCI3120_AMWEN_ENABLE				0x02
-#define APCI3120_A2P_FIFO_WRITE_ENABLE			0x01
 #define APCI3120_FIFO_ADVANCE_ON_BYTE_2			0x20000000L
-#define APCI3120_DISABLE_AMWEN_AND_A2P_FIFO_WRITE	0x0
-#define APCI3120_DISABLE_BUS_MASTER_ADD_ON		0x0
-#define APCI3120_DISABLE_BUS_MASTER_PCI			0x0
 
 #define APCI3120_START			1
 #define APCI3120_STOP			0
@@ -76,11 +71,11 @@ static void apci3120_addon_write(struct comedi_device *dev,
 
 	/* 16-bit interface for AMCC add-on registers */
 
-	outw(reg, devpriv->addon + 0);
-	outw(val & 0xffff, devpriv->addon + 2);
+	outw(reg, devpriv->addon + APCI3120_ADDON_ADDR_REG);
+	outw(val & 0xffff, devpriv->addon + APCI3120_ADDON_DATA_REG);
 
-	outw(reg + 2, devpriv->addon + 0);
-	outw((val >> 16) & 0xffff, devpriv->addon + 2);
+	outw(reg + 2, devpriv->addon + APCI3120_ADDON_ADDR_REG);
+	outw((val >> 16) & 0xffff, devpriv->addon + APCI3120_ADDON_DATA_REG);
 }
 
 static int apci3120_reset(struct comedi_device *dev)
@@ -109,7 +104,7 @@ static int apci3120_cancel(struct comedi_device *dev,
 {
 	struct apci3120_private *devpriv = dev->private;
 
-	/*  Disable A2P Fifo write and AMWEN signal */
+	/* Add-On - disable DMA */
 	outw(0, devpriv->addon + 4);
 
 	/* Add-On - disable bus master */
@@ -282,8 +277,9 @@ static void apci3120_setup_dma(struct comedi_device *dev,
 	outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
 	     devpriv->amcc + AMCC_OP_REG_INTCSR);
 
-	/* ENABLE A2P FIFO WRITE AND ENABLE AMWEN */
-	outw(3, devpriv->addon + 4);
+	/* Add-On - enable DMA */
+	outw(APCI3120_ADDON_CTRL_AMWEN_ENA | APCI3120_ADDON_CTRL_A2P_FIFO_ENA,
+	     devpriv->addon + APCI3120_ADDON_CTRL_REG);
 
 	/* AMCC- reset A2P flags */
 	outl(RESET_A2P_FLAGS, devpriv->amcc + AMCC_OP_REG_MCSR);
@@ -413,12 +409,10 @@ static void apci3120_interrupt_dma(int irq, void *d)
 
 		apci3120_init_dma(dev, next_dmabuf);
 
-		/*
-		 * To configure A2P FIFO
-		 * ENABLE A2P FIFO WRITE AND ENABLE AMWEN
-		 * AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
-		 */
-		outw(3, devpriv->addon + 4);
+		/* Add-On - enable DMA */
+		outw(APCI3120_ADDON_CTRL_AMWEN_ENA |
+		     APCI3120_ADDON_CTRL_A2P_FIFO_ENA,
+		     devpriv->addon + APCI3120_ADDON_CTRL_REG);
 
 		/* AMCC - enable write complete (DMA) and set FIFO advance */
 		outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
@@ -457,12 +451,10 @@ static void apci3120_interrupt_dma(int irq, void *d)
 
 		apci3120_init_dma(dev, dmabuf);
 
-		/*
-		 * To configure A2P FIFO
-		 * ENABLE A2P FIFO WRITE AND ENABLE AMWEN
-		 * AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
-		 */
-		outw(3, devpriv->addon + 4);
+		/* Add-On - enable DMA */
+		outw(APCI3120_ADDON_CTRL_AMWEN_ENA |
+		     APCI3120_ADDON_CTRL_A2P_FIFO_ENA,
+		     devpriv->addon + APCI3120_ADDON_CTRL_REG);
 
 		/* AMCC - enable write complete (DMA) and set FIFO advance */
 		outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
