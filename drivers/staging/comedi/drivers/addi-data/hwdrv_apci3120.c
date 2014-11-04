@@ -747,25 +747,6 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	}
 }
 
-/*
- * This function handles EOS interrupt.
- * This function copies the acquired data(from FIFO) to Comedi buffer.
- */
-static int apci3120_interrupt_handle_eos(struct comedi_device *dev)
-{
-	struct apci3120_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
-	unsigned short val;
-	int i;
-
-	for (i = 0; i < devpriv->ui_AiNbrofChannels; i++) {
-		val = inw(dev->iobase + 0);
-		comedi_buf_write_samples(s, &val, 1);
-	}
-
-	return 0;
-}
-
 static irqreturn_t apci3120_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -807,7 +788,14 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	/*  Check If EOS interrupt */
 	if ((int_daq & 0x2) && (devpriv->b_InterruptMode == APCI3120_EOS_MODE)) {
 		if (devpriv->ai_running) {
-			apci3120_interrupt_handle_eos(dev);
+			unsigned short val;
+			int i;
+
+			for (i = 0; i < devpriv->ui_AiNbrofChannels; i++) {
+				val = inw(dev->iobase + 0);
+				comedi_buf_write_samples(s, &val, 1);
+			}
+
 			devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
 			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 		}
