@@ -160,10 +160,10 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 		switch (haldata->UsbRxAggMode) {
 		case USB_RX_AGG_DMA:
 		case USB_RX_AGG_MIX:
-			pkt_offset = (u16) round_up(pkt_offset, 128);
+			pkt_offset = (u16)round_up(pkt_offset, 128);
 			break;
 		case USB_RX_AGG_USB:
-			pkt_offset = (u16) round_up(pkt_offset, 4);
+			pkt_offset = (u16)round_up(pkt_offset, 4);
 			break;
 		case USB_RX_AGG_DISABLE:
 		default:

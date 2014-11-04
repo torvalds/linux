@@ -552,7 +552,7 @@ static void store_pwrindex_offset(struct adapter *Adapter, u32 regaddr, u32 bitm
 	}
 }
 
-static void rtl_addr_delay(struct adapter *adapt, u32 addr, u32 bit_mask ,u32 data)
+static void rtl_addr_delay(struct adapter *adapt, u32 addr, u32 bit_mask, u32 data)
 {
 	if (addr == 0xfe) {
 		msleep(50);

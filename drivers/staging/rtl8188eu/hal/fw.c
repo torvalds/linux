@@ -84,7 +84,7 @@ static void _rtl88e_fw_block_write(struct adapter *adapt,
 static void _rtl88e_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
 {
 	u32 fwlen = *pfwlen;
-	u8 remain = (u8) (fwlen % 4);
+	u8 remain = (u8)(fwlen % 4);
 
 	remain = (remain == 0) ? 0 : (4 - remain);
 
@@ -101,7 +101,7 @@ static void _rtl88e_fw_page_write(struct adapter *adapt,
 				  u32 page, const u8 *buffer, u32 size)
 {
 	u8 value8;
-	u8 u8page = (u8) (page & 0x07);
+	u8 u8page = (u8)(page & 0x07);
 
 	value8 = (usb_read8(adapt, REG_MCUFWDL + 2) & 0xF8) | u8page;
 
@@ -193,13 +193,13 @@ int rtl88eu_download_fw(struct adapter *adapt)
 	u32 fwsize;
 	int err;
 
-	if (request_firmware(&fw, fw_name, device)){
+	if (request_firmware(&fw, fw_name, device)) {
 		dev_err(device, "Firmware %s not available\n", fw_name);
 		return -ENOENT;
 	}
 
 	if (fw->size > FW_8188E_SIZE) {
-		dev_err(device,"Firmware size exceed 0x%X. Check it.\n",
+		dev_err(device, "Firmware size exceed 0x%X. Check it.\n",
 			 FW_8188E_SIZE);
 		return -1;
 	}

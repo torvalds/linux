@@ -2012,7 +2012,7 @@ static u8 SetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eV
 			u8 bRSSIDump = *((u8 *)pValue);
 			struct odm_dm_struct *dm_ocm = &(haldata->odmpriv);
 			if (bRSSIDump)
-				dm_ocm->DebugComponents	=	ODM_COMP_DIG|ODM_COMP_FA_CNT	;
+				dm_ocm->DebugComponents	=	ODM_COMP_DIG|ODM_COMP_FA_CNT;
 			else
 				dm_ocm->DebugComponents	= 0;
 		}

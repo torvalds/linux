@@ -448,7 +448,7 @@ struct mlme_ext_priv {
 
 int init_mlme_ext_priv(struct adapter *adapter);
 int init_hw_mlme_ext(struct adapter *padapter);
-void free_mlme_ext_priv (struct mlme_ext_priv *pmlmeext);
+void free_mlme_ext_priv(struct mlme_ext_priv *pmlmeext);
 extern void init_mlme_ext_timer(struct adapter *padapter);
 extern void init_addba_retry_timer(struct adapter *adapt, struct sta_info *sta);
 extern struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv);
@@ -646,8 +646,8 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter,
 
 void linked_status_chk(struct adapter *padapter);
 
-void survey_timer_hdl (void *function_context);
-void link_timer_hdl (void *funtion_context);
+void survey_timer_hdl(void *function_context);
+void link_timer_hdl(void *funtion_context);
 void addba_timer_hdl(void *function_context);
 
 #define set_survey_timer(mlmeext, ms) \
@@ -708,15 +708,15 @@ u8 tdls_hdl(struct adapter *padapter, unsigned char *pbuf);
 #ifdef _RTW_CMD_C_
 
 static struct cmd_hdl wlancmds[] = {
-	GEN_MLME_EXT_HANDLER(sizeof (struct wlan_bssid_ex), join_cmd_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct disconnect_parm), disconnect_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct wlan_bssid_ex), createbss_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setopmode_parm), setopmode_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct sitesurvey_parm), sitesurvey_cmd_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setauth_parm), setauth_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setkey_parm), setkey_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct set_stakey_parm), set_stakey_hdl)
-	GEN_MLME_EXT_HANDLER(sizeof (struct set_assocsta_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct wlan_bssid_ex), join_cmd_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof(struct disconnect_parm), disconnect_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof(struct wlan_bssid_ex), createbss_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setopmode_parm), setopmode_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof(struct sitesurvey_parm), sitesurvey_cmd_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setauth_parm), setauth_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setkey_parm), setkey_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof(struct set_stakey_parm), set_stakey_hdl)
+	GEN_MLME_EXT_HANDLER(sizeof(struct set_assocsta_parm), NULL)
 	GEN_MLME_EXT_HANDLER(sizeof(struct addBaReq_parm), add_ba_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof(struct set_ch_parm), set_ch_hdl)
 	GEN_MLME_EXT_HANDLER(sizeof(struct wlan_bssid_ex), tx_beacon_hdl)
@@ -787,7 +787,7 @@ static struct fwevent wlanevents[] = {
 	{0, NULL},
 	{0, NULL},
 	{0, &rtw_survey_event_callback},		/*8*/
-	{sizeof (struct surveydone_event), &rtw_surveydone_event_callback},/*9*/
+	{sizeof(struct surveydone_event), &rtw_surveydone_event_callback},/*9*/
 	{0, &rtw_joinbss_event_callback},		/*10*/
 	{sizeof(struct stassoc_event), &rtw_stassoc_event_callback},
 	{sizeof(struct stadel_event), &rtw_stadel_event_callback},

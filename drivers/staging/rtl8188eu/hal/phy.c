@@ -478,7 +478,7 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 		/* 2.4G, decrease power */
 		{0, 0, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 10, 10, 11},
 		/* 2.4G, increase power */
-		{0, 0, -1, -2, -3, -4,-4, -4, -4, -5, -7, -8,-9, -9, -10},
+		{0, 0, -1, -2, -3, -4, -4, -4, -4, -5, -7, -8, -9, -9, -10},
 	};
 	u8 thermal_mapping[2][index_mapping_NUM_88E] = {
 		/* 2.4G, decrease power */

@@ -46,7 +46,7 @@ void rtw_signal_stat_timer_hdl(RTW_TIMER_HDL_ARGS);
 void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 {
 
-	memset((u8 *)psta_recvpriv, 0, sizeof (struct sta_recv_priv));
+	memset((u8 *)psta_recvpriv, 0, sizeof(struct sta_recv_priv));
 
 	spin_lock_init(&psta_recvpriv->lock);
 
@@ -109,7 +109,7 @@ exit:
 	return res;
 }
 
-void _rtw_free_recv_priv (struct recv_priv *precvpriv)
+void _rtw_free_recv_priv(struct recv_priv *precvpriv)
 {
 	struct adapter	*padapter = precvpriv->adapter;
 
@@ -124,7 +124,7 @@ void _rtw_free_recv_priv (struct recv_priv *precvpriv)
 
 }
 
-struct recv_frame *_rtw_alloc_recvframe (struct __queue *pfree_recv_queue)
+struct recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
 {
 	struct recv_frame *hdr;
 	struct list_head *plist, *phead;
@@ -797,7 +797,7 @@ exit:
 	return ret;
 }
 
-static int ap2sta_data_frame (
+static int ap2sta_data_frame(
 	struct adapter *adapter,
 	struct recv_frame *precv_frame,
 	struct sta_info **psta)
@@ -1266,7 +1266,7 @@ static int validate_recv_frame(struct adapter *adapter,
 	u8 bDumpRxPkt;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	u8 *ptr = precv_frame->rx_data;
-	u8  ver = (unsigned char) (*ptr)&0x3;
+	u8  ver = (unsigned char)(*ptr)&0x3;
 	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
 
 
@@ -1981,7 +1981,7 @@ static int process_recv_indicatepkts(struct adapter *padapter,
 			}
 		}
 	} else { /* B/G mode */
-		retval = wlanhdr_to_ethhdr (prframe);
+		retval = wlanhdr_to_ethhdr(prframe);
 		if (retval != _SUCCESS) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("wlanhdr_to_ethhdr: drop pkt\n"));
 			return retval;
