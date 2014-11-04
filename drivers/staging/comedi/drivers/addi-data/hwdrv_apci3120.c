@@ -118,13 +118,8 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER)	/* Test Delay timing */
 		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, 100000);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->convert_arg)
-			err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-							 10000);
-	} else {
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
-	}
+	/* minimum conversion time per sample is 10us */
+	err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
 
 	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
