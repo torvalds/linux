@@ -20,6 +20,12 @@
 #define APCI3120_AO_REG(x)			(0x08 + (((x) / 4) * 2))
 #define APCI3120_AO_MUX(x)			(((x) & 0x3) << 14)
 #define APCI3120_AO_DATA(x)			((x) << 0)
+#define APCI3120_TIMER_MODE_REG			0x0c
+#define APCI3120_TIMER_MODE(_t, _m)		((_m) << ((_t) * 2))
+#define APCI3120_TIMER_MODE0			0  /* I8254_MODE0 */
+#define APCI3120_TIMER_MODE2			1  /* I8254_MODE2 */
+#define APCI3120_TIMER_MODE4			2  /* I8254_MODE4 */
+#define APCI3120_TIMER_MODE5			3  /* I8254_MODE5 */
 #define APCI3120_TIMER_MODE_MASK(_t)		(3 << ((_t) * 2))
 #define APCI3120_CTR0_REG			0x0d
 #define APCI3120_CTR0_DO_BITS(x)		((x) << 4)

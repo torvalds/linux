@@ -101,8 +101,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_10_GAIN		0x30
 #define APCI3120_SEQ_RAM_ADDRESS	0x06
 #define APCI3120_RESET_FIFO		0x0c
-#define APCI3120_TIMER_0_MODE_2		0x01
-#define APCI3120_TIMER_0_MODE_4		0x2
 #define APCI3120_ENABLE_TIMER0		0x1000
 #define APCI3120_CLEAR_PR		0xf0ff
 #define APCI3120_CLEAR_PA		0xfff0
@@ -140,14 +138,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_ENABLE_TIMER_INT	0x04
 #define APCI3120_DISABLE_TIMER_INT	(~APCI3120_ENABLE_TIMER_INT)
 #define APCI3120_WRITE_MODE_SELECT	0x0e
-#define APCI3120_TIMER_1_MODE_2		0x4
-
-/* $$ BIT FOR MODE IN nCsTimerCtr1 */
-#define APCI3120_TIMER_2_MODE_0		0x0
-#define APCI3120_TIMER_2_MODE_2		0x10
-#define APCI3120_TIMER_2_MODE_5		0x30
-
-#define APCI3120_TIMER_CRT1		0x0c
 
 #define APCI3120_TIMER_STATUS_REGISTER	0x0d
 #define APCI3120_RD_STATUS		0x02
@@ -222,6 +212,16 @@ static unsigned int apci3120_timer_read(struct comedi_device *dev,
 	}
 
 	return val;
+}
+
+static void apci3120_timer_set_mode(struct comedi_device *dev,
+				    unsigned int timer, unsigned int mode)
+{
+	struct apci3120_private *devpriv = dev->private;
+
+	devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(timer);
+	devpriv->timer_mode |= APCI3120_TIMER_MODE(timer, mode);
+	outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_MODE_REG);
 }
 
 static int apci3120_ai_insn_config(struct comedi_device *dev,
@@ -373,10 +373,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 				return -EINVAL;
 
 			/* Initialize Timer 0 mode 4 */
-			devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(0);
-			devpriv->timer_mode |= APCI3120_TIMER_0_MODE_4;
-			outb(devpriv->timer_mode,
-			     dev->iobase + APCI3120_TIMER_CRT1);
+			apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE4);
 
 			/*  Reset the scan bit and Disables the  EOS, DMA, EOC interrupt */
 			devpriv->b_ModeSelectRegister =
@@ -456,10 +453,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 				return -EINVAL;
 
 			/* Initialize Timer 0 mode 2 */
-			devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(0);
-			devpriv->timer_mode |= APCI3120_TIMER_0_MODE_2;
-			outb(devpriv->timer_mode,
-			     dev->iobase + APCI3120_TIMER_CRT1);
+			apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
 
 			/* Set the conversion time */
 			apci3120_timer_write(dev, 0, divisor);
@@ -755,9 +749,7 @@ static int apci3120_cyclic_ai(int mode,
 	switch (mode) {
 	case 1:
 		/*  init timer0 in mode 2 */
-		devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(0);
-		devpriv->timer_mode |= APCI3120_TIMER_0_MODE_2;
-		outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_CRT1);
+		apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
 
 		/* Set the conversion time */
 		apci3120_timer_write(dev, 0, divisor0);
@@ -765,17 +757,13 @@ static int apci3120_cyclic_ai(int mode,
 
 	case 2:
 		/*  init timer1 in mode 2 */
-		devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(1);
-		devpriv->timer_mode |= APCI3120_TIMER_1_MODE_2;
-		outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_CRT1);
+		apci3120_timer_set_mode(dev, 1, APCI3120_TIMER_MODE2);
 
 		/* Set the scan begin time */
 		apci3120_timer_write(dev, 1, divisor1);
 
 		/*  init timer0 in mode 2 */
-		devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(0);
-		devpriv->timer_mode |= APCI3120_TIMER_0_MODE_2;
-		outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_CRT1);
+		apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
 
 		/* Set the conversion time */
 		apci3120_timer_write(dev, 0, divisor0);
@@ -824,10 +812,7 @@ static int apci3120_cyclic_ai(int mode,
 				dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 			/* (1) Init timer 2 in mode 0 and write timer value */
-			devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(2);
-			devpriv->timer_mode |= APCI3120_TIMER_2_MODE_0;
-			outb(devpriv->timer_mode,
-			     dev->iobase + APCI3120_TIMER_CRT1);
+			apci3120_timer_set_mode(dev, 2, APCI3120_TIMER_MODE0);
 
 			/* Set the scan stop count (not sure about the -2) */
 			apci3120_timer_write(dev, 2, cmd->stop_arg - 2);
@@ -1422,22 +1407,16 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 	     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 	if (data[0] == APCI3120_TIMER) {	/* initialize timer */
 		/* Set the Timer 2 in mode 2(Timer) */
-		devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(2);
-		devpriv->timer_mode |= APCI3120_TIMER_2_MODE_2;
-		outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_CRT1);
+		apci3120_timer_set_mode(dev, 2, APCI3120_TIMER_MODE2);
 
 		/* Set timer 2 delay */
 		apci3120_timer_write(dev, 2, divisor);
 
 		/*  timer2 in Timer mode enabled */
 		devpriv->b_Timer2Mode = APCI3120_TIMER;
-
 	} else {			/*  Initialize Watch dog */
-
 		/* Set the Timer 2 in mode 5(Watchdog) */
-		devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(2);
-		devpriv->timer_mode |= APCI3120_TIMER_2_MODE_5;
-		outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_CRT1);
+		apci3120_timer_set_mode(dev, 2, APCI3120_TIMER_MODE5);
 
 		/* Set timer 2 delay */
 		apci3120_timer_write(dev, 2, divisor);
