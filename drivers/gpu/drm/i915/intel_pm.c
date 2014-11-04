@@ -3292,11 +3292,11 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 }
 
 static bool skl_compute_plane_wm(struct skl_pipe_wm_parameters *p,
-				   struct intel_plane_wm_parameters *p_params,
-				   uint16_t ddb_allocation,
-				   uint32_t mem_value,
-				   uint16_t *out_blocks, /* out */
-				   uint8_t *out_lines /* out */)
+				 struct intel_plane_wm_parameters *p_params,
+				 uint16_t ddb_allocation,
+				 uint32_t mem_value,
+				 uint16_t *out_blocks, /* out */
+				 uint8_t *out_lines /* out */)
 {
 	uint32_t method1, method2, plane_bytes_per_line, res_blocks, res_lines;
 	uint32_t result_bytes;
