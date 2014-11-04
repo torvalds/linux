@@ -282,16 +282,6 @@ config MACH_SBC3530
 	default y
 	select OMAP_PACKAGE_CUS
 
-config MACH_TI8168EVM
-	bool "TI8168 Evaluation Module"
-	depends on SOC_TI81XX
-	default y
-
-config MACH_TI8148EVM
-	bool "TI8148 Evaluation Module"
-	depends on SOC_TI81XX
-	default y
-
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"
 	depends on ARCH_OMAP3
