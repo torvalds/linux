@@ -139,6 +139,19 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 	return 1;		/*  we can serve this with scan logic */
 }
 
+static int apci3120_ai_eoc(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + APCI3120_RD_STATUS);
+	if ((status & APCI3120_EOC) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int apci3120_ai_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -146,67 +159,44 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 {
 	struct apci3120_private *devpriv = dev->private;
 	unsigned int divisor;
-	unsigned int ns;
-	unsigned short us_TmpValue;
+	int ret;
+	int i;
 
-	/*  fix conversion time to 10 us */
-	ns = 10000;
+	/* set mode for A/D conversions by software trigger with timer 0 */
+	devpriv->mode = APCI3120_MODE_TIMER2_CLK_OSC |
+			APCI3120_MODE_TIMER2_AS_TIMER;
+	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
-	/*  Clear software registers */
-	devpriv->timer_mode = 0;
-	devpriv->mode = 0;
+	/* load chanlist for single channel scan */
+	if (!apci3120_setup_chan_list(dev, s, 1, &insn->chanspec))
+		return -EINVAL;
 
-	if (insn->unused[0] == 222) {	/*  second insn read */
-	} else {
-		devpriv->tsk_Current = current;	/*  Save the current process task structure */
+	/*
+	 * Timer 0 is used in MODE4 (software triggered strobe) to set the
+	 * conversion time for each acquisition. Each conversion is triggered
+	 * when the divisor is written to the timer, The conversion is done
+	 * when the EOC bit in the status register is '0'.
+	 */
+	apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE4);
+	apci3120_timer_enable(dev, 0, true);
 
-		divisor = apci3120_ns_to_timer(dev, 0, ns, CMDF_ROUND_NEAREST);
+	/* fixed conversion time of 10 us */
+	divisor = apci3120_ns_to_timer(dev, 0, 10000, CMDF_ROUND_NEAREST);
 
-		us_TmpValue = (unsigned short) devpriv->b_InterruptMode;
+	apci3120_ai_reset_fifo(dev);
 
-		switch (us_TmpValue) {
+	for (i = 0; i < insn->n; i++) {
+		/* trigger conversion */
+		apci3120_timer_write(dev, 0, divisor);
 
-		case APCI3120_EOC_MODE:
-			apci3120_ai_reset_fifo(dev);
+		ret = comedi_timeout(dev, s, insn, apci3120_ai_eoc, 0);
+		if (ret)
+			return ret;
 
-			/*  Initialize the sequence array */
-			if (!apci3120_setup_chan_list(dev, s, 1,
-					&insn->chanspec))
-				return -EINVAL;
-
-			/* Initialize Timer 0 mode 4 */
-			apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE4);
-
-			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-
-			apci3120_timer_enable(dev, 0, true);
-
-			/* Set the conversion time */
-			apci3120_timer_write(dev, 0, divisor);
-
-			us_TmpValue =
-				(unsigned short) inw(dev->iobase + APCI3120_RD_STATUS);
-
-			do {
-				/*  Waiting for the end of conversion */
-				us_TmpValue = inw(dev->iobase +
-						  APCI3120_RD_STATUS);
-			} while ((us_TmpValue & APCI3120_EOC) == APCI3120_EOC);
-
-			/* Read the result in FIFO  and put it in insn data pointer */
-			us_TmpValue = inw(dev->iobase + 0);
-			*data = us_TmpValue;
-
-			apci3120_ai_reset_fifo(dev);
-			break;
-		default:
-			dev_err(dev->class_dev, "inputs wrong\n");
-
-		}
+		data[i] = inw(dev->iobase + 0);
 	}
 
 	return insn->n;
-
 }
 
 static int apci3120_reset(struct comedi_device *dev)
