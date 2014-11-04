@@ -3315,7 +3315,7 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 
 static bool skl_compute_plane_wm(struct skl_pipe_wm_parameters *p,
 				   struct intel_plane_wm_parameters *p_params,
-				   uint16_t max_page_buff_alloc,
+				   uint16_t ddb_allocation,
 				   uint32_t mem_value,
 				   uint16_t *res_blocks, /* out */
 				   uint8_t *res_lines /* out */)
@@ -3339,7 +3339,7 @@ static bool skl_compute_plane_wm(struct skl_pipe_wm_parameters *p,
 					p_params->bytes_per_pixel;
 
 	/* For now xtile and linear */
-	if (((max_page_buff_alloc * 512) / plane_bytes_per_line) >= 1)
+	if (((ddb_allocation * 512) / plane_bytes_per_line) >= 1)
 		result_bytes = min(method1, method2);
 	else
 		result_bytes = method1;
