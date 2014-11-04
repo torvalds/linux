@@ -87,7 +87,7 @@
 		};
 };
 &sdmmc {
-	cd-gpios = <&gpio2 GPIO_A3 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
+	cd-gpios = <&gpio2 GPIO_A7 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
 };
 
 &codec {
