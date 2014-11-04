@@ -129,6 +129,8 @@
 #define CSR_UCODE_DRV_GP1_CLR   (CSR_BASE+0x05c)
 #define CSR_UCODE_DRV_GP2       (CSR_BASE+0x060)
 
+#define CSR_MBOX_SET_REG	(CSR_BASE + 0x88)
+
 #define CSR_LED_REG             (CSR_BASE+0x094)
 #define CSR_DRAM_INT_TBL_REG	(CSR_BASE+0x0A0)
 #define CSR_MAC_SHADOW_REG_CTRL	(CSR_BASE+0x0A8) /* 6000 and up */
@@ -183,6 +185,8 @@
 #define CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE (0x02000000) /* ME_OWN */
 #define CSR_HW_IF_CONFIG_REG_PREPARE		  (0x08000000) /* WAKE_ME */
 #define CSR_HW_IF_CONFIG_REG_PERSIST_MODE	  (0x40000000) /* PERSISTENCE */
+
+#define CSR_MBOX_SET_REG_OS_ALIVE		BIT(5)
 
 #define CSR_INT_PERIODIC_DIS			(0x00) /* disable periodic int*/
 #define CSR_INT_PERIODIC_ENA			(0xFF) /* 255*32 usec ~ 8 msec*/
