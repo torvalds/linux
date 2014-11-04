@@ -220,6 +220,29 @@ static void apci3120_timer_write(struct comedi_device *dev,
 	}
 }
 
+static unsigned int apci3120_timer_read(struct comedi_device *dev,
+					unsigned int timer)
+{
+	struct apci3120_private *devpriv = dev->private;
+	unsigned int val;
+
+	/* read 16-bit value from timer (lower 16-bits of timer 2) */
+	outb(((devpriv->do_bits) & 0xF0) |
+	     APCI3120_CTR0_TIMER_SEL(timer),
+	     dev->iobase + APCI3120_TIMER_CRT0);
+	val = inw(dev->iobase + APCI3120_TIMER_VALUE);
+
+	if (timer == 2) {
+		/* read upper 16-bits from timer 2 */
+		outb(((devpriv->do_bits) & 0xF0) |
+		     APCI3120_CTR0_TIMER_SEL(timer + 1),
+		     dev->iobase + APCI3120_TIMER_CRT0);
+		val |= (inw(dev->iobase + APCI3120_TIMER_VALUE) << 16);
+	}
+
+	return val;
+}
+
 static int apci3120_ai_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
@@ -1626,32 +1649,14 @@ static int apci3120_read_insn_timer(struct comedi_device *dev,
 				    unsigned int *data)
 {
 	struct apci3120_private *devpriv = dev->private;
-	unsigned char b_Tmp;
-	unsigned short us_TmpValue, us_TmpValue_2, us_StatusValue;
+	unsigned short us_StatusValue;
 
 	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
 		&& (devpriv->b_Timer2Mode != APCI3120_TIMER)) {
 		dev_err(dev->class_dev, "timer2 not configured\n");
 	}
 	if (devpriv->b_Timer2Mode == APCI3120_TIMER) {
-
-		/* Read the LOW unsigned short of Timer 2 register */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_2_LOW_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-
-		us_TmpValue = inw(dev->iobase + APCI3120_TIMER_VALUE);
-
-		/* Read the HIGH unsigned short of Timer 2 register */
-		b_Tmp = ((devpriv->do_bits) & 0xF0) |
-			APCI3120_SELECT_TIMER_2_HIGH_WORD;
-		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
-
-		us_TmpValue_2 = inw(dev->iobase + APCI3120_TIMER_VALUE);
-
-		/*  combining both words */
-		data[0] = (unsigned int) ((us_TmpValue) | ((us_TmpValue_2) << 16));
-
+		data[0] = apci3120_timer_read(dev, 2);
 	} else {			/*  Read watch dog status */
 
 		us_StatusValue = inw(dev->iobase + APCI3120_RD_STATUS);
