@@ -854,26 +854,33 @@ static int af9033_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 	/* use DVBv5 CNR */
 	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL) {
-		*snr = div_s64(c->cnr.stat[0].svalue, 1000);
+		/* Return 0.1 dB for AF9030 and 0-0xffff for IT9130. */
+		if (dev->is_af9035) {
+			/* 1000x => 10x (0.1 dB) */
+			*snr = div_s64(c->cnr.stat[0].svalue, 100);
+		} else {
+			/* 1000x => 1x (1 dB) */
+			*snr = div_s64(c->cnr.stat[0].svalue, 1000);
 
-		/* read current modulation */
-		ret = af9033_rd_reg(dev, 0x80f903, &u8tmp);
-		if (ret)
-			goto err;
+			/* read current modulation */
+			ret = af9033_rd_reg(dev, 0x80f903, &u8tmp);
+			if (ret)
+				goto err;
 
-		/* scale value to 0x0000-0xffff */
-		switch ((u8tmp >> 0) & 3) {
-		case 0:
-			*snr = *snr * 0xFFFF / 23;
-			break;
-		case 1:
-			*snr = *snr * 0xFFFF / 26;
-			break;
-		case 2:
-			*snr = *snr * 0xFFFF / 32;
-			break;
-		default:
-			goto err;
+			/* scale value to 0x0000-0xffff */
+			switch ((u8tmp >> 0) & 3) {
+			case 0:
+				*snr = *snr * 0xffff / 23;
+				break;
+			case 1:
+				*snr = *snr * 0xffff / 26;
+				break;
+			case 2:
+				*snr = *snr * 0xffff / 32;
+				break;
+			default:
+				goto err;
+			}
 		}
 	} else {
 		*snr = 0;
