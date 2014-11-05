@@ -65,8 +65,6 @@ struct daqp_private {
 	enum { semaphore, buffer } interrupt_mode;
 
 	struct completion eos;
-
-	int count;
 };
 
 /* The DAQP communicates with the system through a 16 byte I/O window. */
@@ -194,6 +192,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 	struct comedi_device *dev = dev_id;
 	struct daqp_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	int loop_limit = 10000;
 	int status;
 
@@ -227,12 +226,10 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			 * and stop conversion if zero
 			 */
 
-			if (devpriv->count > 0) {
-				devpriv->count--;
-				if (devpriv->count == 0) {
-					s->async->events |= COMEDI_CB_EOA;
-					break;
-				}
+			if (cmd->stop_src == TRIG_COUNT &&
+			    s->async->scans_done >= cmd->stop_arg) {
+				s->async->events |= COMEDI_CB_EOA;
+				break;
 			}
 
 			if ((loop_limit--) <= 0)
@@ -573,12 +570,16 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 
 	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->count = cmd->stop_arg * cmd->scan_end_arg;
-		threshold = 2 * devpriv->count;
-		while (threshold > DAQP_FIFO_SIZE * 3 / 4)
-			threshold /= 2;
+		unsigned long long nsamples;
+		unsigned long long nbytes;
+
+		nsamples = (unsigned long long)cmd->stop_arg *
+			   cmd->scan_end_arg;
+		nbytes = nsamples * comedi_bytes_per_sample(s);
+		while (nbytes > DAQP_FIFO_SIZE * 3 / 4)
+			nbytes /= 2;
+		threshold = nbytes;
 	} else {
-		devpriv->count = -1;
 		threshold = DAQP_FIFO_SIZE / 2;
 	}
 
