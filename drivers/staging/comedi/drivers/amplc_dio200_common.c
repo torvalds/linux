@@ -120,7 +120,6 @@ struct dio200_subdev_intr {
 	unsigned int ofs;
 	unsigned int valid_isns;
 	unsigned int enabled_isns;
-	unsigned int stopcount;
 	bool active:1;
 };
 
@@ -256,7 +255,6 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned int triggered)
 {
-	struct dio200_subdev_intr *subpriv = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short val;
 	unsigned int n, ch;
@@ -270,14 +268,9 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 
 	comedi_buf_write_samples(s, &val, 1);
 
-	/* Check for end of acquisition. */
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (subpriv->stopcount > 0) {
-			subpriv->stopcount--;
-			if (subpriv->stopcount == 0)
-				s->async->events |= COMEDI_CB_EOA;
-		}
-	}
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg)
+		s->async->events |= COMEDI_CB_EOA;
 }
 
 static int dio200_handle_read_intr(struct comedi_device *dev,
@@ -424,7 +417,6 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 
 	subpriv->active = true;
-	subpriv->stopcount = cmd->stop_arg;
 
 	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = dio200_inttrig_start_intr;
