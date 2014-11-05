@@ -328,6 +328,45 @@ unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s)
 EXPORT_SYMBOL_GPL(comedi_bytes_per_scan);
 
 /**
+ * comedi_nscans_left - return the number of scans left in the command
+ * @s: comedi_subdevice struct
+ * @nscans: the expected number of scans
+ *
+ * If nscans is 0, the number of scans available in the async buffer will be
+ * used. Otherwise the expected number of scans will be used.
+ *
+ * If the async command has a stop_src of TRIG_COUNT, the nscans will be
+ * checked against the number of scans left in the command.
+ *
+ * The return value will then be either the expected number of scans or the
+ * number of scans remaining in the command.
+ */
+unsigned int comedi_nscans_left(struct comedi_subdevice *s,
+				unsigned int nscans)
+{
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+
+	if (nscans == 0) {
+		unsigned int nbytes = comedi_buf_read_n_available(s);
+
+		nscans = nbytes / comedi_bytes_per_scan(s);
+	}
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		unsigned int scans_left = 0;
+
+		if (async->scans_done < cmd->stop_arg)
+			scans_left = cmd->stop_arg - async->scans_done;
+
+		if (nscans > scans_left)
+			nscans = scans_left;
+	}
+	return nscans;
+}
+EXPORT_SYMBOL_GPL(comedi_nscans_left);
+
+/**
  * comedi_inc_scan_progress - update scan progress in asynchronous command
  * @s: comedi_subdevice struct
  * @num_bytes: amount of data in bytes to increment scan progress

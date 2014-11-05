@@ -516,6 +516,8 @@ int comedi_dio_insn_config(struct comedi_device *, struct comedi_subdevice *,
 unsigned int comedi_dio_update_state(struct comedi_subdevice *,
 				     unsigned int *data);
 unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s);
+unsigned int comedi_nscans_left(struct comedi_subdevice *s,
+				unsigned int nscans);
 void comedi_inc_scan_progress(struct comedi_subdevice *s,
 			      unsigned int num_bytes);
 
