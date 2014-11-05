@@ -367,6 +367,38 @@ unsigned int comedi_nscans_left(struct comedi_subdevice *s,
 EXPORT_SYMBOL_GPL(comedi_nscans_left);
 
 /**
+ * comedi_nsamples_left - return the number of samples left in the command
+ * @s: comedi_subdevice struct
+ * @nsamples: the expected number of samples
+ *
+ * Returns the expected number of samples of the number of samples remaining
+ * in the command.
+ */
+unsigned int comedi_nsamples_left(struct comedi_subdevice *s,
+				  unsigned int nsamples)
+{
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		/* +1 to force comedi_nscans_left() to return the scans left */
+		unsigned int nscans = (nsamples / cmd->scan_end_arg) + 1;
+		unsigned int scans_left = comedi_nscans_left(s, nscans);
+		unsigned long long samples_left = 0;
+
+		if (scans_left) {
+			samples_left = ((unsigned long long)scans_left *
+				       cmd->scan_end_arg) - async->cur_chan;
+		}
+
+		if (samples_left < nsamples)
+			nsamples = samples_left;
+	}
+	return nsamples;
+}
+EXPORT_SYMBOL_GPL(comedi_nsamples_left);
+
+/**
  * comedi_inc_scan_progress - update scan progress in asynchronous command
  * @s: comedi_subdevice struct
  * @num_bytes: amount of data in bytes to increment scan progress

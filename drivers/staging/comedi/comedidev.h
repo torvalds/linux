@@ -518,6 +518,8 @@ unsigned int comedi_dio_update_state(struct comedi_subdevice *,
 unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s);
 unsigned int comedi_nscans_left(struct comedi_subdevice *s,
 				unsigned int nscans);
+unsigned int comedi_nsamples_left(struct comedi_subdevice *s,
+				  unsigned int nsamples);
 void comedi_inc_scan_progress(struct comedi_subdevice *s,
 			      unsigned int num_bytes);
 
