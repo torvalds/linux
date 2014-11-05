@@ -540,6 +540,7 @@ struct efx_ef10_nic_data {
 
 #ifdef CONFIG_SFC_SRIOV
 
+/* SIENA */
 static inline bool efx_siena_sriov_wanted(struct efx_nic *efx)
 {
 	return efx->vf_count != 0;
@@ -568,12 +569,19 @@ void efx_siena_sriov_reset(struct efx_nic *efx);
 void efx_siena_sriov_fini(struct efx_nic *efx);
 void efx_fini_sriov(void);
 
+/* EF10 */
+static inline bool efx_ef10_sriov_wanted(struct efx_nic *efx) { return false; }
+static inline int efx_ef10_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
+static inline void efx_ef10_sriov_mac_address_changed(struct efx_nic *efx) {}
+static inline void efx_ef10_sriov_reset(struct efx_nic *efx) {}
+static inline void efx_ef10_sriov_fini(struct efx_nic *efx) {}
+
 #else
 
+/* SIENA */
 static inline bool efx_siena_sriov_wanted(struct efx_nic *efx) { return false; }
 static inline bool efx_siena_sriov_enabled(struct efx_nic *efx) { return false; }
 static inline unsigned int efx_vf_size(struct efx_nic *efx) { return 0; }
-
 static inline int efx_init_sriov(void) { return 0; }
 static inline void efx_siena_sriov_probe(struct efx_nic *efx) {}
 static inline int efx_siena_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
@@ -591,7 +599,21 @@ static inline void efx_siena_sriov_reset(struct efx_nic *efx) {}
 static inline void efx_siena_sriov_fini(struct efx_nic *efx) {}
 static inline void efx_fini_sriov(void) {}
 
+/* EF10 */
+static inline bool efx_ef10_sriov_wanted(struct efx_nic *efx) { return false; }
+static inline int efx_ef10_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
+static inline void efx_ef10_sriov_mac_address_changed(struct efx_nic *efx) {}
+static inline void efx_ef10_sriov_reset(struct efx_nic *efx) {}
+static inline void efx_ef10_sriov_fini(struct efx_nic *efx) {}
+
 #endif
+
+/* FALCON */
+static inline bool efx_falcon_sriov_wanted(struct efx_nic *efx) { return false; }
+static inline int efx_falcon_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
+static inline void efx_falcon_sriov_mac_address_changed(struct efx_nic *efx) {}
+static inline void efx_falcon_sriov_reset(struct efx_nic *efx) {}
+static inline void efx_falcon_sriov_fini(struct efx_nic *efx) {}
 
 int efx_siena_sriov_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
 int efx_siena_sriov_set_vf_vlan(struct net_device *dev, int vf,

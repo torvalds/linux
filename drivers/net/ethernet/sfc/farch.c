@@ -1685,7 +1685,7 @@ void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 	vi_count = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
 
 #ifdef CONFIG_SFC_SRIOV
-	if (efx_siena_sriov_wanted(efx)) {
+	if (efx->type->sriov_wanted(efx)) {
 		unsigned vi_dc_entries, buftbl_free, entries_per_vf, vf_limit;
 
 		nic_data->vf_buftbl_base = buftbl_min;

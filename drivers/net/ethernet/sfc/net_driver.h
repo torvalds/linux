@@ -1330,6 +1330,11 @@ struct efx_nic_type {
 	int (*ptp_set_ts_sync_events)(struct efx_nic *efx, bool en, bool temp);
 	int (*ptp_set_ts_config)(struct efx_nic *efx,
 				 struct hwtstamp_config *init);
+	int (*sriov_init)(struct efx_nic *efx);
+	void (*sriov_fini)(struct efx_nic *efx);
+	void (*sriov_mac_address_changed)(struct efx_nic *efx);
+	bool (*sriov_wanted)(struct efx_nic *efx);
+	void (*sriov_reset)(struct efx_nic *efx);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;
