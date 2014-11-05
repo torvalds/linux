@@ -410,6 +410,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 	/* for compatibility, actual default is 3 */
 	sdata->mac_params.frame_retries = -1;
 
+	ieee802154_be64_to_le64(&sdata->extended_addr, sdata->dev->dev_addr);
 	sdata->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	sdata->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 
@@ -471,6 +472,9 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		goto err;
 	}
 
+	ieee802154_le64_to_be64(ndev->perm_addr,
+				&local->hw.phy->perm_extended_addr);
+	memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
 	/* TODO check this */
 	SET_NETDEV_DEV(ndev, &local->phy->dev);
 	sdata = netdev_priv(ndev);

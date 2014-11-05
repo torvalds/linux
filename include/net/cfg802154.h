@@ -57,6 +57,8 @@ struct wpan_phy {
 	u8 csma_retries;
 	s8 frame_retries;
 
+	__le64 perm_extended_addr;
+
 	bool lbt;
 	s32 cca_ed_level;
 
