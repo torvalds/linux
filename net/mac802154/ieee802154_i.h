@@ -20,6 +20,7 @@
 #define __IEEE802154_I_H
 
 #include <linux/mutex.h>
+#include <net/cfg802154.h>
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 
@@ -73,11 +74,14 @@ enum ieee802154_sdata_state_bits {
 struct ieee802154_sub_if_data {
 	struct list_head list; /* the ieee802154_priv->slaves list */
 
+	struct wpan_dev wpan_dev;
+
 	struct ieee802154_local *local;
 	struct net_device *dev;
 
 	int type;
 	unsigned long state;
+	char name[IFNAMSIZ];
 
 	spinlock_t mib_lock;
 

@@ -13,6 +13,7 @@
  * Based on: net/mac80211/cfg.c
  */
 
+#include <net/rtnetlink.h>
 #include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
@@ -23,8 +24,13 @@ ieee802154_add_iface_deprecated(struct wpan_phy *wpan_phy,
 				const char *name, int type)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	struct net_device *dev;
 
-	return ieee802154_if_add(local, name, NULL, type);
+	rtnl_lock();
+	dev = ieee802154_if_add(local, name, NULL, type);
+	rtnl_unlock();
+
+	return dev;
 }
 
 static void ieee802154_del_iface_deprecated(struct wpan_phy *wpan_phy,
