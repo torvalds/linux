@@ -527,7 +527,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	cpumask_set_cpu(cpu_id, &cpumask);
 	irq_set_affinity(irq, &cpumask);
 	ret = devm_request_irq(&pdev->dev, irq, rockchip_pwm_irq,
-			       0, "rk_pwm_irq", ddata);
+			       IRQF_NO_SUSPEND, "rk_pwm_irq", ddata);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", irq);
 		return ret;
