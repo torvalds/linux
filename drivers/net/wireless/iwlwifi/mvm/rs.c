@@ -506,7 +506,7 @@ static inline void rs_dump_rate(struct iwl_mvm *mvm, const struct rs_rate *rate,
 				const char *prefix)
 {
 	IWL_DEBUG_RATE(mvm,
-		       "%s: (%s: %d) ANT: %s BW: %d SGI: %d LDPC: %d STBC %d\n",
+		       "%s: (%s: %d) ANT: %s BW: %d SGI: %d LDPC: %d STBC: %d\n",
 		       prefix, rs_pretty_lq_type(rate->type),
 		       rate->index, rs_pretty_ant(rate->ant),
 		       rate->bw, rate->sgi, rate->ldpc, rate->stbc);
@@ -1155,16 +1155,15 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		/* Rate did match, so reset the missed_rate_counter */
 		lq_sta->missed_rate_counter = 0;
 
-	/* Figure out if rate scale algorithm is in active or search table */
-	if (rs_rate_match(&rate,
-			  &(lq_sta->lq_info[lq_sta->active_tbl].rate))) {
+	if (!lq_sta->search_better_tbl) {
 		curr_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 		other_tbl = &(lq_sta->lq_info[1 - lq_sta->active_tbl]);
-	} else if (rs_rate_match(&rate,
-			 &lq_sta->lq_info[1 - lq_sta->active_tbl].rate)) {
+	} else {
 		curr_tbl = &(lq_sta->lq_info[1 - lq_sta->active_tbl]);
 		other_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
-	} else {
+	}
+
+	if (WARN_ON_ONCE(!rs_rate_match(&rate, &curr_tbl->rate))) {
 		IWL_DEBUG_RATE(mvm,
 			       "Neither active nor search matches tx rate\n");
 		tmp_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
