@@ -209,9 +209,6 @@ typedef struct __device_opt {
 	int         nRxDescs1;		/* Number of RX descriptors1 */
 	int         nTxDescs[2];	/* Number of TX descriptors 0, 1 */
 	int         int_works;		/* interrupt limits */
-	int         rts_thresh;		/* rts threshold */
-	int         data_rate;
-	int         channel_num;
 	int         short_retry;
 	int         long_retry;
 	int         bbp_type;
