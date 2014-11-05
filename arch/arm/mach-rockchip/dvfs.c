@@ -915,8 +915,7 @@ static struct pvtm_info rk3288v1_arm_pvtm_info = {
 
 static struct pvtm_info *pvtm_info_table[] = {
 	&rk3288v0_arm_pvtm_info,
-	&rk3288v1_arm_pvtm_info,
-	NULL
+	&rk3288v1_arm_pvtm_info
 };
 
 static int pvtm_set_single_dvfs(struct dvfs_node *dvfs_node, u32 idx,
@@ -1292,6 +1291,68 @@ int dvfs_set_freq_volt_table(struct dvfs_node *clk_dvfs_node, struct cpufreq_fre
 }
 EXPORT_SYMBOL(dvfs_set_freq_volt_table);
 
+static int get_adjust_volt_by_leakage(struct dvfs_node *dvfs_node)
+{
+	int leakage = 0;
+	int delta_leakage = 0;
+	int i = 0;
+	int adjust_volt = 0;
+
+	if (!dvfs_node->vd)
+		return 0;
+
+	if (dvfs_node->lkg_info.def_table_lkg == -1)
+		return 0;
+
+	leakage = rockchip_get_leakage(dvfs_node->channel);
+	if (!leakage || (leakage == 0xff))
+		return 0;
+
+	delta_leakage = leakage - dvfs_node->lkg_info.def_table_lkg;
+	if (delta_leakage <= 0) {
+		for (i = 0; (dvfs_node->lkg_info.table[i].dlt_volt !=
+			CPUFREQ_TABLE_END); i++) {
+			if (leakage > dvfs_node->lkg_info.table[i].lkg) {
+				adjust_volt =
+					dvfs_node->lkg_info.table[i].dlt_volt;
+			} else {
+				return adjust_volt;
+			}
+		}
+	} else if (delta_leakage > 0) {
+		for (i = 0; (dvfs_node->lkg_info.table[i].dlt_volt !=
+			CPUFREQ_TABLE_END); i++) {
+			if (leakage <= dvfs_node->lkg_info.table[i].lkg) {
+				adjust_volt =
+					-dvfs_node->lkg_info.table[i].dlt_volt;
+				return adjust_volt;
+			}
+		}
+	}
+	return adjust_volt;
+}
+
+static void adjust_table_by_leakage(struct dvfs_node *dvfs_node)
+{
+	int i, adjust_volt = get_adjust_volt_by_leakage(dvfs_node);
+
+	if (!adjust_volt)
+		return;
+
+	if (!dvfs_node->dvfs_table)
+		return;
+
+	if (dvfs_node->lkg_info.min_adjust_freq == -1)
+		return;
+
+	for (i = 0;
+	(dvfs_node->dvfs_table[i].frequency != CPUFREQ_TABLE_END); i++) {
+		if (dvfs_node->dvfs_table[i].frequency >=
+			dvfs_node->lkg_info.min_adjust_freq)
+			dvfs_node->dvfs_table[i].index += adjust_volt;
+	}
+}
+
 int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 {
 	struct cpufreq_frequency_table clk_fv;
@@ -1338,6 +1399,8 @@ int clk_enable_dvfs(struct dvfs_node *clk_dvfs_node)
 		dvfs_table_round_clk_rate(clk_dvfs_node);
 		dvfs_get_rate_range(clk_dvfs_node);
 		clk_dvfs_node->freq_limit_en = 1;
+		if (clk_dvfs_node->lkg_adjust_volt_en)
+			adjust_table_by_leakage(clk_dvfs_node);
 		if (clk_dvfs_node->support_pvtm)
 			pvtm_set_dvfs_table(clk_dvfs_node);
 		dvfs_table_round_volt(clk_dvfs_node);
@@ -1867,6 +1930,44 @@ static int of_get_dvfs_pvtm_table(struct device_node *dev_node,
 	return 0;
 }
 
+static struct lkg_adjust_volt_table
+	*of_get_lkg_adjust_volt_table(struct device_node *np,
+	const char *propname)
+{
+	struct lkg_adjust_volt_table *lkg_adjust_volt_table = NULL;
+	const struct property *prop;
+	const __be32 *val;
+	int nr, i;
+
+	prop = of_find_property(np, propname, NULL);
+	if (!prop)
+		return NULL;
+	if (!prop->value)
+		return NULL;
+
+	nr = prop->length / sizeof(s32);
+	if (nr % 2) {
+		pr_err("%s: Invalid freq list\n", __func__);
+		return NULL;
+	}
+
+	lkg_adjust_volt_table =
+		kzalloc(sizeof(struct lkg_adjust_volt_table) *
+		(nr/2 + 1), GFP_KERNEL);
+
+	val = prop->value;
+
+	for (i = 0; i < nr/2; i++) {
+		lkg_adjust_volt_table[i].lkg = be32_to_cpup(val++);
+		lkg_adjust_volt_table[i].dlt_volt = be32_to_cpup(val++);
+	}
+
+	lkg_adjust_volt_table[i].lkg = 0;
+	lkg_adjust_volt_table[i].dlt_volt = CPUFREQ_TABLE_END;
+
+	return lkg_adjust_volt_table;
+}
+
 static int dvfs_node_parse_dt(struct device_node *np,
 			      struct dvfs_node *dvfs_node)
 {
@@ -1935,6 +2036,23 @@ static int dvfs_node_parse_dt(struct device_node *np,
 	} else {
 		if (of_get_dvfs_table(np, &dvfs_node->dvfs_table))
 			return -EINVAL;
+	}
+
+	of_property_read_u32_index(np, "lkg_adjust_volt_en", 0,
+				   &dvfs_node->lkg_adjust_volt_en);
+	if (dvfs_node->lkg_adjust_volt_en) {
+		dvfs_node->lkg_info.def_table_lkg = -1;
+		of_property_read_u32_index(np, "def_table_lkg", 0,
+					   &dvfs_node->lkg_info.def_table_lkg);
+
+		dvfs_node->lkg_info.min_adjust_freq = -1;
+		of_property_read_u32_index(np, "min_adjust_freq", 0,
+					   &dvfs_node->lkg_info.min_adjust_freq
+					   );
+
+		dvfs_node->lkg_info.table =
+			of_get_lkg_adjust_volt_table(np,
+						     "lkg_adjust_volt_table");
 	}
 
 	return 0;

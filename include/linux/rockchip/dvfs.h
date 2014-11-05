@@ -95,6 +95,17 @@ struct pvtm_info {
 	int max_volt_uv;
 };
 
+struct lkg_adjust_volt_table {
+	int	lkg;
+	int	dlt_volt;
+};
+
+struct lkg_info {
+	int	def_table_lkg;
+	int	min_adjust_freq;
+	struct	lkg_adjust_volt_table *table;
+};
+
 /**
  * struct dvfs_node:	To Store All dvfs clocks' info
  * @name:		Dvfs clock's Name
@@ -137,6 +148,8 @@ struct dvfs_node {
 	int			regu_mode_en;
 	unsigned int		regu_mode;
 	struct pvtm_info	*pvtm_info;
+	int                 lkg_adjust_volt_en;
+	struct lkg_info		lkg_info;
 };
 
 
