@@ -126,6 +126,7 @@ EXPORT_SYMBOL(ieee802154_free_hw);
 int ieee802154_register_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
+	struct net_device *dev;
 	int rc = -ENOSYS;
 
 	local->workqueue =
@@ -140,6 +141,17 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 	rc = wpan_phy_register(local->phy);
 	if (rc < 0)
 		goto out_wq;
+
+	rtnl_lock();
+
+	dev = ieee802154_if_add(local, "wpan%d", NULL, IEEE802154_DEV_WPAN);
+	if (IS_ERR(dev)) {
+		rtnl_unlock();
+		rc = PTR_ERR(dev);
+		goto out_wq;
+	}
+
+	rtnl_unlock();
 
 	return 0;
 
