@@ -433,7 +433,7 @@
 			clocks = <&cpg_clocks R8A7740_CLK_S>,
 				 <&cpg_clocks R8A7740_CLK_S>, <&sub_clk>,
 				 <&cpg_clocks R8A7740_CLK_B>,
-				 <&sub_clk>, <&sub_clk>,
+				 <&cpg_clocks R8A7740_CLK_HPP>, <&sub_clk>,
 				 <&cpg_clocks R8A7740_CLK_B>;
 			#clock-cells = <1>;
 			renesas,clock-indices = <
