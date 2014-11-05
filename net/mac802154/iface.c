@@ -428,7 +428,6 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 	case IEEE802154_DEV_MONITOR:
 		sdata->dev->destructor = free_netdev;
 		sdata->dev->netdev_ops = &mac802154_monitor_ops;
-		sdata->dev->ml_priv = &mac802154_mlme_reduced;
 		sdata->promisuous_mode = true;
 		break;
 	default:

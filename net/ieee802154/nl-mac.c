@@ -94,8 +94,9 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 		goto out;
 
 	ops = ieee802154_mlme_ops(dev);
-	phy = ops->get_phy(dev);
+	phy = dev->ieee802154_ptr->wpan_phy;
 	BUG_ON(!phy);
+	get_device(&phy->dev);
 
 	short_addr = ops->get_short_addr(dev);
 	pan_id = ops->get_pan_id(dev);
@@ -493,7 +494,8 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 	    !info->attrs[IEEE802154_ATTR_FRAME_RETRIES])
 		goto out;
 
-	phy = ops->get_phy(dev);
+	phy = dev->ieee802154_ptr->wpan_phy;
+	get_device(&phy->dev);
 
 	ops->get_mac_params(dev, &params);
 

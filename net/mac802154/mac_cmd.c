@@ -67,15 +67,6 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 	return rc;
 }
 
-static struct wpan_phy *mac802154_get_phy(const struct net_device *dev)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	BUG_ON(dev->type != ARPHRD_IEEE802154);
-
-	return to_phy(get_device(&sdata->local->phy->dev));
-}
-
 static int mac802154_set_mac_params(struct net_device *dev,
 				    const struct ieee802154_mac_params *params)
 {
@@ -134,12 +125,7 @@ static struct ieee802154_llsec_ops mac802154_llsec_ops = {
 	.unlock_table = mac802154_unlock_table,
 };
 
-struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced = {
-	.get_phy = mac802154_get_phy,
-};
-
 struct ieee802154_mlme_ops mac802154_mlme_wpan = {
-	.get_phy = mac802154_get_phy,
 	.start_req = mac802154_mlme_start_req,
 	.get_pan_id = mac802154_dev_get_pan_id,
 	.get_short_addr = mac802154_dev_get_short_addr,

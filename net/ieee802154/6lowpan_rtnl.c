@@ -407,13 +407,6 @@ static netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 }
 
-static struct wpan_phy *lowpan_get_phy(const struct net_device *dev)
-{
-	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
-
-	return ieee802154_mlme_ops(real_dev)->get_phy(real_dev);
-}
-
 static __le16 lowpan_get_pan_id(const struct net_device *dev)
 {
 	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
@@ -465,7 +458,6 @@ static const struct net_device_ops lowpan_netdev_ops = {
 
 static struct ieee802154_mlme_ops lowpan_mlme = {
 	.get_pan_id = lowpan_get_pan_id,
-	.get_phy = lowpan_get_phy,
 	.get_short_addr = lowpan_get_short_addr,
 	.get_dsn = lowpan_get_dsn,
 };

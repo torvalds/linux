@@ -287,8 +287,9 @@ int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info)
 	if (!dev)
 		return -ENODEV;
 
-	phy = ieee802154_mlme_ops(dev)->get_phy(dev);
+	phy = dev->ieee802154_ptr->wpan_phy;
 	BUG_ON(!phy);
+	get_device(&phy->dev);
 
 	rc = -EINVAL;
 	/* phy name is optional, but should be checked if it's given */
