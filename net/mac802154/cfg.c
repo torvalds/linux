@@ -22,7 +22,9 @@ static struct net_device *
 ieee802154_add_iface_deprecated(struct wpan_phy *wpan_phy,
 				const char *name, int type)
 {
-	return mac802154_add_iface(wpan_phy, name, type);
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+
+	return ieee802154_if_add(local, name, NULL, type);
 }
 
 static void ieee802154_del_iface_deprecated(struct wpan_phy *wpan_phy,

@@ -444,6 +444,72 @@ void mac802154_monitor_setup(struct net_device *dev)
 	sdata->promisuous_mode = true;
 }
 
+static int
+mac802154_netdev_register(struct ieee802154_local *local,
+			  struct net_device *dev)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	int err;
+
+	sdata->dev = dev;
+	sdata->local = local;
+
+	dev->needed_headroom = local->hw.extra_tx_headroom;
+
+	SET_NETDEV_DEV(dev, &local->phy->dev);
+
+	err = register_netdev(dev);
+	if (err < 0)
+		return err;
+
+	rtnl_lock();
+	mutex_lock(&local->iflist_mtx);
+	list_add_tail_rcu(&sdata->list, &local->interfaces);
+	mutex_unlock(&local->iflist_mtx);
+	rtnl_unlock();
+
+	return 0;
+}
+
+struct net_device *
+ieee802154_if_add(struct ieee802154_local *local, const char *name,
+		  struct wpan_dev **new_wpan_dev, int type)
+{
+	struct net_device *dev;
+	int err = -ENOMEM;
+
+	switch (type) {
+	case IEEE802154_DEV_MONITOR:
+		dev = alloc_netdev(sizeof(struct ieee802154_sub_if_data),
+				   name, NET_NAME_UNKNOWN,
+				   mac802154_monitor_setup);
+		break;
+	case IEEE802154_DEV_WPAN:
+		dev = alloc_netdev(sizeof(struct ieee802154_sub_if_data),
+				   name, NET_NAME_UNKNOWN,
+				   mac802154_wpan_setup);
+		break;
+	default:
+		dev = NULL;
+		err = -EINVAL;
+		break;
+	}
+	if (!dev)
+		goto err;
+
+	err = mac802154_netdev_register(local, dev);
+	if (err)
+		goto err_free;
+
+	dev_hold(dev); /* we return an incremented device refcount */
+	return dev;
+
+err_free:
+	free_netdev(dev);
+err:
+	return ERR_PTR(err);
+}
+
 void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata)
 {
 	ASSERT_RTNL();
