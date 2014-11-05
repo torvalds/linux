@@ -194,15 +194,13 @@ static void vlv_force_wake_reset(struct drm_i915_private *dev_priv)
 static void __vlv_force_wake_get(struct drm_i915_private *dev_priv,
 						int fw_engine)
 {
-	/*
-	 * WaRsDontPollForAckOnClearingFWBits:vlv
-	 * Hardware clears ack bits lazily (only when all ack
-	 * bits become 0) so don't poll for individiual ack
-	 * bits to be clear here like on other platforms.
-	 */
-
 	/* Check for Render Engine */
 	if (FORCEWAKE_RENDER & fw_engine) {
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_VLV) &
+						FORCEWAKE_KERNEL) == 0,
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: Render forcewake old ack to clear.\n");
 
 		__raw_i915_write32(dev_priv, FORCEWAKE_VLV,
 				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
@@ -216,6 +214,11 @@ static void __vlv_force_wake_get(struct drm_i915_private *dev_priv,
 
 	/* Check for Media Engine */
 	if (FORCEWAKE_MEDIA & fw_engine) {
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_MEDIA_VLV) &
+						FORCEWAKE_KERNEL) == 0,
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: Media forcewake old ack to clear.\n");
 
 		__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_VLV,
 				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
