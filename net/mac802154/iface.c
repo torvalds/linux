@@ -117,7 +117,7 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
-	extended_addr = ieee802154_netdev_to_extended_addr(addr->sa_data);
+	ieee802154_be64_to_le64(&extended_addr, addr->sa_data);
 	if (!ieee802154_is_valid_extended_addr(extended_addr))
 		return -EINVAL;
 

@@ -224,12 +224,15 @@ struct ieee802154_ops {
 };
 
 /**
- * ieee802154_netdev_to_extended_addr - convert big endian 64 byte void pointer to __le64
- * @dev_addr: big endian address pointer like netdevice dev_addr attribute
+ * ieee802154_be64_to_le64 - copies and convert be64 to le64
+ * @le64_dst: le64 destination pointer
+ * @be64_src: be64 source pointer
  */
-static inline __le64 ieee802154_netdev_to_extended_addr(const void *dev_addr)
+static inline void ieee802154_be64_to_le64(void *le64_dst, const void *be64_src)
 {
-	return (__force __le64)swab64p(dev_addr);
+	__le64 tmp = (__force __le64)swab64p(be64_src);
+
+	memcpy(le64_dst, &tmp, IEEE802154_EXTENDED_ADDR_LEN);
 }
 
 /**
