@@ -928,9 +928,6 @@ select_task_rq_dl(struct task_struct *p, int cpu, int sd_flag, int flags)
 	struct task_struct *curr;
 	struct rq *rq;
 
-	if (p->nr_cpus_allowed == 1)
-		goto out;
-
 	if (sd_flag != SD_BALANCE_WAKE)
 		goto out;
 
