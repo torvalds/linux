@@ -164,8 +164,6 @@ struct usbduxsigma_private {
 	unsigned ao_cmd_running:1;
 	unsigned pwm_cmd_running:1;
 
-	/* number of samples to acquire */
-	int ai_sample_count;
 	/* time between samples in units of the timer */
 	unsigned int ai_timer;
 	unsigned int ao_timer;
@@ -226,14 +224,6 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 	if (devpriv->ai_counter == 0) {
 		devpriv->ai_counter = devpriv->ai_timer;
 
-		if (cmd->stop_src == TRIG_COUNT) {
-			devpriv->ai_sample_count--;
-			if (devpriv->ai_sample_count < 0) {
-				async->events |= COMEDI_CB_EOA;
-				return;
-			}
-		}
-
 		/* get the state of the dio pins to allow external trigger */
 		dio_state = be32_to_cpu(devpriv->in_buf[0]);
 
@@ -247,6 +237,10 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 			if (!comedi_buf_write_samples(s, &val, 1))
 				return;
 		}
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg)
+			async->events |= COMEDI_CB_EOA;
 	}
 
 	/* if command is still running, resubmit urb */
@@ -577,14 +571,6 @@ static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
 	}
 	if (devpriv->ai_timer < 1)
 		err |= -EINVAL;
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* data arrives as one packet */
-		devpriv->ai_sample_count = cmd->stop_arg;
-	} else {
-		/* continuous acquisition */
-		devpriv->ai_sample_count = 0;
-	}
 
 	if (err)
 		return 4;
