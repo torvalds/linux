@@ -273,6 +273,7 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	int replaced_count = 0;
 	int from = data_offset_in_page << orig_inode->i_blkbits;
 	int blocks_per_page = PAGE_CACHE_SIZE >> orig_inode->i_blkbits;
+	struct super_block *sb = orig_inode->i_sb;
 
 	/*
 	 * It needs twice the amount of ordinary journal buffers because
@@ -405,10 +406,13 @@ unlock_pages:
 	page_cache_release(pagep[1]);
 stop_journal:
 	ext4_journal_stop(handle);
+	if (*err == -ENOSPC &&
+	    ext4_should_retry_alloc(sb, &retries))
+		goto again;
 	/* Buffer was busy because probably is pinned to journal transaction,
 	 * force transaction commit may help to free it. */
-	if (*err == -EBUSY && ext4_should_retry_alloc(orig_inode->i_sb,
-						      &retries))
+	if (*err == -EBUSY && retries++ < 4 && EXT4_SB(sb)->s_journal &&
+	    jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal))
 		goto again;
 	return replaced_count;
 
