@@ -27,6 +27,7 @@
 #define IMA_UID		0x0008
 #define IMA_FOWNER	0x0010
 #define IMA_FSUUID	0x0020
+#define IMA_INMASK	0x0040
 #define IMA_EUID	0x0080
 
 #define UNKNOWN		0
@@ -186,6 +187,9 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 		return false;
 	if ((rule->flags & IMA_MASK) &&
 	    (rule->mask != mask && func != POST_SETATTR))
+		return false;
+	if ((rule->flags & IMA_INMASK) &&
+	    (!(rule->mask & mask) && func != POST_SETATTR))
 		return false;
 	if ((rule->flags & IMA_FSMAGIC)
 	    && rule->fsmagic != inode->i_sb->s_magic)
@@ -448,6 +452,7 @@ static void ima_log_string(struct audit_buffer *ab, char *key, char *value)
 static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 {
 	struct audit_buffer *ab;
+	char *from;
 	char *p;
 	int result = 0;
 
@@ -538,18 +543,23 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			if (entry->mask)
 				result = -EINVAL;
 
-			if ((strcmp(args[0].from, "MAY_EXEC")) == 0)
+			from = args[0].from;
+			if (*from == '^')
+				from++;
+
+			if ((strcmp(from, "MAY_EXEC")) == 0)
 				entry->mask = MAY_EXEC;
-			else if (strcmp(args[0].from, "MAY_WRITE") == 0)
+			else if (strcmp(from, "MAY_WRITE") == 0)
 				entry->mask = MAY_WRITE;
-			else if (strcmp(args[0].from, "MAY_READ") == 0)
+			else if (strcmp(from, "MAY_READ") == 0)
 				entry->mask = MAY_READ;
-			else if (strcmp(args[0].from, "MAY_APPEND") == 0)
+			else if (strcmp(from, "MAY_APPEND") == 0)
 				entry->mask = MAY_APPEND;
 			else
 				result = -EINVAL;
 			if (!result)
-				entry->flags |= IMA_MASK;
+				entry->flags |= (*args[0].from == '^')
+				     ? IMA_INMASK : IMA_MASK;
 			break;
 		case Opt_fsmagic:
 			ima_log_string(ab, "fsmagic", args[0].from);
