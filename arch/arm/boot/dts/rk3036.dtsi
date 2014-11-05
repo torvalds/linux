@@ -17,6 +17,7 @@
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
+		lcdc = &lcdc;
 		spi0 = &spi0;
 	};
 
