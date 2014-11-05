@@ -195,6 +195,7 @@ static inline void set_root_present(struct root_entry *root)
 }
 static inline void set_root_value(struct root_entry *root, unsigned long value)
 {
+	root->val &= ~VTD_PAGE_MASK;
 	root->val |= value & VTD_PAGE_MASK;
 }
 
@@ -247,6 +248,7 @@ static inline void context_set_translation_type(struct context_entry *context,
 static inline void context_set_address_root(struct context_entry *context,
 					    unsigned long value)
 {
+	context->lo &= ~VTD_PAGE_MASK;
 	context->lo |= value & VTD_PAGE_MASK;
 }
 
