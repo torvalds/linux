@@ -862,7 +862,7 @@ static int nvme_submit_admin_async_cmd(struct nvme_dev *dev,
 	return nvme_submit_cmd(nvmeq, cmd);
 }
 
-int __nvme_submit_admin_cmd(struct nvme_dev *dev, struct nvme_command *cmd,
+static int __nvme_submit_admin_cmd(struct nvme_dev *dev, struct nvme_command *cmd,
 						u32 *result, unsigned timeout)
 {
 	int res;
