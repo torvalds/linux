@@ -391,7 +391,7 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 	 * We really should have no remaining descriptors, but we
 	 * don't know what newer format manifests might leave.
 	 */
-	if (!list_empty(&manifest_descs))
+	if (result && !list_empty(&manifest_descs))
 		pr_info("excess descriptors in module manifest\n");
 out:
 	release_manifest_descriptors();
