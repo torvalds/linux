@@ -2609,9 +2609,9 @@ serial8250_set_termios(struct uart_port *port, struct ktermios *termios,
 }
 
 static void
-serial8250_set_ldisc(struct uart_port *port, int new)
+serial8250_set_ldisc(struct uart_port *port, struct ktermios *termios)
 {
-	if (new == N_PPS) {
+	if (termios->c_line == N_PPS) {
 		port->flags |= UPF_HARDPPS_CD;
 		serial8250_enable_ms(port);
 	} else

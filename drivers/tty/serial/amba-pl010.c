@@ -479,9 +479,9 @@ pl010_set_termios(struct uart_port *port, struct ktermios *termios,
 	spin_unlock_irqrestore(&uap->port.lock, flags);
 }
 
-static void pl010_set_ldisc(struct uart_port *port, int new)
+static void pl010_set_ldisc(struct uart_port *port, struct ktermios *termios)
 {
-	if (new == N_PPS) {
+	if (termios->c_line == N_PPS) {
 		port->flags |= UPF_HARDPPS_CD;
 		pl010_enable_ms(port);
 	} else

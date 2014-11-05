@@ -2056,9 +2056,9 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static void atmel_set_ldisc(struct uart_port *port, int new)
+static void atmel_set_ldisc(struct uart_port *port, struct ktermios *termios)
 {
-	if (new == N_PPS) {
+	if (termios->c_line == N_PPS) {
 		port->flags |= UPF_HARDPPS_CD;
 		atmel_enable_ms(port);
 	} else {

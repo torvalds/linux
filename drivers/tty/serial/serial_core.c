@@ -1247,7 +1247,7 @@ static void uart_set_ldisc(struct tty_struct *tty)
 
 	if (uport->ops->set_ldisc) {
 		mutex_lock(&state->port.mutex);
-		uport->ops->set_ldisc(uport, tty->termios.c_line);
+		uport->ops->set_ldisc(uport, &tty->termios);
 		mutex_unlock(&state->port.mutex);
 	}
 }
