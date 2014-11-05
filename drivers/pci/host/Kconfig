@@ -91,4 +91,12 @@ config PCI_XGENE
 	  There are 5 internal PCIe ports available. Each port is GEN3 capable
 	  and have varied lanes from x1 to x8.
 
+config PCI_LAYERSCAPE
+	bool "Freescale Layerscape PCIe controller"
+	depends on OF && ARM
+	select PCIE_DW
+	select MFD_SYSCON
+	help
+	  Say Y here if you want PCIe controller support on Layerscape SoCs.
+
 endmenu
