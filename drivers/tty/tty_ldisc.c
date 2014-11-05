@@ -393,16 +393,6 @@ static void __lockfunc tty_ldisc_unlock_pair(struct tty_struct *tty,
 		__tty_ldisc_unlock(tty2);
 }
 
-static void __lockfunc tty_ldisc_enable_pair(struct tty_struct *tty,
-					     struct tty_struct *tty2)
-{
-	clear_bit(TTY_LDISC_HALTED, &tty->flags);
-	if (tty2)
-		clear_bit(TTY_LDISC_HALTED, &tty2->flags);
-
-	tty_ldisc_unlock_pair(tty, tty2);
-}
-
 /**
  *	tty_ldisc_flush	-	flush line discipline queue
  *	@tty: tty
@@ -535,14 +525,13 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 {
 	int retval;
 	struct tty_ldisc *old_ldisc, *new_ldisc;
-	struct tty_struct *o_tty = tty->link;
 
 	new_ldisc = tty_ldisc_get(tty, ldisc);
 	if (IS_ERR(new_ldisc))
 		return PTR_ERR(new_ldisc);
 
 	tty_lock(tty);
-	retval = tty_ldisc_lock_pair_timeout(tty, o_tty, 5 * HZ);
+	retval = tty_ldisc_lock(tty, 5 * HZ);
 	if (retval) {
 		tty_ldisc_put(new_ldisc);
 		tty_unlock(tty);
@@ -554,7 +543,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	 */
 
 	if (tty->ldisc->ops->num == ldisc) {
-		tty_ldisc_enable_pair(tty, o_tty);
+		tty_ldisc_unlock(tty);
 		tty_ldisc_put(new_ldisc);
 		tty_unlock(tty);
 		return 0;
@@ -565,7 +554,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	if (test_bit(TTY_HUPPED, &tty->flags)) {
 		/* We were raced by the hangup method. It will have stomped
 		   the ldisc data and closed the ldisc down */
-		tty_ldisc_enable_pair(tty, o_tty);
+		tty_ldisc_unlock(tty);
 		tty_ldisc_put(new_ldisc);
 		tty_unlock(tty);
 		return -EIO;
@@ -599,13 +588,11 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	/*
 	 *	Allow ldisc referencing to occur again
 	 */
-	tty_ldisc_enable_pair(tty, o_tty);
+	tty_ldisc_unlock(tty);
 
 	/* Restart the work queue in case no characters kick it off. Safe if
 	   already running */
 	schedule_work(&tty->port->buf.work);
-	if (o_tty)
-		schedule_work(&o_tty->port->buf.work);
 
 	tty_unlock(tty);
 	return retval;
