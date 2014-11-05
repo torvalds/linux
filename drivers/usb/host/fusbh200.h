@@ -318,6 +318,10 @@ extern struct console early_dbgp_console;
 
 struct usb_hcd;
 
+#ifdef CONFIG_XEN_DOM0
+extern int xen_dbgp_reset_prep(struct usb_hcd *);
+extern int xen_dbgp_external_startup(struct usb_hcd *);
+#else
 static inline int xen_dbgp_reset_prep(struct usb_hcd *hcd)
 {
 	return 1; /* Shouldn't this be 0? */
@@ -327,6 +331,7 @@ static inline int xen_dbgp_external_startup(struct usb_hcd *hcd)
 {
 	return -1;
 }
+#endif
 
 #ifdef CONFIG_EARLY_PRINTK_DBGP
 /* Call backs from fusbh200 host driver to fusbh200 debug driver */
