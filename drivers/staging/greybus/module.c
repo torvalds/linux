@@ -168,7 +168,6 @@ gb_module_interface_init(struct gb_module *gmod, u8 interface_id, u8 device_id)
 		/* XXX clear route */
 		return ret;
 	}
-	interface->device_id = device_id;
 
 	return 0;
 }
