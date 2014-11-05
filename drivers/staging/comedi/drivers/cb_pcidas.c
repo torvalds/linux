@@ -356,8 +356,6 @@ struct cb_pcidas_private {
 	/* divisors of master clock for analog output pacing */
 	unsigned int ao_divisor1;
 	unsigned int ao_divisor2;
-	/* number of analog output samples remaining */
-	unsigned int ao_count;
 	unsigned int caldac_value[NUM_CHANNELS_8800];
 	unsigned int trimpot_value[NUM_CHANNELS_8402];
 	unsigned int dac08_value;
@@ -1134,17 +1132,12 @@ static void cb_pcidas_ao_load_fifo(struct comedi_device *dev,
 				   unsigned int nsamples)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int nbytes;
 
-	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_count < nsamples)
-		nsamples = devpriv->ao_count;
-
+	nsamples = comedi_nsamples_left(s, nsamples);
 	nbytes = comedi_buf_read_samples(s, devpriv->ao_buffer, nsamples);
-	nsamples = comedi_bytes_to_samples(s, nbytes);
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ao_count -= nsamples;
 
+	nsamples = comedi_bytes_to_samples(s, nbytes);
 	outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer, nsamples);
 }
 
@@ -1226,9 +1219,6 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER)
 		cb_pcidas_ao_load_counters(dev);
 
-	/*  set number of conversions */
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ao_count = cmd->chanlist_len * cmd->stop_arg;
 	/*  set pacer source */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	switch (cmd->scan_begin_src) {
@@ -1286,13 +1276,13 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 		     devpriv->control_status + INT_ADCFIFO);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 		if (inw(devpriv->ao_registers + DAC_CSR) & DAC_EMPTY) {
-			if (cmd->stop_src == TRIG_NONE ||
-			    (cmd->stop_src == TRIG_COUNT
-			     && devpriv->ao_count)) {
+			if (cmd->stop_src == TRIG_COUNT &&
+			    async->scans_done >= cmd->stop_arg) {
+				async->events |= COMEDI_CB_EOA;
+			} else {
 				dev_err(dev->class_dev, "dac fifo underflow\n");
 				async->events |= COMEDI_CB_ERROR;
 			}
-			async->events |= COMEDI_CB_EOA;
 		}
 	} else if (status & DAHFI) {
 		cb_pcidas_ao_load_fifo(dev, s, thisboard->fifo_size / 2);
