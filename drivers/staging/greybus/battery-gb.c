@@ -406,6 +406,7 @@ static struct gb_protocol battery_protocol = {
 	.minor			= 1,
 	.connection_init	= gb_battery_connection_init,
 	.connection_exit	= gb_battery_connection_exit,
+	.request_recv		= NULL,	/* no incoming requests */
 };
 
 bool gb_battery_protocol_init(void)

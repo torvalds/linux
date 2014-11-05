@@ -11,8 +11,11 @@
 
 #include "greybus.h"
 
+struct gb_operation;
+
 typedef int (*gb_connection_init_t)(struct gb_connection *);
 typedef void (*gb_connection_exit_t)(struct gb_connection *);
+typedef void (*gb_request_recv_t)(struct gb_operation *);
 
 /*
  * Protocols having the same id but different major and/or minor
@@ -29,6 +32,7 @@ struct gb_protocol {
 
 	gb_connection_init_t	connection_init;
 	gb_connection_exit_t	connection_exit;
+	gb_request_recv_t	request_recv;
 };
 
 bool gb_protocol_register(struct gb_protocol *protocol);

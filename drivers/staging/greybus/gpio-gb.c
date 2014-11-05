@@ -798,6 +798,7 @@ static struct gb_protocol gpio_protocol = {
 	.minor			= 1,
 	.connection_init	= gb_gpio_connection_init,
 	.connection_exit	= gb_gpio_connection_exit,
+	.request_recv		= NULL,	/* no incoming requests */
 };
 
 bool gb_gpio_protocol_init(void)

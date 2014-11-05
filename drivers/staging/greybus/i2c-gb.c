@@ -524,6 +524,7 @@ static struct gb_protocol i2c_protocol = {
 	.minor			= 1,
 	.connection_init	= gb_i2c_connection_init,
 	.connection_exit	= gb_i2c_connection_exit,
+	.request_recv		= NULL,	/* no incoming requests */
 };
 
 bool gb_i2c_protocol_init(void)

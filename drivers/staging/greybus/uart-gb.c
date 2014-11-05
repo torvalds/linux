@@ -526,6 +526,7 @@ static struct gb_protocol uart_protocol = {
 	.minor			= 1,
 	.connection_init	= gb_uart_connection_init,
 	.connection_exit	= gb_uart_connection_exit,
+	.request_recv		= NULL,	/* no incoming requests */
 };
 
 bool gb_uart_protocol_init(void)

@@ -176,46 +176,25 @@ int gb_operation_wait(struct gb_operation *operation)
 
 }
 
-/*
- * This handler is used if no operation response messages are ever
- * expected for a given protocol.
- */
-static void gb_operation_recv_none(struct gb_operation *operation)
-{
-	/* Nothing to do! */
-}
-
-typedef void (*gb_operation_recv_handler)(struct gb_operation *operation);
-static gb_operation_recv_handler gb_operation_recv_handlers[] = {
-	[GREYBUS_PROTOCOL_CONTROL]	= NULL,
-	[GREYBUS_PROTOCOL_AP]		= NULL,
-	[GREYBUS_PROTOCOL_GPIO]		= NULL,
-	[GREYBUS_PROTOCOL_I2C]		= gb_operation_recv_none,
-	[GREYBUS_PROTOCOL_UART]		= NULL,
-	[GREYBUS_PROTOCOL_HID]		= NULL,
-	[GREYBUS_PROTOCOL_BATTERY]	= gb_operation_recv_none,
-	[GREYBUS_PROTOCOL_LED]		= NULL,
-	[GREYBUS_PROTOCOL_VENDOR]	= NULL,
-};
-
 static void gb_operation_request_handle(struct gb_operation *operation)
 {
-	u8 protocol_id = operation->connection->protocol->id;
+	struct gb_protocol *protocol = operation->connection->protocol;
+	struct gb_operation_msg_hdr *header;
 
-	/* Subtract one from array size to stay within u8 range */
-	if (protocol_id <= (u8)(ARRAY_SIZE(gb_operation_recv_handlers) - 1)) {
-		gb_operation_recv_handler handler;
-
-		handler = gb_operation_recv_handlers[protocol_id];
-		if (handler) {
-			handler(operation);	/* Handle the request */
-			return;
-		}
+	/*
+	 * If the protocol has no incoming request handler, report
+	 * an error and mark the request bad.
+	 */
+	if (protocol->request_recv) {
+		protocol->request_recv(operation);
+		goto out;
 	}
 
+	header = operation->request->transfer_buffer;
 	gb_connection_err(operation->connection,
-		"unrecognized protocol id %hhu\n", protocol_id);
+		"unexpected incoming request type 0x%02hhx\n", header->type);
 	operation->result = GB_OP_PROTOCOL_BAD;
+out:
 	gb_operation_complete(operation);
 }
 

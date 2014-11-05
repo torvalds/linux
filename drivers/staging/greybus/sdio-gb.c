@@ -83,6 +83,7 @@ static struct gb_protocol sdio_protocol = {
 	.minor			= 1,
 	.connection_init	= gb_sdio_connection_init,
 	.connection_exit	= gb_sdio_connection_exit,
+	.request_recv		= NULL,	/* no incoming requests */
 };
 
 bool gb_sdio_protocol_init(void)
