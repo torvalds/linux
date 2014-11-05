@@ -298,7 +298,6 @@ static const struct boardtype boardtypes[] = {
 
 struct pci1710_private {
 	unsigned int CntrlReg;	/*  Control register */
-	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned char ai_et;
 	unsigned int ai_et_CntrlReg;
 	unsigned int ai_et_MuxVal;
@@ -730,15 +729,12 @@ static int pci171x_ai_cancel(struct comedi_device *dev,
 		break;
 	}
 
-	devpriv->ai_act_scan = 0;
-
 	return 0;
 }
 
 static void pci1710_handle_every_sample(struct comedi_device *dev,
 					struct comedi_subdevice *s)
 {
-	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int status;
 	unsigned int val;
@@ -772,14 +768,10 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 		val &= s->maxdata;
 		comedi_buf_write_samples(s, &val, 1);
 
-		if (s->async->cur_chan == 0) {	/*  one scan done */
-			devpriv->ai_act_scan++;
-			if (cmd->stop_src == TRIG_COUNT &&
-			    devpriv->ai_act_scan >= cmd->stop_arg) {
-				/*  all data sampled */
-				s->async->events |= COMEDI_CB_EOA;
-				break;
-			}
+		if (cmd->stop_src == TRIG_COUNT &&
+		    s->async->scans_done >= cmd->stop_arg) {
+			s->async->events |= COMEDI_CB_EOA;
+			break;
 		}
 	}
 
@@ -794,7 +786,6 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 static int move_block_from_fifo(struct comedi_device *dev,
 				struct comedi_subdevice *s, int n, int turn)
 {
-	struct pci1710_private *devpriv = dev->private;
 	unsigned int val;
 	int ret;
 	int i;
@@ -810,9 +801,6 @@ static int move_block_from_fifo(struct comedi_device *dev,
 
 		val &= s->maxdata;
 		comedi_buf_write_samples(s, &val, 1);
-
-		if (s->async->cur_chan == 0)
-			devpriv->ai_act_scan++;
 	}
 	return 0;
 }
@@ -821,7 +809,6 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
 	const struct boardtype *this_board = dev->board_ptr;
-	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int nsamples;
 	unsigned int m;
@@ -855,8 +842,7 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 	}
 
 	if (cmd->stop_src == TRIG_COUNT &&
-	    devpriv->ai_act_scan >= cmd->stop_arg) {
-		/* all data sampled */
+	    s->async->scans_done >= cmd->stop_arg) {
 		s->async->events |= COMEDI_CB_EOA;
 		comedi_handle_events(dev, s);
 		return;
@@ -920,8 +906,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
-
-	devpriv->ai_act_scan = 0;
 
 	devpriv->CntrlReg &= Control_CNT0;
 	if ((cmd->flags & CMDF_WAKE_EOS) == 0)
