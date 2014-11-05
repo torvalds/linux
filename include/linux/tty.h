@@ -621,10 +621,6 @@ extern long n_tty_compat_ioctl_helper(struct tty_struct *tty, struct file *file,
 
 extern void serial_console_init(void);
 
-/* pcxx.c */
-
-extern int pcxe_open(struct tty_struct *tty, struct file *filp);
-
 /* vt.c */
 
 extern int vt_ioctl(struct tty_struct *tty,
