@@ -205,9 +205,15 @@ void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 	}
 }
 
+static inline bool branch_user_callstack(unsigned br_sel)
+{
+	return (br_sel & X86_BR_USER) && (br_sel & X86_BR_CALL_STACK);
+}
+
 void intel_pmu_lbr_enable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	struct x86_perf_task_context *task_ctx;
 
 	if (!x86_pmu.lbr_nr)
 		return;
@@ -222,6 +228,12 @@ void intel_pmu_lbr_enable(struct perf_event *event)
 	}
 	cpuc->br_sel = event->hw.branch_reg.reg;
 
+	if (branch_user_callstack(cpuc->br_sel) && event->ctx &&
+					event->ctx->task_ctx_data) {
+		task_ctx = event->ctx->task_ctx_data;
+		task_ctx->lbr_callstack_users++;
+	}
+
 	cpuc->lbr_users++;
 	perf_sched_cb_inc(event->ctx->pmu);
 }
@@ -229,9 +241,16 @@ void intel_pmu_lbr_enable(struct perf_event *event)
 void intel_pmu_lbr_disable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	struct x86_perf_task_context *task_ctx;
 
 	if (!x86_pmu.lbr_nr)
 		return;
+
+	if (branch_user_callstack(cpuc->br_sel) && event->ctx &&
+					event->ctx->task_ctx_data) {
+		task_ctx = event->ctx->task_ctx_data;
+		task_ctx->lbr_callstack_users--;
+	}
 
 	cpuc->lbr_users--;
 	WARN_ON_ONCE(cpuc->lbr_users < 0);
