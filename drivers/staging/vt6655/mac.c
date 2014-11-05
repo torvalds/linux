@@ -71,7 +71,6 @@
 #include "tmacro.h"
 #include "mac.h"
 
-unsigned short TxRate_iwconfig;//2008-5-8 <add> by chester
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
