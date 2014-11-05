@@ -335,17 +335,14 @@ struct vnt_private {
 
 	unsigned char byMinChannel;
 	unsigned char byMaxChannel;
-	unsigned int	uConnectionRate;
 
 	unsigned char byPreambleType;
 	unsigned char byShortPreamble;
 
 	unsigned short wCurrentRate;
-	unsigned short wRTSThreshold;
 	unsigned char byShortRetryLimit;
 	unsigned char byLongRetryLimit;
 	enum nl80211_iftype op_mode;
-	unsigned char byOpMode;
 	bool bBSSIDFilter;
 	unsigned short wMaxTransmitMSDULifetime;
 
@@ -442,12 +439,7 @@ struct vnt_private {
 
 	unsigned char abyEEPROM[EEP_MAX_CONTEXT_SIZE]; /* unsigned long alignment */
 
-	/* for 802.11h */
-	bool b11hEnable;
-
 	unsigned short wBeaconInterval;
-
-	unsigned int	uChannel;
 
 	struct iw_statistics	wstats;		/* wireless stats */
 };
