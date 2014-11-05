@@ -130,7 +130,6 @@ struct pcmuio_asic {
 	spinlock_t pagelock;	/* protects the page registers */
 	spinlock_t spinlock;	/* protects member variables */
 	unsigned int enabled_mask;
-	unsigned int stop_count;
 	unsigned int active:1;
 };
 
@@ -338,14 +337,9 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 
 	comedi_buf_write_samples(s, &val, 1);
 
-	/* Check for end of acquisition. */
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (chip->stop_count > 0) {
-			chip->stop_count--;
-			if (chip->stop_count == 0)
-				s->async->events |= COMEDI_CB_EOA;
-		}
-	}
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg)
+		s->async->events |= COMEDI_CB_EOA;
 
 done:
 	spin_unlock_irqrestore(&chip->spinlock, flags);
@@ -473,8 +467,6 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	spin_lock_irqsave(&chip->spinlock, flags);
 	chip->active = 1;
-
-	chip->stop_count = cmd->stop_arg;
 
 	/* Set up start of acquisition. */
 	if (cmd->start_src == TRIG_INT)
