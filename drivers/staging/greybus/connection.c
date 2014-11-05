@@ -157,13 +157,16 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	struct gb_connection *connection;
 	struct greybus_host_device *hd;
 	int retval;
+	u8 major = 0;
+	u8 minor = 1;
 
 	connection = kzalloc(sizeof(*connection), GFP_KERNEL);
 	if (!connection)
 		return NULL;
 
 	INIT_LIST_HEAD(&connection->protocol_links);
-	if (!gb_protocol_get(connection, protocol_id)) {
+	/* XXX Will have to establish connections to get version */
+	if (!gb_protocol_get(connection, protocol_id, major, minor)) {
 		pr_err("protocol 0x%02hhx not found\n", protocol_id);
 		kfree(connection);
 		return NULL;
