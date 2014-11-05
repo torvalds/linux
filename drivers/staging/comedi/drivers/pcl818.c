@@ -313,7 +313,6 @@ struct pcl818_private {
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
 	unsigned int ns_min;	/*  manimal allowed delay between samples (in us) for actual card */
 	int i8253_osc_base;	/*  1/frequency of on board oscilator in ns */
-	int ai_act_scan;	/*  how many scans we finished */
 	unsigned int act_chanlist[16];	/*  MUX setting for actual AI operations */
 	unsigned int act_chanlist_len;	/*  how long is actual MUX list */
 	unsigned int act_chanlist_pos;	/*  actual position in MUX list */
@@ -524,11 +523,8 @@ static bool pcl818_ai_next_chan(struct comedi_device *dev,
 	if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len)
 		devpriv->act_chanlist_pos = 0;
 
-	if (s->async->cur_chan == 0)
-		devpriv->ai_act_scan--;
-
-	if (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan == 0) {
-		/* all data sampled */
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg) {
 		s->async->events |= COMEDI_CB_EOA;
 		return false;
 	}
@@ -635,6 +631,7 @@ static irqreturn_t pcl818_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 
 	if (!dev->attached || !devpriv->ai_cmd_running) {
 		pcl818_ai_clear_eoc(dev);
@@ -648,7 +645,7 @@ static irqreturn_t pcl818_interrupt(int irq, void *d)
 		 * being reprogrammed while a DMA transfer is in
 		 * progress.
 		 */
-		devpriv->ai_act_scan = 0;
+		s->async->scans_done = cmd->stop_arg;
 		s->cancel(dev, s);
 		return IRQ_HANDLED;
 	}
@@ -822,7 +819,6 @@ static int pcl818_ai_cmd(struct comedi_device *dev,
 	pcl818_ai_setup_chanlist(dev, cmd->chanlist, seglen);
 
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	devpriv->ai_act_scan = cmd->stop_arg;
 	devpriv->ai_cmd_running = 1;
 	devpriv->ai_cmd_canceled = 0;
 	devpriv->act_chanlist_pos = 0;
@@ -865,7 +861,8 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 
 	if (devpriv->dma) {
 		if (cmd->stop_src == TRIG_NONE ||
-		    (cmd->stop_src == TRIG_COUNT && devpriv->ai_act_scan > 0)) {
+		    (cmd->stop_src == TRIG_COUNT &&
+		     s->async->scans_done < cmd->stop_arg)) {
 			if (!devpriv->ai_cmd_canceled) {
 				/*
 				* Wait for running dma transfer to end,
