@@ -297,8 +297,6 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 			 DMA_FROM_DEVICE);
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt rx netbuf pop: ",
 			msdu->data, msdu->len + skb_tailroom(msdu));
-	trace_ath10k_htt_rx_pop_msdu(ar, msdu->data, msdu->len +
-				     skb_tailroom(msdu));
 
 	return msdu;
 }
@@ -903,6 +901,8 @@ static void ath10k_process_rx(struct ath10k *ar,
 		   !!(status->flag & RX_FLAG_AMSDU_MORE));
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "rx skb: ",
 			skb->data, skb->len);
+	trace_ath10k_rx_hdr(ar, skb->data, skb->len);
+	trace_ath10k_rx_payload(ar, skb->data, skb->len);
 
 	ieee80211_rx(ar->hw, skb);
 }
