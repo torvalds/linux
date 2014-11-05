@@ -241,4 +241,15 @@ enum rk312x_cru_clk_gate {
 	RK312X_CLKGATE_PCLK_UART1,
 	RK312X_CLKGATE_PCLK_UART2,
 };
+
+/*************************RK3368********************************/
+
+/*******************CRU OFFSET*********************/
+#define RK3368_CRU_CLKSEL_CON		0x100
+#define RK3368_CRU_CLKGATE_CON		0x200
+
+#define RK3368_PLL_CONS(id, i)		((id) * 0x10 + ((i) * 4))
+#define RK3368_CRU_CLKSELS_CON(i)	(RK3368_CRU_CLKSEL_CON + ((i) * 4))
+#define RK3368_CRU_CLKGATES_CON(i)	(RK3368_CRU_CLKGATE_CON + ((i) * 4))
+
 #endif

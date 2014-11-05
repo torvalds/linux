@@ -43,6 +43,8 @@
 #define CLK_PLL_3036_APLL	BIT(6)
 #define CLK_PLL_3036PLUS_AUTO	BIT(7)
 #define CLK_PLL_312XPLUS	BIT(8)
+#define CLK_PLL_3368_APLLB	BIT(9)
+#define CLK_PLL_3368_APLLL	BIT(10)
 
 
 /* rate_ops index */
@@ -64,6 +66,7 @@
 #define CLKOPS_RATE_RK3288_DCLK_LCDC0	16
 #define CLKOPS_RATE_RK3288_DCLK_LCDC1	17
 #define CLKOPS_RATE_DDR_DIV2		18
+#define CLKOPS_RATE_DDR_DIV4		19
 #define CLKOPS_TABLE_END		(~0)
 
 /* pd id */

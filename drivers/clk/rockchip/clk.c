@@ -1050,6 +1050,31 @@ out:
 	return ret;
 }
 
+static int __init rkclk_init_special_regs(struct device_node *np)
+{
+	struct device_node *node;
+	const char *compatible;
+	void __iomem *reg = 0;
+	int ret = 0;
+
+
+	for_each_available_child_of_node(np, node) {
+		clk_debug("\n");
+		of_property_read_string(node, "compatible", &compatible);
+		if (strcmp(compatible, "rockchip,rk3188-mux-con") == 0) {
+			reg = of_iomap(node, 0);
+			ret = rkclk_init_muxinfo(node, reg);
+			if (ret != 0) {
+				clk_err("%s: init mux con err\n", __func__);
+				goto out;
+			}
+		}
+	}
+
+out:
+	return ret;
+}
+
 static int __init rkclk_init_pd(struct device_node *np)
 {
 	struct device_node *node = NULL;
@@ -1839,22 +1864,27 @@ static void __init rk_clk_tree_init(struct device_node *np)
 		if (strcmp(compatible, "rockchip,rk-fixed-rate-cons") == 0) {
 			if (rkclk_init_fixed_rate(node) != 0) {
 				clk_err("%s: init fixed_rate err\n", __func__);
-				return ;
+				return;
 			}
 		} else if (strcmp(compatible, "rockchip,rk-fixed-factor-cons") == 0) {
 			if (rkclk_init_fixed_factor(node) != 0) {
 				clk_err("%s: init fixed_factor err\n", __func__);
-				return ;
+				return;
 			}
 		} else if (strcmp(compatible, "rockchip,rk-clock-regs") == 0) {
 			if (rkclk_init_regcon(node) != 0) {
 				clk_err("%s: init reg cons err\n", __func__);
-				return ;
+				return;
 			}
 		} else if (strcmp(compatible, "rockchip,rk-pd-cons") == 0) {
 			if (rkclk_init_pd(node) != 0) {
 				clk_err("%s: init pd err\n", __func__);
-				return ;
+				return;
+			}
+		} else if (strcmp(compatible, "rockchip,rk-clock-special-regs") == 0) {
+			if (rkclk_init_special_regs(node) != 0) {
+				clk_err("%s: init special reg err\n", __func__);
+				return;
 			}
 		} else {
 			clk_err("%s: unknown\n", __func__);

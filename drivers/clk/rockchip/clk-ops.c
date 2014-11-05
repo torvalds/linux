@@ -494,6 +494,24 @@ const struct clk_ops clkops_rate_ddr_div2 = {
 	.determine_rate = clk_ddr_determine_rate,
 };
 
+static unsigned long clk_ddr_div4_recalc_rate(struct clk_hw *hw,
+					      unsigned long parent_rate)
+{
+	/* Same as clk_core, we should NOT set clk_ddr's parent
+	 * (dpll) rate directly as a side effect.
+	 */
+	struct clk *parent = __clk_get_parent(hw->clk);
+
+	return clk_divider_recalc_rate(hw, __clk_get_rate(parent))/4;
+}
+
+const struct clk_ops clkops_rate_ddr_div4 = {
+	.recalc_rate	= clk_ddr_div4_recalc_rate,
+	.round_rate	= clk_ddr_round_rate,
+	.set_rate	= clk_ddr_set_rate,
+	.determine_rate = clk_ddr_determine_rate,
+};
+
 static unsigned long clk_3288_i2s_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
@@ -710,7 +728,8 @@ struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_RK3288_USB480M,	.clk_ops = &clkops_rate_3288_usb480m},
 	{.index = CLKOPS_RATE_RK3288_DCLK_LCDC0,.clk_ops = &clkops_rate_3288_dclk_lcdc0},
 	{.index = CLKOPS_RATE_RK3288_DCLK_LCDC1,.clk_ops = &clkops_rate_3288_dclk_lcdc1},
-	{.index = CLKOPS_RATE_DDR_DIV2,	.clk_ops = &clkops_rate_ddr_div2},
+	{.index = CLKOPS_RATE_DDR_DIV2,		.clk_ops = &clkops_rate_ddr_div2},
+	{.index = CLKOPS_RATE_DDR_DIV4,		.clk_ops = &clkops_rate_ddr_div4},
 	{.index = CLKOPS_RATE_I2S,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_CIFOUT,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_UART,		.clk_ops = NULL},
