@@ -154,6 +154,7 @@
 				>;
 			temp-limit-enable = <1>;
 			target-temp = <85>;
+			status = "okay";
 		};
 	 };
 };
