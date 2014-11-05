@@ -150,29 +150,25 @@ static void stmmac_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-#ifdef CONFIG_PM
-static int stmmac_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int stmmac_pci_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *ndev = pci_get_drvdata(pdev);
-	int ret;
 
-	ret = stmmac_suspend(ndev);
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
-	return ret;
+	return stmmac_suspend(ndev);
 }
 
-static int stmmac_pci_resume(struct pci_dev *pdev)
+static int stmmac_pci_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *ndev = pci_get_drvdata(pdev);
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
 
 	return stmmac_resume(ndev);
 }
 #endif
+
+static SIMPLE_DEV_PM_OPS(stmmac_pm_ops, stmmac_pci_suspend, stmmac_pci_resume);
 
 #define STMMAC_VENDOR_ID 0x700
 #define STMMAC_DEVICE_ID 0x1108
@@ -190,10 +186,9 @@ struct pci_driver stmmac_pci_driver = {
 	.id_table = stmmac_id_table,
 	.probe = stmmac_pci_probe,
 	.remove = stmmac_pci_remove,
-#ifdef CONFIG_PM
-	.suspend = stmmac_pci_suspend,
-	.resume = stmmac_pci_resume,
-#endif
+	.driver         = {
+		.pm     = &stmmac_pm_ops,
+	},
 };
 
 MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet PCI driver");
