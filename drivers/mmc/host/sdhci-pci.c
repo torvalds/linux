@@ -652,8 +652,10 @@ static int amd_probe(struct sdhci_pci_chip *chip)
 	smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
 			PCI_DEVICE_ID_AMD_HUDSON2_SMBUS, NULL);
 
-	if (smbus_dev && (smbus_dev->revision < 0x51))
+	if (smbus_dev && (smbus_dev->revision < 0x51)) {
 		chip->quirks2 |= SDHCI_QUIRK2_CLEAR_TRANSFERMODE_REG_BEFORE_CMD;
+		chip->quirks2 |= SDHCI_QUIRK2_BROKEN_HS200;
+	}
 
 	return 0;
 }
