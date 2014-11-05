@@ -17,10 +17,24 @@ static struct gb_protocol *_gb_protocol_find(u8 id, u8 major, u8 minor)
 {
 	struct gb_protocol *protocol;
 
-	list_for_each_entry(protocol, &gb_protocols, links)
-		if (protocol->id == id && protocol->major == major
-					&& protocol->minor == minor)
-			return protocol;
+	list_for_each_entry(protocol, &gb_protocols, links) {
+		if (protocol->id < id)
+			continue;
+		if (protocol->id > id)
+			break;
+
+		if (protocol->major > major)
+			continue;
+		if (protocol->major < major)
+			break;
+
+		if (protocol->minor > minor)
+			continue;
+		if (protocol->minor < minor)
+			break;
+
+		return protocol;
+	}
 	return NULL;
 }
 
@@ -38,24 +52,52 @@ bool gb_protocol_register(u8 id, u8 major, u8 minor)
 	protocol->major = major;
 	protocol->minor = minor;
 
+	/*
+	 * The protocols list is sorted first by protocol id (low to
+	 * high), then by major version (high to low), and finally
+	 * by minor version (high to low).  Searching only by
+	 * protocol id will produce the newest implemented version
+	 * of the protocol.
+	 */
 	spin_lock_irq(&gb_protocols_lock);
-	existing = _gb_protocol_find(id, major, minor);
-	if (!existing)
-		list_add(&protocol->links, &gb_protocols);
-	spin_unlock_irq(&gb_protocols_lock);
 
-	if (existing) {
+	list_for_each_entry(existing, &gb_protocols, links) {
+		if (existing->id < id)
+			continue;
+		if (existing->id > id)
+			break;
+
+		if (existing->major > major)
+			continue;
+		if (existing->major < major)
+			break;
+
+		if (existing->minor > minor)
+			continue;
+		if (existing->minor < minor)
+			break;
+
+		/* A matching protocol has already been registered */
+		spin_unlock_irq(&gb_protocols_lock);
 		kfree(protocol);
-		protocol = NULL;
+
+		return false;
 	}
 
-	return protocol != NULL;
+	/*
+	 * We need to insert the protocol here, before the existing one
+	 * (or before the head if we searched the whole list)
+	 */
+	list_add_tail(&protocol->links, &existing->links);
+	spin_unlock_irq(&gb_protocols_lock);
+
+	return true;
 }
 
 /* Returns true if successful, false otherwise */
 bool gb_protocol_deregister(struct gb_protocol *protocol)
 {
-	u8 protocol_count;
+	u8 protocol_count = 0;
 
 	spin_lock_irq(&gb_protocols_lock);
 	protocol = _gb_protocol_find(protocol->id, protocol->major,
