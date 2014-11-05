@@ -175,6 +175,6 @@ void mac802154_unlock_table(struct net_device *dev);
 
 struct net_device *
 mac802154_add_iface(struct wpan_phy *phy, const char *name, int type);
-void mac802154_del_iface(struct wpan_phy *phy, struct net_device *dev);
+void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata);
 
 #endif /* __IEEE802154_I_H */

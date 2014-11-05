@@ -28,7 +28,9 @@ ieee802154_add_iface_deprecated(struct wpan_phy *wpan_phy,
 static void ieee802154_del_iface_deprecated(struct wpan_phy *wpan_phy,
 					    struct net_device *dev)
 {
-	mac802154_del_iface(wpan_phy, dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	ieee802154_if_remove(sdata);
 }
 
 const struct cfg802154_ops mac802154_config_ops = {

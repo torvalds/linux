@@ -443,3 +443,15 @@ void mac802154_monitor_setup(struct net_device *dev)
 
 	sdata->promisuous_mode = true;
 }
+
+void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata)
+{
+	ASSERT_RTNL();
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	list_del_rcu(&sdata->list);
+	mutex_unlock(&sdata->local->iflist_mtx);
+
+	synchronize_rcu();
+	unregister_netdevice(sdata->dev);
+}
