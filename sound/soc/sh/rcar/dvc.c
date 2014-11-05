@@ -40,6 +40,7 @@ struct rsnd_dvc {
 static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 {
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	u32 dvucr = 0;
 	u32 mute = 0;
 	int i;
 
@@ -47,10 +48,18 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 		mute |= (!!dvc->mute.val[i]) << i;
 	}
 
+	/* Enable Digital Volume */
+	dvucr = 0x100;
 	rsnd_mod_write(mod, DVC_VOL0R, dvc->volume.val[0]);
 	rsnd_mod_write(mod, DVC_VOL1R, dvc->volume.val[1]);
 
-	rsnd_mod_write(mod, DVC_ZCMCR, mute);
+	/*  Enable Mute */
+	if (mute) {
+		dvucr |= 0x1;
+		rsnd_mod_write(mod, DVC_ZCMCR, mute);
+	}
+
+	rsnd_mod_write(mod, DVC_DVUCR, dvucr);
 }
 
 static int rsnd_dvc_probe_gen2(struct rsnd_mod *mod,
@@ -102,9 +111,6 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 	rsnd_mod_write(dvc_mod, DVC_DVUIR, 1);
 
 	rsnd_mod_write(dvc_mod, DVC_ADINR, rsnd_get_adinr(dvc_mod));
-
-	/*  enable Volume / Mute */
-	rsnd_mod_write(dvc_mod, DVC_DVUCR, 0x101);
 
 	/* ch0/ch1 Volume */
 	rsnd_dvc_volume_update(dvc_mod);
