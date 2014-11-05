@@ -78,8 +78,8 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	/* Enable pci device */
 	ret = pcim_enable_device(pdev);
 	if (ret) {
-		pr_err("%s : ERROR: failed to enable %s device\n", __func__,
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "%s: ERROR: failed to enable device\n",
+			__func__);
 		return ret;
 	}
 
@@ -100,7 +100,7 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	priv = stmmac_dvr_probe(&pdev->dev, &plat_dat,
 				pcim_iomap_table(pdev)[i]);
 	if (IS_ERR(priv)) {
-		pr_err("%s: main driver probe failed", __func__);
+		dev_err(&pdev->dev, "%s: main driver probe failed\n", __func__);
 		return PTR_ERR(priv);
 	}
 	priv->dev->irq = pdev->irq;
@@ -108,7 +108,7 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, priv->dev);
 
-	pr_debug("STMMAC platform driver registration completed");
+	dev_dbg(&pdev->dev, "STMMAC PCI driver registration completed\n");
 
 	return 0;
 }
