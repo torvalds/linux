@@ -20,7 +20,7 @@ Description:
 		action: measure | dont_measure | appraise | dont_appraise | audit
 		condition:= base | lsm  [option]
 			base:	[[func=] [mask=] [fsmagic=] [fsuuid=] [uid=]
-				 [fowner]]
+				[euid=] [fowner=]]
 			lsm:	[[subj_user=] [subj_role=] [subj_type=]
 				 [obj_user=] [obj_role=] [obj_type=]]
 			option:	[[appraise_type=]] [permit_directio]
@@ -31,6 +31,7 @@ Description:
 			fsmagic:= hex value
 			fsuuid:= file system UUID (e.g 8bcbe394-4f13-4144-be8e-5aa9ea2ce2f6)
 			uid:= decimal value
+			euid:= decimal value
 			fowner:=decimal value
 		lsm:  	are LSM specific
 		option:	appraise_type:= [imasig]
