@@ -51,6 +51,8 @@ MODULE_LICENSE("GPL");
 
 #define CALL(q, f, arg...)						\
 	((q->int_ops->f) ? q->int_ops->f(arg) : 0)
+#define CALLPTR(q, f, arg...)						\
+	((q->int_ops->f) ? q->int_ops->f(arg) : NULL)
 
 struct videobuf_buffer *videobuf_alloc_vb(struct videobuf_queue *q)
 {
@@ -831,7 +833,7 @@ static int __videobuf_copy_to_user(struct videobuf_queue *q,
 				   char __user *data, size_t count,
 				   int nonblocking)
 {
-	void *vaddr = CALL(q, vaddr, buf);
+	void *vaddr = CALLPTR(q, vaddr, buf);
 
 	/* copy to userspace */
 	if (count > buf->size - q->read_off)
@@ -848,7 +850,7 @@ static int __videobuf_copy_stream(struct videobuf_queue *q,
 				  char __user *data, size_t count, size_t pos,
 				  int vbihack, int nonblocking)
 {
-	unsigned int *fc = CALL(q, vaddr, buf);
+	unsigned int *fc = CALLPTR(q, vaddr, buf);
 
 	if (vbihack) {
 		/* dirty, undocumented hack -- pass the frame counter
