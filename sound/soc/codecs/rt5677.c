@@ -1353,7 +1353,7 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new rt5677_ib45_bypass_src_mux =
 	SOC_DAPM_ENUM("IB45 Bypass Source", rt5677_ib45_bypass_src_enum);
 
-/* Stereo ADC Source 2 */ /* MX-27 MX26  MX25 [11:10] */
+/* Stereo ADC Source 2 */ /* MX-27 MX26 MX25 [11:10] */
 static const char * const rt5677_stereo_adc2_src[] = {
 	"DD MIX1", "DMIC", "Stereo DAC MIX"
 };
@@ -1438,7 +1438,7 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new rt5677_sto2_adc_lr_mux =
 	SOC_DAPM_ENUM("Stereo2 ADC LR Source", rt5677_stereo2_adc_lr_enum);
 
-/* Stereo1 ADC Source 1 */ /* MX-27 MX26  MX25 [13:12] */
+/* Stereo1 ADC Source 1 */ /* MX-27 MX26 MX25 [13:12] */
 static const char * const rt5677_stereo_adc1_src[] = {
 	"DD MIX1", "ADC1/2", "Stereo DAC MIX"
 };
@@ -1710,7 +1710,7 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new rt5677_pdm2_r_mux =
 	SOC_DAPM_ENUM("PDM2 Source", rt5677_pdm2_r_enum);
 
-/* TDM IF1/2 SLB ADC1 Data Selection */ /* MX-3C MX-41 [5:4] MX-08 [1:0]*/
+/* TDM IF1/2 SLB ADC1 Data Selection */ /* MX-3C MX-41 [5:4] MX-08 [1:0] */
 static const char * const rt5677_if12_adc1_src[] = {
 	"STO1 ADC MIX", "OB01", "VAD ADC"
 };
@@ -1788,7 +1788,7 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new rt5677_slb_adc3_mux =
 	SOC_DAPM_ENUM("SLB ADC3 Source", rt5677_slb_adc3_enum);
 
-/* TDM IF1/2 SLB ADC4 Data Selection */ /* MX-3C MX-41 [11:10]  MX-08 [7:6] */
+/* TDM IF1/2 SLB ADC4 Data Selection */ /* MX-3C MX-41 [11:10] MX-08 [7:6] */
 static const char * const rt5677_if12_adc4_src[] = {
 	"STO4 ADC MIX", "OB67", "OB01"
 };
@@ -1814,7 +1814,7 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new rt5677_slb_adc4_mux =
 	SOC_DAPM_ENUM("SLB ADC4 Source", rt5677_slb_adc4_enum);
 
-/* Interface3/4 ADC Data Input */ /* MX-2F [3:0] MX-30 [7:4]*/
+/* Interface3/4 ADC Data Input */ /* MX-2F [3:0] MX-30 [7:4] */
 static const char * const rt5677_if34_adc_src[] = {
 	"STO1 ADC MIX", "STO2 ADC MIX", "STO3 ADC MIX", "STO4 ADC MIX",
 	"MONO ADC MIX", "OB01", "OB23", "VAD ADC"
@@ -1895,7 +1895,7 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new rt5677_if2_adc4_swap_mux =
 	SOC_DAPM_ENUM("IF2 ADC4 Swap Source", rt5677_if2_adc4_swap_enum);
 
-/* TDM IF1 ADC Data Selection */ /* MX-3C  [2:0] */
+/* TDM IF1 ADC Data Selection */ /* MX-3C [2:0] */
 static const char * const rt5677_if1_adc_tdm_swap_src[] = {
 	"1/2/3/4", "2/1/3/4", "2/3/1/4", "4/1/2/3", "1/3/2/4", "1/4/2/3",
 	"3/1/2/4", "3/4/1/2"
@@ -2442,7 +2442,7 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 		rt5677_ob_7_mix, ARRAY_SIZE(rt5677_ob_7_mix)),
 
 	/* Output Side */
-	/* DAC mixer before sound effect  */
+	/* DAC mixer before sound effect */
 	SND_SOC_DAPM_MIXER("DAC1 MIXL", SND_SOC_NOPM, 0, 0,
 		rt5677_dac_l_mix, ARRAY_SIZE(rt5677_dac_l_mix)),
 	SND_SOC_DAPM_MIXER("DAC1 MIXR", SND_SOC_NOPM, 0, 0,

@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __RT5671_SPI_H__
-#define __RT5671_SPI_H__
+#ifndef __RT5677_SPI_H__
+#define __RT5677_SPI_H__
 
 #define RT5677_SPI_BUF_LEN 240
 #define RT5677_SPI_CMD_BURST_WRITE 0x05
