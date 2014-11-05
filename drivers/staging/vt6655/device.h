@@ -440,9 +440,6 @@ struct vnt_private {
 	unsigned long uNumSQ3[MAX_RATE];
 	unsigned short wAntDiversityMaxRate;
 
-	unsigned char abyBroadcastAddr[ETH_ALEN];
-	unsigned char abySNAP_RFC1042[ETH_ALEN];
-	unsigned char abySNAP_Bridgetunnel[ETH_ALEN];
 	unsigned char abyEEPROM[EEP_MAX_CONTEXT_SIZE]; /* unsigned long alignment */
 
 	/* for 802.11h */
