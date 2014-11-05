@@ -1402,6 +1402,19 @@ static void serial8250_stop_rx(struct uart_port *port)
 	serial8250_rpm_put(up);
 }
 
+static void serial8250_disable_ms(struct uart_port *port)
+{
+	struct uart_8250_port *up =
+		container_of(port, struct uart_8250_port, port);
+
+	/* no MSR capabilities */
+	if (up->bugs & UART_BUG_NOMSR)
+		return;
+
+	up->ier &= ~UART_IER_MSI;
+	serial_port_out(port, UART_IER, up->ier);
+}
+
 static void serial8250_enable_ms(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
@@ -2616,8 +2629,14 @@ serial8250_set_ldisc(struct uart_port *port, struct ktermios *termios)
 		spin_lock_irq(&port->lock);
 		serial8250_enable_ms(port);
 		spin_unlock_irq(&port->lock);
-	} else
+	} else {
 		port->flags &= ~UPF_HARDPPS_CD;
+		if (!UART_ENABLE_MS(port, termios->c_cflag)) {
+			spin_lock_irq(&port->lock);
+			serial8250_disable_ms(port);
+			spin_unlock_irq(&port->lock);
+		}
+	}
 }
 
 

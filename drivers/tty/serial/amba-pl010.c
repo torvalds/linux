@@ -106,6 +106,16 @@ static void pl010_stop_rx(struct uart_port *port)
 	writel(cr, uap->port.membase + UART010_CR);
 }
 
+static void pl010_disable_ms(struct uart_port *port)
+{
+	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	unsigned int cr;
+
+	cr = readb(uap->port.membase + UART010_CR);
+	cr &= ~UART010_CR_MSIE;
+	writel(cr, uap->port.membase + UART010_CR);
+}
+
 static void pl010_enable_ms(struct uart_port *port)
 {
 	struct uart_amba_port *uap =
@@ -486,8 +496,14 @@ static void pl010_set_ldisc(struct uart_port *port, struct ktermios *termios)
 		spin_lock_irq(&port->lock);
 		pl010_enable_ms(port);
 		spin_unlock_irq(&port->lock);
-	} else
+	} else {
 		port->flags &= ~UPF_HARDPPS_CD;
+		if (!UART_ENABLE_MS(port, termios->c_cflag)) {
+			spin_lock_irq(&port->lock);
+			pl010_disable_ms(port);
+			spin_unlock_irq(&port->lock);
+		}
+	}
 }
 
 static const char *pl010_type(struct uart_port *port)

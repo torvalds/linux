@@ -2065,6 +2065,11 @@ static void atmel_set_ldisc(struct uart_port *port, struct ktermios *termios)
 		spin_unlock_irq(&port->lock);
 	} else {
 		port->flags &= ~UPF_HARDPPS_CD;
+		if (!UART_ENABLE_MS(port, termios->c_cflag)) {
+			spin_lock_irq(&port->lock);
+			atmel_disable_ms(port);
+			spin_unlock_irq(&port->lock);
+		}
 	}
 }
 
