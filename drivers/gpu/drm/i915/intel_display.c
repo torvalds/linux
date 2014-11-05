@@ -11325,8 +11325,18 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 						   &modeset_pipes,
 						   &prepare_pipes,
 						   &disable_pipes);
-	if (IS_ERR(pipe_config))
+	if (IS_ERR(pipe_config)) {
 		goto fail;
+	} else if (pipe_config) {
+		if (to_intel_crtc(set->crtc)->new_config->has_audio !=
+		    to_intel_crtc(set->crtc)->config.has_audio)
+			config->mode_changed = true;
+
+		/* Force mode sets for any infoframe stuff */
+		if (to_intel_crtc(set->crtc)->new_config->has_infoframe ||
+		    to_intel_crtc(set->crtc)->config.has_infoframe)
+			config->mode_changed = true;
+	}
 
 	/* set_mode will free it in the mode_changed case */
 	if (!config->mode_changed)
