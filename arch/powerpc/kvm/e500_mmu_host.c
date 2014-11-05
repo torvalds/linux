@@ -661,7 +661,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
 	if (unlikely((pr && !(mas3 & MAS3_UX)) ||
 		     (!pr && !(mas3 & MAS3_SX)))) {
 		pr_err_ratelimited(
-			"%s: Instuction emulation from guest addres %08lx without execute permission\n",
+			"%s: Instruction emulation from guest address %08lx without execute permission\n",
 			__func__, geaddr);
 		return EMULATE_AGAIN;
 	}
@@ -673,7 +673,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
 	if (has_feature(vcpu, VCPU_FTR_MMU_V2) &&
 	    unlikely((mas2 & MAS2_I) || (mas2 & MAS2_W) || !(mas2 & MAS2_M))) {
 		pr_err_ratelimited(
-			"%s: Instuction emulation from guest addres %08lx mismatches storage attributes\n",
+			"%s: Instruction emulation from guest address %08lx mismatches storage attributes\n",
 			__func__, geaddr);
 		return EMULATE_AGAIN;
 	}
@@ -686,7 +686,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
 
 	/* Guard against emulation from devices area */
 	if (unlikely(!page_is_ram(pfn))) {
-		pr_err_ratelimited("%s: Instruction emulation from non-RAM host addres %08llx is not supported\n",
+		pr_err_ratelimited("%s: Instruction emulation from non-RAM host address %08llx is not supported\n",
 			 __func__, addr);
 		return EMULATE_AGAIN;
 	}

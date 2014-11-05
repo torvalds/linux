@@ -701,7 +701,7 @@ config PDC_CONSOLE
 	  Saying Y here will enable the software based PDC console to be 
 	  used as the system console.  This is useful for machines in 
 	  which the hardware based console has not been written yet.  The
-	  following steps must be competed to use the PDC console:
+	  following steps must be completed to use the PDC console:
 
 	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
 	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
