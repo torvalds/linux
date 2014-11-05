@@ -116,7 +116,10 @@ static void host1x_subdev_register(struct host1x_device *device,
 	if (list_empty(&device->subdevs)) {
 		err = device->driver->probe(device);
 		if (err < 0)
-			dev_err(&device->dev, "probe failed: %d\n", err);
+			dev_err(&device->dev, "probe failed for %ps: %d\n",
+				device->driver, err);
+		else
+			device->bound = true;
 	}
 }
 
@@ -130,10 +133,12 @@ static void __host1x_subdev_unregister(struct host1x_device *device,
 	 * If all subdevices have been activated, we're about to remove the
 	 * first active subdevice, so unload the driver first.
 	 */
-	if (list_empty(&device->subdevs)) {
+	if (list_empty(&device->subdevs) && device->bound) {
 		err = device->driver->remove(device);
 		if (err < 0)
 			dev_err(&device->dev, "remove failed: %d\n", err);
+
+		device->bound = false;
 	}
 
 	/*

@@ -272,6 +272,8 @@ struct host1x_device {
 
 	struct mutex clients_lock;
 	struct list_head clients;
+
+	bool bound;
 };
 
 static inline struct host1x_device *to_host1x_device(struct device *dev)
