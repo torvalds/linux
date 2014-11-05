@@ -48,6 +48,9 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 		mute |= (!!dvc->mute.val[i]) << i;
 	}
 
+	/* Disable DVC Register access */
+	rsnd_mod_write(mod, DVC_DVUER, 0);
+
 	/* Enable Digital Volume */
 	dvucr = 0x100;
 	rsnd_mod_write(mod, DVC_VOL0R, dvc->volume.val[0]);
@@ -60,6 +63,9 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 	}
 
 	rsnd_mod_write(mod, DVC_DVUCR, dvucr);
+
+	/* Enable DVC Register access */
+	rsnd_mod_write(mod, DVC_DVUER, 1);
 }
 
 static int rsnd_dvc_probe_gen2(struct rsnd_mod *mod,
@@ -116,8 +122,6 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 	rsnd_dvc_volume_update(dvc_mod);
 
 	rsnd_mod_write(dvc_mod, DVC_DVUIR, 0);
-
-	rsnd_mod_write(dvc_mod, DVC_DVUER, 1);
 
 	rsnd_adg_set_cmd_timsel_gen2(rdai, dvc_mod, io);
 
