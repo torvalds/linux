@@ -149,3 +149,10 @@ config IMA_X509_PATH
 	default "/etc/keys/x509_ima.der"
 	help
 	   This option defines IMA X509 certificate path.
+
+config IMA_APPRAISE_SIGNED_INIT
+	bool "Require signed user-space initialization"
+	depends on IMA_LOAD_X509
+	default n
+	help
+	   This option requires user-space init to be signed.

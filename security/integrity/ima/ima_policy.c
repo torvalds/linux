@@ -100,7 +100,13 @@ static struct ima_rule_entry default_appraise_rules[] = {
 	{.action = DONT_APPRAISE, .fsmagic = SECURITYFS_MAGIC, .flags = IMA_FSMAGIC},
 	{.action = DONT_APPRAISE, .fsmagic = SELINUX_MAGIC, .flags = IMA_FSMAGIC},
 	{.action = DONT_APPRAISE, .fsmagic = CGROUP_SUPER_MAGIC, .flags = IMA_FSMAGIC},
+#ifndef CONFIG_IMA_APPRAISE_SIGNED_INIT
 	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID, .flags = IMA_FOWNER},
+#else
+	/* force signature */
+	{.action = APPRAISE, .fowner = GLOBAL_ROOT_UID,
+	 .flags = IMA_FOWNER | IMA_DIGSIG_REQUIRED},
+#endif
 };
 
 static LIST_HEAD(ima_default_rules);
