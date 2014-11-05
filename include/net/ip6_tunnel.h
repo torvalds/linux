@@ -65,7 +65,8 @@ void ip6_tnl_dst_reset(struct ip6_tnl *t);
 void ip6_tnl_dst_store(struct ip6_tnl *t, struct dst_entry *dst);
 int ip6_tnl_rcv_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
 		const struct in6_addr *raddr);
-int ip6_tnl_xmit_ctl(struct ip6_tnl *t);
+int ip6_tnl_xmit_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
+		     const struct in6_addr *raddr);
 __u16 ip6_tnl_parse_tlv_enc_lim(struct sk_buff *skb, __u8 *raw);
 __u32 ip6_tnl_get_cap(struct ip6_tnl *t, const struct in6_addr *laddr,
 			     const struct in6_addr *raddr);

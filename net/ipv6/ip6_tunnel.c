@@ -909,24 +909,28 @@ ip6_tnl_addr_conflict(const struct ip6_tnl *t, const struct ipv6hdr *hdr)
 	return ipv6_addr_equal(&t->parms.raddr, &hdr->saddr);
 }
 
-int ip6_tnl_xmit_ctl(struct ip6_tnl *t)
+int ip6_tnl_xmit_ctl(struct ip6_tnl *t,
+		     const struct in6_addr *laddr,
+		     const struct in6_addr *raddr)
 {
 	struct __ip6_tnl_parm *p = &t->parms;
 	int ret = 0;
 	struct net *net = t->net;
 
-	if (p->flags & IP6_TNL_F_CAP_XMIT) {
+	if ((p->flags & IP6_TNL_F_CAP_XMIT) ||
+	    ((p->flags & IP6_TNL_F_CAP_PER_PACKET) &&
+	     (ip6_tnl_get_cap(t, laddr, raddr) & IP6_TNL_F_CAP_XMIT))) {
 		struct net_device *ldev = NULL;
 
 		rcu_read_lock();
 		if (p->link)
 			ldev = dev_get_by_index_rcu(net, p->link);
 
-		if (unlikely(!ipv6_chk_addr(net, &p->laddr, ldev, 0)))
+		if (unlikely(!ipv6_chk_addr(net, laddr, ldev, 0)))
 			pr_warn("%s xmit: Local address not yet configured!\n",
 				p->name);
-		else if (!ipv6_addr_is_multicast(&p->raddr) &&
-			 unlikely(ipv6_chk_addr(net, &p->raddr, NULL, 0)))
+		else if (!ipv6_addr_is_multicast(raddr) &&
+			 unlikely(ipv6_chk_addr(net, raddr, NULL, 0)))
 			pr_warn("%s xmit: Routing loop! Remote address found on this node!\n",
 				p->name);
 		else
@@ -977,6 +981,10 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 
 	if (!fl6->flowi6_mark)
 		dst = ip6_tnl_dst_check(t);
+
+	if (!ip6_tnl_xmit_ctl(t, &fl6->saddr, &fl6->daddr))
+		goto tx_err_link_failure;
+
 	if (!dst) {
 		ndst = ip6_route_output(net, NULL, fl6);
 
@@ -1086,8 +1094,7 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	int err;
 
 	tproto = ACCESS_ONCE(t->parms.proto);
-	if ((tproto != IPPROTO_IPIP && tproto != 0) ||
-	    !ip6_tnl_xmit_ctl(t))
+	if (tproto != IPPROTO_IPIP && tproto != 0)
 		return -1;
 
 	if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
@@ -1131,7 +1138,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tproto = ACCESS_ONCE(t->parms.proto);
 	if ((tproto != IPPROTO_IPV6 && tproto != 0) ||
-	    !ip6_tnl_xmit_ctl(t) || ip6_tnl_addr_conflict(t, ipv6h))
+	    ip6_tnl_addr_conflict(t, ipv6h))
 		return -1;
 
 	offset = ip6_tnl_parse_tlv_enc_lim(skb, skb_network_header(skb));
