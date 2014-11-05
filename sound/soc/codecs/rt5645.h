@@ -1348,6 +1348,8 @@
 #define RT5645_PWR_CLK25M_SFT			4
 #define RT5645_PWR_CLK25M_PD			(0x0 << 4)
 #define RT5645_PWR_CLK25M_PU			(0x1 << 4)
+#define RT5645_IRQ_CLK_MCLK			(0x0 << 3)
+#define RT5645_IRQ_CLK_INT			(0x1 << 3)
 
 /* VAD Control 4 (0x9d) */
 #define RT5645_VAD_SEL_MASK			(0x3 << 8)
@@ -2116,6 +2118,9 @@ enum {
 #define RT5645_RXDP2_SEL_ADC			(0x1 << 3)
 #define RT5645_RXDP2_SEL_SFT			(3)
 
+/* General Control3 (0xfc) */
+#define RT5645_IRQ_CLK_GATE_CTRL		(0x1 << 11)
+#define RT5645_MICINDET_MANU			(0x1 << 7)
 
 /* Vendor ID (0xfd) */
 #define RT5645_VER_C				0x2

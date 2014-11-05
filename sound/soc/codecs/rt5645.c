@@ -2203,6 +2203,13 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 
 	snd_soc_update_bits(codec, RT5645_CHARGE_PUMP, 0x0300, 0x0200);
 
+	/* for JD function */
+	if (rt5645->pdata.en_jd_func) {
+		snd_soc_dapm_force_enable_pin(&codec->dapm, "JD Power");
+		snd_soc_dapm_force_enable_pin(&codec->dapm, "LDO2");
+		snd_soc_dapm_sync(&codec->dapm);
+	}
+
 	return 0;
 }
 
@@ -2434,6 +2441,19 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 			break;
 		}
 
+	}
+
+	if (rt5645->pdata.en_jd_func) {
+		regmap_update_bits(rt5645->regmap, RT5645_GEN_CTRL3,
+			RT5645_IRQ_CLK_GATE_CTRL | RT5645_MICINDET_MANU,
+			RT5645_IRQ_CLK_GATE_CTRL | RT5645_MICINDET_MANU);
+		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1,
+			RT5645_CBJ_BST1_EN, RT5645_CBJ_BST1_EN);
+		regmap_update_bits(rt5645->regmap, RT5645_JD_CTRL3,
+			RT5645_JD_CBJ_EN | RT5645_JD_CBJ_POL,
+			RT5645_JD_CBJ_EN | RT5645_JD_CBJ_POL);
+		regmap_update_bits(rt5645->regmap, RT5645_MICBIAS,
+			RT5645_IRQ_CLK_INT, RT5645_IRQ_CLK_INT);
 	}
 
 	if (rt5645->i2c->irq) {
