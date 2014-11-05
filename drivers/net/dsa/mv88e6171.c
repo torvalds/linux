@@ -395,7 +395,7 @@ static int mv88e6171_get_sset_count(struct dsa_switch *ds)
 }
 
 struct dsa_switch_driver mv88e6171_switch_driver = {
-	.tag_protocol		= DSA_TAG_PROTO_DSA,
+	.tag_protocol		= DSA_TAG_PROTO_EDSA,
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
 	.probe			= mv88e6171_probe,
 	.setup			= mv88e6171_setup,

@@ -206,8 +206,6 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	inet->inet_dport = usin->sin_port;
 	inet->inet_daddr = daddr;
 
-	inet_set_txhash(sk);
-
 	inet_csk(sk)->icsk_ext_hdr_len = 0;
 	if (inet_opt)
 		inet_csk(sk)->icsk_ext_hdr_len = inet_opt->opt.optlen;
@@ -223,6 +221,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	err = inet_hash_connect(&tcp_death_row, sk);
 	if (err)
 		goto failure;
+
+	inet_set_txhash(sk);
 
 	rt = ip_route_newports(fl4, rt, orig_sport, orig_dport,
 			       inet->inet_sport, inet->inet_dport, sk);

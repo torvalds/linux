@@ -343,8 +343,6 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	unsigned short dma_flags;
 	int i = 0;
 
-	EFX_BUG_ON_PARANOID(tx_queue->write_count > tx_queue->insert_count);
-
 	if (skb_shinfo(skb)->gso_size)
 		return efx_enqueue_skb_tso(tx_queue, skb);
 
@@ -1257,8 +1255,6 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
 	/* Find the packet protocol and sanity-check it */
 	state.protocol = efx_tso_check_protocol(skb);
-
-	EFX_BUG_ON_PARANOID(tx_queue->write_count > tx_queue->insert_count);
 
 	rc = tso_start(&state, efx, skb);
 	if (rc)

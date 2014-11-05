@@ -44,7 +44,7 @@ static const int rk808_buck_config_regs[] = {
 };
 
 static const struct regulator_linear_range rk808_buck_voltage_ranges[] = {
-	REGULATOR_LINEAR_RANGE(700000, 0, 63, 12500),
+	REGULATOR_LINEAR_RANGE(712500, 0, 63, 12500),
 };
 
 static const struct regulator_linear_range rk808_buck4_voltage_ranges[] = {

@@ -219,11 +219,11 @@ void tipc_node_abort_sock_conns(struct list_head *conns)
 void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	struct tipc_link **active = &n_ptr->active_links[0];
-	u32 addr = n_ptr->addr;
 
 	n_ptr->working_links++;
-	tipc_nametbl_publish(TIPC_LINK_STATE, addr, addr, TIPC_NODE_SCOPE,
-			     l_ptr->bearer_id, addr);
+	n_ptr->action_flags |= TIPC_NOTIFY_LINK_UP;
+	n_ptr->link_id = l_ptr->peer_bearer_id << 16 | l_ptr->bearer_id;
+
 	pr_info("Established link <%s> on network plane %c\n",
 		l_ptr->name, l_ptr->net_plane);
 
@@ -284,10 +284,10 @@ static void node_select_active_links(struct tipc_node *n_ptr)
 void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	struct tipc_link **active;
-	u32 addr = n_ptr->addr;
 
 	n_ptr->working_links--;
-	tipc_nametbl_withdraw(TIPC_LINK_STATE, addr, l_ptr->bearer_id, addr);
+	n_ptr->action_flags |= TIPC_NOTIFY_LINK_DOWN;
+	n_ptr->link_id = l_ptr->peer_bearer_id << 16 | l_ptr->bearer_id;
 
 	if (!tipc_link_is_active(l_ptr)) {
 		pr_info("Lost standby link <%s> on network plane %c\n",
@@ -552,28 +552,30 @@ void tipc_node_unlock(struct tipc_node *node)
 	LIST_HEAD(conn_sks);
 	struct sk_buff_head waiting_sks;
 	u32 addr = 0;
-	unsigned int flags = node->action_flags;
+	int flags = node->action_flags;
+	u32 link_id = 0;
 
-	if (likely(!node->action_flags)) {
+	if (likely(!flags)) {
 		spin_unlock_bh(&node->lock);
 		return;
 	}
 
+	addr = node->addr;
+	link_id = node->link_id;
 	__skb_queue_head_init(&waiting_sks);
-	if (node->action_flags & TIPC_WAKEUP_USERS) {
+
+	if (flags & TIPC_WAKEUP_USERS)
 		skb_queue_splice_init(&node->waiting_sks, &waiting_sks);
-		node->action_flags &= ~TIPC_WAKEUP_USERS;
-	}
-	if (node->action_flags & TIPC_NOTIFY_NODE_DOWN) {
+
+	if (flags & TIPC_NOTIFY_NODE_DOWN) {
 		list_replace_init(&node->nsub, &nsub_list);
 		list_replace_init(&node->conn_sks, &conn_sks);
-		node->action_flags &= ~TIPC_NOTIFY_NODE_DOWN;
 	}
-	if (node->action_flags & TIPC_NOTIFY_NODE_UP) {
-		node->action_flags &= ~TIPC_NOTIFY_NODE_UP;
-		addr = node->addr;
-	}
-	node->action_flags &= ~TIPC_WAKEUP_BCAST_USERS;
+	node->action_flags &= ~(TIPC_WAKEUP_USERS | TIPC_NOTIFY_NODE_DOWN |
+				TIPC_NOTIFY_NODE_UP | TIPC_NOTIFY_LINK_UP |
+				TIPC_NOTIFY_LINK_DOWN |
+				TIPC_WAKEUP_BCAST_USERS);
+
 	spin_unlock_bh(&node->lock);
 
 	while (!skb_queue_empty(&waiting_sks))
@@ -588,6 +590,14 @@ void tipc_node_unlock(struct tipc_node *node)
 	if (flags & TIPC_WAKEUP_BCAST_USERS)
 		tipc_bclink_wakeup_users();
 
-	if (addr)
+	if (flags & TIPC_NOTIFY_NODE_UP)
 		tipc_named_node_up(addr);
+
+	if (flags & TIPC_NOTIFY_LINK_UP)
+		tipc_nametbl_publish(TIPC_LINK_STATE, addr, addr,
+				     TIPC_NODE_SCOPE, link_id, addr);
+
+	if (flags & TIPC_NOTIFY_LINK_DOWN)
+		tipc_nametbl_withdraw(TIPC_LINK_STATE, addr,
+				      link_id, addr);
 }
