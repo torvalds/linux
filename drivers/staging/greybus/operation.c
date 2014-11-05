@@ -283,9 +283,9 @@ static void gb_operation_gbuf_complete(struct gbuf *gbuf)
 		int type;
 
 		if (gbuf == operation->request)
-			header = operation->request_payload;
+			header = operation->request->transfer_buffer;
 		else if (gbuf == operation->response)
-			header = operation->response_payload;
+			header = operation->response->transfer_buffer;
 		else
 			header = NULL;
 
