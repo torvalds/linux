@@ -947,7 +947,7 @@ err_del_i2c_adaptor:
 err_pci_iounmap:
 	iounmap(dev->lmmio);
 err_kfree:
-	pci_set_drvdata(pdev, 0);
+	pci_set_drvdata(pdev, NULL);
 	kfree(dev);
 err_pci_disable_device:
 	pci_disable_device(pdev);
@@ -970,7 +970,7 @@ static void smi_remove(struct pci_dev *pdev)
 
 	smi_i2c_exit(dev);
 	iounmap(dev->lmmio);
-	pci_set_drvdata(pdev, 0);
+	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 	kfree(dev);
 }
