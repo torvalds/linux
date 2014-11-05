@@ -523,14 +523,6 @@ struct x86_perf_task_context {
 	int lbr_stack_state;
 };
 
-enum {
-	PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT = PERF_SAMPLE_BRANCH_MAX_SHIFT,
-	PERF_SAMPLE_BRANCH_SELECT_MAP_SIZE,
-
-	PERF_SAMPLE_BRANCH_CALL_STACK =
-				1U << PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT,
-};
-
 #define x86_add_quirk(func_)						\
 do {									\
 	static struct x86_pmu_quirk __quirk __initdata = {		\
