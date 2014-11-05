@@ -10362,6 +10362,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	if ((INTEL_INFO(dev)->gen < 8 && !IS_HASWELL(dev)) ||
 	    IS_VALLEYVIEW(dev))
 		PIPE_CONF_CHECK_I(limited_color_range);
+	PIPE_CONF_CHECK_I(has_infoframe);
 
 	PIPE_CONF_CHECK_I(has_audio);
 

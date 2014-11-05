@@ -292,6 +292,9 @@ struct intel_crtc_config {
 	 * between pch encoders and cpu encoders. */
 	bool has_pch_encoder;
 
+	/* Are we sending infoframes on the attached port */
+	bool has_infoframe;
+
 	/* CPU Transcoder for the pipe. Currently this can only differ from the
 	 * pipe on Haswell (where we have a special eDP transcoder). */
 	enum transcoder cpu_transcoder;
@@ -552,6 +555,7 @@ struct intel_hdmi {
 	void (*set_infoframes)(struct drm_encoder *encoder,
 			       bool enable,
 			       struct drm_display_mode *adjusted_mode);
+	bool (*infoframe_enabled)(struct drm_encoder *encoder);
 };
 
 struct intel_dp_mst_encoder;
