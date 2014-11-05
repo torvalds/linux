@@ -346,8 +346,6 @@ struct cb_pcidas_private {
 	/* divisors of master clock for analog input pacing */
 	unsigned int divisor1;
 	unsigned int divisor2;
-	/* number of analog input samples remaining */
-	unsigned int count;
 	/* bits to write to registers */
 	unsigned int adc_fifo_bits;
 	unsigned int s5933_intcsr_bits;
@@ -976,9 +974,6 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER || cmd->convert_src == TRIG_TIMER)
 		cb_pcidas_ai_load_counters(dev);
 
-	/*  set number of conversions */
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->count = cmd->chanlist_len * cmd->stop_arg;
 	/*  enable interrupts */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->adc_fifo_bits |= INTE;
@@ -1352,17 +1347,15 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	/*  if fifo half-full */
 	if (status & ADHFI) {
 		/*  read data */
-		num_samples = half_fifo;
-		if (cmd->stop_src == TRIG_COUNT &&
-		    num_samples > devpriv->count) {
-			num_samples = devpriv->count;
-		}
+		num_samples = comedi_nsamples_left(s, half_fifo);
 		insw(devpriv->adc_fifo + ADCDATA, devpriv->ai_buffer,
 		     num_samples);
 		comedi_buf_write_samples(s, devpriv->ai_buffer, num_samples);
-		devpriv->count -= num_samples;
-		if (cmd->stop_src == TRIG_COUNT && devpriv->count == 0)
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg)
 			async->events |= COMEDI_CB_EOA;
+
 		/*  clear half-full interrupt latch */
 		spin_lock_irqsave(&dev->spinlock, flags);
 		outw(devpriv->adc_fifo_bits | INT,
@@ -1379,9 +1372,9 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 				break;
 			val = inw(devpriv->adc_fifo);
 			comedi_buf_write_samples(s, &val, 1);
+
 			if (cmd->stop_src == TRIG_COUNT &&
-			    --devpriv->count == 0) {
-				/* end of acquisition */
+			    async->scans_done >= cmd->stop_arg) {
 				async->events |= COMEDI_CB_EOA;
 				break;
 			}
