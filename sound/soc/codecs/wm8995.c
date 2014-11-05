@@ -2102,13 +2102,6 @@ static int wm8995_probe(struct snd_soc_codec *codec)
 
 	wm8995_update_class_w(codec);
 
-	snd_soc_add_codec_controls(codec, wm8995_snd_controls,
-			     ARRAY_SIZE(wm8995_snd_controls));
-	snd_soc_dapm_new_controls(&codec->dapm, wm8995_dapm_widgets,
-				  ARRAY_SIZE(wm8995_dapm_widgets));
-	snd_soc_dapm_add_routes(&codec->dapm, wm8995_intercon,
-				ARRAY_SIZE(wm8995_intercon));
-
 	return 0;
 
 err_reg_enable:
@@ -2205,6 +2198,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8995 = {
 	.remove = wm8995_remove,
 	.set_bias_level = wm8995_set_bias_level,
 	.idle_bias_off = true,
+
+	.controls = wm8995_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8995_snd_controls),
+	.dapm_widgets = wm8995_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8995_dapm_widgets),
+	.dapm_routes = wm8995_intercon,
+	.num_dapm_routes = ARRAY_SIZE(wm8995_intercon),
 };
 
 static struct regmap_config wm8995_regmap = {
