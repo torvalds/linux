@@ -200,6 +200,11 @@ void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 	ilk_update_gt_irq(dev_priv, mask, 0);
 }
 
+static u32 gen6_pm_imr(struct drm_i915_private *dev_priv)
+{
+	return INTEL_INFO(dev_priv)->gen >= 8 ? GEN8_GT_IMR(2) : GEN6_PMIMR;
+}
+
 /**
   * snb_update_pm_irq - update GEN6_PMIMR
   * @dev_priv: driver private
@@ -223,8 +228,8 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 	if (new_val != dev_priv->pm_irq_mask) {
 		dev_priv->pm_irq_mask = new_val;
-		I915_WRITE(GEN6_PMIMR, dev_priv->pm_irq_mask);
-		POSTING_READ(GEN6_PMIMR);
+		I915_WRITE(gen6_pm_imr(dev_priv), dev_priv->pm_irq_mask);
+		POSTING_READ(gen6_pm_imr(dev_priv));
 	}
 }
 
@@ -236,46 +241,6 @@ void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
 	snb_update_pm_irq(dev_priv, mask, 0);
-}
-
-/**
-  * bdw_update_pm_irq - update GT interrupt 2
-  * @dev_priv: driver private
-  * @interrupt_mask: mask of interrupt bits to update
-  * @enabled_irq_mask: mask of interrupt bits to enable
-  *
-  * Copied from the snb function, updated with relevant register offsets
-  */
-static void bdw_update_pm_irq(struct drm_i915_private *dev_priv,
-			      uint32_t interrupt_mask,
-			      uint32_t enabled_irq_mask)
-{
-	uint32_t new_val;
-
-	assert_spin_locked(&dev_priv->irq_lock);
-
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return;
-
-	new_val = dev_priv->pm_irq_mask;
-	new_val &= ~interrupt_mask;
-	new_val |= (~enabled_irq_mask & interrupt_mask);
-
-	if (new_val != dev_priv->pm_irq_mask) {
-		dev_priv->pm_irq_mask = new_val;
-		I915_WRITE(GEN8_GT_IMR(2), dev_priv->pm_irq_mask);
-		POSTING_READ(GEN8_GT_IMR(2));
-	}
-}
-
-void gen8_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
-{
-	bdw_update_pm_irq(dev_priv, mask, mask);
-}
-
-void gen8_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
-{
-	bdw_update_pm_irq(dev_priv, mask, 0);
 }
 
 /**
@@ -1118,12 +1083,8 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	spin_lock_irq(&dev_priv->irq_lock);
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
-	if (INTEL_INFO(dev_priv->dev)->gen >= 8)
-		gen8_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
-	else {
-		/* Make sure not to corrupt PMIMR state used by ringbuffer */
-		gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
-	}
+	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
+	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* Make sure we didn't queue anything we're not going to process. */
@@ -1332,7 +1293,7 @@ static void gen8_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 
 	spin_lock(&dev_priv->irq_lock);
 	dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
-	gen8_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
+	gen6_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
 	spin_unlock(&dev_priv->irq_lock);
 
 	queue_work(dev_priv->wq, &dev_priv->rps.work);
