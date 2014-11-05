@@ -29,11 +29,10 @@ static int st_magn_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	mdata = iio_priv(indio_dev);
-	mdata->dev = &spi->dev;
 
 	st_sensors_spi_configure(indio_dev, spi, mdata);
 
-	err = st_magn_common_probe(indio_dev, NULL);
+	err = st_magn_common_probe(indio_dev);
 	if (err < 0)
 		return err;
 

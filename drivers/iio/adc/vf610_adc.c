@@ -91,7 +91,7 @@
 #define VF610_ADC_CAL			0x80
 
 /* Other field define */
-#define VF610_ADC_ADCHC(x)		((x) & 0xF)
+#define VF610_ADC_ADCHC(x)		((x) & 0x1F)
 #define VF610_ADC_AIEN			(0x1 << 7)
 #define VF610_ADC_CONV_DISABLE		0x1F
 #define VF610_ADC_HS_COCO0		0x1
@@ -153,6 +153,12 @@ struct vf610_adc {
 				BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
 }
 
+#define VF610_ADC_TEMPERATURE_CHAN(_idx, _chan_type) {	\
+	.type = (_chan_type),	\
+	.channel = (_idx),		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),	\
+}
+
 static const struct iio_chan_spec vf610_adc_iio_channels[] = {
 	VF610_ADC_CHAN(0, IIO_VOLTAGE),
 	VF610_ADC_CHAN(1, IIO_VOLTAGE),
@@ -170,6 +176,7 @@ static const struct iio_chan_spec vf610_adc_iio_channels[] = {
 	VF610_ADC_CHAN(13, IIO_VOLTAGE),
 	VF610_ADC_CHAN(14, IIO_VOLTAGE),
 	VF610_ADC_CHAN(15, IIO_VOLTAGE),
+	VF610_ADC_TEMPERATURE_CHAN(26, IIO_TEMP),
 	/* sentinel */
 };
 
@@ -451,6 +458,7 @@ static int vf610_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+	case IIO_CHAN_INFO_PROCESSED:
 		mutex_lock(&indio_dev->mlock);
 		reinit_completion(&info->completion);
 
@@ -468,7 +476,23 @@ static int vf610_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		}
 
-		*val = info->value;
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			*val = info->value;
+			break;
+		case IIO_TEMP:
+			/*
+			* Calculate in degree Celsius times 1000
+			* Using sensor slope of 1.84 mV/°C and
+			* V at 25°C of 696 mV
+			*/
+			*val = 25000 - ((int)info->value - 864) * 1000000 / 1840;
+			break;
+		default:
+			mutex_unlock(&indio_dev->mlock);
+			return -EINVAL;
+		}
+
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
 
@@ -569,9 +593,9 @@ static int vf610_adc_probe(struct platform_device *pdev)
 		return PTR_ERR(info->regs);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
+	if (irq < 0) {
 		dev_err(&pdev->dev, "no irq resource?\n");
-		return -EINVAL;
+		return irq;
 	}
 
 	ret = devm_request_irq(info->dev, irq,
@@ -586,8 +610,7 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed getting clock, err = %ld\n",
 						PTR_ERR(info->clk));
-		ret = PTR_ERR(info->clk);
-		return ret;
+		return PTR_ERR(info->clk);
 	}
 
 	info->vref = devm_regulator_get(&pdev->dev, "vref");
@@ -681,17 +704,19 @@ static int vf610_adc_resume(struct device *dev)
 
 	ret = clk_prepare_enable(info->clk);
 	if (ret)
-		return ret;
+		goto disable_reg;
 
 	vf610_adc_hw_init(info);
 
 	return 0;
+
+disable_reg:
+	regulator_disable(info->vref);
+	return ret;
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(vf610_adc_pm_ops,
-			vf610_adc_suspend,
-			vf610_adc_resume);
+static SIMPLE_DEV_PM_OPS(vf610_adc_pm_ops, vf610_adc_suspend, vf610_adc_resume);
 
 static struct platform_driver vf610_adc_driver = {
 	.probe          = vf610_adc_probe,

@@ -149,7 +149,7 @@ static const struct iio_chan_spec st_magn_2_16bit_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
-static const struct st_sensors st_magn_sensors[] = {
+static const struct st_sensor_settings st_magn_sensors_settings[] = {
 	{
 		.wai = ST_MAGN_1_WAI_EXP,
 		.sensors_supported = {
@@ -361,8 +361,7 @@ static const struct iio_info magn_info = {
 	.write_raw = &st_magn_write_raw,
 };
 
-int st_magn_common_probe(struct iio_dev *indio_dev,
-					struct st_sensors_platform_data *pdata)
+int st_magn_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
 	int irq = mdata->get_irq_data_ready(indio_dev);
@@ -374,20 +373,21 @@ int st_magn_common_probe(struct iio_dev *indio_dev,
 	st_sensors_power_enable(indio_dev);
 
 	err = st_sensors_check_device_support(indio_dev,
-				ARRAY_SIZE(st_magn_sensors), st_magn_sensors);
+					ARRAY_SIZE(st_magn_sensors_settings),
+					st_magn_sensors_settings);
 	if (err < 0)
 		return err;
 
 	mdata->num_data_channels = ST_MAGN_NUMBER_DATA_CHANNELS;
-	mdata->multiread_bit = mdata->sensor->multi_read_bit;
-	indio_dev->channels = mdata->sensor->ch;
+	mdata->multiread_bit = mdata->sensor_settings->multi_read_bit;
+	indio_dev->channels = mdata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
 	mdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-						&mdata->sensor->fs.fs_avl[0];
-	mdata->odr = mdata->sensor->odr.odr_avl[0].hz;
+					&mdata->sensor_settings->fs.fs_avl[0];
+	mdata->odr = mdata->sensor_settings->odr.odr_avl[0].hz;
 
-	err = st_sensors_init_sensor(indio_dev, pdata);
+	err = st_sensors_init_sensor(indio_dev, NULL);
 	if (err < 0)
 		return err;
 
