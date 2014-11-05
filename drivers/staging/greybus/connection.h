@@ -41,7 +41,6 @@ struct gb_connection {
 	struct list_head		interface_links;
 
 	struct gb_protocol		*protocol;
-	struct list_head		protocol_links;
 
 	enum gb_connection_state	state;
 

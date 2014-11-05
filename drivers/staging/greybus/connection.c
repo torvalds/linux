@@ -164,9 +164,9 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	if (!connection)
 		return NULL;
 
-	INIT_LIST_HEAD(&connection->protocol_links);
 	/* XXX Will have to establish connections to get version */
-	if (!gb_protocol_get(connection, protocol_id, major, minor)) {
+	connection->protocol = gb_protocol_get(protocol_id, major, minor);
+	if (!connection->protocol) {
 		pr_err("protocol 0x%02hhx not found\n", protocol_id);
 		kfree(connection);
 		return NULL;
@@ -175,7 +175,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	hd = interface->gmod->hd;
 	connection->hd = hd;
 	if (!gb_connection_hd_cport_id_alloc(connection)) {
-		gb_protocol_put(connection);
+		gb_protocol_put(connection->protocol);
 		kfree(connection);
 		return NULL;
 	}
@@ -198,7 +198,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 		pr_err("failed to add connection device for cport 0x%04hx\n",
 			cport_id);
 		gb_connection_hd_cport_id_free(connection);
-		gb_protocol_put(connection);
+		gb_protocol_put(connection->protocol);
 		put_device(&connection->dev);
 		return NULL;
 	}
@@ -239,8 +239,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	spin_unlock_irq(&gb_connections_lock);
 
 	gb_connection_hd_cport_id_free(connection);
-	/* kref_put(connection->hd); */
-	gb_protocol_put(connection);
+	gb_protocol_put(connection->protocol);
 
 	device_del(&connection->dev);
 }

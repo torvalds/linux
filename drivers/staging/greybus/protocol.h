@@ -20,16 +20,15 @@ struct gb_protocol {
 	u8			id;
 	u8			major;
 	u8			minor;
+	u8			count;
 
-	struct list_head	connections;	/* protocol users */
 	struct list_head	links;		/* global list */
 };
 
 bool gb_protocol_register(u8 id, u8 major, u8 minor);
 bool gb_protocol_deregister(struct gb_protocol *protocol);
 
-bool gb_protocol_get(struct gb_connection *connection, u8 id,
-				u8 major, u8 minor);
-void gb_protocol_put(struct gb_connection *connection);
+struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor);
+void gb_protocol_put(struct gb_protocol *protocol);
 
 #endif /* __PROTOCOL_H */
