@@ -146,6 +146,8 @@ static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 		atomic_dec(&adapter->rx_pending);
 		if (adapter->delay_main_work &&
 		    (atomic_read(&adapter->rx_pending) < LOW_RX_PENDING)) {
+			if (adapter->if_ops.submit_rem_rx_urbs)
+				adapter->if_ops.submit_rem_rx_urbs(adapter);
 			adapter->delay_main_work = false;
 			queue_work(adapter->workqueue, &adapter->main_work);
 		}
