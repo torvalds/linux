@@ -77,15 +77,12 @@ static void gb_sdio_connection_exit(struct gb_connection *connection)
 	connection->private = NULL;
 }
 
-struct gb_connection_handler gb_sdio_connection_handler = {
-	.connection_init	= gb_sdio_connection_init,
-	.connection_exit	= gb_sdio_connection_exit,
-};
-
 static struct gb_protocol sdio_protocol = {
 	.id			= GREYBUS_PROTOCOL_SDIO,
 	.major			= 0,
 	.minor			= 1,
+	.connection_init	= gb_sdio_connection_init,
+	.connection_exit	= gb_sdio_connection_exit,
 };
 
 bool gb_sdio_protocol_init(void)

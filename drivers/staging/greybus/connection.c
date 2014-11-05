@@ -267,45 +267,18 @@ void gb_connection_err(struct gb_connection *connection, const char *fmt, ...)
 	va_end(args);
 }
 
-/*
- * XXX Protocols should have a set of function pointers:
- *	->init (called here, to initialize the device)
- *	->input_handler
- *	->exit (reverse of init)
- */
 int gb_connection_init(struct gb_connection *connection)
 {
 	int ret;
 
-	/* Need to enable the connection to initialize it */
-	connection->state = GB_CONNECTION_STATE_ENABLED;
-	switch (connection->protocol->id) {
-	case GREYBUS_PROTOCOL_I2C:
-		connection->handler = &gb_i2c_connection_handler;
-		break;
-	case GREYBUS_PROTOCOL_GPIO:
-		connection->handler = &gb_gpio_connection_handler;
-		break;
-	case GREYBUS_PROTOCOL_BATTERY:
-		connection->handler = &gb_battery_connection_handler;
-		break;
-	case GREYBUS_PROTOCOL_UART:
-		connection->handler = &gb_uart_connection_handler;
-		break;
-	case GREYBUS_PROTOCOL_CONTROL:
-	case GREYBUS_PROTOCOL_AP:
-	case GREYBUS_PROTOCOL_HID:
-	case GREYBUS_PROTOCOL_LED:
-	case GREYBUS_PROTOCOL_VENDOR:
-	default:
-		gb_connection_err(connection, "unimplemented protocol %hhu",
-			connection->protocol->id);
-		ret = -ENXIO;
-		break;
+	if (!connection->protocol) {
+		gb_connection_err(connection, "uninitialized connection");
+		return -EIO;
 	}
 
-	ret = connection->handler->connection_init(connection);
-
+	/* Need to enable the connection to initialize it */
+	connection->state = GB_CONNECTION_STATE_ENABLED;
+	ret = connection->protocol->connection_init(connection);
 	if (ret)
 		connection->state = GB_CONNECTION_STATE_ERROR;
 
@@ -314,10 +287,10 @@ int gb_connection_init(struct gb_connection *connection)
 
 void gb_connection_exit(struct gb_connection *connection)
 {
-	if (!connection->handler) {
+	if (!connection->protocol) {
 		gb_connection_err(connection, "uninitialized connection");
 		return;
 	}
 	connection->state = GB_CONNECTION_STATE_DESTROYING;
-	connection->handler->connection_exit(connection);
+	connection->protocol->connection_exit(connection);
 }

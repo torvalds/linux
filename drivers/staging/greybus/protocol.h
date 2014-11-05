@@ -11,6 +11,9 @@
 
 #include "greybus.h"
 
+typedef int (*gb_connection_init_t)(struct gb_connection *);
+typedef void (*gb_connection_exit_t)(struct gb_connection *);
+
 /*
  * Protocols having the same id but different major and/or minor
  * version numbers are treated as distinct protocols.  If it makes
@@ -23,6 +26,9 @@ struct gb_protocol {
 	u8			count;
 
 	struct list_head	links;		/* global list */
+
+	gb_connection_init_t	connection_init;
+	gb_connection_exit_t	connection_exit;
 };
 
 bool gb_protocol_register(struct gb_protocol *protocol);

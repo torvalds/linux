@@ -792,15 +792,12 @@ static void gb_gpio_connection_exit(struct gb_connection *connection)
 	kfree(gb_gpio_controller);
 }
 
-struct gb_connection_handler gb_gpio_connection_handler = {
-	.connection_init	= gb_gpio_connection_init,
-	.connection_exit	= gb_gpio_connection_exit,
-};
-
 static struct gb_protocol gpio_protocol = {
 	.id			= GREYBUS_PROTOCOL_GPIO,
 	.major			= 0,
 	.minor			= 1,
+	.connection_init	= gb_gpio_connection_init,
+	.connection_exit	= gb_gpio_connection_exit,
 };
 
 bool gb_gpio_protocol_init(void)

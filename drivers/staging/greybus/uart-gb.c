@@ -520,15 +520,12 @@ static void gb_tty_exit(void)
 	unregister_chrdev_region(MKDEV(major, minor), GB_NUM_MINORS);
 }
 
-struct gb_connection_handler gb_uart_connection_handler = {
-	.connection_init	= gb_uart_connection_init,
-	.connection_exit	= gb_uart_connection_exit,
-};
-
 static struct gb_protocol uart_protocol = {
 	.id			= GREYBUS_PROTOCOL_UART,
 	.major			= 0,
 	.minor			= 1,
+	.connection_init	= gb_uart_connection_init,
+	.connection_exit	= gb_uart_connection_exit,
 };
 
 bool gb_uart_protocol_init(void)

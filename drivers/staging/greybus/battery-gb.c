@@ -400,15 +400,12 @@ static void gb_battery_connection_exit(struct gb_connection *connection)
 	kfree(gb);
 }
 
-struct gb_connection_handler gb_battery_connection_handler = {
-	.connection_init	= gb_battery_connection_init,
-	.connection_exit	= gb_battery_connection_exit,
-};
-
 static struct gb_protocol battery_protocol = {
 	.id			= GREYBUS_PROTOCOL_BATTERY,
 	.major			= 0,
 	.minor			= 1,
+	.connection_init	= gb_battery_connection_init,
+	.connection_exit	= gb_battery_connection_exit,
 };
 
 bool gb_battery_protocol_init(void)
