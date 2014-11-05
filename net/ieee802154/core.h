@@ -6,6 +6,9 @@
 struct cfg802154_registered_device {
 	const struct cfg802154_ops *ops;
 
+	/* wpan_phy index, internal only */
+	int wpan_phy_idx;
+
 	/* must be last because of the way we do wpan_phy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN
 	 */

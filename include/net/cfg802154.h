@@ -61,7 +61,6 @@ struct wpan_phy {
 	s32 cca_ed_level;
 
 	struct device dev;
-	int idx;
 
 	char priv[0] __aligned(NETDEV_ALIGN);
 };

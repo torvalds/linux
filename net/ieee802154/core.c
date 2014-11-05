@@ -23,9 +23,6 @@
 #include "sysfs.h"
 #include "core.h"
 
-static DEFINE_MUTEX(wpan_phy_mutex);
-static int wpan_phy_idx;
-
 static int wpan_phy_match(struct device *dev, const void *data)
 {
 	return !strcmp(dev_name(dev), (const char *)data);
@@ -72,14 +69,10 @@ int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data),
 }
 EXPORT_SYMBOL(wpan_phy_for_each);
 
-static int wpan_phy_idx_valid(int idx)
-{
-	return idx >= 0;
-}
-
 struct wpan_phy *
 wpan_phy_alloc(const struct cfg802154_ops *ops, size_t priv_size)
 {
+	static atomic_t wpan_phy_counter = ATOMIC_INIT(0);
 	struct cfg802154_registered_device *rdev;
 	size_t alloc_size;
 
@@ -90,28 +83,27 @@ wpan_phy_alloc(const struct cfg802154_ops *ops, size_t priv_size)
 
 	rdev->ops = ops;
 
-	mutex_lock(&wpan_phy_mutex);
-	rdev->wpan_phy.idx = wpan_phy_idx++;
-	if (unlikely(!wpan_phy_idx_valid(rdev->wpan_phy.idx))) {
-		wpan_phy_idx--;
-		mutex_unlock(&wpan_phy_mutex);
+	rdev->wpan_phy_idx = atomic_inc_return(&wpan_phy_counter);
+
+	if (unlikely(rdev->wpan_phy_idx < 0)) {
+		/* ugh, wrapped! */
+		atomic_dec(&wpan_phy_counter);
 		kfree(rdev);
-		goto out;
+		return NULL;
 	}
-	mutex_unlock(&wpan_phy_mutex);
+
+	/* atomic_inc_return makes it start at 1, make it start at 0 */
+	rdev->wpan_phy_idx--;
 
 	mutex_init(&rdev->wpan_phy.pib_lock);
 
 	device_initialize(&rdev->wpan_phy.dev);
-	dev_set_name(&rdev->wpan_phy.dev, "wpan-phy%d", rdev->wpan_phy.idx);
+	dev_set_name(&rdev->wpan_phy.dev, "wpan-phy%d", rdev->wpan_phy_idx);
 
 	rdev->wpan_phy.dev.class = &wpan_phy_class;
 	rdev->wpan_phy.dev.platform_data = rdev;
 
 	return &rdev->wpan_phy;
-
-out:
-	return NULL;
 }
 EXPORT_SYMBOL(wpan_phy_alloc);
 
