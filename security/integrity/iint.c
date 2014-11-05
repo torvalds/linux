@@ -245,3 +245,14 @@ out:
 	fput(file);
 	return rc;
 }
+
+/*
+ * integrity_load_keys - load integrity keys hook
+ *
+ * Hooks is called from init/main.c:kernel_init_freeable()
+ * when rootfs is ready
+ */
+void __init integrity_load_keys(void)
+{
+	ima_load_x509();
+}
