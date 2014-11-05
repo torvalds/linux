@@ -510,6 +510,9 @@
 	clocks-enable {
 		compatible = "rockchip,clocks-enable";
 		clocks =
+				/*PLL*/
+				<&clk_dpll>, <&clk_gpll>,
+
 				/*PD_CORE*/
 				<&clk_gates0 2>, <&clk_core0>,
 				<&clk_core1>, <&clk_core2>,
@@ -581,21 +584,6 @@
 				<&clk_gates17 1>,/*pclk_intmem1*/
 				<&clk_gates17 2>,/*pclk_pmu_niu*/
 				<&clk_gates17 3>,/*pclk_sgrf*/
-
-				/*hclk_vio*/
-				<&clk_gates15 9>,/*hclk_vio_ahb_arbi*/
-				<&clk_gates15 10>,/*hclk_vio_niu*/
-				<&clk_gates16 10>,/*hclk_vio2_h2p*/
-				<&clk_gates16 11>,/*pclk_vio2_h2p*/
-
-				/*aclk_vio0*/
-				<&clk_gates15 11>,/*aclk_vio0_niu*/
-
-				/*aclk_vio1*/
-				<&clk_gates15 12>,/*aclk_vio1_niu*/
-
-				/*HDMI*/
-				//<&clk_gates5 12>,/*hdmi_hdcp_clk*/
 
 				/*UART*/
 				<&clk_gates11 9>,/*pclk_uart2*/

@@ -1459,7 +1459,7 @@
 					hclk_vio: hclk_vio_div {
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <8 5>;
-						clocks = <&aclk_vio0>;
+						clocks = <&clk_gates15 11>;
 						clock-output-names = "hclk_vio";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
@@ -2648,28 +2648,28 @@
 					reg = <0x019c 0x4>;
 					clocks =
 						<&aclk_rga>,		<&hclk_vio>,
-						<&aclk_vio0>,		<&hclk_vio>,
+						<&clk_gates15 11>,	<&hclk_vio>,
 
+						<&dummy>,		<&clk_gates15 11>,
+						<&hclk_vio>,		<&clk_gates15 12>,
+
+						<&hclk_vio>,		<&dummy>,
 						<&dummy>,		<&aclk_vio0>,
-						<&hclk_vio>,		<&aclk_vio1>,
-
-						<&hclk_vio>,		<&hclk_vio>,
-						<&hclk_vio>,		<&aclk_vio0>,
 
 						<&aclk_vio1>,		<&aclk_rga>,
-						<&aclk_vio0>,		<&hclk_vio>;
+						<&clk_gates15 11>,	<&hclk_vio>;
 
 					clock-output-names =
-						"reserved", /*"g_aclk_rga",*/	"g_hclk_rga",
+						"reserved", /*"g_aclk_rga"*/	"g_hclk_rga",
 						"g_aclk_iep",		"g_hclk_iep",
 
 						"g_aclk_lcdc_iep",		"g_aclk_lcdc0",
 						"g_hclk_lcdc0",		"g_aclk_lcdc1",
 
-						"g_hclk_lcdc1",		"g_h_vio_ahb",
-						"g_hclk_vio_niu",		"g_aclk_vio0_niu",
+						"g_hclk_lcdc1",		"reserved", /* "g_h_vio_ahb" */
+						"reserved",/*"g_hclk_vio_niu"*/		"g_aclk_vio0_niu",
 
-						"g_aclk_vio1_niu",		"reserved",/*"g_aclk_rga_niu",*/
+						"g_aclk_vio1_niu",		"reserved",/*"g_aclk_rga_niu"*/
 						"g_aclk_vip",		"g_hclk_vip";
                                                 rockchip,suspend-clkgating-setting=<0x0 0x0>;
 
@@ -2681,13 +2681,13 @@
 					reg = <0x01a0 0x4>;
 					clocks =
 						<&pclkin_cif>,		<&hclk_vio>,
-						<&aclk_vio1>,		<&pclkin_isp>,
+						<&clk_gates15 12>,	<&pclkin_isp>,
 
 						<&hclk_vio>,		<&hclk_vio>,
 						<&hclk_vio>,		<&hclk_vio>,
 
 						<&hclk_vio>,		<&hclk_vio>,
-						<&hclk_vio>,		<&hclk_vio>,
+						<&dummy>,		<&dummy>,
 
 						<&dummy>,		<&dummy>,
 						<&dummy>,		<&dummy>;
@@ -2700,7 +2700,7 @@
 						"g_p_mipi_csi",		"g_pclk_lvds_phy",
 
 						"g_pclk_edp_ctrl",		"g_p_hdmi_ctrl",
-						"g_hclk_vio2_h2p",		"g_pclk_vio2_h2p",
+						"reserved",		"reserved", /* bit10:"g_hclk_vio2_h2p" bit11: "g_pclk_vio2_h2p" */
 
 						"reserved",		"reserved",
 						"reserved",		"reserved";

@@ -30,6 +30,7 @@
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/pmu.h>
+#include <linux/fb.h>
 #include <asm/cpuidle.h>
 #include <asm/cputype.h>
 #include <asm/mach/arch.h>
@@ -490,6 +491,40 @@ static void __init rk3288_init_cpuidle(void)
 	if (ret)
 		pr_err("%s: failed to register cpuidle driver: %d\n", __func__, ret);
 }
+
+static int rk3288_pll_early_suspend_notifier_call(struct notifier_block *self,
+				unsigned long action, void *data)
+{
+	struct fb_event *event = data;
+	int blank_mode = *((int *)event->data);
+
+	if (action == FB_EARLY_EVENT_BLANK) {
+		switch (blank_mode) {
+		case FB_BLANK_UNBLANK:
+			clk_prepare_enable(clk_get_sys(NULL, "clk_cpll"));
+			clk_prepare_enable(clk_get_sys(NULL, "clk_npll"));
+			break;
+		default:
+			break;
+		}
+	} else if (action == FB_EVENT_BLANK) {
+		switch (blank_mode) {
+		case FB_BLANK_POWERDOWN:
+			clk_disable_unprepare(clk_get_sys(NULL, "clk_cpll"));
+			clk_disable_unprepare(clk_get_sys(NULL, "clk_npll"));
+			break;
+		default:
+			break;
+		}
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rk3288_pll_early_suspend_notifier = {
+	.notifier_call = rk3288_pll_early_suspend_notifier_call,
+};
+
 #ifdef CONFIG_PM
 static void __init rk3288_init_suspend(void);
 #endif
@@ -596,10 +631,11 @@ void inline rkpm_periph_pd_dn(bool on)
 static void __init rk3288_init_suspend(void)
 {
     printk("%s\n",__FUNCTION__);
+    fb_register_client(&rk3288_pll_early_suspend_notifier);
     rockchip_suspend_init();       
     rkpm_pie_init();
     rk3288_suspend_init();
-   rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend,rk_pm_soc_pd_resume);  
+   rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend,rk_pm_soc_pd_resume);
 }
 
 #if 0

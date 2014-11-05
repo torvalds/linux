@@ -820,10 +820,113 @@ static int clk_pll_set_rate_3188plus(struct clk_hw *hw, unsigned long rate,
 	return ret;
 }
 
+static int clk_pll_is_enabled_3188plus(struct clk_hw *hw)
+{
+	unsigned long flags;
+	struct clk_pll *pll = to_clk_pll(hw);
+	int ret;
+
+	if(pll->lock)
+		spin_lock_irqsave(pll->lock, flags);
+
+	if (_RK3188_PLL_MODE_IS_NORM(pll->mode_offset, pll->mode_shift))
+		ret = 1;
+	else
+		ret = 0;
+
+	if (pll->lock)
+		spin_unlock_irqrestore(pll->lock, flags);
+
+	return ret;
+}
+
+static int clk_pll_enable_3188plus(struct clk_hw *hw)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+	unsigned long flags;
+	unsigned long rst_dly;
+	u32 nr;
+
+	clk_debug("%s enter\n", __func__);
+
+	if (clk_pll_is_enabled_3188plus(hw)) {
+		clk_debug("pll has been enabled\n");
+		return 0;
+	}
+
+	if(pll->lock)
+		spin_lock_irqsave(pll->lock, flags);
+
+	//enter slowmode
+	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);
+
+	//power up
+	cru_writel(_RK3188PLUS_PLL_POWERDOWN_SET(0), pll->reg + RK3188_PLL_CON(3));
+
+	//enter reset
+	cru_writel(_RK3188PLUS_PLL_RESET_SET(1), pll->reg + RK3188_PLL_CON(3));
+
+	//cru_writel(clk_set->pllcon0, pll->reg + RK3188_PLL_CON(0));
+	//cru_writel(clk_set->pllcon1, pll->reg + RK3188_PLL_CON(1));
+	//cru_writel(clk_set->pllcon2, pll->reg + RK3188_PLL_CON(2));
+
+	udelay(5);
+
+	//return from reset
+	cru_writel(_RK3188PLUS_PLL_RESET_SET(0), pll->reg + RK3188_PLL_CON(3));
+
+	//wating lock state
+	nr = RK3188PLUS_PLL_NR(cru_readl(pll->reg + RK3188_PLL_CON(0)));
+	rst_dly = ((nr*500)/24+1);
+	udelay(rst_dly);
+
+	pll_wait_lock(hw);
+
+	//return from slow
+	cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift), pll->mode_offset);
+
+	if (pll->lock)
+		spin_unlock_irqrestore(pll->lock, flags);
+
+	clk_debug("pll %s dump reg:\n con0=0x%08x,\n con1=0x%08x,\n con2=0x%08x,\n"
+			"con3=0x%08x,\n mode=0x%08x\n",
+			__clk_get_name(hw->clk),
+			cru_readl(pll->reg + RK3188_PLL_CON(0)),
+			cru_readl(pll->reg + RK3188_PLL_CON(1)),
+			cru_readl(pll->reg + RK3188_PLL_CON(2)),
+			cru_readl(pll->reg + RK3188_PLL_CON(3)),
+			cru_readl(pll->mode_offset));
+
+	return 0;
+}
+
+static void clk_pll_disable_3188plus(struct clk_hw *hw)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+	unsigned long flags;
+
+	clk_debug("%s enter\n", __func__);
+
+	if(pll->lock)
+		spin_lock_irqsave(pll->lock, flags);
+
+	//enter slowmode
+	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);
+
+	//power down
+	cru_writel(_RK3188PLUS_PLL_POWERDOWN_SET(1), pll->reg + RK3188_PLL_CON(3));
+
+	if (pll->lock)
+		spin_unlock_irqrestore(pll->lock, flags);
+}
+
 static const struct clk_ops clk_pll_ops_3188plus = {
 	.recalc_rate = clk_pll_recalc_rate_3188plus,
 	.round_rate = clk_pll_round_rate_3188plus,
 	.set_rate = clk_pll_set_rate_3188plus,
+	.enable = clk_pll_enable_3188plus,
+	.disable = clk_pll_disable_3188plus,
+	.is_enabled = clk_pll_is_enabled_3188plus,
 };
 
 /* CLK_PLL_3188PLUS_AUTO type ops */
@@ -999,6 +1102,9 @@ static const struct clk_ops clk_pll_ops_3188plus_auto = {
 	.recalc_rate = clk_pll_recalc_rate_3188plus_auto,
 	.round_rate = clk_pll_round_rate_3188plus_auto,
 	.set_rate = clk_pll_set_rate_3188plus_auto,
+	.enable = clk_pll_enable_3188plus,
+	.disable = clk_pll_disable_3188plus,
+	.is_enabled = clk_pll_is_enabled_3188plus,
 };
 
 
