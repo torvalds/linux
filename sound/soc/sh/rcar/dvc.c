@@ -19,6 +19,7 @@ struct rsnd_dvc_cfg {
 	unsigned int max;
 	unsigned int size;
 	u32 *val;
+	const char * const *texts;
 };
 
 struct rsnd_dvc_cfg_m {
@@ -169,14 +170,23 @@ static int rsnd_dvc_volume_info(struct snd_kcontrol *kctrl,
 {
 	struct rsnd_dvc_cfg *cfg = (struct rsnd_dvc_cfg *)kctrl->private_value;
 
-	uinfo->count = cfg->size;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = cfg->max;
-
-	if (cfg->max == 1)
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	else
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	if (cfg->texts) {
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+		uinfo->count = cfg->size;
+		uinfo->value.enumerated.items = cfg->max;
+		if (uinfo->value.enumerated.item >= cfg->max)
+			uinfo->value.enumerated.item = cfg->max - 1;
+		strlcpy(uinfo->value.enumerated.name,
+			cfg->texts[uinfo->value.enumerated.item],
+			sizeof(uinfo->value.enumerated.name));
+	} else {
+		uinfo->count = cfg->size;
+		uinfo->value.integer.min = 0;
+		uinfo->value.integer.max = cfg->max;
+		uinfo->type = (cfg->max == 1) ?
+			SNDRV_CTL_ELEM_TYPE_BOOLEAN :
+			SNDRV_CTL_ELEM_TYPE_INTEGER;
+	}
 
 	return 0;
 }
@@ -188,7 +198,10 @@ static int rsnd_dvc_volume_get(struct snd_kcontrol *kctrl,
 	int i;
 
 	for (i = 0; i < cfg->size; i++)
-		ucontrol->value.integer.value[i] = cfg->val[i];
+		if (cfg->texts)
+			ucontrol->value.enumerated.item[i] = cfg->val[i];
+		else
+			ucontrol->value.integer.value[i] = cfg->val[i];
 
 	return 0;
 }
@@ -201,8 +214,13 @@ static int rsnd_dvc_volume_put(struct snd_kcontrol *kctrl,
 	int i, change = 0;
 
 	for (i = 0; i < cfg->size; i++) {
-		change |= (ucontrol->value.integer.value[i] != cfg->val[i]);
-		cfg->val[i] = ucontrol->value.integer.value[i];
+		if (cfg->texts) {
+			change |= (ucontrol->value.enumerated.item[i] != cfg->val[i]);
+			cfg->val[i] = ucontrol->value.enumerated.item[i];
+		} else {
+			change |= (ucontrol->value.integer.value[i] != cfg->val[i]);
+			cfg->val[i] = ucontrol->value.integer.value[i];
+		}
 	}
 
 	if (change)
@@ -263,6 +281,21 @@ static int _rsnd_dvc_pcm_new_s(struct rsnd_mod *mod,
 	private->cfg.max	= max;
 	private->cfg.size	= 1;
 	private->cfg.val	= &private->val;
+	return __rsnd_dvc_pcm_new(mod, rdai, rtd, name, &private->cfg);
+}
+
+static int _rsnd_dvc_pcm_new_e(struct rsnd_mod *mod,
+			       struct rsnd_dai *rdai,
+			       struct snd_soc_pcm_runtime *rtd,
+			       const unsigned char *name,
+			       struct rsnd_dvc_cfg_s *private,
+			       const char * const *texts,
+			       u32 max)
+{
+	private->cfg.max	= max;
+	private->cfg.size	= 1;
+	private->cfg.val	= &private->val;
+	private->cfg.texts	= texts;
 	return __rsnd_dvc_pcm_new(mod, rdai, rtd, name, &private->cfg);
 }
 
