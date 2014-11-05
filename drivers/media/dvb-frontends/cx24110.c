@@ -177,10 +177,8 @@ static int cx24110_set_inversion (struct cx24110_state* state, fe_spectral_inver
 	return 0;
 }
 
-static int cx24110_set_fec (struct cx24110_state* state, fe_code_rate_t fec)
+static int cx24110_set_fec(struct cx24110_state* state, fe_code_rate_t fec)
 {
-/* fixme (low): error handling */
-
 	static const int rate[FEC_AUTO] = {-1,    1,    2,    3,    5,    7, -1};
 	static const int g1[FEC_AUTO]   = {-1, 0x01, 0x02, 0x05, 0x15, 0x45, -1};
 	static const int g2[FEC_AUTO]   = {-1, 0x01, 0x03, 0x06, 0x1a, 0x7a, -1};
@@ -208,16 +206,16 @@ static int cx24110_set_fec (struct cx24110_state* state, fe_code_rate_t fec)
 	} else {
 		cx24110_writereg(state, 0x37, cx24110_readreg(state, 0x37) | 0x20);
 		/* set AcqVitDis bit */
-		if (rate[fec] > 0) {
-			cx24110_writereg(state, 0x05, (cx24110_readreg(state, 0x05) & 0xf0) | rate[fec]);
-			/* set nominal Viterbi rate */
-			cx24110_writereg(state, 0x22, (cx24110_readreg(state, 0x22) & 0xf0) | rate[fec]);
-			/* set current Viterbi rate */
-			cx24110_writereg(state, 0x1a, g1[fec]);
-			cx24110_writereg(state, 0x1b, g2[fec]);
-			/* not sure if this is the right way: I always used AutoAcq mode */
-	   } else
-		   return -EINVAL;
+		if (rate[fec] < 0)
+			return -EINVAL;
+
+		cx24110_writereg(state, 0x05, (cx24110_readreg(state, 0x05) & 0xf0) | rate[fec]);
+		/* set nominal Viterbi rate */
+		cx24110_writereg(state, 0x22, (cx24110_readreg(state, 0x22) & 0xf0) | rate[fec]);
+		/* set current Viterbi rate */
+		cx24110_writereg(state, 0x1a, g1[fec]);
+		cx24110_writereg(state, 0x1b, g2[fec]);
+		/* not sure if this is the right way: I always used AutoAcq mode */
 	}
 	return 0;
 }
