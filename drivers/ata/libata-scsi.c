@@ -235,7 +235,8 @@ static ssize_t ata_scsi_park_store(struct device *device,
 		rc = -ENODEV;
 		goto unlock;
 	}
-	if (dev->class != ATA_DEV_ATA) {
+	if (dev->class != ATA_DEV_ATA &&
+	    dev->class != ATA_DEV_ZAC) {
 		rc = -EOPNOTSUPP;
 		goto unlock;
 	}
@@ -3412,7 +3413,7 @@ static inline int __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
 	ata_xlat_func_t xlat_func;
 	int rc = 0;
 
-	if (dev->class == ATA_DEV_ATA) {
+	if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
 		if (unlikely(!scmd->cmd_len || scmd->cmd_len > dev->cdb_len))
 			goto bad_cdb_len;
 
