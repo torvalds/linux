@@ -520,6 +520,7 @@ void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
 {
 	unsigned long flags;
 
+	tty_ldisc_flush(tty);
 	tty->closing = 0;
 
 	spin_lock_irqsave(&port->lock, flags);
