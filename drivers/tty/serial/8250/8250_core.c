@@ -2613,7 +2613,9 @@ serial8250_set_ldisc(struct uart_port *port, struct ktermios *termios)
 {
 	if (termios->c_line == N_PPS) {
 		port->flags |= UPF_HARDPPS_CD;
+		spin_lock_irq(&port->lock);
 		serial8250_enable_ms(port);
+		spin_unlock_irq(&port->lock);
 	} else
 		port->flags &= ~UPF_HARDPPS_CD;
 }
