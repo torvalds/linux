@@ -523,9 +523,11 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	if (IS_ERR(new_ldisc))
 		return PTR_ERR(new_ldisc);
 
+	tty_lock(tty);
 	retval = tty_ldisc_lock_pair_timeout(tty, o_tty, 5 * HZ);
 	if (retval) {
 		tty_ldisc_put(new_ldisc);
+		tty_unlock(tty);
 		return retval;
 	}
 
@@ -536,11 +538,11 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	if (tty->ldisc->ops->num == ldisc) {
 		tty_ldisc_enable_pair(tty, o_tty);
 		tty_ldisc_put(new_ldisc);
+		tty_unlock(tty);
 		return 0;
 	}
 
 	old_ldisc = tty->ldisc;
-	tty_lock(tty);
 
 	if (test_bit(TTY_HUPPING, &tty->flags) ||
 	    test_bit(TTY_HUPPED, &tty->flags)) {
@@ -675,8 +677,6 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
 	wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 
-	tty_unlock(tty);
-
 	/*
 	 * Shutdown the current line discipline, and reset it to
 	 * N_TTY if need be.
@@ -684,7 +684,6 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	 * Avoid racing set_ldisc or tty_ldisc_release
 	 */
 	tty_ldisc_lock_pair(tty, tty->link);
-	tty_lock(tty);
 
 	if (tty->ldisc) {
 
