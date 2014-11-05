@@ -14,7 +14,7 @@
 				    * on the callout port */
 #define ASYNCB_FOURPORT		 1 /* Set OU1, OUT2 per AST Fourport settings */
 #define ASYNCB_SAK		 2 /* Secure Attention Key (Orange book) */
-#define ASYNCB_SPLIT_TERMIOS	 3 /* Separate termios for dialin/callout */
+#define ASYNCB_SPLIT_TERMIOS	 3 /* [x] Separate termios for dialin/callout */
 #define ASYNCB_SPD_HI		 4 /* Use 56000 instead of 38400 bps */
 #define ASYNCB_SPD_VHI		 5 /* Use 115200 instead of 38400 bps */
 #define ASYNCB_SKIP_TEST	 6 /* Skip UART test during autoconfiguration */
