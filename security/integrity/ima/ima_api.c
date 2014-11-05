@@ -173,8 +173,7 @@ int ima_get_action(struct inode *inode, int mask, int function)
 {
 	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE;
 
-	if (!ima_appraise)
-		flags &= ~IMA_APPRAISE;
+	flags &= ima_policy_flag;
 
 	return ima_match_policy(inode, function, mask, flags);
 }
