@@ -1714,6 +1714,9 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 	apic->isr_count = kvm_apic_vid_enabled(vcpu->kvm) ?
 				1 : count_vectors(apic->regs + APIC_ISR);
 	apic->highest_isr_cache = -1;
+	if (kvm_x86_ops->hwapic_irr_update)
+		kvm_x86_ops->hwapic_irr_update(vcpu,
+				apic_find_highest_irr(apic));
 	kvm_x86_ops->hwapic_isr_update(vcpu->kvm, apic_find_highest_isr(apic));
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	kvm_rtc_eoi_tracking_restore_one(vcpu);
