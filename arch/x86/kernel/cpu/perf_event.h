@@ -517,7 +517,11 @@ struct x86_pmu {
 };
 
 enum {
-	PERF_SAMPLE_BRANCH_SELECT_MAP_SIZE = PERF_SAMPLE_BRANCH_MAX_SHIFT,
+	PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT = PERF_SAMPLE_BRANCH_MAX_SHIFT,
+	PERF_SAMPLE_BRANCH_SELECT_MAP_SIZE,
+
+	PERF_SAMPLE_BRANCH_CALL_STACK =
+				1U << PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT,
 };
 
 #define x86_add_quirk(func_)						\
@@ -550,6 +554,12 @@ static struct perf_pmu_events_attr event_attr_##v = {			\
 };
 
 extern struct x86_pmu x86_pmu __read_mostly;
+
+static inline bool x86_pmu_has_lbr_callstack(void)
+{
+	return  x86_pmu.lbr_sel_map &&
+		x86_pmu.lbr_sel_map[PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT] > 0;
+}
 
 DECLARE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 
@@ -753,6 +763,8 @@ void intel_pmu_lbr_init_nhm(void);
 void intel_pmu_lbr_init_atom(void);
 
 void intel_pmu_lbr_init_snb(void);
+
+void intel_pmu_lbr_init_hsw(void);
 
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 
