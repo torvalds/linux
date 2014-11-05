@@ -177,19 +177,6 @@ typedef enum {
 	OWNED_BY_NIC = 1
 } DEVICE_OWNER_TYPE, *PDEVICE_OWNER_TYPE;
 
-#define CB_MAX_RX_FRAG                 64
-/* DeFragment Control Block, used for collecting fragments prior to reassembly */
-typedef struct tagSDeFragControlBlock {
-	unsigned short wSequence;
-	unsigned short wFragNum;
-	unsigned char abyAddr2[ETH_ALEN];
-	unsigned int uLifetime;
-	struct sk_buff *skb;
-	unsigned char *pbyRxBuffer;
-	unsigned int cbFrameLength;
-	bool bInUse;
-} SDeFragControlBlock, *PSDeFragControlBlock;
-
 /* flags for options */
 #define     DEVICE_FLAGS_IP_ALIGN        0x00000001UL
 #define     DEVICE_FLAGS_PREAMBLE_TYPE   0x00000002UL
@@ -223,7 +210,6 @@ typedef struct __device_opt {
 	int         nTxDescs[2];	/* Number of TX descriptors 0, 1 */
 	int         int_works;		/* interrupt limits */
 	int         rts_thresh;		/* rts threshold */
-	int         frag_thresh;
 	int         data_rate;
 	int         channel_num;
 	int         short_retry;
@@ -286,11 +272,6 @@ struct vnt_private {
 	volatile PSRxDesc           aRD0Ring;
 	volatile PSRxDesc           aRD1Ring;
 	volatile PSRxDesc           pCurrRD[TYPE_MAXRD];
-
-	SDeFragControlBlock         sRxDFCB[CB_MAX_RX_FRAG];
-	unsigned int	cbDFCB;
-	unsigned int	cbFreeDFCB;
-	unsigned int	uCurrentDFCBIdx;
 
 	OPTIONS                     sOpts;
 
@@ -364,7 +345,6 @@ struct vnt_private {
 
 	unsigned short wCurrentRate;
 	unsigned short wRTSThreshold;
-	unsigned short wFragmentationThreshold;
 	unsigned char byShortRetryLimit;
 	unsigned char byLongRetryLimit;
 	enum nl80211_iftype op_mode;
@@ -487,9 +467,4 @@ static inline PDEVICE_TD_INFO alloc_td_info(void)
 {
 	return kzalloc(sizeof(DEVICE_TD_INFO), GFP_ATOMIC);
 }
-
-/*---------------------  Export Functions  --------------------------*/
-
-bool device_alloc_frag_buf(struct vnt_private *pDevice,
-			   PSDeFragControlBlock pDeF);
 #endif

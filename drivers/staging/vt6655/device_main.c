@@ -35,16 +35,13 @@
  *   device_intr - interrupt handle function
  *   device_rx_srv - rx service function
  *   device_alloc_rx_buf - rx buffer pre-allocated function
- *   device_alloc_frag_buf - rx fragement pre-allocated function
  *   device_free_tx_buf - free tx buffer function
- *   device_free_frag_buf- free de-fragement buffer
  *   device_init_rd0_ring- initial rd dma0 ring
  *   device_init_rd1_ring- initial rd dma1 ring
  *   device_init_td0_ring- initial tx dma0 ring buffer
  *   device_init_td1_ring- initial tx dma1 ring buffer
  *   device_init_registers- initial MAC & BBP & RF internal registers.
  *   device_init_rings- initial tx/rx ring buffer
- *   device_init_defrag_cb- initial & allocate de-fragement buffer.
  *   device_free_rings- free all allocated ring buffer
  *   device_tx_srv- tx interrupt service function
  *
@@ -132,11 +129,7 @@ DEVICE_PARAM(PreambleType, "Preamble Type");
 
 DEVICE_PARAM(RTSThreshold, "RTS threshold");
 
-#define FRAG_THRESH_MIN     256
-#define FRAG_THRESH_MAX     2346
 #define FRAG_THRESH_DEF     2346
-
-DEVICE_PARAM(FragThreshold, "Fragmentation threshold");
 
 #define DATA_RATE_MIN     0
 #define DATA_RATE_MAX     13
@@ -256,7 +249,6 @@ static struct notifier_block device_notifier = {
 
 static void device_init_rd0_ring(struct vnt_private *pDevice);
 static void device_init_rd1_ring(struct vnt_private *pDevice);
-static void device_init_defrag_cb(struct vnt_private *pDevice);
 static void device_init_td0_ring(struct vnt_private *pDevice);
 static void device_init_td1_ring(struct vnt_private *pDevice);
 
@@ -270,7 +262,6 @@ static void device_free_td1_ring(struct vnt_private *pDevice);
 static void device_free_rd0_ring(struct vnt_private *pDevice);
 static void device_free_rd1_ring(struct vnt_private *pDevice);
 static void device_free_rings(struct vnt_private *pDevice);
-static void device_free_frag_buf(struct vnt_private *pDevice);
 
 /*---------------------  Export Variables  --------------------------*/
 
@@ -306,7 +297,6 @@ static void device_get_options(struct vnt_private *pDevice)
 	pOpts->flags |= DEVICE_FLAGS_IP_ALIGN;
 	pOpts->int_works = INT_WORKS_DEF;
 	pOpts->rts_thresh = RTS_THRESH_DEF;
-	pOpts->frag_thresh = FRAG_THRESH_DEF;
 	pOpts->data_rate = DATA_RATE_DEF;
 	pOpts->channel_num = CHANNEL_DEF;
 
@@ -332,7 +322,6 @@ device_set_options(struct vnt_private *pDevice)
 
 	pDevice->uChannel = pDevice->sOpts.channel_num;
 	pDevice->wRTSThreshold = pDevice->sOpts.rts_thresh;
-	pDevice->wFragmentationThreshold = pDevice->sOpts.frag_thresh;
 	pDevice->byShortRetryLimit = pDevice->sOpts.short_retry;
 	pDevice->byLongRetryLimit = pDevice->sOpts.long_retry;
 	pDevice->wMaxTransmitMSDULifetime = DEFAULT_MSDU_LIFETIME;
@@ -853,21 +842,6 @@ static void device_init_rd1_ring(struct vnt_private *pDevice)
 	pDevice->pCurrRD[1] = &(pDevice->aRD1Ring[0]);
 }
 
-static void device_init_defrag_cb(struct vnt_private *pDevice)
-{
-	int i;
-	PSDeFragControlBlock pDeF;
-
-	/* Init the fragment ctl entries */
-	for (i = 0; i < CB_MAX_RX_FRAG; i++) {
-		pDeF = &(pDevice->sRxDFCB[i]);
-		if (!device_alloc_frag_buf(pDevice, pDeF))
-			dev_err(&pDevice->pcid->dev, "can not alloc frag bufs\n");
-	}
-	pDevice->cbDFCB = CB_MAX_RX_FRAG;
-	pDevice->cbFreeDFCB = pDevice->cbDFCB;
-}
-
 static void device_free_rd0_ring(struct vnt_private *pDevice)
 {
 	int i;
@@ -899,20 +873,6 @@ static void device_free_rd1_ring(struct vnt_private *pDevice)
 		dev_kfree_skb(pRDInfo->skb);
 
 		kfree(pDesc->pRDInfo);
-	}
-}
-
-static void device_free_frag_buf(struct vnt_private *pDevice)
-{
-	PSDeFragControlBlock pDeF;
-	int i;
-
-	for (i = 0; i < CB_MAX_RX_FRAG; i++) {
-		pDeF = &(pDevice->sRxDFCB[i]);
-
-		if (pDeF->skb)
-			dev_kfree_skb(pDeF->skb);
-
 	}
 }
 
@@ -1052,17 +1012,6 @@ static bool device_alloc_rx_buf(struct vnt_private *pDevice, PSRxDesc pRD)
 	pRD->m_rd0RD0.f1Owner = OWNED_BY_NIC;
 	pRD->m_rd1RD1.wReqCount = cpu_to_le16(pDevice->rx_buf_sz);
 	pRD->buff_addr = cpu_to_le32(pRDInfo->skb_dma);
-
-	return true;
-}
-
-bool device_alloc_frag_buf(struct vnt_private *pDevice,
-			   PSDeFragControlBlock pDeF)
-{
-	pDeF->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-	if (pDeF->skb == NULL)
-		return false;
-	ASSERT(pDeF->skb);
 
 	return true;
 }
@@ -1466,7 +1415,6 @@ static int vnt_start(struct ieee80211_hw *hw)
 	dev_dbg(&priv->pcid->dev, "call device init rd0 ring\n");
 	device_init_rd0_ring(priv);
 	device_init_rd1_ring(priv);
-	device_init_defrag_cb(priv);
 	device_init_td0_ring(priv);
 	device_init_td1_ring(priv);
 
@@ -1494,7 +1442,6 @@ static void vnt_stop(struct ieee80211_hw *hw)
 	device_free_td1_ring(priv);
 	device_free_rd0_ring(priv);
 	device_free_rd1_ring(priv);
-	device_free_frag_buf(priv);
 	device_free_rings(priv);
 
 	free_irq(priv->pcid->irq, priv);

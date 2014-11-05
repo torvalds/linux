@@ -583,9 +583,6 @@ CARDvSafeResetRx(
 		pDesc->m_rd1RD1.wReqCount = (unsigned short)(pDevice->rx_buf_sz);
 	}
 
-	pDevice->cbDFCB = CB_MAX_RX_FRAG;
-	pDevice->cbFreeDFCB = pDevice->cbDFCB;
-
 	/* set perPkt mode */
 	MACvRx0PerPktMode(pDevice->PortOffset);
 	MACvRx1PerPktMode(pDevice->PortOffset);
