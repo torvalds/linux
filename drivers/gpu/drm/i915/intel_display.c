@@ -2931,8 +2931,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	intel_update_pipe_size(intel_crtc);
-
 	dev_priv->display.update_primary_plane(crtc, fb, x, y);
 
 	if (intel_crtc->active)
@@ -11341,6 +11339,8 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	/* set_mode will free it in the mode_changed case */
 	if (!config->mode_changed)
 		kfree(pipe_config);
+
+	intel_update_pipe_size(to_intel_crtc(set->crtc));
 
 	if (config->mode_changed) {
 		ret = intel_set_mode_pipes(set->crtc, set->mode,
