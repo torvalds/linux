@@ -1798,13 +1798,10 @@ int tty_release(struct inode *inode, struct file *filp)
 	 * first, its count will be one, since the master side holds an open.
 	 * Thus this test wouldn't be triggered at the time the slave closes,
 	 * so we do it now.
-	 *
-	 * Note that it's possible for the tty to be opened again while we're
-	 * flushing out waiters.  By recalculating the closing flags before
-	 * each iteration we avoid any problems.
 	 */
+	tty_lock_pair(tty, o_tty);
+
 	while (1) {
-		tty_lock_pair(tty, o_tty);
 		tty_closing = tty->count <= 1;
 		o_tty_closing = o_tty &&
 			(o_tty->count <= (pty_master ? 1 : 0));
@@ -1835,7 +1832,6 @@ int tty_release(struct inode *inode, struct file *filp)
 
 		printk(KERN_WARNING "%s: %s: read/write wait queue active!\n",
 				__func__, tty_name(tty, buf));
-		tty_unlock_pair(tty, o_tty);
 		schedule();
 	}
 
