@@ -381,7 +381,6 @@ struct pci224_private {
 	unsigned short daccon;
 	unsigned int cached_div1;
 	unsigned int cached_div2;
-	unsigned int ao_stop_count;
 	unsigned short ao_enab;	/* max 16 channels so 'short' will do */
 	unsigned char intsce;
 };
@@ -514,18 +513,10 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 {
 	struct pci224_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int num_scans;
+	unsigned int num_scans = comedi_nscans_left(s, 0);
 	unsigned int room;
 	unsigned short dacstat;
 	unsigned int i, n;
-
-	/* Determine number of scans available in buffer. */
-	num_scans = comedi_buf_read_n_available(s) / comedi_bytes_per_scan(s);
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* Fixed number of scans. */
-		if (num_scans > devpriv->ao_stop_count)
-			num_scans = devpriv->ao_stop_count;
-	}
 
 	/* Determine how much room is in the FIFO (in samples). */
 	dacstat = inw(dev->iobase + PCI224_DACCON);
@@ -533,7 +524,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 	case PCI224_DACCON_FIFOFL_EMPTY:
 		room = PCI224_FIFO_ROOM_EMPTY;
 		if (cmd->stop_src == TRIG_COUNT &&
-		    devpriv->ao_stop_count == 0) {
+		    s->async->scans_done >= cmd->stop_arg) {
 			/* FIFO empty at end of counted acquisition. */
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_handle_events(dev, s);
@@ -574,18 +565,16 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 			     dev->iobase + PCI224_DACDATA);
 		}
 	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ao_stop_count -= num_scans;
-		if (devpriv->ao_stop_count == 0) {
-			/*
-			 * Change FIFO interrupt trigger level to wait
-			 * until FIFO is empty.
-			 */
-			devpriv->daccon = COMBINE(devpriv->daccon,
-						  PCI224_DACCON_FIFOINTR_EMPTY,
-						  PCI224_DACCON_FIFOINTR_MASK);
-			outw(devpriv->daccon, dev->iobase + PCI224_DACCON);
-		}
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg) {
+		/*
+		 * Change FIFO interrupt trigger level to wait
+		 * until FIFO is empty.
+		 */
+		devpriv->daccon = COMBINE(devpriv->daccon,
+					  PCI224_DACCON_FIFOINTR_EMPTY,
+					  PCI224_DACCON_FIFOINTR_MASK);
+		outw(devpriv->daccon, dev->iobase + PCI224_DACCON);
 	}
 	if ((devpriv->daccon & PCI224_DACCON_TRIG_MASK) ==
 	    PCI224_DACCON_TRIG_NONE) {
@@ -906,14 +895,6 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->scan_begin_src == TRIG_TIMER)
 		pci224_ao_start_pacer(dev, s);
-
-	/*
-	 * Sort out end of acquisition.
-	 */
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ao_stop_count = cmd->stop_arg;
-	else	/* TRIG_EXT | TRIG_NONE */
-		devpriv->ao_stop_count = 0;
 
 	spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 	if (cmd->start_src == TRIG_INT) {
