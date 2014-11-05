@@ -963,7 +963,7 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 	hw = &segment->hw;
 	hw->vsize = xt->numf;
 	hw->hsize = xt->sgl[0].size;
-	hw->stride = xt->sgl[0].icg <<
+	hw->stride = (xt->sgl[0].icg + xt->sgl[0].size) <<
 			XILINX_VDMA_FRMDLY_STRIDE_STRIDE_SHIFT;
 	hw->stride |= chan->config.frm_dly <<
 			XILINX_VDMA_FRMDLY_STRIDE_FRMDLY_SHIFT;
