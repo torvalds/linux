@@ -601,8 +601,6 @@ static void  pm8001_post_sas_ha_init(struct Scsi_Host *shost,
 	sha->lldd_module = THIS_MODULE;
 	sha->sas_addr = &pm8001_ha->sas_addr[0];
 	sha->num_phys = chip_info->n_phy;
-	sha->lldd_max_execute_num = 1;
-	sha->lldd_queue_size = PM8001_CAN_QUEUE;
 	sha->core.shost = shost;
 }
 
