@@ -106,10 +106,7 @@ enum {
  */
 #define IS_CARD_RX_RCVD(adapter) (adapter->cmd_resp_received || \
 				adapter->event_received || \
-				((adapter->iface_type != MWIFIEX_USB) && \
-				adapter->data_received) || \
-				((adapter->iface_type == MWIFIEX_USB) && \
-				!skb_queue_empty(&adapter->usb_rx_data_q)))
+				adapter->data_received)
 
 #define MWIFIEX_TYPE_CMD				1
 #define MWIFIEX_TYPE_DATA				0
@@ -766,7 +763,6 @@ struct mwifiex_adapter {
 	spinlock_t scan_pending_q_lock;
 	/* spin lock for RX processing routine */
 	spinlock_t rx_proc_lock;
-	struct sk_buff_head usb_rx_data_q;
 	u32 scan_processing;
 	u16 region_code;
 	struct mwifiex_802_11d_domain_reg domain_reg;

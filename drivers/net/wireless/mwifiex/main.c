@@ -178,7 +178,6 @@ int mwifiex_main_process(struct mwifiex_adapter *adapter)
 {
 	int ret = 0;
 	unsigned long flags;
-	struct sk_buff *skb;
 
 	spin_lock_irqsave(&adapter->main_proc_lock, flags);
 
@@ -252,11 +251,6 @@ process_start:
 					break;
 			}
 		}
-
-		/* Check Rx data for USB */
-		if (adapter->iface_type == MWIFIEX_USB)
-			while ((skb = skb_dequeue(&adapter->usb_rx_data_q)))
-				mwifiex_handle_rx_packet(adapter, skb);
 
 		/* Check for event */
 		if (adapter->event_received) {
@@ -864,7 +858,7 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	adapter->cmd_wait_q.status = 0;
 	adapter->scan_wait_q_woken = false;
 
-	if (num_possible_cpus() > 1) {
+	if ((num_possible_cpus() > 1) || adapter->iface_type == MWIFIEX_USB) {
 		adapter->rx_work_enabled = true;
 		pr_notice("rx work enabled, cpus %d\n", num_possible_cpus());
 	}

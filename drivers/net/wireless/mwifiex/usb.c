@@ -125,8 +125,10 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 			dev_err(dev, "DATA: skb->len too large\n");
 			return -1;
 		}
-		skb_queue_tail(&adapter->usb_rx_data_q, skb);
+
+		skb_queue_tail(&adapter->rx_data_q, skb);
 		adapter->data_received = true;
+		atomic_inc(&adapter->rx_pending);
 		break;
 	default:
 		dev_err(dev, "%s: unknown endport %#x\n", __func__, ep);
@@ -176,7 +178,6 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 		else
 			skb_put(skb, recv_length - skb->len);
 
-		atomic_inc(&adapter->rx_pending);
 		status = mwifiex_usb_recv(adapter, skb, context->ep);
 
 		dev_dbg(adapter->dev, "info: recv_length=%d, status=%d\n",
@@ -191,7 +192,6 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 			if (card->rx_cmd_ep == context->ep)
 				return;
 		} else {
-			atomic_dec(&adapter->rx_pending);
 			if (status == -1)
 				dev_err(adapter->dev,
 					"received data processing failed!\n");
@@ -962,7 +962,6 @@ static void mwifiex_submit_rx_urb(struct mwifiex_adapter *adapter, u8 ep)
 static int mwifiex_usb_cmd_event_complete(struct mwifiex_adapter *adapter,
 				       struct sk_buff *skb)
 {
-	atomic_dec(&adapter->rx_pending);
 	mwifiex_submit_rx_urb(adapter, MWIFIEX_USB_EP_CMD_EVENT);
 
 	return 0;
@@ -970,8 +969,6 @@ static int mwifiex_usb_cmd_event_complete(struct mwifiex_adapter *adapter,
 
 static int mwifiex_usb_data_complete(struct mwifiex_adapter *adapter)
 {
-	atomic_dec(&adapter->rx_pending);
-
 	return 0;
 }
 

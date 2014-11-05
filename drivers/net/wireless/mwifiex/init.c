@@ -449,7 +449,6 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	spin_lock_init(&adapter->scan_pending_q_lock);
 	spin_lock_init(&adapter->rx_proc_lock);
 
-	skb_queue_head_init(&adapter->usb_rx_data_q);
 	skb_queue_head_init(&adapter->rx_data_q);
 
 	for (i = 0; i < adapter->priv_num; ++i) {
@@ -667,19 +666,6 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 
 	spin_lock(&adapter->mwifiex_lock);
-
-	if (adapter->if_ops.data_complete) {
-		while ((skb = skb_dequeue(&adapter->usb_rx_data_q))) {
-			struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
-
-			priv = adapter->priv[rx_info->bss_num];
-			if (priv)
-				priv->stats.rx_dropped++;
-
-			dev_kfree_skb_any(skb);
-			adapter->if_ops.data_complete(adapter);
-		}
-	}
 
 	mwifiex_adapter_cleanup(adapter);
 
