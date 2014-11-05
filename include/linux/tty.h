@@ -617,10 +617,6 @@ extern int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 extern long n_tty_compat_ioctl_helper(struct tty_struct *tty, struct file *file,
 		       unsigned int cmd, unsigned long arg);
 
-/* serial.c */
-
-extern void serial_console_init(void);
-
 /* vt.c */
 
 extern int vt_ioctl(struct tty_struct *tty,
