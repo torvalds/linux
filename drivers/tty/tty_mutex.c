@@ -13,15 +13,14 @@
 
 enum {
 	TTY_MUTEX_NORMAL,
-	TTY_MUTEX_NESTED,
+	TTY_MUTEX_SLAVE,
 };
 
 /*
  * Getting the big tty mutex.
  */
 
-static void __lockfunc tty_lock_nested(struct tty_struct *tty,
-				       unsigned int subclass)
+void __lockfunc tty_lock(struct tty_struct *tty)
 {
 	if (tty->magic != TTY_MAGIC) {
 		pr_err("L Bad %p\n", tty);
@@ -29,12 +28,7 @@ static void __lockfunc tty_lock_nested(struct tty_struct *tty,
 		return;
 	}
 	tty_kref_get(tty);
-	mutex_lock_nested(&tty->legacy_mutex, subclass);
-}
-
-void __lockfunc tty_lock(struct tty_struct *tty)
-{
-	return tty_lock_nested(tty, TTY_MUTEX_NORMAL);
+	mutex_lock(&tty->legacy_mutex);
 }
 EXPORT_SYMBOL(tty_lock);
 
@@ -56,7 +50,7 @@ void __lockfunc tty_lock_slave(struct tty_struct *tty)
 		WARN_ON(!mutex_is_locked(&tty->link->legacy_mutex) ||
 			!tty->driver->type == TTY_DRIVER_TYPE_PTY ||
 			!tty->driver->type == PTY_TYPE_SLAVE);
-		tty_lock_nested(tty, TTY_MUTEX_NESTED);
+		tty_lock(tty);
 	}
 }
 
@@ -64,4 +58,9 @@ void __lockfunc tty_unlock_slave(struct tty_struct *tty)
 {
 	if (tty && tty != tty->link)
 		tty_unlock(tty);
+}
+
+void tty_set_lock_subclass(struct tty_struct *tty)
+{
+	lockdep_set_subclass(&tty->legacy_mutex, TTY_MUTEX_SLAVE);
 }

@@ -399,6 +399,8 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	if (!o_tty)
 		goto err_put_module;
 
+	tty_set_lock_subclass(o_tty);
+
 	if (legacy) {
 		/* We always use new tty termios data so we can do this
 		   the easy way .. */
