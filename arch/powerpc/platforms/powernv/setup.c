@@ -268,7 +268,7 @@ static void __init pnv_setup_machdep_opal(void)
 	ppc_md.get_rtc_time = opal_get_rtc_time;
 	ppc_md.set_rtc_time = opal_set_rtc_time;
 	ppc_md.restart = pnv_restart;
-	ppc_md.power_off = pnv_power_off;
+	pm_power_off = pnv_power_off;
 	ppc_md.halt = pnv_halt;
 	ppc_md.machine_check_exception = opal_machine_check;
 	ppc_md.mce_check_early_recovery = opal_mce_check_early_recovery;
@@ -285,7 +285,7 @@ static void __init pnv_setup_machdep_rtas(void)
 		ppc_md.set_rtc_time = rtas_set_rtc_time;
 	}
 	ppc_md.restart = rtas_restart;
-	ppc_md.power_off = rtas_power_off;
+	pm_power_off = rtas_power_off;
 	ppc_md.halt = rtas_halt;
 }
 #endif /* CONFIG_PPC_POWERNV_RTAS */
