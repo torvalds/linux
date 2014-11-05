@@ -138,6 +138,8 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	POSTING_READ(type##IMR); \
 } while (0)
 
+static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
+
 /* For display hotplug interrupt */
 void
 ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
@@ -1286,19 +1288,6 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 		ivybridge_parity_error_irq_handler(dev, gt_iir);
 }
 
-static void gen8_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
-{
-	if ((pm_iir & dev_priv->pm_rps_events) == 0)
-		return;
-
-	spin_lock(&dev_priv->irq_lock);
-	dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
-	gen6_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
-	spin_unlock(&dev_priv->irq_lock);
-
-	queue_work(dev_priv->wq, &dev_priv->rps.work);
-}
-
 static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 				       struct drm_i915_private *dev_priv,
 				       u32 master_ctl)
@@ -1360,7 +1349,7 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 			I915_WRITE(GEN8_GT_IIR(2),
 				   tmp & dev_priv->pm_rps_events);
 			ret = IRQ_HANDLED;
-			gen8_rps_irq_handler(dev_priv, tmp);
+			gen6_rps_irq_handler(dev_priv, tmp);
 		} else
 			DRM_ERROR("The master control interrupt lied (PM)!\n");
 	}
@@ -1668,6 +1657,9 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 
 		queue_work(dev_priv->wq, &dev_priv->rps.work);
 	}
+
+	if (INTEL_INFO(dev_priv)->gen >= 8)
+		return;
 
 	if (HAS_VEBOX(dev_priv->dev)) {
 		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
