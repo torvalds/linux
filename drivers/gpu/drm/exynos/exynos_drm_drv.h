@@ -204,7 +204,6 @@ struct exynos_drm_manager_ops {
  * Exynos drm common manager structure, maps 1:1 with a crtc
  *
  * @list: the list entry for this manager
- * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
  * @drm_dev: pointer to the drm device
  * @crtc: crtc object.
  * @ops: pointer to callbacks for exynos drm specific functionality
@@ -212,7 +211,6 @@ struct exynos_drm_manager_ops {
  */
 struct exynos_drm_manager {
 	struct list_head list;
-	enum exynos_drm_output_type type;
 	struct drm_device *drm_dev;
 	struct drm_crtc *crtc;
 	struct exynos_drm_manager_ops *ops;
@@ -228,6 +226,7 @@ enum exynos_crtc_mode {
  *
  * @base: crtc object.
  * @manager: the manager associated with this crtc
+ * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
  * @pipe: a crtc index created at load() with a new crtc object creation
  *	and the crtc object would be set to private->crtc array
  *	to get a crtc object corresponding to this pipe from private->crtc
@@ -241,6 +240,7 @@ enum exynos_crtc_mode {
 struct exynos_drm_crtc {
 	struct drm_crtc			base;
 	struct exynos_drm_manager	*manager;
+	enum exynos_drm_output_type	type;
 	unsigned int			pipe;
 	unsigned int			dpms;
 	enum exynos_crtc_mode		mode;

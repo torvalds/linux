@@ -558,7 +558,8 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 
 	vidi_mgr_initialize(&ctx->manager, drm_dev);
 
-	ret = exynos_drm_crtc_create(&ctx->manager, ctx->pipe);
+	ret = exynos_drm_crtc_create(&ctx->manager, ctx->pipe,
+				     EXYNOS_DISPLAY_TYPE_VIDI);
 	if (ret) {
 		DRM_ERROR("failed to create crtc.\n");
 		return ret;
@@ -593,7 +594,6 @@ static int vidi_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->manager.type = EXYNOS_DISPLAY_TYPE_VIDI;
 	ctx->manager.ops = &vidi_manager_ops;
 	ctx->display.type = EXYNOS_DISPLAY_TYPE_VIDI;
 	ctx->display.ops = &vidi_display_ops;
@@ -601,7 +601,7 @@ static int vidi_probe(struct platform_device *pdev)
 	ctx->pdev = pdev;
 
 	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
-					ctx->manager.type);
+					EXYNOS_DISPLAY_TYPE_VIDI);
 	if (ret)
 		return ret;
 

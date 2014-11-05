@@ -1261,7 +1261,8 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 	if (ret)
 		return ret;
 
-	ret = exynos_drm_crtc_create(&ctx->manager, ctx->pipe);
+	ret = exynos_drm_crtc_create(&ctx->manager, ctx->pipe,
+				     EXYNOS_DISPLAY_TYPE_HDMI);
 	if (ret) {
 		mixer_mgr_remove(&ctx->manager);
 		return ret;
@@ -1297,7 +1298,6 @@ static int mixer_probe(struct platform_device *pdev)
 
 	mutex_init(&ctx->mixer_mutex);
 
-	ctx->manager.type = EXYNOS_DISPLAY_TYPE_HDMI;
 	ctx->manager.ops = &mixer_manager_ops;
 
 	if (dev->of_node) {
@@ -1321,7 +1321,7 @@ static int mixer_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ctx);
 
 	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
-					ctx->manager.type);
+					EXYNOS_DISPLAY_TYPE_HDMI);
 	if (ret)
 		return ret;
 

@@ -1076,7 +1076,8 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 
 	fimd_mgr_initialize(&ctx->manager, drm_dev);
-	exynos_drm_crtc_create(&ctx->manager, ctx->pipe);
+	exynos_drm_crtc_create(&ctx->manager, ctx->pipe,
+			       EXYNOS_DISPLAY_TYPE_LCD);
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
 
@@ -1117,11 +1118,10 @@ static int fimd_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->manager.type = EXYNOS_DISPLAY_TYPE_LCD;
 	ctx->manager.ops = &fimd_manager_ops;
 
 	ret = exynos_drm_component_add(dev, EXYNOS_DEVICE_TYPE_CRTC,
-				       ctx->manager.type);
+				       EXYNOS_DISPLAY_TYPE_LCD);
 	if (ret)
 		return ret;
 
