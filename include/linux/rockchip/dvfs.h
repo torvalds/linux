@@ -18,6 +18,10 @@
 #include <linux/device.h>
 #include <linux/clk-provider.h>
 
+#define ARM_DVFS_CH	0
+#define GPU_DVFS_CH	1
+#define LOG_DVFS_CH	2
+
 struct dvfs_node;
 typedef int (*dvfs_set_rate_callback)(struct dvfs_node *clk_dvfs_node, unsigned long rate);
 typedef int (*clk_set_rate_callback)(struct clk *clk, unsigned long rate);
@@ -76,6 +80,21 @@ struct pd_node {
 	unsigned int		regu_mode;
 };
 
+struct pvtm_info {
+	const char *compatible;
+	struct cpufreq_frequency_table *pvtm_table;
+	int channel;
+	int process_version;
+	int scan_rate_hz;
+	int sample_time_us;
+	int volt_step_uv;
+	int delta_pvtm_by_volt;
+	int delta_pvtm_by_temp;
+	int volt_margin_uv;
+	int min_volt_uv;
+	int max_volt_uv;
+};
+
 /**
  * struct dvfs_node:	To Store All dvfs clocks' info
  * @name:		Dvfs clock's Name
@@ -96,9 +115,11 @@ struct dvfs_node {
 	int			set_volt;	//MV
 	int			enable_count;
 	int			freq_limit_en;	//sign if use limit frequency
+	int			support_pvtm;
 	unsigned int		min_rate;	//limit min frequency
 	unsigned int		max_rate;	//limit max frequency
 	unsigned long		last_set_rate;
+	unsigned int		channel;
 	unsigned int		temp_channel;
 	unsigned long		temp_limit_rate;
 	struct clk 		*clk;
@@ -107,6 +128,7 @@ struct dvfs_node {
 	struct list_head	node;
 	struct notifier_block	*dvfs_nb;
 	struct cpufreq_frequency_table	*dvfs_table;
+	struct cpufreq_frequency_table	*pvtm_table;
 	struct cpufreq_frequency_table	*per_temp_limit_table;
 	struct cpufreq_frequency_table  *nor_temp_limit_table;
 	struct cpufreq_frequency_table  *virt_temp_limit_table[4];
@@ -114,6 +136,7 @@ struct dvfs_node {
 	struct cpufreq_frequency_table  *regu_mode_table;
 	int			regu_mode_en;
 	unsigned int		regu_mode;
+	struct pvtm_info	*pvtm_info;
 };
 
 

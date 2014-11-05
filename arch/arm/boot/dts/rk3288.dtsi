@@ -908,9 +908,9 @@
 						816000 1100000
 						1008000 1100000
 						>;
+					channel = <0>;
 					temp-limit-enable = <1>;
 					target-temp = <80>;
-					temp-channel = <1>;
 					normal-temp-limit = <
 					/*delta-temp    delta-freq*/
 						3	96000
@@ -944,6 +944,7 @@
 						300000 1200000
 						400000 1200000
 						>;
+					channel = <2>;
 					status = "disabled";
 				};
 			};
@@ -971,6 +972,7 @@
 						300000 1200000
 						400000 1200000
 						>;
+					channel = <1>;
 					status = "okay";
 					regu-mode-table = <
 						/*freq     mode*/
