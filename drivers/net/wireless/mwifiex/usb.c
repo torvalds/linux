@@ -967,11 +967,6 @@ static int mwifiex_usb_cmd_event_complete(struct mwifiex_adapter *adapter,
 	return 0;
 }
 
-static int mwifiex_usb_data_complete(struct mwifiex_adapter *adapter)
-{
-	return 0;
-}
-
 /* This function wakes up the card. */
 static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
@@ -993,7 +988,6 @@ static struct mwifiex_if_ops usb_ops = {
 	.dnld_fw =		mwifiex_usb_dnld_fw,
 	.cmdrsp_complete =	mwifiex_usb_cmd_event_complete,
 	.event_complete =	mwifiex_usb_cmd_event_complete,
-	.data_complete =	mwifiex_usb_data_complete,
 	.host_to_card =		mwifiex_usb_host_to_card,
 };
 
