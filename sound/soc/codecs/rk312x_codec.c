@@ -1995,7 +1995,8 @@ static void rk312x_shutdown(struct snd_pcm_substream *substream,
 			      SNDRV_PCM_RATE_32000 |	\
 			      SNDRV_PCM_RATE_44100 |	\
 			      SNDRV_PCM_RATE_48000 |	\
-			      SNDRV_PCM_RATE_96000)
+			      SNDRV_PCM_RATE_96000 |	\
+			      SNDRV_PCM_RATE_192000)
 
 #define RK312x_CAPTURE_RATES (SNDRV_PCM_RATE_8000 |\
 			      SNDRV_PCM_RATE_16000 |	\

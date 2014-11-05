@@ -354,4 +354,7 @@ params_period_bytes(const struct snd_pcm_hw_params *p)
 		params_channels(p)) / 8;
 }
 
+#define HW_PARAMS_FLAG_LPCM 0
+#define HW_PARAMS_FLAG_NLPCM 1
+
 #endif /* __SOUND_PCM_PARAMS_H */

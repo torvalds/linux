@@ -30,6 +30,7 @@ static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int pll_out = 0, dai_fmt = rtd->dai_link->dai_fmt;
+	int div_bclk,div_mclk;
 	int ret;
 
 	DBG("Enter::%s----%d\n", __func__, __LINE__);
@@ -48,12 +49,20 @@ static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 	case 24000:
 	case 32000:
 	case 48000:
+	case 96000:
 		pll_out = 12288000;
 		break;
 	case 11025:
 	case 22050:
 	case 44100:
+	case 88200:
 		pll_out = 11289600;
+		break;
+	case 176400:
+		pll_out = 11289600*2;
+		break;
+	case 192000:
+		pll_out = 12288000*2;
 		break;
 	default:
 		pr_err("Enter:%s, %d, Error rate=%d\n",
@@ -66,13 +75,15 @@ static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 		__func__, __LINE__,
 		params_rate(params));
 
-	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,
-		(pll_out / 4) / params_rate(params) - 1);
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
+	div_bclk = 63;
+	div_mclk = pll_out/(params_rate(params)*(div_bclk+1))-1;
 
-	DBG("Enter:%s, %d, pll_out / 4 / params_rate(params) = %d\n",
-		__func__, __LINE__, (pll_out / 4) / params_rate(params));
+	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
+
+	DBG("Enter:%s, %d, div_bclk: %d, div_mclk: %d\n",
+		__func__, __LINE__, div_bclk, div_mclk);
 
 	return 0;
 }
