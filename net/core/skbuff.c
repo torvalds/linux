@@ -3013,7 +3013,7 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 		if (nskb->len == len + doffset)
 			goto perform_csum_check;
 
-		if (!sg) {
+		if (!sg && !nskb->remcsum_offload) {
 			nskb->ip_summed = CHECKSUM_NONE;
 			nskb->csum = skb_copy_and_csum_bits(head_skb, offset,
 							    skb_put(nskb, len),
@@ -3085,7 +3085,7 @@ skip_fraglist:
 		nskb->truesize += nskb->data_len;
 
 perform_csum_check:
-		if (!csum) {
+		if (!csum && !nskb->remcsum_offload) {
 			nskb->csum = skb_checksum(nskb, doffset,
 						  nskb->len - doffset, 0);
 			nskb->ip_summed = CHECKSUM_NONE;

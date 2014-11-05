@@ -56,7 +56,10 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/udp.h>
-#include <net/gue.h>
+
+#if IS_ENABLED(CONFIG_NET_FOU)
+#include <net/fou.h>
+#endif
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
@@ -494,10 +497,12 @@ static int ip_encap_hlen(struct ip_tunnel_encap *e)
 	switch (e->type) {
 	case TUNNEL_ENCAP_NONE:
 		return 0;
+#if IS_ENABLED(CONFIG_NET_FOU)
 	case TUNNEL_ENCAP_FOU:
-		return sizeof(struct udphdr);
+		return fou_encap_hlen(e);
 	case TUNNEL_ENCAP_GUE:
-		return sizeof(struct udphdr) + sizeof(struct guehdr);
+		return gue_encap_hlen(e);
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -526,60 +531,18 @@ int ip_tunnel_encap_setup(struct ip_tunnel *t,
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_encap_setup);
 
-static int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
-			    size_t hdr_len, u8 *protocol, struct flowi4 *fl4)
-{
-	struct udphdr *uh;
-	__be16 sport;
-	bool csum = !!(e->flags & TUNNEL_ENCAP_FLAG_CSUM);
-	int type = csum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
-
-	skb = iptunnel_handle_offloads(skb, csum, type);
-
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	/* Get length and hash before making space in skb */
-
-	sport = e->sport ? : udp_flow_src_port(dev_net(skb->dev),
-					       skb, 0, 0, false);
-
-	skb_push(skb, hdr_len);
-
-	skb_reset_transport_header(skb);
-	uh = udp_hdr(skb);
-
-	if (e->type == TUNNEL_ENCAP_GUE) {
-		struct guehdr *guehdr = (struct guehdr *)&uh[1];
-
-		guehdr->version = 0;
-		guehdr->hlen = 0;
-		guehdr->flags = 0;
-		guehdr->next_hdr = *protocol;
-	}
-
-	uh->dest = e->dport;
-	uh->source = sport;
-	uh->len = htons(skb->len);
-	uh->check = 0;
-	udp_set_csum(!(e->flags & TUNNEL_ENCAP_FLAG_CSUM), skb,
-		     fl4->saddr, fl4->daddr, skb->len);
-
-	*protocol = IPPROTO_UDP;
-
-	return 0;
-}
-
 int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
 		    u8 *protocol, struct flowi4 *fl4)
 {
 	switch (t->encap.type) {
 	case TUNNEL_ENCAP_NONE:
 		return 0;
+#if IS_ENABLED(CONFIG_NET_FOU)
 	case TUNNEL_ENCAP_FOU:
+		return fou_build_header(skb, &t->encap, protocol, fl4);
 	case TUNNEL_ENCAP_GUE:
-		return fou_build_header(skb, &t->encap, t->encap_hlen,
-					protocol, fl4);
+		return gue_build_header(skb, &t->encap, protocol, fl4);
+#endif
 	default:
 		return -EINVAL;
 	}
