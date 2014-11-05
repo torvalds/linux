@@ -217,8 +217,7 @@ static int cx24110_set_fec (struct cx24110_state* state, fe_code_rate_t fec)
 			cx24110_writereg(state, 0x1b, g2[fec]);
 			/* not sure if this is the right way: I always used AutoAcq mode */
 	   } else
-		   return -EOPNOTSUPP;
-/* fixme (low): which is the correct return code? */
+		   return -EINVAL;
 	}
 	return 0;
 }
