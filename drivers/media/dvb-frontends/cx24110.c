@@ -192,28 +192,29 @@ static int cx24110_set_fec (struct cx24110_state* state, fe_code_rate_t fec)
 	if (fec > FEC_AUTO)
 		fec = FEC_AUTO;
 
-	if (fec==FEC_AUTO) { /* (re-)establish AutoAcq behaviour */
-		cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)&0xdf);
+	if (fec == FEC_AUTO) { /* (re-)establish AutoAcq behaviour */
+		cx24110_writereg(state, 0x37, cx24110_readreg(state, 0x37) & 0xdf);
 		/* clear AcqVitDis bit */
-		cx24110_writereg(state,0x18,0xae);
+		cx24110_writereg(state, 0x18, 0xae);
 		/* allow all DVB standard code rates */
-		cx24110_writereg(state,0x05,(cx24110_readreg(state,0x05)&0xf0)|0x3);
+		cx24110_writereg(state, 0x05, (cx24110_readreg(state, 0x05) & 0xf0) | 0x3);
 		/* set nominal Viterbi rate 3/4 */
-		cx24110_writereg(state,0x22,(cx24110_readreg(state,0x22)&0xf0)|0x3);
+		cx24110_writereg(state, 0x22, (cx24110_readreg(state, 0x22) & 0xf0) | 0x3);
 		/* set current Viterbi rate 3/4 */
-		cx24110_writereg(state,0x1a,0x05); cx24110_writereg(state,0x1b,0x06);
+		cx24110_writereg(state, 0x1a, 0x05);
+		cx24110_writereg(state, 0x1b, 0x06);
 		/* set the puncture registers for code rate 3/4 */
 		return 0;
 	} else {
-		cx24110_writereg(state,0x37,cx24110_readreg(state,0x37)|0x20);
+		cx24110_writereg(state, 0x37, cx24110_readreg(state, 0x37) | 0x20);
 		/* set AcqVitDis bit */
-		if(rate[fec]>0) {
-			cx24110_writereg(state,0x05,(cx24110_readreg(state,0x05)&0xf0)|rate[fec]);
+		if (rate[fec] > 0) {
+			cx24110_writereg(state, 0x05, (cx24110_readreg(state, 0x05) & 0xf0) | rate[fec]);
 			/* set nominal Viterbi rate */
-			cx24110_writereg(state,0x22,(cx24110_readreg(state,0x22)&0xf0)|rate[fec]);
+			cx24110_writereg(state, 0x22, (cx24110_readreg(state, 0x22) & 0xf0) | rate[fec]);
 			/* set current Viterbi rate */
-			cx24110_writereg(state,0x1a,g1[fec]);
-			cx24110_writereg(state,0x1b,g2[fec]);
+			cx24110_writereg(state, 0x1a, g1[fec]);
+			cx24110_writereg(state, 0x1b, g2[fec]);
 			/* not sure if this is the right way: I always used AutoAcq mode */
 	   } else
 		   return -EOPNOTSUPP;
