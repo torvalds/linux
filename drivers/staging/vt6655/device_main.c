@@ -456,10 +456,7 @@ static void device_init_registers(struct vnt_private *pDevice)
 
 	/* Set BB and packet type at the same time. */
 	/* Set Short Slot Time, xIFS, and RSPINF. */
-	if (pDevice->uConnectionRate == RATE_AUTO)
-		pDevice->wCurrentRate = RATE_54M;
-	else
-		pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
+	pDevice->wCurrentRate = RATE_54M;
 
 	pDevice->bRadioOff = false;
 
