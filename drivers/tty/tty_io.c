@@ -1935,20 +1935,20 @@ int tty_release(struct inode *inode, struct file *filp)
 }
 
 /**
- *	tty_open_current_tty - get tty of current task for open
+ *	tty_open_current_tty - get locked tty of current task
  *	@device: device number
  *	@filp: file pointer to tty
- *	@return: tty of the current task iff @device is /dev/tty
+ *	@return: locked tty of the current task iff @device is /dev/tty
+ *
+ *	Performs a re-open of the current task's controlling tty.
  *
  *	We cannot return driver and index like for the other nodes because
  *	devpts will not work then. It expects inodes to be from devpts FS.
- *
- *	We need to move to returning a refcounted object from all the lookup
- *	paths including this one.
  */
 static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
 {
 	struct tty_struct *tty;
+	int retval;
 
 	if (device != MKDEV(TTYAUX_MAJOR, 0))
 		return NULL;
@@ -1959,9 +1959,14 @@ static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
 
 	filp->f_flags |= O_NONBLOCK; /* Don't let /dev/tty block */
 	/* noctty = 1; */
-	tty_kref_put(tty);
-	/* FIXME: we put a reference and return a TTY! */
-	/* This is only safe because the caller holds tty_mutex */
+	tty_lock(tty);
+	tty_kref_put(tty);	/* safe to drop the kref now */
+
+	retval = tty_reopen(tty);
+	if (retval < 0) {
+		tty_unlock(tty);
+		tty = ERR_PTR(retval);
+	}
 	return tty;
 }
 
@@ -2059,13 +2064,9 @@ retry_open:
 	index  = -1;
 	retval = 0;
 
-	mutex_lock(&tty_mutex);
-	/* This is protected by the tty_mutex */
 	tty = tty_open_current_tty(device, filp);
-	if (IS_ERR(tty)) {
-		retval = PTR_ERR(tty);
-		goto err_unlock;
-	} else if (!tty) {
+	if (!tty) {
+		mutex_lock(&tty_mutex);
 		driver = tty_lookup_driver(device, filp, &noctty, &index);
 		if (IS_ERR(driver)) {
 			retval = PTR_ERR(driver);
@@ -2078,21 +2079,21 @@ retry_open:
 			retval = PTR_ERR(tty);
 			goto err_unlock;
 		}
+
+		if (tty) {
+			tty_lock(tty);
+			retval = tty_reopen(tty);
+			if (retval < 0) {
+				tty_unlock(tty);
+				tty = ERR_PTR(retval);
+			}
+		} else	/* Returns with the tty_lock held for now */
+			tty = tty_init_dev(driver, index);
+
+		mutex_unlock(&tty_mutex);
+		tty_driver_kref_put(driver);
 	}
 
-	if (tty) {
-		tty_lock(tty);
-		retval = tty_reopen(tty);
-		if (retval < 0) {
-			tty_unlock(tty);
-			tty = ERR_PTR(retval);
-		}
-	} else	/* Returns with the tty_lock held for now */
-		tty = tty_init_dev(driver, index);
-
-	mutex_unlock(&tty_mutex);
-	if (driver)
-		tty_driver_kref_put(driver);
 	if (IS_ERR(tty)) {
 		retval = PTR_ERR(tty);
 		goto err_file;
