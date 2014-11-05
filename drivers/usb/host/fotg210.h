@@ -86,7 +86,7 @@ struct fotg210_hcd {			/* one per controller */
 	/* glue to PCI and HCD framework */
 	struct fotg210_caps __iomem *caps;
 	struct fotg210_regs __iomem *regs;
-	struct fotg210_dbg_port __iomem *debug;
+	struct ehci_dbg_port __iomem *debug;
 
 	__u32			hcs_params;	/* cached register copy */
 	spinlock_t		lock;
@@ -293,17 +293,6 @@ struct fotg210_regs {
 #define GMIR_MHC_INT		(1 << 2)
 #define GMIR_MOTG_INT		(1 << 1)
 #define GMIR_MDEV_INT	(1 << 0)
-};
-
-/* Appendix C, Debug port ... intended for use with special "debug devices"
- * that can help if there's no serial console.  (nonstandard enumeration.)
- */
-struct fotg210_dbg_port {
-	u32	control;
-	u32	pids;
-	u32	data03;
-	u32	data47;
-	u32	address;
 };
 
 /*-------------------------------------------------------------------------*/
