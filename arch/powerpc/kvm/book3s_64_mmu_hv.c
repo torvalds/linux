@@ -1117,8 +1117,11 @@ static int kvm_test_clear_dirty_npages(struct kvm *kvm, unsigned long *rmapp)
 		}
 
 		/* Now check and modify the HPTE */
-		if (!(hptep[0] & cpu_to_be64(HPTE_V_VALID)))
+		if (!(hptep[0] & cpu_to_be64(HPTE_V_VALID))) {
+			/* unlock and continue */
+			hptep[0] &= ~cpu_to_be64(HPTE_V_HVLOCK);
 			continue;
+		}
 
 		/* need to make it temporarily absent so C is stable */
 		hptep[0] |= cpu_to_be64(HPTE_V_ABSENT);
