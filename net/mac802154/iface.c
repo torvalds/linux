@@ -501,7 +501,6 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	if (err)
 		goto err_free;
 
-	dev_hold(dev); /* we return an incremented device refcount */
 	return dev;
 
 err_free:

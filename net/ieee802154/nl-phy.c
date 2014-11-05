@@ -226,6 +226,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 		rc = PTR_ERR(dev);
 		goto nla_put_failure;
 	}
+	dev_hold(dev);
 
 	if (info->attrs[IEEE802154_ATTR_HW_ADDR]) {
 		struct sockaddr addr;
