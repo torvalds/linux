@@ -229,11 +229,12 @@ static int efx_sriov_cmd(struct efx_nic *efx, bool enable,
 
 static void efx_sriov_usrev(struct efx_nic *efx, bool enabled)
 {
+	struct siena_nic_data *nic_data = efx->nic_data;
 	efx_oword_t reg;
 
 	EFX_POPULATE_OWORD_2(reg,
 			     FRF_CZ_USREV_DIS, enabled ? 0 : 1,
-			     FRF_CZ_DFLT_EVQ, efx->vfdi_channel->channel);
+			     FRF_CZ_DFLT_EVQ, nic_data->vfdi_channel->channel);
 	efx_writeo(efx, &reg, FR_CZ_USR_EV_CFG);
 }
 
@@ -382,9 +383,12 @@ static void efx_sriov_reset_rx_filter(struct efx_vf *vf)
 
 static void __efx_sriov_update_vf_addr(struct efx_vf *vf)
 {
+	struct efx_nic *efx = vf->efx;
+	struct siena_nic_data *nic_data = efx->nic_data;
+
 	efx_sriov_reset_tx_filter(vf);
 	efx_sriov_reset_rx_filter(vf);
-	queue_work(vfdi_workqueue, &vf->efx->peer_work);
+	queue_work(vfdi_workqueue, &nic_data->peer_work);
 }
 
 /* Push the peer list to this VF. The caller must hold status_lock to interlock
@@ -395,7 +399,8 @@ static void __efx_sriov_update_vf_addr(struct efx_vf *vf)
 static void __efx_sriov_push_vf_status(struct efx_vf *vf)
 {
 	struct efx_nic *efx = vf->efx;
-	struct vfdi_status *status = efx->vfdi_status.addr;
+	struct siena_nic_data *nic_data = efx->nic_data;
+	struct vfdi_status *status = nic_data->vfdi_status.addr;
 	struct efx_memcpy_req copy[4];
 	struct efx_endpoint_page *epp;
 	unsigned int pos, count;
@@ -421,7 +426,7 @@ static void __efx_sriov_push_vf_status(struct efx_vf *vf)
 	 */
 	data_offset = offsetof(struct vfdi_status, version);
 	copy[1].from_rid = efx->pci_dev->devfn;
-	copy[1].from_addr = efx->vfdi_status.dma_addr + data_offset;
+	copy[1].from_addr = nic_data->vfdi_status.dma_addr + data_offset;
 	copy[1].to_rid = vf->pci_rid;
 	copy[1].to_addr = vf->status_addr + data_offset;
 	copy[1].length =  status->length - data_offset;
@@ -429,7 +434,7 @@ static void __efx_sriov_push_vf_status(struct efx_vf *vf)
 	/* Copy the peer pages */
 	pos = 2;
 	count = 0;
-	list_for_each_entry(epp, &efx->local_page_list, link) {
+	list_for_each_entry(epp, &nic_data->local_page_list, link) {
 		if (count == vf->peer_page_count) {
 			/* The VF driver will know they need to provide more
 			 * pages because peer_addr_count is too large.
@@ -754,6 +759,7 @@ static int efx_vfdi_fini_all_queues(struct efx_vf *vf)
 static int efx_vfdi_insert_filter(struct efx_vf *vf)
 {
 	struct efx_nic *efx = vf->efx;
+	struct siena_nic_data *nic_data = efx->nic_data;
 	struct vfdi_req *req = vf->buf.addr;
 	unsigned vf_rxq = req->u.mac_filter.rxq;
 	unsigned flags;
@@ -777,16 +783,19 @@ static int efx_vfdi_insert_filter(struct efx_vf *vf)
 	vf->rx_filtering = true;
 
 	efx_sriov_reset_rx_filter(vf);
-	queue_work(vfdi_workqueue, &efx->peer_work);
+	queue_work(vfdi_workqueue, &nic_data->peer_work);
 
 	return VFDI_RC_SUCCESS;
 }
 
 static int efx_vfdi_remove_all_filters(struct efx_vf *vf)
 {
+	struct efx_nic *efx = vf->efx;
+	struct siena_nic_data *nic_data = efx->nic_data;
+
 	vf->rx_filtering = false;
 	efx_sriov_reset_rx_filter(vf);
-	queue_work(vfdi_workqueue, &vf->efx->peer_work);
+	queue_work(vfdi_workqueue, &nic_data->peer_work);
 
 	return VFDI_RC_SUCCESS;
 }
@@ -794,6 +803,7 @@ static int efx_vfdi_remove_all_filters(struct efx_vf *vf)
 static int efx_vfdi_set_status_page(struct efx_vf *vf)
 {
 	struct efx_nic *efx = vf->efx;
+	struct siena_nic_data *nic_data = efx->nic_data;
 	struct vfdi_req *req = vf->buf.addr;
 	u64 page_count = req->u.set_status_page.peer_page_count;
 	u64 max_page_count =
@@ -809,7 +819,7 @@ static int efx_vfdi_set_status_page(struct efx_vf *vf)
 		return VFDI_RC_EINVAL;
 	}
 
-	mutex_lock(&efx->local_lock);
+	mutex_lock(&nic_data->local_lock);
 	mutex_lock(&vf->status_lock);
 	vf->status_addr = req->u.set_status_page.dma_addr;
 
@@ -830,7 +840,7 @@ static int efx_vfdi_set_status_page(struct efx_vf *vf)
 
 	__efx_sriov_push_vf_status(vf);
 	mutex_unlock(&vf->status_lock);
-	mutex_unlock(&efx->local_lock);
+	mutex_unlock(&nic_data->local_lock);
 
 	return VFDI_RC_SUCCESS;
 }
@@ -1014,7 +1024,9 @@ static void efx_sriov_handle_no_channel(struct efx_nic *efx)
 
 static int efx_sriov_probe_channel(struct efx_channel *channel)
 {
-	channel->efx->vfdi_channel = channel;
+	struct siena_nic_data *nic_data = channel->efx->nic_data;
+	nic_data->vfdi_channel = channel;
+
 	return 0;
 }
 
@@ -1057,8 +1069,11 @@ void efx_sriov_probe(struct efx_nic *efx)
  */
 static void efx_sriov_peer_work(struct work_struct *data)
 {
-	struct efx_nic *efx = container_of(data, struct efx_nic, peer_work);
-	struct vfdi_status *vfdi_status = efx->vfdi_status.addr;
+	struct siena_nic_data *nic_data = container_of(data,
+						       struct siena_nic_data,
+						       peer_work);
+	struct efx_nic *efx = nic_data->efx;
+	struct vfdi_status *vfdi_status = nic_data->vfdi_status.addr;
 	struct efx_vf *vf;
 	struct efx_local_addr *local_addr;
 	struct vfdi_endpoint *peer;
@@ -1068,11 +1083,11 @@ static void efx_sriov_peer_work(struct work_struct *data)
 	unsigned int peer_count;
 	unsigned int pos;
 
-	mutex_lock(&efx->local_lock);
+	mutex_lock(&nic_data->local_lock);
 
 	/* Move the existing peer pages off %local_page_list */
 	INIT_LIST_HEAD(&pages);
-	list_splice_tail_init(&efx->local_page_list, &pages);
+	list_splice_tail_init(&nic_data->local_page_list, &pages);
 
 	/* Populate the VF addresses starting from entry 1 (entry 0 is
 	 * the PF address)
@@ -1094,7 +1109,7 @@ static void efx_sriov_peer_work(struct work_struct *data)
 	}
 
 	/* Fill the remaining addresses */
-	list_for_each_entry(local_addr, &efx->local_addr_list, link) {
+	list_for_each_entry(local_addr, &nic_data->local_addr_list, link) {
 		ether_addr_copy(peer->mac_addr, local_addr->addr);
 		peer->tci = 0;
 		++peer;
@@ -1117,13 +1132,13 @@ static void efx_sriov_peer_work(struct work_struct *data)
 				list_del(&epp->link);
 			}
 
-			list_add_tail(&epp->link, &efx->local_page_list);
+			list_add_tail(&epp->link, &nic_data->local_page_list);
 			peer = (struct vfdi_endpoint *)epp->ptr;
 			peer_space = EFX_PAGE_SIZE / sizeof(struct vfdi_endpoint);
 		}
 	}
 	vfdi_status->peer_count = peer_count;
-	mutex_unlock(&efx->local_lock);
+	mutex_unlock(&nic_data->local_lock);
 
 	/* Free any now unused endpoint pages */
 	while (!list_empty(&pages)) {
@@ -1148,18 +1163,19 @@ static void efx_sriov_peer_work(struct work_struct *data)
 
 static void efx_sriov_free_local(struct efx_nic *efx)
 {
+	struct siena_nic_data *nic_data = efx->nic_data;
 	struct efx_local_addr *local_addr;
 	struct efx_endpoint_page *epp;
 
-	while (!list_empty(&efx->local_addr_list)) {
-		local_addr = list_first_entry(&efx->local_addr_list,
+	while (!list_empty(&nic_data->local_addr_list)) {
+		local_addr = list_first_entry(&nic_data->local_addr_list,
 					      struct efx_local_addr, link);
 		list_del(&local_addr->link);
 		kfree(local_addr);
 	}
 
-	while (!list_empty(&efx->local_page_list)) {
-		epp = list_first_entry(&efx->local_page_list,
+	while (!list_empty(&nic_data->local_page_list)) {
+		epp = list_first_entry(&nic_data->local_page_list,
 				       struct efx_endpoint_page, link);
 		list_del(&epp->link);
 		dma_free_coherent(&efx->pci_dev->dev, EFX_PAGE_SIZE,
@@ -1215,6 +1231,7 @@ static void efx_sriov_vfs_fini(struct efx_nic *efx)
 static int efx_sriov_vfs_init(struct efx_nic *efx)
 {
 	struct pci_dev *pci_dev = efx->pci_dev;
+	struct siena_nic_data *nic_data = efx->nic_data;
 	unsigned index, devfn, sriov, buftbl_base;
 	u16 offset, stride;
 	struct efx_vf *vf;
@@ -1227,7 +1244,7 @@ static int efx_sriov_vfs_init(struct efx_nic *efx)
 	pci_read_config_word(pci_dev, sriov + PCI_SRIOV_VF_OFFSET, &offset);
 	pci_read_config_word(pci_dev, sriov + PCI_SRIOV_VF_STRIDE, &stride);
 
-	buftbl_base = efx->vf_buftbl_base;
+	buftbl_base = nic_data->vf_buftbl_base;
 	devfn = pci_dev->devfn + offset;
 	for (index = 0; index < efx->vf_count; ++index) {
 		vf = efx->vf + index;
@@ -1260,6 +1277,7 @@ fail:
 int efx_sriov_init(struct efx_nic *efx)
 {
 	struct net_device *net_dev = efx->net_dev;
+	struct siena_nic_data *nic_data = efx->nic_data;
 	struct vfdi_status *vfdi_status;
 	int rc;
 
@@ -1275,11 +1293,11 @@ int efx_sriov_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_cmd;
 
-	rc = efx_nic_alloc_buffer(efx, &efx->vfdi_status, sizeof(*vfdi_status),
-				  GFP_KERNEL);
+	rc = efx_nic_alloc_buffer(efx, &nic_data->vfdi_status,
+				  sizeof(*vfdi_status), GFP_KERNEL);
 	if (rc)
 		goto fail_status;
-	vfdi_status = efx->vfdi_status.addr;
+	vfdi_status = nic_data->vfdi_status.addr;
 	memset(vfdi_status, 0, sizeof(*vfdi_status));
 	vfdi_status->version = 1;
 	vfdi_status->length = sizeof(*vfdi_status);
@@ -1293,10 +1311,10 @@ int efx_sriov_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_alloc;
 
-	mutex_init(&efx->local_lock);
-	INIT_WORK(&efx->peer_work, efx_sriov_peer_work);
-	INIT_LIST_HEAD(&efx->local_addr_list);
-	INIT_LIST_HEAD(&efx->local_page_list);
+	mutex_init(&nic_data->local_lock);
+	INIT_WORK(&nic_data->peer_work, efx_sriov_peer_work);
+	INIT_LIST_HEAD(&nic_data->local_addr_list);
+	INIT_LIST_HEAD(&nic_data->local_page_list);
 
 	rc = efx_sriov_vfs_init(efx);
 	if (rc)
@@ -1327,11 +1345,11 @@ fail_pci:
 	rtnl_unlock();
 	efx_sriov_vfs_fini(efx);
 fail_vfs:
-	cancel_work_sync(&efx->peer_work);
+	cancel_work_sync(&nic_data->peer_work);
 	efx_sriov_free_local(efx);
 	kfree(efx->vf);
 fail_alloc:
-	efx_nic_free_buffer(efx, &efx->vfdi_status);
+	efx_nic_free_buffer(efx, &nic_data->vfdi_status);
 fail_status:
 	efx_sriov_cmd(efx, false, NULL, NULL);
 fail_cmd:
@@ -1342,12 +1360,13 @@ void efx_sriov_fini(struct efx_nic *efx)
 {
 	struct efx_vf *vf;
 	unsigned int pos;
+	struct siena_nic_data *nic_data = efx->nic_data;
 
 	if (efx->vf_init_count == 0)
 		return;
 
 	/* Disable all interfaces to reconfiguration */
-	BUG_ON(efx->vfdi_channel->enabled);
+	BUG_ON(nic_data->vfdi_channel->enabled);
 	efx_sriov_usrev(efx, false);
 	rtnl_lock();
 	efx->vf_init_count = 0;
@@ -1359,7 +1378,7 @@ void efx_sriov_fini(struct efx_nic *efx)
 		cancel_work_sync(&vf->req);
 		cancel_work_sync(&vf->reset_work);
 	}
-	cancel_work_sync(&efx->peer_work);
+	cancel_work_sync(&nic_data->peer_work);
 
 	pci_disable_sriov(efx->pci_dev);
 
@@ -1367,7 +1386,7 @@ void efx_sriov_fini(struct efx_nic *efx)
 	efx_sriov_vfs_fini(efx);
 	efx_sriov_free_local(efx);
 	kfree(efx->vf);
-	efx_nic_free_buffer(efx, &efx->vfdi_status);
+	efx_nic_free_buffer(efx, &nic_data->vfdi_status);
 	efx_sriov_cmd(efx, false, NULL, NULL);
 }
 
@@ -1447,13 +1466,14 @@ void efx_sriov_flr(struct efx_nic *efx, unsigned vf_i)
 
 void efx_sriov_mac_address_changed(struct efx_nic *efx)
 {
-	struct vfdi_status *vfdi_status = efx->vfdi_status.addr;
+	struct siena_nic_data *nic_data = efx->nic_data;
+	struct vfdi_status *vfdi_status = nic_data->vfdi_status.addr;
 
 	if (!efx->vf_init_count)
 		return;
 	ether_addr_copy(vfdi_status->peers[0].mac_addr,
 			efx->net_dev->dev_addr);
-	queue_work(vfdi_workqueue, &efx->peer_work);
+	queue_work(vfdi_workqueue, &nic_data->peer_work);
 }
 
 void efx_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)

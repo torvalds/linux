@@ -251,6 +251,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	nic_data = kzalloc(sizeof(struct siena_nic_data), GFP_KERNEL);
 	if (!nic_data)
 		return -ENOMEM;
+	nic_data->efx = efx;
 	efx->nic_data = nic_data;
 
 	if (efx_farch_fpga_ver(efx) != 0) {

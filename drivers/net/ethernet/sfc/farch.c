@@ -226,6 +226,9 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 				    struct efx_special_buffer *buffer,
 				    unsigned int len)
 {
+#ifdef CONFIG_SFC_SRIOV
+	struct siena_nic_data *nic_data = efx->nic_data;
+#endif
 	len = ALIGN(len, EFX_BUF_SIZE);
 
 	if (efx_nic_alloc_buffer(efx, &buffer->buf, len, GFP_KERNEL))
@@ -238,7 +241,7 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 	efx->next_buffer_table += buffer->entries;
 #ifdef CONFIG_SFC_SRIOV
 	BUG_ON(efx_sriov_enabled(efx) &&
-	       efx->vf_buftbl_base < efx->next_buffer_table);
+	       nic_data->vf_buftbl_base < efx->next_buffer_table);
 #endif
 
 	netif_dbg(efx, probe, efx->net_dev,
@@ -1668,6 +1671,10 @@ void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 {
 	unsigned vi_count, buftbl_min;
 
+#ifdef CONFIG_SFC_SRIOV
+	struct siena_nic_data *nic_data = efx->nic_data;
+#endif
+
 	/* Account for the buffer table entries backing the datapath channels
 	 * and the descriptor caches for those channels.
 	 */
@@ -1681,7 +1688,7 @@ void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 	if (efx_sriov_wanted(efx)) {
 		unsigned vi_dc_entries, buftbl_free, entries_per_vf, vf_limit;
 
-		efx->vf_buftbl_base = buftbl_min;
+		nic_data->vf_buftbl_base = buftbl_min;
 
 		vi_dc_entries = RX_DC_ENTRIES + TX_DC_ENTRIES;
 		vi_count = max(vi_count, EFX_VI_BASE);
