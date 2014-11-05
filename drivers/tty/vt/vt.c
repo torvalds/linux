@@ -2509,6 +2509,8 @@ int vt_kmsg_redirect(int new)
 		return kmsg_con;
 }
 
+#define vt_get_kmsg_redirect() vt_kmsg_redirect(-1)
+
 /*
  *	Console on virtual terminal
  *
