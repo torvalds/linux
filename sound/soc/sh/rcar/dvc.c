@@ -17,6 +17,12 @@
 
 struct rsnd_dvc_cfg {
 	unsigned int max;
+	unsigned int size;
+	u32 *val;
+};
+
+struct rsnd_dvc_cfg_m {
+	struct rsnd_dvc_cfg cfg;
 	u32 val[RSND_DVC_CHANNELS];
 };
 
@@ -24,8 +30,8 @@ struct rsnd_dvc {
 	struct rsnd_dvc_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
 	struct clk *clk;
-	struct rsnd_dvc_cfg volume;
-	struct rsnd_dvc_cfg mute;
+	struct rsnd_dvc_cfg_m volume;
+	struct rsnd_dvc_cfg_m mute;
 };
 
 #define rsnd_mod_to_dvc(_mod)	\
@@ -44,9 +50,8 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 	u32 mute = 0;
 	int i;
 
-	for (i = 0; i < RSND_DVC_CHANNELS; i++) {
-		mute |= (!!dvc->mute.val[i]) << i;
-	}
+	for (i = 0; i < dvc->mute.cfg.size; i++)
+		mute |= (!!dvc->mute.cfg.val[i]) << i;
 
 	/* Disable DVC Register access */
 	rsnd_mod_write(mod, DVC_DVUER, 0);
@@ -159,7 +164,7 @@ static int rsnd_dvc_volume_info(struct snd_kcontrol *kctrl,
 {
 	struct rsnd_dvc_cfg *cfg = (struct rsnd_dvc_cfg *)kctrl->private_value;
 
-	uinfo->count = RSND_DVC_CHANNELS;
+	uinfo->count = cfg->size;
 	uinfo->value.integer.min = 0;
 	uinfo->value.integer.max = cfg->max;
 
@@ -177,7 +182,7 @@ static int rsnd_dvc_volume_get(struct snd_kcontrol *kctrl,
 	struct rsnd_dvc_cfg *cfg = (struct rsnd_dvc_cfg *)kctrl->private_value;
 	int i;
 
-	for (i = 0; i < RSND_DVC_CHANNELS; i++)
+	for (i = 0; i < cfg->size; i++)
 		ucontrol->value.integer.value[i] = cfg->val[i];
 
 	return 0;
@@ -190,7 +195,7 @@ static int rsnd_dvc_volume_put(struct snd_kcontrol *kctrl,
 	struct rsnd_dvc_cfg *cfg = (struct rsnd_dvc_cfg *)kctrl->private_value;
 	int i, change = 0;
 
-	for (i = 0; i < RSND_DVC_CHANNELS; i++) {
+	for (i = 0; i < cfg->size; i++) {
 		change |= (ucontrol->value.integer.value[i] != cfg->val[i]);
 		cfg->val[i] = ucontrol->value.integer.value[i];
 	}
@@ -230,6 +235,19 @@ static int __rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	return 0;
 }
 
+static int _rsnd_dvc_pcm_new_m(struct rsnd_mod *mod,
+			       struct rsnd_dai *rdai,
+			       struct snd_soc_pcm_runtime *rtd,
+			       const unsigned char *name,
+			       struct rsnd_dvc_cfg_m *private,
+			       u32 max)
+{
+	private->cfg.max	= max;
+	private->cfg.size	= RSND_DVC_CHANNELS;
+	private->cfg.val	= private->val;
+	return __rsnd_dvc_pcm_new(mod, rdai, rtd, name, &private->cfg);
+}
+
 static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 			    struct rsnd_dai *rdai,
 			    struct snd_soc_pcm_runtime *rtd)
@@ -239,20 +257,18 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	int ret;
 
 	/* Volume */
-	dvc->volume.max = 0x00800000 - 1;
-	ret = __rsnd_dvc_pcm_new(mod, rdai, rtd,
+	ret = _rsnd_dvc_pcm_new_m(mod, rdai, rtd,
 			rsnd_dai_is_play(rdai, io) ?
 			"DVC Out Playback Volume" : "DVC In Capture Volume",
-			&dvc->volume);
+			&dvc->volume, 0x00800000 - 1);
 	if (ret < 0)
 		return ret;
 
 	/* Mute */
-	dvc->mute.max = 1;
-	ret = __rsnd_dvc_pcm_new(mod, rdai, rtd,
+	ret = _rsnd_dvc_pcm_new_m(mod, rdai, rtd,
 			rsnd_dai_is_play(rdai, io) ?
 			"DVC Out Mute Switch" : "DVC In Mute Switch",
-			&dvc->mute);
+			&dvc->mute, 1);
 	if (ret < 0)
 		return ret;
 
