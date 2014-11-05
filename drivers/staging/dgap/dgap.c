@@ -7019,23 +7019,6 @@ static struct pci_driver dgap_driver = {
 };
 
 /*
- * dgap_init_globals()
- *
- * This is where we initialize the globals from the static insmod
- * configuration variables.  These are declared near the head of
- * this file.
- */
-static void dgap_init_globals(void)
-{
-	unsigned int i;
-
-	for (i = 0; i < MAXBOARDS; i++)
-		dgap_board[i] = NULL;
-
-	init_timer(&dgap_poll_timer);
-}
-
-/*
  * Start of driver.
  */
 static int dgap_start(void)
@@ -7043,12 +7026,6 @@ static int dgap_start(void)
 	int rc;
 	unsigned long flags;
 	struct device *device;
-
-	/*
-	 * make sure that the globals are
-	 * init'd before we do anything else
-	 */
-	dgap_init_globals();
 
 	dgap_numboards = 0;
 
