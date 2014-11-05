@@ -159,8 +159,6 @@ struct solo_enc_dev {
 	u16			motion_thresh;
 	bool			motion_global;
 	bool			motion_enabled;
-	bool			motion_last_state;
-	u8			frames_since_last_motion;
 	u16			width;
 	u16			height;
 

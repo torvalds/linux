@@ -239,8 +239,6 @@ static int solo_enc_on(struct solo_enc_dev *solo_enc)
 	if (solo_enc->bw_weight > solo_dev->enc_bw_remain)
 		return -EBUSY;
 	solo_enc->sequence = 0;
-	solo_enc->motion_last_state = false;
-	solo_enc->frames_since_last_motion = 0;
 	solo_dev->enc_bw_remain -= solo_enc->bw_weight;
 
 	if (solo_enc->type == SOLO_ENC_TYPE_EXT)
@@ -529,36 +527,12 @@ static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
 	}
 
 	if (!ret) {
-		bool send_event = false;
-
 		vb->v4l2_buf.sequence = solo_enc->sequence++;
 		vb->v4l2_buf.timestamp.tv_sec = vop_sec(vh);
 		vb->v4l2_buf.timestamp.tv_usec = vop_usec(vh);
 
 		/* Check for motion flags */
-		if (solo_is_motion_on(solo_enc)) {
-			/* It takes a few frames for the hardware to detect
-			 * motion. Once it does it clears the motion detection
-			 * register and it takes again a few frames before
-			 * motion is seen. This means in practice that when the
-			 * motion field is 1, it will go back to 0 for the next
-			 * frame. This leads to motion detection event being
-			 * sent all the time, which is not what we want.
-			 * Instead wait a few frames before deciding that the
-			 * motion has halted. After some experimentation it
-			 * turns out that waiting for 5 frames works well.
-			 */
-			if (enc_buf->motion == 0 &&
-			    solo_enc->motion_last_state &&
-			    solo_enc->frames_since_last_motion++ > 5)
-				send_event = true;
-			else if (enc_buf->motion) {
-				solo_enc->frames_since_last_motion = 0;
-				send_event = !solo_enc->motion_last_state;
-			}
-		}
-
-		if (send_event) {
+		if (solo_is_motion_on(solo_enc) && enc_buf->motion) {
 			struct v4l2_event ev = {
 				.type = V4L2_EVENT_MOTION_DET,
 				.u.motion_det = {
@@ -568,8 +542,6 @@ static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
 				},
 			};
 
-			solo_enc->motion_last_state = enc_buf->motion;
-			solo_enc->frames_since_last_motion = 0;
 			v4l2_event_queue(solo_enc->vfd, &ev);
 		}
 	}
