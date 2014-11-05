@@ -69,10 +69,6 @@ static enum {
 #define LBR_FROM_FLAG_IN_TX    (1ULL << 62)
 #define LBR_FROM_FLAG_ABORT    (1ULL << 61)
 
-#define for_each_branch_sample_type(x) \
-	for ((x) = PERF_SAMPLE_BRANCH_USER; \
-	     (x) < PERF_SAMPLE_BRANCH_MAX; (x) <<= 1)
-
 /*
  * x86control flow change classification
  * x86control flow changes include branches, interrupts, traps, faults
@@ -403,14 +399,14 @@ static int intel_pmu_setup_hw_lbr_filter(struct perf_event *event)
 {
 	struct hw_perf_event_extra *reg;
 	u64 br_type = event->attr.branch_sample_type;
-	u64 mask = 0, m;
-	u64 v;
+	u64 mask = 0, v;
+	int i;
 
-	for_each_branch_sample_type(m) {
-		if (!(br_type & m))
+	for (i = 0; i < PERF_SAMPLE_BRANCH_SELECT_MAP_SIZE; i++) {
+		if (!(br_type & (1ULL << i)))
 			continue;
 
-		v = x86_pmu.lbr_sel_map[m];
+		v = x86_pmu.lbr_sel_map[i];
 		if (v == LBR_NOT_SUPP)
 			return -EOPNOTSUPP;
 
@@ -678,35 +674,35 @@ intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 /*
  * Map interface branch filters onto LBR filters
  */
-static const int nhm_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX] = {
-	[PERF_SAMPLE_BRANCH_ANY]	= LBR_ANY,
-	[PERF_SAMPLE_BRANCH_USER]	= LBR_USER,
-	[PERF_SAMPLE_BRANCH_KERNEL]	= LBR_KERNEL,
-	[PERF_SAMPLE_BRANCH_HV]		= LBR_IGN,
-	[PERF_SAMPLE_BRANCH_ANY_RETURN]	= LBR_RETURN | LBR_REL_JMP
-					| LBR_IND_JMP | LBR_FAR,
+static const int nhm_lbr_sel_map[PERF_SAMPLE_BRANCH_SELECT_MAP_SIZE] = {
+	[PERF_SAMPLE_BRANCH_ANY_SHIFT]		= LBR_ANY,
+	[PERF_SAMPLE_BRANCH_USER_SHIFT]		= LBR_USER,
+	[PERF_SAMPLE_BRANCH_KERNEL_SHIFT]	= LBR_KERNEL,
+	[PERF_SAMPLE_BRANCH_HV_SHIFT]		= LBR_IGN,
+	[PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT]	= LBR_RETURN | LBR_REL_JMP
+						| LBR_IND_JMP | LBR_FAR,
 	/*
 	 * NHM/WSM erratum: must include REL_JMP+IND_JMP to get CALL branches
 	 */
-	[PERF_SAMPLE_BRANCH_ANY_CALL] =
+	[PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT] =
 	 LBR_REL_CALL | LBR_IND_CALL | LBR_REL_JMP | LBR_IND_JMP | LBR_FAR,
 	/*
 	 * NHM/WSM erratum: must include IND_JMP to capture IND_CALL
 	 */
-	[PERF_SAMPLE_BRANCH_IND_CALL] = LBR_IND_CALL | LBR_IND_JMP,
-	[PERF_SAMPLE_BRANCH_COND]     = LBR_JCC,
+	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT] = LBR_IND_CALL | LBR_IND_JMP,
+	[PERF_SAMPLE_BRANCH_COND_SHIFT]     = LBR_JCC,
 };
 
-static const int snb_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX] = {
-	[PERF_SAMPLE_BRANCH_ANY]	= LBR_ANY,
-	[PERF_SAMPLE_BRANCH_USER]	= LBR_USER,
-	[PERF_SAMPLE_BRANCH_KERNEL]	= LBR_KERNEL,
-	[PERF_SAMPLE_BRANCH_HV]		= LBR_IGN,
-	[PERF_SAMPLE_BRANCH_ANY_RETURN]	= LBR_RETURN | LBR_FAR,
-	[PERF_SAMPLE_BRANCH_ANY_CALL]	= LBR_REL_CALL | LBR_IND_CALL
-					| LBR_FAR,
-	[PERF_SAMPLE_BRANCH_IND_CALL]	= LBR_IND_CALL,
-	[PERF_SAMPLE_BRANCH_COND]       = LBR_JCC,
+static const int snb_lbr_sel_map[PERF_SAMPLE_BRANCH_SELECT_MAP_SIZE] = {
+	[PERF_SAMPLE_BRANCH_ANY_SHIFT]		= LBR_ANY,
+	[PERF_SAMPLE_BRANCH_USER_SHIFT]		= LBR_USER,
+	[PERF_SAMPLE_BRANCH_KERNEL_SHIFT]	= LBR_KERNEL,
+	[PERF_SAMPLE_BRANCH_HV_SHIFT]		= LBR_IGN,
+	[PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT]	= LBR_RETURN | LBR_FAR,
+	[PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT]	= LBR_REL_CALL | LBR_IND_CALL
+						| LBR_FAR,
+	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT]	= LBR_IND_CALL,
+	[PERF_SAMPLE_BRANCH_COND_SHIFT]		= LBR_JCC,
 };
 
 /* core */
