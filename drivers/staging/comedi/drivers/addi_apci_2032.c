@@ -47,7 +47,6 @@
 
 struct apci2032_int_private {
 	spinlock_t spinlock;
-	unsigned int stop_count;
 	bool active;
 	unsigned char enabled_isns;
 };
@@ -148,7 +147,6 @@ static int apci2032_int_cmd(struct comedi_device *dev,
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 
 	subpriv->enabled_isns = enabled_isns;
-	subpriv->stop_count = cmd->stop_arg;
 	subpriv->active = true;
 	outl(enabled_isns, dev->iobase + APCI2032_INT_CTRL_REG);
 
@@ -211,16 +209,11 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 				bits |= (1 << i);
 		}
 
-		if (comedi_buf_write_samples(s, &bits, 1)) {
-			if (cmd->stop_src == TRIG_COUNT &&
-			    subpriv->stop_count > 0) {
-				subpriv->stop_count--;
-				if (subpriv->stop_count == 0) {
-					/* end of acquisition */
-					s->async->events |= COMEDI_CB_EOA;
-				}
-			}
-		}
+		comedi_buf_write_samples(s, &bits, 1);
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    s->async->scans_done >= cmd->stop_arg)
+			s->async->events |= COMEDI_CB_EOA;
 	}
 
 	spin_unlock(&subpriv->spinlock);
