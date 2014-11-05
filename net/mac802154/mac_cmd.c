@@ -25,7 +25,6 @@
 #include <net/ieee802154_netdev.h>
 #include <net/cfg802154.h>
 #include <net/mac802154.h>
-#include <net/nl802154.h>
 
 #include "ieee802154_i.h"
 #include "driver-ops.h"
@@ -64,11 +63,6 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 
 		rc = ops->llsec->set_params(dev, &params, changed);
 	}
-
-	/* FIXME: add validation for unused parameters to be sane
-	 * for SoftMAC
-	 */
-	ieee802154_nl_start_confirm(dev, IEEE802154_SUCCESS);
 
 	return rc;
 }
