@@ -452,8 +452,6 @@ void irq_force_complete_move(int irq)
 
 	__irq_complete_move(cfg, cfg->vector);
 }
-#else
-void irq_complete_move(struct irq_cfg *cfg) { }
 #endif
 
 /*
