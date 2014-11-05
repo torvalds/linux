@@ -806,8 +806,6 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			return -EPROTO;
 		}
 
-		dev->hbm_state = MEI_HBM_STARTED;
-
 		if (mei_hbm_enum_clients_req(dev)) {
 			dev_err(dev->dev, "hbm: start: failed to send enumeration request\n");
 			return -EIO;
