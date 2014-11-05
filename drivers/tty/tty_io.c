@@ -1344,19 +1344,24 @@ static ssize_t tty_line_name(struct tty_driver *driver, int index, char *p)
  *	@driver: the driver for the tty
  *	@idx:	 the minor number
  *
- *	Return the tty, if found or ERR_PTR() otherwise.
+ *	Return the tty, if found. If not found, return NULL or ERR_PTR() if the
+ *	driver lookup() method returns an error.
  *
- *	Locking: tty_mutex must be held. If tty is found, the mutex must
- *	be held until the 'fast-open' is also done. Will change once we
- *	have refcounting in the driver and per driver locking
+ *	Locking: tty_mutex must be held. If the tty is found, bump the tty kref.
  */
 static struct tty_struct *tty_driver_lookup_tty(struct tty_driver *driver,
 		struct inode *inode, int idx)
 {
-	if (driver->ops->lookup)
-		return driver->ops->lookup(driver, inode, idx);
+	struct tty_struct *tty;
 
-	return driver->ttys[idx];
+	if (driver->ops->lookup)
+		tty = driver->ops->lookup(driver, inode, idx);
+	else
+		tty = driver->ttys[idx];
+
+	if (!IS_ERR(tty))
+		tty_kref_get(tty);
+	return tty;
 }
 
 /**
@@ -2081,16 +2086,20 @@ retry_open:
 		}
 
 		if (tty) {
+			mutex_unlock(&tty_mutex);
 			tty_lock(tty);
+			/* safe to drop the kref from tty_driver_lookup_tty() */
+			tty_kref_put(tty);
 			retval = tty_reopen(tty);
 			if (retval < 0) {
 				tty_unlock(tty);
 				tty = ERR_PTR(retval);
 			}
-		} else	/* Returns with the tty_lock held for now */
+		} else { /* Returns with the tty_lock held for now */
 			tty = tty_init_dev(driver, index);
+			mutex_unlock(&tty_mutex);
+		}
 
-		mutex_unlock(&tty_mutex);
 		tty_driver_kref_put(driver);
 	}
 
