@@ -1197,7 +1197,7 @@ void tty_write_message(struct tty_struct *tty, char *msg)
 	if (tty) {
 		mutex_lock(&tty->atomic_write_lock);
 		tty_lock(tty);
-		if (tty->ops->write && !test_bit(TTY_CLOSING, &tty->flags)) {
+		if (tty->ops->write && tty->count > 0) {
 			tty_unlock(tty);
 			tty->ops->write(tty, msg, strlen(msg));
 		} else
@@ -1879,16 +1879,6 @@ int tty_release(struct inode *inode, struct file *filp)
 	/*
 	 * Perform some housekeeping before deciding whether to return.
 	 *
-	 * Set the TTY_CLOSING flag if this was the last open.  In the
-	 * case of a pty we may have to wait around for the other side
-	 * to close, and TTY_CLOSING makes sure we can't be reopened.
-	 */
-	if (tty_closing)
-		set_bit(TTY_CLOSING, &tty->flags);
-	if (o_tty_closing)
-		set_bit(TTY_CLOSING, &o_tty->flags);
-
-	/*
 	 * If _either_ side is closing, make sure there aren't any
 	 * processes that still think tty or o_tty is their controlling
 	 * tty.
@@ -1903,7 +1893,7 @@ int tty_release(struct inode *inode, struct file *filp)
 
 	mutex_unlock(&tty_mutex);
 	tty_unlock_pair(tty, o_tty);
-	/* At this point the TTY_CLOSING flag should ensure a dead tty
+	/* At this point, the tty->count == 0 should ensure a dead tty
 	   cannot be re-opened by a racing opener */
 
 	/* check whether both sides are closing ... */
