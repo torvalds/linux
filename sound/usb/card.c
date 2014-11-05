@@ -585,18 +585,19 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 	struct snd_usb_audio *chip = usb_get_intfdata(intf);
 	struct snd_card *card;
 	struct list_head *p;
+	bool was_shutdown;
 
 	if (chip == (void *)-1L)
 		return;
 
 	card = chip->card;
 	down_write(&chip->shutdown_rwsem);
+	was_shutdown = chip->shutdown;
 	chip->shutdown = 1;
 	up_write(&chip->shutdown_rwsem);
 
 	mutex_lock(&register_mutex);
-	chip->num_interfaces--;
-	if (chip->num_interfaces <= 0) {
+	if (!was_shutdown) {
 		struct snd_usb_stream *as;
 		struct snd_usb_endpoint *ep;
 		struct usb_mixer_interface *mixer;
@@ -618,6 +619,10 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 		list_for_each_entry(mixer, &chip->mixer_list, list) {
 			snd_usb_mixer_disconnect(mixer);
 		}
+	}
+
+	chip->num_interfaces--;
+	if (chip->num_interfaces <= 0) {
 		usb_chip[chip->index] = NULL;
 		mutex_unlock(&register_mutex);
 		snd_card_free_when_closed(card);
