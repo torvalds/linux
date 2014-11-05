@@ -78,7 +78,6 @@ struct s626_buffer_dma {
 
 struct s626_private {
 	uint8_t ai_cmd_running;		/* ai_cmd is running */
-	int ai_sample_count;		/* number of samples to acquire */
 	unsigned int ai_sample_timer;	/* time between samples in
 					 * units of the timer */
 	int ai_convert_count;		/* conversion counter */
@@ -1496,16 +1495,11 @@ static bool s626_handle_eos_interrupt(struct comedi_device *dev)
 		comedi_buf_write_samples(s, &tempdata, 1);
 	}
 
-	/* end of scan occurs */
-	async->events |= COMEDI_CB_EOS;
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
+		async->events |= COMEDI_CB_EOA;
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ai_sample_count--;
-		if (devpriv->ai_sample_count <= 0) {
-			devpriv->ai_cmd_running = 0;
-			async->events |= COMEDI_CB_EOA;
-		}
-	}
+	if (async->events & COMEDI_CB_CANCEL_MASK)
+		devpriv->ai_cmd_running = 0;
 
 	if (devpriv->ai_cmd_running && cmd->scan_begin_src == TRIG_EXT)
 		s626_dio_set_irq(dev, cmd->scan_begin_arg);
@@ -2090,8 +2084,6 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			s626_dio_set_irq(dev, cmd->convert_arg);
 		break;
 	}
-
-	devpriv->ai_sample_count = cmd->stop_arg;
 
 	s626_reset_adc(dev, ppl);
 
