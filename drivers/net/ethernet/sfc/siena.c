@@ -307,7 +307,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
-	efx_sriov_probe(efx);
+	efx_siena_sriov_probe(efx);
 	efx_ptp_defer_probe_with_channel(efx);
 
 	return 0;
