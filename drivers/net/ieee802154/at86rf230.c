@@ -1533,6 +1533,7 @@ static int at86rf230_probe(struct spi_device *spi)
 	lp->hw = hw;
 	lp->spi = spi;
 	hw->parent = &spi->dev;
+	hw->vif_data_size = sizeof(*lp);
 
 	lp->regmap = devm_regmap_init_spi(spi, &at86rf230_regmap_spi_config);
 	if (IS_ERR(lp->regmap)) {

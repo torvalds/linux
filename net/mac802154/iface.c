@@ -136,10 +136,11 @@ static int mac802154_slave_open(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	if (sdata->type == IEEE802154_DEV_WPAN) {
+	if (sdata->vif.type == IEEE802154_DEV_WPAN) {
 		mutex_lock(&sdata->local->iflist_mtx);
 		list_for_each_entry(subif, &sdata->local->interfaces, list) {
-			if (subif != sdata && subif->type == sdata->type &&
+			if (subif != sdata &&
+			    subif->vif.type == sdata->vif.type &&
 			    ieee802154_sdata_running(subif)) {
 				mutex_unlock(&sdata->local->iflist_mtx);
 				return -EBUSY;
@@ -397,7 +398,7 @@ static int
 ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 {
 	/* set some type-dependent values */
-	sdata->type = type;
+	sdata->vif.type = type;
 
 	get_random_bytes(&sdata->bsn, 1);
 	get_random_bytes(&sdata->dsn, 1);
@@ -447,8 +448,8 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 
 	ASSERT_RTNL();
 
-	ndev = alloc_netdev(sizeof(*sdata), name, NET_NAME_UNKNOWN,
-			    ieee802154_if_setup);
+	ndev = alloc_netdev(sizeof(*sdata) + local->hw.vif_data_size, name,
+			    NET_NAME_UNKNOWN, ieee802154_if_setup);
 	if (!ndev)
 		return ERR_PTR(-ENOMEM);
 

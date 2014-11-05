@@ -52,6 +52,13 @@ struct ieee802154_hw_addr_filt {
 	u8	pan_coord;
 };
 
+struct ieee802154_vif {
+	int type;
+
+	/* must be last */
+	u8 drv_priv[0] __aligned(sizeof(void *));
+};
+
 struct ieee802154_hw {
 	/* filled by the driver */
 	int	extra_tx_headroom;
@@ -62,6 +69,7 @@ struct ieee802154_hw {
 	struct	ieee802154_hw_addr_filt hw_filt;
 	void	*priv;
 	struct	wpan_phy *phy;
+	size_t vif_data_size;
 };
 
 /* Checksum is in hardware and is omitted from a packet
