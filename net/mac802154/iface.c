@@ -24,7 +24,6 @@
 
 #include <net/rtnetlink.h>
 #include <linux/nl802154.h>
-#include <net/af_ieee802154.h>
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/cfg802154.h>
@@ -384,8 +383,8 @@ static void mac802154_wpan_free(struct net_device *dev)
 
 static void ieee802154_if_setup(struct net_device *dev)
 {
-	dev->addr_len		= IEEE802154_ADDR_LEN;
-	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
+	dev->addr_len		= IEEE802154_EXTENDED_ADDR_LEN;
+	memset(dev->broadcast, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
 
 	dev->hard_header_len	= MAC802154_FRAME_HARD_HEADER_LEN;
 	dev->needed_tailroom	= 2 + 16; /* FCS + MIC */
