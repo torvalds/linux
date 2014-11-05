@@ -121,6 +121,7 @@ struct comedi_buf_map {
  * @buf_read_ptr:	buffer position for reader
  * @cur_chan:		current position in chanlist for scan (for those
  *			drivers that use it)
+ * @scans_done:		the number of scans completed (COMEDI_CB_EOS)
  * @scan_progress:	amount received or sent for current scan (in bytes)
  * @munge_chan:		current position in chanlist for "munging"
  * @munge_count:	"munge" count (in bytes, modulo 2**32)
@@ -201,6 +202,7 @@ struct comedi_async {
 	unsigned int buf_write_ptr;
 	unsigned int buf_read_ptr;
 	unsigned int cur_chan;
+	unsigned int scans_done;
 	unsigned int scan_progress;
 	unsigned int munge_chan;
 	unsigned int munge_count;

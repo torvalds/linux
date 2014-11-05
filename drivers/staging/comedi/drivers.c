@@ -352,6 +352,13 @@ void comedi_inc_scan_progress(struct comedi_subdevice *s,
 
 	async->scan_progress += num_bytes;
 	if (async->scan_progress >= scan_length) {
+		unsigned int nscans = async->scan_progress / scan_length;
+
+		if (async->scans_done < (UINT_MAX - nscans))
+			async->scans_done += nscans;
+		else
+			async->scans_done = UINT_MAX;
+
 		async->scan_progress %= scan_length;
 		async->events |= COMEDI_CB_EOS;
 	}
