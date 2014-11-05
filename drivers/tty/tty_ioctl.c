@@ -550,14 +550,14 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 	unset_locked_termios(&tty->termios, &old_termios, &tty->termios_locked);
 
 	if (tty->ops->set_termios)
-		(*tty->ops->set_termios)(tty, &old_termios);
+		tty->ops->set_termios(tty, &old_termios);
 	else
 		tty_termios_copy_hw(&tty->termios, &old_termios);
 
 	ld = tty_ldisc_ref(tty);
 	if (ld != NULL) {
 		if (ld->ops->set_termios)
-			(ld->ops->set_termios)(tty, &old_termios);
+			ld->ops->set_termios(tty, &old_termios);
 		tty_ldisc_deref(ld);
 	}
 	up_write(&tty->termios_rwsem);

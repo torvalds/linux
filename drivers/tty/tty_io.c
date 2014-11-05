@@ -981,7 +981,7 @@ void __stop_tty(struct tty_struct *tty)
 		return;
 	tty->stopped = 1;
 	if (tty->ops->stop)
-		(tty->ops->stop)(tty);
+		tty->ops->stop(tty);
 }
 
 void stop_tty(struct tty_struct *tty)
@@ -1012,7 +1012,7 @@ void __start_tty(struct tty_struct *tty)
 		return;
 	tty->stopped = 0;
 	if (tty->ops->start)
-		(tty->ops->start)(tty);
+		tty->ops->start(tty);
 	tty_wakeup(tty);
 }
 
@@ -1066,7 +1066,7 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 	   situation */
 	ld = tty_ldisc_ref_wait(tty);
 	if (ld->ops->read)
-		i = (ld->ops->read)(tty, file, buf, count);
+		i = ld->ops->read(tty, file, buf, count);
 	else
 		i = -EIO;
 	tty_ldisc_deref(ld);
@@ -2182,7 +2182,7 @@ static unsigned int tty_poll(struct file *filp, poll_table *wait)
 
 	ld = tty_ldisc_ref_wait(tty);
 	if (ld->ops->poll)
-		ret = (ld->ops->poll)(tty, filp, wait);
+		ret = ld->ops->poll(tty, filp, wait);
 	tty_ldisc_deref(ld);
 	return ret;
 }
@@ -2905,7 +2905,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	if (tty->ops->ioctl) {
-		retval = (tty->ops->ioctl)(tty, cmd, arg);
+		retval = tty->ops->ioctl(tty, cmd, arg);
 		if (retval != -ENOIOCTLCMD)
 			return retval;
 	}
@@ -2932,7 +2932,7 @@ static long tty_compat_ioctl(struct file *file, unsigned int cmd,
 		return -EINVAL;
 
 	if (tty->ops->compat_ioctl) {
-		retval = (tty->ops->compat_ioctl)(tty, cmd, arg);
+		retval = tty->ops->compat_ioctl(tty, cmd, arg);
 		if (retval != -ENOIOCTLCMD)
 			return retval;
 	}
