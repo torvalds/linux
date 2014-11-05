@@ -273,7 +273,7 @@ struct pwr_ctr {
 	int is_rst;
 	int gpio;
 	int atv_val;
-	char rgl_name[32];
+	const char *rgl_name;
 	int volt;
 	int delay;
 };

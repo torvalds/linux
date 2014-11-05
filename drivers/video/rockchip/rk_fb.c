@@ -29,6 +29,7 @@
 #include <linux/rk_fb.h>
 #include <linux/linux_logo.h>
 #include <linux/dma-mapping.h>
+#include <linux/regulator/consumer.h>
 
 #if defined(CONFIG_RK_HDMI)
 #include "hdmi/rk_hdmi.h"
@@ -264,7 +265,15 @@ int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv)
 
 			} else {
 				pwr_ctr->pwr_ctr.type = REGULATOR;
-
+				pwr_ctr->pwr_ctr.rgl_name = NULL;
+				ret = of_property_read_string(child, "rockchip,regulator_name",
+							     &(pwr_ctr->pwr_ctr.rgl_name));
+				if (ret || IS_ERR_OR_NULL(pwr_ctr->pwr_ctr.rgl_name))
+					dev_err(dev_drv->dev, "get regulator name failed!\n");
+				if (!of_property_read_u32(child, "rockchip,regulator_voltage", &val))
+					pwr_ctr->pwr_ctr.volt = val;
+				else
+					pwr_ctr->pwr_ctr.volt = 0;
 			}
 		};
 		of_property_read_u32(child, "rockchip,delay", &val);
@@ -300,6 +309,9 @@ int rk_disp_pwr_enable(struct rk_lcdc_driver *dev_drv)
 	struct list_head *pos;
 	struct rk_disp_pwr_ctr_list *pwr_ctr_list;
 	struct pwr_ctr *pwr_ctr;
+	struct regulator *regulator_lcd = NULL;
+	int count = 10;
+
 	if (list_empty(&dev_drv->pwrlist_head))
 		return 0;
 	list_for_each(pos, &dev_drv->pwrlist_head) {
@@ -309,6 +321,23 @@ int rk_disp_pwr_enable(struct rk_lcdc_driver *dev_drv)
 		if (pwr_ctr->type == GPIO) {
 			gpio_direction_output(pwr_ctr->gpio, pwr_ctr->atv_val);
 			mdelay(pwr_ctr->delay);
+		} else if (pwr_ctr->type == REGULATOR) {
+			if (pwr_ctr->rgl_name)
+				regulator_lcd = regulator_get(NULL, pwr_ctr->rgl_name);
+			if (regulator_lcd == NULL) {
+				dev_err(dev_drv->dev, "%s: regulator get failed,regulator name:%s\n",
+				            __func__, pwr_ctr->rgl_name);
+				continue;
+			}
+			regulator_set_voltage(regulator_lcd, pwr_ctr->volt, pwr_ctr->volt);
+			while (!regulator_is_enabled(regulator_lcd)) {
+				if (regulator_enable(regulator_lcd) == 0 || count == 0)
+					break;
+				else
+					count--;
+			}
+			regulator_put(regulator_lcd);
+			msleep(pwr_ctr->delay);
 		}
 	}
 
@@ -320,14 +349,33 @@ int rk_disp_pwr_disable(struct rk_lcdc_driver *dev_drv)
 	struct list_head *pos;
 	struct rk_disp_pwr_ctr_list *pwr_ctr_list;
 	struct pwr_ctr *pwr_ctr;
+	struct regulator *regulator_lcd = NULL;
+	int count = 10;
+
 	if (list_empty(&dev_drv->pwrlist_head))
 		return 0;
 	list_for_each(pos, &dev_drv->pwrlist_head) {
 		pwr_ctr_list = list_entry(pos, struct rk_disp_pwr_ctr_list,
 					  list);
 		pwr_ctr = &pwr_ctr_list->pwr_ctr;
-		if (pwr_ctr->type == GPIO)
+		if (pwr_ctr->type == GPIO) {
 			gpio_set_value(pwr_ctr->gpio, !pwr_ctr->atv_val);
+		} else if (pwr_ctr->type == REGULATOR) {
+			if (pwr_ctr->rgl_name)
+				regulator_lcd = regulator_get(NULL, pwr_ctr->rgl_name);
+			if (regulator_lcd == NULL) {
+				dev_err(dev_drv->dev, "%s: regulator get failed,regulator name:%s\n",
+				            __func__, pwr_ctr->rgl_name);
+				continue;
+			}
+			while (regulator_is_enabled(regulator_lcd) > 0) {
+				if (regulator_disable(regulator_lcd) == 0 || count == 0)
+					break;
+				else
+					count--;
+			}
+			regulator_put(regulator_lcd);
+		}
 	}
 	return 0;
 }
