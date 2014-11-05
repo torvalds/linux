@@ -166,7 +166,6 @@ struct usbduxsigma_private {
 
 	/* number of samples to acquire */
 	int ai_sample_count;
-	int ao_sample_count;
 	/* time between samples in units of the timer */
 	unsigned int ai_timer;
 	unsigned int ao_timer;
@@ -358,12 +357,10 @@ static void usbduxsigma_ao_handle_urb(struct comedi_device *dev,
 	if (devpriv->ao_counter == 0) {
 		devpriv->ao_counter = devpriv->ao_timer;
 
-		if (cmd->stop_src == TRIG_COUNT) {
-			devpriv->ao_sample_count--;
-			if (devpriv->ao_sample_count < 0) {
-				async->events |= COMEDI_CB_EOA;
-				return;
-			}
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg) {
+			async->events |= COMEDI_CB_EOA;
+			return;
 		}
 
 		/* transmit data to the USB bus */
@@ -951,25 +948,6 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 	}
 	if (devpriv->ao_timer < 1)
 		err |= -EINVAL;
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* not continuous, use counter */
-		if (high_speed) {
-			/* high speed also scans everything at once */
-			devpriv->ao_sample_count = cmd->stop_arg *
-						   cmd->scan_end_arg;
-		} else {
-			/*
-			 * There's no scan as the scan has been
-			 * handled inside the FX2. Data arrives as
-			 * one packet.
-			 */
-			devpriv->ao_sample_count = cmd->stop_arg;
-		}
-	} else {
-		/* continuous acquisition */
-		devpriv->ao_sample_count = 0;
-	}
 
 	if (err)
 		return 4;
