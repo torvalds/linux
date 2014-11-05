@@ -100,6 +100,8 @@ struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 
 	retval = device_add(&gmod->dev);
 	if (retval) {
+		pr_err("failed to add module device for id 0x%02hhx\n",
+			module_id);
 		put_device(&gmod->dev);
 		return NULL;
 	}

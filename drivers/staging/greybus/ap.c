@@ -150,7 +150,7 @@ static void svc_management(struct svc_function_unipro_management *management,
 				management->link_up.interface_id,
 				management->link_up.device_id);
 		if (ret)
-			dev_err(hd->parent, "error %d initializing"
+			dev_err(hd->parent, "error %d initializing "
 				"module %hhu interface %hhu\n",
 				ret, management->link_up.module_id,
 				management->link_up.interface_id);

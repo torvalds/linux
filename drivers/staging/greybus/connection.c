@@ -164,6 +164,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 
 	INIT_LIST_HEAD(&connection->protocol_links);
 	if (!gb_protocol_get(connection, protocol_id)) {
+		pr_err("protocol 0x%02hhx not found\n", protocol_id);
 		kfree(connection);
 		return NULL;
 	}
@@ -191,6 +192,8 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 
 	retval = device_add(&connection->dev);
 	if (retval) {
+		pr_err("failed to add connection device for cport 0x%04hx\n",
+			cport_id);
 		gb_connection_hd_cport_id_free(connection);
 		gb_protocol_put(connection);
 		put_device(&connection->dev);
