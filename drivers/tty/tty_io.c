@@ -2129,7 +2129,7 @@ retry_open:
 		/*
 		 * Need to reset f_op in case a hangup happened.
 		 */
-		if (filp->f_op == &hung_up_tty_fops)
+		if (tty_hung_up_p(filp))
 			filp->f_op = &tty_fops;
 		goto retry_open;
 	}
