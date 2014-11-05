@@ -1846,7 +1846,7 @@ static void __init rk_clk_tree_init(struct device_node *np)
 	struct rkclk *rkclk;
 	const char *compatible;
 
-	printk("%s start! cru base = 0x%08x\n", __func__, (u32)RK_CRU_VIRT);
+	printk("%s start! cru base = %p\n", __func__, RK_CRU_VIRT);
 
 	node_init=of_find_node_by_name(NULL,"clocks-init");
 	if (!node_init) {
@@ -2208,7 +2208,7 @@ u32 clk_suspend_clkgt_info_get(u32 *clk_ungt_msk,u32 *clk_ungt_msk_last,u32 buf_
                     {
                         reg_n=of_iomap(node_gt, 0);
 
-                        if(((u32)reg_n-(u32)reg_p)!=4)
+                        if(((long)reg_n-(long)reg_p)!=4)
                         {
                             printk("%s: gt reg is not continue\n",__FUNCTION__);
                             return 0;
@@ -2216,7 +2216,7 @@ u32 clk_suspend_clkgt_info_get(u32 *clk_ungt_msk,u32 *clk_ungt_msk_last,u32 buf_
                         reg_p=reg_n;
                     }
 
-                    clk_debug("%s:gt%d,reg=%x,val=(%x,%x)\n",__FUNCTION__,gt_cnt,(u32)reg_n,
+                    clk_debug("%s:gt%d,reg=%p,val=(%x,%x)\n",__FUNCTION__,gt_cnt, reg_n,
                     clk_ungt_msk[gt_cnt], clk_ungt_msk_last[gt_cnt]);
 
                     gt_cnt++;
