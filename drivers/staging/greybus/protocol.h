@@ -25,10 +25,33 @@ struct gb_protocol {
 	struct list_head	links;		/* global list */
 };
 
-bool gb_protocol_register(u8 id, u8 major, u8 minor);
+bool gb_protocol_register(struct gb_protocol *protocol);
 bool gb_protocol_deregister(struct gb_protocol *protocol);
 
 struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor);
 void gb_protocol_put(struct gb_protocol *protocol);
+
+/*
+ * These are defined in their respective protocol source files.
+ * Declared here for now.  They could be added via modules, or maybe
+ * just use initcalls (which level?).
+ */
+extern bool gb_battery_protocol_init(void);
+extern void gb_battery_protocol_exit(void);
+
+extern bool gb_gpio_protocol_init(void);
+extern void gb_gpio_protocol_exit(void);
+
+extern bool gb_i2c_protocol_init(void);
+extern void gb_i2c_protocol_exit(void);
+
+extern bool gb_uart_protocol_init(void);
+extern void gb_uart_protocol_exit(void);
+
+extern bool gb_sdio_protocol_init(void);
+extern void gb_sdio_protocol_exit(void);
+
+bool gb_protocol_init(void);
+void gb_protocol_exit(void);
 
 #endif /* __PROTOCOL_H */

@@ -522,3 +522,19 @@ struct gb_connection_handler gb_i2c_connection_handler = {
 	.connection_init	= gb_i2c_connection_init,
 	.connection_exit	= gb_i2c_connection_exit,
 };
+
+static struct gb_protocol i2c_protocol = {
+	.id			= GREYBUS_PROTOCOL_I2C,
+	.major			= 0,
+	.minor			= 1,
+};
+
+bool gb_i2c_protocol_init(void)
+{
+	return gb_protocol_register(&i2c_protocol);
+}
+
+void gb_i2c_protocol_exit(void)
+{
+	gb_protocol_deregister(&i2c_protocol);
+}

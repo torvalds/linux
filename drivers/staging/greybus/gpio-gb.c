@@ -796,3 +796,19 @@ struct gb_connection_handler gb_gpio_connection_handler = {
 	.connection_init	= gb_gpio_connection_init,
 	.connection_exit	= gb_gpio_connection_exit,
 };
+
+static struct gb_protocol gpio_protocol = {
+	.id			= GREYBUS_PROTOCOL_GPIO,
+	.major			= 0,
+	.minor			= 1,
+};
+
+bool gb_gpio_protocol_init(void)
+{
+	return gb_protocol_register(&gpio_protocol);
+}
+
+void gb_gpio_protocol_exit(void)
+{
+	gb_protocol_deregister(&gpio_protocol);
+}

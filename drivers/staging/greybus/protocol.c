@@ -39,18 +39,12 @@ static struct gb_protocol *_gb_protocol_find(u8 id, u8 major, u8 minor)
 }
 
 /* Returns true if protocol was succesfully registered, false otherwise */
-bool gb_protocol_register(u8 id, u8 major, u8 minor)
+bool gb_protocol_register(struct gb_protocol *protocol)
 {
-	struct gb_protocol *protocol;
 	struct gb_protocol *existing;
-
-	/* Initialize it speculatively */
-	protocol = kzalloc(sizeof(*protocol), GFP_KERNEL);
-	if (!protocol)
-		return false;
-	protocol->id = id;
-	protocol->major = major;
-	protocol->minor = minor;
+	u8 id = protocol->id;
+	u8 major = protocol->major;
+	u8 minor = protocol->minor;
 
 	/*
 	 * The protocols list is sorted first by protocol id (low to
@@ -79,7 +73,6 @@ bool gb_protocol_register(u8 id, u8 major, u8 minor)
 
 		/* A matching protocol has already been registered */
 		spin_unlock_irq(&gb_protocols_lock);
-		kfree(protocol);
 
 		return false;
 	}
@@ -94,7 +87,17 @@ bool gb_protocol_register(u8 id, u8 major, u8 minor)
 	return true;
 }
 
-/* Returns true if successful, false otherwise */
+/*
+ * De-register a previously registered protocol.
+ *
+ * XXX Currently this fails (and reports an error to the caller) if
+ * XXX the protocol is currently in use.  We may want to forcefully
+ * XXX kill off a protocol and all its active users at some point.
+ * XXX But I think that's better handled by quescing modules that
+ * XXX have users and having those users drop their reference.
+ *
+ * Returns true if successful, false otherwise.
+ */
 bool gb_protocol_deregister(struct gb_protocol *protocol)
 {
 	u8 protocol_count = 0;
@@ -108,7 +111,6 @@ bool gb_protocol_deregister(struct gb_protocol *protocol)
 			list_del(&protocol->links);
 	}
 	spin_unlock_irq(&gb_protocols_lock);
-	kfree(protocol);
 
 	return protocol && !protocol_count;
 }
@@ -157,4 +159,40 @@ void gb_protocol_put(struct gb_protocol *protocol)
 	else
 		pr_err("protocol id %hhu version %hhu.%hhu not found\n",
 			protocol->id, major, minor);
+}
+
+bool gb_protocol_init(void)
+{
+	bool ret = true;
+
+	if (!gb_battery_protocol_init()) {
+		pr_err("error initializing battery protocol\n");
+		ret = false;
+	}
+	if (!gb_gpio_protocol_init()) {
+		pr_err("error initializing gpio protocol\n");
+		ret = false;
+	}
+	if (!gb_i2c_protocol_init()) {
+		pr_err("error initializing i2c protocol\n");
+		ret = false;
+	}
+	if (!gb_uart_protocol_init()) {
+		pr_err("error initializing uart protocol\n");
+		ret = false;
+	}
+	if (!gb_sdio_protocol_init()) {
+		pr_err("error initializing sdio protocol\n");
+		ret = false;
+	}
+	return ret;
+}
+
+void gb_protocol_exit(void)
+{
+	gb_sdio_protocol_exit();
+	gb_uart_protocol_exit();
+	gb_i2c_protocol_exit();
+	gb_gpio_protocol_exit();
+	gb_battery_protocol_exit();
 }

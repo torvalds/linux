@@ -81,3 +81,19 @@ struct gb_connection_handler gb_sdio_connection_handler = {
 	.connection_init	= gb_sdio_connection_init,
 	.connection_exit	= gb_sdio_connection_exit,
 };
+
+static struct gb_protocol sdio_protocol = {
+	.id			= GREYBUS_PROTOCOL_SDIO,
+	.major			= 0,
+	.minor			= 1,
+};
+
+bool gb_sdio_protocol_init(void)
+{
+	return gb_protocol_register(&sdio_protocol);
+}
+
+void gb_sdio_protocol_exit(void)
+{
+	gb_protocol_deregister(&sdio_protocol);
+}

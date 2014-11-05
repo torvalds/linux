@@ -524,3 +524,19 @@ struct gb_connection_handler gb_uart_connection_handler = {
 	.connection_init	= gb_uart_connection_init,
 	.connection_exit	= gb_uart_connection_exit,
 };
+
+static struct gb_protocol uart_protocol = {
+	.id			= GREYBUS_PROTOCOL_UART,
+	.major			= 0,
+	.minor			= 1,
+};
+
+bool gb_uart_protocol_init(void)
+{
+	return gb_protocol_register(&uart_protocol);
+}
+
+void gb_uart_protocol_exit(void)
+{
+	gb_protocol_deregister(&uart_protocol);
+}

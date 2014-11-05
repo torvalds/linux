@@ -277,17 +277,23 @@ static int __init gb_init(void)
 		goto error_operation;
 	}
 
-	return 0;
+	if (!gb_protocol_init()) {
+		/* This only fails for duplicate protocol registration */
+		retval = -EEXIST;
+		pr_err("gb_protocol_init failed\n");
+		goto error_protocol;
+	}
 
+	return 0;	/* Success */
+
+error_protocol:
+	gb_operation_exit();
 error_operation:
 	gb_gbuf_exit();
-
 error_gbuf:
 	gb_ap_exit();
-
 error_ap:
 	bus_unregister(&greybus_bus_type);
-
 error_bus:
 	gb_debugfs_cleanup();
 
