@@ -341,6 +341,9 @@ struct stmmac_desc_ops {
 	int (*get_rx_timestamp_status) (void *desc, u32 ats);
 };
 
+extern const struct stmmac_desc_ops enh_desc_ops;
+extern const struct stmmac_desc_ops ndesc_ops;
+
 struct stmmac_dma_ops {
 	/* DMA core initialization */
 	int (*init) (void __iomem *ioaddr, int pbl, int fb, int mb,
@@ -409,6 +412,8 @@ struct stmmac_hwtimestamp {
 			       int add_sub);
 	 u64(*get_systime) (void __iomem *ioaddr);
 };
+
+extern const struct stmmac_hwtimestamp stmmac_ptp;
 
 struct mac_link {
 	int port;
