@@ -141,7 +141,7 @@
 		};
 		partition@2000000 {
 			label = "Filesystem";
-			reg = <0x2000000 0xe000000>;
+			reg = <0x2000000 0x6000000>;
 		};
 	};
 
