@@ -472,7 +472,6 @@ struct x86_pmu {
 	void		(*cpu_dead)(int cpu);
 
 	void		(*check_microcode)(void);
-	void		(*flush_branch_stack)(void);
 	void		(*sched_task)(struct perf_event_context *ctx,
 				      bool sched_in);
 
@@ -732,6 +731,8 @@ void intel_pmu_pebs_enable_all(void);
 void intel_pmu_pebs_disable_all(void);
 
 void intel_ds_init(void);
+
+void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in);
 
 void intel_pmu_lbr_reset(void);
 
