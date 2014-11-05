@@ -24,6 +24,7 @@
 #define LINUX_IEEE802154_H
 
 #include <linux/types.h>
+#include <linux/random.h>
 #include <asm/byteorder.h>
 
 #define IEEE802154_MTU			127
@@ -213,6 +214,19 @@ static inline bool ieee802154_is_valid_extended_addr(const __le64 addr)
 	 */
 	return ((addr != cpu_to_le64(0x0000000000000000ULL)) &&
 		(addr != cpu_to_le64(0xffffffffffffffffULL)));
+}
+
+/**
+ * ieee802154_random_extended_addr - generates a random extended address
+ * @addr: extended addr pointer to place the random address
+ */
+static inline void ieee802154_random_extended_addr(__le64 *addr)
+{
+	get_random_bytes(addr, IEEE802154_EXTENDED_ADDR_LEN);
+
+	/* toggle some bit if we hit an invalid extended addr */
+	if (!ieee802154_is_valid_extended_addr(*addr))
+		((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 0x01;
 }
 
 #endif /* LINUX_IEEE802154_H */
