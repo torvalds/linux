@@ -62,6 +62,9 @@ static unsigned nr_gpages;
 /*
  * We have PGD_INDEX_SIZ = 12 and PTE_INDEX_SIZE = 8, so that we can have
  * 16GB hugepage pte in PGD and 16MB hugepage pte at PMD;
+ *
+ * Defined in such a way that we can optimize away code block at build time
+ * if CONFIG_HUGETLB_PAGE=n.
  */
 int pmd_huge(pmd_t pmd)
 {
