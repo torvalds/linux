@@ -964,41 +964,22 @@ do {								\
 #define MACvSetRFLE_LatchBase(dwIoBase)                                 \
 	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_RFLEOPT)
 
-void MACvReadAllRegs(void __iomem *dwIoBase, unsigned char *pbyMacRegs);
-
 bool MACbIsRegBitsOn(void __iomem *dwIoBase, unsigned char byRegOfs, unsigned char byTestBits);
 bool MACbIsRegBitsOff(void __iomem *dwIoBase, unsigned char byRegOfs, unsigned char byTestBits);
 
 bool MACbIsIntDisable(void __iomem *dwIoBase);
 
-unsigned char MACbyReadMultiAddr(void __iomem *dwIoBase, unsigned int uByteIdx);
-void MACvWriteMultiAddr(void __iomem *dwIoBase, unsigned int uByteIdx, unsigned char byData);
-void MACvSetMultiAddrByHash(void __iomem *dwIoBase, unsigned char byHashIdx);
-void MACvResetMultiAddrByHash(void __iomem *dwIoBase, unsigned char byHashIdx);
-
-void MACvSetRxThreshold(void __iomem *dwIoBase, unsigned char byThreshold);
-void MACvGetRxThreshold(void __iomem *dwIoBase, unsigned char *pbyThreshold);
-
-void MACvSetTxThreshold(void __iomem *dwIoBase, unsigned char byThreshold);
-void MACvGetTxThreshold(void __iomem *dwIoBase, unsigned char *pbyThreshold);
-
-void MACvSetDmaLength(void __iomem *dwIoBase, unsigned char byDmaLength);
-void MACvGetDmaLength(void __iomem *dwIoBase, unsigned char *pbyDmaLength);
-
 void MACvSetShortRetryLimit(void __iomem *dwIoBase, unsigned char byRetryLimit);
-void MACvGetShortRetryLimit(void __iomem *dwIoBase, unsigned char *pbyRetryLimit);
 
 void MACvSetLongRetryLimit(void __iomem *dwIoBase, unsigned char byRetryLimit);
 void MACvGetLongRetryLimit(void __iomem *dwIoBase, unsigned char *pbyRetryLimit);
 
 void MACvSetLoopbackMode(void __iomem *dwIoBase, unsigned char byLoopbackMode);
-bool MACbIsInLoopbackMode(void __iomem *dwIoBase);
 
 void MACvSetPacketFilter(void __iomem *dwIoBase, unsigned short wFilterType);
 
 void MACvSaveContext(void __iomem *dwIoBase, unsigned char *pbyCxtBuf);
 void MACvRestoreContext(void __iomem *dwIoBase, unsigned char *pbyCxtBuf);
-bool MACbCompareContext(void __iomem *dwIoBase, unsigned char *pbyCxtBuf);
 
 bool MACbSoftwareReset(void __iomem *dwIoBase);
 bool MACbSafeSoftwareReset(void __iomem *dwIoBase);
@@ -1015,27 +996,14 @@ void MACvSetCurrAC0DescAddrEx(void __iomem *dwIoBase, unsigned long dwCurrDescAd
 void MACvSetCurrSyncDescAddrEx(void __iomem *dwIoBase, unsigned long dwCurrDescAddr);
 void MACvSetCurrATIMDescAddrEx(void __iomem *dwIoBase, unsigned long dwCurrDescAddr);
 void MACvTimer0MicroSDelay(void __iomem *dwIoBase, unsigned int uDelay);
-void MACvOneShotTimer0MicroSec(void __iomem *dwIoBase, unsigned int uDelayTime);
 void MACvOneShotTimer1MicroSec(void __iomem *dwIoBase, unsigned int uDelayTime);
 
 void MACvSetMISCFifo(void __iomem *dwIoBase, unsigned short wOffset, unsigned long dwData);
 
-bool MACbTxDMAOff(void __iomem *dwIoBase, unsigned int idx);
-
-void MACvClearBusSusInd(void __iomem *dwIoBase);
-void MACvEnableBusSusEn(void __iomem *dwIoBase);
-
-bool MACbFlushSYNCFifo(void __iomem *dwIoBase);
 bool MACbPSWakeup(void __iomem *dwIoBase);
 
 void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned int uEntryIdx,
 		     unsigned int uKeyIdx, unsigned char *pbyAddr, u32 *pdwKey, unsigned char byLocalID);
 void MACvDisableKeyEntry(void __iomem *dwIoBase, unsigned int uEntryIdx);
-void MACvSetDefaultKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
-			    unsigned int uKeyIdx, unsigned long *pdwKey, unsigned char byLocalID);
-void MACvDisableDefaultKey(void __iomem *dwIoBase);
-void MACvSetDefaultTKIPKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
-				unsigned int uKeyIdx, unsigned long *pdwKey, unsigned char byLocalID);
-void MACvSetDefaultKeyCtl(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned int uEntryIdx, unsigned char byLocalID);
 
 #endif // __MAC_H__
