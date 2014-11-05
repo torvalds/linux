@@ -168,7 +168,7 @@ static void ovl_cache_put(struct ovl_dir_file *od, struct dentry *dentry)
 {
 	struct ovl_dir_cache *cache = od->cache;
 
-	list_del(&od->cursor.l_node);
+	list_del_init(&od->cursor.l_node);
 	WARN_ON(cache->refcount <= 0);
 	cache->refcount--;
 	if (!cache->refcount) {
