@@ -662,12 +662,10 @@ slow_path:
 		if (len < left)	{
 			len &= ~7;
 		}
-		/*
-		 *	Allocate buffer.
-		 */
 
-		if ((skb2 = alloc_skb(len+hlen+ll_rs, GFP_ATOMIC)) == NULL) {
-			NETDEBUG(KERN_INFO "IP: frag: no memory for new fragment!\n");
+		/* Allocate buffer */
+		skb2 = alloc_skb(len + hlen + ll_rs, GFP_ATOMIC);
+		if (!skb2) {
 			err = -ENOMEM;
 			goto fail;
 		}
