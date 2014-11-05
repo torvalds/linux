@@ -161,7 +161,6 @@ struct usbduxfast_private {
 	uint8_t *duxbuf;
 	int8_t *inbuf;
 	short int ai_cmd_running;	/* asynchronous command is running */
-	long int ai_sample_count;	/* number of samples to acquire */
 	int ignore;		/* counter which ignores the first
 				   buffers */
 	struct semaphore sem;
@@ -251,15 +250,12 @@ static void usbduxfast_ai_handle_urb(struct comedi_device *dev,
 		unsigned int nsamples;
 
 		nsamples = comedi_bytes_to_samples(s, urb->actual_length);
-		if (cmd->stop_src == TRIG_COUNT) {
-			if (devpriv->ai_sample_count < nsamples) {
-				nsamples = devpriv->ai_sample_count;
-				async->events |= COMEDI_CB_EOA;
-			}
-			devpriv->ai_sample_count -= nsamples;
-		}
-
+		nsamples = comedi_nsamples_left(s, nsamples);
 		comedi_buf_write_samples(s, urb->transfer_buffer, nsamples);
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg)
+			async->events |= COMEDI_CB_EOA;
 	}
 
 	/* if command is still running, resubmit urb for BULK transfer */
@@ -787,11 +783,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		up(&devpriv->sem);
 		return result;
 	}
-
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ai_sample_count = cmd->stop_arg * cmd->scan_end_arg;
-	else	/* TRIG_NONE */
-		devpriv->ai_sample_count = 0;
 
 	if ((cmd->start_src == TRIG_NOW) || (cmd->start_src == TRIG_EXT)) {
 		/* enable this acquisition operation */
