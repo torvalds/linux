@@ -512,7 +512,6 @@ struct pcl812_private {
 	unsigned int last_ai_chanspec;
 	unsigned char mode_reg_int;	/*  there is stored INT number for some card */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
-	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned int dmapages;
 	unsigned int hwdmasize;
 	unsigned long dmabuf[2];	/*  PTR to DMA buf */
@@ -807,7 +806,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ai_dma = 0;
 	}
 
-	devpriv->ai_act_scan = 0;
 	devpriv->ai_poll_ptr = 0;
 
 	/*  don't we want wake up every scan? */
@@ -840,15 +838,10 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static bool pcl812_ai_next_chan(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
-	struct pcl812_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (s->async->cur_chan == 0)
-		devpriv->ai_act_scan++;
-
 	if (cmd->stop_src == TRIG_COUNT &&
-	    devpriv->ai_act_scan >= cmd->stop_arg) {
-		/* all data sampled */
+	    s->async->scans_done >= cmd->stop_arg) {
 		s->async->events |= COMEDI_CB_EOA;
 		return false;
 	}
