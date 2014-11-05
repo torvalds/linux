@@ -1065,8 +1065,6 @@ struct pcidas64_private {
 	/*  local address (used by dma controller) */
 	uint32_t local0_iobase;
 	uint32_t local1_iobase;
-	/*  number of analog input samples remaining */
-	unsigned int ai_count;
 	/*  dma buffers for analog input */
 	uint16_t *ai_buffer[MAX_AI_DMA_RING_COUNT];
 	/*  physical addresses of ai dma buffers */
@@ -2199,10 +2197,6 @@ static void setup_sample_counters(struct comedi_device *dev,
 {
 	struct pcidas64_private *devpriv = dev->private;
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		/*  set software count */
-		devpriv->ai_count = cmd->stop_arg * cmd->chanlist_len;
-	}
 	/*  load hardware conversion counter */
 	if (use_hw_sample_counter(cmd)) {
 		writew(cmd->stop_arg & 0xffff,
@@ -2642,8 +2636,6 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 {
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int i;
 	uint16_t prepost_bits;
 	int read_segment, read_index, write_segment, write_index;
@@ -2672,21 +2664,15 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 				devpriv->ai_fifo_segment_length - read_index;
 		else
 			num_samples = write_index - read_index;
-
-		if (cmd->stop_src == TRIG_COUNT) {
-			if (devpriv->ai_count == 0)
-				break;
-			if (num_samples > devpriv->ai_count)
-				num_samples = devpriv->ai_count;
-
-			devpriv->ai_count -= num_samples;
-		}
-
 		if (num_samples < 0) {
 			dev_err(dev->class_dev,
 				"cb_pcidas64: bug! num_samples < 0\n");
 			break;
 		}
+
+		num_samples = comedi_nsamples_left(s, num_samples);
+		if (num_samples == 0)
+			break;
 
 		for (i = 0; i < num_samples; i++) {
 			unsigned short val;
@@ -2707,29 +2693,23 @@ static void pio_drain_ai_fifo_32(struct comedi_device *dev)
 {
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int nsamples;
 	unsigned int i;
-	unsigned int max_transfer = 100000;
 	uint32_t fifo_data;
 	int write_code =
 		readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
 	int read_code =
 		readw(devpriv->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (max_transfer > devpriv->ai_count)
-			max_transfer = devpriv->ai_count;
-
-	}
-	for (i = 0; read_code != write_code && i < max_transfer;) {
+	nsamples = comedi_nsamples_left(s, 100000);
+	for (i = 0; read_code != write_code && i < nsamples;) {
 		unsigned short val;
 
 		fifo_data = readl(dev->mmio + ADC_FIFO_REG);
 		val = fifo_data & 0xffff;
 		comedi_buf_write_samples(s, &val, 1);
 		i++;
-		if (i < max_transfer) {
+		if (i < nsamples) {
 			val = (fifo_data >> 16) & 0xffff;
 			comedi_buf_write_samples(s, &val, 1);
 			i++;
@@ -2737,7 +2717,6 @@ static void pio_drain_ai_fifo_32(struct comedi_device *dev)
 		read_code = readw(devpriv->main_iobase + ADC_READ_PNTR_REG) &
 			    0x7fff;
 	}
-	devpriv->ai_count -= i;
 }
 
 /* empty fifo */
@@ -2755,8 +2734,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 {
 	const struct pcidas64_board *thisboard = dev->board_ptr;
 	struct pcidas64_private *devpriv = dev->private;
-	struct comedi_async *async = dev->read_subdev->async;
-	struct comedi_cmd *cmd = &async->cmd;
+	struct comedi_subdevice *s = dev->read_subdev;
 	uint32_t next_transfer_addr;
 	int j;
 	int num_samples = 0;
@@ -2777,13 +2755,8 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	      devpriv->ai_buffer_bus_addr[devpriv->ai_dma_index] +
 	      DMA_BUFFER_SIZE) && j < ai_dma_ring_count(thisboard); j++) {
 		/*  transfer data from dma buffer to comedi buffer */
-		num_samples = dma_transfer_size(dev);
-		if (cmd->stop_src == TRIG_COUNT) {
-			if (num_samples > devpriv->ai_count)
-				num_samples = devpriv->ai_count;
-			devpriv->ai_count -= num_samples;
-		}
-		comedi_buf_write_samples(dev->read_subdev,
+		num_samples = comedi_nsamples_left(s, dma_transfer_size(dev));
+		comedi_buf_write_samples(s,
 				devpriv->ai_buffer[devpriv->ai_dma_index],
 				num_samples);
 		devpriv->ai_dma_index = (devpriv->ai_dma_index + 1) %
@@ -2835,10 +2808,10 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 			spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
 	/*  if we are have all the data, then quit */
-	if ((cmd->stop_src == TRIG_COUNT && (int)devpriv->ai_count <= 0) ||
-	    (cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT))) {
+	if ((cmd->stop_src == TRIG_COUNT &&
+	     async->scans_done >= cmd->stop_arg) ||
+	    (cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT)))
 		async->events |= COMEDI_CB_EOA;
-	}
 
 	comedi_handle_events(dev, s);
 }
