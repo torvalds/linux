@@ -1,5 +1,5 @@
 /*
- * net/sched/simp.c	Simple example of an action
+ * net/sched/act_simple.c	Simple example of an action
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
