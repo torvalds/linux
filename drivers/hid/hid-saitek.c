@@ -7,7 +7,7 @@
  *  (This module is based on "hid-ortek".)
  *  Copyright (c) 2012 Andreas Hübner
  *
- *  R.A.T.7, M.M.O.7 (USB gaming mice):
+ *  R.A.T.7, R.A.T.9, M.M.O.7 (USB gaming mice):
  *  Fixes the mode button which cycles through three constantly pressed
  *  buttons. All three press events are mapped to one button and the
  *  missing release event is generated immediately.
@@ -178,6 +178,8 @@ static const struct hid_device_id saitek_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SAITEK, USB_DEVICE_ID_SAITEK_PS1000),
 		.driver_data = SAITEK_FIX_PS1000 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SAITEK, USB_DEVICE_ID_SAITEK_RAT7),
+		.driver_data = SAITEK_RELEASE_MODE_RAT7 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MADCATZ, USB_DEVICE_ID_MADCATZ_RAT9),
 		.driver_data = SAITEK_RELEASE_MODE_RAT7 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SAITEK, USB_DEVICE_ID_SAITEK_MMO7),
 		.driver_data = SAITEK_RELEASE_MODE_MMO7 },

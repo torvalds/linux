@@ -629,7 +629,7 @@ config HID_ROCCAT
 	support for its special functionalities.
 
 config HID_SAITEK
-	tristate "Saitek non-fully HID-compliant devices"
+	tristate "Saitek (Mad Catz) non-fully HID-compliant devices"
 	depends on HID
 	---help---
 	Support for Saitek devices that are not fully compliant with the
@@ -637,6 +637,7 @@ config HID_SAITEK
 
 	Supported devices:
 	- PS1000 Dual Analog Pad
+	- R.A.T.9 Gaming Mouse
 	- R.A.T.7 Gaming Mouse
 	- M.M.O.7 Gaming Mouse
 
