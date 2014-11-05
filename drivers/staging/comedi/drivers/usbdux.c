@@ -202,8 +202,6 @@ struct usbdux_private {
 	unsigned int ao_cmd_running:1;
 	unsigned int pwm_cmd_running:1;
 
-	/* number of samples to acquire */
-	int ai_sample_count;
 	/* time between samples in units of the timer */
 	unsigned int ai_timer;
 	unsigned int ao_timer;
@@ -263,14 +261,6 @@ static void usbduxsub_ai_handle_urb(struct comedi_device *dev,
 	if (devpriv->ai_counter == 0) {
 		devpriv->ai_counter = devpriv->ai_timer;
 
-		if (cmd->stop_src == TRIG_COUNT) {
-			devpriv->ai_sample_count--;
-			if (devpriv->ai_sample_count < 0) {
-				async->events |= COMEDI_CB_EOA;
-				return;
-			}
-		}
-
 		/* get the data from the USB bus and hand it over to comedi */
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			unsigned int range = CR_RANGE(cmd->chanlist[i]);
@@ -284,6 +274,10 @@ static void usbduxsub_ai_handle_urb(struct comedi_device *dev,
 			if (!comedi_buf_write_samples(s, &val, 1))
 				return;
 		}
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg)
+			async->events |= COMEDI_CB_EOA;
 	}
 
 	/* if command is still running, resubmit urb */
@@ -731,14 +725,6 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	devpriv->ai_counter = devpriv->ai_timer;
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* data arrives as one packet */
-		devpriv->ai_sample_count = cmd->stop_arg;
-	} else {
-		/* continous acquisition */
-		devpriv->ai_sample_count = 0;
-	}
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
