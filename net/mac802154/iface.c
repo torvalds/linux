@@ -181,7 +181,7 @@ static int mac802154_wpan_open(struct net_device *dev)
 	mutex_lock(&phy->pib_lock);
 
 	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
-		rc = drv_set_promiscuous_mode(local, sdata->promisuous_mode);
+		rc = drv_set_promiscuous_mode(local, sdata->promiscuous_mode);
 		if (rc < 0)
 			goto out;
 	}
@@ -419,7 +419,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 		sdata->dev->destructor = mac802154_wpan_free;
 		sdata->dev->netdev_ops = &mac802154_wpan_ops;
 		sdata->dev->ml_priv = &mac802154_mlme_wpan;
-		sdata->promisuous_mode = false;
+		sdata->promiscuous_mode = false;
 
 		spin_lock_init(&sdata->mib_lock);
 		mutex_init(&sdata->sec_mtx);
@@ -429,7 +429,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 	case IEEE802154_DEV_MONITOR:
 		sdata->dev->destructor = free_netdev;
 		sdata->dev->netdev_ops = &mac802154_monitor_ops;
-		sdata->promisuous_mode = true;
+		sdata->promiscuous_mode = true;
 		break;
 	default:
 		BUG();

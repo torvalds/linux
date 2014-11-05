@@ -87,7 +87,7 @@ struct ieee802154_sub_if_data {
 	__le16 pan_id;
 	__le16 short_addr;
 	__le64 extended_addr;
-	bool promisuous_mode;
+	bool promiscuous_mode;
 
 	struct ieee802154_mac_params mac_params;
 
