@@ -440,8 +440,6 @@ struct vnt_private {
 	unsigned char abyEEPROM[EEP_MAX_CONTEXT_SIZE]; /* unsigned long alignment */
 
 	unsigned short wBeaconInterval;
-
-	struct iw_statistics	wstats;		/* wireless stats */
 };
 
 static inline PDEVICE_RD_INFO alloc_rd_info(void)
