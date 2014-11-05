@@ -1444,9 +1444,9 @@ void tty_driver_remove_tty(struct tty_driver *driver, struct tty_struct *tty)
  * 	@tty	- the tty to open
  *
  *	Return 0 on success, -errno on error.
+ *	Re-opens on master ptys are not allowed and return -EIO.
  *
- *	Locking: tty_mutex must be held from the time the tty was found
- *		 till this open completes.
+ *	Locking: Caller must hold tty_lock
  */
 static int tty_reopen(struct tty_struct *tty)
 {
@@ -1456,16 +1456,9 @@ static int tty_reopen(struct tty_struct *tty)
 		return -EIO;
 
 	if (driver->type == TTY_DRIVER_TYPE_PTY &&
-	    driver->subtype == PTY_TYPE_MASTER) {
-		/*
-		 * special case for PTY masters: only one open permitted,
-		 * and the slave side open count is incremented as well.
-		 */
-		if (tty->count)
-			return -EIO;
+	    driver->subtype == PTY_TYPE_MASTER)
+		return -EIO;
 
-		tty->link->count++;
-	}
 	tty->count++;
 
 	WARN_ON(!tty->ldisc);
