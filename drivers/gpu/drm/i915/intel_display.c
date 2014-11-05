@@ -10741,44 +10741,59 @@ static void update_scanline_offset(struct intel_crtc *crtc)
 		crtc->scanline_offset = 1;
 }
 
+static struct intel_crtc_config *
+intel_modeset_compute_config(struct drm_crtc *crtc,
+			     struct drm_display_mode *mode,
+			     struct drm_framebuffer *fb,
+			     unsigned *modeset_pipes,
+			     unsigned *prepare_pipes,
+			     unsigned *disable_pipes)
+{
+	struct intel_crtc_config *pipe_config = NULL;
+
+	intel_modeset_affected_pipes(crtc, modeset_pipes,
+				     prepare_pipes, disable_pipes);
+
+	if ((*modeset_pipes) == 0)
+		goto out;
+
+	/*
+	 * Note this needs changes when we start tracking multiple modes
+	 * and crtcs.  At that point we'll need to compute the whole config
+	 * (i.e. one pipe_config for each crtc) rather than just the one
+	 * for this crtc.
+	 */
+	pipe_config = intel_modeset_pipe_config(crtc, fb, mode);
+	if (IS_ERR(pipe_config)) {
+		goto out;
+	}
+	intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
+			       "[modeset]");
+	to_intel_crtc(crtc)->new_config = pipe_config;
+
+out:
+	return pipe_config;
+}
+
 static int __intel_set_mode(struct drm_crtc *crtc,
 			    struct drm_display_mode *mode,
-			    int x, int y, struct drm_framebuffer *fb)
+			    int x, int y, struct drm_framebuffer *fb,
+			    struct intel_crtc_config *pipe_config,
+			    unsigned modeset_pipes,
+			    unsigned prepare_pipes,
+			    unsigned disable_pipes)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *saved_mode;
-	struct intel_crtc_config *pipe_config = NULL;
 	struct intel_crtc *intel_crtc;
-	unsigned disable_pipes, prepare_pipes, modeset_pipes;
 	int ret = 0;
 
 	saved_mode = kmalloc(sizeof(*saved_mode), GFP_KERNEL);
 	if (!saved_mode)
 		return -ENOMEM;
 
-	intel_modeset_affected_pipes(crtc, &modeset_pipes,
-				     &prepare_pipes, &disable_pipes);
-
 	*saved_mode = crtc->mode;
-
-	/* Hack: Because we don't (yet) support global modeset on multiple
-	 * crtcs, we don't keep track of the new mode for more than one crtc.
-	 * Hence simply check whether any bit is set in modeset_pipes in all the
-	 * pieces of code that are not yet converted to deal with mutliple crtcs
-	 * changing their mode at the same time. */
-	if (modeset_pipes) {
-		pipe_config = intel_modeset_pipe_config(crtc, fb, mode);
-		if (IS_ERR(pipe_config)) {
-			ret = PTR_ERR(pipe_config);
-			pipe_config = NULL;
-
-			goto out;
-		}
-		intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
-				       "[modeset]");
-		to_intel_crtc(crtc)->new_config = pipe_config;
-	}
 
 	/*
 	 * See if the config requires any additional preparation, e.g.
@@ -10820,6 +10835,10 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 
 	/* crtc->mode is already used by the ->mode_set callbacks, hence we need
 	 * to set it here already despite that we pass it down the callchain.
+	 *
+	 * Note we'll need to fix this up when we start tracking multiple
+	 * pipes; here we assume a single modeset_pipe and only track the
+	 * single crtc and mode.
 	 */
 	if (modeset_pipes) {
 		crtc->mode = *mode;
@@ -10881,9 +10900,27 @@ done:
 	if (ret && crtc->enabled)
 		crtc->mode = *saved_mode;
 
-out:
 	kfree(pipe_config);
 	kfree(saved_mode);
+	return ret;
+}
+
+static int intel_set_mode_pipes(struct drm_crtc *crtc,
+				struct drm_display_mode *mode,
+				int x, int y, struct drm_framebuffer *fb,
+				struct intel_crtc_config *pipe_config,
+				unsigned modeset_pipes,
+				unsigned prepare_pipes,
+				unsigned disable_pipes)
+{
+	int ret;
+
+	ret = __intel_set_mode(crtc, mode, x, y, fb, pipe_config, modeset_pipes,
+			       prepare_pipes, disable_pipes);
+
+	if (ret == 0)
+		intel_modeset_check_state(crtc->dev);
+
 	return ret;
 }
 
@@ -10891,14 +10928,20 @@ static int intel_set_mode(struct drm_crtc *crtc,
 			  struct drm_display_mode *mode,
 			  int x, int y, struct drm_framebuffer *fb)
 {
-	int ret;
+	struct intel_crtc_config *pipe_config;
+	unsigned modeset_pipes, prepare_pipes, disable_pipes;
 
-	ret = __intel_set_mode(crtc, mode, x, y, fb);
+	pipe_config = intel_modeset_compute_config(crtc, mode, fb,
+						   &modeset_pipes,
+						   &prepare_pipes,
+						   &disable_pipes);
 
-	if (ret == 0)
-		intel_modeset_check_state(crtc->dev);
+	if (IS_ERR(pipe_config))
+		return PTR_ERR(pipe_config);
 
-	return ret;
+	return intel_set_mode_pipes(crtc, mode, x, y, fb, pipe_config,
+				    modeset_pipes, prepare_pipes,
+				    disable_pipes);
 }
 
 void intel_crtc_restore_mode(struct drm_crtc *crtc)
@@ -13249,8 +13292,8 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 			struct drm_crtc *crtc =
 				dev_priv->pipe_to_crtc_mapping[pipe];
 
-			__intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y,
-					 crtc->primary->fb);
+			intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y,
+				       crtc->primary->fb);
 		}
 	} else {
 		intel_modeset_update_staged_output_state(dev);
