@@ -101,7 +101,6 @@ static DEF_SCSI_QCMD(virthba_queue_command)
 #define virthba_queue_command virthba_queue_command_lck
 #endif
 
-
 static int virthba_slave_alloc(struct scsi_device *scsidev);
 static int virthba_slave_configure(struct scsi_device *scsidev);
 static void virthba_slave_destroy(struct scsi_device *scsidev);
@@ -1322,7 +1321,6 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 		/* cmdrsp is now available for reuse */
 	}
 }
-
 
 /* main function for the thread that waits for scsi commands to arrive
  * in a specified queue
