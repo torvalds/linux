@@ -79,7 +79,6 @@ static void free_firmware(const struct firmware *fw_entry,
 	dev_dbg(chip->card->dev, "firmware not released (kept in cache)\n");
 #else
 	release_firmware(fw_entry);
-	dev_dbg(chip->card->dev, "firmware released\n");
 #endif
 }
 
@@ -96,7 +95,6 @@ static void free_firmware_cache(struct echoaudio *chip)
 			dev_dbg(chip->card->dev, "release_firmware(%d)\n", i);
 		}
 
-	dev_dbg(chip->card->dev, "firmware_cache released\n");
 #endif
 }
 
@@ -354,7 +352,6 @@ static int pcm_analog_in_open(struct snd_pcm_substream *substream)
 	struct echoaudio *chip = snd_pcm_substream_chip(substream);
 	int err;
 
-	dev_dbg(chip->card->dev, "pcm_analog_in_open\n");
 	if ((err = pcm_open(substream, num_analog_busses_in(chip) -
 			    substream->number)) < 0)
 		return err;
@@ -389,7 +386,6 @@ static int pcm_analog_out_open(struct snd_pcm_substream *substream)
 #else
 	max_channels = num_analog_busses_out(chip);
 #endif
-	dev_dbg(chip->card->dev, "pcm_analog_out_open\n");
 	if ((err = pcm_open(substream, max_channels - substream->number)) < 0)
 		return err;
 	if ((err = snd_pcm_hw_rule_add(substream->runtime, 0,
@@ -422,7 +418,6 @@ static int pcm_digital_in_open(struct snd_pcm_substream *substream)
 	struct echoaudio *chip = snd_pcm_substream_chip(substream);
 	int err, max_channels;
 
-	dev_dbg(chip->card->dev, "pcm_digital_in_open\n");
 	max_channels = num_digital_busses_in(chip) - substream->number;
 	mutex_lock(&chip->mode_mutex);
 	if (chip->digital_mode == DIGITAL_MODE_ADAT)
@@ -464,7 +459,6 @@ static int pcm_digital_out_open(struct snd_pcm_substream *substream)
 	struct echoaudio *chip = snd_pcm_substream_chip(substream);
 	int err, max_channels;
 
-	dev_dbg(chip->card->dev, "pcm_digital_out_open\n");
 	max_channels = num_digital_busses_out(chip) - substream->number;
 	mutex_lock(&chip->mode_mutex);
 	if (chip->digital_mode == DIGITAL_MODE_ADAT)
@@ -511,7 +505,6 @@ static int pcm_close(struct snd_pcm_substream *substream)
 	/* Nothing to do here. Audio is already off and pipe will be
 	 * freed by its callback
 	 */
-	dev_dbg(chip->card->dev, "pcm_close\n");
 
 	atomic_dec(&chip->opencount);
 	oc = atomic_read(&chip->opencount);
@@ -620,7 +613,6 @@ static int init_engine(struct snd_pcm_substream *substream,
 	spin_lock_irq(&chip->lock);
 	set_sample_rate(chip, hw_params->rate_num / hw_params->rate_den);
 	spin_unlock_irq(&chip->lock);
-	dev_dbg(chip->card->dev, "pcm_hw_params ok\n");
 	return 0;
 }
 
@@ -691,7 +683,6 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 	}
 	spin_unlock_irq(&chip->lock);
 
-	dev_dbg(chip->card->dev, "pcm_hw_freed\n");
 	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
@@ -763,10 +754,8 @@ static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	spin_lock(&chip->lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		dev_dbg(chip->card->dev, "pcm_trigger resume\n");
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		dev_dbg(chip->card->dev, "pcm_trigger start\n");
 		for (i = 0; i < DSP_MAXPIPES; i++) {
 			if (channelmask & (1 << i)) {
 				pipe = chip->substream[i]->runtime->private_data;
@@ -788,9 +777,7 @@ static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 				      chip->pipe_cyclic_mask);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		dev_dbg(chip->card->dev, "pcm_trigger suspend\n");
 	case SNDRV_PCM_TRIGGER_STOP:
-		dev_dbg(chip->card->dev, "pcm_trigger stop\n");
 		for (i = 0; i < DSP_MAXPIPES; i++) {
 			if (channelmask & (1 << i)) {
 				pipe = chip->substream[i]->runtime->private_data;
@@ -800,7 +787,6 @@ static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		err = stop_transport(chip, channelmask);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		dev_dbg(chip->card->dev, "pcm_trigger pause\n");
 		for (i = 0; i < DSP_MAXPIPES; i++) {
 			if (channelmask & (1 << i)) {
 				pipe = chip->substream[i]->runtime->private_data;
@@ -937,7 +923,6 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &analog_capture_ops);
 	if ((err = snd_echo_preallocate_pages(pcm, snd_dma_pci_data(chip->pci))) < 0)
 		return err;
-	dev_dbg(chip->card->dev, "Analog PCM ok\n");
 
 #ifdef ECHOCARD_HAS_DIGITAL_IO
 	/* PCM#1 Digital inputs, no outputs */
@@ -950,7 +935,6 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &digital_capture_ops);
 	if ((err = snd_echo_preallocate_pages(pcm, snd_dma_pci_data(chip->pci))) < 0)
 		return err;
-	dev_dbg(chip->card->dev, "Digital PCM ok\n");
 #endif /* ECHOCARD_HAS_DIGITAL_IO */
 
 #else /* ECHOCARD_HAS_VMIXER */
@@ -972,7 +956,6 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &analog_capture_ops);
 	if ((err = snd_echo_preallocate_pages(pcm, snd_dma_pci_data(chip->pci))) < 0)
 		return err;
-	dev_dbg(chip->card->dev, "Analog PCM ok\n");
 
 #ifdef ECHOCARD_HAS_DIGITAL_IO
 	/* PCM#1 Digital i/o */
@@ -987,7 +970,6 @@ static int snd_echo_new_pcm(struct echoaudio *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &digital_capture_ops);
 	if ((err = snd_echo_preallocate_pages(pcm, snd_dma_pci_data(chip->pci))) < 0)
 		return err;
-	dev_dbg(chip->card->dev, "Digital PCM ok\n");
 #endif /* ECHOCARD_HAS_DIGITAL_IO */
 
 #endif /* ECHOCARD_HAS_VMIXER */
@@ -1881,10 +1863,8 @@ static irqreturn_t snd_echo_interrupt(int irq, void *dev_id)
 
 static int snd_echo_free(struct echoaudio *chip)
 {
-	dev_dbg(chip->card->dev, "Stop DSP...\n");
 	if (chip->comm_page)
 		rest_in_peace(chip);
-	dev_dbg(chip->card->dev, "Stopped.\n");
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
@@ -1898,14 +1878,12 @@ static int snd_echo_free(struct echoaudio *chip)
 	if (chip->iores)
 		release_and_free_resource(chip->iores);
 
-	dev_dbg(chip->card->dev, "MMIO freed.\n");
 
 	pci_disable_device(chip->pci);
 
 	/* release chip data */
 	free_firmware_cache(chip);
 	kfree(chip);
-	dev_dbg(chip->card->dev, "Chip freed.\n");
 	return 0;
 }
 
@@ -1915,7 +1893,6 @@ static int snd_echo_dev_free(struct snd_device *device)
 {
 	struct echoaudio *chip = device->device_data;
 
-	dev_dbg(chip->card->dev, "snd_echo_dev_free()...\n");
 	return snd_echo_free(chip);
 }
 
@@ -2008,7 +1985,6 @@ static int snd_echo_create(struct snd_card *card,
 		snd_echo_free(chip);
 		return err;
 	}
-	dev_dbg(card->dev, "Card init OK\n");
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_echo_free(chip);
@@ -2038,7 +2014,6 @@ static int snd_echo_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	dev_dbg(&pci->dev, "Echoaudio driver starting...\n");
 	i = 0;
 	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
 			   0, &card);
@@ -2191,7 +2166,6 @@ static int snd_echo_suspend(struct device *dev)
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct echoaudio *chip = dev_get_drvdata(dev);
 
-	dev_dbg(dev, "suspend start\n");
 	snd_pcm_suspend_all(chip->analog_pcm);
 	snd_pcm_suspend_all(chip->digital_pcm);
 
@@ -2218,7 +2192,6 @@ static int snd_echo_suspend(struct device *dev)
 	pci_save_state(pci);
 	pci_disable_device(pci);
 
-	dev_dbg(dev, "suspend done\n");
 	return 0;
 }
 
@@ -2232,7 +2205,6 @@ static int snd_echo_resume(struct device *dev)
 	u32 pipe_alloc_mask;
 	int err;
 
-	dev_dbg(dev, "resume start\n");
 	pci_restore_state(pci);
 	commpage_bak = kmalloc(sizeof(struct echoaudio), GFP_KERNEL);
 	if (commpage_bak == NULL)
@@ -2247,7 +2219,6 @@ static int snd_echo_resume(struct device *dev)
 		snd_echo_free(chip);
 		return err;
 	}
-	dev_dbg(dev, "resume init OK\n");
 
 	/* Temporarily set chip->pipe_alloc_mask=0 otherwise
 	 * restore_dsp_settings() fails.
@@ -2260,7 +2231,6 @@ static int snd_echo_resume(struct device *dev)
 		kfree(commpage_bak);
 		return err;
 	}
-	dev_dbg(dev, "resume restore OK\n");
 
 	memcpy(&commpage->audio_format, &commpage_bak->audio_format,
 		sizeof(commpage->audio_format));
@@ -2286,7 +2256,6 @@ static int snd_echo_resume(struct device *dev)
 		snd_echo_midi_output_trigger(chip->midi_out, 1);
 #endif
 
-	dev_dbg(dev, "resume done\n");
 	return 0;
 }
 

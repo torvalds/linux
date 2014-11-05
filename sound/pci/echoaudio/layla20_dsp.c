@@ -40,7 +40,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	dev_dbg(chip->card->dev, "init_hw() - Layla20\n");
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != LAYLA20))
 		return -ENODEV;
 
@@ -65,7 +64,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		return err;
 	chip->bad_board = FALSE;
 
-	dev_dbg(chip->card->dev, "init_hw done\n");
 	return err;
 }
 
@@ -190,24 +188,19 @@ static int set_input_clock(struct echoaudio *chip, u16 clock_source)
 	u16 clock;
 	u32 rate;
 
-	dev_dbg(chip->card->dev, "set_input_clock:\n");
 	rate = 0;
 	switch (clock_source) {
 	case ECHO_CLOCK_INTERNAL:
-		dev_dbg(chip->card->dev, "Set Layla20 clock to INTERNAL\n");
 		rate = chip->sample_rate;
 		clock = LAYLA20_CLOCK_INTERNAL;
 		break;
 	case ECHO_CLOCK_SPDIF:
-		dev_dbg(chip->card->dev, "Set Layla20 clock to SPDIF\n");
 		clock = LAYLA20_CLOCK_SPDIF;
 		break;
 	case ECHO_CLOCK_WORD:
-		dev_dbg(chip->card->dev, "Set Layla20 clock to WORD\n");
 		clock = LAYLA20_CLOCK_WORD;
 		break;
 	case ECHO_CLOCK_SUPER:
-		dev_dbg(chip->card->dev, "Set Layla20 clock to SUPER\n");
 		clock = LAYLA20_CLOCK_SUPER;
 		break;
 	default:
@@ -232,7 +225,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock_source)
 
 static int set_output_clock(struct echoaudio *chip, u16 clock)
 {
-	dev_dbg(chip->card->dev, "set_output_clock: %d\n", clock);
 	switch (clock) {
 	case ECHO_CLOCK_SUPER:
 		clock = LAYLA20_OUTPUT_CLOCK_SUPER;
@@ -286,7 +278,6 @@ static int update_flags(struct echoaudio *chip)
 
 static int set_professional_spdif(struct echoaudio *chip, char prof)
 {
-	dev_dbg(chip->card->dev, "set_professional_spdif %d\n", prof);
 	if (prof)
 		chip->comm_page->flags |=
 			cpu_to_le32(DSP_FLAG_PROFESSIONAL_SPDIF);

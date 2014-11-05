@@ -35,7 +35,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	dev_dbg(chip->card->dev, "init_hw() - Indigo IOx\n");
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != INDIGO_IOX))
 		return -ENODEV;
 
@@ -60,7 +59,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		return err;
 	chip->bad_board = FALSE;
 
-	dev_dbg(chip->card->dev, "init_hw done\n");
 	return err;
 }
 

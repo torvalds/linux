@@ -41,7 +41,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	dev_dbg(chip->card->dev, "init_hw() - Mona\n");
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != MONA))
 		return -ENODEV;
 
@@ -72,7 +71,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		return err;
 	chip->bad_board = FALSE;
 
-	dev_dbg(chip->card->dev, "init_hw done\n");
 	return err;
 }
 
@@ -302,7 +300,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 	u32 control_reg, clocks_from_dsp;
 	int err;
 
-	dev_dbg(chip->card->dev, "set_input_clock:\n");
 
 	/* Prevent two simultaneous calls to switch_asic() */
 	if (atomic_read(&chip->opencount))
@@ -315,7 +312,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 
 	switch (clock) {
 	case ECHO_CLOCK_INTERNAL:
-		dev_dbg(chip->card->dev, "Set Mona clock to INTERNAL\n");
 		chip->input_clock = ECHO_CLOCK_INTERNAL;
 		return set_sample_rate(chip, chip->sample_rate);
 	case ECHO_CLOCK_SPDIF:
@@ -327,7 +323,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		spin_lock_irq(&chip->lock);
 		if (err < 0)
 			return err;
-		dev_dbg(chip->card->dev, "Set Mona clock to SPDIF\n");
 		control_reg |= GML_SPDIF_CLOCK;
 		if (clocks_from_dsp & GML_CLOCK_DETECT_BIT_SPDIF96)
 			control_reg |= GML_DOUBLE_SPEED_MODE;
@@ -335,7 +330,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 			control_reg &= ~GML_DOUBLE_SPEED_MODE;
 		break;
 	case ECHO_CLOCK_WORD:
-		dev_dbg(chip->card->dev, "Set Mona clock to WORD\n");
 		spin_unlock_irq(&chip->lock);
 		err = switch_asic(chip, clocks_from_dsp &
 				  GML_CLOCK_DETECT_BIT_WORD96);

@@ -157,7 +157,6 @@ static int snd_echo_midi_input_open(struct snd_rawmidi_substream *substream)
 	struct echoaudio *chip = substream->rmidi->private_data;
 
 	chip->midi_in = substream;
-	dev_dbg(chip->card->dev, "rawmidi_iopen\n");
 	return 0;
 }
 
@@ -183,7 +182,6 @@ static int snd_echo_midi_input_close(struct snd_rawmidi_substream *substream)
 	struct echoaudio *chip = substream->rmidi->private_data;
 
 	chip->midi_in = NULL;
-	dev_dbg(chip->card->dev, "rawmidi_iclose\n");
 	return 0;
 }
 
@@ -196,7 +194,6 @@ static int snd_echo_midi_output_open(struct snd_rawmidi_substream *substream)
 	chip->tinuse = 0;
 	chip->midi_full = 0;
 	chip->midi_out = substream;
-	dev_dbg(chip->card->dev, "rawmidi_open\n");
 	return 0;
 }
 
@@ -209,7 +206,6 @@ static void snd_echo_midi_output_write(unsigned long data)
 	int bytes, sent, time;
 	unsigned char buf[MIDI_OUT_BUFFER_SIZE - 1];
 
-	dev_dbg(chip->card->dev, "snd_echo_midi_output_write\n");
 	/* No interrupts are involved: we have to check at regular intervals
 	if the card's output buffer has room for new data. */
 	sent = bytes = 0;
@@ -288,7 +284,6 @@ static int snd_echo_midi_output_close(struct snd_rawmidi_substream *substream)
 	struct echoaudio *chip = substream->rmidi->private_data;
 
 	chip->midi_out = NULL;
-	dev_dbg(chip->card->dev, "rawmidi_oclose\n");
 	return 0;
 }
 
@@ -328,6 +323,5 @@ static int snd_echo_midi_create(struct snd_card *card,
 
 	chip->rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT |
 		SNDRV_RAWMIDI_INFO_INPUT | SNDRV_RAWMIDI_INFO_DUPLEX;
-	dev_dbg(chip->card->dev, "MIDI ok\n");
 	return 0;
 }

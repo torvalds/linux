@@ -46,7 +46,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	int err;
 
 	local_irq_enable();
-	dev_dbg(chip->card->dev, "init_hw() - Echo3G\n");
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != ECHO3G))
 		return -ENODEV;
 
@@ -99,7 +98,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 				ECHOCAPS_HAS_DIGITAL_MODE_SPDIF_OPTICAL |
 				ECHOCAPS_HAS_DIGITAL_MODE_ADAT;
 
-	dev_dbg(chip->card->dev, "init_hw done\n");
 	return err;
 }
 

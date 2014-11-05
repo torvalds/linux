@@ -40,7 +40,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	dev_dbg(chip->card->dev, "init_hw() - Layla24\n");
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != LAYLA24))
 		return -ENODEV;
 
@@ -70,7 +69,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	if ((err = init_line_levels(chip)) < 0)
 		return err;
 
-	dev_dbg(chip->card->dev, "init_hw done\n");
 	return err;
 }
 
@@ -118,7 +116,6 @@ static int load_asic(struct echoaudio *chip)
 	if (chip->asic_loaded)
 		return 1;
 
-	dev_dbg(chip->card->dev, "load_asic\n");
 
 	/* Give the DSP a few milliseconds to settle down */
 	mdelay(10);
@@ -152,7 +149,6 @@ static int load_asic(struct echoaudio *chip)
 		err = write_control_reg(chip, GML_CONVERTER_ENABLE | GML_48KHZ,
 					TRUE);
 	
-	dev_dbg(chip->card->dev, "load_asic() done\n");
 	return err;
 }
 
@@ -262,7 +258,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 	/* Pick the new clock */
 	switch (clock) {
 	case ECHO_CLOCK_INTERNAL:
-		dev_dbg(chip->card->dev, "Set Layla24 clock to INTERNAL\n");
 		chip->input_clock = ECHO_CLOCK_INTERNAL;
 		return set_sample_rate(chip, chip->sample_rate);
 	case ECHO_CLOCK_SPDIF:
@@ -271,7 +266,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		control_reg |= GML_SPDIF_CLOCK;
 		/* Layla24 doesn't support 96KHz S/PDIF */
 		control_reg &= ~GML_DOUBLE_SPEED_MODE;
-		dev_dbg(chip->card->dev, "Set Layla24 clock to SPDIF\n");
 		break;
 	case ECHO_CLOCK_WORD:
 		control_reg |= GML_WORD_CLOCK;
@@ -279,14 +273,12 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 			control_reg |= GML_DOUBLE_SPEED_MODE;
 		else
 			control_reg &= ~GML_DOUBLE_SPEED_MODE;
-		dev_dbg(chip->card->dev, "Set Layla24 clock to WORD\n");
 		break;
 	case ECHO_CLOCK_ADAT:
 		if (chip->digital_mode != DIGITAL_MODE_ADAT)
 			return -EAGAIN;
 		control_reg |= GML_ADAT_CLOCK;
 		control_reg &= ~GML_DOUBLE_SPEED_MODE;
-		dev_dbg(chip->card->dev, "Set Layla24 clock to ADAT\n");
 		break;
 	default:
 		dev_err(chip->card->dev,

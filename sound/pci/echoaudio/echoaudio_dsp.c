@@ -206,7 +206,6 @@ static int load_asic_generic(struct echoaudio *chip, u32 cmd, short asic)
 			goto la_error;
 	}
 
-	dev_dbg(chip->card->dev, "ASIC loaded\n");
 	free_firmware(fw, chip);
 	return 0;
 
@@ -473,7 +472,6 @@ static int load_dsp(struct echoaudio *chip, u16 *code)
 
 			chip->dsp_code = code;		/* Show which DSP code loaded */
 			chip->bad_board = FALSE;	/* DSP OK */
-			dev_dbg(chip->card->dev, "load_dsp: OK!\n");
 			return 0;
 		}
 		udelay(100);
@@ -674,7 +672,6 @@ static void get_audio_meters(struct echoaudio *chip, long *meters)
 static int restore_dsp_rettings(struct echoaudio *chip)
 {
 	int i, o, err;
-	dev_dbg(chip->card->dev, "restore_dsp_settings\n");
 
 	if ((err = check_asic_status(chip)) < 0)
 		return err;
@@ -771,7 +768,6 @@ static int restore_dsp_rettings(struct echoaudio *chip)
 	if (send_vector(chip, DSP_VC_UPDATE_FLAGS) < 0)
 		return -EIO;
 
-	dev_dbg(chip->card->dev, "restore_dsp_rettings done\n");
 	return 0;
 }
 
@@ -865,7 +861,6 @@ Same thing for pause_ and stop_ -trasport below. */
 static int start_transport(struct echoaudio *chip, u32 channel_mask,
 			   u32 cyclic_mask)
 {
-	dev_dbg(chip->card->dev, "start_transport %x\n", channel_mask);
 
 	if (wait_handshake(chip))
 		return -EIO;
@@ -891,7 +886,6 @@ static int start_transport(struct echoaudio *chip, u32 channel_mask,
 
 static int pause_transport(struct echoaudio *chip, u32 channel_mask)
 {
-	dev_dbg(chip->card->dev, "pause_transport %x\n", channel_mask);
 
 	if (wait_handshake(chip))
 		return -EIO;
@@ -918,7 +912,6 @@ static int pause_transport(struct echoaudio *chip, u32 channel_mask)
 
 static int stop_transport(struct echoaudio *chip, u32 channel_mask)
 {
-	dev_dbg(chip->card->dev, "stop_transport %x\n", channel_mask);
 
 	if (wait_handshake(chip))
 		return -EIO;
@@ -954,8 +947,6 @@ static inline int is_pipe_allocated(struct echoaudio *chip, u16 pipe_index)
 stopped and unallocated. */
 static int rest_in_peace(struct echoaudio *chip)
 {
-	dev_dbg(chip->card->dev,
-		"rest_in_peace() open=%x\n", chip->pipe_alloc_mask);
 
 	/* Stops all active pipes (just to be sure) */
 	stop_transport(chip, chip->active_mask);
@@ -1018,7 +1009,6 @@ static int init_dsp_comm_page(struct echoaudio *chip)
  */
 static int init_line_levels(struct echoaudio *chip)
 {
-	dev_dbg(chip->card->dev, "init_line_levels\n");
 	memset(chip->output_gain, ECHOGAIN_MUTED, sizeof(chip->output_gain));
 	memset(chip->input_gain, ECHOGAIN_MUTED, sizeof(chip->input_gain));
 	memset(chip->monitor_gain, ECHOGAIN_MUTED, sizeof(chip->monitor_gain));
@@ -1099,7 +1089,6 @@ static int allocate_pipes(struct echoaudio *chip, struct audiopipe *pipe,
 	it moves data. The DMA counter is in units of bytes, not samples. */
 	pipe->dma_counter = &chip->comm_page->position[pipe_index];
 	*pipe->dma_counter = 0;
-	dev_dbg(chip->card->dev, "allocate_pipes: ok\n");
 	return pipe_index;
 }
 
@@ -1110,7 +1099,6 @@ static int free_pipes(struct echoaudio *chip, struct audiopipe *pipe)
 	u32 channel_mask;
 	int i;
 
-	dev_dbg(chip->card->dev, "free_pipes: Pipe %d\n", pipe->index);
 	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe->index)))
 		return -EINVAL;
 	if (snd_BUG_ON(pipe->state != PIPE_STATE_STOPPED))
