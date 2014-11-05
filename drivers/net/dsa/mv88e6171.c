@@ -1,4 +1,4 @@
-/* net/dsa/mv88e6171.c - Marvell 88e6171 switch chip support
+/* net/dsa/mv88e6171.c - Marvell 88e6171/8826172 switch chip support
  * Copyright (c) 2008-2009 Marvell Semiconductor
  * Copyright (c) 2014 Claudio Leite <leitec@staticky.com>
  *
@@ -29,6 +29,8 @@ static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
 	if (ret >= 0) {
 		if ((ret & 0xfff0) == 0x1710)
 			return "Marvell 88E6171";
+		if ((ret & 0xfff0) == 0x1720)
+			return "Marvell 88E6172";
 	}
 
 	return NULL;
@@ -409,3 +411,4 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 };
 
 MODULE_ALIAS("platform:mv88e6171");
+MODULE_ALIAS("platform:mv88e6172");
