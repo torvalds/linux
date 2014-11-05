@@ -80,12 +80,7 @@ void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
 bool BBbReadEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char *pbyData);
 bool BBbWriteEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byData);
 
-void BBvReadAllRegs(void __iomem *dwIoBase, unsigned char *pbyBBRegs);
-void BBvLoopbackOn(struct vnt_private *pDevice);
-void BBvLoopbackOff(struct vnt_private *pDevice);
 void BBvSetShortSlotTime(struct vnt_private *pDevice);
-bool BBbIsRegBitsOn(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byTestBits);
-bool BBbIsRegBitsOff(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byTestBits);
 void BBvSetVGAGainOffset(struct vnt_private *pDevice, unsigned char byData);
 
 /* VT3253 Baseband */

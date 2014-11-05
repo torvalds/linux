@@ -30,12 +30,7 @@
  *      BBvCaculateParameter   - Caculate PhyLength, PhyService and Phy Signal parameter for baseband Tx
  *      BBbReadEmbedded         - Embedded read baseband register via MAC
  *      BBbWriteEmbedded        - Embedded write baseband register via MAC
- *      BBbIsRegBitsOn         - Test if baseband register bits on
- *      BBbIsRegBitsOff        - Test if baseband register bits off
  *      BBbVT3253Init          - VIA VT3253 baseband chip init code
- *      BBvReadAllRegs         - Read All Baseband Registers
- *      BBvLoopbackOn          - Turn on BaseBand Loopback mode
- *      BBvLoopbackOff         - Turn off BaseBand Loopback mode
  *
  * Revision History:
  *      06-10-2003 Bryan YC Fan:  Re-write codes to support VT3253 spec.
@@ -2036,50 +2031,6 @@ bool BBbWriteEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned c
 }
 
 /*
- * Description: Test if all bits are set for the Baseband register
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      byBBAddr    - address of register in Baseband
- *      byTestBits  - TestBits
- *  Out:
- *      none
- *
- * Return Value: true if all TestBits are set; false otherwise.
- *
- */
-bool BBbIsRegBitsOn(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byTestBits)
-{
-	unsigned char byOrgData;
-
-	BBbReadEmbedded(dwIoBase, byBBAddr, &byOrgData);
-	return (byOrgData & byTestBits) == byTestBits;
-}
-
-/*
- * Description: Test if all bits are clear for the Baseband register
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      byBBAddr    - address of register in Baseband
- *      byTestBits  - TestBits
- *  Out:
- *      none
- *
- * Return Value: true if all TestBits are clear; false otherwise.
- *
- */
-bool BBbIsRegBitsOff(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byTestBits)
-{
-	unsigned char byOrgData;
-
-	BBbReadEmbedded(dwIoBase, byBBAddr, &byOrgData);
-	return (byOrgData & byTestBits) == 0;
-}
-
-/*
  * Description: VIA VT3253 Baseband chip init function
  *
  * Parameters:
@@ -2249,119 +2200,6 @@ bool BBbVT3253Init(struct vnt_private *pDevice)
 	}
 
 	return bResult;
-}
-
-/*
- * Description: Read All Baseband Registers
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      pbyBBRegs   - Point to struct that stores Baseband Registers
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void BBvReadAllRegs(void __iomem *dwIoBase, unsigned char *pbyBBRegs)
-{
-	int  ii;
-	unsigned char byBase = 1;
-
-	for (ii = 0; ii < BB_MAX_CONTEXT_SIZE; ii++) {
-		BBbReadEmbedded(dwIoBase, (unsigned char)(ii*byBase), pbyBBRegs);
-		pbyBBRegs += byBase;
-	}
-}
-
-/*
- * Description: Turn on BaseBand Loopback mode
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      bCCK        - If CCK is set
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-
-void BBvLoopbackOn(struct vnt_private *pDevice)
-{
-	unsigned char byData;
-	void __iomem *dwIoBase = pDevice->PortOffset;
-
-	/* CR C9 = 0x00 */
-	BBbReadEmbedded(dwIoBase, 0xC9, &pDevice->byBBCRc9); /* CR201 */
-	BBbWriteEmbedded(dwIoBase, 0xC9, 0);
-	BBbReadEmbedded(dwIoBase, 0x4D, &pDevice->byBBCR4d); /* CR77 */
-	BBbWriteEmbedded(dwIoBase, 0x4D, 0x90);
-
-	/* CR 88 = 0x02(CCK), 0x03(OFDM) */
-	BBbReadEmbedded(dwIoBase, 0x88, &pDevice->byBBCR88); /* CR136 */
-
-	if (pDevice->uConnectionRate <= RATE_11M) { /* CCK */
-		/* Enable internal digital loopback: CR33 |= 0000 0001 */
-		BBbReadEmbedded(dwIoBase, 0x21, &byData); /* CR33 */
-		BBbWriteEmbedded(dwIoBase, 0x21, (unsigned char)(byData | 0x01)); /* CR33 */
-		/* CR154 = 0x00 */
-		BBbWriteEmbedded(dwIoBase, 0x9A, 0);    /* CR154 */
-
-		BBbWriteEmbedded(dwIoBase, 0x88, 0x02); /* CR239 */
-	} else { /* OFDM */
-		/* Enable internal digital loopback:CR154 |= 0000 0001 */
-		BBbReadEmbedded(dwIoBase, 0x9A, &byData); /* CR154 */
-		BBbWriteEmbedded(dwIoBase, 0x9A, (unsigned char)(byData | 0x01)); /* CR154 */
-		/* CR33 = 0x00 */
-		BBbWriteEmbedded(dwIoBase, 0x21, 0);    /* CR33 */
-
-		BBbWriteEmbedded(dwIoBase, 0x88, 0x03); /* CR239 */
-	}
-
-	/* CR14 = 0x00 */
-	BBbWriteEmbedded(dwIoBase, 0x0E, 0); /* CR14 */
-
-	/* Disable TX_IQUN */
-	BBbReadEmbedded(pDevice->PortOffset, 0x09, &pDevice->byBBCR09);
-	BBbWriteEmbedded(pDevice->PortOffset, 0x09, (unsigned char)(pDevice->byBBCR09 & 0xDE));
-}
-
-/*
- * Description: Turn off BaseBand Loopback mode
- *
- * Parameters:
- *  In:
- *      pDevice         - Device Structure
- *
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void BBvLoopbackOff(struct vnt_private *pDevice)
-{
-	unsigned char byData;
-	void __iomem *dwIoBase = pDevice->PortOffset;
-
-	BBbWriteEmbedded(dwIoBase, 0xC9, pDevice->byBBCRc9); /* CR201 */
-	BBbWriteEmbedded(dwIoBase, 0x88, pDevice->byBBCR88); /* CR136 */
-	BBbWriteEmbedded(dwIoBase, 0x09, pDevice->byBBCR09); /* CR136 */
-	BBbWriteEmbedded(dwIoBase, 0x4D, pDevice->byBBCR4d); /* CR77  */
-
-	if (pDevice->uConnectionRate <= RATE_11M) { /* CCK */
-		/* Set the CR33 Bit2 to disable internal Loopback. */
-		BBbReadEmbedded(dwIoBase, 0x21, &byData);/* CR33 */
-		BBbWriteEmbedded(dwIoBase, 0x21, (unsigned char)(byData & 0xFE)); /* CR33 */
-	} else { /* OFDM */
-		BBbReadEmbedded(dwIoBase, 0x9A, &byData); /* CR154 */
-		BBbWriteEmbedded(dwIoBase, 0x9A, (unsigned char)(byData & 0xFE)); /* CR154 */
-	}
-	BBbReadEmbedded(dwIoBase, 0x0E, &byData); /* CR14 */
-	BBbWriteEmbedded(dwIoBase, 0x0E, (unsigned char)(byData | 0x80)); /* CR14 */
 }
 
 /*
