@@ -572,8 +572,11 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 		tty_ldisc_restore(tty, old_ldisc);
 	}
 
-	if (tty->ldisc->ops->num != old_ldisc->ops->num && tty->ops->set_ldisc)
+	if (tty->ldisc->ops->num != old_ldisc->ops->num && tty->ops->set_ldisc) {
+		down_read(&tty->termios_rwsem);
 		tty->ops->set_ldisc(tty);
+		up_read(&tty->termios_rwsem);
+	}
 
 	/* At this point we hold a reference to the new ldisc and a
 	   reference to the old ldisc, or we hold two references to
