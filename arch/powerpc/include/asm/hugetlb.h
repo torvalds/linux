@@ -48,7 +48,7 @@ static inline unsigned int hugepd_shift(hugepd_t hpd)
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 
-static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
+static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
 				    unsigned pdshift)
 {
 	/*
@@ -58,9 +58,9 @@ static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
 	 */
 	unsigned long idx = 0;
 
-	pte_t *dir = hugepd_page(*hpdp);
+	pte_t *dir = hugepd_page(hpd);
 #ifndef CONFIG_PPC_FSL_BOOK3E
-	idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(*hpdp);
+	idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(hpd);
 #endif
 
 	return dir + idx;
@@ -193,7 +193,7 @@ static inline void flush_hugetlb_page(struct vm_area_struct *vma,
 }
 
 #define hugepd_shift(x) 0
-static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
+static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
 				    unsigned pdshift)
 {
 	return 0;
