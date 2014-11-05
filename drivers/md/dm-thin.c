@@ -3622,13 +3622,13 @@ static void thin_dtr(struct dm_target *ti)
 	struct thin_c *tc = ti->private;
 	unsigned long flags;
 
-	thin_put(tc);
-	wait_for_completion(&tc->can_destroy);
-
 	spin_lock_irqsave(&tc->pool->lock, flags);
 	list_del_rcu(&tc->list);
 	spin_unlock_irqrestore(&tc->pool->lock, flags);
 	synchronize_rcu();
+
+	thin_put(tc);
+	wait_for_completion(&tc->can_destroy);
 
 	mutex_lock(&dm_thin_pool_table.mutex);
 
