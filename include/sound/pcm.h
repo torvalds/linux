@@ -416,7 +416,10 @@ struct snd_pcm_substream {
 	struct snd_info_entry *proc_status_entry;
 	struct snd_info_entry *proc_prealloc_entry;
 	struct snd_info_entry *proc_prealloc_max_entry;
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+	struct snd_info_entry *proc_xrun_injection_entry;
 #endif
+#endif /* CONFIG_SND_VERBOSE_PROCFS */
 	/* misc flags */
 	unsigned int hw_opened: 1;
 };

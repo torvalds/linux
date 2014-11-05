@@ -483,6 +483,19 @@ static void snd_pcm_substream_proc_status_read(struct snd_info_entry *entry,
 }
 
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
+static void snd_pcm_xrun_injection_write(struct snd_info_entry *entry,
+					 struct snd_info_buffer *buffer)
+{
+	struct snd_pcm_substream *substream = entry->private_data;
+	struct snd_pcm_runtime *runtime;
+
+	snd_pcm_stream_lock_irq(substream);
+	runtime = substream->runtime;
+	if (runtime && runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+		snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
+	snd_pcm_stream_unlock_irq(substream);
+}
+
 static void snd_pcm_xrun_debug_read(struct snd_info_entry *entry,
 				    struct snd_info_buffer *buffer)
 {
@@ -614,6 +627,22 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 	}
 	substream->proc_status_entry = entry;
 
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+	entry = snd_info_create_card_entry(card, "xrun_injection",
+					   substream->proc_root);
+	if (entry) {
+		entry->private_data = substream;
+		entry->c.text.read = NULL;
+		entry->c.text.write = snd_pcm_xrun_injection_write;
+		entry->mode = S_IFREG | S_IWUSR;
+		if (snd_info_register(entry) < 0) {
+			snd_info_free_entry(entry);
+			entry = NULL;
+		}
+	}
+	substream->proc_xrun_injection_entry = entry;
+#endif /* CONFIG_SND_PCM_XRUN_DEBUG */
+
 	return 0;
 }
 
@@ -627,6 +656,10 @@ static int snd_pcm_substream_proc_done(struct snd_pcm_substream *substream)
 	substream->proc_sw_params_entry = NULL;
 	snd_info_free_entry(substream->proc_status_entry);
 	substream->proc_status_entry = NULL;
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+	snd_info_free_entry(substream->proc_xrun_injection_entry);
+	substream->proc_xrun_injection_entry = NULL;
+#endif
 	snd_info_free_entry(substream->proc_root);
 	substream->proc_root = NULL;
 	return 0;
