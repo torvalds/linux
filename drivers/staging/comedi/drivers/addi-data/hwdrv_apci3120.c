@@ -628,7 +628,6 @@ static int apci3120_cancel(struct comedi_device *dev,
 	/* Flush FIFO */
 	inb(dev->iobase + APCI3120_RESET_FIFO);
 	inw(dev->iobase + APCI3120_RD_STATUS);
-	devpriv->ui_AiActualScan = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
 	devpriv->ai_running = 0;
@@ -756,7 +755,6 @@ static int apci3120_cyclic_ai(int mode,
 	inb(dev->iobase + APCI3120_RESET_FIFO);
 	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
-	devpriv->ui_AiActualScan = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
 	/* value for timer2  minus -2 has to be done */
@@ -1157,23 +1155,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 }
 
 /*
- * This function copies the data from DMA buffer to the Comedi buffer.
- */
-static void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
-						  struct comedi_subdevice *s,
-						  unsigned short *dma_buffer,
-						  unsigned int num_samples)
-{
-	struct apci3120_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-
-	devpriv->ui_AiActualScan +=
-		(s->async->cur_chan + num_samples) / cmd->scan_end_arg;
-
-	comedi_buf_write_samples(s, dma_buffer, num_samples);
-}
-
-/*
  * This is a handler for the DMA interrupt.
  * This function copies the data to Comedi Buffer.
  * For continuous DMA it reinitializes the DMA operation.
@@ -1245,18 +1226,16 @@ static void apci3120_interrupt_dma(int irq, void *d)
 
 	}
 	if (samplesinbuf) {
-		v_APCI3120_InterruptDmaMoveBlock16bit(dev, s, dmabuf->virt,
-						      samplesinbuf);
+		comedi_buf_write_samples(s, dmabuf->virt, samplesinbuf);
 
 		if (!(cmd->flags & CMDF_WAKE_EOS))
 			s->async->events |= COMEDI_CB_EOS;
 	}
-	if (cmd->stop_src == TRIG_COUNT)
-		if (devpriv->ui_AiActualScan >= cmd->stop_arg) {
-			/*  all data sampled */
-			s->async->events |= COMEDI_CB_EOA;
-			return;
-		}
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg) {
+		s->async->events |= COMEDI_CB_EOA;
+		return;
+	}
 
 	if (devpriv->b_DmaDoubleBuffer) {	/*  switch dma buffers */
 		devpriv->ui_DmaActualBuffer = 1 - devpriv->ui_DmaActualBuffer;
@@ -1386,7 +1365,6 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 			if (devpriv->ai_running) {
 				ui_Check = 0;
 				apci3120_interrupt_handle_eos(dev);
-				devpriv->ui_AiActualScan++;
 				devpriv->b_ModeSelectRegister =
 					devpriv->
 					b_ModeSelectRegister |

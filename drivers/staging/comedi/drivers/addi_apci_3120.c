@@ -55,7 +55,6 @@ struct apci3120_dmabuf {
 struct apci3120_private {
 	unsigned long amcc;
 	unsigned long addon;
-	unsigned int ui_AiActualScan;
 	unsigned int ui_AiNbrofChannels;
 	unsigned int ui_AiChannelList[32];
 	unsigned int ui_AiReadData[32];
