@@ -184,20 +184,16 @@ int integrity_kernel_read(struct file *file, loff_t offset,
 {
 	mm_segment_t old_fs;
 	char __user *buf = (char __user *)addr;
-	ssize_t ret = -EINVAL;
+	ssize_t ret;
 
 	if (!(file->f_mode & FMODE_READ))
 		return -EBADF;
 
 	old_fs = get_fs();
 	set_fs(get_ds());
-	if (file->f_op->read)
-		ret = file->f_op->read(file, buf, count, &offset);
-	else if (file->f_op->aio_read)
-		ret = do_sync_read(file, buf, count, &offset);
-	else if (file->f_op->read_iter)
-		ret = new_sync_read(file, buf, count, &offset);
+	ret = __vfs_read(file, buf, count, &offset);
 	set_fs(old_fs);
+
 	return ret;
 }
 
