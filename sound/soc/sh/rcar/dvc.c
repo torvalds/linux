@@ -26,6 +26,11 @@ struct rsnd_dvc_cfg_m {
 	u32 val[RSND_DVC_CHANNELS];
 };
 
+struct rsnd_dvc_cfg_s {
+	struct rsnd_dvc_cfg cfg;
+	u32 val;
+};
+
 struct rsnd_dvc {
 	struct rsnd_dvc_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
@@ -245,6 +250,19 @@ static int _rsnd_dvc_pcm_new_m(struct rsnd_mod *mod,
 	private->cfg.max	= max;
 	private->cfg.size	= RSND_DVC_CHANNELS;
 	private->cfg.val	= private->val;
+	return __rsnd_dvc_pcm_new(mod, rdai, rtd, name, &private->cfg);
+}
+
+static int _rsnd_dvc_pcm_new_s(struct rsnd_mod *mod,
+			       struct rsnd_dai *rdai,
+			       struct snd_soc_pcm_runtime *rtd,
+			       const unsigned char *name,
+			       struct rsnd_dvc_cfg_s *private,
+			       u32 max)
+{
+	private->cfg.max	= max;
+	private->cfg.size	= 1;
+	private->cfg.val	= &private->val;
 	return __rsnd_dvc_pcm_new(mod, rdai, rtd, name, &private->cfg);
 }
 
