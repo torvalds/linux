@@ -1358,6 +1358,14 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 		return -EINVAL;
 	}
 
+	/* Force setting slotted operation bit to 0. Sometimes the atben
+	 * sets this bit and I don't know why. We set this always force
+	 * to zero while probing.
+	 */
+	rc = at86rf230_write_subreg(lp, SR_SLOTTED_OPERATION, 0);
+	if (rc)
+		return rc;
+
 	return 0;
 }
 
