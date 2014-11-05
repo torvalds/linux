@@ -971,9 +971,11 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 		hw->buf_addr = xt->src_start;
 
 	/* Link the previous next descriptor to current */
-	prev = list_last_entry(&desc->segments,
-				struct xilinx_vdma_tx_segment, node);
-	prev->hw.next_desc = segment->phys;
+	if (!list_empty(&desc->segments)) {
+		prev = list_last_entry(&desc->segments,
+				       struct xilinx_vdma_tx_segment, node);
+		prev->hw.next_desc = segment->phys;
+	}
 
 	/* Insert the segment into the descriptor segments list. */
 	list_add_tail(&segment->node, &desc->segments);
