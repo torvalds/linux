@@ -1773,8 +1773,7 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 	}
 
 	/* Place the datagram payload in the user's iovec. */
-	err = skb_copy_datagram_iovec(skb, sizeof(*dg), msg->msg_iov,
-		payload_len);
+	err = skb_copy_datagram_msg(skb, sizeof(*dg), msg, payload_len);
 	if (err)
 		goto out;
 

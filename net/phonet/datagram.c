@@ -150,7 +150,7 @@ static int pn_recvmsg(struct kiocb *iocb, struct sock *sk,
 		copylen = len;
 	}
 
-	rval = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copylen);
+	rval = skb_copy_datagram_msg(skb, 0, msg, copylen);
 	if (rval) {
 		rval = -EFAULT;
 		goto out;
