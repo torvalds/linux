@@ -86,7 +86,7 @@ struct fusbh200_hcd {			/* one per controller */
 	/* glue to PCI and HCD framework */
 	struct fusbh200_caps __iomem *caps;
 	struct fusbh200_regs __iomem *regs;
-	struct fusbh200_dbg_port __iomem *debug;
+	struct ehci_dbg_port __iomem *debug;
 
 	__u32			hcs_params;	/* cached register copy */
 	spinlock_t		lock;
@@ -285,17 +285,6 @@ struct fusbh200_regs {
 	u32	bmier; /* Bus Moniter Interrupt Enable Register */
 #define BMIER_OVC_EN		(1<<1)
 #define BMIER_VBUS_ERR_EN	(1<<0)
-};
-
-/* Appendix C, Debug port ... intended for use with special "debug devices"
- * that can help if there's no serial console.  (nonstandard enumeration.)
- */
-struct fusbh200_dbg_port {
-	u32	control;
-	u32	pids;
-	u32	data03;
-	u32	data47;
-	u32	address;
 };
 
 /*-------------------------------------------------------------------------*/
