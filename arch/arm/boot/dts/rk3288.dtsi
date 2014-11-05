@@ -629,7 +629,7 @@
 		pinctrl-0 = <&i2c1_sda &i2c1_scl>;
 		pinctrl-1 = <&i2c1_gpio>;
 		gpios = <&gpio8 GPIO_A4 GPIO_ACTIVE_LOW>, <&gpio8 GPIO_A5 GPIO_ACTIVE_LOW>;
-		clocks = <&clk_gates10 3>;
+		clocks = <&clk_gates6 13>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -644,7 +644,7 @@
 		pinctrl-0 = <&i2c2_sda &i2c2_scl>;
 		pinctrl-1 = <&i2c2_gpio>;
 		gpios = <&gpio6 GPIO_B1 GPIO_ACTIVE_LOW>, <&gpio6 GPIO_B2 GPIO_ACTIVE_LOW>;
-		clocks = <&clk_gates6 13>;
+		clocks = <&clk_gates10 3>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
