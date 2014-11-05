@@ -68,7 +68,6 @@ struct waveform_private {
 	unsigned long usec_period;	/* waveform period in microseconds */
 	unsigned long usec_current;	/* current time (mod waveform period) */
 	unsigned long usec_remainder;	/* usec since last scan */
-	unsigned long ai_count;		/* number of conversions remaining */
 	unsigned long state_bits;
 	unsigned int scan_period;	/* scan period in usec */
 	unsigned int convert_period;	/* conversion period in usec */
@@ -178,7 +177,6 @@ static void waveform_ai_interrupt(unsigned long arg)
 	unsigned long elapsed_time;
 	unsigned int num_scans;
 	ktime_t now;
-	bool stopping = false;
 
 	/* check command is still active */
 	if (!test_bit(WAVEFORM_AI_RUNNING, &devpriv->state_bits))
@@ -193,16 +191,7 @@ static void waveform_ai_interrupt(unsigned long arg)
 	devpriv->usec_remainder =
 	    (devpriv->usec_remainder + elapsed_time) % devpriv->scan_period;
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		unsigned int remaining = cmd->stop_arg - devpriv->ai_count;
-
-		if (num_scans >= remaining) {
-			/* about to finish */
-			num_scans = remaining;
-			stopping = true;
-		}
-	}
-
+	num_scans = comedi_nscans_left(s, num_scans);
 	for (i = 0; i < num_scans; i++) {
 		for (j = 0; j < cmd->chanlist_len; j++) {
 			unsigned short sample;
@@ -216,11 +205,10 @@ static void waveform_ai_interrupt(unsigned long arg)
 		}
 	}
 
-	devpriv->ai_count += i;
 	devpriv->usec_current += elapsed_time;
 	devpriv->usec_current %= devpriv->usec_period;
 
-	if (stopping)
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
 		async->events |= COMEDI_CB_EOA;
 	else
 		mod_timer(&devpriv->timer, jiffies + 1);
@@ -317,7 +305,6 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 		return -1;
 	}
 
-	devpriv->ai_count = 0;
 	devpriv->scan_period = cmd->scan_begin_arg / nano_per_micro;
 
 	if (cmd->convert_src == TRIG_NOW)
