@@ -202,9 +202,19 @@ void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 	ilk_update_gt_irq(dev_priv, mask, 0);
 }
 
+static u32 gen6_pm_iir(struct drm_i915_private *dev_priv)
+{
+	return INTEL_INFO(dev_priv)->gen >= 8 ? GEN8_GT_IIR(2) : GEN6_PMIIR;
+}
+
 static u32 gen6_pm_imr(struct drm_i915_private *dev_priv)
 {
 	return INTEL_INFO(dev_priv)->gen >= 8 ? GEN8_GT_IMR(2) : GEN6_PMIMR;
+}
+
+static u32 gen6_pm_ier(struct drm_i915_private *dev_priv)
+{
+	return INTEL_INFO(dev_priv)->gen >= 8 ? GEN8_GT_IER(2) : GEN6_PMIER;
 }
 
 /**
@@ -243,6 +253,37 @@ void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
 	snb_update_pm_irq(dev_priv, mask, 0);
+}
+
+void gen6_enable_rps_interrupts(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	WARN_ON(dev_priv->rps.pm_iir);
+	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
+	spin_unlock_irq(&dev_priv->irq_lock);
+}
+
+void gen6_disable_rps_interrupts(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(GEN6_PMINTRMSK, INTEL_INFO(dev_priv)->gen >= 8 ?
+		   ~GEN8_PMINTR_REDIRECT_TO_NON_DISP : ~0);
+	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) &
+				~dev_priv->pm_rps_events);
+	/* Complete PM interrupt masking here doesn't race with the rps work
+	 * item again unmasking PM interrupts because that is using a different
+	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
+	 * stale bits in PMIIR and PMIMR which gen6_enable_rps will clean up. */
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	dev_priv->rps.pm_iir = 0;
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
 }
 
 /**
