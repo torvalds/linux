@@ -13,7 +13,7 @@ static DEFINE_SPINLOCK(gb_protocols_lock);
 static LIST_HEAD(gb_protocols);
 
 /* Caller must hold gb_protocols_lock */
-struct gb_protocol *_gb_protocol_find(u8 id)
+static struct gb_protocol *_gb_protocol_find(u8 id)
 {
 	struct gb_protocol *protocol;
 
