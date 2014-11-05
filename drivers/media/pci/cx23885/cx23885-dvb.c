@@ -1672,6 +1672,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		}
 		break;
 	case CX23885_BOARD_DVBSKY_T9580:
+	case CX23885_BOARD_DVBSKY_S950:
 		i2c_bus = &dev->i2c_bus[0];
 		i2c_bus2 = &dev->i2c_bus[1];
 		switch (port->nr) {
@@ -1922,7 +1923,8 @@ static int dvb_register(struct cx23885_tsport *port)
 		memcpy(port->frontends.adapter.proposed_mac, eeprom + 0xa0, 6);
 		break;
 		}
-	case CX23885_BOARD_DVBSKY_T9580: {
+	case CX23885_BOARD_DVBSKY_T9580:
+	case CX23885_BOARD_DVBSKY_S950: {
 		u8 eeprom[256]; /* 24C02 i2c eeprom */
 
 		if (port->nr > 2)
@@ -1932,8 +1934,9 @@ static int dvb_register(struct cx23885_tsport *port)
 		dev->i2c_bus[0].i2c_client.addr = 0xa0 >> 1;
 		tveeprom_read(&dev->i2c_bus[0].i2c_client, eeprom,
 				sizeof(eeprom));
-		printk(KERN_INFO "DVBSky T9580 port %d MAC address: %pM\n",
-			port->nr, eeprom + 0xc0 + (port->nr-1) * 8);
+		printk(KERN_INFO "%s port %d MAC address: %pM\n",
+			cx23885_boards[dev->board].name, port->nr,
+			eeprom + 0xc0 + (port->nr-1) * 8);
 		memcpy(port->frontends.adapter.proposed_mac, eeprom + 0xc0 +
 			(port->nr-1) * 8, 6);
 		break;
