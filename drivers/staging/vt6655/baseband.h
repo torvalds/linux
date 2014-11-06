@@ -80,11 +80,11 @@ void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
 bool BBbReadEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char *pbyData);
 bool BBbWriteEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byData);
 
-void BBvSetShortSlotTime(struct vnt_private *pDevice);
-void BBvSetVGAGainOffset(struct vnt_private *pDevice, unsigned char byData);
+void BBvSetShortSlotTime(struct vnt_private *);
+void BBvSetVGAGainOffset(struct vnt_private *, unsigned char byData);
 
 /* VT3253 Baseband */
-bool BBbVT3253Init(struct vnt_private *pDevice);
+bool BBbVT3253Init(struct vnt_private *);
 void BBvSoftwareReset(void __iomem *dwIoBase);
 void BBvPowerSaveModeON(void __iomem *dwIoBase);
 void BBvPowerSaveModeOFF(void __iomem *dwIoBase);
@@ -105,9 +105,9 @@ TimerState1CallBack(
 	unsigned long
 );
 
-void BBvAntennaDiversity(struct vnt_private *pDevice,
+void BBvAntennaDiversity(struct vnt_private *,
 			 unsigned char byRxRate, unsigned char bySQ3);
 void
-BBvClearAntDivSQ3Value(struct vnt_private *pDevice);
+BBvClearAntDivSQ3Value(struct vnt_private *);
 
 #endif /* __BASEBAND_H__ */
