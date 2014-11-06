@@ -28,7 +28,6 @@ static struct kmem_cache *gbuf_head_cache;
  * @complete: callback when the gbuf is finished with
  * @size: size of the buffer
  * @gfp_mask: allocation mask
- * @context: context added to the gbuf by the driver
  *
  * TODO: someday it will be nice to handle DMA, but for now, due to the
  * architecture we are stuck with, the greybus core has to allocate the buffer
@@ -39,8 +38,7 @@ struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
 				gbuf_complete_t complete,
 				unsigned int size,
 				bool outbound,
-				gfp_t gfp_mask,
-				void *context)
+				gfp_t gfp_mask)
 {
 	struct greybus_host_device *hd = operation->connection->hd;
 	struct gbuf *gbuf;
@@ -54,7 +52,6 @@ struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
 	gbuf->operation = operation;
 	gbuf->outbound = outbound;
 	gbuf->complete = complete;
-	gbuf->context = context;
 	gbuf->status = -EBADR;	/* Initial value--means "never set" */
 
 	/* Host controller specific allocation for the actual buffer */

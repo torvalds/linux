@@ -133,7 +133,6 @@ struct gbuf {
 
 	bool outbound;			/* AP-relative data direction */
 
-	void *context;
 	void *hcd_data;			/* for the HCD to track the gbuf */
 	gbuf_complete_t complete;
 };
@@ -196,7 +195,7 @@ void greybus_gbuf_finished(struct gbuf *gbuf);
 
 struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
 				gbuf_complete_t complete, unsigned int size,
-				bool outbound, gfp_t gfp_mask, void *context);
+				bool outbound, gfp_t gfp_mask);
 void greybus_free_gbuf(struct gbuf *gbuf);
 struct gbuf *greybus_get_gbuf(struct gbuf *gbuf);
 #define greybus_put_gbuf	greybus_free_gbuf

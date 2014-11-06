@@ -256,7 +256,7 @@ static void operation_timeout(struct work_struct *work)
 static void gb_operation_gbuf_complete(struct gbuf *gbuf)
 {
 	if (gbuf->status) {
-		struct gb_operation *operation = gbuf->context;
+		struct gb_operation *operation = gbuf->operation;
 		struct gb_operation_msg_hdr *header;
 		int id;
 		int type;
@@ -301,7 +301,7 @@ static struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
 
 	size += sizeof(*header);
 	gbuf = greybus_alloc_gbuf(operation, gb_operation_gbuf_complete,
-					size, data_out, gfp_flags, operation);
+					size, data_out, gfp_flags);
 	if (!gbuf)
 		return NULL;
 
