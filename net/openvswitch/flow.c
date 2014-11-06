@@ -712,12 +712,12 @@ int ovs_flow_key_extract(const struct ovs_tunnel_info *tun_info,
 
 int ovs_flow_key_extract_userspace(const struct nlattr *attr,
 				   struct sk_buff *skb,
-				   struct sw_flow_key *key)
+				   struct sw_flow_key *key, bool log)
 {
 	int err;
 
 	/* Extract metadata from netlink attributes. */
-	err = ovs_nla_get_flow_metadata(attr, key);
+	err = ovs_nla_get_flow_metadata(attr, key, log);
 	if (err)
 		return err;
 

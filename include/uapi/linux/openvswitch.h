@@ -457,6 +457,8 @@ enum ovs_flow_attr {
 	OVS_FLOW_ATTR_USED,      /* u64 msecs last used in monotonic time. */
 	OVS_FLOW_ATTR_CLEAR,     /* Flag to clear stats, tcp_flags, used. */
 	OVS_FLOW_ATTR_MASK,      /* Sequence of OVS_KEY_ATTR_* attributes. */
+	OVS_FLOW_ATTR_PROBE,     /* Flow operation is a feature probe, error
+				  * logging should be suppressed. */
 	__OVS_FLOW_ATTR_MAX
 };
 

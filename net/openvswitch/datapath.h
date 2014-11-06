@@ -199,9 +199,9 @@ void ovs_dp_notify_wq(struct work_struct *work);
 int action_fifos_init(void);
 void action_fifos_exit(void);
 
-#define OVS_NLERR(fmt, ...)					\
+#define OVS_NLERR(logging_allowed, fmt, ...)			\
 do {								\
-	if (net_ratelimit())					\
-		pr_info("netlink: " fmt, ##__VA_ARGS__);	\
+	if (logging_allowed && net_ratelimit())			\
+		pr_info("netlink: " fmt "\n", ##__VA_ARGS__);	\
 } while (0)
 #endif /* datapath.h */
