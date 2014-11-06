@@ -1651,6 +1651,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 
 	/* return 1 to reconfigure the device */
 	set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
+	set_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status);
 	return 1;
 }
 

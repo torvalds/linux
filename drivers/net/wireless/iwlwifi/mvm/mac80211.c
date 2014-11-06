@@ -839,7 +839,12 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
-	iwl_mvm_fw_error_dump(mvm);
+	/* clear the D3 reconfig, we only need it to avoid dumping a
+	 * firmware coredump on reconfiguration, we shouldn't do that
+	 * on D3->D0 transition
+	 */
+	if (!test_and_clear_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status))
+		iwl_mvm_fw_error_dump(mvm);
 
 	iwl_trans_stop_device(mvm->trans);
 
