@@ -218,7 +218,7 @@ trap 'SIG_RESULT=$XFAIL' $SIG_XFAIL
 # Run one test case
 run_test() { # testfile
   local testname=`basename $1`
-  local testlog=`mktemp --tmpdir=$LOG_DIR ${testname}-XXXXXX.log`
+  local testlog=`mktemp $LOG_DIR/${testname}-log.XXXXXX`
   testcase $1
   echo "execute: "$1 > $testlog
   SIG_RESULT=0
