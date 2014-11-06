@@ -36,6 +36,7 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
+#define USBF_HID_INCLUDED
 #include "f_hid.c"
 
 

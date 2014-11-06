@@ -193,6 +193,9 @@ config USB_F_UVC
 config USB_F_MIDI
 	tristate
 
+config USB_F_HID
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH
