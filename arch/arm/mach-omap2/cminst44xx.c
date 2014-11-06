@@ -63,7 +63,7 @@ static void __iomem *_cm_bases[OMAP4_MAX_PRCM_PARTITIONS];
  * Populates the base addresses of the _cm_bases
  * array used for read/write of cm module registers.
  */
-void omap_cm_base_init(void)
+static void omap_cm_base_init(void)
 {
 	_cm_bases[OMAP4430_PRM_PARTITION] = prm_base;
 	_cm_bases[OMAP4430_CM1_PARTITION] = cm_base;
@@ -516,6 +516,8 @@ static struct cm_ll_data omap4xxx_cm_ll_data = {
 
 int __init omap4_cm_init(void)
 {
+	omap_cm_base_init();
+
 	return cm_register(&omap4xxx_cm_ll_data);
 }
 
