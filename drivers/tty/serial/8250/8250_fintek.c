@@ -89,11 +89,11 @@ static int fintek_8250_check_id(void)
 	return 0;
 }
 
-static int fintek_8250_rs4850_config(struct uart_8250_port *uart,
+static int fintek_8250_rs485_config(struct uart_port *port,
 			      struct serial_rs485 *rs485)
 {
 	uint8_t config = 0;
-	int index = fintek_8250_get_index(uart->port.iobase);
+	int index = fintek_8250_get_index(port->iobase);
 
 	if (index < 0)
 		return -EINVAL;
@@ -134,6 +134,8 @@ static int fintek_8250_rs4850_config(struct uart_8250_port *uart,
 	outb(config, DATA_PORT);
 	fintek_8250_exit_key();
 
+	port->rs485 = *rs485;
+
 	return 0;
 }
 
@@ -166,7 +168,7 @@ fintek_8250_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	uart.port.irq = pnp_irq(dev, 0);
 	uart.port.iobase = pnp_port_start(dev, 0);
 	uart.port.iotype = UPIO_PORT;
-	uart.rs485_config = fintek_8250_rs4850_config;
+	uart.port.rs485_config = fintek_8250_rs485_config;
 
 	uart.port.flags |= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
 	if (pnp_irq_flags(dev, 0) & IORESOURCE_IRQ_SHAREABLE)
