@@ -1155,8 +1155,16 @@ static int uart_get_icount(struct tty_struct *tty,
 static int uart_get_rs485_config(struct uart_port *port,
 			 struct serial_rs485 __user *rs485)
 {
-	if (copy_to_user(rs485, &port->rs485, sizeof(port->rs485)))
+	unsigned long flags;
+	struct serial_rs485 aux;
+
+	spin_lock_irqsave(&port->lock, flags);
+	aux = port->rs485;
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	if (copy_to_user(rs485, &aux, sizeof(aux)))
 		return -EFAULT;
+
 	return 0;
 }
 
@@ -1165,6 +1173,7 @@ static int uart_set_rs485_config(struct uart_port *port,
 {
 	struct serial_rs485 rs485;
 	int ret;
+	unsigned long flags;
 
 	if (!port->rs485_config)
 		return -ENOIOCTLCMD;
@@ -1172,7 +1181,9 @@ static int uart_set_rs485_config(struct uart_port *port,
 	if (copy_from_user(&rs485, rs485_user, sizeof(*rs485_user)))
 		return -EFAULT;
 
+	spin_lock_irqsave(&port->lock, flags);
 	ret = port->rs485_config(port, &rs485);
+	spin_unlock_irqrestore(&port->lock, flags);
 	if (ret)
 		return ret;
 

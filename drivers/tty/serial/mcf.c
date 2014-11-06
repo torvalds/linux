@@ -257,12 +257,12 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 		mr2 |= MCFUART_MR2_TXCTS;
 	}
 
+	spin_lock_irqsave(&port->lock, flags);
 	if (port->rs485.flags & SER_RS485_ENABLED) {
 		dev_dbg(port->dev, "Setting UART to RS485\n");
 		mr2 |= MCFUART_MR2_TXRTS;
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
 	uart_update_timeout(port, termios->c_cflag, baud);
 	writeb(MCFUART_UCR_CMDRESETRX, port->membase + MCFUART_UCR);
 	writeb(MCFUART_UCR_CMDRESETTX, port->membase + MCFUART_UCR);
@@ -442,10 +442,8 @@ static int mcf_verify_port(struct uart_port *port, struct serial_struct *ser)
 static int mcf_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 {
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
-	unsigned long flags;
 	unsigned char mr1, mr2;
 
-	spin_lock_irqsave(&port->lock, flags);
 	/* Get mode registers */
 	mr1 = readb(port->membase + MCFUART_UMR);
 	mr2 = readb(port->membase + MCFUART_UMR);
@@ -460,7 +458,6 @@ static int mcf_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 	writeb(mr1, port->membase + MCFUART_UMR);
 	writeb(mr2, port->membase + MCFUART_UMR);
 	port->rs485 = *rs485;
-	spin_unlock_irqrestore(&port->lock, flags);
 
 	return 0;
 }
