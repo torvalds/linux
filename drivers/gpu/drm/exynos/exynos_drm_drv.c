@@ -495,6 +495,12 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 
 	mutex_lock(&drm_component_lock);
 
+	/* Do not retry to probe if there is no any kms driver regitered. */
+	if (list_empty(&drm_component_list)) {
+		mutex_unlock(&drm_component_lock);
+		return ERR_PTR(-ENODEV);
+	}
+
 	list_for_each_entry(cdev, &drm_component_list, list) {
 		/*
 		 * Add components to master only in case that crtc and
