@@ -3096,7 +3096,7 @@ int sdhci_add_host(struct sdhci_host *host)
 		if (ret) {
 			pr_warn("%s: Failed to enable vqmmc regulator: %d\n",
 				mmc_hostname(mmc), ret);
-			mmc->supply.vqmmc = NULL;
+			mmc->supply.vqmmc = ERR_PTR(-EINVAL);
 		}
 	}
 
