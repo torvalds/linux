@@ -622,17 +622,19 @@ static const struct sh_mobile_dt_config default_dt_config = {
 	.clks_per_count = 1,
 };
 
-static const struct sh_mobile_dt_config rcar_gen2_dt_config = {
+static const struct sh_mobile_dt_config fast_clock_dt_config = {
 	.clks_per_count = 2,
 };
 
 static const struct of_device_id sh_mobile_i2c_dt_ids[] = {
 	{ .compatible = "renesas,rmobile-iic", .data = &default_dt_config },
-	{ .compatible = "renesas,iic-r8a7790", .data = &rcar_gen2_dt_config },
-	{ .compatible = "renesas,iic-r8a7791", .data = &rcar_gen2_dt_config },
-	{ .compatible = "renesas,iic-r8a7792", .data = &rcar_gen2_dt_config },
-	{ .compatible = "renesas,iic-r8a7793", .data = &rcar_gen2_dt_config },
-	{ .compatible = "renesas,iic-r8a7794", .data = &rcar_gen2_dt_config },
+	{ .compatible = "renesas,iic-r8a73a4", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7790", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7791", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7792", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7793", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7794", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-sh73a0", .data = &fast_clock_dt_config },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sh_mobile_i2c_dt_ids);
