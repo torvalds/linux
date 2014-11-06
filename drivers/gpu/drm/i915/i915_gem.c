@@ -1134,7 +1134,7 @@ static bool can_wait_boost(struct drm_i915_file_private *file_priv)
 }
 
 /**
- * __wait_seqno - wait until execution of seqno has finished
+ * __i915_wait_seqno - wait until execution of seqno has finished
  * @ring: the ring expected to report seqno
  * @seqno: duh!
  * @reset_counter: reset sequence associated with the given seqno
@@ -1151,7 +1151,7 @@ static bool can_wait_boost(struct drm_i915_file_private *file_priv)
  * Returns 0 if the seqno was found within the alloted time. Else returns the
  * errno with remaining time filled in timeout argument.
  */
-static int __wait_seqno(struct intel_engine_cs *ring, u32 seqno,
+int __i915_wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 			unsigned reset_counter,
 			bool interruptible,
 			s64 *timeout,
@@ -1262,6 +1262,7 @@ i915_wait_seqno(struct intel_engine_cs *ring, uint32_t seqno)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool interruptible = dev_priv->mm.interruptible;
+	unsigned reset_counter;
 	int ret;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -1275,9 +1276,9 @@ i915_wait_seqno(struct intel_engine_cs *ring, uint32_t seqno)
 	if (ret)
 		return ret;
 
-	return __wait_seqno(ring, seqno,
-			    atomic_read(&dev_priv->gpu_error.reset_counter),
-			    interruptible, NULL, NULL);
+	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
+	return __i915_wait_seqno(ring, seqno, reset_counter, interruptible,
+				 NULL, NULL);
 }
 
 static int
@@ -1353,7 +1354,8 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 
 	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	mutex_unlock(&dev->struct_mutex);
-	ret = __wait_seqno(ring, seqno, reset_counter, true, NULL, file_priv);
+	ret = __i915_wait_seqno(ring, seqno, reset_counter, true, NULL,
+				file_priv);
 	mutex_lock(&dev->struct_mutex);
 	if (ret)
 		return ret;
@@ -2847,8 +2849,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	mutex_unlock(&dev->struct_mutex);
 
-	return __wait_seqno(ring, seqno, reset_counter, true, &args->timeout_ns,
-			    file->driver_priv);
+	return __i915_wait_seqno(ring, seqno, reset_counter, true,
+				 &args->timeout_ns, file->driver_priv);
 
 out:
 	drm_gem_object_unreference(&obj->base);
@@ -4013,7 +4015,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (seqno == 0)
 		return 0;
 
-	ret = __wait_seqno(ring, seqno, reset_counter, true, NULL, NULL);
+	ret = __i915_wait_seqno(ring, seqno, reset_counter, true, NULL, NULL);
 	if (ret == 0)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 

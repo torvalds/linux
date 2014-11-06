@@ -2595,6 +2595,11 @@ int __i915_add_request(struct intel_engine_cs *ring,
 		       u32 *seqno);
 #define i915_add_request(ring, seqno) \
 	__i915_add_request(ring, NULL, NULL, seqno)
+int __i915_wait_seqno(struct intel_engine_cs *ring, u32 seqno,
+			unsigned reset_counter,
+			bool interruptible,
+			s64 *timeout,
+			struct drm_i915_file_private *file_priv);
 int __must_check i915_wait_seqno(struct intel_engine_cs *ring,
 				 uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
