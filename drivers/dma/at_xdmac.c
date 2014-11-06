@@ -619,15 +619,15 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			| (i == sg_len - 1 ? 0 : AT_XDMAC_MBR_UBC_NDE)	/* descriptor fetch */
 			| len / (1 << at_xdmac_get_dwidth(cfg));	/* microblock length */
 		dev_dbg(chan2dev(chan),
-			 "%s: lld: mbr_sa=0x%08x, mbr_da=0x%08x, mbr_ubc=0x%08x\n",
-			 __func__, desc->lld.mbr_sa, desc->lld.mbr_da, desc->lld.mbr_ubc);
+			 "%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x\n",
+			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc);
 
 		/* Chain lld. */
 		if (prev) {
 			prev->lld.mbr_nda = desc->tx_dma_desc.phys;
 			dev_dbg(chan2dev(chan),
-				 "%s: chain lld: prev=0x%p, mbr_nda=0x%08x\n",
-				 __func__, prev, prev->lld.mbr_nda);
+				 "%s: chain lld: prev=0x%p, mbr_nda=%pad\n",
+				 __func__, prev, &prev->lld.mbr_nda);
 		}
 
 		prev = desc;
@@ -660,8 +660,8 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	int			i;
 	u32			cfg;
 
-	dev_dbg(chan2dev(chan), "%s: buf_addr=0x%08x, buf_len=%zd, period_len=%zd, dir=%s, flags=0x%lx\n",
-		__func__, buf_addr, buf_len, period_len,
+	dev_dbg(chan2dev(chan), "%s: buf_addr=%pad, buf_len=%zd, period_len=%zd, dir=%s, flags=0x%lx\n",
+		__func__, &buf_addr, buf_len, period_len,
 		direction == DMA_MEM_TO_DEV ? "mem2per" : "per2mem", flags);
 
 	if (!is_slave_direction(direction)) {
@@ -688,8 +688,8 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 		}
 		spin_unlock_bh(&atchan->lock);
 		dev_dbg(chan2dev(chan),
-			"%s: desc=0x%p, tx_dma_desc.phys=0x%08x\n",
-			__func__, desc, desc->tx_dma_desc.phys);
+			"%s: desc=0x%p, tx_dma_desc.phys=%pad\n",
+			__func__, desc, &desc->tx_dma_desc.phys);
 
 		if (direction == DMA_DEV_TO_MEM) {
 			desc->lld.mbr_sa = atchan->per_src_addr;
@@ -707,15 +707,15 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 			| period_len >> at_xdmac_get_dwidth(cfg);
 
 		dev_dbg(chan2dev(chan),
-			 "%s: lld: mbr_sa=0x%08x, mbr_da=0x%08x, mbr_ubc=0x%08x\n",
-			 __func__, desc->lld.mbr_sa, desc->lld.mbr_da, desc->lld.mbr_ubc);
+			 "%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x\n",
+			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc);
 
 		/* Chain lld. */
 		if (prev) {
 			prev->lld.mbr_nda = desc->tx_dma_desc.phys;
 			dev_dbg(chan2dev(chan),
-				 "%s: chain lld: prev=0x%p, mbr_nda=0x%08x\n",
-				 __func__, prev, prev->lld.mbr_nda);
+				 "%s: chain lld: prev=0x%p, mbr_nda=%pad\n",
+				 __func__, prev, &prev->lld.mbr_nda);
 		}
 
 		prev = desc;
@@ -729,8 +729,8 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 
 	prev->lld.mbr_nda = first->tx_dma_desc.phys;
 	dev_dbg(chan2dev(chan),
-		"%s: chain lld: prev=0x%p, mbr_nda=0x%08x\n",
-		__func__, prev, prev->lld.mbr_nda);
+		"%s: chain lld: prev=0x%p, mbr_nda=%pad\n",
+		__func__, prev, &prev->lld.mbr_nda);
 	first->tx_dma_desc.flags = flags;
 	first->xfer_size = buf_len;
 	first->direction = direction;
@@ -762,8 +762,8 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 					| AT_XDMAC_CC_MBSIZE_SIXTEEN
 					| AT_XDMAC_CC_TYPE_MEM_TRAN;
 
-	dev_dbg(chan2dev(chan), "%s: src=0x%08x, dest=0x%08x, len=%zd, flags=0x%lx\n",
-		__func__, src, dest, len, flags);
+	dev_dbg(chan2dev(chan), "%s: src=%pad, dest=%pad, len=%zd, flags=0x%lx\n",
+		__func__, &src, &dest, len, flags);
 
 	if (unlikely(!len))
 		return NULL;
@@ -843,8 +843,8 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		desc->lld.mbr_cfg = chan_cc;
 
 		dev_dbg(chan2dev(chan),
-			 "%s: lld: mbr_sa=0x%08x, mbr_da=0x%08x, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
-			 __func__, desc->lld.mbr_sa, desc->lld.mbr_da, desc->lld.mbr_ubc, desc->lld.mbr_cfg);
+			 "%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
+			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc, desc->lld.mbr_cfg);
 
 		/* Chain lld. */
 		if (prev) {
@@ -927,8 +927,8 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	dma_set_residue(txstate, residue);
 
 	dev_dbg(chan2dev(chan),
-		 "%s: desc=0x%p, tx_dma_desc.phys=0x%08x, tx_status=%d, cookie=%d, residue=%d\n",
-		 __func__, desc, desc->tx_dma_desc.phys, ret, cookie, residue);
+		 "%s: desc=0x%p, tx_dma_desc.phys=%pad, tx_status=%d, cookie=%d, residue=%d\n",
+		 __func__, desc, &desc->tx_dma_desc.phys, ret, cookie, residue);
 
 	return ret;
 }
