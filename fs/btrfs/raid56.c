@@ -69,6 +69,11 @@
 
 #define RBIO_CACHE_SIZE 1024
 
+enum btrfs_rbio_ops {
+	BTRFS_RBIO_WRITE	= 0,
+	BTRFS_RBIO_READ_REBUILD	= 1,
+};
+
 struct btrfs_raid_bio {
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_bio *bbio;
@@ -131,7 +136,7 @@ struct btrfs_raid_bio {
 	 * differently from a parity rebuild as part of
 	 * rmw
 	 */
-	int read_rebuild;
+	enum btrfs_rbio_ops operation;
 
 	/* first bad stripe */
 	int faila;
@@ -153,7 +158,6 @@ struct btrfs_raid_bio {
 	int bio_list_bytes;
 
 	atomic_t refs;
-
 
 	atomic_t stripes_pending;
 
@@ -590,8 +594,7 @@ static int rbio_can_merge(struct btrfs_raid_bio *last,
 		return 0;
 
 	/* reads can't merge with writes */
-	if (last->read_rebuild !=
-	    cur->read_rebuild) {
+	if (last->operation != cur->operation) {
 		return 0;
 	}
 
@@ -784,9 +787,9 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 			spin_unlock(&rbio->bio_list_lock);
 			spin_unlock_irqrestore(&h->lock, flags);
 
-			if (next->read_rebuild)
+			if (next->operation == BTRFS_RBIO_READ_REBUILD)
 				async_read_rebuild(next);
-			else {
+			else if (next->operation == BTRFS_RBIO_WRITE){
 				steal_rbio(rbio, next);
 				async_rmw_stripe(next);
 			}
@@ -1720,6 +1723,7 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 	}
 	bio_list_add(&rbio->bio_list, bio);
 	rbio->bio_list_bytes = bio->bi_iter.bi_size;
+	rbio->operation = BTRFS_RBIO_WRITE;
 
 	/*
 	 * don't plug on full rbios, just get them out the door
@@ -1768,7 +1772,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 	faila = rbio->faila;
 	failb = rbio->failb;
 
-	if (rbio->read_rebuild) {
+	if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
 		spin_lock_irq(&rbio->bio_list_lock);
 		set_bit(RBIO_RMW_LOCKED_BIT, &rbio->flags);
 		spin_unlock_irq(&rbio->bio_list_lock);
@@ -1785,7 +1789,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 			 * if we're rebuilding a read, we have to use
 			 * pages from the bio list
 			 */
-			if (rbio->read_rebuild &&
+			if (rbio->operation == BTRFS_RBIO_READ_REBUILD &&
 			    (stripe == faila || stripe == failb)) {
 				page = page_in_rbio(rbio, stripe, pagenr, 0);
 			} else {
@@ -1878,7 +1882,7 @@ pstripe:
 		 * know they can be trusted.  If this was a read reconstruction,
 		 * other endio functions will fiddle the uptodate bits
 		 */
-		if (!rbio->read_rebuild) {
+		if (rbio->operation == BTRFS_RBIO_WRITE) {
 			for (i = 0;  i < nr_pages; i++) {
 				if (faila != -1) {
 					page = rbio_stripe_page(rbio, faila, i);
@@ -1895,7 +1899,7 @@ pstripe:
 			 * if we're rebuilding a read, we have to use
 			 * pages from the bio list
 			 */
-			if (rbio->read_rebuild &&
+			if (rbio->operation == BTRFS_RBIO_READ_REBUILD &&
 			    (stripe == faila || stripe == failb)) {
 				page = page_in_rbio(rbio, stripe, pagenr, 0);
 			} else {
@@ -1910,8 +1914,7 @@ cleanup:
 	kfree(pointers);
 
 cleanup_io:
-
-	if (rbio->read_rebuild) {
+	if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
 		if (err == 0 &&
 		    !test_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags))
 			cache_rbio_pages(rbio);
@@ -2050,7 +2053,7 @@ out:
 	return 0;
 
 cleanup:
-	if (rbio->read_rebuild)
+	if (rbio->operation == BTRFS_RBIO_READ_REBUILD)
 		rbio_orig_end_io(rbio, -EIO, 0);
 	return -EIO;
 }
@@ -2076,7 +2079,7 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 
 	if (hold_bbio)
 		set_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags);
-	rbio->read_rebuild = 1;
+	rbio->operation = BTRFS_RBIO_READ_REBUILD;
 	bio_list_add(&rbio->bio_list, bio);
 	rbio->bio_list_bytes = bio->bi_iter.bi_size;
 
