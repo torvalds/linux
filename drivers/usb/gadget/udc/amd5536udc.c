@@ -2871,7 +2871,7 @@ __acquires(dev->lock)
 			dev->driver->resume(&dev->gadget);
 			dev->sys_suspended = 0;
 		}
-		dev->driver->disconnect(&dev->gadget);
+		usb_gadget_udc_reset(&dev->gadget, dev->driver);
 		spin_lock(&dev->lock);
 
 		/* disable ep0 to empty req queue */
