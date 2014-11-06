@@ -189,7 +189,7 @@ struct jsm_board
 #define CH_LOOPBACK 0x2000		/* Channel is in lookback mode	*/
 #define CH_BAUD0	0x08000		/* Used for checking B0 transitions */
 
-/* Our Read/Error/Write queue sizes */
+/* Our Read/Error queue sizes */
 #define RQUEUEMASK	0x1FFF		/* 8 K - 1 */
 #define EQUEUEMASK	0x1FFF		/* 8 K - 1 */
 #define RQUEUESIZE	(RQUEUEMASK + 1)
@@ -431,6 +431,7 @@ struct neo_uart_struct {
  */
 extern struct	uart_driver jsm_uart_driver;
 extern struct	board_ops jsm_neo_ops;
+extern struct	board_ops jsm_cls_ops;
 extern int	jsm_debug;
 
 /*************************************************************************
