@@ -37,8 +37,8 @@ struct sk_buff;
 
 /* Used to memset ovs_key_ipv4_tunnel padding. */
 #define OVS_TUNNEL_KEY_SIZE					\
-	(offsetof(struct ovs_key_ipv4_tunnel, ipv4_ttl) +	\
-	FIELD_SIZEOF(struct ovs_key_ipv4_tunnel, ipv4_ttl))
+	(offsetof(struct ovs_key_ipv4_tunnel, tp_dst) +		\
+	 FIELD_SIZEOF(struct ovs_key_ipv4_tunnel, tp_dst))
 
 struct ovs_key_ipv4_tunnel {
 	__be64 tun_id;
@@ -47,6 +47,8 @@ struct ovs_key_ipv4_tunnel {
 	__be16 tun_flags;
 	u8   ipv4_tos;
 	u8   ipv4_ttl;
+	__be16 tp_src;
+	__be16 tp_dst;
 } __packed __aligned(4); /* Minimize padding. */
 
 struct ovs_tunnel_info {
@@ -64,26 +66,58 @@ struct ovs_tunnel_info {
 			       FIELD_SIZEOF(struct sw_flow_key, tun_opts) - \
 			       opt_len))
 
-static inline void ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
-					  const struct iphdr *iph,
-					  __be64 tun_id, __be16 tun_flags,
-					  struct geneve_opt *opts,
-					  u8 opts_len)
+static inline void __ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
+					    __be32 saddr, __be32 daddr,
+					    u8 tos, u8 ttl,
+					    __be16 tp_src,
+					    __be16 tp_dst,
+					    __be64 tun_id,
+					    __be16 tun_flags,
+					    struct geneve_opt *opts,
+					    u8 opts_len)
 {
 	tun_info->tunnel.tun_id = tun_id;
-	tun_info->tunnel.ipv4_src = iph->saddr;
-	tun_info->tunnel.ipv4_dst = iph->daddr;
-	tun_info->tunnel.ipv4_tos = iph->tos;
-	tun_info->tunnel.ipv4_ttl = iph->ttl;
+	tun_info->tunnel.ipv4_src = saddr;
+	tun_info->tunnel.ipv4_dst = daddr;
+	tun_info->tunnel.ipv4_tos = tos;
+	tun_info->tunnel.ipv4_ttl = ttl;
 	tun_info->tunnel.tun_flags = tun_flags;
 
-	/* clear struct padding. */
-	memset((unsigned char *)&tun_info->tunnel + OVS_TUNNEL_KEY_SIZE, 0,
-	       sizeof(tun_info->tunnel) - OVS_TUNNEL_KEY_SIZE);
+	/* For the tunnel types on the top of IPsec, the tp_src and tp_dst of
+	 * the upper tunnel are used.
+	 * E.g: GRE over IPSEC, the tp_src and tp_port are zero.
+	 */
+	tun_info->tunnel.tp_src = tp_src;
+	tun_info->tunnel.tp_dst = tp_dst;
+
+	/* Clear struct padding. */
+	if (sizeof(tun_info->tunnel) != OVS_TUNNEL_KEY_SIZE)
+		memset((unsigned char *)&tun_info->tunnel + OVS_TUNNEL_KEY_SIZE,
+		       0, sizeof(tun_info->tunnel) - OVS_TUNNEL_KEY_SIZE);
 
 	tun_info->options = opts;
 	tun_info->options_len = opts_len;
 }
+
+static inline void ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
+					  const struct iphdr *iph,
+					  __be16 tp_src,
+					  __be16 tp_dst,
+					  __be64 tun_id,
+					  __be16 tun_flags,
+					  struct geneve_opt *opts,
+					  u8 opts_len)
+{
+	__ovs_flow_tun_info_init(tun_info, iph->saddr, iph->daddr,
+				 iph->tos, iph->ttl,
+				 tp_src, tp_dst,
+				 tun_id, tun_flags,
+				 opts, opts_len);
+}
+
+#define OVS_SW_FLOW_KEY_METADATA_SIZE			\
+	(offsetof(struct sw_flow_key, recirc_id) +	\
+	FIELD_SIZEOF(struct sw_flow_key, recirc_id))
 
 struct sw_flow_key {
 	u8 tun_opts[255];

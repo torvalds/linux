@@ -114,12 +114,14 @@ struct ovs_skb_cb {
  * @pid: Netlink PID to which packet should be sent.  If @pid is 0 then no
  * packet is sent and the packet is accounted in the datapath's @n_lost
  * counter.
+ * @egress_tun_info: If nonnull, becomes %OVS_PACKET_ATTR_EGRESS_TUN_KEY.
  */
 struct dp_upcall_info {
 	u8 cmd;
 	const struct sw_flow_key *key;
 	const struct nlattr *userdata;
 	u32 portid;
+	const struct ovs_tunnel_info *egress_tun_info;
 };
 
 /**
