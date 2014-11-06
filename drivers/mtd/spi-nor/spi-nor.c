@@ -26,7 +26,38 @@
 /* Define max times to check status register before we give up. */
 #define	MAX_READY_WAIT_JIFFIES	(40 * HZ) /* M25P16 specs 40s max chip erase */
 
-#define JEDEC_MFR(_jedec_id)	((_jedec_id) >> 16)
+#define SPI_NOR_MAX_ID_LEN	6
+
+struct flash_info {
+	/*
+	 * This array stores the ID bytes.
+	 * The first three bytes are the JEDIC ID.
+	 * JEDEC ID zero means "no ID" (mostly older chips).
+	 */
+	u8		id[SPI_NOR_MAX_ID_LEN];
+	u8		id_len;
+
+	/* The size listed here is what works with SPINOR_OP_SE, which isn't
+	 * necessarily called a "sector" by the vendor.
+	 */
+	unsigned	sector_size;
+	u16		n_sectors;
+
+	u16		page_size;
+	u16		addr_width;
+
+	u16		flags;
+#define	SECT_4K			0x01	/* SPINOR_OP_BE_4K works uniformly */
+#define	SPI_NOR_NO_ERASE	0x02	/* No erase command needed */
+#define	SST_WRITE		0x04	/* use SST byte programming */
+#define	SPI_NOR_NO_FR		0x08	/* Can't do fastread */
+#define	SECT_4K_PMC		0x10	/* SPINOR_OP_BE_4K_PMC works uniformly */
+#define	SPI_NOR_DUAL_READ	0x20    /* Flash supports Dual Read */
+#define	SPI_NOR_QUAD_READ	0x40    /* Flash supports Quad Read */
+#define	USE_FSR			0x80	/* use flag status register */
+};
+
+#define JEDEC_MFR(info)	((info)->id[0])
 
 static const struct spi_device_id *spi_nor_match_id(const char *name);
 
@@ -138,13 +169,14 @@ static inline struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
 }
 
 /* Enable/disable 4-byte addressing mode. */
-static inline int set_4byte(struct spi_nor *nor, u32 jedec_id, int enable)
+static inline int set_4byte(struct spi_nor *nor, struct flash_info *info,
+			    int enable)
 {
 	int status;
 	bool need_wren = false;
 	u8 cmd;
 
-	switch (JEDEC_MFR(jedec_id)) {
+	switch (JEDEC_MFR(info)) {
 	case CFI_MFR_ST: /* Micron, actually */
 		/* Some Micron need WREN command; all will accept it */
 		need_wren = true;
@@ -418,49 +450,9 @@ err:
 	return ret;
 }
 
-#define SPI_NOR_MAX_ID_LEN	6
-
-struct flash_info {
-	/* JEDEC id zero means "no ID" (most older chips); otherwise it has
-	 * a high byte of zero plus three data bytes: the manufacturer id,
-	 * then a two byte device id.
-	 */
-	u32		jedec_id;
-	u16             ext_id;
-
-	/*
-	 * This array stores the ID bytes.
-	 * The first three bytes are the JEDIC ID.
-	 * JEDEC ID zero means "no ID" (mostly older chips).
-	 */
-	u8		id[SPI_NOR_MAX_ID_LEN];
-	u8		id_len;
-
-	/* The size listed here is what works with SPINOR_OP_SE, which isn't
-	 * necessarily called a "sector" by the vendor.
-	 */
-	unsigned	sector_size;
-	u16		n_sectors;
-
-	u16		page_size;
-	u16		addr_width;
-
-	u16		flags;
-#define	SECT_4K			0x01	/* SPINOR_OP_BE_4K works uniformly */
-#define	SPI_NOR_NO_ERASE	0x02	/* No erase command needed */
-#define	SST_WRITE		0x04	/* use SST byte programming */
-#define	SPI_NOR_NO_FR		0x08	/* Can't do fastread */
-#define	SECT_4K_PMC		0x10	/* SPINOR_OP_BE_4K_PMC works uniformly */
-#define	SPI_NOR_DUAL_READ	0x20    /* Flash supports Dual Read */
-#define	SPI_NOR_QUAD_READ	0x40    /* Flash supports Quad Read */
-#define	USE_FSR			0x80	/* use flag status register */
-};
-
 /* Used when the "_ext_id" is two bytes at most */
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
 	((kernel_ulong_t)&(struct flash_info) {				\
-		.jedec_id = (_jedec_id),				\
-		.ext_id = (_ext_id),					\
 		.id = {							\
 			((_jedec_id) >> 16) & 0xff,			\
 			((_jedec_id) >> 8) & 0xff,			\
@@ -878,11 +870,11 @@ static int spansion_quad_enable(struct spi_nor *nor)
 	return 0;
 }
 
-static int set_quad_mode(struct spi_nor *nor, u32 jedec_id)
+static int set_quad_mode(struct spi_nor *nor, struct flash_info *info)
 {
 	int status;
 
-	switch (JEDEC_MFR(jedec_id)) {
+	switch (JEDEC_MFR(info)) {
 	case CFI_MFR_MACRONIX:
 		status = macronix_quad_enable(nor);
 		if (status) {
@@ -931,7 +923,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 
 	info = (void *)id->driver_data;
 
-	if (info->jedec_id) {
+	if (info->id_len) {
 		const struct spi_device_id *jid;
 
 		jid = spi_nor_read_id(nor);
@@ -959,9 +951,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	 * up with the software protection bits set
 	 */
 
-	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_ATMEL ||
-	    JEDEC_MFR(info->jedec_id) == CFI_MFR_INTEL ||
-	    JEDEC_MFR(info->jedec_id) == CFI_MFR_SST) {
+	if (JEDEC_MFR(info) == CFI_MFR_ATMEL ||
+	    JEDEC_MFR(info) == CFI_MFR_INTEL ||
+	    JEDEC_MFR(info) == CFI_MFR_SST) {
 		write_enable(nor);
 		write_sr(nor, 0);
 	}
@@ -976,7 +968,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	mtd->_read = spi_nor_read;
 
 	/* nor protection support for STmicro chips */
-	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_ST) {
+	if (JEDEC_MFR(info) == CFI_MFR_ST) {
 		mtd->_lock = spi_nor_lock;
 		mtd->_unlock = spi_nor_unlock;
 	}
@@ -1029,7 +1021,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 
 	/* Quad/Dual-read mode takes precedence over fast/normal */
 	if (mode == SPI_NOR_QUAD && info->flags & SPI_NOR_QUAD_READ) {
-		ret = set_quad_mode(nor, info->jedec_id);
+		ret = set_quad_mode(nor, info);
 		if (ret) {
 			dev_err(dev, "quad mode not supported\n");
 			return ret;
@@ -1065,7 +1057,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	else if (mtd->size > 0x1000000) {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
 		nor->addr_width = 4;
-		if (JEDEC_MFR(info->jedec_id) == CFI_MFR_AMD) {
+		if (JEDEC_MFR(info) == CFI_MFR_AMD) {
 			/* Dedicated 4-byte command set */
 			switch (nor->flash_read) {
 			case SPI_NOR_QUAD:
@@ -1086,7 +1078,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 			nor->erase_opcode = SPINOR_OP_SE_4B;
 			mtd->erasesize = info->sector_size;
 		} else
-			set_4byte(nor, info->jedec_id, 1);
+			set_4byte(nor, info, 1);
 	} else {
 		nor->addr_width = 3;
 	}
