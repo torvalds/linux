@@ -1012,11 +1012,7 @@ int pci_save_state(struct pci_dev *dev)
 	if (i != 0)
 		return i;
 
-	i = pci_save_vc_state(dev);
-	if (i != 0)
-		return i;
-
-	return 0;
+	return pci_save_vc_state(dev);
 }
 EXPORT_SYMBOL(pci_save_state);
 
