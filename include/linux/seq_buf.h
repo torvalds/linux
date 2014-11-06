@@ -64,6 +64,12 @@ seq_buf_buffer_left(struct seq_buf *s)
 	return (s->size - 1) - s->len;
 }
 
+/* How much buffer was written? */
+static inline unsigned int seq_buf_used(struct seq_buf *s)
+{
+	return min(s->len, s->size);
+}
+
 extern __printf(2, 3)
 int seq_buf_printf(struct seq_buf *s, const char *fmt, ...);
 extern __printf(2, 0)

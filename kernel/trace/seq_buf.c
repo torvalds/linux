@@ -16,9 +16,6 @@
 #include <linux/seq_file.h>
 #include <linux/seq_buf.h>
 
-/* How much buffer is written? */
-#define SEQ_BUF_USED(s) min((s)->len, (s)->size - 1)
-
 /**
  * seq_buf_print_seq - move the contents of seq_buf into a seq_file
  * @m: the seq_file descriptor that is the destination
@@ -28,7 +25,7 @@
  */
 int seq_buf_print_seq(struct seq_file *m, struct seq_buf *s)
 {
-	unsigned int len = SEQ_BUF_USED(s);
+	unsigned int len = seq_buf_used(s);
 
 	return seq_write(m, s->buffer, len);
 }
