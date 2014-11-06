@@ -28,10 +28,8 @@
 
 static int major, minors;
 static struct class *hidg_class;
-#ifndef USBF_HID_INCLUDED
 static DEFINE_IDA(hidg_ida);
 static DEFINE_MUTEX(hidg_ida_lock); /* protects access to hidg_ida */
-#endif
 
 /*-------------------------------------------------------------------------*/
 /*                            HID gadget struct                            */
@@ -684,75 +682,6 @@ fail:
 	return status;
 }
 
-#ifdef USBF_HID_INCLUDED
-static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	struct f_hidg *hidg = func_to_hidg(f);
-
-	device_destroy(hidg_class, MKDEV(major, hidg->minor));
-	cdev_del(&hidg->cdev);
-
-	/* disable/free request and end point */
-	usb_ep_disable(hidg->in_ep);
-	usb_ep_dequeue(hidg->in_ep, hidg->req);
-	kfree(hidg->req->buf);
-	usb_ep_free_request(hidg->in_ep, hidg->req);
-
-	usb_free_all_descriptors(f);
-
-	kfree(hidg->report_desc);
-	kfree(hidg);
-}
-
-/*-------------------------------------------------------------------------*/
-/*                             usb_configuration                           */
-int __init hidg_bind_config(struct usb_configuration *c,
-			    struct hidg_func_descriptor *fdesc, int index)
-{
-	struct f_hidg *hidg;
-	int status;
-
-	if (index >= minors)
-		return -ENOENT;
-
-	/* allocate and initialize one new instance */
-	hidg = kzalloc(sizeof *hidg, GFP_KERNEL);
-	if (!hidg)
-		return -ENOMEM;
-
-	hidg->minor = index;
-	hidg->bInterfaceSubClass = fdesc->subclass;
-	hidg->bInterfaceProtocol = fdesc->protocol;
-	hidg->report_length = fdesc->report_length;
-	hidg->report_desc_length = fdesc->report_desc_length;
-	hidg->report_desc = kmemdup(fdesc->report_desc,
-				    fdesc->report_desc_length,
-				    GFP_KERNEL);
-	if (!hidg->report_desc) {
-		kfree(hidg);
-		return -ENOMEM;
-	}
-
-	hidg->func.name    = "hid";
-	hidg->func.strings = ct_func_strings;
-	hidg->func.bind    = hidg_bind;
-	hidg->func.unbind  = hidg_unbind;
-	hidg->func.set_alt = hidg_set_alt;
-	hidg->func.disable = hidg_disable;
-	hidg->func.setup   = hidg_setup;
-
-	/* this could me made configurable at some point */
-	hidg->qlen	   = 4;
-
-	status = usb_add_function(c, &hidg->func);
-	if (status)
-		kfree(hidg);
-
-	return status;
-}
-
-#else
-
 static inline int hidg_get_minor(void)
 {
 	int ret;
@@ -894,8 +823,6 @@ struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 DECLARE_USB_FUNCTION_INIT(hid, hidg_alloc_inst, hidg_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Fabien Chouteau");
-
-#endif
 
 int ghid_setup(struct usb_gadget *g, int count)
 {
