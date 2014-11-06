@@ -68,6 +68,10 @@ do {								\
 #define MAX_STOPS_SENT	5
 
 /* Board ids */
+#define PCI_DEVICE_ID_CLASSIC_4		0x0028
+#define PCI_DEVICE_ID_CLASSIC_8		0x0029
+#define PCI_DEVICE_ID_CLASSIC_4_422	0x00D0
+#define PCI_DEVICE_ID_CLASSIC_8_422	0x00D1
 #define PCI_DEVICE_ID_NEO_4             0x00B0
 #define PCI_DEVICE_ID_NEO_1_422         0x00CC
 #define PCI_DEVICE_ID_NEO_1_422_485     0x00CD
