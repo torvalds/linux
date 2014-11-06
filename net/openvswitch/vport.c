@@ -90,7 +90,7 @@ errout:
 	ovs_unlock();
 	return err;
 }
-EXPORT_SYMBOL(ovs_vport_ops_register);
+EXPORT_SYMBOL_GPL(ovs_vport_ops_register);
 
 void ovs_vport_ops_unregister(struct vport_ops *ops)
 {
@@ -98,7 +98,7 @@ void ovs_vport_ops_unregister(struct vport_ops *ops)
 	list_del(&ops->list);
 	ovs_unlock();
 }
-EXPORT_SYMBOL(ovs_vport_ops_unregister);
+EXPORT_SYMBOL_GPL(ovs_vport_ops_unregister);
 
 /**
  *	ovs_vport_locate - find a port that has already been created
@@ -165,7 +165,7 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 
 	return vport;
 }
-EXPORT_SYMBOL(ovs_vport_alloc);
+EXPORT_SYMBOL_GPL(ovs_vport_alloc);
 
 /**
  *	ovs_vport_free - uninitialize and free vport
@@ -186,7 +186,7 @@ void ovs_vport_free(struct vport *vport)
 	free_percpu(vport->percpu_stats);
 	kfree(vport);
 }
-EXPORT_SYMBOL(ovs_vport_free);
+EXPORT_SYMBOL_GPL(ovs_vport_free);
 
 static struct vport_ops *ovs_vport_lookup(const struct vport_parms *parms)
 {
@@ -493,7 +493,7 @@ void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 	}
 	ovs_dp_process_packet(skb, &key);
 }
-EXPORT_SYMBOL(ovs_vport_receive);
+EXPORT_SYMBOL_GPL(ovs_vport_receive);
 
 /**
  *	ovs_vport_send - send a packet on a device
@@ -572,4 +572,4 @@ void ovs_vport_deferred_free(struct vport *vport)
 
 	call_rcu(&vport->rcu, free_vport_rcu);
 }
-EXPORT_SYMBOL(ovs_vport_deferred_free);
+EXPORT_SYMBOL_GPL(ovs_vport_deferred_free);
