@@ -92,7 +92,8 @@ static int create_gpio_led(const struct gpio_led *template,
 {
 	int ret, state;
 
-	if (!template->gpiod) {
+	led_dat->gpiod = template->gpiod;
+	if (!led_dat->gpiod) {
 		/*
 		 * This is the legacy code path for platform code that
 		 * still uses GPIO numbers. Ultimately we would like to get
@@ -122,8 +123,7 @@ static int create_gpio_led(const struct gpio_led *template,
 
 	led_dat->cdev.name = template->name;
 	led_dat->cdev.default_trigger = template->default_trigger;
-	led_dat->gpiod = template->gpiod;
-	led_dat->can_sleep = gpiod_cansleep(template->gpiod);
+	led_dat->can_sleep = gpiod_cansleep(led_dat->gpiod);
 	led_dat->blinking = 0;
 	if (blink_set) {
 		led_dat->platform_gpio_blink_set = blink_set;
