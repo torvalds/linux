@@ -481,6 +481,7 @@ struct ath9k_htc_priv {
 	unsigned long op_flags;
 
 	struct ath9k_hw_cal_data caldata;
+	struct ath_spec_scan_priv spec_priv;
 
 	spinlock_t beacon_lock;
 	struct ath_beacon_config cur_beacon_conf;
