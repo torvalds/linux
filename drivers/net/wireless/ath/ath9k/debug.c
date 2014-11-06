@@ -1310,7 +1310,7 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 
 void ath9k_deinit_debug(struct ath_softc *sc)
 {
-	ath9k_spectral_deinit_debug(sc);
+	ath9k_spectral_deinit_debug(&sc->spec_priv);
 }
 
 int ath9k_init_debug(struct ath_hw *ah)
@@ -1330,7 +1330,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 
 	ath9k_dfs_init_debug(sc);
 	ath9k_tx99_init_debug(sc);
-	ath9k_spectral_init_debug(sc, sc->debug.debugfs_phy);
+	ath9k_spectral_init_debug(&sc->spec_priv, sc->debug.debugfs_phy);
 
 	debugfs_create_file("dma", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_dma);
