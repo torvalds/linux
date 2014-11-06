@@ -508,8 +508,6 @@ int sst_prepare_and_post_msg(struct intel_sst_drv *sst,
 		size_t mbox_data_len, const void *mbox_data, void **data,
 		bool large, bool fill_dsp, bool sync, bool response);
 
-void sst_save_shim64(struct intel_sst_drv *ctx, void __iomem *shim,
-		struct sst_shim_regs64 *shim_regs);
 void sst_process_pending_msg(struct work_struct *work);
 int sst_assign_pvt_id(struct intel_sst_drv *sst_drv_ctx);
 void sst_init_stream(struct stream_info *stream,
