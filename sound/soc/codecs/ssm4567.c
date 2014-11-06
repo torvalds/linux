@@ -145,6 +145,8 @@ static const struct snd_kcontrol_new ssm4567_snd_controls[] = {
 	SOC_SINGLE_TLV("Master Playback Volume", SSM4567_REG_DAC_VOLUME, 0,
 		0xff, 1, ssm4567_vol_tlv),
 	SOC_SINGLE("DAC Low Power Mode Switch", SSM4567_REG_DAC_CTRL, 4, 1, 0),
+	SOC_SINGLE("DAC High Pass Filter Switch", SSM4567_REG_DAC_CTRL,
+		5, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget ssm4567_dapm_widgets[] = {
