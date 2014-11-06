@@ -45,14 +45,14 @@ void ovs_vport_exit(void);
 struct vport *ovs_vport_add(const struct vport_parms *);
 void ovs_vport_del(struct vport *);
 
-struct vport *ovs_vport_locate(struct net *net, const char *name);
+struct vport *ovs_vport_locate(const struct net *net, const char *name);
 
 void ovs_vport_get_stats(struct vport *, struct ovs_vport_stats *);
 
 int ovs_vport_set_options(struct vport *, struct nlattr *options);
 int ovs_vport_get_options(const struct vport *, struct sk_buff *);
 
-int ovs_vport_set_upcall_portids(struct vport *, struct nlattr *pids);
+int ovs_vport_set_upcall_portids(struct vport *, const struct nlattr *pids);
 int ovs_vport_get_upcall_portids(const struct vport *, struct sk_buff *);
 u32 ovs_vport_find_upcall_portid(const struct vport *, struct sk_buff *);
 
@@ -224,7 +224,7 @@ static inline struct vport *vport_from_priv(void *priv)
 }
 
 void ovs_vport_receive(struct vport *, struct sk_buff *,
-		       struct ovs_tunnel_info *);
+		       const struct ovs_tunnel_info *);
 
 static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
 				      const void *start, unsigned int len)

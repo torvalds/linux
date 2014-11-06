@@ -68,7 +68,7 @@ void ovs_vport_exit(void)
 	kfree(dev_table);
 }
 
-static struct hlist_head *hash_bucket(struct net *net, const char *name)
+static struct hlist_head *hash_bucket(const struct net *net, const char *name)
 {
 	unsigned int hash = jhash(name, strlen(name), (unsigned long) net);
 	return &dev_table[hash & (VPORT_HASH_BUCKETS - 1)];
@@ -107,7 +107,7 @@ EXPORT_SYMBOL_GPL(ovs_vport_ops_unregister);
  *
  * Must be called with ovs or RCU read lock.
  */
-struct vport *ovs_vport_locate(struct net *net, const char *name)
+struct vport *ovs_vport_locate(const struct net *net, const char *name)
 {
 	struct hlist_head *bucket = hash_bucket(net, name);
 	struct vport *vport;
@@ -380,7 +380,7 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
  *
  * Must be called with ovs_mutex.
  */
-int ovs_vport_set_upcall_portids(struct vport *vport,  struct nlattr *ids)
+int ovs_vport_set_upcall_portids(struct vport *vport, const struct nlattr *ids)
 {
 	struct vport_portids *old, *vport_portids;
 
@@ -471,7 +471,7 @@ u32 ovs_vport_find_upcall_portid(const struct vport *vport, struct sk_buff *skb)
  * skb->data should point to the Ethernet header.
  */
 void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
-		       struct ovs_tunnel_info *tun_info)
+		       const struct ovs_tunnel_info *tun_info)
 {
 	struct pcpu_sw_netstats *stats;
 	struct sw_flow_key key;

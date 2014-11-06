@@ -53,7 +53,7 @@ struct ovs_key_ipv4_tunnel {
 
 struct ovs_tunnel_info {
 	struct ovs_key_ipv4_tunnel tunnel;
-	struct geneve_opt *options;
+	const struct geneve_opt *options;
 	u8 options_len;
 };
 
@@ -73,7 +73,7 @@ static inline void __ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
 					    __be16 tp_dst,
 					    __be64 tun_id,
 					    __be16 tun_flags,
-					    struct geneve_opt *opts,
+					    const struct geneve_opt *opts,
 					    u8 opts_len)
 {
 	tun_info->tunnel.tun_id = tun_id;
@@ -105,7 +105,7 @@ static inline void ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
 					  __be16 tp_dst,
 					  __be64 tun_id,
 					  __be16 tun_flags,
-					  struct geneve_opt *opts,
+					  const struct geneve_opt *opts,
 					  u8 opts_len)
 {
 	__ovs_flow_tun_info_init(tun_info, iph->saddr, iph->daddr,
@@ -244,14 +244,15 @@ struct arp_eth_header {
 } __packed;
 
 void ovs_flow_stats_update(struct sw_flow *, __be16 tcp_flags,
-			   struct sk_buff *);
+			   const struct sk_buff *);
 void ovs_flow_stats_get(const struct sw_flow *, struct ovs_flow_stats *,
 			unsigned long *used, __be16 *tcp_flags);
 void ovs_flow_stats_clear(struct sw_flow *);
 u64 ovs_flow_used_time(unsigned long flow_jiffies);
 
 int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key);
-int ovs_flow_key_extract(struct ovs_tunnel_info *tun_info, struct sk_buff *skb,
+int ovs_flow_key_extract(const struct ovs_tunnel_info *tun_info,
+			 struct sk_buff *skb,
 			 struct sw_flow_key *key);
 /* Extract key from packet coming from userspace. */
 int ovs_flow_key_extract_userspace(const struct nlattr *attr,
