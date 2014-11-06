@@ -465,7 +465,7 @@ static int ipip_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u16(skb, IFLA_IPTUN_ENCAP_DPORT,
 			tunnel->encap.dport) ||
 	    nla_put_u16(skb, IFLA_IPTUN_ENCAP_FLAGS,
-			tunnel->encap.dport))
+			tunnel->encap.flags))
 		goto nla_put_failure;
 
 	return 0;
