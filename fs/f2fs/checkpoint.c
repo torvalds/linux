@@ -318,6 +318,8 @@ retry:
 		e->ino = ino;
 
 		list_add_tail(&e->list, &sbi->ino_list[type]);
+		if (type != ORPHAN_INO)
+			sbi->ino_num[type]++;
 	}
 	spin_unlock(&sbi->ino_lock[type]);
 }
@@ -331,8 +333,7 @@ static void __remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
 	if (e) {
 		list_del(&e->list);
 		radix_tree_delete(&sbi->ino_root[type], ino);
-		if (type == ORPHAN_INO)
-			sbi->n_orphans--;
+		sbi->ino_num[type]--;
 		spin_unlock(&sbi->ino_lock[type]);
 		kmem_cache_free(ino_entry_slab, e);
 		return;
@@ -373,6 +374,7 @@ void release_dirty_inode(struct f2fs_sb_info *sbi)
 			list_del(&e->list);
 			radix_tree_delete(&sbi->ino_root[i], e->ino);
 			kmem_cache_free(ino_entry_slab, e);
+			sbi->ino_num[i]--;
 		}
 		spin_unlock(&sbi->ino_lock[i]);
 	}
@@ -383,10 +385,10 @@ int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 	int err = 0;
 
 	spin_lock(&sbi->ino_lock[ORPHAN_INO]);
-	if (unlikely(sbi->n_orphans >= sbi->max_orphans))
+	if (unlikely(sbi->ino_num[ORPHAN_INO] >= sbi->max_orphans))
 		err = -ENOSPC;
 	else
-		sbi->n_orphans++;
+		sbi->ino_num[ORPHAN_INO]++;
 	spin_unlock(&sbi->ino_lock[ORPHAN_INO]);
 
 	return err;
@@ -395,8 +397,8 @@ int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 void release_orphan_inode(struct f2fs_sb_info *sbi)
 {
 	spin_lock(&sbi->ino_lock[ORPHAN_INO]);
-	f2fs_bug_on(sbi, sbi->n_orphans == 0);
-	sbi->n_orphans--;
+	f2fs_bug_on(sbi, sbi->ino_num[ORPHAN_INO] == 0);
+	sbi->ino_num[ORPHAN_INO]--;
 	spin_unlock(&sbi->ino_lock[ORPHAN_INO]);
 }
 
@@ -460,10 +462,11 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 	struct f2fs_orphan_block *orphan_blk = NULL;
 	unsigned int nentries = 0;
 	unsigned short index;
-	unsigned short orphan_blocks =
-			(unsigned short)GET_ORPHAN_BLOCKS(sbi->n_orphans);
+	unsigned short orphan_blocks;
 	struct page *page = NULL;
 	struct ino_entry *orphan = NULL;
+
+	orphan_blocks = GET_ORPHAN_BLOCKS(sbi->ino_num[ORPHAN_INO]);
 
 	for (index = 0; index < orphan_blocks; index++)
 		grab_meta_page(sbi, start_blk + index);
@@ -892,7 +895,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	else
 		clear_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
 
-	orphan_blocks = GET_ORPHAN_BLOCKS(sbi->n_orphans);
+	orphan_blocks = GET_ORPHAN_BLOCKS(sbi->ino_num[ORPHAN_INO]);
 	ckpt->cp_pack_start_sum = cpu_to_le32(1 + cp_payload_blks +
 			orphan_blocks);
 
@@ -908,7 +911,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 				orphan_blocks);
 	}
 
-	if (sbi->n_orphans)
+	if (sbi->ino_num[ORPHAN_INO])
 		set_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
 	else
 		clear_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
@@ -943,7 +946,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		f2fs_put_page(cp_page, 1);
 	}
 
-	if (sbi->n_orphans) {
+	if (sbi->ino_num[ORPHAN_INO]) {
 		write_orphan_inodes(sbi, start_blk);
 		start_blk += orphan_blocks;
 	}
@@ -1045,6 +1048,7 @@ void init_ino_entry_info(struct f2fs_sb_info *sbi)
 		INIT_RADIX_TREE(&sbi->ino_root[i], GFP_ATOMIC);
 		spin_lock_init(&sbi->ino_lock[i]);
 		INIT_LIST_HEAD(&sbi->ino_list[i]);
+		sbi->ino_num[i] = 0;
 	}
 
 	/*
@@ -1053,7 +1057,6 @@ void init_ino_entry_info(struct f2fs_sb_info *sbi)
 	 * orphan entries with the limitation one reserved segment
 	 * for cp pack we can have max 1020*504 orphan entries
 	 */
-	sbi->n_orphans = 0;
 	sbi->max_orphans = (sbi->blocks_per_seg - F2FS_CP_PACKS -
 			NR_CURSEG_TYPE) * F2FS_ORPHANS_PER_BLOCK;
 }

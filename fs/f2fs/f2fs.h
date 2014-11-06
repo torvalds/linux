@@ -532,9 +532,9 @@ struct f2fs_sb_info {
 	struct radix_tree_root ino_root[MAX_INO_ENTRY];	/* ino entry array */
 	spinlock_t ino_lock[MAX_INO_ENTRY];		/* for ino entry lock */
 	struct list_head ino_list[MAX_INO_ENTRY];	/* inode list head */
+	unsigned long ino_num[MAX_INO_ENTRY];		/* number of entries */
 
 	/* for orphan inode, use 0'th array */
-	unsigned int n_orphans;			/* # of orphan inodes */
 	unsigned int max_orphans;		/* max orphan inodes */
 
 	/* for directory inode management */
