@@ -3833,6 +3833,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 	tp->netdev = netdev;
 	tp->intf = intf;
 
+	r8152b_get_version(tp);
 	ret = rtl_ops_init(tp, id);
 	if (ret)
 		goto out;
@@ -3866,11 +3867,9 @@ static int rtl8152_probe(struct usb_interface *intf,
 	tp->mii.phy_id_mask = 0x3f;
 	tp->mii.reg_num_mask = 0x1f;
 	tp->mii.phy_id = R8152_PHY_ID;
-	tp->mii.supports_gmii = 0;
 
 	intf->needs_remote_wakeup = 1;
 
-	r8152b_get_version(tp);
 	tp->rtl_ops.init(tp);
 	set_ethernet_addr(tp);
 
