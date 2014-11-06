@@ -461,11 +461,7 @@ enum rtl8152_flags {
 
 /* Define these values to match your device */
 #define VENDOR_ID_REALTEK		0x0bda
-#define PRODUCT_ID_RTL8152		0x8152
-#define PRODUCT_ID_RTL8153		0x8153
-
 #define VENDOR_ID_SAMSUNG		0x04e8
-#define PRODUCT_ID_SAMSUNG		0xa101
 
 #define MCU_TYPE_PLA			0x0100
 #define MCU_TYPE_USB			0x0000
@@ -3898,9 +3894,9 @@ static void rtl8152_disconnect(struct usb_interface *intf)
 
 /* table of devices that work with this driver */
 static struct usb_device_id rtl8152_table[] = {
-	{USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8152)},
-	{USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8153)},
-	{USB_DEVICE(VENDOR_ID_SAMSUNG, PRODUCT_ID_SAMSUNG)},
+	{USB_DEVICE(VENDOR_ID_REALTEK, 0x8152)},
+	{USB_DEVICE(VENDOR_ID_REALTEK, 0x8153)},
+	{USB_DEVICE(VENDOR_ID_SAMSUNG, 0xa101)},
 	{}
 };
 
