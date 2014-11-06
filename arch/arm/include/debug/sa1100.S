@@ -1,4 +1,4 @@
-/* arch/arm/mach-sa1100/include/mach/debug-macro.S
+/* arch/arm/include/debug/sa1100.S
  *
  * Debugging macro include header
  *
@@ -10,7 +10,13 @@
  * published by the Free Software Foundation.
  *
 */
-#include <mach/hardware.h>
+
+#define UTCR3		0x0c
+#define UTDR		0x14
+#define UTSR1		0x20
+#define UTCR3_TXE	0x00000002	/* Transmit Enable                 */
+#define UTSR1_TBY	0x00000001	/* Transmitter BusY (read)         */
+#define UTSR1_TNF	0x00000004	/* Transmit FIFO Not Full (read)   */
 
 		.macro	addruart, rp, rv, tmp
 		mrc	p15, 0, \rp, c1, c0

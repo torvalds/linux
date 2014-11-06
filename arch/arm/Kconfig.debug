@@ -734,6 +734,14 @@ choice
 		  their output to UART 2. The port must have been initialised
 		  by the boot-loader before use.
 
+	config DEBUG_SA1100
+		depends on ARCH_SA1100
+		bool "Use SA1100 UARTs for low-level debug"
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on SA-11x0 UART ports. The kernel will check for the first
+		  enabled UART in a sequence 3-1-2.
+
 	config DEBUG_SOCFPGA_UART
 		depends on ARCH_SOCFPGA
 		bool "Use SOCFPGA UART for low-level debug"
@@ -1052,6 +1060,7 @@ config DEBUG_STI_UART
 
 config DEBUG_LL_INCLUDE
 	string
+	default "debug/sa1100.S" if DEBUG_SA1100
 	default "debug/8250.S" if DEBUG_LL_UART_8250 || DEBUG_UART_8250
 	default "debug/clps711x.S" if DEBUG_CLPS711X_UART1 || DEBUG_CLPS711X_UART2
 	default "debug/meson.S" if DEBUG_MESON_UARTAO
