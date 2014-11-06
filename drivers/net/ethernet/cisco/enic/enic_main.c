@@ -940,18 +940,8 @@ static int enic_rq_alloc_buf(struct vnic_rq *rq)
 	struct vnic_rq_buf *buf = rq->to_use;
 
 	if (buf->os_buf) {
-		buf = buf->next;
-		rq->to_use = buf;
-		rq->ring.desc_avail--;
-		if ((buf->index & VNIC_RQ_RETURN_RATE) == 0) {
-			/* Adding write memory barrier prevents compiler and/or
-			 * CPU reordering, thus avoiding descriptor posting
-			 * before descriptor is initialized. Otherwise, hardware
-			 * can read stale descriptor fields.
-			 */
-			wmb();
-			iowrite32(buf->index, &rq->ctrl->posted_index);
-		}
+		enic_queue_rq_desc(rq, buf->os_buf, os_buf_index, buf->dma_addr,
+				   buf->len);
 
 		return 0;
 	}
