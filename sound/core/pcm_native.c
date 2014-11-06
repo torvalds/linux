@@ -1052,10 +1052,10 @@ static void snd_pcm_post_stop(struct snd_pcm_substream *substream, int state)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	if (runtime->status->state != state) {
 		snd_pcm_trigger_tstamp(substream);
+		runtime->status->state = state;
 		if (substream->timer)
 			snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MSTOP,
 					 &runtime->trigger_tstamp);
-		runtime->status->state = state;
 	}
 	wake_up(&runtime->sleep);
 	wake_up(&runtime->tsleep);
@@ -1204,11 +1204,11 @@ static void snd_pcm_post_suspend(struct snd_pcm_substream *substream, int state)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
+	runtime->status->suspended_state = runtime->status->state;
+	runtime->status->state = SNDRV_PCM_STATE_SUSPENDED;
 	if (substream->timer)
 		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MSUSPEND,
 				 &runtime->trigger_tstamp);
-	runtime->status->suspended_state = runtime->status->state;
-	runtime->status->state = SNDRV_PCM_STATE_SUSPENDED;
 	wake_up(&runtime->sleep);
 	wake_up(&runtime->tsleep);
 }
@@ -1311,10 +1311,10 @@ static void snd_pcm_post_resume(struct snd_pcm_substream *substream, int state)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
+	runtime->status->state = runtime->status->suspended_state;
 	if (substream->timer)
 		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MRESUME,
 				 &runtime->trigger_tstamp);
-	runtime->status->state = runtime->status->suspended_state;
 }
 
 static struct action_ops snd_pcm_action_resume = {
