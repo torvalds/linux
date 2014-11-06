@@ -9,41 +9,11 @@
  * published by the Free Software Foundation.
  */
 
-#include "omap3-igep.dtsi"
+#include "omap3-igep0030-common.dtsi"
 
 / {
 	model = "IGEP COM MODULE Rev. E (TI OMAP AM/DM37x)";
 	compatible = "isee,omap3-igep0030", "ti,omap36xx", "ti,omap3";
-
-	leds {
-		pinctrl-names = "default";
-		pinctrl-0 = <&leds_pins>;
-		compatible = "gpio-leds";
-
-		boot {
-			 label = "omap3:green:boot";
-			 gpios = <&twl_gpio 13 GPIO_ACTIVE_LOW>;
-			 default-state = "on";
-		};
-
-		user0 {
-			 label = "omap3:red:user0";
-			 gpios = <&twl_gpio 18 GPIO_ACTIVE_LOW>; /* LEDA */
-			 default-state = "off";
-		};
-
-		user1 {
-			 label = "omap3:green:user1";
-			 gpios = <&twl_gpio 19 GPIO_ACTIVE_LOW>; /* LEDB */
-			 default-state = "off";
-		};
-
-		user2 {
-			 label = "omap3:red:user1";
-			 gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
-			 default-state = "off";
-		};
-	};
 
 	/* Regulator to trigger the WIFI_PDN signal of the Wifi module */
 	lbee1usjyc_pdn: lbee1usjyc_pdn {
@@ -75,22 +45,16 @@
 			OMAP3_CORE1_IOPAD(0x216a, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat7.gpio_139 - RST_N_B */
 		>;
 	};
-
-	uart2_pins: pinmux_uart2_pins {
-		pinctrl-single,pins = <
-			OMAP3_CORE1_IOPAD(0x216c, PIN_INPUT | MUX_MODE1)	/* mcbsp3_dx.uart2_cts */
-			OMAP3_CORE1_IOPAD(0x216e, PIN_OUTPUT | MUX_MODE1)	/* mcbsp3_dr.uart2_rts */
-			OMAP3_CORE1_IOPAD(0x2170, PIN_OUTPUT | MUX_MODE1)	/* mcbsp3_clk.uart2_tx */
-			OMAP3_CORE1_IOPAD(0x2172, PIN_INPUT | MUX_MODE1)	/* mcbsp3_fsx.uart2_rx */
-		>;
-	};
 };
 
-&omap3_pmx_core2 {
-	leds_pins: pinmux_leds_pins {
-		pinctrl-single,pins = <
-			OMAP3630_CORE2_IOPAD(0x25e0, PIN_OUTPUT | MUX_MODE4) /* etk_d2.gpio_16 */
-		>;
+&leds {
+	pinctrl-names = "default";
+	pinctrl-0 = <&leds_core2_pins>;
+
+	boot {
+		label = "omap3:green:boot";
+		gpios = <&twl_gpio 13 GPIO_ACTIVE_LOW>;	/* LEDSYNC */
+		default-state = "on";
 	};
 };
 
@@ -104,7 +68,3 @@
 	non-removable;
 };
 
-&uart2 {
-       pinctrl-names = "default";
-       pinctrl-0 = <&uart2_pins>;
-};
