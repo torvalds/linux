@@ -78,13 +78,16 @@ static int perdev_minors = CONFIG_MMC_BLOCK_MINORS;
 
 /*
  * We've only got one major, so number of mmcblk devices is
- * limited to 256 / number of minors per device.
+ * limited to (1 << 20) / number of minors per device.  It is also
+ * currently limited by the size of the static bitmaps below.
  */
 static int max_devices;
 
-/* 256 minors, so at most 256 separate devices */
-static DECLARE_BITMAP(dev_use, 256);
-static DECLARE_BITMAP(name_use, 256);
+#define MAX_DEVICES 256
+
+/* TODO: Replace these with struct ida */
+static DECLARE_BITMAP(dev_use, MAX_DEVICES);
+static DECLARE_BITMAP(name_use, MAX_DEVICES);
 
 /*
  * There is one mmc_blk_data per slot.
@@ -2555,7 +2558,7 @@ static int __init mmc_blk_init(void)
 	if (perdev_minors != CONFIG_MMC_BLOCK_MINORS)
 		pr_info("mmcblk: using %d minors per device\n", perdev_minors);
 
-	max_devices = 256 / perdev_minors;
+	max_devices = min(MAX_DEVICES, (1 << MINORBITS) / perdev_minors);
 
 	res = register_blkdev(MMC_BLOCK_MAJOR, "mmc");
 	if (res)
