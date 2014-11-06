@@ -582,18 +582,17 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_ep		*ep;
 	struct f_hidg		*hidg = func_to_hidg(f);
+	struct usb_string	*us;
 	struct device		*device;
 	int			status;
 	dev_t			dev;
 
 	/* maybe allocate device-global string IDs, and patch descriptors */
-	if (ct_func_string_defs[CT_FUNC_HID_IDX].id == 0) {
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ct_func_string_defs[CT_FUNC_HID_IDX].id = status;
-		hidg_interface_desc.iInterface = status;
-	}
+	us = usb_gstrings_attach(c->cdev, ct_func_strings,
+				 ARRAY_SIZE(ct_func_string_defs));
+	if (IS_ERR(us))
+		return PTR_ERR(us);
+	hidg_interface_desc.iInterface = us[CT_FUNC_HID_IDX].id;
 
 	/* allocate instance-specific interface IDs, and patch descriptors */
 	status = usb_interface_id(c, f);
@@ -806,7 +805,6 @@ struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 	}
 
 	hidg->func.name    = "hid";
-	hidg->func.strings = ct_func_strings;
 	hidg->func.bind    = hidg_bind;
 	hidg->func.unbind  = hidg_unbind;
 	hidg->func.set_alt = hidg_set_alt;
