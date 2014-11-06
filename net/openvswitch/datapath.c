@@ -136,8 +136,10 @@ EXPORT_SYMBOL_GPL(lockdep_ovsl_is_held);
 
 static struct vport *new_vport(const struct vport_parms *);
 static int queue_gso_packets(struct datapath *dp, struct sk_buff *,
+			     const struct sw_flow_key *,
 			     const struct dp_upcall_info *);
 static int queue_userspace_packet(struct datapath *dp, struct sk_buff *,
+				  const struct sw_flow_key *,
 				  const struct dp_upcall_info *);
 
 /* Must be called with rcu_read_lock. */
@@ -271,11 +273,10 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 		int error;
 
 		upcall.cmd = OVS_PACKET_CMD_MISS;
-		upcall.key = key;
 		upcall.userdata = NULL;
 		upcall.portid = ovs_vport_find_upcall_portid(p, skb);
 		upcall.egress_tun_info = NULL;
-		error = ovs_dp_upcall(dp, skb, &upcall);
+		error = ovs_dp_upcall(dp, skb, key, &upcall);
 		if (unlikely(error))
 			kfree_skb(skb);
 		else
@@ -299,6 +300,7 @@ out:
 }
 
 int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
+		  const struct sw_flow_key *key,
 		  const struct dp_upcall_info *upcall_info)
 {
 	struct dp_stats_percpu *stats;
@@ -310,9 +312,9 @@ int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 	}
 
 	if (!skb_is_gso(skb))
-		err = queue_userspace_packet(dp, skb, upcall_info);
+		err = queue_userspace_packet(dp, skb, key, upcall_info);
 	else
-		err = queue_gso_packets(dp, skb, upcall_info);
+		err = queue_gso_packets(dp, skb, key, upcall_info);
 	if (err)
 		goto err;
 
@@ -329,39 +331,43 @@ err:
 }
 
 static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
+			     const struct sw_flow_key *key,
 			     const struct dp_upcall_info *upcall_info)
 {
 	unsigned short gso_type = skb_shinfo(skb)->gso_type;
-	struct dp_upcall_info later_info;
 	struct sw_flow_key later_key;
 	struct sk_buff *segs, *nskb;
+	struct ovs_skb_cb ovs_cb;
 	int err;
 
+	ovs_cb = *OVS_CB(skb);
 	segs = __skb_gso_segment(skb, NETIF_F_SG, false);
+	*OVS_CB(skb) = ovs_cb;
 	if (IS_ERR(segs))
 		return PTR_ERR(segs);
 	if (segs == NULL)
 		return -EINVAL;
 
+	if (gso_type & SKB_GSO_UDP) {
+		/* The initial flow key extracted by ovs_flow_key_extract()
+		 * in this case is for a first fragment, so we need to
+		 * properly mark later fragments.
+		 */
+		later_key = *key;
+		later_key.ip.frag = OVS_FRAG_TYPE_LATER;
+	}
+
 	/* Queue all of the segments. */
 	skb = segs;
 	do {
-		err = queue_userspace_packet(dp, skb, upcall_info);
+		*OVS_CB(skb) = ovs_cb;
+		if (gso_type & SKB_GSO_UDP && skb != segs)
+			key = &later_key;
+
+		err = queue_userspace_packet(dp, skb, key, upcall_info);
 		if (err)
 			break;
 
-		if (skb == segs && gso_type & SKB_GSO_UDP) {
-			/* The initial flow key extracted by ovs_flow_extract()
-			 * in this case is for a first fragment, so we need to
-			 * properly mark later fragments.
-			 */
-			later_key = *upcall_info->key;
-			later_key.ip.frag = OVS_FRAG_TYPE_LATER;
-
-			later_info = *upcall_info;
-			later_info.key = &later_key;
-			upcall_info = &later_info;
-		}
 	} while ((skb = skb->next));
 
 	/* Free all of the segments. */
@@ -395,6 +401,7 @@ static size_t upcall_msg_size(const struct dp_upcall_info *upcall_info,
 }
 
 static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
+				  const struct sw_flow_key *key,
 				  const struct dp_upcall_info *upcall_info)
 {
 	struct ovs_header *upcall;
@@ -457,7 +464,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	upcall->dp_ifindex = dp_ifindex;
 
 	nla = nla_nest_start(user_skb, OVS_PACKET_ATTR_KEY);
-	err = ovs_nla_put_flow(upcall_info->key, upcall_info->key, user_skb);
+	err = ovs_nla_put_flow(key, key, user_skb);
 	BUG_ON(err);
 	nla_nest_end(user_skb, nla);
 

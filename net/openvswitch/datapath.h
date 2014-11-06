@@ -108,20 +108,18 @@ struct ovs_skb_cb {
 /**
  * struct dp_upcall - metadata to include with a packet to send to userspace
  * @cmd: One of %OVS_PACKET_CMD_*.
- * @key: Becomes %OVS_PACKET_ATTR_KEY.  Must be nonnull.
  * @userdata: If nonnull, its variable-length value is passed to userspace as
  * %OVS_PACKET_ATTR_USERDATA.
- * @pid: Netlink PID to which packet should be sent.  If @pid is 0 then no
- * packet is sent and the packet is accounted in the datapath's @n_lost
+ * @portid: Netlink portid to which packet should be sent.  If @portid is 0
+ * then no packet is sent and the packet is accounted in the datapath's @n_lost
  * counter.
  * @egress_tun_info: If nonnull, becomes %OVS_PACKET_ATTR_EGRESS_TUN_KEY.
  */
 struct dp_upcall_info {
-	u8 cmd;
-	const struct sw_flow_key *key;
+	const struct ovs_tunnel_info *egress_tun_info;
 	const struct nlattr *userdata;
 	u32 portid;
-	const struct ovs_tunnel_info *egress_tun_info;
+	u8 cmd;
 };
 
 /**
@@ -187,7 +185,7 @@ extern struct genl_family dp_vport_genl_family;
 void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key);
 void ovs_dp_detach_port(struct vport *);
 int ovs_dp_upcall(struct datapath *, struct sk_buff *,
-		  const struct dp_upcall_info *);
+		  const struct sw_flow_key *, const struct dp_upcall_info *);
 
 const char *ovs_dp_name(const struct datapath *dp);
 struct sk_buff *ovs_vport_cmd_build_info(struct vport *, u32 pid, u32 seq,
