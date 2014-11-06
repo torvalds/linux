@@ -138,7 +138,7 @@
 	i2c0: i2c@e6820000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,rmobile-iic";
+		compatible = "renesas,iic-sh73a0", "renesas,rmobile-iic";
 		reg = <0xe6820000 0x425>;
 		interrupts = <0 167 IRQ_TYPE_LEVEL_HIGH
 			      0 168 IRQ_TYPE_LEVEL_HIGH
@@ -150,7 +150,7 @@
 	i2c1: i2c@e6822000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,rmobile-iic";
+		compatible = "renesas,iic-sh73a0", "renesas,rmobile-iic";
 		reg = <0xe6822000 0x425>;
 		interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH
 			      0 52 IRQ_TYPE_LEVEL_HIGH
@@ -162,7 +162,7 @@
 	i2c2: i2c@e6824000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,rmobile-iic";
+		compatible = "renesas,iic-sh73a0", "renesas,rmobile-iic";
 		reg = <0xe6824000 0x425>;
 		interrupts = <0 171 IRQ_TYPE_LEVEL_HIGH
 			      0 172 IRQ_TYPE_LEVEL_HIGH
@@ -174,7 +174,7 @@
 	i2c3: i2c@e6826000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,rmobile-iic";
+		compatible = "renesas,iic-sh73a0", "renesas,rmobile-iic";
 		reg = <0xe6826000 0x425>;
 		interrupts = <0 183 IRQ_TYPE_LEVEL_HIGH
 			      0 184 IRQ_TYPE_LEVEL_HIGH
@@ -186,7 +186,7 @@
 	i2c4: i2c@e6828000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,rmobile-iic";
+		compatible = "renesas,iic-sh73a0", "renesas,rmobile-iic";
 		reg = <0xe6828000 0x425>;
 		interrupts = <0 187 IRQ_TYPE_LEVEL_HIGH
 			      0 188 IRQ_TYPE_LEVEL_HIGH
