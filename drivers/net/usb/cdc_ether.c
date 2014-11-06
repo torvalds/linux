@@ -71,18 +71,19 @@ static void usbnet_cdc_update_filter(struct usbnet *dev)
 {
 	struct cdc_state	*info = (void *) &dev->data;
 	struct usb_interface	*intf = info->control;
+	struct net_device	*net = dev->net;
 
-	u16 cdc_filter =
-	    USB_CDC_PACKET_TYPE_ALL_MULTICAST | USB_CDC_PACKET_TYPE_DIRECTED |
-	    USB_CDC_PACKET_TYPE_BROADCAST;
+	u16 cdc_filter = USB_CDC_PACKET_TYPE_DIRECTED
+			| USB_CDC_PACKET_TYPE_BROADCAST;
 
-	if (dev->net->flags & IFF_PROMISC)
-		cdc_filter |= USB_CDC_PACKET_TYPE_PROMISCUOUS;
-
-	/* FIXME cdc-ether has some multicast code too, though it complains
-	 * in routine cases.  info->ether describes the multicast support.
-	 * Implement that here, manipulating the cdc filter as needed.
+	/* filtering on the device is an optional feature and not worth
+	 * the hassle so we just roughly care about snooping and if any
+	 * multicast is requested, we take every multicast
 	 */
+	if (net->flags & IFF_PROMISC)
+		cdc_filter |= USB_CDC_PACKET_TYPE_PROMISCUOUS;
+	if (!netdev_mc_empty(net) || (net->flags & IFF_ALLMULTI))
+		cdc_filter |= USB_CDC_PACKET_TYPE_ALL_MULTICAST;
 
 	usb_control_msg(dev->udev,
 			usb_sndctrlpipe(dev->udev, 0),
