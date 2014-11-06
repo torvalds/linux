@@ -55,6 +55,11 @@ config GENERIC_IRQ_CHIP
 config IRQ_DOMAIN
 	bool
 
+# Support for hierarchical irq domains
+config IRQ_DOMAIN_HIERARCHY
+	bool
+	select IRQ_DOMAIN
+
 config HANDLE_DOMAIN_IRQ
 	bool
 

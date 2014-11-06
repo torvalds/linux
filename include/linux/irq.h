@@ -133,6 +133,8 @@ struct irq_domain;
  * @chip:		low level interrupt hardware access
  * @domain:		Interrupt translation domain; responsible for mapping
  *			between hwirq number and linux irq number.
+ * @parent_data:	pointer to parent struct irq_data to support hierarchy
+ *			irq_domain
  * @handler_data:	per-IRQ data for the irq_chip methods
  * @chip_data:		platform-specific per-chip private data for the chip
  *			methods, to allow shared chip implementations
@@ -151,6 +153,9 @@ struct irq_data {
 	unsigned int		state_use_accessors;
 	struct irq_chip		*chip;
 	struct irq_domain	*domain;
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+	struct irq_data		*parent_data;
+#endif
 	void			*handler_data;
 	void			*chip_data;
 	struct msi_desc		*msi_desc;
