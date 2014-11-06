@@ -262,20 +262,26 @@ xfs_bulkstat_grab_ichunk(
 
 #define XFS_BULKSTAT_UBLEFT(ubleft)	((ubleft) >= statstruct_size)
 
+struct xfs_bulkstat_agichunk {
+	char		__user **ac_ubuffer;/* pointer into user's buffer */
+	int		ac_ubleft;	/* bytes left in user's buffer */
+	int		ac_ubelem;	/* spaces used in user's buffer */
+};
+
 /*
  * Process inodes in chunk with a pointer to a formatter function
  * that will iget the inode and fill in the appropriate structure.
  */
-int
+static int
 xfs_bulkstat_ag_ichunk(
 	struct xfs_mount		*mp,
 	xfs_agnumber_t			agno,
 	struct xfs_inobt_rec_incore	*irbp,
 	bulkstat_one_pf			formatter,
 	size_t				statstruct_size,
-	struct xfs_bulkstat_agichunk	*acp)
+	struct xfs_bulkstat_agichunk	*acp,
+	xfs_ino_t			*lastino)
 {
-	xfs_ino_t			lastino = acp->ac_lastino;
 	char				__user **ubufp = acp->ac_ubuffer;
 	int				ubleft = acp->ac_ubleft;
 	int				ubelem = acp->ac_ubelem;
@@ -295,7 +301,7 @@ xfs_bulkstat_ag_ichunk(
 
 		/* Skip if this inode is free */
 		if (XFS_INOBT_MASK(chunkidx) & irbp->ir_free) {
-			lastino = ino;
+			*lastino = ino;
 			continue;
 		}
 
@@ -313,7 +319,7 @@ xfs_bulkstat_ag_ichunk(
 				ubleft = 0;
 				break;
 			}
-			lastino = ino;
+			*lastino = ino;
 			continue;
 		}
 		if (fmterror == BULKSTAT_RV_GIVEUP) {
@@ -325,10 +331,9 @@ xfs_bulkstat_ag_ichunk(
 			*ubufp += ubused;
 		ubleft -= ubused;
 		ubelem++;
-		lastino = ino;
+		*lastino = ino;
 	}
 
-	acp->ac_lastino = lastino;
 	acp->ac_ubleft = ubleft;
 	acp->ac_ubelem = ubelem;
 
@@ -355,7 +360,6 @@ xfs_bulkstat(
 	xfs_btree_cur_t		*cur;	/* btree cursor for ialloc btree */
 	int			end_of_ag; /* set if we've seen the ag end */
 	int			error;	/* error code */
-	int                     fmterror;/* bulkstat formatter result */
 	int			icount;	/* count of inodes good in irbuf */
 	size_t			irbsize; /* size of irec buffer in bytes */
 	xfs_ino_t		ino;	/* inode number (filesystem) */
@@ -366,10 +370,8 @@ xfs_bulkstat(
 	int			nirbuf;	/* size of irbuf */
 	int			rval;	/* return value error code */
 	int			ubcount; /* size of user's buffer */
-	int			ubleft;	/* bytes left in user's buffer */
-	char			__user *ubufp;	/* pointer into user's buffer */
-	int			ubelem;	/* spaces used in user's buffer */
 	int			stat;
+	struct xfs_bulkstat_agichunk ac;
 
 	/*
 	 * Get the last inode value, see if there's nothing to do.
@@ -386,11 +388,13 @@ xfs_bulkstat(
 	}
 
 	ubcount = *ubcountp; /* statstruct's */
-	ubleft = ubcount * statstruct_size; /* bytes */
-	*ubcountp = ubelem = 0;
+	ac.ac_ubuffer = &ubuffer;
+	ac.ac_ubleft = ubcount * statstruct_size; /* bytes */;
+	ac.ac_ubelem = 0;
+
+	*ubcountp = 0;
 	*done = 0;
-	fmterror = 0;
-	ubufp = ubuffer;
+
 	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4);
 	if (!irbuf)
 		return -ENOMEM;
@@ -402,7 +406,7 @@ xfs_bulkstat(
 	 * inode returned; 0 means start of the allocation group.
 	 */
 	rval = 0;
-	while (XFS_BULKSTAT_UBLEFT(ubleft) && agno < mp->m_sb.sb_agcount) {
+	while (XFS_BULKSTAT_UBLEFT(ac.ac_ubleft) && agno < mp->m_sb.sb_agcount) {
 		cond_resched();
 		error = xfs_ialloc_read_agi(mp, NULL, agno, &agbp);
 		if (error)
@@ -497,28 +501,21 @@ del_cursor:
 		 */
 		irbufend = irbp;
 		for (irbp = irbuf;
-		     irbp < irbufend && XFS_BULKSTAT_UBLEFT(ubleft); irbp++) {
-			struct xfs_bulkstat_agichunk ac;
-
-			ac.ac_lastino = lastino;
-			ac.ac_ubuffer = &ubuffer;
-			ac.ac_ubleft = ubleft;
-			ac.ac_ubelem = ubelem;
+		     irbp < irbufend && XFS_BULKSTAT_UBLEFT(ac.ac_ubleft);
+		     irbp++) {
 			error = xfs_bulkstat_ag_ichunk(mp, agno, irbp,
-					formatter, statstruct_size, &ac);
+					formatter, statstruct_size, &ac,
+					&lastino);
 			if (error)
 				rval = error;
 
-			lastino = ac.ac_lastino;
-			ubleft = ac.ac_ubleft;
-			ubelem = ac.ac_ubelem;
-
 			cond_resched();
 		}
+
 		/*
 		 * Set up for the next loop iteration.
 		 */
-		if (XFS_BULKSTAT_UBLEFT(ubleft)) {
+		if (XFS_BULKSTAT_UBLEFT(ac.ac_ubleft)) {
 			if (end_of_ag) {
 				agno++;
 				agino = 0;
@@ -531,11 +528,11 @@ del_cursor:
 	 * Done, we're either out of filesystem or space to put the data.
 	 */
 	kmem_free(irbuf);
-	*ubcountp = ubelem;
+	*ubcountp = ac.ac_ubelem;
 	/*
 	 * Found some inodes, return them now and return the error next time.
 	 */
-	if (ubelem)
+	if (ac.ac_ubelem)
 		rval = 0;
 	if (agno >= mp->m_sb.sb_agcount) {
 		/*
