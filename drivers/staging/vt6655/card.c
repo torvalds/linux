@@ -225,20 +225,20 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 			pDevice->abyBBVGA[3] = 0x10;
 			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
 			if (byData == 0x1C)
-				BBbWriteEmbedded(pDevice->PortOffset, 0xE7, pDevice->abyBBVGA[0]);
+				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
 
 		} else if (pDevice->byRFType == RF_UW2452) {
 			MACvSetBBType(pDevice->PortOffset, BB_TYPE_11A);
 			pDevice->abyBBVGA[0] = 0x18;
 			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
 			if (byData == 0x14) {
-				BBbWriteEmbedded(pDevice->PortOffset, 0xE7, pDevice->abyBBVGA[0]);
-				BBbWriteEmbedded(pDevice->PortOffset, 0xE1, 0x57);
+				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
+				BBbWriteEmbedded(pDevice, 0xE1, 0x57);
 			}
 		} else {
 			MACvSetBBType(pDevice->PortOffset, BB_TYPE_11A);
 		}
-		BBbWriteEmbedded(pDevice->PortOffset, 0x88, 0x03);
+		BBbWriteEmbedded(pDevice, 0x88, 0x03);
 		bySlot = C_SLOT_SHORT;
 		bySIFS = C_SIFS_A;
 		byDIFS = C_SIFS_A + 2*C_SLOT_SHORT;
@@ -251,17 +251,17 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 			pDevice->abyBBVGA[3] = 0x00;
 			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
 			if (byData == 0x20)
-				BBbWriteEmbedded(pDevice->PortOffset, 0xE7, pDevice->abyBBVGA[0]);
+				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
 
 		} else if (pDevice->byRFType == RF_UW2452) {
 			pDevice->abyBBVGA[0] = 0x14;
 			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
 			if (byData == 0x18) {
-				BBbWriteEmbedded(pDevice->PortOffset, 0xE7, pDevice->abyBBVGA[0]);
-				BBbWriteEmbedded(pDevice->PortOffset, 0xE1, 0xD3);
+				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
+				BBbWriteEmbedded(pDevice, 0xE1, 0xD3);
 			}
 		}
-		BBbWriteEmbedded(pDevice->PortOffset, 0x88, 0x02);
+		BBbWriteEmbedded(pDevice, 0x88, 0x02);
 		bySlot = C_SLOT_LONG;
 		bySIFS = C_SIFS_BG;
 		byDIFS = C_SIFS_BG + 2*C_SLOT_LONG;
@@ -274,17 +274,17 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 			pDevice->abyBBVGA[3] = 0x00;
 			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
 			if (byData == 0x20)
-				BBbWriteEmbedded(pDevice->PortOffset, 0xE7, pDevice->abyBBVGA[0]);
+				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
 
 		} else if (pDevice->byRFType == RF_UW2452) {
 			pDevice->abyBBVGA[0] = 0x14;
 			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
 			if (byData == 0x18) {
-				BBbWriteEmbedded(pDevice->PortOffset, 0xE7, pDevice->abyBBVGA[0]);
-				BBbWriteEmbedded(pDevice->PortOffset, 0xE1, 0xD3);
+				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
+				BBbWriteEmbedded(pDevice, 0xE1, 0xD3);
 			}
 		}
-		BBbWriteEmbedded(pDevice->PortOffset, 0x88, 0x08);
+		BBbWriteEmbedded(pDevice, 0x88, 0x08);
 		bySIFS = C_SIFS_BG;
 
 		if (pDevice->bShortSlotTime) {
