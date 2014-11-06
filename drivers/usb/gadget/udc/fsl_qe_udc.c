@@ -1917,7 +1917,7 @@ static int reset_queues(struct qe_udc *udc)
 
 	/* report disconnect; the driver is already quiesced */
 	spin_unlock(&udc->lock);
-	udc->driver->disconnect(&udc->gadget);
+	usb_gadget_udc_reset(&udc->gadget, udc->driver);
 	spin_lock(&udc->lock);
 
 	return 0;
