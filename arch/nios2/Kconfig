@@ -1,0 +1,201 @@
+config NIOS2
+	def_bool y
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select CLKSRC_OF
+	select GENERIC_ATOMIC64
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CPU_DEVICES
+	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
+	select HAVE_ARCH_TRACEHOOK
+	select IRQ_DOMAIN
+	select MODULES_USE_ELF_RELA
+	select OF
+	select OF_EARLY_FLATTREE
+	select SOC_BUS
+	select SPARSE_IRQ
+	select USB_ARCH_HAS_HCD if USB_SUPPORT
+
+config GENERIC_CSUM
+	def_bool y
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config NO_IOPORT_MAP
+	def_bool y
+
+config HAS_DMA
+	def_bool y
+
+config FPU
+	def_bool n
+
+config SWAP
+	def_bool n
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool n
+
+source "init/Kconfig"
+
+menu "Kernel features"
+
+source "kernel/Kconfig.preempt"
+
+source "kernel/Kconfig.freezer"
+
+source "kernel/Kconfig.hz"
+
+source "mm/Kconfig"
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	range 9 20
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+endmenu
+
+source "arch/nios2/platform/Kconfig.platform"
+
+menu "Processor type and features"
+
+config MMU
+	def_bool y
+
+config NIOS2_ALIGNMENT_TRAP
+	bool "Catch alignment trap"
+	default y
+	help
+	  Nios II CPUs cannot fetch/store data which is not bus aligned,
+	  i.e., a 2 or 4 byte fetch must start at an address divisible by
+	  2 or 4. Any non-aligned load/store instructions will be trapped and
+	  emulated in software if you say Y here, which has a performance
+	  impact.
+
+comment "Boot options"
+
+config CMDLINE_BOOL
+	bool "Default bootloader kernel arguments"
+	default y
+
+config CMDLINE
+	string "Default kernel command string"
+	default ""
+	depends on CMDLINE_BOOL
+	help
+	  On some platforms, there is currently no way for the boot loader to
+	  pass arguments to the kernel. For these platforms, you can supply
+	  some command-line options at build time by entering them here.  In
+	  other cases you can specify kernel args so that you don't have
+	  to set them up in board prom initialization routines.
+
+config CMDLINE_FORCE
+	bool "Force default kernel command string"
+	depends on CMDLINE_BOOL
+	help
+	  Set this to have arguments from the default kernel command string
+	  override those passed by the boot loader.
+
+config NIOS2_CMDLINE_IGNORE_DTB
+	bool "Ignore kernel command string from DTB"
+	depends on !CMDLINE_FORCE
+	default y
+	help
+	  Set this to ignore the bootargs property from the devicetree's
+	  chosen node and fall back to CMDLINE if nothing is passed.
+
+config NIOS2_PASS_CMDLINE
+	bool "Passed kernel command line from u-boot"
+	default n
+	help
+	  Use bootargs env variable from u-boot for kernel command line.
+	  will override "Default kernel command string".
+	  Say N if you are unsure.
+
+endmenu
+
+menu "Advanced setup"
+
+config ADVANCED_OPTIONS
+	bool "Prompt for advanced kernel configuration options"
+	help
+
+comment "Default settings for advanced configuration options are used"
+	depends on !ADVANCED_OPTIONS
+
+config NIOS2_KERNEL_MMU_REGION_BASE_BOOL
+	bool "Set custom kernel MMU region base address"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option allows you to set the virtual address of the kernel MMU region.
+
+	  Say N here unless you know what you are doing.
+
+config NIOS2_KERNEL_MMU_REGION_BASE
+	hex "Virtual base address of the kernel MMU region " if NIOS2_KERNEL_MMU_REGION_BASE_BOOL
+	default "0x80000000"
+	help
+	  This option allows you to set the virtual base address of the kernel MMU region.
+
+config NIOS2_KERNEL_REGION_BASE_BOOL
+	bool "Set custom kernel region base address"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option allows you to set the virtual address of the kernel region.
+
+	  Say N here unless you know what you are doing.
+
+config NIOS2_KERNEL_REGION_BASE
+	hex "Virtual base address of the kernel region " if NIOS2_KERNEL_REGION_BASE_BOOL
+	default "0xc0000000"
+
+config NIOS2_IO_REGION_BASE_BOOL
+	bool "Set custom I/O region base address"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option allows you to set the virtual address of the I/O region.
+
+	  Say N here unless you know what you are doing.
+
+config NIOS2_IO_REGION_BASE
+	hex "Virtual base address of the I/O region" if NIOS2_IO_REGION_BASE_BOOL
+	default "0xe0000000"
+
+endmenu
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/nios2/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"
