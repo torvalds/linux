@@ -583,13 +583,10 @@ void PIE_FUNC(pwm_regulator_suspend)(void)
 	}
 
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM2)) {
-		FUNC(sram_printch)('p');
-		FUNC(sram_printch)('o');
-		FUNC(sram_printch)('l');
-	rkpm_pwm_duty2 = readl_relaxed(RK_PWM_VIRT + 0x28);
-	writel_relaxed(PWM_VOLTAGE, RK_PWM_VIRT + 0x28);
+		rkpm_pwm_duty2 = readl_relaxed(RK_PWM_VIRT + 0x28);
+		writel_relaxed(PWM_VOLTAGE, RK_PWM_VIRT + 0x28);
 	}
-	rkpm_udelay(30);
+	//rkpm_udelay(30);
 }
 
 void PIE_FUNC(pwm_regulator_resume)(void)
