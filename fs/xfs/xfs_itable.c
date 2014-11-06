@@ -236,8 +236,10 @@ xfs_bulkstat_grab_ichunk(
 	XFS_WANT_CORRUPTED_RETURN(stat == 1);
 
 	/* Check if the record contains the inode in request */
-	if (irec->ir_startino + XFS_INODES_PER_CHUNK <= agino)
-		return -EINVAL;
+	if (irec->ir_startino + XFS_INODES_PER_CHUNK <= agino) {
+		*icount = 0;
+		return 0;
+	}
 
 	idx = agino - irec->ir_startino + 1;
 	if (idx < XFS_INODES_PER_CHUNK &&
@@ -352,7 +354,6 @@ xfs_bulkstat(
 	xfs_inobt_rec_incore_t	*irbuf;	/* start of irec buffer */
 	xfs_ino_t		lastino; /* last inode number returned */
 	int			nirbuf;	/* size of irbuf */
-	int			rval;	/* return value error code */
 	int			ubcount; /* size of user's buffer */
 	struct xfs_bulkstat_agichunk ac;
 	int			error = 0;
@@ -388,7 +389,6 @@ xfs_bulkstat(
 	 * Loop over the allocation groups, starting from the last
 	 * inode returned; 0 means start of the allocation group.
 	 */
-	rval = 0;
 	while (agno < mp->m_sb.sb_agcount) {
 		struct xfs_inobt_rec_incore	*irbp = irbuf;
 		struct xfs_inobt_rec_incore	*irbufend = irbuf + nirbuf;
@@ -491,13 +491,16 @@ del_cursor:
 					formatter, statstruct_size, &ac,
 					&lastino);
 			if (error)
-				rval = error;
+				break;
 
 			cond_resched();
 		}
 
-		/* If we've run out of space, we are done */
-		if (ac.ac_ubleft < statstruct_size)
+		/*
+		 * If we've run out of space or had a formatting error, we
+		 * are now done
+		 */
+		if (ac.ac_ubleft < statstruct_size || error)
 			break;
 
 		if (end_of_ag) {
@@ -511,11 +514,17 @@ del_cursor:
 	 */
 	kmem_free(irbuf);
 	*ubcountp = ac.ac_ubelem;
+
 	/*
-	 * Found some inodes, return them now and return the error next time.
+	 * We found some inodes, so clear the error status and return them.
+	 * The lastino pointer will point directly at the inode that triggered
+	 * any error that occurred, so on the next call the error will be
+	 * triggered again and propagated to userspace as there will be no
+	 * formatted inodes in the buffer.
 	 */
 	if (ac.ac_ubelem)
-		rval = 0;
+		error = 0;
+
 	if (agno >= mp->m_sb.sb_agcount) {
 		/*
 		 * If we ran out of filesystem, mark lastino as off
@@ -527,7 +536,7 @@ del_cursor:
 	} else
 		*lastinop = (xfs_ino_t)lastino;
 
-	return rval;
+	return error;
 }
 
 int
