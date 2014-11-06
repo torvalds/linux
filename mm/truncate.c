@@ -715,8 +715,9 @@ EXPORT_SYMBOL(truncate_pagecache);
  * necessary) to @newsize. It will be typically be called from the filesystem's
  * setattr function when ATTR_SIZE is passed in.
  *
- * Must be called with inode_mutex held and before all filesystem specific
- * block truncation has been performed.
+ * Must be called with a lock serializing truncates and writes (generally
+ * i_mutex but e.g. xfs uses a different lock) and before all filesystem
+ * specific block truncation has been performed.
  */
 void truncate_setsize(struct inode *inode, loff_t newsize)
 {
