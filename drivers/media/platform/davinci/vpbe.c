@@ -625,6 +625,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 		}
 		if (clk_prepare_enable(vpbe_dev->dac_clk)) {
 			ret =  -ENODEV;
+			clk_put(vpbe_dev->dac_clk);
 			goto fail_mutex_unlock;
 		}
 	}
