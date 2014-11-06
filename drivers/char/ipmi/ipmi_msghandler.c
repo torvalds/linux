@@ -56,6 +56,8 @@ static int ipmi_init_msghandler(void);
 static void smi_recv_tasklet(unsigned long);
 static void handle_new_recv_msgs(ipmi_smi_t intf);
 static void need_waiter(ipmi_smi_t intf);
+static int handle_one_recv_msg(ipmi_smi_t          intf,
+			       struct ipmi_smi_msg *msg);
 
 static int initialized;
 
@@ -324,6 +326,9 @@ struct ipmi_smi {
 
 	struct kref refcount;
 
+	/* Set when the interface is being unregistered. */
+	bool in_shutdown;
+
 	/* Used for a list of interfaces. */
 	struct list_head link;
 
@@ -381,6 +386,11 @@ struct ipmi_smi {
 	struct list_head waiting_rcv_msgs;
 	atomic_t	 watchdog_pretimeouts_to_deliver;
 	struct tasklet_struct recv_tasklet;
+
+	spinlock_t             xmit_msgs_lock;
+	struct list_head       xmit_msgs;
+	struct ipmi_smi_msg    *curr_msg;
+	struct list_head       hp_xmit_msgs;
 
 	/*
 	 * The list of command receivers that are registered for commands
@@ -1488,7 +1498,25 @@ static inline void format_lan_msg(struct ipmi_smi_msg   *smi_msg,
 static void smi_send(ipmi_smi_t intf, struct ipmi_smi_handlers *handlers,
 		     struct ipmi_smi_msg *smi_msg, int priority)
 {
-	handlers->sender(intf->send_info, smi_msg, 0);
+	int run_to_completion = intf->run_to_completion;
+	unsigned long flags;
+
+	if (!run_to_completion)
+		spin_lock_irqsave(&intf->xmit_msgs_lock, flags);
+	if (intf->curr_msg) {
+		if (priority > 0)
+			list_add_tail(&smi_msg->link, &intf->hp_xmit_msgs);
+		else
+			list_add_tail(&smi_msg->link, &intf->xmit_msgs);
+		smi_msg = NULL;
+	} else {
+		intf->curr_msg = smi_msg;
+	}
+	if (!run_to_completion)
+		spin_unlock_irqrestore(&intf->xmit_msgs_lock, flags);
+
+	if (smi_msg)
+		handlers->sender(intf->send_info, smi_msg, 0);
 }
 
 /*
@@ -1515,7 +1543,6 @@ static int i_ipmi_request(ipmi_user_t          user,
 	struct ipmi_smi_msg      *smi_msg;
 	struct ipmi_recv_msg     *recv_msg;
 	unsigned long            flags;
-	struct ipmi_smi_handlers *handlers;
 
 
 	if (supplied_recv)
@@ -1538,8 +1565,7 @@ static int i_ipmi_request(ipmi_user_t          user,
 	}
 
 	rcu_read_lock();
-	handlers = intf->handlers;
-	if (!handlers) {
+	if (intf->in_shutdown) {
 		rv = -ENODEV;
 		goto out_err;
 	}
@@ -1874,7 +1900,7 @@ static int i_ipmi_request(ipmi_user_t          user,
 	}
 #endif
 
-	smi_send(intf, handlers, smi_msg, priority);
+	smi_send(intf, intf->handlers, smi_msg, priority);
 	rcu_read_unlock();
 
 	return 0;
@@ -2810,6 +2836,9 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		     smi_recv_tasklet,
 		     (unsigned long) intf);
 	atomic_set(&intf->watchdog_pretimeouts_to_deliver, 0);
+	spin_lock_init(&intf->xmit_msgs_lock);
+	INIT_LIST_HEAD(&intf->xmit_msgs);
+	INIT_LIST_HEAD(&intf->hp_xmit_msgs);
 	spin_lock_init(&intf->events_lock);
 	atomic_set(&intf->event_waiters, 0);
 	intf->ticks_to_req_ev = IPMI_REQUEST_EV_TIME;
@@ -2909,12 +2938,50 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 }
 EXPORT_SYMBOL(ipmi_register_smi);
 
+static void deliver_smi_err_response(ipmi_smi_t intf,
+				     struct ipmi_smi_msg *msg,
+				     unsigned char err)
+{
+	msg->rsp[0] = msg->data[0] | 4;
+	msg->rsp[1] = msg->data[1];
+	msg->rsp[2] = err;
+	msg->rsp_size = 3;
+	/* It's an error, so it will never requeue, no need to check return. */
+	handle_one_recv_msg(intf, msg);
+}
+
 static void cleanup_smi_msgs(ipmi_smi_t intf)
 {
 	int              i;
 	struct seq_table *ent;
+	struct ipmi_smi_msg *msg;
+	struct list_head *entry;
+	struct list_head tmplist;
+
+	/* Clear out our transmit queues and hold the messages. */
+	INIT_LIST_HEAD(&tmplist);
+	list_splice_tail(&intf->hp_xmit_msgs, &tmplist);
+	list_splice_tail(&intf->xmit_msgs, &tmplist);
+
+	/* Current message first, to preserve order */
+	while (intf->curr_msg && !list_empty(&intf->waiting_rcv_msgs)) {
+		/* Wait for the message to clear out. */
+		schedule_timeout(1);
+	}
 
 	/* No need for locks, the interface is down. */
+
+	/*
+	 * Return errors for all pending messages in queue and in the
+	 * tables waiting for remote responses.
+	 */
+	while (!list_empty(&tmplist)) {
+		entry = tmplist.next;
+		list_del(entry);
+		msg = list_entry(entry, struct ipmi_smi_msg, link);
+		deliver_smi_err_response(intf, msg, IPMI_ERR_UNSPECIFIED);
+	}
+
 	for (i = 0; i < IPMI_IPMB_NUM_SEQ; i++) {
 		ent = &(intf->seq_table[i]);
 		if (!ent->inuse)
@@ -2926,19 +2993,32 @@ static void cleanup_smi_msgs(ipmi_smi_t intf)
 int ipmi_unregister_smi(ipmi_smi_t intf)
 {
 	struct ipmi_smi_watcher *w;
-	int    intf_num = intf->intf_num;
+	int intf_num = intf->intf_num;
+	ipmi_user_t user;
 
 	ipmi_bmc_unregister(intf);
 
 	mutex_lock(&smi_watchers_mutex);
 	mutex_lock(&ipmi_interfaces_mutex);
 	intf->intf_num = -1;
-	intf->handlers = NULL;
+	intf->in_shutdown = true;
 	list_del_rcu(&intf->link);
 	mutex_unlock(&ipmi_interfaces_mutex);
 	synchronize_rcu();
 
 	cleanup_smi_msgs(intf);
+
+	/* Clean up the effects of users on the lower-level software. */
+	mutex_lock(&ipmi_interfaces_mutex);
+	rcu_read_lock();
+	list_for_each_entry_rcu(user, &intf->users, link) {
+		module_put(intf->handlers->owner);
+		if (intf->handlers->dec_usecount)
+			intf->handlers->dec_usecount(intf->send_info);
+	}
+	rcu_read_unlock();
+	intf->handlers = NULL;
+	mutex_unlock(&ipmi_interfaces_mutex);
 
 	remove_proc_entries(intf);
 
@@ -3029,7 +3109,6 @@ static int handle_ipmb_get_msg_cmd(ipmi_smi_t          intf,
 	ipmi_user_t              user = NULL;
 	struct ipmi_ipmb_addr    *ipmb_addr;
 	struct ipmi_recv_msg     *recv_msg;
-	struct ipmi_smi_handlers *handlers;
 
 	if (msg->rsp_size < 10) {
 		/* Message not big enough, just ignore it. */
@@ -3083,9 +3162,8 @@ static int handle_ipmb_get_msg_cmd(ipmi_smi_t          intf,
 	}
 #endif
 		rcu_read_lock();
-		handlers = intf->handlers;
-		if (handlers) {
-			smi_send(intf, handlers, msg, 0);
+		if (!intf->in_shutdown) {
+			smi_send(intf, intf->handlers, msg, 0);
 			/*
 			 * We used the message, so return the value
 			 * that causes it to not be freed or
@@ -3756,25 +3834,24 @@ static void handle_new_recv_msgs(ipmi_smi_t intf)
 	while (!list_empty(&intf->waiting_rcv_msgs)) {
 		smi_msg = list_entry(intf->waiting_rcv_msgs.next,
 				     struct ipmi_smi_msg, link);
-		list_del(&smi_msg->link);
 		if (!run_to_completion)
 			spin_unlock_irqrestore(&intf->waiting_rcv_msgs_lock,
 					       flags);
 		rv = handle_one_recv_msg(intf, smi_msg);
 		if (!run_to_completion)
 			spin_lock_irqsave(&intf->waiting_rcv_msgs_lock, flags);
-		if (rv == 0) {
-			/* Message handled */
-			ipmi_free_smi_msg(smi_msg);
-		} else if (rv < 0) {
-			/* Fatal error on the message, del but don't free. */
-		} else {
+		if (rv > 0) {
 			/*
 			 * To preserve message order, quit if we
 			 * can't handle a message.
 			 */
-			list_add(&smi_msg->link, &intf->waiting_rcv_msgs);
 			break;
+		} else {
+			list_del(&smi_msg->link);
+			if (rv == 0)
+				/* Message handled */
+				ipmi_free_smi_msg(smi_msg);
+			/* If rv < 0, fatal error, del but don't free. */
 		}
 	}
 	if (!run_to_completion)
@@ -3799,7 +3876,41 @@ static void handle_new_recv_msgs(ipmi_smi_t intf)
 
 static void smi_recv_tasklet(unsigned long val)
 {
-	handle_new_recv_msgs((ipmi_smi_t) val);
+	unsigned long flags = 0; /* keep us warning-free. */
+	ipmi_smi_t intf = (ipmi_smi_t) val;
+	int run_to_completion = intf->run_to_completion;
+	struct ipmi_smi_msg *newmsg = NULL;
+
+	/*
+	 * Start the next message if available.
+	 *
+	 * Do this here, not in the actual receiver, because we may deadlock
+	 * because the lower layer is allowed to hold locks while calling
+	 * message delivery.
+	 */
+	if (!run_to_completion)
+		spin_lock_irqsave(&intf->xmit_msgs_lock, flags);
+	if (intf->curr_msg == NULL && !intf->in_shutdown) {
+		struct list_head *entry = NULL;
+
+		/* Pick the high priority queue first. */
+		if (!list_empty(&intf->hp_xmit_msgs))
+			entry = intf->hp_xmit_msgs.next;
+		else if (!list_empty(&intf->xmit_msgs))
+			entry = intf->xmit_msgs.next;
+
+		if (entry) {
+			list_del(entry);
+			newmsg = list_entry(entry, struct ipmi_smi_msg, link);
+			intf->curr_msg = newmsg;
+		}
+	}
+	if (!run_to_completion)
+		spin_unlock_irqrestore(&intf->xmit_msgs_lock, flags);
+	if (newmsg)
+		intf->handlers->sender(intf->send_info, newmsg, 0);
+
+	handle_new_recv_msgs(intf);
 }
 
 /* Handle a new message from the lower layer. */
@@ -3807,13 +3918,16 @@ void ipmi_smi_msg_received(ipmi_smi_t          intf,
 			   struct ipmi_smi_msg *msg)
 {
 	unsigned long flags = 0; /* keep us warning-free. */
-	int           run_to_completion;
-
+	int run_to_completion = intf->run_to_completion;
 
 	if ((msg->data_size >= 2)
 	    && (msg->data[0] == (IPMI_NETFN_APP_REQUEST << 2))
 	    && (msg->data[1] == IPMI_SEND_MSG_CMD)
 	    && (msg->user_data == NULL)) {
+
+		if (intf->in_shutdown)
+			goto free_msg;
+
 		/*
 		 * This is the local response to a command send, start
 		 * the timer for these.  The user_data will not be
@@ -3849,29 +3963,40 @@ void ipmi_smi_msg_received(ipmi_smi_t          intf,
 			/* The message was sent, start the timer. */
 			intf_start_seq_timer(intf, msg->msgid);
 
+free_msg:
 		ipmi_free_smi_msg(msg);
-		goto out;
+	} else {
+		/*
+		 * To preserve message order, we keep a queue and deliver from
+		 * a tasklet.
+		 */
+		if (!run_to_completion)
+			spin_lock_irqsave(&intf->waiting_rcv_msgs_lock, flags);
+		list_add_tail(&msg->link, &intf->waiting_rcv_msgs);
+		if (!run_to_completion)
+			spin_unlock_irqrestore(&intf->waiting_rcv_msgs_lock,
+					       flags);
 	}
 
-	/*
-	 * To preserve message order, if the list is not empty, we
-	 * tack this message onto the end of the list.
-	 */
-	run_to_completion = intf->run_to_completion;
 	if (!run_to_completion)
-		spin_lock_irqsave(&intf->waiting_rcv_msgs_lock, flags);
-	list_add_tail(&msg->link, &intf->waiting_rcv_msgs);
+		spin_lock_irqsave(&intf->xmit_msgs_lock, flags);
+	if (msg == intf->curr_msg)
+		intf->curr_msg = NULL;
 	if (!run_to_completion)
-		spin_unlock_irqrestore(&intf->waiting_rcv_msgs_lock, flags);
+		spin_unlock_irqrestore(&intf->xmit_msgs_lock, flags);
 
-	tasklet_schedule(&intf->recv_tasklet);
- out:
-	return;
+	if (run_to_completion)
+		smi_recv_tasklet((unsigned long) intf);
+	else
+		tasklet_schedule(&intf->recv_tasklet);
 }
 EXPORT_SYMBOL(ipmi_smi_msg_received);
 
 void ipmi_smi_watchdog_pretimeout(ipmi_smi_t intf)
 {
+	if (intf->in_shutdown)
+		return;
+
 	atomic_set(&intf->watchdog_pretimeouts_to_deliver, 1);
 	tasklet_schedule(&intf->recv_tasklet);
 }
@@ -3913,7 +4038,7 @@ static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
 	struct ipmi_recv_msg     *msg;
 	struct ipmi_smi_handlers *handlers;
 
-	if (intf->intf_num == -1)
+	if (intf->in_shutdown)
 		return;
 
 	if (!ent->inuse)
@@ -4040,15 +4165,12 @@ static unsigned int ipmi_timeout_handler(ipmi_smi_t intf, long timeout_period)
 
 static void ipmi_request_event(ipmi_smi_t intf)
 {
-	struct ipmi_smi_handlers *handlers;
-
 	/* No event requests when in maintenance mode. */
 	if (intf->maintenance_mode_enable)
 		return;
 
-	handlers = intf->handlers;
-	if (handlers)
-		handlers->request_events(intf->send_info);
+	if (!intf->in_shutdown)
+		intf->handlers->request_events(intf->send_info);
 }
 
 static struct timer_list ipmi_timer;
