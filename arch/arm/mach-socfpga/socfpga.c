@@ -37,6 +37,7 @@
 #include "dma.h"
 #include "l2_cache.h"
 #include "ocram.h"
+#include "dwmac-socfpga.h"
 
 void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
 void __iomem *sys_manager_base_addr;
@@ -191,38 +192,9 @@ static int ksz9021rlrn_phy_fixup(struct phy_device *phydev)
 	return 0;
 }
 
-#define EMAC_SPLITTER_CTRL_REG			0x0
-#define EMAC_SPLITTER_CTRL_SPEED_MASK		0x3
-#define EMAC_SPLITTER_CTRL_SPEED_10		0x2
-#define EMAC_SPLITTER_CTRL_SPEED_100		0x3
-#define EMAC_SPLITTER_CTRL_SPEED_1000		0x0
-
 static void stmmac_fix_mac_speed(void *priv, unsigned int speed)
 {
-	void __iomem *base = (void __iomem *)priv;
-	u32 val;
-
-	if (!base)
-		return;
-
-	val = readl(base + EMAC_SPLITTER_CTRL_REG);
-	val &= ~EMAC_SPLITTER_CTRL_SPEED_MASK;
-
-	switch (speed) {
-	case 1000:
-		val |= EMAC_SPLITTER_CTRL_SPEED_1000;
-		break;
-	case 100:
-		val |= EMAC_SPLITTER_CTRL_SPEED_100;
-		break;
-	case 10:
-		val |= EMAC_SPLITTER_CTRL_SPEED_10;
-		break;
-	default:
-		return;
-	}
-
-	writel(val, base + EMAC_SPLITTER_CTRL_REG);
+	adapter_config(priv, speed);
 }
 
 static int stmmac_plat_init(struct platform_device *pdev)
@@ -230,9 +202,7 @@ static int stmmac_plat_init(struct platform_device *pdev)
 	u32 ctrl, val, shift;
 	u32 rstmask;
 	int phymode;
-	struct device_node *np_splitter;
-	struct resource res_splitter;
-	struct plat_stmmacenet_data *plat;
+	int ret;
 
 	if (of_machine_is_compatible("altr,socfpga-vt"))
 		return 0;
@@ -246,6 +216,7 @@ static int stmmac_plat_init(struct platform_device *pdev)
 		break;
 	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_GMII:
+	case PHY_INTERFACE_MODE_SGMII:
 		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
 		break;
 	default:
@@ -253,31 +224,10 @@ static int stmmac_plat_init(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	np_splitter = of_parse_phandle(pdev->dev.of_node,
-			"altr,emac-splitter", 0);
-	if (np_splitter) {
-		plat = dev_get_platdata(&pdev->dev);
-
-		if (of_address_to_resource(np_splitter, 0, &res_splitter)) {
-			pr_err("%s: ERROR: missing emac splitter address\n",
-				   __func__);
-			return -EINVAL;
-		}
-
-		plat->bsp_priv = (void *)devm_ioremap_resource(&pdev->dev,
-			&res_splitter);
-
-		if (!plat->bsp_priv) {
-			pr_err("%s: ERROR: failed to mapping emac splitter\n",
-				   __func__);
-			return -EINVAL;
-		}
-
-		/* Overwrite val to GMII if splitter core is enabled. The
-		 * phymode here is the actual phy mode on phy hardware,
-		 * but phy interface from EMAC core is GMII.
-		 */
-		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
+	ret = adapter_init(pdev, phymode, &val);
+	if (ret != 0) {
+		pr_err("adapter init fail\n");
+		return ret;
 	}
 
 	if (&stmmacenet1_data == pdev->dev.platform_data) {
