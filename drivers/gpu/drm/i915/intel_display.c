@@ -9417,73 +9417,24 @@ static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
 
 	if (atomic_update)
 		intel_pipe_update_end(intel_crtc, start_vbl_count);
-
-	spin_lock_irq(&dev_priv->mmio_flip_lock);
-	intel_crtc->mmio_flip.status = INTEL_MMIO_FLIP_IDLE;
-	spin_unlock_irq(&dev_priv->mmio_flip_lock);
 }
 
 static void intel_mmio_flip_work_func(struct work_struct *work)
 {
 	struct intel_crtc *intel_crtc =
 		container_of(work, struct intel_crtc, mmio_flip.work);
+	struct intel_engine_cs *ring;
+	uint32_t seqno;
+
+	seqno = intel_crtc->mmio_flip.seqno;
+	ring = intel_crtc->mmio_flip.ring;
+
+	if (seqno)
+		WARN_ON(__i915_wait_seqno(ring, seqno,
+					  intel_crtc->reset_counter,
+					  false, NULL, NULL) != 0);
 
 	intel_do_mmio_flip(intel_crtc);
-}
-
-static int intel_postpone_flip(struct drm_i915_gem_object *obj)
-{
-	struct intel_engine_cs *ring;
-	int ret;
-
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-
-	if (!obj->last_write_seqno)
-		return 0;
-
-	ring = obj->ring;
-
-	if (i915_seqno_passed(ring->get_seqno(ring, true),
-			      obj->last_write_seqno))
-		return 0;
-
-	ret = i915_gem_check_olr(ring, obj->last_write_seqno);
-	if (ret)
-		return ret;
-
-	if (WARN_ON(!ring->irq_get(ring)))
-		return 0;
-
-	return 1;
-}
-
-void intel_notify_mmio_flip(struct intel_engine_cs *ring)
-{
-	struct drm_i915_private *dev_priv = to_i915(ring->dev);
-	struct intel_crtc *intel_crtc;
-	unsigned long irq_flags;
-	u32 seqno;
-
-	seqno = ring->get_seqno(ring, false);
-
-	spin_lock_irqsave(&dev_priv->mmio_flip_lock, irq_flags);
-	for_each_intel_crtc(ring->dev, intel_crtc) {
-		struct intel_mmio_flip *mmio_flip;
-
-		mmio_flip = &intel_crtc->mmio_flip;
-		if (mmio_flip->status != INTEL_MMIO_FLIP_WAIT_RING)
-			continue;
-
-		if (ring->id != mmio_flip->ring_id)
-			continue;
-
-		if (i915_seqno_passed(seqno, mmio_flip->seqno)) {
-			schedule_work(&intel_crtc->mmio_flip.work);
-			mmio_flip->status = INTEL_MMIO_FLIP_WORK_SCHEDULED;
-			ring->irq_put(ring);
-		}
-	}
-	spin_unlock_irqrestore(&dev_priv->mmio_flip_lock, irq_flags);
 }
 
 static int intel_queue_mmio_flip(struct drm_device *dev,
@@ -9493,32 +9444,13 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 				 struct intel_engine_cs *ring,
 				 uint32_t flags)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int ret;
 
-	if (WARN_ON(intel_crtc->mmio_flip.status != INTEL_MMIO_FLIP_IDLE))
-		return -EBUSY;
-
-	ret = intel_postpone_flip(obj);
-	if (ret < 0)
-		return ret;
-	if (ret == 0) {
-		intel_do_mmio_flip(intel_crtc);
-		return 0;
-	}
-
-	spin_lock_irq(&dev_priv->mmio_flip_lock);
-	intel_crtc->mmio_flip.status = INTEL_MMIO_FLIP_WAIT_RING;
 	intel_crtc->mmio_flip.seqno = obj->last_write_seqno;
-	intel_crtc->mmio_flip.ring_id = obj->ring->id;
-	spin_unlock_irq(&dev_priv->mmio_flip_lock);
+	intel_crtc->mmio_flip.ring = obj->ring;
 
-	/*
-	 * Double check to catch cases where irq fired before
-	 * mmio flip data was ready
-	 */
-	intel_notify_mmio_flip(obj->ring);
+	schedule_work(&intel_crtc->mmio_flip.work);
+
 	return 0;
 }
 

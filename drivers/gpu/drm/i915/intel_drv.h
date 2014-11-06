@@ -399,16 +399,9 @@ struct intel_pipe_wm {
 	bool sprites_scaled;
 };
 
-enum intel_mmio_flip_status {
-	INTEL_MMIO_FLIP_IDLE = 0,
-	INTEL_MMIO_FLIP_WAIT_RING,
-	INTEL_MMIO_FLIP_WORK_SCHEDULED,
-};
-
 struct intel_mmio_flip {
 	u32 seqno;
-	u32 ring_id;
-	enum intel_mmio_flip_status status;
+	struct intel_engine_cs *ring;
 	struct work_struct work;
 };
 

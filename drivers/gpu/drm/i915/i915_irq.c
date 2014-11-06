@@ -979,9 +979,6 @@ static void notify_ring(struct drm_device *dev,
 
 	trace_i915_gem_request_complete(ring);
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		intel_notify_mmio_flip(ring);
-
 	wake_up_all(&ring->irq_queue);
 	i915_queue_hangcheck(dev);
 }
