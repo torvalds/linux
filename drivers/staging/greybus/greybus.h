@@ -191,7 +191,6 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *hd,
 void greybus_remove_hd(struct greybus_host_device *hd);
 void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
-void greybus_gbuf_finished(struct gbuf *gbuf);
 
 struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
 				gbuf_complete_t complete, unsigned int size,

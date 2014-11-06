@@ -128,13 +128,6 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 }
 EXPORT_SYMBOL_GPL(greybus_cport_in);
 
-/* Can be called in interrupt context, do the work and get out of here */
-void greybus_gbuf_finished(struct gbuf *gbuf)
-{
-	gbuf->complete(gbuf);
-}
-EXPORT_SYMBOL_GPL(greybus_gbuf_finished);
-
 int gb_gbuf_init(void)
 {
 	gbuf_head_cache = kmem_cache_create("gbuf_head_cache",

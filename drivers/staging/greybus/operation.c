@@ -207,6 +207,7 @@ out:
 static void gb_operation_recv_work(struct work_struct *recv_work)
 {
 	struct gb_operation *operation;
+	struct gbuf *gbuf;
 	bool incoming_request;
 
 	operation = container_of(recv_work, struct gb_operation, recv_work);
@@ -217,9 +218,10 @@ static void gb_operation_recv_work(struct work_struct *recv_work)
 
 	/* We're finished with the buffer we read into */
 	if (incoming_request)
-		greybus_gbuf_finished(operation->request);
+		gbuf = operation->request;
 	else
-		greybus_gbuf_finished(operation->response);
+		gbuf = operation->response;
+	gbuf->complete(gbuf);
 }
 
 /*
