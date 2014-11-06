@@ -44,9 +44,38 @@
 			 default-state = "off";
 		};
 	};
+
+	/* Regulator to trigger the WIFI_PDN signal of the Wifi module */
+	lbee1usjyc_pdn: lbee1usjyc_pdn {
+		compatible = "regulator-fixed";
+		regulator-name = "regulator-lbee1usjyc-pdn";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 10 GPIO_ACTIVE_HIGH>;	/* gpio_138 - WIFI_PDN */
+		startup-delay-us = <10000>;
+		enable-active-high;
+	};
+
+	/* Regulator to trigger the RESET_N_W signal of the Wifi module */
+	lbee1usjyc_reset_n_w: lbee1usjyc_reset_n_w {
+		compatible = "regulator-fixed";
+		regulator-name = "regulator-lbee1usjyc-reset-n-w";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 11 GPIO_ACTIVE_HIGH>;	/* gpio_139 - RESET_N_W */
+		enable-active-high;
+	};
 };
 
 &omap3_pmx_core {
+	lbee1usjyc_pins: pinmux_lbee1usjyc_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2166, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat5.gpio_137 - RESET_N_W */
+			OMAP3_CORE1_IOPAD(0x2168, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat6.gpio_138 - WIFI_PDN */
+			OMAP3_CORE1_IOPAD(0x216a, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat7.gpio_139 - RST_N_B */
+		>;
+	};
+
 	uart2_pins: pinmux_uart2_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x216c, PIN_INPUT | MUX_MODE1)	/* mcbsp3_dx.uart2_cts */
@@ -63,6 +92,16 @@
 			OMAP3630_CORE2_IOPAD(0x25e0, PIN_OUTPUT | MUX_MODE4) /* etk_d2.gpio_16 */
 		>;
 	};
+};
+
+/* On board Wifi module */
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins &lbee1usjyc_pins>;
+	vmmc-supply = <&lbee1usjyc_pdn>;
+	vmmc_aux-supply = <&lbee1usjyc_reset_n_w>;
+	bus-width = <4>;
+	non-removable;
 };
 
 &uart2 {
