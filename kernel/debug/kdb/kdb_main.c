@@ -188,6 +188,26 @@ struct task_struct *kdb_curr_task(int cpu)
 }
 
 /*
+ * Check whether the flags of the current command and the permissions
+ * of the kdb console has allow a command to be run.
+ */
+static inline bool kdb_check_flags(kdb_cmdflags_t flags, int permissions,
+				   bool no_args)
+{
+	/* permissions comes from userspace so needs massaging slightly */
+	permissions &= KDB_ENABLE_MASK;
+	permissions |= KDB_ENABLE_ALWAYS_SAFE;
+
+	/* some commands change group when launched with no arguments */
+	if (no_args)
+		permissions |= permissions << KDB_ENABLE_NO_ARGS_SHIFT;
+
+	flags |= KDB_ENABLE_ALL;
+
+	return permissions & flags;
+}
+
+/*
  * kdbgetenv - This function will return the character string value of
  *	an environment variable.
  * Parameters:
@@ -641,8 +661,13 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
 		if (!s->count)
 			s->usable = 0;
 		if (s->usable)
-			kdb_register(s->name, kdb_exec_defcmd,
-				     s->usage, s->help, 0);
+			/* macros are always safe because when executed each
+			 * internal command re-enters kdb_parse() and is
+			 * safety checked individually.
+			 */
+			kdb_register_flags(s->name, kdb_exec_defcmd, s->usage,
+					   s->help, 0,
+					   KDB_ENABLE_ALWAYS_SAFE);
 		return 0;
 	}
 	if (!s->usable)
@@ -2757,78 +2782,107 @@ static void __init kdb_inittab(void)
 
 	kdb_register_flags("md", kdb_md, "<vaddr>",
 	  "Display Memory Contents, also mdWcN, e.g. md8c1", 1,
-			    KDB_REPEAT_NO_ARGS);
+	  KDB_ENABLE_MEM_READ | KDB_REPEAT_NO_ARGS);
 	kdb_register_flags("mdr", kdb_md, "<vaddr> <bytes>",
-	  "Display Raw Memory", 0, KDB_REPEAT_NO_ARGS);
+	  "Display Raw Memory", 0,
+	  KDB_ENABLE_MEM_READ | KDB_REPEAT_NO_ARGS);
 	kdb_register_flags("mdp", kdb_md, "<paddr> <bytes>",
-	  "Display Physical Memory", 0, KDB_REPEAT_NO_ARGS);
+	  "Display Physical Memory", 0,
+	  KDB_ENABLE_MEM_READ | KDB_REPEAT_NO_ARGS);
 	kdb_register_flags("mds", kdb_md, "<vaddr>",
-	  "Display Memory Symbolically", 0, KDB_REPEAT_NO_ARGS);
+	  "Display Memory Symbolically", 0,
+	  KDB_ENABLE_MEM_READ | KDB_REPEAT_NO_ARGS);
 	kdb_register_flags("mm", kdb_mm, "<vaddr> <contents>",
-	  "Modify Memory Contents", 0, KDB_REPEAT_NO_ARGS);
+	  "Modify Memory Contents", 0,
+	  KDB_ENABLE_MEM_WRITE | KDB_REPEAT_NO_ARGS);
 	kdb_register_flags("go", kdb_go, "[<vaddr>]",
-	  "Continue Execution", 1, 0);
+	  "Continue Execution", 1,
+	  KDB_ENABLE_REG_WRITE | KDB_ENABLE_ALWAYS_SAFE_NO_ARGS);
 	kdb_register_flags("rd", kdb_rd, "",
-	  "Display Registers", 0, 0);
+	  "Display Registers", 0,
+	  KDB_ENABLE_REG_READ);
 	kdb_register_flags("rm", kdb_rm, "<reg> <contents>",
-	  "Modify Registers", 0, 0);
+	  "Modify Registers", 0,
+	  KDB_ENABLE_REG_WRITE);
 	kdb_register_flags("ef", kdb_ef, "<vaddr>",
-	  "Display exception frame", 0, 0);
+	  "Display exception frame", 0,
+	  KDB_ENABLE_MEM_READ);
 	kdb_register_flags("bt", kdb_bt, "[<vaddr>]",
-	  "Stack traceback", 1, 0);
+	  "Stack traceback", 1,
+	  KDB_ENABLE_MEM_READ | KDB_ENABLE_INSPECT_NO_ARGS);
 	kdb_register_flags("btp", kdb_bt, "<pid>",
-	  "Display stack for process <pid>", 0, 0);
+	  "Display stack for process <pid>", 0,
+	  KDB_ENABLE_INSPECT);
 	kdb_register_flags("bta", kdb_bt, "[D|R|S|T|C|Z|E|U|I|M|A]",
-	  "Backtrace all processes matching state flag", 0, 0);
+	  "Backtrace all processes matching state flag", 0,
+	  KDB_ENABLE_INSPECT);
 	kdb_register_flags("btc", kdb_bt, "",
-	  "Backtrace current process on each cpu", 0, 0);
+	  "Backtrace current process on each cpu", 0,
+	  KDB_ENABLE_INSPECT);
 	kdb_register_flags("btt", kdb_bt, "<vaddr>",
 	  "Backtrace process given its struct task address", 0,
-			    0);
+	  KDB_ENABLE_MEM_READ | KDB_ENABLE_INSPECT_NO_ARGS);
 	kdb_register_flags("env", kdb_env, "",
-	  "Show environment variables", 0, 0);
+	  "Show environment variables", 0,
+	  KDB_ENABLE_ALWAYS_SAFE);
 	kdb_register_flags("set", kdb_set, "",
-	  "Set environment variables", 0, 0);
+	  "Set environment variables", 0,
+	  KDB_ENABLE_ALWAYS_SAFE);
 	kdb_register_flags("help", kdb_help, "",
-	  "Display Help Message", 1, 0);
+	  "Display Help Message", 1,
+	  KDB_ENABLE_ALWAYS_SAFE);
 	kdb_register_flags("?", kdb_help, "",
-	  "Display Help Message", 0, 0);
+	  "Display Help Message", 0,
+	  KDB_ENABLE_ALWAYS_SAFE);
 	kdb_register_flags("cpu", kdb_cpu, "<cpunum>",
-	  "Switch to new cpu", 0, 0);
+	  "Switch to new cpu", 0,
+	  KDB_ENABLE_ALWAYS_SAFE_NO_ARGS);
 	kdb_register_flags("kgdb", kdb_kgdb, "",
 	  "Enter kgdb mode", 0, 0);
 	kdb_register_flags("ps", kdb_ps, "[<flags>|A]",
-	  "Display active task list", 0, 0);
+	  "Display active task list", 0,
+	  KDB_ENABLE_INSPECT);
 	kdb_register_flags("pid", kdb_pid, "<pidnum>",
-	  "Switch to another task", 0, 0);
+	  "Switch to another task", 0,
+	  KDB_ENABLE_INSPECT);
 	kdb_register_flags("reboot", kdb_reboot, "",
-	  "Reboot the machine immediately", 0, 0);
+	  "Reboot the machine immediately", 0,
+	  KDB_ENABLE_REBOOT);
 #if defined(CONFIG_MODULES)
 	kdb_register_flags("lsmod", kdb_lsmod, "",
-	  "List loaded kernel modules", 0, 0);
+	  "List loaded kernel modules", 0,
+	  KDB_ENABLE_INSPECT);
 #endif
 #if defined(CONFIG_MAGIC_SYSRQ)
 	kdb_register_flags("sr", kdb_sr, "<key>",
-	  "Magic SysRq key", 0, 0);
+	  "Magic SysRq key", 0,
+	  KDB_ENABLE_ALWAYS_SAFE);
 #endif
 #if defined(CONFIG_PRINTK)
 	kdb_register_flags("dmesg", kdb_dmesg, "[lines]",
-	  "Display syslog buffer", 0, 0);
+	  "Display syslog buffer", 0,
+	  KDB_ENABLE_ALWAYS_SAFE);
 #endif
 	if (arch_kgdb_ops.enable_nmi) {
 		kdb_register_flags("disable_nmi", kdb_disable_nmi, "",
-		  "Disable NMI entry to KDB", 0, 0);
+		  "Disable NMI entry to KDB", 0,
+		  KDB_ENABLE_ALWAYS_SAFE);
 	}
 	kdb_register_flags("defcmd", kdb_defcmd, "name \"usage\" \"help\"",
-	  "Define a set of commands, down to endefcmd", 0, 0);
+	  "Define a set of commands, down to endefcmd", 0,
+	  KDB_ENABLE_ALWAYS_SAFE);
 	kdb_register_flags("kill", kdb_kill, "<-signal> <pid>",
-	  "Send a signal to a process", 0, 0);
+	  "Send a signal to a process", 0,
+	  KDB_ENABLE_SIGNAL);
 	kdb_register_flags("summary", kdb_summary, "",
-	  "Summarize the system", 4, 0);
+	  "Summarize the system", 4,
+	  KDB_ENABLE_ALWAYS_SAFE);
 	kdb_register_flags("per_cpu", kdb_per_cpu, "<sym> [<bytes>] [<cpu>]",
-	  "Display per_cpu variables", 3, 0);
+	  "Display per_cpu variables", 3,
+	  KDB_ENABLE_MEM_READ);
 	kdb_register_flags("grephelp", kdb_grep_help, "",
-	  "Display help on | grep", 0, 0);
+	  "Display help on | grep", 0,
+	  KDB_ENABLE_ALWAYS_SAFE);
 }
 
 /* Execute any commands defined in kdb_cmds.  */
