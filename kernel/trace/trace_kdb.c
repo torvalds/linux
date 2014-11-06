@@ -59,19 +59,19 @@ static void ftrace_dump_buf(int skip_lines, long cpu_file)
 		ring_buffer_read_start(iter.buffer_iter[cpu_file]);
 		tracing_iter_reset(&iter, cpu_file);
 	}
-	if (!trace_empty(&iter))
-		trace_find_next_entry_inc(&iter);
-	while (!trace_empty(&iter)) {
+
+	while (trace_find_next_entry_inc(&iter)) {
 		if (!cnt)
 			kdb_printf("---------------------------------\n");
 		cnt++;
 
-		if (trace_find_next_entry_inc(&iter) != NULL && !skip_lines)
+		if (!skip_lines) {
 			print_trace_line(&iter);
-		if (!skip_lines)
 			trace_printk_seq(&iter.seq);
-		else
+		} else {
 			skip_lines--;
+		}
+
 		if (KDB_FLAG(CMD_INTERRUPT))
 			goto out;
 	}
