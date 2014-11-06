@@ -41,6 +41,26 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_edid.h>
 
+/**
+ * DOC: overview
+ *
+ * The CRTC modeset helper library provides a default set_config implementation
+ * in drm_crtc_helper_set_config(). Plus a few other convenience functions using
+ * the same callbacks which drivers can use to e.g. restore the modeset
+ * configuration on resume with drm_helper_resume_force_mode().
+ *
+ * The driver callbacks are mostly compatible with the atomic modeset helpers,
+ * except for the handling of the primary plane: Atomic helpers require that the
+ * primary plane is implemented as a real standalone plane and not directly tied
+ * to the CRTC state. For easier transition this library provides functions to
+ * implement the old semantics required by the CRTC helpers using the new plane
+ * and atomic helper callbacks.
+ *
+ * Drivers are strongly urged to convert to the atomic helpers (by way of first
+ * converting to the plane helpers). New drivers must not use these functions
+ * but need to implement the atomic interface instead, potentially using the
+ * atomic helpers for that.
+ */
 MODULE_AUTHOR("David Airlie, Jesse Barnes");
 MODULE_DESCRIPTION("DRM KMS helper");
 MODULE_LICENSE("GPL and additional rights");

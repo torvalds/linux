@@ -32,6 +32,27 @@
 #include <drm/drm_atomic_helper.h>
 #include <linux/fence.h>
 
+/**
+ * DOC: overview
+ *
+ * This helper library provides implementations of check and commit functions on
+ * top of the CRTC modeset helper callbacks and the plane helper callbacks. It
+ * also provides convenience implementations for the atomic state handling
+ * callbacks for drivers which don't need to subclass the drm core structures to
+ * add their own additional internal state.
+ *
+ * This library also provides default implementations for the check callback in
+ * drm_atomic_helper_check and for the commit callback with
+ * drm_atomic_helper_commit. But the individual stages and callbacks are expose
+ * to allow drivers to mix and match and e.g. use the plane helpers only
+ * together with a driver private modeset implementation.
+ *
+ * This library also provides implementations for all the legacy driver
+ * interfaces on top of the atomic interface. See drm_atomic_helper_set_config,
+ * drm_atomic_helper_disable_plane, drm_atomic_helper_disable_plane and the
+ * various functions to implement set_property callbacks. New drivers must not
+ * implement these functions themselves but must use the provided helpers.
+ */
 static void
 drm_atomic_helper_plane_changed(struct drm_atomic_state *state,
 				struct drm_plane_state *plane_state,
@@ -1706,6 +1727,21 @@ backoff:
 	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_page_flip);
+
+/**
+ * DOC: atomic state reset and initialization
+ *
+ * Both the drm core and the atomic helpers assume that there is always the full
+ * and correct atomic software state for all connectors, CRTCs and planes
+ * available. Which is a bit a problem on driver load and also after system
+ * suspend. One way to solve this is to have a hardware state read-out
+ * infrastructure which reconstructs the full software state (e.g. the i915
+ * driver).
+ *
+ * The simpler solution is to just reset the software state to everything off,
+ * which is easiest to do by calling drm_mode_config_reset(). To facilitate this
+ * the atomic helpers provide default reset implementations for all hooks.
+ */
 
 /**
  * drm_atomic_helper_crtc_reset - default ->reset hook for CRTCs
