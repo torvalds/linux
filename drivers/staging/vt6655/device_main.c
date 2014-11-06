@@ -254,7 +254,7 @@ static void device_init_registers(struct vnt_private *pDevice)
 	unsigned char byOFDMPwrdBm = 0;
 
 	MACbShutdown(pDevice->PortOffset);
-	BBvSoftwareReset(pDevice->PortOffset);
+	BBvSoftwareReset(pDevice);
 
 	/* Do MACbSoftwareReset in MACvInitialize */
 	MACbSoftwareReset(pDevice->PortOffset);
@@ -446,8 +446,8 @@ static void device_init_registers(struct vnt_private *pDevice)
 		BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
 	}
 
-	BBvSetRxAntennaMode(pDevice->PortOffset, pDevice->byRxAntennaMode);
-	BBvSetTxAntennaMode(pDevice->PortOffset, pDevice->byTxAntennaMode);
+	BBvSetRxAntennaMode(pDevice, pDevice->byRxAntennaMode);
+	BBvSetTxAntennaMode(pDevice, pDevice->byTxAntennaMode);
 
 	/* Set BB and packet type at the same time. */
 	/* Set Short Slot Time, xIFS, and RSPINF. */

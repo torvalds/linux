@@ -445,7 +445,7 @@ bool CARDbRadioPowerOff(struct vnt_private *pDevice)
 
 	MACvRegBitsOff(pDevice->PortOffset, MAC_REG_HOSTCR, HOSTCR_RXON);
 
-	BBvSetDeepSleep(pDevice->PortOffset, pDevice->byLocalID);
+	BBvSetDeepSleep(pDevice, pDevice->byLocalID);
 
 	pDevice->bRadioOff = true;
 	pr_debug("chester power off\n");
@@ -480,7 +480,7 @@ bool CARDbRadioPowerOn(struct vnt_private *pDevice)
 		pr_debug("chester pbRadioOff\n");
 		return true; }
 
-	BBvExitDeepSleep(pDevice->PortOffset, pDevice->byLocalID);
+	BBvExitDeepSleep(pDevice, pDevice->byLocalID);
 
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_HOSTCR, HOSTCR_RXON);
 

@@ -197,7 +197,7 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 	if (pDevice->bEnablePSMode)
 		RFvWriteWakeProgSyn(pDevice->PortOffset, pDevice->byRFType, uConnectionChannel);
 
-	BBvSoftwareReset(pDevice->PortOffset);
+	BBvSoftwareReset(pDevice);
 
 	if (pDevice->byLocalID > REV_ID_VT3253_B1) {
 		/* set HW default power register */
