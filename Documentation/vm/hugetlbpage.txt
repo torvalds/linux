@@ -1,8 +1,8 @@
 
 The intent of this file is to give a brief summary of hugetlbpage support in
 the Linux kernel.  This support is built on top of multiple page size support
-that is provided by most modern architectures.  For example, i386
-architecture supports 4K and 4M (2M in PAE mode) page sizes, ia64
+that is provided by most modern architectures.  For example, x86 CPUs normally
+support 4K and 2M (1G if architecturally supported) page sizes, ia64
 architecture supports multiple page sizes 4K, 8K, 64K, 256K, 1M, 4M, 16M,
 256M and ppc64 supports 4K and 16M.  A TLB is a cache of virtual-to-physical
 translations.  Typically this is a very scarce resource on processor.
