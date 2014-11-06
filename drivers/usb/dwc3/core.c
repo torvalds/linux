@@ -404,7 +404,7 @@ static void dwc3_phy_setup(struct dwc3 *dwc)
 	if (dwc->tx_de_emphasis_quirk)
 		reg |= DWC3_GUSB3PIPECTL_TX_DEEPH(dwc->tx_de_emphasis);
 
-	if (dwc->dis_u3_susphy_quirk && dwc->is_fpga)
+	if (dwc->dis_u3_susphy_quirk)
 		reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
 
 	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
@@ -422,7 +422,7 @@ static void dwc3_phy_setup(struct dwc3 *dwc)
 	if (dwc->revision > DWC3_REVISION_194A)
 		reg |= DWC3_GUSB2PHYCFG_SUSPHY;
 
-	if (dwc->dis_u2_susphy_quirk && dwc->is_fpga)
+	if (dwc->dis_u2_susphy_quirk)
 		reg &= ~DWC3_GUSB2PHYCFG_SUSPHY;
 
 	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
