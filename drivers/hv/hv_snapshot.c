@@ -96,6 +96,7 @@ vss_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 static void vss_send_op(struct work_struct *dummy)
 {
 	int op = vss_transaction.msg->vss_hdr.operation;
+	int rc;
 	struct cn_msg *msg;
 	struct hv_vss_msg *vss_msg;
 
@@ -111,7 +112,12 @@ static void vss_send_op(struct work_struct *dummy)
 	vss_msg->vss_hdr.operation = op;
 	msg->len = sizeof(struct hv_vss_msg);
 
-	cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
+	rc = cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
+	if (rc) {
+		pr_warn("VSS: failed to communicate to the daemon: %d\n", rc);
+		if (cancel_delayed_work_sync(&vss_timeout_work))
+			vss_respond_to_host(HV_E_FAIL);
+	}
 	kfree(msg);
 
 	return;
