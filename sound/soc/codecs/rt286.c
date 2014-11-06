@@ -191,7 +191,7 @@ static int rt286_hw_write(void *context, unsigned int reg, unsigned int value)
 	u8 data[4];
 	int ret, i;
 
-	/*handle index registers*/
+	/* handle index registers */
 	if (reg <= 0xff) {
 		rt286_hw_write(client, RT286_COEF_INDEX, reg);
 		for (i = 0; i < INDEX_CACHE_SIZE; i++) {
@@ -234,7 +234,7 @@ static int rt286_hw_read(void *context, unsigned int reg, unsigned int *value)
 	__be32 be_reg;
 	unsigned int index, vid, buf = 0x0;
 
-	/*handle index registers*/
+	/* handle index registers */
 	if (reg <= 0xff) {
 		rt286_hw_write(client, RT286_COEF_INDEX, reg);
 		reg = RT286_PROC_COEF;
@@ -1281,11 +1281,11 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 	mdelay(10);
 
 	regmap_write(rt286->regmap, RT286_MISC_CTRL1, 0x0000);
-	/*Power down LDO, VREF*/
+	/* Power down LDO, VREF */
 	regmap_update_bits(rt286->regmap, RT286_POWER_CTRL2, 0xc, 0x0);
 	regmap_update_bits(rt286->regmap, RT286_POWER_CTRL1, 0x1001, 0x1001);
 
-	/*Set depop parameter*/
+	/* Set depop parameter */
 	regmap_update_bits(rt286->regmap, RT286_DEPOP_CTRL2, 0x403a, 0x401a);
 	regmap_update_bits(rt286->regmap, RT286_DEPOP_CTRL3, 0xf777, 0x4737);
 	regmap_update_bits(rt286->regmap, RT286_DEPOP_CTRL4, 0x00ff, 0x003f);
