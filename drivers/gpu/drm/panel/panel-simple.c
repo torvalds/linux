@@ -583,6 +583,29 @@ static const struct panel_desc hannstar_hsd070pww1 = {
 	},
 };
 
+static const struct drm_display_mode hitachi_tx23d38vm0caa_mode = {
+	.clock = 33333,
+	.hdisplay = 800,
+	.hsync_start = 800 + 85,
+	.hsync_end = 800 + 85 + 86,
+	.htotal = 800 + 85 + 86 + 85,
+	.vdisplay = 480,
+	.vsync_start = 480 + 16,
+	.vsync_end = 480 + 16 + 13,
+	.vtotal = 480 + 16 + 13 + 16,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc hitachi_tx23d38vm0caa = {
+	.modes = &hitachi_tx23d38vm0caa_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 195,
+		.height = 117,
+	},
+};
+
 static const struct drm_display_mode innolux_g121i1_l01_mode = {
 	.clock = 71000,
 	.hdisplay = 1280,
@@ -736,6 +759,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "hannstar,hsd070pww1",
 		.data = &hannstar_hsd070pww1,
+	}, {
+		.compatible = "hit,tx23d38vm0caa",
+		.data = &hitachi_tx23d38vm0caa
 	}, {
 		.compatible ="innolux,g121i1-l01",
 		.data = &innolux_g121i1_l01
