@@ -699,6 +699,7 @@ print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 {
 	int ret;
 	struct trace_seq *s = &iter->seq;
+	struct trace_entry *ent = iter->ent;
 
 	if (addr < (unsigned long)__irqentry_text_start ||
 		addr >= (unsigned long)__irqentry_text_end)
@@ -728,6 +729,14 @@ print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 			if (!ret)
 				return TRACE_TYPE_PARTIAL_LINE;
 		}
+
+		/* Latency format */
+		if (trace_flags & TRACE_ITER_LATENCY_FMT) {
+			ret = print_graph_lat_fmt(s, ent);
+			if (ret == TRACE_TYPE_PARTIAL_LINE)
+				return TRACE_TYPE_PARTIAL_LINE;
+		}
+
 	}
 
 	/* No overhead */
