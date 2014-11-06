@@ -5236,7 +5236,10 @@ static int dgap_tty_register(struct board_t *brd)
 {
 	int rc;
 
-	brd->serial_driver = tty_alloc_driver(MAXPORTS, 0);
+	brd->serial_driver = tty_alloc_driver(MAXPORTS,
+					      TTY_DRIVER_REAL_RAW |
+					      TTY_DRIVER_DYNAMIC_DEV |
+					      TTY_DRIVER_HARDWARE_BREAK);
 	if (IS_ERR(brd->serial_driver))
 		return PTR_ERR(brd->serial_driver);
 
@@ -5250,9 +5253,6 @@ static int dgap_tty_register(struct board_t *brd)
 	brd->serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	brd->serial_driver->init_termios = dgap_default_termios;
 	brd->serial_driver->driver_name = DRVSTR;
-	brd->serial_driver->flags = (TTY_DRIVER_REAL_RAW |
-				    TTY_DRIVER_DYNAMIC_DEV |
-				    TTY_DRIVER_HARDWARE_BREAK);
 
 	/* The kernel wants space to store pointers to tty_structs */
 	brd->serial_driver->ttys =
@@ -5273,7 +5273,10 @@ static int dgap_tty_register(struct board_t *brd)
 	 * again, separately so we don't get the LD confused about what major
 	 * we are when we get into the dgap_tty_open() routine.
 	 */
-	brd->print_driver = tty_alloc_driver(MAXPORTS, 0);
+	brd->print_driver = tty_alloc_driver(MAXPORTS,
+					     TTY_DRIVER_REAL_RAW |
+					     TTY_DRIVER_DYNAMIC_DEV |
+					     TTY_DRIVER_HARDWARE_BREAK);
 	if (IS_ERR(brd->print_driver)) {
 		rc = PTR_ERR(brd->print_driver);
 		goto free_serial_drv;
@@ -5289,9 +5292,6 @@ static int dgap_tty_register(struct board_t *brd)
 	brd->print_driver->subtype = SERIAL_TYPE_NORMAL;
 	brd->print_driver->init_termios = dgap_default_termios;
 	brd->print_driver->driver_name = DRVSTR;
-	brd->print_driver->flags = (TTY_DRIVER_REAL_RAW |
-				   TTY_DRIVER_DYNAMIC_DEV |
-				   TTY_DRIVER_HARDWARE_BREAK);
 
 	/* The kernel wants space to store pointers to tty_structs */
 	brd->print_driver->ttys =
