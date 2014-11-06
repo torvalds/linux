@@ -199,6 +199,49 @@ out:
 }
 
 /*
+ * Buffer completion function.  We get notified whenever any buffer
+ * completes.  For outbound messages, this tells us that the message
+ * has been sent.  For inbound messages, it means the data has
+ * landed in the buffer and is ready to be processed.
+ *
+ * Either way, we don't do anything.  We don't really care when an
+ * outbound message has been sent, and for incoming messages we
+ * we'll be done with everything we need to do before we mark it
+ * finished.
+ *
+ * XXX We may want to record that a request is (or is no longer) in flight.
+ */
+static void gb_operation_gbuf_complete(struct gbuf *gbuf)
+{
+	if (gbuf->status) {
+		struct gb_operation *operation = gbuf->operation;
+		struct gb_operation_msg_hdr *header;
+		int id;
+		int type;
+
+		if (gbuf == operation->request)
+			header = operation->request->transfer_buffer;
+		else if (gbuf == operation->response)
+			header = operation->response->transfer_buffer;
+		else
+			header = NULL;
+
+		if (header) {
+			id = le16_to_cpu(header->id);
+			type = header->type;
+		} else {
+			id = -1;
+			type = -1;
+		}
+
+		gb_connection_err(operation->connection,
+			"operation %d type %d gbuf error %d",
+			id, type, gbuf->status);
+	}
+	return;
+}
+
+/*
  * Either this operation contains an incoming request, or its
  * response has arrived.  An incoming request will have a null
  * response buffer pointer (it is the responsibility of the request
@@ -240,49 +283,6 @@ static void operation_timeout(struct work_struct *work)
 
 	operation->result = GB_OP_TIMEOUT;
 	gb_operation_complete(operation);
-}
-
-/*
- * Buffer completion function.  We get notified whenever any buffer
- * completes.  For outbound messages, this tells us that the message
- * has been sent.  For inbound messages, it means the data has
- * landed in the buffer and is ready to be processed.
- *
- * Either way, we don't do anything.  We don't really care when an
- * outbound message has been sent, and for incoming messages we
- * we'll be done with everything we need to do before we mark it
- * finished.
- *
- * XXX We may want to record that a request is (or is no longer) in flight.
- */
-static void gb_operation_gbuf_complete(struct gbuf *gbuf)
-{
-	if (gbuf->status) {
-		struct gb_operation *operation = gbuf->operation;
-		struct gb_operation_msg_hdr *header;
-		int id;
-		int type;
-
-		if (gbuf == operation->request)
-			header = operation->request->transfer_buffer;
-		else if (gbuf == operation->response)
-			header = operation->response->transfer_buffer;
-		else
-			header = NULL;
-
-		if (header) {
-			id = le16_to_cpu(header->id);
-			type = header->type;
-		} else {
-			id = -1;
-			type = -1;
-		}
-
-		gb_connection_err(operation->connection,
-			"operation %d type %d gbuf error %d",
-			id, type, gbuf->status);
-	}
-	return;
 }
 
 /*
