@@ -165,13 +165,20 @@ static const struct snd_kcontrol_new ssm4567_snd_controls[] = {
 		5, 1, 0),
 };
 
+static const struct snd_kcontrol_new ssm4567_amplifier_boost_control =
+	SOC_DAPM_SINGLE("Switch", SSM4567_REG_POWER_CTRL, 1, 1, 1);
+
 static const struct snd_soc_dapm_widget ssm4567_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC", "HiFi Playback", SSM4567_REG_POWER_CTRL, 2, 1),
+	SND_SOC_DAPM_SWITCH("Amplifier Boost", SSM4567_REG_POWER_CTRL, 3, 1,
+		&ssm4567_amplifier_boost_control),
 
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
 
 static const struct snd_soc_dapm_route ssm4567_routes[] = {
+	{ "OUT", NULL, "Amplifier Boost" },
+	{ "Amplifier Boost", "Switch", "DAC" },
 	{ "OUT", NULL, "DAC" },
 };
 
