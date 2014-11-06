@@ -3308,17 +3308,42 @@ static void handle_stat1_irqs(struct net2280 *dev, u32 stat)
 	 * only indicates a change in the reset state).
 	 */
 	if (stat & tmp) {
+		bool	reset = false;
+		bool	disconnect = false;
+
+		/*
+		 * Ignore disconnects and resets if the speed hasn't been set.
+		 * VBUS can bounce and there's always an initial reset.
+		 */
 		writel(tmp, &dev->regs->irqstat1);
-		if ((((stat & BIT(ROOT_PORT_RESET_INTERRUPT)) &&
-				((readl(&dev->usb->usbstat) & mask) == 0)) ||
-				((readl(&dev->usb->usbctl) &
-					BIT(VBUS_PIN)) == 0)) &&
-				(dev->gadget.speed != USB_SPEED_UNKNOWN)) {
-			ep_dbg(dev, "disconnect %s\n",
-					dev->driver->driver.name);
-			stop_activity(dev, dev->driver);
-			ep0_start(dev);
-			return;
+		if (dev->gadget.speed != USB_SPEED_UNKNOWN) {
+			if ((stat & BIT(VBUS_INTERRUPT)) &&
+					(readl(&dev->usb->usbctl) &
+						BIT(VBUS_PIN)) == 0) {
+				disconnect = true;
+				ep_dbg(dev, "disconnect %s\n",
+						dev->driver->driver.name);
+			} else if ((stat & BIT(ROOT_PORT_RESET_INTERRUPT)) &&
+					(readl(&dev->usb->usbstat) & mask)
+						== 0) {
+				reset = true;
+				ep_dbg(dev, "reset %s\n",
+						dev->driver->driver.name);
+			}
+
+			if (disconnect || reset) {
+				stop_activity(dev, dev->driver);
+				ep0_start(dev);
+				spin_unlock(&dev->lock);
+				if (reset)
+					usb_gadget_udc_reset
+						(&dev->gadget, dev->driver);
+				else
+					(dev->driver->disconnect)
+						(&dev->gadget);
+				spin_lock(&dev->lock);
+				return;
+			}
 		}
 		stat &= ~tmp;
 
