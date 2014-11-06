@@ -380,7 +380,7 @@ out:
 	return err;
 }
 
-/* intialize a new branch */
+/* initialize a new branch */
 static int au_br_init(struct au_branch *br, struct super_block *sb,
 		      struct au_opt_add *add)
 {

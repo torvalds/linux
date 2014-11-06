@@ -244,7 +244,7 @@ out:
 /* ---------------------------------------------------------------------- */
 /*
  * Aufs prohibits O_DIRECT by defaut even if the branch supports it.
- * This behaviour is neccessary to return an error from open(O_DIRECT) instead
+ * This behaviour is necessary to return an error from open(O_DIRECT) instead
  * of the succeeding I/O. The dio mount option enables O_DIRECT and makes
  * open(O_DIRECT) always succeed, but the succeeding I/O may return an error.
  * See the aufs manual in detail.
