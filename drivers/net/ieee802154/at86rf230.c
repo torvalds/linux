@@ -1362,11 +1362,7 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	 * sets this bit and I don't know why. We set this always force
 	 * to zero while probing.
 	 */
-	rc = at86rf230_write_subreg(lp, SR_SLOTTED_OPERATION, 0);
-	if (rc)
-		return rc;
-
-	return 0;
+	return at86rf230_write_subreg(lp, SR_SLOTTED_OPERATION, 0);
 }
 
 static struct at86rf230_platform_data *
