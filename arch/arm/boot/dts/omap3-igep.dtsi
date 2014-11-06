@@ -92,13 +92,6 @@
 		>;
 	};
 
-	i2c2_pins: pinmux_i2c2_pins {
-		pinctrl-single,pins = <
-			0x18e (PIN_INPUT | MUX_MODE0)   /* i2c2_scl.i2c2_scl */
-			0x190 (PIN_INPUT | MUX_MODE0)   /* i2c2_sda.i2c2_sda */
-		>;
-	};
-
 	i2c3_pins: pinmux_i2c3_pins {
 		pinctrl-single,pins = <
 			0x192 (PIN_INPUT | MUX_MODE0)   /* i2c3_scl.i2c3_scl */
@@ -176,12 +169,6 @@
 
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
-
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins>;
-	clock-frequency = <400000>;
-};
 
 &i2c3 {
 	pinctrl-names = "default";
