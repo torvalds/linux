@@ -1908,7 +1908,7 @@ read_again:
 				skb = xgbe_create_skb(pdata, rdata, &put_len);
 				if (!skb) {
 					error = 1;
-					goto read_again;
+					goto skip_data;
 				}
 			}
 
@@ -1926,10 +1926,10 @@ read_again:
 			}
 		}
 
+skip_data:
 		if (incomplete || context_next)
 			goto read_again;
 
-		/* Stray Context Descriptor? */
 		if (!skb)
 			goto next_packet;
 
