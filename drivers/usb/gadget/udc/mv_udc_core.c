@@ -1307,6 +1307,23 @@ static void nuke(struct mv_ep *ep, int status)
 	}
 }
 
+static void gadget_reset(struct mv_udc *udc, struct usb_gadget_driver *driver)
+{
+	struct mv_ep	*ep;
+
+	nuke(&udc->eps[0], -ESHUTDOWN);
+
+	list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
+		nuke(ep, -ESHUTDOWN);
+	}
+
+	/* report reset; the driver is already quiesced */
+	if (driver) {
+		spin_unlock(&udc->lock);
+		usb_gadget_udc_reset(&udc->gadget, driver);
+		spin_lock(&udc->lock);
+	}
+}
 /* stop all USB activities */
 static void stop_activity(struct mv_udc *udc, struct usb_gadget_driver *driver)
 {
@@ -1881,7 +1898,7 @@ static void irq_process_reset(struct mv_udc *udc)
 		dev_info(&udc->dev->dev, "usb bus reset\n");
 		udc->usb_state = USB_STATE_DEFAULT;
 		/* reset all the queues, stop all USB activities */
-		stop_activity(udc, udc->driver);
+		gadget_reset(udc, udc->driver);
 	} else {
 		dev_info(&udc->dev->dev, "USB reset portsc 0x%x\n",
 			readl(&udc->op_regs->portsc));
