@@ -665,7 +665,7 @@ static int tc6393xb_probe(struct platform_device *dev)
 		goto err_ioremap;
 	}
 
-	ret = clk_enable(tc6393xb->clk);
+	ret = clk_prepare_enable(tc6393xb->clk);
 	if (ret)
 		goto err_clk_enable;
 
@@ -728,7 +728,7 @@ err_gpio_add:
 		gpiochip_remove(&tc6393xb->gpio);
 	tcpd->disable(dev);
 err_enable:
-	clk_disable(tc6393xb->clk);
+	clk_disable_unprepare(tc6393xb->clk);
 err_clk_enable:
 	iounmap(tc6393xb->scr);
 err_ioremap:
@@ -759,7 +759,7 @@ static int tc6393xb_remove(struct platform_device *dev)
 		gpiochip_remove(&tc6393xb->gpio);
 
 	ret = tcpd->disable(dev);
-	clk_disable(tc6393xb->clk);
+	clk_disable_unprepare(tc6393xb->clk);
 	iounmap(tc6393xb->scr);
 	release_resource(&tc6393xb->rscr);
 	clk_put(tc6393xb->clk);
@@ -787,7 +787,7 @@ static int tc6393xb_suspend(struct platform_device *dev, pm_message_t state)
 			ioread8(tc6393xb->scr + SCR_GPI_BCR(i));
 	}
 	ret = tcpd->suspend(dev);
-	clk_disable(tc6393xb->clk);
+	clk_disable_unprepare(tc6393xb->clk);
 
 	return ret;
 }
@@ -799,7 +799,7 @@ static int tc6393xb_resume(struct platform_device *dev)
 	int ret;
 	int i;
 
-	clk_enable(tc6393xb->clk);
+	clk_prepare_enable(tc6393xb->clk);
 
 	ret = tcpd->resume(dev);
 	if (ret)
