@@ -322,8 +322,14 @@ static int rk312x_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 
 		mask = m_WIN1_ALPHA_MODE |
 				m_ALPHA_MODE_SEL0 | m_ALPHA_MODE_SEL1;
-		val = v_WIN1_ALPHA_MODE(1) |
-				v_ALPHA_MODE_SEL0(1) | v_ALPHA_MODE_SEL1(0);
+		if (lcdc_dev->driver.overlay_mode == VOP_YUV_DOMAIN)
+			val = v_WIN0_ALPHA_MODE(1) |
+			      v_ALPHA_MODE_SEL0(0) |
+			      v_ALPHA_MODE_SEL1(0);
+		else
+			val = v_WIN1_ALPHA_MODE(1) |
+			      v_ALPHA_MODE_SEL0(1) |
+			      v_ALPHA_MODE_SEL1(0);
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, mask, val);
 		/*this vop bg layer not support yuv domain overlay,so bg val
 		have to set 0x800a80 equeal to 0x000000 at rgb domian,after
@@ -728,7 +734,7 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 		while(lcdc_readl(lcdc_dev, SYS_CTRL) & (m_WIN0_EN | m_WIN1_EN));
 	}*/
 	if ((dev_drv->ops->open_bcsh) && (dev_drv->output_color == COLOR_YCBCR)) {
-		if(support_uboot_display())
+		if (support_uboot_display())
 			dev_drv->bcsh_init_status = 1;
 		else
 			dev_drv->ops->open_bcsh(dev_drv, 1);
@@ -2002,7 +2008,7 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	u32 mask, val;
-	if(dev_drv->bcsh_init_status && open) {
+	if (dev_drv->bcsh_init_status && open) {
 		dev_drv->bcsh_init_status = 0;
 		return 0;
 	}
