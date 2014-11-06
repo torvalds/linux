@@ -4683,6 +4683,9 @@ static void modeset_update_crtc_power_domains(struct drm_device *dev)
 			intel_display_power_get(dev_priv, domain);
 	}
 
+	if (dev_priv->display.modeset_global_resources)
+		dev_priv->display.modeset_global_resources(dev);
+
 	for_each_intel_crtc(dev, crtc) {
 		enum intel_display_power_domain domain;
 
@@ -4910,8 +4913,6 @@ static void valleyview_modeset_global_resources(struct drm_device *dev)
 		else
 			valleyview_set_cdclk(dev, req_cdclk);
 	}
-
-	modeset_update_crtc_power_domains(dev);
 }
 
 static void valleyview_crtc_enable(struct drm_crtc *crtc)
@@ -7950,16 +7951,6 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 	intel_prepare_ddi(dev);
 }
 
-static void snb_modeset_global_resources(struct drm_device *dev)
-{
-	modeset_update_crtc_power_domains(dev);
-}
-
-static void haswell_modeset_global_resources(struct drm_device *dev)
-{
-	modeset_update_crtc_power_domains(dev);
-}
-
 static int haswell_crtc_compute_clock(struct intel_crtc *crtc)
 {
 	if (!intel_ddi_pll_select(crtc))
@@ -10917,8 +10908,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * update the the output configuration. */
 	intel_modeset_update_state(dev, prepare_pipes);
 
-	if (dev_priv->display.modeset_global_resources)
-		dev_priv->display.modeset_global_resources(dev);
+	modeset_update_crtc_power_domains(dev);
 
 	/* Set up the DPLL and any encoders state that needs to adjust or depend
 	 * on the DPLL.
@@ -12589,8 +12579,6 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.fdi_link_train = ironlake_fdi_link_train;
 	} else if (IS_GEN6(dev)) {
 		dev_priv->display.fdi_link_train = gen6_fdi_link_train;
-		dev_priv->display.modeset_global_resources =
-			snb_modeset_global_resources;
 	} else if (IS_IVYBRIDGE(dev)) {
 		/* FIXME: detect B0+ stepping and use auto training */
 		dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
@@ -12598,14 +12586,9 @@ static void intel_init_display(struct drm_device *dev)
 			ivb_modeset_global_resources;
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		dev_priv->display.fdi_link_train = hsw_fdi_link_train;
-		dev_priv->display.modeset_global_resources =
-			haswell_modeset_global_resources;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.modeset_global_resources =
 			valleyview_modeset_global_resources;
-	} else if (INTEL_INFO(dev)->gen >= 9) {
-		dev_priv->display.modeset_global_resources =
-			haswell_modeset_global_resources;
 	}
 
 	/* Default just returns -ENODEV to indicate unsupported */
