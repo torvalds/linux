@@ -367,19 +367,22 @@ static void set_link_state(struct dummy_hcd *dum_hcd)
 	     dum_hcd->active)
 		dum_hcd->resuming = 0;
 
-	/* if !connected or reset */
+	/* Currently !connected or in reset */
 	if ((dum_hcd->port_status & USB_PORT_STAT_CONNECTION) == 0 ||
 			(dum_hcd->port_status & USB_PORT_STAT_RESET) != 0) {
-		/*
-		 * We're connected and not reset (reset occurred now),
-		 * and driver attached - disconnect!
-		 */
-		if ((dum_hcd->old_status & USB_PORT_STAT_CONNECTION) != 0 &&
-		    (dum_hcd->old_status & USB_PORT_STAT_RESET) == 0 &&
-		    dum->driver) {
+		unsigned disconnect = USB_PORT_STAT_CONNECTION &
+				dum_hcd->old_status & (~dum_hcd->port_status);
+		unsigned reset = USB_PORT_STAT_RESET &
+				(~dum_hcd->old_status) & dum_hcd->port_status;
+
+		/* Report reset and disconnect events to the driver */
+		if (dum->driver && (disconnect || reset)) {
 			stop_activity(dum);
 			spin_unlock(&dum->lock);
-			dum->driver->disconnect(&dum->gadget);
+			if (reset)
+				usb_gadget_udc_reset(&dum->gadget, dum->driver);
+			else
+				dum->driver->disconnect(&dum->gadget);
 			spin_lock(&dum->lock);
 		}
 	} else if (dum_hcd->active != dum_hcd->old_active) {
