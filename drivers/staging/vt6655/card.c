@@ -223,14 +223,14 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 			pDevice->abyBBVGA[0] = 0x20;
 			pDevice->abyBBVGA[2] = 0x10;
 			pDevice->abyBBVGA[3] = 0x10;
-			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
+			BBbReadEmbedded(pDevice, 0xE7, &byData);
 			if (byData == 0x1C)
 				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
 
 		} else if (pDevice->byRFType == RF_UW2452) {
 			MACvSetBBType(pDevice->PortOffset, BB_TYPE_11A);
 			pDevice->abyBBVGA[0] = 0x18;
-			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
+			BBbReadEmbedded(pDevice, 0xE7, &byData);
 			if (byData == 0x14) {
 				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
 				BBbWriteEmbedded(pDevice, 0xE1, 0x57);
@@ -249,13 +249,13 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 			pDevice->abyBBVGA[0] = 0x1C;
 			pDevice->abyBBVGA[2] = 0x00;
 			pDevice->abyBBVGA[3] = 0x00;
-			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
+			BBbReadEmbedded(pDevice, 0xE7, &byData);
 			if (byData == 0x20)
 				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
 
 		} else if (pDevice->byRFType == RF_UW2452) {
 			pDevice->abyBBVGA[0] = 0x14;
-			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
+			BBbReadEmbedded(pDevice, 0xE7, &byData);
 			if (byData == 0x18) {
 				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
 				BBbWriteEmbedded(pDevice, 0xE1, 0xD3);
@@ -272,13 +272,13 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 			pDevice->abyBBVGA[0] = 0x1C;
 			pDevice->abyBBVGA[2] = 0x00;
 			pDevice->abyBBVGA[3] = 0x00;
-			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
+			BBbReadEmbedded(pDevice, 0xE7, &byData);
 			if (byData == 0x20)
 				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
 
 		} else if (pDevice->byRFType == RF_UW2452) {
 			pDevice->abyBBVGA[0] = 0x14;
-			BBbReadEmbedded(pDevice->PortOffset, 0xE7, &byData);
+			BBbReadEmbedded(pDevice, 0xE7, &byData);
 			if (byData == 0x18) {
 				BBbWriteEmbedded(pDevice, 0xE7, pDevice->abyBBVGA[0]);
 				BBbWriteEmbedded(pDevice, 0xE1, 0xD3);

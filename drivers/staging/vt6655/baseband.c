@@ -1961,8 +1961,10 @@ void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool BBbReadEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char *pbyData)
+bool BBbReadEmbedded(struct vnt_private *priv,
+		     unsigned char byBBAddr, unsigned char *pbyData)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	unsigned short ww;
 	unsigned char byValue;
 
@@ -2222,7 +2224,7 @@ BBvSetShortSlotTime(struct vnt_private *priv)
 	unsigned char byBBRxConf = 0;
 	unsigned char byBBVGA = 0;
 
-	BBbReadEmbedded(priv->PortOffset, 0x0A, &byBBRxConf); /* CR10 */
+	BBbReadEmbedded(priv, 0x0A, &byBBRxConf); /* CR10 */
 
 	if (priv->bShortSlotTime)
 		byBBRxConf &= 0xDF; /* 1101 1111 */
@@ -2230,7 +2232,7 @@ BBvSetShortSlotTime(struct vnt_private *priv)
 		byBBRxConf |= 0x20; /* 0010 0000 */
 
 	/* patch for 3253B0 Baseband with Cardbus module */
-	BBbReadEmbedded(priv->PortOffset, 0xE7, &byBBVGA);
+	BBbReadEmbedded(priv, 0xE7, &byBBVGA);
 	if (byBBVGA == priv->abyBBVGA[0])
 		byBBRxConf |= 0x20; /* 0010 0000 */
 
@@ -2243,7 +2245,7 @@ void BBvSetVGAGainOffset(struct vnt_private *priv, unsigned char byData)
 
 	BBbWriteEmbedded(priv, 0xE7, byData);
 
-	BBbReadEmbedded(priv->PortOffset, 0x0A, &byBBRxConf); /* CR10 */
+	BBbReadEmbedded(priv, 0x0A, &byBBRxConf); /* CR10 */
 	/* patch for 3253B0 Baseband with Cardbus module */
 	if (byData == priv->abyBBVGA[0])
 		byBBRxConf |= 0x20; /* 0010 0000 */
@@ -2291,10 +2293,9 @@ BBvSoftwareReset(struct vnt_private *priv)
 void
 BBvPowerSaveModeON(struct vnt_private *priv)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
 	unsigned char byOrgData;
 
-	BBbReadEmbedded(dwIoBase, 0x0D, &byOrgData);
+	BBbReadEmbedded(priv, 0x0D, &byOrgData);
 	byOrgData |= BIT(0);
 	BBbWriteEmbedded(priv, 0x0D, byOrgData);
 }
@@ -2314,10 +2315,9 @@ BBvPowerSaveModeON(struct vnt_private *priv)
 void
 BBvPowerSaveModeOFF(struct vnt_private *priv)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
 	unsigned char byOrgData;
 
-	BBbReadEmbedded(dwIoBase, 0x0D, &byOrgData);
+	BBbReadEmbedded(priv, 0x0D, &byOrgData);
 	byOrgData &= ~(BIT(0));
 	BBbWriteEmbedded(priv, 0x0D, byOrgData);
 }
@@ -2339,10 +2339,9 @@ BBvPowerSaveModeOFF(struct vnt_private *priv)
 void
 BBvSetTxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
 	unsigned char byBBTxConf;
 
-	BBbReadEmbedded(dwIoBase, 0x09, &byBBTxConf); /* CR09 */
+	BBbReadEmbedded(priv, 0x09, &byBBTxConf); /* CR09 */
 	if (byAntennaMode == ANT_DIVERSITY) {
 		/* bit 1 is diversity */
 		byBBTxConf |= 0x02;
@@ -2373,10 +2372,9 @@ BBvSetTxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode)
 void
 BBvSetRxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
 	unsigned char byBBRxConf;
 
-	BBbReadEmbedded(dwIoBase, 0x0A, &byBBRxConf); /* CR10 */
+	BBbReadEmbedded(priv, 0x0A, &byBBRxConf); /* CR10 */
 	if (byAntennaMode == ANT_DIVERSITY) {
 		byBBRxConf |= 0x01;
 
