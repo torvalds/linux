@@ -1337,10 +1337,10 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 	ath_dbg(common, PS, "PowerSave disabled\n");
 }
 
-void ath9k_spectral_scan_trigger(struct ath_common *common)
+void ath9k_spectral_scan_trigger(struct ath_common *common,
+				 struct ath_spec_scan_priv *spec_priv)
 {
-	struct ath_softc *sc = common->priv;
-	struct ath_hw *ah = sc->sc_ah;
+	struct ath_hw *ah = spec_priv->ah;
 	u32 rxfilter;
 
 	if (config_enabled(CONFIG_ATH9K_TX99))
@@ -1362,16 +1362,16 @@ void ath9k_spectral_scan_trigger(struct ath_common *common)
 	 * configuration, otherwise the register will have its values reset
 	 * (on my ar9220 to value 0x01002310)
 	 */
-	ath9k_spectral_scan_config(common, sc->spec_priv.spectral_mode);
+	ath9k_spectral_scan_config(common, spec_priv, spec_priv->spectral_mode);
 	ath9k_hw_ops(ah)->spectral_scan_trigger(ah);
 	ath_ps_ops(common)->restore(common);
 }
 
 int ath9k_spectral_scan_config(struct ath_common *common,
+			       struct ath_spec_scan_priv *spec_priv,
 			       enum spectral_mode spectral_mode)
 {
-	struct ath_softc *sc = common->priv;
-	struct ath_hw *ah = sc->sc_ah;
+	struct ath_hw *ah = spec_priv->ah;
 
 	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
 		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
@@ -1380,29 +1380,29 @@ int ath9k_spectral_scan_config(struct ath_common *common,
 
 	switch (spectral_mode) {
 	case SPECTRAL_DISABLED:
-		sc->spec_priv.spec_config.enabled = 0;
+		spec_priv->spec_config.enabled = 0;
 		break;
 	case SPECTRAL_BACKGROUND:
 		/* send endless samples.
 		 * TODO: is this really useful for "background"?
 		 */
-		sc->spec_priv.spec_config.endless = 1;
-		sc->spec_priv.spec_config.enabled = 1;
+		spec_priv->spec_config.endless = 1;
+		spec_priv->spec_config.enabled = 1;
 		break;
 	case SPECTRAL_CHANSCAN:
 	case SPECTRAL_MANUAL:
-		sc->spec_priv.spec_config.endless = 0;
-		sc->spec_priv.spec_config.enabled = 1;
+		spec_priv->spec_config.endless = 0;
+		spec_priv->spec_config.enabled = 1;
 		break;
 	default:
 		return -1;
 	}
 
 	ath_ps_ops(common)->wakeup(common);
-	ath9k_hw_ops(ah)->spectral_scan_config(ah, &sc->spec_priv.spec_config);
+	ath9k_hw_ops(ah)->spectral_scan_config(ah, &spec_priv->spec_config);
 	ath_ps_ops(common)->restore(common);
 
-	sc->spec_priv.spectral_mode = spectral_mode;
+	spec_priv->spectral_mode = spectral_mode;
 
 	return 0;
 }
