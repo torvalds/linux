@@ -115,17 +115,6 @@ static void vidi_apply(struct exynos_drm_manager *mgr)
 		if (win_data->enabled && (mgr_ops && mgr_ops->win_commit))
 			mgr_ops->win_commit(mgr, i);
 	}
-
-	if (mgr_ops && mgr_ops->commit)
-		mgr_ops->commit(mgr);
-}
-
-static void vidi_commit(struct exynos_drm_manager *mgr)
-{
-	struct vidi_context *ctx = manager_to_vidi(mgr);
-
-	if (ctx->suspended)
-		return;
 }
 
 static int vidi_enable_vblank(struct exynos_drm_manager *mgr)
@@ -320,7 +309,6 @@ static int vidi_mgr_initialize(struct exynos_drm_manager *mgr,
 
 static struct exynos_drm_manager_ops vidi_manager_ops = {
 	.dpms = vidi_dpms,
-	.commit = vidi_commit,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.win_mode_set = vidi_win_mode_set,
