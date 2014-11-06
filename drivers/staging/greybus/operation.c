@@ -351,8 +351,6 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 		goto err_cache;
 	operation->request_payload = operation->request->transfer_buffer +
 					sizeof(struct gb_operation_msg_hdr);
-	/* We always use the full request buffer */
-	operation->request->actual_length = request_size;
 
 	if (outgoing) {
 		type |= GB_OPERATION_TYPE_RESPONSE;
@@ -443,9 +441,6 @@ int gb_operation_request_send(struct gb_operation *operation,
  */
 int gb_operation_response_send(struct gb_operation *operation)
 {
-	/* XXX
-	 * Caller needs to have set operation->response->actual_length
-	 */
 	gb_operation_remove(operation);
 	gb_operation_destroy(operation);
 
@@ -502,7 +497,6 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 	}
 
 	memcpy(gbuf->transfer_buffer, data, msg_size);
-	gbuf->actual_length = msg_size;
 
 	/* The rest will be handled in work queue context */
 	queue_work(gb_operation_recv_workqueue, &operation->recv_work);

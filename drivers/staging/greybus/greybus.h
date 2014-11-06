@@ -130,7 +130,6 @@ struct gbuf {
 	int status;
 	void *transfer_buffer;
 	u32 transfer_buffer_length;
-	u32 actual_length;
 
 	bool outbound;			/* AP-relative data direction */
 
