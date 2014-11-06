@@ -5254,14 +5254,6 @@ static int dgap_tty_register(struct board_t *brd)
 	brd->serial_driver->init_termios = dgap_default_termios;
 	brd->serial_driver->driver_name = DRVSTR;
 
-	/* The kernel wants space to store pointers to tty_structs */
-	brd->serial_driver->ttys =
-		kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
-	if (!brd->serial_driver->ttys) {
-		rc = -ENOMEM;
-		goto free_serial_drv;
-	}
-
 	/*
 	 * Entry points for driver.  Called by the kernel from
 	 * tty_io.c and n_tty.c.
@@ -5292,14 +5284,6 @@ static int dgap_tty_register(struct board_t *brd)
 	brd->print_driver->subtype = SERIAL_TYPE_NORMAL;
 	brd->print_driver->init_termios = dgap_default_termios;
 	brd->print_driver->driver_name = DRVSTR;
-
-	/* The kernel wants space to store pointers to tty_structs */
-	brd->print_driver->ttys =
-		kzalloc(MAXPORTS * sizeof(struct tty_struct *), GFP_KERNEL);
-	if (!brd->print_driver->ttys) {
-		rc = -ENOMEM;
-		goto free_print_drv;
-	}
 
 	/*
 	 * Entry points for driver.  Called by the kernel from
