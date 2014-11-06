@@ -418,6 +418,8 @@ err:
 	return ret;
 }
 
+#define SPI_NOR_MAX_ID_LEN	6
+
 struct flash_info {
 	/* JEDEC id zero means "no ID" (most older chips); otherwise it has
 	 * a high byte of zero plus three data bytes: the manufacturer id,
@@ -425,6 +427,14 @@ struct flash_info {
 	 */
 	u32		jedec_id;
 	u16             ext_id;
+
+	/*
+	 * This array stores the ID bytes.
+	 * The first three bytes are the JEDIC ID.
+	 * JEDEC ID zero means "no ID" (mostly older chips).
+	 */
+	u8		id[SPI_NOR_MAX_ID_LEN];
+	u8		id_len;
 
 	/* The size listed here is what works with SPINOR_OP_SE, which isn't
 	 * necessarily called a "sector" by the vendor.
@@ -446,10 +456,19 @@ struct flash_info {
 #define	USE_FSR			0x80	/* use flag status register */
 };
 
+/* Used when the "_ext_id" is two bytes at most */
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
 	((kernel_ulong_t)&(struct flash_info) {				\
 		.jedec_id = (_jedec_id),				\
 		.ext_id = (_ext_id),					\
+		.id = {							\
+			((_jedec_id) >> 16) & 0xff,			\
+			((_jedec_id) >> 8) & 0xff,			\
+			(_jedec_id) & 0xff,				\
+			((_ext_id) >> 8) & 0xff,			\
+			(_ext_id) & 0xff,				\
+			},						\
+		.id_len = (!(_jedec_id) ? 0 : (3 + ((_ext_id) ? 2 : 0))),	\
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
@@ -642,32 +661,24 @@ static const struct spi_device_id spi_nor_ids[] = {
 static const struct spi_device_id *spi_nor_read_id(struct spi_nor *nor)
 {
 	int			tmp;
-	u8			id[5];
-	u32			jedec;
-	u16                     ext_jedec;
+	u8			id[SPI_NOR_MAX_ID_LEN];
 	struct flash_info	*info;
 
-	tmp = nor->read_reg(nor, SPINOR_OP_RDID, id, 5);
+	tmp = nor->read_reg(nor, SPINOR_OP_RDID, id, SPI_NOR_MAX_ID_LEN);
 	if (tmp < 0) {
 		dev_dbg(nor->dev, " error %d reading JEDEC ID\n", tmp);
 		return ERR_PTR(tmp);
 	}
-	jedec = id[0];
-	jedec = jedec << 8;
-	jedec |= id[1];
-	jedec = jedec << 8;
-	jedec |= id[2];
-
-	ext_jedec = id[3] << 8 | id[4];
 
 	for (tmp = 0; tmp < ARRAY_SIZE(spi_nor_ids) - 1; tmp++) {
 		info = (void *)spi_nor_ids[tmp].driver_data;
-		if (info->jedec_id == jedec) {
-			if (info->ext_id == 0 || info->ext_id == ext_jedec)
+		if (info->id_len) {
+			if (!memcmp(info->id, id, info->id_len))
 				return &spi_nor_ids[tmp];
 		}
 	}
-	dev_err(nor->dev, "unrecognized JEDEC id %06x\n", jedec);
+	dev_err(nor->dev, "unrecognized JEDEC id bytes: %02x, %2x, %2x\n",
+		id[0], id[1], id[2]);
 	return ERR_PTR(-ENODEV);
 }
 
