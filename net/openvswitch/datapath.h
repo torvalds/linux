@@ -94,14 +94,12 @@ struct datapath {
 
 /**
  * struct ovs_skb_cb - OVS data in skb CB
- * @flow: The flow associated with this packet.  May be %NULL if no flow.
  * @egress_tun_key: Tunnel information about this packet on egress path.
  * NULL if the packet is not being tunneled.
  * @input_vport: The original vport packet came in on. This value is cached
  * when a packet is received by OVS.
  */
 struct ovs_skb_cb {
-	struct sw_flow		*flow;
 	struct ovs_tunnel_info  *egress_tun_info;
 	struct vport		*input_vport;
 };
@@ -194,7 +192,7 @@ struct sk_buff *ovs_vport_cmd_build_info(struct vport *, u32 pid, u32 seq,
 					 u8 cmd);
 
 int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
-			struct sw_flow_key *);
+			struct sw_flow_actions *acts, struct sw_flow_key *);
 
 void ovs_dp_notify_wq(struct work_struct *work);
 

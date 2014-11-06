@@ -30,6 +30,7 @@ config OPENVSWITCH
 
 config OPENVSWITCH_GRE
 	tristate "Open vSwitch GRE tunneling support"
+	select NET_MPLS_GSO
 	depends on INET
 	depends on OPENVSWITCH
 	depends on NET_IPGRE_DEMUX

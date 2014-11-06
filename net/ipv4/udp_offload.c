@@ -207,8 +207,7 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 				      SKB_GSO_UDP_TUNNEL_CSUM |
 				      SKB_GSO_TUNNEL_REMCSUM |
 				      SKB_GSO_IPIP |
-				      SKB_GSO_GRE | SKB_GSO_GRE_CSUM |
-				      SKB_GSO_MPLS) ||
+				      SKB_GSO_GRE | SKB_GSO_GRE_CSUM) ||
 			     !(type & (SKB_GSO_UDP))))
 			goto out;
 
