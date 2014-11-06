@@ -127,7 +127,7 @@ static int kdb_ftdump(int argc, const char **argv)
 
 static __init int kdb_ftrace_register(void)
 {
-	kdb_register_repeat("ftdump", kdb_ftdump, "[skip_#lines] [cpu]",
+	kdb_register_flags("ftdump", kdb_ftdump, "[skip_#lines] [cpu]",
 			    "Dump ftrace log", 0, KDB_REPEAT_NONE);
 	return 0;
 }

@@ -146,17 +146,17 @@ static inline const char *kdb_walk_kallsyms(loff_t *pos)
 
 /* Dynamic kdb shell command registration */
 extern int kdb_register(char *, kdb_func_t, char *, char *, short);
-extern int kdb_register_repeat(char *, kdb_func_t, char *, char *,
-			       short, kdb_cmdflags_t);
+extern int kdb_register_flags(char *, kdb_func_t, char *, char *,
+			      short, kdb_cmdflags_t);
 extern int kdb_unregister(char *);
 #else /* ! CONFIG_KGDB_KDB */
 static inline __printf(1, 2) int kdb_printf(const char *fmt, ...) { return 0; }
 static inline void kdb_init(int level) {}
 static inline int kdb_register(char *cmd, kdb_func_t func, char *usage,
 			       char *help, short minlen) { return 0; }
-static inline int kdb_register_repeat(char *cmd, kdb_func_t func, char *usage,
-				      char *help, short minlen,
-				      kdb_cmdflags_t flags) { return 0; }
+static inline int kdb_register_flags(char *cmd, kdb_func_t func, char *usage,
+				     char *help, short minlen,
+				     kdb_cmdflags_t flags) { return 0; }
 static inline int kdb_unregister(char *cmd) { return 0; }
 #endif	/* CONFIG_KGDB_KDB */
 enum {
