@@ -307,9 +307,9 @@ static void au_wh_init_ro(struct inode *h_dir, struct au_wh_base base[],
 
 /*
  * returns tri-state,
- * minus: error, caller should print the mesage
+ * minus: error, caller should print the message
  * zero: succuess
- * plus: error, caller should NOT print the mesage
+ * plus: error, caller should NOT print the message
  */
 static int au_wh_init_rw_nolink(struct dentry *h_root, struct au_wbr *wbr,
 				int do_plink, struct au_wh_base base[],
