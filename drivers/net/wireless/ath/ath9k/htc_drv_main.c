@@ -314,6 +314,10 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	mod_timer(&priv->tx.cleanup_timer,
 		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
 
+	/* perform spectral scan if requested. */
+	if (test_bit(ATH_OP_SCANNING, &common->op_flags) &&
+		     priv->spec_priv.spectral_mode == SPECTRAL_CHANSCAN)
+		ath9k_cmn_spectral_scan_trigger(common, &priv->spec_priv);
 err:
 	ath9k_htc_ps_restore(priv);
 	return ret;
