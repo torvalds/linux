@@ -1242,7 +1242,8 @@ static void i915_error_capture_msg(struct drm_device *dev,
 	ecode = i915_error_generate_code(dev_priv, error, &ring_id);
 
 	len = scnprintf(error->error_msg, sizeof(error->error_msg),
-			"GPU HANG: ecode %d:0x%08x", ring_id, ecode);
+			"GPU HANG: ecode %d:%d:0x%08x",
+			INTEL_INFO(dev)->gen, ring_id, ecode);
 
 	if (ring_id != -1 && error->ring[ring_id].pid != -1)
 		len += scnprintf(error->error_msg + len,
