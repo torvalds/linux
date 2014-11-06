@@ -156,6 +156,7 @@ enum
 	UDP_MIB_RCVBUFERRORS,			/* RcvbufErrors */
 	UDP_MIB_SNDBUFERRORS,			/* SndbufErrors */
 	UDP_MIB_CSUMERRORS,			/* InCsumErrors */
+	UDP_MIB_IGNOREDMULTI,			/* IgnoredMulti */
 	__UDP_MIB_MAX
 };
 

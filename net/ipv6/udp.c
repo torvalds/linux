@@ -771,7 +771,7 @@ static void udp6_csum_zero_error(struct sk_buff *skb)
  */
 static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 		const struct in6_addr *saddr, const struct in6_addr *daddr,
-		struct udp_table *udptable)
+		struct udp_table *udptable, int proto)
 {
 	struct sock *sk, *stack[256 / sizeof(struct sock *)];
 	const struct udphdr *uh = udp_hdr(skb);
@@ -781,6 +781,7 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 	int dif = inet6_iif(skb);
 	unsigned int count = 0, offset = offsetof(typeof(*sk), sk_nulls_node);
 	unsigned int hash2 = 0, hash2_any = 0, use_hash2 = (hslot->count > 10);
+	bool inner_flushed = false;
 
 	if (use_hash2) {
 		hash2_any = udp6_portaddr_hash(net, &in6addr_any, hnum) &
@@ -803,6 +804,7 @@ start_lookup:
 		    (uh->check || udp_sk(sk)->no_check6_rx)) {
 			if (unlikely(count == ARRAY_SIZE(stack))) {
 				flush_stack(stack, count, skb, ~0);
+				inner_flushed = true;
 				count = 0;
 			}
 			stack[count++] = sk;
@@ -821,7 +823,10 @@ start_lookup:
 	if (count) {
 		flush_stack(stack, count, skb, count - 1);
 	} else {
-		kfree_skb(skb);
+		if (!inner_flushed)
+			UDP_INC_STATS_BH(net, UDP_MIB_IGNOREDMULTI,
+					 proto == IPPROTO_UDPLITE);
+		consume_skb(skb);
 	}
 	return 0;
 }
@@ -873,7 +878,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	 */
 	if (ipv6_addr_is_multicast(daddr))
 		return __udp6_lib_mcast_deliver(net, skb,
-				saddr, daddr, udptable);
+				saddr, daddr, udptable, proto);
 
 	/* Unicast */
 
