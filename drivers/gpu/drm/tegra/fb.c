@@ -233,8 +233,9 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 
 	fbdev->fb = tegra_fb_alloc(drm, &cmd, &bo, 1);
 	if (IS_ERR(fbdev->fb)) {
-		dev_err(drm->dev, "failed to allocate DRM framebuffer\n");
 		err = PTR_ERR(fbdev->fb);
+		dev_err(drm->dev, "failed to allocate DRM framebuffer: %d\n",
+			err);
 		drm_gem_object_unreference_unlocked(&bo->gem);
 		goto release;
 	}
@@ -319,19 +320,21 @@ static int tegra_fbdev_init(struct tegra_fbdev *fbdev,
 
 	err = drm_fb_helper_init(drm, &fbdev->base, num_crtc, max_connectors);
 	if (err < 0) {
-		dev_err(drm->dev, "failed to initialize DRM FB helper\n");
+		dev_err(drm->dev, "failed to initialize DRM FB helper: %d\n",
+			err);
 		return err;
 	}
 
 	err = drm_fb_helper_single_add_all_connectors(&fbdev->base);
 	if (err < 0) {
-		dev_err(drm->dev, "failed to add connectors\n");
+		dev_err(drm->dev, "failed to add connectors: %d\n", err);
 		goto fini;
 	}
 
 	err = drm_fb_helper_initial_config(&fbdev->base, preferred_bpp);
 	if (err < 0) {
-		dev_err(drm->dev, "failed to set initial configuration\n");
+		dev_err(drm->dev, "failed to set initial configuration: %d\n",
+			err);
 		goto fini;
 	}
 
