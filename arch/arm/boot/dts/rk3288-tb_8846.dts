@@ -605,6 +605,13 @@
 	rockchip,cabc_mode = <0>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
+		/*lcd_18:lcd18 {
+			rockchip,power_type = <REGULATOR>;
+			rockchip,regulator_name = "vcc_18";
+			rockchip,regulator_voltage = <1800000>;
+			rockchip,delay = <5>;
+		};*/
+
 		lcd_en:lcd_en {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio7 GPIO_A3 GPIO_ACTIVE_HIGH>;

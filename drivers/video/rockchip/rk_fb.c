@@ -276,8 +276,11 @@ int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv)
 					pwr_ctr->pwr_ctr.volt = 0;
 			}
 		};
-		of_property_read_u32(child, "rockchip,delay", &val);
-		pwr_ctr->pwr_ctr.delay = val;
+
+		if (!of_property_read_u32(child, "rockchip,delay", &val))
+			pwr_ctr->pwr_ctr.delay = val;
+		else
+			pwr_ctr->pwr_ctr.delay = 0;
 		list_add_tail(&pwr_ctr->list, &dev_drv->pwrlist_head);
 	}
 
@@ -325,8 +328,9 @@ int rk_disp_pwr_enable(struct rk_lcdc_driver *dev_drv)
 			if (pwr_ctr->rgl_name)
 				regulator_lcd = regulator_get(NULL, pwr_ctr->rgl_name);
 			if (regulator_lcd == NULL) {
-				dev_err(dev_drv->dev, "%s: regulator get failed,regulator name:%s\n",
-				            __func__, pwr_ctr->rgl_name);
+				dev_err(dev_drv->dev,
+					"%s: regulator get failed,regulator name:%s\n",
+					__func__, pwr_ctr->rgl_name);
 				continue;
 			}
 			regulator_set_voltage(regulator_lcd, pwr_ctr->volt, pwr_ctr->volt);
@@ -334,7 +338,10 @@ int rk_disp_pwr_enable(struct rk_lcdc_driver *dev_drv)
 				if (regulator_enable(regulator_lcd) == 0 || count == 0)
 					break;
 				else
-					count--;
+					dev_err(dev_drv->dev,
+						"regulator_enable failed,count=%d\n",
+						count);
+				count--;
 			}
 			regulator_put(regulator_lcd);
 			msleep(pwr_ctr->delay);
@@ -364,15 +371,19 @@ int rk_disp_pwr_disable(struct rk_lcdc_driver *dev_drv)
 			if (pwr_ctr->rgl_name)
 				regulator_lcd = regulator_get(NULL, pwr_ctr->rgl_name);
 			if (regulator_lcd == NULL) {
-				dev_err(dev_drv->dev, "%s: regulator get failed,regulator name:%s\n",
-				            __func__, pwr_ctr->rgl_name);
+				dev_err(dev_drv->dev,
+					"%s: regulator get failed,regulator name:%s\n",
+					__func__, pwr_ctr->rgl_name);
 				continue;
 			}
 			while (regulator_is_enabled(regulator_lcd) > 0) {
 				if (regulator_disable(regulator_lcd) == 0 || count == 0)
 					break;
 				else
-					count--;
+					dev_err(dev_drv->dev,
+						"regulator_disable failed,count=%d\n",
+						count);
+				count--;
 			}
 			regulator_put(regulator_lcd);
 		}
