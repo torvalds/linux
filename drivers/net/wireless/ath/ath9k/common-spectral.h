@@ -130,20 +130,20 @@ static inline u8 spectral_bitmap_weight(u8 *bins)
 	return bins[0] & 0x3f;
 }
 
-void ath9k_spectral_init_debug(struct ath_spec_scan_priv *spec_priv, struct dentry *debugfs_phy);
-void ath9k_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv);
+void ath9k_cmn_spectral_init_debug(struct ath_spec_scan_priv *spec_priv, struct dentry *debugfs_phy);
+void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv);
 
-void ath9k_spectral_scan_trigger(struct ath_common *common,
+void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
 				 struct ath_spec_scan_priv *spec_priv);
-int ath9k_spectral_scan_config(struct ath_common *common,
+int ath9k_cmn_spectral_scan_config(struct ath_common *common,
 			       struct ath_spec_scan_priv *spec_priv,
 			       enum spectral_mode spectral_mode);
 
 #ifdef CONFIG_ATH9K_DEBUGFS
-int ath_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
+int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
 		    struct ath_rx_status *rs, u64 tsf);
 #else
-static inline int ath_process_fft(struct ath_spec_scan_priv *spec_priv,
+static inline int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv,
 				  struct ieee80211_hdr *hdr,
 				  struct ath_rx_status *rs, u64 tsf)
 {

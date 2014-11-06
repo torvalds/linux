@@ -93,7 +93,7 @@ static int ath_set_channel(struct ath_softc *sc)
 		/* perform spectral scan if requested. */
 		if (test_bit(ATH_OP_SCANNING, &common->op_flags) &&
 			sc->spec_priv.spectral_mode == SPECTRAL_CHANSCAN)
-			ath9k_spectral_scan_trigger(common, &sc->spec_priv);
+			ath9k_cmn_spectral_scan_trigger(common, &sc->spec_priv);
 	}
 
 	return 0;

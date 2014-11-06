@@ -37,7 +37,7 @@ static void ath_debug_send_fft_sample(struct ath_spec_scan_priv *spec_priv,
 }
 
 /* returns 1 if this was a spectral frame, even if not handled. */
-int ath_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
+int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
 		    struct ath_rx_status *rs, u64 tsf)
 {
 	struct ath_hw *ah = spec_priv->ah;
@@ -204,6 +204,7 @@ int ath_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *
 
 	return 1;
 }
+EXPORT_SYMBOL(ath_cmn_process_fft);
 
 /*********************/
 /* spectral_scan_ctl */
@@ -234,7 +235,7 @@ static ssize_t read_file_spec_scan_ctl(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, mode, len);
 }
 
-void ath9k_spectral_scan_trigger(struct ath_common *common,
+void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
 				 struct ath_spec_scan_priv *spec_priv)
 {
 	struct ath_hw *ah = spec_priv->ah;
@@ -259,12 +260,13 @@ void ath9k_spectral_scan_trigger(struct ath_common *common,
 	 * configuration, otherwise the register will have its values reset
 	 * (on my ar9220 to value 0x01002310)
 	 */
-	ath9k_spectral_scan_config(common, spec_priv, spec_priv->spectral_mode);
+	ath9k_cmn_spectral_scan_config(common, spec_priv, spec_priv->spectral_mode);
 	ath9k_hw_ops(ah)->spectral_scan_trigger(ah);
 	ath_ps_ops(common)->restore(common);
 }
+EXPORT_SYMBOL(ath9k_cmn_spectral_scan_trigger);
 
-int ath9k_spectral_scan_config(struct ath_common *common,
+int ath9k_cmn_spectral_scan_config(struct ath_common *common,
 			       struct ath_spec_scan_priv *spec_priv,
 			       enum spectral_mode spectral_mode)
 {
@@ -303,6 +305,7 @@ int ath9k_spectral_scan_config(struct ath_common *common,
 
 	return 0;
 }
+EXPORT_SYMBOL(ath9k_cmn_spectral_scan_config);
 
 static ssize_t write_file_spec_scan_ctl(struct file *file,
 					const char __user *user_buf,
@@ -323,18 +326,18 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 	buf[len] = '\0';
 
 	if (strncmp("trigger", buf, 7) == 0) {
-		ath9k_spectral_scan_trigger(common, spec_priv);
+		ath9k_cmn_spectral_scan_trigger(common, spec_priv);
 	} else if (strncmp("background", buf, 10) == 0) {
-		ath9k_spectral_scan_config(common, spec_priv, SPECTRAL_BACKGROUND);
+		ath9k_cmn_spectral_scan_config(common, spec_priv, SPECTRAL_BACKGROUND);
 		ath_dbg(common, CONFIG, "spectral scan: background mode enabled\n");
 	} else if (strncmp("chanscan", buf, 8) == 0) {
-		ath9k_spectral_scan_config(common, spec_priv, SPECTRAL_CHANSCAN);
+		ath9k_cmn_spectral_scan_config(common, spec_priv, SPECTRAL_CHANSCAN);
 		ath_dbg(common, CONFIG, "spectral scan: channel scan mode enabled\n");
 	} else if (strncmp("manual", buf, 6) == 0) {
-		ath9k_spectral_scan_config(common, spec_priv, SPECTRAL_MANUAL);
+		ath9k_cmn_spectral_scan_config(common, spec_priv, SPECTRAL_MANUAL);
 		ath_dbg(common, CONFIG, "spectral scan: manual mode enabled\n");
 	} else if (strncmp("disable", buf, 7) == 0) {
-		ath9k_spectral_scan_config(common, spec_priv, SPECTRAL_DISABLED);
+		ath9k_cmn_spectral_scan_config(common, spec_priv, SPECTRAL_DISABLED);
 		ath_dbg(common, CONFIG, "spectral scan: disabled\n");
 	} else {
 		return -EINVAL;
@@ -577,15 +580,17 @@ static struct rchan_callbacks rfs_spec_scan_cb = {
 /* Debug Init/Deinit */
 /*********************/
 
-void ath9k_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv)
+void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv)
 {
 	if (config_enabled(CONFIG_ATH9K_DEBUGFS) && spec_priv->rfs_chan_spec_scan) {
 		relay_close(spec_priv->rfs_chan_spec_scan);
 		spec_priv->rfs_chan_spec_scan = NULL;
 	}
 }
+EXPORT_SYMBOL(ath9k_cmn_spectral_deinit_debug);
 
-void ath9k_spectral_init_debug(struct ath_spec_scan_priv *spec_priv, struct dentry *debugfs_phy)
+void ath9k_cmn_spectral_init_debug(struct ath_spec_scan_priv *spec_priv,
+				   struct dentry *debugfs_phy)
 {
 	spec_priv->rfs_chan_spec_scan = relay_open("spectral_scan",
 					    debugfs_phy,
@@ -612,3 +617,4 @@ void ath9k_spectral_init_debug(struct ath_spec_scan_priv *spec_priv, struct dent
 			    debugfs_phy, spec_priv,
 			    &fops_spectral_fft_period);
 }
+EXPORT_SYMBOL(ath9k_cmn_spectral_init_debug);

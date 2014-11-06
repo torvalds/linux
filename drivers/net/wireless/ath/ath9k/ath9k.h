@@ -28,7 +28,6 @@
 #include "debug.h"
 #include "mci.h"
 #include "dfs.h"
-#include "spectral.h"
 
 struct ath_node;
 struct ath_vif;
