@@ -39,7 +39,6 @@ static void __dma_tx_complete(void *param)
 
 	ret = serial8250_tx_dma(p);
 	if (ret) {
-		dma->tx_err = 1;
 		p->ier |= UART_IER_THRI;
 		serial_port_out(&p->port, UART_IER, p->ier);
 	}
@@ -93,7 +92,6 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 	}
 
 	dma->tx_running = 1;
-
 	desc->callback = __dma_tx_complete;
 	desc->callback_param = p;
 
