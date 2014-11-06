@@ -1211,6 +1211,9 @@ bool iwl_mvm_is_idle(struct iwl_mvm *mvm);
 /* Thermal management and CT-kill */
 void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff);
 void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp);
+int iwl_mvm_temp_notif(struct iwl_mvm *mvm,
+		       struct iwl_rx_cmd_buffer *rxb,
+		       struct iwl_device_cmd *cmd);
 void iwl_mvm_tt_handler(struct iwl_mvm *mvm);
 void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff);
 void iwl_mvm_tt_exit(struct iwl_mvm *mvm);
