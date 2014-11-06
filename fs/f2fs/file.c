@@ -132,6 +132,8 @@ static inline bool need_do_checkpoint(struct inode *inode)
 		need_cp = true;
 	else if (test_opt(sbi, FASTBOOT))
 		need_cp = true;
+	else if (sbi->active_logs == 2)
+		need_cp = true;
 
 	return need_cp;
 }

@@ -1090,8 +1090,8 @@ static int __get_segment_type_4(struct page *page, enum page_type p_type)
 		else
 			return CURSEG_COLD_DATA;
 	} else {
-		if (IS_DNODE(page) && !is_cold_node(page))
-			return CURSEG_HOT_NODE;
+		if (IS_DNODE(page) && is_cold_node(page))
+			return CURSEG_WARM_NODE;
 		else
 			return CURSEG_COLD_NODE;
 	}
