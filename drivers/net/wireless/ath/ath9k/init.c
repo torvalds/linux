@@ -88,6 +88,21 @@ static const struct ieee80211_tpt_blink ath9k_tpt_blink[] = {
 
 static void ath9k_deinit_softc(struct ath_softc *sc);
 
+void ath9k_op_ps_wakeup(struct ath_common *common)
+{
+	ath9k_ps_wakeup((struct ath_softc *) common->priv);
+}
+
+void ath9k_op_ps_restore(struct ath_common *common)
+{
+	ath9k_ps_restore((struct ath_softc *) common->priv);
+}
+
+struct ath_ps_ops ath9k_ps_ops = {
+	.wakeup = ath9k_op_ps_wakeup,
+	.restore = ath9k_op_ps_restore,
+};
+
 /*
  * Read and write, they both share the same lock. We do this to serialize
  * reads and writes on Atheros 802.11n PCI devices only. This is required
@@ -543,6 +558,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 
 	common->ops = &ah->reg_ops;
 	common->bus_ops = bus_ops;
+	common->ps_ops = &ath9k_ps_ops;
 	common->ah = ah;
 	common->hw = sc->hw;
 	common->priv = sc;
