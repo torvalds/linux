@@ -342,6 +342,8 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 		VNSvOutPortB(pDevice->PortOffset + MAC_REG_CWMAXMIN0, pDevice->byCWMaxMin);
 	}
 
+	pDevice->byPacketType = CARDbyGetPktType(pDevice);
+
 	CARDvSetRSPINF(pDevice, ePHYType);
 
 	return true;
@@ -876,7 +878,7 @@ bool CARDbIsOFDMinBasicRate(struct vnt_private *pDevice)
 	int ii;
 
 	for (ii = RATE_54M; ii >= RATE_6M; ii--) {
-		if ((pDevice->wBasicRate) & ((unsigned short)(1 << ii)))
+		if ((pDevice->basic_rates) & ((u32)(1 << ii)))
 			return true;
 	}
 	return false;
