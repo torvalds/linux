@@ -504,7 +504,6 @@ Away:
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalinsert);
 
-
 int
 visorchannel_signalqueue_slots_avail(VISORCHANNEL *channel, u32 queue)
 {
