@@ -2610,6 +2610,9 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		return -ENOMEM;
 	}
 
+	pd = &pl330->ddma;
+	pd->dev = &adev->dev;
+
 	pl330->mcbufsz = pdat ? pdat->mcbuf_sz : 0;
 
 	res = &adev->res;
@@ -2646,7 +2649,6 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	if (!add_desc(pl330, GFP_KERNEL, NR_DEFAULT_DESC))
 		dev_warn(&adev->dev, "unable to allocate desc\n");
 
-	pd = &pl330->ddma;
 	INIT_LIST_HEAD(&pd->channels);
 
 	/* Initialize channel parameters */
@@ -2683,7 +2685,6 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		list_add_tail(&pch->chan.device_node, &pd->channels);
 	}
 
-	pd->dev = &adev->dev;
 	if (pdat) {
 		pd->cap_mask = pdat->cap_mask;
 	} else {
