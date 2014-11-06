@@ -742,6 +742,10 @@ int __init ghid_setup(struct usb_gadget *g, int count)
 	dev_t dev;
 
 	hidg_class = class_create(THIS_MODULE, "hidg");
+	if (IS_ERR(hidg_class)) {
+		hidg_class = NULL;
+		return PTR_ERR(hidg_class);
+	}
 
 	status = alloc_chrdev_region(&dev, 0, count, "hidg");
 	if (!status) {
