@@ -692,10 +692,8 @@ __acquires(ci->lock)
 	int retval;
 
 	spin_unlock(&ci->lock);
-	if (ci->gadget.speed != USB_SPEED_UNKNOWN) {
-		if (ci->driver)
-			ci->driver->disconnect(&ci->gadget);
-	}
+	if (ci->gadget.speed != USB_SPEED_UNKNOWN)
+		usb_gadget_udc_reset(&ci->gadget, ci->driver);
 
 	retval = _gadget_stop_activity(&ci->gadget);
 	if (retval)
@@ -708,8 +706,6 @@ __acquires(ci->lock)
 	ci->status = usb_ep_alloc_request(&ci->ep0in->ep, GFP_ATOMIC);
 	if (ci->status == NULL)
 		retval = -ENOMEM;
-
-	usb_gadget_set_state(&ci->gadget, USB_STATE_DEFAULT);
 
 done:
 	spin_lock(&ci->lock);
