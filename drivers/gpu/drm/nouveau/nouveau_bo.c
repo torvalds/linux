@@ -333,22 +333,22 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 	nouveau_bo_placement_set(nvbo, memtype, 0);
 
 	ret = nouveau_bo_validate(nvbo, false, false);
-	if (ret == 0) {
-		switch (bo->mem.mem_type) {
-		case TTM_PL_VRAM:
-			drm->gem.vram_available -= bo->mem.size;
-			break;
-		case TTM_PL_TT:
-			drm->gem.gart_available -= bo->mem.size;
-			break;
-		default:
-			break;
-		}
+	if (ret)
+		goto out;
+
+	switch (bo->mem.mem_type) {
+	case TTM_PL_VRAM:
+		drm->gem.vram_available -= bo->mem.size;
+		break;
+	case TTM_PL_TT:
+		drm->gem.gart_available -= bo->mem.size;
+		break;
+	default:
+		break;
 	}
 
 ref_inc:
 	nvbo->pin_refcnt++;
-
 out:
 	ttm_bo_unreserve(bo);
 	return ret;
