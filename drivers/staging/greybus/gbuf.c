@@ -114,37 +114,6 @@ void greybus_kill_gbuf(struct gbuf *gbuf)
 	hd->driver->kill_gbuf(gbuf);
 }
 
-#define MAX_CPORTS	1024
-struct gb_cport_handler {
-	gbuf_complete_t handler;
-	u16 cport_id;
-	struct gb_module *gmod;
-	void *context;
-};
-
-static struct gb_cport_handler cport_handler[MAX_CPORTS];
-// FIXME - use a lock for this list of handlers, but really, for now we don't
-// need it, we don't have a dynamic system...
-
-int gb_register_cport_complete(struct gb_module *gmod,
-			       gbuf_complete_t handler,
-			       u16 cport_id,
-			       void *context)
-{
-	if (cport_handler[cport_id].handler)
-		return -EINVAL;
-	cport_handler[cport_id].context = context;
-	cport_handler[cport_id].gmod = gmod;
-	cport_handler[cport_id].cport_id = cport_id;
-	cport_handler[cport_id].handler = handler;
-	return 0;
-}
-
-void gb_deregister_cport_complete(u16 cport_id)
-{
-	cport_handler[cport_id].handler = NULL;
-}
-
 void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length)
 {

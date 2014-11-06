@@ -258,11 +258,6 @@ void gb_debugfs_cleanup(void);
 int gb_gbuf_init(void);
 void gb_gbuf_exit(void);
 
-int gb_register_cport_complete(struct gb_module *gmod,
-			       gbuf_complete_t handler, u16 cport_id,
-			       void *context);
-void gb_deregister_cport_complete(u16 cport_id);
-
 extern struct bus_type greybus_bus_type;
 extern const struct attribute_group *greybus_module_groups[];
 
