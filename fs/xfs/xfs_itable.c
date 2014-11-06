@@ -283,21 +283,16 @@ xfs_bulkstat_ag_ichunk(
 	xfs_ino_t			*lastino)
 {
 	char				__user **ubufp = acp->ac_ubuffer;
-	int				ubleft = acp->ac_ubleft;
-	int				ubelem = acp->ac_ubelem;
-	int				chunkidx, clustidx;
+	int				chunkidx;
 	int				error = 0;
 	xfs_agino_t			agino;
 
-	for (agino = irbp->ir_startino, chunkidx = clustidx = 0;
-	     XFS_BULKSTAT_UBLEFT(ubleft) &&
-	     irbp->ir_freecount < XFS_INODES_PER_CHUNK;
-	     chunkidx++, clustidx++, agino++) {
-		int		fmterror;	/* bulkstat formatter result */
+	agino = irbp->ir_startino;
+	for (chunkidx = 0; chunkidx < XFS_INODES_PER_CHUNK;
+	     chunkidx++, agino++) {
+		int		fmterror;
 		int		ubused;
 		xfs_ino_t	ino = XFS_AGINO_TO_INO(mp, agno, agino);
-
-		ASSERT(chunkidx < XFS_INODES_PER_CHUNK);
 
 		/* Skip if this inode is free */
 		if (XFS_INOBT_MASK(chunkidx) & irbp->ir_free) {
@@ -305,37 +300,32 @@ xfs_bulkstat_ag_ichunk(
 			continue;
 		}
 
-		/*
-		 * Count used inodes as free so we can tell when the
-		 * chunk is used up.
-		 */
-		irbp->ir_freecount++;
-
 		/* Get the inode and fill in a single buffer */
 		ubused = statstruct_size;
-		error = formatter(mp, ino, *ubufp, ubleft, &ubused, &fmterror);
-		if (fmterror == BULKSTAT_RV_NOTHING) {
-			if (error && error != -ENOENT && error != -EINVAL) {
-				ubleft = 0;
-				break;
-			}
-			*lastino = ino;
-			continue;
-		}
-		if (fmterror == BULKSTAT_RV_GIVEUP) {
-			ubleft = 0;
+		error = formatter(mp, ino, *ubufp, acp->ac_ubleft,
+				  &ubused, &fmterror);
+		if (fmterror == BULKSTAT_RV_GIVEUP ||
+		    (error && error != -ENOENT && error != -EINVAL)) {
+			acp->ac_ubleft = 0;
 			ASSERT(error);
 			break;
 		}
-		if (*ubufp)
-			*ubufp += ubused;
-		ubleft -= ubused;
-		ubelem++;
-		*lastino = ino;
-	}
 
-	acp->ac_ubleft = ubleft;
-	acp->ac_ubelem = ubelem;
+		/* be careful not to leak error if at end of chunk */
+		if (fmterror == BULKSTAT_RV_NOTHING || error) {
+			*lastino = ino;
+			error = 0;
+			continue;
+		}
+
+		*ubufp += ubused;
+		acp->ac_ubleft -= ubused;
+		acp->ac_ubelem++;
+		*lastino = ino;
+
+		if (acp->ac_ubleft < statstruct_size)
+			break;
+	}
 
 	return error;
 }
