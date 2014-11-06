@@ -514,30 +514,30 @@ void ath9k_spectral_deinit_debug(struct ath_softc *sc)
 	}
 }
 
-void ath9k_spectral_init_debug(struct ath_softc *sc)
+void ath9k_spectral_init_debug(struct ath_softc *sc, struct dentry *debugfs_phy)
 {
 	sc->spec_priv.rfs_chan_spec_scan = relay_open("spectral_scan",
-					    sc->debug.debugfs_phy,
+					    debugfs_phy,
 					    1024, 256, &rfs_spec_scan_cb,
 					    NULL);
 	debugfs_create_file("spectral_scan_ctl",
 			    S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc,
+			    debugfs_phy, sc,
 			    &fops_spec_scan_ctl);
 	debugfs_create_file("spectral_short_repeat",
 			    S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc,
+			    debugfs_phy, sc,
 			    &fops_spectral_short_repeat);
 	debugfs_create_file("spectral_count",
 			    S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc,
+			    debugfs_phy, sc,
 			    &fops_spectral_count);
 	debugfs_create_file("spectral_period",
 			    S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc,
+			    debugfs_phy, sc,
 			    &fops_spectral_period);
 	debugfs_create_file("spectral_fft_period",
 			    S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc,
+			    debugfs_phy, sc,
 			    &fops_spectral_fft_period);
 }

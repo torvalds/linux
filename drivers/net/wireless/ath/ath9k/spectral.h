@@ -129,7 +129,7 @@ static inline u8 spectral_bitmap_weight(u8 *bins)
 	return bins[0] & 0x3f;
 }
 
-void ath9k_spectral_init_debug(struct ath_softc *sc);
+void ath9k_spectral_init_debug(struct ath_softc *sc, struct dentry *debugfs_phy);
 void ath9k_spectral_deinit_debug(struct ath_softc *sc);
 
 void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw);
