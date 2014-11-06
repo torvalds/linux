@@ -131,6 +131,8 @@ struct uart_port {
 	void			(*pm)(struct uart_port *, unsigned int state,
 				      unsigned int old);
 	void			(*handle_break)(struct uart_port *);
+	int			(*rs485_config)(struct uart_port *,
+						struct serial_rs485 *rs485);
 	unsigned int		irq;			/* irq number */
 	unsigned long		irqflags;		/* irq flags  */
 	unsigned int		uartclk;		/* base uart clock */
@@ -231,6 +233,7 @@ struct uart_port {
 	unsigned char		unused[2];
 	struct attribute_group	*attr_group;		/* port specific attributes */
 	const struct attribute_group **tty_groups;	/* all attributes (serial core use only) */
+	struct serial_rs485     rs485;
 	void			*private_data;		/* generic platform data pointer */
 };
 
