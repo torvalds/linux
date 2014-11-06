@@ -1982,17 +1982,42 @@ net2272_handle_stat1_irqs(struct net2272 *dev, u8 stat)
 	mask = (1 << USB_HIGH_SPEED) | (1 << USB_FULL_SPEED);
 
 	if (stat & tmp) {
+		bool	reset = false;
+		bool	disconnect = false;
+
+		/*
+		 * Ignore disconnects and resets if the speed hasn't been set.
+		 * VBUS can bounce and there's always an initial reset.
+		 */
 		net2272_write(dev, IRQSTAT1, tmp);
-		if ((((stat & (1 << ROOT_PORT_RESET_INTERRUPT)) &&
-				((net2272_read(dev, USBCTL1) & mask) == 0))
-			|| ((net2272_read(dev, USBCTL1) & (1 << VBUS_PIN))
-				== 0))
-				&& (dev->gadget.speed != USB_SPEED_UNKNOWN)) {
-			dev_dbg(dev->dev, "disconnect %s\n",
-				dev->driver->driver.name);
-			stop_activity(dev, dev->driver);
-			net2272_ep0_start(dev);
-			return;
+		if (dev->gadget.speed != USB_SPEED_UNKNOWN) {
+			if ((stat & (1 << VBUS_INTERRUPT)) &&
+					(net2272_read(dev, USBCTL1) &
+						(1 << VBUS_PIN)) == 0) {
+				disconnect = true;
+				dev_dbg(dev->dev, "disconnect %s\n",
+					dev->driver->driver.name);
+			} else if ((stat & (1 << ROOT_PORT_RESET_INTERRUPT)) &&
+					(net2272_read(dev, USBCTL1) & mask)
+						== 0) {
+				reset = true;
+				dev_dbg(dev->dev, "reset %s\n",
+					dev->driver->driver.name);
+			}
+
+			if (disconnect || reset) {
+				stop_activity(dev, dev->driver);
+				net2272_ep0_start(dev);
+				spin_unlock(&dev->lock);
+				if (reset)
+					usb_gadget_udc_reset
+						(&dev->gadget, dev->driver);
+				else
+					(dev->driver->disconnect)
+						(&dev->gadget);
+				spin_lock(&dev->lock);
+				return;
+			}
 		}
 		stat &= ~tmp;
 
