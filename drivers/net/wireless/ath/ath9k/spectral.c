@@ -28,12 +28,12 @@ static void ath_debug_send_fft_sample(struct ath_softc *sc,
 				      struct fft_sample_tlv *fft_sample_tlv)
 {
 	int length;
-	if (!sc->rfs_chan_spec_scan)
+	if (!sc->spec_priv.rfs_chan_spec_scan)
 		return;
 
 	length = __be16_to_cpu(fft_sample_tlv->length) +
 		 sizeof(*fft_sample_tlv);
-	relay_write(sc->rfs_chan_spec_scan, fft_sample_tlv, length);
+	relay_write(sc->spec_priv.rfs_chan_spec_scan, fft_sample_tlv, length);
 }
 
 /* returns 1 if this was a spectral frame, even if not handled. */
@@ -508,15 +508,15 @@ static struct rchan_callbacks rfs_spec_scan_cb = {
 
 void ath9k_spectral_deinit_debug(struct ath_softc *sc)
 {
-	if (config_enabled(CONFIG_ATH9K_DEBUGFS) && sc->rfs_chan_spec_scan) {
-		relay_close(sc->rfs_chan_spec_scan);
-		sc->rfs_chan_spec_scan = NULL;
+	if (config_enabled(CONFIG_ATH9K_DEBUGFS) && sc->spec_priv.rfs_chan_spec_scan) {
+		relay_close(sc->spec_priv.rfs_chan_spec_scan);
+		sc->spec_priv.rfs_chan_spec_scan = NULL;
 	}
 }
 
 void ath9k_spectral_init_debug(struct ath_softc *sc)
 {
-	sc->rfs_chan_spec_scan = relay_open("spectral_scan",
+	sc->spec_priv.rfs_chan_spec_scan = relay_open("spectral_scan",
 					    sc->debug.debugfs_phy,
 					    1024, 256, &rfs_spec_scan_cb,
 					    NULL);

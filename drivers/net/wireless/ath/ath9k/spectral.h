@@ -92,6 +92,9 @@ struct ath_ht20_40_fft_packet {
 	struct ath_radar_info radar_info;
 } __packed;
 
+struct ath_spec_scan_priv {
+	struct rchan *rfs_chan_spec_scan;
+};
 
 #define SPECTRAL_HT20_40_TOTAL_DATA_LEN	(sizeof(struct ath_ht20_40_fft_packet))
 
