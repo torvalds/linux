@@ -840,6 +840,31 @@ static void udc_reinit(struct at91_udc *udc)
 	}
 }
 
+static void reset_gadget(struct at91_udc *udc)
+{
+	struct usb_gadget_driver *driver = udc->driver;
+	int i;
+
+	if (udc->gadget.speed == USB_SPEED_UNKNOWN)
+		driver = NULL;
+	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->suspended = 0;
+
+	for (i = 0; i < NUM_ENDPOINTS; i++) {
+		struct at91_ep *ep = &udc->ep[i];
+
+		ep->stopped = 1;
+		nuke(ep, -ESHUTDOWN);
+	}
+	if (driver) {
+		spin_unlock(&udc->lock);
+		usb_gadget_udc_reset(&udc->gadget, driver);
+		spin_lock(&udc->lock);
+	}
+
+	udc_reinit(udc);
+}
+
 static void stop_activity(struct at91_udc *udc)
 {
 	struct usb_gadget_driver *driver = udc->driver;
@@ -1426,7 +1451,7 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 			at91_udp_write(udc, AT91_UDP_ICR, AT91_UDP_ENDBUSRES);
 			VDBG("end bus reset\n");
 			udc->addr = 0;
-			stop_activity(udc);
+			reset_gadget(udc);
 
 			/* enable ep0 */
 			at91_udp_write(udc, AT91_UDP_CSR(0),
