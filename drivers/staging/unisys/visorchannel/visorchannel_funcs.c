@@ -388,8 +388,8 @@ safe_sig_queue_validate(struct signal_queue_header *psafe_sqh,
 			struct signal_queue_header *punsafe_sqh,
 			u32 *phead, u32 *ptail)
 {
-	if ((*phead >= psafe_sqh->max_slots)
-	    || (*ptail >= psafe_sqh->max_slots)) {
+	if ((*phead >= psafe_sqh->max_slots) ||
+	    (*ptail >= psafe_sqh->max_slots)) {
 		/* Choose 0 or max, maybe based on current tail value */
 		*phead = 0;
 		*ptail = 0;
