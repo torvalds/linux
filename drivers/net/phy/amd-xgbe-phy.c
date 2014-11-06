@@ -992,7 +992,8 @@ static int amd_xgbe_phy_soft_reset(struct phy_device *phydev)
 	if (ret & MDIO_CTRL1_RESET)
 		return -ETIMEDOUT;
 
-	return 0;
+	/* Make sure the XPCS and SerDes are in compatible states */
+	return amd_xgbe_phy_xgmii_mode(phydev);
 }
 
 static int amd_xgbe_phy_config_init(struct phy_device *phydev)

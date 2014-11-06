@@ -142,6 +142,8 @@
 
 #define XGBE_RX_MIN_BUF_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 #define XGBE_RX_BUF_ALIGN	64
+#define XGBE_SKB_ALLOC_SIZE	256
+#define XGBE_SPH_HDSMS_SIZE	2	/* Keep in sync with SKB_ALLOC_SIZE */
 
 #define XGBE_MAX_DMA_CHANNELS	16
 #define XGBE_MAX_QUEUES		16
@@ -171,6 +173,7 @@
 /* Device-tree clock names */
 #define XGBE_DMA_CLOCK		"dma_clk"
 #define XGBE_PTP_CLOCK		"ptp_clk"
+#define XGBE_DMA_IRQS		"amd,per-channel-interrupt"
 
 /* Timestamp support - values based on 50MHz PTP clock
  *   50MHz => 20 nsec
@@ -212,6 +215,12 @@
 /* Maximum MAC address hash table size (256 bits = 8 bytes) */
 #define XGBE_MAC_HASH_TABLE_SIZE	8
 
+/* Receive Side Scaling */
+#define XGBE_RSS_HASH_KEY_SIZE		40
+#define XGBE_RSS_MAX_TABLE_SIZE		256
+#define XGBE_RSS_LOOKUP_TABLE_TYPE	0
+#define XGBE_RSS_HASH_KEY_TYPE		1
+
 struct xgbe_prv_data;
 
 struct xgbe_packet_data {
@@ -230,14 +239,35 @@ struct xgbe_packet_data {
 	unsigned short vlan_ctag;
 
 	u64 rx_tstamp;
+
+	u32 rss_hash;
+	enum pkt_hash_types rss_hash_type;
 };
 
 /* Common Rx and Tx descriptor mapping */
 struct xgbe_ring_desc {
-	unsigned int desc0;
-	unsigned int desc1;
-	unsigned int desc2;
-	unsigned int desc3;
+	u32 desc0;
+	u32 desc1;
+	u32 desc2;
+	u32 desc3;
+};
+
+/* Page allocation related values */
+struct xgbe_page_alloc {
+	struct page *pages;
+	unsigned int pages_len;
+	unsigned int pages_offset;
+
+	dma_addr_t pages_dma;
+};
+
+/* Ring entry buffer data */
+struct xgbe_buffer_data {
+	struct xgbe_page_alloc pa;
+	struct xgbe_page_alloc pa_unmap;
+
+	dma_addr_t dma;
+	unsigned int dma_len;
 };
 
 /* Structure used to hold information related to the descriptor
@@ -253,6 +283,10 @@ struct xgbe_ring_data {
 	unsigned int skb_dma_len;	/* Length of SKB DMA area */
 	unsigned int tso_header;        /* TSO header indicator */
 
+	struct xgbe_buffer_data rx_hdr;	/* Header locations */
+	struct xgbe_buffer_data rx_buf; /* Payload locations */
+
+	unsigned short hdr_len;		/* Length of received header */
 	unsigned short len;		/* Length of received Rx packet */
 
 	unsigned int interrupt;		/* Interrupt indicator */
@@ -290,6 +324,10 @@ struct xgbe_ring {
 	 * (always use the XGBE_GET_DESC_DATA macro to access this data)
 	 */
 	struct xgbe_ring_data *rdata;
+
+	/* Page allocation for RX buffers */
+	struct xgbe_page_alloc rx_hdr_pa;
+	struct xgbe_page_alloc rx_buf_pa;
 
 	/* Ring index values
 	 *  cur   - Tx: index of descriptor to be used for current transfer
@@ -330,6 +368,12 @@ struct xgbe_channel {
 	/* Queue index and base address of queue's DMA registers */
 	unsigned int queue_index;
 	void __iomem *dma_regs;
+
+	/* Per channel interrupt irq number */
+	int dma_irq;
+
+	/* Netdev related settings */
+	struct napi_struct napi;
 
 	unsigned int saved_ier;
 
@@ -456,7 +500,7 @@ struct xgbe_hw_if {
 
 	int (*enable_int)(struct xgbe_channel *, enum xgbe_int);
 	int (*disable_int)(struct xgbe_channel *, enum xgbe_int);
-	void (*pre_xmit)(struct xgbe_channel *);
+	void (*dev_xmit)(struct xgbe_channel *);
 	int (*dev_read)(struct xgbe_channel *);
 	void (*tx_desc_init)(struct xgbe_channel *);
 	void (*rx_desc_init)(struct xgbe_channel *);
@@ -509,14 +553,20 @@ struct xgbe_hw_if {
 	/* For Data Center Bridging config */
 	void (*config_dcb_tc)(struct xgbe_prv_data *);
 	void (*config_dcb_pfc)(struct xgbe_prv_data *);
+
+	/* For Receive Side Scaling */
+	int (*enable_rss)(struct xgbe_prv_data *);
+	int (*disable_rss)(struct xgbe_prv_data *);
+	int (*set_rss_hash_key)(struct xgbe_prv_data *, const u8 *);
+	int (*set_rss_lookup_table)(struct xgbe_prv_data *, const u32 *);
 };
 
 struct xgbe_desc_if {
 	int (*alloc_ring_resources)(struct xgbe_prv_data *);
 	void (*free_ring_resources)(struct xgbe_prv_data *);
 	int (*map_tx_skb)(struct xgbe_channel *, struct sk_buff *);
-	void (*realloc_skb)(struct xgbe_channel *);
-	void (*unmap_skb)(struct xgbe_prv_data *, struct xgbe_ring_data *);
+	void (*realloc_rx_buffer)(struct xgbe_channel *);
+	void (*unmap_rdata)(struct xgbe_prv_data *, struct xgbe_ring_data *);
 	void (*wrapper_tx_desc_init)(struct xgbe_prv_data *);
 	void (*wrapper_rx_desc_init)(struct xgbe_prv_data *);
 };
@@ -581,7 +631,11 @@ struct xgbe_prv_data {
 	/* XPCS indirect addressing mutex */
 	struct mutex xpcs_mutex;
 
-	int irq_number;
+	/* RSS addressing mutex */
+	struct mutex rss_mutex;
+
+	int dev_irq;
+	unsigned int per_channel_irq;
 
 	struct xgbe_hw_if hw_if;
 	struct xgbe_desc_if desc_if;
@@ -624,13 +678,18 @@ struct xgbe_prv_data {
 	unsigned int rx_riwt;
 	unsigned int rx_frames;
 
-	/* Current MTU */
+	/* Current Rx buffer size */
 	unsigned int rx_buf_size;
 
 	/* Flow control settings */
 	unsigned int pause_autoneg;
 	unsigned int tx_pause;
 	unsigned int rx_pause;
+
+	/* Receive Side Scaling settings */
+	u8 rss_key[XGBE_RSS_HASH_KEY_SIZE];
+	u32 rss_table[XGBE_RSS_MAX_TABLE_SIZE];
+	u32 rss_options;
 
 	/* MDIO settings */
 	struct module *phy_module;
