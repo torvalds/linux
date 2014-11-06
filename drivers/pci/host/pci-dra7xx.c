@@ -270,8 +270,8 @@ static irqreturn_t dra7xx_pcie_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
-				struct platform_device *pdev)
+static int __init dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
+				       struct platform_device *pdev)
 {
 	int ret;
 	struct pcie_port *pp;
