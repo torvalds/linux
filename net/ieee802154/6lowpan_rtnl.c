@@ -176,13 +176,13 @@ iphc_decompress(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 	raw_dump_table(__func__, "raw skb data dump", skb->data, skb->len);
 	/* at least two bytes will be used for the encoding */
 	if (skb->len < 2)
-		goto drop;
+		return -EINVAL;
 
 	if (lowpan_fetch_skb_u8(skb, &iphc0))
-		goto drop;
+		return -EINVAL;
 
 	if (lowpan_fetch_skb_u8(skb, &iphc1))
-		goto drop;
+		return -EINVAL;
 
 	ieee802154_addr_to_sa(&sa, &hdr->source);
 	ieee802154_addr_to_sa(&da, &hdr->dest);
@@ -200,10 +200,6 @@ iphc_decompress(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 	return lowpan_header_decompress(skb, skb->dev, sap, sa.addr_type,
 					IEEE802154_ADDR_LEN, dap, da.addr_type,
 					IEEE802154_ADDR_LEN, iphc0, iphc1);
-
-drop:
-	kfree_skb(skb);
-	return -EINVAL;
 }
 
 static struct sk_buff*
@@ -522,7 +518,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
 			ret = iphc_decompress(skb, &hdr);
 			if (ret < 0)
-				goto drop;
+				goto drop_skb;
 
 			return lowpan_give_skb_to_devices(skb, NULL);
 		case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
@@ -530,7 +526,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 			if (ret == 1) {
 				ret = iphc_decompress(skb, &hdr);
 				if (ret < 0)
-					goto drop;
+					goto drop_skb;
 
 				return lowpan_give_skb_to_devices(skb, NULL);
 			} else if (ret == -1) {
@@ -543,7 +539,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 			if (ret == 1) {
 				ret = iphc_decompress(skb, &hdr);
 				if (ret < 0)
-					goto drop;
+					goto drop_skb;
 
 				return lowpan_give_skb_to_devices(skb, NULL);
 			} else if (ret == -1) {
