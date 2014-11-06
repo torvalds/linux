@@ -627,7 +627,7 @@ static void maybe_tx_wakeup(struct vnet_port *port)
 		struct vio_dring_state *dr;
 
 		dr = &port->vio.drings[VIO_DRIVER_TX_RING];
-			netif_tx_wake_queue(txq);
+		netif_tx_wake_queue(txq);
 	}
 	__netif_tx_unlock(txq);
 }
