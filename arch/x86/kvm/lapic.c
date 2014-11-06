@@ -160,29 +160,34 @@ static void recalculate_apic_map(struct kvm *kvm)
 		if (!kvm_apic_present(vcpu))
 			continue;
 
-		/*
-		 * All APICs have to be configured in the same mode by an OS.
-		 * We take advatage of this while building logical id loockup
-		 * table. After reset APICs are in xapic/flat mode, so if we
-		 * find apic with different setting we assume this is the mode
-		 * OS wants all apics to be in; build lookup table accordingly.
-		 */
 		if (apic_x2apic_mode(apic)) {
 			new->ldr_bits = 32;
 			new->cid_shift = 16;
 			new->cid_mask = (1 << KVM_X2APIC_CID_BITS) - 1;
 			new->lid_mask = 0xffff;
 			new->broadcast = X2APIC_BROADCAST;
-			break;
-		} else if (kvm_apic_sw_enabled(apic)) {
+		} else if (kvm_apic_get_reg(apic, APIC_LDR)) {
 			if (kvm_apic_get_reg(apic, APIC_DFR) ==
 							APIC_DFR_CLUSTER) {
 				new->cid_shift = 4;
 				new->cid_mask = 0xf;
 				new->lid_mask = 0xf;
+			} else {
+				new->cid_shift = 8;
+				new->cid_mask = 0;
+				new->lid_mask = 0xff;
 			}
-			break;
 		}
+
+		/*
+		 * All APICs have to be configured in the same mode by an OS.
+		 * We take advatage of this while building logical id loockup
+		 * table. After reset APICs are in software disabled mode, so if
+		 * we find apic with different setting we assume this is the mode
+		 * OS wants all apics to be in; build lookup table accordingly.
+		 */
+		if (kvm_apic_sw_enabled(apic))
+			break;
 	}
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
