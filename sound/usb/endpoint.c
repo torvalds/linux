@@ -348,6 +348,8 @@ static void snd_complete_urb(struct urb *urb)
 {
 	struct snd_urb_ctx *ctx = urb->context;
 	struct snd_usb_endpoint *ep = ctx->ep;
+	struct snd_pcm_substream *substream;
+	unsigned long flags;
 	int err;
 
 	if (unlikely(urb->status == -ENOENT ||		/* unlinked */
@@ -364,8 +366,6 @@ static void snd_complete_urb(struct urb *urb)
 			goto exit_clear;
 
 		if (snd_usb_endpoint_implicit_feedback_sink(ep)) {
-			unsigned long flags;
-
 			spin_lock_irqsave(&ep->lock, flags);
 			list_add_tail(&ctx->ready_list, &ep->ready_playback_urbs);
 			spin_unlock_irqrestore(&ep->lock, flags);
@@ -389,7 +389,12 @@ static void snd_complete_urb(struct urb *urb)
 		return;
 
 	usb_audio_err(ep->chip, "cannot submit urb (err = %d)\n", err);
-	//snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
+	if (ep->data_subs && ep->data_subs->pcm_substream) {
+		substream = ep->data_subs->pcm_substream;
+		snd_pcm_stream_lock_irqsave(substream, flags);
+		snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
+		snd_pcm_stream_unlock_irqrestore(substream, flags);
+	}
 
 exit_clear:
 	clear_bit(ctx->index, &ep->active_mask);
