@@ -4477,10 +4477,10 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 	spin_lock_irqsave(&ch->ch_lock, lock_flags2);
 
 	/* Figure out our type */
-	if (major == brd->dgap_serial_major) {
+	if (major == brd->serial_driver->major) {
 		un = &brd->channels[minor]->ch_tun;
 		un->un_type = DGAP_SERIAL;
-	} else if (major == brd->dgap_transparent_print_major) {
+	} else if (major == brd->print_driver->major) {
 		un = &brd->channels[minor]->ch_pun;
 		un->un_type = DGAP_PRINT;
 	} else {
@@ -5302,10 +5302,7 @@ static int dgap_tty_register(struct board_t *brd)
 		goto unregister_serial_drv;
 
 	dgap_boards_by_major[brd->serial_driver->major] = brd;
-	brd->dgap_serial_major = brd->serial_driver->major;
-
 	dgap_boards_by_major[brd->print_driver->major] = brd;
-	brd->dgap_transparent_print_major = brd->print_driver->major;
 
 	return 0;
 
@@ -6563,7 +6560,6 @@ static void dgap_cleanup_tty(struct board_t *brd)
 	unsigned int i;
 
 	dgap_boards_by_major[brd->serial_driver->major] = NULL;
-	brd->dgap_serial_major = 0;
 	for (i = 0; i < brd->nasync; i++) {
 		tty_port_destroy(&brd->serial_ports[i]);
 		dev = brd->channels[i]->ch_tun.un_sysfs;
@@ -6575,7 +6571,6 @@ static void dgap_cleanup_tty(struct board_t *brd)
 	kfree(brd->serial_ports);
 
 	dgap_boards_by_major[brd->print_driver->major] = NULL;
-	brd->dgap_transparent_print_major = 0;
 	for (i = 0; i < brd->nasync; i++) {
 		tty_port_destroy(&brd->printer_ports[i]);
 		dev = brd->channels[i]->ch_pun.un_sysfs;
