@@ -1688,6 +1688,7 @@ static void ux500_cryp_shutdown(struct platform_device *pdev)
 
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ux500_cryp_suspend(struct device *dev)
 {
 	int ret;
@@ -1768,6 +1769,7 @@ static int ux500_cryp_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ux500_cryp_pm, ux500_cryp_suspend, ux500_cryp_resume);
 
