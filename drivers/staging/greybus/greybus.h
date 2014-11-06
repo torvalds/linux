@@ -118,11 +118,6 @@
 
 */
 
-
-struct gbuf;
-
-typedef void (*gbuf_complete_t)(struct gbuf *gbuf);
-
 struct gbuf {
 	struct kref kref;
 
@@ -134,7 +129,6 @@ struct gbuf {
 	bool outbound;			/* AP-relative data direction */
 
 	void *hcd_data;			/* for the HCD to track the gbuf */
-	gbuf_complete_t complete;
 };
 
 
@@ -193,8 +187,8 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
 
 struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
-				gbuf_complete_t complete, unsigned int size,
-				bool outbound, gfp_t gfp_mask);
+				unsigned int size, bool outbound,
+				gfp_t gfp_mask);
 void greybus_free_gbuf(struct gbuf *gbuf);
 struct gbuf *greybus_get_gbuf(struct gbuf *gbuf);
 #define greybus_put_gbuf	greybus_free_gbuf

@@ -264,7 +264,7 @@ static void gb_operation_recv_work(struct work_struct *recv_work)
 		gbuf = operation->request;
 	else
 		gbuf = operation->response;
-	gbuf->complete(gbuf);
+	gb_operation_gbuf_complete(gbuf);
 }
 
 /*
@@ -302,8 +302,7 @@ static struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
 	gfp_t gfp_flags = data_out ? GFP_KERNEL : GFP_ATOMIC;
 
 	size += sizeof(*header);
-	gbuf = greybus_alloc_gbuf(operation, gb_operation_gbuf_complete,
-					size, data_out, gfp_flags);
+	gbuf = greybus_alloc_gbuf(operation, size, data_out, gfp_flags);
 	if (!gbuf)
 		return NULL;
 

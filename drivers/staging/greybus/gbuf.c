@@ -35,7 +35,6 @@ static struct kmem_cache *gbuf_head_cache;
  * hardware designers for this issue...
  */
 struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
-				gbuf_complete_t complete,
 				unsigned int size,
 				bool outbound,
 				gfp_t gfp_mask)
@@ -51,7 +50,6 @@ struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
 	kref_init(&gbuf->kref);
 	gbuf->operation = operation;
 	gbuf->outbound = outbound;
-	gbuf->complete = complete;
 	gbuf->status = -EBADR;	/* Initial value--means "never set" */
 
 	/* Host controller specific allocation for the actual buffer */
