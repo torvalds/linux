@@ -31,22 +31,38 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct sysinfo val;
+	unsigned long avail_ram;
 	unsigned long mem_size = 0;
 	bool res = false;
 
 	si_meminfo(&val);
-	/* give 25%, 25%, 50% memory for each components respectively */
+
+	/* only uses low memory */
+	avail_ram = val.totalram - val.totalhigh;
+
+	/* give 25%, 25%, 50%, 50% memory for each components respectively */
 	if (type == FREE_NIDS) {
-		mem_size = (nm_i->fcnt * sizeof(struct free_nid)) >> 12;
-		res = mem_size < ((val.totalram * nm_i->ram_thresh / 100) >> 2);
+		mem_size = (nm_i->fcnt * sizeof(struct free_nid)) >>
+							PAGE_CACHE_SHIFT;
+		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 2);
 	} else if (type == NAT_ENTRIES) {
-		mem_size = (nm_i->nat_cnt * sizeof(struct nat_entry)) >> 12;
-		res = mem_size < ((val.totalram * nm_i->ram_thresh / 100) >> 2);
+		mem_size = (nm_i->nat_cnt * sizeof(struct nat_entry)) >>
+							PAGE_CACHE_SHIFT;
+		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 2);
 	} else if (type == DIRTY_DENTS) {
 		if (sbi->sb->s_bdi->dirty_exceeded)
 			return false;
 		mem_size = get_pages(sbi, F2FS_DIRTY_DENTS);
-		res = mem_size < ((val.totalram * nm_i->ram_thresh / 100) >> 1);
+		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
+	} else if (type == INO_ENTRIES) {
+		int i;
+
+		if (sbi->sb->s_bdi->dirty_exceeded)
+			return false;
+		for (i = 0; i <= UPDATE_INO; i++)
+			mem_size += (sbi->ino_num[i] * sizeof(struct ino_entry))
+							>> PAGE_CACHE_SHIFT;
+		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
 	}
 	return res;
 }
