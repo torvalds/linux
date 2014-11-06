@@ -29,6 +29,7 @@ struct seq_file;
 struct module;
 struct irq_desc;
 struct irq_data;
+struct msi_msg;
 typedef	void (*irq_flow_handler_t)(unsigned int irq,
 					    struct irq_desc *desc);
 typedef	void (*irq_preflow_handler_t)(struct irq_data *data);
@@ -320,6 +321,7 @@ static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
  *				any other callback related to this irq
  * @irq_release_resources:	optional to release resources acquired with
  *				irq_request_resources
+ * @irq_compose_msi_msg:	optional to compose message content for MSI
  * @flags:		chip specific flags
  */
 struct irq_chip {
@@ -355,6 +357,8 @@ struct irq_chip {
 	void		(*irq_print_chip)(struct irq_data *data, struct seq_file *p);
 	int		(*irq_request_resources)(struct irq_data *data);
 	void		(*irq_release_resources)(struct irq_data *data);
+
+	void		(*irq_compose_msi_msg)(struct irq_data *data, struct msi_msg *msg);
 
 	unsigned long	flags;
 };
@@ -443,6 +447,7 @@ extern void handle_percpu_devid_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_bad_irq(unsigned int irq, struct irq_desc *desc);
 extern void handle_nested_irq(unsigned int irq);
 
+extern int irq_chip_compose_msi_msg(struct irq_data *data, struct msi_msg *msg);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 extern void irq_chip_ack_parent(struct irq_data *data);
 extern int irq_chip_retrigger_hierarchy(struct irq_data *data);

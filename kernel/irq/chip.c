@@ -926,3 +926,29 @@ int irq_chip_retrigger_hierarchy(struct irq_data *data)
 	return -ENOSYS;
 }
 #endif
+
+/**
+ * irq_chip_compose_msi_msg - Componse msi message for a irq chip
+ * @data:	Pointer to interrupt specific data
+ * @msg:	Pointer to the MSI message
+ *
+ * For hierarchical domains we find the first chip in the hierarchy
+ * which implements the irq_compose_msi_msg callback. For non
+ * hierarchical we use the top level chip.
+ */
+int irq_chip_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
+{
+	struct irq_data *pos = NULL;
+
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+	for (; data; data = data->parent_data)
+#endif
+		if (data->chip && data->chip->irq_compose_msi_msg)
+			pos = data;
+	if (!pos)
+		return -ENOSYS;
+
+	pos->chip->irq_compose_msi_msg(pos, msg);
+
+	return 0;
+}
