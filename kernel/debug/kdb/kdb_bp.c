@@ -539,11 +539,11 @@ void __init kdb_initbptab(void)
 		kdb_register_flags("bph", kdb_bp, "[<vaddr>]",
 		"[datar [length]|dataw [length]]   Set hw brk", 0, KDB_REPEAT_NO_ARGS);
 	kdb_register_flags("bc", kdb_bc, "<bpnum>",
-		"Clear Breakpoint", 0, KDB_REPEAT_NONE);
+		"Clear Breakpoint", 0, 0);
 	kdb_register_flags("be", kdb_bc, "<bpnum>",
-		"Enable Breakpoint", 0, KDB_REPEAT_NONE);
+		"Enable Breakpoint", 0, 0);
 	kdb_register_flags("bd", kdb_bc, "<bpnum>",
-		"Disable Breakpoint", 0, KDB_REPEAT_NONE);
+		"Disable Breakpoint", 0, 0);
 
 	kdb_register_flags("ss", kdb_ss, "",
 		"Single Step", 1, KDB_REPEAT_NO_ARGS);

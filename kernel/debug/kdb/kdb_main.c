@@ -2698,7 +2698,7 @@ EXPORT_SYMBOL_GPL(kdb_register_flags);
 /*
  * kdb_register - Compatibility register function for commands that do
  *	not need to specify a repeat state.  Equivalent to
- *	kdb_register_flags with KDB_REPEAT_NONE.
+ *	kdb_register_flags with flags set to 0.
  * Inputs:
  *	cmd	Command name
  *	func	Function to execute the command
@@ -2713,8 +2713,7 @@ int kdb_register(char *cmd,
 	     char *help,
 	     short minlen)
 {
-	return kdb_register_flags(cmd, func, usage, help, minlen,
-				  KDB_REPEAT_NONE);
+	return kdb_register_flags(cmd, func, usage, help, minlen, 0);
 }
 EXPORT_SYMBOL_GPL(kdb_register);
 
@@ -2768,68 +2767,68 @@ static void __init kdb_inittab(void)
 	kdb_register_flags("mm", kdb_mm, "<vaddr> <contents>",
 	  "Modify Memory Contents", 0, KDB_REPEAT_NO_ARGS);
 	kdb_register_flags("go", kdb_go, "[<vaddr>]",
-	  "Continue Execution", 1, KDB_REPEAT_NONE);
+	  "Continue Execution", 1, 0);
 	kdb_register_flags("rd", kdb_rd, "",
-	  "Display Registers", 0, KDB_REPEAT_NONE);
+	  "Display Registers", 0, 0);
 	kdb_register_flags("rm", kdb_rm, "<reg> <contents>",
-	  "Modify Registers", 0, KDB_REPEAT_NONE);
+	  "Modify Registers", 0, 0);
 	kdb_register_flags("ef", kdb_ef, "<vaddr>",
-	  "Display exception frame", 0, KDB_REPEAT_NONE);
+	  "Display exception frame", 0, 0);
 	kdb_register_flags("bt", kdb_bt, "[<vaddr>]",
-	  "Stack traceback", 1, KDB_REPEAT_NONE);
+	  "Stack traceback", 1, 0);
 	kdb_register_flags("btp", kdb_bt, "<pid>",
-	  "Display stack for process <pid>", 0, KDB_REPEAT_NONE);
+	  "Display stack for process <pid>", 0, 0);
 	kdb_register_flags("bta", kdb_bt, "[D|R|S|T|C|Z|E|U|I|M|A]",
-	  "Backtrace all processes matching state flag", 0, KDB_REPEAT_NONE);
+	  "Backtrace all processes matching state flag", 0, 0);
 	kdb_register_flags("btc", kdb_bt, "",
-	  "Backtrace current process on each cpu", 0, KDB_REPEAT_NONE);
+	  "Backtrace current process on each cpu", 0, 0);
 	kdb_register_flags("btt", kdb_bt, "<vaddr>",
 	  "Backtrace process given its struct task address", 0,
-			    KDB_REPEAT_NONE);
+			    0);
 	kdb_register_flags("env", kdb_env, "",
-	  "Show environment variables", 0, KDB_REPEAT_NONE);
+	  "Show environment variables", 0, 0);
 	kdb_register_flags("set", kdb_set, "",
-	  "Set environment variables", 0, KDB_REPEAT_NONE);
+	  "Set environment variables", 0, 0);
 	kdb_register_flags("help", kdb_help, "",
-	  "Display Help Message", 1, KDB_REPEAT_NONE);
+	  "Display Help Message", 1, 0);
 	kdb_register_flags("?", kdb_help, "",
-	  "Display Help Message", 0, KDB_REPEAT_NONE);
+	  "Display Help Message", 0, 0);
 	kdb_register_flags("cpu", kdb_cpu, "<cpunum>",
-	  "Switch to new cpu", 0, KDB_REPEAT_NONE);
+	  "Switch to new cpu", 0, 0);
 	kdb_register_flags("kgdb", kdb_kgdb, "",
-	  "Enter kgdb mode", 0, KDB_REPEAT_NONE);
+	  "Enter kgdb mode", 0, 0);
 	kdb_register_flags("ps", kdb_ps, "[<flags>|A]",
-	  "Display active task list", 0, KDB_REPEAT_NONE);
+	  "Display active task list", 0, 0);
 	kdb_register_flags("pid", kdb_pid, "<pidnum>",
-	  "Switch to another task", 0, KDB_REPEAT_NONE);
+	  "Switch to another task", 0, 0);
 	kdb_register_flags("reboot", kdb_reboot, "",
-	  "Reboot the machine immediately", 0, KDB_REPEAT_NONE);
+	  "Reboot the machine immediately", 0, 0);
 #if defined(CONFIG_MODULES)
 	kdb_register_flags("lsmod", kdb_lsmod, "",
-	  "List loaded kernel modules", 0, KDB_REPEAT_NONE);
+	  "List loaded kernel modules", 0, 0);
 #endif
 #if defined(CONFIG_MAGIC_SYSRQ)
 	kdb_register_flags("sr", kdb_sr, "<key>",
-	  "Magic SysRq key", 0, KDB_REPEAT_NONE);
+	  "Magic SysRq key", 0, 0);
 #endif
 #if defined(CONFIG_PRINTK)
 	kdb_register_flags("dmesg", kdb_dmesg, "[lines]",
-	  "Display syslog buffer", 0, KDB_REPEAT_NONE);
+	  "Display syslog buffer", 0, 0);
 #endif
 	if (arch_kgdb_ops.enable_nmi) {
 		kdb_register_flags("disable_nmi", kdb_disable_nmi, "",
-		  "Disable NMI entry to KDB", 0, KDB_REPEAT_NONE);
+		  "Disable NMI entry to KDB", 0, 0);
 	}
 	kdb_register_flags("defcmd", kdb_defcmd, "name \"usage\" \"help\"",
-	  "Define a set of commands, down to endefcmd", 0, KDB_REPEAT_NONE);
+	  "Define a set of commands, down to endefcmd", 0, 0);
 	kdb_register_flags("kill", kdb_kill, "<-signal> <pid>",
-	  "Send a signal to a process", 0, KDB_REPEAT_NONE);
+	  "Send a signal to a process", 0, 0);
 	kdb_register_flags("summary", kdb_summary, "",
-	  "Summarize the system", 4, KDB_REPEAT_NONE);
+	  "Summarize the system", 4, 0);
 	kdb_register_flags("per_cpu", kdb_per_cpu, "<sym> [<bytes>] [<cpu>]",
-	  "Display per_cpu variables", 3, KDB_REPEAT_NONE);
+	  "Display per_cpu variables", 3, 0);
 	kdb_register_flags("grephelp", kdb_grep_help, "",
-	  "Display help on | grep", 0, KDB_REPEAT_NONE);
+	  "Display help on | grep", 0, 0);
 }
 
 /* Execute any commands defined in kdb_cmds.  */
