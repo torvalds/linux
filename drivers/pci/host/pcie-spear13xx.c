@@ -269,8 +269,8 @@ static struct pcie_host_ops spear13xx_pcie_host_ops = {
 	.host_init = spear13xx_pcie_host_init,
 };
 
-static int spear13xx_add_pcie_port(struct pcie_port *pp,
-				   struct platform_device *pdev)
+static int __init spear13xx_add_pcie_port(struct pcie_port *pp,
+					 struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret;
