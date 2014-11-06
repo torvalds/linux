@@ -75,4 +75,11 @@ global-utilities@e1000 {
 		clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
 		clock-output-names = "cmux1";
 	};
+	platform_pll: platform-pll@c00 {
+		#clock-cells = <1>;
+		reg = <0xc00 0x4>;
+		compatible = "fsl,qoriq-platform-pll-1.0";
+		clocks = <&sysclk>;
+		clock-output-names = "platform-pll", "platform-pll-div2";
+	};
 };

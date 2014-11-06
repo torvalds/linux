@@ -58,4 +58,11 @@ global-utilities@e1000 {
 		clocks = <&sysclk>;
 		clock-output-names = "pll1", "pll1-div2", "pll1-div4";
 	};
+	platform_pll: platform-pll@c00 {
+		#clock-cells = <1>;
+		reg = <0xc00 0x4>;
+		compatible = "fsl,qoriq-platform-pll-2.0";
+		clocks = <&sysclk>;
+		clock-output-names = "platform-pll", "platform-pll-div2";
+	};
 };
