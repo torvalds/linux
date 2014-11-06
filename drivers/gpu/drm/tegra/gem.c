@@ -210,7 +210,7 @@ static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 		drm_gem_put_pages(&bo->gem, bo->pages, true, true);
 		sg_free_table(bo->sgt);
 		kfree(bo->sgt);
-	} else {
+	} else if (bo->vaddr) {
 		dma_free_writecombine(drm->dev, bo->gem.size, bo->vaddr,
 				      bo->paddr);
 	}
