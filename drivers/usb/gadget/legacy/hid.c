@@ -260,7 +260,7 @@ module_init(hidg_init);
 
 static void __exit hidg_cleanup(void)
 {
-	platform_driver_unregister(&hidg_plat_driver);
 	usb_composite_unregister(&hidg_driver);
+	platform_driver_unregister(&hidg_plat_driver);
 }
 module_exit(hidg_cleanup);
