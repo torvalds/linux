@@ -660,7 +660,7 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	int			i;
 	u32			cfg;
 
-	dev_dbg(chan2dev(chan), "%s: buf_addr=0x%08x, buf_len=%d, period_len=%d, dir=%s, flags=0x%lx\n",
+	dev_dbg(chan2dev(chan), "%s: buf_addr=0x%08x, buf_len=%zd, period_len=%zd, dir=%s, flags=0x%lx\n",
 		__func__, buf_addr, buf_len, period_len,
 		direction == DMA_MEM_TO_DEV ? "mem2per" : "per2mem", flags);
 
@@ -762,7 +762,7 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 					| AT_XDMAC_CC_MBSIZE_SIXTEEN
 					| AT_XDMAC_CC_TYPE_MEM_TRAN;
 
-	dev_dbg(chan2dev(chan), "%s: src=0x%08x, dest=0x%08x, len=%d, flags=0x%lx\n",
+	dev_dbg(chan2dev(chan), "%s: src=0x%08x, dest=0x%08x, len=%zd, flags=0x%lx\n",
 		__func__, src, dest, len, flags);
 
 	if (unlikely(!len))
@@ -791,7 +791,7 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	while (remaining_size) {
 		struct at_xdmac_desc	*desc = NULL;
 
-		dev_dbg(chan2dev(chan), "%s: remaining_size=%u\n", __func__, remaining_size);
+		dev_dbg(chan2dev(chan), "%s: remaining_size=%zu\n", __func__, remaining_size);
 
 		spin_lock_bh(&atchan->lock);
 		desc = at_xdmac_get_desc(atchan);
@@ -812,7 +812,7 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		else
 			xfer_size = remaining_size;
 
-		dev_dbg(chan2dev(chan), "%s: xfer_size=%u\n", __func__, xfer_size);
+		dev_dbg(chan2dev(chan), "%s: xfer_size=%zu\n", __func__, xfer_size);
 
 		/* Check remaining length and change data width if needed. */
 		if (!((src_addr | dst_addr | xfer_size) & 7)) {
