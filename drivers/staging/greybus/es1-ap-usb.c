@@ -96,6 +96,7 @@ static void cport_out_callback(struct urb *urb);
 static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 				gfp_t gfp_mask)
 {
+	struct gb_connection *connection = gbuf->operation->connection;
 	u32 cport_reserve = gbuf->outbound ? 1 : 0;
 	u8 *buffer;
 
@@ -121,16 +122,16 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 	 * we will encode the cport number in the first byte of the buffer, so
 	 * set the second byte to be the "transfer buffer"
 	 */
-	if (gbuf->connection->interface_cport_id > (u16)U8_MAX) {
+	if (connection->interface_cport_id > (u16)U8_MAX) {
 		pr_err("gbuf->interface_cport_id (%hd) is out of range!\n",
-			gbuf->connection->interface_cport_id);
+			connection->interface_cport_id);
 		kfree(buffer);
 		return -EINVAL;
 	}
 
 	/* Insert the cport id for outbound buffers */
 	if (gbuf->outbound)
-		*buffer++ = gbuf->connection->interface_cport_id;
+		*buffer++ = connection->interface_cport_id;
 	gbuf->transfer_buffer = buffer;
 	gbuf->transfer_buffer_length = size;
 
@@ -208,7 +209,7 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 
 static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {
-	struct greybus_host_device *hd = gbuf->connection->hd;
+	struct greybus_host_device *hd = gbuf->operation->connection->hd;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
 	int retval;
@@ -394,7 +395,7 @@ exit:
 static void cport_out_callback(struct urb *urb)
 {
 	struct gbuf *gbuf = urb->context;
-	struct es1_ap_dev *es1 = hd_to_es1(gbuf->connection->hd);
+	struct es1_ap_dev *es1 = hd_to_es1(gbuf->operation->connection->hd);
 	unsigned long flags;
 	int i;
 

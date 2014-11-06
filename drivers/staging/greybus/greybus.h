@@ -126,7 +126,7 @@ typedef void (*gbuf_complete_t)(struct gbuf *gbuf);
 struct gbuf {
 	struct kref kref;
 
-	struct gb_connection *connection;
+	struct gb_operation *operation;
 	int status;
 	void *transfer_buffer;
 	u32 transfer_buffer_length;
@@ -194,7 +194,7 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
 void greybus_gbuf_finished(struct gbuf *gbuf);
 
-struct gbuf *greybus_alloc_gbuf(struct gb_connection *connection,
+struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
 				gbuf_complete_t complete, unsigned int size,
 				bool outbound, gfp_t gfp_mask, void *context);
 void greybus_free_gbuf(struct gbuf *gbuf);

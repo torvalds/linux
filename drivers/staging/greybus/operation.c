@@ -295,13 +295,12 @@ static struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
 					     u8 type, size_t size,
 					     bool data_out)
 {
-	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
 	struct gbuf *gbuf;
 	gfp_t gfp_flags = data_out ? GFP_KERNEL : GFP_ATOMIC;
 
 	size += sizeof(*header);
-	gbuf = greybus_alloc_gbuf(connection, gb_operation_gbuf_complete,
+	gbuf = greybus_alloc_gbuf(operation, gb_operation_gbuf_complete,
 					size, data_out, gfp_flags, operation);
 	if (!gbuf)
 		return NULL;
