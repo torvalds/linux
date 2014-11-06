@@ -289,6 +289,11 @@ static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm)
 	return fbdev;
 }
 
+static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
+{
+	kfree(fbdev);
+}
+
 static int tegra_fbdev_init(struct tegra_fbdev *fbdev,
 			    unsigned int preferred_bpp,
 			    unsigned int num_crtc,
@@ -322,7 +327,7 @@ fini:
 	return err;
 }
 
-static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
+static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 {
 	struct fb_info *info = fbdev->base.fbdev;
 
@@ -345,7 +350,7 @@ static void tegra_fbdev_free(struct tegra_fbdev *fbdev)
 	}
 
 	drm_fb_helper_fini(&fbdev->base);
-	kfree(fbdev);
+	tegra_fbdev_free(fbdev);
 }
 
 void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)
@@ -393,6 +398,15 @@ int tegra_drm_fb_prepare(struct drm_device *drm)
 	return 0;
 }
 
+void tegra_drm_fb_free(struct drm_device *drm)
+{
+#ifdef CONFIG_DRM_TEGRA_FBDEV
+	struct tegra_drm *tegra = drm->dev_private;
+
+	tegra_fbdev_free(tegra->fbdev);
+#endif
+}
+
 int tegra_drm_fb_init(struct drm_device *drm)
 {
 #ifdef CONFIG_DRM_TEGRA_FBDEV
@@ -413,6 +427,6 @@ void tegra_drm_fb_exit(struct drm_device *drm)
 #ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
 
-	tegra_fbdev_free(tegra->fbdev);
+	tegra_fbdev_exit(tegra->fbdev);
 #endif
 }

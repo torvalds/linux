@@ -42,13 +42,13 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	err = tegra_drm_fb_prepare(drm);
 	if (err < 0)
-		return err;
+		goto config;
 
 	drm_kms_helper_poll_init(drm);
 
 	err = host1x_device_init(device);
 	if (err < 0)
-		return err;
+		goto fbdev;
 
 	/*
 	 * We don't use the drm_irq_install() helpers provided by the DRM
@@ -59,13 +59,25 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	err = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (err < 0)
-		return err;
+		goto device;
 
 	err = tegra_drm_fb_init(drm);
 	if (err < 0)
-		return err;
+		goto vblank;
 
 	return 0;
+
+vblank:
+	drm_vblank_cleanup(drm);
+device:
+	host1x_device_exit(device);
+fbdev:
+	drm_kms_helper_poll_fini(drm);
+	tegra_drm_fb_free(drm);
+config:
+	drm_mode_config_cleanup(drm);
+	kfree(tegra);
+	return err;
 }
 
 static int tegra_drm_unload(struct drm_device *drm)
