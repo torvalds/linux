@@ -3005,42 +3005,6 @@ serial8250_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return 0;
 }
 
-static int serial8250_ioctl(struct uart_port *port, unsigned int cmd,
-			   unsigned long arg)
-{
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
-	int ret;
-	struct serial_rs485 rs485_config;
-
-	if (!up->rs485_config)
-		return -ENOIOCTLCMD;
-
-	switch (cmd) {
-	case TIOCSRS485:
-		if (copy_from_user(&rs485_config, (void __user *)arg,
-				   sizeof(rs485_config)))
-			return -EFAULT;
-
-		ret = up->rs485_config(up, &rs485_config);
-		if (ret)
-			return ret;
-
-		memcpy(&up->rs485, &rs485_config, sizeof(rs485_config));
-
-		return 0;
-	case TIOCGRS485:
-		if (copy_to_user((void __user *)arg, &up->rs485,
-				 sizeof(up->rs485)))
-			return -EFAULT;
-		return 0;
-	default:
-		break;
-	}
-
-	return -ENOIOCTLCMD;
-}
-
 static const char *
 serial8250_type(struct uart_port *port)
 {
@@ -3072,7 +3036,6 @@ static struct uart_ops serial8250_pops = {
 	.request_port	= serial8250_request_port,
 	.config_port	= serial8250_config_port,
 	.verify_port	= serial8250_verify_port,
-	.ioctl		= serial8250_ioctl,
 #ifdef CONFIG_CONSOLE_POLL
 	.poll_get_char = serial8250_get_poll_char,
 	.poll_put_char = serial8250_put_poll_char,
@@ -3615,8 +3578,6 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->port.fifosize	= up->port.fifosize;
 		uart->tx_loadsz		= up->tx_loadsz;
 		uart->capabilities	= up->capabilities;
-		uart->rs485_config	= up->rs485_config;
-		uart->rs485		= up->rs485;
 		uart->port.throttle	= up->port.throttle;
 		uart->port.unthrottle	= up->port.unthrottle;
 		uart->port.rs485_config	= up->port.rs485_config;

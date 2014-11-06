@@ -97,13 +97,10 @@ struct uart_8250_port {
 	unsigned char		msr_saved_flags;
 
 	struct uart_8250_dma	*dma;
-	struct serial_rs485     rs485;
 
 	/* 8250 specific callbacks */
 	int			(*dl_read)(struct uart_8250_port *);
 	void			(*dl_write)(struct uart_8250_port *, int);
-	int			(*rs485_config)(struct uart_8250_port *,
-						struct serial_rs485 *rs485);
 };
 
 static inline struct uart_8250_port *up_to_u8250p(struct uart_port *up)
