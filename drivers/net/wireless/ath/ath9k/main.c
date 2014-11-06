@@ -1352,7 +1352,7 @@ void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw)
 		return;
 	}
 
-	ath9k_ps_wakeup(sc);
+	ath_ps_ops(common)->wakeup(common);
 	rxfilter = ath9k_hw_getrxfilter(ah);
 	ath9k_hw_setrxfilter(ah, rxfilter |
 				 ATH9K_RX_FILTER_PHYRADAR |
@@ -1365,7 +1365,7 @@ void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw)
 	 */
 	ath9k_spectral_scan_config(hw, sc->spec_priv.spectral_mode);
 	ath9k_hw_ops(ah)->spectral_scan_trigger(ah);
-	ath9k_ps_restore(sc);
+	ath_ps_ops(common)->restore(common);
 }
 
 int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
@@ -1400,9 +1400,9 @@ int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
 		return -1;
 	}
 
-	ath9k_ps_wakeup(sc);
+	ath_ps_ops(common)->wakeup(common);
 	ath9k_hw_ops(ah)->spectral_scan_config(ah, &sc->spec_priv.spec_config);
-	ath9k_ps_restore(sc);
+	ath_ps_ops(common)->restore(common);
 
 	sc->spec_priv.spectral_mode = spectral_mode;
 
