@@ -1363,7 +1363,7 @@ void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw)
 	 * configuration, otherwise the register will have its values reset
 	 * (on my ar9220 to value 0x01002310)
 	 */
-	ath9k_spectral_scan_config(hw, sc->spectral_mode);
+	ath9k_spectral_scan_config(hw, sc->spec_priv.spectral_mode);
 	ath9k_hw_ops(ah)->spectral_scan_trigger(ah);
 	ath9k_ps_restore(sc);
 }
@@ -1404,7 +1404,7 @@ int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
 	ath9k_hw_ops(ah)->spectral_scan_config(ah, &sc->spec_config);
 	ath9k_ps_restore(sc);
 
-	sc->spectral_mode = spectral_mode;
+	sc->spec_priv.spectral_mode = spectral_mode;
 
 	return 0;
 }

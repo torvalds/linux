@@ -215,7 +215,7 @@ static ssize_t read_file_spec_scan_ctl(struct file *file, char __user *user_buf,
 	char *mode = "";
 	unsigned int len;
 
-	switch (sc->spectral_mode) {
+	switch (sc->spec_priv.spectral_mode) {
 	case SPECTRAL_DISABLED:
 		mode = "disable";
 		break;

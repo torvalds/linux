@@ -94,6 +94,7 @@ struct ath_ht20_40_fft_packet {
 
 struct ath_spec_scan_priv {
 	struct rchan *rfs_chan_spec_scan;
+	enum spectral_mode spectral_mode;
 };
 
 #define SPECTRAL_HT20_40_TOTAL_DATA_LEN	(sizeof(struct ath_ht20_40_fft_packet))

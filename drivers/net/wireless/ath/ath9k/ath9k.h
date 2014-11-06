@@ -1029,7 +1029,6 @@ struct ath_softc {
 	u64 dfs_prev_pulse_ts;
 	u32 wow_enabled;
 	/* relay(fs) channel for spectral scan */
-	enum spectral_mode spectral_mode;
 	struct ath_spec_scan spec_config;
 	struct ath_spec_scan_priv spec_priv;
 
