@@ -424,8 +424,9 @@ static const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
  * Return Value: true if succeeded; false if failed.
  *
  */
-static bool s_bAL7230Init(void __iomem *dwIoBase)
+static bool s_bAL7230Init(struct vnt_private *priv)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	int     ii;
 	bool bResult;
 
@@ -436,7 +437,7 @@ static bool s_bAL7230Init(void __iomem *dwIoBase)
 
 	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPECTI  |
 							 SOFTPWRCTL_TXPEINV));
-	BBvPowerSaveModeOFF(dwIoBase); //RobertYu:20050106, have DC value for Calibration
+	BBvPowerSaveModeOFF(priv); /* RobertYu:20050106, have DC value for Calibration */
 
 	for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++)
 		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[ii]);
@@ -457,7 +458,7 @@ static bool s_bAL7230Init(void __iomem *dwIoBase)
 							 SOFTPWRCTL_SWPECTI  |
 							 SOFTPWRCTL_TXPEINV));
 
-	BBvPowerSaveModeON(dwIoBase); // RobertYu:20050106
+	BBvPowerSaveModeON(priv); /* RobertYu:20050106 */
 
 	// PE1: TX_ON, PE2: RX_ON, PE3: PLLON
 	//3-wire control for power saving mode
@@ -759,7 +760,7 @@ bool RFbInit(
 		break;
 	case RF_AIROHA7230:
 		pDevice->byMaxPwrLevel = AL7230_PWR_IDX_LEN;
-		bResult = s_bAL7230Init(pDevice->PortOffset);
+		bResult = s_bAL7230Init(pDevice);
 		break;
 	case RF_NOTHING:
 		bResult = true;

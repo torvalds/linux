@@ -2289,8 +2289,9 @@ BBvSoftwareReset(struct vnt_private *priv)
  *
  */
 void
-BBvPowerSaveModeON(void __iomem *dwIoBase)
+BBvPowerSaveModeON(struct vnt_private *priv)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	unsigned char byOrgData;
 
 	BBbReadEmbedded(dwIoBase, 0x0D, &byOrgData);
@@ -2311,8 +2312,9 @@ BBvPowerSaveModeON(void __iomem *dwIoBase)
  *
  */
 void
-BBvPowerSaveModeOFF(void __iomem *dwIoBase)
+BBvPowerSaveModeOFF(struct vnt_private *priv)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	unsigned char byOrgData;
 
 	BBbReadEmbedded(dwIoBase, 0x0D, &byOrgData);

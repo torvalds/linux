@@ -86,8 +86,8 @@ void BBvSetVGAGainOffset(struct vnt_private *, unsigned char byData);
 /* VT3253 Baseband */
 bool BBbVT3253Init(struct vnt_private *);
 void BBvSoftwareReset(struct vnt_private *);
-void BBvPowerSaveModeON(void __iomem *dwIoBase);
-void BBvPowerSaveModeOFF(void __iomem *dwIoBase);
+void BBvPowerSaveModeON(struct vnt_private *);
+void BBvPowerSaveModeOFF(struct vnt_private *);
 void BBvSetTxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
 void BBvSetRxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
 void BBvSetDeepSleep(struct vnt_private *, unsigned char byLocalID);
