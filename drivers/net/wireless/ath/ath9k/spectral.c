@@ -253,18 +253,18 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 	buf[len] = '\0';
 
 	if (strncmp("trigger", buf, 7) == 0) {
-		ath9k_spectral_scan_trigger(common->hw);
+		ath9k_spectral_scan_trigger(common);
 	} else if (strncmp("background", buf, 10) == 0) {
-		ath9k_spectral_scan_config(common->hw, SPECTRAL_BACKGROUND);
+		ath9k_spectral_scan_config(common, SPECTRAL_BACKGROUND);
 		ath_dbg(common, CONFIG, "spectral scan: background mode enabled\n");
 	} else if (strncmp("chanscan", buf, 8) == 0) {
-		ath9k_spectral_scan_config(common->hw, SPECTRAL_CHANSCAN);
+		ath9k_spectral_scan_config(common, SPECTRAL_CHANSCAN);
 		ath_dbg(common, CONFIG, "spectral scan: channel scan mode enabled\n");
 	} else if (strncmp("manual", buf, 6) == 0) {
-		ath9k_spectral_scan_config(common->hw, SPECTRAL_MANUAL);
+		ath9k_spectral_scan_config(common, SPECTRAL_MANUAL);
 		ath_dbg(common, CONFIG, "spectral scan: manual mode enabled\n");
 	} else if (strncmp("disable", buf, 7) == 0) {
-		ath9k_spectral_scan_config(common->hw, SPECTRAL_DISABLED);
+		ath9k_spectral_scan_config(common, SPECTRAL_DISABLED);
 		ath_dbg(common, CONFIG, "spectral scan: disabled\n");
 	} else {
 		return -EINVAL;

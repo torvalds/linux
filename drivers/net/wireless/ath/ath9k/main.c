@@ -1337,11 +1337,10 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 	ath_dbg(common, PS, "PowerSave disabled\n");
 }
 
-void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw)
+void ath9k_spectral_scan_trigger(struct ath_common *common)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_softc *sc = common->priv;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
 	u32 rxfilter;
 
 	if (config_enabled(CONFIG_ATH9K_TX99))
@@ -1363,17 +1362,16 @@ void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw)
 	 * configuration, otherwise the register will have its values reset
 	 * (on my ar9220 to value 0x01002310)
 	 */
-	ath9k_spectral_scan_config(hw, sc->spec_priv.spectral_mode);
+	ath9k_spectral_scan_config(common, sc->spec_priv.spectral_mode);
 	ath9k_hw_ops(ah)->spectral_scan_trigger(ah);
 	ath_ps_ops(common)->restore(common);
 }
 
-int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
+int ath9k_spectral_scan_config(struct ath_common *common,
 			       enum spectral_mode spectral_mode)
 {
-	struct ath_softc *sc = hw->priv;
+	struct ath_softc *sc = common->priv;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
 		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
