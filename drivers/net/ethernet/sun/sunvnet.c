@@ -691,7 +691,6 @@ ldc_ctrl:
 			pkt->end_idx = -1;
 			goto napi_resume;
 		}
-ldc_read:
 		err = ldc_read(vio->lp, &msgbuf, sizeof(msgbuf));
 		if (unlikely(err < 0)) {
 			if (err == -ECONNRESET)
@@ -722,8 +721,8 @@ napi_resume:
 				err = vnet_rx(port, &msgbuf, &npkts, budget);
 				if (npkts >= budget)
 					break;
-				if (npkts == 0 && err != -ECONNRESET)
-					goto ldc_read;
+				if (npkts == 0)
+					break;
 			} else if (msgbuf.tag.stype == VIO_SUBTYPE_ACK) {
 				err = vnet_ack(port, &msgbuf);
 				if (err > 0)
