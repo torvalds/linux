@@ -1028,8 +1028,7 @@ struct ath_softc {
 	struct dfs_pattern_detector *dfs_detector;
 	u64 dfs_prev_pulse_ts;
 	u32 wow_enabled;
-	/* relay(fs) channel for spectral scan */
-	struct ath_spec_scan spec_config;
+
 	struct ath_spec_scan_priv spec_priv;
 
 	struct ieee80211_vif *tx99_vif;

@@ -292,7 +292,7 @@ static ssize_t read_file_spectral_short_repeat(struct file *file,
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "%d\n", sc->spec_config.short_repeat);
+	len = sprintf(buf, "%d\n", sc->spec_priv.spec_config.short_repeat);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -316,7 +316,7 @@ static ssize_t write_file_spectral_short_repeat(struct file *file,
 	if (val > 1)
 		return -EINVAL;
 
-	sc->spec_config.short_repeat = val;
+	sc->spec_priv.spec_config.short_repeat = val;
 	return count;
 }
 
@@ -340,7 +340,7 @@ static ssize_t read_file_spectral_count(struct file *file,
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "%d\n", sc->spec_config.count);
+	len = sprintf(buf, "%d\n", sc->spec_priv.spec_config.count);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -364,7 +364,7 @@ static ssize_t write_file_spectral_count(struct file *file,
 	if (val > 255)
 		return -EINVAL;
 
-	sc->spec_config.count = val;
+	sc->spec_priv.spec_config.count = val;
 	return count;
 }
 
@@ -388,7 +388,7 @@ static ssize_t read_file_spectral_period(struct file *file,
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "%d\n", sc->spec_config.period);
+	len = sprintf(buf, "%d\n", sc->spec_priv.spec_config.period);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -412,7 +412,7 @@ static ssize_t write_file_spectral_period(struct file *file,
 	if (val > 255)
 		return -EINVAL;
 
-	sc->spec_config.period = val;
+	sc->spec_priv.spec_config.period = val;
 	return count;
 }
 
@@ -436,7 +436,7 @@ static ssize_t read_file_spectral_fft_period(struct file *file,
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "%d\n", sc->spec_config.fft_period);
+	len = sprintf(buf, "%d\n", sc->spec_priv.spec_config.fft_period);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -460,7 +460,7 @@ static ssize_t write_file_spectral_fft_period(struct file *file,
 	if (val > 15)
 		return -EINVAL;
 
-	sc->spec_config.fft_period = val;
+	sc->spec_priv.spec_config.fft_period = val;
 	return count;
 }
 

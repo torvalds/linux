@@ -1382,26 +1382,26 @@ int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
 
 	switch (spectral_mode) {
 	case SPECTRAL_DISABLED:
-		sc->spec_config.enabled = 0;
+		sc->spec_priv.spec_config.enabled = 0;
 		break;
 	case SPECTRAL_BACKGROUND:
 		/* send endless samples.
 		 * TODO: is this really useful for "background"?
 		 */
-		sc->spec_config.endless = 1;
-		sc->spec_config.enabled = 1;
+		sc->spec_priv.spec_config.endless = 1;
+		sc->spec_priv.spec_config.enabled = 1;
 		break;
 	case SPECTRAL_CHANSCAN:
 	case SPECTRAL_MANUAL:
-		sc->spec_config.endless = 0;
-		sc->spec_config.enabled = 1;
+		sc->spec_priv.spec_config.endless = 0;
+		sc->spec_priv.spec_config.enabled = 1;
 		break;
 	default:
 		return -1;
 	}
 
 	ath9k_ps_wakeup(sc);
-	ath9k_hw_ops(ah)->spectral_scan_config(ah, &sc->spec_config);
+	ath9k_hw_ops(ah)->spectral_scan_config(ah, &sc->spec_priv.spec_config);
 	ath9k_ps_restore(sc);
 
 	sc->spec_priv.spectral_mode = spectral_mode;
