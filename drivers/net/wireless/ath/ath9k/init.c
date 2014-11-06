@@ -351,6 +351,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
 		sc->ant_comb.count = ATH_ANT_DIV_COMB_INIT_COUNT;
 
+	sc->spec_priv.ah = sc->sc_ah;
 	sc->spec_priv.spec_config.enabled = 0;
 	sc->spec_priv.spec_config.short_repeat = true;
 	sc->spec_priv.spec_config.count = 8;

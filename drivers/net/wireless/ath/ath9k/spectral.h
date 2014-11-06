@@ -93,6 +93,7 @@ struct ath_ht20_40_fft_packet {
 } __packed;
 
 struct ath_spec_scan_priv {
+	struct ath_hw *ah;
 	/* relay(fs) channel for spectral scan */
 	struct rchan *rfs_chan_spec_scan;
 	enum spectral_mode spectral_mode;
