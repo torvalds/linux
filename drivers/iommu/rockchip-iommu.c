@@ -229,7 +229,6 @@ static void rockchip_iommu_disable_stall(void __iomem *base)
 	}
 
 	if (!(mmu_status & IOMMU_STATUS_BIT_STALL_ACTIVE)) {
-		pr_info("MMU stall already disabled\n");
 		return;
 	}
 
@@ -348,11 +347,13 @@ static bool rockchip_iommu_enable_paging(void __iomem *base)
 			return true;
 		}
 	}
+
 	if (IOMMU_REG_POLL_COUNT_FAST == i) {
 		pr_info("Enable paging request failed, MMU status is 0x%08X\n",
 		       __raw_readl(base + IOMMU_REGISTER_STATUS));
 		return false;
 	}
+
 	return true;
 }
 
@@ -375,11 +376,13 @@ static bool rockchip_iommu_disable_paging(void __iomem *base)
 			return true;
 		}
 	}
+
 	if (IOMMU_REG_POLL_COUNT_FAST == i) {
 		pr_info("Disable paging request failed, MMU status is 0x%08X\n",
 		       __raw_readl(base + IOMMU_REGISTER_STATUS));
 		return false;
 	}
+
 	return true;
 }
 
@@ -390,7 +393,12 @@ static void rockchip_iommu_page_fault_done(void __iomem *base, const char *dbgna
 	__raw_writel(IOMMU_COMMAND_PAGE_FAULT_DONE,
 		     base + IOMMU_REGISTER_COMMAND);
 }
-
+#if 0
+static void rockchip_iommu_zap_tlb_without_stall (void __iomem *base)
+{
+	__raw_writel(IOMMU_COMMAND_ZAP_CACHE, base + IOMMU_REGISTER_COMMAND);
+}
+#endif
 static int rockchip_iommu_zap_tlb(void __iomem *base)
 {
 	if (!rockchip_iommu_enable_stall(base)) {
@@ -409,13 +417,15 @@ static inline bool rockchip_iommu_raw_reset(void __iomem *base)
 {
 	int i;
 	unsigned int ret;
+	unsigned int grf_value;
 
 	__raw_writel(0xCAFEBABE, base + IOMMU_REGISTER_DTE_ADDR);
 
 	if (base != rk312x_vop_mmu_base) {
 		ret = __raw_readl(base + IOMMU_REGISTER_DTE_ADDR);
 		if (!(0xCAFEB000 == ret)) {
-			pr_info("error when %s.\n", __func__);
+			grf_value = readl_relaxed(RK_GRF_VIRT + RK3036_GRF_SOC_CON1);
+			pr_info("error when %s. grf = 0x%08x\n", __func__, grf_value);
 			return false;
 		}
 	}
@@ -451,12 +461,6 @@ static bool rockchip_iommu_reset(void __iomem *base, const char *dbgname)
 {
 	bool ret = true;
 
-	ret = rockchip_iommu_enable_stall(base);
-	if (!ret) {
-		pr_info("%s:stall failed: %s\n", __func__, dbgname);
-		return ret;
-	}
-
 	ret = rockchip_iommu_raw_reset(base);
 	if (!ret) {
 		pr_info("(%s), %s failed\n", dbgname, __func__);
@@ -469,8 +473,6 @@ static bool rockchip_iommu_reset(void __iomem *base, const char *dbgname)
 			     base + IOMMU_REGISTER_INT_MASK);
 	else
 		__raw_writel(0x00, base + IOMMU_REGISTER_INT_MASK);
-
-	rockchip_iommu_disable_stall(base);
 
 	return ret;
 }
@@ -663,9 +665,7 @@ static bool rockchip_iommu_disable(struct iommu_drvdata *data)
  * 0 if the System MMU has been just enabled and 1 if System MMU was already
  * enabled before.
  */
-static int rockchip_iommu_enable(struct iommu_drvdata *data,
-				    unsigned long pgtable,
-				    struct iommu_domain *domain)
+static int rockchip_iommu_enable(struct iommu_drvdata *data, unsigned long pgtable)
 {
 	int i, ret = 0;
 	unsigned long flags;
@@ -682,11 +682,9 @@ static int rockchip_iommu_enable(struct iommu_drvdata *data,
 
 		spin_unlock_irqrestore(&data->data_lock, flags);
 		dev_info(data->iommu, "(%s) Already enabled\n", data->dbgname);
-		
-		return ret;		
-	}
 
-	data->pgtable = pgtable;
+		return ret;
+	}
 
 	for (i = 0; i < data->num_res_mem; i++) {
 		ret = rockchip_iommu_enable_stall(data->res_bases[i]);
@@ -697,12 +695,23 @@ static int rockchip_iommu_enable(struct iommu_drvdata *data,
 			return -EBUSY;
 		}
 
+		if (!strstr(data->dbgname, "isp")) {
+			if (!rockchip_iommu_reset(data->res_bases[i],
+			     data->dbgname)) {
+			     	spin_unlock_irqrestore(&data->data_lock, flags);
+				return -ENOENT;
+			}
+		}
+
 		rockchip_iommu_set_ptbase(data->res_bases[i], pgtable);
+
 		__raw_writel(IOMMU_COMMAND_ZAP_CACHE, data->res_bases[i] +
 			     IOMMU_REGISTER_COMMAND);
+
 		__raw_writel(IOMMU_INTERRUPT_PAGE_FAULT |
 			     IOMMU_INTERRUPT_READ_BUS_ERROR,
 			     data->res_bases[i] + IOMMU_REGISTER_INT_MASK);
+
 		ret = rockchip_iommu_enable_paging(data->res_bases[i]);
 		if (!ret) {
 			spin_unlock_irqrestore(&data->data_lock, flags);
@@ -710,8 +719,11 @@ static int rockchip_iommu_enable(struct iommu_drvdata *data,
 				 data->dbgname, __func__);
 			return -EBUSY;
 		}
+
 		rockchip_iommu_disable_stall(data->res_bases[i]);
 	}
+
+	data->pgtable = pgtable;
 
 	dev_info(data->iommu,"(%s) Enabled\n", data->dbgname);
 
@@ -877,8 +889,7 @@ static int rockchip_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	return ret;
 }
 
-static void rockchip_iommu_detach_device(struct iommu_domain *domain,
-					 struct device *dev)
+static void rockchip_iommu_detach_device(struct iommu_domain *domain, struct device *dev)
 {
 	struct iommu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
 	struct rk_iommu_domain *priv = domain->priv;
@@ -913,8 +924,7 @@ static void rockchip_iommu_detach_device(struct iommu_domain *domain,
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static int rockchip_iommu_attach_device(struct iommu_domain *domain,
-					struct device *dev)
+static int rockchip_iommu_attach_device(struct iommu_domain *domain, struct device *dev)
 {
 	struct iommu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
 	struct rk_iommu_domain *priv = domain->priv;
@@ -923,7 +933,7 @@ static int rockchip_iommu_attach_device(struct iommu_domain *domain,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	ret = rockchip_iommu_enable(data, __pa(priv->pgtable), domain);
+	ret = rockchip_iommu_enable(data, __pa(priv->pgtable));
 
 	if (ret == 0) {
 		/* 'data->node' must not be appeared in priv->clients */
@@ -1020,14 +1030,9 @@ static int  rockchip_get_iommu_resource_num(struct platform_device *pdev,
 {
 	int num = 0;
 	int i;
-#if 0
-	pr_info("dev num_resources %d type = 0x%08x\n",pdev->num_resources, type);
-#endif
+
 	for (i = 0; i < pdev->num_resources; i++) {
 		struct resource *r = &pdev->resource[i];
-#if 0
-dev_info(&pdev->dev, "r[%d] start %08x end %08x flags %08lx name (%s) resource_type %08lx\n", i, r->start, r->end, r->flags, r->name, resource_type(r));
-#endif
 		if (type == resource_type(r))
 			num++;
 	}
@@ -1042,14 +1047,6 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 	struct iommu_drvdata *data;
 	
 	dev = &pdev->dev;
-	
-#if 0
-struct resource *res = pdev->resource;
-
-for (i = 0; i < pdev->num_resources; i++, res++) {
-	pr_info("r[%d] start %08x end %08x flags %08lx name (%s) resource_type %08lx\n", i, res->start, res->end, res->flags, res->name,   resource_type(res));
-}
-#endif
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
@@ -1115,11 +1112,6 @@ for (i = 0; i < pdev->num_resources; i++, res++) {
 			dev_dbg(dev, "rk312x_vop_mmu_base = 0x%08x\n",
 				(unsigned int)rk312x_vop_mmu_base);
 		}
-
-		if (!strstr(data->dbgname, "isp"))
-			if (!rockchip_iommu_reset(data->res_bases[i],
-			    data->dbgname))
-				return -ENOENT;
 	}
 
 	for (i = 0; i < data->num_res_irq; i++) {
