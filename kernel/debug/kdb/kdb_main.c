@@ -47,7 +47,7 @@
 #undef	MODULE_PARAM_PREFIX
 #define	MODULE_PARAM_PREFIX "kdb."
 
-static int kdb_cmd_enabled;
+static int kdb_cmd_enabled = CONFIG_KDB_DEFAULT_ENABLE;
 module_param_named(cmd_enable, kdb_cmd_enabled, int, 0600);
 
 #define GREP_LEN 256
