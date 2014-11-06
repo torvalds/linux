@@ -356,7 +356,6 @@ xfs_bulkstat(
 	int			end_of_ag; /* set if we've seen the ag end */
 	int			error;	/* error code */
 	int                     fmterror;/* bulkstat formatter result */
-	int			i;	/* loop index */
 	int			icount;	/* count of inodes good in irbuf */
 	size_t			irbsize; /* size of irec buffer in bytes */
 	xfs_ino_t		ino;	/* inode number (filesystem) */
@@ -366,11 +365,11 @@ xfs_bulkstat(
 	xfs_ino_t		lastino; /* last inode number returned */
 	int			nirbuf;	/* size of irbuf */
 	int			rval;	/* return value error code */
-	int			tmp;	/* result value from btree calls */
 	int			ubcount; /* size of user's buffer */
 	int			ubleft;	/* bytes left in user's buffer */
 	char			__user *ubufp;	/* pointer into user's buffer */
 	int			ubelem;	/* spaces used in user's buffer */
+	int			stat;
 
 	/*
 	 * Get the last inode value, see if there's nothing to do.
@@ -436,13 +435,15 @@ xfs_bulkstat(
 				agino = r.ir_startino + XFS_INODES_PER_CHUNK;
 			}
 			/* Increment to the next record */
-			error = xfs_btree_increment(cur, 0, &tmp);
+			error = xfs_btree_increment(cur, 0, &stat);
 		} else {
 			/* Start of ag.  Lookup the first inode chunk */
-			error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &tmp);
+			error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &stat);
 		}
-		if (error)
+		if (error || stat == 0) {
+			end_of_ag = 1;
 			goto del_cursor;
+		}
 
 		/*
 		 * Loop through inode btree records in this ag,
@@ -451,8 +452,8 @@ xfs_bulkstat(
 		while (irbp < irbufend && icount < ubcount) {
 			struct xfs_inobt_rec_incore	r;
 
-			error = xfs_inobt_get_rec(cur, &r, &i);
-			if (error || i == 0) {
+			error = xfs_inobt_get_rec(cur, &r, &stat);
+			if (error || stat == 0) {
 				end_of_ag = 1;
 				goto del_cursor;
 			}
@@ -473,8 +474,8 @@ xfs_bulkstat(
 			 * Set agino to after this chunk and bump the cursor.
 			 */
 			agino = r.ir_startino + XFS_INODES_PER_CHUNK;
-			error = xfs_btree_increment(cur, 0, &tmp);
-			if (error) {
+			error = xfs_btree_increment(cur, 0, &stat);
+			if (error || stat == 0) {
 				end_of_ag = 1;
 				goto del_cursor;
 			}
