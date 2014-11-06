@@ -690,6 +690,136 @@ static inline int hidg_get_minor(void)
 	return ret;
 }
 
+static inline struct f_hid_opts *to_f_hid_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_hid_opts,
+			    func_inst.group);
+}
+
+CONFIGFS_ATTR_STRUCT(f_hid_opts);
+CONFIGFS_ATTR_OPS(f_hid_opts);
+
+static void hid_attr_release(struct config_item *item)
+{
+	struct f_hid_opts *opts = to_f_hid_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations hidg_item_ops = {
+	.release	= hid_attr_release,
+	.show_attribute	= f_hid_opts_attr_show,
+	.store_attribute = f_hid_opts_attr_store,
+};
+
+#define F_HID_OPT(name, prec, limit)					\
+static ssize_t f_hid_opts_##name##_show(struct f_hid_opts *opts, char *page)\
+{									\
+	int result;							\
+									\
+	mutex_lock(&opts->lock);					\
+	result = sprintf(page, "%d\n", opts->name);			\
+	mutex_unlock(&opts->lock);					\
+									\
+	return result;							\
+}									\
+									\
+static ssize_t f_hid_opts_##name##_store(struct f_hid_opts *opts,	\
+					 const char *page, size_t len)	\
+{									\
+	int ret;							\
+	u##prec num;							\
+									\
+	mutex_lock(&opts->lock);					\
+	if (opts->refcnt) {						\
+		ret = -EBUSY;						\
+		goto end;						\
+	}								\
+									\
+	ret = kstrtou##prec(page, 0, &num);				\
+	if (ret)							\
+		goto end;						\
+									\
+	if (num > limit) {						\
+		ret = -EINVAL;						\
+		goto end;						\
+	}								\
+	opts->name = num;						\
+	ret = len;							\
+									\
+end:									\
+	mutex_unlock(&opts->lock);					\
+	return ret;							\
+}									\
+									\
+static struct f_hid_opts_attribute f_hid_opts_##name =			\
+	__CONFIGFS_ATTR(name, S_IRUGO | S_IWUSR, f_hid_opts_##name##_show,\
+			f_hid_opts_##name##_store)
+
+F_HID_OPT(subclass, 8, 255);
+F_HID_OPT(protocol, 8, 255);
+F_HID_OPT(report_length, 16, 65536);
+
+static ssize_t f_hid_opts_report_desc_show(struct f_hid_opts *opts, char *page)
+{
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = opts->report_desc_length;
+	memcpy(page, opts->report_desc, opts->report_desc_length);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t f_hid_opts_report_desc_store(struct f_hid_opts *opts,
+					    const char *page, size_t len)
+{
+	int ret = -EBUSY;
+	char *d;
+
+	mutex_lock(&opts->lock);
+
+	if (opts->refcnt)
+		goto end;
+	if (len > PAGE_SIZE) {
+		ret = -ENOSPC;
+		goto end;
+	}
+	d = kmemdup(page, len, GFP_KERNEL);
+	if (!d) {
+		ret = -ENOMEM;
+		goto end;
+	}
+	kfree(opts->report_desc);
+	opts->report_desc = d;
+	opts->report_desc_length = len;
+	opts->report_desc_alloc = true;
+	ret = len;
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+static struct f_hid_opts_attribute f_hid_opts_report_desc =
+	__CONFIGFS_ATTR(report_desc, S_IRUGO | S_IWUSR,
+			f_hid_opts_report_desc_show,
+			f_hid_opts_report_desc_store);
+
+static struct configfs_attribute *hid_attrs[] = {
+	&f_hid_opts_subclass.attr,
+	&f_hid_opts_protocol.attr,
+	&f_hid_opts_report_length.attr,
+	&f_hid_opts_report_desc.attr,
+	NULL,
+};
+
+static struct config_item_type hid_func_type = {
+	.ct_item_ops	= &hidg_item_ops,
+	.ct_attrs	= hid_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static inline void hidg_put_minor(int minor)
 {
 	ida_simple_remove(&hidg_ida, minor);
@@ -724,7 +854,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
-
+	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = hidg_free_inst;
 	ret = &opts->func_inst;
 
@@ -746,6 +876,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 		if (idr_is_empty(&hidg_ida.idr))
 			ghid_cleanup();
 	}
+	config_group_init_type_name(&opts->func_inst.group, "", &hid_func_type);
 
 unlock:
 	mutex_unlock(&hidg_ida_lock);
@@ -755,10 +886,15 @@ unlock:
 static void hidg_free(struct usb_function *f)
 {
 	struct f_hidg *hidg;
+	struct f_hid_opts *opts;
 
 	hidg = func_to_hidg(f);
+	opts = container_of(f->fi, struct f_hid_opts, func_inst);
 	kfree(hidg->report_desc);
 	kfree(hidg);
+	mutex_lock(&opts->lock);
+	--opts->refcnt;
+	mutex_unlock(&opts->lock);
 }
 
 static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
@@ -789,6 +925,9 @@ struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 
 	opts = container_of(fi, struct f_hid_opts, func_inst);
 
+	mutex_lock(&opts->lock);
+	++opts->refcnt;
+
 	hidg->minor = opts->minor;
 	hidg->bInterfaceSubClass = opts->subclass;
 	hidg->bInterfaceProtocol = opts->protocol;
@@ -800,9 +939,12 @@ struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 					    GFP_KERNEL);
 		if (!hidg->report_desc) {
 			kfree(hidg);
+			mutex_unlock(&opts->lock);
 			return ERR_PTR(-ENOMEM);
 		}
 	}
+
+	mutex_unlock(&opts->lock);
 
 	hidg->func.name    = "hid";
 	hidg->func.bind    = hidg_bind;

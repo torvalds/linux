@@ -413,6 +413,16 @@ config USB_CONFIGFS_F_MIDI
 	  connections can then be made on the gadget system, using
 	  ALSA's aconnect utility etc.
 
+config USB_CONFIGFS_F_HID
+	boolean "HID function"
+	depends on USB_CONFIGFS
+	select USB_F_HID
+	help
+	  The HID function driver provides generic emulation of USB
+	  Human Interface Devices (HID).
+
+	  For more information, see Documentation/usb/gadget_hid.txt.
+
 source "drivers/usb/gadget/legacy/Kconfig"
 
 endchoice
