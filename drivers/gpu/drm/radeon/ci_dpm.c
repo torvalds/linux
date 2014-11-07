@@ -3062,19 +3062,21 @@ static int ci_setup_default_dpm_tables(struct radeon_device *rdev)
 		     allowed_sclk_vddc_table->entries[i].clk)) {
 			pi->dpm_table.sclk_table.dpm_levels[pi->dpm_table.sclk_table.count].value =
 				allowed_sclk_vddc_table->entries[i].clk;
-			pi->dpm_table.sclk_table.dpm_levels[pi->dpm_table.sclk_table.count].enabled = true;
+			pi->dpm_table.sclk_table.dpm_levels[pi->dpm_table.sclk_table.count].enabled =
+				(i == 0) ? true : false;
 			pi->dpm_table.sclk_table.count++;
 		}
 	}
 
 	pi->dpm_table.mclk_table.count = 0;
 	for (i = 0; i < allowed_mclk_table->count; i++) {
-		if ((i==0) ||
+		if ((i == 0) ||
 		    (pi->dpm_table.mclk_table.dpm_levels[pi->dpm_table.mclk_table.count-1].value !=
 		     allowed_mclk_table->entries[i].clk)) {
 			pi->dpm_table.mclk_table.dpm_levels[pi->dpm_table.mclk_table.count].value =
 				allowed_mclk_table->entries[i].clk;
-			pi->dpm_table.mclk_table.dpm_levels[pi->dpm_table.mclk_table.count].enabled = true;
+			pi->dpm_table.mclk_table.dpm_levels[pi->dpm_table.mclk_table.count].enabled =
+				(i == 0) ? true : false;
 			pi->dpm_table.mclk_table.count++;
 		}
 	}
