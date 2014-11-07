@@ -321,6 +321,11 @@ static struct exynos_dsi_driver_data exynos4_dsi_driver_data = {
 	.has_clklane_stop = 1,
 };
 
+static struct exynos_dsi_driver_data exynos4415_dsi_driver_data = {
+	.plltmr_reg = 0x58,
+	.has_clklane_stop = 1,
+};
+
 static struct exynos_dsi_driver_data exynos5_dsi_driver_data = {
 	.plltmr_reg = 0x58,
 };
@@ -330,6 +335,8 @@ static struct of_device_id exynos_dsi_of_match[] = {
 	  .data = &exynos3_dsi_driver_data },
 	{ .compatible = "samsung,exynos4210-mipi-dsi",
 	  .data = &exynos4_dsi_driver_data },
+	{ .compatible = "samsung,exynos4415-mipi-dsi",
+	  .data = &exynos4415_dsi_driver_data },
 	{ .compatible = "samsung,exynos5410-mipi-dsi",
 	  .data = &exynos5_dsi_driver_data },
 	{ }
