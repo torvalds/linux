@@ -1039,6 +1039,9 @@ static const struct x86_cpu_id rapl_ids[] = {
 	RAPL_CPU(0x3d, rapl_defaults_core),/* Broadwell */
 	RAPL_CPU(0x3f, rapl_defaults_core),/* Haswell */
 	RAPL_CPU(0x45, rapl_defaults_core),/* Haswell ULT */
+	RAPL_CPU(0x4C, rapl_defaults_atom),/* Braswell */
+	RAPL_CPU(0x4A, rapl_defaults_atom),/* Tangier */
+	RAPL_CPU(0x5A, rapl_defaults_atom),/* Annidale */
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_ids);
