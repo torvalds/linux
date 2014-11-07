@@ -634,10 +634,9 @@ static void intel_panel_set_backlight(struct intel_connector *connector,
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_panel *panel = &connector->panel;
-	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	u32 hw_level;
 
-	if (!panel->backlight.present || pipe == INVALID_PIPE)
+	if (!panel->backlight.present)
 		return;
 
 	mutex_lock(&dev_priv->backlight_lock);
@@ -665,6 +664,12 @@ void intel_panel_set_backlight_acpi(struct intel_connector *connector,
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	u32 hw_level;
 
+	/*
+	 * INVALID_PIPE may occur during driver init because
+	 * connection_mutex isn't held across the entire backlight
+	 * setup + modeset readout, and the BIOS can issue the
+	 * requests at any time.
+	 */
 	if (!panel->backlight.present || pipe == INVALID_PIPE)
 		return;
 
@@ -740,9 +745,8 @@ void intel_panel_disable_backlight(struct intel_connector *connector)
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_panel *panel = &connector->panel;
-	enum pipe pipe = intel_get_pipe_from_connector(connector);
 
-	if (!panel->backlight.present || pipe == INVALID_PIPE)
+	if (!panel->backlight.present)
 		return;
 
 	/*
@@ -949,7 +953,7 @@ void intel_panel_enable_backlight(struct intel_connector *connector)
 	struct intel_panel *panel = &connector->panel;
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
 
-	if (!panel->backlight.present || pipe == INVALID_PIPE)
+	if (!panel->backlight.present)
 		return;
 
 	DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
