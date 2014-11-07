@@ -169,6 +169,10 @@ enum c_can_dev_id {
 	BOSCH_D_CAN,
 };
 
+struct c_can_driver_data {
+	enum c_can_dev_id id;
+};
+
 /* c_can private data structure */
 struct c_can_priv {
 	struct can_priv can;	/* must be the first member */

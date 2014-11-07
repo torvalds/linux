@@ -168,26 +168,34 @@ static void c_can_hw_raminit(const struct c_can_priv *priv, bool enable)
 	}
 }
 
+static const struct c_can_driver_data c_can_drvdata = {
+	.id = BOSCH_C_CAN,
+};
+
+static const struct c_can_driver_data d_can_drvdata = {
+	.id = BOSCH_D_CAN,
+};
+
 static struct platform_device_id c_can_id_table[] = {
-	[BOSCH_C_CAN_PLATFORM] = {
+	{
 		.name = KBUILD_MODNAME,
-		.driver_data = BOSCH_C_CAN,
+		.driver_data = (kernel_ulong_t)&c_can_drvdata,
 	},
-	[BOSCH_C_CAN] = {
+	{
 		.name = "c_can",
-		.driver_data = BOSCH_C_CAN,
+		.driver_data = (kernel_ulong_t)&c_can_drvdata,
 	},
-	[BOSCH_D_CAN] = {
+	{
 		.name = "d_can",
-		.driver_data = BOSCH_D_CAN,
-	}, {
-	}
+		.driver_data = (kernel_ulong_t)&d_can_drvdata,
+	},
+	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(platform, c_can_id_table);
 
 static const struct of_device_id c_can_of_table[] = {
-	{ .compatible = "bosch,c_can", .data = &c_can_id_table[BOSCH_C_CAN] },
-	{ .compatible = "bosch,d_can", .data = &c_can_id_table[BOSCH_D_CAN] },
+	{ .compatible = "bosch,c_can", .data = &c_can_drvdata },
+	{ .compatible = "bosch,d_can", .data = &d_can_drvdata },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, c_can_of_table);
@@ -199,21 +207,19 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct c_can_priv *priv;
 	const struct of_device_id *match;
-	const struct platform_device_id *id;
 	struct resource *mem, *res;
 	int irq;
 	struct clk *clk;
+	const struct c_can_driver_data *drvdata;
 
-	if (pdev->dev.of_node) {
-		match = of_match_device(c_can_of_table, &pdev->dev);
-		if (!match) {
-			dev_err(&pdev->dev, "Failed to find matching dt id\n");
-			ret = -EINVAL;
-			goto exit;
-		}
-		id = match->data;
+	match = of_match_device(c_can_of_table, &pdev->dev);
+	if (match) {
+		drvdata = match->data;
+	} else if (pdev->id_entry->driver_data) {
+		drvdata = (struct c_can_driver_data *)
+			platform_get_device_id(pdev)->driver_data;
 	} else {
-		id = platform_get_device_id(pdev);
+		return -ENODEV;
 	}
 
 	/* get the appropriate clk */
@@ -245,7 +251,7 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	}
 
 	priv = netdev_priv(dev);
-	switch (id->driver_data) {
+	switch (drvdata->id) {
 	case BOSCH_C_CAN:
 		priv->regs = reg_map_c_can;
 		switch (mem->flags & IORESOURCE_MEM_TYPE_MASK) {
@@ -304,7 +310,7 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	priv->device = &pdev->dev;
 	priv->can.clock.freq = clk_get_rate(clk);
 	priv->priv = clk;
-	priv->type = id->driver_data;
+	priv->type = drvdata->id;
 
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
