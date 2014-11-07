@@ -204,7 +204,7 @@ s_vCalculateOFDMRParameter(
  *
  * Return Value: None.
  */
-bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
+bool CARDbSetPhyParameter(struct vnt_private *pDevice, u8 bb_type,
 			  unsigned short wCapInfo, unsigned char byERPField,
 			  void *pvSupportRateIEs, void *pvExtSupportRateIEs)
 {
@@ -216,7 +216,7 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 	int i;
 
 	/* Set SIFS, DIFS, EIFS, SlotTime, CwMin */
-	if (ePHYType == PHY_TYPE_11A) {
+	if (bb_type == BB_TYPE_11A) {
 		if (pDevice->byRFType == RF_AIROHA7230) {
 			/* AL7230 use single PAPE and connect to PAPE_2.4G */
 			MACvSetBBType(pDevice->PortOffset, BB_TYPE_11G);
@@ -243,7 +243,7 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 		bySIFS = C_SIFS_A;
 		byDIFS = C_SIFS_A + 2*C_SLOT_SHORT;
 		byCWMaxMin = 0xA4;
-	} else if (ePHYType == PHY_TYPE_11B) {
+	} else if (bb_type == BB_TYPE_11B) {
 		MACvSetBBType(pDevice->PortOffset, BB_TYPE_11B);
 		if (pDevice->byRFType == RF_AIROHA7230) {
 			pDevice->abyBBVGA[0] = 0x1C;
@@ -344,7 +344,7 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 
 	pDevice->byPacketType = CARDbyGetPktType(pDevice);
 
-	CARDvSetRSPINF(pDevice, ePHYType);
+	CARDvSetRSPINF(pDevice, bb_type);
 
 	return true;
 }
