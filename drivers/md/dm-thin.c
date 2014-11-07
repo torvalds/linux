@@ -3296,7 +3296,6 @@ static int process_release_metadata_snap_mesg(unsigned argc, char **argv, struct
  *   create_thin	<dev_id>
  *   create_snap	<dev_id> <origin_id>
  *   delete		<dev_id>
- *   trim		<dev_id> <new_size_in_sectors>
  *   set_transaction_id <current_trans_id> <new_trans_id>
  *   reserve_metadata_snap
  *   release_metadata_snap
