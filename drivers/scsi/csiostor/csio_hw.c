@@ -1370,9 +1370,9 @@ csio_hw_fw_config_file(struct csio_hw *hw,
 	caps_cmd = (struct fw_caps_config_cmd *)(mbp->mb);
 	CSIO_INIT_MBP(mbp, caps_cmd, CSIO_MB_DEFAULT_TMO, hw, NULL, 1);
 	caps_cmd->op_to_write =
-		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-		      FW_CMD_REQUEST |
-		      FW_CMD_READ);
+		htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+		      FW_CMD_REQUEST_F |
+		      FW_CMD_READ_F);
 	caps_cmd->cfvalid_to_len16 =
 		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
 		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
@@ -1407,9 +1407,9 @@ csio_hw_fw_config_file(struct csio_hw *hw,
 	 * And now tell the firmware to use the configuration we just loaded.
 	 */
 	caps_cmd->op_to_write =
-		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-		      FW_CMD_REQUEST |
-		      FW_CMD_WRITE);
+		htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+		      FW_CMD_REQUEST_F |
+		      FW_CMD_WRITE_F);
 	caps_cmd->cfvalid_to_len16 = htonl(FW_LEN16(*caps_cmd));
 
 	if (csio_mb_issue(hw, mbp)) {
@@ -1678,7 +1678,7 @@ csio_get_fcoe_resinfo(struct csio_hw *hw)
 	}
 
 	rsp = (struct fw_fcoe_res_info_cmd *)(mbp->mb);
-	retval = FW_CMD_RETVAL_GET(ntohl(rsp->retval_len16));
+	retval = FW_CMD_RETVAL_G(ntohl(rsp->retval_len16));
 	if (retval != FW_SUCCESS) {
 		csio_err(hw, "FW_FCOE_RES_INFO_CMD failed with ret x%x\n",
 			 retval);

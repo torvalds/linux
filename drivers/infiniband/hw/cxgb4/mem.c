@@ -74,10 +74,10 @@ static int _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr,
 	req = (struct ulp_mem_io *)__skb_put(skb, wr_len);
 	memset(req, 0, wr_len);
 	INIT_ULPTX_WR(req, wr_len, 0, 0);
-	req->wr.wr_hi = cpu_to_be32(FW_WR_OP(FW_ULPTX_WR) |
-			(wait ? FW_WR_COMPL(1) : 0));
+	req->wr.wr_hi = cpu_to_be32(FW_WR_OP_V(FW_ULPTX_WR) |
+			(wait ? FW_WR_COMPL_F : 0));
 	req->wr.wr_lo = wait ? (__force __be64)(unsigned long) &wr_wait : 0L;
-	req->wr.wr_mid = cpu_to_be32(FW_WR_LEN16(DIV_ROUND_UP(wr_len, 16)));
+	req->wr.wr_mid = cpu_to_be32(FW_WR_LEN16_V(DIV_ROUND_UP(wr_len, 16)));
 	req->cmd = cpu_to_be32(ULPTX_CMD(ULP_TX_MEM_WRITE));
 	req->cmd |= cpu_to_be32(V_T5_ULP_MEMIO_ORDER(1));
 	req->dlen = cpu_to_be32(ULP_MEMIO_DATA_LEN(len>>5));
@@ -135,13 +135,13 @@ static int _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		INIT_ULPTX_WR(req, wr_len, 0, 0);
 
 		if (i == (num_wqe-1)) {
-			req->wr.wr_hi = cpu_to_be32(FW_WR_OP(FW_ULPTX_WR) |
-						    FW_WR_COMPL(1));
+			req->wr.wr_hi = cpu_to_be32(FW_WR_OP_V(FW_ULPTX_WR) |
+						    FW_WR_COMPL_F);
 			req->wr.wr_lo = (__force __be64)(unsigned long) &wr_wait;
 		} else
-			req->wr.wr_hi = cpu_to_be32(FW_WR_OP(FW_ULPTX_WR));
+			req->wr.wr_hi = cpu_to_be32(FW_WR_OP_V(FW_ULPTX_WR));
 		req->wr.wr_mid = cpu_to_be32(
-				       FW_WR_LEN16(DIV_ROUND_UP(wr_len, 16)));
+				       FW_WR_LEN16_V(DIV_ROUND_UP(wr_len, 16)));
 
 		req->cmd = cmd;
 		req->dlen = cpu_to_be32(ULP_MEMIO_DATA_LEN(
