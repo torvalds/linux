@@ -1282,7 +1282,7 @@ static int ci_dpm_force_state_sclk(struct radeon_device *rdev, u32 n)
 
 	if (!pi->sclk_dpm_key_disabled) {
 		PPSMC_Result smc_result =
-			ci_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_DPM_ForceState, n);
+			ci_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SCLKDPM_SetEnabledMask, 1 << n);
 		if (smc_result != PPSMC_Result_OK)
 			return -EINVAL;
 	}
@@ -1296,7 +1296,7 @@ static int ci_dpm_force_state_mclk(struct radeon_device *rdev, u32 n)
 
 	if (!pi->mclk_dpm_key_disabled) {
 		PPSMC_Result smc_result =
-			ci_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_MCLKDPM_ForceState, n);
+			ci_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_MCLKDPM_SetEnabledMask, 1 << n);
 		if (smc_result != PPSMC_Result_OK)
 			return -EINVAL;
 	}
@@ -3736,7 +3736,6 @@ int ci_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
-	PPSMC_Result smc_result;
 	u32 tmp, levels, i;
 	int ret;
 
@@ -3845,21 +3844,9 @@ int ci_dpm_force_performance_level(struct radeon_device *rdev,
 			}
 		}
 	} else if (level == RADEON_DPM_FORCED_LEVEL_AUTO) {
-		if (!pi->sclk_dpm_key_disabled) {
-			smc_result = ci_send_msg_to_smc(rdev, PPSMC_MSG_NoForcedLevel);
-			if (smc_result != PPSMC_Result_OK)
-				return -EINVAL;
-		}
-		if (!pi->mclk_dpm_key_disabled) {
-			smc_result = ci_send_msg_to_smc(rdev, PPSMC_MSG_MCLKDPM_NoForcedLevel);
-			if (smc_result != PPSMC_Result_OK)
-				return -EINVAL;
-		}
-		if (!pi->pcie_dpm_key_disabled) {
-			smc_result = ci_send_msg_to_smc(rdev, PPSMC_MSG_PCIeDPM_UnForceLevel);
-			if (smc_result != PPSMC_Result_OK)
-				return -EINVAL;
-		}
+		ret = ci_upload_dpm_level_enable_mask(rdev);
+		if (ret)
+			return ret;
 	}
 
 	rdev->pm.dpm.forced_level = level;
