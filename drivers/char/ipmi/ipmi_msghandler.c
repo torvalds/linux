@@ -1516,7 +1516,7 @@ static void smi_send(ipmi_smi_t intf, struct ipmi_smi_handlers *handlers,
 		spin_unlock_irqrestore(&intf->xmit_msgs_lock, flags);
 
 	if (smi_msg)
-		handlers->sender(intf->send_info, smi_msg, 0);
+		handlers->sender(intf->send_info, smi_msg);
 }
 
 /*
@@ -3908,7 +3908,7 @@ static void smi_recv_tasklet(unsigned long val)
 	if (!run_to_completion)
 		spin_unlock_irqrestore(&intf->xmit_msgs_lock, flags);
 	if (newmsg)
-		intf->handlers->sender(intf->send_info, newmsg, 0);
+		intf->handlers->sender(intf->send_info, newmsg);
 
 	handle_new_recv_msgs(intf);
 }

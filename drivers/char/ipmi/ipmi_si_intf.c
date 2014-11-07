@@ -892,8 +892,7 @@ static void check_start_timer_thread(struct smi_info *smi_info)
 }
 
 static void sender(void                *send_info,
-		   struct ipmi_smi_msg *msg,
-		   int                 priority)
+		   struct ipmi_smi_msg *msg)
 {
 	struct smi_info   *smi_info = send_info;
 	enum si_sm_result result;
