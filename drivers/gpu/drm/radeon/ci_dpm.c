@@ -2924,6 +2924,14 @@ static int ci_populate_all_memory_levels(struct radeon_device *rdev)
 
 	pi->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
 
+	if ((dpm_table->mclk_table.count >= 2) &&
+	    ((rdev->pdev->device == 0x67B0) || (rdev->pdev->device == 0x67B1))) {
+		pi->smc_state_table.MemoryLevel[1].MinVddc =
+			pi->smc_state_table.MemoryLevel[0].MinVddc;
+		pi->smc_state_table.MemoryLevel[1].MinVddcPhases =
+			pi->smc_state_table.MemoryLevel[0].MinVddcPhases;
+	}
+
 	pi->smc_state_table.MemoryLevel[0].ActivityLevel = cpu_to_be16(0x1F);
 
 	pi->smc_state_table.MemoryDpmLevelCount = (u8)dpm_table->mclk_table.count;
