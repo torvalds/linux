@@ -113,7 +113,7 @@ struct dispc_clock_info {
 struct dsi_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long fint;
-	unsigned long clkin4ddr;
+	unsigned long clkdco;
 	unsigned long dsi_pll_hsdiv_dispc_clk;	/* OMAP3: DSI1_PLL_CLK
 						 * OMAP4: PLLx_CLK1 */
 	unsigned long dsi_pll_hsdiv_dsi_clk;	/* OMAP3: DSI2_PLL_CLK

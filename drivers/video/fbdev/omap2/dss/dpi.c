@@ -195,7 +195,7 @@ static bool dpi_calc_pll_cb(int regn, int regm, unsigned long fint,
 	ctx->dsi_cinfo.regn = regn;
 	ctx->dsi_cinfo.regm = regm;
 	ctx->dsi_cinfo.fint = fint;
-	ctx->dsi_cinfo.clkin4ddr = pll;
+	ctx->dsi_cinfo.clkdco = pll;
 
 	return dsi_hsdiv_calc(ctx->dsidev, pll, ctx->pck_min,
 			dpi_calc_hsdiv_cb, ctx);
