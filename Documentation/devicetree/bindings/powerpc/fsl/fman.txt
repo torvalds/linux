@@ -79,12 +79,12 @@ PROPERTIES
 - clocks
 		Usage: required
 		Value type: <prop-encoded-array>
-		Definition: phandle for fman clock.
+		Definition: phandle for the fman input clock.
 
 - clock-names
-		usage: optional
+		usage: required
 		Value type: <stringlist>
-		Definition: A standard property
+		Definition: "fmanclk" for the fman input clock.
 
 - interrupts
 		Usage: required
@@ -103,6 +103,11 @@ PROPERTIES
 		Further information available at:
 		"Work Queue (WQ) Channel Assignments in the QMan" section
 		in DPAA Reference Manual.
+
+- fsl,qman
+- fsl,bman
+		Usage: required
+		Definition: See soc/fsl/qman.txt and soc/fsl/bman.txt
 
 =============================================================================
 FMan MURAM Node
