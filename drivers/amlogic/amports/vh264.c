@@ -1153,14 +1153,13 @@ static void vh264_isr(void)
             if (pts_valid) {
                 if ((fixed_frame_rate_flag) &&
                     (abs(pts_inc_by_duration(NULL, NULL) - pts)  < DUR2PTS(frame_dur))) {
-                    pts = pts_inc_by_duration(&last_pts, &last_pts_remainder);
+                    pts = pts_inc_by_duration(&pts, &last_pts_remainder);
                 } else {
-                    last_pts = pts;
                     last_pts_remainder = 0;
                 }
 
             } else {
-                pts = pts_inc_by_duration(&last_pts, &last_pts_remainder);
+                pts = pts_inc_by_duration(&pts, &last_pts_remainder);
                 pts_valid = 1;
             }
 
@@ -1187,11 +1186,7 @@ static void vh264_isr(void)
                 }
             }
 
-            if (pts_valid) {
-                last_pts = pts;
-            } else {
-                last_pts += DUR2PTS(vf->duration);
-            }
+            last_pts = pts;
 
             if (pic_struct_present) {
                 if ((pic_struct == PIC_TOP_BOT) || (pic_struct == PIC_BOT_TOP)) {
