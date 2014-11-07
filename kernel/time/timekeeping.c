@@ -519,9 +519,9 @@ EXPORT_SYMBOL(__getnstimeofday64);
 
 /**
  * getnstimeofday64 - Returns the time of day in a timespec64.
- * @ts:		pointer to the timespec to be set
+ * @ts:		pointer to the timespec64 to be set
  *
- * Returns the time of day in a timespec (WARN if suspended).
+ * Returns the time of day in a timespec64 (WARN if suspended).
  */
 void getnstimeofday64(struct timespec64 *ts)
 {
@@ -623,7 +623,7 @@ EXPORT_SYMBOL_GPL(ktime_get_raw);
  *
  * The function calculates the monotonic clock from the realtime
  * clock and the wall_to_monotonic offset and stores the result
- * in normalized timespec format in the variable pointed to by @ts.
+ * in normalized timespec64 format in the variable pointed to by @ts.
  */
 void ktime_get_ts64(struct timespec64 *ts)
 {
