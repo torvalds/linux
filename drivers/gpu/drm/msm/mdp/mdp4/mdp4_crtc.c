@@ -25,7 +25,6 @@
 struct mdp4_crtc {
 	struct drm_crtc base;
 	char name[8];
-	struct drm_plane *planes[8];
 	int id;
 	int ovlp;
 	enum mdp4_dma dma;
@@ -96,15 +95,14 @@ static void crtc_flush(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
-	uint32_t i, flush = 0;
+	struct drm_plane *plane;
+	uint32_t flush = 0;
 
-	for (i = 0; i < ARRAY_SIZE(mdp4_crtc->planes); i++) {
-		struct drm_plane *plane = mdp4_crtc->planes[i];
-		if (plane) {
-			enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
-			flush |= pipe2flush(pipe_id);
-		}
+	for_each_plane_on_crtc(crtc, plane) {
+		enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
+		flush |= pipe2flush(pipe_id);
 	}
+
 	flush |= ovlp2flush(mdp4_crtc->ovlp);
 
 	DBG("%s: flush=%08x", mdp4_crtc->name, flush);
@@ -254,6 +252,7 @@ static void blend_setup(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
+	struct drm_plane *plane;
 	int i, ovlp = mdp4_crtc->ovlp;
 	uint32_t mixer_cfg = 0;
 	static const enum mdp_mixer_stage_id stages[] = {
@@ -283,19 +282,16 @@ static void blend_setup(struct drm_crtc *crtc)
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_HIGH0(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_HIGH1(ovlp), 0);
 
-	for (i = 0; i < ARRAY_SIZE(mdp4_crtc->planes); i++) {
-		struct drm_plane *plane = mdp4_crtc->planes[i];
-		if (plane) {
-			enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
-			int idx = idxs[pipe_id];
-			if (idx > 0) {
-				const struct mdp_format *format =
+	for_each_plane_on_crtc(crtc, plane) {
+		enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
+		int idx = idxs[pipe_id];
+		if (idx > 0) {
+			const struct mdp_format *format =
 					to_mdp_format(msm_framebuffer_format(plane->fb));
-				alpha[idx-1] = format->alpha_enable;
-			}
-			mixer_cfg = mixercfg(mixer_cfg, mdp4_crtc->mixer,
-					pipe_id, stages[idx]);
+			alpha[idx-1] = format->alpha_enable;
 		}
+		mixer_cfg = mixercfg(mixer_cfg, mdp4_crtc->mixer,
+				pipe_id, stages[idx]);
 	}
 
 	/* this shouldn't happen.. and seems to cause underflow: */
@@ -718,12 +714,6 @@ static void set_attach(struct drm_crtc *crtc, enum mdp4_pipe pipe_id,
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 
-	BUG_ON(pipe_id >= ARRAY_SIZE(mdp4_crtc->planes));
-
-	if (mdp4_crtc->planes[pipe_id] == plane)
-		return;
-
-	mdp4_crtc->planes[pipe_id] = plane;
 	blend_setup(crtc);
 	if (mdp4_crtc->enabled && (plane != crtc->primary))
 		crtc_flush(crtc);
@@ -785,6 +775,7 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 
 	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs);
 	drm_crtc_helper_add(crtc, &mdp4_crtc_helper_funcs);
+	plane->crtc = crtc;
 
 	mdp4_plane_install_properties(plane, &crtc->base);
 
