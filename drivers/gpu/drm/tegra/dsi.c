@@ -993,6 +993,272 @@ static int tegra_dsi_setup_clocks(struct tegra_dsi *dsi)
 	return 0;
 }
 
+static const char * const error_report[16] = {
+	"SoT Error",
+	"SoT Sync Error",
+	"EoT Sync Error",
+	"Escape Mode Entry Command Error",
+	"Low-Power Transmit Sync Error",
+	"Peripheral Timeout Error",
+	"False Control Error",
+	"Contention Detected",
+	"ECC Error, single-bit",
+	"ECC Error, multi-bit",
+	"Checksum Error",
+	"DSI Data Type Not Recognized",
+	"DSI VC ID Invalid",
+	"Invalid Transmission Length",
+	"Reserved",
+	"DSI Protocol Violation",
+};
+
+static ssize_t tegra_dsi_read_response(struct tegra_dsi *dsi,
+				       const struct mipi_dsi_msg *msg,
+				       size_t count)
+{
+	u8 *rx = msg->rx_buf;
+	unsigned int i, j, k;
+	size_t size = 0;
+	u16 errors;
+	u32 value;
+
+	/* read and parse packet header */
+	value = tegra_dsi_readl(dsi, DSI_RD_DATA);
+
+	switch (value & 0x3f) {
+	case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
+		errors = (value >> 8) & 0xffff;
+		dev_dbg(dsi->dev, "Acknowledge and error report: %04x\n",
+			errors);
+		for (i = 0; i < ARRAY_SIZE(error_report); i++)
+			if (errors & BIT(i))
+				dev_dbg(dsi->dev, "  %2u: %s\n", i,
+					error_report[i]);
+		break;
+
+	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE:
+		rx[0] = (value >> 8) & 0xff;
+		size = 1;
+		break;
+
+	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE:
+		rx[0] = (value >>  8) & 0xff;
+		rx[1] = (value >> 16) & 0xff;
+		size = 2;
+		break;
+
+	case MIPI_DSI_RX_DCS_LONG_READ_RESPONSE:
+		size = ((value >> 8) & 0xff00) | ((value >> 8) & 0xff);
+		break;
+
+	case MIPI_DSI_RX_GENERIC_LONG_READ_RESPONSE:
+		size = ((value >> 8) & 0xff00) | ((value >> 8) & 0xff);
+		break;
+
+	default:
+		dev_err(dsi->dev, "unhandled response type: %02x\n",
+			value & 0x3f);
+		return -EPROTO;
+	}
+
+	size = min(size, msg->rx_len);
+
+	if (msg->rx_buf && size > 0) {
+		for (i = 0, j = 0; i < count - 1; i++, j += 4) {
+			u8 *rx = msg->rx_buf + j;
+
+			value = tegra_dsi_readl(dsi, DSI_RD_DATA);
+
+			for (k = 0; k < 4 && (j + k) < msg->rx_len; k++)
+				rx[j + k] = (value >> (k << 3)) & 0xff;
+		}
+	}
+
+	return size;
+}
+
+static int tegra_dsi_transmit(struct tegra_dsi *dsi, unsigned long timeout)
+{
+	tegra_dsi_writel(dsi, DSI_TRIGGER_HOST, DSI_TRIGGER);
+
+	timeout = jiffies + msecs_to_jiffies(timeout);
+
+	while (time_before(jiffies, timeout)) {
+		u32 value = tegra_dsi_readl(dsi, DSI_TRIGGER);
+		if ((value & DSI_TRIGGER_HOST) == 0)
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+
+	DRM_DEBUG_KMS("timeout waiting for transmission to complete\n");
+	return -ETIMEDOUT;
+}
+
+static int tegra_dsi_wait_for_response(struct tegra_dsi *dsi,
+				       unsigned long timeout)
+{
+	timeout = jiffies + msecs_to_jiffies(250);
+
+	while (time_before(jiffies, timeout)) {
+		u32 value = tegra_dsi_readl(dsi, DSI_STATUS);
+		u8 count = value & 0x1f;
+
+		if (count > 0)
+			return count;
+
+		usleep_range(1000, 2000);
+	}
+
+	DRM_DEBUG_KMS("peripheral returned no data\n");
+	return -ETIMEDOUT;
+}
+
+static void tegra_dsi_writesl(struct tegra_dsi *dsi, unsigned long offset,
+			      const void *buffer, size_t size)
+{
+	const u8 *buf = buffer;
+	size_t i, j;
+	u32 value;
+
+	for (j = 0; j < size; j += 4) {
+		value = 0;
+
+		for (i = 0; i < 4 && j + i < size; i++)
+			value |= buf[j + i] << (i << 3);
+
+		tegra_dsi_writel(dsi, value, DSI_WR_DATA);
+	}
+}
+
+static ssize_t tegra_dsi_host_transfer(struct mipi_dsi_host *host,
+				       const struct mipi_dsi_msg *msg)
+{
+	struct tegra_dsi *dsi = host_to_tegra(host);
+	struct mipi_dsi_packet packet;
+	const u8 *header;
+	size_t count;
+	ssize_t err;
+	u32 value;
+
+	err = mipi_dsi_create_packet(&packet, msg);
+	if (err < 0)
+		return err;
+
+	header = packet.header;
+
+	/* maximum FIFO depth is 1920 words */
+	if (packet.size > dsi->video_fifo_depth * 4)
+		return -ENOSPC;
+
+	/* reset underflow/overflow flags */
+	value = tegra_dsi_readl(dsi, DSI_STATUS);
+	if (value & (DSI_STATUS_UNDERFLOW | DSI_STATUS_OVERFLOW)) {
+		value = DSI_HOST_CONTROL_FIFO_RESET;
+		tegra_dsi_writel(dsi, value, DSI_HOST_CONTROL);
+		usleep_range(10, 20);
+	}
+
+	value = tegra_dsi_readl(dsi, DSI_POWER_CONTROL);
+	value |= DSI_POWER_CONTROL_ENABLE;
+	tegra_dsi_writel(dsi, value, DSI_POWER_CONTROL);
+
+	usleep_range(5000, 10000);
+
+	value = DSI_HOST_CONTROL_CRC_RESET | DSI_HOST_CONTROL_TX_TRIG_HOST |
+		DSI_HOST_CONTROL_CS | DSI_HOST_CONTROL_ECC;
+
+	if ((msg->flags & MIPI_DSI_MSG_USE_LPM) == 0)
+		value |= DSI_HOST_CONTROL_HS;
+
+	/*
+	 * The host FIFO has a maximum of 64 words, so larger transmissions
+	 * need to use the video FIFO.
+	 */
+	if (packet.size > dsi->host_fifo_depth * 4)
+		value |= DSI_HOST_CONTROL_FIFO_SEL;
+
+	tegra_dsi_writel(dsi, value, DSI_HOST_CONTROL);
+
+	/*
+	 * For reads and messages with explicitly requested ACK, generate a
+	 * BTA sequence after the transmission of the packet.
+	 */
+	if ((msg->flags & MIPI_DSI_MSG_REQ_ACK) ||
+	    (msg->rx_buf && msg->rx_len > 0)) {
+		value = tegra_dsi_readl(dsi, DSI_HOST_CONTROL);
+		value |= DSI_HOST_CONTROL_PKT_BTA;
+		tegra_dsi_writel(dsi, value, DSI_HOST_CONTROL);
+	}
+
+	value = DSI_CONTROL_LANES(0) | DSI_CONTROL_HOST_ENABLE;
+	tegra_dsi_writel(dsi, value, DSI_CONTROL);
+
+	/* write packet header, ECC is generated by hardware */
+	value = header[2] << 16 | header[1] << 8 | header[0];
+	tegra_dsi_writel(dsi, value, DSI_WR_DATA);
+
+	/* write payload (if any) */
+	if (packet.payload_length > 0)
+		tegra_dsi_writesl(dsi, DSI_WR_DATA, packet.payload,
+				  packet.payload_length);
+
+	err = tegra_dsi_transmit(dsi, 250);
+	if (err < 0)
+		return err;
+
+	if ((msg->flags & MIPI_DSI_MSG_REQ_ACK) ||
+	    (msg->rx_buf && msg->rx_len > 0)) {
+		err = tegra_dsi_wait_for_response(dsi, 250);
+		if (err < 0)
+			return err;
+
+		count = err;
+
+		value = tegra_dsi_readl(dsi, DSI_RD_DATA);
+		switch (value) {
+		case 0x84:
+			/*
+			dev_dbg(dsi->dev, "ACK\n");
+			*/
+			break;
+
+		case 0x87:
+			/*
+			dev_dbg(dsi->dev, "ESCAPE\n");
+			*/
+			break;
+
+		default:
+			dev_err(dsi->dev, "unknown status: %08x\n", value);
+			break;
+		}
+
+		if (count > 1) {
+			err = tegra_dsi_read_response(dsi, msg, count);
+			if (err < 0)
+				dev_err(dsi->dev,
+					"failed to parse response: %zd\n",
+					err);
+			else {
+				/*
+				 * For read commands, return the number of
+				 * bytes returned by the peripheral.
+				 */
+				count = err;
+			}
+		}
+	} else {
+		/*
+		 * For write commands, we have transmitted the 4-byte header
+		 * plus the variable-length payload.
+		 */
+		count = 4 + packet.payload_length;
+	}
+
+	return count;
+}
+
 static int tegra_dsi_ganged_setup(struct tegra_dsi *dsi)
 {
 	struct clk *parent;
@@ -1069,6 +1335,7 @@ static int tegra_dsi_host_detach(struct mipi_dsi_host *host,
 static const struct mipi_dsi_host_ops tegra_dsi_host_ops = {
 	.attach = tegra_dsi_host_attach,
 	.detach = tegra_dsi_host_detach,
+	.transfer = tegra_dsi_host_transfer,
 };
 
 static int tegra_dsi_ganged_probe(struct tegra_dsi *dsi)
