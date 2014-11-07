@@ -1298,7 +1298,8 @@ my_device_create(struct controlvm_message *inmsg)
 			 POSTCODE_SEVERITY_INFO);
 Away:
 	/* get the bus and devNo for DiagPool channel */
-	if (is_diagpool_channel(pDevInfo->chan_info.channel_type_uuid)) {
+	if (pDevInfo &&
+	    is_diagpool_channel(pDevInfo->chan_info.channel_type_uuid)) {
 		g_diagpoolBusNo = busNo;
 		g_diagpoolDevNo = devNo;
 		LOGINF("CONTROLVM_DEVICE_CREATE for DiagPool channel: busNo=%lu, devNo=%lu",
