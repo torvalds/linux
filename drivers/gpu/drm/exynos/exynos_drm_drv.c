@@ -194,8 +194,6 @@ static int exynos_drm_resume(struct drm_device *dev)
 	}
 	drm_modeset_unlock_all(dev);
 
-	drm_helper_resume_force_mode(dev);
-
 	return 0;
 }
 
