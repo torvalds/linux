@@ -2075,7 +2075,19 @@ static struct platform_driver arm_smmu_driver = {
 
 static int __init arm_smmu_init(void)
 {
+	struct device_node *np;
 	int ret;
+
+	/*
+	 * Play nice with systems that don't have an ARM SMMU by checking that
+	 * an ARM SMMU exists in the system before proceeding with the driver
+	 * and IOMMU bus operation registration.
+	 */
+	np = of_find_matching_node(NULL, arm_smmu_of_match);
+	if (!np)
+		return 0;
+
+	of_node_put(np);
 
 	ret = platform_driver_register(&arm_smmu_driver);
 	if (ret)
