@@ -4310,8 +4310,7 @@ static int clip_add(struct net_device *event_dev, struct inet6_ifaddr *ifa,
 	if (cxgb4_netdev(event_dev)) {
 		switch (event) {
 		case NETDEV_UP:
-			ret = cxgb4_clip_get(event_dev,
-				(const struct in6_addr *)ifa->addr.s6_addr);
+			ret = cxgb4_clip_get(event_dev, &ifa->addr);
 			if (ret < 0) {
 				rcu_read_unlock();
 				return ret;
@@ -4319,8 +4318,7 @@ static int clip_add(struct net_device *event_dev, struct inet6_ifaddr *ifa,
 			ret = NOTIFY_OK;
 			break;
 		case NETDEV_DOWN:
-			cxgb4_clip_release(event_dev,
-				(const struct in6_addr *)ifa->addr.s6_addr);
+			cxgb4_clip_release(event_dev, &ifa->addr);
 			ret = NOTIFY_OK;
 			break;
 		default:
@@ -4389,8 +4387,7 @@ static int update_dev_clip(struct net_device *root_dev, struct net_device *dev)
 
 	read_lock_bh(&idev->lock);
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
-		ret = cxgb4_clip_get(dev,
-				(const struct in6_addr *)ifa->addr.s6_addr);
+		ret = cxgb4_clip_get(dev, &ifa->addr);
 		if (ret < 0)
 			break;
 	}
