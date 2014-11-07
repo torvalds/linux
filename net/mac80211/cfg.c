@@ -3158,6 +3158,12 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		goto out;
 	}
 
+	ch_switch.timestamp = 0;
+	ch_switch.device_timestamp = 0;
+	ch_switch.block_tx = params->block_tx;
+	ch_switch.chandef = params->chandef;
+	ch_switch.count = params->count;
+
 	err = drv_pre_channel_switch(sdata, &ch_switch);
 	if (err)
 		goto out;
@@ -3174,12 +3180,6 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		ieee80211_vif_unreserve_chanctx(sdata);
 		goto out;
 	}
-
-	ch_switch.timestamp = 0;
-	ch_switch.device_timestamp = 0;
-	ch_switch.block_tx = params->block_tx;
-	ch_switch.chandef = params->chandef;
-	ch_switch.count = params->count;
 
 	err = ieee80211_set_csa_beacon(sdata, params, &changed);
 	if (err) {
