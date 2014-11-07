@@ -204,9 +204,7 @@ s_vCalculateOFDMRParameter(
  *
  * Return Value: None.
  */
-bool CARDbSetPhyParameter(struct vnt_private *pDevice, u8 bb_type,
-			  unsigned short wCapInfo, unsigned char byERPField,
-			  void *pvSupportRateIEs, void *pvExtSupportRateIEs)
+bool CARDbSetPhyParameter(struct vnt_private *pDevice, u8 bb_type)
 {
 	unsigned char byCWMaxMin = 0;
 	unsigned char bySlot = 0;

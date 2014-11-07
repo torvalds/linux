@@ -82,9 +82,7 @@ void CARDvSafeResetTx(struct vnt_private *);
 void CARDvSafeResetRx(struct vnt_private *);
 bool CARDbRadioPowerOff(struct vnt_private *);
 bool CARDbRadioPowerOn(struct vnt_private *);
-bool CARDbSetPhyParameter(struct vnt_private *, u8,
-			  unsigned short wCapInfo, unsigned char byERPField,
-			  void *pvSupportRateIEs, void *pvExtSupportRateIEs);
+bool CARDbSetPhyParameter(struct vnt_private *, u8);
 bool CARDbUpdateTSF(struct vnt_private *, unsigned char byRxRate,
 		    u64 qwBSSTimestamp, u64 qwLocalTSF);
 bool CARDbSetBeaconPeriod(struct vnt_private *, unsigned short wBeaconInterval);
