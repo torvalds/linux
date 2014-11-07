@@ -384,6 +384,11 @@ typedef struct vpu_service_info {
 	struct delayed_work	simulate_work;
 } vpu_service_info;
 
+struct vcodec_combo {
+	struct vpu_service_info *vpu_srv;
+	struct vpu_service_info *hevc_srv;
+};
+
 typedef struct vpu_request
 {
 	unsigned long *req;
@@ -395,6 +400,7 @@ typedef struct vpu_request
 static struct dentry *parent; // debugfs root directory for all device (vpu, hevc).
 /* mutex for selecting operation registers of vpu or hevc */
 static struct mutex g_mode_mutex;
+static struct vcodec_combo g_combo;
 
 #ifdef CONFIG_DEBUG_FS
 static int vcodec_debugfs_init(void);
@@ -714,11 +720,30 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 		vpu_queue_power_off_work(pservice);
 		last = now;
 	}
+
 	if (pservice->enabled)
 		return ;
 
 	pservice->enabled = true;
 	printk("%s: power on\n", dev_name(pservice->dev));
+
+	if (cpu_is_rk3036() || cpu_is_rk312x()) {
+		if (pservice == g_combo.vpu_srv) {
+			if (g_combo.hevc_srv != NULL && g_combo.hevc_srv->mmu_dev) {
+				u32 config;
+				vcodec_enter_mode_nolock(g_combo.hevc_srv->dev_id, &config);
+				rockchip_iovmm_deactivate(g_combo.hevc_srv->dev);
+				vcodec_exit_mode_nolock(g_combo.hevc_srv->dev_id, config);
+			}
+		} else if (pservice == g_combo.hevc_srv) {
+			if (g_combo.vpu_srv != NULL && g_combo.vpu_srv->mmu_dev) {
+				u32 config;
+				vcodec_enter_mode_nolock(g_combo.vpu_srv->dev_id, &config);
+				rockchip_iovmm_deactivate(g_combo.vpu_srv->dev);
+				vcodec_exit_mode_nolock(g_combo.vpu_srv->dev_id, config);
+			}
+		}
+	}
 
 #if VCODEC_CLOCK_ENABLE
 	if (pservice->aclk_vcodec)
@@ -755,11 +780,11 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 	wake_lock(&pservice->wake_lock);
 
 #if defined(CONFIG_VCODEC_MMU)
-    if (pservice->mmu_dev) {
-        vcodec_enter_mode(pservice->dev_id);
-        rockchip_iovmm_activate(pservice->dev);
-        vcodec_exit_mode();
-    }
+	if (pservice->mmu_dev) {
+		vcodec_enter_mode(pservice->dev_id);
+		rockchip_iovmm_activate(pservice->dev);
+		vcodec_exit_mode();
+	}
 #endif    
 }
 
@@ -1694,6 +1719,7 @@ static int vcodec_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct vpu_service_info *pservice = devm_kzalloc(dev, sizeof(struct vpu_service_info), GFP_KERNEL);
 	char *prop = (char*)dev_name(dev);
+	u32 config;
 #if defined(CONFIG_VCODEC_MMU)
 	u32 iommu_en = 0;
 	char mmu_dev_dts_name[40];
@@ -1707,15 +1733,17 @@ static int vcodec_probe(struct platform_device *pdev)
 
 	if (strcmp(dev_name(dev), "hevc_service") == 0) {
 		pservice->dev_id = VCODEC_DEVICE_ID_HEVC;
+		g_combo.hevc_srv = pservice;
 	} else if (strcmp(dev_name(dev), "vpu_service") == 0) {
 		pservice->dev_id = VCODEC_DEVICE_ID_VPU;
+		g_combo.vpu_srv = pservice;
 	} else {
 		dev_err(dev, "Unknown device %s to probe\n", dev_name(dev));
 		return -1;
 	}
 
 	mutex_init(&g_mode_mutex);
-	vcodec_enter_mode(pservice->dev_id);
+	vcodec_enter_mode_nolock(pservice->dev_id, &config);
 
 	wake_lock_init(&pservice->wake_lock, WAKE_LOCK_SUSPEND, "vpu");
 	INIT_LIST_HEAD(&pservice->waiting);
@@ -1883,7 +1911,7 @@ static int vcodec_probe(struct platform_device *pdev)
 		rockchip_iovmm_set_fault_handler(pservice->dev, vcodec_sysmmu_fault_handler);
 	}
 #endif
-	vcodec_exit_mode();
+	vcodec_exit_mode_nolock(pservice->dev_id, config);
 	vpu_service_power_off(pservice);
 
 	pr_info("init success\n");
@@ -2315,6 +2343,9 @@ static irqreturn_t vepu_isr(int irq, void *dev_id)
 static int __init vcodec_service_init(void)
 {
 	int ret;
+
+	g_combo.hevc_srv = NULL;
+	g_combo.vpu_srv = NULL;
 
 	if ((ret = platform_driver_register(&vcodec_driver)) != 0) {
 		pr_err("Platform device register failed (%d).\n", ret);
