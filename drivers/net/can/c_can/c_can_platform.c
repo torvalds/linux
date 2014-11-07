@@ -75,10 +75,19 @@ static void c_can_plat_write_reg_aligned_to_32bit(const struct c_can_priv *priv,
 static void c_can_hw_raminit_wait_ti(const struct c_can_priv *priv, u32 mask,
 				  u32 val)
 {
+	int timeout = 0;
+
 	/* We look only at the bits of our instance. */
 	val &= mask;
-	while ((readl(priv->raminit_ctrlreg) & mask) != val)
+	while ((readl(priv->raminit_ctrlreg) & mask) != val) {
 		udelay(1);
+		timeout++;
+
+		if (timeout == 1000) {
+			dev_err(&priv->dev->dev, "%s: time out\n", __func__);
+			break;
+		}
+	}
 }
 
 static void c_can_hw_raminit_ti(const struct c_can_priv *priv, bool enable)
