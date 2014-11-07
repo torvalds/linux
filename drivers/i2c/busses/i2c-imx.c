@@ -668,8 +668,7 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	i2c_imx = devm_kzalloc(&pdev->dev, sizeof(struct imx_i2c_struct),
-				GFP_KERNEL);
+	i2c_imx = devm_kzalloc(&pdev->dev, sizeof(*i2c_imx), GFP_KERNEL);
 	if (!i2c_imx)
 		return -ENOMEM;
 

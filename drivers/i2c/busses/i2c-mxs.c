@@ -811,7 +811,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err, irq;
 
-	i2c = devm_kzalloc(dev, sizeof(struct mxs_i2c_dev), GFP_KERNEL);
+	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
