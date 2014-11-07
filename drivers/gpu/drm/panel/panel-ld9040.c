@@ -145,7 +145,7 @@ static void ld9040_dcs_write(struct ld9040 *ctx, const u8 *data, size_t len)
 	if (ctx->error < 0 || len == 0)
 		return;
 
-	dev_dbg(ctx->dev, "writing dcs seq: %*ph\n", len, data);
+	dev_dbg(ctx->dev, "writing dcs seq: %*ph\n", (int)len, data);
 	ret = ld9040_spi_write_word(ctx, *data);
 
 	while (!ret && --len) {
@@ -154,8 +154,8 @@ static void ld9040_dcs_write(struct ld9040 *ctx, const u8 *data, size_t len)
 	}
 
 	if (ret) {
-		dev_err(ctx->dev, "error %d writing dcs seq: %*ph\n", ret, len,
-			data);
+		dev_err(ctx->dev, "error %d writing dcs seq: %*ph\n", ret,
+			(int)len, data);
 		ctx->error = ret;
 	}
 
