@@ -2409,10 +2409,10 @@ static int ci_calculate_mclk_params(struct radeon_device *rdev,
 		u32 tmp;
 		u32 reference_clock = rdev->clock.mpll.reference_freq;
 
-		if (pi->mem_gddr5)
-			freq_nom = memory_clock * 4;
+		if (mpll_param.qdr == 1)
+			freq_nom = memory_clock * 4 * (1 << mpll_param.post_div);
 		else
-			freq_nom = memory_clock * 2;
+			freq_nom = memory_clock * 2 * (1 << mpll_param.post_div);
 
 		tmp = (freq_nom / reference_clock);
 		tmp = tmp * tmp;
