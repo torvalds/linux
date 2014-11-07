@@ -1014,6 +1014,36 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 }
 
 static __be32
+nfsd4_fallocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+		struct nfsd4_fallocate *fallocate, int flags)
+{
+	__be32 status = nfserr_notsupp;
+	struct file *file;
+
+	status = nfs4_preprocess_stateid_op(SVC_NET(rqstp), cstate,
+					    &fallocate->falloc_stateid,
+					    WR_STATE, &file);
+	if (status != nfs_ok) {
+		dprintk("NFSD: nfsd4_fallocate: couldn't process stateid!\n");
+		return status;
+	}
+
+	status = nfsd4_vfs_fallocate(rqstp, &cstate->current_fh, file,
+				     fallocate->falloc_offset,
+				     fallocate->falloc_length,
+				     flags);
+	fput(file);
+	return status;
+}
+
+static __be32
+nfsd4_allocate(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+	       struct nfsd4_fallocate *fallocate)
+{
+	return nfsd4_fallocate(rqstp, cstate, fallocate, 0);
+}
+
+static __be32
 nfsd4_seek(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		struct nfsd4_seek *seek)
 {
@@ -1929,6 +1959,12 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 
 	/* NFSv4.2 operations */
+	[OP_ALLOCATE] = {
+		.op_func = (nfsd4op_func)nfsd4_allocate,
+		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
+		.op_name = "OP_ALLOCATE",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_write_rsize,
+	},
 	[OP_SEEK] = {
 		.op_func = (nfsd4op_func)nfsd4_seek,
 		.op_name = "OP_SEEK",

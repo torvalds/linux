@@ -16,6 +16,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/splice.h>
+#include <linux/falloc.h>
 #include <linux/fcntl.h>
 #include <linux/namei.h>
 #include <linux/delay.h>
@@ -533,6 +534,26 @@ __be32 nfsd4_set_nfs4_label(struct svc_rqst *rqstp, struct svc_fh *fhp,
 }
 #endif
 
+__be32 nfsd4_vfs_fallocate(struct svc_rqst *rqstp, struct svc_fh *fhp,
+			   struct file *file, loff_t offset, loff_t len,
+			   int flags)
+{
+	__be32 err;
+	int error;
+
+	if (!S_ISREG(file_inode(file)->i_mode))
+		return nfserr_inval;
+
+	err = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry, NFSD_MAY_WRITE);
+	if (err)
+		return err;
+
+	error = vfs_fallocate(file, flags, offset, len);
+	if (!error)
+		error = commit_metadata(fhp);
+
+	return nfserrno(error);
+}
 #endif /* defined(CONFIG_NFSD_V4) */
 
 #ifdef CONFIG_NFSD_V3
