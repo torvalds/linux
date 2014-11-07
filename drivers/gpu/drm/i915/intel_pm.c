@@ -5195,7 +5195,10 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	val = vlv_punit_read(dev_priv, CCK_FUSE_REG);
+	mutex_lock(&dev_priv->dpio_lock);
+	val = vlv_cck_read(dev_priv, CCK_FUSE_REG);
+	mutex_unlock(&dev_priv->dpio_lock);
+
 	switch ((val >> 2) & 0x7) {
 	case 0:
 	case 1:
