@@ -49,6 +49,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
+#include <linux/uio.h>
 
 #include <net/protocol.h>
 #include <linux/skbuff.h>
@@ -393,34 +394,30 @@ fault:
 EXPORT_SYMBOL(skb_copy_datagram_iovec);
 
 /**
- *	skb_copy_datagram_const_iovec - Copy a datagram to an iovec.
+ *	skb_copy_datagram_iter - Copy a datagram to an iovec iterator.
  *	@skb: buffer to copy
  *	@offset: offset in the buffer to start copying from
- *	@to: io vector to copy to
- *	@to_offset: offset in the io vector to start copying to
+ *	@to: iovec iterator to copy to
  *	@len: amount of data to copy from buffer to iovec
- *
- *	Returns 0 or -EFAULT.
- *	Note: the iovec is not modified during the copy.
  */
-int skb_copy_datagram_const_iovec(const struct sk_buff *skb, int offset,
-				  const struct iovec *to, int to_offset,
-				  int len)
+int skb_copy_datagram_iter(const struct sk_buff *skb, int offset,
+			   struct iov_iter *to, int len)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
 	struct sk_buff *frag_iter;
 
+	trace_skb_copy_datagram_iovec(skb, len);
+
 	/* Copy header. */
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		if (memcpy_toiovecend(to, skb->data + offset, to_offset, copy))
-			goto fault;
+		if (copy_to_iter(skb->data + offset, copy, to) != copy)
+			goto short_copy;
 		if ((len -= copy) == 0)
 			return 0;
 		offset += copy;
-		to_offset += copy;
 	}
 
 	/* Copy paged appendix. Hmm... why does this look so complicated? */
@@ -432,22 +429,15 @@ int skb_copy_datagram_const_iovec(const struct sk_buff *skb, int offset,
 
 		end = start + skb_frag_size(frag);
 		if ((copy = end - offset) > 0) {
-			int err;
-			u8  *vaddr;
-			struct page *page = skb_frag_page(frag);
-
 			if (copy > len)
 				copy = len;
-			vaddr = kmap(page);
-			err = memcpy_toiovecend(to, vaddr + frag->page_offset +
-						offset - start, to_offset, copy);
-			kunmap(page);
-			if (err)
-				goto fault;
+			if (copy_page_to_iter(skb_frag_page(frag),
+					      frag->page_offset + offset -
+					      start, copy, to) != copy)
+				goto short_copy;
 			if (!(len -= copy))
 				return 0;
 			offset += copy;
-			to_offset += copy;
 		}
 		start = end;
 	}
@@ -461,25 +451,33 @@ int skb_copy_datagram_const_iovec(const struct sk_buff *skb, int offset,
 		if ((copy = end - offset) > 0) {
 			if (copy > len)
 				copy = len;
-			if (skb_copy_datagram_const_iovec(frag_iter,
-							  offset - start,
-							  to, to_offset,
-							  copy))
+			if (skb_copy_datagram_iter(frag_iter, offset - start,
+						   to, copy))
 				goto fault;
 			if ((len -= copy) == 0)
 				return 0;
 			offset += copy;
-			to_offset += copy;
 		}
 		start = end;
 	}
 	if (!len)
 		return 0;
 
+	/* This is not really a user copy fault, but rather someone
+	 * gave us a bogus length on the skb.  We should probably
+	 * print a warning here as it may indicate a kernel bug.
+	 */
+
 fault:
 	return -EFAULT;
+
+short_copy:
+	if (iov_iter_count(to))
+		goto fault;
+
+	return 0;
 }
-EXPORT_SYMBOL(skb_copy_datagram_const_iovec);
+EXPORT_SYMBOL(skb_copy_datagram_iter);
 
 /**
  *	skb_copy_datagram_from_iovec - Copy a datagram from an iovec.
