@@ -190,6 +190,18 @@ static const struct c_can_driver_data d_can_drvdata = {
 	.id = BOSCH_D_CAN,
 };
 
+static const struct raminit_bits dra7_raminit_bits[] = {
+	[0] = { .start = 3, .done = 1, },
+	[1] = { .start = 5, .done = 2, },
+};
+
+static const struct c_can_driver_data dra7_dcan_drvdata = {
+	.id = BOSCH_D_CAN,
+	.raminit_num = ARRAY_SIZE(dra7_raminit_bits),
+	.raminit_bits = dra7_raminit_bits,
+	.raminit_pulse = true,
+};
+
 static struct platform_device_id c_can_id_table[] = {
 	{
 		.name = KBUILD_MODNAME,
@@ -210,6 +222,7 @@ MODULE_DEVICE_TABLE(platform, c_can_id_table);
 static const struct of_device_id c_can_of_table[] = {
 	{ .compatible = "bosch,c_can", .data = &c_can_drvdata },
 	{ .compatible = "bosch,d_can", .data = &d_can_drvdata },
+	{ .compatible = "ti,dra7-d_can", .data = &dra7_dcan_drvdata },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, c_can_of_table);
