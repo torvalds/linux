@@ -1651,7 +1651,7 @@ struct timespec current_kernel_time(void)
 }
 EXPORT_SYMBOL(current_kernel_time);
 
-struct timespec get_monotonic_coarse(void)
+struct timespec64 get_monotonic_coarse64(void)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	struct timespec64 now, mono;
@@ -1667,7 +1667,7 @@ struct timespec get_monotonic_coarse(void)
 	set_normalized_timespec64(&now, now.tv_sec + mono.tv_sec,
 				now.tv_nsec + mono.tv_nsec);
 
-	return timespec64_to_timespec(now);
+	return now;
 }
 
 /*
