@@ -124,6 +124,17 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 	if (reg_num >= MII_REGS_NUM)
 		return -1;
 
+	/* We do not support emulating Clause 45 over Clause 22 register reads
+	 * return an error instead of bogus data.
+	 */
+	switch (reg_num) {
+	case MII_MMD_CTRL:
+	case MII_MMD_DATA:
+		return -1;
+	default:
+		break;
+	}
+
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
 			/* Issue callback if user registered it. */
@@ -222,9 +233,9 @@ EXPORT_SYMBOL_GPL(fixed_phy_del);
 static int phy_fixed_addr;
 static DEFINE_SPINLOCK(phy_fixed_addr_lock);
 
-int fixed_phy_register(unsigned int irq,
-		       struct fixed_phy_status *status,
-		       struct device_node *np)
+struct phy_device *fixed_phy_register(unsigned int irq,
+				      struct fixed_phy_status *status,
+				      struct device_node *np)
 {
 	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct phy_device *phy;
@@ -235,19 +246,19 @@ int fixed_phy_register(unsigned int irq,
 	spin_lock(&phy_fixed_addr_lock);
 	if (phy_fixed_addr == PHY_MAX_ADDR) {
 		spin_unlock(&phy_fixed_addr_lock);
-		return -ENOSPC;
+		return ERR_PTR(-ENOSPC);
 	}
 	phy_addr = phy_fixed_addr++;
 	spin_unlock(&phy_fixed_addr_lock);
 
 	ret = fixed_phy_add(PHY_POLL, phy_addr, status);
 	if (ret < 0)
-		return ret;
+		return ERR_PTR(ret);
 
 	phy = get_phy_device(fmb->mii_bus, phy_addr, false);
 	if (!phy || IS_ERR(phy)) {
 		fixed_phy_del(phy_addr);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	of_node_get(np);
@@ -258,10 +269,10 @@ int fixed_phy_register(unsigned int irq,
 		phy_device_free(phy);
 		of_node_put(np);
 		fixed_phy_del(phy_addr);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
-	return 0;
+	return phy;
 }
 
 static int __init fixed_mdio_bus_init(void)

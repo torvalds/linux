@@ -226,6 +226,10 @@ unsigned long __init efi_entry(void *handle, efi_system_table_t *sys_table,
 		goto fail_free_image;
 	}
 
+	status = efi_parse_options(cmdline_ptr);
+	if (status != EFI_SUCCESS)
+		pr_efi_err(sys_table, "Failed to parse EFI cmdline options\n");
+
 	/*
 	 * Unauthenticated device tree data is a security hazard, so
 	 * ignore 'dtb=' unless UEFI Secure Boot is disabled.

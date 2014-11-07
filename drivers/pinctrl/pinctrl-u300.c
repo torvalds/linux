@@ -955,8 +955,8 @@ static void u300_pmx_endisable(struct u300_pmx *upmx, unsigned selector,
 	}
 }
 
-static int u300_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
-			   unsigned group)
+static int u300_pmx_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
+			    unsigned group)
 {
 	struct u300_pmx *upmx;
 
@@ -994,7 +994,7 @@ static const struct pinmux_ops u300_pmx_ops = {
 	.get_functions_count = u300_pmx_get_funcs_count,
 	.get_function_name = u300_pmx_get_func_name,
 	.get_function_groups = u300_pmx_get_groups,
-	.enable = u300_pmx_enable,
+	.set_mux = u300_pmx_set_mux,
 };
 
 static int u300_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,

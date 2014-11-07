@@ -258,6 +258,7 @@ static const unsigned int sdc3_data_pins[] = { 95 };
 		.intr_status_bit = 0,			\
 		.intr_ack_high = 1,			\
 		.intr_target_bit = 0,			\
+		.intr_target_kpss_val = 4,		\
 		.intr_raw_status_bit = 3,		\
 		.intr_polarity_bit = 1,			\
 		.intr_detection_bit = 2,		\
@@ -283,6 +284,7 @@ static const unsigned int sdc3_data_pins[] = { 95 };
 		.intr_enable_bit = -1,			\
 		.intr_status_bit = -1,			\
 		.intr_target_bit = -1,			\
+		.intr_target_kpss_val = -1,		\
 		.intr_raw_status_bit = -1,		\
 		.intr_polarity_bit = -1,		\
 		.intr_detection_bit = -1,		\
@@ -324,6 +326,7 @@ enum apq8064_functions {
 	APQ_MUX_tsif1,
 	APQ_MUX_tsif2,
 	APQ_MUX_usb2_hsic,
+	APQ_MUX_ps_hold,
 	APQ_MUX_NA,
 };
 
@@ -350,6 +353,9 @@ static const char * const gpio_groups[] = {
 	"gpio71", "gpio72", "gpio73", "gpio74", "gpio75", "gpio76", "gpio77",
 	"gpio78", "gpio79", "gpio80", "gpio81", "gpio82", "gpio83", "gpio84",
 	"gpio85", "gpio86", "gpio87", "gpio88", "gpio89"
+};
+static const char * const ps_hold_groups[] = {
+	"gpio78"
 };
 static const char * const gsbi1_groups[] = {
 	"gpio18", "gpio19", "gpio20", "gpio21"
@@ -477,6 +483,7 @@ static const struct msm_function apq8064_functions[] = {
 	FUNCTION(tsif1),
 	FUNCTION(tsif2),
 	FUNCTION(usb2_hsic),
+	FUNCTION(ps_hold),
 };
 
 static const struct msm_pingroup apq8064_groups[] = {
@@ -558,7 +565,7 @@ static const struct msm_pingroup apq8064_groups[] = {
 	PINGROUP(75, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(76, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(77, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(78, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(78, ps_hold, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(79, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(80, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(81, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),

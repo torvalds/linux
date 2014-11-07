@@ -388,7 +388,7 @@ static void fimc_is_load_firmware(const struct firmware *fw, void *context)
 	mutex_lock(&is->lock);
 
 	if (fw->size < FIMC_IS_FW_SIZE_MIN || fw->size > FIMC_IS_FW_SIZE_MAX) {
-		dev_err(dev, "wrong firmware size: %d\n", fw->size);
+		dev_err(dev, "wrong firmware size: %zu\n", fw->size);
 		goto done;
 	}
 
@@ -416,7 +416,7 @@ static void fimc_is_load_firmware(const struct firmware *fw, void *context)
 
 	dev_info(dev, "loaded firmware: %s, rev. %s\n",
 		 is->fw.info, is->fw.version);
-	dev_dbg(dev, "FW size: %d, paddr: %#x\n", fw->size, is->memory.paddr);
+	dev_dbg(dev, "FW size: %zu, paddr: %pad\n", fw->size, &is->memory.paddr);
 
 	is->is_shared_region->chip_id = 0xe4412;
 	is->is_shared_region->chip_rev_no = 1;
@@ -693,9 +693,9 @@ int fimc_is_hw_initialize(struct fimc_is *is)
 		return -EIO;
 	}
 
-	pr_debug("shared region: %#x, parameter region: %#x\n",
-		 is->memory.paddr + FIMC_IS_SHARED_REGION_OFFSET,
-		 is->is_dma_p_region);
+	pr_debug("shared region: %pad, parameter region: %pad\n",
+		 &is->memory.paddr + FIMC_IS_SHARED_REGION_OFFSET,
+		 &is->is_dma_p_region);
 
 	is->setfile.sub_index = 0;
 

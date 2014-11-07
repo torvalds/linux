@@ -201,7 +201,7 @@ static struct saa7134_format formats[] = {
 		.video_v_start = 24,	\
 		.video_v_stop  = 311,	\
 		.vbi_v_start_0 = 7,	\
-		.vbi_v_stop_0  = 22,	\
+		.vbi_v_stop_0  = 23,	\
 		.vbi_v_start_1 = 319,   \
 		.src_timing    = 4
 

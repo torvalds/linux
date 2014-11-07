@@ -24,6 +24,8 @@
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 
+#include "dt_idle_states.h"
+
 static int bl_enter_powerdown(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv, int idx);
 
@@ -71,6 +73,12 @@ static struct cpuidle_driver bl_idle_little_driver = {
 		.desc			= "ARM little-cluster power down",
 	},
 	.state_count = 2,
+};
+
+static const struct of_device_id bl_idle_state_match[] __initconst = {
+	{ .compatible = "arm,idle-state",
+	  .data = bl_enter_powerdown },
+	{ },
 };
 
 static struct cpuidle_driver bl_idle_big_driver = {
@@ -159,6 +167,7 @@ static int __init bl_idle_driver_init(struct cpuidle_driver *drv, int part_id)
 static const struct of_device_id compatible_machine_match[] = {
 	{ .compatible = "arm,vexpress,v2p-ca15_a7" },
 	{ .compatible = "samsung,exynos5420" },
+	{ .compatible = "samsung,exynos5800" },
 	{},
 };
 
@@ -189,6 +198,17 @@ static int __init bl_idle_init(void)
 	ret = bl_idle_driver_init(&bl_idle_big_driver, ARM_CPU_PART_CORTEX_A15);
 	if (ret)
 		goto out_uninit_little;
+
+	/* Start at index 1, index 0 standard WFI */
+	ret = dt_init_idle_driver(&bl_idle_big_driver, bl_idle_state_match, 1);
+	if (ret < 0)
+		goto out_uninit_big;
+
+	/* Start at index 1, index 0 standard WFI */
+	ret = dt_init_idle_driver(&bl_idle_little_driver,
+				  bl_idle_state_match, 1);
+	if (ret < 0)
+		goto out_uninit_big;
 
 	ret = cpuidle_register(&bl_idle_little_driver, NULL);
 	if (ret)

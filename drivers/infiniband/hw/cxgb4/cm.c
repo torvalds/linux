@@ -236,10 +236,12 @@ static void release_tid(struct c4iw_rdev *rdev, u32 hwtid, struct sk_buff *skb)
 static void set_emss(struct c4iw_ep *ep, u16 opt)
 {
 	ep->emss = ep->com.dev->rdev.lldi.mtus[GET_TCPOPT_MSS(opt)] -
-		   sizeof(struct iphdr) - sizeof(struct tcphdr);
+		   ((AF_INET == ep->com.remote_addr.ss_family) ?
+		    sizeof(struct iphdr) : sizeof(struct ipv6hdr)) -
+		   sizeof(struct tcphdr);
 	ep->mss = ep->emss;
 	if (GET_TCPOPT_TSTAMP(opt))
-		ep->emss -= 12;
+		ep->emss -= round_up(TCPOLEN_TIMESTAMP, 4);
 	if (ep->emss < 128)
 		ep->emss = 128;
 	if (ep->emss & 7)
@@ -415,6 +417,7 @@ static struct dst_entry *find_route(struct c4iw_dev *dev, __be32 local_ip,
 		return NULL;
 	if (!our_interface(dev, n->dev) &&
 	    !(n->dev->flags & IFF_LOOPBACK)) {
+		neigh_release(n);
 		dst_release(&rt->dst);
 		return NULL;
 	}
@@ -581,11 +584,14 @@ static void c4iw_record_pm_msg(struct c4iw_ep *ep,
 }
 
 static void best_mtu(const unsigned short *mtus, unsigned short mtu,
-		     unsigned int *idx, int use_ts)
+		     unsigned int *idx, int use_ts, int ipv6)
 {
-	unsigned short hdr_size = sizeof(struct iphdr) +
+	unsigned short hdr_size = (ipv6 ?
+				   sizeof(struct ipv6hdr) :
+				   sizeof(struct iphdr)) +
 				  sizeof(struct tcphdr) +
-				  (use_ts ? 12 : 0);
+				  (use_ts ?
+				   round_up(TCPOLEN_TIMESTAMP, 4) : 0);
 	unsigned short data_size = mtu - hdr_size;
 
 	cxgb4_best_aligned_mtu(mtus, hdr_size, data_size, 8, idx);
@@ -634,7 +640,8 @@ static int send_connect(struct c4iw_ep *ep)
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, ep->ctrlq_idx);
 
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
-		 enable_tcp_timestamps);
+		 enable_tcp_timestamps,
+		 (AF_INET == ep->com.remote_addr.ss_family) ? 0 : 1);
 	wscale = compute_wscale(rcv_win);
 
 	/*
@@ -668,6 +675,7 @@ static int send_connect(struct c4iw_ep *ep)
 	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
 		opt2 |= T5_OPT_2_VALID;
 		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
 	}
 	t4_set_arp_err_handler(skb, ep, act_open_req_arp_failure);
 
@@ -713,8 +721,6 @@ static int send_connect(struct c4iw_ep *ep)
 	} else {
 		u32 isn = (prandom_u32() & ~7UL) - 1;
 
-		opt2 |= T5_OPT_2_VALID;
-		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
 		if (peer2peer)
 			isn += 4;
 
@@ -756,10 +762,10 @@ static int send_connect(struct c4iw_ep *ep)
 			t5_req6->peer_ip_lo = *((__be64 *)
 						(ra6->sin6_addr.s6_addr + 8));
 			t5_req6->opt0 = cpu_to_be64(opt0);
-			t5_req6->params = (__force __be64)cpu_to_be32(
+			t5_req6->params = cpu_to_be64(V_FILTER_TUPLE(
 							cxgb4_select_ntuple(
 						ep->com.dev->rdev.lldi.ports[0],
-						ep->l2t));
+						ep->l2t)));
 			t5_req6->rsvd = cpu_to_be32(isn);
 			PDBG("%s snd_isn %u\n", __func__,
 			     be32_to_cpu(t5_req6->rsvd));
@@ -1763,7 +1769,8 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	req->tcb.tx_max = (__force __be32) jiffies;
 	req->tcb.rcv_adv = htons(1);
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
-		 enable_tcp_timestamps);
+		 enable_tcp_timestamps,
+		 (AF_INET == ep->com.remote_addr.ss_family) ? 0 : 1);
 	wscale = compute_wscale(rcv_win);
 
 	/*
@@ -2162,7 +2169,8 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 						    ep->hwtid));
 
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
-		 enable_tcp_timestamps && req->tcpopt.tstamp);
+		 enable_tcp_timestamps && req->tcpopt.tstamp,
+		 (AF_INET == ep->com.remote_addr.ss_family) ? 0 : 1);
 	wscale = compute_wscale(rcv_win);
 
 	/*

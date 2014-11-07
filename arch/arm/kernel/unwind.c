@@ -157,7 +157,7 @@ static const struct unwind_idx *search_index(unsigned long addr,
 	if (likely(start->addr_offset <= addr_prel31))
 		return start;
 	else {
-		pr_warning("unwind: Unknown symbol address %08lx\n", addr);
+		pr_warn("unwind: Unknown symbol address %08lx\n", addr);
 		return NULL;
 	}
 }
@@ -225,7 +225,7 @@ static unsigned long unwind_get_byte(struct unwind_ctrl_block *ctrl)
 	unsigned long ret;
 
 	if (ctrl->entries <= 0) {
-		pr_warning("unwind: Corrupt unwind table\n");
+		pr_warn("unwind: Corrupt unwind table\n");
 		return 0;
 	}
 
@@ -333,8 +333,8 @@ static int unwind_exec_insn(struct unwind_ctrl_block *ctrl)
 		insn = (insn << 8) | unwind_get_byte(ctrl);
 		mask = insn & 0x0fff;
 		if (mask == 0) {
-			pr_warning("unwind: 'Refuse to unwind' instruction %04lx\n",
-				   insn);
+			pr_warn("unwind: 'Refuse to unwind' instruction %04lx\n",
+				insn);
 			return -URC_FAILURE;
 		}
 
@@ -357,8 +357,8 @@ static int unwind_exec_insn(struct unwind_ctrl_block *ctrl)
 		unsigned long mask = unwind_get_byte(ctrl);
 
 		if (mask == 0 || mask & 0xf0) {
-			pr_warning("unwind: Spare encoding %04lx\n",
-			       (insn << 8) | mask);
+			pr_warn("unwind: Spare encoding %04lx\n",
+				(insn << 8) | mask);
 			return -URC_FAILURE;
 		}
 
@@ -370,7 +370,7 @@ static int unwind_exec_insn(struct unwind_ctrl_block *ctrl)
 
 		ctrl->vrs[SP] += 0x204 + (uleb128 << 2);
 	} else {
-		pr_warning("unwind: Unhandled instruction %02lx\n", insn);
+		pr_warn("unwind: Unhandled instruction %02lx\n", insn);
 		return -URC_FAILURE;
 	}
 
@@ -403,7 +403,7 @@ int unwind_frame(struct stackframe *frame)
 
 	idx = unwind_find_idx(frame->pc);
 	if (!idx) {
-		pr_warning("unwind: Index not found %08lx\n", frame->pc);
+		pr_warn("unwind: Index not found %08lx\n", frame->pc);
 		return -URC_FAILURE;
 	}
 
@@ -422,8 +422,8 @@ int unwind_frame(struct stackframe *frame)
 		/* only personality routine 0 supported in the index */
 		ctrl.insn = &idx->insn;
 	else {
-		pr_warning("unwind: Unsupported personality routine %08lx in the index at %p\n",
-			   idx->insn, idx);
+		pr_warn("unwind: Unsupported personality routine %08lx in the index at %p\n",
+			idx->insn, idx);
 		return -URC_FAILURE;
 	}
 
@@ -435,8 +435,8 @@ int unwind_frame(struct stackframe *frame)
 		ctrl.byte = 1;
 		ctrl.entries = 1 + ((*ctrl.insn & 0x00ff0000) >> 16);
 	} else {
-		pr_warning("unwind: Unsupported personality routine %08lx at %p\n",
-			   *ctrl.insn, ctrl.insn);
+		pr_warn("unwind: Unsupported personality routine %08lx at %p\n",
+			*ctrl.insn, ctrl.insn);
 		return -URC_FAILURE;
 	}
 

@@ -19,6 +19,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -42,7 +44,6 @@
 #include "au0828-reg.h"
 #include "au0828-cards.h"
 
-#define DRIVER_NAME "au0828"
 #define URB_COUNT   16
 #define URB_BUFSIZE (0xe522)
 
@@ -89,6 +90,7 @@ struct au0828_board {
 	unsigned char tuner_addr;
 	unsigned char i2c_clk_divider;
 	unsigned char has_ir_i2c:1;
+	unsigned char has_analog:1;
 	struct au0828_input input[AU0828_MAX_INPUT];
 
 };
@@ -266,8 +268,8 @@ struct au0828_dev {
 	char *transfer_buffer[AU0828_MAX_ISO_BUFS];/* transfer buffers for isoc
 						   transfer */
 
-	/* USB / URB Related */
-	int		urb_streaming;
+	/* DVB USB / URB Related */
+	bool		urb_streaming, need_urb_start;
 	struct urb	*urbs[URB_COUNT];
 
 	/* Preallocated transfer digital transfer buffers */
@@ -311,22 +313,38 @@ int au0828_analog_register(struct au0828_dev *dev,
 			   struct usb_interface *interface);
 int au0828_analog_stream_disable(struct au0828_dev *d);
 void au0828_analog_unregister(struct au0828_dev *dev);
+#ifdef CONFIG_VIDEO_AU0828_V4L2
+void au0828_v4l2_suspend(struct au0828_dev *dev);
+void au0828_v4l2_resume(struct au0828_dev *dev);
+#else
+static inline void au0828_v4l2_suspend(struct au0828_dev *dev) { };
+static inline void au0828_v4l2_resume(struct au0828_dev *dev) { };
+#endif
 
 /* ----------------------------------------------------------- */
 /* au0828-dvb.c */
 extern int au0828_dvb_register(struct au0828_dev *dev);
 extern void au0828_dvb_unregister(struct au0828_dev *dev);
+void au0828_dvb_suspend(struct au0828_dev *dev);
+void au0828_dvb_resume(struct au0828_dev *dev);
 
 /* au0828-vbi.c */
 extern struct videobuf_queue_ops au0828_vbi_qops;
 
 #define dprintk(level, fmt, arg...)\
 	do { if (au0828_debug & level)\
-		printk(KERN_DEBUG DRIVER_NAME "/0: " fmt, ## arg);\
+		printk(KERN_DEBUG pr_fmt(fmt), ## arg);\
 	} while (0)
 
 /* au0828-input.c */
-int au0828_rc_register(struct au0828_dev *dev);
-void au0828_rc_unregister(struct au0828_dev *dev);
-int au0828_rc_suspend(struct au0828_dev *dev);
-int au0828_rc_resume(struct au0828_dev *dev);
+#ifdef CONFIG_VIDEO_AU0828_RC
+extern int au0828_rc_register(struct au0828_dev *dev);
+extern void au0828_rc_unregister(struct au0828_dev *dev);
+extern int au0828_rc_suspend(struct au0828_dev *dev);
+extern int au0828_rc_resume(struct au0828_dev *dev);
+#else
+static inline int au0828_rc_register(struct au0828_dev *dev) { return 0; }
+static inline void au0828_rc_unregister(struct au0828_dev *dev) { }
+static inline int au0828_rc_suspend(struct au0828_dev *dev) { return 0; }
+static inline int au0828_rc_resume(struct au0828_dev *dev) { return 0; }
+#endif

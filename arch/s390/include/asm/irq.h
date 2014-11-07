@@ -51,6 +51,7 @@ enum interruption_class {
 	IRQEXT_CMS,
 	IRQEXT_CMC,
 	IRQEXT_CMR,
+	IRQEXT_FTP,
 	IRQIO_CIO,
 	IRQIO_QAI,
 	IRQIO_DAS,
@@ -81,7 +82,7 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct irq_stat, irq_stat);
 
 static __always_inline void inc_irq_stat(enum interruption_class irq)
 {
-	__get_cpu_var(irq_stat).irqs[irq]++;
+	__this_cpu_inc(irq_stat.irqs[irq]);
 }
 
 struct ext_code {

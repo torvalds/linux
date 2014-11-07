@@ -50,7 +50,6 @@
 
 #include "../include/obd.h"
 /* osc_build_res_name() */
-#include "../include/obd_ost.h"
 #include "../include/cl_object.h"
 #include "../include/lclient.h"
 #include "osc_internal.h"
@@ -435,7 +434,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 		     enum cl_req_type crt, int brw_flags);
 int osc_cancel_async_page(const struct lu_env *env, struct osc_page *ops);
 int osc_set_async_flags(struct osc_object *obj, struct osc_page *opg,
-			obd_flag async_flags);
+			u32 async_flags);
 int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 			struct page *page, loff_t offset);
 int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,

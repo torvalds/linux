@@ -84,6 +84,7 @@ static const struct file_operations qxl_fops = {
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
 	.poll = drm_poll,
+	.read = drm_read,
 	.mmap = qxl_mmap,
 };
 
@@ -195,6 +196,20 @@ static int qxl_pm_restore(struct device *dev)
 	return qxl_drm_resume(drm_dev, false);
 }
 
+static u32 qxl_noop_get_vblank_counter(struct drm_device *dev, int crtc)
+{
+	return dev->vblank[crtc].count.counter;
+}
+
+static int qxl_noop_enable_vblank(struct drm_device *dev, int crtc)
+{
+	return 0;
+}
+
+static void qxl_noop_disable_vblank(struct drm_device *dev, int crtc)
+{
+}
+
 static const struct dev_pm_ops qxl_pm_ops = {
 	.suspend = qxl_pm_suspend,
 	.resume = qxl_pm_resume,
@@ -212,10 +227,15 @@ static struct pci_driver qxl_pci_driver = {
 };
 
 static struct drm_driver qxl_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_MODESET |
+	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
 	.load = qxl_driver_load,
 	.unload = qxl_driver_unload,
+	.get_vblank_counter = qxl_noop_get_vblank_counter,
+	.enable_vblank = qxl_noop_enable_vblank,
+	.disable_vblank = qxl_noop_disable_vblank,
+
+	.set_busid = drm_pci_set_busid,
 
 	.dumb_create = qxl_mode_dumb_create,
 	.dumb_map_offset = qxl_mode_dumb_mmap,
@@ -224,6 +244,17 @@ static struct drm_driver qxl_driver = {
 	.debugfs_init = qxl_debugfs_init,
 	.debugfs_cleanup = qxl_debugfs_takedown,
 #endif
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = drm_gem_prime_export,
+	.gem_prime_import = drm_gem_prime_import,
+	.gem_prime_pin = qxl_gem_prime_pin,
+	.gem_prime_unpin = qxl_gem_prime_unpin,
+	.gem_prime_get_sg_table = qxl_gem_prime_get_sg_table,
+	.gem_prime_import_sg_table = qxl_gem_prime_import_sg_table,
+	.gem_prime_vmap = qxl_gem_prime_vmap,
+	.gem_prime_vunmap = qxl_gem_prime_vunmap,
+	.gem_prime_mmap = qxl_gem_prime_mmap,
 	.gem_free_object = qxl_gem_object_free,
 	.gem_open_object = qxl_gem_object_open,
 	.gem_close_object = qxl_gem_object_close,

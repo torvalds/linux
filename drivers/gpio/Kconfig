@@ -136,7 +136,6 @@ config GPIO_DWAPB
 	tristate "Synopsys DesignWare APB GPIO driver"
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
-	depends on OF_GPIO
 	help
 	  Say Y or M here to build support for the Synopsys DesignWare APB
 	  GPIO block.
@@ -333,6 +332,15 @@ config GPIO_TZ1090_PDC
 	default y
 	help
 	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
+
+config GPIO_XGENE
+	bool "APM X-Gene GPIO controller support"
+	depends on ARM64 && OF_GPIO
+	help
+	  This driver is to support the GPIO block within the APM X-Gene SoC
+	  platform's generic flash controller. The GPIO pins are muxed with
+	  the generic flash controller's address and data pins. Say yes
+	  here to enable the GFC GPIO functionality.
 
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
@@ -681,6 +689,7 @@ config GPIO_ADP5588_IRQ
 config GPIO_ADNP
 	tristate "Avionic Design N-bit GPIO expander"
 	depends on I2C && OF_GPIO
+	select GPIOLIB_IRQCHIP
 	help
 	  This option enables support for N GPIOs found on Avionic Design
 	  I2C GPIO expanders. The register space will be extended by powers
@@ -796,7 +805,6 @@ config GPIO_MAX7301
 
 config GPIO_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
-	depends on OF_GPIO
 	depends on (SPI_MASTER && !I2C) || I2C
 	help
 	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
@@ -880,7 +888,7 @@ config GPIO_MSIC
 
 config GPIO_BCM_KONA
 	bool "Broadcom Kona GPIO"
-	depends on OF_GPIO
+	depends on OF_GPIO && (ARCH_BCM_MOBILE || COMPILE_TEST)
 	help
 	  Turn on GPIO support for Broadcom "Kona" chips.
 

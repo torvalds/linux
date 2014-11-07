@@ -402,9 +402,11 @@ static void __mn_flush_page(struct mmu_notifier *mn,
 
 static int mn_clear_flush_young(struct mmu_notifier *mn,
 				struct mm_struct *mm,
-				unsigned long address)
+				unsigned long start,
+				unsigned long end)
 {
-	__mn_flush_page(mn, address);
+	for (; start < end; start += PAGE_SIZE)
+		__mn_flush_page(mn, start);
 
 	return 0;
 }

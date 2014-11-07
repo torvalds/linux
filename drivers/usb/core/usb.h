@@ -48,7 +48,7 @@ static inline unsigned usb_get_max_power(struct usb_device *udev,
 	return c->desc.bMaxPower * mul;
 }
 
-extern void usb_kick_khubd(struct usb_device *dev);
+extern void usb_kick_hub_wq(struct usb_device *dev);
 extern int usb_match_one_id_intf(struct usb_device *dev,
 				 struct usb_host_interface *intf,
 				 const struct usb_device_id *id);

@@ -44,7 +44,7 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 	 * include/linux/fs.h).  We don't necessarily hold i_mutex when this
 	 * is called, so take i_lock for that case.
 	 *
-	 * And if CONFIG_LBADF (on 32-bit), continue our effort to keep the
+	 * And if CONFIG_LBDAF (on 32-bit), continue our effort to keep the
 	 * two halves of i_blocks in sync despite SMP or PREEMPT: use i_lock
 	 * for that case too, and do both at once by combining the tests.
 	 *

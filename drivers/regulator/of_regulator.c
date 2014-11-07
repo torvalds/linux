@@ -14,7 +14,10 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
+
+#include "internal.h"
 
 static void of_get_regulation_constraints(struct device_node *np,
 					struct regulator_init_data **init_data)
@@ -189,3 +192,51 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 	return count;
 }
 EXPORT_SYMBOL_GPL(of_regulator_match);
+
+struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
+					    const struct regulator_desc *desc,
+					    struct device_node **node)
+{
+	struct device_node *search, *child;
+	struct regulator_init_data *init_data = NULL;
+	const char *name;
+
+	if (!dev->of_node || !desc->of_match)
+		return NULL;
+
+	if (desc->regulators_node)
+		search = of_get_child_by_name(dev->of_node,
+					      desc->regulators_node);
+	else
+		search = dev->of_node;
+
+	if (!search) {
+		dev_err(dev, "Failed to find regulator container node\n");
+		return NULL;
+	}
+
+	for_each_child_of_node(search, child) {
+		name = of_get_property(child, "regulator-compatible", NULL);
+		if (!name)
+			name = child->name;
+
+		if (strcmp(desc->of_match, name))
+			continue;
+
+		init_data = of_get_regulator_init_data(dev, child);
+		if (!init_data) {
+			dev_err(dev,
+				"failed to parse DT for regulator %s\n",
+				child->name);
+			break;
+		}
+
+		of_node_get(child);
+		*node = child;
+		break;
+	}
+
+	of_node_put(search);
+
+	return init_data;
+}

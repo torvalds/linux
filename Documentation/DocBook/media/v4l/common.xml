@@ -110,7 +110,7 @@ makes no provisions to find these related devices. Some really
 complex devices use the Media Controller (see <xref linkend="media_controller" />)
 which can be used for this purpose. But most drivers do not use it,
 and while some code exists that uses sysfs to discover related devices
-(see libmedia_dev in the <ulink url="http://git.linuxtv.org/v4l-utils/">v4l-utils</ulink>
+(see libmedia_dev in the <ulink url="http://git.linuxtv.org/cgit.cgi/v4l-utils.git/">v4l-utils</ulink>
 git repository), there is no library yet that can provide a single API towards
 both Media Controller-based devices and devices that do not use the Media Controller.
 If you want to work on this please write to the linux-media mailing list: &v4l-ml;.</para>

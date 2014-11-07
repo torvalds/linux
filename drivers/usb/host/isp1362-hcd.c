@@ -2616,30 +2616,10 @@ static int isp1362_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct isp1362_hcd *isp1362_hcd = hcd_to_isp1362_hcd(hcd);
-	struct resource *res;
 
 	remove_debug_file(isp1362_hcd);
 	DBG(0, "%s: Removing HCD\n", __func__);
 	usb_remove_hcd(hcd);
-
-	DBG(0, "%s: Unmapping data_reg @ %p\n", __func__,
-	    isp1362_hcd->data_reg);
-	iounmap(isp1362_hcd->data_reg);
-
-	DBG(0, "%s: Unmapping addr_reg @ %p\n", __func__,
-	    isp1362_hcd->addr_reg);
-	iounmap(isp1362_hcd->addr_reg);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	DBG(0, "%s: release mem_region: %08lx\n", __func__, (long unsigned int)res->start);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	DBG(0, "%s: release mem_region: %08lx\n", __func__, (long unsigned int)res->start);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
-
 	DBG(0, "%s: put_hcd\n", __func__);
 	usb_put_hcd(hcd);
 	DBG(0, "%s: Done\n", __func__);
@@ -2651,12 +2631,11 @@ static int isp1362_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct isp1362_hcd *isp1362_hcd;
-	struct resource *addr, *data;
+	struct resource *addr, *data, *irq_res;
 	void __iomem *addr_reg;
 	void __iomem *data_reg;
 	int irq;
 	int retval = 0;
-	struct resource *irq_res;
 	unsigned int irq_flags = 0;
 
 	if (usb_disabled())
@@ -2667,52 +2646,35 @@ static int isp1362_probe(struct platform_device *pdev)
 	 * specific platform_data.  we don't probe for IRQs, and do only
 	 * minimal sanity checking.
 	 */
-	if (pdev->num_resources < 3) {
-		retval = -ENODEV;
-		goto err1;
-	}
-
-	data = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	addr = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!addr || !data || !irq_res) {
-		retval = -ENODEV;
-		goto err1;
-	}
-	irq = irq_res->start;
+	if (pdev->num_resources < 3)
+		return -ENODEV;
 
 	if (pdev->dev.dma_mask) {
 		DBG(1, "won't do DMA");
-		retval = -ENODEV;
-		goto err1;
+		return -ENODEV;
 	}
 
-	if (!request_mem_region(addr->start, resource_size(addr), hcd_name)) {
-		retval = -EBUSY;
-		goto err1;
-	}
-	addr_reg = ioremap(addr->start, resource_size(addr));
-	if (addr_reg == NULL) {
-		retval = -ENOMEM;
-		goto err2;
-	}
+	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!irq_res)
+		return -ENODEV;
 
-	if (!request_mem_region(data->start, resource_size(data), hcd_name)) {
-		retval = -EBUSY;
-		goto err3;
-	}
-	data_reg = ioremap(data->start, resource_size(data));
-	if (data_reg == NULL) {
-		retval = -ENOMEM;
-		goto err4;
-	}
+	irq = irq_res->start;
+
+	addr = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	addr_reg = devm_ioremap_resource(&pdev->dev, addr);
+	if (IS_ERR(addr_reg))
+		return PTR_ERR(addr_reg);
+
+	data = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	data_reg = devm_ioremap_resource(&pdev->dev, data);
+	if (IS_ERR(data_reg))
+		return PTR_ERR(data_reg);
 
 	/* allocate and initialize hcd */
 	hcd = usb_create_hcd(&isp1362_hc_driver, &pdev->dev, dev_name(&pdev->dev));
-	if (!hcd) {
-		retval = -ENOMEM;
-		goto err5;
-	}
+	if (!hcd)
+		return -ENOMEM;
+
 	hcd->rsrc_start = data->start;
 	isp1362_hcd = hcd_to_isp1362_hcd(hcd);
 	isp1362_hcd->data_reg = data_reg;
@@ -2729,7 +2691,7 @@ static int isp1362_probe(struct platform_device *pdev)
 	if (!isp1362_hcd->board->delay) {
 		dev_err(hcd->self.controller, "No platform delay function given\n");
 		retval = -ENODEV;
-		goto err6;
+		goto err;
 	}
 #endif
 
@@ -2744,32 +2706,17 @@ static int isp1362_probe(struct platform_device *pdev)
 
 	retval = usb_add_hcd(hcd, irq, irq_flags | IRQF_SHARED);
 	if (retval != 0)
-		goto err6;
+		goto err;
 	device_wakeup_enable(hcd->self.controller);
 
-	pr_info("%s, irq %d\n", hcd->product_desc, irq);
+	dev_info(&pdev->dev, "%s, irq %d\n", hcd->product_desc, irq);
 
 	create_debug_file(isp1362_hcd);
 
 	return 0;
 
- err6:
-	DBG(0, "%s: Freeing dev %p\n", __func__, isp1362_hcd);
+ err:
 	usb_put_hcd(hcd);
- err5:
-	DBG(0, "%s: Unmapping data_reg @ %p\n", __func__, data_reg);
-	iounmap(data_reg);
- err4:
-	DBG(0, "%s: Releasing mem region %08lx\n", __func__, (long unsigned int)data->start);
-	release_mem_region(data->start, resource_size(data));
- err3:
-	DBG(0, "%s: Unmapping addr_reg @ %p\n", __func__, addr_reg);
-	iounmap(addr_reg);
- err2:
-	DBG(0, "%s: Releasing mem region %08lx\n", __func__, (long unsigned int)addr->start);
-	release_mem_region(addr->start, resource_size(addr));
- err1:
-	pr_err("%s: init error, %d\n", __func__, retval);
 
 	return retval;
 }

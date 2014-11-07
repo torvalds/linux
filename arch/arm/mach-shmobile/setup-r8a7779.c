@@ -641,7 +641,7 @@ static void __init r8a7779_register_hpb_dmae(void)
 					  sizeof(dma_platform_data));
 }
 
-static struct platform_device *r8a7779_devices_dt[] __initdata = {
+static struct platform_device *r8a7779_early_devices[] __initdata = {
 	&tmu0_device,
 };
 
@@ -669,8 +669,8 @@ void __init r8a7779_add_standard_devices(void)
 
 	r8a7779_init_pm_domains();
 
-	platform_add_devices(r8a7779_devices_dt,
-			    ARRAY_SIZE(r8a7779_devices_dt));
+	platform_add_devices(r8a7779_early_devices,
+			    ARRAY_SIZE(r8a7779_early_devices));
 	platform_add_devices(r8a7779_standard_devices,
 			    ARRAY_SIZE(r8a7779_standard_devices));
 	r8a7779_register_hpb_dmae();
@@ -678,8 +678,8 @@ void __init r8a7779_add_standard_devices(void)
 
 void __init r8a7779_add_early_devices(void)
 {
-	early_platform_add_devices(r8a7779_devices_dt,
-				   ARRAY_SIZE(r8a7779_devices_dt));
+	early_platform_add_devices(r8a7779_early_devices,
+				   ARRAY_SIZE(r8a7779_early_devices));
 
 	/* Early serial console setup is not included here due to
 	 * memory map collisions. The SCIF serial ports in r8a7779
@@ -739,12 +739,6 @@ void __init r8a7779_init_irq_dt(void)
 	__raw_writel(0x003fee3f, INT2SMSKCR4);
 }
 
-void __init r8a7779_add_standard_devices_dt(void)
-{
-	platform_add_devices(r8a7779_devices_dt,
-			     ARRAY_SIZE(r8a7779_devices_dt));
-}
-
 #define MODEMR		0xffcc0020
 
 u32 __init r8a7779_read_mode_pins(void)
@@ -771,10 +765,8 @@ static const char *r8a7779_compat_dt[] __initdata = {
 DT_MACHINE_START(R8A7779_DT, "Generic R8A7779 (Flattened Device Tree)")
 	.map_io		= r8a7779_map_io,
 	.init_early	= shmobile_init_delay,
-	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= r8a7779_init_irq_dt,
-	.init_machine	= r8a7779_add_standard_devices_dt,
-	.init_late	= r8a7779_init_late,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7779_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

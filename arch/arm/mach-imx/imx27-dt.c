@@ -20,7 +20,7 @@
 
 static void __init imx27_dt_init(void)
 {
-	struct platform_device_info devinfo = { .name = "cpufreq-cpu0", };
+	struct platform_device_info devinfo = { .name = "cpufreq-dt", };
 
 	mxc_arch_reset_init_dt();
 

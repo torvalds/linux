@@ -53,6 +53,62 @@
 #define BRCMF_OBSS_COEX_OFF		0
 #define BRCMF_OBSS_COEX_ON		1
 
+/* WOWL bits */
+/* Wakeup on Magic packet: */
+#define WL_WOWL_MAGIC			(1 << 0)
+/* Wakeup on Netpattern */
+#define WL_WOWL_NET			(1 << 1)
+/* Wakeup on loss-of-link due to Disassoc/Deauth: */
+#define WL_WOWL_DIS			(1 << 2)
+/* Wakeup on retrograde TSF: */
+#define WL_WOWL_RETR			(1 << 3)
+/* Wakeup on loss of beacon: */
+#define WL_WOWL_BCN			(1 << 4)
+/* Wakeup after test: */
+#define WL_WOWL_TST			(1 << 5)
+/* Wakeup after PTK refresh: */
+#define WL_WOWL_M1			(1 << 6)
+/* Wakeup after receipt of EAP-Identity Req: */
+#define WL_WOWL_EAPID			(1 << 7)
+/* Wakeind via PME(0) or GPIO(1): */
+#define WL_WOWL_PME_GPIO		(1 << 8)
+/* need tkip phase 1 key to be updated by the driver: */
+#define WL_WOWL_NEEDTKIP1		(1 << 9)
+/* enable wakeup if GTK fails: */
+#define WL_WOWL_GTK_FAILURE		(1 << 10)
+/* support extended magic packets: */
+#define WL_WOWL_EXTMAGPAT		(1 << 11)
+/* support ARP/NS/keepalive offloading: */
+#define WL_WOWL_ARPOFFLOAD		(1 << 12)
+/* read protocol version for EAPOL frames: */
+#define WL_WOWL_WPA2			(1 << 13)
+/* If the bit is set, use key rotaton: */
+#define WL_WOWL_KEYROT			(1 << 14)
+/* If the bit is set, frm received was bcast frame: */
+#define WL_WOWL_BCAST			(1 << 15)
+/* If the bit is set, scan offload is enabled: */
+#define WL_WOWL_SCANOL			(1 << 16)
+/* Wakeup on tcpkeep alive timeout: */
+#define WL_WOWL_TCPKEEP_TIME		(1 << 17)
+/* Wakeup on mDNS Conflict Resolution: */
+#define WL_WOWL_MDNS_CONFLICT		(1 << 18)
+/* Wakeup on mDNS Service Connect: */
+#define WL_WOWL_MDNS_SERVICE		(1 << 19)
+/* tcp keepalive got data: */
+#define WL_WOWL_TCPKEEP_DATA		(1 << 20)
+/* Firmware died in wowl mode: */
+#define WL_WOWL_FW_HALT			(1 << 21)
+/* Enable detection of radio button changes: */
+#define WL_WOWL_ENAB_HWRADIO		(1 << 22)
+/* Offloads detected MIC failure(s): */
+#define WL_WOWL_MIC_FAIL		(1 << 23)
+/* Wakeup in Unassociated state (Net/Magic Pattern): */
+#define WL_WOWL_UNASSOC			(1 << 24)
+/* Wakeup if received matched secured pattern: */
+#define WL_WOWL_SECURE			(1 << 25)
+/* Link Down indication in WoWL mode: */
+#define WL_WOWL_LINKDOWN		(1 << 31)
+
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
 	BRCMF_JOIN_PREF_RSSI = 1,

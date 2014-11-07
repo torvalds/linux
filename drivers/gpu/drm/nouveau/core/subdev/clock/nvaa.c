@@ -28,6 +28,7 @@
 #include <subdev/timer.h>
 #include <subdev/clock.h>
 
+#include "nva3.h"
 #include "pll.h"
 
 struct nvaa_clock_priv {
@@ -299,25 +300,14 @@ static int
 nvaa_clock_prog(struct nouveau_clock *clk)
 {
 	struct nvaa_clock_priv *priv = (void *)clk;
-	struct nouveau_fifo *pfifo = nouveau_fifo(clk);
+	u32 pllmask = 0, mast;
 	unsigned long flags;
-	u32 pllmask = 0, mast, ptherm_gate;
-	int ret = -EBUSY;
+	unsigned long *f = &flags;
+	int ret = 0;
 
-	/* halt and idle execution engines */
-	ptherm_gate = nv_mask(clk, 0x020060, 0x00070000, 0x00000000);
-	nv_mask(clk, 0x002504, 0x00000001, 0x00000001);
-	/* Wait until the interrupt handler is finished */
-	if (!nv_wait(clk, 0x000100, 0xffffffff, 0x00000000))
-		goto resume;
-
-	if (pfifo)
-		pfifo->pause(pfifo, &flags);
-
-	if (!nv_wait(clk, 0x002504, 0x00000010, 0x00000010))
-		goto resume;
-	if (!nv_wait(clk, 0x00251c, 0x0000003f, 0x0000003f))
-		goto resume;
+	ret = nva3_clock_pre(clk, f);
+	if (ret)
+		goto out;
 
 	/* First switch to safe clocks: href */
 	mast = nv_mask(clk, 0xc054, 0x03400e70, 0x03400640);
@@ -375,15 +365,8 @@ nvaa_clock_prog(struct nouveau_clock *clk)
 	}
 
 	nv_wr32(clk, 0xc054, mast);
-	ret = 0;
 
 resume:
-	if (pfifo)
-		pfifo->start(pfifo, &flags);
-
-	nv_mask(clk, 0x002504, 0x00000001, 0x00000000);
-	nv_wr32(clk, 0x020060, ptherm_gate);
-
 	/* Disable some PLLs and dividers when unused */
 	if (priv->csrc != nv_clk_src_core) {
 		nv_wr32(clk, 0x4040, 0x00000000);
@@ -394,6 +377,12 @@ resume:
 		nv_wr32(clk, 0x4070, 0x00000000);
 		nv_mask(clk, 0x4020, 0x80000000, 0x00000000);
 	}
+
+out:
+	if (ret == -EBUSY)
+		f = NULL;
+
+	nva3_clock_post(clk, f);
 
 	return ret;
 }

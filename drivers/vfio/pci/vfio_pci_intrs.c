@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/eventfd.h>
+#include <linux/msi.h>
 #include <linux/pci.h>
 #include <linux/file.h>
 #include <linux/poll.h>
@@ -546,6 +547,20 @@ static int vfio_msi_set_vector_signal(struct vfio_pci_device *vdev,
 	if (IS_ERR(trigger)) {
 		kfree(vdev->ctx[vector].name);
 		return PTR_ERR(trigger);
+	}
+
+	/*
+	 * The MSIx vector table resides in device memory which may be cleared
+	 * via backdoor resets. We don't allow direct access to the vector
+	 * table so even if a userspace driver attempts to save/restore around
+	 * such a reset it would be unsuccessful. To avoid this, restore the
+	 * cached value of the message prior to enabling.
+	 */
+	if (msix) {
+		struct msi_msg msg;
+
+		get_cached_msi_msg(irq, &msg);
+		write_msi_msg(irq, &msg);
 	}
 
 	ret = request_irq(irq, vfio_msihandler, 0,

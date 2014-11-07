@@ -1025,7 +1025,7 @@ kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
 	struct libcfs_ioctl_data *data = arg;
 	int		       rc = -EINVAL;
 
-	switch(cmd) {
+	switch (cmd) {
 	case IOC_LIBCFS_GET_PEER: {
 		lnet_nid_t   nid = 0;
 		int	  count = 0;
@@ -1202,7 +1202,7 @@ kiblnd_map_rx_descs(kib_conn_t *conn)
 						   rx->rx_msgaddr));
 		KIBLND_UNMAP_ADDR_SET(rx, rx_msgunmap, rx->rx_msgaddr);
 
-		CDEBUG(D_NET,"rx %d: %p %#llx(%#llx)\n",
+		CDEBUG(D_NET, "rx %d: %p %#llx(%#llx)\n",
 		       i, rx->rx_msg, rx->rx_msgaddr,
 		       lnet_page2phys(pg) + pg_off);
 

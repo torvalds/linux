@@ -871,7 +871,9 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 			break;
 		case WLAN_EID_RSN:
 			memcpy((u8 *)&sta_ptr->tdls_cap.rsn_ie, pos,
-			       sizeof(struct ieee_types_header) + pos[1]);
+			       sizeof(struct ieee_types_header) +
+			       min_t(u8, pos[1], IEEE_MAX_IE_SIZE -
+				     sizeof(struct ieee_types_header)));
 			break;
 		case WLAN_EID_QOS_CAPA:
 			sta_ptr->tdls_cap.qos_info = pos[2];

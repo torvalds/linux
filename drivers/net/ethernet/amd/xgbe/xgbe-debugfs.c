@@ -121,7 +121,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 static ssize_t xgbe_common_read(char __user *buffer, size_t count,
 				loff_t *ppos, unsigned int value)
 {

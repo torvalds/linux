@@ -32,33 +32,6 @@
 #include <asm/processor-flags.h>
 #include <asm/asm-offsets.h>
 
-/*
- * Adjust our own GOT
- *
- * The relocation base must be in %rbx
- *
- * It is safe to call this macro more than once, because in some of the
- * code paths multiple invocations are inevitable, e.g. via the efi*
- * entry points.
- *
- * Relocation is only performed the first time.
- */
-.macro FIXUP_GOT
-	cmpb	$1, got_fixed(%rip)
-	je	2f
-
-	leaq	_got(%rip), %rdx
-	leaq	_egot(%rip), %rcx
-1:
-	cmpq	%rcx, %rdx
-	jae	2f
-	addq	%rbx, (%rdx)
-	addq	$8, %rdx
-	jmp	1b
-2:
-	movb	$1, got_fixed(%rip)
-.endm
-
 	__HEAD
 	.code32
 ENTRY(startup_32)
@@ -279,12 +252,9 @@ ENTRY(efi_pe_entry)
 	subq	$1b, %rbp
 
 	/*
-	 * Relocate efi_config->call() and the GOT entries.
+	 * Relocate efi_config->call().
 	 */
 	addq	%rbp, efi64_config+88(%rip)
-
-	movq	%rbp, %rbx
-	FIXUP_GOT
 
 	movq	%rax, %rdi
 	call	make_boot_params
@@ -301,13 +271,10 @@ handover_entry:
 	subq	$1b, %rbp
 
 	/*
-	 * Relocate efi_config->call() and the GOT entries.
+	 * Relocate efi_config->call().
 	 */
 	movq	efi_config(%rip), %rax
 	addq	%rbp, 88(%rax)
-
-	movq	%rbp, %rbx
-	FIXUP_GOT
 2:
 	movq	efi_config(%rip), %rdi
 	call	efi_main
@@ -418,8 +385,19 @@ relocated:
 	shrq	$3, %rcx
 	rep	stosq
 
-	FIXUP_GOT
-
+/*
+ * Adjust our own GOT
+ */
+	leaq	_got(%rip), %rdx
+	leaq	_egot(%rip), %rcx
+1:
+	cmpq	%rcx, %rdx
+	jae	2f
+	addq	%rbx, (%rdx)
+	addq	$8, %rdx
+	jmp	1b
+2:
+	
 /*
  * Do the decompression, and jump to the new kernel..
  */
@@ -458,10 +436,6 @@ gdt:
 	.quad	0x0080890000000000	/* TS descriptor */
 	.quad   0x0000000000000000	/* TS continued */
 gdt_end:
-
-/* Have we relocated the GOT? */
-got_fixed:
-	.byte	0
 
 #ifdef CONFIG_EFI_STUB
 efi_config:

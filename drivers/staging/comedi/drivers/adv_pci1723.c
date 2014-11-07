@@ -286,7 +286,7 @@ static void pci1723_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		pci1723_reset(dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver adv_pci1723_driver = {

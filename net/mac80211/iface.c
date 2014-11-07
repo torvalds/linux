@@ -5,6 +5,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1172,19 +1173,11 @@ static void ieee80211_iface_work(struct work_struct *work)
 			rx_agg = (void *)&skb->cb;
 			mutex_lock(&local->sta_mtx);
 			sta = sta_info_get_bss(sdata, rx_agg->addr);
-			if (sta) {
-				u16 last_seq;
-
-				last_seq = IEEE80211_SEQ_TO_SN(le16_to_cpu(
-					sta->last_seq_ctrl[rx_agg->tid]));
-
+			if (sta)
 				__ieee80211_start_rx_ba_session(sta,
-						0, 0,
-						ieee80211_sn_inc(last_seq),
-						1, rx_agg->tid,
+						0, 0, 0, 1, rx_agg->tid,
 						IEEE80211_MAX_AMPDU_BUF,
-						false);
-			}
+						false, true);
 			mutex_unlock(&local->sta_mtx);
 		} else if (skb->pkt_type == IEEE80211_SDATA_QUEUE_RX_AGG_STOP) {
 			rx_agg = (void *)&skb->cb;

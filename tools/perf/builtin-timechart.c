@@ -1605,7 +1605,9 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 	int ret = -EINVAL;
 
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
+
+	symbol__init(&session->header.env);
 
 	(void)perf_header__process_sections(&session->header,
 					    perf_data_file__fd(session->file),
@@ -1920,7 +1922,7 @@ int cmd_timechart(int argc, const char **argv,
 			.fork		 = process_fork_event,
 			.exit		 = process_exit_event,
 			.sample		 = process_sample_event,
-			.ordered_samples = true,
+			.ordered_events	 = true,
 		},
 		.proc_num = 15,
 		.min_time = 1000000,
@@ -1981,8 +1983,6 @@ int cmd_timechart(int argc, const char **argv,
 		pr_err("-P and -T options cannot be used at the same time.\n");
 		return -1;
 	}
-
-	symbol__init();
 
 	if (argc && !strncmp(argv[0], "rec", 3)) {
 		argc = parse_options(argc, argv, record_options, record_usage,

@@ -23,12 +23,17 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>	/* HZ */
 #include <linux/mutex.h>
+#include <linux/timekeeping.h>
 
 /*#include <asm/io.h>*/
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Generic gameport layer");
 MODULE_LICENSE("GPL");
+
+static bool use_ktime = true;
+module_param(use_ktime, bool, 0400);
+MODULE_PARM_DESC(use_ktime, "Use ktime for measuring I/O speed");
 
 /*
  * gameport_mutex protects entire gameport subsystem and is taken
@@ -75,6 +80,38 @@ static unsigned int get_time_pit(void)
  */
 
 static int gameport_measure_speed(struct gameport *gameport)
+{
+	unsigned int i, t, tx;
+	u64 t1, t2, t3;
+	unsigned long flags;
+
+	if (gameport_open(gameport, NULL, GAMEPORT_MODE_RAW))
+		return 0;
+
+	tx = ~0;
+
+	for (i = 0; i < 50; i++) {
+		local_irq_save(flags);
+		t1 = ktime_get_ns();
+		for (t = 0; t < 50; t++)
+			gameport_read(gameport);
+		t2 = ktime_get_ns();
+		t3 = ktime_get_ns();
+		local_irq_restore(flags);
+		udelay(i * 10);
+		t = (t2 - t1) - (t3 - t2);
+		if (t < tx)
+			tx = t;
+	}
+
+	gameport_close(gameport);
+	t = 1000000 * 50;
+	if (tx)
+		t /= tx;
+	return t;
+}
+
+static int old_gameport_measure_speed(struct gameport *gameport)
 {
 #if defined(__i386__)
 
@@ -521,7 +558,9 @@ static void gameport_add_port(struct gameport *gameport)
 	if (gameport->parent)
 		gameport->parent->child = gameport;
 
-	gameport->speed = gameport_measure_speed(gameport);
+	gameport->speed = use_ktime ?
+		gameport_measure_speed(gameport) :
+		old_gameport_measure_speed(gameport);
 
 	list_add_tail(&gameport->node, &gameport_list);
 

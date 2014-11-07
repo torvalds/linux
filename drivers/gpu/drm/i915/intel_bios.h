@@ -802,7 +802,8 @@ struct mipi_config {
 
 	u16 rsvd4;
 
-	u8 rsvd5[5];
+	u8 rsvd5;
+	u32 target_burst_mode_freq;
 	u32 dsi_ddr_clk;
 	u32 bridge_ref_clk;
 

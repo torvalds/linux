@@ -23,7 +23,6 @@
 #include <linux/hash.h>
 #include <linux/random.h>
 #include <linux/rhashtable.h>
-#include <linux/log2.h>
 
 #define HASH_DEFAULT_SIZE	64UL
 #define HASH_MIN_SIZE		4UL
@@ -55,7 +54,7 @@ static u32 __hashfn(const struct rhashtable *ht, const void *key,
 
 /**
  * rhashtable_hashfn - compute hash for key of given length
- * @ht:		hash table to compuate for
+ * @ht:		hash table to compute for
  * @key:	pointer to key
  * @len:	length of key
  *
@@ -86,7 +85,7 @@ static u32 obj_hashfn(const struct rhashtable *ht, const void *ptr, u32 hsize)
 
 /**
  * rhashtable_obj_hashfn - compute hash for hashed object
- * @ht:		hash table to compuate for
+ * @ht:		hash table to compute for
  * @ptr:	pointer to hashed object
  *
  * Computes the hash value using the hash function `hashfn` respectively
@@ -298,7 +297,7 @@ int rhashtable_shrink(struct rhashtable *ht, gfp_t flags)
 
 	ASSERT_RHT_MUTEX(ht);
 
-	if (tbl->size <= HASH_MIN_SIZE)
+	if (ht->shift <= ht->p.min_shift)
 		return 0;
 
 	ntbl = bucket_table_alloc(tbl->size / 2, flags);
@@ -506,9 +505,10 @@ void *rhashtable_lookup_compare(const struct rhashtable *ht, u32 hash,
 }
 EXPORT_SYMBOL_GPL(rhashtable_lookup_compare);
 
-static size_t rounded_hashtable_size(unsigned int nelem)
+static size_t rounded_hashtable_size(struct rhashtable_params *params)
 {
-	return max(roundup_pow_of_two(nelem * 4 / 3), HASH_MIN_SIZE);
+	return max(roundup_pow_of_two(params->nelem_hint * 4 / 3),
+		   1UL << params->min_shift);
 }
 
 /**
@@ -566,8 +566,11 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 	    (!params->key_len && !params->obj_hashfn))
 		return -EINVAL;
 
+	params->min_shift = max_t(size_t, params->min_shift,
+				  ilog2(HASH_MIN_SIZE));
+
 	if (params->nelem_hint)
-		size = rounded_hashtable_size(params->nelem_hint);
+		size = rounded_hashtable_size(params);
 
 	tbl = bucket_table_alloc(size, GFP_KERNEL);
 	if (tbl == NULL)
@@ -589,13 +592,13 @@ EXPORT_SYMBOL_GPL(rhashtable_init);
  * rhashtable_destroy - destroy hash table
  * @ht:		the hash table to destroy
  *
- * Frees the bucket array.
+ * Frees the bucket array. This function is not rcu safe, therefore the caller
+ * has to make sure that no resizing may happen by unpublishing the hashtable
+ * and waiting for the quiescent cycle before releasing the bucket array.
  */
 void rhashtable_destroy(const struct rhashtable *ht)
 {
-	const struct bucket_table *tbl = rht_dereference(ht->tbl, ht);
-
-	bucket_table_free(tbl);
+	bucket_table_free(ht->tbl);
 }
 EXPORT_SYMBOL_GPL(rhashtable_destroy);
 

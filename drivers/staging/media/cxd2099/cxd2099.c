@@ -152,6 +152,7 @@ static int write_pccard(struct cxd *ci, u16 address, u8 *data, u8 n)
 	status = i2c_write(ci->i2c, ci->cfg.adr, addr, 3);
 	if (!status) {
 		u8 buf[256] = {3};
+
 		memcpy(buf+1, data, n);
 		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n+1);
 	}
@@ -201,6 +202,7 @@ static int write_io_data(struct cxd *ci, u8 *data, u8 n)
 	status = i2c_write(ci->i2c, ci->cfg.adr, addr, 3);
 	if (!status) {
 		u8 buf[256] = {3};
+
 		memcpy(buf+1, data, n);
 		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n + 1);
 	}
@@ -448,6 +450,7 @@ static int read_attribute_mem(struct dvb_ca_en50221 *ca,
 	return ci->amem[address];
 #else
 	u8 val;
+
 	mutex_lock(&ci->lock);
 	set_mode(ci, 1);
 	read_pccard(ci, address, &val, 1);

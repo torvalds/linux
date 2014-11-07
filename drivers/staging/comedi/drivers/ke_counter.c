@@ -212,7 +212,7 @@ static struct comedi_driver ke_counter_driver = {
 	.driver_name	= "ke_counter",
 	.module		= THIS_MODULE,
 	.auto_attach	= ke_counter_auto_attach,
-	.detach		= comedi_pci_disable,
+	.detach		= comedi_pci_detach,
 };
 
 static int ke_counter_pci_probe(struct pci_dev *dev,

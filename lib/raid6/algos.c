@@ -121,9 +121,9 @@ static inline const struct raid6_recov_calls *raid6_choose_recov(void)
 		raid6_2data_recov = best->data2;
 		raid6_datap_recov = best->datap;
 
-		printk("raid6: using %s recovery algorithm\n", best->name);
+		pr_info("raid6: using %s recovery algorithm\n", best->name);
 	} else
-		printk("raid6: Yikes! No recovery algorithm found!\n");
+		pr_err("raid6: Yikes! No recovery algorithm found!\n");
 
 	return best;
 }
@@ -157,18 +157,18 @@ static inline const struct raid6_calls *raid6_choose_gen(
 				bestperf = perf;
 				best = *algo;
 			}
-			printk("raid6: %-8s %5ld MB/s\n", (*algo)->name,
+			pr_info("raid6: %-8s %5ld MB/s\n", (*algo)->name,
 			       (perf*HZ) >> (20-16+RAID6_TIME_JIFFIES_LG2));
 		}
 	}
 
 	if (best) {
-		printk("raid6: using algorithm %s (%ld MB/s)\n",
+		pr_info("raid6: using algorithm %s (%ld MB/s)\n",
 		       best->name,
 		       (bestperf*HZ) >> (20-16+RAID6_TIME_JIFFIES_LG2));
 		raid6_call = *best;
 	} else
-		printk("raid6: Yikes!  No algorithm found!\n");
+		pr_err("raid6: Yikes!  No algorithm found!\n");
 
 	return best;
 }
@@ -194,7 +194,7 @@ int __init raid6_select_algo(void)
 	syndromes = (void *) __get_free_pages(GFP_KERNEL, 1);
 
 	if (!syndromes) {
-		printk("raid6: Yikes!  No memory available.\n");
+		pr_err("raid6: Yikes!  No memory available.\n");
 		return -ENOMEM;
 	}
 

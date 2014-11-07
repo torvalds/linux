@@ -83,6 +83,7 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 			int interface = INTERFACE(priv->port);
 			int index = INDEX(priv->port);
 			union cvmx_gmxx_rxx_int_reg gmxx_rxx_int_reg;
+
 			gmxx_rxx_int_reg.u64 =
 			    cvmx_read_csr(CVMX_GMXX_RXX_INT_REG
 					  (index, interface));
@@ -120,8 +121,7 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 				cvmx_write_csr(CVMX_GMXX_RXX_INT_REG
 					       (index, interface),
 					       gmxx_rxx_int_reg.u64);
-				printk_ratelimited("%s: Using 10Mbps with software "
-						   "preamble removal\n",
+				printk_ratelimited("%s: Using 10Mbps with software preamble removal\n",
 						   dev->name);
 			}
 		}
@@ -177,15 +177,13 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 			if (!netif_carrier_ok(dev))
 				netif_carrier_on(dev);
 			if (priv->queue != -1)
-				printk_ratelimited("%s: %u Mbps %s duplex, "
-						   "port %2d, queue %2d\n",
+				printk_ratelimited("%s: %u Mbps %s duplex, port %2d, queue %2d\n",
 						   dev->name, link_info.s.speed,
 						   (link_info.s.full_duplex) ?
 						   "Full" : "Half",
 						   priv->port, priv->queue);
 			else
-				printk_ratelimited("%s: %u Mbps %s duplex, "
-						   "port %2d, POW\n",
+				printk_ratelimited("%s: %u Mbps %s duplex, port %2d, POW\n",
 						   dev->name, link_info.s.speed,
 						   (link_info.s.full_duplex) ?
 						   "Full" : "Half",
@@ -217,6 +215,7 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 
 			/* Read the GMX interrupt status bits */
 			union cvmx_gmxx_rxx_int_reg gmx_rx_int_reg;
+
 			gmx_rx_int_reg.u64 =
 			    cvmx_read_csr(CVMX_GMXX_RXX_INT_REG
 					  (index, interface));
@@ -261,6 +260,7 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 
 			/* Read the GMX interrupt status bits */
 			union cvmx_gmxx_rxx_int_reg gmx_rx_int_reg;
+
 			gmx_rx_int_reg.u64 =
 			    cvmx_read_csr(CVMX_GMXX_RXX_INT_REG
 					  (index, interface));
@@ -316,6 +316,7 @@ int cvm_oct_rgmii_open(struct net_device *dev)
 	if (!octeon_is_simulation()) {
 		if (priv->phydev) {
 			int r = phy_read_status(priv->phydev);
+
 			if (r == 0 && priv->phydev->link == 0)
 				netif_carrier_off(dev);
 			cvm_oct_adjust_link(dev);
@@ -407,6 +408,7 @@ int cvm_oct_rgmii_init(struct net_device *dev)
 void cvm_oct_rgmii_uninit(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
+
 	cvm_oct_common_uninit(dev);
 
 	/*

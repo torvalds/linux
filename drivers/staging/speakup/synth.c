@@ -122,7 +122,7 @@ void spk_do_catch_up(struct spk_synth *synth)
 			schedule_timeout(msecs_to_jiffies(full_time_val));
 			continue;
 		}
-		if ((jiffies >= jiff_max) && (ch == SPACE)) {
+		if (time_after_eq(jiffies, jiff_max) && (ch == SPACE)) {
 			spin_lock_irqsave(&speakup_info.spinlock, flags);
 			jiffy_delta_val = jiffy_delta->u.n.value;
 			delay_time_val = delay_time->u.n.value;
@@ -148,6 +148,7 @@ EXPORT_SYMBOL_GPL(spk_do_catch_up);
 const char *spk_synth_immediate(struct spk_synth *synth, const char *buff)
 {
 	u_char ch;
+
 	while ((ch = *buff)) {
 		if (ch == '\n')
 			ch = synth->procspeech;
@@ -259,6 +260,7 @@ static int sentence_count;
 void spk_reset_index_count(int sc)
 {
 	static int first = 1;
+
 	if (first)
 		first = 0;
 	else
@@ -277,6 +279,7 @@ int synth_supports_indexing(void)
 void synth_insert_next_index(int sent_num)
 {
 	int out;
+
 	if (synth->alive) {
 		if (sent_num == 0) {
 			synth->indexing.currindex++;
@@ -295,6 +298,7 @@ void synth_insert_next_index(int sent_num)
 void spk_get_index_count(int *linecount, int *sentcount)
 {
 	int ind = synth->get_index();
+
 	if (ind) {
 		sentence_count = ind % 10;
 
@@ -315,6 +319,7 @@ static struct resource synth_res;
 int synth_request_region(unsigned long start, unsigned long n)
 {
 	struct resource *parent = &ioport_resource;
+
 	memset(&synth_res, 0, sizeof(synth_res));
 	synth_res.name = synth->name;
 	synth_res.start = start;
@@ -437,6 +442,7 @@ int synth_add(struct spk_synth *in_synth)
 {
 	int i;
 	int status = 0;
+
 	mutex_lock(&spk_mutex);
 	for (i = 0; i < MAXSYNTHS && synths[i] != NULL; i++)
 		/* synth_remove() is responsible for rotating the array down */
@@ -461,6 +467,7 @@ EXPORT_SYMBOL_GPL(synth_add);
 void synth_remove(struct spk_synth *in_synth)
 {
 	int i;
+
 	mutex_lock(&spk_mutex);
 	if (synth == in_synth)
 		synth_release();

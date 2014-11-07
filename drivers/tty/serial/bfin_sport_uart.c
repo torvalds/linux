@@ -33,6 +33,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
+#include <linux/gpio.h>
 
 #include <asm/bfin_sport.h>
 #include <asm/delay.h>

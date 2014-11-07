@@ -78,9 +78,8 @@ config ARM_EXYNOS4_BUS_DEVFREQ
 	  This does not yet operate with optimal voltages.
 
 config ARM_EXYNOS5_BUS_DEVFREQ
-	bool "ARM Exynos5250 Bus DEVFREQ Driver"
+	tristate "ARM Exynos5250 Bus DEVFREQ Driver"
 	depends on SOC_EXYNOS5250
-	select ARCH_HAS_OPP
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select PM_OPP
 	help

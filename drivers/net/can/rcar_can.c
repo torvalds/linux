@@ -20,6 +20,7 @@
 #include <linux/can/dev.h>
 #include <linux/clk.h>
 #include <linux/can/platform/rcar_can.h>
+#include <linux/of.h>
 
 #define RCAR_CAN_DRV_NAME	"rcar_can"
 
@@ -87,6 +88,7 @@ struct rcar_can_priv {
 	struct napi_struct napi;
 	struct rcar_can_regs __iomem *regs;
 	struct clk *clk;
+	struct clk *can_clk;
 	u8 tx_dlc[RCAR_CAN_FIFO_DEPTH];
 	u32 tx_head;
 	u32 tx_tail;
@@ -505,14 +507,20 @@ static int rcar_can_open(struct net_device *ndev)
 
 	err = clk_prepare_enable(priv->clk);
 	if (err) {
-		netdev_err(ndev, "clk_prepare_enable() failed, error %d\n",
+		netdev_err(ndev, "failed to enable periperal clock, error %d\n",
 			   err);
 		goto out;
+	}
+	err = clk_prepare_enable(priv->can_clk);
+	if (err) {
+		netdev_err(ndev, "failed to enable CAN clock, error %d\n",
+			   err);
+		goto out_clock;
 	}
 	err = open_candev(ndev);
 	if (err) {
 		netdev_err(ndev, "open_candev() failed, error %d\n", err);
-		goto out_clock;
+		goto out_can_clock;
 	}
 	napi_enable(&priv->napi);
 	err = request_irq(ndev->irq, rcar_can_interrupt, 0, ndev->name, ndev);
@@ -527,6 +535,8 @@ static int rcar_can_open(struct net_device *ndev)
 out_close:
 	napi_disable(&priv->napi);
 	close_candev(ndev);
+out_can_clock:
+	clk_disable_unprepare(priv->can_clk);
 out_clock:
 	clk_disable_unprepare(priv->clk);
 out:
@@ -565,6 +575,7 @@ static int rcar_can_close(struct net_device *ndev)
 	rcar_can_stop(ndev);
 	free_irq(ndev->irq, ndev);
 	napi_disable(&priv->napi);
+	clk_disable_unprepare(priv->can_clk);
 	clk_disable_unprepare(priv->clk);
 	close_candev(ndev);
 	can_led_event(ndev, CAN_LED_EVENT_STOP);
@@ -715,6 +726,12 @@ static int rcar_can_get_berr_counter(const struct net_device *dev,
 	return 0;
 }
 
+static const char * const clock_names[] = {
+	[CLKR_CLKP1]	= "clkp1",
+	[CLKR_CLKP2]	= "clkp2",
+	[CLKR_CLKEXT]	= "can_clk",
+};
+
 static int rcar_can_probe(struct platform_device *pdev)
 {
 	struct rcar_can_platform_data *pdata;
@@ -722,13 +739,20 @@ static int rcar_can_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct resource *mem;
 	void __iomem *addr;
+	u32 clock_select = CLKR_CLKP1;
 	int err = -ENODEV;
 	int irq;
 
-	pdata = dev_get_platdata(&pdev->dev);
-	if (!pdata) {
-		dev_err(&pdev->dev, "No platform data provided!\n");
-		goto fail;
+	if (pdev->dev.of_node) {
+		of_property_read_u32(pdev->dev.of_node,
+				     "renesas,can-clock-select", &clock_select);
+	} else {
+		pdata = dev_get_platdata(&pdev->dev);
+		if (!pdata) {
+			dev_err(&pdev->dev, "No platform data provided!\n");
+			goto fail;
+		}
+		clock_select = pdata->clock_select;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -753,10 +777,22 @@ static int rcar_can_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(ndev);
 
-	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get(&pdev->dev, "clkp1");
 	if (IS_ERR(priv->clk)) {
 		err = PTR_ERR(priv->clk);
-		dev_err(&pdev->dev, "cannot get clock: %d\n", err);
+		dev_err(&pdev->dev, "cannot get peripheral clock: %d\n", err);
+		goto fail_clk;
+	}
+
+	if (clock_select >= ARRAY_SIZE(clock_names)) {
+		err = -EINVAL;
+		dev_err(&pdev->dev, "invalid CAN clock selected\n");
+		goto fail_clk;
+	}
+	priv->can_clk = devm_clk_get(&pdev->dev, clock_names[clock_select]);
+	if (IS_ERR(priv->can_clk)) {
+		err = PTR_ERR(priv->can_clk);
+		dev_err(&pdev->dev, "cannot get CAN clock: %d\n", err);
 		goto fail_clk;
 	}
 
@@ -765,8 +801,8 @@ static int rcar_can_probe(struct platform_device *pdev)
 	ndev->flags |= IFF_ECHO;
 	priv->ndev = ndev;
 	priv->regs = addr;
-	priv->clock_select = pdata->clock_select;
-	priv->can.clock.freq = clk_get_rate(priv->clk);
+	priv->clock_select = clock_select;
+	priv->can.clock.freq = clk_get_rate(priv->can_clk);
 	priv->can.bittiming_const = &rcar_can_bittiming_const;
 	priv->can.do_set_mode = rcar_can_do_set_mode;
 	priv->can.do_get_berr_counter = rcar_can_get_berr_counter;
@@ -858,10 +894,20 @@ static int __maybe_unused rcar_can_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(rcar_can_pm_ops, rcar_can_suspend, rcar_can_resume);
 
+static const struct of_device_id rcar_can_of_table[] __maybe_unused = {
+	{ .compatible = "renesas,can-r8a7778" },
+	{ .compatible = "renesas,can-r8a7779" },
+	{ .compatible = "renesas,can-r8a7790" },
+	{ .compatible = "renesas,can-r8a7791" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rcar_can_of_table);
+
 static struct platform_driver rcar_can_driver = {
 	.driver = {
 		.name = RCAR_CAN_DRV_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(rcar_can_of_table),
 		.pm = &rcar_can_pm_ops,
 	},
 	.probe = rcar_can_probe,

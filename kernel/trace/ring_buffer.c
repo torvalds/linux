@@ -3359,7 +3359,7 @@ static void rb_iter_reset(struct ring_buffer_iter *iter)
 	iter->head = cpu_buffer->reader_page->read;
 
 	iter->cache_reader_page = iter->head_page;
-	iter->cache_read = iter->head;
+	iter->cache_read = cpu_buffer->read;
 
 	if (iter->head)
 		iter->read_stamp = cpu_buffer->read_stamp;

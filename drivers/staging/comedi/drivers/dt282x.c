@@ -315,8 +315,6 @@ struct dt282x_private {
 
 	unsigned int divisor;
 
-	unsigned short ao_readback[2];
-
 	int dacsr;	/* software copies of registers */
 	int adcsr;
 	int supcsr;
@@ -405,15 +403,15 @@ static unsigned int dt282x_ns_to_timer(unsigned int *ns, unsigned int flags)
 		if (prescale == 1)
 			continue;
 		base = 250 * (1 << prescale);
-		switch (flags & TRIG_ROUND_MASK) {
-		case TRIG_ROUND_NEAREST:
+		switch (flags & CMDF_ROUND_MASK) {
+		case CMDF_ROUND_NEAREST:
 		default:
 			divider = (*ns + base / 2) / base;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			divider = (*ns) / base;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			divider = (*ns + base - 1) / base;
 			break;
 		}
@@ -683,7 +681,7 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_cmd *cmd)
 {
-	const struct dt282x_board *board = comedi_board(dev);
+	const struct dt282x_board *board = dev->board_ptr;
 	struct dt282x_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
@@ -730,11 +728,10 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_min(&cmd->convert_arg, board->ai_speed);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* any count is allowed */
-	} else {	/* TRIG_NONE */
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_EXT | TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-	}
 
 	if (err)
 		return 3;
@@ -826,21 +823,6 @@ static int dt282x_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static int dt282x_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	struct dt282x_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return insn->n;
-}
-
 static int dt282x_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -849,14 +831,14 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 	struct dt282x_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int val;
 	int i;
 
 	devpriv->dacsr |= DT2821_DACSR_SSEL | DT2821_DACSR_YSEL(chan);
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
-		devpriv->ao_readback[chan] = val;
+		unsigned int val = data[i];
+
+		s->readback[chan] = val;
 
 		if (comedi_range_is_bipolar(s, range))
 			val = comedi_offset_munge(s, val);
@@ -907,11 +889,10 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* any count is allowed */
-	} else {	/* TRIG_NONE */
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_EXT | TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-	}
 
 	if (err)
 		return 3;
@@ -1166,7 +1147,7 @@ static int dt282x_initialize(struct comedi_device *dev)
  */
 static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct dt282x_board *board = comedi_board(dev);
+	const struct dt282x_board *board = dev->board_ptr;
 	struct dt282x_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -1252,12 +1233,10 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= board->dachan;
 		s->maxdata	= board->ao_maxdata;
-
 		/* ranges are per-channel, set by jumpers on the board */
 		s->range_table	= &dt282x_ao_range;
-
-		s->insn_read	= dt282x_ao_insn_read;
 		s->insn_write	= dt282x_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
 		if (dev->irq) {
 			dev->write_subdev = s;
 			s->subdev_flags	|= SDF_CMD_WRITE;
@@ -1266,6 +1245,10 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->do_cmd	= dt282x_ao_cmd;
 			s->cancel	= dt282x_ao_cancel;
 		}
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}

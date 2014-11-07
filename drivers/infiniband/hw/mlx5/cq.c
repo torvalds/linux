@@ -752,7 +752,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev, int entries,
 		return ERR_PTR(-EINVAL);
 
 	entries = roundup_pow_of_two(entries + 1);
-	if (entries > dev->mdev->caps.max_cqes)
+	if (entries > dev->mdev->caps.gen.max_cqes)
 		return ERR_PTR(-EINVAL);
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
@@ -919,7 +919,7 @@ int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	int err;
 	u32 fsel;
 
-	if (!(dev->mdev->caps.flags & MLX5_DEV_CAP_FLAG_CQ_MODER))
+	if (!(dev->mdev->caps.gen.flags & MLX5_DEV_CAP_FLAG_CQ_MODER))
 		return -ENOSYS;
 
 	in = kzalloc(sizeof(*in), GFP_KERNEL);
@@ -1074,7 +1074,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	int uninitialized_var(cqe_size);
 	unsigned long flags;
 
-	if (!(dev->mdev->caps.flags & MLX5_DEV_CAP_FLAG_RESIZE_CQ)) {
+	if (!(dev->mdev->caps.gen.flags & MLX5_DEV_CAP_FLAG_RESIZE_CQ)) {
 		pr_info("Firmware does not support resize CQ\n");
 		return -ENOSYS;
 	}
@@ -1083,7 +1083,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		return -EINVAL;
 
 	entries = roundup_pow_of_two(entries + 1);
-	if (entries > dev->mdev->caps.max_cqes + 1)
+	if (entries > dev->mdev->caps.gen.max_cqes + 1)
 		return -EINVAL;
 
 	if (entries == ibcq->cqe + 1)

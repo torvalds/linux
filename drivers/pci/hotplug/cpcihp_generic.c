@@ -56,7 +56,7 @@
 		if (debug)					\
 			printk (KERN_DEBUG "%s: " format "\n",	\
 				MY_NAME , ## arg);		\
-	} while(0)
+	} while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME , ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME , ## arg)
@@ -82,28 +82,28 @@ static int __init validate_parameters(void)
 	char *p;
 	unsigned long tmp;
 
-	if(!bridge) {
+	if (!bridge) {
 		info("not configured, disabling.");
 		return -EINVAL;
 	}
 	str = bridge;
-	if(!*str)
+	if (!*str)
 		return -EINVAL;
 
 	tmp = simple_strtoul(str, &p, 16);
-	if(p == str || tmp > 0xff) {
+	if (p == str || tmp > 0xff) {
 		err("Invalid hotplug bus bridge device bus number");
 		return -EINVAL;
 	}
 	bridge_busnr = (u8) tmp;
 	dbg("bridge_busnr = 0x%02x", bridge_busnr);
-	if(*p != ':') {
+	if (*p != ':') {
 		err("Invalid hotplug bus bridge device");
 		return -EINVAL;
 	}
 	str = p + 1;
 	tmp = simple_strtoul(str, &p, 16);
-	if(p == str || tmp > 0x1f) {
+	if (p == str || tmp > 0x1f) {
 		err("Invalid hotplug bus bridge device slot number");
 		return -EINVAL;
 	}
@@ -112,18 +112,18 @@ static int __init validate_parameters(void)
 
 	dbg("first_slot = 0x%02x", first_slot);
 	dbg("last_slot = 0x%02x", last_slot);
-	if(!(first_slot && last_slot)) {
+	if (!(first_slot && last_slot)) {
 		err("Need to specify first_slot and last_slot");
 		return -EINVAL;
 	}
-	if(last_slot < first_slot) {
+	if (last_slot < first_slot) {
 		err("first_slot must be less than last_slot");
 		return -EINVAL;
 	}
 
 	dbg("port = 0x%04x", port);
 	dbg("enum_bit = 0x%02x", enum_bit);
-	if(enum_bit > 7) {
+	if (enum_bit > 7) {
 		err("Invalid #ENUM bit");
 		return -EINVAL;
 	}
@@ -151,12 +151,12 @@ static int __init cpcihp_generic_init(void)
 		return status;
 
 	r = request_region(port, 1, "#ENUM hotswap signal register");
-	if(!r)
+	if (!r)
 		return -EBUSY;
 
 	dev = pci_get_domain_bus_and_slot(0, bridge_busnr,
 					  PCI_DEVFN(bridge_slot, 0));
-	if(!dev || dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
+	if (!dev || dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
 		err("Invalid bridge device %s", bridge);
 		pci_dev_put(dev);
 		return -EINVAL;
@@ -169,21 +169,21 @@ static int __init cpcihp_generic_init(void)
 	generic_hpc.ops = &generic_hpc_ops;
 
 	status = cpci_hp_register_controller(&generic_hpc);
-	if(status != 0) {
+	if (status != 0) {
 		err("Could not register cPCI hotplug controller");
 		return -ENODEV;
 	}
 	dbg("registered controller");
 
 	status = cpci_hp_register_bus(bus, first_slot, last_slot);
-	if(status != 0) {
+	if (status != 0) {
 		err("Could not register cPCI hotplug bus");
 		goto init_bus_register_error;
 	}
 	dbg("registered bus");
 
 	status = cpci_hp_start();
-	if(status != 0) {
+	if (status != 0) {
 		err("Could not started cPCI hotplug system");
 		goto init_start_error;
 	}

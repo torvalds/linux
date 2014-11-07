@@ -484,8 +484,9 @@ out_err:
 }
 
 /* Decode opaque device data and return the result */
-static struct nfs4_file_layout_dsaddr*
-decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
+struct nfs4_file_layout_dsaddr *
+nfs4_fl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
+		gfp_t gfp_flags)
 {
 	int i;
 	u32 cnt, num;
@@ -570,10 +571,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	dsaddr->stripe_indices = stripe_indices;
 	stripe_indices = NULL;
 	dsaddr->ds_num = num;
-	nfs4_init_deviceid_node(&dsaddr->id_node,
-				NFS_SERVER(ino)->pnfs_curr_ld,
-				NFS_SERVER(ino)->nfs_client,
-				&pdev->dev_id);
+	nfs4_init_deviceid_node(&dsaddr->id_node, server, &pdev->dev_id);
 
 	INIT_LIST_HEAD(&dsaddrs);
 
@@ -587,7 +585,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 
 		mp_count = be32_to_cpup(p); /* multipath count */
 		for (j = 0; j < mp_count; j++) {
-			da = decode_ds_addr(NFS_SERVER(ino)->nfs_client->cl_net,
+			da = decode_ds_addr(server->nfs_client->cl_net,
 					    &stream, gfp_flags);
 			if (da)
 				list_add_tail(&da->da_node, &dsaddrs);
@@ -635,102 +633,6 @@ out_err_free_scratch:
 out_err:
 	dprintk("%s ERROR: returning NULL\n", __func__);
 	return NULL;
-}
-
-/*
- * Decode the opaque device specified in 'dev' and add it to the cache of
- * available devices.
- */
-static struct nfs4_file_layout_dsaddr *
-decode_and_add_device(struct inode *inode, struct pnfs_device *dev, gfp_t gfp_flags)
-{
-	struct nfs4_deviceid_node *d;
-	struct nfs4_file_layout_dsaddr *n, *new;
-
-	new = decode_device(inode, dev, gfp_flags);
-	if (!new) {
-		printk(KERN_WARNING "NFS: %s: Could not decode or add device\n",
-			__func__);
-		return NULL;
-	}
-
-	d = nfs4_insert_deviceid_node(&new->id_node);
-	n = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
-	if (n != new) {
-		nfs4_fl_free_deviceid(new);
-		return n;
-	}
-
-	return new;
-}
-
-/*
- * Retrieve the information for dev_id, add it to the list
- * of available devices, and return it.
- */
-struct nfs4_file_layout_dsaddr *
-filelayout_get_device_info(struct inode *inode,
-		struct nfs4_deviceid *dev_id,
-		struct rpc_cred *cred,
-		gfp_t gfp_flags)
-{
-	struct pnfs_device *pdev = NULL;
-	u32 max_resp_sz;
-	int max_pages;
-	struct page **pages = NULL;
-	struct nfs4_file_layout_dsaddr *dsaddr = NULL;
-	int rc, i;
-	struct nfs_server *server = NFS_SERVER(inode);
-
-	/*
-	 * Use the session max response size as the basis for setting
-	 * GETDEVICEINFO's maxcount
-	 */
-	max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
-	max_pages = nfs_page_array_len(0, max_resp_sz);
-	dprintk("%s inode %p max_resp_sz %u max_pages %d\n",
-		__func__, inode, max_resp_sz, max_pages);
-
-	pdev = kzalloc(sizeof(struct pnfs_device), gfp_flags);
-	if (pdev == NULL)
-		return NULL;
-
-	pages = kcalloc(max_pages, sizeof(struct page *), gfp_flags);
-	if (pages == NULL) {
-		kfree(pdev);
-		return NULL;
-	}
-	for (i = 0; i < max_pages; i++) {
-		pages[i] = alloc_page(gfp_flags);
-		if (!pages[i])
-			goto out_free;
-	}
-
-	memcpy(&pdev->dev_id, dev_id, sizeof(*dev_id));
-	pdev->layout_type = LAYOUT_NFSV4_1_FILES;
-	pdev->pages = pages;
-	pdev->pgbase = 0;
-	pdev->pglen = max_resp_sz;
-	pdev->mincount = 0;
-	pdev->maxcount = max_resp_sz - nfs41_maxgetdevinfo_overhead;
-
-	rc = nfs4_proc_getdeviceinfo(server, pdev, cred);
-	dprintk("%s getdevice info returns %d\n", __func__, rc);
-	if (rc)
-		goto out_free;
-
-	/*
-	 * Found new device, need to decode it and then add it to the
-	 * list of known devices for this mountpoint.
-	 */
-	dsaddr = decode_and_add_device(inode, pdev, gfp_flags);
-out_free:
-	for (i = 0; i < max_pages; i++)
-		__free_page(pages[i]);
-	kfree(pages);
-	kfree(pdev);
-	dprintk("<-- %s dsaddr %p\n", __func__, dsaddr);
-	return dsaddr;
 }
 
 void

@@ -145,6 +145,7 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("rx_jabber", stats.rx_jabber),
 	I40E_PF_STAT("VF_admin_queue_requests", vf_aq_requests),
 	I40E_PF_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
+	I40E_PF_STAT("fdir_flush_cnt", fd_flush_cnt),
 	I40E_PF_STAT("fdir_atr_match", stats.fd_atr_match),
 	I40E_PF_STAT("fdir_sb_match", stats.fd_sb_match),
 
@@ -312,7 +313,10 @@ static int i40e_get_settings(struct net_device *netdev,
 		break;
 	case I40E_PHY_TYPE_10GBASE_SR:
 	case I40E_PHY_TYPE_10GBASE_LR:
+	case I40E_PHY_TYPE_1000BASE_SX:
+	case I40E_PHY_TYPE_1000BASE_LX:
 		ecmd->supported = SUPPORTED_10000baseT_Full;
+		ecmd->supported |= SUPPORTED_1000baseT_Full;
 		break;
 	case I40E_PHY_TYPE_10GBASE_CR1_CU:
 	case I40E_PHY_TYPE_10GBASE_CR1:
@@ -351,7 +355,8 @@ static int i40e_get_settings(struct net_device *netdev,
 		break;
 	default:
 		/* if we got here and link is up something bad is afoot */
-		WARN_ON(link_up);
+		netdev_info(netdev, "WARNING: Link is up but PHY type 0x%x is not recognized.\n",
+			    hw_link_info->phy_type);
 	}
 
 no_valid_phy_type:
@@ -461,7 +466,8 @@ static int i40e_set_settings(struct net_device *netdev,
 
 	if (hw->phy.media_type != I40E_MEDIA_TYPE_BASET &&
 	    hw->phy.media_type != I40E_MEDIA_TYPE_FIBER &&
-	    hw->phy.media_type != I40E_MEDIA_TYPE_BACKPLANE)
+	    hw->phy.media_type != I40E_MEDIA_TYPE_BACKPLANE &&
+	    hw->phy.link_info.link_info & I40E_AQ_LINK_UP)
 		return -EOPNOTSUPP;
 
 	/* get our own copy of the bits to check against */
@@ -492,11 +498,10 @@ static int i40e_set_settings(struct net_device *netdev,
 	if (status)
 		return -EAGAIN;
 
-	/* Copy link_speed and abilities to config in case they are not
+	/* Copy abilities to config in case autoneg is not
 	 * set below
 	 */
 	memset(&config, 0, sizeof(struct i40e_aq_set_phy_config));
-	config.link_speed = abilities.link_speed;
 	config.abilities = abilities.abilities;
 
 	/* Check autoneg */
@@ -533,42 +538,38 @@ static int i40e_set_settings(struct net_device *netdev,
 		return -EINVAL;
 
 	if (advertise & ADVERTISED_100baseT_Full)
-		if (!(abilities.link_speed & I40E_LINK_SPEED_100MB)) {
-			config.link_speed |= I40E_LINK_SPEED_100MB;
-			change = true;
-		}
+		config.link_speed |= I40E_LINK_SPEED_100MB;
 	if (advertise & ADVERTISED_1000baseT_Full ||
 	    advertise & ADVERTISED_1000baseKX_Full)
-		if (!(abilities.link_speed & I40E_LINK_SPEED_1GB)) {
-			config.link_speed |= I40E_LINK_SPEED_1GB;
-			change = true;
-		}
+		config.link_speed |= I40E_LINK_SPEED_1GB;
 	if (advertise & ADVERTISED_10000baseT_Full ||
 	    advertise & ADVERTISED_10000baseKX4_Full ||
 	    advertise & ADVERTISED_10000baseKR_Full)
-		if (!(abilities.link_speed & I40E_LINK_SPEED_10GB)) {
-			config.link_speed |= I40E_LINK_SPEED_10GB;
-			change = true;
-		}
+		config.link_speed |= I40E_LINK_SPEED_10GB;
 	if (advertise & ADVERTISED_40000baseKR4_Full ||
 	    advertise & ADVERTISED_40000baseCR4_Full ||
 	    advertise & ADVERTISED_40000baseSR4_Full ||
 	    advertise & ADVERTISED_40000baseLR4_Full)
-		if (!(abilities.link_speed & I40E_LINK_SPEED_40GB)) {
-			config.link_speed |= I40E_LINK_SPEED_40GB;
-			change = true;
-		}
+		config.link_speed |= I40E_LINK_SPEED_40GB;
 
-	if (change) {
+	if (change || (abilities.link_speed != config.link_speed)) {
 		/* copy over the rest of the abilities */
 		config.phy_type = abilities.phy_type;
 		config.eee_capability = abilities.eee_capability;
 		config.eeer = abilities.eeer_val;
 		config.low_power_ctrl = abilities.d3_lpan;
 
-		/* If link is up set link and an so changes take effect */
-		if (hw->phy.link_info.link_info & I40E_AQ_LINK_UP)
-			config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+		/* set link and auto negotiation so changes take effect */
+		config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+		/* If link is up put link down */
+		if (hw->phy.link_info.link_info & I40E_AQ_LINK_UP) {
+			/* Tell the OS link is going down, the link will go
+			 * back up when fw says it is ready asynchronously
+			 */
+			netdev_info(netdev, "PHY settings change requested, NIC Link is going down.\n");
+			netif_carrier_off(netdev);
+			netif_tx_stop_all_queues(netdev);
+		}
 
 		/* make the aq call */
 		status = i40e_aq_set_phy_config(hw, &config, NULL);
@@ -684,6 +685,13 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 		hw->fc.requested_mode = I40E_FC_NONE;
 	else
 		 return -EINVAL;
+
+	/* Tell the OS link is going down, the link will go back up when fw
+	 * says it is ready asynchronously
+	 */
+	netdev_info(netdev, "Flow control settings change requested, NIC Link is going down.\n");
+	netif_carrier_off(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	/* Set the fc mode and only restart an if link is up*/
 	status = i40e_set_fc(hw, &aq_failures, link_up);
@@ -1977,6 +1985,13 @@ static int i40e_del_fdir_entry(struct i40e_vsi *vsi,
 	struct i40e_pf *pf = vsi->back;
 	int ret = 0;
 
+	if (test_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state) ||
+	    test_bit(__I40E_RESET_INTR_RECEIVED, &pf->state))
+		return -EBUSY;
+
+	if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
+		return -EBUSY;
+
 	ret = i40e_update_ethtool_fdir_entry(vsi, NULL, fsp->location, cmd);
 
 	i40e_fdir_check_and_reenable(pf);
@@ -2009,6 +2024,13 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 
 	if (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)
 		return -ENOSPC;
+
+	if (test_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state) ||
+	    test_bit(__I40E_RESET_INTR_RECEIVED, &pf->state))
+		return -EBUSY;
+
+	if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
+		return -EBUSY;
 
 	fsp = (struct ethtool_rx_flow_spec *)&cmd->fs;
 

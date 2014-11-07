@@ -268,7 +268,7 @@ struct kim_data_s {
 	struct st_data_s *core_data;
 	struct chip_version version;
 	unsigned char ldisc_install;
-	unsigned char dev_name[UART_DEV_NAME_LEN];
+	unsigned char dev_name[UART_DEV_NAME_LEN + 1];
 	unsigned char flow_cntrl;
 	unsigned long baud_rate;
 };

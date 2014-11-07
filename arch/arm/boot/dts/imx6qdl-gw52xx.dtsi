@@ -9,10 +9,11 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	/* these are used by bootloader for disabling nodes */
 	aliases {
-		ethernet0 = &fec;
 		led0 = &led0;
 		led1 = &led1;
 		led2 = &led2;
@@ -20,7 +21,6 @@
 		ssi0 = &ssi1;
 		usb0 = &usbh1;
 		usb1 = &usbotg;
-		usdhc2 = &usdhc3;
 	};
 
 	chosen {
@@ -36,23 +36,25 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_leds>;
 
 		led0: user1 {
 			label = "user1";
-			gpios = <&gpio4 6 0>; /* 102 -> MX6_PANLEDG */
+			gpios = <&gpio4 6 GPIO_ACTIVE_HIGH>; /* MX6_PANLEDG */
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
 
 		led1: user2 {
 			label = "user2";
-			gpios = <&gpio4 7 0>; /* 103 -> MX6_PANLEDR */
+			gpios = <&gpio4 7 GPIO_ACTIVE_HIGH>; /* MX6_PANLEDR */
 			default-state = "off";
 		};
 
 		led2: user3 {
 			label = "user3";
-			gpios = <&gpio4 15 1>; /* 111 - MX6_LOCLED# */
+			gpios = <&gpio4 15 GPIO_ACTIVE_LOW>; /* MX6_LOCLED# */
 			default-state = "off";
 		};
 	};
@@ -63,7 +65,9 @@
 
 	pps {
 		compatible = "pps-gpio";
-		gpios = <&gpio1 26 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pps>;
+		gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -115,7 +119,7 @@
 			regulator-name = "usb_otg_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio3 22 0>;
+			gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -141,11 +145,17 @@
 	status = "okay";
 };
 
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1>;
+	status = "okay";
+};
+
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii";
-	phy-reset-gpios = <&gpio1 30 0>;
+	phy-reset-gpios = <&gpio1 30 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -197,11 +207,6 @@
 		#gpio-cells = <2>;
 	};
 
-	hwmon: gsc@29 {
-		compatible = "gw,gsp";
-		reg = <0x29>;
-	};
-
 	rtc: ds1672@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
@@ -213,65 +218,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
-
-	pciswitch: pex8609@3f {
-		compatible = "plx,pex8609";
-		reg = <0x3f>;
-	};
-
-	pmic: ltc3676@3c {
-		compatible = "lltc,ltc3676";
-		reg = <0x3c>;
-
-		regulators {
-			sw1_reg: ltc3676__sw1 {
-				regulator-min-microvolt = <1175000>;
-				regulator-max-microvolt = <1175000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			sw2_reg: ltc3676__sw2 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			sw3_reg: ltc3676__sw3 {
-				regulator-min-microvolt = <1175000>;
-				regulator-max-microvolt = <1175000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			sw4_reg: ltc3676__sw4 {
-				regulator-min-microvolt = <1500000>;
-				regulator-max-microvolt = <1500000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			ldo2_reg: ltc3676__ldo2 {
-				regulator-min-microvolt = <2500000>;
-				regulator-max-microvolt = <2500000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			ldo3_reg: ltc3676__ldo3 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-boot-on;
-				regulator-always-on;
-			};
-
-			ldo4_reg: ltc3676__ldo4 {
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-			};
-		};
-	};
 };
 
 &i2c3 {
@@ -279,11 +225,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
-
-	accelerometer: fxos8700@1e {
-		compatible = "fsl,fxos8700";
-		reg = <0x13>;
-	};
 
 	codec: sgtl5000@0a {
 		compatible = "fsl,sgtl5000";
@@ -297,49 +238,101 @@
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		interrupt-parent = <&gpio7>;
-		interrupts = <12 2>; /* gpio7_12 active low */
-		wakeup-gpios = <&gpio7 12 0>;
-	};
-
-	videoin: adv7180@20 {
-		compatible = "adi,adv7180";
-		reg = <0x20>;
+		interrupts = <12 2>;
+		wakeup-gpios = <&gpio7 12 GPIO_ACTIVE_LOW>;
 	};
 };
 
-&iomuxc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog>;
+&ldb {
+	status = "okay";
 
-	imx6qdl-gw52xx {
-		pinctrl_hog: hoggrp {
-			fsl,pins = <
-				MX6QDL_PAD_EIM_A19__GPIO2_IO19   0x80000000 /* MEZZ_DIO0 */
-				MX6QDL_PAD_EIM_A20__GPIO2_IO18   0x80000000 /* MEZZ_DIO1 */
-				MX6QDL_PAD_EIM_D22__GPIO3_IO22   0x80000000 /* OTG_PWR_EN */
-				MX6QDL_PAD_EIM_D31__GPIO3_IO31   0x80000000 /* VIDDEC_PDN# */
-				MX6QDL_PAD_ENET_TXD0__GPIO1_IO30 0x80000000 /* PHY Reset */
-				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x80000000 /* PCIE_RST# */
-				MX6QDL_PAD_ENET_RXD0__GPIO1_IO27 0x80000000 /* GPS_PWDN */
-				MX6QDL_PAD_ENET_RXD1__GPIO1_IO26 0x80000000 /* GPS_PPS */
-				MX6QDL_PAD_GPIO_0__CCM_CLKO1     0x000130b0 /* AUD4_MCK */
-				MX6QDL_PAD_GPIO_2__GPIO1_IO02    0x80000000 /* USB_SEL_PCI */
-				MX6QDL_PAD_GPIO_17__GPIO7_IO12   0x80000000 /* TOUCH_IRQ# */
-				MX6QDL_PAD_KEY_COL0__GPIO4_IO06  0x80000000 /* user1 led */
-				MX6QDL_PAD_KEY_ROW0__GPIO4_IO07  0x80000000 /* user2 led */
-				MX6QDL_PAD_KEY_ROW4__GPIO4_IO15  0x80000000 /* user3 led */
-				MX6QDL_PAD_SD2_CMD__GPIO1_IO11   0x80000000 /* LVDS_TCH# */
-				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00  0x80000000 /* SD3_CD# */
-				MX6QDL_PAD_SD4_DAT3__GPIO2_IO11  0x80000000 /* UART2_EN# */
-			 >;
+	lvds-channel@0 {
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <18>;
+		status = "okay";
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: hsd100pxn1 {
+				clock-frequency = <65000000>;
+				hactive = <1024>;
+				vactive = <768>;
+				hback-porch = <220>;
+				hfront-porch = <40>;
+				vback-porch = <21>;
+				vfront-porch = <7>;
+				hsync-len = <60>;
+				vsync-len = <10>;
+			};
 		};
+	};
+};
 
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio1 29 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&pwm4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm4>;
+	status = "okay";
+};
+
+&ssi1 {
+	fsl,mode = "i2s-slave";
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5>;
+	status = "okay";
+};
+
+&usbotg {
+	vbus-supply = <&reg_usb_otg_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg>;
+	disable-over-current;
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3>;
+	cd-gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&reg_3p3v>;
+	status = "okay";
+};
+
+&iomuxc {
+	imx6qdl-gw52xx {
 		pinctrl_audmux: audmuxgrp {
 			fsl,pins = <
 				MX6QDL_PAD_SD2_DAT0__AUD4_RXD		0x130b0
 				MX6QDL_PAD_SD2_DAT3__AUD4_TXC		0x130b0
 				MX6QDL_PAD_SD2_DAT2__AUD4_TXD		0x110b0
 				MX6QDL_PAD_SD2_DAT1__AUD4_TXFS		0x130b0
+				MX6QDL_PAD_GPIO_0__CCM_CLKO1	0x130b0 /* AUD4_MCK */
 			>;
 		};
 
@@ -361,6 +354,23 @@
 				MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b0b0
 				MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0
 				MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0a8
+				MX6QDL_PAD_ENET_TXD0__GPIO1_IO30	0x1b0b0 /* PHY Reset */
+			>;
+		};
+
+		pinctrl_flexcan1: flexcan1grp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_ROW2__FLEXCAN1_RX	0x1b0b1
+				MX6QDL_PAD_KEY_COL2__FLEXCAN1_TX	0x1b0b1
+				MX6QDL_PAD_GPIO_9__GPIO1_IO09		0x4001b0b0 /* CAN_STBY */
+			>;
+		};
+
+		pinctrl_gpio_leds: gpioledsgrp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL0__GPIO4_IO06  0x1b0b0
+				MX6QDL_PAD_KEY_ROW0__GPIO4_IO07  0x1b0b0
+				MX6QDL_PAD_KEY_ROW4__GPIO4_IO15  0x1b0b0
 			>;
 		};
 
@@ -406,6 +416,18 @@
 			>;
 		};
 
+		pinctrl_pcie: pciegrp {
+			fsl,pins = <
+				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29	0x1b0b0 /* PCIE_RST# */
+			>;
+		};
+
+		pinctrl_pps: ppsgrp {
+			fsl,pins = <
+				MX6QDL_PAD_ENET_RXD1__GPIO1_IO26	0x1b0b1
+			>;
+		};
+
 		pinctrl_pwm4: pwm4grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD1_CMD__PWM4_OUT		0x1b0b1
@@ -436,6 +458,7 @@
 		pinctrl_usbotg: usbotggrp {
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_1__USB_OTG_ID		0x17059
+				MX6QDL_PAD_EIM_D22__GPIO3_IO22	0x1b0b0 /* OTG_PWR_EN */
 			>;
 		};
 
@@ -447,85 +470,8 @@
 				MX6QDL_PAD_SD3_DAT1__SD3_DATA1		0x17059
 				MX6QDL_PAD_SD3_DAT2__SD3_DATA2		0x17059
 				MX6QDL_PAD_SD3_DAT3__SD3_DATA3		0x17059
+				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00	0x1b0b0 /* CD */
 			>;
 		};
 	};
-};
-
-&ldb {
-	status = "okay";
-
-	lvds-channel@0 {
-		fsl,data-mapping = "spwg";
-		fsl,data-width = <18>;
-		status = "okay";
-
-		display-timings {
-			native-mode = <&timing0>;
-			timing0: hsd100pxn1 {
-				clock-frequency = <65000000>;
-				hactive = <1024>;
-				vactive = <768>;
-				hback-porch = <220>;
-				hfront-porch = <40>;
-				vback-porch = <21>;
-				vfront-porch = <7>;
-				hsync-len = <60>;
-				vsync-len = <10>;
-			};
-		};
-	};
-};
-
-&pcie {
-	reset-gpio = <&gpio1 29 0>;
-	status = "okay";
-};
-
-&pwm4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm4>;
-	status = "okay";
-};
-
-&ssi1 {
-	status = "okay";
-};
-
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1>;
-	status = "okay";
-};
-
-&uart2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart2>;
-	status = "okay";
-};
-
-&uart5 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart5>;
-	status = "okay";
-};
-
-&usbotg {
-	vbus-supply = <&reg_usb_otg_vbus>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbotg>;
-	disable-over-current;
-	status = "okay";
-};
-
-&usbh1 {
-	status = "okay";
-};
-
-&usdhc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc3>;
-	cd-gpios = <&gpio7 0 0>;
-	vmmc-supply = <&reg_3p3v>;
-	status = "okay";
 };

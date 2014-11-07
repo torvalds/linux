@@ -67,6 +67,7 @@ struct brcmf_bus_dcmd {
  * @txctl: transmit a control request message to dongle.
  * @rxctl: receive a control response message from dongle.
  * @gettxq: obtain a reference of bus transmit queue (optional).
+ * @wowl_config: specify if dongle is configured for wowl when going to suspend
  *
  * This structure provides an abstract interface towards the
  * bus specific driver. For control messages to common driver
@@ -80,6 +81,7 @@ struct brcmf_bus_ops {
 	int (*txctl)(struct device *dev, unsigned char *msg, uint len);
 	int (*rxctl)(struct device *dev, unsigned char *msg, uint len);
 	struct pktq * (*gettxq)(struct device *dev);
+	void (*wowl_config)(struct device *dev, bool enabled);
 };
 
 
@@ -114,6 +116,7 @@ struct brcmf_bus_msgbuf {
  * @dstats: dongle-based statistical data.
  * @dcmd_list: bus/device specific dongle initialization commands.
  * @chip: device identifier of the dongle chip.
+ * @wowl_supported: is wowl supported by bus driver.
  * @chiprev: revision of the dongle chip.
  */
 struct brcmf_bus {
@@ -131,6 +134,7 @@ struct brcmf_bus {
 	u32 chip;
 	u32 chiprev;
 	bool always_use_fws_queue;
+	bool wowl_supported;
 
 	struct brcmf_bus_ops *ops;
 	struct brcmf_bus_msgbuf *msgbuf;
@@ -175,6 +179,13 @@ struct pktq *brcmf_bus_gettxq(struct brcmf_bus *bus)
 		return ERR_PTR(-ENOENT);
 
 	return bus->ops->gettxq(bus->dev);
+}
+
+static inline
+void brcmf_bus_wowl_config(struct brcmf_bus *bus, bool enabled)
+{
+	if (bus->ops->wowl_config)
+		bus->ops->wowl_config(bus->dev, enabled);
 }
 
 static inline bool brcmf_bus_ready(struct brcmf_bus *bus)

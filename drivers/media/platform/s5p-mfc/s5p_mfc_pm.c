@@ -21,7 +21,7 @@
 #include "s5p_mfc_pm.h"
 
 #define MFC_GATE_CLK_NAME	"mfc"
-#define MFC_SCLK_NAME		"sclk-mfc"
+#define MFC_SCLK_NAME		"sclk_mfc"
 #define MFC_SCLK_RATE		(200 * 1000000)
 
 #define CLK_DEBUG

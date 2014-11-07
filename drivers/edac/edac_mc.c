@@ -128,7 +128,7 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 /*
  * keep those in sync with the enum mem_type
  */
-const char *edac_mem_types[] = {
+const char * const edac_mem_types[] = {
 	"Empty csrow",
 	"Reserved csrow type",
 	"Unknown csrow type",

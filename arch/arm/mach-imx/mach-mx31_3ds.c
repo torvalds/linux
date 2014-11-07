@@ -307,7 +307,7 @@ static int mx31_3ds_sdhc1_init(struct device *dev,
 	ret = gpio_request_array(mx31_3ds_sdhc1_gpios,
 				 ARRAY_SIZE(mx31_3ds_sdhc1_gpios));
 	if (ret) {
-		pr_warning("Unable to request the SD/MMC GPIOs.\n");
+		pr_warn("Unable to request the SD/MMC GPIOs.\n");
 		return ret;
 	}
 
@@ -316,7 +316,7 @@ static int mx31_3ds_sdhc1_init(struct device *dev,
 			  IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			  "sdhc1-detect", data);
 	if (ret) {
-		pr_warning("Unable to request the SD/MMC card-detect IRQ.\n");
+		pr_warn("Unable to request the SD/MMC card-detect IRQ.\n");
 		goto gpio_free;
 	}
 

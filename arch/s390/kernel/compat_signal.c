@@ -36,17 +36,16 @@ typedef struct
 	struct sigcontext32 sc;
 	_sigregs32 sregs;
 	int signo;
-	__u32 gprs_high[NUM_GPRS];
-	__u8 retcode[S390_SYSCALL_SIZE];
+	_sigregs_ext32 sregs_ext;
+	__u16 svc_insn;		/* Offset of svc_insn is NOT fixed! */
 } sigframe32;
 
 typedef struct 
 {
 	__u8 callee_used_stack[__SIGNAL_FRAMESIZE32];
-	__u8 retcode[S390_SYSCALL_SIZE];
+	__u16 svc_insn;
 	compat_siginfo_t info;
 	struct ucontext32 uc;
-	__u32 gprs_high[NUM_GPRS];
 } rt_sigframe32;
 
 int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
@@ -151,6 +150,38 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 	return err ? -EFAULT : 0;
 }
 
+/* Store registers needed to create the signal frame */
+static void store_sigregs(void)
+{
+	int i;
+
+	save_access_regs(current->thread.acrs);
+	save_fp_ctl(&current->thread.fp_regs.fpc);
+	if (current->thread.vxrs) {
+		save_vx_regs(current->thread.vxrs);
+		for (i = 0; i < __NUM_FPRS; i++)
+			current->thread.fp_regs.fprs[i] =
+				*(freg_t *)(current->thread.vxrs + i);
+	} else
+		save_fp_regs(current->thread.fp_regs.fprs);
+}
+
+/* Load registers after signal return */
+static void load_sigregs(void)
+{
+	int i;
+
+	restore_access_regs(current->thread.acrs);
+	/* restore_fp_ctl is done in restore_sigregs */
+	if (current->thread.vxrs) {
+		for (i = 0; i < __NUM_FPRS; i++)
+			*(freg_t *)(current->thread.vxrs + i) =
+				current->thread.fp_regs.fprs[i];
+		restore_vx_regs(current->thread.vxrs);
+	} else
+		restore_fp_regs(current->thread.fp_regs.fprs);
+}
+
 static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 {
 	_sigregs32 user_sregs;
@@ -163,11 +194,8 @@ static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 		(__u32)(regs->psw.mask & PSW_MASK_BA);
 	for (i = 0; i < NUM_GPRS; i++)
 		user_sregs.regs.gprs[i] = (__u32) regs->gprs[i];
-	save_access_regs(current->thread.acrs);
 	memcpy(&user_sregs.regs.acrs, current->thread.acrs,
 	       sizeof(user_sregs.regs.acrs));
-	save_fp_ctl(&current->thread.fp_regs.fpc);
-	save_fp_regs(current->thread.fp_regs.fprs);
 	memcpy(&user_sregs.fpregs, &current->thread.fp_regs,
 	       sizeof(user_sregs.fpregs));
 	if (__copy_to_user(sregs, &user_sregs, sizeof(_sigregs32)))
@@ -207,37 +235,67 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 		regs->gprs[i] = (__u64) user_sregs.regs.gprs[i];
 	memcpy(&current->thread.acrs, &user_sregs.regs.acrs,
 	       sizeof(current->thread.acrs));
-	restore_access_regs(current->thread.acrs);
 
 	memcpy(&current->thread.fp_regs, &user_sregs.fpregs,
 	       sizeof(current->thread.fp_regs));
 
-	restore_fp_regs(current->thread.fp_regs.fprs);
 	clear_pt_regs_flag(regs, PIF_SYSCALL); /* No longer in a system call */
 	return 0;
 }
 
-static int save_sigregs_gprs_high(struct pt_regs *regs, __u32 __user *uregs)
+static int save_sigregs_ext32(struct pt_regs *regs,
+			      _sigregs_ext32 __user *sregs_ext)
 {
 	__u32 gprs_high[NUM_GPRS];
+	__u64 vxrs[__NUM_VXRS_LOW];
 	int i;
 
+	/* Save high gprs to signal stack */
 	for (i = 0; i < NUM_GPRS; i++)
 		gprs_high[i] = regs->gprs[i] >> 32;
-	if (__copy_to_user(uregs, &gprs_high, sizeof(gprs_high)))
+	if (__copy_to_user(&sregs_ext->gprs_high, &gprs_high,
+			   sizeof(sregs_ext->gprs_high)))
 		return -EFAULT;
+
+	/* Save vector registers to signal stack */
+	if (current->thread.vxrs) {
+		for (i = 0; i < __NUM_VXRS_LOW; i++)
+			vxrs[i] = *((__u64 *)(current->thread.vxrs + i) + 1);
+		if (__copy_to_user(&sregs_ext->vxrs_low, vxrs,
+				   sizeof(sregs_ext->vxrs_low)) ||
+		    __copy_to_user(&sregs_ext->vxrs_high,
+				   current->thread.vxrs + __NUM_VXRS_LOW,
+				   sizeof(sregs_ext->vxrs_high)))
+			return -EFAULT;
+	}
 	return 0;
 }
 
-static int restore_sigregs_gprs_high(struct pt_regs *regs, __u32 __user *uregs)
+static int restore_sigregs_ext32(struct pt_regs *regs,
+				 _sigregs_ext32 __user *sregs_ext)
 {
 	__u32 gprs_high[NUM_GPRS];
+	__u64 vxrs[__NUM_VXRS_LOW];
 	int i;
 
-	if (__copy_from_user(&gprs_high, uregs, sizeof(gprs_high)))
+	/* Restore high gprs from signal stack */
+	if (__copy_from_user(&gprs_high, &sregs_ext->gprs_high,
+			     sizeof(&sregs_ext->gprs_high)))
 		return -EFAULT;
 	for (i = 0; i < NUM_GPRS; i++)
 		*(__u32 *)&regs->gprs[i] = gprs_high[i];
+
+	/* Restore vector registers from signal stack */
+	if (current->thread.vxrs) {
+		if (__copy_from_user(vxrs, &sregs_ext->vxrs_low,
+				     sizeof(sregs_ext->vxrs_low)) ||
+		    __copy_from_user(current->thread.vxrs + __NUM_VXRS_LOW,
+				     &sregs_ext->vxrs_high,
+				     sizeof(sregs_ext->vxrs_high)))
+			return -EFAULT;
+		for (i = 0; i < __NUM_VXRS_LOW; i++)
+			*((__u64 *)(current->thread.vxrs + i) + 1) = vxrs[i];
+	}
 	return 0;
 }
 
@@ -252,8 +310,9 @@ COMPAT_SYSCALL_DEFINE0(sigreturn)
 	set_current_blocked(&set);
 	if (restore_sigregs32(regs, &frame->sregs))
 		goto badframe;
-	if (restore_sigregs_gprs_high(regs, frame->gprs_high))
+	if (restore_sigregs_ext32(regs, &frame->sregs_ext))
 		goto badframe;
+	load_sigregs();
 	return regs->gprs[2];
 badframe:
 	force_sig(SIGSEGV, current);
@@ -269,12 +328,13 @@ COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 	set_current_blocked(&set);
+	if (compat_restore_altstack(&frame->uc.uc_stack))
+		goto badframe;
 	if (restore_sigregs32(regs, &frame->uc.uc_mcontext))
 		goto badframe;
-	if (restore_sigregs_gprs_high(regs, frame->gprs_high))
+	if (restore_sigregs_ext32(regs, &frame->uc.uc_mcontext_ext))
 		goto badframe;
-	if (compat_restore_altstack(&frame->uc.uc_stack))
-		goto badframe; 
+	load_sigregs();
 	return regs->gprs[2];
 badframe:
 	force_sig(SIGSEGV, current);
@@ -324,37 +384,64 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 			 struct pt_regs *regs)
 {
 	int sig = ksig->sig;
-	sigframe32 __user *frame = get_sigframe(&ksig->ka, regs, sizeof(sigframe32));
+	sigframe32 __user *frame;
+	struct sigcontext32 sc;
+	unsigned long restorer;
+	size_t frame_size;
 
+	/*
+	 * gprs_high are always present for 31-bit compat tasks.
+	 * The space for vector registers is only allocated if
+	 * the machine supports it
+	 */
+	frame_size = sizeof(*frame) - sizeof(frame->sregs_ext.__reserved);
+	if (!MACHINE_HAS_VX)
+		frame_size -= sizeof(frame->sregs_ext.vxrs_low) +
+			      sizeof(frame->sregs_ext.vxrs_high);
+	frame = get_sigframe(&ksig->ka, regs, frame_size);
 	if (frame == (void __user *) -1UL)
 		return -EFAULT;
-
-	if (__copy_to_user(&frame->sc.oldmask, &set->sig, _SIGMASK_COPY_SIZE32))
-		return -EFAULT;
-
-	if (save_sigregs32(regs, &frame->sregs))
-		return -EFAULT;
-	if (save_sigregs_gprs_high(regs, frame->gprs_high))
-		return -EFAULT;
-	if (__put_user((unsigned long) &frame->sregs, &frame->sc.sregs))
-		return -EFAULT;
-
-	/* Set up to return from userspace.  If provided, use a stub
-	   already in userspace.  */
-	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
-		regs->gprs[14] = (__u64 __force) ksig->ka.sa.sa_restorer | PSW32_ADDR_AMODE;
-	} else {
-		regs->gprs[14] = (__u64 __force) frame->retcode | PSW32_ADDR_AMODE;
-		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn,
-			       (u16 __force __user *)(frame->retcode)))
-			return -EFAULT;
-        }
 
 	/* Set up backchain. */
 	if (__put_user(regs->gprs[15], (unsigned int __user *) frame))
 		return -EFAULT;
 
+	/* Create struct sigcontext32 on the signal stack */
+	memcpy(&sc.oldmask, &set->sig, _SIGMASK_COPY_SIZE32);
+	sc.sregs = (__u32)(unsigned long __force) &frame->sregs;
+	if (__copy_to_user(&frame->sc, &sc, sizeof(frame->sc)))
+		return -EFAULT;
+
+	/* Store registers needed to create the signal frame */
+	store_sigregs();
+
+	/* Create _sigregs32 on the signal stack */
+	if (save_sigregs32(regs, &frame->sregs))
+		return -EFAULT;
+
+	/* Place signal number on stack to allow backtrace from handler.  */
+	if (__put_user(regs->gprs[2], (int __force __user *) &frame->signo))
+		return -EFAULT;
+
+	/* Create _sigregs_ext32 on the signal stack */
+	if (save_sigregs_ext32(regs, &frame->sregs_ext))
+		return -EFAULT;
+
+	/* Set up to return from userspace.  If provided, use a stub
+	   already in userspace.  */
+	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
+		restorer = (unsigned long __force)
+			ksig->ka.sa.sa_restorer | PSW32_ADDR_AMODE;
+	} else {
+		/* Signal frames without vectors registers are short ! */
+		__u16 __user *svc = (void *) frame + frame_size - 2;
+		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn, svc))
+			return -EFAULT;
+		restorer = (unsigned long __force) svc | PSW32_ADDR_AMODE;
+        }
+
 	/* Set up registers for signal handler */
+	regs->gprs[14] = restorer;
 	regs->gprs[15] = (__force __u64) frame;
 	/* Force 31 bit amode and default user address space control. */
 	regs->psw.mask = PSW_MASK_BA |
@@ -375,50 +462,69 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 		regs->gprs[6] = task_thread_info(current)->last_break;
 	}
 
-	/* Place signal number on stack to allow backtrace from handler.  */
-	if (__put_user(regs->gprs[2], (int __force __user *) &frame->signo))
-		return -EFAULT;
 	return 0;
 }
 
 static int setup_rt_frame32(struct ksignal *ksig, sigset_t *set,
 			    struct pt_regs *regs)
 {
-	int err = 0;
-	rt_sigframe32 __user *frame = get_sigframe(&ksig->ka, regs, sizeof(rt_sigframe32));
+	rt_sigframe32 __user *frame;
+	unsigned long restorer;
+	size_t frame_size;
+	u32 uc_flags;
 
+	frame_size = sizeof(*frame) -
+		     sizeof(frame->uc.uc_mcontext_ext.__reserved);
+	/*
+	 * gprs_high are always present for 31-bit compat tasks.
+	 * The space for vector registers is only allocated if
+	 * the machine supports it
+	 */
+	uc_flags = UC_GPRS_HIGH;
+	if (MACHINE_HAS_VX) {
+		if (current->thread.vxrs)
+			uc_flags |= UC_VXRS;
+	} else
+		frame_size -= sizeof(frame->uc.uc_mcontext_ext.vxrs_low) +
+			      sizeof(frame->uc.uc_mcontext_ext.vxrs_high);
+	frame = get_sigframe(&ksig->ka, regs, frame_size);
 	if (frame == (void __user *) -1UL)
 		return -EFAULT;
-
-	if (copy_siginfo_to_user32(&frame->info, &ksig->info))
-		return -EFAULT;
-
-	/* Create the ucontext.  */
-	err |= __put_user(UC_EXTENDED, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __compat_save_altstack(&frame->uc.uc_stack, regs->gprs[15]);
-	err |= save_sigregs32(regs, &frame->uc.uc_mcontext);
-	err |= save_sigregs_gprs_high(regs, frame->gprs_high);
-	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
-	if (err)
-		return -EFAULT;
-
-	/* Set up to return from userspace.  If provided, use a stub
-	   already in userspace.  */
-	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
-		regs->gprs[14] = (__u64 __force) ksig->ka.sa.sa_restorer | PSW32_ADDR_AMODE;
-	} else {
-		regs->gprs[14] = (__u64 __force) frame->retcode | PSW32_ADDR_AMODE;
-		if (__put_user(S390_SYSCALL_OPCODE | __NR_rt_sigreturn,
-			       (u16 __force __user *)(frame->retcode)))
-			return -EFAULT;
-	}
 
 	/* Set up backchain. */
 	if (__put_user(regs->gprs[15], (unsigned int __force __user *) frame))
 		return -EFAULT;
 
+	/* Set up to return from userspace.  If provided, use a stub
+	   already in userspace.  */
+	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
+		restorer = (unsigned long __force)
+			ksig->ka.sa.sa_restorer | PSW32_ADDR_AMODE;
+	} else {
+		__u16 __user *svc = &frame->svc_insn;
+		if (__put_user(S390_SYSCALL_OPCODE | __NR_rt_sigreturn, svc))
+			return -EFAULT;
+		restorer = (unsigned long __force) svc | PSW32_ADDR_AMODE;
+	}
+
+	/* Create siginfo on the signal stack */
+	if (copy_siginfo_to_user32(&frame->info, &ksig->info))
+		return -EFAULT;
+
+	/* Store registers needed to create the signal frame */
+	store_sigregs();
+
+	/* Create ucontext on the signal stack. */
+	if (__put_user(uc_flags, &frame->uc.uc_flags) ||
+	    __put_user(0, &frame->uc.uc_link) ||
+	    __compat_save_altstack(&frame->uc.uc_stack, regs->gprs[15]) ||
+	    save_sigregs32(regs, &frame->uc.uc_mcontext) ||
+	    __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set)) ||
+	    save_sigregs_ext32(regs, &frame->uc.uc_mcontext_ext))
+		return -EFAULT;
+
 	/* Set up registers for signal handler */
+	regs->gprs[14] = restorer;
 	regs->gprs[15] = (__force __u64) frame;
 	/* Force 31 bit amode and default user address space control. */
 	regs->psw.mask = PSW_MASK_BA |

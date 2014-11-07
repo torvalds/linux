@@ -2563,7 +2563,8 @@ xfs_da_get_buf(
 				    mapp, nmap, 0);
 	error = bp ? bp->b_error : -EIO;
 	if (error) {
-		xfs_trans_brelse(trans, bp);
+		if (bp)
+			xfs_trans_brelse(trans, bp);
 		goto out_free;
 	}
 

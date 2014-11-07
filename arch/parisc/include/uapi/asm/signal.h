@@ -8,12 +8,12 @@
 #define SIGTRAP		 5
 #define SIGABRT		 6
 #define SIGIOT		 6
-#define SIGEMT		 7
+#define SIGSTKFLT	 7
 #define SIGFPE		 8
 #define SIGKILL		 9
 #define SIGBUS		10
 #define SIGSEGV		11
-#define SIGSYS		12 /* Linux doesn't use this */
+#define SIGXCPU		12
 #define SIGPIPE		13
 #define SIGALRM		14
 #define SIGTERM		15
@@ -32,16 +32,12 @@
 #define SIGTTIN		27
 #define SIGTTOU		28
 #define SIGURG		29
-#define SIGLOST		30 /* Linux doesn't use this either */
-#define	SIGUNUSED	31
-#define SIGRESERVE	SIGUNUSED
-
-#define SIGXCPU		33
-#define SIGXFSZ		34
-#define SIGSTKFLT	36
+#define SIGXFSZ		30
+#define SIGUNUSED	31
+#define SIGSYS		31 /* Linux doesn't use this */
 
 /* These should not be considered constants from userland.  */
-#define SIGRTMIN	37
+#define SIGRTMIN	32
 #define SIGRTMAX	_NSIG /* it's 44 under HP/UX */
 
 /*

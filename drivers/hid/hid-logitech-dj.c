@@ -385,18 +385,6 @@ static void logi_dj_recv_forward_null_report(struct dj_receiver_dev *djrcv_dev,
 
 	djdev = djrcv_dev->paired_dj_devices[dj_report->device_index];
 
-	if (!djdev) {
-		dbg_hid("djrcv_dev->paired_dj_devices[dj_report->device_index]"
-			" is NULL, index %d\n", dj_report->device_index);
-		kfifo_in(&djrcv_dev->notif_fifo, dj_report, sizeof(struct dj_report));
-
-		if (schedule_work(&djrcv_dev->work) == 0) {
-			dbg_hid("%s: did not schedule the work item, was already "
-			"queued\n", __func__);
-		}
-		return;
-	}
-
 	memset(reportbuffer, 0, sizeof(reportbuffer));
 
 	for (i = 0; i < NUMBER_OF_HID_REPORTS; i++) {
@@ -420,18 +408,6 @@ static void logi_dj_recv_forward_report(struct dj_receiver_dev *djrcv_dev,
 	struct dj_device *dj_device;
 
 	dj_device = djrcv_dev->paired_dj_devices[dj_report->device_index];
-
-	if (dj_device == NULL) {
-		dbg_hid("djrcv_dev->paired_dj_devices[dj_report->device_index]"
-			" is NULL, index %d\n", dj_report->device_index);
-		kfifo_in(&djrcv_dev->notif_fifo, dj_report, sizeof(struct dj_report));
-
-		if (schedule_work(&djrcv_dev->work) == 0) {
-			dbg_hid("%s: did not schedule the work item, was already "
-			"queued\n", __func__);
-		}
-		return;
-	}
 
 	if ((dj_report->report_type > ARRAY_SIZE(hid_reportid_size_map) - 1) ||
 	    (hid_reportid_size_map[dj_report->report_type] == 0)) {
@@ -701,8 +677,17 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 	}
 
 	spin_lock_irqsave(&djrcv_dev->lock, flags);
+
+	if (!djrcv_dev->paired_dj_devices[dj_report->device_index]) {
+		/* received an event for an unknown device, bail out */
+		logi_dj_recv_queue_notification(djrcv_dev, dj_report);
+		goto out;
+	}
+
 	switch (dj_report->report_type) {
 	case REPORT_TYPE_NOTIF_DEVICE_PAIRED:
+		/* pairing notifications are handled above the switch */
+		break;
 	case REPORT_TYPE_NOTIF_DEVICE_UNPAIRED:
 		logi_dj_recv_queue_notification(djrcv_dev, dj_report);
 		break;
@@ -715,6 +700,8 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 	default:
 		logi_dj_recv_forward_report(djrcv_dev, dj_report);
 	}
+
+out:
 	spin_unlock_irqrestore(&djrcv_dev->lock, flags);
 
 	return true;

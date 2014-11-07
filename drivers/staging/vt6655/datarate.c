@@ -49,7 +49,6 @@
 
 extern unsigned short TxRate_iwconfig; /* 2008-5-8 <add> by chester */
 /*---------------------  Static Variables  --------------------------*/
-static int msglevel = MSG_LEVEL_INFO;
 static const unsigned char acbyIERate[MAX_RATE] = {
 0x02, 0x04, 0x0B, 0x16, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C
 };
@@ -195,7 +194,7 @@ RATEvParseMaxRate(
 	unsigned char *pbyTopOFDMRate
 )
 {
-	PSDevice  pDevice = (PSDevice) pDeviceHandler;
+	struct vnt_private *pDevice = pDeviceHandler;
 	unsigned int ii;
 	unsigned char byHighSuppRate = 0;
 	unsigned char byRate = 0;
@@ -208,7 +207,7 @@ RATEvParseMaxRate(
 	*pwSuppRate = 0;
 	uRateLen = pItemRates->len;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ParseMaxRate Len: %d\n", uRateLen);
+	pr_debug("ParseMaxRate Len: %d\n", uRateLen);
 	if (pDevice->eCurrentPHYType != PHY_TYPE_11B) {
 		if (uRateLen > WLAN_RATES_MAXLEN)
 			uRateLen = WLAN_RATES_MAXLEN;
@@ -222,7 +221,8 @@ RATEvParseMaxRate(
 		if (WLAN_MGMT_IS_BASICRATE(byRate) && bUpdateBasicRate)  {
 			/* Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate */
 			CARDbAddBasicRate((void *)pDevice, wGetRateIdx(byRate));
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
+			pr_debug("ParseMaxRate AddBasicRate: %d\n",
+				 wGetRateIdx(byRate));
 		}
 		byRate = (unsigned char)(pItemRates->abyRates[ii]&0x7F);
 		if (byHighSuppRate == 0)
@@ -244,7 +244,8 @@ RATEvParseMaxRate(
 			if (WLAN_MGMT_IS_BASICRATE(pItemExtRates->abyRates[ii])) {
 				/* Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate */
 				CARDbAddBasicRate((void *)pDevice, wGetRateIdx(byRate));
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
+				pr_debug("ParseMaxRate AddBasicRate: %d\n",
+					 wGetRateIdx(byRate));
 			}
 			byRate = (unsigned char)(pItemExtRates->abyRates[ii]&0x7F);
 			if (byHighSuppRate == 0)
@@ -268,7 +269,7 @@ RATEvParseMaxRate(
 	if (wOldBasicRate != pDevice->wBasicRate)
 		CARDvSetRSPINF((void *)pDevice, pDevice->eCurrentPHYType);
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Exit ParseMaxRate\n");
+	pr_debug("Exit ParseMaxRate\n");
 }
 
 /*+
@@ -295,7 +296,7 @@ RATEvTxRateFallBack(
 	PKnownNodeDB psNodeDBTable
 )
 {
-	PSDevice        pDevice = (PSDevice) pDeviceHandler;
+	struct vnt_private *pDevice = pDeviceHandler;
 	unsigned short wIdxDownRate = 0;
 	unsigned int ii;
 	bool bAutoRate[MAX_RATE]    = {true, true, true, true, false, false, true, true, true, true, true, true};

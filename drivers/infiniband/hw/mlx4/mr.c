@@ -234,14 +234,13 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 					0);
 		if (IS_ERR(mmr->umem)) {
 			err = PTR_ERR(mmr->umem);
+			/* Prevent mlx4_ib_dereg_mr from free'ing invalid pointer */
 			mmr->umem = NULL;
 			goto release_mpt_entry;
 		}
 		n = ib_umem_page_count(mmr->umem);
 		shift = ilog2(mmr->umem->page_size);
 
-		mmr->mmr.iova       = virt_addr;
-		mmr->mmr.size       = length;
 		err = mlx4_mr_rereg_mem_write(dev->dev, &mmr->mmr,
 					      virt_addr, length, n, shift,
 					      *pmpt_entry);
@@ -249,6 +248,8 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 			ib_umem_release(mmr->umem);
 			goto release_mpt_entry;
 		}
+		mmr->mmr.iova       = virt_addr;
+		mmr->mmr.size       = length;
 
 		err = mlx4_ib_umem_write_mtt(dev, &mmr->mmr.mtt, mmr->umem);
 		if (err) {
@@ -262,6 +263,8 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 	 * return a failure. But dereg_mr will free the resources.
 	 */
 	err = mlx4_mr_hw_write_mpt(dev->dev, &mmr->mmr, pmpt_entry);
+	if (!err && flags & IB_MR_REREG_ACCESS)
+		mmr->mmr.access = mr_access_flags;
 
 release_mpt_entry:
 	mlx4_mr_hw_put_mpt(dev->dev, pmpt_entry);

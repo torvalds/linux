@@ -256,22 +256,6 @@ void rtw_hal_add_ra_tid(struct adapter *adapt, u32 bitmap, u8 arg,
 					       rssi_level);
 }
 
-u32 rtw_hal_read_bbreg(struct adapter *adapt, u32 regaddr, u32 bitmask)
-{
-	u32 data = 0;
-
-	if (adapt->HalFunc.read_bbreg)
-		data = adapt->HalFunc.read_bbreg(adapt, regaddr, bitmask);
-	return data;
-}
-
-void rtw_hal_write_bbreg(struct adapter *adapt, u32 regaddr, u32 bitmask,
-			 u32 data)
-{
-	if (adapt->HalFunc.write_bbreg)
-		adapt->HalFunc.write_bbreg(adapt, regaddr, bitmask, data);
-}
-
 u32 rtw_hal_read_rfreg(struct adapter *adapt, enum rf_radio_path rfpath,
 		       u32 regaddr, u32 bitmask)
 {
@@ -352,16 +336,6 @@ u8   rtw_hal_sreset_get_wifi_status(struct adapter *adapt)
 	if (adapt->HalFunc.sreset_get_wifi_status)
 		status = adapt->HalFunc.sreset_get_wifi_status(adapt);
 	return status;
-}
-
-int rtw_hal_iol_cmd(struct adapter  *adapter, struct xmit_frame *xmit_frame,
-		    u32 max_wating_ms, u32 bndy_cnt)
-{
-	if (adapter->HalFunc.IOL_exec_cmds_sync)
-		return adapter->HalFunc.IOL_exec_cmds_sync(adapter, xmit_frame,
-							   max_wating_ms,
-							   bndy_cnt);
-	return _FAIL;
 }
 
 void rtw_hal_notch_filter(struct adapter *adapter, bool enable)

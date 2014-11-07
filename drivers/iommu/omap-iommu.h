@@ -28,7 +28,6 @@ struct iotlb_entry {
 
 struct omap_iommu {
 	const char	*name;
-	struct module	*owner;
 	void __iomem	*regbase;
 	struct device	*dev;
 	void		*isr_priv;

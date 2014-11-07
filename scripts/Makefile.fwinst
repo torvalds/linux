@@ -2,7 +2,7 @@
 # Installing firmware
 #
 # We don't include the .config, so all firmware files are in $(fw-shipped-)
-# rather than in $(fw-shipped-y) or $(fw-shipped-n).
+# rather than in $(fw-shipped-y) or $(fw-shipped-m).
 # ==========================================================================
 
 INSTALL := install

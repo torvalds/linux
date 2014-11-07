@@ -243,7 +243,7 @@ int
 i915_gem_evict_everything(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_address_space *vm;
+	struct i915_address_space *vm, *v;
 	bool lists_empty = true;
 	int ret;
 
@@ -270,7 +270,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 	i915_gem_retire_requests(dev);
 
 	/* Having flushed everything, unbind() should never raise an error */
-	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
+	list_for_each_entry_safe(vm, v, &dev_priv->vm_list, global_link)
 		WARN_ON(i915_gem_evict_vm(vm, false));
 
 	return 0;

@@ -137,7 +137,9 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[8] = "Dynamic QP updates support",
 		[9] = "Device managed flow steering IPoIB support",
 		[10] = "TCP/IP offloads/flow-steering for VXLAN support",
-		[11] = "MAD DEMUX (Secure-Host) support"
+		[11] = "MAD DEMUX (Secure-Host) support",
+		[12] = "Large cache line (>64B) CQE stride support",
+		[13] = "Large cache line (>64B) EQE stride support"
 	};
 	int i;
 
@@ -557,6 +559,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_FLOW_STEERING_IPOIB_OFFSET	0x74
 #define QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET	0x76
 #define QUERY_DEV_CAP_FLOW_STEERING_MAX_QP_OFFSET	0x77
+#define QUERY_DEV_CAP_CQ_EQ_CACHE_LINE_STRIDE	0x7a
 #define QUERY_DEV_CAP_RDMARC_ENTRY_SZ_OFFSET	0x80
 #define QUERY_DEV_CAP_QPC_ENTRY_SZ_OFFSET	0x82
 #define QUERY_DEV_CAP_AUX_ENTRY_SZ_OFFSET	0x84
@@ -733,6 +736,11 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->max_rq_sg = field;
 	MLX4_GET(size, outbox, QUERY_DEV_CAP_MAX_DESC_SZ_RQ_OFFSET);
 	dev_cap->max_rq_desc_sz = size;
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_CQ_EQ_CACHE_LINE_STRIDE);
+	if (field & (1 << 6))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_CQE_STRIDE;
+	if (field & (1 << 7))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
 
 	MLX4_GET(dev_cap->bmme_flags, outbox,
 		 QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
@@ -974,8 +982,13 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	if (port < 0)
 		return -EINVAL;
 
-	vhcr->in_modifier = (vhcr->in_modifier & ~0xFF) |
-			    (port & 0xFF);
+	/* Protect against untrusted guests: enforce that this is the
+	 * QUERY_PORT general query.
+	 */
+	if (vhcr->op_modifier || vhcr->in_modifier & ~0xFF)
+		return -EINVAL;
+
+	vhcr->in_modifier = port;
 
 	err = mlx4_cmd_box(dev, 0, outbox->dma, vhcr->in_modifier, 0,
 			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
@@ -1376,6 +1389,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #define	 INIT_HCA_CQC_BASE_OFFSET	 (INIT_HCA_QPC_OFFSET + 0x30)
 #define	 INIT_HCA_LOG_CQ_OFFSET		 (INIT_HCA_QPC_OFFSET + 0x37)
 #define	 INIT_HCA_EQE_CQE_OFFSETS	 (INIT_HCA_QPC_OFFSET + 0x38)
+#define	 INIT_HCA_EQE_CQE_STRIDE_OFFSET  (INIT_HCA_QPC_OFFSET + 0x3b)
 #define	 INIT_HCA_ALTC_BASE_OFFSET	 (INIT_HCA_QPC_OFFSET + 0x40)
 #define	 INIT_HCA_AUXC_BASE_OFFSET	 (INIT_HCA_QPC_OFFSET + 0x50)
 #define	 INIT_HCA_EQC_BASE_OFFSET	 (INIT_HCA_QPC_OFFSET + 0x60)
@@ -1452,9 +1466,23 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_64B_CQE) {
 		*(inbox + INIT_HCA_EQE_CQE_OFFSETS / 4) |= cpu_to_be32(1 << 30);
 		dev->caps.cqe_size   = 64;
-		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_64B_CQE;
+		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_LARGE_CQE;
 	} else {
 		dev->caps.cqe_size   = 32;
+	}
+
+	/* CX3 is capable of extending CQEs\EQEs to strides larger than 64B */
+	if ((dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_EQE_STRIDE) &&
+	    (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_CQE_STRIDE)) {
+		dev->caps.eqe_size = cache_line_size();
+		dev->caps.cqe_size = cache_line_size();
+		dev->caps.eqe_factor = 0;
+		MLX4_PUT(inbox, (u8)((ilog2(dev->caps.eqe_size) - 5) << 4 |
+				      (ilog2(dev->caps.eqe_size) - 5)),
+			 INIT_HCA_EQE_CQE_STRIDE_OFFSET);
+
+		/* User still need to know to support CQE > 32B */
+		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_LARGE_CQE;
 	}
 
 	/* QPC/EEC/CQC/EQC/RDMARC attributes */
@@ -1615,6 +1643,17 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 		param->dev_cap_enabled |= MLX4_DEV_CAP_64B_EQE_ENABLED;
 	if (byte_field & 0x40) /* 64-bytes cqe enabled */
 		param->dev_cap_enabled |= MLX4_DEV_CAP_64B_CQE_ENABLED;
+
+	/* CX3 is capable of extending CQEs\EQEs to strides larger than 64B */
+	MLX4_GET(byte_field, outbox, INIT_HCA_EQE_CQE_STRIDE_OFFSET);
+	if (byte_field) {
+		param->dev_cap_enabled |= MLX4_DEV_CAP_64B_EQE_ENABLED;
+		param->dev_cap_enabled |= MLX4_DEV_CAP_64B_CQE_ENABLED;
+		param->cqe_size = 1 << ((byte_field &
+					 MLX4_CQE_SIZE_MASK_STRIDE) + 5);
+		param->eqe_size = 1 << (((byte_field &
+					  MLX4_EQE_SIZE_MASK_STRIDE) >> 4) + 5);
+	}
 
 	/* TPT attributes */
 

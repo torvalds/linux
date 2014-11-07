@@ -1231,6 +1231,10 @@ clock_error:
 #define GPIO_PORT8CR	IOMEM(0xe6050008)
 static void __init eva_init(void)
 {
+	static struct pm_domain_device domain_devices[] __initdata = {
+		{ "A4LC", &lcdc0_device },
+		{ "A4LC", &hdmi_lcdc_device },
+	};
 	struct platform_device *usb = NULL;
 
 	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
@@ -1316,8 +1320,8 @@ static void __init eva_init(void)
 	platform_add_devices(eva_devices,
 			     ARRAY_SIZE(eva_devices));
 
-	rmobile_add_device_to_domain("A4LC", &lcdc0_device);
-	rmobile_add_device_to_domain("A4LC", &hdmi_lcdc_device);
+	rmobile_add_devices_to_domains(domain_devices,
+				       ARRAY_SIZE(domain_devices));
 	if (usb)
 		rmobile_add_device_to_domain("A3SP", usb);
 

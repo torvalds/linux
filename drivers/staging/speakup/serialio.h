@@ -4,7 +4,7 @@
 #include <linux/serial.h>	/* for rs_table, serial constants */
 #include <linux/serial_reg.h>	/* for more serial constants */
 #ifndef __sparc__
-#include <asm/serial.h>
+#include <linux/serial.h>
 #endif
 
 /*

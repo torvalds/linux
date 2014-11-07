@@ -98,17 +98,23 @@ static void
 nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 {
 	const bool mapped = nvbo->bo.mem.mem_type != TTM_PL_SYSTEM;
-	struct nouveau_fence *fence = NULL;
+	struct reservation_object *resv = nvbo->bo.resv;
+	struct reservation_object_list *fobj;
+	struct fence *fence = NULL;
+
+	fobj = reservation_object_get_list(resv);
 
 	list_del(&vma->head);
 
-	if (mapped) {
-		spin_lock(&nvbo->bo.bdev->fence_lock);
-		fence = nouveau_fence_ref(nvbo->bo.sync_obj);
-		spin_unlock(&nvbo->bo.bdev->fence_lock);
-	}
+	if (fobj && fobj->shared_count > 1)
+		ttm_bo_wait(&nvbo->bo, true, false, false);
+	else if (fobj && fobj->shared_count == 1)
+		fence = rcu_dereference_protected(fobj->shared[0],
+						reservation_object_held(resv));
+	else
+		fence = reservation_object_get_excl(nvbo->bo.resv);
 
-	if (fence) {
+	if (fence && mapped) {
 		nouveau_fence_work(fence, nouveau_gem_object_delete, vma);
 	} else {
 		if (mapped)
@@ -116,7 +122,6 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 		nouveau_vm_put(vma);
 		kfree(vma);
 	}
-	nouveau_fence_unref(&fence);
 }
 
 void
@@ -160,7 +165,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 		flags |= TTM_PL_FLAG_SYSTEM;
 
 	ret = nouveau_bo_new(dev, size, align, flags, tile_mode,
-			     tile_flags, NULL, pnvbo);
+			     tile_flags, NULL, NULL, pnvbo);
 	if (ret)
 		return ret;
 	nvbo = *pnvbo;
@@ -288,24 +293,23 @@ nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 }
 
 struct validate_op {
-	struct list_head vram_list;
-	struct list_head gart_list;
-	struct list_head both_list;
+	struct list_head list;
 	struct ww_acquire_ctx ticket;
 };
 
 static void
-validate_fini_list(struct list_head *list, struct nouveau_fence *fence,
-		   struct ww_acquire_ctx *ticket)
+validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence,
+			struct drm_nouveau_gem_pushbuf_bo *pbbo)
 {
-	struct list_head *entry, *tmp;
 	struct nouveau_bo *nvbo;
+	struct drm_nouveau_gem_pushbuf_bo *b;
 
-	list_for_each_safe(entry, tmp, list) {
-		nvbo = list_entry(entry, struct nouveau_bo, entry);
+	while (!list_empty(&op->list)) {
+		nvbo = list_entry(op->list.next, struct nouveau_bo, entry);
+		b = &pbbo[nvbo->pbbo_index];
 
 		if (likely(fence))
-			nouveau_bo_fence(nvbo, fence);
+			nouveau_bo_fence(nvbo, fence, !!b->write_domains);
 
 		if (unlikely(nvbo->validate_mapped)) {
 			ttm_bo_kunmap(&nvbo->kmap);
@@ -314,23 +318,16 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence,
 
 		list_del(&nvbo->entry);
 		nvbo->reserved_by = NULL;
-		ttm_bo_unreserve_ticket(&nvbo->bo, ticket);
+		ttm_bo_unreserve_ticket(&nvbo->bo, &op->ticket);
 		drm_gem_object_unreference_unlocked(&nvbo->gem);
 	}
 }
 
 static void
-validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence)
+validate_fini(struct validate_op *op, struct nouveau_fence *fence,
+	      struct drm_nouveau_gem_pushbuf_bo *pbbo)
 {
-	validate_fini_list(&op->vram_list, fence, &op->ticket);
-	validate_fini_list(&op->gart_list, fence, &op->ticket);
-	validate_fini_list(&op->both_list, fence, &op->ticket);
-}
-
-static void
-validate_fini(struct validate_op *op, struct nouveau_fence *fence)
-{
-	validate_fini_no_ticket(op, fence);
+	validate_fini_no_ticket(op, fence, pbbo);
 	ww_acquire_fini(&op->ticket);
 }
 
@@ -344,6 +341,9 @@ validate_init(struct nouveau_channel *chan, struct drm_file *file_priv,
 	int trycnt = 0;
 	int ret, i;
 	struct nouveau_bo *res_bo = NULL;
+	LIST_HEAD(gart_list);
+	LIST_HEAD(vram_list);
+	LIST_HEAD(both_list);
 
 	ww_acquire_init(&op->ticket, &reservation_ww_class);
 retry:
@@ -360,9 +360,8 @@ retry:
 		gem = drm_gem_object_lookup(dev, file_priv, b->handle);
 		if (!gem) {
 			NV_PRINTK(error, cli, "Unknown handle 0x%08x\n", b->handle);
-			ww_acquire_done(&op->ticket);
-			validate_fini(op, NULL);
-			return -ENOENT;
+			ret = -ENOENT;
+			break;
 		}
 		nvbo = nouveau_gem_object(gem);
 		if (nvbo == res_bo) {
@@ -375,14 +374,16 @@ retry:
 			NV_PRINTK(error, cli, "multiple instances of buffer %d on "
 				      "validation list\n", b->handle);
 			drm_gem_object_unreference_unlocked(gem);
-			ww_acquire_done(&op->ticket);
-			validate_fini(op, NULL);
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
 
 		ret = ttm_bo_reserve(&nvbo->bo, true, false, true, &op->ticket);
 		if (ret) {
-			validate_fini_no_ticket(op, NULL);
+			list_splice_tail_init(&vram_list, &op->list);
+			list_splice_tail_init(&gart_list, &op->list);
+			list_splice_tail_init(&both_list, &op->list);
+			validate_fini_no_ticket(op, NULL, NULL);
 			if (unlikely(ret == -EDEADLK)) {
 				ret = ttm_bo_reserve_slowpath(&nvbo->bo, true,
 							      &op->ticket);
@@ -390,12 +391,9 @@ retry:
 					res_bo = nvbo;
 			}
 			if (unlikely(ret)) {
-				ww_acquire_done(&op->ticket);
-				ww_acquire_fini(&op->ticket);
-				drm_gem_object_unreference_unlocked(gem);
 				if (ret != -ERESTARTSYS)
 					NV_PRINTK(error, cli, "fail reserve\n");
-				return ret;
+				break;
 			}
 		}
 
@@ -404,45 +402,32 @@ retry:
 		nvbo->pbbo_index = i;
 		if ((b->valid_domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
 		    (b->valid_domains & NOUVEAU_GEM_DOMAIN_GART))
-			list_add_tail(&nvbo->entry, &op->both_list);
+			list_add_tail(&nvbo->entry, &both_list);
 		else
 		if (b->valid_domains & NOUVEAU_GEM_DOMAIN_VRAM)
-			list_add_tail(&nvbo->entry, &op->vram_list);
+			list_add_tail(&nvbo->entry, &vram_list);
 		else
 		if (b->valid_domains & NOUVEAU_GEM_DOMAIN_GART)
-			list_add_tail(&nvbo->entry, &op->gart_list);
+			list_add_tail(&nvbo->entry, &gart_list);
 		else {
 			NV_PRINTK(error, cli, "invalid valid domains: 0x%08x\n",
 				 b->valid_domains);
-			list_add_tail(&nvbo->entry, &op->both_list);
-			ww_acquire_done(&op->ticket);
-			validate_fini(op, NULL);
-			return -EINVAL;
+			list_add_tail(&nvbo->entry, &both_list);
+			ret = -EINVAL;
+			break;
 		}
 		if (nvbo == res_bo)
 			goto retry;
 	}
 
 	ww_acquire_done(&op->ticket);
-	return 0;
-}
-
-static int
-validate_sync(struct nouveau_channel *chan, struct nouveau_bo *nvbo)
-{
-	struct nouveau_fence *fence = NULL;
-	int ret = 0;
-
-	spin_lock(&nvbo->bo.bdev->fence_lock);
-	fence = nouveau_fence_ref(nvbo->bo.sync_obj);
-	spin_unlock(&nvbo->bo.bdev->fence_lock);
-
-	if (fence) {
-		ret = nouveau_fence_sync(fence, chan);
-		nouveau_fence_unref(&fence);
-	}
-
+	list_splice_tail(&vram_list, &op->list);
+	list_splice_tail(&gart_list, &op->list);
+	list_splice_tail(&both_list, &op->list);
+	if (ret)
+		validate_fini(op, NULL, NULL);
 	return ret;
+
 }
 
 static int
@@ -474,9 +459,10 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 			return ret;
 		}
 
-		ret = validate_sync(chan, nvbo);
+		ret = nouveau_fence_sync(nvbo, chan, !!b->write_domains, true);
 		if (unlikely(ret)) {
-			NV_PRINTK(error, cli, "fail post-validate sync\n");
+			if (ret != -ERESTARTSYS)
+				NV_PRINTK(error, cli, "fail post-validate sync\n");
 			return ret;
 		}
 
@@ -513,11 +499,9 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 			     struct validate_op *op, int *apply_relocs)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	int ret, relocs = 0;
+	int ret;
 
-	INIT_LIST_HEAD(&op->vram_list);
-	INIT_LIST_HEAD(&op->gart_list);
-	INIT_LIST_HEAD(&op->both_list);
+	INIT_LIST_HEAD(&op->list);
 
 	if (nr_buffers == 0)
 		return 0;
@@ -529,34 +513,14 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 		return ret;
 	}
 
-	ret = validate_list(chan, cli, &op->vram_list, pbbo, user_buffers);
+	ret = validate_list(chan, cli, &op->list, pbbo, user_buffers);
 	if (unlikely(ret < 0)) {
 		if (ret != -ERESTARTSYS)
-			NV_PRINTK(error, cli, "validate vram_list\n");
-		validate_fini(op, NULL);
+			NV_PRINTK(error, cli, "validating bo list\n");
+		validate_fini(op, NULL, NULL);
 		return ret;
 	}
-	relocs += ret;
-
-	ret = validate_list(chan, cli, &op->gart_list, pbbo, user_buffers);
-	if (unlikely(ret < 0)) {
-		if (ret != -ERESTARTSYS)
-			NV_PRINTK(error, cli, "validate gart_list\n");
-		validate_fini(op, NULL);
-		return ret;
-	}
-	relocs += ret;
-
-	ret = validate_list(chan, cli, &op->both_list, pbbo, user_buffers);
-	if (unlikely(ret < 0)) {
-		if (ret != -ERESTARTSYS)
-			NV_PRINTK(error, cli, "validate both_list\n");
-		validate_fini(op, NULL);
-		return ret;
-	}
-	relocs += ret;
-
-	*apply_relocs = relocs;
+	*apply_relocs = ret;
 	return 0;
 }
 
@@ -659,9 +623,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 				data |= r->vor;
 		}
 
-		spin_lock(&nvbo->bo.bdev->fence_lock);
-		ret = ttm_bo_wait(&nvbo->bo, false, false, false);
-		spin_unlock(&nvbo->bo.bdev->fence_lock);
+		ret = ttm_bo_wait(&nvbo->bo, true, false, false);
 		if (ret) {
 			NV_PRINTK(error, cli, "reloc wait_idle failed: %d\n", ret);
 			break;
@@ -839,7 +801,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	}
 
 out:
-	validate_fini(&op, fence);
+	validate_fini(&op, fence, bo);
 	nouveau_fence_unref(&fence);
 
 out_prevalid:
@@ -884,17 +846,29 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	struct drm_gem_object *gem;
 	struct nouveau_bo *nvbo;
 	bool no_wait = !!(req->flags & NOUVEAU_GEM_CPU_PREP_NOWAIT);
-	int ret = -EINVAL;
+	bool write = !!(req->flags & NOUVEAU_GEM_CPU_PREP_WRITE);
+	int ret;
 
 	gem = drm_gem_object_lookup(dev, file_priv, req->handle);
 	if (!gem)
 		return -ENOENT;
 	nvbo = nouveau_gem_object(gem);
 
-	spin_lock(&nvbo->bo.bdev->fence_lock);
-	ret = ttm_bo_wait(&nvbo->bo, true, true, no_wait);
-	spin_unlock(&nvbo->bo.bdev->fence_lock);
+	if (no_wait)
+		ret = reservation_object_test_signaled_rcu(nvbo->bo.resv, write) ? 0 : -EBUSY;
+	else {
+		long lret;
+
+		lret = reservation_object_wait_timeout_rcu(nvbo->bo.resv, write, true, 30 * HZ);
+		if (!lret)
+			ret = -EBUSY;
+		else if (lret > 0)
+			ret = 0;
+		else
+			ret = lret;
+	}
 	drm_gem_object_unreference_unlocked(gem);
+
 	return ret;
 }
 

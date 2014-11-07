@@ -21,6 +21,12 @@ void __init cns3xxx_l2x0_init(void);
 static inline void cns3xxx_l2x0_init(void) {}
 #endif /* CONFIG_CACHE_L2X0 */
 
+#ifdef CONFIG_PCI
+extern void __init cns3xxx_pcie_init_late(void);
+#else
+static inline void __init cns3xxx_pcie_init_late(void) {}
+#endif
+
 void __init cns3xxx_map_io(void);
 void __init cns3xxx_init_irq(void);
 void cns3xxx_power_off(void);

@@ -329,8 +329,8 @@ static int exynos_dp_link_start(struct exynos_dp_device *dp)
 		return retval;
 
 	for (lane = 0; lane < lane_count; lane++)
-		buf[lane] = DP_TRAIN_PRE_EMPHASIS_0 |
-			    DP_TRAIN_VOLTAGE_SWING_400;
+		buf[lane] = DP_TRAIN_PRE_EMPH_LEVEL_0 |
+			    DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
 
 	retval = exynos_dp_write_bytes_to_dpcd(dp, DP_TRAINING_LANE0_SET,
 			lane_count, buf);
@@ -937,6 +937,8 @@ static enum drm_connector_status exynos_dp_detect(
 
 static void exynos_dp_connector_destroy(struct drm_connector *connector)
 {
+	drm_connector_unregister(connector);
+	drm_connector_cleanup(connector);
 }
 
 static struct drm_connector_funcs exynos_dp_connector_funcs = {
@@ -1353,13 +1355,8 @@ static void exynos_dp_unbind(struct device *dev, struct device *master,
 				void *data)
 {
 	struct exynos_drm_display *display = dev_get_drvdata(dev);
-	struct exynos_dp_device *dp = display->ctx;
-	struct drm_encoder *encoder = dp->encoder;
 
 	exynos_dp_dpms(display, DRM_MODE_DPMS_OFF);
-
-	encoder->funcs->destroy(encoder);
-	drm_connector_cleanup(&dp->connector);
 }
 
 static const struct component_ops exynos_dp_ops = {

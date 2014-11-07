@@ -221,7 +221,7 @@ void __init ltq_soc_init(void)
 		(request_mem_region(res_sys[2].start,
 				resource_size(&res_sys[2]),
 				res_sys[2].name) < 0))
-		pr_err("Failed to request core reources");
+		pr_err("Failed to request core resources");
 
 	status_membase = ioremap_nocache(res_status.start,
 					resource_size(&res_status));

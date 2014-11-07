@@ -36,7 +36,6 @@
 
 #include "core.h"
 #include "name_table.h"
-#include "port.h"
 #include "subscr.h"
 
 /**

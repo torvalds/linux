@@ -44,8 +44,6 @@
 
 /*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
-static int msglevel = MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -134,7 +132,7 @@ bool KeybGetKey(
 {
 	int i;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybGetKey()\n");
+	pr_debug("KeybGetKey()\n");
 
 	*pKey = NULL;
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
@@ -184,7 +182,7 @@ bool KeybSetKey(
 	unsigned char *pbyBSSID,
 	unsigned long dwKeyIndex,
 	unsigned long uKeyLength,
-	PQWORD          pKeyRSC,
+	u64 *pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
 	void __iomem *dwIoBase,
@@ -196,7 +194,7 @@ bool KeybSetKey(
 	PSKeyItem   pKey;
 	unsigned int uKeyIdx;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetKey: %lX\n", dwKeyIndex);
+	pr_debug("Enter KeybSetKey: %lX\n", dwKeyIndex);
 
 	j = (MAX_KEY_TABLE-1);
 	for (i = 0; i < (MAX_KEY_TABLE - 1); i++) {
@@ -221,7 +219,8 @@ bool KeybSetKey(
 				if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
 					// Group transmit key
 					pTable->KeyTable[i].dwGTKeyIndex = dwKeyIndex;
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Group transmit key(R)[%lX]: %d\n", pTable->KeyTable[i].dwGTKeyIndex, i);
+					pr_debug("Group transmit key(R)[%lX]: %d\n",
+						 pTable->KeyTable[i].dwGTKeyIndex, i);
 				}
 				pTable->KeyTable[i].wKeyCtl &= 0xFF0F;          // clear group key control filed
 				pTable->KeyTable[i].wKeyCtl |= (byKeyDecMode << 4);
@@ -245,24 +244,24 @@ bool KeybSetKey(
 
 			if ((dwKeyIndex & USE_KEYRSC) == 0) {
 				// RSC set by NIC
-				memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
+				pKey->KeyRSC = 0;
 			} else {
-				memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+				pKey->KeyRSC = *pKeyRSC;
 			}
 			pKey->dwTSC47_16 = 0;
 			pKey->wTSC15_0 = 0;
 
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R):\n");
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n ", pKey->bKeyValid);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: ");
+			pr_debug("KeybSetKey(R):\n");
+			pr_debug("pKey->bKeyValid: %d\n ", pKey->bKeyValid);
+			pr_debug("pKey->abyKey: ");
 			for (ii = 0; ii < pKey->uKeyLength; ii++)
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
+				pr_debug("%02x ", pKey->abyKey[ii]);
 
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
+			pr_debug("\n");
 
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwTSC47_16: %lx\n ", pKey->dwTSC47_16);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->wTSC15_0: %x\n ", pKey->wTSC15_0);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwKeyIndex: %lx\n ", pKey->dwKeyIndex);
+			pr_debug("pKey->dwTSC47_16: %lx\n ", pKey->dwTSC47_16);
+			pr_debug("pKey->wTSC15_0: %x\n ", pKey->wTSC15_0);
+			pr_debug("pKey->dwKeyIndex: %lx\n ", pKey->dwKeyIndex);
 
 			return true;
 		}
@@ -284,7 +283,8 @@ bool KeybSetKey(
 			if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
 				// Group transmit key
 				pTable->KeyTable[j].dwGTKeyIndex = dwKeyIndex;
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Group transmit key(N)[%lX]: %d\n", pTable->KeyTable[j].dwGTKeyIndex, j);
+				pr_debug("Group transmit key(N)[%lX]: %d\n",
+					 pTable->KeyTable[j].dwGTKeyIndex, j);
 			}
 			pTable->KeyTable[j].wKeyCtl &= 0xFF0F;          // clear group key control filed
 			pTable->KeyTable[j].wKeyCtl |= (byKeyDecMode << 4);
@@ -308,25 +308,25 @@ bool KeybSetKey(
 
 		if ((dwKeyIndex & USE_KEYRSC) == 0) {
 			// RSC set by NIC
-			memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
+			pKey->KeyRSC = 0;
 		} else {
-			memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+			pKey->KeyRSC = *pKeyRSC;
 		}
 		pKey->dwTSC47_16 = 0;
 		pKey->wTSC15_0 = 0;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(N):\n");
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n ", pKey->bKeyValid);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: ");
+		pr_debug("KeybSetKey(N):\n");
+		pr_debug("pKey->bKeyValid: %d\n ", pKey->bKeyValid);
+		pr_debug("pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
+		pr_debug("pKey->abyKey: ");
 		for (ii = 0; ii < pKey->uKeyLength; ii++)
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
+			pr_debug("%02x ", pKey->abyKey[ii]);
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
+		pr_debug("\n");
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwTSC47_16: %lx\n ", pKey->dwTSC47_16);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->wTSC15_0: %x\n ", pKey->wTSC15_0);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwKeyIndex: %lx\n ", pKey->dwKeyIndex);
+		pr_debug("pKey->dwTSC47_16: %lx\n ", pKey->dwTSC47_16);
+		pr_debug("pKey->wTSC15_0: %x\n ", pKey->wTSC15_0);
+		pr_debug("pKey->dwKeyIndex: %lx\n ", pKey->dwKeyIndex);
 
 		return true;
 	}
@@ -511,48 +511,51 @@ bool KeybGetTransmitKey(
 				if (pTable->KeyTable[i].PairwiseKey.bKeyValid) {
 					*pKey = &(pTable->KeyTable[i].PairwiseKey);
 
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybGetTransmitKey:");
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PAIRWISE_KEY: KeyTable.abyBSSID: ");
+					pr_debug("KeybGetTransmitKey:");
+					pr_debug("PAIRWISE_KEY: KeyTable.abyBSSID: ");
 					for (ii = 0; ii < 6; ii++)
-						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%x ", pTable->KeyTable[i].abyBSSID[ii]);
+						pr_debug("%x ",
+							 pTable->KeyTable[i].abyBSSID[ii]);
 
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
+					pr_debug("\n");
 
 					return true;
 				} else {
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PairwiseKey.bKeyValid == false\n");
+					pr_debug("PairwiseKey.bKeyValid == false\n");
 					return false;
 				}
 			} // End of Type == PAIRWISE
 			else {
 				if (pTable->KeyTable[i].dwGTKeyIndex == 0) {
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ERROR: dwGTKeyIndex == 0 !!!\n");
+					pr_debug("ERROR: dwGTKeyIndex == 0 !!!\n");
 					return false;
 				}
 				if (pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)].bKeyValid) {
 					*pKey = &(pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)]);
 
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybGetTransmitKey:");
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GROUP_KEY: KeyTable.abyBSSID\n");
+					pr_debug("KeybGetTransmitKey:");
+					pr_debug("GROUP_KEY: KeyTable.abyBSSID\n");
 					for (ii = 0; ii < 6; ii++)
-						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%x ", pTable->KeyTable[i].abyBSSID[ii]);
+						pr_debug("%x ",
+							 pTable->KeyTable[i].abyBSSID[ii]);
 
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dwGTKeyIndex: %lX\n", pTable->KeyTable[i].dwGTKeyIndex);
+					pr_debug("\n");
+					pr_debug("dwGTKeyIndex: %lX\n",
+						 pTable->KeyTable[i].dwGTKeyIndex);
 
 					return true;
 				} else {
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GroupKey.bKeyValid == false\n");
+					pr_debug("GroupKey.bKeyValid == false\n");
 					return false;
 				}
 			} // End of Type = GROUP
 		} // BSSID match
 	}
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ERROR: NO Match BSSID !!! ");
+	pr_debug("ERROR: NO Match BSSID !!! ");
 	for (ii = 0; ii < 6; ii++)
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", *(pbyBSSID+ii));
+		pr_debug("%02x ", *(pbyBSSID+ii));
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
+	pr_debug("\n");
 	return false;
 }
 
@@ -606,7 +609,7 @@ bool KeybSetDefaultKey(
 	PSKeyManagement pTable,
 	unsigned long dwKeyIndex,
 	unsigned long uKeyLength,
-	PQWORD          pKeyRSC,
+	u64 *pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
 	void __iomem *dwIoBase,
@@ -617,7 +620,8 @@ bool KeybSetDefaultKey(
 	PSKeyItem   pKey;
 	unsigned int uKeyIdx;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetDefaultKey: %1x, %d\n", (int)dwKeyIndex, (int)uKeyLength);
+	pr_debug("Enter KeybSetDefaultKey: %1x, %d\n",
+		 (int)dwKeyIndex, (int)uKeyLength);
 
 	if ((dwKeyIndex & PAIRWISE_KEY) != 0) // Pairwise key
 		return false;
@@ -636,7 +640,9 @@ bool KeybSetDefaultKey(
 	if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
 		// Group transmit key
 		pTable->KeyTable[MAX_KEY_TABLE-1].dwGTKeyIndex = dwKeyIndex;
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Group transmit key(R)[%lX]: %d\n", pTable->KeyTable[MAX_KEY_TABLE-1].dwGTKeyIndex, MAX_KEY_TABLE-1);
+		pr_debug("Group transmit key(R)[%lX]: %d\n",
+			 pTable->KeyTable[MAX_KEY_TABLE-1].dwGTKeyIndex,
+			 MAX_KEY_TABLE-1);
 
 	}
 	pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl &= 0x7F00;          // clear all key control filed
@@ -669,25 +675,25 @@ bool KeybSetDefaultKey(
 
 	if ((dwKeyIndex & USE_KEYRSC) == 0) {
 		// RSC set by NIC
-		memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
+		pKey->KeyRSC = 0;
 	} else {
-		memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+		pKey->KeyRSC = *pKeyRSC;
 	}
 	pKey->dwTSC47_16 = 0;
 	pKey->wTSC15_0 = 0;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R):\n");
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n", pKey->bKeyValid);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n", (int)pKey->uKeyLength);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey:\n");
+	pr_debug("KeybSetKey(R):\n");
+	pr_debug("pKey->bKeyValid: %d\n", pKey->bKeyValid);
+	pr_debug("pKey->uKeyLength: %d\n", (int)pKey->uKeyLength);
+	pr_debug("pKey->abyKey:\n");
 	for (ii = 0; ii < pKey->uKeyLength; ii++)
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%x", pKey->abyKey[ii]);
+		pr_debug("%x", pKey->abyKey[ii]);
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
+	pr_debug("\n");
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwTSC47_16: %lx\n", pKey->dwTSC47_16);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->wTSC15_0: %x\n", pKey->wTSC15_0);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwKeyIndex: %lx\n", pKey->dwKeyIndex);
+	pr_debug("pKey->dwTSC47_16: %lx\n", pKey->dwTSC47_16);
+	pr_debug("pKey->wTSC15_0: %x\n", pKey->wTSC15_0);
+	pr_debug("pKey->dwKeyIndex: %lx\n", pKey->dwKeyIndex);
 
 	return true;
 }
@@ -712,7 +718,7 @@ bool KeybSetAllGroupKey(
 	PSKeyManagement pTable,
 	unsigned long dwKeyIndex,
 	unsigned long uKeyLength,
-	PQWORD          pKeyRSC,
+	u64 *pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
 	void __iomem *dwIoBase,
@@ -724,7 +730,7 @@ bool KeybSetAllGroupKey(
 	PSKeyItem   pKey;
 	unsigned int uKeyIdx;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetAllGroupKey: %lX\n", dwKeyIndex);
+	pr_debug("Enter KeybSetAllGroupKey: %lX\n", dwKeyIndex);
 
 	if ((dwKeyIndex & PAIRWISE_KEY) != 0) // Pairwise key
 		return false;
@@ -739,7 +745,8 @@ bool KeybSetAllGroupKey(
 			if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
 				// Group transmit key
 				pTable->KeyTable[i].dwGTKeyIndex = dwKeyIndex;
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Group transmit key(R)[%lX]: %d\n", pTable->KeyTable[i].dwGTKeyIndex, i);
+				pr_debug("Group transmit key(R)[%lX]: %d\n",
+					 pTable->KeyTable[i].dwGTKeyIndex, i);
 
 			}
 			pTable->KeyTable[i].wKeyCtl &= 0xFF0F;          // clear group key control filed
@@ -764,21 +771,22 @@ bool KeybSetAllGroupKey(
 
 			if ((dwKeyIndex & USE_KEYRSC) == 0) {
 				// RSC set by NIC
-				memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
+				pKey->KeyRSC = 0;
 			} else {
-				memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+				pKey->KeyRSC = *pKeyRSC;
 			}
 			pKey->dwTSC47_16 = 0;
 			pKey->wTSC15_0 = 0;
 
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R):\n");
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n ", pKey->bKeyValid);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: ");
+			pr_debug("KeybSetKey(R):\n");
+			pr_debug("pKey->bKeyValid: %d\n ", pKey->bKeyValid);
+			pr_debug("pKey->uKeyLength: %d\n ",
+				 (int)pKey->uKeyLength);
+			pr_debug("pKey->abyKey: ");
 			for (ii = 0; ii < pKey->uKeyLength; ii++)
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
+				pr_debug("%02x ", pKey->abyKey[ii]);
 
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
+			pr_debug("\n");
 
 		} // (pTable->KeyTable[i].bInUse == true)
 	}

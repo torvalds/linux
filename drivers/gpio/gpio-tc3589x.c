@@ -300,6 +300,11 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	gpiochip_set_chained_irqchip(&tc3589x_gpio->chip,
+				     &tc3589x_gpio_irq_chip,
+				     irq,
+				     NULL);
+
 	if (pdata && pdata->setup)
 		pdata->setup(tc3589x, tc3589x_gpio->chip.base);
 

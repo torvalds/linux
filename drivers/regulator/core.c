@@ -102,7 +102,7 @@ static int _regulator_disable(struct regulator_dev *rdev);
 static int _regulator_get_voltage(struct regulator_dev *rdev);
 static int _regulator_get_current_limit(struct regulator_dev *rdev);
 static unsigned int _regulator_get_mode(struct regulator_dev *rdev);
-static void _notifier_call_chain(struct regulator_dev *rdev,
+static int _notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data);
 static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV);
@@ -839,7 +839,7 @@ static void print_constraints(struct regulator_dev *rdev)
 static int machine_constraints_voltage(struct regulator_dev *rdev,
 	struct regulation_constraints *constraints)
 {
-	struct regulator_ops *ops = rdev->desc->ops;
+	const struct regulator_ops *ops = rdev->desc->ops;
 	int ret;
 
 	/* do we need to apply the constraint voltage */
@@ -938,7 +938,7 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 static int machine_constraints_current(struct regulator_dev *rdev,
 	struct regulation_constraints *constraints)
 {
-	struct regulator_ops *ops = rdev->desc->ops;
+	const struct regulator_ops *ops = rdev->desc->ops;
 	int ret;
 
 	if (!constraints->min_uA && !constraints->max_uA)
@@ -982,7 +982,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	const struct regulation_constraints *constraints)
 {
 	int ret = 0;
-	struct regulator_ops *ops = rdev->desc->ops;
+	const struct regulator_ops *ops = rdev->desc->ops;
 
 	if (constraints)
 		rdev->constraints = kmemdup(constraints, sizeof(*constraints),
@@ -1759,6 +1759,45 @@ static int regulator_ena_gpio_ctrl(struct regulator_dev *rdev, bool enable)
 	return 0;
 }
 
+/**
+ * _regulator_enable_delay - a delay helper function
+ * @delay: time to delay in microseconds
+ *
+ * Delay for the requested amount of time as per the guidelines in:
+ *
+ *     Documentation/timers/timers-howto.txt
+ *
+ * The assumption here is that regulators will never be enabled in
+ * atomic context and therefore sleeping functions can be used.
+ */
+static void _regulator_enable_delay(unsigned int delay)
+{
+	unsigned int ms = delay / 1000;
+	unsigned int us = delay % 1000;
+
+	if (ms > 0) {
+		/*
+		 * For small enough values, handle super-millisecond
+		 * delays in the usleep_range() call below.
+		 */
+		if (ms < 20)
+			us += ms * 1000;
+		else
+			msleep(ms);
+	}
+
+	/*
+	 * Give the scheduler some room to coalesce with any other
+	 * wakeup sources. For delays shorter than 10 us, don't even
+	 * bother setting up high-resolution timers and just busy-
+	 * loop.
+	 */
+	if (us >= 10)
+		usleep_range(us, us + 100);
+	else
+		udelay(us);
+}
+
 static int _regulator_do_enable(struct regulator_dev *rdev)
 {
 	int ret, delay;
@@ -1773,6 +1812,31 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 	}
 
 	trace_regulator_enable(rdev_get_name(rdev));
+
+	if (rdev->desc->off_on_delay) {
+		/* if needed, keep a distance of off_on_delay from last time
+		 * this regulator was disabled.
+		 */
+		unsigned long start_jiffy = jiffies;
+		unsigned long intended, max_delay, remaining;
+
+		max_delay = usecs_to_jiffies(rdev->desc->off_on_delay);
+		intended = rdev->last_off_jiffy + max_delay;
+
+		if (time_before(start_jiffy, intended)) {
+			/* calc remaining jiffies to deal with one-time
+			 * timer wrapping.
+			 * in case of multiple timer wrapping, either it can be
+			 * detected by out-of-range remaining, or it cannot be
+			 * detected and we gets a panelty of
+			 * _regulator_enable_delay().
+			 */
+			remaining = intended - start_jiffy;
+			if (remaining <= max_delay)
+				_regulator_enable_delay(
+						jiffies_to_usecs(remaining));
+		}
+	}
 
 	if (rdev->ena_pin) {
 		ret = regulator_ena_gpio_ctrl(rdev, true);
@@ -1792,40 +1856,7 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 	 * together.  */
 	trace_regulator_enable_delay(rdev_get_name(rdev));
 
-	/*
-	 * Delay for the requested amount of time as per the guidelines in:
-	 *
-	 *     Documentation/timers/timers-howto.txt
-	 *
-	 * The assumption here is that regulators will never be enabled in
-	 * atomic context and therefore sleeping functions can be used.
-	 */
-	if (delay) {
-		unsigned int ms = delay / 1000;
-		unsigned int us = delay % 1000;
-
-		if (ms > 0) {
-			/*
-			 * For small enough values, handle super-millisecond
-			 * delays in the usleep_range() call below.
-			 */
-			if (ms < 20)
-				us += ms * 1000;
-			else
-				msleep(ms);
-		}
-
-		/*
-		 * Give the scheduler some room to coalesce with any other
-		 * wakeup sources. For delays shorter than 10 us, don't even
-		 * bother setting up high-resolution timers and just busy-
-		 * loop.
-		 */
-		if (us >= 10)
-			usleep_range(us, us + 100);
-		else
-			udelay(us);
-	}
+	_regulator_enable_delay(delay);
 
 	trace_regulator_enable_complete(rdev_get_name(rdev));
 
@@ -1918,6 +1949,12 @@ static int _regulator_do_disable(struct regulator_dev *rdev)
 		if (ret != 0)
 			return ret;
 	}
+
+	/* cares about last_off_jiffy only if off_on_delay is required by
+	 * device.
+	 */
+	if (rdev->desc->off_on_delay)
+		rdev->last_off_jiffy = jiffies;
 
 	trace_regulator_disable_complete(rdev_get_name(rdev));
 
@@ -2208,9 +2245,9 @@ EXPORT_SYMBOL_GPL(regulator_count_voltages);
  */
 int regulator_list_voltage(struct regulator *regulator, unsigned selector)
 {
-	struct regulator_dev	*rdev = regulator->rdev;
-	struct regulator_ops	*ops = rdev->desc->ops;
-	int			ret;
+	struct regulator_dev *rdev = regulator->rdev;
+	const struct regulator_ops *ops = rdev->desc->ops;
+	int ret;
 
 	if (rdev->desc->fixed_uV && rdev->desc->n_voltages == 1 && !selector)
 		return rdev->desc->fixed_uV;
@@ -2270,8 +2307,8 @@ int regulator_get_hardware_vsel_register(struct regulator *regulator,
 					 unsigned *vsel_reg,
 					 unsigned *vsel_mask)
 {
-	struct regulator_dev	*rdev = regulator->rdev;
-	struct regulator_ops	*ops = rdev->desc->ops;
+	struct regulator_dev *rdev = regulator->rdev;
+	const struct regulator_ops *ops = rdev->desc->ops;
 
 	if (ops->set_voltage_sel != regulator_set_voltage_sel_regmap)
 		return -EOPNOTSUPP;
@@ -2297,8 +2334,8 @@ EXPORT_SYMBOL_GPL(regulator_get_hardware_vsel_register);
 int regulator_list_hardware_vsel(struct regulator *regulator,
 				 unsigned selector)
 {
-	struct regulator_dev	*rdev = regulator->rdev;
-	struct regulator_ops	*ops = rdev->desc->ops;
+	struct regulator_dev *rdev = regulator->rdev;
+	const struct regulator_ops *ops = rdev->desc->ops;
 
 	if (selector >= rdev->desc->n_voltages)
 		return -EINVAL;
@@ -2369,6 +2406,55 @@ int regulator_is_supported_voltage(struct regulator *regulator,
 }
 EXPORT_SYMBOL_GPL(regulator_is_supported_voltage);
 
+static int _regulator_call_set_voltage(struct regulator_dev *rdev,
+				       int min_uV, int max_uV,
+				       unsigned *selector)
+{
+	struct pre_voltage_change_data data;
+	int ret;
+
+	data.old_uV = _regulator_get_voltage(rdev);
+	data.min_uV = min_uV;
+	data.max_uV = max_uV;
+	ret = _notifier_call_chain(rdev, REGULATOR_EVENT_PRE_VOLTAGE_CHANGE,
+				   &data);
+	if (ret & NOTIFY_STOP_MASK)
+		return -EINVAL;
+
+	ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV, selector);
+	if (ret >= 0)
+		return ret;
+
+	_notifier_call_chain(rdev, REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE,
+			     (void *)data.old_uV);
+
+	return ret;
+}
+
+static int _regulator_call_set_voltage_sel(struct regulator_dev *rdev,
+					   int uV, unsigned selector)
+{
+	struct pre_voltage_change_data data;
+	int ret;
+
+	data.old_uV = _regulator_get_voltage(rdev);
+	data.min_uV = uV;
+	data.max_uV = uV;
+	ret = _notifier_call_chain(rdev, REGULATOR_EVENT_PRE_VOLTAGE_CHANGE,
+				   &data);
+	if (ret & NOTIFY_STOP_MASK)
+		return -EINVAL;
+
+	ret = rdev->desc->ops->set_voltage_sel(rdev, selector);
+	if (ret >= 0)
+		return ret;
+
+	_notifier_call_chain(rdev, REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE,
+			     (void *)data.old_uV);
+
+	return ret;
+}
+
 static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV)
 {
@@ -2396,8 +2482,8 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	}
 
 	if (rdev->desc->ops->set_voltage) {
-		ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV,
-						   &selector);
+		ret = _regulator_call_set_voltage(rdev, min_uV, max_uV,
+						  &selector);
 
 		if (ret >= 0) {
 			if (rdev->desc->ops->list_voltage)
@@ -2432,8 +2518,8 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				if (old_selector == selector)
 					ret = 0;
 				else
-					ret = rdev->desc->ops->set_voltage_sel(
-								rdev, ret);
+					ret = _regulator_call_set_voltage_sel(
+						rdev, best_val, selector);
 			} else {
 				ret = -EINVAL;
 			}
@@ -2572,8 +2658,8 @@ EXPORT_SYMBOL_GPL(regulator_set_voltage);
 int regulator_set_voltage_time(struct regulator *regulator,
 			       int old_uV, int new_uV)
 {
-	struct regulator_dev	*rdev = regulator->rdev;
-	struct regulator_ops	*ops = rdev->desc->ops;
+	struct regulator_dev *rdev = regulator->rdev;
+	const struct regulator_ops *ops = rdev->desc->ops;
 	int old_sel = -1;
 	int new_sel = -1;
 	int voltage;
@@ -3079,11 +3165,11 @@ EXPORT_SYMBOL_GPL(regulator_unregister_notifier);
 /* notify regulator consumers and downstream regulator consumers.
  * Note mutex must be held by caller.
  */
-static void _notifier_call_chain(struct regulator_dev *rdev,
+static int _notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data)
 {
 	/* call rdev chain first */
-	blocking_notifier_call_chain(&rdev->notifier, event, data);
+	return blocking_notifier_call_chain(&rdev->notifier, event, data);
 }
 
 /**
@@ -3336,9 +3422,9 @@ EXPORT_SYMBOL_GPL(regulator_mode_to_status);
  */
 static int add_regulator_attributes(struct regulator_dev *rdev)
 {
-	struct device		*dev = &rdev->dev;
-	struct regulator_ops	*ops = rdev->desc->ops;
-	int			status = 0;
+	struct device *dev = &rdev->dev;
+	const struct regulator_ops *ops = rdev->desc->ops;
+	int status = 0;
 
 	/* some attributes need specific methods to be displayed */
 	if ((ops->get_voltage && ops->get_voltage(rdev) >= 0) ||
@@ -3516,11 +3602,16 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		return ERR_PTR(-EINVAL);
 	}
 
-	init_data = config->init_data;
-
 	rdev = kzalloc(sizeof(struct regulator_dev), GFP_KERNEL);
 	if (rdev == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	init_data = regulator_of_get_init_data(dev, regulator_desc,
+					       &rdev->dev.of_node);
+	if (!init_data) {
+		init_data = config->init_data;
+		rdev->dev.of_node = of_node_get(config->of_node);
+	}
 
 	mutex_lock(&regulator_list_mutex);
 
@@ -3548,7 +3639,6 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 	/* register with sysfs */
 	rdev->dev.class = &regulator_class;
-	rdev->dev.of_node = of_node_get(config->of_node);
 	rdev->dev.parent = dev;
 	dev_set_name(&rdev->dev, "regulator.%d",
 		     atomic_inc_return(&regulator_no) - 1);
@@ -3905,7 +3995,7 @@ core_initcall(regulator_init);
 static int __init regulator_init_complete(void)
 {
 	struct regulator_dev *rdev;
-	struct regulator_ops *ops;
+	const struct regulator_ops *ops;
 	struct regulation_constraints *c;
 	int enabled, ret;
 

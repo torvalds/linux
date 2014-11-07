@@ -171,7 +171,6 @@ struct me_private_data {
 	unsigned short control_1;	/* Mirror of CONTROL_1 register */
 	unsigned short control_2;	/* Mirror of CONTROL_2 register */
 	unsigned short dac_control;	/* Mirror of the DAC_CONTROL register */
-	int ao_readback[4];	/* Mirror of analog output data */
 };
 
 static inline void sleep(unsigned sec)
@@ -325,6 +324,7 @@ static int me_ao_insn_write(struct comedi_device *dev,
 	struct me_private_data *dev_private = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int rang = CR_RANGE(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
 
 	/* Enable all DAC */
@@ -353,28 +353,14 @@ static int me_ao_insn_write(struct comedi_device *dev,
 
 	/* Set data register */
 	for (i = 0; i < insn->n; i++) {
-		writew((data[0] & s->maxdata),
-		       dev->mmio + ME_DAC_DATA_A + (chan << 1));
-		dev_private->ao_readback[chan] = (data[0] & s->maxdata);
+		val = data[i];
+
+		writew(val, dev->mmio + ME_DAC_DATA_A + (chan << 1));
 	}
+	s->readback[chan] = val;
 
 	/* Update dac with data registers */
 	readw(dev->mmio + ME_DAC_UPDATE);
-
-	return insn->n;
-}
-
-static int me_ao_insn_read(struct comedi_device *dev,
-			   struct comedi_subdevice *s,
-			   struct comedi_insn *insn,
-			   unsigned int *data)
-{
-	struct me_private_data *dev_private = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = dev_private->ao_readback[chan];
 
 	return insn->n;
 }
@@ -530,8 +516,12 @@ static int me_auto_attach(struct comedi_device *dev,
 		s->maxdata	= 0x0fff;
 		s->len_chanlist	= 4;
 		s->range_table	= &me_ao_range;
-		s->insn_read	= me_ao_insn_read;
 		s->insn_write	= me_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -554,14 +544,12 @@ static void me_detach(struct comedi_device *dev)
 	struct me_private_data *dev_private = dev->private;
 
 	if (dev_private) {
-		if (dev->mmio) {
+		if (dev->mmio)
 			me_reset(dev);
-			iounmap(dev->mmio);
-		}
 		if (dev_private->plx_regbase)
 			iounmap(dev_private->plx_regbase);
 	}
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver me_daq_driver = {

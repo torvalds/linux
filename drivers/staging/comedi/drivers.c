@@ -4,6 +4,7 @@
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1997-2000 David A. Schleef <ds@schleef.org>
+    Copyright (C) 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -96,6 +97,22 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_subdevices);
 
+/**
+ * comedi_alloc_subdev_readback() - Allocate memory for the subdevice readback.
+ * @s: comedi_subdevice struct
+ */
+int comedi_alloc_subdev_readback(struct comedi_subdevice *s)
+{
+	if (!s->n_chan)
+		return -EINVAL;
+
+	s->readback = kcalloc(s->n_chan, sizeof(*s->readback), GFP_KERNEL);
+	if (!s->readback)
+		return -ENOMEM;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(comedi_alloc_subdev_readback);
+
 static void comedi_device_detach_cleanup(struct comedi_device *dev)
 {
 	int i;
@@ -111,6 +128,7 @@ static void comedi_device_detach_cleanup(struct comedi_device *dev)
 				comedi_buf_alloc(dev, s, 0);
 				kfree(s->async);
 			}
+			kfree(s->readback);
 		}
 		kfree(dev->subdevices);
 		dev->subdevices = NULL;
@@ -155,6 +173,31 @@ int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	return -EINVAL;
 }
+
+/**
+ * comedi_readback_insn_read() - A generic (*insn_read) for subdevice readback.
+ * @dev: comedi_device struct
+ * @s: comedi_subdevice struct
+ * @insn: comedi_insn struct
+ * @data: pointer to return the readback data
+ */
+int comedi_readback_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
+
+	if (!s->readback)
+		return -EINVAL;
+
+	for (i = 0; i < insn->n; i++)
+		data[i] = s->readback[chan];
+
+	return insn->n;
+}
+EXPORT_SYMBOL_GPL(comedi_readback_insn_read);
 
 /**
  * comedi_timeout() - busy-wait for a driver condition to occur.
@@ -247,6 +290,100 @@ unsigned int comedi_dio_update_state(struct comedi_subdevice *s,
 	return mask;
 }
 EXPORT_SYMBOL_GPL(comedi_dio_update_state);
+
+/**
+ * comedi_bytes_per_scan - get length of asynchronous command "scan" in bytes
+ * @s: comedi_subdevice struct
+ *
+ * Determines the overall scan length according to the subdevice type and the
+ * number of channels in the scan.
+ *
+ * For digital input, output or input/output subdevices, samples for multiple
+ * channels are assumed to be packed into one or more unsigned short or
+ * unsigned int values according to the subdevice's SDF_LSAMPL flag.  For other
+ * types of subdevice, samples are assumed to occupy a whole unsigned short or
+ * unsigned int according to the SDF_LSAMPL flag.
+ *
+ * Returns the overall scan length in bytes.
+ */
+unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s)
+{
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int num_samples;
+	unsigned int bits_per_sample;
+
+	switch (s->type) {
+	case COMEDI_SUBD_DI:
+	case COMEDI_SUBD_DO:
+	case COMEDI_SUBD_DIO:
+		bits_per_sample = 8 * bytes_per_sample(s);
+		num_samples = (cmd->chanlist_len + bits_per_sample - 1) /
+				bits_per_sample;
+		break;
+	default:
+		num_samples = cmd->chanlist_len;
+		break;
+	}
+	return num_samples * bytes_per_sample(s);
+}
+EXPORT_SYMBOL_GPL(comedi_bytes_per_scan);
+
+/**
+ * comedi_inc_scan_progress - update scan progress in asynchronous command
+ * @s: comedi_subdevice struct
+ * @num_bytes: amount of data in bytes to increment scan progress
+ *
+ * Increments the scan progress by the number of bytes specified by num_bytes.
+ * If the scan progress reaches or exceeds the scan length in bytes, reduce
+ * it modulo the scan length in bytes and set the "end of scan" asynchronous
+ * event flag to be processed later.
+ */
+void comedi_inc_scan_progress(struct comedi_subdevice *s,
+			      unsigned int num_bytes)
+{
+	struct comedi_async *async = s->async;
+	unsigned int scan_length = comedi_bytes_per_scan(s);
+
+	async->scan_progress += num_bytes;
+	if (async->scan_progress >= scan_length) {
+		async->scan_progress %= scan_length;
+		async->events |= COMEDI_CB_EOS;
+	}
+}
+EXPORT_SYMBOL_GPL(comedi_inc_scan_progress);
+
+/**
+ * comedi_handle_events - handle events and possibly stop acquisition
+ * @dev: comedi_device struct
+ * @s: comedi_subdevice struct
+ *
+ * Handles outstanding asynchronous acquisition event flags associated
+ * with the subdevice.  Call the subdevice's "->cancel()" handler if the
+ * "end of acquisition", "error" or "overflow" event flags are set in order
+ * to stop the acquisition at the driver level.
+ *
+ * Calls comedi_event() to further process the event flags, which may mark
+ * the asynchronous command as no longer running, possibly terminated with
+ * an error, and may wake up tasks.
+ *
+ * Return a bit-mask of the handled events.
+ */
+unsigned int comedi_handle_events(struct comedi_device *dev,
+				  struct comedi_subdevice *s)
+{
+	unsigned int events = s->async->events;
+
+	if (events == 0)
+		return events;
+
+	if (events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
+		s->cancel(dev, s);
+
+	comedi_event(dev, s);
+
+	return events;
+}
+EXPORT_SYMBOL_GPL(comedi_handle_events);
 
 static int insn_rw_emulate_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,

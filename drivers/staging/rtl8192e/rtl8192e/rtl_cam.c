@@ -53,6 +53,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 	u8 SECR_value = 0x0;
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
+
 	SECR_value = SCR_TxEncEnable | SCR_RxDecEnable;
 	if (((KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
 	     (KEY_TYPE_WEP104 == ieee->pairwise_key_type)) &&
@@ -84,6 +85,7 @@ void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
+
 	RT_TRACE(COMP_DBG, "===========>%s():EntryNo is %d,KeyIndex is "
 		 "%d,KeyType is %d,is_mesh is %d\n", __func__, EntryNo,
 		 KeyIndex, KeyType, is_mesh);
@@ -106,6 +108,7 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	u8 i;
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	enum rt_rf_power_state rtState;
+
 	rtState = priv->rtllib->eRFPowerState;
 	if (priv->rtllib->PowerSaveControl.bInactivePs) {
 		if (rtState == eRfOff) {
@@ -171,6 +174,7 @@ void CAM_read_entry(struct net_device *dev, u32 iIndex)
 	u8 entry_i = 0;
 	u32 ulStatus;
 	s32 i = 100;
+
 	for (entry_i = 0; entry_i < CAM_CONTENT_COUNT; entry_i++) {
 		target_command = entry_i+CAM_CONTENT_COUNT*iIndex;
 		target_command = target_command | BIT31;

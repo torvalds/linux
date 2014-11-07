@@ -48,7 +48,7 @@ int  nouveau_client_init(struct nouveau_client *);
 int  nouveau_client_fini(struct nouveau_client *, bool suspend);
 const char *nouveau_client_name(void *obj);
 
-int nvkm_client_notify_new(struct nouveau_client *, struct nvkm_event *,
+int nvkm_client_notify_new(struct nouveau_object *, struct nvkm_event *,
 			   void *data, u32 size);
 int nvkm_client_notify_del(struct nouveau_client *, int index);
 int nvkm_client_notify_get(struct nouveau_client *, int index);

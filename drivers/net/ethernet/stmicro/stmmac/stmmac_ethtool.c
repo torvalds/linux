@@ -261,10 +261,10 @@ static int stmmac_ethtool_getsettings(struct net_device *dev,
 		ethtool_cmd_speed_set(cmd, priv->xstats.pcs_speed);
 
 		/* Get and convert ADV/LP_ADV from the HW AN registers */
-		if (priv->hw->mac->get_adv)
-			priv->hw->mac->get_adv(priv->hw, &adv);
-		else
+		if (!priv->hw->mac->get_adv)
 			return -EOPNOTSUPP;	/* should never happen indeed */
+
+		priv->hw->mac->get_adv(priv->hw, &adv);
 
 		/* Encoding of PSE bits is defined in 802.3z, 37.2.1.4 */
 
@@ -340,19 +340,17 @@ static int stmmac_ethtool_setsettings(struct net_device *dev,
 		if (cmd->autoneg != AUTONEG_ENABLE)
 			return -EINVAL;
 
-		if (cmd->autoneg == AUTONEG_ENABLE) {
-			mask &= (ADVERTISED_1000baseT_Half |
+		mask &= (ADVERTISED_1000baseT_Half |
 			ADVERTISED_1000baseT_Full |
 			ADVERTISED_100baseT_Half |
 			ADVERTISED_100baseT_Full |
 			ADVERTISED_10baseT_Half |
 			ADVERTISED_10baseT_Full);
 
-			spin_lock(&priv->lock);
-			if (priv->hw->mac->ctrl_ane)
-				priv->hw->mac->ctrl_ane(priv->hw, 1);
-			spin_unlock(&priv->lock);
-		}
+		spin_lock(&priv->lock);
+		if (priv->hw->mac->ctrl_ane)
+			priv->hw->mac->ctrl_ane(priv->hw, 1);
+		spin_unlock(&priv->lock);
 
 		return 0;
 	}

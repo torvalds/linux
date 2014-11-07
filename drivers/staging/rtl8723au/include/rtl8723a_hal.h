@@ -280,10 +280,6 @@ struct hal_data_8723a {
 	/*  EEPROM setting. */
 	/*  */
 	u8	EEPROMVersion;
-	u16	EEPROMVID;
-	u16	EEPROMPID;
-	u16	EEPROMSVID;
-	u16	EEPROMSDID;
 	u8	EEPROMCustomerID;
 	u8	EEPROMSubCustomerID;
 	u8	EEPROMRegulatory;

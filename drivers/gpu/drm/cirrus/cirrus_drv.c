@@ -32,6 +32,8 @@ static struct drm_driver driver;
 static const struct pci_device_id pciidlist[] = {
 	{ PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5446, 0x1af4, 0x1100, 0,
 	  0, 0 },
+	{ PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5446, PCI_VENDOR_ID_XEN,
+	  0x0001, 0, 0, 0 },
 	{0,}
 };
 
@@ -128,6 +130,7 @@ static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.load = cirrus_driver_load,
 	.unload = cirrus_driver_unload,
+	.set_busid = drm_pci_set_busid,
 	.fops = &cirrus_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

@@ -433,7 +433,7 @@ struct ni_660x_private {
 
 static inline unsigned ni_660x_num_counters(struct comedi_device *dev)
 {
-	const struct ni_660x_board *board = comedi_board(dev);
+	const struct ni_660x_board *board = dev->board_ptr;
 
 	return board->n_chips * counters_per_chip;
 }
@@ -852,7 +852,7 @@ static int ni_660x_allocate_private(struct comedi_device *dev)
 
 static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 {
-	const struct ni_660x_board *board = comedi_board(dev);
+	const struct ni_660x_board *board = dev->board_ptr;
 	struct ni_660x_private *devpriv = dev->private;
 	unsigned i;
 	unsigned j;
@@ -870,7 +870,7 @@ static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 
 static void ni_660x_free_mite_rings(struct comedi_device *dev)
 {
-	const struct ni_660x_board *board = comedi_board(dev);
+	const struct ni_660x_board *board = dev->board_ptr;
 	struct ni_660x_private *devpriv = dev->private;
 	unsigned i;
 	unsigned j;
@@ -924,7 +924,7 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 				      unsigned pfi_channel,
 				      unsigned output_select)
 {
-	const struct ni_660x_board *board = comedi_board(dev);
+	const struct ni_660x_board *board = dev->board_ptr;
 	static const unsigned counter_4_7_first_pfi = 8;
 	static const unsigned counter_4_7_last_pfi = 23;
 	unsigned active_chipset = 0;

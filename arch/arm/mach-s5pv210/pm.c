@@ -24,9 +24,8 @@
 
 #include <plat/pm-common.h>
 
-#include <mach/regs-clock.h>
-
 #include "common.h"
+#include "regs-clock.h"
 
 static struct sleep_save s5pv210_core_save[] = {
 	/* Clock ETC */

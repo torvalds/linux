@@ -38,6 +38,12 @@
 #include <asm/paca.h>
 #endif
 
+/*
+ * KVMPPC_INST_SW_BREAKPOINT is debug Instruction
+ * for supporting software breakpoint.
+ */
+#define KVMPPC_INST_SW_BREAKPOINT	0x00dddd00
+
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */
 	EMULATE_DO_MMIO,      /* kvm_run filled with MMIO request */
@@ -89,7 +95,7 @@ extern int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu);
 extern int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu);
 extern void kvmppc_emulate_dec(struct kvm_vcpu *vcpu);
 extern u32 kvmppc_get_dec(struct kvm_vcpu *vcpu, u64 tb);
-extern void kvmppc_decrementer_func(unsigned long data);
+extern void kvmppc_decrementer_func(struct kvm_vcpu *vcpu);
 extern int kvmppc_sanity_check(struct kvm_vcpu *vcpu);
 extern int kvmppc_subarch_vcpu_init(struct kvm_vcpu *vcpu);
 extern void kvmppc_subarch_vcpu_uninit(struct kvm_vcpu *vcpu);
@@ -206,6 +212,9 @@ extern int kvmppc_xics_get_xive(struct kvm *kvm, u32 irq, u32 *server,
 extern int kvmppc_xics_int_on(struct kvm *kvm, u32 irq);
 extern int kvmppc_xics_int_off(struct kvm *kvm, u32 irq);
 
+void kvmppc_core_dequeue_debug(struct kvm_vcpu *vcpu);
+void kvmppc_core_queue_debug(struct kvm_vcpu *vcpu);
+
 union kvmppc_one_reg {
 	u32	wval;
 	u64	dval;
@@ -243,7 +252,7 @@ struct kvmppc_ops {
 	int (*unmap_hva)(struct kvm *kvm, unsigned long hva);
 	int (*unmap_hva_range)(struct kvm *kvm, unsigned long start,
 			   unsigned long end);
-	int (*age_hva)(struct kvm *kvm, unsigned long hva);
+	int (*age_hva)(struct kvm *kvm, unsigned long start, unsigned long end);
 	int (*test_age_hva)(struct kvm *kvm, unsigned long hva);
 	void (*set_spte_hva)(struct kvm *kvm, unsigned long hva, pte_t pte);
 	void (*mmu_destroy)(struct kvm_vcpu *vcpu);

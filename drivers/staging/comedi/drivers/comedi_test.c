@@ -302,7 +302,7 @@ static int waveform_ai_cmd(struct comedi_device *dev,
 	struct waveform_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (cmd->flags & TRIG_RT) {
+	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
 			"commands at RT priority not supported in this driver\n");
 		return -1;
@@ -415,14 +415,14 @@ static int waveform_attach(struct comedi_device *dev,
 	for (i = 0; i < s->n_chan; i++)
 		devpriv->ao_loopbacks[i] = s->maxdata / 2;
 
-	init_timer(&(devpriv->timer));
+	init_timer(&devpriv->timer);
 	devpriv->timer.function = waveform_ai_interrupt;
 	devpriv->timer.data = (unsigned long)dev;
 
 	dev_info(dev->class_dev,
-		"%s: %i microvolt, %li microsecond waveform attached\n",
-		dev->board_name,
-		devpriv->uvolt_amplitude, devpriv->usec_period);
+		 "%s: %i microvolt, %li microsecond waveform attached\n",
+		 dev->board_name,
+		 devpriv->uvolt_amplitude, devpriv->usec_period);
 
 	return 0;
 }

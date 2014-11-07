@@ -12,6 +12,7 @@
 #include <asm/processor.h>
 #include <asm/x86_init.h>
 #include <asm/apic.h>
+#include <asm/hpet.h>
 
 #include "irq_remapping.h"
 
@@ -345,10 +346,16 @@ static int msi_setup_remapped_irq(struct pci_dev *pdev, unsigned int irq,
 
 int setup_hpet_msi_remapped(unsigned int irq, unsigned int id)
 {
-	if (!remap_ops || !remap_ops->setup_hpet_msi)
+	int ret;
+
+	if (!remap_ops || !remap_ops->alloc_hpet_msi)
 		return -ENODEV;
 
-	return remap_ops->setup_hpet_msi(irq, id);
+	ret = remap_ops->alloc_hpet_msi(irq, id);
+	if (ret)
+		return -EINVAL;
+
+	return default_setup_hpet_msi(irq, id);
 }
 
 void panic_if_irq_remap(const char *msg)

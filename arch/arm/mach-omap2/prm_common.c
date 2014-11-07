@@ -467,7 +467,7 @@ int prm_unregister(struct prm_ll_data *pld)
 	return 0;
 }
 
-static struct of_device_id omap_prcm_dt_match_table[] = {
+static const struct of_device_id omap_prcm_dt_match_table[] = {
 	{ .compatible = "ti,am3-prcm" },
 	{ .compatible = "ti,am3-scrm" },
 	{ .compatible = "ti,am4-prcm" },
@@ -524,8 +524,6 @@ int __init of_prcm_init(void)
 		ti_dt_clk_init_provider(np, memmap_index);
 		memmap_index++;
 	}
-
-	ti_dt_clockdomains_setup();
 
 	return 0;
 }

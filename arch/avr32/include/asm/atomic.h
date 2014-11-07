@@ -19,33 +19,46 @@
 
 #define ATOMIC_INIT(i)  { (i) }
 
-#define atomic_read(v)		(*(volatile int *)&(v)->counter)
+#define atomic_read(v)		ACCESS_ONCE((v)->counter)
 #define atomic_set(v, i)	(((v)->counter) = i)
 
-/*
- * atomic_sub_return - subtract the atomic variable
- * @i: integer value to subtract
- * @v: pointer of type atomic_t
- *
- * Atomically subtracts @i from @v. Returns the resulting value.
- */
-static inline int atomic_sub_return(int i, atomic_t *v)
-{
-	int result;
-
-	asm volatile(
-		"/* atomic_sub_return */\n"
-		"1:	ssrf	5\n"
-		"	ld.w	%0, %2\n"
-		"	sub	%0, %3\n"
-		"	stcond	%1, %0\n"
-		"	brne	1b"
-		: "=&r"(result), "=o"(v->counter)
-		: "m"(v->counter), "rKs21"(i)
-		: "cc");
-
-	return result;
+#define ATOMIC_OP_RETURN(op, asm_op, asm_con)				\
+static inline int __atomic_##op##_return(int i, atomic_t *v)		\
+{									\
+	int result;							\
+									\
+	asm volatile(							\
+		"/* atomic_" #op "_return */\n"				\
+		"1:	ssrf	5\n"					\
+		"	ld.w	%0, %2\n"				\
+		"	" #asm_op "	%0, %3\n"			\
+		"	stcond	%1, %0\n"				\
+		"	brne	1b"					\
+		: "=&r" (result), "=o" (v->counter)			\
+		: "m" (v->counter), #asm_con (i)			\
+		: "cc");						\
+									\
+	return result;							\
 }
+
+ATOMIC_OP_RETURN(sub, sub, rKs21)
+ATOMIC_OP_RETURN(add, add, r)
+
+#undef ATOMIC_OP_RETURN
+
+/*
+ * Probably found the reason why we want to use sub with the signed 21-bit
+ * limit, it uses one less register than the add instruction that can add up to
+ * 32-bit values.
+ *
+ * Both instructions are 32-bit, to use a 16-bit instruction the immediate is
+ * very small; 4 bit.
+ *
+ * sub 32-bit, type IV, takes a register and subtracts a 21-bit immediate.
+ * add 32-bit, type II, adds two register values together.
+ */
+#define IS_21BIT_CONST(i)						\
+	(__builtin_constant_p(i) && ((i) >= -1048575) && ((i) <= 1048576))
 
 /*
  * atomic_add_return - add integer to atomic variable
@@ -56,51 +69,25 @@ static inline int atomic_sub_return(int i, atomic_t *v)
  */
 static inline int atomic_add_return(int i, atomic_t *v)
 {
-	int result;
+	if (IS_21BIT_CONST(i))
+		return __atomic_sub_return(-i, v);
 
-	if (__builtin_constant_p(i) && (i >= -1048575) && (i <= 1048576))
-		result = atomic_sub_return(-i, v);
-	else
-		asm volatile(
-			"/* atomic_add_return */\n"
-			"1:	ssrf	5\n"
-			"	ld.w	%0, %1\n"
-			"	add	%0, %3\n"
-			"	stcond	%2, %0\n"
-			"	brne	1b"
-			: "=&r"(result), "=o"(v->counter)
-			: "m"(v->counter), "r"(i)
-			: "cc", "memory");
-
-	return result;
+	return __atomic_add_return(i, v);
 }
 
 /*
- * atomic_sub_unless - sub unless the number is a given value
+ * atomic_sub_return - subtract the atomic variable
+ * @i: integer value to subtract
  * @v: pointer of type atomic_t
- * @a: the amount to subtract from v...
- * @u: ...unless v is equal to u.
  *
- * Atomically subtract @a from @v, so long as it was not @u.
- * Returns the old value of @v.
-*/
-static inline void atomic_sub_unless(atomic_t *v, int a, int u)
+ * Atomically subtracts @i from @v. Returns the resulting value.
+ */
+static inline int atomic_sub_return(int i, atomic_t *v)
 {
-	int tmp;
+	if (IS_21BIT_CONST(i))
+		return __atomic_sub_return(i, v);
 
-	asm volatile(
-		"/* atomic_sub_unless */\n"
-		"1:	ssrf	5\n"
-		"	ld.w	%0, %2\n"
-		"	cp.w	%0, %4\n"
-		"	breq	1f\n"
-		"	sub	%0, %3\n"
-		"	stcond	%1, %0\n"
-		"	brne	1b\n"
-		"1:"
-		: "=&r"(tmp), "=o"(v->counter)
-		: "m"(v->counter), "rKs21"(a), "rKs21"(u)
-		: "cc", "memory");
+	return __atomic_add_return(-i, v);
 }
 
 /*
@@ -116,9 +103,21 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int tmp, old = atomic_read(v);
 
-	if (__builtin_constant_p(a) && (a >= -1048575) && (a <= 1048576))
-		atomic_sub_unless(v, -a, u);
-	else {
+	if (IS_21BIT_CONST(a)) {
+		asm volatile(
+			"/* __atomic_sub_unless */\n"
+			"1:	ssrf	5\n"
+			"	ld.w	%0, %2\n"
+			"	cp.w	%0, %4\n"
+			"	breq	1f\n"
+			"	sub	%0, %3\n"
+			"	stcond	%1, %0\n"
+			"	brne	1b\n"
+			"1:"
+			: "=&r"(tmp), "=o"(v->counter)
+			: "m"(v->counter), "rKs21"(-a), "rKs21"(u)
+			: "cc", "memory");
+	} else {
 		asm volatile(
 			"/* __atomic_add_unless */\n"
 			"1:	ssrf	5\n"
@@ -136,6 +135,8 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 
 	return old;
 }
+
+#undef IS_21BIT_CONST
 
 /*
  * atomic_sub_if_positive - conditionally subtract integer from atomic variable

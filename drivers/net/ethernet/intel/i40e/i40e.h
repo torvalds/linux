@@ -144,6 +144,8 @@ enum i40e_state_t {
 	__I40E_PTP_TX_IN_PROGRESS,
 	__I40E_BAD_EEPROM,
 	__I40E_DOWN_REQUESTED,
+	__I40E_FD_FLUSH_REQUESTED,
+	__I40E_RESET_FAILED,
 };
 
 enum i40e_interrupt_policy {
@@ -250,6 +252,11 @@ struct i40e_pf {
 	u16 fdir_pf_active_filters;
 	u16 fd_sb_cnt_idx;
 	u16 fd_atr_cnt_idx;
+	unsigned long fd_flush_timestamp;
+	u32 fd_flush_cnt;
+	u32 fd_add_err;
+	u32 fd_atr_cnt;
+	u32 fd_tcp_rule;
 
 #ifdef CONFIG_I40E_VXLAN
 	__be16  vxlan_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
@@ -310,6 +317,7 @@ struct i40e_pf {
 	u32 tx_timeout_count;
 	u32 tx_timeout_recovery_level;
 	unsigned long tx_timeout_last_recovery;
+	u32 tx_sluggish_count;
 	u32 hw_csum_rx_error;
 	u32 led_status;
 	u16 corer_count; /* Core reset count */
@@ -608,6 +616,7 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 void i40e_fdir_check_and_reenable(struct i40e_pf *pf);
 int i40e_get_current_fd_count(struct i40e_pf *pf);
 int i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf);
+int i40e_get_current_atr_cnt(struct i40e_pf *pf);
 bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features);
 void i40e_set_ethtool_ops(struct net_device *netdev);
 struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,

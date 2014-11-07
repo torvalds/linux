@@ -169,6 +169,7 @@ struct fsl_ssi_private {
 	u8 i2s_mode;
 	bool use_dma;
 	bool use_dual_fifo;
+	bool has_ipg_clk_name;
 	unsigned int fifo_depth;
 	struct fsl_ssi_rxtx_reg_val rxtx_reg_val;
 
@@ -259,6 +260,11 @@ static bool fsl_ssi_is_i2s_master(struct fsl_ssi_private *ssi_private)
 		SND_SOC_DAIFMT_CBS_CFS;
 }
 
+static bool fsl_ssi_is_i2s_cbm_cfs(struct fsl_ssi_private *ssi_private)
+{
+	return (ssi_private->dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) ==
+		SND_SOC_DAIFMT_CBM_CFS;
+}
 /**
  * fsl_ssi_isr: SSI interrupt handler
  *
@@ -525,6 +531,11 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_ssi_private *ssi_private =
 		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+	int ret;
+
+	ret = clk_prepare_enable(ssi_private->clk);
+	if (ret)
+		return ret;
 
 	/* When using dual fifo mode, it is safer to ensure an even period
 	 * size. If appearing to an odd number while DMA always starts its
@@ -536,6 +547,21 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 				SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 2);
 
 	return 0;
+}
+
+/**
+ * fsl_ssi_shutdown: shutdown the SSI
+ *
+ */
+static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct fsl_ssi_private *ssi_private =
+		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+
+	clk_disable_unprepare(ssi_private->clk);
+
 }
 
 /**
@@ -705,6 +731,23 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
+	if (!fsl_ssi_is_ac97(ssi_private)) {
+		u8 i2smode;
+		/*
+		 * Switch to normal net mode in order to have a frame sync
+		 * signal every 32 bits instead of 16 bits
+		 */
+		if (fsl_ssi_is_i2s_cbm_cfs(ssi_private) && sample_size == 16)
+			i2smode = CCSR_SSI_SCR_I2S_MODE_NORMAL |
+				CCSR_SSI_SCR_NET;
+		else
+			i2smode = ssi_private->i2s_mode;
+
+		regmap_update_bits(regs, CCSR_SSI_SCR,
+				CCSR_SSI_SCR_NET | CCSR_SSI_SCR_I2S_MODE_MASK,
+				channels == 1 ? 0 : i2smode);
+	}
+
 	/*
 	 * FIXME: The documentation says that SxCCR[WL] should not be
 	 * modified while the SSI is enabled.  The only time this can
@@ -723,11 +766,6 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	else
 		regmap_update_bits(regs, CCSR_SSI_SRCCR, CCSR_SSI_SxCCR_WL_MASK,
 				wl);
-
-	if (!fsl_ssi_is_ac97(ssi_private))
-		regmap_update_bits(regs, CCSR_SSI_SCR,
-				CCSR_SSI_SCR_NET | CCSR_SSI_SCR_I2S_MODE_MASK,
-				channels == 1 ? 0 : ssi_private->i2s_mode);
 
 	return 0;
 }
@@ -748,8 +786,9 @@ static int fsl_ssi_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int _fsl_ssi_set_dai_fmt(struct fsl_ssi_private *ssi_private,
-		unsigned int fmt)
+static int _fsl_ssi_set_dai_fmt(struct device *dev,
+				struct fsl_ssi_private *ssi_private,
+				unsigned int fmt)
 {
 	struct regmap *regs = ssi_private->regs;
 	u32 strcr = 0, stcr, srcr, scr, mask;
@@ -758,7 +797,7 @@ static int _fsl_ssi_set_dai_fmt(struct fsl_ssi_private *ssi_private,
 	ssi_private->dai_fmt = fmt;
 
 	if (fsl_ssi_is_i2s_master(ssi_private) && IS_ERR(ssi_private->baudclk)) {
-		dev_err(&ssi_private->pdev->dev, "baudclk is missing which is necessary for master mode\n");
+		dev_err(dev, "baudclk is missing which is necessary for master mode\n");
 		return -EINVAL;
 	}
 
@@ -780,6 +819,7 @@ static int _fsl_ssi_set_dai_fmt(struct fsl_ssi_private *ssi_private,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+		case SND_SOC_DAIFMT_CBM_CFS:
 		case SND_SOC_DAIFMT_CBS_CFS:
 			ssi_private->i2s_mode |= CCSR_SSI_SCR_I2S_MODE_MASTER;
 			regmap_update_bits(regs, CCSR_SSI_STCCR,
@@ -853,6 +893,11 @@ static int _fsl_ssi_set_dai_fmt(struct fsl_ssi_private *ssi_private,
 	case SND_SOC_DAIFMT_CBM_CFM:
 		scr &= ~CCSR_SSI_SCR_SYS_CLK_EN;
 		break;
+	case SND_SOC_DAIFMT_CBM_CFS:
+		strcr &= ~CCSR_SSI_STCR_TXDIR;
+		strcr |= CCSR_SSI_STCR_TFDIR;
+		scr &= ~CCSR_SSI_SCR_SYS_CLK_EN;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -913,7 +958,7 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
 
-	return _fsl_ssi_set_dai_fmt(ssi_private, fmt);
+	return _fsl_ssi_set_dai_fmt(cpu_dai->dev, ssi_private, fmt);
 }
 
 /**
@@ -1020,6 +1065,7 @@ static int fsl_ssi_dai_probe(struct snd_soc_dai *dai)
 
 static const struct snd_soc_dai_ops fsl_ssi_dai_ops = {
 	.startup	= fsl_ssi_startup,
+	.shutdown       = fsl_ssi_shutdown,
 	.hw_params	= fsl_ssi_hw_params,
 	.hw_free	= fsl_ssi_hw_free,
 	.set_fmt	= fsl_ssi_set_dai_fmt,
@@ -1145,17 +1191,22 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 	u32 dmas[4];
 	int ret;
 
-	ssi_private->clk = devm_clk_get(&pdev->dev, NULL);
+	if (ssi_private->has_ipg_clk_name)
+		ssi_private->clk = devm_clk_get(&pdev->dev, "ipg");
+	else
+		ssi_private->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ssi_private->clk)) {
 		ret = PTR_ERR(ssi_private->clk);
 		dev_err(&pdev->dev, "could not get clock: %d\n", ret);
 		return ret;
 	}
 
-	ret = clk_prepare_enable(ssi_private->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "clk_prepare_enable failed: %d\n", ret);
-		return ret;
+	if (!ssi_private->has_ipg_clk_name) {
+		ret = clk_prepare_enable(ssi_private->clk);
+		if (ret) {
+			dev_err(&pdev->dev, "clk_prepare_enable failed: %d\n", ret);
+			return ret;
+		}
 	}
 
 	/* For those SLAVE implementations, we ingore non-baudclk cases
@@ -1213,8 +1264,9 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 	return 0;
 
 error_pcm:
-	clk_disable_unprepare(ssi_private->clk);
 
+	if (!ssi_private->has_ipg_clk_name)
+		clk_disable_unprepare(ssi_private->clk);
 	return ret;
 }
 
@@ -1223,7 +1275,8 @@ static void fsl_ssi_imx_clean(struct platform_device *pdev,
 {
 	if (!ssi_private->use_dma)
 		imx_pcm_fiq_exit(pdev);
-	clk_disable_unprepare(ssi_private->clk);
+	if (!ssi_private->has_ipg_clk_name)
+		clk_disable_unprepare(ssi_private->clk);
 }
 
 static int fsl_ssi_probe(struct platform_device *pdev)
@@ -1262,9 +1315,6 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	if (sprop) {
 		if (!strcmp(sprop, "ac97-slave"))
 			ssi_private->dai_fmt = SND_SOC_DAIFMT_AC97;
-		else if (!strcmp(sprop, "i2s-slave"))
-			ssi_private->dai_fmt = SND_SOC_DAIFMT_I2S |
-				SND_SOC_DAIFMT_CBM_CFM;
 	}
 
 	ssi_private->use_dma = !of_property_read_bool(np,
@@ -1298,8 +1348,16 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ssi_private->regs = devm_regmap_init_mmio(&pdev->dev, iomem,
+	ret = of_property_match_string(np, "clock-names", "ipg");
+	if (ret < 0) {
+		ssi_private->has_ipg_clk_name = false;
+		ssi_private->regs = devm_regmap_init_mmio(&pdev->dev, iomem,
 			&fsl_ssi_regconfig);
+	} else {
+		ssi_private->has_ipg_clk_name = true;
+		ssi_private->regs = devm_regmap_init_mmio_clk(&pdev->dev,
+			"ipg", iomem, &fsl_ssi_regconfig);
+	}
 	if (IS_ERR(ssi_private->regs)) {
 		dev_err(&pdev->dev, "Failed to init register map\n");
 		return PTR_ERR(ssi_private->regs);
@@ -1387,7 +1445,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 
 done:
 	if (ssi_private->dai_fmt)
-		_fsl_ssi_set_dai_fmt(ssi_private, ssi_private->dai_fmt);
+		_fsl_ssi_set_dai_fmt(&pdev->dev, ssi_private,
+				     ssi_private->dai_fmt);
 
 	return 0;
 

@@ -27,6 +27,13 @@ struct ccp_cmd;
 	defined(CONFIG_CRYPTO_DEV_CCP_DD_MODULE)
 
 /**
+ * ccp_present - check if a CCP device is present
+ *
+ * Returns zero if a CCP device is present, -ENODEV otherwise.
+ */
+int ccp_present(void);
+
+/**
  * ccp_enqueue_cmd - queue an operation for processing by the CCP
  *
  * @cmd: ccp_cmd struct to be processed
@@ -52,6 +59,11 @@ struct ccp_cmd;
 int ccp_enqueue_cmd(struct ccp_cmd *cmd);
 
 #else /* CONFIG_CRYPTO_DEV_CCP_DD is not enabled */
+
+static inline int ccp_present(void)
+{
+	return -ENODEV;
+}
 
 static inline int ccp_enqueue_cmd(struct ccp_cmd *cmd)
 {

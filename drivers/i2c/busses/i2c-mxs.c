@@ -307,6 +307,9 @@ static int mxs_i2c_pio_wait_xfer_end(struct mxs_i2c_dev *i2c)
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
 	while (readl(i2c->regs + MXS_I2C_CTRL0) & MXS_I2C_CTRL0_RUN) {
+		if (readl(i2c->regs + MXS_I2C_CTRL1) &
+				MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ)
+			return -ENXIO;
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
 		cond_resched();
@@ -429,7 +432,7 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		ret = mxs_i2c_pio_wait_xfer_end(i2c);
 		if (ret) {
 			dev_err(i2c->dev,
-				"PIO: Failed to send SELECT command!\n");
+				"PIO: Failed to send READ command!\n");
 			goto cleanup;
 		}
 

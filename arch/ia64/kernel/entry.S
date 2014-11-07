@@ -1778,6 +1778,7 @@ sys_call_table:
 	data8 sys_renameat2
 	data8 sys_getrandom
 	data8 sys_memfd_create			// 1340
+	data8 sys_bpf
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
 #endif /* __IA64_ASM_PARAVIRTUALIZED_NATIVE */

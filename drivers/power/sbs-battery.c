@@ -48,7 +48,10 @@ enum {
 	REG_FULL_CHARGE_CAPACITY_CHARGE,
 	REG_DESIGN_CAPACITY,
 	REG_DESIGN_CAPACITY_CHARGE,
-	REG_DESIGN_VOLTAGE,
+	REG_DESIGN_VOLTAGE_MIN,
+	REG_DESIGN_VOLTAGE_MAX,
+	REG_MANUFACTURER,
+	REG_MODEL_NAME,
 };
 
 /* Battery Mode defines */
@@ -68,6 +71,7 @@ enum sbs_battery_mode {
 #define BATTERY_FULL_CHARGED		0x20
 #define BATTERY_FULL_DISCHARGED		0x10
 
+/* min_value and max_value are only valid for numerical data */
 #define SBS_DATA(_psp, _addr, _min_value, _max_value) { \
 	.psp = _psp, \
 	.addr = _addr, \
@@ -111,10 +115,17 @@ static const struct chip_data {
 		SBS_DATA(POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN, 0x18, 0, 65535),
 	[REG_DESIGN_CAPACITY_CHARGE] =
 		SBS_DATA(POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN, 0x18, 0, 65535),
-	[REG_DESIGN_VOLTAGE] =
+	[REG_DESIGN_VOLTAGE_MIN] =
+		SBS_DATA(POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN, 0x19, 0, 65535),
+	[REG_DESIGN_VOLTAGE_MAX] =
 		SBS_DATA(POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN, 0x19, 0, 65535),
 	[REG_SERIAL_NUMBER] =
 		SBS_DATA(POWER_SUPPLY_PROP_SERIAL_NUMBER, 0x1C, 0, 65535),
+	/* Properties of type `const char *' */
+	[REG_MANUFACTURER] =
+		SBS_DATA(POWER_SUPPLY_PROP_MANUFACTURER, 0x20, 0, 65535),
+	[REG_MODEL_NAME] =
+		SBS_DATA(POWER_SUPPLY_PROP_MODEL_NAME, 0x21, 0, 65535)
 };
 
 static enum power_supply_property sbs_properties[] = {
@@ -130,6 +141,7 @@ static enum power_supply_property sbs_properties[] = {
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
 	POWER_SUPPLY_PROP_TIME_TO_FULL_AVG,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_ENERGY_NOW,
 	POWER_SUPPLY_PROP_ENERGY_FULL,
@@ -137,6 +149,9 @@ static enum power_supply_property sbs_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	/* Properties of type `const char *' */
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_MODEL_NAME
 };
 
 struct sbs_info {
@@ -152,6 +167,9 @@ struct sbs_info {
 	struct delayed_work		work;
 	int				ignore_changes;
 };
+
+static char model_name[I2C_SMBUS_BLOCK_MAX + 1];
+static char manufacturer[I2C_SMBUS_BLOCK_MAX + 1];
 
 static int sbs_read_word_data(struct i2c_client *client, u8 address)
 {
@@ -175,6 +193,74 @@ static int sbs_read_word_data(struct i2c_client *client, u8 address)
 			__func__, address);
 		return ret;
 	}
+
+	return le16_to_cpu(ret);
+}
+
+static int sbs_read_string_data(struct i2c_client *client, u8 address,
+				char *values)
+{
+	struct sbs_info *chip = i2c_get_clientdata(client);
+	s32 ret = 0, block_length = 0;
+	int retries_length = 1, retries_block = 1;
+	u8 block_buffer[I2C_SMBUS_BLOCK_MAX + 1];
+
+	if (chip->pdata) {
+		retries_length = max(chip->pdata->i2c_retry_count + 1, 1);
+		retries_block = max(chip->pdata->i2c_retry_count + 1, 1);
+	}
+
+	/* Adapter needs to support these two functions */
+	if (!i2c_check_functionality(client->adapter,
+				     I2C_FUNC_SMBUS_BYTE_DATA |
+				     I2C_FUNC_SMBUS_I2C_BLOCK)){
+		return -ENODEV;
+	}
+
+	/* Get the length of block data */
+	while (retries_length > 0) {
+		ret = i2c_smbus_read_byte_data(client, address);
+		if (ret >= 0)
+			break;
+		retries_length--;
+	}
+
+	if (ret < 0) {
+		dev_dbg(&client->dev,
+			"%s: i2c read at address 0x%x failed\n",
+			__func__, address);
+		return ret;
+	}
+
+	/* block_length does not include NULL terminator */
+	block_length = ret;
+	if (block_length > I2C_SMBUS_BLOCK_MAX) {
+		dev_err(&client->dev,
+			"%s: Returned block_length is longer than 0x%x\n",
+			__func__, I2C_SMBUS_BLOCK_MAX);
+		return -EINVAL;
+	}
+
+	/* Get the block data */
+	while (retries_block > 0) {
+		ret = i2c_smbus_read_i2c_block_data(
+				client, address,
+				block_length + 1, block_buffer);
+		if (ret >= 0)
+			break;
+		retries_block--;
+	}
+
+	if (ret < 0) {
+		dev_dbg(&client->dev,
+			"%s: i2c read at address 0x%x failed\n",
+			__func__, address);
+		return ret;
+	}
+
+	/* block_buffer[0] == block_length */
+	memcpy(values, block_buffer + 1, block_length);
+	values[block_length] = '\0';
 
 	return le16_to_cpu(ret);
 }
@@ -318,6 +404,19 @@ static int sbs_get_battery_property(struct i2c_client *client,
 	return 0;
 }
 
+static int sbs_get_battery_string_property(struct i2c_client *client,
+	int reg_offset, enum power_supply_property psp, char *val)
+{
+	s32 ret;
+
+	ret = sbs_read_string_data(client, sbs_data[reg_offset].addr, val);
+
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static void  sbs_unit_adjustment(struct i2c_client *client,
 	enum power_supply_property psp, union power_supply_propval *val)
 {
@@ -336,6 +435,7 @@ static void  sbs_unit_adjustment(struct i2c_client *client,
 		break;
 
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
@@ -497,12 +597,33 @@ static int sbs_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP:
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_AVG:
+	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
 		ret = sbs_get_property_index(client, psp);
 		if (ret < 0)
 			break;
 
 		ret = sbs_get_battery_property(client, ret, psp, val);
+		break;
+
+	case POWER_SUPPLY_PROP_MODEL_NAME:
+		ret = sbs_get_property_index(client, psp);
+		if (ret < 0)
+			break;
+
+		ret = sbs_get_battery_string_property(client, ret, psp,
+						      model_name);
+		val->strval = model_name;
+		break;
+
+	case POWER_SUPPLY_PROP_MANUFACTURER:
+		ret = sbs_get_property_index(client, psp);
+		if (ret < 0)
+			break;
+
+		ret = sbs_get_battery_string_property(client, ret, psp,
+						      manufacturer);
+		val->strval = manufacturer;
 		break;
 
 	default:

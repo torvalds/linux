@@ -42,7 +42,7 @@
 
 static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 {
-	LASSERT (b != NULL);
+	LASSERT(b != NULL);
 
 	b->suppgid = suppgid;
 	b->uid = from_kuid(&init_user_ns, current_uid());
@@ -52,7 +52,8 @@ static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 	b->capability = cfs_curproc_cap_pack();
 }
 
-void mdc_pack_capa(struct ptlrpc_request *req, const struct req_msg_field *field,
+void mdc_pack_capa(struct ptlrpc_request *req,
+		   const struct req_msg_field *field,
 		   struct obd_capa *oc)
 {
 	struct req_capsule *pill = &req->rq_pill;
@@ -256,7 +257,8 @@ void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	set_mrc_cr_flags(rec, cr_flags);
 }
 
-static inline __u64 attr_pack(unsigned int ia_valid) {
+static inline __u64 attr_pack(unsigned int ia_valid)
+{
 	__u64 sa_valid = 0;
 
 	if (ia_valid & ATTR_MODE)
@@ -316,7 +318,8 @@ static void mdc_setattr_pack_rec(struct mdt_rec_setattr *rec,
 	rec->sa_atime  = LTIME_S(op_data->op_attr.ia_atime);
 	rec->sa_mtime  = LTIME_S(op_data->op_attr.ia_mtime);
 	rec->sa_ctime  = LTIME_S(op_data->op_attr.ia_ctime);
-	rec->sa_attr_flags = ((struct ll_iattr *)&op_data->op_attr)->ia_attr_flags;
+	rec->sa_attr_flags =
+			((struct ll_iattr *)&op_data->op_attr)->ia_attr_flags;
 	if ((op_data->op_attr.ia_valid & ATTR_GID) &&
 	    in_group_p(op_data->op_attr.ia_gid))
 		rec->sa_suppgid =
@@ -342,7 +345,8 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	struct mdt_ioepoch *epoch;
 	struct lov_user_md *lum = NULL;
 
-	CLASSERT(sizeof(struct mdt_rec_reint) ==sizeof(struct mdt_rec_setattr));
+	CLASSERT(sizeof(struct mdt_rec_reint) ==
+					sizeof(struct mdt_rec_setattr));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 	mdc_setattr_pack_rec(rec, op_data);
 
@@ -382,18 +386,18 @@ void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 	LASSERT(rec != NULL);
 
-	rec->ul_opcode  = op_data->op_cli_flags & CLI_RM_ENTRY ?
+	rec->ul_opcode   = op_data->op_cli_flags & CLI_RM_ENTRY ?
 					REINT_RMENTRY : REINT_UNLINK;
-	rec->ul_fsuid   = op_data->op_fsuid;
-	rec->ul_fsgid   = op_data->op_fsgid;
-	rec->ul_cap     = op_data->op_cap;
-	rec->ul_mode    = op_data->op_mode;
-	rec->ul_suppgid1= op_data->op_suppgids[0];
-	rec->ul_suppgid2= -1;
-	rec->ul_fid1    = op_data->op_fid1;
-	rec->ul_fid2    = op_data->op_fid2;
-	rec->ul_time    = op_data->op_mod_time;
-	rec->ul_bias    = op_data->op_bias;
+	rec->ul_fsuid    = op_data->op_fsuid;
+	rec->ul_fsgid    = op_data->op_fsgid;
+	rec->ul_cap      = op_data->op_cap;
+	rec->ul_mode     = op_data->op_mode;
+	rec->ul_suppgid1 = op_data->op_suppgids[0];
+	rec->ul_suppgid2 = -1;
+	rec->ul_fid1     = op_data->op_fid1;
+	rec->ul_fid2     = op_data->op_fid2;
+	rec->ul_time     = op_data->op_mod_time;
+	rec->ul_bias     = op_data->op_bias;
 
 	mdc_pack_capa(req, &RMF_CAPA1, op_data->op_capa1);
 
@@ -409,12 +413,12 @@ void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_link));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
-	LASSERT (rec != NULL);
+	LASSERT(rec != NULL);
 
 	rec->lk_opcode   = REINT_LINK;
-	rec->lk_fsuid    = op_data->op_fsuid;//current->fsuid;
-	rec->lk_fsgid    = op_data->op_fsgid;//current->fsgid;
-	rec->lk_cap      = op_data->op_cap;//current->cap_effective;
+	rec->lk_fsuid    = op_data->op_fsuid; /* current->fsuid; */
+	rec->lk_fsgid    = op_data->op_fsgid; /* current->fsgid; */
+	rec->lk_cap      = op_data->op_cap;   /* current->cap_effective; */
 	rec->lk_suppgid1 = op_data->op_suppgids[0];
 	rec->lk_suppgid2 = op_data->op_suppgids[1];
 	rec->lk_fid1     = op_data->op_fid1;
@@ -486,6 +490,7 @@ void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, int flags,
 
 	if (op_data->op_name) {
 		char *tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
+
 		LOGL0(op_data->op_name, op_data->op_namelen, tmp);
 
 	}
@@ -551,7 +556,8 @@ int mdc_enter_request(struct client_obd *cli)
 		list_add_tail(&mcw.mcw_entry, &cli->cl_cache_waiters);
 		init_waitqueue_head(&mcw.mcw_waitq);
 		client_obd_list_unlock(&cli->cl_loi_list_lock);
-		rc = l_wait_event(mcw.mcw_waitq, mdc_req_avail(cli, &mcw), &lwi);
+		rc = l_wait_event(mcw.mcw_waitq, mdc_req_avail(cli, &mcw),
+				  &lwi);
 		if (rc) {
 			client_obd_list_lock(&cli->cl_loi_list_lock);
 			if (list_empty(&mcw.mcw_entry))

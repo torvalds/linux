@@ -23,6 +23,7 @@
 
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "sumod.h"
 #include "r600_dpm.h"
 #include "cypress_dpm.h"

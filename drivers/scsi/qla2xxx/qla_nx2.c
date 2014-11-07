@@ -399,7 +399,7 @@ qla8044_idc_lock(struct qla_hw_data *ha)
 				 */
 				 ql_dbg(ql_dbg_p3p, vha, 0xb08a,
 				     "%s: IDC lock Recovery by %d "
-				     "failed, Retrying timout\n", __func__,
+				     "failed, Retrying timeout\n", __func__,
 				     ha->portnum);
 				 timeout = 0;
 			}

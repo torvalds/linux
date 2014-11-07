@@ -29,6 +29,9 @@
 /* the multichannel DMA channel has a 24-bit counter */
 #define BUFFER_BYTES_MAX_MULTICH	((1 << 24) * 4)
 
+#define FIFO_BYTES			256
+#define FIFO_BYTES_MULTICH		1024
+
 #define PERIOD_BYTES_MIN		64
 
 #define DEFAULT_BUFFER_BYTES		(BUFFER_BYTES_MAX / 2)
@@ -60,6 +63,7 @@ static const struct snd_pcm_hardware oxygen_stereo_hardware = {
 	.period_bytes_max = BUFFER_BYTES_MAX,
 	.periods_min = 1,
 	.periods_max = BUFFER_BYTES_MAX / PERIOD_BYTES_MIN,
+	.fifo_size = FIFO_BYTES,
 };
 static const struct snd_pcm_hardware oxygen_multichannel_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP |
@@ -87,6 +91,7 @@ static const struct snd_pcm_hardware oxygen_multichannel_hardware = {
 	.period_bytes_max = BUFFER_BYTES_MAX_MULTICH,
 	.periods_min = 1,
 	.periods_max = BUFFER_BYTES_MAX_MULTICH / PERIOD_BYTES_MIN,
+	.fifo_size = FIFO_BYTES_MULTICH,
 };
 static const struct snd_pcm_hardware oxygen_ac97_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP |
@@ -106,6 +111,7 @@ static const struct snd_pcm_hardware oxygen_ac97_hardware = {
 	.period_bytes_max = BUFFER_BYTES_MAX,
 	.periods_min = 1,
 	.periods_max = BUFFER_BYTES_MAX / PERIOD_BYTES_MIN,
+	.fifo_size = FIFO_BYTES,
 };
 
 static const struct snd_pcm_hardware *const oxygen_hardware[PCM_COUNT] = {
@@ -141,6 +147,10 @@ static int oxygen_open(struct snd_pcm_substream *substream,
 		runtime->hw.rates &= ~(SNDRV_PCM_RATE_32000 |
 				       SNDRV_PCM_RATE_64000);
 		runtime->hw.rate_min = 44100;
+		/* fall through */
+	case PCM_A:
+	case PCM_B:
+		runtime->hw.fifo_size = 0;
 		break;
 	case PCM_MULTICH:
 		runtime->hw.channels_max = chip->model.dac_channels_pcm;

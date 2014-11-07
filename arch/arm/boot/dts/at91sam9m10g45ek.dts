@@ -160,6 +160,10 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_pwm_leds>;
 			};
+
+			rtc@fffffdb0 {
+				status = "okay";
+			};
 		};
 
 		fb0: fb@0x00500000 {

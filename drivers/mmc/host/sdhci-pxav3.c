@@ -224,12 +224,11 @@ static void pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 
 static const struct sdhci_ops pxav3_sdhci_ops = {
 	.set_clock = sdhci_set_clock,
-	.set_uhs_signaling = pxav3_set_uhs_signaling,
 	.platform_send_init_74_clocks = pxav3_gen_init_74_clocks,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = pxav3_reset,
-	.set_uhs_signaling = sdhci_set_uhs_signaling,
+	.set_uhs_signaling = pxav3_set_uhs_signaling,
 };
 
 static struct sdhci_pltfm_data sdhci_pxav3_pdata = {
@@ -381,11 +380,11 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_of_parse:
-err_cd_req:
 err_add_host:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+err_of_parse:
+err_cd_req:
 	clk_disable_unprepare(clk);
 err_clk_get:
 err_mbus_win:
@@ -492,7 +491,6 @@ static struct platform_driver sdhci_pxav3_driver = {
 #ifdef CONFIG_OF
 		.of_match_table = sdhci_pxav3_of_match,
 #endif
-		.owner	= THIS_MODULE,
 		.pm	= SDHCI_PXAV3_PMOPS,
 	},
 	.probe		= sdhci_pxav3_probe,

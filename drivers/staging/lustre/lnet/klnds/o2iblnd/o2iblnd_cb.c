@@ -1487,7 +1487,7 @@ kiblnd_send (lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 	switch (type) {
 	default:
 		LBUG();
-		return (-EIO);
+		return -EIO;
 
 	case LNET_MSG_ACK:
 		LASSERT (payload_nob == 0);
@@ -2080,7 +2080,7 @@ kiblnd_connreq_done(kib_conn_t *conn, int status)
 
 	active = (conn->ibc_state == IBLND_CONN_ACTIVE_CONNECT);
 
-	CDEBUG(D_NET,"%s: active(%d), version(%x), status(%d)\n",
+	CDEBUG(D_NET, "%s: active(%d), version(%x), status(%d)\n",
 	       libcfs_nid2str(peer->ibp_nid), active,
 	       conn->ibc_version, status);
 
@@ -2848,7 +2848,7 @@ kiblnd_cm_callback(struct rdma_cm_id *cmid, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
 		peer = (kib_peer_t *)cmid->context;
 
-		CDEBUG(D_NET,"%s Addr resolved: %d\n",
+		CDEBUG(D_NET, "%s Addr resolved: %d\n",
 		       libcfs_nid2str(peer->ibp_nid), event->status);
 
 		if (event->status != 0) {
@@ -2878,7 +2878,7 @@ kiblnd_cm_callback(struct rdma_cm_id *cmid, struct rdma_cm_event *event)
 
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
 		peer = (kib_peer_t *)cmid->context;
-		CDEBUG(D_NET,"%s Route resolved: %d\n",
+		CDEBUG(D_NET, "%s Route resolved: %d\n",
 		       libcfs_nid2str(peer->ibp_nid), event->status);
 
 		if (event->status == 0)
@@ -3215,7 +3215,6 @@ kiblnd_connd (void *arg)
 
 		schedule_timeout(timeout);
 
-		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&kiblnd_data.kib_connd_waitq, &wait);
 		spin_lock_irqsave(&kiblnd_data.kib_connd_lock, flags);
 	}
@@ -3432,7 +3431,6 @@ kiblnd_scheduler(void *arg)
 		busy_loops = 0;
 
 		remove_wait_queue(&sched->ibs_waitq, &wait);
-		set_current_state(TASK_RUNNING);
 		spin_lock_irqsave(&sched->ibs_lock, flags);
 	}
 
@@ -3507,7 +3505,6 @@ kiblnd_failover_thread(void *arg)
 
 		rc = schedule_timeout(long_sleep ? cfs_time_seconds(10) :
 						   cfs_time_seconds(1));
-		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&kiblnd_data.kib_failover_waitq, &wait);
 		write_lock_irqsave(glock, flags);
 

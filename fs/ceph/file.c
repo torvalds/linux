@@ -235,6 +235,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	struct dentry *dn;
+	struct ceph_acls_info acls = {};
 	int err;
 
 	dout("atomic_open %p dentry %p '%.*s' %s flags %d mode 0%o\n",
@@ -248,22 +249,34 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (err < 0)
 		return err;
 
+	if (flags & O_CREAT) {
+		err = ceph_pre_init_acls(dir, &mode, &acls);
+		if (err < 0)
+			return err;
+	}
+
 	/* do the open */
 	req = prepare_open_request(dir->i_sb, flags, mode);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto out_acl;
+	}
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
 	if (flags & O_CREAT) {
 		req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 		req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
+		if (acls.pagelist) {
+			req->r_pagelist = acls.pagelist;
+			acls.pagelist = NULL;
+		}
 	}
 	req->r_locked_dir = dir;           /* caller holds dir->i_mutex */
 	err = ceph_mdsc_do_request(mdsc,
 				   (flags & (O_CREAT|O_TRUNC)) ? dir : NULL,
 				   req);
 	if (err)
-		goto out_err;
+		goto out_req;
 
 	err = ceph_handle_snapdir(req, dentry, err);
 	if (err == 0 && (flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
@@ -278,7 +291,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		dn = NULL;
 	}
 	if (err)
-		goto out_err;
+		goto out_req;
 	if (dn || dentry->d_inode == NULL || S_ISLNK(dentry->d_inode->i_mode)) {
 		/* make vfs retry on splice, ENOENT, or symlink */
 		dout("atomic_open finish_no_open on dn %p\n", dn);
@@ -286,15 +299,17 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	} else {
 		dout("atomic_open finish_open on dn %p\n", dn);
 		if (req->r_op == CEPH_MDS_OP_CREATE && req->r_reply_info.has_create_ino) {
-			ceph_init_acl(dentry, dentry->d_inode, dir);
+			ceph_init_inode_acls(dentry->d_inode, &acls);
 			*opened |= FILE_CREATED;
 		}
 		err = finish_open(file, dentry, ceph_open, opened);
 	}
-out_err:
+out_req:
 	if (!req->r_err && req->r_target_inode)
 		ceph_put_fmode(ceph_inode(req->r_target_inode), req->r_fmode);
 	ceph_mdsc_put_request(req);
+out_acl:
+	ceph_release_acls_info(&acls);
 	dout("atomic_open result=%d\n", err);
 	return err;
 }
@@ -826,8 +841,7 @@ again:
 	ceph_put_cap_refs(ci, got);
 
 	if (checkeof && ret >= 0) {
-		int statret = ceph_do_getattr(inode,
-					      CEPH_STAT_CAP_SIZE);
+		int statret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE, false);
 
 		/* hit EOF or hole? */
 		if (statret == 0 && iocb->ki_pos < inode->i_size &&
@@ -836,7 +850,6 @@ again:
 			     ", reading more\n", iocb->ki_pos,
 			     inode->i_size);
 
-			iov_iter_advance(to, ret);
 			read += ret;
 			len -= ret;
 			checkeof = 0;
@@ -995,7 +1008,7 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 	mutex_lock(&inode->i_mutex);
 
 	if (whence == SEEK_END || whence == SEEK_DATA || whence == SEEK_HOLE) {
-		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE);
+		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE, false);
 		if (ret < 0) {
 			offset = ret;
 			goto out;

@@ -18,7 +18,6 @@
  * is much larger than a sockaddr_in6.
  */
 struct svc_cacherep {
-	struct hlist_node	c_hash;
 	struct list_head	c_lru;
 
 	unsigned char		c_state,	/* unused, inprog, done */

@@ -2,6 +2,7 @@
 #define B43_NPHY_H_
 
 #include "phy_common.h"
+#include "ppr.h"
 
 
 /* N-PHY registers. */
@@ -967,6 +968,9 @@ struct b43_phy_n {
 	struct b43_phy_n_txpwrindex txpwrindex[2];
 	struct b43_phy_n_pwr_ctl_info pwr_ctl_info[2];
 	struct b43_chanspec txiqlocal_chanspec;
+	struct b43_ppr tx_pwr_max_ppr;
+	u16 tx_pwr_last_recalc_freq;
+	int tx_pwr_last_recalc_limit;
 
 	u8 txrx_chain;
 	u16 tx_rx_cal_phy_saveregs[11];

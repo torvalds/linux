@@ -24,6 +24,7 @@
 #include <asm/div64.h>
 
 #include "clk-rcg.h"
+#include "common.h"
 
 #define CMD_REG			0x0
 #define CMD_UPDATE		BIT(0)
@@ -172,27 +173,13 @@ clk_rcg2_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	return calc_rate(parent_rate, m, n, mode, hid_div);
 }
 
-static const
-struct freq_tbl *find_freq(const struct freq_tbl *f, unsigned long rate)
-{
-	if (!f)
-		return NULL;
-
-	for (; f->freq; f++)
-		if (rate <= f->freq)
-			return f;
-
-	/* Default to our fastest rate */
-	return f - 1;
-}
-
 static long _freq_tbl_determine_rate(struct clk_hw *hw,
 		const struct freq_tbl *f, unsigned long rate,
 		unsigned long *p_rate, struct clk **p)
 {
 	unsigned long clk_flags;
 
-	f = find_freq(f, rate);
+	f = qcom_find_freq(f, rate);
 	if (!f)
 		return -EINVAL;
 
@@ -268,7 +255,7 @@ static int __clk_rcg2_set_rate(struct clk_hw *hw, unsigned long rate)
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
 	const struct freq_tbl *f;
 
-	f = find_freq(rcg->freq_tbl, rate);
+	f = qcom_find_freq(rcg->freq_tbl, rate);
 	if (!f)
 		return -EINVAL;
 

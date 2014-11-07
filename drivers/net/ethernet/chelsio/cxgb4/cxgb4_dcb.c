@@ -60,6 +60,42 @@ void cxgb4_dcb_version_init(struct net_device *dev)
 	dcb->dcb_version = FW_PORT_DCB_VER_AUTO;
 }
 
+static void cxgb4_dcb_cleanup_apps(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = pi->adapter;
+	struct port_dcb_info *dcb = &pi->dcb;
+	struct dcb_app app;
+	int i, err;
+
+	/* zero priority implies remove */
+	app.priority = 0;
+
+	for (i = 0; i < CXGB4_MAX_DCBX_APP_SUPPORTED; i++) {
+		/* Check if app list is exhausted */
+		if (!dcb->app_priority[i].protocolid)
+			break;
+
+		app.protocol = dcb->app_priority[i].protocolid;
+
+		if (dcb->dcb_version == FW_PORT_DCB_VER_IEEE) {
+			app.selector = dcb->app_priority[i].sel_field + 1;
+			err = dcb_ieee_setapp(dev, &app);
+		} else {
+			app.selector = !!(dcb->app_priority[i].sel_field);
+			err = dcb_setapp(dev, &app);
+		}
+
+		if (err) {
+			dev_err(adap->pdev_dev,
+				"Failed DCB Clear %s Application Priority: sel=%d, prot=%d, , err=%d\n",
+				dcb_ver_array[dcb->dcb_version], app.selector,
+				app.protocol, -err);
+			break;
+		}
+	}
+}
+
 /* Finite State machine for Data Center Bridging.
  */
 void cxgb4_dcb_state_fsm(struct net_device *dev,
@@ -80,7 +116,6 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 			/* we're going to use Host DCB */
 			dcb->state = CXGB4_DCB_STATE_HOST;
 			dcb->supported = CXGB4_DCBX_HOST_SUPPORT;
-			dcb->enabled = 1;
 			break;
 		}
 
@@ -145,6 +180,7 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 			 * state.  We need to reset back to a ground state
 			 * of incomplete.
 			 */
+			cxgb4_dcb_cleanup_apps(dev);
 			cxgb4_dcb_state_init(dev);
 			dcb->state = CXGB4_DCB_STATE_FW_INCOMPLETE;
 			dcb->supported = CXGB4_DCBX_FW_SUPPORT;
@@ -348,6 +384,12 @@ static u8 cxgb4_getstate(struct net_device *dev)
 static u8 cxgb4_setstate(struct net_device *dev, u8 enabled)
 {
 	struct port_info *pi = netdev2pinfo(dev);
+
+	/* If DCBx is host-managed, dcb is enabled by outside lldp agents */
+	if (pi->dcb.state == CXGB4_DCB_STATE_HOST) {
+		pi->dcb.enabled = enabled;
+		return 0;
+	}
 
 	/* Firmware doesn't provide any mechanism to control the DCB state.
 	 */
@@ -833,10 +875,15 @@ static int cxgb4_setapp(struct net_device *dev, u8 app_idtype, u16 app_id,
 
 /* Return whether IEEE Data Center Bridging has been negotiated.
  */
-static inline int cxgb4_ieee_negotiation_complete(struct net_device *dev)
+static inline int
+cxgb4_ieee_negotiation_complete(struct net_device *dev,
+				enum cxgb4_dcb_fw_msgs dcb_subtype)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct port_dcb_info *dcb = &pi->dcb;
+
+	if (dcb_subtype && !(dcb->msgs & dcb_subtype))
+		return 0;
 
 	return (dcb->state == CXGB4_DCB_STATE_FW_ALLSYNCED &&
 		(dcb->supported & DCB_CAP_DCBX_VER_IEEE));
@@ -850,7 +897,7 @@ static int cxgb4_ieee_getapp(struct net_device *dev, struct dcb_app *app)
 {
 	int prio;
 
-	if (!cxgb4_ieee_negotiation_complete(dev))
+	if (!cxgb4_ieee_negotiation_complete(dev, CXGB4_DCB_FW_APP_ID))
 		return -EINVAL;
 	if (!(app->selector && app->protocol))
 		return -EINVAL;
@@ -872,7 +919,7 @@ static int cxgb4_ieee_setapp(struct net_device *dev, struct dcb_app *app)
 {
 	int ret;
 
-	if (!cxgb4_ieee_negotiation_complete(dev))
+	if (!cxgb4_ieee_negotiation_complete(dev, CXGB4_DCB_FW_APP_ID))
 		return -EINVAL;
 	if (!(app->selector && app->protocol))
 		return -EINVAL;

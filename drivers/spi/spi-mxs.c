@@ -85,7 +85,7 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 		mxs_ssp_set_clk_rate(ssp, hz);
 		/*
 		 * Save requested rate, hz, rather than the actual rate,
-		 * ssp->clk_rate.  Otherwise we would set the rate every trasfer
+		 * ssp->clk_rate.  Otherwise we would set the rate every transfer
 		 * when the actual rate is not quite the same as requested rate.
 		 */
 		spi->sck = hz;
@@ -154,12 +154,14 @@ static int mxs_ssp_wait(struct mxs_spi *spi, int offset, int mask, bool set)
 static void mxs_ssp_dma_irq_callback(void *param)
 {
 	struct mxs_spi *spi = param;
+
 	complete(&spi->c);
 }
 
 static irqreturn_t mxs_ssp_irq_handler(int irq, void *dev_id)
 {
 	struct mxs_ssp *ssp = dev_id;
+
 	dev_err(ssp->dev, "%s[%i] CTRL1=%08x STATUS=%08x\n",
 		__func__, __LINE__,
 		readl(ssp->base + HW_SSP_CTRL1(ssp)),
@@ -189,7 +191,7 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 	if (!len)
 		return -EINVAL;
 
-	dma_xfer = kzalloc(sizeof(*dma_xfer) * sgs, GFP_KERNEL);
+	dma_xfer = kcalloc(sgs, sizeof(*dma_xfer), GFP_KERNEL);
 	if (!dma_xfer)
 		return -ENOMEM;
 

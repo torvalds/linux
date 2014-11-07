@@ -132,6 +132,7 @@ static struct spk_synth synth_audptr = {
 static void synth_flush(struct spk_synth *synth)
 {
 	int timeout = SPK_XMITR_TIMEOUT;
+
 	while (spk_serial_tx_busy()) {
 		if (!--timeout)
 			break;
@@ -145,6 +146,7 @@ static void synth_version(struct spk_synth *synth)
 {
 	unsigned char test = 0;
 	char synth_id[40] = "";
+
 	spk_synth_immediate(synth, "\x05[Q]");
 	synth_id[test] = spk_serial_in();
 	if (synth_id[test] == 'A') {

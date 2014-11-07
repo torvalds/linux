@@ -49,8 +49,7 @@ int wimax_gnl_doit_state_get(struct sk_buff *skb, struct genl_info *info)
 	d_fnstart(3, NULL, "(skb %p info %p)\n", skb, info);
 	result = -ENODEV;
 	if (info->attrs[WIMAX_GNL_STGET_IFIDX] == NULL) {
-		printk(KERN_ERR "WIMAX_GNL_OP_STATE_GET: can't find IFIDX "
-			"attribute\n");
+		pr_err("WIMAX_GNL_OP_STATE_GET: can't find IFIDX attribute\n");
 		goto error_no_wimax_dev;
 	}
 	ifindex = nla_get_u32(info->attrs[WIMAX_GNL_STGET_IFIDX]);

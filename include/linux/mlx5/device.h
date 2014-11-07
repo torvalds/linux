@@ -44,6 +44,50 @@
 #error Host endianness not defined
 #endif
 
+/* helper macros */
+#define __mlx5_nullp(typ) ((struct mlx5_ifc_##typ##_bits *)0)
+#define __mlx5_bit_sz(typ, fld) sizeof(__mlx5_nullp(typ)->fld)
+#define __mlx5_bit_off(typ, fld) ((unsigned)(unsigned long)(&(__mlx5_nullp(typ)->fld)))
+#define __mlx5_dw_off(typ, fld) (__mlx5_bit_off(typ, fld) / 32)
+#define __mlx5_64_off(typ, fld) (__mlx5_bit_off(typ, fld) / 64)
+#define __mlx5_dw_bit_off(typ, fld) (32 - __mlx5_bit_sz(typ, fld) - (__mlx5_bit_off(typ, fld) & 0x1f))
+#define __mlx5_mask(typ, fld) ((u32)((1ull << __mlx5_bit_sz(typ, fld)) - 1))
+#define __mlx5_dw_mask(typ, fld) (__mlx5_mask(typ, fld) << __mlx5_dw_bit_off(typ, fld))
+#define __mlx5_st_sz_bits(typ) sizeof(struct mlx5_ifc_##typ##_bits)
+
+#define MLX5_FLD_SZ_BYTES(typ, fld) (__mlx5_bit_sz(typ, fld) / 8)
+#define MLX5_ST_SZ_BYTES(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 8)
+#define MLX5_ST_SZ_DW(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 32)
+#define MLX5_BYTE_OFF(typ, fld) (__mlx5_bit_off(typ, fld) / 8)
+#define MLX5_ADDR_OF(typ, p, fld) ((char *)(p) + MLX5_BYTE_OFF(typ, fld))
+
+/* insert a value to a struct */
+#define MLX5_SET(typ, p, fld, v) do { \
+	BUILD_BUG_ON(__mlx5_st_sz_bits(typ) % 32);             \
+	*((__be32 *)(p) + __mlx5_dw_off(typ, fld)) = \
+	cpu_to_be32((be32_to_cpu(*((__be32 *)(p) + __mlx5_dw_off(typ, fld))) & \
+		     (~__mlx5_dw_mask(typ, fld))) | (((v) & __mlx5_mask(typ, fld)) \
+		     << __mlx5_dw_bit_off(typ, fld))); \
+} while (0)
+
+#define MLX5_GET(typ, p, fld) ((be32_to_cpu(*((__be32 *)(p) +\
+__mlx5_dw_off(typ, fld))) >> __mlx5_dw_bit_off(typ, fld)) & \
+__mlx5_mask(typ, fld))
+
+#define MLX5_GET_PR(typ, p, fld) ({ \
+	u32 ___t = MLX5_GET(typ, p, fld); \
+	pr_debug(#fld " = 0x%x\n", ___t); \
+	___t; \
+})
+
+#define MLX5_SET64(typ, p, fld, v) do { \
+	BUILD_BUG_ON(__mlx5_bit_sz(typ, fld) != 64); \
+	BUILD_BUG_ON(__mlx5_bit_off(typ, fld) % 64); \
+	*((__be64 *)(p) + __mlx5_64_off(typ, fld)) = cpu_to_be64(v); \
+} while (0)
+
+#define MLX5_GET64(typ, p, fld) be64_to_cpu(*((__be64 *)(p) + __mlx5_64_off(typ, fld)))
+
 enum {
 	MLX5_MAX_COMMANDS		= 32,
 	MLX5_CMD_DATA_BLOCK_SIZE	= 512,
@@ -68,6 +112,11 @@ enum {
 
 enum {
 	MLX5_INLINE_SEG = 0x80000000,
+};
+
+enum {
+	MLX5_MIN_PKEY_TABLE_SIZE = 128,
+	MLX5_MAX_LOG_PKEY_TABLE  = 5,
 };
 
 enum {
@@ -184,10 +233,10 @@ enum {
 	MLX5_DEV_CAP_FLAG_CQ_MODER	= 1LL << 29,
 	MLX5_DEV_CAP_FLAG_RESIZE_CQ	= 1LL << 30,
 	MLX5_DEV_CAP_FLAG_RESIZE_SRQ	= 1LL << 32,
+	MLX5_DEV_CAP_FLAG_DCT		= 1LL << 37,
 	MLX5_DEV_CAP_FLAG_REMOTE_FENCE	= 1LL << 38,
 	MLX5_DEV_CAP_FLAG_TLP_HINTS	= 1LL << 39,
 	MLX5_DEV_CAP_FLAG_SIG_HAND_OVER	= 1LL << 40,
-	MLX5_DEV_CAP_FLAG_DCT		= 1LL << 41,
 	MLX5_DEV_CAP_FLAG_CMDIF_CSUM	= 3LL << 46,
 };
 
@@ -243,8 +292,12 @@ enum {
 };
 
 enum {
-	MLX5_CAP_OFF_DCT		= 41,
 	MLX5_CAP_OFF_CMDIF_CSUM		= 46,
+};
+
+enum {
+	HCA_CAP_OPMOD_GET_MAX	= 0,
+	HCA_CAP_OPMOD_GET_CUR	= 1,
 };
 
 struct mlx5_inbox_hdr {
@@ -273,101 +326,6 @@ struct mlx5_cmd_query_adapter_mbox_out {
 	u8			vsd[208];
 	u8			vsd_psid[16];
 };
-
-struct mlx5_hca_cap {
-	u8	rsvd1[16];
-	u8	log_max_srq_sz;
-	u8	log_max_qp_sz;
-	u8	rsvd2;
-	u8	log_max_qp;
-	u8	log_max_strq_sz;
-	u8	log_max_srqs;
-	u8	rsvd4[2];
-	u8	rsvd5;
-	u8	log_max_cq_sz;
-	u8	rsvd6;
-	u8	log_max_cq;
-	u8	log_max_eq_sz;
-	u8	log_max_mkey;
-	u8	rsvd7;
-	u8	log_max_eq;
-	u8	max_indirection;
-	u8	log_max_mrw_sz;
-	u8	log_max_bsf_list_sz;
-	u8	log_max_klm_list_sz;
-	u8	rsvd_8_0;
-	u8	log_max_ra_req_dc;
-	u8	rsvd_8_1;
-	u8	log_max_ra_res_dc;
-	u8	rsvd9;
-	u8	log_max_ra_req_qp;
-	u8	rsvd10;
-	u8	log_max_ra_res_qp;
-	u8	rsvd11[4];
-	__be16	max_qp_count;
-	__be16	rsvd12;
-	u8	rsvd13;
-	u8	local_ca_ack_delay;
-	u8	rsvd14;
-	u8	num_ports;
-	u8	log_max_msg;
-	u8	rsvd15[3];
-	__be16	stat_rate_support;
-	u8	rsvd16[2];
-	__be64	flags;
-	u8	rsvd17;
-	u8	uar_sz;
-	u8	rsvd18;
-	u8	log_pg_sz;
-	__be16	bf_log_bf_reg_size;
-	u8	rsvd19[4];
-	__be16	max_desc_sz_sq;
-	u8	rsvd20[2];
-	__be16	max_desc_sz_rq;
-	u8	rsvd21[2];
-	__be16	max_desc_sz_sq_dc;
-	__be32	max_qp_mcg;
-	u8	rsvd22[3];
-	u8	log_max_mcg;
-	u8	rsvd23;
-	u8	log_max_pd;
-	u8	rsvd24;
-	u8	log_max_xrcd;
-	u8	rsvd25[42];
-	__be16  log_uar_page_sz;
-	u8	rsvd26[28];
-	u8	log_max_atomic_size_qp;
-	u8	rsvd27[2];
-	u8	log_max_atomic_size_dc;
-	u8	rsvd28[76];
-};
-
-
-struct mlx5_cmd_query_hca_cap_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-
-struct mlx5_cmd_query_hca_cap_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-	struct mlx5_hca_cap     hca_cap;
-};
-
-
-struct mlx5_cmd_set_hca_cap_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-	struct mlx5_hca_cap     hca_cap;
-};
-
-
-struct mlx5_cmd_set_hca_cap_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-};
-
 
 struct mlx5_cmd_init_hca_mbox_in {
 	struct mlx5_inbox_hdr	hdr;

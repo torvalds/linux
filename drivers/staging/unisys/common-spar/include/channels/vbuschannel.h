@@ -24,7 +24,6 @@
  *  the client devices and client drivers for the server end to see.
  */
 #include <linux/uuid.h>
-#include "commontypes.h"
 #include "vbusdeviceinfo.h"
 #include "channel.h"
 

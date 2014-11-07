@@ -224,11 +224,14 @@ static void vmbus_process_rescind_offer(struct work_struct *work)
 	msg.header.msgtype = CHANNELMSG_RELID_RELEASED;
 	vmbus_post_msg(&msg, sizeof(struct vmbus_channel_relid_released));
 
-	if (channel->target_cpu != smp_processor_id())
+	if (channel->target_cpu != get_cpu()) {
+		put_cpu();
 		smp_call_function_single(channel->target_cpu,
 					 percpu_channel_deq, channel, true);
-	else
+	} else {
 		percpu_channel_deq(channel);
+		put_cpu();
+	}
 
 	if (channel->primary_channel == NULL) {
 		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
@@ -294,12 +297,15 @@ static void vmbus_process_offer(struct work_struct *work)
 	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
 	if (enq) {
-		if (newchannel->target_cpu != smp_processor_id())
+		if (newchannel->target_cpu != get_cpu()) {
+			put_cpu();
 			smp_call_function_single(newchannel->target_cpu,
 						 percpu_channel_enq,
 						 newchannel, true);
-		else
+		} else {
 			percpu_channel_enq(newchannel);
+			put_cpu();
+		}
 	}
 	if (!fnew) {
 		/*
@@ -314,12 +320,15 @@ static void vmbus_process_offer(struct work_struct *work)
 			list_add_tail(&newchannel->sc_list, &channel->sc_list);
 			spin_unlock_irqrestore(&channel->sc_lock, flags);
 
-			if (newchannel->target_cpu != smp_processor_id())
+			if (newchannel->target_cpu != get_cpu()) {
+				put_cpu();
 				smp_call_function_single(newchannel->target_cpu,
 							 percpu_channel_enq,
 							 newchannel, true);
-			else
+			} else {
 				percpu_channel_enq(newchannel);
+				put_cpu();
+			}
 
 			newchannel->state = CHANNEL_OPEN_STATE;
 			if (channel->sc_creation_callback != NULL)

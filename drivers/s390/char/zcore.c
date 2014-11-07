@@ -28,6 +28,7 @@
 #include <asm/processor.h>
 #include <asm/irqflags.h>
 #include <asm/checksum.h>
+#include <asm/switch_to.h>
 #include "sclp.h"
 
 #define TRACE(x...) debug_sprintf_event(zcore_dbf, 1, x)
@@ -149,18 +150,21 @@ static int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count)
 
 static int __init init_cpu_info(enum arch_id arch)
 {
-	struct save_area *sa;
+	struct save_area_ext *sa_ext;
 
 	/* get info for boot cpu from lowcore, stored in the HSA */
 
-	sa = dump_save_area_create(0);
-	if (!sa)
+	sa_ext = dump_save_area_create(0);
+	if (!sa_ext)
 		return -ENOMEM;
-	if (memcpy_hsa_kernel(sa, sys_info.sa_base, sys_info.sa_size) < 0) {
+	if (memcpy_hsa_kernel(&sa_ext->sa, sys_info.sa_base,
+			      sys_info.sa_size) < 0) {
 		TRACE("could not copy from HSA\n");
-		kfree(sa);
+		kfree(sa_ext);
 		return -EIO;
 	}
+	if (MACHINE_HAS_VX)
+		save_vx_regs_safe(sa_ext->vx_regs);
 	return 0;
 }
 
@@ -258,7 +262,7 @@ static int zcore_add_lc(char __user *buf, unsigned long start, size_t count)
 		unsigned long sa_start, sa_end; /* save area range */
 		unsigned long prefix;
 		unsigned long sa_off, len, buf_off;
-		struct save_area *save_area = dump_save_areas.areas[i];
+		struct save_area *save_area = &dump_save_areas.areas[i]->sa;
 
 		prefix = save_area->pref_reg;
 		sa_start = prefix + sys_info.sa_base;
@@ -612,7 +616,7 @@ static void __init zcore_header_init(int arch, struct zcore_header *hdr,
 	hdr->tod = get_tod_clock();
 	get_cpu_id(&hdr->cpu_id);
 	for (i = 0; i < dump_save_areas.count; i++) {
-		prefix = dump_save_areas.areas[i]->pref_reg;
+		prefix = dump_save_areas.areas[i]->sa.pref_reg;
 		hdr->real_cpu_cnt++;
 		if (!prefix)
 			continue;

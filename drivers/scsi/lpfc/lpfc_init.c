@@ -306,10 +306,10 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 		dist = dist_char[prg->dist];
 
 	if ((prg->dist == 3) && (prg->num == 0))
-		sprintf(phba->OptionROMVersion, "%d.%d%d",
+		snprintf(phba->OptionROMVersion, 32, "%d.%d%d",
 			prg->ver, prg->rev, prg->lev);
 	else
-		sprintf(phba->OptionROMVersion, "%d.%d%d%c%d",
+		snprintf(phba->OptionROMVersion, 32, "%d.%d%d%c%d",
 			prg->ver, prg->rev, prg->lev,
 			dist, prg->num);
 	mempool_free(pmboxq, phba->mbox_mem_pool);
@@ -649,7 +649,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
  *		0 - success
  *		Any other value - error
  **/
-int
+static int
 lpfc_hba_init_link(struct lpfc_hba *phba, uint32_t flag)
 {
 	return lpfc_hba_init_link_fc_topology(phba, phba->cfg_topology, flag);
@@ -750,7 +750,7 @@ lpfc_hba_init_link_fc_topology(struct lpfc_hba *phba, uint32_t fc_topology,
  *		0 - success
  *		Any other value - error
  **/
-int
+static int
 lpfc_hba_down_link(struct lpfc_hba *phba, uint32_t flag)
 {
 	LPFC_MBOXQ_t *pmb;
@@ -988,9 +988,12 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	LIST_HEAD(aborts);
 	unsigned long iflag = 0;
 	struct lpfc_sglq *sglq_entry = NULL;
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring *pring;
 
 	lpfc_hba_free_post_buf(phba);
 	lpfc_hba_clean_txcmplq(phba);
+	pring = &psli->ring[LPFC_ELS_RING];
 
 	/* At this point in time the HBA is either reset or DOA. Either
 	 * way, nothing should be on lpfc_abts_els_sgl_list, it needs to be
@@ -1008,8 +1011,10 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 		&phba->sli4_hba.lpfc_abts_els_sgl_list, list)
 		sglq_entry->state = SGL_FREED;
 
+	spin_lock(&pring->ring_lock);
 	list_splice_init(&phba->sli4_hba.lpfc_abts_els_sgl_list,
 			&phba->sli4_hba.lpfc_sgl_list);
+	spin_unlock(&pring->ring_lock);
 	spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
 	/* abts_scsi_buf_list_lock required because worker thread uses this
 	 * list.
@@ -3047,6 +3052,7 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 	LIST_HEAD(els_sgl_list);
 	LIST_HEAD(scsi_sgl_list);
 	int rc;
+	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 
 	/*
 	 * update on pci function's els xri-sgl list
@@ -3087,7 +3093,9 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 			list_add_tail(&sglq_entry->list, &els_sgl_list);
 		}
 		spin_lock_irq(&phba->hbalock);
+		spin_lock(&pring->ring_lock);
 		list_splice_init(&els_sgl_list, &phba->sli4_hba.lpfc_sgl_list);
+		spin_unlock(&pring->ring_lock);
 		spin_unlock_irq(&phba->hbalock);
 	} else if (els_xri_cnt < phba->sli4_hba.els_xri_cnt) {
 		/* els xri-sgl shrinked */
@@ -3097,7 +3105,9 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 				"%d to %d\n", phba->sli4_hba.els_xri_cnt,
 				els_xri_cnt);
 		spin_lock_irq(&phba->hbalock);
+		spin_lock(&pring->ring_lock);
 		list_splice_init(&phba->sli4_hba.lpfc_sgl_list, &els_sgl_list);
+		spin_unlock(&pring->ring_lock);
 		spin_unlock_irq(&phba->hbalock);
 		/* release extra els sgls from list */
 		for (i = 0; i < xri_cnt; i++) {
@@ -3110,7 +3120,9 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 			}
 		}
 		spin_lock_irq(&phba->hbalock);
+		spin_lock(&pring->ring_lock);
 		list_splice_init(&els_sgl_list, &phba->sli4_hba.lpfc_sgl_list);
+		spin_unlock(&pring->ring_lock);
 		spin_unlock_irq(&phba->hbalock);
 	} else
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -3165,9 +3177,11 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 		for (i = 0; i < scsi_xri_cnt; i++) {
 			list_remove_head(&scsi_sgl_list, psb,
 					 struct lpfc_scsi_buf, list);
-			pci_pool_free(phba->lpfc_scsi_dma_buf_pool, psb->data,
-				      psb->dma_handle);
-			kfree(psb);
+			if (psb) {
+				pci_pool_free(phba->lpfc_scsi_dma_buf_pool,
+					      psb->data, psb->dma_handle);
+				kfree(psb);
+			}
 		}
 		spin_lock_irq(&phba->scsi_buf_list_get_lock);
 		phba->sli4_hba.scsi_xri_cnt -= scsi_xri_cnt;
@@ -3550,7 +3564,7 @@ lpfc_fcf_redisc_wait_start_timer(struct lpfc_hba *phba)
  * list, and then worker thread shall be waked up for processing from the
  * worker thread context.
  **/
-void
+static void
 lpfc_sli4_fcf_redisc_wait_tmo(unsigned long ptr)
 {
 	struct lpfc_hba *phba = (struct lpfc_hba *)ptr;
@@ -5680,10 +5694,13 @@ static void
 lpfc_free_els_sgl_list(struct lpfc_hba *phba)
 {
 	LIST_HEAD(sglq_list);
+	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 
 	/* Retrieve all els sgls from driver list */
 	spin_lock_irq(&phba->hbalock);
+	spin_lock(&pring->ring_lock);
 	list_splice_init(&phba->sli4_hba.lpfc_sgl_list, &sglq_list);
+	spin_unlock(&pring->ring_lock);
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Now free the sgl list */
@@ -5848,16 +5865,14 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	if (!dmabuf)
 		return NULL;
 
-	dmabuf->virt = dma_alloc_coherent(&phba->pcidev->dev,
-					  LPFC_HDR_TEMPLATE_SIZE,
-					  &dmabuf->phys,
-					  GFP_KERNEL);
+	dmabuf->virt = dma_zalloc_coherent(&phba->pcidev->dev,
+					   LPFC_HDR_TEMPLATE_SIZE,
+					   &dmabuf->phys, GFP_KERNEL);
 	if (!dmabuf->virt) {
 		rpi_hdr = NULL;
 		goto err_free_dmabuf;
 	}
 
-	memset(dmabuf->virt, 0, LPFC_HDR_TEMPLATE_SIZE);
 	if (!IS_ALIGNED(dmabuf->phys, LPFC_HDR_TEMPLATE_SIZE)) {
 		rpi_hdr = NULL;
 		goto err_free_coherent;
@@ -6246,14 +6261,11 @@ lpfc_sli_pci_mem_setup(struct lpfc_hba *phba)
 	}
 
 	/* Allocate memory for SLI-2 structures */
-	phba->slim2p.virt = dma_alloc_coherent(&pdev->dev,
-					       SLI2_SLIM_SIZE,
-					       &phba->slim2p.phys,
-					       GFP_KERNEL);
+	phba->slim2p.virt = dma_zalloc_coherent(&pdev->dev, SLI2_SLIM_SIZE,
+						&phba->slim2p.phys, GFP_KERNEL);
 	if (!phba->slim2p.virt)
 		goto out_iounmap;
 
-	memset(phba->slim2p.virt, 0, SLI2_SLIM_SIZE);
 	phba->mbox = phba->slim2p.virt + offsetof(struct lpfc_sli2_slim, mbx);
 	phba->mbox_ext = (phba->slim2p.virt +
 		offsetof(struct lpfc_sli2_slim, mbx_ext_words));
@@ -6618,15 +6630,12 @@ lpfc_create_bootstrap_mbox(struct lpfc_hba *phba)
 	 * plus an alignment restriction of 16 bytes.
 	 */
 	bmbx_size = sizeof(struct lpfc_bmbx_create) + (LPFC_ALIGN_16_BYTE - 1);
-	dmabuf->virt = dma_alloc_coherent(&phba->pcidev->dev,
-					  bmbx_size,
-					  &dmabuf->phys,
-					  GFP_KERNEL);
+	dmabuf->virt = dma_zalloc_coherent(&phba->pcidev->dev, bmbx_size,
+					   &dmabuf->phys, GFP_KERNEL);
 	if (!dmabuf->virt) {
 		kfree(dmabuf);
 		return -ENOMEM;
 	}
-	memset(dmabuf->virt, 0, bmbx_size);
 
 	/*
 	 * Initialize the bootstrap mailbox pointers now so that the register
@@ -6710,7 +6719,6 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	struct lpfc_mbx_get_func_cfg *get_func_cfg;
 	struct lpfc_rsrc_desc_fcfcoe *desc;
 	char *pdesc_0;
-	uint32_t desc_count;
 	int length, i, rc = 0, rc2;
 
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -6841,7 +6849,6 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 
 	/* search for fc_fcoe resrouce descriptor */
 	get_func_cfg = &pmb->u.mqe.un.get_func_cfg;
-	desc_count = get_func_cfg->func_cfg.rsrc_desc_count;
 
 	pdesc_0 = (char *)&get_func_cfg->func_cfg.desc[0];
 	desc = (struct lpfc_rsrc_desc_fcfcoe *)pdesc_0;
@@ -7417,7 +7424,8 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0523 Failed setup of fast-path EQ "
-					"(%d), rc = 0x%x\n", fcp_eqidx, rc);
+					"(%d), rc = 0x%x\n", fcp_eqidx,
+					(uint32_t)rc);
 			goto out_destroy_hba_eq;
 		}
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -7448,7 +7456,8 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0527 Failed setup of fast-path FCP "
-					"CQ (%d), rc = 0x%x\n", fcp_cqidx, rc);
+					"CQ (%d), rc = 0x%x\n", fcp_cqidx,
+					(uint32_t)rc);
 			goto out_destroy_fcp_cq;
 		}
 
@@ -7488,7 +7497,8 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0535 Failed setup of fast-path FCP "
-					"WQ (%d), rc = 0x%x\n", fcp_wqidx, rc);
+					"WQ (%d), rc = 0x%x\n", fcp_wqidx,
+					(uint32_t)rc);
 			goto out_destroy_fcp_wq;
 		}
 
@@ -7521,7 +7531,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0529 Failed setup of slow-path mailbox CQ: "
-				"rc = 0x%x\n", rc);
+				"rc = 0x%x\n", (uint32_t)rc);
 		goto out_destroy_fcp_wq;
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -7541,7 +7551,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0531 Failed setup of slow-path ELS CQ: "
-				"rc = 0x%x\n", rc);
+				"rc = 0x%x\n", (uint32_t)rc);
 		goto out_destroy_mbx_cq;
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -7585,7 +7595,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0537 Failed setup of slow-path ELS WQ: "
-				"rc = 0x%x\n", rc);
+				"rc = 0x%x\n", (uint32_t)rc);
 		goto out_destroy_mbx_wq;
 	}
 
@@ -7617,7 +7627,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0541 Failed setup of Receive Queue: "
-				"rc = 0x%x\n", rc);
+				"rc = 0x%x\n", (uint32_t)rc);
 		goto out_destroy_fcp_wq;
 	}
 
@@ -7896,7 +7906,8 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t *mboxq;
 	uint32_t rc = 0, if_type;
 	uint32_t shdr_status, shdr_add_status;
-	uint32_t rdy_chk, num_resets = 0, reset_again = 0;
+	uint32_t rdy_chk;
+	uint32_t port_reset = 0;
 	union lpfc_sli4_cfg_shdr *shdr;
 	struct lpfc_register reg_data;
 	uint16_t devid;
@@ -7936,9 +7947,42 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 		}
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
-		for (num_resets = 0;
-		     num_resets < MAX_IF_TYPE_2_RESETS;
-		     num_resets++) {
+wait:
+		/*
+		 * Poll the Port Status Register and wait for RDY for
+		 * up to 30 seconds. If the port doesn't respond, treat
+		 * it as an error.
+		 */
+		for (rdy_chk = 0; rdy_chk < 3000; rdy_chk++) {
+			if (lpfc_readl(phba->sli4_hba.u.if_type2.
+				STATUSregaddr, &reg_data.word0)) {
+				rc = -ENODEV;
+				goto out;
+			}
+			if (bf_get(lpfc_sliport_status_rdy, &reg_data))
+				break;
+			msleep(20);
+		}
+
+		if (!bf_get(lpfc_sliport_status_rdy, &reg_data)) {
+			phba->work_status[0] = readl(
+				phba->sli4_hba.u.if_type2.ERR1regaddr);
+			phba->work_status[1] = readl(
+				phba->sli4_hba.u.if_type2.ERR2regaddr);
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2890 Port not ready, port status reg "
+					"0x%x error 1=0x%x, error 2=0x%x\n",
+					reg_data.word0,
+					phba->work_status[0],
+					phba->work_status[1]);
+			rc = -ENODEV;
+			goto out;
+		}
+
+		if (!port_reset) {
+			/*
+			 * Reset the port now
+			 */
 			reg_data.word0 = 0;
 			bf_set(lpfc_sliport_ctrl_end, &reg_data,
 			       LPFC_SLIPORT_LITTLE_ENDIAN);
@@ -7949,64 +7993,16 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			/* flush */
 			pci_read_config_word(phba->pcidev,
 					     PCI_DEVICE_ID, &devid);
-			/*
-			 * Poll the Port Status Register and wait for RDY for
-			 * up to 10 seconds.  If the port doesn't respond, treat
-			 * it as an error.  If the port responds with RN, start
-			 * the loop again.
-			 */
-			for (rdy_chk = 0; rdy_chk < 1000; rdy_chk++) {
-				msleep(10);
-				if (lpfc_readl(phba->sli4_hba.u.if_type2.
-					      STATUSregaddr, &reg_data.word0)) {
-					rc = -ENODEV;
-					goto out;
-				}
-				if (bf_get(lpfc_sliport_status_rn, &reg_data))
-					reset_again++;
-				if (bf_get(lpfc_sliport_status_rdy, &reg_data))
-					break;
-			}
 
-			/*
-			 * If the port responds to the init request with
-			 * reset needed, delay for a bit and restart the loop.
-			 */
-			if (reset_again && (rdy_chk < 1000)) {
-				msleep(10);
-				reset_again = 0;
-				continue;
-			}
-
-			/* Detect any port errors. */
-			if ((bf_get(lpfc_sliport_status_err, &reg_data)) ||
-			    (rdy_chk >= 1000)) {
-				phba->work_status[0] = readl(
-					phba->sli4_hba.u.if_type2.ERR1regaddr);
-				phba->work_status[1] = readl(
-					phba->sli4_hba.u.if_type2.ERR2regaddr);
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2890 Port error detected during port "
-					"reset(%d): wait_tmo:%d ms, "
-					"port status reg 0x%x, "
-					"error 1=0x%x, error 2=0x%x\n",
-					num_resets, rdy_chk*10,
-					reg_data.word0,
-					phba->work_status[0],
-					phba->work_status[1]);
-				rc = -ENODEV;
-			}
-
-			/*
-			 * Terminate the outer loop provided the Port indicated
-			 * ready within 10 seconds.
-			 */
-			if (rdy_chk < 1000)
-				break;
+			port_reset = 1;
+			msleep(20);
+			goto wait;
+		} else if (bf_get(lpfc_sliport_status_rn, &reg_data)) {
+			rc = -ENODEV;
+			goto out;
 		}
-		/* delay driver action following IF_TYPE_2 function reset */
-		msleep(100);
 		break;
+
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:
 		break;
@@ -8014,11 +8010,10 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 
 out:
 	/* Catch the not-ready port failure after a port reset. */
-	if (num_resets >= MAX_IF_TYPE_2_RESETS) {
+	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3317 HBA not functional: IP Reset Failed "
-				"after (%d) retries, try: "
-				"echo fw_reset > board_mode\n", num_resets);
+				"try: echo fw_reset > board_mode\n");
 		rc = -ENODEV;
 	}
 
@@ -8211,9 +8206,9 @@ lpfc_sli4_pci_mem_unset(struct lpfc_hba *phba)
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to enable the MSI-X interrupt vectors to device
- * with SLI-3 interface specs. The kernel function pci_enable_msix() is
- * called to enable the MSI-X vectors. Note that pci_enable_msix(), once
- * invoked, enables either all or nothing, depending on the current
+ * with SLI-3 interface specs. The kernel function pci_enable_msix_exact()
+ * is called to enable the MSI-X vectors. Note that pci_enable_msix_exact(),
+ * once invoked, enables either all or nothing, depending on the current
  * availability of PCI vector resources. The device driver is responsible
  * for calling the individual request_irq() to register each MSI-X vector
  * with a interrupt handler, which is done in this function. Note that
@@ -8237,8 +8232,8 @@ lpfc_sli_enable_msix(struct lpfc_hba *phba)
 		phba->msix_entries[i].entry = i;
 
 	/* Configure MSI-X capability structure */
-	rc = pci_enable_msix(phba->pcidev, phba->msix_entries,
-				ARRAY_SIZE(phba->msix_entries));
+	rc = pci_enable_msix_exact(phba->pcidev, phba->msix_entries,
+				   LPFC_MSIX_VECTORS);
 	if (rc) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0420 PCI enable MSI-X failed (%d)\n", rc);
@@ -8775,16 +8770,14 @@ out:
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to enable the MSI-X interrupt vectors to device
- * with SLI-4 interface spec. The kernel function pci_enable_msix() is called
- * to enable the MSI-X vectors. Note that pci_enable_msix(), once invoked,
- * enables either all or nothing, depending on the current availability of
- * PCI vector resources. The device driver is responsible for calling the
- * individual request_irq() to register each MSI-X vector with a interrupt
- * handler, which is done in this function. Note that later when device is
- * unloading, the driver should always call free_irq() on all MSI-X vectors
- * it has done request_irq() on before calling pci_disable_msix(). Failure
- * to do so results in a BUG_ON() and a device will be left with MSI-X
- * enabled and leaks its vectors.
+ * with SLI-4 interface spec. The kernel function pci_enable_msix_range()
+ * is called to enable the MSI-X vectors. The device driver is responsible
+ * for calling the individual request_irq() to register each MSI-X vector
+ * with a interrupt handler, which is done in this function. Note that
+ * later when device is unloading, the driver should always call free_irq()
+ * on all MSI-X vectors it has done request_irq() on before calling
+ * pci_disable_msix(). Failure to do so results in a BUG_ON() and a device
+ * will be left with MSI-X enabled and leaks its vectors.
  *
  * Return codes
  * 0 - successful
@@ -8805,17 +8798,14 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 		phba->sli4_hba.msix_entries[index].entry = index;
 		vectors++;
 	}
-enable_msix_vectors:
-	rc = pci_enable_msix(phba->pcidev, phba->sli4_hba.msix_entries,
-			     vectors);
-	if (rc > 1) {
-		vectors = rc;
-		goto enable_msix_vectors;
-	} else if (rc) {
+	rc = pci_enable_msix_range(phba->pcidev, phba->sli4_hba.msix_entries,
+				   2, vectors);
+	if (rc < 0) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0484 PCI enable MSI-X failed (%d)\n", rc);
 		goto vec_fail_out;
 	}
+	vectors = rc;
 
 	/* Log MSI-X vector assignment */
 	for (index = 0; index < vectors; index++)
@@ -8828,7 +8818,8 @@ enable_msix_vectors:
 	/* Assign MSI-X vectors to interrupt handlers */
 	for (index = 0; index < vectors; index++) {
 		memset(&phba->sli4_hba.handler_name[index], 0, 16);
-		sprintf((char *)&phba->sli4_hba.handler_name[index],
+		snprintf((char *)&phba->sli4_hba.handler_name[index],
+			 LPFC_SLI4_HANDLER_NAME_SZ,
 			 LPFC_DRIVER_HANDLER_NAME"%d", index);
 
 		phba->sli4_hba.fcp_eq_hdl[index].idx = index;

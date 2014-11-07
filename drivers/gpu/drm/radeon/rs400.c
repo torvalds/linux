@@ -221,9 +221,9 @@ void rs400_gart_set_page(struct radeon_device *rdev, unsigned i,
 	entry = (lower_32_bits(addr) & PAGE_MASK) |
 		((upper_32_bits(addr) & 0xff) << 4);
 	if (flags & RADEON_GART_PAGE_READ)
-		addr |= RS400_PTE_READABLE;
+		entry |= RS400_PTE_READABLE;
 	if (flags & RADEON_GART_PAGE_WRITE)
-		addr |= RS400_PTE_WRITEABLE;
+		entry |= RS400_PTE_WRITEABLE;
 	if (!(flags & RADEON_GART_PAGE_SNOOP))
 		entry |= RS400_PTE_UNSNOOPED;
 	entry = cpu_to_le32(entry);

@@ -15,6 +15,7 @@
 #include <asm/vio.h>
 #include <asm/bug.h>
 #include <asm/machdep.h>
+#include <asm/swiotlb.h>
 
 /*
  * Generic direct DMA implementation
@@ -25,6 +26,18 @@
  * default the offset is PCI_DRAM_OFFSET.
  */
 
+static u64 __maybe_unused get_pfn_limit(struct device *dev)
+{
+	u64 pfn = (dev->coherent_dma_mask >> PAGE_SHIFT) + 1;
+	struct dev_archdata __maybe_unused *sd = &dev->archdata;
+
+#ifdef CONFIG_SWIOTLB
+	if (sd->max_direct_dma_addr && sd->dma_ops == &swiotlb_dma_ops)
+		pfn = min_t(u64, pfn, sd->max_direct_dma_addr >> PAGE_SHIFT);
+#endif
+
+	return pfn;
+}
 
 void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 				dma_addr_t *dma_handle, gfp_t flag,
@@ -40,6 +53,34 @@ void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 #else
 	struct page *page;
 	int node = dev_to_node(dev);
+#ifdef CONFIG_FSL_SOC
+	u64 pfn = get_pfn_limit(dev);
+	int zone;
+
+	/*
+	 * This code should be OK on other platforms, but we have drivers that
+	 * don't set coherent_dma_mask. As a workaround we just ifdef it. This
+	 * whole routine needs some serious cleanup.
+	 */
+
+	zone = dma_pfn_limit_to_zone(pfn);
+	if (zone < 0) {
+		dev_err(dev, "%s: No suitable zone for pfn %#llx\n",
+			__func__, pfn);
+		return NULL;
+	}
+
+	switch (zone) {
+	case ZONE_DMA:
+		flag |= GFP_DMA;
+		break;
+#ifdef CONFIG_ZONE_DMA32
+	case ZONE_DMA32:
+		flag |= GFP_DMA32;
+		break;
+#endif
+	};
+#endif /* CONFIG_FSL_SOC */
 
 	/* ignore region specifiers */
 	flag  &= ~(__GFP_HIGHMEM);
@@ -202,6 +243,7 @@ int __dma_set_mask(struct device *dev, u64 dma_mask)
 	*dev->dma_mask = dma_mask;
 	return 0;
 }
+
 int dma_set_mask(struct device *dev, u64 dma_mask)
 {
 	if (ppc_md.dma_set_mask)
@@ -210,12 +252,9 @@ int dma_set_mask(struct device *dev, u64 dma_mask)
 }
 EXPORT_SYMBOL(dma_set_mask);
 
-u64 dma_get_required_mask(struct device *dev)
+u64 __dma_get_required_mask(struct device *dev)
 {
 	struct dma_map_ops *dma_ops = get_dma_ops(dev);
-
-	if (ppc_md.dma_get_required_mask)
-		return ppc_md.dma_get_required_mask(dev);
 
 	if (unlikely(dma_ops == NULL))
 		return 0;
@@ -224,6 +263,14 @@ u64 dma_get_required_mask(struct device *dev)
 		return dma_ops->get_required_mask(dev);
 
 	return DMA_BIT_MASK(8 * sizeof(dma_addr_t));
+}
+
+u64 dma_get_required_mask(struct device *dev)
+{
+	if (ppc_md.dma_get_required_mask)
+		return ppc_md.dma_get_required_mask(dev);
+
+	return __dma_get_required_mask(dev);
 }
 EXPORT_SYMBOL_GPL(dma_get_required_mask);
 

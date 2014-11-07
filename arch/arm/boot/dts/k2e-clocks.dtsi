@@ -40,7 +40,7 @@ clocks {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,psc-clock";
 		clocks = <&chipclk16>;
-		clock-output-names = "usb";
+		clock-output-names = "usb1";
 		reg = <0x02350004 0xb00>, <0x02350000 0x400>;
 		reg-names = "control", "domain";
 		domain-id = <0>;
@@ -60,8 +60,8 @@ clocks {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,psc-clock";
 		clocks = <&chipclk12>;
-		clock-output-names = "pcie";
-		reg = <0x0235006c 0xb00>, <0x02350000 0x400>;
+		clock-output-names = "pcie1";
+		reg = <0x0235006c 0xb00>, <0x02350048 0x400>;
 		reg-names = "control", "domain";
 		domain-id = <18>;
 	};

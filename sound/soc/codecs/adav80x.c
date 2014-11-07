@@ -812,42 +812,23 @@ static int adav80x_probe(struct snd_soc_codec *codec)
 	/* Disable DAC zero flag */
 	regmap_write(adav80x->regmap, ADAV80X_DAC_CTRL3, 0x6);
 
-	return adav80x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-}
-
-static int adav80x_suspend(struct snd_soc_codec *codec)
-{
-	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	ret = adav80x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	regcache_cache_only(adav80x->regmap, true);
-
-	return ret;
+	return 0;
 }
 
 static int adav80x_resume(struct snd_soc_codec *codec)
 {
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 
-	regcache_cache_only(adav80x->regmap, false);
-	adav80x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	regcache_sync(adav80x->regmap);
 
 	return 0;
 }
 
-static int adav80x_remove(struct snd_soc_codec *codec)
-{
-	return adav80x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-}
-
 static struct snd_soc_codec_driver adav80x_codec_driver = {
 	.probe = adav80x_probe,
-	.remove = adav80x_remove,
-	.suspend = adav80x_suspend,
 	.resume = adav80x_resume,
 	.set_bias_level = adav80x_set_bias_level,
+	.suspend_bias_off = true,
 
 	.set_pll = adav80x_set_pll,
 	.set_sysclk = adav80x_set_sysclk,

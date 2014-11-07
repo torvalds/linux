@@ -98,12 +98,16 @@ wr32:
 // $r14 - ns
 // $r0  - zero
 nsec:
+	push $r9
+	push $r8
 	nv_iord($r8, NV_PPWR_TIMER_LOW)
 	nsec_loop:
 		nv_iord($r9, NV_PPWR_TIMER_LOW)
 		sub b32 $r9 $r8
 		cmp b32 $r9 $r14
 		bra l #nsec_loop
+	pop $r8
+	pop $r9
 	ret
 
 // busy-wait for a period of time
@@ -115,6 +119,8 @@ nsec:
 // $r11 - timeout (ns)
 // $r0  - zero
 wait:
+	push $r9
+	push $r8
 	nv_iord($r8, NV_PPWR_TIMER_LOW)
 	wait_loop:
 		nv_rd32($r10, $r14)
@@ -126,6 +132,8 @@ wait:
 		cmp b32 $r9 $r11
 		bra l #wait_loop
 	wait_done:
+	pop $r8
+	pop $r9
 	ret
 
 // $r15 - current (kern)
@@ -242,12 +250,89 @@ intr:
 	bclr $flags $p0
 	iret
 
-// request the current process be sent a message after a timeout expires
+// calculate the number of ticks in the specified nanoseconds delay
+//
+// $r15 - current
+// $r14 - ns
+// $r14 - ticks (return)
+// $r0  - zero
+ticks_from_ns:
+	push $r12
+	push $r11
+
+	/* try not losing precision (multiply then divide) */
+	imm32($r13, HW_TICKS_PER_US)
+	call #mulu32_32_64
+
+	/* use an immeditate, it's ok because HW_TICKS_PER_US < 16 bits */
+	div $r12 $r12 1000
+
+	/* check if there wasn't any overflow */
+	cmpu b32 $r11 0
+	bra e #ticks_from_ns_quit
+
+	/* let's divide then multiply, too bad for the precision! */
+	div $r14 $r14 1000
+	imm32($r13, HW_TICKS_PER_US)
+	call #mulu32_32_64
+
+	/* this cannot overflow as long as HW_TICKS_PER_US < 1000 */
+
+ticks_from_ns_quit:
+	mov b32 $r14 $r12
+	pop $r11
+	pop $r12
+	ret
+
+// calculate the number of ticks in the specified microsecond delay
+//
+// $r15 - current
+// $r14 - us
+// $r14 - ticks (return)
+// $r0  - zero
+ticks_from_us:
+	push $r12
+	push $r11
+
+	/* simply multiply $us by HW_TICKS_PER_US */
+	imm32($r13, HW_TICKS_PER_US)
+	call #mulu32_32_64
+	mov b32 $r14 $r12
+
+	/* check if there wasn't any overflow */
+	cmpu b32 $r11 0
+	bra e #ticks_from_us_quit
+
+	/* Overflow! */
+	clear b32 $r14
+
+ticks_from_us_quit:
+	pop $r11
+	pop $r12
+	ret
+
+// calculate the number of ticks in the specified microsecond delay
 //
 // $r15 - current
 // $r14 - ticks
+// $r14 - us (return)
+// $r0  - zero
+ticks_to_us:
+	/* simply divide $ticks by HW_TICKS_PER_US */
+	imm32($r13, HW_TICKS_PER_US)
+	div $r14 $r14 $r13
+
+	ret
+
+// request the current process be sent a message after a timeout expires
+//
+// $r15 - current
+// $r14 - ticks (make sure it is < 2^31 to avoid any possible overflow)
 // $r0  - zero
 timer:
+	push $r9
+	push $r8
+
 	// interrupts off to prevent racing with timer isr
 	bclr $flags ie0
 
@@ -255,13 +340,22 @@ timer:
 	ld b32 $r8 D[$r15 + #proc_time]
 	cmp b32 $r8 0
 	bra g #timer_done
+
+	// halt watchdog timer temporarily
+	clear b32 $r8
+	nv_iowr(NV_PPWR_WATCHDOG_ENABLE, $r8)
+
+	// find out how much time elapsed since the last update
+	// of the watchdog and add this time to the wanted ticks
+	nv_iord($r8, NV_PPWR_WATCHDOG_TIME)
+	ld b32 $r9 D[$r0 + #time_prev]
+	sub b32 $r9 $r8
+	add b32 $r14 $r9
 	st b32 D[$r15 + #proc_time] $r14
 
-	// halt watchdog timer temporarily and check for a pending
-	// interrupt.  if there's one already pending, we can just
-	// bail since the timer isr will queue the next soonest
-	// right after it's done
-	nv_iowr(NV_PPWR_WATCHDOG_ENABLE, $r8)
+	// check for a pending interrupt.  if there's one already
+	// pending, we can just bail since the timer isr will
+	// queue the next soonest right after it's done
 	nv_iord($r8, NV_PPWR_INTR)
 	and $r8 NV_PPWR_INTR_WATCHDOG
 	bra nz #timer_enable
@@ -272,10 +366,10 @@ timer:
 	cmp b32 $r14 $r0
 	bra e #timer_reset
 	cmp b32 $r14 $r8
-	bra l #timer_done
-	timer_reset:
-	nv_iowr(NV_PPWR_WATCHDOG_TIME, $r14)
-	st b32 D[$r0 + #time_prev] $r14
+	bra g #timer_enable
+		timer_reset:
+		nv_iowr(NV_PPWR_WATCHDOG_TIME, $r14)
+		st b32 D[$r0 + #time_prev] $r14
 
 	// re-enable the watchdog timer
 	timer_enable:
@@ -285,6 +379,9 @@ timer:
 	// interrupts back on
 	timer_done:
 	bset $flags ie0
+
+	pop $r8
+	pop $r9
 	ret
 
 // send message to another process
@@ -371,6 +468,9 @@ send:
 // $r14 - process
 // $r0  - zero
 recv:
+	push $r9
+	push $r8
+
 	ld b32 $r8 D[$r14 + #proc_qget]
 	ld b32 $r9 D[$r14 + #proc_qput]
 	bclr $flags $p1
@@ -403,6 +503,8 @@ recv:
 		bset $flags $p1
 		pop $r15
 	recv_done:
+	pop $r8
+	pop $r9
 	ret
 
 init:

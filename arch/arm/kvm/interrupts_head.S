@@ -433,10 +433,17 @@ ARM_BE8(rev	r10, r10	)
 	str	r3, [r11, #VGIC_V2_CPU_HCR]
 	str	r4, [r11, #VGIC_V2_CPU_VMCR]
 	str	r5, [r11, #VGIC_V2_CPU_MISR]
+#ifdef CONFIG_CPU_ENDIAN_BE8
+	str	r6, [r11, #(VGIC_V2_CPU_EISR + 4)]
+	str	r7, [r11, #VGIC_V2_CPU_EISR]
+	str	r8, [r11, #(VGIC_V2_CPU_ELRSR + 4)]
+	str	r9, [r11, #VGIC_V2_CPU_ELRSR]
+#else
 	str	r6, [r11, #VGIC_V2_CPU_EISR]
 	str	r7, [r11, #(VGIC_V2_CPU_EISR + 4)]
 	str	r8, [r11, #VGIC_V2_CPU_ELRSR]
 	str	r9, [r11, #(VGIC_V2_CPU_ELRSR + 4)]
+#endif
 	str	r10, [r11, #VGIC_V2_CPU_APR]
 
 	/* Clear GICH_HCR */

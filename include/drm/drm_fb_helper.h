@@ -77,7 +77,6 @@ struct drm_fb_helper_funcs {
 
 struct drm_fb_helper_connector {
 	struct drm_connector *connector;
-	struct drm_cmdline_mode cmdline_mode;
 };
 
 struct drm_fb_helper {

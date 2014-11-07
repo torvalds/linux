@@ -244,7 +244,7 @@ static bool is_ack(struct s3c24xx_i2c *i2c)
 		}
 		usleep_range(1000, 2000);
 	}
-	dev_err(i2c->dev, "ack was not recieved\n");
+	dev_err(i2c->dev, "ack was not received\n");
 	return false;
 }
 

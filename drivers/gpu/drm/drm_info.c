@@ -35,6 +35,9 @@
 
 #include <linux/seq_file.h>
 #include <drm/drmP.h>
+#include <drm/drm_gem.h>
+
+#include "drm_legacy.h"
 
 /**
  * Called when "/proc/dri/.../name" is read.
@@ -183,15 +186,32 @@ int drm_clients_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_file *priv;
 
+	seq_printf(m,
+		   "%20s %5s %3s master a %5s %10s\n",
+		   "command",
+		   "pid",
+		   "dev",
+		   "uid",
+		   "magic");
+
+	/* dev->filelist is sorted youngest first, but we want to present
+	 * oldest first (i.e. kernel, servers, clients), so walk backwardss.
+	 */
 	mutex_lock(&dev->struct_mutex);
-	seq_printf(m, "a dev	pid    uid	magic\n\n");
-	list_for_each_entry(priv, &dev->filelist, lhead) {
-		seq_printf(m, "%c %3d %5d %5d %10u\n",
-			   priv->authenticated ? 'y' : 'n',
-			   priv->minor->index,
+	list_for_each_entry_reverse(priv, &dev->filelist, lhead) {
+		struct task_struct *task;
+
+		rcu_read_lock(); /* locks pid_task()->comm */
+		task = pid_task(priv->pid, PIDTYPE_PID);
+		seq_printf(m, "%20s %5d %3d   %c    %c %5d %10u\n",
+			   task ? task->comm : "<unknown>",
 			   pid_vnr(priv->pid),
+			   priv->minor->index,
+			   priv->is_master ? 'y' : 'n',
+			   priv->authenticated ? 'y' : 'n',
 			   from_kuid_munged(seq_user_ns(m), priv->uid),
 			   priv->magic);
+		rcu_read_unlock();
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
@@ -223,62 +243,3 @@ int drm_gem_name_info(struct seq_file *m, void *data)
 
 	return 0;
 }
-
-#if DRM_DEBUG_CODE
-
-int drm_vma_info(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct drm_vma_entry *pt;
-	struct vm_area_struct *vma;
-	unsigned long vma_count = 0;
-#if defined(__i386__)
-	unsigned int pgprot;
-#endif
-
-	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(pt, &dev->vmalist, head)
-		vma_count++;
-
-	seq_printf(m, "vma use count: %lu, high_memory = %pK, 0x%pK\n",
-		   vma_count, high_memory,
-		   (void *)(unsigned long)virt_to_phys(high_memory));
-
-	list_for_each_entry(pt, &dev->vmalist, head) {
-		vma = pt->vma;
-		if (!vma)
-			continue;
-		seq_printf(m,
-			   "\n%5d 0x%pK-0x%pK %c%c%c%c%c%c 0x%08lx000",
-			   pt->pid,
-			   (void *)vma->vm_start, (void *)vma->vm_end,
-			   vma->vm_flags & VM_READ ? 'r' : '-',
-			   vma->vm_flags & VM_WRITE ? 'w' : '-',
-			   vma->vm_flags & VM_EXEC ? 'x' : '-',
-			   vma->vm_flags & VM_MAYSHARE ? 's' : 'p',
-			   vma->vm_flags & VM_LOCKED ? 'l' : '-',
-			   vma->vm_flags & VM_IO ? 'i' : '-',
-			   vma->vm_pgoff);
-
-#if defined(__i386__)
-		pgprot = pgprot_val(vma->vm_page_prot);
-		seq_printf(m, " %c%c%c%c%c%c%c%c%c",
-			   pgprot & _PAGE_PRESENT ? 'p' : '-',
-			   pgprot & _PAGE_RW ? 'w' : 'r',
-			   pgprot & _PAGE_USER ? 'u' : 's',
-			   pgprot & _PAGE_PWT ? 't' : 'b',
-			   pgprot & _PAGE_PCD ? 'u' : 'c',
-			   pgprot & _PAGE_ACCESSED ? 'a' : '-',
-			   pgprot & _PAGE_DIRTY ? 'd' : '-',
-			   pgprot & _PAGE_PSE ? 'm' : 'k',
-			   pgprot & _PAGE_GLOBAL ? 'g' : 'l');
-#endif
-		seq_printf(m, "\n");
-	}
-	mutex_unlock(&dev->struct_mutex);
-	return 0;
-}
-
-#endif
-

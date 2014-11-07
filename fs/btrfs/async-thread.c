@@ -74,6 +74,7 @@ BTRFS_WORK_HELPER(endio_helper);
 BTRFS_WORK_HELPER(endio_meta_helper);
 BTRFS_WORK_HELPER(endio_meta_write_helper);
 BTRFS_WORK_HELPER(endio_raid56_helper);
+BTRFS_WORK_HELPER(endio_repair_helper);
 BTRFS_WORK_HELPER(rmw_helper);
 BTRFS_WORK_HELPER(endio_write_helper);
 BTRFS_WORK_HELPER(freespace_write_helper);
@@ -91,7 +92,7 @@ __btrfs_alloc_workqueue(const char *name, int flags, int max_active,
 {
 	struct __btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
 
-	if (unlikely(!ret))
+	if (!ret)
 		return NULL;
 
 	ret->max_active = max_active;
@@ -115,7 +116,7 @@ __btrfs_alloc_workqueue(const char *name, int flags, int max_active,
 		ret->normal_wq = alloc_workqueue("%s-%s", flags,
 						 ret->max_active, "btrfs",
 						 name);
-	if (unlikely(!ret->normal_wq)) {
+	if (!ret->normal_wq) {
 		kfree(ret);
 		return NULL;
 	}
@@ -137,12 +138,12 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
 {
 	struct btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
 
-	if (unlikely(!ret))
+	if (!ret)
 		return NULL;
 
 	ret->normal = __btrfs_alloc_workqueue(name, flags & ~WQ_HIGHPRI,
 					      max_active, thresh);
-	if (unlikely(!ret->normal)) {
+	if (!ret->normal) {
 		kfree(ret);
 		return NULL;
 	}
@@ -150,7 +151,7 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
 	if (flags & WQ_HIGHPRI) {
 		ret->high = __btrfs_alloc_workqueue(name, flags, max_active,
 						    thresh);
-		if (unlikely(!ret->high)) {
+		if (!ret->high) {
 			__btrfs_destroy_workqueue(ret->normal);
 			kfree(ret);
 			return NULL;

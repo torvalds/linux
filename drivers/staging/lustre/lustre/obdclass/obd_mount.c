@@ -46,7 +46,7 @@
 #define PRINT_CMD CDEBUG
 
 #include "../include/obd.h"
-#include "../include/lvfs.h"
+#include "../include/linux/lustre_compat25.h"
 #include "../include/obd_class.h"
 #include "../include/lustre/lustre_user.h"
 #include "../include/lustre_log.h"
@@ -174,7 +174,7 @@ int do_lcfg(char *cfgname, lnet_nid_t nid, int cmd,
 	lcfg->lcfg_nid = nid;
 	rc = class_process_config(lcfg);
 	lustre_cfg_free(lcfg);
-	return(rc);
+	return rc;
 }
 EXPORT_SYMBOL(do_lcfg);
 
@@ -256,15 +256,19 @@ int lustre_start_mgc(struct super_block *sb)
 	len = strlen(LUSTRE_MGC_OBDNAME) + strlen(libcfs_nid2str(nid)) + 1;
 	OBD_ALLOC(mgcname, len);
 	OBD_ALLOC(niduuid, len + 2);
-	if (!mgcname || !niduuid)
-		GOTO(out_free, rc = -ENOMEM);
+	if (!mgcname || !niduuid) {
+		rc = -ENOMEM;
+		goto out_free;
+	}
 	sprintf(mgcname, "%s%s", LUSTRE_MGC_OBDNAME, libcfs_nid2str(nid));
 
 	mgssec = lsi->lsi_lmd->lmd_mgssec ? lsi->lsi_lmd->lmd_mgssec : "";
 
 	OBD_ALLOC_PTR(data);
-	if (data == NULL)
-		GOTO(out_free, rc = -ENOMEM);
+	if (data == NULL) {
+		rc = -ENOMEM;
+		goto out_free;
+	}
 
 	obd = class_name2obd(mgcname);
 	if (obd && !obd->obd_stopping) {
@@ -274,7 +278,7 @@ int lustre_start_mgc(struct super_block *sb)
 					strlen(KEY_MGSSEC), KEY_MGSSEC,
 					strlen(mgssec), mgssec, NULL);
 		if (rc)
-			GOTO(out_free, rc);
+			goto out_free;
 
 		/* Re-using an existing MGC */
 		atomic_inc(&obd->u.cli.cl_mgc_refcount);
@@ -318,12 +322,14 @@ int lustre_start_mgc(struct super_block *sb)
 		   (using its local copy of the log), but we do want to connect
 		   if at all possible. */
 		recov_bk++;
-		CDEBUG(D_MOUNT, "%s: Set MGC reconnect %d\n", mgcname,recov_bk);
+		CDEBUG(D_MOUNT, "%s: Set MGC reconnect %d\n", mgcname,
+		       recov_bk);
 		rc = obd_set_info_async(NULL, obd->obd_self_export,
 					sizeof(KEY_INIT_RECOV_BACKUP),
 					KEY_INIT_RECOV_BACKUP,
 					sizeof(recov_bk), &recov_bk, NULL);
-		GOTO(out, rc = 0);
+		rc = 0;
+		goto out;
 	}
 
 	CDEBUG(D_MOUNT, "Start MGC '%s'\n", mgcname);
@@ -349,7 +355,8 @@ int lustre_start_mgc(struct super_block *sb)
 			} else if (class_find_param(ptr, PARAM_MGSNODE,
 						    &ptr) != 0) {
 				CERROR("No MGS nids given.\n");
-				GOTO(out_free, rc = -EINVAL);
+				rc = -EINVAL;
+				goto out_free;
 			}
 			while (class_parse_nid(ptr, &nid, &ptr) == 0) {
 				rc = do_lcfg(mgcname, nid,
@@ -372,7 +379,8 @@ int lustre_start_mgc(struct super_block *sb)
 	}
 	if (i == 0) {
 		CERROR("No valid MGS nids found.\n");
-		GOTO(out_free, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out_free;
 	}
 	lsi->lsi_lmd->lmd_mgs_failnodes = 1;
 
@@ -387,7 +395,7 @@ int lustre_start_mgc(struct super_block *sb)
 				 niduuid, NULL, NULL);
 	OBD_FREE_PTR(uuid);
 	if (rc)
-		GOTO(out_free, rc);
+		goto out_free;
 
 	/* Add any failover MGS nids */
 	i = 1;
@@ -417,14 +425,15 @@ int lustre_start_mgc(struct super_block *sb)
 	obd = class_name2obd(mgcname);
 	if (!obd) {
 		CERROR("Can't find mgcobd %s\n", mgcname);
-		GOTO(out_free, rc = -ENOTCONN);
+		rc = -ENOTCONN;
+		goto out_free;
 	}
 
 	rc = obd_set_info_async(NULL, obd->obd_self_export,
 				strlen(KEY_MGSSEC), KEY_MGSSEC,
 				strlen(mgssec), mgssec, NULL);
 	if (rc)
-		GOTO(out_free, rc);
+		goto out_free;
 
 	/* Keep a refcount of servers/clients who started with "mount",
 	   so we know when we can get rid of the mgc. */
@@ -448,7 +457,7 @@ int lustre_start_mgc(struct super_block *sb)
 	rc = obd_connect(NULL, &exp, obd, &(obd->obd_uuid), data, NULL);
 	if (rc) {
 		CERROR("connect failed %d\n", rc);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	obd->u.cli.cl_mgc_mgsexp = exp;
@@ -490,7 +499,8 @@ static int lustre_stop_mgc(struct super_block *sb)
 		   will call in here. */
 		CDEBUG(D_MOUNT, "mgc still has %d references.\n",
 		       atomic_read(&obd->u.cli.cl_mgc_refcount));
-		GOTO(out, rc = -EBUSY);
+		rc = -EBUSY;
+		goto out;
 	}
 
 	/* The MGC has no recoverable data in any case.
@@ -516,11 +526,13 @@ static int lustre_stop_mgc(struct super_block *sb)
 
 	rc = class_manual_cleanup(obd);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	/* Clean the nid uuids */
-	if (!niduuid)
-		GOTO(out, rc = -ENOMEM);
+	if (!niduuid) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	for (i = 0; i < lsi->lsi_lmd->lmd_mgs_failnodes; i++) {
 		sprintf(ptr, "_%x", i);
@@ -817,7 +829,7 @@ int lustre_check_exclusion(struct super_block *sb, char *svname)
 	CDEBUG(D_MOUNT, "Check exclusion %s (%d) in %d of %s\n", svname,
 	       index, lmd->lmd_exclude_count, lmd->lmd_dev);
 
-	for(i = 0; i < lmd->lmd_exclude_count; i++) {
+	for (i = 0; i < lmd->lmd_exclude_count; i++) {
 		if (index == lmd->lmd_exclude[i]) {
 			CWARN("Excluding %s (on exclusion list)\n", svname);
 			return 1;
@@ -1211,7 +1223,8 @@ int lustre_fill_super(struct super_block *sb, void *data, int silent)
 	/* Figure out the lmd from the mount options */
 	if (lmd_parse((char *)(lmd2->lmd2_data), lmd)) {
 		lustre_put_lsi(sb);
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
 	if (lmd_is_client(lmd)) {
@@ -1228,7 +1241,7 @@ int lustre_fill_super(struct super_block *sb, void *data, int silent)
 			rc = lustre_start_mgc(sb);
 			if (rc) {
 				lustre_put_lsi(sb);
-				GOTO(out, rc);
+				goto out;
 			}
 			/* Connect and start */
 			/* (should always be ll_fill_super) */
@@ -1243,7 +1256,7 @@ int lustre_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* If error happens in fill_super() call, @lsi will be killed there.
 	 * This is why we do not put it here. */
-	GOTO(out, rc);
+	goto out;
 out:
 	if (rc) {
 		CERROR("Unable to mount %s (%d)\n",
@@ -1276,7 +1289,10 @@ EXPORT_SYMBOL(lustre_register_kill_super_cb);
 struct dentry *lustre_mount(struct file_system_type *fs_type, int flags,
 				const char *devname, void *data)
 {
-	struct lustre_mount_data2 lmd2 = { data, NULL };
+	struct lustre_mount_data2 lmd2 = {
+		.lmd2_data = data,
+		.lmd2_mnt = NULL
+	};
 
 	return mount_nodev(fs_type, flags, &lmd2, lustre_fill_super);
 }

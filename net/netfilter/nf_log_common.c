@@ -158,7 +158,7 @@ nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
 	       '0' + loginfo->u.log.level, prefix,
 	       in ? in->name : "",
 	       out ? out->name : "");
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (skb->nf_bridge) {
 		const struct net_device *physindev;
 		const struct net_device *physoutdev;

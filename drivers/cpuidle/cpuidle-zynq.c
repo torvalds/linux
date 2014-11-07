@@ -26,7 +26,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/cpu_pm.h>
 #include <linux/cpuidle.h>
 #include <linux/platform_device.h>
 #include <asm/proc-fns.h>
@@ -38,14 +37,8 @@
 static int zynq_enter_idle(struct cpuidle_device *dev,
 			   struct cpuidle_driver *drv, int index)
 {
-	/* Devices must be stopped here */
-	cpu_pm_enter();
-
 	/* Add code for DDR self refresh start */
 	cpu_do_idle();
-
-	/* Add code for DDR self refresh stop */
-	cpu_pm_exit();
 
 	return index;
 }
@@ -59,8 +52,7 @@ static struct cpuidle_driver zynq_idle_driver = {
 			.enter			= zynq_enter_idle,
 			.exit_latency		= 10,
 			.target_residency	= 10000,
-			.flags			= CPUIDLE_FLAG_TIME_VALID |
-						  CPUIDLE_FLAG_TIMER_STOP,
+			.flags			= CPUIDLE_FLAG_TIME_VALID,
 			.name			= "RAM_SR",
 			.desc			= "WFI and RAM Self Refresh",
 		},

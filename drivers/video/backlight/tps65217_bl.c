@@ -323,7 +323,6 @@ static int tps65217_bl_probe(struct platform_device *pdev)
 static struct platform_driver tps65217_bl_driver = {
 	.probe		= tps65217_bl_probe,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "tps65217-bl",
 	},
 };

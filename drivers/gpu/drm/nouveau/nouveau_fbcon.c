@@ -52,7 +52,7 @@
 #include "nouveau_crtc.h"
 
 MODULE_PARM_DESC(nofbaccel, "Disable fbcon acceleration");
-static int nouveau_nofbaccel = 0;
+int nouveau_nofbaccel = 0;
 module_param_named(nofbaccel, nouveau_nofbaccel, int, 0400);
 
 static void
@@ -308,7 +308,8 @@ static int
 nouveau_fbcon_create(struct drm_fb_helper *helper,
 		     struct drm_fb_helper_surface_size *sizes)
 {
-	struct nouveau_fbdev *fbcon = (struct nouveau_fbdev *)helper;
+	struct nouveau_fbdev *fbcon =
+		container_of(helper, struct nouveau_fbdev, helper);
 	struct drm_device *dev = fbcon->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
@@ -486,6 +487,16 @@ static const struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
 	.fb_probe = nouveau_fbcon_create,
 };
 
+static void
+nouveau_fbcon_set_suspend_work(struct work_struct *work)
+{
+	struct nouveau_fbdev *fbcon = container_of(work, typeof(*fbcon), work);
+	console_lock();
+	nouveau_fbcon_accel_restore(fbcon->dev);
+	nouveau_fbcon_zfill(fbcon->dev, fbcon);
+	fb_set_suspend(fbcon->helper.fbdev, FBINFO_STATE_RUNNING);
+	console_unlock();
+}
 
 int
 nouveau_fbcon_init(struct drm_device *dev)
@@ -503,6 +514,7 @@ nouveau_fbcon_init(struct drm_device *dev)
 	if (!fbcon)
 		return -ENOMEM;
 
+	INIT_WORK(&fbcon->work, nouveau_fbcon_set_suspend_work);
 	fbcon->dev = dev;
 	drm->fbcon = fbcon;
 
@@ -551,14 +563,14 @@ nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	if (drm->fbcon) {
-		console_lock();
-		if (state == 0) {
-			nouveau_fbcon_accel_restore(dev);
-			nouveau_fbcon_zfill(dev, drm->fbcon);
+		if (state == FBINFO_STATE_RUNNING) {
+			schedule_work(&drm->fbcon->work);
+			return;
 		}
+		flush_work(&drm->fbcon->work);
+		console_lock();
 		fb_set_suspend(drm->fbcon->helper.fbdev, state);
-		if (state == 1)
-			nouveau_fbcon_accel_save_disable(dev);
+		nouveau_fbcon_accel_save_disable(dev);
 		console_unlock();
 	}
 }

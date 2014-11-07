@@ -84,6 +84,7 @@ static inline void __iomem *
 dbg_ioremap_cache(u64 addr, unsigned long size, char *file, int line)
 {
 	void __iomem *new;
+
 	new = ioremap_cache(addr, size);
 	return new;
 }
@@ -94,6 +95,7 @@ static inline void *
 dbg_ioremap(u64 addr, unsigned long size, char *file, int line)
 {
 	void *new;
+
 	new = ioremap(addr, size);
 	return new;
 }
@@ -112,7 +114,7 @@ int uisutil_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
 			     char *format, ...);
 
 int uisctrl_register_req_handler(int type, void *fptr,
-				 ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo);
+				 ULTRA_VBUS_DEVICEINFO *chipset_driver_info);
 int uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 				    const char *switch_type_name,
 				    int (*fptr)(struct io_msgs *),
@@ -220,7 +222,7 @@ unsigned int uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx,
 					     struct phys_info frags[]);
 
 static inline unsigned int
-Issue_VMCALL_IO_CONTROLVM_ADDR(u64 *ControlAddress, u32 *ControlBytes)
+issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
 {
 	VMCALL_IO_CONTROLVM_ADDR_PARAMS params;
 	int result = VMCALL_SUCCESS;
@@ -229,13 +231,13 @@ Issue_VMCALL_IO_CONTROLVM_ADDR(u64 *ControlAddress, u32 *ControlBytes)
 	physaddr = virt_to_phys(&params);
 	ISSUE_IO_VMCALL(VMCALL_IO_CONTROLVM_ADDR, physaddr, result);
 	if (VMCALL_SUCCESSFUL(result)) {
-		*ControlAddress = params.ChannelAddress;
-		*ControlBytes = params.ChannelBytes;
+		*control_addr = params.ChannelAddress;
+		*control_bytes = params.ChannelBytes;
 	}
 	return result;
 }
 
-static inline unsigned int Issue_VMCALL_IO_DIAG_ADDR(u64 *DiagChannelAddress)
+static inline unsigned int issue_vmcall_io_diag_addr(u64 *diag_channel_addr)
 {
 	VMCALL_IO_DIAG_ADDR_PARAMS params;
 	int result = VMCALL_SUCCESS;
@@ -244,12 +246,11 @@ static inline unsigned int Issue_VMCALL_IO_DIAG_ADDR(u64 *DiagChannelAddress)
 	physaddr = virt_to_phys(&params);
 	ISSUE_IO_VMCALL(VMCALL_IO_DIAG_ADDR, physaddr, result);
 	if (VMCALL_SUCCESSFUL(result))
-		*DiagChannelAddress = params.ChannelAddress;
+		*diag_channel_addr = params.ChannelAddress;
 	return result;
 }
 
-static inline unsigned int
-Issue_VMCALL_IO_VISORSERIAL_ADDR(u64 *DiagChannelAddress)
+static inline unsigned int issue_vmcall_io_visorserial_addr(u64 *channel_addr)
 {
 	VMCALL_IO_VISORSERIAL_ADDR_PARAMS params;
 	int result = VMCALL_SUCCESS;
@@ -258,11 +259,11 @@ Issue_VMCALL_IO_VISORSERIAL_ADDR(u64 *DiagChannelAddress)
 	physaddr = virt_to_phys(&params);
 	ISSUE_IO_VMCALL(VMCALL_IO_VISORSERIAL_ADDR, physaddr, result);
 	if (VMCALL_SUCCESSFUL(result))
-		*DiagChannelAddress = params.ChannelAddress;
+		*channel_addr = params.ChannelAddress;
 	return result;
 }
 
-static inline s64 Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET(void)
+static inline s64 issue_vmcall_query_guest_virtual_time_offset(void)
 {
 	u64 result = VMCALL_SUCCESS;
 	u64 physaddr = 0;
@@ -272,7 +273,7 @@ static inline s64 Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET(void)
 	return result;
 }
 
-static inline s64 Issue_VMCALL_MEASUREMENT_DO_NOTHING(void)
+static inline s64 issue_vmcall_measurement_do_nothing(void)
 {
 	u64 result = VMCALL_SUCCESS;
 	u64 physaddr = 0;
@@ -289,7 +290,7 @@ struct log_info_t {
 	unsigned long long min_delta[64];
 };
 
-static inline int Issue_VMCALL_UPDATE_PHYSICAL_TIME(u64 adjustment)
+static inline int issue_vmcall_update_physical_time(u64 adjustment)
 {
 	int result = VMCALL_SUCCESS;
 
@@ -297,21 +298,20 @@ static inline int Issue_VMCALL_UPDATE_PHYSICAL_TIME(u64 adjustment)
 	return result;
 }
 
-static inline unsigned int
-Issue_VMCALL_CHANNEL_MISMATCH(const char *ChannelName,
-			      const char *ItemName,
-			      u32 SourceLineNumber, const char *path_n_fn)
+static inline unsigned int issue_vmcall_channel_mismatch(const char *chname,
+			      const char *item_name, u32 line_no,
+			      const char *path_n_fn)
 {
 	VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS params;
 	int result = VMCALL_SUCCESS;
 	u64 physaddr;
 	char *last_slash = NULL;
 
-	strlcpy(params.ChannelName, ChannelName,
+	strlcpy(params.ChannelName, chname,
 		lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS, ChannelName));
-	strlcpy(params.ItemName, ItemName,
+	strlcpy(params.ItemName, item_name,
 		lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS, ItemName));
-	params.SourceLineNumber = SourceLineNumber;
+	params.SourceLineNumber = line_no;
 
 	last_slash = strrchr(path_n_fn, '/');
 	if (last_slash != NULL) {
@@ -330,7 +330,7 @@ Issue_VMCALL_CHANNEL_MISMATCH(const char *ChannelName,
 	return result;
 }
 
-static inline unsigned int Issue_VMCALL_FATAL_BYE_BYE(void)
+static inline unsigned int issue_vmcall_fatal(void)
 {
 	int result = VMCALL_SUCCESS;
 	u64 physaddr = 0;
@@ -347,10 +347,10 @@ void uislib_cache_free(struct kmem_cache *cur_pool, void *p, char *fn, int ln);
 #define UISCACHEFREE(cur_pool, p) \
 	uislib_cache_free(cur_pool, p, __FILE__, __LINE__)
 
-void uislib_enable_channel_interrupts(u32 busNo, u32 devNo,
+void uislib_enable_channel_interrupts(u32 bus_no, u32 dev_no,
 				      int (*interrupt)(void *),
 				      void *interrupt_context);
-void uislib_disable_channel_interrupts(u32 busNo, u32 devNo);
-void uislib_force_channel_interrupt(u32 busNo, u32 devNo);
+void uislib_disable_channel_interrupts(u32 bus_no, u32 dev_no);
+void uislib_force_channel_interrupt(u32 bus_no, u32 dev_no);
 
 #endif /* __UISUTILS__H__ */

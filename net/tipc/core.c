@@ -35,11 +35,10 @@
  */
 
 #include "core.h"
-#include "ref.h"
 #include "name_table.h"
 #include "subscr.h"
 #include "config.h"
-#include "port.h"
+#include "socket.h"
 
 #include <linux/module.h>
 
@@ -85,7 +84,7 @@ static void tipc_core_stop(void)
 	tipc_netlink_stop();
 	tipc_subscr_stop();
 	tipc_nametbl_stop();
-	tipc_ref_table_stop();
+	tipc_sk_ref_table_stop();
 	tipc_socket_stop();
 	tipc_unregister_sysctl();
 }
@@ -99,7 +98,7 @@ static int tipc_core_start(void)
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
 
-	err = tipc_ref_table_init(tipc_max_ports, tipc_random);
+	err = tipc_sk_ref_table_init(tipc_max_ports, tipc_random);
 	if (err)
 		goto out_reftbl;
 
@@ -139,7 +138,7 @@ out_socket:
 out_netlink:
 	tipc_nametbl_stop();
 out_nametbl:
-	tipc_ref_table_stop();
+	tipc_sk_ref_table_stop();
 out_reftbl:
 	return err;
 }

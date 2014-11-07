@@ -129,7 +129,7 @@ config AT91_ADC
 
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
-	depends on ARCH_EXYNOS || (OF && COMPILE_TEST)
+	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
 	help
 	  Core support for the ADC block found in the Samsung EXYNOS series
 	  of SoCs for drivers such as the touchscreen and hwmon to use to share
@@ -206,6 +206,16 @@ config NAU7802
 	  To compile this driver as a module, choose M here: the
 	  module will be called nau7802.
 
+config ROCKCHIP_SARADC
+	tristate "Rockchip SARADC driver"
+	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)
+	help
+	  Say yes here to build support for the SARADC found in SoCs from
+	  Rockchip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rockchip_saradc.
+
 config TI_ADC081C
 	tristate "Texas Instruments ADC081C021/027"
 	depends on I2C
@@ -215,6 +225,16 @@ config TI_ADC081C
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc081c.
+
+config TI_ADC128S052
+	tristate "Texas Instruments ADC128S052"
+	depends on SPI
+	help
+	  If you say yes here you get support for Texas Instruments ADC128S052
+	  chip.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc128s052.
 
 config TI_AM335X_ADC
 	tristate "TI's AM335X ADC driver"

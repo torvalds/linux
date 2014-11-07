@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -1274,6 +1274,31 @@ int beiscsi_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 }
 
 /**
+ * beiscsi_flush_cq()- Flush the CQ created.
+ * @phba: ptr device priv structure.
+ *
+ * Before the connection resource are freed flush
+ * all the CQ enteries
+ **/
+static void beiscsi_flush_cq(struct beiscsi_hba *phba)
+{
+	uint16_t i;
+	struct be_eq_obj *pbe_eq;
+	struct hwi_controller *phwi_ctrlr;
+	struct hwi_context_memory *phwi_context;
+
+	phwi_ctrlr = phba->phwi_ctrlr;
+	phwi_context = phwi_ctrlr->phwi_ctxt;
+
+	for (i = 0; i < phba->num_cpus; i++) {
+		pbe_eq = &phwi_context->be_eq[i];
+		blk_iopoll_disable(&pbe_eq->iopoll);
+		beiscsi_process_cq(pbe_eq);
+		blk_iopoll_enable(&pbe_eq->iopoll);
+	}
+}
+
+/**
  * beiscsi_close_conn - Upload the  connection
  * @ep: The iscsi endpoint
  * @flag: The type of connection closure
@@ -1294,6 +1319,10 @@ static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
 	}
 
 	ret = beiscsi_mccq_compl(phba, tag, NULL, NULL);
+
+	/* Flush the CQ entries */
+	beiscsi_flush_cq(phba);
+
 	return ret;
 }
 

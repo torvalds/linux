@@ -19,14 +19,44 @@
 #ifndef _MEI_INTERFACE_H_
 #define _MEI_INTERFACE_H_
 
-#include <linux/mei.h>
 #include <linux/irqreturn.h>
+#include <linux/pci.h>
+#include <linux/mei.h>
+
 #include "mei_dev.h"
 #include "client.h"
 
+/*
+ * mei_cfg - mei device configuration
+ *
+ * @fw_status: FW status
+ * @quirk_probe: device exclusion quirk
+ */
+struct mei_cfg {
+	const struct mei_fw_status fw_status;
+	bool (*quirk_probe)(struct pci_dev *pdev);
+};
+
+
+#define MEI_PCI_DEVICE(dev, cfg) \
+	.vendor = PCI_VENDOR_ID_INTEL, .device = (dev), \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
+	.driver_data = (kernel_ulong_t)&(cfg)
+
+
 #define MEI_ME_RPM_TIMEOUT    500 /* ms */
 
+/**
+ * struct mei_me_hw - me hw specific data
+ *
+ * @cfg: per device generation config and ops
+ * @mem_addr:  io memory address
+ * @host_hw_state: cached host state
+ * @me_hw_state:   cached me (fw) state
+ * @pg_state:      power gating state
+ */
 struct mei_me_hw {
+	const struct mei_cfg *cfg;
 	void __iomem *mem_addr;
 	/*
 	 * hw states of host and fw(ME)

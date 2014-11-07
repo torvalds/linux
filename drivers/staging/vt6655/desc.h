@@ -33,6 +33,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
+#include "linux/ieee80211.h"
 #include "ttype.h"
 #include "tether.h"
 
@@ -331,33 +332,6 @@ typedef const STxSyncDesc *PCSTxSyncDesc;
 //
 // RsvTime buffer header
 //
-typedef struct tagSRrvTime_gRTS {
-	unsigned short wRTSTxRrvTime_ba;
-	unsigned short wRTSTxRrvTime_aa;
-	unsigned short wRTSTxRrvTime_bb;
-	unsigned short wReserved;
-	unsigned short wTxRrvTime_b;
-	unsigned short wTxRrvTime_a;
-} __attribute__ ((__packed__))
-SRrvTime_gRTS, *PSRrvTime_gRTS;
-typedef const SRrvTime_gRTS *PCSRrvTime_gRTS;
-
-typedef struct tagSRrvTime_gCTS {
-	unsigned short wCTSTxRrvTime_ba;
-	unsigned short wReserved;
-	unsigned short wTxRrvTime_b;
-	unsigned short wTxRrvTime_a;
-} __attribute__ ((__packed__))
-SRrvTime_gCTS, *PSRrvTime_gCTS;
-typedef const SRrvTime_gCTS *PCSRrvTime_gCTS;
-
-typedef struct tagSRrvTime_ab {
-	unsigned short wRTSTxRrvTime;
-	unsigned short wTxRrvTime;
-} __attribute__ ((__packed__))
-SRrvTime_ab, *PSRrvTime_ab;
-typedef const SRrvTime_ab *PCSRrvTime_ab;
-
 typedef struct tagSRrvTime_atim {
 	unsigned short wCTSTxRrvTime_ba;
 	unsigned short wTxRrvTime_a;
@@ -365,112 +339,18 @@ typedef struct tagSRrvTime_atim {
 SRrvTime_atim, *PSRrvTime_atim;
 typedef const SRrvTime_atim *PCSRrvTime_atim;
 
-//
-// RTS buffer header
-//
-typedef struct tagSRTSData {
-	unsigned short wFrameControl;
-	unsigned short wDurationID;
-	unsigned char abyRA[ETH_ALEN];
-	unsigned char abyTA[ETH_ALEN];
-} __attribute__ ((__packed__))
-SRTSData, *PSRTSData;
-typedef const SRTSData *PCSRTSData;
+/* Length, Service, and Signal fields of Phy for Tx */
+struct vnt_phy_field {
+	u8 signal;
+	u8 service;
+	__le16 len;
+} __packed;
 
-typedef struct tagSRTS_g {
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
-	unsigned char bySignalField_a;
-	unsigned char byServiceField_a;
-	unsigned short wTransmitLength_a;
-	unsigned short wDuration_ba;
-	unsigned short wDuration_aa;
-	unsigned short wDuration_bb;
-	unsigned short wReserved;
-	SRTSData    Data;
-} __attribute__ ((__packed__))
-SRTS_g, *PSRTS_g;
-typedef const SRTS_g *PCSRTS_g;
-
-typedef struct tagSRTS_g_FB {
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
-	unsigned char bySignalField_a;
-	unsigned char byServiceField_a;
-	unsigned short wTransmitLength_a;
-	unsigned short wDuration_ba;
-	unsigned short wDuration_aa;
-	unsigned short wDuration_bb;
-	unsigned short wReserved;
-	unsigned short wRTSDuration_ba_f0;
-	unsigned short wRTSDuration_aa_f0;
-	unsigned short wRTSDuration_ba_f1;
-	unsigned short wRTSDuration_aa_f1;
-	SRTSData    Data;
-} __attribute__ ((__packed__))
-SRTS_g_FB, *PSRTS_g_FB;
-typedef const SRTS_g_FB *PCSRTS_g_FB;
-
-typedef struct tagSRTS_ab {
-	unsigned char bySignalField;
-	unsigned char byServiceField;
-	unsigned short wTransmitLength;
-	unsigned short wDuration;
-	unsigned short wReserved;
-	SRTSData    Data;
-} __attribute__ ((__packed__))
-SRTS_ab, *PSRTS_ab;
-typedef const SRTS_ab *PCSRTS_ab;
-
-typedef struct tagSRTS_a_FB {
-	unsigned char bySignalField;
-	unsigned char byServiceField;
-	unsigned short wTransmitLength;
-	unsigned short wDuration;
-	unsigned short wReserved;
-	unsigned short wRTSDuration_f0;
-	unsigned short wRTSDuration_f1;
-	SRTSData    Data;
-} __attribute__ ((__packed__))
-SRTS_a_FB, *PSRTS_a_FB;
-typedef const SRTS_a_FB *PCSRTS_a_FB;
-
-//
-// CTS buffer header
-//
-typedef struct tagSCTSData {
-	unsigned short wFrameControl;
-	unsigned short wDurationID;
-	unsigned char abyRA[ETH_ALEN];
-	unsigned short wReserved;
-} __attribute__ ((__packed__))
-SCTSData, *PSCTSData;
-
-typedef struct tagSCTS {
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
-	unsigned short wDuration_ba;
-	unsigned short wReserved;
-	SCTSData    Data;
-} __attribute__ ((__packed__))
-SCTS, *PSCTS;
-typedef const SCTS *PCSCTS;
-
-typedef struct tagSCTS_FB {
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
-	unsigned short wDuration_ba;
-	unsigned short wReserved;
-	unsigned short wCTSDuration_ba_f0;
-	unsigned short wCTSDuration_ba_f1;
-	SCTSData    Data;
-} __attribute__ ((__packed__))
-SCTS_FB, *PSCTS_FB;
-typedef const SCTS_FB *PCSCTS_FB;
+union vnt_phy_field_swap {
+	struct vnt_phy_field field_read;
+	u16 swap[2];
+	u32 field_write;
+};
 
 //
 // Tx FIFO header
@@ -485,81 +365,6 @@ typedef struct tagSTxBufHead {
 } __attribute__ ((__packed__))
 STxBufHead, *PSTxBufHead;
 typedef const STxBufHead *PCSTxBufHead;
-
-typedef struct tagSTxShortBufHead {
-	unsigned short wFIFOCtl;
-	unsigned short wTimeStamp;
-} __attribute__ ((__packed__))
-STxShortBufHead, *PSTxShortBufHead;
-typedef const STxShortBufHead *PCSTxShortBufHead;
-
-//
-// Tx data header
-//
-typedef struct tagSTxDataHead_g {
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
-	unsigned char bySignalField_a;
-	unsigned char byServiceField_a;
-	unsigned short wTransmitLength_a;
-	unsigned short wDuration_b;
-	unsigned short wDuration_a;
-	unsigned short wTimeStampOff_b;
-	unsigned short wTimeStampOff_a;
-} __attribute__ ((__packed__))
-STxDataHead_g, *PSTxDataHead_g;
-typedef const STxDataHead_g *PCSTxDataHead_g;
-
-typedef struct tagSTxDataHead_g_FB {
-	unsigned char bySignalField_b;
-	unsigned char byServiceField_b;
-	unsigned short wTransmitLength_b;
-	unsigned char bySignalField_a;
-	unsigned char byServiceField_a;
-	unsigned short wTransmitLength_a;
-	unsigned short wDuration_b;
-	unsigned short wDuration_a;
-	unsigned short wDuration_a_f0;
-	unsigned short wDuration_a_f1;
-	unsigned short wTimeStampOff_b;
-	unsigned short wTimeStampOff_a;
-} __attribute__ ((__packed__))
-STxDataHead_g_FB, *PSTxDataHead_g_FB;
-typedef const STxDataHead_g_FB *PCSTxDataHead_g_FB;
-
-typedef struct tagSTxDataHead_ab {
-	unsigned char bySignalField;
-	unsigned char byServiceField;
-	unsigned short wTransmitLength;
-	unsigned short wDuration;
-	unsigned short wTimeStampOff;
-} __attribute__ ((__packed__))
-STxDataHead_ab, *PSTxDataHead_ab;
-typedef const STxDataHead_ab *PCSTxDataHead_ab;
-
-typedef struct tagSTxDataHead_a_FB {
-	unsigned char bySignalField;
-	unsigned char byServiceField;
-	unsigned short wTransmitLength;
-	unsigned short wDuration;
-	unsigned short wTimeStampOff;
-	unsigned short wDuration_f0;
-	unsigned short wDuration_f1;
-} __attribute__ ((__packed__))
-STxDataHead_a_FB, *PSTxDataHead_a_FB;
-typedef const STxDataHead_a_FB *PCSTxDataHead_a_FB;
-
-//
-// MICHDR data header
-//
-typedef struct tagSMICHDRHead {
-	u32 adwHDR0[4];
-	u32 adwHDR1[4];
-	u32 adwHDR2[4];
-} __attribute__ ((__packed__))
-SMICHDRHead, *PSMICHDRHead;
-typedef const SMICHDRHead *PCSMICHDRHead;
 
 typedef struct tagSBEACONCtl {
 	u32 BufReady:1;

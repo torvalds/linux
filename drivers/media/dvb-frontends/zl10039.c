@@ -111,7 +111,7 @@ static int zl10039_write(struct zl10039_state *state,
 
 	if (1 + count > sizeof(buf)) {
 		printk(KERN_WARNING
-		       "%s: i2c wr reg=%04x: len=%zd is too big!\n",
+		       "%s: i2c wr reg=%04x: len=%zu is too big!\n",
 		       KBUILD_MODNAME, reg, count);
 		return -EINVAL;
 	}

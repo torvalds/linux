@@ -17,7 +17,8 @@ extern void kvmppc_core_flush_memslot_hv(struct kvm *kvm,
 extern int kvm_unmap_hva_hv(struct kvm *kvm, unsigned long hva);
 extern int kvm_unmap_hva_range_hv(struct kvm *kvm, unsigned long start,
 				  unsigned long end);
-extern int kvm_age_hva_hv(struct kvm *kvm, unsigned long hva);
+extern int kvm_age_hva_hv(struct kvm *kvm, unsigned long start,
+			  unsigned long end);
 extern int kvm_test_age_hva_hv(struct kvm *kvm, unsigned long hva);
 extern void kvm_set_spte_hva_hv(struct kvm *kvm, unsigned long hva, pte_t pte);
 

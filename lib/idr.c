@@ -626,7 +626,7 @@ static void __idr_remove_all(struct idr *idp)
  * idr_destroy().
  *
  * A typical clean-up sequence for objects stored in an idr tree will use
- * idr_for_each() to free all objects, if necessay, then idr_destroy() to
+ * idr_for_each() to free all objects, if necessary, then idr_destroy() to
  * free up the id mappings and cached idr_layers.
  */
 void idr_destroy(struct idr *idp)

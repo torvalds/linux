@@ -295,7 +295,7 @@ exit:
 	return ret;
 }
 
-void rtw_set_supported_rate23a(u8* SupportedRates, uint mode)
+void rtw_set_supported_rate23a(u8 *SupportedRates, uint mode)
 {
 
 
@@ -520,7 +520,7 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 	return ret;
 }
 
-int rtw_parse_wpa2_ie23a(const u8* rsn_ie, int rsn_ie_len, int *group_cipher,
+int rtw_parse_wpa2_ie23a(const u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 		      int *pairwise_cipher, int *is_8021x)
 {
 	int i, ret = _SUCCESS;

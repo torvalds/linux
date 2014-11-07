@@ -41,7 +41,7 @@ static int ft1000_poll_thread(void *arg)
 	int ret;
 
 	while (!kthread_should_stop()) {
-		msleep(10);
+		usleep_range(10000, 11000);
 		if (!gPollingfailed) {
 			ret = ft1000_poll(arg);
 			if (ret != 0) {
@@ -246,8 +246,6 @@ static void ft1000_disconnect(struct usb_interface *interface)
 		kfree(ft1000dev);
 	}
 	kfree(pFileStart);
-
-	return;
 }
 
 static struct usb_driver ft1000_usb_driver = {

@@ -120,6 +120,38 @@ struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
 		struct rockchip_pll_rate_table *rate_table,
 		spinlock_t *lock);
 
+struct rockchip_cpuclk_clksel {
+	int reg;
+	u32 val;
+};
+
+#define ROCKCHIP_CPUCLK_NUM_DIVIDERS	2
+struct rockchip_cpuclk_rate_table {
+	unsigned long prate;
+	struct rockchip_cpuclk_clksel divs[ROCKCHIP_CPUCLK_NUM_DIVIDERS];
+};
+
+/**
+ * struct rockchip_cpuclk_reg_data: describes register offsets and masks of the cpuclock
+ * @core_reg:		register offset of the core settings register
+ * @div_core_shift:	core divider offset used to divide the pll value
+ * @div_core_mask:	core divider mask
+ * @mux_core_shift:	offset of the core multiplexer
+ */
+struct rockchip_cpuclk_reg_data {
+	int		core_reg;
+	u8		div_core_shift;
+	u32		div_core_mask;
+	int		mux_core_reg;
+	u8		mux_core_shift;
+};
+
+struct clk *rockchip_clk_register_cpuclk(const char *name,
+			const char **parent_names, u8 num_parents,
+			const struct rockchip_cpuclk_reg_data *reg_data,
+			const struct rockchip_cpuclk_rate_table *rates,
+			int nrates, void __iomem *reg_base, spinlock_t *lock);
+
 #define PNAME(x) static const char *x[] __initconst
 
 enum rockchip_clk_branch_type {
@@ -329,6 +361,13 @@ void rockchip_clk_register_branches(struct rockchip_clk_branch *clk_list,
 				    unsigned int nr_clk);
 void rockchip_clk_register_plls(struct rockchip_pll_clock *pll_list,
 				unsigned int nr_pll, int grf_lock_offset);
+void rockchip_clk_register_armclk(unsigned int lookup_id, const char *name,
+			const char **parent_names, u8 num_parents,
+			const struct rockchip_cpuclk_reg_data *reg_data,
+			const struct rockchip_cpuclk_rate_table *rates,
+			int nrates);
+void rockchip_clk_protect_critical(const char *clocks[], int nclocks);
+void rockchip_register_restart_notifier(unsigned int reg);
 
 #define ROCKCHIP_SOFTRST_HIWORD_MASK	BIT(0)
 

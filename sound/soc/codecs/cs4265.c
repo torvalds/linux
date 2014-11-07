@@ -77,6 +77,7 @@ static bool cs4265_readable_register(struct device *dev, unsigned int reg)
 	case CS4265_INT_MASK:
 	case CS4265_STATUS_MODE_MSB:
 	case CS4265_STATUS_MODE_LSB:
+	case CS4265_CHIP_ID:
 		return true;
 	default:
 		return false;

@@ -102,7 +102,7 @@ int ldlm_proc_setup(void)
 	if (IS_ERR(ldlm_type_proc_dir)) {
 		CERROR("LProcFS failed in ldlm-init\n");
 		rc = PTR_ERR(ldlm_type_proc_dir);
-		GOTO(err, rc);
+		goto err;
 	}
 
 	ldlm_ns_proc_dir = lprocfs_register("namespaces",
@@ -111,7 +111,7 @@ int ldlm_proc_setup(void)
 	if (IS_ERR(ldlm_ns_proc_dir)) {
 		CERROR("LProcFS failed in ldlm-init\n");
 		rc = PTR_ERR(ldlm_ns_proc_dir);
-		GOTO(err_type, rc);
+		goto err_type;
 	}
 
 	ldlm_svc_proc_dir = lprocfs_register("services",
@@ -120,7 +120,7 @@ int ldlm_proc_setup(void)
 	if (IS_ERR(ldlm_svc_proc_dir)) {
 		CERROR("LProcFS failed in ldlm-init\n");
 		rc = PTR_ERR(ldlm_svc_proc_dir);
-		GOTO(err_ns, rc);
+		goto err_ns;
 	}
 
 	rc = lprocfs_add_vars(ldlm_type_proc_dir, list, NULL);
@@ -511,8 +511,7 @@ typedef struct {
 	cfs_hash_ops_t *nsd_hops;
 } ldlm_ns_hash_def_t;
 
-ldlm_ns_hash_def_t ldlm_ns_hash_defs[] =
-{
+ldlm_ns_hash_def_t ldlm_ns_hash_defs[] = {
 	{
 		.nsd_type       = LDLM_NS_TYPE_MDC,
 		.nsd_bkt_bits   = 11,
@@ -581,7 +580,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 		nsd = &ldlm_ns_hash_defs[idx];
 		if (nsd->nsd_type == LDLM_NS_TYPE_UNKNOWN) {
 			CERROR("Unknown type %d for ns %s\n", ns_type, name);
-			GOTO(out_ref, NULL);
+			goto out_ref;
 		}
 
 		if (nsd->nsd_type == ns_type)
@@ -590,7 +589,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 
 	OBD_ALLOC_PTR(ns);
 	if (!ns)
-		GOTO(out_ref, NULL);
+		goto out_ref;
 
 	ns->ns_rs_hash = cfs_hash_create(name,
 					 nsd->nsd_all_bits, nsd->nsd_all_bits,
@@ -603,7 +602,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 					 CFS_HASH_SPIN_BKTLOCK |
 					 CFS_HASH_NO_ITEMREF);
 	if (ns->ns_rs_hash == NULL)
-		GOTO(out_ns, NULL);
+		goto out_ns;
 
 	cfs_hash_for_each_bucket(ns->ns_rs_hash, &bd, idx) {
 		nsb = cfs_hash_bd_extra_get(ns->ns_rs_hash, &bd);
@@ -637,14 +636,14 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 	rc = ldlm_namespace_proc_register(ns);
 	if (rc != 0) {
 		CERROR("Can't initialize ns proc, rc %d\n", rc);
-		GOTO(out_hash, rc);
+		goto out_hash;
 	}
 
 	idx = ldlm_namespace_nr_read(client);
 	rc = ldlm_pool_init(&ns->ns_pool, ns, idx, client);
 	if (rc) {
 		CERROR("Can't initialize lock pool, rc %d\n", rc);
-		GOTO(out_proc, rc);
+		goto out_proc;
 	}
 
 	ldlm_namespace_register(ns, client);
@@ -823,7 +822,7 @@ force_wait:
 				       "namespace with %d resources in use, "
 				       "(rc=%d)\n", ldlm_ns_name(ns),
 				       atomic_read(&ns->ns_bref), rc);
-			GOTO(force_wait, rc);
+			goto force_wait;
 		}
 
 		if (atomic_read(&ns->ns_bref)) {

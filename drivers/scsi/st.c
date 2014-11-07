@@ -490,7 +490,7 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 
 	req = blk_get_request(SRpnt->stp->device->request_queue, write,
 			      GFP_KERNEL);
-	if (!req)
+	if (IS_ERR(req))
 		return DRIVER_ERROR << 24;
 
 	blk_rq_set_block_pc(req);
@@ -4105,6 +4105,7 @@ static int st_probe(struct device *dev)
 		return -ENODEV;
 	}
 
+	scsi_autopm_get_device(SDp);
 	i = queue_max_segments(SDp->request_queue);
 	if (st_max_sg_segs < i)
 		i = st_max_sg_segs;
@@ -4244,6 +4245,7 @@ out_put_disk:
 out_buffer_free:
 	kfree(buffer);
 out:
+	scsi_autopm_put_device(SDp);
 	return -ENODEV;
 };
 

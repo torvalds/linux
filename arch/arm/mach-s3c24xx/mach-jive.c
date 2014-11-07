@@ -670,5 +670,4 @@ MACHINE_START(JIVE, "JIVE")
 	.map_io		= jive_map_io,
 	.init_machine	= jive_machine_init,
 	.init_time	= jive_init_time,
-	.restart	= s3c2412_restart,
 MACHINE_END

@@ -197,10 +197,8 @@ __acquires(ep->udc->lock)
 	ep->stopped = 1;
 
 	spin_unlock(&ep->udc->lock);
-	/* complete() is from gadget layer,
-	 * eg fsg->bulk_in_complete() */
-	if (req->req.complete)
-		req->req.complete(&ep->ep, &req->req);
+
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 
 	spin_lock(&ep->udc->lock);
 	ep->stopped = stopped;

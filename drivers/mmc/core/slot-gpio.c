@@ -221,8 +221,6 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
 	ctx->override_cd_active_level = true;
 	ctx->cd_gpio = gpio_to_desc(gpio);
 
-	mmc_gpiod_request_cd_irq(host);
-
 	return 0;
 }
 EXPORT_SYMBOL(mmc_gpio_request_cd);
@@ -283,6 +281,8 @@ EXPORT_SYMBOL(mmc_gpio_free_cd);
  * @idx: index of the GPIO to obtain in the consumer
  * @override_active_level: ignore %GPIO_ACTIVE_LOW flag
  * @debounce: debounce time in microseconds
+ * @gpio_invert: will return whether the GPIO line is inverted or not, set
+ * to NULL to ignore
  *
  * Use this function in place of mmc_gpio_request_cd() to use the GPIO
  * descriptor API.  Note that it is paired with mmc_gpiod_free_cd() not
@@ -293,7 +293,7 @@ EXPORT_SYMBOL(mmc_gpio_free_cd);
  */
 int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 			 unsigned int idx, bool override_active_level,
-			 unsigned int debounce)
+			 unsigned int debounce, bool *gpio_invert)
 {
 	struct mmc_gpio *ctx;
 	struct gpio_desc *desc;
@@ -308,13 +308,9 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 	if (!con_id)
 		con_id = ctx->cd_label;
 
-	desc = devm_gpiod_get_index(host->parent, con_id, idx);
+	desc = devm_gpiod_get_index(host->parent, con_id, idx, GPIOD_IN);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
-
-	ret = gpiod_direction_input(desc);
-	if (ret < 0)
-		return ret;
 
 	if (debounce) {
 		ret = gpiod_set_debounce(desc, debounce);
@@ -322,12 +318,68 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 			return ret;
 	}
 
+	if (gpio_invert)
+		*gpio_invert = !gpiod_is_active_low(desc);
+
 	ctx->override_cd_active_level = override_active_level;
 	ctx->cd_gpio = desc;
 
 	return 0;
 }
 EXPORT_SYMBOL(mmc_gpiod_request_cd);
+
+/**
+ * mmc_gpiod_request_ro - request a gpio descriptor for write protection
+ * @host: mmc host
+ * @con_id: function within the GPIO consumer
+ * @idx: index of the GPIO to obtain in the consumer
+ * @override_active_level: ignore %GPIO_ACTIVE_LOW flag
+ * @debounce: debounce time in microseconds
+ * @gpio_invert: will return whether the GPIO line is inverted or not,
+ * set to NULL to ignore
+ *
+ * Use this function in place of mmc_gpio_request_ro() to use the GPIO
+ * descriptor API.  Note that it is paired with mmc_gpiod_free_ro() not
+ * mmc_gpio_free_ro().
+ *
+ * Returns zero on success, else an error.
+ */
+int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
+			 unsigned int idx, bool override_active_level,
+			 unsigned int debounce, bool *gpio_invert)
+{
+	struct mmc_gpio *ctx;
+	struct gpio_desc *desc;
+	int ret;
+
+	ret = mmc_gpio_alloc(host);
+	if (ret < 0)
+		return ret;
+
+	ctx = host->slot.handler_priv;
+
+	if (!con_id)
+		con_id = ctx->ro_label;
+
+	desc = devm_gpiod_get_index(host->parent, con_id, idx, GPIOD_IN);
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
+
+	if (debounce) {
+		ret = gpiod_set_debounce(desc, debounce);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (gpio_invert)
+		*gpio_invert = !gpiod_is_active_low(desc);
+
+	ctx->override_ro_active_level = override_active_level;
+	ctx->ro_gpio = desc;
+
+	return 0;
+}
+EXPORT_SYMBOL(mmc_gpiod_request_ro);
 
 /**
  * mmc_gpiod_free_cd - free the card-detection gpio descriptor
@@ -348,7 +400,7 @@ void mmc_gpiod_free_cd(struct mmc_host *host)
 		host->slot.cd_irq = -EINVAL;
 	}
 
-	devm_gpiod_put(&host->class_dev, ctx->cd_gpio);
+	devm_gpiod_put(host->parent, ctx->cd_gpio);
 
 	ctx->cd_gpio = NULL;
 }

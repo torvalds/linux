@@ -606,7 +606,7 @@ struct Scsi_Host {
 	/*
 	 * These three parameters can be used to allow for wide scsi,
 	 * and for host adapters that support multiple busses
-	 * The first two should be set to 1 more than the actual max id
+	 * The last two should be set to 1 more than the actual max id
 	 * or lun (e.g. 8 for SCSI parallel systems).
 	 */
 	unsigned int max_channel;
@@ -680,6 +680,7 @@ struct Scsi_Host {
 	unsigned no_write_same:1;
 
 	unsigned use_blk_mq:1;
+	unsigned use_cmd_list:1;
 
 	/*
 	 * Optional work queue to be utilized by the transport
@@ -691,6 +692,9 @@ struct Scsi_Host {
 	 * Task management function work queue
 	 */
 	struct workqueue_struct *tmf_work_q;
+
+	/* The transport requires the LUN bits NOT to be stored in CDB[1] */
+	unsigned no_scsi2_lun_in_cdb:1;
 
 	/*
 	 * Value host_blocked counts down from

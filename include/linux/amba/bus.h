@@ -44,10 +44,15 @@ struct amba_driver {
 	const struct amba_id	*id_table;
 };
 
+/*
+ * Constants for the designer field of the Peripheral ID register. When bit 7
+ * is set to '1', bits [6:0] should be the JEP106 manufacturer identity code.
+ */
 enum amba_vendor {
 	AMBA_VENDOR_ARM = 0x41,
 	AMBA_VENDOR_ST = 0x80,
 	AMBA_VENDOR_QCOM = 0x51,
+	AMBA_VENDOR_LSI = 0xb6,
 };
 
 extern struct bus_type amba_bustype;

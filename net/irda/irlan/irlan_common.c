@@ -98,7 +98,7 @@ static const struct file_operations irlan_fops = {
 extern struct proc_dir_entry *proc_irda;
 #endif /* CONFIG_PROC_FS */
 
-static struct irlan_cb *irlan_open(__u32 saddr, __u32 daddr);
+static struct irlan_cb __init *irlan_open(__u32 saddr, __u32 daddr);
 static void __irlan_close(struct irlan_cb *self);
 static int __irlan_insert_param(struct sk_buff *skb, char *param, int type,
 				__u8 value_byte, __u16 value_short,
@@ -196,7 +196,7 @@ static void __exit irlan_cleanup(void)
  *    Open new instance of a client/provider, we should only register the
  *    network device if this instance is ment for a particular client/provider
  */
-static struct irlan_cb *irlan_open(__u32 saddr, __u32 daddr)
+static struct irlan_cb __init *irlan_open(__u32 saddr, __u32 daddr)
 {
 	struct net_device *dev;
 	struct irlan_cb *self;

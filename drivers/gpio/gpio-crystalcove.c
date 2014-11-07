@@ -24,6 +24,7 @@
 #include <linux/mfd/intel_soc_pmic.h>
 
 #define CRYSTALCOVE_GPIO_NUM	16
+#define CRYSTALCOVE_VGPIO_NUM	94
 
 #define UPDATE_IRQ_TYPE		BIT(0)
 #define UPDATE_IRQ_MASK		BIT(1)
@@ -130,6 +131,9 @@ static int crystalcove_gpio_dir_in(struct gpio_chip *chip, unsigned gpio)
 {
 	struct crystalcove_gpio *cg = to_cg(chip);
 
+	if (gpio > CRYSTALCOVE_VGPIO_NUM)
+		return 0;
+
 	return regmap_write(cg->regmap, to_reg(gpio, CTRL_OUT),
 			    CTLO_INPUT_SET);
 }
@@ -138,6 +142,9 @@ static int crystalcove_gpio_dir_out(struct gpio_chip *chip, unsigned gpio,
 				    int value)
 {
 	struct crystalcove_gpio *cg = to_cg(chip);
+
+	if (gpio > CRYSTALCOVE_VGPIO_NUM)
+		return 0;
 
 	return regmap_write(cg->regmap, to_reg(gpio, CTRL_OUT),
 			    CTLO_OUTPUT_SET | value);
@@ -148,6 +155,9 @@ static int crystalcove_gpio_get(struct gpio_chip *chip, unsigned gpio)
 	struct crystalcove_gpio *cg = to_cg(chip);
 	int ret;
 	unsigned int val;
+
+	if (gpio > CRYSTALCOVE_VGPIO_NUM)
+		return 0;
 
 	ret = regmap_read(cg->regmap, to_reg(gpio, CTRL_IN), &val);
 	if (ret)
@@ -160,6 +170,9 @@ static void crystalcove_gpio_set(struct gpio_chip *chip,
 				 unsigned gpio, int value)
 {
 	struct crystalcove_gpio *cg = to_cg(chip);
+
+	if (gpio > CRYSTALCOVE_VGPIO_NUM)
+		return;
 
 	if (value)
 		regmap_update_bits(cg->regmap, to_reg(gpio, CTRL_OUT), 1, 1);
@@ -256,7 +269,7 @@ static irqreturn_t crystalcove_gpio_irq_handler(int irq, void *data)
 
 	pending = p0 | p1 << 8;
 
-	for (gpio = 0; gpio < cg->chip.ngpio; gpio++) {
+	for (gpio = 0; gpio < CRYSTALCOVE_GPIO_NUM; gpio++) {
 		if (pending & BIT(gpio)) {
 			virq = irq_find_mapping(cg->chip.irqdomain, gpio);
 			generic_handle_irq(virq);
@@ -273,7 +286,7 @@ static void crystalcove_gpio_dbg_show(struct seq_file *s,
 	int gpio, offset;
 	unsigned int ctlo, ctli, mirqs0, mirqsx, irq;
 
-	for (gpio = 0; gpio < cg->chip.ngpio; gpio++) {
+	for (gpio = 0; gpio < CRYSTALCOVE_GPIO_NUM; gpio++) {
 		regmap_read(cg->regmap, to_reg(gpio, CTRL_OUT), &ctlo);
 		regmap_read(cg->regmap, to_reg(gpio, CTRL_IN), &ctli);
 		regmap_read(cg->regmap, gpio < 8 ? MGPIO0IRQS0 : MGPIO1IRQS0,
@@ -320,7 +333,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	cg->chip.get = crystalcove_gpio_get;
 	cg->chip.set = crystalcove_gpio_set;
 	cg->chip.base = -1;
-	cg->chip.ngpio = CRYSTALCOVE_GPIO_NUM;
+	cg->chip.ngpio = CRYSTALCOVE_VGPIO_NUM;
 	cg->chip.can_sleep = true;
 	cg->chip.dev = dev;
 	cg->chip.dbg_show = crystalcove_gpio_dbg_show;
@@ -346,7 +359,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 out_remove_gpio:
-	WARN_ON(gpiochip_remove(&cg->chip));
+	gpiochip_remove(&cg->chip);
 	return retval;
 }
 
@@ -354,14 +367,11 @@ static int crystalcove_gpio_remove(struct platform_device *pdev)
 {
 	struct crystalcove_gpio *cg = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
-	int err;
 
-	err = gpiochip_remove(&cg->chip);
-
+	gpiochip_remove(&cg->chip);
 	if (irq >= 0)
 		free_irq(irq, cg);
-
-	return err;
+	return 0;
 }
 
 static struct platform_driver crystalcove_gpio_driver = {

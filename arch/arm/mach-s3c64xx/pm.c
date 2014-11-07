@@ -347,10 +347,3 @@ static __init int s3c64xx_pm_initcall(void)
 	return 0;
 }
 arch_initcall(s3c64xx_pm_initcall);
-
-int __init s3c64xx_pm_late_initcall(void)
-{
-	pm_genpd_poweroff_unused();
-
-	return 0;
-}

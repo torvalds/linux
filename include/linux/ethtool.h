@@ -257,6 +257,10 @@ struct ethtool_ops {
 				     struct ethtool_eeprom *, u8 *);
 	int	(*get_eee)(struct net_device *, struct ethtool_eee *);
 	int	(*set_eee)(struct net_device *, struct ethtool_eee *);
+	int	(*get_tunable)(struct net_device *,
+			       const struct ethtool_tunable *, void *);
+	int	(*set_tunable)(struct net_device *,
+			       const struct ethtool_tunable *, const void *);
 
 
 };

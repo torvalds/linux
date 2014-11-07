@@ -324,12 +324,8 @@ static void vlsi_proc_ring(struct seq_file *seq, struct vlsi_ring *r)
 		seq_printf(seq, "current: rd = %d / status = %02x / len = %u\n",
 				h, (unsigned)rd_get_status(rd), j);
 		if (j > 0) {
-			seq_printf(seq, "   data:");
-			if (j > 20)
-				j = 20;
-			for (i = 0; i < j; i++)
-				seq_printf(seq, " %02x", (unsigned)((unsigned char *)rd->buf)[i]);
-			seq_printf(seq, "\n");
+			seq_printf(seq, "   data: %*ph\n",
+				   min_t(unsigned, j, 20), rd->buf);
 		}
 	}
 	for (i = 0; i < r->size; i++) {

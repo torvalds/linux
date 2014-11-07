@@ -84,6 +84,16 @@ config THERMAL_GOV_STEP_WISE
 	  Enable this to manage platform thermals using a simple linear
 	  governor.
 
+config THERMAL_GOV_BANG_BANG
+	bool "Bang Bang thermal governor"
+	default n
+	help
+	  Enable this to manage platform thermals using bang bang governor.
+
+	  Say 'Y' here if you want to use two point temperature regulation
+	  used for fans without throttling.  Some fan drivers depend on this
+	  governor to be enabled (e.g. acerhdf).
+
 config THERMAL_GOV_USER_SPACE
 	bool "User_space thermal governor"
 	help
@@ -143,7 +153,7 @@ config RCAR_THERMAL
 
 config KIRKWOOD_THERMAL
 	tristate "Temperature sensor on Marvell Kirkwood SoCs"
-	depends on ARCH_KIRKWOOD || MACH_KIRKWOOD
+	depends on MACH_KIRKWOOD
 	depends on OF
 	help
 	  Support for the Kirkwood thermal sensor driver into the Linux thermal
@@ -207,21 +217,6 @@ config X86_PKG_TEMP_THERMAL
 	  two trip points which can be set by user to get notifications via thermal
 	  notification methods.
 
-config ACPI_INT3403_THERMAL
-	tristate "ACPI INT3403 thermal driver"
-	depends on X86 && ACPI
-	help
-	  Newer laptops and tablets that use ACPI may have thermal sensors
-	  outside the core CPU/SOC for thermal safety reasons. These
-	  temperature sensors are also exposed for the OS to use via the so
-	  called INT3403 ACPI object. This driver will, on devices that have
-	  such sensors, expose the temperature information from these sensors
-	  to userspace via the normal thermal framework. This means that a wide
-	  range of applications and GUI widgets can show this information to
-	  the user or use this information for making decisions. For example,
-	  the Intel Thermal Daemon can use this information to allow the user
-	  to select his laptop to run without turning on the fans.
-
 config INTEL_SOC_DTS_THERMAL
 	tristate "Intel SoCs DTS thermal driver"
 	depends on X86 && IOSF_MBI
@@ -233,6 +228,30 @@ config INTEL_SOC_DTS_THERMAL
 	  be set by user mode programs to get notifications via Linux thermal
 	  notification methods.The other trip is a critical trip point, which
 	  was set by the driver based on the TJ MAX temperature.
+
+config INT340X_THERMAL
+	tristate "ACPI INT340X thermal drivers"
+	depends on X86 && ACPI
+	select THERMAL_GOV_USER_SPACE
+	select ACPI_THERMAL_REL
+	select ACPI_FAN
+	help
+	  Newer laptops and tablets that use ACPI may have thermal sensors and
+	  other devices with thermal control capabilities outside the core
+	  CPU/SOC, for thermal safety reasons.
+	  They are exposed for the OS to use via the INT3400 ACPI device object
+	  as the master, and INT3401~INT340B ACPI device objects as the slaves.
+	  Enable this to expose the temperature information and cooling ability
+	  from these objects to userspace via the normal thermal framework.
+	  This means that a wide range of applications and GUI widgets can show
+	  the information to the user or use this information for making
+	  decisions. For example, the Intel Thermal Daemon can use this
+	  information to allow the user to select his laptop to run without
+	  turning on the fans.
+
+config ACPI_THERMAL_REL
+	tristate
+	depends on ACPI
 
 menu "Texas Instruments thermal drivers"
 source "drivers/thermal/ti-soc-thermal/Kconfig"

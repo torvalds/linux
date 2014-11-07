@@ -599,7 +599,6 @@ MACHINE_START(N30, "Acer-N30")
 	.init_machine	= n30_init,
 	.init_irq	= s3c2410_init_irq,
 	.map_io		= n30_map_io,
-	.restart	= s3c2410_restart,
 MACHINE_END
 
 MACHINE_START(N35, "Acer-N35")
@@ -610,5 +609,4 @@ MACHINE_START(N35, "Acer-N35")
 	.init_machine	= n30_init,
 	.init_irq	= s3c2410_init_irq,
 	.map_io		= n30_map_io,
-	.restart	= s3c2410_restart,
 MACHINE_END

@@ -58,8 +58,7 @@ NONULLSTR(char *s)
 {
 	if (s)
 		return s;
-	else
-		return "";
+	return "";
 }
 
 static int serverregistered;
@@ -379,8 +378,7 @@ static ssize_t toolaction_store(struct device *dev,
 
 	if (ret)
 		return ret;
-	else
-		return count;
+	return count;
 }
 
 static ssize_t boottotool_show(struct device *dev,
@@ -416,8 +414,7 @@ static ssize_t boottotool_store(struct device *dev,
 
 	if (ret)
 		return ret;
-	else
-		return count;
+	return count;
 }
 
 static ssize_t error_show(struct device *dev, struct device_attribute *attr,
@@ -446,8 +443,7 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 			&error, sizeof(u32));
 	if (ret)
 		return ret;
-	else
-		return count;
+	return count;
 }
 
 static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
@@ -476,8 +472,7 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 			&textId, sizeof(u32));
 	if (ret)
 		return ret;
-	else
-		return count;
+	return count;
 }
 
 
@@ -509,8 +504,7 @@ static ssize_t remaining_steps_store(struct device *dev,
 			&remainingSteps, sizeof(u16));
 	if (ret)
 		return ret;
-	else
-		return count;
+	return count;
 }
 
 #if 0
@@ -565,6 +559,7 @@ static void
 devInfo_clear(void *v)
 {
 	VISORCHIPSET_DEVICE_INFO *p = (VISORCHIPSET_DEVICE_INFO *) (v);
+
 	p->state.created = 0;
 	memset(p, 0, sizeof(VISORCHIPSET_DEVICE_INFO));
 }
@@ -594,7 +589,7 @@ visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
 				    ULTRA_VBUS_DEVICEINFO *driverInfo)
 {
-	LOCKSEM_UNINTERRUPTIBLE(&NotifierLock);
+	down(&NotifierLock);
 	if (notifiers == NULL) {
 		memset(&BusDev_Server_Notifiers, 0,
 		       sizeof(BusDev_Server_Notifiers));
@@ -606,10 +601,10 @@ visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 	if (responders)
 		*responders = BusDev_Responders;
 	if (driverInfo)
-		BusDeviceInfo_Init(driverInfo, "chipset", "visorchipset",
+		bus_device_info_init(driverInfo, "chipset", "visorchipset",
 				   VERSION, NULL);
 
-	UNLOCKSEM(&NotifierLock);
+	up(&NotifierLock);
 }
 EXPORT_SYMBOL_GPL(visorchipset_register_busdev_server);
 
@@ -618,7 +613,7 @@ visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
 				    ULTRA_VBUS_DEVICEINFO *driverInfo)
 {
-	LOCKSEM_UNINTERRUPTIBLE(&NotifierLock);
+	down(&NotifierLock);
 	if (notifiers == NULL) {
 		memset(&BusDev_Client_Notifiers, 0,
 		       sizeof(BusDev_Client_Notifiers));
@@ -630,9 +625,9 @@ visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 	if (responders)
 		*responders = BusDev_Responders;
 	if (driverInfo)
-		BusDeviceInfo_Init(driverInfo, "chipset(bolts)", "visorchipset",
+		bus_device_info_init(driverInfo, "chipset(bolts)", "visorchipset",
 				   VERSION, NULL);
-	UNLOCKSEM(&NotifierLock);
+	up(&NotifierLock);
 }
 EXPORT_SYMBOL_GPL(visorchipset_register_busdev_client);
 
@@ -707,6 +702,7 @@ static void
 controlvm_respond(CONTROLVM_MESSAGE_HEADER *msgHdr, int response)
 {
 	CONTROLVM_MESSAGE outmsg;
+
 	controlvm_init_response(&outmsg, msgHdr, response);
 	/* For DiagPool channel DEVICE_CHANGESTATE, we need to send
 	* back the deviceChangeState structure in the packet. */
@@ -733,6 +729,7 @@ controlvm_respond_chipset_init(CONTROLVM_MESSAGE_HEADER *msgHdr, int response,
 			       ULTRA_CHIPSET_FEATURE features)
 {
 	CONTROLVM_MESSAGE outmsg;
+
 	controlvm_init_response(&outmsg, msgHdr, response);
 	outmsg.cmd.initChipset.features = features;
 	if (!visorchannel_signalinsert(ControlVm_channel,
@@ -747,6 +744,7 @@ controlvm_respond_physdev_changestate(CONTROLVM_MESSAGE_HEADER *msgHdr,
 				      int response, ULTRA_SEGMENT_STATE state)
 {
 	CONTROLVM_MESSAGE outmsg;
+
 	controlvm_init_response(&outmsg, msgHdr, response);
 	outmsg.cmd.deviceChangeState.state = state;
 	outmsg.cmd.deviceChangeState.flags.physicalDevice = 1;
@@ -944,7 +942,7 @@ bus_epilog(u32 busNo,
 	} else
 		pBusInfo->pendingMsgHdr.Id = CONTROLVM_INVALID;
 
-	LOCKSEM_UNINTERRUPTIBLE(&NotifierLock);
+	down(&NotifierLock);
 	if (response == CONTROLVM_RESP_SUCCESS) {
 		switch (cmd) {
 		case CONTROLVM_BUS_CREATE:
@@ -989,7 +987,7 @@ bus_epilog(u32 busNo,
 		;
 	else
 		bus_responder(cmd, busNo, response);
-	UNLOCKSEM(&NotifierLock);
+	up(&NotifierLock);
 }
 
 static void
@@ -1021,7 +1019,7 @@ device_epilog(u32 busNo, u32 devNo, ULTRA_SEGMENT_STATE state, u32 cmd,
 	} else
 		pDevInfo->pendingMsgHdr.Id = CONTROLVM_INVALID;
 
-	LOCKSEM_UNINTERRUPTIBLE(&NotifierLock);
+	down(&NotifierLock);
 	if (response >= 0) {
 		switch (cmd) {
 		case CONTROLVM_DEVICE_CREATE:
@@ -1087,7 +1085,7 @@ device_epilog(u32 busNo, u32 devNo, ULTRA_SEGMENT_STATE state, u32 cmd,
 		;
 	else
 		device_responder(cmd, busNo, devNo, response);
-	UNLOCKSEM(&NotifierLock);
+	up(&NotifierLock);
 }
 
 static void
@@ -1429,6 +1427,7 @@ initialize_controlvm_payload(void)
 	HOSTADDRESS phys_addr = visorchannel_get_physaddr(ControlVm_channel);
 	u64 payloadOffset = 0;
 	u32 payloadBytes = 0;
+
 	if (visorchannel_read(ControlVm_channel,
 			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
 				       RequestPayloadOffset),
@@ -1468,6 +1467,7 @@ visorchipset_chipset_selftest(void)
 {
 	char env_selftest[20];
 	char *envp[] = { env_selftest, NULL };
+
 	sprintf(env_selftest, "SPARSP_SELFTEST=%d", 1);
 	kobject_uevent_env(&Visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
 			   envp);
@@ -1490,6 +1490,7 @@ static void
 chipset_ready(CONTROLVM_MESSAGE_HEADER *msgHdr)
 {
 	int rc = visorchipset_chipset_ready();
+
 	if (rc != CONTROLVM_RESP_SUCCESS)
 		rc = -rc;
 	if (msgHdr->Flags.responseExpected && !visorchipset_holdchipsetready)
@@ -1507,6 +1508,7 @@ static void
 chipset_selftest(CONTROLVM_MESSAGE_HEADER *msgHdr)
 {
 	int rc = visorchipset_chipset_selftest();
+
 	if (rc != CONTROLVM_RESP_SUCCESS)
 		rc = -rc;
 	if (msgHdr->Flags.responseExpected)
@@ -1517,6 +1519,7 @@ static void
 chipset_notready(CONTROLVM_MESSAGE_HEADER *msgHdr)
 {
 	int rc = visorchipset_chipset_notready();
+
 	if (rc != CONTROLVM_RESP_SUCCESS)
 		rc = -rc;
 	if (msgHdr->Flags.responseExpected)
@@ -1535,8 +1538,8 @@ read_controlvm_event(CONTROLVM_MESSAGE *msg)
 		if (msg->hdr.Flags.testMessage == 1) {
 			LOGERR("ignoring bad CONTROLVM_QUEUE_EVENT msg with controlvm_msg_id=0x%x because Flags.testMessage is nonsensical (=1)", msg->hdr.Id);
 			return FALSE;
-		} else
-			return TRUE;
+		}
+		return TRUE;
 	}
 	return FALSE;
 }
@@ -1564,6 +1567,7 @@ static int
 parahotplug_next_id(void)
 {
 	static atomic_t id = ATOMIC_INIT(0);
+
 	return atomic_inc_return(&id);
 }
 
@@ -1788,6 +1792,7 @@ handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 	 */
 	if (parametersAddr != 0 && parametersBytes != 0) {
 		BOOL retry = FALSE;
+
 		parser_ctx =
 		    parser_init_byteStream(parametersAddr, parametersBytes,
 					   isLocalAddr, &retry);
@@ -1906,7 +1911,7 @@ static HOSTADDRESS controlvm_get_channel_address(void)
 	u64 addr = 0;
 	u32 size = 0;
 
-	if (!VMCALL_SUCCESSFUL(Issue_VMCALL_IO_CONTROLVM_ADDR(&addr, &size))) {
+	if (!VMCALL_SUCCESSFUL(issue_vmcall_io_controlvm_addr(&addr, &size))) {
 		ERRDRV("%s - vmcall to determine controlvm channel addr failed",
 		       __func__);
 		return 0;
@@ -2184,6 +2189,7 @@ BOOL
 visorchipset_get_bus_info(ulong busNo, VISORCHIPSET_BUS_INFO *busInfo)
 {
 	void *p = findbus(&BusInfoList, busNo);
+
 	if (!p) {
 		LOGERR("(%lu) failed", busNo);
 		return FALSE;
@@ -2197,6 +2203,7 @@ BOOL
 visorchipset_set_bus_context(ulong busNo, void *context)
 {
 	VISORCHIPSET_BUS_INFO *p = findbus(&BusInfoList, busNo);
+
 	if (!p) {
 		LOGERR("(%lu) failed", busNo);
 		return FALSE;
@@ -2211,6 +2218,7 @@ visorchipset_get_device_info(ulong busNo, ulong devNo,
 			     VISORCHIPSET_DEVICE_INFO *devInfo)
 {
 	void *p = finddevice(&DevInfoList, busNo, devNo);
+
 	if (!p) {
 		LOGERR("(%lu,%lu) failed", busNo, devNo);
 		return FALSE;
@@ -2224,6 +2232,7 @@ BOOL
 visorchipset_set_device_context(ulong busNo, ulong devNo, void *context)
 {
 	VISORCHIPSET_DEVICE_INFO *p = finddevice(&DevInfoList, busNo, devNo);
+
 	if (!p) {
 		LOGERR("(%lu,%lu) failed", busNo, devNo);
 		return FALSE;
@@ -2290,8 +2299,8 @@ static ssize_t chipsetready_store(struct device *dev,
 	} else if (strcmp(msgtype, "MODULES_LOADED") == 0) {
 		chipset_events[1] = 1;
 		return count;
-	} else
-		return -EINVAL;
+	}
+	return -EINVAL;
 }
 
 /* The parahotplug/devicedisabled interface gets called by our support script
@@ -2468,6 +2477,7 @@ static void
 visorchipset_exit(void)
 {
 	char s[99];
+
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
 
 	if (visorchipset_disable_controlvm) {

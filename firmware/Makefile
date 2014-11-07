@@ -232,6 +232,6 @@ targets := $(fw-shipped-) $(patsubst $(obj)/%,%, \
 
 # Without this, built-in.o won't be created when it's empty, and the
 # final vmlinux link will fail.
-obj-n := dummy
+obj- := dummy
 
 hostprogs-y := ihex2fw

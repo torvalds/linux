@@ -210,6 +210,7 @@
 				};
 
 				ssi2: ssi@70014000 {
+					#sound-dai-cells = <0>;
 					compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 					reg = <0x70014000 0x4000>;
 					interrupts = <30>;
@@ -499,6 +500,7 @@
 			};
 
 			ssi1: ssi@83fcc000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 				reg = <0x83fcc000 0x4000>;
 				interrupts = <29>;
@@ -554,6 +556,7 @@
 			};
 
 			ssi3: ssi@83fe8000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 				reg = <0x83fe8000 0x4000>;
 				interrupts = <96>;

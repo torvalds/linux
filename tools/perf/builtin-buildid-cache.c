@@ -246,20 +246,9 @@ static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 	return true;
 }
 
-static int build_id_cache__fprintf_missing(const char *filename, bool force, FILE *fp)
+static int build_id_cache__fprintf_missing(struct perf_session *session, FILE *fp)
 {
-	struct perf_data_file file = {
-		.path  = filename,
-		.mode  = PERF_DATA_MODE_READ,
-		.force = force,
-	};
-	struct perf_session *session = perf_session__new(&file, false, NULL);
-	if (session == NULL)
-		return -1;
-
 	perf_session__fprintf_dsos_buildid(session, fp, dso__missing_buildid_cache, 0);
-	perf_session__delete(session);
-
 	return 0;
 }
 
@@ -302,6 +291,12 @@ int cmd_buildid_cache(int argc, const char **argv,
 		   *missing_filename = NULL,
 		   *update_name_list_str = NULL,
 		   *kcore_filename;
+	char sbuf[STRERR_BUFSIZE];
+
+	struct perf_data_file file = {
+		.mode  = PERF_DATA_MODE_READ,
+	};
+	struct perf_session *session = NULL;
 
 	const struct option buildid_cache_options[] = {
 	OPT_STRING('a', "add", &add_name_list_str,
@@ -326,8 +321,17 @@ int cmd_buildid_cache(int argc, const char **argv,
 	argc = parse_options(argc, argv, buildid_cache_options,
 			     buildid_cache_usage, 0);
 
-	if (symbol__init() < 0)
-		return -1;
+	if (missing_filename) {
+		file.path = missing_filename;
+		file.force = force;
+
+		session = perf_session__new(&file, false, NULL);
+		if (session == NULL)
+			return -1;
+	}
+
+	if (symbol__init(session ? &session->header.env : NULL) < 0)
+		goto out;
 
 	setup_pager();
 
@@ -344,7 +348,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't add %s: %s\n",
-						   pos->s, strerror(errno));
+						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -362,7 +366,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't remove %s: %s\n",
-						   pos->s, strerror(errno));
+						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -370,7 +374,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	}
 
 	if (missing_filename)
-		ret = build_id_cache__fprintf_missing(missing_filename, force, stdout);
+		ret = build_id_cache__fprintf_missing(session, stdout);
 
 	if (update_name_list_str) {
 		list = strlist__new(true, update_name_list_str);
@@ -383,7 +387,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't update %s: %s\n",
-						   pos->s, strerror(errno));
+						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -393,6 +397,10 @@ int cmd_buildid_cache(int argc, const char **argv,
 	if (kcore_filename &&
 	    build_id_cache__add_kcore(kcore_filename, debugdir, force))
 		pr_warning("Couldn't add %s\n", kcore_filename);
+
+out:
+	if (session)
+		perf_session__delete(session);
 
 	return ret;
 }

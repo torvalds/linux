@@ -266,7 +266,7 @@ static struct f2fs_xattr_entry *__find_xattr(void *base_addr, int index,
 
 static void *read_all_xattrs(struct inode *inode, struct page *ipage)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_xattr_header *header;
 	size_t size = PAGE_SIZE, inline_size = 0;
 	void *txattr_addr;
@@ -325,7 +325,7 @@ fail:
 static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 				void *txattr_addr, struct page *ipage)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	size_t inline_size = 0;
 	void *xattr_addr;
 	struct page *xpage;
@@ -373,7 +373,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 			alloc_nid_failed(sbi, new_nid);
 			return PTR_ERR(xpage);
 		}
-		f2fs_bug_on(new_nid);
+		f2fs_bug_on(sbi, new_nid);
 		f2fs_wait_on_page_writeback(xpage, NODE);
 	} else {
 		struct dnode_of_data dn;
@@ -596,7 +596,7 @@ int f2fs_setxattr(struct inode *inode, int index, const char *name,
 				const void *value, size_t size,
 				struct page *ipage, int flags)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	int err;
 
 	/* this case is only from init_inode_metadata */

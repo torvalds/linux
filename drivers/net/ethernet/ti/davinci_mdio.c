@@ -481,7 +481,6 @@ MODULE_DEVICE_TABLE(of, davinci_mdio_of_mtable);
 static struct platform_driver davinci_mdio_driver = {
 	.driver = {
 		.name	 = "davinci_mdio",
-		.owner	 = THIS_MODULE,
 		.pm	 = &davinci_mdio_pm_ops,
 		.of_match_table = of_match_ptr(davinci_mdio_of_mtable),
 	},

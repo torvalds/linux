@@ -17,8 +17,11 @@ Samsung EXYNOS SoC series Display Port PHY
 -------------------------------------------------
 
 Required properties:
-- compatible : should be "samsung,exynos5250-dp-video-phy";
-- reg : offset and length of the Display Port PHY register set;
+- compatible : should be one of the following supported values:
+	 - "samsung,exynos5250-dp-video-phy"
+	 - "samsung,exynos5420-dp-video-phy"
+- samsung,pmu-syscon: phandle for PMU system controller interface, used to
+		      control pmu registers for power isolation.
 - #phy-cells : from the generic PHY bindings, must be 0;
 
 Samsung S5P/EXYNOS SoC series USB PHY

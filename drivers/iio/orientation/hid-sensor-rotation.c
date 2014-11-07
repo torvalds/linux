@@ -334,7 +334,6 @@ static struct platform_driver hid_dev_rot_platform_driver = {
 	.id_table = hid_dev_rot_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= hid_dev_rot_probe,
 	.remove		= hid_dev_rot_remove,

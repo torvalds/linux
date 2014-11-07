@@ -447,7 +447,7 @@ void __init of_at91sam9260_clk_slow_setup(struct device_node *np,
 	int i;
 
 	num_parents = of_count_phandle_with_args(np, "clocks", "#clock-cells");
-	if (num_parents <= 0 || num_parents > 1)
+	if (num_parents != 2)
 		return;
 
 	for (i = 0; i < num_parents; ++i) {

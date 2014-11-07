@@ -1,6 +1,6 @@
 Clock bindings for ARM Integrator and Versatile Core Module clocks
 
-Auxilary Oscillator Clock
+Auxiliary Oscillator Clock
 
 This is a configurable clock fed from a 24 MHz chrystal,
 used for generating e.g. video clocks. It is located on the

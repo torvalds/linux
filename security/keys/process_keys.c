@@ -489,9 +489,10 @@ found:
 /*
  * See if the key we're looking at is the target key.
  */
-int lookup_user_key_possessed(const struct key *key, const void *target)
+bool lookup_user_key_possessed(const struct key *key,
+			       const struct key_match_data *match_data)
 {
-	return key == target;
+	return key == match_data->raw_data;
 }
 
 /*
@@ -516,9 +517,9 @@ key_ref_t lookup_user_key(key_serial_t id, unsigned long lflags,
 			  key_perm_t perm)
 {
 	struct keyring_search_context ctx = {
-		.match	= lookup_user_key_possessed,
-		.flags	= (KEYRING_SEARCH_NO_STATE_CHECK |
-			   KEYRING_SEARCH_LOOKUP_DIRECT),
+		.match_data.cmp		= lookup_user_key_possessed,
+		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
+		.flags			= KEYRING_SEARCH_NO_STATE_CHECK,
 	};
 	struct request_key_auth *rka;
 	struct key *key;
@@ -673,7 +674,7 @@ try_again:
 		ctx.index_key.type		= key->type;
 		ctx.index_key.description	= key->description;
 		ctx.index_key.desc_len		= strlen(key->description);
-		ctx.match_data			= key;
+		ctx.match_data.raw_data		= key;
 		kdebug("check possessed");
 		skey_ref = search_process_keyrings(&ctx);
 		kdebug("possessed=%p", skey_ref);

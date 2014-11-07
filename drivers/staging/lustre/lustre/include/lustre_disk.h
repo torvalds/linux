@@ -545,4 +545,4 @@ int mgc_fsname2resid(char *fsname, struct ldlm_res_id *res_id, int type);
 
 /** @} disk */
 
-#endif // _LUSTRE_DISK_H
+#endif /* _LUSTRE_DISK_H */

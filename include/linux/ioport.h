@@ -215,6 +215,11 @@ static inline int __deprecated check_region(resource_size_t s,
 
 /* Wrappers for managed devices */
 struct device;
+
+extern int devm_request_resource(struct device *dev, struct resource *root,
+				 struct resource *new);
+extern void devm_release_resource(struct device *dev, struct resource *new);
+
 #define devm_request_region(dev,start,n,name) \
 	__devm_request_region(dev, &ioport_resource, (start), (n), (name))
 #define devm_request_mem_region(dev,start,n,name) \
