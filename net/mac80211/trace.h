@@ -2140,6 +2140,7 @@ TRACE_EVENT(drv_pre_channel_switch,
 		VIF_ENTRY
 		CHANDEF_ENTRY
 		__field(u64, timestamp)
+		__field(u32, device_timestamp)
 		__field(bool, block_tx)
 		__field(u8, count)
 	),
@@ -2149,6 +2150,7 @@ TRACE_EVENT(drv_pre_channel_switch,
 		VIF_ASSIGN;
 		CHANDEF_ASSIGN(&ch_switch->chandef)
 		__entry->timestamp = ch_switch->timestamp;
+		__entry->device_timestamp = ch_switch->device_timestamp;
 		__entry->block_tx = ch_switch->block_tx;
 		__entry->count = ch_switch->count;
 	),
