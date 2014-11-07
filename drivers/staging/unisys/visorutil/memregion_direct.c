@@ -57,10 +57,8 @@ visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes)
 	rc = memregion;
 cleanup:
 	if (rc == NULL) {
-		if (memregion != NULL) {
-			visor_memregion_destroy(memregion);
-			memregion = NULL;
-		}
+		visor_memregion_destroy(memregion);
+		memregion = NULL;
 	}
 	return rc;
 }
