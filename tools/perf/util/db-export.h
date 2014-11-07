@@ -17,6 +17,7 @@
 #define __PERF_DB_EXPORT_H
 
 #include <linux/types.h>
+#include <linux/list.h>
 
 struct perf_evsel;
 struct machine;
@@ -25,6 +26,9 @@ struct comm;
 struct dso;
 struct perf_sample;
 struct addr_location;
+struct call_return_processor;
+struct call_path;
+struct call_return;
 
 struct export_sample {
 	union perf_event	*event;
@@ -54,7 +58,13 @@ struct db_export {
 			  struct machine *machine);
 	int (*export_symbol)(struct db_export *dbe, struct symbol *sym,
 			     struct dso *dso);
+	int (*export_branch_type)(struct db_export *dbe, u32 branch_type,
+				  const char *name);
 	int (*export_sample)(struct db_export *dbe, struct export_sample *es);
+	int (*export_call_path)(struct db_export *dbe, struct call_path *cp);
+	int (*export_call_return)(struct db_export *dbe,
+				  struct call_return *cr);
+	struct call_return_processor *crp;
 	u64 evsel_last_db_id;
 	u64 machine_last_db_id;
 	u64 thread_last_db_id;
@@ -63,9 +73,13 @@ struct db_export {
 	u64 dso_last_db_id;
 	u64 symbol_last_db_id;
 	u64 sample_last_db_id;
+	u64 call_path_last_db_id;
+	u64 call_return_last_db_id;
+	struct list_head deferred;
 };
 
 int db_export__init(struct db_export *dbe);
+int db_export__flush(struct db_export *dbe);
 void db_export__exit(struct db_export *dbe);
 int db_export__evsel(struct db_export *dbe, struct perf_evsel *evsel);
 int db_export__machine(struct db_export *dbe, struct machine *machine);
@@ -79,8 +93,15 @@ int db_export__dso(struct db_export *dbe, struct dso *dso,
 		   struct machine *machine);
 int db_export__symbol(struct db_export *dbe, struct symbol *sym,
 		      struct dso *dso);
+int db_export__branch_type(struct db_export *dbe, u32 branch_type,
+			   const char *name);
 int db_export__sample(struct db_export *dbe, union perf_event *event,
 		      struct perf_sample *sample, struct perf_evsel *evsel,
 		      struct thread *thread, struct addr_location *al);
+
+int db_export__branch_types(struct db_export *dbe);
+
+int db_export__call_path(struct db_export *dbe, struct call_path *cp);
+int db_export__call_return(struct db_export *dbe, struct call_return *cr);
 
 #endif

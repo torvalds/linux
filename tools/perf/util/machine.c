@@ -464,6 +464,7 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 {
 	struct map *map;
 	struct dso *dso = __dsos__findnew(&machine->kernel_dsos, filename);
+	bool compressed;
 
 	if (dso == NULL)
 		return NULL;
@@ -476,6 +477,11 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 		dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
 	else
 		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
+
+	/* _KMODULE_COMP should be next to _KMODULE */
+	if (is_kernel_module(filename, &compressed) && compressed)
+		dso->symtab_type++;
+
 	map_groups__insert(&machine->kmaps, map);
 	return map;
 }
@@ -861,8 +867,14 @@ static int map_groups__set_modules_path_dir(struct map_groups *mg,
 			struct map *map;
 			char *long_name;
 
-			if (dot == NULL || strcmp(dot, ".ko"))
+			if (dot == NULL)
 				continue;
+
+			/* On some system, modules are compressed like .ko.gz */
+			if (is_supported_compression(dot + 1) &&
+			    is_kmodule_extension(dot - 2))
+				dot -= 3;
+
 			snprintf(dso_name, sizeof(dso_name), "[%.*s]",
 				 (int)(dot - dent->d_name), dent->d_name);
 
@@ -1044,6 +1056,11 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			dot = strrchr(name, '.');
 			if (dot == NULL)
 				goto out_problem;
+			/* On some system, modules are compressed like .ko.gz */
+			if (is_supported_compression(dot + 1))
+				dot -= 3;
+			if (!is_kmodule_extension(dot + 1))
+				goto out_problem;
 			snprintf(short_module_name, sizeof(short_module_name),
 					"[%.*s]", (int)(dot - name), name);
 			strxfrchar(short_module_name, '-', '_');
@@ -1068,14 +1085,29 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		 * Should be there already, from the build-id table in
 		 * the header.
 		 */
-		struct dso *kernel = __dsos__findnew(&machine->kernel_dsos,
-						     kmmap_prefix);
+		struct dso *kernel = NULL;
+		struct dso *dso;
+
+		list_for_each_entry(dso, &machine->kernel_dsos.head, node) {
+			if (is_kernel_module(dso->long_name, NULL))
+				continue;
+
+			kernel = dso;
+			break;
+		}
+
+		if (kernel == NULL)
+			kernel = __dsos__findnew(&machine->kernel_dsos,
+						 kmmap_prefix);
 		if (kernel == NULL)
 			goto out_problem;
 
 		kernel->kernel = kernel_type;
 		if (__machine__create_kernel_maps(machine, kernel) < 0)
 			goto out_problem;
+
+		if (strstr(dso->long_name, "vmlinux"))
+			dso__set_short_name(dso, "[kernel.vmlinux]", false);
 
 		machine__set_kernel_mmap_len(machine, event);
 

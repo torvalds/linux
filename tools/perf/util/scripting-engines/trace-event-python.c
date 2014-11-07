@@ -26,6 +26,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <linux/bitmap.h>
 
 #include "../../perf.h"
 #include "../debug.h"
@@ -37,6 +38,7 @@
 #include "../comm.h"
 #include "../machine.h"
 #include "../db-export.h"
+#include "../thread-stack.h"
 #include "../trace-event.h"
 #include "../machine.h"
 
@@ -45,7 +47,7 @@ PyMODINIT_FUNC initperf_trace_context(void);
 #define FTRACE_MAX_EVENT				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-struct event_format *events[FTRACE_MAX_EVENT];
+static DECLARE_BITMAP(events_defined, FTRACE_MAX_EVENT);
 
 #define MAX_FIELDS	64
 #define N_COMMON_FIELDS	7
@@ -66,7 +68,10 @@ struct tables {
 	PyObject		*comm_thread_handler;
 	PyObject		*dso_handler;
 	PyObject		*symbol_handler;
+	PyObject		*branch_type_handler;
 	PyObject		*sample_handler;
+	PyObject		*call_path_handler;
+	PyObject		*call_return_handler;
 	bool			db_export_mode;
 };
 
@@ -251,31 +256,6 @@ static void define_event_symbols(struct event_format *event,
 		define_event_symbols(event, ev_name, args->next);
 }
 
-static inline struct event_format *find_cache_event(struct perf_evsel *evsel)
-{
-	static char ev_name[256];
-	struct event_format *event;
-	int type = evsel->attr.config;
-
-	/*
- 	 * XXX: Do we really need to cache this since now we have evsel->tp_format
- 	 * cached already? Need to re-read this "cache" routine that as well calls
- 	 * define_event_symbols() :-\
- 	 */
-	if (events[type])
-		return events[type];
-
-	events[type] = event = evsel->tp_format;
-	if (!event)
-		return NULL;
-
-	sprintf(ev_name, "%s__%s", event->system, event->name);
-
-	define_event_symbols(event, ev_name, event->print_fmt.args);
-
-	return event;
-}
-
 static PyObject *get_field_numeric_entry(struct event_format *event,
 		struct format_field *field, void *data)
 {
@@ -399,12 +379,12 @@ static void python_process_tracepoint(struct perf_sample *sample,
 				      struct thread *thread,
 				      struct addr_location *al)
 {
+	struct event_format *event = evsel->tp_format;
 	PyObject *handler, *context, *t, *obj, *callchain;
 	PyObject *dict = NULL;
 	static char handler_name[256];
 	struct format_field *field;
 	unsigned long s, ns;
-	struct event_format *event;
 	unsigned n = 0;
 	int pid;
 	int cpu = sample->cpu;
@@ -416,13 +396,15 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	if (!t)
 		Py_FatalError("couldn't create Python tuple");
 
-	event = find_cache_event(evsel);
 	if (!event)
 		die("ug! no event found for type %d", (int)evsel->attr.config);
 
 	pid = raw_field_value(event, "common_pid", data);
 
 	sprintf(handler_name, "%s__%s", event->system, event->name);
+
+	if (!test_and_set_bit(event->id, events_defined))
+		define_event_symbols(event, handler_name, event->print_fmt.args);
 
 	handler = get_handler(handler_name);
 	if (!handler) {
@@ -664,13 +646,31 @@ static int python_export_symbol(struct db_export *dbe, struct symbol *sym,
 	return 0;
 }
 
+static int python_export_branch_type(struct db_export *dbe, u32 branch_type,
+				     const char *name)
+{
+	struct tables *tables = container_of(dbe, struct tables, dbe);
+	PyObject *t;
+
+	t = tuple_new(2);
+
+	tuple_set_s32(t, 0, branch_type);
+	tuple_set_string(t, 1, name);
+
+	call_object(tables->branch_type_handler, t, "branch_type_table");
+
+	Py_DECREF(t);
+
+	return 0;
+}
+
 static int python_export_sample(struct db_export *dbe,
 				struct export_sample *es)
 {
 	struct tables *tables = container_of(dbe, struct tables, dbe);
 	PyObject *t;
 
-	t = tuple_new(19);
+	t = tuple_new(21);
 
 	tuple_set_u64(t, 0, es->db_id);
 	tuple_set_u64(t, 1, es->evsel->db_id);
@@ -691,12 +691,72 @@ static int python_export_sample(struct db_export *dbe,
 	tuple_set_u64(t, 16, es->sample->weight);
 	tuple_set_u64(t, 17, es->sample->transaction);
 	tuple_set_u64(t, 18, es->sample->data_src);
+	tuple_set_s32(t, 19, es->sample->flags & PERF_BRANCH_MASK);
+	tuple_set_s32(t, 20, !!(es->sample->flags & PERF_IP_FLAG_IN_TX));
 
 	call_object(tables->sample_handler, t, "sample_table");
 
 	Py_DECREF(t);
 
 	return 0;
+}
+
+static int python_export_call_path(struct db_export *dbe, struct call_path *cp)
+{
+	struct tables *tables = container_of(dbe, struct tables, dbe);
+	PyObject *t;
+	u64 parent_db_id, sym_db_id;
+
+	parent_db_id = cp->parent ? cp->parent->db_id : 0;
+	sym_db_id = cp->sym ? *(u64 *)symbol__priv(cp->sym) : 0;
+
+	t = tuple_new(4);
+
+	tuple_set_u64(t, 0, cp->db_id);
+	tuple_set_u64(t, 1, parent_db_id);
+	tuple_set_u64(t, 2, sym_db_id);
+	tuple_set_u64(t, 3, cp->ip);
+
+	call_object(tables->call_path_handler, t, "call_path_table");
+
+	Py_DECREF(t);
+
+	return 0;
+}
+
+static int python_export_call_return(struct db_export *dbe,
+				     struct call_return *cr)
+{
+	struct tables *tables = container_of(dbe, struct tables, dbe);
+	u64 comm_db_id = cr->comm ? cr->comm->db_id : 0;
+	PyObject *t;
+
+	t = tuple_new(11);
+
+	tuple_set_u64(t, 0, cr->db_id);
+	tuple_set_u64(t, 1, cr->thread->db_id);
+	tuple_set_u64(t, 2, comm_db_id);
+	tuple_set_u64(t, 3, cr->cp->db_id);
+	tuple_set_u64(t, 4, cr->call_time);
+	tuple_set_u64(t, 5, cr->return_time);
+	tuple_set_u64(t, 6, cr->branch_count);
+	tuple_set_u64(t, 7, cr->call_ref);
+	tuple_set_u64(t, 8, cr->return_ref);
+	tuple_set_u64(t, 9, cr->cp->parent->db_id);
+	tuple_set_s32(t, 10, cr->flags);
+
+	call_object(tables->call_return_handler, t, "call_return_table");
+
+	Py_DECREF(t);
+
+	return 0;
+}
+
+static int python_process_call_return(struct call_return *cr, void *data)
+{
+	struct db_export *dbe = data;
+
+	return db_export__call_return(dbe, cr);
 }
 
 static void python_process_general_event(struct perf_sample *sample,
@@ -831,7 +891,9 @@ error:
 static void set_table_handlers(struct tables *tables)
 {
 	const char *perf_db_export_mode = "perf_db_export_mode";
-	PyObject *db_export_mode;
+	const char *perf_db_export_calls = "perf_db_export_calls";
+	PyObject *db_export_mode, *db_export_calls;
+	bool export_calls = false;
 	int ret;
 
 	memset(tables, 0, sizeof(struct tables));
@@ -848,6 +910,23 @@ static void set_table_handlers(struct tables *tables)
 	if (!ret)
 		return;
 
+	tables->dbe.crp = NULL;
+	db_export_calls = PyDict_GetItemString(main_dict, perf_db_export_calls);
+	if (db_export_calls) {
+		ret = PyObject_IsTrue(db_export_calls);
+		if (ret == -1)
+			handler_call_die(perf_db_export_calls);
+		export_calls = !!ret;
+	}
+
+	if (export_calls) {
+		tables->dbe.crp =
+			call_return_processor__new(python_process_call_return,
+						   &tables->dbe);
+		if (!tables->dbe.crp)
+			Py_FatalError("failed to create calls processor");
+	}
+
 	tables->db_export_mode = true;
 	/*
 	 * Reserve per symbol space for symbol->db_id via symbol__priv()
@@ -861,7 +940,10 @@ static void set_table_handlers(struct tables *tables)
 	SET_TABLE_HANDLER(comm_thread);
 	SET_TABLE_HANDLER(dso);
 	SET_TABLE_HANDLER(symbol);
+	SET_TABLE_HANDLER(branch_type);
 	SET_TABLE_HANDLER(sample);
+	SET_TABLE_HANDLER(call_path);
+	SET_TABLE_HANDLER(call_return);
 }
 
 /*
@@ -910,6 +992,12 @@ static int python_start_script(const char *script, int argc, const char **argv)
 
 	set_table_handlers(tables);
 
+	if (tables->db_export_mode) {
+		err = db_export__branch_types(&tables->dbe);
+		if (err)
+			goto error;
+	}
+
 	return err;
 error:
 	Py_Finalize();
@@ -920,7 +1008,9 @@ error:
 
 static int python_flush_script(void)
 {
-	return 0;
+	struct tables *tables = &tables_global;
+
+	return db_export__flush(&tables->dbe);
 }
 
 /*

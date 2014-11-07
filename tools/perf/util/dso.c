@@ -21,8 +21,10 @@ char dso__symtab_origin(const struct dso *dso)
 		[DSO_BINARY_TYPE__BUILDID_DEBUGINFO]		= 'b',
 		[DSO_BINARY_TYPE__SYSTEM_PATH_DSO]		= 'd',
 		[DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE]		= 'K',
+		[DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP]	= 'm',
 		[DSO_BINARY_TYPE__GUEST_KALLSYMS]		= 'g',
 		[DSO_BINARY_TYPE__GUEST_KMODULE]		= 'G',
+		[DSO_BINARY_TYPE__GUEST_KMODULE_COMP]		= 'M',
 		[DSO_BINARY_TYPE__GUEST_VMLINUX]		= 'V',
 	};
 
@@ -112,11 +114,13 @@ int dso__read_binary_type_filename(const struct dso *dso,
 		break;
 
 	case DSO_BINARY_TYPE__GUEST_KMODULE:
+	case DSO_BINARY_TYPE__GUEST_KMODULE_COMP:
 		path__join3(filename, size, symbol_conf.symfs,
 			    root_dir, dso->long_name);
 		break;
 
 	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP:
 		__symbol__join_symfs(filename, size, dso->long_name);
 		break;
 
@@ -135,6 +139,73 @@ int dso__read_binary_type_filename(const struct dso *dso,
 	}
 
 	return ret;
+}
+
+static const struct {
+	const char *fmt;
+	int (*decompress)(const char *input, int output);
+} compressions[] = {
+#ifdef HAVE_ZLIB_SUPPORT
+	{ "gz", gzip_decompress_to_file },
+#endif
+	{ NULL, NULL },
+};
+
+bool is_supported_compression(const char *ext)
+{
+	unsigned i;
+
+	for (i = 0; compressions[i].fmt; i++) {
+		if (!strcmp(ext, compressions[i].fmt))
+			return true;
+	}
+	return false;
+}
+
+bool is_kmodule_extension(const char *ext)
+{
+	if (strncmp(ext, "ko", 2))
+		return false;
+
+	if (ext[2] == '\0' || (ext[2] == '.' && is_supported_compression(ext+3)))
+		return true;
+
+	return false;
+}
+
+bool is_kernel_module(const char *pathname, bool *compressed)
+{
+	const char *ext = strrchr(pathname, '.');
+
+	if (ext == NULL)
+		return false;
+
+	if (is_supported_compression(ext + 1)) {
+		if (compressed)
+			*compressed = true;
+		ext -= 3;
+	} else if (compressed)
+		*compressed = false;
+
+	return is_kmodule_extension(ext + 1);
+}
+
+bool decompress_to_file(const char *ext, const char *filename, int output_fd)
+{
+	unsigned i;
+
+	for (i = 0; compressions[i].fmt; i++) {
+		if (!strcmp(ext, compressions[i].fmt))
+			return !compressions[i].decompress(filename,
+							   output_fd);
+	}
+	return false;
+}
+
+bool dso__needs_decompress(struct dso *dso)
+{
+	return dso->symtab_type == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP ||
+		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
 }
 
 /*
