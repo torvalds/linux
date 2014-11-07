@@ -779,21 +779,28 @@ static int adv7511_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
 
+	memset(edid->reserved, 0, sizeof(edid->reserved));
+
 	if (edid->pad != 0)
 		return -EINVAL;
-	if ((edid->blocks == 0) || (edid->blocks > 256))
-		return -EINVAL;
-	if (!state->edid.segments) {
-		v4l2_dbg(1, debug, sd, "EDID segment 0 not found\n");
-		return -ENODATA;
+
+	if (edid->start_block == 0 && edid->blocks == 0) {
+		edid->blocks = state->edid.segments * 2;
+		return 0;
 	}
+
+	if (state->edid.segments == 0)
+		return -ENODATA;
+
 	if (edid->start_block >= state->edid.segments * 2)
-		return -E2BIG;
-	if ((edid->blocks + edid->start_block) >= state->edid.segments * 2)
+		return -EINVAL;
+
+	if (edid->start_block + edid->blocks > state->edid.segments * 2)
 		edid->blocks = state->edid.segments * 2 - edid->start_block;
 
 	memcpy(edid->edid, &state->edid.data[edid->start_block * 128],
 			128 * edid->blocks);
+
 	return 0;
 }
 
