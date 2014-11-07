@@ -2988,9 +2988,14 @@ static int ci_setup_default_pcie_tables(struct radeon_device *rdev)
 				  &pi->dpm_table.pcie_speed_table,
 				  SMU7_MAX_LEVELS_LINK);
 
-	ci_setup_pcie_table_entry(&pi->dpm_table.pcie_speed_table, 0,
-				  pi->pcie_gen_powersaving.min,
-				  pi->pcie_lane_powersaving.min);
+	if (rdev->family == CHIP_BONAIRE)
+		ci_setup_pcie_table_entry(&pi->dpm_table.pcie_speed_table, 0,
+					  pi->pcie_gen_powersaving.min,
+					  pi->pcie_lane_powersaving.max);
+	else
+		ci_setup_pcie_table_entry(&pi->dpm_table.pcie_speed_table, 0,
+					  pi->pcie_gen_powersaving.min,
+					  pi->pcie_lane_powersaving.min);
 	ci_setup_pcie_table_entry(&pi->dpm_table.pcie_speed_table, 1,
 				  pi->pcie_gen_performance.min,
 				  pi->pcie_lane_performance.min);
