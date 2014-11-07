@@ -377,8 +377,8 @@ struct ipmi_smi {
 	 * periodic timer interrupt.  The tasklet is for handling received
 	 * messages directly from the handler.
 	 */
-	spinlock_t       waiting_msgs_lock;
-	struct list_head waiting_msgs;
+	spinlock_t       waiting_rcv_msgs_lock;
+	struct list_head waiting_rcv_msgs;
 	atomic_t	 watchdog_pretimeouts_to_deliver;
 	struct tasklet_struct recv_tasklet;
 
@@ -529,7 +529,7 @@ static void clean_up_interface_data(ipmi_smi_t intf)
 
 	tasklet_kill(&intf->recv_tasklet);
 
-	free_smi_msg_list(&intf->waiting_msgs);
+	free_smi_msg_list(&intf->waiting_rcv_msgs);
 	free_recv_msg_list(&intf->waiting_events);
 
 	/*
@@ -2798,8 +2798,8 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 #ifdef CONFIG_PROC_FS
 	mutex_init(&intf->proc_entry_lock);
 #endif
-	spin_lock_init(&intf->waiting_msgs_lock);
-	INIT_LIST_HEAD(&intf->waiting_msgs);
+	spin_lock_init(&intf->waiting_rcv_msgs_lock);
+	INIT_LIST_HEAD(&intf->waiting_rcv_msgs);
 	tasklet_init(&intf->recv_tasklet,
 		     smi_recv_tasklet,
 		     (unsigned long) intf);
@@ -3746,16 +3746,17 @@ static void handle_new_recv_msgs(ipmi_smi_t intf)
 
 	/* See if any waiting messages need to be processed. */
 	if (!run_to_completion)
-		spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
-	while (!list_empty(&intf->waiting_msgs)) {
-		smi_msg = list_entry(intf->waiting_msgs.next,
+		spin_lock_irqsave(&intf->waiting_rcv_msgs_lock, flags);
+	while (!list_empty(&intf->waiting_rcv_msgs)) {
+		smi_msg = list_entry(intf->waiting_rcv_msgs.next,
 				     struct ipmi_smi_msg, link);
 		list_del(&smi_msg->link);
 		if (!run_to_completion)
-			spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
+			spin_unlock_irqrestore(&intf->waiting_rcv_msgs_lock,
+					       flags);
 		rv = handle_one_recv_msg(intf, smi_msg);
 		if (!run_to_completion)
-			spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
+			spin_lock_irqsave(&intf->waiting_rcv_msgs_lock, flags);
 		if (rv == 0) {
 			/* Message handled */
 			ipmi_free_smi_msg(smi_msg);
@@ -3766,12 +3767,12 @@ static void handle_new_recv_msgs(ipmi_smi_t intf)
 			 * To preserve message order, quit if we
 			 * can't handle a message.
 			 */
-			list_add(&smi_msg->link, &intf->waiting_msgs);
+			list_add(&smi_msg->link, &intf->waiting_rcv_msgs);
 			break;
 		}
 	}
 	if (!run_to_completion)
-		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
+		spin_unlock_irqrestore(&intf->waiting_rcv_msgs_lock, flags);
 
 	/*
 	 * If the pretimout count is non-zero, decrement one from it and
@@ -3852,10 +3853,10 @@ void ipmi_smi_msg_received(ipmi_smi_t          intf,
 	 */
 	run_to_completion = intf->run_to_completion;
 	if (!run_to_completion)
-		spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
-	list_add_tail(&msg->link, &intf->waiting_msgs);
+		spin_lock_irqsave(&intf->waiting_rcv_msgs_lock, flags);
+	list_add_tail(&msg->link, &intf->waiting_rcv_msgs);
 	if (!run_to_completion)
-		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
+		spin_unlock_irqrestore(&intf->waiting_rcv_msgs_lock, flags);
 
 	tasklet_schedule(&intf->recv_tasklet);
  out:
