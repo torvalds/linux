@@ -462,6 +462,7 @@ struct radeon_gpio_rec {
 	u8 id;
 	u32 reg;
 	u32 mask;
+	u32 shift;
 };
 
 struct radeon_hpd {

@@ -221,6 +221,7 @@ struct radeon_gpio_rec radeon_atombios_lookup_gpio(struct radeon_device *rdev,
 			if (id == pin->ucGPIO_ID) {
 				gpio.id = pin->ucGPIO_ID;
 				gpio.reg = le16_to_cpu(pin->usGpioPin_AIndex) * 4;
+				gpio.shift = pin->ucGpioPinBitShift;
 				gpio.mask = (1 << pin->ucGpioPinBitShift);
 				gpio.valid = true;
 				break;
