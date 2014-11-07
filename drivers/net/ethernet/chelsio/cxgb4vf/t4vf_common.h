@@ -140,6 +140,7 @@ struct sge_params {
 	u32 sge_user_mode_limits;	/* limits for BAR2 user mode accesses */
 	u32 sge_fl_buffer_size[16];	/* free list buffer sizes */
 	u32 sge_ingress_rx_threshold;	/* RX counter interrupt threshold[4] */
+	u32 sge_congestion_control;     /* congestion thresholds, etc. */
 	u32 sge_timer_value_0_and_1;	/* interrupt coalescing timer values */
 	u32 sge_timer_value_2_and_3;
 	u32 sge_timer_value_4_and_5;

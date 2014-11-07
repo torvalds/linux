@@ -493,10 +493,13 @@ int t4vf_get_sge_params(struct adapter *adapter)
 
 	params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
 		     FW_PARAMS_PARAM_XYZ(SGE_INGRESS_RX_THRESHOLD));
-	v = t4vf_query_params(adapter, 1, params, vals);
+	params[1] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ(SGE_CONM_CTRL));
+	v = t4vf_query_params(adapter, 2, params, vals);
 	if (v)
 		return v;
 	sge_params->sge_ingress_rx_threshold = vals[0];
+	sge_params->sge_congestion_control = vals[1];
 
 	return 0;
 }

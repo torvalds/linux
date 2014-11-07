@@ -94,12 +94,6 @@ enum {
 	MAX_TIMER_TX_RECLAIM = 100,
 
 	/*
-	 * An FL with <= FL_STARVE_THRES buffers is starving and a periodic
-	 * timer will attempt to refill it.
-	 */
-	FL_STARVE_THRES = 4,
-
-	/*
 	 * Suspend an Ethernet TX queue with fewer available descriptors than
 	 * this.  We always want to have room for a maximum sized packet:
 	 * inline immediate data + MAX_SKB_FRAGS. This is the same as
@@ -2489,6 +2483,16 @@ int t4vf_sge_init(struct adapter *adapter)
 
 		s->fl_align = max(ingpadboundary, ingpackboundary);
 	}
+
+	/* A FL with <= fl_starve_thres buffers is starving and a periodic
+	 * timer will attempt to refill it.  This needs to be larger than the
+	 * SGE's Egress Congestion Threshold.  If it isn't, then we can get
+	 * stuck waiting for new packets while the SGE is waiting for us to
+	 * give it more Free List entries.  (Note that the SGE's Egress
+	 * Congestion Threshold is in units of 2 Free List pointers.)
+	 */
+	s->fl_starve_thres
+		= EGRTHRESHOLD_GET(sge_params->sge_congestion_control)*2 + 1;
 
 	/*
 	 * Set up tasklet timers.
