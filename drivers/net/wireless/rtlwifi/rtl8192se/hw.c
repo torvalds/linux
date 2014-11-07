@@ -1201,6 +1201,9 @@ static int _rtl92se_set_media_status(struct ieee80211_hw *hw,
 
 	}
 
+	if (type != NL80211_IFTYPE_AP &&
+	    rtlpriv->mac80211.link_state < MAC80211_LINKED)
+		bt_msr = rtl_read_byte(rtlpriv, MSR) & ~MSR_LINK_MASK;
 	rtl_write_byte(rtlpriv, (MSR), bt_msr);
 
 	temp = rtl_read_dword(rtlpriv, TCR);
@@ -1262,6 +1265,7 @@ void rtl92se_enable_interrupt(struct ieee80211_hw *hw)
 	rtl_write_dword(rtlpriv, INTA_MASK, rtlpci->irq_mask[0]);
 	/* Support Bit 32-37(Assign as Bit 0-5) interrupt setting now */
 	rtl_write_dword(rtlpriv, INTA_MASK + 4, rtlpci->irq_mask[1] & 0x3F);
+	rtlpci->irq_enabled = true;
 }
 
 void rtl92se_disable_interrupt(struct ieee80211_hw *hw)
@@ -1276,8 +1280,7 @@ void rtl92se_disable_interrupt(struct ieee80211_hw *hw)
 	rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	rtl_write_dword(rtlpriv, INTA_MASK, 0);
 	rtl_write_dword(rtlpriv, INTA_MASK + 4, 0);
-
-	synchronize_irq(rtlpci->pdev->irq);
+	rtlpci->irq_enabled = false;
 }
 
 static u8 _rtl92s_set_sysclk(struct ieee80211_hw *hw, u8 data)
