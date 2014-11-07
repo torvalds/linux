@@ -24,8 +24,6 @@
 #include "build-id.h"
 #include "data.h"
 
-static bool no_buildid_cache = false;
-
 static u32 header_argc;
 static const char **header_argv;
 
@@ -191,8 +189,7 @@ static int write_build_id(int fd, struct perf_header *h,
 		pr_debug("failed to write buildid table\n");
 		return err;
 	}
-	if (!no_buildid_cache)
-		perf_session__cache_build_ids(session);
+	perf_session__cache_build_ids(session);
 
 	return 0;
 }
@@ -2790,9 +2787,4 @@ int perf_event__process_build_id(struct perf_tool *tool __maybe_unused,
 				 event->build_id.filename,
 				 session);
 	return 0;
-}
-
-void disable_buildid_cache(void)
-{
-	no_buildid_cache = true;
 }

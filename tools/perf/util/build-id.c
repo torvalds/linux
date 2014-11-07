@@ -18,6 +18,9 @@
 #include "header.h"
 #include "vdso.h"
 
+
+static bool no_buildid_cache;
+
 int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 			   union perf_event *event,
 			   struct perf_sample *sample,
@@ -251,6 +254,11 @@ int dsos__hit_all(struct perf_session *session)
 	return 0;
 }
 
+void disable_buildid_cache(void)
+{
+	no_buildid_cache = true;
+}
+
 int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 			  const char *name, bool is_kallsyms, bool is_vdso)
 {
@@ -403,6 +411,9 @@ int perf_session__cache_build_ids(struct perf_session *session)
 	struct rb_node *nd;
 	int ret;
 	char debugdir[PATH_MAX];
+
+	if (no_buildid_cache)
+		return 0;
 
 	snprintf(debugdir, sizeof(debugdir), "%s", buildid_dir);
 
