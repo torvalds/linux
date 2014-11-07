@@ -359,7 +359,7 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	}
 
 	/* Configure Tx/Rx FIFO threshold levels */
-	dw_writel(dev, dev->tx_fifo_depth - 1, DW_IC_TX_TL);
+	dw_writel(dev, dev->tx_fifo_depth / 2, DW_IC_TX_TL);
 	dw_writel(dev, 0, DW_IC_RX_TL);
 
 	/* configure the i2c master */
