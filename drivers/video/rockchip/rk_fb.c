@@ -77,6 +77,18 @@ int support_uboot_display(void)
 	return uboot_logo_on;
 }
 
+int rk_fb_get_display_policy(void)
+{
+	struct rk_fb *rk_fb;
+
+	if (fb_pdev) {
+		rk_fb = platform_get_drvdata(fb_pdev);
+		return rk_fb->disp_policy;
+	} else {
+		return DISPLAY_POLICY_SDK;
+	}
+}
+
 int rk_fb_trsm_ops_register(struct rk_fb_trsm_ops *ops, int type)
 {
 	switch (type) {

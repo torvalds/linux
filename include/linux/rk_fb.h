@@ -666,4 +666,5 @@ extern int rk_get_real_fps(int time);
 extern struct device *rk_fb_get_sysmmu_device_by_compatible(const char *compt);
 extern void rk_fb_platform_set_sysmmu(struct device *sysmmu,
                                       struct device *dev);
+int rk_fb_get_display_policy(void);
 #endif

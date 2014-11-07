@@ -97,7 +97,8 @@ void hdmi_sys_remove(struct hdmi *hdmi)
 	kobject_uevent_env(&hdmi->ddev->dev->kobj, KOBJ_REMOVE, envp);
 
 #ifdef CONFIG_SWITCH
-	if (audio_need)
+	if (audio_need ||
+	    rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
 		switch_set_state(&(hdmi->switch_hdmi), 0);
 #endif
 	rockchip_clear_system_status(SYS_STATUS_HDMI);
@@ -249,8 +250,10 @@ void hdmi_work(struct work_struct *work)
 					 hdmi->edid.base_audio_support,
 					 hdmi->edid.sink_hdmi);
 #ifdef CONFIG_SWITCH
-				if (hdmi->edid.base_audio_support == 1 &&
-				    hdmi->edid.sink_hdmi == 1)
+				if ((hdmi->edid.base_audio_support == 1 &&
+				     hdmi->edid.sink_hdmi == 1) ||
+				     (rk_fb_get_display_policy() ==
+				      DISPLAY_POLICY_BOX))
 					switch_set_state(&(hdmi->switch_hdmi),
 							 1);
 #endif
