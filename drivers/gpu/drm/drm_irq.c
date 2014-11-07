@@ -1190,7 +1190,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_off);
  *
  * This functions restores the vblank interrupt state captured with
  * drm_vblank_off() again. Note that calls to drm_vblank_on() and
- * drm_vblank_off() can be unbalanced and so can also be unconditionaly called
+ * drm_vblank_off() can be unbalanced and so can also be unconditionally called
  * in driver load code to reflect the current hardware state of the crtc.
  *
  * This is the legacy version of drm_crtc_vblank_on().
@@ -1237,7 +1237,7 @@ EXPORT_SYMBOL(drm_vblank_on);
  *
  * This functions restores the vblank interrupt state captured with
  * drm_vblank_off() again. Note that calls to drm_vblank_on() and
- * drm_vblank_off() can be unbalanced and so can also be unconditionaly called
+ * drm_vblank_off() can be unbalanced and so can also be unconditionally called
  * in driver load code to reflect the current hardware state of the crtc.
  *
  * This is the native kms version of drm_vblank_on().

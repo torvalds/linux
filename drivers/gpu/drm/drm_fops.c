@@ -515,10 +515,12 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 	size_t total;
 	ssize_t ret;
 
-	ret = wait_event_interruptible(file_priv->event_wait,
-				       !list_empty(&file_priv->event_list));
-	if (ret < 0)
-		return ret;
+	if ((filp->f_flags & O_NONBLOCK) == 0) {
+		ret = wait_event_interruptible(file_priv->event_wait,
+					       !list_empty(&file_priv->event_list));
+		if (ret < 0)
+			return ret;
+	}
 
 	total = 0;
 	while (drm_dequeue_event(file_priv, total, count, &e)) {
@@ -532,7 +534,7 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 		e->destroy(e);
 	}
 
-	return total;
+	return total ?: -EAGAIN;
 }
 EXPORT_SYMBOL(drm_read);
 

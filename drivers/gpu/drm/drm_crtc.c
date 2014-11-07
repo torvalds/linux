@@ -766,7 +766,6 @@ static void drm_mode_remove(struct drm_connector *connector,
 /**
  * drm_connector_get_cmdline_mode - reads the user's cmdline mode
  * @connector: connector to quwery
- * @mode: returned mode
  *
  * The kernel supports per-connector configration of its consoles through
  * use of the video= parameter. This function parses that option and
@@ -2943,7 +2942,7 @@ EXPORT_SYMBOL(drm_mode_legacy_fb_format);
  * @file_priv: drm file for the ioctl call
  *
  * Add a new FB to the specified CRTC, given a user request. This is the
- * original addfb ioclt which only supported RGB formats.
+ * original addfb ioctl which only supported RGB formats.
  *
  * Called by the user via ioctl.
  *
@@ -2955,11 +2954,9 @@ int drm_mode_addfb(struct drm_device *dev,
 {
 	struct drm_mode_fb_cmd *or = data;
 	struct drm_mode_fb_cmd2 r = {};
-	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_framebuffer *fb;
-	int ret = 0;
+	int ret;
 
-	/* Use new struct with format internally */
+	/* convert to new format and call new ioctl */
 	r.fb_id = or->fb_id;
 	r.width = or->width;
 	r.height = or->height;
@@ -2967,26 +2964,11 @@ int drm_mode_addfb(struct drm_device *dev,
 	r.pixel_format = drm_mode_legacy_fb_format(or->bpp, or->depth);
 	r.handles[0] = or->handle;
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+	ret = drm_mode_addfb2(dev, &r, file_priv);
+	if (ret)
+		return ret;
 
-	if ((config->min_width > r.width) || (r.width > config->max_width))
-		return -EINVAL;
-
-	if ((config->min_height > r.height) || (r.height > config->max_height))
-		return -EINVAL;
-
-	fb = dev->mode_config.funcs->fb_create(dev, file_priv, &r);
-	if (IS_ERR(fb)) {
-		DRM_DEBUG_KMS("could not create framebuffer\n");
-		return PTR_ERR(fb);
-	}
-
-	mutex_lock(&file_priv->fbs_lock);
-	or->fb_id = fb->base.id;
-	list_add(&fb->filp_head, &file_priv->fbs);
-	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
-	mutex_unlock(&file_priv->fbs_lock);
+	or->fb_id = r.fb_id;
 
 	return ret;
 }
@@ -3080,7 +3062,7 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 	num_planes = drm_format_num_planes(r->pixel_format);
 
 	if (r->width == 0 || r->width % hsub) {
-		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->height);
+		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->width);
 		return -EINVAL;
 	}
 
@@ -3435,6 +3417,10 @@ void drm_fb_release(struct drm_file *priv)
  * object with drm_object_attach_property. The returned property object must be
  * freed with drm_property_destroy.
  *
+ * Note that the DRM core keeps a per-device list of properties and that, if
+ * drm_mode_config_cleanup() is called, it will destroy all properties created
+ * by the driver.
+ *
  * Returns:
  * A pointer to the newly created property on success, NULL on failure.
  */
@@ -3611,7 +3597,7 @@ static struct drm_property *property_create_range(struct drm_device *dev,
  * object with drm_object_attach_property. The returned property object must be
  * freed with drm_property_destroy.
  *
- * Userspace is allowed to set any interger value in the (min, max) range
+ * Userspace is allowed to set any integer value in the (min, max) range
  * inclusive.
  *
  * Returns:

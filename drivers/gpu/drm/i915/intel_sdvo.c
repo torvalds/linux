@@ -1991,57 +1991,10 @@ static int intel_sdvo_get_modes(struct drm_connector *connector)
 	return !list_empty(&connector->probed_modes);
 }
 
-static void
-intel_sdvo_destroy_enhance_property(struct drm_connector *connector)
-{
-	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
-	struct drm_device *dev = connector->dev;
-
-	if (intel_sdvo_connector->left)
-		drm_property_destroy(dev, intel_sdvo_connector->left);
-	if (intel_sdvo_connector->right)
-		drm_property_destroy(dev, intel_sdvo_connector->right);
-	if (intel_sdvo_connector->top)
-		drm_property_destroy(dev, intel_sdvo_connector->top);
-	if (intel_sdvo_connector->bottom)
-		drm_property_destroy(dev, intel_sdvo_connector->bottom);
-	if (intel_sdvo_connector->hpos)
-		drm_property_destroy(dev, intel_sdvo_connector->hpos);
-	if (intel_sdvo_connector->vpos)
-		drm_property_destroy(dev, intel_sdvo_connector->vpos);
-	if (intel_sdvo_connector->saturation)
-		drm_property_destroy(dev, intel_sdvo_connector->saturation);
-	if (intel_sdvo_connector->contrast)
-		drm_property_destroy(dev, intel_sdvo_connector->contrast);
-	if (intel_sdvo_connector->hue)
-		drm_property_destroy(dev, intel_sdvo_connector->hue);
-	if (intel_sdvo_connector->sharpness)
-		drm_property_destroy(dev, intel_sdvo_connector->sharpness);
-	if (intel_sdvo_connector->flicker_filter)
-		drm_property_destroy(dev, intel_sdvo_connector->flicker_filter);
-	if (intel_sdvo_connector->flicker_filter_2d)
-		drm_property_destroy(dev, intel_sdvo_connector->flicker_filter_2d);
-	if (intel_sdvo_connector->flicker_filter_adaptive)
-		drm_property_destroy(dev, intel_sdvo_connector->flicker_filter_adaptive);
-	if (intel_sdvo_connector->tv_luma_filter)
-		drm_property_destroy(dev, intel_sdvo_connector->tv_luma_filter);
-	if (intel_sdvo_connector->tv_chroma_filter)
-		drm_property_destroy(dev, intel_sdvo_connector->tv_chroma_filter);
-	if (intel_sdvo_connector->dot_crawl)
-		drm_property_destroy(dev, intel_sdvo_connector->dot_crawl);
-	if (intel_sdvo_connector->brightness)
-		drm_property_destroy(dev, intel_sdvo_connector->brightness);
-}
-
 static void intel_sdvo_destroy(struct drm_connector *connector)
 {
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 
-	if (intel_sdvo_connector->tv_format)
-		drm_property_destroy(connector->dev,
-				     intel_sdvo_connector->tv_format);
-
-	intel_sdvo_destroy_enhance_property(connector);
 	drm_connector_cleanup(connector);
 	kfree(intel_sdvo_connector);
 }
