@@ -638,9 +638,7 @@ static void snd_atiixp_xrun_dma(struct atiixp_modem *chip,
 	if (! dma->substream || ! dma->running)
 		return;
 	dev_dbg(chip->card->dev, "XRUN detected (DMA %d)\n", dma->ops->type);
-	snd_pcm_stream_lock(dma->substream);
-	snd_pcm_stop(dma->substream, SNDRV_PCM_STATE_XRUN);
-	snd_pcm_stream_unlock(dma->substream);
+	snd_pcm_stop_xrun(dma->substream);
 }
 
 /*

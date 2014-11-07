@@ -391,9 +391,7 @@ static void snd_complete_urb(struct urb *urb)
 	usb_audio_err(ep->chip, "cannot submit urb (err = %d)\n", err);
 	if (ep->data_subs && ep->data_subs->pcm_substream) {
 		substream = ep->data_subs->pcm_substream;
-		snd_pcm_stream_lock_irqsave(substream, flags);
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-		snd_pcm_stream_unlock_irqrestore(substream, flags);
+		snd_pcm_stop_xrun(substream);
 	}
 
 exit_clear:
