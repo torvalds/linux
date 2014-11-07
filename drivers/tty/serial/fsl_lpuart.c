@@ -1896,11 +1896,8 @@ static struct platform_driver lpuart_driver = {
 
 static int __init lpuart_serial_init(void)
 {
-	int ret;
+	int ret = uart_register_driver(&lpuart_reg);
 
-	pr_info("serial: Freescale lpuart driver\n");
-
-	ret = uart_register_driver(&lpuart_reg);
 	if (ret)
 		return ret;
 
