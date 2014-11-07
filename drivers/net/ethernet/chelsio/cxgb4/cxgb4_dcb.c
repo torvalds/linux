@@ -79,8 +79,9 @@ static void cxgb4_dcb_cleanup_apps(struct net_device *dev)
 		app.protocol = dcb->app_priority[i].protocolid;
 
 		if (dcb->dcb_version == FW_PORT_DCB_VER_IEEE) {
+			app.priority = dcb->app_priority[i].user_prio_map;
 			app.selector = dcb->app_priority[i].sel_field + 1;
-			err = dcb_ieee_setapp(dev, &app);
+			err = dcb_ieee_delapp(dev, &app);
 		} else {
 			app.selector = !!(dcb->app_priority[i].sel_field);
 			err = dcb_setapp(dev, &app);
