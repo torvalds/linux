@@ -1369,9 +1369,6 @@ static int xgbe_close(struct net_device *netdev)
 	/* Free the ring descriptors and buffers */
 	desc_if->free_ring_resources(pdata);
 
-	/* Free the channel and ring structures */
-	xgbe_free_channels(pdata);
-
 	/* Release the interrupts */
 	devm_free_irq(pdata->dev, pdata->dev_irq, pdata);
 	if (pdata->per_channel_irq) {
@@ -1379,6 +1376,9 @@ static int xgbe_close(struct net_device *netdev)
 		for (i = 0; i < pdata->channel_count; i++, channel++)
 			devm_free_irq(pdata->dev, channel->dma_irq, channel);
 	}
+
+	/* Free the channel and ring structures */
+	xgbe_free_channels(pdata);
 
 	/* Disable the clocks */
 	clk_disable_unprepare(pdata->ptpclk);
@@ -1908,7 +1908,7 @@ read_again:
 				skb = xgbe_create_skb(pdata, rdata, &put_len);
 				if (!skb) {
 					error = 1;
-					goto read_again;
+					goto skip_data;
 				}
 			}
 
@@ -1926,10 +1926,10 @@ read_again:
 			}
 		}
 
+skip_data:
 		if (incomplete || context_next)
 			goto read_again;
 
-		/* Stray Context Descriptor? */
 		if (!skb)
 			goto next_packet;
 
