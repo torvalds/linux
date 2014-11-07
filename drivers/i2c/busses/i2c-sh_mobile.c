@@ -16,20 +16,20 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/i2c.h>
+#include <linux/i2c/i2c-sh_mobile.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/platform_device.h>
-#include <linux/interrupt.h>
-#include <linux/i2c.h>
-#include <linux/err.h>
-#include <linux/pm_runtime.h>
-#include <linux/clk.h>
-#include <linux/io.h>
-#include <linux/slab.h>
 #include <linux/of_device.h>
-#include <linux/i2c/i2c-sh_mobile.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
 
 /* Transmit operation:                                                      */
 /*                                                                          */
