@@ -25,7 +25,6 @@
 struct mdp4_crtc {
 	struct drm_crtc base;
 	char name[8];
-	struct drm_plane *plane;
 	struct drm_plane *planes[8];
 	int id;
 	int ovlp;
@@ -188,7 +187,7 @@ static void pageflip_cb(struct msm_fence_cb *cb)
 		return;
 
 	drm_framebuffer_reference(fb);
-	mdp4_plane_set_scanout(mdp4_crtc->plane, fb);
+	mdp4_plane_set_scanout(crtc->primary, fb);
 	update_scanout(crtc, fb);
 }
 
@@ -353,7 +352,7 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 	/* grab extra ref for update_scanout() */
 	drm_framebuffer_reference(crtc->primary->fb);
 
-	ret = mdp4_plane_mode_set(mdp4_crtc->plane, crtc, crtc->primary->fb,
+	ret = mdp4_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16);
@@ -419,8 +418,7 @@ static void mdp4_crtc_commit(struct drm_crtc *crtc)
 static int mdp4_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 		struct drm_framebuffer *old_fb)
 {
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	struct drm_plane *plane = mdp4_crtc->plane;
+	struct drm_plane *plane = crtc->primary;
 	struct drm_display_mode *mode = &crtc->mode;
 	int ret;
 
@@ -729,7 +727,7 @@ static void set_attach(struct drm_crtc *crtc, enum mdp4_pipe pipe_id,
 
 	mdp4_crtc->planes[pipe_id] = plane;
 	blend_setup(crtc);
-	if (mdp4_crtc->enabled && (plane != mdp4_crtc->plane))
+	if (mdp4_crtc->enabled && (plane != crtc->primary))
 		crtc_flush(crtc);
 }
 
@@ -741,7 +739,7 @@ void mdp4_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane)
 void mdp4_crtc_detach(struct drm_crtc *crtc, struct drm_plane *plane)
 {
 	/* don't actually detatch our primary plane: */
-	if (to_mdp4_crtc(crtc)->plane == plane)
+	if (crtc->primary == plane)
 		return;
 	set_attach(crtc, mdp4_plane_pipe(plane), NULL);
 }
@@ -764,7 +762,6 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 
 	crtc = &mdp4_crtc->base;
 
-	mdp4_crtc->plane = plane;
 	mdp4_crtc->id = id;
 
 	mdp4_crtc->ovlp = ovlp_id;
@@ -791,7 +788,7 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs);
 	drm_crtc_helper_add(crtc, &mdp4_crtc_helper_funcs);
 
-	mdp4_plane_install_properties(mdp4_crtc->plane, &crtc->base);
+	mdp4_plane_install_properties(plane, &crtc->base);
 
 	return crtc;
 }
