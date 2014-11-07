@@ -1116,7 +1116,7 @@ out:
 	drm_connector_register(connector);
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
-	intel_panel_setup_backlight(connector);
+	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	return;
 

@@ -5212,6 +5212,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	bool has_dpcd;
 	struct drm_display_mode *scan;
 	struct edid *edid;
+	enum pipe pipe = INVALID_PIPE;
 
 	intel_dp->drrs_state.type = DRRS_NOT_SUPPORTED;
 
@@ -5280,11 +5281,30 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (IS_VALLEYVIEW(dev)) {
 		intel_dp->edp_notifier.notifier_call = edp_notify_handler;
 		register_reboot_notifier(&intel_dp->edp_notifier);
+
+		/*
+		 * Figure out the current pipe for the initial backlight setup.
+		 * If the current pipe isn't valid, try the PPS pipe, and if that
+		 * fails just assume pipe A.
+		 */
+		if (IS_CHERRYVIEW(dev))
+			pipe = DP_PORT_TO_PIPE_CHV(intel_dp->DP);
+		else
+			pipe = PORT_TO_PIPE(intel_dp->DP);
+
+		if (pipe != PIPE_A && pipe != PIPE_B)
+			pipe = intel_dp->pps_pipe;
+
+		if (pipe != PIPE_A && pipe != PIPE_B)
+			pipe = PIPE_A;
+
+		DRM_DEBUG_KMS("using pipe %c for initial backlight setup\n",
+			      pipe_name(pipe));
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
 	intel_connector->panel.backlight_power = intel_edp_backlight_power;
-	intel_panel_setup_backlight(connector);
+	intel_panel_setup_backlight(connector, pipe);
 
 	return true;
 }
