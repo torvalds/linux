@@ -1041,6 +1041,9 @@ static int intel_backlight_device_register(struct intel_connector *connector)
 	if (WARN_ON(panel->backlight.device))
 		return -ENODEV;
 
+	if (!panel->backlight.present)
+		return 0;
+
 	WARN_ON(panel->backlight.max == 0);
 
 	memset(&props, 0, sizeof(props));
@@ -1076,6 +1079,10 @@ static int intel_backlight_device_register(struct intel_connector *connector)
 		panel->backlight.device = NULL;
 		return -ENODEV;
 	}
+
+	DRM_DEBUG_KMS("Connector %s backlight sysfs interface registered\n",
+		      connector->base.name);
+
 	return 0;
 }
 
@@ -1302,15 +1309,12 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 		return ret;
 	}
 
-	intel_backlight_device_register(intel_connector);
-
 	panel->backlight.present = true;
 
-	DRM_DEBUG_KMS("backlight initialized, %s, brightness %u/%u, "
-		      "sysfs interface %sregistered\n",
+	DRM_DEBUG_KMS("Connector %s backlight initialized, %s, brightness %u/%u\n",
+		      connector->name,
 		      panel->backlight.enabled ? "enabled" : "disabled",
-		      panel->backlight.level, panel->backlight.max,
-		      panel->backlight.device ? "" : "not ");
+		      panel->backlight.level, panel->backlight.max);
 
 	return 0;
 }
@@ -1321,7 +1325,6 @@ void intel_panel_destroy_backlight(struct drm_connector *connector)
 	struct intel_panel *panel = &intel_connector->panel;
 
 	panel->backlight.present = false;
-	intel_backlight_device_unregister(intel_connector);
 }
 
 /* Set up chip specific backlight functions */
@@ -1383,4 +1386,20 @@ void intel_panel_fini(struct intel_panel *panel)
 	if (panel->downclock_mode)
 		drm_mode_destroy(intel_connector->base.dev,
 				panel->downclock_mode);
+}
+
+void intel_backlight_register(struct drm_device *dev)
+{
+	struct intel_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
+		intel_backlight_device_register(connector);
+}
+
+void intel_backlight_unregister(struct drm_device *dev)
+{
+	struct intel_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
+		intel_backlight_device_unregister(connector);
 }
