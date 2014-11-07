@@ -4833,6 +4833,12 @@ int ci_dpm_enable(struct radeon_device *rdev)
 		return ret;
 	}
 
+	ret = ci_power_control_set_level(rdev);
+	if (ret) {
+		DRM_ERROR("ci_power_control_set_level failed\n");
+		return ret;
+	}
+
 	ci_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 
 	ci_update_current_ps(rdev, boot_ps);
@@ -4961,11 +4967,6 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 		ci_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
 	return 0;
-}
-
-int ci_dpm_power_control_set_level(struct radeon_device *rdev)
-{
-	return ci_power_control_set_level(rdev);
 }
 
 void ci_dpm_reset_asic(struct radeon_device *rdev)
