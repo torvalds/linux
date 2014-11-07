@@ -1997,19 +1997,7 @@ static int adv7604_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	struct adv7604_state *state = to_state(sd);
 	u8 *data = NULL;
 
-	if (edid->pad > ADV7604_PAD_HDMI_PORT_D)
-		return -EINVAL;
-	if (edid->blocks == 0)
-		return -EINVAL;
-	if (edid->blocks > 2)
-		return -EINVAL;
-	if (edid->start_block > 1)
-		return -EINVAL;
-	if (edid->start_block == 1)
-		edid->blocks = 1;
-
-	if (edid->blocks > state->edid.blocks)
-		edid->blocks = state->edid.blocks;
+	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	switch (edid->pad) {
 	case ADV7604_PAD_HDMI_PORT_A:
@@ -2021,14 +2009,24 @@ static int adv7604_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
-	if (!data)
+
+	if (edid->start_block == 0 && edid->blocks == 0) {
+		edid->blocks = data ? state->edid.blocks : 0;
+		return 0;
+	}
+
+	if (data == NULL)
 		return -ENODATA;
 
-	memcpy(edid->edid,
-	       data + edid->start_block * 128,
-	       edid->blocks * 128);
+	if (edid->start_block >= state->edid.blocks)
+		return -EINVAL;
+
+	if (edid->start_block + edid->blocks > state->edid.blocks)
+		edid->blocks = state->edid.blocks - edid->start_block;
+
+	memcpy(edid->edid, data + edid->start_block * 128, edid->blocks * 128);
+
 	return 0;
 }
 
@@ -2067,6 +2065,8 @@ static int adv7604_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	int spa_loc;
 	int err;
 	int i;
+
+	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	if (edid->pad > ADV7604_PAD_HDMI_PORT_D)
 		return -EINVAL;
@@ -2163,7 +2163,6 @@ static int adv7604_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		v4l2_err(sd, "error enabling edid (0x%x)\n", state->edid.present);
 		return -EIO;
 	}
-
 
 	/* enable hotplug after 100 ms */
 	queue_delayed_work(state->work_queues,
