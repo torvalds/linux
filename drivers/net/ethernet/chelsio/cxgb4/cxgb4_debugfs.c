@@ -128,30 +128,30 @@ int t4_setup_debugfs(struct adapter *adap)
 			  t4_debugfs_files,
 			  ARRAY_SIZE(t4_debugfs_files));
 
-	i = t4_read_reg(adap, MA_TARGET_MEM_ENABLE);
-	if (i & EDRAM0_ENABLE) {
-		size = t4_read_reg(adap, MA_EDRAM0_BAR);
-		add_debugfs_mem(adap, "edc0", MEM_EDC0, EDRAM_SIZE_GET(size));
+	i = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+	if (i & EDRAM0_ENABLE_F) {
+		size = t4_read_reg(adap, MA_EDRAM0_BAR_A);
+		add_debugfs_mem(adap, "edc0", MEM_EDC0, EDRAM0_SIZE_G(size));
 	}
-	if (i & EDRAM1_ENABLE) {
-		size = t4_read_reg(adap, MA_EDRAM1_BAR);
-		add_debugfs_mem(adap, "edc1", MEM_EDC1, EDRAM_SIZE_GET(size));
+	if (i & EDRAM1_ENABLE_F) {
+		size = t4_read_reg(adap, MA_EDRAM1_BAR_A);
+		add_debugfs_mem(adap, "edc1", MEM_EDC1, EDRAM1_SIZE_G(size));
 	}
 	if (is_t4(adap->params.chip)) {
-		size = t4_read_reg(adap, MA_EXT_MEMORY_BAR);
-		if (i & EXT_MEM_ENABLE)
+		size = t4_read_reg(adap, MA_EXT_MEMORY_BAR_A);
+		if (i & EXT_MEM_ENABLE_F)
 			add_debugfs_mem(adap, "mc", MEM_MC,
-					EXT_MEM_SIZE_GET(size));
+					EXT_MEM_SIZE_G(size));
 	} else {
-		if (i & EXT_MEM_ENABLE) {
-			size = t4_read_reg(adap, MA_EXT_MEMORY_BAR);
+		if (i & EXT_MEM0_ENABLE_F) {
+			size = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
 			add_debugfs_mem(adap, "mc0", MEM_MC0,
-					EXT_MEM_SIZE_GET(size));
+					EXT_MEM0_SIZE_G(size));
 		}
-		if (i & EXT_MEM1_ENABLE) {
-			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR);
+		if (i & EXT_MEM1_ENABLE_F) {
+			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
 			add_debugfs_mem(adap, "mc1", MEM_MC1,
-					EXT_MEM_SIZE_GET(size));
+					EXT_MEM1_SIZE_G(size));
 		}
 	}
 	return 0;

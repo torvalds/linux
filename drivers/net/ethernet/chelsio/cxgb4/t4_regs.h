@@ -501,21 +501,62 @@
 
 #define MC_BIST_STATUS_RDATA 0x7688
 
-#define MA_EDRAM0_BAR 0x77c0
-#define MA_EDRAM1_BAR 0x77c4
-#define EDRAM_SIZE_MASK   0xfffU
-#define EDRAM_SIZE_GET(x) ((x) & EDRAM_SIZE_MASK)
+#define MA_EDRAM0_BAR_A 0x77c0
 
-#define MA_EXT_MEMORY_BAR 0x77c8
-#define  EXT_MEM_SIZE_MASK   0x00000fffU
-#define  EXT_MEM_SIZE_SHIFT  0
-#define  EXT_MEM_SIZE_GET(x) (((x) & EXT_MEM_SIZE_MASK) >> EXT_MEM_SIZE_SHIFT)
+#define EDRAM0_SIZE_S    0
+#define EDRAM0_SIZE_M    0xfffU
+#define EDRAM0_SIZE_V(x) ((x) << EDRAM0_SIZE_S)
+#define EDRAM0_SIZE_G(x) (((x) >> EDRAM0_SIZE_S) & EDRAM0_SIZE_M)
 
-#define MA_TARGET_MEM_ENABLE 0x77d8
-#define  EXT_MEM1_ENABLE 0x00000010U
-#define  EXT_MEM_ENABLE 0x00000004U
-#define  EDRAM1_ENABLE  0x00000002U
-#define  EDRAM0_ENABLE  0x00000001U
+#define MA_EDRAM1_BAR_A 0x77c4
+
+#define EDRAM1_SIZE_S    0
+#define EDRAM1_SIZE_M    0xfffU
+#define EDRAM1_SIZE_V(x) ((x) << EDRAM1_SIZE_S)
+#define EDRAM1_SIZE_G(x) (((x) >> EDRAM1_SIZE_S) & EDRAM1_SIZE_M)
+
+#define MA_EXT_MEMORY_BAR_A 0x77c8
+
+#define EXT_MEM_SIZE_S    0
+#define EXT_MEM_SIZE_M    0xfffU
+#define EXT_MEM_SIZE_V(x) ((x) << EXT_MEM_SIZE_S)
+#define EXT_MEM_SIZE_G(x) (((x) >> EXT_MEM_SIZE_S) & EXT_MEM_SIZE_M)
+
+#define MA_EXT_MEMORY1_BAR_A 0x7808
+
+#define EXT_MEM1_SIZE_S    0
+#define EXT_MEM1_SIZE_M    0xfffU
+#define EXT_MEM1_SIZE_V(x) ((x) << EXT_MEM1_SIZE_S)
+#define EXT_MEM1_SIZE_G(x) (((x) >> EXT_MEM1_SIZE_S) & EXT_MEM1_SIZE_M)
+
+#define MA_EXT_MEMORY0_BAR_A 0x77c8
+
+#define EXT_MEM0_SIZE_S    0
+#define EXT_MEM0_SIZE_M    0xfffU
+#define EXT_MEM0_SIZE_V(x) ((x) << EXT_MEM0_SIZE_S)
+#define EXT_MEM0_SIZE_G(x) (((x) >> EXT_MEM0_SIZE_S) & EXT_MEM0_SIZE_M)
+
+#define MA_TARGET_MEM_ENABLE_A 0x77d8
+
+#define EXT_MEM_ENABLE_S    2
+#define EXT_MEM_ENABLE_V(x) ((x) << EXT_MEM_ENABLE_S)
+#define EXT_MEM_ENABLE_F    EXT_MEM_ENABLE_V(1U)
+
+#define EDRAM1_ENABLE_S    1
+#define EDRAM1_ENABLE_V(x) ((x) << EDRAM1_ENABLE_S)
+#define EDRAM1_ENABLE_F    EDRAM1_ENABLE_V(1U)
+
+#define EDRAM0_ENABLE_S    0
+#define EDRAM0_ENABLE_V(x) ((x) << EDRAM0_ENABLE_S)
+#define EDRAM0_ENABLE_F    EDRAM0_ENABLE_V(1U)
+
+#define EXT_MEM1_ENABLE_S    4
+#define EXT_MEM1_ENABLE_V(x) ((x) << EXT_MEM1_ENABLE_S)
+#define EXT_MEM1_ENABLE_F    EXT_MEM1_ENABLE_V(1U)
+
+#define EXT_MEM0_ENABLE_S    2
+#define EXT_MEM0_ENABLE_V(x) ((x) << EXT_MEM0_ENABLE_S)
+#define EXT_MEM0_ENABLE_F    EXT_MEM0_ENABLE_V(1U)
 
 #define MA_INT_CAUSE 0x77e0
 #define  MEM_PERR_INT_CAUSE 0x00000002U
@@ -532,7 +573,6 @@
 #define MA_PARITY_ERROR_STATUS 0x77f4
 #define MA_PARITY_ERROR_STATUS2 0x7804
 
-#define MA_EXT_MEMORY1_BAR 0x7808
 #define EDC_0_BASE_ADDR 0x7900
 
 #define EDC_BIST_CMD 0x7904
