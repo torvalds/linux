@@ -1109,6 +1109,12 @@ static int ixgbe_enable_port_vlan(struct ixgbe_adapter *adapter, int vf,
 	if (adapter->vfinfo[vf].spoofchk_enabled)
 		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
 	adapter->vfinfo[vf].vlan_count++;
+
+	/* enable hide vlan on X550 */
+	if (hw->mac.type >= ixgbe_mac_X550)
+		ixgbe_write_qde(adapter, vf, IXGBE_QDE_ENABLE |
+				IXGBE_QDE_HIDE_VLAN);
+
 	adapter->vfinfo[vf].pf_vlan = vlan;
 	adapter->vfinfo[vf].pf_qos = qos;
 	dev_info(&adapter->pdev->dev,
