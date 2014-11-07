@@ -224,7 +224,7 @@ struct mpt2_ioctl_eventreport {
 };
 
 /**
- * struct mpt2_ioctl_command - generic mpt firmware passthru ioclt
+ * struct mpt2_ioctl_command - generic mpt firmware passthru ioctl
  * @hdr - generic header
  * @timeout - command timeout in seconds. (if zero then use driver default
  *  value).
