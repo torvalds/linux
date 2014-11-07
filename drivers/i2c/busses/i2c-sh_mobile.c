@@ -289,6 +289,7 @@ static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 	else
 		pd->icic &= ~ICIC_ICCHB8;
 
+	dev_dbg(pd->dev, "timing values: L/H=0x%x/0x%x\n", pd->iccl, pd->icch);
 	return 0;
 }
 
@@ -935,9 +936,8 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		return ret;
 	}
 
-	dev_info(&dev->dev,
-		 "I2C adapter %d with bus speed %lu Hz (L/H=0x%x/0x%x)\n",
-		 adap->nr, pd->bus_speed, pd->iccl, pd->icch);
+	dev_info(&dev->dev, "I2C adapter %d, bus speed %lu Hz, DMA=%c\n",
+		 adap->nr, pd->bus_speed, (pd->dma_rx || pd->dma_tx) ? 'y' : 'n');
 
 	return 0;
 }
