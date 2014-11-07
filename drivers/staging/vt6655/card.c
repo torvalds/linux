@@ -843,7 +843,7 @@ void CARDvUpdateBasicTopRate(struct vnt_private *pDevice)
 
 	/* Determines the highest basic rate. */
 	for (ii = RATE_54M; ii >= RATE_6M; ii--) {
-		if ((pDevice->wBasicRate) & ((unsigned short)(1<<ii))) {
+		if ((pDevice->basic_rates) & ((u32)(1 << ii))) {
 			byTopOFDM = ii;
 			break;
 		}
@@ -851,7 +851,7 @@ void CARDvUpdateBasicTopRate(struct vnt_private *pDevice)
 	pDevice->byTopOFDMBasicRate = byTopOFDM;
 
 	for (ii = RATE_11M;; ii--) {
-		if ((pDevice->wBasicRate) & ((unsigned short)(1<<ii))) {
+		if ((pDevice->basic_rates) & ((u32)(1 << ii))) {
 			byTopCCK = ii;
 			break;
 		}
