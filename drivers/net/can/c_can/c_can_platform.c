@@ -120,6 +120,12 @@ static void c_can_hw_raminit_syscon(const struct c_can_priv *priv, bool enable)
 		ctrl |= 1 << raminit->bits.start;
 		regmap_write(raminit->syscon, raminit->reg, ctrl);
 
+		/* clear START bit if start pulse is needed */
+		if (raminit->needs_pulse) {
+			ctrl &= ~(1 << raminit->bits.start);
+			regmap_write(raminit->syscon, raminit->reg, ctrl);
+		}
+
 		ctrl |= 1 << raminit->bits.done;
 		c_can_hw_raminit_wait_syscon(priv, mask, ctrl);
 	}
@@ -325,6 +331,7 @@ static int c_can_plat_probe(struct platform_device *pdev)
 			}
 
 			raminit->bits = drvdata->raminit_bits[id];
+			raminit->needs_pulse = drvdata->raminit_pulse;
 
 			priv->raminit = c_can_hw_raminit_syscon;
 		} else {

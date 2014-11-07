@@ -188,6 +188,7 @@ struct c_can_raminit {
 	struct regmap *syscon;	/* for raminit ctrl. reg. access */
 	unsigned int reg;	/* register index within syscon */
 	struct raminit_bits bits;
+	bool needs_pulse;
 };
 
 /* c_can private data structure */
