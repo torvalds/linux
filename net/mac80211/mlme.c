@@ -1205,6 +1205,9 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
 	mutex_unlock(&local->mtx);
 
+	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chandef,
+					  csa_ie.count);
+
 	if (local->ops->channel_switch) {
 		/* use driver's channel switch callback */
 		drv_channel_switch(local, sdata, &ch_switch);
