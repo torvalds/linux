@@ -3242,7 +3242,7 @@ static int ci_init_smc_table(struct radeon_device *rdev)
 	table->VddcVddciDelta = 4000;
 	table->PhaseResponseTime = 0;
 	table->MemoryThermThrottleEnable = 1;
-	table->PCIeBootLinkLevel = 0;
+	table->PCIeBootLinkLevel = pi->dpm_table.pcie_speed_table.count - 1;
 	table->PCIeGenInterval = 1;
 	if (pi->voltage_control == CISLANDS_VOLTAGE_CONTROL_BY_SVID2)
 		table->SVI2Enable  = 1;
