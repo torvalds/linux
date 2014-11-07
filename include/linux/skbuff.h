@@ -150,6 +150,7 @@
 struct net_device;
 struct scatterlist;
 struct pipe_inode_info;
+struct iov_iter;
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 struct nf_conntrack {
@@ -2653,6 +2654,8 @@ int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *frm,
 int skb_copy_datagram_const_iovec(const struct sk_buff *from, int offset,
 				  const struct iovec *to, int to_offset,
 				  int size);
+int skb_copy_datagram_iter(const struct sk_buff *from, int offset,
+			   struct iov_iter *to, int size);
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb);
 void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb);
 int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags);
