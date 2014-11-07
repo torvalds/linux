@@ -2390,12 +2390,14 @@ static int create_bmc_files(struct bmc_device *bmc)
 	int err;
 
 	if (bmc->id.aux_firmware_revision_set) {
+		bmc->aux_firmware_rev_attr.attr.name = "aux_firmware_revision";
 		err = device_create_file(&bmc->pdev.dev,
 				   &bmc->aux_firmware_rev_attr);
 		if (err)
 			goto out;
 	}
 	if (bmc->guid_set) {
+		bmc->guid_attr.attr.name = "guid";
 		err = device_create_file(&bmc->pdev.dev,
 				   &bmc->guid_attr);
 		if (err)
