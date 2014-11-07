@@ -320,7 +320,6 @@ struct vnt_private {
 	unsigned char byEIFS;
 	unsigned char bySlot;
 	unsigned char byCWMaxMin;
-	CARD_PHY_TYPE		eCurrentPHYType;
 
 	VIA_BB_TYPE		byBBType; /* 0:11A, 1:11B, 2:11G */
 	VIA_PKT_TYPE            byPacketType; /*
