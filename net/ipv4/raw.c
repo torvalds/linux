@@ -79,6 +79,16 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/compat.h>
+#include <linux/uio.h>
+
+struct raw_frag_vec {
+	struct iovec *iov;
+	union {
+		struct icmphdr icmph;
+		char c[1];
+	} hdr;
+	int hlen;
+};
 
 static struct raw_hashinfo raw_v4_hashinfo = {
 	.lock = __RW_LOCK_UNLOCKED(raw_v4_hashinfo.lock),
@@ -420,23 +430,55 @@ error:
 	return err;
 }
 
-static int raw_probe_proto_opt(struct flowi4 *fl4, struct msghdr *msg)
+static int raw_probe_proto_opt(struct raw_frag_vec *rfv, struct flowi4 *fl4)
 {
-	struct icmphdr icmph;
 	int err;
 
 	if (fl4->flowi4_proto != IPPROTO_ICMP)
 		return 0;
 
 	/* We only need the first two bytes. */
-	err = memcpy_fromiovecend((void *)&icmph, msg->msg_iov, 0, 2);
+	rfv->hlen = 2;
+
+	err = memcpy_fromiovec(rfv->hdr.c, rfv->iov, rfv->hlen);
 	if (err)
 		return err;
 
-	fl4->fl4_icmp_type = icmph.type;
-	fl4->fl4_icmp_code = icmph.code;
+	fl4->fl4_icmp_type = rfv->hdr.icmph.type;
+	fl4->fl4_icmp_code = rfv->hdr.icmph.code;
 
 	return 0;
+}
+
+static int raw_getfrag(void *from, char *to, int offset, int len, int odd,
+		       struct sk_buff *skb)
+{
+	struct raw_frag_vec *rfv = from;
+
+	if (offset < rfv->hlen) {
+		int copy = min(rfv->hlen - offset, len);
+
+		if (skb->ip_summed == CHECKSUM_PARTIAL)
+			memcpy(to, rfv->hdr.c + offset, copy);
+		else
+			skb->csum = csum_block_add(
+				skb->csum,
+				csum_partial_copy_nocheck(rfv->hdr.c + offset,
+							  to, copy, 0),
+				odd);
+
+		odd = 0;
+		offset += copy;
+		to += copy;
+		len -= copy;
+
+		if (!len)
+			return 0;
+	}
+
+	offset -= rfv->hlen;
+
+	return ip_generic_getfrag(rfv->iov, to, offset, len, odd, skb);
 }
 
 static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
@@ -452,6 +494,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	u8  tos;
 	int err;
 	struct ip_options_data opt_copy;
+	struct raw_frag_vec rfv;
 
 	err = -EMSGSIZE;
 	if (len > 0xFFFF)
@@ -557,7 +600,10 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			   daddr, saddr, 0, 0);
 
 	if (!inet->hdrincl) {
-		err = raw_probe_proto_opt(&fl4, msg);
+		rfv.iov = msg->msg_iov;
+		rfv.hlen = 0;
+
+		err = raw_probe_proto_opt(&rfv, &fl4);
 		if (err)
 			goto done;
 	}
@@ -588,8 +634,8 @@ back_from_confirm:
 		if (!ipc.addr)
 			ipc.addr = fl4.daddr;
 		lock_sock(sk);
-		err = ip_append_data(sk, &fl4, ip_generic_getfrag,
-				     msg->msg_iov, len, 0,
+		err = ip_append_data(sk, &fl4, raw_getfrag,
+				     &rfv, len, 0,
 				     &ipc, &rt, msg->msg_flags);
 		if (err)
 			ip_flush_pending_frames(sk);
