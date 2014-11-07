@@ -1085,4 +1085,5 @@ void t4_db_dropped(struct adapter *adapter);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 			 u32 addr, u32 val);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);
+void t4_free_mem(void *addr);
 #endif /* __CXGB4_H__ */
