@@ -283,7 +283,7 @@ struct vnt_private {
 	bool bZoneRegExist;
 	unsigned char byOriginalZonetype;
 
-	unsigned char abyCurrentNetAddr[ETH_ALEN];
+	unsigned char abyCurrentNetAddr[ETH_ALEN]; __aligned(2)
 	bool bLinkPass;          /* link status: OK or fail */
 
 	/* Adapter statistics */
