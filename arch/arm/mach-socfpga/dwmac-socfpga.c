@@ -115,6 +115,12 @@ static void auto_nego_timer_callback(unsigned long data)
 		config_tx_buffer(SGMII_ADAPTER_ENABLE, sgmii_adapter_base);
 		return;
 	} else {
+		val = readw(tse_pcs_base + TSE_PCS_CONTROL_REG);
+		val |= TSE_PCS_CONTROL_RESTART_AN_MASK;
+		writew(val, tse_pcs_base + TSE_PCS_CONTROL_REG);
+
+		tse_pcs_reset(tse_pcs_base);
+
 		mod_timer(&bsp_priv->an_timer, jiffies +
 				  msecs_to_jiffies(AUTONEGO_TIMER));
 	}
