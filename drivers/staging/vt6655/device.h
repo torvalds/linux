@@ -152,14 +152,11 @@
 #define BB_TYPE_11B    1
 #define BB_TYPE_11G    2
 
-/* 0:11a,1:11b,2:11gb(only CCK in BasicRate),3:11ga(OFDM in Basic Rate) */
-typedef enum _VIA_PKT_TYPE
-{
-	PK_TYPE_11A = 0,
-	PK_TYPE_11B,
-	PK_TYPE_11GB,
-	PK_TYPE_11GA
-} VIA_PKT_TYPE, *PVIA_PKT_TYPE;
+/* 0:11a, 1:11b, 2:11gb (only CCK in BasicRate), 3:11ga (OFDM in BasicRate) */
+#define PK_TYPE_11A     0
+#define PK_TYPE_11B     1
+#define PK_TYPE_11GB    2
+#define PK_TYPE_11GA    3
 
 typedef struct __chip_info_tbl {
 	CHIP_TYPE   chip_id;
@@ -319,11 +316,11 @@ struct vnt_private {
 	unsigned char byCWMaxMin;
 
 	u8		byBBType; /* 0:11A, 1:11B, 2:11G */
-	VIA_PKT_TYPE            byPacketType; /*
-					       * 0:11a,1:11b,2:11gb (only CCK
-					       * in BasicRate), 3:11ga (OFDM in
-					       * Basic Rate)
-					       */
+	u8		byPacketType; /*
+				       * 0:11a,1:11b,2:11gb (only CCK
+				       * in BasicRate), 3:11ga (OFDM in
+				       * Basic Rate)
+				       */
 	unsigned short wBasicRate;
 	unsigned char byACKRate;
 	unsigned char byTopOFDMBasicRate;

@@ -226,7 +226,7 @@ device_set_options(struct vnt_private *pDevice)
 	pDevice->byLongRetryLimit = pDevice->sOpts.long_retry;
 	pDevice->bDiversityRegCtlON = (pDevice->sOpts.flags & DEVICE_FLAGS_DiversityANT) ? 1 : 0;
 	pDevice->byBBType = pDevice->sOpts.bbp_type;
-	pDevice->byPacketType = (VIA_PKT_TYPE)pDevice->byBBType;
+	pDevice->byPacketType = pDevice->byBBType;
 	pDevice->byAutoFBCtrl = AUTO_FB_0;
 	pDevice->bUpdateBBVGA = true;
 	pDevice->byPreambleType = 0;
