@@ -32,15 +32,6 @@
 #include <linux/types.h>
 #include <asm/sizes.h>
 
-
-#if defined(CONFIG_COMPILE_TEST) && !defined(CONFIG_ARCH_QCOM)
-/* stubs we need for compile-test: */
-static inline struct device *msm_iommu_get_ctx(const char *ctx_name)
-{
-	return NULL;
-}
-#endif
-
 #ifndef CONFIG_OF
 #include <mach/board.h>
 #include <mach/socinfo.h>
