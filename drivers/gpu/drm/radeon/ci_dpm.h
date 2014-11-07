@@ -33,6 +33,8 @@
 
 #define CISLANDS_MAX_HARDWARE_POWERLEVELS 2
 
+#define CISLANDS_UNUSED_GPIO_PIN 0x7F
+
 struct ci_pl {
 	u32 mclk;
 	u32 sclk;

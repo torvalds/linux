@@ -5098,6 +5098,8 @@ void ci_dpm_fini(struct radeon_device *rdev)
 int ci_dpm_init(struct radeon_device *rdev)
 {
 	int index = GetIndexIntoMasterTable(DATA, ASIC_InternalSS_Info);
+	SMU7_Discrete_DpmTable  *dpm_table;
+	struct radeon_gpio_rec gpio;
 	u16 data_offset, size;
 	u8 frev, crev;
 	struct ci_power_info *pi;
@@ -5230,6 +5232,55 @@ int ci_dpm_init(struct radeon_device *rdev)
 	}
 
 	pi->uvd_enabled = false;
+
+	dpm_table = &pi->smc_state_table;
+
+	gpio = radeon_atombios_lookup_gpio(rdev, VDDC_VRHOT_GPIO_PINID);
+	if (gpio.valid) {
+		dpm_table->VRHotGpio = gpio.shift;
+		rdev->pm.dpm.platform_caps |= ATOM_PP_PLATFORM_CAP_REGULATOR_HOT;
+	} else {
+		dpm_table->VRHotGpio = CISLANDS_UNUSED_GPIO_PIN;
+		rdev->pm.dpm.platform_caps &= ~ATOM_PP_PLATFORM_CAP_REGULATOR_HOT;
+	}
+
+	gpio = radeon_atombios_lookup_gpio(rdev, PP_AC_DC_SWITCH_GPIO_PINID);
+	if (gpio.valid) {
+		dpm_table->AcDcGpio = gpio.shift;
+		rdev->pm.dpm.platform_caps |= ATOM_PP_PLATFORM_CAP_HARDWAREDC;
+	} else {
+		dpm_table->AcDcGpio = CISLANDS_UNUSED_GPIO_PIN;
+		rdev->pm.dpm.platform_caps &= ~ATOM_PP_PLATFORM_CAP_HARDWAREDC;
+	}
+
+	gpio = radeon_atombios_lookup_gpio(rdev, VDDC_PCC_GPIO_PINID);
+	if (gpio.valid) {
+		u32 tmp = RREG32_SMC(CNB_PWRMGT_CNTL);
+
+		switch (gpio.shift) {
+		case 0:
+			tmp &= ~GNB_SLOW_MODE_MASK;
+			tmp |= GNB_SLOW_MODE(1);
+			break;
+		case 1:
+			tmp &= ~GNB_SLOW_MODE_MASK;
+			tmp |= GNB_SLOW_MODE(2);
+			break;
+		case 2:
+			tmp |= GNB_SLOW;
+			break;
+		case 3:
+			tmp |= FORCE_NB_PS1;
+			break;
+		case 4:
+			tmp |= DPM_ENABLED;
+			break;
+		default:
+			DRM_ERROR("Invalid PCC GPIO!");
+			break;
+		}
+		WREG32_SMC(CNB_PWRMGT_CNTL, tmp);
+	}
 
 	pi->voltage_control = CISLANDS_VOLTAGE_CONTROL_NONE;
 	pi->vddci_control = CISLANDS_VOLTAGE_CONTROL_NONE;
