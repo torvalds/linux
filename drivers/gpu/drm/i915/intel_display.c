@@ -8421,7 +8421,7 @@ __intel_framebuffer_create(struct drm_device *dev,
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
-		drm_gem_object_unreference_unlocked(&obj->base);
+		drm_gem_object_unreference(&obj->base);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -8431,7 +8431,7 @@ __intel_framebuffer_create(struct drm_device *dev,
 
 	return &intel_fb->base;
 err:
-	drm_gem_object_unreference_unlocked(&obj->base);
+	drm_gem_object_unreference(&obj->base);
 	kfree(intel_fb);
 
 	return ERR_PTR(ret);
