@@ -2492,7 +2492,6 @@ static int ci_populate_single_memory_level(struct radeon_device *rdev,
 						      &memory_level->MinVddcPhases);
 
 	memory_level->EnabledForThrottle = 1;
-	memory_level->EnabledForActivity = 1;
 	memory_level->UpH = 0;
 	memory_level->DownH = 100;
 	memory_level->VoltageDownH = 0;
@@ -2825,7 +2824,6 @@ static int ci_populate_single_graphic_level(struct radeon_device *rdev,
 
 	graphic_level->CcPwrDynRm = 0;
 	graphic_level->CcPwrDynRm1 = 0;
-	graphic_level->EnabledForActivity = 1;
 	graphic_level->EnabledForThrottle = 1;
 	graphic_level->UpH = 0;
 	graphic_level->DownH = 0;
@@ -2878,6 +2876,7 @@ static int ci_populate_all_graphic_levels(struct radeon_device *rdev)
 			pi->smc_state_table.GraphicsLevel[i].DisplayWatermark =
 				PPSMC_DISPLAY_WATERMARK_HIGH;
 	}
+	pi->smc_state_table.GraphicsLevel[0].EnabledForActivity = 1;
 
 	pi->smc_state_table.GraphicsDpmLevelCount = (u8)dpm_table->sclk_table.count;
 	pi->dpm_level_enable_mask.sclk_dpm_enable_mask =
@@ -2920,6 +2919,8 @@ static int ci_populate_all_memory_levels(struct radeon_device *rdev)
 		if (ret)
 			return ret;
 	}
+
+	pi->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
 
 	pi->smc_state_table.MemoryLevel[0].ActivityLevel = cpu_to_be16(0x1F);
 
