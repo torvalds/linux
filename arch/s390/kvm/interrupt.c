@@ -345,12 +345,12 @@ static int __must_check __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_S390_INT_CLOCK_COMP:
 		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
-						 inti->ext.ext_params, 0);
+						 0, 0);
 		rc = deliver_ckc_interrupt(vcpu);
 		break;
 	case KVM_S390_INT_CPU_TIMER:
 		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, inti->type,
-						 inti->ext.ext_params, 0);
+						 0, 0);
 		rc  = put_guest_lc(vcpu, EXT_IRQ_CPU_TIMER,
 				   (u16 *)__LC_EXT_INT_CODE);
 		rc |= write_guest_lc(vcpu, __LC_EXT_OLD_PSW,
@@ -358,8 +358,6 @@ static int __must_check __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 				     sizeof(psw_t));
 		rc |= read_guest_lc(vcpu, __LC_EXT_NEW_PSW,
 				    &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
-		rc |= put_guest_lc(vcpu, inti->ext.ext_params,
-				   (u32 *)__LC_EXT_PARAMS);
 		break;
 	case KVM_S390_INT_SERVICE:
 		VCPU_EVENT(vcpu, 4, "interrupt: sclp parm:%x",
