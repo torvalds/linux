@@ -369,8 +369,7 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* take data from pipe: */
 	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_BASE(dma), 0);
-	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_STRIDE(dma),
-			crtc->primary->fb->pitches[0]);
+	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_STRIDE(dma), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_DMA_DST_SIZE(dma),
 			MDP4_DMA_DST_SIZE_WIDTH(0) |
 			MDP4_DMA_DST_SIZE_HEIGHT(0));
@@ -379,8 +378,7 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_SIZE(ovlp),
 			MDP4_OVLP_SIZE_WIDTH(mode->hdisplay) |
 			MDP4_OVLP_SIZE_HEIGHT(mode->vdisplay));
-	mdp4_write(mdp4_kms, REG_MDP4_OVLP_STRIDE(ovlp),
-			crtc->primary->fb->pitches[0]);
+	mdp4_write(mdp4_kms, REG_MDP4_OVLP_STRIDE(ovlp), 0);
 
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_CFG(ovlp), 1);
 
