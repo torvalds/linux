@@ -761,10 +761,10 @@
 .macro activate_traps
 	ldr     x2, [x0, #VCPU_HCR_EL2]
 	msr     hcr_el2, x2
-	ldr	x2, =(CPTR_EL2_TTA)
+	mov	x2, #CPTR_EL2_TTA
 	msr	cptr_el2, x2
 
-	ldr	x2, =(1 << 15)	// Trap CP15 Cr=15
+	mov	x2, #(1 << 15)	// Trap CP15 Cr=15
 	msr	hstr_el2, x2
 
 	mrs	x2, mdcr_el2
