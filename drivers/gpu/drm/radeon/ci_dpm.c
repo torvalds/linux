@@ -2872,6 +2872,8 @@ static int ci_populate_all_graphic_levels(struct radeon_device *rdev)
 						       &pi->smc_state_table.GraphicsLevel[i]);
 		if (ret)
 			return ret;
+		if (i > 1)
+			pi->smc_state_table.GraphicsLevel[i].DeepSleepDivId = 0;
 		if (i == (dpm_table->sclk_table.count - 1))
 			pi->smc_state_table.GraphicsLevel[i].DisplayWatermark =
 				PPSMC_DISPLAY_WATERMARK_HIGH;
