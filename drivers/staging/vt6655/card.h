@@ -76,7 +76,6 @@ struct vnt_private;
 void CARDvSetRSPINF(struct vnt_private *, CARD_PHY_TYPE ePHYType);
 void vUpdateIFS(struct vnt_private *);
 void CARDvUpdateBasicTopRate(struct vnt_private *);
-bool CARDbAddBasicRate(struct vnt_private *, unsigned short wRateIdx);
 bool CARDbIsOFDMinBasicRate(struct vnt_private *);
 void CARDvSetLoopbackMode(void __iomem *dwIoBase, unsigned short wLoopbackMode);
 bool CARDbSoftwareReset(struct vnt_private *);

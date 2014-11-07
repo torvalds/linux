@@ -861,18 +861,6 @@ void CARDvUpdateBasicTopRate(struct vnt_private *pDevice)
 	pDevice->byTopCCKBasicRate = byTopCCK;
 }
 
-bool CARDbAddBasicRate(struct vnt_private *pDevice, unsigned short wRateIdx)
-{
-	unsigned short wRate = (unsigned short)(1<<wRateIdx);
-
-	pDevice->wBasicRate |= wRate;
-
-	/* Determines the highest basic rate. */
-	CARDvUpdateBasicTopRate((void *)pDevice);
-
-	return true;
-}
-
 bool CARDbIsOFDMinBasicRate(struct vnt_private *pDevice)
 {
 	int ii;
