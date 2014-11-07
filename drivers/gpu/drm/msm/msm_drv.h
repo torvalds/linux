@@ -154,6 +154,8 @@ int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 
 int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 		struct timespec *timeout);
+int msm_queue_fence_cb(struct drm_device *dev,
+		struct msm_fence_cb *cb, uint32_t fence);
 void msm_update_fence(struct drm_device *dev, uint32_t fence);
 
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,

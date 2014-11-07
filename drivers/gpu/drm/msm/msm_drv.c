@@ -619,6 +619,26 @@ int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 	return ret;
 }
 
+int msm_queue_fence_cb(struct drm_device *dev,
+		struct msm_fence_cb *cb, uint32_t fence)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	int ret = 0;
+
+	mutex_lock(&dev->struct_mutex);
+	if (!list_empty(&cb->work.entry)) {
+		ret = -EINVAL;
+	} else if (fence > priv->completed_fence) {
+		cb->fence = fence;
+		list_add_tail(&cb->work.entry, &priv->fence_cbs);
+	} else {
+		queue_work(priv->wq, &cb->work);
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
+
 /* called from workqueue */
 void msm_update_fence(struct drm_device *dev, uint32_t fence)
 {
