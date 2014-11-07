@@ -196,8 +196,8 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 	}
 }
 
-static struct radeon_gpio_rec radeon_lookup_gpio(struct radeon_device *rdev,
-						 u8 id)
+struct radeon_gpio_rec radeon_atombios_lookup_gpio(struct radeon_device *rdev,
+						   u8 id)
 {
 	struct atom_context *ctx = rdev->mode_info.atom_context;
 	struct radeon_gpio_rec gpio;
@@ -801,7 +801,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 								hpd_record =
 									(ATOM_HPD_INT_RECORD *)
 									record;
-								gpio = radeon_lookup_gpio(rdev,
+								gpio = radeon_atombios_lookup_gpio(rdev,
 											  hpd_record->ucHPDIntGPIOID);
 								hpd = radeon_atom_get_hpd_info_from_gpio(rdev, &gpio);
 								hpd.plugged_state = hpd_record->ucPlugged_PinState;
@@ -2128,7 +2128,7 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type =
 					VOLTAGE_GPIO;
 				rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
-					radeon_lookup_gpio(rdev,
+					radeon_atombios_lookup_gpio(rdev,
 							   power_info->info.asPowerPlayInfo[i].ucVoltageDropIndex);
 				if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)
 					rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
@@ -2164,7 +2164,7 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type =
 					VOLTAGE_GPIO;
 				rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
-					radeon_lookup_gpio(rdev,
+					radeon_atombios_lookup_gpio(rdev,
 							   power_info->info_2.asPowerPlayInfo[i].ucVoltageDropIndex);
 				if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)
 					rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
@@ -2200,7 +2200,7 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type =
 					VOLTAGE_GPIO;
 				rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
-					radeon_lookup_gpio(rdev,
+					radeon_atombios_lookup_gpio(rdev,
 							   power_info->info_3.asPowerPlayInfo[i].ucVoltageDropIndex);
 				if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)
 					rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
