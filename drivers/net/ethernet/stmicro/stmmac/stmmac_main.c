@@ -191,14 +191,8 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 
 static void print_pkt(unsigned char *buf, int len)
 {
-	int j;
-	pr_debug("len = %d byte, buf addr: 0x%p", len, buf);
-	for (j = 0; j < len; j++) {
-		if ((j % 16) == 0)
-			pr_debug("\n %03x:", j);
-		pr_debug(" %02x", buf[j]);
-	}
-	pr_debug("\n");
+	pr_debug("len = %d byte, buf addr: 0x%p\n", len, buf);
+	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, buf, len);
 }
 
 /* minimum number of free TX descriptors required to wake up TX process */
