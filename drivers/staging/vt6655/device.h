@@ -148,12 +148,9 @@
 #define	NUM				64
 
 /* 0:11A 1:11B 2:11G */
-typedef enum _VIA_BB_TYPE
-{
-	BB_TYPE_11A = 0,
-	BB_TYPE_11B,
-	BB_TYPE_11G
-} VIA_BB_TYPE, *PVIA_BB_TYPE;
+#define BB_TYPE_11A    0
+#define BB_TYPE_11B    1
+#define BB_TYPE_11G    2
 
 /* 0:11a,1:11b,2:11gb(only CCK in BasicRate),3:11ga(OFDM in Basic Rate) */
 typedef enum _VIA_PKT_TYPE
@@ -321,7 +318,7 @@ struct vnt_private {
 	unsigned char bySlot;
 	unsigned char byCWMaxMin;
 
-	VIA_BB_TYPE		byBBType; /* 0:11A, 1:11B, 2:11G */
+	u8		byBBType; /* 0:11A, 1:11B, 2:11G */
 	VIA_PKT_TYPE            byPacketType; /*
 					       * 0:11a,1:11b,2:11gb (only CCK
 					       * in BasicRate), 3:11ga (OFDM in
