@@ -987,7 +987,7 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 	if (i2s->quirks & QUIRK_NEED_RSTCLR)
 		writel(CON_RSTCLR, i2s->addr + I2SCON);
 
-	if (i2s->quirks & QUIRK_SEC_DAI)
+	if (i2s->quirks & QUIRK_SUPPORTS_IDMA)
 		idma_reg_addr_init(i2s->addr,
 					i2s->sec_dai->idma_playback.dma_addr);
 
@@ -1199,10 +1199,9 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		quirks = i2s_dai_data->quirks;
 		if (of_property_read_u32(np, "samsung,idma-addr",
 					 &idma_addr)) {
-			if (quirks & QUIRK_SEC_DAI) {
-				dev_err(&pdev->dev, "idma address is not"\
+			if (quirks & QUIRK_SUPPORTS_IDMA) {
+				dev_info(&pdev->dev, "idma address is not"\
 						"specified");
-				return -EINVAL;
 			}
 		}
 	}
@@ -1309,13 +1308,14 @@ static const struct samsung_i2s_dai_data i2sv3_dai_type = {
 
 static const struct samsung_i2s_dai_data i2sv5_dai_type = {
 	.dai_type = TYPE_PRI,
-	.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR,
+	.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR |
+			QUIRK_SUPPORTS_IDMA,
 };
 
 static const struct samsung_i2s_dai_data i2sv6_dai_type = {
 	.dai_type = TYPE_PRI,
 	.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR |
-			QUIRK_SUPPORTS_TDM,
+			QUIRK_SUPPORTS_TDM | QUIRK_SUPPORTS_IDMA,
 };
 
 static const struct samsung_i2s_dai_data samsung_dai_type_pri = {
