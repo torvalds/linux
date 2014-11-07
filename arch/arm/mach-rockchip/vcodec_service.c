@@ -755,8 +755,11 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 	wake_lock(&pservice->wake_lock);
 
 #if defined(CONFIG_VCODEC_MMU)
-	if (pservice->mmu_dev)
-		rockchip_iovmm_activate(pservice->dev);
+    if (pservice->mmu_dev) {
+        vcodec_enter_mode(pservice->dev_id);
+        rockchip_iovmm_activate(pservice->dev);
+        vcodec_exit_mode();
+    }
 #endif    
 }
 
