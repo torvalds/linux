@@ -11999,7 +11999,7 @@ enum pipe intel_get_pipe_from_connector(struct intel_connector *connector)
 
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	if (!encoder)
+	if (!encoder || WARN_ON(!encoder->crtc))
 		return INVALID_PIPE;
 
 	return to_intel_crtc(encoder->crtc)->pipe;
