@@ -314,6 +314,8 @@
 #define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_BATCH_BUFFER_START_GEN8	MI_INSTR(0x31, 1)
 
+#define MI_PREDICATE_SRC0	(0x2400)
+#define MI_PREDICATE_SRC1	(0x2408)
 
 #define MI_PREDICATE_RESULT_2	(0x2214)
 #define  LOWER_SLICE_ENABLED	(1<<0)
