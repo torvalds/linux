@@ -4099,6 +4099,96 @@ static int ci_copy_vbios_mc_reg_table(const struct atom_mc_reg_table *table,
 	return 0;
 }
 
+static int ci_register_patching_mc_seq(struct radeon_device *rdev,
+				       struct ci_mc_reg_table *table)
+{
+	u8 i, k;
+	u32 tmp;
+	bool patch;
+
+	tmp = RREG32(MC_SEQ_MISC0);
+	patch = ((tmp & 0x0000f00) == 0x300) ? true : false;
+
+	if (patch &&
+	    ((rdev->pdev->device == 0x67B0) ||
+	     (rdev->pdev->device == 0x67B1))) {
+		for (i = 0; i < table->last; i++) {
+			if (table->last >= SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE)
+				return -EINVAL;
+			switch(table->mc_reg_address[i].s1 >> 2) {
+			case MC_SEQ_MISC1:
+				for (k = 0; k < table->num_entries; k++) {
+					if ((table->mc_reg_table_entry[k].mclk_max == 125000) ||
+					    (table->mc_reg_table_entry[k].mclk_max == 137500))
+						table->mc_reg_table_entry[k].mc_data[i] =
+							(table->mc_reg_table_entry[k].mc_data[i] & 0xFFFFFFF8) |
+							0x00000007;
+				}
+				break;
+			case MC_SEQ_WR_CTL_D0:
+				for (k = 0; k < table->num_entries; k++) {
+					if ((table->mc_reg_table_entry[k].mclk_max == 125000) ||
+					    (table->mc_reg_table_entry[k].mclk_max == 137500))
+						table->mc_reg_table_entry[k].mc_data[i] =
+							(table->mc_reg_table_entry[k].mc_data[i] & 0xFFFF0F00) |
+							0x0000D0DD;
+				}
+				break;
+			case MC_SEQ_WR_CTL_D1:
+				for (k = 0; k < table->num_entries; k++) {
+					if ((table->mc_reg_table_entry[k].mclk_max == 125000) ||
+					    (table->mc_reg_table_entry[k].mclk_max == 137500))
+						table->mc_reg_table_entry[k].mc_data[i] =
+							(table->mc_reg_table_entry[k].mc_data[i] & 0xFFFF0F00) |
+							0x0000D0DD;
+				}
+				break;
+			case MC_SEQ_WR_CTL_2:
+				for (k = 0; k < table->num_entries; k++) {
+					if ((table->mc_reg_table_entry[k].mclk_max == 125000) ||
+					    (table->mc_reg_table_entry[k].mclk_max == 137500))
+						table->mc_reg_table_entry[k].mc_data[i] = 0;
+				}
+				break;
+			case MC_SEQ_CAS_TIMING:
+				for (k = 0; k < table->num_entries; k++) {
+					if (table->mc_reg_table_entry[k].mclk_max == 125000)
+						table->mc_reg_table_entry[k].mc_data[i] =
+							(table->mc_reg_table_entry[k].mc_data[i] & 0xFFE0FE0F) |
+							0x000C0140;
+					else if (table->mc_reg_table_entry[k].mclk_max == 137500)
+						table->mc_reg_table_entry[k].mc_data[i] =
+							(table->mc_reg_table_entry[k].mc_data[i] & 0xFFE0FE0F) |
+							0x000C0150;
+				}
+				break;
+			case MC_SEQ_MISC_TIMING:
+				for (k = 0; k < table->num_entries; k++) {
+					if (table->mc_reg_table_entry[k].mclk_max == 125000)
+						table->mc_reg_table_entry[k].mc_data[i] =
+							(table->mc_reg_table_entry[k].mc_data[i] & 0xFFFFFFE0) |
+							0x00000030;
+					else if (table->mc_reg_table_entry[k].mclk_max == 137500)
+						table->mc_reg_table_entry[k].mc_data[i] =
+							(table->mc_reg_table_entry[k].mc_data[i] & 0xFFFFFFE0) |
+							0x00000035;
+				}
+				break;
+			default:
+				break;
+			}
+		}
+
+		WREG32(MC_SEQ_IO_DEBUG_INDEX, 3);
+		tmp = RREG32(MC_SEQ_IO_DEBUG_DATA);
+		tmp = (tmp & 0xFFF8FFFF) | (1 << 16);
+		WREG32(MC_SEQ_IO_DEBUG_INDEX, 3);
+		WREG32(MC_SEQ_IO_DEBUG_DATA, tmp);
+	}
+
+	return 0;
+}
+
 static int ci_initialize_mc_reg_table(struct radeon_device *rdev)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
@@ -4141,6 +4231,10 @@ static int ci_initialize_mc_reg_table(struct radeon_device *rdev)
 		goto init_mc_done;
 
 	ci_set_s0_mc_reg_index(ci_table);
+
+	ret = ci_register_patching_mc_seq(rdev, ci_table);
+	if (ret)
+		goto init_mc_done;
 
 	ret = ci_set_mc_special_registers(rdev, ci_table);
 	if (ret)
