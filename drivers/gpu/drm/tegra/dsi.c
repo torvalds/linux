@@ -349,7 +349,7 @@ static int tegra_dsi_set_phy_timing(struct tegra_dsi *dsi)
 	if (rate < 0)
 		return rate;
 
-	period = DIV_ROUND_CLOSEST(1000000000UL, rate * 2);
+	period = DIV_ROUND_CLOSEST(NSEC_PER_SEC, rate * 2);
 
 	err = mipi_dphy_timing_get_default(&timing, period);
 	if (err < 0)
