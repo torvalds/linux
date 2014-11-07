@@ -117,7 +117,7 @@ nft_target_set_tgchk_param(struct xt_tgchk_param *par,
 			   struct xt_target *target, void *info,
 			   union nft_entry *entry, u8 proto, bool inv)
 {
-	par->net	= &init_net;
+	par->net	= ctx->net;
 	par->table	= ctx->table->name;
 	switch (ctx->afi->family) {
 	case AF_INET:
@@ -324,7 +324,7 @@ nft_match_set_mtchk_param(struct xt_mtchk_param *par, const struct nft_ctx *ctx,
 			  struct xt_match *match, void *info,
 			  union nft_entry *entry, u8 proto, bool inv)
 {
-	par->net	= &init_net;
+	par->net	= ctx->net;
 	par->table	= ctx->table->name;
 	switch (ctx->afi->family) {
 	case AF_INET:
