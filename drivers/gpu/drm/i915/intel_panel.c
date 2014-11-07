@@ -521,6 +521,9 @@ static u32 _vlv_get_backlight(struct drm_device *dev, enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	if (WARN_ON(pipe != PIPE_A && pipe != PIPE_B))
+		return 0;
+
 	return I915_READ(VLV_BLC_PWM_CTL(pipe)) & BACKLIGHT_DUTY_CYCLE_MASK;
 }
 
@@ -601,6 +604,9 @@ static void vlv_set_backlight(struct intel_connector *connector, u32 level)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	u32 tmp;
+
+	if (WARN_ON(pipe != PIPE_A && pipe != PIPE_B))
+		return;
 
 	tmp = I915_READ(VLV_BLC_PWM_CTL(pipe)) & ~BACKLIGHT_DUTY_CYCLE_MASK;
 	I915_WRITE(VLV_BLC_PWM_CTL(pipe), tmp | level);
@@ -716,6 +722,9 @@ static void vlv_disable_backlight(struct intel_connector *connector)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	u32 tmp;
+
+	if (WARN_ON(pipe != PIPE_A && pipe != PIPE_B))
+		return;
 
 	intel_panel_actually_set_backlight(connector, 0);
 
@@ -905,6 +914,9 @@ static void vlv_enable_backlight(struct intel_connector *connector)
 	struct intel_panel *panel = &connector->panel;
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	u32 ctl, ctl2;
+
+	if (WARN_ON(pipe != PIPE_A && pipe != PIPE_B))
+		return;
 
 	ctl2 = I915_READ(VLV_BLC_PWM_CTL2(pipe));
 	if (ctl2 & BLM_PWM_ENABLE) {
