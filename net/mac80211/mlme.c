@@ -1049,6 +1049,8 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_sub_if_data *sdata)
 		sdata->csa_block_tx = false;
 	}
 
+	cfg80211_ch_switch_notify(sdata->dev, &sdata->reserved_chandef);
+
 	sdata->vif.csa_active = false;
 	ifmgd->csa_waiting_bcn = false;
 
