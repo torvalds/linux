@@ -126,6 +126,18 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
  */
 void exynos_cpu_power_down(int cpu)
 {
+	if (cpu == 0 && (of_machine_is_compatible("samsung,exynos5420") ||
+		of_machine_is_compatible("samsung,exynos5800"))) {
+		/*
+		 * Bypass power down for CPU0 during suspend. Check for
+		 * the SYS_PWR_REG value to decide if we are suspending
+		 * the system.
+		 */
+		int val = pmu_raw_readl(EXYNOS5_ARM_CORE0_SYS_PWR_REG);
+
+		if (!(val & S5P_CORE_LOCAL_PWR_EN))
+			return;
+	}
 	pmu_raw_writel(0, EXYNOS_ARM_CORE_CONFIGURATION(cpu));
 }
 

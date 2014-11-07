@@ -24,6 +24,7 @@
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/firmware.h>
+#include <asm/mcpm.h>
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
 
@@ -72,6 +73,7 @@ struct exynos_pm_data {
 	unsigned int *release_ret_regs;
 
 	void (*pm_prepare)(void);
+	void (*pm_resume_prepare)(void);
 	void (*pm_resume)(void);
 	int (*pm_suspend)(void);
 	int (*cpu_suspend)(unsigned long);
@@ -172,9 +174,28 @@ static int exynos_cpu_suspend(unsigned long arg)
 
 static int exynos5420_cpu_suspend(unsigned long arg)
 {
-	exynos_flush_cache_all();
+	/* MCPM works with HW CPU identifiers */
+	unsigned int mpidr = read_cpuid_mpidr();
+	unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+	unsigned int cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+
 	__raw_writel(0x0, sysram_base_addr + EXYNOS5420_CPU_STATE);
-	return exynos_cpu_do_idle();
+
+	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM)) {
+		mcpm_set_entry_vector(cpu, cluster, exynos_cpu_resume);
+
+		/*
+		 * Residency value passed to mcpm_cpu_suspend back-end
+		 * has to be given clear semantics. Set to 0 as a
+		 * temporary value.
+		 */
+		mcpm_cpu_suspend(0);
+	}
+
+	pr_info("Failed to suspend the system\n");
+
+	/* return value != 0 means failure */
+	return 1;
 }
 
 static void exynos_pm_set_wakeup_mask(void)
@@ -189,9 +210,6 @@ static void exynos_pm_enter_sleep_mode(void)
 	/* Set value of power down register for sleep mode */
 	exynos_sys_powerdown_conf(SYS_SLEEP);
 	pmu_raw_writel(S5P_CHECK_SLEEP, S5P_INFORM1);
-
-	/* ensure at least INFORM0 has the resume address */
-	pmu_raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
 }
 
 static void exynos_pm_prepare(void)
@@ -206,6 +224,9 @@ static void exynos_pm_prepare(void)
 				pm_data->num_extra_save);
 
 	exynos_pm_enter_sleep_mode();
+
+	/* ensure at least INFORM0 has the resume address */
+	pmu_raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
 }
 
 static void exynos5420_pm_prepare(void)
@@ -229,6 +250,10 @@ static void exynos5420_pm_prepare(void)
 						EXYNOS5420_CPU_STATE);
 
 	exynos_pm_enter_sleep_mode();
+
+	/* ensure at least INFORM0 has the resume address */
+	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM))
+		pmu_raw_writel(virt_to_phys(mcpm_entry_point), S5P_INFORM0);
 
 	tmp = pmu_raw_readl(EXYNOS5_ARM_L2_OPTION);
 	tmp &= ~EXYNOS5_USE_RETENTION;
@@ -318,9 +343,20 @@ early_wakeup:
 	pmu_raw_writel(0x0, S5P_INFORM1);
 }
 
+static void exynos5420_prepare_pm_resume(void)
+{
+	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM))
+		WARN_ON(mcpm_cpu_powered_up());
+}
+
 static void exynos5420_pm_resume(void)
 {
 	unsigned long tmp;
+
+	/* Restore the CPU0 low power state register */
+	tmp = pmu_raw_readl(EXYNOS5_ARM_CORE0_SYS_PWR_REG);
+	pmu_raw_writel(tmp | S5P_CORE_LOCAL_PWR_EN,
+		EXYNOS5_ARM_CORE0_SYS_PWR_REG);
 
 	/* Restore the sysram cpu state register */
 	__raw_writel(exynos5420_cpu_state,
@@ -391,6 +427,8 @@ static int exynos_suspend_enter(suspend_state_t state)
 	if (ret)
 		return ret;
 
+	if (pm_data->pm_resume_prepare)
+		pm_data->pm_resume_prepare();
 	s3c_pm_restore_uarts();
 
 	S3C_PMDBG("%s: wakeup stat: %08x\n", __func__,
@@ -448,6 +486,7 @@ static struct exynos_pm_data exynos5420_pm_data = {
 	.wkup_irq	= exynos5250_wkup_irq,
 	.wake_disable_mask = (0x7F << 7) | (0x1F << 1),
 	.release_ret_regs = exynos5420_release_ret_regs,
+	.pm_resume_prepare = exynos5420_prepare_pm_resume,
 	.pm_resume	= exynos5420_pm_resume,
 	.pm_suspend	= exynos5420_pm_suspend,
 	.pm_prepare	= exynos5420_pm_prepare,
