@@ -1010,7 +1010,7 @@ static int m_can_of_parse_mram(struct platform_device *pdev,
 	struct resource *res;
 	void __iomem *addr;
 	u32 out_val[MRAM_CFG_LEN];
-	int ret;
+	int i, start, end, ret;
 
 	/* message ram could be shared */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "message_ram");
@@ -1060,6 +1060,15 @@ static int m_can_of_parse_mram(struct platform_device *pdev,
 		priv->mcfg[MRAM_RXB].off, priv->mcfg[MRAM_RXB].num,
 		priv->mcfg[MRAM_TXE].off, priv->mcfg[MRAM_TXE].num,
 		priv->mcfg[MRAM_TXB].off, priv->mcfg[MRAM_TXB].num);
+
+	/* initialize the entire Message RAM in use to avoid possible
+	 * ECC/parity checksum errors when reading an uninitialized buffer
+	 */
+	start = priv->mcfg[MRAM_SIDF].off;
+	end = priv->mcfg[MRAM_TXB].off +
+		priv->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
+	for (i = start; i < end; i += 4)
+		writel(0x0, priv->mram_base + i);
 
 	return 0;
 }
