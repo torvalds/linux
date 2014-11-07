@@ -585,7 +585,6 @@ static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 	struct ubi_work *wl_wrk;
 
 	ubi_assert(e);
-	ubi_assert(!is_fm_block(ubi, e->pnum));
 
 	dbg_wl("schedule erasure of PEB %d, EC %d, torture %d",
 	       e->pnum, e->ec, torture);
@@ -1044,8 +1043,6 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 
 	dbg_wl("erase PEB %d EC %d LEB %d:%d",
 	       pnum, e->ec, wl_wrk->vol_id, wl_wrk->lnum);
-
-	ubi_assert(!is_fm_block(ubi, e->pnum));
 
 	err = sync_erase(ubi, e, wl_wrk->torture);
 	if (!err) {
@@ -1526,7 +1523,6 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 
 		e->pnum = aeb->pnum;
 		e->ec = aeb->ec;
-		ubi_assert(!is_fm_block(ubi, e->pnum));
 		ubi->lookuptbl[e->pnum] = e;
 		if (schedule_erase(ubi, e, aeb->vol_id, aeb->lnum, 0)) {
 			wl_entry_destroy(ubi, e);
@@ -1547,7 +1543,6 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 		e->pnum = aeb->pnum;
 		e->ec = aeb->ec;
 		ubi_assert(e->ec >= 0);
-		ubi_assert(!is_fm_block(ubi, e->pnum));
 
 		wl_tree_add(e, &ubi->free);
 		ubi->free_count++;

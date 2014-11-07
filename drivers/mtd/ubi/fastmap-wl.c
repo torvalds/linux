@@ -29,25 +29,6 @@ static void update_fastmap_work_fn(struct work_struct *wrk)
 }
 
 /**
- *  is_fm_block - returns 1 if a PEB is currently used in a fastmap.
- *  @ubi: UBI device description object
- *  @pnum: the to be checked PEB
- */
-static int is_fm_block(struct ubi_device *ubi, int pnum)
-{
-	int i;
-
-	if (!ubi->fm)
-		return 0;
-
-	for (i = 0; i < ubi->fm->used_blocks; i++)
-		if (ubi->fm->e[i]->pnum == pnum)
-			return 1;
-
-	return 0;
-}
-
-/**
  * find_anchor_wl_entry - find wear-leveling entry to used as anchor PEB.
  * @root: the RB-tree where to look for
  */
