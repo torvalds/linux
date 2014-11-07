@@ -1681,7 +1681,9 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	    return 0;
 
 	if (data[0] == WACOM_REPORT_USB) {
-		if (features->type == INTUOSHT && features->touch_max) {
+		if (features->type == INTUOSHT &&
+		    wacom->shared->touch_input &&
+		    features->touch_max) {
 			input_report_switch(wacom->shared->touch_input,
 					    SW_MUTE_DEVICE, data[8] & 0x40);
 			input_sync(wacom->shared->touch_input);
@@ -1774,7 +1776,8 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 		int pid, battery, ps_connected;
 
 		if ((wacom->shared->type == INTUOSHT) &&
-				wacom->shared->touch_max) {
+		    wacom->shared->touch_input &&
+		    wacom->shared->touch_max) {
 			input_report_switch(wacom->shared->touch_input,
 					SW_MUTE_DEVICE, data[5] & 0x40);
 			input_sync(wacom->shared->touch_input);
