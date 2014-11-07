@@ -328,7 +328,10 @@ static void deliver_recv_msg(struct smi_info *smi_info,
 			     struct ipmi_smi_msg *msg)
 {
 	/* Deliver the message to the upper layer. */
-	ipmi_smi_msg_received(smi_info->intf, msg);
+	if (smi_info->intf)
+		ipmi_smi_msg_received(smi_info->intf, msg);
+	else
+		ipmi_free_smi_msg(msg);
 }
 
 static void return_hosed_msg(struct smi_info *smi_info, int cCode)
@@ -436,6 +439,32 @@ static void start_clear_flags(struct smi_info *smi_info)
 	smi_info->si_state = SI_CLEARING_FLAGS;
 }
 
+static void start_getting_msg_queue(struct smi_info *smi_info)
+{
+	smi_info->curr_msg->data[0] = (IPMI_NETFN_APP_REQUEST << 2);
+	smi_info->curr_msg->data[1] = IPMI_GET_MSG_CMD;
+	smi_info->curr_msg->data_size = 2;
+
+	smi_info->handlers->start_transaction(
+		smi_info->si_sm,
+		smi_info->curr_msg->data,
+		smi_info->curr_msg->data_size);
+	smi_info->si_state = SI_GETTING_MESSAGES;
+}
+
+static void start_getting_events(struct smi_info *smi_info)
+{
+	smi_info->curr_msg->data[0] = (IPMI_NETFN_APP_REQUEST << 2);
+	smi_info->curr_msg->data[1] = IPMI_READ_EVENT_MSG_BUFFER_CMD;
+	smi_info->curr_msg->data_size = 2;
+
+	smi_info->handlers->start_transaction(
+		smi_info->si_sm,
+		smi_info->curr_msg->data,
+		smi_info->curr_msg->data_size);
+	smi_info->si_state = SI_GETTING_EVENTS;
+}
+
 static void smi_mod_timer(struct smi_info *smi_info, unsigned long new_val)
 {
 	smi_info->last_timeout_jiffies = jiffies;
@@ -449,22 +478,45 @@ static void smi_mod_timer(struct smi_info *smi_info, unsigned long new_val)
  * polled until we can allocate some memory.  Once we have some
  * memory, we will re-enable the interrupt.
  */
-static inline void disable_si_irq(struct smi_info *smi_info)
+static inline bool disable_si_irq(struct smi_info *smi_info)
 {
 	if ((smi_info->irq) && (!smi_info->interrupt_disabled)) {
 		start_disable_irq(smi_info);
 		smi_info->interrupt_disabled = true;
-		if (!atomic_read(&smi_info->stop_operation))
-			smi_mod_timer(smi_info, jiffies + SI_TIMEOUT_JIFFIES);
+		return true;
 	}
+	return false;
 }
 
-static inline void enable_si_irq(struct smi_info *smi_info)
+static inline bool enable_si_irq(struct smi_info *smi_info)
 {
 	if ((smi_info->irq) && (smi_info->interrupt_disabled)) {
 		start_enable_irq(smi_info);
 		smi_info->interrupt_disabled = false;
+		return true;
 	}
+	return false;
+}
+
+/*
+ * Allocate a message.  If unable to allocate, start the interrupt
+ * disable process and return NULL.  If able to allocate but
+ * interrupts are disabled, free the message and return NULL after
+ * starting the interrupt enable process.
+ */
+static struct ipmi_smi_msg *alloc_msg_handle_irq(struct smi_info *smi_info)
+{
+	struct ipmi_smi_msg *msg;
+
+	msg = ipmi_alloc_smi_msg();
+	if (!msg) {
+		if (!disable_si_irq(smi_info))
+			smi_info->si_state = SI_NORMAL;
+	} else if (enable_si_irq(smi_info)) {
+		ipmi_free_smi_msg(msg);
+		msg = NULL;
+	}
+	return msg;
 }
 
 static void handle_flags(struct smi_info *smi_info)
@@ -476,45 +528,22 @@ static void handle_flags(struct smi_info *smi_info)
 
 		start_clear_flags(smi_info);
 		smi_info->msg_flags &= ~WDT_PRE_TIMEOUT_INT;
-		ipmi_smi_watchdog_pretimeout(smi_info->intf);
+		if (smi_info->intf)
+			ipmi_smi_watchdog_pretimeout(smi_info->intf);
 	} else if (smi_info->msg_flags & RECEIVE_MSG_AVAIL) {
 		/* Messages available. */
-		smi_info->curr_msg = ipmi_alloc_smi_msg();
-		if (!smi_info->curr_msg) {
-			disable_si_irq(smi_info);
-			smi_info->si_state = SI_NORMAL;
+		smi_info->curr_msg = alloc_msg_handle_irq(smi_info);
+		if (!smi_info->curr_msg)
 			return;
-		}
-		enable_si_irq(smi_info);
 
-		smi_info->curr_msg->data[0] = (IPMI_NETFN_APP_REQUEST << 2);
-		smi_info->curr_msg->data[1] = IPMI_GET_MSG_CMD;
-		smi_info->curr_msg->data_size = 2;
-
-		smi_info->handlers->start_transaction(
-			smi_info->si_sm,
-			smi_info->curr_msg->data,
-			smi_info->curr_msg->data_size);
-		smi_info->si_state = SI_GETTING_MESSAGES;
+		start_getting_msg_queue(smi_info);
 	} else if (smi_info->msg_flags & EVENT_MSG_BUFFER_FULL) {
 		/* Events available. */
-		smi_info->curr_msg = ipmi_alloc_smi_msg();
-		if (!smi_info->curr_msg) {
-			disable_si_irq(smi_info);
-			smi_info->si_state = SI_NORMAL;
+		smi_info->curr_msg = alloc_msg_handle_irq(smi_info);
+		if (!smi_info->curr_msg)
 			return;
-		}
-		enable_si_irq(smi_info);
 
-		smi_info->curr_msg->data[0] = (IPMI_NETFN_APP_REQUEST << 2);
-		smi_info->curr_msg->data[1] = IPMI_READ_EVENT_MSG_BUFFER_CMD;
-		smi_info->curr_msg->data_size = 2;
-
-		smi_info->handlers->start_transaction(
-			smi_info->si_sm,
-			smi_info->curr_msg->data,
-			smi_info->curr_msg->data_size);
-		smi_info->si_state = SI_GETTING_EVENTS;
+		start_getting_events(smi_info);
 	} else if (smi_info->msg_flags & OEM_DATA_AVAIL &&
 		   smi_info->oem_data_avail_handler) {
 		if (smi_info->oem_data_avail_handler(smi_info))
@@ -709,7 +738,9 @@ static void handle_transaction_done(struct smi_info *smi_info)
 				 "Maybe ok, but ipmi might run very slowly.\n");
 		} else
 			smi_info->interrupt_disabled = false;
-		smi_info->si_state = SI_NORMAL;
+
+		/* We enabled interrupts, flags may be pending. */
+		handle_flags(smi_info);
 		break;
 	}
 
