@@ -915,15 +915,12 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 			 * probably affinity changed. need to stop this NAPI
 			 * poll, and restart it on the right CPU
 			 */
-			napi_complete(napi);
-			mlx4_en_arm_cq(priv, cq);
-			return 0;
+			done = 0;
 		}
-	} else {
-		/* Done for now */
-		napi_complete(napi);
-		mlx4_en_arm_cq(priv, cq);
 	}
+	/* Done for now */
+	napi_complete_done(napi, done);
+	mlx4_en_arm_cq(priv, cq);
 	return done;
 }
 
