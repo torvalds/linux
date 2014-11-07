@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/kconfig.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -60,8 +61,7 @@ static void bcm7120_l2_intc_irq_handle(unsigned int irq, struct irq_desc *desc)
 		int hwirq;
 
 		irq_gc_lock(gc);
-		pending = __raw_readl(b->base[idx] + IRQSTAT) &
-			  gc->mask_cache;
+		pending = irq_reg_readl(gc, IRQSTAT) & gc->mask_cache;
 		irq_gc_unlock(gc);
 
 		for_each_set_bit(hwirq, &pending, IRQS_PER_WORD) {
@@ -79,10 +79,8 @@ static void bcm7120_l2_intc_suspend(struct irq_data *d)
 	struct bcm7120_l2_intc_data *b = gc->private;
 
 	irq_gc_lock(gc);
-	if (b->can_wake) {
-		__raw_writel(gc->mask_cache | gc->wake_active,
-			     gc->reg_base + IRQEN);
-	}
+	if (b->can_wake)
+		irq_reg_writel(gc, gc->mask_cache | gc->wake_active, IRQEN);
 	irq_gc_unlock(gc);
 }
 
@@ -92,7 +90,7 @@ static void bcm7120_l2_intc_resume(struct irq_data *d)
 
 	/* Restore the saved mask */
 	irq_gc_lock(gc);
-	__raw_writel(gc->mask_cache, gc->reg_base + IRQEN);
+	irq_reg_writel(gc, gc->mask_cache, IRQEN);
 	irq_gc_unlock(gc);
 }
 
@@ -132,7 +130,7 @@ int __init bcm7120_l2_intc_of_init(struct device_node *dn,
 	const __be32 *map_mask;
 	int num_parent_irqs;
 	int ret = 0, len;
-	unsigned int idx, irq;
+	unsigned int idx, irq, flags;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -195,9 +193,15 @@ int __init bcm7120_l2_intc_of_init(struct device_node *dn,
 		goto out_unmap;
 	}
 
+	/* MIPS chips strapped for BE will automagically configure the
+	 * peripheral registers for CPU-native byte order.
+	 */
+	flags = IRQ_GC_INIT_MASK_CACHE;
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		flags |= IRQ_GC_BE_IO;
+
 	ret = irq_alloc_domain_generic_chips(data->domain, IRQS_PER_WORD, 1,
-				dn->full_name, handle_level_irq, clr, 0,
-				IRQ_GC_INIT_MASK_CACHE);
+				dn->full_name, handle_level_irq, clr, 0, flags);
 	if (ret) {
 		pr_err("failed to allocate generic irq chip\n");
 		goto out_free_domain;
