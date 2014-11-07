@@ -16,3 +16,11 @@ config VFIO_PCI_VGA
 	  BIOS and generic video drivers.
 
 	  If you don't know what to do here, say N.
+
+config VFIO_PCI_MMAP
+	depends on VFIO_PCI
+	def_bool y if !S390
+
+config VFIO_PCI_INTX
+	depends on VFIO_PCI
+	def_bool y if !S390
