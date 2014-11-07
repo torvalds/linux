@@ -114,18 +114,12 @@ struct dsi_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long fint;
 	unsigned long clkdco;
-	unsigned long dsi_pll_hsdiv_dispc_clk;	/* OMAP3: DSI1_PLL_CLK
-						 * OMAP4: PLLx_CLK1 */
-	unsigned long dsi_pll_hsdiv_dsi_clk;	/* OMAP3: DSI2_PLL_CLK
-						 * OMAP4: PLLx_CLK2 */
+	unsigned long clkout[4];
 
 	/* dividers */
 	u16 regn;
 	u16 regm;
-	u16 regm_dispc;	/* OMAP3: REGM3
-			 * OMAP4: REGM4 */
-	u16 regm_dsi;	/* OMAP3: REGM4
-			 * OMAP4: REGM5 */
+	u16 regm_hsdiv[4];
 };
 
 struct dss_lcd_mgr_config {

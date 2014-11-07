@@ -37,6 +37,8 @@
 #include "dss.h"
 #include "dss_features.h"
 
+#define HSDIV_DISPC	0
+
 struct dpi_data {
 	struct platform_device *pdev;
 
@@ -178,8 +180,8 @@ static bool dpi_calc_hsdiv_cb(int regm_dispc, unsigned long dispc,
 	if (regm_dispc > 1 && regm_dispc % 2 != 0 && ctx->pck_min >= 100000000)
 		return false;
 
-	ctx->dsi_cinfo.regm_dispc = regm_dispc;
-	ctx->dsi_cinfo.dsi_pll_hsdiv_dispc_clk = dispc;
+	ctx->dsi_cinfo.regm_hsdiv[HSDIV_DISPC] = regm_dispc;
+	ctx->dsi_cinfo.clkout[HSDIV_DISPC] = dispc;
 
 	return dispc_div_calc(dispc, ctx->pck_min, ctx->pck_max,
 			dpi_calc_dispc_cb, ctx);
@@ -284,7 +286,7 @@ static int dpi_set_dsi_clk(struct dpi_data *dpi, enum omap_channel channel,
 
 	dpi->mgr_config.clock_info = ctx.dispc_cinfo;
 
-	*fck = ctx.dsi_cinfo.dsi_pll_hsdiv_dispc_clk;
+	*fck = ctx.dsi_cinfo.clkout[HSDIV_DISPC];
 	*lck_div = ctx.dispc_cinfo.lck_div;
 	*pck_div = ctx.dispc_cinfo.pck_div;
 
@@ -516,7 +518,7 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 		if (!ok)
 			return -EINVAL;
 
-		fck = ctx.dsi_cinfo.dsi_pll_hsdiv_dispc_clk;
+		fck = ctx.dsi_cinfo.clkout[HSDIV_DISPC];
 	} else {
 		ok = dpi_dss_clk_calc(timings->pixelclock, &ctx);
 		if (!ok)
