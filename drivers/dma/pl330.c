@@ -2336,7 +2336,7 @@ static inline int get_burst_len(struct dma_pl330_desc *desc, size_t len)
 	int burst_len;
 
 	burst_len = pl330->pcfg.data_bus_width / 8;
-	burst_len *= pl330->pcfg.data_buf_dep;
+	burst_len *= pl330->pcfg.data_buf_dep / pl330->pcfg.num_chan;
 	burst_len >>= desc->rqcfg.brst_size;
 
 	/* src/dst_burst_len can't be more than 16 */
