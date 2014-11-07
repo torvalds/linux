@@ -22,6 +22,8 @@
 #include <linux/of_net.h>
 #include <linux/regulator/consumer.h>
 
+#include "stmmac_platform.h"
+
 struct sunxi_priv_data {
 	int interface;
 	int clk_enabled;

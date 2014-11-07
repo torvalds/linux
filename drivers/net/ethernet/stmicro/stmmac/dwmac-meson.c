@@ -18,6 +18,8 @@
 #include <linux/platform_device.h>
 #include <linux/stmmac.h>
 
+#include "stmmac_platform.h"
+
 #define ETHMAC_SPEED_100	BIT(1)
 
 struct meson_dwmac {
@@ -56,7 +58,7 @@ static void *meson6_dwmac_setup(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	dwmac->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dwmac->reg))
-		return dwmac->reg;
+		return ERR_CAST(dwmac->reg);
 
 	return dwmac;
 }

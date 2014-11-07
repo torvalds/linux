@@ -22,6 +22,8 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 
+#include "stmmac_platform.h"
+
 #define DWMAC_125MHZ	125000000
 #define DWMAC_50MHZ	50000000
 #define DWMAC_25MHZ	25000000
