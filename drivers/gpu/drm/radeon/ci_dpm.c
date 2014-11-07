@@ -2071,6 +2071,33 @@ static int ci_force_switch_to_arb_f0(struct radeon_device *rdev)
 	return ni_copy_and_switch_arb_sets(rdev, tmp, MC_CG_ARB_FREQ_F0);
 }
 
+static void ci_register_patching_mc_arb(struct radeon_device *rdev,
+					const u32 engine_clock,
+					const u32 memory_clock,
+					u32 *dram_timimg2)
+{
+	bool patch;
+	u32 tmp, tmp2;
+
+	tmp = RREG32(MC_SEQ_MISC0);
+	patch = ((tmp & 0x0000f00) == 0x300) ? true : false;
+
+	if (patch &&
+	    ((rdev->pdev->device == 0x67B0) ||
+	     (rdev->pdev->device == 0x67B1))) {
+		if ((memory_clock > 100000) && (memory_clock <= 125000)) {
+			tmp2 = (((0x31 * engine_clock) / 125000) - 1) & 0xff;
+			*dram_timimg2 &= ~0x00ff0000;
+			*dram_timimg2 |= tmp2 << 16;
+		} else if ((memory_clock > 125000) && (memory_clock <= 137500)) {
+			tmp2 = (((0x36 * engine_clock) / 137500) - 1) & 0xff;
+			*dram_timimg2 &= ~0x00ff0000;
+			*dram_timimg2 |= tmp2 << 16;
+		}
+	}
+}
+
+
 static int ci_populate_memory_timing_parameters(struct radeon_device *rdev,
 						u32 sclk,
 						u32 mclk,
@@ -2085,6 +2112,8 @@ static int ci_populate_memory_timing_parameters(struct radeon_device *rdev,
 	dram_timing  = RREG32(MC_ARB_DRAM_TIMING);
 	dram_timing2 = RREG32(MC_ARB_DRAM_TIMING2);
 	burst_time = RREG32(MC_ARB_BURST_TIME) & STATE0_MASK;
+
+	ci_register_patching_mc_arb(rdev, sclk, mclk, &dram_timing2);
 
 	arb_regs->McArbDramTiming  = cpu_to_be32(dram_timing);
 	arb_regs->McArbDramTiming2 = cpu_to_be32(dram_timing2);
