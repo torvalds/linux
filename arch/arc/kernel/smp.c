@@ -26,8 +26,10 @@
 #include <asm/setup.h>
 #include <asm/mach_desc.h>
 
+#ifndef CONFIG_ARC_HAS_LLSC
 arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
+#endif
 
 struct plat_smp_ops  plat_smp_ops;
 
