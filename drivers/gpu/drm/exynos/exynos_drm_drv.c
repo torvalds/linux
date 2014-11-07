@@ -591,10 +591,21 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 		goto err_unregister_mixer_drv;
 #endif
 
+	match = exynos_drm_match_add(&pdev->dev);
+	if (IS_ERR(match)) {
+		ret = PTR_ERR(match);
+		goto err_unregister_hdmi_drv;
+	}
+
+	ret = component_master_add_with_match(&pdev->dev, &exynos_drm_ops,
+						match);
+	if (ret < 0)
+		goto err_unregister_hdmi_drv;
+
 #ifdef CONFIG_DRM_EXYNOS_G2D
 	ret = platform_driver_register(&g2d_driver);
 	if (ret < 0)
-		goto err_unregister_hdmi_drv;
+		goto err_del_component_master;
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_FIMC
@@ -625,23 +636,9 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 		goto err_unregister_ipp_drv;
 #endif
 
-	match = exynos_drm_match_add(&pdev->dev);
-	if (IS_ERR(match)) {
-		ret = PTR_ERR(match);
-		goto err_unregister_resources;
-	}
-
-	ret = component_master_add_with_match(&pdev->dev, &exynos_drm_ops,
-						match);
-	if (ret < 0)
-		goto err_unregister_resources;
-
 	return ret;
 
-err_unregister_resources:
-
 #ifdef CONFIG_DRM_EXYNOS_IPP
-	exynos_platform_device_ipp_unregister();
 err_unregister_ipp_drv:
 	platform_driver_unregister(&ipp_driver);
 err_unregister_gsc_drv:
@@ -664,9 +661,11 @@ err_unregister_g2d_drv:
 
 #ifdef CONFIG_DRM_EXYNOS_G2D
 	platform_driver_unregister(&g2d_driver);
-err_unregister_hdmi_drv:
+err_del_component_master:
 #endif
+	component_master_del(&pdev->dev, &exynos_drm_ops);
 
+err_unregister_hdmi_drv:
 #ifdef CONFIG_DRM_EXYNOS_HDMI
 	platform_driver_unregister(&hdmi_driver);
 err_unregister_mixer_drv:
