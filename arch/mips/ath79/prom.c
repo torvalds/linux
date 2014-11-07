@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/string.h>
+#include <linux/initrd.h>
 
 #include <asm/bootinfo.h>
 #include <asm/addrspace.h>
@@ -23,6 +24,13 @@
 void __init prom_init(void)
 {
 	fw_init_cmdline();
+
+	/* Read the initrd address from the firmware environment */
+	initrd_start = fw_getenvl("initrd_start");
+	if (initrd_start) {
+		initrd_start = KSEG0ADDR(initrd_start);
+		initrd_end = initrd_start + fw_getenvl("initrd_size");
+	}
 }
 
 void __init prom_free_prom_memory(void)
