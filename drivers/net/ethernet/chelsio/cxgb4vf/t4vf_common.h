@@ -134,6 +134,7 @@ struct dev_params {
  */
 struct sge_params {
 	u32 sge_control;		/* padding, boundaries, lengths, etc. */
+	u32 sge_control2;		/* T5: more of the same */
 	u32 sge_host_page_size;		/* RDMA page sizes */
 	u32 sge_queues_per_page;	/* RDMA queues/page */
 	u32 sge_user_mode_limits;	/* limits for BAR2 user mode accesses */
