@@ -11272,6 +11272,8 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	struct drm_device *dev;
 	struct drm_mode_set save_set;
 	struct intel_set_config *config;
+	struct intel_crtc_config *pipe_config;
+	unsigned modeset_pipes, prepare_pipes, disable_pipes;
 	int ret;
 
 	BUG_ON(!set);
@@ -11317,9 +11319,23 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	if (ret)
 		goto fail;
 
+	pipe_config = intel_modeset_compute_config(set->crtc, set->mode,
+						   set->fb,
+						   &modeset_pipes,
+						   &prepare_pipes,
+						   &disable_pipes);
+	if (IS_ERR(pipe_config))
+		goto fail;
+
+	/* set_mode will free it in the mode_changed case */
+	if (!config->mode_changed)
+		kfree(pipe_config);
+
 	if (config->mode_changed) {
-		ret = intel_set_mode(set->crtc, set->mode,
-				     set->x, set->y, set->fb);
+		ret = intel_set_mode_pipes(set->crtc, set->mode,
+					   set->x, set->y, set->fb, pipe_config,
+					   modeset_pipes, prepare_pipes,
+					   disable_pipes);
 	} else if (config->fb_changed) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(set->crtc);
 
