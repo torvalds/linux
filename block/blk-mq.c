@@ -802,14 +802,14 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 		return;
 
 	if (!async) {
-		preempt_disable();
-		if (cpumask_test_cpu(smp_processor_id(), hctx->cpumask)) {
+		int cpu = get_cpu();
+		if (cpumask_test_cpu(cpu, hctx->cpumask)) {
 			__blk_mq_run_hw_queue(hctx);
-			preempt_enable();
+			put_cpu();
 			return;
 		}
 
-		preempt_enable();
+		put_cpu();
 	}
 
 	if (hctx->queue->nr_hw_queues == 1)
