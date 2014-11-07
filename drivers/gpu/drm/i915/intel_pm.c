@@ -4504,14 +4504,8 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 		      "Odd GPU freq value\n"))
 		val &= ~1;
 
-	if (val != dev_priv->rps.cur_freq) {
-		DRM_DEBUG_DRIVER("GPU freq request from %d MHz (%u) to %d MHz (%u)\n",
-				 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
-				 dev_priv->rps.cur_freq,
-				 vlv_gpu_freq(dev_priv, val), val);
-
+	if (val != dev_priv->rps.cur_freq)
 		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
-	}
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
