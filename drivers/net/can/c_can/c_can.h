@@ -169,8 +169,18 @@ enum c_can_dev_id {
 	BOSCH_D_CAN,
 };
 
+struct raminit_bits {
+	u8 start;
+	u8 done;
+};
+
 struct c_can_driver_data {
 	enum c_can_dev_id id;
+
+	/* RAMINIT register description. Optional. */
+	const struct raminit_bits *raminit_bits; /* Array of START/DONE bit positions */
+	u8 raminit_num;		/* Number of CAN instances on the SoC */
+	bool raminit_pulse;	/* If set, sets and clears START bit (pulse) */
 };
 
 /* c_can private data structure */
