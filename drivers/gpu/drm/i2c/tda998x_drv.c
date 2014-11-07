@@ -1281,6 +1281,7 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	struct device_node *np = client->dev.of_node;
 	u32 video;
 	int rev_lo, rev_hi, ret;
+	unsigned short cec_addr;
 
 	priv->vip_cntrl_0 = VIP_CNTRL_0_SWAP_A(2) | VIP_CNTRL_0_SWAP_B(3);
 	priv->vip_cntrl_1 = VIP_CNTRL_1_SWAP_C(0) | VIP_CNTRL_1_SWAP_D(1);
@@ -1288,7 +1289,9 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 
 	priv->current_page = 0xff;
 	priv->hdmi = client;
-	priv->cec = i2c_new_dummy(client->adapter, 0x34);
+	/* CEC I2C address bound to TDA998x I2C addr by configuration pins */
+	cec_addr = 0x34 + (client->addr & 0x03);
+	priv->cec = i2c_new_dummy(client->adapter, cec_addr);
 	if (!priv->cec)
 		return -ENODEV;
 
