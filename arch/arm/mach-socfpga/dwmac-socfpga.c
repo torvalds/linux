@@ -93,22 +93,22 @@ static void auto_nego_timer_callback(unsigned long data)
 
 		if (speed == TSE_PCS_PARTNER_SPEED_10 &&
 		    duplex == TSE_PCS_PARTNER_DUPLEX_FULL)
-			pr_debug("Adapter: Link Partner is Up - 10/Full");
+			pr_debug("Adapter: Link Partner is Up - 10/Full\n");
 		else if (speed == TSE_PCS_PARTNER_SPEED_100 &&
 			duplex == TSE_PCS_PARTNER_DUPLEX_FULL)
-			pr_debug("Adapter: Link Partner is Up - 100/Full");
+			pr_debug("Adapter: Link Partner is Up - 100/Full\n");
 		else if (speed == TSE_PCS_PARTNER_SPEED_1000 &&
 			duplex == TSE_PCS_PARTNER_DUPLEX_FULL)
-			pr_debug("Adapter: Link Partner is Up - 1000/Full");
+			pr_debug("Adapter: Link Partner is Up - 1000/Full\n");
 		else if (speed == TSE_PCS_PARTNER_SPEED_10 &&
 			duplex == TSE_PCS_PARTNER_DUPLEX_HALF)
-			pr_err("Adapter does not support Half Duplex");
+			pr_err("Adapter does not support Half Duplex\n");
 		else if (speed == TSE_PCS_PARTNER_SPEED_100 &&
 			duplex == TSE_PCS_PARTNER_DUPLEX_HALF)
-			pr_err("Adapter does not support Half Duplex");
+			pr_err("Adapter does not support Half Duplex\n");
 		else if (speed == TSE_PCS_PARTNER_SPEED_1000 &&
 			duplex == TSE_PCS_PARTNER_DUPLEX_HALF)
-			pr_err("Adapter does not support Half Duplex");
+			pr_err("Adapter does not support Half Duplex\n");
 		else
 			pr_err("Adapter: Invalid Partner Speed and Duplex\n");
 
@@ -247,7 +247,7 @@ int adapter_init(struct platform_device *pdev, int phymode, u32 *val)
 
 	bsp_priv = kzalloc(sizeof(*bsp_priv), GFP_KERNEL);
 	if (!bsp_priv) {
-		pr_err("%s: ERROR: no memory", __func__);
+		pr_err("%s: ERROR: no memory\n", __func__);
 		return -ENOMEM;
 	}
 
