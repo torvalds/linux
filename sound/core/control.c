@@ -572,7 +572,7 @@ int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id,
 		ret = -ENOENT;
 		goto unlock;
 	}
-	index_offset = snd_ctl_get_ioff(kctl, &kctl->id);
+	index_offset = snd_ctl_get_ioff(kctl, id);
 	vd = &kctl->vd[index_offset];
 	ret = 0;
 	if (active) {
