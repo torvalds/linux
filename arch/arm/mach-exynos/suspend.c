@@ -33,6 +33,7 @@
 #include "common.h"
 #include "regs-pmu.h"
 #include "regs-sys.h"
+#include "exynos-pmu.h"
 
 #define S5P_CHECK_SLEEP 0x00000BAD
 
