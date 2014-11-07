@@ -143,8 +143,8 @@ static void s6e8aa0_dcs_write(struct s6e8aa0 *ctx, const void *data, size_t len)
 
 	ret = mipi_dsi_dcs_write(dsi, data, len);
 	if (ret < 0) {
-		dev_err(ctx->dev, "error %zd writing dcs seq: %*ph\n", ret, len,
-			data);
+		dev_err(ctx->dev, "error %zd writing dcs seq: %*ph\n", ret,
+			(int)len, data);
 		ctx->error = ret;
 	}
 }
