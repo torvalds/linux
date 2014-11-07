@@ -19,6 +19,11 @@ Required properties:
 
 Optional properties:
 - clock-frequency : frequency of bus clock in Hz. Default 100kHz if unset.
+- dmas            : Must contain a list of two references to DMA
+		    specifiers, one for transmission, and one for
+		    reception.
+- dma-names       : Must contain a list of two DMA names, "tx" and "rx".
+
 
 Pinctrl properties might be needed, too. See there.
 
