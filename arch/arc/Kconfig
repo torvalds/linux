@@ -448,9 +448,10 @@ menuconfig ARC_DBG
 	bool "ARC debugging"
 	default y
 
+if ARC_DBG
+
 config ARC_DW2_UNWIND
 	bool "Enable DWARF specific kernel stack unwind"
-	depends on ARC_DBG
 	default y
 	select KALLSYMS
 	help
@@ -464,17 +465,25 @@ config ARC_DW2_UNWIND
 
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
-	depends on ARC_DBG
 	default n
 
 config ARC_DBG_TLB_MISS_COUNT
 	bool "Profile TLB Misses"
 	default n
 	select DEBUG_FS
-	depends on ARC_DBG
 	help
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
+
+if SMP
+
+config ARC_IPI_DBG
+	bool "Debug Inter Core interrupts"
+	default n
+
+endif
+
+endif
 
 config ARC_UBOOT_SUPPORT
 	bool "Support uboot arg Handling"
