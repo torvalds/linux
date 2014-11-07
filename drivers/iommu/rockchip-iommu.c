@@ -393,12 +393,16 @@ static void rockchip_iommu_page_fault_done(void __iomem *base, const char *dbgna
 	__raw_writel(IOMMU_COMMAND_PAGE_FAULT_DONE,
 		     base + IOMMU_REGISTER_COMMAND);
 }
-#if 0
-static void rockchip_iommu_zap_tlb_without_stall (void __iomem *base)
+#if 1
+static int rockchip_iommu_zap_tlb_without_stall (void __iomem *base)
 {
 	__raw_writel(IOMMU_COMMAND_ZAP_CACHE, base + IOMMU_REGISTER_COMMAND);
+
+	return 0;
 }
 #endif
+
+#if 0
 static int rockchip_iommu_zap_tlb(void __iomem *base)
 {
 	if (!rockchip_iommu_enable_stall(base)) {
@@ -412,6 +416,7 @@ static int rockchip_iommu_zap_tlb(void __iomem *base)
 
 	return 0;
 }
+#endif
 
 static inline bool rockchip_iommu_raw_reset(void __iomem *base)
 {
@@ -615,7 +620,7 @@ static irqreturn_t rockchip_iommu_irq(int irq, void *dev_id)
 		dev_info(data->iommu, "2.rawstat = 0x%08x,status = 0x%08x,reg_status = 0x%08x\n",
 			 rawstat, status, reg_status);
 
-		ret = rockchip_iommu_zap_tlb(data->res_bases[i]);
+		ret = rockchip_iommu_zap_tlb_without_stall(data->res_bases[i]);
 		if (ret)
 			dev_err(data->iommu, "(%s) %s failed\n", data->dbgname,
 				__func__);
@@ -641,13 +646,24 @@ static bool rockchip_iommu_disable(struct iommu_drvdata *data)
 	}
 
 	for (i = 0; i < data->num_res_mem; i++) {
+		ret = rockchip_iommu_enable_stall(data->res_bases[i]);
+		if (!ret) {
+			dev_info(data->iommu, "(%s), %s failed\n",
+				 data->dbgname, __func__);
+			spin_unlock_irqrestore(&data->data_lock, flags);
+			return false;
+		}
+
 		__raw_writel(0, data->res_bases[i] + IOMMU_REGISTER_INT_MASK);
+
 		ret = rockchip_iommu_disable_paging(data->res_bases[i]);
 		if (!ret) {
+			rockchip_iommu_disable_stall(data->res_bases[i]);
 			spin_unlock_irqrestore(&data->data_lock, flags);
 			dev_info(data->iommu, "%s error\n", __func__);
 			return ret;
 		}
+		rockchip_iommu_disable_stall(data->res_bases[i]);
 	}
 
 	data->pgtable = 0;
@@ -744,7 +760,7 @@ int rockchip_iommu_tlb_invalidate(struct device *dev)
 		int ret;
 
 		for (i = 0; i < data->num_res_mem; i++) {
-			ret = rockchip_iommu_zap_tlb(data->res_bases[i]);
+			ret = rockchip_iommu_zap_tlb_without_stall(data->res_bases[i]);
 			if (ret) {
 				dev_err(dev->archdata.iommu, "(%s) %s failed\n",
 					data->dbgname, __func__);
