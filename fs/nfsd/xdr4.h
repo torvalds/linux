@@ -494,6 +494,7 @@ struct nfsd4_op {
 
 		/* NFSv4.2 */
 		struct nfsd4_fallocate		allocate;
+		struct nfsd4_fallocate		deallocate;
 		struct nfsd4_seek		seek;
 	} u;
 	struct nfs4_replay *			replay;
