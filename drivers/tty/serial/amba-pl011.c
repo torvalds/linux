@@ -246,6 +246,7 @@ static int pl011_sgbuf_init(struct dma_chan *chan, struct pl011_sgbuf *sg,
 	sg_set_page(&sg->sg, phys_to_page(dma_addr),
 		PL011_DMA_BUFFER_SIZE, offset_in_page(dma_addr));
 	sg_dma_address(&sg->sg) = dma_addr;
+	sg_dma_len(&sg->sg) = PL011_DMA_BUFFER_SIZE;
 
 	return 0;
 }
