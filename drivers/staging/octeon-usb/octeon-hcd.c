@@ -456,6 +456,16 @@ struct octeon_temp_buffer {
 	u8 data[0];
 };
 
+static inline struct octeon_hcd *cvmx_usb_to_octeon(struct cvmx_usb_state *p)
+{
+	return container_of(p, struct octeon_hcd, usb);
+}
+
+static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
+{
+	return container_of((void *)p, struct usb_hcd, hcd_priv);
+}
+
 /**
  * octeon_alloc_temp_buffer - allocate a temporary buffer for USB transfer
  *                            (if needed)
@@ -2110,16 +2120,6 @@ done:
 	}
 	USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
 			union cvmx_usbcx_gintmsk, sofmsk, need_sof);
-}
-
-static inline struct octeon_hcd *cvmx_usb_to_octeon(struct cvmx_usb_state *p)
-{
-	return container_of(p, struct octeon_hcd, usb);
-}
-
-static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
-{
-	return container_of((void *)p, struct usb_hcd, hcd_priv);
 }
 
 static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
