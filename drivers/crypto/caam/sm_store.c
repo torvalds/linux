@@ -1018,7 +1018,7 @@ int caam_sm_startup(struct platform_device *pdev)
 	 * we can divorce the controller and ring drivers, and then assign
 	 * an SM instance to any ring instance).
 	 */
-	smpriv->smringdev = caam_jr_alloc();
+	smpriv->smringdev = &ctrlpriv->jrpdev[0]->dev;
 	jrpriv = dev_get_drvdata(smpriv->smringdev);
 	lpagect = 0;
 	lpagedesc = kzalloc(sizeof(struct sm_page_descriptor)
