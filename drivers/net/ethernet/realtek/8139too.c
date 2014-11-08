@@ -183,7 +183,7 @@ static int debug = -1;
 #define NUM_TX_DESC	4
 
 /* max supported ethernet frame size -- must be at least (dev->mtu+14+4).*/
-#define MAX_ETH_FRAME_SIZE	1536
+#define MAX_ETH_FRAME_SIZE	1792
 
 /* max supported payload size */
 #define MAX_ETH_DATA_SIZE	(MAX_ETH_FRAME_SIZE - ETH_HLEN - ETH_FCS_LEN)
