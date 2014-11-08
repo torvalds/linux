@@ -826,7 +826,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	struct trace_kprobe *tk = v;
 	int i;
 
-	seq_printf(m, "%c", trace_kprobe_is_return(tk) ? 'r' : 'p');
+	seq_putc(m, trace_kprobe_is_return(tk) ? 'r' : 'p');
 	seq_printf(m, ":%s/%s", tk->tp.call.class->system,
 			ftrace_event_name(&tk->tp.call));
 
@@ -840,7 +840,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 
 	for (i = 0; i < tk->tp.nr_args; i++)
 		seq_printf(m, " %s=%s", tk->tp.args[i].name, tk->tp.args[i].comm);
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 
 	return 0;
 }

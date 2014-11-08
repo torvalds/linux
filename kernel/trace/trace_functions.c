@@ -361,7 +361,7 @@ ftrace_probe_print(const char *name, struct seq_file *m,
 	seq_printf(m, "%ps:%s", (void *)ip, name);
 
 	if (count == -1)
-		seq_printf(m, ":unlimited\n");
+		seq_puts(m, ":unlimited\n");
 	else
 		seq_printf(m, ":count=%ld\n", count);
 

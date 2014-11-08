@@ -1407,32 +1407,32 @@ static void __print_graph_headers_flags(struct seq_file *s, u32 flags)
 		print_lat_header(s, flags);
 
 	/* 1st line */
-	seq_printf(s, "#");
+	seq_puts(s, "#");
 	if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
-		seq_printf(s, "     TIME       ");
+		seq_puts(s, "     TIME       ");
 	if (flags & TRACE_GRAPH_PRINT_CPU)
-		seq_printf(s, " CPU");
+		seq_puts(s, " CPU");
 	if (flags & TRACE_GRAPH_PRINT_PROC)
-		seq_printf(s, "  TASK/PID       ");
+		seq_puts(s, "  TASK/PID       ");
 	if (lat)
-		seq_printf(s, "||||");
+		seq_puts(s, "||||");
 	if (flags & TRACE_GRAPH_PRINT_DURATION)
-		seq_printf(s, "  DURATION   ");
-	seq_printf(s, "               FUNCTION CALLS\n");
+		seq_puts(s, "  DURATION   ");
+	seq_puts(s, "               FUNCTION CALLS\n");
 
 	/* 2nd line */
-	seq_printf(s, "#");
+	seq_puts(s, "#");
 	if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
-		seq_printf(s, "      |         ");
+		seq_puts(s, "      |         ");
 	if (flags & TRACE_GRAPH_PRINT_CPU)
-		seq_printf(s, " |  ");
+		seq_puts(s, " |  ");
 	if (flags & TRACE_GRAPH_PRINT_PROC)
-		seq_printf(s, "   |    |        ");
+		seq_puts(s, "   |    |        ");
 	if (lat)
-		seq_printf(s, "||||");
+		seq_puts(s, "||||");
 	if (flags & TRACE_GRAPH_PRINT_DURATION)
-		seq_printf(s, "   |   |      ");
-	seq_printf(s, "               |   |   |   |\n");
+		seq_puts(s, "   |   |      ");
+	seq_puts(s, "               |   |   |   |\n");
 }
 
 static void print_graph_headers(struct seq_file *s)

@@ -373,7 +373,7 @@ event_trigger_print(const char *name, struct seq_file *m,
 {
 	long count = (long)data;
 
-	seq_printf(m, "%s", name);
+	seq_puts(m, name);
 
 	if (count == -1)
 		seq_puts(m, ":unlimited");
