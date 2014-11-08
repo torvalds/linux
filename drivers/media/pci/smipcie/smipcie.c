@@ -18,6 +18,8 @@
 #include "m88ds3103.h"
 #include "m88ts2022.h"
 #include "m88rs6000t.h"
+#include "si2168.h"
+#include "si2157.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -618,6 +620,58 @@ err_tuner_i2c_device:
 	return ret;
 }
 
+static int smi_dvbsky_sit2_fe_attach(struct smi_port *port)
+{
+	int ret = 0;
+	struct smi_dev *dev = port->dev;
+	struct i2c_adapter *i2c;
+	struct i2c_adapter *tuner_i2c_adapter;
+	struct i2c_client *client_tuner, *client_demod;
+	struct i2c_board_info client_info;
+	struct si2168_config si2168_config;
+	struct si2157_config si2157_config;
+
+	/* select i2c bus */
+	i2c = (port->idx == 0) ? &dev->i2c_bus[0] : &dev->i2c_bus[1];
+
+	/* attach demod */
+	memset(&si2168_config, 0, sizeof(si2168_config));
+	si2168_config.i2c_adapter = &tuner_i2c_adapter;
+	si2168_config.fe = &port->fe;
+	si2168_config.ts_mode = SI2168_TS_PARALLEL;
+
+	memset(&client_info, 0, sizeof(struct i2c_board_info));
+	strlcpy(client_info.type, "si2168", I2C_NAME_SIZE);
+	client_info.addr = 0x64;
+	client_info.platform_data = &si2168_config;
+
+	client_demod = smi_add_i2c_client(i2c, &client_info);
+	if (!client_demod) {
+		ret = -ENODEV;
+		return ret;
+	}
+	port->i2c_client_demod = client_demod;
+
+	/* attach tuner */
+	memset(&si2157_config, 0, sizeof(si2157_config));
+	si2157_config.fe = port->fe;
+
+	memset(&client_info, 0, sizeof(struct i2c_board_info));
+	strlcpy(client_info.type, "si2157", I2C_NAME_SIZE);
+	client_info.addr = 0x60;
+	client_info.platform_data = &si2157_config;
+
+	client_tuner = smi_add_i2c_client(tuner_i2c_adapter, &client_info);
+	if (!client_tuner) {
+		smi_del_i2c_client(port->i2c_client_demod);
+		port->i2c_client_demod = NULL;
+		ret = -ENODEV;
+		return ret;
+	}
+	port->i2c_client_tuner = client_tuner;
+	return ret;
+}
+
 static int smi_fe_init(struct smi_port *port)
 {
 	int ret = 0;
@@ -634,6 +688,9 @@ static int smi_fe_init(struct smi_port *port)
 		break;
 	case DVBSKY_FE_M88RS6000:
 		ret = smi_dvbsky_m88rs6000_fe_attach(port);
+		break;
+	case DVBSKY_FE_SIT2:
+		ret = smi_dvbsky_sit2_fe_attach(port);
 		break;
 	}
 	if (ret < 0)
@@ -1005,6 +1062,15 @@ static struct smi_cfg_info dvbsky_s952_cfg = {
 	.fe_1 = DVBSKY_FE_M88RS6000,
 };
 
+static struct smi_cfg_info dvbsky_t9580_cfg = {
+	.type = SMI_DVBSKY_T9580,
+	.name = "DVBSky T9580 V3",
+	.ts_0 = SMI_TS_DMA_BOTH,
+	.ts_1 = SMI_TS_DMA_BOTH,
+	.fe_0 = DVBSKY_FE_SIT2,
+	.fe_1 = DVBSKY_FE_M88DS3103,
+};
+
 /* PCI IDs */
 #define SMI_ID(_subvend, _subdev, _driverdata) {	\
 	.vendor      = SMI_VID,    .device    = SMI_PID, \
@@ -1014,6 +1080,7 @@ static struct smi_cfg_info dvbsky_s952_cfg = {
 static const struct pci_device_id smi_id_table[] = {
 	SMI_ID(0x4254, 0x0550, dvbsky_s950_cfg),
 	SMI_ID(0x4254, 0x0552, dvbsky_s952_cfg),
+	SMI_ID(0x4254, 0x5580, dvbsky_t9580_cfg),
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, smi_id_table);
