@@ -31,47 +31,26 @@ struct mdp4_plane {
 };
 #define to_mdp4_plane(x) container_of(x, struct mdp4_plane, base)
 
+static void mdp4_plane_set_scanout(struct drm_plane *plane,
+		struct drm_framebuffer *fb);
+static int mdp4_plane_mode_set(struct drm_plane *plane,
+		struct drm_crtc *crtc, struct drm_framebuffer *fb,
+		int crtc_x, int crtc_y,
+		unsigned int crtc_w, unsigned int crtc_h,
+		uint32_t src_x, uint32_t src_y,
+		uint32_t src_w, uint32_t src_h);
+
 static struct mdp4_kms *get_kms(struct drm_plane *plane)
 {
 	struct msm_drm_private *priv = plane->dev->dev_private;
 	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
-static int mdp4_plane_update(struct drm_plane *plane,
-		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h)
-{
-	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
-
-	mdp4_plane->enabled = true;
-
-	if (plane->fb)
-		drm_framebuffer_unreference(plane->fb);
-
-	drm_framebuffer_reference(fb);
-
-	return mdp4_plane_mode_set(plane, crtc, fb,
-			crtc_x, crtc_y, crtc_w, crtc_h,
-			src_x, src_y, src_w, src_h);
-}
-
-static int mdp4_plane_disable(struct drm_plane *plane)
-{
-	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
-	DBG("%s: disable", mdp4_plane->name);
-	if (plane->crtc)
-		mdp4_crtc_detach(plane->crtc, plane);
-	return 0;
-}
-
 static void mdp4_plane_destroy(struct drm_plane *plane)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 
-	mdp4_plane_disable(plane);
+	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
 
 	kfree(mdp4_plane);
@@ -92,19 +71,74 @@ int mdp4_plane_set_property(struct drm_plane *plane,
 }
 
 static const struct drm_plane_funcs mdp4_plane_funcs = {
-		.update_plane = mdp4_plane_update,
-		.disable_plane = mdp4_plane_disable,
+		.update_plane = drm_atomic_helper_update_plane,
+		.disable_plane = drm_atomic_helper_disable_plane,
 		.destroy = mdp4_plane_destroy,
 		.set_property = mdp4_plane_set_property,
+		.reset = drm_atomic_helper_plane_reset,
+		.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+		.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
-void mdp4_plane_set_scanout(struct drm_plane *plane,
+static int mdp4_plane_prepare_fb(struct drm_plane *plane,
+		struct drm_framebuffer *fb)
+{
+	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
+	struct mdp4_kms *mdp4_kms = get_kms(plane);
+
+	DBG("%s: prepare: FB[%u]", mdp4_plane->name, fb->base.id);
+	return msm_framebuffer_prepare(fb, mdp4_kms->id);
+}
+
+static void mdp4_plane_cleanup_fb(struct drm_plane *plane,
+		struct drm_framebuffer *fb)
+{
+	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
+	struct mdp4_kms *mdp4_kms = get_kms(plane);
+
+	DBG("%s: cleanup: FB[%u]", mdp4_plane->name, fb->base.id);
+	msm_framebuffer_cleanup(fb, mdp4_kms->id);
+}
+
+
+static int mdp4_plane_atomic_check(struct drm_plane *plane,
+		struct drm_plane_state *state)
+{
+	return 0;
+}
+
+static void mdp4_plane_atomic_update(struct drm_plane *plane)
+{
+	struct drm_plane_state *state = plane->state;
+	int ret;
+
+	ret = mdp4_plane_mode_set(plane,
+			state->crtc, state->fb,
+			state->crtc_x, state->crtc_y,
+			state->crtc_w, state->crtc_h,
+			state->src_x,  state->src_y,
+			state->src_w, state->src_h);
+	/* atomic_check should have ensured that this doesn't fail */
+	WARN_ON(ret < 0);
+}
+
+static const struct drm_plane_helper_funcs mdp4_plane_helper_funcs = {
+		.prepare_fb = mdp4_plane_prepare_fb,
+		.cleanup_fb = mdp4_plane_cleanup_fb,
+		.atomic_check = mdp4_plane_atomic_check,
+		.atomic_update = mdp4_plane_atomic_update,
+};
+
+static void mdp4_plane_set_scanout(struct drm_plane *plane,
 		struct drm_framebuffer *fb)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 	struct mdp4_kms *mdp4_kms = get_kms(plane);
 	enum mdp4_pipe pipe = mdp4_plane->pipe;
-	uint32_t iova;
+	uint32_t iova = msm_framebuffer_iova(fb, mdp4_kms->id, 0);
+
+	DBG("%s: set_scanout: %08x (%u)", mdp4_plane->name,
+			iova, fb->pitches[0]);
 
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRC_STRIDE_A(pipe),
 			MDP4_PIPE_SRC_STRIDE_A_P0(fb->pitches[0]) |
@@ -114,7 +148,6 @@ void mdp4_plane_set_scanout(struct drm_plane *plane,
 			MDP4_PIPE_SRC_STRIDE_B_P2(fb->pitches[2]) |
 			MDP4_PIPE_SRC_STRIDE_B_P3(fb->pitches[3]));
 
-	msm_gem_get_iova(msm_framebuffer_bo(fb, 0), mdp4_kms->id, &iova);
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRCP0_BASE(pipe), iova);
 
 	plane->fb = fb;
@@ -122,7 +155,7 @@ void mdp4_plane_set_scanout(struct drm_plane *plane,
 
 #define MDP4_VG_PHASE_STEP_DEFAULT	0x20000000
 
-int mdp4_plane_mode_set(struct drm_plane *plane,
+static int mdp4_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		int crtc_x, int crtc_y,
 		unsigned int crtc_w, unsigned int crtc_h,
@@ -136,6 +169,11 @@ int mdp4_plane_mode_set(struct drm_plane *plane,
 	uint32_t op_mode = 0;
 	uint32_t phasex_step = MDP4_VG_PHASE_STEP_DEFAULT;
 	uint32_t phasey_step = MDP4_VG_PHASE_STEP_DEFAULT;
+
+	if (!(crtc && fb)) {
+		DBG("%s: disabled!", mdp4_plane->name);
+		return 0;
+	}
 
 	/* src values are in Q16 fixed point, convert to integer: */
 	src_x = src_x >> 16;
@@ -197,9 +235,6 @@ int mdp4_plane_mode_set(struct drm_plane *plane,
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_PHASEX_STEP(pipe), phasex_step);
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_PHASEY_STEP(pipe), phasey_step);
 
-	/* TODO detach from old crtc (if we had more than one) */
-	mdp4_crtc_attach(crtc, plane);
-
 	return 0;
 }
 
@@ -239,9 +274,12 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 			ARRAY_SIZE(mdp4_plane->formats));
 
 	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
-	drm_universal_plane_init(dev, plane, 0xff, &mdp4_plane_funcs,
-				 mdp4_plane->formats, mdp4_plane->nformats,
-				 type);
+	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp4_plane_funcs,
+				 mdp4_plane->formats, mdp4_plane->nformats, type);
+	if (ret)
+		goto fail;
+
+	drm_plane_helper_add(plane, &mdp4_plane_helper_funcs);
 
 	mdp4_plane_install_properties(plane, &plane->base);
 
