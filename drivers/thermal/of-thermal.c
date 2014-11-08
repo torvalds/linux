@@ -30,6 +30,7 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/string.h>
+#include <linux/thermal.h>
 
 #include "thermal_core.h"
 
@@ -77,8 +78,7 @@ struct __thermal_bind_params {
  * @num_tbps: number of thermal bind params
  * @tbps: an array of thermal bind params (0..num_tbps - 1)
  * @sensor_data: sensor private data used while reading temperature and trend
- * @get_temp: sensor callback to read temperature
- * @get_trend: sensor callback to read temperature trend
+ * @ops: set of callbacks to handle the thermal zone based on DT
  */
 
 struct __thermal_zone {
@@ -96,8 +96,7 @@ struct __thermal_zone {
 
 	/* sensor interface */
 	void *sensor_data;
-	int (*get_temp)(void *, long *);
-	int (*get_trend)(void *, long *);
+	const struct thermal_zone_of_device_ops *ops;
 };
 
 /***   DT thermal zone device callbacks   ***/
@@ -107,10 +106,10 @@ static int of_thermal_get_temp(struct thermal_zone_device *tz,
 {
 	struct __thermal_zone *data = tz->devdata;
 
-	if (!data->get_temp)
+	if (!data->ops->get_temp)
 		return -EINVAL;
 
-	return data->get_temp(data->sensor_data, temp);
+	return data->ops->get_temp(data->sensor_data, temp);
 }
 
 static int of_thermal_get_trend(struct thermal_zone_device *tz, int trip,
@@ -120,10 +119,10 @@ static int of_thermal_get_trend(struct thermal_zone_device *tz, int trip,
 	long dev_trend;
 	int r;
 
-	if (!data->get_trend)
+	if (!data->ops->get_trend)
 		return -EINVAL;
 
-	r = data->get_trend(data->sensor_data, &dev_trend);
+	r = data->ops->get_trend(data->sensor_data, &dev_trend);
 	if (r)
 		return r;
 
@@ -324,8 +323,7 @@ static struct thermal_zone_device_ops of_thermal_ops = {
 static struct thermal_zone_device *
 thermal_zone_of_add_sensor(struct device_node *zone,
 			   struct device_node *sensor, void *data,
-			   int (*get_temp)(void *, long *),
-			   int (*get_trend)(void *, long *))
+			   const struct thermal_zone_of_device_ops *ops)
 {
 	struct thermal_zone_device *tzd;
 	struct __thermal_zone *tz;
@@ -336,9 +334,11 @@ thermal_zone_of_add_sensor(struct device_node *zone,
 
 	tz = tzd->devdata;
 
+	if (!ops)
+		return ERR_PTR(-EINVAL);
+
 	mutex_lock(&tzd->lock);
-	tz->get_temp = get_temp;
-	tz->get_trend = get_trend;
+	tz->ops = ops;
 	tz->sensor_data = data;
 
 	tzd->ops->get_temp = of_thermal_get_temp;
@@ -356,8 +356,7 @@ thermal_zone_of_add_sensor(struct device_node *zone,
  *             than one sensors
  * @data: a private pointer (owned by the caller) that will be passed
  *        back, when a temperature reading is needed.
- * @get_temp: a pointer to a function that reads the sensor temperature.
- * @get_trend: a pointer to a function that reads the sensor temperature trend.
+ * @ops: struct thermal_zone_of_device_ops *. Must contain at least .get_temp.
  *
  * This function will search the list of thermal zones described in device
  * tree and look for the zone that refer to the sensor device pointed by
@@ -382,9 +381,8 @@ thermal_zone_of_add_sensor(struct device_node *zone,
  * check the return value with help of IS_ERR() helper.
  */
 struct thermal_zone_device *
-thermal_zone_of_sensor_register(struct device *dev, int sensor_id,
-				void *data, int (*get_temp)(void *, long *),
-				int (*get_trend)(void *, long *))
+thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
+				const struct thermal_zone_of_device_ops *ops)
 {
 	struct device_node *np, *child, *sensor_np;
 	struct thermal_zone_device *tzd = ERR_PTR(-ENODEV);
@@ -426,9 +424,7 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id,
 
 		if (sensor_specs.np == sensor_np && id == sensor_id) {
 			tzd = thermal_zone_of_add_sensor(child, sensor_np,
-							 data,
-							 get_temp,
-							 get_trend);
+							 data, ops);
 			of_node_put(sensor_specs.np);
 			of_node_put(child);
 			goto exit;
@@ -476,8 +472,7 @@ void thermal_zone_of_sensor_unregister(struct device *dev,
 	tzd->ops->get_temp = NULL;
 	tzd->ops->get_trend = NULL;
 
-	tz->get_temp = NULL;
-	tz->get_trend = NULL;
+	tz->ops = NULL;
 	tz->sensor_data = NULL;
 	mutex_unlock(&tzd->lock);
 }

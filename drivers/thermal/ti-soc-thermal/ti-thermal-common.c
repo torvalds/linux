@@ -286,6 +286,11 @@ static int ti_thermal_get_crit_temp(struct thermal_zone_device *thermal,
 	return ti_thermal_get_trip_temp(thermal, OMAP_TRIP_NUMBER - 1, temp);
 }
 
+static const struct thermal_zone_of_device_ops ti_of_thermal_ops = {
+	.get_temp = __ti_thermal_get_temp,
+	.get_trend = __ti_thermal_get_trend,
+};
+
 static struct thermal_zone_device_ops ti_thermal_ops = {
 	.get_temp = ti_thermal_get_temp,
 	.get_trend = ti_thermal_get_trend,
@@ -333,8 +338,7 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
 
 	/* in case this is specified by DT */
 	data->ti_thermal = thermal_zone_of_sensor_register(bgp->dev, id,
-					data, __ti_thermal_get_temp,
-					__ti_thermal_get_trend);
+					data, &ti_of_thermal_ops);
 	if (IS_ERR(data->ti_thermal)) {
 		/* Create thermal zone */
 		data->ti_thermal = thermal_zone_device_register(domain,
