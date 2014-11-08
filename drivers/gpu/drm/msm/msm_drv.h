@@ -160,6 +160,7 @@ uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj);
 int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 		uint32_t *iova);
 int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint32_t *iova);
+uint32_t msm_gem_iova(struct drm_gem_object *obj, int id);
 struct page **msm_gem_get_pages(struct drm_gem_object *obj);
 void msm_gem_put_pages(struct drm_gem_object *obj);
 void msm_gem_put_iova(struct drm_gem_object *obj, int id);
@@ -193,6 +194,9 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		uint32_t size, struct sg_table *sgt);
 
+int msm_framebuffer_prepare(struct drm_framebuffer *fb, int id);
+void msm_framebuffer_cleanup(struct drm_framebuffer *fb, int id);
+uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb, int id, int plane);
 struct drm_gem_object *msm_framebuffer_bo(struct drm_framebuffer *fb, int plane);
 const struct msm_format *msm_framebuffer_format(struct drm_framebuffer *fb);
 struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,

@@ -309,6 +309,7 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 	return ret;
 }
 
+/* get iova, taking a reference.  Should have a matching put */
 int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint32_t *iova)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
@@ -326,6 +327,16 @@ int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint32_t *iova)
 	ret = msm_gem_get_iova_locked(obj, id, iova);
 	mutex_unlock(&obj->dev->struct_mutex);
 	return ret;
+}
+
+/* get iova without taking a reference, used in places where you have
+ * already done a 'msm_gem_get_iova()'.
+ */
+uint32_t msm_gem_iova(struct drm_gem_object *obj, int id)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	WARN_ON(!msm_obj->domain[id].iova);
+	return msm_obj->domain[id].iova;
 }
 
 void msm_gem_put_iova(struct drm_gem_object *obj, int id)
