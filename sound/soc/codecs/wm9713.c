@@ -59,13 +59,12 @@ static const u16 wm9713_reg[] = {
 	0x0000, 0x0000, 0x0000, 0x0000,
 	0x0000, 0x0000, 0x0000, 0x0006,
 	0x0001, 0x0000, 0x574d, 0x4c13,
-	0x0000, 0x0000, 0x0000
+	0x0000, 0x0000
 };
 
 /* virtual HP mixers regs */
 #define HPL_MIXER	0x80
 #define HPR_MIXER	0x82
-#define MICB_MUX	0x82
 
 static const char *wm9713_mic_mixer[] = {"Stereo", "Mic 1", "Mic 2", "Mute"};
 static const char *wm9713_rec_mux[] = {"Stereo", "Left", "Right", "Mute"};
@@ -110,7 +109,7 @@ SOC_ENUM_SINGLE(AC97_REC_GAIN_MIC, 10, 8, wm9713_dac_inv), /* dac invert 2 15 */
 SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 15, 2, wm9713_bass), /* bass control 16 */
 SOC_ENUM_SINGLE(AC97_PCI_SVID, 5, 2, wm9713_ng_type), /* noise gate type 17 */
 SOC_ENUM_SINGLE(AC97_3D_CONTROL, 12, 3, wm9713_mic_select), /* mic selection 18 */
-SOC_ENUM_SINGLE(MICB_MUX, 0, 2, wm9713_micb_select), /* mic selection 19 */
+SOC_ENUM_SINGLE_VIRT(2, wm9713_micb_select), /* mic selection 19 */
 };
 
 static const DECLARE_TLV_DB_SCALE(out_tlv, -4650, 150, 0);
@@ -689,7 +688,8 @@ struct _pll_div {
  * to allow rounding later */
 #define FIXED_PLL_SIZE ((1 << 22) * 10)
 
-static void pll_factors(struct _pll_div *pll_div, unsigned int source)
+static void pll_factors(struct snd_soc_codec *codec,
+	struct _pll_div *pll_div, unsigned int source)
 {
 	u64 Kpart;
 	unsigned int K, Ndiv, Nmod, target;
@@ -724,7 +724,7 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int source)
 
 	Ndiv = target / source;
 	if ((Ndiv < 5) || (Ndiv > 12))
-		printk(KERN_WARNING
+		dev_warn(codec->dev,
 			"WM9713 PLL N value %u out of recommended range!\n",
 			Ndiv);
 
@@ -768,7 +768,7 @@ static int wm9713_set_pll(struct snd_soc_codec *codec,
 		return 0;
 	}
 
-	pll_factors(&pll_div, freq_in);
+	pll_factors(codec, &pll_div, freq_in);
 
 	if (pll_div.k == 0) {
 		reg = (pll_div.n << 12) | (pll_div.lf << 11) |
@@ -1104,8 +1104,11 @@ int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
 	soc_ac97_ops->reset(codec->ac97);
 	if (soc_ac97_ops->warm_reset)
 		soc_ac97_ops->warm_reset(codec->ac97);
-	if (ac97_read(codec, 0) != wm9713_reg[0])
+	if (ac97_read(codec, 0) != wm9713_reg[0]) {
+		dev_err(codec->dev, "Failed to reset: AC97 link error\n");
 		return -EIO;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm9713_reset);
@@ -1163,10 +1166,8 @@ static int wm9713_soc_resume(struct snd_soc_codec *codec)
 	u16 *cache = codec->reg_cache;
 
 	ret = wm9713_reset(codec, 1);
-	if (ret < 0) {
-		printk(KERN_ERR "could not reset AC97 codec\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1189,26 +1190,18 @@ static int wm9713_soc_resume(struct snd_soc_codec *codec)
 
 static int wm9713_soc_probe(struct snd_soc_codec *codec)
 {
-	struct wm9713_priv *wm9713;
 	int ret = 0, reg;
-
-	wm9713 = kzalloc(sizeof(struct wm9713_priv), GFP_KERNEL);
-	if (wm9713 == NULL)
-		return -ENOMEM;
-	snd_soc_codec_set_drvdata(codec, wm9713);
 
 	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0)
-		goto codec_err;
+		return ret;
 
 	/* do a cold reset for the controller and then try
 	 * a warm reset followed by an optional cold reset for codec */
 	wm9713_reset(codec, 0);
 	ret = wm9713_reset(codec, 1);
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to reset WM9713: AC97 link error\n");
+	if (ret < 0)
 		goto reset_err;
-	}
 
 	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1216,23 +1209,16 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 	reg = ac97_read(codec, AC97_CD) & 0x7fff;
 	ac97_write(codec, AC97_CD, reg);
 
-	snd_soc_add_codec_controls(codec, wm9713_snd_ac97_controls,
-				ARRAY_SIZE(wm9713_snd_ac97_controls));
-
 	return 0;
 
 reset_err:
 	snd_soc_free_ac97_codec(codec);
-codec_err:
-	kfree(wm9713);
 	return ret;
 }
 
 static int wm9713_soc_remove(struct snd_soc_codec *codec)
 {
-	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
 	snd_soc_free_ac97_codec(codec);
-	kfree(wm9713);
 	return 0;
 }
 
@@ -1248,6 +1234,9 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 	.reg_word_size = sizeof(u16),
 	.reg_cache_step = 2,
 	.reg_cache_default = wm9713_reg,
+
+	.controls = wm9713_snd_ac97_controls,
+	.num_controls = ARRAY_SIZE(wm9713_snd_ac97_controls),
 	.dapm_widgets = wm9713_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm9713_dapm_widgets),
 	.dapm_routes = wm9713_audio_map,
@@ -1256,6 +1245,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 
 static int wm9713_probe(struct platform_device *pdev)
 {
+	struct wm9713_priv *wm9713;
+
+	wm9713 = devm_kzalloc(&pdev->dev, sizeof(*wm9713), GFP_KERNEL);
+	if (wm9713 == NULL)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, wm9713);
+
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_wm9713, wm9713_dai, ARRAY_SIZE(wm9713_dai));
 }
