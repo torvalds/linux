@@ -139,7 +139,7 @@ silergy	Silergy Corp.
 sirf	SiRF Technology, Inc.
 sitronix	Sitronix Technology Corporation
 smsc	Standard Microsystems Corporation
-snps 	Synopsys, Inc.
+snps	Synopsys, Inc.
 solidrun	SolidRun
 sony	Sony Corporation
 spansion	Spansion Inc.
