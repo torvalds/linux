@@ -87,6 +87,7 @@ struct spidev_data {
 	unsigned		users;
 	u8			*tx_buffer;
 	u8			*rx_buffer;
+	u32			speed_hz;
 };
 
 static LIST_HEAD(device_list);
@@ -138,6 +139,7 @@ spidev_sync_write(struct spidev_data *spidev, size_t len)
 	struct spi_transfer	t = {
 			.tx_buf		= spidev->tx_buffer,
 			.len		= len,
+			.speed_hz	= spidev->speed_hz,
 		};
 	struct spi_message	m;
 
@@ -152,6 +154,7 @@ spidev_sync_read(struct spidev_data *spidev, size_t len)
 	struct spi_transfer	t = {
 			.rx_buf		= spidev->rx_buffer,
 			.len		= len,
+			.speed_hz	= spidev->speed_hz,
 		};
 	struct spi_message	m;
 
@@ -274,6 +277,8 @@ static int spidev_message(struct spidev_data *spidev,
 		k_tmp->bits_per_word = u_tmp->bits_per_word;
 		k_tmp->delay_usecs = u_tmp->delay_usecs;
 		k_tmp->speed_hz = u_tmp->speed_hz;
+		if (!k_tmp->speed_hz)
+			k_tmp->speed_hz = spidev->speed_hz;
 #ifdef VERBOSE
 		dev_dbg(&spidev->spi->dev,
 			"  xfer len %zd %s%s%s%dbits %u usec %uHz\n",
@@ -377,7 +382,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		retval = __put_user(spi->bits_per_word, (__u8 __user *)arg);
 		break;
 	case SPI_IOC_RD_MAX_SPEED_HZ:
-		retval = __put_user(spi->max_speed_hz, (__u32 __user *)arg);
+		retval = __put_user(spidev->speed_hz, (__u32 __user *)arg);
 		break;
 
 	/* write requests */
@@ -441,10 +446,11 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 			spi->max_speed_hz = tmp;
 			retval = spi_setup(spi);
-			if (retval < 0)
-				spi->max_speed_hz = save;
+			if (retval >= 0)
+				spidev->speed_hz = tmp;
 			else
 				dev_dbg(&spi->dev, "%d Hz (max)\n", tmp);
+			spi->max_speed_hz = save;
 		}
 		break;
 
@@ -570,6 +576,8 @@ static int spidev_release(struct inode *inode, struct file *filp)
 		kfree(spidev->rx_buffer);
 		spidev->rx_buffer = NULL;
 
+		spidev->speed_hz = spidev->spi->max_speed_hz;
+
 		/* ... after we unbound from the underlying device? */
 		spin_lock_irq(&spidev->spi_lock);
 		dofree = (spidev->spi == NULL);
@@ -649,6 +657,8 @@ static int spidev_probe(struct spi_device *spi)
 		list_add(&spidev->device_entry, &device_list);
 	}
 	mutex_unlock(&device_list_lock);
+
+	spidev->speed_hz = spi->max_speed_hz;
 
 	if (status == 0)
 		spi_set_drvdata(spi, spidev);
