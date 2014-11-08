@@ -346,8 +346,10 @@ static inline void ixgbevf_write_tail(struct ixgbevf_ring *ring, u32 value)
 
 /* board specific private data structure */
 struct ixgbevf_adapter {
-	struct timer_list watchdog_timer;
+	/* this field must be first, see ixgbevf_process_skb_fields */
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+
+	struct timer_list watchdog_timer;
 	struct work_struct reset_task;
 	struct ixgbevf_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 
