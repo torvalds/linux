@@ -8,8 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-#define OMAP_HSMMC_MAX_SLOTS	1
-
 /*
  * struct omap_hsmmc_dev_attr.flags possibilities
  *
@@ -57,62 +55,60 @@ struct omap_hsmmc_platform_data {
 	/* Register offset deviation */
 	u16 reg_offset;
 
-	struct omap_hsmmc_slot_data {
-		/*
-		 * 4/8 wires and any additional host capabilities
-		 * need to OR'd all capabilities (ref. linux/mmc/host.h)
-		 */
-		u32 caps;	/* Used for the MMC driver on 2430 and later */
-		u32 pm_caps;	/* PM capabilities of the mmc */
+	/*
+	 * 4/8 wires and any additional host capabilities
+	 * need to OR'd all capabilities (ref. linux/mmc/host.h)
+	 */
+	u32 caps;	/* Used for the MMC driver on 2430 and later */
+	u32 pm_caps;	/* PM capabilities of the mmc */
 
-		/* switch pin can be for card detect (default) or card cover */
-		unsigned cover:1;
+	/* switch pin can be for card detect (default) or card cover */
+	unsigned cover:1;
 
-		/* use the internal clock */
-		unsigned internal_clock:1;
+	/* use the internal clock */
+	unsigned internal_clock:1;
 
-		/* nonremovable e.g. eMMC */
-		unsigned nonremovable:1;
+	/* nonremovable e.g. eMMC */
+	unsigned nonremovable:1;
 
-		/* eMMC does not handle power off when not in sleep state */
-		unsigned no_regulator_off_init:1;
+	/* eMMC does not handle power off when not in sleep state */
+	unsigned no_regulator_off_init:1;
 
-		/* we can put the features above into this variable */
+	/* we can put the features above into this variable */
 #define HSMMC_HAS_PBIAS		(1 << 0)
 #define HSMMC_HAS_UPDATED_RESET	(1 << 1)
 #define HSMMC_HAS_HSPE_SUPPORT	(1 << 2)
-		unsigned features;
+	unsigned features;
 
-		int switch_pin;			/* gpio (card detect) */
-		int gpio_wp;			/* gpio (write protect) */
+	int switch_pin;			/* gpio (card detect) */
+	int gpio_wp;			/* gpio (write protect) */
 
-		int (*set_power)(struct device *dev, int slot,
-				 int power_on, int vdd);
-		int (*get_ro)(struct device *dev, int slot);
-		void (*remux)(struct device *dev, int slot, int power_on);
-		/* Call back before enabling / disabling regulators */
-		void (*before_set_reg)(struct device *dev, int slot,
-				       int power_on, int vdd);
-		/* Call back after enabling / disabling regulators */
-		void (*after_set_reg)(struct device *dev, int slot,
-				      int power_on, int vdd);
-		/* if we have special card, init it using this callback */
-		void (*init_card)(struct mmc_card *card);
+	int (*set_power)(struct device *dev, int slot,
+			 int power_on, int vdd);
+	int (*get_ro)(struct device *dev, int slot);
+	void (*remux)(struct device *dev, int slot, int power_on);
+	/* Call back before enabling / disabling regulators */
+	void (*before_set_reg)(struct device *dev, int slot,
+			       int power_on, int vdd);
+	/* Call back after enabling / disabling regulators */
+	void (*after_set_reg)(struct device *dev, int slot,
+			      int power_on, int vdd);
+	/* if we have special card, init it using this callback */
+	void (*init_card)(struct mmc_card *card);
 
-		/* return MMC cover switch state, can be NULL if not supported.
-		 *
-		 * possible return values:
-		 *   0 - closed
-		 *   1 - open
-		 */
-		int (*get_cover_state)(struct device *dev, int slot);
+	/* return MMC cover switch state, can be NULL if not supported.
+	 *
+	 * possible return values:
+	 *   0 - closed
+	 *   1 - open
+	 */
+	int (*get_cover_state)(struct device *dev, int slot);
 
-		const char *name;
-		u32 ocr_mask;
+	const char *name;
+	u32 ocr_mask;
 
-		/* Card detection IRQs */
-		int card_detect_irq;
+	/* Card detection IRQs */
+	int card_detect_irq;
 
-		int (*card_detect)(struct device *dev, int slot);
-	} slots[OMAP_HSMMC_MAX_SLOTS];
+	int (*card_detect)(struct device *dev, int slot);
 };
