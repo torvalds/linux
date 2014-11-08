@@ -925,7 +925,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 		__u32 index;
 
 		memcpy(&index, data->ioc_inlbuf2, sizeof(__u32));
-		if ((index >= count))
+		if (index >= count)
 			return -ENODEV;
 
 		if (lmv->tgts[index] == NULL ||
