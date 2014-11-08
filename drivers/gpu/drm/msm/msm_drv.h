@@ -39,7 +39,10 @@
 #endif
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/msm_drm.h>
 #include <drm/drm_gem.h>
@@ -140,6 +143,9 @@ void __msm_fence_worker(struct work_struct *work);
 		INIT_WORK(&(_cb)->work, __msm_fence_worker); \
 		(_cb)->func = _func;                         \
 	} while (0)
+
+int msm_atomic_commit(struct drm_device *dev,
+		struct drm_atomic_state *state, bool async);
 
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 

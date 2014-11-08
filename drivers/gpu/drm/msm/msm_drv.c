@@ -29,6 +29,8 @@ static void msm_fb_output_poll_changed(struct drm_device *dev)
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = msm_framebuffer_create,
 	.output_poll_changed = msm_fb_output_poll_changed,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = msm_atomic_commit,
 };
 
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu)
@@ -293,6 +295,8 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		dev_err(dev->dev, "failed to install IRQ handler\n");
 		goto fail;
 	}
+
+	drm_mode_config_reset(dev);
 
 #ifdef CONFIG_DRM_MSM_FBDEV
 	priv->fbdev = msm_fbdev_init(dev);
