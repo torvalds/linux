@@ -383,7 +383,7 @@ event_trigger_print(const char *name, struct seq_file *m,
 	if (filter_str)
 		seq_printf(m, " if %s\n", filter_str);
 	else
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 
 	return 0;
 }
@@ -1105,7 +1105,7 @@ event_enable_trigger_print(struct seq_file *m, struct event_trigger_ops *ops,
 	if (data->filter_str)
 		seq_printf(m, " if %s\n", data->filter_str);
 	else
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 
 	return 0;
 }

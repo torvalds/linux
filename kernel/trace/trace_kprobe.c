@@ -1030,7 +1030,7 @@ print_kprobe_event(struct trace_iterator *iter, int flags,
 	if (!seq_print_ip_sym(s, field->ip, flags | TRACE_ITER_SYM_OFFSET))
 		goto partial;
 
-	if (!trace_seq_puts(s, ")"))
+	if (!trace_seq_putc(s, ')'))
 		goto partial;
 
 	data = (u8 *)&field[1];
@@ -1039,7 +1039,7 @@ print_kprobe_event(struct trace_iterator *iter, int flags,
 					     data + tp->args[i].offset, field))
 			goto partial;
 
-	if (!trace_seq_puts(s, "\n"))
+	if (!trace_seq_putc(s, '\n'))
 		goto partial;
 
 	return TRACE_TYPE_HANDLED;
@@ -1072,7 +1072,7 @@ print_kretprobe_event(struct trace_iterator *iter, int flags,
 	if (!seq_print_ip_sym(s, field->func, flags & ~TRACE_ITER_SYM_OFFSET))
 		goto partial;
 
-	if (!trace_seq_puts(s, ")"))
+	if (!trace_seq_putc(s, ')'))
 		goto partial;
 
 	data = (u8 *)&field[1];
@@ -1081,7 +1081,7 @@ print_kretprobe_event(struct trace_iterator *iter, int flags,
 					     data + tp->args[i].offset, field))
 			goto partial;
 
-	if (!trace_seq_puts(s, "\n"))
+	if (!trace_seq_putc(s, '\n'))
 		goto partial;
 
 	return TRACE_TYPE_HANDLED;

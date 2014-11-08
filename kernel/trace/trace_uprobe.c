@@ -872,7 +872,7 @@ print_uprobe_event(struct trace_iterator *iter, int flags, struct trace_event *e
 			goto partial;
 	}
 
-	if (trace_seq_puts(s, "\n"))
+	if (trace_seq_putc(s, '\n'))
 		return TRACE_TYPE_HANDLED;
 
 partial:
