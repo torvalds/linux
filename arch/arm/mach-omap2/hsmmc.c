@@ -33,14 +33,14 @@ static u16 control_devconf1_offset;
 
 #define HSMMC_NAME_LEN	9
 
-static void omap_hsmmc1_before_set_reg(struct device *dev, int slot,
-				  int power_on, int vdd)
+static void omap_hsmmc1_before_set_reg(struct device *dev,
+				       int power_on, int vdd)
 {
 	u32 reg, prog_io;
 	struct omap_hsmmc_platform_data *mmc = dev->platform_data;
 
 	if (mmc->remux)
-		mmc->remux(dev, slot, power_on);
+		mmc->remux(dev, power_on);
 
 	/*
 	 * Assume we power both OMAP VMMC1 (for CMD, CLK, DAT0..3) and the
@@ -86,8 +86,7 @@ static void omap_hsmmc1_before_set_reg(struct device *dev, int slot,
 	}
 }
 
-static void omap_hsmmc1_after_set_reg(struct device *dev, int slot,
-				 int power_on, int vdd)
+static void omap_hsmmc1_after_set_reg(struct device *dev, int power_on, int vdd)
 {
 	u32 reg;
 
@@ -122,20 +121,18 @@ static void hsmmc2_select_input_clk_src(struct omap_hsmmc_platform_data *mmc)
 	omap_ctrl_writel(reg, control_devconf1_offset);
 }
 
-static void hsmmc2_before_set_reg(struct device *dev, int slot,
-				   int power_on, int vdd)
+static void hsmmc2_before_set_reg(struct device *dev, int power_on, int vdd)
 {
 	struct omap_hsmmc_platform_data *mmc = dev->platform_data;
 
 	if (mmc->remux)
-		mmc->remux(dev, slot, power_on);
+		mmc->remux(dev, power_on);
 
 	if (power_on)
 		hsmmc2_select_input_clk_src(mmc);
 }
 
-static int am35x_hsmmc2_set_power(struct device *dev, int slot,
-				  int power_on, int vdd)
+static int am35x_hsmmc2_set_power(struct device *dev, int power_on, int vdd)
 {
 	struct omap_hsmmc_platform_data *mmc = dev->platform_data;
 
@@ -145,8 +142,7 @@ static int am35x_hsmmc2_set_power(struct device *dev, int slot,
 	return 0;
 }
 
-static int nop_mmc_set_power(struct device *dev, int slot, int power_on,
-							int vdd)
+static int nop_mmc_set_power(struct device *dev, int power_on, int vdd)
 {
 	return 0;
 }
@@ -250,7 +246,6 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 		snprintf(hc_name, (HSMMC_NAME_LEN + 1), "mmc%islot%i",
 								c->mmc, 1);
 	mmc->name = hc_name;
-	mmc->nr_slots = 1;
 	mmc->caps = c->caps;
 	mmc->internal_clock = !c->ext_clock;
 	mmc->reg_offset = 0;

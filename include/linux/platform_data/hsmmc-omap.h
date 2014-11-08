@@ -38,9 +38,6 @@ struct omap_hsmmc_platform_data {
 	/* back-link to device */
 	struct device *dev;
 
-	/* number of slots per controller */
-	unsigned nr_slots:2;
-
 	/* set if your board has components or wiring that limits the
 	 * maximum frequency on the MMC bus */
 	unsigned int max_freq;
@@ -79,15 +76,12 @@ struct omap_hsmmc_platform_data {
 	int switch_pin;			/* gpio (card detect) */
 	int gpio_wp;			/* gpio (write protect) */
 
-	int (*set_power)(struct device *dev, int slot,
-			 int power_on, int vdd);
-	void (*remux)(struct device *dev, int slot, int power_on);
+	int (*set_power)(struct device *dev, int power_on, int vdd);
+	void (*remux)(struct device *dev, int power_on);
 	/* Call back before enabling / disabling regulators */
-	void (*before_set_reg)(struct device *dev, int slot,
-			       int power_on, int vdd);
+	void (*before_set_reg)(struct device *dev, int power_on, int vdd);
 	/* Call back after enabling / disabling regulators */
-	void (*after_set_reg)(struct device *dev, int slot,
-			      int power_on, int vdd);
+	void (*after_set_reg)(struct device *dev, int power_on, int vdd);
 	/* if we have special card, init it using this callback */
 	void (*init_card)(struct mmc_card *card);
 

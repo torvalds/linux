@@ -23,7 +23,7 @@ struct omap2_hsmmc_info {
 	struct platform_device *pdev;	/* mmc controller instance */
 	int	ocr_mask;	/* temporary HACK */
 	/* Remux (pad configuration) when powering on/off */
-	void (*remux)(struct device *dev, int slot, int power_on);
+	void (*remux)(struct device *dev, int power_on);
 	/* init some special card */
 	void (*init_card)(struct mmc_card *card);
 };

@@ -484,7 +484,7 @@ static struct omap_mux_partition *partition;
  * Current flows to eMMC when eMMC is off and the data lines are pulled up,
  * so pull them down. N.B. we pull 8 lines because we are using 8 lines.
  */
-static void rx51_mmc2_remux(struct device *dev, int slot, int power_on)
+static void rx51_mmc2_remux(struct device *dev, int power_on)
 {
 	if (power_on)
 		omap_mux_write_array(partition, rx51_mmc2_on_mux);
