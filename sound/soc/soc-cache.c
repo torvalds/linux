@@ -187,6 +187,9 @@ int snd_soc_cache_sync(struct snd_soc_codec *codec)
 	const char *name = "flat";
 	int ret;
 
+	if (codec->component.regmap)
+		return regcache_sync(codec->component.regmap);
+
 	if (!codec->cache_sync)
 		return 0;
 
