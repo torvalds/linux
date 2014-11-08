@@ -164,9 +164,9 @@ static enum print_line_t trace_branch_print(struct trace_iterator *iter,
 static void branch_print_header(struct seq_file *s)
 {
 	seq_puts(s, "#           TASK-PID    CPU#    TIMESTAMP  CORRECT"
-		"  FUNC:FILE:LINE\n");
-	seq_puts(s, "#              | |       |          |         |   "
-		"    |\n");
+		    "  FUNC:FILE:LINE\n"
+		    "#              | |       |          |         |   "
+		    "    |\n");
 }
 
 static struct trace_event_functions trace_branch_funcs = {
@@ -233,8 +233,8 @@ extern unsigned long __stop_annotated_branch_profile[];
 
 static int annotated_branch_stat_headers(struct seq_file *m)
 {
-	seq_puts(m, " correct incorrect  % ");
-	seq_puts(m, "       Function                "
+	seq_puts(m, " correct incorrect  % "
+		    "       Function                "
 		    "  File              Line\n"
 		    " ------- ---------  - "
 		    "       --------                "
@@ -362,8 +362,8 @@ extern unsigned long __stop_branch_profile[];
 
 static int all_branch_stat_headers(struct seq_file *m)
 {
-	seq_puts(m, "   miss      hit    % ");
-	seq_puts(m, "       Function                "
+	seq_puts(m, "   miss      hit    % "
+		    "       Function                "
 		    "  File              Line\n"
 		    " ------- ---------  - "
 		    "       --------                "
