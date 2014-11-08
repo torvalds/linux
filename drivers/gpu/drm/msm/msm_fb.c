@@ -24,7 +24,7 @@
 struct msm_framebuffer {
 	struct drm_framebuffer base;
 	const struct msm_format *format;
-	struct drm_gem_object *planes[2];
+	struct drm_gem_object *planes[3];
 };
 #define to_msm_framebuffer(x) container_of(x, struct msm_framebuffer, base)
 
@@ -201,6 +201,11 @@ struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 	fb = &msm_fb->base;
 
 	msm_fb->format = format;
+
+	if (n > ARRAY_SIZE(msm_fb->planes)) {
+		ret = -EINVAL;
+		goto fail;
+	}
 
 	for (i = 0; i < n; i++) {
 		unsigned int width = mode_cmd->width / (i ? hsub : 1);
