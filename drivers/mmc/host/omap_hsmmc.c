@@ -2204,18 +2204,10 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	if (pdata->init != NULL) {
-		if (pdata->init(&pdev->dev) != 0) {
-			dev_err(mmc_dev(host->mmc),
-				"Unable to configure MMC IRQs\n");
-			goto err_irq;
-		}
-	}
-
 	if (omap_hsmmc_have_reg() && !mmc_slot(host).set_power) {
 		ret = omap_hsmmc_reg_get(host);
 		if (ret)
-			goto err_reg;
+			goto err_irq;
 		host->use_reg = 1;
 	}
 
@@ -2278,9 +2270,6 @@ err_slot_name:
 err_irq_cd:
 	if (host->use_reg)
 		omap_hsmmc_reg_put(host);
-err_reg:
-	if (host->pdata->cleanup)
-		host->pdata->cleanup(&pdev->dev);
 err_irq:
 	if (host->tx_chan)
 		dma_release_channel(host->tx_chan);
@@ -2306,8 +2295,6 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 	mmc_remove_host(host->mmc);
 	if (host->use_reg)
 		omap_hsmmc_reg_put(host);
-	if (host->pdata->cleanup)
-		host->pdata->cleanup(&pdev->dev);
 
 	if (host->tx_chan)
 		dma_release_channel(host->tx_chan);
