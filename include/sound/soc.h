@@ -409,13 +409,9 @@ int devm_snd_soc_register_component(struct device *dev,
 			 const struct snd_soc_component_driver *cmpnt_drv,
 			 struct snd_soc_dai_driver *dai_drv, int num_dai);
 void snd_soc_unregister_component(struct device *dev);
-int snd_soc_cache_sync(struct snd_soc_codec *codec);
 int snd_soc_cache_init(struct snd_soc_codec *codec);
 int snd_soc_cache_exit(struct snd_soc_codec *codec);
-int snd_soc_cache_write(struct snd_soc_codec *codec,
-			unsigned int reg, unsigned int value);
-int snd_soc_cache_read(struct snd_soc_codec *codec,
-		       unsigned int reg, unsigned int *value);
+
 int snd_soc_platform_read(struct snd_soc_platform *platform,
 					unsigned int reg);
 int snd_soc_platform_write(struct snd_soc_platform *platform,
@@ -791,13 +787,11 @@ struct snd_soc_codec {
 	unsigned int ac97_registered:1; /* Codec has been AC97 registered */
 	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int cache_init:1; /* codec cache has been initialized */
-	u32 cache_sync; /* Cache needs to be synced to hardware */
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
 	hw_write_t hw_write;
 	void *reg_cache;
-	struct mutex cache_rw_mutex;
 
 	/* component */
 	struct snd_soc_component component;
@@ -1263,6 +1257,17 @@ static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
 unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
 int snd_soc_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int val);
+
+/**
+ * snd_soc_cache_sync() - Sync the register cache with the hardware
+ * @codec: CODEC to sync
+ *
+ * Note: This function will call regcache_sync()
+ */
+static inline int snd_soc_cache_sync(struct snd_soc_codec *codec)
+{
+	return regcache_sync(codec->component.regmap);
+}
 
 /* component IO */
 int snd_soc_component_read(struct snd_soc_component *component,
