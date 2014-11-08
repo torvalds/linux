@@ -15,10 +15,10 @@
  */
 
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/mmc-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include "omap_hwmod.h"
 #include "i2c.h"
-#include "mmc.h"
 #include "wd_timer.h"
 #include "cm33xx.h"
 #include "prm33xx.h"

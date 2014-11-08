@@ -36,7 +36,6 @@
 #include "soc.h"
 #include "iomap.h"
 #include "common.h"
-#include "mmc.h"
 #include "prminst44xx.h"
 #include "prcm_mpu44xx.h"
 #include "omap4-sar-layout.h"

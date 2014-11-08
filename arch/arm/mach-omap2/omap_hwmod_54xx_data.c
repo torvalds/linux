@@ -19,6 +19,7 @@
 
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/mmc-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/i2c-omap.h>
 
@@ -33,7 +34,6 @@
 #include "cm2_54xx.h"
 #include "prm54xx.h"
 #include "i2c.h"
-#include "mmc.h"
 #include "wd_timer.h"
 
 /* Base offset for all OMAP5 interrupts external to MPUSS */

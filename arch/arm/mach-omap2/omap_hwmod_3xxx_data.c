@@ -18,6 +18,7 @@
 #include <linux/i2c-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/mmc-omap.h>
 
 #include <linux/omap-dma.h>
 #include "l3_3xxx.h"
@@ -37,7 +38,6 @@
 #include "cm-regbits-34xx.h"
 
 #include "i2c.h"
-#include "mmc.h"
 #include "wd_timer.h"
 #include "serial.h"
 
