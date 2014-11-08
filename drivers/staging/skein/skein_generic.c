@@ -27,7 +27,7 @@ static int skein256_init(struct shash_desc *desc)
 			SKEIN256_DIGEST_BIT_SIZE);
 }
 
-int skein256_update(struct shash_desc *desc, const u8 *data,
+static int skein256_update(struct shash_desc *desc, const u8 *data,
 			unsigned int len)
 {
 	return skein_256_update((struct skein_256_ctx *)shash_desc_ctx(desc),
@@ -62,7 +62,7 @@ static int skein512_init(struct shash_desc *desc)
 				SKEIN512_DIGEST_BIT_SIZE);
 }
 
-int skein512_update(struct shash_desc *desc, const u8 *data,
+static int skein512_update(struct shash_desc *desc, const u8 *data,
 			unsigned int len)
 {
 	return skein_512_update((struct skein_512_ctx *)shash_desc_ctx(desc),
@@ -97,7 +97,7 @@ static int skein1024_init(struct shash_desc *desc)
 				SKEIN1024_DIGEST_BIT_SIZE);
 }
 
-int skein1024_update(struct shash_desc *desc, const u8 *data,
+static int skein1024_update(struct shash_desc *desc, const u8 *data,
 			unsigned int len)
 {
 	return skein_1024_update((struct skein_1024_ctx *)shash_desc_ctx(desc),
