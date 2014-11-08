@@ -79,7 +79,6 @@ struct ixgbevf_tx_queue_stats {
 };
 
 struct ixgbevf_rx_queue_stats {
-	u64 non_eop_descs;
 	u64 alloc_rx_page_failed;
 	u64 alloc_rx_buff_failed;
 	u64 csum_err;
@@ -372,7 +371,6 @@ struct ixgbevf_adapter {
 	struct ixgbevf_ring *rx_ring[MAX_TX_QUEUES]; /* One per active queue */
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
-	u64 non_eop_descs;
 	int num_msix_vectors;
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;

@@ -410,6 +410,35 @@ static void ixgbevf_process_skb_fields(struct ixgbevf_ring *rx_ring,
 	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 }
 
+/**
+ * ixgbevf_is_non_eop - process handling of non-EOP buffers
+ * @rx_ring: Rx ring being processed
+ * @rx_desc: Rx descriptor for current buffer
+ * @skb: current socket buffer containing buffer in progress
+ *
+ * This function updates next to clean.  If the buffer is an EOP buffer
+ * this function exits returning false, otherwise it will place the
+ * sk_buff in the next buffer to be chained and return true indicating
+ * that this is in fact a non-EOP buffer.
+ **/
+static bool ixgbevf_is_non_eop(struct ixgbevf_ring *rx_ring,
+			       union ixgbe_adv_rx_desc *rx_desc,
+			       struct sk_buff *skb)
+{
+	u32 ntc = rx_ring->next_to_clean + 1;
+
+	/* fetch, update, and store next to clean */
+	ntc = (ntc < rx_ring->count) ? ntc : 0;
+	rx_ring->next_to_clean = ntc;
+
+	prefetch(IXGBEVF_RX_DESC(rx_ring, ntc));
+
+	if (likely(ixgbevf_test_staterr(rx_desc, IXGBE_RXD_STAT_EOP)))
+		return false;
+
+	return true;
+}
+
 static bool ixgbevf_alloc_mapped_skb(struct ixgbevf_ring *rx_ring,
 				     struct ixgbevf_rx_buffer *bi)
 {
@@ -517,16 +546,14 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 				struct ixgbevf_ring *rx_ring,
 				int budget)
 {
-	unsigned int i;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 	u16 cleaned_count = ixgbevf_desc_unused(rx_ring);
 
-	i = rx_ring->next_to_clean;
-
 	do {
-		union ixgbe_adv_rx_desc *rx_desc, *next_rxd;
+		union ixgbe_adv_rx_desc *rx_desc;
 		struct ixgbevf_rx_buffer *rx_buffer;
 		struct sk_buff *skb;
+		u16 ntc;
 
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IXGBEVF_RX_BUFFER_WRITE) {
@@ -534,8 +561,9 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 			cleaned_count = 0;
 		}
 
-		rx_desc = IXGBEVF_RX_DESC(rx_ring, i);
-		rx_buffer = &rx_ring->rx_buffer_info[i];
+		ntc = rx_ring->next_to_clean;
+		rx_desc = IXGBEVF_RX_DESC(rx_ring, ntc);
+		rx_buffer = &rx_ring->rx_buffer_info[ntc];
 
 		if (!ixgbevf_test_staterr(rx_desc, IXGBE_RXD_STAT_DD))
 			break;
@@ -562,19 +590,9 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 
 		cleaned_count++;
 
-		i++;
-		if (i == rx_ring->count)
-			i = 0;
-
-		next_rxd = IXGBEVF_RX_DESC(rx_ring, i);
-		prefetch(next_rxd);
-
-		if (!(ixgbevf_test_staterr(rx_desc, IXGBE_RXD_STAT_EOP))) {
-			skb->next = rx_ring->rx_buffer_info[i].skb;
-			IXGBE_CB(skb->next)->prev = skb;
-			rx_ring->rx_stats.non_eop_descs++;
+		/* place incomplete frames back on ring for completion */
+		if (ixgbevf_is_non_eop(rx_ring, rx_desc, skb))
 			continue;
-		}
 
 		/* we should not be chaining buffers, if we did drop the skb */
 		if (IXGBE_CB(skb)->prev) {
@@ -617,7 +635,6 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		budget--;
 	} while (likely(budget));
 
-	rx_ring->next_to_clean = i;
 	u64_stats_update_begin(&rx_ring->syncp);
 	rx_ring->stats.packets += total_rx_packets;
 	rx_ring->stats.bytes += total_rx_bytes;
