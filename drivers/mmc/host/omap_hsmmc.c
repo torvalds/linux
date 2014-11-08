@@ -449,7 +449,8 @@ static inline int omap_hsmmc_have_reg(void)
 
 #endif
 
-static int omap_hsmmc_gpio_init(struct omap_hsmmc_platform_data *pdata)
+static int omap_hsmmc_gpio_init(struct omap_hsmmc_host *host,
+				struct omap_hsmmc_platform_data *pdata)
 {
 	int ret;
 
@@ -494,7 +495,8 @@ err_free_sp:
 	return ret;
 }
 
-static void omap_hsmmc_gpio_free(struct omap_hsmmc_platform_data *pdata)
+static void omap_hsmmc_gpio_free(struct omap_hsmmc_host *host,
+				 struct omap_hsmmc_platform_data *pdata)
 {
 	if (gpio_is_valid(pdata->gpio_wp))
 		gpio_free(pdata->gpio_wp);
@@ -2064,14 +2066,10 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	ret = omap_hsmmc_gpio_init(pdata);
-	if (ret)
-		goto err;
-
 	mmc = mmc_alloc_host(sizeof(struct omap_hsmmc_host), &pdev->dev);
 	if (!mmc) {
 		ret = -ENOMEM;
-		goto err_alloc;
+		goto err;
 	}
 
 	host		= mmc_priv(mmc);
@@ -2087,6 +2085,10 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	host->power_mode = MMC_POWER_OFF;
 	host->next_data.cookie = 1;
 	host->pbias_enabled = 0;
+
+	ret = omap_hsmmc_gpio_init(host, pdata);
+	if (ret)
+		goto err_gpio;
 
 	platform_set_drvdata(pdev, host);
 
@@ -2283,9 +2285,9 @@ err_irq:
 	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
 err1:
+	omap_hsmmc_gpio_free(host, pdata);
+err_gpio:
 	mmc_free_host(mmc);
-err_alloc:
-	omap_hsmmc_gpio_free(pdata);
 err:
 	return ret;
 }
@@ -2309,7 +2311,7 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 	if (host->dbclk)
 		clk_disable_unprepare(host->dbclk);
 
-	omap_hsmmc_gpio_free(host->pdata);
+	omap_hsmmc_gpio_free(host, host->pdata);
 	mmc_free_host(host->mmc);
 
 	return 0;
