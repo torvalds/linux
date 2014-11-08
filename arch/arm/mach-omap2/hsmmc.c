@@ -16,7 +16,7 @@
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_data/gpio-omap.h>
-#include <linux/platform_data/mmc-omap.h>
+#include <linux/platform_data/hsmmc-omap.h>
 
 #include "soc.h"
 #include "omap_device.h"
@@ -48,7 +48,7 @@ static void omap_hsmmc1_before_set_reg(struct device *dev, int slot,
 				  int power_on, int vdd)
 {
 	u32 reg, prog_io;
-	struct omap_mmc_platform_data *mmc = dev->platform_data;
+	struct omap_hsmmc_platform_data *mmc = dev->platform_data;
 
 	if (mmc->slots[0].remux)
 		mmc->slots[0].remux(dev, slot, power_on);
@@ -121,7 +121,7 @@ static void omap_hsmmc1_after_set_reg(struct device *dev, int slot,
 	}
 }
 
-static void hsmmc2_select_input_clk_src(struct omap_mmc_platform_data *mmc)
+static void hsmmc2_select_input_clk_src(struct omap_hsmmc_platform_data *mmc)
 {
 	u32 reg;
 
@@ -136,7 +136,7 @@ static void hsmmc2_select_input_clk_src(struct omap_mmc_platform_data *mmc)
 static void hsmmc2_before_set_reg(struct device *dev, int slot,
 				   int power_on, int vdd)
 {
-	struct omap_mmc_platform_data *mmc = dev->platform_data;
+	struct omap_hsmmc_platform_data *mmc = dev->platform_data;
 
 	if (mmc->slots[0].remux)
 		mmc->slots[0].remux(dev, slot, power_on);
@@ -148,7 +148,7 @@ static void hsmmc2_before_set_reg(struct device *dev, int slot,
 static int am35x_hsmmc2_set_power(struct device *dev, int slot,
 				  int power_on, int vdd)
 {
-	struct omap_mmc_platform_data *mmc = dev->platform_data;
+	struct omap_hsmmc_platform_data *mmc = dev->platform_data;
 
 	if (power_on)
 		hsmmc2_select_input_clk_src(mmc);
@@ -162,8 +162,8 @@ static int nop_mmc_set_power(struct device *dev, int slot, int power_on,
 	return 0;
 }
 
-static inline void omap_hsmmc_mux(struct omap_mmc_platform_data *mmc_controller,
-			int controller_nr)
+static inline void omap_hsmmc_mux(struct omap_hsmmc_platform_data
+				  *mmc_controller, int controller_nr)
 {
 	if (gpio_is_valid(mmc_controller->slots[0].switch_pin) &&
 		(mmc_controller->slots[0].switch_pin < OMAP_MAX_GPIO_LINES))
@@ -244,7 +244,7 @@ static inline void omap_hsmmc_mux(struct omap_mmc_platform_data *mmc_controller,
 }
 
 static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
-					struct omap_mmc_platform_data *mmc)
+					struct omap_hsmmc_platform_data *mmc)
 {
 	char *hc_name;
 
@@ -369,7 +369,7 @@ static int omap_hsmmc_done;
 void omap_hsmmc_late_init(struct omap2_hsmmc_info *c)
 {
 	struct platform_device *pdev;
-	struct omap_mmc_platform_data *mmc_pdata;
+	struct omap_hsmmc_platform_data *mmc_pdata;
 	int res;
 
 	if (omap_hsmmc_done != 1)
@@ -409,12 +409,12 @@ static void __init omap_hsmmc_init_one(struct omap2_hsmmc_info *hsmmcinfo,
 	struct omap_device *od;
 	struct platform_device *pdev;
 	char oh_name[MAX_OMAP_MMC_HWMOD_NAME_LEN];
-	struct omap_mmc_platform_data *mmc_data;
-	struct omap_mmc_dev_attr *mmc_dev_attr;
+	struct omap_hsmmc_platform_data *mmc_data;
+	struct omap_hsmmc_dev_attr *mmc_dev_attr;
 	char *name;
 	int res;
 
-	mmc_data = kzalloc(sizeof(struct omap_mmc_platform_data), GFP_KERNEL);
+	mmc_data = kzalloc(sizeof(*mmc_data), GFP_KERNEL);
 	if (!mmc_data) {
 		pr_err("Cannot allocate memory for mmc device!\n");
 		return;
@@ -464,7 +464,7 @@ static void __init omap_hsmmc_init_one(struct omap2_hsmmc_info *hsmmcinfo,
 	}
 
 	res = platform_device_add_data(pdev, mmc_data,
-			      sizeof(struct omap_mmc_platform_data));
+			      sizeof(struct omap_hsmmc_platform_data));
 	if (res) {
 		pr_err("Could not add pdata for %s\n", name);
 		goto put_pdev;

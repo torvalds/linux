@@ -8,11 +8,35 @@
  * published by the Free Software Foundation.
  */
 
-#define OMAP_MMC_MAX_SLOTS	2
+#define OMAP_HSMMC_MAX_SLOTS	1
+
+/*
+ * struct omap_hsmmc_dev_attr.flags possibilities
+ *
+ * OMAP_HSMMC_SUPPORTS_DUAL_VOLT: Some HSMMC controller instances can
+ *    operate with either 1.8Vdc or 3.0Vdc card voltages; this flag
+ *    should be set if this is the case.  See for example Section 22.5.3
+ *    "MMC/SD/SDIO1 Bus Voltage Selection" of the OMAP34xx Multimedia
+ *    Device Silicon Revision 3.1.x Revision ZR (July 2011) (SWPU223R).
+ *
+ * OMAP_HSMMC_BROKEN_MULTIBLOCK_READ: Multiple-block read transfers
+ *    don't work correctly on some MMC controller instances on some
+ *    OMAP3 SoCs; this flag should be set if this is the case.  See
+ *    for example Advisory 2.1.1.128 "MMC: Multiple Block Read
+ *    Operation Issue" in _OMAP3530/3525/3515/3503 Silicon Errata_
+ *    Revision F (October 2010) (SPRZ278F).
+ */
+#define OMAP_HSMMC_SUPPORTS_DUAL_VOLT		BIT(0)
+#define OMAP_HSMMC_BROKEN_MULTIBLOCK_READ	BIT(1)
+#define OMAP_HSMMC_SWAKEUP_MISSING		BIT(2)
+
+struct omap_hsmmc_dev_attr {
+	u8 flags;
+};
 
 struct mmc_card;
 
-struct omap_mmc_platform_data {
+struct omap_hsmmc_platform_data {
 	/* back-link to device */
 	struct device *dev;
 
@@ -44,8 +68,7 @@ struct omap_mmc_platform_data {
 	/* Register offset deviation */
 	u16 reg_offset;
 
-	struct omap_mmc_slot_data {
-
+	struct omap_hsmmc_slot_data {
 		/*
 		 * 4/8 wires and any additional host capabilities
 		 * need to OR'd all capabilities (ref. linux/mmc/host.h)
@@ -82,9 +105,9 @@ struct omap_mmc_platform_data {
 		unsigned vcc_aux_disable_is_sleep:1;
 
 		/* we can put the features above into this variable */
-#define MMC_OMAP7XX		(1 << 3)
-#define MMC_OMAP15XX		(1 << 4)
-#define MMC_OMAP16XX		(1 << 5)
+#define HSMMC_HAS_PBIAS		(1 << 0)
+#define HSMMC_HAS_UPDATED_RESET	(1 << 1)
+#define HSMMC_HAS_HSPE_SUPPORT	(1 << 2)
 		unsigned features;
 
 		int switch_pin;			/* gpio (card detect) */
@@ -117,9 +140,10 @@ struct omap_mmc_platform_data {
 
 		/* Card detection IRQs */
 		int card_detect_irq;
+
 		int (*card_detect)(struct device *dev, int slot);
 
 		unsigned int ban_openended:1;
 
-	} slots[OMAP_MMC_MAX_SLOTS];
+	} slots[OMAP_HSMMC_MAX_SLOTS];
 };

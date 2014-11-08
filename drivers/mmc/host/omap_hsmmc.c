@@ -42,7 +42,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
-#include <linux/platform_data/mmc-omap.h>
+#include <linux/platform_data/hsmmc-omap.h>
 
 /* OMAP HSMMC Host Controller Registers */
 #define OMAP_HSMMC_SYSSTATUS	0x0014
@@ -220,7 +220,7 @@ struct omap_hsmmc_host {
 #define HSMMC_SDIO_IRQ_ENABLED	(1 << 1)        /* SDIO irq enabled */
 #define HSMMC_WAKE_IRQ_ENABLED	(1 << 2)
 	struct omap_hsmmc_next	next_data;
-	struct	omap_mmc_platform_data	*pdata;
+	struct	omap_hsmmc_platform_data	*pdata;
 };
 
 struct omap_mmc_of_data {
@@ -233,7 +233,7 @@ static void omap_hsmmc_start_dma_transfer(struct omap_hsmmc_host *host);
 static int omap_hsmmc_card_detect(struct device *dev, int slot)
 {
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
-	struct omap_mmc_platform_data *mmc = host->pdata;
+	struct omap_hsmmc_platform_data *mmc = host->pdata;
 
 	/* NOTE: assumes card detect signal is active-low */
 	return !gpio_get_value_cansleep(mmc->slots[0].switch_pin);
@@ -242,7 +242,7 @@ static int omap_hsmmc_card_detect(struct device *dev, int slot)
 static int omap_hsmmc_get_wp(struct device *dev, int slot)
 {
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
-	struct omap_mmc_platform_data *mmc = host->pdata;
+	struct omap_hsmmc_platform_data *mmc = host->pdata;
 
 	/* NOTE: assumes write protect signal is active-high */
 	return gpio_get_value_cansleep(mmc->slots[0].gpio_wp);
@@ -251,7 +251,7 @@ static int omap_hsmmc_get_wp(struct device *dev, int slot)
 static int omap_hsmmc_get_cover_state(struct device *dev, int slot)
 {
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
-	struct omap_mmc_platform_data *mmc = host->pdata;
+	struct omap_hsmmc_platform_data *mmc = host->pdata;
 
 	/* NOTE: assumes card detect signal is active-low */
 	return !gpio_get_value_cansleep(mmc->slots[0].switch_pin);
@@ -262,7 +262,7 @@ static int omap_hsmmc_get_cover_state(struct device *dev, int slot)
 static int omap_hsmmc_suspend_cdirq(struct device *dev, int slot)
 {
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
-	struct omap_mmc_platform_data *mmc = host->pdata;
+	struct omap_hsmmc_platform_data *mmc = host->pdata;
 
 	disable_irq(mmc->slots[0].card_detect_irq);
 	return 0;
@@ -271,7 +271,7 @@ static int omap_hsmmc_suspend_cdirq(struct device *dev, int slot)
 static int omap_hsmmc_resume_cdirq(struct device *dev, int slot)
 {
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
-	struct omap_mmc_platform_data *mmc = host->pdata;
+	struct omap_hsmmc_platform_data *mmc = host->pdata;
 
 	enable_irq(mmc->slots[0].card_detect_irq);
 	return 0;
@@ -449,7 +449,7 @@ static inline int omap_hsmmc_have_reg(void)
 
 #endif
 
-static int omap_hsmmc_gpio_init(struct omap_mmc_platform_data *pdata)
+static int omap_hsmmc_gpio_init(struct omap_hsmmc_platform_data *pdata)
 {
 	int ret;
 
@@ -492,7 +492,7 @@ err_free_sp:
 	return ret;
 }
 
-static void omap_hsmmc_gpio_free(struct omap_mmc_platform_data *pdata)
+static void omap_hsmmc_gpio_free(struct omap_hsmmc_platform_data *pdata)
 {
 	if (gpio_is_valid(pdata->slots[0].gpio_wp))
 		gpio_free(pdata->slots[0].gpio_wp);
@@ -1286,7 +1286,7 @@ static void omap_hsmmc_protect_card(struct omap_hsmmc_host *host)
 static irqreturn_t omap_hsmmc_detect(int irq, void *dev_id)
 {
 	struct omap_hsmmc_host *host = dev_id;
-	struct omap_mmc_slot_data *slot = &mmc_slot(host);
+	struct omap_hsmmc_slot_data *slot = &mmc_slot(host);
 	int carddetect;
 
 	sysfs_notify(&host->mmc->class_dev.kobj, NULL, "cover_switch");
@@ -1957,9 +1957,9 @@ static const struct of_device_id omap_mmc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, omap_mmc_of_match);
 
-static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
+static struct omap_hsmmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 {
-	struct omap_mmc_platform_data *pdata;
+	struct omap_hsmmc_platform_data *pdata;
 	struct device_node *np = dev->of_node;
 	u32 bus_width, max_freq;
 	int cd_gpio, wp_gpio;
@@ -2009,7 +2009,7 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 	return pdata;
 }
 #else
-static inline struct omap_mmc_platform_data
+static inline struct omap_hsmmc_platform_data
 			*of_get_hsmmc_pdata(struct device *dev)
 {
 	return ERR_PTR(-EINVAL);
@@ -2018,7 +2018,7 @@ static inline struct omap_mmc_platform_data
 
 static int omap_hsmmc_probe(struct platform_device *pdev)
 {
-	struct omap_mmc_platform_data *pdata = pdev->dev.platform_data;
+	struct omap_hsmmc_platform_data *pdata = pdev->dev.platform_data;
 	struct mmc_host *mmc;
 	struct omap_hsmmc_host *host = NULL;
 	struct resource *res;
