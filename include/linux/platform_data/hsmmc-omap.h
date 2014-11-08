@@ -45,10 +45,6 @@ struct omap_hsmmc_platform_data {
 	 * maximum frequency on the MMC bus */
 	unsigned int max_freq;
 
-	/* To handle board related suspend/resume functionality for MMC */
-	int (*suspend)(struct device *dev, int slot);
-	int (*resume)(struct device *dev, int slot);
-
 	/* Integrating attributes from the omap_hwmod layer */
 	u8 controller_flags;
 
@@ -85,7 +81,6 @@ struct omap_hsmmc_platform_data {
 
 	int (*set_power)(struct device *dev, int slot,
 			 int power_on, int vdd);
-	int (*get_ro)(struct device *dev, int slot);
 	void (*remux)(struct device *dev, int slot, int power_on);
 	/* Call back before enabling / disabling regulators */
 	void (*before_set_reg)(struct device *dev, int slot,
@@ -96,19 +91,6 @@ struct omap_hsmmc_platform_data {
 	/* if we have special card, init it using this callback */
 	void (*init_card)(struct mmc_card *card);
 
-	/* return MMC cover switch state, can be NULL if not supported.
-	 *
-	 * possible return values:
-	 *   0 - closed
-	 *   1 - open
-	 */
-	int (*get_cover_state)(struct device *dev, int slot);
-
 	const char *name;
 	u32 ocr_mask;
-
-	/* Card detection IRQs */
-	int card_detect_irq;
-
-	int (*card_detect)(struct device *dev, int slot);
 };
