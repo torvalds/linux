@@ -479,7 +479,7 @@ static int dvbsky_s960c_attach(struct dvb_usb_adapter *adap)
 	info.addr = 0x40;
 	info.platform_data = &sp2_config;
 	request_module("sp2");
-	client_ci = i2c_new_device(i2c_adapter, &info);
+	client_ci = i2c_new_device(&d->i2c_adap, &info);
 	if (client_ci == NULL || client_ci->dev.driver == NULL) {
 		ret = -ENODEV;
 		goto fail_ci_device;
