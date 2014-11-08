@@ -263,9 +263,7 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 	mmc->slots[0].name = hc_name;
 	mmc->nr_slots = 1;
 	mmc->slots[0].caps = c->caps;
-	mmc->slots[0].pm_caps = c->pm_caps;
 	mmc->slots[0].internal_clock = !c->ext_clock;
-	mmc->max_freq = c->max_freq;
 	mmc->reg_offset = 0;
 	mmc->get_context_loss_count = hsmmc_get_context_loss;
 
@@ -280,18 +278,6 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 
 	if (c->nonremovable)
 		mmc->slots[0].nonremovable = 1;
-
-	if (c->power_saving)
-		mmc->slots[0].power_saving = 1;
-
-	if (c->no_off)
-		mmc->slots[0].no_off = 1;
-
-	if (c->no_off_init)
-		mmc->slots[0].no_regulator_off_init = c->no_off_init;
-
-	if (c->vcc_aux_disable_is_sleep)
-		mmc->slots[0].vcc_aux_disable_is_sleep = 1;
 
 	/*
 	 * NOTE:  MMC slots should have a Vcc regulator set up.
