@@ -517,26 +517,28 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 				struct ixgbevf_ring *rx_ring,
 				int budget)
 {
-	union ixgbe_adv_rx_desc *rx_desc, *next_rxd;
-	struct ixgbevf_rx_buffer *rx_buffer_info, *next_buffer;
-	struct sk_buff *skb;
+	union ixgbe_adv_rx_desc *rx_desc;
 	unsigned int i;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 	u16 cleaned_count = ixgbevf_desc_unused(rx_ring);
 
 	i = rx_ring->next_to_clean;
 	rx_desc = IXGBEVF_RX_DESC(rx_ring, i);
-	rx_buffer_info = &rx_ring->rx_buffer_info[i];
 
 	while (ixgbevf_test_staterr(rx_desc, IXGBE_RXD_STAT_DD)) {
+		union ixgbe_adv_rx_desc *next_rxd;
+		struct ixgbevf_rx_buffer *rx_buffer_info;
+		struct sk_buff *skb;
+
 		if (!budget)
 			break;
 		budget--;
 
 		rmb(); /* read descriptor and rx_buffer_info after status DD */
 
+		rx_buffer_info = &rx_ring->rx_buffer_info[i];
 		skb = rx_buffer_info->skb;
-		prefetch(skb->data - NET_IP_ALIGN);
+		prefetch(skb->data);
 		rx_buffer_info->skb = NULL;
 
 		dma_unmap_single(rx_ring->dev, rx_buffer_info->dma,
@@ -545,18 +547,17 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 		rx_buffer_info->dma = 0;
 		skb_put(skb, le16_to_cpu(rx_desc->wb.upper.length));
 
+		cleaned_count++;
+
 		i++;
 		if (i == rx_ring->count)
 			i = 0;
 
 		next_rxd = IXGBEVF_RX_DESC(rx_ring, i);
 		prefetch(next_rxd);
-		cleaned_count++;
-
-		next_buffer = &rx_ring->rx_buffer_info[i];
 
 		if (!(ixgbevf_test_staterr(rx_desc, IXGBE_RXD_STAT_EOP))) {
-			skb->next = next_buffer->skb;
+			skb->next = rx_ring->rx_buffer_info[i].skb;
 			IXGBE_CB(skb->next)->prev = skb;
 			rx_ring->rx_stats.non_eop_descs++;
 			goto next_desc;
@@ -609,6 +610,7 @@ next_desc:
 		/* use prefetched values */
 		rx_desc = next_rxd;
 		rx_buffer_info = &rx_ring->rx_buffer_info[i];
+		rx_desc = IXGBEVF_RX_DESC(rx_ring, i);
 	}
 
 	rx_ring->next_to_clean = i;
