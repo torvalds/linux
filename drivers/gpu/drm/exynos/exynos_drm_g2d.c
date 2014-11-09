@@ -1296,7 +1296,9 @@ int exynos_g2d_exec_ioctl(struct drm_device *drm_dev, void *data,
 		goto out;
 
 	wait_for_completion(&runqueue_node->complete);
+	mutex_lock(&g2d->runqueue_mutex);
 	g2d_free_runqueue_node(g2d, runqueue_node);
+	mutex_unlock(&g2d->runqueue_mutex);
 
 out:
 	return 0;
