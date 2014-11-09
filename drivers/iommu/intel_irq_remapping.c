@@ -1171,3 +1171,8 @@ struct irq_remap_ops intel_irq_remap_ops = {
 	.msi_setup_irq		= intel_msi_setup_irq,
 	.alloc_hpet_msi		= intel_alloc_hpet_msi,
 };
+
+int dmar_ir_hotplug(struct dmar_drhd_unit *dmaru, bool insert)
+{
+	return irq_remapping_enabled ? -ENOSYS : 0;
+}

@@ -3703,17 +3703,48 @@ int __init dmar_parse_one_rmrr(struct acpi_dmar_header *header, void *arg)
 	return 0;
 }
 
-int __init dmar_parse_one_atsr(struct acpi_dmar_header *hdr, void *arg)
+static struct dmar_atsr_unit *dmar_find_atsr(struct acpi_dmar_atsr *atsr)
+{
+	struct dmar_atsr_unit *atsru;
+	struct acpi_dmar_atsr *tmp;
+
+	list_for_each_entry_rcu(atsru, &dmar_atsr_units, list) {
+		tmp = (struct acpi_dmar_atsr *)atsru->hdr;
+		if (atsr->segment != tmp->segment)
+			continue;
+		if (atsr->header.length != tmp->header.length)
+			continue;
+		if (memcmp(atsr, tmp, atsr->header.length) == 0)
+			return atsru;
+	}
+
+	return NULL;
+}
+
+int dmar_parse_one_atsr(struct acpi_dmar_header *hdr, void *arg)
 {
 	struct acpi_dmar_atsr *atsr;
 	struct dmar_atsr_unit *atsru;
 
+	if (system_state != SYSTEM_BOOTING && !intel_iommu_enabled)
+		return 0;
+
 	atsr = container_of(hdr, struct acpi_dmar_atsr, header);
-	atsru = kzalloc(sizeof(*atsru), GFP_KERNEL);
+	atsru = dmar_find_atsr(atsr);
+	if (atsru)
+		return 0;
+
+	atsru = kzalloc(sizeof(*atsru) + hdr->length, GFP_KERNEL);
 	if (!atsru)
 		return -ENOMEM;
 
-	atsru->hdr = hdr;
+	/*
+	 * If memory is allocated from slab by ACPI _DSM method, we need to
+	 * copy the memory content because the memory buffer will be freed
+	 * on return.
+	 */
+	atsru->hdr = (void *)(atsru + 1);
+	memcpy(atsru->hdr, hdr, hdr->length);
 	atsru->include_all = atsr->flags & 0x1;
 	if (!atsru->include_all) {
 		atsru->devices = dmar_alloc_dev_scope((void *)(atsr + 1),
@@ -3734,6 +3765,47 @@ static void intel_iommu_free_atsr(struct dmar_atsr_unit *atsru)
 {
 	dmar_free_dev_scope(&atsru->devices, &atsru->devices_cnt);
 	kfree(atsru);
+}
+
+int dmar_release_one_atsr(struct acpi_dmar_header *hdr, void *arg)
+{
+	struct acpi_dmar_atsr *atsr;
+	struct dmar_atsr_unit *atsru;
+
+	atsr = container_of(hdr, struct acpi_dmar_atsr, header);
+	atsru = dmar_find_atsr(atsr);
+	if (atsru) {
+		list_del_rcu(&atsru->list);
+		synchronize_rcu();
+		intel_iommu_free_atsr(atsru);
+	}
+
+	return 0;
+}
+
+int dmar_check_one_atsr(struct acpi_dmar_header *hdr, void *arg)
+{
+	int i;
+	struct device *dev;
+	struct acpi_dmar_atsr *atsr;
+	struct dmar_atsr_unit *atsru;
+
+	atsr = container_of(hdr, struct acpi_dmar_atsr, header);
+	atsru = dmar_find_atsr(atsr);
+	if (!atsru)
+		return 0;
+
+	if (!atsru->include_all && atsru->devices && atsru->devices_cnt)
+		for_each_active_dev_scope(atsru->devices, atsru->devices_cnt,
+					  i, dev)
+			return -EBUSY;
+
+	return 0;
+}
+
+int dmar_iommu_hotplug(struct dmar_drhd_unit *dmaru, bool insert)
+{
+	return intel_iommu_enabled ? -ENOSYS : 0;
 }
 
 static void intel_iommu_free_dmars(void)
