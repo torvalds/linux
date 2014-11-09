@@ -27,7 +27,7 @@
 
 /* RCU-protected (and RTNL for writers) */
 LIST_HEAD(cfg802154_rdev_list);
-static int cfg802154_rdev_list_generation;
+int cfg802154_rdev_list_generation;
 
 static int wpan_phy_match(struct device *dev, const void *data)
 {

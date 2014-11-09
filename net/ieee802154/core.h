@@ -36,6 +36,7 @@ wpan_phy_to_rdev(struct wpan_phy *wpan_phy)
 }
 
 extern struct list_head cfg802154_rdev_list;
+extern int cfg802154_rdev_list_generation;
 
 /* free object */
 void cfg802154_dev_free(struct cfg802154_registered_device *rdev);
