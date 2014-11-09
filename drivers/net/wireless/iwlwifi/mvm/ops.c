@@ -1052,6 +1052,7 @@ static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	if (iwl_mvm_ref_taken(mvm)) {
 		IWL_DEBUG_RPM(mvm->trans, "abort d0i3 due to taken ref\n");
 		clear_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
+		wake_up(&mvm->d0i3_exit_waitq);
 		return 1;
 	}
 
