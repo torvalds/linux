@@ -35,7 +35,11 @@ wpan_phy_to_rdev(struct wpan_phy *wpan_phy)
 			    wpan_phy);
 }
 
+extern struct list_head cfg802154_rdev_list;
+
 /* free object */
 void cfg802154_dev_free(struct cfg802154_registered_device *rdev);
+struct cfg802154_registered_device *
+cfg802154_rdev_by_wpan_phy_idx(int wpan_phy_idx);
 
 #endif /* __IEEE802154_CORE_H */

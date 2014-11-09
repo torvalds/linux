@@ -21,11 +21,12 @@
 #include <net/rtnetlink.h>
 
 #include "ieee802154.h"
+#include "nl802154.h"
 #include "sysfs.h"
 #include "core.h"
 
 /* RCU-protected (and RTNL for writers) */
-static LIST_HEAD(cfg802154_rdev_list);
+LIST_HEAD(cfg802154_rdev_list);
 static int cfg802154_rdev_list_generation;
 
 static int wpan_phy_match(struct device *dev, const void *data)
@@ -73,6 +74,23 @@ int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data),
 			&wpid, wpan_phy_iter);
 }
 EXPORT_SYMBOL(wpan_phy_for_each);
+
+struct cfg802154_registered_device *
+cfg802154_rdev_by_wpan_phy_idx(int wpan_phy_idx)
+{
+	struct cfg802154_registered_device *result = NULL, *rdev;
+
+	ASSERT_RTNL();
+
+	list_for_each_entry(rdev, &cfg802154_rdev_list, list) {
+		if (rdev->wpan_phy_idx == wpan_phy_idx) {
+			result = rdev;
+			break;
+		}
+	}
+
+	return result;
+}
 
 struct wpan_phy *
 wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size)
@@ -270,7 +288,14 @@ static int __init wpan_phy_class_init(void)
 	if (rc)
 		goto err_notifier;
 
+	rc = nl802154_init();
+	if (rc)
+		goto err_ieee802154_nl;
+
 	return 0;
+
+err_ieee802154_nl:
+	ieee802154_nl_exit();
 
 err_notifier:
 	unregister_netdevice_notifier(&cfg802154_netdev_notifier);
@@ -283,6 +308,7 @@ subsys_initcall(wpan_phy_class_init);
 
 static void __exit wpan_phy_class_exit(void)
 {
+	nl802154_exit();
 	ieee802154_nl_exit();
 	unregister_netdevice_notifier(&cfg802154_netdev_notifier);
 	wpan_phy_sysfs_exit();

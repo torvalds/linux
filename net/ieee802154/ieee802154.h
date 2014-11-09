@@ -15,7 +15,7 @@
 #define IEEE_802154_LOCAL_H
 
 int __init ieee802154_nl_init(void);
-void __exit ieee802154_nl_exit(void);
+void ieee802154_nl_exit(void);
 
 #define IEEE802154_OP(_cmd, _func)			\
 	{						\
