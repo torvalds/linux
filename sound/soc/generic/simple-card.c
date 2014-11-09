@@ -457,16 +457,13 @@ static int asoc_simple_card_unref(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct snd_soc_dai_link *dai_link;
-	struct device_node *np;
 	int num_links;
 
 	for (num_links = 0, dai_link = card->dai_link;
 	     num_links < card->num_links;
 	     num_links++, dai_link++) {
-		np = (struct device_node *) dai_link->cpu_of_node;
-		of_node_put(np);
-		np = (struct device_node *) dai_link->codec_of_node;
-		of_node_put(np);
+		of_node_put(dai_link->cpu_of_node);
+		of_node_put(dai_link->codec_of_node);
 	}
 	return 0;
 }
