@@ -11,6 +11,7 @@
  */
 
 #include <asm/system_misc.h>
+#include <asm/irq.h>
 #include <mach/cpu.h>
 #include <mach/hardware.h>
 
