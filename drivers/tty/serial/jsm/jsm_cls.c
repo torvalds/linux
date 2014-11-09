@@ -311,7 +311,7 @@ static void cls_set_no_input_flow_control(struct jsm_channel *ch)
  * No locks are assumed to be held when calling this function.
  * channel lock is held and released in this function.
  */
-static void cls_clear_break(struct jsm_channel *ch, int force)
+static void cls_clear_break(struct jsm_channel *ch)
 {
 	unsigned long lock_flags;
 

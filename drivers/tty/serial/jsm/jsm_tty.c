@@ -188,7 +188,7 @@ static void jsm_tty_break(struct uart_port *port, int break_state)
 	if (break_state == -1)
 		channel->ch_bd->bd_ops->send_break(channel);
 	else
-		channel->ch_bd->bd_ops->clear_break(channel, 0);
+		channel->ch_bd->bd_ops->clear_break(channel);
 
 	spin_unlock_irqrestore(&port->lock, lock_flags);
 }

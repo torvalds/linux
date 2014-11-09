@@ -120,7 +120,7 @@ struct board_ops {
 	void (*disable_receiver) (struct jsm_channel *ch);
 	void (*enable_receiver) (struct jsm_channel *ch);
 	void (*send_break) (struct jsm_channel *ch);
-	void (*clear_break) (struct jsm_channel *ch, int);
+	void (*clear_break) (struct jsm_channel *ch);
 	void (*send_start_character) (struct jsm_channel *ch);
 	void (*send_stop_character) (struct jsm_channel *ch);
 	void (*copy_data_from_queue_to_uart) (struct jsm_channel *ch);
