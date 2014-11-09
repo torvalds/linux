@@ -891,6 +891,27 @@ int irq_domain_set_hwirq_and_chip(struct irq_domain *domain, unsigned int virq,
 }
 
 /**
+ * irq_domain_set_info - Set the complete data for a @virq in @domain
+ * @domain:		Interrupt domain to match
+ * @virq:		IRQ number
+ * @hwirq:		The hardware interrupt number
+ * @chip:		The associated interrupt chip
+ * @chip_data:		The associated interrupt chip data
+ * @handler:		The interrupt flow handler
+ * @handler_data:	The interrupt flow handler data
+ * @handler_name:	The interrupt handler name
+ */
+void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
+			 irq_hw_number_t hwirq, struct irq_chip *chip,
+			 void *chip_data, irq_flow_handler_t handler,
+			 void *handler_data, const char *handler_name)
+{
+	irq_domain_set_hwirq_and_chip(domain, virq, hwirq, chip, chip_data);
+	__irq_set_handler(virq, handler, 0, handler_name);
+	irq_set_handler_data(virq, handler_data);
+}
+
+/**
  * irq_domain_reset_irq_data - Clear hwirq, chip and chip_data in @irq_data
  * @irq_data:	The pointer to irq_data
  */
