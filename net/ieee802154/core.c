@@ -70,7 +70,7 @@ int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data),
 EXPORT_SYMBOL(wpan_phy_for_each);
 
 struct wpan_phy *
-wpan_phy_alloc(const struct cfg802154_ops *ops, size_t priv_size)
+wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size)
 {
 	static atomic_t wpan_phy_counter = ATOMIC_INIT(0);
 	struct cfg802154_registered_device *rdev;
@@ -105,7 +105,7 @@ wpan_phy_alloc(const struct cfg802154_ops *ops, size_t priv_size)
 
 	return &rdev->wpan_phy;
 }
-EXPORT_SYMBOL(wpan_phy_alloc);
+EXPORT_SYMBOL(wpan_phy_new);
 
 int wpan_phy_register(struct wpan_phy *phy)
 {

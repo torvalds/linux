@@ -88,7 +88,7 @@ struct wpan_dev {
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
 
 struct wpan_phy *
-wpan_phy_alloc(const struct cfg802154_ops *ops, size_t priv_size);
+wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size);
 static inline void wpan_phy_set_dev(struct wpan_phy *phy, struct device *dev)
 {
 	phy->dev.parent = dev;
