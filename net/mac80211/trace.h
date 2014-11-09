@@ -2196,6 +2196,63 @@ TRACE_EVENT(drv_get_txpower,
 	)
 );
 
+TRACE_EVENT(drv_tdls_channel_switch,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta, u8 oper_class,
+		 struct cfg80211_chan_def *chandef),
+
+	TP_ARGS(local, sdata, sta, oper_class, chandef),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__field(u8, oper_class)
+		CHANDEF_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_ASSIGN;
+		__entry->oper_class = oper_class;
+		CHANDEF_ASSIGN(chandef)
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT " tdls channel switch to"
+		CHANDEF_PR_FMT  " oper_class:%d " STA_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG, CHANDEF_PR_ARG, __entry->oper_class,
+		STA_PR_ARG
+	)
+);
+
+TRACE_EVENT(drv_tdls_cancel_channel_switch,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta),
+
+	TP_ARGS(local, sdata, sta),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT
+		" tdls cancel channel switch with " STA_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG
+	)
+);
 
 #ifdef CONFIG_MAC80211_MESSAGE_TRACING
 #undef TRACE_SYSTEM

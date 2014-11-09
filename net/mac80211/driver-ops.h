@@ -1296,4 +1296,45 @@ static inline int drv_get_txpower(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline int
+drv_tdls_channel_switch(struct ieee80211_local *local,
+			struct ieee80211_sub_if_data *sdata,
+			struct ieee80211_sta *sta, u8 oper_class,
+			struct cfg80211_chan_def *chandef,
+			struct sk_buff *tmpl_skb, u32 ch_sw_tm_ie)
+{
+	int ret;
+
+	might_sleep();
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	if (!local->ops->tdls_channel_switch)
+		return -EOPNOTSUPP;
+
+	trace_drv_tdls_channel_switch(local, sdata, sta, oper_class, chandef);
+	ret = local->ops->tdls_channel_switch(&local->hw, &sdata->vif, sta,
+					      oper_class, chandef, tmpl_skb,
+					      ch_sw_tm_ie);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
+static inline void
+drv_tdls_cancel_channel_switch(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata,
+			       struct ieee80211_sta *sta)
+{
+	might_sleep();
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	if (!local->ops->tdls_cancel_channel_switch)
+		return;
+
+	trace_drv_tdls_cancel_channel_switch(local, sdata, sta);
+	local->ops->tdls_cancel_channel_switch(&local->hw, &sdata->vif, sta);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

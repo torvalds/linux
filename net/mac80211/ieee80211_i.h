@@ -2007,6 +2007,12 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			const u8 *peer, enum nl80211_tdls_operation oper);
 void ieee80211_tdls_peer_del_work(struct work_struct *wk);
+int ieee80211_tdls_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+				  const u8 *addr, u8 oper_class,
+				  struct cfg80211_chan_def *chandef);
+void ieee80211_tdls_cancel_channel_switch(struct wiphy *wiphy,
+					  struct net_device *dev,
+					  const u8 *addr);
 
 extern const struct ethtool_ops ieee80211_ethtool_ops;
 

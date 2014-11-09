@@ -847,6 +847,15 @@ static int __must_check __sta_info_destroy_part1(struct sta_info *sta)
 	if (WARN_ON(ret))
 		return ret;
 
+	/*
+	 * for TDLS peers, make sure to return to the base channel before
+	 * removal.
+	 */
+	if (test_sta_flag(sta, WLAN_STA_TDLS_OFF_CHANNEL)) {
+		drv_tdls_cancel_channel_switch(local, sdata, &sta->sta);
+		clear_sta_flag(sta, WLAN_STA_TDLS_OFF_CHANNEL);
+	}
+
 	list_del_rcu(&sta->list);
 
 	drv_sta_pre_rcu_remove(local, sta->sdata, sta);
