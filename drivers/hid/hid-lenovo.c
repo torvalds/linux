@@ -62,7 +62,6 @@ static int lenovo_input_mapping_cptkbd(struct hid_device *hdev,
 	/* HID_UP_LNVENDOR = USB, HID_UP_MSVENDOR = BT */
 	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_MSVENDOR ||
 	    (usage->hid & HID_USAGE_PAGE) == HID_UP_LNVENDOR) {
-		set_bit(EV_REP, hi->input->evbit);
 		switch (usage->hid & HID_USAGE) {
 		case 0x00f1: /* Fn-F4: Mic mute */
 			map_key_clear(KEY_MICMUTE);
