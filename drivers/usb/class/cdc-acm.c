@@ -60,6 +60,9 @@ static struct acm *acm_table[ACM_TTY_MINORS];
 
 static DEFINE_MUTEX(acm_table_lock);
 
+static void acm_tty_set_termios(struct tty_struct *tty,
+				struct ktermios *termios_old);
+
 /*
  * acm_table accessors
  */
@@ -145,8 +148,15 @@ static int acm_ctrl_msg(struct acm *acm, int request, int value,
 /* devices aren't required to support these requests.
  * the cdc acm descriptor tells whether they do...
  */
-#define acm_set_control(acm, control) \
-	acm_ctrl_msg(acm, USB_CDC_REQ_SET_CONTROL_LINE_STATE, control, NULL, 0)
+static inline int acm_set_control(struct acm *acm, int control)
+{
+	if (acm->quirks & QUIRK_CONTROL_LINE_STATE)
+		return -EOPNOTSUPP;
+
+	return acm_ctrl_msg(acm, USB_CDC_REQ_SET_CONTROL_LINE_STATE,
+			control, NULL, 0);
+}
+
 #define acm_set_line(acm, line) \
 	acm_ctrl_msg(acm, USB_CDC_REQ_SET_LINE_CODING, 0, line, sizeof *(line))
 #define acm_send_break(acm, ms) \
@@ -553,6 +563,8 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 			"%s - usb_submit_urb(ctrl irq) failed\n", __func__);
 		goto error_submit_urb;
 	}
+
+	acm_tty_set_termios(tty, NULL);
 
 	/*
 	 * Unthrottle device in case the TTY was closed while throttled.
@@ -980,11 +992,12 @@ static void acm_tty_set_termios(struct tty_struct *tty,
 	/* FIXME: Needs to clear unsupported bits in the termios */
 	acm->clocal = ((termios->c_cflag & CLOCAL) != 0);
 
-	if (!newline.dwDTERate) {
+	if (C_BAUD(tty) == B0) {
 		newline.dwDTERate = acm->line.dwDTERate;
 		newctrl &= ~ACM_CTRL_DTR;
-	} else
+	} else if (termios_old && (termios_old->c_cflag & CBAUD) == B0) {
 		newctrl |=  ACM_CTRL_DTR;
+	}
 
 	if (newctrl != acm->ctrlout)
 		acm_set_control(acm, acm->ctrlout = newctrl);
@@ -1314,6 +1327,7 @@ made_compressed_probe:
 	tty_port_init(&acm->port);
 	acm->port.ops = &acm_port_ops;
 	init_usb_anchor(&acm->delayed);
+	acm->quirks = quirks;
 
 	buf = usb_alloc_coherent(usb_dev, ctrlsize, GFP_KERNEL, &acm->ctrl_dma);
 	if (!buf) {
@@ -1681,6 +1695,9 @@ static const struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x0572, 0x1328), /* Shiro / Aztech USB MODEM UM-3100 */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
+	{ USB_DEVICE(0x20df, 0x0001), /* Simtec Electronics Entropy Key */
+	.driver_info = QUIRK_CONTROL_LINE_STATE, },
+	{ USB_DEVICE(0x2184, 0x001c) },	/* GW Instek AFG-2225 */
 	{ USB_DEVICE(0x22b8, 0x6425), /* Motorola MOTOMAGX phones */
 	},
 	/* Motorola H24 HSPA module: */
