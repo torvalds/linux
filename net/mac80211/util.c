@@ -831,6 +831,7 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		case WLAN_EID_SECONDARY_CHANNEL_OFFSET:
 		case WLAN_EID_WIDE_BW_CHANNEL_SWITCH:
 		case WLAN_EID_CHAN_SWITCH_PARAM:
+		case WLAN_EID_EXT_CAPABILITY:
 		/*
 		 * not listing WLAN_EID_CHANNEL_SWITCH_WRAPPER -- it seems possible
 		 * that if the content gets bigger it might be needed more than once
@@ -850,6 +851,10 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		elem_parse_failed = false;
 
 		switch (id) {
+		case WLAN_EID_EXT_CAPABILITY:
+			elems->ext_capab = pos;
+			elems->ext_capab_len = elen;
+			break;
 		case WLAN_EID_SSID:
 			elems->ssid = pos;
 			elems->ssid_len = elen;

@@ -531,6 +531,7 @@ struct ieee80211_if_managed {
 	struct sk_buff *orig_teardown_skb; /* The original teardown skb */
 	struct sk_buff *teardown_skb; /* A copy to send through the AP */
 	spinlock_t teardown_lock; /* To lock changing teardown_skb */
+	bool tdls_chan_switch_prohibited;
 
 	/* WMM-AC TSPEC support */
 	struct ieee80211_sta_tx_tspec tx_tspec[IEEE80211_NUM_ACS];
@@ -1399,6 +1400,7 @@ struct ieee802_11_elems {
 	size_t total_len;
 
 	/* pointers to IEs */
+	const u8 *ext_capab;
 	const u8 *ssid;
 	const u8 *supp_rates;
 	const u8 *ds_params;
@@ -1433,6 +1435,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_mesh_chansw_params_ie *mesh_chansw_params_ie;
 
 	/* length of them, respectively */
+	u8 ext_capab_len;
 	u8 ssid_len;
 	u8 supp_rates_len;
 	u8 tim_len;

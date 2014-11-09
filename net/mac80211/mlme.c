@@ -2802,6 +2802,9 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ifmgd->aid = aid;
+	ifmgd->tdls_chan_switch_prohibited =
+		elems.ext_capab && elems.ext_capab_len >= 5 &&
+		(elems.ext_capab[4] & WLAN_EXT_CAPA5_TDLS_CH_SW_PROHIBITED);
 
 	/*
 	 * Some APs are erroneously not including some information in their
