@@ -981,8 +981,10 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	rcu_read_lock();
 	port = __tx_port_find(vp, skb);
-	if (unlikely(!port))
+	if (unlikely(!port)) {
+		rcu_read_unlock();
 		goto out_dropped;
+	}
 
 	if (skb->len > port->rmtu) {
 		unsigned long localmtu = port->rmtu - ETH_HLEN;
