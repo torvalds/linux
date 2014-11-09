@@ -267,6 +267,7 @@ void kgd2kfd_suspend(struct kfd_dev *kfd)
 
 	if (kfd->init_complete) {
 		kfd->dqm->stop(kfd->dqm);
+		amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
 		amd_iommu_free_device(kfd->pdev);
 	}
 }
