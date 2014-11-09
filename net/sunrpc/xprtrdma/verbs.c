@@ -317,8 +317,15 @@ rpcrdma_recvcq_upcall(struct ib_cq *cq, void *cq_context)
 static void
 rpcrdma_flush_cqs(struct rpcrdma_ep *ep)
 {
-	rpcrdma_recvcq_upcall(ep->rep_attr.recv_cq, ep);
-	rpcrdma_sendcq_upcall(ep->rep_attr.send_cq, ep);
+	struct ib_wc wc;
+	LIST_HEAD(sched_list);
+
+	while (ib_poll_cq(ep->rep_attr.recv_cq, 1, &wc) > 0)
+		rpcrdma_recvcq_process_wc(&wc, &sched_list);
+	if (!list_empty(&sched_list))
+		rpcrdma_schedule_tasklet(&sched_list);
+	while (ib_poll_cq(ep->rep_attr.send_cq, 1, &wc) > 0)
+		rpcrdma_sendcq_process_wc(&wc);
 }
 
 #ifdef RPC_DEBUG
