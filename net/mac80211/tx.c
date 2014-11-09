@@ -1787,21 +1787,22 @@ static void ieee80211_tx_latency_start_msrmnt(struct ieee80211_local *local,
 }
 
 /**
- * ieee80211_subif_start_xmit - netif start_xmit function for Ethernet-type
+ * __ieee80211_subif_start_xmit - netif start_xmit function for Ethernet-type
  * subinterfaces (wlan#, WDS, and VLAN interfaces)
  * @skb: packet to be sent
  * @dev: incoming interface
+ * @info_flags: skb flags to set
  *
- * Returns: NETDEV_TX_OK both on success and on failure. On failure skb will
- *	be freed.
+ * On failure skb will be freed.
  *
  * This function takes in an Ethernet header and encapsulates it with suitable
  * IEEE 802.11 header based on which interface the packet is coming in. The
  * encapsulated packet will then be passed to master interface, wlan#.11, for
  * transmission (through low-level driver).
  */
-netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
-				    struct net_device *dev)
+void __ieee80211_subif_start_xmit(struct sk_buff *skb,
+				  struct net_device *dev,
+				  u32 info_flags)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
@@ -1819,7 +1820,6 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	bool wme_sta = false, authorized = false, tdls_auth = false;
 	bool tdls_peer = false, tdls_setup_frame = false;
 	bool multicast;
-	u32 info_flags = 0;
 	u16 info_id = 0;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_sub_if_data *ap_sdata;
@@ -2224,15 +2224,20 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	ieee80211_xmit(sdata, skb, band);
 	rcu_read_unlock();
 
-	return NETDEV_TX_OK;
+	return;
 
  fail_rcu:
 	rcu_read_unlock();
  fail:
 	dev_kfree_skb(skb);
-	return NETDEV_TX_OK;
 }
 
+netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
+				       struct net_device *dev)
+{
+	__ieee80211_subif_start_xmit(skb, dev, 0);
+	return NETDEV_TX_OK;
+}
 
 /*
  * ieee80211_clear_tx_pending may not be called in a context where
