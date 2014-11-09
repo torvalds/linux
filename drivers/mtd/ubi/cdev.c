@@ -48,14 +48,13 @@
 
 /**
  * get_exclusive - get exclusive access to an UBI volume.
- * @ubi: UBI device description object
  * @desc: volume descriptor
  *
  * This function changes UBI volume open mode to "exclusive". Returns previous
  * mode value (positive integer) in case of success and a negative error code
  * in case of failure.
  */
-static int get_exclusive(struct ubi_device *ubi, struct ubi_volume_desc *desc)
+static int get_exclusive(struct ubi_volume_desc *desc)
 {
 	int users, err;
 	struct ubi_volume *vol = desc->vol;
@@ -64,7 +63,7 @@ static int get_exclusive(struct ubi_device *ubi, struct ubi_volume_desc *desc)
 	users = vol->readers + vol->writers + vol->exclusive + vol->metaonly;
 	ubi_assert(users > 0);
 	if (users > 1) {
-		ubi_err(ubi, "%d users for volume %d", users, vol->vol_id);
+		ubi_err(vol->ubi, "%d users for volume %d", users, vol->vol_id);
 		err = -EBUSY;
 	} else {
 		vol->readers = vol->writers = vol->metaonly = 0;
@@ -423,7 +422,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		err = get_exclusive(ubi, desc);
+		err = get_exclusive(desc);
 		if (err < 0)
 			break;
 
@@ -459,7 +458,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 		    req.bytes < 0 || req.lnum >= vol->usable_leb_size)
 			break;
 
-		err = get_exclusive(ubi, desc);
+		err = get_exclusive(desc);
 		if (err < 0)
 			break;
 
