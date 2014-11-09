@@ -572,7 +572,7 @@ static int vnet_ack(struct vnet_port *port, void *msgbuf)
 	 */
 	dr->cons = next_idx(end, dr);
 	desc = vio_dring_entry(dr, dr->cons);
-	if (desc->hdr.state == VIO_DESC_READY && port->start_cons) {
+	if (desc->hdr.state == VIO_DESC_READY && !port->start_cons) {
 		/* vnet_start_xmit() just populated this dring but missed
 		 * sending the "start" LDC message to the consumer.
 		 * Send a "start" trigger on its behalf.
