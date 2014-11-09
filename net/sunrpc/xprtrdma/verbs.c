@@ -1918,10 +1918,10 @@ rpcrdma_register_external(struct rpcrdma_mr_seg *seg,
 		break;
 
 	default:
-		return -1;
+		return -EIO;
 	}
 	if (rc)
-		return -1;
+		return rc;
 
 	return nsegs;
 }
