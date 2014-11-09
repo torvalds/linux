@@ -1225,6 +1225,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (IS_ERR_VALUE(ret)) {
 		dev_err(&pdev->dev, "pm_runtime_get_sync() failed\n");
+		pm_runtime_disable(&pdev->dev);
 		return ret;
 	}
 
