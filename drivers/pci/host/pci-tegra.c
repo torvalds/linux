@@ -1299,7 +1299,7 @@ static int tegra_msi_setup_irq(struct msi_controller *chip,
 	msg.address_hi = 0;
 	msg.data = hwirq;
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 
 	return 0;
 }

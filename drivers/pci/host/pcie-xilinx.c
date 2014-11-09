@@ -375,7 +375,7 @@ static int xilinx_pcie_msi_setup_irq(struct msi_controller *chip,
 	msg.address_lo = msg_addr;
 	msg.data = irq;
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 
 	return 0;
 }

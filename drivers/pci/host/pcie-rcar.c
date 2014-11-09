@@ -640,7 +640,7 @@ static int rcar_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 	msg.address_hi = rcar_pci_read_reg(pcie, PCIEMSIAUR);
 	msg.data = hwirq;
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 
 	return 0;
 }

@@ -136,7 +136,7 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		 * register to generate MSI [512...1023]
 		 */
 		msg.data = hwirq-0x200;
-		write_msi_msg(virq, &msg);
+		pci_write_msi_msg(virq, &msg);
 	}
 
 	return 0;

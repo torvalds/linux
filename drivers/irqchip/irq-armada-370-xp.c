@@ -156,7 +156,7 @@ static int armada_370_xp_setup_msi_irq(struct msi_controller *chip,
 	msg.address_hi = 0;
 	msg.data = 0xf00 | (hwirq + 16);
 
-	write_msi_msg(virq, &msg);
+	pci_write_msi_msg(virq, &msg);
 	return 0;
 }
 

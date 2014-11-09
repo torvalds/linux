@@ -345,7 +345,7 @@ static int xlp_setup_msi(uint64_t lnkbase, int node, int link,
 	if (ret < 0)
 		return ret;
 
-	write_msi_msg(xirq, &msg);
+	pci_write_msi_msg(xirq, &msg);
 	return 0;
 }
 
@@ -448,7 +448,7 @@ static int xlp_setup_msix(uint64_t lnkbase, int node, int link,
 		return ret;
 	}
 
-	write_msi_msg(xirq, &msg);
+	pci_write_msi_msg(xirq, &msg);
 	return 0;
 }
 

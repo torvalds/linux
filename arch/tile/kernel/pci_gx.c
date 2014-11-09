@@ -1590,7 +1590,7 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	msg.address_hi = msi_addr >> 32;
 	msg.address_lo = msi_addr & 0xffffffff;
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 	irq_set_chip_and_handler(irq, &tilegx_msi_chip, handle_level_irq);
 	irq_set_handler_data(irq, controller);
 

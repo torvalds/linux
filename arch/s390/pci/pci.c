@@ -403,7 +403,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		msg.data = hwirq;
 		msg.address_lo = zdev->msi_addr & 0xffffffff;
 		msg.address_hi = zdev->msi_addr >> 32;
-		write_msi_msg(irq, &msg);
+		pci_write_msi_msg(irq, &msg);
 		airq_iv_set_data(zdev->aibv, hwirq, irq);
 		hwirq++;
 	}

@@ -153,7 +153,7 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	id = iop13xx_cpu_id();
 	msg.data = (id << IOP13XX_MU_MIMR_CORE_SELECT) | (irq & 0x7f);
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 	irq_set_chip_and_handler(irq, &iop13xx_msi_chip, handle_simple_irq);
 
 	return 0;

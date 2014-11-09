@@ -130,7 +130,7 @@ static void default_restore_msi_irq(struct pci_dev *dev, int irq)
 	}
 
 	if (entry)
-		__write_msi_msg(entry, &entry->msg);
+		__pci_write_msi_msg(entry, &entry->msg);
 }
 
 void __weak arch_restore_msi_irqs(struct pci_dev *dev)
@@ -300,7 +300,7 @@ void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg)
 }
 EXPORT_SYMBOL_GPL(get_cached_msi_msg);
 
-void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
+void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
 	if (entry->dev->current_state != PCI_D0) {
 		/* Don't touch the hardware now */
@@ -337,13 +337,13 @@ void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 	entry->msg = *msg;
 }
 
-void write_msi_msg(unsigned int irq, struct msi_msg *msg)
+void pci_write_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
 	struct msi_desc *entry = irq_get_msi_desc(irq);
 
-	__write_msi_msg(entry, msg);
+	__pci_write_msi_msg(entry, msg);
 }
-EXPORT_SYMBOL_GPL(write_msi_msg);
+EXPORT_SYMBOL_GPL(pci_write_msi_msg);
 
 static void free_msi_irqs(struct pci_dev *dev)
 {

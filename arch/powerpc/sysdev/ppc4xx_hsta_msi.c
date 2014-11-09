@@ -85,7 +85,7 @@ static int hsta_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 			msi_bitmap_free_hwirqs(&ppc4xx_hsta_msi.bmp, irq, 1);
 			return -EINVAL;
 		}
-		write_msi_msg(hwirq, &msg);
+		pci_write_msi_msg(hwirq, &msg);
 	}
 
 	return 0;

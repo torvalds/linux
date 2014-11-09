@@ -560,7 +560,7 @@ static int vfio_msi_set_vector_signal(struct vfio_pci_device *vdev,
 		struct msi_msg msg;
 
 		get_cached_msi_msg(irq, &msg);
-		write_msi_msg(irq, &msg);
+		pci_write_msi_msg(irq, &msg);
 	}
 
 	ret = request_irq(irq, vfio_msihandler, 0,

@@ -161,7 +161,7 @@ static int sparc64_setup_msi_irq(unsigned int *irq_p,
 	msg.data = msi;
 
 	irq_set_msi_desc(*irq_p, entry);
-	write_msi_msg(*irq_p, &msg);
+	pci_write_msi_msg(*irq_p, &msg);
 
 	return 0;
 

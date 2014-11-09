@@ -240,7 +240,7 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 				goto error;
 			}
 			xen_msi_compose_msg(dev, pirq, &msg);
-			__write_msi_msg(msidesc, &msg);
+			__pci_write_msi_msg(msidesc, &msg);
 			dev_dbg(&dev->dev, "xen: msi bound to pirq=%d\n", pirq);
 		} else {
 			dev_dbg(&dev->dev,

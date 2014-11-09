@@ -171,7 +171,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		printk("u3msi: allocated virq 0x%x (hw 0x%x) addr 0x%lx\n",
 			  virq, hwirq, (unsigned long)addr);
 		msg.data = hwirq;
-		write_msi_msg(virq, &msg);
+		pci_write_msi_msg(virq, &msg);
 
 		hwirq++;
 	}
