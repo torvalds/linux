@@ -2037,6 +2037,9 @@ enum ieee80211_tdls_actioncode {
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
 
+/* BSS Coex IE information field bits */
+#define WLAN_BSS_COEX_INFORMATION_REQUEST	BIT(0)
+
 /**
  * enum - mesh synchronization method identifier
  *

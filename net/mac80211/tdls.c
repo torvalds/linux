@@ -117,6 +117,16 @@ ieee80211_tdls_add_supp_channels(struct ieee80211_sub_if_data *sdata,
 	*pos = 2 * subband_cnt;
 }
 
+static void ieee80211_tdls_add_bss_coex_ie(struct sk_buff *skb)
+{
+	u8 *pos = (void *)skb_put(skb, 3);
+
+	*pos++ = WLAN_EID_BSS_COEX_2040;
+	*pos++ = 1; /* len */
+
+	*pos++ = WLAN_BSS_COEX_INFORMATION_REQUEST;
+}
+
 static u16 ieee80211_get_tdls_sta_capab(struct ieee80211_sub_if_data *sdata,
 					u16 status_code)
 {
@@ -340,6 +350,10 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 	}
 
 	rcu_read_unlock();
+
+	if (ht_cap.ht_supported &&
+	    (ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+		ieee80211_tdls_add_bss_coex_ie(skb);
 
 	/* add any remaining IEs */
 	if (extra_ies_len) {
@@ -597,6 +611,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 			       2 + max(sizeof(struct ieee80211_ht_cap),
 				       sizeof(struct ieee80211_ht_operation)) +
 			       50 + /* supported channels */
+			       3 + /* 40/20 BSS coex */
 			       extra_ies_len +
 			       sizeof(struct ieee80211_tdls_lnkie));
 	if (!skb)
