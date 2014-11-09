@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 /*
  * DS bit usage
@@ -2416,6 +2417,30 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 	index -= indexn1;
 
 	return !!(tim->virtual_map[index] & mask);
+}
+
+/**
+ * ieee80211_get_tdls_action - get tdls packet action (or -1, if not tdls packet)
+ * @skb: the skb containing the frame, length will not be checked
+ * @hdr_size: the size of the ieee80211_hdr that starts at skb->data
+ *
+ * This function assumes the frame is a data frame, and that the network header
+ * is in the correct place.
+ */
+static inline int ieee80211_get_tdls_action(struct sk_buff *skb, u32 hdr_size)
+{
+	if (!skb_is_nonlinear(skb) &&
+	    skb->len > (skb_network_offset(skb) + 2)) {
+		/* Point to where the indication of TDLS should start */
+		const u8 *tdls_data = skb_network_header(skb) - 2;
+
+		if (get_unaligned_be16(tdls_data) == ETH_P_TDLS &&
+		    tdls_data[2] == WLAN_TDLS_SNAP_RFTYPE &&
+		    tdls_data[3] == WLAN_CATEGORY_TDLS)
+			return tdls_data[4];
+	}
+
+	return -1;
 }
 
 /* convert time units */

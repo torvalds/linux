@@ -4003,6 +4003,11 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 		ifmgd->req_smps = IEEE80211_SMPS_AUTOMATIC;
 	else
 		ifmgd->req_smps = IEEE80211_SMPS_OFF;
+
+	/* Setup TDLS data */
+	spin_lock_init(&ifmgd->teardown_lock);
+	ifmgd->teardown_skb = NULL;
+	ifmgd->orig_teardown_skb = NULL;
 }
 
 /* scan finished notification */
@@ -4865,6 +4870,13 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 	}
 	if (ifmgd->auth_data)
 		ieee80211_destroy_auth_data(sdata, false);
+	spin_lock_bh(&ifmgd->teardown_lock);
+	if (ifmgd->teardown_skb) {
+		kfree_skb(ifmgd->teardown_skb);
+		ifmgd->teardown_skb = NULL;
+		ifmgd->orig_teardown_skb = NULL;
+	}
+	spin_unlock_bh(&ifmgd->teardown_lock);
 	del_timer_sync(&ifmgd->timer);
 	sdata_unlock(sdata);
 }

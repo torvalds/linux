@@ -512,20 +512,22 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb = NULL;
+	u32 flags = 0;
 	bool send_direct;
 	struct sta_info *sta;
 	int ret;
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
-			    max(sizeof(struct ieee80211_mgmt),
-				sizeof(struct ieee80211_tdls_data)) +
-			    50 + /* supported rates */
-			    7 + /* ext capab */
-			    26 + /* max(WMM-info, WMM-param) */
-			    2 + max(sizeof(struct ieee80211_ht_cap),
-				    sizeof(struct ieee80211_ht_operation)) +
-			    extra_ies_len +
-			    sizeof(struct ieee80211_tdls_lnkie));
+	skb = netdev_alloc_skb(dev,
+			       local->hw.extra_tx_headroom +
+			       max(sizeof(struct ieee80211_mgmt),
+				   sizeof(struct ieee80211_tdls_data)) +
+			       50 + /* supported rates */
+			       7 + /* ext capab */
+			       26 + /* max(WMM-info, WMM-param) */
+			       2 + max(sizeof(struct ieee80211_ht_cap),
+				       sizeof(struct ieee80211_ht_operation)) +
+			       extra_ies_len +
+			       sizeof(struct ieee80211_tdls_lnkie));
 	if (!skb)
 		return -ENOMEM;
 
@@ -623,9 +625,44 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 		break;
 	}
 
+	/*
+	 * Set the WLAN_TDLS_TEARDOWN flag to indicate a teardown in progress.
+	 * Later, if no ACK is returned from peer, we will re-send the teardown
+	 * packet through the AP.
+	 */
+	if ((action_code == WLAN_TDLS_TEARDOWN) &&
+	    (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
+		struct sta_info *sta = NULL;
+		bool try_resend; /* Should we keep skb for possible resend */
+
+		/* If not sending directly to peer - no point in keeping skb */
+		rcu_read_lock();
+		sta = sta_info_get(sdata, peer);
+		try_resend = sta && test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH);
+		rcu_read_unlock();
+
+		spin_lock_bh(&sdata->u.mgd.teardown_lock);
+		if (try_resend && !sdata->u.mgd.teardown_skb) {
+			/* Mark it as requiring TX status callback  */
+			flags |= IEEE80211_TX_CTL_REQ_TX_STATUS |
+				 IEEE80211_TX_INTFL_MLME_CONN_TX;
+
+			/*
+			 * skb is copied since mac80211 will later set
+			 * properties that might not be the same as the AP,
+			 * such as encryption, QoS, addresses, etc.
+			 *
+			 * No problem if skb_copy() fails, so no need to check.
+			 */
+			sdata->u.mgd.teardown_skb = skb_copy(skb, GFP_ATOMIC);
+			sdata->u.mgd.orig_teardown_skb = skb;
+		}
+		spin_unlock_bh(&sdata->u.mgd.teardown_lock);
+	}
+
 	/* disable bottom halves when entering the Tx path */
 	local_bh_disable();
-	ret = ieee80211_subif_start_xmit(skb, dev);
+	__ieee80211_subif_start_xmit(skb, dev, flags);
 	local_bh_enable();
 
 	return ret;

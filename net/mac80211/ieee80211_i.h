@@ -525,8 +525,12 @@ struct ieee80211_if_managed {
 	struct ieee80211_vht_cap vht_capa; /* configured VHT overrides */
 	struct ieee80211_vht_cap vht_capa_mask; /* Valid parts of vht_capa */
 
+	/* TDLS support */
 	u8 tdls_peer[ETH_ALEN] __aligned(2);
 	struct delayed_work tdls_peer_del_work;
+	struct sk_buff *orig_teardown_skb; /* The original teardown skb */
+	struct sk_buff *teardown_skb; /* A copy to send through the AP */
+	spinlock_t teardown_lock; /* To lock changing teardown_skb */
 
 	/* WMM-AC TSPEC support */
 	struct ieee80211_sta_tx_tspec tx_tspec[IEEE80211_NUM_ACS];
