@@ -84,8 +84,6 @@ struct ieee802154_sub_if_data {
 
 	spinlock_t mib_lock;
 
-	struct ieee802154_mac_params mac_params;
-
 	/* protects sec from concurrent access by netlink. access by
 	 * encrypt/decrypt/header_create safe without additional protection.
 	 */

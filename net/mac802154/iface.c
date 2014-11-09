@@ -205,22 +205,21 @@ static int mac802154_wpan_open(struct net_device *dev)
 	}
 
 	if (local->hw.flags & IEEE802154_HW_LBT) {
-		rc = drv_set_lbt_mode(local, sdata->mac_params.lbt);
+		rc = drv_set_lbt_mode(local, wpan_dev->lbt);
 		if (rc < 0)
 			goto out;
 	}
 
 	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
-		rc = drv_set_csma_params(local, sdata->mac_params.min_be,
-					 sdata->mac_params.max_be,
-					 sdata->mac_params.csma_retries);
+		rc = drv_set_csma_params(local, wpan_dev->min_be,
+					 wpan_dev->max_be,
+					 wpan_dev->csma_retries);
 		if (rc < 0)
 			goto out;
 	}
 
 	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
-		rc = drv_set_max_frame_retries(local,
-					       sdata->mac_params.frame_retries);
+		rc = drv_set_max_frame_retries(local, wpan_dev->frame_retries);
 		if (rc < 0)
 			goto out;
 	}
@@ -410,11 +409,11 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 	get_random_bytes(&wpan_dev->dsn, 1);
 
 	/* defaults per 802.15.4-2011 */
-	sdata->mac_params.min_be = 3;
-	sdata->mac_params.max_be = 5;
-	sdata->mac_params.csma_retries = 4;
+	wpan_dev->min_be = 3;
+	wpan_dev->max_be = 5;
+	wpan_dev->csma_retries = 4;
 	/* for compatibility, actual default is 3 */
-	sdata->mac_params.frame_retries = -1;
+	wpan_dev->frame_retries = -1;
 
 	ieee802154_be64_to_le64(&wpan_dev->extended_addr, sdata->dev->dev_addr);
 	wpan_dev->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
