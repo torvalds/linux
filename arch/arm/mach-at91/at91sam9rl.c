@@ -10,6 +10,7 @@
  */
 
 #include <asm/system_misc.h>
+#include <asm/irq.h>
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
 #include <mach/hardware.h>
