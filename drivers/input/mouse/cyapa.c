@@ -577,10 +577,13 @@ static int cyapa_set_power_mode(struct cyapa *cyapa, u8 power_mode)
 	power = ret & ~PWR_MODE_MASK;
 	power |= power_mode & PWR_MODE_MASK;
 	ret = cyapa_write_byte(cyapa, CYAPA_CMD_POWER_MODE, power);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(dev, "failed to set power_mode 0x%02x err = %d\n",
 			power_mode, ret);
-	return ret;
+		return ret;
+	}
+
+	return 0;
 }
 
 static int cyapa_get_query_data(struct cyapa *cyapa)
@@ -753,16 +756,40 @@ static u8 cyapa_check_adapter_functionality(struct i2c_client *client)
 	return ret;
 }
 
+static int cyapa_open(struct input_dev *input)
+{
+	struct cyapa *cyapa = input_get_drvdata(input);
+	struct i2c_client *client = cyapa->client;
+	int error;
+
+	error = cyapa_set_power_mode(cyapa, PWR_MODE_FULL_ACTIVE);
+	if (error) {
+		dev_err(&client->dev, "set active power failed: %d\n", error);
+		return error;
+	}
+
+	enable_irq(client->irq);
+	return 0;
+}
+
+static void cyapa_close(struct input_dev *input)
+{
+	struct cyapa *cyapa = input_get_drvdata(input);
+
+	disable_irq(cyapa->client->irq);
+	cyapa_set_power_mode(cyapa, PWR_MODE_OFF);
+}
+
 static int cyapa_create_input_dev(struct cyapa *cyapa)
 {
 	struct device *dev = &cyapa->client->dev;
-	int ret;
 	struct input_dev *input;
+	int error;
 
 	if (!cyapa->physical_size_x || !cyapa->physical_size_y)
 		return -EINVAL;
 
-	input = cyapa->input = input_allocate_device();
+	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(dev, "allocate memory for input device failed\n");
 		return -ENOMEM;
@@ -774,6 +801,9 @@ static int cyapa_create_input_dev(struct cyapa *cyapa)
 	input->id.version = 1;
 	input->id.product = 0;  /* means any product in eventcomm. */
 	input->dev.parent = &cyapa->client->dev;
+
+	input->open = cyapa_open;
+	input->close = cyapa_close;
 
 	input_set_drvdata(input, cyapa);
 
@@ -802,34 +832,24 @@ static int cyapa_create_input_dev(struct cyapa *cyapa)
 		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 
 	/* handle pointer emulation and unused slots in core */
-	ret = input_mt_init_slots(input, CYAPA_MAX_MT_SLOTS,
-				  INPUT_MT_POINTER | INPUT_MT_DROP_UNUSED);
-	if (ret) {
-		dev_err(dev, "allocate memory for MT slots failed, %d\n", ret);
-		goto err_free_device;
+	error = input_mt_init_slots(input, CYAPA_MAX_MT_SLOTS,
+				    INPUT_MT_POINTER | INPUT_MT_DROP_UNUSED);
+	if (error) {
+		dev_err(dev, "failed to initialize MT slots: %d\n", error);
+		return error;
 	}
 
-	/* Register the device in input subsystem */
-	ret = input_register_device(input);
-	if (ret) {
-		dev_err(dev, "input device register failed, %d\n", ret);
-		goto err_free_device;
-	}
+	cyapa->input = input;
 	return 0;
-
-err_free_device:
-	input_free_device(input);
-	cyapa->input = NULL;
-	return ret;
 }
 
 static int cyapa_probe(struct i2c_client *client,
 		       const struct i2c_device_id *dev_id)
 {
-	int ret;
-	u8 adapter_func;
-	struct cyapa *cyapa;
 	struct device *dev = &client->dev;
+	struct cyapa *cyapa;
+	u8 adapter_func;
+	int error;
 
 	adapter_func = cyapa_check_adapter_functionality(client);
 	if (adapter_func == CYAPA_ADAPTER_FUNC_NONE) {
@@ -837,11 +857,9 @@ static int cyapa_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	cyapa = kzalloc(sizeof(struct cyapa), GFP_KERNEL);
-	if (!cyapa) {
-		dev_err(dev, "allocate memory for cyapa failed\n");
+	cyapa = devm_kzalloc(dev, sizeof(struct cyapa), GFP_KERNEL);
+	if (!cyapa)
 		return -ENOMEM;
-	}
 
 	cyapa->gen = CYAPA_GEN3;
 	cyapa->client = client;
@@ -852,66 +870,61 @@ static int cyapa_probe(struct i2c_client *client,
 	/* i2c isn't supported, use smbus */
 	if (adapter_func == CYAPA_ADAPTER_FUNC_SMBUS)
 		cyapa->smbus = true;
+
 	cyapa->state = CYAPA_STATE_NO_DEVICE;
-	ret = cyapa_check_is_operational(cyapa);
-	if (ret) {
-		dev_err(dev, "device not operational, %d\n", ret);
-		goto err_mem_free;
+
+	error = cyapa_check_is_operational(cyapa);
+	if (error) {
+		dev_err(dev, "device not operational, %d\n", error);
+		return error;
 	}
 
-	ret = cyapa_create_input_dev(cyapa);
-	if (ret) {
-		dev_err(dev, "create input_dev instance failed, %d\n", ret);
-		goto err_mem_free;
+	/* Power down the device until we need it */
+	error = cyapa_set_power_mode(cyapa, PWR_MODE_OFF);
+	if (error) {
+		dev_err(dev, "failed to quiesce the device: %d\n", error);
+		return error;
 	}
 
-	ret = cyapa_set_power_mode(cyapa, PWR_MODE_FULL_ACTIVE);
-	if (ret) {
-		dev_err(dev, "set active power failed, %d\n", ret);
-		goto err_unregister_device;
+	error = cyapa_create_input_dev(cyapa);
+	if (error)
+		return error;
+
+	error = devm_request_threaded_irq(dev, client->irq,
+					  NULL, cyapa_irq,
+					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					  "cyapa", cyapa);
+	if (error) {
+		dev_err(dev, "IRQ request failed: %d\n, ", error);
+		return error;
 	}
 
-	cyapa->irq = client->irq;
-	ret = request_threaded_irq(cyapa->irq,
-				   NULL,
-				   cyapa_irq,
-				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				   "cyapa",
-				   cyapa);
-	if (ret) {
-		dev_err(dev, "IRQ request failed: %d\n, ", ret);
-		goto err_unregister_device;
+	/* Disable IRQ until the device is opened */
+	disable_irq(client->irq);
+
+	/* Register the device in input subsystem */
+	error = input_register_device(cyapa->input);
+	if (error) {
+		dev_err(dev, "failed to register input device: %d\n", error);
+		return error;
 	}
-
-	return 0;
-
-err_unregister_device:
-	input_unregister_device(cyapa->input);
-err_mem_free:
-	kfree(cyapa);
-
-	return ret;
-}
-
-static int cyapa_remove(struct i2c_client *client)
-{
-	struct cyapa *cyapa = i2c_get_clientdata(client);
-
-	free_irq(cyapa->irq, cyapa);
-	input_unregister_device(cyapa->input);
-	cyapa_set_power_mode(cyapa, PWR_MODE_OFF);
-	kfree(cyapa);
 
 	return 0;
 }
 
 static int __maybe_unused cyapa_suspend(struct device *dev)
 {
-	int ret;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct cyapa *cyapa = i2c_get_clientdata(client);
+	struct input_dev *input = cyapa->input;
 	u8 power_mode;
-	struct cyapa *cyapa = dev_get_drvdata(dev);
+	int error;
 
-	disable_irq(cyapa->irq);
+	error = mutex_lock_interruptible(&input->mutex);
+	if (error)
+		return error;
+
+	disable_irq(client->irq);
 
 	/*
 	 * Set trackpad device to idle mode if wakeup is allowed,
@@ -919,28 +932,42 @@ static int __maybe_unused cyapa_suspend(struct device *dev)
 	 */
 	power_mode = device_may_wakeup(dev) ? PWR_MODE_IDLE
 					    : PWR_MODE_OFF;
-	ret = cyapa_set_power_mode(cyapa, power_mode);
-	if (ret < 0)
-		dev_err(dev, "set power mode failed, %d\n", ret);
+	error = cyapa_set_power_mode(cyapa, power_mode);
+	if (error)
+		dev_err(dev, "resume: set power mode to %d failed: %d\n",
+			 power_mode, error);
 
 	if (device_may_wakeup(dev))
 		cyapa->irq_wake = (enable_irq_wake(cyapa->irq) == 0);
+
+	mutex_unlock(&input->mutex);
+
 	return 0;
 }
 
 static int __maybe_unused cyapa_resume(struct device *dev)
 {
-	int ret;
-	struct cyapa *cyapa = dev_get_drvdata(dev);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct cyapa *cyapa = i2c_get_clientdata(client);
+	struct input_dev *input = cyapa->input;
+	u8 power_mode;
+	int error;
+
+	mutex_lock(&input->mutex);
 
 	if (device_may_wakeup(dev) && cyapa->irq_wake)
 		disable_irq_wake(cyapa->irq);
 
-	ret = cyapa_set_power_mode(cyapa, PWR_MODE_FULL_ACTIVE);
-	if (ret)
-		dev_warn(dev, "resume active power failed, %d\n", ret);
+	power_mode = input->users ? PWR_MODE_FULL_ACTIVE : PWR_MODE_OFF;
+	error = cyapa_set_power_mode(cyapa, PWR_MODE_FULL_ACTIVE);
+	if (error)
+		dev_warn(dev, "resume: set power mode to %d failed: %d\n",
+			 power_mode, error);
 
 	enable_irq(cyapa->irq);
+
+	mutex_unlock(&input->mutex);
+
 	return 0;
 }
 
@@ -960,7 +987,6 @@ static struct i2c_driver cyapa_driver = {
 	},
 
 	.probe = cyapa_probe,
-	.remove = cyapa_remove,
 	.id_table = cyapa_id_table,
 };
 
