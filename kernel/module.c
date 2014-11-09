@@ -3326,6 +3326,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
 	wake_up_all(&module_wq);
+	/* Wait for RCU synchronizing before releasing mod->list. */
+	synchronize_rcu();
 	mutex_unlock(&module_mutex);
  free_module:
 	module_deallocate(mod, info);
