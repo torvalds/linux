@@ -39,6 +39,8 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 	struct ieee802154_mlme_ops *ops = ieee802154_mlme_ops(dev);
 	int rc = 0;
 
+	ASSERT_RTNL();
+
 	BUG_ON(addr->mode != IEEE802154_ADDR_SHORT);
 
 	mac802154_dev_set_pan_id(dev, addr->pan_id);
@@ -75,7 +77,8 @@ static int mac802154_set_mac_params(struct net_device *dev,
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	int ret;
 
-	mutex_lock(&sdata->local->iflist_mtx);
+	ASSERT_RTNL();
+
 	/* PHY */
 	wpan_dev->wpan_phy->transmit_power = params->transmit_power;
 	wpan_dev->wpan_phy->cca_mode = params->cca_mode;
@@ -87,7 +90,6 @@ static int mac802154_set_mac_params(struct net_device *dev,
 	wpan_dev->csma_retries = params->csma_retries;
 	wpan_dev->frame_retries = params->frame_retries;
 	wpan_dev->lbt = params->lbt;
-	mutex_unlock(&sdata->local->iflist_mtx);
 
 	if (local->hw.flags & IEEE802154_HW_TXPOWER) {
 		ret = drv_set_tx_power(local, params->transmit_power);
@@ -116,7 +118,8 @@ static void mac802154_get_mac_params(struct net_device *dev,
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 
-	mutex_lock(&sdata->local->iflist_mtx);
+	ASSERT_RTNL();
+
 	/* PHY */
 	params->transmit_power = wpan_dev->wpan_phy->transmit_power;
 	params->cca_mode = wpan_dev->wpan_phy->cca_mode;
@@ -128,7 +131,6 @@ static void mac802154_get_mac_params(struct net_device *dev,
 	params->csma_retries = wpan_dev->csma_retries;
 	params->frame_retries = wpan_dev->frame_retries;
 	params->lbt = wpan_dev->lbt;
-	mutex_unlock(&sdata->local->iflist_mtx);
 }
 
 static struct ieee802154_llsec_ops mac802154_llsec_ops = {

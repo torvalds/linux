@@ -113,7 +113,9 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 	if (ops->get_mac_params) {
 		struct ieee802154_mac_params params;
 
+		rtnl_lock();
 		ops->get_mac_params(dev, &params);
+		rtnl_unlock();
 
 		if (nla_put_s8(msg, IEEE802154_ATTR_TXPOWER,
 			       params.transmit_power) ||
@@ -348,8 +350,10 @@ int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
+	rtnl_lock();
 	ret = ieee802154_mlme_ops(dev)->start_req(dev, &addr, channel, page,
 		bcn_ord, sf_ord, pan_coord, blx, coord_realign);
+	rtnl_unlock();
 
 	/* FIXME: add validation for unused parameters to be sane
 	 * for SoftMAC
@@ -497,6 +501,7 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 	phy = dev->ieee802154_ptr->wpan_phy;
 	get_device(&phy->dev);
 
+	rtnl_lock();
 	ops->get_mac_params(dev, &params);
 
 	if (info->attrs[IEEE802154_ATTR_TXPOWER])
@@ -524,6 +529,7 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 		params.frame_retries = nla_get_s8(info->attrs[IEEE802154_ATTR_FRAME_RETRIES]);
 
 	rc = ops->set_mac_params(dev, &params);
+	rtnl_unlock();
 
 	wpan_phy_put(phy);
 	dev_put(dev);
