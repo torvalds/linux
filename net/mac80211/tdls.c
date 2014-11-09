@@ -35,16 +35,19 @@ void ieee80211_tdls_peer_del_work(struct work_struct *wk)
 	mutex_unlock(&local->mtx);
 }
 
-static void ieee80211_tdls_add_ext_capab(struct sk_buff *skb)
+static void ieee80211_tdls_add_ext_capab(struct ieee80211_local *local,
+					 struct sk_buff *skb)
 {
 	u8 *pos = (void *)skb_put(skb, 7);
+	bool chan_switch = local->hw.wiphy->features &
+			   NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
 
 	*pos++ = WLAN_EID_EXT_CAPABILITY;
 	*pos++ = 5; /* len */
 	*pos++ = 0x0;
 	*pos++ = 0x0;
 	*pos++ = 0x0;
-	*pos++ = 0x0;
+	*pos++ = chan_switch ? WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH : 0;
 	*pos++ = WLAN_EXT_CAPA5_TDLS_ENABLED;
 }
 
@@ -289,7 +292,7 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 		offset = noffset;
 	}
 
-	ieee80211_tdls_add_ext_capab(skb);
+	ieee80211_tdls_add_ext_capab(local, skb);
 
 	/* add the QoS element if we support it */
 	if (local->hw.queues >= IEEE80211_NUM_ACS &&
