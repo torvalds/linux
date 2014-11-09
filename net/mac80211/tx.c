@@ -2277,6 +2277,37 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+struct sk_buff *
+ieee80211_build_data_template(struct ieee80211_sub_if_data *sdata,
+			      struct sk_buff *skb, u32 info_flags)
+{
+	struct ieee80211_hdr *hdr;
+	struct ieee80211_tx_data tx = {
+		.local = sdata->local,
+		.sdata = sdata,
+	};
+
+	rcu_read_lock();
+
+	skb = ieee80211_build_hdr(sdata, skb, info_flags);
+	if (IS_ERR(skb))
+		goto out;
+
+	hdr = (void *)skb->data;
+	tx.sta = sta_info_get(sdata, hdr->addr1);
+	tx.skb = skb;
+
+	if (ieee80211_tx_h_select_key(&tx) != TX_CONTINUE) {
+		rcu_read_unlock();
+		kfree_skb(skb);
+		return ERR_PTR(-EINVAL);
+	}
+
+out:
+	rcu_read_unlock();
+	return skb;
+}
+
 /*
  * ieee80211_clear_tx_pending may not be called in a context where
  * it is possible that it packets could come in again.
