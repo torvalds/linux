@@ -416,12 +416,14 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 	/* for compatibility, actual default is 3 */
 	wpan_dev->frame_retries = -1;
 
-	ieee802154_be64_to_le64(&wpan_dev->extended_addr, sdata->dev->dev_addr);
 	wpan_dev->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	wpan_dev->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 
 	switch (type) {
 	case IEEE802154_DEV_WPAN:
+		ieee802154_be64_to_le64(&wpan_dev->extended_addr,
+					sdata->dev->dev_addr);
+
 		sdata->dev->header_ops = &mac802154_header_ops;
 		sdata->dev->destructor = mac802154_wpan_free;
 		sdata->dev->netdev_ops = &mac802154_wpan_ops;
