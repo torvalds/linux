@@ -10,6 +10,17 @@ struct cfg802154_registered_device {
 	/* wpan_phy index, internal only */
 	int wpan_phy_idx;
 
+	/* also protected by devlist_mtx */
+	int opencount;
+	wait_queue_head_t dev_wait;
+
+	/* protected by RTNL only */
+	int num_running_ifaces;
+
+	/* associated wpan interfaces, protected by rtnl or RCU */
+	struct list_head wpan_dev_list;
+	int devlist_generation, wpan_dev_id;
+
 	/* must be last because of the way we do wpan_phy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN
 	 */

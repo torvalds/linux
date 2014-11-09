@@ -102,11 +102,14 @@ wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size)
 
 	mutex_init(&rdev->wpan_phy.pib_lock);
 
+	INIT_LIST_HEAD(&rdev->wpan_dev_list);
 	device_initialize(&rdev->wpan_phy.dev);
 	dev_set_name(&rdev->wpan_phy.dev, "wpan-phy%d", rdev->wpan_phy_idx);
 
 	rdev->wpan_phy.dev.class = &wpan_phy_class;
 	rdev->wpan_phy.dev.platform_data = rdev;
+
+	init_waitqueue_head(&rdev->dev_wait);
 
 	return &rdev->wpan_phy;
 }
@@ -140,13 +143,18 @@ void wpan_phy_unregister(struct wpan_phy *phy)
 {
 	struct cfg802154_registered_device *rdev = wpan_phy_to_rdev(phy);
 
-	/* TODO open count */
+	wait_event(rdev->dev_wait, ({
+		int __count;
+		rtnl_lock();
+		__count = rdev->opencount;
+		rtnl_unlock();
+		__count == 0; }));
 
 	rtnl_lock();
 	/* TODO nl802154 phy notify */
 	/* TODO phy registered lock */
 
-	/* TODO WARN_ON wpan_dev_list */
+	WARN_ON(!list_empty(&rdev->wpan_dev_list));
 
 	/* First remove the hardware from everywhere, this makes
 	 * it impossible to find from userspace.
@@ -173,6 +181,79 @@ void cfg802154_dev_free(struct cfg802154_registered_device *rdev)
 	kfree(rdev);
 }
 
+static void
+cfg802154_update_iface_num(struct cfg802154_registered_device *rdev,
+			   int iftype, int num)
+{
+	ASSERT_RTNL();
+
+	rdev->num_running_ifaces += num;
+}
+
+static int cfg802154_netdev_notifier_call(struct notifier_block *nb,
+					  unsigned long state, void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	struct cfg802154_registered_device *rdev;
+
+	if (!wpan_dev)
+		return NOTIFY_DONE;
+
+	rdev = wpan_phy_to_rdev(wpan_dev->wpan_phy);
+
+	/* TODO WARN_ON unspec type */
+
+	switch (state) {
+		/* TODO NETDEV_DEVTYPE */
+	case NETDEV_REGISTER:
+		wpan_dev->identifier = ++rdev->wpan_dev_id;
+		list_add_rcu(&wpan_dev->list, &rdev->wpan_dev_list);
+		rdev->devlist_generation++;
+
+		wpan_dev->netdev = dev;
+		break;
+	case NETDEV_DOWN:
+		cfg802154_update_iface_num(rdev, wpan_dev->iftype, -1);
+
+		rdev->opencount--;
+		wake_up(&rdev->dev_wait);
+		break;
+	case NETDEV_UP:
+		cfg802154_update_iface_num(rdev, wpan_dev->iftype, 1);
+
+		rdev->opencount++;
+		break;
+	case NETDEV_UNREGISTER:
+		/* It is possible to get NETDEV_UNREGISTER
+		 * multiple times. To detect that, check
+		 * that the interface is still on the list
+		 * of registered interfaces, and only then
+		 * remove and clean it up.
+		 */
+		if (!list_empty(&wpan_dev->list)) {
+			list_del_rcu(&wpan_dev->list);
+			rdev->devlist_generation++;
+		}
+		/* synchronize (so that we won't find this netdev
+		 * from other code any more) and then clear the list
+		 * head so that the above code can safely check for
+		 * !list_empty() to avoid double-cleanup.
+		 */
+		synchronize_rcu();
+		INIT_LIST_HEAD(&wpan_dev->list);
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block cfg802154_netdev_notifier = {
+	.notifier_call = cfg802154_netdev_notifier_call,
+};
+
 static int __init wpan_phy_class_init(void)
 {
 	int rc;
@@ -181,11 +262,18 @@ static int __init wpan_phy_class_init(void)
 	if (rc)
 		goto err;
 
-	rc = ieee802154_nl_init();
+	rc = register_netdevice_notifier(&cfg802154_netdev_notifier);
 	if (rc)
 		goto err_nl;
 
+	rc = ieee802154_nl_init();
+	if (rc)
+		goto err_notifier;
+
 	return 0;
+
+err_notifier:
+	unregister_netdevice_notifier(&cfg802154_netdev_notifier);
 err_nl:
 	wpan_phy_sysfs_exit();
 err:
@@ -196,6 +284,7 @@ subsys_initcall(wpan_phy_class_init);
 static void __exit wpan_phy_class_exit(void)
 {
 	ieee802154_nl_exit();
+	unregister_netdevice_notifier(&cfg802154_netdev_notifier);
 	wpan_phy_sysfs_exit();
 }
 module_exit(wpan_phy_class_exit);

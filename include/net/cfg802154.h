@@ -66,6 +66,12 @@ struct wpan_dev {
 	struct wpan_phy *wpan_phy;
 	int iftype;
 
+	/* the remainder of this struct should be private to cfg802154 */
+	struct list_head list;
+	struct net_device *netdev;
+
+	u32 identifier;
+
 	/* MAC PIB */
 	__le16 pan_id;
 	__le16 short_addr;
