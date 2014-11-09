@@ -576,15 +576,19 @@ ieee80211_get_vif_queues(struct ieee80211_local *local,
 	return queues;
 }
 
-void ieee80211_flush_queues(struct ieee80211_local *local,
-			    struct ieee80211_sub_if_data *sdata)
+void __ieee80211_flush_queues(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata,
+			      unsigned int queues)
 {
-	unsigned int queues;
-
 	if (!local->ops->flush)
 		return;
 
-	queues = ieee80211_get_vif_queues(local, sdata);
+	/*
+	 * If no queue was set, or if the HW doesn't support
+	 * IEEE80211_HW_QUEUE_CONTROL - flush all queues
+	 */
+	if (!queues || !(local->hw.flags & IEEE80211_HW_QUEUE_CONTROL))
+		queues = ieee80211_get_vif_queues(local, sdata);
 
 	ieee80211_stop_queues_by_reason(&local->hw, queues,
 					IEEE80211_QUEUE_STOP_REASON_FLUSH,
@@ -595,6 +599,12 @@ void ieee80211_flush_queues(struct ieee80211_local *local,
 	ieee80211_wake_queues_by_reason(&local->hw, queues,
 					IEEE80211_QUEUE_STOP_REASON_FLUSH,
 					false);
+}
+
+void ieee80211_flush_queues(struct ieee80211_local *local,
+			    struct ieee80211_sub_if_data *sdata)
+{
+	__ieee80211_flush_queues(local, sdata, 0);
 }
 
 void ieee80211_stop_vif_queues(struct ieee80211_local *local,

@@ -1881,6 +1881,9 @@ void ieee80211_add_pending_skbs(struct ieee80211_local *local,
 				struct sk_buff_head *skbs);
 void ieee80211_flush_queues(struct ieee80211_local *local,
 			    struct ieee80211_sub_if_data *sdata);
+void __ieee80211_flush_queues(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata,
+			      unsigned int queues);
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
