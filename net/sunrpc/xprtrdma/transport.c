@@ -599,7 +599,7 @@ xprt_rdma_send_request(struct rpc_task *task)
 
 	if (req->rl_niovs == 0)
 		rc = rpcrdma_marshal_req(rqst);
-	else if (r_xprt->rx_ia.ri_memreg_strategy == RPCRDMA_FRMR)
+	else if (r_xprt->rx_ia.ri_memreg_strategy != RPCRDMA_ALLPHYSICAL)
 		rc = rpcrdma_marshal_chunks(rqst, 0);
 	if (rc < 0)
 		goto failed_marshal;
