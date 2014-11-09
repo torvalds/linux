@@ -26,6 +26,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -123,6 +124,7 @@ struct wm8903_priv {
 	int sysclk;
 	int irq;
 
+	struct mutex lock;
 	int fs;
 	int deemph;
 
@@ -457,7 +459,7 @@ static int wm8903_put_deemph(struct snd_kcontrol *kcontrol,
 	if (deemph > 1)
 		return -EINVAL;
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&wm8903->lock);
 	if (wm8903->deemph != deemph) {
 		wm8903->deemph = deemph;
 
@@ -465,7 +467,7 @@ static int wm8903_put_deemph(struct snd_kcontrol *kcontrol,
 
 		ret = 1;
 	}
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&wm8903->lock);
 
 	return ret;
 }
@@ -2023,6 +2025,8 @@ static int wm8903_i2c_probe(struct i2c_client *i2c,
 			      GFP_KERNEL);
 	if (wm8903 == NULL)
 		return -ENOMEM;
+
+	mutex_init(&wm8903->lock);
 	wm8903->dev = &i2c->dev;
 
 	wm8903->regmap = devm_regmap_init_i2c(i2c, &wm8903_regmap);
