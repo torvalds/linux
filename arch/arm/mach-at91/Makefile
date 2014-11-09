@@ -24,9 +24,6 @@ obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9260)	+= at91sam9260_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9261)	+= at91sam9261_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9263)	+= at91sam9263_devices.o
-obj-$(CONFIG_ARCH_AT91SAM9RL)	+= at91sam9rl_devices.o
-obj-$(CONFIG_ARCH_AT91SAM9G45)	+= at91sam9g45_devices.o
-obj-$(CONFIG_ARCH_AT91X40)	+= at91x40.o at91x40_time.o
 
 # AT91RM9200 board-specific support
 obj-$(CONFIG_MACH_ONEARM)	+= board-1arm.o
@@ -58,9 +55,6 @@ obj-$(CONFIG_MACH_AT91SAM9G10EK) += board-sam9261ek.o
 # AT91SAM9263 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9263EK) += board-sam9263ek.o
 
-# AT91SAM9RL board-specific support
-obj-$(CONFIG_MACH_AT91SAM9RLEK)	+= board-sam9rlek.o
-
 # AT91SAM9G20 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9G20EK) += board-sam9g20ek.o
 obj-$(CONFIG_MACH_CPU9G20)	+= board-cpu9krea.o
@@ -72,18 +66,12 @@ obj-$(CONFIG_MACH_GSIA18S)	+= board-gsia18s.o board-stamp9g20.o
 # AT91SAM9260/AT91SAM9G20 board-specific support
 obj-$(CONFIG_MACH_SNAPPER_9260)	+= board-snapper9260.o
 
-# AT91SAM9G45 board-specific support
-obj-$(CONFIG_MACH_AT91SAM9M10G45EK) += board-sam9m10g45ek.o
-
 # AT91SAM board with device-tree
 obj-$(CONFIG_MACH_AT91RM9200_DT) += board-dt-rm9200.o
 obj-$(CONFIG_MACH_AT91SAM9_DT) += board-dt-sam9.o
 
 # SAMA5 board with device-tree
 obj-$(CONFIG_MACH_SAMA5_DT) += board-dt-sama5.o
-
-# AT91X40 board-specific support
-obj-$(CONFIG_MACH_AT91EB01)	+= board-eb01.o
 
 # Drivers
 obj-y				+= leds.o

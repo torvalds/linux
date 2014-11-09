@@ -5,7 +5,6 @@ config HAVE_AT91_DATAFLASH_CARD
 
 choice
 	prompt "Atmel AT91 Processor Devices for non DT boards"
-	depends on !ARCH_AT91X40
 
 config ARCH_AT91_NONE
 	bool "None"
@@ -31,18 +30,6 @@ config ARCH_AT91SAM9261
 config ARCH_AT91SAM9263
 	bool "AT91SAM9263"
 	select SOC_AT91SAM9263
-	select AT91_USE_OLD_CLK
-	select OLD_IRQ_AT91
-
-config ARCH_AT91SAM9RL
-	bool "AT91SAM9RL"
-	select SOC_AT91SAM9RL
-	select AT91_USE_OLD_CLK
-	select OLD_IRQ_AT91
-
-config ARCH_AT91SAM9G45
-	bool "AT91SAM9G45"
-	select SOC_AT91SAM9G45
 	select AT91_USE_OLD_CLK
 	select OLD_IRQ_AT91
 
@@ -283,51 +270,6 @@ config MACH_AT91SAM9263EK
 	help
 	  Select this if you are using Atmel's AT91SAM9263-EK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4057>
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91SAM9RL
-
-comment "AT91SAM9RL Board Type"
-
-config MACH_AT91SAM9RLEK
-	bool "Atmel AT91SAM9RL-EK Evaluation Kit"
-	help
-	  Select this if you are using Atmel's AT91SAM9RL-EK Evaluation Kit.
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91SAM9G45
-
-comment "AT91SAM9G45 Board Type"
-
-config MACH_AT91SAM9M10G45EK
-	bool "Atmel AT91SAM9M10G45-EK Evaluation Kits"
-	help
-	  Select this if you are using Atmel's AT91SAM9M10G45-EK Evaluation Kit.
-	  Those boards can be populated with any SoC of AT91SAM9G45 or AT91SAM9M10
-	  families: AT91SAM9G45, AT91SAM9G46, AT91SAM9M10 and AT91SAM9M11.
-	  <http://www.atmel.com/tools/SAM9M10-G45-EK.aspx>
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91X40
-
-comment "AT91X40 Board Type"
-
-config MACH_AT91EB01
-	bool "Atmel AT91EB01 Evaluation Kit"
-	help
-	  Select this if you are using Atmel's AT91EB01 Evaluation Kit.
-	  It is also a popular target for simulators such as GDB's
-	  ARM simulator (commonly known as the ARMulator) and the
-	  Skyeye simulator.
 
 endif
 
