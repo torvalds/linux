@@ -21,6 +21,7 @@
 #include <linux/i2c.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_plane_helper.h>
 #include "framebuffer.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"

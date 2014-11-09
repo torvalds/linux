@@ -26,6 +26,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_dp_helper.h>
 
 #include <nvif/class.h>

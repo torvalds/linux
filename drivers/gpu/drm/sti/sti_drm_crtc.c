@@ -10,6 +10,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 
 #include "sti_compositor.h"
 #include "sti_drm_drv.h"

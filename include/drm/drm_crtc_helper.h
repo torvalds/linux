@@ -68,6 +68,7 @@ struct drm_crtc_helper_funcs {
 	int (*mode_set)(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			struct drm_display_mode *adjusted_mode, int x, int y,
 			struct drm_framebuffer *old_fb);
+	void (*mode_set_nofb)(struct drm_crtc *crtc);
 
 	/* Move the crtc on the current fb to the given position *optional* */
 	int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
@@ -81,6 +82,12 @@ struct drm_crtc_helper_funcs {
 
 	/* disable crtc when not in use - more explicit than dpms off */
 	void (*disable)(struct drm_crtc *crtc);
+
+	/* atomic helpers */
+	int (*atomic_check)(struct drm_crtc *crtc,
+			    struct drm_crtc_state *state);
+	void (*atomic_begin)(struct drm_crtc *crtc);
+	void (*atomic_flush)(struct drm_crtc *crtc);
 };
 
 /**
@@ -160,6 +167,12 @@ static inline void drm_connector_helper_add(struct drm_connector *connector,
 }
 
 extern void drm_helper_resume_force_mode(struct drm_device *dev);
+
+int drm_helper_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
+			     struct drm_display_mode *adjusted_mode, int x, int y,
+			     struct drm_framebuffer *old_fb);
+int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
+				  struct drm_framebuffer *old_fb);
 
 /* drm_probe_helper.c */
 extern int drm_helper_probe_single_connector_modes(struct drm_connector

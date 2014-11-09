@@ -15,6 +15,8 @@
 #include "drm.h"
 #include "gem.h"
 
+#include <drm/drm_plane_helper.h>
+
 struct tegra_dc_soc_info {
 	bool supports_interlacing;
 	bool supports_cursor;

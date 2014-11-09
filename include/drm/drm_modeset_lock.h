@@ -33,6 +33,7 @@ struct drm_modeset_lock;
  * @ww_ctx: base acquire ctx
  * @contended: used internally for -EDEADLK handling
  * @locked: list of held locks
+ * @trylock_only: trylock mode used in atomic contexts/panic notifiers
  *
  * Each thread competing for a set of locks must use one acquire
  * ctx.  And if any lock fxn returns -EDEADLK, it must backoff and
