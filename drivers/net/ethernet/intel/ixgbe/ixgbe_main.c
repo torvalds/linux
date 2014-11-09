@@ -3210,14 +3210,10 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(reg_idx), srrctl);
 }
 
-static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
+static void ixgbe_setup_reta(struct ixgbe_adapter *adapter, const u32 *seed)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	static const u32 seed[10] = { 0xE291D73D, 0x1805EC6C, 0x2A94B30D,
-			  0xA54F2BEC, 0xEA49AF7C, 0xE214AD3D, 0xB855AABE,
-			  0x6A3E67EA, 0x14364D17, 0x3BED200D};
-	u32 mrqc = 0, reta = 0;
-	u32 rxcsum;
+	u32 reta = 0;
 	int i, j;
 	u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
 
@@ -3243,6 +3239,16 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 		if ((i & 3) == 3)
 			IXGBE_WRITE_REG(hw, IXGBE_RETA(i >> 2), reta);
 	}
+}
+
+static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	static const u32 seed[10] = { 0xE291D73D, 0x1805EC6C, 0x2A94B30D,
+			  0xA54F2BEC, 0xEA49AF7C, 0xE214AD3D, 0xB855AABE,
+			  0x6A3E67EA, 0x14364D17, 0x3BED200D};
+	u32 mrqc = 0, rss_field = 0;
+	u32 rxcsum;
 
 	/* Disable indicating checksum in descriptor, enables RSS hash */
 	rxcsum = IXGBE_READ_REG(hw, IXGBE_RXCSUM);
@@ -3275,16 +3281,18 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 	}
 
 	/* Perform hash on these packet types */
-	mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4 |
-		IXGBE_MRQC_RSS_FIELD_IPV4_TCP |
-		IXGBE_MRQC_RSS_FIELD_IPV6 |
-		IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
+	rss_field |= IXGBE_MRQC_RSS_FIELD_IPV4 |
+		     IXGBE_MRQC_RSS_FIELD_IPV4_TCP |
+		     IXGBE_MRQC_RSS_FIELD_IPV6 |
+		     IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
 
 	if (adapter->flags2 & IXGBE_FLAG2_RSS_FIELD_IPV4_UDP)
-		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_UDP;
+		rss_field |= IXGBE_MRQC_RSS_FIELD_IPV4_UDP;
 	if (adapter->flags2 & IXGBE_FLAG2_RSS_FIELD_IPV6_UDP)
-		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
+		rss_field |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
 
+	ixgbe_setup_reta(adapter, seed);
+	mrqc |= rss_field;
 	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 }
 
