@@ -644,7 +644,7 @@ static void neo_flush_uart_write(struct jsm_channel *ch)
 
 		/* Check to see if the UART feels it completely flushed the FIFO. */
 		tmp = readb(&ch->ch_neo_uart->isr_fcr);
-		if (tmp & 4) {
+		if (tmp & UART_FCR_CLEAR_XMIT) {
 			jsm_dbg(IOCTL, &ch->ch_bd->pci_dev,
 				"Still flushing TX UART... i: %d\n", i);
 			udelay(10);
