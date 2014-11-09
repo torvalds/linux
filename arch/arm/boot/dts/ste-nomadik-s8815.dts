@@ -4,6 +4,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "ste-nomadik-stn8815.dtsi"
 
 / {
@@ -12,14 +13,6 @@
 
 	chosen {
 		bootargs = "root=/dev/ram0 console=ttyAMA1,115200n8 earlyprintk";
-	};
-
-	/* This is where the interrupt is routed on the S8815 board */
-	external-bus@34000000 {
-		ethernet@300 {
-			interrupt-parent = <&gpio3>;
-			interrupts = <8 0x1>;
-		};
 	};
 
 	src@101e0000 {
@@ -47,6 +40,14 @@
 				};
 			};
 		};
+		gpioi2c {
+			gpioi2c_default_mode: gpioi2c_default {
+				gpioi2c_default_cfg {
+					ste,pins = "GPIO73_C21", "GPIO74_C20";
+					ste,input = <0>;
+				};
+			};
+		};
 		user-led {
 			user_led_default_mode: user_led_default {
 				user_led_default_cfg {
@@ -62,6 +63,45 @@
 					ste,input = <0>;
 				};
 			};
+		};
+	};
+
+	/* Ethernet */
+	external-bus@34000000 {
+		compatible = "simple-bus";
+		reg = <0x34000000 0x1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x34000000 0x1000000>;
+		ethernet@300 {
+			compatible = "smsc,lan91c111";
+			reg = <0x300 0x0fd00>;
+			interrupt-parent = <&gpio3>;
+			interrupts = <8 IRQ_TYPE_EDGE_RISING>;
+		};
+	};
+
+	/* GPIO I2C connected to the USB portions of the STw4811 only */
+	gpio-i2c {
+		compatible = "i2c-gpio";
+		gpios = <&gpio2 10 0>, /* sda */
+			<&gpio2 9 0>; /* scl */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpioi2c_default_mode>;
+
+		stw4811@2d {
+			   compatible = "st,stw4811-usb";
+			   reg = <0x2d>;
+		};
+	};
+
+
+	/* Configure card detect for the uSD slot */
+	amba {
+		mmcsd: sdi@101f6000 {
+			cd-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
 		};
 	};
 
