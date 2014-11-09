@@ -30,6 +30,12 @@
 
 struct acpi_dmar_header;
 
+#ifdef	CONFIG_X86
+# define	DMAR_UNITS_SUPPORTED	MAX_IO_APICS
+#else
+# define	DMAR_UNITS_SUPPORTED	64
+#endif
+
 /* DMAR Flags */
 #define DMAR_INTR_REMAP		0x1
 #define DMAR_X2APIC_OPT_OUT	0x2

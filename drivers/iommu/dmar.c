@@ -70,6 +70,7 @@ LIST_HEAD(dmar_drhd_units);
 struct acpi_table_header * __initdata dmar_tbl;
 static acpi_size dmar_tbl_size;
 static int dmar_dev_scope_status = 1;
+static unsigned long dmar_seq_ids[BITS_TO_LONGS(DMAR_UNITS_SUPPORTED)];
 
 static int alloc_iommu(struct dmar_drhd_unit *drhd);
 static void free_iommu(struct intel_iommu *iommu);
@@ -944,11 +945,32 @@ out:
 	return err;
 }
 
+static int dmar_alloc_seq_id(struct intel_iommu *iommu)
+{
+	iommu->seq_id = find_first_zero_bit(dmar_seq_ids,
+					    DMAR_UNITS_SUPPORTED);
+	if (iommu->seq_id >= DMAR_UNITS_SUPPORTED) {
+		iommu->seq_id = -1;
+	} else {
+		set_bit(iommu->seq_id, dmar_seq_ids);
+		sprintf(iommu->name, "dmar%d", iommu->seq_id);
+	}
+
+	return iommu->seq_id;
+}
+
+static void dmar_free_seq_id(struct intel_iommu *iommu)
+{
+	if (iommu->seq_id >= 0) {
+		clear_bit(iommu->seq_id, dmar_seq_ids);
+		iommu->seq_id = -1;
+	}
+}
+
 static int alloc_iommu(struct dmar_drhd_unit *drhd)
 {
 	struct intel_iommu *iommu;
 	u32 ver, sts;
-	static int iommu_allocated = 0;
 	int agaw = 0;
 	int msagaw = 0;
 	int err;
@@ -962,13 +984,16 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	if (!iommu)
 		return -ENOMEM;
 
-	iommu->seq_id = iommu_allocated++;
-	sprintf (iommu->name, "dmar%d", iommu->seq_id);
+	if (dmar_alloc_seq_id(iommu) < 0) {
+		pr_err("IOMMU: failed to allocate seq_id\n");
+		err = -ENOSPC;
+		goto error;
+	}
 
 	err = map_iommu(iommu, drhd->reg_base_addr);
 	if (err) {
 		pr_err("IOMMU: failed to map %s\n", iommu->name);
-		goto error;
+		goto error_free_seq_id;
 	}
 
 	err = -EINVAL;
@@ -1018,9 +1043,11 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 
 	return 0;
 
- err_unmap:
+err_unmap:
 	unmap_iommu(iommu);
- error:
+error_free_seq_id:
+	dmar_free_seq_id(iommu);
+error:
 	kfree(iommu);
 	return err;
 }
@@ -1044,6 +1071,7 @@ static void free_iommu(struct intel_iommu *iommu)
 	if (iommu->reg)
 		unmap_iommu(iommu);
 
+	dmar_free_seq_id(iommu);
 	kfree(iommu);
 }
 

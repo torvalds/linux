@@ -330,17 +330,10 @@ static int hw_pass_through = 1;
 /* si_domain contains mulitple devices */
 #define DOMAIN_FLAG_STATIC_IDENTITY	(1 << 1)
 
-/* define the limit of IOMMUs supported in each domain */
-#ifdef	CONFIG_X86
-# define	IOMMU_UNITS_SUPPORTED	MAX_IO_APICS
-#else
-# define	IOMMU_UNITS_SUPPORTED	64
-#endif
-
 struct dmar_domain {
 	int	id;			/* domain id */
 	int	nid;			/* node id */
-	DECLARE_BITMAP(iommu_bmp, IOMMU_UNITS_SUPPORTED);
+	DECLARE_BITMAP(iommu_bmp, DMAR_UNITS_SUPPORTED);
 					/* bitmap of iommus this domain uses*/
 
 	struct list_head devices; 	/* all devices' list */
@@ -2730,12 +2723,12 @@ static int __init init_dmars(void)
 		 * threaded kernel __init code path all other access are read
 		 * only
 		 */
-		if (g_num_of_iommus < IOMMU_UNITS_SUPPORTED) {
+		if (g_num_of_iommus < DMAR_UNITS_SUPPORTED) {
 			g_num_of_iommus++;
 			continue;
 		}
 		printk_once(KERN_ERR "intel-iommu: exceeded %d IOMMUs\n",
-			  IOMMU_UNITS_SUPPORTED);
+			  DMAR_UNITS_SUPPORTED);
 	}
 
 	g_iommus = kcalloc(g_num_of_iommus, sizeof(struct intel_iommu *),
