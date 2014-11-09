@@ -107,6 +107,17 @@ rpcrdma_run_tasklet(unsigned long data)
 static DECLARE_TASKLET(rpcrdma_tasklet_g, rpcrdma_run_tasklet, 0UL);
 
 static void
+rpcrdma_schedule_tasklet(struct list_head *sched_list)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rpcrdma_tk_lock_g, flags);
+	list_splice_tail(sched_list, &rpcrdma_tasklets_g);
+	spin_unlock_irqrestore(&rpcrdma_tk_lock_g, flags);
+	tasklet_schedule(&rpcrdma_tasklet_g);
+}
+
+static void
 rpcrdma_qp_async_error_upcall(struct ib_event *event, void *context)
 {
 	struct rpcrdma_ep *ep = context;
@@ -244,7 +255,6 @@ rpcrdma_recvcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 	struct list_head sched_list;
 	struct ib_wc *wcs;
 	int budget, count, rc;
-	unsigned long flags;
 
 	INIT_LIST_HEAD(&sched_list);
 	budget = RPCRDMA_WC_BUDGET / RPCRDMA_POLLSIZE;
@@ -262,10 +272,7 @@ rpcrdma_recvcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 	rc = 0;
 
 out_schedule:
-	spin_lock_irqsave(&rpcrdma_tk_lock_g, flags);
-	list_splice_tail(&sched_list, &rpcrdma_tasklets_g);
-	spin_unlock_irqrestore(&rpcrdma_tk_lock_g, flags);
-	tasklet_schedule(&rpcrdma_tasklet_g);
+	rpcrdma_schedule_tasklet(&sched_list);
 	return rc;
 }
 
