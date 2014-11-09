@@ -1337,4 +1337,16 @@ drv_tdls_cancel_channel_switch(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void
+drv_tdls_recv_channel_switch(struct ieee80211_local *local,
+			     struct ieee80211_sub_if_data *sdata,
+			     struct ieee80211_tdls_ch_sw_params *params)
+{
+	trace_drv_tdls_recv_channel_switch(local, sdata, params);
+	if (local->ops->tdls_recv_channel_switch)
+		local->ops->tdls_recv_channel_switch(&local->hw, &sdata->vif,
+						     params);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

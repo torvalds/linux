@@ -766,7 +766,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	if ((hw->wiphy->features & NL80211_FEATURE_TDLS_CHANNEL_SWITCH) &&
 	    (!local->ops->tdls_channel_switch ||
-	     !local->ops->tdls_cancel_channel_switch))
+	     !local->ops->tdls_cancel_channel_switch ||
+	     !local->ops->tdls_recv_channel_switch))
 		return -EOPNOTSUPP;
 
 #ifdef CONFIG_PM

@@ -993,6 +993,7 @@ enum sdata_queue_type {
 	IEEE80211_SDATA_QUEUE_AGG_STOP		= 2,
 	IEEE80211_SDATA_QUEUE_RX_AGG_START	= 3,
 	IEEE80211_SDATA_QUEUE_RX_AGG_STOP	= 4,
+	IEEE80211_SDATA_QUEUE_TDLS_CHSW		= 5,
 };
 
 enum {
@@ -2013,6 +2014,8 @@ int ieee80211_tdls_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 void ieee80211_tdls_cancel_channel_switch(struct wiphy *wiphy,
 					  struct net_device *dev,
 					  const u8 *addr);
+void ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
+					   struct sk_buff *skb);
 
 extern const struct ethtool_ops ieee80211_ethtool_ops;
 

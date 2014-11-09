@@ -16,6 +16,7 @@
 
 #define STA_ENTRY	__array(char, sta_addr, ETH_ALEN)
 #define STA_ASSIGN	(sta ? memcpy(__entry->sta_addr, sta->addr, ETH_ALEN) : memset(__entry->sta_addr, 0, ETH_ALEN))
+#define STA_NAMED_ASSIGN(s)	memcpy(__entry->sta_addr, (s)->addr, ETH_ALEN)
 #define STA_PR_FMT	" sta:%pM"
 #define STA_PR_ARG	__entry->sta_addr
 
@@ -2251,6 +2252,50 @@ TRACE_EVENT(drv_tdls_cancel_channel_switch,
 		LOCAL_PR_FMT VIF_PR_FMT
 		" tdls cancel channel switch with " STA_PR_FMT,
 		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG
+	)
+);
+
+TRACE_EVENT(drv_tdls_recv_channel_switch,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_tdls_ch_sw_params *params),
+
+	TP_ARGS(local, sdata, params),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u8, action_code)
+		STA_ENTRY
+		CHANDEF_ENTRY
+		__field(u32, status)
+		__field(bool, peer_initiator)
+		__field(u32, timestamp)
+		__field(u16, switch_time)
+		__field(u16, switch_timeout)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_NAMED_ASSIGN(params->sta);
+		CHANDEF_ASSIGN(params->chandef)
+		__entry->peer_initiator = params->sta->tdls_initiator;
+		__entry->action_code = params->action_code;
+		__entry->status = params->status;
+		__entry->timestamp = params->timestamp;
+		__entry->switch_time = params->switch_time;
+		__entry->switch_timeout = params->switch_timeout;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT " received tdls channel switch packet"
+		" action:%d status:%d time:%d switch time:%d switch"
+		" timeout:%d initiator: %d chan:" CHANDEF_PR_FMT STA_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->action_code, __entry->status,
+		__entry->timestamp, __entry->switch_time,
+		__entry->switch_timeout, __entry->peer_initiator,
+		CHANDEF_PR_ARG, STA_PR_ARG
 	)
 );
 

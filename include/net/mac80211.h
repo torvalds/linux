@@ -1827,6 +1827,31 @@ struct ieee80211_scan_request {
 };
 
 /**
+ * struct ieee80211_tdls_ch_sw_params - TDLS channel switch parameters
+ *
+ * @sta: peer this TDLS channel-switch request/response came from
+ * @chandef: channel referenced in a TDLS channel-switch request
+ * @action_code: see &enum ieee80211_tdls_actioncode
+ * @status: channel-switch response status
+ * @timestamp: time at which the frame was received
+ * @switch_time: switch-timing parameter received in the frame
+ * @switch_timeout: switch-timing parameter received in the frame
+ * @tmpl_skb: TDLS switch-channel response template
+ * @ch_sw_tm_ie: offset of the channel-switch timing IE inside @tmpl_skb
+ */
+struct ieee80211_tdls_ch_sw_params {
+	struct ieee80211_sta *sta;
+	struct cfg80211_chan_def *chandef;
+	u8 action_code;
+	u32 status;
+	u32 timestamp;
+	u16 switch_time;
+	u16 switch_timeout;
+	struct sk_buff *tmpl_skb;
+	u32 ch_sw_tm_ie;
+};
+
+/**
  * wiphy_to_ieee80211_hw - return a mac80211 driver hw struct from a wiphy
  *
  * @wiphy: the &struct wiphy which we want to query
@@ -2925,6 +2950,13 @@ enum ieee80211_reconfig_type {
  *	optionally copy the skb for further re-use.
  * @tdls_cancel_channel_switch: Stop channel-switching with a TDLS peer. Both
  *	peers must be on the base channel when the call completes.
+ * @tdls_recv_channel_switch: a TDLS channel-switch related frame (request or
+ *	response) has been received from a remote peer. The driver gets
+ *	parameters parsed from the incoming frame and may use them to continue
+ *	an ongoing channel-switch operation. In addition, a channel-switch
+ *	response template is provided, together with the location of the
+ *	switch-timing IE within the template. The skb can only be used within
+ *	the function call.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -3141,10 +3173,13 @@ struct ieee80211_ops {
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta, u8 oper_class,
 				   struct cfg80211_chan_def *chandef,
-				   struct sk_buff *skb, u32 ch_sw_tm_ie);
+				   struct sk_buff *tmpl_skb, u32 ch_sw_tm_ie);
 	void (*tdls_cancel_channel_switch)(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif,
 					   struct ieee80211_sta *sta);
+	void (*tdls_recv_channel_switch)(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_tdls_ch_sw_params *params);
 };
 
 /**

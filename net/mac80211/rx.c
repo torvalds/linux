@@ -2333,6 +2333,27 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 	if (!ieee80211_frame_allowed(rx, fc))
 		return RX_DROP_MONITOR;
 
+	/* directly handle TDLS channel switch requests/responses */
+	if (unlikely(((struct ethhdr *)rx->skb->data)->h_proto ==
+						cpu_to_be16(ETH_P_TDLS))) {
+		struct ieee80211_tdls_data *tf = (void *)rx->skb->data;
+
+		if (pskb_may_pull(rx->skb,
+				  offsetof(struct ieee80211_tdls_data, u)) &&
+		    tf->payload_type == WLAN_TDLS_SNAP_RFTYPE &&
+		    tf->category == WLAN_CATEGORY_TDLS &&
+		    (tf->action_code == WLAN_TDLS_CHANNEL_SWITCH_REQUEST ||
+		     tf->action_code == WLAN_TDLS_CHANNEL_SWITCH_RESPONSE)) {
+			rx->skb->pkt_type = IEEE80211_SDATA_QUEUE_TDLS_CHSW;
+			skb_queue_tail(&sdata->skb_queue, rx->skb);
+			ieee80211_queue_work(&rx->local->hw, &sdata->work);
+			if (rx->sta)
+				rx->sta->rx_packets++;
+
+			return RX_QUEUED;
+		}
+	}
+
 	if (rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
 	    unlikely(port_control) && sdata->bss) {
 		sdata = container_of(sdata->bss, struct ieee80211_sub_if_data,
