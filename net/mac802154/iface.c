@@ -404,6 +404,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 
 	/* set some type-dependent values */
 	sdata->vif.type = type;
+	sdata->wpan_dev.iftype = type;
 
 	get_random_bytes(&wpan_dev->bsn, 1);
 	get_random_bytes(&wpan_dev->dsn, 1);

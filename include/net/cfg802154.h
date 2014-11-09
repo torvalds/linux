@@ -64,6 +64,7 @@ struct wpan_phy {
 
 struct wpan_dev {
 	struct wpan_phy *wpan_phy;
+	int iftype;
 
 	/* MAC PIB */
 	__le16 pan_id;
