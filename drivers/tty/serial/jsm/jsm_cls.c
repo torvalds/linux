@@ -767,9 +767,6 @@ static void cls_param(struct jsm_channel *ch)
 	ier = readb(&ch->ch_cls_uart->ier);
 	uart_lcr = readb(&ch->ch_cls_uart->lcr);
 
-	if (baud == 0)
-		baud = 9600;
-
 	quot = ch->ch_bd->bd_dividend / baud;
 
 	if (quot != 0) {
