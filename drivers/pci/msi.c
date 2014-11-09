@@ -252,7 +252,7 @@ void default_restore_msi_irqs(struct pci_dev *dev)
 		default_restore_msi_irq(dev, entry->irq);
 }
 
-void __read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
+void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
 	BUG_ON(entry->dev->current_state != PCI_D0);
 
@@ -280,13 +280,6 @@ void __read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 		}
 		msg->data = data;
 	}
-}
-
-void read_msi_msg(unsigned int irq, struct msi_msg *msg)
-{
-	struct msi_desc *entry = irq_get_msi_desc(irq);
-
-	__read_msi_msg(entry, msg);
 }
 
 void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
