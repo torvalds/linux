@@ -4457,6 +4457,8 @@ static int wm8994_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm8994);
 
+	mutex_init(&wm8994->fw_lock);
+
 	wm8994->wm8994 = dev_get_drvdata(pdev->dev.parent);
 
 	pm_runtime_enable(&pdev->dev);
