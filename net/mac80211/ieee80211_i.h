@@ -1400,6 +1400,8 @@ struct ieee802_11_elems {
 	size_t total_len;
 
 	/* pointers to IEs */
+	const struct ieee80211_tdls_lnkie *lnk_id;
+	const struct ieee80211_ch_switch_timing *ch_sw_timing;
 	const u8 *ext_capab;
 	const u8 *ssid;
 	const u8 *supp_rates;

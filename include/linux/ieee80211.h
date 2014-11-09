@@ -1067,6 +1067,12 @@ struct ieee80211_pspoll {
 
 /* TDLS */
 
+/* Channel switch timing */
+struct ieee80211_ch_switch_timing {
+	__le16 switch_time;
+	__le16 switch_timeout;
+} __packed;
+
 /* Link-id information element */
 struct ieee80211_tdls_lnkie {
 	u8 ie_type; /* Link Identifier IE */
@@ -1108,6 +1114,15 @@ struct ieee80211_tdls_data {
 			u8 dialog_token;
 			u8 variable[0];
 		} __packed discover_req;
+		struct {
+			u8 target_channel;
+			u8 oper_class;
+			u8 variable[0];
+		} __packed chan_switch_req;
+		struct {
+			__le16 status_code;
+			u8 variable[0];
+		} __packed chan_switch_resp;
 	} u;
 } __packed;
 
