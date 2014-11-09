@@ -1019,19 +1019,19 @@ static void neo_param(struct jsm_channel *ch)
 		lcr |= UART_LCR_STOP;
 
 	switch (ch->ch_c_cflag & CSIZE) {
-		case CS5:
-			lcr |= UART_LCR_WLEN5;
-			break;
-		case CS6:
-			lcr |= UART_LCR_WLEN6;
-			break;
-		case CS7:
-			lcr |= UART_LCR_WLEN7;
-			break;
-		case CS8:
-		default:
-			lcr |= UART_LCR_WLEN8;
+	case CS5:
+		lcr |= UART_LCR_WLEN5;
 		break;
+	case CS6:
+		lcr |= UART_LCR_WLEN6;
+		break;
+	case CS7:
+		lcr |= UART_LCR_WLEN7;
+		break;
+	case CS8:
+	default:
+		lcr |= UART_LCR_WLEN8;
+	break;
 	}
 
 	ier = readb(&ch->ch_neo_uart->ier);
