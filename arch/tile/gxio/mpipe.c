@@ -463,6 +463,7 @@ int gxio_mpipe_set_timestamp(gxio_mpipe_context_t *context,
 					    (uint64_t)ts->tv_nsec,
 					    (uint64_t)cycles);
 }
+EXPORT_SYMBOL_GPL(gxio_mpipe_set_timestamp);
 
 int gxio_mpipe_get_timestamp(gxio_mpipe_context_t *context,
 			     struct timespec *ts)
@@ -485,11 +486,13 @@ int gxio_mpipe_get_timestamp(gxio_mpipe_context_t *context,
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(gxio_mpipe_get_timestamp);
 
 int gxio_mpipe_adjust_timestamp(gxio_mpipe_context_t *context, int64_t delta)
 {
 	return gxio_mpipe_adjust_timestamp_aux(context, delta);
 }
+EXPORT_SYMBOL_GPL(gxio_mpipe_adjust_timestamp);
 
 /* Get our internal context used for link name access.  This context is
  *  special in that it is not associated with an mPIPE service domain.
@@ -542,6 +545,7 @@ int gxio_mpipe_link_instance(const char *link_name)
 
 	return gxio_mpipe_info_instance_aux(context, name);
 }
+EXPORT_SYMBOL_GPL(gxio_mpipe_link_instance);
 
 int gxio_mpipe_link_enumerate_mac(int idx, char *link_name, uint8_t *link_mac)
 {
