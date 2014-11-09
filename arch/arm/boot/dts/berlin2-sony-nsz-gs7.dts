@@ -26,4 +26,13 @@
 	};
 };
 
+&eth1 { status = "okay"; };
+
+/* Samsung M8G2FA 8GB eMMC */
+&sdhci2 {
+	non-removable;
+	bus-width = <8>;
+	status = "okay";
+};
+
 &uart0 { status = "okay"; };

@@ -123,6 +123,7 @@
 			local-mac-address = [00 00 00 00 00 00];
 			#address-cells = <1>;
 			#size-cells = <0>;
+			phy-connection-type = "mii";
 			phy-handle = <&ethphy0>;
 			status = "disabled";
 
@@ -255,7 +256,6 @@
 				reg = <0x2c14 0x14>;
 				clocks = <&chip CLKID_CFG>;
 				clock-names = "timer";
-				status = "disabled";
 			};
 
 			timer2: timer@2c28 {
@@ -349,6 +349,7 @@
 		chip: chip-control@ea0000 {
 			compatible = "marvell,berlin2q-chip-ctrl";
 			#clock-cells = <1>;
+			#reset-cells = <2>;
 			reg = <0xea0000 0x400>, <0xdd0170 0x10>;
 			clocks = <&refclk>;
 			clock-names = "refclk";
@@ -361,6 +362,45 @@
 			twsi1_pmux: twsi1-pmux {
 				groups = "G7";
 				function = "twsi1";
+			};
+		};
+
+		ahci: sata@e90000 {
+			compatible = "marvell,berlin2q-ahci", "generic-ahci";
+			reg = <0xe90000 0x1000>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&chip CLKID_SATA>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sata0: sata-port@0 {
+				reg = <0>;
+				phys = <&sata_phy 0>;
+				status = "disabled";
+			};
+
+			sata1: sata-port@1 {
+				reg = <1>;
+				phys = <&sata_phy 1>;
+				status = "disabled";
+			};
+		};
+
+		sata_phy: phy@e900a0 {
+			compatible = "marvell,berlin2q-sata-phy";
+			reg = <0xe900a0 0x200>;
+			clocks = <&chip CLKID_SATA>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#phy-cells = <1>;
+			status = "disabled";
+
+			sata-phy@0 {
+				reg = <0>;
+			};
+
+			sata-phy@1 {
+				reg = <1>;
 			};
 		};
 
