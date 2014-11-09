@@ -33,7 +33,7 @@ void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val)
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
 	spin_lock_bh(&sdata->mib_lock);
-	sdata->short_addr = val;
+	sdata->wpan_dev.short_addr = val;
 	spin_unlock_bh(&sdata->mib_lock);
 }
 
@@ -45,7 +45,7 @@ __le16 mac802154_dev_get_short_addr(const struct net_device *dev)
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
 	spin_lock_bh(&sdata->mib_lock);
-	ret = sdata->short_addr;
+	ret = sdata->wpan_dev.short_addr;
 	spin_unlock_bh(&sdata->mib_lock);
 
 	return ret;
@@ -59,7 +59,7 @@ __le16 mac802154_dev_get_pan_id(const struct net_device *dev)
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
 	spin_lock_bh(&sdata->mib_lock);
-	ret = sdata->pan_id;
+	ret = sdata->wpan_dev.pan_id;
 	spin_unlock_bh(&sdata->mib_lock);
 
 	return ret;
@@ -72,7 +72,7 @@ void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val)
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
 	spin_lock_bh(&sdata->mib_lock);
-	sdata->pan_id = val;
+	sdata->wpan_dev.pan_id = val;
 	spin_unlock_bh(&sdata->mib_lock);
 }
 
@@ -82,7 +82,7 @@ u8 mac802154_dev_get_dsn(const struct net_device *dev)
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	return sdata->dsn++;
+	return sdata->wpan_dev.dsn++;
 }
 
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)

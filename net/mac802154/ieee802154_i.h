@@ -84,17 +84,7 @@ struct ieee802154_sub_if_data {
 
 	spinlock_t mib_lock;
 
-	__le16 pan_id;
-	__le16 short_addr;
-	__le64 extended_addr;
-	bool promiscuous_mode;
-
 	struct ieee802154_mac_params mac_params;
-
-	/* MAC BSN field */
-	u8 bsn;
-	/* MAC DSN field */
-	u8 dsn;
 
 	/* protects sec from concurrent access by netlink. access by
 	 * encrypt/decrypt/header_create safe without additional protection.

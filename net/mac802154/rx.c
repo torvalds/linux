@@ -42,6 +42,7 @@ static int
 ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		       struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 {
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	__le16 span, sshort;
 	int rc;
 
@@ -49,8 +50,8 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	spin_lock_bh(&sdata->mib_lock);
 
-	span = sdata->pan_id;
-	sshort = sdata->short_addr;
+	span = wpan_dev->pan_id;
+	sshort = wpan_dev->short_addr;
 
 	switch (mac_cb(skb)->dest.mode) {
 	case IEEE802154_ADDR_NONE:
@@ -65,7 +66,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		if (mac_cb(skb)->dest.pan_id != span &&
 		    mac_cb(skb)->dest.pan_id != cpu_to_le16(IEEE802154_PANID_BROADCAST))
 			skb->pkt_type = PACKET_OTHERHOST;
-		else if (mac_cb(skb)->dest.extended_addr == sdata->extended_addr)
+		else if (mac_cb(skb)->dest.extended_addr == wpan_dev->extended_addr)
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
