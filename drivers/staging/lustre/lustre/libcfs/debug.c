@@ -460,11 +460,3 @@ void libcfs_debug_set_level(unsigned int debug_level)
 }
 
 EXPORT_SYMBOL(libcfs_debug_set_level);
-
-void libcfs_log_goto(struct libcfs_debug_msg_data *msgdata, const char *label,
-		     long_ptr_t rc)
-{
-	libcfs_debug_msg(msgdata, "Process leaving via %s (rc=%lu : %ld : %#lx)\n",
-			 label, (ulong_ptr_t)rc, rc, rc);
-}
-EXPORT_SYMBOL(libcfs_log_goto);
