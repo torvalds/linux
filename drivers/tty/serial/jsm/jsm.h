@@ -111,21 +111,21 @@ struct jsm_channel;
  ************************************************************************/
 struct board_ops {
 	irq_handler_t intr;
-	void (*uart_init) (struct jsm_channel *ch);
-	void (*uart_off) (struct jsm_channel *ch);
-	void (*param) (struct jsm_channel *ch);
-	void (*assert_modem_signals) (struct jsm_channel *ch);
-	void (*flush_uart_write) (struct jsm_channel *ch);
-	void (*flush_uart_read) (struct jsm_channel *ch);
-	void (*disable_receiver) (struct jsm_channel *ch);
-	void (*enable_receiver) (struct jsm_channel *ch);
-	void (*send_break) (struct jsm_channel *ch);
-	void (*clear_break) (struct jsm_channel *ch);
-	void (*send_start_character) (struct jsm_channel *ch);
-	void (*send_stop_character) (struct jsm_channel *ch);
-	void (*copy_data_from_queue_to_uart) (struct jsm_channel *ch);
-	u32 (*get_uart_bytes_left) (struct jsm_channel *ch);
-	void (*send_immediate_char) (struct jsm_channel *ch, unsigned char);
+	void (*uart_init)(struct jsm_channel *ch);
+	void (*uart_off)(struct jsm_channel *ch);
+	void (*param)(struct jsm_channel *ch);
+	void (*assert_modem_signals)(struct jsm_channel *ch);
+	void (*flush_uart_write)(struct jsm_channel *ch);
+	void (*flush_uart_read)(struct jsm_channel *ch);
+	void (*disable_receiver)(struct jsm_channel *ch);
+	void (*enable_receiver)(struct jsm_channel *ch);
+	void (*send_break)(struct jsm_channel *ch);
+	void (*clear_break)(struct jsm_channel *ch);
+	void (*send_start_character)(struct jsm_channel *ch);
+	void (*send_stop_character)(struct jsm_channel *ch);
+	void (*copy_data_from_queue_to_uart)(struct jsm_channel *ch);
+	u32 (*get_uart_bytes_left)(struct jsm_channel *ch);
+	void (*send_immediate_char)(struct jsm_channel *ch, unsigned char);
 };
 
 
