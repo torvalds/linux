@@ -97,6 +97,12 @@ struct rpcrdma_ep {
 	struct ib_wc		rep_recv_wcs[RPCRDMA_POLLSIZE];
 };
 
+/*
+ * Force a signaled SEND Work Request every so often,
+ * in case the provider needs to do some housekeeping.
+ */
+#define RPCRDMA_MAX_UNSIGNALED_SENDS	(32)
+
 #define INIT_CQCOUNT(ep) atomic_set(&(ep)->rep_cqcount, (ep)->rep_cqinit)
 #define DECR_CQCOUNT(ep) atomic_sub_return(1, &(ep)->rep_cqcount)
 
