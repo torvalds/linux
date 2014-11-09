@@ -121,22 +121,21 @@ extern int dmar_remove_dev_scope(struct dmar_pci_notify_info *info,
 extern int detect_intel_iommu(void);
 extern int enable_drhd_fault_handling(void);
 
+static inline int dmar_res_noop(struct acpi_dmar_header *hdr, void *arg)
+{
+	return 0;
+}
+
 #ifdef CONFIG_INTEL_IOMMU
 extern int iommu_detected, no_iommu;
 extern int intel_iommu_init(void);
-extern int dmar_parse_one_rmrr(struct acpi_dmar_header *header);
-extern int dmar_parse_one_atsr(struct acpi_dmar_header *header);
+extern int dmar_parse_one_rmrr(struct acpi_dmar_header *header, void *arg);
+extern int dmar_parse_one_atsr(struct acpi_dmar_header *header, void *arg);
 extern int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info);
 #else /* !CONFIG_INTEL_IOMMU: */
 static inline int intel_iommu_init(void) { return -ENODEV; }
-static inline int dmar_parse_one_rmrr(struct acpi_dmar_header *header)
-{
-	return 0;
-}
-static inline int dmar_parse_one_atsr(struct acpi_dmar_header *header)
-{
-	return 0;
-}
+#define	dmar_parse_one_rmrr		dmar_res_noop
+#define	dmar_parse_one_atsr		dmar_res_noop
 static inline int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 {
 	return 0;
