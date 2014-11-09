@@ -619,10 +619,10 @@ static int wm5102_out_comp_coeff_get(struct snd_kcontrol *kcontrol,
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	uint16_t data;
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&arizona->dac_comp_lock);
 	data = cpu_to_be16(arizona->dac_comp_coeff);
 	memcpy(ucontrol->value.bytes.data, &data, sizeof(data));
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&arizona->dac_comp_lock);
 
 	return 0;
 }
@@ -633,11 +633,11 @@ static int wm5102_out_comp_coeff_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&arizona->dac_comp_lock);
 	memcpy(&arizona->dac_comp_coeff, ucontrol->value.bytes.data,
 	       sizeof(arizona->dac_comp_coeff));
 	arizona->dac_comp_coeff = be16_to_cpu(arizona->dac_comp_coeff);
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&arizona->dac_comp_lock);
 
 	return 0;
 }
@@ -648,9 +648,9 @@ static int wm5102_out_comp_switch_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&arizona->dac_comp_lock);
 	ucontrol->value.integer.value[0] = arizona->dac_comp_enabled;
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&arizona->dac_comp_lock);
 
 	return 0;
 }
@@ -661,9 +661,9 @@ static int wm5102_out_comp_switch_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&arizona->dac_comp_lock);
 	arizona->dac_comp_enabled = ucontrol->value.integer.value[0];
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&arizona->dac_comp_lock);
 
 	return 0;
 }
