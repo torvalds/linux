@@ -24,6 +24,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/of_device.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -50,6 +51,8 @@ struct wm8731_priv {
 	int sysclk_type;
 	int playback_fs;
 	bool deemph;
+
+	struct mutex lock;
 };
 
 
@@ -138,7 +141,7 @@ static int wm8731_put_deemph(struct snd_kcontrol *kcontrol,
 	if (deemph > 1)
 		return -EINVAL;
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&wm8731->lock);
 	if (wm8731->deemph != deemph) {
 		wm8731->deemph = deemph;
 
@@ -146,7 +149,7 @@ static int wm8731_put_deemph(struct snd_kcontrol *kcontrol,
 
 		ret = 1;
 	}
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&wm8731->lock);
 
 	return ret;
 }
@@ -684,6 +687,8 @@ static int wm8731_spi_probe(struct spi_device *spi)
 			      GFP_KERNEL);
 	if (wm8731 == NULL)
 		return -ENOMEM;
+
+	mutex_init(&wm8731->lock);
 
 	wm8731->regmap = devm_regmap_init_spi(spi, &wm8731_regmap);
 	if (IS_ERR(wm8731->regmap)) {
