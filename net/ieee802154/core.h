@@ -5,6 +5,7 @@
 
 struct cfg802154_registered_device {
 	const struct cfg802154_ops *ops;
+	struct list_head list;
 
 	/* wpan_phy index, internal only */
 	int wpan_phy_idx;

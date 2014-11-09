@@ -18,10 +18,15 @@
 #include <linux/device.h>
 
 #include <net/cfg802154.h>
+#include <net/rtnetlink.h>
 
 #include "ieee802154.h"
 #include "sysfs.h"
 #include "core.h"
+
+/* RCU-protected (and RTNL for writers) */
+static LIST_HEAD(cfg802154_rdev_list);
+static int cfg802154_rdev_list_generation;
 
 static int wpan_phy_match(struct device *dev, const void *data)
 {
@@ -109,13 +114,51 @@ EXPORT_SYMBOL(wpan_phy_new);
 
 int wpan_phy_register(struct wpan_phy *phy)
 {
-	return device_add(&phy->dev);
+	struct cfg802154_registered_device *rdev = wpan_phy_to_rdev(phy);
+	int ret;
+
+	rtnl_lock();
+	ret = device_add(&phy->dev);
+	if (ret) {
+		rtnl_unlock();
+		return ret;
+	}
+
+	list_add_rcu(&rdev->list, &cfg802154_rdev_list);
+	cfg802154_rdev_list_generation++;
+
+	/* TODO phy registered lock */
+	rtnl_unlock();
+
+	/* TODO nl802154 phy notify */
+
+	return 0;
 }
 EXPORT_SYMBOL(wpan_phy_register);
 
 void wpan_phy_unregister(struct wpan_phy *phy)
 {
+	struct cfg802154_registered_device *rdev = wpan_phy_to_rdev(phy);
+
+	/* TODO open count */
+
+	rtnl_lock();
+	/* TODO nl802154 phy notify */
+	/* TODO phy registered lock */
+
+	/* TODO WARN_ON wpan_dev_list */
+
+	/* First remove the hardware from everywhere, this makes
+	 * it impossible to find from userspace.
+	 */
+	list_del_rcu(&rdev->list);
+	synchronize_rcu();
+
+	cfg802154_rdev_list_generation++;
+
 	device_del(&phy->dev);
+
+	rtnl_unlock();
 }
 EXPORT_SYMBOL(wpan_phy_unregister);
 
