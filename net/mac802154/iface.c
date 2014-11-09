@@ -63,6 +63,8 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
 	int err = -ENOIOCTLCMD;
 
+	ASSERT_RTNL();
+
 	spin_lock_bh(&sdata->mib_lock);
 
 	switch (cmd) {
@@ -87,6 +89,11 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 	}
 	case SIOCSIFADDR:
+		if (netif_running(dev)) {
+			spin_unlock_bh(&sdata->mib_lock);
+			return -EBUSY;
+		}
+
 		dev_warn(&dev->dev,
 			 "Using DEBUGing ioctl SIOCSIFADDR isn't recommended!\n");
 		if (sa->family != AF_IEEE802154 ||
