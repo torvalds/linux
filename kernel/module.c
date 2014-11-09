@@ -1697,18 +1697,6 @@ static void mod_sysfs_teardown(struct module *mod)
 	mod_sysfs_fini(mod);
 }
 
-/*
- * unlink the module with the whole machine is stopped with interrupts off
- * - this defends against kallsyms not taking locks
- */
-static int __unlink_module(void *_mod)
-{
-	struct module *mod = _mod;
-	list_del(&mod->list);
-	module_bug_cleanup(mod);
-	return 0;
-}
-
 #ifdef CONFIG_DEBUG_SET_MODULE_RONX
 /*
  * LKM RO/NX protection: protect module's text/ro-data
@@ -1860,7 +1848,11 @@ static void free_module(struct module *mod)
 
 	/* Now we can delete it from the lists */
 	mutex_lock(&module_mutex);
-	stop_machine(__unlink_module, mod, NULL);
+	/* Unlink carefully: kallsyms could be walking list. */
+	list_del_rcu(&mod->list);
+	/* Wait for RCU synchronizing before releasing mod->list. */
+	synchronize_rcu();
+	module_bug_cleanup(mod);
 	mutex_unlock(&module_mutex);
 
 	/* This may be NULL, but that's OK */
