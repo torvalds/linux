@@ -1180,6 +1180,13 @@ static void task_numa_compare(struct task_numa_env *env,
 	raw_spin_unlock_irq(&dst_rq->lock);
 
 	/*
+	 * Because we have preemption enabled we can get migrated around and
+	 * end try selecting ourselves (current == env->p) as a swap candidate.
+	 */
+	if (cur == env->p)
+		goto unlock;
+
+	/*
 	 * "imp" is the fault differential for the source task between the
 	 * source and destination node. Calculate the total differential for
 	 * the source task and potential destination task. The more negative
