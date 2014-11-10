@@ -5153,7 +5153,7 @@ static void valleyview_init_gt_powersave(struct drm_device *dev)
 		dev_priv->mem_freq = 1333;
 		break;
 	}
-	DRM_DEBUG_DRIVER("DDR speed: %d MHz", dev_priv->mem_freq);
+	DRM_DEBUG_DRIVER("DDR speed: %d MHz\n", dev_priv->mem_freq);
 
 	dev_priv->rps.max_freq = valleyview_rps_max_freq(dev_priv);
 	dev_priv->rps.rp0_freq = dev_priv->rps.max_freq;
@@ -5222,7 +5222,7 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 		dev_priv->mem_freq = 1600;
 		break;
 	}
-	DRM_DEBUG_DRIVER("DDR speed: %d MHz", dev_priv->mem_freq);
+	DRM_DEBUG_DRIVER("DDR speed: %d MHz\n", dev_priv->mem_freq);
 
 	dev_priv->rps.max_freq = cherryview_rps_max_freq(dev_priv);
 	dev_priv->rps.rp0_freq = dev_priv->rps.max_freq;
