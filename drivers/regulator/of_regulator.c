@@ -211,7 +211,8 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		search = dev->of_node;
 
 	if (!search) {
-		dev_err(dev, "Failed to find regulator container node\n");
+		dev_dbg(dev, "Failed to find regulator container node '%s'\n",
+			desc->regulators_node);
 		return NULL;
 	}
 
