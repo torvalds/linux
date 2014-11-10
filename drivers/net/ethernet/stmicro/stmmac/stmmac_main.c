@@ -2885,6 +2885,7 @@ error_clk_get:
 
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(stmmac_dvr_probe);
 
 /**
  * stmmac_dvr_remove
@@ -2914,8 +2915,8 @@ int stmmac_dvr_remove(struct net_device *ndev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(stmmac_dvr_remove);
 
-#ifdef CONFIG_PM
 int stmmac_suspend(struct net_device *ndev)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
@@ -2957,6 +2958,7 @@ int stmmac_suspend(struct net_device *ndev)
 	priv->oldduplex = -1;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(stmmac_suspend);
 
 int stmmac_resume(struct net_device *ndev)
 {
@@ -3003,37 +3005,7 @@ int stmmac_resume(struct net_device *ndev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
-
-/* Driver can be configured w/ and w/ both PCI and Platf drivers
- * depending on the configuration selected.
- */
-static int __init stmmac_init(void)
-{
-	int ret;
-
-	ret = stmmac_register_platform();
-	if (ret)
-		goto err;
-	ret = stmmac_register_pci();
-	if (ret)
-		goto err_pci;
-	return 0;
-err_pci:
-	stmmac_unregister_platform();
-err:
-	pr_err("stmmac: driver registration failed\n");
-	return ret;
-}
-
-static void __exit stmmac_exit(void)
-{
-	stmmac_unregister_platform();
-	stmmac_unregister_pci();
-}
-
-module_init(stmmac_init);
-module_exit(stmmac_exit);
+EXPORT_SYMBOL_GPL(stmmac_resume);
 
 #ifndef MODULE
 static int __init stmmac_cmdline_opt(char *str)

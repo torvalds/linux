@@ -362,7 +362,7 @@ static int stmmac_pltfr_remove(struct platform_device *pdev)
 	return ret;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int stmmac_pltfr_suspend(struct device *dev)
 {
 	int ret;
@@ -388,13 +388,12 @@ static int stmmac_pltfr_resume(struct device *dev)
 
 	return stmmac_resume(ndev);
 }
-
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops,
-			stmmac_pltfr_suspend, stmmac_pltfr_resume);
+			 stmmac_pltfr_suspend, stmmac_pltfr_resume);
 
-struct platform_driver stmmac_pltfr_driver = {
+static struct platform_driver stmmac_pltfr_driver = {
 	.probe = stmmac_pltfr_probe,
 	.remove = stmmac_pltfr_remove,
 	.driver = {
@@ -402,8 +401,10 @@ struct platform_driver stmmac_pltfr_driver = {
 		   .owner = THIS_MODULE,
 		   .pm = &stmmac_pltfr_pm_ops,
 		   .of_match_table = of_match_ptr(stmmac_dt_ids),
-		   },
+	},
 };
+
+module_platform_driver(stmmac_pltfr_driver);
 
 MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet PLATFORM driver");
 MODULE_AUTHOR("Giuseppe Cavallaro <peppe.cavallaro@st.com>");

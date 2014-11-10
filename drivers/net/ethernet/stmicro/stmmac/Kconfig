@@ -14,7 +14,7 @@ config STMMAC_ETH
 if STMMAC_ETH
 
 config STMMAC_PLATFORM
-	bool "STMMAC Platform bus support"
+	tristate "STMMAC Platform bus support"
 	depends on STMMAC_ETH
 	default y
 	---help---
@@ -27,7 +27,7 @@ config STMMAC_PLATFORM
 	  If unsure, say N.
 
 config STMMAC_PCI
-	bool "STMMAC PCI bus support"
+	tristate "STMMAC PCI bus support"
 	depends on STMMAC_ETH && PCI
 	---help---
 	  This is to select the Synopsys DWMAC available on PCI devices,

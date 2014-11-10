@@ -158,7 +158,7 @@ static const struct pci_device_id stmmac_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, stmmac_id_table);
 
-struct pci_driver stmmac_pci_driver = {
+static struct pci_driver stmmac_pci_driver = {
 	.name = STMMAC_RESOURCE_NAME,
 	.id_table = stmmac_id_table,
 	.probe = stmmac_pci_probe,
@@ -167,6 +167,8 @@ struct pci_driver stmmac_pci_driver = {
 		.pm     = &stmmac_pm_ops,
 	},
 };
+
+module_pci_driver(stmmac_pci_driver);
 
 MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet PCI driver");
 MODULE_AUTHOR("Rayagond Kokatanur <rayagond.kokatanur@vayavyalabs.com>");
