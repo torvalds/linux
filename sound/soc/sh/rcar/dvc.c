@@ -38,6 +38,9 @@ struct rsnd_dvc {
 	struct clk *clk;
 	struct rsnd_dvc_cfg_m volume;
 	struct rsnd_dvc_cfg_m mute;
+	struct rsnd_dvc_cfg_s ren;	/* Ramp Enable */
+	struct rsnd_dvc_cfg_s rup;	/* Ramp Rate Up */
+	struct rsnd_dvc_cfg_s rdown;	/* Ramp Rate Down */
 };
 
 #define rsnd_mod_to_dvc(_mod)	\
@@ -49,9 +52,37 @@ struct rsnd_dvc {
 	     ((pos) = (struct rsnd_dvc *)(priv)->dvc + i);	\
 	     i++)
 
+static const char const *dvc_ramp_rate[] = {
+	"128 dB/1 step",	 /* 00000 */
+	"64 dB/1 step",		 /* 00001 */
+	"32 dB/1 step",		 /* 00010 */
+	"16 dB/1 step",		 /* 00011 */
+	"8 dB/1 step",		 /* 00100 */
+	"4 dB/1 step",		 /* 00101 */
+	"2 dB/1 step",		 /* 00110 */
+	"1 dB/1 step",		 /* 00111 */
+	"0.5 dB/1 step",	 /* 01000 */
+	"0.25 dB/1 step",	 /* 01001 */
+	"0.125 dB/1 step",	 /* 01010 */
+	"0.125 dB/2 steps",	 /* 01011 */
+	"0.125 dB/4 steps",	 /* 01100 */
+	"0.125 dB/8 steps",	 /* 01101 */
+	"0.125 dB/16 steps",	 /* 01110 */
+	"0.125 dB/32 steps",	 /* 01111 */
+	"0.125 dB/64 steps",	 /* 10000 */
+	"0.125 dB/128 steps",	 /* 10001 */
+	"0.125 dB/256 steps",	 /* 10010 */
+	"0.125 dB/512 steps",	 /* 10011 */
+	"0.125 dB/1024 steps",	 /* 10100 */
+	"0.125 dB/2048 steps",	 /* 10101 */
+	"0.125 dB/4096 steps",	 /* 10110 */
+	"0.125 dB/8192 steps",	 /* 10111 */
+};
+
 static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 {
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	u32 val[RSND_DVC_CHANNELS];
 	u32 dvucr = 0;
 	u32 mute = 0;
 	int i;
@@ -62,10 +93,35 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 	/* Disable DVC Register access */
 	rsnd_mod_write(mod, DVC_DVUER, 0);
 
+	/* Enable Ramp */
+	if (dvc->ren.val) {
+		dvucr |= 0x10;
+
+		/* Digital Volume Max */
+		for (i = 0; i < RSND_DVC_CHANNELS; i++)
+			val[i] = dvc->volume.cfg.max;
+
+		rsnd_mod_write(mod, DVC_VRCTR, 0xff);
+		rsnd_mod_write(mod, DVC_VRPDR, dvc->rup.val << 8 |
+					       dvc->rdown.val);
+		/*
+		 * FIXME !!
+		 * use scale-downed Digital Volume
+		 * as Volume Ramp
+		 * 7F FFFF -> 3FF
+		 */
+		rsnd_mod_write(mod, DVC_VRDBR,
+			       0x3ff - (dvc->volume.val[0] >> 13));
+
+	} else {
+		for (i = 0; i < RSND_DVC_CHANNELS; i++)
+			val[i] = dvc->volume.val[i];
+	}
+
 	/* Enable Digital Volume */
-	dvucr = 0x100;
-	rsnd_mod_write(mod, DVC_VOL0R, dvc->volume.val[0]);
-	rsnd_mod_write(mod, DVC_VOL1R, dvc->volume.val[1]);
+	dvucr |= 0x100;
+	rsnd_mod_write(mod, DVC_VOL0R, val[0]);
+	rsnd_mod_write(mod, DVC_VOL1R, val[1]);
 
 	/*  Enable Mute */
 	if (mute) {
@@ -321,6 +377,31 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 			rsnd_dai_is_play(rdai, io) ?
 			"DVC Out Mute Switch" : "DVC In Mute Switch",
 			&dvc->mute, 1);
+	if (ret < 0)
+		return ret;
+
+	/* Ramp */
+	ret = _rsnd_dvc_pcm_new_s(mod, rdai, rtd,
+			rsnd_dai_is_play(rdai, io) ?
+			"DVC Out Ramp Switch" : "DVC In Ramp Switch",
+			&dvc->ren, 1);
+	if (ret < 0)
+		return ret;
+
+	ret = _rsnd_dvc_pcm_new_e(mod, rdai, rtd,
+			rsnd_dai_is_play(rdai, io) ?
+			"DVC Out Ramp Up Rate" : "DVC In Ramp Up Rate",
+			&dvc->rup,
+			dvc_ramp_rate, ARRAY_SIZE(dvc_ramp_rate));
+	if (ret < 0)
+		return ret;
+
+	ret = _rsnd_dvc_pcm_new_e(mod, rdai, rtd,
+			rsnd_dai_is_play(rdai, io) ?
+			"DVC Out Ramp Down Rate" : "DVC In Ramp Down Rate",
+			&dvc->rdown,
+			dvc_ramp_rate, ARRAY_SIZE(dvc_ramp_rate));
+
 	if (ret < 0)
 		return ret;
 
