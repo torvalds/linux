@@ -57,6 +57,13 @@
 				allwinner,pull = <0>;
 			};
 
+			usb0_vbus_pin_a: usb0_vbus_pin@0 {
+				allwinner,pins = "PB9";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
 			usb1_vbus_pin_a: usb1_vbus_pin@0 {
 				allwinner,pins = "PH6";
 				allwinner,function = "gpio_out";
@@ -82,6 +89,18 @@
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
 		gpio = <&pio 1 8 0>;
+		status = "disabled";
+	};
+
+	reg_usb0_vbus: usb0-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb0_vbus_pin_a>;
+		regulator-name = "usb0-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&pio 1 9 0>;
 		status = "disabled";
 	};
 
