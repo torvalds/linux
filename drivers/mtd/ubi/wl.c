@@ -641,6 +641,7 @@ void ubi_refill_pools(struct ubi_device *ubi)
 
 /* ubi_wl_get_peb - works exaclty like __wl_get_peb but keeps track of
  * the fastmap pool.
+ * Returns with ubi->fm_sem held in read mode!
  */
 int ubi_wl_get_peb(struct ubi_device *ubi)
 {
@@ -649,16 +650,20 @@ int ubi_wl_get_peb(struct ubi_device *ubi)
 	struct ubi_fm_pool *wl_pool = &ubi->fm_wl_pool;
 
 again:
+	down_read(&ubi->fm_sem);
 	spin_lock(&ubi->wl_lock);
 	/* We check here also for the WL pool because at this point we can
 	 * refill the WL pool synchronous. */
 	if (pool->used == pool->size || wl_pool->used == wl_pool->size) {
 		spin_unlock(&ubi->wl_lock);
+		up_read(&ubi->fm_sem);
 		ret = ubi_update_fastmap(ubi);
 		if (ret) {
 			ubi_msg(ubi, "Unable to write a new fastmap: %i", ret);
+			down_read(&ubi->fm_sem);
 			return -ENOSPC;
 		}
+		down_read(&ubi->fm_sem);
 		spin_lock(&ubi->wl_lock);
 	}
 
@@ -670,6 +675,7 @@ again:
 			goto out;
 		}
 		retried = 1;
+		up_read(&ubi->fm_sem);
 		goto again;
 	}
 
@@ -725,6 +731,7 @@ int ubi_wl_get_peb(struct ubi_device *ubi)
 	spin_lock(&ubi->wl_lock);
 	peb = wl_get_peb(ubi);
 	spin_unlock(&ubi->wl_lock);
+	down_read(&ubi->fm_sem);
 
 	if (peb < 0)
 		return peb;
