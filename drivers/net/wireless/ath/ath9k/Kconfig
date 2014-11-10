@@ -148,6 +148,11 @@ config ATH9K_CHANNEL_CONTEXT
 	 for multi-channel concurrency. Enable this if P2P PowerSave support
 	 is required.
 
+config ATH9K_PCOEM
+	bool "Atheros ath9k support for PC OEM cards" if EXPERT
+	depends on ATH9K
+	default y
+
 config ATH9K_HTC
        tristate "Atheros HTC based wireless cards support"
        depends on USB && MAC80211

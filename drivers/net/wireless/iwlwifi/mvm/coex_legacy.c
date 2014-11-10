@@ -102,8 +102,6 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 
 #undef EVENT_PRIO_ANT
 
-#define BT_ANTENNA_COUPLING_THRESHOLD		(30)
-
 static int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
@@ -288,11 +286,6 @@ static const __le64 iwl_ci_mask[][3] = {
 		cpu_to_le64(0x0ULL),
 		cpu_to_le64(0x0ULL)
 	},
-};
-
-static const __le32 iwl_bt_mprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE] = {
-	cpu_to_le32(0x2e402280),
-	cpu_to_le32(0x7711a751),
 };
 
 struct corunning_block_luts {
@@ -593,7 +586,8 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 	}
 
 	bt_cmd->max_kill = 5;
-	bt_cmd->bt4_antenna_isolation_thr = BT_ANTENNA_COUPLING_THRESHOLD;
+	bt_cmd->bt4_antenna_isolation_thr =
+		IWL_MVM_BT_COEX_ANTENNA_COUPLING_THRS;
 	bt_cmd->bt4_antenna_isolation = iwlwifi_mod_params.ant_coupling;
 	bt_cmd->bt4_tx_tx_delta_freq_thr = 15;
 	bt_cmd->bt4_tx_rx_max_freq0 = 15;
@@ -649,8 +643,8 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 
 	memcpy(&bt_cmd->bt_prio_boost, iwl_bt_prio_boost,
 	       sizeof(iwl_bt_prio_boost));
-	memcpy(&bt_cmd->bt4_multiprio_lut, iwl_bt_mprio_lut,
-	       sizeof(iwl_bt_mprio_lut));
+	bt_cmd->bt4_multiprio_lut[0] = cpu_to_le32(IWL_MVM_BT_COEX_MPLUT_REG0);
+	bt_cmd->bt4_multiprio_lut[1] = cpu_to_le32(IWL_MVM_BT_COEX_MPLUT_REG1);
 
 send_cmd:
 	memset(&mvm->last_bt_notif_old, 0, sizeof(mvm->last_bt_notif_old));

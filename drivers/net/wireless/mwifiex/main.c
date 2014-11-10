@@ -122,6 +122,7 @@ static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 		}
 	}
 
+	vfree(adapter->chan_stats);
 	kfree(adapter);
 	return 0;
 }
@@ -444,6 +445,11 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	priv = adapter->priv[MWIFIEX_BSS_ROLE_STA];
 	if (mwifiex_register_cfg80211(adapter)) {
 		dev_err(adapter->dev, "cannot register with cfg80211\n");
+		goto err_init_fw;
+	}
+
+	if (mwifiex_init_channel_scan_gap(adapter)) {
+		dev_err(adapter->dev, "could not init channel stats table\n");
 		goto err_init_fw;
 	}
 

@@ -609,7 +609,7 @@ int iwl_mvm_alloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	qmask = iwl_mvm_mac_get_queues_mask(mvm, vif);
+	qmask = iwl_mvm_mac_get_queues_mask(vif);
 
 	/*
 	 * The firmware defines the TFD queue mask to only be relevant

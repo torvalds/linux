@@ -32,7 +32,6 @@ ath9k_hw-y:=	\
 		ar5008_phy.o \
 		ar9002_calib.o \
 		ar9003_calib.o \
-		ar9003_rtt.o \
 		calib.o \
 		eeprom.o \
 		eeprom_def.o \
@@ -49,6 +48,8 @@ ath9k_hw-$(CONFIG_ATH9K_WOW) += ar9003_wow.o
 
 ath9k_hw-$(CONFIG_ATH9K_BTCOEX_SUPPORT) += btcoex.o \
 					   ar9003_mci.o
+
+ath9k_hw-$(CONFIG_ATH9K_PCOEM) += ar9003_rtt.o
 
 ath9k_hw-$(CONFIG_ATH9K_DYNACK) += dynack.o
 

@@ -19,9 +19,9 @@
 
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
-#include "dhd.h"
-#include "dhd_bus.h"
-#include "dhd_dbg.h"
+#include "core.h"
+#include "bus.h"
+#include "debug.h"
 
 static struct dentry *root_folder;
 

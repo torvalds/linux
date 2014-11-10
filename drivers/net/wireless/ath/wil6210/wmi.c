@@ -486,7 +486,7 @@ static void wmi_evt_disconnect(struct wil6210_priv *wil, int id,
 	wil->sinfo_gen++;
 
 	mutex_lock(&wil->mutex);
-	wil6210_disconnect(wil, evt->bssid);
+	wil6210_disconnect(wil, evt->bssid, true);
 	mutex_unlock(&wil->mutex);
 }
 
@@ -1025,7 +1025,7 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 	struct wmi_cfg_rx_chain_cmd cmd = {
 		.action = WMI_RX_CHAIN_ADD,
 		.rx_sw_ring = {
-			.max_mpdu_size = cpu_to_le16(RX_BUF_LEN),
+			.max_mpdu_size = cpu_to_le16(mtu_max + ETH_HLEN),
 			.ring_mem_base = cpu_to_le64(vring->pa),
 			.ring_size = cpu_to_le16(vring->size),
 		},

@@ -206,7 +206,7 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
 			       u32 i, int headroom)
 {
 	struct device *dev = wil_to_dev(wil);
-	unsigned int sz = RX_BUF_LEN;
+	unsigned int sz = mtu_max + ETH_HLEN;
 	struct vring_rx_desc dd, *d = &dd;
 	volatile struct vring_rx_desc *_d = &vring->va[i].rx;
 	dma_addr_t pa;
@@ -385,7 +385,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	struct vring_rx_desc *d;
 	struct sk_buff *skb;
 	dma_addr_t pa;
-	unsigned int sz = RX_BUF_LEN;
+	unsigned int sz = mtu_max + ETH_HLEN;
 	u16 dmalen;
 	u8 ftype;
 	u8 ds_bits;
@@ -646,7 +646,8 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		.action = cpu_to_le32(WMI_VRING_CMD_ADD),
 		.vring_cfg = {
 			.tx_sw_ring = {
-				.max_mpdu_size = cpu_to_le16(TX_BUF_LEN),
+				.max_mpdu_size =
+					cpu_to_le16(mtu_max + ETH_HLEN),
 				.ring_size = cpu_to_le16(size),
 			},
 			.ringid = id,

@@ -10,18 +10,14 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Written by:
  * Pavel Smolenskiy <pavel.smolenskiy@gmail.com>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  */
-#ifndef MAC802154_H
-#define MAC802154_H
+#ifndef __IEEE802154_I_H
+#define __IEEE802154_I_H
 
 #include <linux/mutex.h>
 #include <net/mac802154.h>
@@ -30,9 +26,9 @@
 #include "llsec.h"
 
 /* mac802154 device private data */
-struct mac802154_priv {
-	struct ieee802154_dev hw;
-	struct ieee802154_ops *ops;
+struct ieee802154_local {
+	struct ieee802154_hw hw;
+	const struct ieee802154_ops *ops;
 
 	/* ieee802154 phy */
 	struct wpan_phy *phy;
@@ -46,23 +42,27 @@ struct mac802154_priv {
 	 *
 	 * So atomic readers can use any of this protection methods.
 	 */
-	struct list_head	slaves;
-	struct mutex		slaves_mtx;
+	struct list_head	interfaces;
+	struct mutex		iflist_mtx;
 
 	/* This one is used for scanning and other jobs not to be interfered
 	 * with serial driver.
 	 */
-	struct workqueue_struct	*dev_workqueue;
+	struct workqueue_struct	*workqueue;
 
-	/* SoftMAC device is registered and running. One can add subinterfaces.
-	 * This flag should be modified under slaves_mtx and RTNL, so you can
-	 * read them using any of protection methods.
-	 */
-	bool running;
+	bool started;
+
+	struct tasklet_struct tasklet;
+	struct sk_buff_head skb_queue;
 };
 
-#define	MAC802154_DEVICE_STOPPED	0x00
-#define MAC802154_DEVICE_RUN		0x01
+enum {
+	IEEE802154_RX_MSG        = 1,
+};
+
+enum ieee802154_sdata_state_bits {
+	SDATA_STATE_RUNNING,
+};
 
 /* Slave interface definition.
  *
@@ -70,23 +70,21 @@ struct mac802154_priv {
  * Each ieee802154 device/transceiver may have several slaves and able
  * to be associated with several networks at the same time.
  */
-struct mac802154_sub_if_data {
+struct ieee802154_sub_if_data {
 	struct list_head list; /* the ieee802154_priv->slaves list */
 
-	struct mac802154_priv *hw;
+	struct ieee802154_local *local;
 	struct net_device *dev;
 
 	int type;
-	bool running;
+	unsigned long state;
 
 	spinlock_t mib_lock;
 
 	__le16 pan_id;
 	__le16 short_addr;
 	__le64 extended_addr;
-
-	u8 chan;
-	u8 page;
+	bool promisuous_mode;
 
 	struct ieee802154_mac_params mac_params;
 
@@ -103,24 +101,36 @@ struct mac802154_sub_if_data {
 	struct mac802154_llsec sec;
 };
 
-#define mac802154_to_priv(_hw)	container_of(_hw, struct mac802154_priv, hw)
-
 #define MAC802154_CHAN_NONE		0xff /* No channel is assigned */
+
+static inline struct ieee802154_local *
+hw_to_local(struct ieee802154_hw *hw)
+{
+	return container_of(hw, struct ieee802154_local, hw);
+}
+
+static inline struct ieee802154_sub_if_data *
+IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
+{
+	return netdev_priv(dev);
+}
+
+static inline bool
+ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
+{
+	return test_bit(SDATA_STATE_RUNNING, &sdata->state);
+}
 
 extern struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced;
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
 
-int mac802154_slave_open(struct net_device *dev);
-int mac802154_slave_close(struct net_device *dev);
-
-void mac802154_monitors_rx(struct mac802154_priv *priv, struct sk_buff *skb);
 void mac802154_monitor_setup(struct net_device *dev);
+netdev_tx_t
+ieee802154_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
-void mac802154_wpans_rx(struct mac802154_priv *priv, struct sk_buff *skb);
 void mac802154_wpan_setup(struct net_device *dev);
-
-netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
-			 u8 page, u8 chan);
+netdev_tx_t
+ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /* MIB callbacks */
 void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val);
@@ -130,11 +140,6 @@ __le16 mac802154_dev_get_pan_id(const struct net_device *dev);
 void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val);
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan);
 u8 mac802154_dev_get_dsn(const struct net_device *dev);
-
-int mac802154_set_mac_params(struct net_device *dev,
-			     const struct ieee802154_mac_params *params);
-void mac802154_get_mac_params(struct net_device *dev,
-			      struct ieee802154_mac_params *params);
 
 int mac802154_get_params(struct net_device *dev,
 			 struct ieee802154_llsec_params *params);
@@ -169,4 +174,4 @@ void mac802154_get_table(struct net_device *dev,
 			 struct ieee802154_llsec_table **t);
 void mac802154_unlock_table(struct net_device *dev);
 
-#endif /* MAC802154_H */
+#endif /* __IEEE802154_I_H */

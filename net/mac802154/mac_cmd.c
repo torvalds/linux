@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
@@ -24,14 +20,14 @@
 
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
+#include <linux/ieee802154.h>
 
-#include <net/ieee802154.h>
 #include <net/ieee802154_netdev.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 #include <net/mac802154.h>
 #include <net/nl802154.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
 
 static int mac802154_mlme_start_req(struct net_device *dev,
 				    struct ieee802154_addr *addr,
@@ -79,11 +75,33 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 
 static struct wpan_phy *mac802154_get_phy(const struct net_device *dev)
 {
-	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	return to_phy(get_device(&priv->hw->phy->dev));
+	return to_phy(get_device(&sdata->local->phy->dev));
+}
+
+static int mac802154_set_mac_params(struct net_device *dev,
+				    const struct ieee802154_mac_params *params)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	sdata->mac_params = *params;
+	mutex_unlock(&sdata->local->iflist_mtx);
+
+	return 0;
+}
+
+static void mac802154_get_mac_params(struct net_device *dev,
+				     struct ieee802154_mac_params *params)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	*params = sdata->mac_params;
+	mutex_unlock(&sdata->local->iflist_mtx);
 }
 
 static struct ieee802154_llsec_ops mac802154_llsec_ops = {

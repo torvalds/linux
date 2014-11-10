@@ -18,8 +18,8 @@
 #include "brcmu_wifi.h"
 #include "brcmu_utils.h"
 
-#include "dhd.h"
-#include "dhd_dbg.h"
+#include "core.h"
+#include "debug.h"
 #include "tracepoint.h"
 #include "fwsignal.h"
 #include "fweh.h"

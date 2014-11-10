@@ -704,7 +704,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 		if ((sta->sdata->vif.type == NL80211_IFTYPE_STATION) &&
 		    (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS))
-			ieee80211_sta_tx_notify(sta->sdata, (void *) skb->data, acked);
+			ieee80211_sta_tx_notify(sta->sdata, (void *) skb->data,
+						acked, info->status.tx_time);
 
 		if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
 			if (info->flags & IEEE80211_TX_STAT_ACK) {

@@ -54,10 +54,18 @@ static int wme_downgrade_ac(struct sk_buff *skb)
 }
 
 static u16 ieee80211_downgrade_queue(struct ieee80211_sub_if_data *sdata,
-				     struct sk_buff *skb)
+				     struct sta_info *sta, struct sk_buff *skb)
 {
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
 	/* in case we are a client verify acm is not set for this ac */
-	while (unlikely(sdata->wmm_acm & BIT(skb->priority))) {
+	while (sdata->wmm_acm & BIT(skb->priority)) {
+		int ac = ieee802_1d_to_ac[skb->priority];
+
+		if (ifmgd->tx_tspec[ac].admitted_time &&
+		    skb->priority == ifmgd->tx_tspec[ac].up)
+			return ac;
+
 		if (wme_downgrade_ac(skb)) {
 			/*
 			 * This should not really happen. The AP has marked all
@@ -96,7 +104,7 @@ u16 ieee80211_select_queue_80211(struct ieee80211_sub_if_data *sdata,
 	p = ieee80211_get_qos_ctl(hdr);
 	skb->priority = *p & IEEE80211_QOS_CTL_TAG1D_MASK;
 
-	return ieee80211_downgrade_queue(sdata, skb);
+	return ieee80211_downgrade_queue(sdata, NULL, skb);
 }
 
 /* Indicate which queue to use. */
@@ -108,6 +116,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 	const u8 *ra = NULL;
 	bool qos = false;
 	struct mac80211_qos_map *qos_map;
+	u16 ret;
 
 	if (local->hw.queues < IEEE80211_NUM_ACS || skb->len < 6) {
 		skb->priority = 0; /* required for correct WPA/11i MIC */
@@ -139,6 +148,10 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_ADHOC:
 		ra = skb->data;
 		break;
+	case NL80211_IFTYPE_OCB:
+		/* all stations are required to support WME */
+		qos = true;
+		break;
 	default:
 		break;
 	}
@@ -148,27 +161,29 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 		if (sta)
 			qos = sta->sta.wme;
 	}
-	rcu_read_unlock();
 
 	if (!qos) {
 		skb->priority = 0; /* required for correct WPA/11i MIC */
-		return IEEE80211_AC_BE;
+		ret = IEEE80211_AC_BE;
+		goto out;
 	}
 
 	if (skb->protocol == sdata->control_port_protocol) {
 		skb->priority = 7;
-		return ieee80211_downgrade_queue(sdata, skb);
+		goto downgrade;
 	}
 
 	/* use the data classifier to determine what 802.1d tag the
 	 * data frame has */
-	rcu_read_lock();
 	qos_map = rcu_dereference(sdata->qos_map);
 	skb->priority = cfg80211_classify8021d(skb, qos_map ?
 					       &qos_map->qos_map : NULL);
-	rcu_read_unlock();
 
-	return ieee80211_downgrade_queue(sdata, skb);
+ downgrade:
+	ret = ieee80211_downgrade_queue(sdata, sta, skb);
+ out:
+	rcu_read_unlock();
+	return ret;
 }
 
 /**

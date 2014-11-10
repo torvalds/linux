@@ -403,6 +403,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (cfg->max_rx_agg_size)
 		hw->max_rx_aggregation_subframes = cfg->max_rx_agg_size;
 
+	if (cfg->max_tx_agg_size)
+		hw->max_tx_aggregation_subframes = cfg->max_tx_agg_size;
+
 	op_mode = hw->priv;
 	op_mode->ops = &iwl_mvm_ops;
 
@@ -584,16 +587,18 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	ieee80211_unregister_hw(mvm->hw);
 
 	kfree(mvm->scan_cmd);
-	if (mvm->fw_error_dump) {
-		vfree(mvm->fw_error_dump->op_mode_ptr);
-		vfree(mvm->fw_error_dump->trans_ptr);
-		kfree(mvm->fw_error_dump);
-	}
 	kfree(mvm->mcast_filter_cmd);
 	mvm->mcast_filter_cmd = NULL;
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
 	kfree(mvm->d3_resume_sram);
+	if (mvm->nd_config) {
+		kfree(mvm->nd_config->match_sets);
+		kfree(mvm->nd_config);
+		mvm->nd_config = NULL;
+		kfree(mvm->nd_ies);
+		mvm->nd_ies = NULL;
+	}
 #endif
 
 	iwl_trans_op_mode_leave(mvm->trans);

@@ -169,10 +169,8 @@ static void bcma_of_fill_device(struct platform_device *parent,
 }
 #endif /* CONFIG_OF */
 
-static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
+void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
 {
-	int err;
-
 	core->dev.release = bcma_release_core_dev;
 	core->dev.bus = &bcma_bus_type;
 	dev_set_name(&core->dev, "bcma%d:%d", bus->num, core->core_index);
@@ -196,6 +194,11 @@ static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
 	case BCMA_HOSTTYPE_SDIO:
 		break;
 	}
+}
+
+static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
+{
+	int err;
 
 	err = device_register(&core->dev);
 	if (err) {

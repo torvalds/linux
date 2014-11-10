@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wl_cfg80211_h_
-#define _wl_cfg80211_h_
+#ifndef BRCMFMAC_CFG80211_H
+#define BRCMFMAC_CFG80211_H
 
 /* for brcmu_d11inf */
 #include <brcmu_d11.h>
@@ -480,7 +480,8 @@ const struct brcmf_tlv *
 brcmf_parse_tlvs(const void *buf, int buflen, uint key);
 u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
 			struct ieee80211_channel *ch);
-bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg, unsigned long state);
+bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg,
+			     unsigned long state);
 void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
 				  struct brcmf_cfg80211_vif *vif);
 bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
@@ -493,4 +494,4 @@ void brcmf_set_mpc(struct brcmf_if *ndev, int mpc);
 void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg);
 void brcmf_cfg80211_free_netdev(struct net_device *ndev);
 
-#endif				/* _wl_cfg80211_h_ */
+#endif /* BRCMFMAC_CFG80211_H */

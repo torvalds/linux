@@ -362,6 +362,9 @@ static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_common *common = ath9k_hw_common(ah);
 
+	if (!IS_ENABLED(CONFIG_ATH9K_PCOEM))
+		return;
+
 	if (common->bus_ops->ath_bus_type != ATH_PCI)
 		return;
 
@@ -528,6 +531,10 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 		ah->is_clk_25mhz = pdata->is_clk_25mhz;
 		ah->get_mac_revision = pdata->get_mac_revision;
 		ah->external_reset = pdata->external_reset;
+		ah->disable_2ghz = pdata->disable_2ghz;
+		ah->disable_5ghz = pdata->disable_5ghz;
+		if (!pdata->endian_check)
+			ah->ah_flags |= AH_NO_EEP_SWAP;
 	}
 
 	common->ops = &ah->reg_ops;

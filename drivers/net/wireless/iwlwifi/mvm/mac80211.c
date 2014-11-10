@@ -69,6 +69,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
 #include <linux/if_arp.h>
+#include <linux/devcoredump.h>
 #include <net/mac80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/tcp.h>
@@ -679,10 +680,51 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	memset(&mvmvif->bf_data, 0, sizeof(mvmvif->bf_data));
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+static ssize_t iwl_mvm_read_coredump(char *buffer, loff_t offset, size_t count,
+				     const void *data, size_t datalen)
+{
+	const struct iwl_mvm_dump_ptrs *dump_ptrs = data;
+	ssize_t bytes_read;
+	ssize_t bytes_read_trans;
+
+	if (offset < dump_ptrs->op_mode_len) {
+		bytes_read = min_t(ssize_t, count,
+				   dump_ptrs->op_mode_len - offset);
+		memcpy(buffer, (u8 *)dump_ptrs->op_mode_ptr + offset,
+		       bytes_read);
+		offset += bytes_read;
+		count -= bytes_read;
+
+		if (count == 0)
+			return bytes_read;
+	} else {
+		bytes_read = 0;
+	}
+
+	if (!dump_ptrs->trans_ptr)
+		return bytes_read;
+
+	offset -= dump_ptrs->op_mode_len;
+	bytes_read_trans = min_t(ssize_t, count,
+				 dump_ptrs->trans_ptr->len - offset);
+	memcpy(buffer + bytes_read,
+	       (u8 *)dump_ptrs->trans_ptr->data + offset,
+	       bytes_read_trans);
+
+	return bytes_read + bytes_read_trans;
+}
+
+static void iwl_mvm_free_coredump(const void *data)
+{
+	const struct iwl_mvm_dump_ptrs *fw_error_dump = data;
+
+	vfree(fw_error_dump->op_mode_ptr);
+	vfree(fw_error_dump->trans_ptr);
+	kfree(fw_error_dump);
+}
+
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 {
-	static char *env[] = { "DRIVER=iwlwifi", "EVENT=error_dump", NULL };
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
@@ -695,10 +737,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (mvm->fw_error_dump)
-		return;
-
-	fw_error_dump = kzalloc(sizeof(*mvm->fw_error_dump), GFP_KERNEL);
+	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
 	if (!fw_error_dump)
 		return;
 
@@ -773,12 +812,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (fw_error_dump->trans_ptr)
 		file_len += fw_error_dump->trans_ptr->len;
 	dump_file->file_len = cpu_to_le32(file_len);
-	mvm->fw_error_dump = fw_error_dump;
 
-	/* notify the userspace about the error we had */
-	kobject_uevent_env(&mvm->hw->wiphy->dev.kobj, KOBJ_CHANGE, env);
+	dev_coredumpm(mvm->trans->dev, THIS_MODULE, fw_error_dump, 0,
+		      GFP_KERNEL, iwl_mvm_read_coredump, iwl_mvm_free_coredump);
 }
-#endif
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
@@ -858,9 +895,8 @@ static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 	return ret;
 }
 
-static void iwl_mvm_mac_restart_complete(struct ieee80211_hw *hw)
+static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
 	mutex_lock(&mvm->mutex);
@@ -876,6 +912,21 @@ static void iwl_mvm_mac_restart_complete(struct ieee80211_hw *hw)
 	iwl_mvm_unref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 	mutex_unlock(&mvm->mutex);
+}
+
+static void
+iwl_mvm_mac_reconfig_complete(struct ieee80211_hw *hw,
+			      enum ieee80211_reconfig_type reconfig_type)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	switch (reconfig_type) {
+	case IEEE80211_RECONFIG_TYPE_RESTART:
+		iwl_mvm_restart_complete(mvm);
+		break;
+	case IEEE80211_RECONFIG_TYPE_SUSPEND:
+		break;
+	}
 }
 
 void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
@@ -1086,7 +1137,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif)
 {
-	u32 tfd_msk = iwl_mvm_mac_get_queues_mask(mvm, vif);
+	u32 tfd_msk = iwl_mvm_mac_get_queues_mask(vif);
 
 	if (tfd_msk) {
 		mutex_lock(&mvm->mutex);
@@ -1381,6 +1432,9 @@ bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
 		.mvm = mvm,
 		.cmd = cmd,
 	};
+
+	if (IWL_MVM_FW_BCAST_FILTER_PASS_ALL)
+		return false;
 
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->max_bcast_filters = ARRAY_SIZE(cmd->filters);
@@ -2170,25 +2224,9 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mvm->scan_status = IWL_MVM_SCAN_SCHED;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)) {
-		ret = iwl_mvm_config_sched_scan(mvm, vif, req, ies);
-		if (ret)
-			goto err;
-	}
-
-	ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
+	ret = iwl_mvm_scan_offload_start(mvm, vif, req, ies);
 	if (ret)
-		goto err;
-
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
-		ret = iwl_mvm_unified_sched_scan_lmac(mvm, vif, req, ies);
-	else
-		ret = iwl_mvm_sched_scan_start(mvm, req);
-
-	if (!ret)
-		goto out;
-err:
-	mvm->scan_status = IWL_MVM_SCAN_NONE;
+		mvm->scan_status = IWL_MVM_SCAN_NONE;
 out:
 	mutex_unlock(&mvm->mutex);
 	return ret;
@@ -3010,25 +3048,31 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, mvmvif->ap_sta_id);
 
-	if (WARN_ON_ONCE(!mvmsta))
-		goto done;
+	if (WARN_ON_ONCE(!mvmsta)) {
+		mutex_unlock(&mvm->mutex);
+		return;
+	}
 
 	if (drop) {
 		if (iwl_mvm_flush_tx_path(mvm, mvmsta->tfd_queue_msk, true))
 			IWL_ERR(mvm, "flush request fail\n");
+		mutex_unlock(&mvm->mutex);
 	} else {
-		iwl_trans_wait_tx_queue_empty(mvm->trans,
-					      mvmsta->tfd_queue_msk);
+		u32 tfd_queue_msk = mvmsta->tfd_queue_msk;
+		mutex_unlock(&mvm->mutex);
+
+		/* this can take a while, and we may need/want other operations
+		 * to succeed while doing this, so do it without the mutex held
+		 */
+		iwl_trans_wait_tx_queue_empty(mvm->trans, tfd_queue_msk);
 	}
-done:
-	mutex_unlock(&mvm->mutex);
 }
 
 const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
 	.start = iwl_mvm_mac_start,
-	.restart_complete = iwl_mvm_mac_restart_complete,
+	.reconfig_complete = iwl_mvm_mac_reconfig_complete,
 	.stop = iwl_mvm_mac_stop,
 	.add_interface = iwl_mvm_mac_add_interface,
 	.remove_interface = iwl_mvm_mac_remove_interface,

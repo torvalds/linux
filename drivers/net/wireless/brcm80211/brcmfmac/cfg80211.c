@@ -26,18 +26,18 @@
 #include <brcmu_utils.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
-#include "dhd.h"
-#include "dhd_dbg.h"
+#include "core.h"
+#include "debug.h"
 #include "tracepoint.h"
 #include "fwil_types.h"
 #include "p2p.h"
 #include "btcoex.h"
-#include "wl_cfg80211.h"
+#include "cfg80211.h"
 #include "feature.h"
 #include "fwil.h"
 #include "proto.h"
 #include "vendor.h"
-#include "dhd_bus.h"
+#include "bus.h"
 
 #define BRCMF_SCAN_IE_LEN_MAX		2048
 #define BRCMF_PNO_VERSION		2
@@ -2779,6 +2779,44 @@ static __always_inline void brcmf_delay(u32 ms)
 	}
 }
 
+static s32 brcmf_config_wowl_pattern(struct brcmf_if *ifp, u8 cmd[4],
+				     u8 *pattern, u32 patternsize, u8 *mask,
+				     u32 packet_offset)
+{
+	struct brcmf_fil_wowl_pattern_le *filter;
+	u32 masksize;
+	u32 patternoffset;
+	u8 *buf;
+	u32 bufsize;
+	s32 ret;
+
+	masksize = (patternsize + 7) / 8;
+	patternoffset = sizeof(*filter) - sizeof(filter->cmd) + masksize;
+
+	bufsize = sizeof(*filter) + patternsize + masksize;
+	buf = kzalloc(bufsize, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	filter = (struct brcmf_fil_wowl_pattern_le *)buf;
+
+	memcpy(filter->cmd, cmd, 4);
+	filter->masksize = cpu_to_le32(masksize);
+	filter->offset = cpu_to_le32(packet_offset);
+	filter->patternoffset = cpu_to_le32(patternoffset);
+	filter->patternsize = cpu_to_le32(patternsize);
+	filter->type = cpu_to_le32(BRCMF_WOWL_PATTERN_TYPE_BITMAP);
+
+	if ((mask) && (masksize))
+		memcpy(buf + sizeof(*filter), mask, masksize);
+	if ((pattern) && (patternsize))
+		memcpy(buf + sizeof(*filter) + masksize, pattern, patternsize);
+
+	ret = brcmf_fil_iovar_data_set(ifp, "wowl_pattern", buf, bufsize);
+
+	kfree(buf);
+	return ret;
+}
+
 static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
@@ -2788,10 +2826,11 @@ static s32 brcmf_cfg80211_resume(struct wiphy *wiphy)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (cfg->wowl_enabled) {
+		brcmf_configure_arp_offload(ifp, true);
 		brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM,
 				      cfg->pre_wowl_pmmode);
-		brcmf_fil_iovar_data_set(ifp, "wowl_pattern", "clr", 4);
 		brcmf_fil_iovar_int_set(ifp, "wowl_clear", 0);
+		brcmf_config_wowl_pattern(ifp, "clr", NULL, 0, NULL, 0);
 		cfg->wowl_enabled = false;
 	}
 	return 0;
@@ -2802,21 +2841,29 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 				 struct cfg80211_wowlan *wowl)
 {
 	u32 wowl_config;
+	u32 i;
 
 	brcmf_dbg(TRACE, "Suspend, wowl config.\n");
 
+	brcmf_configure_arp_offload(ifp, false);
 	brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_PM, &cfg->pre_wowl_pmmode);
 	brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PM, PM_MAX);
 
 	wowl_config = 0;
 	if (wowl->disconnect)
-		wowl_config |= WL_WOWL_DIS | WL_WOWL_BCN | WL_WOWL_RETR;
-		/* Note: if "wowl" target and not "wowlpf" then wowl_bcn_loss
-		 * should be configured. This paramater is not supported by
-		 * wowlpf.
-		 */
+		wowl_config = BRCMF_WOWL_DIS | BRCMF_WOWL_BCN | BRCMF_WOWL_RETR;
 	if (wowl->magic_pkt)
-		wowl_config |= WL_WOWL_MAGIC;
+		wowl_config |= BRCMF_WOWL_MAGIC;
+	if ((wowl->patterns) && (wowl->n_patterns)) {
+		wowl_config |= BRCMF_WOWL_NET;
+		for (i = 0; i < wowl->n_patterns; i++) {
+			brcmf_config_wowl_pattern(ifp, "add",
+				(u8 *)wowl->patterns[i].pattern,
+				wowl->patterns[i].pattern_len,
+				(u8 *)wowl->patterns[i].mask,
+				wowl->patterns[i].pkt_offset);
+		}
+	}
 	brcmf_fil_iovar_int_set(ifp, "wowl", wowl_config);
 	brcmf_fil_iovar_int_set(ifp, "wowl_activate", 1);
 	brcmf_bus_wowl_config(cfg->pub->bus_if, true);
@@ -3998,24 +4045,24 @@ brcmf_cfg80211_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
 
 static int
 brcmf_cfg80211_del_station(struct wiphy *wiphy, struct net_device *ndev,
-			   const u8 *mac)
+			   struct station_del_parameters *params)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_scb_val_le scbval;
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err;
 
-	if (!mac)
+	if (!params->mac)
 		return -EFAULT;
 
-	brcmf_dbg(TRACE, "Enter %pM\n", mac);
+	brcmf_dbg(TRACE, "Enter %pM\n", params->mac);
 
 	if (ifp->vif == cfg->p2p.bss_idx[P2PAPI_BSSCFG_DEVICE].vif)
 		ifp = cfg->p2p.bss_idx[P2PAPI_BSSCFG_PRIMARY].vif->ifp;
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
-	memcpy(&scbval.ea, mac, ETH_ALEN);
+	memcpy(&scbval.ea, params->mac, ETH_ALEN);
 	scbval.val = cpu_to_le32(WLAN_REASON_DEAUTH_LEAVING);
 	err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SCB_DEAUTHENTICATE_FOR_REASON,
 				     &scbval, sizeof(scbval));
@@ -5440,10 +5487,13 @@ static void brcmf_wiphy_pno_params(struct wiphy *wiphy)
 	wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
 }
 
-
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support brcmf_wowlan_support = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
+	.n_patterns = BRCMF_WOWL_MAXPATTERNS,
+	.pattern_max_len = BRCMF_WOWL_MAXPATTERNSIZE,
+	.pattern_min_len = 1,
+	.max_pkt_offset = 1500,
 };
 #endif
 
@@ -5607,7 +5657,8 @@ enum nl80211_iftype brcmf_cfg80211_get_iftype(struct brcmf_if *ifp)
 	return wdev->iftype;
 }
 
-bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg, unsigned long state)
+bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg,
+			     unsigned long state)
 {
 	struct brcmf_cfg80211_vif *vif;
 
