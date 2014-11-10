@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/edma.h>
+#include <linux/dma-mapping.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
@@ -1623,6 +1624,11 @@ static int edma_probe(struct platform_device *pdev)
 	struct device_node	*node = pdev->dev.of_node;
 	struct device		*dev = &pdev->dev;
 	int			ret;
+	struct platform_device_info edma_dev_info = {
+		.name = "edma-dma-engine",
+		.dma_mask = DMA_BIT_MASK(32),
+		.parent = &pdev->dev,
+	};
 
 	if (node) {
 		/* Check if this is a second instance registered */
@@ -1793,6 +1799,9 @@ static int edma_probe(struct platform_device *pdev)
 			edma_write_array(j, EDMA_QRAE, i, 0x0);
 		}
 		arch_num_cc++;
+
+		edma_dev_info.id = j;
+		platform_device_register_full(&edma_dev_info);
 	}
 
 	return 0;

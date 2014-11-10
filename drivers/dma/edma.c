@@ -1107,52 +1107,14 @@ bool edma_filter_fn(struct dma_chan *chan, void *param)
 }
 EXPORT_SYMBOL(edma_filter_fn);
 
-static struct platform_device *pdev0, *pdev1;
-
-static const struct platform_device_info edma_dev_info0 = {
-	.name = "edma-dma-engine",
-	.id = 0,
-	.dma_mask = DMA_BIT_MASK(32),
-};
-
-static const struct platform_device_info edma_dev_info1 = {
-	.name = "edma-dma-engine",
-	.id = 1,
-	.dma_mask = DMA_BIT_MASK(32),
-};
-
 static int edma_init(void)
 {
-	int ret = platform_driver_register(&edma_driver);
-
-	if (ret == 0) {
-		pdev0 = platform_device_register_full(&edma_dev_info0);
-		if (IS_ERR(pdev0)) {
-			platform_driver_unregister(&edma_driver);
-			ret = PTR_ERR(pdev0);
-			goto out;
-		}
-	}
-
-	if (!of_have_populated_dt() && EDMA_CTLRS == 2) {
-		pdev1 = platform_device_register_full(&edma_dev_info1);
-		if (IS_ERR(pdev1)) {
-			platform_driver_unregister(&edma_driver);
-			platform_device_unregister(pdev0);
-			ret = PTR_ERR(pdev1);
-		}
-	}
-
-out:
-	return ret;
+	return platform_driver_register(&edma_driver);
 }
 subsys_initcall(edma_init);
 
 static void __exit edma_exit(void)
 {
-	platform_device_unregister(pdev0);
-	if (pdev1)
-		platform_device_unregister(pdev1);
 	platform_driver_unregister(&edma_driver);
 }
 module_exit(edma_exit);
