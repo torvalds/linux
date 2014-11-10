@@ -120,13 +120,16 @@ static void of_get_regulation_constraints(struct device_node *np,
 /**
  * of_get_regulator_init_data - extract regulator_init_data structure info
  * @dev: device requesting for regulator_init_data
+ * @node: regulator device node
+ * @desc: regulator description
  *
  * Populates regulator_init_data structure by extracting data from device
  * tree node, returns a pointer to the populated struture or NULL if memory
  * alloc fails.
  */
 struct regulator_init_data *of_get_regulator_init_data(struct device *dev,
-						struct device_node *node)
+					  struct device_node *node,
+					  const struct regulator_desc *desc)
 {
 	struct regulator_init_data *init_data;
 
@@ -218,7 +221,7 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 				continue;
 
 			match->init_data =
-				of_get_regulator_init_data(dev, child);
+				of_get_regulator_init_data(dev, child, NULL);
 			if (!match->init_data) {
 				dev_err(dev,
 					"failed to parse DT for regulator %s\n",
@@ -265,7 +268,7 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		if (strcmp(desc->of_match, name))
 			continue;
 
-		init_data = of_get_regulator_init_data(dev, child);
+		init_data = of_get_regulator_init_data(dev, child, desc);
 		if (!init_data) {
 			dev_err(dev,
 				"failed to parse DT for regulator %s\n",
