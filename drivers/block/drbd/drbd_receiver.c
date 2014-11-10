@@ -2482,7 +2482,7 @@ bool drbd_rs_c_min_rate_throttle(struct drbd_device *device)
 			atomic_read(&device->rs_sect_ev);
 
 	if (atomic_read(&device->ap_actlog_cnt)
-	    || !device->rs_last_events || curr_events - device->rs_last_events > 64) {
+	    || curr_events - device->rs_last_events > 64) {
 		unsigned long rs_left;
 		int i;
 
