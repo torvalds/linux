@@ -346,7 +346,7 @@ nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	union nft_entry e = {};
 	int ret;
 
-	ret = nft_compat_chain_validate_dependency(match->name, ctx->chain);
+	ret = nft_compat_chain_validate_dependency(match->table, ctx->chain);
 	if (ret < 0)
 		goto err;
 
@@ -420,7 +420,7 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 		if (!(hook_mask & match->hooks))
 			return -EINVAL;
 
-		ret = nft_compat_chain_validate_dependency(match->name,
+		ret = nft_compat_chain_validate_dependency(match->table,
 							   ctx->chain);
 		if (ret < 0)
 			return ret;
