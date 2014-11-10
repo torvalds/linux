@@ -2988,15 +2988,13 @@ out_remove:
 	__iwl_mvm_remove_chanctx(mvm, vifs[0].new_ctx);
 
 out_reassign:
-	ret = __iwl_mvm_add_chanctx(mvm, vifs[0].old_ctx);
-	if (ret) {
+	if (__iwl_mvm_add_chanctx(mvm, vifs[0].old_ctx)) {
 		IWL_ERR(mvm, "failed to add old_ctx back after failure.\n");
 		goto out_restart;
 	}
 
-	ret = __iwl_mvm_assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx,
-					   true);
-	if (ret) {
+	if (__iwl_mvm_assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx,
+					 true)) {
 		IWL_ERR(mvm, "failed to reassign old_ctx after failure.\n");
 		goto out_restart;
 	}
