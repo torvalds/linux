@@ -22,6 +22,7 @@
 #define FPSID_NODOUBLE		(1<<20)
 #define FPSID_ARCH_BIT		(16)
 #define FPSID_ARCH_MASK		(0xF  << FPSID_ARCH_BIT)
+#define FPSID_CPUID_ARCH_MASK	(0x7F  << FPSID_ARCH_BIT)
 #define FPSID_PART_BIT		(8)
 #define FPSID_PART_MASK		(0xFF << FPSID_PART_BIT)
 #define FPSID_VARIANT_BIT	(4)
@@ -75,6 +76,10 @@
 /* MVFR0 bits */
 #define MVFR0_A_SIMD_BIT	(0)
 #define MVFR0_A_SIMD_MASK	(0xf << MVFR0_A_SIMD_BIT)
+#define MVFR0_SP_BIT		(4)
+#define MVFR0_SP_MASK		(0xf << MVFR0_SP_BIT)
+#define MVFR0_DP_BIT		(8)
+#define MVFR0_DP_MASK		(0xf << MVFR0_DP_BIT)
 
 /* Bit patterns for decoding the packaged operation descriptors */
 #define VFPOPDESC_LENGTH_BIT	(9)
