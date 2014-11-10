@@ -1247,7 +1247,7 @@ s32 rtw_put_snap23a(u8 *data, u16 h_proto)
 		ether_addr_copy(data, rfc1042_header);
 
 	data += ETH_ALEN;
-	*(__be16 *)data = htons(h_proto);
+	put_unaligned_be16(h_proto, data);
 	return ETH_ALEN + sizeof(u16);
 }
 
