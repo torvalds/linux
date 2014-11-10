@@ -423,6 +423,7 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 	int sg_count = 0;
 	unsigned long flags;
 	unsigned long ptr;
+	struct fc_rport_priv *rdata;
 
 	if (unlikely(fnic_chk_state_flags_locked(fnic, FNIC_FLAGS_IO_BLOCKED)))
 		return SCSI_MLQUEUE_HOST_BUSY;
@@ -432,6 +433,16 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 	if (ret) {
 		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
 		sc->result = ret;
+		done(sc);
+		return 0;
+	}
+
+	rdata = lp->tt.rport_lookup(lp, rport->port_id);
+	if (!rdata || (rdata->rp_state == RPORT_ST_DELETE)) {
+		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+			"returning IO as rport is removed\n");
+		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
+		sc->result = DID_NO_CONNECT;
 		done(sc);
 		return 0;
 	}
