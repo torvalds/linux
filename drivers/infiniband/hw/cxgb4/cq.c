@@ -51,9 +51,9 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res_wr = (struct fw_ri_res_wr *)__skb_put(skb, wr_len);
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
-			FW_WR_OP(FW_RI_RES_WR) |
+			FW_WR_OP_V(FW_RI_RES_WR) |
 			V_FW_RI_RES_WR_NRES(1) |
-			FW_WR_COMPL(1));
+			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
 	res_wr->cookie = (unsigned long) &wr_wait;
 	res = res_wr->res;
@@ -121,9 +121,9 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res_wr = (struct fw_ri_res_wr *)__skb_put(skb, wr_len);
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
-			FW_WR_OP(FW_RI_RES_WR) |
+			FW_WR_OP_V(FW_RI_RES_WR) |
 			V_FW_RI_RES_WR_NRES(1) |
-			FW_WR_COMPL(1));
+			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
 	res_wr->cookie = (unsigned long) &wr_wait;
 	res = res_wr->res;

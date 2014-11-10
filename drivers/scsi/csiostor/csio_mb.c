@@ -59,7 +59,7 @@ csio_mb_fw_retval(struct csio_mb *mbp)
 
 	hdr = (struct fw_cmd_hdr *)(mbp->mb);
 
-	return FW_CMD_RETVAL_GET(ntohl(hdr->lo));
+	return FW_CMD_RETVAL_G(ntohl(hdr->lo));
 }
 
 /*
@@ -81,9 +81,9 @@ csio_mb_hello(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 
 	CSIO_INIT_MBP(mbp, cmdp, tmo, hw, cbfn, 1);
 
-	cmdp->op_to_write = htonl(FW_CMD_OP(FW_HELLO_CMD) |
-				       FW_CMD_REQUEST | FW_CMD_WRITE);
-	cmdp->retval_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
+	cmdp->op_to_write = htonl(FW_CMD_OP_V(FW_HELLO_CMD) |
+				       FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
+	cmdp->retval_len16 = htonl(FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 	cmdp->err_to_clearinit = htonl(
 		FW_HELLO_CMD_MASTERDIS(master == CSIO_MASTER_CANT)	|
 		FW_HELLO_CMD_MASTERFORCE(master == CSIO_MASTER_MUST)	|
@@ -112,7 +112,7 @@ csio_mb_process_hello_rsp(struct csio_hw *hw, struct csio_mb *mbp,
 	struct fw_hello_cmd *rsp = (struct fw_hello_cmd *)(mbp->mb);
 	uint32_t value;
 
-	*retval = FW_CMD_RETVAL_GET(ntohl(rsp->retval_len16));
+	*retval = FW_CMD_RETVAL_G(ntohl(rsp->retval_len16));
 
 	if (*retval == FW_SUCCESS) {
 		hw->fwrev = ntohl(rsp->fwrev);
@@ -144,9 +144,9 @@ csio_mb_bye(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 
 	CSIO_INIT_MBP(mbp, cmdp, tmo, hw, cbfn, 1);
 
-	cmdp->op_to_write = htonl(FW_CMD_OP(FW_BYE_CMD) |
-				       FW_CMD_REQUEST | FW_CMD_WRITE);
-	cmdp->retval_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
+	cmdp->op_to_write = htonl(FW_CMD_OP_V(FW_BYE_CMD) |
+				       FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
+	cmdp->retval_len16 = htonl(FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 }
 
@@ -167,9 +167,9 @@ csio_mb_reset(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 
 	CSIO_INIT_MBP(mbp, cmdp, tmo, hw, cbfn, 1);
 
-	cmdp->op_to_write = htonl(FW_CMD_OP(FW_RESET_CMD) |
-				  FW_CMD_REQUEST | FW_CMD_WRITE);
-	cmdp->retval_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
+	cmdp->op_to_write = htonl(FW_CMD_OP_V(FW_RESET_CMD) |
+				  FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
+	cmdp->retval_len16 = htonl(FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 	cmdp->val = htonl(reset);
 	cmdp->halt_pkd = htonl(halt);
 
@@ -202,12 +202,12 @@ csio_mb_params(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 
 	CSIO_INIT_MBP(mbp, cmdp, tmo, hw, cbfn, 1);
 
-	cmdp->op_to_vfn = htonl(FW_CMD_OP(FW_PARAMS_CMD)		|
-				FW_CMD_REQUEST				|
-				(wr ? FW_CMD_WRITE : FW_CMD_READ)	|
+	cmdp->op_to_vfn = htonl(FW_CMD_OP_V(FW_PARAMS_CMD)		|
+				FW_CMD_REQUEST_F			|
+				(wr ? FW_CMD_WRITE_F : FW_CMD_READ_F)	|
 				FW_PARAMS_CMD_PFN(pf)			|
 				FW_PARAMS_CMD_VFN(vf));
-	cmdp->retval_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
+	cmdp->retval_len16 = htonl(FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 	/* Write Params */
 	if (wr) {
@@ -245,7 +245,7 @@ csio_mb_process_read_params_rsp(struct csio_hw *hw, struct csio_mb *mbp,
 	uint32_t i;
 	__be32 *p = &rsp->param[0].val;
 
-	*retval = FW_CMD_RETVAL_GET(ntohl(rsp->retval_len16));
+	*retval = FW_CMD_RETVAL_G(ntohl(rsp->retval_len16));
 
 	if (*retval == FW_SUCCESS)
 		for (i = 0; i < nparams; i++, p += 2)
@@ -271,9 +271,9 @@ csio_mb_ldst(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo, int reg)
 	 * specified PCI-E Configuration Space register.
 	 */
 	ldst_cmd->op_to_addrspace =
-			htonl(FW_CMD_OP(FW_LDST_CMD)	|
-			FW_CMD_REQUEST			|
-			FW_CMD_READ			|
+			htonl(FW_CMD_OP_V(FW_LDST_CMD)	|
+			FW_CMD_REQUEST_F			|
+			FW_CMD_READ_F			|
 			FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FUNC_PCIE));
 	ldst_cmd->cycles_to_len16 = htonl(FW_LEN16(struct fw_ldst_cmd));
 	ldst_cmd->u.pcie.select_naccess = FW_LDST_CMD_NACCESS(1);
@@ -306,10 +306,10 @@ csio_mb_caps_config(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 
 	CSIO_INIT_MBP(mbp, cmdp, tmo, hw, cbfn, wr ? 0 : 1);
 
-	cmdp->op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-				  FW_CMD_REQUEST		|
-				  (wr ? FW_CMD_WRITE : FW_CMD_READ));
-	cmdp->cfvalid_to_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
+	cmdp->op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+				  FW_CMD_REQUEST_F		|
+				  (wr ? FW_CMD_WRITE_F : FW_CMD_READ_F));
+	cmdp->cfvalid_to_len16 = htonl(FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 	/* Read config */
 	if (!wr)
@@ -351,21 +351,21 @@ csio_mb_port(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 
 	CSIO_INIT_MBP(mbp, cmdp, tmo, hw, cbfn,  1);
 
-	cmdp->op_to_portid = htonl(FW_CMD_OP(FW_PORT_CMD)		|
-				   FW_CMD_REQUEST			|
-				   (wr ? FW_CMD_EXEC : FW_CMD_READ)	|
+	cmdp->op_to_portid = htonl(FW_CMD_OP_V(FW_PORT_CMD)		|
+				   FW_CMD_REQUEST_F			|
+				   (wr ? FW_CMD_EXEC_F : FW_CMD_READ_F)	|
 				   FW_PORT_CMD_PORTID(portid));
 	if (!wr) {
 		cmdp->action_to_len16 = htonl(
 			FW_PORT_CMD_ACTION(FW_PORT_ACTION_GET_PORT_INFO) |
-			FW_CMD_LEN16(sizeof(*cmdp) / 16));
+			FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 		return;
 	}
 
 	/* Set port */
 	cmdp->action_to_len16 = htonl(
 			FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
-			FW_CMD_LEN16(sizeof(*cmdp) / 16));
+			FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 	if (fc & PAUSE_RX)
 		lfc |= FW_PORT_CAP_FC_RX;
@@ -393,7 +393,7 @@ csio_mb_process_read_port_rsp(struct csio_hw *hw, struct csio_mb *mbp,
 {
 	struct fw_port_cmd *rsp = (struct fw_port_cmd *)(mbp->mb);
 
-	*retval = FW_CMD_RETVAL_GET(ntohl(rsp->action_to_len16));
+	*retval = FW_CMD_RETVAL_G(ntohl(rsp->action_to_len16));
 
 	if (*retval == FW_SUCCESS)
 		*caps = ntohs(rsp->u.info.pcap);
@@ -415,9 +415,9 @@ csio_mb_initialize(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 
 	CSIO_INIT_MBP(mbp, cmdp, tmo, hw, cbfn, 1);
 
-	cmdp->op_to_write = htonl(FW_CMD_OP(FW_INITIALIZE_CMD)	|
-				  FW_CMD_REQUEST | FW_CMD_WRITE);
-	cmdp->retval_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
+	cmdp->op_to_write = htonl(FW_CMD_OP_V(FW_INITIALIZE_CMD)	|
+				  FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
+	cmdp->retval_len16 = htonl(FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 }
 
@@ -443,13 +443,13 @@ csio_mb_iq_alloc(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
 
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, priv, cbfn, 1);
 
-	cmdp->op_to_vfn = htonl(FW_CMD_OP(FW_IQ_CMD)		|
-				FW_CMD_REQUEST | FW_CMD_EXEC	|
+	cmdp->op_to_vfn = htonl(FW_CMD_OP_V(FW_IQ_CMD)		|
+				FW_CMD_REQUEST_F | FW_CMD_EXEC_F	|
 				FW_IQ_CMD_PFN(iq_params->pfn)	|
 				FW_IQ_CMD_VFN(iq_params->vfn));
 
 	cmdp->alloc_to_len16 = htonl(FW_IQ_CMD_ALLOC		|
-				FW_CMD_LEN16(sizeof(*cmdp) / 16));
+				FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 	cmdp->type_to_iqandstindex = htonl(
 				FW_IQ_CMD_VIID(iq_params->viid)	|
@@ -499,12 +499,12 @@ csio_mb_iq_write(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
 	if (!cascaded_req)
 		CSIO_INIT_MBP(mbp, cmdp, mb_tmo, priv, cbfn, 1);
 
-	cmdp->op_to_vfn |= htonl(FW_CMD_OP(FW_IQ_CMD)		|
-				FW_CMD_REQUEST | FW_CMD_WRITE	|
+	cmdp->op_to_vfn |= htonl(FW_CMD_OP_V(FW_IQ_CMD)		|
+				FW_CMD_REQUEST_F | FW_CMD_WRITE_F	|
 				FW_IQ_CMD_PFN(iq_params->pfn)	|
 				FW_IQ_CMD_VFN(iq_params->vfn));
 	cmdp->alloc_to_len16 |= htonl(iq_start_stop |
-				FW_CMD_LEN16(sizeof(*cmdp) / 16));
+				FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 	cmdp->iqid |= htons(iq_params->iqid);
 	cmdp->fl0id |= htons(iq_params->fl0id);
 	cmdp->fl1id |= htons(iq_params->fl1id);
@@ -588,7 +588,7 @@ csio_mb_iq_alloc_write_rsp(struct csio_hw *hw, struct csio_mb *mbp,
 {
 	struct fw_iq_cmd *rsp = (struct fw_iq_cmd *)(mbp->mb);
 
-	*ret_val = FW_CMD_RETVAL_GET(ntohl(rsp->alloc_to_len16));
+	*ret_val = FW_CMD_RETVAL_G(ntohl(rsp->alloc_to_len16));
 	if (*ret_val == FW_SUCCESS) {
 		iq_params->physiqid = ntohs(rsp->physiqid);
 		iq_params->iqid = ntohs(rsp->iqid);
@@ -622,12 +622,12 @@ csio_mb_iq_free(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
 
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, priv, cbfn, 1);
 
-	cmdp->op_to_vfn = htonl(FW_CMD_OP(FW_IQ_CMD)		|
-				FW_CMD_REQUEST | FW_CMD_EXEC	|
+	cmdp->op_to_vfn = htonl(FW_CMD_OP_V(FW_IQ_CMD)		|
+				FW_CMD_REQUEST_F | FW_CMD_EXEC_F	|
 				FW_IQ_CMD_PFN(iq_params->pfn)	|
 				FW_IQ_CMD_VFN(iq_params->vfn));
 	cmdp->alloc_to_len16 = htonl(FW_IQ_CMD_FREE		|
-				FW_CMD_LEN16(sizeof(*cmdp) / 16));
+				FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 	cmdp->type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE(iq_params->type));
 
 	cmdp->iqid = htons(iq_params->iqid);
@@ -657,12 +657,12 @@ csio_mb_eq_ofld_alloc(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
 	struct fw_eq_ofld_cmd *cmdp = (struct fw_eq_ofld_cmd *)(mbp->mb);
 
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, priv, cbfn, 1);
-	cmdp->op_to_vfn = htonl(FW_CMD_OP(FW_EQ_OFLD_CMD)		|
-				FW_CMD_REQUEST | FW_CMD_EXEC		|
+	cmdp->op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_OFLD_CMD)		|
+				FW_CMD_REQUEST_F | FW_CMD_EXEC_F	|
 				FW_EQ_OFLD_CMD_PFN(eq_ofld_params->pfn) |
 				FW_EQ_OFLD_CMD_VFN(eq_ofld_params->vfn));
 	cmdp->alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_ALLOC	|
-				FW_CMD_LEN16(sizeof(*cmdp) / 16));
+				FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 } /* csio_mb_eq_ofld_alloc */
 
@@ -704,12 +704,12 @@ csio_mb_eq_ofld_write(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
 	if (!cascaded_req)
 		CSIO_INIT_MBP(mbp, cmdp, mb_tmo, priv, cbfn, 1);
 
-	cmdp->op_to_vfn |= htonl(FW_CMD_OP(FW_EQ_OFLD_CMD)	|
-				FW_CMD_REQUEST | FW_CMD_WRITE	|
+	cmdp->op_to_vfn |= htonl(FW_CMD_OP_V(FW_EQ_OFLD_CMD)	|
+				FW_CMD_REQUEST_F | FW_CMD_WRITE_F	|
 				FW_EQ_OFLD_CMD_PFN(eq_ofld_params->pfn) |
 				FW_EQ_OFLD_CMD_VFN(eq_ofld_params->vfn));
 	cmdp->alloc_to_len16 |= htonl(eq_start_stop		|
-				      FW_CMD_LEN16(sizeof(*cmdp) / 16));
+				      FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 	cmdp->eqid_pkd |= htonl(FW_EQ_OFLD_CMD_EQID(eq_ofld_params->eqid));
 
@@ -773,7 +773,7 @@ csio_mb_eq_ofld_alloc_write_rsp(struct csio_hw *hw,
 {
 	struct fw_eq_ofld_cmd *rsp = (struct fw_eq_ofld_cmd *)(mbp->mb);
 
-	*ret_val = FW_CMD_RETVAL_GET(ntohl(rsp->alloc_to_len16));
+	*ret_val = FW_CMD_RETVAL_G(ntohl(rsp->alloc_to_len16));
 
 	if (*ret_val == FW_SUCCESS) {
 		eq_ofld_params->eqid = FW_EQ_OFLD_CMD_EQID_GET(
@@ -807,12 +807,12 @@ csio_mb_eq_ofld_free(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
 
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, priv, cbfn, 1);
 
-	cmdp->op_to_vfn = htonl(FW_CMD_OP(FW_EQ_OFLD_CMD)	|
-				FW_CMD_REQUEST | FW_CMD_EXEC	|
+	cmdp->op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_OFLD_CMD)	|
+				FW_CMD_REQUEST_F | FW_CMD_EXEC_F	|
 				FW_EQ_OFLD_CMD_PFN(eq_ofld_params->pfn) |
 				FW_EQ_OFLD_CMD_VFN(eq_ofld_params->vfn));
 	cmdp->alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_FREE |
-				FW_CMD_LEN16(sizeof(*cmdp) / 16));
+				FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 	cmdp->eqid_pkd = htonl(FW_EQ_OFLD_CMD_EQID(eq_ofld_params->eqid));
 
 } /* csio_mb_eq_ofld_free */
@@ -840,15 +840,15 @@ csio_write_fcoe_link_cond_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, ln, cbfn, 1);
 
 	cmdp->op_to_portid = htonl((
-			FW_CMD_OP(FW_FCOE_LINK_CMD)		|
-			FW_CMD_REQUEST				|
-			FW_CMD_WRITE				|
+			FW_CMD_OP_V(FW_FCOE_LINK_CMD)		|
+			FW_CMD_REQUEST_F				|
+			FW_CMD_WRITE_F				|
 			FW_FCOE_LINK_CMD_PORTID(port_id)));
 	cmdp->sub_opcode_fcfi = htonl(
 			FW_FCOE_LINK_CMD_SUB_OPCODE(sub_opcode)	|
 			FW_FCOE_LINK_CMD_FCFI(fcfi));
 	cmdp->lstatus = link_status;
-	cmdp->retval_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
+	cmdp->retval_len16 = htonl(FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 } /* csio_write_fcoe_link_cond_init_mb */
 
@@ -873,11 +873,11 @@ csio_fcoe_read_res_info_init_mb(struct csio_hw *hw, struct csio_mb *mbp,
 
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, hw, cbfn, 1);
 
-	cmdp->op_to_read = htonl((FW_CMD_OP(FW_FCOE_RES_INFO_CMD)	|
-				  FW_CMD_REQUEST			|
-				  FW_CMD_READ));
+	cmdp->op_to_read = htonl((FW_CMD_OP_V(FW_FCOE_RES_INFO_CMD)	|
+				  FW_CMD_REQUEST_F			|
+				  FW_CMD_READ_F));
 
-	cmdp->retval_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
+	cmdp->retval_len16 = htonl(FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 } /* csio_fcoe_read_res_info_init_mb */
 
@@ -908,13 +908,13 @@ csio_fcoe_vnp_alloc_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
 
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, ln, cbfn, 1);
 
-	cmdp->op_to_fcfi = htonl((FW_CMD_OP(FW_FCOE_VNP_CMD)		|
-				  FW_CMD_REQUEST			|
-				  FW_CMD_EXEC				|
+	cmdp->op_to_fcfi = htonl((FW_CMD_OP_V(FW_FCOE_VNP_CMD)		|
+				  FW_CMD_REQUEST_F			|
+				  FW_CMD_EXEC_F				|
 				  FW_FCOE_VNP_CMD_FCFI(fcfi)));
 
 	cmdp->alloc_to_len16 = htonl(FW_FCOE_VNP_CMD_ALLOC		|
-				     FW_CMD_LEN16(sizeof(*cmdp) / 16));
+				     FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 	cmdp->gen_wwn_to_vnpi = htonl(FW_FCOE_VNP_CMD_VNPI(vnpi));
 
@@ -948,11 +948,11 @@ csio_fcoe_vnp_read_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
 			(struct fw_fcoe_vnp_cmd *)(mbp->mb);
 
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, ln, cbfn, 1);
-	cmdp->op_to_fcfi = htonl(FW_CMD_OP(FW_FCOE_VNP_CMD)	|
-				 FW_CMD_REQUEST			|
-				 FW_CMD_READ			|
+	cmdp->op_to_fcfi = htonl(FW_CMD_OP_V(FW_FCOE_VNP_CMD)	|
+				 FW_CMD_REQUEST_F			|
+				 FW_CMD_READ_F			|
 				 FW_FCOE_VNP_CMD_FCFI(fcfi));
-	cmdp->alloc_to_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
+	cmdp->alloc_to_len16 = htonl(FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 	cmdp->gen_wwn_to_vnpi = htonl(FW_FCOE_VNP_CMD_VNPI(vnpi));
 }
 
@@ -978,12 +978,12 @@ csio_fcoe_vnp_free_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
 
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, ln, cbfn, 1);
 
-	cmdp->op_to_fcfi = htonl(FW_CMD_OP(FW_FCOE_VNP_CMD)	|
-				 FW_CMD_REQUEST			|
-				 FW_CMD_EXEC			|
+	cmdp->op_to_fcfi = htonl(FW_CMD_OP_V(FW_FCOE_VNP_CMD)	|
+				 FW_CMD_REQUEST_F			|
+				 FW_CMD_EXEC_F			|
 				 FW_FCOE_VNP_CMD_FCFI(fcfi));
 	cmdp->alloc_to_len16 = htonl(FW_FCOE_VNP_CMD_FREE	|
-				     FW_CMD_LEN16(sizeof(*cmdp) / 16));
+				     FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 	cmdp->gen_wwn_to_vnpi = htonl(FW_FCOE_VNP_CMD_VNPI(vnpi));
 }
 
@@ -1009,11 +1009,11 @@ csio_fcoe_read_fcf_init_mb(struct csio_lnode *ln, struct csio_mb *mbp,
 
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, ln, cbfn, 1);
 
-	cmdp->op_to_fcfi = htonl(FW_CMD_OP(FW_FCOE_FCF_CMD)	|
-				 FW_CMD_REQUEST			|
-				 FW_CMD_READ			|
+	cmdp->op_to_fcfi = htonl(FW_CMD_OP_V(FW_FCOE_FCF_CMD)	|
+				 FW_CMD_REQUEST_F			|
+				 FW_CMD_READ_F			|
 				 FW_FCOE_FCF_CMD_FCFI(fcfi));
-	cmdp->retval_len16 = htonl(FW_CMD_LEN16(sizeof(*cmdp) / 16));
+	cmdp->retval_len16 = htonl(FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 } /* csio_fcoe_read_fcf_init_mb */
 
@@ -1029,9 +1029,9 @@ csio_fcoe_read_portparams_init_mb(struct csio_hw *hw, struct csio_mb *mbp,
 	CSIO_INIT_MBP(mbp, cmdp, mb_tmo, hw, cbfn, 1);
 	mbp->mb_size = 64;
 
-	cmdp->op_to_flowid = htonl(FW_CMD_OP(FW_FCOE_STATS_CMD)         |
-				   FW_CMD_REQUEST | FW_CMD_READ);
-	cmdp->free_to_len16 = htonl(FW_CMD_LEN16(CSIO_MAX_MB_SIZE/16));
+	cmdp->op_to_flowid = htonl(FW_CMD_OP_V(FW_FCOE_STATS_CMD)         |
+				   FW_CMD_REQUEST_F | FW_CMD_READ_F);
+	cmdp->free_to_len16 = htonl(FW_CMD_LEN16_V(CSIO_MAX_MB_SIZE/16));
 
 	cmdp->u.ctl.nstats_port = FW_FCOE_STATS_CMD_NSTATS(portparams->nstats) |
 				  FW_FCOE_STATS_CMD_PORT(portparams->portid);
@@ -1053,7 +1053,7 @@ csio_mb_process_portparams_rsp(struct csio_hw *hw,
 	uint8_t *src;
 	uint8_t *dst;
 
-	*retval = FW_CMD_RETVAL_GET(ntohl(rsp->free_to_len16));
+	*retval = FW_CMD_RETVAL_G(ntohl(rsp->free_to_len16));
 
 	memset(&stats, 0, sizeof(struct fw_fcoe_port_stats));
 
@@ -1305,7 +1305,7 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 			hdr = cpu_to_be64(csio_rd_reg64(hw, data_reg));
 			fw_hdr = (struct fw_cmd_hdr *)&hdr;
 
-			switch (FW_CMD_OP_GET(ntohl(fw_hdr->hi))) {
+			switch (FW_CMD_OP_G(ntohl(fw_hdr->hi))) {
 			case FW_DEBUG_CMD:
 				csio_mb_debug_cmd_handler(hw);
 				continue;
@@ -1498,7 +1498,7 @@ csio_mb_isr_handler(struct csio_hw *hw)
 		hdr = cpu_to_be64(csio_rd_reg64(hw, data_reg));
 		fw_hdr = (struct fw_cmd_hdr *)&hdr;
 
-		switch (FW_CMD_OP_GET(ntohl(fw_hdr->hi))) {
+		switch (FW_CMD_OP_G(ntohl(fw_hdr->hi))) {
 		case FW_DEBUG_CMD:
 			csio_mb_debug_cmd_handler(hw);
 			return -EINVAL;
@@ -1571,11 +1571,11 @@ csio_mb_tmo_handler(struct csio_hw *hw)
 	fw_hdr = (struct fw_cmd_hdr *)(mbp->mb);
 
 	csio_dbg(hw, "Mailbox num:%x op:0x%x timed out\n", hw->pfn,
-		    FW_CMD_OP_GET(ntohl(fw_hdr->hi)));
+		    FW_CMD_OP_G(ntohl(fw_hdr->hi)));
 
 	mbm->mcurrent = NULL;
 	CSIO_INC_STATS(mbm, n_tmo);
-	fw_hdr->lo = htonl(FW_CMD_RETVAL(FW_ETIMEDOUT));
+	fw_hdr->lo = htonl(FW_CMD_RETVAL_V(FW_ETIMEDOUT));
 
 	return mbp;
 }
@@ -1624,10 +1624,10 @@ csio_mb_cancel_all(struct csio_hw *hw, struct list_head *cbfn_q)
 		hdr = (struct fw_cmd_hdr *)(mbp->mb);
 
 		csio_dbg(hw, "Cancelling pending mailbox num %x op:%x\n",
-			    hw->pfn, FW_CMD_OP_GET(ntohl(hdr->hi)));
+			    hw->pfn, FW_CMD_OP_G(ntohl(hdr->hi)));
 
 		CSIO_INC_STATS(mbm, n_cancel);
-		hdr->lo = htonl(FW_CMD_RETVAL(FW_HOSTERROR));
+		hdr->lo = htonl(FW_CMD_RETVAL_V(FW_HOSTERROR));
 	}
 }
 

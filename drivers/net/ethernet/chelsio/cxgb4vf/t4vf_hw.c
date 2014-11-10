@@ -204,20 +204,20 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 
 			/* return value in low-order little-endian word */
 			v = t4_read_reg(adapter, mbox_data);
-			if (FW_CMD_RETVAL_GET(v))
+			if (FW_CMD_RETVAL_G(v))
 				dump_mbox(adapter, "FW Error", mbox_data);
 
 			if (rpl) {
 				/* request bit in high-order BE word */
 				WARN_ON((be32_to_cpu(*(const u32 *)cmd)
-					 & FW_CMD_REQUEST) == 0);
+					 & FW_CMD_REQUEST_F) == 0);
 				get_mbox_rpl(adapter, rpl, size, mbox_data);
 				WARN_ON((be32_to_cpu(*(u32 *)rpl)
-					 & FW_CMD_REQUEST) != 0);
+					 & FW_CMD_REQUEST_F) != 0);
 			}
 			t4_write_reg(adapter, mbox_ctl,
 				     MBOWNER(MBOX_OWNER_NONE));
-			return -FW_CMD_RETVAL_GET(v);
+			return -FW_CMD_RETVAL_G(v);
 		}
 	}
 
@@ -287,9 +287,9 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
 	 * like MAC address, etc.
 	 */
 	memset(&vi_cmd, 0, sizeof(vi_cmd));
-	vi_cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_VI_CMD) |
-				       FW_CMD_REQUEST |
-				       FW_CMD_READ);
+	vi_cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_VI_CMD) |
+				       FW_CMD_REQUEST_F |
+				       FW_CMD_READ_F);
 	vi_cmd.alloc_to_len16 = cpu_to_be32(FW_LEN16(vi_cmd));
 	vi_cmd.type_viid = cpu_to_be16(FW_VI_CMD_VIID(pi->viid));
 	v = t4vf_wr_mbox(adapter, &vi_cmd, sizeof(vi_cmd), &vi_rpl);
@@ -308,9 +308,9 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
 		return 0;
 
 	memset(&port_cmd, 0, sizeof(port_cmd));
-	port_cmd.op_to_portid = cpu_to_be32(FW_CMD_OP(FW_PORT_CMD) |
-					    FW_CMD_REQUEST |
-					    FW_CMD_READ |
+	port_cmd.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
+					    FW_CMD_REQUEST_F |
+					    FW_CMD_READ_F |
 					    FW_PORT_CMD_PORTID(pi->port_id));
 	port_cmd.action_to_len16 =
 		cpu_to_be32(FW_PORT_CMD_ACTION(FW_PORT_ACTION_GET_PORT_INFO) |
@@ -349,8 +349,8 @@ int t4vf_fw_reset(struct adapter *adapter)
 	struct fw_reset_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_write = cpu_to_be32(FW_CMD_OP(FW_RESET_CMD) |
-				      FW_CMD_WRITE);
+	cmd.op_to_write = cpu_to_be32(FW_CMD_OP_V(FW_RESET_CMD) |
+				      FW_CMD_WRITE_F);
 	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
 	return t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), NULL);
 }
@@ -377,12 +377,12 @@ static int t4vf_query_params(struct adapter *adapter, unsigned int nparams,
 		return -EINVAL;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_PARAMS_CMD) |
-				    FW_CMD_REQUEST |
-				    FW_CMD_READ);
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_PARAMS_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_READ_F);
 	len16 = DIV_ROUND_UP(offsetof(struct fw_params_cmd,
 				      param[nparams].mnem), 16);
-	cmd.retval_len16 = cpu_to_be32(FW_CMD_LEN16(len16));
+	cmd.retval_len16 = cpu_to_be32(FW_CMD_LEN16_V(len16));
 	for (i = 0, p = &cmd.param[0]; i < nparams; i++, p++)
 		p->mnem = htonl(*params++);
 
@@ -415,12 +415,12 @@ int t4vf_set_params(struct adapter *adapter, unsigned int nparams,
 		return -EINVAL;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_PARAMS_CMD) |
-				    FW_CMD_REQUEST |
-				    FW_CMD_WRITE);
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_PARAMS_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_WRITE_F);
 	len16 = DIV_ROUND_UP(offsetof(struct fw_params_cmd,
 				      param[nparams]), 16);
-	cmd.retval_len16 = cpu_to_be32(FW_CMD_LEN16(len16));
+	cmd.retval_len16 = cpu_to_be32(FW_CMD_LEN16_V(len16));
 	for (i = 0, p = &cmd.param[0]; i < nparams; i++, p++) {
 		p->mnem = cpu_to_be32(*params++);
 		p->val = cpu_to_be32(*vals++);
@@ -545,9 +545,9 @@ int t4vf_get_rss_glb_config(struct adapter *adapter)
 	 * our RSS configuration.
 	 */
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_write = cpu_to_be32(FW_CMD_OP(FW_RSS_GLB_CONFIG_CMD) |
-				      FW_CMD_REQUEST |
-				      FW_CMD_READ);
+	cmd.op_to_write = cpu_to_be32(FW_CMD_OP_V(FW_RSS_GLB_CONFIG_CMD) |
+				      FW_CMD_REQUEST_F |
+				      FW_CMD_READ_F);
 	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
 	v = t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), &rpl);
 	if (v)
@@ -621,9 +621,9 @@ int t4vf_get_vfres(struct adapter *adapter)
 	 * with error on command failure.
 	 */
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_PFVF_CMD) |
-				    FW_CMD_REQUEST |
-				    FW_CMD_READ);
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_PFVF_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_READ_F);
 	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
 	v = t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), &rpl);
 	if (v)
@@ -669,9 +669,9 @@ int t4vf_read_rss_vi_config(struct adapter *adapter, unsigned int viid,
 	int v;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP(FW_RSS_VI_CONFIG_CMD) |
-				     FW_CMD_REQUEST |
-				     FW_CMD_READ |
+	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_RSS_VI_CONFIG_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_READ_F |
 				     FW_RSS_VI_CONFIG_CMD_VIID(viid));
 	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
 	v = t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), &rpl);
@@ -719,9 +719,9 @@ int t4vf_write_rss_vi_config(struct adapter *adapter, unsigned int viid,
 	struct fw_rss_vi_config_cmd cmd, rpl;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP(FW_RSS_VI_CONFIG_CMD) |
-				     FW_CMD_REQUEST |
-				     FW_CMD_WRITE |
+	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_RSS_VI_CONFIG_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_WRITE_F |
 				     FW_RSS_VI_CONFIG_CMD_VIID(viid));
 	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
 	switch (adapter->params.rss.mode) {
@@ -777,9 +777,9 @@ int t4vf_config_rss_range(struct adapter *adapter, unsigned int viid,
 	 * Initialize firmware command template to write the RSS table.
 	 */
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP(FW_RSS_IND_TBL_CMD) |
-				     FW_CMD_REQUEST |
-				     FW_CMD_WRITE |
+	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_RSS_IND_TBL_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_WRITE_F |
 				     FW_RSS_IND_TBL_CMD_VIID(viid));
 	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
 
@@ -866,10 +866,10 @@ int t4vf_alloc_vi(struct adapter *adapter, int port_id)
 	 * VIID.
 	 */
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_VI_CMD) |
-				    FW_CMD_REQUEST |
-				    FW_CMD_WRITE |
-				    FW_CMD_EXEC);
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_VI_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_WRITE_F |
+				    FW_CMD_EXEC_F);
 	cmd.alloc_to_len16 = cpu_to_be32(FW_LEN16(cmd) |
 					 FW_VI_CMD_ALLOC);
 	cmd.portid_pkd = FW_VI_CMD_PORTID(port_id);
@@ -896,9 +896,9 @@ int t4vf_free_vi(struct adapter *adapter, int viid)
 	 * Execute a VI command to free the Virtual Interface.
 	 */
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_VI_CMD) |
-				    FW_CMD_REQUEST |
-				    FW_CMD_EXEC);
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_VI_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_EXEC_F);
 	cmd.alloc_to_len16 = cpu_to_be32(FW_LEN16(cmd) |
 					 FW_VI_CMD_FREE);
 	cmd.type_viid = cpu_to_be16(FW_VI_CMD_VIID(viid));
@@ -920,9 +920,9 @@ int t4vf_enable_vi(struct adapter *adapter, unsigned int viid,
 	struct fw_vi_enable_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP(FW_VI_ENABLE_CMD) |
-				     FW_CMD_REQUEST |
-				     FW_CMD_EXEC |
+	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_ENABLE_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_EXEC_F |
 				     FW_VI_ENABLE_CMD_VIID(viid));
 	cmd.ien_to_len16 = cpu_to_be32(FW_VI_ENABLE_CMD_IEN(rx_en) |
 				       FW_VI_ENABLE_CMD_EEN(tx_en) |
@@ -944,9 +944,9 @@ int t4vf_identify_port(struct adapter *adapter, unsigned int viid,
 	struct fw_vi_enable_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP(FW_VI_ENABLE_CMD) |
-				     FW_CMD_REQUEST |
-				     FW_CMD_EXEC |
+	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_ENABLE_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_EXEC_F |
 				     FW_VI_ENABLE_CMD_VIID(viid));
 	cmd.ien_to_len16 = cpu_to_be32(FW_VI_ENABLE_CMD_LED |
 				       FW_LEN16(cmd));
@@ -986,9 +986,9 @@ int t4vf_set_rxmode(struct adapter *adapter, unsigned int viid,
 		vlanex = FW_VI_RXMODE_CMD_VLANEXEN_MASK;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP(FW_VI_RXMODE_CMD) |
-				     FW_CMD_REQUEST |
-				     FW_CMD_WRITE |
+	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_RXMODE_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_WRITE_F |
 				     FW_VI_RXMODE_CMD_VIID(viid));
 	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
 	cmd.mtu_to_vlanexen =
@@ -1046,14 +1046,14 @@ int t4vf_alloc_mac_filt(struct adapter *adapter, unsigned int viid, bool free,
 		int i;
 
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.op_to_viid = cpu_to_be32(FW_CMD_OP(FW_VI_MAC_CMD) |
-					     FW_CMD_REQUEST |
-					     FW_CMD_WRITE |
-					     (free ? FW_CMD_EXEC : 0) |
+		cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+					     FW_CMD_REQUEST_F |
+					     FW_CMD_WRITE_F |
+					     (free ? FW_CMD_EXEC_F : 0) |
 					     FW_VI_MAC_CMD_VIID(viid));
 		cmd.freemacs_to_len16 =
 			cpu_to_be32(FW_VI_MAC_CMD_FREEMACS(free) |
-				    FW_CMD_LEN16(len16));
+				    FW_CMD_LEN16_V(len16));
 
 		for (i = 0, p = cmd.u.exact; i < fw_naddr; i++, p++) {
 			p->valid_to_idx = cpu_to_be16(
@@ -1135,11 +1135,11 @@ int t4vf_change_mac(struct adapter *adapter, unsigned int viid,
 		idx = persist ? FW_VI_MAC_ADD_PERSIST_MAC : FW_VI_MAC_ADD_MAC;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP(FW_VI_MAC_CMD) |
-				     FW_CMD_REQUEST |
-				     FW_CMD_WRITE |
+	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_WRITE_F |
 				     FW_VI_MAC_CMD_VIID(viid));
-	cmd.freemacs_to_len16 = cpu_to_be32(FW_CMD_LEN16(len16));
+	cmd.freemacs_to_len16 = cpu_to_be32(FW_CMD_LEN16_V(len16));
 	p->valid_to_idx = cpu_to_be16(FW_VI_MAC_CMD_VALID |
 				      FW_VI_MAC_CMD_IDX(idx));
 	memcpy(p->macaddr, addr, sizeof(p->macaddr));
@@ -1172,13 +1172,13 @@ int t4vf_set_addr_hash(struct adapter *adapter, unsigned int viid,
 					     u.exact[0]), 16);
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP(FW_VI_MAC_CMD) |
-				     FW_CMD_REQUEST |
-				     FW_CMD_WRITE |
+	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_WRITE_F |
 				     FW_VI_ENABLE_CMD_VIID(viid));
 	cmd.freemacs_to_len16 = cpu_to_be32(FW_VI_MAC_CMD_HASHVECEN |
 					    FW_VI_MAC_CMD_HASHUNIEN(ucast) |
-					    FW_CMD_LEN16(len16));
+					    FW_CMD_LEN16_V(len16));
 	cmd.u.hash.hashvec = cpu_to_be64(vec);
 	return t4vf_wr_mbox_core(adapter, &cmd, sizeof(cmd), NULL, sleep_ok);
 }
@@ -1214,11 +1214,11 @@ int t4vf_get_port_stats(struct adapter *adapter, int pidx,
 		int ret;
 
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.op_to_viid = cpu_to_be32(FW_CMD_OP(FW_VI_STATS_CMD) |
+		cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_STATS_CMD) |
 					     FW_VI_STATS_CMD_VIID(pi->viid) |
-					     FW_CMD_REQUEST |
-					     FW_CMD_READ);
-		cmd.retval_len16 = cpu_to_be32(FW_CMD_LEN16(len16));
+					     FW_CMD_REQUEST_F |
+					     FW_CMD_READ_F);
+		cmd.retval_len16 = cpu_to_be32(FW_CMD_LEN16_V(len16));
 		cmd.u.ctl.nstats_ix =
 			cpu_to_be16(FW_VI_STATS_CMD_IX(ix) |
 				    FW_VI_STATS_CMD_NSTATS(nstats));
@@ -1273,9 +1273,9 @@ int t4vf_iq_free(struct adapter *adapter, unsigned int iqtype,
 	struct fw_iq_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_IQ_CMD) |
-				    FW_CMD_REQUEST |
-				    FW_CMD_EXEC);
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_IQ_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_EXEC_F);
 	cmd.alloc_to_len16 = cpu_to_be32(FW_IQ_CMD_FREE |
 					 FW_LEN16(cmd));
 	cmd.type_to_iqandstindex =
@@ -1299,9 +1299,9 @@ int t4vf_eth_eq_free(struct adapter *adapter, unsigned int eqid)
 	struct fw_eq_eth_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_EQ_ETH_CMD) |
-				    FW_CMD_REQUEST |
-				    FW_CMD_EXEC);
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_EQ_ETH_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_EXEC_F);
 	cmd.alloc_to_len16 = cpu_to_be32(FW_EQ_ETH_CMD_FREE |
 					 FW_LEN16(cmd));
 	cmd.eqid_pkd = cpu_to_be32(FW_EQ_ETH_CMD_EQID(eqid));
@@ -1318,7 +1318,7 @@ int t4vf_eth_eq_free(struct adapter *adapter, unsigned int eqid)
 int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 {
 	const struct fw_cmd_hdr *cmd_hdr = (const struct fw_cmd_hdr *)rpl;
-	u8 opcode = FW_CMD_OP_GET(be32_to_cpu(cmd_hdr->hi));
+	u8 opcode = FW_CMD_OP_G(be32_to_cpu(cmd_hdr->hi));
 
 	switch (opcode) {
 	case FW_PORT_CMD: {

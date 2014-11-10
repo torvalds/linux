@@ -132,7 +132,7 @@ enum {
 	 * we can specify for immediate data in the firmware Ethernet TX
 	 * Work Request.
 	 */
-	MAX_IMM_TX_PKT_LEN = FW_WR_IMMDLEN_MASK,
+	MAX_IMM_TX_PKT_LEN = FW_WR_IMMDLEN_M,
 
 	/*
 	 * Max size of a WR sent through a control TX queue.
@@ -1149,7 +1149,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto out_free;
 	}
 
-	wr_mid = FW_WR_LEN16(DIV_ROUND_UP(flits, 2));
+	wr_mid = FW_WR_LEN16_V(DIV_ROUND_UP(flits, 2));
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		/*
 		 * After we're done injecting the Work Request for this
@@ -1161,7 +1161,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * has opened up.
 		 */
 		txq_stop(txq);
-		wr_mid |= FW_WR_EQUEQ | FW_WR_EQUIQ;
+		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 
 	/*
@@ -1191,9 +1191,9 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
 
 		wr->op_immdlen =
-			cpu_to_be32(FW_WR_OP(FW_ETH_TX_PKT_VM_WR) |
-				    FW_WR_IMMDLEN(sizeof(*lso) +
-						  sizeof(*cpl)));
+			cpu_to_be32(FW_WR_OP_V(FW_ETH_TX_PKT_VM_WR) |
+				    FW_WR_IMMDLEN_V(sizeof(*lso) +
+						    sizeof(*cpl)));
 		/*
 		 * Fill in the LSO CPL message.
 		 */
@@ -1228,8 +1228,8 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		len = is_eth_imm(skb) ? skb->len + sizeof(*cpl) : sizeof(*cpl);
 		wr->op_immdlen =
-			cpu_to_be32(FW_WR_OP(FW_ETH_TX_PKT_VM_WR) |
-				    FW_WR_IMMDLEN(len));
+			cpu_to_be32(FW_WR_OP_V(FW_ETH_TX_PKT_VM_WR) |
+				    FW_WR_IMMDLEN_V(len));
 
 		/*
 		 * Set up TX Packet CPL pointer, control word and perform
@@ -2084,10 +2084,10 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 	 * into OS-independent common code ...
 	 */
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_IQ_CMD) |
-				    FW_CMD_REQUEST |
-				    FW_CMD_WRITE |
-				    FW_CMD_EXEC);
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_IQ_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_WRITE_F |
+				    FW_CMD_EXEC_F);
 	cmd.alloc_to_len16 = cpu_to_be32(FW_IQ_CMD_ALLOC |
 					 FW_IQ_CMD_IQSTART(1) |
 					 FW_LEN16(cmd));
@@ -2246,10 +2246,10 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 	 * into the common code ...
 	 */
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_EQ_ETH_CMD) |
-				    FW_CMD_REQUEST |
-				    FW_CMD_WRITE |
-				    FW_CMD_EXEC);
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_EQ_ETH_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_WRITE_F |
+				    FW_CMD_EXEC_F);
 	cmd.alloc_to_len16 = cpu_to_be32(FW_EQ_ETH_CMD_ALLOC |
 					 FW_EQ_ETH_CMD_EQSTART |
 					 FW_LEN16(cmd));

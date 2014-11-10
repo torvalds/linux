@@ -67,7 +67,7 @@ enum chip_type {
 /*
  * The "len16" field of a Firmware Command Structure ...
  */
-#define FW_LEN16(fw_struct) FW_CMD_LEN16(sizeof(fw_struct) / 16)
+#define FW_LEN16(fw_struct) FW_CMD_LEN16_V(sizeof(fw_struct) / 16)
 
 /*
  * Per-VF statistics.

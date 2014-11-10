@@ -472,10 +472,10 @@ static void send_flowc(struct c4iw_ep *ep, struct sk_buff *skb)
 	skb = get_skb(skb, flowclen, GFP_KERNEL);
 	flowc = (struct fw_flowc_wr *)__skb_put(skb, flowclen);
 
-	flowc->op_to_nparams = cpu_to_be32(FW_WR_OP(FW_FLOWC_WR) |
-					   FW_FLOWC_WR_NPARAMS(8));
-	flowc->flowid_len16 = cpu_to_be32(FW_WR_LEN16(DIV_ROUND_UP(flowclen,
-					  16)) | FW_WR_FLOWID(ep->hwtid));
+	flowc->op_to_nparams = cpu_to_be32(FW_WR_OP_V(FW_FLOWC_WR) |
+					   FW_FLOWC_WR_NPARAMS_V(8));
+	flowc->flowid_len16 = cpu_to_be32(FW_WR_LEN16_V(DIV_ROUND_UP(flowclen,
+					  16)) | FW_WR_FLOWID_V(ep->hwtid));
 
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
 	flowc->mnemval[0].val = cpu_to_be32(FW_PFVF_CMD_PFN
@@ -803,16 +803,16 @@ static void send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	req = (struct fw_ofld_tx_data_wr *)skb_put(skb, wrlen);
 	memset(req, 0, wrlen);
 	req->op_to_immdlen = cpu_to_be32(
-		FW_WR_OP(FW_OFLD_TX_DATA_WR) |
-		FW_WR_COMPL(1) |
-		FW_WR_IMMDLEN(mpalen));
+		FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
+		FW_WR_COMPL_F |
+		FW_WR_IMMDLEN_V(mpalen));
 	req->flowid_len16 = cpu_to_be32(
-		FW_WR_FLOWID(ep->hwtid) |
-		FW_WR_LEN16(wrlen >> 4));
+		FW_WR_FLOWID_V(ep->hwtid) |
+		FW_WR_LEN16_V(wrlen >> 4));
 	req->plen = cpu_to_be32(mpalen);
 	req->tunnel_to_proxy = cpu_to_be32(
-		FW_OFLD_TX_DATA_WR_FLUSH(1) |
-		FW_OFLD_TX_DATA_WR_SHOVE(1));
+		FW_OFLD_TX_DATA_WR_FLUSH_F |
+		FW_OFLD_TX_DATA_WR_SHOVE_F);
 
 	mpa = (struct mpa_message *)(req + 1);
 	memcpy(mpa->key, MPA_KEY_REQ, sizeof(mpa->key));
@@ -897,16 +897,16 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	req = (struct fw_ofld_tx_data_wr *)skb_put(skb, wrlen);
 	memset(req, 0, wrlen);
 	req->op_to_immdlen = cpu_to_be32(
-		FW_WR_OP(FW_OFLD_TX_DATA_WR) |
-		FW_WR_COMPL(1) |
-		FW_WR_IMMDLEN(mpalen));
+		FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
+		FW_WR_COMPL_F |
+		FW_WR_IMMDLEN_V(mpalen));
 	req->flowid_len16 = cpu_to_be32(
-		FW_WR_FLOWID(ep->hwtid) |
-		FW_WR_LEN16(wrlen >> 4));
+		FW_WR_FLOWID_V(ep->hwtid) |
+		FW_WR_LEN16_V(wrlen >> 4));
 	req->plen = cpu_to_be32(mpalen);
 	req->tunnel_to_proxy = cpu_to_be32(
-		FW_OFLD_TX_DATA_WR_FLUSH(1) |
-		FW_OFLD_TX_DATA_WR_SHOVE(1));
+		FW_OFLD_TX_DATA_WR_FLUSH_F |
+		FW_OFLD_TX_DATA_WR_SHOVE_F);
 
 	mpa = (struct mpa_message *)(req + 1);
 	memset(mpa, 0, sizeof(*mpa));
@@ -977,16 +977,16 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	req = (struct fw_ofld_tx_data_wr *) skb_put(skb, wrlen);
 	memset(req, 0, wrlen);
 	req->op_to_immdlen = cpu_to_be32(
-		FW_WR_OP(FW_OFLD_TX_DATA_WR) |
-		FW_WR_COMPL(1) |
-		FW_WR_IMMDLEN(mpalen));
+		FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
+		FW_WR_COMPL_F |
+		FW_WR_IMMDLEN_V(mpalen));
 	req->flowid_len16 = cpu_to_be32(
-		FW_WR_FLOWID(ep->hwtid) |
-		FW_WR_LEN16(wrlen >> 4));
+		FW_WR_FLOWID_V(ep->hwtid) |
+		FW_WR_LEN16_V(wrlen >> 4));
 	req->plen = cpu_to_be32(mpalen);
 	req->tunnel_to_proxy = cpu_to_be32(
-		FW_OFLD_TX_DATA_WR_FLUSH(1) |
-		FW_OFLD_TX_DATA_WR_SHOVE(1));
+		FW_OFLD_TX_DATA_WR_FLUSH_F |
+		FW_OFLD_TX_DATA_WR_SHOVE_F);
 
 	mpa = (struct mpa_message *)(req + 1);
 	memset(mpa, 0, sizeof(*mpa));
@@ -1751,7 +1751,7 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	req = (struct fw_ofld_connection_wr *)__skb_put(skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
 	req->op_compl = htonl(V_WR_OP(FW_OFLD_CONNECTION_WR));
-	req->len16_pkd = htonl(FW_WR_LEN16(DIV_ROUND_UP(sizeof(*req), 16)));
+	req->len16_pkd = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*req), 16)));
 	req->le.filter = cpu_to_be32(cxgb4_select_ntuple(
 				     ep->com.dev->rdev.lldi.ports[0],
 				     ep->l2t));
@@ -3537,8 +3537,8 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	req_skb = alloc_skb(sizeof(struct fw_ofld_connection_wr), GFP_KERNEL);
 	req = (struct fw_ofld_connection_wr *)__skb_put(req_skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
-	req->op_compl = htonl(V_WR_OP(FW_OFLD_CONNECTION_WR) | FW_WR_COMPL(1));
-	req->len16_pkd = htonl(FW_WR_LEN16(DIV_ROUND_UP(sizeof(*req), 16)));
+	req->op_compl = htonl(V_WR_OP(FW_OFLD_CONNECTION_WR) | FW_WR_COMPL_F);
+	req->len16_pkd = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*req), 16)));
 	req->le.version_cpl = htonl(F_FW_OFLD_CONNECTION_WR_CPL);
 	req->le.filter = (__force __be32) filter;
 	req->le.lport = lport;

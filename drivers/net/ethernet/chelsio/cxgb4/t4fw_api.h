@@ -109,18 +109,49 @@ struct fw_wr_hdr {
 	__be32 lo;
 };
 
-#define FW_WR_OP(x)	 ((x) << 24)
-#define FW_WR_OP_GET(x)	 (((x) >> 24) & 0xff)
-#define FW_WR_ATOMIC(x)	 ((x) << 23)
-#define FW_WR_FLUSH(x)   ((x) << 22)
-#define FW_WR_COMPL(x)   ((x) << 21)
-#define FW_WR_IMMDLEN_MASK 0xff
-#define FW_WR_IMMDLEN(x) ((x) << 0)
+/* work request opcode (hi) */
+#define FW_WR_OP_S	24
+#define FW_WR_OP_M      0xff
+#define FW_WR_OP_V(x)   ((x) << FW_WR_OP_S)
+#define FW_WR_OP_G(x)   (((x) >> FW_WR_OP_S) & FW_WR_OP_M)
 
-#define FW_WR_EQUIQ	(1U << 31)
-#define FW_WR_EQUEQ	(1U << 30)
-#define FW_WR_FLOWID(x)	((x) << 8)
-#define FW_WR_LEN16(x)	((x) << 0)
+/* atomic flag (hi) - firmware encapsulates CPLs in CPL_BARRIER */
+#define FW_WR_ATOMIC_S		23
+#define FW_WR_ATOMIC_V(x)	((x) << FW_WR_ATOMIC_S)
+
+/* flush flag (hi) - firmware flushes flushable work request buffered
+ * in the flow context.
+ */
+#define FW_WR_FLUSH_S     22
+#define FW_WR_FLUSH_V(x)  ((x) << FW_WR_FLUSH_S)
+
+/* completion flag (hi) - firmware generates a cpl_fw6_ack */
+#define FW_WR_COMPL_S     21
+#define FW_WR_COMPL_V(x)  ((x) << FW_WR_COMPL_S)
+#define FW_WR_COMPL_F     FW_WR_COMPL_V(1U)
+
+/* work request immediate data length (hi) */
+#define FW_WR_IMMDLEN_S 0
+#define FW_WR_IMMDLEN_M 0xff
+#define FW_WR_IMMDLEN_V(x)      ((x) << FW_WR_IMMDLEN_S)
+
+/* egress queue status update to associated ingress queue entry (lo) */
+#define FW_WR_EQUIQ_S           31
+#define FW_WR_EQUIQ_V(x)        ((x) << FW_WR_EQUIQ_S)
+#define FW_WR_EQUIQ_F           FW_WR_EQUIQ_V(1U)
+
+/* egress queue status update to egress queue status entry (lo) */
+#define FW_WR_EQUEQ_S           30
+#define FW_WR_EQUEQ_V(x)        ((x) << FW_WR_EQUEQ_S)
+#define FW_WR_EQUEQ_F           FW_WR_EQUEQ_V(1U)
+
+/* flow context identifier (lo) */
+#define FW_WR_FLOWID_S          8
+#define FW_WR_FLOWID_V(x)       ((x) << FW_WR_FLOWID_S)
+
+/* length in units of 16-bytes (lo) */
+#define FW_WR_LEN16_S           0
+#define FW_WR_LEN16_V(x)        ((x) << FW_WR_LEN16_S)
 
 #define HW_TPL_FR_MT_PR_IV_P_FC         0X32B
 #define HW_TPL_FR_MT_PR_OV_P_FC         0X327
@@ -539,25 +570,46 @@ struct fw_flowc_mnemval {
 
 struct fw_flowc_wr {
 	__be32 op_to_nparams;
-#define FW_FLOWC_WR_NPARAMS(x)	((x) << 0)
 	__be32 flowid_len16;
 	struct fw_flowc_mnemval mnemval[0];
 };
+
+#define FW_FLOWC_WR_NPARAMS_S           0
+#define FW_FLOWC_WR_NPARAMS_V(x)        ((x) << FW_FLOWC_WR_NPARAMS_S)
 
 struct fw_ofld_tx_data_wr {
 	__be32 op_to_immdlen;
 	__be32 flowid_len16;
 	__be32 plen;
 	__be32 tunnel_to_proxy;
-#define FW_OFLD_TX_DATA_WR_TUNNEL(x)	 ((x) << 19)
-#define FW_OFLD_TX_DATA_WR_SAVE(x)	 ((x) << 18)
-#define FW_OFLD_TX_DATA_WR_FLUSH(x)	 ((x) << 17)
-#define FW_OFLD_TX_DATA_WR_URGENT(x)	 ((x) << 16)
-#define FW_OFLD_TX_DATA_WR_MORE(x)	 ((x) << 15)
-#define FW_OFLD_TX_DATA_WR_SHOVE(x)	 ((x) << 14)
-#define FW_OFLD_TX_DATA_WR_ULPMODE(x)	 ((x) << 10)
-#define FW_OFLD_TX_DATA_WR_ULPSUBMODE(x) ((x) << 6)
 };
+
+#define FW_OFLD_TX_DATA_WR_TUNNEL_S     19
+#define FW_OFLD_TX_DATA_WR_TUNNEL_V(x)  ((x) << FW_OFLD_TX_DATA_WR_TUNNEL_S)
+
+#define FW_OFLD_TX_DATA_WR_SAVE_S       18
+#define FW_OFLD_TX_DATA_WR_SAVE_V(x)    ((x) << FW_OFLD_TX_DATA_WR_SAVE_S)
+
+#define FW_OFLD_TX_DATA_WR_FLUSH_S      17
+#define FW_OFLD_TX_DATA_WR_FLUSH_V(x)   ((x) << FW_OFLD_TX_DATA_WR_FLUSH_S)
+#define FW_OFLD_TX_DATA_WR_FLUSH_F      FW_OFLD_TX_DATA_WR_FLUSH_V(1U)
+
+#define FW_OFLD_TX_DATA_WR_URGENT_S     16
+#define FW_OFLD_TX_DATA_WR_URGENT_V(x)  ((x) << FW_OFLD_TX_DATA_WR_URGENT_S)
+
+#define FW_OFLD_TX_DATA_WR_MORE_S       15
+#define FW_OFLD_TX_DATA_WR_MORE_V(x)    ((x) << FW_OFLD_TX_DATA_WR_MORE_S)
+
+#define FW_OFLD_TX_DATA_WR_SHOVE_S      14
+#define FW_OFLD_TX_DATA_WR_SHOVE_V(x)   ((x) << FW_OFLD_TX_DATA_WR_SHOVE_S)
+#define FW_OFLD_TX_DATA_WR_SHOVE_F      FW_OFLD_TX_DATA_WR_SHOVE_V(1U)
+
+#define FW_OFLD_TX_DATA_WR_ULPMODE_S    10
+#define FW_OFLD_TX_DATA_WR_ULPMODE_V(x) ((x) << FW_OFLD_TX_DATA_WR_ULPMODE_S)
+
+#define FW_OFLD_TX_DATA_WR_ULPSUBMODE_S         6
+#define FW_OFLD_TX_DATA_WR_ULPSUBMODE_V(x)      \
+	((x) << FW_OFLD_TX_DATA_WR_ULPSUBMODE_S)
 
 struct fw_cmd_wr {
 	__be32 op_dma;
@@ -565,6 +617,9 @@ struct fw_cmd_wr {
 	__be32 len16_pkd;
 	__be64 cookie_daddr;
 };
+
+#define FW_CMD_WR_DMA_S         17
+#define FW_CMD_WR_DMA_V(x)      ((x) << FW_CMD_WR_DMA_S)
 
 struct fw_eth_tx_pkt_vm_wr {
 	__be32 op_immdlen;
@@ -641,18 +696,39 @@ struct fw_cmd_hdr {
 	__be32 lo;
 };
 
-#define FW_CMD_OP(x)		((x) << 24)
-#define FW_CMD_OP_GET(x)        (((x) >> 24) & 0xff)
-#define FW_CMD_REQUEST          (1U << 23)
-#define FW_CMD_REQUEST_GET(x)   (((x) >> 23) & 0x1)
-#define FW_CMD_READ		(1U << 22)
-#define FW_CMD_WRITE		(1U << 21)
-#define FW_CMD_EXEC		(1U << 20)
-#define FW_CMD_RAMASK(x)	((x) << 20)
-#define FW_CMD_RETVAL(x)	((x) << 8)
-#define FW_CMD_RETVAL_GET(x)	(((x) >> 8) & 0xff)
-#define FW_CMD_LEN16(x)         ((x) << 0)
-#define FW_LEN16(fw_struct)	FW_CMD_LEN16(sizeof(fw_struct) / 16)
+#define FW_CMD_OP_S             24
+#define FW_CMD_OP_M             0xff
+#define FW_CMD_OP_V(x)          ((x) << FW_CMD_OP_S)
+#define FW_CMD_OP_G(x)          (((x) >> FW_CMD_OP_S) & FW_CMD_OP_M)
+
+#define FW_CMD_REQUEST_S        23
+#define FW_CMD_REQUEST_V(x)     ((x) << FW_CMD_REQUEST_S)
+#define FW_CMD_REQUEST_F        FW_CMD_REQUEST_V(1U)
+
+#define FW_CMD_READ_S           22
+#define FW_CMD_READ_V(x)        ((x) << FW_CMD_READ_S)
+#define FW_CMD_READ_F           FW_CMD_READ_V(1U)
+
+#define FW_CMD_WRITE_S          21
+#define FW_CMD_WRITE_V(x)       ((x) << FW_CMD_WRITE_S)
+#define FW_CMD_WRITE_F          FW_CMD_WRITE_V(1U)
+
+#define FW_CMD_EXEC_S           20
+#define FW_CMD_EXEC_V(x)        ((x) << FW_CMD_EXEC_S)
+#define FW_CMD_EXEC_F           FW_CMD_EXEC_V(1U)
+
+#define FW_CMD_RAMASK_S         20
+#define FW_CMD_RAMASK_V(x)      ((x) << FW_CMD_RAMASK_S)
+
+#define FW_CMD_RETVAL_S         8
+#define FW_CMD_RETVAL_M         0xff
+#define FW_CMD_RETVAL_V(x)      ((x) << FW_CMD_RETVAL_S)
+#define FW_CMD_RETVAL_G(x)      (((x) >> FW_CMD_RETVAL_S) & FW_CMD_RETVAL_M)
+
+#define FW_CMD_LEN16_S          0
+#define FW_CMD_LEN16_V(x)       ((x) << FW_CMD_LEN16_S)
+
+#define FW_LEN16(fw_struct)	FW_CMD_LEN16_V(sizeof(fw_struct) / 16)
 
 enum fw_ldst_addrspc {
 	FW_LDST_ADDRSPC_FIRMWARE  = 0x0001,

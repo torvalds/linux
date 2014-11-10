@@ -499,10 +499,10 @@ static inline void send_tx_flowc_wr(struct cxgbi_sock *csk)
 	skb = alloc_wr(flowclen, 0, GFP_ATOMIC);
 	flowc = (struct fw_flowc_wr *)skb->head;
 	flowc->op_to_nparams =
-		htonl(FW_WR_OP(FW_FLOWC_WR) | FW_FLOWC_WR_NPARAMS(8));
+		htonl(FW_WR_OP_V(FW_FLOWC_WR) | FW_FLOWC_WR_NPARAMS_V(8));
 	flowc->flowid_len16 =
-		htonl(FW_WR_LEN16(DIV_ROUND_UP(72, 16)) |
-				FW_WR_FLOWID(csk->tid));
+		htonl(FW_WR_LEN16_V(DIV_ROUND_UP(72, 16)) |
+				FW_WR_FLOWID_V(csk->tid));
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
 	flowc->mnemval[0].val = htonl(csk->cdev->pfvf);
 	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
@@ -542,30 +542,31 @@ static inline void make_tx_data_wr(struct cxgbi_sock *csk, struct sk_buff *skb,
 {
 	struct fw_ofld_tx_data_wr *req;
 	unsigned int submode = cxgbi_skcb_ulp_mode(skb) & 3;
-	unsigned int wr_ulp_mode = 0;
+	unsigned int wr_ulp_mode = 0, val;
 
 	req = (struct fw_ofld_tx_data_wr *)__skb_push(skb, sizeof(*req));
 
 	if (is_ofld_imm(skb)) {
-		req->op_to_immdlen = htonl(FW_WR_OP(FW_OFLD_TX_DATA_WR) |
-					FW_WR_COMPL(1) |
-					FW_WR_IMMDLEN(dlen));
-		req->flowid_len16 = htonl(FW_WR_FLOWID(csk->tid) |
-						FW_WR_LEN16(credits));
+		req->op_to_immdlen = htonl(FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
+					FW_WR_COMPL_F |
+					FW_WR_IMMDLEN_V(dlen));
+		req->flowid_len16 = htonl(FW_WR_FLOWID_V(csk->tid) |
+						FW_WR_LEN16_V(credits));
 	} else {
 		req->op_to_immdlen =
-			cpu_to_be32(FW_WR_OP(FW_OFLD_TX_DATA_WR) |
-					FW_WR_COMPL(1) |
-					FW_WR_IMMDLEN(0));
+			cpu_to_be32(FW_WR_OP_V(FW_OFLD_TX_DATA_WR) |
+					FW_WR_COMPL_F |
+					FW_WR_IMMDLEN_V(0));
 		req->flowid_len16 =
-			cpu_to_be32(FW_WR_FLOWID(csk->tid) |
-					FW_WR_LEN16(credits));
+			cpu_to_be32(FW_WR_FLOWID_V(csk->tid) |
+					FW_WR_LEN16_V(credits));
 	}
 	if (submode)
-		wr_ulp_mode = FW_OFLD_TX_DATA_WR_ULPMODE(ULP2_MODE_ISCSI) |
-				FW_OFLD_TX_DATA_WR_ULPSUBMODE(submode);
+		wr_ulp_mode = FW_OFLD_TX_DATA_WR_ULPMODE_V(ULP2_MODE_ISCSI) |
+				FW_OFLD_TX_DATA_WR_ULPSUBMODE_V(submode);
+	val = skb_peek(&csk->write_queue) ? 0 : 1;
 	req->tunnel_to_proxy = htonl(wr_ulp_mode |
-		 FW_OFLD_TX_DATA_WR_SHOVE(skb_peek(&csk->write_queue) ? 0 : 1));
+				     FW_OFLD_TX_DATA_WR_SHOVE_V(val));
 	req->plen = htonl(len);
 	if (!cxgbi_sock_flag(csk, CTPF_TX_DATA_SENT))
 		cxgbi_sock_set_flag(csk, CTPF_TX_DATA_SENT);
