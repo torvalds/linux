@@ -366,8 +366,6 @@ struct snd_soc_jack_gpio;
 
 typedef int (*hw_write_t)(void *,const char* ,int);
 
-extern struct snd_ac97_bus_ops *soc_ac97_ops;
-
 enum snd_soc_pcm_subclass {
 	SND_SOC_PCM_CLASS_PCM	= 0,
 	SND_SOC_PCM_CLASS_BE	= 1,
@@ -500,6 +498,7 @@ int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
 int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 
+#ifdef CONFIG_SND_SOC_AC97_BUS
 int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 	struct snd_ac97_bus_ops *ops, int num);
 void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
@@ -507,6 +506,31 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
 int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops);
 int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 		struct platform_device *pdev);
+
+extern struct snd_ac97_bus_ops *soc_ac97_ops;
+
+int snd_soc_ac97_register_dai_links(struct snd_soc_card *card);
+void snd_soc_ac97_add_pdata(struct snd_soc_pcm_runtime *rtd);
+#else
+
+static inline int snd_soc_ac97_register_dai_links(struct snd_soc_card *card)
+{
+	return 0;
+}
+
+static inline void snd_soc_ac97_add_pdata(struct snd_soc_pcm_runtime *rtd) {}
+
+static inline int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
+	struct platform_device *pdev)
+{
+	return 0;
+}
+
+static inline int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops)
+{
+	return 0;
+}
+#endif
 
 /*
  *Controls
