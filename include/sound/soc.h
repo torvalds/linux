@@ -509,15 +509,12 @@ int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 extern struct snd_ac97_bus_ops *soc_ac97_ops;
 
 int snd_soc_ac97_register_dai_links(struct snd_soc_card *card);
-void snd_soc_ac97_add_pdata(struct snd_soc_pcm_runtime *rtd);
 #else
 
 static inline int snd_soc_ac97_register_dai_links(struct snd_soc_card *card)
 {
 	return 0;
 }
-
-static inline void snd_soc_ac97_add_pdata(struct snd_soc_pcm_runtime *rtd) {}
 
 static inline int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 	struct platform_device *pdev)

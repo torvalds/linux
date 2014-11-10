@@ -1375,8 +1375,6 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 		}
 	}
 
-	snd_soc_ac97_add_pdata(rtd);
-
 	return 0;
 }
 

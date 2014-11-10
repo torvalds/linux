@@ -342,15 +342,3 @@ err:
 		soc_unregister_ac97_dai_link(&card->rtd[i]);
 	return ret;
 }
-
-void snd_soc_ac97_add_pdata(struct snd_soc_pcm_runtime *rtd)
-{
-	unsigned int i;
-
-	/* add platform data for AC97 devices */
-	for (i = 0; i < rtd->num_codecs; i++) {
-		if (rtd->codec_dais[i]->driver->ac97_control)
-			snd_ac97_dev_add_pdata(rtd->codec_dais[i]->codec->ac97,
-					       rtd->cpu_dai->ac97_pdata);
-	}
-}
