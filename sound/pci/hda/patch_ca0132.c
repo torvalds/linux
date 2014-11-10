@@ -2417,7 +2417,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
  * @reloc: Relocation address for loading single-segment overlays, or 0 for
  *	   no relocation
  * @sample_rate: sampling rate of the stream used for DSP download
- * @number_channels: channels of the stream used for DSP download
+ * @channels: channels of the stream used for DSP download
  * @ovly: TRUE if overlay format is required
  *
  * Returns zero or a negative error code.
@@ -2556,10 +2556,7 @@ static void dspload_post_setup(struct hda_codec *codec)
 }
 
 /**
- * Download DSP from a DSP Image Fast Load structure. This structure is a
- * linear, non-constant sized element array of structures, each of which
- * contain the count of the data to be loaded, the data itself, and the
- * corresponding starting chip address of the starting data location.
+ * dspload_image - Download DSP from a DSP Image Fast Load structure.
  *
  * @codec: the HDA codec
  * @fls: pointer to a fast load image
@@ -2570,6 +2567,10 @@ static void dspload_post_setup(struct hda_codec *codec)
  * @router_chans: number of audio router channels to be allocated (0 means use
  *		  internal defaults; max is 32)
  *
+ * Download DSP from a DSP Image Fast Load structure. This structure is a
+ * linear, non-constant sized element array of structures, each of which
+ * contain the count of the data to be loaded, the data itself, and the
+ * corresponding starting chip address of the starting data location.
  * Returns zero or a negative error code.
  */
 static int dspload_image(struct hda_codec *codec,
