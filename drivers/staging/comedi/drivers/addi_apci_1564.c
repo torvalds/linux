@@ -101,17 +101,10 @@
  */
 
 /*
- * devpriv->counters Register Map
+ * devpriv->counters Register Map (see addi_tcw.h for register/bit defines)
  *   PLD Revision 2.x - PCI BAR 1 + 0x00
  */
-#define APCI1564_COUNTER_REG(x)			(0x00 + ((x) * 0x20))
-#define APCI1564_COUNTER_RELOAD_REG(x)		(0x04 + ((x) * 0x20))
-#define APCI1564_COUNTER_TIMEBASE_REG(x)	(0x08 + ((x) * 0x20))
-#define APCI1564_COUNTER_CTRL_REG(x)		(0x0c + ((x) * 0x20))
-#define APCI1564_COUNTER_STATUS_REG(x)		(0x10 + ((x) * 0x20))
-#define APCI1564_COUNTER_IRQ_REG(x)		(0x14 + ((x) * 0x20))
-#define APCI1564_COUNTER_WARN_TIMEVAL_REG(x)	(0x18 + ((x) * 0x20))
-#define APCI1564_COUNTER_WARN_TIMEBASE_REG(x)	(0x1c + ((x) * 0x20))
+#define APCI1564_COUNTER(x)			((x) * 0x20)
 
 struct apci1564_private {
 	unsigned long eeprom;		/* base address of EEPROM register */
@@ -147,10 +140,12 @@ static int apci1564_reset(struct comedi_device *dev)
 	outl(0x0, devpriv->timer + ADDI_TCW_RELOAD_REG);
 
 	if (devpriv->counters) {
+		unsigned long iobase = devpriv->counters + ADDI_TCW_CTRL_REG;
+
 		/* Reset the counter registers */
-		outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(0));
-		outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(1));
-		outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(2));
+		outl(0x0, iobase + APCI1564_COUNTER(0));
+		outl(0x0, iobase + APCI1564_COUNTER(1));
+		outl(0x0, iobase + APCI1564_COUNTER(2));
 	}
 
 	return 0;
@@ -195,21 +190,21 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 
 	if (devpriv->counters) {
 		for (chan = 0; chan < 4; chan++) {
-			status = inl(devpriv->counters +
-				     APCI1564_COUNTER_IRQ_REG(chan));
+			unsigned long iobase;
+
+			iobase = devpriv->counters + APCI1564_COUNTER(chan);
+
+			status = inl(iobase + ADDI_TCW_IRQ_REG);
 			if (status & 0x01) {
 				/*  Disable Counter Interrupt */
-				ctrl = inl(devpriv->counters +
-					   APCI1564_COUNTER_CTRL_REG(chan));
-				outl(0x0, devpriv->counters +
-				          APCI1564_COUNTER_CTRL_REG(chan));
+				ctrl = inl(iobase + ADDI_TCW_CTRL_REG);
+				outl(0x0, iobase + ADDI_TCW_CTRL_REG);
 
 				/* Send a signal to from kernel to user space */
 				send_sig(SIGIO, devpriv->tsk_current, 0);
 
 				/*  Enable Counter Interrupt */
-				outl(ctrl, devpriv->counters +
-					   APCI1564_COUNTER_CTRL_REG(chan));
+				outl(ctrl, iobase + ADDI_TCW_CTRL_REG);
 			}
 		}
 	}
