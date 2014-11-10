@@ -30,6 +30,13 @@ Optional properties:
 	- regulator-off-in-suspend: regulator should be off in suspend state.
 	- regulator-suspend-microvolt: regulator should be set to this voltage
 	  in suspend.
+	- regulator-mode: operating mode in the given suspend state.
+	  The set of possible operating modes depends on the capabilities of
+	  every hardware so the valid modes are documented on each regulator
+	  device tree binding document.
+- regulator-initial-mode: initial operating mode. The set of possible operating
+  modes depends on the capabilities of every hardware so each device binding
+  documentation explains which values the regulator supports.
 
 Deprecated properties:
 - regulator-compatible: If a regulator chip contains multiple
