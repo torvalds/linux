@@ -71,7 +71,7 @@ obj-$(CONFIG_MACH_AT91RM9200_DT) += board-dt-rm9200.o
 obj-$(CONFIG_MACH_AT91SAM9_DT) += board-dt-sam9.o
 
 # SAMA5 board with device-tree
-obj-$(CONFIG_MACH_SAMA5_DT) += board-dt-sama5.o
+obj-$(CONFIG_SOC_SAMA5)		+= board-dt-sama5.o
 
 # Drivers
 obj-y				+= leds.o
