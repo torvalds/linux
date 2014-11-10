@@ -148,12 +148,23 @@ int iio_simple_dummy_write_event_value(struct iio_dev *indio_dev,
 static irqreturn_t iio_simple_dummy_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
+	struct iio_dummy_state *st = iio_priv(indio_dev);
 
-	iio_push_event(indio_dev,
-		       IIO_EVENT_CODE(IIO_VOLTAGE, 0, 0,
-				      IIO_EV_DIR_RISING,
-				      IIO_EV_TYPE_THRESH, 0, 0, 0),
-		       iio_get_time_ns());
+	dev_dbg(&indio_dev->dev, "id %x event %x\n",
+		st->regs->reg_id, st->regs->reg_data);
+
+	switch (st->regs->reg_data) {
+	case 0:
+		iio_push_event(indio_dev,
+			       IIO_EVENT_CODE(IIO_VOLTAGE, 0, 0,
+					      IIO_EV_DIR_RISING,
+					      IIO_EV_TYPE_THRESH, 0, 0, 0),
+			       iio_get_time_ns());
+		break;
+	default:
+		break;
+	}
+
 	return IRQ_HANDLED;
 }
 
@@ -179,6 +190,8 @@ int iio_simple_dummy_events_register(struct iio_dev *indio_dev)
 		ret = st->event_irq;
 		goto error_ret;
 	}
+	st->regs = iio_dummy_evgen_get_regs(st->event_irq);
+
 	ret = request_threaded_irq(st->event_irq,
 				   NULL,
 				   &iio_simple_dummy_event_handler,

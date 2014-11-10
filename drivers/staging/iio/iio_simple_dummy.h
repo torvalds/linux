@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 
 struct iio_dummy_accel_calibscale;
+struct iio_dummy_regs;
 
 /**
  * struct iio_dummy_state - device instance specific state.
@@ -35,6 +36,7 @@ struct iio_dummy_state {
 	int accel_calibbias;
 	const struct iio_dummy_accel_calibscale *accel_calibscale;
 	struct mutex lock;
+	struct iio_dummy_regs *regs;
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
 	int event_irq;
 	int event_val;
