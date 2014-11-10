@@ -51,7 +51,9 @@
 #define APCI1564_EEPROM_DO			(1 << 2)
 #define APCI1564_EEPROM_CS			(1 << 1)
 #define APCI1564_EEPROM_CLK			(1 << 0)
+#define APCI1564_REV1_TIMER_IOBASE		0x04
 #define APCI1564_REV2_MAIN_IOBASE		0x04
+#define APCI1564_REV2_TIMER_IOBASE		0x48
 
 /*
  * PCI BAR 1
@@ -90,18 +92,24 @@
 #define APCI1564_WDOG_IRQ_REG			0x38
 #define APCI1564_WDOG_WARN_TIMEVAL_REG		0x3c
 #define APCI1564_WDOG_WARN_TIMEBASE_REG		0x40
-#define APCI1564_TIMER_REG			0x44
-#define APCI1564_TIMER_RELOAD_REG		0x48
-#define APCI1564_TIMER_TIMEBASE_REG		0x4c
-#define APCI1564_TIMER_CTRL_REG			0x50
-#define APCI1564_TIMER_STATUS_REG		0x54
-#define APCI1564_TIMER_IRQ_REG			0x58
-#define APCI1564_TIMER_WARN_TIMEVAL_REG		0x5c  /* Rev 2.x only */
-#define APCI1564_TIMER_WARN_TIMEBASE_REG	0x60  /* Rev 2.x only */
 
+/*
+ * devpriv->timer Register Map
+ *   PLD Revision 1.0 - PCI BAR 0 + 0x04
+ *   PLD Revision 2.x - PCI BAR 0 + 0x48
+ */
+#define APCI1564_TIMER_REG			0x00
+#define APCI1564_TIMER_RELOAD_REG		0x04
+#define APCI1564_TIMER_TIMEBASE_REG		0x08
+#define APCI1564_TIMER_CTRL_REG			0x0c
+#define APCI1564_TIMER_STATUS_REG		0x10
+#define APCI1564_TIMER_IRQ_REG			0x14
+#define APCI1564_TIMER_WARN_TIMEVAL_REG		0x18  /* Rev 2.x only */
+#define APCI1564_TIMER_WARN_TIMEBASE_REG	0x1c  /* Rev 2.x only */
 
 struct apci1564_private {
 	unsigned long eeprom;		/* base address of EEPROM register */
+	unsigned long timer;		/* base address of 12-bit timer */
 	unsigned long counters;		/* base address of 32-bit counters */
 	unsigned int mode1;		/* riding-edge/high level channels */
 	unsigned int mode2;		/* falling-edge/low level channels */
@@ -130,8 +138,8 @@ static int apci1564_reset(struct comedi_device *dev)
 	addi_watchdog_reset(dev->iobase + APCI1564_WDOG_REG);
 
 	/* Reset the timer registers */
-	outl(0x0, dev->iobase + APCI1564_TIMER_CTRL_REG);
-	outl(0x0, dev->iobase + APCI1564_TIMER_RELOAD_REG);
+	outl(0x0, devpriv->timer + APCI1564_TIMER_CTRL_REG);
+	outl(0x0, devpriv->timer + APCI1564_TIMER_RELOAD_REG);
 
 	/* Reset the counter registers */
 	outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(0));
@@ -165,17 +173,17 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 		outl(status, dev->iobase + APCI1564_DI_IRQ_REG);
 	}
 
-	status = inl(dev->iobase + APCI1564_TIMER_IRQ_REG);
+	status = inl(devpriv->timer + APCI1564_TIMER_IRQ_REG);
 	if (status & 0x01) {
 		/*  Disable Timer Interrupt */
-		ctrl = inl(dev->iobase + APCI1564_TIMER_CTRL_REG);
-		outl(0x0, dev->iobase + APCI1564_TIMER_CTRL_REG);
+		ctrl = inl(devpriv->timer + APCI1564_TIMER_CTRL_REG);
+		outl(0x0, devpriv->timer + APCI1564_TIMER_CTRL_REG);
 
 		/* Send a signal to from kernel to user space */
 		send_sig(SIGIO, devpriv->tsk_current, 0);
 
 		/*  Enable Timer Interrupt */
-		outl(ctrl, dev->iobase + APCI1564_TIMER_CTRL_REG);
+		outl(ctrl, devpriv->timer + APCI1564_TIMER_CTRL_REG);
 	}
 
 	for (chan = 0; chan < 4; chan++) {
@@ -441,12 +449,14 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 		/* PLD Revision 1.0 I/O Mapping */
 		dev->iobase = pci_resource_start(pcidev, 1) +
 			      APCI1564_REV1_MAIN_IOBASE;
+		devpriv->timer = devpriv->eeprom + APCI1564_REV1_TIMER_IOBASE;
 		dev_err(dev->class_dev,
 			"PLD Revision 1.0 detected, not yet supported\n");
 		return -ENXIO;
 	} else {
 		/* PLD Revision 2.x I/O Mapping */
 		dev->iobase = devpriv->eeprom + APCI1564_REV2_MAIN_IOBASE;
+		devpriv->timer = devpriv->eeprom + APCI1564_REV2_TIMER_IOBASE;
 		devpriv->counters = pci_resource_start(pcidev, 1);
 	}
 
