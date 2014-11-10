@@ -2,7 +2,7 @@
 #include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
-#include "bonding.h"
+#include <net/bonding.h>
 
 
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)

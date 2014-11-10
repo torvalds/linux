@@ -61,6 +61,7 @@
 #include <net/neighbour.h>
 #include <net/netevent.h>
 #include <net/addrconf.h>
+#include <net/bonding.h>
 #include <asm/uaccess.h>
 
 #include "cxgb4.h"
@@ -70,8 +71,6 @@
 #include "cxgb4_dcb.h"
 #include "cxgb4_debugfs.h"
 #include "l2t.h"
-
-#include <../drivers/net/bonding/bonding.h>
 
 #ifdef DRV_VERSION
 #undef DRV_VERSION

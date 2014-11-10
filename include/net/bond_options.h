@@ -8,8 +8,8 @@
  * (at your option) any later version.
  */
 
-#ifndef _BOND_OPTIONS_H
-#define _BOND_OPTIONS_H
+#ifndef _NET_BOND_OPTIONS_H
+#define _NET_BOND_OPTIONS_H
 
 #define BOND_OPT_MAX_NAMELEN 32
 #define BOND_OPT_VALID(opt) ((opt) < BOND_OPT_LAST)
@@ -127,4 +127,4 @@ static inline void __bond_opt_init(struct bond_opt_value *optval,
 
 void bond_option_arp_ip_targets_clear(struct bonding *bond);
 
-#endif /* _BOND_OPTIONS_H */
+#endif /* _NET_BOND_OPTIONS_H */

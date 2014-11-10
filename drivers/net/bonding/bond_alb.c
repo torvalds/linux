@@ -37,8 +37,8 @@
 #include <net/arp.h>
 #include <net/ipv6.h>
 #include <asm/byteorder.h>
-#include "bonding.h"
-#include "bond_alb.h"
+#include <net/bonding.h>
+#include <net/bond_alb.h>
 
 
 
