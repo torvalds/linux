@@ -1076,7 +1076,6 @@ static const struct snd_soc_dai_ops wm9713_dai_ops_voice = {
 static struct snd_soc_dai_driver wm9713_dai[] = {
 {
 	.name = "wm9713-hifi",
-	.ac97_control = 1,
 	.playback = {
 		.stream_name = "HiFi Playback",
 		.channels_min = 1,

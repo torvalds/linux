@@ -53,7 +53,6 @@ static const struct snd_soc_dai_ops ac97_dai_ops = {
 
 static struct snd_soc_dai_driver ac97_dai = {
 	.name = "ac97-hifi",
-	.ac97_control = 1,
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 1,

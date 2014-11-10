@@ -294,7 +294,6 @@ static const struct snd_soc_dai_ops stac9766_dai_ops_digital = {
 static struct snd_soc_dai_driver stac9766_dai[] = {
 {
 	.name = "stac9766-hifi-analog",
-	.ac97_control = 1,
 
 	/* stream cababilities */
 	.playback = {
@@ -316,7 +315,6 @@ static struct snd_soc_dai_driver stac9766_dai[] = {
 },
 {
 	.name = "stac9766-hifi-IEC958",
-	.ac97_control = 1,
 
 	/* stream cababilities */
 	.playback = {

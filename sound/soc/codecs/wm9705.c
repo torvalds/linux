@@ -263,7 +263,6 @@ static const struct snd_soc_dai_ops wm9705_dai_ops = {
 static struct snd_soc_dai_driver wm9705_dai[] = {
 	{
 		.name = "wm9705-hifi",
-		.ac97_control = 1,
 		.playback = {
 			.stream_name = "HiFi Playback",
 			.channels_min = 1,

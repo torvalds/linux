@@ -170,7 +170,6 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 
 static struct snd_soc_dai_driver ad1980_dai = {
 	.name = "ad1980-hifi",
-	.ac97_control = 1,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
