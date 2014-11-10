@@ -3013,6 +3013,44 @@ out:
 	return ret;
 }
 
+static int
+iwl_mvm_switch_vif_chanctx_reassign(struct iwl_mvm *mvm,
+				    struct ieee80211_vif_chanctx_switch *vifs)
+{
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	__iwl_mvm_unassign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx, true);
+
+	ret = __iwl_mvm_assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].new_ctx,
+					   true);
+	if (ret) {
+		IWL_ERR(mvm,
+			"failed to assign new_ctx during channel switch\n");
+		goto out_reassign;
+	}
+
+	goto out;
+
+out_reassign:
+	if (__iwl_mvm_assign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx,
+					 true)) {
+		IWL_ERR(mvm, "failed to reassign old_ctx after failure.\n");
+		goto out_restart;
+	}
+
+	goto out;
+
+out_restart:
+	/* things keep failing, better restart the hw */
+	iwl_mvm_nic_restart(mvm, false);
+
+out:
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
 static int iwl_mvm_switch_vif_chanctx(struct ieee80211_hw *hw,
 				      struct ieee80211_vif_chanctx_switch *vifs,
 				      int n_vifs,
@@ -3030,7 +3068,7 @@ static int iwl_mvm_switch_vif_chanctx(struct ieee80211_hw *hw,
 		ret = iwl_mvm_switch_vif_chanctx_swap(mvm, vifs);
 		break;
 	case CHANCTX_SWMODE_REASSIGN_VIF:
-		ret = -EOPNOTSUPP;
+		ret = iwl_mvm_switch_vif_chanctx_reassign(mvm, vifs);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
