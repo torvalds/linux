@@ -592,7 +592,7 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 		if (!nouveau_fb || !nouveau_fb->nvbo)
 			continue;
 
-		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM, false);
 		if (ret)
 			NV_ERROR(drm, "Could not pin framebuffer\n");
 	}
@@ -600,7 +600,7 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 
-		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, false);
 		if (!ret)
 			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
 		if (ret)
@@ -713,7 +713,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		return -ENOMEM;
 
 	if (new_bo != old_bo) {
-		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM, false);
 		if (ret)
 			goto fail_free;
 	}

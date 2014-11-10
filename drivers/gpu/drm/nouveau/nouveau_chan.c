@@ -109,7 +109,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 	ret = nouveau_bo_new(drm->dev, size, 0, target, 0, 0, NULL, NULL,
 			    &chan->push.buffer);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(chan->push.buffer, target);
+		ret = nouveau_bo_pin(chan->push.buffer, target, false);
 		if (ret == 0)
 			ret = nouveau_bo_map(chan->push.buffer);
 	}

@@ -310,26 +310,49 @@ nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t type, uint32_t busy)
 }
 
 int
-nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
+nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype, bool contig)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_buffer_object *bo = &nvbo->bo;
+	bool force = false, evict = false;
 	int ret;
 
 	ret = ttm_bo_reserve(bo, false, false, false, NULL);
 	if (ret)
 		return ret;
 
-	if (nvbo->pin_refcnt && !(memtype & (1 << bo->mem.mem_type))) {
-		NV_ERROR(drm, "bo %p pinned elsewhere: 0x%08x vs 0x%08x\n", bo,
-			 1 << bo->mem.mem_type, memtype);
-		ret = -EINVAL;
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
+	    memtype == TTM_PL_FLAG_VRAM && contig) {
+		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) {
+			if (bo->mem.mem_type == TTM_PL_VRAM) {
+				struct nouveau_mem *mem = bo->mem.mm_node;
+				if (!list_is_singular(&mem->regions))
+					evict = true;
+			}
+			nvbo->tile_flags &= ~NOUVEAU_GEM_TILE_NONCONTIG;
+			force = true;
+		}
+	}
+
+	if (nvbo->pin_refcnt) {
+		if (!(memtype & (1 << bo->mem.mem_type)) || evict) {
+			NV_ERROR(drm, "bo %p pinned elsewhere: "
+				      "0x%08x vs 0x%08x\n", bo,
+				 1 << bo->mem.mem_type, memtype);
+			ret = -EBUSY;
+		}
+		nvbo->pin_refcnt++;
 		goto out;
 	}
 
-	if (nvbo->pin_refcnt++)
-		goto out;
+	if (evict) {
+		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_TT, 0);
+		ret = nouveau_bo_validate(nvbo, false, false);
+		if (ret)
+			goto out;
+	}
 
+	nvbo->pin_refcnt++;
 	nouveau_bo_placement_set(nvbo, memtype, 0);
 
 	/* drop pin_refcnt temporarily, so we don't trip the assertion
@@ -354,6 +377,8 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 	}
 
 out:
+	if (force && ret)
+		nvbo->tile_flags |= NOUVEAU_GEM_TILE_NONCONTIG;
 	ttm_bo_unreserve(bo);
 	return ret;
 }
