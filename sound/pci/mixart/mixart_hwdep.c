@@ -37,10 +37,11 @@
 /**
  * wait for a value on a peudo register, exit with a timeout
  *
- * @param mgr pointer to miXart manager structure
- * @param offset unsigned pseudo_register base + offset of value
- * @param value value
- * @param timeout timeout in centisenconds
+ * @mgr: pointer to miXart manager structure
+ * @offset: unsigned pseudo_register base + offset of value
+ * @is_egal: wait for the equal value
+ * @value: value
+ * @timeout: timeout in centisenconds
  */
 static int mixart_wait_nice_for_register_value(struct mixart_mgr *mgr,
 					       u32 offset, int is_egal,
