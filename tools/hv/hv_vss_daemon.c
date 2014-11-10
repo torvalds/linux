@@ -102,7 +102,7 @@ static int vss_operate(int operation)
 	while ((ent = getmntent(mounts))) {
 		if (strncmp(ent->mnt_fsname, match, strlen(match)))
 			continue;
-		if (strcmp(ent->mnt_type, "iso9660") == 0)
+		if (hasmntopt(ent, MNTOPT_RO) != NULL)
 			continue;
 		if (strcmp(ent->mnt_type, "vfat") == 0)
 			continue;
