@@ -1073,7 +1073,7 @@ nv50_crtc_swap_fbs(struct drm_crtc *crtc, struct drm_framebuffer *old_fb)
 	struct nv50_head *head = nv50_head(crtc);
 	int ret;
 
-	ret = nouveau_bo_pin(nvfb->nvbo, TTM_PL_FLAG_VRAM, false);
+	ret = nouveau_bo_pin(nvfb->nvbo, TTM_PL_FLAG_VRAM, true);
 	if (ret == 0) {
 		if (head->image)
 			nouveau_bo_unpin(head->image);
@@ -1402,7 +1402,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	ret = nouveau_bo_new(dev, 8192, 0x100, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &head->base.lut.nvbo);
 	if (!ret) {
-		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM, false);
+		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM, true);
 		if (!ret) {
 			ret = nouveau_bo_map(head->base.lut.nvbo);
 			if (ret)
@@ -1425,7 +1425,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	ret = nouveau_bo_new(dev, 64 * 64 * 4, 0x100, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &head->base.cursor.nvbo);
 	if (!ret) {
-		ret = nouveau_bo_pin(head->base.cursor.nvbo, TTM_PL_FLAG_VRAM, false);
+		ret = nouveau_bo_pin(head->base.cursor.nvbo, TTM_PL_FLAG_VRAM, true);
 		if (!ret) {
 			ret = nouveau_bo_map(head->base.cursor.nvbo);
 			if (ret)
@@ -2487,7 +2487,7 @@ nv50_display_create(struct drm_device *dev)
 	ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &disp->sync);
 	if (!ret) {
-		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM, false);
+		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM, true);
 		if (!ret) {
 			ret = nouveau_bo_map(disp->sync);
 			if (ret)
