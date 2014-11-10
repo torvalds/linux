@@ -269,6 +269,8 @@ static int kxcjk1013_set_range(struct kxcjk1013_data *data, int range_index)
 		return ret;
 	}
 
+	ret &= ~(KXCJK1013_REG_CTRL1_BIT_GSEL0 |
+		 KXCJK1013_REG_CTRL1_BIT_GSEL1);
 	ret |= (KXCJK1013_scale_table[range_index].gsel_0 << 3);
 	ret |= (KXCJK1013_scale_table[range_index].gsel_1 << 4);
 
