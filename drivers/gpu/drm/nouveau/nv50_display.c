@@ -125,6 +125,7 @@ nv50_pioc_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 
 struct nv50_curs {
 	struct nv50_pioc base;
+	struct nouveau_bo *image;
 };
 
 static int
@@ -900,23 +901,24 @@ static void
 nv50_crtc_cursor_show(struct nouveau_crtc *nv_crtc)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
+	struct nv50_curs *curs = nv50_curs(&nv_crtc->base);
 	u32 *push = evo_wait(mast, 16);
 	if (push) {
 		if (nv50_vers(mast) < G82_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x85000000);
-			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
+			evo_data(push, curs->image->bo.offset >> 8);
 		} else
 		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x85000000);
-			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
+			evo_data(push, curs->image->bo.offset >> 8);
 			evo_mthd(push, 0x089c + (nv_crtc->index * 0x400), 1);
 			evo_data(push, mast->base.vram.handle);
 		} else {
 			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 2);
 			evo_data(push, 0x85000000);
-			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
+			evo_data(push, curs->image->bo.offset >> 8);
 			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
 			evo_data(push, mast->base.vram.handle);
 		}
@@ -953,8 +955,9 @@ static void
 nv50_crtc_cursor_show_hide(struct nouveau_crtc *nv_crtc, bool show, bool update)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
+	struct nv50_curs *curs = nv50_curs(&nv_crtc->base);
 
-	if (show)
+	if (show && curs->image)
 		nv50_crtc_cursor_show(nv_crtc);
 	else
 		nv50_crtc_cursor_hide(nv_crtc);
@@ -1054,7 +1057,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 		evo_kick(push, mast);
 	}
 
-	nv50_crtc_cursor_show_hide(nv_crtc, nv_crtc->cursor.visible, true);
+	nv50_crtc_cursor_show_hide(nv_crtc, true, true);
 	nv50_display_flip_next(crtc, crtc->primary->fb, NULL, 1);
 }
 
@@ -1249,13 +1252,13 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		     uint32_t handle, uint32_t width, uint32_t height)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct nv50_curs *curs = nv50_curs(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct drm_gem_object *gem;
-	struct nouveau_bo *nvbo;
-	bool visible = (handle != 0);
-	int i, ret = 0;
+	struct drm_gem_object *gem = NULL;
+	struct nouveau_bo *nvbo = NULL;
+	int ret = 0;
 
-	if (visible) {
+	if (handle) {
 		if (width != 64 || height != 64)
 			return -EINVAL;
 
@@ -1264,23 +1267,17 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 			return -ENOENT;
 		nvbo = nouveau_gem_object(gem);
 
-		ret = nouveau_bo_map(nvbo);
-		if (ret == 0) {
-			for (i = 0; i < 64 * 64; i++) {
-				u32 v = nouveau_bo_rd32(nvbo, i);
-				nouveau_bo_wr32(nv_crtc->cursor.nvbo, i, v);
-			}
-			nouveau_bo_unmap(nvbo);
-		}
-
-		drm_gem_object_unreference_unlocked(gem);
+		ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, true);
 	}
 
-	if (visible != nv_crtc->cursor.visible) {
-		nv50_crtc_cursor_show_hide(nv_crtc, visible, true);
-		nv_crtc->cursor.visible = visible;
+	if (ret == 0) {
+		if (curs->image)
+			nouveau_bo_unpin(curs->image);
+		nouveau_bo_ref(nvbo, &curs->image);
 	}
+	drm_gem_object_unreference_unlocked(gem);
 
+	nv50_crtc_cursor_show_hide(nv_crtc, true, true);
 	return ret;
 }
 
@@ -1335,10 +1332,10 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 		nouveau_bo_unpin(head->image);
 	nouveau_bo_ref(NULL, &head->image);
 
-	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
-	if (nv_crtc->cursor.nvbo)
-		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
-	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
+	/*XXX: ditto */
+	if (head->curs.image)
+		nouveau_bo_unpin(head->curs.image);
+	nouveau_bo_ref(NULL, &head->curs.image);
 
 	nouveau_bo_unmap(nv_crtc->lut.nvbo);
 	if (nv_crtc->lut.nvbo)
@@ -1419,22 +1416,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 
 	/* allocate cursor resources */
 	ret = nv50_curs_create(disp->disp, index, &head->curs);
-	if (ret)
-		goto out;
-
-	ret = nouveau_bo_new(dev, 64 * 64 * 4, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, NULL, &head->base.cursor.nvbo);
-	if (!ret) {
-		ret = nouveau_bo_pin(head->base.cursor.nvbo, TTM_PL_FLAG_VRAM, true);
-		if (!ret) {
-			ret = nouveau_bo_map(head->base.cursor.nvbo);
-			if (ret)
-				nouveau_bo_unpin(head->base.lut.nvbo);
-		}
-		if (ret)
-			nouveau_bo_ref(NULL, &head->base.cursor.nvbo);
-	}
-
 	if (ret)
 		goto out;
 

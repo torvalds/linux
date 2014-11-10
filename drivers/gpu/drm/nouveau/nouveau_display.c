@@ -569,9 +569,10 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-
-		nouveau_bo_unmap(nv_crtc->cursor.nvbo);
-		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		if (nv_crtc->cursor.nvbo) {
+			nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+			nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		}
 	}
 
 	return 0;
@@ -599,6 +600,8 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		if (!nv_crtc->cursor.nvbo)
+			continue;
 
 		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, true);
 		if (!ret)
@@ -631,11 +634,10 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		u32 offset = nv_crtc->cursor.nvbo->bo.offset;
 
-		if (!nv_crtc->cursor.set_offset)
+		if (!nv_crtc->cursor.nvbo)
 			continue;
-		nv_crtc->cursor.set_offset(nv_crtc, offset);
+		nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.offset);
 		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
 						 nv_crtc->cursor_saved_y);
 	}
