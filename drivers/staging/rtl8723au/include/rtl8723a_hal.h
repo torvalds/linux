@@ -518,8 +518,6 @@ void Hal_EfuseParseRateIndicationOption(struct rtw_adapter *padapter, u8 *hwinfo
 void Hal_EfuseParseXtal_8723A(struct rtw_adapter *pAdapter, u8 *hwinfo, u8 AutoLoadFail);
 void Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter, u8 *hwinfo, bool AutoLoadFail);
 
-void Hal_InitChannelPlan23a(struct rtw_adapter *padapter);
-
 /*  register */
 void SetBcnCtrlReg23a(struct rtw_adapter *padapter, u8 SetBits, u8 ClearBits);
 void rtl8723a_InitBeaconParameters(struct rtw_adapter *padapter);

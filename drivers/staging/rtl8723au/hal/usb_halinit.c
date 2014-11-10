@@ -1276,10 +1276,6 @@ static void readAdapterInfo(struct rtw_adapter *padapter)
 					   pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseXtal_8723A(padapter, hwinfo,
 				 pEEPROM->bautoload_fail_flag);
-	/*  */
-	/*  The following part initialize some vars by PG info. */
-	/*  */
-	Hal_InitChannelPlan23a(padapter);
 
 	/* hal_CustomizedBehavior_8723U(Adapter); */
 

@@ -1954,10 +1954,6 @@ Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter,
 		  pHalData->EEPROMThermalMeter);
 }
 
-void Hal_InitChannelPlan23a(struct rtw_adapter *padapter)
-{
-}
-
 static void rtl8723a_cal_txdesc_chksum(struct tx_desc *ptxdesc)
 {
 	u16 *usPtr = (u16 *) ptxdesc;
