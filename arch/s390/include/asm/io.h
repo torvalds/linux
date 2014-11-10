@@ -13,9 +13,10 @@
 #include <asm/page.h>
 #include <asm/pci_io.h>
 
-void *xlate_dev_mem_ptr(unsigned long phys);
 #define xlate_dev_mem_ptr xlate_dev_mem_ptr
-void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
+void *xlate_dev_mem_ptr(phys_addr_t phys);
+#define unxlate_dev_mem_ptr unxlate_dev_mem_ptr
+void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
 
 /*
  * Convert a virtual cached pointer to an uncached pointer
