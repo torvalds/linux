@@ -71,6 +71,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_PRESSURE] = "pressure",
 	[IIO_HUMIDITYRELATIVE] = "humidityrelative",
 	[IIO_ACTIVITY] = "activity",
+	[IIO_STEPS] = "steps",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -118,6 +119,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_HARDWAREGAIN] = "hardwaregain",
 	[IIO_CHAN_INFO_HYSTERESIS] = "hysteresis",
 	[IIO_CHAN_INFO_INT_TIME] = "integration_time",
+	[IIO_CHAN_INFO_ENABLE] = "en",
 };
 
 /**

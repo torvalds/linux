@@ -856,6 +856,13 @@ Description:
 		number or direction is not specified, applies to all channels of
 		this type.
 
+What:		/sys/.../events/in_steps_instance_en
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Enables or disables step detection. Each time the user takes a step an
+		event of this type will be generated.
+
 What:		/sys/bus/iio/devices/iio:deviceX/trigger/current_trigger
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
@@ -1095,3 +1102,18 @@ Description:
 		after application of scale and offset. If no offset or scale is
 		present, output should be considered as processed with the
 		unit in milliamps.
+
+What:		/sys/.../iio:deviceX/in_steps_en
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Activates the step counter. After activation, the number of steps
+		taken by the user will be counted in hardware and exported through
+		in_steps_input.
+
+What:		/sys/.../iio:deviceX/in_steps_input
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the number of steps taken by the user
+		since the last reboot while activated.
