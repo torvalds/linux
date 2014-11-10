@@ -127,7 +127,6 @@ struct apci1564_private {
 	unsigned int mode1;		/* riding-edge/high level channels */
 	unsigned int mode2;		/* falling-edge/low level channels */
 	unsigned int ctrl;		/* interrupt mode OR (edge) . AND (level) */
-	unsigned char timer_select_mode;
 	struct task_struct *tsk_current;
 };
 
@@ -486,7 +485,7 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	ret = comedi_alloc_subdevices(dev, 6);
+	ret = comedi_alloc_subdevices(dev, 7);
 	if (ret)
 		return ret;
 
@@ -527,25 +526,40 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	/*  Allocate and Initialise Timer Subdevice Structures */
+	/* Timer subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_TIMER;
-	s->subdev_flags	= SDF_WRITABLE;
-	s->n_chan	= 3;
-	s->maxdata	= 0;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->n_chan	= 1;
+	s->maxdata	= 0x0fff;
 	s->range_table	= &range_digital;
-	s->insn_write	= apci1564_timer_write;
-	s->insn_read	= apci1564_timer_read;
-	s->insn_config	= apci1564_timer_config;
+	s->insn_config	= apci1564_timer_insn_config;
+	s->insn_write	= apci1564_timer_insn_write;
+	s->insn_read	= apci1564_timer_insn_read;
+
+	/* Counter subdevice */
+	s = &dev->subdevices[4];
+	if (devpriv->counters) {
+		s->type		= COMEDI_SUBD_COUNTER;
+		s->subdev_flags	= SDF_WRITABLE | SDF_READABLE | SDF_LSAMPL;
+		s->n_chan	= 3;
+		s->maxdata	= 0xffffffff;
+		s->range_table	= &range_digital;
+		s->insn_config	= apci1564_counter_insn_config;
+		s->insn_write	= apci1564_counter_insn_write;
+		s->insn_read	= apci1564_counter_insn_read;
+	} else {
+		s->type		= COMEDI_SUBD_UNUSED;
+	}
 
 	/* Initialize the watchdog subdevice */
-	s = &dev->subdevices[4];
+	s = &dev->subdevices[5];
 	ret = addi_watchdog_init(s, dev->iobase + APCI1564_WDOG_REG);
 	if (ret)
 		return ret;
 
 	/* Initialize the diagnostic status subdevice */
-	s = &dev->subdevices[5];
+	s = &dev->subdevices[6];
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 2;
