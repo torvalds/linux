@@ -2847,6 +2847,25 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 	}
 
 	if (switching_chanctx && vif->type == NL80211_IFTYPE_STATION) {
+		u32 duration = 2 * vif->bss_conf.beacon_int;
+
+		/* iwl_mvm_protect_session() reads directly from the
+		 * device (the system time), so make sure it is
+		 * available.
+		 */
+		ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PROTECT_CSA);
+		if (ret)
+			goto out_remove_binding;
+
+		/* Protect the session to make sure we hear the first
+		 * beacon on the new channel.
+		 */
+		iwl_mvm_protect_session(mvm, vif, duration, duration,
+					vif->bss_conf.beacon_int / 2,
+					true);
+
+		iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_CSA);
+
 		iwl_mvm_update_quotas(mvm, NULL);
 	}
 
@@ -3256,6 +3275,8 @@ static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 		ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
 		if (ret)
 			goto out_unlock;
+
+		iwl_mvm_stop_session_protection(mvm, vif);
 	}
 
 	mvmvif->ps_disabled = false;
