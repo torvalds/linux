@@ -38,10 +38,10 @@ struct usbhs_fifo {
 	struct sh_dmae_slave	rx_slave;
 };
 
+#define USBHS_MAX_NUM_DFIFO	2
 struct usbhs_fifo_info {
 	struct usbhs_fifo cfifo;
-	struct usbhs_fifo d0fifo;
-	struct usbhs_fifo d1fifo;
+	struct usbhs_fifo dfifo[USBHS_MAX_NUM_DFIFO];
 };
 
 struct usbhs_pkt_handle;

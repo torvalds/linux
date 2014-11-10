@@ -21,8 +21,8 @@
 #include "pipe.h"
 
 #define usbhsf_get_cfifo(p)	(&((p)->fifo_info.cfifo))
-#define usbhsf_get_d0fifo(p)	(&((p)->fifo_info.d0fifo))
-#define usbhsf_get_d1fifo(p)	(&((p)->fifo_info.d1fifo))
+#define usbhsf_get_d0fifo(p)	(&((p)->fifo_info.dfifo[0]))
+#define usbhsf_get_d1fifo(p)	(&((p)->fifo_info.dfifo[1]))
 #define usbhsf_is_cfifo(p, f)	(usbhsf_get_cfifo(p) == f)
 
 #define usbhsf_fifo_is_busy(f)	((f)->pipe) /* see usbhs_pipe_select_fifo */
