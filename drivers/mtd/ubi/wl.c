@@ -580,59 +580,62 @@ static void return_unused_pool_pebs(struct ubi_device *ubi,
 }
 
 /**
- * refill_wl_pool - refills all the fastmap pool used by the
- * WL sub-system.
- * @ubi: UBI device description object
- */
-static void refill_wl_pool(struct ubi_device *ubi)
-{
-	struct ubi_wl_entry *e;
-	struct ubi_fm_pool *pool = &ubi->fm_wl_pool;
-
-	return_unused_pool_pebs(ubi, pool);
-
-	for (pool->size = 0; pool->size < pool->max_size; pool->size++) {
-		if (!ubi->free.rb_node ||
-		   (ubi->free_count - ubi->beb_rsvd_pebs < 5))
-			break;
-
-		e = find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF);
-		self_check_in_wl_tree(ubi, e, &ubi->free);
-		rb_erase(&e->u.rb, &ubi->free);
-		ubi->free_count--;
-
-		pool->pebs[pool->size] = e->pnum;
-	}
-	pool->used = 0;
-}
-
-/**
- * refill_wl_user_pool - refills all the fastmap pool used by ubi_wl_get_peb.
- * @ubi: UBI device description object
- */
-static void refill_wl_user_pool(struct ubi_device *ubi)
-{
-	struct ubi_fm_pool *pool = &ubi->fm_pool;
-
-	return_unused_pool_pebs(ubi, pool);
-
-	for (pool->size = 0; pool->size < pool->max_size; pool->size++) {
-		pool->pebs[pool->size] = __wl_get_peb(ubi);
-		if (pool->pebs[pool->size] < 0)
-			break;
-	}
-	pool->used = 0;
-}
-
-/**
  * ubi_refill_pools - refills all fastmap PEB pools.
  * @ubi: UBI device description object
  */
 void ubi_refill_pools(struct ubi_device *ubi)
 {
+	struct ubi_fm_pool *wl_pool = &ubi->fm_wl_pool;
+	struct ubi_fm_pool *pool = &ubi->fm_pool;
+	struct ubi_wl_entry *e;
+	int enough;
+
 	spin_lock(&ubi->wl_lock);
-	refill_wl_pool(ubi);
-	refill_wl_user_pool(ubi);
+
+	return_unused_pool_pebs(ubi, wl_pool);
+	return_unused_pool_pebs(ubi, pool);
+
+	wl_pool->size = 0;
+	pool->size = 0;
+
+	for (;;) {
+		enough = 0;
+		if (pool->size < pool->max_size) {
+			if (!ubi->free.rb_node ||
+			   (ubi->free_count - ubi->beb_rsvd_pebs < 5))
+				break;
+
+			e = wl_get_wle(ubi);
+			if (!e)
+				break;
+
+			pool->pebs[pool->size] = e->pnum;
+			pool->size++;
+		} else
+			enough++;
+
+		if (wl_pool->size < wl_pool->max_size) {
+			if (!ubi->free.rb_node ||
+			   (ubi->free_count - ubi->beb_rsvd_pebs < 5))
+				break;
+
+			e = find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF);
+			self_check_in_wl_tree(ubi, e, &ubi->free);
+			rb_erase(&e->u.rb, &ubi->free);
+			ubi->free_count--;
+
+			wl_pool->pebs[wl_pool->size] = e->pnum;
+			wl_pool->size++;
+		} else
+			enough++;
+
+		if (enough == 2)
+			break;
+	}
+
+	wl_pool->used = 0;
+	pool->used = 0;
+
 	spin_unlock(&ubi->wl_lock);
 }
 
@@ -2002,9 +2005,15 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 
 	dbg_wl("found %i PEBs", found_pebs);
 
-	if (ubi->fm)
+	if (ubi->fm) {
 		ubi_assert(ubi->good_peb_count == \
 			   found_pebs + ubi->fm->used_blocks);
+
+		for (i = 0; i < ubi->fm->used_blocks; i++) {
+			e = ubi->fm->e[i];
+			ubi->lookuptbl[e->pnum] = e;
+		}
+	}
 	else
 		ubi_assert(ubi->good_peb_count == found_pebs);
 
