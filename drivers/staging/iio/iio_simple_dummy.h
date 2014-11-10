@@ -34,9 +34,14 @@ struct iio_dummy_state {
 	int differential_adc_val[2];
 	int accel_val;
 	int accel_calibbias;
+	int activity_running;
+	int activity_walking;
 	const struct iio_dummy_accel_calibscale *accel_calibscale;
 	struct mutex lock;
 	struct iio_dummy_regs *regs;
+	int steps_enabled;
+	int steps;
+	int height;
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
 	int event_irq;
 	int event_val;
