@@ -7206,99 +7206,65 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 	return 0;
 }
 
-static int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)
+static int vlv_gpu_freq_div(unsigned int czclk_freq)
 {
-	int div;
-
-	/* 4 x czclk */
-	switch (dev_priv->mem_freq) {
-	case 800:
-		div = 10;
-		break;
-	case 1066:
-		div = 12;
-		break;
-	case 1333:
-		div = 16;
-		break;
+	switch (czclk_freq) {
+	case 200:
+		return 10;
+	case 267:
+		return 12;
+	case 320:
+	case 333:
+	case 400:
+		return 16;
 	default:
 		return -1;
 	}
+}
 
-	return DIV_ROUND_CLOSEST(dev_priv->mem_freq * (val + 6 - 0xbd), 4 * div);
+static int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)
+{
+	int div, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->mem_freq, 4);
+
+	div = vlv_gpu_freq_div(czclk_freq);
+	if (div < 0)
+		return div;
+
+	return DIV_ROUND_CLOSEST(czclk_freq * (val + 6 - 0xbd), div);
 }
 
 static int byt_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	int mul;
+	int mul, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->mem_freq, 4);
 
-	/* 4 x czclk */
-	switch (dev_priv->mem_freq) {
-	case 800:
-		mul = 10;
-		break;
-	case 1066:
-		mul = 12;
-		break;
-	case 1333:
-		mul = 16;
-		break;
-	default:
-		return -1;
-	}
+	mul = vlv_gpu_freq_div(czclk_freq);
+	if (mul < 0)
+		return mul;
 
-	return DIV_ROUND_CLOSEST(4 * mul * val, dev_priv->mem_freq) + 0xbd - 6;
+	return DIV_ROUND_CLOSEST(mul * val, czclk_freq) + 0xbd - 6;
 }
 
 static int chv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
-	int div, freq;
+	int div, czclk_freq = dev_priv->rps.cz_freq;
 
-	switch (dev_priv->rps.cz_freq) {
-	case 200:
-		div = 5;
-		break;
-	case 267:
-		div = 6;
-		break;
-	case 320:
-	case 333:
-	case 400:
-		div = 8;
-		break;
-	default:
-		return -1;
-	}
+	div = vlv_gpu_freq_div(czclk_freq) / 2;
+	if (div < 0)
+		return div;
 
-	freq = (DIV_ROUND_CLOSEST((dev_priv->rps.cz_freq * val), 2 * div) / 2);
-
-	return freq;
+	return DIV_ROUND_CLOSEST(czclk_freq * val, 2 * div) / 2;
 }
 
 static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	int mul, opcode;
+	int mul, czclk_freq = dev_priv->rps.cz_freq;
 
-	switch (dev_priv->rps.cz_freq) {
-	case 200:
-		mul = 5;
-		break;
-	case 267:
-		mul = 6;
-		break;
-	case 320:
-	case 333:
-	case 400:
-		mul = 8;
-		break;
-	default:
-		return -1;
-	}
+	mul = vlv_gpu_freq_div(czclk_freq) / 2;
+	if (mul < 0)
+		return mul;
 
 	/* CHV needs even values */
-	opcode = (DIV_ROUND_CLOSEST((val * 2 * mul), dev_priv->rps.cz_freq) * 2);
-
-	return opcode;
+	return DIV_ROUND_CLOSEST(val * 2 * mul, czclk_freq) * 2;
 }
 
 int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val)
