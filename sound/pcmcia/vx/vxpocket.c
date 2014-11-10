@@ -174,6 +174,7 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 
 /**
  * snd_vxpocket_assign_resources - initialize the hardware and card instance.
+ * @chip: VX core instance
  * @port: i/o port for the card
  * @irq: irq number for the card
  *
