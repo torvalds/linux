@@ -28,6 +28,7 @@
 
 #include "../comedidev.h"
 #include "comedi_fc.h"
+#include "addi_tcw.h"
 #include "addi_watchdog.h"
 
 /*
@@ -94,18 +95,10 @@
 #define APCI1564_WDOG_WARN_TIMEBASE_REG		0x40
 
 /*
- * devpriv->timer Register Map
+ * devpriv->timer Register Map (see addi_tcw.h for register/bit defines)
  *   PLD Revision 1.0 - PCI BAR 0 + 0x04
  *   PLD Revision 2.x - PCI BAR 0 + 0x48
  */
-#define APCI1564_TIMER_REG			0x00
-#define APCI1564_TIMER_RELOAD_REG		0x04
-#define APCI1564_TIMER_TIMEBASE_REG		0x08
-#define APCI1564_TIMER_CTRL_REG			0x0c
-#define APCI1564_TIMER_STATUS_REG		0x10
-#define APCI1564_TIMER_IRQ_REG			0x14
-#define APCI1564_TIMER_WARN_TIMEVAL_REG		0x18  /* Rev 2.x only */
-#define APCI1564_TIMER_WARN_TIMEBASE_REG	0x1c  /* Rev 2.x only */
 
 /*
  * devpriv->counters Register Map
@@ -150,8 +143,8 @@ static int apci1564_reset(struct comedi_device *dev)
 	addi_watchdog_reset(dev->iobase + APCI1564_WDOG_REG);
 
 	/* Reset the timer registers */
-	outl(0x0, devpriv->timer + APCI1564_TIMER_CTRL_REG);
-	outl(0x0, devpriv->timer + APCI1564_TIMER_RELOAD_REG);
+	outl(0x0, devpriv->timer + ADDI_TCW_CTRL_REG);
+	outl(0x0, devpriv->timer + ADDI_TCW_RELOAD_REG);
 
 	if (devpriv->counters) {
 		/* Reset the counter registers */
@@ -187,17 +180,17 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 		outl(status, dev->iobase + APCI1564_DI_IRQ_REG);
 	}
 
-	status = inl(devpriv->timer + APCI1564_TIMER_IRQ_REG);
+	status = inl(devpriv->timer + ADDI_TCW_IRQ_REG);
 	if (status & 0x01) {
 		/*  Disable Timer Interrupt */
-		ctrl = inl(devpriv->timer + APCI1564_TIMER_CTRL_REG);
-		outl(0x0, devpriv->timer + APCI1564_TIMER_CTRL_REG);
+		ctrl = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
+		outl(0x0, devpriv->timer + ADDI_TCW_CTRL_REG);
 
 		/* Send a signal to from kernel to user space */
 		send_sig(SIGIO, devpriv->tsk_current, 0);
 
 		/*  Enable Timer Interrupt */
-		outl(ctrl, devpriv->timer + APCI1564_TIMER_CTRL_REG);
+		outl(ctrl, devpriv->timer + ADDI_TCW_CTRL_REG);
 	}
 
 	if (devpriv->counters) {

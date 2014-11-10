@@ -28,14 +28,14 @@ static int apci1564_timer_insn_config(struct comedi_device *dev,
 	devpriv->tsk_current = current;
 
 	/* First Stop The Timer */
-	ctrl = inl(devpriv->timer + APCI1564_TIMER_CTRL_REG);
+	ctrl = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
 	ctrl &= 0xfffff9fe;
 	/* Stop The Timer */
-	outl(ctrl, devpriv->timer + APCI1564_TIMER_CTRL_REG);
+	outl(ctrl, devpriv->timer + ADDI_TCW_CTRL_REG);
 
 	if (data[1] == 1) {
 		/* Enable timer int & disable all the other int sources */
-		outl(0x02, devpriv->timer + APCI1564_TIMER_CTRL_REG);
+		outl(0x02, devpriv->timer + ADDI_TCW_CTRL_REG);
 		outl(0x0, dev->iobase + APCI1564_DI_IRQ_REG);
 		outl(0x0, dev->iobase + APCI1564_DO_IRQ_REG);
 		outl(0x0, dev->iobase + APCI1564_WDOG_IRQ_REG);
@@ -49,20 +49,20 @@ static int apci1564_timer_insn_config(struct comedi_device *dev,
 		}
 	} else {
 		/* disable Timer interrupt */
-		outl(0x0, devpriv->timer + APCI1564_TIMER_CTRL_REG);
+		outl(0x0, devpriv->timer + ADDI_TCW_CTRL_REG);
 	}
 
 	/* Loading Timebase */
-	outl(data[2], devpriv->timer + APCI1564_TIMER_TIMEBASE_REG);
+	outl(data[2], devpriv->timer + ADDI_TCW_TIMEBASE_REG);
 
 	/* Loading the Reload value */
-	outl(data[3], devpriv->timer + APCI1564_TIMER_RELOAD_REG);
+	outl(data[3], devpriv->timer + ADDI_TCW_RELOAD_REG);
 
-	ctrl = inl(devpriv->timer + APCI1564_TIMER_CTRL_REG);
+	ctrl = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
 	ctrl &= 0xfff719e2;
 	ctrl |= (2 << 13) | 0x10;
 	/* mode 2 */
-	outl(ctrl, devpriv->timer + APCI1564_TIMER_CTRL_REG);
+	outl(ctrl, devpriv->timer + ADDI_TCW_CTRL_REG);
 
 	return insn->n;
 }
@@ -75,7 +75,7 @@ static int apci1564_timer_insn_write(struct comedi_device *dev,
 	struct apci1564_private *devpriv = dev->private;
 	unsigned int ctrl;
 
-	ctrl = inl(devpriv->timer + APCI1564_TIMER_CTRL_REG);
+	ctrl = inl(devpriv->timer + ADDI_TCW_CTRL_REG);
 	switch (data[1]) {
 	case 0:	/* Stop The Timer */
 		ctrl &= 0xfffff9fe;
@@ -85,7 +85,7 @@ static int apci1564_timer_insn_write(struct comedi_device *dev,
 		ctrl |= 0x1;
 		break;
 	}
-	outl(ctrl, devpriv->timer + APCI1564_TIMER_CTRL_REG);
+	outl(ctrl, devpriv->timer + ADDI_TCW_CTRL_REG);
 
 	return insn->n;
 }
@@ -98,10 +98,10 @@ static int apci1564_timer_insn_read(struct comedi_device *dev,
 	struct apci1564_private *devpriv = dev->private;
 
 	/* Stores the status of the Timer */
-	data[0] = inl(devpriv->timer + APCI1564_TIMER_STATUS_REG) & 0x1;
+	data[0] = inl(devpriv->timer + ADDI_TCW_STATUS_REG) & 0x1;
 
 	/* Stores the Actual value of the Timer */
-	data[1] = inl(devpriv->timer + APCI1564_TIMER_REG);
+	data[1] = inl(devpriv->timer + ADDI_TCW_VAL_REG);
 
 	return insn->n;
 }
