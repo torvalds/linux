@@ -53,30 +53,33 @@ static void soc_ac97_device_release(struct device *dev)
  *
  * Initialises AC97 codec resources for use by ad-hoc devices only.
  */
-int snd_soc_new_ac97_codec(struct snd_soc_codec *codec)
+struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec)
 {
+	struct snd_ac97 *ac97;
 	int ret;
 
-	codec->ac97 = kzalloc(sizeof(struct snd_ac97), GFP_KERNEL);
-	if (codec->ac97 == NULL)
-		return -ENOMEM;
+	ac97 = kzalloc(sizeof(struct snd_ac97), GFP_KERNEL);
+	if (ac97 == NULL)
+		return ERR_PTR(-ENOMEM);
 
-	codec->ac97->bus = &soc_ac97_bus;
-	codec->ac97->num = 0;
+	ac97->bus = &soc_ac97_bus;
+	ac97->num = 0;
 
-	codec->ac97->dev.bus = &ac97_bus_type;
-	codec->ac97->dev.parent = codec->component.card->dev;
-	codec->ac97->dev.release = soc_ac97_device_release;
+	ac97->dev.bus = &ac97_bus_type;
+	ac97->dev.parent = codec->component.card->dev;
+	ac97->dev.release = soc_ac97_device_release;
 
-	dev_set_name(&codec->ac97->dev, "%d-%d:%s",
+	dev_set_name(&ac97->dev, "%d-%d:%s",
 		     codec->component.card->snd_card->number, 0,
 		     codec->component.name);
 
-	ret = device_register(&codec->ac97->dev);
-	if (ret)
-		put_device(&codec->ac97->dev);
+	ret = device_register(&ac97->dev);
+	if (ret) {
+		put_device(&ac97->dev);
+		return ERR_PTR(ret);
+	}
 
-	return ret;
+	return ac97;
 }
 EXPORT_SYMBOL_GPL(snd_soc_new_ac97_codec);
 
@@ -86,12 +89,11 @@ EXPORT_SYMBOL_GPL(snd_soc_new_ac97_codec);
  *
  * Frees AC97 codec device resources.
  */
-void snd_soc_free_ac97_codec(struct snd_soc_codec *codec)
+void snd_soc_free_ac97_codec(struct snd_ac97 *ac97)
 {
-	device_del(&codec->ac97->dev);
-	codec->ac97->bus = NULL;
-	put_device(&codec->ac97->dev);
-	codec->ac97 = NULL;
+	device_del(&ac97->dev);
+	ac97->bus = NULL;
+	put_device(&ac97->dev);
 }
 EXPORT_SYMBOL_GPL(snd_soc_free_ac97_codec);
 

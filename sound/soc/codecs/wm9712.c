@@ -24,6 +24,7 @@
 #include "wm9712.h"
 
 struct wm9712_priv {
+	struct snd_ac97 *ac97;
 	unsigned int hp_mixer[2];
 	struct mutex lock;
 };
@@ -484,12 +485,13 @@ static const struct snd_soc_dapm_route wm9712_audio_map[] = {
 static unsigned int ac97_read(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
+	struct wm9712_priv *wm9712 = snd_soc_codec_get_drvdata(codec);
 	u16 *cache = codec->reg_cache;
 
 	if (reg == AC97_RESET || reg == AC97_GPIO_STATUS ||
 		reg == AC97_VENDOR_ID1 || reg == AC97_VENDOR_ID2 ||
 		reg == AC97_REC_GAIN)
-		return soc_ac97_ops->read(codec->ac97, reg);
+		return soc_ac97_ops->read(wm9712->ac97, reg);
 	else {
 		reg = reg >> 1;
 
@@ -503,9 +505,10 @@ static unsigned int ac97_read(struct snd_soc_codec *codec,
 static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int val)
 {
+	struct wm9712_priv *wm9712 = snd_soc_codec_get_drvdata(codec);
 	u16 *cache = codec->reg_cache;
 
-	soc_ac97_ops->write(codec->ac97, reg, val);
+	soc_ac97_ops->write(wm9712->ac97, reg, val);
 	reg = reg >> 1;
 	if (reg < (ARRAY_SIZE(wm9712_reg)))
 		cache[reg] = val;
@@ -613,15 +616,17 @@ static int wm9712_set_bias_level(struct snd_soc_codec *codec,
 
 static int wm9712_reset(struct snd_soc_codec *codec, int try_warm)
 {
+	struct wm9712_priv *wm9712 = snd_soc_codec_get_drvdata(codec);
+
 	if (try_warm && soc_ac97_ops->warm_reset) {
-		soc_ac97_ops->warm_reset(codec->ac97);
+		soc_ac97_ops->warm_reset(wm9712->ac97);
 		if (ac97_read(codec, 0) == wm9712_reg[0])
 			return 1;
 	}
 
-	soc_ac97_ops->reset(codec->ac97);
+	soc_ac97_ops->reset(wm9712->ac97);
 	if (soc_ac97_ops->warm_reset)
-		soc_ac97_ops->warm_reset(codec->ac97);
+		soc_ac97_ops->warm_reset(wm9712->ac97);
 	if (ac97_read(codec, 0) != wm9712_reg[0])
 		goto err;
 	return 0;
@@ -639,6 +644,7 @@ static int wm9712_soc_suspend(struct snd_soc_codec *codec)
 
 static int wm9712_soc_resume(struct snd_soc_codec *codec)
 {
+	struct wm9712_priv *wm9712 = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 	u16 *cache = codec->reg_cache;
 
@@ -654,7 +660,7 @@ static int wm9712_soc_resume(struct snd_soc_codec *codec)
 			if (i == AC97_INT_PAGING || i == AC97_POWERDOWN ||
 			    (i > 0x58 && i != 0x5c))
 				continue;
-			soc_ac97_ops->write(codec->ac97, i, cache[i>>1]);
+			soc_ac97_ops->write(wm9712->ac97, i, cache[i>>1]);
 		}
 	}
 
@@ -663,11 +669,13 @@ static int wm9712_soc_resume(struct snd_soc_codec *codec)
 
 static int wm9712_soc_probe(struct snd_soc_codec *codec)
 {
+	struct wm9712_priv *wm9712 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
-	ret = snd_soc_new_ac97_codec(codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to register AC97 codec\n");
+	wm9712->ac97 = snd_soc_new_ac97_codec(codec);
+	if (IS_ERR(wm9712->ac97)) {
+		ret = PTR_ERR(wm9712->ac97);
+		dev_err(codec->dev, "Failed to register AC97 codec: %d\n", ret);
 		return ret;
 	}
 
@@ -683,13 +691,15 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 	return 0;
 
 reset_err:
-	snd_soc_free_ac97_codec(codec);
+	snd_soc_free_ac97_codec(wm9712->ac97);
 	return ret;
 }
 
 static int wm9712_soc_remove(struct snd_soc_codec *codec)
 {
-	snd_soc_free_ac97_codec(codec);
+	struct wm9712_priv *wm9712 = snd_soc_codec_get_drvdata(codec);
+
+	snd_soc_free_ac97_codec(wm9712->ac97);
 	return 0;
 }
 
