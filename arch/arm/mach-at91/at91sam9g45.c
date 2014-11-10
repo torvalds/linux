@@ -35,13 +35,7 @@ static void __init at91sam9g45_initialize(void)
 	at91_sysirq_mask_rtt(AT91SAM9G45_BASE_RTT);
 }
 
-static void __init at91sam9g45_init_time(void)
-{
-	at91sam926x_pit_init(NR_IRQS_LEGACY + AT91_ID_SYS);
-}
-
 AT91_SOC_START(at91sam9g45)
 	.map_io = at91sam9g45_map_io,
 	.init = at91sam9g45_initialize,
-	.init_time = at91sam9g45_init_time,
 AT91_SOC_END
