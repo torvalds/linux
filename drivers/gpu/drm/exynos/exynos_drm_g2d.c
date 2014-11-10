@@ -529,7 +529,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 		goto err_sg_free_table;
 	}
 
-	g2d_userptr->dma_addr = sgt->sgl[0].dma_address;
+	g2d_userptr->dma_addr = sg_dma_address(sgt->sgl);
 	g2d_userptr->userptr = userptr;
 
 	list_add_tail(&g2d_userptr->list, &g2d_priv->userptr_list);
