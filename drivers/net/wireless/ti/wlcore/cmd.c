@@ -64,6 +64,9 @@ static int __wlcore_cmd_send(struct wl1271 *wl, u16 id, void *buf,
 		     id != CMD_STOP_FWLOGGER))
 		return -EIO;
 
+	if (WARN_ON_ONCE(len < sizeof(*cmd)))
+		return -EIO;
+
 	cmd = buf;
 	cmd->id = cpu_to_le16(id);
 	cmd->status = 0;
@@ -890,6 +893,9 @@ int wlcore_cmd_configure_failsafe(struct wl1271 *wl, u16 id, void *buf,
 	int ret;
 
 	wl1271_debug(DEBUG_CMD, "cmd configure (%d)", id);
+
+	if (WARN_ON_ONCE(len < sizeof(*acx)))
+		return -EIO;
 
 	acx->id = cpu_to_le16(id);
 
