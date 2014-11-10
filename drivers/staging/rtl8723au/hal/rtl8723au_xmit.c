@@ -306,10 +306,10 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-	if ((pxmitframe->frame_tag == DATA_FRAMETAG) &&
-	    (pxmitframe->attrib.ether_type != 0x0806) &&
-	    (pxmitframe->attrib.ether_type != 0x888e) &&
-	    (pxmitframe->attrib.dhcp_pkt != 1))
+	if (pxmitframe->frame_tag == DATA_FRAMETAG &&
+	    pxmitframe->attrib.ether_type != ETH_P_ARP &&
+	    pxmitframe->attrib.ether_type != ETH_P_PAE &&
+	    pxmitframe->attrib.dhcp_pkt != 1)
 		rtw_issue_addbareq_cmd23a(padapter, pxmitframe);
 
 	mem_addr = pxmitframe->buf_addr;
