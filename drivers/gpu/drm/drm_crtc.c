@@ -1529,6 +1529,30 @@ int drm_mode_create_dirty_info_property(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_mode_create_dirty_info_property);
 
+/**
+ * drm_mode_create_suggested_offset_properties - create suggests offset properties
+ * @dev: DRM device
+ *
+ * Create the the suggested x/y offset property for connectors.
+ */
+int drm_mode_create_suggested_offset_properties(struct drm_device *dev)
+{
+	if (dev->mode_config.suggested_x_property && dev->mode_config.suggested_y_property)
+		return 0;
+
+	dev->mode_config.suggested_x_property =
+		drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE, "suggested X", 0, 0xffffffff);
+
+	dev->mode_config.suggested_y_property =
+		drm_property_create_range(dev, DRM_MODE_PROP_IMMUTABLE, "suggested Y", 0, 0xffffffff);
+
+	if (dev->mode_config.suggested_x_property == NULL ||
+	    dev->mode_config.suggested_y_property == NULL)
+		return -ENOMEM;
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_create_suggested_offset_properties);
+
 static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *group)
 {
 	uint32_t total_objects = 0;

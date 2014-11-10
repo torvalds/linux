@@ -2539,7 +2539,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="21" valign="top" >DRM</td>
+	<td rowspan="23" valign="top" >DRM</td>
 	<td rowspan="3" valign="top" >Generic</td>
 	<td valign="top" >“EDID”</td>
 	<td valign="top" >BLOB | IMMUTABLE</td>
@@ -2675,6 +2675,21 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Min=0, Max=100</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="2" valign="top" >Virtual GPU</td>
+	<td valign="top" >“suggested X”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0xffffffff</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >property to suggest an X offset for a connector</td>
+	</tr>
+	<tr>
+	<td valign="top" >“suggested Y”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0xffffffff</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >property to suggest an Y offset for a connector</td>
 	</tr>
 	<tr>
 	<td rowspan="3" valign="top" >Optional</td>

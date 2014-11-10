@@ -1038,6 +1038,10 @@ struct drm_mode_config {
 	struct drm_property *aspect_ratio_property;
 	struct drm_property *dirty_info_property;
 
+	/* properties for virtual machine layout */
+	struct drm_property *suggested_x_property;
+	struct drm_property *suggested_y_property;
+
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
 
@@ -1231,6 +1235,7 @@ extern int drm_mode_create_tv_properties(struct drm_device *dev,
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
+extern int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
