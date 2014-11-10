@@ -1763,7 +1763,7 @@ int __init ndisc_init(void)
 	/*
 	 * Initialize the neighbour table
 	 */
-	neigh_table_init(&nd_tbl);
+	neigh_table_init(NEIGH_ND_TABLE, &nd_tbl);
 
 #ifdef CONFIG_SYSCTL
 	err = neigh_sysctl_register(NULL, &nd_tbl.parms,
@@ -1796,6 +1796,6 @@ void ndisc_cleanup(void)
 #ifdef CONFIG_SYSCTL
 	neigh_sysctl_unregister(&nd_tbl.parms);
 #endif
-	neigh_table_clear(&nd_tbl);
+	neigh_table_clear(NEIGH_ND_TABLE, &nd_tbl);
 	unregister_pernet_subsys(&ndisc_net_ops);
 }
