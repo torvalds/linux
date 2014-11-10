@@ -1951,8 +1951,10 @@ int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	bool sched = !!(uid & IWL_UMAC_SCAN_UID_SCHED_SCAN);
 	int uid_idx = iwl_mvm_find_scan_uid(mvm, uid);
 
-	if (WARN(uid_idx >= IWL_MVM_MAX_SIMULTANEOUS_SCANS,
-		 "Scan notification for uknown scan ID\n"))
+	/*
+	 * Scan uid may be set to zero in case of scan abort request from above.
+	 */
+	if (uid_idx >= IWL_MVM_MAX_SIMULTANEOUS_SCANS)
 		return 0;
 
 	IWL_DEBUG_SCAN(mvm,
