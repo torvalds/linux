@@ -646,10 +646,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	start = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
-	if (vcpu->run->s.regs.gprs[reg1] & PFMF_CF) {
-		if (kvm_s390_check_low_addr_protection(vcpu, start))
-			return kvm_s390_inject_prog_irq(vcpu, &vcpu->arch.pgm);
-	}
+	start = kvm_s390_logical_to_effective(vcpu, start);
 
 	switch (vcpu->run->s.regs.gprs[reg1] & PFMF_FSC) {
 	case 0x00000000:
@@ -665,6 +662,12 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 	default:
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 	}
+
+	if (vcpu->run->s.regs.gprs[reg1] & PFMF_CF) {
+		if (kvm_s390_check_low_addr_protection(vcpu, start))
+			return kvm_s390_inject_prog_irq(vcpu, &vcpu->arch.pgm);
+	}
+
 	while (start < end) {
 		unsigned long useraddr, abs_addr;
 
