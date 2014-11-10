@@ -66,13 +66,7 @@ uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 
 int rtw_endofpktfile(struct pkt_file *pfile)
 {
-
-	if (pfile->pkt_len == 0) {
-		return true;
-	}
-
-
-	return false;
+	return pfile->pkt_len == 0;
 }
 
 int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitbuf, u32 alloc_sz)
