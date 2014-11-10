@@ -1,6 +1,8 @@
 #ifndef _PARISC_SHMBUF_H
 #define _PARISC_SHMBUF_H
 
+#include <asm/bitsperlong.h>
+
 /* 
  * The shmid64_ds structure for parisc architecture.
  * Note extra padding because this structure is passed back and forth
@@ -13,19 +15,19 @@
 
 struct shmid64_ds {
 	struct ipc64_perm	shm_perm;	/* operation perms */
-#ifndef CONFIG_64BIT
+#if __BITS_PER_LONG != 64
 	unsigned int		__pad1;
 #endif
 	__kernel_time_t		shm_atime;	/* last attach time */
-#ifndef CONFIG_64BIT
+#if __BITS_PER_LONG != 64
 	unsigned int		__pad2;
 #endif
 	__kernel_time_t		shm_dtime;	/* last detach time */
-#ifndef CONFIG_64BIT
+#if __BITS_PER_LONG != 64
 	unsigned int		__pad3;
 #endif
 	__kernel_time_t		shm_ctime;	/* last change time */
-#ifndef CONFIG_64BIT
+#if __BITS_PER_LONG != 64
 	unsigned int		__pad4;
 #endif
 	size_t			shm_segsz;	/* size of segment (bytes) */
