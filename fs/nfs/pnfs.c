@@ -1731,7 +1731,7 @@ static void
 pnfs_write_through_mds(struct nfs_pageio_descriptor *desc,
 		struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_mirror *mirror = &desc->pg_mirrors[desc->pg_mirror_idx];
+	struct nfs_pgio_mirror *mirror = nfs_pgio_current_mirror(desc);
 
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
 		list_splice_tail_init(&hdr->pages, &mirror->pg_list);
@@ -1785,7 +1785,7 @@ EXPORT_SYMBOL_GPL(pnfs_writehdr_free);
 int
 pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_pgio_mirror *mirror = &desc->pg_mirrors[desc->pg_mirror_idx];
+	struct nfs_pgio_mirror *mirror = nfs_pgio_current_mirror(desc);
 
 	struct nfs_pgio_header *hdr;
 	int ret;
@@ -1846,8 +1846,7 @@ static void
 pnfs_read_through_mds(struct nfs_pageio_descriptor *desc,
 		struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_mirror *mirror = &desc->pg_mirrors[desc->pg_mirror_idx];
-
+	struct nfs_pgio_mirror *mirror = nfs_pgio_current_mirror(desc);
 
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
 		list_splice_tail_init(&hdr->pages, &mirror->pg_list);
@@ -1903,7 +1902,7 @@ EXPORT_SYMBOL_GPL(pnfs_readhdr_free);
 int
 pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_pgio_mirror *mirror = &desc->pg_mirrors[desc->pg_mirror_idx];
+	struct nfs_pgio_mirror *mirror = nfs_pgio_current_mirror(desc);
 
 	struct nfs_pgio_header *hdr;
 	int ret;
