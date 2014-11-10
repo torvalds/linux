@@ -43,12 +43,13 @@
 static int create_composite_quirk(struct snd_usb_audio *chip,
 				  struct usb_interface *iface,
 				  struct usb_driver *driver,
-				  const struct snd_usb_audio_quirk *quirk)
+				  const struct snd_usb_audio_quirk *quirk_comp)
 {
 	int probed_ifnum = get_iface_desc(iface->altsetting)->bInterfaceNumber;
+	const struct snd_usb_audio_quirk *quirk;
 	int err;
 
-	for (quirk = quirk->data; quirk->ifnum >= 0; ++quirk) {
+	for (quirk = quirk_comp->data; quirk->ifnum >= 0; ++quirk) {
 		iface = usb_ifnum_to_if(chip->dev, quirk->ifnum);
 		if (!iface)
 			continue;
@@ -60,7 +61,7 @@ static int create_composite_quirk(struct snd_usb_audio *chip,
 			return err;
 	}
 
-	for (quirk = quirk->data; quirk->ifnum >= 0; ++quirk) {
+	for (quirk = quirk_comp->data; quirk->ifnum >= 0; ++quirk) {
 		iface = usb_ifnum_to_if(chip->dev, quirk->ifnum);
 		if (!iface)
 			continue;
