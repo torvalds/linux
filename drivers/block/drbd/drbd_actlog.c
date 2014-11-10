@@ -827,8 +827,7 @@ static int update_sync_bits(struct drbd_device *device,
  *
  */
 int __drbd_change_sync(struct drbd_device *device, sector_t sector, int size,
-		enum update_sync_bits_mode mode,
-		const char *file, const unsigned int line)
+		enum update_sync_bits_mode mode)
 {
 	/* Is called from worker and receiver context _only_ */
 	unsigned long sbnr, ebnr, lbnr;
