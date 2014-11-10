@@ -910,13 +910,14 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 		cpu_curr = smp_processor_id();
 		aff = irq_desc_get_irq_data(cq->irq_desc)->affinity;
 
-		if (unlikely(!cpumask_test_cpu(cpu_curr, aff))) {
-			/* Current cpu is not according to smp_irq_affinity -
-			 * probably affinity changed. need to stop this NAPI
-			 * poll, and restart it on the right CPU
-			 */
-			done = 0;
-		}
+		if (likely(cpumask_test_cpu(cpu_curr, aff)))
+			return budget;
+
+		/* Current cpu is not according to smp_irq_affinity -
+		 * probably affinity changed. need to stop this NAPI
+		 * poll, and restart it on the right CPU
+		 */
+		done = 0;
 	}
 	/* Done for now */
 	napi_complete_done(napi, done);
