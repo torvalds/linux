@@ -1234,6 +1234,8 @@ int usbhs_fifo_probe(struct usbhs_priv *priv)
 	/* DFIFO */
 	USBHS_DFIFO_INIT(priv, fifo, 0);
 	USBHS_DFIFO_INIT(priv, fifo, 1);
+	USBHS_DFIFO_INIT_NO_PORT(priv, fifo, 2);
+	USBHS_DFIFO_INIT_NO_PORT(priv, fifo, 3);
 
 	return 0;
 }

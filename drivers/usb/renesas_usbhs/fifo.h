@@ -38,7 +38,7 @@ struct usbhs_fifo {
 	struct sh_dmae_slave	rx_slave;
 };
 
-#define USBHS_MAX_NUM_DFIFO	2
+#define USBHS_MAX_NUM_DFIFO	4
 struct usbhs_fifo_info {
 	struct usbhs_fifo cfifo;
 	struct usbhs_fifo dfifo[USBHS_MAX_NUM_DFIFO];
