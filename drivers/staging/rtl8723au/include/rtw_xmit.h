@@ -354,8 +354,6 @@ struct xmit_frame *rtw_dequeue_xframe23a(struct xmit_priv *pxmitpriv,
 				      struct hw_xmit *phwxmit_i, int entry);
 s32 rtw_xmit23a_classifier(struct rtw_adapter *padapter,
 			struct xmit_frame *pxmitframe);
-u32 rtw_calculate_wlan_pkt_size_by_attribue23a(struct pkt_attrib *pattrib);
-#define rtw_wlan_pkt_size(f) rtw_calculate_wlan_pkt_size_by_attribue23a(&f->attrib)
 s32 rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *pkt,
 			      struct xmit_frame *pxmitframe);
 s32 _rtw_init_hw_txqueue(struct hw_txqueue *phw_txqueue, u8 ac_tag);
