@@ -90,6 +90,9 @@ struct davinci_mcasp {
 
 	bool	dat_port;
 
+	/* Used for comstraint setting on the second stream */
+	u32	channels;
+
 #ifdef CONFIG_PM_SLEEP
 	struct davinci_mcasp_context context;
 #endif
@@ -811,6 +814,9 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 
 	davinci_config_channel_size(mcasp, word_length);
 
+	if (mcasp->op_mode == DAVINCI_MCASP_IIS_MODE)
+		mcasp->channels = channels;
+
 	return 0;
 }
 
@@ -839,7 +845,61 @@ static int davinci_mcasp_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *cpu_dai)
+{
+	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(cpu_dai);
+	u32 max_channels = 0;
+	int i, dir;
+
+	if (mcasp->op_mode == DAVINCI_MCASP_DIT_MODE)
+		return 0;
+
+	/*
+	 * Limit the maximum allowed channels for the first stream:
+	 * number of serializers for the direction * tdm slots per serializer
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		dir = TX_MODE;
+	else
+		dir = RX_MODE;
+
+	for (i = 0; i < mcasp->num_serializer; i++) {
+		if (mcasp->serial_dir[i] == dir)
+			max_channels++;
+	}
+	max_channels *= mcasp->tdm_slots;
+	/*
+	 * If the already active stream has less channels than the calculated
+	 * limnit based on the seirializers * tdm_slots, we need to use that as
+	 * a constraint for the second stream.
+	 * Otherwise (first stream or less allowed channels) we use the
+	 * calculated constraint.
+	 */
+	if (mcasp->channels && mcasp->channels < max_channels)
+		max_channels = mcasp->channels;
+
+	snd_pcm_hw_constraint_minmax(substream->runtime,
+				     SNDRV_PCM_HW_PARAM_CHANNELS,
+				     2, max_channels);
+	return 0;
+}
+
+static void davinci_mcasp_shutdown(struct snd_pcm_substream *substream,
+				   struct snd_soc_dai *cpu_dai)
+{
+	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(cpu_dai);
+
+	if (mcasp->op_mode == DAVINCI_MCASP_DIT_MODE)
+		return;
+
+	if (!cpu_dai->active)
+		mcasp->channels = 0;
+}
+
 static const struct snd_soc_dai_ops davinci_mcasp_dai_ops = {
+	.startup	= davinci_mcasp_startup,
+	.shutdown	= davinci_mcasp_shutdown,
 	.trigger	= davinci_mcasp_trigger,
 	.hw_params	= davinci_mcasp_hw_params,
 	.set_fmt	= davinci_mcasp_set_dai_fmt,
