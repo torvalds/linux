@@ -318,7 +318,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 
 	ret = ttm_bo_reserve(bo, false, false, false, NULL);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (nvbo->pin_refcnt && !(memtype & (1 << bo->mem.mem_type))) {
 		NV_ERROR(drm, "bo %p pinned elsewhere: 0x%08x vs 0x%08x\n", bo,
@@ -327,14 +327,20 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 		goto out;
 	}
 
-	if (nvbo->pin_refcnt)
-		goto ref_inc;
+	if (nvbo->pin_refcnt++)
+		goto out;
 
 	nouveau_bo_placement_set(nvbo, memtype, 0);
 
+	/* drop pin_refcnt temporarily, so we don't trip the assertion
+	 * in nouveau_bo_move() that makes sure we're not trying to
+	 * move a pinned buffer
+	 */
+	nvbo->pin_refcnt--;
 	ret = nouveau_bo_validate(nvbo, false, false);
 	if (ret)
 		goto out;
+	nvbo->pin_refcnt++;
 
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
@@ -347,8 +353,6 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 		break;
 	}
 
-ref_inc:
-	nvbo->pin_refcnt++;
 out:
 	ttm_bo_unreserve(bo);
 	return ret;
