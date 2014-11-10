@@ -532,7 +532,7 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 		 */
 		ret = of_phy_register_fixed_link(port_dn);
 		if (ret) {
-			pr_err("failed to register fixed PHY\n");
+			netdev_err(slave_dev, "failed to register fixed PHY\n");
 			return;
 		}
 		phy_is_fixed = true;
@@ -558,8 +558,8 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 		phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
 				   p->phy_interface);
 	} else {
-		pr_info("attached PHY at address %d [%s]\n",
-			p->phy->addr, p->phy->drv->name);
+		netdev_info(slave_dev, "attached PHY at address %d [%s]\n",
+			    p->phy->addr, p->phy->drv->name);
 	}
 }
 
@@ -657,8 +657,8 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	ret = register_netdev(slave_dev);
 	if (ret) {
-		printk(KERN_ERR "%s: error %d registering interface %s\n",
-				master->name, ret, slave_dev->name);
+		netdev_err(master, "error %d registering interface %s\n",
+			   ret, slave_dev->name);
 		free_netdev(slave_dev);
 		return NULL;
 	}

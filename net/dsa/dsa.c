@@ -192,12 +192,12 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	 */
 	drv = dsa_switch_probe(host_dev, pd->sw_addr, &name);
 	if (drv == NULL) {
-		printk(KERN_ERR "%s[%d]: could not detect attached switch\n",
-		       dst->master_netdev->name, index);
+		netdev_err(dst->master_netdev, "[%d]: could not detect attached switch\n",
+			   index);
 		return ERR_PTR(-EINVAL);
 	}
-	printk(KERN_INFO "%s[%d]: detected a %s switch\n",
-		dst->master_netdev->name, index, name);
+	netdev_info(dst->master_netdev, "[%d]: detected a %s switch\n",
+		    index, name);
 
 
 	/*
@@ -225,7 +225,8 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 
 		if (!strcmp(name, "cpu")) {
 			if (dst->cpu_switch != -1) {
-				printk(KERN_ERR "multiple cpu ports?!\n");
+				netdev_err(dst->master_netdev,
+					   "multiple cpu ports?!\n");
 				ret = -EINVAL;
 				goto out;
 			}
@@ -320,10 +321,8 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 
 		slave_dev = dsa_slave_create(ds, parent, i, pd->port_names[i]);
 		if (slave_dev == NULL) {
-			printk(KERN_ERR "%s[%d]: can't create dsa "
-			       "slave device for port %d(%s)\n",
-			       dst->master_netdev->name,
-			       index, i, pd->port_names[i]);
+			netdev_err(dst->master_netdev, "[%d]: can't create dsa slave device for port %d(%s)\n",
+				   index, i, pd->port_names[i]);
 			continue;
 		}
 
@@ -701,15 +700,13 @@ static inline void dsa_of_remove(struct platform_device *pdev)
 
 static int dsa_probe(struct platform_device *pdev)
 {
-	static int dsa_version_printed;
 	struct dsa_platform_data *pd = pdev->dev.platform_data;
 	struct net_device *dev;
 	struct dsa_switch_tree *dst;
 	int i, ret;
 
-	if (!dsa_version_printed++)
-		printk(KERN_NOTICE "Distributed Switch Architecture "
-			"driver version %s\n", dsa_driver_version);
+	pr_notice_once("Distributed Switch Architecture driver version %s\n",
+		       dsa_driver_version);
 
 	if (pdev->dev.of_node) {
 		ret = dsa_of_probe(pdev);
@@ -753,9 +750,8 @@ static int dsa_probe(struct platform_device *pdev)
 
 		ds = dsa_switch_setup(dst, i, &pdev->dev, pd->chip[i].host_dev);
 		if (IS_ERR(ds)) {
-			printk(KERN_ERR "%s[%d]: couldn't create dsa switch "
-				"instance (error %ld)\n", dev->name, i,
-				PTR_ERR(ds));
+			netdev_err(dev, "[%d]: couldn't create dsa switch instance (error %ld)\n",
+				   i, PTR_ERR(ds));
 			continue;
 		}
 
