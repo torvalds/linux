@@ -632,13 +632,7 @@ static int mcasp_i2s_hw_param(struct davinci_mcasp *mcasp, int stream)
 	u32 mask = 0;
 	u32 busel = 0;
 
-	if ((mcasp->tdm_slots < 2) || (mcasp->tdm_slots > 32)) {
-		dev_err(mcasp->dev, "tdm slot %d not supported\n",
-			mcasp->tdm_slots);
-		return -EINVAL;
-	}
-
-	active_slots = (mcasp->tdm_slots > 31) ? 32 : mcasp->tdm_slots;
+	active_slots = mcasp->tdm_slots;
 	for (i = 0; i < active_slots; i++)
 		mask |= (1 << i);
 
@@ -650,12 +644,12 @@ static int mcasp_i2s_hw_param(struct davinci_mcasp *mcasp, int stream)
 	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXTDM_REG, mask);
 	mcasp_set_bits(mcasp, DAVINCI_MCASP_TXFMT_REG, busel | TXORD);
 	mcasp_mod_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG,
-		       FSXMOD(mcasp->tdm_slots), FSXMOD(0x1FF));
+		       FSXMOD(active_slots), FSXMOD(0x1FF));
 
 	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXTDM_REG, mask);
 	mcasp_set_bits(mcasp, DAVINCI_MCASP_RXFMT_REG, busel | RXORD);
 	mcasp_mod_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG,
-		       FSRMOD(mcasp->tdm_slots), FSRMOD(0x1FF));
+		       FSRMOD(active_slots), FSRMOD(0x1FF));
 
 	return 0;
 }
@@ -1237,7 +1231,21 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	}
 
 	mcasp->op_mode = pdata->op_mode;
-	mcasp->tdm_slots = pdata->tdm_slots;
+	/* sanity check for tdm slots parameter */
+	if (mcasp->op_mode == DAVINCI_MCASP_IIS_MODE) {
+		if (pdata->tdm_slots < 2) {
+			dev_err(&pdev->dev, "invalid tdm slots: %d\n",
+				pdata->tdm_slots);
+			mcasp->tdm_slots = 2;
+		} else if (pdata->tdm_slots > 32) {
+			dev_err(&pdev->dev, "invalid tdm slots: %d\n",
+				pdata->tdm_slots);
+			mcasp->tdm_slots = 32;
+		} else {
+			mcasp->tdm_slots = pdata->tdm_slots;
+		}
+	}
+
 	mcasp->num_serializer = pdata->num_serializer;
 #ifdef CONFIG_PM_SLEEP
 	mcasp->context.xrsr_regs = devm_kzalloc(&pdev->dev,
