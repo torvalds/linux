@@ -1,4 +1,5 @@
 #ifndef TARGET_CORE_UA_H
+#define TARGET_CORE_UA_H
 
 /*
  * From spc4r17, Table D.1: ASC and ASCQ Assignement

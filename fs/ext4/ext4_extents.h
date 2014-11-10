@@ -123,6 +123,7 @@ find_ext4_extent_tail(struct ext4_extent_header *eh)
 struct ext4_ext_path {
 	ext4_fsblk_t			p_block;
 	__u16				p_depth;
+	__u16				p_maxdepth;
 	struct ext4_extent		*p_ext;
 	struct ext4_extent_idx		*p_idx;
 	struct ext4_extent_header	*p_hdr;

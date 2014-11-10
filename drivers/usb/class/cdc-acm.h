@@ -121,6 +121,7 @@ struct acm {
 	unsigned int throttle_req:1;			/* throttle requested */
 	u8 bInterval;
 	struct usb_anchor delayed;			/* writes queued for a device about to be woken */
+	unsigned long quirks;
 };
 
 #define CDC_DATA_INTERFACE_TYPE	0x0a
@@ -132,3 +133,4 @@ struct acm {
 #define NOT_A_MODEM			BIT(3)
 #define NO_DATA_INTERFACE		BIT(4)
 #define IGNORE_DEVICE			BIT(5)
+#define QUIRK_CONTROL_LINE_STATE	BIT(6)

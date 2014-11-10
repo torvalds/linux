@@ -535,13 +535,15 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(info->rtc_clk);
 
-	info->rtc_src_clk = devm_clk_get(&pdev->dev, "rtc_src");
-	if (IS_ERR(info->rtc_src_clk)) {
-		dev_err(&pdev->dev, "failed to find rtc source clock\n");
-		return PTR_ERR(info->rtc_src_clk);
+	if (info->data->needs_src_clk) {
+		info->rtc_src_clk = devm_clk_get(&pdev->dev, "rtc_src");
+		if (IS_ERR(info->rtc_src_clk)) {
+			dev_err(&pdev->dev,
+				"failed to find rtc source clock\n");
+			return PTR_ERR(info->rtc_src_clk);
+		}
+		clk_prepare_enable(info->rtc_src_clk);
 	}
-	clk_prepare_enable(info->rtc_src_clk);
-
 
 	/* check to see if everything is setup correctly */
 	if (info->data->enable)

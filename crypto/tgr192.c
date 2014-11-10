@@ -612,7 +612,7 @@ static int tgr160_final(struct shash_desc *desc, u8 * out)
 
 	tgr192_final(desc, D);
 	memcpy(out, D, TGR160_DIGEST_SIZE);
-	memset(D, 0, TGR192_DIGEST_SIZE);
+	memzero_explicit(D, TGR192_DIGEST_SIZE);
 
 	return 0;
 }
@@ -623,7 +623,7 @@ static int tgr128_final(struct shash_desc *desc, u8 * out)
 
 	tgr192_final(desc, D);
 	memcpy(out, D, TGR128_DIGEST_SIZE);
-	memset(D, 0, TGR192_DIGEST_SIZE);
+	memzero_explicit(D, TGR192_DIGEST_SIZE);
 
 	return 0;
 }

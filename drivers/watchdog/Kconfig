@@ -87,6 +87,15 @@ config DA9055_WATCHDOG
 	  This driver can also be built as a module.  If so, the module
 	  will be called da9055_wdt.
 
+config DA9063_WATCHDOG
+	tristate "Dialog DA9063 Watchdog"
+	depends on MFD_DA9063
+	select WATCHDOG_CORE
+	help
+	  Support for the watchdog in the DA9063 PMIC.
+
+	  This driver can be built as a module. The module name is da9063_wdt.
+
 config GPIO_WATCHDOG
 	tristate "Watchdog device controlled through GPIO-line"
 	depends on OF_GPIO
@@ -123,6 +132,7 @@ config WM8350_WATCHDOG
 
 config XILINX_WATCHDOG
 	tristate "Xilinx Watchdog timer"
+	depends on HAS_IOMEM
 	select WATCHDOG_CORE
 	help
 	  Watchdog driver for the xps_timebase_wdt ip core.
@@ -156,6 +166,14 @@ config AT91SAM9X_WATCHDOG
 	help
 	  Watchdog timer embedded into AT91SAM9X and AT91CAP9 chips. This will
 	  reboot your system when the timeout is reached.
+
+config CADENCE_WATCHDOG
+	tristate "Cadence Watchdog Timer"
+	depends on ARM
+	select WATCHDOG_CORE
+	help
+	  Say Y here if you want to include support for the watchdog
+	  timer in the Xilinx Zynq.
 
 config 21285_WATCHDOG
 	tristate "DC21285 watchdog"
@@ -319,6 +337,17 @@ config ORION_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called orion_wdt.
 
+config RN5T618_WATCHDOG
+	tristate "Ricoh RN5T618 watchdog"
+	depends on MFD_RN5T618
+	select WATCHDOG_CORE
+	help
+	  If you say yes here you get support for watchdog on the Ricoh
+	  RN5T618 PMIC.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called rn5t618_wdt.
+
 config SUNXI_WATCHDOG
 	tristate "Allwinner SoCs watchdog support"
 	depends on ARCH_SUNXI
@@ -444,7 +473,7 @@ config SIRFSOC_WATCHDOG
 
 config TEGRA_WATCHDOG
 	tristate "Tegra watchdog"
-	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on (ARCH_TEGRA || COMPILE_TEST) && HAS_IOMEM
 	select WATCHDOG_CORE
 	help
 	  Say Y here to include support for the watchdog timer
@@ -452,6 +481,29 @@ config TEGRA_WATCHDOG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tegra_wdt.
+
+config QCOM_WDT
+	tristate "QCOM watchdog"
+	depends on HAS_IOMEM
+	depends on ARCH_QCOM
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include Watchdog timer support for the watchdog found
+	  on QCOM chipsets.  Currently supported targets are the MSM8960,
+	  APQ8064, and IPQ8064.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qcom_wdt.
+
+config MESON_WATCHDOG
+	tristate "Amlogic Meson SoCs watchdog support"
+	depends on ARCH_MESON
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  in Amlogic Meson SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called meson_wdt.
 
 # AVR32 Architecture
 

@@ -15,8 +15,6 @@
  *  -Conditionally disable interrupts (if they are not enabled, don't disable)
 */
 
-#ifdef __KERNEL__
-
 #include <asm/arcregs.h>
 
 /* status32 Reg bits related to Interrupt Handling */
@@ -168,7 +166,5 @@ static inline int arch_irqs_disabled(void)
 .endm
 
 #endif	/* __ASSEMBLY__ */
-
-#endif	/* KERNEL */
 
 #endif

@@ -742,7 +742,6 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
 	usb_phy_shutdown(ci->transceiver);
-	kfree(ci->hw_bank.regmap);
 
 	return 0;
 }

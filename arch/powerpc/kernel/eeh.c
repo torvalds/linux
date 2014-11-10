@@ -257,6 +257,13 @@ static void *eeh_dump_pe_log(void *data, void *flag)
 	struct eeh_dev *edev, *tmp;
 	size_t *plen = flag;
 
+	/* If the PE's config space is blocked, 0xFF's will be
+	 * returned. It's pointless to collect the log in this
+	 * case.
+	 */
+	if (pe->state & EEH_PE_CFG_BLOCKED)
+		return NULL;
+
 	eeh_pe_for_each_dev(pe, edev, tmp)
 		*plen += eeh_dump_dev_log(edev, pci_regs_buf + *plen,
 					  EEH_PCI_REGS_LOG_LEN - *plen);
@@ -673,18 +680,18 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 	switch (state) {
 	case pcie_deassert_reset:
 		eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
-		eeh_pe_state_clear(pe, EEH_PE_RESET);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 		break;
 	case pcie_hot_reset:
-		eeh_pe_state_mark(pe, EEH_PE_RESET);
+		eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
 		eeh_ops->reset(pe, EEH_RESET_HOT);
 		break;
 	case pcie_warm_reset:
-		eeh_pe_state_mark(pe, EEH_PE_RESET);
+		eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
 		eeh_ops->reset(pe, EEH_RESET_FUNDAMENTAL);
 		break;
 	default:
-		eeh_pe_state_clear(pe, EEH_PE_RESET);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 		return -EINVAL;
 	};
 
@@ -1523,7 +1530,7 @@ int eeh_pe_reset(struct eeh_pe *pe, int option)
 	switch (option) {
 	case EEH_RESET_DEACTIVATE:
 		ret = eeh_ops->reset(pe, option);
-		eeh_pe_state_clear(pe, EEH_PE_RESET);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 		if (ret)
 			break;
 
@@ -1538,7 +1545,7 @@ int eeh_pe_reset(struct eeh_pe *pe, int option)
 		 */
 		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
 
-		eeh_pe_state_mark(pe, EEH_PE_RESET);
+		eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
 		ret = eeh_ops->reset(pe, option);
 		break;
 	default:

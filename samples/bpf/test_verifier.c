@@ -209,6 +209,17 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
+		"program doesn't init R0 before exit in all branches",
+		.insns = {
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_1, 0, 2),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 2),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R0 !read_ok",
+		.result = REJECT,
+	},
+	{
 		"stack out of bounds",
 		.insns = {
 			BPF_ST_MEM(BPF_DW, BPF_REG_10, 8, 0),
