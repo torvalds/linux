@@ -47,7 +47,7 @@
 #define APCI1564_TIMER_WARN_TIMEBASE_REG		0x64
 
 /*
- * dev->iobase Register Map
+ * devpriv->counters Register Map
  */
 #define APCI1564_COUNTER_REG(x)				(0x00 + ((x) * 0x20))
 #define APCI1564_COUNTER_RELOAD_REG(x)			(0x04 + ((x) * 0x20))
@@ -93,12 +93,12 @@ static int apci1564_timer_config(struct comedi_device *dev,
 			outl(0x0, devpriv->amcc_iobase + APCI1564_DI_IRQ_REG);
 			outl(0x0, devpriv->amcc_iobase + APCI1564_DO_IRQ_REG);
 			outl(0x0, devpriv->amcc_iobase + APCI1564_WDOG_IRQ_REG);
-			outl(0x0, dev->iobase +
-			    APCI1564_COUNTER_IRQ_REG(0));
-			outl(0x0, dev->iobase +
-			    APCI1564_COUNTER_IRQ_REG(1));
-			outl(0x0, dev->iobase +
-			    APCI1564_COUNTER_IRQ_REG(2));
+			outl(0x0,
+			     devpriv->counters + APCI1564_COUNTER_IRQ_REG(0));
+			outl(0x0,
+			     devpriv->counters + APCI1564_COUNTER_IRQ_REG(1));
+			outl(0x0,
+			     devpriv->counters + APCI1564_COUNTER_IRQ_REG(2));
 		} else {
 			/* disable Timer interrupt */
 			outl(0x0, devpriv->amcc_iobase + APCI1564_TIMER_CTRL_REG);
@@ -118,16 +118,16 @@ static int apci1564_timer_config(struct comedi_device *dev,
 		devpriv->timer_select_mode = ADDIDATA_COUNTER;
 
 		/* First Stop The Counter */
-		ul_Command1 = inl(dev->iobase +
-				 APCI1564_COUNTER_CTRL_REG(chan));
+		ul_Command1 = inl(devpriv->counters +
+				  APCI1564_COUNTER_CTRL_REG(chan));
 		ul_Command1 = ul_Command1 & 0xFFFFF9FEUL;
 		/* Stop The Timer */
-		outl(ul_Command1, dev->iobase +
-					APCI1564_COUNTER_CTRL_REG(chan));
+		outl(ul_Command1,
+		     devpriv->counters + APCI1564_COUNTER_CTRL_REG(chan));
 
 		/* Set the reload value */
-		outl(data[3], dev->iobase +
-					APCI1564_COUNTER_RELOAD_REG(chan));
+		outl(data[3],
+		     devpriv->counters + APCI1564_COUNTER_RELOAD_REG(chan));
 
 		/* Set the mode :             */
 		/* - Disable the hardware     */
@@ -140,18 +140,18 @@ static int apci1564_timer_config(struct comedi_device *dev,
 		ul_Command1 =
 			(ul_Command1 & 0xFFFC19E2UL) | 0x80000UL |
 			(unsigned int) ((unsigned int) data[4] << 16UL);
-		outl(ul_Command1, dev->iobase +
-					APCI1564_COUNTER_CTRL_REG(chan));
+		outl(ul_Command1,
+		     devpriv->counters + APCI1564_COUNTER_CTRL_REG(chan));
 
 		/*  Enable or Disable Interrupt */
 		ul_Command1 = (ul_Command1 & 0xFFFFF9FD) | (data[1] << 1);
-		outl(ul_Command1, dev->iobase +
-					APCI1564_COUNTER_CTRL_REG(chan));
+		outl(ul_Command1,
+		     devpriv->counters + APCI1564_COUNTER_CTRL_REG(chan));
 
 		/* Set the Up/Down selection */
 		ul_Command1 = (ul_Command1 & 0xFFFBF9FFUL) | (data[6] << 18);
-		outl(ul_Command1, dev->iobase +
-					APCI1564_COUNTER_CTRL_REG(chan));
+		outl(ul_Command1,
+		     devpriv->counters + APCI1564_COUNTER_CTRL_REG(chan));
 	} else {
 		dev_err(dev->class_dev, "Invalid subdevice.\n");
 	}
@@ -188,9 +188,8 @@ static int apci1564_timer_write(struct comedi_device *dev,
 			outl(ul_Command1, devpriv->amcc_iobase + APCI1564_TIMER_CTRL_REG);
 		}
 	} else if (devpriv->timer_select_mode == ADDIDATA_COUNTER) {
-		ul_Command1 =
-			inl(dev->iobase +
-			   APCI1564_COUNTER_CTRL_REG(chan));
+		ul_Command1 = inl(devpriv->counters +
+				  APCI1564_COUNTER_CTRL_REG(chan));
 		if (data[1] == 1) {
 			/* Start the Counter subdevice */
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
@@ -202,8 +201,8 @@ static int apci1564_timer_write(struct comedi_device *dev,
 			/*  Clears the Counter subdevice */
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x400;
 		}
-		outl(ul_Command1, dev->iobase +
-		     APCI1564_COUNTER_CTRL_REG(chan));
+		outl(ul_Command1,
+		     devpriv->counters + APCI1564_COUNTER_CTRL_REG(chan));
 	} else {
 		dev_err(dev->class_dev, "Invalid subdevice.\n");
 	}
@@ -230,12 +229,10 @@ static int apci1564_timer_read(struct comedi_device *dev,
 		data[1] = inl(devpriv->amcc_iobase + APCI1564_TIMER_REG);
 	} else if (devpriv->timer_select_mode == ADDIDATA_COUNTER) {
 		/*  Read the Counter Actual Value. */
-		data[0] =
-			inl(dev->iobase +
-			    APCI1564_COUNTER_REG(chan));
-		ul_Command1 =
-			inl(dev->iobase +
-			    APCI1564_COUNTER_STATUS_REG(chan));
+		data[0] = inl(devpriv->counters +
+			      APCI1564_COUNTER_REG(chan));
+		ul_Command1 = inl(devpriv->counters +
+				  APCI1564_COUNTER_STATUS_REG(chan));
 
 		/* Get the software trigger status */
 		data[1] = (unsigned char) ((ul_Command1 >> 1) & 1);

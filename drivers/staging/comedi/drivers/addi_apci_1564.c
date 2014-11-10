@@ -31,6 +31,7 @@
 #include "addi_watchdog.h"
 
 struct apci1564_private {
+	unsigned long counters;		/* base address of 32-bit counters */
 	unsigned int amcc_iobase;	/* base of AMCC I/O registers */
 	unsigned int mode1;		/* riding-edge/high level channels */
 	unsigned int mode2;		/* falling-edge/low level channels */
@@ -63,9 +64,9 @@ static int apci1564_reset(struct comedi_device *dev)
 	outl(0x0, devpriv->amcc_iobase + APCI1564_TIMER_RELOAD_REG);
 
 	/* Reset the counter registers */
-	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(0));
-	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(1));
-	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(2));
+	outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(0));
+	outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(1));
+	outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(2));
 
 	return 0;
 }
@@ -108,20 +109,21 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 	}
 
 	for (chan = 0; chan < 4; chan++) {
-		status = inl(dev->iobase + APCI1564_COUNTER_IRQ_REG(chan));
+		status = inl(devpriv->counters +
+			     APCI1564_COUNTER_IRQ_REG(chan));
 		if (status & 0x01) {
 			/*  Disable Counter Interrupt */
-			ctrl = inl(dev->iobase +
-				  APCI1564_COUNTER_CTRL_REG(chan));
-			outl(0x0, dev->iobase +
-			    APCI1564_COUNTER_CTRL_REG(chan));
+			ctrl = inl(devpriv->counters +
+				   APCI1564_COUNTER_CTRL_REG(chan));
+			outl(0x0, devpriv->counters +
+			     APCI1564_COUNTER_CTRL_REG(chan));
 
 			/* Send a signal to from kernel to user space */
 			send_sig(SIGIO, devpriv->tsk_current, 0);
 
 			/*  Enable Counter Interrupt */
-			outl(ctrl, dev->iobase +
-			    APCI1564_COUNTER_CTRL_REG(chan));
+			outl(ctrl, devpriv->counters +
+			     APCI1564_COUNTER_CTRL_REG(chan));
 		}
 	}
 
@@ -369,8 +371,9 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	dev->iobase = pci_resource_start(pcidev, 1);
+	/* PLD Revision 2.x I/O Mapping */
 	devpriv->amcc_iobase = pci_resource_start(pcidev, 0);
+	devpriv->counters = pci_resource_start(pcidev, 1);
 
 	apci1564_reset(dev);
 
