@@ -398,6 +398,24 @@ out:
 	kfree(g2d_userptr);
 }
 
+
+static unsigned long g2d_get_contiguous_size(struct sg_table *sgt)
+{
+        struct scatterlist *s;
+        dma_addr_t expected = sg_dma_address(sgt->sgl);
+        unsigned int i;
+        unsigned long size = 0;
+
+        for_each_sg(sgt->sgl, s, sgt->nents, i) {
+                if (sg_dma_address(s) != expected)
+                        break;
+                expected = sg_dma_address(s) + sg_dma_len(s);
+                size += sg_dma_len(s);
+        }
+        return size;
+}
+
+
 static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 					unsigned long userptr,
 					unsigned long size,
@@ -415,6 +433,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 	unsigned int npages, offset;
 	int ret;
 	const unsigned long dma_align = dma_get_cache_alignment();
+	unsigned long contig_size;
 
 	/* check that both userptr and size are aligned. */
 	if (!IS_ALIGNED(userptr | size, dma_align)) {
@@ -501,7 +520,6 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 		goto err_free_pages;
 	}
 
-	g2d_userptr->size = size;
 
 	ret = exynos_gem_get_pages_from_userptr(start & PAGE_MASK,
 						npages, pages, vma);
@@ -536,8 +554,19 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 		goto err_sg_free_table;
 	}
 
+	if (!is_drm_iommu_supported(drm_dev)) {
+		contig_size = g2d_get_contiguous_size(sgt);
+		if (contig_size < size) {
+			pr_err("contiguous mapping is too small %lu/%lu\n",
+				contig_size, size);
+			ret = -EFAULT;
+			goto err_sg_unmap;
+		}
+	}
+
 	g2d_userptr->dma_addr = sg_dma_address(sgt->sgl);
 	g2d_userptr->userptr = userptr;
+	g2d_userptr->size = size;
 
 	list_add_tail(&g2d_userptr->list, &g2d_priv->userptr_list);
 
@@ -549,6 +578,10 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 	*obj = (unsigned long)g2d_userptr;
 
 	return &g2d_userptr->dma_addr;
+
+err_sg_unmap:
+	exynos_gem_unmap_sgt_from_dma(drm_dev, g2d_userptr->sgt,
+					DMA_BIDIRECTIONAL);
 
 err_sg_free_table:
 	sg_free_table(sgt);
