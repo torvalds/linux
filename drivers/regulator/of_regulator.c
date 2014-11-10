@@ -25,7 +25,8 @@ static const char *const regulator_states[PM_SUSPEND_MAX + 1] = {
 };
 
 static void of_get_regulation_constraints(struct device_node *np,
-					struct regulator_init_data **init_data)
+					struct regulator_init_data **init_data,
+					const struct regulator_desc *desc)
 {
 	const __be32 *min_uV, *max_uV;
 	struct regulation_constraints *constraints = &(*init_data)->constraints;
@@ -81,6 +82,19 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (!ret)
 		constraints->enable_time = pval;
 
+	if (!of_property_read_u32(np, "regulator-initial-mode", &pval)) {
+		if (desc && desc->of_map_mode) {
+			ret = desc->of_map_mode(pval);
+			if (ret == -EINVAL)
+				pr_err("%s: invalid mode %u\n", np->name, pval);
+			else
+				constraints->initial_mode = ret;
+		} else {
+			pr_warn("%s: mapping for mode %d not defined\n",
+				np->name, pval);
+		}
+	}
+
 	for (i = 0; i < ARRAY_SIZE(regulator_states); i++) {
 		switch (i) {
 		case PM_SUSPEND_MEM:
@@ -99,6 +113,21 @@ static void of_get_regulation_constraints(struct device_node *np,
 		suspend_np = of_get_child_by_name(np, regulator_states[i]);
 		if (!suspend_np || !suspend_state)
 			continue;
+
+		if (!of_property_read_u32(suspend_np, "regulator-mode",
+					  &pval)) {
+			if (desc && desc->of_map_mode) {
+				ret = desc->of_map_mode(pval);
+				if (ret == -EINVAL)
+					pr_err("%s: invalid mode %u\n",
+					       np->name, pval);
+				else
+					suspend_state->mode = ret;
+			} else {
+				pr_warn("%s: mapping for mode %d not defined\n",
+					np->name, pval);
+			}
+		}
 
 		if (of_property_read_bool(suspend_np,
 					"regulator-on-in-suspend"))
@@ -140,7 +169,7 @@ struct regulator_init_data *of_get_regulator_init_data(struct device *dev,
 	if (!init_data)
 		return NULL; /* Out of memory? */
 
-	of_get_regulation_constraints(node, &init_data);
+	of_get_regulation_constraints(node, &init_data, desc);
 	return init_data;
 }
 EXPORT_SYMBOL_GPL(of_get_regulator_init_data);
