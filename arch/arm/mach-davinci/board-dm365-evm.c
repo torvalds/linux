@@ -485,7 +485,7 @@ static struct vpbe_output dm365evm_vpbe_outputs[] = {
 		.default_mode	= "ntsc",
 		.num_modes	= ARRAY_SIZE(dm365evm_enc_std_timing),
 		.modes		= dm365evm_enc_std_timing,
-		.if_params	= V4L2_MBUS_FMT_FIXED,
+		.if_params	= MEDIA_BUS_FMT_FIXED,
 	},
 	{
 		.output		= {
@@ -498,7 +498,7 @@ static struct vpbe_output dm365evm_vpbe_outputs[] = {
 		.default_mode	= "480p59_94",
 		.num_modes	= ARRAY_SIZE(dm365evm_enc_preset_timing),
 		.modes		= dm365evm_enc_preset_timing,
-		.if_params	= V4L2_MBUS_FMT_FIXED,
+		.if_params	= MEDIA_BUS_FMT_FIXED,
 	},
 };
 

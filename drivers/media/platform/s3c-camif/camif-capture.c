@@ -1218,11 +1218,11 @@ void s3c_camif_unregister_video_node(struct camif_dev *camif, int idx)
 }
 
 /* Media bus pixel formats supported at the camif input */
-static const enum v4l2_mbus_pixelcode camif_mbus_formats[] = {
-	V4L2_MBUS_FMT_YUYV8_2X8,
-	V4L2_MBUS_FMT_YVYU8_2X8,
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_VYUY8_2X8,
+static const u32 camif_mbus_formats[] = {
+	MEDIA_BUS_FMT_YUYV8_2X8,
+	MEDIA_BUS_FMT_YVYU8_2X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_VYUY8_2X8,
 };
 
 /*

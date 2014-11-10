@@ -36,23 +36,23 @@ __ccdc_get_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_fh *fh,
 		  unsigned int pad, enum v4l2_subdev_format_whence which);
 
 static const unsigned int ccdc_fmts[] = {
-	V4L2_MBUS_FMT_Y8_1X8,
-	V4L2_MBUS_FMT_Y10_1X10,
-	V4L2_MBUS_FMT_Y12_1X12,
-	V4L2_MBUS_FMT_SGRBG8_1X8,
-	V4L2_MBUS_FMT_SRGGB8_1X8,
-	V4L2_MBUS_FMT_SBGGR8_1X8,
-	V4L2_MBUS_FMT_SGBRG8_1X8,
-	V4L2_MBUS_FMT_SGRBG10_1X10,
-	V4L2_MBUS_FMT_SRGGB10_1X10,
-	V4L2_MBUS_FMT_SBGGR10_1X10,
-	V4L2_MBUS_FMT_SGBRG10_1X10,
-	V4L2_MBUS_FMT_SGRBG12_1X12,
-	V4L2_MBUS_FMT_SRGGB12_1X12,
-	V4L2_MBUS_FMT_SBGGR12_1X12,
-	V4L2_MBUS_FMT_SGBRG12_1X12,
-	V4L2_MBUS_FMT_YUYV8_2X8,
-	V4L2_MBUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_Y8_1X8,
+	MEDIA_BUS_FMT_Y10_1X10,
+	MEDIA_BUS_FMT_Y12_1X12,
+	MEDIA_BUS_FMT_SGRBG8_1X8,
+	MEDIA_BUS_FMT_SRGGB8_1X8,
+	MEDIA_BUS_FMT_SBGGR8_1X8,
+	MEDIA_BUS_FMT_SGBRG8_1X8,
+	MEDIA_BUS_FMT_SGRBG10_1X10,
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+	MEDIA_BUS_FMT_SGBRG10_1X10,
+	MEDIA_BUS_FMT_SGRBG12_1X12,
+	MEDIA_BUS_FMT_SRGGB12_1X12,
+	MEDIA_BUS_FMT_SBGGR12_1X12,
+	MEDIA_BUS_FMT_SGBRG12_1X12,
+	MEDIA_BUS_FMT_YUYV8_2X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
 };
 
 /*
@@ -266,10 +266,10 @@ static int __ccdc_lsc_enable(struct isp_ccdc_device *ccdc, int enable)
 		__ccdc_get_format(ccdc, NULL, CCDC_PAD_SINK,
 				  V4L2_SUBDEV_FORMAT_ACTIVE);
 
-	if ((format->code != V4L2_MBUS_FMT_SGRBG10_1X10) &&
-	    (format->code != V4L2_MBUS_FMT_SRGGB10_1X10) &&
-	    (format->code != V4L2_MBUS_FMT_SBGGR10_1X10) &&
-	    (format->code != V4L2_MBUS_FMT_SGBRG10_1X10))
+	if ((format->code != MEDIA_BUS_FMT_SGRBG10_1X10) &&
+	    (format->code != MEDIA_BUS_FMT_SRGGB10_1X10) &&
+	    (format->code != MEDIA_BUS_FMT_SBGGR10_1X10) &&
+	    (format->code != MEDIA_BUS_FMT_SGBRG10_1X10))
 		return -EINVAL;
 
 	if (enable)
@@ -971,8 +971,8 @@ static void ccdc_config_sync_if(struct isp_ccdc_device *ccdc,
 
 	format = &ccdc->formats[CCDC_PAD_SINK];
 
-	if (format->code == V4L2_MBUS_FMT_YUYV8_2X8 ||
-	    format->code == V4L2_MBUS_FMT_UYVY8_2X8) {
+	if (format->code == MEDIA_BUS_FMT_YUYV8_2X8 ||
+	    format->code == MEDIA_BUS_FMT_UYVY8_2X8) {
 		/* According to the OMAP3 TRM the input mode only affects SYNC
 		 * mode, enabling BT.656 mode should take precedence. However,
 		 * in practice setting the input mode to YCbCr data on 8 bits
@@ -1020,7 +1020,7 @@ static void ccdc_config_sync_if(struct isp_ccdc_device *ccdc,
 	/* The CCDC_CFG.Y8POS bit is used in YCbCr8 input mode only. The
 	 * hardware seems to ignore it in all other input modes.
 	 */
-	if (format->code == V4L2_MBUS_FMT_UYVY8_2X8)
+	if (format->code == MEDIA_BUS_FMT_UYVY8_2X8)
 		isp_reg_set(isp, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_CFG,
 			    ISPCCDC_CFG_Y8POS);
 	else
@@ -1168,9 +1168,9 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 
 	if (ccdc->bt656)
 		bridge = ISPCTRL_PAR_BRIDGE_DISABLE;
-	else if (fmt_info->code == V4L2_MBUS_FMT_YUYV8_2X8)
+	else if (fmt_info->code == MEDIA_BUS_FMT_YUYV8_2X8)
 		bridge = ISPCTRL_PAR_BRIDGE_LENDIAN;
-	else if (fmt_info->code == V4L2_MBUS_FMT_UYVY8_2X8)
+	else if (fmt_info->code == MEDIA_BUS_FMT_UYVY8_2X8)
 		bridge = ISPCTRL_PAR_BRIDGE_BENDIAN;
 	else
 		bridge = ISPCTRL_PAR_BRIDGE_DISABLE;
@@ -1199,16 +1199,16 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 
 	/* Mosaic filter */
 	switch (format->code) {
-	case V4L2_MBUS_FMT_SRGGB10_1X10:
-	case V4L2_MBUS_FMT_SRGGB12_1X12:
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+	case MEDIA_BUS_FMT_SRGGB12_1X12:
 		ccdc_pattern = ccdc_srggb_pattern;
 		break;
-	case V4L2_MBUS_FMT_SBGGR10_1X10:
-	case V4L2_MBUS_FMT_SBGGR12_1X12:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+	case MEDIA_BUS_FMT_SBGGR12_1X12:
 		ccdc_pattern = ccdc_sbggr_pattern;
 		break;
-	case V4L2_MBUS_FMT_SGBRG10_1X10:
-	case V4L2_MBUS_FMT_SGBRG12_1X12:
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
+	case MEDIA_BUS_FMT_SGBRG12_1X12:
 		ccdc_pattern = ccdc_sgbrg_pattern;
 		break;
 	default:
@@ -1267,7 +1267,7 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	/* The CCDC outputs data in UYVY order by default. Swap bytes to get
 	 * YUYV.
 	 */
-	if (format->code == V4L2_MBUS_FMT_YUYV8_1X16)
+	if (format->code == MEDIA_BUS_FMT_YUYV8_1X16)
 		isp_reg_set(isp, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_CFG,
 			    ISPCCDC_CFG_BSWD);
 	else
@@ -1967,7 +1967,7 @@ ccdc_try_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_fh *fh,
 		enum v4l2_subdev_format_whence which)
 {
 	const struct isp_format_info *info;
-	enum v4l2_mbus_pixelcode pixelcode;
+	u32 pixelcode;
 	unsigned int width = fmt->width;
 	unsigned int height = fmt->height;
 	struct v4l2_rect *crop;
@@ -1983,7 +1983,7 @@ ccdc_try_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_fh *fh,
 
 		/* If not found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(ccdc_fmts))
-			fmt->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
 		/* Clamp the input size. */
 		fmt->width = clamp_t(u32, width, 32, 4096);
@@ -2007,19 +2007,19 @@ ccdc_try_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_fh *fh,
 		 * configured to pack bytes in BT.656, hiding the inaccuracy.
 		 * In all cases bytes can be swapped.
 		 */
-		if (fmt->code == V4L2_MBUS_FMT_YUYV8_2X8 ||
-		    fmt->code == V4L2_MBUS_FMT_UYVY8_2X8) {
+		if (fmt->code == MEDIA_BUS_FMT_YUYV8_2X8 ||
+		    fmt->code == MEDIA_BUS_FMT_UYVY8_2X8) {
 			/* Use the user requested format if YUV. */
-			if (pixelcode == V4L2_MBUS_FMT_YUYV8_2X8 ||
-			    pixelcode == V4L2_MBUS_FMT_UYVY8_2X8 ||
-			    pixelcode == V4L2_MBUS_FMT_YUYV8_1X16 ||
-			    pixelcode == V4L2_MBUS_FMT_UYVY8_1X16)
+			if (pixelcode == MEDIA_BUS_FMT_YUYV8_2X8 ||
+			    pixelcode == MEDIA_BUS_FMT_UYVY8_2X8 ||
+			    pixelcode == MEDIA_BUS_FMT_YUYV8_1X16 ||
+			    pixelcode == MEDIA_BUS_FMT_UYVY8_1X16)
 				fmt->code = pixelcode;
 
-			if (fmt->code == V4L2_MBUS_FMT_YUYV8_2X8)
-				fmt->code = V4L2_MBUS_FMT_YUYV8_1X16;
-			else if (fmt->code == V4L2_MBUS_FMT_UYVY8_2X8)
-				fmt->code = V4L2_MBUS_FMT_UYVY8_1X16;
+			if (fmt->code == MEDIA_BUS_FMT_YUYV8_2X8)
+				fmt->code = MEDIA_BUS_FMT_YUYV8_1X16;
+			else if (fmt->code == MEDIA_BUS_FMT_UYVY8_2X8)
+				fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 		}
 
 		/* Hardcode the output size to the crop rectangle size. */
@@ -2047,8 +2047,8 @@ ccdc_try_format(struct isp_ccdc_device *ccdc, struct v4l2_subdev_fh *fh,
 		fmt->code = info->truncated;
 
 		/* YUV formats are not supported by the video port. */
-		if (fmt->code == V4L2_MBUS_FMT_YUYV8_2X8 ||
-		    fmt->code == V4L2_MBUS_FMT_UYVY8_2X8)
+		if (fmt->code == MEDIA_BUS_FMT_YUYV8_2X8 ||
+		    fmt->code == MEDIA_BUS_FMT_UYVY8_2X8)
 			fmt->code = 0;
 
 		/* The number of lines that can be clocked out from the video
@@ -2083,7 +2083,7 @@ static void ccdc_try_crop(struct isp_ccdc_device *ccdc,
 	 * to keep the Bayer pattern.
 	 */
 	info = omap3isp_video_format_info(sink->code);
-	if (info->flavor != V4L2_MBUS_FMT_Y8_1X8) {
+	if (info->flavor != MEDIA_BUS_FMT_Y8_1X8) {
 		crop->left &= ~1;
 		crop->top &= ~1;
 	}
@@ -2103,7 +2103,7 @@ static void ccdc_try_crop(struct isp_ccdc_device *ccdc,
 			       sink->height - crop->top);
 
 	/* Odd width/height values don't make sense for Bayer formats. */
-	if (info->flavor != V4L2_MBUS_FMT_Y8_1X8) {
+	if (info->flavor != MEDIA_BUS_FMT_Y8_1X8) {
 		crop->width &= ~1;
 		crop->height &= ~1;
 	}
@@ -2135,13 +2135,13 @@ static int ccdc_enum_mbus_code(struct v4l2_subdev *sd,
 		format = __ccdc_get_format(ccdc, fh, code->pad,
 					   V4L2_SUBDEV_FORMAT_TRY);
 
-		if (format->code == V4L2_MBUS_FMT_YUYV8_2X8 ||
-		    format->code == V4L2_MBUS_FMT_UYVY8_2X8) {
+		if (format->code == MEDIA_BUS_FMT_YUYV8_2X8 ||
+		    format->code == MEDIA_BUS_FMT_UYVY8_2X8) {
 			/* In YUV mode the CCDC can swap bytes. */
 			if (code->index == 0)
-				code->code = V4L2_MBUS_FMT_YUYV8_1X16;
+				code->code = MEDIA_BUS_FMT_YUYV8_1X16;
 			else if (code->index == 1)
-				code->code = V4L2_MBUS_FMT_UYVY8_1X16;
+				code->code = MEDIA_BUS_FMT_UYVY8_1X16;
 			else
 				return -EINVAL;
 		} else {
@@ -2383,9 +2383,7 @@ static int ccdc_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
  * return true if the combination is possible
  * return false otherwise
  */
-static bool ccdc_is_shiftable(enum v4l2_mbus_pixelcode in,
-			      enum v4l2_mbus_pixelcode out,
-			      unsigned int additional_shift)
+static bool ccdc_is_shiftable(u32 in, u32 out, unsigned int additional_shift)
 {
 	const struct isp_format_info *in_info, *out_info;
 
@@ -2452,7 +2450,7 @@ static int ccdc_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	memset(&format, 0, sizeof(format));
 	format.pad = CCDC_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	format.format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format.format.width = 4096;
 	format.format.height = 4096;
 	ccdc_set_format(sd, fh, &format);

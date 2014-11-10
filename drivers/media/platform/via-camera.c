@@ -101,7 +101,7 @@ struct via_camera {
 	 */
 	struct v4l2_pix_format sensor_format;
 	struct v4l2_pix_format user_format;
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 };
 
 /*
@@ -143,12 +143,12 @@ static struct via_format {
 	__u8 *desc;
 	__u32 pixelformat;
 	int bpp;   /* Bytes per pixel */
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 } via_formats[] = {
 	{
 		.desc		= "YUYV 4:2:2",
 		.pixelformat	= V4L2_PIX_FMT_YUYV,
-		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp		= 2,
 	},
 	/* RGB444 and Bayer should be doable, but have never been
@@ -849,7 +849,7 @@ static const struct v4l2_pix_format viacam_def_pix_format = {
 	.sizeimage	= VGA_WIDTH * VGA_HEIGHT * 2,
 };
 
-static const enum v4l2_mbus_pixelcode via_def_mbus_code = V4L2_MBUS_FMT_YUYV8_2X8;
+static const u32 via_def_mbus_code = MEDIA_BUS_FMT_YUYV8_2X8;
 
 static int viacam_enum_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_fmtdesc *fmt)

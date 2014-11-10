@@ -183,7 +183,7 @@ struct mcam_camera {
 
 	/* Current operating parameters */
 	struct v4l2_pix_format pix_format;
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 
 	/* Locks */
 	struct mutex s_mutex; /* Access to this structure */

@@ -49,7 +49,7 @@
 struct bcap_format {
 	char *desc;
 	u32 pixelformat;
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 	int bpp; /* bits per pixel */
 	int dlen; /* data length for ppi in bits */
 };
@@ -116,35 +116,35 @@ static const struct bcap_format bcap_formats[] = {
 	{
 		.desc        = "YCbCr 4:2:2 Interleaved UYVY",
 		.pixelformat = V4L2_PIX_FMT_UYVY,
-		.mbus_code   = V4L2_MBUS_FMT_UYVY8_2X8,
+		.mbus_code   = MEDIA_BUS_FMT_UYVY8_2X8,
 		.bpp         = 16,
 		.dlen        = 8,
 	},
 	{
 		.desc        = "YCbCr 4:2:2 Interleaved YUYV",
 		.pixelformat = V4L2_PIX_FMT_YUYV,
-		.mbus_code   = V4L2_MBUS_FMT_YUYV8_2X8,
+		.mbus_code   = MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp         = 16,
 		.dlen        = 8,
 	},
 	{
 		.desc        = "YCbCr 4:2:2 Interleaved UYVY",
 		.pixelformat = V4L2_PIX_FMT_UYVY,
-		.mbus_code   = V4L2_MBUS_FMT_UYVY8_1X16,
+		.mbus_code   = MEDIA_BUS_FMT_UYVY8_1X16,
 		.bpp         = 16,
 		.dlen        = 16,
 	},
 	{
 		.desc        = "RGB 565",
 		.pixelformat = V4L2_PIX_FMT_RGB565,
-		.mbus_code   = V4L2_MBUS_FMT_RGB565_2X8_LE,
+		.mbus_code   = MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.bpp         = 16,
 		.dlen        = 8,
 	},
 	{
 		.desc        = "RGB 444",
 		.pixelformat = V4L2_PIX_FMT_RGB444,
-		.mbus_code   = V4L2_MBUS_FMT_RGB444_2X8_PADHI_LE,
+		.mbus_code   = MEDIA_BUS_FMT_RGB444_2X8_PADHI_LE,
 		.bpp         = 16,
 		.dlen        = 8,
 	},
@@ -161,7 +161,7 @@ static struct bcap_buffer *to_bcap_vb(struct vb2_buffer *vb)
 
 static int bcap_init_sensor_formats(struct bcap_device *bcap_dev)
 {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	struct bcap_format *sf;
 	unsigned int num_formats = 0;
 	int i, j;

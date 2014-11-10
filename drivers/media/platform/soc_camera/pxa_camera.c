@@ -187,7 +187,7 @@ struct pxa_cam_dma {
 struct pxa_buffer {
 	/* common v4l buffer stuff -- must be first */
 	struct videobuf_buffer		vb;
-	enum v4l2_mbus_pixelcode	code;
+	u32	code;
 	/* our descriptor lists for Y, U and V channels */
 	struct pxa_cam_dma		dmas[3];
 	int				inwork;
@@ -1253,7 +1253,7 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 	struct device *dev = icd->parent;
 	int formats = 0, ret;
 	struct pxa_cam *cam;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	const struct soc_mbus_pixelfmt *fmt;
 
 	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
@@ -1283,7 +1283,7 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 	}
 
 	switch (code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= &pxa_camera_formats[0];
@@ -1292,11 +1292,11 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 			dev_dbg(dev, "Providing format %s using code %d\n",
 				pxa_camera_formats[0].name, code);
 		}
-	case V4L2_MBUS_FMT_VYUY8_2X8:
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_YVYU8_2X8:
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
-	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE:
 		if (xlate)
 			dev_dbg(dev, "Providing format %s packed\n",
 				fmt->name);
