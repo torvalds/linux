@@ -2954,17 +2954,11 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
-static int iwl_mvm_switch_vif_chanctx(struct ieee80211_hw *hw,
-				      struct ieee80211_vif_chanctx_switch *vifs,
-				      int n_vifs,
-				      enum ieee80211_chanctx_switch_mode mode)
+static int
+iwl_mvm_switch_vif_chanctx_swap(struct iwl_mvm *mvm,
+				struct ieee80211_vif_chanctx_switch *vifs)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
-
-	/* we only support SWAP_CONTEXTS and with a single-vif right now */
-	if (mode != CHANCTX_SWMODE_SWAP_CONTEXTS || n_vifs > 1)
-		return -EOPNOTSUPP;
 
 	mutex_lock(&mvm->mutex);
 	__iwl_mvm_unassign_vif_chanctx(mvm, vifs[0].vif, vifs[0].old_ctx, true);
@@ -3015,6 +3009,34 @@ out_restart:
 
 out:
 	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
+static int iwl_mvm_switch_vif_chanctx(struct ieee80211_hw *hw,
+				      struct ieee80211_vif_chanctx_switch *vifs,
+				      int n_vifs,
+				      enum ieee80211_chanctx_switch_mode mode)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	/* we only support a single-vif right now */
+	if (n_vifs > 1)
+		return -EOPNOTSUPP;
+
+	switch (mode) {
+	case CHANCTX_SWMODE_SWAP_CONTEXTS:
+		ret = iwl_mvm_switch_vif_chanctx_swap(mvm, vifs);
+		break;
+	case CHANCTX_SWMODE_REASSIGN_VIF:
+		ret = -EOPNOTSUPP;
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
 	return ret;
 }
 
