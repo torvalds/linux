@@ -1201,11 +1201,11 @@ void usbhs_fifo_quit(struct usbhs_priv *priv)
 	mod->irq_brdysts	= 0;
 }
 
-#define USBHS_DFIFO_INIT(priv, fifo, channel)				\
+#define __USBHS_DFIFO_INIT(priv, fifo, channel, fifo_port)		\
 do {									\
 	fifo = usbhsf_get_dnfifo(priv, channel);			\
 	fifo->name	= "D"#channel"FIFO";				\
-	fifo->port	= D##channel##FIFO;				\
+	fifo->port	= fifo_port;					\
 	fifo->sel	= D##channel##FIFOSEL;				\
 	fifo->ctr	= D##channel##FIFOCTR;				\
 	fifo->tx_slave.shdma_slave.slave_id =				\
@@ -1214,6 +1214,11 @@ do {									\
 			usbhs_get_dparam(priv, d##channel##_rx_id);	\
 	usbhsf_dma_init(priv, fifo);					\
 } while (0)
+
+#define USBHS_DFIFO_INIT(priv, fifo, channel)				\
+		__USBHS_DFIFO_INIT(priv, fifo, channel, D##channel##FIFO)
+#define USBHS_DFIFO_INIT_NO_PORT(priv, fifo, channel)			\
+		__USBHS_DFIFO_INIT(priv, fifo, channel, 0)
 
 int usbhs_fifo_probe(struct usbhs_priv *priv)
 {
