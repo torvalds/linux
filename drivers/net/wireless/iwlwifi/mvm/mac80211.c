@@ -3206,6 +3206,12 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 		iwl_mvm_schedule_csa_period(mvm, vif, vif->bss_conf.beacon_int,
 					    apply_time);
+		if (mvmvif->bf_data.bf_enabled) {
+			ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+			if (ret)
+				goto out_unlock;
+		}
+
 		break;
 	default:
 		break;
@@ -3246,6 +3252,10 @@ static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
 
 		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+
+		ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
+		if (ret)
+			goto out_unlock;
 	}
 
 	mvmvif->ps_disabled = false;
