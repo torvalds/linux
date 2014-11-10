@@ -166,21 +166,6 @@ static int hdmi_pll_config(struct hdmi_pll_data *pll)
 	return 0;
 }
 
-static int hdmi_pll_reset(struct hdmi_pll_data *pll)
-{
-	/* SYSRESET  controlled by power FSM */
-	REG_FLD_MOD(pll->base, PLLCTRL_PLL_CONTROL, pll_feat->sys_reset, 3, 3);
-
-	/* READ 0x0 reset is in progress */
-	if (hdmi_wait_for_bit_change(pll->base, PLLCTRL_PLL_STATUS, 0, 0, 1)
-			!= 1) {
-		DSSERR("Failed to sysreset PLL\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
 int hdmi_pll_enable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
 {
 	u16 r = 0;
@@ -190,10 +175,6 @@ int hdmi_pll_enable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
 		return r;
 
 	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
-	if (r)
-		return r;
-
-	r = hdmi_pll_reset(pll);
 	if (r)
 		return r;
 
