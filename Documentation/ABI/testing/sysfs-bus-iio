@@ -323,6 +323,14 @@ Description:
 		production inaccuracies).  If shared across all channels,
 		<type>_calibscale is used.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_steps_calibheight
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Height of the user (in centimeters) used by some pedometers
+		to compute the stride length, distance, speed and activity
+		type.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale_available
 What:		/sys/.../iio:deviceX/in_voltageX_scale_available
 What:		/sys/.../iio:deviceX/in_voltage-voltage_scale_available
