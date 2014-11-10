@@ -92,6 +92,13 @@
 				allwinner,drive = <0>;
 				allwinner,pull = <0>;
 			};
+
+			usb0_vbus_pin_a: usb0_vbus_pin@0 {
+				allwinner,pins = "PH17";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
 		};
 
 		pwm: pwm@01c20e00 {
@@ -182,6 +189,12 @@
 	reg_ahci_5v: ahci-5v {
 		pinctrl-0 = <&ahci_pwr_pin_cubietruck>;
 		gpio = <&pio 7 12 0>;
+		status = "okay";
+	};
+
+	reg_usb0_vbus: usb0-vbus {
+		pinctrl-0 = <&usb0_vbus_pin_a>;
+		gpio = <&pio 7 17 0>;
 		status = "okay";
 	};
 
