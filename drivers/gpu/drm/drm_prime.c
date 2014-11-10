@@ -328,7 +328,7 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
  */
 
 /**
- * drm_gem_prime_export - helper library implemention of the export callback
+ * drm_gem_prime_export - helper library implementation of the export callback
  * @dev: drm_device to export from
  * @obj: GEM object to export
  * @flags: flags like DRM_CLOEXEC
@@ -483,7 +483,7 @@ out_unlock:
 EXPORT_SYMBOL(drm_gem_prime_handle_to_fd);
 
 /**
- * drm_gem_prime_import - helper library implemention of the import callback
+ * drm_gem_prime_import - helper library implementation of the import callback
  * @dev: drm_device to import into
  * @dma_buf: dma-buf object to import
  *

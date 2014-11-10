@@ -28,7 +28,7 @@
 struct drm_dp_mst_branch;
 
 /**
- * struct drm_dp_vcpi - Virtual Channel Payload Identifer
+ * struct drm_dp_vcpi - Virtual Channel Payload Identifier
  * @vcpi: Virtual channel ID.
  * @pbn: Payload Bandwidth Number for this channel
  * @aligned_pbn: PBN aligned with slot size

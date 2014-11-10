@@ -32,6 +32,7 @@
 
 #include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_edid.h>
 
 #include <linux/gcd.h>

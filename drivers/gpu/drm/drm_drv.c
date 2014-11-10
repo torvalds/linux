@@ -56,7 +56,7 @@ static struct idr drm_minors_idr;
 struct class *drm_class;
 static struct dentry *drm_debugfs_root;
 
-void drm_err(const char *func, const char *format, ...)
+void drm_err(const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -66,7 +66,8 @@ void drm_err(const char *func, const char *format, ...)
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_ERR "[" DRM_NAME ":%s] *ERROR* %pV", func, &vaf);
+	printk(KERN_ERR "[" DRM_NAME ":%pf] *ERROR* %pV",
+	       __builtin_return_address(0), &vaf);
 
 	va_end(args);
 }
