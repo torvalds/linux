@@ -21,7 +21,6 @@
 #include <HalPwrSeqCmd.h>
 #include <Hal8723PwrSeq.h>
 #include <rtl8723a_hal.h>
-#include <rtl8723a_led.h>
 #include <linux/ieee80211.h>
 
 #include <usb_ops.h>
@@ -444,14 +443,6 @@ static void _InitEDCA(struct rtw_adapter *Adapter)
 
 static void _InitHWLed(struct rtw_adapter *Adapter)
 {
-	struct led_priv *pledpriv = &Adapter->ledpriv;
-
-	if (pledpriv->LedStrategy != HW_LED)
-		return;
-
-/*  HW led control */
-/*  to do .... */
-/* must consider cases of antenna diversity/ commbo card/solo card/mini card */
 }
 
 static void _InitRDGSetting(struct rtw_adapter *Adapter)
@@ -1209,14 +1200,6 @@ static void _ReadBoardType(struct rtw_adapter *Adapter, u8 *PROMContent,
 		pHalData->ExternalPA = 1;
 }
 
-static void _ReadLEDSetting(struct rtw_adapter *Adapter, u8 *PROMContent,
-			    bool AutoloadFail)
-{
-	struct led_priv *pledpriv = &Adapter->ledpriv;
-
-	pledpriv->LedStrategy = HW_LED;
-}
-
 static void Hal_EfuseParseMACAddr_8723AU(struct rtw_adapter *padapter,
 					 u8 *hwinfo, bool AutoLoadFail)
 {
@@ -1263,7 +1246,6 @@ static void readAdapterInfo(struct rtw_adapter *padapter)
 				    pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseThermalMeter_8723A(padapter, hwinfo,
 					 pEEPROM->bautoload_fail_flag);
-	_ReadLEDSetting(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 /*	_ReadRFSetting(Adapter, PROMContent, pEEPROM->bautoload_fail_flag); */
 /*	_ReadPSSetting(Adapter, PROMContent, pEEPROM->bautoload_fail_flag); */
 	Hal_EfuseParseAntennaDiversity(padapter, hwinfo,

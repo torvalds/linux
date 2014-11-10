@@ -1901,8 +1901,6 @@ int rtw_xmit23a(struct rtw_adapter *padapter, struct sk_buff *skb)
 	}
 	pxmitframe->pkt = skb;
 
-	rtw_led_control(padapter, LED_CTL_TX);
-
 	do_queue_select(padapter, &pxmitframe->attrib);
 
 #ifdef CONFIG_8723AU_AP_MODE

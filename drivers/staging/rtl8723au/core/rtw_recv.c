@@ -1495,7 +1495,6 @@ static int validate_recv_frame(struct rtw_adapter *adapter,
 		retval = _FAIL; /*  only data frame return _SUCCESS */
 		break;
 	case IEEE80211_FTYPE_DATA:
-		rtw_led_control(adapter, LED_CTL_RX);
 		pattrib->qos = (subtype & IEEE80211_STYPE_QOS_DATA) ? 1 : 0;
 		retval = validate_recv_data_frame(adapter, precv_frame);
 		if (retval == _FAIL) {
@@ -2206,8 +2205,6 @@ static int recv_func_posthandle(struct rtw_adapter *padapter,
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
 	/*  DATA FRAME */
-	rtw_led_control(padapter, LED_CTL_RX);
-
 	prframe = decryptor(padapter, prframe);
 	if (prframe == NULL) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,

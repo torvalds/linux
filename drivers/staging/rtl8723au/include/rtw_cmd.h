@@ -17,7 +17,6 @@
 
 #include <wlan_bssdef.h>
 #include <rtw_rf.h>
-#include <rtw_led.h>
 
 #define C2H_MEM_SZ (16*1024)
 

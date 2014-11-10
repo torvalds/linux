@@ -391,8 +391,6 @@ int rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 		mod_timer(&pmlmepriv->scan_to_timer, jiffies +
 			  msecs_to_jiffies(SCANNING_TIMEOUT));
 
-		rtw_led_control(padapter, LED_CTL_SITE_SURVEY);
-
 		pmlmepriv->scan_interval = SCAN_INTERVAL;/*  30*2 sec = 60sec */
 	} else
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
@@ -416,8 +414,6 @@ int rtw_createbss_cmd23a(struct rtw_adapter  *padapter)
 	u8 res = _SUCCESS;
 
 	pdev_network = &padapter->registrypriv.dev_network;
-
-	rtw_led_control(padapter, LED_CTL_START_TO_LINK);
 
 	if (pmlmepriv->assoc_ssid.ssid_len == 0) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
@@ -466,8 +462,6 @@ int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	ifmode = pnetwork->network.ifmode;
-
-	rtw_led_control(padapter, LED_CTL_START_TO_LINK);
 
 	if (pmlmepriv->assoc_ssid.ssid_len == 0) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,

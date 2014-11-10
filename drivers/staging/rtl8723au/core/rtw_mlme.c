@@ -815,8 +815,6 @@ void rtw_indicate_connect23a(struct rtw_adapter *padapter)
 	if (!check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 		set_fwstate(pmlmepriv, _FW_LINKED);
 
-		rtw_led_control(padapter, LED_CTL_LINK);
-
 		rtw_cfg80211_indicate_connect(padapter);
 
 		netif_carrier_on(padapter->pnetdev);
@@ -861,10 +859,7 @@ void rtw_indicate_disconnect23a(struct rtw_adapter *padapter)
 
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
-		rtw_led_control(padapter, LED_CTL_NO_LINK);
-
 		rtw_clear_scan_deny(padapter);
-
 	}
 
 	rtw_lps_ctrl_wk_cmd23a(padapter, LPS_CTRL_DISCONNECT, 1);

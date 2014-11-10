@@ -307,8 +307,6 @@ int rtw_hw_suspend23a(struct rtw_adapter *padapter)
 		if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 			_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
-			rtw_led_control(padapter, LED_CTL_NO_LINK);
-
 			rtw_os_indicate_disconnect23a(padapter);
 
 			/* donnot enqueue cmd */

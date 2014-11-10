@@ -542,9 +542,6 @@ void rtw_cancel_all_timer23a(struct rtw_adapter *padapter)
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
 		 ("%s:cancel dynamic_chk_timer!\n", __func__));
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("%s:cancel DeInitSwLeds!\n", __func__));
-
 	del_timer_sync(&padapter->pwrctrlpriv.pwr_state_check_timer);
 
 	del_timer_sync(&padapter->mlmepriv.set_scan_deny_timer);
@@ -681,8 +678,6 @@ int netdev_open23a(struct net_device *pnetdev)
 
 		rtw_cfg80211_init_wiphy(padapter);
 
-		rtw_led_control(padapter, LED_CTL_NO_LINK);
-
 		padapter->bup = true;
 	}
 	padapter->net_closed = false;
@@ -764,8 +759,6 @@ int rtw_ips_pwr_up23a(struct rtw_adapter *padapter)
 
 	result = ips_netdrv_open(padapter);
 
-	rtw_led_control(padapter, LED_CTL_NO_LINK);
-
 	DBG_8723A("<===  rtw_ips_pwr_up23a.............. in %dms\n",
 		  jiffies_to_msecs(jiffies - start_time));
 	return result;
@@ -779,8 +772,6 @@ void rtw_ips_pwr_down23a(struct rtw_adapter *padapter)
 
 	padapter->bCardDisableWOHSM = true;
 	padapter->net_closed = true;
-
-	rtw_led_control(padapter, LED_CTL_POWER_OFF);
 
 	rtw_ips_dev_unload23a(padapter);
 	padapter->bCardDisableWOHSM = false;
@@ -840,8 +831,6 @@ static int netdev_close(struct net_device *pnetdev)
 		rtw_free_assoc_resources23a(padapter, 1);
 		/* s2-4. */
 		rtw_free_network_queue23a(padapter);
-		/*  Close LED */
-		rtw_led_control(padapter, LED_CTL_POWER_OFF);
 	}
 
 	rtw_scan_abort23a(padapter);
