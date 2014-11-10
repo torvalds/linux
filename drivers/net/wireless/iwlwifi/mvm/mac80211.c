@@ -2796,8 +2796,8 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
-		/* Unless it's a CSA flow we have nothing to do here */
-		if (vif->csa_active) {
+		/* only needed if we're switching chanctx (i.e. during CSA) */
+		if (switching_chanctx) {
 			mvmvif->ap_ibss_active = true;
 			break;
 		}
@@ -2847,7 +2847,7 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 	}
 
-	if (vif->csa_active && vif->type == NL80211_IFTYPE_STATION) {
+	if (switching_chanctx && vif->type == NL80211_IFTYPE_STATION) {
 		struct iwl_mvm_sta *mvmsta;
 
 		mvmsta = iwl_mvm_sta_from_staid_protected(mvm,
@@ -2906,7 +2906,7 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		break;
 	case NL80211_IFTYPE_AP:
 		/* This part is triggered only during CSA */
-		if (!vif->csa_active || !mvmvif->ap_ibss_active)
+		if (!switching_chanctx || !mvmvif->ap_ibss_active)
 			goto out;
 
 		mvmvif->csa_countdown = false;
