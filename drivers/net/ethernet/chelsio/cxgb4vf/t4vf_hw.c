@@ -468,12 +468,38 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	sge_params->sge_timer_value_2_and_3 = vals[5];
 	sge_params->sge_timer_value_4_and_5 = vals[6];
 
+	/* T4 uses a single control field to specify both the PCIe Padding and
+	 * Packing Boundary.  T5 introduced the ability to specify these
+	 * separately with the Padding Boundary in SGE_CONTROL and and Packing
+	 * Boundary in SGE_CONTROL2.  So for T5 and later we need to grab
+	 * SGE_CONTROL in order to determine how ingress packet data will be
+	 * laid out in Packed Buffer Mode.  Unfortunately, older versions of
+	 * the firmware won't let us retrieve SGE_CONTROL2 so if we get a
+	 * failure grabbing it we throw an error since we can't figure out the
+	 * right value.
+	 */
+	if (!is_t4(adapter->params.chip)) {
+		params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
+			     FW_PARAMS_PARAM_XYZ(SGE_CONTROL2_A));
+		v = t4vf_query_params(adapter, 1, params, vals);
+		if (v != FW_SUCCESS) {
+			dev_err(adapter->pdev_dev,
+				"Unable to get SGE Control2; "
+				"probably old firmware.\n");
+			return v;
+		}
+		sge_params->sge_control2 = vals[0];
+	}
+
 	params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
 		     FW_PARAMS_PARAM_XYZ(SGE_INGRESS_RX_THRESHOLD));
-	v = t4vf_query_params(adapter, 1, params, vals);
+	params[1] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ(SGE_CONM_CTRL));
+	v = t4vf_query_params(adapter, 2, params, vals);
 	if (v)
 		return v;
 	sge_params->sge_ingress_rx_threshold = vals[0];
+	sge_params->sge_congestion_control = vals[1];
 
 	return 0;
 }
