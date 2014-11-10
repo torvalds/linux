@@ -968,7 +968,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->height = f->fmt.pix.height;
 	dev->format = fmt;
 
-	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
+	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, MEDIA_BUS_FMT_FIXED);
 	call_all(dev, video, s_mbus_fmt, &mbus_fmt);
 	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
 
@@ -1013,7 +1013,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	   resolution (since a standard change effects things like the number
 	   of lines in VACT, etc) */
 	memset(&mbus_fmt, 0, sizeof(mbus_fmt));
-	mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
+	mbus_fmt.code = MEDIA_BUS_FMT_FIXED;
 	mbus_fmt.width = dev->width;
 	mbus_fmt.height = dev->height;
 	call_all(dev, video, s_mbus_fmt, &mbus_fmt);

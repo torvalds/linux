@@ -430,7 +430,7 @@ int em28xx_init_camera(struct em28xx *dev)
 			break;
 		}
 
-		fmt.code = V4L2_MBUS_FMT_YUYV8_2X8;
+		fmt.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		fmt.width = 640;
 		fmt.height = 480;
 		v4l2_subdev_call(subdev, video, s_mbus_fmt, &fmt);
