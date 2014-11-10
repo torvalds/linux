@@ -42,18 +42,28 @@ static struct snd_ac97_bus soc_ac97_bus = {
 	.ops = NULL, /* Gets initialized in snd_soc_set_ac97_ops() */
 };
 
-/* unregister ac97 codec */
-static int soc_ac97_dev_unregister(struct snd_soc_codec *codec)
-{
-	if (codec->ac97->dev.bus)
-		device_del(&codec->ac97->dev);
-	return 0;
-}
-
 /* register ac97 codec to bus */
-static int soc_ac97_dev_register(struct snd_soc_codec *codec)
+static int soc_register_ac97_codec(struct snd_soc_codec *codec,
+	struct snd_soc_dai *codec_dai)
 {
-	int err;
+	int ret;
+
+	/* Only instantiate AC97 if not already done by the adaptor
+	 * for the generic AC97 subsystem.
+	 */
+	if (!codec_dai->driver->ac97_control || codec->ac97_registered)
+		return 0;
+
+	/*
+	 * It is possible that the AC97 device is already registered to
+	 * the device subsystem. This happens when the device is created
+	 * via snd_ac97_mixer(). Currently only SoC codec that does so
+	 * is the generic AC97 glue but others migh emerge.
+	 *
+	 * In those cases we don't try to register the device again.
+	 */
+	if (!codec->ac97_created)
+		return 0;
 
 	codec->ac97->dev.bus = &ac97_bus_type;
 	codec->ac97->dev.parent = codec->component.card->dev;
@@ -61,53 +71,23 @@ static int soc_ac97_dev_register(struct snd_soc_codec *codec)
 	dev_set_name(&codec->ac97->dev, "%d-%d:%s",
 		     codec->component.card->snd_card->number, 0,
 		     codec->component.name);
-	err = device_add(&codec->ac97->dev);
-	if (err < 0) {
-		dev_err(codec->dev, "ASoC: Can't register ac97 bus\n");
-		codec->ac97->dev.bus = NULL;
-		return err;
+	ret = device_add(&codec->ac97->dev);
+	if (ret < 0) {
+		dev_err(codec->dev, "ASoC: AC97 device register failed: %d\n",
+			ret);
+		return ret;
 	}
-	return 0;
-}
+	codec->ac97_registered = 1;
 
-static int soc_register_ac97_codec(struct snd_soc_codec *codec,
-				   struct snd_soc_dai *codec_dai)
-{
-	int ret;
-
-	/* Only instantiate AC97 if not already done by the adaptor
-	 * for the generic AC97 subsystem.
-	 */
-	if (codec_dai->driver->ac97_control && !codec->ac97_registered) {
-		/*
-		 * It is possible that the AC97 device is already registered to
-		 * the device subsystem. This happens when the device is created
-		 * via snd_ac97_mixer(). Currently only SoC codec that does so
-		 * is the generic AC97 glue but others migh emerge.
-		 *
-		 * In those cases we don't try to register the device again.
-		 */
-		if (!codec->ac97_created)
-			return 0;
-
-		ret = soc_ac97_dev_register(codec);
-		if (ret < 0) {
-			dev_err(codec->dev,
-				"ASoC: AC97 device register failed: %d\n", ret);
-			return ret;
-		}
-
-		codec->ac97_registered = 1;
-	}
 	return 0;
 }
 
 static void soc_unregister_ac97_codec(struct snd_soc_codec *codec)
 {
-	if (codec->ac97_registered) {
-		soc_ac97_dev_unregister(codec);
-		codec->ac97_registered = 0;
-	}
+	if (!codec->ac97_registered)
+		return;
+	device_del(&codec->ac97->dev);
+	codec->ac97_registered = 0;
 }
 
 static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
