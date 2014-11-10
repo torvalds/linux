@@ -120,8 +120,7 @@ static void __gen7_gt_force_wake_mt_get(struct drm_i915_private *dev_priv,
 		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
 
 	/* WaRsForcewakeWaitTC0:ivb,hsw */
-	if (INTEL_INFO(dev_priv->dev)->gen < 8)
-		__gen6_gt_wait_for_thread_c0(dev_priv);
+	__gen6_gt_wait_for_thread_c0(dev_priv);
 }
 
 static void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
