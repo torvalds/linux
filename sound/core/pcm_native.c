@@ -1101,7 +1101,6 @@ int snd_pcm_drain_done(struct snd_pcm_substream *substream)
 /**
  * snd_pcm_stop_xrun - stop the running streams as XRUN
  * @substream: the PCM substream instance
- * @state: PCM state after stopping the stream
  *
  * This stops the given running substream (and all linked substreams) as XRUN.
  * Unlike snd_pcm_stop(), this function takes the substream lock by itself.
