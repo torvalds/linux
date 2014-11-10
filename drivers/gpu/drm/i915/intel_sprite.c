@@ -1264,10 +1264,11 @@ intel_prepare_sprite_plane(struct drm_plane *plane,
 	struct drm_device *dev = plane->dev;
 	struct drm_crtc *crtc = state->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_plane *intel_plane = to_intel_plane(plane);
 	enum pipe pipe = intel_crtc->pipe;
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
+	struct drm_i915_gem_object *old_obj = intel_plane->obj;
 	int ret;
 
 	if (old_obj != obj) {
@@ -1302,7 +1303,7 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	enum pipe pipe = intel_crtc->pipe;
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
+	struct drm_i915_gem_object *old_obj = intel_plane->obj;
 	int crtc_x, crtc_y;
 	unsigned int crtc_w, crtc_h;
 	uint32_t src_x, src_y, src_w, src_h;
