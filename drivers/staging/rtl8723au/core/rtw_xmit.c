@@ -22,9 +22,6 @@
 #include <usb_ops.h>
 #include <rtl8723a_xmit.h>
 
-static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
-static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
-
 static void _init_txservq(struct tx_servq *ptxservq)
 {
 
@@ -1244,23 +1241,14 @@ exit:
  */
 s32 rtw_put_snap23a(u8 *data, u16 h_proto)
 {
-	struct ieee80211_snap_hdr *snap;
-	u8 *oui;
-
-	snap = (struct ieee80211_snap_hdr *)data;
-	snap->dsap = 0xaa;
-	snap->ssap = 0xaa;
-	snap->ctrl = 0x03;
-
-	if (h_proto == 0x8137 || h_proto == 0x80f3)
-		oui = P802_1H_OUI;
+	if (h_proto == ETH_P_IPX || h_proto == ETH_P_AARP)
+		ether_addr_copy(data, bridge_tunnel_header);
 	else
-		oui = RFC1042_OUI;
-	snap->oui[0] = oui[0];
-	snap->oui[1] = oui[1];
-	snap->oui[2] = oui[2];
-	*(u16 *)(data + SNAP_SIZE) = htons(h_proto);
-	return SNAP_SIZE + sizeof(u16);
+		ether_addr_copy(data, rfc1042_header);
+
+	data += ETH_ALEN;
+	*(__be16 *)data = htons(h_proto);
+	return ETH_ALEN + sizeof(u16);
 }
 
 void rtw_update_protection23a(struct rtw_adapter *padapter, u8 *ie, uint ie_len)
