@@ -100,6 +100,15 @@ static inline struct sk_buff *udp_tunnel_handle_offloads(struct sk_buff *skb,
 	return iptunnel_handle_offloads(skb, udp_csum, type);
 }
 
+static inline void udp_tunnel_gro_complete(struct sk_buff *skb, int nhoff)
+{
+	struct udphdr *uh;
+
+	uh = (struct udphdr *)(skb->data + nhoff - sizeof(struct udphdr));
+	skb_shinfo(skb)->gso_type |= uh->check ?
+				SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
+}
+
 static inline void udp_tunnel_encap_enable(struct socket *sock)
 {
 #if IS_ENABLED(CONFIG_IPV6)

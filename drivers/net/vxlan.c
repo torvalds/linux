@@ -621,6 +621,8 @@ static int vxlan_gro_complete(struct sk_buff *skb, int nhoff)
 	int vxlan_len  = sizeof(struct vxlanhdr) + sizeof(struct ethhdr);
 	int err = -ENOSYS;
 
+	udp_tunnel_gro_complete(skb, nhoff);
+
 	eh = (struct ethhdr *)(skb->data + nhoff + sizeof(struct vxlanhdr));
 	type = eh->h_proto;
 
