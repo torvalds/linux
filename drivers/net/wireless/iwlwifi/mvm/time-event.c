@@ -191,6 +191,33 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 	return true;
 }
 
+static void
+iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
+			     struct iwl_mvm_time_event_data *te_data,
+			     struct iwl_time_event_notif *notif)
+{
+	if (!le32_to_cpu(notif->status)) {
+		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
+		return;
+	}
+
+	switch (te_data->vif->type) {
+	case NL80211_IFTYPE_AP:
+		iwl_mvm_csa_noa_start(mvm);
+		break;
+	case NL80211_IFTYPE_STATION:
+		iwl_mvm_csa_client_absent(mvm, te_data->vif);
+		break;
+	default:
+		/* should never happen */
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+	/* we don't need it anymore */
+	iwl_mvm_te_clear_data(mvm, te_data);
+}
+
 /*
  * Handles a FW notification for an event that is known to the driver.
  *
@@ -252,14 +279,8 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
 			iwl_mvm_ref(mvm, IWL_MVM_REF_ROC);
 			ieee80211_ready_on_channel(mvm->hw);
-		} else if (te_data->vif->type == NL80211_IFTYPE_AP) {
-			if (le32_to_cpu(notif->status))
-				iwl_mvm_csa_noa_start(mvm);
-			else
-				IWL_DEBUG_TE(mvm, "CSA NOA failed to start\n");
-
-			/* we don't need it anymore */
-			iwl_mvm_te_clear_data(mvm, te_data);
+		} else if (te_data->id == TE_CHANNEL_SWITCH_PERIOD) {
+			iwl_mvm_te_handle_notify_csa(mvm, te_data, notif);
 		}
 	} else {
 		IWL_WARN(mvm, "Got TE with unknown action\n");

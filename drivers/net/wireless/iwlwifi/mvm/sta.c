@@ -1732,3 +1732,18 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 		iwl_mvm_sta_modify_disable_tx_ap(mvm, sta, disable);
 	}
 }
+
+void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_sta *mvmsta;
+
+	rcu_read_lock();
+
+	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, mvmvif->ap_sta_id);
+
+	if (!WARN_ON(!mvmsta))
+		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, true);
+
+	rcu_read_unlock();
+}
