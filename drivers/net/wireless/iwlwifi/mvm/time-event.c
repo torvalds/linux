@@ -198,6 +198,7 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 {
 	if (!le32_to_cpu(notif->status)) {
 		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
+		iwl_mvm_te_clear_data(mvm, te_data);
 		return;
 	}
 
