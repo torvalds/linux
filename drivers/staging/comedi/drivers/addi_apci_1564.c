@@ -28,7 +28,6 @@
 
 #include "../comedidev.h"
 #include "comedi_fc.h"
-#include "amcc_s5933.h"
 #include "addi_watchdog.h"
 
 struct apci1564_private {
@@ -79,11 +78,6 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 	unsigned int status;
 	unsigned int ctrl;
 	unsigned int chan;
-
-	/* check interrupt is from this device */
-	if ((inl(devpriv->amcc_iobase + AMCC_OP_REG_INTCSR) &
-	     INTCSR_INTR_ASSERTED) == 0)
-		return IRQ_NONE;
 
 	status = inl(devpriv->amcc_iobase + APCI1564_DI_IRQ_REG);
 	if (status & APCI1564_DI_INT_ENABLE) {
