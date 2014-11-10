@@ -1557,52 +1557,31 @@ extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
 extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
 extern int drbd_connected(struct drbd_peer_device *);
 
-/* Yes, there is kernel_setsockopt, but only since 2.6.18.
- * So we have our own copy of it here. */
-static inline int drbd_setsockopt(struct socket *sock, int level, int optname,
-				  char *optval, int optlen)
-{
-	mm_segment_t oldfs = get_fs();
-	char __user *uoptval;
-	int err;
-
-	uoptval = (char __user __force *)optval;
-
-	set_fs(KERNEL_DS);
-	if (level == SOL_SOCKET)
-		err = sock_setsockopt(sock, level, optname, uoptval, optlen);
-	else
-		err = sock->ops->setsockopt(sock, level, optname, uoptval,
-					    optlen);
-	set_fs(oldfs);
-	return err;
-}
-
 static inline void drbd_tcp_cork(struct socket *sock)
 {
 	int val = 1;
-	(void) drbd_setsockopt(sock, SOL_TCP, TCP_CORK,
+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
 			(char*)&val, sizeof(val));
 }
 
 static inline void drbd_tcp_uncork(struct socket *sock)
 {
 	int val = 0;
-	(void) drbd_setsockopt(sock, SOL_TCP, TCP_CORK,
+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
 			(char*)&val, sizeof(val));
 }
 
 static inline void drbd_tcp_nodelay(struct socket *sock)
 {
 	int val = 1;
-	(void) drbd_setsockopt(sock, SOL_TCP, TCP_NODELAY,
+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
 			(char*)&val, sizeof(val));
 }
 
 static inline void drbd_tcp_quickack(struct socket *sock)
 {
 	int val = 2;
-	(void) drbd_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
 			(char*)&val, sizeof(val));
 }
 
