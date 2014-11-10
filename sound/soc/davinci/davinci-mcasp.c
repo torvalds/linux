@@ -490,8 +490,17 @@ static int davinci_config_channel_size(struct davinci_mcasp *mcasp,
 	 * both left and right channels), so it has to be divided by number of
 	 * tdm-slots (for I2S - divided by 2).
 	 */
-	if (mcasp->bclk_lrclk_ratio)
-		word_length = mcasp->bclk_lrclk_ratio / mcasp->tdm_slots;
+	if (mcasp->bclk_lrclk_ratio) {
+		u32 slot_length = mcasp->bclk_lrclk_ratio / mcasp->tdm_slots;
+
+		/*
+		 * When we have more bclk then it is needed for the data, we
+		 * need to use the rotation to move the received samples to have
+		 * correct alignment.
+		 */
+		rx_rotate = (slot_length - word_length) / 4;
+		word_length = slot_length;
+	}
 
 	/* mapping of the XSSZ bit-field as described in the datasheet */
 	fmt = (word_length >> 1) - 1;
