@@ -595,7 +595,7 @@ static int ivtv_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 		fmt->fmt.pix.width /= 2;
 	mbus_fmt.width = fmt->fmt.pix.width;
 	mbus_fmt.height = h;
-	mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
+	mbus_fmt.code = MEDIA_BUS_FMT_FIXED;
 	v4l2_subdev_call(itv->sd_video, video, s_mbus_fmt, &mbus_fmt);
 	return ivtv_g_fmt_vid_cap(file, fh, fmt);
 }
