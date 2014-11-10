@@ -82,7 +82,7 @@ static int vss_operate(int operation)
 	FILE *mounts;
 	struct mntent *ent;
 	unsigned int cmd;
-	int error = 0, root_seen = 0;
+	int error = 0, root_seen = 0, save_errno = 0;
 
 	switch (operation) {
 	case VSS_OP_FREEZE:
@@ -114,7 +114,6 @@ static int vss_operate(int operation)
 		if (error && operation == VSS_OP_FREEZE)
 			goto err;
 	}
-	endmntent(mounts);
 
 	if (root_seen) {
 		error |= vss_do_freeze("/", cmd);
@@ -122,10 +121,19 @@ static int vss_operate(int operation)
 			goto err;
 	}
 
-	return error;
+	goto out;
 err:
-	endmntent(mounts);
+	save_errno = errno;
 	vss_operate(VSS_OP_THAW);
+	/* Call syslog after we thaw all filesystems */
+	if (ent)
+		syslog(LOG_ERR, "FREEZE of %s failed; error:%d %s",
+		       ent->mnt_dir, save_errno, strerror(save_errno));
+	else
+		syslog(LOG_ERR, "FREEZE of / failed; error:%d %s", save_errno,
+		       strerror(save_errno));
+out:
+	endmntent(mounts);
 	return error;
 }
 
