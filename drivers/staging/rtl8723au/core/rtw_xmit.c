@@ -1291,7 +1291,7 @@ void rtw_count_tx_stats23a(struct rtw_adapter *padapter, struct xmit_frame *pxmi
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 
-	if ((pxmitframe->frame_tag&0x0f) == DATA_FRAMETAG) {
+	if (pxmitframe->frame_tag == DATA_FRAMETAG) {
 		pxmitpriv->tx_bytes += sz;
 		pmlmepriv->LinkDetectInfo.NumTxOkInPeriod++;
 

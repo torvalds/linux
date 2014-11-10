@@ -163,7 +163,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 
 	memset(ptxdesc, 0, sizeof(struct tx_desc));
 
-	if ((pxmitframe->frame_tag&0x0f) == DATA_FRAMETAG) {
+	if (pxmitframe->frame_tag == DATA_FRAMETAG) {
 		/* offset 4 */
 		ptxdesc->txdw1 |= cpu_to_le32(pattrib->mac_id&0x1f);
 
@@ -215,7 +215,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 
 			ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate23a(pmlmeext->tx_rate));
 		}
-	} else if ((pxmitframe->frame_tag&0x0f) == MGNT_FRAMETAG) {
+	} else if (pxmitframe->frame_tag == MGNT_FRAMETAG) {
 		/* offset 4 */
 		ptxdesc->txdw1 |= cpu_to_le32(pattrib->mac_id&0x1f);
 
@@ -240,10 +240,11 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 		ptxdesc->txdw5 |= cpu_to_le32(0x00180000);/* retry limit = 6 */
 
 		ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate23a(pmlmeext->tx_rate));
-	} else if ((pxmitframe->frame_tag&0x0f) == TXAGG_FRAMETAG) {
+	} else if (pxmitframe->frame_tag == TXAGG_FRAMETAG) {
 		DBG_8723A("pxmitframe->frame_tag == TXAGG_FRAMETAG\n");
 	} else {
-		DBG_8723A("pxmitframe->frame_tag = %d\n", pxmitframe->frame_tag);
+		DBG_8723A("pxmitframe->frame_tag = %d\n",
+			  pxmitframe->frame_tag);
 
 		/* offset 4 */
 		ptxdesc->txdw1 |= cpu_to_le32((4)&0x1f);/* CAM_ID(MAC_ID) */
@@ -392,7 +393,7 @@ bool rtl8723au_xmitframe_complete(struct rtw_adapter *padapter,
 
 		pxmitbuf->priv_data = pxmitframe;
 
-		if ((pxmitframe->frame_tag&0x0f) == DATA_FRAMETAG) {
+		if (pxmitframe->frame_tag == DATA_FRAMETAG) {
 			if (pxmitframe->attrib.priority <= 15)/* TID0~15 */
 				res = rtw_xmitframe_coalesce23a(padapter, pxmitframe->pkt, pxmitframe);
 
