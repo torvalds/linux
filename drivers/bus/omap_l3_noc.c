@@ -222,10 +222,14 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 			}
 
 			/* Error found so break the for loop */
-			break;
+			return IRQ_HANDLED;
 		}
 	}
-	return IRQ_HANDLED;
+
+	dev_err(l3->dev, "L3 %s IRQ not handled!!\n",
+		inttype ? "debug" : "application");
+
+	return IRQ_NONE;
 }
 
 static const struct of_device_id l3_noc_match[] = {
