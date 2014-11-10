@@ -831,15 +831,15 @@ static int vivid_streaming_s_ctrl(struct v4l2_ctrl *ctrl)
 		dev->start_streaming_error = true;
 		break;
 	case VIVID_CID_QUEUE_ERROR:
-		if (dev->vb_vid_cap_q.start_streaming_called)
+		if (vb2_start_streaming_called(&dev->vb_vid_cap_q))
 			vb2_queue_error(&dev->vb_vid_cap_q);
-		if (dev->vb_vbi_cap_q.start_streaming_called)
+		if (vb2_start_streaming_called(&dev->vb_vbi_cap_q))
 			vb2_queue_error(&dev->vb_vbi_cap_q);
-		if (dev->vb_vid_out_q.start_streaming_called)
+		if (vb2_start_streaming_called(&dev->vb_vid_out_q))
 			vb2_queue_error(&dev->vb_vid_out_q);
-		if (dev->vb_vbi_out_q.start_streaming_called)
+		if (vb2_start_streaming_called(&dev->vb_vbi_out_q))
 			vb2_queue_error(&dev->vb_vbi_out_q);
-		if (dev->vb_sdr_cap_q.start_streaming_called)
+		if (vb2_start_streaming_called(&dev->vb_sdr_cap_q))
 			vb2_queue_error(&dev->vb_sdr_cap_q);
 		break;
 	case VIVID_CID_SEQ_WRAP:
