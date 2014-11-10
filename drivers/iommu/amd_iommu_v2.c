@@ -272,10 +272,8 @@ static void free_pasid_state(struct pasid_state *pasid_state)
 
 static void put_pasid_state(struct pasid_state *pasid_state)
 {
-	if (atomic_dec_and_test(&pasid_state->count)) {
-		put_device_state(pasid_state->device_state);
+	if (atomic_dec_and_test(&pasid_state->count))
 		wake_up(&pasid_state->wq);
-	}
 }
 
 static void put_pasid_state_wait(struct pasid_state *pasid_state)
@@ -284,9 +282,7 @@ static void put_pasid_state_wait(struct pasid_state *pasid_state)
 
 	prepare_to_wait(&pasid_state->wq, &wait, TASK_UNINTERRUPTIBLE);
 
-	if (atomic_dec_and_test(&pasid_state->count))
-		put_device_state(pasid_state->device_state);
-	else
+	if (!atomic_dec_and_test(&pasid_state->count))
 		schedule();
 
 	finish_wait(&pasid_state->wq, &wait);
