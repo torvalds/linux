@@ -37,15 +37,15 @@
 
 /* ipipe input format's */
 static const unsigned int ipipe_input_fmts[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_SGRBG12_1X12,
-	V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8,
-	V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_SGRBG12_1X12,
+	MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
+	MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8,
 };
 
 /* ipipe output format's */
 static const unsigned int ipipe_output_fmts[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
 };
 
 static int ipipe_validate_lutdpc_params(struct vpfe_ipipe_lutdpc *lutdpc)
@@ -1457,7 +1457,7 @@ ipipe_try_format(struct vpfe_ipipe_device *ipipe,
 
 		/* If not found, use SBGGR10 as default */
 		if (i >= ARRAY_SIZE(ipipe_input_fmts))
-			fmt->code = V4L2_MBUS_FMT_SGRBG12_1X12;
+			fmt->code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	} else if (pad == IPIPE_PAD_SOURCE) {
 		for (i = 0; i < ARRAY_SIZE(ipipe_output_fmts); i++)
 			if (fmt->code == ipipe_output_fmts[i])
@@ -1465,7 +1465,7 @@ ipipe_try_format(struct vpfe_ipipe_device *ipipe,
 
 		/* If not found, use UYVY as default */
 		if (i >= ARRAY_SIZE(ipipe_output_fmts))
-			fmt->code = V4L2_MBUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	}
 
 	fmt->width = clamp_t(u32, fmt->width, MIN_OUT_HEIGHT, max_out_width);
@@ -1642,7 +1642,7 @@ ipipe_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPE_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG12_1X12;
+	format.format.code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 	format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
 	ipipe_set_format(sd, fh, &format);
@@ -1650,7 +1650,7 @@ ipipe_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPE_PAD_SOURCE;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_UYVY8_2X8;
+	format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 	format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 	format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
 	ipipe_set_format(sd, fh, &format);

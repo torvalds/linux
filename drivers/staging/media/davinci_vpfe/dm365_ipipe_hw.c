@@ -196,12 +196,12 @@ ipipe_setup_resizer(void *__iomem rsz_base, struct resizer_params *params)
 		rsz_set_rsz_regs(rsz_base, RSZ_B, params);
 }
 
-static u32 ipipe_get_color_pat(enum v4l2_mbus_pixelcode pix)
+static u32 ipipe_get_color_pat(u32 pix)
 {
 	switch (pix) {
-	case V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8:
-	case V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8:
-	case V4L2_MBUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
 		return ipipe_sgrbg_pattern;
 
 	default:
@@ -211,23 +211,23 @@ static u32 ipipe_get_color_pat(enum v4l2_mbus_pixelcode pix)
 
 static int ipipe_get_data_path(struct vpfe_ipipe_device *ipipe)
 {
-	enum v4l2_mbus_pixelcode temp_pix_fmt;
+	u32 temp_pix_fmt;
 
 	switch (ipipe->formats[IPIPE_PAD_SINK].code) {
-	case V4L2_MBUS_FMT_SBGGR8_1X8:
-	case V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8:
-	case V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8:
-	case V4L2_MBUS_FMT_SGRBG12_1X12:
-		temp_pix_fmt = V4L2_MBUS_FMT_SGRBG12_1X12;
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
+		temp_pix_fmt = MEDIA_BUS_FMT_SGRBG12_1X12;
 		break;
 
 	default:
-		temp_pix_fmt = V4L2_MBUS_FMT_UYVY8_2X8;
+		temp_pix_fmt = MEDIA_BUS_FMT_UYVY8_2X8;
 	}
 
-	if (temp_pix_fmt == V4L2_MBUS_FMT_SGRBG12_1X12) {
+	if (temp_pix_fmt == MEDIA_BUS_FMT_SGRBG12_1X12) {
 		if (ipipe->formats[IPIPE_PAD_SOURCE].code ==
-			V4L2_MBUS_FMT_SGRBG12_1X12)
+			MEDIA_BUS_FMT_SGRBG12_1X12)
 			return IPIPE_RAW2RAW;
 		return IPIPE_RAW2YUV;
 	}

@@ -27,13 +27,13 @@
 #define MAX_HEIGHT	4096
 
 static const unsigned int isif_fmts[] = {
-	V4L2_MBUS_FMT_YUYV8_2X8,
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_YUYV8_1X16,
-	V4L2_MBUS_FMT_YUYV10_1X20,
-	V4L2_MBUS_FMT_SGRBG12_1X12,
-	V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8,
-	V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8,
+	MEDIA_BUS_FMT_YUYV8_2X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_YUYV10_1X20,
+	MEDIA_BUS_FMT_SGRBG12_1X12,
+	MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8,
+	MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
 };
 
 #define ISIF_COLPTN_R_Ye	0x0
@@ -154,7 +154,7 @@ enum v4l2_field vpfe_isif_get_fid(struct vpfe_device *vpfe_dev)
 static int
 isif_set_pixel_format(struct vpfe_isif_device *isif, unsigned int pixfmt)
 {
-	if (isif->formats[ISIF_PAD_SINK].code == V4L2_MBUS_FMT_SGRBG12_1X12) {
+	if (isif->formats[ISIF_PAD_SINK].code == MEDIA_BUS_FMT_SGRBG12_1X12) {
 		if (pixfmt == V4L2_PIX_FMT_SBGGR16)
 			isif->isif_cfg.data_pack = ISIF_PACK_16BIT;
 		else if ((pixfmt == V4L2_PIX_FMT_SGRBG10DPCM8) ||
@@ -184,7 +184,7 @@ static int
 isif_set_frame_format(struct vpfe_isif_device *isif,
 		      enum isif_frmfmt frm_fmt)
 {
-	if (isif->formats[ISIF_PAD_SINK].code == V4L2_MBUS_FMT_SGRBG12_1X12)
+	if (isif->formats[ISIF_PAD_SINK].code == MEDIA_BUS_FMT_SGRBG12_1X12)
 		isif->isif_cfg.bayer.frm_fmt = frm_fmt;
 	else
 		isif->isif_cfg.ycbcr.frm_fmt = frm_fmt;
@@ -196,7 +196,7 @@ static int isif_set_image_window(struct vpfe_isif_device *isif)
 {
 	struct v4l2_rect *win = &isif->crop;
 
-	if (isif->formats[ISIF_PAD_SINK].code == V4L2_MBUS_FMT_SGRBG12_1X12) {
+	if (isif->formats[ISIF_PAD_SINK].code == MEDIA_BUS_FMT_SGRBG12_1X12) {
 		isif->isif_cfg.bayer.win.top = win->top;
 		isif->isif_cfg.bayer.win.left = win->left;
 		isif->isif_cfg.bayer.win.width = win->width;
@@ -214,7 +214,7 @@ static int isif_set_image_window(struct vpfe_isif_device *isif)
 static int
 isif_set_buftype(struct vpfe_isif_device *isif, enum isif_buftype buf_type)
 {
-	if (isif->formats[ISIF_PAD_SINK].code == V4L2_MBUS_FMT_SGRBG12_1X12)
+	if (isif->formats[ISIF_PAD_SINK].code == MEDIA_BUS_FMT_SGRBG12_1X12)
 		isif->isif_cfg.bayer.buf_type = buf_type;
 	else
 		isif->isif_cfg.ycbcr.buf_type = buf_type;
@@ -296,7 +296,7 @@ isif_try_format(struct vpfe_isif_device *isif, struct v4l2_subdev_fh *fh,
 
 	/* If not found, use YUYV8_2x8 as default */
 	if (i >= ARRAY_SIZE(isif_fmts))
-		fmt->format.code = V4L2_MBUS_FMT_YUYV8_2X8;
+		fmt->format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 
 	/* Clamp the size. */
 	fmt->format.width = clamp_t(u32, width, 32, MAX_WIDTH);
@@ -429,7 +429,7 @@ static int isif_get_params(struct v4l2_subdev *sd, void *params)
 	struct vpfe_isif_device *isif = v4l2_get_subdevdata(sd);
 
 	/* only raw module parameters can be set through the IOCTL */
-	if (isif->formats[ISIF_PAD_SINK].code != V4L2_MBUS_FMT_SGRBG12_1X12)
+	if (isif->formats[ISIF_PAD_SINK].code != MEDIA_BUS_FMT_SGRBG12_1X12)
 		return -EINVAL;
 	memcpy(params, &isif->isif_cfg.bayer.config_params,
 			sizeof(isif->isif_cfg.bayer.config_params));
@@ -604,7 +604,7 @@ static int isif_set_params(struct v4l2_subdev *sd, void *params)
 	int ret = -EINVAL;
 
 	/* only raw module parameters can be set through the IOCTL */
-	if (isif->formats[ISIF_PAD_SINK].code != V4L2_MBUS_FMT_SGRBG12_1X12)
+	if (isif->formats[ISIF_PAD_SINK].code != MEDIA_BUS_FMT_SGRBG12_1X12)
 		return ret;
 
 	memcpy(&isif_raw_params, params, sizeof(isif_raw_params));
@@ -1041,19 +1041,19 @@ isif_config_culling(struct vpfe_isif_device *isif, struct vpfe_isif_cul *cul)
 static int isif_get_pix_fmt(u32 mbus_code)
 {
 	switch (mbus_code) {
-	case V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8:
-	case V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8:
-	case V4L2_MBUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
 		return ISIF_PIXFMT_RAW;
 
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_UYVY8_2X8:
-	case V4L2_MBUS_FMT_YUYV10_2X10:
-	case V4L2_MBUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_YUYV10_2X10:
+	case MEDIA_BUS_FMT_Y8_1X8:
 		return ISIF_PIXFMT_YCBCR_8BIT;
 
-	case V4L2_MBUS_FMT_YUYV8_1X16:
-	case V4L2_MBUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
 		return ISIF_PIXFMT_YCBCR_16BIT;
 
 	default:
@@ -1121,11 +1121,11 @@ static int isif_config_raw(struct v4l2_subdev *sd, int mode)
 	      ISIF_FRM_FMT_MASK) << ISIF_FRM_FMT_SHIFT) | ((pix_fmt &
 	      ISIF_INPUT_MASK) << ISIF_INPUT_SHIFT);
 
-	/* currently only V4L2_MBUS_FMT_SGRBG12_1X12 is
+	/* currently only MEDIA_BUS_FMT_SGRBG12_1X12 is
 	 * supported. shift appropriately depending on
 	 * different MBUS fmt's added
 	 */
-	if (format->code == V4L2_MBUS_FMT_SGRBG12_1X12)
+	if (format->code == MEDIA_BUS_FMT_SGRBG12_1X12)
 		val |= ((VPFE_ISIF_NO_SHIFT &
 			ISIF_DATASFT_MASK) << ISIF_DATASFT_SHIFT);
 
@@ -1154,7 +1154,7 @@ static int isif_config_raw(struct v4l2_subdev *sd, int mode)
 	/* Configure Gain & Offset */
 	isif_config_gain_offset(isif);
 	/* Configure Color pattern */
-	if (format->code == V4L2_MBUS_FMT_SGRBG12_1X12)
+	if (format->code == MEDIA_BUS_FMT_SGRBG12_1X12)
 		val = isif_sgrbg_pattern;
 	else
 		/* default set to rggb */
@@ -1254,8 +1254,8 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 		  (((params->vd_pol & ISIF_VD_POL_MASK) << ISIF_VD_POL_SHIFT));
 	/* pack the data to 8-bit CCDCCFG */
 	switch (format->code) {
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		if (pix_fmt != ISIF_PIXFMT_YCBCR_8BIT) {
 			pr_debug("Invalid pix_fmt(input mode)\n");
 			return -EINVAL;
@@ -1266,7 +1266,7 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 		ccdcfg = ccdcfg | ISIF_PACK_8BIT | ISIF_YCINSWP_YCBCR;
 		break;
 
-	case V4L2_MBUS_FMT_YUYV10_2X10:
+	case MEDIA_BUS_FMT_YUYV10_2X10:
 		if (pix_fmt != ISIF_PIXFMT_YCBCR_8BIT) {
 			pr_debug("Invalid pix_fmt(input mode)\n");
 			return -EINVAL;
@@ -1278,7 +1278,7 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 			ISIF_BW656_ENABLE;
 		break;
 
-	case V4L2_MBUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
 		if (pix_fmt != ISIF_PIXFMT_YCBCR_16BIT) {
 			pr_debug("Invalid pix_fmt(input mode)\n");
 			return -EINVAL;
@@ -1286,7 +1286,7 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 		isif_write(isif->isif_cfg.base_addr, 3, REC656IF);
 		break;
 
-	case V4L2_MBUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
 		ccdcfg |= ISIF_PACK_8BIT;
 		ccdcfg |= ISIF_YCINSWP_YCBCR;
 		if (pix_fmt != ISIF_PIXFMT_YCBCR_8BIT) {
@@ -1295,7 +1295,7 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 		}
 		break;
 
-	case V4L2_MBUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 		if (pix_fmt != ISIF_PIXFMT_YCBCR_16BIT) {
 			pr_debug("Invalid pix_fmt(input mode)\n");
 			return -EINVAL;
@@ -1313,8 +1313,8 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 		ISIF_PIX_ORDER_SHIFT;
 	isif_write(isif->isif_cfg.base_addr, ccdcfg, CCDCFG);
 	/* configure video window */
-	if (format->code == V4L2_MBUS_FMT_YUYV10_1X20 ||
-			format->code == V4L2_MBUS_FMT_YUYV8_1X16)
+	if (format->code == MEDIA_BUS_FMT_YUYV10_1X20 ||
+			format->code == MEDIA_BUS_FMT_YUYV8_1X16)
 		isif_setwin(isif, &params->win, params->frm_fmt, 1, mode);
 	else
 		isif_setwin(isif, &params->win, params->frm_fmt, 2, mode);
@@ -1345,17 +1345,17 @@ static int isif_configure(struct v4l2_subdev *sd, int mode)
 	format = &isif->formats[ISIF_PAD_SINK];
 
 	switch (format->code) {
-	case V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8:
-	case V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8:
-	case V4L2_MBUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
 		return isif_config_raw(sd, mode);
 
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_UYVY8_2X8:
-	case V4L2_MBUS_FMT_YUYV10_2X10:
-	case V4L2_MBUS_FMT_Y8_1X8:
-	case V4L2_MBUS_FMT_YUYV8_1X16:
-	case V4L2_MBUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_YUYV10_2X10:
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
 		return isif_config_ycbcr(sd, mode);
 
 	default:
@@ -1630,7 +1630,7 @@ isif_init_formats(struct v4l2_subdev *sd,
 	memset(&format, 0, sizeof(format));
 	format.pad = ISIF_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG12_1X12;
+	format.format.code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	format.format.width = MAX_WIDTH;
 	format.format.height = MAX_HEIGHT;
 	isif_set_format(sd, fh, &format);
@@ -1638,7 +1638,7 @@ isif_init_formats(struct v4l2_subdev *sd,
 	memset(&format, 0, sizeof(format));
 	format.pad = ISIF_PAD_SOURCE;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG12_1X12;
+	format.format.code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	format.format.width = MAX_WIDTH;
 	format.format.height = MAX_HEIGHT;
 	isif_set_format(sd, fh, &format);

@@ -43,10 +43,10 @@ struct v4l2_pix_format;
  * @description: Human-readable format description
  */
 struct iss_format_info {
-	enum v4l2_mbus_pixelcode code;
-	enum v4l2_mbus_pixelcode truncated;
-	enum v4l2_mbus_pixelcode uncompressed;
-	enum v4l2_mbus_pixelcode flavor;
+	u32 code;
+	u32 truncated;
+	u32 uncompressed;
+	u32 flavor;
 	u32 pixelformat;
 	unsigned int bpp;
 	const char *description;
@@ -199,6 +199,6 @@ void omap4iss_video_cancel_stream(struct iss_video *video);
 struct media_pad *omap4iss_video_remote_pad(struct iss_video *video);
 
 const struct iss_format_info *
-omap4iss_video_format_info(enum v4l2_mbus_pixelcode code);
+omap4iss_video_format_info(u32 code);
 
 #endif /* OMAP4_ISS_VIDEO_H */

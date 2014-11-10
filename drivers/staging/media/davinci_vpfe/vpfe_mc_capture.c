@@ -99,47 +99,47 @@ void mbus_to_pix(const struct v4l2_mbus_framefmt *mbus,
 			   struct v4l2_pix_format *pix)
 {
 	switch (mbus->code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		pix->pixelformat = V4L2_PIX_FMT_UYVY;
 		pix->bytesperline = pix->width * 2;
 		break;
 
-	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
 		pix->pixelformat = V4L2_PIX_FMT_YUYV;
 		pix->bytesperline = pix->width * 2;
 		break;
 
-	case V4L2_MBUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
 		pix->pixelformat = V4L2_PIX_FMT_UYVY;
 		pix->bytesperline = pix->width * 2;
 		break;
 
-	case V4L2_MBUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
 		pix->pixelformat = V4L2_PIX_FMT_SBGGR16;
 		pix->bytesperline = pix->width * 2;
 		break;
 
-	case V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8:
 		pix->pixelformat = V4L2_PIX_FMT_SGRBG10DPCM8;
 		pix->bytesperline = pix->width;
 		break;
 
-	case V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8:
 		pix->pixelformat = V4L2_PIX_FMT_SGRBG10ALAW8;
 		pix->bytesperline = pix->width;
 		break;
 
-	case V4L2_MBUS_FMT_YDYUYDYV8_1X16:
+	case MEDIA_BUS_FMT_YDYUYDYV8_1X16:
 		pix->pixelformat = V4L2_PIX_FMT_NV12;
 		pix->bytesperline = pix->width;
 		break;
 
-	case V4L2_MBUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
 		pix->pixelformat = V4L2_PIX_FMT_GREY;
 		pix->bytesperline = pix->width;
 		break;
 
-	case V4L2_MBUS_FMT_UV8_1X8:
+	case MEDIA_BUS_FMT_UV8_1X8:
 		pix->pixelformat = V4L2_PIX_FMT_UV8;
 		pix->bytesperline = pix->width;
 		break;
