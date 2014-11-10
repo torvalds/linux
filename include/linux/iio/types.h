@@ -86,6 +86,7 @@ enum iio_event_direction {
 	IIO_EV_DIR_EITHER,
 	IIO_EV_DIR_RISING,
 	IIO_EV_DIR_FALLING,
+	IIO_EV_DIR_NONE,
 };
 
 #define IIO_VAL_INT 1
