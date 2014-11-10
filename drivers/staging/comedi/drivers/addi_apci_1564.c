@@ -30,7 +30,44 @@
 #include "comedi_fc.h"
 #include "addi_watchdog.h"
 
+/*
+ * PCI BAR 0
+ *
+ * PLD Revision 1.0 I/O Mapping
+ *   0x00         93C76 EEPROM
+ *   0x04 - 0x18  Timer 12-Bit
+ *
+ * PLD Revision 2.x I/O Mapping
+ *   0x00         93C76 EEPROM
+ *   0x04 - 0x14  Digital Input
+ *   0x18 - 0x25  Digital Output
+ *   0x28 - 0x44  Watchdog 8-Bit
+ *   0x48 - 0x64  Timer 12-Bit
+ */
+#define APCI1564_EEPROM_REG			0x00
+#define APCI1564_EEPROM_VCC_STATUS		(1 << 8)
+#define APCI1564_EEPROM_TO_REV(x)		(((x) >> 4) & 0xf)
+#define APCI1564_EEPROM_DI			(1 << 3)
+#define APCI1564_EEPROM_DO			(1 << 2)
+#define APCI1564_EEPROM_CS			(1 << 1)
+#define APCI1564_EEPROM_CLK			(1 << 0)
+
+/*
+ * PCI BAR 1
+ *
+ * PLD Revision 1.0 I/O Mapping
+ *   0x00 - 0x10  Digital Input
+ *   0x14 - 0x20  Digital Output
+ *   0x24 - 0x3c  Watchdog 8-Bit
+ *
+ * PLD Revision 2.x I/O Mapping
+ *   0x00         Counter_0
+ *   0x20         Counter_1
+ *   0x30         Counter_3
+ */
+
 struct apci1564_private {
+	unsigned long eeprom;		/* base address of EEPROM register */
 	unsigned long counters;		/* base address of 32-bit counters */
 	unsigned int mode1;		/* riding-edge/high level channels */
 	unsigned int mode2;		/* falling-edge/low level channels */
@@ -352,6 +389,7 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct apci1564_private *devpriv;
 	struct comedi_subdevice *s;
+	unsigned int val;
 	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -362,9 +400,19 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/* PLD Revision 2.x I/O Mapping */
-	dev->iobase = pci_resource_start(pcidev, 0);
-	devpriv->counters = pci_resource_start(pcidev, 1);
+	/* read the EEPROM register and check the I/O map revision */
+	devpriv->eeprom = pci_resource_start(pcidev, 0);
+	val = inl(devpriv->eeprom + APCI1564_EEPROM_REG);
+	if (APCI1564_EEPROM_TO_REV(val) == 0) {
+		/* PLD Revision 1.0 I/O Mapping */
+		dev_err(dev->class_dev,
+			"PLD Revision 1.0 detected, not yet supported\n");
+		return -ENXIO;
+	} else {
+		/* PLD Revision 2.x I/O Mapping */
+		dev->iobase = devpriv->eeprom;
+		devpriv->counters = pci_resource_start(pcidev, 1);
+	}
 
 	apci1564_reset(dev);
 
