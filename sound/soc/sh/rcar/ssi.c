@@ -159,7 +159,8 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 				ssi->cr_clk	= FORCE | SWL_32 |
 						  SCKD | SWSD | CKDV(j);
 
-				dev_dbg(dev, "ssi%d outputs %u Hz\n",
+				dev_dbg(dev, "%s[%d] outputs %u Hz\n",
+					rsnd_mod_name(&ssi->mod),
 					rsnd_mod_id(&ssi->mod), rate);
 
 				return 0;
@@ -206,7 +207,8 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 
 	ssi->usrcnt++;
 
-	dev_dbg(dev, "ssi%d hw started\n", rsnd_mod_id(&ssi->mod));
+	dev_dbg(dev, "%s[%d] hw started\n",
+		rsnd_mod_name(&ssi->mod), rsnd_mod_id(&ssi->mod));
 }
 
 static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
@@ -249,7 +251,8 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 		clk_disable_unprepare(ssi->clk);
 	}
 
-	dev_dbg(dev, "ssi%d hw stopped\n", rsnd_mod_id(&ssi->mod));
+	dev_dbg(dev, "%s[%d] hw stopped\n",
+		rsnd_mod_name(&ssi->mod), rsnd_mod_id(&ssi->mod));
 }
 
 /*
@@ -385,9 +388,11 @@ static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
 			       IRQF_SHARED,
 			       dev_name(dev), ssi);
 	if (ret)
-		dev_err(dev, "SSI request interrupt failed\n");
-
-	dev_dbg(dev, "%s (PIO) is probed\n", rsnd_mod_name(mod));
+		dev_err(dev, "%s[%d] (PIO) request interrupt failed\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
+	else
+		dev_dbg(dev, "%s[%d] (PIO) is probed\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return ret;
 }
@@ -448,9 +453,11 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 		dma_id);
 
 	if (ret < 0)
-		dev_err(dev, "SSI DMA failed\n");
-
-	dev_dbg(dev, "%s (DMA) is probed\n", rsnd_mod_name(mod));
+		dev_err(dev, "%s[%d] (DMA) is failed\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
+	else
+		dev_dbg(dev, "%s[%d] (DMA) is probed\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return ret;
 }

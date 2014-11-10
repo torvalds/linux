@@ -85,7 +85,8 @@ static int rsnd_dvc_probe_gen2(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	dev_dbg(dev, "%s (Gen2) is probed\n", rsnd_mod_name(mod));
+	dev_dbg(dev, "%s[%d] (Gen2) is probed\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return 0;
 }

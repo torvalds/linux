@@ -438,7 +438,8 @@ static int rsnd_src_probe_gen1(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	dev_dbg(dev, "%s (Gen1) is probed\n", rsnd_mod_name(mod));
+	dev_dbg(dev, "%s[%d] (Gen1) is probed\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return 0;
 }
@@ -578,9 +579,11 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 			    rsnd_info_is_playback(priv, src),
 			    src->info->dma_id);
 	if (ret < 0)
-		dev_err(dev, "SRC DMA failed\n");
-
-	dev_dbg(dev, "%s (Gen2) is probed\n", rsnd_mod_name(mod));
+		dev_err(dev, "%s[%d] (Gen2) failed\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
+	else
+		dev_dbg(dev, "%s[%d] (Gen2) is probed\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return ret;
 }

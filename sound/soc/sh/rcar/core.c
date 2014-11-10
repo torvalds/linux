@@ -409,7 +409,7 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 ({								\
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
 	struct device *dev = rsnd_priv_to_dev(priv);		\
-	dev_dbg(dev, "%s [%d] %s\n",				\
+	dev_dbg(dev, "%s[%d] %s\n",				\
 		rsnd_mod_name(mod), rsnd_mod_id(mod), #func);	\
 	(mod)->ops->func(mod, rdai);				\
 })
