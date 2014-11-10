@@ -2841,23 +2841,13 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 	}
 
 	/* Handle binding during CSA */
-	if ((vif->type == NL80211_IFTYPE_AP) ||
-	    (switching_chanctx && (vif->type == NL80211_IFTYPE_STATION))) {
+	if (vif->type == NL80211_IFTYPE_AP) {
 		iwl_mvm_update_quotas(mvm, NULL);
 		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 	}
 
 	if (switching_chanctx && vif->type == NL80211_IFTYPE_STATION) {
-		struct iwl_mvm_sta *mvmsta;
-
-		mvmsta = iwl_mvm_sta_from_staid_protected(mvm,
-							  mvmvif->ap_sta_id);
-
-		if (WARN_ON(!mvmsta))
-			goto out;
-
-		/* TODO: only re-enable after the first beacon */
-		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
+		iwl_mvm_update_quotas(mvm, NULL);
 	}
 
 	goto out;
@@ -3228,10 +3218,27 @@ static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		struct iwl_mvm_sta *mvmsta;
+
+		mvmsta = iwl_mvm_sta_from_staid_protected(mvm,
+							  mvmvif->ap_sta_id);
+
+		if (WARN_ON(!mvmsta)) {
+			ret = -EIO;
+			goto out_unlock;
+		}
+
+		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
+
+		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+	}
+
 	mvmvif->ps_disabled = false;
 
 	ret = iwl_mvm_power_update_ps(mvm);
 
+out_unlock:
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
