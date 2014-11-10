@@ -3110,17 +3110,25 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	csa_vif = rcu_dereference_protected(mvm->csa_vif,
-					    lockdep_is_held(&mvm->mutex));
-	if (WARN(csa_vif && csa_vif->csa_active,
-		 "Another CSA is already in progress")) {
-		ret = -EBUSY;
-		goto out_unlock;
-	}
-
-	IWL_DEBUG_MAC80211(mvm, "CSA started to freq %d\n",
+	IWL_DEBUG_MAC80211(mvm, "pre CSA to freq %d\n",
 			   chsw->chandef.center_freq1);
-	rcu_assign_pointer(mvm->csa_vif, vif);
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_AP:
+		csa_vif =
+			rcu_dereference_protected(mvm->csa_vif,
+						  lockdep_is_held(&mvm->mutex));
+		if (WARN_ONCE(csa_vif && csa_vif->csa_active,
+			      "Another CSA is already in progress")) {
+			ret = -EBUSY;
+			goto out_unlock;
+		}
+
+		rcu_assign_pointer(mvm->csa_vif, vif);
+		break;
+	default:
+		break;
+	}
 
 	ret = 0;
 
