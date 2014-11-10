@@ -3310,6 +3310,50 @@ out:
 	scrub_pending_trans_workers_dec(sctx);
 }
 
+static int check_extent_to_block(struct inode *inode, u64 start, u64 len,
+				 u64 logical)
+{
+	struct extent_state *cached_state = NULL;
+	struct btrfs_ordered_extent *ordered;
+	struct extent_io_tree *io_tree;
+	struct extent_map *em;
+	u64 lockstart = start, lockend = start + len - 1;
+	int ret = 0;
+
+	io_tree = &BTRFS_I(inode)->io_tree;
+
+	lock_extent_bits(io_tree, lockstart, lockend, 0, &cached_state);
+	ordered = btrfs_lookup_ordered_range(inode, lockstart, len);
+	if (ordered) {
+		btrfs_put_ordered_extent(ordered);
+		ret = 1;
+		goto out_unlock;
+	}
+
+	em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
+	if (IS_ERR(em)) {
+		ret = PTR_ERR(em);
+		goto out_unlock;
+	}
+
+	/*
+	 * This extent does not actually cover the logical extent anymore,
+	 * move on to the next inode.
+	 */
+	if (em->block_start > logical ||
+	    em->block_start + em->block_len < logical + len) {
+		free_extent_map(em);
+		ret = 1;
+		goto out_unlock;
+	}
+	free_extent_map(em);
+
+out_unlock:
+	unlock_extent_cached(io_tree, lockstart, lockend, &cached_state,
+			     GFP_NOFS);
+	return ret;
+}
+
 static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 				      struct scrub_copy_nocow_ctx *nocow_ctx)
 {
@@ -3318,13 +3362,10 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 	struct inode *inode;
 	struct page *page;
 	struct btrfs_root *local_root;
-	struct btrfs_ordered_extent *ordered;
-	struct extent_map *em;
-	struct extent_state *cached_state = NULL;
 	struct extent_io_tree *io_tree;
 	u64 physical_for_dev_replace;
+	u64 nocow_ctx_logical;
 	u64 len = nocow_ctx->len;
-	u64 lockstart = offset, lockend = offset + len - 1;
 	unsigned long index;
 	int srcu_index;
 	int ret = 0;
@@ -3356,30 +3397,13 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 
 	physical_for_dev_replace = nocow_ctx->physical_for_dev_replace;
 	io_tree = &BTRFS_I(inode)->io_tree;
+	nocow_ctx_logical = nocow_ctx->logical;
 
-	lock_extent_bits(io_tree, lockstart, lockend, 0, &cached_state);
-	ordered = btrfs_lookup_ordered_range(inode, lockstart, len);
-	if (ordered) {
-		btrfs_put_ordered_extent(ordered);
-		goto out_unlock;
+	ret = check_extent_to_block(inode, offset, len, nocow_ctx_logical);
+	if (ret) {
+		ret = ret > 0 ? 0 : ret;
+		goto out;
 	}
-
-	em = btrfs_get_extent(inode, NULL, 0, lockstart, len, 0);
-	if (IS_ERR(em)) {
-		ret = PTR_ERR(em);
-		goto out_unlock;
-	}
-
-	/*
-	 * This extent does not actually cover the logical extent anymore,
-	 * move on to the next inode.
-	 */
-	if (em->block_start > nocow_ctx->logical ||
-	    em->block_start + em->block_len < nocow_ctx->logical + len) {
-		free_extent_map(em);
-		goto out_unlock;
-	}
-	free_extent_map(em);
 
 	while (len >= PAGE_CACHE_SIZE) {
 		index = offset >> PAGE_CACHE_SHIFT;
@@ -3396,7 +3420,7 @@ again:
 				goto next_page;
 		} else {
 			ClearPageError(page);
-			err = extent_read_full_page_nolock(io_tree, page,
+			err = extent_read_full_page(io_tree, page,
 							   btrfs_get_extent,
 							   nocow_ctx->mirror_num);
 			if (err) {
@@ -3421,6 +3445,14 @@ again:
 				goto next_page;
 			}
 		}
+
+		ret = check_extent_to_block(inode, offset, len,
+					    nocow_ctx_logical);
+		if (ret) {
+			ret = ret > 0 ? 0 : ret;
+			goto next_page;
+		}
+
 		err = write_page_nocow(nocow_ctx->sctx,
 				       physical_for_dev_replace, page);
 		if (err)
@@ -3434,12 +3466,10 @@ next_page:
 
 		offset += PAGE_CACHE_SIZE;
 		physical_for_dev_replace += PAGE_CACHE_SIZE;
+		nocow_ctx_logical += PAGE_CACHE_SIZE;
 		len -= PAGE_CACHE_SIZE;
 	}
 	ret = COPY_COMPLETE;
-out_unlock:
-	unlock_extent_cached(io_tree, lockstart, lockend, &cached_state,
-			     GFP_NOFS);
 out:
 	mutex_unlock(&inode->i_mutex);
 	iput(inode);
