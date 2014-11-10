@@ -511,7 +511,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	init_completion(&spi->c);
 
 	ret = devm_request_irq(&pdev->dev, irq_err, mxs_ssp_irq_handler, 0,
-			       DRIVER_NAME, ssp);
+			       dev_name(&pdev->dev), ssp);
 	if (ret)
 		goto out_master_free;
 
