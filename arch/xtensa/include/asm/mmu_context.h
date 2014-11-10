@@ -50,11 +50,7 @@ DECLARE_PER_CPU(unsigned long, asid_cache);
 #define ASID_MASK	((1 << XCHAL_MMU_ASID_BITS) - 1)
 #define ASID_INSERT(x)	(0x03020001 | (((x) & ASID_MASK) << 8))
 
-#ifdef CONFIG_MMU
 void init_mmu(void);
-#else
-static inline void init_mmu(void) { }
-#endif
 
 static inline void set_rasid_register (unsigned long val)
 {

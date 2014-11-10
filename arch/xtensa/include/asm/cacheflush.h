@@ -67,6 +67,8 @@ extern void __invalidate_dcache_page_alias(unsigned long, unsigned long);
 #else
 static inline void __flush_invalidate_dcache_page_alias(unsigned long virt,
 							unsigned long phys) { }
+static inline void __invalidate_dcache_page_alias(unsigned long virt,
+						  unsigned long phys) { }
 #endif
 #if defined(CONFIG_MMU) && (ICACHE_WAY_SIZE > PAGE_SIZE)
 extern void __invalidate_icache_page_alias(unsigned long, unsigned long);
@@ -84,7 +86,8 @@ static inline void __invalidate_icache_page_alias(unsigned long virt,
  * (see also Documentation/cachetlb.txt)
  */
 
-#if (DCACHE_WAY_SIZE > PAGE_SIZE) || defined(CONFIG_SMP)
+#if defined(CONFIG_MMU) && \
+	((DCACHE_WAY_SIZE > PAGE_SIZE) || defined(CONFIG_SMP))
 
 #ifdef CONFIG_SMP
 void flush_cache_all(void);
@@ -150,7 +153,7 @@ void local_flush_cache_page(struct vm_area_struct *vma,
 #define flush_dcache_mmap_lock(mapping)			do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)		do { } while (0)
 
-#if (DCACHE_WAY_SIZE > PAGE_SIZE)
+#if defined(CONFIG_MMU) && (DCACHE_WAY_SIZE > PAGE_SIZE)
 
 extern void copy_to_user_page(struct vm_area_struct*, struct page*,
 		unsigned long, void*, const void*, unsigned long);
