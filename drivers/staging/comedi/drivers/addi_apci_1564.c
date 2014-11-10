@@ -454,9 +454,6 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 		dev->iobase = pci_resource_start(pcidev, 1) +
 			      APCI1564_REV1_MAIN_IOBASE;
 		devpriv->timer = devpriv->eeprom + APCI1564_REV1_TIMER_IOBASE;
-		dev_err(dev->class_dev,
-			"PLD Revision 1.0 detected, not yet supported\n");
-		return -ENXIO;
 	} else {
 		/* PLD Revision 2.x I/O Mapping */
 		dev->iobase = devpriv->eeprom + APCI1564_REV2_MAIN_IOBASE;
