@@ -1447,6 +1447,10 @@ static int si4713_probe(struct i2c_client *client,
 {
 	struct si4713_device *sdev;
 	struct v4l2_ctrl_handler *hdl;
+	struct si4713_platform_data *pdata = client->dev.platform_data;
+	struct device_node *np = client->dev.of_node;
+	struct radio_si4713_platform_data si4713_pdev_pdata;
+	struct platform_device *si4713_pdev;
 	int rval;
 
 	sdev = devm_kzalloc(&client->dev, sizeof(*sdev), GFP_KERNEL);
@@ -1607,8 +1611,30 @@ static int si4713_probe(struct i2c_client *client,
 		goto free_ctrls;
 	}
 
+	if (!np && (!pdata || !pdata->is_platform_device))
+		return 0;
+
+	si4713_pdev = platform_device_alloc("radio-si4713", -1);
+	if (!si4713_pdev)
+		goto put_main_pdev;
+
+	si4713_pdev_pdata.subdev = client;
+	rval = platform_device_add_data(si4713_pdev, &si4713_pdev_pdata,
+					sizeof(si4713_pdev_pdata));
+	if (rval)
+		goto put_main_pdev;
+
+	rval = platform_device_add(si4713_pdev);
+	if (rval)
+		goto put_main_pdev;
+
+	sdev->pd = si4713_pdev;
+
 	return 0;
 
+put_main_pdev:
+	platform_device_put(si4713_pdev);
+	v4l2_device_unregister_subdev(&sdev->sd);
 free_ctrls:
 	v4l2_ctrl_handler_free(hdl);
 exit:
@@ -1620,6 +1646,8 @@ static int si4713_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct si4713_device *sdev = to_si4713_device(sd);
+
+	platform_device_unregister(sdev->pd);
 
 	if (sdev->power_state)
 		si4713_set_power_state(sdev, POWER_DOWN);

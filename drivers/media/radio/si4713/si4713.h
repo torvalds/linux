@@ -15,6 +15,7 @@
 #ifndef SI4713_I2C_H
 #define SI4713_I2C_H
 
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <media/v4l2-subdev.h>
@@ -238,11 +239,16 @@ struct si4713_device {
 	struct regulator *vdd;
 	struct regulator *vio;
 	struct gpio_desc *gpio_reset;
+	struct platform_device *pd;
 	u32 power_state;
 	u32 rds_enabled;
 	u32 frequency;
 	u32 preemphasis;
 	u32 stereo;
 	u32 tune_rnl;
+};
+
+struct radio_si4713_platform_data {
+	struct i2c_client *subdev;
 };
 #endif /* ifndef SI4713_I2C_H */
