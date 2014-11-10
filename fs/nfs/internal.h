@@ -6,6 +6,7 @@
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/crc32.h>
+#include <linux/nfs_page.h>
 
 #define NFS_MS_MASK (MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC|MS_SYNCHRONOUS)
 
@@ -259,6 +260,12 @@ static inline void nfs_iocounter_init(struct nfs_io_counter *c)
 {
 	c->flags = 0;
 	atomic_set(&c->io_count, 0);
+}
+
+static inline bool nfs_pgio_has_mirroring(struct nfs_pageio_descriptor *desc)
+{
+	WARN_ON_ONCE(desc->pg_mirror_count < 1);
+	return desc->pg_mirror_count > 1;
 }
 
 /* nfs2xdr.c */
