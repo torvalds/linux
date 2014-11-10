@@ -881,7 +881,7 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
-	streaming = dev->vb2_mpegq.start_streaming_called;
+	streaming = vb2_start_streaming_called(&dev->vb2_mpegq);
 	if (streaming)
 		blackbird_stop_codec(dev);
 
