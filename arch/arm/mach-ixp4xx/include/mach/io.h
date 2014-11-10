@@ -58,6 +58,10 @@ static inline int is_pci_memory(u32 addr)
 #define writew(v, p)			__indirect_writew(v, p)
 #define writel(v, p)			__indirect_writel(v, p)
 
+#define writeb_relaxed(v, p)		__indirect_writeb(v, p)
+#define writew_relaxed(v, p)		__indirect_writew(v, p)
+#define writel_relaxed(v, p)		__indirect_writel(v, p)
+
 #define writesb(p, v, l)		__indirect_writesb(p, v, l)
 #define writesw(p, v, l)		__indirect_writesw(p, v, l)
 #define writesl(p, v, l)		__indirect_writesl(p, v, l)
@@ -65,6 +69,10 @@ static inline int is_pci_memory(u32 addr)
 #define readb(p)			__indirect_readb(p)
 #define readw(p)			__indirect_readw(p)
 #define readl(p)			__indirect_readl(p)
+
+#define readb_relaxed(p)		__indirect_readb(p)
+#define readw_relaxed(p)		__indirect_readw(p)
+#define readl_relaxed(p)		__indirect_readl(p)
 
 #define readsb(p, v, l)			__indirect_readsb(p, v, l)
 #define readsw(p, v, l)			__indirect_readsw(p, v, l)
@@ -76,7 +84,7 @@ static inline void __indirect_writeb(u8 value, volatile void __iomem *p)
 	u32 n, byte_enables, data;
 
 	if (!is_pci_memory(addr)) {
-		__raw_writeb(value, addr);
+		__raw_writeb(value, p);
 		return;
 	}
 
@@ -99,7 +107,7 @@ static inline void __indirect_writew(u16 value, volatile void __iomem *p)
 	u32 n, byte_enables, data;
 
 	if (!is_pci_memory(addr)) {
-		__raw_writew(value, addr);
+		__raw_writew(value, p);
 		return;
 	}
 
@@ -141,7 +149,7 @@ static inline unsigned char __indirect_readb(const volatile void __iomem *p)
 	u32 n, byte_enables, data;
 
 	if (!is_pci_memory(addr))
-		return __raw_readb(addr);
+		return __raw_readb(p);
 
 	n = addr % 4;
 	byte_enables = (0xf & ~BIT(n)) << IXP4XX_PCI_NP_CBE_BESL;
@@ -164,7 +172,7 @@ static inline unsigned short __indirect_readw(const volatile void __iomem *p)
 	u32 n, byte_enables, data;
 
 	if (!is_pci_memory(addr))
-		return __raw_readw(addr);
+		return __raw_readw(p);
 
 	n = addr % 4;
 	byte_enables = (0xf & ~(BIT(n) | BIT(n+1))) << IXP4XX_PCI_NP_CBE_BESL;
