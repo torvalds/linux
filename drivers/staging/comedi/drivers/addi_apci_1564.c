@@ -51,6 +51,7 @@
 #define APCI1564_EEPROM_DO			(1 << 2)
 #define APCI1564_EEPROM_CS			(1 << 1)
 #define APCI1564_EEPROM_CLK			(1 << 0)
+#define APCI1564_REV2_MAIN_IOBASE		0x04
 
 /*
  * PCI BAR 1
@@ -65,6 +66,39 @@
  *   0x20         Counter_1
  *   0x30         Counter_3
  */
+#define APCI1564_REV1_MAIN_IOBASE		0x00
+
+/*
+ * dev->iobase Register Map
+ *   PLD Revision 1.0 - PCI BAR 1 + 0x00
+ *   PLD Revision 2.x - PCI BAR 0 + 0x04
+ */
+#define APCI1564_DI_REG				0x00
+#define APCI1564_DI_INT_MODE1_REG		0x04
+#define APCI1564_DI_INT_MODE2_REG		0x08
+#define APCI1564_DI_INT_STATUS_REG		0x0c
+#define APCI1564_DI_IRQ_REG			0x10
+#define APCI1564_DO_REG				0x14
+#define APCI1564_DO_INT_CTRL_REG		0x18
+#define APCI1564_DO_INT_STATUS_REG		0x1c
+#define APCI1564_DO_IRQ_REG			0x20
+#define APCI1564_WDOG_REG			0x24
+#define APCI1564_WDOG_RELOAD_REG		0x28
+#define APCI1564_WDOG_TIMEBASE_REG		0x2c
+#define APCI1564_WDOG_CTRL_REG			0x30
+#define APCI1564_WDOG_STATUS_REG		0x34
+#define APCI1564_WDOG_IRQ_REG			0x38
+#define APCI1564_WDOG_WARN_TIMEVAL_REG		0x3c
+#define APCI1564_WDOG_WARN_TIMEBASE_REG		0x40
+#define APCI1564_TIMER_REG			0x44
+#define APCI1564_TIMER_RELOAD_REG		0x48
+#define APCI1564_TIMER_TIMEBASE_REG		0x4c
+#define APCI1564_TIMER_CTRL_REG			0x50
+#define APCI1564_TIMER_STATUS_REG		0x54
+#define APCI1564_TIMER_IRQ_REG			0x58
+#define APCI1564_TIMER_WARN_TIMEVAL_REG		0x5c  /* Rev 2.x only */
+#define APCI1564_TIMER_WARN_TIMEBASE_REG	0x60  /* Rev 2.x only */
+
 
 struct apci1564_private {
 	unsigned long eeprom;		/* base address of EEPROM register */
@@ -405,12 +439,14 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	val = inl(devpriv->eeprom + APCI1564_EEPROM_REG);
 	if (APCI1564_EEPROM_TO_REV(val) == 0) {
 		/* PLD Revision 1.0 I/O Mapping */
+		dev->iobase = pci_resource_start(pcidev, 1) +
+			      APCI1564_REV1_MAIN_IOBASE;
 		dev_err(dev->class_dev,
 			"PLD Revision 1.0 detected, not yet supported\n");
 		return -ENXIO;
 	} else {
 		/* PLD Revision 2.x I/O Mapping */
-		dev->iobase = devpriv->eeprom;
+		dev->iobase = devpriv->eeprom + APCI1564_REV2_MAIN_IOBASE;
 		devpriv->counters = pci_resource_start(pcidev, 1);
 	}
 
