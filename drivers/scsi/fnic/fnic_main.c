@@ -437,21 +437,30 @@ static int fnic_dev_wait(struct vnic_dev *vdev,
 	unsigned long time;
 	int done;
 	int err;
+	int count;
+
+	count = 0;
 
 	err = start(vdev, arg);
 	if (err)
 		return err;
 
-	/* Wait for func to complete...2 seconds max */
+	/* Wait for func to complete.
+	* Sometime schedule_timeout_uninterruptible take long time
+	* to wake up so we do not retry as we are only waiting for
+	* 2 seconds in while loop. By adding count, we make sure
+	* we try atleast three times before returning -ETIMEDOUT
+	*/
 	time = jiffies + (HZ * 2);
 	do {
 		err = finished(vdev, &done);
+		count++;
 		if (err)
 			return err;
 		if (done)
 			return 0;
 		schedule_timeout_uninterruptible(HZ / 10);
-	} while (time_after(time, jiffies));
+	} while (time_after(time, jiffies) || (count < 3));
 
 	return -ETIMEDOUT;
 }
