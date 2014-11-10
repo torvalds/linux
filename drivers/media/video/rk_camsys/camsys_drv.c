@@ -5,6 +5,7 @@
 #include "camsys_mipicsi_phy.h"
 #include "camsys_gpio.h"
 #include "camsys_soc_priv.h"
+#include "ext_flashled_drv/rk_ext_fshled_ctl.h"
 
 unsigned int camsys_debug=1;
 module_param(camsys_debug, int, S_IRUGO|S_IWUSR);
@@ -186,6 +187,18 @@ static int camsys_extdev_register(camsys_devio_name_t *devio, camsys_dev_t *cams
     
     extdev->dev_cfg = devio->dev_cfg;
     extdev->fl.fl.active = devio->fl.fl.active;
+    extdev->fl.ext_fsh_dev = NULL;
+    //should register external flash device ?
+    if(strlen(devio->fl.fl_drv_name) && (strcmp(devio->fl.fl_drv_name,"Internal") != 0)
+        && (strcmp(devio->fl.fl_drv_name,"NC") != 0)){
+        //register flash device
+        extdev->fl.ext_fsh_dev = camsys_register_ext_fsh_dev(&devio->fl);
+        if(extdev->fl.ext_fsh_dev == NULL){
+            camsys_err("register ext flash %s failed!",devio->fl.fl_drv_name);
+            err = -EINVAL;
+            goto fail;
+        }
+    }
     regulator_info = &devio->avdd;
     regulator = &extdev->avdd;
     for (i=(CamSys_Vdd_Start_Tag+1); i<CamSys_Vdd_End_Tag; i++) {
@@ -305,6 +318,9 @@ static int camsys_extdev_deregister(unsigned int dev_id, camsys_dev_t *camsys_de
             gpio++;
         }
 
+        if(extdev->fl.ext_fsh_dev != NULL){
+            camsys_deregister_ext_fsh_dev(extdev->fl.ext_fsh_dev);
+        }
         //spin_lock(&camsys_dev->lock);
         mutex_lock(&camsys_dev->extdevs.mut);
         list_del_init(&extdev->list);
@@ -339,6 +355,10 @@ static int camsys_extdev_deregister(unsigned int dev_id, camsys_dev_t *camsys_de
                         gpio_free(gpio->io);
                     }
                     gpio++;
+                }
+
+                if(extdev->fl.ext_fsh_dev != NULL){
+                    camsys_deregister_ext_fsh_dev(extdev->fl.ext_fsh_dev);
                 }
                 camsys_trace(1,"Extdev(dev_id: 0x%x) is deregister success", extdev->dev_id);
                 list_del_init(&extdev->list);
@@ -387,7 +407,7 @@ static int camsys_sysctl(camsys_sysctrl_t *devctl, camsys_dev_t *camsys_dev)
             } 
             case CamSys_Flash_Trigger:
             {
-                camsys_dev->flash_trigger_cb(camsys_dev, devctl->on);
+                camsys_dev->flash_trigger_cb(camsys_dev,devctl->rev[0], devctl->on);
                 break;
             }
             case CamSys_IOMMU:
@@ -423,6 +443,8 @@ static int camsys_sysctl(camsys_sysctrl_t *devctl, camsys_dev_t *camsys_dev)
                             }
                         }
                     }
+                }else if(devctl->ops == CamSys_Flash_Trigger){
+                    err = camsys_ext_fsh_ctrl(extdev->fl.ext_fsh_dev,devctl->rev[0],devctl->on);
                 }
                 
             } else {
@@ -1184,7 +1206,7 @@ static int camsys_platform_probe(struct platform_device *pdev){
     list_add_tail(&camsys_dev->list, &camsys_devs.devs);
     spin_unlock(&camsys_devs.lock);
 
-    
+    camsys_init_ext_fsh_module();  
     camsys_trace(1, "Probe %s device success ", dev_name(&pdev->dev));
     return 0;
 request_mem_fail:
@@ -1258,6 +1280,8 @@ static int  camsys_platform_remove(struct platform_device *pdev)
         spin_lock(&camsys_devs.lock);
         list_del_init(&camsys_dev->list);
         spin_unlock(&camsys_devs.lock);
+
+        camsys_deinit_ext_fsh_module();
 
         kfree(camsys_dev);
         camsys_dev=NULL;

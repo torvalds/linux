@@ -103,8 +103,11 @@
 		 1) enable or disable IOMMU just depending on CONFIG_ROCKCHIP_IOMMU. 
 *v0.0x17.0:
 		 1) isp iommu status depend on vpu iommu status.
+*v0.0x18.0:
+         1) add flashlight RT8547 driver
+         2) support torch mode
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x17,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x18,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
@@ -197,6 +200,9 @@ typedef struct camsys_gpio_s {
 } camsys_gpio_t;
 typedef struct camsys_flash_s {
     camsys_gpio_t        fl;
+    camsys_gpio_t        fl_en;
+    void*   ext_fsh_dev;            
+    //flash call back
 } camsys_flash_t;
 typedef struct camsys_extdev_s {
     unsigned char            dev_name[CAMSYS_NAME_LEN];
@@ -264,7 +270,7 @@ typedef struct camsys_dev_s {
     int (*phy_cb) (camsys_extdev_t *extdev, camsys_sysctrl_t *devctl, void* ptr);
     int (*iomux)(camsys_extdev_t *extdev,void *ptr);
     int (*platform_remove)(struct platform_device *pdev);
-    int (*flash_trigger_cb)(void *ptr, unsigned int on);
+    int (*flash_trigger_cb)(void *ptr,int mode , unsigned int on);
     int (*iommu_cb)(void *ptr,camsys_sysctrl_t *devctl);
 } camsys_dev_t;
 

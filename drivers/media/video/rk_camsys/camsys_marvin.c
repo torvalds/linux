@@ -126,7 +126,7 @@ fail:
     return -1;
 }
 
-static int camsys_mrv_flash_trigger_cb(void *ptr,unsigned int on)
+static int camsys_mrv_flash_trigger_cb(void *ptr,int mode,unsigned int on)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
     struct device *dev = &(camsys_dev->pdev->dev);

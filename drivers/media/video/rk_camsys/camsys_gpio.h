@@ -56,7 +56,11 @@ static inline unsigned int camsys_gpio_group(unsigned char *io_name)
         group = 5;      
     } else if (strstr(io_name,"PIN6")) {
         group = 6;      
-    } 
+    } else if (strstr(io_name,"PIN7")) {
+        group = 7;      
+    } else if (strstr(io_name,"PIN8")) {
+        group = 8;      
+    }  
 
     return group;
 }

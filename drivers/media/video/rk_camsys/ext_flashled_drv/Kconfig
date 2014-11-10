@@ -1,0 +1,26 @@
+config FLASHLIGHT
+	bool "Flashlight Support"
+	default n
+	help
+	  This option enables the led sysfs class in /sys/class/flashlight.
+
+config LEDS_RT8547
+	bool "LED Support for RT8547"
+	select RT_FLASH_LED
+	default n
+	help
+	  This option enabled support for RT8547 LED drivers
+
+config LEDS_RT8547_DBG
+	bool "LED RT8547 Debug Info"
+	depends on LEDS_RT8547
+	default n
+	help
+	  This option enabled RT8547 LED drivers debug option
+
+config RT_FLASH_LED
+	bool "Richtek flash LED driver support"
+	depends on FLASHLIGHT
+	default n
+	help
+	  Say Y here to enable Richtek's flash LED driver HAL architecture
