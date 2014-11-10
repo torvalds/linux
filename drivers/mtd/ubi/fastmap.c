@@ -800,7 +800,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	__be32 crc, tmp_crc;
 	unsigned long long sqnum = 0;
 
-	mutex_lock(&ubi->fm_mutex);
+	down_write(&ubi->fm_protect);
 	memset(ubi->fm_buf, 0, ubi->fm_size);
 
 	fmsb = kmalloc(sizeof(*fmsb), GFP_KERNEL);
@@ -991,7 +991,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	ubi_free_vid_hdr(ubi, vh);
 	kfree(ech);
 out:
-	mutex_unlock(&ubi->fm_mutex);
+	up_write(&ubi->fm_protect);
 	if (ret == UBI_BAD_FASTMAP)
 		ubi_err(ubi, "Attach by fastmap failed, doing a full scan!");
 	return ret;
@@ -1340,24 +1340,24 @@ int ubi_update_fastmap(struct ubi_device *ubi)
 	struct ubi_fastmap_layout *new_fm, *old_fm;
 	struct ubi_wl_entry *tmp_e;
 
-	mutex_lock(&ubi->fm_mutex);
+	down_write(&ubi->fm_protect);
 
 	ubi_refill_pools(ubi);
 
 	if (ubi->ro_mode || ubi->fm_disabled) {
-		mutex_unlock(&ubi->fm_mutex);
+		up_write(&ubi->fm_protect);
 		return 0;
 	}
 
 	ret = ubi_ensure_anchor_pebs(ubi);
 	if (ret) {
-		mutex_unlock(&ubi->fm_mutex);
+		up_write(&ubi->fm_protect);
 		return ret;
 	}
 
 	new_fm = kzalloc(sizeof(*new_fm), GFP_KERNEL);
 	if (!new_fm) {
-		mutex_unlock(&ubi->fm_mutex);
+		up_write(&ubi->fm_protect);
 		return -ENOMEM;
 	}
 
@@ -1447,16 +1447,16 @@ int ubi_update_fastmap(struct ubi_device *ubi)
 	}
 
 	down_write(&ubi->work_sem);
-	down_write(&ubi->fm_sem);
+	down_write(&ubi->fm_eba_sem);
 	ret = ubi_write_fastmap(ubi, new_fm);
-	up_write(&ubi->fm_sem);
+	up_write(&ubi->fm_eba_sem);
 	up_write(&ubi->work_sem);
 
 	if (ret)
 		goto err;
 
 out_unlock:
-	mutex_unlock(&ubi->fm_mutex);
+	up_write(&ubi->fm_protect);
 	kfree(old_fm);
 	return ret;
 

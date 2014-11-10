@@ -641,7 +641,7 @@ void ubi_refill_pools(struct ubi_device *ubi)
 
 /* ubi_wl_get_peb - works exaclty like __wl_get_peb but keeps track of
  * the fastmap pool.
- * Returns with ubi->fm_sem held in read mode!
+ * Returns with ubi->fm_eba_sem held in read mode!
  */
 int ubi_wl_get_peb(struct ubi_device *ubi)
 {
@@ -650,20 +650,20 @@ int ubi_wl_get_peb(struct ubi_device *ubi)
 	struct ubi_fm_pool *wl_pool = &ubi->fm_wl_pool;
 
 again:
-	down_read(&ubi->fm_sem);
+	down_read(&ubi->fm_eba_sem);
 	spin_lock(&ubi->wl_lock);
 	/* We check here also for the WL pool because at this point we can
 	 * refill the WL pool synchronous. */
 	if (pool->used == pool->size || wl_pool->used == wl_pool->size) {
 		spin_unlock(&ubi->wl_lock);
-		up_read(&ubi->fm_sem);
+		up_read(&ubi->fm_eba_sem);
 		ret = ubi_update_fastmap(ubi);
 		if (ret) {
 			ubi_msg(ubi, "Unable to write a new fastmap: %i", ret);
-			down_read(&ubi->fm_sem);
+			down_read(&ubi->fm_eba_sem);
 			return -ENOSPC;
 		}
-		down_read(&ubi->fm_sem);
+		down_read(&ubi->fm_eba_sem);
 		spin_lock(&ubi->wl_lock);
 	}
 
@@ -675,7 +675,7 @@ again:
 			goto out;
 		}
 		retried = 1;
-		up_read(&ubi->fm_sem);
+		up_read(&ubi->fm_eba_sem);
 		goto again;
 	}
 
@@ -731,7 +731,7 @@ int ubi_wl_get_peb(struct ubi_device *ubi)
 	spin_lock(&ubi->wl_lock);
 	peb = wl_get_peb(ubi);
 	spin_unlock(&ubi->wl_lock);
-	down_read(&ubi->fm_sem);
+	down_read(&ubi->fm_eba_sem);
 
 	if (peb < 0)
 		return peb;
@@ -1607,6 +1607,8 @@ int ubi_wl_put_peb(struct ubi_device *ubi, int vol_id, int lnum,
 	ubi_assert(pnum >= 0);
 	ubi_assert(pnum < ubi->peb_count);
 
+	down_read(&ubi->fm_protect);
+
 retry:
 	spin_lock(&ubi->wl_lock);
 	e = ubi->lookuptbl[pnum];
@@ -1637,6 +1639,7 @@ retry:
 		ubi_assert(!ubi->move_to_put);
 		ubi->move_to_put = 1;
 		spin_unlock(&ubi->wl_lock);
+		up_read(&ubi->fm_protect);
 		return 0;
 	} else {
 		if (in_wl_tree(e, &ubi->used)) {
@@ -1658,6 +1661,7 @@ retry:
 				ubi_err(ubi, "PEB %d not found", pnum);
 				ubi_ro_mode(ubi);
 				spin_unlock(&ubi->wl_lock);
+				up_read(&ubi->fm_protect);
 				return err;
 			}
 		}
@@ -1671,6 +1675,7 @@ retry:
 		spin_unlock(&ubi->wl_lock);
 	}
 
+	up_read(&ubi->fm_protect);
 	return err;
 }
 
