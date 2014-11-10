@@ -151,9 +151,6 @@ int driver_register(struct device_driver *drv)
 
 	BUG_ON(!drv->bus->p);
 
-	if (!drv->owner)
-		printk(KERN_WARNING "Driver '%s' needs an owner", drv->name);
-
 	if ((drv->bus->probe && drv->probe) ||
 	    (drv->bus->remove && drv->remove) ||
 	    (drv->bus->shutdown && drv->shutdown))
