@@ -26,11 +26,11 @@ Required Properties:
     must appear in the same order as the output clocks.
   - #clock-cells: Must be 1
   - clock-output-names: The name of the clocks as free-form strings
-  - renesas,clock-indices: Indices of the gate clocks into the group (0 to 31)
+  - clock-indices: Indices of the gate clocks into the group (0 to 31)
 
-The clocks, clock-output-names and renesas,clock-indices properties contain one
-entry per gate clock. The MSTP groups are sparsely populated. Unimplemented
-gate clocks must not be declared.
+The clocks, clock-output-names and clock-indices properties contain one entry
+per gate clock. The MSTP groups are sparsely populated. Unimplemented gate
+clocks must not be declared.
 
 
 Example
