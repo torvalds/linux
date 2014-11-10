@@ -141,10 +141,12 @@ static int apci1564_reset(struct comedi_device *dev)
 	outl(0x0, devpriv->timer + APCI1564_TIMER_CTRL_REG);
 	outl(0x0, devpriv->timer + APCI1564_TIMER_RELOAD_REG);
 
-	/* Reset the counter registers */
-	outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(0));
-	outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(1));
-	outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(2));
+	if (devpriv->counters) {
+		/* Reset the counter registers */
+		outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(0));
+		outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(1));
+		outl(0x0, devpriv->counters + APCI1564_COUNTER_CTRL_REG(2));
+	}
 
 	return 0;
 }
@@ -186,22 +188,24 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 		outl(ctrl, devpriv->timer + APCI1564_TIMER_CTRL_REG);
 	}
 
-	for (chan = 0; chan < 4; chan++) {
-		status = inl(devpriv->counters +
-			     APCI1564_COUNTER_IRQ_REG(chan));
-		if (status & 0x01) {
-			/*  Disable Counter Interrupt */
-			ctrl = inl(devpriv->counters +
-				   APCI1564_COUNTER_CTRL_REG(chan));
-			outl(0x0, devpriv->counters +
-			     APCI1564_COUNTER_CTRL_REG(chan));
+	if (devpriv->counters) {
+		for (chan = 0; chan < 4; chan++) {
+			status = inl(devpriv->counters +
+				     APCI1564_COUNTER_IRQ_REG(chan));
+			if (status & 0x01) {
+				/*  Disable Counter Interrupt */
+				ctrl = inl(devpriv->counters +
+					   APCI1564_COUNTER_CTRL_REG(chan));
+				outl(0x0, devpriv->counters +
+				          APCI1564_COUNTER_CTRL_REG(chan));
 
-			/* Send a signal to from kernel to user space */
-			send_sig(SIGIO, devpriv->tsk_current, 0);
+				/* Send a signal to from kernel to user space */
+				send_sig(SIGIO, devpriv->tsk_current, 0);
 
-			/*  Enable Counter Interrupt */
-			outl(ctrl, devpriv->counters +
-			     APCI1564_COUNTER_CTRL_REG(chan));
+				/*  Enable Counter Interrupt */
+				outl(ctrl, devpriv->counters +
+					   APCI1564_COUNTER_CTRL_REG(chan));
+			}
 		}
 	}
 
