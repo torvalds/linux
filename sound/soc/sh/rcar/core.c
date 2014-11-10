@@ -349,7 +349,7 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 						     dma_name);
 	if (!dma->chan) {
 		dev_err(dev, "can't get dma channel\n");
-		return -EIO;
+		goto rsnd_dma_channel_err;
 	}
 
 	ret = dmaengine_slave_config(dma->chan, &cfg);
@@ -363,8 +363,15 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 
 rsnd_dma_init_err:
 	rsnd_dma_quit(priv, dma);
+rsnd_dma_channel_err:
 
-	return ret;
+	/*
+	 * DMA failed. try to PIO mode
+	 * see
+	 *	rsnd_ssi_dma_remove()
+	 *	rsnd_rdai_continuance_probe()
+	 */
+	return -EAGAIN;
 }
 
 void  rsnd_dma_quit(struct rsnd_priv *priv,
@@ -454,6 +461,13 @@ static int rsnd_dai_connect(struct rsnd_mod *mod,
 	mod->io = io;
 
 	return 0;
+}
+
+static void rsnd_dai_disconnect(struct rsnd_mod *mod,
+				struct rsnd_dai_stream *io)
+{
+	mod->io = NULL;
+	io->mod[mod->type] = NULL;
 }
 
 int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai)
@@ -685,6 +699,20 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	}							\
 	ret;							\
 })
+
+#define rsnd_path_break(priv, io, type)				\
+{								\
+	struct rsnd_mod *mod;					\
+	int id = -1;						\
+								\
+	if (rsnd_is_enable_path(io, type)) {			\
+		id = rsnd_info_id(priv, io, type);		\
+		if (id >= 0) {					\
+			mod = rsnd_##type##_mod_get(priv, id);	\
+			rsnd_dai_disconnect(mod, io);		\
+		}						\
+	}							\
+}
 
 static int rsnd_path_init(struct rsnd_priv *priv,
 			  struct rsnd_dai *rdai,
@@ -977,6 +1005,44 @@ static const struct snd_soc_component_driver rsnd_soc_component = {
 	.name		= "rsnd",
 };
 
+static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
+				       struct rsnd_dai *rdai,
+				       int is_play)
+{
+	struct rsnd_dai_stream *io = is_play ? &rdai->playback : &rdai->capture;
+	int ret;
+
+	ret = rsnd_dai_call(probe, io, rdai);
+	if (ret == -EAGAIN) {
+		/*
+		 * Fallback to PIO mode
+		 */
+
+		/*
+		 * call "remove" for SSI/SRC/DVC
+		 * SSI will be switch to PIO mode if it was DMA mode
+		 * see
+		 *	rsnd_dma_init()
+		 *	rsnd_ssi_dma_remove()
+		 */
+		rsnd_dai_call(remove, io, rdai);
+
+		/*
+		 * remove SRC/DVC from DAI,
+		 */
+		rsnd_path_break(priv, io, src);
+		rsnd_path_break(priv, io, dvc);
+
+		/*
+		 * retry to "probe".
+		 * DAI has SSI which is PIO mode only now.
+		 */
+		ret = rsnd_dai_call(probe, io, rdai);
+	}
+
+	return ret;
+}
+
 /*
  *	rsnd probe
  */
@@ -1038,11 +1104,11 @@ static int rsnd_probe(struct platform_device *pdev)
 	}
 
 	for_each_rsnd_dai(rdai, priv, i) {
-		ret = rsnd_dai_call(probe, &rdai->playback, rdai);
+		ret = rsnd_rdai_continuance_probe(priv, rdai, 1);
 		if (ret)
 			goto exit_snd_probe;
 
-		ret = rsnd_dai_call(probe, &rdai->capture, rdai);
+		ret = rsnd_rdai_continuance_probe(priv, rdai, 0);
 		if (ret)
 			goto exit_snd_probe;
 	}
