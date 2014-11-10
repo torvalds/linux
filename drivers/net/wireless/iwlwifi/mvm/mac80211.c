@@ -3100,27 +3100,34 @@ static int iwl_mvm_mac_testmode_cmd(struct ieee80211_hw *hw,
 }
 #endif
 
-static void iwl_mvm_channel_switch_beacon(struct ieee80211_hw *hw,
-					  struct ieee80211_vif *vif,
-					  struct cfg80211_chan_def *chandef)
+static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_channel_switch *chsw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct ieee80211_vif *csa_vif;
+	int ret;
 
 	mutex_lock(&mvm->mutex);
 
 	csa_vif = rcu_dereference_protected(mvm->csa_vif,
 					    lockdep_is_held(&mvm->mutex));
 	if (WARN(csa_vif && csa_vif->csa_active,
-		 "Another CSA is already in progress"))
+		 "Another CSA is already in progress")) {
+		ret = -EBUSY;
 		goto out_unlock;
+	}
 
 	IWL_DEBUG_MAC80211(mvm, "CSA started to freq %d\n",
-			   chandef->center_freq1);
+			   chsw->chandef.center_freq1);
 	rcu_assign_pointer(mvm->csa_vif, vif);
+
+	ret = 0;
 
 out_unlock:
 	mutex_unlock(&mvm->mutex);
+
+	return ret;
 }
 
 static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
@@ -3215,7 +3222,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 
 	.set_tim = iwl_mvm_set_tim,
 
-	.channel_switch_beacon = iwl_mvm_channel_switch_beacon,
+	.pre_channel_switch = iwl_mvm_pre_channel_switch,
 
 	.tdls_channel_switch = iwl_mvm_tdls_channel_switch,
 	.tdls_cancel_channel_switch = iwl_mvm_tdls_cancel_channel_switch,
