@@ -37,13 +37,13 @@
 
 int verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr_storage *address, int mode)
 {
-	int size, ct, err;
+	struct iovec *res;
+	int err;
 
 	if (m->msg_name && m->msg_namelen) {
-		if (mode == VERIFY_READ) {
-			void __user *namep;
-			namep = (void __user __force *) m->msg_name;
-			err = move_addr_to_kernel(namep, m->msg_namelen,
+		if (mode == WRITE) {
+			void __user *namep = (void __user __force *)m->msg_name;
+			int err = move_addr_to_kernel(namep, m->msg_namelen,
 						  address);
 			if (err < 0)
 				return err;
@@ -53,24 +53,15 @@ int verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr_storage *a
 		m->msg_name = NULL;
 		m->msg_namelen = 0;
 	}
+	if (m->msg_iovlen > UIO_MAXIOV)
+		return -EMSGSIZE;
 
-	size = m->msg_iovlen * sizeof(struct iovec);
-	if (copy_from_user(iov, (void __user __force *) m->msg_iov, size))
-		return -EFAULT;
-
-	m->msg_iov = iov;
-	err = 0;
-
-	for (ct = 0; ct < m->msg_iovlen; ct++) {
-		size_t len = iov[ct].iov_len;
-
-		if (len > INT_MAX - err) {
-			len = INT_MAX - err;
-			iov[ct].iov_len = len;
-		}
-		err += len;
-	}
-
+	err = rw_copy_check_uvector(mode, (void __user __force *)m->msg_iov,
+				    m->msg_iovlen, UIO_FASTIOV, iov, &res);
+	if (err >= 0)
+		m->msg_iov = res;
+	else if (res != iov)
+		kfree(res);
 	return err;
 }
 

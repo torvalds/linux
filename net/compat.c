@@ -31,33 +31,6 @@
 #include <asm/uaccess.h>
 #include <net/compat.h>
 
-static inline int iov_from_user_compat_to_kern(struct iovec *kiov,
-					  struct compat_iovec __user *uiov32,
-					  int niov)
-{
-	int tot_len = 0;
-
-	while (niov > 0) {
-		compat_uptr_t buf;
-		compat_size_t len;
-
-		if (get_user(len, &uiov32->iov_len) ||
-		    get_user(buf, &uiov32->iov_base))
-			return -EFAULT;
-
-		if (len > INT_MAX - tot_len)
-			len = INT_MAX - tot_len;
-
-		tot_len += len;
-		kiov->iov_base = compat_ptr(buf);
-		kiov->iov_len = (__kernel_size_t) len;
-		uiov32++;
-		kiov++;
-		niov--;
-	}
-	return tot_len;
-}
-
 int get_compat_msghdr(struct msghdr *kmsg, struct compat_msghdr __user *umsg)
 {
 	compat_uptr_t tmp1, tmp2, tmp3;
@@ -80,13 +53,15 @@ int get_compat_msghdr(struct msghdr *kmsg, struct compat_msghdr __user *umsg)
 }
 
 /* I've named the args so it is easy to tell whose space the pointers are in. */
-int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *kern_iov,
+int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *iov,
 		   struct sockaddr_storage *kern_address, int mode)
 {
-	int tot_len;
+	struct compat_iovec __user *p;
+	struct iovec *res;
+	int err;
 
 	if (kern_msg->msg_name && kern_msg->msg_namelen) {
-		if (mode == VERIFY_READ) {
+		if (mode == WRITE) {
 			int err = move_addr_to_kernel(kern_msg->msg_name,
 						      kern_msg->msg_namelen,
 						      kern_address);
@@ -99,13 +74,17 @@ int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *kern_iov,
 		kern_msg->msg_namelen = 0;
 	}
 
-	tot_len = iov_from_user_compat_to_kern(kern_iov,
-					  (struct compat_iovec __user *)kern_msg->msg_iov,
-					  kern_msg->msg_iovlen);
-	if (tot_len >= 0)
-		kern_msg->msg_iov = kern_iov;
+	if (kern_msg->msg_iovlen > UIO_MAXIOV)
+		return -EMSGSIZE;
 
-	return tot_len;
+	p = (struct compat_iovec __user *)kern_msg->msg_iov;
+	err = compat_rw_copy_check_uvector(mode, p, kern_msg->msg_iovlen,
+					   UIO_FASTIOV, iov, &res);
+	if (err >= 0)
+		kern_msg->msg_iov = res;
+	else if (res != iov)
+		kfree(res);
+	return err;
 }
 
 /* Bleech... */
