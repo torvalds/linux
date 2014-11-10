@@ -206,7 +206,6 @@ struct snd_soc_dai_driver {
 	/* DAI description */
 	const char *name;
 	unsigned int id;
-	int ac97_control;
 	unsigned int base;
 
 	/* DAI driver callbacks */
@@ -216,6 +215,8 @@ struct snd_soc_dai_driver {
 	int (*resume)(struct snd_soc_dai *dai);
 	/* compress dai */
 	bool compress_dai;
+	/* DAI is also used for the control bus */
+	bool bus_control;
 
 	/* ops */
 	const struct snd_soc_dai_ops *ops;
