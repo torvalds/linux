@@ -568,59 +568,27 @@ static struct recv_frame *portctrl(struct rtw_adapter *adapter,
 		 ("########portctrl:adapter->securitypriv.dot11AuthAlgrthm ="
 		  "%d\n", adapter->securitypriv.dot11AuthAlgrthm));
 
+	prtnframe = precv_frame;
+
 	if (auth_alg == dot11AuthAlgrthm_8021X) {
 		/* get ether_type */
 		ptr = pfhdr->pkt->data + pfhdr->attrib.hdrlen;
 
 		ether_type = (ptr[6] << 8) | ptr[7];
 
-		if ((psta != NULL) && (psta->ieee8021x_blocked)) {
+		if (psta && psta->ieee8021x_blocked) {
 			/* blocked */
 			/* only accept EAPOL frame */
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
 				 ("########portctrl:psta->ieee8021x_blocked =="
 				  "1\n"));
 
-			if (ether_type == eapol_type) {
-				prtnframe = precv_frame;
-			} else {
+			if (ether_type != eapol_type) {
 				/* free this frame */
 				rtw_free_recvframe23a(precv_frame);
 				prtnframe = NULL;
 			}
-		} else {
-			/* allowed */
-			/* check decryption status, and decrypt the frame if needed */
-			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
-				 ("########portctrl:psta->ieee8021x_blocked =="
-				  "0\n"));
-			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
-				 ("portctrl:precv_frame->hdr.attrib.privacy ="
-				  "%x\n", precv_frame->attrib.privacy));
-
-			if (pattrib->bdecrypted == 0) {
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
-					 ("portctrl:prxstat->decrypted =%x\n",
-					  pattrib->bdecrypted));
-			}
-
-			prtnframe = precv_frame;
-			/* check is the EAPOL frame or not (Rekey) */
-			if (ether_type == eapol_type) {
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_,
-					 ("########portctrl:ether_type == "
-					  "0x888e\n"));
-				/* check Rekey */
-
-				prtnframe = precv_frame;
-			} else {
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
-					 ("########portctrl:ether_type = 0x%04x"
-					  "\n", ether_type));
-			}
 		}
-	} else {
-		prtnframe = precv_frame;
 	}
 
 	return prtnframe;
