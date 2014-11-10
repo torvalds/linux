@@ -42,80 +42,6 @@ static struct snd_ac97_bus soc_ac97_bus = {
 	.ops = NULL, /* Gets initialized in snd_soc_set_ac97_ops() */
 };
 
-/* register ac97 codec to bus */
-static int soc_register_ac97_codec(struct snd_soc_codec *codec,
-	struct snd_soc_dai *codec_dai)
-{
-	int ret;
-
-	/* Only instantiate AC97 if not already done by the adaptor
-	 * for the generic AC97 subsystem.
-	 */
-	if (!codec_dai->driver->ac97_control || codec->ac97_registered)
-		return 0;
-
-	/*
-	 * It is possible that the AC97 device is already registered to
-	 * the device subsystem. This happens when the device is created
-	 * via snd_ac97_mixer(). Currently only SoC codec that does so
-	 * is the generic AC97 glue but others migh emerge.
-	 *
-	 * In those cases we don't try to register the device again.
-	 */
-	if (!codec->ac97_created)
-		return 0;
-
-	codec->ac97->dev.bus = &ac97_bus_type;
-	codec->ac97->dev.parent = codec->component.card->dev;
-
-	dev_set_name(&codec->ac97->dev, "%d-%d:%s",
-		     codec->component.card->snd_card->number, 0,
-		     codec->component.name);
-	ret = device_add(&codec->ac97->dev);
-	if (ret < 0) {
-		dev_err(codec->dev, "ASoC: AC97 device register failed: %d\n",
-			ret);
-		return ret;
-	}
-	codec->ac97_registered = 1;
-
-	return 0;
-}
-
-static void soc_unregister_ac97_codec(struct snd_soc_codec *codec)
-{
-	if (!codec->ac97_registered)
-		return;
-	device_del(&codec->ac97->dev);
-	codec->ac97_registered = 0;
-}
-
-static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
-{
-	int i, ret;
-
-	for (i = 0; i < rtd->num_codecs; i++) {
-		struct snd_soc_dai *codec_dai = rtd->codec_dais[i];
-
-		ret = soc_register_ac97_codec(codec_dai->codec, codec_dai);
-		if (ret) {
-			while (--i >= 0)
-				soc_unregister_ac97_codec(codec_dai->codec);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-static void soc_unregister_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
-{
-	int i;
-
-	for (i = 0; i < rtd->num_codecs; i++)
-		soc_unregister_ac97_codec(rtd->codec_dais[i]->codec);
-}
-
 static void soc_ac97_device_release(struct device *dev)
 {
 	kfree(to_ac97_t(dev));
@@ -129,22 +55,28 @@ static void soc_ac97_device_release(struct device *dev)
  */
 int snd_soc_new_ac97_codec(struct snd_soc_codec *codec)
 {
+	int ret;
+
 	codec->ac97 = kzalloc(sizeof(struct snd_ac97), GFP_KERNEL);
 	if (codec->ac97 == NULL)
 		return -ENOMEM;
 
 	codec->ac97->bus = &soc_ac97_bus;
 	codec->ac97->num = 0;
+
+	codec->ac97->dev.bus = &ac97_bus_type;
+	codec->ac97->dev.parent = codec->component.card->dev;
 	codec->ac97->dev.release = soc_ac97_device_release;
 
-	/*
-	 * Mark the AC97 device to be created by us. This way we ensure that the
-	 * device will be registered with the device subsystem later on.
-	 */
-	codec->ac97_created = 1;
-	device_initialize(&codec->ac97->dev);
+	dev_set_name(&codec->ac97->dev, "%d-%d:%s",
+		     codec->component.card->snd_card->number, 0,
+		     codec->component.name);
 
-	return 0;
+	ret = device_register(&codec->ac97->dev);
+	if (ret)
+		put_device(&codec->ac97->dev);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_new_ac97_codec);
 
@@ -156,11 +88,10 @@ EXPORT_SYMBOL_GPL(snd_soc_new_ac97_codec);
  */
 void snd_soc_free_ac97_codec(struct snd_soc_codec *codec)
 {
-	soc_unregister_ac97_codec(codec);
+	device_del(&codec->ac97->dev);
 	codec->ac97->bus = NULL;
 	put_device(&codec->ac97->dev);
 	codec->ac97 = NULL;
-	codec->ac97_created = 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_free_ac97_codec);
 
@@ -321,24 +252,3 @@ int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_set_ac97_ops_of_reset);
-
-int snd_soc_ac97_register_dai_links(struct snd_soc_card *card)
-{
-	int i;
-	int ret;
-
-	/* register any AC97 codecs */
-	for (i = 0; i < card->num_rtd; i++) {
-		ret = soc_register_ac97_dai_link(&card->rtd[i]);
-		if (ret < 0)
-			goto err;
-	}
-
-	return 0;
-err:
-	dev_err(card->dev,
-		"ASoC: failed to register AC97: %d\n", ret);
-	while (--i >= 0)
-		soc_unregister_ac97_dai_link(&card->rtd[i]);
-	return ret;
-}

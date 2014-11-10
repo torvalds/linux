@@ -507,15 +507,7 @@ int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 		struct platform_device *pdev);
 
 extern struct snd_ac97_bus_ops *soc_ac97_ops;
-
-int snd_soc_ac97_register_dai_links(struct snd_soc_card *card);
 #else
-
-static inline int snd_soc_ac97_register_dai_links(struct snd_soc_card *card)
-{
-	return 0;
-}
-
 static inline int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 	struct platform_device *pdev)
 {
@@ -808,8 +800,6 @@ struct snd_soc_codec {
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
 	unsigned int cache_bypass:1; /* Suppress access to the cache */
 	unsigned int suspended:1; /* Codec is in suspend PM state */
-	unsigned int ac97_registered:1; /* Codec has been AC97 registered */
-	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int cache_init:1; /* codec cache has been initialized */
 	u32 cache_sync; /* Cache needs to be synced to hardware */
 

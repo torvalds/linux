@@ -1671,10 +1671,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		goto probe_aux_dev_err;
 	}
 
-	ret = snd_soc_ac97_register_dai_links(card);
-	if (ret < 0)
-		goto probe_aux_dev_err;
-
 	card->instantiated = 1;
 	snd_soc_dapm_sync(&card->dapm);
 	mutex_unlock(&card->mutex);
