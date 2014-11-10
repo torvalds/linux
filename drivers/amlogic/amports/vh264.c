@@ -1487,7 +1487,7 @@ int vh264_dec_status(struct vdec_status *vstatus)
     vstatus->error_count = READ_VREG(AV_SCRATCH_D);
     vstatus->status = stat;
     if (fatal_error_reset) {
-        vstatus->status |= fatal_error_flag << 16;
+        vstatus->status |= fatal_error_flag;
     }
     return 0;
 }
