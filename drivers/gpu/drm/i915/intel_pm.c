@@ -7215,8 +7215,9 @@ static int vlv_gpu_freq_div(unsigned int czclk_freq)
 		return 12;
 	case 320:
 	case 333:
-	case 400:
 		return 16;
+	case 400:
+		return 20;
 	default:
 		return -1;
 	}
