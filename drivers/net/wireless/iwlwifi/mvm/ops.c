@@ -597,8 +597,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 		kfree(mvm->nd_config->match_sets);
 		kfree(mvm->nd_config);
 		mvm->nd_config = NULL;
-		kfree(mvm->nd_ies);
-		mvm->nd_ies = NULL;
 	}
 #endif
 

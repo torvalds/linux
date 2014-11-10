@@ -1198,13 +1198,7 @@ static ssize_t iwl_dbgfs_netdetect_write(struct iwl_mvm *mvm, char *buf,
 		kfree(mvm->nd_config->match_sets);
 		kfree(mvm->nd_config);
 		mvm->nd_config = NULL;
-		kfree(mvm->nd_ies);
-		mvm->nd_ies = NULL;
 	}
-
-	mvm->nd_ies = kzalloc(sizeof(*mvm->nd_ies), GFP_KERNEL);
-	if (!mvm->nd_ies)
-		return -ENOMEM;
 
 	mvm->nd_config = kzalloc(sizeof(*mvm->nd_config) +
 				 (11 * sizeof(struct ieee80211_channel *)),
@@ -1262,8 +1256,6 @@ out_free:
 		kfree(mvm->nd_config->match_sets);
 	kfree(mvm->nd_config);
 	mvm->nd_config = NULL;
-	kfree(mvm->nd_ies);
-	mvm->nd_ies = NULL;
 out:
 	return ret;
 }

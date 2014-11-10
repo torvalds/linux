@@ -1036,7 +1036,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			goto out;
 
 		ret = iwl_mvm_scan_offload_start(mvm, vif, mvm->nd_config,
-						 mvm->nd_ies);
+						 &mvm->nd_ies);
 		if (ret)
 			goto out;
 	} else {
