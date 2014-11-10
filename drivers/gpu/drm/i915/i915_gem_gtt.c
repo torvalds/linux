@@ -1174,6 +1174,8 @@ i915_ppgtt_create(struct drm_device *dev, struct drm_i915_file_private *fpriv)
 
 	ppgtt->file_priv = fpriv;
 
+	trace_i915_ppgtt_create(&ppgtt->base);
+
 	return ppgtt;
 }
 
@@ -1181,6 +1183,8 @@ void  i915_ppgtt_release(struct kref *kref)
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(kref, struct i915_hw_ppgtt, ref);
+
+	trace_i915_ppgtt_release(&ppgtt->base);
 
 	/* vmas should already be unbound */
 	WARN_ON(!list_empty(&ppgtt->base.active_list));
