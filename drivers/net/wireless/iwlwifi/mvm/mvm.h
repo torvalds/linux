@@ -399,6 +399,9 @@ struct iwl_mvm_vif {
 
 	/* FW identified misbehaving AP */
 	u8 uapsd_misbehaving_bssid[ETH_ALEN];
+
+	/* Indicates that CSA countdown may be started */
+	bool csa_countdown;
 };
 
 static inline struct iwl_mvm_vif *

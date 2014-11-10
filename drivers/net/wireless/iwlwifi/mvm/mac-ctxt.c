@@ -1263,17 +1263,25 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 }
 
 static void iwl_mvm_csa_count_down(struct iwl_mvm *mvm,
-				   struct ieee80211_vif *csa_vif, u32 gp2)
+				   struct ieee80211_vif *csa_vif, u32 gp2,
+				   bool tx_success)
 {
 	struct iwl_mvm_vif *mvmvif =
 			iwl_mvm_vif_from_mac80211(csa_vif);
+
+	/* Don't start to countdown from a failed beacon */
+	if (!tx_success && !mvmvif->csa_countdown)
+		return;
+
+	mvmvif->csa_countdown = true;
 
 	if (!ieee80211_csa_is_complete(csa_vif)) {
 		int c = ieee80211_csa_update_counter(csa_vif);
 
 		iwl_mvm_mac_ctxt_beacon_changed(mvm, csa_vif);
 		if (csa_vif->p2p &&
-		    !iwl_mvm_te_scheduled(&mvmvif->time_event_data) && gp2) {
+		    !iwl_mvm_te_scheduled(&mvmvif->time_event_data) && gp2 &&
+		    tx_success) {
 			u32 rel_time = (c + 1) *
 				       csa_vif->bss_conf.beacon_int -
 				       IWL_MVM_CHANNEL_SWITCH_TIME_GO;
@@ -1300,6 +1308,7 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	struct ieee80211_vif *csa_vif;
 	struct ieee80211_vif *tx_blocked_vif;
 	u64 tsf;
+	u16 status;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1316,18 +1325,18 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 		tsf = le64_to_cpu(beacon->tsf);
 	}
 
+	status = le16_to_cpu(beacon_notify_hdr->status.status) & TX_STATUS_MSK;
 	IWL_DEBUG_RX(mvm,
 		     "beacon status %#x retries:%d tsf:0x%16llX gp2:0x%X rate:%d\n",
-		     le16_to_cpu(beacon_notify_hdr->status.status) &
-								TX_STATUS_MSK,
-		     beacon_notify_hdr->failure_frame, tsf,
+		     status, beacon_notify_hdr->failure_frame, tsf,
 		     mvm->ap_last_beacon_gp2,
 		     le32_to_cpu(beacon_notify_hdr->initial_rate));
 
 	csa_vif = rcu_dereference_protected(mvm->csa_vif,
 					    lockdep_is_held(&mvm->mutex));
 	if (unlikely(csa_vif && csa_vif->csa_active))
-		iwl_mvm_csa_count_down(mvm, csa_vif, mvm->ap_last_beacon_gp2);
+		iwl_mvm_csa_count_down(mvm, csa_vif, mvm->ap_last_beacon_gp2,
+				       (status == TX_STATUS_SUCCESS));
 
 	tx_blocked_vif = rcu_dereference_protected(mvm->csa_tx_blocked_vif,
 						lockdep_is_held(&mvm->mutex));

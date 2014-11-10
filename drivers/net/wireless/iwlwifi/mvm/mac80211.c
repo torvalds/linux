@@ -2909,6 +2909,8 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		if (!vif->csa_active || !mvmvif->ap_ibss_active)
 			goto out;
 
+		mvmvif->csa_countdown = false;
+
 		/* Set CS bit on all the stations */
 		iwl_mvm_modify_all_sta_disable_tx(mvm, mvmvif, true);
 
@@ -3164,6 +3166,7 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct ieee80211_vif *csa_vif;
+	struct iwl_mvm_vif *mvmvif;
 	int ret;
 
 	mutex_lock(&mvm->mutex);
@@ -3183,6 +3186,14 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 		}
 
 		rcu_assign_pointer(mvm->csa_vif, vif);
+
+		mvmvif = iwl_mvm_vif_from_mac80211(vif);
+		if (WARN_ONCE(mvmvif->csa_countdown,
+			      "Previous CSA countdown didn't complete")) {
+			ret = -EBUSY;
+			goto out_unlock;
+		}
+
 		break;
 	default:
 		break;
