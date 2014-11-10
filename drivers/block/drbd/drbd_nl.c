@@ -588,7 +588,7 @@ drbd_set_role(struct drbd_device *const device, enum drbd_role new_role, int for
 	val.i  = 0; val.role  = new_role;
 
 	while (try++ < max_tries) {
-		rv = _drbd_request_state(device, mask, val, CS_WAIT_COMPLETE);
+		rv = _drbd_request_state_holding_state_mutex(device, mask, val, CS_WAIT_COMPLETE);
 
 		/* in case we first succeeded to outdate,
 		 * but now suddenly could establish a connection */
