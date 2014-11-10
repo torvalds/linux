@@ -1219,7 +1219,7 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0, reg;
 
-	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
+	ret = snd_soc_new_ac97_codec(codec);
 	if (ret < 0)
 		return ret;
 

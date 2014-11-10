@@ -38,6 +38,10 @@ struct snd_ac97_reset_cfg {
 	int gpio_reset;
 };
 
+static struct snd_ac97_bus soc_ac97_bus = {
+	.ops = NULL, /* Gets initialized in snd_soc_set_ac97_ops() */
+};
+
 /* unregister ac97 codec */
 static int soc_ac97_dev_unregister(struct snd_soc_codec *codec)
 {
@@ -140,27 +144,17 @@ static void soc_ac97_device_release(struct device *dev)
 /**
  * snd_soc_new_ac97_codec - initailise AC97 device
  * @codec: audio codec
- * @ops: AC97 bus operations
- * @num: AC97 codec number
  *
  * Initialises AC97 codec resources for use by ad-hoc devices only.
  */
-int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
-	struct snd_ac97_bus_ops *ops, int num)
+int snd_soc_new_ac97_codec(struct snd_soc_codec *codec)
 {
 	codec->ac97 = kzalloc(sizeof(struct snd_ac97), GFP_KERNEL);
 	if (codec->ac97 == NULL)
 		return -ENOMEM;
 
-	codec->ac97->bus = kzalloc(sizeof(struct snd_ac97_bus), GFP_KERNEL);
-	if (codec->ac97->bus == NULL) {
-		kfree(codec->ac97);
-		codec->ac97 = NULL;
-		return -ENOMEM;
-	}
-
-	codec->ac97->bus->ops = ops;
-	codec->ac97->num = num;
+	codec->ac97->bus = &soc_ac97_bus;
+	codec->ac97->num = 0;
 	codec->ac97->dev.release = soc_ac97_device_release;
 
 	/*
@@ -183,7 +177,6 @@ EXPORT_SYMBOL_GPL(snd_soc_new_ac97_codec);
 void snd_soc_free_ac97_codec(struct snd_soc_codec *codec)
 {
 	soc_unregister_ac97_codec(codec);
-	kfree(codec->ac97->bus);
 	codec->ac97->bus = NULL;
 	put_device(&codec->ac97->dev);
 	codec->ac97 = NULL;
@@ -314,6 +307,7 @@ int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops)
 		return -EBUSY;
 
 	soc_ac97_ops = ops;
+	soc_ac97_bus.ops = ops;
 
 	return 0;
 }
