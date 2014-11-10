@@ -649,7 +649,7 @@ typedef struct scc_trans {
 /* #define	CPMVEC_PIO_PC4		((ushort)0x01) */
 /* #define	CPMVEC_ERROR		((ushort)0x00) */
 
-extern void cpm_install_handler(int vec, void (*handler)(void *), void *dev_id);
+extern void cpm_install_handler(int vec, irq_handler_t handler, void *dev_id);
 
 /* CPM interrupt configuration vector.
 */
