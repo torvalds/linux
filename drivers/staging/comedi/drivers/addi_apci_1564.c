@@ -107,6 +107,19 @@
 #define APCI1564_TIMER_WARN_TIMEVAL_REG		0x18  /* Rev 2.x only */
 #define APCI1564_TIMER_WARN_TIMEBASE_REG	0x1c  /* Rev 2.x only */
 
+/*
+ * devpriv->counters Register Map
+ *   PLD Revision 2.x - PCI BAR 1 + 0x00
+ */
+#define APCI1564_COUNTER_REG(x)			(0x00 + ((x) * 0x20))
+#define APCI1564_COUNTER_RELOAD_REG(x)		(0x04 + ((x) * 0x20))
+#define APCI1564_COUNTER_TIMEBASE_REG(x)	(0x08 + ((x) * 0x20))
+#define APCI1564_COUNTER_CTRL_REG(x)		(0x0c + ((x) * 0x20))
+#define APCI1564_COUNTER_STATUS_REG(x)		(0x10 + ((x) * 0x20))
+#define APCI1564_COUNTER_IRQ_REG(x)		(0x14 + ((x) * 0x20))
+#define APCI1564_COUNTER_WARN_TIMEVAL_REG(x)	(0x18 + ((x) * 0x20))
+#define APCI1564_COUNTER_WARN_TIMEBASE_REG(x)	(0x1c + ((x) * 0x20))
+
 struct apci1564_private {
 	unsigned long eeprom;		/* base address of EEPROM register */
 	unsigned long timer;		/* base address of 12-bit timer */
