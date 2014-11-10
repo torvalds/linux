@@ -21,8 +21,6 @@
 #include "pipe.h"
 
 #define usbhsf_get_cfifo(p)	(&((p)->fifo_info.cfifo))
-#define usbhsf_get_d0fifo(p)	(&((p)->fifo_info.dfifo[0]))
-#define usbhsf_get_d1fifo(p)	(&((p)->fifo_info.dfifo[1]))
 #define usbhsf_is_cfifo(p, f)	(usbhsf_get_cfifo(p) == f)
 
 #define usbhsf_fifo_is_busy(f)	((f)->pipe) /* see usbhs_pipe_select_fifo */
@@ -761,18 +759,13 @@ static struct usbhs_fifo *usbhsf_get_dma_fifo(struct usbhs_priv *priv,
 					      struct usbhs_pkt *pkt)
 {
 	struct usbhs_fifo *fifo;
+	int i;
 
-	/* DMA :: D0FIFO */
-	fifo = usbhsf_get_d0fifo(priv);
-	if (usbhsf_dma_chan_get(fifo, pkt) &&
-	    !usbhsf_fifo_is_busy(fifo))
-		return fifo;
-
-	/* DMA :: D1FIFO */
-	fifo = usbhsf_get_d1fifo(priv);
-	if (usbhsf_dma_chan_get(fifo, pkt) &&
-	    !usbhsf_fifo_is_busy(fifo))
-		return fifo;
+	usbhs_for_each_dfifo(priv, fifo, i) {
+		if (usbhsf_dma_chan_get(fifo, pkt) &&
+		    !usbhsf_fifo_is_busy(fifo))
+			return fifo;
+	}
 
 	return NULL;
 }
@@ -1185,8 +1178,8 @@ void usbhs_fifo_init(struct usbhs_priv *priv)
 {
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	struct usbhs_fifo *cfifo = usbhsf_get_cfifo(priv);
-	struct usbhs_fifo *d0fifo = usbhsf_get_d0fifo(priv);
-	struct usbhs_fifo *d1fifo = usbhsf_get_d1fifo(priv);
+	struct usbhs_fifo *dfifo;
+	int i;
 
 	mod->irq_empty		= usbhsf_irq_empty;
 	mod->irq_ready		= usbhsf_irq_ready;
@@ -1194,8 +1187,8 @@ void usbhs_fifo_init(struct usbhs_priv *priv)
 	mod->irq_brdysts	= 0;
 
 	cfifo->pipe	= NULL;
-	d0fifo->pipe	= NULL;
-	d1fifo->pipe	= NULL;
+	usbhs_for_each_dfifo(priv, dfifo, i)
+		dfifo->pipe	= NULL;
 }
 
 void usbhs_fifo_quit(struct usbhs_priv *priv)
@@ -1208,6 +1201,20 @@ void usbhs_fifo_quit(struct usbhs_priv *priv)
 	mod->irq_brdysts	= 0;
 }
 
+#define USBHS_DFIFO_INIT(priv, fifo, channel)				\
+do {									\
+	fifo = usbhsf_get_dnfifo(priv, channel);			\
+	fifo->name	= "D"#channel"FIFO";				\
+	fifo->port	= D##channel##FIFO;				\
+	fifo->sel	= D##channel##FIFOSEL;				\
+	fifo->ctr	= D##channel##FIFOCTR;				\
+	fifo->tx_slave.shdma_slave.slave_id =				\
+			usbhs_get_dparam(priv, d##channel##_tx_id);	\
+	fifo->rx_slave.shdma_slave.slave_id =				\
+			usbhs_get_dparam(priv, d##channel##_rx_id);	\
+	usbhsf_dma_init(priv, fifo);					\
+} while (0)
+
 int usbhs_fifo_probe(struct usbhs_priv *priv)
 {
 	struct usbhs_fifo *fifo;
@@ -1219,31 +1226,18 @@ int usbhs_fifo_probe(struct usbhs_priv *priv)
 	fifo->sel	= CFIFOSEL;
 	fifo->ctr	= CFIFOCTR;
 
-	/* D0FIFO */
-	fifo = usbhsf_get_d0fifo(priv);
-	fifo->name	= "D0FIFO";
-	fifo->port	= D0FIFO;
-	fifo->sel	= D0FIFOSEL;
-	fifo->ctr	= D0FIFOCTR;
-	fifo->tx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d0_tx_id);
-	fifo->rx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d0_rx_id);
-	usbhsf_dma_init(priv, fifo);
-
-	/* D1FIFO */
-	fifo = usbhsf_get_d1fifo(priv);
-	fifo->name	= "D1FIFO";
-	fifo->port	= D1FIFO;
-	fifo->sel	= D1FIFOSEL;
-	fifo->ctr	= D1FIFOCTR;
-	fifo->tx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d1_tx_id);
-	fifo->rx_slave.shdma_slave.slave_id	= usbhs_get_dparam(priv, d1_rx_id);
-	usbhsf_dma_init(priv, fifo);
+	/* DFIFO */
+	USBHS_DFIFO_INIT(priv, fifo, 0);
+	USBHS_DFIFO_INIT(priv, fifo, 1);
 
 	return 0;
 }
 
 void usbhs_fifo_remove(struct usbhs_priv *priv)
 {
-	usbhsf_dma_quit(priv, usbhsf_get_d0fifo(priv));
-	usbhsf_dma_quit(priv, usbhsf_get_d1fifo(priv));
+	struct usbhs_fifo *fifo;
+	int i;
+
+	usbhs_for_each_dfifo(priv, fifo, i)
+		usbhsf_dma_quit(priv, fifo);
 }

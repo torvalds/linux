@@ -43,6 +43,11 @@ struct usbhs_fifo_info {
 	struct usbhs_fifo cfifo;
 	struct usbhs_fifo dfifo[USBHS_MAX_NUM_DFIFO];
 };
+#define usbhsf_get_dnfifo(p, n)	(&((p)->fifo_info.dfifo[n]))
+#define usbhs_for_each_dfifo(priv, dfifo, i)				\
+	for ((i) = 0, dfifo = usbhsf_get_dnfifo(priv, (i));		\
+	     ((i) < USBHS_MAX_NUM_DFIFO);				\
+	     (i)++, dfifo = usbhsf_get_dnfifo(priv, (i)))
 
 struct usbhs_pkt_handle;
 struct usbhs_pkt {
