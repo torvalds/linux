@@ -2350,11 +2350,6 @@ nv50_fb_ctor(struct drm_framebuffer *fb)
 	u8 kind = nouveau_bo_tile_layout(nvbo) >> 8;
 	u8 tile = nvbo->tile_mode;
 
-	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) {
-		NV_ERROR(drm, "framebuffer requires contiguous bo\n");
-		return -EINVAL;
-	}
-
 	if (drm->device.info.chipset >= 0xc0)
 		tile >>= 4; /* yep.. */
 
