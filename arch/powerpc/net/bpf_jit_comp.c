@@ -361,6 +361,11 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 							    protocol));
 			break;
 		case BPF_ANC | SKF_AD_IFINDEX:
+		case BPF_ANC | SKF_AD_HATYPE:
+			BUILD_BUG_ON(FIELD_SIZEOF(struct net_device,
+						ifindex) != 4);
+			BUILD_BUG_ON(FIELD_SIZEOF(struct net_device,
+						type) != 2);
 			PPC_LD_OFFS(r_scratch1, r_skb, offsetof(struct sk_buff,
 								dev));
 			PPC_CMPDI(r_scratch1, 0);
@@ -368,14 +373,18 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 				PPC_BCC(COND_EQ, addrs[ctx->pc_ret0]);
 			} else {
 				/* Exit, returning 0; first pass hits here. */
-				PPC_BCC_SHORT(COND_NE, (ctx->idx*4)+12);
+				PPC_BCC_SHORT(COND_NE, ctx->idx * 4 + 12);
 				PPC_LI(r_ret, 0);
 				PPC_JMP(exit_addr);
 			}
-			BUILD_BUG_ON(FIELD_SIZEOF(struct net_device,
-						  ifindex) != 4);
-			PPC_LWZ_OFFS(r_A, r_scratch1,
+			if (code == (BPF_ANC | SKF_AD_IFINDEX)) {
+				PPC_LWZ_OFFS(r_A, r_scratch1,
 				     offsetof(struct net_device, ifindex));
+			} else {
+				PPC_LHZ_OFFS(r_A, r_scratch1,
+				     offsetof(struct net_device, type));
+			}
+
 			break;
 		case BPF_ANC | SKF_AD_MARK:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
