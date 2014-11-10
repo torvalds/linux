@@ -273,6 +273,8 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 
 	/* mark whether it is async to denote list management in IRQ handler */
 	engine->async = wait ? false : true;
+	/* verify that the irq handler sees the 'async' value */
+	smp_mb();
 
 	/* kick reload */
 	writel(engine->refill_pa,
