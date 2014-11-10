@@ -1039,6 +1039,25 @@ s32 rtw_txframes_sta_ac_pending23a(struct rtw_adapter *padapter,
 	return ptxservq->qcnt;
 }
 
+/* Logical Link Control(LLC) SubNetwork Attachment Point(SNAP) header
+ * IEEE LLC/SNAP header contains 8 octets
+ * First 3 octets comprise the LLC portion
+ * SNAP portion, 5 octets, is divided into two fields:
+ *	Organizationally Unique Identifier(OUI), 3 octets,
+ *	type, defined by that organization, 2 octets.
+ */
+static int rtw_put_snap(u8 *data, u16 h_proto)
+{
+	if (h_proto == ETH_P_IPX || h_proto == ETH_P_AARP)
+		ether_addr_copy(data, bridge_tunnel_header);
+	else
+		ether_addr_copy(data, rfc1042_header);
+
+	data += ETH_ALEN;
+	put_unaligned_be16(h_proto, data);
+	return ETH_ALEN + sizeof(u16);
+}
+
 /*
 
 This sub-routine will perform all the following:
@@ -1162,7 +1181,7 @@ int rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 			mpdu_len -= pattrib->iv_len;
 		}
 		if (frg_inx == 0) {
-			llc_sz = rtw_put_snap23a(pframe, pattrib->ether_type);
+			llc_sz = rtw_put_snap(pframe, pattrib->ether_type);
 			pframe += llc_sz;
 			mpdu_len -= llc_sz;
 		}
@@ -1230,25 +1249,6 @@ int rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 
 exit:
 	return res;
-}
-
-/* Logical Link Control(LLC) SubNetwork Attachment Point(SNAP) header
- * IEEE LLC/SNAP header contains 8 octets
- * First 3 octets comprise the LLC portion
- * SNAP portion, 5 octets, is divided into two fields:
- *	Organizationally Unique Identifier(OUI), 3 octets,
- *	type, defined by that organization, 2 octets.
- */
-s32 rtw_put_snap23a(u8 *data, u16 h_proto)
-{
-	if (h_proto == ETH_P_IPX || h_proto == ETH_P_AARP)
-		ether_addr_copy(data, bridge_tunnel_header);
-	else
-		ether_addr_copy(data, rfc1042_header);
-
-	data += ETH_ALEN;
-	put_unaligned_be16(h_proto, data);
-	return ETH_ALEN + sizeof(u16);
 }
 
 void rtw_update_protection23a(struct rtw_adapter *padapter, u8 *ie, uint ie_len)
