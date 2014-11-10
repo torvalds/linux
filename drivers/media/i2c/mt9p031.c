@@ -950,9 +950,9 @@ static int mt9p031_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	format = v4l2_subdev_get_try_format(fh, 0);
 
 	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
-		format->code = V4L2_MBUS_FMT_Y12_1X12;
+		format->code = MEDIA_BUS_FMT_Y12_1X12;
 	else
-		format->code = V4L2_MBUS_FMT_SGRBG12_1X12;
+		format->code = MEDIA_BUS_FMT_SGRBG12_1X12;
 
 	format->width = MT9P031_WINDOW_WIDTH_DEF;
 	format->height = MT9P031_WINDOW_HEIGHT_DEF;
@@ -1120,9 +1120,9 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->crop.top = MT9P031_ROW_START_DEF;
 
 	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
-		mt9p031->format.code = V4L2_MBUS_FMT_Y12_1X12;
+		mt9p031->format.code = MEDIA_BUS_FMT_Y12_1X12;
 	else
-		mt9p031->format.code = V4L2_MBUS_FMT_SGRBG12_1X12;
+		mt9p031->format.code = MEDIA_BUS_FMT_SGRBG12_1X12;
 
 	mt9p031->format.width = MT9P031_WINDOW_WIDTH_DEF;
 	mt9p031->format.height = MT9P031_WINDOW_HEIGHT_DEF;

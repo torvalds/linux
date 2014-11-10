@@ -60,9 +60,9 @@ static inline struct adv7175 *to_adv7175(struct v4l2_subdev *sd)
 
 static char *inputs[] = { "pass_through", "play_back", "color_bar" };
 
-static enum v4l2_mbus_pixelcode adv7175_codes[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_UYVY8_1X16,
+static u32 adv7175_codes[] = {
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_UYVY8_1X16,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -301,7 +301,7 @@ static int adv7175_s_routing(struct v4l2_subdev *sd,
 }
 
 static int adv7175_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-				enum v4l2_mbus_pixelcode *code)
+				u32 *code)
 {
 	if (index >= ARRAY_SIZE(adv7175_codes))
 		return -EINVAL;
@@ -316,9 +316,9 @@ static int adv7175_g_fmt(struct v4l2_subdev *sd,
 	u8 val = adv7175_read(sd, 0x7);
 
 	if ((val & 0x40) == (1 << 6))
-		mf->code = V4L2_MBUS_FMT_UYVY8_1X16;
+		mf->code = MEDIA_BUS_FMT_UYVY8_1X16;
 	else
-		mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
+		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 	mf->colorspace  = V4L2_COLORSPACE_SMPTE170M;
 	mf->width       = 0;
@@ -335,11 +335,11 @@ static int adv7175_s_fmt(struct v4l2_subdev *sd,
 	int ret;
 
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		val &= ~0x40;
 		break;
 
-	case V4L2_MBUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
 		val |= 0x40;
 		break;
 

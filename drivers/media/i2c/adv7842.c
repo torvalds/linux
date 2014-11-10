@@ -1877,12 +1877,12 @@ static int adv7842_s_routing(struct v4l2_subdev *sd,
 }
 
 static int adv7842_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
-				 enum v4l2_mbus_pixelcode *code)
+				 u32 *code)
 {
 	if (index)
 		return -EINVAL;
 	/* Good enough for now */
-	*code = V4L2_MBUS_FMT_FIXED;
+	*code = MEDIA_BUS_FMT_FIXED;
 	return 0;
 }
 
@@ -1893,7 +1893,7 @@ static int adv7842_g_mbus_fmt(struct v4l2_subdev *sd,
 
 	fmt->width = state->timings.bt.width;
 	fmt->height = state->timings.bt.height;
-	fmt->code = V4L2_MBUS_FMT_FIXED;
+	fmt->code = MEDIA_BUS_FMT_FIXED;
 	fmt->field = V4L2_FIELD_NONE;
 
 	if (state->mode == ADV7842_MODE_SDP) {

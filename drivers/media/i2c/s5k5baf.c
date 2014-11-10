@@ -248,7 +248,7 @@ enum s5k5baf_gpio_id {
 #define NUM_ISP_PADS 2
 
 struct s5k5baf_pixfmt {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	u32 colorspace;
 	/* REG_P_FMT(x) register value */
 	u16 reg_p_fmt;
@@ -331,10 +331,10 @@ struct s5k5baf {
 };
 
 static const struct s5k5baf_pixfmt s5k5baf_formats[] = {
-	{ V4L2_MBUS_FMT_VYUY8_2X8,	V4L2_COLORSPACE_JPEG,	5 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8,	V4L2_COLORSPACE_JPEG,	5 },
 	/* range 16-240 */
-	{ V4L2_MBUS_FMT_VYUY8_2X8,	V4L2_COLORSPACE_REC709,	6 },
-	{ V4L2_MBUS_FMT_RGB565_2X8_BE,	V4L2_COLORSPACE_JPEG,	0 },
+	{ MEDIA_BUS_FMT_VYUY8_2X8,	V4L2_COLORSPACE_REC709,	6 },
+	{ MEDIA_BUS_FMT_RGB565_2X8_BE,	V4L2_COLORSPACE_JPEG,	0 },
 };
 
 static struct v4l2_rect s5k5baf_cis_rect = {
@@ -1206,7 +1206,7 @@ static int s5k5baf_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->pad == PAD_CIS) {
 		if (code->index > 0)
 			return -EINVAL;
-		code->code = V4L2_MBUS_FMT_FIXED;
+		code->code = MEDIA_BUS_FMT_FIXED;
 		return 0;
 	}
 
@@ -1227,7 +1227,7 @@ static int s5k5baf_enum_frame_size(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (fse->pad == PAD_CIS) {
-		fse->code = V4L2_MBUS_FMT_FIXED;
+		fse->code = MEDIA_BUS_FMT_FIXED;
 		fse->min_width = S5K5BAF_CIS_WIDTH;
 		fse->max_width = S5K5BAF_CIS_WIDTH;
 		fse->min_height = S5K5BAF_CIS_HEIGHT;
@@ -1252,7 +1252,7 @@ static void s5k5baf_try_cis_format(struct v4l2_mbus_framefmt *mf)
 {
 	mf->width = S5K5BAF_CIS_WIDTH;
 	mf->height = S5K5BAF_CIS_HEIGHT;
-	mf->code = V4L2_MBUS_FMT_FIXED;
+	mf->code = MEDIA_BUS_FMT_FIXED;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 	mf->field = V4L2_FIELD_NONE;
 }

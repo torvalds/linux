@@ -85,13 +85,13 @@ MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"");
 
 /* MT9V022 has only one fixed colorspace per pixelcode */
 struct mt9v022_datafmt {
-	enum v4l2_mbus_pixelcode	code;
+	u32	code;
 	enum v4l2_colorspace		colorspace;
 };
 
 /* Find a data format by a pixel code in an array */
 static const struct mt9v022_datafmt *mt9v022_find_datafmt(
-	enum v4l2_mbus_pixelcode code, const struct mt9v022_datafmt *fmt,
+	u32 code, const struct mt9v022_datafmt *fmt,
 	int n)
 {
 	int i;
@@ -107,14 +107,14 @@ static const struct mt9v022_datafmt mt9v022_colour_fmts[] = {
 	 * Order important: first natively supported,
 	 * second supported with a GPIO extender
 	 */
-	{V4L2_MBUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
-	{V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
 };
 
 static const struct mt9v022_datafmt mt9v022_monochrome_fmts[] = {
 	/* Order important - see above */
-	{V4L2_MBUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_Y8_1X8, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_Y8_1X8, V4L2_COLORSPACE_JPEG},
 };
 
 /* only registers with different addresses on different mt9v02x sensors */
@@ -410,13 +410,13 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 	 * .try_mbus_fmt(), datawidth is from our supported format list
 	 */
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_Y8_1X8:
-	case V4L2_MBUS_FMT_Y10_1X10:
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_Y10_1X10:
 		if (mt9v022->model != MT9V022IX7ATM)
 			return -EINVAL;
 		break;
-	case V4L2_MBUS_FMT_SBGGR8_1X8:
-	case V4L2_MBUS_FMT_SBGGR10_1X10:
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
 		if (mt9v022->model != MT9V022IX7ATC)
 			return -EINVAL;
 		break;
@@ -443,8 +443,8 @@ static int mt9v022_try_fmt(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 	const struct mt9v022_datafmt *fmt;
-	int align = mf->code == V4L2_MBUS_FMT_SBGGR8_1X8 ||
-		mf->code == V4L2_MBUS_FMT_SBGGR10_1X10;
+	int align = mf->code == MEDIA_BUS_FMT_SBGGR8_1X8 ||
+		mf->code == MEDIA_BUS_FMT_SBGGR10_1X10;
 
 	v4l_bound_align_image(&mf->width, MT9V022_MIN_WIDTH,
 		MT9V022_MAX_WIDTH, align,
@@ -759,7 +759,7 @@ static struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
 };
 
 static int mt9v022_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			    enum v4l2_mbus_pixelcode *code)
+			    u32 *code)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);

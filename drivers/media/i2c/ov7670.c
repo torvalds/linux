@@ -632,31 +632,31 @@ static int ov7670_detect(struct v4l2_subdev *sd)
  * The magic matrix numbers come from OmniVision.
  */
 static struct ov7670_format_struct {
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 	enum v4l2_colorspace colorspace;
 	struct regval_list *regs;
 	int cmatrix[CMATRIX_LEN];
 } ov7670_formats[] = {
 	{
-		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.regs 		= ov7670_fmt_yuv422,
 		.cmatrix	= { 128, -128, 0, -34, -94, 128 },
 	},
 	{
-		.mbus_code	= V4L2_MBUS_FMT_RGB444_2X8_PADHI_LE,
+		.mbus_code	= MEDIA_BUS_FMT_RGB444_2X8_PADHI_LE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.regs		= ov7670_fmt_rgb444,
 		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
 	},
 	{
-		.mbus_code	= V4L2_MBUS_FMT_RGB565_2X8_LE,
+		.mbus_code	= MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.regs		= ov7670_fmt_rgb565,
 		.cmatrix	= { 179, -179, 0, -61, -176, 228 },
 	},
 	{
-		.mbus_code	= V4L2_MBUS_FMT_SBGGR8_1X8,
+		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.regs 		= ov7670_fmt_raw,
 		.cmatrix	= { 0, 0, 0, 0, 0, 0 },
@@ -772,7 +772,7 @@ static void ov7675_get_framerate(struct v4l2_subdev *sd,
 		pll_factor = PLL_FACTOR;
 
 	clkrc++;
-	if (info->fmt->mbus_code == V4L2_MBUS_FMT_SBGGR8_1X8)
+	if (info->fmt->mbus_code == MEDIA_BUS_FMT_SBGGR8_1X8)
 		clkrc = (clkrc >> 1);
 
 	tpf->numerator = 1;
@@ -810,7 +810,7 @@ static int ov7675_set_framerate(struct v4l2_subdev *sd,
 	} else {
 		clkrc = (5 * pll_factor * info->clock_speed * tpf->numerator) /
 			(4 * tpf->denominator);
-		if (info->fmt->mbus_code == V4L2_MBUS_FMT_SBGGR8_1X8)
+		if (info->fmt->mbus_code == MEDIA_BUS_FMT_SBGGR8_1X8)
 			clkrc = (clkrc << 1);
 		clkrc--;
 	}
@@ -900,7 +900,7 @@ static int ov7670_set_hw(struct v4l2_subdev *sd, int hstart, int hstop,
 
 
 static int ov7670_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-					enum v4l2_mbus_pixelcode *code)
+					u32 *code)
 {
 	if (index >= N_OV7670_FMTS)
 		return -EINVAL;

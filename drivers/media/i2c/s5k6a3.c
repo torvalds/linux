@@ -80,7 +80,7 @@ static inline struct s5k6a3 *sd_to_s5k6a3(struct v4l2_subdev *sd)
 
 static const struct v4l2_mbus_framefmt s5k6a3_formats[] = {
 	{
-		.code = V4L2_MBUS_FMT_SGRBG10_1X10,
+		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.field = V4L2_FIELD_NONE,
 	}
