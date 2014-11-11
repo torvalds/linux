@@ -24,6 +24,9 @@ bool f2fs_may_inline(struct inode *inode)
 	if (!S_ISREG(inode->i_mode))
 		return false;
 
+	if (i_size_read(inode) > MAX_INLINE_DATA)
+		return false;
+
 	return true;
 }
 

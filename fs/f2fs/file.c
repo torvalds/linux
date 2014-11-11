@@ -522,6 +522,12 @@ void f2fs_truncate(struct inode *inode)
 
 	trace_f2fs_truncate(inode);
 
+	/* we should check inline_data size */
+	if (f2fs_has_inline_data(inode) && !f2fs_may_inline(inode)) {
+		if (f2fs_convert_inline_inode(inode))
+			return;
+	}
+
 	if (!truncate_blocks(inode, i_size_read(inode), true)) {
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty(inode);
