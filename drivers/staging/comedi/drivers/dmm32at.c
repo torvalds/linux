@@ -151,8 +151,6 @@ static const struct comedi_lrange dmm32at_aoranges = {
 };
 
 struct dmm32at_private {
-	int data;
-	int ai_inuse;
 	unsigned char dio_config;
 };
 
