@@ -181,27 +181,22 @@ static int dmm32at_ai_status(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int dmm32at_ai_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int dmm32at_ai_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	int n;
-	unsigned char chan;
-	int range;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	int ret;
-
-	/* get the channel and range number */
-
-	chan = CR_CHAN(insn->chanspec) & (s->n_chan - 1);
-	range = CR_RANGE(insn->chanspec);
+	int i;
 
 	/* zero scan and fifo control and reset fifo */
 	outb(DMM32AT_FIFORESET, dev->iobase + DMM32AT_FIFOCNTRL);
 
-	/* write the ai channel range regs */
+	/* set the channel and range */
 	outb(chan, dev->iobase + DMM32AT_AILOW);
 	outb(chan, dev->iobase + DMM32AT_AIHIGH);
-	/* set the range bits */
 	outb(dmm32at_rangebits[range], dev->iobase + DMM32AT_AICONF);
 
 	/* wait for circuit to settle */
@@ -209,22 +204,18 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/* convert n samples */
-	for (n = 0; n < insn->n; n++) {
-		/* trigger conversion */
+	for (i = 0; i < insn->n; i++) {
 		outb(0xff, dev->iobase + DMM32AT_CONV);
 
-		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, dmm32at_ai_status,
 				     DMM32AT_AISTAT);
 		if (ret)
 			return ret;
 
-		data[n] = dmm32at_ai_get_sample(dev, s);
+		data[i] = dmm32at_ai_get_sample(dev, s);
 	}
 
-	/* return the number of samples read/written */
-	return n;
+	return insn->n;
 }
 
 static int dmm32at_ns_to_timer(unsigned int *ns, unsigned int flags)
@@ -693,7 +684,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	s->n_chan = 32;
 	s->maxdata = 0xffff;
 	s->range_table = &dmm32at_airanges;
-	s->insn_read = dmm32at_ai_rinsn;
+	s->insn_read = dmm32at_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;
