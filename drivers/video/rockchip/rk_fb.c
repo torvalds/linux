@@ -1932,7 +1932,8 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		win_data = rk_fb_get_win_data(regs, i);
 		if (win_data) {
 			if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-			     win_data->data_format == YUV420)
+			    (win_data->data_format == YUV420 ||
+			     win_data->data_format == YUV420_A))
 				continue;
 			rk_fb_update_win(dev_drv, win, win_data);
 			win->state = 1;
@@ -2003,6 +2004,7 @@ ext_win_exit:
 			if (dev_drv->win[i]->state == 1) {
 				if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
 				    (dev_drv->win[i]->format == YUV420 ||
+				     dev_drv->win[i]->format == YUV420_A ||
 				     !strcmp(dev_drv->win[i]->name, "hwc"))) {
 					continue;
 				} else {
@@ -3251,6 +3253,9 @@ static int rk_fb_set_par(struct fb_info *info)
 			 (win->format == ABGR888)) ? 1 : 0;
 	win->g_alpha_val = 0;
 
+	if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
+	    (win->format == YUV420 || win->format == YUV420_A))
+	    win->state = 1;
 	if (rk_fb->disp_mode == DUAL) {
 		if (extend_win->state && hdmi_switch_complete) {
 			if (info != extend_info) {
