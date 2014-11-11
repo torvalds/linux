@@ -26,7 +26,14 @@
 	};
 };
 
+&ahci { status = "okay"; };
+
 &eth1 { status = "okay"; };
+
+/* Unpopulated SATA plug on solder side */
+&sata0 { status = "okay"; };
+
+&sata_phy { status = "okay"; };
 
 /* Samsung M8G2FA 8GB eMMC */
 &sdhci2 {
