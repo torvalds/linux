@@ -583,6 +583,7 @@ static void ci_otg_drv_vbus(struct otg_fsm *fsm, int on)
 
 		fsm->a_bus_drop = 1;
 		fsm->a_bus_req = 0;
+		fsm->b_conn = 0;
 	}
 }
 
