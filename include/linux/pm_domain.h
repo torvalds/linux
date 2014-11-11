@@ -106,7 +106,7 @@ struct generic_pm_domain_data {
 	struct notifier_block nb;
 	struct mutex lock;
 	unsigned int refcount;
-	bool need_restore;
+	int need_restore;
 };
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS
