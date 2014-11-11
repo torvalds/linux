@@ -40,8 +40,9 @@ struct i40e_stats {
 	.sizeof_stat = FIELD_SIZEOF(_type, _stat), \
 	.stat_offset = offsetof(_type, _stat) \
 }
+
 #define I40E_NETDEV_STAT(_net_stat) \
-		I40E_STAT(struct net_device_stats, #_net_stat, _net_stat)
+		I40E_STAT(struct rtnl_link_stats64, #_net_stat, _net_stat)
 #define I40E_PF_STAT(_name, _stat) \
 		I40E_STAT(struct i40e_pf, _name, _stat)
 #define I40E_VSI_STAT(_name, _stat) \
