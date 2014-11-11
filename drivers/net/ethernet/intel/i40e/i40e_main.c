@@ -5565,11 +5565,17 @@ static void i40e_check_hang_subtask(struct i40e_pf *pf)
 			if (!(pf->flags & I40E_FLAG_MSIX_ENABLED)) {
 				wr32(&vsi->back->hw, I40E_PFINT_DYN_CTL0,
 				     (I40E_PFINT_DYN_CTL0_INTENA_MASK |
-				      I40E_PFINT_DYN_CTL0_SWINT_TRIG_MASK));
+				      I40E_PFINT_DYN_CTL0_SWINT_TRIG_MASK |
+				      I40E_PFINT_DYN_CTL0_ITR_INDX_MASK |
+				      I40E_PFINT_DYN_CTL0_SW_ITR_INDX_ENA_MASK |
+				      I40E_PFINT_DYN_CTL0_SW_ITR_INDX_MASK));
 			} else {
 				u16 vec = vsi->base_vector - 1;
 				u32 val = (I40E_PFINT_DYN_CTLN_INTENA_MASK |
-					   I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK);
+				      I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
+				      I40E_PFINT_DYN_CTLN_ITR_INDX_MASK |
+				      I40E_PFINT_DYN_CTLN_SW_ITR_INDX_ENA_MASK |
+				      I40E_PFINT_DYN_CTLN_SW_ITR_INDX_MASK);
 				for (i = 0; i < vsi->num_q_vectors; i++, vec++)
 					wr32(&vsi->back->hw,
 					     I40E_PFINT_DYN_CTLN(vec), val);

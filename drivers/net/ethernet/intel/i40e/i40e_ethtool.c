@@ -1400,7 +1400,10 @@ static int i40e_intr_test(struct net_device *netdev, u64 *data)
 	netif_info(pf, hw, netdev, "interrupt test\n");
 	wr32(&pf->hw, I40E_PFINT_DYN_CTL0,
 	     (I40E_PFINT_DYN_CTL0_INTENA_MASK |
-	      I40E_PFINT_DYN_CTL0_SWINT_TRIG_MASK));
+	      I40E_PFINT_DYN_CTL0_SWINT_TRIG_MASK |
+	      I40E_PFINT_DYN_CTL0_ITR_INDX_MASK |
+	      I40E_PFINT_DYN_CTL0_SW_ITR_INDX_ENA_MASK |
+	      I40E_PFINT_DYN_CTL0_SW_ITR_INDX_MASK));
 	usleep_range(1000, 2000);
 	*data = (swc_old == pf->sw_int_count);
 
