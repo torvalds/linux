@@ -1047,7 +1047,7 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 }
 
 static ieee80211_rx_result debug_noinline
-ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
+ieee80211_rx_h_check_dup(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
@@ -1056,10 +1056,16 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 	 * Drop duplicate 802.11 retransmissions
 	 * (IEEE 802.11-2012: 9.3.2.10 "Duplicate detection and recovery")
 	 */
-	if (rx->skb->len >= 24 && rx->sta &&
-	    !ieee80211_is_ctl(hdr->frame_control) &&
-	    !ieee80211_is_qos_nullfunc(hdr->frame_control) &&
-	    !is_multicast_ether_addr(hdr->addr1)) {
+
+	if (rx->skb->len < 24)
+		return RX_CONTINUE;
+
+	if (ieee80211_is_ctl(hdr->frame_control) ||
+	    ieee80211_is_qos_nullfunc(hdr->frame_control) ||
+	    is_multicast_ether_addr(hdr->addr1))
+		return RX_CONTINUE;
+
+	if (rx->sta) {
 		if (unlikely(ieee80211_has_retry(hdr->frame_control) &&
 			     rx->sta->last_seq_ctrl[rx->seqno_idx] ==
 			     hdr->seq_ctrl)) {
@@ -1072,6 +1078,14 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 			rx->sta->last_seq_ctrl[rx->seqno_idx] = hdr->seq_ctrl;
 		}
 	}
+
+	return RX_CONTINUE;
+}
+
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 
 	if (unlikely(rx->skb->len < 16)) {
 		I802_DEBUG_INC(rx->local->rx_handlers_drop_short);
@@ -3110,6 +3124,7 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_rx_data *rx)
 			goto rxh_next;  \
 	} while (0);
 
+	CALL_RXH(ieee80211_rx_h_check_dup)
 	CALL_RXH(ieee80211_rx_h_check)
 
 	ieee80211_rx_reorder_ampdu(rx, &reorder_release);
