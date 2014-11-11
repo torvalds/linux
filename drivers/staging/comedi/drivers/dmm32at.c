@@ -50,7 +50,13 @@ Configuration Options:
 #define DMM32AT_AI_MSB_REG		0x01
 #define DMM32AT_AI_LO_CHAN_REG		0x02
 #define DMM32AT_AI_HI_CHAN_REG		0x03
-#define DMM32AT_DACSTAT 0x04
+#define DMM32AT_AUX_DI_REG		0x04
+#define DMM32AT_AUX_DI_DACBUSY		(1 << 7)
+#define DMM32AT_AUX_DI_CALBUSY		(1 << 6)
+#define DMM32AT_AUX_DI3			(1 << 3)  /* J3.45 - ADCLK (CLKSEL) */
+#define DMM32AT_AUX_DI2			(1 << 2)  /* J3.46 - GATE12 (GT12EN) */
+#define DMM32AT_AUX_DI1			(1 << 1)  /* J3.47 - GATE0 (GT0EN) */
+#define DMM32AT_AUX_DI0			(1 << 0)  /* J3.48 - CLK0 (SRC0) */
 #define DMM32AT_AO_LSB_REG		0x04
 #define DMM32AT_AO_MSB_REG		0x05
 #define DMM32AT_DACMSB_CHAN(x)	((x) << 6)
@@ -75,9 +81,6 @@ Configuration Options:
 #define DMM32AT_8255_IOBASE		0x0c  /* Page 1 registers */
 
 /* Board register values. */
-
-/* DMM32AT_DACSTAT 0x04 */
-#define DMM32AT_DACBUSY 0x80
 
 /* DMM32AT_FIFOCNTRL 0x07 */
 #define DMM32AT_FIFORESET 0x02
@@ -424,8 +427,8 @@ static int dmm32at_ao_eoc(struct comedi_device *dev,
 {
 	unsigned char status;
 
-	status = inb(dev->iobase + DMM32AT_DACSTAT);
-	if ((status & DMM32AT_DACBUSY) == 0)
+	status = inb(dev->iobase + DMM32AT_AUX_DI_REG);
+	if ((status & DMM32AT_AUX_DI_DACBUSY) == 0)
 		return 0;
 	return -EBUSY;
 }
