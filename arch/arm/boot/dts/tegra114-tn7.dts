@@ -15,6 +15,10 @@
 		linux,initrd-end = <0x82800000>;
 	};
 
+	aliases {
+		serial0 = &uartd;
+	};
+
 	firmware {
 		trusted-foundations {
 			compatible = "tlm,trusted-foundations";

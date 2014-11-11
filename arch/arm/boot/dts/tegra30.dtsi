@@ -9,14 +9,6 @@
 	compatible = "nvidia,tegra30";
 	interrupt-parent = <&intc>;
 
-	aliases {
-		serial0 = &uarta;
-		serial1 = &uartb;
-		serial2 = &uartc;
-		serial3 = &uartd;
-		serial4 = &uarte;
-	};
-
 	pcie-controller@00003000 {
 		compatible = "nvidia,tegra30-pcie";
 		device_type = "pci";
