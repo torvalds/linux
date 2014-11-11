@@ -41,7 +41,7 @@ Configuration Options:
 #include "comedi_fc.h"
 
 /* Board register addresses */
-#define DMM32AT_CONV 0x00
+#define DMM32AT_AI_START_CONV_REG	0x00
 #define DMM32AT_AILSB 0x00
 #define DMM32AT_AUXDOUT 0x01
 #define DMM32AT_AIMSB 0x01
@@ -200,7 +200,7 @@ static int dmm32at_ai_insn_read(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < insn->n; i++) {
-		outb(0xff, dev->iobase + DMM32AT_CONV);
+		outb(0xff, dev->iobase + DMM32AT_AI_START_CONV_REG);
 
 		ret = comedi_timeout(dev, s, insn, dmm32at_ai_status,
 				     DMM32AT_AISTAT);
@@ -365,7 +365,7 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	} else {
 		/* start the interrups and initiate a single scan */
 		outb(DMM32AT_ADINT, dev->iobase + DMM32AT_INTCLOCK);
-		outb(0xff, dev->iobase + DMM32AT_CONV);
+		outb(0xff, dev->iobase + DMM32AT_AI_START_CONV_REG);
 	}
 
 	return 0;
