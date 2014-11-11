@@ -43,7 +43,10 @@ Configuration Options:
 /* Board register addresses */
 #define DMM32AT_AI_START_CONV_REG	0x00
 #define DMM32AT_AI_LSB_REG		0x00
-#define DMM32AT_AUXDOUT 0x01
+#define DMM32AT_AUX_DOUT_REG		0x01
+#define DMM32AT_AUX_DOUT2		(1 << 2)  /* J3.42 - OUT2 (OUT2EN) */
+#define DMM32AT_AUX_DOUT1		(1 << 1)  /* J3.43 */
+#define DMM32AT_AUX_DOUT0		(1 << 0)  /* J3.44 - OUT0 (OUT0EN) */
 #define DMM32AT_AI_MSB_REG		0x01
 #define DMM32AT_AILOW 0x02
 #define DMM32AT_AIHIGH 0x03
