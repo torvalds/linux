@@ -1493,7 +1493,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[11],
-			     "%hx %hx %hx %hx %x %x %x %x %x %x",
+			     "%hi %hi %hi %hi %i %i %i %i %i %i",
 			     &desc->flags,
 			     &desc->opcode, &desc->datalen, &desc->retval,
 			     &desc->cookie_high, &desc->cookie_low,
@@ -1541,7 +1541,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[20],
-			     "%hx %hx %hx %hx %x %x %x %x %x %x %hd",
+			     "%hi %hi %hi %hi %i %i %i %i %i %i %hi",
 			     &desc->flags,
 			     &desc->opcode, &desc->datalen, &desc->retval,
 			     &desc->cookie_high, &desc->cookie_low,
