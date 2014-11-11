@@ -156,6 +156,18 @@ struct dmm32at_private {
 	unsigned char dio_config;
 };
 
+static unsigned int dmm32at_ai_get_sample(struct comedi_device *dev,
+					  struct comedi_subdevice *s)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + DMM32AT_AILSB);
+	val |= (inb(dev->iobase + DMM32AT_AIMSB) << 8);
+
+	/* munge two's complement value to offset binary */
+	return comedi_offset_munge(s, val);
+}
+
 static int dmm32at_ai_status(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn,
@@ -174,8 +186,6 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
-	unsigned int d;
-	unsigned short msb, lsb;
 	unsigned char chan;
 	int range;
 	int ret;
@@ -210,19 +220,7 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		/* read data */
-		lsb = inb(dev->iobase + DMM32AT_AILSB);
-		msb = inb(dev->iobase + DMM32AT_AIMSB);
-
-		/* invert sign bit to make range unsigned, this is an
-		   idiosyncrasy of the diamond board, it return
-		   conversions as a signed value, i.e. -32768 to
-		   32767, flipping the bit and interpreting it as
-		   signed gives you a range of 0 to 65535 which is
-		   used by comedi */
-		d = ((msb ^ 0x0080) << 8) + lsb;
-
-		data[n] = d;
+		data[n] = dmm32at_ai_get_sample(dev, s);
 	}
 
 	/* return the number of samples read/written */
@@ -465,8 +463,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	unsigned char intstat;
-	unsigned int samp;
-	unsigned short msb, lsb;
+	unsigned int val;
 	int i;
 
 	if (!dev->attached) {
@@ -481,13 +478,8 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 		struct comedi_cmd *cmd = &s->async->cmd;
 
 		for (i = 0; i < cmd->chanlist_len; i++) {
-			/* read data */
-			lsb = inb(dev->iobase + DMM32AT_AILSB);
-			msb = inb(dev->iobase + DMM32AT_AIMSB);
-
-			/* invert sign bit to make range unsigned */
-			samp = ((msb ^ 0x0080) << 8) + lsb;
-			comedi_buf_write_samples(s, &samp, 1);
+			val = dmm32at_ai_get_sample(dev, s);
+			comedi_buf_write_samples(s, &val, 1);
 		}
 
 		if (cmd->stop_src == TRIG_COUNT &&
