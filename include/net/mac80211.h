@@ -1187,10 +1187,15 @@ struct ieee80211_channel_switch {
  *	monitoring on this virtual interface -- i.e. it can monitor
  *	connection quality related parameters, such as the RSSI level and
  *	provide notifications if configured trigger levels are reached.
+ * @IEEE80211_VIF_SUPPORTS_UAPSD: The device can do U-APSD for this
+ *	interface. This flag should be set during interface addition,
+ *	but may be set/cleared as late as authentication to an AP. It is
+ *	only valid for managed/station mode interfaces.
  */
 enum ieee80211_vif_flags {
 	IEEE80211_VIF_BEACON_FILTER		= BIT(0),
 	IEEE80211_VIF_SUPPORTS_CQM_RSSI		= BIT(1),
+	IEEE80211_VIF_SUPPORTS_UAPSD		= BIT(2),
 };
 
 /**
@@ -1589,11 +1594,6 @@ struct ieee80211_tx_control {
  * @IEEE80211_HW_MFP_CAPABLE:
  *	Hardware supports management frame protection (MFP, IEEE 802.11w).
  *
- * @IEEE80211_HW_SUPPORTS_UAPSD:
- *	Hardware supports Unscheduled Automatic Power Save Delivery
- *	(U-APSD) in managed mode. The mode is configured with
- *	conf_tx() operation.
- *
  * @IEEE80211_HW_REPORTS_TX_ACK_STATUS:
  *	Hardware can provide ack status reports of Tx frames to
  *	the stack.
@@ -1679,8 +1679,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_MFP_CAPABLE			= 1<<13,
 	IEEE80211_HW_WANT_MONITOR_VIF			= 1<<14,
 	IEEE80211_HW_NO_AUTO_VIF			= 1<<15,
-	/* free slot */
-	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
+	/* free slots */
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
 	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
 	IEEE80211_HW_QUEUE_CONTROL			= 1<<20,
@@ -2032,7 +2031,7 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  * enabled whenever user has enabled powersave.
  *
  * Driver informs U-APSD client support by enabling
- * %IEEE80211_HW_SUPPORTS_UAPSD flag. The mode is configured through the
+ * %IEEE80211_VIF_SUPPORTS_UAPSD flag. The mode is configured through the
  * uapsd parameter in conf_tx() operation. Hardware needs to send the QoS
  * Nullfunc frames and stay awake until the service period has ended. To
  * utilize U-APSD, dynamic powersave is disabled for voip AC and all frames

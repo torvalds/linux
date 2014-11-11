@@ -326,6 +326,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	hw->radiotap_vht_details |= IEEE80211_RADIOTAP_VHT_KNOWN_STBC |
 		IEEE80211_RADIOTAP_VHT_KNOWN_BEAMFORMED;
 	hw->rate_control_algorithm = "iwl-mvm-rs";
+	hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
+	hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
 
 	/*
 	 * Enable 11w if advertised by firmware and software crypto
@@ -335,13 +337,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
 	    !iwlwifi_mod_params.sw_crypto)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
-
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT &&
-	    !iwlwifi_mod_params.uapsd_disable) {
-		hw->flags |= IEEE80211_HW_SUPPORTS_UAPSD;
-		hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
-		hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
-	}
 
 	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN ||
 	    mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
@@ -1147,6 +1142,10 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvm->bf_allowed_vif = mvmvif;
 		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
 				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
+		if (mvm->fw->ucode_capa.flags &
+					IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT &&
+		    !iwlwifi_mod_params.uapsd_disable)
+			vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
 	}
 
 	/*
