@@ -3431,6 +3431,7 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 
 	hsotg->clk = devm_clk_get(dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
+		hsotg->clk = NULL;
 		dev_err(dev, "cannot get otg clock\n");
 		return PTR_ERR(hsotg->clk);
 	}
