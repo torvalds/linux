@@ -29,6 +29,7 @@
 #define CEPH_OPT_NOSHARE          (1<<1) /* don't share client with other sbs */
 #define CEPH_OPT_MYIP             (1<<2) /* specified my ip */
 #define CEPH_OPT_NOCRC            (1<<3) /* no data crc on writes */
+#define CEPH_OPT_NOMSGAUTH	  (1<<4) /* not require cephx message signature */
 
 #define CEPH_OPT_DEFAULT   (0)
 
