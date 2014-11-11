@@ -92,8 +92,8 @@ int i40evf_verify_api_ver(struct i40evf_adapter *adapter)
 	enum i40e_virtchnl_ops op;
 	i40e_status err;
 
-	event.msg_size = I40EVF_MAX_AQ_BUF_SIZE;
-	event.msg_buf = kzalloc(event.msg_size, GFP_KERNEL);
+	event.buf_len = I40EVF_MAX_AQ_BUF_SIZE;
+	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
 	if (!event.msg_buf) {
 		err = -ENOMEM;
 		goto out;
@@ -169,15 +169,14 @@ int i40evf_get_vf_config(struct i40evf_adapter *adapter)
 
 	len =  sizeof(struct i40e_virtchnl_vf_resource) +
 		I40E_MAX_VF_VSI * sizeof(struct i40e_virtchnl_vsi_resource);
-	event.msg_size = len;
-	event.msg_buf = kzalloc(event.msg_size, GFP_KERNEL);
+	event.buf_len = len;
+	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
 	if (!event.msg_buf) {
 		err = -ENOMEM;
 		goto out;
 	}
 
 	while (1) {
-		event.msg_size = len;
 		/* When the AQ is empty, i40evf_clean_arq_element will return
 		 * nonzero and this loop will terminate.
 		 */
@@ -191,7 +190,7 @@ int i40evf_get_vf_config(struct i40evf_adapter *adapter)
 	}
 
 	err = (i40e_status)le32_to_cpu(event.desc.cookie_low);
-	memcpy(adapter->vf_res, event.msg_buf, min(event.msg_size, len));
+	memcpy(adapter->vf_res, event.msg_buf, min(event.msg_len, len));
 
 	i40e_vf_parse_hw_config(hw, adapter->vf_res);
 out_alloc:

@@ -1632,8 +1632,8 @@ static void i40evf_adminq_task(struct work_struct *work)
 	if (adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED)
 		return;
 
-	event.msg_size = I40EVF_MAX_AQ_BUF_SIZE;
-	event.msg_buf = kzalloc(event.msg_size, GFP_KERNEL);
+	event.buf_len = I40EVF_MAX_AQ_BUF_SIZE;
+	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
 	if (!event.msg_buf)
 		return;
 
@@ -1645,10 +1645,9 @@ static void i40evf_adminq_task(struct work_struct *work)
 
 		i40evf_virtchnl_completion(adapter, v_msg->v_opcode,
 					   v_msg->v_retval, event.msg_buf,
-					   event.msg_size);
+					   event.msg_len);
 		if (pending != 0) {
 			memset(event.msg_buf, 0, I40EVF_MAX_AQ_BUF_SIZE);
-			event.msg_size = I40EVF_MAX_AQ_BUF_SIZE;
 		}
 	} while (pending);
 
