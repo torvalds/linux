@@ -432,20 +432,6 @@ static void xilinx_pcie_enable_msi(struct xilinx_pcie_port *port)
 	pcie_write(port, msg_addr, XILINX_PCIE_REG_MSIBASE2);
 }
 
-/**
- * xilinx_pcie_add_bus - Add MSI chip info to PCIe bus
- * @bus: PCIe bus
- */
-static void xilinx_pcie_add_bus(struct pci_bus *bus)
-{
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		struct xilinx_pcie_port *port = sys_to_pcie(bus->sysdata);
-
-		xilinx_pcie_msi_chip.dev = port->dev;
-		bus->msi = &xilinx_pcie_msi_chip;
-	}
-}
-
 /* INTx Functions */
 
 /**
@@ -925,10 +911,14 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 		.private_data	= (void **)&port,
 		.setup		= xilinx_pcie_setup,
 		.map_irq	= of_irq_parse_and_map_pci,
-		.add_bus	= xilinx_pcie_add_bus,
 		.scan		= xilinx_pcie_scan_bus,
 		.ops		= &xilinx_pcie_ops,
 	};
+
+#ifdef CONFIG_PCI_MSI
+	xilinx_pcie_msi_chip.dev = port->dev;
+	hw.msi_ctrl = &xilinx_pcie_msi_chip;
+#endif
 	pci_common_init_dev(dev, &hw);
 
 	return 0;
