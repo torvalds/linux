@@ -48,8 +48,8 @@ Configuration Options:
 #define DMM32AT_AUX_DOUT1		(1 << 1)  /* J3.43 */
 #define DMM32AT_AUX_DOUT0		(1 << 0)  /* J3.44 - OUT0 (OUT0EN) */
 #define DMM32AT_AI_MSB_REG		0x01
-#define DMM32AT_AILOW 0x02
-#define DMM32AT_AIHIGH 0x03
+#define DMM32AT_AI_LO_CHAN_REG		0x02
+#define DMM32AT_AI_HI_CHAN_REG		0x03
 
 #define DMM32AT_DACSTAT 0x04
 #define DMM32AT_DACLSB_REG	0x04
@@ -157,8 +157,8 @@ static void dmm32at_ai_set_chanspec(struct comedi_device *dev,
 	if (nchan > 1)
 		outb(DMM32AT_SCANENABLE, dev->iobase + DMM32AT_FIFOCNTRL);
 
-	outb(chan, dev->iobase + DMM32AT_AILOW);
-	outb(last_chan, dev->iobase + DMM32AT_AIHIGH);
+	outb(chan, dev->iobase + DMM32AT_AI_LO_CHAN_REG);
+	outb(last_chan, dev->iobase + DMM32AT_AI_HI_CHAN_REG);
 	outb(dmm32at_rangebits[range], dev->iobase + DMM32AT_AICONF);
 }
 
@@ -493,8 +493,8 @@ static int dmm32at_reset(struct comedi_device *dev)
 	outb(0x0, dev->iobase + DMM32AT_INTCLOCK);
 
 	/* write a test channel range, the high 3 bits should drop */
-	outb(0x80, dev->iobase + DMM32AT_AILOW);
-	outb(0xff, dev->iobase + DMM32AT_AIHIGH);
+	outb(0x80, dev->iobase + DMM32AT_AI_LO_CHAN_REG);
+	outb(0xff, dev->iobase + DMM32AT_AI_HI_CHAN_REG);
 
 	/* set the range at 10v unipolar */
 	outb(DMM32AT_RANGE_U10, dev->iobase + DMM32AT_AICONF);
@@ -503,8 +503,8 @@ static int dmm32at_reset(struct comedi_device *dev)
 	udelay(100);
 
 	/* read back the values */
-	ailo = inb(dev->iobase + DMM32AT_AILOW);
-	aihi = inb(dev->iobase + DMM32AT_AIHIGH);
+	ailo = inb(dev->iobase + DMM32AT_AI_LO_CHAN_REG);
+	aihi = inb(dev->iobase + DMM32AT_AI_HI_CHAN_REG);
 	fifostat = inb(dev->iobase + DMM32AT_FIFOSTAT);
 	aistat = inb(dev->iobase + DMM32AT_AISTAT);
 	intstat = inb(dev->iobase + DMM32AT_INTCLOCK);
