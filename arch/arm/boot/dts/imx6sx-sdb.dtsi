@@ -687,7 +687,7 @@
 
 &iomuxc {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog>;
+	pinctrl-0 = <&pinctrl_hog &pinctrl_can_gpios>;
 
 	imx6x-sdb {
 		pinctrl_hog: hoggrp {
@@ -695,6 +695,13 @@
 				MX6SX_PAD_SD1_DATA0__GPIO6_IO_2 0x17059
 				MX6SX_PAD_SD1_DATA3__GPIO6_IO_5 0xb000
 				MX6SX_PAD_CSI_DATA03__GPIO1_IO_17 0x17059
+			>;
+		};
+
+		pinctrl_can_gpios: can-gpios {
+			fsl,pins = <
+				MX6SX_PAD_QSPI1B_DATA1__GPIO4_IO_25 0x17059
+				MX6SX_PAD_QSPI1B_DATA3__GPIO4_IO_27 0x17059
 			>;
 		};
 
