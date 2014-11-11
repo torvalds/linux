@@ -179,6 +179,11 @@ static struct usbmix_name_map audigy2nx_map[] = {
 	{ 0 } /* terminator */
 };
 
+static struct usbmix_name_map mbox1_map[] = {
+	{ 1, "Clock" },
+	{ 0 } /* terminator */
+};
+
 static struct usbmix_selector_map c400_selectors[] = {
 	{
 		.id = 0x80,
@@ -414,6 +419,10 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		.id = USB_ID(0x0ccd, 0x0028),
 		.map = aureon_51_2_map,
+	},
+	{
+		.id = USB_ID(0x0dba, 0x1000),
+		.map = mbox1_map,
 	},
 	{
 		.id = USB_ID(0x13e5, 0x0001),
