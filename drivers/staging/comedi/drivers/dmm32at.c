@@ -42,9 +42,9 @@ Configuration Options:
 
 /* Board register addresses */
 #define DMM32AT_AI_START_CONV_REG	0x00
-#define DMM32AT_AILSB 0x00
+#define DMM32AT_AI_LSB_REG		0x00
 #define DMM32AT_AUXDOUT 0x01
-#define DMM32AT_AIMSB 0x01
+#define DMM32AT_AI_MSB_REG		0x01
 #define DMM32AT_AILOW 0x02
 #define DMM32AT_AIHIGH 0x03
 
@@ -164,8 +164,8 @@ static unsigned int dmm32at_ai_get_sample(struct comedi_device *dev,
 {
 	unsigned int val;
 
-	val = inb(dev->iobase + DMM32AT_AILSB);
-	val |= (inb(dev->iobase + DMM32AT_AIMSB) << 8);
+	val = inb(dev->iobase + DMM32AT_AI_LSB_REG);
+	val |= (inb(dev->iobase + DMM32AT_AI_MSB_REG) << 8);
 
 	/* munge two's complement value to offset binary */
 	return comedi_offset_munge(s, val);
