@@ -2301,6 +2301,19 @@ static sector_t calculate_discard_block_size(sector_t cache_block_size,
 	return discard_block_size;
 }
 
+static void set_cache_size(struct cache *cache, dm_cblock_t size)
+{
+	dm_block_t nr_blocks = from_cblock(size);
+
+	if (nr_blocks > (1 << 20) && cache->cache_size != size)
+		DMWARN_LIMIT("You have created a cache device with a lot of individual cache blocks (%llu)\n"
+			     "All these mappings can consume a lot of kernel memory, and take some time to read/write.\n"
+			     "Please consider increasing the cache block size to reduce the overall cache block count.",
+			     (unsigned long long) nr_blocks);
+
+	cache->cache_size = size;
+}
+
 #define DEFAULT_MIGRATION_THRESHOLD 2048
 
 static int cache_create(struct cache_args *ca, struct cache **result)
@@ -2356,10 +2369,10 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 		cache->sectors_per_block_shift = -1;
 		cache_size = block_div(cache_size, ca->block_size);
-		cache->cache_size = to_cblock(cache_size);
+		set_cache_size(cache, to_cblock(cache_size));
 	} else {
 		cache->sectors_per_block_shift = __ffs(ca->block_size);
-		cache->cache_size = to_cblock(ca->cache_sectors >> cache->sectors_per_block_shift);
+		set_cache_size(cache, to_cblock(ca->cache_sectors >> cache->sectors_per_block_shift));
 	}
 
 	r = create_cache_policy(cache, ca, error);
@@ -2856,7 +2869,7 @@ static int resize_cache_dev(struct cache *cache, dm_cblock_t new_size)
 		return r;
 	}
 
-	cache->cache_size = new_size;
+	set_cache_size(cache, new_size);
 
 	return 0;
 }
