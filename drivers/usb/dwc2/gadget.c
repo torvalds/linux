@@ -2125,7 +2125,7 @@ static int s3c_hsotg_corereset(struct dwc2_hsotg *hsotg)
  *
  * Issue a soft reset to the core, and await the core finishing it.
  */
-static void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg)
+void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg)
 {
 	s3c_hsotg_corereset(hsotg);
 
@@ -2257,7 +2257,7 @@ static void s3c_hsotg_core_disconnect(struct dwc2_hsotg *hsotg)
 	__orr32(hsotg->regs + DCTL, DCTL_SFTDISCON);
 }
 
-static void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg)
+void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg)
 {
 	/* remove the soft-disconnect and let's go */
 	__bic32(hsotg->regs + DCTL, DCTL_SFTDISCON);
