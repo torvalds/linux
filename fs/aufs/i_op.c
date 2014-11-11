@@ -953,22 +953,25 @@ static void au_refresh_iattr(struct inode *inode, struct kstat *st,
 	spin_unlock(&inode->i_lock);
 }
 
-static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
-			struct dentry *dentry, struct kstat *st)
+/*
+ * common routine for aufs_getattr() and aufs_getxattr().
+ * returns zero or negative (an error).
+ * @dentry will be read-locked in success.
+ */
+int au_h_path_getattr(struct dentry *dentry, int force, struct path *h_path)
 {
 	int err;
 	unsigned int mnt_flags, sigen;
+	unsigned char udba_none;
 	aufs_bindex_t bindex;
-	unsigned char udba_none, positive;
 	struct super_block *sb, *h_sb;
 	struct inode *inode;
-	struct path h_path;
 
+	h_path->mnt = NULL;
+	h_path->dentry = NULL;
+
+	err = 0;
 	sb = dentry->d_sb;
-	inode = dentry->d_inode;
-	err = si_read_lock(sb, AuLock_FLUSH | AuLock_NOPLM);
-	if (unlikely(err))
-		goto out;
 	mnt_flags = au_mntflags(sb);
 	udba_none = !!au_opt_test(mnt_flags, UDBA_NONE);
 
@@ -979,43 +982,74 @@ static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
 		if (!err) {
 			di_read_lock_child(dentry, AuLock_IR);
 			err = au_dbrange_test(dentry);
-			if (unlikely(err))
-				goto out_unlock;
+			if (unlikely(err)) {
+				di_read_unlock(dentry, AuLock_IR);
+				goto out;
+			}
 		} else {
 			AuDebugOn(IS_ROOT(dentry));
 			di_write_lock_child(dentry);
 			err = au_dbrange_test(dentry);
 			if (!err)
 				err = au_reval_for_attr(dentry, sigen);
-			di_downgrade_lock(dentry, AuLock_IR);
-			if (unlikely(err))
-				goto out_unlock;
+			if (!err)
+				di_downgrade_lock(dentry, AuLock_IR);
+			else {
+				di_write_unlock(dentry);
+				goto out;
+			}
 		}
 	} else
 		di_read_lock_child(dentry, AuLock_IR);
 
+	inode = dentry->d_inode;
 	bindex = au_ibstart(inode);
-	h_path.mnt = au_sbr_mnt(sb, bindex);
-	h_sb = h_path.mnt->mnt_sb;
-	if (!au_test_fs_bad_iattr(h_sb) && udba_none)
-		goto out_fill; /* success */
+	h_path->mnt = au_sbr_mnt(sb, bindex);
+	h_sb = h_path->mnt->mnt_sb;
+	if (!force
+	    && !au_test_fs_bad_iattr(h_sb)
+	    && udba_none)
+		goto out; /* success */
 
-	h_path.dentry = NULL;
 	if (au_dbstart(dentry) == bindex)
-		h_path.dentry = dget(au_h_dptr(dentry, bindex));
+		h_path->dentry = au_h_dptr(dentry, bindex);
 	else if (au_opt_test(mnt_flags, PLINK) && au_plink_test(inode)) {
-		h_path.dentry = au_plink_lkup(inode, bindex);
-		if (IS_ERR(h_path.dentry))
-			goto out_fill; /* pretending success */
+		h_path->dentry = au_plink_lkup(inode, bindex);
+		if (IS_ERR(h_path->dentry))
+			/* pretending success */
+			h_path->dentry = NULL;
+		else
+			dput(h_path->dentry);
 	}
-	/* illegally overlapped or something */
+
+out:
+	return err;
+}
+
+static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
+			struct dentry *dentry, struct kstat *st)
+{
+	int err;
+	unsigned char positive;
+	struct path h_path;
+	struct inode *inode;
+	struct super_block *sb;
+
+	inode = dentry->d_inode;
+	sb = dentry->d_sb;
+	err = si_read_lock(sb, AuLock_FLUSH | AuLock_NOPLM);
+	if (unlikely(err))
+		goto out;
+	err = au_h_path_getattr(dentry, /*force*/0, &h_path);
+	if (unlikely(err))
+		goto out_si;
 	if (unlikely(!h_path.dentry))
+		/* illegally overlapped or something */
 		goto out_fill; /* pretending success */
 
 	positive = !!h_path.dentry->d_inode;
 	if (positive)
 		err = vfs_getattr(&h_path, st);
-	dput(h_path.dentry);
 	if (!err) {
 		if (positive)
 			au_refresh_iattr(inode, st,
@@ -1023,12 +1057,13 @@ static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
 		goto out_fill; /* success */
 	}
 	AuTraceErr(err);
-	goto out_unlock;
+	goto out_di;
 
 out_fill:
 	generic_fillattr(inode, st);
-out_unlock:
+out_di:
 	di_read_unlock(dentry, AuLock_IR);
+out_si:
 	si_read_unlock(sb);
 out:
 	AuTraceErr(err);
