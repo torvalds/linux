@@ -77,7 +77,7 @@ static int bcmgenet_mii_write(struct mii_bus *bus, int phy_id,
 /* setup netdev link state when PHY link status change and
  * update UMAC and RGMII block when link up
  */
-static void bcmgenet_mii_setup(struct net_device *dev)
+void bcmgenet_mii_setup(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = priv->phydev;

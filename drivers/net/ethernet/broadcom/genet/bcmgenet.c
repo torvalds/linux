@@ -2140,6 +2140,9 @@ static int bcmgenet_open(struct net_device *dev)
 		goto err_irq0;
 	}
 
+	phy_connect_direct(dev, priv->phydev, bcmgenet_mii_setup,
+			   priv->phy_interface);
+
 	bcmgenet_netif_start(dev);
 
 	return 0;
@@ -2183,6 +2186,9 @@ static int bcmgenet_close(struct net_device *dev)
 	netif_dbg(priv, ifdown, dev, "bcmgenet_close\n");
 
 	bcmgenet_netif_stop(dev);
+
+	/* Really kill the PHY state machine and disconnect from it */
+	phy_disconnect(priv->phydev);
 
 	/* Disable MAC receive */
 	umac_enable_set(priv, CMD_RX_EN, false);

@@ -620,6 +620,7 @@ int bcmgenet_mii_init(struct net_device *dev);
 int bcmgenet_mii_config(struct net_device *dev);
 void bcmgenet_mii_exit(struct net_device *dev);
 void bcmgenet_mii_reset(struct net_device *dev);
+void bcmgenet_mii_setup(struct net_device *dev);
 
 /* Wake-on-LAN routines */
 void bcmgenet_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol);
