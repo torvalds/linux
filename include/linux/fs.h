@@ -2010,6 +2010,7 @@ extern struct file * dentry_open(const struct path *, int, const struct cred *);
 extern int filp_close(struct file *, fl_owner_t id);
 
 extern struct filename *getname(const char __user *);
+int check_acl(struct inode *, int);
 
 enum {
 	FILE_CREATED = 1,
