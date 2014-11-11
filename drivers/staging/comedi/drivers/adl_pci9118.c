@@ -607,10 +607,8 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[devpriv->dma_actbuf];
-	unsigned int nsamples;
+	unsigned int nsamples = comedi_bytes_to_samples(s, dmabuf->use_size);
 	unsigned int next_dma_buf;
-
-	nsamples = dmabuf->use_size >> 1;	/* number of received samples */
 
 	if (devpriv->dma_doublebuf) {	/*
 					 * switch DMA buffers if is used
