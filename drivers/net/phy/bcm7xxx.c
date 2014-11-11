@@ -200,7 +200,8 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	u8 patch = PHY_BRCM_7XXX_PATCH(phydev->dev_flags);
 	int ret = 0;
 
-	dev_info(&phydev->dev, "PHY revision: 0x%02x, patch: %d\n", rev, patch);
+	pr_info_once("%s: %s PHY revision: 0x%02x, patch: %d\n",
+		     dev_name(&phydev->dev), phydev->drv->name, rev, patch);
 
 	switch (rev) {
 	case 0xa0:
