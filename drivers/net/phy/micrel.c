@@ -265,6 +265,7 @@ static int ks8051_config_init(struct phy_device *phydev)
 static int ksz8081_config_init(struct phy_device *phydev)
 {
 	kszphy_broadcast_disable(phydev);
+	kszphy_setup_led(phydev, MII_KSZPHY_CTRL_2);
 
 	return 0;
 }
