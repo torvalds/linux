@@ -693,48 +693,46 @@ static int dmm32at_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
-	/* we support single-ended (ground) and differential */
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
-	s->n_chan = 32;
-	s->maxdata = 0xffff;
-	s->range_table = &dmm32at_airanges;
-	s->insn_read = dmm32at_ai_insn_read;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
+	s->n_chan	= 32;
+	s->maxdata	= 0xffff;
+	s->range_table	= &dmm32at_airanges;
+	s->insn_read	= dmm32at_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->subdev_flags |= SDF_CMD_READ;
-		s->len_chanlist = 32;
-		s->do_cmd = dmm32at_ai_cmd;
-		s->do_cmdtest = dmm32at_ai_cmdtest;
-		s->cancel = dmm32at_ai_cancel;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= s->n_chan;
+		s->do_cmd	= dmm32at_ai_cmd;
+		s->do_cmdtest	= dmm32at_ai_cmdtest;
+		s->cancel	= dmm32at_ai_cancel;
 	}
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	/* analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 4;
-	s->maxdata = 0x0fff;
-	s->range_table = &dmm32at_aoranges;
-	s->insn_write = dmm32at_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &dmm32at_aoranges;
+	s->insn_write	= dmm32at_ao_insn_write;
+	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
 		return ret;
 
+	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
-	/* digital i/o subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 24;
-	s->maxdata = 1;
-	s->state = 0;
-	s->range_table = &range_digital;
-	s->insn_bits = dmm32at_dio_insn_bits;
-	s->insn_config = dmm32at_dio_insn_config;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 24;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= dmm32at_dio_insn_bits;
+	s->insn_config	= dmm32at_dio_insn_config;
 
 	return 0;
 }
