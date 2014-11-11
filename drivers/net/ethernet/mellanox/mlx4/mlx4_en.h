@@ -326,6 +326,7 @@ struct mlx4_en_rx_ring {
 #endif
 	unsigned long csum_ok;
 	unsigned long csum_none;
+	unsigned long csum_complete;
 	int hwtstamp_rx_filter;
 	cpumask_var_t affinity_mask;
 };
@@ -449,6 +450,7 @@ struct mlx4_en_port_stats {
 	unsigned long rx_alloc_failed;
 	unsigned long rx_chksum_good;
 	unsigned long rx_chksum_none;
+	unsigned long rx_chksum_complete;
 	unsigned long tx_chksum_offload;
 #define NUM_PORT_STATS		9
 };
@@ -507,7 +509,8 @@ enum {
 	MLX4_EN_FLAG_ENABLE_HW_LOOPBACK	= (1 << 2),
 	/* whether we need to drop packets that hardware loopback-ed */
 	MLX4_EN_FLAG_RX_FILTER_NEEDED	= (1 << 3),
-	MLX4_EN_FLAG_FORCE_PROMISC	= (1 << 4)
+	MLX4_EN_FLAG_FORCE_PROMISC	= (1 << 4),
+	MLX4_EN_FLAG_RX_CSUM_NON_TCP_UDP	= (1 << 5),
 };
 
 #define MLX4_EN_MAC_HASH_SIZE (1 << BITS_PER_BYTE)

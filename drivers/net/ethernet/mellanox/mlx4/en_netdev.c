@@ -1893,6 +1893,7 @@ static void mlx4_en_clear_stats(struct net_device *dev)
 		priv->rx_ring[i]->packets = 0;
 		priv->rx_ring[i]->csum_ok = 0;
 		priv->rx_ring[i]->csum_none = 0;
+		priv->rx_ring[i]->csum_complete = 0;
 	}
 }
 
@@ -2502,6 +2503,10 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	/* Query for default mac and max mtu */
 	priv->max_mtu = mdev->dev->caps.eth_mtu_cap[priv->port];
+
+	if (mdev->dev->caps.rx_checksum_flags_port[priv->port] &
+	    MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP)
+		priv->flags |= MLX4_EN_FLAG_RX_CSUM_NON_TCP_UDP;
 
 	/* Set default MAC */
 	dev->addr_len = ETH_ALEN;
