@@ -162,6 +162,31 @@ static int bcm7xxx_28nm_d0_afe_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int bcm7xxx_28nm_e0_plus_afe_config_init(struct phy_device *phydev)
+{
+	/* AFE_RXCONFIG_1, provide more margin for INL/DNL measurement */
+	phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9b2f);
+
+	/* AFE_VDCA_ICTRL_0, set Iq=1101 instead of 0111 for AB symmetry */
+	phy_write_misc(phydev, AFE_VDCA_ICTRL_0, 0xa7da);
+
+	/* AFE_HPF_TRIM_OTHERS, set 100Tx/10BT to -4.5% swing and set rCal
+	 * offset for HT=0 code
+	 */
+	phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x00e3);
+
+	/* CORE_BASE1E, force trim to overwrite and set I_ext trim to 0000 */
+	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0x0010);
+
+	/* DSP_TAP10, adjust bias current trim (+0% swing, +0 tick) */
+	phy_write_misc(phydev, DSP_TAP10, 0x011b);
+
+	/* Reset R_CAL/RC_CAL engine */
+	r_rc_cal_reset(phydev);
+
+	return 0;
+}
+
 static int bcm7xxx_apd_enable(struct phy_device *phydev)
 {
 	int val;
@@ -224,6 +249,10 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 		break;
 	case 0xd0:
 		ret = bcm7xxx_28nm_d0_afe_config_init(phydev);
+		break;
+	case 0xe0:
+	case 0xf0:
+		ret = bcm7xxx_28nm_e0_plus_afe_config_init(phydev);
 		break;
 	default:
 		break;
