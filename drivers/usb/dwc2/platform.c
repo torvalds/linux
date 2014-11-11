@@ -219,9 +219,9 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	return retval;
 }
 
-static int dwc2_suspend(struct platform_device *dev, pm_message_t state)
+static int dwc2_suspend(struct device *dev)
 {
-	struct dwc2_hsotg *dwc2 = platform_get_drvdata(dev);
+	struct dwc2_hsotg *dwc2 = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (dwc2_is_device_mode(dwc2))
@@ -229,9 +229,9 @@ static int dwc2_suspend(struct platform_device *dev, pm_message_t state)
 	return ret;
 }
 
-static int dwc2_resume(struct platform_device *dev)
+static int dwc2_resume(struct device *dev)
 {
-	struct dwc2_hsotg *dwc2 = platform_get_drvdata(dev);
+	struct dwc2_hsotg *dwc2 = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (dwc2_is_device_mode(dwc2))
@@ -239,15 +239,18 @@ static int dwc2_resume(struct platform_device *dev)
 	return ret;
 }
 
+static const struct dev_pm_ops dwc2_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dwc2_suspend, dwc2_resume)
+};
+
 static struct platform_driver dwc2_platform_driver = {
 	.driver = {
 		.name = dwc2_driver_name,
 		.of_match_table = dwc2_of_match_table,
+		.pm = &dwc2_dev_pm_ops,
 	},
 	.probe = dwc2_driver_probe,
 	.remove = dwc2_driver_remove,
-	.suspend = dwc2_suspend,
-	.resume = dwc2_resume,
 };
 
 module_platform_driver(dwc2_platform_driver);
