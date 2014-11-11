@@ -1513,8 +1513,7 @@ static void i40evf_reset_task(struct work_struct *work)
 		if ((rstat_val != I40E_VFR_VFACTIVE) &&
 		    (rstat_val != I40E_VFR_COMPLETED))
 			break;
-		else
-			msleep(I40EVF_RESET_WAIT_MS);
+		msleep(I40EVF_RESET_WAIT_MS);
 	}
 	if (i == I40EVF_RESET_WAIT_COUNT) {
 		adapter->flags &= ~I40EVF_FLAG_RESET_PENDING;
@@ -1528,8 +1527,7 @@ static void i40evf_reset_task(struct work_struct *work)
 		if ((rstat_val == I40E_VFR_VFACTIVE) ||
 		    (rstat_val == I40E_VFR_COMPLETED))
 			break;
-		else
-			msleep(I40EVF_RESET_WAIT_MS);
+		msleep(I40EVF_RESET_WAIT_MS);
 	}
 	if (i == I40EVF_RESET_WAIT_COUNT) {
 		struct i40evf_mac_filter *f, *ftmp;
