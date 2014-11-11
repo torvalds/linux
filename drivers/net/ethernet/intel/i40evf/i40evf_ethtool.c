@@ -621,7 +621,7 @@ static u32 i40evf_get_rxfh_indir_size(struct net_device *netdev)
  * i40evf_get_rxfh - get the rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
- * @key: hash key (will be %NULL until get_rxfh_key_size is implemented)
+ * @key: hash key
  *
  * Reads the indirection table directly from the hardware. Always returns 0.
  **/
@@ -646,7 +646,7 @@ static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
  * i40evf_set_rxfh - set the rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
- * @key: hash key (will be %NULL until get_rxfh_key_size is implemented)
+ * @key: hash key
  *
  * Returns -EINVAL if the table specifies an inavlid queue id, otherwise
  * returns 0 after programming the table.
