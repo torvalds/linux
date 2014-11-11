@@ -1120,20 +1120,7 @@ static struct phy_driver marvell_drivers[] = {
 	},
 };
 
-static int __init marvell_init(void)
-{
-	return phy_drivers_register(marvell_drivers,
-		 ARRAY_SIZE(marvell_drivers));
-}
-
-static void __exit marvell_exit(void)
-{
-	phy_drivers_unregister(marvell_drivers,
-		 ARRAY_SIZE(marvell_drivers));
-}
-
-module_init(marvell_init);
-module_exit(marvell_exit);
+module_phy_driver(marvell_drivers);
 
 static struct mdio_device_id __maybe_unused marvell_tbl[] = {
 	{ MARVELL_PHY_ID_88E1101, MARVELL_PHY_ID_MASK },

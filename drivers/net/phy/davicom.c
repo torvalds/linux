@@ -182,20 +182,7 @@ static struct phy_driver dm91xx_driver[] = {
 	.driver		= { .owner = THIS_MODULE,},
 } };
 
-static int __init davicom_init(void)
-{
-	return phy_drivers_register(dm91xx_driver,
-		ARRAY_SIZE(dm91xx_driver));
-}
-
-static void __exit davicom_exit(void)
-{
-	phy_drivers_unregister(dm91xx_driver,
-		ARRAY_SIZE(dm91xx_driver));
-}
-
-module_init(davicom_init);
-module_exit(davicom_exit);
+module_phy_driver(dm91xx_driver);
 
 static struct mdio_device_id __maybe_unused davicom_tbl[] = {
 	{ 0x0181b880, 0x0ffffff0 },
