@@ -142,6 +142,53 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 }
 
 /*
+ * acpi_companion_match() - Can we match via ACPI companion device
+ * @dev: Device in question
+ *
+ * Check if the given device has an ACPI companion and if that companion has
+ * a valid list of PNP IDs, and if the device is the first (primary) physical
+ * device associated with it.
+ *
+ * If multiple physical devices are attached to a single ACPI companion, we need
+ * to be careful.  The usage scenario for this kind of relationship is that all
+ * of the physical devices in question use resources provided by the ACPI
+ * companion.  A typical case is an MFD device where all the sub-devices share
+ * the parent's ACPI companion.  In such cases we can only allow the primary
+ * (first) physical device to be matched with the help of the companion's PNP
+ * IDs.
+ *
+ * Additional physical devices sharing the ACPI companion can still use
+ * resources available from it but they will be matched normally using functions
+ * provided by their bus types (and analogously for their modalias).
+ */
+static bool acpi_companion_match(const struct device *dev)
+{
+	struct acpi_device *adev;
+	bool ret;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return false;
+
+	if (list_empty(&adev->pnp.ids))
+		return false;
+
+	mutex_lock(&adev->physical_node_lock);
+	if (list_empty(&adev->physical_node_list)) {
+		ret = false;
+	} else {
+		const struct acpi_device_physical_node *node;
+
+		node = list_first_entry(&adev->physical_node_list,
+					struct acpi_device_physical_node, node);
+		ret = node->dev == dev;
+	}
+	mutex_unlock(&adev->physical_node_lock);
+
+	return ret;
+}
+
+/*
  * Creates uevent modalias field for ACPI enumerated devices.
  * Because the other buses does not support ACPI HIDs & CIDs.
  * e.g. for a device with hid:IBM0001 and cid:ACPI0001 you get:
@@ -149,20 +196,14 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
  */
 int acpi_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct acpi_device *acpi_dev;
 	int len;
 
-	acpi_dev = ACPI_COMPANION(dev);
-	if (!acpi_dev)
-		return -ENODEV;
-
-	/* Fall back to bus specific way of modalias exporting */
-	if (list_empty(&acpi_dev->pnp.ids))
+	if (!acpi_companion_match(dev))
 		return -ENODEV;
 
 	if (add_uevent_var(env, "MODALIAS="))
 		return -ENOMEM;
-	len = create_modalias(acpi_dev, &env->buf[env->buflen - 1],
+	len = create_modalias(ACPI_COMPANION(dev), &env->buf[env->buflen - 1],
 				sizeof(env->buf) - env->buflen);
 	if (len <= 0)
 		return len;
@@ -179,18 +220,12 @@ EXPORT_SYMBOL_GPL(acpi_device_uevent_modalias);
  */
 int acpi_device_modalias(struct device *dev, char *buf, int size)
 {
-	struct acpi_device *acpi_dev;
 	int len;
 
-	acpi_dev = ACPI_COMPANION(dev);
-	if (!acpi_dev)
+	if (!acpi_companion_match(dev))
 		return -ENODEV;
 
-	/* Fall back to bus specific way of modalias exporting */
-	if (list_empty(&acpi_dev->pnp.ids))
-		return -ENODEV;
-
-	len = create_modalias(acpi_dev, buf, size -1);
+	len = create_modalias(ACPI_COMPANION(dev), buf, size -1);
 	if (len <= 0)
 		return len;
 	buf[len++] = '\n';
@@ -851,6 +886,9 @@ const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 	acpi_handle handle = ACPI_HANDLE(dev);
 
 	if (!ids || !handle || acpi_bus_get_device(handle, &adev))
+		return NULL;
+
+	if (!acpi_companion_match(dev))
 		return NULL;
 
 	return __acpi_match_device(adev, ids);

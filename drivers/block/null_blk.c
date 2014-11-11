@@ -450,14 +450,10 @@ static int init_driver_queues(struct nullb *nullb)
 
 		ret = setup_commands(nq);
 		if (ret)
-			goto err_queue;
+			return ret;
 		nullb->nr_queues++;
 	}
-
 	return 0;
-err_queue:
-	cleanup_queues(nullb);
-	return ret;
 }
 
 static int null_add_dev(void)
@@ -507,7 +503,9 @@ static int null_add_dev(void)
 			goto out_cleanup_queues;
 		}
 		blk_queue_make_request(nullb->q, null_queue_bio);
-		init_driver_queues(nullb);
+		rv = init_driver_queues(nullb);
+		if (rv)
+			goto out_cleanup_blk_queue;
 	} else {
 		nullb->q = blk_init_queue_node(null_request_fn, &nullb->lock, home_node);
 		if (!nullb->q) {
@@ -516,7 +514,9 @@ static int null_add_dev(void)
 		}
 		blk_queue_prep_rq(nullb->q, null_rq_prep_fn);
 		blk_queue_softirq_done(nullb->q, null_softirq_done_fn);
-		init_driver_queues(nullb);
+		rv = init_driver_queues(nullb);
+		if (rv)
+			goto out_cleanup_blk_queue;
 	}
 
 	nullb->q->queuedata = nullb;
