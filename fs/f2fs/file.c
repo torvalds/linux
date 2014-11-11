@@ -477,8 +477,6 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 	}
 
 	if (f2fs_has_inline_data(inode)) {
-		truncate_inline_data(ipage, from);
-		update_inode(inode, ipage);
 		f2fs_put_page(ipage, 1);
 		goto out;
 	}
@@ -504,13 +502,13 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 	f2fs_put_dnode(&dn);
 free_next:
 	err = truncate_inode_blocks(inode, free_from);
+out:
+	if (lock)
+		f2fs_unlock_op(sbi);
 
 	/* lastly zero out the first data page */
 	if (!err)
 		err = truncate_partial_data_page(inode, from);
-out:
-	if (lock)
-		f2fs_unlock_op(sbi);
 
 	trace_f2fs_truncate_blocks_exit(inode, err);
 	return err;
