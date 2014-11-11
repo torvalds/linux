@@ -303,7 +303,7 @@ pn_rx_submit(struct f_phonet *fp, struct usb_request *req, gfp_t gfp_flags)
 	struct page *page;
 	int err;
 
-	page = __skb_alloc_page(gfp_flags | __GFP_NOMEMALLOC, NULL);
+	page = __dev_alloc_page(gfp_flags | __GFP_NOMEMALLOC);
 	if (!page)
 		return -ENOMEM;
 
@@ -377,7 +377,7 @@ static void pn_rx_complete(struct usb_ep *ep, struct usb_request *req)
 	if (page)
 		put_page(page);
 	if (req)
-		pn_rx_submit(fp, req, GFP_ATOMIC | __GFP_COLD);
+		pn_rx_submit(fp, req, GFP_ATOMIC);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -437,7 +437,7 @@ static int pn_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 			netif_carrier_on(dev);
 			for (i = 0; i < phonet_rxq_size; i++)
-				pn_rx_submit(fp, fp->out_reqv[i], GFP_ATOMIC | __GFP_COLD);
+				pn_rx_submit(fp, fp->out_reqv[i], GFP_ATOMIC);
 		}
 		spin_unlock(&port->lock);
 		return 0;
