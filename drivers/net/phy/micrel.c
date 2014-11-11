@@ -173,6 +173,11 @@ static int kszphy_setup_led(struct phy_device *phydev,
 	if (of_property_read_u32(of_node, "micrel,led-mode", &val))
 		return 0;
 
+	if (val > 3) {
+		dev_err(&phydev->dev, "invalid led mode: 0x%02x\n", val);
+		return -EINVAL;
+	}
+
 	temp = phy_read(phydev, reg);
 	if (temp < 0)
 		return temp;
