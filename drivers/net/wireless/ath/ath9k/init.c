@@ -88,17 +88,17 @@ static const struct ieee80211_tpt_blink ath9k_tpt_blink[] = {
 
 static void ath9k_deinit_softc(struct ath_softc *sc);
 
-void ath9k_op_ps_wakeup(struct ath_common *common)
+static void ath9k_op_ps_wakeup(struct ath_common *common)
 {
 	ath9k_ps_wakeup((struct ath_softc *) common->priv);
 }
 
-void ath9k_op_ps_restore(struct ath_common *common)
+static void ath9k_op_ps_restore(struct ath_common *common)
 {
 	ath9k_ps_restore((struct ath_softc *) common->priv);
 }
 
-struct ath_ps_ops ath9k_ps_ops = {
+static struct ath_ps_ops ath9k_ps_ops = {
 	.wakeup = ath9k_op_ps_wakeup,
 	.restore = ath9k_op_ps_restore,
 };
