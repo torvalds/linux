@@ -262,8 +262,7 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 
 	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
 	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->convert_src,
-					TRIG_TIMER /*| TRIG_EXT */);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
 	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
@@ -272,7 +271,6 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
 	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
@@ -287,20 +285,14 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, 1000000);
 	err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 1000000000);
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg >= 17500)
-			cmd->convert_arg = 20000;
-		else if (cmd->convert_arg >= 12500)
-			cmd->convert_arg = 15000;
-		else if (cmd->convert_arg >= 7500)
-			cmd->convert_arg = 10000;
-		else
-			cmd->convert_arg = 5000;
-	} else {
-		/* external trigger */
-		/* see above */
-		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 9);
-	}
+	if (cmd->convert_arg >= 17500)
+		cmd->convert_arg = 20000;
+	else if (cmd->convert_arg >= 12500)
+		cmd->convert_arg = 15000;
+	else if (cmd->convert_arg >= 7500)
+		cmd->convert_arg = 10000;
+	else
+		cmd->convert_arg = 5000;
 
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
@@ -314,18 +306,12 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	arg = cmd->scan_begin_arg;
+	arg = cmd->convert_arg;
 	dmm32at_ns_to_timer(&arg, cmd->flags);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		arg = cmd->convert_arg;
-		dmm32at_ns_to_timer(&arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
-
-		arg = cmd->convert_arg * cmd->scan_end_arg;
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, arg);
-	}
+	arg = cmd->convert_arg * cmd->scan_end_arg;
+	err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, arg);
 
 	if (err)
 		return 4;
