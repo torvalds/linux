@@ -179,14 +179,19 @@ static int kszphy_setup_led(struct phy_device *phydev,
 	}
 
 	temp = phy_read(phydev, reg);
-	if (temp < 0)
-		return temp;
+	if (temp < 0) {
+		rc = temp;
+		goto out;
+	}
 
 	temp &= ~(3 << shift);
 	temp |= val << shift;
 	rc = phy_write(phydev, reg, temp);
+out:
+	if (rc < 0)
+		dev_err(&phydev->dev, "failed to set led mode\n");
 
-	return rc < 0 ? rc : 0;
+	return rc;
 }
 
 /* Disable PHY address 0 as the broadcast address, so that it can be used as a
@@ -223,9 +228,7 @@ static int ksz8021_config_init(struct phy_device *phydev)
 {
 	int rc;
 
-	rc = kszphy_setup_led(phydev, 0x1f, 4);
-	if (rc)
-		dev_err(&phydev->dev, "failed to set led mode\n");
+	kszphy_setup_led(phydev, 0x1f, 4);
 
 	rc = ksz_config_flags(phydev);
 	if (rc < 0)
@@ -240,9 +243,7 @@ static int ks8051_config_init(struct phy_device *phydev)
 {
 	int rc;
 
-	rc = kszphy_setup_led(phydev, 0x1f, 4);
-	if (rc)
-		dev_err(&phydev->dev, "failed to set led mode\n");
+	kszphy_setup_led(phydev, 0x1f, 4);
 
 	rc = ksz_config_flags(phydev);
 	return rc < 0 ? rc : 0;
