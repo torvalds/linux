@@ -598,7 +598,7 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 	msg = (struct w1_netlink_msg *)(cn + 1);
 	if (node_count) {
 		int size;
-		u16 reply_size = sizeof(*cn) + cn->len + slave_len;
+		int reply_size = sizeof(*cn) + cn->len + slave_len;
 		if (cn->flags & W1_CN_BUNDLE) {
 			/* bundling duplicats some of the messages */
 			reply_size += 2 * cmd_count * (sizeof(struct cn_msg) +
