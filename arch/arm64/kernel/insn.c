@@ -163,9 +163,10 @@ static int __kprobes aarch64_insn_patch_text_cb(void *arg)
 		 * which ends with "dsb; isb" pair guaranteeing global
 		 * visibility.
 		 */
-		atomic_set(&pp->cpu_count, -1);
+		/* Notify other processors with an additional increment. */
+		atomic_inc(&pp->cpu_count);
 	} else {
-		while (atomic_read(&pp->cpu_count) != -1)
+		while (atomic_read(&pp->cpu_count) <= num_online_cpus())
 			cpu_relax();
 		isb();
 	}
