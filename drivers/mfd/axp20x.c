@@ -183,21 +183,21 @@ static const struct regmap_irq axp20x_regmap_irqs[] = {
 
 /* some IRQs are compatible with axp20x models */
 static const struct regmap_irq axp288_regmap_irqs[] = {
-	INIT_REGMAP_IRQ(AXP20X, VBUS_REMOVAL,           0, 2),
-	INIT_REGMAP_IRQ(AXP20X, VBUS_PLUGIN,            0, 3),
-	INIT_REGMAP_IRQ(AXP20X, VBUS_OVER_V,            0, 4),
+	INIT_REGMAP_IRQ(AXP288, VBUS_FALL,              0, 2),
+	INIT_REGMAP_IRQ(AXP288, VBUS_RISE,              0, 3),
+	INIT_REGMAP_IRQ(AXP288, OV,                     0, 4),
 
-	INIT_REGMAP_IRQ(AXP20X, CHARG_DONE,             1, 2),
-	INIT_REGMAP_IRQ(AXP20X, CHARG,                  1, 3),
+	INIT_REGMAP_IRQ(AXP288, DONE,                   1, 2),
+	INIT_REGMAP_IRQ(AXP288, CHARGING,               1, 3),
 	INIT_REGMAP_IRQ(AXP288, SAFE_QUIT,              1, 4),
 	INIT_REGMAP_IRQ(AXP288, SAFE_ENTER,             1, 5),
-	INIT_REGMAP_IRQ(AXP20X, BATT_REMOVAL,           1, 6),
-	INIT_REGMAP_IRQ(AXP20X, BATT_PLUGIN,            1, 7),
+	INIT_REGMAP_IRQ(AXP288, ABSENT,                 1, 6),
+	INIT_REGMAP_IRQ(AXP288, APPEND,                 1, 7),
 
 	INIT_REGMAP_IRQ(AXP288, QWBTU,                  2, 0),
 	INIT_REGMAP_IRQ(AXP288, WBTU,                   2, 1),
 	INIT_REGMAP_IRQ(AXP288, QWBTO,                  2, 2),
-	INIT_REGMAP_IRQ(AXP288, WBTU,                   2, 3),
+	INIT_REGMAP_IRQ(AXP288, WBTO,                   2, 3),
 	INIT_REGMAP_IRQ(AXP288, QCBTU,                  2, 4),
 	INIT_REGMAP_IRQ(AXP288, CBTU,                   2, 5),
 	INIT_REGMAP_IRQ(AXP288, QCBTO,                  2, 6),
@@ -215,7 +215,7 @@ static const struct regmap_irq axp288_regmap_irqs[] = {
 	INIT_REGMAP_IRQ(AXP288, POKS,                   4, 4),
 	INIT_REGMAP_IRQ(AXP288, POKN,                   4, 5),
 	INIT_REGMAP_IRQ(AXP288, POKP,                   4, 6),
-	INIT_REGMAP_IRQ(AXP20X, TIMER,                  4, 7),
+	INIT_REGMAP_IRQ(AXP288, TIMER,                  4, 7),
 
 	INIT_REGMAP_IRQ(AXP288, MV_CHNG,                5, 0),
 	INIT_REGMAP_IRQ(AXP288, BC_USB_CHNG,            5, 1),
