@@ -77,6 +77,8 @@
 /* VF Device IDs */
 #define IXGBE_DEV_ID_82599_VF           0x10ED
 #define IXGBE_DEV_ID_X540_VF            0x1515
+#define IXGBE_DEV_ID_X550_VF		0x1565
+#define IXGBE_DEV_ID_X550EM_X_VF	0x15A8
 
 /* General Registers */
 #define IXGBE_CTRL      0x00000
@@ -84,7 +86,8 @@
 #define IXGBE_CTRL_EXT  0x00018
 #define IXGBE_ESDP      0x00020
 #define IXGBE_EODSDP    0x00028
-#define IXGBE_I2CCTL    0x00028
+#define IXGBE_I2CCTL_BY_MAC(_hw)((((_hw)->mac.type >= ixgbe_mac_X550) ? \
+					0x15F5C : 0x00028))
 #define IXGBE_LEDCTL    0x00200
 #define IXGBE_FRTIMER   0x00048
 #define IXGBE_TCPTIMER  0x0004C
@@ -112,10 +115,14 @@
 #define IXGBE_VPDDIAG1  0x10208
 
 /* I2CCTL Bit Masks */
-#define IXGBE_I2C_CLK_IN    0x00000001
-#define IXGBE_I2C_CLK_OUT   0x00000002
-#define IXGBE_I2C_DATA_IN   0x00000004
-#define IXGBE_I2C_DATA_OUT  0x00000008
+#define IXGBE_I2C_CLK_IN_BY_MAC(_hw)(((_hw)->mac.type) >= ixgbe_mac_X550 ? \
+					0x00004000 : 0x00000001)
+#define IXGBE_I2C_CLK_OUT_BY_MAC(_hw)(((_hw)->mac.type) >= ixgbe_mac_X550 ? \
+					0x00000200 : 0x00000002)
+#define IXGBE_I2C_DATA_IN_BY_MAC(_hw)(((_hw)->mac.type) >= ixgbe_mac_X550 ? \
+					0x00001000 : 0x00000004)
+#define IXGBE_I2C_DATA_OUT_BY_MAC(_hw)(((_hw)->mac.type) >= ixgbe_mac_X550 ? \
+					0x00000400 : 0x00000008)
 #define IXGBE_I2C_CLOCK_STRETCHING_TIMEOUT	500
 
 #define IXGBE_I2C_THERMAL_SENSOR_ADDR	0xF8
@@ -291,6 +298,14 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_VMD_CTL   0x0581C
 #define IXGBE_RETA(_i)  (0x05C00 + ((_i) * 4))  /* 32 of these (0-31) */
 #define IXGBE_RSSRK(_i) (0x05C80 + ((_i) * 4))  /* 10 of these (0-9) */
+
+/* Registers for setting up RSS on X550 with SRIOV
+ * _p - pool number (0..63)
+ * _i - index (0..10 for PFVFRSSRK, 0..15 for PFVFRETA)
+ */
+#define IXGBE_PFVFMRQC(_p)	(0x03400 + ((_p) * 4))
+#define IXGBE_PFVFRSSRK(_i, _p)	(0x018000 + ((_i) * 4) + ((_p) * 0x40))
+#define IXGBE_PFVFRETA(_i, _p)	(0x019000 + ((_i) * 4) + ((_p) * 0x40))
 
 /* Flow Director registers */
 #define IXGBE_FDIRCTRL  0x0EE00
@@ -798,6 +813,12 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_PBACLR_82599      0x11068
 #define IXGBE_CIAA_82599        0x11088
 #define IXGBE_CIAD_82599        0x1108C
+#define IXGBE_CIAA_X550         0x11508
+#define IXGBE_CIAD_X550         0x11510
+#define IXGBE_CIAA_BY_MAC(_hw)  ((((_hw)->mac.type >= ixgbe_mac_X550) ? \
+				IXGBE_CIAA_X550 : IXGBE_CIAA_82599))
+#define IXGBE_CIAD_BY_MAC(_hw)  ((((_hw)->mac.type >= ixgbe_mac_X550) ? \
+				IXGBE_CIAD_X550 : IXGBE_CIAD_82599))
 #define IXGBE_PICAUSE           0x110B0
 #define IXGBE_PIENA             0x110B8
 #define IXGBE_CDQ_MBR_82599     0x110B4
@@ -1632,6 +1653,7 @@ enum {
 #define IXGBE_LINKS_TL_FAULT    0x00001000
 #define IXGBE_LINKS_SIGNAL      0x00000F00
 
+#define IXGBE_LINKS_SPEED_NON_STD   0x08000000
 #define IXGBE_LINKS_SPEED_82599     0x30000000
 #define IXGBE_LINKS_SPEED_10G_82599 0x30000000
 #define IXGBE_LINKS_SPEED_1G_82599  0x20000000
@@ -2000,6 +2022,7 @@ enum {
 
 /* Queue Drop Enable */
 #define IXGBE_QDE_ENABLE	0x00000001
+#define IXGBE_QDE_HIDE_VLAN	0x00000002
 #define IXGBE_QDE_IDX_MASK	0x00007F00
 #define IXGBE_QDE_IDX_SHIFT	8
 #define IXGBE_QDE_WRITE		0x00010000
@@ -2437,10 +2460,12 @@ struct ixgbe_adv_tx_context_desc {
 typedef u32 ixgbe_autoneg_advertised;
 /* Link speed */
 typedef u32 ixgbe_link_speed;
-#define IXGBE_LINK_SPEED_UNKNOWN   0
-#define IXGBE_LINK_SPEED_100_FULL  0x0008
-#define IXGBE_LINK_SPEED_1GB_FULL  0x0020
-#define IXGBE_LINK_SPEED_10GB_FULL 0x0080
+#define IXGBE_LINK_SPEED_UNKNOWN	0
+#define IXGBE_LINK_SPEED_100_FULL	0x0008
+#define IXGBE_LINK_SPEED_1GB_FULL	0x0020
+#define IXGBE_LINK_SPEED_2_5GB_FULL	0x0400
+#define IXGBE_LINK_SPEED_5GB_FULL	0x0800
+#define IXGBE_LINK_SPEED_10GB_FULL	0x0080
 #define IXGBE_LINK_SPEED_82598_AUTONEG (IXGBE_LINK_SPEED_1GB_FULL | \
 					IXGBE_LINK_SPEED_10GB_FULL)
 #define IXGBE_LINK_SPEED_82599_AUTONEG (IXGBE_LINK_SPEED_100_FULL | \
@@ -2588,6 +2613,8 @@ enum ixgbe_mac_type {
 	ixgbe_mac_82598EB,
 	ixgbe_mac_82599EB,
 	ixgbe_mac_X540,
+	ixgbe_mac_X550,
+	ixgbe_mac_X550EM_x,
 	ixgbe_num_macs
 };
 

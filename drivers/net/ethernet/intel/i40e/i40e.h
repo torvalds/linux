@@ -269,7 +269,8 @@ struct i40e_pf {
 	u16 msg_enable;
 	char misc_int_name[IFNAMSIZ + 9];
 	u16 adminq_work_limit; /* num of admin receive queue desc to process */
-	int service_timer_period;
+	unsigned long service_timer_period;
+	unsigned long service_timer_previous;
 	struct timer_list service_timer;
 	struct work_struct service_task;
 

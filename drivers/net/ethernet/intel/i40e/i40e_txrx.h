@@ -30,10 +30,7 @@
 /* Interrupt Throttling and Rate Limiting Goodies */
 
 #define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
-#define I40E_MIN_ITR               0x0004  /* reg uses 2 usec resolution */
-#define I40E_MAX_IRATE             0x03F
-#define I40E_MIN_IRATE             0x001
-#define I40E_IRATE_USEC_RESOLUTION 4
+#define I40E_MIN_ITR               0x0001  /* reg uses 2 usec resolution */
 #define I40E_ITR_100K              0x0005
 #define I40E_ITR_20K               0x0019
 #define I40E_ITR_8K                0x003E

@@ -89,6 +89,7 @@ int i40evf_verify_api_ver(struct i40evf_adapter *adapter)
 	struct i40e_virtchnl_version_info *pf_vvi;
 	struct i40e_hw *hw = &adapter->hw;
 	struct i40e_arq_event_info event;
+	enum i40e_virtchnl_ops op;
 	i40e_status err;
 
 	event.msg_size = I40EVF_MAX_AQ_BUF_SIZE;
@@ -98,18 +99,27 @@ int i40evf_verify_api_ver(struct i40evf_adapter *adapter)
 		goto out;
 	}
 
-	err = i40evf_clean_arq_element(hw, &event, NULL);
-	if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
-		goto out_alloc;
+	while (1) {
+		err = i40evf_clean_arq_element(hw, &event, NULL);
+		/* When the AQ is empty, i40evf_clean_arq_element will return
+		 * nonzero and this loop will terminate.
+		 */
+		if (err)
+			goto out_alloc;
+		op =
+		    (enum i40e_virtchnl_ops)le32_to_cpu(event.desc.cookie_high);
+		if (op == I40E_VIRTCHNL_OP_VERSION)
+			break;
+	}
+
 
 	err = (i40e_status)le32_to_cpu(event.desc.cookie_low);
 	if (err)
 		goto out_alloc;
 
-	if ((enum i40e_virtchnl_ops)le32_to_cpu(event.desc.cookie_high) !=
-	    I40E_VIRTCHNL_OP_VERSION) {
+	if (op != I40E_VIRTCHNL_OP_VERSION) {
 		dev_info(&adapter->pdev->dev, "Invalid reply type %d from PF\n",
-			 le32_to_cpu(event.desc.cookie_high));
+			op);
 		err = -EIO;
 		goto out_alloc;
 	}
@@ -153,8 +163,9 @@ int i40evf_get_vf_config(struct i40evf_adapter *adapter)
 {
 	struct i40e_hw *hw = &adapter->hw;
 	struct i40e_arq_event_info event;
-	u16 len;
+	enum i40e_virtchnl_ops op;
 	i40e_status err;
+	u16 len;
 
 	len =  sizeof(struct i40e_virtchnl_vf_resource) +
 		I40E_MAX_VF_VSI * sizeof(struct i40e_virtchnl_vsi_resource);
@@ -165,29 +176,21 @@ int i40evf_get_vf_config(struct i40evf_adapter *adapter)
 		goto out;
 	}
 
-	err = i40evf_clean_arq_element(hw, &event, NULL);
-	if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
-		goto out_alloc;
+	while (1) {
+		event.msg_size = len;
+		/* When the AQ is empty, i40evf_clean_arq_element will return
+		 * nonzero and this loop will terminate.
+		 */
+		err = i40evf_clean_arq_element(hw, &event, NULL);
+		if (err)
+			goto out_alloc;
+		op =
+		    (enum i40e_virtchnl_ops)le32_to_cpu(event.desc.cookie_high);
+		if (op == I40E_VIRTCHNL_OP_GET_VF_RESOURCES)
+			break;
+	}
 
 	err = (i40e_status)le32_to_cpu(event.desc.cookie_low);
-	if (err) {
-		dev_err(&adapter->pdev->dev,
-			"%s: Error returned from PF, %d, %d\n", __func__,
-			le32_to_cpu(event.desc.cookie_high),
-			le32_to_cpu(event.desc.cookie_low));
-		err = -EIO;
-		goto out_alloc;
-	}
-
-	if ((enum i40e_virtchnl_ops)le32_to_cpu(event.desc.cookie_high) !=
-	    I40E_VIRTCHNL_OP_GET_VF_RESOURCES) {
-		dev_err(&adapter->pdev->dev,
-			"%s: Invalid response from PF, %d, %d\n", __func__,
-			le32_to_cpu(event.desc.cookie_high),
-			le32_to_cpu(event.desc.cookie_low));
-		err = -EIO;
-		goto out_alloc;
-	}
 	memcpy(adapter->vf_res, event.msg_buf, min(event.msg_size, len));
 
 	i40e_vf_parse_hw_config(hw, adapter->vf_res);
@@ -207,7 +210,7 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 {
 	struct i40e_virtchnl_vsi_queue_config_info *vqci;
 	struct i40e_virtchnl_queue_pair_info *vqpi;
-	int pairs = adapter->vsi_res->num_queue_pairs;
+	int pairs = adapter->num_active_queues;
 	int i, len;
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
@@ -273,7 +276,7 @@ void i40evf_enable_queues(struct i40evf_adapter *adapter)
 	}
 	adapter->current_op = I40E_VIRTCHNL_OP_ENABLE_QUEUES;
 	vqs.vsi_id = adapter->vsi_res->vsi_id;
-	vqs.tx_queues = (1 << adapter->vsi_res->num_queue_pairs) - 1;
+	vqs.tx_queues = (1 << adapter->num_active_queues) - 1;
 	vqs.rx_queues = vqs.tx_queues;
 	adapter->aq_pending |= I40EVF_FLAG_AQ_ENABLE_QUEUES;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_ENABLE_QUEUES;
@@ -299,7 +302,7 @@ void i40evf_disable_queues(struct i40evf_adapter *adapter)
 	}
 	adapter->current_op = I40E_VIRTCHNL_OP_DISABLE_QUEUES;
 	vqs.vsi_id = adapter->vsi_res->vsi_id;
-	vqs.tx_queues = (1 << adapter->vsi_res->num_queue_pairs) - 1;
+	vqs.tx_queues = (1 << adapter->num_active_queues) - 1;
 	vqs.rx_queues = vqs.tx_queues;
 	adapter->aq_pending |= I40EVF_FLAG_AQ_DISABLE_QUEUES;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_DISABLE_QUEUES;

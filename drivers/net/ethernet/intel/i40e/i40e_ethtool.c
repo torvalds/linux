@@ -1575,11 +1575,9 @@ static int i40e_set_coalesce(struct net_device *netdev,
 	} else if (ec->rx_coalesce_usecs == 0) {
 		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
 		if (ec->use_adaptive_rx_coalesce)
-			netif_info(pf, drv, netdev,
-				   "Rx-secs=0, need to disable adaptive-Rx for a complete disable\n");
+			netif_info(pf, drv, netdev, "rx-usecs=0, need to disable adaptive-rx for a complete disable\n");
 	} else {
-		netif_info(pf, drv, netdev,
-			   "Invalid value, Rx-usecs range is 0, 8-8160\n");
+		netif_info(pf, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
 
@@ -1589,11 +1587,10 @@ static int i40e_set_coalesce(struct net_device *netdev,
 	} else if (ec->tx_coalesce_usecs == 0) {
 		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
 		if (ec->use_adaptive_tx_coalesce)
-			netif_info(pf, drv, netdev,
-				   "Tx-secs=0, need to disable adaptive-Tx for a complete disable\n");
+			netif_info(pf, drv, netdev, "tx-usecs=0, need to disable adaptive-tx for a complete disable\n");
 	} else {
 		netif_info(pf, drv, netdev,
-			   "Invalid value, Tx-usecs range is 0, 8-8160\n");
+			   "Invalid value, tx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
 

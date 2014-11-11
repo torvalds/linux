@@ -397,8 +397,8 @@ static int i40evf_map_rings_to_vectors(struct i40evf_adapter *adapter)
 	int q_vectors;
 	int v_start = 0;
 	int rxr_idx = 0, txr_idx = 0;
-	int rxr_remaining = adapter->vsi_res->num_queue_pairs;
-	int txr_remaining = adapter->vsi_res->num_queue_pairs;
+	int rxr_remaining = adapter->num_active_queues;
+	int txr_remaining = adapter->num_active_queues;
 	int i, j;
 	int rqpv, tqpv;
 	int err = 0;
@@ -584,7 +584,7 @@ static void i40evf_configure_tx(struct i40evf_adapter *adapter)
 {
 	struct i40e_hw *hw = &adapter->hw;
 	int i;
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++)
+	for (i = 0; i < adapter->num_active_queues; i++)
 		adapter->tx_rings[i]->tail = hw->hw_addr + I40E_QTX_TAIL1(i);
 }
 
@@ -629,7 +629,7 @@ static void i40evf_configure_rx(struct i40evf_adapter *adapter)
 			rx_buf_len = ALIGN(max_frame, 1024);
 	}
 
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+	for (i = 0; i < adapter->num_active_queues; i++) {
 		adapter->rx_rings[i]->tail = hw->hw_addr + I40E_QRX_TAIL1(i);
 		adapter->rx_rings[i]->rx_buf_len = rx_buf_len;
 	}
@@ -918,7 +918,7 @@ static void i40evf_configure(struct i40evf_adapter *adapter)
 	i40evf_configure_rx(adapter);
 	adapter->aq_required |= I40EVF_FLAG_AQ_CONFIGURE_QUEUES;
 
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+	for (i = 0; i < adapter->num_active_queues; i++) {
 		struct i40e_ring *ring = adapter->rx_rings[i];
 		i40evf_alloc_rx_buffers(ring, ring->count);
 		ring->next_to_use = ring->count - 1;
@@ -950,7 +950,7 @@ static void i40evf_clean_all_rx_rings(struct i40evf_adapter *adapter)
 {
 	int i;
 
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++)
+	for (i = 0; i < adapter->num_active_queues; i++)
 		i40evf_clean_rx_ring(adapter->rx_rings[i]);
 }
 
@@ -962,7 +962,7 @@ static void i40evf_clean_all_tx_rings(struct i40evf_adapter *adapter)
 {
 	int i;
 
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++)
+	for (i = 0; i < adapter->num_active_queues; i++)
 		i40evf_clean_tx_ring(adapter->tx_rings[i]);
 }
 
@@ -1064,7 +1064,7 @@ static void i40evf_free_queues(struct i40evf_adapter *adapter)
 
 	if (!adapter->vsi_res)
 		return;
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+	for (i = 0; i < adapter->num_active_queues; i++) {
 		if (adapter->tx_rings[i])
 			kfree_rcu(adapter->tx_rings[i], rcu);
 		adapter->tx_rings[i] = NULL;
@@ -1084,7 +1084,7 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 {
 	int i;
 
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+	for (i = 0; i < adapter->num_active_queues; i++) {
 		struct i40e_ring *tx_ring;
 		struct i40e_ring *rx_ring;
 
@@ -1130,7 +1130,7 @@ static int i40evf_set_interrupt_capability(struct i40evf_adapter *adapter)
 		err = -EIO;
 		goto out;
 	}
-	pairs = adapter->vsi_res->num_queue_pairs;
+	pairs = adapter->num_active_queues;
 
 	/* It's easy to be greedy for MSI-X vectors, but it really
 	 * doesn't do us much good if we have a lot more vectors
@@ -1210,7 +1210,7 @@ static void i40evf_free_q_vectors(struct i40evf_adapter *adapter)
 	int napi_vectors;
 
 	num_q_vectors = adapter->num_msix_vectors - NONQ_VECS;
-	napi_vectors = adapter->vsi_res->num_queue_pairs;
+	napi_vectors = adapter->num_active_queues;
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
 		struct i40e_q_vector *q_vector = adapter->q_vector[q_idx];
@@ -1265,8 +1265,8 @@ int i40evf_init_interrupt_scheme(struct i40evf_adapter *adapter)
 	}
 
 	dev_info(&adapter->pdev->dev, "Multiqueue %s: Queue pair count = %u",
-		(adapter->vsi_res->num_queue_pairs > 1) ? "Enabled" :
-		"Disabled", adapter->vsi_res->num_queue_pairs);
+		(adapter->num_active_queues > 1) ? "Enabled" :
+		"Disabled", adapter->num_active_queues);
 
 	return 0;
 err_alloc_queues:
@@ -1425,7 +1425,7 @@ static int next_queue(struct i40evf_adapter *adapter, int j)
 {
 	j += 1;
 
-	return j >= adapter->vsi_res->num_queue_pairs ? 0 : j;
+	return j >= adapter->num_active_queues ? 0 : j;
 }
 
 /**
@@ -1446,9 +1446,14 @@ static void i40evf_configure_rss(struct i40evf_adapter *adapter)
 			0xc135cafa, 0x7a6f7e2d, 0xe7102d28, 0x163cd12e,
 			0x4954b126 };
 
-	/* Hash type is configured by the PF - we just supply the key */
+	/* No RSS for single queue. */
+	if (adapter->num_active_queues == 1) {
+		wr32(hw, I40E_VFQF_HENA(0), 0);
+		wr32(hw, I40E_VFQF_HENA(1), 0);
+		return;
+	}
 
-	/* Fill out hash function seed */
+	/* Hash type is configured by the PF - we just supply the key */
 	for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
 		wr32(hw, I40E_VFQF_HKEY(i), seed[i]);
 
@@ -1458,7 +1463,7 @@ static void i40evf_configure_rss(struct i40evf_adapter *adapter)
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
 	/* Populate the LUT with max no. of queues in round robin fashion */
-	j = adapter->vsi_res->num_queue_pairs;
+	j = adapter->num_active_queues;
 	for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
 		j = next_queue(adapter, j);
 		lut = j;
@@ -1703,7 +1708,7 @@ static void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter)
 {
 	int i;
 
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++)
+	for (i = 0; i < adapter->num_active_queues; i++)
 		if (adapter->tx_rings[i]->desc)
 			i40evf_free_tx_resources(adapter->tx_rings[i]);
 
@@ -1723,7 +1728,7 @@ static int i40evf_setup_all_tx_resources(struct i40evf_adapter *adapter)
 {
 	int i, err = 0;
 
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+	for (i = 0; i < adapter->num_active_queues; i++) {
 		adapter->tx_rings[i]->count = adapter->tx_desc_count;
 		err = i40evf_setup_tx_descriptors(adapter->tx_rings[i]);
 		if (!err)
@@ -1751,7 +1756,7 @@ static int i40evf_setup_all_rx_resources(struct i40evf_adapter *adapter)
 {
 	int i, err = 0;
 
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+	for (i = 0; i < adapter->num_active_queues; i++) {
 		adapter->rx_rings[i]->count = adapter->rx_desc_count;
 		err = i40evf_setup_rx_descriptors(adapter->rx_rings[i]);
 		if (!err)
@@ -1774,7 +1779,7 @@ static void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter)
 {
 	int i;
 
-	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++)
+	for (i = 0; i < adapter->num_active_queues; i++)
 		if (adapter->rx_rings[i]->desc)
 			i40evf_free_rx_resources(adapter->rx_rings[i]);
 }
@@ -2150,6 +2155,9 @@ static void i40evf_init_task(struct work_struct *work)
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 	mod_timer(&adapter->watchdog_timer, jiffies + 1);
 
+	adapter->num_active_queues = min_t(int,
+					   adapter->vsi_res->num_queue_pairs,
+					   (int)(num_online_cpus()));
 	adapter->tx_desc_count = I40EVF_DEFAULT_TXD;
 	adapter->rx_desc_count = I40EVF_DEFAULT_RXD;
 	err = i40evf_init_interrupt_scheme(adapter);

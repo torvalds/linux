@@ -801,7 +801,6 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 	 */
 	if (!details->async && !details->postpone) {
 		u32 total_delay = 0;
-		u32 delay_len = 10;
 
 		do {
 			/* AQ designers suggest use of head for better
@@ -809,9 +808,8 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 			 */
 			if (i40evf_asq_done(hw))
 				break;
-			/* ugh! delay while spin_lock */
-			udelay(delay_len);
-			total_delay += delay_len;
+			usleep_range(1000, 2000);
+			total_delay++;
 		} while (total_delay < hw->aq.asq_cmd_timeout);
 	}
 
