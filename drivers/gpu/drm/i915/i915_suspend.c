@@ -271,8 +271,6 @@ static void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PCH_PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
 		I915_WRITE(PCH_PP_DIVISOR, dev_priv->regfile.savePP_DIVISOR);
 		I915_WRITE(PCH_PP_CONTROL, dev_priv->regfile.savePP_CONTROL);
-		I915_WRITE(RSTDBYCTL,
-			   dev_priv->regfile.saveMCHBAR_RENDER_STANDBY);
 	} else if (IS_VALLEYVIEW(dev)) {
 		I915_WRITE(VLV_BLC_HIST_CTL(PIPE_A),
 			   dev_priv->regfile.saveBLC_HIST_CTL);
@@ -367,6 +365,8 @@ int i915_restore_state(struct drm_device *dev)
 			I915_WRITE(_FDI_RXA_IMR, dev_priv->regfile.saveFDI_RXA_IMR);
 			I915_WRITE(_FDI_RXB_IMR, dev_priv->regfile.saveFDI_RXB_IMR);
 			I915_WRITE(PCH_PORT_HOTPLUG, dev_priv->regfile.savePCH_PORT_HOTPLUG);
+			I915_WRITE(RSTDBYCTL,
+				   dev_priv->regfile.saveMCHBAR_RENDER_STANDBY);
 		} else {
 			I915_WRITE(IER, dev_priv->regfile.saveIER);
 			I915_WRITE(IMR, dev_priv->regfile.saveIMR);
