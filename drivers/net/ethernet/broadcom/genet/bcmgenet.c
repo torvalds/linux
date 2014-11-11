@@ -2140,6 +2140,9 @@ static int bcmgenet_open(struct net_device *dev)
 		goto err_irq0;
 	}
 
+	/* Re-configure the port multiplexer towards the PHY device */
+	bcmgenet_mii_config(priv->dev, false);
+
 	phy_connect_direct(dev, priv->phydev, bcmgenet_mii_setup,
 			   priv->phy_interface);
 
@@ -2691,7 +2694,7 @@ static int bcmgenet_resume(struct device *d)
 
 	phy_init_hw(priv->phydev);
 	/* Speed settings must be restored */
-	bcmgenet_mii_config(priv->dev);
+	bcmgenet_mii_config(priv->dev, false);
 
 	/* disable ethernet MAC while updating its registers */
 	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, false);

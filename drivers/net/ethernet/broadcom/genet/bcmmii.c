@@ -211,7 +211,7 @@ static void bcmgenet_moca_phy_setup(struct bcmgenet_priv *priv)
 	bcmgenet_sys_writel(priv, reg, SYS_PORT_CTRL);
 }
 
-int bcmgenet_mii_config(struct net_device *dev)
+int bcmgenet_mii_config(struct net_device *dev, bool init)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = priv->phydev;
@@ -298,7 +298,8 @@ int bcmgenet_mii_config(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	dev_info(kdev, "configuring instance for %s\n", phy_name);
+	if (init)
+		dev_info(kdev, "configuring instance for %s\n", phy_name);
 
 	return 0;
 }
@@ -350,7 +351,7 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 	 * PHY speed which is needed for bcmgenet_mii_config() to configure
 	 * things appropriately.
 	 */
-	ret = bcmgenet_mii_config(dev);
+	ret = bcmgenet_mii_config(dev, true);
 	if (ret) {
 		phy_disconnect(priv->phydev);
 		return ret;
