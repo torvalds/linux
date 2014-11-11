@@ -99,7 +99,6 @@ static void __init rk3288_set_system_serial(void)
 
 int rk312x_efuse_readregs(u32 addr, u32 length, u8 *buf)
 {
-	unsigned long flags;
 	int ret = length;
 
 	if (!length)
