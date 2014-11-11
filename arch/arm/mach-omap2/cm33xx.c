@@ -354,6 +354,7 @@ static struct cm_ll_data am33xx_cm_ll_data = {
 
 int __init am33xx_cm_init(void)
 {
+	omap2_cm_base_init();
 	return cm_register(&am33xx_cm_ll_data);
 }
 

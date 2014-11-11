@@ -673,6 +673,8 @@ static struct cm_ll_data omap3xxx_cm_ll_data = {
 
 int __init omap3xxx_cm_init(void)
 {
+	omap2_clk_legacy_provider_init(TI_CLKM_CM, cm_base + OMAP3430_IVA2_MOD);
+	omap2_cm_base_init();
 	return cm_register(&omap3xxx_cm_ll_data);
 }
 

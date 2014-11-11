@@ -689,7 +689,6 @@ int __init omap_prcm_init(void)
 
 void __init omap3_prcm_legacy_iomaps_init(void)
 {
-	omap2_clk_legacy_provider_init(TI_CLKM_CM, cm_base + OMAP3430_IVA2_MOD);
 	omap2_clk_legacy_provider_init(TI_CLKM_PRM,
 				       prm_base + OMAP3430_IVA2_MOD);
 	omap2_clk_legacy_provider_init(TI_CLKM_SCRM, omap_ctrl_base_get());

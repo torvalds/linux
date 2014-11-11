@@ -516,6 +516,7 @@ static struct cm_ll_data omap4xxx_cm_ll_data = {
 
 int __init omap4_cm_init(void)
 {
+	omap2_cm_base_init();
 	omap_cm_base_init();
 
 	return cm_register(&omap4xxx_cm_ll_data);
