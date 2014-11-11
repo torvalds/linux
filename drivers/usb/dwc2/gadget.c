@@ -2285,31 +2285,10 @@ irq_retry:
 
 	gintsts &= gintmsk;
 
-	if (gintsts & GINTSTS_OTGINT) {
-		u32 otgint = readl(hsotg->regs + GOTGINT);
-
-		dev_info(hsotg->dev, "OTGInt: %08x\n", otgint);
-
-		writel(otgint, hsotg->regs + GOTGINT);
-	}
-
-	if (gintsts & GINTSTS_SESSREQINT) {
-		dev_dbg(hsotg->dev, "%s: SessReqInt\n", __func__);
-		writel(GINTSTS_SESSREQINT, hsotg->regs + GINTSTS);
-	}
-
 	if (gintsts & GINTSTS_ENUMDONE) {
 		writel(GINTSTS_ENUMDONE, hsotg->regs + GINTSTS);
 
 		s3c_hsotg_irq_enumdone(hsotg);
-	}
-
-	if (gintsts & GINTSTS_CONIDSTSCHNG) {
-		dev_dbg(hsotg->dev, "ConIDStsChg (DSTS=0x%08x, GOTCTL=%08x)\n",
-			readl(hsotg->regs + DSTS),
-			readl(hsotg->regs + GOTGCTL));
-
-		writel(GINTSTS_CONIDSTSCHNG, hsotg->regs + GINTSTS);
 	}
 
 	if (gintsts & (GINTSTS_OEPINT | GINTSTS_IEPINT)) {
@@ -2390,25 +2369,6 @@ irq_retry:
 		 */
 
 		s3c_hsotg_handle_rx(hsotg);
-	}
-
-	if (gintsts & GINTSTS_MODEMIS) {
-		dev_warn(hsotg->dev, "warning, mode mismatch triggered\n");
-		writel(GINTSTS_MODEMIS, hsotg->regs + GINTSTS);
-	}
-
-	if (gintsts & GINTSTS_USBSUSP) {
-		dev_info(hsotg->dev, "GINTSTS_USBSusp\n");
-		writel(GINTSTS_USBSUSP, hsotg->regs + GINTSTS);
-
-		call_gadget(hsotg, suspend);
-	}
-
-	if (gintsts & GINTSTS_WKUPINT) {
-		dev_info(hsotg->dev, "GINTSTS_WkUpIn\n");
-		writel(GINTSTS_WKUPINT, hsotg->regs + GINTSTS);
-
-		call_gadget(hsotg, resume);
 	}
 
 	if (gintsts & GINTSTS_ERLYSUSP) {
@@ -3510,14 +3470,14 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	s3c_hsotg_hw_cfg(hsotg);
 	s3c_hsotg_init(hsotg);
 
-	ret = devm_request_irq(dev, irq, s3c_hsotg_irq, 0,
-				dev_name(dev), hsotg);
+	ret = devm_request_irq(hsotg->dev, irq, s3c_hsotg_irq, IRQF_SHARED,
+				dev_name(hsotg->dev), hsotg);
 	if (ret < 0) {
 		s3c_hsotg_phy_disable(hsotg);
 		clk_disable_unprepare(hsotg->clk);
 		regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
 				       hsotg->supplies);
-		dev_err(dev, "cannot claim IRQ\n");
+		dev_err(dev, "cannot claim IRQ for gadget\n");
 		goto err_clk;
 	}
 
