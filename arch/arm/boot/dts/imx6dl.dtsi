@@ -118,3 +118,7 @@
 		      "di0_sel", "di1_sel",
 		      "di0", "di1";
 };
+
+&vpu {
+	compatible = "fsl,imx6dl-vpu", "cnm,coda960";
+};
