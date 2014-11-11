@@ -915,6 +915,8 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 			return -ENOMEM;
 		}
 		goto fallback;
+	} else if (dso__is_kcore(dso)) {
+		goto fallback;
 	} else if (readlink(symfs_filename, command, sizeof(command)) < 0 ||
 		   strstr(command, "[kernel.kallsyms]") ||
 		   access(symfs_filename, R_OK)) {
