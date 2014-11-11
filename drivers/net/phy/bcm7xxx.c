@@ -69,6 +69,15 @@ static void phy_write_misc(struct phy_device *phydev,
 	phy_write(phydev, MII_BCM54XX_EXP_DATA, value);
 }
 
+static void r_rc_cal_reset(struct phy_device *phydev)
+{
+	/* Reset R_CAL/RC_CAL Engine */
+	phy_write_exp(phydev, 0x00b0, 0x0010);
+
+	/* Disable Reset R_AL/RC_CAL Engine */
+	phy_write_exp(phydev, 0x00b0, 0x0000);
+}
+
 static int bcm7xxx_28nm_b0_afe_config_init(struct phy_device *phydev)
 {
 	/* Increase VCO range to prevent unlocking problem of PLL at low
@@ -90,11 +99,7 @@ static int bcm7xxx_28nm_b0_afe_config_init(struct phy_device *phydev)
 	/* Switch to CORE_BASE1E */
 	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0xd);
 
-	/* Reset R_CAL/RC_CAL Engine */
-	phy_write_exp(phydev, CORE_EXPB0, 0x0010);
-
-	/* Disable Reset R_CAL/RC_CAL Engine */
-	phy_write_exp(phydev, CORE_EXPB0, 0x0000);
+	r_rc_cal_reset(phydev);
 
 	/* write AFE_RXCONFIG_0 */
 	phy_write_misc(phydev, AFE_RXCONFIG_0, 0xeb19);
