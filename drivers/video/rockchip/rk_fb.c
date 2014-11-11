@@ -2339,7 +2339,6 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 	/* record buffer information for rk_fb_disp_scale to prevent fence timeout
 	 * because rk_fb_disp_scale will call function info->fbops->fb_set_par(info);
 	 */
-	fix->smem_start = reg_win_data->reg_area_data[0].smem_start;
 	info->var.yoffset = yoffset;
 	info->var.xoffset = xoffset;
 	return 0;
