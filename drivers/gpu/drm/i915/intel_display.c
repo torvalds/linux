@@ -5733,24 +5733,24 @@ static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 	u32 fp, fp2 = 0;
 
 	if (IS_PINEVIEW(dev)) {
-		fp = pnv_dpll_compute_fp(&crtc->config.dpll);
+		fp = pnv_dpll_compute_fp(&crtc->new_config->dpll);
 		if (reduced_clock)
 			fp2 = pnv_dpll_compute_fp(reduced_clock);
 	} else {
-		fp = i9xx_dpll_compute_fp(&crtc->config.dpll);
+		fp = i9xx_dpll_compute_fp(&crtc->new_config->dpll);
 		if (reduced_clock)
 			fp2 = i9xx_dpll_compute_fp(reduced_clock);
 	}
 
-	crtc->config.dpll_hw_state.fp0 = fp;
+	crtc->new_config->dpll_hw_state.fp0 = fp;
 
 	crtc->lowfreq_avail = false;
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS) &&
 	    reduced_clock && i915.powersave) {
-		crtc->config.dpll_hw_state.fp1 = fp2;
+		crtc->new_config->dpll_hw_state.fp1 = fp2;
 		crtc->lowfreq_avail = true;
 	} else {
-		crtc->config.dpll_hw_state.fp1 = fp;
+		crtc->new_config->dpll_hw_state.fp1 = fp;
 	}
 }
 
