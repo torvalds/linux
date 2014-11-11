@@ -60,6 +60,7 @@ Configuration Options:
 #define DMM32AT_AO_LSB_REG		0x04
 #define DMM32AT_AO_MSB_REG		0x05
 #define DMM32AT_AO_MSB_DACH(x)		((x) << 6)
+#define DMM32AT_FIFO_DEPTH_REG		0x06
 
 #define DMM32AT_FIFOCNTRL 0x07
 #define DMM32AT_FIFOSTAT 0x07
