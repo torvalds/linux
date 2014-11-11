@@ -154,6 +154,24 @@ struct dmm32at_private {
 	unsigned char dio_config;
 };
 
+static void dmm32at_ai_set_chanspec(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    unsigned int chanspec, int nchan)
+{
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int last_chan = (chan + nchan - 1) % s->n_chan;
+
+	outb(DMM32AT_FIFORESET, dev->iobase + DMM32AT_FIFOCNTRL);
+
+	if (nchan > 1)
+		outb(DMM32AT_SCANENABLE, dev->iobase + DMM32AT_FIFOCNTRL);
+
+	outb(chan, dev->iobase + DMM32AT_AILOW);
+	outb(last_chan, dev->iobase + DMM32AT_AIHIGH);
+	outb(dmm32at_rangebits[range], dev->iobase + DMM32AT_AICONF);
+}
+
 static unsigned int dmm32at_ai_get_sample(struct comedi_device *dev,
 					  struct comedi_subdevice *s)
 {
@@ -184,18 +202,10 @@ static int dmm32at_ai_insn_read(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int range = CR_RANGE(insn->chanspec);
 	int ret;
 	int i;
 
-	/* zero scan and fifo control and reset fifo */
-	outb(DMM32AT_FIFORESET, dev->iobase + DMM32AT_FIFOCNTRL);
-
-	/* set the channel and range */
-	outb(chan, dev->iobase + DMM32AT_AILOW);
-	outb(chan, dev->iobase + DMM32AT_AIHIGH);
-	outb(dmm32at_rangebits[range], dev->iobase + DMM32AT_AICONF);
+	dmm32at_ai_set_chanspec(dev, s, insn->chanspec, 1);
 
 	/* wait for circuit to settle */
 	ret = comedi_timeout(dev, s, insn, dmm32at_ai_status, DMM32AT_AIRBACK);
@@ -347,32 +357,9 @@ static void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
 static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int range;
-	unsigned char chanlo, chanhi;
 	int ret;
 
-	if (!cmd->chanlist)
-		return -EINVAL;
-
-	/* get the channel list and range */
-	chanlo = CR_CHAN(cmd->chanlist[0]) & (s->n_chan - 1);
-	chanhi = chanlo + cmd->chanlist_len - 1;
-	if (chanhi >= s->n_chan)
-		return -EINVAL;
-	range = CR_RANGE(cmd->chanlist[0]);
-
-	/* reset fifo */
-	outb(DMM32AT_FIFORESET, dev->iobase + DMM32AT_FIFOCNTRL);
-
-	/* set scan enable */
-	outb(DMM32AT_SCANENABLE, dev->iobase + DMM32AT_FIFOCNTRL);
-
-	/* write the ai channel range regs */
-	outb(chanlo, dev->iobase + DMM32AT_AILOW);
-	outb(chanhi, dev->iobase + DMM32AT_AIHIGH);
-
-	/* set the range bits */
-	outb(dmm32at_rangebits[range], dev->iobase + DMM32AT_AICONF);
+	dmm32at_ai_set_chanspec(dev, s, cmd->chanlist[0], cmd->chanlist_len);
 
 	/* reset the interrupt just in case */
 	outb(DMM32AT_INTRESET, dev->iobase + DMM32AT_CNTRL);
