@@ -4,13 +4,15 @@
 #include <linux/highmem.h>
 
 #include <xen/features.h>
-
+enum dma_cache_op {
+       DMA_UNMAP,
+       DMA_MAP,
+};
 
 /* functions called by SWIOTLB */
 
 static void dma_cache_maint(dma_addr_t handle, unsigned long offset,
-	size_t size, enum dma_data_direction dir,
-	void (*op)(const void *, size_t, int))
+	size_t size, enum dma_data_direction dir, enum dma_cache_op op)
 {
 	unsigned long pfn;
 	size_t left = size;
@@ -20,34 +22,8 @@ static void dma_cache_maint(dma_addr_t handle, unsigned long offset,
 
 	do {
 		size_t len = left;
-		void *vaddr;
 	
-		if (!pfn_valid(pfn))
-		{
-			/* TODO: cache flush */
-		} else {
-			struct page *page = pfn_to_page(pfn);
-
-			if (PageHighMem(page)) {
-				if (len + offset > PAGE_SIZE)
-					len = PAGE_SIZE - offset;
-
-				if (cache_is_vipt_nonaliasing()) {
-					vaddr = kmap_atomic(page);
-					op(vaddr + offset, len, dir);
-					kunmap_atomic(vaddr);
-				} else {
-					vaddr = kmap_high_get(page);
-					if (vaddr) {
-						op(vaddr + offset, len, dir);
-						kunmap_high(page);
-					}
-				}
-			} else {
-				vaddr = page_address(page) + offset;
-				op(vaddr, len, dir);
-			}
-		}
+		/* TODO: cache flush */
 
 		offset = 0;
 		pfn++;
@@ -58,20 +34,16 @@ static void dma_cache_maint(dma_addr_t handle, unsigned long offset,
 static void __xen_dma_page_dev_to_cpu(struct device *hwdev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir)
 {
-	/* Cannot use __dma_page_dev_to_cpu because we don't have a
-	 * struct page for handle */
-
-	dma_cache_maint(handle & PAGE_MASK, handle & ~PAGE_MASK, size, dir, dmac_unmap_area);
+	dma_cache_maint(handle & PAGE_MASK, handle & ~PAGE_MASK, size, dir, DMA_UNMAP);
 }
 
 static void __xen_dma_page_cpu_to_dev(struct device *hwdev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir)
 {
-
-	dma_cache_maint(handle & PAGE_MASK, handle & ~PAGE_MASK, size, dir, dmac_map_area);
+	dma_cache_maint(handle & PAGE_MASK, handle & ~PAGE_MASK, size, dir, DMA_MAP);
 }
 
-void xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
+void __xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir,
 		struct dma_attrs *attrs)
 
@@ -84,7 +56,7 @@ void xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
 	__xen_dma_page_dev_to_cpu(hwdev, handle, size, dir);
 }
 
-void xen_dma_sync_single_for_cpu(struct device *hwdev,
+void __xen_dma_sync_single_for_cpu(struct device *hwdev,
 		dma_addr_t handle, size_t size, enum dma_data_direction dir)
 {
 	if (!__generic_dma_ops(hwdev)->sync_single_for_cpu)
@@ -92,7 +64,7 @@ void xen_dma_sync_single_for_cpu(struct device *hwdev,
 	__xen_dma_page_dev_to_cpu(hwdev, handle, size, dir);
 }
 
-void xen_dma_sync_single_for_device(struct device *hwdev,
+void __xen_dma_sync_single_for_device(struct device *hwdev,
 		dma_addr_t handle, size_t size, enum dma_data_direction dir)
 {
 	if (!__generic_dma_ops(hwdev)->sync_single_for_device)

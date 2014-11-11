@@ -5,6 +5,15 @@
 #include <linux/dma-attrs.h>
 #include <linux/dma-mapping.h>
 
+void __xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
+		size_t size, enum dma_data_direction dir,
+		struct dma_attrs *attrs);
+void __xen_dma_sync_single_for_cpu(struct device *hwdev,
+		dma_addr_t handle, size_t size, enum dma_data_direction dir);
+
+void __xen_dma_sync_single_for_device(struct device *hwdev,
+		dma_addr_t handle, size_t size, enum dma_data_direction dir);
+
 static inline void *xen_alloc_coherent_pages(struct device *hwdev, size_t size,
 		dma_addr_t *dma_handle, gfp_t flags,
 		struct dma_attrs *attrs)
@@ -26,14 +35,42 @@ static inline void xen_dma_map_page(struct device *hwdev, struct page *page,
 	__generic_dma_ops(hwdev)->map_page(hwdev, page, offset, size, dir, attrs);
 }
 
-void xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
+static inline void xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir,
-		struct dma_attrs *attrs);
+		struct dma_attrs *attrs)
+{
+	unsigned long pfn = PFN_DOWN(handle);
+	/* Dom0 is mapped 1:1, so calling pfn_valid on a foreign mfn will
+	 * always return false. If the page is local we can safely call the
+	 * native dma_ops function, otherwise we call the xen specific
+	 * function. */
+	if (pfn_valid(pfn)) {
+		if (__generic_dma_ops(hwdev)->unmap_page)
+			__generic_dma_ops(hwdev)->unmap_page(hwdev, handle, size, dir, attrs);
+	} else
+		__xen_dma_unmap_page(hwdev, handle, size, dir, attrs);
+}
 
-void xen_dma_sync_single_for_cpu(struct device *hwdev,
-		dma_addr_t handle, size_t size, enum dma_data_direction dir);
+static inline void xen_dma_sync_single_for_cpu(struct device *hwdev,
+		dma_addr_t handle, size_t size, enum dma_data_direction dir)
+{
+	unsigned long pfn = PFN_DOWN(handle);
+	if (pfn_valid(pfn)) {
+		if (__generic_dma_ops(hwdev)->sync_single_for_cpu)
+			__generic_dma_ops(hwdev)->sync_single_for_cpu(hwdev, handle, size, dir);
+	} else
+		__xen_dma_sync_single_for_cpu(hwdev, handle, size, dir);
+}
 
-void xen_dma_sync_single_for_device(struct device *hwdev,
-		dma_addr_t handle, size_t size, enum dma_data_direction dir);
+static inline void xen_dma_sync_single_for_device(struct device *hwdev,
+		dma_addr_t handle, size_t size, enum dma_data_direction dir)
+{
+	unsigned long pfn = PFN_DOWN(handle);
+	if (pfn_valid(pfn)) {
+		if (__generic_dma_ops(hwdev)->sync_single_for_device)
+			__generic_dma_ops(hwdev)->sync_single_for_device(hwdev, handle, size, dir);
+	} else
+		__xen_dma_sync_single_for_device(hwdev, handle, size, dir);
+}
 
 #endif /* _ASM_ARM_XEN_PAGE_COHERENT_H */
