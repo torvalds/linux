@@ -1869,6 +1869,12 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 	if (!test_bit(__I40E_VFLR_EVENT_PENDING, &pf->state))
 		return 0;
 
+	/* re-enable vflr interrupt cause */
+	reg = rd32(hw, I40E_PFINT_ICR0_ENA);
+	reg |= I40E_PFINT_ICR0_ENA_VFLR_MASK;
+	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
+	i40e_flush(hw);
+
 	clear_bit(__I40E_VFLR_EVENT_PENDING, &pf->state);
 	for (vf_id = 0; vf_id < pf->num_alloc_vfs; vf_id++) {
 		reg_idx = (hw->func_caps.vf_base_id + vf_id) / 32;
@@ -1884,12 +1890,6 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 				i40e_reset_vf(vf, true);
 		}
 	}
-
-	/* re-enable vflr interrupt cause */
-	reg = rd32(hw, I40E_PFINT_ICR0_ENA);
-	reg |= I40E_PFINT_ICR0_ENA_VFLR_MASK;
-	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
-	i40e_flush(hw);
 
 	return 0;
 }
