@@ -288,7 +288,7 @@ static unsigned cmd_line;
 
 /* The number of default descriptors */
 
-#define NR_DEFAULT_DESC	16
+#define NR_DEFAULT_DESC	32
 
 /* Populated by the PL330 core driver for DMA API driver's info */
 struct pl330_config {
