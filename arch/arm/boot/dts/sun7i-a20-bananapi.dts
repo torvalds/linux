@@ -207,7 +207,7 @@
 		regulator-name = "gmac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		startup-delay-us = <50000>;
+		startup-delay-us = <100000>;
 		enable-active-high;
 		gpio = <&pio 7 23 0>;
 	};
