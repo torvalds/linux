@@ -157,9 +157,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	int retval;
 	int irq;
 
-	if (usb_disabled())
-		return -ENODEV;
-
 	match = of_match_device(dwc2_of_match_table, &dev->dev);
 	if (match && match->data) {
 		params = match->data;
