@@ -184,6 +184,25 @@ static int kszphy_setup_led(struct phy_device *phydev,
 	return rc < 0 ? rc : 0;
 }
 
+/* Disable PHY address 0 as the broadcast address, so that it can be used as a
+ * unique (non-broadcast) address on a shared bus.
+ */
+static int kszphy_broadcast_disable(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MII_KSZPHY_OMSO);
+	if (ret < 0)
+		goto out;
+
+	ret = phy_write(phydev, MII_KSZPHY_OMSO, ret | KSZPHY_OMSO_B_CAST_OFF);
+out:
+	if (ret)
+		dev_err(&phydev->dev, "failed to disable broadcast address\n");
+
+	return ret;
+}
+
 static int kszphy_config_init(struct phy_device *phydev)
 {
 	return 0;
@@ -197,7 +216,6 @@ static int kszphy_config_init_led8041(struct phy_device *phydev)
 
 static int ksz8021_config_init(struct phy_device *phydev)
 {
-	const u16 val = KSZPHY_OMSO_B_CAST_OFF | KSZPHY_OMSO_RMII_OVERRIDE;
 	int rc;
 
 	rc = kszphy_setup_led(phydev, 0x1f, 4);
@@ -207,7 +225,9 @@ static int ksz8021_config_init(struct phy_device *phydev)
 	rc = ksz_config_flags(phydev);
 	if (rc < 0)
 		return rc;
-	rc = phy_write(phydev, MII_KSZPHY_OMSO, val);
+
+	rc = kszphy_broadcast_disable(phydev);
+
 	return rc < 0 ? rc : 0;
 }
 
