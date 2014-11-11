@@ -989,6 +989,44 @@ int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf, int num_dwords)
 	return 0;
 }
 
+static int intel_logical_ring_workarounds_emit(struct intel_engine_cs *ring,
+					       struct intel_context *ctx)
+{
+	int ret, i;
+	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_workarounds *w = &dev_priv->workarounds;
+
+	if (WARN_ON(w->count == 0))
+		return 0;
+
+	ring->gpu_caches_dirty = true;
+	ret = logical_ring_flush_all_caches(ringbuf);
+	if (ret)
+		return ret;
+
+	ret = intel_logical_ring_begin(ringbuf, w->count * 2 + 2);
+	if (ret)
+		return ret;
+
+	intel_logical_ring_emit(ringbuf, MI_LOAD_REGISTER_IMM(w->count));
+	for (i = 0; i < w->count; i++) {
+		intel_logical_ring_emit(ringbuf, w->reg[i].addr);
+		intel_logical_ring_emit(ringbuf, w->reg[i].value);
+	}
+	intel_logical_ring_emit(ringbuf, MI_NOOP);
+
+	intel_logical_ring_advance(ringbuf);
+
+	ring->gpu_caches_dirty = true;
+	ret = logical_ring_flush_all_caches(ringbuf);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int gen8_init_common_ring(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
@@ -1032,7 +1070,7 @@ static int gen8_init_render_ring(struct intel_engine_cs *ring)
 
 	I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
-	return ret;
+	return init_workarounds_ring(ring);
 }
 
 static int gen8_emit_bb_start(struct intel_ringbuffer *ringbuf,
@@ -1282,6 +1320,7 @@ static int logical_render_ring_init(struct drm_device *dev)
 		ring->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
 	ring->init = gen8_init_render_ring;
+	ring->init_context = intel_logical_ring_workarounds_emit;
 	ring->cleanup = intel_fini_pipe_control;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
@@ -1763,6 +1802,12 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 	}
 
 	if (ring->id == RCS && !ctx->rcs_initialized) {
+		if (ring->init_context) {
+			ret = ring->init_context(ring, ctx);
+			if (ret)
+				DRM_ERROR("ring init context: %d\n", ret);
+		}
+
 		ret = intel_lr_context_render_state_init(ring, ctx);
 		if (ret) {
 			DRM_ERROR("Init render state failed: %d\n", ret);
