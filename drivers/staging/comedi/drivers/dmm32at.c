@@ -85,8 +85,12 @@ Configuration Options:
 #define DMM32AT_AI_STATUS_SD1		(1 << 6)
 #define DMM32AT_AI_STATUS_SD0		(1 << 5)
 #define DMM32AT_AI_STATUS_ADCH_MASK	(0x1f << 0)
-
-#define DMM32AT_INTCLOCK 0x09
+#define DMM32AT_INTCLK_REG		0x09
+#define DMM32AT_INTCLK_ADINT		(1 << 7)
+#define DMM32AT_INTCLK_DINT		(1 << 6)
+#define DMM32AT_INTCLK_TINT		(1 << 5)
+#define DMM32AT_INTCLK_CLKEN		(1 << 1)  /* 1=see below  0=software */
+#define DMM32AT_INTCLK_CLKSEL		(1 << 0)  /* 1=OUT2  0=EXTCLK */
 
 #define DMM32AT_CNTRDIO 0x0a
 
@@ -100,10 +104,6 @@ Configuration Options:
 #define DMM32AT_8255_IOBASE		0x0c  /* Page 1 registers */
 
 /* Board register values. */
-
-/* DMM32AT_INTCLOCK 0x09 */
-#define DMM32AT_ADINT 0x80
-#define DMM32AT_CLKSEL 0x03
 
 /* DMM32AT_CNTRDIO 0x0a */
 #define DMM32AT_FREQ12 0x80
@@ -350,7 +350,9 @@ static void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
 	outb(hi2, dev->iobase + DMM32AT_CLK2);
 
 	/* enable the ai conversion interrupt and the clock to start scans */
-	outb(DMM32AT_ADINT | DMM32AT_CLKSEL, dev->iobase + DMM32AT_INTCLOCK);
+	outb(DMM32AT_INTCLK_ADINT |
+	     DMM32AT_INTCLK_CLKEN | DMM32AT_INTCLK_CLKSEL,
+             dev->iobase + DMM32AT_INTCLK_REG);
 }
 
 static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -376,7 +378,7 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		dmm32at_setaitimer(dev, cmd->scan_begin_arg);
 	} else {
 		/* start the interrups and initiate a single scan */
-		outb(DMM32AT_ADINT, dev->iobase + DMM32AT_INTCLOCK);
+		outb(DMM32AT_INTCLK_ADINT, dev->iobase + DMM32AT_INTCLK_REG);
 		outb(0xff, dev->iobase + DMM32AT_AI_START_CONV_REG);
 	}
 
@@ -388,7 +390,7 @@ static int dmm32at_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	/* disable further interrupts and clocks */
-	outb(0x0, dev->iobase + DMM32AT_INTCLOCK);
+	outb(0x0, dev->iobase + DMM32AT_INTCLK_REG);
 	return 0;
 }
 
@@ -404,9 +406,9 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	intstat = inb(dev->iobase + DMM32AT_INTCLOCK);
+	intstat = inb(dev->iobase + DMM32AT_INTCLK_REG);
 
-	if (intstat & DMM32AT_ADINT) {
+	if (intstat & DMM32AT_INTCLK_ADINT) {
 		struct comedi_subdevice *s = dev->read_subdev;
 		struct comedi_cmd *cmd = &s->async->cmd;
 
@@ -499,7 +501,7 @@ static int dmm32at_reset(struct comedi_device *dev)
 	outb(0x0, dev->iobase + DMM32AT_FIFO_CTRL_REG);
 
 	/* zero interrupt and clock control */
-	outb(0x0, dev->iobase + DMM32AT_INTCLOCK);
+	outb(0x0, dev->iobase + DMM32AT_INTCLK_REG);
 
 	/* write a test channel range, the high 3 bits should drop */
 	outb(0x80, dev->iobase + DMM32AT_AI_LO_CHAN_REG);
@@ -516,7 +518,7 @@ static int dmm32at_reset(struct comedi_device *dev)
 	aihi = inb(dev->iobase + DMM32AT_AI_HI_CHAN_REG);
 	fifostat = inb(dev->iobase + DMM32AT_FIFO_STATUS_REG);
 	aistat = inb(dev->iobase + DMM32AT_AI_STATUS_REG);
-	intstat = inb(dev->iobase + DMM32AT_INTCLOCK);
+	intstat = inb(dev->iobase + DMM32AT_INTCLK_REG);
 	airback = inb(dev->iobase + DMM32AT_AIRBACK);
 
 	/*
