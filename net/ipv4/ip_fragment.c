@@ -618,8 +618,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	return 0;
 
 out_nomem:
-	LIMIT_NETDEBUG(KERN_ERR pr_fmt("queue_glue: no memory for gluing queue %p\n"),
-		       qp);
+	net_dbg_ratelimited("queue_glue: no memory for gluing queue %p\n", qp);
 	err = -ENOMEM;
 	goto out_fail;
 out_oversize:

@@ -272,8 +272,8 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 
 	hdr = pnp_hdr(skb);
 	if (hdr->data[0] != PN_PEP_TYPE_COMMON) {
-		LIMIT_NETDEBUG(KERN_DEBUG"Phonet unknown PEP type: %u\n",
-				(unsigned int)hdr->data[0]);
+		net_dbg_ratelimited("Phonet unknown PEP type: %u\n",
+				    (unsigned int)hdr->data[0]);
 		return -EOPNOTSUPP;
 	}
 
@@ -304,8 +304,8 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	default:
-		LIMIT_NETDEBUG(KERN_DEBUG"Phonet unknown PEP indication: %u\n",
-				(unsigned int)hdr->data[1]);
+		net_dbg_ratelimited("Phonet unknown PEP indication: %u\n",
+				    (unsigned int)hdr->data[1]);
 		return -EOPNOTSUPP;
 	}
 	if (wake)
@@ -451,8 +451,8 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	default:
-		LIMIT_NETDEBUG(KERN_DEBUG"Phonet unknown PEP message: %u\n",
-				hdr->message_id);
+		net_dbg_ratelimited("Phonet unknown PEP message: %u\n",
+				    hdr->message_id);
 		err = -EINVAL;
 	}
 out:

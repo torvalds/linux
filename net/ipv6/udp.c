@@ -660,15 +660,13 @@ int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if ((is_udplite & UDPLITE_RECV_CC)  &&  UDP_SKB_CB(skb)->partial_cov) {
 
 		if (up->pcrlen == 0) {          /* full coverage was set  */
-			LIMIT_NETDEBUG(KERN_WARNING "UDPLITE6: partial coverage"
-				" %d while full coverage %d requested\n",
-				UDP_SKB_CB(skb)->cscov, skb->len);
+			net_dbg_ratelimited("UDPLITE6: partial coverage %d while full coverage %d requested\n",
+					    UDP_SKB_CB(skb)->cscov, skb->len);
 			goto drop;
 		}
 		if (UDP_SKB_CB(skb)->cscov  <  up->pcrlen) {
-			LIMIT_NETDEBUG(KERN_WARNING "UDPLITE6: coverage %d "
-						    "too small, need min %d\n",
-				       UDP_SKB_CB(skb)->cscov, up->pcrlen);
+			net_dbg_ratelimited("UDPLITE6: coverage %d too small, need min %d\n",
+					    UDP_SKB_CB(skb)->cscov, up->pcrlen);
 			goto drop;
 		}
 	}
@@ -761,9 +759,9 @@ static void udp6_csum_zero_error(struct sk_buff *skb)
 	/* RFC 2460 section 8.1 says that we SHOULD log
 	 * this error. Well, it is reasonable.
 	 */
-	LIMIT_NETDEBUG(KERN_INFO "IPv6: udp checksum is 0 for [%pI6c]:%u->[%pI6c]:%u\n",
-		       &ipv6_hdr(skb)->saddr, ntohs(udp_hdr(skb)->source),
-		       &ipv6_hdr(skb)->daddr, ntohs(udp_hdr(skb)->dest));
+	net_dbg_ratelimited("IPv6: udp checksum is 0 for [%pI6c]:%u->[%pI6c]:%u\n",
+			    &ipv6_hdr(skb)->saddr, ntohs(udp_hdr(skb)->source),
+			    &ipv6_hdr(skb)->daddr, ntohs(udp_hdr(skb)->dest));
 }
 
 /*
@@ -931,14 +929,11 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	return 0;
 
 short_packet:
-	LIMIT_NETDEBUG(KERN_DEBUG "UDP%sv6: short packet: From [%pI6c]:%u %d/%d to [%pI6c]:%u\n",
-		       proto == IPPROTO_UDPLITE ? "-Lite" : "",
-		       saddr,
-		       ntohs(uh->source),
-		       ulen,
-		       skb->len,
-		       daddr,
-		       ntohs(uh->dest));
+	net_dbg_ratelimited("UDP%sv6: short packet: From [%pI6c]:%u %d/%d to [%pI6c]:%u\n",
+			    proto == IPPROTO_UDPLITE ? "-Lite" : "",
+			    saddr, ntohs(uh->source),
+			    ulen, skb->len,
+			    daddr, ntohs(uh->dest));
 	goto discard;
 csum_error:
 	UDP6_INC_STATS_BH(net, UDP_MIB_CSUMERRORS, proto == IPPROTO_UDPLITE);
@@ -1290,7 +1285,7 @@ back_from_confirm:
 		/* ... which is an evident application bug. --ANK */
 		release_sock(sk);
 
-		LIMIT_NETDEBUG(KERN_DEBUG "udp cork app bug 2\n");
+		net_dbg_ratelimited("udp cork app bug 2\n");
 		err = -EINVAL;
 		goto out;
 	}

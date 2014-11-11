@@ -338,7 +338,7 @@ static struct dst_entry *icmpv6_route_lookup(struct net *net,
 	 * anycast.
 	 */
 	if (((struct rt6_info *)dst)->rt6i_flags & RTF_ANYCAST) {
-		LIMIT_NETDEBUG(KERN_DEBUG "icmp6_send: acast source\n");
+		net_dbg_ratelimited("icmp6_send: acast source\n");
 		dst_release(dst);
 		return ERR_PTR(-EINVAL);
 	}
@@ -452,7 +452,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	 *	and anycast addresses will be checked later.
 	 */
 	if ((addr_type == IPV6_ADDR_ANY) || (addr_type & IPV6_ADDR_MULTICAST)) {
-		LIMIT_NETDEBUG(KERN_DEBUG "icmp6_send: addr_any/mcast source\n");
+		net_dbg_ratelimited("icmp6_send: addr_any/mcast source\n");
 		return;
 	}
 
@@ -460,7 +460,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	 *	Never answer to a ICMP packet.
 	 */
 	if (is_ineligible(skb)) {
-		LIMIT_NETDEBUG(KERN_DEBUG "icmp6_send: no reply to icmp error\n");
+		net_dbg_ratelimited("icmp6_send: no reply to icmp error\n");
 		return;
 	}
 
@@ -509,7 +509,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	len = skb->len - msg.offset;
 	len = min_t(unsigned int, len, IPV6_MIN_MTU - sizeof(struct ipv6hdr) - sizeof(struct icmp6hdr));
 	if (len < 0) {
-		LIMIT_NETDEBUG(KERN_DEBUG "icmp: len problem\n");
+		net_dbg_ratelimited("icmp: len problem\n");
 		goto out_dst_release;
 	}
 
@@ -706,9 +706,8 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	daddr = &ipv6_hdr(skb)->daddr;
 
 	if (skb_checksum_validate(skb, IPPROTO_ICMPV6, ip6_compute_pseudo)) {
-		LIMIT_NETDEBUG(KERN_DEBUG
-			       "ICMPv6 checksum failed [%pI6c > %pI6c]\n",
-			       saddr, daddr);
+		net_dbg_ratelimited("ICMPv6 checksum failed [%pI6c > %pI6c]\n",
+				    saddr, daddr);
 		goto csum_error;
 	}
 
@@ -781,7 +780,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		if (type & ICMPV6_INFOMSG_MASK)
 			break;
 
-		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6: msg of unknown type\n");
+		net_dbg_ratelimited("icmpv6: msg of unknown type\n");
 
 		/*
 		 * error of unknown type.

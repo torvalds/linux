@@ -286,8 +286,8 @@ static int esp_input_done2(struct sk_buff *skb, int err)
 	err = -EINVAL;
 	padlen = nexthdr[0];
 	if (padlen + 2 + alen >= elen) {
-		LIMIT_NETDEBUG(KERN_WARNING "ipsec esp packet is garbage "
-			       "padlen=%d, elen=%d\n", padlen + 2, elen - alen);
+		net_dbg_ratelimited("ipsec esp packet is garbage padlen=%d, elen=%d\n",
+				    padlen + 2, elen - alen);
 		goto out;
 	}
 

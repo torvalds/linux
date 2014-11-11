@@ -893,8 +893,8 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 			break;
 		    }
 		default:
-			LIMIT_NETDEBUG(KERN_DEBUG "invalid cmsg type: %d\n",
-				       cmsg->cmsg_type);
+			net_dbg_ratelimited("invalid cmsg type: %d\n",
+					    cmsg->cmsg_type);
 			err = -EINVAL;
 			goto exit_f;
 		}
