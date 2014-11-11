@@ -2191,13 +2191,27 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	 * partitions, devidx will not coincide with a per-physical card
 	 * index anymore so we keep track of a name index.
 	 */
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+    if (strncmp(dev_name(mmc_dev(card->host)), "aml_sdhc.0", 8) == 0) {
+        md->name_idx = 0;
+        __set_bit(md->name_idx, name_use);
+    } else if (strncmp(dev_name(mmc_dev(card->host)), "aml_sdio.0", 8) == 0) {
+        if (!subname) {
+            md->name_idx = find_first_zero_bit(name_use, max_devices);
+            __set_bit(md->name_idx, name_use);
+        } else {
+            md->name_idx = ((struct mmc_blk_data *)
+                            dev_to_disk(parent)->private_data)->name_idx;
+        }
+    }
+#else
 	if (!subname) {
 		md->name_idx = find_first_zero_bit(name_use, max_devices);
 		__set_bit(md->name_idx, name_use);
 	} else
 		md->name_idx = ((struct mmc_blk_data *)
 				dev_to_disk(parent)->private_data)->name_idx;
-
+#endif
 	md->area_type = area_type;
 
 	/*

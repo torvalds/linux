@@ -531,8 +531,10 @@ timeout_handle:
     host->mrq->cmd->error = -ETIMEDOUT;
     spin_unlock_irqrestore(&host->mrq_lock, flags);
     
+#if defined(CONFIG_MMC_AML_DEBUG)
     sdio_err("time_start_cnt:%ld\n", time_start_cnt);
     aml_sdio_print_err(host, "Timeout error");
+#endif
     // if (pdata->port == MESON_SDIO_PORT_A) {
         // sdio_err("power_on_pin=%d\n",
                 // amlogic_get_value(185, "sdio_wifi")); // G24-113, G33-185
