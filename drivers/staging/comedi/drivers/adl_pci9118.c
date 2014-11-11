@@ -221,7 +221,6 @@ struct pci9118_private {
 	unsigned char int_ctrl;
 	unsigned char ai_cfg;
 	unsigned int ai_do;		/* what do AI? 0=nothing, 1 to 4 mode */
-	unsigned int ai_act_scan;	/* how many scans we finished */
 	unsigned int ai_n_realscanlen;	/*
 					 * what we must transfer for one
 					 * outgoing scan include front/back adds
@@ -477,13 +476,7 @@ static void move_block_from_dma(struct comedi_device *dev,
 				unsigned short *dma_buffer,
 				unsigned int num_samples)
 {
-	struct pci9118_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-
 	num_samples = defragment_dma_buffer(dev, s, dma_buffer, num_samples);
-	devpriv->ai_act_scan +=
-	    (s->async->cur_chan + num_samples) / cmd->scan_end_arg;
-
 	comedi_buf_write_samples(s, dma_buffer, num_samples);
 }
 
@@ -571,7 +564,6 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 	devpriv->ai_do = 0;
 	devpriv->usedma = 0;
 
-	devpriv->ai_act_scan = 0;
 	devpriv->ai_act_dmapos = 0;
 	s->async->inttrig = NULL;
 	devpriv->ai_neverending = 0;
@@ -612,13 +604,9 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 
 	comedi_buf_write_samples(s, &sampl, 1);
 
-	if (s->async->cur_chan == 0) {
-		devpriv->ai_act_scan++;
-		if (!devpriv->ai_neverending) {
-			/* all data sampled? */
-			if (devpriv->ai_act_scan >= cmd->stop_arg)
-				s->async->events |= COMEDI_CB_EOA;
-		}
+	if (!devpriv->ai_neverending) {
+		if (s->async->scans_done >= cmd->stop_arg)
+			s->async->events |= COMEDI_CB_EOA;
 	}
 }
 
@@ -651,8 +639,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	}
 
 	if (!devpriv->ai_neverending) {
-		/* all data sampled? */
-		if (devpriv->ai_act_scan >= cmd->stop_arg)
+		if (s->async->scans_done >= cmd->stop_arg)
 			s->async->events |= COMEDI_CB_EOA;
 	}
 
@@ -1114,7 +1101,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	inl(dev->iobase + PCI9118_AI_STATUS_REG);
 	inl(dev->iobase + PCI9118_INT_CTRL_REG);
 
-	devpriv->ai_act_scan = 0;
 	devpriv->ai_act_dmapos = 0;
 
 	if (devpriv->usedma) {
