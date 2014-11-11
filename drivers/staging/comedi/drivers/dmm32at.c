@@ -50,10 +50,9 @@ Configuration Options:
 #define DMM32AT_AI_MSB_REG		0x01
 #define DMM32AT_AI_LO_CHAN_REG		0x02
 #define DMM32AT_AI_HI_CHAN_REG		0x03
-
 #define DMM32AT_DACSTAT 0x04
-#define DMM32AT_DACLSB_REG	0x04
-#define DMM32AT_DACMSB_REG	0x05
+#define DMM32AT_AO_LSB_REG		0x04
+#define DMM32AT_AO_MSB_REG		0x05
 #define DMM32AT_DACMSB_CHAN(x)	((x) << 6)
 
 #define DMM32AT_FIFOCNTRL 0x07
@@ -444,9 +443,9 @@ static int dmm32at_ao_insn_write(struct comedi_device *dev,
 		int ret;
 
 		/* write LSB then MSB + chan to load DAC */
-		outb(val & 0xff, dev->iobase + DMM32AT_DACLSB_REG);
+		outb(val & 0xff, dev->iobase + DMM32AT_AO_LSB_REG);
 		outb((val >> 8) | DMM32AT_DACMSB_CHAN(chan),
-		     dev->iobase + DMM32AT_DACMSB_REG);
+		     dev->iobase + DMM32AT_AO_MSB_REG);
 
 		/* wait for circuit to settle */
 		ret = comedi_timeout(dev, s, insn, dmm32at_ao_eoc, 0);
@@ -454,7 +453,7 @@ static int dmm32at_ao_insn_write(struct comedi_device *dev,
 			return ret;
 
 		/* dummy read to update DAC */
-		inb(dev->iobase + DMM32AT_DACMSB_REG);
+		inb(dev->iobase + DMM32AT_AO_MSB_REG);
 
 		s->readback[chan] = val;
 	}
