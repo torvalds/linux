@@ -133,8 +133,6 @@ static const struct comedi_lrange pci9111_ai_range = {
 struct pci9111_private_data {
 	unsigned long lcr_io_base;
 
-	int stop_counter;
-
 	unsigned int scan_delay;
 	unsigned int chunk_counter;
 	unsigned int chunk_num_samples;
@@ -404,12 +402,6 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	outb(CR_RANGE(cmd->chanlist[0]) & PCI9111_AI_RANGE_MASK,
 		dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
-	/* Set counter */
-	if (cmd->stop_src == TRIG_COUNT)
-		dev_private->stop_counter = cmd->stop_arg * cmd->chanlist_len;
-	else	/* TRIG_NONE */
-		dev_private->stop_counter = 0;
-
 	/*  Set timer pacer */
 	dev_private->scan_delay = 0;
 	if (cmd->convert_src == TRIG_TIMER) {
@@ -435,7 +427,6 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	}
 	outb(trig, dev->iobase + PCI9111_AI_TRIG_CTRL_REG);
 
-	dev_private->stop_counter *= (1 + dev_private->scan_delay);
 	dev_private->chunk_counter = 0;
 	dev_private->chunk_num_samples = cmd->chanlist_len *
 					 (1 + dev_private->scan_delay);
@@ -464,21 +455,14 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 {
 	struct pci9111_private_data *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int total = 0;
 	unsigned int samples;
 
-	if (cmd->stop_src == TRIG_COUNT &&
-	    PCI9111_FIFO_HALF_SIZE > devpriv->stop_counter)
-		samples = devpriv->stop_counter;
-	else
-		samples = PCI9111_FIFO_HALF_SIZE;
-
+	samples = comedi_nsamples_left(s, PCI9111_FIFO_HALF_SIZE);
 	insw(dev->iobase + PCI9111_AI_FIFO_REG,
 	     devpriv->ai_bounce_buffer, samples);
 
 	if (devpriv->scan_delay < 1) {
-		total = comedi_buf_write_samples(s, devpriv->ai_bounce_buffer,
-						 samples);
+		comedi_buf_write_samples(s, devpriv->ai_bounce_buffer, samples);
 	} else {
 		unsigned int pos = 0;
 		unsigned int to_read;
@@ -491,7 +475,7 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 				if (to_read > samples - pos)
 					to_read = samples - pos;
 
-				total += comedi_buf_write_samples(s,
+				comedi_buf_write_samples(s,
 						devpriv->ai_bounce_buffer + pos,
 						to_read);
 			} else {
@@ -500,8 +484,6 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 
 				if (to_read > samples - pos)
 					to_read = samples - pos;
-
-				total += comedi_samples_to_bytes(s, to_read);
 			}
 
 			pos += to_read;
@@ -512,8 +494,6 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 				devpriv->chunk_counter = 0;
 		}
 	}
-
-	devpriv->stop_counter -= comedi_bytes_to_samples(s, total);
 }
 
 static irqreturn_t pci9111_interrupt(int irq, void *p_device)
@@ -570,7 +550,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			pci9111_handle_fifo_half_full(dev, s);
 	}
 
-	if (cmd->stop_src == TRIG_COUNT && dev_private->stop_counter == 0)
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
 		async->events |= COMEDI_CB_EOA;
 
 	outb(0, dev->iobase + PCI9111_INT_CLR_REG);
