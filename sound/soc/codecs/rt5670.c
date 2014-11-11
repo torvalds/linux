@@ -1595,27 +1595,38 @@ static const struct snd_soc_dapm_widget rt5670_dapm_widgets[] = {
 	/* PDM */
 	SND_SOC_DAPM_SUPPLY("PDM1 Power", RT5670_PWR_DIG2,
 		RT5670_PWR_PDM1_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("PDM2 Power", RT5670_PWR_DIG2,
-		RT5670_PWR_PDM2_BIT, 0, NULL, 0),
 
 	SND_SOC_DAPM_MUX("PDM1 L Mux", RT5670_PDM_OUT_CTRL,
 			 RT5670_M_PDM1_L_SFT, 1, &rt5670_pdm1_l_mux),
 	SND_SOC_DAPM_MUX("PDM1 R Mux", RT5670_PDM_OUT_CTRL,
 			 RT5670_M_PDM1_R_SFT, 1, &rt5670_pdm1_r_mux),
-	SND_SOC_DAPM_MUX("PDM2 L Mux", RT5670_PDM_OUT_CTRL,
-			 RT5670_M_PDM2_L_SFT, 1, &rt5670_pdm2_l_mux),
-	SND_SOC_DAPM_MUX("PDM2 R Mux", RT5670_PDM_OUT_CTRL,
-			 RT5670_M_PDM2_R_SFT, 1, &rt5670_pdm2_r_mux),
 
 	/* Output Lines */
 	SND_SOC_DAPM_OUTPUT("HPOL"),
 	SND_SOC_DAPM_OUTPUT("HPOR"),
 	SND_SOC_DAPM_OUTPUT("LOUTL"),
 	SND_SOC_DAPM_OUTPUT("LOUTR"),
+};
+
+static const struct snd_soc_dapm_widget rt5670_specific_dapm_widgets[] = {
+	SND_SOC_DAPM_SUPPLY("PDM2 Power", RT5670_PWR_DIG2,
+		RT5670_PWR_PDM2_BIT, 0, NULL, 0),
+	SND_SOC_DAPM_MUX("PDM2 L Mux", RT5670_PDM_OUT_CTRL,
+			 RT5670_M_PDM2_L_SFT, 1, &rt5670_pdm2_l_mux),
+	SND_SOC_DAPM_MUX("PDM2 R Mux", RT5670_PDM_OUT_CTRL,
+			 RT5670_M_PDM2_R_SFT, 1, &rt5670_pdm2_r_mux),
 	SND_SOC_DAPM_OUTPUT("PDM1L"),
 	SND_SOC_DAPM_OUTPUT("PDM1R"),
 	SND_SOC_DAPM_OUTPUT("PDM2L"),
 	SND_SOC_DAPM_OUTPUT("PDM2R"),
+};
+
+static const struct snd_soc_dapm_widget rt5672_specific_dapm_widgets[] = {
+	SND_SOC_DAPM_PGA("SPO Amp", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_OUTPUT("SPOLP"),
+	SND_SOC_DAPM_OUTPUT("SPOLN"),
+	SND_SOC_DAPM_OUTPUT("SPORP"),
+	SND_SOC_DAPM_OUTPUT("SPORN"),
 };
 
 static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
@@ -1970,12 +1981,6 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "PDM1 R Mux", "Stereo DAC", "Stereo DAC MIXR" },
 	{ "PDM1 R Mux", "Mono DAC", "Mono DAC MIXR" },
 	{ "PDM1 R Mux", NULL, "PDM1 Power" },
-	{ "PDM2 L Mux", "Stereo DAC", "Stereo DAC MIXL" },
-	{ "PDM2 L Mux", "Mono DAC", "Mono DAC MIXL" },
-	{ "PDM2 L Mux", NULL, "PDM2 Power" },
-	{ "PDM2 R Mux", "Stereo DAC", "Stereo DAC MIXR" },
-	{ "PDM2 R Mux", "Mono DAC", "Mono DAC MIXR" },
-	{ "PDM2 R Mux", NULL, "PDM2 Power" },
 
 	{ "HP Amp", NULL, "HPO MIX" },
 	{ "HP Amp", NULL, "Mic Det Power" },
@@ -1993,11 +1998,28 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 	{ "LOUTR", NULL, "LOUT R Playback" },
 	{ "LOUTL", NULL, "Improve HP Amp Drv" },
 	{ "LOUTR", NULL, "Improve HP Amp Drv" },
+};
 
+static const struct snd_soc_dapm_route rt5670_specific_dapm_routes[] = {
+	{ "PDM2 L Mux", "Stereo DAC", "Stereo DAC MIXL" },
+	{ "PDM2 L Mux", "Mono DAC", "Mono DAC MIXL" },
+	{ "PDM2 L Mux", NULL, "PDM2 Power" },
+	{ "PDM2 R Mux", "Stereo DAC", "Stereo DAC MIXR" },
+	{ "PDM2 R Mux", "Mono DAC", "Mono DAC MIXR" },
+	{ "PDM2 R Mux", NULL, "PDM2 Power" },
 	{ "PDM1L", NULL, "PDM1 L Mux" },
 	{ "PDM1R", NULL, "PDM1 R Mux" },
 	{ "PDM2L", NULL, "PDM2 L Mux" },
 	{ "PDM2R", NULL, "PDM2 R Mux" },
+};
+
+static const struct snd_soc_dapm_route rt5672_specific_dapm_routes[] = {
+	{ "SPO Amp", NULL, "PDM1 L Mux" },
+	{ "SPO Amp", NULL, "PDM1 R Mux" },
+	{ "SPOLP", NULL, "SPO Amp" },
+	{ "SPOLN", NULL, "SPO Amp" },
+	{ "SPORP", NULL, "SPO Amp" },
+	{ "SPORN", NULL, "SPO Amp" },
 };
 
 static int rt5670_hw_params(struct snd_pcm_substream *substream,
@@ -2331,6 +2353,29 @@ static int rt5670_probe(struct snd_soc_codec *codec)
 {
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 
+	switch (snd_soc_read(codec, RT5670_RESET) & RT5670_ID_MASK) {
+	case RT5670_ID_5670:
+	case RT5670_ID_5671:
+		snd_soc_dapm_new_controls(&codec->dapm,
+			rt5670_specific_dapm_widgets,
+			ARRAY_SIZE(rt5670_specific_dapm_widgets));
+		snd_soc_dapm_add_routes(&codec->dapm,
+			rt5670_specific_dapm_routes,
+			ARRAY_SIZE(rt5670_specific_dapm_routes));
+		break;
+	case RT5670_ID_5672:
+		snd_soc_dapm_new_controls(&codec->dapm,
+			rt5672_specific_dapm_widgets,
+			ARRAY_SIZE(rt5672_specific_dapm_widgets));
+		snd_soc_dapm_add_routes(&codec->dapm,
+			rt5672_specific_dapm_routes,
+			ARRAY_SIZE(rt5672_specific_dapm_routes));
+		break;
+	default:
+		dev_err(codec->dev,
+			"The driver is for RT5670 RT5671 or RT5672 only\n");
+		return -ENODEV;
+	}
 	rt5670->codec = codec;
 
 	return 0;
@@ -2452,6 +2497,8 @@ static const struct regmap_config rt5670_regmap = {
 
 static const struct i2c_device_id rt5670_i2c_id[] = {
 	{ "rt5670", 0 },
+	{ "rt5671", 0 },
+	{ "rt5672", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5670_i2c_id);
