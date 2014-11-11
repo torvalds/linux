@@ -107,8 +107,11 @@ Configuration Options:
 #define DMM32AT_AI_CFG_RANGE		(1 << 3)  /* 0=5V  1=10V */
 #define DMM32AT_AI_CFG_ADBU		(1 << 2)  /* 0=bipolar  1=unipolar */
 #define DMM32AT_AI_CFG_GAIN(x)		((x) << 0)
-
-#define DMM32AT_AIRBACK 0x0b
+#define DMM32AT_AI_READBACK_REG		0x0b
+#define DMM32AT_AI_READBACK_WAIT	(1 << 7)  /* DMM32AT_AI_STATUS_STS */
+#define DMM32AT_AI_READBACK_RANGE	(1 << 3)
+#define DMM32AT_AI_READBACK_ADBU	(1 << 2)
+#define DMM32AT_AI_READBACK_GAIN_MASK	(3 << 0)
 
 #define DMM32AT_CLK1 0x0d
 #define DMM32AT_CLK2 0x0e
@@ -213,7 +216,8 @@ static int dmm32at_ai_insn_read(struct comedi_device *dev,
 	dmm32at_ai_set_chanspec(dev, s, insn->chanspec, 1);
 
 	/* wait for circuit to settle */
-	ret = comedi_timeout(dev, s, insn, dmm32at_ai_status, DMM32AT_AIRBACK);
+	ret = comedi_timeout(dev, s, insn, dmm32at_ai_status,
+			     DMM32AT_AI_READBACK_REG);
 	if (ret)
 		return ret;
 
@@ -375,7 +379,8 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * wait for circuit to settle
 	 * we don't have the 'insn' here but it's not needed
 	 */
-	ret = comedi_timeout(dev, s, NULL, dmm32at_ai_status, DMM32AT_AIRBACK);
+	ret = comedi_timeout(dev, s, NULL, dmm32at_ai_status,
+			     DMM32AT_AI_READBACK_REG);
 	if (ret)
 		return ret;
 
@@ -525,7 +530,7 @@ static int dmm32at_reset(struct comedi_device *dev)
 	fifostat = inb(dev->iobase + DMM32AT_FIFO_STATUS_REG);
 	aistat = inb(dev->iobase + DMM32AT_AI_STATUS_REG);
 	intstat = inb(dev->iobase + DMM32AT_INTCLK_REG);
-	airback = inb(dev->iobase + DMM32AT_AIRBACK);
+	airback = inb(dev->iobase + DMM32AT_AI_READBACK_REG);
 
 	/*
 	 * NOTE: The (DMM32AT_AI_STATUS_SD1 | DMM32AT_AI_STATUS_SD0)
