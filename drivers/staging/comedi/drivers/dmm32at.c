@@ -468,9 +468,8 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int dmm32at_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct dmm32at_private *devpriv = dev->private;
-
-	devpriv->ai_scans_left = 1;
+	/* disable further interrupts and clocks */
+	outb(0x0, dev->iobase + DMM32AT_INTCLOCK);
 	return 0;
 }
 
@@ -507,8 +506,6 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 		if (devpriv->ai_scans_left != 0xffffffff) {	/* TRIG_COUNT */
 			devpriv->ai_scans_left--;
 			if (devpriv->ai_scans_left == 0) {
-				/* disable further interrupts and clocks */
-				outb(0x0, dev->iobase + DMM32AT_INTCLOCK);
 				/* set the buffer to be flushed with an EOF */
 				s->async->events |= COMEDI_CB_EOA;
 			}
