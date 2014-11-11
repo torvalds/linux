@@ -59,7 +59,7 @@ Configuration Options:
 #define DMM32AT_AUX_DI0			(1 << 0)  /* J3.48 - CLK0 (SRC0) */
 #define DMM32AT_AO_LSB_REG		0x04
 #define DMM32AT_AO_MSB_REG		0x05
-#define DMM32AT_DACMSB_CHAN(x)	((x) << 6)
+#define DMM32AT_AO_MSB_DACH(x)		((x) << 6)
 
 #define DMM32AT_FIFOCNTRL 0x07
 #define DMM32AT_FIFOSTAT 0x07
@@ -447,7 +447,7 @@ static int dmm32at_ao_insn_write(struct comedi_device *dev,
 
 		/* write LSB then MSB + chan to load DAC */
 		outb(val & 0xff, dev->iobase + DMM32AT_AO_LSB_REG);
-		outb((val >> 8) | DMM32AT_DACMSB_CHAN(chan),
+		outb((val >> 8) | DMM32AT_AO_MSB_DACH(chan),
 		     dev->iobase + DMM32AT_AO_MSB_REG);
 
 		/* wait for circuit to settle */
