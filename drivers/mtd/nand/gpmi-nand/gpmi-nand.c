@@ -2029,7 +2029,6 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 exit_nfc_init:
 	release_resources(this);
 exit_acquire_resources:
-	dev_err(this->dev, "driver registration failed: %d\n", ret);
 
 	return ret;
 }
