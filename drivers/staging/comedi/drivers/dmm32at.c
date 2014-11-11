@@ -1,36 +1,39 @@
 /*
-    comedi/drivers/dmm32at.c
-    Diamond Systems mm32at code for a Comedi driver
+ * dmm32at.c
+ * Diamond Systems Diamond-MM-32-AT Comedi driver
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: dmm32at
-Description: Diamond Systems mm32at driver.
-Devices:
-Author: Perry J. Piplani <perry.j.piplani@nasa.gov>
-Updated: Fri Jun  4 09:13:24 CDT 2004
-Status: experimental
-
-This driver is for the Diamond Systems MM-32-AT board
-http://www.diamondsystems.com/products/diamondmm32at It is being used
-on serveral projects inside NASA, without problems so far. For analog
-input commands, TRIG_EXT is not yet supported at all..
-
-Configuration Options:
-  comedi_config /dev/comedi0 dmm32at baseaddr,irq
-*/
+ * Driver: dmm32at
+ * Description: Diamond Systems Diamond-MM-32-AT
+ * Devices: (Diamond Systems) Diamond-MM-32-AT [dmm32at]
+ * Author: Perry J. Piplani <perry.j.piplani@nasa.gov>
+ * Updated: Fri Jun  4 09:13:24 CDT 2004
+ * Status: experimental
+ *
+ * Configuration Options:
+ *	comedi_config /dev/comedi0 dmm32at baseaddr,irq
+ *
+ * This driver is for the Diamond Systems MM-32-AT board
+ *	http://www.diamondsystems.com/products/diamondmm32at
+ *
+ * It is being used on serveral projects inside NASA, without
+ * problems so far. For analog input commands, TRIG_EXT is not
+ * yet supported.
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
