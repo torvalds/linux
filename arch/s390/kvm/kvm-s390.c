@@ -177,6 +177,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_IRQCHIP:
 	case KVM_CAP_VM_ATTRIBUTES:
 	case KVM_CAP_MP_STATE:
+	case KVM_CAP_S390_INJECT_IRQ:
 	case KVM_CAP_S390_USER_SIGP:
 	case KVM_CAP_S390_USER_STSI:
 	case KVM_CAP_S390_SKEYS:
@@ -2391,6 +2392,15 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	long r;
 
 	switch (ioctl) {
+	case KVM_S390_IRQ: {
+		struct kvm_s390_irq s390irq;
+
+		r = -EFAULT;
+		if (copy_from_user(&s390irq, argp, sizeof(s390irq)))
+			break;
+		r = kvm_s390_inject_vcpu(vcpu, &s390irq);
+		break;
+	}
 	case KVM_S390_INTERRUPT: {
 		struct kvm_s390_interrupt s390int;
 		struct kvm_s390_irq s390irq;

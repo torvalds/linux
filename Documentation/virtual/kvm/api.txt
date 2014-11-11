@@ -2820,6 +2820,62 @@ single frame starting at start_gfn for count frames.
 Note: If any architecturally invalid key value is found in the given data then
 the ioctl will return -EINVAL.
 
+4.92 KVM_S390_IRQ
+
+Capability: KVM_CAP_S390_INJECT_IRQ
+Architectures: s390
+Type: vcpu ioctl
+Parameters: struct kvm_s390_irq (in)
+Returns: 0 on success, -1 on error
+Errors:
+  EINVAL: interrupt type is invalid
+          type is KVM_S390_SIGP_STOP and flag parameter is invalid value
+          type is KVM_S390_INT_EXTERNAL_CALL and code is bigger
+            than the maximum of VCPUs
+  EBUSY:  type is KVM_S390_SIGP_SET_PREFIX and vcpu is not stopped
+          type is KVM_S390_SIGP_STOP and a stop irq is already pending
+          type is KVM_S390_INT_EXTERNAL_CALL and an external call interrupt
+            is already pending
+
+Allows to inject an interrupt to the guest.
+
+Using struct kvm_s390_irq as a parameter allows
+to inject additional payload which is not
+possible via KVM_S390_INTERRUPT.
+
+Interrupt parameters are passed via kvm_s390_irq:
+
+struct kvm_s390_irq {
+	__u64 type;
+	union {
+		struct kvm_s390_io_info io;
+		struct kvm_s390_ext_info ext;
+		struct kvm_s390_pgm_info pgm;
+		struct kvm_s390_emerg_info emerg;
+		struct kvm_s390_extcall_info extcall;
+		struct kvm_s390_prefix_info prefix;
+		struct kvm_s390_stop_info stop;
+		struct kvm_s390_mchk_info mchk;
+		char reserved[64];
+	} u;
+};
+
+type can be one of the following:
+
+KVM_S390_SIGP_STOP - sigp stop; parameter in .stop
+KVM_S390_PROGRAM_INT - program check; parameters in .pgm
+KVM_S390_SIGP_SET_PREFIX - sigp set prefix; parameters in .prefix
+KVM_S390_RESTART - restart; no parameters
+KVM_S390_INT_CLOCK_COMP - clock comparator interrupt; no parameters
+KVM_S390_INT_CPU_TIMER - CPU timer interrupt; no parameters
+KVM_S390_INT_EMERGENCY - sigp emergency; parameters in .emerg
+KVM_S390_INT_EXTERNAL_CALL - sigp external call; parameters in .extcall
+KVM_S390_MCHK - machine check interrupt; parameters in .mchk
+
+
+Note that the vcpu ioctl is asynchronous to vcpu execution.
+
+
 5. The kvm_run structure
 ------------------------
 
