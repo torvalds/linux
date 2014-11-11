@@ -395,7 +395,7 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 	      (count * sizeof(struct i40e_virtchnl_ether_addr));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
 		dev_warn(&adapter->pdev->dev, "%s: Too many MAC address changes in one request\n",
-			__func__);
+			 __func__);
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_ether_addr_list)) /
 			sizeof(struct i40e_virtchnl_ether_addr);
@@ -456,7 +456,7 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 	      (count * sizeof(struct i40e_virtchnl_ether_addr));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
 		dev_warn(&adapter->pdev->dev, "%s: Too many MAC address changes in one request\n",
-			__func__);
+			 __func__);
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_ether_addr_list)) /
 			sizeof(struct i40e_virtchnl_ether_addr);
@@ -518,7 +518,7 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 	      (count * sizeof(u16));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
 		dev_warn(&adapter->pdev->dev, "%s: Too many VLAN changes in one request\n",
-			__func__);
+			 __func__);
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_vlan_filter_list)) /
 			sizeof(u16);
@@ -578,7 +578,7 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 	      (count * sizeof(u16));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
 		dev_warn(&adapter->pdev->dev, "%s: Too many VLAN changes in one request\n",
-			__func__);
+			 __func__);
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_vlan_filter_list)) /
 			sizeof(u16);
@@ -637,6 +637,7 @@ void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags)
 void i40evf_request_stats(struct i40evf_adapter *adapter)
 {
 	struct i40e_virtchnl_queue_select vqs;
+
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* no error message, this isn't crucial */
 		return;
@@ -711,7 +712,6 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				"%s: Unknown event %d from pf\n",
 				__func__, vpe->event);
 			break;
-
 		}
 		return;
 	}
@@ -776,7 +776,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		break;
 	default:
 		dev_warn(&adapter->pdev->dev, "%s: Received unexpected message %d from PF\n",
-			__func__, v_opcode);
+			 __func__, v_opcode);
 		break;
 	} /* switch v_opcode */
 	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
