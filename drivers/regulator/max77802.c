@@ -375,6 +375,7 @@ static struct regulator_ops max77802_buck_dvs_ops = {
 	.vsel_mask	= MAX77802_VSEL_MASK,				\
 	.enable_reg	= MAX77802_REG_LDO1CTRL1 + num - 1,		\
 	.enable_mask	= MAX77802_OPMODE_MASK << MAX77802_OPMODE_SHIFT_LDO, \
+	.of_map_mode	= max77802_map_mode,				\
 }
 
 /* LDOs 1, 2, 8, 15, 17, 27, 30, 35 */
@@ -393,6 +394,7 @@ static struct regulator_ops max77802_buck_dvs_ops = {
 	.vsel_mask	= MAX77802_VSEL_MASK,				\
 	.enable_reg	= MAX77802_REG_LDO1CTRL1 + num - 1,		\
 	.enable_mask	= MAX77802_OPMODE_MASK << MAX77802_OPMODE_SHIFT_LDO, \
+	.of_map_mode	= max77802_map_mode,				\
 }
 
 /* BUCKs 1, 6 */
@@ -411,6 +413,7 @@ static struct regulator_ops max77802_buck_dvs_ops = {
 	.vsel_mask	= MAX77802_DVS_VSEL_MASK,			\
 	.enable_reg	= MAX77802_REG_BUCK ## num ## CTRL,		\
 	.enable_mask	= MAX77802_OPMODE_MASK,				\
+	.of_map_mode	= max77802_map_mode,				\
 }
 
 /* BUCKS 2-4 */
@@ -430,6 +433,7 @@ static struct regulator_ops max77802_buck_dvs_ops = {
 	.enable_reg	= MAX77802_REG_BUCK ## num ## CTRL1,		\
 	.enable_mask	= MAX77802_OPMODE_MASK <<			\
 				MAX77802_OPMODE_BUCK234_SHIFT,		\
+	.of_map_mode	= max77802_map_mode,				\
 }
 
 /* BUCK 5 */
@@ -448,6 +452,7 @@ static struct regulator_ops max77802_buck_dvs_ops = {
 	.vsel_mask	= MAX77802_VSEL_MASK,				\
 	.enable_reg	= MAX77802_REG_BUCK5CTRL,			\
 	.enable_mask	= MAX77802_OPMODE_MASK,				\
+	.of_map_mode	= max77802_map_mode,				\
 }
 
 /* BUCKs 7-10 */
@@ -466,6 +471,7 @@ static struct regulator_ops max77802_buck_dvs_ops = {
 	.vsel_mask	= MAX77802_VSEL_MASK,				\
 	.enable_reg	= MAX77802_REG_BUCK7CTRL + (num - 7) * 3,	\
 	.enable_mask	= MAX77802_OPMODE_MASK,				\
+	.of_map_mode	= max77802_map_mode,				\
 }
 
 static const struct regulator_desc regulators[] = {
