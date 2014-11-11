@@ -514,8 +514,6 @@ static void mcp23s08_irq_teardown(struct mcp23s08 *mcp)
 {
 	unsigned int irq, i;
 
-	free_irq(mcp->irq, mcp);
-
 	for (i = 0; i < mcp->chip.ngpio; i++) {
 		irq = irq_find_mapping(mcp->irq_domain, i);
 		if (irq > 0)
