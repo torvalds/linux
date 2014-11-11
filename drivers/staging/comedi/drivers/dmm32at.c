@@ -61,8 +61,10 @@ Configuration Options:
 #define DMM32AT_AO_MSB_REG		0x05
 #define DMM32AT_AO_MSB_DACH(x)		((x) << 6)
 #define DMM32AT_FIFO_DEPTH_REG		0x06
-
-#define DMM32AT_FIFOCNTRL 0x07
+#define DMM32AT_FIFO_CTRL_REG		0x07
+#define DMM32AT_FIFO_CTRL_FIFOEN	(1 << 3)
+#define DMM32AT_FIFO_CTRL_SCANEN	(1 << 2)
+#define DMM32AT_FIFO_CTRL_FIFORST	(1 << 1)
 #define DMM32AT_FIFOSTAT 0x07
 
 #define DMM32AT_CNTRL 0x08
@@ -82,10 +84,6 @@ Configuration Options:
 #define DMM32AT_8255_IOBASE		0x0c  /* Page 1 registers */
 
 /* Board register values. */
-
-/* DMM32AT_FIFOCNTRL 0x07 */
-#define DMM32AT_FIFORESET 0x02
-#define DMM32AT_SCANENABLE 0x04
 
 /* DMM32AT_CNTRL 0x08 */
 #define DMM32AT_RESET 0x20
@@ -155,10 +153,11 @@ static void dmm32at_ai_set_chanspec(struct comedi_device *dev,
 	unsigned int range = CR_RANGE(chanspec);
 	unsigned int last_chan = (chan + nchan - 1) % s->n_chan;
 
-	outb(DMM32AT_FIFORESET, dev->iobase + DMM32AT_FIFOCNTRL);
+	outb(DMM32AT_FIFO_CTRL_FIFORST, dev->iobase + DMM32AT_FIFO_CTRL_REG);
 
 	if (nchan > 1)
-		outb(DMM32AT_SCANENABLE, dev->iobase + DMM32AT_FIFOCNTRL);
+		outb(DMM32AT_FIFO_CTRL_SCANEN,
+		     dev->iobase + DMM32AT_FIFO_CTRL_REG);
 
 	outb(chan, dev->iobase + DMM32AT_AI_LO_CHAN_REG);
 	outb(last_chan, dev->iobase + DMM32AT_AI_HI_CHAN_REG);
@@ -490,7 +489,7 @@ static int dmm32at_reset(struct comedi_device *dev)
 	udelay(1000);
 
 	/* zero scan and fifo control */
-	outb(0x0, dev->iobase + DMM32AT_FIFOCNTRL);
+	outb(0x0, dev->iobase + DMM32AT_FIFO_CTRL_REG);
 
 	/* zero interrupt and clock control */
 	outb(0x0, dev->iobase + DMM32AT_INTCLOCK);
