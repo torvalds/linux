@@ -249,7 +249,6 @@ static struct platform_driver axp288_adc_driver = {
 	.id_table = axp288_adc_id_table,
 	.driver = {
 		.name = "axp288_adc",
-		.owner = THIS_MODULE,
 	},
 };
 
