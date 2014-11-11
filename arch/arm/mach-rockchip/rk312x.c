@@ -144,6 +144,7 @@ static void __init rk312x_dt_map_io(void)
 	dsb();
 
 	rk312x_boot_mode_init();
+	rockchip_efuse_init();
 }
 
 static void __init rk3126_dt_map_io(void)

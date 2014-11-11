@@ -5,6 +5,7 @@
 
 /* eFuse controller register */
 #define EFUSE_A_SHIFT		(6)
+#define RK312X_EFUSE_A_SHIFT	(7)
 #define EFUSE_A_MASK		(0x3FF)
 //#define EFUSE_PD		(1 << 5)
 //#define EFUSE_PS		(1 << 4)
