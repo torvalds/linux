@@ -1663,6 +1663,7 @@ process:
 	if (sk_filter(sk, skb))
 		goto discard_and_relse;
 
+	sk_incoming_cpu_update(sk);
 	skb->dev = NULL;
 
 	bh_lock_sock_nested(sk);

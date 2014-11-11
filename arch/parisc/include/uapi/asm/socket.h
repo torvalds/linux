@@ -79,4 +79,6 @@
 
 #define SO_BPF_EXTENSIONS	0x4029
 
+#define SO_INCOMING_CPU		0x402A
+
 #endif /* _UAPI_ASM_SOCKET_H */

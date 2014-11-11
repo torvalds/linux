@@ -98,4 +98,6 @@
 
 #define SO_BPF_EXTENSIONS	48
 
+#define SO_INCOMING_CPU		49
+
 #endif /* _UAPI_ASM_SOCKET_H */
