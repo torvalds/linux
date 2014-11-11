@@ -222,6 +222,7 @@ static struct prm_ll_data omap2xxx_prm_ll_data = {
 
 int __init omap2xxx_prm_init(void)
 {
+	omap2_prm_base_init();
 	return prm_register(&omap2xxx_prm_ll_data);
 }
 

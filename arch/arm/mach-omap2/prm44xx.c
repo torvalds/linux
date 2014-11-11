@@ -705,6 +705,7 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 
 int __init omap44xx_prm_init(void)
 {
+	omap2_prm_base_init();
 	omap_prm_base_init();
 
 	if (cpu_is_omap44xx() || soc_is_omap54xx() || soc_is_dra7xx())
