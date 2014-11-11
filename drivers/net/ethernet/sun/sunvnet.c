@@ -559,18 +559,20 @@ static int vnet_ack(struct vnet_port *port, void *msgbuf)
 		return 0;
 
 	end = pkt->end_idx;
-	if (unlikely(!idx_is_pending(dr, end)))
-		return 0;
-
 	vp = port->vp;
 	dev = vp->dev;
+	netif_tx_lock(dev);
+	if (unlikely(!idx_is_pending(dr, end))) {
+		netif_tx_unlock(dev);
+		return 0;
+	}
+
 	/* sync for race conditions with vnet_start_xmit() and tell xmit it
 	 * is time to send a trigger.
 	 */
-	netif_tx_lock(dev);
 	dr->cons = next_idx(end, dr);
 	desc = vio_dring_entry(dr, dr->cons);
-	if (desc->hdr.state == VIO_DESC_READY && port->start_cons) {
+	if (desc->hdr.state == VIO_DESC_READY && !port->start_cons) {
 		/* vnet_start_xmit() just populated this dring but missed
 		 * sending the "start" LDC message to the consumer.
 		 * Send a "start" trigger on its behalf.
@@ -979,8 +981,10 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	rcu_read_lock();
 	port = __tx_port_find(vp, skb);
-	if (unlikely(!port))
+	if (unlikely(!port)) {
+		rcu_read_unlock();
 		goto out_dropped;
+	}
 
 	if (skb->len > port->rmtu) {
 		unsigned long localmtu = port->rmtu - ETH_HLEN;
