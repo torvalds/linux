@@ -28,44 +28,6 @@
 #include <net/sock.h>
 
 /*
- *	Verify iovec. The caller must ensure that the iovec is big enough
- *	to hold the message iovec.
- *
- *	Save time not doing access_ok. copy_*_user will make this work
- *	in any case.
- */
-
-int verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr_storage *address, int mode)
-{
-	struct iovec *res;
-	int err;
-
-	if (m->msg_name && m->msg_namelen) {
-		if (mode == WRITE) {
-			void __user *namep = (void __user __force *)m->msg_name;
-			int err = move_addr_to_kernel(namep, m->msg_namelen,
-						  address);
-			if (err < 0)
-				return err;
-		}
-		m->msg_name = address;
-	} else {
-		m->msg_name = NULL;
-		m->msg_namelen = 0;
-	}
-	if (m->msg_iovlen > UIO_MAXIOV)
-		return -EMSGSIZE;
-
-	err = rw_copy_check_uvector(mode, (void __user __force *)m->msg_iov,
-				    m->msg_iovlen, UIO_FASTIOV, iov, &res);
-	if (err >= 0)
-		m->msg_iov = res;
-	else if (res != iov)
-		kfree(res);
-	return err;
-}
-
-/*
  *	And now for the all-in-one: copy and checksum from a user iovec
  *	directly to a datagram
  *	Calls to csum_partial but the last must be in 32 bit chunks

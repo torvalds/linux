@@ -31,14 +31,18 @@
 #include <asm/uaccess.h>
 #include <net/compat.h>
 
-int get_compat_msghdr(struct msghdr *kmsg, struct compat_msghdr __user *umsg)
+ssize_t get_compat_msghdr(struct msghdr *kmsg,
+			  struct compat_msghdr __user *umsg,
+			  struct sockaddr __user **save_addr,
+			  struct iovec **iov)
 {
-	compat_uptr_t tmp1, tmp2, tmp3;
+	compat_uptr_t uaddr, uiov, tmp3;
+	ssize_t err;
 
 	if (!access_ok(VERIFY_READ, umsg, sizeof(*umsg)) ||
-	    __get_user(tmp1, &umsg->msg_name) ||
+	    __get_user(uaddr, &umsg->msg_name) ||
 	    __get_user(kmsg->msg_namelen, &umsg->msg_namelen) ||
-	    __get_user(tmp2, &umsg->msg_iov) ||
+	    __get_user(uiov, &umsg->msg_iov) ||
 	    __get_user(kmsg->msg_iovlen, &umsg->msg_iovlen) ||
 	    __get_user(tmp3, &umsg->msg_control) ||
 	    __get_user(kmsg->msg_controllen, &umsg->msg_controllen) ||
@@ -46,44 +50,32 @@ int get_compat_msghdr(struct msghdr *kmsg, struct compat_msghdr __user *umsg)
 		return -EFAULT;
 	if (kmsg->msg_namelen > sizeof(struct sockaddr_storage))
 		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
-	kmsg->msg_name = compat_ptr(tmp1);
-	kmsg->msg_iov = compat_ptr(tmp2);
 	kmsg->msg_control = compat_ptr(tmp3);
-	return 0;
-}
 
-/* I've named the args so it is easy to tell whose space the pointers are in. */
-int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *iov,
-		   struct sockaddr_storage *kern_address, int mode)
-{
-	struct compat_iovec __user *p;
-	struct iovec *res;
-	int err;
+	if (save_addr)
+		*save_addr = compat_ptr(uaddr);
 
-	if (kern_msg->msg_name && kern_msg->msg_namelen) {
-		if (mode == WRITE) {
-			int err = move_addr_to_kernel(kern_msg->msg_name,
-						      kern_msg->msg_namelen,
-						      kern_address);
+	if (uaddr && kmsg->msg_namelen) {
+		if (!save_addr) {
+			err = move_addr_to_kernel(compat_ptr(uaddr),
+						  kmsg->msg_namelen,
+						  kmsg->msg_name);
 			if (err < 0)
 				return err;
 		}
-		kern_msg->msg_name = kern_address;
 	} else {
-		kern_msg->msg_name = NULL;
-		kern_msg->msg_namelen = 0;
+		kmsg->msg_name = NULL;
+		kmsg->msg_namelen = 0;
 	}
 
-	if (kern_msg->msg_iovlen > UIO_MAXIOV)
+	if (kmsg->msg_iovlen > UIO_MAXIOV)
 		return -EMSGSIZE;
 
-	p = (struct compat_iovec __user *)kern_msg->msg_iov;
-	err = compat_rw_copy_check_uvector(mode, p, kern_msg->msg_iovlen,
-					   UIO_FASTIOV, iov, &res);
+	err = compat_rw_copy_check_uvector(save_addr ? READ : WRITE,
+					   compat_ptr(uiov), kmsg->msg_iovlen,
+					   UIO_FASTIOV, *iov, iov);
 	if (err >= 0)
-		kern_msg->msg_iov = res;
-	else if (res != iov)
-		kfree(res);
+		kmsg->msg_iov = *iov;
 	return err;
 }
 
