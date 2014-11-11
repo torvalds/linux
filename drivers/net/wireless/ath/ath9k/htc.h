@@ -629,7 +629,9 @@ int ath9k_htc_init_debug(struct ath_hw *ah);
 void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv);
 #else
 static inline int ath9k_htc_init_debug(struct ath_hw *ah) { return 0; };
-static inline void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv) { return 0; };
+static inline void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv)
+{
+}
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
 #endif /* HTC_H */
