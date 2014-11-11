@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
 #include <linux/gfp.h>
+#include <linux/irqhandler.h>
 #include <linux/irqreturn.h>
 #include <linux/irqnr.h>
 #include <linux/errno.h>
@@ -27,12 +28,7 @@
 
 struct seq_file;
 struct module;
-struct irq_desc;
-struct irq_data;
 struct msi_msg;
-typedef	void (*irq_flow_handler_t)(unsigned int irq,
-					    struct irq_desc *desc);
-typedef	void (*irq_preflow_handler_t)(struct irq_data *data);
 
 /*
  * IRQ line status.
