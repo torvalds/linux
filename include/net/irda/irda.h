@@ -77,10 +77,6 @@ do { if(!(expr)) { \
 #define IRDA_ASSERT_LABEL(label)
 #endif /* CONFIG_IRDA_DEBUG */
 
-#define IRDA_ERROR		net_err_ratelimited
-#define IRDA_WARNING		net_warn_ratelimited
-#define IRDA_MESSAGE		net_info_ratelimited
-
 /*
  *  Magic numbers used by Linux-IrDA. Random numbers which must be unique to 
  *  give the best protection

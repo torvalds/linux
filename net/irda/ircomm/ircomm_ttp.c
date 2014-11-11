@@ -188,7 +188,7 @@ static int ircomm_ttp_data_request(struct ircomm_cb *self,
 
 	ret = irttp_data_request(self->tsap, skb);
 	if (ret) {
-		IRDA_ERROR("%s(), failed\n", __func__);
+		net_err_ratelimited("%s(), failed\n", __func__);
 		/* irttp_data_request already free the packet */
 	}
 
@@ -237,8 +237,8 @@ static void ircomm_ttp_connect_confirm(void *instance, void *sap,
 	IRDA_ASSERT(qos != NULL, goto out;);
 
 	if (max_sdu_size != TTP_SAR_DISABLE) {
-		IRDA_ERROR("%s(), SAR not allowed for IrCOMM!\n",
-			   __func__);
+		net_err_ratelimited("%s(), SAR not allowed for IrCOMM!\n",
+				    __func__);
 		goto out;
 	}
 
@@ -278,8 +278,8 @@ static void ircomm_ttp_connect_indication(void *instance, void *sap,
 	IRDA_ASSERT(qos != NULL, goto out;);
 
 	if (max_sdu_size != TTP_SAR_DISABLE) {
-		IRDA_ERROR("%s(), SAR not allowed for IrCOMM!\n",
-			   __func__);
+		net_err_ratelimited("%s(), SAR not allowed for IrCOMM!\n",
+				    __func__);
 		goto out;
 	}
 

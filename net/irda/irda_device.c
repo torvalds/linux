@@ -63,14 +63,14 @@ int __init irda_device_init( void)
 {
 	dongles = hashbin_new(HB_NOLOCK);
 	if (dongles == NULL) {
-		IRDA_WARNING("IrDA: Can't allocate dongles hashbin!\n");
+		net_warn_ratelimited("IrDA: Can't allocate dongles hashbin!\n");
 		return -ENOMEM;
 	}
 	spin_lock_init(&dongles->hb_spinlock);
 
 	tasks = hashbin_new(HB_LOCK);
 	if (tasks == NULL) {
-		IRDA_WARNING("IrDA: Can't allocate tasks hashbin!\n");
+		net_warn_ratelimited("IrDA: Can't allocate tasks hashbin!\n");
 		hashbin_delete(dongles, NULL);
 		return -ENOMEM;
 	}
@@ -84,8 +84,8 @@ int __init irda_device_init( void)
 static void leftover_dongle(void *arg)
 {
 	struct dongle_reg *reg = arg;
-	IRDA_WARNING("IrDA: Dongle type %x not unregistered\n",
-		     reg->type);
+	net_warn_ratelimited("IrDA: Dongle type %x not unregistered\n",
+			     reg->type);
 }
 
 void irda_device_cleanup(void)
@@ -150,8 +150,8 @@ int irda_device_is_receiving(struct net_device *dev)
 	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	if (!dev->netdev_ops->ndo_do_ioctl) {
-		IRDA_ERROR("%s: do_ioctl not impl. by device driver\n",
-			   __func__);
+		net_err_ratelimited("%s: do_ioctl not impl. by device driver\n",
+				    __func__);
 		return -1;
 	}
 
@@ -201,15 +201,15 @@ static int irda_task_kick(struct irda_task *task)
 	do {
 		timeout = task->function(task);
 		if (count++ > 100) {
-			IRDA_ERROR("%s: error in task handler!\n",
-				   __func__);
+			net_err_ratelimited("%s: error in task handler!\n",
+					    __func__);
 			irda_task_delete(task);
 			return TRUE;
 		}
 	} while ((timeout == 0) && (task->state != IRDA_TASK_DONE));
 
 	if (timeout < 0) {
-		IRDA_ERROR("%s: Error executing task!\n", __func__);
+		net_err_ratelimited("%s: Error executing task!\n", __func__);
 		irda_task_delete(task);
 		return TRUE;
 	}

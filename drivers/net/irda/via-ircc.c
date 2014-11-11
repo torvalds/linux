@@ -391,7 +391,8 @@ static int via_ircc_open(struct pci_dev *pdev, chipio_t *info, unsigned int id)
 	if (err)
 		goto err_out4;
 
-	IRDA_MESSAGE("IrDA: Registered device %s (via-ircc)\n", dev->name);
+	net_info_ratelimited("IrDA: Registered device %s (via-ircc)\n",
+			     dev->name);
 
 	/* Initialise the hardware..
 	*/
@@ -510,7 +511,7 @@ static void via_hw_init(struct via_ircc_cb *self)
  */
 static int via_ircc_read_dongle_id(int iobase)
 {
-	IRDA_ERROR("via-ircc: dongle probing not supported, please specify dongle_id module parameter.\n");
+	net_err_ratelimited("via-ircc: dongle probing not supported, please specify dongle_id module parameter\n");
 	return 9;	/* Default to IBM */
 }
 
@@ -652,8 +653,8 @@ static void via_ircc_change_dongle_speed(int iobase, int speed,
 		break;
 
 	default:
-		IRDA_ERROR("%s: Error: dongle_id %d unsupported !\n",
-			   __func__, dongle_id);
+		net_err_ratelimited("%s: Error: dongle_id %d unsupported !\n",
+				    __func__, dongle_id);
 	}
 }
 
@@ -1473,8 +1474,8 @@ static int via_ircc_net_open(struct net_device *dev)
 	IRDA_ASSERT(self != NULL, return 0;);
 	iobase = self->io.fir_base;
 	if (request_irq(self->io.irq, via_ircc_interrupt, 0, dev->name, dev)) {
-		IRDA_WARNING("%s, unable to allocate irq=%d\n", driver_name,
-			     self->io.irq);
+		net_warn_ratelimited("%s, unable to allocate irq=%d\n",
+				     driver_name, self->io.irq);
 		return -EAGAIN;
 	}
 	/*
@@ -1482,15 +1483,15 @@ static int via_ircc_net_open(struct net_device *dev)
 	 * failure.
 	 */
 	if (request_dma(self->io.dma, dev->name)) {
-		IRDA_WARNING("%s, unable to allocate dma=%d\n", driver_name,
-			     self->io.dma);
+		net_warn_ratelimited("%s, unable to allocate dma=%d\n",
+				     driver_name, self->io.dma);
 		free_irq(self->io.irq, dev);
 		return -EAGAIN;
 	}
 	if (self->io.dma2 != self->io.dma) {
 		if (request_dma(self->io.dma2, dev->name)) {
-			IRDA_WARNING("%s, unable to allocate dma2=%d\n",
-				     driver_name, self->io.dma2);
+			net_warn_ratelimited("%s, unable to allocate dma2=%d\n",
+					     driver_name, self->io.dma2);
 			free_irq(self->io.irq, dev);
 			free_dma(self->io.dma);
 			return -EAGAIN;

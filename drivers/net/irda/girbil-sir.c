@@ -179,7 +179,8 @@ static int girbil_change_speed(struct sir_dev *dev, unsigned speed)
 		break;
 
 	default:
-		IRDA_ERROR("%s - undefined state %d\n", __func__, state);
+		net_err_ratelimited("%s - undefined state %d\n",
+				    __func__, state);
 		ret = -EINVAL;
 		break;
 	}
@@ -241,7 +242,8 @@ static int girbil_reset(struct sir_dev *dev)
 		break;
 
 	default:
-		IRDA_ERROR("%s(), undefined state %d\n", __func__, state);
+		net_err_ratelimited("%s(), undefined state %d\n",
+				    __func__, state);
 		ret = -1;
 		break;
 	}

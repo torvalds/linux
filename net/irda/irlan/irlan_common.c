@@ -437,7 +437,8 @@ static void irlan_disconnect_indication(void *instance,
 		IRDA_DEBUG(2, "%s(), IrLMP connect failed\n", __func__ );
 		break;
 	default:
-		IRDA_ERROR("%s(), Unknown disconnect reason\n", __func__);
+		net_err_ratelimited("%s(), Unknown disconnect reason\n",
+				    __func__);
 		break;
 	}
 

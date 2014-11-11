@@ -307,7 +307,7 @@ static void irda_usb_change_speed_xbofs(struct irda_usb_cb *self)
 	/* Grab the speed URB */
 	urb = self->speed_urb;
 	if (urb->status != 0) {
-		IRDA_WARNING("%s(), URB still in use!\n", __func__);
+		net_warn_ratelimited("%s(), URB still in use!\n", __func__);
 		return;
 	}
 
@@ -333,7 +333,7 @@ static void irda_usb_change_speed_xbofs(struct irda_usb_cb *self)
 
 	/* Irq disabled -> GFP_ATOMIC */
 	if ((ret = usb_submit_urb(urb, GFP_ATOMIC))) {
-		IRDA_WARNING("%s(), failed Speed URB\n", __func__);
+		net_warn_ratelimited("%s(), failed Speed URB\n", __func__);
 	}
 }
 
@@ -435,7 +435,7 @@ static netdev_tx_t irda_usb_hard_xmit(struct sk_buff *skb,
 	}
 
 	if (urb->status != 0) {
-		IRDA_WARNING("%s(), URB still in use!\n", __func__);
+		net_warn_ratelimited("%s(), URB still in use!\n", __func__);
 		goto drop;
 	}
 
@@ -522,7 +522,7 @@ static netdev_tx_t irda_usb_hard_xmit(struct sk_buff *skb,
 	
 	/* Ask USB to send the packet - Irq disabled -> GFP_ATOMIC */
 	if ((res = usb_submit_urb(urb, GFP_ATOMIC))) {
-		IRDA_WARNING("%s(), failed Tx URB\n", __func__);
+		net_warn_ratelimited("%s(), failed Tx URB\n", __func__);
 		netdev->stats.tx_errors++;
 		/* Let USB recover : We will catch that in the watchdog */
 		/*netif_start_queue(netdev);*/
@@ -638,7 +638,7 @@ static void irda_usb_net_timeout(struct net_device *netdev)
 
 	/* self->present *MUST* be read under spinlock */
 	if (!self->present) {
-		IRDA_WARNING("%s(), device not present!\n", __func__);
+		net_warn_ratelimited("%s(), device not present!\n", __func__);
 		netif_stop_queue(netdev);
 		spin_unlock_irqrestore(&self->lock, flags);
 		return;
@@ -783,8 +783,8 @@ static void irda_usb_submit(struct irda_usb_cb *self, struct sk_buff *skb, struc
 	if (ret) {
 		/* If this ever happen, we are in deep s***.
 		 * Basically, the Rx path will stop... */
-		IRDA_WARNING("%s(), Failed to submit Rx URB %d\n",
-			     __func__, ret);
+		net_warn_ratelimited("%s(), Failed to submit Rx URB %d\n",
+				     __func__, ret);
 	}
 }
 
@@ -859,7 +859,7 @@ static void irda_usb_receive(struct urb *urb)
 	
 	/* Check for empty frames */
 	if (urb->actual_length <= self->header_length) {
-		IRDA_WARNING("%s(), empty frame!\n", __func__);
+		net_warn_ratelimited("%s(), empty frame!\n", __func__);
 		goto done;
 	}
 
@@ -1088,8 +1088,8 @@ static int stir421x_patch_device(struct irda_usb_cb *self)
                 return ret;
 
         /* We get a patch from userspace */
-        IRDA_MESSAGE("%s(): Received firmware %s (%zu bytes)\n",
-                     __func__, stir421x_fw_name, fw->size);
+	net_info_ratelimited("%s(): Received firmware %s (%zu bytes)\n",
+			     __func__, stir421x_fw_name, fw->size);
 
         ret = -EINVAL;
 
@@ -1179,13 +1179,13 @@ static int irda_usb_net_open(struct net_device *netdev)
 	/* Can only open the device if it's there */
 	if(!self->present) {
 		spin_unlock_irqrestore(&self->lock, flags);
-		IRDA_WARNING("%s(), device not present!\n", __func__);
+		net_warn_ratelimited("%s(), device not present!\n", __func__);
 		return -1;
 	}
 
 	if(self->needspatch) {
 		spin_unlock_irqrestore(&self->lock, flags);
-		IRDA_WARNING("%s(), device needs patch\n", __func__) ;
+		net_warn_ratelimited("%s(), device needs patch\n", __func__);
 		return -EIO ;
 	}
 
@@ -1227,8 +1227,6 @@ static int irda_usb_net_open(struct net_device *netdev)
 		if (!skb) {
 			/* If this ever happen, we are in deep s***.
 			 * Basically, we can't start the Rx path... */
-			IRDA_WARNING("%s(), Failed to allocate Rx skb\n",
-				     __func__);
 			return -1;
 		}
 		//skb_reserve(newskb, USB_IRDA_HEADER - 1);
@@ -1505,7 +1503,8 @@ static inline int irda_usb_parse_endpoints(struct irda_usb_cb *self, struct usb_
 				/* This is our interrupt endpoint */
 				self->bulk_int_ep = ep;
 			} else {
-				IRDA_ERROR("%s(), Unrecognised endpoint %02X.\n", __func__, ep);
+				net_err_ratelimited("%s(), Unrecognised endpoint %02X\n",
+						    __func__, ep);
 			}
 		}
 	}
@@ -1575,11 +1574,11 @@ static inline struct irda_class_desc *irda_usb_find_class_desc(struct usb_interf
 	
 	IRDA_DEBUG(1, "%s(), ret=%d\n", __func__, ret);
 	if (ret < sizeof(*desc)) {
-		IRDA_WARNING("usb-irda: class_descriptor read %s (%d)\n",
-			     (ret<0) ? "failed" : "too short", ret);
+		net_warn_ratelimited("usb-irda: class_descriptor read %s (%d)\n",
+				     ret < 0 ? "failed" : "too short", ret);
 	}
 	else if (desc->bDescriptorType != USB_DT_IRDA) {
-		IRDA_WARNING("usb-irda: bad class_descriptor type\n");
+		net_warn_ratelimited("usb-irda: bad class_descriptor type\n");
 	}
 	else {
 #ifdef IU_DUMP_CLASS_DESC
@@ -1622,9 +1621,9 @@ static int irda_usb_probe(struct usb_interface *intf,
 	 * don't need to check if the dongle is really ours.
 	 * Jean II */
 
-	IRDA_MESSAGE("IRDA-USB found at address %d, Vendor: %x, Product: %x\n",
-		     dev->devnum, le16_to_cpu(dev->descriptor.idVendor),
-		     le16_to_cpu(dev->descriptor.idProduct));
+	net_info_ratelimited("IRDA-USB found at address %d, Vendor: %x, Product: %x\n",
+			     dev->devnum, le16_to_cpu(dev->descriptor.idVendor),
+			     le16_to_cpu(dev->descriptor.idProduct));
 
 	net = alloc_irdadev(sizeof(*self));
 	if (!net) 
@@ -1700,7 +1699,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 	interface = intf->cur_altsetting;
 	if(!irda_usb_parse_endpoints(self, interface->endpoint,
 				     interface->desc.bNumEndpoints)) {
-		IRDA_ERROR("%s(), Bogus endpoints...\n", __func__);
+		net_err_ratelimited("%s(), Bogus endpoints...\n", __func__);
 		ret = -EIO;
 		goto err_out_3;
 	}
@@ -1746,7 +1745,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 	if (ret) 
 		goto err_out_5;
 
-	IRDA_MESSAGE("IrDA: Registered device %s\n", net->name);
+	net_info_ratelimited("IrDA: Registered device %s\n", net->name);
 	usb_set_intfdata(intf, self);
 
 	if (self->needspatch) {
@@ -1754,7 +1753,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 		ret = stir421x_patch_device(self);
 		self->needspatch = (ret < 0);
 		if (self->needspatch) {
-			IRDA_ERROR("STIR421X: Couldn't upload patch\n");
+			net_err_ratelimited("STIR421X: Couldn't upload patch\n");
 			goto err_out_6;
 		}
 

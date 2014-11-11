@@ -421,7 +421,7 @@ static void irlap_recv_discovery_xid_rsp(struct irlap_cb *self,
 	IRDA_ASSERT(self->magic == LAP_MAGIC, return;);
 
 	if (!pskb_may_pull(skb, sizeof(struct xid_frame))) {
-		IRDA_ERROR("%s: frame too short!\n", __func__);
+		net_err_ratelimited("%s: frame too short!\n", __func__);
 		return;
 	}
 
@@ -438,7 +438,7 @@ static void irlap_recv_discovery_xid_rsp(struct irlap_cb *self,
 	}
 
 	if ((discovery = kzalloc(sizeof(discovery_t), GFP_ATOMIC)) == NULL) {
-		IRDA_WARNING("%s: kmalloc failed!\n", __func__);
+		net_warn_ratelimited("%s: kmalloc failed!\n", __func__);
 		return;
 	}
 
@@ -492,7 +492,7 @@ static void irlap_recv_discovery_xid_cmd(struct irlap_cb *self,
 	char *text;
 
 	if (!pskb_may_pull(skb, sizeof(struct xid_frame))) {
-		IRDA_ERROR("%s: frame too short!\n", __func__);
+		net_err_ratelimited("%s: frame too short!\n", __func__);
 		return;
 	}
 
@@ -536,8 +536,8 @@ static void irlap_recv_discovery_xid_cmd(struct irlap_cb *self,
 		/* Check if things are sane at this point... */
 		if((discovery_info == NULL) ||
 		   !pskb_may_pull(skb, 3)) {
-			IRDA_ERROR("%s: discovery frame too short!\n",
-				   __func__);
+			net_err_ratelimited("%s: discovery frame too short!\n",
+					    __func__);
 			return;
 		}
 
@@ -545,10 +545,8 @@ static void irlap_recv_discovery_xid_cmd(struct irlap_cb *self,
 		 *  We now have some discovery info to deliver!
 		 */
 		discovery = kzalloc(sizeof(discovery_t), GFP_ATOMIC);
-		if (!discovery) {
-			IRDA_WARNING("%s: unable to malloc!\n", __func__);
+		if (!discovery)
 			return;
-		}
 
 		discovery->data.daddr = info->daddr;
 		discovery->data.saddr = self->saddr;
@@ -1170,7 +1168,7 @@ static void irlap_recv_frmr_frame(struct irlap_cb *self, struct sk_buff *skb,
 	IRDA_ASSERT(info != NULL, return;);
 
 	if (!pskb_may_pull(skb, 4)) {
-		IRDA_ERROR("%s: frame too short!\n", __func__);
+		net_err_ratelimited("%s: frame too short!\n", __func__);
 		return;
 	}
 
@@ -1259,7 +1257,7 @@ static void irlap_recv_test_frame(struct irlap_cb *self, struct sk_buff *skb,
 	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	if (!pskb_may_pull(skb, sizeof(*frame))) {
-		IRDA_ERROR("%s: frame too short!\n", __func__);
+		net_err_ratelimited("%s: frame too short!\n", __func__);
 		return;
 	}
 	frame = (struct test_frame *) skb->data;
@@ -1328,13 +1326,13 @@ int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * share and non linear skbs. This should never happen, so
 	 * we don't need to be clever about it. Jean II */
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
-		IRDA_ERROR("%s: can't clone shared skb!\n", __func__);
+		net_err_ratelimited("%s: can't clone shared skb!\n", __func__);
 		goto err;
 	}
 
 	/* Check if frame is large enough for parsing */
 	if (!pskb_may_pull(skb, 2)) {
-		IRDA_ERROR("%s: frame too short!\n", __func__);
+		net_err_ratelimited("%s: frame too short!\n", __func__);
 		goto err;
 	}
 
@@ -1383,8 +1381,8 @@ int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
 			irlap_recv_srej_frame(self, skb, &info, command);
 			break;
 		default:
-			IRDA_WARNING("%s: Unknown S-frame %02x received!\n",
-				__func__, info.control);
+			net_warn_ratelimited("%s: Unknown S-frame %02x received!\n",
+					     __func__, info.control);
 			break;
 		}
 		goto out;
@@ -1421,8 +1419,8 @@ int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
 		irlap_recv_ui_frame(self, skb, &info);
 		break;
 	default:
-		IRDA_WARNING("%s: Unknown frame %02x received!\n",
-				__func__, info.control);
+		net_warn_ratelimited("%s: Unknown frame %02x received!\n",
+				     __func__, info.control);
 		break;
 	}
 out:

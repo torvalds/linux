@@ -231,7 +231,7 @@ static void irtty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 
 	dev = priv->dev;
 	if (!dev) {
-		IRDA_WARNING("%s(), not ready yet!\n", __func__);
+		net_warn_ratelimited("%s(), not ready yet!\n", __func__);
 		return;
 	}
 
@@ -555,8 +555,8 @@ static int __init irtty_sir_init(void)
 	int err;
 
 	if ((err = tty_register_ldisc(N_IRDA, &irda_ldisc)) != 0)
-		IRDA_ERROR("IrDA: can't register line discipline (err = %d)\n",
-			   err);
+		net_err_ratelimited("IrDA: can't register line discipline (err = %d)\n",
+				    err);
 	return err;
 }
 
@@ -565,8 +565,8 @@ static void __exit irtty_sir_cleanup(void)
 	int err;
 
 	if ((err = tty_unregister_ldisc(N_IRDA))) {
-		IRDA_ERROR("%s(), can't unregister line discipline (err = %d)\n",
-			   __func__, err);
+		net_err_ratelimited("%s(), can't unregister line discipline (err = %d)\n",
+				    __func__, err);
 	}
 }
 

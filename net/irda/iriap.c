@@ -110,8 +110,8 @@ int __init iriap_init(void)
 	/* Object repository - defined in irias_object.c */
 	irias_objects = hashbin_new(HB_LOCK);
 	if (!irias_objects) {
-		IRDA_WARNING("%s: Can't allocate irias_objects hashbin!\n",
-			     __func__);
+		net_warn_ratelimited("%s: Can't allocate irias_objects hashbin!\n",
+				     __func__);
 		hashbin_delete(iriap, NULL);
 		return -ENOMEM;
 	}
@@ -180,10 +180,8 @@ struct iriap_cb *iriap_open(__u8 slsap_sel, int mode, void *priv,
 	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	self = kzalloc(sizeof(*self), GFP_ATOMIC);
-	if (!self) {
-		IRDA_WARNING("%s: Unable to kmalloc!\n", __func__);
+	if (!self)
 		return NULL;
-	}
 
 	/*
 	 *  Initialize instance
@@ -283,7 +281,8 @@ static int iriap_register_lsap(struct iriap_cb *self, __u8 slsap_sel, int mode)
 
 	self->lsap = irlmp_open_lsap(slsap_sel, &notify, 0);
 	if (self->lsap == NULL) {
-		IRDA_ERROR("%s: Unable to allocated LSAP!\n", __func__);
+		net_err_ratelimited("%s: Unable to allocated LSAP!\n",
+				    __func__);
 		return -1;
 	}
 	self->slsap_sel = self->lsap->slsap_sel;
@@ -859,9 +858,8 @@ static int iriap_data_indication(void *instance, void *sap,
 	}
 	opcode = frame[0];
 	if (~opcode & IAP_LST) {
-		IRDA_WARNING("%s:, IrIAS multiframe commands or "
-			     "results is not implemented yet!\n",
-			     __func__);
+		net_warn_ratelimited("%s:, IrIAS multiframe commands or results is not implemented yet!\n",
+				     __func__);
 		goto out;
 	}
 
@@ -945,16 +943,16 @@ void iriap_call_indication(struct iriap_cb *self, struct sk_buff *skb)
 
 	opcode = fp[0];
 	if (~opcode & 0x80) {
-		IRDA_WARNING("%s: IrIAS multiframe commands or results "
-			     "is not implemented yet!\n", __func__);
+		net_warn_ratelimited("%s: IrIAS multiframe commands or results is not implemented yet!\n",
+				     __func__);
 		return;
 	}
 	opcode &= 0x7f; /* Mask away LST bit */
 
 	switch (opcode) {
 	case GET_INFO_BASE:
-		IRDA_WARNING("%s: GetInfoBaseDetails not implemented yet!\n",
-			     __func__);
+		net_warn_ratelimited("%s: GetInfoBaseDetails not implemented yet!\n",
+				     __func__);
 		break;
 	case GET_VALUE_BY_CLASS:
 		iriap_getvaluebyclass_indication(self, skb);

@@ -134,8 +134,8 @@ int async_wrap_skb(struct sk_buff *skb, __u8 *tx_buff, int buffsize)
 		 *  transmitted after this point is 5.
 		 */
 		if(n >= (buffsize-5)) {
-			IRDA_ERROR("%s(), tx buffer overflow (n=%d)\n",
-				   __func__, n);
+			net_err_ratelimited("%s(), tx buffer overflow (n=%d)\n",
+					    __func__, n);
 			return n;
 		}
 
@@ -386,7 +386,7 @@ async_unwrap_ce(struct net_device *dev,
 		break;
 
 	case LINK_ESCAPE:
-		IRDA_WARNING("%s: state not defined\n", __func__);
+		net_warn_ratelimited("%s: state not defined\n", __func__);
 		break;
 
 	case BEGIN_FRAME:

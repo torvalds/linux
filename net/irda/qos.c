@@ -200,8 +200,8 @@ static int msb_index (__u16 word)
 	 * able to check precisely what's going on. If a end user sees this,
 	 * it's very likely the peer. - Jean II */
 	if (word == 0) {
-		IRDA_WARNING("%s(), Detected buggy peer, adjust null PV to 0x1!\n",
-			 __func__);
+		net_warn_ratelimited("%s(), Detected buggy peer, adjust null PV to 0x1!\n",
+				     __func__);
 		/* The only safe choice (we don't know the array size) */
 		word = 0x1;
 	}
@@ -351,8 +351,8 @@ static void irlap_adjust_qos_settings(struct qos_info *qos)
 	if (sysctl_min_tx_turn_time > qos->min_turn_time.value) {
 		int i;
 
-		IRDA_WARNING("%s(), Detected buggy peer, adjust mtt to %dus!\n",
-			 __func__, sysctl_min_tx_turn_time);
+		net_warn_ratelimited("%s(), Detected buggy peer, adjust mtt to %dus!\n",
+				     __func__, sysctl_min_tx_turn_time);
 
 		/* We don't really need bits, but easier this way */
 		i = value_highest_bit(sysctl_min_tx_turn_time, min_turn_times,
@@ -402,8 +402,8 @@ static void irlap_adjust_qos_settings(struct qos_info *qos)
 			IRDA_DEBUG(2, "%s(), reducing data size to %d\n",
 				   __func__, qos->data_size.value);
 		} else {
-			IRDA_WARNING("%s(), nothing more we can do!\n",
-				     __func__);
+			net_warn_ratelimited("%s(), nothing more we can do!\n",
+					     __func__);
 		}
 	}
 #endif /* CONFIG_IRDA_DYNAMIC_WINDOW */

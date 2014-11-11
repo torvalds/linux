@@ -158,8 +158,8 @@ static int irda_insert_integer(void *self, __u8 *buf, int len, __u8 pi,
 	}
 	/* Check if buffer is long enough for insertion */
 	if (len < (2+p.pl)) {
-		IRDA_WARNING("%s: buffer too short for insertion!\n",
-			     __func__);
+		net_warn_ratelimited("%s: buffer too short for insertion!\n",
+				     __func__);
 		return -1;
 	}
 	IRDA_DEBUG(2, "%s(), pi=%#x, pl=%d, pi=%d\n", __func__,
@@ -184,8 +184,8 @@ static int irda_insert_integer(void *self, __u8 *buf, int len, __u8 pi,
 
 		break;
 	default:
-		IRDA_WARNING("%s: length %d not supported\n",
-			     __func__, p.pl);
+		net_warn_ratelimited("%s: length %d not supported\n",
+				     __func__, p.pl);
 		/* Skip parameter */
 		return -1;
 	}
@@ -214,9 +214,8 @@ static int irda_extract_integer(void *self, __u8 *buf, int len, __u8 pi,
 
 	/* Check if buffer is long enough for parsing */
 	if (len < (2+p.pl)) {
-		IRDA_WARNING("%s: buffer too short for parsing! "
-			     "Need %d bytes, but len is only %d\n",
-			     __func__, p.pl, len);
+		net_warn_ratelimited("%s: buffer too short for parsing! Need %d bytes, but len is only %d\n",
+				     __func__, p.pl, len);
 		return -1;
 	}
 
@@ -226,9 +225,8 @@ static int irda_extract_integer(void *self, __u8 *buf, int len, __u8 pi,
 	 * PV_INTEGER means that the handler is flexible.
 	 */
 	if (((type & PV_MASK) != PV_INTEGER) && ((type & PV_MASK) != p.pl)) {
-		IRDA_ERROR("%s: invalid parameter length! "
-			   "Expected %d bytes, but value had %d bytes!\n",
-			   __func__, type & PV_MASK, p.pl);
+		net_err_ratelimited("%s: invalid parameter length! Expected %d bytes, but value had %d bytes!\n",
+				    __func__, type & PV_MASK, p.pl);
 
 		/* Most parameters are bit/byte fields or little endian,
 		 * so it's ok to only extract a subset of it (the subset
@@ -265,8 +263,8 @@ static int irda_extract_integer(void *self, __u8 *buf, int len, __u8 pi,
 			le32_to_cpus(&p.pv.i);
 		break;
 	default:
-		IRDA_WARNING("%s: length %d not supported\n",
-			     __func__, p.pl);
+		net_warn_ratelimited("%s: length %d not supported\n",
+				     __func__, p.pl);
 
 		/* Skip parameter */
 		return p.pl+2;
@@ -304,9 +302,8 @@ static int irda_extract_string(void *self, __u8 *buf, int len, __u8 pi,
 
 	/* Check if buffer is long enough for parsing */
 	if (len < (2+p.pl)) {
-		IRDA_WARNING("%s: buffer too short for parsing! "
-			     "Need %d bytes, but len is only %d\n",
-			     __func__, p.pl, len);
+		net_warn_ratelimited("%s: buffer too short for parsing! Need %d bytes, but len is only %d\n",
+				     __func__, p.pl, len);
 		return -1;
 	}
 
@@ -343,9 +340,8 @@ static int irda_extract_octseq(void *self, __u8 *buf, int len, __u8 pi,
 
 	/* Check if buffer is long enough for parsing */
 	if (len < (2+p.pl)) {
-		IRDA_WARNING("%s: buffer too short for parsing! "
-			     "Need %d bytes, but len is only %d\n",
-			     __func__, p.pl, len);
+		net_warn_ratelimited("%s: buffer too short for parsing! Need %d bytes, but len is only %d\n",
+				     __func__, p.pl, len);
 		return -1;
 	}
 
@@ -487,7 +483,8 @@ int irda_param_insert(void *self, __u8 pi, __u8 *buf, int len,
 
 	/*  Check if handler has been implemented */
 	if (!pi_minor_info->func) {
-		IRDA_MESSAGE("%s: no handler for pi=%#x\n", __func__, pi);
+		net_info_ratelimited("%s: no handler for pi=%#x\n",
+				     __func__, pi);
 		/* Skip this parameter */
 		return -1;
 	}
@@ -544,8 +541,8 @@ static int irda_param_extract(void *self, __u8 *buf, int len,
 
 	/*  Check if handler has been implemented */
 	if (!pi_minor_info->func) {
-		IRDA_MESSAGE("%s: no handler for pi=%#x\n",
-			     __func__, buf[n]);
+		net_info_ratelimited("%s: no handler for pi=%#x\n",
+				     __func__, buf[n]);
 		/* Skip this parameter */
 		return 2 + buf[n + 1]; /* Continue */
 	}

@@ -368,10 +368,8 @@ static void state_r_disconnect(struct iriap_cb *self, IRIAP_EVENT event,
 	switch (event) {
 	case IAP_LM_CONNECT_INDICATION:
 		tx_skb = alloc_skb(LMP_MAX_HEADER, GFP_ATOMIC);
-		if (tx_skb == NULL) {
-			IRDA_WARNING("%s: unable to malloc!\n", __func__);
+		if (tx_skb == NULL)
 			return;
-		}
 
 		/* Reserve space for MUX_CONTROL and LAP header */
 		skb_reserve(tx_skb, LMP_MAX_HEADER);

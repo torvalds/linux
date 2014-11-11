@@ -170,10 +170,8 @@ struct lsap_cb *irlmp_open_lsap(__u8 slsap_sel, notify_t *notify, __u8 pid)
 
 	/* Allocate new instance of a LSAP connection */
 	self = kzalloc(sizeof(struct lsap_cb), GFP_ATOMIC);
-	if (self == NULL) {
-		IRDA_ERROR("%s: can't allocate memory\n", __func__);
+	if (self == NULL)
 		return NULL;
-	}
 
 	self->magic = LMP_LSAP_MAGIC;
 	self->slsap_sel = slsap_sel;
@@ -297,10 +295,8 @@ void irlmp_register_link(struct irlap_cb *irlap, __u32 saddr, notify_t *notify)
 	 *  Allocate new instance of a LSAP connection
 	 */
 	lap = kzalloc(sizeof(struct lap_cb), GFP_KERNEL);
-	if (lap == NULL) {
-		IRDA_ERROR("%s: unable to kmalloc\n", __func__);
+	if (lap == NULL)
 		return;
-	}
 
 	lap->irlap = irlap;
 	lap->magic = LMP_LAP_MAGIC;
@@ -311,7 +307,8 @@ void irlmp_register_link(struct irlap_cb *irlap, __u32 saddr, notify_t *notify)
 #endif
 	lap->lsaps = hashbin_new(HB_LOCK);
 	if (lap->lsaps == NULL) {
-		IRDA_WARNING("%s(), unable to kmalloc lsaps\n", __func__);
+		net_warn_ratelimited("%s(), unable to kmalloc lsaps\n",
+				     __func__);
 		kfree(lap);
 		return;
 	}
@@ -852,8 +849,8 @@ void irlmp_do_discovery(int nslots)
 
 	/* Make sure the value is sane */
 	if ((nslots != 1) && (nslots != 6) && (nslots != 8) && (nslots != 16)){
-		IRDA_WARNING("%s: invalid value for number of slots!\n",
-			     __func__);
+		net_warn_ratelimited("%s: invalid value for number of slots!\n",
+				     __func__);
 		nslots = sysctl_discovery_slots = 8;
 	}
 
@@ -1799,8 +1796,8 @@ static __u8 irlmp_find_free_slsap(void)
 
 			/* Make sure we terminate the loop */
 			if (wrapped++) {
-				IRDA_ERROR("%s: no more free LSAPs !\n",
-					   __func__);
+				net_err_ratelimited("%s: no more free LSAPs !\n",
+						    __func__);
 				return 0;
 			}
 		}

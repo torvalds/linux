@@ -69,7 +69,8 @@ static int __init ircomm_init(void)
 {
 	ircomm = hashbin_new(HB_LOCK);
 	if (ircomm == NULL) {
-		IRDA_ERROR("%s(), can't allocate hashbin!\n", __func__);
+		net_err_ratelimited("%s(), can't allocate hashbin!\n",
+				    __func__);
 		return -ENOMEM;
 	}
 
@@ -83,7 +84,7 @@ static int __init ircomm_init(void)
 	}
 #endif /* CONFIG_PROC_FS */
 
-	IRDA_MESSAGE("IrCOMM protocol (Dag Brattli)\n");
+	net_info_ratelimited("IrCOMM protocol (Dag Brattli)\n");
 
 	return 0;
 }

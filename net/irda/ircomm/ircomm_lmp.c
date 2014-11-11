@@ -204,7 +204,7 @@ static int ircomm_lmp_data_request(struct ircomm_cb *self,
 	}
 	ret = irlmp_data_request(self->lsap, skb);
 	if (ret) {
-		IRDA_ERROR("%s(), failed\n", __func__);
+		net_err_ratelimited("%s(), failed\n", __func__);
 		/* irlmp_data_request already free the packet */
 	}
 

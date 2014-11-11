@@ -572,9 +572,8 @@ static int irlap_state_query(struct irlap_cb *self, IRLAP_EVENT event,
 			   info->discovery->data.daddr);
 
 		if (!self->discovery_log) {
-			IRDA_WARNING("%s: discovery log is gone! "
-				     "maybe the discovery timeout has been set"
-				     " too short?\n", __func__);
+			net_warn_ratelimited("%s: discovery log is gone! maybe the discovery timeout has been set too short?\n",
+					     __func__);
 			break;
 		}
 		hashbin_insert(self->discovery_log,

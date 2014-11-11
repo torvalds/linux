@@ -85,8 +85,8 @@ int __init irlap_init(void)
 	/* Allocate master array */
 	irlap = hashbin_new(HB_LOCK);
 	if (irlap == NULL) {
-		IRDA_ERROR("%s: can't allocate irlap hashbin!\n",
-			   __func__);
+		net_err_ratelimited("%s: can't allocate irlap hashbin!\n",
+				    __func__);
 		return -ENOMEM;
 	}
 
@@ -491,7 +491,8 @@ void irlap_disconnect_indication(struct irlap_cb *self, LAP_REASON reason)
 						 reason, NULL);
 		break;
 	default:
-		IRDA_ERROR("%s: Unknown reason %d\n", __func__, reason);
+		net_err_ratelimited("%s: Unknown reason %d\n",
+				    __func__, reason);
 	}
 }
 
@@ -540,8 +541,8 @@ void irlap_discovery_request(struct irlap_cb *self, discovery_t *discovery)
 	self->discovery_log = hashbin_new(HB_NOLOCK);
 
 	if (self->discovery_log == NULL) {
-		IRDA_WARNING("%s(), Unable to allocate discovery log!\n",
-			     __func__);
+		net_warn_ratelimited("%s(), Unable to allocate discovery log!\n",
+				     __func__);
 		return;
 	}
 
@@ -625,10 +626,10 @@ void irlap_status_indication(struct irlap_cb *self, int quality_of_link)
 {
 	switch (quality_of_link) {
 	case STATUS_NO_ACTIVITY:
-		IRDA_MESSAGE("IrLAP, no activity on link!\n");
+		net_info_ratelimited("IrLAP, no activity on link!\n");
 		break;
 	case STATUS_NOISY:
-		IRDA_MESSAGE("IrLAP, noisy link!\n");
+		net_info_ratelimited("IrLAP, noisy link!\n");
 		break;
 	default:
 		break;

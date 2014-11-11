@@ -236,10 +236,11 @@ static int w83977af_open(int i, unsigned int iobase, unsigned int irq,
 
 	err = register_netdev(dev);
 	if (err) {
-		IRDA_ERROR("%s(), register_netdevice() failed!\n", __func__);
+		net_err_ratelimited("%s(), register_netdevice() failed!\n",
+				    __func__);
 		goto err_out3;
 	}
-	IRDA_MESSAGE("IrDA: Registered device %s\n", dev->name);
+	net_info_ratelimited("IrDA: Registered device %s\n", dev->name);
 
 	/* Need to store self somewhere */
 	dev_self[i] = self;
@@ -392,8 +393,8 @@ static int w83977af_probe(int iobase, int irq, int dma)
 			switch_bank(iobase, SET7);
 			outb(0x40, iobase+7);
 			
-			IRDA_MESSAGE("W83977AF (IR) driver loaded. "
-				     "Version: 0x%02x\n", version);
+			net_info_ratelimited("W83977AF (IR) driver loaded. Version: 0x%02x\n",
+					     version);
 			
 			return 0;
 		} else {

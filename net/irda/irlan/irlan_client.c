@@ -323,34 +323,34 @@ static void print_ret_code(__u8 code)
 		printk(KERN_INFO "Success\n");
 		break;
 	case 1:
-		IRDA_WARNING("IrLAN: Insufficient resources\n");
+		net_warn_ratelimited("IrLAN: Insufficient resources\n");
 		break;
 	case 2:
-		IRDA_WARNING("IrLAN: Invalid command format\n");
+		net_warn_ratelimited("IrLAN: Invalid command format\n");
 		break;
 	case 3:
-		IRDA_WARNING("IrLAN: Command not supported\n");
+		net_warn_ratelimited("IrLAN: Command not supported\n");
 		break;
 	case 4:
-		IRDA_WARNING("IrLAN: Parameter not supported\n");
+		net_warn_ratelimited("IrLAN: Parameter not supported\n");
 		break;
 	case 5:
-		IRDA_WARNING("IrLAN: Value not supported\n");
+		net_warn_ratelimited("IrLAN: Value not supported\n");
 		break;
 	case 6:
-		IRDA_WARNING("IrLAN: Not open\n");
+		net_warn_ratelimited("IrLAN: Not open\n");
 		break;
 	case 7:
-		IRDA_WARNING("IrLAN: Authentication required\n");
+		net_warn_ratelimited("IrLAN: Authentication required\n");
 		break;
 	case 8:
-		IRDA_WARNING("IrLAN: Invalid password\n");
+		net_warn_ratelimited("IrLAN: Invalid password\n");
 		break;
 	case 9:
-		IRDA_WARNING("IrLAN: Protocol error\n");
+		net_warn_ratelimited("IrLAN: Protocol error\n");
 		break;
 	case 255:
-		IRDA_WARNING("IrLAN: Asynchronous status\n");
+		net_warn_ratelimited("IrLAN: Asynchronous status\n");
 		break;
 	}
 }
@@ -380,7 +380,7 @@ void irlan_client_parse_response(struct irlan_cb *self, struct sk_buff *skb)
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
 	if (!skb) {
-		IRDA_ERROR("%s(), Got NULL skb!\n", __func__);
+		net_err_ratelimited("%s(), Got NULL skb!\n", __func__);
 		return;
 	}
 	frame = skb->data;

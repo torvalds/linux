@@ -240,7 +240,8 @@ static int act200l_reset(struct sir_dev *dev)
 		dev->speed = 9600;
 		break;
 	default:
-		IRDA_ERROR("%s(), unknown state %d\n", __func__, state);
+		net_err_ratelimited("%s(), unknown state %d\n",
+				    __func__, state);
 		ret = -1;
 		break;
 	}

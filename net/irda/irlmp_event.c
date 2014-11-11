@@ -508,8 +508,8 @@ static int irlmp_state_disconnected(struct lsap_cb *self, IRLMP_EVENT event,
 		IRDA_DEBUG(4, "%s(), LM_CONNECT_REQUEST\n", __func__);
 
 		if (self->conn_skb) {
-			IRDA_WARNING("%s: busy with another request!\n",
-				     __func__);
+			net_warn_ratelimited("%s: busy with another request!\n",
+					     __func__);
 			return -EBUSY;
 		}
 		/* Don't forget to refcount it (see irlmp_connect_request()) */
@@ -525,8 +525,8 @@ static int irlmp_state_disconnected(struct lsap_cb *self, IRLMP_EVENT event,
 		break;
 	case LM_CONNECT_INDICATION:
 		if (self->conn_skb) {
-			IRDA_WARNING("%s: busy with another request!\n",
-				     __func__);
+			net_warn_ratelimited("%s: busy with another request!\n",
+					     __func__);
 			return -EBUSY;
 		}
 		/* Don't forget to refcount it (see irlap_driver_rcv()) */

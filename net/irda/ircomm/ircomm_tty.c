@@ -147,7 +147,8 @@ static int __init ircomm_tty_init(void)
 		return -ENOMEM;
 	ircomm_tty = hashbin_new(HB_LOCK);
 	if (ircomm_tty == NULL) {
-		IRDA_ERROR("%s(), can't allocate hashbin!\n", __func__);
+		net_err_ratelimited("%s(), can't allocate hashbin!\n",
+				    __func__);
 		put_tty_driver(driver);
 		return -ENOMEM;
 	}
@@ -163,8 +164,8 @@ static int __init ircomm_tty_init(void)
 	driver->flags           = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &ops);
 	if (tty_register_driver(driver)) {
-		IRDA_ERROR("%s(): Couldn't register serial driver\n",
-			   __func__);
+		net_err_ratelimited("%s(): Couldn't register serial driver\n",
+				    __func__);
 		put_tty_driver(driver);
 		return -1;
 	}
@@ -199,8 +200,8 @@ static void __exit ircomm_tty_cleanup(void)
 
 	ret = tty_unregister_driver(driver);
 	if (ret) {
-		IRDA_ERROR("%s(), failed to unregister driver\n",
-			   __func__);
+		net_err_ratelimited("%s(), failed to unregister driver\n",
+				    __func__);
 		return;
 	}
 
@@ -256,7 +257,7 @@ static int ircomm_tty_startup(struct ircomm_tty_cb *self)
 	/* Connect IrCOMM link with remote device */
 	ret = ircomm_tty_attach_cable(self);
 	if (ret < 0) {
-		IRDA_ERROR("%s(), error attaching cable!\n", __func__);
+		net_err_ratelimited("%s(), error attaching cable!\n", __func__);
 		goto err;
 	}
 
@@ -389,10 +390,8 @@ static int ircomm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (!self) {
 		/* No, so make new instance */
 		self = kzalloc(sizeof(struct ircomm_tty_cb), GFP_KERNEL);
-		if (self == NULL) {
-			IRDA_ERROR("%s(), kmalloc failed!\n", __func__);
+		if (self == NULL)
 			return -ENOMEM;
-		}
 
 		tty_port_init(&self->port);
 		self->port.ops = &ircomm_port_ops;
@@ -469,8 +468,8 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 
 		if (wait_event_interruptible(self->port.close_wait,
 				!test_bit(ASYNCB_CLOSING, &self->port.flags))) {
-			IRDA_WARNING("%s - got signal while blocking on ASYNC_CLOSING!\n",
-				     __func__);
+			net_warn_ratelimited("%s - got signal while blocking on ASYNC_CLOSING!\n",
+					     __func__);
 			return -ERESTARTSYS;
 		}
 

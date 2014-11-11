@@ -96,8 +96,8 @@ int __init irttp_init(void)
 
 	irttp->tsaps = hashbin_new(HB_LOCK);
 	if (!irttp->tsaps) {
-		IRDA_ERROR("%s: can't allocate IrTTP hashbin!\n",
-			   __func__);
+		net_err_ratelimited("%s: can't allocate IrTTP hashbin!\n",
+				    __func__);
 		kfree(irttp);
 		return -ENOMEM;
 	}
@@ -518,8 +518,8 @@ int irttp_close_tsap(struct tsap_cb *self)
 	if (self->connected) {
 		/* Check if disconnect is not pending */
 		if (!test_bit(0, &self->disconnect_pend)) {
-			IRDA_WARNING("%s: TSAP still connected!\n",
-				     __func__);
+			net_warn_ratelimited("%s: TSAP still connected!\n",
+					     __func__);
 			irttp_disconnect_request(self, NULL, P_NORMAL);
 		}
 		self->close_pend = TRUE;
@@ -568,13 +568,14 @@ int irttp_udata_request(struct tsap_cb *self, struct sk_buff *skb)
 
 	/* Check that nothing bad happens */
 	if (!self->connected) {
-		IRDA_WARNING("%s(), Not connected\n", __func__);
+		net_warn_ratelimited("%s(), Not connected\n", __func__);
 		ret = -ENOTCONN;
 		goto err;
 	}
 
 	if (skb->len > self->max_seg_size) {
-		IRDA_ERROR("%s(), UData is too large for IrLAP!\n", __func__);
+		net_err_ratelimited("%s(), UData is too large for IrLAP!\n",
+				    __func__);
 		ret = -EMSGSIZE;
 		goto err;
 	}
@@ -617,7 +618,7 @@ int irttp_data_request(struct tsap_cb *self, struct sk_buff *skb)
 
 	/* Check that nothing bad happens */
 	if (!self->connected) {
-		IRDA_WARNING("%s: Not connected\n", __func__);
+		net_warn_ratelimited("%s: Not connected\n", __func__);
 		ret = -ENOTCONN;
 		goto err;
 	}
@@ -627,8 +628,8 @@ int irttp_data_request(struct tsap_cb *self, struct sk_buff *skb)
 	 *  inside an IrLAP frame
 	 */
 	if ((self->tx_max_sdu_size == 0) && (skb->len > self->max_seg_size)) {
-		IRDA_ERROR("%s: SAR disabled, and data is too large for IrLAP!\n",
-			   __func__);
+		net_err_ratelimited("%s: SAR disabled, and data is too large for IrLAP!\n",
+				    __func__);
 		ret = -EMSGSIZE;
 		goto err;
 	}
@@ -640,8 +641,8 @@ int irttp_data_request(struct tsap_cb *self, struct sk_buff *skb)
 	if ((self->tx_max_sdu_size != 0) &&
 	    (self->tx_max_sdu_size != TTP_SAR_UNBOUND) &&
 	    (skb->len > self->tx_max_sdu_size)) {
-		IRDA_ERROR("%s: SAR enabled, but data is larger than TxMaxSduSize!\n",
-			   __func__);
+		net_err_ratelimited("%s: SAR enabled, but data is larger than TxMaxSduSize!\n",
+				    __func__);
 		ret = -EMSGSIZE;
 		goto err;
 	}
@@ -1249,8 +1250,8 @@ static void irttp_connect_confirm(void *instance, void *sap,
 
 		/* Any errors in the parameter list? */
 		if (ret < 0) {
-			IRDA_WARNING("%s: error extracting parameters\n",
-				     __func__);
+			net_warn_ratelimited("%s: error extracting parameters\n",
+					     __func__);
 			dev_kfree_skb(skb);
 
 			/* Do not accept this connection attempt */
@@ -1326,8 +1327,8 @@ static void irttp_connect_indication(void *instance, void *sap,
 
 		/* Any errors in the parameter list? */
 		if (ret < 0) {
-			IRDA_WARNING("%s: error extracting parameters\n",
-				     __func__);
+			net_warn_ratelimited("%s: error extracting parameters\n",
+					     __func__);
 			dev_kfree_skb(skb);
 
 			/* Do not accept this connection attempt */

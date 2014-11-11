@@ -198,9 +198,9 @@ static int ma600_change_speed(struct sir_dev *dev, unsigned speed)
 
 	sirdev_raw_read(dev, &byte, sizeof(byte));
 	if (byte != get_control_byte(speed))  {
-		IRDA_WARNING("%s(): bad control byte read-back %02x != %02x\n",
-			     __func__, (unsigned) byte,
-			     (unsigned) get_control_byte(speed));
+		net_warn_ratelimited("%s(): bad control byte read-back %02x != %02x\n",
+				     __func__, (unsigned)byte,
+				     (unsigned)get_control_byte(speed));
 		return -1;
 	}
 	else

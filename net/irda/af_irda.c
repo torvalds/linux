@@ -201,16 +201,16 @@ static void irda_connect_confirm(void *instance, void *sap,
 	switch (sk->sk_type) {
 	case SOCK_STREAM:
 		if (max_sdu_size != 0) {
-			IRDA_ERROR("%s: max_sdu_size must be 0\n",
-				   __func__);
+			net_err_ratelimited("%s: max_sdu_size must be 0\n",
+					    __func__);
 			return;
 		}
 		self->max_data_size = irttp_get_max_seg_size(self->tsap);
 		break;
 	case SOCK_SEQPACKET:
 		if (max_sdu_size == 0) {
-			IRDA_ERROR("%s: max_sdu_size cannot be 0\n",
-				   __func__);
+			net_err_ratelimited("%s: max_sdu_size cannot be 0\n",
+					    __func__);
 			return;
 		}
 		self->max_data_size = max_sdu_size;
@@ -262,8 +262,8 @@ static void irda_connect_indication(void *instance, void *sap,
 	switch (sk->sk_type) {
 	case SOCK_STREAM:
 		if (max_sdu_size != 0) {
-			IRDA_ERROR("%s: max_sdu_size must be 0\n",
-				   __func__);
+			net_err_ratelimited("%s: max_sdu_size must be 0\n",
+					    __func__);
 			kfree_skb(skb);
 			return;
 		}
@@ -271,8 +271,8 @@ static void irda_connect_indication(void *instance, void *sap,
 		break;
 	case SOCK_SEQPACKET:
 		if (max_sdu_size == 0) {
-			IRDA_ERROR("%s: max_sdu_size cannot be 0\n",
-				   __func__);
+			net_err_ratelimited("%s: max_sdu_size cannot be 0\n",
+					    __func__);
 			kfree_skb(skb);
 			return;
 		}
@@ -368,7 +368,7 @@ static void irda_getvalue_confirm(int result, __u16 obj_id,
 
 	self = priv;
 	if (!self) {
-		IRDA_WARNING("%s: lost myself!\n", __func__);
+		net_warn_ratelimited("%s: lost myself!\n", __func__);
 		return;
 	}
 
@@ -417,7 +417,7 @@ static void irda_selective_discovery_indication(discinfo_t *discovery,
 
 	self = priv;
 	if (!self) {
-		IRDA_WARNING("%s: lost myself!\n", __func__);
+		net_warn_ratelimited("%s: lost myself!\n", __func__);
 		return;
 	}
 
@@ -505,7 +505,7 @@ static int irda_open_lsap(struct irda_sock *self, int pid)
 	notify_t notify;
 
 	if (self->lsap) {
-		IRDA_WARNING("%s(), busy!\n", __func__);
+		net_warn_ratelimited("%s(), busy!\n", __func__);
 		return -EBUSY;
 	}
 
@@ -541,8 +541,8 @@ static int irda_find_lsap_sel(struct irda_sock *self, char *name)
 	IRDA_DEBUG(2, "%s(%p, %s)\n", __func__, self, name);
 
 	if (self->iriap) {
-		IRDA_WARNING("%s(): busy with a previous query\n",
-			     __func__);
+		net_warn_ratelimited("%s(): busy with a previous query\n",
+				     __func__);
 		return -EBUSY;
 	}
 
@@ -2129,8 +2129,8 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 				   __func__, opt);
 			self->max_sdu_size_rx = opt;
 		} else {
-			IRDA_WARNING("%s: not allowed to set MAXSDUSIZE for this socket type!\n",
-				     __func__);
+			net_warn_ratelimited("%s: not allowed to set MAXSDUSIZE for this socket type!\n",
+					     __func__);
 			err = -ENOPROTOOPT;
 			goto out;
 		}
@@ -2441,8 +2441,8 @@ bed:
 
 		/* Check that we can proceed with IAP */
 		if (self->iriap) {
-			IRDA_WARNING("%s: busy with a previous query\n",
-				     __func__);
+			net_warn_ratelimited("%s: busy with a previous query\n",
+					     __func__);
 			kfree(ias_opt);
 			err = -EBUSY;
 			goto out;
