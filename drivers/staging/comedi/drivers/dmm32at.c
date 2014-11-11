@@ -153,7 +153,6 @@ static const struct comedi_lrange dmm32at_aoranges = {
 struct dmm32at_private {
 	int data;
 	int ai_inuse;
-	unsigned int ai_scans_left;
 	unsigned char dio_config;
 };
 
@@ -330,13 +329,10 @@ static int dmm32at_ai_cmdtest(struct comedi_device *dev,
 
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0xfffffff0);
+	if (cmd->stop_src == TRIG_COUNT)
 		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
-	} else {
-		/* TRIG_NONE */
+	else /* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-	}
 
 	if (err)
 		return 3;
@@ -405,7 +401,6 @@ static void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
 
 static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct dmm32at_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int range;
 	unsigned char chanlo, chanhi;
@@ -437,13 +432,6 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* reset the interrupt just in case */
 	outb(DMM32AT_INTRESET, dev->iobase + DMM32AT_CNTRL);
 
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ai_scans_left = cmd->stop_arg;
-	else {			/* TRIG_NONE */
-		devpriv->ai_scans_left = 0xffffffff; /* indicates TRIG_NONE to
-						      * isr */
-	}
-
 	/*
 	 * wait for circuit to settle
 	 * we don't have the 'insn' here but it's not needed
@@ -452,7 +440,7 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (ret)
 		return ret;
 
-	if (devpriv->ai_scans_left > 1) {
+	if (cmd->stop_src == TRIG_NONE || cmd->stop_arg > 1) {
 		/* start the clock and enable the interrupts */
 		dmm32at_setaitimer(dev, cmd->scan_begin_arg);
 	} else {
@@ -476,7 +464,6 @@ static int dmm32at_ai_cancel(struct comedi_device *dev,
 static irqreturn_t dmm32at_isr(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct dmm32at_private *devpriv = dev->private;
 	unsigned char intstat;
 	unsigned int samp;
 	unsigned short msb, lsb;
@@ -503,14 +490,10 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 			comedi_buf_write_samples(s, &samp, 1);
 		}
 
-		if (devpriv->ai_scans_left != 0xffffffff) {	/* TRIG_COUNT */
-			devpriv->ai_scans_left--;
-			if (devpriv->ai_scans_left == 0) {
-				/* set the buffer to be flushed with an EOF */
-				s->async->events |= COMEDI_CB_EOA;
-			}
+		if (cmd->stop_src == TRIG_COUNT &&
+		    s->async->scans_done >= cmd->stop_arg)
+			s->async->events |= COMEDI_CB_EOA;
 
-		}
 		comedi_handle_events(dev, s);
 	}
 
