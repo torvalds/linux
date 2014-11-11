@@ -67,6 +67,10 @@ static inline void writel(u32 b, volatile void __iomem *addr)
 #define __raw_writew writew
 #define __raw_writel writel
 
+#define writeb_relaxed writeb
+#define writew_relaxed writew
+#define writel_relaxed writel
+
 /*****************************************************************************/
 /*
  * traditional input/output functions

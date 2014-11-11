@@ -175,6 +175,43 @@ static inline void writeq(u64 value, volatile void __iomem *addr)
 #endif /* CONFIG_64BIT */
 
 /*
+ * {read,write}{b,w,l,q}_relaxed() are like the regular version, but
+ * are not guaranteed to provide ordering against spinlocks or memory
+ * accesses.
+ */
+#ifndef readb_relaxed
+#define readb_relaxed readb
+#endif
+
+#ifndef readw_relaxed
+#define readw_relaxed readw
+#endif
+
+#ifndef readl_relaxed
+#define readl_relaxed readl
+#endif
+
+#ifndef readq_relaxed
+#define readq_relaxed readq
+#endif
+
+#ifndef writeb_relaxed
+#define writeb_relaxed writeb
+#endif
+
+#ifndef writew_relaxed
+#define writew_relaxed writew
+#endif
+
+#ifndef writel_relaxed
+#define writel_relaxed writel
+#endif
+
+#ifndef writeq_relaxed
+#define writeq_relaxed writeq
+#endif
+
+/*
  * {read,write}s{b,w,l,q}() repeatedly access the same memory address in
  * native endianness in 8-, 16-, 32- or 64-bit chunks (@count times).
  */

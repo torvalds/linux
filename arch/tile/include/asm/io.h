@@ -241,6 +241,10 @@ static inline void writeq(u64 val, unsigned long addr)
 #define readw_relaxed readw
 #define readl_relaxed readl
 #define readq_relaxed readq
+#define writeb_relaxed writeb
+#define writew_relaxed writew
+#define writel_relaxed writel
+#define writeq_relaxed writeq
 
 #define ioread8 readb
 #define ioread16 readw

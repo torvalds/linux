@@ -136,6 +136,7 @@ static inline u32 readl(const volatile void __iomem *addr)
 }
 
 #define readq readq
+#define readq_relaxed readq
 static inline u64 readq(const volatile void __iomem *addr)
 {	u64 ret;
 
@@ -175,6 +176,7 @@ static inline void writel(u32 l, volatile void __iomem *addr)
 }
 
 #define writeq writeq
+#define writeq_relaxed writeq
 static inline void writeq(u64 q, volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stxa\t%r0, [%1] %2\t/* pci_writeq */"
@@ -182,7 +184,6 @@ static inline void writeq(u64 q, volatile void __iomem *addr)
 			     : "Jr" (q), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
 			     : "memory");
 }
-
 
 #define inb inb
 static inline u8 inb(unsigned long addr)
@@ -263,11 +264,6 @@ static inline void iowrite32_rep(void __iomem *port, const void *buf, unsigned l
 {
 	outsl((unsigned long __force)port, buf, count);
 }
-
-#define readb_relaxed(__addr)	readb(__addr)
-#define readw_relaxed(__addr)	readw(__addr)
-#define readl_relaxed(__addr)	readl(__addr)
-#define readq_relaxed(__addr)	readq(__addr)
 
 /* Valid I/O Space regions are anywhere, because each PCI bus supported
  * can live in an arbitrary area of the physical address range.
