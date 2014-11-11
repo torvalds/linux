@@ -264,6 +264,12 @@ static void iwl_mvm_rx_handle_tcm(struct iwl_mvm *mvm,
 	struct iwl_mvm_tcm_mac *mdata;
 	int mac;
 	int ac = IEEE80211_AC_BE; /* treat non-QoS as BE */
+	struct iwl_mvm_vif *mvmvif;
+	/* expected throughput in 100Kbps, single stream, 20 MHz */
+	static const u8 thresh_tpt[] = {
+		9, 18, 30, 42, 60, 78, 90, 96, 120, 135,
+	};
+	u16 thr;
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
 		ac = tid_to_mac80211_ac[ieee80211_get_tid(hdr)];
@@ -285,6 +291,35 @@ static void iwl_mvm_rx_handle_tcm(struct iwl_mvm *mvm,
 	if (!(rate_n_flags & (RATE_MCS_HT_MSK | RATE_MCS_VHT_MSK)))
 		return;
 
+	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+
+	if (mdata->opened_rx_ba_sessions ||
+	    mdata->uapsd_nonagg_detect.detected ||
+	    (!mvmvif->queue_params[IEEE80211_AC_VO].uapsd &&
+	     !mvmvif->queue_params[IEEE80211_AC_VI].uapsd &&
+	     !mvmvif->queue_params[IEEE80211_AC_BE].uapsd &&
+	     !mvmvif->queue_params[IEEE80211_AC_BK].uapsd) ||
+	    mvmsta->sta_id != mvmvif->ap_sta_id)
+		return;
+
+	if (rate_n_flags & RATE_MCS_HT_MSK) {
+		thr = thresh_tpt[rate_n_flags & RATE_HT_MCS_RATE_CODE_MSK];
+		thr *= 1 + ((rate_n_flags & RATE_HT_MCS_NSS_MSK) >>
+					RATE_HT_MCS_NSS_POS);
+	} else {
+		if (WARN_ON((rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK) >=
+				ARRAY_SIZE(thresh_tpt)))
+			return;
+		thr = thresh_tpt[rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK];
+		thr *= 1 + ((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
+					RATE_VHT_MCS_NSS_POS);
+	}
+
+	thr <<= ((rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) >>
+				RATE_MCS_CHAN_WIDTH_POS);
+
+	mdata->uapsd_nonagg_detect.rx_bytes += len;
+	ewma_rate_add(&mdata->uapsd_nonagg_detect.rate, thr);
 }
 
 static void iwl_mvm_rx_csum(struct ieee80211_sta *sta,
@@ -693,6 +728,7 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 	int expected_size;
 	int i;
 	u8 *energy;
+	__le32 *bytes;
 	__le32 *air_time;
 	__le32 flags;
 
@@ -768,11 +804,13 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		struct iwl_notif_statistics_v11 *v11 = (void *)&pkt->data;
 
 		energy = (void *)&v11->load_stats.avg_energy;
+		bytes = (void *)&v11->load_stats.byte_count;
 		air_time = (void *)&v11->load_stats.air_time;
 	} else {
 		struct iwl_notif_statistics_cdb *stats = (void *)&pkt->data;
 
 		energy = (void *)&stats->load_stats.avg_energy;
+		bytes = (void *)&stats->load_stats.byte_count;
 		air_time = (void *)&stats->load_stats.air_time;
 	}
 
@@ -802,6 +840,15 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 	for (i = 0; i < NUM_MAC_INDEX_DRIVER; i++) {
 		struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[i];
 		u32 airtime = le32_to_cpu(air_time[i]);
+		u32 rx_bytes = le32_to_cpu(bytes[i]);
+
+		mdata->uapsd_nonagg_detect.rx_bytes += rx_bytes;
+		if (airtime) {
+			/* re-init every time to store rate from FW */
+			ewma_rate_init(&mdata->uapsd_nonagg_detect.rate);
+			ewma_rate_add(&mdata->uapsd_nonagg_detect.rate,
+				      rx_bytes * 8 / airtime);
+		}
 
 		mdata->rx.airtime += airtime;
 	}

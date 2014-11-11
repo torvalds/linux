@@ -1503,12 +1503,109 @@ static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
 	mutex_unlock(&mvm->mutex);
 }
 
+static void iwl_mvm_tcm_uapsd_nonagg_detected_wk(struct work_struct *wk)
+{
+	struct iwl_mvm *mvm;
+	struct iwl_mvm_vif *mvmvif;
+	struct ieee80211_vif *vif;
+
+	mvmvif = container_of(wk, struct iwl_mvm_vif,
+			      uapsd_nonagg_detected_wk.work);
+	vif = container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
+	mvm = mvmvif->mvm;
+
+	if (mvm->tcm.data[mvmvif->id].opened_rx_ba_sessions)
+		return;
+
+	/* remember that this AP is broken */
+	memcpy(mvm->uapsd_noagg_bssids[mvm->uapsd_noagg_bssid_write_idx].addr,
+	       vif->bss_conf.bssid, ETH_ALEN);
+	mvm->uapsd_noagg_bssid_write_idx++;
+	if (mvm->uapsd_noagg_bssid_write_idx >= IWL_MVM_UAPSD_NOAGG_LIST_LEN)
+		mvm->uapsd_noagg_bssid_write_idx = 0;
+
+	iwl_mvm_connection_loss(mvm, vif,
+				"AP isn't using AMPDU with uAPSD enabled");
+}
+
+static void iwl_mvm_uapsd_agg_disconnect_iter(void *data, u8 *mac,
+					      struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	int *mac_id = data;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (mvmvif->id != *mac_id)
+		return;
+
+	if (!vif->bss_conf.assoc)
+		return;
+
+	if (!mvmvif->queue_params[IEEE80211_AC_VO].uapsd &&
+	    !mvmvif->queue_params[IEEE80211_AC_VI].uapsd &&
+	    !mvmvif->queue_params[IEEE80211_AC_BE].uapsd &&
+	    !mvmvif->queue_params[IEEE80211_AC_BK].uapsd)
+		return;
+
+	if (mvm->tcm.data[*mac_id].uapsd_nonagg_detect.detected)
+		return;
+
+	mvm->tcm.data[*mac_id].uapsd_nonagg_detect.detected = true;
+	IWL_INFO(mvm,
+		 "detected AP should do aggregation but isn't, likely due to U-APSD\n");
+	schedule_delayed_work(&mvmvif->uapsd_nonagg_detected_wk, 15 * HZ);
+}
+
+static void iwl_mvm_check_uapsd_agg_expected_tpt(struct iwl_mvm *mvm,
+						 unsigned int elapsed,
+						 int mac)
+{
+	u64 bytes = mvm->tcm.data[mac].uapsd_nonagg_detect.rx_bytes;
+	u64 tpt;
+	unsigned long rate;
+
+	rate = ewma_rate_read(&mvm->tcm.data[mac].uapsd_nonagg_detect.rate);
+
+	if (!rate || mvm->tcm.data[mac].opened_rx_ba_sessions ||
+	    mvm->tcm.data[mac].uapsd_nonagg_detect.detected)
+		return;
+
+	if (iwl_mvm_has_new_rx_api(mvm)) {
+		tpt = 8 * bytes; /* kbps */
+		do_div(tpt, elapsed);
+		rate *= 1000; /* kbps */
+		if (tpt < 22 * rate / 100)
+			return;
+	} else {
+		/*
+		 * the rate here is actually the threshold, in 100Kbps units,
+		 * so do the needed conversion from bytes to 100Kbps:
+		 * 100kb = bits / (100 * 1000),
+		 * 100kbps = 100kb / (msecs / 1000) ==
+		 *           (bits / (100 * 1000)) / (msecs / 1000) ==
+		 *           bits / (100 * msecs)
+		 */
+		tpt = (8 * bytes);
+		do_div(tpt, elapsed * 100);
+		if (tpt < rate)
+			return;
+	}
+
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_uapsd_agg_disconnect_iter, &mac);
+}
 
 static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 					    unsigned long ts,
 					    bool handle_uapsd)
 {
 	unsigned int elapsed = jiffies_to_msecs(ts - mvm->tcm.ts);
+	unsigned int uapsd_elapsed =
+		jiffies_to_msecs(ts - mvm->tcm.uapsd_nonagg_ts);
 	u32 total_airtime = 0;
 	int ac, mac;
 	bool low_latency = false;
@@ -1551,6 +1648,12 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 		}
 		low_latency |= mvm->tcm.result.low_latency[mac];
 
+		if (!mvm->tcm.result.low_latency[mac] && handle_uapsd)
+			iwl_mvm_check_uapsd_agg_expected_tpt(mvm, uapsd_elapsed,
+							     mac);
+		/* clear old data */
+		if (handle_uapsd)
+			mdata->uapsd_nonagg_detect.rx_bytes = 0;
 		memset(&mdata->rx.airtime, 0, sizeof(mdata->rx.airtime));
 		memset(&mdata->tx.airtime, 0, sizeof(mdata->tx.airtime));
 	}
@@ -1592,7 +1695,8 @@ void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm)
 {
 	unsigned long ts = jiffies;
 	bool handle_uapsd =
-		false;
+		time_after(ts, mvm->tcm.uapsd_nonagg_ts +
+			       msecs_to_jiffies(IWL_MVM_UAPSD_NONAGG_PERIOD));
 
 	spin_lock(&mvm->tcm.lock);
 	if (mvm->tcm.paused || !time_after(ts, mvm->tcm.ts + MVM_TCM_PERIOD)) {
@@ -1601,6 +1705,12 @@ void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm)
 	}
 	spin_unlock(&mvm->tcm.lock);
 
+	if (handle_uapsd && iwl_mvm_has_new_rx_api(mvm)) {
+		mutex_lock(&mvm->mutex);
+		if (iwl_mvm_request_statistics(mvm, true))
+			handle_uapsd = false;
+		mutex_unlock(&mvm->mutex);
+	}
 
 	spin_lock(&mvm->tcm.lock);
 	/* re-check if somebody else won the recheck race */
@@ -1657,6 +1767,21 @@ void iwl_mvm_resume_tcm(struct iwl_mvm *mvm)
 	smp_mb();
 	mvm->tcm.paused = false;
 	spin_unlock_bh(&mvm->tcm.lock);
+}
+
+void iwl_mvm_tcm_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	INIT_DELAYED_WORK(&mvmvif->uapsd_nonagg_detected_wk,
+			  iwl_mvm_tcm_uapsd_nonagg_detected_wk);
+}
+
+void iwl_mvm_tcm_rm_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	cancel_delayed_work_sync(&mvmvif->uapsd_nonagg_detected_wk);
 }
 
 

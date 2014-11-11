@@ -446,6 +446,8 @@ struct iwl_mvm_vif {
 	/* FW identified misbehaving AP */
 	u8 uapsd_misbehaving_bssid[ETH_ALEN];
 
+	struct delayed_work uapsd_nonagg_detected_wk;
+
 	/* Indicates that CSA countdown may be started */
 	bool csa_countdown;
 	bool csa_failed;
@@ -621,6 +623,7 @@ struct iwl_mvm_tcm_mac {
 		struct ewma_rate rate;
 		bool detected;
 	} uapsd_nonagg_detect;
+	bool opened_rx_ba_sessions;
 };
 
 struct iwl_mvm_tcm {
@@ -1027,6 +1030,10 @@ struct iwl_mvm {
 
 	unsigned long bt_coex_last_tcm_ts;
 	struct iwl_mvm_tcm tcm;
+
+	u8 uapsd_noagg_bssid_write_idx;
+	struct mac_address uapsd_noagg_bssids[IWL_MVM_UAPSD_NOAGG_BSSIDS_NUM]
+		__aligned(2);
 
 	struct iwl_time_quota_cmd last_quota_cmd;
 
@@ -1963,6 +1970,8 @@ void iwl_mvm_tcm_work(struct work_struct *work);
 void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm);
 void iwl_mvm_pause_tcm(struct iwl_mvm *mvm, bool with_cancel);
 void iwl_mvm_resume_tcm(struct iwl_mvm *mvm);
+void iwl_mvm_tcm_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_tcm_rm_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 u8 iwl_mvm_tcm_load_percentage(u32 airtime, u32 elapsed);
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
