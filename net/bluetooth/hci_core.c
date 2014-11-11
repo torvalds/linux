@@ -200,31 +200,6 @@ static const struct file_operations blacklist_fops = {
 	.release	= single_release,
 };
 
-static int whitelist_show(struct seq_file *f, void *p)
-{
-	struct hci_dev *hdev = f->private;
-	struct bdaddr_list *b;
-
-	hci_dev_lock(hdev);
-	list_for_each_entry(b, &hdev->whitelist, list)
-		seq_printf(f, "%pMR (type %u)\n", &b->bdaddr, b->bdaddr_type);
-	hci_dev_unlock(hdev);
-
-	return 0;
-}
-
-static int whitelist_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, whitelist_show, inode->i_private);
-}
-
-static const struct file_operations whitelist_fops = {
-	.open		= whitelist_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int uuids_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
@@ -1030,10 +1005,13 @@ static int device_list_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
 	struct hci_conn_params *p;
+	struct bdaddr_list *b;
 
 	hci_dev_lock(hdev);
+	list_for_each_entry(b, &hdev->whitelist, list)
+		seq_printf(f, "%pMR (type %u)\n", &b->bdaddr, b->bdaddr_type);
 	list_for_each_entry(p, &hdev->le_conn_params, list) {
-		seq_printf(f, "%pMR %u %u\n", &p->addr, p->addr_type,
+		seq_printf(f, "%pMR (type %u) %u\n", &p->addr, p->addr_type,
 			   p->auto_connect);
 	}
 	hci_dev_unlock(hdev);
@@ -1147,12 +1125,14 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	hdev->req_status = HCI_REQ_PEND;
 
-	err = hci_req_run(&req, hci_req_sync_complete);
-	if (err < 0)
-		return ERR_PTR(err);
-
 	add_wait_queue(&hdev->req_wait_q, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
+
+	err = hci_req_run(&req, hci_req_sync_complete);
+	if (err < 0) {
+		remove_wait_queue(&hdev->req_wait_q, &wait);
+		return ERR_PTR(err);
+	}
 
 	schedule_timeout(timeout);
 
@@ -1211,9 +1191,14 @@ static int __hci_req_sync(struct hci_dev *hdev,
 
 	func(&req, opt);
 
+	add_wait_queue(&hdev->req_wait_q, &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+
 	err = hci_req_run(&req, hci_req_sync_complete);
 	if (err < 0) {
 		hdev->req_status = 0;
+
+		remove_wait_queue(&hdev->req_wait_q, &wait);
 
 		/* ENODATA means the HCI request command queue is empty.
 		 * This can happen when a request with conditionals doesn't
@@ -1225,9 +1210,6 @@ static int __hci_req_sync(struct hci_dev *hdev,
 
 		return err;
 	}
-
-	add_wait_queue(&hdev->req_wait_q, &wait);
-	set_current_state(TASK_INTERRUPTIBLE);
 
 	schedule_timeout(timeout);
 
@@ -1811,10 +1793,10 @@ static int __hci_init(struct hci_dev *hdev)
 			   &hdev->manufacturer);
 	debugfs_create_u8("hci_version", 0444, hdev->debugfs, &hdev->hci_ver);
 	debugfs_create_u16("hci_revision", 0444, hdev->debugfs, &hdev->hci_rev);
+	debugfs_create_file("device_list", 0444, hdev->debugfs, hdev,
+			    &device_list_fops);
 	debugfs_create_file("blacklist", 0444, hdev->debugfs, hdev,
 			    &blacklist_fops);
-	debugfs_create_file("whitelist", 0444, hdev->debugfs, hdev,
-			    &whitelist_fops);
 	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
 
 	debugfs_create_file("conn_info_min_age", 0644, hdev->debugfs, hdev,
@@ -1893,8 +1875,6 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &adv_min_interval_fops);
 		debugfs_create_file("adv_max_interval", 0644, hdev->debugfs,
 				    hdev, &adv_max_interval_fops);
-		debugfs_create_file("device_list", 0444, hdev->debugfs, hdev,
-				    &device_list_fops);
 		debugfs_create_u16("discov_interleaved_timeout", 0644,
 				   hdev->debugfs,
 				   &hdev->discov_interleaved_timeout);
@@ -4243,6 +4223,24 @@ int hci_resume_dev(struct hci_dev *hdev)
 	return 0;
 }
 EXPORT_SYMBOL(hci_resume_dev);
+
+/* Reset HCI device */
+int hci_reset_dev(struct hci_dev *hdev)
+{
+	const u8 hw_err[] = { HCI_EV_HARDWARE_ERROR, 0x01, 0x00 };
+	struct sk_buff *skb;
+
+	skb = bt_skb_alloc(3, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
+	memcpy(skb_put(skb, 3), hw_err, 3);
+
+	/* Send Hardware Error to upper stack */
+	return hci_recv_frame(hdev, skb);
+}
+EXPORT_SYMBOL(hci_reset_dev);
 
 /* Receive frame from HCI drivers */
 int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)

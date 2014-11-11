@@ -29,6 +29,16 @@
 #define WPAN_NUM_CHANNELS	27
 #define WPAN_NUM_PAGES		32
 
+struct wpan_phy;
+
+struct cfg802154_ops {
+	struct net_device * (*add_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
+							   const char *name,
+							   int type);
+	void (*del_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
+					    struct net_device *dev);
+};
+
 struct wpan_phy {
 	struct mutex pib_lock;
 
@@ -47,22 +57,24 @@ struct wpan_phy {
 	u8 csma_retries;
 	s8 frame_retries;
 
+	__le64 perm_extended_addr;
+
 	bool lbt;
 	s32 cca_ed_level;
 
 	struct device dev;
-	int idx;
-
-	struct net_device *(*add_iface)(struct wpan_phy *phy,
-					const char *name, int type);
-	void (*del_iface)(struct wpan_phy *phy, struct net_device *dev);
 
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
+struct wpan_dev {
+	struct wpan_phy *wpan_phy;
+};
+
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
 
-struct wpan_phy *wpan_phy_alloc(size_t priv_size);
+struct wpan_phy *
+wpan_phy_alloc(const struct cfg802154_ops *ops, size_t priv_size);
 static inline void wpan_phy_set_dev(struct wpan_phy *phy, struct device *dev)
 {
 	phy->dev.parent = dev;

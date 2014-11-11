@@ -294,20 +294,20 @@ static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
 	peer = __peer_lookup_chan(dev, chan);
 	rcu_read_unlock();
 	if (!peer)
-		goto drop;
+		return -EINVAL;
 
 	saddr = peer->eui64_addr;
 	daddr = dev->netdev->dev_addr;
 
 	/* at least two bytes will be used for the encoding */
 	if (skb->len < 2)
-		goto drop;
+		return -EINVAL;
 
 	if (lowpan_fetch_skb_u8(skb, &iphc0))
-		goto drop;
+		return -EINVAL;
 
 	if (lowpan_fetch_skb_u8(skb, &iphc1))
-		goto drop;
+		return -EINVAL;
 
 	return lowpan_header_decompress(skb, netdev,
 					saddr, IEEE802154_ADDR_LONG,
@@ -315,9 +315,6 @@ static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
 					IEEE802154_ADDR_LONG, EUI64_ADDR_LEN,
 					iphc0, iphc1);
 
-drop:
-	kfree_skb(skb);
-	return -EINVAL;
 }
 
 static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
@@ -370,8 +367,10 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 				goto drop;
 
 			ret = iphc_decompress(local_skb, dev, chan);
-			if (ret < 0)
+			if (ret < 0) {
+				kfree_skb(local_skb);
 				goto drop;
+			}
 
 			local_skb->protocol = htons(ETH_P_IPV6);
 			local_skb->pkt_type = PACKET_HOST;

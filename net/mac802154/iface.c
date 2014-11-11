@@ -24,7 +24,6 @@
 
 #include <net/rtnetlink.h>
 #include <linux/nl802154.h>
-#include <net/af_ieee802154.h>
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/cfg802154.h>
@@ -110,37 +109,21 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 {
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct sockaddr *addr = p;
+	__le64 extended_addr;
 
 	if (netif_running(dev))
 		return -EBUSY;
 
-	/* FIXME: validate addr */
+	ieee802154_be64_to_le64(&extended_addr, addr->sa_data);
+	if (!ieee802154_is_valid_extended_addr(extended_addr))
+		return -EINVAL;
+
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	mac802154_dev_set_ieee_addr(dev);
+	sdata->extended_addr = extended_addr;
+
 	return mac802154_wpan_update_llsec(dev);
-}
-
-int mac802154_set_mac_params(struct net_device *dev,
-			     const struct ieee802154_mac_params *params)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	mutex_lock(&sdata->local->iflist_mtx);
-	sdata->mac_params = *params;
-	mutex_unlock(&sdata->local->iflist_mtx);
-
-	return 0;
-}
-
-void mac802154_get_mac_params(struct net_device *dev,
-			      struct ieee802154_mac_params *params)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	mutex_lock(&sdata->local->iflist_mtx);
-	*params = sdata->mac_params;
-	mutex_unlock(&sdata->local->iflist_mtx);
 }
 
 static int mac802154_slave_open(struct net_device *dev)
@@ -152,10 +135,11 @@ static int mac802154_slave_open(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	if (sdata->type == IEEE802154_DEV_WPAN) {
+	if (sdata->vif.type == IEEE802154_DEV_WPAN) {
 		mutex_lock(&sdata->local->iflist_mtx);
 		list_for_each_entry(subif, &sdata->local->interfaces, list) {
-			if (subif != sdata && subif->type == sdata->type &&
+			if (subif != sdata &&
+			    subif->vif.type == sdata->vif.type &&
 			    ieee802154_sdata_running(subif)) {
 				mutex_unlock(&sdata->local->iflist_mtx);
 				return -EBUSY;
@@ -197,32 +181,27 @@ static int mac802154_wpan_open(struct net_device *dev)
 	mutex_lock(&phy->pib_lock);
 
 	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
-		rc = drv_set_promiscuous_mode(local, sdata->promisuous_mode);
+		rc = drv_set_promiscuous_mode(local, sdata->promiscuous_mode);
 		if (rc < 0)
 			goto out;
 	}
 
-	if (local->hw.flags & IEEE802154_HW_TXPOWER) {
-		rc = drv_set_tx_power(local, sdata->mac_params.transmit_power);
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		rc = drv_set_pan_id(local, sdata->pan_id);
+		if (rc < 0)
+			goto out;
+
+		rc = drv_set_extended_addr(local, sdata->extended_addr);
+		if (rc < 0)
+			goto out;
+
+		rc = drv_set_short_addr(local, sdata->short_addr);
 		if (rc < 0)
 			goto out;
 	}
 
 	if (local->hw.flags & IEEE802154_HW_LBT) {
 		rc = drv_set_lbt_mode(local, sdata->mac_params.lbt);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_CCA_MODE) {
-		rc = drv_set_cca_mode(local, sdata->mac_params.cca_mode);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_CCA_ED_LEVEL) {
-		rc = drv_set_cca_ed_level(local,
-					  sdata->mac_params.cca_ed_level);
 		if (rc < 0)
 			goto out;
 	}
@@ -402,30 +381,23 @@ static void mac802154_wpan_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
-void mac802154_wpan_setup(struct net_device *dev)
+static void ieee802154_if_setup(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata;
-
-	dev->addr_len		= IEEE802154_ADDR_LEN;
-	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
+	dev->addr_len		= IEEE802154_EXTENDED_ADDR_LEN;
+	memset(dev->broadcast, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
 
 	dev->hard_header_len	= MAC802154_FRAME_HARD_HEADER_LEN;
-	dev->header_ops		= &mac802154_header_ops;
 	dev->needed_tailroom	= 2 + 16; /* FCS + MIC */
 	dev->mtu		= IEEE802154_MTU;
 	dev->tx_queue_len	= 300;
-	dev->type		= ARPHRD_IEEE802154;
 	dev->flags		= IFF_NOARP | IFF_BROADCAST;
+}
 
-	dev->destructor		= mac802154_wpan_free;
-	dev->netdev_ops		= &mac802154_wpan_ops;
-	dev->ml_priv		= &mac802154_mlme_wpan;
-
-	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	sdata->type = IEEE802154_DEV_WPAN;
-
-	spin_lock_init(&sdata->mib_lock);
-	mutex_init(&sdata->sec_mtx);
+static int
+ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
+{
+	/* set some type-dependent values */
+	sdata->vif.type = type;
 
 	get_random_bytes(&sdata->bsn, 1);
 	get_random_bytes(&sdata->dsn, 1);
@@ -437,30 +409,113 @@ void mac802154_wpan_setup(struct net_device *dev)
 	/* for compatibility, actual default is 3 */
 	sdata->mac_params.frame_retries = -1;
 
+	ieee802154_be64_to_le64(&sdata->extended_addr, sdata->dev->dev_addr);
 	sdata->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	sdata->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 
-	sdata->promisuous_mode = false;
+	switch (type) {
+	case IEEE802154_DEV_WPAN:
+		sdata->dev->header_ops = &mac802154_header_ops;
+		sdata->dev->destructor = mac802154_wpan_free;
+		sdata->dev->netdev_ops = &mac802154_wpan_ops;
+		sdata->dev->ml_priv = &mac802154_mlme_wpan;
+		sdata->promiscuous_mode = false;
 
-	mac802154_llsec_init(&sdata->sec);
+		spin_lock_init(&sdata->mib_lock);
+		mutex_init(&sdata->sec_mtx);
+
+		mac802154_llsec_init(&sdata->sec);
+		break;
+	case IEEE802154_DEV_MONITOR:
+		sdata->dev->destructor = free_netdev;
+		sdata->dev->netdev_ops = &mac802154_monitor_ops;
+		sdata->promiscuous_mode = true;
+		break;
+	default:
+		BUG();
+	}
+
+	return 0;
 }
 
-void mac802154_monitor_setup(struct net_device *dev)
+struct net_device *
+ieee802154_if_add(struct ieee802154_local *local, const char *name,
+		  struct wpan_dev **new_wpan_dev, int type)
 {
-	struct ieee802154_sub_if_data *sdata;
+	struct net_device *ndev = NULL;
+	struct ieee802154_sub_if_data *sdata = NULL;
+	int ret = -ENOMEM;
 
-	dev->needed_tailroom	= 2; /* room for FCS */
-	dev->mtu		= IEEE802154_MTU;
-	dev->tx_queue_len	= 10;
-	dev->type		= ARPHRD_IEEE802154_MONITOR;
-	dev->flags		= IFF_NOARP | IFF_BROADCAST;
+	ASSERT_RTNL();
 
-	dev->destructor		= free_netdev;
-	dev->netdev_ops		= &mac802154_monitor_ops;
-	dev->ml_priv		= &mac802154_mlme_reduced;
+	ndev = alloc_netdev(sizeof(*sdata) + local->hw.vif_data_size, name,
+			    NET_NAME_UNKNOWN, ieee802154_if_setup);
+	if (!ndev)
+		return ERR_PTR(-ENOMEM);
 
-	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	sdata->type = IEEE802154_DEV_MONITOR;
+	ndev->needed_headroom = local->hw.extra_tx_headroom;
 
-	sdata->promisuous_mode = true;
+	ret = dev_alloc_name(ndev, ndev->name);
+	if (ret < 0)
+		goto err;
+
+	switch (type) {
+	case IEEE802154_DEV_WPAN:
+		ndev->type = ARPHRD_IEEE802154;
+		break;
+	case IEEE802154_DEV_MONITOR:
+		ndev->type = ARPHRD_IEEE802154_MONITOR;
+		break;
+	default:
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ieee802154_le64_to_be64(ndev->perm_addr,
+				&local->hw.phy->perm_extended_addr);
+	memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
+	/* TODO check this */
+	SET_NETDEV_DEV(ndev, &local->phy->dev);
+	sdata = netdev_priv(ndev);
+	ndev->ieee802154_ptr = &sdata->wpan_dev;
+	memcpy(sdata->name, ndev->name, IFNAMSIZ);
+	sdata->dev = ndev;
+	sdata->wpan_dev.wpan_phy = local->hw.phy;
+	sdata->local = local;
+
+	/* setup type-dependent data */
+	ret = ieee802154_setup_sdata(sdata, type);
+	if (ret)
+		goto err;
+
+	if (ndev) {
+		ret = register_netdevice(ndev);
+		if (ret < 0)
+			goto err;
+	}
+
+	mutex_lock(&local->iflist_mtx);
+	list_add_tail_rcu(&sdata->list, &local->interfaces);
+	mutex_unlock(&local->iflist_mtx);
+
+	if (new_wpan_dev)
+		*new_wpan_dev = &sdata->wpan_dev;
+
+	return ndev;
+
+err:
+	free_netdev(ndev);
+	return ERR_PTR(ret);
+}
+
+void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata)
+{
+	ASSERT_RTNL();
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	list_del_rcu(&sdata->list);
+	mutex_unlock(&sdata->local->iflist_mtx);
+
+	synchronize_rcu();
+	unregister_netdevice(sdata->dev);
 }

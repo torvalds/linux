@@ -21,9 +21,7 @@
 
 #include "ieee802154.h"
 #include "sysfs.h"
-
-static DEFINE_MUTEX(wpan_phy_mutex);
-static int wpan_phy_idx;
+#include "core.h"
 
 static int wpan_phy_match(struct device *dev, const void *data)
 {
@@ -71,42 +69,41 @@ int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data),
 }
 EXPORT_SYMBOL(wpan_phy_for_each);
 
-static int wpan_phy_idx_valid(int idx)
+struct wpan_phy *
+wpan_phy_alloc(const struct cfg802154_ops *ops, size_t priv_size)
 {
-	return idx >= 0;
-}
+	static atomic_t wpan_phy_counter = ATOMIC_INIT(0);
+	struct cfg802154_registered_device *rdev;
+	size_t alloc_size;
 
-struct wpan_phy *wpan_phy_alloc(size_t priv_size)
-{
-	struct wpan_phy *phy = kzalloc(sizeof(*phy) + priv_size,
-			GFP_KERNEL);
+	alloc_size = sizeof(*rdev) + priv_size;
+	rdev = kzalloc(alloc_size, GFP_KERNEL);
+	if (!rdev)
+		return NULL;
 
-	if (!phy)
-		goto out;
-	mutex_lock(&wpan_phy_mutex);
-	phy->idx = wpan_phy_idx++;
-	if (unlikely(!wpan_phy_idx_valid(phy->idx))) {
-		wpan_phy_idx--;
-		mutex_unlock(&wpan_phy_mutex);
-		kfree(phy);
-		goto out;
+	rdev->ops = ops;
+
+	rdev->wpan_phy_idx = atomic_inc_return(&wpan_phy_counter);
+
+	if (unlikely(rdev->wpan_phy_idx < 0)) {
+		/* ugh, wrapped! */
+		atomic_dec(&wpan_phy_counter);
+		kfree(rdev);
+		return NULL;
 	}
-	mutex_unlock(&wpan_phy_mutex);
 
-	mutex_init(&phy->pib_lock);
+	/* atomic_inc_return makes it start at 1, make it start at 0 */
+	rdev->wpan_phy_idx--;
 
-	device_initialize(&phy->dev);
-	dev_set_name(&phy->dev, "wpan-phy%d", phy->idx);
+	mutex_init(&rdev->wpan_phy.pib_lock);
 
-	phy->dev.class = &wpan_phy_class;
+	device_initialize(&rdev->wpan_phy.dev);
+	dev_set_name(&rdev->wpan_phy.dev, "wpan-phy%d", rdev->wpan_phy_idx);
 
-	phy->current_channel = -1; /* not initialised */
-	phy->current_page = 0; /* for compatibility */
+	rdev->wpan_phy.dev.class = &wpan_phy_class;
+	rdev->wpan_phy.dev.platform_data = rdev;
 
-	return phy;
-
-out:
-	return NULL;
+	return &rdev->wpan_phy;
 }
 EXPORT_SYMBOL(wpan_phy_alloc);
 
@@ -127,6 +124,11 @@ void wpan_phy_free(struct wpan_phy *phy)
 	put_device(&phy->dev);
 }
 EXPORT_SYMBOL(wpan_phy_free);
+
+void cfg802154_dev_free(struct cfg802154_registered_device *rdev)
+{
+	kfree(rdev);
+}
 
 static int __init wpan_phy_class_init(void)
 {

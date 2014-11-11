@@ -20,6 +20,7 @@
 #define __IEEE802154_I_H
 
 #include <linux/mutex.h>
+#include <net/cfg802154.h>
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 
@@ -73,18 +74,20 @@ enum ieee802154_sdata_state_bits {
 struct ieee802154_sub_if_data {
 	struct list_head list; /* the ieee802154_priv->slaves list */
 
+	struct wpan_dev wpan_dev;
+
 	struct ieee802154_local *local;
 	struct net_device *dev;
 
-	int type;
 	unsigned long state;
+	char name[IFNAMSIZ];
 
 	spinlock_t mib_lock;
 
 	__le16 pan_id;
 	__le16 short_addr;
 	__le64 extended_addr;
-	bool promisuous_mode;
+	bool promiscuous_mode;
 
 	struct ieee802154_mac_params mac_params;
 
@@ -99,6 +102,8 @@ struct ieee802154_sub_if_data {
 	struct mutex sec_mtx;
 
 	struct mac802154_llsec sec;
+	/* must be last, dynamically sized area in this! */
+	struct ieee802154_vif vif;
 };
 
 #define MAC802154_CHAN_NONE		0xff /* No channel is assigned */
@@ -135,7 +140,6 @@ ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 /* MIB callbacks */
 void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val);
 __le16 mac802154_dev_get_short_addr(const struct net_device *dev);
-void mac802154_dev_set_ieee_addr(struct net_device *dev);
 __le16 mac802154_dev_get_pan_id(const struct net_device *dev);
 void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val);
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan);
@@ -173,5 +177,12 @@ void mac802154_lock_table(struct net_device *dev);
 void mac802154_get_table(struct net_device *dev,
 			 struct ieee802154_llsec_table **t);
 void mac802154_unlock_table(struct net_device *dev);
+
+struct net_device *
+mac802154_add_iface(struct wpan_phy *phy, const char *name, int type);
+void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata);
+struct net_device *
+ieee802154_if_add(struct ieee802154_local *local, const char *name,
+		  struct wpan_dev **new_wpan_dev, int type);
 
 #endif /* __IEEE802154_I_H */

@@ -17,6 +17,7 @@
 #define NET_MAC802154_H
 
 #include <net/af_ieee802154.h>
+#include <linux/ieee802154.h>
 #include <linux/skbuff.h>
 
 /* General MAC frame format:
@@ -52,6 +53,13 @@ struct ieee802154_hw_addr_filt {
 	u8	pan_coord;
 };
 
+struct ieee802154_vif {
+	int type;
+
+	/* must be last */
+	u8 drv_priv[0] __aligned(sizeof(void *));
+};
+
 struct ieee802154_hw {
 	/* filled by the driver */
 	int	extra_tx_headroom;
@@ -62,6 +70,7 @@ struct ieee802154_hw {
 	struct	ieee802154_hw_addr_filt hw_filt;
 	void	*priv;
 	struct	wpan_phy *phy;
+	size_t vif_data_size;
 };
 
 /* Checksum is in hardware and is omitted from a packet
@@ -213,6 +222,30 @@ struct ieee802154_ops {
 	int             (*set_promiscuous_mode)(struct ieee802154_hw *hw,
 						const bool on);
 };
+
+/**
+ * ieee802154_be64_to_le64 - copies and convert be64 to le64
+ * @le64_dst: le64 destination pointer
+ * @be64_src: be64 source pointer
+ */
+static inline void ieee802154_be64_to_le64(void *le64_dst, const void *be64_src)
+{
+	__le64 tmp = (__force __le64)swab64p(be64_src);
+
+	memcpy(le64_dst, &tmp, IEEE802154_EXTENDED_ADDR_LEN);
+}
+
+/**
+ * ieee802154_le64_to_be64 - copies and convert le64 to be64
+ * @be64_dst: be64 destination pointer
+ * @le64_src: le64 source pointer
+ */
+static inline void ieee802154_le64_to_be64(void *be64_dst, const void *le64_src)
+{
+	__be64 tmp = (__force __be64)swab64p(le64_src);
+
+	memcpy(be64_dst, &tmp, IEEE802154_EXTENDED_ADDR_LEN);
+}
 
 /* Basic interface to register ieee802154 hwice */
 struct ieee802154_hw *

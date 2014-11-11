@@ -176,13 +176,13 @@ iphc_decompress(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 	raw_dump_table(__func__, "raw skb data dump", skb->data, skb->len);
 	/* at least two bytes will be used for the encoding */
 	if (skb->len < 2)
-		goto drop;
+		return -EINVAL;
 
 	if (lowpan_fetch_skb_u8(skb, &iphc0))
-		goto drop;
+		return -EINVAL;
 
 	if (lowpan_fetch_skb_u8(skb, &iphc1))
-		goto drop;
+		return -EINVAL;
 
 	ieee802154_addr_to_sa(&sa, &hdr->source);
 	ieee802154_addr_to_sa(&da, &hdr->dest);
@@ -200,23 +200,6 @@ iphc_decompress(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 	return lowpan_header_decompress(skb, skb->dev, sap, sa.addr_type,
 					IEEE802154_ADDR_LEN, dap, da.addr_type,
 					IEEE802154_ADDR_LEN, iphc0, iphc1);
-
-drop:
-	kfree_skb(skb);
-	return -EINVAL;
-}
-
-static int lowpan_set_address(struct net_device *dev, void *p)
-{
-	struct sockaddr *sa = p;
-
-	if (netif_running(dev))
-		return -EBUSY;
-
-	/* TODO: validate addr */
-	memcpy(dev->dev_addr, sa->sa_data, dev->addr_len);
-
-	return 0;
 }
 
 static struct sk_buff*
@@ -420,13 +403,6 @@ static netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 }
 
-static struct wpan_phy *lowpan_get_phy(const struct net_device *dev)
-{
-	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
-
-	return ieee802154_mlme_ops(real_dev)->get_phy(real_dev);
-}
-
 static __le16 lowpan_get_pan_id(const struct net_device *dev)
 {
 	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
@@ -474,12 +450,10 @@ static int lowpan_dev_init(struct net_device *dev)
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_init		= lowpan_dev_init,
 	.ndo_start_xmit		= lowpan_xmit,
-	.ndo_set_mac_address	= lowpan_set_address,
 };
 
 static struct ieee802154_mlme_ops lowpan_mlme = {
 	.get_pan_id = lowpan_get_pan_id,
-	.get_phy = lowpan_get_phy,
 	.get_short_addr = lowpan_get_short_addr,
 	.get_dsn = lowpan_get_dsn,
 };
@@ -544,7 +518,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
 			ret = iphc_decompress(skb, &hdr);
 			if (ret < 0)
-				goto drop;
+				goto drop_skb;
 
 			return lowpan_give_skb_to_devices(skb, NULL);
 		case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
@@ -552,7 +526,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 			if (ret == 1) {
 				ret = iphc_decompress(skb, &hdr);
 				if (ret < 0)
-					goto drop;
+					goto drop_skb;
 
 				return lowpan_give_skb_to_devices(skb, NULL);
 			} else if (ret == -1) {
@@ -565,7 +539,7 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 			if (ret == 1) {
 				ret = iphc_decompress(skb, &hdr);
 				if (ret < 0)
-					goto drop;
+					goto drop_skb;
 
 				return lowpan_give_skb_to_devices(skb, NULL);
 			} else if (ret == -1) {
