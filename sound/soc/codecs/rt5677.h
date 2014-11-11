@@ -799,7 +799,7 @@
 #define RT5677_PDM2_I2C_EXE			(0x1 << 1)
 #define RT5677_PDM2_I2C_BUSY			(0x1 << 0)
 
-/* MX3B TDM1 control 1 (0x3b) */
+/* TDM1 control 1 (0x3b) */
 #define RT5677_IF1_ADC_MODE_MASK		(0x1 << 12)
 #define RT5677_IF1_ADC_MODE_SFT			12
 #define RT5677_IF1_ADC_MODE_I2S			(0x0 << 12)
@@ -813,7 +813,7 @@
 #define RT5677_IF1_ADC4_SWAP_MASK		(0x3 << 0)
 #define RT5677_IF1_ADC4_SWAP_SFT		0
 
-/* MX3C TDM1 control 2 (0x3c) */
+/* TDM1 control 2 (0x3c) */
 #define RT5677_IF1_ADC4_MASK			(0x3 << 10)
 #define RT5677_IF1_ADC4_SFT			10
 #define RT5677_IF1_ADC3_MASK			(0x3 << 8)
@@ -825,7 +825,27 @@
 #define RT5677_IF1_ADC_CTRL_MASK		(0x7 << 0)
 #define RT5677_IF1_ADC_CTRL_SFT			0
 
-/* MX40 TDM2 control 1 (0x40) */
+/* TDM1 control 4 (0x3e) */
+#define RT5677_IF1_DAC0_MASK			(0x7 << 12)
+#define RT5677_IF1_DAC0_SFT			12
+#define RT5677_IF1_DAC1_MASK			(0x7 << 8)
+#define RT5677_IF1_DAC1_SFT			8
+#define RT5677_IF1_DAC2_MASK			(0x7 << 4)
+#define RT5677_IF1_DAC2_SFT			4
+#define RT5677_IF1_DAC3_MASK			(0x7 << 0)
+#define RT5677_IF1_DAC3_SFT			0
+
+/* TDM1 control 5 (0x3f) */
+#define RT5677_IF1_DAC4_MASK			(0x7 << 12)
+#define RT5677_IF1_DAC4_SFT			12
+#define RT5677_IF1_DAC5_MASK			(0x7 << 8)
+#define RT5677_IF1_DAC5_SFT			8
+#define RT5677_IF1_DAC6_MASK			(0x7 << 4)
+#define RT5677_IF1_DAC6_SFT			4
+#define RT5677_IF1_DAC7_MASK			(0x7 << 0)
+#define RT5677_IF1_DAC7_SFT			0
+
+/* TDM2 control 1 (0x40) */
 #define RT5677_IF2_ADC_MODE_MASK		(0x1 << 12)
 #define RT5677_IF2_ADC_MODE_SFT			12
 #define RT5677_IF2_ADC_MODE_I2S			(0x0 << 12)
@@ -839,7 +859,7 @@
 #define RT5677_IF2_ADC4_SWAP_MASK		(0x3 << 0)
 #define RT5677_IF2_ADC4_SWAP_SFT		0
 
-/* MX41 TDM2 control 2 (0x41) */
+/* TDM2 control 2 (0x41) */
 #define RT5677_IF2_ADC4_MASK			(0x3 << 10)
 #define RT5677_IF2_ADC4_SFT			10
 #define RT5677_IF2_ADC3_MASK			(0x3 << 8)
@@ -850,6 +870,26 @@
 #define RT5677_IF2_ADC1_SFT			4
 #define RT5677_IF2_ADC_CTRL_MASK		(0x7 << 0)
 #define RT5677_IF2_ADC_CTRL_SFT			0
+
+/* TDM2 control 4 (0x43) */
+#define RT5677_IF2_DAC0_MASK			(0x7 << 12)
+#define RT5677_IF2_DAC0_SFT			12
+#define RT5677_IF2_DAC1_MASK			(0x7 << 8)
+#define RT5677_IF2_DAC1_SFT			8
+#define RT5677_IF2_DAC2_MASK			(0x7 << 4)
+#define RT5677_IF2_DAC2_SFT			4
+#define RT5677_IF2_DAC3_MASK			(0x7 << 0)
+#define RT5677_IF2_DAC3_SFT			0
+
+/* TDM2 control 5 (0x44) */
+#define RT5677_IF2_DAC4_MASK			(0x7 << 12)
+#define RT5677_IF2_DAC4_SFT			12
+#define RT5677_IF2_DAC5_MASK			(0x7 << 8)
+#define RT5677_IF2_DAC5_SFT			8
+#define RT5677_IF2_DAC6_MASK			(0x7 << 4)
+#define RT5677_IF2_DAC6_SFT			4
+#define RT5677_IF2_DAC7_MASK			(0x7 << 0)
+#define RT5677_IF2_DAC7_SFT			0
 
 /* Digital Microphone Control 1 (0x50) */
 #define RT5677_DMIC_1_EN_MASK			(0x1 << 15)
