@@ -61,9 +61,6 @@ static void __xen_dma_page_dev_to_cpu(struct device *hwdev, dma_addr_t handle,
 	/* Cannot use __dma_page_dev_to_cpu because we don't have a
 	 * struct page for handle */
 
-	if (dir != DMA_TO_DEVICE)
-		outer_inv_range(handle, handle + size);
-
 	dma_cache_maint(handle & PAGE_MASK, handle & ~PAGE_MASK, size, dir, dmac_unmap_area);
 }
 
@@ -72,12 +69,6 @@ static void __xen_dma_page_cpu_to_dev(struct device *hwdev, dma_addr_t handle,
 {
 
 	dma_cache_maint(handle & PAGE_MASK, handle & ~PAGE_MASK, size, dir, dmac_map_area);
-
-	if (dir == DMA_FROM_DEVICE) {
-		outer_inv_range(handle, handle + size);
-	} else {
-		outer_clean_range(handle, handle + size);
-	}
 }
 
 void xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
