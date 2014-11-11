@@ -78,6 +78,8 @@ static void msg_submit(struct mbox_chan *chan)
 
 	data = chan->msg_data[idx];
 
+	if (chan->cl->tx_prepare)
+		chan->cl->tx_prepare(chan->cl, data);
 	/* Try to submit a message to the MBOX controller */
 	err = chan->mbox->ops->send_data(chan, data);
 	if (!err) {
