@@ -279,6 +279,16 @@ static SOC_ENUM_SINGLE_DECL(aic3x_lagc_decay_enum, LAGC_CTRL_A, 0,
 static SOC_ENUM_SINGLE_DECL(aic3x_ragc_decay_enum, RAGC_CTRL_A, 0,
 			    aic3x_agc_decay);
 
+static const char * const aic3x_poweron_time[] = {
+	"0us", "10us", "100us", "1ms", "10ms", "50ms",
+	"100ms", "200ms", "400ms", "800ms", "2s", "4s" };
+static SOC_ENUM_SINGLE_DECL(aic3x_poweron_time_enum, HPOUT_POP_REDUCTION, 4,
+			    aic3x_poweron_time);
+
+static const char * const aic3x_rampup_step[] = { "0ms", "1ms", "2ms", "4ms" };
+static SOC_ENUM_SINGLE_DECL(aic3x_rampup_step_enum, HPOUT_POP_REDUCTION, 2,
+			    aic3x_rampup_step);
+
 /*
  * DAC digital volumes. From -63.5 to 0 dB in 0.5 dB steps
  */
@@ -408,6 +418,10 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	SOC_DOUBLE_R("PGA Capture Switch", LADC_VOL, RADC_VOL, 7, 0x01, 1),
 
 	SOC_ENUM("ADC HPF Cut-off", aic3x_adc_hpf_enum),
+
+	/* Pop reduction */
+	SOC_ENUM("Output Driver Power-On time", aic3x_poweron_time_enum),
+	SOC_ENUM("Output Driver Ramp-up step", aic3x_rampup_step_enum),
 };
 
 static const struct snd_kcontrol_new aic3x_mono_controls[] = {
