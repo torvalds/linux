@@ -37,6 +37,7 @@ Configuration Options:
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
+#include "8255.h"
 #include "comedi_fc.h"
 
 /* Board register addresses */
@@ -69,10 +70,7 @@ Configuration Options:
 #define DMM32AT_CLK2 0x0e
 #define DMM32AT_CLKCT 0x0f
 
-#define DMM32AT_DIOA 0x0c
-#define DMM32AT_DIOB 0x0d
-#define DMM32AT_DIOC 0x0e
-#define DMM32AT_DIOCONF 0x0f
+#define DMM32AT_8255_IOBASE		0x0c  /* Page 1 registers */
 
 /* Board register values. */
 
@@ -113,13 +111,6 @@ Configuration Options:
 #define DMM32AT_CLKCT1 0x56	/* mode3 counter 1 - write low byte only */
 #define DMM32AT_CLKCT2 0xb6	/*  mode3 counter 2 - write high and low byte */
 
-/* DMM32AT_DIOCONF 0x0f */
-#define DMM32AT_DIENABLE 0x80
-#define DMM32AT_DIRA 0x10
-#define DMM32AT_DIRB 0x02
-#define DMM32AT_DIRCL 0x01
-#define DMM32AT_DIRCH 0x08
-
 /* board AI ranges in comedi structure */
 static const struct comedi_lrange dmm32at_airanges = {
 	4, {
@@ -148,10 +139,6 @@ static const struct comedi_lrange dmm32at_aoranges = {
 		BIP_RANGE(10),
 		BIP_RANGE(5)
 	}
-};
-
-struct dmm32at_private {
-	unsigned char dio_config;
 };
 
 static void dmm32at_ai_set_chanspec(struct comedi_device *dev,
@@ -472,91 +459,22 @@ static int dmm32at_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int dmm32at_dio_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
+static int dmm32at_8255_io(struct comedi_device *dev,
+			   int dir, int port, int data, unsigned long regbase)
 {
-	struct dmm32at_private *devpriv = dev->private;
-	unsigned int mask;
-	unsigned int val;
-
-	mask = comedi_dio_update_state(s, data);
-	if (mask) {
-		/* get access to the DIO regs */
-		outb(DMM32AT_DIOACC, dev->iobase + DMM32AT_CNTRL);
-
-		/* if either part of dio is set for output */
-		if (((devpriv->dio_config & DMM32AT_DIRCL) == 0) ||
-		    ((devpriv->dio_config & DMM32AT_DIRCH) == 0)) {
-			val = (s->state & 0x00ff0000) >> 16;
-			outb(val, dev->iobase + DMM32AT_DIOC);
-		}
-		if ((devpriv->dio_config & DMM32AT_DIRB) == 0) {
-			val = (s->state & 0x0000ff00) >> 8;
-			outb(val, dev->iobase + DMM32AT_DIOB);
-		}
-		if ((devpriv->dio_config & DMM32AT_DIRA) == 0) {
-			val = (s->state & 0x000000ff);
-			outb(val, dev->iobase + DMM32AT_DIOA);
-		}
-	}
-
-	val = inb(dev->iobase + DMM32AT_DIOA);
-	val |= inb(dev->iobase + DMM32AT_DIOB) << 8;
-	val |= inb(dev->iobase + DMM32AT_DIOC) << 16;
-	s->state = val;
-
-	data[1] = val;
-
-	return insn->n;
-}
-
-static int dmm32at_dio_insn_config(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn,
-				   unsigned int *data)
-{
-	struct dmm32at_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int mask;
-	unsigned char chanbit;
-	int ret;
-
-	if (chan < 8) {
-		mask = 0x0000ff;
-		chanbit = DMM32AT_DIRA;
-	} else if (chan < 16) {
-		mask = 0x00ff00;
-		chanbit = DMM32AT_DIRB;
-	} else if (chan < 20) {
-		mask = 0x0f0000;
-		chanbit = DMM32AT_DIRCL;
-	} else {
-		mask = 0xf00000;
-		chanbit = DMM32AT_DIRCH;
-	}
-
-	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
-	if (ret)
-		return ret;
-
-	if (data[0] == INSN_CONFIG_DIO_OUTPUT)
-		devpriv->dio_config &= ~chanbit;
-	else
-		devpriv->dio_config |= chanbit;
 	/* get access to the DIO regs */
 	outb(DMM32AT_DIOACC, dev->iobase + DMM32AT_CNTRL);
-	/* set the DIO's to the new configuration setting */
-	outb(devpriv->dio_config, dev->iobase + DMM32AT_DIOCONF);
 
-	return insn->n;
+	if (dir) {
+		outb(data, dev->iobase + regbase + port);
+		return 0;
+	}
+	return inb(dev->iobase + regbase + port);
 }
 
 /* Make sure the board is there and put it to a known state */
 static int dmm32at_reset(struct comedi_device *dev)
 {
-	struct dmm32at_private *devpriv = dev->private;
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
 
 	/* reset the board */
@@ -593,27 +511,14 @@ static int dmm32at_reset(struct comedi_device *dev)
 	    aistat != 0x60 || intstat != 0x00 || airback != 0x0c)
 		return -EIO;
 
-	/* get access to the DIO regs */
-	outb(DMM32AT_DIOACC, dev->iobase + DMM32AT_CNTRL);
-	/* set the DIO's to the defualt input setting */
-	devpriv->dio_config = DMM32AT_DIRA | DMM32AT_DIRB |
-			      DMM32AT_DIRCL | DMM32AT_DIRCH |
-			      DMM32AT_DIENABLE;
-	outb(devpriv->dio_config, dev->iobase + DMM32AT_DIOCONF);
-
 	return 0;
 }
 
 static int dmm32at_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	struct dmm32at_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
@@ -669,13 +574,9 @@ static int dmm32at_attach(struct comedi_device *dev,
 
 	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
-	s->type		= COMEDI_SUBD_DIO;
-	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-	s->n_chan	= 24;
-	s->maxdata	= 1;
-	s->range_table	= &range_digital;
-	s->insn_bits	= dmm32at_dio_insn_bits;
-	s->insn_config	= dmm32at_dio_insn_config;
+	ret = subdev_8255_init(dev, s, dmm32at_8255_io, DMM32AT_8255_IOBASE);
+	if (ret)
+		return ret;
 
 	return 0;
 }

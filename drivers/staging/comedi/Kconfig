@@ -384,6 +384,7 @@ config COMEDI_DT282X
 
 config COMEDI_DMM32AT
 	tristate "Diamond Systems MM-32-AT PC/104 board support"
+	select COMEDI_8255
 	---help---
 	  Enable support for Diamond Systems MM-32-AT PC/104 boards
 
