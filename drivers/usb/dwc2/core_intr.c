@@ -287,9 +287,11 @@ static void dwc2_handle_conn_id_status_change_intr(struct dwc2_hsotg *hsotg)
 	 * Release lock before scheduling workq as it holds spinlock during
 	 * scheduling.
 	 */
-	spin_unlock(&hsotg->lock);
-	queue_work(hsotg->wq_otg, &hsotg->wf_otg);
-	spin_lock(&hsotg->lock);
+	if (hsotg->wq_otg) {
+		spin_unlock(&hsotg->lock);
+		queue_work(hsotg->wq_otg, &hsotg->wf_otg);
+		spin_lock(&hsotg->lock);
+	}
 
 	/* Clear interrupt */
 	writel(GINTSTS_CONIDSTSCHNG, hsotg->regs + GINTSTS);

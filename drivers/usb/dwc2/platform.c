@@ -121,6 +121,7 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	struct dwc2_hsotg *hsotg = platform_get_drvdata(dev);
 
 	dwc2_hcd_remove(hsotg);
+	s3c_hsotg_remove(hsotg);
 
 	return 0;
 }
@@ -129,6 +130,7 @@ static const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
 	{ .compatible = "rockchip,rk3066-usb", .data = &params_rk3066 },
 	{ .compatible = "snps,dwc2", .data = NULL },
+	{ .compatible = "samsung,s3c6400-hsotg", .data = NULL},
 	{},
 };
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
@@ -204,6 +206,10 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	hsotg->dr_mode = of_usb_get_dr_mode(dev->dev.of_node);
 
+	spin_lock_init(&hsotg->lock);
+	retval = dwc2_gadget_init(hsotg, irq);
+	if (retval)
+		return retval;
 	retval = dwc2_hcd_init(hsotg, irq, params);
 	if (retval)
 		return retval;
@@ -213,6 +219,26 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	return retval;
 }
 
+static int dwc2_suspend(struct platform_device *dev, pm_message_t state)
+{
+	struct dwc2_hsotg *dwc2 = platform_get_drvdata(dev);
+	int ret = 0;
+
+	if (dwc2_is_device_mode(dwc2))
+		ret = s3c_hsotg_suspend(dwc2);
+	return ret;
+}
+
+static int dwc2_resume(struct platform_device *dev)
+{
+	struct dwc2_hsotg *dwc2 = platform_get_drvdata(dev);
+	int ret = 0;
+
+	if (dwc2_is_device_mode(dwc2))
+		ret = s3c_hsotg_resume(dwc2);
+	return ret;
+}
+
 static struct platform_driver dwc2_platform_driver = {
 	.driver = {
 		.name = dwc2_driver_name,
@@ -220,6 +246,8 @@ static struct platform_driver dwc2_platform_driver = {
 	},
 	.probe = dwc2_driver_probe,
 	.remove = dwc2_driver_remove,
+	.suspend = dwc2_suspend,
+	.resume = dwc2_resume,
 };
 
 module_platform_driver(dwc2_platform_driver);

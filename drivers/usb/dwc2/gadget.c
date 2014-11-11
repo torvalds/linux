@@ -3423,25 +3423,20 @@ static void s3c_hsotg_delete_debug(struct dwc2_hsotg *hsotg)
 }
 
 /**
- * s3c_hsotg_probe - probe function for hsotg driver
- * @pdev: The platform information for the driver
+ * dwc2_gadget_init - init function for gadget
+ * @dwc2: The data structure for the DWC2 driver.
+ * @irq: The IRQ number for the controller.
  */
-static int s3c_hsotg_probe(struct platform_device *pdev)
+int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 {
-	struct s3c_hsotg_plat *plat = dev_get_platdata(&pdev->dev);
+	struct device *dev = hsotg->dev;
+	struct s3c_hsotg_plat *plat = dev->platform_data;
 	struct phy *phy;
 	struct usb_phy *uphy;
-	struct device *dev = &pdev->dev;
 	struct s3c_hsotg_ep *eps;
-	struct dwc2_hsotg *hsotg;
-	struct resource *res;
 	int epnum;
 	int ret;
 	int i;
-
-	hsotg = devm_kzalloc(&pdev->dev, sizeof(struct dwc2_hsotg), GFP_KERNEL);
-	if (!hsotg)
-		return -ENOMEM;
 
 	/* Set default UTMI width */
 	hsotg->phyif = GUSBCFG_PHYIF16;
@@ -3450,14 +3445,14 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	 * Attempt to find a generic PHY, then look for an old style
 	 * USB PHY, finally fall back to pdata
 	 */
-	phy = devm_phy_get(&pdev->dev, "usb2-phy");
+	phy = devm_phy_get(dev, "usb2-phy");
 	if (IS_ERR(phy)) {
 		uphy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 		if (IS_ERR(uphy)) {
 			/* Fallback for pdata */
-			plat = dev_get_platdata(&pdev->dev);
+			plat = dev_get_platdata(dev);
 			if (!plat) {
-				dev_err(&pdev->dev,
+				dev_err(dev,
 				"no platform data or transceiver defined\n");
 				return -EPROBE_DEFER;
 			}
@@ -3474,35 +3469,11 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 			hsotg->phyif = GUSBCFG_PHYIF8;
 	}
 
-	hsotg->dev = dev;
-
-	hsotg->clk = devm_clk_get(&pdev->dev, "otg");
+	hsotg->clk = devm_clk_get(dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
 		dev_err(dev, "cannot get otg clock\n");
 		return PTR_ERR(hsotg->clk);
 	}
-
-	platform_set_drvdata(pdev, hsotg);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	hsotg->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(hsotg->regs)) {
-		ret = PTR_ERR(hsotg->regs);
-		goto err_clk;
-	}
-
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "cannot find IRQ\n");
-		goto err_clk;
-	}
-
-	spin_lock_init(&hsotg->lock);
-
-	hsotg->irq = ret;
-
-	dev_info(dev, "regs %p, irq %d\n", hsotg->regs, hsotg->irq);
 
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
 	hsotg->gadget.ops = &s3c_hsotg_gadget_ops;
@@ -3520,7 +3491,7 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(hsotg->supplies),
 				 hsotg->supplies);
 	if (ret) {
-		dev_err(hsotg->dev, "failed to request supplies: %d\n", ret);
+		dev_err(dev, "failed to request supplies: %d\n", ret);
 		goto err_clk;
 	}
 
@@ -3539,7 +3510,7 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	s3c_hsotg_hw_cfg(hsotg);
 	s3c_hsotg_init(hsotg);
 
-	ret = devm_request_irq(&pdev->dev, hsotg->irq, s3c_hsotg_irq, 0,
+	ret = devm_request_irq(dev, irq, s3c_hsotg_irq, 0,
 				dev_name(dev), hsotg);
 	if (ret < 0) {
 		s3c_hsotg_phy_disable(hsotg);
@@ -3592,11 +3563,11 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
 				    hsotg->supplies);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to disable supplies: %d\n", ret);
+		dev_err(dev, "failed to disable supplies: %d\n", ret);
 		goto err_ep_mem;
 	}
 
-	ret = usb_add_gadget_udc(&pdev->dev, &hsotg->gadget);
+	ret = usb_add_gadget_udc(dev, &hsotg->gadget);
 	if (ret)
 		goto err_ep_mem;
 
@@ -3615,25 +3586,24 @@ err_clk:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dwc2_gadget_init);
 
 /**
  * s3c_hsotg_remove - remove function for hsotg driver
  * @pdev: The platform information for the driver
  */
-static int s3c_hsotg_remove(struct platform_device *pdev)
+int s3c_hsotg_remove(struct dwc2_hsotg *hsotg)
 {
-	struct dwc2_hsotg *hsotg = platform_get_drvdata(pdev);
-
 	usb_del_gadget_udc(&hsotg->gadget);
 	s3c_hsotg_delete_debug(hsotg);
 	clk_disable_unprepare(hsotg->clk);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(s3c_hsotg_remove);
 
-static int s3c_hsotg_suspend(struct platform_device *pdev, pm_message_t state)
+int s3c_hsotg_suspend(struct dwc2_hsotg *hsotg)
 {
-	struct dwc2_hsotg *hsotg = platform_get_drvdata(pdev);
 	unsigned long flags;
 	int ret = 0;
 
@@ -3661,10 +3631,10 @@ static int s3c_hsotg_suspend(struct platform_device *pdev, pm_message_t state)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(s3c_hsotg_suspend);
 
-static int s3c_hsotg_resume(struct platform_device *pdev)
+int s3c_hsotg_resume(struct dwc2_hsotg *hsotg)
 {
-	struct dwc2_hsotg *hsotg = platform_get_drvdata(pdev);
 	unsigned long flags;
 	int ret = 0;
 
@@ -3686,31 +3656,4 @@ static int s3c_hsotg_resume(struct platform_device *pdev)
 
 	return ret;
 }
-
-#ifdef CONFIG_OF
-static const struct of_device_id s3c_hsotg_of_ids[] = {
-	{ .compatible = "samsung,s3c6400-hsotg", },
-	{ .compatible = "snps,dwc2", },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, s3c_hsotg_of_ids);
-#endif
-
-static struct platform_driver s3c_hsotg_driver = {
-	.driver		= {
-		.name	= "s3c-hsotg",
-		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(s3c_hsotg_of_ids),
-	},
-	.probe		= s3c_hsotg_probe,
-	.remove		= s3c_hsotg_remove,
-	.suspend	= s3c_hsotg_suspend,
-	.resume		= s3c_hsotg_resume,
-};
-
-module_platform_driver(s3c_hsotg_driver);
-
-MODULE_DESCRIPTION("Samsung S3C USB High-speed/OtG device");
-MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:s3c-hsotg");
+EXPORT_SYMBOL_GPL(s3c_hsotg_resume);
