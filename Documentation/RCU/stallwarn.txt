@@ -15,7 +15,7 @@ CONFIG_RCU_CPU_STALL_TIMEOUT
 	21 seconds.
 
 	This configuration parameter may be changed at runtime via the
-	/sys/module/rcutree/parameters/rcu_cpu_stall_timeout, however
+	/sys/module/rcupdate/parameters/rcu_cpu_stall_timeout, however
 	this parameter is checked only at the beginning of a cycle.
 	So if you are 10 seconds into a 40-second stall, setting this
 	sysfs parameter to (say) five will shorten the timeout for the
