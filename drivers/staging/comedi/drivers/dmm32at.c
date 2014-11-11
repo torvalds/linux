@@ -73,8 +73,13 @@ Configuration Options:
 #define DMM32AT_FIFO_STATUS_FIFOEN	(1 << 3)
 #define DMM32AT_FIFO_STATUS_SCANEN	(1 << 2)
 #define DMM32AT_FIFO_STATUS_PAGE_MASK	(3 << 0)
-
-#define DMM32AT_CNTRL 0x08
+#define DMM32AT_CTRL_REG		0x08
+#define DMM32AT_CTRL_RESETA		(1 << 5)
+#define DMM32AT_CTRL_RESETD		(1 << 4)
+#define DMM32AT_CTRL_INTRST		(1 << 3)
+#define DMM32AT_CTRL_PAGE_8254		(0 << 0)
+#define DMM32AT_CTRL_PAGE_8255		(1 << 0)
+#define DMM32AT_CTRL_PAGE_CALIB		(3 << 0)
 #define DMM32AT_AISTAT 0x08
 
 #define DMM32AT_INTCLOCK 0x09
@@ -91,12 +96,6 @@ Configuration Options:
 #define DMM32AT_8255_IOBASE		0x0c  /* Page 1 registers */
 
 /* Board register values. */
-
-/* DMM32AT_CNTRL 0x08 */
-#define DMM32AT_RESET 0x20
-#define DMM32AT_INTRESET 0x08
-#define DMM32AT_CLKACC 0x00
-#define DMM32AT_DIOACC 0x01
 
 /* DMM32AT_AISTAT 0x08 */
 #define DMM32AT_STATUS 0x80
@@ -338,7 +337,7 @@ static void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
 	outb(0, dev->iobase + DMM32AT_CNTRDIO);
 
 	/* get access to the clock regs */
-	outb(DMM32AT_CLKACC, dev->iobase + DMM32AT_CNTRL);
+	outb(DMM32AT_CTRL_PAGE_8254, dev->iobase + DMM32AT_CTRL_REG);
 
 	/* write the counter 1 control word and low byte to counter */
 	outb(DMM32AT_CLKCT1, dev->iobase + DMM32AT_CLKCT);
@@ -361,7 +360,7 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	dmm32at_ai_set_chanspec(dev, s, cmd->chanlist[0], cmd->chanlist_len);
 
 	/* reset the interrupt just in case */
-	outb(DMM32AT_INTRESET, dev->iobase + DMM32AT_CNTRL);
+	outb(DMM32AT_CTRL_INTRST, dev->iobase + DMM32AT_CTRL_REG);
 
 	/*
 	 * wait for circuit to settle
@@ -423,7 +422,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 	}
 
 	/* reset the interrupt */
-	outb(DMM32AT_INTRESET, dev->iobase + DMM32AT_CNTRL);
+	outb(DMM32AT_CTRL_INTRST, dev->iobase + DMM32AT_CTRL_REG);
 	return IRQ_HANDLED;
 }
 
@@ -475,7 +474,7 @@ static int dmm32at_8255_io(struct comedi_device *dev,
 			   int dir, int port, int data, unsigned long regbase)
 {
 	/* get access to the DIO regs */
-	outb(DMM32AT_DIOACC, dev->iobase + DMM32AT_CNTRL);
+	outb(DMM32AT_CTRL_PAGE_8255, dev->iobase + DMM32AT_CTRL_REG);
 
 	if (dir) {
 		outb(data, dev->iobase + regbase + port);
@@ -490,7 +489,7 @@ static int dmm32at_reset(struct comedi_device *dev)
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
 
 	/* reset the board */
-	outb(DMM32AT_RESET, dev->iobase + DMM32AT_CNTRL);
+	outb(DMM32AT_CTRL_RESETA, dev->iobase + DMM32AT_CTRL_REG);
 
 	/* allow a millisecond to reset */
 	udelay(1000);
