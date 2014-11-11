@@ -1325,6 +1325,10 @@ static int i40e_get_ts_info(struct net_device *dev,
 {
 	struct i40e_pf *pf = i40e_netdev_to_pf(dev);
 
+	/* only report HW timestamping if PTP is enabled */
+	if (!(pf->flags & I40E_FLAG_PTP))
+		return ethtool_op_get_ts_info(dev, info);
+
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 				SOF_TIMESTAMPING_RX_SOFTWARE |
 				SOF_TIMESTAMPING_SOFTWARE |
