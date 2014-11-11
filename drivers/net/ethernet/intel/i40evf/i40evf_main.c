@@ -669,9 +669,9 @@ i40evf_vlan_filter *i40evf_add_vlan(struct i40evf_adapter *adapter, u16 vlan)
 	struct i40evf_vlan_filter *f;
 
 	f = i40evf_find_vlan(adapter, vlan);
-	if (NULL == f) {
+	if (!f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
-		if (NULL == f)
+		if (!f)
 			return NULL;
 
 		f->vlan = vlan;
@@ -774,9 +774,9 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 		udelay(1);
 
 	f = i40evf_find_filter(adapter, macaddr);
-	if (NULL == f) {
+	if (!f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
-		if (NULL == f) {
+		if (!f) {
 			clear_bit(__I40EVF_IN_CRITICAL_TASK,
 				  &adapter->crit_section);
 			return NULL;
@@ -2138,7 +2138,7 @@ static void i40evf_init_task(struct work_struct *work)
 	ether_addr_copy(netdev->perm_addr, adapter->hw.mac.addr);
 
 	f = kzalloc(sizeof(*f), GFP_ATOMIC);
-	if (NULL == f)
+	if (!f)
 		goto err_sw_init;
 
 	ether_addr_copy(f->macaddr, adapter->hw.mac.addr);
