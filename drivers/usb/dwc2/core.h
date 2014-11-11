@@ -84,7 +84,7 @@ static const char * const s3c_hsotg_supply_names[] = {
  */
 #define EP0_MPS_LIMIT   64
 
-struct s3c_hsotg;
+struct dwc2_hsotg;
 struct s3c_hsotg_req;
 
 /**
@@ -130,7 +130,7 @@ struct s3c_hsotg_req;
 struct s3c_hsotg_ep {
 	struct usb_ep           ep;
 	struct list_head        queue;
-	struct s3c_hsotg        *parent;
+	struct dwc2_hsotg       *parent;
 	struct s3c_hsotg_req    *req;
 	struct dentry           *debugfs;
 
@@ -155,67 +155,6 @@ struct s3c_hsotg_ep {
 };
 
 /**
- * struct s3c_hsotg - driver state.
- * @dev: The parent device supplied to the probe function
- * @driver: USB gadget driver
- * @phy: The otg phy transceiver structure for phy control.
- * @uphy: The otg phy transceiver structure for old USB phy control.
- * @plat: The platform specific configuration data. This can be removed once
- * all SoCs support usb transceiver.
- * @regs: The memory area mapped for accessing registers.
- * @irq: The IRQ number we are using
- * @supplies: Definition of USB power supplies
- * @phyif: PHY interface width
- * @dedicated_fifos: Set if the hardware has dedicated IN-EP fifos.
- * @num_of_eps: Number of available EPs (excluding EP0)
- * @debug_root: root directrory for debugfs.
- * @debug_file: main status file for debugfs.
- * @debug_fifo: FIFO status file for debugfs.
- * @ep0_reply: Request used for ep0 reply.
- * @ep0_buff: Buffer for EP0 reply data, if needed.
- * @ctrl_buff: Buffer for EP0 control requests.
- * @ctrl_req: Request for EP0 control packets.
- * @setup: NAK management for EP0 SETUP
- * @last_rst: Time of last reset
- * @eps: The endpoints being supplied to the gadget framework
- */
-struct s3c_hsotg {
-	struct device            *dev;
-	struct usb_gadget_driver *driver;
-	struct phy               *phy;
-	struct usb_phy           *uphy;
-	struct s3c_hsotg_plat    *plat;
-
-	spinlock_t              lock;
-
-	void __iomem            *regs;
-	int                     irq;
-	struct clk              *clk;
-
-	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsotg_supply_names)];
-
-	u32                     phyif;
-	int			fifo_mem;
-	unsigned int            dedicated_fifos:1;
-	unsigned char           num_of_eps;
-	u32			fifo_map;
-
-	struct dentry           *debug_root;
-	struct dentry           *debug_file;
-	struct dentry           *debug_fifo;
-
-	struct usb_request      *ep0_reply;
-	struct usb_request      *ctrl_req;
-	u8                      ep0_buff[8];
-	u8                      ctrl_buff[8];
-
-	struct usb_gadget       gadget;
-	unsigned int            setup;
-	unsigned long           last_rst;
-	struct s3c_hsotg_ep     *eps;
-};
-
-/**
  * struct s3c_hsotg_req - data transfer request
  * @req: The USB gadget request
  * @queue: The list of requests for the endpoint this is queued for.
@@ -229,6 +168,7 @@ struct s3c_hsotg_req {
 	unsigned char           mapped;
 };
 
+#if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 #define call_gadget(_hs, _entry) \
 do { \
 	if ((_hs)->gadget.speed != USB_SPEED_UNKNOWN && \
@@ -238,6 +178,9 @@ do { \
 		spin_lock(&_hs->lock); \
 	} \
 } while (0)
+#else
+#define call_gadget(_hs, _entry)	do {} while (0)
+#endif
 
 struct dwc2_hsotg;
 struct dwc2_host_chan;
@@ -495,11 +438,13 @@ struct dwc2_hw_params {
  * struct dwc2_hsotg - Holds the state of the driver, including the non-periodic
  * and periodic schedules
  *
+ * These are common for both host and peripheral modes:
+ *
  * @dev:                The struct device pointer
  * @regs:		Pointer to controller regs
- * @core_params:        Parameters that define how the core should be configured
  * @hw_params:          Parameters that were autodetected from the
  *                      hardware registers
+ * @core_params:	Parameters that define how the core should be configured
  * @op_state:           The operational State, during transitions (a_host=>
  *                      a_peripheral and b_device=>b_host) this may not match
  *                      the core, but allows the software to determine
@@ -508,6 +453,8 @@ struct dwc2_hw_params {
  *                      - USB_DR_MODE_PERIPHERAL
  *                      - USB_DR_MODE_HOST
  *                      - USB_DR_MODE_OTG
+ * @lock:		Spinlock that protects all the driver data structures
+ * @priv:		Stores a pointer to the struct usb_hcd
  * @queuing_high_bandwidth: True if multiple packets of a high-bandwidth
  *                      transfer are in process of being queued
  * @srp_success:        Stores status of SRP request in the case of a FS PHY
@@ -517,6 +464,9 @@ struct dwc2_hw_params {
  *                      interrupt
  * @wkp_timer:          Timer object for handling Wakeup Detected interrupt
  * @lx_state:           Lx state of connected device
+ *
+ * These are for host mode:
+ *
  * @flags:              Flags for handling root port state changes
  * @non_periodic_sched_inactive: Inactive QHs in the non-periodic schedule.
  *                      Transfers associated with these QHs are not currently
@@ -585,11 +535,31 @@ struct dwc2_hw_params {
  * @status_buf_dma:     DMA address for status_buf
  * @start_work:         Delayed work for handling host A-cable connection
  * @reset_work:         Delayed work for handling a port reset
- * @lock:               Spinlock that protects all the driver data structures
- * @priv:               Stores a pointer to the struct usb_hcd
  * @otg_port:           OTG port number
  * @frame_list:         Frame list
  * @frame_list_dma:     Frame list DMA address
+ *
+ * These are for peripheral mode:
+ *
+ * @driver:             USB gadget driver
+ * @phy:                The otg phy transceiver structure for phy control.
+ * @uphy:               The otg phy transceiver structure for old USB phy control.
+ * @plat:               The platform specific configuration data. This can be removed once
+ *                      all SoCs support usb transceiver.
+ * @supplies:           Definition of USB power supplies
+ * @phyif:              PHY interface width
+ * @dedicated_fifos:    Set if the hardware has dedicated IN-EP fifos.
+ * @num_of_eps:         Number of available EPs (excluding EP0)
+ * @debug_root:         Root directrory for debugfs.
+ * @debug_file:         Main status file for debugfs.
+ * @debug_fifo:         FIFO status file for debugfs.
+ * @ep0_reply:          Request used for ep0 reply.
+ * @ep0_buff:           Buffer for EP0 reply data, if needed.
+ * @ctrl_buff:          Buffer for EP0 control requests.
+ * @ctrl_req:           Request for EP0 control packets.
+ * @setup:              NAK management for EP0 SETUP
+ * @last_rst:           Time of last reset
+ * @eps:                The endpoints being supplied to the gadget framework
  */
 struct dwc2_hsotg {
 	struct device *dev;
@@ -601,6 +571,15 @@ struct dwc2_hsotg {
 	enum usb_otg_state op_state;
 	enum usb_dr_mode dr_mode;
 
+	struct phy *phy;
+	struct usb_phy *uphy;
+	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsotg_supply_names)];
+
+	spinlock_t lock;
+	void *priv;
+	int     irq;
+	struct clk *clk;
+
 	unsigned int queuing_high_bandwidth:1;
 	unsigned int srp_success:1;
 
@@ -609,6 +588,18 @@ struct dwc2_hsotg {
 	struct timer_list wkp_timer;
 	enum dwc2_lx_state lx_state;
 
+	struct dentry *debug_root;
+	struct dentry *debug_file;
+	struct dentry *debug_fifo;
+
+	/* DWC OTG HW Release versions */
+#define DWC2_CORE_REV_2_71a	0x4f54271a
+#define DWC2_CORE_REV_2_90a	0x4f54290a
+#define DWC2_CORE_REV_2_92a	0x4f54292a
+#define DWC2_CORE_REV_2_94a	0x4f54294a
+#define DWC2_CORE_REV_3_00a	0x4f54300a
+
+#if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 	union dwc2_hcd_internal_flags {
 		u32 d32;
 		struct {
@@ -655,18 +646,9 @@ struct dwc2_hsotg {
 
 	struct delayed_work start_work;
 	struct delayed_work reset_work;
-	spinlock_t lock;
-	void *priv;
 	u8 otg_port;
 	u32 *frame_list;
 	dma_addr_t frame_list_dma;
-
-	/* DWC OTG HW Release versions */
-#define DWC2_CORE_REV_2_71a	0x4f54271a
-#define DWC2_CORE_REV_2_90a	0x4f54290a
-#define DWC2_CORE_REV_2_92a	0x4f54292a
-#define DWC2_CORE_REV_2_94a	0x4f54294a
-#define DWC2_CORE_REV_3_00a	0x4f54300a
 
 #ifdef DEBUG
 	u32 frrem_samples;
@@ -686,6 +668,29 @@ struct dwc2_hsotg {
 	u32 hfnum_other_samples_b;
 	u64 hfnum_other_frrem_accum_b;
 #endif
+#endif /* CONFIG_USB_DWC2_HOST || CONFIG_USB_DWC2_DUAL_ROLE */
+
+#if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
+	/* Gadget structures */
+	struct usb_gadget_driver *driver;
+	struct s3c_hsotg_plat *plat;
+
+	u32 phyif;
+	int fifo_mem;
+	unsigned int dedicated_fifos:1;
+	unsigned char num_of_eps;
+	u32 fifo_map;
+
+	struct usb_request *ep0_reply;
+	struct usb_request *ctrl_req;
+	u8 ep0_buff[8];
+	u8 ctrl_buff[8];
+
+	struct usb_gadget gadget;
+	unsigned int setup;
+	unsigned long last_rst;
+	struct s3c_hsotg_ep *eps;
+#endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 };
 
 /* Reasons for halting a host channel */
