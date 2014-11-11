@@ -556,7 +556,7 @@ static int vlsi_process_rx(struct vlsi_ring *r, struct ring_descr *rd)
 	crclen = (idev->mode==IFF_FIR) ? sizeof(u32) : sizeof(u16);
 	len -= crclen;		/* remove trailing CRC */
 	if (len <= 0) {
-		IRDA_DEBUG(0, "%s: strange frame (len=%d)\n", __func__, len);
+		pr_debug("%s: strange frame (len=%d)\n", __func__, len);
 		ret |= VLSI_RX_DROP;
 		goto done;
 	}
@@ -571,7 +571,7 @@ static int vlsi_process_rx(struct vlsi_ring *r, struct ring_descr *rd)
 		 */
 		le16_to_cpus(rd->buf+len);
 		if (irda_calc_crc16(INIT_FCS,rd->buf,len+crclen) != GOOD_FCS) {
-			IRDA_DEBUG(0, "%s: crc error\n", __func__);
+			pr_debug("%s: crc error\n", __func__);
 			ret |= VLSI_RX_CRC;
 			goto done;
 		}
@@ -689,7 +689,7 @@ static void vlsi_unarm_rx(vlsi_irda_dev_t *idev)
 		if (rd_is_active(rd)) {
 			rd_set_status(rd, 0);
 			if (rd_get_count(rd)) {
-				IRDA_DEBUG(0, "%s - dropping rx packet\n", __func__);
+				pr_debug("%s - dropping rx packet\n", __func__);
 				ret = -VLSI_RX_DROP;
 			}
 			rd_set_count(rd, 0);
@@ -764,7 +764,7 @@ static int vlsi_set_baud(vlsi_irda_dev_t *idev, unsigned iobase)
 	int	fifocnt;
 
 	baudrate = idev->new_baud;
-	IRDA_DEBUG(2, "%s: %d -> %d\n", __func__, idev->baud, idev->new_baud);
+	pr_debug("%s: %d -> %d\n", __func__, idev->baud, idev->new_baud);
 	if (baudrate == 4000000) {
 		mode = IFF_FIR;
 		config = IRCFG_FIR;
@@ -798,7 +798,7 @@ static int vlsi_set_baud(vlsi_irda_dev_t *idev, unsigned iobase)
 
 	fifocnt = inw(iobase+VLSI_PIO_RCVBCNT) & RCVBCNT_MASK;
 	if (fifocnt != 0) {
-		IRDA_DEBUG(0, "%s: rx fifo not empty(%d)\n", __func__, fifocnt);
+		pr_debug("%s: rx fifo not empty(%d)\n", __func__, fifocnt);
 	}
 
 	outw(0, iobase+VLSI_PIO_IRENABLE);
@@ -1022,7 +1022,8 @@ static netdev_tx_t vlsi_hard_start_xmit(struct sk_buff *skb,
 
 		fifocnt = inw(ndev->base_addr+VLSI_PIO_RCVBCNT) & RCVBCNT_MASK;
 		if (fifocnt != 0) {
-			IRDA_DEBUG(0, "%s: rx fifo not empty(%d)\n", __func__, fifocnt);
+			pr_debug("%s: rx fifo not empty(%d)\n",
+				 __func__, fifocnt);
 		}
 
 		config = inw(iobase+VLSI_PIO_IRCFG);
@@ -1034,7 +1035,7 @@ static netdev_tx_t vlsi_hard_start_xmit(struct sk_buff *skb,
 
 	if (ring_put(r) == NULL) {
 		netif_stop_queue(ndev);
-		IRDA_DEBUG(3, "%s: tx ring full - queue stopped\n", __func__);
+		pr_debug("%s: tx ring full - queue stopped\n", __func__);
 	}
 	spin_unlock_irqrestore(&idev->lock, flags);
 
@@ -1099,8 +1100,8 @@ static void vlsi_tx_interrupt(struct net_device *ndev)
 
 		fifocnt = inw(iobase+VLSI_PIO_RCVBCNT) & RCVBCNT_MASK;
 		if (fifocnt != 0) {
-			IRDA_DEBUG(0, "%s: rx fifo not empty(%d)\n",
-				__func__, fifocnt);
+			pr_debug("%s: rx fifo not empty(%d)\n",
+				 __func__, fifocnt);
 		}
 		outw(config | IRCFG_ENTX, iobase+VLSI_PIO_IRCFG);
 	}
@@ -1109,7 +1110,7 @@ static void vlsi_tx_interrupt(struct net_device *ndev)
 
 	if (netif_queue_stopped(ndev)  &&  !idev->new_baud) {
 		netif_wake_queue(ndev);
-		IRDA_DEBUG(3, "%s: queue awoken\n", __func__);
+		pr_debug("%s: queue awoken\n", __func__);
 	}
 }
 
@@ -1133,7 +1134,7 @@ static void vlsi_unarm_tx(vlsi_irda_dev_t *idev)
 				dev_kfree_skb_any(rd->skb);
 				rd->skb = NULL;
 			}
-			IRDA_DEBUG(0, "%s - dropping tx packet\n", __func__);
+			pr_debug("%s - dropping tx packet\n", __func__);
 			ret = -VLSI_TX_DROP;
 		}
 		else
@@ -1191,8 +1192,8 @@ static int vlsi_start_clock(struct pci_dev *pdev)
 			else			/* was: clksrc=0(auto) */
 				clksrc = 3;	/* fallback to 40MHz XCLK (OB800) */
 
-			IRDA_DEBUG(0, "%s: PLL not locked, fallback to clksrc=%d\n",
-				__func__, clksrc);
+			pr_debug("%s: PLL not locked, fallback to clksrc=%d\n",
+				 __func__, clksrc);
 		}
 		else
 			clksrc = 1;	/* got successful PLL lock */

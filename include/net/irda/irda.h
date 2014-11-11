@@ -55,16 +55,6 @@ typedef __u32 magic_t;
 #endif
 
 #ifdef CONFIG_IRDA_DEBUG
-
-extern unsigned int irda_debug;
-
-/* use 0 for production, 1 for verification, >2 for debug */
-#define IRDA_DEBUG_LEVEL 0
-
-#define IRDA_DEBUG(n, args...) \
-do {	if (irda_debug >= (n)) \
-		printk(KERN_DEBUG args); \
-} while (0)
 #define IRDA_ASSERT(expr, func) \
 do { if(!(expr)) { \
 	printk( "Assertion failed! %s:%s:%d %s\n", \
@@ -72,7 +62,6 @@ do { if(!(expr)) { \
 	func } } while (0)
 #define IRDA_ASSERT_LABEL(label)	label
 #else
-#define IRDA_DEBUG(n, args...) do { } while (0)
 #define IRDA_ASSERT(expr, func) do { (void)(expr); } while (0)
 #define IRDA_ASSERT_LABEL(label)
 #endif /* CONFIG_IRDA_DEBUG */

@@ -894,7 +894,7 @@ static int mcs_probe(struct usb_interface *intf,
 	if (!ndev)
 		goto error1;
 
-	IRDA_DEBUG(1, "MCS7780 USB-IrDA bridge found at %d.\n", udev->devnum);
+	pr_debug("MCS7780 USB-IrDA bridge found at %d.\n", udev->devnum);
 
 	SET_NETDEV_DEV(ndev, &intf->dev);
 
@@ -942,8 +942,8 @@ static int mcs_probe(struct usb_interface *intf,
 	if (ret != 0)
 		goto error2;
 
-	IRDA_DEBUG(1, "IrDA: Registered MosChip MCS7780 device as %s\n",
-		   ndev->name);
+	pr_debug("IrDA: Registered MosChip MCS7780 device as %s\n",
+		 ndev->name);
 
 	mcs->transceiver_type = transceiver_type;
 	mcs->sir_tweak = sir_tweak;
@@ -973,7 +973,7 @@ static void mcs_disconnect(struct usb_interface *intf)
 	free_netdev(mcs->netdev);
 
 	usb_set_intfdata(intf, NULL);
-	IRDA_DEBUG(0, "MCS7780 now disconnected.\n");
+	pr_debug("MCS7780 now disconnected.\n");
 }
 
 module_usb_driver(mcs_driver);

@@ -240,7 +240,7 @@ static void irtty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		 *  Characters received with a parity error, etc?
 		 */
  		if (fp && *fp++) { 
-			IRDA_DEBUG(0, "Framing or parity error!\n");
+			pr_debug("Framing or parity error!\n");
 			sirdev_receive(dev, NULL, 0);	/* notify sir_dev (updating stats) */
 			return;
  		}
@@ -387,7 +387,7 @@ static int irtty_ioctl(struct tty_struct *tty, struct file *file, unsigned int c
 	IRDA_ASSERT(priv != NULL, return -ENODEV;);
 	IRDA_ASSERT(priv->magic == IRTTY_MAGIC, return -EBADR;);
 
-	IRDA_DEBUG(3, "%s(cmd=0x%X)\n", __func__, cmd);
+	pr_debug("%s(cmd=0x%X)\n", __func__, cmd);
 
 	dev = priv->dev;
 	IRDA_ASSERT(dev != NULL, return -1;);
@@ -477,7 +477,7 @@ static int irtty_open(struct tty_struct *tty)
 
 	mutex_unlock(&irtty_mutex);
 
-	IRDA_DEBUG(0, "%s - %s: irda line discipline opened\n", __func__, tty->name);
+	pr_debug("%s - %s: irda line discipline opened\n", __func__, tty->name);
 
 	return 0;
 
@@ -528,7 +528,7 @@ static void irtty_close(struct tty_struct *tty)
 
 	kfree(priv);
 
-	IRDA_DEBUG(0, "%s - %s: irda line discipline closed\n", __func__, tty->name);
+	pr_debug("%s - %s: irda line discipline closed\n", __func__, tty->name);
 }
 
 /* ------------------------------------------------------- */

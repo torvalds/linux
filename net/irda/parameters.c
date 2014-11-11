@@ -146,13 +146,13 @@ static int irda_insert_integer(void *self, __u8 *buf, int len, __u8 pi,
 	 */
 	if (p.pl == 0) {
 		if (p.pv.i < 0xff) {
-			IRDA_DEBUG(2, "%s(), using 1 byte\n", __func__);
+			pr_debug("%s(), using 1 byte\n", __func__);
 			p.pl = 1;
 		} else if (p.pv.i < 0xffff) {
-			IRDA_DEBUG(2, "%s(), using 2 bytes\n", __func__);
+			pr_debug("%s(), using 2 bytes\n", __func__);
 			p.pl = 2;
 		} else {
-			IRDA_DEBUG(2, "%s(), using 4 bytes\n", __func__);
+			pr_debug("%s(), using 4 bytes\n", __func__);
 			p.pl = 4; /* Default length */
 		}
 	}
@@ -162,8 +162,8 @@ static int irda_insert_integer(void *self, __u8 *buf, int len, __u8 pi,
 				     __func__);
 		return -1;
 	}
-	IRDA_DEBUG(2, "%s(), pi=%#x, pl=%d, pi=%d\n", __func__,
-		   p.pi, p.pl, p.pv.i);
+	pr_debug("%s(), pi=%#x, pl=%d, pi=%d\n", __func__,
+		 p.pi, p.pl, p.pv.i);
 	switch (p.pl) {
 	case 1:
 		n += irda_param_pack(buf, "bbb", p.pi, p.pl, (__u8) p.pv.i);
@@ -270,8 +270,8 @@ static int irda_extract_integer(void *self, __u8 *buf, int len, __u8 pi,
 		return p.pl+2;
 	}
 
-	IRDA_DEBUG(2, "%s(), pi=%#x, pl=%d, pi=%d\n", __func__,
-		   p.pi, p.pl, p.pv.i);
+	pr_debug("%s(), pi=%#x, pl=%d, pi=%d\n", __func__,
+		 p.pi, p.pl, p.pv.i);
 	/* Call handler for this parameter */
 	err = (*func)(self, &p, PV_PUT);
 	if (err < 0)
@@ -290,15 +290,13 @@ static int irda_extract_string(void *self, __u8 *buf, int len, __u8 pi,
 	irda_param_t p;
 	int err;
 
-	IRDA_DEBUG(2, "%s()\n", __func__);
-
 	p.pi = pi;     /* In case handler needs to know */
 	p.pl = buf[1]; /* Extract length of value */
 	if (p.pl > 32)
 		p.pl = 32;
 
-	IRDA_DEBUG(2, "%s(), pi=%#x, pl=%d\n", __func__,
-		   p.pi, p.pl);
+	pr_debug("%s(), pi=%#x, pl=%d\n", __func__,
+		 p.pi, p.pl);
 
 	/* Check if buffer is long enough for parsing */
 	if (len < (2+p.pl)) {
@@ -311,8 +309,8 @@ static int irda_extract_string(void *self, __u8 *buf, int len, __u8 pi,
 	 * checked that the buffer is long enough */
 	strncpy(str, buf+2, p.pl);
 
-	IRDA_DEBUG(2, "%s(), str=0x%02x 0x%02x\n", __func__,
-		   (__u8) str[0], (__u8) str[1]);
+	pr_debug("%s(), str=0x%02x 0x%02x\n",
+		 __func__, (__u8)str[0], (__u8)str[1]);
 
 	/* Null terminate string */
 	str[p.pl] = '\0';
@@ -345,7 +343,7 @@ static int irda_extract_octseq(void *self, __u8 *buf, int len, __u8 pi,
 		return -1;
 	}
 
-	IRDA_DEBUG(0, "%s(), not impl\n", __func__);
+	pr_debug("%s(), not impl\n", __func__);
 
 	return p.pl+2; /* Extracted pl+2 bytes */
 }
@@ -468,8 +466,8 @@ int irda_param_insert(void *self, __u8 pi, __u8 *buf, int len,
 	if ((pi_major > info->len-1) ||
 	    (pi_minor > info->tables[pi_major].len-1))
 	{
-		IRDA_DEBUG(0, "%s(), no handler for parameter=0x%02x\n",
-			   __func__, pi);
+		pr_debug("%s(), no handler for parameter=0x%02x\n",
+			 __func__, pi);
 
 		/* Skip this parameter */
 		return -1;
@@ -523,8 +521,8 @@ static int irda_param_extract(void *self, __u8 *buf, int len,
 	if ((pi_major > info->len-1) ||
 	    (pi_minor > info->tables[pi_major].len-1))
 	{
-		IRDA_DEBUG(0, "%s(), no handler for parameter=0x%02x\n",
-			   __func__, buf[0]);
+		pr_debug("%s(), no handler for parameter=0x%02x\n",
+			 __func__, buf[0]);
 
 		/* Skip this parameter */
 		return 2 + buf[n + 1];  /* Continue */
@@ -536,8 +534,8 @@ static int irda_param_extract(void *self, __u8 *buf, int len,
 	/* Find expected data type for this parameter identifier (pi)*/
 	type = pi_minor_info->type;
 
-	IRDA_DEBUG(3, "%s(), pi=[%d,%d], type=%d\n", __func__,
-		   pi_major, pi_minor, type);
+	pr_debug("%s(), pi=[%d,%d], type=%d\n", __func__,
+		 pi_major, pi_minor, type);
 
 	/*  Check if handler has been implemented */
 	if (!pi_minor_info->func) {

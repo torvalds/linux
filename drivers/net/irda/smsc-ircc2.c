@@ -461,7 +461,7 @@ static int __init smsc_ircc_init(void)
 {
 	int ret;
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	ret = platform_driver_register(&smsc_ircc_driver);
 	if (ret) {
@@ -523,7 +523,7 @@ static int smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u8 dma, 
 	struct net_device *dev;
 	int err;
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	err = smsc_ircc_present(fir_base, sir_base);
 	if (err)
@@ -803,7 +803,7 @@ static int smsc_ircc_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
-	IRDA_DEBUG(2, "%s(), %s, (cmd=0x%X)\n", __func__, dev->name, cmd);
+	pr_debug("%s(), %s, (cmd=0x%X)\n", __func__, dev->name, cmd);
 
 	switch (cmd) {
 	case SIOCSBANDWIDTH: /* Set bandwidth */
@@ -882,7 +882,7 @@ static netdev_tx_t smsc_ircc_hard_xmit_sir(struct sk_buff *skb,
 	unsigned long flags;
 	s32 speed;
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	IRDA_ASSERT(dev != NULL, return NETDEV_TX_OK;);
 
@@ -957,21 +957,21 @@ static void smsc_ircc_set_fir_speed(struct smsc_ircc_cb *self, u32 speed)
 		ir_mode = IRCC_CFGA_IRDA_HDLC;
 		ctrl = IRCC_CRC;
 		fast = 0;
-		IRDA_DEBUG(0, "%s(), handling baud of 576000\n", __func__);
+		pr_debug("%s(), handling baud of 576000\n", __func__);
 		break;
 	case 1152000:
 		ir_mode = IRCC_CFGA_IRDA_HDLC;
 		ctrl = IRCC_1152 | IRCC_CRC;
 		fast = IRCC_LCR_A_FAST | IRCC_LCR_A_GP_DATA;
-		IRDA_DEBUG(0, "%s(), handling baud of 1152000\n",
-			   __func__);
+		pr_debug("%s(), handling baud of 1152000\n",
+			 __func__);
 		break;
 	case 4000000:
 		ir_mode = IRCC_CFGA_IRDA_4PPM;
 		ctrl = IRCC_CRC;
 		fast = IRCC_LCR_A_FAST;
-		IRDA_DEBUG(0, "%s(), handling baud of 4000000\n",
-			   __func__);
+		pr_debug("%s(), handling baud of 4000000\n",
+			 __func__);
 		break;
 	}
 	#if 0
@@ -999,7 +999,7 @@ static void smsc_ircc_fir_start(struct smsc_ircc_cb *self)
 	struct net_device *dev;
 	int fir_base;
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	IRDA_ASSERT(self != NULL, return;);
 	dev = self->netdev;
@@ -1044,7 +1044,7 @@ static void smsc_ircc_fir_stop(struct smsc_ircc_cb *self)
 {
 	int fir_base;
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	IRDA_ASSERT(self != NULL, return;);
 
@@ -1068,7 +1068,7 @@ static void smsc_ircc_change_speed(struct smsc_ircc_cb *self, u32 speed)
 	struct net_device *dev;
 	int last_speed_was_sir;
 
-	IRDA_DEBUG(0, "%s() changing speed to: %d\n", __func__, speed);
+	pr_debug("%s() changing speed to: %d\n", __func__, speed);
 
 	IRDA_ASSERT(self != NULL, return;);
 	dev = self->netdev;
@@ -1136,7 +1136,7 @@ static void smsc_ircc_set_sir_speed(struct smsc_ircc_cb *self, __u32 speed)
 	int lcr;    /* Line control reg */
 	int divisor;
 
-	IRDA_DEBUG(0, "%s(), Setting speed to: %d\n", __func__, speed);
+	pr_debug("%s(), Setting speed to: %d\n", __func__, speed);
 
 	IRDA_ASSERT(self != NULL, return;);
 	iobase = self->io.sir_base;
@@ -1171,7 +1171,7 @@ static void smsc_ircc_set_sir_speed(struct smsc_ircc_cb *self, __u32 speed)
 	/* Turn on interrups */
 	outb(UART_IER_RLSI | UART_IER_RDI | UART_IER_THRI, iobase + UART_IER);
 
-	IRDA_DEBUG(2, "%s() speed changed to: %d\n", __func__, speed);
+	pr_debug("%s() speed changed to: %d\n", __func__, speed);
 }
 
 
@@ -1255,7 +1255,7 @@ static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int bofs)
 	int iobase = self->io.fir_base;
 	u8 ctrl;
 
-	IRDA_DEBUG(3, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 #if 1
 	/* Disable Rx */
 	register_bank(iobase, 0);
@@ -1309,7 +1309,7 @@ static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self)
 {
 	int iobase = self->io.fir_base;
 
-	IRDA_DEBUG(3, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 #if 0
 	/* Disable Tx */
 	register_bank(iobase, 0);
@@ -1413,7 +1413,7 @@ static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self)
 
 	register_bank(iobase, 0);
 
-	IRDA_DEBUG(3, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 #if 0
 	/* Disable Rx */
 	register_bank(iobase, 0);
@@ -1424,8 +1424,8 @@ static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self)
 	lsr= inb(iobase + IRCC_LSR);
 	msgcnt = inb(iobase + IRCC_LCR_B) & 0x08;
 
-	IRDA_DEBUG(2, "%s: dma count = %d\n", __func__,
-		   get_dma_residue(self->io.dma));
+	pr_debug("%s: dma count = %d\n", __func__,
+		 get_dma_residue(self->io.dma));
 
 	len = self->rx_buff.truesize - get_dma_residue(self->io.dma);
 
@@ -1450,7 +1450,7 @@ static void smsc_ircc_dma_receive_complete(struct smsc_ircc_cb *self)
 		net_warn_ratelimited("%s(), bogus len=%d\n", __func__, len);
 		return;
 	}
-	IRDA_DEBUG(2, "%s: msgcnt = %d, len=%d\n", __func__, msgcnt, len);
+	pr_debug("%s: msgcnt = %d, len=%d\n", __func__, msgcnt, len);
 
 	skb = dev_alloc_skb(len + 1);
 	if (!skb)
@@ -1494,7 +1494,7 @@ static void smsc_ircc_sir_receive(struct smsc_ircc_cb *self)
 
 		/* Make sure we don't stay here to long */
 		if (boguscount++ > 32) {
-			IRDA_DEBUG(2, "%s(), breaking!\n", __func__);
+			pr_debug("%s(), breaking!\n", __func__);
 			break;
 		}
 	} while (inb(iobase + UART_LSR) & UART_LSR_DR);
@@ -1536,7 +1536,7 @@ static irqreturn_t smsc_ircc_interrupt(int dummy, void *dev_id)
 	lcra = inb(iobase + IRCC_LCR_A);
 	lsr = inb(iobase + IRCC_LSR);
 
-	IRDA_DEBUG(2, "%s(), iir = 0x%02x\n", __func__, iir);
+	pr_debug("%s(), iir = 0x%02x\n", __func__, iir);
 
 	if (iir & IRCC_IIR_EOM) {
 		if (self->io.direction == IO_RECV)
@@ -1586,12 +1586,12 @@ static irqreturn_t smsc_ircc_interrupt_sir(struct net_device *dev)
 		/* Clear interrupt */
 		lsr = inb(iobase + UART_LSR);
 
-		IRDA_DEBUG(4, "%s(), iir=%02x, lsr=%02x, iobase=%#x\n",
-			    __func__, iir, lsr, iobase);
+		pr_debug("%s(), iir=%02x, lsr=%02x, iobase=%#x\n",
+			 __func__, iir, lsr, iobase);
 
 		switch (iir) {
 		case UART_IIR_RLSI:
-			IRDA_DEBUG(2, "%s(), RLSI\n", __func__);
+			pr_debug("%s(), RLSI\n", __func__);
 			break;
 		case UART_IIR_RDI:
 			/* Receive interrupt */
@@ -1603,8 +1603,8 @@ static irqreturn_t smsc_ircc_interrupt_sir(struct net_device *dev)
 				smsc_ircc_sir_write_wakeup(self);
 			break;
 		default:
-			IRDA_DEBUG(0, "%s(), unhandled IIR=%#x\n",
-				   __func__, iir);
+			pr_debug("%s(), unhandled IIR=%#x\n",
+				 __func__, iir);
 			break;
 		}
 
@@ -1631,12 +1631,12 @@ static int ircc_is_receiving(struct smsc_ircc_cb *self)
 	int status = FALSE;
 	/* int iobase; */
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	IRDA_ASSERT(self != NULL, return FALSE;);
 
-	IRDA_DEBUG(0, "%s: dma count = %d\n", __func__,
-		   get_dma_residue(self->io.dma));
+	pr_debug("%s: dma count = %d\n", __func__,
+		 get_dma_residue(self->io.dma));
 
 	status = (self->rx_buff.state != OUTSIDE_FRAME);
 
@@ -1651,8 +1651,8 @@ static int smsc_ircc_request_irq(struct smsc_ircc_cb *self)
 	error = request_irq(self->io.irq, smsc_ircc_interrupt, 0,
 			    self->netdev->name, self->netdev);
 	if (error)
-		IRDA_DEBUG(0, "%s(), unable to allocate irq=%d, err=%d\n",
-			   __func__, self->io.irq, error);
+		pr_debug("%s(), unable to allocate irq=%d, err=%d\n",
+			 __func__, self->io.irq, error);
 
 	return error;
 }
@@ -1696,21 +1696,21 @@ static int smsc_ircc_net_open(struct net_device *dev)
 	struct smsc_ircc_cb *self;
 	char hwname[16];
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	IRDA_ASSERT(dev != NULL, return -1;);
 	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return 0;);
 
 	if (self->io.suspended) {
-		IRDA_DEBUG(0, "%s(), device is suspended\n", __func__);
+		pr_debug("%s(), device is suspended\n", __func__);
 		return -EAGAIN;
 	}
 
 	if (request_irq(self->io.irq, smsc_ircc_interrupt, 0, dev->name,
 			(void *) dev)) {
-		IRDA_DEBUG(0, "%s(), unable to allocate irq=%d\n",
-			   __func__, self->io.irq);
+		pr_debug("%s(), unable to allocate irq=%d\n",
+			 __func__, self->io.irq);
 		return -EAGAIN;
 	}
 
@@ -1753,7 +1753,7 @@ static int smsc_ircc_net_close(struct net_device *dev)
 {
 	struct smsc_ircc_cb *self;
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	IRDA_ASSERT(dev != NULL, return -1;);
 	self = netdev_priv(dev);
@@ -1784,7 +1784,7 @@ static int smsc_ircc_suspend(struct platform_device *dev, pm_message_t state)
 	struct smsc_ircc_cb *self = platform_get_drvdata(dev);
 
 	if (!self->io.suspended) {
-		IRDA_DEBUG(1, "%s, Suspending\n", driver_name);
+		pr_debug("%s, Suspending\n", driver_name);
 
 		rtnl_lock();
 		if (netif_running(self->netdev)) {
@@ -1805,7 +1805,7 @@ static int smsc_ircc_resume(struct platform_device *dev)
 	struct smsc_ircc_cb *self = platform_get_drvdata(dev);
 
 	if (self->io.suspended) {
-		IRDA_DEBUG(1, "%s, Waking up\n", driver_name);
+		pr_debug("%s, Waking up\n", driver_name);
 
 		rtnl_lock();
 		smsc_ircc_init_chip(self);
@@ -1836,7 +1836,7 @@ static int smsc_ircc_resume(struct platform_device *dev)
  */
 static int __exit smsc_ircc_close(struct smsc_ircc_cb *self)
 {
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -1848,13 +1848,13 @@ static int __exit smsc_ircc_close(struct smsc_ircc_cb *self)
 	smsc_ircc_stop_interrupts(self);
 
 	/* Release the PORTS that this driver is using */
-	IRDA_DEBUG(0, "%s(), releasing 0x%03x\n",  __func__,
-		   self->io.fir_base);
+	pr_debug("%s(), releasing 0x%03x\n",  __func__,
+		 self->io.fir_base);
 
 	release_region(self->io.fir_base, self->io.fir_ext);
 
-	IRDA_DEBUG(0, "%s(), releasing 0x%03x\n", __func__,
-		   self->io.sir_base);
+	pr_debug("%s(), releasing 0x%03x\n", __func__,
+		 self->io.sir_base);
 
 	release_region(self->io.sir_base, self->io.sir_ext);
 
@@ -1875,7 +1875,7 @@ static void __exit smsc_ircc_cleanup(void)
 {
 	int i;
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	for (i = 0; i < 2; i++) {
 		if (dev_self[i])
@@ -1899,7 +1899,7 @@ static void smsc_ircc_sir_start(struct smsc_ircc_cb *self)
 	struct net_device *dev;
 	int fir_base, sir_base;
 
-	IRDA_DEBUG(3, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	IRDA_ASSERT(self != NULL, return;);
 	dev = self->netdev;
@@ -1925,7 +1925,7 @@ static void smsc_ircc_sir_start(struct smsc_ircc_cb *self)
 	/* Turn on interrups */
 	outb(UART_IER_RLSI | UART_IER_RDI |UART_IER_THRI, sir_base + UART_IER);
 
-	IRDA_DEBUG(3, "%s() - exit\n", __func__);
+	pr_debug("%s() - exit\n", __func__);
 
 	outb(0x00, fir_base + IRCC_MASTER);
 }
@@ -1935,7 +1935,7 @@ void smsc_ircc_sir_stop(struct smsc_ircc_cb *self)
 {
 	int iobase;
 
-	IRDA_DEBUG(3, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	iobase = self->io.sir_base;
 
 	/* Reset UART */
@@ -1961,7 +1961,7 @@ static void smsc_ircc_sir_write_wakeup(struct smsc_ircc_cb *self)
 
 	IRDA_ASSERT(self != NULL, return;);
 
-	IRDA_DEBUG(4, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	iobase = self->io.sir_base;
 
@@ -1982,8 +1982,8 @@ static void smsc_ircc_sir_write_wakeup(struct smsc_ircc_cb *self)
 		 *  if we need to change the speed of the hardware
 		 */
 		if (self->new_speed) {
-			IRDA_DEBUG(5, "%s(), Changing speed to %d.\n",
-				   __func__, self->new_speed);
+			pr_debug("%s(), Changing speed to %d.\n",
+				 __func__, self->new_speed);
 			smsc_ircc_sir_wait_hw_transmitter_finish(self);
 			smsc_ircc_change_speed(self, self->new_speed);
 			self->new_speed = 0;
@@ -2123,7 +2123,7 @@ static void smsc_ircc_sir_wait_hw_transmitter_finish(struct smsc_ircc_cb *self)
 		udelay(1);
 
 	if (count < 0)
-		IRDA_DEBUG(0, "%s(): stuck transmitter\n", __func__);
+		pr_debug("%s(): stuck transmitter\n", __func__);
 }
 
 
@@ -2184,7 +2184,7 @@ static int __init smsc_superio_flat(const struct smsc_chip *chips, unsigned shor
 	u8 mode, dma, irq;
 	int ret = -ENODEV;
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	if (smsc_ircc_probe(cfgbase, SMSCSIOFLAT_DEVICEID_REG, chips, type) == NULL)
 		return ret;
@@ -2235,7 +2235,7 @@ static int __init smsc_superio_paged(const struct smsc_chip *chips, unsigned sho
 	unsigned short fir_io, sir_io;
 	int ret = -ENODEV;
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	if (smsc_ircc_probe(cfg_base, 0x20, chips, type) == NULL)
 		return ret;
@@ -2269,7 +2269,7 @@ static int __init smsc_superio_paged(const struct smsc_chip *chips, unsigned sho
 
 static int __init smsc_access(unsigned short cfg_base, unsigned char reg)
 {
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	outb(reg, cfg_base);
 	return inb(cfg_base) != reg ? -1 : 0;
@@ -2279,7 +2279,7 @@ static const struct smsc_chip * __init smsc_ircc_probe(unsigned short cfg_base, 
 {
 	u8 devid, xdevid, rev;
 
-	IRDA_DEBUG(1, "%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	/* Leave configuration */
 
@@ -2534,9 +2534,8 @@ static int __init preconfigure_smsc_chip(struct
 	outb(LPC47N227_CFGACCESSKEY, iobase); // enter configuration state
 	outb(SMSCSIOFLAT_DEVICEID_REG, iobase); // set for device ID
 	tmpbyte = inb(iobase +1); // Read device ID
-	IRDA_DEBUG(0,
-		   "Detected Chip id: 0x%02x, setting up registers...\n",
-		   tmpbyte);
+	pr_debug("Detected Chip id: 0x%02x, setting up registers...\n",
+		 tmpbyte);
 
 	/* Disable UART1 and set up SIR I/O port */
 	outb(0x24, iobase);  // select CR24 - UART1 base addr
@@ -2682,7 +2681,7 @@ static int __init preconfigure_through_82801(struct pci_dev *dev,
 	default:
 		tmpbyte |= 0x01; /* COM2 default */
 	}
-	IRDA_DEBUG(1, "COM_DEC (write): 0x%02x\n", tmpbyte);
+	pr_debug("COM_DEC (write): 0x%02x\n", tmpbyte);
 	pci_write_config_byte(dev, COM_DEC, tmpbyte);
 
 	/* Enable Low Pin Count interface */
@@ -2710,7 +2709,7 @@ static int __init preconfigure_through_82801(struct pci_dev *dev,
 	}
 	tmpword &= 0xfffd; /* disable LPC COMB */
 	tmpword |= 0x0001; /* set bit 0 : enable LPC COMA addr range (GEN2) */
-	IRDA_DEBUG(1, "LPC_EN (write): 0x%04x\n", tmpword);
+	pr_debug("LPC_EN (write): 0x%04x\n", tmpword);
 	pci_write_config_word(dev, LPC_EN, tmpword);
 
 	/*
@@ -2755,7 +2754,7 @@ static int __init preconfigure_through_82801(struct pci_dev *dev,
 	default:
 		break; /* do not change settings */
 	}
-	IRDA_DEBUG(1, "PCI_DMA_C (write): 0x%04x\n", tmpword);
+	pr_debug("PCI_DMA_C (write): 0x%04x\n", tmpword);
 	pci_write_config_word(dev, PCI_DMA_C, tmpword);
 
 	/*
@@ -2766,7 +2765,7 @@ static int __init preconfigure_through_82801(struct pci_dev *dev,
 	 */
 	tmpword = conf->fir_io & 0xfff8;
 	tmpword |= 0x0001;
-	IRDA_DEBUG(1, "GEN2_DEC (write): 0x%04x\n", tmpword);
+	pr_debug("GEN2_DEC (write): 0x%04x\n", tmpword);
 	pci_write_config_word(dev, GEN2_DEC, tmpword);
 
 	/* Pre-configure chip */
