@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
 #include <linux/async.h>
+#include <linux/acpi.h>
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <asm/platform_sst_audio.h>
@@ -181,6 +182,7 @@ int sst_driver_ops(struct intel_sst_drv *sst)
 
 	switch (sst->dev_id) {
 	case SST_MRFLD_PCI_ID:
+	case SST_BYT_ACPI_ID:
 		sst->tstamp = SST_TIME_STAMP_MRFLD;
 		sst->ops = &mrfld_ops;
 		return 0;
@@ -323,7 +325,7 @@ EXPORT_SYMBOL_GPL(sst_context_init);
 void sst_context_cleanup(struct intel_sst_drv *ctx)
 {
 	pm_runtime_get_noresume(ctx->dev);
-	pm_runtime_forbid(ctx->dev);
+	pm_runtime_disable(ctx->dev);
 	sst_unregister(ctx->dev);
 	sst_set_fw_state_locked(ctx, SST_SHUTDOWN);
 	flush_scheduled_work();
@@ -371,8 +373,19 @@ void sst_configure_runtime_pm(struct intel_sst_drv *ctx)
 {
 	pm_runtime_set_autosuspend_delay(ctx->dev, SST_SUSPEND_DELAY);
 	pm_runtime_use_autosuspend(ctx->dev);
-	pm_runtime_allow(ctx->dev);
-	pm_runtime_put_noidle(ctx->dev);
+	/*
+	 * For acpi devices, the actual physical device state is
+	 * initially active. So change the state to active before
+	 * enabling the pm
+	 */
+	if (acpi_disabled) {
+		pm_runtime_set_active(ctx->dev);
+		pm_runtime_enable(ctx->dev);
+	} else {
+		pm_runtime_allow(ctx->dev);
+		pm_runtime_put_noidle(ctx->dev);
+	}
+	sst_save_shim64(ctx, ctx->shim, ctx->shim_regs64);
 }
 EXPORT_SYMBOL_GPL(sst_configure_runtime_pm);
 
@@ -394,6 +407,9 @@ static int intel_sst_runtime_suspend(struct device *dev)
 
 	synchronize_irq(ctx->irq_num);
 	flush_workqueue(ctx->post_msg_wq);
+
+	/* save the shim registers because PMC doesn't save state */
+	sst_save_shim64(ctx, ctx->shim, ctx->shim_regs64);
 
 	return ret;
 }

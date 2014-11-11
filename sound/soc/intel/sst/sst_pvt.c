@@ -117,6 +117,7 @@ unsigned long long read_shim_data(struct intel_sst_drv *sst, int addr)
 
 	switch (sst->dev_id) {
 	case SST_MRFLD_PCI_ID:
+	case SST_BYT_ACPI_ID:
 		val = sst_shim_read64(sst->shim, addr);
 		break;
 	}
@@ -128,6 +129,7 @@ void write_shim_data(struct intel_sst_drv *sst, int addr,
 {
 	switch (sst->dev_id) {
 	case SST_MRFLD_PCI_ID:
+	case SST_BYT_ACPI_ID:
 		sst_shim_write64(sst->shim, addr, (u64) data);
 		break;
 	}

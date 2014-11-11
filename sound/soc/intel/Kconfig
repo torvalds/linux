@@ -20,6 +20,11 @@ config SND_SST_IPC_PCI
 	tristate
 	select SND_SST_IPC
 
+config SND_SST_IPC_ACPI
+	tristate
+	select SND_SST_IPC
+	depends on ACPI
+
 config SND_SOC_INTEL_SST
 	tristate "ASoC support for Intel(R) Smart Sound Technology"
 	select SND_SOC_INTEL_SST_ACPI if ACPI
