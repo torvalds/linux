@@ -471,15 +471,6 @@ static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 	return j;
 }
 
-static void move_block_from_dma(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				unsigned short *dma_buffer,
-				unsigned int num_samples)
-{
-	num_samples = defragment_dma_buffer(dev, s, dma_buffer, num_samples);
-	comedi_buf_write_samples(s, dma_buffer, num_samples);
-}
-
 static void pci9118_exttrg_enable(struct comedi_device *dev, bool enable)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -616,9 +607,10 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[devpriv->dma_actbuf];
-	unsigned int next_dma_buf, samplesinbuf, sampls, m;
+	unsigned int nsamples;
+	unsigned int next_dma_buf;
 
-	samplesinbuf = dmabuf->use_size >> 1;	/* number of received samples */
+	nsamples = dmabuf->use_size >> 1;	/* number of received samples */
 
 	if (devpriv->dma_doublebuf) {	/*
 					 * switch DMA buffers if is used
@@ -630,12 +622,10 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 			interrupt_pci9118_ai_mode4_switch(dev, next_dma_buf);
 	}
 
-	if (samplesinbuf) {
-		/* how many samples is to end of buffer */
-		m = s->async->prealloc_bufsz >> 1;
-		sampls = m;
-		move_block_from_dma(dev, s, dmabuf->virt, samplesinbuf);
-		m = m - sampls;		/* m=how many samples was transferred */
+	if (nsamples) {
+		nsamples = defragment_dma_buffer(dev, s, dmabuf->virt,
+						 nsamples);
+		comedi_buf_write_samples(s, dmabuf->virt, nsamples);
 	}
 
 	if (!devpriv->ai_neverending) {
