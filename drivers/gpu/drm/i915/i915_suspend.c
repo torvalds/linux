@@ -208,7 +208,6 @@ static void i915_save_display(struct drm_device *dev)
 		if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 			dev_priv->regfile.saveLVDS = I915_READ(PCH_LVDS);
 	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
 		dev_priv->regfile.savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
 
 		dev_priv->regfile.saveBLC_HIST_CTL =
@@ -230,7 +229,7 @@ static void i915_save_display(struct drm_device *dev)
 		dev_priv->regfile.savePP_ON_DELAYS = I915_READ(PCH_PP_ON_DELAYS);
 		dev_priv->regfile.savePP_OFF_DELAYS = I915_READ(PCH_PP_OFF_DELAYS);
 		dev_priv->regfile.savePP_DIVISOR = I915_READ(PCH_PP_DIVISOR);
-	} else {
+	} else if (!IS_VALLEYVIEW(dev)) {
 		dev_priv->regfile.savePP_ON_DELAYS = I915_READ(PP_ON_DELAYS);
 		dev_priv->regfile.savePP_OFF_DELAYS = I915_READ(PP_OFF_DELAYS);
 		dev_priv->regfile.savePP_DIVISOR = I915_READ(PP_DIVISOR);
