@@ -68,7 +68,7 @@ void ovs_vport_exit(void)
 	kfree(dev_table);
 }
 
-static struct hlist_head *hash_bucket(struct net *net, const char *name)
+static struct hlist_head *hash_bucket(const struct net *net, const char *name)
 {
 	unsigned int hash = jhash(name, strlen(name), (unsigned long) net);
 	return &dev_table[hash & (VPORT_HASH_BUCKETS - 1)];
@@ -90,7 +90,7 @@ errout:
 	ovs_unlock();
 	return err;
 }
-EXPORT_SYMBOL(ovs_vport_ops_register);
+EXPORT_SYMBOL_GPL(ovs_vport_ops_register);
 
 void ovs_vport_ops_unregister(struct vport_ops *ops)
 {
@@ -98,7 +98,7 @@ void ovs_vport_ops_unregister(struct vport_ops *ops)
 	list_del(&ops->list);
 	ovs_unlock();
 }
-EXPORT_SYMBOL(ovs_vport_ops_unregister);
+EXPORT_SYMBOL_GPL(ovs_vport_ops_unregister);
 
 /**
  *	ovs_vport_locate - find a port that has already been created
@@ -107,7 +107,7 @@ EXPORT_SYMBOL(ovs_vport_ops_unregister);
  *
  * Must be called with ovs or RCU read lock.
  */
-struct vport *ovs_vport_locate(struct net *net, const char *name)
+struct vport *ovs_vport_locate(const struct net *net, const char *name)
 {
 	struct hlist_head *bucket = hash_bucket(net, name);
 	struct vport *vport;
@@ -165,7 +165,7 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 
 	return vport;
 }
-EXPORT_SYMBOL(ovs_vport_alloc);
+EXPORT_SYMBOL_GPL(ovs_vport_alloc);
 
 /**
  *	ovs_vport_free - uninitialize and free vport
@@ -186,7 +186,7 @@ void ovs_vport_free(struct vport *vport)
 	free_percpu(vport->percpu_stats);
 	kfree(vport);
 }
-EXPORT_SYMBOL(ovs_vport_free);
+EXPORT_SYMBOL_GPL(ovs_vport_free);
 
 static struct vport_ops *ovs_vport_lookup(const struct vport_parms *parms)
 {
@@ -380,7 +380,7 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
  *
  * Must be called with ovs_mutex.
  */
-int ovs_vport_set_upcall_portids(struct vport *vport,  struct nlattr *ids)
+int ovs_vport_set_upcall_portids(struct vport *vport, const struct nlattr *ids)
 {
 	struct vport_portids *old, *vport_portids;
 
@@ -471,7 +471,7 @@ u32 ovs_vport_find_upcall_portid(const struct vport *vport, struct sk_buff *skb)
  * skb->data should point to the Ethernet header.
  */
 void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
-		       struct ovs_tunnel_info *tun_info)
+		       const struct ovs_tunnel_info *tun_info)
 {
 	struct pcpu_sw_netstats *stats;
 	struct sw_flow_key key;
@@ -493,7 +493,7 @@ void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 	}
 	ovs_dp_process_packet(skb, &key);
 }
-EXPORT_SYMBOL(ovs_vport_receive);
+EXPORT_SYMBOL_GPL(ovs_vport_receive);
 
 /**
  *	ovs_vport_send - send a packet on a device
@@ -572,4 +572,65 @@ void ovs_vport_deferred_free(struct vport *vport)
 
 	call_rcu(&vport->rcu, free_vport_rcu);
 }
-EXPORT_SYMBOL(ovs_vport_deferred_free);
+EXPORT_SYMBOL_GPL(ovs_vport_deferred_free);
+
+int ovs_tunnel_get_egress_info(struct ovs_tunnel_info *egress_tun_info,
+			       struct net *net,
+			       const struct ovs_tunnel_info *tun_info,
+			       u8 ipproto,
+			       u32 skb_mark,
+			       __be16 tp_src,
+			       __be16 tp_dst)
+{
+	const struct ovs_key_ipv4_tunnel *tun_key;
+	struct rtable *rt;
+	struct flowi4 fl;
+
+	if (unlikely(!tun_info))
+		return -EINVAL;
+
+	tun_key = &tun_info->tunnel;
+
+	/* Route lookup to get srouce IP address.
+	 * The process may need to be changed if the corresponding process
+	 * in vports ops changed.
+	 */
+	memset(&fl, 0, sizeof(fl));
+	fl.daddr = tun_key->ipv4_dst;
+	fl.saddr = tun_key->ipv4_src;
+	fl.flowi4_tos = RT_TOS(tun_key->ipv4_tos);
+	fl.flowi4_mark = skb_mark;
+	fl.flowi4_proto = IPPROTO_GRE;
+
+	rt = ip_route_output_key(net, &fl);
+	if (IS_ERR(rt))
+		return PTR_ERR(rt);
+
+	ip_rt_put(rt);
+
+	/* Generate egress_tun_info based on tun_info,
+	 * saddr, tp_src and tp_dst
+	 */
+	__ovs_flow_tun_info_init(egress_tun_info,
+				 fl.saddr, tun_key->ipv4_dst,
+				 tun_key->ipv4_tos,
+				 tun_key->ipv4_ttl,
+				 tp_src, tp_dst,
+				 tun_key->tun_id,
+				 tun_key->tun_flags,
+				 tun_info->options,
+				 tun_info->options_len);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ovs_tunnel_get_egress_info);
+
+int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
+				  struct ovs_tunnel_info *info)
+{
+	/* get_egress_tun_info() is only implemented on tunnel ports. */
+	if (unlikely(!vport->ops->get_egress_tun_info))
+		return -EINVAL;
+
+	return vport->ops->get_egress_tun_info(vport, skb, info);
+}

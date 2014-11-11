@@ -77,7 +77,7 @@ static rx_handler_result_t netdev_frame_hook(struct sk_buff **pskb)
 	return RX_HANDLER_CONSUMED;
 }
 
-static struct net_device *get_dpdev(struct datapath *dp)
+static struct net_device *get_dpdev(const struct datapath *dp)
 {
 	struct vport *local;
 

@@ -107,7 +107,7 @@ err:
 	return ERR_PTR(-ENOMEM);
 }
 
-int ovs_flow_tbl_count(struct flow_table *table)
+int ovs_flow_tbl_count(const struct flow_table *table)
 {
 	return table->count;
 }
@@ -401,7 +401,7 @@ static bool flow_cmp_masked_key(const struct sw_flow *flow,
 }
 
 bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
-			       struct sw_flow_match *match)
+			       const struct sw_flow_match *match)
 {
 	struct sw_flow_key *key = match->key;
 	int key_start = flow_key_start(key);
@@ -412,7 +412,7 @@ bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
 
 static struct sw_flow *masked_flow_lookup(struct table_instance *ti,
 					  const struct sw_flow_key *unmasked,
-					  struct sw_flow_mask *mask)
+					  const struct sw_flow_mask *mask)
 {
 	struct sw_flow *flow;
 	struct hlist_head *head;
@@ -460,7 +460,7 @@ struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *tbl,
 }
 
 struct sw_flow *ovs_flow_tbl_lookup_exact(struct flow_table *tbl,
-					  struct sw_flow_match *match)
+					  const struct sw_flow_match *match)
 {
 	struct table_instance *ti = rcu_dereference_ovsl(tbl->ti);
 	struct sw_flow_mask *mask;
@@ -563,7 +563,7 @@ static struct sw_flow_mask *flow_mask_find(const struct flow_table *tbl,
 
 /* Add 'mask' into the mask list, if it is not already there. */
 static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
-			    struct sw_flow_mask *new)
+			    const struct sw_flow_mask *new)
 {
 	struct sw_flow_mask *mask;
 	mask = flow_mask_find(tbl, new);
@@ -586,7 +586,7 @@ static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 
 /* Must be called with OVS mutex held. */
 int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
-			struct sw_flow_mask *mask)
+			const struct sw_flow_mask *mask)
 {
 	struct table_instance *new_ti = NULL;
 	struct table_instance *ti;
