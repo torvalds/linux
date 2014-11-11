@@ -1,6 +1,6 @@
 config CAMSYS_DRV
 	tristate "camsys driver "
-	default y
+	default n
 	
 menu "RockChip camera system driver"
 	depends on CAMSYS_DRV

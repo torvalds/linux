@@ -106,8 +106,10 @@
 *v0.0x18.0:
          1) add flashlight RT8547 driver
          2) support torch mode
+*v0.0x19.0:
+         1) set CONFIG_CAMSYS_DRV disable as default,enable in defconfig file if needed.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x18,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x19,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
