@@ -19,7 +19,6 @@ Optional Properties:
   specifications. If neither of these are specified, the default is to
   assume clause 22. The compatible list may also contain other
   elements.
-- max-speed: Maximum PHY supported speed (10, 100, 1000...)
 
   If the phy's identifier is known then the list may contain an entry
   of the form: "ethernet-phy-idAAAA.BBBB" where
@@ -28,6 +27,8 @@ Optional Properties:
      BBBB - The value of the 16 bit Phy Identifier 2 register as
             4 hex digits. This is the chip vendor OUI bits 19:24,
             followed by 10 bits of a vendor specific ID.
+
+- max-speed: Maximum PHY supported speed (10, 100, 1000...)
 
 Example:
 
