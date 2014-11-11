@@ -1152,11 +1152,11 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 {
 	int ret;
 
-	drm_modeset_lock_all(dev);
-
 	ret = drm_mode_object_get(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
 	if (ret)
 		goto out;
+
+	drm_modeset_lock_init(&plane->mutex);
 
 	plane->base.properties = &plane->properties;
 	plane->dev = dev;
@@ -1185,7 +1185,6 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 				   plane->type);
 
  out:
-	drm_modeset_unlock_all(dev);
 
 	return ret;
 }
@@ -2809,7 +2808,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 	 * If this crtc has a universal cursor plane, call that plane's update
 	 * handler rather than using legacy cursor handlers.
 	 */
-	drm_modeset_lock_crtc(crtc);
+	drm_modeset_lock_crtc(crtc, crtc->cursor);
 	if (crtc->cursor) {
 		ret = drm_mode_cursor_universal(crtc, req, file_priv);
 		goto out;
@@ -4598,7 +4597,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (!crtc)
 		return -ENOENT;
 
-	drm_modeset_lock_crtc(crtc);
+	drm_modeset_lock_crtc(crtc, crtc->primary);
 	if (crtc->primary->fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
 		 * due to a hotplug event, that userspace has not

@@ -244,7 +244,7 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 	 * grab all crtc locks. Once we have per-plane locks we must update this
 	 * to only take the plane mutex.
 	 */
-	ret = drm_modeset_lock_all_crtcs(state->dev, state->acquire_ctx);
+	ret = drm_modeset_lock(&plane->mutex, state->acquire_ctx);
 	if (ret)
 		return ERR_PTR(ret);
 

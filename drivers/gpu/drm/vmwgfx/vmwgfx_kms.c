@@ -252,7 +252,7 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	ret = 0;
 out:
 	drm_modeset_unlock_all(dev_priv->dev);
-	drm_modeset_lock_crtc(crtc);
+	drm_modeset_lock_crtc(crtc, crtc->cursor);
 
 	return ret;
 }
@@ -281,7 +281,7 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 				   du->cursor_y + du->hotspot_y);
 
 	drm_modeset_unlock_all(dev_priv->dev);
-	drm_modeset_lock_crtc(crtc);
+	drm_modeset_lock_crtc(crtc, crtc->cursor);
 
 	return 0;
 }
