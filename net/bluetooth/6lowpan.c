@@ -87,13 +87,6 @@ struct lowpan_dev {
 	struct delayed_work notify_peers;
 };
 
-static inline void peer_free(struct rcu_head *head)
-{
-	struct lowpan_peer *e = container_of(head, struct lowpan_peer, rcu);
-
-	kfree(e);
-}
-
 static inline struct lowpan_dev *lowpan_dev(const struct net_device *netdev)
 {
 	return netdev_priv(netdev);
@@ -108,7 +101,7 @@ static inline void peer_add(struct lowpan_dev *dev, struct lowpan_peer *peer)
 static inline bool peer_del(struct lowpan_dev *dev, struct lowpan_peer *peer)
 {
 	list_del_rcu(&peer->list);
-	call_rcu(&peer->rcu, peer_free);
+	kfree_rcu(peer, rcu);
 
 	module_put(THIS_MODULE);
 
@@ -1219,7 +1212,7 @@ static void disconnect_all_peers(void)
 		l2cap_chan_close(peer->chan, ENOENT);
 
 		list_del_rcu(&peer->list);
-		call_rcu(&peer->rcu, peer_free);
+		kfree_rcu(peer, rcu);
 
 		module_put(THIS_MODULE);
 	}
