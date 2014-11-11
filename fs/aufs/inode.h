@@ -268,6 +268,14 @@ AuStubVoid(au_plink_clean, struct super_block *sb, int verbose);
 AuStubVoid(au_plink_half_refresh, struct super_block *sb, aufs_bindex_t br_id);
 #endif /* CONFIG_PROC_FS */
 
+#ifdef CONFIG_AUFS_XATTR
+/* xattr.c */
+ssize_t aufs_listxattr(struct dentry *dentry, char *list, size_t size);
+ssize_t aufs_getxattr(struct dentry *dentry, const char *name, void *value,
+		      size_t size);
+#endif
+
+
 /* ---------------------------------------------------------------------- */
 
 /* lock subclass for iinfo */

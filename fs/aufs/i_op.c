@@ -1206,6 +1206,11 @@ struct inode_operations aufs_symlink_iop = {
 	.setattr	= aufs_setattr,
 	.getattr	= aufs_getattr,
 
+#ifdef CONFIG_AUFS_XATTR
+	.getxattr	= aufs_getxattr,
+	.listxattr	= aufs_listxattr,
+#endif
+
 	.readlink	= aufs_readlink,
 	.follow_link	= aufs_follow_link,
 	.put_link	= aufs_put_link,
@@ -1232,6 +1237,11 @@ struct inode_operations aufs_dir_iop = {
 	.setattr	= aufs_setattr,
 	.getattr	= aufs_getattr,
 
+#ifdef CONFIG_AUFS_XATTR
+	.getxattr	= aufs_getxattr,
+	.listxattr	= aufs_listxattr,
+#endif
+
 	.update_time	= aufs_update_time
 	/* no support for atomic_open() */
 };
@@ -1244,6 +1254,11 @@ struct inode_operations aufs_iop = {
 
 	.setattr	= aufs_setattr,
 	.getattr	= aufs_getattr,
+
+#ifdef CONFIG_AUFS_XATTR
+	.getxattr	= aufs_getxattr,
+	.listxattr	= aufs_listxattr,
+#endif
 
 	.update_time	= aufs_update_time
 };
