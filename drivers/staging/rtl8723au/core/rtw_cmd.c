@@ -916,34 +916,34 @@ static void traffic_status_watchdog(struct rtw_adapter *padapter)
 	u8 bHigherBusyTxTraffic = false;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	int BusyThreshold = 100;
+	struct rt_link_detect *ldi = &pmlmepriv->LinkDetectInfo;
+
 	/*  */
 	/*  Determine if our traffic is busy now */
 	/*  */
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		if (rtl8723a_BT_coexist(padapter))
 			BusyThreshold = 50;
-		else if (pmlmepriv->LinkDetectInfo.bBusyTraffic)
+		else if (ldi->bBusyTraffic)
 			BusyThreshold = 75;
 		/*  if we raise bBusyTraffic in last watchdog, using
 		    lower threshold. */
-		if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > BusyThreshold ||
-		    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > BusyThreshold) {
+		if (ldi->NumRxOkInPeriod > BusyThreshold ||
+		    ldi->NumTxOkInPeriod > BusyThreshold) {
 			bBusyTraffic = true;
 
-			if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod >
-			    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod)
+			if (ldi->NumRxOkInPeriod > ldi->NumTxOkInPeriod)
 				bRxBusyTraffic = true;
 			else
 				bTxBusyTraffic = true;
 		}
 
 		/*  Higher Tx/Rx data. */
-		if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > 4000 ||
-		    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > 4000) {
+		if (ldi->NumRxOkInPeriod > 4000 ||
+		    ldi->NumTxOkInPeriod > 4000) {
 			bHigherBusyTraffic = true;
 
-			if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod >
-			    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod)
+			if (ldi->NumRxOkInPeriod > ldi->NumTxOkInPeriod)
 				bHigherBusyRxTraffic = true;
 			else
 				bHigherBusyTxTraffic = true;
@@ -952,9 +952,9 @@ static void traffic_status_watchdog(struct rtw_adapter *padapter)
 		if (!rtl8723a_BT_coexist(padapter) ||
 		    !rtl8723a_BT_using_antenna_1(padapter)) {
 		/*  check traffic for  powersaving. */
-			if (((pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod +
-			      pmlmepriv->LinkDetectInfo.NumTxOkInPeriod) > 8) ||
-			    pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod > 2)
+			if (((ldi->NumRxUnicastOkInPeriod +
+			      ldi->NumTxOkInPeriod) > 8) ||
+			    ldi->NumRxUnicastOkInPeriod > 2)
 				bEnterPS = false;
 			else
 				bEnterPS = true;
@@ -968,15 +968,15 @@ static void traffic_status_watchdog(struct rtw_adapter *padapter)
 	} else
 		LPS_Leave23a(padapter);
 
-	pmlmepriv->LinkDetectInfo.NumRxOkInPeriod = 0;
-	pmlmepriv->LinkDetectInfo.NumTxOkInPeriod = 0;
-	pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod = 0;
-	pmlmepriv->LinkDetectInfo.bBusyTraffic = bBusyTraffic;
-	pmlmepriv->LinkDetectInfo.bTxBusyTraffic = bTxBusyTraffic;
-	pmlmepriv->LinkDetectInfo.bRxBusyTraffic = bRxBusyTraffic;
-	pmlmepriv->LinkDetectInfo.bHigherBusyTraffic = bHigherBusyTraffic;
-	pmlmepriv->LinkDetectInfo.bHigherBusyRxTraffic = bHigherBusyRxTraffic;
-	pmlmepriv->LinkDetectInfo.bHigherBusyTxTraffic = bHigherBusyTxTraffic;
+	ldi->NumRxOkInPeriod = 0;
+	ldi->NumTxOkInPeriod = 0;
+	ldi->NumRxUnicastOkInPeriod = 0;
+	ldi->bBusyTraffic = bBusyTraffic;
+	ldi->bTxBusyTraffic = bTxBusyTraffic;
+	ldi->bRxBusyTraffic = bRxBusyTraffic;
+	ldi->bHigherBusyTraffic = bHigherBusyTraffic;
+	ldi->bHigherBusyRxTraffic = bHigherBusyRxTraffic;
+	ldi->bHigherBusyTxTraffic = bHigherBusyTxTraffic;
 }
 
 static void dynamic_chk_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
