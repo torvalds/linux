@@ -1414,13 +1414,12 @@ struct net_device *fm10k_alloc_netdev(void)
 	dev->vlan_features |= dev->features;
 
 	/* configure tunnel offloads */
-	dev->hw_enc_features = NETIF_F_IP_CSUM |
-			       NETIF_F_TSO |
-			       NETIF_F_TSO6 |
-			       NETIF_F_TSO_ECN |
-			       NETIF_F_GSO_UDP_TUNNEL |
-			       NETIF_F_IPV6_CSUM |
-			       NETIF_F_SG;
+	dev->hw_enc_features |= NETIF_F_IP_CSUM |
+				NETIF_F_TSO |
+				NETIF_F_TSO6 |
+				NETIF_F_TSO_ECN |
+				NETIF_F_GSO_UDP_TUNNEL |
+				NETIF_F_IPV6_CSUM;
 
 	/* we want to leave these both on as we cannot disable VLAN tag
 	 * insertion or stripping on the hardware since it is contained
