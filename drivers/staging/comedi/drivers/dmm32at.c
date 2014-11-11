@@ -65,7 +65,14 @@ Configuration Options:
 #define DMM32AT_FIFO_CTRL_FIFOEN	(1 << 3)
 #define DMM32AT_FIFO_CTRL_SCANEN	(1 << 2)
 #define DMM32AT_FIFO_CTRL_FIFORST	(1 << 1)
-#define DMM32AT_FIFOSTAT 0x07
+#define DMM32AT_FIFO_STATUS_REG		0x07
+#define DMM32AT_FIFO_STATUS_EF		(1 << 7)
+#define DMM32AT_FIFO_STATUS_HF		(1 << 6)
+#define DMM32AT_FIFO_STATUS_FF		(1 << 5)
+#define DMM32AT_FIFO_STATUS_OVF		(1 << 4)
+#define DMM32AT_FIFO_STATUS_FIFOEN	(1 << 3)
+#define DMM32AT_FIFO_STATUS_SCANEN	(1 << 2)
+#define DMM32AT_FIFO_STATUS_PAGE_MASK	(3 << 0)
 
 #define DMM32AT_CNTRL 0x08
 #define DMM32AT_AISTAT 0x08
@@ -507,12 +514,13 @@ static int dmm32at_reset(struct comedi_device *dev)
 	/* read back the values */
 	ailo = inb(dev->iobase + DMM32AT_AI_LO_CHAN_REG);
 	aihi = inb(dev->iobase + DMM32AT_AI_HI_CHAN_REG);
-	fifostat = inb(dev->iobase + DMM32AT_FIFOSTAT);
+	fifostat = inb(dev->iobase + DMM32AT_FIFO_STATUS_REG);
 	aistat = inb(dev->iobase + DMM32AT_AISTAT);
 	intstat = inb(dev->iobase + DMM32AT_INTCLOCK);
 	airback = inb(dev->iobase + DMM32AT_AIRBACK);
 
-	if (ailo != 0x00 || aihi != 0x1f || fifostat != 0x80 ||
+	if (ailo != 0x00 || aihi != 0x1f ||
+	    fifostat != DMM32AT_FIFO_STATUS_EF ||
 	    aistat != 0x60 || intstat != 0x00 || airback != 0x0c)
 		return -EIO;
 
