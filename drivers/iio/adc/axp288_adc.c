@@ -238,14 +238,22 @@ static int axp288_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct platform_device_id axp288_adc_id_table[] = {
+	{ .name = "axp288_adc" },
+	{},
+};
+
 static struct platform_driver axp288_adc_driver = {
 	.probe = axp288_adc_probe,
 	.remove = axp288_adc_remove,
+	.id_table = axp288_adc_id_table,
 	.driver = {
 		.name = "axp288_adc",
 		.owner = THIS_MODULE,
 	},
 };
+
+MODULE_DEVICE_TABLE(platform, axp288_adc_id_table);
 
 module_platform_driver(axp288_adc_driver);
 
