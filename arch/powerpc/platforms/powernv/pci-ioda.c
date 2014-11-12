@@ -522,6 +522,106 @@ static struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev)
 }
 #endif /* CONFIG_PCI_MSI */
 
+static int pnv_ioda_set_one_peltv(struct pnv_phb *phb,
+				  struct pnv_ioda_pe *parent,
+				  struct pnv_ioda_pe *child,
+				  bool is_add)
+{
+	const char *desc = is_add ? "adding" : "removing";
+	uint8_t op = is_add ? OPAL_ADD_PE_TO_DOMAIN :
+			      OPAL_REMOVE_PE_FROM_DOMAIN;
+	struct pnv_ioda_pe *slave;
+	long rc;
+
+	/* Parent PE affects child PE */
+	rc = opal_pci_set_peltv(phb->opal_id, parent->pe_number,
+				child->pe_number, op);
+	if (rc != OPAL_SUCCESS) {
+		pe_warn(child, "OPAL error %ld %s to parent PELTV\n",
+			rc, desc);
+		return -ENXIO;
+	}
+
+	if (!(child->flags & PNV_IODA_PE_MASTER))
+		return 0;
+
+	/* Compound case: parent PE affects slave PEs */
+	list_for_each_entry(slave, &child->slaves, list) {
+		rc = opal_pci_set_peltv(phb->opal_id, parent->pe_number,
+					slave->pe_number, op);
+		if (rc != OPAL_SUCCESS) {
+			pe_warn(slave, "OPAL error %ld %s to parent PELTV\n",
+				rc, desc);
+			return -ENXIO;
+		}
+	}
+
+	return 0;
+}
+
+static int pnv_ioda_set_peltv(struct pnv_phb *phb,
+			      struct pnv_ioda_pe *pe,
+			      bool is_add)
+{
+	struct pnv_ioda_pe *slave;
+	struct pci_dev *pdev;
+	int ret;
+
+	/*
+	 * Clear PE frozen state. If it's master PE, we need
+	 * clear slave PE frozen state as well.
+	 */
+	if (is_add) {
+		opal_pci_eeh_freeze_clear(phb->opal_id, pe->pe_number,
+					  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+		if (pe->flags & PNV_IODA_PE_MASTER) {
+			list_for_each_entry(slave, &pe->slaves, list)
+				opal_pci_eeh_freeze_clear(phb->opal_id,
+							  slave->pe_number,
+							  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+		}
+	}
+
+	/*
+	 * Associate PE in PELT. We need add the PE into the
+	 * corresponding PELT-V as well. Otherwise, the error
+	 * originated from the PE might contribute to other
+	 * PEs.
+	 */
+	ret = pnv_ioda_set_one_peltv(phb, pe, pe, is_add);
+	if (ret)
+		return ret;
+
+	/* For compound PEs, any one affects all of them */
+	if (pe->flags & PNV_IODA_PE_MASTER) {
+		list_for_each_entry(slave, &pe->slaves, list) {
+			ret = pnv_ioda_set_one_peltv(phb, slave, pe, is_add);
+			if (ret)
+				return ret;
+		}
+	}
+
+	if (pe->flags & (PNV_IODA_PE_BUS_ALL | PNV_IODA_PE_BUS))
+		pdev = pe->pbus->self;
+	else
+		pdev = pe->pdev->bus->self;
+	while (pdev) {
+		struct pci_dn *pdn = pci_get_pdn(pdev);
+		struct pnv_ioda_pe *parent;
+
+		if (pdn && pdn->pe_number != IODA_INVALID_PE) {
+			parent = &phb->ioda.pe_array[pdn->pe_number];
+			ret = pnv_ioda_set_one_peltv(phb, parent, pe, is_add);
+			if (ret)
+				return ret;
+		}
+
+		pdev = pdev->bus->self;
+	}
+
+	return 0;
+}
+
 static int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 {
 	struct pci_dev *parent;
@@ -576,23 +676,9 @@ static int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 		return -ENXIO;
 	}
 
-	rc = opal_pci_set_peltv(phb->opal_id, pe->pe_number,
-				pe->pe_number, OPAL_ADD_PE_TO_DOMAIN);
-	if (rc)
-		pe_warn(pe, "OPAL error %d adding self to PELTV\n", rc);
-	opal_pci_eeh_freeze_clear(phb->opal_id, pe->pe_number,
-				  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+	/* Configure PELTV */
+	pnv_ioda_set_peltv(phb, pe, true);
 
-	/* Add to all parents PELT-V */
-	while (parent) {
-		struct pci_dn *pdn = pci_get_pdn(parent);
-		if (pdn && pdn->pe_number != IODA_INVALID_PE) {
-			rc = opal_pci_set_peltv(phb->opal_id, pdn->pe_number,
-						pe->pe_number, OPAL_ADD_PE_TO_DOMAIN);
-			/* XXX What to do in case of error ? */
-		}
-		parent = parent->bus->self;
-	}
 	/* Setup reverse map */
 	for (rid = pe->rid; rid < rid_end; rid++)
 		phb->ioda.pe_rmap[rid] = pe->pe_number;
