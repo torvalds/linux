@@ -998,6 +998,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 	int t;
 	struct ndis_recv_scale_cap rsscap;
 	u32 rsscap_size = sizeof(struct ndis_recv_scale_cap);
+	u32 mtu, size;
 
 	rndis_device = get_rndis_device();
 	if (!rndis_device)
@@ -1028,6 +1029,14 @@ int rndis_filter_device_add(struct hv_device *dev,
 		rndis_filter_device_remove(dev);
 		return ret;
 	}
+
+	/* Get the MTU from the host */
+	size = sizeof(u32);
+	ret = rndis_filter_query_device(rndis_device,
+					RNDIS_OID_GEN_MAXIMUM_FRAME_SIZE,
+					&mtu, &size);
+	if (ret == 0 && size == sizeof(u32))
+		net_device->ndev->mtu = mtu;
 
 	/* Get the mac address */
 	ret = rndis_filter_query_device_mac(rndis_device);
