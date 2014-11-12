@@ -110,7 +110,7 @@
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
         atari_dma_xfer_len(cmd->SCp.this_residual, cmd, !((phase) & SR_IO))
 
-#define NCR5380_acquire_dma_irq(instance)      falcon_get_lock()
+#define NCR5380_acquire_dma_irq(instance)      falcon_get_lock(instance)
 #define NCR5380_release_dma_irq(instance)      falcon_release_lock()
 
 #include "NCR5380.h"
@@ -468,15 +468,15 @@ static void falcon_release_lock(void)
  * command immediately but tell the SCSI mid-layer to defer.
  */
 
-static int falcon_get_lock(void)
+static int falcon_get_lock(struct Scsi_Host *instance)
 {
 	if (IS_A_TT())
 		return 1;
 
 	if (in_interrupt())
-		return stdma_try_lock(scsi_falcon_intr, NULL);
+		return stdma_try_lock(scsi_falcon_intr, instance);
 
-	stdma_lock(scsi_falcon_intr, NULL);
+	stdma_lock(scsi_falcon_intr, instance);
 	return 1;
 }
 

@@ -221,9 +221,6 @@
  * possible) function may be used.
  */
 
-static struct Scsi_Host *first_instance = NULL;
-static struct scsi_host_template *the_template = NULL;
-
 /* Macros ease life... :-) */
 #define	SETUP_HOSTDATA(in)				\
     struct NCR5380_hostdata *hostdata =			\
@@ -595,30 +592,17 @@ static void NCR5380_print_phase(struct Scsi_Host *instance)
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
-static volatile int main_running;
-static DECLARE_WORK(NCR5380_tqueue, NCR5380_main);
-
-static inline void queue_main(void)
+static inline void queue_main(struct NCR5380_hostdata *hostdata)
 {
-	if (!main_running) {
+	if (!hostdata->main_running) {
 		/* If in interrupt and NCR5380_main() not already running,
 		   queue it on the 'immediate' task queue, to be processed
 		   immediately after the current interrupt processing has
 		   finished. */
-		schedule_work(&NCR5380_tqueue);
+		schedule_work(&hostdata->main_task);
 	}
 	/* else: nothing to do: the running NCR5380_main() will pick up
 	   any newly queued command. */
-}
-
-
-static inline void NCR5380_all_init(void)
-{
-	static int done = 0;
-	if (!done) {
-		dprintk(NDEBUG_INIT, "scsi : NCR5380_all_init()\n");
-		done = 1;
-	}
 }
 
 /**
@@ -703,7 +687,7 @@ static void NCR5380_print_status(struct Scsi_Host *instance)
 
 	local_irq_save(flags);
 	printk("NCR5380: coroutine is%s running.\n",
-		main_running ? "" : "n't");
+		hostdata->main_running ? "" : "n't");
 	if (!hostdata->connected)
 		printk("scsi%d: no currently connected command\n", HOSTNO);
 	else
@@ -746,7 +730,7 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 
 	local_irq_save(flags);
 	seq_printf(m, "NCR5380: coroutine is%s running.\n",
-		main_running ? "" : "n't");
+		hostdata->main_running ? "" : "n't");
 	if (!hostdata->connected)
 		seq_printf(m, "scsi%d: no currently connected command\n", HOSTNO);
 	else
@@ -783,8 +767,7 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 	int i;
 	SETUP_HOSTDATA(instance);
 
-	NCR5380_all_init();
-
+	hostdata->host = instance;
 	hostdata->aborted = 0;
 	hostdata->id_mask = 1 << instance->this_id;
 	hostdata->id_higher_mask = 0;
@@ -805,10 +788,7 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 	hostdata->disconnected_queue = NULL;
 	hostdata->flags = flags;
 
-	if (!the_template) {
-		the_template = instance->hostt;
-		first_instance = instance;
-	}
+	INIT_WORK(&hostdata->main_task, NCR5380_main);
 
 	prepare_info(instance);
 
@@ -829,7 +809,9 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 
 static void NCR5380_exit(struct Scsi_Host *instance)
 {
-	cancel_work_sync(&NCR5380_tqueue);
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	cancel_work_sync(&hostdata->main_task);
 }
 
 /**
@@ -924,9 +906,9 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	 * unconditionally, because it cannot be already running.
 	 */
 	if (in_interrupt() || irqs_disabled())
-		queue_main();
+		queue_main(hostdata);
 	else
-		NCR5380_main(NULL);
+		NCR5380_main(&hostdata->main_task);
 	return 0;
 }
 
@@ -955,9 +937,10 @@ static inline void maybe_release_dma_irq(struct Scsi_Host *instance)
 
 static void NCR5380_main(struct work_struct *work)
 {
+	struct NCR5380_hostdata *hostdata =
+		container_of(work, struct NCR5380_hostdata, main_task);
+	struct Scsi_Host *instance = hostdata->host;
 	struct scsi_cmnd *tmp, *prev;
-	struct Scsi_Host *instance = first_instance;
-	struct NCR5380_hostdata *hostdata = HOSTDATA(instance);
 	int done;
 	unsigned long flags;
 
@@ -982,9 +965,9 @@ static void NCR5380_main(struct work_struct *work)
 	   'main_running' is set here, and queues/executes main via the
 	   task queue, it doesn't do any harm, just this instance of main
 	   won't find any work left to do. */
-	if (main_running)
+	if (hostdata->main_running)
 		return;
-	main_running = 1;
+	hostdata->main_running = 1;
 
 	local_save_flags(flags);
 	do {
@@ -1103,7 +1086,7 @@ static void NCR5380_main(struct work_struct *work)
 	/* Better allow ints _after_ 'main_running' has been cleared, else
 	   an interrupt could believe we'll pick up the work it left for
 	   us, but we won't see it anymore here... */
-	main_running = 0;
+	hostdata->main_running = 0;
 	local_irq_restore(flags);
 }
 
@@ -1215,7 +1198,7 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
 
 static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 {
-	struct Scsi_Host *instance = first_instance;
+	struct Scsi_Host *instance = dev_id;
 	int done = 1, handled = 0;
 	unsigned char basr;
 
@@ -1287,7 +1270,7 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 	if (!done) {
 		dprintk(NDEBUG_INTR, "scsi%d: in int routine, calling main\n", HOSTNO);
 		/* Put a call to NCR5380_main() on the queue... */
-		queue_main();
+		queue_main(shost_priv(instance));
 	}
 	return IRQ_RETVAL(handled);
 }
@@ -1767,7 +1750,7 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance,
  * Returns : 0 on success, -1 on failure.
  */
 
-static int do_abort(struct Scsi_Host *host)
+static int do_abort(struct Scsi_Host *instance)
 {
 	unsigned char tmp, *msgptr, phase;
 	int len;
@@ -1802,7 +1785,7 @@ static int do_abort(struct Scsi_Host *host)
 	msgptr = &tmp;
 	len = 1;
 	phase = PHASE_MSGOUT;
-	NCR5380_transfer_pio(host, &phase, &len, &msgptr);
+	NCR5380_transfer_pio(instance, &phase, &len, &msgptr);
 
 	/*
 	 * If we got here, and the command completed successfully,
