@@ -684,26 +684,28 @@ static int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 		phb->ioda.pe_rmap[rid] = pe->pe_number;
 
 	/* Setup one MVTs on IODA1 */
-	if (phb->type == PNV_PHB_IODA1) {
-		pe->mve_number = pe->pe_number;
-		rc = opal_pci_set_mve(phb->opal_id, pe->mve_number,
-				      pe->pe_number);
+	if (phb->type != PNV_PHB_IODA1) {
+		pe->mve_number = 0;
+		goto out;
+	}
+
+	pe->mve_number = pe->pe_number;
+	rc = opal_pci_set_mve(phb->opal_id, pe->mve_number, pe->pe_number);
+	if (rc != OPAL_SUCCESS) {
+		pe_err(pe, "OPAL error %ld setting up MVE %d\n",
+		       rc, pe->mve_number);
+		pe->mve_number = -1;
+	} else {
+		rc = opal_pci_set_mve_enable(phb->opal_id,
+					     pe->mve_number, OPAL_ENABLE_MVE);
 		if (rc) {
-			pe_err(pe, "OPAL error %ld setting up MVE %d\n",
+			pe_err(pe, "OPAL error %ld enabling MVE %d\n",
 			       rc, pe->mve_number);
 			pe->mve_number = -1;
-		} else {
-			rc = opal_pci_set_mve_enable(phb->opal_id,
-						     pe->mve_number, OPAL_ENABLE_MVE);
-			if (rc) {
-				pe_err(pe, "OPAL error %ld enabling MVE %d\n",
-				       rc, pe->mve_number);
-				pe->mve_number = -1;
-			}
 		}
-	} else if (phb->type == PNV_PHB_IODA2)
-		pe->mve_number = 0;
+	}
 
+out:
 	return 0;
 }
 
