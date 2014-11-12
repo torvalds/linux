@@ -799,7 +799,7 @@ void ieee80211_scan_work(struct work_struct *work)
 	if (!sdata || !local->scan_req)
 		goto out;
 
-	if (local->scan_req && !local->scanning) {
+	if (!local->scanning) {
 		struct cfg80211_scan_request *req = local->scan_req;
 		int rc;
 
