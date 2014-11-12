@@ -546,7 +546,8 @@ static int ap_probe(struct usb_interface *interface,
 
 		usb_fill_bulk_urb(urb, udev,
 				  usb_rcvbulkpipe(udev, es1->cport_in_endpoint),
-				  buffer, PAGE_SIZE, cport_in_callback, es1);
+				  buffer, ES1_GBUF_MSG_SIZE, cport_in_callback,
+				  es1);
 		es1->cport_in_urb[i] = urb;
 		es1->cport_in_buffer[i] = buffer;
 		retval = usb_submit_urb(urb, GFP_KERNEL);
