@@ -6,14 +6,10 @@
  *	(Unix and Linux consulting and custom programming)
  *	drew@colorado.edu
  *      +1 (303) 440-4894
- *
- * ALPHA RELEASE 1.
  */
 
 #ifndef MAC_NCR5380_H
 #define MAC_NCR5380_H
-
-#define MACSCSI_PUBLIC_RELEASE 2
 
 #ifndef ASM
 

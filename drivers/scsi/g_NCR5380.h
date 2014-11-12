@@ -9,15 +9,10 @@
  *
  * NCR53C400 extensions (c) 1994,1995,1996, Kevin Lentin
  *    K.Lentin@cs.monash.edu.au
- *
- * ALPHA RELEASE 1. 
  */
 
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
-
-
-#define GENERIC_NCR5380_PUBLIC_RELEASE 1
 
 #ifdef NCR53C400
 #define BIOSPARAM

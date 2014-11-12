@@ -18,8 +18,6 @@
  *
  * Added ISAPNP support for DTC436 adapters,
  * Thomas Sailer, sailer@ife.ee.ethz.ch
- *
- * ALPHA RELEASE 1. 
  */
 
 /* 

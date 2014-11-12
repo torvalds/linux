@@ -20,8 +20,6 @@
 
 #define PSEUDO_DMA
 
-#define CUMANASCSI_PUBLIC_RELEASE 1
-
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
 #define NCR5380_local_declare()		struct Scsi_Host *_instance
 #define NCR5380_setup(instance)		_instance = instance

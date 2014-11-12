@@ -17,8 +17,6 @@
  *	(Unix and Linux consulting and custom programming)
  *	drew@colorado.edu
  *      +1 (303) 440-4894
- *
- * DISTRIBUTION RELEASE 1.
  */
 
 /*
@@ -65,9 +63,6 @@
 #include "dtc.h"
 #define AUTOPROBE_IRQ
 #include "NCR5380.h"
-
-
-#define DTC_PUBLIC_RELEASE 2
 
 /*
  * The DTC3180 & 3280 boards are memory mapped.

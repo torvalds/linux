@@ -8,8 +8,6 @@
  *	drew@colorado.edu
  *      +1 (303) 440-4894
  *
- * DISTRIBUTION RELEASE 3.
- *
  * For more information, please consult
  *
  * Trantor Systems, Ltd.
@@ -24,8 +22,6 @@
 
 #ifndef T128_H
 #define T128_H
-
-#define T128_PUBLIC_RELEASE 3
 
 #define TDEBUG		0
 #define TDEBUG_INIT	0x1

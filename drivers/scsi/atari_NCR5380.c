@@ -11,8 +11,6 @@
  *	drew@colorado.edu
  *	+1 (303) 666-5836
  *
- * DISTRIBUTION RELEASE 6.
- *
  * For more information, please consult
  *
  * NCR 5380 Family
@@ -741,7 +739,6 @@ static void NCR5380_print_status(struct Scsi_Host *instance)
 
 	hostdata = (struct NCR5380_hostdata *)instance->hostdata;
 
-	printk("\nNCR5380 core release=%d.\n", NCR5380_PUBLIC_RELEASE);
 	local_irq_save(flags);
 	printk("NCR5380: coroutine is%s running.\n",
 		main_running ? "" : "n't");
@@ -785,7 +782,6 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 
 	hostdata = (struct NCR5380_hostdata *)instance->hostdata;
 
-	seq_printf(m, "NCR5380 core release=%d.\n", NCR5380_PUBLIC_RELEASE);
 	local_irq_save(flags);
 	seq_printf(m, "NCR5380: coroutine is%s running.\n",
 		main_running ? "" : "n't");

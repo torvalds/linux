@@ -11,8 +11,6 @@
  *      drew@colorado.edu
  *      +1 (303) 666-5836
  *
- * DISTRIBUTION RELEASE 6. 
- *
  * For more information, please consult 
  *
  * NCR 5380 Family
@@ -734,22 +732,6 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 	Scsi_Cmnd *ptr;
 
 	hostdata = (struct NCR5380_hostdata *) instance->hostdata;
-
-	SPRINTF("NCR5380 core release=%d.   ", NCR5380_PUBLIC_RELEASE);
-	if (((struct NCR5380_hostdata *) instance->hostdata)->flags & FLAG_NCR53C400)
-		SPRINTF("ncr53c400 release=%d.  ", NCR53C400_PUBLIC_RELEASE);
-#ifdef DTC_PUBLIC_RELEASE
-	SPRINTF("DTC 3180/3280 release %d", DTC_PUBLIC_RELEASE);
-#endif
-#ifdef T128_PUBLIC_RELEASE
-	SPRINTF("T128 release %d", T128_PUBLIC_RELEASE);
-#endif
-#ifdef GENERIC_NCR5380_PUBLIC_RELEASE
-	SPRINTF("Generic5380 release %d", GENERIC_NCR5380_PUBLIC_RELEASE);
-#endif
-#ifdef PAS16_PUBLIC_RELEASE
-	SPRINTF("PAS16 release=%d", PAS16_PUBLIC_RELEASE);
-#endif
 
 #ifdef PSEUDO_DMA
 	SPRINTF("Highwater I/O busy spin counts: write %d, read %d\n",

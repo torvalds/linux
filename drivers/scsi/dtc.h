@@ -5,8 +5,6 @@
  *	(Unix and Linux consulting and custom programming)
  *	drew@colorado.edu
  *      +1 (303) 440-4894
- *
- * DISTRIBUTION RELEASE 2. 
  */
 
 #ifndef DTC3280_H

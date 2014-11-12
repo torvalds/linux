@@ -7,8 +7,6 @@
  * 	drew@colorado.edu
  *      +1 (303) 666-5836
  *
- * DISTRIBUTION RELEASE 7
- *
  * For more information, please consult 
  *
  * NCR 5380 Family
@@ -26,9 +24,6 @@
 
 #include <linux/interrupt.h>
 #include <scsi/scsi_eh.h>
-
-#define NCR5380_PUBLIC_RELEASE 7
-#define NCR53C400_PUBLIC_RELEASE 2
 
 #define NDEBUG_ARBITRATION	0x1
 #define NDEBUG_AUTOSENSE	0x2

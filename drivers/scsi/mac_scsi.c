@@ -9,8 +9,6 @@
  * Generic Generic NCR5380 driver
  *
  * Copyright 1995, Russell King
- *
- * ALPHA RELEASE 1.
  */
 
 #include <linux/types.h>

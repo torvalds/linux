@@ -13,14 +13,10 @@
  *	(Unix and Linux consulting and custom programming)
  *	drew@colorado.edu
  *      +1 (303) 440-4894
- *
- * ALPHA RELEASE 1.
  */
 
 #ifndef SUN3_SCSI_H
 #define SUN3_SCSI_H
-
-#define SUN3SCSI_PUBLIC_RELEASE 1
 
 /*
  * Int: level 2 autovector

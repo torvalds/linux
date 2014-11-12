@@ -11,8 +11,6 @@
  *	drew@colorado.edu
  *      +1 (303) 440-4894
  *
- * DISTRIBUTION RELEASE 3.
- *
  * For more information, please consult 
  *
  * Trantor Systems, Ltd.
