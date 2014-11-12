@@ -71,8 +71,9 @@ Required properties for all clocks:
 	multiplexed clocks, the list order must match the hardware
 	programming order.
 - #clock-cells : from common clock binding; shall be set to 0 except for
-	"allwinner,*-gates-clk", "allwinner,sun4i-pll5-clk" and
-	"allwinner,sun4i-pll6-clk" where it shall be set to 1
+	the following compatibles where it shall be set to 1:
+	"allwinner,*-gates-clk", "allwinner,sun4i-pll5-clk",
+	"allwinner,sun4i-pll6-clk", "allwinner,sun6i-a31-pll6-clk"
 - clock-output-names : shall be the corresponding names of the outputs.
 	If the clock module only has one output, the name shall be the
 	module name.
@@ -87,6 +88,12 @@ Clock consumers should specify the desired clocks they use with a
 "clocks" phandle cell. Consumers that are using a gated clock should
 provide an additional ID in their clock property. This ID is the
 offset of the bit controlling this particular gate in the register.
+For the other clocks with "#clock-cells" = 1, the additional ID shall
+refer to the index of the output.
+
+For "allwinner,sun6i-a31-pll6-clk", there are 2 outputs. The first output
+is the normal PLL6 output, or "pll6". The second output is rate doubled
+PLL6, or "pll6x2".
 
 For example:
 
@@ -112,6 +119,14 @@ pll5: clk@01c20020 {
 	reg = <0x01c20020 0x4>;
 	clocks = <&osc24M>;
 	clock-output-names = "pll5_ddr", "pll5_other";
+};
+
+pll6: clk@01c20028 {
+	#clock-cells = <1>;
+	compatible = "allwinner,sun6i-a31-pll6-clk";
+	reg = <0x01c20028 0x4>;
+	clocks = <&osc24M>;
+	clock-output-names = "pll6", "pll6x2";
 };
 
 cpu: cpu@01c20054 {
