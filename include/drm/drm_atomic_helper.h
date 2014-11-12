@@ -34,6 +34,9 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
 			     bool async);
 
+void drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
+					struct drm_atomic_state *old_state);
+
 void drm_atomic_helper_commit_pre_planes(struct drm_device *dev,
 					 struct drm_atomic_state *state);
 void drm_atomic_helper_commit_post_planes(struct drm_device *dev,

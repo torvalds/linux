@@ -754,8 +754,18 @@ static void wait_for_fences(struct drm_device *dev,
 	}
 }
 
-static void
-wait_for_vblanks(struct drm_device *dev, struct drm_atomic_state *old_state)
+/**
+ * drm_atomic_helper_wait_for_vblanks - wait for vblank on crtcs
+ * @dev: DRM device
+ * @old_state: atomic state object with old state structures
+ *
+ * Helper to, after atomic commit, wait for vblanks on all effected
+ * crtcs (ie. before cleaning up old framebuffers using
+ * drm_atomic_helper_cleanup_planes())
+ */
+void
+drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
+		struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
@@ -800,6 +810,7 @@ wait_for_vblanks(struct drm_device *dev, struct drm_atomic_state *old_state)
 		drm_crtc_vblank_put(crtc);
 	}
 }
+EXPORT_SYMBOL(drm_atomic_helper_wait_for_vblanks);
 
 /**
  * drm_atomic_helper_commit - commit validated state object
@@ -859,7 +870,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 
 	drm_atomic_helper_commit_post_planes(dev, state);
 
-	wait_for_vblanks(dev, state);
+	drm_atomic_helper_wait_for_vblanks(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 
