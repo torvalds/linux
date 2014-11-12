@@ -12,23 +12,18 @@
  */
 
 #include <linux/types.h>
-#include <linux/stddef.h>
-#include <linux/ctype.h>
 #include <linux/delay.h>
-
 #include <linux/module.h>
-#include <linux/signal.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
+#include <asm/hwtest.h>
 #include <asm/io.h>
-#include <asm/irq.h>
-
-#include <asm/macintosh.h>
 #include <asm/macints.h>
-#include <asm/mac_via.h>
+#include <asm/setup.h>
 
 #include <scsi/scsi_host.h>
 
@@ -36,7 +31,7 @@
 
 #define PSEUDO_DMA
 
-#define NCR5380_implementation_fields   /* none */
+#define NCR5380_implementation_fields   unsigned char *pdma_base
 #define NCR5380_local_declare()         struct Scsi_Host *_instance
 #define NCR5380_setup(instance)         _instance = instance
 
@@ -57,10 +52,6 @@
 #include "NCR5380.h"
 
 #define RESET_BOOT
-
-#ifdef RESET_BOOT
-static void mac_scsi_reset_boot(struct Scsi_Host *instance);
-#endif
 
 static int setup_can_queue = -1;
 module_param(setup_can_queue, int, 0);
@@ -86,23 +77,18 @@ module_param(setup_hostid, int, 0);
 #define	AFTER_RESET_DELAY	(HZ/2)
 #endif
 
-static unsigned char *mac_scsi_regp;
-static unsigned char *mac_scsi_drq;
-static unsigned char *mac_scsi_nodrq;
-
-
 /*
  * NCR 5380 register access functions
  */
 
-static __inline__ char macscsi_read(struct Scsi_Host *instance, int reg)
+static inline char macscsi_read(struct Scsi_Host *instance, int reg)
 {
-  return in_8(instance->io_port + (reg<<4));
+	return in_8(instance->base + (reg << 4));
 }
 
-static __inline__ void macscsi_write(struct Scsi_Host *instance, int reg, int value)
+static inline void macscsi_write(struct Scsi_Host *instance, int reg, int value)
 {
-  out_8(instance->io_port + (reg<<4), value);
+	out_8(instance->base + (reg << 4), value);
 }
 
 #ifndef MODULE
@@ -133,96 +119,6 @@ static int __init mac_scsi_setup(char *str)
 
 __setup("mac5380=", mac_scsi_setup);
 #endif /* !MODULE */
-
-/*
- * Function : int macscsi_detect(struct scsi_host_template * tpnt)
- *
- * Purpose : initializes mac NCR5380 driver based on the
- *	command line / compile time port and irq definitions.
- *
- * Inputs : tpnt - template for this SCSI adapter.
- *
- * Returns : 1 if a host adapter was found, 0 if not.
- *
- */
- 
-int __init macscsi_detect(struct scsi_host_template * tpnt)
-{
-    static int called = 0;
-    int flags = 0;
-    struct Scsi_Host *instance;
-
-    if (!MACH_IS_MAC || called)
-	return( 0 );
-
-    if (macintosh_config->scsi_type != MAC_SCSI_OLD)
-	return( 0 );
-
-	if (setup_can_queue > 0)
-		tpnt->can_queue = setup_can_queue;
-	if (setup_cmd_per_lun > 0)
-		tpnt->cmd_per_lun = setup_cmd_per_lun;
-	if (setup_sg_tablesize >= 0)
-		tpnt->sg_tablesize = setup_sg_tablesize;
-	if (setup_hostid >= 0)
-		tpnt->this_id = setup_hostid & 7;
-
-#ifdef SUPPORT_TAGS
-    if (setup_use_tagged_queuing < 0)
-	setup_use_tagged_queuing = 0;
-#endif
-
-    /* Once we support multiple 5380s (e.g. DuoDock) we'll do
-       something different here */
-    instance = scsi_register (tpnt, sizeof(struct NCR5380_hostdata));
-    if (instance == NULL)
-	return 0;
-
-    if (macintosh_config->ident == MAC_MODEL_IIFX) {
-	mac_scsi_regp  = (unsigned char *) VIA1_BASE + 0x8000;
-	mac_scsi_drq   = (unsigned char *) VIA1_BASE + 0xE000;
-	mac_scsi_nodrq = (unsigned char *) VIA1_BASE + 0xC000;
-	/* The IIFX should be able to do true DMA, but pseudo-dma doesn't work */
-	flags = FLAG_NO_PSEUDO_DMA;
-    } else {
-	mac_scsi_regp  = (unsigned char *) VIA1_BASE + 0x10000;
-	mac_scsi_drq   = (unsigned char *) VIA1_BASE + 0x6000;
-	mac_scsi_nodrq = (unsigned char *) VIA1_BASE + 0x12000;
-    }
-
-    if (! setup_use_pdma)
-	flags = FLAG_NO_PSEUDO_DMA;
-	
-    instance->io_port = (unsigned long) mac_scsi_regp;
-    instance->irq = IRQ_MAC_SCSI;
-
-#ifdef RESET_BOOT   
-    mac_scsi_reset_boot(instance);
-#endif
-    
-    NCR5380_init(instance, flags);
-
-    instance->n_io_port = 255;
-
-    if (instance->irq != NO_IRQ)
-	if (request_irq(instance->irq, NCR5380_intr, 0, "ncr5380", instance)) {
-	    printk(KERN_WARNING "scsi%d: IRQ%d not free, interrupts disabled\n",
-		   instance->host_no, instance->irq);
-	    instance->irq = NO_IRQ;
-	}
-
-    called = 1;
-    return 1;
-}
-
-int macscsi_release (struct Scsi_Host *shpnt)
-{
-	if (shpnt->irq != NO_IRQ)
-		free_irq(shpnt->irq, shpnt);
-	NCR5380_exit(shpnt);
-
-	return 0;
-}
 
 #ifdef RESET_BOOT
 /*
@@ -335,13 +231,14 @@ __asm__ __volatile__					\
 static int macscsi_pread(struct Scsi_Host *instance,
                          unsigned char *dst, int len)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char *d;
 	unsigned char *s;
 
 	NCR5380_local_declare();
 	NCR5380_setup(instance);
 
-	s = mac_scsi_drq + (INPUT_DATA_REG << 4);
+	s = hostdata->pdma_base + (INPUT_DATA_REG << 4);
 	d = dst;
 
 	/* These conditions are derived from MacOS */
@@ -428,6 +325,7 @@ __asm__ __volatile__					\
 static int macscsi_pwrite(struct Scsi_Host *instance,
                           unsigned char *src, int len)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char *s;
 	unsigned char *d;
 
@@ -435,7 +333,7 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 	NCR5380_setup(instance);
 
 	s = src;
-	d = mac_scsi_drq + (OUTPUT_DATA_REG << 4);
+	d = hostdata->pdma_base + (OUTPUT_DATA_REG << 4);
 
 	/* These conditions are derived from MacOS */
 
@@ -462,13 +360,15 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 
 #include "NCR5380.c"
 
-static struct scsi_host_template driver_template = {
-	.proc_name			= "Mac5380",
+#define DRV_MODULE_NAME         "mac_scsi"
+#define PFX                     DRV_MODULE_NAME ": "
+
+static struct scsi_host_template mac_scsi_template = {
+	.module				= THIS_MODULE,
+	.proc_name			= DRV_MODULE_NAME,
 	.show_info			= macscsi_show_info,
 	.write_info			= macscsi_write_info,
 	.name				= "Macintosh NCR5380 SCSI",
-	.detect				= macscsi_detect,
-	.release			= macscsi_release,
 	.info				= macscsi_info,
 	.queuecommand			= macscsi_queue_command,
 	.eh_abort_handler		= macscsi_abort,
@@ -480,7 +380,114 @@ static struct scsi_host_template driver_template = {
 	.use_clustering			= DISABLE_CLUSTERING
 };
 
+static int __init mac_scsi_probe(struct platform_device *pdev)
+{
+	struct Scsi_Host *instance;
+	int error;
+	int host_flags = 0;
+	struct resource *irq, *pio_mem, *pdma_mem = NULL;
 
-#include "scsi_module.c"
+	pio_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!pio_mem)
+		return -ENODEV;
 
+#ifdef PSEUDO_DMA
+	pdma_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+#endif
+
+	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+
+	if (!hwreg_present((unsigned char *)pio_mem->start +
+	                   (STATUS_REG << 4))) {
+		pr_info(PFX "no device detected at %pap\n", &pio_mem->start);
+		return -ENODEV;
+	}
+
+	if (setup_can_queue > 0)
+		mac_scsi_template.can_queue = setup_can_queue;
+	if (setup_cmd_per_lun > 0)
+		mac_scsi_template.cmd_per_lun = setup_cmd_per_lun;
+	if (setup_sg_tablesize >= 0)
+		mac_scsi_template.sg_tablesize = setup_sg_tablesize;
+	if (setup_hostid >= 0)
+		mac_scsi_template.this_id = setup_hostid & 7;
+#ifdef SUPPORT_TAGS
+	if (setup_use_tagged_queuing < 0)
+		setup_use_tagged_queuing = 0;
+#endif
+	if (setup_use_pdma < 0)
+		setup_use_pdma = 0;
+
+	instance = scsi_host_alloc(&mac_scsi_template,
+	                           sizeof(struct NCR5380_hostdata));
+	if (!instance)
+		return -ENOMEM;
+
+	instance->base = pio_mem->start;
+	if (irq)
+		instance->irq = irq->start;
+	else
+		instance->irq = NO_IRQ;
+
+	if (pdma_mem && setup_use_pdma) {
+		struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+		hostdata->pdma_base = (unsigned char *)pdma_mem->start;
+	} else
+		host_flags |= FLAG_NO_PSEUDO_DMA;
+
+#ifdef RESET_BOOT
+	mac_scsi_reset_boot(instance);
+#endif
+
+	NCR5380_init(instance, host_flags);
+
+	if (instance->irq != NO_IRQ) {
+		error = request_irq(instance->irq, macscsi_intr, IRQF_SHARED,
+		                    "NCR5380", instance);
+		if (error)
+			goto fail_irq;
+	}
+
+	error = scsi_add_host(instance, NULL);
+	if (error)
+		goto fail_host;
+
+	platform_set_drvdata(pdev, instance);
+
+	scsi_scan_host(instance);
+	return 0;
+
+fail_host:
+	if (instance->irq != NO_IRQ)
+		free_irq(instance->irq, instance);
+fail_irq:
+	NCR5380_exit(instance);
+	scsi_host_put(instance);
+	return error;
+}
+
+static int __exit mac_scsi_remove(struct platform_device *pdev)
+{
+	struct Scsi_Host *instance = platform_get_drvdata(pdev);
+
+	scsi_remove_host(instance);
+	if (instance->irq != NO_IRQ)
+		free_irq(instance->irq, instance);
+	NCR5380_exit(instance);
+	scsi_host_put(instance);
+	return 0;
+}
+
+static struct platform_driver mac_scsi_driver = {
+	.remove = __exit_p(mac_scsi_remove),
+	.driver = {
+		.name	= DRV_MODULE_NAME,
+		.owner	= THIS_MODULE,
+	},
+};
+
+module_platform_driver_probe(mac_scsi_driver, mac_scsi_probe);
+
+MODULE_ALIAS("platform:" DRV_MODULE_NAME);
 MODULE_LICENSE("GPL");
