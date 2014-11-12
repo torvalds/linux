@@ -1097,7 +1097,7 @@ static void f_midi_unbind(struct usb_configuration *c, struct usb_function *f)
 	usb_free_all_descriptors(f);
 }
 
-struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
+static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 {
 	struct f_midi *midi;
 	struct f_midi_opts *opts;
