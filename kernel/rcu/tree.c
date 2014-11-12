@@ -2297,7 +2297,7 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 	rnp->qsmaskinit &= ~rdp->grpmask;
 	if (rnp->qsmaskinit == 0 && !rcu_preempt_has_tasks(rnp))
 		rcu_cleanup_dead_rnp(rnp);
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	rcu_report_qs_rnp(rdp->grpmask, rsp, rnp, flags); /* Rlses rnp->lock. */
 	WARN_ONCE(rdp->qlen != 0 || rdp->nxtlist != NULL,
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, nxtlist=%p\n",
 		  cpu, rdp->qlen, rdp->nxtlist);
