@@ -1427,12 +1427,12 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 	show_regs(regs);
 
 	if (multi_match) {
-		printk("Index	: %0x\n", read_c0_index());
-		printk("Pagemask: %0x\n", read_c0_pagemask());
-		printk("EntryHi : %0*lx\n", field, read_c0_entryhi());
-		printk("EntryLo0: %0*lx\n", field, read_c0_entrylo0());
-		printk("EntryLo1: %0*lx\n", field, read_c0_entrylo1());
-		printk("\n");
+		pr_err("Index	: %0x\n", read_c0_index());
+		pr_err("Pagemask: %0x\n", read_c0_pagemask());
+		pr_err("EntryHi : %0*lx\n", field, read_c0_entryhi());
+		pr_err("EntryLo0: %0*lx\n", field, read_c0_entrylo0());
+		pr_err("EntryLo1: %0*lx\n", field, read_c0_entrylo1());
+		pr_err("\n");
 		dump_tlb_all();
 	}
 
