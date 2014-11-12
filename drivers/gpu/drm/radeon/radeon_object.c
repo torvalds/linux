@@ -99,22 +99,39 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 
 	rbo->placement.placement = rbo->placements;
 	rbo->placement.busy_placement = rbo->placements;
-	if (domain & RADEON_GEM_DOMAIN_VRAM)
+	if (domain & RADEON_GEM_DOMAIN_VRAM) {
+		/* Try placing BOs which don't need CPU access outside of the
+		 * CPU accessible part of VRAM
+		 */
+		if ((rbo->flags & RADEON_GEM_NO_CPU_ACCESS) &&
+		    rbo->rdev->mc.visible_vram_size < rbo->rdev->mc.real_vram_size) {
+			rbo->placements[c].fpfn =
+				rbo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
+			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
+						     TTM_PL_FLAG_UNCACHED |
+						     TTM_PL_FLAG_VRAM;
+		}
+
+		rbo->placements[c].fpfn = 0;
 		rbo->placements[c++].flags = TTM_PL_FLAG_WC |
 					     TTM_PL_FLAG_UNCACHED |
 					     TTM_PL_FLAG_VRAM;
+	}
 
 	if (domain & RADEON_GEM_DOMAIN_GTT) {
 		if (rbo->flags & RADEON_GEM_GTT_UC) {
+			rbo->placements[c].fpfn = 0;
 			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED |
 				TTM_PL_FLAG_TT;
 
 		} else if ((rbo->flags & RADEON_GEM_GTT_WC) ||
 			   (rbo->rdev->flags & RADEON_IS_AGP)) {
+			rbo->placements[c].fpfn = 0;
 			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
 				TTM_PL_FLAG_UNCACHED |
 				TTM_PL_FLAG_TT;
 		} else {
+			rbo->placements[c].fpfn = 0;
 			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED |
 						     TTM_PL_FLAG_TT;
 		}
@@ -122,30 +139,35 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 
 	if (domain & RADEON_GEM_DOMAIN_CPU) {
 		if (rbo->flags & RADEON_GEM_GTT_UC) {
+			rbo->placements[c].fpfn = 0;
 			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED |
 				TTM_PL_FLAG_SYSTEM;
 
 		} else if ((rbo->flags & RADEON_GEM_GTT_WC) ||
 		    rbo->rdev->flags & RADEON_IS_AGP) {
+			rbo->placements[c].fpfn = 0;
 			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
 				TTM_PL_FLAG_UNCACHED |
 				TTM_PL_FLAG_SYSTEM;
 		} else {
+			rbo->placements[c].fpfn = 0;
 			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED |
 						     TTM_PL_FLAG_SYSTEM;
 		}
 	}
-	if (!c)
+	if (!c) {
+		rbo->placements[c].fpfn = 0;
 		rbo->placements[c++].flags = TTM_PL_MASK_CACHING |
 					     TTM_PL_FLAG_SYSTEM;
+	}
 
 	rbo->placement.num_placement = c;
 	rbo->placement.num_busy_placement = c;
 
 	for (i = 0; i < c; ++i) {
-		rbo->placements[i].fpfn = 0;
 		if ((rbo->flags & RADEON_GEM_CPU_ACCESS) &&
-		    (rbo->placements[i].flags & TTM_PL_FLAG_VRAM))
+		    (rbo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
+		    !rbo->placements[i].fpfn)
 			rbo->placements[i].lpfn =
 				rbo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
 		else
@@ -157,9 +179,7 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	 * improve fragmentation quality.
 	 * 512kb was measured as the most optimal number.
 	 */
-	if (!((rbo->flags & RADEON_GEM_CPU_ACCESS) &&
-	      (rbo->placements[i].flags & TTM_PL_FLAG_VRAM)) &&
-	    rbo->tbo.mem.size > 512 * 1024) {
+	if (rbo->tbo.mem.size > 512 * 1024) {
 		for (i = 0; i < c; i++) {
 			rbo->placements[i].flags |= TTM_PL_FLAG_TOPDOWN;
 		}
@@ -743,8 +763,8 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
 	struct radeon_device *rdev;
 	struct radeon_bo *rbo;
-	unsigned long offset, size;
-	int r;
+	unsigned long offset, size, lpfn;
+	int i, r;
 
 	if (!radeon_ttm_bo_is_radeon_bo(bo))
 		return 0;
@@ -761,7 +781,13 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 	/* hurrah the memory is not visible ! */
 	radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
-	rbo->placements[0].lpfn = rdev->mc.visible_vram_size >> PAGE_SHIFT;
+	lpfn =	rdev->mc.visible_vram_size >> PAGE_SHIFT;
+	for (i = 0; i < rbo->placement.num_placement; i++) {
+		/* Force into visible VRAM */
+		if ((rbo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
+		    (!rbo->placements[i].lpfn || rbo->placements[i].lpfn > lpfn))
+			rbo->placements[i].lpfn = lpfn;
+	}
 	r = ttm_bo_validate(bo, &rbo->placement, false, false);
 	if (unlikely(r == -ENOMEM)) {
 		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);

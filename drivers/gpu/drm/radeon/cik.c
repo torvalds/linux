@@ -1806,7 +1806,7 @@ int ci_mc_load_microcode(struct radeon_device *rdev)
 {
 	const __be32 *fw_data = NULL;
 	const __le32 *new_fw_data = NULL;
-	u32 running, blackout = 0;
+	u32 running, blackout = 0, tmp;
 	u32 *io_mc_regs = NULL;
 	const __le32 *new_io_mc_regs = NULL;
 	int i, regs_size, ucode_size;
@@ -1866,6 +1866,15 @@ int ci_mc_load_microcode(struct radeon_device *rdev)
 				WREG32(MC_SEQ_IO_DEBUG_DATA, io_mc_regs[(i << 1) + 1]);
 			}
 		}
+
+		tmp = RREG32(MC_SEQ_MISC0);
+		if ((rdev->pdev->device == 0x6649) && ((tmp & 0xff00) == 0x5600)) {
+			WREG32(MC_SEQ_IO_DEBUG_INDEX, 5);
+			WREG32(MC_SEQ_IO_DEBUG_DATA, 0x00000023);
+			WREG32(MC_SEQ_IO_DEBUG_INDEX, 9);
+			WREG32(MC_SEQ_IO_DEBUG_DATA, 0x000001f0);
+		}
+
 		/* load the MC ucode */
 		for (i = 0; i < ucode_size; i++) {
 			if (rdev->new_fw)
