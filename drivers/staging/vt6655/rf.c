@@ -468,8 +468,9 @@ static bool s_bAL7230Init(struct vnt_private *priv)
 }
 
 // Need to Pull PLLON low when writing channel registers through 3-wire interface
-static bool s_bAL7230SelectChannel(void __iomem *dwIoBase, unsigned char byChannel)
+static bool s_bAL7230SelectChannel(struct vnt_private *priv, unsigned char byChannel)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	bool bResult;
 
 	bResult = true;
@@ -627,8 +628,9 @@ bool IFRFbWriteEmbedded(void __iomem *dwIoBase, unsigned long dwData)
  * Return Value: true if succeeded; false if failed.
  *
  */
-static bool RFbAL2230Init(void __iomem *dwIoBase)
+static bool RFbAL2230Init(struct vnt_private *priv)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	int     ii;
 	bool bResult;
 
@@ -674,8 +676,9 @@ static bool RFbAL2230Init(void __iomem *dwIoBase)
 	return bResult;
 }
 
-static bool RFbAL2230SelectChannel(void __iomem *dwIoBase, unsigned char byChannel)
+static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byChannel)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	bool bResult;
 
 	bResult = true;
@@ -756,7 +759,7 @@ bool RFbInit(
 	case RF_AIROHA:
 	case RF_AL2230S:
 		pDevice->byMaxPwrLevel = AL2230_PWR_IDX_LEN;
-		bResult = RFbAL2230Init(pDevice->PortOffset);
+		bResult = RFbAL2230Init(pDevice);
 		break;
 	case RF_AIROHA7230:
 		pDevice->byMaxPwrLevel = AL7230_PWR_IDX_LEN;
@@ -785,18 +788,18 @@ bool RFbInit(
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool RFbSelectChannel(void __iomem *dwIoBase, unsigned char byRFType, unsigned char byChannel)
+bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType, unsigned char byChannel)
 {
 	bool bResult = true;
 
 	switch (byRFType) {
 	case RF_AIROHA:
 	case RF_AL2230S:
-		bResult = RFbAL2230SelectChannel(dwIoBase, byChannel);
+		bResult = RFbAL2230SelectChannel(priv, byChannel);
 		break;
 		//{{ RobertYu: 20050104
 	case RF_AIROHA7230:
-		bResult = s_bAL7230SelectChannel(dwIoBase, byChannel);
+		bResult = s_bAL7230SelectChannel(priv, byChannel);
 		break;
 		//}} RobertYu
 	case RF_NOTHING:
@@ -821,8 +824,9 @@ bool RFbSelectChannel(void __iomem *dwIoBase, unsigned char byRFType, unsigned c
  * Return Value: None.
  *
  */
-bool RFvWriteWakeProgSyn(void __iomem *dwIoBase, unsigned char byRFType, unsigned int uChannel)
+bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType, unsigned int uChannel)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	int   ii;
 	unsigned char byInitCount = 0;
 	unsigned char bySleepCount = 0;
@@ -1071,8 +1075,11 @@ RFvRSSITodBm(
 
 // Post processing for the 11b/g and 11a.
 // for save time on changing Reg2,3,5,7,10,12,15
-bool RFbAL7230SelectChannelPostProcess(void __iomem *dwIoBase, unsigned char byOldChannel, unsigned char byNewChannel)
+bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv,
+				       unsigned char byOldChannel,
+				       unsigned char byNewChannel)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	bool bResult;
 
 	bResult = true;

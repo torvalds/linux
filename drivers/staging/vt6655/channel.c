@@ -188,14 +188,16 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 	/* TX_PE will reserve 3 us for MAX2829 A mode only, it is for better TX throughput */
 
 	if (pDevice->byRFType == RF_AIROHA7230)
-		RFbAL7230SelectChannelPostProcess(pDevice->PortOffset, pDevice->byCurrentCh, (unsigned char)uConnectionChannel);
+		RFbAL7230SelectChannelPostProcess(pDevice, pDevice->byCurrentCh,
+						  (unsigned char)uConnectionChannel);
 
 	pDevice->byCurrentCh = (unsigned char)uConnectionChannel;
-	bResult &= RFbSelectChannel(pDevice->PortOffset, pDevice->byRFType, (unsigned char)uConnectionChannel);
+	bResult &= RFbSelectChannel(pDevice, pDevice->byRFType,
+				    (unsigned char)uConnectionChannel);
 
 	/* Init Synthesizer Table */
 	if (pDevice->bEnablePSMode)
-		RFvWriteWakeProgSyn(pDevice->PortOffset, pDevice->byRFType, uConnectionChannel);
+		RFvWriteWakeProgSyn(pDevice, pDevice->byRFType, uConnectionChannel);
 
 	BBvSoftwareReset(pDevice);
 
