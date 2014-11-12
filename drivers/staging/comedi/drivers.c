@@ -317,10 +317,10 @@ unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s)
 	case COMEDI_SUBD_DO:
 	case COMEDI_SUBD_DIO:
 		bits_per_sample = 8 * comedi_bytes_per_sample(s);
-		num_samples = DIV_ROUND_UP(cmd->chanlist_len, bits_per_sample);
+		num_samples = DIV_ROUND_UP(cmd->scan_end_arg, bits_per_sample);
 		break;
 	default:
-		num_samples = cmd->chanlist_len;
+		num_samples = cmd->scan_end_arg;
 		break;
 	}
 	return comedi_samples_to_bytes(s, num_samples);
@@ -384,11 +384,13 @@ unsigned int comedi_nsamples_left(struct comedi_subdevice *s,
 		/* +1 to force comedi_nscans_left() to return the scans left */
 		unsigned int nscans = (nsamples / cmd->scan_end_arg) + 1;
 		unsigned int scans_left = comedi_nscans_left(s, nscans);
+		unsigned int scan_pos =
+		    comedi_bytes_to_samples(s, async->scan_progress);
 		unsigned long long samples_left = 0;
 
 		if (scans_left) {
 			samples_left = ((unsigned long long)scans_left *
-				       cmd->scan_end_arg) - async->cur_chan;
+					cmd->scan_end_arg) - scan_pos;
 		}
 
 		if (samples_left < nsamples)
