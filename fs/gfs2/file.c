@@ -874,7 +874,8 @@ retry:
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) && (pos + count) > inode->i_size) {
 		i_size_write(inode, pos + count);
-		mark_inode_dirty(inode);
+		/* Marks the inode as dirty */
+		file_update_time(file);
 	}
 
 	return generic_write_sync(file, pos, count);
