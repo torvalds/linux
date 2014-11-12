@@ -109,11 +109,15 @@
 
 /* PCI Address Constants */
 #define SMBBAR		4
+#define SMBPCICTL	0x004
 #define SMBPCISTS	0x006
 #define SMBHSTCFG	0x040
 
 /* Host status bits for SMBPCISTS */
 #define SMBPCISTS_INTS		0x08
+
+/* Control bits for SMBPCICTL */
+#define SMBPCICTL_INTDIS	0x0400
 
 /* Host configuration bits for SMBHSTCFG */
 #define SMBHSTCFG_HST_EN	1
@@ -1230,6 +1234,22 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/* Default timeout in interrupt mode: 200 ms */
 	priv->adapter.timeout = HZ / 5;
+
+	if (priv->features & FEATURE_IRQ) {
+		u16 pcictl, pcists;
+
+		/* Complain if an interrupt is already pending */
+		pci_read_config_word(priv->pci_dev, SMBPCISTS, &pcists);
+		if (pcists & SMBPCISTS_INTS)
+			dev_warn(&dev->dev, "An interrupt is pending!\n");
+
+		/* Check if interrupts have been disabled */
+		pci_read_config_word(priv->pci_dev, SMBPCICTL, &pcictl);
+		if (pcictl & SMBPCICTL_INTDIS) {
+			dev_info(&dev->dev, "Interrupts are disabled\n");
+			priv->features &= ~FEATURE_IRQ;
+		}
+	}
 
 	if (priv->features & FEATURE_IRQ) {
 		init_waitqueue_head(&priv->waitq);
