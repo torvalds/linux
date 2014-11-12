@@ -14,6 +14,8 @@ Optional properties:
 	      KSZ8021: register 0x1f, bits 5..4
 	      KSZ8031: register 0x1f, bits 5..4
 	      KSZ8051: register 0x1f, bits 5..4
+	      KSZ8081: register 0x1f, bits 5..4
+	      KSZ8091: register 0x1f, bits 5..4
 
               See the respective PHY datasheet for the mode values.
 
