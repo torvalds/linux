@@ -40,6 +40,18 @@ trace_seq_buffer_ptr(struct trace_seq *s)
 	return s->buffer + s->len;
 }
 
+/**
+ * trace_seq_has_overflowed - return true if the trace_seq took too much
+ * @s: trace sequence descriptor
+ *
+ * Returns true if too much data was added to the trace_seq and it is
+ * now full and will not take anymore.
+ */
+static inline bool trace_seq_has_overflowed(struct trace_seq *s)
+{
+	return s->full || s->len > PAGE_SIZE - 1;
+}
+
 /*
  * Currently only defined when tracing is enabled.
  */

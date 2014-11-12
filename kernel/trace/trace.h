@@ -14,6 +14,7 @@
 #include <linux/trace_seq.h>
 #include <linux/ftrace_event.h>
 #include <linux/compiler.h>
+#include <linux/trace_seq.h>
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 #include <asm/unistd.h>		/* For NR_SYSCALLS	     */
