@@ -38,8 +38,8 @@
 #define NCR5380_read(reg)		inb(port + reg)
 #define NCR5380_write(reg, value)	outb(value, port + reg)
 
-#define NCR5380_implementation_fields	unsigned int port
-#define NCR5380_local_declare()		NCR5380_implementation_fields
+#define NCR5380_implementation_fields	/* none */
+#define NCR5380_local_declare()		unsigned int port
 #define NCR5380_setup(instance)		port = instance->io_port
 
 /*

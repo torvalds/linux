@@ -93,35 +93,6 @@ static volatile unsigned char *mac_scsi_nodrq = NULL;
  * NCR 5380 register access functions
  */
 
-#if 0
-/* Debug versions */
-#define CTRL(p,v) (*ctrl = (v))
-
-static char macscsi_read(struct Scsi_Host *instance, int reg)
-{
-  int iobase = instance->io_port;
-  int i;
-  int *ctrl = &((struct NCR5380_hostdata *)instance->hostdata)->ctrl;
-
-  CTRL(iobase, 0);
-  i = in_8(iobase + (reg<<4));
-  CTRL(iobase, 0x40);
-
-  return i;
-}
-
-static void macscsi_write(struct Scsi_Host *instance, int reg, int value)
-{
-  int iobase = instance->io_port;
-  int *ctrl = &((struct NCR5380_hostdata *)instance->hostdata)->ctrl;
-
-  CTRL(iobase, 0);
-  out_8(iobase + (reg<<4), value);
-  CTRL(iobase, 0x40);
-}
-#else
-
-/* Fast versions */
 static __inline__ char macscsi_read(struct Scsi_Host *instance, int reg)
 {
   return in_8(instance->io_port + (reg<<4));
@@ -131,8 +102,6 @@ static __inline__ void macscsi_write(struct Scsi_Host *instance, int reg, int va
 {
   out_8(instance->io_port + (reg<<4), value);
 }
-#endif
-
 
 /*
  * Function : mac_scsi_setup(char *str)
@@ -278,8 +247,6 @@ int __init macscsi_detect(struct scsi_host_template * tpnt)
     NCR5380_init(instance, flags);
 
     instance->n_io_port = 255;
-
-    ((struct NCR5380_hostdata *)instance->hostdata)->ctrl = 0;
 
     if (instance->irq != SCSI_IRQ_NONE)
 	if (request_irq(instance->irq, NCR5380_intr, 0, "ncr5380", instance)) {
