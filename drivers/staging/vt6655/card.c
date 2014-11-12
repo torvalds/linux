@@ -394,7 +394,7 @@ bool CARDbSetBeaconPeriod(struct vnt_private *pDevice,
 {
 	u64 qwNextTBTT = 0;
 
-	CARDbGetCurrentTSF(pDevice->PortOffset, &qwNextTBTT); /* Get Local TSF counter */
+	CARDbGetCurrentTSF(pDevice, &qwNextTBTT); /* Get Local TSF counter */
 
 	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
 
@@ -828,8 +828,10 @@ unsigned char CARDbyGetPktType(struct vnt_private *pDevice)
  *
  * Return Value: none
  */
-void CARDvSetLoopbackMode(void __iomem *dwIoBase, unsigned short wLoopbackMode)
+void CARDvSetLoopbackMode(struct vnt_private *priv, unsigned short wLoopbackMode)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
+
 	switch (wLoopbackMode) {
 	case CARD_LB_NONE:
 	case CARD_LB_MAC:
@@ -905,8 +907,9 @@ u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2)
  *
  * Return Value: true if success; otherwise false
  */
-bool CARDbGetCurrentTSF(void __iomem *dwIoBase, u64 *pqwCurrTSF)
+bool CARDbGetCurrentTSF(struct vnt_private *priv, u64 *pqwCurrTSF)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	unsigned short ww;
 	unsigned char byData;
 
@@ -964,11 +967,12 @@ u64 CARDqGetNextTBTT(u64 qwTSF, unsigned short wBeaconInterval)
  *
  * Return Value: none
  */
-void CARDvSetFirstNextTBTT(void __iomem *dwIoBase, unsigned short wBeaconInterval)
+void CARDvSetFirstNextTBTT(struct vnt_private *priv, unsigned short wBeaconInterval)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
 	u64 qwNextTBTT = 0;
 
-	CARDbGetCurrentTSF(dwIoBase, &qwNextTBTT); /* Get Local TSF counter */
+	CARDbGetCurrentTSF(priv, &qwNextTBTT); /* Get Local TSF counter */
 
 	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
 	/* Set NextTBTT */
@@ -991,8 +995,10 @@ void CARDvSetFirstNextTBTT(void __iomem *dwIoBase, unsigned short wBeaconInterva
  *
  * Return Value: none
  */
-void CARDvUpdateNextTBTT(void __iomem *dwIoBase, u64 qwTSF, unsigned short wBeaconInterval)
+void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 qwTSF, unsigned short wBeaconInterval)
 {
+	void __iomem *dwIoBase = priv->PortOffset;
+
 	qwTSF = CARDqGetNextTBTT(qwTSF, wBeaconInterval);
 	/* Set NextTBTT */
 	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT, (u32)qwTSF);

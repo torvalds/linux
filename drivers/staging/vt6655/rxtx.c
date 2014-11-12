@@ -1521,7 +1521,7 @@ int vnt_beacon_enable(struct vnt_private *priv, struct ieee80211_vif *vif,
 
 	VNSvOutPortB(priv->PortOffset + MAC_REG_TFTCTL, TFTCTL_TSFCNTREN);
 
-	CARDvSetFirstNextTBTT(priv->PortOffset, conf->beacon_int);
+	CARDvSetFirstNextTBTT(priv, conf->beacon_int);
 
 	CARDbSetBeaconPeriod(priv, conf->beacon_int);
 

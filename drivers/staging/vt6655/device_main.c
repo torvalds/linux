@@ -1513,8 +1513,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 			CARDbSetBeaconPeriod(priv, conf->beacon_int);
 
-			CARDvSetFirstNextTBTT(priv->PortOffset,
-					      conf->beacon_int);
+			CARDvSetFirstNextTBTT(priv, conf->beacon_int);
 		} else {
 			VNSvOutPortB(priv->PortOffset + MAC_REG_TFTCTL,
 				     TFTCTL_TSFCNTRST);
@@ -1633,7 +1632,7 @@ static u64 vnt_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct vnt_private *priv = hw->priv;
 	u64 tsf;
 
-	CARDbGetCurrentTSF(priv->PortOffset, &tsf);
+	CARDbGetCurrentTSF(priv, &tsf);
 
 	return tsf;
 }
@@ -1643,7 +1642,7 @@ static void vnt_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct vnt_private *priv = hw->priv;
 
-	CARDvUpdateNextTBTT(priv->PortOffset, tsf, vif->bss_conf.beacon_int);
+	CARDvUpdateNextTBTT(priv, tsf, vif->bss_conf.beacon_int);
 }
 
 static void vnt_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
