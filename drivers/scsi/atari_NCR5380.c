@@ -1105,7 +1105,7 @@ static void NCR5380_main(struct work_struct *work)
 static void NCR5380_dma_complete(struct Scsi_Host *instance)
 {
 	SETUP_HOSTDATA(instance);
-	int transfered;
+	int transferred;
 	unsigned char **data;
 	volatile int *count;
 	int saved_data = 0, overrun = 0;
@@ -1157,13 +1157,13 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
 	NCR5380_write(MODE_REG, MR_BASE);
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 
-	transfered = hostdata->dma_len - NCR5380_dma_residual(instance);
+	transferred = hostdata->dma_len - NCR5380_dma_residual(instance);
 	hostdata->dma_len = 0;
 
 	data = (unsigned char **)&hostdata->connected->SCp.ptr;
 	count = &hostdata->connected->SCp.this_residual;
-	*data += transfered;
-	*count -= transfered;
+	*data += transferred;
+	*count -= transferred;
 
 	if (hostdata->read_overruns) {
 		int cnt, toPIO;
