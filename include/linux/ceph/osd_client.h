@@ -87,6 +87,13 @@ struct ceph_osd_req_op {
 			struct ceph_osd_data osd_data;
 		} extent;
 		struct {
+			__le32 name_len;
+			__le32 value_len;
+			__u8 cmp_op;       /* CEPH_OSD_CMPXATTR_OP_* */
+			__u8 cmp_mode;     /* CEPH_OSD_CMPXATTR_MODE_* */
+			struct ceph_osd_data osd_data;
+		} xattr;
+		struct {
 			const char *class_name;
 			const char *method_name;
 			struct ceph_osd_data request_info;
@@ -295,6 +302,9 @@ extern void osd_req_op_cls_response_data_pages(struct ceph_osd_request *,
 extern void osd_req_op_cls_init(struct ceph_osd_request *osd_req,
 					unsigned int which, u16 opcode,
 					const char *class, const char *method);
+extern int osd_req_op_xattr_init(struct ceph_osd_request *osd_req, unsigned int which,
+				 u16 opcode, const char *name, const void *value,
+				 size_t size, u8 cmp_op, u8 cmp_mode);
 extern void osd_req_op_watch_init(struct ceph_osd_request *osd_req,
 					unsigned int which, u16 opcode,
 					u64 cookie, u64 version, int flag);

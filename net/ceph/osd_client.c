@@ -292,6 +292,10 @@ static void osd_req_op_data_release(struct ceph_osd_request *osd_req,
 		ceph_osd_data_release(&op->cls.request_data);
 		ceph_osd_data_release(&op->cls.response_data);
 		break;
+	case CEPH_OSD_OP_SETXATTR:
+	case CEPH_OSD_OP_CMPXATTR:
+		ceph_osd_data_release(&op->xattr.osd_data);
+		break;
 	default:
 		break;
 	}
@@ -545,6 +549,39 @@ void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 }
 EXPORT_SYMBOL(osd_req_op_cls_init);
 
+int osd_req_op_xattr_init(struct ceph_osd_request *osd_req, unsigned int which,
+			  u16 opcode, const char *name, const void *value,
+			  size_t size, u8 cmp_op, u8 cmp_mode)
+{
+	struct ceph_osd_req_op *op = _osd_req_op_init(osd_req, which, opcode);
+	struct ceph_pagelist *pagelist;
+	size_t payload_len;
+
+	BUG_ON(opcode != CEPH_OSD_OP_SETXATTR && opcode != CEPH_OSD_OP_CMPXATTR);
+
+	pagelist = kmalloc(sizeof(*pagelist), GFP_NOFS);
+	if (!pagelist)
+		return -ENOMEM;
+
+	ceph_pagelist_init(pagelist);
+
+	payload_len = strlen(name);
+	op->xattr.name_len = payload_len;
+	ceph_pagelist_append(pagelist, name, payload_len);
+
+	op->xattr.value_len = size;
+	ceph_pagelist_append(pagelist, value, size);
+	payload_len += size;
+
+	op->xattr.cmp_op = cmp_op;
+	op->xattr.cmp_mode = cmp_mode;
+
+	ceph_osd_data_pagelist_init(&op->xattr.osd_data, pagelist);
+	op->payload_len = payload_len;
+	return 0;
+}
+EXPORT_SYMBOL(osd_req_op_xattr_init);
+
 void osd_req_op_watch_init(struct ceph_osd_request *osd_req,
 				unsigned int which, u16 opcode,
 				u64 cookie, u64 version, int flag)
@@ -675,6 +712,16 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 		    cpu_to_le64(src->alloc_hint.expected_object_size);
 		dst->alloc_hint.expected_write_size =
 		    cpu_to_le64(src->alloc_hint.expected_write_size);
+		break;
+	case CEPH_OSD_OP_SETXATTR:
+	case CEPH_OSD_OP_CMPXATTR:
+		dst->xattr.name_len = cpu_to_le32(src->xattr.name_len);
+		dst->xattr.value_len = cpu_to_le32(src->xattr.value_len);
+		dst->xattr.cmp_op = src->xattr.cmp_op;
+		dst->xattr.cmp_mode = src->xattr.cmp_mode;
+		osd_data = &src->xattr.osd_data;
+		ceph_osdc_msg_data_add(req->r_request, osd_data);
+		request_data_len = osd_data->pagelist->length;
 		break;
 	default:
 		pr_err("unsupported osd opcode %s\n",
