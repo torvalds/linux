@@ -37,6 +37,7 @@ struct cfg802154_ops {
 							   int type);
 	void	(*del_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
 					       struct net_device *dev);
+	int	(*set_channel)(struct wpan_phy *wpan_phy, u8 page, u8 channel);
 };
 
 struct wpan_phy {

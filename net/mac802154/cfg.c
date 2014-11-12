@@ -17,6 +17,7 @@
 #include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
+#include "driver-ops.h"
 #include "cfg.h"
 
 static struct net_device *
@@ -41,7 +42,30 @@ static void ieee802154_del_iface_deprecated(struct wpan_phy *wpan_phy,
 	ieee802154_if_remove(sdata);
 }
 
+static int
+ieee802154_set_channel(struct wpan_phy *wpan_phy, const u8 page,
+		       const u8 channel)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	int ret;
+
+	ASSERT_RTNL();
+
+	/* check if phy support this setting */
+	if (!(wpan_phy->channels_supported[page] & BIT(channel)))
+		return -EINVAL;
+
+	ret = drv_set_channel(local, page, channel);
+	if (!ret) {
+		wpan_phy->current_page = page;
+		wpan_phy->current_channel = channel;
+	}
+
+	return ret;
+}
+
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf_deprecated = ieee802154_add_iface_deprecated,
 	.del_virtual_intf_deprecated = ieee802154_del_iface_deprecated,
+	.set_channel = ieee802154_set_channel,
 };

@@ -20,4 +20,11 @@ rdev_del_virtual_intf_deprecated(struct cfg802154_registered_device *rdev,
 	rdev->ops->del_virtual_intf_deprecated(&rdev->wpan_phy, dev);
 }
 
+static inline int
+rdev_set_channel(struct cfg802154_registered_device *rdev, const u8 page,
+		 const u8 channel)
+{
+	return rdev->ops->set_channel(&rdev->wpan_phy, page, channel);
+}
+
 #endif /* __CFG802154_RDEV_OPS */

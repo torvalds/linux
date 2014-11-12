@@ -23,6 +23,7 @@
 #include <net/sock.h>
 
 #include "nl802154.h"
+#include "rdev-ops.h"
 #include "core.h"
 
 static int nl802154_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
@@ -550,6 +551,25 @@ static int nl802154_get_interface(struct sk_buff *skb, struct genl_info *info)
 	return genlmsg_reply(msg, info);
 }
 
+static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	u8 channel, page;
+
+	if (!info->attrs[NL802154_ATTR_PAGE] ||
+	    !info->attrs[NL802154_ATTR_CHANNEL])
+		return -EINVAL;
+
+	page = nla_get_u8(info->attrs[NL802154_ATTR_PAGE]);
+	channel = nla_get_u8(info->attrs[NL802154_ATTR_CHANNEL]);
+
+	/* check 802.15.4 constraints */
+	if (page >= WPAN_NUM_PAGES || channel >= WPAN_NUM_CHANNELS)
+		return -EINVAL;
+
+	return rdev_set_channel(rdev, page, channel);
+}
+
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
 #define NL802154_FLAG_NEED_NETDEV	0x02
 #define NL802154_FLAG_NEED_RTNL		0x04
@@ -658,6 +678,14 @@ static const struct genl_ops nl802154_ops[] = {
 		.policy = nl802154_policy,
 		/* can be retrieved by unprivileged users */
 		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_CHANNEL,
+		.doit = nl802154_set_channel,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
 				  NL802154_FLAG_NEED_RTNL,
 	},
 };
