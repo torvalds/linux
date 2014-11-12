@@ -687,10 +687,13 @@ static int st21nfca_hci_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id of_st21nfca_i2c_match[] = {
 	{ .compatible = "st,st21nfca_i2c", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, of_st21nfca_i2c_match);
+#endif
 
 static struct i2c_driver st21nfca_hci_i2c_driver = {
 	.driver = {
