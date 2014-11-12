@@ -514,7 +514,7 @@ htab_insert_pte:
 	andis.	r0,r31,_PAGE_4K_PFN@h
 	srdi	r5,r31,PTE_RPN_SHIFT
 	bne-	htab_special_pfn
-	sldi	r5,r5,PAGE_SHIFT-HW_PAGE_SHIFT
+	sldi	r5,r5,PAGE_FACTOR
 	add	r5,r5,r25
 htab_special_pfn:
 	sldi	r5,r5,HW_PAGE_SHIFT
@@ -544,7 +544,7 @@ htab_call_hpte_insert1:
 	andis.	r0,r31,_PAGE_4K_PFN@h
 	srdi	r5,r31,PTE_RPN_SHIFT
 	bne-	3f
-	sldi	r5,r5,PAGE_SHIFT-HW_PAGE_SHIFT
+	sldi	r5,r5,PAGE_FACTOR
 	add	r5,r5,r25
 3:	sldi	r5,r5,HW_PAGE_SHIFT
 
