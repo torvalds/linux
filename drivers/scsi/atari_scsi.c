@@ -783,45 +783,6 @@ static int __init atari_scsi_setup(char *str)
 __setup("atascsi=", atari_scsi_setup);
 #endif /* !MODULE */
 
-static int atari_scsi_bus_reset(Scsi_Cmnd *cmd)
-{
-	int rv;
-	struct NCR5380_hostdata *hostdata =
-		(struct NCR5380_hostdata *)cmd->device->host->hostdata;
-
-	/* For doing the reset, SCSI interrupts must be disabled first,
-	 * since the 5380 raises its IRQ line while _RST is active and we
-	 * can't disable interrupts completely, since we need the timer.
-	 */
-	/* And abort a maybe active DMA transfer */
-	if (IS_A_TT()) {
-		atari_turnoff_irq(IRQ_TT_MFP_SCSI);
-#ifdef REAL_DMA
-		tt_scsi_dma.dma_ctrl = 0;
-#endif /* REAL_DMA */
-	} else {
-		atari_turnoff_irq(IRQ_MFP_FSCSI);
-#ifdef REAL_DMA
-		st_dma.dma_mode_status = 0x90;
-		atari_dma_active = 0;
-		atari_dma_orig_addr = NULL;
-#endif /* REAL_DMA */
-	}
-
-	rv = NCR5380_bus_reset(cmd);
-
-	/* Re-enable ints */
-	if (IS_A_TT()) {
-		atari_turnon_irq(IRQ_TT_MFP_SCSI);
-	} else {
-		atari_turnon_irq(IRQ_MFP_FSCSI);
-	}
-	if (rv == SUCCESS)
-		falcon_release_lock_if_possible(hostdata);
-
-	return rv;
-}
-
 
 #ifdef CONFIG_ATARI_SCSI_RESET_BOOT
 static void __init atari_scsi_reset_boot(void)
@@ -1093,6 +1054,43 @@ static void atari_scsi_falcon_reg_write(unsigned char reg, unsigned char value)
 
 
 #include "atari_NCR5380.c"
+
+static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
+{
+	int rv;
+	struct NCR5380_hostdata *hostdata = shost_priv(cmd->device->host);
+
+	/* For doing the reset, SCSI interrupts must be disabled first,
+	 * since the 5380 raises its IRQ line while _RST is active and we
+	 * can't disable interrupts completely, since we need the timer.
+	 */
+	/* And abort a maybe active DMA transfer */
+	if (IS_A_TT()) {
+		atari_turnoff_irq(IRQ_TT_MFP_SCSI);
+#ifdef REAL_DMA
+		tt_scsi_dma.dma_ctrl = 0;
+#endif
+	} else {
+		atari_turnoff_irq(IRQ_MFP_FSCSI);
+#ifdef REAL_DMA
+		st_dma.dma_mode_status = 0x90;
+		atari_dma_active = 0;
+		atari_dma_orig_addr = NULL;
+#endif
+	}
+
+	rv = NCR5380_bus_reset(cmd);
+
+	if (IS_A_TT())
+		atari_turnon_irq(IRQ_TT_MFP_SCSI);
+	else
+		atari_turnon_irq(IRQ_MFP_FSCSI);
+
+	if (rv == SUCCESS)
+		falcon_release_lock_if_possible(hostdata);
+
+	return rv;
+}
 
 static struct scsi_host_template driver_template = {
 	.show_info		= atari_scsi_show_info,

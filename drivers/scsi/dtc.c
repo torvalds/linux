@@ -219,10 +219,6 @@ static int __init dtc_detect(struct scsi_host_template * tpnt)
 	void __iomem *base;
 	int sig, count;
 
-	tpnt->proc_name = "dtc3x80";
-	tpnt->show_info = dtc_show_info;
-	tpnt->write_info = dtc_write_info;
-
 	for (count = 0; current_override < NO_OVERRIDES; ++current_override) {
 		addr = 0;
 		base = NULL;
@@ -477,6 +473,9 @@ static struct scsi_host_template driver_template = {
 	.name				= "DTC 3180/3280 ",
 	.detect				= dtc_detect,
 	.release			= dtc_release,
+	.proc_name			= "dtc3x80",
+	.show_info			= dtc_show_info,
+	.write_info			= dtc_write_info,
 	.queuecommand			= dtc_queue_command,
 	.eh_abort_handler		= dtc_abort,
 	.eh_bus_reset_handler		= dtc_bus_reset,

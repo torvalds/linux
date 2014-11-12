@@ -390,10 +390,6 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
     unsigned short io_port;
     int  count;
 
-    tpnt->proc_name = "pas16";
-    tpnt->show_info = pas16_show_info;
-    tpnt->write_info = pas16_write_info;
-
     if (pas16_addr != 0) {
 	overrides[0].io_port = pas16_addr;
 	/*
@@ -620,6 +616,9 @@ static struct scsi_host_template driver_template = {
 	.name           = "Pro Audio Spectrum-16 SCSI",
 	.detect         = pas16_detect,
 	.release        = pas16_release,
+	.proc_name      = "pas16",
+	.show_info      = pas16_show_info,
+	.write_info     = pas16_write_info,
 	.queuecommand   = pas16_queue_command,
 	.eh_abort_handler = pas16_abort,
 	.eh_bus_reset_handler = pas16_bus_reset,

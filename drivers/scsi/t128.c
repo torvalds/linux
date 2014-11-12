@@ -201,10 +201,6 @@ static int __init t128_detect(struct scsi_host_template *tpnt)
     void __iomem *p;
     int sig, count;
 
-    tpnt->proc_name = "t128";
-    tpnt->show_info = t128_show_info;
-    tpnt->write_info = t128_write_info;
-
     for (count = 0; current_override < NO_OVERRIDES; ++current_override) {
 	base = 0;
 	p = NULL;
@@ -435,6 +431,9 @@ static struct scsi_host_template driver_template = {
 	.name           = "Trantor T128/T128F/T228",
 	.detect         = t128_detect,
 	.release        = t128_release,
+	.proc_name      = "t128",
+	.show_info      = t128_show_info,
+	.write_info     = t128_write_info,
 	.queuecommand   = t128_queue_command,
 	.eh_abort_handler = t128_abort,
 	.eh_bus_reset_handler    = t128_bus_reset,

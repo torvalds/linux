@@ -718,7 +718,8 @@ static void show_Scsi_Cmnd(Scsi_Cmnd *cmd, struct seq_file *m)
 	seq_printf(m, "\n");
 }
 
-static int NCR5380_show_info(struct seq_file *m, struct Scsi_Host *instance)
+static int __maybe_unused NCR5380_show_info(struct seq_file *m,
+                                            struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata;
 	Scsi_Cmnd *ptr;
