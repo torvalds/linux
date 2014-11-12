@@ -699,21 +699,6 @@ static int __init atari_scsi_detect(struct scsi_host_template *host)
 #endif
 	}
 
-	printk(KERN_INFO "scsi%d: options CAN_QUEUE=%d CMD_PER_LUN=%d SCAT-GAT=%d "
-#ifdef SUPPORT_TAGS
-			"TAGGED-QUEUING=%s "
-#endif
-			"HOSTID=%d",
-			instance->host_no, instance->hostt->can_queue,
-			instance->hostt->cmd_per_lun,
-			instance->hostt->sg_tablesize,
-#ifdef SUPPORT_TAGS
-			setup_use_tagged_queuing ? "yes" : "no",
-#endif
-			instance->hostt->this_id );
-	NCR5380_print_options(instance);
-	printk("\n");
-
 	called = 1;
 	return 1;
 }
@@ -814,15 +799,6 @@ static void __init atari_scsi_reset_boot(void)
 	printk(" done\n");
 }
 #endif
-
-
-static const char *atari_scsi_info(struct Scsi_Host *host)
-{
-	/* atari_scsi_detect() is verbose enough... */
-	static const char string[] = "Atari native SCSI";
-	return string;
-}
-
 
 #if defined(REAL_DMA)
 

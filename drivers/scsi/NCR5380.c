@@ -610,47 +610,70 @@ static int __init __maybe_unused NCR5380_probe_irq(struct Scsi_Host *instance,
 }
 
 /**
- *	NCR58380_print_options	-	show options
- *	@instance: unused for now
+ *	NCR58380_info - report driver and host information
+ *	@instance: relevant scsi host instance
  *
- *	Called by probe code indicating the NCR5380 driver options that 
- *	were selected. At some point this will switch to runtime options
- *	read from the adapter in question
+ *	For use as the host template info() handler.
  *
  *	Locks: none
  */
 
-static void __init __maybe_unused
-NCR5380_print_options(struct Scsi_Host *instance)
+static const char *NCR5380_info(struct Scsi_Host *instance)
 {
-	printk(" generic options"
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	return hostdata->info;
+}
+
+static void prepare_info(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	snprintf(hostdata->info, sizeof(hostdata->info),
+	         "%s, io_port 0x%lx, n_io_port %d, "
+	         "base 0x%lx, irq %d, "
+	         "can_queue %d, cmd_per_lun %d, "
+	         "sg_tablesize %d, this_id %d, "
+	         "flags { %s%s%s}, "
+#if defined(USLEEP_POLL) && defined(USLEEP_WAITLONG)
+	         "USLEEP_POLL %d, USLEEP_WAITLONG %d, "
+#endif
+	         "options { %s} ",
+	         instance->hostt->name, instance->io_port, instance->n_io_port,
+	         instance->base, instance->irq,
+	         instance->can_queue, instance->cmd_per_lun,
+	         instance->sg_tablesize, instance->this_id,
+	         hostdata->flags & FLAG_NCR53C400     ? "NCR53C400 "     : "",
+	         hostdata->flags & FLAG_DTC3181E      ? "DTC3181E "      : "",
+	         hostdata->flags & FLAG_NO_PSEUDO_DMA ? "NO_PSEUDO_DMA " : "",
+#if defined(USLEEP_POLL) && defined(USLEEP_WAITLONG)
+	         USLEEP_POLL, USLEEP_WAITLONG,
+#endif
 #ifdef AUTOPROBE_IRQ
-	       " AUTOPROBE_IRQ"
+	         "AUTOPROBE_IRQ "
 #endif
 #ifdef DIFFERENTIAL
-	       " DIFFERENTIAL"
+	         "DIFFERENTIAL "
 #endif
 #ifdef REAL_DMA
-	       " REAL DMA"
+	         "REAL_DMA "
 #endif
 #ifdef REAL_DMA_POLL
-	       " REAL DMA POLL"
+	         "REAL_DMA_POLL "
 #endif
 #ifdef PARITY
-	       " PARITY"
+	         "PARITY "
 #endif
 #ifdef PSEUDO_DMA
-	       " PSEUDO DMA"
+	         "PSEUDO_DMA "
 #endif
 #ifdef UNSAFE
-	       " UNSAFE "
+	         "UNSAFE "
 #endif
-	    );
-	printk(" USLEEP_POLL=%d USLEEP_SLEEP=%d", USLEEP_POLL, USLEEP_SLEEP);
-	printk(" generic release=%d", NCR5380_PUBLIC_RELEASE);
-	if (((struct NCR5380_hostdata *) instance->hostdata)->flags & FLAG_NCR53C400) {
-		printk(" ncr53c400 release=%d", NCR53C400_PUBLIC_RELEASE);
-	}
+#ifdef NCR53C400
+	         "NCR53C400 "
+#endif
+	         "");
 }
 
 /**
@@ -727,13 +750,6 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 #ifdef PAS16_PUBLIC_RELEASE
 	SPRINTF("PAS16 release=%d", PAS16_PUBLIC_RELEASE);
 #endif
-
-	SPRINTF("\nBase Addr: 0x%05lX    ", (long) instance->base);
-	SPRINTF("io_port: %04x      ", (int) instance->io_port);
-	if (instance->irq == NO_IRQ)
-		SPRINTF("IRQ: None.\n");
-	else
-		SPRINTF("IRQ: %d.\n", instance->irq);
 
 #ifdef DTC_PUBLIC_RELEASE
 	SPRINTF("Highwater I/O busy_spin_counts -- write: %d  read: %d\n", dtc_wmaxi, dtc_maxi);
@@ -841,6 +857,8 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 
 	hostdata->host = instance;
 	hostdata->time_expires = 0;
+
+	prepare_info(instance);
 
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 	NCR5380_write(MODE_REG, MR_BASE);

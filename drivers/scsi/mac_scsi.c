@@ -236,16 +236,6 @@ int __init macscsi_detect(struct scsi_host_template * tpnt)
 	    instance->irq = NO_IRQ;
 	}
 
-    printk(KERN_INFO "scsi%d: generic 5380 at port %lX irq", instance->host_no, instance->io_port);
-    if (instance->irq == NO_IRQ)
-	printk (KERN_INFO "s disabled");
-    else
-	printk (KERN_INFO " %d", instance->irq);
-    printk(KERN_INFO " options CAN_QUEUE=%d CMD_PER_LUN=%d release=%d",
-	   instance->can_queue, instance->cmd_per_lun, MACSCSI_PUBLIC_RELEASE);
-    printk(KERN_INFO "\nscsi%d:", instance->host_no);
-    NCR5380_print_options(instance);
-    printk("\n");
     called = 1;
     return 1;
 }
@@ -296,10 +286,6 @@ static void mac_scsi_reset_boot(struct Scsi_Host *instance)
 	printk(KERN_INFO " done\n" );
 }
 #endif
-
-const char * macscsi_info (struct Scsi_Host *spnt) {
-	return "";
-}
 
 /* 
    Pseudo-DMA: (Ove Edlund)

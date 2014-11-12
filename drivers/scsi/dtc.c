@@ -281,15 +281,6 @@ found:
 		printk("scsi%d : irq = %d\n", instance->host_no, instance->irq);
 #endif
 
-		printk(KERN_INFO "scsi%d : at 0x%05X", instance->host_no, (int) instance->base);
-		if (instance->irq == NO_IRQ)
-			printk(" interrupts disabled");
-		else
-			printk(" irq %d", instance->irq);
-		printk(" options CAN_QUEUE=%d  CMD_PER_LUN=%d release=%d", CAN_QUEUE, CMD_PER_LUN, DTC_PUBLIC_RELEASE);
-		NCR5380_print_options(instance);
-		printk("\n");
-
 		++current_override;
 		++count;
 	}
@@ -461,6 +452,7 @@ static struct scsi_host_template driver_template = {
 	.proc_name			= "dtc3x80",
 	.show_info			= dtc_show_info,
 	.write_info			= dtc_write_info,
+	.info				= dtc_info,
 	.queuecommand			= dtc_queue_command,
 	.eh_abort_handler		= dtc_abort,
 	.eh_bus_reset_handler		= dtc_bus_reset,

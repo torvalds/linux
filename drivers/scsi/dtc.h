@@ -65,6 +65,7 @@
 #define NCR5380_queue_command		dtc_queue_command
 #define NCR5380_abort			dtc_abort
 #define NCR5380_bus_reset		dtc_bus_reset
+#define NCR5380_info			dtc_info
 #define NCR5380_show_info		dtc_show_info 
 #define NCR5380_write_info		dtc_write_info 
 

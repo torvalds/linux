@@ -74,6 +74,7 @@
 #define NCR5380_bus_reset sun3scsi_bus_reset
 #define NCR5380_abort sun3scsi_abort
 #define NCR5380_show_info sun3scsi_show_info
+#define NCR5380_info sun3scsi_info
 #define NCR5380_dma_xfer_len(i, cmd, phase) \
         sun3scsi_dma_xfer_len(cmd->SCp.this_residual,cmd,((phase) & SR_IO) ? 0 : 1)
 

@@ -29,6 +29,7 @@
 #define NCR5380_read(reg)		readb(_base + ((reg) << 2))
 #define NCR5380_write(reg, value)	writeb(value, _base + ((reg) << 2))
 #define NCR5380_queue_command		oakscsi_queue_command
+#define NCR5380_info			oakscsi_info
 #define NCR5380_show_info		oakscsi_show_info
 #define NCR5380_write_info		oakscsi_write_info
 
@@ -39,11 +40,6 @@
 
 #undef START_DMA_INITIATOR_RECEIVE_REG
 #define START_DMA_INITIATOR_RECEIVE_REG	(128 + 7)
-
-const char * oakscsi_info (struct Scsi_Host *spnt)
-{
-	return "";
-}
 
 #define STAT	((128 + 16) << 2)
 #define DATA	((128 + 8) << 2)
@@ -152,14 +148,6 @@ static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	host->n_io_port = 255;
 
 	NCR5380_init(host, 0);
-
-	printk("scsi%d: at port 0x%08lx irqs disabled",
-		host->host_no, host->io_port);
-	printk(" options CAN_QUEUE=%d  CMD_PER_LUN=%d release=%d",
-		host->can_queue, host->cmd_per_lun, OAKSCSI_PUBLIC_RELEASE);
-	printk("\nscsi%d:", host->host_no);
-	NCR5380_print_options(host);
-	printk("\n");
 
 	ret = scsi_add_host(host, &ec->dev);
 	if (ret)

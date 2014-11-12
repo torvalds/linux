@@ -446,32 +446,10 @@ static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 			printk(KERN_INFO "scsi%d : please jumper the board for a free IRQ.\n", instance->host_no);
 		}
 
-		printk(KERN_INFO "scsi%d : at " STRVAL(NCR5380_map_name) " 0x%x", instance->host_no, (unsigned int) instance->NCR5380_instance_name);
-		if (instance->irq == NO_IRQ)
-			printk(" interrupts disabled");
-		else
-			printk(" irq %d", instance->irq);
-		printk(" options CAN_QUEUE=%d  CMD_PER_LUN=%d release=%d", CAN_QUEUE, CMD_PER_LUN, GENERIC_NCR5380_PUBLIC_RELEASE);
-		NCR5380_print_options(instance);
-		printk("\n");
-
 		++current_override;
 		++count;
 	}
 	return count;
-}
-
-/**
- *	generic_NCR5380_info	-	reporting string
- *	@host: NCR5380 to report on
- *
- *	Report driver information for the NCR5380
- */
- 	
-static const char *generic_NCR5380_info(struct Scsi_Host *host)
-{
-	static const char string[] = "Generic NCR5380/53C400 Driver";
-	return string;
 }
 
 /**
@@ -720,120 +698,9 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
  
 #include "NCR5380.c"
 
-#define PRINTP(x) seq_printf(m, x)
-#define ANDP ,
-
-static void sprint_opcode(struct seq_file *m, int opcode)
-{
-	PRINTP("0x%02x " ANDP opcode);
-}
-
-static void sprint_command(struct seq_file *m, unsigned char *command)
-{
-	int i, s;
-	sprint_opcode(m, command[0]);
-	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
-		PRINTP("%02x " ANDP command[i]);
-	PRINTP("\n");
-}
-
-/**
- *	sprintf_Scsi_Cmnd	-	print a scsi command
- *	@m: seq_fil to print into
- *	@cmd: SCSI command block
- *	
- *	Print out the target and command data in hex
- */
-
-static void sprint_Scsi_Cmnd(struct seq_file *m, Scsi_Cmnd * cmd)
-{
-	PRINTP("host number %d destination target %d, lun %llu\n" ANDP cmd->device->host->host_no ANDP cmd->device->id ANDP cmd->device->lun);
-	PRINTP("        command = ");
-	sprint_command(m, cmd->cmnd);
-}
-
-/**
- *	generic_NCR5380_proc_info	-	/proc for NCR5380 driver
- *	@buffer: buffer to print into
- *	@start: start position
- *	@offset: offset into buffer
- *	@len: length
- *	@hostno: instance to affect
- *	@inout: read/write
- *
- *	Provide the procfs information for the 5380 controller. We fill
- *	this with useful debugging information including the commands
- *	being executed, disconnected command queue and the statistical
- *	data
- *
- *	Locks: global cli/lock for queue walk
- */
- 
-static int generic_NCR5380_show_info(struct seq_file *m, struct Scsi_Host *scsi_ptr)
-{
-	NCR5380_local_declare();
-	unsigned long flags;
-	unsigned char status;
-	int i;
-	Scsi_Cmnd *ptr;
-	struct NCR5380_hostdata *hostdata;
-
-	NCR5380_setup(scsi_ptr);
-	hostdata = (struct NCR5380_hostdata *) scsi_ptr->hostdata;
-
-	spin_lock_irqsave(scsi_ptr->host_lock, flags);
-	PRINTP("SCSI host number %d : %s\n" ANDP scsi_ptr->host_no ANDP scsi_ptr->hostt->name);
-	PRINTP("Generic NCR5380 driver version %d\n" ANDP GENERIC_NCR5380_PUBLIC_RELEASE);
-	PRINTP("NCR5380 core version %d\n" ANDP NCR5380_PUBLIC_RELEASE);
-#ifdef NCR53C400
-	PRINTP("NCR53C400 extension version %d\n" ANDP NCR53C400_PUBLIC_RELEASE);
-	PRINTP("NCR53C400 card%s detected\n" ANDP(((struct NCR5380_hostdata *) scsi_ptr->hostdata)->flags & FLAG_NCR53C400) ? "" : " not");
-# if NCR53C400_PSEUDO_DMA
-	PRINTP("NCR53C400 pseudo DMA used\n");
-# endif
-#else
-	PRINTP("NO NCR53C400 driver extensions\n");
-#endif
-	PRINTP("Using %s mapping at %s 0x%lx, " ANDP STRVAL(NCR5380_map_config) ANDP STRVAL(NCR5380_map_name) ANDP scsi_ptr->NCR5380_instance_name);
-	if (scsi_ptr->irq == NO_IRQ)
-		PRINTP("no interrupt\n");
-	else
-		PRINTP("on interrupt %d\n" ANDP scsi_ptr->irq);
-
-	status = NCR5380_read(STATUS_REG);
-	if (!(status & SR_REQ))
-		PRINTP("REQ not asserted, phase unknown.\n");
-	else {
-		for (i = 0; (phases[i].value != PHASE_UNKNOWN) && (phases[i].value != (status & PHASE_MASK)); ++i);
-		PRINTP("Phase %s\n" ANDP phases[i].name);
-	}
-
-	if (!hostdata->connected) {
-		PRINTP("No currently connected command\n");
-	} else {
-		sprint_Scsi_Cmnd(m, (Scsi_Cmnd *) hostdata->connected);
-	}
-
-	PRINTP("issue_queue\n");
-
-	for (ptr = (Scsi_Cmnd *) hostdata->issue_queue; ptr; ptr = (Scsi_Cmnd *) ptr->host_scribble)
-		sprint_Scsi_Cmnd(m, ptr);
-
-	PRINTP("disconnected_queue\n");
-
-	for (ptr = (Scsi_Cmnd *) hostdata->disconnected_queue; ptr; ptr = (Scsi_Cmnd *) ptr->host_scribble)
-		sprint_Scsi_Cmnd(m, ptr);
-
-	spin_unlock_irqrestore(scsi_ptr->host_lock, flags);
-	return 0;
-}
-
-#undef PRINTP
-#undef ANDP
-
 static struct scsi_host_template driver_template = {
 	.show_info      	= generic_NCR5380_show_info,
-	.name           	= "Generic NCR5380/NCR53C400 Scsi Driver",
+	.name           	= "Generic NCR5380/NCR53C400 SCSI",
 	.detect         	= generic_NCR5380_detect,
 	.release        	= generic_NCR5380_release_resources,
 	.info           	= generic_NCR5380_info,

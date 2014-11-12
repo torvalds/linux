@@ -143,6 +143,7 @@
 #define NCR5380_queue_command pas16_queue_command
 #define NCR5380_abort pas16_abort
 #define NCR5380_bus_reset pas16_bus_reset
+#define NCR5380_info pas16_info
 #define NCR5380_show_info pas16_show_info
 #define NCR5380_write_info pas16_write_info
 

@@ -144,12 +144,6 @@
  * be able to coexist with appropriate changes to the high level
  * SCSI code.
  *
- * A NCR5380_PUBLIC_REVISION macro is provided, with the release
- * number (updated for each public release) printed by the
- * NCR5380_print_options command, which should be called from the
- * wrapper detect function, so that I know what release of the driver
- * users are using.
- *
  * Issues specific to the NCR5380 :
  *
  * When used in a PIO or pseudo-dma mode, the NCR5380 is a braindead
@@ -247,7 +241,6 @@
  * NCR5380_queue_command
  * NCR5380_reset
  * NCR5380_abort
- * NCR5380_proc_info
  *
  * to be the global entry points into the specific driver, ie
  * #define NCR5380_queue_command t128_queue_command.
@@ -259,8 +252,7 @@
  * The generic driver is initialized by calling NCR5380_init(instance),
  * after setting the appropriate host specific fields and ID.  If the
  * driver wishes to autoprobe for an IRQ line, the NCR5380_probe_irq(instance,
- * possible) function may be used.  Before the specific driver initialization
- * code finishes, NCR5380_print_options should be called.
+ * possible) function may be used.
  */
 
 static struct Scsi_Host *first_instance = NULL;
@@ -670,30 +662,49 @@ static inline void NCR5380_all_init(void)
 	}
 }
 
-
-/*
- * Function : void NCR58380_print_options (struct Scsi_Host *instance)
+/**
+ * NCR58380_info - report driver and host information
+ * @instance: relevant scsi host instance
  *
- * Purpose : called by probe code indicating the NCR5380 driver
- *	     options that were selected.
+ * For use as the host template info() handler.
  *
- * Inputs : instance, pointer to this instance.  Unused.
+ * Locks: none
  */
 
-static void __init NCR5380_print_options(struct Scsi_Host *instance)
+static const char *NCR5380_info(struct Scsi_Host *instance)
 {
-	printk(" generic options"
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	return hostdata->info;
+}
+
+static void prepare_info(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	snprintf(hostdata->info, sizeof(hostdata->info),
+	         "%s, io_port 0x%lx, n_io_port %d, "
+	         "base 0x%lx, irq %d, "
+	         "can_queue %d, cmd_per_lun %d, "
+	         "sg_tablesize %d, this_id %d, "
+	         "options { %s} ",
+	         instance->hostt->name, instance->io_port, instance->n_io_port,
+	         instance->base, instance->irq,
+	         instance->can_queue, instance->cmd_per_lun,
+	         instance->sg_tablesize, instance->this_id,
+#ifdef DIFFERENTIAL
+	         "DIFFERENTIAL "
+#endif
 #ifdef REAL_DMA
-	       " REAL DMA"
+	         "REAL_DMA "
 #endif
 #ifdef PARITY
-	       " PARITY"
+	         "PARITY "
 #endif
 #ifdef SUPPORT_TAGS
-	       " SCSI-2 TAGGED QUEUING"
+	         "SUPPORT_TAGS "
 #endif
-	       );
-	printk(" generic release=%d", NCR5380_PUBLIC_RELEASE);
+	         "");
 }
 
 /*
@@ -838,6 +849,8 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 		the_template = instance->hostt;
 		first_instance = instance;
 	}
+
+	prepare_info(instance);
 
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 	NCR5380_write(MODE_REG, MR_BASE);

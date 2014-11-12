@@ -286,19 +286,6 @@ static int __init sun3scsi_detect(struct scsi_host_template *tpnt)
 #endif
 	}
 	
-	pr_info("scsi%d: %s at port %lX irq", instance->host_no,
-		tpnt->proc_name, instance->io_port);
-	if (instance->irq == NO_IRQ)
-		printk ("s disabled");
-	else
-		printk (" %d", instance->irq);
-	printk(" options CAN_QUEUE=%d CMD_PER_LUN=%d release=%d",
-	       instance->can_queue, instance->cmd_per_lun,
-	       SUN3SCSI_PUBLIC_RELEASE);
-	printk("\nscsi%d:", instance->host_no);
-	NCR5380_print_options(instance);
-	printk("\n");
-
 	dregs->csr = 0;
 	udelay(SUN3_DMA_DELAY);
 	dregs->csr = CSR_SCSI | CSR_FIFO | CSR_INTR;
@@ -379,11 +366,6 @@ static void sun3_scsi_reset_boot(struct Scsi_Host *instance)
 	printk( " done\n" );
 }
 #endif
-
-static const char *sun3scsi_info(struct Scsi_Host *spnt)
-{
-    return "";
-}
 
 // safe bits for the CSR
 #define CSR_GOOD 0x060f

@@ -273,6 +273,7 @@ struct NCR5380_hostdata {
 	volatile Scsi_Cmnd *selecting;
 	struct delayed_work coroutine;		/* our co-routine */
 	struct scsi_eh_save ses;
+	char info[256];
 };
 
 #ifdef __KERNEL__
@@ -307,7 +308,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance);
 static irqreturn_t NCR5380_intr(int irq, void *dev_id);
 #endif
 static void NCR5380_main(struct work_struct *work);
-static void __maybe_unused NCR5380_print_options(struct Scsi_Host *instance);
+static const char *NCR5380_info(struct Scsi_Host *instance);
 static void NCR5380_reselect(struct Scsi_Host *instance);
 static int NCR5380_select(struct Scsi_Host *instance, Scsi_Cmnd *cmd);
 #if defined(PSEUDO_DMA) || defined(REAL_DMA) || defined(REAL_DMA_POLL)

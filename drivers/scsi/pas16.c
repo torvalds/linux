@@ -438,17 +438,6 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
 	printk("scsi%d : irq = %d\n", instance->host_no, instance->irq);
 #endif
 
-	printk("scsi%d : at 0x%04x", instance->host_no, (int) 
-	    instance->io_port);
-	if (instance->irq == NO_IRQ)
-	    printk (" interrupts disabled");
-	else 
-	    printk (" irq %d", instance->irq);
-	printk(" options CAN_QUEUE=%d  CMD_PER_LUN=%d release=%d",
-	    CAN_QUEUE, CMD_PER_LUN, PAS16_PUBLIC_RELEASE);
-	NCR5380_print_options(instance);
-	printk("\n");
-
 	++current_override;
 	++count;
     }
@@ -586,6 +575,7 @@ static struct scsi_host_template driver_template = {
 	.proc_name      = "pas16",
 	.show_info      = pas16_show_info,
 	.write_info     = pas16_write_info,
+	.info           = pas16_info,
 	.queuecommand   = pas16_queue_command,
 	.eh_abort_handler = pas16_abort,
 	.eh_bus_reset_handler = pas16_bus_reset,
