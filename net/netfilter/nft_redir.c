@@ -28,7 +28,6 @@ int nft_redir_init(const struct nft_ctx *ctx,
 		   const struct nlattr * const tb[])
 {
 	struct nft_redir *priv = nft_expr_priv(expr);
-	u32 nla_be32;
 	int err;
 
 	err = nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
@@ -36,15 +35,17 @@ int nft_redir_init(const struct nft_ctx *ctx,
 		return err;
 
 	if (tb[NFTA_REDIR_REG_PROTO_MIN]) {
-		nla_be32 = nla_get_be32(tb[NFTA_REDIR_REG_PROTO_MIN]);
-		priv->sreg_proto_min = ntohl(nla_be32);
+		priv->sreg_proto_min =
+			ntohl(nla_get_be32(tb[NFTA_REDIR_REG_PROTO_MIN]));
+
 		err = nft_validate_input_register(priv->sreg_proto_min);
 		if (err < 0)
 			return err;
 
 		if (tb[NFTA_REDIR_REG_PROTO_MAX]) {
-			nla_be32 = nla_get_be32(tb[NFTA_REDIR_REG_PROTO_MAX]);
-			priv->sreg_proto_max = ntohl(nla_be32);
+			priv->sreg_proto_max =
+				ntohl(nla_get_be32(tb[NFTA_REDIR_REG_PROTO_MAX]));
+
 			err = nft_validate_input_register(priv->sreg_proto_max);
 			if (err < 0)
 				return err;
