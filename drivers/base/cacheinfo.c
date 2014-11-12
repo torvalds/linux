@@ -520,10 +520,8 @@ static int __init cacheinfo_sysfs_init(void)
 
 	for_each_online_cpu(cpu) {
 		rc = detect_cache_attributes(cpu);
-		if (rc) {
-			pr_err("error detecting cacheinfo..cpu%d\n", cpu);
+		if (rc)
 			goto out;
-		}
 		rc = cache_add_dev(cpu);
 		if (rc) {
 			free_cache_attributes(cpu);
