@@ -237,8 +237,11 @@ static int aufs_show_options(struct seq_file *m, struct dentry *dentry)
 		seq_printf(m, "," #str "=%u", val); \
 } while (0)
 
-	/* lock free root dinfo */
 	sb = dentry->d_sb;
+	if (sb->s_flags & MS_POSIXACL)
+		seq_puts(m, ",acl");
+
+	/* lock free root dinfo */
 	si_noflush_read_lock(sb);
 	sbinfo = au_sbi(sb);
 	seq_printf(m, ",si=%lx", sysaufs_si_id(sbinfo));

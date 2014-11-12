@@ -238,6 +238,10 @@ static int set_inode(struct inode *inode, struct dentry *dentry)
 				      au_igrab(h_dentry->d_inode), flags);
 	}
 	au_cpup_attr_all(inode, /*force*/1);
+	/*
+	 * to force calling aufs_get_acl() every time,
+	 * do not call cache_no_acl() for aufs inode.
+	 */
 
 out:
 	return err;

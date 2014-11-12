@@ -50,6 +50,7 @@ enum {
 	Opt_verbose, Opt_noverbose,
 	Opt_sum, Opt_nosum, Opt_wsum,
 	Opt_dirperm1, Opt_nodirperm1,
+	Opt_acl, Opt_noacl,
 	Opt_tail, Opt_ignore, Opt_ignore_silent, Opt_err
 };
 
@@ -156,6 +157,15 @@ static match_table_t options = {
 	{Opt_wbr_copyup, "cpup=%s"},
 	{Opt_wbr_copyup, "copyup=%s"},
 	{Opt_wbr_copyup, "copyup_policy=%s"},
+
+	/* generic VFS flag */
+#ifdef CONFIG_FS_POSIX_ACL
+	{Opt_acl, "acl"},
+	{Opt_noacl, "noacl"},
+#else
+	{Opt_ignore_silent, "acl"},
+	{Opt_ignore_silent, "noacl"},
+#endif
 
 	/* internal use for the scripts */
 	{Opt_ignore_silent, "si=%s"},
@@ -715,6 +725,12 @@ static void dump_opts(struct au_opts *opts)
 		case Opt_fhsm_sec:
 			AuDbg("fhsm_sec %u\n", opt->fhsm_second);
 			break;
+		case Opt_acl:
+			AuLabel(acl);
+			break;
+		case Opt_noacl:
+			AuLabel(noacl);
+			break;
 		default:
 			BUG();
 		}
@@ -1161,6 +1177,8 @@ int au_opts_parse(struct super_block *sb, char *str, struct au_opts *opts)
 		case Opt_wsum:
 		case Opt_rdblk_def:
 		case Opt_rdhash_def:
+		case Opt_acl:
+		case Opt_noacl:
 			err = 0;
 			opt->type = token;
 			break;
@@ -1428,6 +1446,13 @@ static int au_opt_simple(struct super_block *sb, struct au_opt *opt,
 		break;
 	case Opt_notrunc_xib:
 		au_fclr_opts(opts->flags, TRUNC_XIB);
+		break;
+
+	case Opt_acl:
+		sb->s_flags |= MS_POSIXACL;
+		break;
+	case Opt_noacl:
+		sb->s_flags &= ~MS_POSIXACL;
 		break;
 
 	default:
