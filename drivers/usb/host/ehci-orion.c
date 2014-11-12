@@ -25,8 +25,8 @@
 
 #include "ehci.h"
 
-#define rdl(off)	__raw_readl(hcd->regs + (off))
-#define wrl(off, val)	__raw_writel((val), hcd->regs + (off))
+#define rdl(off)	readl_relaxed(hcd->regs + (off))
+#define wrl(off, val)	writel_relaxed((val), hcd->regs + (off))
 
 #define USB_CMD			0x140
 #define USB_MODE		0x1a8
