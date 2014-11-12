@@ -19,24 +19,9 @@
  *      +1 (303) 440-4894
  *
  * DISTRIBUTION RELEASE 1.
- *
- * For more information, please consult 
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
-*/
+ */
 
 /*
- * Options : 
- * PSEUDO_DMA - enables PSEUDO-DMA hardware, should give a 3-4X performance
- * increase compared to polled I/O.
- *
- * PARITY - enable parity checking.  Not supported.
- *
- * UNSAFE - leave interrupts enabled during pseudo-DMA transfers. 
- *		You probably want this.
- *
  * The card is detected and initialized in one of several ways : 
  * 1.  Autoprobe (default) - since the board is memory mapped, 
  *     a BIOS signature is scanned for to locate the registers.

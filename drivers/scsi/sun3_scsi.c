@@ -22,27 +22,6 @@
  * Copyright 1995, Russell King
  *
  * ALPHA RELEASE 1.
- *
- * For more information, please consult
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
- *
- * NCR Microelectronics
- * 1635 Aeroplaza Drive
- * Colorado Springs, CO 80916
- * 1+ (719) 578-3400
- * 1+ (800) 334-5454
- */
-
-
-/*
- * This is from mac_scsi.h, but hey, maybe this is useful for Sun3 too! :)
- *
- * Options :
- *
- * PARITY - enable parity checking.  Not supported.
  */
 
 #include <linux/types.h>

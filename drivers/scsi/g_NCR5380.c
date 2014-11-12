@@ -20,18 +20,6 @@
  * Thomas Sailer, sailer@ife.ee.ethz.ch
  *
  * ALPHA RELEASE 1. 
- *
- * For more information, please consult 
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
- *
- * NCR Microelectronics
- * 1635 Aeroplaza Drive
- * Colorado Springs, CO 80916
- * 1+ (719) 578-3400
- * 1+ (800) 334-5454
  */
 
 /* 
@@ -40,10 +28,6 @@
  */
 
 /*
- * Options :
- *
- * PARITY - enable parity checking.  Not supported.
- *
  * The card is detected and initialized in one of several ways : 
  * 1.  With command line overrides - NCR5380=port,irq may be 
  *     used on the LILO command line to override the defaults.

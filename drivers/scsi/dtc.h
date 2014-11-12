@@ -7,22 +7,6 @@
  *      +1 (303) 440-4894
  *
  * DISTRIBUTION RELEASE 2. 
- *
- * For more information, please consult 
- *
- * 
- * 
- * and 
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
- *
- * NCR Microelectronics
- * 1635 Aeroplaza Drive
- * Colorado Springs, CO 80916
- * 1+ (719) 578-3400
- * 1+ (800) 334-5454
  */
 
 #ifndef DTC3280_H

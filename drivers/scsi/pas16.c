@@ -22,40 +22,9 @@
  * Media Vision
  * (510) 770-8600
  * (800) 348-7116
- * 
- * and 
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
- *
- * NCR Microelectronics
- * 1635 Aeroplaza Drive
- * Colorado Springs, CO 80916
- * 1+ (719) 578-3400
- * 1+ (800) 334-5454
  */
 
 /*
- * Options : 
- * LIMIT_TRANSFERSIZE - if defined, limit the pseudo-dma transfers to 512
- *      bytes at a time.  Since interrupts are disabled by default during
- *      these transfers, we might need this to give reasonable interrupt
- *      service time if the transfer size gets too large.
- *
- * PSEUDO_DMA - enables PSEUDO-DMA hardware, should give a 3-4X performance
- * increase compared to polled I/O.
- *
- * PARITY - enable parity checking.  Not supported.
- *
- * UNSAFE - leave interrupts enabled during pseudo-DMA transfers.  This
- *	    parameter comes from the NCR5380 code.  It is NOT unsafe with
- *	    the PAS16 and you should use it.  If you don't you will have
- *	    a problem with dropped characters during high speed
- *	    communications during SCSI transfers.  If you really don't
- *	    want to use UNSAFE you can try defining LIMIT_TRANSFERSIZE or
- *	    twiddle with the transfer size in the high level code.
- *
  * The card is detected and initialized in one of several ways : 
  * 1.  Autoprobe (default) - There are many different models of
  *     the Pro Audio Spectrum/Studio 16, and I only have one of
