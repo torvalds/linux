@@ -1047,23 +1047,11 @@ at86rf230_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	struct at86rf230_local *lp = hw->priv;
 	int rc;
 
-	if (page > 31 ||
-	    !(lp->hw->phy->channels_supported[page] & BIT(channel))) {
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
 	rc = lp->data->set_channel(lp, page, channel);
-	if (rc < 0)
-		return rc;
-
 	/* Wait for PLL */
 	usleep_range(lp->data->t_channel_switch,
 		     lp->data->t_channel_switch + 10);
-	hw->phy->current_channel = channel;
-	hw->phy->current_page = page;
-
-	return 0;
+	return rc;
 }
 
 static int
