@@ -18,23 +18,6 @@
 /* (I_HAVE_OVERRUNS stuff removed) */
 
 #ifndef ASM
-/* The values for CMD_PER_LUN and CAN_QUEUE are somehow arbitrary. Higher
- * values should work, too; try it! (but cmd_per_lun costs memory!) */
-
-/* But there seems to be a bug somewhere that requires CAN_QUEUE to be
- * 2*CMD_PER_LUN. At least on a TT, no spurious timeouts seen since
- * changed CMD_PER_LUN... */
-
-/* Note: The Falcon currently uses 8/1 setting due to unsolved problems with
- * cmd_per_lun != 1 */
-
-#define ATARI_TT_CAN_QUEUE		16
-#define ATARI_TT_CMD_PER_LUN		8
-#define ATARI_TT_SG_TABLESIZE		SG_ALL
-
-#define ATARI_FALCON_CAN_QUEUE		8
-#define ATARI_FALCON_CMD_PER_LUN	1
-#define ATARI_FALCON_SG_TABLESIZE	SG_NONE
 
 #define	NCR5380_implementation_fields	/* none */
 
