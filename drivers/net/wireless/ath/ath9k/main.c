@@ -1185,7 +1185,8 @@ static void ath9k_assign_hw_queues(struct ieee80211_hw *hw,
 	for (i = 0; i < IEEE80211_NUM_ACS; i++)
 		vif->hw_queue[i] = i;
 
-	if (vif->type == NL80211_IFTYPE_AP)
+	if (vif->type == NL80211_IFTYPE_AP ||
+	    vif->type == NL80211_IFTYPE_MESH_POINT)
 		vif->cab_queue = hw->queues - 2;
 	else
 		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
