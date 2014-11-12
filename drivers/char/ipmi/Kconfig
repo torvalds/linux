@@ -70,6 +70,12 @@ config IPMI_SSIF
 	 have a driver that must be accessed over an I2C bus instead of a
 	 standard interface.  This module requires I2C support.
 
+config IPMI_POWERNV
+       depends on PPC_POWERNV
+       tristate 'POWERNV (OPAL firmware) IPMI interface'
+       help
+         Provides a driver for OPAL firmware-based IPMI interfaces.
+
 config IPMI_WATCHDOG
        tristate 'IPMI Watchdog Timer'
        help
