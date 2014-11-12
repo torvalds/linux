@@ -2000,8 +2000,8 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		ioda_eeh_phb_reset(hose, OPAL_DEASSERT_RESET);
 	}
 
-	/* Configure M64 window */
-	if (phb->init_m64 && phb->init_m64(phb))
+	/* Remove M64 resource if we can't configure it successfully */
+	if (!phb->init_m64 || phb->init_m64(phb))
 		hose->mem_resources[1].flags = 0;
 }
 
