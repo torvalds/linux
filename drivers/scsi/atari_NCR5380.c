@@ -879,10 +879,10 @@ static void NCR5380_exit(struct Scsi_Host *instance)
  *
  */
 
-static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd,
-                                     void (*done)(struct scsi_cmnd *))
+static int NCR5380_queue_command(struct Scsi_Host *instance,
+                                 struct scsi_cmnd *cmd)
 {
-	SETUP_HOSTDATA(cmd->device->host);
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	struct scsi_cmnd *tmp;
 	unsigned long flags;
 
@@ -893,7 +893,7 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd,
 		printk(KERN_NOTICE "scsi%d: WRITE attempted with NO_WRITE debugging flag set\n",
 		       H_NO(cmd));
 		cmd->result = (DID_ERROR << 16);
-		done(cmd);
+		cmd->scsi_done(cmd);
 		return 0;
 	}
 #endif /* (NDEBUG & NDEBUG_NO_WRITE) */
@@ -904,8 +904,6 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd,
 	 */
 
 	SET_NEXT(cmd, NULL);
-	cmd->scsi_done = done;
-
 	cmd->result = 0;
 
 	/*
@@ -915,7 +913,6 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd,
 	 * sense data is only guaranteed to be valid while the condition exists.
 	 */
 
-	local_irq_save(flags);
 	/* ++guenther: now that the issue queue is being set up, we can lock ST-DMA.
 	 * Otherwise a running NCR5380_main may steal the lock.
 	 * Lock before actually inserting due to fairness reasons explained in
@@ -928,11 +925,11 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd,
 	 * because also a timer int can trigger an abort or reset, which would
 	 * alter queues and touch the lock.
 	 */
-	if (!IS_A_TT()) {
-		/* perhaps stop command timer here */
-		falcon_get_lock();
-		/* perhaps restart command timer here */
-	}
+	if (!falcon_get_lock())
+		return SCSI_MLQUEUE_HOST_BUSY;
+
+	local_irq_save(flags);
+
 	if (!(hostdata->issue_queue) || (cmd->cmnd[0] == REQUEST_SENSE)) {
 		LIST(cmd, hostdata->issue_queue);
 		SET_NEXT(cmd, hostdata->issue_queue);
@@ -956,14 +953,12 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd,
 	 * If we're not in an interrupt, we can call NCR5380_main()
 	 * unconditionally, because it cannot be already running.
 	 */
-	if (in_interrupt() || ((flags >> 8) & 7) >= 6)
+	if (in_interrupt() || irqs_disabled())
 		queue_main();
 	else
 		NCR5380_main(NULL);
 	return 0;
 }
-
-static DEF_SCSI_QCMD(NCR5380_queue_command)
 
 /*
  * Function : NCR5380_main (void)
@@ -2554,10 +2549,6 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 
 	local_irq_save(flags);
 
-	if (!IS_A_TT() && !falcon_got_lock)
-		printk(KERN_ERR "scsi%d: !!BINGO!! Falcon has no lock in NCR5380_abort\n",
-		       HOSTNO);
-
 	dprintk(NDEBUG_ABORT, "scsi%d: abort called basr 0x%02x, sr 0x%02x\n", HOSTNO,
 		    NCR5380_read(BUS_AND_STATUS_REG),
 		    NCR5380_read(STATUS_REG));
@@ -2755,10 +2746,6 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 #if defined(RESET_RUN_DONE)
 	struct scsi_cmnd *connected, *disconnected_queue;
 #endif
-
-	if (!IS_A_TT() && !falcon_got_lock)
-		printk(KERN_ERR "scsi%d: !!BINGO!! Falcon has no lock in NCR5380_reset\n",
-		       H_NO(cmd));
 
 	NCR5380_print_status(cmd->device->host);
 

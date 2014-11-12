@@ -184,7 +184,7 @@ static void atari_scsi_fetch_restbytes(void);
 static irqreturn_t scsi_tt_intr(int irq, void *dummy);
 static irqreturn_t scsi_falcon_intr(int irq, void *dummy);
 static void falcon_release_lock_if_possible(struct NCR5380_hostdata *hostdata);
-static void falcon_get_lock(void);
+static int falcon_get_lock(void);
 #ifdef CONFIG_ATARI_SCSI_RESET_BOOT
 static void atari_scsi_reset_boot(void);
 #endif
@@ -473,17 +473,10 @@ static void atari_scsi_fetch_restbytes(void)
 #endif /* REAL_DMA */
 
 
-static int falcon_got_lock = 0;
-static DECLARE_WAIT_QUEUE_HEAD(falcon_fairness_wait);
-static int falcon_trying_lock = 0;
-static DECLARE_WAIT_QUEUE_HEAD(falcon_try_wait);
 static int falcon_dont_release = 0;
 
 /* This function releases the lock on the DMA chip if there is no
- * connected command and the disconnected queue is empty. On
- * releasing, instances of falcon_get_lock are awoken, that put
- * themselves to sleep for fairness. They can now try to get the lock
- * again (but others waiting longer more probably will win).
+ * connected command and the disconnected queue is empty.
  */
 
 static void falcon_release_lock_if_possible(struct NCR5380_hostdata *hostdata)
@@ -495,20 +488,12 @@ static void falcon_release_lock_if_possible(struct NCR5380_hostdata *hostdata)
 
 	local_irq_save(flags);
 
-	if (falcon_got_lock && !hostdata->disconnected_queue &&
-	    !hostdata->issue_queue && !hostdata->connected) {
-
-		if (falcon_dont_release) {
-#if 0
-			printk("WARNING: Lock release not allowed. Ignored\n");
-#endif
-			local_irq_restore(flags);
-			return;
-		}
-		falcon_got_lock = 0;
+	if (!hostdata->disconnected_queue &&
+	    !hostdata->issue_queue &&
+	    !hostdata->connected &&
+	    !falcon_dont_release &&
+	    stdma_is_locked_by(scsi_falcon_intr))
 		stdma_release();
-		wake_up(&falcon_fairness_wait);
-	}
 
 	local_irq_restore(flags);
 }
@@ -517,51 +502,19 @@ static void falcon_release_lock_if_possible(struct NCR5380_hostdata *hostdata)
  * If the DMA isn't locked already for SCSI, it tries to lock it by
  * calling stdma_lock(). But if the DMA is locked by the SCSI code and
  * there are other drivers waiting for the chip, we do not issue the
- * command immediately but wait on 'falcon_fairness_queue'. We will be
- * waked up when the DMA is unlocked by some SCSI interrupt. After that
- * we try to get the lock again.
- * But we must be prepared that more than one instance of
- * falcon_get_lock() is waiting on the fairness queue. They should not
- * try all at once to call stdma_lock(), one is enough! For that, the
- * first one sets 'falcon_trying_lock', others that see that variable
- * set wait on the queue 'falcon_try_wait'.
- * Complicated, complicated.... Sigh...
+ * command immediately but tell the SCSI mid-layer to defer.
  */
 
-static void falcon_get_lock(void)
+static int falcon_get_lock(void)
 {
-	unsigned long flags;
-
 	if (IS_A_TT())
-		return;
+		return 1;
 
-	local_irq_save(flags);
+	if (in_interrupt())
+		return stdma_try_lock(scsi_falcon_intr, NULL);
 
-	wait_event_cmd(falcon_fairness_wait,
-		in_interrupt() || !falcon_got_lock || !stdma_others_waiting(),
-		local_irq_restore(flags),
-		local_irq_save(flags));
-
-	while (!falcon_got_lock) {
-		if (in_irq())
-			panic("Falcon SCSI hasn't ST-DMA lock in interrupt");
-		if (!falcon_trying_lock) {
-			falcon_trying_lock = 1;
-			stdma_lock(scsi_falcon_intr, NULL);
-			falcon_got_lock = 1;
-			falcon_trying_lock = 0;
-			wake_up(&falcon_try_wait);
-		} else {
-			wait_event_cmd(falcon_try_wait,
-				falcon_got_lock && !falcon_trying_lock,
-				local_irq_restore(flags),
-				local_irq_save(flags));
-		}
-	}
-
-	local_irq_restore(flags);
-	if (!falcon_got_lock)
-		panic("Falcon SCSI: someone stole the lock :-(\n");
+	stdma_lock(scsi_falcon_intr, NULL);
+	return 1;
 }
 
 
