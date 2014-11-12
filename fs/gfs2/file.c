@@ -729,7 +729,6 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct buffer_head *dibh;
 	int error;
-	loff_t size = len;
 	unsigned int nr_blks;
 	sector_t lblock = offset >> inode->i_blkbits;
 
@@ -763,11 +762,6 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 			goto out;
 		}
 	}
-	if (offset + size > inode->i_size && !(mode & FALLOC_FL_KEEP_SIZE))
-		i_size_write(inode, offset + size);
-
-	mark_inode_dirty(inode);
-
 out:
 	brelse(dibh);
 	return error;
@@ -878,9 +872,12 @@ retry:
 		gfs2_quota_unlock(ip);
 	}
 
-	if (error == 0)
-		error = generic_write_sync(file, pos, count);
-	return error;
+	if (!(mode & FALLOC_FL_KEEP_SIZE) && (pos + count) > inode->i_size) {
+		i_size_write(inode, pos + count);
+		mark_inode_dirty(inode);
+	}
+
+	return generic_write_sync(file, pos, count);
 
 out_trans_fail:
 	gfs2_inplace_release(ip);
