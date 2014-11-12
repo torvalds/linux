@@ -33,6 +33,9 @@ config PCI_IMX6
 config PCI_TEGRA
 	bool "NVIDIA Tegra PCIe controller"
 	depends on ARCH_TEGRA && !ARM64
+	help
+	  Say Y here if you want support for the PCIe host controller found
+	  on NVIDIA Tegra SoCs.
 
 config PCI_RCAR_GEN2
 	bool "Renesas R-Car Gen2 Internal PCI controller"
