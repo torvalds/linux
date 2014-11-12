@@ -1381,7 +1381,7 @@ static ssize_t ims_pcu_ofn_reg_addr_store(struct device *dev,
 	pcu->ofn_reg_addr = value;
 	mutex_unlock(&pcu->cmd_mutex);
 
-	return error ?: count;
+	return count;
 }
 
 static DEVICE_ATTR(reg_addr, S_IRUGO | S_IWUSR,

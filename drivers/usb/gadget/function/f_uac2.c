@@ -512,6 +512,11 @@ static int snd_uac2_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void snd_uac2_release(struct device *dev)
+{
+	dev_dbg(dev, "releasing '%s'\n", dev_name(dev));
+}
+
 static int alsa_uac2_init(struct audio_dev *agdev)
 {
 	struct snd_uac2_chip *uac2 = &agdev->uac2;
@@ -523,6 +528,7 @@ static int alsa_uac2_init(struct audio_dev *agdev)
 
 	uac2->pdev.id = 0;
 	uac2->pdev.name = uac2_name;
+	uac2->pdev.dev.release = snd_uac2_release;
 
 	/* Register snd_uac2 driver */
 	err = platform_driver_register(&uac2->pdrv);
@@ -772,6 +778,7 @@ struct usb_endpoint_descriptor fs_epout_desc = {
 
 	.bEndpointAddress = USB_DIR_OUT,
 	.bmAttributes = USB_ENDPOINT_XFER_ISOC | USB_ENDPOINT_SYNC_ASYNC,
+	.wMaxPacketSize = cpu_to_le16(1023),
 	.bInterval = 1,
 };
 
@@ -780,6 +787,7 @@ struct usb_endpoint_descriptor hs_epout_desc = {
 	.bDescriptorType = USB_DT_ENDPOINT,
 
 	.bmAttributes = USB_ENDPOINT_XFER_ISOC | USB_ENDPOINT_SYNC_ASYNC,
+	.wMaxPacketSize = cpu_to_le16(1024),
 	.bInterval = 4,
 };
 
@@ -847,6 +855,7 @@ struct usb_endpoint_descriptor fs_epin_desc = {
 
 	.bEndpointAddress = USB_DIR_IN,
 	.bmAttributes = USB_ENDPOINT_XFER_ISOC | USB_ENDPOINT_SYNC_ASYNC,
+	.wMaxPacketSize = cpu_to_le16(1023),
 	.bInterval = 1,
 };
 
@@ -855,6 +864,7 @@ struct usb_endpoint_descriptor hs_epin_desc = {
 	.bDescriptorType = USB_DT_ENDPOINT,
 
 	.bmAttributes = USB_ENDPOINT_XFER_ISOC | USB_ENDPOINT_SYNC_ASYNC,
+	.wMaxPacketSize = cpu_to_le16(1024),
 	.bInterval = 4,
 };
 
@@ -946,6 +956,9 @@ free_ep(struct uac2_rtd_params *prm, struct usb_ep *ep)
 {
 	struct snd_uac2_chip *uac2 = prm->uac2;
 	int i;
+
+	if (!prm->ep_enabled)
+		return;
 
 	prm->ep_enabled = false;
 
@@ -1071,7 +1084,7 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	prm->rbuf = kzalloc(prm->max_psize * USB_XFERS, GFP_KERNEL);
 	if (!prm->rbuf) {
 		prm->max_psize = 0;
-		goto err;
+		goto err_free_descs;
 	}
 
 	prm = &agdev->uac2.p_prm;
@@ -1079,17 +1092,19 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	prm->rbuf = kzalloc(prm->max_psize * USB_XFERS, GFP_KERNEL);
 	if (!prm->rbuf) {
 		prm->max_psize = 0;
-		goto err;
+		goto err_free_descs;
 	}
 
 	ret = alsa_uac2_init(agdev);
 	if (ret)
-		goto err;
+		goto err_free_descs;
 	return 0;
+
+err_free_descs:
+	usb_free_all_descriptors(fn);
 err:
 	kfree(agdev->uac2.p_prm.rbuf);
 	kfree(agdev->uac2.c_prm.rbuf);
-	usb_free_all_descriptors(fn);
 	if (agdev->in_ep)
 		agdev->in_ep->driver_data = NULL;
 	if (agdev->out_ep)

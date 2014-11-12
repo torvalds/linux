@@ -102,8 +102,6 @@ DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_llc_shared_map);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
-static DEFINE_PER_CPU(struct completion, die_complete);
-
 atomic_t init_deasserted;
 
 /*
@@ -1317,6 +1315,8 @@ void cpu_disable_common(void)
 	unlock_vector_lock();
 	fixup_irqs();
 }
+
+static DEFINE_PER_CPU(struct completion, die_complete);
 
 int native_cpu_disable(void)
 {

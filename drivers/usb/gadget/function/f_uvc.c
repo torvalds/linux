@@ -279,27 +279,41 @@ uvc_function_get_alt(struct usb_function *f, unsigned interface)
 	else if (interface != uvc->streaming_intf)
 		return -EINVAL;
 	else
-		return uvc->state == UVC_STATE_STREAMING ? 1 : 0;
+		return uvc->video.ep->driver_data ? 1 : 0;
 }
 
 static int
 uvc_function_set_alt(struct usb_function *f, unsigned interface, unsigned alt)
 {
 	struct uvc_device *uvc = to_uvc(f);
+	struct usb_composite_dev *cdev = f->config->cdev;
 	struct v4l2_event v4l2_event;
 	struct uvc_event *uvc_event = (void *)&v4l2_event.u.data;
 	int ret;
 
-	INFO(f->config->cdev, "uvc_function_set_alt(%u, %u)\n", interface, alt);
+	INFO(cdev, "uvc_function_set_alt(%u, %u)\n", interface, alt);
 
 	if (interface == uvc->control_intf) {
 		if (alt)
 			return -EINVAL;
 
+		if (uvc->control_ep->driver_data) {
+			INFO(cdev, "reset UVC Control\n");
+			usb_ep_disable(uvc->control_ep);
+			uvc->control_ep->driver_data = NULL;
+		}
+
+		if (!uvc->control_ep->desc)
+			if (config_ep_by_speed(cdev->gadget, f, uvc->control_ep))
+				return -EINVAL;
+
+		usb_ep_enable(uvc->control_ep);
+		uvc->control_ep->driver_data = uvc;
+
 		if (uvc->state == UVC_STATE_DISCONNECTED) {
 			memset(&v4l2_event, 0, sizeof(v4l2_event));
 			v4l2_event.type = UVC_EVENT_CONNECT;
-			uvc_event->speed = f->config->cdev->gadget->speed;
+			uvc_event->speed = cdev->gadget->speed;
 			v4l2_event_queue(uvc->vdev, &v4l2_event);
 
 			uvc->state = UVC_STATE_CONNECTED;
@@ -321,8 +335,10 @@ uvc_function_set_alt(struct usb_function *f, unsigned interface, unsigned alt)
 		if (uvc->state != UVC_STATE_STREAMING)
 			return 0;
 
-		if (uvc->video.ep)
+		if (uvc->video.ep) {
 			usb_ep_disable(uvc->video.ep);
+			uvc->video.ep->driver_data = NULL;
+		}
 
 		memset(&v4l2_event, 0, sizeof(v4l2_event));
 		v4l2_event.type = UVC_EVENT_STREAMOFF;
@@ -335,13 +351,21 @@ uvc_function_set_alt(struct usb_function *f, unsigned interface, unsigned alt)
 		if (uvc->state != UVC_STATE_CONNECTED)
 			return 0;
 
-		if (uvc->video.ep) {
-			ret = config_ep_by_speed(f->config->cdev->gadget,
-					&(uvc->func), uvc->video.ep);
-			if (ret)
-				return ret;
-			usb_ep_enable(uvc->video.ep);
+		if (!uvc->video.ep)
+			return -EINVAL;
+
+		if (uvc->video.ep->driver_data) {
+			INFO(cdev, "reset UVC\n");
+			usb_ep_disable(uvc->video.ep);
+			uvc->video.ep->driver_data = NULL;
 		}
+
+		ret = config_ep_by_speed(f->config->cdev->gadget,
+				&(uvc->func), uvc->video.ep);
+		if (ret)
+			return ret;
+		usb_ep_enable(uvc->video.ep);
+		uvc->video.ep->driver_data = uvc;
 
 		memset(&v4l2_event, 0, sizeof(v4l2_event));
 		v4l2_event.type = UVC_EVENT_STREAMON;
@@ -366,6 +390,16 @@ uvc_function_disable(struct usb_function *f)
 	v4l2_event_queue(uvc->vdev, &v4l2_event);
 
 	uvc->state = UVC_STATE_DISCONNECTED;
+
+	if (uvc->video.ep->driver_data) {
+		usb_ep_disable(uvc->video.ep);
+		uvc->video.ep->driver_data = NULL;
+	}
+
+	if (uvc->control_ep->driver_data) {
+		usb_ep_disable(uvc->control_ep);
+		uvc->control_ep->driver_data = NULL;
+	}
 }
 
 /* --------------------------------------------------------------------------

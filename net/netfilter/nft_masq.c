@@ -26,6 +26,11 @@ int nft_masq_init(const struct nft_ctx *ctx,
 		  const struct nlattr * const tb[])
 {
 	struct nft_masq *priv = nft_expr_priv(expr);
+	int err;
+
+	err = nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
+	if (err < 0)
+		return err;
 
 	if (tb[NFTA_MASQ_FLAGS] == NULL)
 		return 0;
@@ -54,6 +59,13 @@ nla_put_failure:
 	return -1;
 }
 EXPORT_SYMBOL_GPL(nft_masq_dump);
+
+int nft_masq_validate(const struct nft_ctx *ctx, const struct nft_expr *expr,
+		      const struct nft_data **data)
+{
+	return nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
+}
+EXPORT_SYMBOL_GPL(nft_masq_validate);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>");
