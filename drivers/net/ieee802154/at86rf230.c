@@ -1167,9 +1167,6 @@ at86rf230_set_csma_params(struct ieee802154_hw *hw, u8 min_be, u8 max_be,
 	struct at86rf230_local *lp = hw->priv;
 	int rc;
 
-	if (retries > 5)
-		return -EINVAL;
-
 	rc = at86rf230_write_subreg(lp, SR_MIN_BE, min_be);
 	if (rc)
 		return rc;
