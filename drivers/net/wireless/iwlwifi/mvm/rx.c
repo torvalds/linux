@@ -98,16 +98,16 @@ int iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 					    struct sk_buff *skb,
 					    struct ieee80211_hdr *hdr, u16 len,
-					    u32 ampdu_status,
+					    u32 ampdu_status, u8 crypt_len,
 					    struct iwl_rx_cmd_buffer *rxb)
 {
 	unsigned int hdrlen, fraglen;
 
 	/* If frame is small enough to fit in skb->head, pull it completely.
-	 * If not, only pull ieee80211_hdr so that splice() or TCP coalesce
-	 * are more efficient.
+	 * If not, only pull ieee80211_hdr (including crypto if present) so
+	 * that splice() or TCP coalesce are more efficient.
 	 */
-	hdrlen = (len <= skb_tailroom(skb)) ? len : sizeof(*hdr);
+	hdrlen = (len <= skb_tailroom(skb)) ? len : sizeof(*hdr) + crypt_len;
 
 	memcpy(skb_put(skb, hdrlen), hdr, hdrlen);
 	fraglen = len - hdrlen;
@@ -174,7 +174,8 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 					struct ieee80211_hdr *hdr,
 					struct ieee80211_rx_status *stats,
-					u32 rx_pkt_status)
+					u32 rx_pkt_status,
+					u8 *crypt_len)
 {
 	if (!ieee80211_has_protected(hdr->frame_control) ||
 	    (rx_pkt_status & RX_MPDU_RES_STATUS_SEC_ENC_MSK) ==
@@ -194,12 +195,14 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 
 		stats->flag |= RX_FLAG_DECRYPTED;
 		IWL_DEBUG_WEP(mvm, "hw decrypted CCMP successfully\n");
+		*crypt_len = IEEE80211_CCMP_HDR_LEN;
 		return 0;
 
 	case RX_MPDU_RES_STATUS_SEC_TKIP_ENC:
 		/* Don't drop the frame and decrypt it in SW */
 		if (!(rx_pkt_status & RX_MPDU_RES_STATUS_TTAK_OK))
 			return 0;
+		*crypt_len = IEEE80211_TKIP_IV_LEN;
 		/* fall through if TTAK OK */
 
 	case RX_MPDU_RES_STATUS_SEC_WEP_ENC:
@@ -207,6 +210,9 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 			return -1;
 
 		stats->flag |= RX_FLAG_DECRYPTED;
+		if ((rx_pkt_status & RX_MPDU_RES_STATUS_SEC_ENC_MSK) ==
+				RX_MPDU_RES_STATUS_SEC_WEP_ENC)
+			*crypt_len = IEEE80211_WEP_IV_LEN;
 		return 0;
 
 	case RX_MPDU_RES_STATUS_SEC_EXT_ENC:
@@ -241,6 +247,7 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	u32 ampdu_status;
 	u32 rate_n_flags;
 	u32 rx_pkt_status;
+	u8 crypt_len = 0;
 
 	phy_info = &mvm->last_phy_info;
 	rx_res = (struct iwl_rx_mpdu_res_start *)pkt->data;
@@ -263,7 +270,8 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	/*
 	 * drop the packet if it has failed being decrypted by HW
 	 */
-	if (iwl_mvm_set_mac80211_rx_flag(mvm, hdr, rx_status, rx_pkt_status)) {
+	if (iwl_mvm_set_mac80211_rx_flag(mvm, hdr, rx_status, rx_pkt_status,
+					 &crypt_len)) {
 		IWL_DEBUG_DROP(mvm, "Bad decryption results 0x%08x\n",
 			       rx_pkt_status);
 		kfree_skb(skb);
@@ -393,7 +401,8 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	iwl_mvm_update_frame_stats(mvm, &mvm->drv_rx_stats, rate_n_flags,
 				   rx_status->flag & RX_FLAG_AMPDU_DETAILS);
 #endif
-	iwl_mvm_pass_packet_to_mac80211(mvm, skb, hdr, len, ampdu_status, rxb);
+	iwl_mvm_pass_packet_to_mac80211(mvm, skb, hdr, len, ampdu_status,
+					crypt_len, rxb);
 	return 0;
 }
 
