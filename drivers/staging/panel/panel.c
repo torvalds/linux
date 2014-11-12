@@ -304,8 +304,8 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
  */
 #define DEFAULT_PARPORT         0
 #define DEFAULT_PROFILE         PANEL_PROFILE_LARGE
-#define DEFAULT_KEYPAD          KEYPAD_TYPE_OLD
-#define DEFAULT_LCD             LCD_TYPE_OLD
+#define DEFAULT_KEYPAD_TYPE     KEYPAD_TYPE_OLD
+#define DEFAULT_LCD_TYPE        LCD_TYPE_OLD
 #define DEFAULT_LCD_HEIGHT      2
 #define DEFAULT_LCD_WIDTH       40
 #define DEFAULT_LCD_BWIDTH      40
@@ -332,13 +332,13 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
 
 #if DEFAULT_PROFILE == 0	/* custom */
 #ifdef CONFIG_PANEL_KEYPAD
-#undef DEFAULT_KEYPAD
-#define DEFAULT_KEYPAD CONFIG_PANEL_KEYPAD
+#undef DEFAULT_KEYPAD_TYPE
+#define DEFAULT_KEYPAD_TYPE CONFIG_PANEL_KEYPAD
 #endif
 
 #ifdef CONFIG_PANEL_LCD
-#undef DEFAULT_LCD
-#define DEFAULT_LCD CONFIG_PANEL_LCD
+#undef DEFAULT_LCD_TYPE
+#define DEFAULT_LCD_TYPE CONFIG_PANEL_LCD
 #endif
 
 #ifdef CONFIG_PANEL_LCD_HEIGHT
@@ -2239,9 +2239,9 @@ static int panel_init(void)
 	case PANEL_PROFILE_CUSTOM:
 		/* custom profile */
 		if (keypad_type < 0)
-			keypad_type = DEFAULT_KEYPAD;
+			keypad_type = DEFAULT_KEYPAD_TYPE;
 		if (lcd_type < 0)
-			lcd_type = DEFAULT_LCD;
+			lcd_type = DEFAULT_LCD_TYPE;
 		break;
 	case PANEL_PROFILE_OLD:
 		/* 8 bits, 2*16, old keypad */
