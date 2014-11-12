@@ -1615,7 +1615,7 @@ config ATARI_SCSI_RESET_BOOT
 	  that leave the devices with SCSI operations partway completed.
 
 config MAC_SCSI
-	bool "Macintosh NCR5380 SCSI"
+	tristate "Macintosh NCR5380 SCSI"
 	depends on MAC && SCSI=y
 	select SCSI_SPI_ATTRS
 	help
