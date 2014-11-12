@@ -57,6 +57,9 @@ struct nfc_hci_ops {
 	int (*discover_se)(struct nfc_hci_dev *dev);
 	int (*enable_se)(struct nfc_hci_dev *dev, u32 se_idx);
 	int (*disable_se)(struct nfc_hci_dev *dev, u32 se_idx);
+	int (*se_io)(struct nfc_hci_dev *dev, u32 se_idx,
+		      u8 *apdu, size_t apdu_length,
+		      se_io_cb_t cb, void *cb_context);
 };
 
 /* Pipes */
