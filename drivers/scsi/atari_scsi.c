@@ -196,8 +196,6 @@ static char		*atari_dma_orig_addr;
 /* mask for address bits that can't be used with the ST-DMA */
 static unsigned long	atari_dma_stram_mask;
 #define STRAM_ADDR(a)	(((a) & atari_dma_stram_mask) == 0)
-/* number of bytes to cut from a transfer to handle NCR overruns */
-static int atari_read_overruns;
 #endif
 
 static int setup_can_queue = -1;
@@ -446,8 +444,6 @@ static void atari_scsi_fetch_restbytes(void)
 #endif /* REAL_DMA */
 
 
-static int falcon_dont_release = 0;
-
 /* This function releases the lock on the DMA chip if there is no
  * connected command and the disconnected queue is empty.
  */
@@ -464,7 +460,7 @@ static void falcon_release_lock_if_possible(struct NCR5380_hostdata *hostdata)
 	if (!hostdata->disconnected_queue &&
 	    !hostdata->issue_queue &&
 	    !hostdata->connected &&
-	    !falcon_dont_release &&
+	    !hostdata->retain_dma_intr &&
 	    stdma_is_locked_by(scsi_falcon_intr))
 		stdma_release();
 
@@ -846,6 +842,7 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	struct Scsi_Host *instance;
 	int error;
 	struct resource *irq;
+	int host_flags = 0;
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq)
@@ -942,7 +939,9 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 
 	instance->irq = irq->start;
 
-	NCR5380_init(instance, 0);
+	host_flags |= IS_A_TT() ? 0 : FLAG_LATE_DMA_SETUP;
+
+	NCR5380_init(instance, host_flags);
 
 	if (IS_A_TT()) {
 		error = request_irq(instance->irq, scsi_tt_intr, 0,
@@ -965,12 +964,16 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 		 *
 		 * In principle it should be sufficient to do max. 1 byte with
 		 * PIO, but there is another problem on the Medusa with the DMA
-		 * rest data register. So 'atari_read_overruns' is currently set
+		 * rest data register. So read_overruns is currently set
 		 * to 4 to avoid having transfers that aren't a multiple of 4.
 		 * If the rest data bug is fixed, this can be lowered to 1.
 		 */
-		if (MACH_IS_MEDUSA)
-			atari_read_overruns = 4;
+		if (MACH_IS_MEDUSA) {
+			struct NCR5380_hostdata *hostdata =
+				shost_priv(instance);
+
+			hostdata->read_overruns = 4;
+		}
 #endif
 	} else {
 		/* Nothing to do for the interrupt: the ST-DMA is initialized

@@ -241,6 +241,7 @@
 #define FLAG_NCR53C400			4	/* NCR53c400 */
 #define FLAG_NO_PSEUDO_DMA		8	/* Inhibit DMA */
 #define FLAG_DTC3181E			16	/* DTC3181E */
+#define FLAG_LATE_DMA_SETUP		32	/* Setup NCR before DMA H/W */
 
 #ifndef ASM
 struct NCR5380_hostdata {
@@ -269,6 +270,9 @@ struct NCR5380_hostdata {
 	struct delayed_work coroutine;		/* our co-routine */
 	struct scsi_eh_save ses;
 	char info[256];
+	int read_overruns;                /* number of bytes to cut from a
+	                                   * transfer to handle chip overruns */
+	int retain_dma_intr;
 #ifdef PSEUDO_DMA
 	unsigned spin_max_r;
 	unsigned spin_max_w;

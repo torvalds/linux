@@ -839,7 +839,7 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 	hostdata->connected = NULL;
 	hostdata->issue_queue = NULL;
 	hostdata->disconnected_queue = NULL;
-	hostdata->flags = FLAG_CHECK_LAST_BYTE_SENT;
+	hostdata->flags = flags;
 
 	if (!the_template) {
 		the_template = instance->hostt;
@@ -1054,7 +1054,7 @@ static void NCR5380_main(struct work_struct *work)
 						hostdata->issue_queue = NEXT(tmp);
 					}
 					SET_NEXT(tmp, NULL);
-					falcon_dont_release++;
+					hostdata->retain_dma_intr++;
 
 					/* reenable interrupts after finding one */
 					local_irq_restore(flags);
@@ -1082,7 +1082,7 @@ static void NCR5380_main(struct work_struct *work)
 					cmd_get_tag(tmp, tmp->cmnd[0] != REQUEST_SENSE);
 #endif
 					if (!NCR5380_select(instance, tmp)) {
-						falcon_dont_release--;
+						hostdata->retain_dma_intr--;
 						/* release if target did not response! */
 						falcon_release_lock_if_possible(hostdata);
 						break;
@@ -1094,7 +1094,7 @@ static void NCR5380_main(struct work_struct *work)
 #ifdef SUPPORT_TAGS
 						cmd_free_tag(tmp);
 #endif
-						falcon_dont_release--;
+						hostdata->retain_dma_intr--;
 						local_irq_restore(flags);
 						dprintk(NDEBUG_MAIN, "scsi%d: main(): select() failed, "
 							    "returned to issue_queue\n", HOSTNO);
@@ -1151,7 +1151,7 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
 		return;
 	}
 
-	if (atari_read_overruns) {
+	if (hostdata->read_overruns) {
 		p = hostdata->connected->SCp.phase;
 		if (p & SR_IO) {
 			udelay(10);
@@ -1181,9 +1181,9 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
 	*data += transfered;
 	*count -= transfered;
 
-	if (atari_read_overruns) {
+	if (hostdata->read_overruns) {
 		if ((NCR5380_read(STATUS_REG) & PHASE_MASK) == p && (p & SR_IO)) {
-			cnt = toPIO = atari_read_overruns;
+			cnt = toPIO = hostdata->read_overruns;
 			if (overrun) {
 				dprintk(NDEBUG_DMA, "Got an input overrun, using saved byte\n");
 				*(*data)++ = saved_data;
@@ -1838,8 +1838,8 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 		return -1;
 	}
 
-	if (atari_read_overruns && (p & SR_IO))
-		c -= atari_read_overruns;
+	if (hostdata->read_overruns && (p & SR_IO))
+		c -= hostdata->read_overruns;
 
 	dprintk(NDEBUG_DMA, "scsi%d: initializing DMA for %s, %d bytes %s %p\n",
 		   HOSTNO, (p & SR_IO) ? "reading" : "writing",
@@ -1851,7 +1851,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 	NCR5380_write(MODE_REG, MR_BASE | MR_DMA_MODE | MR_ENABLE_EOP_INTR | MR_MONITOR_BSY);
 #endif /* def REAL_DMA  */
 
-	if (IS_A_TT()) {
+	if (!(hostdata->flags & FLAG_LATE_DMA_SETUP)) {
 		/* On the Medusa, it is a must to initialize the DMA before
 		 * starting the NCR. This is also the cleaner way for the TT.
 		 */
@@ -1869,7 +1869,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 		NCR5380_write(START_DMA_SEND_REG, 0);
 	}
 
-	if (!IS_A_TT()) {
+	if (hostdata->flags & FLAG_LATE_DMA_SETUP) {
 		/* On the Falcon, the DMA setup must be done after the last */
 		/* NCR access, else the DMA setup gets trashed!
 		 */
@@ -2084,7 +2084,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					/* Accept message by clearing ACK */
 					NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 					/* ++guenther: possible race with Falcon locking */
-					falcon_dont_release++;
+					hostdata->retain_dma_intr++;
 					hostdata->connected = NULL;
 					dprintk(NDEBUG_QUEUES, "scsi%d: command for target %d, lun %llu "
 						  "completed\n", HOSTNO, cmd->device->id, cmd->device->lun);
@@ -2167,7 +2167,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					while ((NCR5380_read(STATUS_REG) & SR_BSY) && !hostdata->connected)
 						barrier();
 
-					falcon_dont_release--;
+					hostdata->retain_dma_intr--;
 					/* ++roman: For Falcon SCSI, release the lock on the
 					 * ST-DMA here if no other commands are waiting on the
 					 * disconnected queue.
@@ -2474,7 +2474,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 #endif
 		    ) {
 			/* ++guenther: prevent race with falcon_release_lock */
-			falcon_dont_release++;
+			hostdata->retain_dma_intr++;
 			if (prev) {
 				REMOVE(prev, NEXT(prev), tmp, NEXT(tmp));
 				SET_NEXT(prev, NEXT(tmp));
@@ -2512,7 +2512,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	hostdata->connected = tmp;
 	dprintk(NDEBUG_RESELECTION, "scsi%d: nexus established, target = %d, lun = %llu, tag = %d\n",
 		   HOSTNO, tmp->device->id, tmp->device->lun, tmp->tag);
-	falcon_dont_release--;
+	hostdata->retain_dma_intr--;
 }
 
 
