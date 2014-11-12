@@ -137,16 +137,17 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 	struct gb_protocol *protocol = operation->connection->protocol;
 	struct gb_operation_msg_hdr *header;
 
+	header = operation->request->transfer_buffer;
+
 	/*
 	 * If the protocol has no incoming request handler, report
 	 * an error and mark the request bad.
 	 */
 	if (protocol->request_recv) {
-		protocol->request_recv(operation);
+		protocol->request_recv(header->type, operation);
 		goto out;
 	}
 
-	header = operation->request->transfer_buffer;
 	gb_connection_err(operation->connection,
 		"unexpected incoming request type 0x%02hhx\n", header->type);
 	operation->result = GB_OP_PROTOCOL_BAD;

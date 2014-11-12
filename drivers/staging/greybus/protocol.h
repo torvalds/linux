@@ -15,7 +15,7 @@ struct gb_operation;
 
 typedef int (*gb_connection_init_t)(struct gb_connection *);
 typedef void (*gb_connection_exit_t)(struct gb_connection *);
-typedef void (*gb_request_recv_t)(struct gb_operation *);
+typedef void (*gb_request_recv_t)(u8, struct gb_operation *);
 
 /*
  * Protocols having the same id but different major and/or minor
