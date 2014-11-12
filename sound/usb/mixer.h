@@ -53,6 +53,7 @@ struct usb_mixer_elem_info {
 	int cached;
 	int cache_val[MAX_CHANNELS];
 	u8 initialized;
+	void *private_data;
 };
 
 int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
