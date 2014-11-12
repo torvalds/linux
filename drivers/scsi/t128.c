@@ -47,16 +47,11 @@
  * increase compared to polled I/O.
  *
  * PARITY - enable parity checking.  Not supported.
- * 
- * SCSI2 - enable support for SCSI-II tagged queueing.  Untested.
- *
  *
  * UNSAFE - leave interrupts enabled during pseudo-DMA transfers.  You
  *          only really want to use this if you're having a problem with
  *          dropped characters during high speed communications, and even
  *          then, you're going to be better off twiddling with transfersize.
- *
- * USLEEP - enable support for devices that don't disconnect.  Untested.
  *
  * The card is detected and initialized in one of several ways : 
  * 1.  Autoprobe (default) - since the board is memory mapped, 

@@ -43,10 +43,6 @@
  * Options :
  *
  * PARITY - enable parity checking.  Not supported.
- *
- * SCSI2 - enable support for SCSI-II tagged queueing.  Untested.
- *
- * USLEEP - enable support for devices that don't disconnect.  Untested.
  */
 
 #define AUTOSENSE
@@ -79,18 +75,7 @@
 
 extern int sun3_map_test(unsigned long, char *);
 
-#define USE_WRAPPER
 /*#define RESET_BOOT */
-#define DRIVER_SETUP
-
-/*
- * BUG can be used to trigger a strange code-size related hang on 2.1 kernels
- */
-#ifdef BUG
-#undef RESET_BOOT
-#undef DRIVER_SETUP
-#endif
-
 /* #define SUPPORT_TAGS */
 
 #ifdef SUN3_SCSI_VME

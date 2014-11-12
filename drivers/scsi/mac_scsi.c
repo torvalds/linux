@@ -55,7 +55,6 @@
 #include "NCR5380.h"
 
 #define RESET_BOOT
-#define DRIVER_SETUP
 
 extern void via_scsi_clear(void);
 
@@ -113,7 +112,6 @@ static __inline__ void macscsi_write(struct Scsi_Host *instance, int reg, int va
  */
 
 static int __init mac_scsi_setup(char *str) {
-#ifdef DRIVER_SETUP	
 	int ints[7];
 	
 	(void)get_options( str, ARRAY_SIZE(ints), ints);
@@ -166,7 +164,6 @@ static int __init mac_scsi_setup(char *str) {
 	}
 #endif /* SUPPORT_TAGS */
 	
-#endif /* DRIVER_SETUP */
 	return 1;
 }
 

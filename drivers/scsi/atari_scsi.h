@@ -44,7 +44,6 @@
 #define NCR5380_read(reg)		  atari_scsi_reg_read( reg )
 #define NCR5380_write(reg, value) atari_scsi_reg_write( reg, value )
 
-#define NCR5380_intr atari_scsi_intr
 #define NCR5380_queue_command atari_scsi_queue_command
 #define NCR5380_abort atari_scsi_abort
 #define NCR5380_show_info atari_scsi_show_info

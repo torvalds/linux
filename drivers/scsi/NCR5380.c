@@ -649,7 +649,7 @@ NCR5380_print_options(struct Scsi_Host *instance)
 	       " UNSAFE "
 #endif
 	    );
-	printk(" USLEEP, USLEEP_POLL=%d USLEEP_SLEEP=%d", USLEEP_POLL, USLEEP_SLEEP);
+	printk(" USLEEP_POLL=%d USLEEP_SLEEP=%d", USLEEP_POLL, USLEEP_SLEEP);
 	printk(" generic release=%d", NCR5380_PUBLIC_RELEASE);
 	if (((struct NCR5380_hostdata *) instance->hostdata)->flags & FLAG_NCR53C400) {
 		printk(" ncr53c400 release=%d", NCR53C400_PUBLIC_RELEASE);

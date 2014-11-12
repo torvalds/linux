@@ -29,7 +29,6 @@
 
 #define NCR5380_read(reg)		readb(_base + ((reg) << 2))
 #define NCR5380_write(reg, value)	writeb(value, _base + ((reg) << 2))
-#define NCR5380_intr			oakscsi_intr
 #define NCR5380_queue_command		oakscsi_queue_command
 #define NCR5380_show_info		oakscsi_show_info
 #define NCR5380_write_info		oakscsi_write_info

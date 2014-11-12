@@ -44,10 +44,6 @@
  *
  * PARITY - enable parity checking.  Not supported.
  *
- * SCSI2 - enable support for SCSI-II tagged queueing.  Untested.
- *
- * USLEEP - enable support for devices that don't disconnect.  Untested.
- *
  * The card is detected and initialized in one of several ways : 
  * 1.  With command line overrides - NCR5380=port,irq may be 
  *     used on the LILO command line to override the defaults.
@@ -79,7 +75,6 @@
  */
 
 /* settings for DTC3181E card with only Mustek scanner attached */
-#define USLEEP
 #define USLEEP_POLL	1
 #define USLEEP_SLEEP	20
 #define USLEEP_WAITLONG	500

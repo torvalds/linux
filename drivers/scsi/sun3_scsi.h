@@ -89,7 +89,6 @@ static int sun3scsi_release (struct Scsi_Host *);
 #define NCR5380_read(reg) sun3scsi_read(reg)
 #define NCR5380_write(reg, value) sun3scsi_write(reg, value)
 
-#define NCR5380_intr sun3scsi_intr
 #define NCR5380_queue_command sun3scsi_queue_command
 #define NCR5380_bus_reset sun3scsi_bus_reset
 #define NCR5380_abort sun3scsi_abort

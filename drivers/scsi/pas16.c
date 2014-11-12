@@ -1,6 +1,5 @@
 #define AUTOSENSE
 #define PSEUDO_DMA
-#define FOO
 #define UNSAFE  /* Not unsafe for PAS16 -- use it */
 #define PDEBUG 0
 
@@ -52,8 +51,6 @@
  * increase compared to polled I/O.
  *
  * PARITY - enable parity checking.  Not supported.
- * 
- * SCSI2 - enable support for SCSI-II tagged queueing.  Untested.
  *
  * UNSAFE - leave interrupts enabled during pseudo-DMA transfers.  This
  *	    parameter comes from the NCR5380 code.  It is NOT unsafe with
@@ -62,8 +59,6 @@
  *	    communications during SCSI transfers.  If you really don't
  *	    want to use UNSAFE you can try defining LIMIT_TRANSFERSIZE or
  *	    twiddle with the transfer size in the high level code.
- *
- * USLEEP - enable support for devices that don't disconnect.  Untested.
  *
  * The card is detected and initialized in one of several ways : 
  * 1.  Autoprobe (default) - There are many different models of
