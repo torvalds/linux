@@ -514,8 +514,6 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 		set_bit(SMP_FLAG_TK_VALID, &smp->flags);
 	}
 
-	hci_dev_lock(hcon->hdev);
-
 	if (method == REQ_PASSKEY)
 		ret = mgmt_user_passkey_request(hcon->hdev, &hcon->dst,
 						hcon->type, hcon->dst_type);
@@ -527,8 +525,6 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 		ret = mgmt_user_passkey_notify(hcon->hdev, &hcon->dst,
 						hcon->type, hcon->dst_type,
 						passkey, 0);
-
-	hci_dev_unlock(hcon->hdev);
 
 	return ret;
 }
