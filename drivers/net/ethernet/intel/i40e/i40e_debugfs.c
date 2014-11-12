@@ -1313,6 +1313,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			bw_data = NULL;
 
 			dev_info(&pf->pdev->dev,
+				 "port dcbx_mode=%d\n", cfg->dcbx_mode);
+			dev_info(&pf->pdev->dev,
 				 "port ets_cfg: willing=%d cbs=%d, maxtcs=%d\n",
 				 cfg->etscfg.willing, cfg->etscfg.cbs,
 				 cfg->etscfg.maxtcs);

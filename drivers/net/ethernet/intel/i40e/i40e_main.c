@@ -4442,6 +4442,8 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 			/* Enable DCB tagging only when more than one TC */
 			if (i40e_dcb_get_num_tc(&hw->local_dcbx_config) > 1)
 				pf->flags |= I40E_FLAG_DCB_ENABLED;
+			dev_dbg(&pf->pdev->dev,
+				"DCBX offload is supported for this PF.\n");
 		}
 	} else {
 		dev_info(&pf->pdev->dev, "AQ Querying DCB configuration failed: %d\n",
@@ -5023,6 +5025,8 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 		dev_dbg(&pf->pdev->dev, "APP Table change detected.\n");
 	}
 
+	dev_dbg(&pf->pdev->dev, "%s: need_reconfig=%d\n", __func__,
+		need_reconfig);
 	return need_reconfig;
 }
 
@@ -5050,11 +5054,16 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	/* Ignore if event is not for Nearest Bridge */
 	type = ((mib->type >> I40E_AQ_LLDP_BRIDGE_TYPE_SHIFT)
 		& I40E_AQ_LLDP_BRIDGE_TYPE_MASK);
+	dev_dbg(&pf->pdev->dev,
+		"%s: LLDP event mib bridge type 0x%x\n", __func__, type);
 	if (type != I40E_AQ_LLDP_BRIDGE_TYPE_NEAREST_BRIDGE)
 		return ret;
 
 	/* Check MIB Type and return if event for Remote MIB update */
 	type = mib->type & I40E_AQ_LLDP_MIB_TYPE_MASK;
+	dev_dbg(&pf->pdev->dev,
+		"%s: LLDP event mib type %s\n", __func__,
+		type ? "remote" : "local");
 	if (type == I40E_AQ_LLDP_MIB_REMOTE) {
 		/* Update the remote cached instance and return */
 		ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_REMOTE,
@@ -5063,12 +5072,14 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 		goto exit;
 	}
 
-	/* Convert/store the DCBX data from LLDPDU temporarily */
 	memset(&tmp_dcbx_cfg, 0, sizeof(tmp_dcbx_cfg));
-	ret = i40e_lldp_to_dcb_config(e->msg_buf, &tmp_dcbx_cfg);
+	/* Store the old configuration */
+	tmp_dcbx_cfg = *dcbx_cfg;
+
+	/* Get updated DCBX data from firmware */
+	ret = i40e_get_dcb_config(&pf->hw);
 	if (ret) {
-		/* Error in LLDPDU parsing return */
-		dev_info(&pf->pdev->dev, "Failed parsing LLDPDU from event buffer\n");
+		dev_info(&pf->pdev->dev, "Failed querying DCB configuration data from firmware.\n");
 		goto exit;
 	}
 
@@ -5078,12 +5089,9 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 		goto exit;
 	}
 
-	need_reconfig = i40e_dcb_need_reconfig(pf, dcbx_cfg, &tmp_dcbx_cfg);
+	need_reconfig = i40e_dcb_need_reconfig(pf, &tmp_dcbx_cfg, dcbx_cfg);
 
-	i40e_dcbnl_flush_apps(pf, &tmp_dcbx_cfg);
-
-	/* Overwrite the new configuration */
-	*dcbx_cfg = tmp_dcbx_cfg;
+	i40e_dcbnl_flush_apps(pf, dcbx_cfg);
 
 	if (!need_reconfig)
 		goto exit;
