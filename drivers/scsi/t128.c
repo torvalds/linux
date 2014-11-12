@@ -148,6 +148,7 @@ static struct signature {
 
 #define NO_SIGNATURES ARRAY_SIZE(signatures)
 
+#ifndef MODULE
 /*
  * Function : t128_setup(char *str, int *ints)
  *
@@ -158,9 +159,13 @@ static struct signature {
  *
  */
 
-void __init t128_setup(char *str, int *ints){
+static int __init t128_setup(char *str)
+{
     static int commandline_current = 0;
     int i;
+    int ints[10];
+
+    get_options(str, ARRAY_SIZE(ints), ints);
     if (ints[0] != 2) 
 	printk("t128_setup : usage t128=address,irq\n");
     else 
@@ -174,7 +179,11 @@ void __init t128_setup(char *str, int *ints){
 		}
 	    ++commandline_current;
 	}
+    return 1;
 }
+
+__setup("t128=", t128_setup);
+#endif
 
 /* 
  * Function : int t128_detect(struct scsi_host_template * tpnt)

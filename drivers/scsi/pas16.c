@@ -337,6 +337,7 @@ static int __init
 }
 
 
+#ifndef MODULE
 /*
  * Function : pas16_setup(char *str, int *ints)
  *
@@ -347,10 +348,13 @@ static int __init
  *
  */
 
-void __init pas16_setup(char *str, int *ints)
+static int __init pas16_setup(char *str)
 {
     static int commandline_current = 0;
     int i;
+    int ints[10];
+
+    get_options(str, ARRAY_SIZE(ints), ints);
     if (ints[0] != 2) 
 	printk("pas16_setup : usage pas16=io_port,irq\n");
     else 
@@ -364,7 +368,11 @@ void __init pas16_setup(char *str, int *ints)
 		}
 	    ++commandline_current;
 	}
+    return 1;
 }
+
+__setup("pas16=", pas16_setup);
+#endif
 
 /* 
  * Function : int pas16_detect(struct scsi_host_template * tpnt)

@@ -173,10 +173,13 @@ static const struct signature {
  *
  */
 
-static void __init dtc_setup(char *str, int *ints)
+static int __init dtc_setup(char *str)
 {
 	static int commandline_current = 0;
 	int i;
+	int ints[10];
+
+	get_options(str, ARRAY_SIZE(ints), ints);
 	if (ints[0] != 2)
 		printk("dtc_setup: usage dtc=address,irq\n");
 	else if (commandline_current < NO_OVERRIDES) {
@@ -189,7 +192,10 @@ static void __init dtc_setup(char *str, int *ints)
 			}
 		++commandline_current;
 	}
+	return 1;
 }
+
+__setup("dtc=", dtc_setup);
 #endif
 
 /* 
