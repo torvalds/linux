@@ -1073,14 +1073,14 @@ static void NCR5380_main(struct work_struct *work)
 					hostdata->selecting = NULL;
 					/* RvC: have to preset this to indicate a new command is being performed */
 
-					if (!NCR5380_select(instance, tmp,
-							    /* 
-							     * REQUEST SENSE commands are issued without tagged
-							     * queueing, even on SCSI-II devices because the 
-							     * contingent allegiance condition exists for the 
-							     * entire unit.
-							     */
-							    (tmp->cmnd[0] == REQUEST_SENSE) ? TAG_NONE : TAG_NEXT)) {
+					/*
+					 * REQUEST SENSE commands are issued without tagged
+					 * queueing, even on SCSI-II devices because the
+					 * contingent allegiance condition exists for the
+					 * entire unit.
+					 */
+
+					if (!NCR5380_select(instance, tmp)) {
 						break;
 					} else {
 						LIST(tmp, hostdata->issue_queue);
@@ -1097,7 +1097,7 @@ static void NCR5380_main(struct work_struct *work)
 		if (hostdata->selecting) {
 			tmp = (Scsi_Cmnd *) hostdata->selecting;
 			/* Selection will drop and retake the lock */
-			if (!NCR5380_select(instance, tmp, (tmp->cmnd[0] == REQUEST_SENSE) ? TAG_NONE : TAG_NEXT)) {
+			if (!NCR5380_select(instance, tmp)) {
 				/* Ok ?? */
 			} else {
 				/* RvC: device failed, so we wait a long time
@@ -1246,17 +1246,14 @@ static void collect_stats(struct NCR5380_hostdata *hostdata, Scsi_Cmnd * cmd)
 
 
 /* 
- * Function : int NCR5380_select (struct Scsi_Host *instance, Scsi_Cmnd *cmd, 
- *      int tag);
+ * Function : int NCR5380_select (struct Scsi_Host *instance, Scsi_Cmnd *cmd)
  *
  * Purpose : establishes I_T_L or I_T_L_Q nexus for new or existing command,
  *      including ARBITRATION, SELECTION, and initial message out for 
  *      IDENTIFY and queue messages. 
  *
  * Inputs : instance - instantiation of the 5380 driver on which this 
- *      target lives, cmd - SCSI command to execute, tag - set to TAG_NEXT for 
- *      new tag, TAG_NONE for untagged queueing, otherwise set to the tag for 
- *      the command that is presently connected.
+ *      target lives, cmd - SCSI command to execute.
  * 
  * Returns : -1 if selection could not execute for some reason,
  *      0 if selection succeeded or failed because the target 
@@ -1278,7 +1275,7 @@ static void collect_stats(struct NCR5380_hostdata *hostdata, Scsi_Cmnd * cmd)
  *	Locks: caller holds hostdata lock in IRQ mode
  */
  
-static int NCR5380_select(struct Scsi_Host *instance, Scsi_Cmnd * cmd, int tag) 
+static int NCR5380_select(struct Scsi_Host *instance, Scsi_Cmnd *cmd)
 {
 	NCR5380_local_declare();
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
@@ -2773,7 +2770,7 @@ static int NCR5380_abort(Scsi_Cmnd * cmd) {
 		if (cmd == tmp) {
 			dprintk(NDEBUG_ABORT, "scsi%d : aborting disconnected command.\n", instance->host_no);
 
-			if (NCR5380_select(instance, cmd, (int) cmd->tag))
+			if (NCR5380_select(instance, cmd))
 				return FAILED;
 			dprintk(NDEBUG_ABORT, "scsi%d : nexus reestablished.\n", instance->host_no);
 

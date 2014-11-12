@@ -305,10 +305,6 @@ static struct scsi_host_template *the_template = NULL;
  * important: the tag bit must be cleared before 'nr_allocated' is decreased.
  */
 
-/* -1 for TAG_NONE is not possible with unsigned char cmd->tag */
-#undef TAG_NONE
-#define TAG_NONE 0xff
-
 /* For the m68k, the number of bits in 'allocated' must be a multiple of 32! */
 #if (MAX_TAGS % 32) != 0
 #error "MAX_TAGS must be a multiple of 32!"
@@ -1057,9 +1053,7 @@ static void NCR5380_main (struct work_struct *bl)
 #ifdef SUPPORT_TAGS
 		    cmd_get_tag( tmp, tmp->cmnd[0] != REQUEST_SENSE );
 #endif
-		    if (!NCR5380_select(instance, tmp, 
-			    (tmp->cmnd[0] == REQUEST_SENSE) ? TAG_NONE : 
-			    TAG_NEXT)) {
+		    if (!NCR5380_select(instance, tmp)) {
 			break;
 		    } else {
 			local_irq_disable();
@@ -1292,16 +1286,14 @@ static void collect_stats(struct NCR5380_hostdata *hostdata,
 
 /* 
  * Function : int NCR5380_select(struct Scsi_Host *instance,
- * 				 struct scsi_cmnd *cmd,	int tag);
+ *				 struct scsi_cmnd *cmd)
  *
  * Purpose : establishes I_T_L or I_T_L_Q nexus for new or existing command,
  *	including ARBITRATION, SELECTION, and initial message out for 
  *	IDENTIFY and queue messages. 
  *
  * Inputs : instance - instantiation of the 5380 driver on which this 
- * 	target lives, cmd - SCSI command to execute, tag - set to TAG_NEXT for 
- *	new tag, TAG_NONE for untagged queueing, otherwise set to the tag for 
- *	the command that is presently connected.
+ *	target lives, cmd - SCSI command to execute.
  * 
  * Returns : -1 if selection could not execute for some reason,
  *	0 if selection succeeded or failed because the target 
@@ -1321,8 +1313,7 @@ static void collect_stats(struct NCR5380_hostdata *hostdata,
  *		cmd->result host byte set to DID_BAD_TARGET.
  */
 
-static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd,
-			  int tag)
+static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 {
     SETUP_HOSTDATA(instance);
     unsigned char tmp[3], phase;
@@ -2735,7 +2726,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
             local_irq_restore(flags);
 	    dprintk(NDEBUG_ABORT, "scsi%d: aborting disconnected command.\n", HOSTNO);
   
-            if (NCR5380_select (instance, cmd, (int) cmd->tag)) 
+	    if (NCR5380_select(instance, cmd))
 		return FAILED;
 
 	    dprintk(NDEBUG_ABORT, "scsi%d: nexus reestablished.\n", HOSTNO);

@@ -224,14 +224,11 @@
 #define DISCONNECT_LONG		2
 
 /* 
- * These are "special" values for the tag parameter passed to NCR5380_select.
+ * "Special" value for the (unsigned char) command tag, to indicate
+ * I_T_L nexus instead of I_T_L_Q.
  */
 
-#define TAG_NEXT	-1	/* Use next free tag */
-#define TAG_NONE	-2	/* 
-				 * Establish I_T_L nexus instead of I_T_L_Q
-				 * even on SCSI-II devices.
-				 */
+#define TAG_NONE	0xff
 
 /*
  * These are "special" values for the irq and dma_channel fields of the 
@@ -323,7 +320,7 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id);
 static void NCR5380_main(struct work_struct *work);
 static void __maybe_unused NCR5380_print_options(struct Scsi_Host *instance);
 static void NCR5380_reselect(struct Scsi_Host *instance);
-static int NCR5380_select(struct Scsi_Host *instance, Scsi_Cmnd * cmd, int tag);
+static int NCR5380_select(struct Scsi_Host *instance, Scsi_Cmnd *cmd);
 #if defined(PSEUDO_DMA) || defined(REAL_DMA) || defined(REAL_DMA_POLL)
 static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
 #endif
