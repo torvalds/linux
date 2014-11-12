@@ -1072,8 +1072,7 @@ static u8 iwl_mvm_get_key_sta_id(struct ieee80211_vif *vif,
 static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 				struct iwl_mvm_sta *mvm_sta,
 				struct ieee80211_key_conf *keyconf,
-				u8 sta_id, u32 tkip_iv32, u16 *tkip_p1k,
-				u32 cmd_flags)
+				u32 tkip_iv32, u16 *tkip_p1k, u32 cmd_flags)
 {
 	struct iwl_mvm_add_sta_key_cmd cmd = {};
 	__le16 key_flags;
@@ -1081,6 +1080,7 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 	u32 status;
 	u16 keyidx;
 	int i;
+	u8 sta_id = mvm_sta->sta_id;
 
 	keyidx = (keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
 		 STA_KEY_FLG_KEYID_MSK;
@@ -1196,59 +1196,16 @@ static inline u8 *iwl_mvm_get_mac_addr(struct iwl_mvm *mvm,
 	return NULL;
 }
 
-int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
-			struct ieee80211_vif *vif,
-			struct ieee80211_sta *sta,
-			struct ieee80211_key_conf *keyconf,
-			bool have_key_offset)
+static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 struct ieee80211_key_conf *keyconf)
 {
-	struct iwl_mvm_sta *mvm_sta;
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	int ret;
-	u8 *addr, sta_id;
+	const u8 *addr;
 	struct ieee80211_key_seq seq;
 	u16 p1k[5];
-
-	lockdep_assert_held(&mvm->mutex);
-
-	/* Get the station id from the mvm local station table */
-	sta_id = iwl_mvm_get_key_sta_id(vif, sta);
-	if (sta_id == IWL_MVM_STATION_COUNT) {
-		IWL_ERR(mvm, "Failed to find station id\n");
-		return -EINVAL;
-	}
-
-	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
-		ret = iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id, false);
-		goto end;
-	}
-
-	/*
-	 * It is possible that the 'sta' parameter is NULL, and thus
-	 * there is a need to retrieve  the sta from the local station table.
-	 */
-	if (!sta) {
-		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
-						lockdep_is_held(&mvm->mutex));
-		if (IS_ERR_OR_NULL(sta)) {
-			IWL_ERR(mvm, "Invalid station id\n");
-			return -EINVAL;
-		}
-	}
-
-	mvm_sta = (struct iwl_mvm_sta *)sta->drv_priv;
-	if (WARN_ON_ONCE(mvm_sta->vif != vif))
-		return -EINVAL;
-
-	if (!have_key_offset) {
-		/*
-		 * The D3 firmware hardcodes the PTK offset to 0, so we have to
-		 * configure it there. As a result, this workaround exists to
-		 * let the caller set the key offset (hw_key_idx), see d3.c.
-		 */
-		keyconf->hw_key_idx = iwl_mvm_set_fw_key_idx(mvm);
-		if (keyconf->hw_key_idx == STA_KEY_IDX_INVALID)
-			return -ENOSPC;
-	}
 
 	switch (keyconf->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -1256,81 +1213,28 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 		/* get phase 1 key from mac80211 */
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		ieee80211_get_tkip_rx_p1k(keyconf, addr, seq.tkip.iv32, p1k);
-		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, sta_id,
+		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf,
 					   seq.tkip.iv32, p1k, 0);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, sta_id,
+		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf,
 					   0, NULL, 0);
 		break;
 	default:
 		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf,
-					   sta_id, 0, NULL, 0);
+					   0, NULL, 0);
 	}
 
-	if (ret)
-		__clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
-
-end:
-	IWL_DEBUG_WEP(mvm, "key: cipher=%x len=%d idx=%d sta=%pM ret=%d\n",
-		      keyconf->cipher, keyconf->keylen, keyconf->keyidx,
-		      sta->addr, ret);
 	return ret;
 }
 
-int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
-			   struct ieee80211_vif *vif,
-			   struct ieee80211_sta *sta,
-			   struct ieee80211_key_conf *keyconf)
+static int __iwl_mvm_remove_sta_key(struct iwl_mvm *mvm, u8 sta_id,
+				    struct ieee80211_key_conf *keyconf)
 {
-	struct iwl_mvm_sta *mvm_sta;
 	struct iwl_mvm_add_sta_key_cmd cmd = {};
 	__le16 key_flags;
 	int ret;
 	u32 status;
-	u8 sta_id;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	/* Get the station id from the mvm local station table */
-	sta_id = iwl_mvm_get_key_sta_id(vif, sta);
-
-	IWL_DEBUG_WEP(mvm, "mvm remove dynamic key: idx=%d sta=%d\n",
-		      keyconf->keyidx, sta_id);
-
-	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
-		return iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id, true);
-
-	ret = __test_and_clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
-	if (!ret) {
-		IWL_ERR(mvm, "offset %d not used in fw key table.\n",
-			keyconf->hw_key_idx);
-		return -ENOENT;
-	}
-
-	if (sta_id == IWL_MVM_STATION_COUNT) {
-		IWL_DEBUG_WEP(mvm, "station non-existent, early return.\n");
-		return 0;
-	}
-
-	/*
-	 * It is possible that the 'sta' parameter is NULL, and thus
-	 * there is a need to retrieve the sta from the local station table,
-	 * for example when a GTK is removed (where the sta_id will then be
-	 * the AP ID, and no station was passed by mac80211.)
-	 */
-	if (!sta) {
-		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
-						lockdep_is_held(&mvm->mutex));
-		if (!sta) {
-			IWL_ERR(mvm, "Invalid station id\n");
-			return -EINVAL;
-		}
-	}
-
-	mvm_sta = (struct iwl_mvm_sta *)sta->drv_priv;
-	if (WARN_ON_ONCE(mvm_sta->vif != vif))
-		return -EINVAL;
 
 	key_flags = cpu_to_le16((keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
 				 STA_KEY_FLG_KEYID_MSK);
@@ -1361,6 +1265,117 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 	return ret;
 }
 
+int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
+			struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta,
+			struct ieee80211_key_conf *keyconf,
+			bool have_key_offset)
+{
+	u8 sta_id;
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* Get the station id from the mvm local station table */
+	sta_id = iwl_mvm_get_key_sta_id(vif, sta);
+	if (sta_id == IWL_MVM_STATION_COUNT) {
+		IWL_ERR(mvm, "Failed to find station id\n");
+		return -EINVAL;
+	}
+
+	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
+		ret = iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id, false);
+		goto end;
+	}
+
+	/*
+	 * It is possible that the 'sta' parameter is NULL, and thus
+	 * there is a need to retrieve  the sta from the local station table.
+	 */
+	if (!sta) {
+		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
+						lockdep_is_held(&mvm->mutex));
+		if (IS_ERR_OR_NULL(sta)) {
+			IWL_ERR(mvm, "Invalid station id\n");
+			return -EINVAL;
+		}
+	}
+
+	if (WARN_ON_ONCE(iwl_mvm_sta_from_mac80211(sta)->vif != vif))
+		return -EINVAL;
+
+	if (!have_key_offset) {
+		/*
+		 * The D3 firmware hardcodes the PTK offset to 0, so we have to
+		 * configure it there. As a result, this workaround exists to
+		 * let the caller set the key offset (hw_key_idx), see d3.c.
+		 */
+		keyconf->hw_key_idx = iwl_mvm_set_fw_key_idx(mvm);
+		if (keyconf->hw_key_idx == STA_KEY_IDX_INVALID)
+			return -ENOSPC;
+	}
+
+	ret = __iwl_mvm_set_sta_key(mvm, vif, sta, keyconf);
+	if (ret)
+		__clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
+
+end:
+	IWL_DEBUG_WEP(mvm, "key: cipher=%x len=%d idx=%d sta=%pM ret=%d\n",
+		      keyconf->cipher, keyconf->keylen, keyconf->keyidx,
+		      sta->addr, ret);
+	return ret;
+}
+
+int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
+			   struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta,
+			   struct ieee80211_key_conf *keyconf)
+{
+	u8 sta_id;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* Get the station id from the mvm local station table */
+	sta_id = iwl_mvm_get_key_sta_id(vif, sta);
+
+	IWL_DEBUG_WEP(mvm, "mvm remove dynamic key: idx=%d sta=%d\n",
+		      keyconf->keyidx, sta_id);
+
+	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+		return iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id, true);
+
+	if (!__test_and_clear_bit(keyconf->hw_key_idx, mvm->fw_key_table)) {
+		IWL_ERR(mvm, "offset %d not used in fw key table.\n",
+			keyconf->hw_key_idx);
+		return -ENOENT;
+	}
+
+	if (sta_id == IWL_MVM_STATION_COUNT) {
+		IWL_DEBUG_WEP(mvm, "station non-existent, early return.\n");
+		return 0;
+	}
+
+	/*
+	 * It is possible that the 'sta' parameter is NULL, and thus
+	 * there is a need to retrieve the sta from the local station table,
+	 * for example when a GTK is removed (where the sta_id will then be
+	 * the AP ID, and no station was passed by mac80211.)
+	 */
+	if (!sta) {
+		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
+						lockdep_is_held(&mvm->mutex));
+		if (!sta) {
+			IWL_ERR(mvm, "Invalid station id\n");
+			return -EINVAL;
+		}
+	}
+
+	if (WARN_ON_ONCE(iwl_mvm_sta_from_mac80211(sta)->vif != vif))
+		return -EINVAL;
+
+	return __iwl_mvm_remove_sta_key(mvm, sta_id, keyconf);
+}
+
 void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_key_conf *keyconf,
@@ -1383,8 +1398,8 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 		}
 	}
 
-	mvm_sta = (void *)sta->drv_priv;
-	iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, sta_id,
+	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf,
 			     iv32, phase1key, CMD_ASYNC);
 	rcu_read_unlock();
 }
