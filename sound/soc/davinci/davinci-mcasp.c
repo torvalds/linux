@@ -70,6 +70,7 @@ struct davinci_mcasp {
 	void __iomem *base;
 	u32 fifo_base;
 	struct device *dev;
+	struct snd_pcm_substream *substreams[2];
 
 	/* McASP specific data */
 	int	tdm_slots;
@@ -80,6 +81,7 @@ struct davinci_mcasp {
 	u8	bclk_div;
 	u16	bclk_lrclk_ratio;
 	int	streams;
+	u32	irq_request[2];
 
 	int	sysclk_freq;
 	bool	bclk_master;
@@ -185,6 +187,10 @@ static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXFSRST);
 	if (mcasp_is_synchronous(mcasp))
 		mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXFSRST);
+
+	/* enable receive IRQs */
+	mcasp_set_bits(mcasp, DAVINCI_MCASP_EVTCTLR_REG,
+		       mcasp->irq_request[SNDRV_PCM_STREAM_CAPTURE]);
 }
 
 static void mcasp_start_tx(struct davinci_mcasp *mcasp)
@@ -214,6 +220,10 @@ static void mcasp_start_tx(struct davinci_mcasp *mcasp)
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXSMRST);
 	/* Release Frame Sync generator */
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXFSRST);
+
+	/* enable transmit IRQs */
+	mcasp_set_bits(mcasp, DAVINCI_MCASP_EVTCTLX_REG,
+		       mcasp->irq_request[SNDRV_PCM_STREAM_PLAYBACK]);
 }
 
 static void davinci_mcasp_start(struct davinci_mcasp *mcasp, int stream)
@@ -228,6 +238,10 @@ static void davinci_mcasp_start(struct davinci_mcasp *mcasp, int stream)
 
 static void mcasp_stop_rx(struct davinci_mcasp *mcasp)
 {
+	/* disable IRQ sources */
+	mcasp_clr_bits(mcasp, DAVINCI_MCASP_EVTCTLR_REG,
+		       mcasp->irq_request[SNDRV_PCM_STREAM_CAPTURE]);
+
 	/*
 	 * In synchronous mode stop the TX clocks if no other stream is
 	 * running
@@ -248,6 +262,10 @@ static void mcasp_stop_rx(struct davinci_mcasp *mcasp)
 static void mcasp_stop_tx(struct davinci_mcasp *mcasp)
 {
 	u32 val = 0;
+
+	/* disable IRQ sources */
+	mcasp_clr_bits(mcasp, DAVINCI_MCASP_EVTCTLX_REG,
+		       mcasp->irq_request[SNDRV_PCM_STREAM_PLAYBACK]);
 
 	/*
 	 * In synchronous mode keep TX clocks running if the capture stream is
@@ -274,6 +292,76 @@ static void davinci_mcasp_stop(struct davinci_mcasp *mcasp, int stream)
 		mcasp_stop_tx(mcasp);
 	else
 		mcasp_stop_rx(mcasp);
+}
+
+static irqreturn_t davinci_mcasp_tx_irq_handler(int irq, void *data)
+{
+	struct davinci_mcasp *mcasp = (struct davinci_mcasp *)data;
+	struct snd_pcm_substream *substream;
+	u32 irq_mask = mcasp->irq_request[SNDRV_PCM_STREAM_PLAYBACK];
+	u32 handled_mask = 0;
+	u32 stat;
+
+	stat = mcasp_get_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG);
+	if (stat & XUNDRN & irq_mask) {
+		dev_warn(mcasp->dev, "Transmit buffer underflow\n");
+		handled_mask |= XUNDRN;
+
+		substream = mcasp->substreams[SNDRV_PCM_STREAM_PLAYBACK];
+		if (substream) {
+			snd_pcm_stream_lock_irq(substream);
+			if (snd_pcm_running(substream))
+				snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
+			snd_pcm_stream_unlock_irq(substream);
+		}
+	}
+
+	if (!handled_mask)
+		dev_warn(mcasp->dev, "unhandled tx event. txstat: 0x%08x\n",
+			 stat);
+
+	if (stat & XRERR)
+		handled_mask |= XRERR;
+
+	/* Ack the handled event only */
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG, handled_mask);
+
+	return IRQ_RETVAL(handled_mask);
+}
+
+static irqreturn_t davinci_mcasp_rx_irq_handler(int irq, void *data)
+{
+	struct davinci_mcasp *mcasp = (struct davinci_mcasp *)data;
+	struct snd_pcm_substream *substream;
+	u32 irq_mask = mcasp->irq_request[SNDRV_PCM_STREAM_CAPTURE];
+	u32 handled_mask = 0;
+	u32 stat;
+
+	stat = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXSTAT_REG);
+	if (stat & ROVRN & irq_mask) {
+		dev_warn(mcasp->dev, "Receive buffer overflow\n");
+		handled_mask |= ROVRN;
+
+		substream = mcasp->substreams[SNDRV_PCM_STREAM_CAPTURE];
+		if (substream) {
+			snd_pcm_stream_lock_irq(substream);
+			if (snd_pcm_running(substream))
+				snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
+			snd_pcm_stream_unlock_irq(substream);
+		}
+	}
+
+	if (!handled_mask)
+		dev_warn(mcasp->dev, "unhandled rx event. rxstat: 0x%08x\n",
+			 stat);
+
+	if (stat & XRERR)
+		handled_mask |= XRERR;
+
+	/* Ack the handled event only */
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXSTAT_REG, handled_mask);
+
+	return IRQ_RETVAL(handled_mask);
 }
 
 static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
@@ -869,6 +957,8 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	u32 max_channels = 0;
 	int i, dir;
 
+	mcasp->substreams[substream->stream] = substream;
+
 	if (mcasp->op_mode == DAVINCI_MCASP_DIT_MODE)
 		return 0;
 
@@ -906,6 +996,8 @@ static void davinci_mcasp_shutdown(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *cpu_dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(cpu_dai);
+
+	mcasp->substreams[substream->stream] = NULL;
 
 	if (mcasp->op_mode == DAVINCI_MCASP_DIT_MODE)
 		return;
@@ -1256,6 +1348,8 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	struct resource *mem, *ioarea, *res, *dat;
 	struct davinci_mcasp_pdata *pdata;
 	struct davinci_mcasp *mcasp;
+	char *irq_name;
+	int irq;
 	int ret;
 
 	if (!pdev->dev.platform_data && !pdev->dev.of_node) {
@@ -1335,6 +1429,36 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	mcasp->rxnumevt = pdata->rxnumevt;
 
 	mcasp->dev = &pdev->dev;
+
+	irq = platform_get_irq_byname(pdev, "rx");
+	if (irq >= 0) {
+		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_rx\n",
+					  dev_name(&pdev->dev));
+		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+						davinci_mcasp_rx_irq_handler,
+						IRQF_ONESHOT, irq_name, mcasp);
+		if (ret) {
+			dev_err(&pdev->dev, "RX IRQ request failed\n");
+			goto err;
+		}
+
+		mcasp->irq_request[SNDRV_PCM_STREAM_CAPTURE] = ROVRN;
+	}
+
+	irq = platform_get_irq_byname(pdev, "tx");
+	if (irq >= 0) {
+		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_tx\n",
+					  dev_name(&pdev->dev));
+		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+						davinci_mcasp_tx_irq_handler,
+						IRQF_ONESHOT, irq_name, mcasp);
+		if (ret) {
+			dev_err(&pdev->dev, "TX IRQ request failed\n");
+			goto err;
+		}
+
+		mcasp->irq_request[SNDRV_PCM_STREAM_PLAYBACK] = XUNDRN;
+	}
 
 	dat = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dat");
 	if (dat)
