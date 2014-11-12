@@ -64,6 +64,8 @@ static struct {
 	 * an ongoing cpu hotplug operation.
 	 */
 	int refcount;
+	/* And allows lockless put_online_cpus(). */
+	atomic_t puts_pending;
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map dep_map;
@@ -113,7 +115,11 @@ void put_online_cpus(void)
 {
 	if (cpu_hotplug.active_writer == current)
 		return;
-	mutex_lock(&cpu_hotplug.lock);
+	if (!mutex_trylock(&cpu_hotplug.lock)) {
+		atomic_inc(&cpu_hotplug.puts_pending);
+		cpuhp_lock_release();
+		return;
+	}
 
 	if (WARN_ON(!cpu_hotplug.refcount))
 		cpu_hotplug.refcount++; /* try to fix things up */
@@ -155,6 +161,12 @@ void cpu_hotplug_begin(void)
 	cpuhp_lock_acquire();
 	for (;;) {
 		mutex_lock(&cpu_hotplug.lock);
+		if (atomic_read(&cpu_hotplug.puts_pending)) {
+			int delta;
+
+			delta = atomic_xchg(&cpu_hotplug.puts_pending, 0);
+			cpu_hotplug.refcount -= delta;
+		}
 		if (likely(!cpu_hotplug.refcount))
 			break;
 		__set_current_state(TASK_UNINTERRUPTIBLE);

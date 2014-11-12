@@ -400,7 +400,12 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 		    struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)nvif_client(&device->base);
+	bool super;
 	int ret;
+
+	/* hack until fencenv50 is fixed, and agp access relaxed */
+	super = cli->base.super;
+	cli->base.super = true;
 
 	ret = nouveau_channel_ind(drm, device, handle, arg0, pchan);
 	if (ret) {
@@ -408,7 +413,7 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 		ret = nouveau_channel_dma(drm, device, handle, pchan);
 		if (ret) {
 			NV_PRINTK(debug, cli, "dma channel create, %d\n", ret);
-			return ret;
+			goto done;
 		}
 	}
 
@@ -416,8 +421,9 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 	if (ret) {
 		NV_PRINTK(error, cli, "channel failed to initialise, %d\n", ret);
 		nouveau_channel_del(pchan);
-		return ret;
 	}
 
-	return 0;
+done:
+	cli->base.super = super;
+	return ret;
 }

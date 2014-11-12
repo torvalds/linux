@@ -67,6 +67,7 @@ prototypes:
 				struct file *, unsigned open_flag,
 				umode_t create_mode, int *opened);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+	int (*dentry_open)(struct dentry *, struct file *, const struct cred *);
 
 locking rules:
 	all may block
@@ -96,6 +97,7 @@ fiemap:		no
 update_time:	no
 atomic_open:	yes
 tmpfile:	no
+dentry_open:	no
 
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.

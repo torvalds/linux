@@ -656,7 +656,7 @@ void __gmap_zap(struct gmap *gmap, unsigned long gaddr)
 	}
 	pgste_set_unlock(ptep, pgste);
 out_pte:
-	pte_unmap_unlock(*ptep, ptl);
+	pte_unmap_unlock(ptep, ptl);
 }
 EXPORT_SYMBOL_GPL(__gmap_zap);
 
@@ -943,7 +943,7 @@ retry:
 	}
 	if (!(pte_val(*ptep) & _PAGE_INVALID) &&
 	     (pte_val(*ptep) & _PAGE_PROTECT)) {
-		pte_unmap_unlock(*ptep, ptl);
+		pte_unmap_unlock(ptep, ptl);
 		if (fixup_user_fault(current, mm, addr, FAULT_FLAG_WRITE)) {
 			up_read(&mm->mmap_sem);
 			return -EFAULT;
@@ -974,7 +974,7 @@ retry:
 		pgste_val(new) |= PGSTE_UC_BIT;
 
 	pgste_set_unlock(ptep, new);
-	pte_unmap_unlock(*ptep, ptl);
+	pte_unmap_unlock(ptep, ptl);
 	up_read(&mm->mmap_sem);
 	return 0;
 }

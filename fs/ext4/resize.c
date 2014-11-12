@@ -1081,7 +1081,7 @@ static void update_backups(struct super_block *sb, int blk_off, char *data,
 			break;
 
 		if (meta_bg == 0)
-			backup_block = group * bpg + blk_off;
+			backup_block = ((ext4_fsblk_t)group) * bpg + blk_off;
 		else
 			backup_block = (ext4_group_first_block_no(sb, group) +
 					ext4_bg_has_super(sb, group));
@@ -1212,8 +1212,7 @@ static int ext4_set_bitmap_checksums(struct super_block *sb,
 {
 	struct buffer_head *bh;
 
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
-					EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
+	if (!ext4_has_metadata_csum(sb))
 		return 0;
 
 	bh = ext4_get_bitmap(sb, group_data->inode_bitmap);

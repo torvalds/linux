@@ -167,6 +167,9 @@ static struct page *balloon_next_page(struct page *page)
 
 static enum bp_state update_schedule(enum bp_state state)
 {
+	if (state == BP_ECANCELED)
+		return BP_ECANCELED;
+
 	if (state == BP_DONE) {
 		balloon_stats.schedule_delay = 1;
 		balloon_stats.retry_count = 1;

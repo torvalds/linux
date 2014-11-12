@@ -112,6 +112,7 @@ static void qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha,
 	struct qla_tgt_cmd *cmd);
 static void qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 	struct atio_from_isp *atio, uint16_t status, int qfull);
+static void qlt_disable_vha(struct scsi_qla_host *vha);
 /*
  * Global Variables
  */
@@ -210,7 +211,7 @@ static inline void qlt_decr_num_pend_cmds(struct scsi_qla_host *vha)
 	spin_unlock_irqrestore(&vha->hw->tgt.q_full_lock, flags);
 }
 
-void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
+static void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 	struct atio_from_isp *atio)
 {
 	ql_dbg(ql_dbg_tgt, vha, 0xe072,
@@ -433,7 +434,7 @@ static int qlt_reset(struct scsi_qla_host *vha, void *iocb, int mcmd)
 #if 0 /* FIXME: Re-enable Global event handling.. */
 		/* Global event */
 		atomic_inc(&ha->tgt.qla_tgt->tgt_global_resets_count);
-		qlt_clear_tgt_db(ha->tgt.qla_tgt, 1);
+		qlt_clear_tgt_db(ha->tgt.qla_tgt);
 		if (!list_empty(&ha->tgt.qla_tgt->sess_list)) {
 			sess = list_entry(ha->tgt.qla_tgt->sess_list.next,
 			    typeof(*sess), sess_list_entry);
@@ -515,7 +516,7 @@ static void qlt_schedule_sess_for_deletion(struct qla_tgt_sess *sess,
 }
 
 /* ha->hardware_lock supposed to be held on entry */
-static void qlt_clear_tgt_db(struct qla_tgt *tgt, bool local_only)
+static void qlt_clear_tgt_db(struct qla_tgt *tgt)
 {
 	struct qla_tgt_sess *sess;
 
@@ -867,7 +868,7 @@ int qlt_stop_phase1(struct qla_tgt *tgt)
 	mutex_lock(&vha->vha_tgt.tgt_mutex);
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	tgt->tgt_stop = 1;
-	qlt_clear_tgt_db(tgt, true);
+	qlt_clear_tgt_db(tgt);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	mutex_unlock(&vha->vha_tgt.tgt_mutex);
 	mutex_unlock(&qla_tgt_mutex);
@@ -1462,12 +1463,13 @@ out_err:
 	return -1;
 }
 
-static inline void qlt_unmap_sg(struct scsi_qla_host *vha,
-	struct qla_tgt_cmd *cmd)
+static void qlt_unmap_sg(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
 {
 	struct qla_hw_data *ha = vha->hw;
 
-	BUG_ON(!cmd->sg_mapped);
+	if (!cmd->sg_mapped)
+		return;
+
 	pci_unmap_sg(ha->pdev, cmd->sg, cmd->sg_cnt, cmd->dma_data_direction);
 	cmd->sg_mapped = 0;
 
@@ -2428,8 +2430,7 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 	return 0;
 
 out_unmap_unlock:
-	if (cmd->sg_mapped)
-		qlt_unmap_sg(vha, cmd);
+	qlt_unmap_sg(vha, cmd);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return res;
@@ -2506,8 +2507,7 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 	return res;
 
 out_unlock_free_unmap:
-	if (cmd->sg_mapped)
-		qlt_unmap_sg(vha, cmd);
+	qlt_unmap_sg(vha, cmd);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return res;
@@ -2741,8 +2741,7 @@ done:
 		if (!ha_locked && !in_interrupt())
 			msleep(250); /* just in case */
 
-		if (cmd->sg_mapped)
-			qlt_unmap_sg(vha, cmd);
+		qlt_unmap_sg(vha, cmd);
 		vha->hw->tgt.tgt_ops->free_cmd(cmd);
 	}
 	return;
@@ -3087,8 +3086,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 	tfo = se_cmd->se_tfo;
 	cmd->cmd_sent_to_fw = 0;
 
-	if (cmd->sg_mapped)
-		qlt_unmap_sg(vha, cmd);
+	qlt_unmap_sg(vha, cmd);
 
 	if (unlikely(status != CTIO_SUCCESS)) {
 		switch (status & 0xFFFF) {
@@ -5343,7 +5341,7 @@ void qlt_lport_deregister(struct scsi_qla_host *vha)
 EXPORT_SYMBOL(qlt_lport_deregister);
 
 /* Must be called under HW lock */
-void qlt_set_mode(struct scsi_qla_host *vha)
+static void qlt_set_mode(struct scsi_qla_host *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 
@@ -5364,7 +5362,7 @@ void qlt_set_mode(struct scsi_qla_host *vha)
 }
 
 /* Must be called under HW lock */
-void qlt_clear_mode(struct scsi_qla_host *vha)
+static void qlt_clear_mode(struct scsi_qla_host *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 
@@ -5428,8 +5426,7 @@ EXPORT_SYMBOL(qlt_enable_vha);
  *
  * Disable Target Mode and reset the adapter
  */
-void
-qlt_disable_vha(struct scsi_qla_host *vha)
+static void qlt_disable_vha(struct scsi_qla_host *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;

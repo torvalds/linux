@@ -127,8 +127,11 @@ void *kmap_atomic_pfn(unsigned long pfn)
 {
 	unsigned long vaddr;
 	int idx, type;
+	struct page *page = pfn_to_page(pfn);
 
 	pagefault_disable();
+	if (!PageHighMem(page))
+		return page_address(page);
 
 	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR * smp_processor_id();

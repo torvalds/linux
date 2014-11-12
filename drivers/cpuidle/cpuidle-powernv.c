@@ -163,7 +163,8 @@ static int powernv_add_idle_states(void)
 	int nr_idle_states = 1; /* Snooze */
 	int dt_idle_states;
 	const __be32 *idle_state_flags;
-	u32 len_flags, flags;
+	const __be32 *idle_state_latency;
+	u32 len_flags, flags, latency_ns;
 	int i;
 
 	/* Currently we have snooze statically defined */
@@ -180,18 +181,32 @@ static int powernv_add_idle_states(void)
 		return nr_idle_states;
 	}
 
+	idle_state_latency = of_get_property(power_mgt,
+			"ibm,cpu-idle-state-latencies-ns", NULL);
+	if (!idle_state_latency) {
+		pr_warn("DT-PowerMgmt: missing ibm,cpu-idle-state-latencies-ns\n");
+		return nr_idle_states;
+	}
+
 	dt_idle_states = len_flags / sizeof(u32);
 
 	for (i = 0; i < dt_idle_states; i++) {
 
 		flags = be32_to_cpu(idle_state_flags[i]);
+
+		/* Cpuidle accepts exit_latency in us and we estimate
+		 * target residency to be 10x exit_latency
+		 */
+		latency_ns = be32_to_cpu(idle_state_latency[i]);
 		if (flags & IDLE_USE_INST_NAP) {
 			/* Add NAP state */
 			strcpy(powernv_states[nr_idle_states].name, "Nap");
 			strcpy(powernv_states[nr_idle_states].desc, "Nap");
 			powernv_states[nr_idle_states].flags = CPUIDLE_FLAG_TIME_VALID;
-			powernv_states[nr_idle_states].exit_latency = 10;
-			powernv_states[nr_idle_states].target_residency = 100;
+			powernv_states[nr_idle_states].exit_latency =
+					((unsigned int)latency_ns) / 1000;
+			powernv_states[nr_idle_states].target_residency =
+					((unsigned int)latency_ns / 100);
 			powernv_states[nr_idle_states].enter = &nap_loop;
 			nr_idle_states++;
 		}
@@ -202,8 +217,10 @@ static int powernv_add_idle_states(void)
 			strcpy(powernv_states[nr_idle_states].desc, "FastSleep");
 			powernv_states[nr_idle_states].flags =
 				CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TIMER_STOP;
-			powernv_states[nr_idle_states].exit_latency = 300;
-			powernv_states[nr_idle_states].target_residency = 1000000;
+			powernv_states[nr_idle_states].exit_latency =
+					((unsigned int)latency_ns) / 1000;
+			powernv_states[nr_idle_states].target_residency =
+					((unsigned int)latency_ns / 100);
 			powernv_states[nr_idle_states].enter = &fastsleep_loop;
 			nr_idle_states++;
 		}

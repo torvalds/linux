@@ -621,12 +621,14 @@ static int __init hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	dev = MKDEV(major, hidg->minor);
 	status = cdev_add(&hidg->cdev, dev, 1);
 	if (status)
-		goto fail;
+		goto fail_free_descs;
 
 	device_create(hidg_class, NULL, dev, NULL, "%s%d", "hidg", hidg->minor);
 
 	return 0;
 
+fail_free_descs:
+	usb_free_all_descriptors(f);
 fail:
 	ERROR(f->config->cdev, "hidg_bind FAILED\n");
 	if (hidg->req != NULL) {
@@ -635,7 +637,6 @@ fail:
 			usb_ep_free_request(hidg->in_ep, hidg->req);
 	}
 
-	usb_free_all_descriptors(f);
 	return status;
 }
 

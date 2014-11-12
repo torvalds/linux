@@ -146,7 +146,7 @@ u32 ap_get_table_length(struct acpi_table_header *table)
 
 	if (ACPI_VALIDATE_RSDP_SIG(table->signature)) {
 		rsdp = ACPI_CAST_PTR(struct acpi_table_rsdp, table);
-		return (rsdp->length);
+		return (acpi_tb_get_rsdp_length(rsdp));
 	}
 
 	/* Normal ACPI table */

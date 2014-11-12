@@ -92,6 +92,7 @@ typedef	struct {
 #define EFI_MEMORY_WC		((u64)0x0000000000000002ULL)	/* write-coalescing */
 #define EFI_MEMORY_WT		((u64)0x0000000000000004ULL)	/* write-through */
 #define EFI_MEMORY_WB		((u64)0x0000000000000008ULL)	/* write-back */
+#define EFI_MEMORY_UCE		((u64)0x0000000000000010ULL)	/* uncached, exported */
 #define EFI_MEMORY_WP		((u64)0x0000000000001000ULL)	/* write-protect */
 #define EFI_MEMORY_RP		((u64)0x0000000000002000ULL)	/* read-protect */
 #define EFI_MEMORY_XP		((u64)0x0000000000004000ULL)	/* execute-protect */
@@ -502,6 +503,10 @@ typedef efi_status_t efi_get_next_variable_t (unsigned long *name_size, efi_char
 typedef efi_status_t efi_set_variable_t (efi_char16_t *name, efi_guid_t *vendor, 
 					 u32 attr, unsigned long data_size,
 					 void *data);
+typedef efi_status_t
+efi_set_variable_nonblocking_t(efi_char16_t *name, efi_guid_t *vendor,
+			       u32 attr, unsigned long data_size, void *data);
+
 typedef efi_status_t efi_get_next_high_mono_count_t (u32 *count);
 typedef void efi_reset_system_t (int reset_type, efi_status_t status,
 				 unsigned long data_size, efi_char16_t *data);
@@ -821,6 +826,7 @@ extern struct efi {
 	efi_get_variable_t *get_variable;
 	efi_get_next_variable_t *get_next_variable;
 	efi_set_variable_t *set_variable;
+	efi_set_variable_nonblocking_t *set_variable_nonblocking;
 	efi_query_variable_info_t *query_variable_info;
 	efi_update_capsule_t *update_capsule;
 	efi_query_capsule_caps_t *query_capsule_caps;
@@ -885,6 +891,13 @@ extern bool efi_poweroff_required(void);
 	for ((md) = (m)->map;						   \
 	     (md) <= (efi_memory_desc_t *)((m)->map_end - (m)->desc_size); \
 	     (md) = (void *)(md) + (m)->desc_size)
+
+/*
+ * Format an EFI memory descriptor's type and attributes to a user-provided
+ * character buffer, as per snprintf(), and return the buffer.
+ */
+char * __init efi_md_typeattr_format(char *buf, size_t size,
+				     const efi_memory_desc_t *md);
 
 /**
  * efi_range_is_wc - check the WC bit on an address range
@@ -1034,6 +1047,7 @@ struct efivar_operations {
 	efi_get_variable_t *get_variable;
 	efi_get_next_variable_t *get_next_variable;
 	efi_set_variable_t *set_variable;
+	efi_set_variable_nonblocking_t *set_variable_nonblocking;
 	efi_query_variable_store_t *query_variable_store;
 };
 
@@ -1227,4 +1241,7 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 				  unsigned long *load_addr,
 				  unsigned long *load_size);
 
+efi_status_t efi_parse_options(char *cmdline);
+
+bool efi_runtime_disabled(void);
 #endif /* _LINUX_EFI_H */

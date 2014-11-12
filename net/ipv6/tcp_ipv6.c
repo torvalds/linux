@@ -200,8 +200,6 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	sk->sk_v6_daddr = usin->sin6_addr;
 	np->flow_label = fl6.flowlabel;
 
-	ip6_set_txhash(sk);
-
 	/*
 	 *	TCP over IPv4
 	 */
@@ -296,6 +294,8 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	err = inet6_hash_connect(&tcp_death_row, sk);
 	if (err)
 		goto late_failure;
+
+	ip6_set_txhash(sk);
 
 	if (!tp->write_seq && likely(!tp->repair))
 		tp->write_seq = secure_tcpv6_sequence_number(np->saddr.s6_addr32,

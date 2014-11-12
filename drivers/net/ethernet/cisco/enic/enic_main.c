@@ -1674,13 +1674,13 @@ static int enic_stop(struct net_device *netdev)
 
 	enic_dev_disable(enic);
 
-	local_bh_disable();
 	for (i = 0; i < enic->rq_count; i++) {
 		napi_disable(&enic->napi[i]);
+		local_bh_disable();
 		while (!enic_poll_lock_napi(&enic->rq[i]))
 			mdelay(1);
+		local_bh_enable();
 	}
-	local_bh_enable();
 
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);

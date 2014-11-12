@@ -374,6 +374,7 @@ header-y += swab.h
 header-y += synclink.h
 header-y += sysctl.h
 header-y += sysinfo.h
+header-y += target_core_user.h
 header-y += taskstats.h
 header-y += tcp.h
 header-y += tcp_metrics.h

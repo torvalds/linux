@@ -34,7 +34,7 @@ static void dump_tlb(int first, int last)
 		entrylo0 = read_c0_entrylo0();
 
 		/* Unused entries have a virtual address of KSEG0.  */
-		if ((entryhi & 0xffffe000) != 0x80000000
+		if ((entryhi & 0xfffff000) != 0x80000000
 		    && (entryhi & 0xfc0) == asid) {
 			/*
 			 * Only print entries in use
@@ -43,7 +43,7 @@ static void dump_tlb(int first, int last)
 
 			printk("va=%08lx asid=%08lx"
 			       "  [pa=%06lx n=%d d=%d v=%d g=%d]",
-			       (entryhi & 0xffffe000),
+			       (entryhi & 0xfffff000),
 			       entryhi & 0xfc0,
 			       entrylo0 & PAGE_MASK,
 			       (entrylo0 & (1 << 11)) ? 1 : 0,
