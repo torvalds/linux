@@ -33,7 +33,6 @@
 /*
  * Definitions for the generic 5380 driver.
  */
-#define AUTOSENSE
 
 #define NCR5380_read(reg)		inb(port + reg)
 #define NCR5380_write(reg, value)	outb(value, port + reg)

@@ -1,4 +1,3 @@
-#define AUTOSENSE
 #define PSEUDO_DMA
 
 /*
@@ -40,9 +39,6 @@
 
 /*
  * Options : 
- * AUTOSENSE - if defined, REQUEST SENSE will be performed automatically
- *      for commands that return with a CHECK CONDITION status. 
- *
  * PSEUDO_DMA - enables PSEUDO-DMA hardware, should give a 3-4X performance
  * increase compared to polled I/O.
  *

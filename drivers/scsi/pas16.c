@@ -1,4 +1,3 @@
-#define AUTOSENSE
 #define PSEUDO_DMA
 #define UNSAFE  /* Not unsafe for PAS16 -- use it */
 #define PDEBUG 0
@@ -39,9 +38,6 @@
 
 /*
  * Options : 
- * AUTOSENSE - if defined, REQUEST SENSE will be performed automatically
- *      for commands that return with a CHECK CONDITION status. 
- *
  * LIMIT_TRANSFERSIZE - if defined, limit the pseudo-dma transfers to 512
  *      bytes at a time.  Since interrupts are disabled by default during
  *      these transfers, we might need this to give reasonable interrupt

@@ -67,7 +67,6 @@
 
 #include <linux/module.h>
 
-#define AUTOSENSE
 /* For the Atari version, use only polled IO or REAL_DMA */
 #define	REAL_DMA
 /* Support tagged queuing? (on devices that are able to... :-) */

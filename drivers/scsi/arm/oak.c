@@ -17,7 +17,6 @@
 #include "../scsi.h"
 #include <scsi/scsi_host.h>
 
-#define AUTOSENSE
 /*#define PSEUDO_DMA*/
 
 #define OAKSCSI_PUBLIC_RELEASE 1

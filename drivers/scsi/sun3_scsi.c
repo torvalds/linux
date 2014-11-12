@@ -45,8 +45,6 @@
  * PARITY - enable parity checking.  Not supported.
  */
 
-#define AUTOSENSE
-
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/ctype.h>

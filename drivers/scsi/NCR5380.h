@@ -25,10 +25,7 @@
 #define NCR5380_H
 
 #include <linux/interrupt.h>
-
-#ifdef AUTOSENSE
 #include <scsi/scsi_eh.h>
-#endif
 
 #define NCR5380_PUBLIC_RELEASE 7
 #define NCR53C400_PUBLIC_RELEASE 2
@@ -281,9 +278,7 @@ struct NCR5380_hostdata {
 	unsigned pendingr;
 	unsigned pendingw;
 #endif
-#ifdef AUTOSENSE
 	struct scsi_eh_save ses;
-#endif
 };
 
 #ifdef __KERNEL__

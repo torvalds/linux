@@ -18,7 +18,6 @@
 
 #include <scsi/scsicam.h>
 
-#define AUTOSENSE
 #define PSEUDO_DMA
 
 #define CUMANASCSI_PUBLIC_RELEASE 1

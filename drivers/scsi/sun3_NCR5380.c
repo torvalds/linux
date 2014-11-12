@@ -629,9 +629,6 @@ static inline void NCR5380_all_init (void)
 static void __init NCR5380_print_options (struct Scsi_Host *instance)
 {
     printk(" generic options"
-#ifdef AUTOSENSE 
-    " AUTOSENSE"
-#endif
 #ifdef REAL_DMA
     " REAL DMA"
 #endif
@@ -788,14 +785,6 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 	first_instance = instance;
     }
 	
-
-#ifndef AUTOSENSE
-    if ((instance->cmd_per_lun > 1) || (instance->can_queue > 1))
-	 printk("scsi%d: WARNING : support for multiple outstanding commands enabled\n"
-	        "        without AUTOSENSE option, contingent allegiance conditions may\n"
-	        "        be incorrectly cleared.\n", HOSTNO);
-#endif /* def AUTOSENSE */
-
     NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
     NCR5380_write(MODE_REG, MR_BASE);
     NCR5380_write(TARGET_COMMAND_REG, 0);
@@ -2161,7 +2150,6 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		    else if (status_byte(cmd->SCp.Status) != GOOD)
 			cmd->result = (cmd->result & 0x00ffff) | (DID_ERROR << 16);
 		    
-#ifdef AUTOSENSE
 		    if ((cmd->cmnd[0] == REQUEST_SENSE) &&
 			                        hostdata->ses.cmd_len) {
 			scsi_eh_restore_cmnd(cmd, &hostdata->ses);
@@ -2185,9 +2173,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		        local_irq_restore(flags);
 			dprintk(NDEBUG_QUEUES, "scsi%d: REQUEST SENSE added to head of "
 				  "issue queue\n", H_NO(cmd));
-		   } else
-#endif /* def AUTOSENSE */
-		   {
+		   } else {
 #ifdef NCR5380_STATS
 		       collect_stats(hostdata, cmd);
 #endif
