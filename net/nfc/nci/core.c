@@ -774,6 +774,19 @@ static int nci_discover_se(struct nfc_dev *nfc_dev)
 	return 0;
 }
 
+static int nci_se_io(struct nfc_dev *nfc_dev, u32 se_idx,
+		     u8 *apdu, size_t apdu_length,
+		     se_io_cb_t cb, void *cb_context)
+{
+	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
+
+	if (ndev->ops->se_io)
+		return ndev->ops->se_io(ndev, se_idx, apdu,
+				apdu_length, cb, cb_context);
+
+	return 0;
+}
+
 static struct nfc_ops nci_nfc_ops = {
 	.dev_up = nci_dev_up,
 	.dev_down = nci_dev_down,
@@ -788,6 +801,7 @@ static struct nfc_ops nci_nfc_ops = {
 	.enable_se = nci_enable_se,
 	.disable_se = nci_disable_se,
 	.discover_se = nci_discover_se,
+	.se_io = nci_se_io,
 };
 
 /* ---- Interface to NCI drivers ---- */

@@ -75,6 +75,9 @@ struct nci_ops {
 	int   (*discover_se)(struct nci_dev *ndev);
 	int   (*disable_se)(struct nci_dev *ndev, u32 se_idx);
 	int   (*enable_se)(struct nci_dev *ndev, u32 se_idx);
+	int   (*se_io)(struct nci_dev *ndev, u32 se_idx,
+				u8 *apdu, size_t apdu_length,
+				se_io_cb_t cb, void *cb_context);
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
