@@ -2382,6 +2382,35 @@ static void i40e_vsi_free_rx_resources(struct i40e_vsi *vsi)
 }
 
 /**
+ * i40e_config_xps_tx_ring - Configure XPS for a Tx ring
+ * @ring: The Tx ring to configure
+ *
+ * This enables/disables XPS for a given Tx descriptor ring
+ * based on the TCs enabled for the VSI that ring belongs to.
+ **/
+static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
+{
+	struct i40e_vsi *vsi = ring->vsi;
+	cpumask_var_t mask;
+
+	if (ring->q_vector && ring->netdev) {
+		/* Single TC mode enable XPS */
+		if (vsi->tc_config.numtc <= 1 &&
+		    !test_and_set_bit(__I40E_TX_XPS_INIT_DONE, &ring->state)) {
+			netif_set_xps_queue(ring->netdev,
+					    &ring->q_vector->affinity_mask,
+					    ring->queue_index);
+		} else if (alloc_cpumask_var(&mask, GFP_KERNEL)) {
+			/* Disable XPS to allow selection based on TC */
+			bitmap_zero(cpumask_bits(mask), nr_cpumask_bits);
+			netif_set_xps_queue(ring->netdev, mask,
+					    ring->queue_index);
+			free_cpumask_var(mask);
+		}
+	}
+}
+
+/**
  * i40e_configure_tx_ring - Configure a transmit ring context and rest
  * @ring: The Tx ring to configure
  *
@@ -2404,13 +2433,8 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 		ring->atr_sample_rate = 0;
 	}
 
-	/* initialize XPS */
-	if (ring->q_vector && ring->netdev &&
-	    vsi->tc_config.numtc <= 1 &&
-	    !test_and_set_bit(__I40E_TX_XPS_INIT_DONE, &ring->state))
-		netif_set_xps_queue(ring->netdev,
-				    &ring->q_vector->affinity_mask,
-				    ring->queue_index);
+	/* configure XPS */
+	i40e_config_xps_tx_ring(ring);
 
 	/* clear the context structure first */
 	memset(&tx_ctx, 0, sizeof(tx_ctx));
