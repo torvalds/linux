@@ -1653,16 +1653,16 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.ops = &serial_omap_pops;
 
 	if (pdev->dev.of_node)
-		up->port.line = of_alias_get_id(pdev->dev.of_node, "serial");
+		ret = of_alias_get_id(pdev->dev.of_node, "serial");
 	else
-		up->port.line = pdev->id;
+		ret = pdev->id;
 
-	if (up->port.line < 0) {
+	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to get alias/pdev id, errno %d\n",
-								up->port.line);
-		ret = -ENODEV;
+			ret);
 		goto err_port_line;
 	}
+	up->port.line = ret;
 
 	if (up->port.line >= OMAP_MAX_HSUART_PORTS) {
 		dev_err(&pdev->dev, "uart ID %d >  MAX %d.\n", up->port.line,
