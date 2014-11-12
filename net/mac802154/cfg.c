@@ -84,6 +84,23 @@ static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
 }
 
 static int
+ieee802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
+				struct wpan_dev *wpan_dev,
+				const u8 min_be, const u8 max_be)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+
+	ASSERT_RTNL();
+
+	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS))
+		return -EOPNOTSUPP;
+
+	wpan_dev->min_be = min_be;
+	wpan_dev->max_be = max_be;
+	return 0;
+}
+
+static int
 ieee802154_set_short_addr(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 			  const u16 short_addr)
 {
@@ -114,4 +131,5 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_channel = ieee802154_set_channel,
 	.set_pan_id = ieee802154_set_pan_id,
 	.set_short_addr = ieee802154_set_short_addr,
+	.set_backoff_exponent = ieee802154_set_backoff_exponent,
 };

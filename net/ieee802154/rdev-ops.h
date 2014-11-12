@@ -41,4 +41,13 @@ rdev_set_short_addr(struct cfg802154_registered_device *rdev,
 	return rdev->ops->set_short_addr(&rdev->wpan_phy, wpan_dev, short_addr);
 }
 
+static inline int
+rdev_set_backoff_exponent(struct cfg802154_registered_device *rdev,
+			  struct wpan_dev *wpan_dev, const u8 min_be,
+			  const u8 max_be)
+{
+	return rdev->ops->set_backoff_exponent(&rdev->wpan_phy, wpan_dev,
+					       min_be, max_be);
+}
+
 #endif /* __CFG802154_RDEV_OPS */

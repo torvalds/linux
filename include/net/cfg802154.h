@@ -42,6 +42,9 @@ struct cfg802154_ops {
 			      struct wpan_dev *wpan_dev, u16 pan_id);
 	int	(*set_short_addr)(struct wpan_phy *wpan_phy,
 				  struct wpan_dev *wpan_dev, u16 short_addr);
+	int	(*set_backoff_exponent)(struct wpan_phy *wpan_phy,
+					struct wpan_dev *wpan_dev, u8 min_be,
+					u8 max_be);
 };
 
 struct wpan_phy {

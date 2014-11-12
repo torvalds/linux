@@ -616,6 +616,32 @@ static int nl802154_set_short_addr(struct sk_buff *skb, struct genl_info *info)
 	return rdev_set_short_addr(rdev, wpan_dev, short_addr);
 }
 
+static int
+nl802154_set_backoff_exponent(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	u8 min_be, max_be;
+
+	/* should be set on netif open inside phy settings */
+	if (netif_running(dev))
+		return -EBUSY;
+
+	if (!info->attrs[NL802154_ATTR_MIN_BE] ||
+	    !info->attrs[NL802154_ATTR_MAX_BE])
+		return -EINVAL;
+
+	min_be = nla_get_u8(info->attrs[NL802154_ATTR_MIN_BE]);
+	max_be = nla_get_u8(info->attrs[NL802154_ATTR_MAX_BE]);
+
+	/* check 802.15.4 constraints */
+	if (max_be < 3 || max_be > 8 || min_be > max_be)
+		return -EINVAL;
+
+	return rdev_set_backoff_exponent(rdev, wpan_dev, min_be, max_be);
+}
+
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
 #define NL802154_FLAG_NEED_NETDEV	0x02
 #define NL802154_FLAG_NEED_RTNL		0x04
@@ -745,6 +771,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_SHORT_ADDR,
 		.doit = nl802154_set_short_addr,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_BACKOFF_EXPONENT,
+		.doit = nl802154_set_backoff_exponent,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
