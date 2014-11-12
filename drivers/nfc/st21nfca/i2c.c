@@ -72,7 +72,6 @@ struct st21nfca_i2c_phy {
 	struct nfc_hci_dev *hdev;
 
 	unsigned int gpio_ena;
-	unsigned int gpio_irq;
 	unsigned int irq_polarity;
 
 	struct sk_buff *pending_skb;
@@ -536,15 +535,7 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 
 	phy->gpio_ena = gpio;
 
-	/* IRQ */
-	r = irq_of_parse_and_map(pp, 0);
-	if (r < 0) {
-		nfc_err(&client->dev, "Unable to get irq, error: %d\n", r);
-		return r;
-	}
-
-	phy->irq_polarity = irq_get_trigger_type(r);
-	client->irq = r;
+	phy->irq_polarity = irq_get_trigger_type(client->irq);
 
 	return 0;
 }
@@ -560,7 +551,6 @@ static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 	struct st21nfca_nfc_platform_data *pdata;
 	struct st21nfca_i2c_phy *phy = i2c_get_clientdata(client);
 	int r;
-	int irq;
 
 	pdata = client->dev.platform_data;
 	if (pdata == NULL) {
@@ -569,16 +559,8 @@ static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 	}
 
 	/* store for later use */
-	phy->gpio_irq = pdata->gpio_irq;
 	phy->gpio_ena = pdata->gpio_ena;
 	phy->irq_polarity = pdata->irq_polarity;
-
-	r = devm_gpio_request_one(&client->dev, phy->gpio_irq, GPIOF_IN,
-				  "wake_up");
-	if (r) {
-		pr_err("%s : gpio_request failed\n", __FILE__);
-		return -ENODEV;
-	}
 
 	if (phy->gpio_ena > 0) {
 		r = devm_gpio_request_one(&client->dev, phy->gpio_ena,
@@ -588,16 +570,6 @@ static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 			return -ENODEV;
 		}
 	}
-
-	/* IRQ */
-	irq = gpio_to_irq(phy->gpio_irq);
-	if (irq < 0) {
-		nfc_err(&client->dev,
-				"Unable to get irq number for GPIO %d error %d\n",
-				phy->gpio_irq, r);
-		return -ENODEV;
-	}
-	client->irq = irq;
 
 	return 0;
 }
