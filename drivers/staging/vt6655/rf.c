@@ -39,8 +39,6 @@
 #include "rf.h"
 #include "baseband.h"
 
-/*---------------------  Static Definitions -------------------------*/
-
 #define BY_AL2230_REG_LEN     23 //24bit
 #define CB_AL2230_INIT_SEQ    15
 #define SWITCH_CHANNEL_DELAY_AL2230 200 //us
@@ -50,10 +48,6 @@
 #define CB_AL7230_INIT_SEQ    16
 #define SWITCH_CHANNEL_DELAY_AL7230 200 //us
 #define AL7230_PWR_IDX_LEN    64
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
 
 static const unsigned long dwAL2230InitTable[CB_AL2230_INIT_SEQ] = {
 	0x03F79000+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, //
@@ -410,8 +404,6 @@ static const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
 	0x77D78400+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW  // channel = 165, Tf = 5825MHz (56)
 };
 
-/*---------------------  Static Functions  --------------------------*/
-
 /*
  * Description: AIROHA IFRF chip init function
  *
@@ -498,64 +490,6 @@ static bool s_bAL7230SelectChannel(struct vnt_private *priv, unsigned char byCha
 }
 
 /*
- * Description: Select channel with UW2452 chip
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      uChannel    - Channel number
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*
- * Description: UW2452 IFRF chip init function
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*
- * Description: VT3226 IFRF chip init function
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*
- * Description: Select channel with VT3226 chip
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      uChannel    - Channel number
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
-/*
  * Description: Write to IF/RF, by embedded programming
  *
  * Parameters:
@@ -588,33 +522,6 @@ bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData)
 
 	return true;
 }
-
-/*
- * Description: RFMD RF2959 IFRF chip init function
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*
- * Description: Select channel with RFMD 2959 chip
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      uChannel    - Channel number
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
 
 /*
  * Description: AIROHA IFRF chip init function
@@ -691,47 +598,6 @@ static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byCha
 
 	return bResult;
 }
-
-/*
- * Description: UW2451 IFRF chip init function
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*
- * Description: Select channel with UW2451 chip
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      uChannel    - Channel number
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-
-/*
- * Description: Set sleep mode to UW2451 chip
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *      uChannel    - Channel number
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
 
 /*
  * Description: RF init function
