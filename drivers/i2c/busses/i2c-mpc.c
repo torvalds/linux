@@ -124,7 +124,7 @@ static void mpc_i2c_fixup(struct mpc_i2c *i2c)
 static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 {
 	unsigned long orig_jiffies = jiffies;
-	u32 x;
+	u32 cmd_err;
 	int result = 0;
 
 	if (!i2c->irq) {
@@ -133,11 +133,11 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 			if (time_after(jiffies, orig_jiffies + timeout)) {
 				dev_dbg(i2c->dev, "timeout\n");
 				writeccr(i2c, 0);
-				result = -EIO;
+				result = -ETIMEDOUT;
 				break;
 			}
 		}
-		x = readb(i2c->base + MPC_I2C_SR);
+		cmd_err = readb(i2c->base + MPC_I2C_SR);
 		writeb(0, i2c->base + MPC_I2C_SR);
 	} else {
 		/* Interrupt mode */
@@ -150,28 +150,28 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 			result = -ETIMEDOUT;
 		}
 
-		x = i2c->interrupt;
+		cmd_err = i2c->interrupt;
 		i2c->interrupt = 0;
 	}
 
 	if (result < 0)
 		return result;
 
-	if (!(x & CSR_MCF)) {
+	if (!(cmd_err & CSR_MCF)) {
 		dev_dbg(i2c->dev, "unfinished\n");
 		return -EIO;
 	}
 
-	if (x & CSR_MAL) {
+	if (cmd_err & CSR_MAL) {
 		dev_dbg(i2c->dev, "MAL\n");
-		return -EIO;
+		return -EAGAIN;
 	}
 
-	if (writing && (x & CSR_RXAK)) {
+	if (writing && (cmd_err & CSR_RXAK)) {
 		dev_dbg(i2c->dev, "No RXAK\n");
 		/* generate stop */
 		writeccr(i2c, CCR_MEN);
-		return -EIO;
+		return -ENXIO;
 	}
 	return 0;
 }
