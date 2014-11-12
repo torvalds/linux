@@ -538,9 +538,9 @@ void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata)
 
 void ieee802154_remove_interfaces(struct ieee802154_local *local)
 {
-	struct ieee802154_sub_if_data *sdata, *next;
+	struct ieee802154_sub_if_data *sdata, *tmp;
 
-	list_for_each_entry_safe(sdata, next, &local->interfaces, list) {
+	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
 		mutex_lock(&sdata->local->iflist_mtx);
 		list_del(&sdata->list);
 		mutex_unlock(&sdata->local->iflist_mtx);
