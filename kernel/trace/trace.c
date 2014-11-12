@@ -155,10 +155,11 @@ __setup("ftrace_dump_on_oops", set_ftrace_dump_on_oops);
 
 static int __init stop_trace_on_warning(char *str)
 {
-	__disable_trace_on_warning = 1;
+	if ((strcmp(str, "=0") != 0 && strcmp(str, "=off") != 0))
+		__disable_trace_on_warning = 1;
 	return 1;
 }
-__setup("traceoff_on_warning=", stop_trace_on_warning);
+__setup("traceoff_on_warning", stop_trace_on_warning);
 
 static int __init boot_alloc_snapshot(char *str)
 {
