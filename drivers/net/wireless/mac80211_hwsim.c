@@ -2123,36 +2123,26 @@ static void hwsim_mcast_config_msg(struct sk_buff *mcast_skb,
 				  HWSIM_MCGRP_CONFIG, GFP_KERNEL);
 }
 
-static struct sk_buff *build_radio_msg(int cmd, int id,
-				       struct hwsim_new_radio_params *param)
+static int append_radio_msg(struct sk_buff *skb, int id,
+			    struct hwsim_new_radio_params *param)
 {
-	struct sk_buff *skb;
-	void *data;
 	int ret;
-
-	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!skb)
-		return NULL;
-
-	data = genlmsg_put(skb, 0, 0, &hwsim_genl_family, 0, cmd);
-	if (!data)
-		goto error;
 
 	ret = nla_put_u32(skb, HWSIM_ATTR_RADIO_ID, id);
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	if (param->channels) {
 		ret = nla_put_u32(skb, HWSIM_ATTR_CHANNELS, param->channels);
 		if (ret < 0)
-			goto error;
+			return ret;
 	}
 
 	if (param->reg_alpha2) {
 		ret = nla_put(skb, HWSIM_ATTR_REG_HINT_ALPHA2, 2,
 			      param->reg_alpha2);
 		if (ret < 0)
-			goto error;
+			return ret;
 	}
 
 	if (param->regd) {
@@ -2165,54 +2155,64 @@ static struct sk_buff *build_radio_msg(int cmd, int id,
 		if (i < ARRAY_SIZE(hwsim_world_regdom_custom)) {
 			ret = nla_put_u32(skb, HWSIM_ATTR_REG_CUSTOM_REG, i);
 			if (ret < 0)
-				goto error;
+				return ret;
 		}
 	}
 
 	if (param->reg_strict) {
 		ret = nla_put_flag(skb, HWSIM_ATTR_REG_STRICT_REG);
 		if (ret < 0)
-			goto error;
+			return ret;
 	}
 
 	if (param->p2p_device) {
 		ret = nla_put_flag(skb, HWSIM_ATTR_SUPPORT_P2P_DEVICE);
 		if (ret < 0)
-			goto error;
+			return ret;
 	}
 
 	if (param->use_chanctx) {
 		ret = nla_put_flag(skb, HWSIM_ATTR_USE_CHANCTX);
 		if (ret < 0)
-			goto error;
+			return ret;
 	}
 
 	if (param->hwname) {
 		ret = nla_put(skb, HWSIM_ATTR_RADIO_NAME,
 			      strlen(param->hwname), param->hwname);
 		if (ret < 0)
-			goto error;
+			return ret;
 	}
 
-	genlmsg_end(skb, data);
-
-	return skb;
-
-error:
-	nlmsg_free(skb);
-	return NULL;
+	return 0;
 }
 
-static void hswim_mcast_new_radio(int id, struct genl_info *info,
+static void hwsim_mcast_new_radio(int id, struct genl_info *info,
 				  struct hwsim_new_radio_params *param)
 {
 	struct sk_buff *mcast_skb;
+	void *data;
 
-	mcast_skb = build_radio_msg(HWSIM_CMD_NEW_RADIO, id, param);
+	mcast_skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!mcast_skb)
 		return;
 
+	data = genlmsg_put(mcast_skb, 0, 0, &hwsim_genl_family, 0,
+			   HWSIM_CMD_NEW_RADIO);
+	if (!data)
+		goto out_err;
+
+	if (append_radio_msg(mcast_skb, id, param) < 0)
+		goto out_err;
+
+	genlmsg_end(mcast_skb, data);
+
 	hwsim_mcast_config_msg(mcast_skb, info);
+	return;
+
+out_err:
+	genlmsg_cancel(mcast_skb, data);
+	nlmsg_free(mcast_skb);
 }
 
 static int mac80211_hwsim_new_radio(struct genl_info *info,
@@ -2459,7 +2459,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	spin_unlock_bh(&hwsim_radio_lock);
 
 	if (idx > 0)
-		hswim_mcast_new_radio(idx, info, param);
+		hwsim_mcast_new_radio(idx, info, param);
 
 	return idx;
 
