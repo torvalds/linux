@@ -18,31 +18,6 @@
 #ifndef SUN3_SCSI_H
 #define SUN3_SCSI_H
 
-#define MAX_TAGS 32
-
-#define NCR5380_implementation_fields /* none */
-
-#define NCR5380_local_declare() \
-        struct Scsi_Host *_instance
-
-#define NCR5380_setup(instance) \
-        _instance = instance
-
-#define NCR5380_read(reg) sun3scsi_read(reg)
-#define NCR5380_write(reg, value) sun3scsi_write(reg, value)
-
-#define NCR5380_queue_command sun3scsi_queue_command
-#define NCR5380_bus_reset sun3scsi_bus_reset
-#define NCR5380_abort sun3scsi_abort
-#define NCR5380_show_info sun3scsi_show_info
-#define NCR5380_info sun3scsi_info
-#define NCR5380_dma_xfer_len(i, cmd, phase) \
-        sun3scsi_dma_xfer_len(cmd->SCp.this_residual,cmd,((phase) & SR_IO) ? 0 : 1)
-
-#define NCR5380_dma_write_setup(instance, data, count) sun3scsi_dma_setup(data, count, 1)
-#define NCR5380_dma_read_setup(instance, data, count) sun3scsi_dma_setup(data, count, 0)
-#define NCR5380_dma_residual sun3scsi_dma_residual
-
 /* additional registers - mainly DMA control regs */
 /* these start at regbase + 8 -- directly after the NCR regs */
 struct sun3_dma_regs {
