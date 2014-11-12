@@ -61,17 +61,18 @@ static void gb_pending_operation_insert(struct gb_operation *operation)
 	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
 
-	/* Assign the operation's id, and store it in the header of
-	 * the request message header.
+	/*
+	 * Assign the operation's id and move it into its
+	 * connection's pending list.
 	 */
-	operation->id = gb_connection_operation_id(connection);
-	header = operation->request->transfer_buffer;
-	header->id = cpu_to_le16(operation->id);
-
-	/* Insert the operation into its connection's pending list */
 	spin_lock_irq(&gb_operations_lock);
+	operation->id = ++connection->op_cycle;
 	list_move_tail(&operation->links, &connection->pending);
 	spin_unlock_irq(&gb_operations_lock);
+
+	/* Store the operation id in the request header */
+	header = operation->request->transfer_buffer;
+	header->id = cpu_to_le16(operation->id);
 }
 
 static void gb_pending_operation_remove(struct gb_operation *operation)
