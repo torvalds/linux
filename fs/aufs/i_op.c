@@ -1192,8 +1192,10 @@ struct inode_operations aufs_symlink_iop = {
 	.getattr	= aufs_getattr,
 
 #ifdef CONFIG_AUFS_XATTR
+	.setxattr	= aufs_setxattr,
 	.getxattr	= aufs_getxattr,
 	.listxattr	= aufs_listxattr,
+	.removexattr	= aufs_removexattr,
 #endif
 
 	.readlink	= aufs_readlink,
@@ -1223,8 +1225,10 @@ struct inode_operations aufs_dir_iop = {
 	.getattr	= aufs_getattr,
 
 #ifdef CONFIG_AUFS_XATTR
+	.setxattr	= aufs_setxattr,
 	.getxattr	= aufs_getxattr,
 	.listxattr	= aufs_listxattr,
+	.removexattr	= aufs_removexattr,
 #endif
 
 	.update_time	= aufs_update_time
@@ -1241,8 +1245,10 @@ struct inode_operations aufs_iop = {
 	.getattr	= aufs_getattr,
 
 #ifdef CONFIG_AUFS_XATTR
+	.setxattr	= aufs_setxattr,
 	.getxattr	= aufs_getxattr,
 	.listxattr	= aufs_listxattr,
+	.removexattr	= aufs_removexattr,
 #endif
 
 	.update_time	= aufs_update_time

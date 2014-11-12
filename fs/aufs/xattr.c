@@ -108,3 +108,135 @@ ssize_t aufs_getxattr(struct dentry *dentry, const char *name, void *value,
 
 	return au_lgxattr(dentry, &arg);
 }
+
+/* cf fs/aufs/i_op.c:aufs_setattr() */
+static int au_h_path_to_set_attr(struct dentry *dentry,
+				 struct au_icpup_args *a, struct path *h_path)
+{
+	int err;
+	struct super_block *sb;
+
+	sb = dentry->d_sb;
+	a->udba = au_opt_udba(sb);
+	/* no d_unlinked(), to set UDBA_NONE for root */
+	if (d_unhashed(dentry))
+		a->udba = AuOpt_UDBA_NONE;
+	if (a->udba != AuOpt_UDBA_NONE) {
+		AuDebugOn(IS_ROOT(dentry));
+		err = au_reval_for_attr(dentry, au_sigen(sb));
+		if (unlikely(err))
+			goto out;
+	}
+	err = au_pin_and_icpup(dentry, /*ia*/NULL, a);
+	if (unlikely(err < 0))
+		goto out;
+
+	h_path->dentry = a->h_path.dentry;
+	h_path->mnt = au_sbr_mnt(sb, a->btgt);
+
+out:
+	return err;
+}
+
+enum {
+	AU_XATTR_SET,
+	AU_XATTR_REMOVE
+};
+
+struct au_srxattr {
+	int type;
+	union {
+		struct {
+			const char	*name;
+			const void	*value;
+			size_t		size;
+			int		flags;
+		} set;
+		struct {
+			const char	*name;
+		} remove;
+	} u;
+};
+
+static ssize_t au_srxattr(struct dentry *dentry, struct au_srxattr *arg)
+{
+	int err;
+	struct path h_path;
+	struct super_block *sb;
+	struct au_icpup_args *a;
+	struct inode *inode;
+
+	inode = dentry->d_inode;
+	IMustLock(inode);
+
+	err = -ENOMEM;
+	a = kzalloc(sizeof(*a), GFP_NOFS);
+	if (unlikely(!a))
+		goto out;
+
+	sb = dentry->d_sb;
+	err = si_read_lock(sb, AuLock_FLUSH | AuLock_NOPLM);
+	if (unlikely(err))
+		goto out_kfree;
+
+	h_path.dentry = NULL;	/* silence gcc */
+	di_write_lock_child(dentry);
+	err = au_h_path_to_set_attr(dentry, a, &h_path);
+	if (unlikely(err))
+		goto out_di;
+
+	mutex_unlock(&a->h_inode->i_mutex);
+	switch (arg->type) {
+	case AU_XATTR_SET:
+		err = vfsub_setxattr(h_path.dentry,
+				     arg->u.set.name, arg->u.set.value,
+				     arg->u.set.size, arg->u.set.flags);
+		break;
+	case AU_XATTR_REMOVE:
+		err = vfsub_removexattr(h_path.dentry, arg->u.remove.name);
+		break;
+	}
+	if (!err)
+		au_cpup_attr_timesizes(inode);
+
+	au_unpin(&a->pin);
+	if (unlikely(err))
+		au_update_dbstart(dentry);
+
+out_di:
+	di_write_unlock(dentry);
+	si_read_unlock(sb);
+out_kfree:
+	kfree(a);
+out:
+	AuTraceErr(err);
+	return err;
+}
+
+int aufs_setxattr(struct dentry *dentry, const char *name, const void *value,
+		  size_t size, int flags)
+{
+	struct au_srxattr arg = {
+		.type = AU_XATTR_SET,
+		.u.set = {
+			.name	= name,
+			.value	= value,
+			.size	= size,
+			.flags	= flags
+		},
+	};
+
+	return au_srxattr(dentry, &arg);
+}
+
+int aufs_removexattr(struct dentry *dentry, const char *name)
+{
+	struct au_srxattr arg = {
+		.type = AU_XATTR_REMOVE,
+		.u.remove = {
+			.name	= name
+		},
+	};
+
+	return au_srxattr(dentry, &arg);
+}
