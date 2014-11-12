@@ -270,6 +270,12 @@ void i915_save_display_reg(struct drm_device *dev)
 	}
 	/* FIXME: regfile.save TV & SDVO state */
 
+	/* Panel fitter */
+	if (!IS_I830(dev) && !IS_845G(dev) && !HAS_PCH_SPLIT(dev)) {
+		dev_priv->regfile.savePFIT_CONTROL = I915_READ(PFIT_CONTROL);
+		dev_priv->regfile.savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
+	}
+
 	/* Backlight */
 	if (INTEL_INFO(dev)->gen <= 4)
 		pci_read_config_byte(dev->pdev, PCI_LBPC,
@@ -313,6 +319,12 @@ void i915_restore_display_reg(struct drm_device *dev)
 		if (INTEL_INFO(dev)->gen >= 4)
 			I915_WRITE(BLC_PWM_CTL2, dev_priv->regfile.saveBLC_PWM_CTL2);
 		I915_WRITE(BLC_PWM_CTL, dev_priv->regfile.saveBLC_PWM_CTL);
+	}
+
+	/* Panel fitter */
+	if (!IS_I830(dev) && !IS_845G(dev) && !HAS_PCH_SPLIT(dev)) {
+		I915_WRITE(PFIT_PGM_RATIOS, dev_priv->regfile.savePFIT_PGM_RATIOS);
+		I915_WRITE(PFIT_CONTROL, dev_priv->regfile.savePFIT_CONTROL);
 	}
 
 	/* Display port ratios (must be done before clock is set) */

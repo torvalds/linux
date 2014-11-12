@@ -208,22 +208,16 @@ static void i915_save_display(struct drm_device *dev)
 		if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 			dev_priv->regfile.saveLVDS = I915_READ(PCH_LVDS);
 	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->regfile.savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
-
 		dev_priv->regfile.saveBLC_HIST_CTL =
 			I915_READ(VLV_BLC_HIST_CTL(PIPE_A));
 		dev_priv->regfile.saveBLC_HIST_CTL_B =
 			I915_READ(VLV_BLC_HIST_CTL(PIPE_B));
 	} else {
 		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
-		dev_priv->regfile.savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
 		dev_priv->regfile.saveBLC_HIST_CTL = I915_READ(BLC_HIST_CTL);
 		if (IS_MOBILE(dev) && !IS_I830(dev))
 			dev_priv->regfile.saveLVDS = I915_READ(LVDS);
 	}
-
-	if (!IS_I830(dev) && !IS_845G(dev) && !HAS_PCH_SPLIT(dev))
-		dev_priv->regfile.savePFIT_CONTROL = I915_READ(PFIT_CONTROL);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->regfile.savePP_ON_DELAYS = I915_READ(PCH_PP_ON_DELAYS);
@@ -263,9 +257,6 @@ static void i915_restore_display(struct drm_device *dev)
 	else if (INTEL_INFO(dev)->gen <= 4 && IS_MOBILE(dev) && !IS_I830(dev))
 		I915_WRITE(LVDS, dev_priv->regfile.saveLVDS & mask);
 
-	if (!IS_I830(dev) && !IS_845G(dev) && !HAS_PCH_SPLIT(dev))
-		I915_WRITE(PFIT_CONTROL, dev_priv->regfile.savePFIT_CONTROL);
-
 	if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(PCH_PP_ON_DELAYS, dev_priv->regfile.savePP_ON_DELAYS);
 		I915_WRITE(PCH_PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
@@ -277,7 +268,6 @@ static void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(VLV_BLC_HIST_CTL(PIPE_B),
 			   dev_priv->regfile.saveBLC_HIST_CTL);
 	} else {
-		I915_WRITE(PFIT_PGM_RATIOS, dev_priv->regfile.savePFIT_PGM_RATIOS);
 		I915_WRITE(BLC_HIST_CTL, dev_priv->regfile.saveBLC_HIST_CTL);
 		I915_WRITE(PP_ON_DELAYS, dev_priv->regfile.savePP_ON_DELAYS);
 		I915_WRITE(PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
