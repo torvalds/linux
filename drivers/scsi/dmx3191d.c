@@ -34,6 +34,8 @@
  * Definitions for the generic 5380 driver.
  */
 
+#define DONT_USE_INTR
+
 #define NCR5380_read(reg)		inb(port + reg)
 #define NCR5380_write(reg, value)	outb(value, port + reg)
 
@@ -89,32 +91,23 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 	if (!shost)
 		goto out_release_region;       
 	shost->io_port = io;
-	shost->irq = pdev->irq;
+
+	/* This card does not seem to raise an interrupt on pdev->irq.
+	 * Steam-powered SCSI controllers run without an IRQ anyway.
+	 */
+	shost->irq = NO_IRQ;
 
 	NCR5380_init(shost, FLAG_NO_PSEUDO_DMA | FLAG_DTC3181E);
-
-	if (request_irq(pdev->irq, NCR5380_intr, IRQF_SHARED,
-				DMX3191D_DRIVER_NAME, shost)) {
-		/*
-		 * Steam powered scsi controllers run without an IRQ anyway
-		 */
-		printk(KERN_WARNING "dmx3191: IRQ %d not available - "
-				    "switching to polled mode.\n", pdev->irq);
-		shost->irq = NO_IRQ;
-	}
 
 	pci_set_drvdata(pdev, shost);
 
 	error = scsi_add_host(shost, &pdev->dev);
 	if (error)
-		goto out_free_irq;
+		goto out_release_region;
 
 	scsi_scan_host(shost);
 	return 0;
 
- out_free_irq:
-	if (shost->irq != NO_IRQ)
-		free_irq(shost->irq, shost);
  out_release_region:
 	release_region(io, DMX3191D_REGION_LEN);
  out_disable_device:
@@ -131,8 +124,6 @@ static void dmx3191d_remove_one(struct pci_dev *pdev)
 
 	NCR5380_exit(shost);
 
-	if (shost->irq != NO_IRQ)
-		free_irq(shost->irq, shost);
 	release_region(shost->io_port, DMX3191D_REGION_LEN);
 	pci_disable_device(pdev);
 
