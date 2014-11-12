@@ -2132,6 +2132,7 @@ struct btrfs_ioctl_defrag_range_args {
 
 #define BTRFS_PENDING_SET_INODE_MAP_CACHE	(0)
 #define BTRFS_PENDING_CLEAR_INODE_MAP_CACHE	(1)
+#define BTRFS_PENDING_COMMIT			(2)
 
 #define btrfs_test_pending(info, opt)	\
 	test_bit(BTRFS_PENDING_##opt, &(info)->pending_changes)

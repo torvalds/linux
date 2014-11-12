@@ -2036,6 +2036,11 @@ void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info)
 		btrfs_clear_opt(fs_info->mount_opt, INODE_MAP_CACHE);
 	prev &= ~bit;
 
+	bit = 1 << BTRFS_PENDING_COMMIT;
+	if (prev & bit)
+		btrfs_debug(fs_info, "pending commit done");
+	prev &= ~bit;
+
 	if (prev)
 		btrfs_warn(fs_info,
 			"unknown pending changes left 0x%lx, ignoring", prev);
