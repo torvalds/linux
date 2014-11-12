@@ -164,9 +164,6 @@ static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
 	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
-	/* Mark the page as writeable.  Other platforms don't have a
-	 * setting for read-only/writable, so this matches that behavior.
-	 */
 	if (!(flags & PTE_READ_ONLY))
 		pte |= BYT_PTE_WRITEABLE;
 
