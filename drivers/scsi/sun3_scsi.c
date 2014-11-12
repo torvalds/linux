@@ -39,7 +39,6 @@
 /* Definitions for the core NCR5380 driver. */
 
 #define REAL_DMA
-#define RESET_RUN_DONE
 /* #define SUPPORT_TAGS */
 /* minimum number of bytes to do dma on */
 #define DMA_MIN_SIZE                    129

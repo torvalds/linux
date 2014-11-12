@@ -2876,9 +2876,6 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int i;
 	unsigned long flags;
-#if defined(RESET_RUN_DONE)
-	struct scsi_cmnd *connected, *disconnected_queue;
-#endif
 
 	NCR5380_print_status(instance);
 
@@ -2896,89 +2893,6 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	/* ++roman: reset interrupt condition! otherwise no interrupts don't get
 	 * through anymore ... */
 	(void)NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-
-	/* MSch 20140115 - looking at the generic NCR5380 driver, all of this
-	 * should go.
-	 * Catch-22: if we don't clear all queues, the SCSI driver lock will
-	 * not be reset by atari_scsi_reset()!
-	 */
-
-#if defined(RESET_RUN_DONE)
-	/* XXX Should now be done by midlevel code, but it's broken XXX */
-	/* XXX see below                                            XXX */
-
-	/* MSch: old-style reset: actually abort all command processing here */
-
-	/* After the reset, there are no more connected or disconnected commands
-	 * and no busy units; to avoid problems with re-inserting the commands
-	 * into the issue_queue (via scsi_done()), the aborted commands are
-	 * remembered in local variables first.
-	 */
-	local_irq_save(flags);
-	connected = (struct scsi_cmnd *)hostdata->connected;
-	hostdata->connected = NULL;
-	disconnected_queue = (struct scsi_cmnd *)hostdata->disconnected_queue;
-	hostdata->disconnected_queue = NULL;
-#ifdef SUPPORT_TAGS
-	free_all_tags();
-#endif
-	for (i = 0; i < 8; ++i)
-		hostdata->busy[i] = 0;
-#ifdef REAL_DMA
-	hostdata->dma_len = 0;
-#endif
-	local_irq_restore(flags);
-
-	/* In order to tell the mid-level code which commands were aborted,
-	 * set the command status to DID_RESET and call scsi_done() !!!
-	 * This ultimately aborts processing of these commands in the mid-level.
-	 */
-
-	if ((cmd = connected)) {
-		dprintk(NDEBUG_ABORT, "scsi%d: reset aborted a connected command\n", H_NO(cmd));
-		cmd->result = (cmd->result & 0xffff) | (DID_RESET << 16);
-		cmd->scsi_done(cmd);
-	}
-
-	for (i = 0; (cmd = disconnected_queue); ++i) {
-		disconnected_queue = NEXT(cmd);
-		SET_NEXT(cmd, NULL);
-		cmd->result = (cmd->result & 0xffff) | (DID_RESET << 16);
-		cmd->scsi_done(cmd);
-	}
-	if (i > 0)
-		dprintk(NDEBUG_ABORT, "scsi: reset aborted %d disconnected command(s)\n", i);
-
-	/* The Falcon lock should be released after a reset...
-	 */
-	/* ++guenther: moved to atari_scsi_reset(), to prevent a race between
-	 * unlocking and enabling dma interrupt.
-	 */
-/*	falcon_release_lock_if_possible( hostdata );*/
-
-	/* since all commands have been explicitly terminated, we need to tell
-	 * the midlevel code that the reset was SUCCESSFUL, and there is no
-	 * need to 'wake up' the commands by a request_sense
-	 */
-	return SUCCESS;
-#else /* 1 */
-
-	/* MSch: new-style reset handling: let the mid-level do what it can */
-
-	/* ++guenther: MID-LEVEL IS STILL BROKEN.
-	 * Mid-level is supposed to requeue all commands that were active on the
-	 * various low-level queues. In fact it does this, but that's not enough
-	 * because all these commands are subject to timeout. And if a timeout
-	 * happens for any removed command, *_abort() is called but all queues
-	 * are now empty. Abort then gives up the falcon lock, which is fatal,
-	 * since the mid-level will queue more commands and must have the lock
-	 * (it's all happening inside timer interrupt handler!!).
-	 * Even worse, abort will return NOT_RUNNING for all those commands not
-	 * on any queue, so they won't be retried ...
-	 *
-	 * Conclusion: either scsi.c disables timeout for all resetted commands
-	 * immediately, or we lose!  As of linux-2.0.20 it doesn't.
-	 */
 
 	/* After the reset, there are no more connected or disconnected commands
 	 * and no busy units; so clear the low-level status here to avoid
@@ -3009,7 +2923,5 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	maybe_release_dma_irq(instance);
 	local_irq_restore(flags);
 
-	/* we did no complete reset of all commands, so a wakeup is required */
 	return SUCCESS;
-#endif /* 1 */
 }
