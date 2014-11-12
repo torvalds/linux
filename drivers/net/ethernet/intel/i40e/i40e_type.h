@@ -1377,6 +1377,18 @@ enum i40e_reset_type {
 	I40E_RESET_EMPR		= 3,
 };
 
+/* IEEE 802.1AB LLDP Agent Variables from NVM */
+#define I40E_NVM_LLDP_CFG_PTR		0xD
+struct i40e_lldp_variables {
+	u16 length;
+	u16 adminstatus;
+	u16 msgfasttx;
+	u16 msgtxinterval;
+	u16 txparams;
+	u16 timers;
+	u16 crc8;
+};
+
 /* RSS Hash Table Size */
 #define I40E_PFQF_CTL_0_HASHLUTSIZE_512	0x00010000
 #endif /* _I40E_TYPE_H_ */

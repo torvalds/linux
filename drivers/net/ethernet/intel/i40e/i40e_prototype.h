@@ -235,6 +235,8 @@ i40e_status i40e_aq_query_switch_comp_bw_config(struct i40e_hw *hw,
 		struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_resume_port_tx(struct i40e_hw *hw,
 				   struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_read_lldp_cfg(struct i40e_hw *hw,
+			       struct i40e_lldp_variables *lldp_cfg);
 /* i40e_common */
 i40e_status i40e_init_shared_code(struct i40e_hw *hw);
 i40e_status i40e_pf_reset(struct i40e_hw *hw);

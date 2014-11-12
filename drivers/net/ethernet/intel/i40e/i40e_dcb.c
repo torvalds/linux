@@ -640,9 +640,26 @@ out:
 i40e_status i40e_init_dcb(struct i40e_hw *hw)
 {
 	i40e_status ret = 0;
+	struct i40e_lldp_variables lldp_cfg;
+	u8 adminstatus = 0;
 
 	if (!hw->func_caps.dcb)
 		return ret;
+
+	/* Read LLDP NVM area */
+	ret = i40e_read_lldp_cfg(hw, &lldp_cfg);
+	if (ret)
+		return ret;
+
+	/* Get the LLDP AdminStatus for the current port */
+	adminstatus = lldp_cfg.adminstatus >> (hw->port * 4);
+	adminstatus &= 0xF;
+
+	/* LLDP agent disabled */
+	if (!adminstatus) {
+		hw->dcbx_status = I40E_DCBX_STATUS_DISABLED;
+		return ret;
+	}
 
 	/* Get DCBX status */
 	ret = i40e_get_dcbx_status(hw, &hw->dcbx_status);
@@ -655,6 +672,8 @@ i40e_status i40e_init_dcb(struct i40e_hw *hw)
 	case I40E_DCBX_STATUS_IN_PROGRESS:
 		/* Get current DCBX configuration */
 		ret = i40e_get_dcb_config(hw);
+		if (ret)
+			return ret;
 		break;
 	case I40E_DCBX_STATUS_DISABLED:
 		return ret;
@@ -669,5 +688,35 @@ i40e_status i40e_init_dcb(struct i40e_hw *hw)
 	if (ret)
 		return ret;
 
+	return ret;
+}
+
+/**
+ * i40e_read_lldp_cfg - read LLDP Configuration data from NVM
+ * @hw: pointer to the HW structure
+ * @lldp_cfg: pointer to hold lldp configuration variables
+ *
+ * Reads the LLDP configuration data from NVM
+ **/
+i40e_status i40e_read_lldp_cfg(struct i40e_hw *hw,
+			       struct i40e_lldp_variables *lldp_cfg)
+{
+	i40e_status ret = 0;
+	u32 offset = (2 * I40E_NVM_LLDP_CFG_PTR);
+
+	if (!lldp_cfg)
+		return I40E_ERR_PARAM;
+
+	ret = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+	if (ret)
+		goto err_lldp_cfg;
+
+	ret = i40e_aq_read_nvm(hw, I40E_SR_EMP_MODULE_PTR, offset,
+			       sizeof(struct i40e_lldp_variables),
+			       (u8 *)lldp_cfg,
+			       true, NULL);
+	i40e_release_nvm(hw);
+
+err_lldp_cfg:
 	return ret;
 }
