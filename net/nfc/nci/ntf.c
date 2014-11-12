@@ -179,7 +179,7 @@ static __u8 *nci_extract_rf_params_nfcf_passive_listen(struct nci_dev *ndev,
 	return data;
 }
 
-__u32 nci_get_prop_rf_protocol(struct nci_dev *ndev, __u8 rf_protocol)
+static __u32 nci_get_prop_rf_protocol(struct nci_dev *ndev, __u8 rf_protocol)
 {
 	if (ndev->ops->get_rfprotocol)
 		return ndev->ops->get_rfprotocol(ndev, rf_protocol);
