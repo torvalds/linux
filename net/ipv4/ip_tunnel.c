@@ -57,10 +57,6 @@
 #include <net/rtnetlink.h>
 #include <net/udp.h>
 
-#if IS_ENABLED(CONFIG_NET_FOU)
-#include <net/fou.h>
-#endif
-
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
@@ -494,19 +490,50 @@ EXPORT_SYMBOL_GPL(ip_tunnel_rcv);
 
 static int ip_encap_hlen(struct ip_tunnel_encap *e)
 {
-	switch (e->type) {
-	case TUNNEL_ENCAP_NONE:
+	const struct ip_tunnel_encap_ops *ops;
+	int hlen = -EINVAL;
+
+	if (e->type == TUNNEL_ENCAP_NONE)
 		return 0;
-#if IS_ENABLED(CONFIG_NET_FOU)
-	case TUNNEL_ENCAP_FOU:
-		return fou_encap_hlen(e);
-	case TUNNEL_ENCAP_GUE:
-		return gue_encap_hlen(e);
-#endif
-	default:
+
+	if (e->type >= MAX_IPTUN_ENCAP_OPS)
 		return -EINVAL;
-	}
+
+	rcu_read_lock();
+	ops = rcu_dereference(iptun_encaps[e->type]);
+	if (likely(ops && ops->encap_hlen))
+		hlen = ops->encap_hlen(e);
+	rcu_read_unlock();
+
+	return hlen;
 }
+
+const struct ip_tunnel_encap_ops __rcu *
+		iptun_encaps[MAX_IPTUN_ENCAP_OPS] __read_mostly;
+
+int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *ops,
+			    unsigned int num)
+{
+	return !cmpxchg((const struct ip_tunnel_encap_ops **)
+			&iptun_encaps[num],
+			NULL, ops) ? 0 : -1;
+}
+EXPORT_SYMBOL(ip_tunnel_encap_add_ops);
+
+int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *ops,
+			    unsigned int num)
+{
+	int ret;
+
+	ret = (cmpxchg((const struct ip_tunnel_encap_ops **)
+		       &iptun_encaps[num],
+		       ops, NULL) == ops) ? 0 : -1;
+
+	synchronize_net();
+
+	return ret;
+}
+EXPORT_SYMBOL(ip_tunnel_encap_del_ops);
 
 int ip_tunnel_encap_setup(struct ip_tunnel *t,
 			  struct ip_tunnel_encap *ipencap)
@@ -534,18 +561,19 @@ EXPORT_SYMBOL_GPL(ip_tunnel_encap_setup);
 int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
 		    u8 *protocol, struct flowi4 *fl4)
 {
-	switch (t->encap.type) {
-	case TUNNEL_ENCAP_NONE:
+	const struct ip_tunnel_encap_ops *ops;
+	int ret = -EINVAL;
+
+	if (t->encap.type == TUNNEL_ENCAP_NONE)
 		return 0;
-#if IS_ENABLED(CONFIG_NET_FOU)
-	case TUNNEL_ENCAP_FOU:
-		return fou_build_header(skb, &t->encap, protocol, fl4);
-	case TUNNEL_ENCAP_GUE:
-		return gue_build_header(skb, &t->encap, protocol, fl4);
-#endif
-	default:
-		return -EINVAL;
-	}
+
+	rcu_read_lock();
+	ops = rcu_dereference(iptun_encaps[t->encap.type]);
+	if (likely(ops && ops->build_header))
+		ret = ops->build_header(skb, &t->encap, protocol, fl4);
+	rcu_read_unlock();
+
+	return ret;
 }
 EXPORT_SYMBOL(ip_tunnel_encap);
 

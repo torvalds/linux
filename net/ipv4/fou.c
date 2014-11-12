@@ -668,6 +668,30 @@ static const struct genl_ops fou_nl_ops[] = {
 	},
 };
 
+size_t fou_encap_hlen(struct ip_tunnel_encap *e)
+{
+	return sizeof(struct udphdr);
+}
+EXPORT_SYMBOL(fou_encap_hlen);
+
+size_t gue_encap_hlen(struct ip_tunnel_encap *e)
+{
+	size_t len;
+	bool need_priv = false;
+
+	len = sizeof(struct udphdr) + sizeof(struct guehdr);
+
+	if (e->flags & TUNNEL_ENCAP_FLAG_REMCSUM) {
+		len += GUE_PLEN_REMCSUM;
+		need_priv = true;
+	}
+
+	len += need_priv ? GUE_LEN_PRIV : 0;
+
+	return len;
+}
+EXPORT_SYMBOL(gue_encap_hlen);
+
 static void fou_build_udp(struct sk_buff *skb, struct ip_tunnel_encap *e,
 			  struct flowi4 *fl4, u8 *protocol, __be16 sport)
 {
@@ -787,6 +811,57 @@ int gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 }
 EXPORT_SYMBOL(gue_build_header);
 
+#ifdef CONFIG_NET_FOU_IP_TUNNELS
+
+static const struct ip_tunnel_encap_ops __read_mostly fou_iptun_ops = {
+	.encap_hlen = fou_encap_hlen,
+	.build_header = fou_build_header,
+};
+
+static const struct ip_tunnel_encap_ops __read_mostly gue_iptun_ops = {
+	.encap_hlen = gue_encap_hlen,
+	.build_header = gue_build_header,
+};
+
+static int ip_tunnel_encap_add_fou_ops(void)
+{
+	int ret;
+
+	ret = ip_tunnel_encap_add_ops(&fou_iptun_ops, TUNNEL_ENCAP_FOU);
+	if (ret < 0) {
+		pr_err("can't add fou ops\n");
+		return ret;
+	}
+
+	ret = ip_tunnel_encap_add_ops(&gue_iptun_ops, TUNNEL_ENCAP_GUE);
+	if (ret < 0) {
+		pr_err("can't add gue ops\n");
+		ip_tunnel_encap_del_ops(&fou_iptun_ops, TUNNEL_ENCAP_FOU);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void ip_tunnel_encap_del_fou_ops(void)
+{
+	ip_tunnel_encap_del_ops(&fou_iptun_ops, TUNNEL_ENCAP_FOU);
+	ip_tunnel_encap_del_ops(&gue_iptun_ops, TUNNEL_ENCAP_GUE);
+}
+
+#else
+
+static int ip_tunnel_encap_add_fou_ops(void)
+{
+	return 0;
+}
+
+static int ip_tunnel_encap_del_fou_ops(void)
+{
+}
+
+#endif
+
 static int __init fou_init(void)
 {
 	int ret;
@@ -794,12 +869,22 @@ static int __init fou_init(void)
 	ret = genl_register_family_with_ops(&fou_nl_family,
 					    fou_nl_ops);
 
+	if (ret < 0)
+		goto exit;
+
+	ret = ip_tunnel_encap_add_fou_ops();
+	if (ret < 0)
+		genl_unregister_family(&fou_nl_family);
+
+exit:
 	return ret;
 }
 
 static void __exit fou_fini(void)
 {
 	struct fou *fou, *next;
+
+	ip_tunnel_encap_del_fou_ops();
 
 	genl_unregister_family(&fou_nl_family);
 
