@@ -276,7 +276,7 @@ no_valid_irq:
 	return -ENOSPC;
 }
 
-static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
+static int dw_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 			struct msi_desc *desc)
 {
 	int irq, pos;
@@ -303,7 +303,7 @@ static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 	return 0;
 }
 
-static void dw_msi_teardown_irq(struct msi_chip *chip, unsigned int irq)
+static void dw_msi_teardown_irq(struct msi_controller *chip, unsigned int irq)
 {
 	struct irq_data *data = irq_get_irq_data(irq);
 	struct msi_desc *msi = irq_data_get_msi(data);
@@ -312,7 +312,7 @@ static void dw_msi_teardown_irq(struct msi_chip *chip, unsigned int irq)
 	clear_irq_range(pp, irq, 1, data->hwirq);
 }
 
-static struct msi_chip dw_pcie_msi_chip = {
+static struct msi_controller dw_pcie_msi_chip = {
 	.setup_irq = dw_msi_setup_irq,
 	.teardown_irq = dw_msi_teardown_irq,
 };

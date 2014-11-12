@@ -99,7 +99,7 @@ struct mvebu_pcie_port;
 struct mvebu_pcie {
 	struct platform_device *pdev;
 	struct mvebu_pcie_port *ports;
-	struct msi_chip *msi;
+	struct msi_controller *msi;
 	struct resource io;
 	char io_name[30];
 	struct resource realio;

@@ -238,7 +238,7 @@
 	)
 
 struct tegra_msi {
-	struct msi_chip chip;
+	struct msi_controller chip;
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
 	struct irq_domain *domain;
 	unsigned long pages;
@@ -259,7 +259,7 @@ struct tegra_pcie_soc_data {
 	bool has_gen2;
 };
 
-static inline struct tegra_msi *to_tegra_msi(struct msi_chip *chip)
+static inline struct tegra_msi *to_tegra_msi(struct msi_controller *chip)
 {
 	return container_of(chip, struct tegra_msi, chip);
 }
@@ -1283,8 +1283,8 @@ static irqreturn_t tegra_pcie_msi_irq(int irq, void *data)
 	return processed > 0 ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static int tegra_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
-			       struct msi_desc *desc)
+static int tegra_msi_setup_irq(struct msi_controller *chip,
+			       struct pci_dev *pdev, struct msi_desc *desc)
 {
 	struct tegra_msi *msi = to_tegra_msi(chip);
 	struct msi_msg msg;
@@ -1313,7 +1313,8 @@ static int tegra_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 	return 0;
 }
 
-static void tegra_msi_teardown_irq(struct msi_chip *chip, unsigned int irq)
+static void tegra_msi_teardown_irq(struct msi_controller *chip,
+				   unsigned int irq)
 {
 	struct tegra_msi *msi = to_tegra_msi(chip);
 	struct irq_data *d = irq_get_irq_data(irq);

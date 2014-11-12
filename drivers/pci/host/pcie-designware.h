@@ -73,7 +73,7 @@ struct pcie_host_ops {
 	u32 (*get_msi_addr)(struct pcie_port *pp);
 	u32 (*get_msi_data)(struct pcie_port *pp, int pos);
 	void (*scan_bus)(struct pcie_port *pp);
-	int (*msi_host_init)(struct pcie_port *pp, struct msi_chip *chip);
+	int (*msi_host_init)(struct pcie_port *pp, struct msi_controller *chip);
 };
 
 int dw_pcie_cfg_read(void __iomem *addr, int where, int size, u32 *val);
