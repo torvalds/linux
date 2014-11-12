@@ -2857,13 +2857,16 @@ static void rtl_work_func_t(struct work_struct *work)
 {
 	struct r8152 *tp = container_of(work, struct r8152, schedule.work);
 
+	/* If the device is unplugged or !netif_running(), the workqueue
+	 * doesn't need to wake the device, and could return directly.
+	 */
+	if (test_bit(RTL8152_UNPLUG, &tp->flags) || !netif_running(tp->netdev))
+		return;
+
 	if (usb_autopm_get_interface(tp->intf) < 0)
 		return;
 
 	if (!test_bit(WORK_ENABLE, &tp->flags))
-		goto out1;
-
-	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		goto out1;
 
 	if (!mutex_trylock(&tp->control)) {
