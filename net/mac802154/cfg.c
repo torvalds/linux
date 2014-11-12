@@ -64,8 +64,28 @@ ieee802154_set_channel(struct wpan_phy *wpan_phy, const u8 page,
 	return ret;
 }
 
+static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev, const u16 pan_id)
+{
+	ASSERT_RTNL();
+
+	/* TODO
+	 * I am not sure about to check here on broadcast pan_id.
+	 * Broadcast is a valid setting, comment from 802.15.4:
+	 * If this value is 0xffff, the device is not associated.
+	 *
+	 * This could useful to simple deassociate an device.
+	 */
+	if (pan_id == IEEE802154_PAN_ID_BROADCAST)
+		return -EINVAL;
+
+	wpan_dev->pan_id = cpu_to_le16(pan_id);
+	return 0;
+}
+
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf_deprecated = ieee802154_add_iface_deprecated,
 	.del_virtual_intf_deprecated = ieee802154_del_iface_deprecated,
 	.set_channel = ieee802154_set_channel,
+	.set_pan_id = ieee802154_set_pan_id,
 };
