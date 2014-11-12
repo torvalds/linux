@@ -925,7 +925,7 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	 * because also a timer int can trigger an abort or reset, which would
 	 * alter queues and touch the lock.
 	 */
-	if (!falcon_get_lock())
+	if (!NCR5380_acquire_dma_irq(instance))
 		return SCSI_MLQUEUE_HOST_BUSY;
 
 	local_irq_save(flags);
@@ -958,6 +958,18 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	else
 		NCR5380_main(NULL);
 	return 0;
+}
+
+static inline void maybe_release_dma_irq(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	/* Caller does the locking needed to set & test these data atomically */
+	if (!hostdata->disconnected_queue &&
+	    !hostdata->issue_queue &&
+	    !hostdata->connected &&
+	    !hostdata->retain_dma_intr)
+		NCR5380_release_dma_irq(instance);
 }
 
 /*
@@ -1082,9 +1094,11 @@ static void NCR5380_main(struct work_struct *work)
 					cmd_get_tag(tmp, tmp->cmnd[0] != REQUEST_SENSE);
 #endif
 					if (!NCR5380_select(instance, tmp)) {
+						local_irq_disable();
 						hostdata->retain_dma_intr--;
 						/* release if target did not response! */
-						falcon_release_lock_if_possible(hostdata);
+						maybe_release_dma_irq(instance);
+						local_irq_restore(flags);
 						break;
 					} else {
 						local_irq_disable();
@@ -2083,11 +2097,12 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				case COMMAND_COMPLETE:
 					/* Accept message by clearing ACK */
 					NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-					/* ++guenther: possible race with Falcon locking */
-					hostdata->retain_dma_intr++;
-					hostdata->connected = NULL;
 					dprintk(NDEBUG_QUEUES, "scsi%d: command for target %d, lun %llu "
 						  "completed\n", HOSTNO, cmd->device->id, cmd->device->lun);
+
+					local_irq_save(flags);
+					hostdata->retain_dma_intr++;
+					hostdata->connected = NULL;
 #ifdef SUPPORT_TAGS
 					cmd_free_tag(cmd);
 					if (status_byte(cmd->SCp.Status) == QUEUE_FULL) {
@@ -2146,16 +2161,16 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 
 						dprintk(NDEBUG_AUTOSENSE, "scsi%d: performing request sense\n", HOSTNO);
 
-						local_irq_save(flags);
 						LIST(cmd,hostdata->issue_queue);
 						SET_NEXT(cmd, hostdata->issue_queue);
 						hostdata->issue_queue = (struct scsi_cmnd *) cmd;
-						local_irq_restore(flags);
 						dprintk(NDEBUG_QUEUES, "scsi%d: REQUEST SENSE added to head of "
 							  "issue queue\n", H_NO(cmd));
 					} else {
 						cmd->scsi_done(cmd);
 					}
+
+					local_irq_restore(flags);
 
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 					/*
@@ -2167,12 +2182,14 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					while ((NCR5380_read(STATUS_REG) & SR_BSY) && !hostdata->connected)
 						barrier();
 
+					local_irq_save(flags);
 					hostdata->retain_dma_intr--;
 					/* ++roman: For Falcon SCSI, release the lock on the
 					 * ST-DMA here if no other commands are waiting on the
 					 * disconnected queue.
 					 */
-					falcon_release_lock_if_possible(hostdata);
+					maybe_release_dma_irq(instance);
+					local_irq_restore(flags);
 					return;
 				case MESSAGE_REJECT:
 					/* Accept message by clearing ACK */
@@ -2331,6 +2348,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				hostdata->last_message = msgout;
 				NCR5380_transfer_pio(instance, &phase, &len, &data);
 				if (msgout == ABORT) {
+					local_irq_save(flags);
 #ifdef SUPPORT_TAGS
 					cmd_free_tag(cmd);
 #else
@@ -2338,9 +2356,10 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 #endif
 					hostdata->connected = NULL;
 					cmd->result = DID_ERROR << 16;
-					cmd->scsi_done(cmd);
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
-					falcon_release_lock_if_possible(hostdata);
+					maybe_release_dma_irq(instance);
+					local_irq_restore(flags);
+					cmd->scsi_done(cmd);
 					return;
 				}
 				msgout = NOP;
@@ -2393,7 +2412,6 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	unsigned char msg[3];
 	unsigned char *data;
 	struct scsi_cmnd *tmp = NULL, *prev;
-/*	unsigned long flags; */
 
 	/*
 	 * Disable arbitration, etc. since the host adapter obviously
@@ -2473,8 +2491,6 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 		    && (tag == tmp->tag)
 #endif
 		    ) {
-			/* ++guenther: prevent race with falcon_release_lock */
-			hostdata->retain_dma_intr++;
 			if (prev) {
 				REMOVE(prev, NEXT(prev), tmp, NEXT(tmp));
 				SET_NEXT(prev, NEXT(tmp));
@@ -2512,7 +2528,6 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	hostdata->connected = tmp;
 	dprintk(NDEBUG_RESELECTION, "scsi%d: nexus established, target = %d, lun = %llu, tag = %d\n",
 		   HOSTNO, tmp->device->id, tmp->device->lun, tmp->tag);
-	hostdata->retain_dma_intr--;
 }
 
 
@@ -2587,12 +2602,12 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 #else
 			hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
 #endif
+			maybe_release_dma_irq(instance);
 			local_irq_restore(flags);
 			cmd->scsi_done(cmd);
-			falcon_release_lock_if_possible(hostdata);
 			return SUCCESS;
 		} else {
-/*			local_irq_restore(flags); */
+			local_irq_restore(flags);
 			printk("scsi%d: abort of connected command failed!\n", HOSTNO);
 			return FAILED;
 		}
@@ -2611,13 +2626,13 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 			(*prev) = NEXT(tmp);
 			SET_NEXT(tmp, NULL);
 			tmp->result = DID_ABORT << 16;
+			maybe_release_dma_irq(instance);
 			local_irq_restore(flags);
 			dprintk(NDEBUG_ABORT, "scsi%d: abort removed command from issue queue.\n",
 				    HOSTNO);
 			/* Tagged queuing note: no tag to free here, hasn't been assigned
 			 * yet... */
 			tmp->scsi_done(tmp);
-			falcon_release_lock_if_possible(hostdata);
 			return SUCCESS;
 		}
 	}
@@ -2695,14 +2710,21 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 #else
 					hostdata->busy[cmd->device->id] &= ~(1 << cmd->device->lun);
 #endif
+					maybe_release_dma_irq(instance);
 					local_irq_restore(flags);
 					tmp->scsi_done(tmp);
-					falcon_release_lock_if_possible(hostdata);
 					return SUCCESS;
 				}
 			}
 		}
 	}
+
+	/* Maybe it is sufficient just to release the ST-DMA lock... (if
+	 * possible at all) At least, we should check if the lock could be
+	 * released after the abort, in case it is kept due to some bug.
+	 */
+	maybe_release_dma_irq(instance);
+	local_irq_restore(flags);
 
 	/*
 	 * Case 5 : If we reached this point, the command was not found in any of
@@ -2714,14 +2736,7 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 	 * broke.
 	 */
 
-	local_irq_restore(flags);
 	printk(KERN_INFO "scsi%d: warning : SCSI command probably completed successfully before abortion\n", HOSTNO);
-
-	/* Maybe it is sufficient just to release the ST-DMA lock... (if
-	 * possible at all) At least, we should check if the lock could be
-	 * released after the abort, in case it is kept due to some bug.
-	 */
-	falcon_release_lock_if_possible(hostdata);
 
 	return FAILED;
 }
@@ -2738,14 +2753,15 @@ int NCR5380_abort(struct scsi_cmnd *cmd)
 
 static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 {
-	SETUP_HOSTDATA(cmd->device->host);
+	struct Scsi_Host *instance = cmd->device->host;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int i;
 	unsigned long flags;
 #if defined(RESET_RUN_DONE)
 	struct scsi_cmnd *connected, *disconnected_queue;
 #endif
 
-	NCR5380_print_status(cmd->device->host);
+	NCR5380_print_status(instance);
 
 	/* get in phase */
 	NCR5380_write(TARGET_COMMAND_REG,
@@ -2870,6 +2886,8 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 #ifdef REAL_DMA
 	hostdata->dma_len = 0;
 #endif
+
+	maybe_release_dma_irq(instance);
 	local_irq_restore(flags);
 
 	/* we did no complete reset of all commands, so a wakeup is required */

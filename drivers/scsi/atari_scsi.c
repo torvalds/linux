@@ -109,6 +109,9 @@
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
         atari_dma_xfer_len(cmd->SCp.this_residual, cmd, !((phase) & SR_IO))
 
+#define NCR5380_acquire_dma_irq(instance)      falcon_get_lock()
+#define NCR5380_release_dma_irq(instance)      falcon_release_lock()
+
 #include "NCR5380.h"
 
 
@@ -448,23 +451,13 @@ static void atari_scsi_fetch_restbytes(void)
  * connected command and the disconnected queue is empty.
  */
 
-static void falcon_release_lock_if_possible(struct NCR5380_hostdata *hostdata)
+static void falcon_release_lock(void)
 {
-	unsigned long flags;
-
 	if (IS_A_TT())
 		return;
 
-	local_irq_save(flags);
-
-	if (!hostdata->disconnected_queue &&
-	    !hostdata->issue_queue &&
-	    !hostdata->connected &&
-	    !hostdata->retain_dma_intr &&
-	    stdma_is_locked_by(scsi_falcon_intr))
+	if (stdma_is_locked_by(scsi_falcon_intr))
 		stdma_release();
-
-	local_irq_restore(flags);
 }
 
 /* This function manages the locking of the ST-DMA.
@@ -787,36 +780,30 @@ static void atari_scsi_falcon_reg_write(unsigned char reg, unsigned char value)
 static int atari_scsi_bus_reset(struct scsi_cmnd *cmd)
 {
 	int rv;
-	struct NCR5380_hostdata *hostdata = shost_priv(cmd->device->host);
+	unsigned long flags;
 
-	/* For doing the reset, SCSI interrupts must be disabled first,
-	 * since the 5380 raises its IRQ line while _RST is active and we
-	 * can't disable interrupts completely, since we need the timer.
-	 */
-	/* And abort a maybe active DMA transfer */
+	local_irq_save(flags);
+
+#ifdef REAL_DMA
+	/* Abort a maybe active DMA transfer */
 	if (IS_A_TT()) {
-		atari_turnoff_irq(IRQ_TT_MFP_SCSI);
-#ifdef REAL_DMA
 		tt_scsi_dma.dma_ctrl = 0;
-#endif
 	} else {
-		atari_turnoff_irq(IRQ_MFP_FSCSI);
-#ifdef REAL_DMA
 		st_dma.dma_mode_status = 0x90;
 		atari_dma_active = 0;
 		atari_dma_orig_addr = NULL;
-#endif
 	}
+#endif
 
 	rv = NCR5380_bus_reset(cmd);
 
-	if (IS_A_TT())
-		atari_turnon_irq(IRQ_TT_MFP_SCSI);
-	else
-		atari_turnon_irq(IRQ_MFP_FSCSI);
+	/* The 5380 raises its IRQ line while _RST is active but the ST DMA
+	 * "lock" has been released so this interrupt may end up handled by
+	 * floppy or IDE driver (if one of them holds the lock). The NCR5380
+	 * interrupt flag has been cleared already.
+	 */
 
-	if (rv == SUCCESS)
-		falcon_release_lock_if_possible(hostdata);
+	local_irq_restore(flags);
 
 	return rv;
 }
