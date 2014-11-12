@@ -107,7 +107,10 @@ extern u32 trickmode_i;
 
 static DEFINE_SPINLOCK(lock);
 
-static int vh264mvc_stop(void);
+#define MODE_ERROR 0
+#define MODE_FULL  1
+
+static int vh264mvc_stop(int mode);
 static s32 vh264mvc_init(void);
 
 /***************************
@@ -1092,6 +1095,8 @@ static s32 vh264mvc_init(void)
     vf_reg_provider(&vh264mvc_vf_prov);
     vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_START,NULL);
 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vh264mvc_amstream_dec_info.rate);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong) & recycle_timer;
@@ -1112,7 +1117,7 @@ static s32 vh264mvc_init(void)
     return 0;
 }
 
-static int vh264mvc_stop(void)
+static int vh264mvc_stop(int mode)
 {
     if (stat & STAT_VDEC_RUN) {
         amvdec_stop();
@@ -1135,6 +1140,11 @@ static int vh264mvc_stop(void)
 
     if (stat & STAT_VF_HOOK) {
         ulong flags;
+
+        if (mode == MODE_FULL) {
+            vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+        }
+
         spin_lock_irqsave(&lock, flags);
         spin_unlock_irqrestore(&lock, flags);
         vf_unreg_provider(&vh264mvc_vf_prov);
@@ -1150,7 +1160,7 @@ static int vh264mvc_stop(void)
 static void error_do_work(struct work_struct *work)
 {
     if (atomic_read(&vh264mvc_active)) {
-        vh264mvc_stop();
+        vh264mvc_stop(MODE_ERROR);
         vh264mvc_init();
     }
 }
@@ -1196,7 +1206,7 @@ static int amvdec_h264mvc_probe(struct platform_device *pdev)
 static int amvdec_h264mvc_remove(struct platform_device *pdev)
 {
     printk("amvdec_h264mvc_remove\n");
-    vh264mvc_stop();
+    vh264mvc_stop(MODE_FULL);
 
     atomic_set(&vh264mvc_active, 0);
 

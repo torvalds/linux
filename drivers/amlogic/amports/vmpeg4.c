@@ -754,7 +754,7 @@ static void vmpeg4_local_init(void)
 
     vmpeg4_ratio = vmpeg4_amstream_dec_info.ratio;
 	
-	vmpeg4_ratio64 = vmpeg4_amstream_dec_info.ratio64;
+    vmpeg4_ratio64 = vmpeg4_amstream_dec_info.ratio64;
 
     vmpeg4_rotation = (((u32)vmpeg4_amstream_dec_info.param) >> 16) & 0xffff;
 
@@ -864,6 +864,8 @@ static s32 vmpeg4_init(void)
     vf_provider_init(&vmpeg_vf_prov, PROVIDER_NAME, &vmpeg_vf_provider, NULL);
     vf_reg_provider(&vmpeg_vf_prov);
 #endif 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vmpeg4_amstream_dec_info.rate);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong) & recycle_timer;
@@ -927,6 +929,8 @@ static int amvdec_mpeg4_remove(struct platform_device *pdev)
     }
 
     if (stat & STAT_VF_HOOK) {
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
         vf_unreg_provider(&vmpeg_vf_prov);
         stat &= ~STAT_VF_HOOK;
     }

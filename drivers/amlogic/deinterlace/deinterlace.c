@@ -6630,7 +6630,12 @@ light_unreg:
         di_pre_stru.vframe_interleave_flag = flag;
     }
 #endif
-
+    else if(type == VFRAME_EVENT_PROVIDER_FR_HINT){
+        vf_notify_receiver(VFM_NAME,VFRAME_EVENT_PROVIDER_FR_HINT,data);
+    }
+    else if(type == VFRAME_EVENT_PROVIDER_FR_END_HINT){
+        vf_notify_receiver(VFM_NAME,VFRAME_EVENT_PROVIDER_FR_END_HINT,data);
+    }
     return 0;
 }
 

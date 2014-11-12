@@ -128,19 +128,40 @@ static vpu_mod_t get_vpu_mod(unsigned int vmod)
 	if (vmod < VPU_MOD_START) {
 		switch (vmod) {
 			case VMODE_480P:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+			case VMODE_480P_59HZ:
+#endif
             case VMODE_480P_RPT:
 			case VMODE_576P:
 			case VMODE_576P_RPT:
 			case VMODE_720P:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+			case VMODE_720P_59HZ:
+#endif
 			case VMODE_1080I:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+			case VMODE_1080I_59HZ:
+#endif
 			case VMODE_1080P:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+			case VMODE_1080P_59HZ:
+#endif
 			case VMODE_720P_50HZ:
 			case VMODE_1080I_50HZ:
 			case VMODE_1080P_50HZ:
 			case VMODE_1080P_24HZ:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+			case VMODE_1080P_23HZ:
+#endif
 			case VMODE_4K2K_30HZ:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+			case VMODE_4K2K_29HZ:
+#endif
 			case VMODE_4K2K_25HZ:
 			case VMODE_4K2K_24HZ:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+			case VMODE_4K2K_23HZ:
+#endif
 			case VMODE_4K2K_SMPTE:
 			case VMODE_VGA:
 			case VMODE_SVGA:

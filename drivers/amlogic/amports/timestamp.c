@@ -21,6 +21,9 @@ static u32 audio_pts_started = 0;
 static u32 first_vpts = 0;
 static u32 first_apts = 0;
 
+static u32 system_time_scale_base = 1;
+static u32 system_time_scale_remainder = 0;
+
 #ifdef MODIFY_TIMESTAMP_INC_WITH_PLL
 #define PLL_FACTOR 10000
 static u32 timestamp_inc_factor=PLL_FACTOR;
@@ -191,6 +194,26 @@ void timestamp_pcrscr_inc(s32 inc)
 }
 
 EXPORT_SYMBOL(timestamp_pcrscr_inc);
+
+void timestamp_pcrscr_inc_scale(s32 inc, u32 base)
+{
+    if (system_time_scale_base != base) {
+        system_time_scale_remainder = system_time_scale_remainder * base / system_time_scale_base;
+        system_time_scale_base = base;
+    }
+
+    if (system_time_up) {
+        u32 r;
+        system_time += div_u64_rem(90000ULL * inc, base, &r) + system_time_inc_adj;
+        system_time_scale_remainder += r;
+        if (system_time_scale_remainder >= system_time_scale_base) {
+            system_time++;
+            system_time_scale_remainder -= system_time_scale_base;
+        }
+    }
+}
+
+EXPORT_SYMBOL(timestamp_pcrscr_inc_scale);
 
 void timestamp_pcrscr_set_adj(s32 inc)
 {

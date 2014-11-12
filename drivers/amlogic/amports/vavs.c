@@ -807,6 +807,8 @@ static s32 vavs_init(void)
     vf_reg_provider(&vavs_vf_prov);
  #endif 
 
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vavs_amstream_dec_info.rate);
+
         stat |= STAT_VF_HOOK;
 
         recycle_timer.data = (ulong) & recycle_timer;
@@ -880,6 +882,8 @@ static int amvdec_avs_remove(struct platform_device *pdev)
 
         if (stat & STAT_VF_HOOK)
         {
+                vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
                 vf_unreg_provider(&vavs_vf_prov);
                 stat &= ~STAT_VF_HOOK;
         }

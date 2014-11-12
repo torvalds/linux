@@ -1280,6 +1280,8 @@ static s32 vh264_4k2k_init(void)
     vf_reg_provider(&vh264_4k2k_vf_prov);
     vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_START,NULL);
 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vh264_4k2k_amstream_dec_info.rate);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong) & recycle_timer;
@@ -1338,6 +1340,8 @@ static int vh264_4k2k_stop(void)
     }
 
     if (stat & STAT_VF_HOOK) {
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
         vf_unreg_provider(&vh264_4k2k_vf_prov);
         stat &= ~STAT_VF_HOOK;
     }

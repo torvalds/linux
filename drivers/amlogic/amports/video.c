@@ -610,6 +610,8 @@ static const vinfo_t *vinfo = NULL;
 static vframe_t *cur_dispbuf = NULL;
 static vframe_t vf_local;
 static u32 vsync_pts_inc;
+static u32 vsync_pts_inc_scale;
+static u32 vsync_pts_inc_scale_base = 1;
 static u32 vsync_pts_inc_upint = 0;
 static u32 vsync_pts_inc_adj = 0;
 static u32 vsync_pts_125 = 0;
@@ -2232,7 +2234,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
         if(cur_dev_idx == 0){
             cur_dev = &video_dev[0];
             vinfo = get_current_vinfo();
-    	      vsync_pts_inc = 90000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
+    	    vsync_pts_inc = 90000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
+            vsync_pts_inc_scale = vinfo->sync_duration_den;
+            vsync_pts_inc_scale_base = vinfo->sync_duration_num;
             video_property_changed = true;
             printk("Change to video 0\n");
         }
@@ -2241,12 +2245,13 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
         if(cur_dev_idx != 0){
             cur_dev = &video_dev[1];
             vinfo = get_current_vinfo2();
-    	      vsync_pts_inc = 90000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
+    	    vsync_pts_inc = 90000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
+            vsync_pts_inc_scale = vinfo->sync_duration_den;
+            vsync_pts_inc_scale_base = vinfo->sync_duration_num;
             video_property_changed = true;
             printk("Change to video 1\n");
         }
     }
-
 
     if((dev_id_s[dev_id_len-1] == '2' && cur_dev_idx == 0) ||
         (dev_id_s[dev_id_len-1] != '2' && cur_dev_idx != 0)){
@@ -2254,6 +2259,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
     }
     //printk("%s: %s\n", __func__, dev_id_s);
 #endif
+
     vf = video_vf_peek();
     if((vf)&&((vf->type & VIDTYPE_NO_VIDEO_ENABLE) == 0)){
 	    if( (old_vmode != new_vmode)||(debug_flag == 8)){
@@ -2337,8 +2343,12 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
             printk("invalid vsync_slow_factor, set to 1\n");
             vsync_slow_factor = 1;
         }
-        timestamp_pcrscr_inc(vsync_pts_inc / vsync_slow_factor);
-        timestamp_apts_inc(vsync_pts_inc / vsync_slow_factor);
+
+        if (vsync_slow_factor == 1) {
+            timestamp_pcrscr_inc_scale(vsync_pts_inc_scale, vsync_pts_inc_scale_base);
+        } else {
+            timestamp_pcrscr_inc(vsync_pts_inc / vsync_slow_factor);
+        }
     }
     if (omx_secret_mode == true) {
         u32 system_time = timestamp_pcrscr_get();
@@ -2780,7 +2790,6 @@ SET_FILTER:
     }
 
 exit:
-
     if (likely(video_onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
         /* state change for video layer enable/disable */
 
@@ -3191,6 +3200,12 @@ static int video_receiver_event_fun(int type, void* data, void* private_data)
         if(debug_flag& DEBUG_FLAG_BLACKOUT){
             printk("%s VFRAME_EVENT_PROVIDER_FORCE_BLACKOUT\n", __func__);
         }
+    }
+    else if(type == VFRAME_EVENT_PROVIDER_FR_HINT){
+        set_vframe_rate_hint((int)data);
+    }
+    else if(type == VFRAME_EVENT_PROVIDER_FR_END_HINT){
+        set_vframe_rate_end_hint();
     }
     return 0;
 }
@@ -5142,6 +5157,8 @@ int vout_notify_callback(struct notifier_block *block, unsigned long cmd , void 
   	vinfo = info;
 	/* pre-calculate vsync_pts_inc in 90k unit */
     	vsync_pts_inc = 90000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
+        vsync_pts_inc_scale = vinfo->sync_duration_den;
+        vsync_pts_inc_scale_base = vinfo->sync_duration_num;
 	spin_unlock_irqrestore(&lock, flags);
 	new_vmode = vinfo->mode;
 	break;
@@ -5173,6 +5190,8 @@ int vout2_notify_callback(struct notifier_block *block, unsigned long cmd , void
   	vinfo = info;
 	/* pre-calculate vsync_pts_inc in 90k unit */
     	vsync_pts_inc = 90000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
+        vsync_pts_inc_scale = vinfo->sync_duration_den;
+        vsync_pts_inc_scale_base = vinfo->sync_duration_num;
 	spin_unlock_irqrestore(&lock, flags);
 	break;
 	case VOUT_EVENT_OSD_PREBLEND_ENABLE:
@@ -5220,6 +5239,8 @@ static void vout_hook(void)
 
     if (vinfo) {
         vsync_pts_inc = 90000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
+        vsync_pts_inc_scale = vinfo->sync_duration_den;
+        vsync_pts_inc_scale_base = vinfo->sync_duration_num;
         old_vmode = new_vmode = vinfo->mode;
     }
 

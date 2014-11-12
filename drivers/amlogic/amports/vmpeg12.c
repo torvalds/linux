@@ -158,6 +158,8 @@ static DEFINE_SPINLOCK(lock);
 
 static u32 frame_rpt_state;
 
+static struct dec_sysinfo vmpeg12_amstream_dec_info;
+
 /* for error handling */
 static s32 frame_force_skip_flag = 0;
 static s32 error_frame_skip_level = 0;
@@ -829,6 +831,8 @@ static s32 vmpeg12_init(void)
     vf_reg_provider(&vmpeg_vf_prov);
  #endif 
 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vmpeg12_amstream_dec_info.rate);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong)&recycle_timer;
@@ -857,6 +861,11 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
     if (pdata == NULL) {
         amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg12 platform data undefined.\n");
         return -EFAULT;
+    }
+
+
+    if (pdata->sys_info) {
+        vmpeg12_amstream_dec_info = *pdata->sys_info;
     }
 
     buf_start = pdata->mem_start;
@@ -891,6 +900,8 @@ static int amvdec_mpeg12_remove(struct platform_device *pdev)
     }
 
     if (stat & STAT_VF_HOOK) {
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
         vf_unreg_provider(&vmpeg_vf_prov);
         stat &= ~STAT_VF_HOOK;
     }

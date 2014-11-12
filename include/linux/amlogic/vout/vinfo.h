@@ -32,6 +32,9 @@ typedef enum {
     VMODE_480I_RPT  ,
     VMODE_480CVBS,
     VMODE_480P  ,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    VMODE_480P_59HZ,// for framerate automation 480p 59.94hz
+#endif   
     VMODE_480P_RPT  ,
     VMODE_576I   ,
     VMODE_576I_RPT  ,
@@ -39,6 +42,9 @@ typedef enum {
     VMODE_576P  ,
     VMODE_576P_RPT  ,
     VMODE_720P  ,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    VMODE_720P_59HZ , // for framerate automation 720p 59.94hz
+#endif
     VMODE_800P ,
     VMODE_800X480P_60HZ,
     VMODE_1366X768P_60HZ,
@@ -50,14 +56,29 @@ typedef enum {
     VMODE_1440X900P_60HZ,
     VMODE_1680X1050P_60HZ,
     VMODE_1080I ,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    VMODE_1080I_59HZ , // for framerate automation 1080i 59.94hz
+#endif   
     VMODE_1080P ,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    VMODE_1080P_59HZ , // for framerate automation 1080p 59.94hz
+#endif
     VMODE_720P_50HZ ,
     VMODE_1080I_50HZ ,
     VMODE_1080P_50HZ ,
     VMODE_1080P_24HZ ,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    VMODE_1080P_23HZ , // for framerate automation 1080p 23.97hz
+#endif
     VMODE_4K2K_30HZ ,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    VMODE_4K2K_29HZ , // for framerate automation 4k2k 29.97hz
+#endif
     VMODE_4K2K_25HZ ,
     VMODE_4K2K_24HZ ,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    VMODE_4K2K_23HZ , // for framerate automation 4k2k 23.97hz
+#endif
     VMODE_4K2K_SMPTE,
     VMODE_1920x1200,
     VMODE_VGA,

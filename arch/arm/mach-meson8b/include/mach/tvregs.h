@@ -1813,6 +1813,9 @@ static const reg_t *tvregsTab[] = {
     tvregs_480i,        // For REPEAT MODE use, ENC setting is same
     tvregs_480cvbs,
     tvregs_480p,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	tvregs_480p,
+#endif
     tvregs_480p,        // For REPEAT MODE use, ENC setting is same
     tvregs_576i,
     tvregs_576i,        // For REPEAT MODE use, ENC setting is same
@@ -1820,6 +1823,9 @@ static const reg_t *tvregsTab[] = {
     tvregs_576p,
     tvregs_576p,        // For REPEAT MODE use, ENC setting is same
     tvregs_720p,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    tvregs_720p,
+#endif
     tvregs_800p,
     tvregs_800x480p60hz,
     tvregs_1366x768p60hz,
@@ -1831,14 +1837,29 @@ static const reg_t *tvregsTab[] = {
     tvregs_1440x900p60hz,
     tvregs_1680x1050p60hz,
     tvregs_1080i,       //Adjust tvregs_* sequences and match the enum define in tvmode.h
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	tvregs_1080i,
+#endif
     tvregs_1080p,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	tvregs_1080p,
+#endif
     tvregs_720p_50hz,
     tvregs_1080i_50hz,
     tvregs_1080p_50hz,
     tvregs_1080p_24hz,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	tvregs_1080p_24hz,
+#endif
     tvregs_4k2k_30hz,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	tvregs_4k2k_30hz,
+#endif
     tvregs_4k2k_25hz,
     tvregs_4k2k_24hz,
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	tvregs_4k2k_24hz,
+#endif
     tvregs_4k2k_smpte,
     tvregs_1920x1200,
     tvregs_vga_640x480,

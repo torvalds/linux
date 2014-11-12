@@ -134,6 +134,10 @@ static int  meson_vout_suspend(struct platform_device *pdev, pm_message_t state)
 static int  meson_vout_resume(struct platform_device *pdev);
 #endif
 
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+vmode_t mode_by_user = VMODE_INIT_NULL;
+#endif
+
 static  void  set_vout_mode(char * name)
 {
 	vmode_t    mode;
@@ -145,16 +149,57 @@ static  void  set_vout_mode(char * name)
 		amlog_mask_level(LOG_MASK_PARA,LOG_LEVEL_HIGH,"no matched vout mode\n");
 		return ; 
 	}
+
+	mode_by_user = mode;
+
 	if(mode==get_current_vmode())
 	{
 		amlog_mask_level(LOG_MASK_PARA,LOG_LEVEL_HIGH,"don't set the same mode as current.\r\n");	
 		return ;
 	}
+
 	set_current_vmode(mode);
 	amlog_mask_level(LOG_MASK_PARA,LOG_LEVEL_HIGH,"new mode %s set ok\r\n",name);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,&mode) ;
 	printk("%s[%d]\n", __func__, __LINE__);
 }
+
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+void update_vmode_status(char* name)
+{
+	snprintf(mode, 40, "%s\n", name);
+}
+
+EXPORT_SYMBOL(update_vmode_status);
+
+void set_vout_mode_fr_auto(char* name)
+{
+	vmode_t    vmode;
+
+	amlog_mask_level(LOG_MASK_PARA,LOG_LEVEL_HIGH,"tvmode set to %s\n",name);
+
+	vmode=validate_vmode(name);
+	if(VMODE_MAX==vmode)
+	{
+		amlog_mask_level(LOG_MASK_PARA,LOG_LEVEL_HIGH,"no matched vout mode\n");
+		return ; 
+	}
+	if(vmode==get_current_vmode())
+	{
+		amlog_mask_level(LOG_MASK_PARA,LOG_LEVEL_HIGH,"don't set the same mode as current.\n");
+		return ;
+	}
+	
+	update_vmode_status(name);
+
+	set_current_vmode(vmode);
+	amlog_mask_level(LOG_MASK_PARA,LOG_LEVEL_HIGH,"new mode %s set ok\n",name);
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,&vmode) ;
+	printk("%s[%d]\n", __func__, __LINE__);
+}
+EXPORT_SYMBOL(set_vout_mode_fr_auto);
+
+#endif
 
 char* get_vout_mode_internal(void)
 {

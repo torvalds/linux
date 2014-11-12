@@ -9,6 +9,13 @@ config AM_TV_OUTPUT
 	help  
 		tv output module
 
+config AML_VOUT_FRAMERATE_AUTOMATION
+	bool "framerate automation"
+	default y
+	depends on AM_TV_OUTPUT
+	help
+		framerate adjustment automatically from video source
+
 config AM_LCD_OUTPUT
 	tristate "LCD output" 
 	default y

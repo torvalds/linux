@@ -875,6 +875,8 @@ static s32 vvc1_init(void)
     vf_reg_provider(&vvc1_vf_prov);
 #endif 
 
+    vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT, (void *)vvc1_amstream_dec_info.rate);
+
     stat |= STAT_VF_HOOK;
 
     recycle_timer.data = (ulong) & recycle_timer;
@@ -938,6 +940,8 @@ static int amvdec_vc1_remove(struct platform_device *pdev)
     }
 
     if (stat & STAT_VF_HOOK) {
+        vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
+
         vf_unreg_provider(&vvc1_vf_prov);
         stat &= ~STAT_VF_HOOK;
     }

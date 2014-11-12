@@ -91,6 +91,55 @@ vmode_t get_current_vmode(void)
 	return mode;
 }
 EXPORT_SYMBOL(get_current_vmode);
+
+/*
+*interface export to client who want to notify about source frame rate.
+*/
+int set_vframe_rate_hint(int duration)
+{
+        int r=-1;
+        vout_server_t  *p_server;
+
+        //mutex_lock(&vout_mutex);
+        list_for_each_entry(p_server, &vout_module.vout_server_list, list)
+        {
+		if (p_server->op.set_vframe_rate_hint(duration) == 0)
+                {
+			mutex_unlock(&vout_mutex);
+			return 0;
+                }
+        }
+
+        //mutex_unlock(&vout_mutex);
+
+        return r;
+}
+EXPORT_SYMBOL(set_vframe_rate_hint);
+
+/*
+*interface export to client who want to notify about source frame rate end.
+*/
+int set_vframe_rate_end_hint(void)
+{
+        int r=-1;
+        vout_server_t  *p_server;
+
+        //mutex_lock(&vout_mutex);
+        list_for_each_entry(p_server, &vout_module.vout_server_list, list)
+        {
+                if (p_server->op.set_vframe_rate_end_hint() == 0)
+                {
+                        mutex_unlock(&vout_mutex);
+                        return 0;
+                }
+        }
+
+        //mutex_unlock(&vout_mutex);
+
+        return r;
+}
+EXPORT_SYMBOL(set_vframe_rate_end_hint);
+
 #ifdef CONFIG_SCREEN_ON_EARLY
 static int wake_up_flag;
 void wakeup_early_suspend_proc(void)

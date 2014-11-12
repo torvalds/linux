@@ -495,20 +495,41 @@ int tvoutc_setmode(tvmode_t mode)
         aml_set_reg32_bits(P_VPU_VIU_VENC_MUX_CTRL, 1, 8, 4); //reg0x271a,Enable VIU of ENC_I domain to VDIN;
 			  break;
 		case TVMODE_480P:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_480P_59HZ:
+#endif
 		case TVMODE_480P_RPT:
 		case TVMODE_576P:
 		case TVMODE_576P_RPT:
         case TVMODE_800X480P_60HZ:
 		case TVMODE_720P:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_720P_59HZ:
+#endif
 		case TVMODE_720P_50HZ:
 		case TVMODE_1080I: //??
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_1080I_59HZ:
+#endif
 		case TVMODE_1080I_50HZ: //??
 		case TVMODE_1080P:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_1080P_59HZ:
+#endif
 		case TVMODE_1080P_50HZ:
 		case TVMODE_1080P_24HZ:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_1080P_23HZ:
+#endif
         case TVMODE_4K2K_30HZ:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_4K2K_29HZ:
+#endif
         case TVMODE_4K2K_25HZ:
         case TVMODE_4K2K_24HZ:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		case TVMODE_4K2K_23HZ:
+#endif
         case TVMODE_4K2K_SMPTE:
 		case TVMODE_VGA:
 		case TVMODE_SVGA:

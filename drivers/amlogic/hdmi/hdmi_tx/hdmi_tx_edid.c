@@ -1291,6 +1291,9 @@ static dispmode_vic_t dispmode_VIC_tab[]=
     {"480p_4_3",  HDMI_480p60},
     {"480p_rpt",  HDMI_480p60_16x9_rpt},
     {"480p",      HDMI_480p60_16x9},
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    {"480p59hz",  HDMI_480p60_16x9},
+#endif
     {"576i_4_3",  HDMI_576i50},
     {"576i_rpt",  HDMI_576i50_16x9_rpt},
     {"576i",      HDMI_576i50_16x9},
@@ -1299,6 +1302,9 @@ static dispmode_vic_t dispmode_VIC_tab[]=
     {"576p",      HDMI_576p50_16x9},
     {"720p50hz",  HDMI_720p50},
     {"720p",      HDMI_720p60},
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    {"720p59hz",  HDMI_720p60},
+#endif
     {"800p",	  HDMI_800p},
     {"800x480p60hz", HDMI_800x480p60hz},
     {"1366x768p60hz", HDMI_1366x768p60hz},
@@ -1314,13 +1320,28 @@ static dispmode_vic_t dispmode_VIC_tab[]=
     {"1920x1200", HDMI_1920x1200},
     {"1080i50hz", HDMI_1080i50},
     {"1080i",     HDMI_1080i60},
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    {"1080i59hz", HDMI_1080i60},
+#endif
     {"1080p50hz", HDMI_1080p50},
     {"1080p30hz", HDMI_1080p30},
     {"1080p24hz", HDMI_1080p24},
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    {"1080p23hz", HDMI_1080p24},
+#endif
     {"1080p",     HDMI_1080p60},
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    {"1080p59hz", HDMI_1080p60},
+#endif
     {"4k2k30hz",  HDMI_4k2k_30},
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    {"4k2k29hz",  HDMI_4k2k_30},
+#endif
     {"4k2k25hz",  HDMI_4k2k_25},
     {"4k2k24hz",  HDMI_4k2k_24},
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+    {"4k2k23hz",  HDMI_4k2k_24},
+#endif
     {"4k2ksmpte", HDMI_4k2k_smpte_24},
 };
 
