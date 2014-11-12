@@ -309,10 +309,8 @@ static int __init spear13xx_pcie_probe(struct platform_device *pdev)
 	int ret;
 
 	spear13xx_pcie = devm_kzalloc(dev, sizeof(*spear13xx_pcie), GFP_KERNEL);
-	if (!spear13xx_pcie) {
-		dev_err(dev, "no memory for SPEAr13xx pcie\n");
+	if (!spear13xx_pcie)
 		return -ENOMEM;
-	}
 
 	spear13xx_pcie->phy = devm_phy_get(dev, "pcie-phy");
 	if (IS_ERR(spear13xx_pcie->phy)) {
