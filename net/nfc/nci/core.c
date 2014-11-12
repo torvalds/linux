@@ -756,6 +756,11 @@ static int nci_enable_se(struct nfc_dev *nfc_dev, u32 se_idx)
 
 static int nci_disable_se(struct nfc_dev *nfc_dev, u32 se_idx)
 {
+	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
+
+	if (ndev->ops->disable_se)
+		return ndev->ops->disable_se(ndev, se_idx);
+
 	return 0;
 }
 
