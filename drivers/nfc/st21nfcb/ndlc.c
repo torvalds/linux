@@ -266,7 +266,7 @@ int ndlc_probe(void *phy_id, struct nfc_phy_ops *phy_ops, struct device *dev,
 
 	*ndlc_id = ndlc;
 
-	/* start timers */
+	/* initialize timers */
 	init_timer(&ndlc->t1_timer);
 	ndlc->t1_timer.data = (unsigned long)ndlc;
 	ndlc->t1_timer.function = ndlc_t1_timeout;
