@@ -172,9 +172,9 @@ static int osst_probe(struct device *);
 static int osst_remove(struct device *);
 
 static struct scsi_driver osst_template = {
-	.owner			= THIS_MODULE,
 	.gendrv = {
 		.name		=  "osst",
+		.owner		= THIS_MODULE,
 		.probe		= osst_probe,
 		.remove		= osst_remove,
 	}

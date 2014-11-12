@@ -202,9 +202,9 @@ static int do_create_sysfs_files(void);
 static void do_remove_sysfs_files(void);
 
 static struct scsi_driver st_template = {
-	.owner			= THIS_MODULE,
 	.gendrv = {
 		.name		= "st",
+		.owner		= THIS_MODULE,
 		.probe		= st_probe,
 		.remove		= st_remove,
 	},

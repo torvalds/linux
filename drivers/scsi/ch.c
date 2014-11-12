@@ -972,9 +972,9 @@ static int ch_remove(struct device *dev)
 }
 
 static struct scsi_driver ch_template = {
-	.owner     	= THIS_MODULE,
 	.gendrv     	= {
 		.name	= "ch",
+		.owner	= THIS_MODULE,
 		.probe  = ch_probe,
 		.remove = ch_remove,
 	},

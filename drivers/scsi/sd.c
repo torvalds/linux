@@ -510,9 +510,9 @@ static const struct dev_pm_ops sd_pm_ops = {
 };
 
 static struct scsi_driver sd_template = {
-	.owner			= THIS_MODULE,
 	.gendrv = {
 		.name		= "sd",
+		.owner		= THIS_MODULE,
 		.probe		= sd_probe,
 		.remove		= sd_remove,
 		.shutdown	= sd_shutdown,
