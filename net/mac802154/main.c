@@ -182,5 +182,5 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 }
 EXPORT_SYMBOL(ieee802154_unregister_hw);
 
-MODULE_DESCRIPTION("IEEE 802.15.4 implementation");
+MODULE_DESCRIPTION("IEEE 802.15.4 subsystem");
 MODULE_LICENSE("GPL v2");
