@@ -68,4 +68,11 @@ rdev_set_max_frame_retries(struct cfg802154_registered_device *rdev,
 						max_frame_retries);
 }
 
+static inline int
+rdev_set_lbt_mode(struct cfg802154_registered_device *rdev,
+		  struct wpan_dev *wpan_dev, const bool mode)
+{
+	return rdev->ops->set_lbt_mode(&rdev->wpan_phy, wpan_dev, mode);
+}
+
 #endif /* __CFG802154_RDEV_OPS */

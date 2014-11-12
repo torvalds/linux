@@ -51,6 +51,8 @@ struct cfg802154_ops {
 	int	(*set_max_frame_retries)(struct wpan_phy *wpan_phy,
 					 struct wpan_dev *wpan_dev,
 					 s8 max_frame_retries);
+	int	(*set_lbt_mode)(struct wpan_phy *wpan_phy,
+				struct wpan_dev *wpan_dev, bool mode);
 };
 
 struct wpan_phy {

@@ -691,6 +691,23 @@ nl802154_set_max_frame_retries(struct sk_buff *skb, struct genl_info *info)
 	return rdev_set_max_frame_retries(rdev, wpan_dev, max_frame_retries);
 }
 
+static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	bool mode;
+
+	if (netif_running(dev))
+		return -EBUSY;
+
+	if (!info->attrs[NL802154_ATTR_LBT_MODE])
+		return -EINVAL;
+
+	mode = !!nla_get_u8(info->attrs[NL802154_ATTR_LBT_MODE]);
+	return rdev_set_lbt_mode(rdev, wpan_dev, mode);
+}
+
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
 #define NL802154_FLAG_NEED_NETDEV	0x02
 #define NL802154_FLAG_NEED_RTNL		0x04
@@ -844,6 +861,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_MAX_FRAME_RETRIES,
 		.doit = nl802154_set_max_frame_retries,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_LBT_MODE,
+		.doit = nl802154_set_lbt_mode,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
