@@ -182,5 +182,20 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 }
 EXPORT_SYMBOL(ieee802154_unregister_hw);
 
+static int __init ieee802154_init(void)
+{
+	return ieee802154_iface_init();
+}
+
+static void __exit ieee802154_exit(void)
+{
+	ieee802154_iface_exit();
+
+	rcu_barrier();
+}
+
+subsys_initcall(ieee802154_init);
+module_exit(ieee802154_exit);
+
 MODULE_DESCRIPTION("IEEE 802.15.4 subsystem");
 MODULE_LICENSE("GPL v2");

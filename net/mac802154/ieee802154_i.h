@@ -169,6 +169,9 @@ void mac802154_get_table(struct net_device *dev,
 			 struct ieee802154_llsec_table **t);
 void mac802154_unlock_table(struct net_device *dev);
 
+/* interface handling */
+int ieee802154_iface_init(void);
+void ieee802154_iface_exit(void);
 struct net_device *
 mac802154_add_iface(struct wpan_phy *phy, const char *name, int type);
 void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata);

@@ -548,3 +548,38 @@ void ieee802154_remove_interfaces(struct ieee802154_local *local)
 	}
 	mutex_unlock(&local->iflist_mtx);
 }
+
+static int netdev_notify(struct notifier_block *nb,
+			 unsigned long state, void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct ieee802154_sub_if_data *sdata;
+
+	if (state != NETDEV_CHANGENAME)
+		return NOTIFY_DONE;
+
+	if (!dev->ieee802154_ptr || !dev->ieee802154_ptr->wpan_phy)
+		return NOTIFY_DONE;
+
+	if (dev->ieee802154_ptr->wpan_phy->privid != mac802154_wpan_phy_privid)
+		return NOTIFY_DONE;
+
+	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	memcpy(sdata->name, dev->name, IFNAMSIZ);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block mac802154_netdev_notifier = {
+	.notifier_call = netdev_notify,
+};
+
+int ieee802154_iface_init(void)
+{
+	return register_netdevice_notifier(&mac802154_netdev_notifier);
+}
+
+void ieee802154_iface_exit(void)
+{
+	unregister_netdevice_notifier(&mac802154_netdev_notifier);
+}
