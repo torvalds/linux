@@ -1485,7 +1485,6 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 		else
 			priv->bShortSlotTime = false;
 
-		vUpdateIFS(priv);
 		CARDbSetPhyParameter(priv, priv->byBBType);
 		BBvSetVGAGainOffset(priv, priv->abyBBVGA[0]);
 	}

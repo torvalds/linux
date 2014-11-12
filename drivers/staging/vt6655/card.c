@@ -21,7 +21,6 @@
  * Functions:
  *      s_vSafeResetTx - Rest Tx
  *      CARDvSetRSPINF - Set RSPINF
- *      vUpdateIFS - Update slotTime,SIFS,DIFS, and EIFS
  *      CARDvUpdateBasicTopRate - Update BasicTopRate
  *      CARDbAddBasicRate - Add to BasicRateSet
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
@@ -768,70 +767,6 @@ void CARDvSetRSPINF(struct vnt_private *pDevice, u8 bb_type)
 	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_72, MAKEWORD(byTxRate, byRsvTime));
 	/* Set to Page0 */
 	MACvSelectPage0(pDevice->PortOffset);
-}
-
-/*
- * Description: Update IFS
- *
- * Parameters:
- *  In:
- *      pDevice             - The adapter to be set
- *  Out:
- *      none
- *
- * Return Value: None.
- */
-void vUpdateIFS(struct vnt_private *pDevice)
-{
-	/* Set SIFS, DIFS, EIFS, SlotTime, CwMin */
-
-	unsigned char byMaxMin = 0;
-
-	if (pDevice->byPacketType == PK_TYPE_11A) { /*0000 0000 0000 0000,11a*/
-		pDevice->uSlot = C_SLOT_SHORT;
-		pDevice->uSIFS = C_SIFS_A;
-		pDevice->uDIFS = C_SIFS_A + 2*C_SLOT_SHORT;
-		pDevice->uCwMin = C_CWMIN_A;
-		byMaxMin = 4;
-	} else if (pDevice->byPacketType == PK_TYPE_11B) {
-					/* 0000 0001 0000 0000,11b */
-		pDevice->uSlot = C_SLOT_LONG;
-		pDevice->uSIFS = C_SIFS_BG;
-		pDevice->uDIFS = C_SIFS_BG + 2*C_SLOT_LONG;
-		pDevice->uCwMin = C_CWMIN_B;
-		byMaxMin = 5;
-	} else { /* PK_TYPE_11GA & PK_TYPE_11GB */
-		pDevice->uSIFS = C_SIFS_BG;
-		if (pDevice->bShortSlotTime)
-			pDevice->uSlot = C_SLOT_SHORT;
-		else
-			pDevice->uSlot = C_SLOT_LONG;
-
-		pDevice->uDIFS = C_SIFS_BG + 2*pDevice->uSlot;
-		if (pDevice->wBasicRate & 0x0150) {
-			/* 0000 0001 0101 0000,24M,12M,6M */
-			pDevice->uCwMin = C_CWMIN_A;
-			byMaxMin = 4;
-		} else {
-			pDevice->uCwMin = C_CWMIN_B;
-			byMaxMin = 5;
-		}
-	}
-
-	pDevice->uCwMax = C_CWMAX;
-	pDevice->uEIFS = C_EIFS;
-	if (pDevice->byRFType == RF_RFMD2959) {
-		/* bcs TX_PE will reserve 3 us */
-		VNSvOutPortB(pDevice->PortOffset + MAC_REG_SIFS, (unsigned char)(pDevice->uSIFS - 3));
-		VNSvOutPortB(pDevice->PortOffset + MAC_REG_DIFS, (unsigned char)(pDevice->uDIFS - 3));
-	} else {
-		VNSvOutPortB(pDevice->PortOffset + MAC_REG_SIFS, (unsigned char)pDevice->uSIFS);
-		VNSvOutPortB(pDevice->PortOffset + MAC_REG_DIFS, (unsigned char)pDevice->uDIFS);
-	}
-	VNSvOutPortB(pDevice->PortOffset + MAC_REG_EIFS, (unsigned char)pDevice->uEIFS);
-	VNSvOutPortB(pDevice->PortOffset + MAC_REG_SLOT, (unsigned char)pDevice->uSlot);
-	byMaxMin |= 0xA0; /* 1010 1111,C_CWMAX = 1023 */
-	VNSvOutPortB(pDevice->PortOffset + MAC_REG_CWMAXMIN0, (unsigned char)byMaxMin);
 }
 
 void CARDvUpdateBasicTopRate(struct vnt_private *pDevice)

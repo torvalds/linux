@@ -67,7 +67,6 @@ typedef enum _CARD_STATUS_TYPE {
 struct vnt_private;
 
 void CARDvSetRSPINF(struct vnt_private *, u8);
-void vUpdateIFS(struct vnt_private *);
 void CARDvUpdateBasicTopRate(struct vnt_private *);
 bool CARDbIsOFDMinBasicRate(struct vnt_private *);
 void CARDvSetLoopbackMode(void __iomem *dwIoBase, unsigned short wLoopbackMode);
