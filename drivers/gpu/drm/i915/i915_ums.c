@@ -290,6 +290,7 @@ void i915_save_display_reg(struct drm_device *dev)
 		dev_priv->regfile.saveBLC_PWM_CTL = I915_READ(BLC_PWM_CTL);
 		if (INTEL_INFO(dev)->gen >= 4)
 			dev_priv->regfile.saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_CTL2);
+		dev_priv->regfile.saveBLC_HIST_CTL = I915_READ(BLC_HIST_CTL);
 	}
 
 	return;
@@ -319,6 +320,7 @@ void i915_restore_display_reg(struct drm_device *dev)
 		if (INTEL_INFO(dev)->gen >= 4)
 			I915_WRITE(BLC_PWM_CTL2, dev_priv->regfile.saveBLC_PWM_CTL2);
 		I915_WRITE(BLC_PWM_CTL, dev_priv->regfile.saveBLC_PWM_CTL);
+		I915_WRITE(BLC_HIST_CTL, dev_priv->regfile.saveBLC_HIST_CTL);
 	}
 
 	/* Panel fitter */

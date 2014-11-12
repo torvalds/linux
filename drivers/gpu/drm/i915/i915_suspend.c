@@ -207,14 +207,8 @@ static void i915_save_display(struct drm_device *dev)
 		dev_priv->regfile.savePP_CONTROL = I915_READ(PCH_PP_CONTROL);
 		if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 			dev_priv->regfile.saveLVDS = I915_READ(PCH_LVDS);
-	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->regfile.saveBLC_HIST_CTL =
-			I915_READ(VLV_BLC_HIST_CTL(PIPE_A));
-		dev_priv->regfile.saveBLC_HIST_CTL_B =
-			I915_READ(VLV_BLC_HIST_CTL(PIPE_B));
-	} else {
+	} else if (!IS_VALLEYVIEW(dev)) {
 		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
-		dev_priv->regfile.saveBLC_HIST_CTL = I915_READ(BLC_HIST_CTL);
 		if (IS_MOBILE(dev) && !IS_I830(dev))
 			dev_priv->regfile.saveLVDS = I915_READ(LVDS);
 	}
@@ -262,13 +256,7 @@ static void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PCH_PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
 		I915_WRITE(PCH_PP_DIVISOR, dev_priv->regfile.savePP_DIVISOR);
 		I915_WRITE(PCH_PP_CONTROL, dev_priv->regfile.savePP_CONTROL);
-	} else if (IS_VALLEYVIEW(dev)) {
-		I915_WRITE(VLV_BLC_HIST_CTL(PIPE_A),
-			   dev_priv->regfile.saveBLC_HIST_CTL);
-		I915_WRITE(VLV_BLC_HIST_CTL(PIPE_B),
-			   dev_priv->regfile.saveBLC_HIST_CTL);
-	} else {
-		I915_WRITE(BLC_HIST_CTL, dev_priv->regfile.saveBLC_HIST_CTL);
+	} else if (!IS_VALLEYVIEW(dev)) {
 		I915_WRITE(PP_ON_DELAYS, dev_priv->regfile.savePP_ON_DELAYS);
 		I915_WRITE(PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
 		I915_WRITE(PP_DIVISOR, dev_priv->regfile.savePP_DIVISOR);
