@@ -113,7 +113,7 @@
 		};
 	};
 
-	gpio-keys {
+	keyboard {
 		compatible = "gpio-keys";
 
 		back-key {
