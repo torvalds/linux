@@ -285,6 +285,12 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 	sk->sk_max_ack_backlog = backlog;
 	sk->sk_ack_backlog = 0;
 
+	/* Listening channels need to use nested locking in order not to
+	 * cause lockdep warnings when the created child channels end up
+	 * being locked in the same thread as the parent channel.
+	 */
+	atomic_set(&chan->nesting, L2CAP_NESTING_PARENT);
+
 	chan->state = BT_LISTEN;
 	sk->sk_state = BT_LISTEN;
 
@@ -1496,6 +1502,9 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 
 		l2cap_chan_set_defaults(chan);
 	}
+
+	/* Set default lock nesting level */
+	atomic_set(&chan->nesting, L2CAP_NESTING_NORMAL);
 
 	/* Default config options */
 	chan->flush_to = L2CAP_DEFAULT_FLUSH_TO;
