@@ -505,9 +505,6 @@ static irqreturn_t i801_isr(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	status = inb_p(SMBHSTSTS(priv));
-	if (status != 0x42)
-		dev_dbg(&priv->pci_dev->dev, "irq: status = %02x\n", status);
-
 	if (status & SMBHSTSTS_BYTE_DONE)
 		i801_isr_byte_done(priv);
 
