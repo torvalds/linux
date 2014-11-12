@@ -274,7 +274,7 @@ void b_srp_end(unsigned long foo)
 	fsl_otg_dischrg_vbus(0);
 	srp_wait_done = 1;
 
-	if ((fsl_otg_dev->phy.state == OTG_STATE_B_SRP_INIT) &&
+	if ((fsl_otg_dev->phy.otg->state == OTG_STATE_B_SRP_INIT) &&
 	    fsl_otg_dev->fsm.b_sess_vld)
 		fsl_otg_dev->fsm.b_srp_done = 1;
 }
@@ -624,7 +624,7 @@ static int fsl_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 			/* Mini-A cable connected */
 			struct otg_fsm *fsm = &otg_dev->fsm;
 
-			otg.state = OTG_STATE_UNDEFINED;
+			otg->state = OTG_STATE_UNDEFINED;
 			fsm->protocol = PROTO_UNDEF;
 		}
 	}
@@ -682,7 +682,7 @@ static int fsl_otg_set_power(struct usb_phy *phy, unsigned mA)
 {
 	if (!fsl_otg_dev)
 		return -ENODEV;
-	if (phy->otg.state == OTG_STATE_B_PERIPHERAL)
+	if (phy->otg->state == OTG_STATE_B_PERIPHERAL)
 		pr_info("FSL OTG: Draw %d mA\n", mA);
 
 	return 0;
@@ -715,7 +715,7 @@ static int fsl_otg_start_srp(struct usb_otg *otg)
 {
 	struct fsl_otg *otg_dev;
 
-	if (!otg || otg.state != OTG_STATE_B_IDLE)
+	if (!otg || otg->state != OTG_STATE_B_IDLE)
 		return -ENODEV;
 
 	otg_dev = container_of(otg->usb_phy, struct fsl_otg, phy);
@@ -990,10 +990,10 @@ int usb_otg_start(struct platform_device *pdev)
 	 * Also: record initial state of ID pin
 	 */
 	if (fsl_readl(&p_otg->dr_mem_map->otgsc) & OTGSC_STS_USB_ID) {
-		p_otg->phy->otg.state = OTG_STATE_UNDEFINED;
+		p_otg->phy.otg->state = OTG_STATE_UNDEFINED;
 		p_otg->fsm.id = 1;
 	} else {
-		p_otg->phy->otg.state = OTG_STATE_A_IDLE;
+		p_otg->phy.otg->state = OTG_STATE_A_IDLE;
 		p_otg->fsm.id = 0;
 	}
 
@@ -1048,7 +1048,7 @@ static int show_fsl_usb2_otg_state(struct device *dev,
 	/* State */
 	t = scnprintf(next, size,
 		      "OTG state: %s\n\n",
-		      usb_otg_state_string(fsl_otg_dev->phy.state));
+		      usb_otg_state_string(fsl_otg_dev->phy.otg->state));
 	size -= t;
 	next += t;
 
