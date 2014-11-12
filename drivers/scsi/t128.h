@@ -88,12 +88,6 @@
 #define T_DATA_REG_OFFSET	0x1e00	/* rw 512 bytes long */
 
 #ifndef ASM
-static int t128_abort(struct scsi_cmnd *);
-static int t128_biosparam(struct scsi_device *, struct block_device *,
-			  sector_t, int*);
-static int t128_detect(struct scsi_host_template *);
-static int t128_queue_command(struct Scsi_Host *, struct scsi_cmnd *);
-static int t128_bus_reset(struct scsi_cmnd *);
 
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2

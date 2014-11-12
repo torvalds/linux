@@ -56,8 +56,6 @@
 
 #define RESET_BOOT
 
-extern void via_scsi_clear(void);
-
 #ifdef RESET_BOOT
 static void mac_scsi_reset_boot(struct Scsi_Host *instance);
 #endif

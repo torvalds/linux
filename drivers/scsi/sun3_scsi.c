@@ -86,8 +86,6 @@ extern int sun3_map_test(unsigned long, char *);
 
 
 static irqreturn_t scsi_sun3_intr(int irq, void *dummy);
-static inline unsigned char sun3scsi_read(int reg);
-static inline void sun3scsi_write(int reg, int value);
 
 static int setup_can_queue = -1;
 module_param(setup_can_queue, int, 0);
@@ -348,7 +346,7 @@ static int __init sun3scsi_detect(struct scsi_host_template *tpnt)
 	return 1;
 }
 
-int sun3scsi_release (struct Scsi_Host *shpnt)
+static int sun3scsi_release(struct Scsi_Host *shpnt)
 {
 	if (shpnt->irq != SCSI_IRQ_NONE)
 		free_irq(shpnt->irq, shpnt);

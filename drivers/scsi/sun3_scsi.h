@@ -43,13 +43,6 @@
 
 #define IOBASE_SUN3_VMESCSI 0xff200000
 
-static int sun3scsi_abort(struct scsi_cmnd *);
-static int sun3scsi_detect (struct scsi_host_template *);
-static const char *sun3scsi_info (struct Scsi_Host *);
-static int sun3scsi_bus_reset(struct scsi_cmnd *);
-static int sun3scsi_queue_command(struct Scsi_Host *, struct scsi_cmnd *);
-static int sun3scsi_release (struct Scsi_Host *);
-
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
 #endif

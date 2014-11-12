@@ -272,7 +272,7 @@ static int __init do_DTC3181E_setup(char *str)
  *	Locks: none
  */
 
-int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
+static int __init generic_NCR5380_detect(struct scsi_host_template *tpnt)
 {
 	static int current_override = 0;
 	int count;
@@ -484,7 +484,7 @@ int __init generic_NCR5380_detect(struct scsi_host_template * tpnt)
  *	Report driver information for the NCR5380
  */
  	
-const char *generic_NCR5380_info(struct Scsi_Host *host)
+static const char *generic_NCR5380_info(struct Scsi_Host *host)
 {
 	static const char string[] = "Generic NCR5380/53C400 Driver";
 	return string;
@@ -499,7 +499,7 @@ const char *generic_NCR5380_info(struct Scsi_Host *host)
  *	Locks: none
  */
  
-int generic_NCR5380_release_resources(struct Scsi_Host *instance)
+static int generic_NCR5380_release_resources(struct Scsi_Host *instance)
 {
 	NCR5380_local_declare();
 	NCR5380_setup(instance);

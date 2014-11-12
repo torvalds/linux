@@ -193,7 +193,8 @@ __setup("t128=", t128_setup);
  *
  */
 
-int __init t128_detect(struct scsi_host_template * tpnt){
+static int __init t128_detect(struct scsi_host_template *tpnt)
+{
     static int current_override = 0, current_base = 0;
     struct Scsi_Host *instance;
     unsigned long base;
@@ -325,8 +326,8 @@ static int t128_release(struct Scsi_Host *shost)
  * and matching the H_C_S coordinates to what DOS uses.
  */
 
-int t128_biosparam(struct scsi_device *sdev, struct block_device *bdev,
-		sector_t capacity, int * ip)
+static int t128_biosparam(struct scsi_device *sdev, struct block_device *bdev,
+                          sector_t capacity, int *ip)
 {
   ip[0] = 64;
   ip[1] = 32;

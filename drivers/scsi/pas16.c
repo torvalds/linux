@@ -382,7 +382,7 @@ __setup("pas16=", pas16_setup);
  *
  */
 
-int __init pas16_detect(struct scsi_host_template * tpnt)
+static int __init pas16_detect(struct scsi_host_template *tpnt)
 {
     static int current_override = 0;
     static unsigned short current_base = 0;
@@ -512,8 +512,8 @@ int __init pas16_detect(struct scsi_host_template * tpnt)
  * and matching the H_C_S coordinates to what DOS uses.
  */
 
-int pas16_biosparam(struct scsi_device *sdev, struct block_device *dev,
-		sector_t capacity, int * ip)
+static int pas16_biosparam(struct scsi_device *sdev, struct block_device *dev,
+                           sector_t capacity, int *ip)
 {
   int size = capacity;
   ip[0] = 64;
