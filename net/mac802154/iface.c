@@ -535,3 +535,16 @@ void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata)
 	synchronize_rcu();
 	unregister_netdevice(sdata->dev);
 }
+
+void ieee802154_remove_interfaces(struct ieee802154_local *local)
+{
+	struct ieee802154_sub_if_data *sdata, *next;
+
+	list_for_each_entry_safe(sdata, next, &local->interfaces, list) {
+		mutex_lock(&sdata->local->iflist_mtx);
+		list_del(&sdata->list);
+		mutex_unlock(&sdata->local->iflist_mtx);
+
+		unregister_netdevice(sdata->dev);
+	}
+}

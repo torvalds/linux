@@ -165,7 +165,6 @@ EXPORT_SYMBOL(ieee802154_register_hw);
 void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
-	struct ieee802154_sub_if_data *sdata, *next;
 
 	tasklet_kill(&local->tasklet);
 	flush_workqueue(local->workqueue);
@@ -173,13 +172,7 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 
 	rtnl_lock();
 
-	list_for_each_entry_safe(sdata, next, &local->interfaces, list) {
-		mutex_lock(&sdata->local->iflist_mtx);
-		list_del(&sdata->list);
-		mutex_unlock(&sdata->local->iflist_mtx);
-
-		unregister_netdevice(sdata->dev);
-	}
+	ieee802154_remove_interfaces(local);
 
 	rtnl_unlock();
 
