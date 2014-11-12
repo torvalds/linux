@@ -519,12 +519,10 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	for (id = 0; id < ARRAY_SIZE(msm_obj->domain); id++) {
 		struct msm_mmu *mmu = priv->mmus[id];
 		if (mmu && msm_obj->domain[id].iova) {
-			uint32_t offset = (uint32_t)mmap_offset(obj);
+			uint32_t offset = msm_obj->domain[id].iova;
 			mmu->funcs->unmap(mmu, offset, msm_obj->sgt, obj->size);
 		}
 	}
-
-	drm_gem_free_mmap_offset(obj);
 
 	if (obj->import_attach) {
 		if (msm_obj->vaddr)
