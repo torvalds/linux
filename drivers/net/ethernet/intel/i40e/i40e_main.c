@@ -3862,6 +3862,15 @@ static void i40e_quiesce_vsi(struct i40e_vsi *vsi)
 	if (test_bit(__I40E_DOWN, &vsi->state))
 		return;
 
+	/* No need to disable FCoE VSI when Tx suspended */
+	if ((test_bit(__I40E_PORT_TX_SUSPENDED, &vsi->back->state)) &&
+	    vsi->type == I40E_VSI_FCOE) {
+		dev_dbg(&vsi->back->pdev->dev,
+			"%s: VSI seid %d skipping FCoE VSI disable\n",
+			 __func__, vsi->seid);
+		return;
+	}
+
 	set_bit(__I40E_NEEDS_RESTART, &vsi->state);
 	if (vsi->netdev && netif_running(vsi->netdev)) {
 		vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
@@ -3953,7 +3962,8 @@ static int i40e_pf_wait_txq_disabled(struct i40e_pf *pf)
 	int v, ret = 0;
 
 	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
-		if (pf->vsi[v]) {
+		/* No need to wait for FCoE VSI queues */
+		if (pf->vsi[v] && pf->vsi[v]->type != I40E_VSI_FCOE) {
 			ret = i40e_vsi_wait_txq_disabled(pf->vsi[v]);
 			if (ret)
 				break;
