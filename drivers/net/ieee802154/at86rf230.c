@@ -1184,9 +1184,6 @@ at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 	struct at86rf230_local *lp = hw->priv;
 	int rc = 0;
 
-	if (retries < -1 || retries > 15)
-		return -EINVAL;
-
 	lp->tx_aret = retries >= 0;
 	lp->max_frame_retries = retries;
 
