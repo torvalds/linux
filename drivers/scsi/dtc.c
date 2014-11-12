@@ -332,13 +332,11 @@ static int dtc_biosparam(struct scsi_device *sdev, struct block_device *dev,
  * 	timeout.
 */
 
-static int dtc_maxi = 0;
-static int dtc_wmaxi = 0;
-
 static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
 {
 	unsigned char *d = dst;
 	int i;			/* For counting time spent in the poll-loop */
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	NCR5380_local_declare();
 	NCR5380_setup(instance);
 
@@ -369,8 +367,8 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 	NCR5380_write(MODE_REG, 0);	/* Clear the operating mode */
 	rtrc(0);
 	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-	if (i > dtc_maxi)
-		dtc_maxi = i;
+	if (i > hostdata->spin_max_r)
+		hostdata->spin_max_r = i;
 	return (0);
 }
 
@@ -390,6 +388,7 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src, int len)
 {
 	int i;
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	NCR5380_local_declare();
 	NCR5380_setup(instance);
 
@@ -422,8 +421,8 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 	/* Check for parity error here. fixme. */
 	NCR5380_write(MODE_REG, 0);	/* Clear the operating mode */
 	rtrc(0);
-	if (i > dtc_wmaxi)
-		dtc_wmaxi = i;
+	if (i > hostdata->spin_max_w)
+		hostdata->spin_max_w = i;
 	return (0);
 }
 

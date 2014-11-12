@@ -274,6 +274,10 @@ struct NCR5380_hostdata {
 	struct delayed_work coroutine;		/* our co-routine */
 	struct scsi_eh_save ses;
 	char info[256];
+#ifdef PSEUDO_DMA
+	unsigned spin_max_r;
+	unsigned spin_max_w;
+#endif
 };
 
 #ifdef __KERNEL__

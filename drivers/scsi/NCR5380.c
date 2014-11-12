@@ -692,6 +692,7 @@ static void NCR5380_print_status(struct Scsi_Host *instance)
 	NCR5380_dprint_phase(NDEBUG_ANY, instance);
 }
 
+#ifdef PSEUDO_DMA
 /******************************************/
 /*
  * /proc/scsi/[dtc pas16 t128 generic]/[0-ASC_NUM_BOARD_SUPPORTED]
@@ -709,14 +710,13 @@ static void NCR5380_print_status(struct Scsi_Host *instance)
 static int __maybe_unused NCR5380_write_info(struct Scsi_Host *instance,
 	char *buffer, int length)
 {
-#ifdef DTC_PUBLIC_RELEASE
-	dtc_wmaxi = dtc_maxi = 0;
-#endif
-#ifdef PAS16_PUBLIC_RELEASE
-	pas_wmaxi = pas_maxi = 0;
-#endif
-	return (-ENOSYS);	/* Currently this is a no-op */
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	hostdata->spin_max_r = 0;
+	hostdata->spin_max_w = 0;
+	return 0;
 }
+#endif
 
 #undef SPRINTF
 #define SPRINTF(args...) seq_printf(m, ## args)
@@ -751,11 +751,9 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 	SPRINTF("PAS16 release=%d", PAS16_PUBLIC_RELEASE);
 #endif
 
-#ifdef DTC_PUBLIC_RELEASE
-	SPRINTF("Highwater I/O busy_spin_counts -- write: %d  read: %d\n", dtc_wmaxi, dtc_maxi);
-#endif
-#ifdef PAS16_PUBLIC_RELEASE
-	SPRINTF("Highwater I/O busy_spin_counts -- write: %d  read: %d\n", pas_wmaxi, pas_maxi);
+#ifdef PSEUDO_DMA
+	SPRINTF("Highwater I/O busy spin counts: write %d, read %d\n",
+	        hostdata->spin_max_w, hostdata->spin_max_r);
 #endif
 	spin_lock_irq(instance->host_lock);
 	if (!hostdata->connected)
