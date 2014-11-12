@@ -416,20 +416,7 @@ static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ }
 };
 
-static int __init bcm7xxx_phy_init(void)
-{
-	return phy_drivers_register(bcm7xxx_driver,
-			ARRAY_SIZE(bcm7xxx_driver));
-}
-
-static void __exit bcm7xxx_phy_exit(void)
-{
-	phy_drivers_unregister(bcm7xxx_driver,
-			ARRAY_SIZE(bcm7xxx_driver));
-}
-
-module_init(bcm7xxx_phy_init);
-module_exit(bcm7xxx_phy_exit);
+module_phy_driver(bcm7xxx_driver);
 
 MODULE_DEVICE_TABLE(mdio, bcm7xxx_tbl);
 
