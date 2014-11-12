@@ -373,7 +373,9 @@ static void pnv_ioda_freeze_pe(struct pnv_phb *phb, int pe_no)
 	/* Fetch master PE */
 	if (pe->flags & PNV_IODA_PE_SLAVE) {
 		pe = pe->master;
-		WARN_ON(!pe || !(pe->flags & PNV_IODA_PE_MASTER));
+		if (WARN_ON(!pe || !(pe->flags & PNV_IODA_PE_MASTER)))
+			return;
+
 		pe_no = pe->pe_number;
 	}
 
