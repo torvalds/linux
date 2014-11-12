@@ -41,6 +41,8 @@
 #define REAL_DMA
 #define RESET_RUN_DONE
 /* #define SUPPORT_TAGS */
+/* minimum number of bytes to do dma on */
+#define DMA_MIN_SIZE                    129
 
 /* #define MAX_TAGS                     32 */
 
@@ -63,6 +65,9 @@
         sun3scsi_dma_residual(instance)
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
         sun3scsi_dma_xfer_len(cmd->SCp.this_residual, cmd, !((phase) & SR_IO))
+
+#define NCR5380_acquire_dma_irq(instance)    (1)
+#define NCR5380_release_dma_irq(instance)
 
 #include "NCR5380.h"
 
@@ -91,9 +96,6 @@ module_param(setup_hostid, int, 0);
 
 /* dvma buffer to allocate -- 32k should hopefully be more than sufficient */
 #define SUN3_DVMA_BUFSIZE 0xe000
-
-/* minimum number of bytes to do dma on */
-#define SUN3_DMA_MINSIZE 128
 
 static struct scsi_cmnd *sun3_dma_setup_done;
 static unsigned char *sun3_scsi_regp;
@@ -486,7 +488,7 @@ static int sun3scsi_dma_finish(int write_flag)
 
 }
 	
-#include "sun3_NCR5380.c"
+#include "atari_NCR5380.c"
 
 #ifdef SUN3_SCSI_VME
 #define SUN3_SCSI_NAME          "Sun3 NCR5380 VME SCSI"
