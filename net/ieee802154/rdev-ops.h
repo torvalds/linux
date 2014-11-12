@@ -59,4 +59,13 @@ rdev_set_max_csma_backoffs(struct cfg802154_registered_device *rdev,
 						max_csma_backoffs);
 }
 
+static inline int
+rdev_set_max_frame_retries(struct cfg802154_registered_device *rdev,
+			   struct wpan_dev *wpan_dev,
+			   const s8 max_frame_retries)
+{
+	return rdev->ops->set_max_frame_retries(&rdev->wpan_phy, wpan_dev,
+						max_frame_retries);
+}
+
 #endif /* __CFG802154_RDEV_OPS */

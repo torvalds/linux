@@ -140,6 +140,21 @@ static int ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
 	return 0;
 }
 
+static int ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
+					    struct wpan_dev *wpan_dev,
+					    const s8 max_frame_retries)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+
+	ASSERT_RTNL();
+
+	if (!(local->hw.flags & IEEE802154_HW_FRAME_RETRIES))
+		return -EOPNOTSUPP;
+
+	wpan_dev->frame_retries = max_frame_retries;
+	return 0;
+}
+
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf_deprecated = ieee802154_add_iface_deprecated,
 	.del_virtual_intf_deprecated = ieee802154_del_iface_deprecated,
@@ -148,4 +163,5 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.set_short_addr = ieee802154_set_short_addr,
 	.set_backoff_exponent = ieee802154_set_backoff_exponent,
 	.set_max_csma_backoffs = ieee802154_set_max_csma_backoffs,
+	.set_max_frame_retries = ieee802154_set_max_frame_retries,
 };

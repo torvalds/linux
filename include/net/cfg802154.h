@@ -48,6 +48,9 @@ struct cfg802154_ops {
 	int	(*set_max_csma_backoffs)(struct wpan_phy *wpan_phy,
 					 struct wpan_dev *wpan_dev,
 					 u8 max_csma_backoffs);
+	int	(*set_max_frame_retries)(struct wpan_phy *wpan_phy,
+					 struct wpan_dev *wpan_dev,
+					 s8 max_frame_retries);
 };
 
 struct wpan_phy {
