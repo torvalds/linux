@@ -1432,6 +1432,8 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 		pr_err("EntryHi : %0*lx\n", field, read_c0_entryhi());
 		pr_err("EntryLo0: %0*lx\n", field, read_c0_entrylo0());
 		pr_err("EntryLo1: %0*lx\n", field, read_c0_entrylo1());
+		pr_err("Wired   : %0x\n", read_c0_wired());
+		pr_err("Pagegrain: %0x\n", read_c0_pagegrain());
 		if (cpu_has_htw) {
 			pr_err("PWField : %0*lx\n", field, read_c0_pwfield());
 			pr_err("PWSize  : %0*lx\n", field, read_c0_pwsize());
