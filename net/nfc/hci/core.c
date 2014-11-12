@@ -200,6 +200,9 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 			nfc_hci_send_response(hdev, gate, NFC_HCI_ANY_OK,
 					      &gate_opened, 1);
 		break;
+	case NFC_HCI_ADM_NOTIFY_ALL_PIPE_CLEARED:
+		nfc_hci_send_response(hdev, gate, NFC_HCI_ANY_OK, NULL, 0);
+		break;
 	default:
 		pr_info("Discarded unknown cmd %x to gate %x\n", cmd, gate);
 		r = -EINVAL;
