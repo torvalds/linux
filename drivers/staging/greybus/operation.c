@@ -64,7 +64,6 @@ static void gb_operation_insert(struct gb_operation *operation)
 	struct rb_node **link = &root->rb_node;
 	struct rb_node *above = NULL;
 	struct gb_operation_msg_hdr *header;
-	unsigned long timeout;
 
 	/* Assign the operation's id, and store it in the header of
 	 * the request message header.
@@ -89,10 +88,6 @@ static void gb_operation_insert(struct gb_operation *operation)
 	rb_link_node(node, above, link);
 	rb_insert_color(node, root);
 	spin_unlock_irq(&gb_operations_lock);
-
-	/* We impose a time limit for requests to complete.  */
-	timeout = msecs_to_jiffies(OPERATION_TIMEOUT_DEFAULT);
-	schedule_delayed_work(&operation->timeout_work, timeout);
 }
 
 static void gb_operation_remove(struct gb_operation *operation)
@@ -397,6 +392,7 @@ void gb_operation_destroy(struct gb_operation *operation)
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback)
 {
+	unsigned long timeout;
 	int ret;
 
 	if (operation->connection->state != GB_CONNECTION_STATE_ENABLED)
@@ -413,6 +409,10 @@ int gb_operation_request_send(struct gb_operation *operation,
 	ret = greybus_submit_gbuf(operation->request, GFP_KERNEL);
 	if (ret)
 		return ret;
+
+	/* We impose a time limit for requests to complete.  */
+	timeout = msecs_to_jiffies(OPERATION_TIMEOUT_DEFAULT);
+	schedule_delayed_work(&operation->timeout_work, timeout);
 	if (!callback)
 		ret = gb_operation_wait(operation);
 
