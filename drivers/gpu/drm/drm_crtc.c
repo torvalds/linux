@@ -1743,7 +1743,9 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	card_res->count_fbs = fb_count;
 	mutex_unlock(&file_priv->fbs_lock);
 
-	drm_modeset_lock_all(dev);
+	/* mode_config.mutex protects the connector list against e.g. DP MST
+	 * connector hot-adding. CRTC/Plane lists are invariant. */
+	mutex_lock(&dev->mode_config.mutex);
 	if (!drm_is_primary_client(file_priv)) {
 
 		mode_group = NULL;
@@ -1863,7 +1865,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		  card_res->count_connectors, card_res->count_encoders);
 
 out:
-	drm_modeset_unlock_all(dev);
+	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
 
@@ -1890,14 +1892,11 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
-
 	crtc = drm_crtc_find(dev, crtc_resp->crtc_id);
-	if (!crtc) {
-		ret = -ENOENT;
-		goto out;
-	}
+	if (!crtc)
+		return -ENOENT;
 
+	drm_modeset_lock_crtc(crtc, crtc->primary);
 	crtc_resp->x = crtc->x;
 	crtc_resp->y = crtc->y;
 	crtc_resp->gamma_size = crtc->gamma_size;
@@ -1914,9 +1913,8 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	} else {
 		crtc_resp->mode_valid = 0;
 	}
+	drm_modeset_unlock_crtc(crtc);
 
-out:
-	drm_modeset_unlock_all(dev);
 	return ret;
 }
 
@@ -2100,24 +2098,22 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	encoder = drm_encoder_find(dev, enc_resp->encoder_id);
-	if (!encoder) {
-		ret = -ENOENT;
-		goto out;
-	}
+	if (!encoder)
+		return -ENOENT;
 
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	if (encoder->crtc)
 		enc_resp->crtc_id = encoder->crtc->base.id;
 	else
 		enc_resp->crtc_id = 0;
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
 	enc_resp->encoder_type = encoder->encoder_type;
 	enc_resp->encoder_id = encoder->base.id;
 	enc_resp->possible_crtcs = encoder->possible_crtcs;
 	enc_resp->possible_clones = encoder->possible_clones;
 
-out:
-	drm_modeset_unlock_all(dev);
 	return ret;
 }
 
@@ -2141,13 +2137,12 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	struct drm_mode_config *config;
 	struct drm_plane *plane;
 	uint32_t __user *plane_ptr;
-	int copied = 0, ret = 0;
+	int copied = 0;
 	unsigned num_planes;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	config = &dev->mode_config;
 
 	if (file_priv->universal_planes)
@@ -2163,6 +2158,7 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 	    (plane_resp->count_planes >= num_planes)) {
 		plane_ptr = (uint32_t __user *)(unsigned long)plane_resp->plane_id_ptr;
 
+		/* Plane lists are invariant, no locking needed. */
 		list_for_each_entry(plane, &config->plane_list, head) {
 			/*
 			 * Unless userspace set the 'universal planes'
@@ -2172,18 +2168,14 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 			    !file_priv->universal_planes)
 				continue;
 
-			if (put_user(plane->base.id, plane_ptr + copied)) {
-				ret = -EFAULT;
-				goto out;
-			}
+			if (put_user(plane->base.id, plane_ptr + copied))
+				return -EFAULT;
 			copied++;
 		}
 	}
 	plane_resp->count_planes = num_planes;
 
-out:
-	drm_modeset_unlock_all(dev);
-	return ret;
+	return 0;
 }
 
 /**
@@ -2210,13 +2202,11 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	plane = drm_plane_find(dev, plane_resp->plane_id);
-	if (!plane) {
-		ret = -ENOENT;
-		goto out;
-	}
+	if (!plane)
+		return -ENOENT;
 
+	drm_modeset_lock(&plane->mutex, NULL);
 	if (plane->crtc)
 		plane_resp->crtc_id = plane->crtc->base.id;
 	else
@@ -2226,6 +2216,7 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 		plane_resp->fb_id = plane->fb->base.id;
 	else
 		plane_resp->fb_id = 0;
+	drm_modeset_unlock(&plane->mutex);
 
 	plane_resp->plane_id = plane->base.id;
 	plane_resp->possible_crtcs = plane->possible_crtcs;
@@ -2241,14 +2232,11 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 		if (copy_to_user(format_ptr,
 				 plane->format_types,
 				 sizeof(uint32_t) * plane->format_count)) {
-			ret = -EFAULT;
-			goto out;
+			return -EFAULT;
 		}
 	}
 	plane_resp->count_format_types = plane->format_count;
 
-out:
-	drm_modeset_unlock_all(dev);
 	return ret;
 }
 
