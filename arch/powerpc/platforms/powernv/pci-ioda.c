@@ -172,7 +172,7 @@ fail:
 	return -EIO;
 }
 
-static void pnv_ioda2_alloc_m64_pe(struct pnv_phb *phb)
+static void pnv_ioda2_reserve_m64_pe(struct pnv_phb *phb)
 {
 	resource_size_t sgsz = phb->ioda.m64_segsize;
 	struct pci_dev *pdev;
@@ -345,7 +345,7 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	/* Use last M64 BAR to cover M64 window */
 	phb->ioda.m64_bar_idx = 15;
 	phb->init_m64 = pnv_ioda2_init_m64;
-	phb->alloc_m64_pe = pnv_ioda2_alloc_m64_pe;
+	phb->reserve_m64_pe = pnv_ioda2_reserve_m64_pe;
 	phb->pick_m64_pe = pnv_ioda2_pick_m64_pe;
 }
 
@@ -837,8 +837,8 @@ static void pnv_pci_ioda_setup_PEs(void)
 		phb = hose->private_data;
 
 		/* M64 layout might affect PE allocation */
-		if (phb->alloc_m64_pe)
-			phb->alloc_m64_pe(phb);
+		if (phb->reserve_m64_pe)
+			phb->reserve_m64_pe(phb);
 
 		pnv_ioda_setup_PEs(hose->bus);
 	}
