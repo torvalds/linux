@@ -313,6 +313,12 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	const u32 *r;
 	u64 pci_addr;
 
+	/* FIXME: Support M64 for P7IOC */
+	if (phb->type != PNV_PHB_IODA2) {
+		pr_info("  Not support M64 window\n");
+		return;
+	}
+
 	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
 		pr_info("  Firmware too old to support M64 window\n");
 		return;
@@ -322,12 +328,6 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	if (!r) {
 		pr_info("  No <ibm,opal-m64-window> on %s\n",
 			dn->full_name);
-		return;
-	}
-
-	/* FIXME: Support M64 for P7IOC */
-	if (phb->type != PNV_PHB_IODA2) {
-		pr_info("  Not support M64 window\n");
 		return;
 	}
 
