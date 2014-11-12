@@ -4384,7 +4384,8 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 			}
 			if (r) {
 				if (r != -ENODEV)
-					dev_err(&udev->dev, "device descriptor read/64, error %d\n",
+					dev_err(&udev->dev,
+						"device no response, device descriptor read/64, error %d\n",
 							r);
 				retval = -EMSGSIZE;
 				continue;
