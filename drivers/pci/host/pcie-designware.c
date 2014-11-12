@@ -380,6 +380,7 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 	/* Get the I/O and memory ranges from DT */
 	for_each_of_pci_range(&parser, &range) {
 		unsigned long restype = range.flags & IORESOURCE_TYPE_BITS;
+
 		if (restype == IORESOURCE_IO) {
 			of_pci_range_to_resource(&range, np, &pp->io);
 			pp->io.name = "I/O";
