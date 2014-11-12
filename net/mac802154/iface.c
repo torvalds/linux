@@ -540,11 +540,11 @@ void ieee802154_remove_interfaces(struct ieee802154_local *local)
 {
 	struct ieee802154_sub_if_data *sdata, *tmp;
 
+	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
-		mutex_lock(&sdata->local->iflist_mtx);
 		list_del(&sdata->list);
-		mutex_unlock(&sdata->local->iflist_mtx);
 
 		unregister_netdevice(sdata->dev);
 	}
+	mutex_unlock(&local->iflist_mtx);
 }
