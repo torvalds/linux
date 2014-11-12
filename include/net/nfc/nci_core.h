@@ -73,6 +73,7 @@ struct nci_ops {
 	int   (*setup)(struct nci_dev *ndev);
 	__u32 (*get_rfprotocol)(struct nci_dev *ndev, __u8 rf_protocol);
 	int   (*discover_se)(struct nci_dev *ndev);
+	int   (*enable_se)(struct nci_dev *ndev, u32 se_idx);
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4

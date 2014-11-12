@@ -746,6 +746,11 @@ static int nci_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 
 static int nci_enable_se(struct nfc_dev *nfc_dev, u32 se_idx)
 {
+	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
+
+	if (ndev->ops->enable_se)
+		return ndev->ops->enable_se(ndev, se_idx);
+
 	return 0;
 }
 
