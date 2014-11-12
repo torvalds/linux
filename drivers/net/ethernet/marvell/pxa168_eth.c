@@ -1540,8 +1540,8 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	if (err)
 		goto err_free_mdio;
 
-	pxa168_init_hw(pep);
 	SET_NETDEV_DEV(dev, &pdev->dev);
+	pxa168_init_hw(pep);
 	err = register_netdev(dev);
 	if (err)
 		goto err_mdiobus;
