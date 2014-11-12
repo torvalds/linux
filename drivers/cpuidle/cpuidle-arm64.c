@@ -73,7 +73,6 @@ static struct cpuidle_driver arm64_idle_driver = {
 		.exit_latency           = 1,
 		.target_residency       = 1,
 		.power_usage		= UINT_MAX,
-		.flags                  = CPUIDLE_FLAG_TIME_VALID,
 		.name                   = "WFI",
 		.desc                   = "ARM64 WFI",
 	}

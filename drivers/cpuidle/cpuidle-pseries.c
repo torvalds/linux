@@ -142,14 +142,12 @@ static struct cpuidle_state dedicated_states[] = {
 	{ /* Snooze */
 		.name = "snooze",
 		.desc = "snooze",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 0,
 		.target_residency = 0,
 		.enter = &snooze_loop },
 	{ /* CEDE */
 		.name = "CEDE",
 		.desc = "CEDE",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 10,
 		.target_residency = 100,
 		.enter = &dedicated_cede_loop },
@@ -162,7 +160,6 @@ static struct cpuidle_state shared_states[] = {
 	{ /* Shared Cede */
 		.name = "Shared Cede",
 		.desc = "Shared Cede",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 0,
 		.target_residency = 0,
 		.enter = &shared_cede_loop },

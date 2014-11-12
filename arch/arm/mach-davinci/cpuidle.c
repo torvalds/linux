@@ -66,7 +66,6 @@ static struct cpuidle_driver davinci_idle_driver = {
 		.enter			= davinci_enter_idle,
 		.exit_latency		= 10,
 		.target_residency	= 10000,
-		.flags			= CPUIDLE_FLAG_TIME_VALID,
 		.name			= "DDR SR",
 		.desc			= "WFI and DDR Self Refresh",
 	},

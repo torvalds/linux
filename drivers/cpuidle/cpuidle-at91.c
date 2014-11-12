@@ -43,7 +43,6 @@ static struct cpuidle_driver at91_idle_driver = {
 		.enter			= at91_enter_idle,
 		.exit_latency		= 10,
 		.target_residency	= 10000,
-		.flags			= CPUIDLE_FLAG_TIME_VALID,
 		.name			= "RAM_SR",
 		.desc			= "WFI and DDR Self Refresh",
 	},

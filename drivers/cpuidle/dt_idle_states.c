@@ -73,7 +73,7 @@ static int init_state_node(struct cpuidle_state *idle_state,
 		return -EINVAL;
 	}
 
-	idle_state->flags = CPUIDLE_FLAG_TIME_VALID;
+	idle_state->flags = 0;
 	if (of_property_read_bool(state_node, "local-timer-stop"))
 		idle_state->flags |= CPUIDLE_FLAG_TIMER_STOP;
 	/*
