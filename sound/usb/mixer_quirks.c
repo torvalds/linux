@@ -52,13 +52,6 @@ struct std_mono_table {
 	snd_kcontrol_tlv_rw_t *tlv_callback;
 };
 
-/* private_free callback */
-static void usb_mixer_elem_free(struct snd_kcontrol *kctl)
-{
-	kfree(kctl->private_data);
-	kctl->private_data = NULL;
-}
-
 /* This function allows for the creation of standard UAC controls.
  * See the quirks for M-Audio FTUs or Ebox-44.
  * If you don't want to set a TLV callback pass NULL.
@@ -108,7 +101,7 @@ static int snd_create_std_mono_ctl_offset(struct usb_mixer_interface *mixer,
 
 	/* Set name */
 	snprintf(kctl->id.name, sizeof(kctl->id.name), name);
-	kctl->private_free = usb_mixer_elem_free;
+	kctl->private_free = snd_usb_mixer_elem_free;
 
 	/* set TLV */
 	if (tlv_callback) {

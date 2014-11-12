@@ -76,4 +76,12 @@ int snd_usb_mixer_suspend(struct usb_mixer_interface *mixer);
 int snd_usb_mixer_resume(struct usb_mixer_interface *mixer, bool reset_resume);
 #endif
 
+int snd_usb_set_cur_mix_value(struct usb_mixer_elem_info *cval, int channel,
+                             int index, int value);
+
+int snd_usb_get_cur_mix_value(struct usb_mixer_elem_info *cval,
+                             int channel, int index, int *value);
+
+extern void snd_usb_mixer_elem_free(struct snd_kcontrol *kctl);
+
 #endif /* __USBMIXER_H */

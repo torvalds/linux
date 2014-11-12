@@ -412,7 +412,7 @@ static inline int get_cur_mix_raw(struct usb_mixer_elem_info *cval,
 			     value);
 }
 
-static int get_cur_mix_value(struct usb_mixer_elem_info *cval,
+int snd_usb_get_cur_mix_value(struct usb_mixer_elem_info *cval,
 			     int channel, int index, int *value)
 {
 	int err;
@@ -497,7 +497,7 @@ static int set_cur_ctl_value(struct usb_mixer_elem_info *cval,
 	return snd_usb_mixer_set_ctl_value(cval, UAC_SET_CUR, validx, value);
 }
 
-static int set_cur_mix_value(struct usb_mixer_elem_info *cval, int channel,
+int snd_usb_set_cur_mix_value(struct usb_mixer_elem_info *cval, int channel,
 			     int index, int value)
 {
 	int err;
@@ -815,7 +815,7 @@ static struct usb_feature_control_info audio_feature_info[] = {
 };
 
 /* private_free callback */
-static void usb_mixer_elem_free(struct snd_kcontrol *kctl)
+void snd_usb_mixer_elem_free(struct snd_kcontrol *kctl)
 {
 	kfree(kctl->private_data);
 	kctl->private_data = NULL;
@@ -998,7 +998,7 @@ static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 				else
 					test -= cval->res;
 				if (test < cval->min || test > cval->max ||
-				    set_cur_mix_value(cval, minchn, 0, test) ||
+				    snd_usb_set_cur_mix_value(cval, minchn, 0, test) ||
 				    get_cur_mix_raw(cval, minchn, &check)) {
 					cval->res = last_valid_res;
 					break;
@@ -1007,7 +1007,7 @@ static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 					break;
 				cval->res *= 2;
 			}
-			set_cur_mix_value(cval, minchn, 0, saved);
+			snd_usb_set_cur_mix_value(cval, minchn, 0, saved);
 		}
 
 		cval->initialized = 1;
@@ -1086,7 +1086,7 @@ static int mixer_ctl_feature_get(struct snd_kcontrol *kcontrol,
 		for (c = 0; c < MAX_CHANNELS; c++) {
 			if (!(cval->cmask & (1 << c)))
 				continue;
-			err = get_cur_mix_value(cval, c + 1, cnt, &val);
+			err = snd_usb_get_cur_mix_value(cval, c + 1, cnt, &val);
 			if (err < 0)
 				return cval->mixer->ignore_ctl_error ? 0 : err;
 			val = get_relative_value(cval, val);
@@ -1096,7 +1096,7 @@ static int mixer_ctl_feature_get(struct snd_kcontrol *kcontrol,
 		return 0;
 	} else {
 		/* master channel */
-		err = get_cur_mix_value(cval, 0, 0, &val);
+		err = snd_usb_get_cur_mix_value(cval, 0, 0, &val);
 		if (err < 0)
 			return cval->mixer->ignore_ctl_error ? 0 : err;
 		val = get_relative_value(cval, val);
@@ -1118,26 +1118,26 @@ static int mixer_ctl_feature_put(struct snd_kcontrol *kcontrol,
 		for (c = 0; c < MAX_CHANNELS; c++) {
 			if (!(cval->cmask & (1 << c)))
 				continue;
-			err = get_cur_mix_value(cval, c + 1, cnt, &oval);
+			err = snd_usb_get_cur_mix_value(cval, c + 1, cnt, &oval);
 			if (err < 0)
 				return cval->mixer->ignore_ctl_error ? 0 : err;
 			val = ucontrol->value.integer.value[cnt];
 			val = get_abs_value(cval, val);
 			if (oval != val) {
-				set_cur_mix_value(cval, c + 1, cnt, val);
+				snd_usb_set_cur_mix_value(cval, c + 1, cnt, val);
 				changed = 1;
 			}
 			cnt++;
 		}
 	} else {
 		/* master channel */
-		err = get_cur_mix_value(cval, 0, 0, &oval);
+		err = snd_usb_get_cur_mix_value(cval, 0, 0, &oval);
 		if (err < 0)
 			return cval->mixer->ignore_ctl_error ? 0 : err;
 		val = ucontrol->value.integer.value[0];
 		val = get_abs_value(cval, val);
 		if (val != oval) {
-			set_cur_mix_value(cval, 0, 0, val);
+			snd_usb_set_cur_mix_value(cval, 0, 0, val);
 			changed = 1;
 		}
 	}
@@ -1250,7 +1250,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 
 	/*
 	 * If all channels in the mask are marked read-only, make the control
-	 * read-only. set_cur_mix_value() will check the mask again and won't
+	 * read-only. snd_usb_set_cur_mix_value() will check the mask again and won't
 	 * issue write commands to read-only channels.
 	 */
 	if (cval->channels == readonly_mask)
@@ -1263,7 +1263,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		kfree(cval);
 		return;
 	}
-	kctl->private_free = usb_mixer_elem_free;
+	kctl->private_free = snd_usb_mixer_elem_free;
 
 	len = check_mapped_name(map, kctl->id.name, sizeof(kctl->id.name));
 	mapped_name = len != 0;
@@ -1546,7 +1546,7 @@ static void build_mixer_unit_ctl(struct mixer_build *state,
 		kfree(cval);
 		return;
 	}
-	kctl->private_free = usb_mixer_elem_free;
+	kctl->private_free = snd_usb_mixer_elem_free;
 
 	len = check_mapped_name(map, kctl->id.name, sizeof(kctl->id.name));
 	if (!len)
@@ -1846,7 +1846,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 			kfree(cval);
 			return -ENOMEM;
 		}
-		kctl->private_free = usb_mixer_elem_free;
+		kctl->private_free = snd_usb_mixer_elem_free;
 
 		if (check_mapped_name(map, kctl->id.name, sizeof(kctl->id.name))) {
 			/* nothing */ ;
@@ -2526,7 +2526,7 @@ static int restore_mixer_value(struct usb_mixer_elem_info *cval)
 			if (!(cval->cmask & (1 << c)))
 				continue;
 			if (cval->cached & (1 << c)) {
-				err = set_cur_mix_value(cval, c + 1, idx,
+				err = snd_usb_set_cur_mix_value(cval, c + 1, idx,
 							cval->cache_val[idx]);
 				if (err < 0)
 					return err;
@@ -2536,7 +2536,7 @@ static int restore_mixer_value(struct usb_mixer_elem_info *cval)
 	} else {
 		/* master */
 		if (cval->cached) {
-			err = set_cur_mix_value(cval, 0, 0, *cval->cache_val);
+			err = snd_usb_set_cur_mix_value(cval, 0, 0, *cval->cache_val);
 			if (err < 0)
 				return err;
 		}
