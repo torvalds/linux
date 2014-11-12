@@ -2215,10 +2215,8 @@ EXPORT_SYMBOL(ptlrpc_set_wait);
  */
 static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 {
-	if (request == NULL) {
+	if (request == NULL)
 		return;
-	}
-
 	LASSERTF(!request->rq_receiving_reply, "req %p\n", request);
 	LASSERTF(request->rq_rqbd == NULL, "req %p\n", request);/* client-side */
 	LASSERTF(list_empty(&request->rq_list), "req %p\n", request);
