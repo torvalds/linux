@@ -576,7 +576,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	__be64 *d = &q->desc[q->pidx];
 	struct rx_sw_desc *sd = &q->sdesc[q->pidx];
 
-	gfp |= __GFP_NOWARN | __GFP_COLD;
+	gfp |= __GFP_NOWARN;
 
 	if (s->fl_pg_order == 0)
 		goto alloc_small_pages;
@@ -585,7 +585,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	 * Prefer large buffers
 	 */
 	while (n) {
-		pg = alloc_pages(gfp | __GFP_COMP, s->fl_pg_order);
+		pg = __dev_alloc_pages(gfp, s->fl_pg_order);
 		if (unlikely(!pg)) {
 			q->large_alloc_failed++;
 			break;       /* fall back to single pages */
@@ -615,7 +615,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 
 alloc_small_pages:
 	while (n--) {
-		pg = __skb_alloc_page(gfp, NULL);
+		pg = __dev_alloc_page(gfp);
 		if (unlikely(!pg)) {
 			q->alloc_failed++;
 			break;
