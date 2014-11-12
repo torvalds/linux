@@ -30,7 +30,6 @@
 #include <asm/macints.h>
 #include <asm/mac_via.h>
 
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include "mac_scsi.h"
 

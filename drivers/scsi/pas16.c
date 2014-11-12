@@ -81,7 +81,6 @@
 #include <linux/stat.h>
 #include <linux/init.h>
 
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include "pas16.h"
 #define AUTOPROBE_IRQ

@@ -77,7 +77,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include "t128.h"
 #define AUTOPROBE_IRQ

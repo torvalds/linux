@@ -58,7 +58,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include "dtc.h"
 #define AUTOPROBE_IRQ

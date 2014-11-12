@@ -14,7 +14,6 @@
 #include <asm/ecard.h>
 #include <asm/io.h>
 
-#include "../scsi.h"
 #include <scsi/scsi_host.h>
 
 /*#define PSEUDO_DMA*/

@@ -45,7 +45,6 @@
  * Includes needed for NCR5380.[ch] (XXX: Move them to NCR5380.h)
  */
 #include <linux/delay.h>
-#include "scsi.h"
 
 #include "NCR5380.h"
 #include "NCR5380.c"

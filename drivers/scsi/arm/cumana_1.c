@@ -13,7 +13,6 @@
 #include <asm/ecard.h>
 #include <asm/io.h>
 
-#include "../scsi.h"
 #include <scsi/scsi_host.h>
 
 #include <scsi/scsicam.h>

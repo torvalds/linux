@@ -277,7 +277,7 @@ static void do_reset(struct Scsi_Host *host);
  *	Set up the internal fields in the SCSI command.
  */
 
-static __inline__ void initialize_SCp(Scsi_Cmnd * cmd)
+static inline void initialize_SCp(struct scsi_cmnd *cmd)
 {
 	/* 
 	 * Initialize the Scsi Pointer field so that all of the commands in the 
@@ -719,7 +719,7 @@ static int __maybe_unused NCR5380_write_info(struct Scsi_Host *instance,
 #undef SPRINTF
 #define SPRINTF(args...) seq_printf(m, ## args)
 static
-void lprint_Scsi_Cmnd(Scsi_Cmnd * cmd, struct seq_file *m);
+void lprint_Scsi_Cmnd(struct scsi_cmnd *cmd, struct seq_file *m);
 static
 void lprint_command(unsigned char *cmd, struct seq_file *m);
 static
@@ -729,7 +729,7 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 	struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata;
-	Scsi_Cmnd *ptr;
+	struct scsi_cmnd *ptr;
 
 	hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 
@@ -741,19 +741,19 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 	if (!hostdata->connected)
 		SPRINTF("scsi%d: no currently connected command\n", instance->host_no);
 	else
-		lprint_Scsi_Cmnd((Scsi_Cmnd *) hostdata->connected, m);
+		lprint_Scsi_Cmnd((struct scsi_cmnd *) hostdata->connected, m);
 	SPRINTF("scsi%d: issue_queue\n", instance->host_no);
-	for (ptr = (Scsi_Cmnd *) hostdata->issue_queue; ptr; ptr = (Scsi_Cmnd *) ptr->host_scribble)
+	for (ptr = (struct scsi_cmnd *) hostdata->issue_queue; ptr; ptr = (struct scsi_cmnd *) ptr->host_scribble)
 		lprint_Scsi_Cmnd(ptr, m);
 
 	SPRINTF("scsi%d: disconnected_queue\n", instance->host_no);
-	for (ptr = (Scsi_Cmnd *) hostdata->disconnected_queue; ptr; ptr = (Scsi_Cmnd *) ptr->host_scribble)
+	for (ptr = (struct scsi_cmnd *) hostdata->disconnected_queue; ptr; ptr = (struct scsi_cmnd *) ptr->host_scribble)
 		lprint_Scsi_Cmnd(ptr, m);
 	spin_unlock_irq(instance->host_lock);
 	return 0;
 }
 
-static void lprint_Scsi_Cmnd(Scsi_Cmnd * cmd, struct seq_file *m)
+static void lprint_Scsi_Cmnd(struct scsi_cmnd *cmd, struct seq_file *m)
 {
 	SPRINTF("scsi%d : destination target %d, lun %llu\n", cmd->device->host->host_no, cmd->device->id, cmd->device->lun);
 	SPRINTF("        command = ");
@@ -912,11 +912,11 @@ static void NCR5380_exit(struct Scsi_Host *instance)
  *	Locks: host lock taken by caller
  */
 
-static int NCR5380_queue_command_lck(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
+static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd, void (*done) (struct scsi_cmnd *))
 {
 	struct Scsi_Host *instance = cmd->device->host;
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
-	Scsi_Cmnd *tmp;
+	struct scsi_cmnd *tmp;
 
 #if (NDEBUG & NDEBUG_NO_WRITE)
 	switch (cmd->cmnd[0]) {
@@ -950,7 +950,7 @@ static int NCR5380_queue_command_lck(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *)
 		cmd->host_scribble = (unsigned char *) hostdata->issue_queue;
 		hostdata->issue_queue = cmd;
 	} else {
-		for (tmp = (Scsi_Cmnd *) hostdata->issue_queue; tmp->host_scribble; tmp = (Scsi_Cmnd *) tmp->host_scribble);
+		for (tmp = (struct scsi_cmnd *) hostdata->issue_queue; tmp->host_scribble; tmp = (struct scsi_cmnd *) tmp->host_scribble);
 		LIST(cmd, tmp);
 		tmp->host_scribble = (unsigned char *) cmd;
 	}
@@ -981,7 +981,7 @@ static void NCR5380_main(struct work_struct *work)
 	struct NCR5380_hostdata *hostdata =
 		container_of(work, struct NCR5380_hostdata, coroutine.work);
 	struct Scsi_Host *instance = hostdata->host;
-	Scsi_Cmnd *tmp, *prev;
+	struct scsi_cmnd *tmp, *prev;
 	int done;
 	
 	spin_lock_irq(instance->host_lock);
@@ -994,7 +994,7 @@ static void NCR5380_main(struct work_struct *work)
 			 * Search through the issue_queue for a command destined
 			 * for a target that's not busy.
 			 */
-			for (tmp = (Scsi_Cmnd *) hostdata->issue_queue, prev = NULL; tmp; prev = tmp, tmp = (Scsi_Cmnd *) tmp->host_scribble) 
+			for (tmp = (struct scsi_cmnd *) hostdata->issue_queue, prev = NULL; tmp; prev = tmp, tmp = (struct scsi_cmnd *) tmp->host_scribble)
 			{
 				if (prev != tmp)
 				    dprintk(NDEBUG_LISTS, "MAIN tmp=%p   target=%d   busy=%d lun=%llu\n", tmp, tmp->device->id, hostdata->busy[tmp->device->id], tmp->device->lun);
@@ -1006,7 +1006,7 @@ static void NCR5380_main(struct work_struct *work)
 						prev->host_scribble = tmp->host_scribble;
 					} else {
 						REMOVE(-1, hostdata->issue_queue, tmp, tmp->host_scribble);
-						hostdata->issue_queue = (Scsi_Cmnd *) tmp->host_scribble;
+						hostdata->issue_queue = (struct scsi_cmnd *) tmp->host_scribble;
 					}
 					tmp->host_scribble = NULL;
 
@@ -1053,7 +1053,7 @@ static void NCR5380_main(struct work_struct *work)
 			/* exited locked */
 		}	/* if (!hostdata->connected) */
 		if (hostdata->selecting) {
-			tmp = (Scsi_Cmnd *) hostdata->selecting;
+			tmp = (struct scsi_cmnd *) hostdata->selecting;
 			/* Selection will drop and retake the lock */
 			if (!NCR5380_select(instance, tmp)) {
 				/* Ok ?? */
@@ -1175,7 +1175,8 @@ static irqreturn_t NCR5380_intr(int dummy, void *dev_id)
 #endif 
 
 /* 
- * Function : int NCR5380_select (struct Scsi_Host *instance, Scsi_Cmnd *cmd)
+ * Function : int NCR5380_select(struct Scsi_Host *instance,
+ *                               struct scsi_cmnd *cmd)
  *
  * Purpose : establishes I_T_L or I_T_L_Q nexus for new or existing command,
  *      including ARBITRATION, SELECTION, and initial message out for 
@@ -1204,7 +1205,7 @@ static irqreturn_t NCR5380_intr(int dummy, void *dev_id)
  *	Locks: caller holds hostdata lock in IRQ mode
  */
  
-static int NCR5380_select(struct Scsi_Host *instance, Scsi_Cmnd *cmd)
+static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 {
 	NCR5380_local_declare();
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
@@ -2011,7 +2012,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 #endif
 	unsigned char *data;
 	unsigned char phase, tmp, extended_msg[10], old_phase = 0xff;
-	Scsi_Cmnd *cmd = (Scsi_Cmnd *) hostdata->connected;
+	struct scsi_cmnd *cmd = (struct scsi_cmnd *) hostdata->connected;
 	/* RvC: we need to set the end of the polling time */
 	unsigned long poll_time = jiffies + USLEEP_POLL;
 
@@ -2201,7 +2202,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 						LIST(cmd, hostdata->issue_queue);
 						cmd->host_scribble = (unsigned char *)
 						    hostdata->issue_queue;
-						hostdata->issue_queue = (Scsi_Cmnd *) cmd;
+						hostdata->issue_queue = (struct scsi_cmnd *) cmd;
 						dprintk(NDEBUG_QUEUES, "scsi%d : REQUEST SENSE added to head of issue queue\n", instance->host_no);
 					} else {
 						cmd->scsi_done(cmd);
@@ -2398,7 +2399,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
  * Function : void NCR5380_reselect (struct Scsi_Host *instance)
  *
  * Purpose : does reselection, initializing the instance->connected 
- *      field to point to the Scsi_Cmnd for which the I_T_L or I_T_L_Q 
+ *      field to point to the scsi_cmnd for which the I_T_L or I_T_L_Q
  *      nexus has been reestablished,
  *      
  * Inputs : instance - this instance of the NCR5380.
@@ -2415,7 +2416,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 	int len;
 	unsigned char msg[3];
 	unsigned char *data;
-	Scsi_Cmnd *tmp = NULL, *prev;
+	struct scsi_cmnd *tmp = NULL, *prev;
 	int abort = 0;
 	NCR5380_setup(instance);
 
@@ -2481,7 +2482,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 		 */
 
 
-		for (tmp = (Scsi_Cmnd *) hostdata->disconnected_queue, prev = NULL; tmp; prev = tmp, tmp = (Scsi_Cmnd *) tmp->host_scribble)
+		for (tmp = (struct scsi_cmnd *) hostdata->disconnected_queue, prev = NULL; tmp; prev = tmp, tmp = (struct scsi_cmnd *) tmp->host_scribble)
 			if ((target_mask == (1 << tmp->device->id)) && (lun == (u8)tmp->device->lun)
 			    ) {
 				if (prev) {
@@ -2489,7 +2490,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 					prev->host_scribble = tmp->host_scribble;
 				} else {
 					REMOVE(-1, hostdata->disconnected_queue, tmp, tmp->host_scribble);
-					hostdata->disconnected_queue = (Scsi_Cmnd *) tmp->host_scribble;
+					hostdata->disconnected_queue = (struct scsi_cmnd *) tmp->host_scribble;
 				}
 				tmp->host_scribble = NULL;
 				break;
@@ -2520,7 +2521,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
  *
  * Inputs : instance - this instance of the NCR5380.
  *
- * Returns : pointer to the Scsi_Cmnd structure for which the I_T_L
+ * Returns : pointer to the scsi_cmnd structure for which the I_T_L
  *      nexus has been reestablished, on failure NULL is returned.
  */
 
@@ -2562,11 +2563,11 @@ static void NCR5380_dma_complete(NCR5380_instance * instance) {
 #endif				/* def REAL_DMA */
 
 /*
- * Function : int NCR5380_abort (Scsi_Cmnd *cmd)
+ * Function : int NCR5380_abort (struct scsi_cmnd *cmd)
  *
  * Purpose : abort a command
  *
- * Inputs : cmd - the Scsi_Cmnd to abort, code - code to set the
+ * Inputs : cmd - the scsi_cmnd to abort, code - code to set the
  *      host byte of the result field to, if zero DID_ABORTED is
  *      used.
  *
@@ -2580,11 +2581,12 @@ static void NCR5380_dma_complete(NCR5380_instance * instance) {
  * Locks: host lock taken by caller
  */
 
-static int NCR5380_abort(Scsi_Cmnd * cmd) {
+static int NCR5380_abort(struct scsi_cmnd *cmd)
+{
 	NCR5380_local_declare();
 	struct Scsi_Host *instance = cmd->device->host;
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
-	Scsi_Cmnd *tmp, **prev;
+	struct scsi_cmnd *tmp, **prev;
 
 	scmd_printk(KERN_WARNING, cmd, "aborting command\n");
 
@@ -2632,10 +2634,10 @@ static int NCR5380_abort(Scsi_Cmnd * cmd) {
  */
  
 	dprintk(NDEBUG_ABORT, "scsi%d : abort going into loop.\n", instance->host_no);
-	for (prev = (Scsi_Cmnd **) & (hostdata->issue_queue), tmp = (Scsi_Cmnd *) hostdata->issue_queue; tmp; prev = (Scsi_Cmnd **) & (tmp->host_scribble), tmp = (Scsi_Cmnd *) tmp->host_scribble)
+	for (prev = (struct scsi_cmnd **) &(hostdata->issue_queue), tmp = (struct scsi_cmnd *) hostdata->issue_queue; tmp; prev = (struct scsi_cmnd **) &(tmp->host_scribble), tmp = (struct scsi_cmnd *) tmp->host_scribble)
 		if (cmd == tmp) {
 			REMOVE(5, *prev, tmp, tmp->host_scribble);
-			(*prev) = (Scsi_Cmnd *) tmp->host_scribble;
+			(*prev) = (struct scsi_cmnd *) tmp->host_scribble;
 			tmp->host_scribble = NULL;
 			tmp->result = DID_ABORT << 16;
 			dprintk(NDEBUG_ABORT, "scsi%d : abort removed command from issue queue.\n", instance->host_no);
@@ -2688,7 +2690,7 @@ static int NCR5380_abort(Scsi_Cmnd * cmd) {
  * it from the disconnected queue.
  */
 
-	for (tmp = (Scsi_Cmnd *) hostdata->disconnected_queue; tmp; tmp = (Scsi_Cmnd *) tmp->host_scribble)
+	for (tmp = (struct scsi_cmnd *) hostdata->disconnected_queue; tmp; tmp = (struct scsi_cmnd *) tmp->host_scribble)
 		if (cmd == tmp) {
 			dprintk(NDEBUG_ABORT, "scsi%d : aborting disconnected command.\n", instance->host_no);
 
@@ -2698,10 +2700,10 @@ static int NCR5380_abort(Scsi_Cmnd * cmd) {
 
 			do_abort(instance);
 
-			for (prev = (Scsi_Cmnd **) & (hostdata->disconnected_queue), tmp = (Scsi_Cmnd *) hostdata->disconnected_queue; tmp; prev = (Scsi_Cmnd **) & (tmp->host_scribble), tmp = (Scsi_Cmnd *) tmp->host_scribble)
+			for (prev = (struct scsi_cmnd **) &(hostdata->disconnected_queue), tmp = (struct scsi_cmnd *) hostdata->disconnected_queue; tmp; prev = (struct scsi_cmnd **) &(tmp->host_scribble), tmp = (struct scsi_cmnd *) tmp->host_scribble)
 				if (cmd == tmp) {
 					REMOVE(5, *prev, tmp, tmp->host_scribble);
-					*prev = (Scsi_Cmnd *) tmp->host_scribble;
+					*prev = (struct scsi_cmnd *) tmp->host_scribble;
 					tmp->host_scribble = NULL;
 					tmp->result = DID_ABORT << 16;
 					tmp->scsi_done(tmp);
@@ -2724,7 +2726,7 @@ static int NCR5380_abort(Scsi_Cmnd * cmd) {
 
 
 /* 
- * Function : int NCR5380_bus_reset (Scsi_Cmnd *cmd)
+ * Function : int NCR5380_bus_reset (struct scsi_cmnd *cmd)
  * 
  * Purpose : reset the SCSI bus.
  *
@@ -2733,7 +2735,7 @@ static int NCR5380_abort(Scsi_Cmnd * cmd) {
  * Locks: host lock taken by caller
  */
 
-static int NCR5380_bus_reset(Scsi_Cmnd * cmd)
+static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *instance = cmd->device->host;
 

@@ -255,9 +255,9 @@ struct NCR5380_hostdata {
 	volatile int dma_len;			/* requested length of DMA */
 #endif
 	volatile unsigned char last_message;	/* last message OUT */
-	volatile Scsi_Cmnd *connected;		/* currently connected command */
-	volatile Scsi_Cmnd *issue_queue;	/* waiting to be issued */
-	volatile Scsi_Cmnd *disconnected_queue;	/* waiting for reconnect */
+	volatile struct scsi_cmnd *connected;	/* currently connected command */
+	volatile struct scsi_cmnd *issue_queue;	/* waiting to be issued */
+	volatile struct scsi_cmnd *disconnected_queue;	/* waiting for reconnect */
 	volatile int restart_select;		/* we have disconnected,
 						   used to restart 
 						   NCR5380_select() */
@@ -265,7 +265,7 @@ struct NCR5380_hostdata {
 	int flags;
 	unsigned long time_expires;		/* in jiffies, set prior to sleeping */
 	int select_time;			/* timer in select for target response */
-	volatile Scsi_Cmnd *selecting;
+	volatile struct scsi_cmnd *selecting;
 	struct delayed_work coroutine;		/* our co-routine */
 	struct scsi_eh_save ses;
 	char info[256];
@@ -309,7 +309,7 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id);
 static void NCR5380_main(struct work_struct *work);
 static const char *NCR5380_info(struct Scsi_Host *instance);
 static void NCR5380_reselect(struct Scsi_Host *instance);
-static int NCR5380_select(struct Scsi_Host *instance, Scsi_Cmnd *cmd);
+static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd);
 #if defined(PSEUDO_DMA) || defined(REAL_DMA) || defined(REAL_DMA_POLL)
 static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
 #endif

@@ -660,7 +660,7 @@ static void prepare_info(struct Scsi_Host *instance)
  * Inputs : instance, pointer to this instance.  
  */
 
-static void lprint_Scsi_Cmnd(Scsi_Cmnd *cmd)
+static void lprint_Scsi_Cmnd(struct scsi_cmnd *cmd)
 {
 	int i, s;
 	unsigned char *command;
@@ -677,7 +677,7 @@ static void lprint_Scsi_Cmnd(Scsi_Cmnd *cmd)
 static void NCR5380_print_status(struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata;
-	Scsi_Cmnd *ptr;
+	struct scsi_cmnd *ptr;
 	unsigned long flags;
 
 	NCR5380_dprint(NDEBUG_ANY, instance);
@@ -691,13 +691,13 @@ static void NCR5380_print_status(struct Scsi_Host *instance)
 	if (!hostdata->connected)
 		printk("scsi%d: no currently connected command\n", HOSTNO);
 	else
-		lprint_Scsi_Cmnd((Scsi_Cmnd *) hostdata->connected);
+		lprint_Scsi_Cmnd((struct scsi_cmnd *) hostdata->connected);
 	printk("scsi%d: issue_queue\n", HOSTNO);
-	for (ptr = (Scsi_Cmnd *)hostdata->issue_queue; ptr; ptr = NEXT(ptr))
+	for (ptr = (struct scsi_cmnd *)hostdata->issue_queue; ptr; ptr = NEXT(ptr))
 		lprint_Scsi_Cmnd(ptr);
 
 	printk("scsi%d: disconnected_queue\n", HOSTNO);
-	for (ptr = (Scsi_Cmnd *) hostdata->disconnected_queue; ptr;
+	for (ptr = (struct scsi_cmnd *) hostdata->disconnected_queue; ptr;
 	     ptr = NEXT(ptr))
 		lprint_Scsi_Cmnd(ptr);
 
@@ -705,7 +705,7 @@ static void NCR5380_print_status(struct Scsi_Host *instance)
 	printk("\n");
 }
 
-static void show_Scsi_Cmnd(Scsi_Cmnd *cmd, struct seq_file *m)
+static void show_Scsi_Cmnd(struct scsi_cmnd *cmd, struct seq_file *m)
 {
 	int i, s;
 	unsigned char *command;
@@ -723,7 +723,7 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
                                             struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata;
-	Scsi_Cmnd *ptr;
+	struct scsi_cmnd *ptr;
 	unsigned long flags;
 
 	hostdata = (struct NCR5380_hostdata *)instance->hostdata;
@@ -734,13 +734,13 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 	if (!hostdata->connected)
 		seq_printf(m, "scsi%d: no currently connected command\n", HOSTNO);
 	else
-		show_Scsi_Cmnd((Scsi_Cmnd *) hostdata->connected, m);
+		show_Scsi_Cmnd((struct scsi_cmnd *) hostdata->connected, m);
 	seq_printf(m, "scsi%d: issue_queue\n", HOSTNO);
-	for (ptr = (Scsi_Cmnd *)hostdata->issue_queue; ptr; ptr = NEXT(ptr))
+	for (ptr = (struct scsi_cmnd *)hostdata->issue_queue; ptr; ptr = NEXT(ptr))
 		show_Scsi_Cmnd(ptr, m);
 
 	seq_printf(m, "scsi%d: disconnected_queue\n", HOSTNO);
-	for (ptr = (Scsi_Cmnd *) hostdata->disconnected_queue; ptr;
+	for (ptr = (struct scsi_cmnd *) hostdata->disconnected_queue; ptr;
 	     ptr = NEXT(ptr))
 		show_Scsi_Cmnd(ptr, m);
 

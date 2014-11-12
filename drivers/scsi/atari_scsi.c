@@ -93,7 +93,6 @@
 #include <asm/irq.h>
 #include <asm/traps.h>
 
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include "atari_scsi.h"
 #include "NCR5380.h"
@@ -880,7 +879,7 @@ static long atari_scsi_dma_residual(struct Scsi_Host *instance)
 #define	CMD_SURELY_BYTE_MODE	1
 #define	CMD_MODE_UNKNOWN		2
 
-static int falcon_classify_cmd(Scsi_Cmnd *cmd)
+static int falcon_classify_cmd(struct scsi_cmnd *cmd)
 {
 	unsigned char opcode = cmd->cmnd[0];
 
@@ -912,7 +911,7 @@ static int falcon_classify_cmd(Scsi_Cmnd *cmd)
  */
 
 static unsigned long atari_dma_xfer_len(unsigned long wanted_len,
-					Scsi_Cmnd *cmd, int write_flag)
+					struct scsi_cmnd *cmd, int write_flag)
 {
 	unsigned long	possible_len, limit;
 
