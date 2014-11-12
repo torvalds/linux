@@ -2310,6 +2310,8 @@ static int rt5670_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 static int rt5670_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
+	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (SND_SOC_BIAS_STANDBY == codec->dapm.bias_level) {
@@ -2331,15 +2333,26 @@ static int rt5670_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_write(codec, RT5670_PWR_DIG1, 0x0000);
-		snd_soc_write(codec, RT5670_PWR_DIG2, 0x0001);
-		snd_soc_write(codec, RT5670_PWR_VOL, 0x0000);
-		snd_soc_write(codec, RT5670_PWR_MIXER, 0x0001);
-		snd_soc_write(codec, RT5670_PWR_ANLG1, 0x2800);
-		snd_soc_write(codec, RT5670_PWR_ANLG2, 0x0004);
-		snd_soc_update_bits(codec, RT5670_DIG_MISC, 0x1, 0x0);
+		snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
+				RT5670_PWR_VREF1 | RT5670_PWR_VREF2 |
+				RT5670_PWR_FV1 | RT5670_PWR_FV2, 0);
 		snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
 				RT5670_LDO_SEL_MASK, 0x1);
+		break;
+	case SND_SOC_BIAS_OFF:
+		if (rt5670->pdata.jd_mode)
+			snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
+				RT5670_PWR_VREF1 | RT5670_PWR_MB |
+				RT5670_PWR_BG | RT5670_PWR_VREF2 |
+				RT5670_PWR_FV1 | RT5670_PWR_FV2,
+				RT5670_PWR_MB | RT5670_PWR_BG);
+		else
+			snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
+				RT5670_PWR_VREF1 | RT5670_PWR_MB |
+				RT5670_PWR_BG | RT5670_PWR_VREF2 |
+				RT5670_PWR_FV1 | RT5670_PWR_FV2, 0);
+
+		snd_soc_update_bits(codec, RT5670_DIG_MISC, 0x1, 0x0);
 		break;
 
 	default:
