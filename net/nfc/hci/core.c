@@ -167,6 +167,45 @@ exit:
 void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 			  struct sk_buff *skb)
 {
+	int r = 0;
+	u8 gate = nfc_hci_pipe2gate(hdev, pipe);
+	u8 local_gate, new_pipe;
+	u8 gate_opened = 0x00;
+
+	pr_debug("from gate %x pipe %x cmd %x\n", gate, pipe, cmd);
+
+	switch (cmd) {
+	case NFC_HCI_ADM_NOTIFY_PIPE_CREATED:
+		if (skb->len != 5) {
+			r = -EPROTO;
+			break;
+		}
+
+		local_gate = skb->data[3];
+		new_pipe = skb->data[4];
+		nfc_hci_send_response(hdev, gate, NFC_HCI_ANY_OK, NULL, 0);
+
+		/* save the new created pipe and bind with local gate,
+		 * the description for skb->data[3] is destination gate id
+		 * but since we received this cmd from host controller, we
+		 * are the destination and it is our local gate
+		 */
+		hdev->gate2pipe[local_gate] = new_pipe;
+		break;
+	case NFC_HCI_ANY_OPEN_PIPE:
+		/* if the pipe is already created, we allow remote host to
+		 * open it
+		 */
+		if (gate != 0xff)
+			nfc_hci_send_response(hdev, gate, NFC_HCI_ANY_OK,
+					      &gate_opened, 1);
+		break;
+	default:
+		pr_info("Discarded unknown cmd %x to gate %x\n", cmd, gate);
+		r = -EINVAL;
+		break;
+	}
+
 	kfree_skb(skb);
 }
 
