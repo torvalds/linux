@@ -890,10 +890,6 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifdef SUPPORT_TAGS
-	if (setup_use_tagged_queuing < 0)
-		setup_use_tagged_queuing = 0;
-#endif
 
 #ifdef REAL_DMA
 	/* If running on a Falcon and if there's TT-Ram (i.e., more than one
@@ -928,6 +924,10 @@ static int __init atari_scsi_probe(struct platform_device *pdev)
 	instance->irq = irq->start;
 
 	host_flags |= IS_A_TT() ? 0 : FLAG_LATE_DMA_SETUP;
+
+#ifdef SUPPORT_TAGS
+	host_flags |= setup_use_tagged_queuing > 0 ? FLAG_TAGGED_QUEUING : 0;
+#endif
 
 	NCR5380_init(instance, host_flags);
 

@@ -283,12 +283,12 @@ typedef struct {
 static TAG_ALLOC TagAlloc[8][8];	/* 8 targets and 8 LUNs */
 
 
-static void __init init_tags(void)
+static void __init init_tags(struct NCR5380_hostdata *hostdata)
 {
 	int target, lun;
 	TAG_ALLOC *ta;
 
-	if (!setup_use_tagged_queuing)
+	if (!(hostdata->flags & FLAG_TAGGED_QUEUING))
 		return;
 
 	for (target = 0; target < 8; ++target) {
@@ -321,7 +321,8 @@ static int is_lun_busy(struct scsi_cmnd *cmd, int should_be_tagged)
 	if (hostdata->busy[cmd->device->id] & (1 << lun))
 		return 1;
 	if (!should_be_tagged ||
-	    !setup_use_tagged_queuing || !cmd->device->tagged_supported)
+	    !(hostdata->flags & FLAG_TAGGED_QUEUING) ||
+	    !cmd->device->tagged_supported)
 		return 0;
 	if (TagAlloc[cmd->device->id][lun].nr_allocated >=
 	    TagAlloc[cmd->device->id][lun].queue_size) {
@@ -347,7 +348,8 @@ static void cmd_get_tag(struct scsi_cmnd *cmd, int should_be_tagged)
 	 * an untagged command.
 	 */
 	if (!should_be_tagged ||
-	    !setup_use_tagged_queuing || !cmd->device->tagged_supported) {
+	    !(hostdata->flags & FLAG_TAGGED_QUEUING) ||
+	    !cmd->device->tagged_supported) {
 		cmd->tag = TAG_NONE;
 		hostdata->busy[cmd->device->id] |= (1 << lun);
 		dprintk(NDEBUG_TAGS, "scsi%d: target %d lun %d now allocated by untagged "
@@ -392,12 +394,12 @@ static void cmd_free_tag(struct scsi_cmnd *cmd)
 }
 
 
-static void free_all_tags(void)
+static void free_all_tags(struct NCR5380_hostdata *hostdata)
 {
 	int target, lun;
 	TAG_ALLOC *ta;
 
-	if (!setup_use_tagged_queuing)
+	if (!(hostdata->flags & FLAG_TAGGED_QUEUING))
 		return;
 
 	for (target = 0; target < 8; ++target) {
@@ -653,11 +655,13 @@ static void prepare_info(struct Scsi_Host *instance)
 	         "base 0x%lx, irq %d, "
 	         "can_queue %d, cmd_per_lun %d, "
 	         "sg_tablesize %d, this_id %d, "
+	         "flags { %s}, "
 	         "options { %s} ",
 	         instance->hostt->name, instance->io_port, instance->n_io_port,
 	         instance->base, instance->irq,
 	         instance->can_queue, instance->cmd_per_lun,
 	         instance->sg_tablesize, instance->this_id,
+	         hostdata->flags & FLAG_TAGGED_QUEUING ? "TAGGED_QUEUING " : "",
 #ifdef DIFFERENTIAL
 	         "DIFFERENTIAL "
 #endif
@@ -799,7 +803,7 @@ static int __init NCR5380_init(struct Scsi_Host *instance, int flags)
 	for (i = 0; i < 8; ++i)
 		hostdata->busy[i] = 0;
 #ifdef SUPPORT_TAGS
-	init_tags();
+	init_tags(hostdata);
 #endif
 #if defined (REAL_DMA)
 	hostdata->dma_len = 0;
@@ -2565,7 +2569,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	 * SIMPLE_QUEUE_TAG for the I_T_L_Q nexus.
 	 */
 	tag = TAG_NONE;
-	if (phase == PHASE_MSGIN && setup_use_tagged_queuing) {
+	if (phase == PHASE_MSGIN && (hostdata->flags & FLAG_TAGGED_QUEUING)) {
 		/* Accept previous IDENTIFY message by clearing ACK */
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 		len = 2;
@@ -3020,7 +3024,7 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	hostdata->connected = NULL;
 	hostdata->disconnected_queue = NULL;
 #ifdef SUPPORT_TAGS
-	free_all_tags();
+	free_all_tags(hostdata);
 #endif
 	for (i = 0; i < 8; ++i)
 		hostdata->busy[i] = 0;

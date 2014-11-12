@@ -411,10 +411,6 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 		mac_scsi_template.sg_tablesize = setup_sg_tablesize;
 	if (setup_hostid >= 0)
 		mac_scsi_template.this_id = setup_hostid & 7;
-#ifdef SUPPORT_TAGS
-	if (setup_use_tagged_queuing < 0)
-		setup_use_tagged_queuing = 0;
-#endif
 	if (setup_use_pdma < 0)
 		setup_use_pdma = 0;
 
@@ -438,6 +434,10 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 
 #ifdef RESET_BOOT
 	mac_scsi_reset_boot(instance);
+#endif
+
+#ifdef SUPPORT_TAGS
+	host_flags |= setup_use_tagged_queuing > 0 ? FLAG_TAGGED_QUEUING : 0;
 #endif
 
 	NCR5380_init(instance, host_flags);

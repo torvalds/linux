@@ -522,6 +522,7 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	int error;
 	struct resource *irq, *mem;
 	unsigned char *ioaddr;
+	int host_flags = 0;
 #ifdef SUN3_SCSI_VME
 	int i;
 #endif
@@ -534,11 +535,6 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 		sun3_scsi_template.sg_tablesize = setup_sg_tablesize;
 	if (setup_hostid >= 0)
 		sun3_scsi_template.this_id = setup_hostid & 7;
-
-#ifdef SUPPORT_TAGS
-	if (setup_use_tagged_queuing < 0)
-		setup_use_tagged_queuing = 1;
-#endif
 
 #ifdef SUN3_SCSI_VME
 	ioaddr = NULL;
@@ -601,7 +597,11 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	instance->io_port = (unsigned long)ioaddr;
 	instance->irq = irq->start;
 
-	NCR5380_init(instance, 0);
+#ifdef SUPPORT_TAGS
+	host_flags |= setup_use_tagged_queuing > 0 ? FLAG_TAGGED_QUEUING : 0;
+#endif
+
+	NCR5380_init(instance, host_flags);
 
 	error = request_irq(instance->irq, scsi_sun3_intr, 0,
 	                    "NCR5380", instance);
