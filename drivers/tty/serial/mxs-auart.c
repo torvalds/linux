@@ -784,9 +784,10 @@ static void mxs_auart_settermios(struct uart_port *u,
 		mxs_auart_disable_ms(u);
 }
 
-static void mxs_auart_set_ldisc(struct uart_port *port, int new)
+static void mxs_auart_set_ldisc(struct uart_port *port,
+				struct ktermios *termios)
 {
-	if (new == N_PPS) {
+	if (termios->c_line == N_PPS) {
 		port->flags |= UPF_HARDPPS_CD;
 		mxs_auart_enable_ms(port);
 	} else {
