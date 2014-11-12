@@ -91,6 +91,24 @@ static inline bool pnv_pci_is_mem_pref_64(unsigned long flags)
 		(IORESOURCE_MEM_64 | IORESOURCE_PREFETCH));
 }
 
+static void pnv_ioda_reserve_pe(struct pnv_phb *phb, int pe_no)
+{
+	if (!(pe_no >= 0 && pe_no < phb->ioda.total_pe)) {
+		pr_warn("%s: Invalid PE %d on PHB#%x\n",
+			__func__, pe_no, phb->hose->global_number);
+		return;
+	}
+
+	if (test_and_set_bit(pe_no, phb->ioda.pe_alloc)) {
+		pr_warn("%s: PE %d was assigned on PHB#%x\n",
+			__func__, pe_no, phb->hose->global_number);
+		return;
+	}
+
+	phb->ioda.pe_array[pe_no].phb = phb;
+	phb->ioda.pe_array[pe_no].pe_number = pe_no;
+}
+
 static int pnv_ioda_alloc_pe(struct pnv_phb *phb)
 {
 	unsigned long pe;
@@ -185,16 +203,15 @@ static void pnv_ioda2_reserve_m64_pe(struct pnv_phb *phb)
 	 * instead of root bus.
 	 */
 	list_for_each_entry(pdev, &phb->hose->bus->devices, bus_list) {
-		for (i = PCI_BRIDGE_RESOURCES;
-		     i <= PCI_BRIDGE_RESOURCE_END; i++) {
-			r = &pdev->resource[i];
+		for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++) {
+			r = &pdev->resource[PCI_BRIDGE_RESOURCES + i];
 			if (!r->parent ||
 			    !pnv_pci_is_mem_pref_64(r->flags))
 				continue;
 
 			base = (r->start - phb->ioda.m64_base) / sgsz;
 			for (step = 0; step < resource_size(r) / sgsz; step++)
-				set_bit(base + step, phb->ioda.pe_alloc);
+				pnv_ioda_reserve_pe(phb, base + step);
 		}
 	}
 }
@@ -287,8 +304,6 @@ done:
 	while ((i = find_next_bit(pe_alloc, phb->ioda.total_pe, i + 1)) <
 		phb->ioda.total_pe) {
 		pe = &phb->ioda.pe_array[i];
-		pe->phb = phb;
-		pe->pe_number = i;
 
 		if (!master_pe) {
 			pe->flags |= PNV_IODA_PE_MASTER;
