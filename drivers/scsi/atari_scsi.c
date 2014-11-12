@@ -64,15 +64,7 @@
 /**************************************************************************/
 
 
-
 #include <linux/module.h>
-
-/* For the Atari version, use only polled IO or REAL_DMA */
-#define	REAL_DMA
-/* Support tagged queuing? (on devices that are able to... :-) */
-#define	SUPPORT_TAGS
-#define	MAX_TAGS 32
-
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/blkdev.h>
@@ -92,8 +84,33 @@
 
 #include <scsi/scsi_host.h>
 
-#include "atari_scsi.h"
+/* Definitions for the core NCR5380 driver. */
+
+#define REAL_DMA
+#define SUPPORT_TAGS
+#define MAX_TAGS                        32
+
+#define NCR5380_implementation_fields   /* none */
+
+#define NCR5380_read(reg)               atari_scsi_reg_read(reg)
+#define NCR5380_write(reg, value)       atari_scsi_reg_write(reg, value)
+
+#define NCR5380_queue_command           atari_scsi_queue_command
+#define NCR5380_abort                   atari_scsi_abort
+#define NCR5380_show_info               atari_scsi_show_info
+#define NCR5380_info                    atari_scsi_info
+
+#define NCR5380_dma_read_setup(instance, data, count) \
+        atari_scsi_dma_setup(instance, data, count, 0)
+#define NCR5380_dma_write_setup(instance, data, count) \
+        atari_scsi_dma_setup(instance, data, count, 1)
+#define NCR5380_dma_residual(instance) \
+        atari_scsi_dma_residual(instance)
+#define NCR5380_dma_xfer_len(instance, cmd, phase) \
+        atari_dma_xfer_len(cmd->SCp.this_residual, cmd, !((phase) & SR_IO))
+
 #include "NCR5380.h"
+
 
 #define	IS_A_TT()	ATARIHW_PRESENT(TT_SCSI)
 
