@@ -611,7 +611,7 @@ static int __init atari_scsi_detect(struct scsi_host_template *host)
 
 #ifdef SUPPORT_TAGS
 	if (setup_use_tagged_queuing < 0)
-		setup_use_tagged_queuing = DEFAULT_USE_TAGGED_QUEUING;
+		setup_use_tagged_queuing = 0;
 #endif
 #ifdef REAL_DMA
 	/* If running on a Falcon and if there's TT-Ram (i.e., more than one

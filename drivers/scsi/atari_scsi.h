@@ -36,9 +36,6 @@
 #define ATARI_FALCON_CMD_PER_LUN	1
 #define ATARI_FALCON_SG_TABLESIZE	SG_NONE
 
-#define	DEFAULT_USE_TAGGED_QUEUING	0
-
-
 #define	NCR5380_implementation_fields	/* none */
 
 #define NCR5380_read(reg)		  atari_scsi_reg_read( reg )

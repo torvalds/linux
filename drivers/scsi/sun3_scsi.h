@@ -31,25 +31,7 @@
 
 #define IOBASE_SUN3_VMESCSI 0xff200000
 
-#ifndef CMD_PER_LUN
-#define CMD_PER_LUN 2
-#endif
-
-#ifndef CAN_QUEUE
-#define CAN_QUEUE 16
-#endif
-
-#ifndef SG_TABLESIZE
-#define SG_TABLESIZE SG_NONE
-#endif
-
-#ifndef MAX_TAGS
 #define MAX_TAGS 32
-#endif
-
-#ifndef USE_TAGGED_QUEUING
-#define	USE_TAGGED_QUEUING 1
-#endif
 
 #include <scsi/scsicam.h>
 

@@ -177,13 +177,12 @@ int __init macscsi_detect(struct scsi_host_template * tpnt)
     if (macintosh_config->scsi_type != MAC_SCSI_OLD)
 	return( 0 );
 
-    /* setup variables */
-    tpnt->can_queue =
-	(setup_can_queue > 0) ? setup_can_queue : CAN_QUEUE;
-    tpnt->cmd_per_lun =
-	(setup_cmd_per_lun > 0) ? setup_cmd_per_lun : CMD_PER_LUN;
-    tpnt->sg_tablesize = 
-	(setup_sg_tablesize >= 0) ? setup_sg_tablesize : SG_TABLESIZE;
+	if (setup_can_queue > 0)
+		tpnt->can_queue = setup_can_queue;
+	if (setup_cmd_per_lun > 0)
+		tpnt->cmd_per_lun = setup_cmd_per_lun;
+	if (setup_sg_tablesize >= 0)
+		tpnt->sg_tablesize = setup_sg_tablesize;
 
     if (setup_hostid >= 0)
 	tpnt->this_id = setup_hostid;
@@ -194,7 +193,7 @@ int __init macscsi_detect(struct scsi_host_template * tpnt)
 
 #ifdef SUPPORT_TAGS
     if (setup_use_tagged_queuing < 0)
-	setup_use_tagged_queuing = USE_TAGGED_QUEUING;
+	setup_use_tagged_queuing = 0;
 #endif
 
     /* Once we support multiple 5380s (e.g. DuoDock) we'll do
@@ -496,10 +495,10 @@ static struct scsi_host_template driver_template = {
 	.queuecommand			= macscsi_queue_command,
 	.eh_abort_handler		= macscsi_abort,
 	.eh_bus_reset_handler		= macscsi_bus_reset,
-	.can_queue			= CAN_QUEUE,
+	.can_queue			= 16,
 	.this_id			= 7,
 	.sg_tablesize			= SG_ALL,
-	.cmd_per_lun			= CMD_PER_LUN,
+	.cmd_per_lun			= 2,
 	.use_clustering			= DISABLE_CLUSTERING
 };
 

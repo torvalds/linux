@@ -17,22 +17,6 @@
 
 #ifndef ASM
 
-#ifndef CMD_PER_LUN
-#define CMD_PER_LUN 2
-#endif
-
-#ifndef CAN_QUEUE
-#define CAN_QUEUE 16
-#endif
-
-#ifndef SG_TABLESIZE
-#define SG_TABLESIZE SG_NONE
-#endif
-
-#ifndef USE_TAGGED_QUEUING
-#define	USE_TAGGED_QUEUING 0
-#endif
-
 #include <scsi/scsicam.h>
 
 #define NCR5380_implementation_fields /* none */
