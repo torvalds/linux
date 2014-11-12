@@ -1255,7 +1255,6 @@ static int alloc_all_mem(struct r8152 *tp)
 
 	spin_lock_init(&tp->rx_lock);
 	spin_lock_init(&tp->tx_lock);
-	INIT_LIST_HEAD(&tp->rx_done);
 	INIT_LIST_HEAD(&tp->tx_free);
 	skb_queue_head_init(&tp->tx_queue);
 
@@ -1797,6 +1796,8 @@ static void bottom_half(unsigned long data)
 	/* This avoid the re-submitting bulk */
 	if (!netif_carrier_ok(tp->netdev))
 		return;
+
+	clear_bit(SCHEDULE_TASKLET, &tp->flags);
 
 	rx_bottom(tp);
 	tx_bottom(tp);
@@ -2856,13 +2857,16 @@ static void rtl_work_func_t(struct work_struct *work)
 {
 	struct r8152 *tp = container_of(work, struct r8152, schedule.work);
 
+	/* If the device is unplugged or !netif_running(), the workqueue
+	 * doesn't need to wake the device, and could return directly.
+	 */
+	if (test_bit(RTL8152_UNPLUG, &tp->flags) || !netif_running(tp->netdev))
+		return;
+
 	if (usb_autopm_get_interface(tp->intf) < 0)
 		return;
 
 	if (!test_bit(WORK_ENABLE, &tp->flags))
-		goto out1;
-
-	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		goto out1;
 
 	if (!mutex_trylock(&tp->control)) {
