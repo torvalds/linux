@@ -51,18 +51,11 @@ struct mei_cfg {
  *
  * @cfg: per device generation config and ops
  * @mem_addr:  io memory address
- * @host_hw_state: cached host state
- * @me_hw_state:   cached me (fw) state
  * @pg_state:      power gating state
  */
 struct mei_me_hw {
 	const struct mei_cfg *cfg;
 	void __iomem *mem_addr;
-	/*
-	 * hw states of host and fw(ME)
-	 */
-	u32 host_hw_state;
-	u32 me_hw_state;
 	enum mei_pg_state pg_state;
 };
 
