@@ -318,19 +318,8 @@ static struct platform_driver ibmpowernv_driver = {
 	},
 };
 
-static int __init ibmpowernv_init(void)
-{
-	return platform_driver_register(&ibmpowernv_driver);
-}
-
-static void __exit ibmpowernv_exit(void)
-{
-	platform_driver_unregister(&ibmpowernv_driver);
-}
+module_platform_driver(ibmpowernv_driver);
 
 MODULE_AUTHOR("Neelesh Gupta <neelegup@linux.vnet.ibm.com>");
 MODULE_DESCRIPTION("IBM POWERNV platform sensors");
 MODULE_LICENSE("GPL");
-
-module_init(ibmpowernv_init);
-module_exit(ibmpowernv_exit);
