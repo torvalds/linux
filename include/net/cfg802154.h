@@ -40,6 +40,8 @@ struct cfg802154_ops {
 	int	(*set_channel)(struct wpan_phy *wpan_phy, u8 page, u8 channel);
 	int	(*set_pan_id)(struct wpan_phy *wpan_phy,
 			      struct wpan_dev *wpan_dev, u16 pan_id);
+	int	(*set_short_addr)(struct wpan_phy *wpan_phy,
+				  struct wpan_dev *wpan_dev, u16 short_addr);
 };
 
 struct wpan_phy {

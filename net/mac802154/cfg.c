@@ -83,9 +83,35 @@ static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
 	return 0;
 }
 
+static int
+ieee802154_set_short_addr(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
+			  const u16 short_addr)
+{
+	ASSERT_RTNL();
+
+	/* TODO
+	 * I am not sure about to check here on broadcast short_addr.
+	 * Broadcast is a valid setting, comment from 802.15.4:
+	 * A value of 0xfffe indicates that the device has
+	 * associated but has not been allocated an address. A
+	 * value of 0xffff indicates that the device does not
+	 * have a short address.
+	 *
+	 * I think we should allow to set these settings but
+	 * don't allow to allow socket communication with it.
+	 */
+	if (short_addr == IEEE802154_ADDR_SHORT_UNSPEC ||
+	    short_addr == IEEE802154_ADDR_SHORT_BROADCAST)
+		return -EINVAL;
+
+	wpan_dev->short_addr = cpu_to_le16(short_addr);
+	return 0;
+}
+
 const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf_deprecated = ieee802154_add_iface_deprecated,
 	.del_virtual_intf_deprecated = ieee802154_del_iface_deprecated,
 	.set_channel = ieee802154_set_channel,
 	.set_pan_id = ieee802154_set_pan_id,
+	.set_short_addr = ieee802154_set_short_addr,
 };

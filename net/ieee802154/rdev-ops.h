@@ -34,4 +34,11 @@ rdev_set_pan_id(struct cfg802154_registered_device *rdev,
 	return rdev->ops->set_pan_id(&rdev->wpan_phy, wpan_dev, pan_id);
 }
 
+static inline int
+rdev_set_short_addr(struct cfg802154_registered_device *rdev,
+		    struct wpan_dev *wpan_dev, u16 short_addr)
+{
+	return rdev->ops->set_short_addr(&rdev->wpan_phy, wpan_dev, short_addr);
+}
+
 #endif /* __CFG802154_RDEV_OPS */
