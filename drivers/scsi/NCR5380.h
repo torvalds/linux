@@ -245,6 +245,15 @@
 #define FLAG_TAGGED_QUEUING		64	/* as X3T9.2 spelled it */
 
 #ifndef ASM
+
+#ifdef SUPPORT_TAGS
+struct tag_alloc {
+	DECLARE_BITMAP(allocated, MAX_TAGS);
+	int nr_allocated;
+	int queue_size;
+};
+#endif
+
 struct NCR5380_hostdata {
 	NCR5380_implementation_fields;		/* implementation specific */
 	struct Scsi_Host *host;			/* Host backpointer */
@@ -274,6 +283,9 @@ struct NCR5380_hostdata {
 	int read_overruns;                /* number of bytes to cut from a
 	                                   * transfer to handle chip overruns */
 	int retain_dma_intr;
+#ifdef SUPPORT_TAGS
+	struct tag_alloc TagAlloc[8][8];	/* 8 targets and 8 LUNs */
+#endif
 #ifdef PSEUDO_DMA
 	unsigned spin_max_r;
 	unsigned spin_max_w;

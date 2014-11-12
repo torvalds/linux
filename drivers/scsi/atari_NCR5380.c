@@ -274,26 +274,17 @@ static struct scsi_host_template *the_template = NULL;
  * important: the tag bit must be cleared before 'nr_allocated' is decreased.
  */
 
-typedef struct {
-	DECLARE_BITMAP(allocated, MAX_TAGS);
-	int nr_allocated;
-	int queue_size;
-} TAG_ALLOC;
-
-static TAG_ALLOC TagAlloc[8][8];	/* 8 targets and 8 LUNs */
-
-
 static void __init init_tags(struct NCR5380_hostdata *hostdata)
 {
 	int target, lun;
-	TAG_ALLOC *ta;
+	struct tag_alloc *ta;
 
 	if (!(hostdata->flags & FLAG_TAGGED_QUEUING))
 		return;
 
 	for (target = 0; target < 8; ++target) {
 		for (lun = 0; lun < 8; ++lun) {
-			ta = &TagAlloc[target][lun];
+			ta = &hostdata->TagAlloc[target][lun];
 			bitmap_zero(ta->allocated, MAX_TAGS);
 			ta->nr_allocated = 0;
 			/* At the beginning, assume the maximum queue size we could
@@ -324,8 +315,8 @@ static int is_lun_busy(struct scsi_cmnd *cmd, int should_be_tagged)
 	    !(hostdata->flags & FLAG_TAGGED_QUEUING) ||
 	    !cmd->device->tagged_supported)
 		return 0;
-	if (TagAlloc[cmd->device->id][lun].nr_allocated >=
-	    TagAlloc[cmd->device->id][lun].queue_size) {
+	if (hostdata->TagAlloc[scmd_id(cmd)][lun].nr_allocated >=
+	    hostdata->TagAlloc[scmd_id(cmd)][lun].queue_size) {
 		dprintk(NDEBUG_TAGS, "scsi%d: target %d lun %d: no free tags\n",
 			   H_NO(cmd), cmd->device->id, lun);
 		return 1;
@@ -355,7 +346,7 @@ static void cmd_get_tag(struct scsi_cmnd *cmd, int should_be_tagged)
 		dprintk(NDEBUG_TAGS, "scsi%d: target %d lun %d now allocated by untagged "
 			   "command\n", H_NO(cmd), cmd->device->id, lun);
 	} else {
-		TAG_ALLOC *ta = &TagAlloc[cmd->device->id][lun];
+		struct tag_alloc *ta = &hostdata->TagAlloc[scmd_id(cmd)][lun];
 
 		cmd->tag = find_first_zero_bit(ta->allocated, MAX_TAGS);
 		set_bit(cmd->tag, ta->allocated);
@@ -385,7 +376,7 @@ static void cmd_free_tag(struct scsi_cmnd *cmd)
 		printk(KERN_NOTICE "scsi%d: trying to free bad tag %d!\n",
 		       H_NO(cmd), cmd->tag);
 	} else {
-		TAG_ALLOC *ta = &TagAlloc[cmd->device->id][lun];
+		struct tag_alloc *ta = &hostdata->TagAlloc[scmd_id(cmd)][lun];
 		clear_bit(cmd->tag, ta->allocated);
 		ta->nr_allocated--;
 		dprintk(NDEBUG_TAGS, "scsi%d: freed tag %d for target %d lun %d\n",
@@ -397,14 +388,14 @@ static void cmd_free_tag(struct scsi_cmnd *cmd)
 static void free_all_tags(struct NCR5380_hostdata *hostdata)
 {
 	int target, lun;
-	TAG_ALLOC *ta;
+	struct tag_alloc *ta;
 
 	if (!(hostdata->flags & FLAG_TAGGED_QUEUING))
 		return;
 
 	for (target = 0; target < 8; ++target) {
 		for (lun = 0; lun < 8; ++lun) {
-			ta = &TagAlloc[target][lun];
+			ta = &hostdata->TagAlloc[target][lun];
 			bitmap_zero(ta->allocated, MAX_TAGS);
 			ta->nr_allocated = 0;
 		}
@@ -2205,7 +2196,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						 */
 						/* ++Andreas: the mid level code knows about
 						   QUEUE_FULL now. */
-						TAG_ALLOC *ta = &TagAlloc[cmd->device->id][cmd->device->lun];
+						struct tag_alloc *ta = &hostdata->TagAlloc[scmd_id(cmd)][cmd->device->lun];
 						dprintk(NDEBUG_TAGS, "scsi%d: target %d lun %llu returned "
 							   "QUEUE_FULL after %d commands\n",
 							   HOSTNO, cmd->device->id, cmd->device->lun,
