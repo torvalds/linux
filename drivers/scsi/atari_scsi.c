@@ -89,6 +89,7 @@
 #define REAL_DMA
 #define SUPPORT_TAGS
 #define MAX_TAGS                        32
+#define DMA_MIN_SIZE                    32
 
 #define NCR5380_implementation_fields   /* none */
 
