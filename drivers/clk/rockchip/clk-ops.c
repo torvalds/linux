@@ -714,6 +714,72 @@ const struct clk_ops clkops_rate_3288_dclk_lcdc1 = {
 	.recalc_rate	= clk_divider_recalc_rate,
 };
 
+#define CONFIG_RK3368_MUX_NO_USE_NPLL
+
+static long clk_3368_mux_div_determine_rate(struct clk_hw *div_hw,
+					    unsigned long rate,
+					    unsigned long *best_parent_rate,
+					    struct clk **best_parent_p)
+{
+	struct clk *clk = div_hw->clk, *parent = NULL, *best_parent = NULL;
+	int i, num_parents;
+	unsigned long parent_rate = 0, best_prate = 0, best = 0, now = 0;
+
+	parent = __clk_get_parent(clk);
+	if (!parent) {
+		best = __clk_get_rate(clk);
+		goto out;
+	}
+
+	/* if NO_REPARENT flag set, pass through to current parent */
+	if (clk->flags & CLK_SET_RATE_NO_REPARENT) {
+		best_prate = __clk_get_rate(parent);
+		best = clk_divider_ops.round_rate(div_hw, rate, &best_prate);
+		goto out;
+	}
+
+	/* find the parent that can provide the fastest rate <= rate */
+	num_parents = clk->num_parents;
+	for (i = 0; i < num_parents; i++) {
+		parent = clk_get_parent_by_index(clk, i);
+		if (!parent)
+			continue;
+
+#ifdef CONFIG_RK3368_MUX_NO_USE_NPLL
+		if (!strcmp(__clk_get_name(parent), "clk_npll"))
+			continue;
+#endif
+		parent_rate = __clk_get_rate(parent);
+		now = clk_divider_ops.round_rate(div_hw, rate, &parent_rate);
+
+		if (now <= rate && now > best) {
+			best_parent = parent;
+			best_prate = parent_rate;
+			best = now;
+		}
+	}
+
+out:
+	if (best_prate)
+		*best_parent_rate = best_prate;
+
+	if (best_parent)
+		*best_parent_p = best_parent;
+
+	clk_debug("clk name = %s, determine rate = %lu, best = %lu\n"
+		  "\tbest_parent name = %s, best_prate = %lu\n",
+		  clk->name, rate, best,
+		  __clk_get_name(*best_parent_p), *best_parent_rate);
+
+	return best;
+}
+
+const struct clk_ops clkops_rate_3368_auto_parent = {
+	.recalc_rate    = clk_divider_recalc_rate,
+	.round_rate     = clk_divider_round_rate,
+	.set_rate       = clk_divider_set_rate,
+	.determine_rate = clk_3368_mux_div_determine_rate,
+};
 
 struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_MUX_DIV,		.clk_ops = &clkops_rate_auto_parent},
@@ -730,6 +796,7 @@ struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_RK3288_DCLK_LCDC1,.clk_ops = &clkops_rate_3288_dclk_lcdc1},
 	{.index = CLKOPS_RATE_DDR_DIV2,		.clk_ops = &clkops_rate_ddr_div2},
 	{.index = CLKOPS_RATE_DDR_DIV4,		.clk_ops = &clkops_rate_ddr_div4},
+	{.index = CLKOPS_RATE_RK3368_MUX_DIV_NPLL,   .clk_ops = &clkops_rate_3368_auto_parent},
 	{.index = CLKOPS_RATE_I2S,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_CIFOUT,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_UART,		.clk_ops = NULL},

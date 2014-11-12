@@ -13,6 +13,8 @@
  */
 #include <dt-bindings/clock/rockchip,rk3368.h>
 
+
+
 /{
 	clocks {
 		compatible = "rockchip,rk-clocks";
@@ -233,7 +235,7 @@
 					status-reg = <0x0480 5>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_npll";
-					rockchip,pll-type = <CLK_PLL_3188PLUS>;
+					rockchip,pll-type = <CLK_PLL_3188PLUS_AUTO>;
 					#clock-cells = <0>;
 					#clock-init-cells = <1>;
 				};
@@ -439,7 +441,7 @@
 						clock-output-names = "aclk_cci";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 					};
 
 					/* 5 reserved */
@@ -490,6 +492,7 @@
 						clock-output-names = "hclk_bus";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* 11:10 reserved */
@@ -501,6 +504,7 @@
 						clock-output-names = "pclk_bus";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -598,6 +602,7 @@
 						clock-output-names = "clk_crypto";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -706,7 +711,7 @@
 						clock-output-names = "clk_gpu_core";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 						rockchip,flags = <CLK_SET_RATE_PARENT_IN_ORDER>;
 					};
 
@@ -755,7 +760,7 @@
 						clock-output-names = "aclk_vepu";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 					};
 
 					/* 5 reserved */
@@ -776,7 +781,7 @@
 						clock-output-names = "aclk_vdpu";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 					};
 
 					/* 13 reserved */
@@ -820,7 +825,7 @@
 						clock-output-names = "clk_hevc_cabac";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 					};
 
 					/* 5 reserved */
@@ -841,7 +846,7 @@
 						clock-output-names = "clk_hevc_core";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 					};
 
 					/* 13 reserved */
@@ -947,6 +952,7 @@
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 
 					dclk_vop0: dclk_vop0_mux {
@@ -1030,7 +1036,7 @@
 						clock-output-names = "clk_isp";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 					};
 
 					clk_isp: clk_isp_mux {
@@ -1056,7 +1062,7 @@
 						clock-output-names = "clk_edp";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 					};
 
 					clk_edp: clk_edp_mux {
@@ -1519,7 +1525,7 @@
 						clock-output-names = "clk_mac_pll";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 					};
 
 					/* 5 reserved */
@@ -1613,7 +1619,7 @@
 						clock-output-names = "clk_tsp";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 					};
 
 					/* 5 reserved */
@@ -1866,7 +1872,7 @@
 						clock-output-names = "clk_hdcp";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
 					};
 
 					clk_hdcp: clk_hdcp_mux {
