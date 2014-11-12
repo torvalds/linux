@@ -114,4 +114,49 @@ struct msi_controller {
 	void (*teardown_irq)(struct msi_controller *chip, unsigned int irq);
 };
 
+#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
+struct irq_domain;
+struct irq_chip;
+struct device_node;
+struct msi_domain_info;
+
+/**
+ * struct msi_domain_ops - MSI interrupt domain callbacks
+ * @get_hwirq:		Retrieve the resulting hw irq number
+ * @msi_init:		Domain specific init function for MSI interrupts
+ * @msi_free:		Domain specific function to free a MSI interrupts
+ */
+struct msi_domain_ops {
+	irq_hw_number_t	(*get_hwirq)(struct msi_domain_info *info, void *arg);
+	int		(*msi_init)(struct irq_domain *domain,
+				    struct msi_domain_info *info,
+				    unsigned int virq, irq_hw_number_t hwirq,
+				    void *arg);
+	void		(*msi_free)(struct irq_domain *domain,
+				    struct msi_domain_info *info,
+				    unsigned int virq);
+};
+
+/**
+ * struct msi_domain_info - MSI interrupt domain data
+ * @ops:	The callback data structure
+ * @chip:	The associated interrupt chip
+ * @data:	Domain specific data
+ */
+struct msi_domain_info {
+	struct msi_domain_ops	*ops;
+	struct irq_chip		*chip;
+	void			*data;
+};
+
+int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,
+			    bool force);
+
+struct irq_domain *msi_create_irq_domain(struct device_node *of_node,
+					 struct msi_domain_info *info,
+					 struct irq_domain *parent);
+struct msi_domain_info *msi_get_domain_info(struct irq_domain *domain);
+
+#endif /* CONFIG_GENERIC_MSI_IRQ_DOMAIN */
+
 #endif /* LINUX_MSI_H */
