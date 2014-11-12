@@ -209,7 +209,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	spin_unlock_irq(&gb_connections_lock);
 
 	INIT_LIST_HEAD(&connection->operations);
-	connection->pending = RB_ROOT;
+	INIT_LIST_HEAD(&connection->pending);
 	atomic_set(&connection->op_cycle, 0);
 
 	return connection;

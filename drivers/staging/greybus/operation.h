@@ -64,8 +64,7 @@ struct gb_operation {
 	struct completion	completion;	/* Used if no callback */
 	struct delayed_work	timeout_work;
 
-	struct list_head	links;		/* connection->operations */
-	struct rb_node		node;		/* connection->pending */
+	struct list_head	links;	/* connection->{operations,pending} */
 
 	/* These are what's used by caller */
 	void			*request_payload;

@@ -36,7 +36,7 @@ struct gb_connection {
 	enum gb_connection_state	state;
 
 	struct list_head		operations;
-	struct rb_root			pending;	/* awaiting reponse */
+	struct list_head		pending;	/* awaiting reponse */
 	atomic_t			op_cycle;
 
 	void				*private;

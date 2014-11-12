@@ -56,13 +56,9 @@ struct gb_operation_msg_hdr {
 /* XXX Could be per-host device, per-module, or even per-connection */
 static DEFINE_SPINLOCK(gb_operations_lock);
 
-static void gb_operation_insert(struct gb_operation *operation)
+static void gb_pending_operation_insert(struct gb_operation *operation)
 {
 	struct gb_connection *connection = operation->connection;
-	struct rb_root *root = &connection->pending;
-	struct rb_node *node = &operation->node;
-	struct rb_node **link = &root->rb_node;
-	struct rb_node *above = NULL;
 	struct gb_operation_msg_hdr *header;
 
 	/* Assign the operation's id, and store it in the header of
@@ -72,25 +68,13 @@ static void gb_operation_insert(struct gb_operation *operation)
 	header = operation->request->transfer_buffer;
 	header->id = cpu_to_le16(operation->id);
 
-	/* OK, insert the operation into its connection's pending tree */
+	/* Insert the operation into its connection's pending list */
 	spin_lock_irq(&gb_operations_lock);
-	while (*link) {
-		struct gb_operation *other;
-
-		above = *link;
-		other = rb_entry(above, struct gb_operation, node);
-		header = other->request->transfer_buffer;
-		if (other->id > operation->id)
-			link = &above->rb_left;
-		else if (other->id < operation->id)
-			link = &above->rb_right;
-	}
-	rb_link_node(node, above, link);
-	rb_insert_color(node, root);
+	list_move_tail(&operation->links, &connection->pending);
 	spin_unlock_irq(&gb_operations_lock);
 }
 
-static void gb_operation_remove(struct gb_operation *operation)
+static void gb_pending_operation_remove(struct gb_operation *operation)
 {
 	struct gb_connection *connection = operation->connection;
 
@@ -99,29 +83,22 @@ static void gb_operation_remove(struct gb_operation *operation)
 
 	/* Take us off of the list of pending operations */
 	spin_lock_irq(&gb_operations_lock);
-	rb_erase(&operation->node, &connection->pending);
+	list_move_tail(&operation->links, &connection->operations);
 	spin_unlock_irq(&gb_operations_lock);
-
 }
 
 static struct gb_operation *
-gb_operation_find(struct gb_connection *connection, u16 id)
+gb_pending_operation_find(struct gb_connection *connection, u16 id)
 {
-	struct gb_operation *operation = NULL;
-	struct rb_node *node;
+	struct gb_operation *operation;
 	bool found = false;
 
 	spin_lock_irq(&gb_operations_lock);
-	node = connection->pending.rb_node;
-	while (node && !found) {
-		operation = rb_entry(node, struct gb_operation, node);
-		if (operation->id > id)
-			node = node->rb_left;
-		else if (operation->id < id)
-			node = node->rb_right;
-		else
+	list_for_each_entry(operation, &connection->pending, links)
+		if (operation->id == id) {
 			found = true;
-	}
+			break;
+		}
 	spin_unlock_irq(&gb_operations_lock);
 
 	return found ? operation : NULL;
@@ -405,7 +382,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	 * setting the operation id and submitting the gbuf.
 	 */
 	operation->callback = callback;
-	gb_operation_insert(operation);
+	gb_pending_operation_insert(operation);
 	ret = greybus_submit_gbuf(operation->request, GFP_KERNEL);
 	if (ret)
 		return ret;
@@ -424,7 +401,6 @@ int gb_operation_request_send(struct gb_operation *operation,
  */
 int gb_operation_response_send(struct gb_operation *operation)
 {
-	gb_operation_remove(operation);
 	gb_operation_destroy(operation);
 
 	return 0;
@@ -456,12 +432,12 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 	if (header->type & GB_OPERATION_TYPE_RESPONSE) {
 		u16 id = le16_to_cpu(header->id);
 
-		operation = gb_operation_find(connection, id);
+		operation = gb_pending_operation_find(connection, id);
 		if (!operation) {
 			gb_connection_err(connection, "operation not found");
 			return;
 		}
-		gb_operation_remove(operation);
+		gb_pending_operation_remove(operation);
 		gbuf = operation->response;
 		gbuf->status = GB_OP_SUCCESS;	/* If we got here we're good */
 		if (size > gbuf->transfer_buffer_length) {
