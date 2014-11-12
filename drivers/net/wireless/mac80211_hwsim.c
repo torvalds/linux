@@ -415,6 +415,8 @@ struct mac80211_hwsim_data {
 	bool destroy_on_close;
 	struct work_struct destroy_work;
 	u32 portid;
+	char alpha2[2];
+	const struct ieee80211_regdomain *regd;
 
 	struct ieee80211_channel *tmp_chan;
 	struct delayed_work roc_done;
@@ -2420,6 +2422,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	if (param->reg_strict)
 		hw->wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
 	if (param->regd) {
+		data->regd = param->regd;
 		hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 		wiphy_apply_custom_regulatory(hw->wiphy, param->regd);
 		/* give the regulatory workqueue a chance to run */
@@ -2438,8 +2441,11 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 
 	wiphy_debug(hw->wiphy, "hwaddr %pM registered\n", hw->wiphy->perm_addr);
 
-	if (param->reg_alpha2)
+	if (param->reg_alpha2) {
+		data->alpha2[0] = param->reg_alpha2[0];
+		data->alpha2[1] = param->reg_alpha2[1];
 		regulatory_hint(hw->wiphy, param->reg_alpha2);
+	}
 
 	data->debugfs = debugfs_create_dir("hwsim", hw->wiphy->debugfsdir);
 	debugfs_create_file("ps", 0666, data->debugfs, data, &hwsim_fops_ps);
@@ -2516,6 +2522,44 @@ static void mac80211_hwsim_del_radio(struct mac80211_hwsim_data *data,
 	device_release_driver(data->dev);
 	device_unregister(data->dev);
 	ieee80211_free_hw(data->hw);
+}
+
+static int mac80211_hwsim_get_radio(struct sk_buff *skb,
+				    struct mac80211_hwsim_data *data,
+				    u32 portid, u32 seq,
+				    struct netlink_callback *cb, int flags)
+{
+	void *hdr;
+	struct hwsim_new_radio_params param = { };
+	int res = -EMSGSIZE;
+
+	hdr = genlmsg_put(skb, portid, seq, &hwsim_genl_family, flags,
+			  HWSIM_CMD_GET_RADIO);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (cb)
+		genl_dump_check_consistent(cb, hdr, &hwsim_genl_family);
+
+	param.reg_alpha2 = data->alpha2;
+	param.reg_strict = !!(data->hw->wiphy->regulatory_flags &
+					REGULATORY_STRICT_REG);
+	param.p2p_device = !!(data->hw->wiphy->interface_modes &
+					BIT(NL80211_IFTYPE_P2P_DEVICE));
+	param.use_chanctx = data->use_chanctx;
+	param.regd = data->regd;
+	param.channels = data->channels;
+	param.hwname = wiphy_name(data->hw->wiphy);
+
+	res = append_radio_msg(skb, data->idx, &param);
+	if (res < 0)
+		goto out_err;
+
+	return genlmsg_end(skb, hdr);
+
+out_err:
+	genlmsg_cancel(skb, hdr);
+	return res;
 }
 
 static void mac80211_hwsim_free(void)
@@ -2823,6 +2867,77 @@ static int hwsim_del_radio_nl(struct sk_buff *msg, struct genl_info *info)
 	return -ENODEV;
 }
 
+static int hwsim_get_radio_nl(struct sk_buff *msg, struct genl_info *info)
+{
+	struct mac80211_hwsim_data *data;
+	struct sk_buff *skb;
+	int idx, res = -ENODEV;
+
+	if (!info->attrs[HWSIM_ATTR_RADIO_ID])
+		return -EINVAL;
+	idx = nla_get_u32(info->attrs[HWSIM_ATTR_RADIO_ID]);
+
+	spin_lock_bh(&hwsim_radio_lock);
+	list_for_each_entry(data, &hwsim_radios, list) {
+		if (data->idx != idx)
+			continue;
+
+		skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+		if (!skb) {
+			res = -ENOMEM;
+			goto out_err;
+		}
+
+		res = mac80211_hwsim_get_radio(skb, data, info->snd_portid,
+					       info->snd_seq, NULL, 0);
+		if (res < 0) {
+			nlmsg_free(skb);
+			goto out_err;
+		}
+
+		genlmsg_reply(skb, info);
+		break;
+	}
+
+out_err:
+	spin_unlock_bh(&hwsim_radio_lock);
+
+	return res;
+}
+
+static int hwsim_dump_radio_nl(struct sk_buff *skb,
+			       struct netlink_callback *cb)
+{
+	int idx = cb->args[0];
+	struct mac80211_hwsim_data *data = NULL;
+	int res;
+
+	spin_lock_bh(&hwsim_radio_lock);
+
+	if (idx == hwsim_radio_idx)
+		goto done;
+
+	list_for_each_entry(data, &hwsim_radios, list) {
+		if (data->idx < idx)
+			continue;
+
+		res = mac80211_hwsim_get_radio(skb, data,
+					       NETLINK_CB(cb->skb).portid,
+					       cb->nlh->nlmsg_seq, cb,
+					       NLM_F_MULTI);
+		if (res < 0)
+			break;
+
+		idx = data->idx + 1;
+	}
+
+	cb->args[0] = idx;
+
+done:
+	spin_unlock_bh(&hwsim_radio_lock);
+	return skb->len;
+}
+
 /* Generic Netlink operations array */
 static const struct genl_ops hwsim_ops[] = {
 	{
@@ -2852,6 +2967,12 @@ static const struct genl_ops hwsim_ops[] = {
 		.policy = hwsim_genl_policy,
 		.doit = hwsim_del_radio_nl,
 		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = HWSIM_CMD_GET_RADIO,
+		.policy = hwsim_genl_policy,
+		.doit = hwsim_get_radio_nl,
+		.dumpit = hwsim_dump_radio_nl,
 	},
 };
 
