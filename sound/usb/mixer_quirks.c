@@ -41,6 +41,7 @@
 #include "usbaudio.h"
 #include "mixer.h"
 #include "mixer_quirks.h"
+#include "mixer_scarlett.h"
 #include "helper.h"
 
 extern struct snd_kcontrol_new *snd_usb_feature_unit_ctl;
@@ -1769,6 +1770,14 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 	case USB_ID(0x200c, 0x1018): /* Electrix Ebox-44 */
 		/* detection is disabled in mixer_maps.c */
 		err = snd_create_std_mono_table(mixer, ebox44_table);
+		break;
+
+	case USB_ID(0x1235, 0x8012): /* Focusrite Scarlett 6i6 */
+	case USB_ID(0x1235, 0x8002): /* Focusrite Scarlett 8i6 */
+	case USB_ID(0x1235, 0x8004): /* Focusrite Scarlett 18i6 */
+	case USB_ID(0x1235, 0x8014): /* Focusrite Scarlett 18i8 */
+	case USB_ID(0x1235, 0x800c): /* Focusrite Scarlett 18i20 */
+		err = snd_scarlett_controls_create(mixer);
 		break;
 	}
 
