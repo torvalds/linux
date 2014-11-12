@@ -1078,7 +1078,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 				break;
 			}
 
-			priv->client = client;
+			priv->i2c_client_tuner = client;
 			sd = i2c_get_clientdata(client);
 			i2c_set_adapdata(i2c_adap_internal, d);
 
@@ -1137,7 +1137,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 				priv->tuner);
 	}
 
-	if (fe == NULL && priv->client == NULL) {
+	if (fe == NULL && priv->i2c_client_tuner == NULL) {
 		ret = -ENODEV;
 		goto err;
 	}
@@ -1190,7 +1190,7 @@ static void rtl28xxu_exit(struct dvb_usb_device *d)
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
 	/* remove I2C tuner */
-	client = priv->client;
+	client = priv->i2c_client_tuner;
 	if (client) {
 		module_put(client->dev.driver->owner);
 		i2c_unregister_device(client);
