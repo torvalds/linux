@@ -574,12 +574,12 @@ static int __init __maybe_unused NCR5380_probe_irq(struct Scsi_Host *instance,
 	int trying_irqs, i, mask;
 	NCR5380_setup(instance);
 
-	for (trying_irqs = i = 0, mask = 1; i < 16; ++i, mask <<= 1)
+	for (trying_irqs = 0, i = 1, mask = 2; i < 16; ++i, mask <<= 1)
 		if ((mask & possible) && (request_irq(i, &probe_intr, 0, "NCR-probe", NULL) == 0))
 			trying_irqs |= mask;
 
 	timeout = jiffies + (250 * HZ / 1000);
-	probe_irq = SCSI_IRQ_NONE;
+	probe_irq = NO_IRQ;
 
 	/*
 	 * A interrupt is triggered whenever BSY = false, SEL = true
@@ -596,13 +596,13 @@ static int __init __maybe_unused NCR5380_probe_irq(struct Scsi_Host *instance,
 	NCR5380_write(OUTPUT_DATA_REG, hostdata->id_mask);
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_DATA | ICR_ASSERT_SEL);
 
-	while (probe_irq == SCSI_IRQ_NONE && time_before(jiffies, timeout))
+	while (probe_irq == NO_IRQ && time_before(jiffies, timeout))
 		schedule_timeout_uninterruptible(1);
 	
 	NCR5380_write(SELECT_ENABLE_REG, 0);
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 
-	for (i = 0, mask = 1; i < 16; ++i, mask <<= 1)
+	for (i = 1, mask = 2; i < 16; ++i, mask <<= 1)
 		if (trying_irqs & mask)
 			free_irq(i, NULL);
 
@@ -730,7 +730,7 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 
 	SPRINTF("\nBase Addr: 0x%05lX    ", (long) instance->base);
 	SPRINTF("io_port: %04x      ", (int) instance->io_port);
-	if (instance->irq == SCSI_IRQ_NONE)
+	if (instance->irq == NO_IRQ)
 		SPRINTF("IRQ: None.\n");
 	else
 		SPRINTF("IRQ: %d.\n", instance->irq);
@@ -1501,7 +1501,7 @@ part2:
 	}
 
 	dprintk(NDEBUG_SELECTION, "scsi%d : target %d selected, going into MESSAGE OUT phase.\n", instance->host_no, cmd->device->id);
-	tmp[0] = IDENTIFY(((instance->irq == SCSI_IRQ_NONE) ? 0 : 1), cmd->device->lun);
+	tmp[0] = IDENTIFY(((instance->irq == NO_IRQ) ? 0 : 1), cmd->device->lun);
 
 	len = 1;
 	cmd->tag = 0;

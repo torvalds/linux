@@ -148,7 +148,7 @@ static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto unreg;
 	}
 
-	host->irq = IRQ_NONE;
+	host->irq = NO_IRQ;
 	host->n_io_port = 255;
 
 	NCR5380_init(host, 0);

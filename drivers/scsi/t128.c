@@ -228,15 +228,19 @@ found:
 	else 
 	    instance->irq = NCR5380_probe_irq(instance, T128_IRQS);
 
-	if (instance->irq != SCSI_IRQ_NONE) 
+	/* Compatibility with documented NCR5380 kernel parameters */
+	if (instance->irq == 255)
+		instance->irq = NO_IRQ;
+
+	if (instance->irq != NO_IRQ)
 	    if (request_irq(instance->irq, t128_intr, 0, "t128",
 			    instance)) {
 		printk("scsi%d : IRQ%d not free, interrupts disabled\n", 
 		    instance->host_no, instance->irq);
-		instance->irq = SCSI_IRQ_NONE;
+		instance->irq = NO_IRQ;
 	    } 
 
-	if (instance->irq == SCSI_IRQ_NONE) {
+	if (instance->irq == NO_IRQ) {
 	    printk("scsi%d : interrupts not enabled. for better interactive performance,\n", instance->host_no);
 	    printk("scsi%d : please jumper the board for a free IRQ.\n", instance->host_no);
 	}
@@ -246,7 +250,7 @@ found:
 #endif
 
 	printk("scsi%d : at 0x%08lx", instance->host_no, instance->base);
-	if (instance->irq == SCSI_IRQ_NONE)
+	if (instance->irq == NO_IRQ)
 	    printk (" interrupts disabled");
 	else 
 	    printk (" irq %d", instance->irq);
@@ -265,7 +269,7 @@ static int t128_release(struct Scsi_Host *shost)
 {
 	NCR5380_local_declare();
 	NCR5380_setup(shost);
-	if (shost->irq)
+	if (shost->irq != NO_IRQ)
 		free_irq(shost->irq, shost);
 	NCR5380_exit(shost);
 	if (shost->io_port && shost->n_io_port)

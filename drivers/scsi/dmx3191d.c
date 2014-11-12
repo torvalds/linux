@@ -100,7 +100,7 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 		 */
 		printk(KERN_WARNING "dmx3191: IRQ %d not available - "
 				    "switching to polled mode.\n", pdev->irq);
-		shost->irq = SCSI_IRQ_NONE;
+		shost->irq = NO_IRQ;
 	}
 
 	pci_set_drvdata(pdev, shost);
@@ -113,7 +113,8 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 	return 0;
 
  out_free_irq:
-	free_irq(shost->irq, shost);
+	if (shost->irq != NO_IRQ)
+		free_irq(shost->irq, shost);
  out_release_region:
 	release_region(io, DMX3191D_REGION_LEN);
  out_disable_device:
@@ -130,7 +131,7 @@ static void dmx3191d_remove_one(struct pci_dev *pdev)
 
 	NCR5380_exit(shost);
 
-	if (shost->irq != SCSI_IRQ_NONE)
+	if (shost->irq != NO_IRQ)
 		free_irq(shost->irq, shost);
 	release_region(shost->io_port, DMX3191D_REGION_LEN);
 	pci_disable_device(pdev);

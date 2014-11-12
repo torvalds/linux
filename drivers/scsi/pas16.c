@@ -62,13 +62,11 @@
  *   If you have problems with your card not being recognized, use
  *   the LILO command line override.  Try to get it recognized without
  *   interrupts.  Ie, for a board at the default 0x388 base port,
- *   boot: linux pas16=0x388,255
+ *   boot: linux pas16=0x388,0
  *
- *   SCSI_IRQ_NONE (255) should be specified for no interrupt,
+ *   NO_IRQ (0) should be specified for no interrupt,
  *   IRQ_AUTO (254) to autoprobe for an IRQ line if overridden
  *   on the command line.
- *
- *   (IRQ_AUTO == 254, SCSI_IRQ_NONE == 255 in NCR5380.h)
  */
  
 #include <linux/module.h>
@@ -416,15 +414,19 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
 	else 
 	    instance->irq = NCR5380_probe_irq(instance, PAS16_IRQS);
 
-	if (instance->irq != SCSI_IRQ_NONE) 
+	/* Compatibility with documented NCR5380 kernel parameters */
+	if (instance->irq == 255)
+		instance->irq = NO_IRQ;
+
+	if (instance->irq != NO_IRQ)
 	    if (request_irq(instance->irq, pas16_intr, 0,
 			    "pas16", instance)) {
 		printk("scsi%d : IRQ%d not free, interrupts disabled\n", 
 		    instance->host_no, instance->irq);
-		instance->irq = SCSI_IRQ_NONE;
+		instance->irq = NO_IRQ;
 	    } 
 
-	if (instance->irq == SCSI_IRQ_NONE) {
+	if (instance->irq == NO_IRQ) {
 	    printk("scsi%d : interrupts not enabled. for better interactive performance,\n", instance->host_no);
 	    printk("scsi%d : please jumper the board for a free IRQ.\n", instance->host_no);
 	    /* Disable 5380 interrupts, leave drive params the same */
@@ -438,7 +440,7 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
 
 	printk("scsi%d : at 0x%04x", instance->host_no, (int) 
 	    instance->io_port);
-	if (instance->irq == SCSI_IRQ_NONE)
+	if (instance->irq == NO_IRQ)
 	    printk (" interrupts disabled");
 	else 
 	    printk (" irq %d", instance->irq);
@@ -568,7 +570,7 @@ static inline int NCR5380_pwrite (struct Scsi_Host *instance, unsigned char *src
 
 static int pas16_release(struct Scsi_Host *shost)
 {
-	if (shost->irq)
+	if (shost->irq != NO_IRQ)
 		free_irq(shost->irq, shost);
 	NCR5380_exit(shost);
 	if (shost->io_port && shost->n_io_port)

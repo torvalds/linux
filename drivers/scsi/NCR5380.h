@@ -232,11 +232,14 @@
  * Scsi_Host structure
  */
 
-#define SCSI_IRQ_NONE	255
 #define DMA_NONE	255
 #define IRQ_AUTO	254
 #define DMA_AUTO	254
 #define PORT_AUTO	0xffff	/* autoprobe io port for 53c400a */
+
+#ifndef NO_IRQ
+#define NO_IRQ		0
+#endif
 
 #define FLAG_HAS_LAST_BYTE_SENT		1	/* NCR53c81 or better */
 #define FLAG_CHECK_LAST_BYTE_SENT	2	/* Only test once */

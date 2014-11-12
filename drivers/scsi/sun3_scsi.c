@@ -278,7 +278,7 @@ static int __init sun3scsi_detect(struct scsi_host_template *tpnt)
 #ifndef REAL_DMA
 		printk("scsi%d: IRQ%d not free, interrupts disabled\n",
 		       instance->host_no, instance->irq);
-		instance->irq = SCSI_IRQ_NONE;
+		instance->irq = NO_IRQ;
 #else
 		printk("scsi%d: IRQ%d not free, bailing out\n",
 		       instance->host_no, instance->irq);
@@ -288,7 +288,7 @@ static int __init sun3scsi_detect(struct scsi_host_template *tpnt)
 	
 	pr_info("scsi%d: %s at port %lX irq", instance->host_no,
 		tpnt->proc_name, instance->io_port);
-	if (instance->irq == SCSI_IRQ_NONE)
+	if (instance->irq == NO_IRQ)
 		printk ("s disabled");
 	else
 		printk (" %d", instance->irq);
@@ -325,7 +325,7 @@ static int __init sun3scsi_detect(struct scsi_host_template *tpnt)
 
 static int sun3scsi_release(struct Scsi_Host *shpnt)
 {
-	if (shpnt->irq != SCSI_IRQ_NONE)
+	if (shpnt->irq != NO_IRQ)
 		free_irq(shpnt->irq, shpnt);
 
 	iounmap((void *)sun3_scsi_regp);
