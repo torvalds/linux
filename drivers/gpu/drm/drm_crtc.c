@@ -683,7 +683,7 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	drm_modeset_lock_init(&crtc->mutex);
 	ret = drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
 	if (ret)
-		goto out;
+		return ret;
 
 	crtc->base.properties = &crtc->properties;
 
@@ -697,9 +697,7 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	if (cursor)
 		cursor->possible_crtcs = 1 << drm_crtc_index(crtc);
 
- out:
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(drm_crtc_init_with_planes);
 
@@ -1154,7 +1152,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 
 	ret = drm_mode_object_get(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
 	if (ret)
-		goto out;
+		return ret;
 
 	drm_modeset_lock_init(&plane->mutex);
 
@@ -1166,8 +1164,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		drm_mode_object_put(dev, &plane->base);
-		ret = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
 	memcpy(plane->format_types, formats, format_count * sizeof(uint32_t));
@@ -1184,9 +1181,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 				   dev->mode_config.plane_type_property,
 				   plane->type);
 
- out:
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(drm_universal_plane_init);
 
@@ -1888,7 +1883,6 @@ int drm_mode_getcrtc(struct drm_device *dev,
 {
 	struct drm_mode_crtc *crtc_resp = data;
 	struct drm_crtc *crtc;
-	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -1916,7 +1910,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	}
 	drm_modeset_unlock_crtc(crtc);
 
-	return ret;
+	return 0;
 }
 
 static bool drm_mode_expose_to_userspace(const struct drm_display_mode *mode,
@@ -2094,7 +2088,6 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 {
 	struct drm_mode_get_encoder *enc_resp = data;
 	struct drm_encoder *encoder;
-	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -2115,7 +2108,7 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 	enc_resp->possible_crtcs = encoder->possible_crtcs;
 	enc_resp->possible_clones = encoder->possible_clones;
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -2198,7 +2191,6 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	struct drm_mode_get_plane *plane_resp = data;
 	struct drm_plane *plane;
 	uint32_t __user *format_ptr;
-	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -2238,7 +2230,7 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	}
 	plane_resp->count_format_types = plane->format_count;
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -2958,7 +2950,7 @@ int drm_mode_addfb(struct drm_device *dev,
 
 	or->fb_id = r.fb_id;
 
-	return ret;
+	return 0;
 }
 
 static int format_check(const struct drm_mode_fb_cmd2 *r)
