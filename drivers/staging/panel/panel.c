@@ -302,14 +302,15 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
 /*
  * Construct custom config from the kernel's configuration
  */
-#define DEFAULT_PROFILE         PANEL_PROFILE_LARGE
 #define DEFAULT_PARPORT         0
-#define DEFAULT_LCD             LCD_TYPE_OLD
+#define DEFAULT_PROFILE         PANEL_PROFILE_LARGE
 #define DEFAULT_KEYPAD          KEYPAD_TYPE_OLD
+#define DEFAULT_LCD             LCD_TYPE_OLD
+#define DEFAULT_LCD_HEIGHT      2
 #define DEFAULT_LCD_WIDTH       40
 #define DEFAULT_LCD_BWIDTH      40
 #define DEFAULT_LCD_HWIDTH      64
-#define DEFAULT_LCD_HEIGHT      2
+#define DEFAULT_LCD_CHARSET     LCD_CHARSET_NORMAL
 #define DEFAULT_LCD_PROTO       LCD_PROTO_PARALLEL
 
 #define DEFAULT_LCD_PIN_E       PIN_AUTOLF
@@ -318,7 +319,6 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
 #define DEFAULT_LCD_PIN_SCL     PIN_STROBE
 #define DEFAULT_LCD_PIN_SDA     PIN_D0
 #define DEFAULT_LCD_PIN_BL      PIN_NOT_SET
-#define DEFAULT_LCD_CHARSET     LCD_CHARSET_NORMAL
 
 #ifdef CONFIG_PANEL_PROFILE
 #undef DEFAULT_PROFILE
