@@ -138,17 +138,7 @@ void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
 int ath9k_cmn_spectral_scan_config(struct ath_common *common,
 			       struct ath_spec_scan_priv *spec_priv,
 			       enum spectral_mode spectral_mode);
-
-#ifdef CONFIG_ATH9K_DEBUGFS
 int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
 		    struct ath_rx_status *rs, u64 tsf);
-#else
-static inline int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv,
-				  struct ieee80211_hdr *hdr,
-				  struct ath_rx_status *rs, u64 tsf)
-{
-	return 0;
-}
-#endif /* CONFIG_ATH9K_DEBUGFS */
 
 #endif /* SPECTRAL_H */
