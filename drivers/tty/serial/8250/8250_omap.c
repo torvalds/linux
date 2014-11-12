@@ -1014,19 +1014,20 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.port.unthrottle = omap_8250_unthrottle;
 
 	if (pdev->dev.of_node) {
-		up.port.line = of_alias_get_id(pdev->dev.of_node, "serial");
+		ret = of_alias_get_id(pdev->dev.of_node, "serial");
+
 		of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 				     &up.port.uartclk);
 		priv->wakeirq = irq_of_parse_and_map(pdev->dev.of_node, 1);
 	} else {
-		up.port.line = pdev->id;
+		ret = pdev->id;
 	}
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to get alias/pdev id\n");
+		return ret;
+	}
+	up.port.line = ret;
 
-	if (up.port.line < 0) {
-		dev_err(&pdev->dev, "failed to get alias/pdev id, errno %d\n",
-			up.port.line);
-		return -ENODEV;
-	}
 	if (!up.port.uartclk) {
 		up.port.uartclk = DEFAULT_CLK_SPEED;
 		dev_warn(&pdev->dev,
