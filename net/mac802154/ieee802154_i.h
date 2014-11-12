@@ -96,6 +96,9 @@ struct ieee802154_sub_if_data {
 
 #define MAC802154_CHAN_NONE		0xff /* No channel is assigned */
 
+/* utility functions/constants */
+extern const void *const mac802154_wpan_phy_privid; /*  for wpan_phy privid */
+
 static inline struct ieee802154_local *
 hw_to_local(struct ieee802154_hw *hw)
 {

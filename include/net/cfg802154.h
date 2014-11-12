@@ -42,6 +42,14 @@ struct cfg802154_ops {
 struct wpan_phy {
 	struct mutex pib_lock;
 
+	/* If multiple wpan_phys are registered and you're handed e.g.
+	 * a regular netdev with assigned ieee802154_ptr, you won't
+	 * know whether it points to a wpan_phy your driver has registered
+	 * or not. Assign this to something global to your driver to
+	 * help determine whether you own this wpan_phy or not.
+	 */
+	const void *privid;
+
 	/*
 	 * This is a PIB according to 802.15.4-2011.
 	 * We do not provide timing-related variables, as they

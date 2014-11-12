@@ -15,6 +15,9 @@
 
 #include "ieee802154_i.h"
 
+/* privid for wpan_phys to determine whether they belong to us or not */
+const void *const mac802154_wpan_phy_privid = &mac802154_wpan_phy_privid;
+
 void ieee802154_wake_queue(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);

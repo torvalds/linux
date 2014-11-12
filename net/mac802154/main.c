@@ -92,6 +92,8 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 		return NULL;
 	}
 
+	phy->privid = mac802154_wpan_phy_privid;
+
 	local = wpan_phy_priv(phy);
 	local->phy = phy;
 	local->hw.phy = local->phy;
