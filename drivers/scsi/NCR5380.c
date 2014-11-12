@@ -833,18 +833,6 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	
 	INIT_DELAYED_WORK(&hostdata->coroutine, NCR5380_main);
 	
-#ifdef NCR5380_STATS
-	for (i = 0; i < 8; ++i) {
-		hostdata->time_read[i] = 0;
-		hostdata->time_write[i] = 0;
-		hostdata->bytes_read[i] = 0;
-		hostdata->bytes_write[i] = 0;
-	}
-	hostdata->timebase = 0;
-	hostdata->pendingw = 0;
-	hostdata->pendingr = 0;
-#endif
-
 	/* The CHECK code seems to break the 53C400. Will check it later maybe */
 	if (flags & FLAG_NCR53C400)
 		hostdata->flags = FLAG_HAS_LAST_BYTE_SENT | flags;
@@ -942,25 +930,6 @@ static int NCR5380_queue_command_lck(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *)
 		return 0;
 	}
 #endif				/* (NDEBUG & NDEBUG_NO_WRITE) */
-
-#ifdef NCR5380_STATS
-	switch (cmd->cmnd[0]) {
-		case WRITE:
-		case WRITE_6:
-		case WRITE_10:
-			hostdata->time_write[cmd->device->id] -= (jiffies - hostdata->timebase);
-			hostdata->bytes_write[cmd->device->id] += scsi_bufflen(cmd);
-			hostdata->pendingw++;
-			break;
-		case READ:
-		case READ_6:
-		case READ_10:
-			hostdata->time_read[cmd->device->id] -= (jiffies - hostdata->timebase);
-			hostdata->bytes_read[cmd->device->id] += scsi_bufflen(cmd);
-			hostdata->pendingr++;
-			break;
-	}
-#endif
 
 	/* 
 	 * We use the host_scribble field as a pointer to the next command  
@@ -1207,35 +1176,6 @@ static irqreturn_t NCR5380_intr(int dummy, void *dev_id)
 
 #endif 
 
-/**
- *	collect_stats		-	collect stats on a scsi command
- *	@hostdata: adapter 
- *	@cmd: command being issued
- *
- *	Update the statistical data by parsing the command in question
- */
- 
-static void collect_stats(struct NCR5380_hostdata *hostdata, Scsi_Cmnd * cmd) 
-{
-#ifdef NCR5380_STATS
-	switch (cmd->cmnd[0]) {
-	case WRITE:
-	case WRITE_6:
-	case WRITE_10:
-		hostdata->time_write[scmd_id(cmd)] += (jiffies - hostdata->timebase);
-		hostdata->pendingw--;
-		break;
-	case READ:
-	case READ_6:
-	case READ_10:
-		hostdata->time_read[scmd_id(cmd)] += (jiffies - hostdata->timebase);
-		hostdata->pendingr--;
-		break;
-	}
-#endif
-}
-
-
 /* 
  * Function : int NCR5380_select (struct Scsi_Host *instance, Scsi_Cmnd *cmd)
  *
@@ -1464,7 +1404,6 @@ part2:
 			return -1;
 		}
 		cmd->result = DID_BAD_TARGET << 16;
-		collect_stats(hostdata, cmd);
 		cmd->scsi_done(cmd);
 		NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 		dprintk(NDEBUG_SELECTION, "scsi%d : target did not respond within 250ms\n", instance->host_no);
@@ -2216,7 +2155,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 					cmd->next_link->tag = cmd->tag;
 					cmd->result = cmd->SCp.Status | (cmd->SCp.Message << 8);
 					dprintk(NDEBUG_LINKED, "scsi%d : target %d lun %llu linked request done, calling scsi_done().\n", instance->host_no, cmd->device->id, cmd->device->lun);
-					collect_stats(hostdata, cmd);
 					cmd->scsi_done(cmd);
 					cmd = hostdata->connected;
 					break;
@@ -2268,7 +2206,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 						hostdata->issue_queue = (Scsi_Cmnd *) cmd;
 						dprintk(NDEBUG_QUEUES, "scsi%d : REQUEST SENSE added to head of issue queue\n", instance->host_no);
 					} else {
-						collect_stats(hostdata, cmd);
 						cmd->scsi_done(cmd);
 					}
 
@@ -2415,7 +2352,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 					hostdata->busy[cmd->device->id] &= ~(1 << (cmd->device->lun & 0xFF));
 					hostdata->connected = NULL;
 					cmd->result = DID_ERROR << 16;
-					collect_stats(hostdata, cmd);
 					cmd->scsi_done(cmd);
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 					return;

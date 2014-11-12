@@ -888,34 +888,6 @@ static int NCR5380_queue_command_lck(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
 	}
 #endif /* (NDEBUG & NDEBUG_NO_WRITE) */
 
-#ifdef NCR5380_STATS
-# if 0
-	if (!hostdata->connected && !hostdata->issue_queue &&
-	    !hostdata->disconnected_queue) {
-		hostdata->timebase = jiffies;
-	}
-# endif
-# ifdef NCR5380_STAT_LIMIT
-	if (scsi_bufflen(cmd) > NCR5380_STAT_LIMIT)
-# endif
-		switch (cmd->cmnd[0]) {
-		case WRITE:
-		case WRITE_6:
-		case WRITE_10:
-			hostdata->time_write[cmd->device->id] -= (jiffies - hostdata->timebase);
-			hostdata->bytes_write[cmd->device->id] += scsi_bufflen(cmd);
-			hostdata->pendingw++;
-			break;
-		case READ:
-		case READ_6:
-		case READ_10:
-			hostdata->time_read[cmd->device->id] -= (jiffies - hostdata->timebase);
-			hostdata->bytes_read[cmd->device->id] += scsi_bufflen(cmd);
-			hostdata->pendingr++;
-			break;
-		}
-#endif
-
 	/*
 	 * We use the host_scribble field as a pointer to the next command
 	 * in a queue
@@ -1309,31 +1281,6 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-#ifdef NCR5380_STATS
-static void collect_stats(struct NCR5380_hostdata* hostdata, Scsi_Cmnd *cmd)
-{
-# ifdef NCR5380_STAT_LIMIT
-	if (scsi_bufflen(cmd) > NCR5380_STAT_LIMIT)
-# endif
-		switch (cmd->cmnd[0]) {
-		case WRITE:
-		case WRITE_6:
-		case WRITE_10:
-			hostdata->time_write[cmd->device->id] += (jiffies - hostdata->timebase);
-			/*hostdata->bytes_write[cmd->device->id] += scsi_bufflen(cmd);*/
-			hostdata->pendingw--;
-			break;
-		case READ:
-		case READ_6:
-		case READ_10:
-			hostdata->time_read[cmd->device->id] += (jiffies - hostdata->timebase);
-			/*hostdata->bytes_read[cmd->device->id] += scsi_bufflen(cmd);*/
-			hostdata->pendingr--;
-			break;
-		}
-}
-#endif
-
 /*
  * Function : int NCR5380_select (struct Scsi_Host *instance, Scsi_Cmnd *cmd)
  *
@@ -1598,9 +1545,6 @@ static int NCR5380_select(struct Scsi_Host *instance, Scsi_Cmnd *cmd)
 			return -1;
 		}
 		cmd->result = DID_BAD_TARGET << 16;
-#ifdef NCR5380_STATS
-		collect_stats(hostdata, cmd);
-#endif
 #ifdef SUPPORT_TAGS
 		cmd_free_tag(cmd);
 #endif
@@ -2127,9 +2071,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					dprintk(NDEBUG_LINKED, "scsi%d: target %d lun %llu linked request "
 						   "done, calling scsi_done().\n",
 						   HOSTNO, cmd->device->id, cmd->device->lun);
-#ifdef NCR5380_STATS
-					collect_stats(hostdata, cmd);
-#endif
 					cmd->scsi_done(cmd);
 					cmd = hostdata->connected;
 					break;
@@ -2209,9 +2150,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						dprintk(NDEBUG_QUEUES, "scsi%d: REQUEST SENSE added to head of "
 							  "issue queue\n", H_NO(cmd));
 					} else {
-#ifdef NCR5380_STATS
-						collect_stats(hostdata, cmd);
-#endif
 						cmd->scsi_done(cmd);
 					}
 
@@ -2396,9 +2334,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 #endif
 					hostdata->connected = NULL;
 					cmd->result = DID_ERROR << 16;
-#ifdef NCR5380_STATS
-					collect_stats(hostdata, cmd);
-#endif
 					cmd->scsi_done(cmd);
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 					falcon_release_lock_if_possible(hostdata);

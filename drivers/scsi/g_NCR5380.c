@@ -69,8 +69,6 @@
 #define NCR53C400_PSEUDO_DMA 1
 #define PSEUDO_DMA
 #define NCR53C400
-#define NCR5380_STATS
-#undef NCR5380_STAT_LIMIT
 #endif
 
 #include <asm/io.h>
@@ -779,9 +777,6 @@ static int generic_NCR5380_show_info(struct seq_file *m, struct Scsi_Host *scsi_
 	int i;
 	Scsi_Cmnd *ptr;
 	struct NCR5380_hostdata *hostdata;
-#ifdef NCR5380_STATS
-	struct scsi_device *dev;
-#endif
 
 	NCR5380_setup(scsi_ptr);
 	hostdata = (struct NCR5380_hostdata *) scsi_ptr->hostdata;
@@ -804,46 +799,6 @@ static int generic_NCR5380_show_info(struct seq_file *m, struct Scsi_Host *scsi_
 		PRINTP("no interrupt\n");
 	else
 		PRINTP("on interrupt %d\n" ANDP scsi_ptr->irq);
-
-#ifdef NCR5380_STATS
-	if (hostdata->connected || hostdata->issue_queue || hostdata->disconnected_queue)
-		PRINTP("There are commands pending, transfer rates may be crud\n");
-	if (hostdata->pendingr)
-		PRINTP("  %d pending reads" ANDP hostdata->pendingr);
-	if (hostdata->pendingw)
-		PRINTP("  %d pending writes" ANDP hostdata->pendingw);
-	if (hostdata->pendingr || hostdata->pendingw)
-		PRINTP("\n");
-	shost_for_each_device(dev, scsi_ptr) {
-		unsigned long br = hostdata->bytes_read[dev->id];
-		unsigned long bw = hostdata->bytes_write[dev->id];
-		long tr = hostdata->time_read[dev->id] / HZ;
-		long tw = hostdata->time_write[dev->id] / HZ;
-
-		PRINTP("  T:%d %s " ANDP dev->id ANDP scsi_device_type(dev->type));
-		for (i = 0; i < 8; i++)
-			if (dev->vendor[i] >= 0x20)
-				seq_putc(m, dev->vendor[i]);
-		seq_putc(m, ' ');
-		for (i = 0; i < 16; i++)
-			if (dev->model[i] >= 0x20)
-				seq_putc(m, dev->model[i]);
-		seq_putc(m, ' ');
-		for (i = 0; i < 4; i++)
-			if (dev->rev[i] >= 0x20)
-				seq_putc(m, dev->rev[i]);
-		seq_putc(m, ' ');
-
-		PRINTP("\n%10ld kb read    in %5ld secs" ANDP br / 1024 ANDP tr);
-		if (tr)
-			PRINTP(" @ %5ld bps" ANDP br / tr);
-
-		PRINTP("\n%10ld kb written in %5ld secs" ANDP bw / 1024 ANDP tw);
-		if (tw)
-			PRINTP(" @ %5ld bps" ANDP bw / tw);
-		PRINTP("\n");
-	}
-#endif
 
 	status = NCR5380_read(STATUS_REG);
 	if (!(status & SR_REQ))

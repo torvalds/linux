@@ -272,15 +272,6 @@ struct NCR5380_hostdata {
 	int select_time;			/* timer in select for target response */
 	volatile Scsi_Cmnd *selecting;
 	struct delayed_work coroutine;		/* our co-routine */
-#ifdef NCR5380_STATS
-	unsigned timebase;			/* Base for time calcs */
-	long time_read[8];			/* time to do reads */
-	long time_write[8];			/* time to do writes */
-	unsigned long bytes_read[8];		/* bytes read */
-	unsigned long bytes_write[8];		/* bytes written */
-	unsigned pendingr;
-	unsigned pendingw;
-#endif
 	struct scsi_eh_save ses;
 };
 
