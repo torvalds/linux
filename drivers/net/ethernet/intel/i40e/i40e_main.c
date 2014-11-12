@@ -8279,6 +8279,7 @@ static int i40e_veb_get_bw_info(struct i40e_veb *veb)
 	veb->bw_limit = le16_to_cpu(ets_data.port_bw_limit);
 	veb->bw_max_quanta = ets_data.tc_bw_max;
 	veb->is_abs_credits = bw_data.absolute_credits_enable;
+	veb->enabled_tc = ets_data.tc_valid_bits;
 	tc_bw_max = le16_to_cpu(bw_data.tc_bw_max[0]) |
 		    (le16_to_cpu(bw_data.tc_bw_max[1]) << 16);
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
