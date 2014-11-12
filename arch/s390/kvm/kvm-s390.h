@@ -24,8 +24,6 @@ typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 /* declare vfacilities extern */
 extern unsigned long *vfacilities;
 
-int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
-
 /* Transactional Memory Execution related macros */
 #define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & 0x10))
 #define TDB_FORMAT1		1
@@ -151,6 +149,10 @@ struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 void kvm_s390_reinject_io_int(struct kvm *kvm,
 			      struct kvm_s390_interrupt_info *inti);
 int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked);
+
+/* implemented in intercept.c */
+void kvm_s390_rewind_psw(struct kvm_vcpu *vcpu, int ilc);
+int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
 
 /* implemented in priv.c */
 int is_valid_psw(psw_t *psw);
