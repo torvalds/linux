@@ -1227,7 +1227,6 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 		NCR5380_dprint(NDEBUG_INTR, instance);
 		if ((NCR5380_read(STATUS_REG) & (SR_SEL|SR_IO)) == (SR_SEL|SR_IO)) {
 			done = 0;
-			ENABLE_IRQ();
 			dprintk(NDEBUG_INTR, "scsi%d: SEL interrupt\n", HOSTNO);
 			NCR5380_reselect(instance);
 			(void)NCR5380_read(RESET_PARITY_INTERRUPT_REG);
@@ -1257,7 +1256,6 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 				dprintk(NDEBUG_INTR, "scsi%d: PHASE MISM or EOP interrupt\n", HOSTNO);
 				NCR5380_dma_complete( instance );
 				done = 0;
-				ENABLE_IRQ();
 			} else
 #endif /* REAL_DMA */
 			{

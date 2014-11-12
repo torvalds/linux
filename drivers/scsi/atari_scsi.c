@@ -157,23 +157,6 @@ static inline unsigned long SCSI_DMA_GETADR(void)
 	return adr;
 }
 
-static inline void ENABLE_IRQ(void)
-{
-	if (IS_A_TT())
-		atari_enable_irq(IRQ_TT_MFP_SCSI);
-	else
-		atari_enable_irq(IRQ_MFP_FSCSI);
-}
-
-static inline void DISABLE_IRQ(void)
-{
-	if (IS_A_TT())
-		atari_disable_irq(IRQ_TT_MFP_SCSI);
-	else
-		atari_disable_irq(IRQ_MFP_FSCSI);
-}
-
-
 #define HOSTDATA_DMALEN		(((struct NCR5380_hostdata *) \
 				(atari_scsi_host->hostdata))->dma_len)
 
@@ -373,10 +356,6 @@ static irqreturn_t scsi_tt_intr(int irq, void *dummy)
 
 	NCR5380_intr(irq, dummy);
 
-#if 0
-	/* To be sure the int is not masked */
-	atari_enable_irq(IRQ_TT_MFP_SCSI);
-#endif
 	return IRQ_HANDLED;
 }
 

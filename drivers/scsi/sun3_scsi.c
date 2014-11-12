@@ -69,13 +69,6 @@
 
 extern int sun3_map_test(unsigned long, char *);
 
-#ifdef SUN3_SCSI_VME
-#define ENABLE_IRQ()
-#else
-#define	ENABLE_IRQ()	enable_irq( IRQ_SUN3_SCSI ); 
-#endif
-
-
 static int setup_can_queue = -1;
 module_param(setup_can_queue, int, 0);
 static int setup_cmd_per_lun = -1;
