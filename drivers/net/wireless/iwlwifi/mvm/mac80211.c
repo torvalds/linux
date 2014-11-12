@@ -2330,12 +2330,16 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		break;
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		/*
-		 * Support for TX only, at least for now, so accept
-		 * the key and do nothing else. Then mac80211 will
-		 * pass it for TX but we don't have to use it for RX.
+		/* For non-client mode, only use WEP keys for TX as we probably
+		 * don't have a station yet anyway and would then have to keep
+		 * track of the keys, linking them to each of the clients/peers
+		 * as they appear. For now, don't do that, for performance WEP
+		 * offload doesn't really matter much, but we need it for some
+		 * other offload features in client mode.
 		 */
-		return 0;
+		if (vif->type != NL80211_IFTYPE_STATION)
+			return 0;
+		break;
 	default:
 		/* currently FW supports only one optional cipher scheme */
 		if (hw->n_cipher_schemes &&
