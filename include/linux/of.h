@@ -276,7 +276,7 @@ extern int of_property_read_string_helper(struct device_node *np,
 					      const char **out_strs, size_t sz, int index);
 extern int of_device_is_compatible(const struct device_node *device,
 				   const char *);
-extern int of_device_is_available(const struct device_node *device);
+extern bool of_device_is_available(const struct device_node *device);
 extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
@@ -427,9 +427,9 @@ static inline int of_device_is_compatible(const struct device_node *device,
 	return 0;
 }
 
-static inline int of_device_is_available(const struct device_node *device)
+static inline bool of_device_is_available(const struct device_node *device)
 {
-	return 0;
+	return false;
 }
 
 static inline struct property *of_find_property(const struct device_node *np,

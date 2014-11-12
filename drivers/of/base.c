@@ -522,27 +522,27 @@ EXPORT_SYMBOL(of_machine_is_compatible);
  *
  *  @device: Node to check for availability, with locks already held
  *
- *  Returns 1 if the status property is absent or set to "okay" or "ok",
- *  0 otherwise
+ *  Returns true if the status property is absent or set to "okay" or "ok",
+ *  false otherwise
  */
-static int __of_device_is_available(const struct device_node *device)
+static bool __of_device_is_available(const struct device_node *device)
 {
 	const char *status;
 	int statlen;
 
 	if (!device)
-		return 0;
+		return false;
 
 	status = __of_get_property(device, "status", &statlen);
 	if (status == NULL)
-		return 1;
+		return true;
 
 	if (statlen > 0) {
 		if (!strcmp(status, "okay") || !strcmp(status, "ok"))
-			return 1;
+			return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /**
@@ -550,13 +550,13 @@ static int __of_device_is_available(const struct device_node *device)
  *
  *  @device: Node to check for availability
  *
- *  Returns 1 if the status property is absent or set to "okay" or "ok",
- *  0 otherwise
+ *  Returns true if the status property is absent or set to "okay" or "ok",
+ *  false otherwise
  */
-int of_device_is_available(const struct device_node *device)
+bool of_device_is_available(const struct device_node *device)
 {
 	unsigned long flags;
-	int res;
+	bool res;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	res = __of_device_is_available(device);
