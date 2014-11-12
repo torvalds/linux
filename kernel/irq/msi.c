@@ -18,6 +18,19 @@
 /* Temparory solution for building, will be removed later */
 #include <linux/pci.h>
 
+void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
+{
+	*msg = entry->msg;
+}
+
+void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg)
+{
+	struct msi_desc *entry = irq_get_msi_desc(irq);
+
+	__get_cached_msi_msg(entry, msg);
+}
+EXPORT_SYMBOL_GPL(get_cached_msi_msg);
+
 #ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
 /**
  * msi_domain_set_affinity - Generic affinity setter function for MSI domains
