@@ -65,31 +65,16 @@ static void gb_operation_insert(struct gb_operation *operation)
 	struct rb_node *above = NULL;
 	struct gb_operation_msg_hdr *header;
 	unsigned long timeout;
-	bool start_timer;
-	__le16 wire_id;
 
-	/*
-	 * Assign the operation's id, and store it in the header of
-	 * both request and response message headers.
+	/* Assign the operation's id, and store it in the header of
+	 * the request message header.
 	 */
 	operation->id = gb_connection_operation_id(connection);
-	wire_id = cpu_to_le16(operation->id);
 	header = operation->request->transfer_buffer;
-	header->id = wire_id;
+	header->id = cpu_to_le16(operation->id);
 
-	/* OK, insert the operation into its connection's tree */
+	/* OK, insert the operation into its connection's pending tree */
 	spin_lock_irq(&gb_operations_lock);
-
-	/*
-	 * We impose a time limit for requests to complete.  If
-	 * there are no requests pending there is no need for a
-	 * timer.  So if this will be the only one in flight we'll
-	 * need to start the timer.  Otherwise we just update the
-	 * existing one to give this request a full timeout period
-	 * to complete.
-	 */
-	start_timer = RB_EMPTY_ROOT(root);
-
 	while (*link) {
 		struct gb_operation *other;
 
@@ -105,11 +90,9 @@ static void gb_operation_insert(struct gb_operation *operation)
 	rb_insert_color(node, root);
 	spin_unlock_irq(&gb_operations_lock);
 
+	/* We impose a time limit for requests to complete.  */
 	timeout = msecs_to_jiffies(OPERATION_TIMEOUT_DEFAULT);
-	if (start_timer)
-		schedule_delayed_work(&operation->timeout_work, timeout);
-	else
-		mod_delayed_work(system_wq, &operation->timeout_work, timeout);
+	schedule_delayed_work(&operation->timeout_work, timeout);
 }
 
 static void gb_operation_remove(struct gb_operation *operation)
