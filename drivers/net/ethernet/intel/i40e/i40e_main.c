@@ -4382,6 +4382,31 @@ static void i40e_dcb_reconfigure(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_resume_port_tx - Resume port Tx
+ * @pf: PF struct
+ *
+ * Resume a port's Tx and issue a PF reset in case of failure to
+ * resume.
+ **/
+static int i40e_resume_port_tx(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	int ret;
+
+	ret = i40e_aq_resume_port_tx(hw, NULL);
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "AQ command Resume Port Tx failed = %d\n",
+			  pf->hw.aq.asq_last_status);
+		/* Schedule PF reset to recover */
+		set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
+		i40e_service_event_schedule(pf);
+	}
+
+	return ret;
+}
+
+/**
  * i40e_init_pf_dcb - Initialize DCB configuration
  * @pf: PF being configured
  *
@@ -5075,7 +5100,11 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	/* Changes in configuration update VEB/VSI */
 	i40e_dcb_reconfigure(pf);
 
-	i40e_pf_unquiesce_all_vsi(pf);
+	ret = i40e_resume_port_tx(pf);
+
+	/* In case of error no point in resuming VSIs */
+	if (!ret)
+		i40e_pf_unquiesce_all_vsi(pf);
 exit:
 	return ret;
 }

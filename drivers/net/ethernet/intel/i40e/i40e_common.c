@@ -3217,6 +3217,26 @@ i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 }
 
 /**
+ * i40e_aq_resume_port_tx
+ * @hw: pointer to the hardware structure
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Resume port's Tx traffic
+ **/
+i40e_status i40e_aq_resume_port_tx(struct i40e_hw *hw,
+				   struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_resume_port_tx);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
  * i40e_set_pci_config_data - store PCI bus info
  * @hw: pointer to hardware structure
  * @link_status: the link status word from PCI config space

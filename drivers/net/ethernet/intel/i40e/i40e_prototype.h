@@ -230,6 +230,8 @@ i40e_status i40e_aq_query_switch_comp_bw_config(struct i40e_hw *hw,
 		u16 seid,
 		struct i40e_aqc_query_switching_comp_bw_config_resp *bw_data,
 		struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_resume_port_tx(struct i40e_hw *hw,
+				   struct i40e_asq_cmd_details *cmd_details);
 /* i40e_common */
 i40e_status i40e_init_shared_code(struct i40e_hw *hw);
 i40e_status i40e_pf_reset(struct i40e_hw *hw);
