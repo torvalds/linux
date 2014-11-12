@@ -115,6 +115,7 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 
 	ret = irq_alloc_domain_generic_chips(domain, 32, (nrirqs > 32) ? 2 : 1,
 					     np->name, handle_level_irq, clr, 0,
+					     IRQ_GC_MASK_CACHE_PER_TYPE |
 					     IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
 		pr_err("%s: unable to alloc irq domain gc\n", np->full_name);
