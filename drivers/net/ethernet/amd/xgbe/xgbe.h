@@ -246,10 +246,10 @@ struct xgbe_packet_data {
 
 /* Common Rx and Tx descriptor mapping */
 struct xgbe_ring_desc {
-	u32 desc0;
-	u32 desc1;
-	u32 desc2;
-	u32 desc3;
+	__le32 desc0;
+	__le32 desc1;
+	__le32 desc2;
+	__le32 desc3;
 };
 
 /* Page allocation related values */
