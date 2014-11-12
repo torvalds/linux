@@ -41,7 +41,6 @@ struct usb_hub {
 	int			error;		/* last reported error */
 	int			nerrors;	/* track consecutive errors */
 
-	struct list_head	event_list;	/* hubs w/data or errs ready */
 	unsigned long		event_bits[1];	/* status change bitmask */
 	unsigned long		change_bits[1];	/* ports with logical connect
 							status change */
@@ -52,6 +51,8 @@ struct usb_hub {
 	unsigned long		power_bits[1]; /* ports that are powered */
 	unsigned long		child_usage_bits[1]; /* ports powered on for
 							children */
+	unsigned long		warm_reset_bits[1]; /* ports requesting warm
+							reset recovery */
 #if USB_MAXCHILDREN > 31 /* 8*sizeof(unsigned long) - 1 */
 #error event_bits[] is too short!
 #endif
@@ -75,6 +76,7 @@ struct usb_hub {
 	u8			indicator[USB_MAXCHILDREN];
 	struct delayed_work	leds;
 	struct delayed_work	init_work;
+	struct work_struct      events;
 	struct usb_port		**ports;
 };
 

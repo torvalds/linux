@@ -38,9 +38,9 @@
 #define __LUSTRE_LU_OBJECT_H
 
 #include <stdarg.h>
-#include <linux/libcfs/libcfs.h>
-#include <lustre/lustre_idl.h>
-#include <lu_ref.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "lustre/lustre_idl.h"
+#include "lu_ref.h"
 
 struct seq_file;
 struct proc_dir_entry;
@@ -404,11 +404,11 @@ struct lu_attr {
 	/** size in bytes */
 	__u64	  la_size;
 	/** modification time in seconds since Epoch */
-	obd_time       la_mtime;
+	s64	  la_mtime;
 	/** access time in seconds since Epoch */
-	obd_time       la_atime;
+	s64	  la_atime;
 	/** change time in seconds since Epoch */
-	obd_time       la_ctime;
+	s64	  la_ctime;
 	/** 512-byte blocks allocated to object */
 	__u64	  la_blocks;
 	/** permission bits and file type */
@@ -1146,8 +1146,8 @@ struct lu_context_key {
 	struct __##mod##__dummy_fini {;} /* semicolon catcher */
 
 #define LU_KEY_INIT_FINI(mod, type)   \
-	LU_KEY_INIT(mod,type);	\
-	LU_KEY_FINI(mod,type)
+	LU_KEY_INIT(mod, type);	\
+	LU_KEY_FINI(mod, type)
 
 #define LU_CONTEXT_KEY_DEFINE(mod, tags)		\
 	struct lu_context_key mod##_thread_key = {      \

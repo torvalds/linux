@@ -2092,7 +2092,6 @@ static void bnx2x_dcbnl_get_pfc_cfg(struct net_device *netdev, int prio,
 static u8 bnx2x_dcbnl_set_all(struct net_device *netdev)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
-	int rc = 0;
 
 	DP(BNX2X_MSG_DCB, "SET-ALL\n");
 
@@ -2110,9 +2109,7 @@ static u8 bnx2x_dcbnl_set_all(struct net_device *netdev)
 				       1);
 		bnx2x_dcbx_init(bp, true);
 	}
-	DP(BNX2X_MSG_DCB, "set_dcbx_params done (%d)\n", rc);
-	if (rc)
-		return 1;
+	DP(BNX2X_MSG_DCB, "set_dcbx_params done\n");
 
 	return 0;
 }
@@ -2303,8 +2300,8 @@ static int bnx2x_set_admin_app_up(struct bnx2x *bp, u8 idtype, u16 idval, u8 up)
 	return 0;
 }
 
-static u8 bnx2x_dcbnl_set_app_up(struct net_device *netdev, u8 idtype,
-				 u16 idval, u8 up)
+static int bnx2x_dcbnl_set_app_up(struct net_device *netdev, u8 idtype,
+				  u16 idval, u8 up)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
 

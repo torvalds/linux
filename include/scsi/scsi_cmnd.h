@@ -10,8 +10,9 @@
 #include <scsi/scsi_device.h>
 
 struct Scsi_Host;
-struct scsi_device;
 struct scsi_driver;
+
+#include <scsi/scsi_device.h>
 
 /*
  * MAX_COMMAND_SIZE is:
@@ -81,6 +82,7 @@ struct scsi_cmnd {
 
 	unsigned char prot_op;
 	unsigned char prot_type;
+	unsigned char prot_flags;
 
 	unsigned short cmd_len;
 	enum dma_data_direction sc_data_direction;
@@ -150,9 +152,7 @@ static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 }
 
 extern struct scsi_cmnd *scsi_get_command(struct scsi_device *, gfp_t);
-extern struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *, gfp_t);
 extern void scsi_put_command(struct scsi_cmnd *);
-extern void __scsi_put_command(struct Scsi_Host *, struct scsi_cmnd *);
 extern void scsi_finish_command(struct scsi_cmnd *cmd);
 
 extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
@@ -160,7 +160,6 @@ extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
 extern void scsi_kunmap_atomic_sg(void *virt);
 
 extern int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask);
-extern void scsi_release_buffers(struct scsi_cmnd *cmd);
 
 extern int scsi_dma_map(struct scsi_cmnd *cmd);
 extern void scsi_dma_unmap(struct scsi_cmnd *cmd);
@@ -255,6 +254,14 @@ static inline unsigned char scsi_get_prot_op(struct scsi_cmnd *scmd)
 	return scmd->prot_op;
 }
 
+enum scsi_prot_flags {
+	SCSI_PROT_TRANSFER_PI		= 1 << 0,
+	SCSI_PROT_GUARD_CHECK		= 1 << 1,
+	SCSI_PROT_REF_CHECK		= 1 << 2,
+	SCSI_PROT_REF_INCREMENT		= 1 << 3,
+	SCSI_PROT_IP_CHECKSUM		= 1 << 4,
+};
+
 /*
  * The controller usually does not know anything about the target it
  * is communicating with.  However, when DIX is enabled the controller
@@ -281,6 +288,17 @@ static inline unsigned char scsi_get_prot_type(struct scsi_cmnd *scmd)
 static inline sector_t scsi_get_lba(struct scsi_cmnd *scmd)
 {
 	return blk_rq_pos(scmd->request);
+}
+
+static inline unsigned int scsi_prot_interval(struct scsi_cmnd *scmd)
+{
+	return scmd->device->sector_size;
+}
+
+static inline u32 scsi_prot_ref_tag(struct scsi_cmnd *scmd)
+{
+	return blk_rq_pos(scmd->request) >>
+		(ilog2(scsi_prot_interval(scmd)) - 9) & 0xffffffff;
 }
 
 static inline unsigned scsi_prot_sg_count(struct scsi_cmnd *cmd)
@@ -319,17 +337,12 @@ static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
 static inline unsigned scsi_transfer_length(struct scsi_cmnd *scmd)
 {
 	unsigned int xfer_len = scsi_out(scmd)->length;
-	unsigned int prot_op = scsi_get_prot_op(scmd);
-	unsigned int sector_size = scmd->device->sector_size;
+	unsigned int prot_interval = scsi_prot_interval(scmd);
 
-	switch (prot_op) {
-	case SCSI_PROT_NORMAL:
-	case SCSI_PROT_WRITE_STRIP:
-	case SCSI_PROT_READ_INSERT:
-		return xfer_len;
-	}
+	if (scmd->prot_flags & SCSI_PROT_TRANSFER_PI)
+		xfer_len += (xfer_len >> ilog2(prot_interval)) * 8;
 
-	return xfer_len + (xfer_len >> ilog2(sector_size)) * 8;
+	return xfer_len;
 }
 
 #endif /* _SCSI_SCSI_CMND_H */

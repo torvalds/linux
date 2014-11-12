@@ -612,8 +612,6 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 	if (!rqstp)
 		goto out_enomem;
 
-	init_waitqueue_head(&rqstp->rq_wait);
-
 	serv->sv_nrthreads++;
 	spin_lock_bh(&pool->sp_lock);
 	pool->sp_nrthreads++;
@@ -1086,9 +1084,9 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		goto err_short_len;
 
 	/* Will be turned off only in gss privacy case: */
-	rqstp->rq_splice_ok = 1;
+	rqstp->rq_splice_ok = true;
 	/* Will be turned off only when NFSv4 Sessions are used */
-	rqstp->rq_usedeferral = 1;
+	rqstp->rq_usedeferral = true;
 	rqstp->rq_dropme = false;
 
 	/* Setup reply header */

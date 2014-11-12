@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: generic data structures and APIs
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -48,8 +48,8 @@
 #define MWIFIEX_UAP_AMPDU_DEF_RXWINSIZE        16
 #define MWIFIEX_11AC_STA_AMPDU_DEF_TXWINSIZE   64
 #define MWIFIEX_11AC_STA_AMPDU_DEF_RXWINSIZE   64
-#define MWIFIEX_11AC_UAP_AMPDU_DEF_TXWINSIZE   48
-#define MWIFIEX_11AC_UAP_AMPDU_DEF_RXWINSIZE   32
+#define MWIFIEX_11AC_UAP_AMPDU_DEF_TXWINSIZE   64
+#define MWIFIEX_11AC_UAP_AMPDU_DEF_RXWINSIZE   64
 
 #define MWIFIEX_DEFAULT_BLOCK_ACK_TIMEOUT  0xffff
 

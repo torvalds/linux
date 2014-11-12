@@ -20,7 +20,8 @@ struct rsnd_dvc {
 	struct rsnd_dvc_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
 	struct clk *clk;
-	long volume[RSND_DVC_VOLUME_NUM];
+	u8 volume[RSND_DVC_VOLUME_NUM];
+	u8 mute[RSND_DVC_VOLUME_NUM];
 };
 
 #define rsnd_mod_to_dvc(_mod)	\
@@ -37,13 +38,18 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	u32 max = (0x00800000 - 1);
 	u32 vol[RSND_DVC_VOLUME_NUM];
+	u32 mute = 0;
 	int i;
 
-	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++)
+	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++) {
 		vol[i] = max / RSND_DVC_VOLUME_MAX * dvc->volume[i];
+		mute |= (!!dvc->mute[i]) << i;
+	}
 
 	rsnd_mod_write(mod, DVC_VOL0R, vol[0]);
 	rsnd_mod_write(mod, DVC_VOL1R, vol[1]);
+
+	rsnd_mod_write(mod, DVC_ZCMCR, mute);
 }
 
 static int rsnd_dvc_probe_gen2(struct rsnd_mod *mod,
@@ -96,8 +102,8 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 
 	rsnd_mod_write(dvc_mod, DVC_ADINR, rsnd_get_adinr(dvc_mod));
 
-	/*  enable Volume  */
-	rsnd_mod_write(dvc_mod, DVC_DVUCR, 0x100);
+	/*  enable Volume / Mute */
+	rsnd_mod_write(dvc_mod, DVC_DVUCR, 0x101);
 
 	/* ch0/ch1 Volume */
 	rsnd_dvc_volume_update(dvc_mod);
@@ -140,10 +146,20 @@ static int rsnd_dvc_stop(struct rsnd_mod *mod,
 static int rsnd_dvc_volume_info(struct snd_kcontrol *kctrl,
 			       struct snd_ctl_elem_info *uinfo)
 {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	struct rsnd_mod *mod = snd_kcontrol_chip(kctrl);
+	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	u8 *val = (u8 *)kctrl->private_value;
+
 	uinfo->count = RSND_DVC_VOLUME_NUM;
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = RSND_DVC_VOLUME_MAX;
+
+	if (val == dvc->volume) {
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+		uinfo->value.integer.max = RSND_DVC_VOLUME_MAX;
+	} else {
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+		uinfo->value.integer.max = 1;
+	}
 
 	return 0;
 }
@@ -151,12 +167,11 @@ static int rsnd_dvc_volume_info(struct snd_kcontrol *kctrl,
 static int rsnd_dvc_volume_get(struct snd_kcontrol *kctrl,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct rsnd_mod *mod = snd_kcontrol_chip(kctrl);
-	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	u8 *val = (u8 *)kctrl->private_value;
 	int i;
 
 	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++)
-		ucontrol->value.integer.value[i] = dvc->volume[i];
+		ucontrol->value.integer.value[i] = val[i];
 
 	return 0;
 }
@@ -165,25 +180,47 @@ static int rsnd_dvc_volume_put(struct snd_kcontrol *kctrl,
 			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct rsnd_mod *mod = snd_kcontrol_chip(kctrl);
-	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	u8 *val = (u8 *)kctrl->private_value;
 	int i, change = 0;
 
 	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++) {
-		if (ucontrol->value.integer.value[i] < 0 ||
-		    ucontrol->value.integer.value[i] > RSND_DVC_VOLUME_MAX)
-			return -EINVAL;
-
-		change |= (ucontrol->value.integer.value[i] != dvc->volume[i]);
+		change |= (ucontrol->value.integer.value[i] != val[i]);
+		val[i] = ucontrol->value.integer.value[i];
 	}
 
-	if (change) {
-		for (i = 0; i < RSND_DVC_VOLUME_NUM; i++)
-			dvc->volume[i] = ucontrol->value.integer.value[i];
-
+	if (change)
 		rsnd_dvc_volume_update(mod);
-	}
 
 	return change;
+}
+
+static int __rsnd_dvc_pcm_new(struct rsnd_mod *mod,
+			      struct rsnd_dai *rdai,
+			      struct snd_soc_pcm_runtime *rtd,
+			      const unsigned char *name,
+			      u8 *private)
+{
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_kcontrol *kctrl;
+	struct snd_kcontrol_new knew = {
+		.iface		= SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name		= name,
+		.info		= rsnd_dvc_volume_info,
+		.get		= rsnd_dvc_volume_get,
+		.put		= rsnd_dvc_volume_put,
+		.private_value	= (unsigned long)private,
+	};
+	int ret;
+
+	kctrl = snd_ctl_new1(&knew, mod);
+	if (!kctrl)
+		return -ENOMEM;
+
+	ret = snd_ctl_add(card, kctrl);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
@@ -191,30 +228,22 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 			    struct snd_soc_pcm_runtime *rtd)
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	struct snd_card *card = rtd->card->snd_card;
-	struct snd_kcontrol *kctrl;
-	static struct snd_kcontrol_new knew = {
-		.iface		= SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name		= "Playback Volume",
-		.info		= rsnd_dvc_volume_info,
-		.get		= rsnd_dvc_volume_get,
-		.put		= rsnd_dvc_volume_put,
-	};
+	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	int ret;
 
-	if (!rsnd_dai_is_play(rdai, io)) {
-		dev_err(dev, "DVC%d is connected to Capture DAI\n",
-			rsnd_mod_id(mod));
-		return -EINVAL;
-	}
+	/* Volume */
+	ret = __rsnd_dvc_pcm_new(mod, rdai, rtd,
+			rsnd_dai_is_play(rdai, io) ?
+			"DVC Out Playback Volume" : "DVC In Capture Volume",
+			dvc->volume);
+	if (ret < 0)
+		return ret;
 
-	kctrl = snd_ctl_new1(&knew, mod);
-	if (!kctrl)
-		return -ENOMEM;
-
-	ret = snd_ctl_add(card, kctrl);
+	/* Mute */
+	ret = __rsnd_dvc_pcm_new(mod, rdai, rtd,
+			rsnd_dai_is_play(rdai, io) ?
+			"DVC Out Mute Switch" : "DVC In Mute Switch",
+			dvc->mute);
 	if (ret < 0)
 		return ret;
 
@@ -239,6 +268,42 @@ struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id)
 	return &((struct rsnd_dvc *)(priv->dvc) + id)->mod;
 }
 
+static void rsnd_of_parse_dvc(struct platform_device *pdev,
+			      const struct rsnd_of_data *of_data,
+			      struct rsnd_priv *priv)
+{
+	struct device_node *node;
+	struct rsnd_dvc_platform_info *dvc_info;
+	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
+	struct device *dev = &pdev->dev;
+	int nr;
+
+	if (!of_data)
+		return;
+
+	node = of_get_child_by_name(dev->of_node, "rcar_sound,dvc");
+	if (!node)
+		return;
+
+	nr = of_get_child_count(node);
+	if (!nr)
+		goto rsnd_of_parse_dvc_end;
+
+	dvc_info = devm_kzalloc(dev,
+				sizeof(struct rsnd_dvc_platform_info) * nr,
+				GFP_KERNEL);
+	if (!dvc_info) {
+		dev_err(dev, "dvc info allocation error\n");
+		goto rsnd_of_parse_dvc_end;
+	}
+
+	info->dvc_info		= dvc_info;
+	info->dvc_info_nr	= nr;
+
+rsnd_of_parse_dvc_end:
+	of_node_put(node);
+}
+
 int rsnd_dvc_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv)
@@ -249,6 +314,8 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 	struct clk *clk;
 	char name[RSND_DVC_NAME_SIZE];
 	int i, nr;
+
+	rsnd_of_parse_dvc(pdev, of_data, priv);
 
 	nr = info->dvc_info_nr;
 	if (!nr)

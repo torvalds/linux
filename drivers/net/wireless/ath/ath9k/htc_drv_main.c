@@ -1722,7 +1722,7 @@ static int ath9k_htc_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 }
 
 static void ath9k_htc_set_coverage_class(struct ieee80211_hw *hw,
-					 u8 coverage_class)
+					 s16 coverage_class)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 

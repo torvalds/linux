@@ -20,8 +20,6 @@
  *
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
@@ -104,17 +102,20 @@ static const u8 lacpdu_mcast_addr[ETH_ALEN] = MULTICAST_LACPDU_ADDR;
 /* ================= main 802.3ad protocol functions ================== */
 static int ad_lacpdu_send(struct port *port);
 static int ad_marker_send(struct port *port, struct bond_marker *marker);
-static void ad_mux_machine(struct port *port);
+static void ad_mux_machine(struct port *port, bool *update_slave_arr);
 static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port);
 static void ad_tx_machine(struct port *port);
 static void ad_periodic_machine(struct port *port);
-static void ad_port_selection_logic(struct port *port);
-static void ad_agg_selection_logic(struct aggregator *aggregator);
+static void ad_port_selection_logic(struct port *port, bool *update_slave_arr);
+static void ad_agg_selection_logic(struct aggregator *aggregator,
+				   bool *update_slave_arr);
 static void ad_clear_agg(struct aggregator *aggregator);
 static void ad_initialize_agg(struct aggregator *aggregator);
 static void ad_initialize_port(struct port *port, int lacp_fast);
-static void ad_enable_collecting_distributing(struct port *port);
-static void ad_disable_collecting_distributing(struct port *port);
+static void ad_enable_collecting_distributing(struct port *port,
+					      bool *update_slave_arr);
+static void ad_disable_collecting_distributing(struct port *port,
+					       bool *update_slave_arr);
 static void ad_marker_info_received(struct bond_marker *marker_info,
 				    struct port *port);
 static void ad_marker_response_received(struct bond_marker *marker,
@@ -236,24 +237,6 @@ static inline int __check_agg_selection_timer(struct port *port)
 }
 
 /**
- * __get_state_machine_lock - lock the port's state machines
- * @port: the port we're looking at
- */
-static inline void __get_state_machine_lock(struct port *port)
-{
-	spin_lock_bh(&(SLAVE_AD_INFO(port->slave)->state_machine_lock));
-}
-
-/**
- * __release_state_machine_lock - unlock the port's state machines
- * @port: the port we're looking at
- */
-static inline void __release_state_machine_lock(struct port *port)
-{
-	spin_unlock_bh(&(SLAVE_AD_INFO(port->slave)->state_machine_lock));
-}
-
-/**
  * __get_link_speed - get a port's speed
  * @port: the port we're looking at
  *
@@ -301,8 +284,8 @@ static u16 __get_link_speed(struct port *port)
 		}
 	}
 
-	pr_debug("Port %d Received link speed %d update from adapter\n",
-		 port->actor_port_number, speed);
+	netdev_dbg(slave->bond->dev, "Port %d Received link speed %d update from adapter\n",
+		   port->actor_port_number, speed);
 	return speed;
 }
 
@@ -317,40 +300,29 @@ static u16 __get_link_speed(struct port *port)
 static u8 __get_duplex(struct port *port)
 {
 	struct slave *slave = port->slave;
-
 	u8 retval;
 
 	/* handling a special case: when the configuration starts with
 	 * link down, it sets the duplex to 0.
 	 */
-	if (slave->link != BOND_LINK_UP)
+	if (slave->link != BOND_LINK_UP) {
 		retval = 0x0;
-	else {
+	} else {
 		switch (slave->duplex) {
 		case DUPLEX_FULL:
 			retval = 0x1;
-			pr_debug("Port %d Received status full duplex update from adapter\n",
-				 port->actor_port_number);
+			netdev_dbg(slave->bond->dev, "Port %d Received status full duplex update from adapter\n",
+				   port->actor_port_number);
 			break;
 		case DUPLEX_HALF:
 		default:
 			retval = 0x0;
-			pr_debug("Port %d Received status NOT full duplex update from adapter\n",
-				 port->actor_port_number);
+			netdev_dbg(slave->bond->dev, "Port %d Received status NOT full duplex update from adapter\n",
+				   port->actor_port_number);
 			break;
 		}
 	}
 	return retval;
-}
-
-/**
- * __initialize_port_locks - initialize a port's STATE machine spinlock
- * @port: the slave of the port we're looking at
- */
-static inline void __initialize_port_locks(struct slave *slave)
-{
-	/* make sure it isn't called twice */
-	spin_lock_init(&(SLAVE_AD_INFO(slave)->state_machine_lock));
 }
 
 /* Conversions */
@@ -827,8 +799,9 @@ static int ad_marker_send(struct port *port, struct bond_marker *marker)
 /**
  * ad_mux_machine - handle a port's mux state machine
  * @port: the port we're looking at
+ * @update_slave_arr: Does slave array need update?
  */
-static void ad_mux_machine(struct port *port)
+static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 {
 	mux_states_t last_state;
 
@@ -932,7 +905,8 @@ static void ad_mux_machine(struct port *port)
 		switch (port->sm_mux_state) {
 		case AD_MUX_DETACHED:
 			port->actor_oper_port_state &= ~AD_STATE_SYNCHRONIZATION;
-			ad_disable_collecting_distributing(port);
+			ad_disable_collecting_distributing(port,
+							   update_slave_arr);
 			port->actor_oper_port_state &= ~AD_STATE_COLLECTING;
 			port->actor_oper_port_state &= ~AD_STATE_DISTRIBUTING;
 			port->ntt = true;
@@ -944,13 +918,15 @@ static void ad_mux_machine(struct port *port)
 			port->actor_oper_port_state |= AD_STATE_SYNCHRONIZATION;
 			port->actor_oper_port_state &= ~AD_STATE_COLLECTING;
 			port->actor_oper_port_state &= ~AD_STATE_DISTRIBUTING;
-			ad_disable_collecting_distributing(port);
+			ad_disable_collecting_distributing(port,
+							   update_slave_arr);
 			port->ntt = true;
 			break;
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			port->actor_oper_port_state |= AD_STATE_COLLECTING;
 			port->actor_oper_port_state |= AD_STATE_DISTRIBUTING;
-			ad_enable_collecting_distributing(port);
+			ad_enable_collecting_distributing(port,
+							  update_slave_arr);
 			port->ntt = true;
 			break;
 		default:
@@ -1079,9 +1055,8 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			/* detect loopback situation */
 			if (MAC_ADDRESS_EQUAL(&(lacpdu->actor_system),
 					      &(port->actor_system))) {
-				pr_err("%s: An illegal loopback occurred on adapter (%s)\n"
+				netdev_err(port->slave->bond->dev, "An illegal loopback occurred on adapter (%s)\n"
 				       "Check the configuration to verify that all adapters are connected to 802.3ad compliant switch ports\n",
-				       port->slave->bond->dev->name,
 				       port->slave->dev->name);
 				return;
 			}
@@ -1219,12 +1194,13 @@ static void ad_periodic_machine(struct port *port)
 /**
  * ad_port_selection_logic - select aggregation groups
  * @port: the port we're looking at
+ * @update_slave_arr: Does slave array need update?
  *
  * Select aggregation groups, and assign each port for it's aggregetor. The
  * selection logic is called in the inititalization (after all the handshkes),
  * and after every lacpdu receive (if selected is off).
  */
-static void ad_port_selection_logic(struct port *port)
+static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 {
 	struct aggregator *aggregator, *free_aggregator = NULL, *temp_aggregator;
 	struct port *last_port = NULL, *curr_port;
@@ -1269,9 +1245,9 @@ static void ad_port_selection_logic(struct port *port)
 				port->next_port_in_aggregator = NULL;
 				port->actor_port_aggregator_identifier = 0;
 
-				pr_debug("Port %d left LAG %d\n",
-					 port->actor_port_number,
-					 temp_aggregator->aggregator_identifier);
+				netdev_dbg(bond->dev, "Port %d left LAG %d\n",
+					   port->actor_port_number,
+					   temp_aggregator->aggregator_identifier);
 				/* if the aggregator is empty, clear its
 				 * parameters, and set it ready to be attached
 				 */
@@ -1284,11 +1260,11 @@ static void ad_port_selection_logic(struct port *port)
 			/* meaning: the port was related to an aggregator
 			 * but was not on the aggregator port list
 			 */
-			pr_warn_ratelimited("%s: Warning: Port %d (on %s) was related to aggregator %d but was not on its port list\n",
-					    port->slave->bond->dev->name,
-					    port->actor_port_number,
-					    port->slave->dev->name,
-					    port->aggregator->aggregator_identifier);
+			net_warn_ratelimited("%s: Warning: Port %d (on %s) was related to aggregator %d but was not on its port list\n",
+					     port->slave->bond->dev->name,
+					     port->actor_port_number,
+					     port->slave->dev->name,
+					     port->aggregator->aggregator_identifier);
 		}
 	}
 	/* search on all aggregators for a suitable aggregator for this port */
@@ -1318,9 +1294,9 @@ static void ad_port_selection_logic(struct port *port)
 			port->next_port_in_aggregator = aggregator->lag_ports;
 			port->aggregator->num_of_ports++;
 			aggregator->lag_ports = port;
-			pr_debug("Port %d joined LAG %d(existing LAG)\n",
-				 port->actor_port_number,
-				 port->aggregator->aggregator_identifier);
+			netdev_dbg(bond->dev, "Port %d joined LAG %d(existing LAG)\n",
+				   port->actor_port_number,
+				   port->aggregator->aggregator_identifier);
 
 			/* mark this port as selected */
 			port->sm_vars |= AD_PORT_SELECTED;
@@ -1363,12 +1339,11 @@ static void ad_port_selection_logic(struct port *port)
 			/* mark this port as selected */
 			port->sm_vars |= AD_PORT_SELECTED;
 
-			pr_debug("Port %d joined LAG %d(new LAG)\n",
-				 port->actor_port_number,
-				 port->aggregator->aggregator_identifier);
+			netdev_dbg(bond->dev, "Port %d joined LAG %d(new LAG)\n",
+				   port->actor_port_number,
+				   port->aggregator->aggregator_identifier);
 		} else {
-			pr_err("%s: Port %d (on %s) did not find a suitable aggregator\n",
-			       port->slave->bond->dev->name,
+			netdev_err(bond->dev, "Port %d (on %s) did not find a suitable aggregator\n",
 			       port->actor_port_number, port->slave->dev->name);
 		}
 	}
@@ -1380,7 +1355,7 @@ static void ad_port_selection_logic(struct port *port)
 			      __agg_ports_are_ready(port->aggregator));
 
 	aggregator = __get_first_agg(port);
-	ad_agg_selection_logic(aggregator);
+	ad_agg_selection_logic(aggregator, update_slave_arr);
 }
 
 /* Decide if "agg" is a better choice for the new active aggregator that
@@ -1445,9 +1420,9 @@ static struct aggregator *ad_agg_selection_test(struct aggregator *best,
 		break;
 
 	default:
-		pr_warn_ratelimited("%s: Impossible agg select mode %d\n",
-				    curr->slave->bond->dev->name,
-				    __get_agg_selection_mode(curr->lag_ports));
+		net_warn_ratelimited("%s: Impossible agg select mode %d\n",
+				     curr->slave->bond->dev->name,
+				     __get_agg_selection_mode(curr->lag_ports));
 		break;
 	}
 
@@ -1468,6 +1443,7 @@ static int agg_device_up(const struct aggregator *agg)
 /**
  * ad_agg_selection_logic - select an aggregation group for a team
  * @aggregator: the aggregator we're looking at
+ * @update_slave_arr: Does slave array need update?
  *
  * It is assumed that only one aggregator may be selected for a team.
  *
@@ -1490,7 +1466,8 @@ static int agg_device_up(const struct aggregator *agg)
  * __get_active_agg() won't work correctly. This function should be better
  * called with the bond itself, and retrieve the first agg from it.
  */
-static void ad_agg_selection_logic(struct aggregator *agg)
+static void ad_agg_selection_logic(struct aggregator *agg,
+				   bool *update_slave_arr)
 {
 	struct aggregator *best, *active, *origin;
 	struct bonding *bond = agg->slave->bond;
@@ -1539,40 +1516,40 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 
 	/* if there is new best aggregator, activate it */
 	if (best) {
-		pr_debug("best Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
-			 best->aggregator_identifier, best->num_of_ports,
-			 best->actor_oper_aggregator_key,
-			 best->partner_oper_aggregator_key,
-			 best->is_individual, best->is_active);
-		pr_debug("best ports %p slave %p %s\n",
-			 best->lag_ports, best->slave,
-			 best->slave ? best->slave->dev->name : "NULL");
+		netdev_dbg(bond->dev, "best Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
+			   best->aggregator_identifier, best->num_of_ports,
+			   best->actor_oper_aggregator_key,
+			   best->partner_oper_aggregator_key,
+			   best->is_individual, best->is_active);
+		netdev_dbg(bond->dev, "best ports %p slave %p %s\n",
+			   best->lag_ports, best->slave,
+			   best->slave ? best->slave->dev->name : "NULL");
 
 		bond_for_each_slave_rcu(bond, slave, iter) {
 			agg = &(SLAVE_AD_INFO(slave)->aggregator);
 
-			pr_debug("Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
-				 agg->aggregator_identifier, agg->num_of_ports,
-				 agg->actor_oper_aggregator_key,
-				 agg->partner_oper_aggregator_key,
-				 agg->is_individual, agg->is_active);
+			netdev_dbg(bond->dev, "Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
+				   agg->aggregator_identifier, agg->num_of_ports,
+				   agg->actor_oper_aggregator_key,
+				   agg->partner_oper_aggregator_key,
+				   agg->is_individual, agg->is_active);
 		}
 
 		/* check if any partner replys */
 		if (best->is_individual) {
-			pr_warn_ratelimited("%s: Warning: No 802.3ad response from the link partner for any adapters in the bond\n",
-					    best->slave ?
-					    best->slave->bond->dev->name : "NULL");
+			net_warn_ratelimited("%s: Warning: No 802.3ad response from the link partner for any adapters in the bond\n",
+					     best->slave ?
+					     best->slave->bond->dev->name : "NULL");
 		}
 
 		best->is_active = 1;
-		pr_debug("LAG %d chosen as the active LAG\n",
-			 best->aggregator_identifier);
-		pr_debug("Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
-			 best->aggregator_identifier, best->num_of_ports,
-			 best->actor_oper_aggregator_key,
-			 best->partner_oper_aggregator_key,
-			 best->is_individual, best->is_active);
+		netdev_dbg(bond->dev, "LAG %d chosen as the active LAG\n",
+			   best->aggregator_identifier);
+		netdev_dbg(bond->dev, "Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
+			   best->aggregator_identifier, best->num_of_ports,
+			   best->actor_oper_aggregator_key,
+			   best->partner_oper_aggregator_key,
+			   best->is_individual, best->is_active);
 
 		/* disable the ports that were related to the former
 		 * active_aggregator
@@ -1583,6 +1560,8 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 				__disable_port(port);
 			}
 		}
+		/* Slave array needs update. */
+		*update_slave_arr = true;
 	}
 
 	/* if the selected aggregator is of join individuals
@@ -1711,24 +1690,30 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 /**
  * ad_enable_collecting_distributing - enable a port's transmit/receive
  * @port: the port we're looking at
+ * @update_slave_arr: Does slave array need update?
  *
  * Enable @port if it's in an active aggregator
  */
-static void ad_enable_collecting_distributing(struct port *port)
+static void ad_enable_collecting_distributing(struct port *port,
+					      bool *update_slave_arr)
 {
 	if (port->aggregator->is_active) {
 		pr_debug("Enabling port %d(LAG %d)\n",
 			 port->actor_port_number,
 			 port->aggregator->aggregator_identifier);
 		__enable_port(port);
+		/* Slave array needs update */
+		*update_slave_arr = true;
 	}
 }
 
 /**
  * ad_disable_collecting_distributing - disable a port's transmit/receive
  * @port: the port we're looking at
+ * @update_slave_arr: Does slave array need update?
  */
-static void ad_disable_collecting_distributing(struct port *port)
+static void ad_disable_collecting_distributing(struct port *port,
+					       bool *update_slave_arr)
 {
 	if (port->aggregator &&
 	    !MAC_ADDRESS_EQUAL(&(port->aggregator->partner_system),
@@ -1737,6 +1722,8 @@ static void ad_disable_collecting_distributing(struct port *port)
 			 port->actor_port_number,
 			 port->aggregator->aggregator_identifier);
 		__disable_port(port);
+		/* Slave array needs an update */
+		*update_slave_arr = true;
 	}
 }
 
@@ -1847,7 +1834,6 @@ void bond_3ad_bind_slave(struct slave *slave)
 
 		ad_initialize_port(port, bond->params.lacp_fast);
 
-		__initialize_port_locks(slave);
 		port->slave = slave;
 		port->actor_port_number = SLAVE_AD_INFO(slave)->id;
 		/* key is determined according to the link speed, duplex and user key(which
@@ -1902,19 +1888,22 @@ void bond_3ad_unbind_slave(struct slave *slave)
 	struct bonding *bond = slave->bond;
 	struct slave *slave_iter;
 	struct list_head *iter;
+	bool dummy_slave_update; /* Ignore this value as caller updates array */
 
+	/* Sync against bond_3ad_state_machine_handler() */
+	spin_lock_bh(&bond->mode_lock);
 	aggregator = &(SLAVE_AD_INFO(slave)->aggregator);
 	port = &(SLAVE_AD_INFO(slave)->port);
 
 	/* if slave is null, the whole port is not initialized */
 	if (!port->slave) {
-		pr_warn("Warning: %s: Trying to unbind an uninitialized port on %s\n",
-			slave->bond->dev->name, slave->dev->name);
-		return;
+		netdev_warn(bond->dev, "Trying to unbind an uninitialized port on %s\n",
+			    slave->dev->name);
+		goto out;
 	}
 
-	pr_debug("Unbinding Link Aggregation Group %d\n",
-		 aggregator->aggregator_identifier);
+	netdev_dbg(bond->dev, "Unbinding Link Aggregation Group %d\n",
+		   aggregator->aggregator_identifier);
 
 	/* Tell the partner that this port is not suitable for aggregation */
 	port->actor_oper_port_state &= ~AD_STATE_AGGREGATION;
@@ -1949,14 +1938,13 @@ void bond_3ad_unbind_slave(struct slave *slave)
 			 * new aggregator
 			 */
 			if ((new_aggregator) && ((!new_aggregator->lag_ports) || ((new_aggregator->lag_ports == port) && !new_aggregator->lag_ports->next_port_in_aggregator))) {
-				pr_debug("Some port(s) related to LAG %d - replacing with LAG %d\n",
-					 aggregator->aggregator_identifier,
-					 new_aggregator->aggregator_identifier);
+				netdev_dbg(bond->dev, "Some port(s) related to LAG %d - replacing with LAG %d\n",
+					   aggregator->aggregator_identifier,
+					   new_aggregator->aggregator_identifier);
 
 				if ((new_aggregator->lag_ports == port) &&
 				    new_aggregator->is_active) {
-					pr_info("%s: Removing an active aggregator\n",
-						aggregator->slave->bond->dev->name);
+					netdev_info(bond->dev, "Removing an active aggregator\n");
 					 select_new_active_agg = 1;
 				}
 
@@ -1984,10 +1972,10 @@ void bond_3ad_unbind_slave(struct slave *slave)
 				ad_clear_agg(aggregator);
 
 				if (select_new_active_agg)
-					ad_agg_selection_logic(__get_first_agg(port));
+					ad_agg_selection_logic(__get_first_agg(port),
+							       &dummy_slave_update);
 			} else {
-				pr_warn("%s: Warning: unbinding aggregator, and could not find a new aggregator for its ports\n",
-					slave->bond->dev->name);
+				netdev_warn(bond->dev, "unbinding aggregator, and could not find a new aggregator for its ports\n");
 			}
 		} else {
 			/* in case that the only port related to this
@@ -1996,17 +1984,17 @@ void bond_3ad_unbind_slave(struct slave *slave)
 			select_new_active_agg = aggregator->is_active;
 			ad_clear_agg(aggregator);
 			if (select_new_active_agg) {
-				pr_info("%s: Removing an active aggregator\n",
-					slave->bond->dev->name);
+				netdev_info(bond->dev, "Removing an active aggregator\n");
 				/* select new active aggregator */
 				temp_aggregator = __get_first_agg(port);
 				if (temp_aggregator)
-					ad_agg_selection_logic(temp_aggregator);
+					ad_agg_selection_logic(temp_aggregator,
+							       &dummy_slave_update);
 			}
 		}
 	}
 
-	pr_debug("Unbinding port %d\n", port->actor_port_number);
+	netdev_dbg(bond->dev, "Unbinding port %d\n", port->actor_port_number);
 
 	/* find the aggregator that this port is connected to */
 	bond_for_each_slave(bond, slave_iter, iter) {
@@ -2029,10 +2017,10 @@ void bond_3ad_unbind_slave(struct slave *slave)
 					select_new_active_agg = temp_aggregator->is_active;
 					ad_clear_agg(temp_aggregator);
 					if (select_new_active_agg) {
-						pr_info("%s: Removing an active aggregator\n",
-							slave->bond->dev->name);
+						netdev_info(bond->dev, "Removing an active aggregator\n");
 						/* select new active aggregator */
-						ad_agg_selection_logic(__get_first_agg(port));
+						ad_agg_selection_logic(__get_first_agg(port),
+							               &dummy_slave_update);
 					}
 				}
 				break;
@@ -2040,6 +2028,9 @@ void bond_3ad_unbind_slave(struct slave *slave)
 		}
 	}
 	port->slave = NULL;
+
+out:
+	spin_unlock_bh(&bond->mode_lock);
 }
 
 /**
@@ -2064,8 +2055,13 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	struct slave *slave;
 	struct port *port;
 	bool should_notify_rtnl = BOND_SLAVE_NOTIFY_LATER;
+	bool update_slave_arr = false;
 
-	read_lock(&bond->lock);
+	/* Lock to protect data accessed by all (e.g., port->sm_vars) and
+	 * against running with bond_3ad_unbind_slave. ad_rx_machine may run
+	 * concurrently due to incoming LACPDU as well.
+	 */
+	spin_lock_bh(&bond->mode_lock);
 	rcu_read_lock();
 
 	/* check if there are any slaves */
@@ -2081,13 +2077,13 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 		/* select the active aggregator for the bond */
 		if (port) {
 			if (!port->slave) {
-				pr_warn_ratelimited("%s: Warning: bond's first port is uninitialized\n",
-						    bond->dev->name);
+				net_warn_ratelimited("%s: Warning: bond's first port is uninitialized\n",
+						     bond->dev->name);
 				goto re_arm;
 			}
 
 			aggregator = __get_first_agg(port);
-			ad_agg_selection_logic(aggregator);
+			ad_agg_selection_logic(aggregator, &update_slave_arr);
 		}
 		bond_3ad_set_carrier(bond);
 	}
@@ -2096,28 +2092,20 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		port = &(SLAVE_AD_INFO(slave)->port);
 		if (!port->slave) {
-			pr_warn_ratelimited("%s: Warning: Found an uninitialized port\n",
+			net_warn_ratelimited("%s: Warning: Found an uninitialized port\n",
 					    bond->dev->name);
 			goto re_arm;
 		}
 
-		/* Lock around state machines to protect data accessed
-		 * by all (e.g., port->sm_vars).  ad_rx_machine may run
-		 * concurrently due to incoming LACPDU.
-		 */
-		__get_state_machine_lock(port);
-
 		ad_rx_machine(NULL, port);
 		ad_periodic_machine(port);
-		ad_port_selection_logic(port);
-		ad_mux_machine(port);
+		ad_port_selection_logic(port, &update_slave_arr);
+		ad_mux_machine(port, &update_slave_arr);
 		ad_tx_machine(port);
 
 		/* turn off the BEGIN bit, since we already handled it */
 		if (port->sm_vars & AD_PORT_BEGIN)
 			port->sm_vars &= ~AD_PORT_BEGIN;
-
-		__release_state_machine_lock(port);
 	}
 
 re_arm:
@@ -2128,7 +2116,10 @@ re_arm:
 		}
 	}
 	rcu_read_unlock();
-	read_unlock(&bond->lock);
+	spin_unlock_bh(&bond->mode_lock);
+
+	if (update_slave_arr)
+		bond_slave_arr_work_rearm(bond, 0);
 
 	if (should_notify_rtnl && rtnl_trylock()) {
 		bond_slave_state_notify(bond);
@@ -2158,20 +2149,20 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave,
 		port = &(SLAVE_AD_INFO(slave)->port);
 
 		if (!port->slave) {
-			pr_warn_ratelimited("%s: Warning: port of slave %s is uninitialized\n",
-					    slave->dev->name, slave->bond->dev->name);
+			net_warn_ratelimited("%s: Warning: port of slave %s is uninitialized\n",
+					     slave->dev->name, slave->bond->dev->name);
 			return ret;
 		}
 
 		switch (lacpdu->subtype) {
 		case AD_TYPE_LACPDU:
 			ret = RX_HANDLER_CONSUMED;
-			pr_debug("Received LACPDU on port %d\n",
-				 port->actor_port_number);
+			netdev_dbg(slave->bond->dev, "Received LACPDU on port %d\n",
+				   port->actor_port_number);
 			/* Protect against concurrent state machines */
-			__get_state_machine_lock(port);
+			spin_lock(&slave->bond->mode_lock);
 			ad_rx_machine(lacpdu, port);
-			__release_state_machine_lock(port);
+			spin_unlock(&slave->bond->mode_lock);
 			break;
 
 		case AD_TYPE_MARKER:
@@ -2182,20 +2173,20 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave,
 
 			switch (((struct bond_marker *)lacpdu)->tlv_type) {
 			case AD_MARKER_INFORMATION_SUBTYPE:
-				pr_debug("Received Marker Information on port %d\n",
-					 port->actor_port_number);
+				netdev_dbg(slave->bond->dev, "Received Marker Information on port %d\n",
+					   port->actor_port_number);
 				ad_marker_info_received((struct bond_marker *)lacpdu, port);
 				break;
 
 			case AD_MARKER_RESPONSE_SUBTYPE:
-				pr_debug("Received Marker Response on port %d\n",
-					 port->actor_port_number);
+				netdev_dbg(slave->bond->dev, "Received Marker Response on port %d\n",
+					   port->actor_port_number);
 				ad_marker_response_received((struct bond_marker *)lacpdu, port);
 				break;
 
 			default:
-				pr_debug("Received an unknown Marker subtype on slot %d\n",
-					 port->actor_port_number);
+				netdev_dbg(slave->bond->dev, "Received an unknown Marker subtype on slot %d\n",
+					   port->actor_port_number);
 			}
 		}
 	}
@@ -2216,23 +2207,23 @@ void bond_3ad_adapter_speed_changed(struct slave *slave)
 
 	/* if slave is null, the whole port is not initialized */
 	if (!port->slave) {
-		pr_warn("Warning: %s: speed changed for uninitialized port on %s\n",
-			slave->bond->dev->name, slave->dev->name);
+		netdev_warn(slave->bond->dev, "speed changed for uninitialized port on %s\n",
+			    slave->dev->name);
 		return;
 	}
 
-	__get_state_machine_lock(port);
+	spin_lock_bh(&slave->bond->mode_lock);
 
 	port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS;
 	port->actor_oper_port_key = port->actor_admin_port_key |=
 		(__get_link_speed(port) << 1);
-	pr_debug("Port %d changed speed\n", port->actor_port_number);
+	netdev_dbg(slave->bond->dev, "Port %d changed speed\n", port->actor_port_number);
 	/* there is no need to reselect a new aggregator, just signal the
 	 * state machines to reinitialize
 	 */
 	port->sm_vars |= AD_PORT_BEGIN;
 
-	__release_state_machine_lock(port);
+	spin_unlock_bh(&slave->bond->mode_lock);
 }
 
 /**
@@ -2249,23 +2240,23 @@ void bond_3ad_adapter_duplex_changed(struct slave *slave)
 
 	/* if slave is null, the whole port is not initialized */
 	if (!port->slave) {
-		pr_warn("%s: Warning: duplex changed for uninitialized port on %s\n",
-			slave->bond->dev->name, slave->dev->name);
+		netdev_warn(slave->bond->dev, "duplex changed for uninitialized port on %s\n",
+			    slave->dev->name);
 		return;
 	}
 
-	__get_state_machine_lock(port);
+	spin_lock_bh(&slave->bond->mode_lock);
 
 	port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
 	port->actor_oper_port_key = port->actor_admin_port_key |=
 		__get_duplex(port);
-	pr_debug("Port %d changed duplex\n", port->actor_port_number);
+	netdev_dbg(slave->bond->dev, "Port %d changed duplex\n", port->actor_port_number);
 	/* there is no need to reselect a new aggregator, just signal the
 	 * state machines to reinitialize
 	 */
 	port->sm_vars |= AD_PORT_BEGIN;
 
-	__release_state_machine_lock(port);
+	spin_unlock_bh(&slave->bond->mode_lock);
 }
 
 /**
@@ -2283,12 +2274,12 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 
 	/* if slave is null, the whole port is not initialized */
 	if (!port->slave) {
-		pr_warn("Warning: %s: link status changed for uninitialized port on %s\n",
-			slave->bond->dev->name, slave->dev->name);
+		netdev_warn(slave->bond->dev, "link status changed for uninitialized port on %s\n",
+			    slave->dev->name);
 		return;
 	}
 
-	__get_state_machine_lock(port);
+	spin_lock_bh(&slave->bond->mode_lock);
 	/* on link down we are zeroing duplex and speed since
 	 * some of the adaptors(ce1000.lan) report full duplex/speed
 	 * instead of N/A(duplex) / 0(speed).
@@ -2311,15 +2302,20 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 		port->actor_oper_port_key = (port->actor_admin_port_key &=
 					     ~AD_SPEED_KEY_BITS);
 	}
-	pr_debug("Port %d changed link status to %s\n",
-		 port->actor_port_number,
-		 link == BOND_LINK_UP ? "UP" : "DOWN");
+	netdev_dbg(slave->bond->dev, "Port %d changed link status to %s\n",
+		   port->actor_port_number,
+		   link == BOND_LINK_UP ? "UP" : "DOWN");
 	/* there is no need to reselect a new aggregator, just signal the
 	 * state machines to reinitialize
 	 */
 	port->sm_vars |= AD_PORT_BEGIN;
 
-	__release_state_machine_lock(port);
+	spin_unlock_bh(&slave->bond->mode_lock);
+
+	/* RTNL is held and mode_lock is released so it's safe
+	 * to update slave_array here.
+	 */
+	bond_update_slave_arr(slave->bond, NULL);
 }
 
 /**
@@ -2403,7 +2399,6 @@ int __bond_3ad_get_active_agg_info(struct bonding *bond,
 	return 0;
 }
 
-/* Wrapper used to hold bond->lock so no slave manipulation can occur */
 int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
 {
 	int ret;
@@ -2415,91 +2410,19 @@ int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
 	return ret;
 }
 
-int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
-{
-	struct bonding *bond = netdev_priv(dev);
-	struct slave *slave, *first_ok_slave;
-	struct aggregator *agg;
-	struct ad_info ad_info;
-	struct list_head *iter;
-	int slaves_in_agg;
-	int slave_agg_no;
-	int agg_id;
-
-	if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
-		pr_debug("%s: Error: __bond_3ad_get_active_agg_info failed\n",
-			 dev->name);
-		goto err_free;
-	}
-
-	slaves_in_agg = ad_info.ports;
-	agg_id = ad_info.aggregator_id;
-
-	if (slaves_in_agg == 0) {
-		pr_debug("%s: Error: active aggregator is empty\n", dev->name);
-		goto err_free;
-	}
-
-	slave_agg_no = bond_xmit_hash(bond, skb) % slaves_in_agg;
-	first_ok_slave = NULL;
-
-	bond_for_each_slave_rcu(bond, slave, iter) {
-		agg = SLAVE_AD_INFO(slave)->port.aggregator;
-		if (!agg || agg->aggregator_identifier != agg_id)
-			continue;
-
-		if (slave_agg_no >= 0) {
-			if (!first_ok_slave && bond_slave_can_tx(slave))
-				first_ok_slave = slave;
-			slave_agg_no--;
-			continue;
-		}
-
-		if (bond_slave_can_tx(slave)) {
-			bond_dev_queue_xmit(bond, skb, slave->dev);
-			goto out;
-		}
-	}
-
-	if (slave_agg_no >= 0) {
-		pr_err("%s: Error: Couldn't find a slave to tx on for aggregator ID %d\n",
-		       dev->name, agg_id);
-		goto err_free;
-	}
-
-	/* we couldn't find any suitable slave after the agg_no, so use the
-	 * first suitable found, if found.
-	 */
-	if (first_ok_slave)
-		bond_dev_queue_xmit(bond, skb, first_ok_slave->dev);
-	else
-		goto err_free;
-
-out:
-	return NETDEV_TX_OK;
-err_free:
-	/* no suitable interface, frame not sent */
-	dev_kfree_skb_any(skb);
-	goto out;
-}
-
 int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 			 struct slave *slave)
 {
-	int ret = RX_HANDLER_ANOTHER;
 	struct lacpdu *lacpdu, _lacpdu;
 
 	if (skb->protocol != PKT_TYPE_LACPDU)
-		return ret;
+		return RX_HANDLER_ANOTHER;
 
 	lacpdu = skb_header_pointer(skb, 0, sizeof(_lacpdu), &_lacpdu);
 	if (!lacpdu)
-		return ret;
+		return RX_HANDLER_ANOTHER;
 
-	read_lock(&bond->lock);
-	ret = bond_3ad_rx_indication(lacpdu, slave, skb->len);
-	read_unlock(&bond->lock);
-	return ret;
+	return bond_3ad_rx_indication(lacpdu, slave, skb->len);
 }
 
 /**
@@ -2509,7 +2432,7 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
  * When modify lacp_rate parameter via sysfs,
  * update actor_oper_port_state of each port.
  *
- * Hold slave->state_machine_lock,
+ * Hold bond->mode_lock,
  * so we can modify port->actor_oper_port_state,
  * no matter bond is up or down.
  */
@@ -2521,13 +2444,13 @@ void bond_3ad_update_lacp_rate(struct bonding *bond)
 	int lacp_fast;
 
 	lacp_fast = bond->params.lacp_fast;
+	spin_lock_bh(&bond->mode_lock);
 	bond_for_each_slave(bond, slave, iter) {
 		port = &(SLAVE_AD_INFO(slave)->port);
-		__get_state_machine_lock(port);
 		if (lacp_fast)
 			port->actor_oper_port_state |= AD_STATE_LACP_TIMEOUT;
 		else
 			port->actor_oper_port_state &= ~AD_STATE_LACP_TIMEOUT;
-		__release_state_machine_lock(port);
 	}
+	spin_unlock_bh(&bond->mode_lock);
 }

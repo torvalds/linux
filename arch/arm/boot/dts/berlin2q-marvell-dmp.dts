@@ -34,6 +34,18 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
+
 &uart0 {
+	status = "okay";
+};
+
+&eth0 {
 	status = "okay";
 };

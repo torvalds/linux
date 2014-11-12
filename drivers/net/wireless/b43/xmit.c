@@ -80,9 +80,10 @@ static int b43_plcp_get_bitrate_idx_cck(struct b43_plcp_hdr6 *plcp)
 }
 
 /* Extract the bitrate index out of an OFDM PLCP header. */
-static int b43_plcp_get_bitrate_idx_ofdm(struct b43_plcp_hdr6 *plcp, bool aphy)
+static int b43_plcp_get_bitrate_idx_ofdm(struct b43_plcp_hdr6 *plcp, bool ghz5)
 {
-	int base = aphy ? 0 : 4;
+	/* For 2 GHz band first OFDM rate is at index 4, see main.c */
+	int base = ghz5 ? 0 : 4;
 
 	switch (plcp->raw[0] & 0xF) {
 	case 0xB:
@@ -767,7 +768,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 
 	if (phystat0 & B43_RX_PHYST0_OFDM)
 		rate_idx = b43_plcp_get_bitrate_idx_ofdm(plcp,
-						phytype == B43_PHYTYPE_A);
+					!!(chanstat & B43_RX_CHAN_5GHZ));
 	else
 		rate_idx = b43_plcp_get_bitrate_idx_cck(plcp);
 	if (unlikely(rate_idx == -1)) {

@@ -33,6 +33,8 @@
 
 #include <linux/phy/phy.h>
 
+#define DWC3_MSG_MAX	500
+
 /* Global constants */
 #define DWC3_EP0_BOUNCE_SIZE	512
 #define DWC3_ENDPOINTS_NUM	32
@@ -190,6 +192,19 @@
 #define DWC3_GHWPARAMS1_EN_PWROPT_HIB	2
 #define DWC3_GHWPARAMS1_PWROPT(n)	((n) << 24)
 #define DWC3_GHWPARAMS1_PWROPT_MASK	DWC3_GHWPARAMS1_PWROPT(3)
+
+/* Global HWPARAMS3 Register */
+#define DWC3_GHWPARAMS3_SSPHY_IFC(n)		((n) & 3)
+#define DWC3_GHWPARAMS3_SSPHY_IFC_DIS		0
+#define DWC3_GHWPARAMS3_SSPHY_IFC_ENA		1
+#define DWC3_GHWPARAMS3_HSPHY_IFC(n)		(((n) & (3 << 2)) >> 2)
+#define DWC3_GHWPARAMS3_HSPHY_IFC_DIS		0
+#define DWC3_GHWPARAMS3_HSPHY_IFC_UTMI		1
+#define DWC3_GHWPARAMS3_HSPHY_IFC_ULPI		2
+#define DWC3_GHWPARAMS3_HSPHY_IFC_UTMI_ULPI	3
+#define DWC3_GHWPARAMS3_FSPHY_IFC(n)		(((n) & (3 << 4)) >> 4)
+#define DWC3_GHWPARAMS3_FSPHY_IFC_DIS		0
+#define DWC3_GHWPARAMS3_FSPHY_IFC_ENA		1
 
 /* Global HWPARAMS4 Register */
 #define DWC3_GHWPARAMS4_HIBER_SCRATCHBUFS(n)	(((n) & (0x0f << 13)) >> 13)
@@ -925,7 +940,7 @@ int dwc3_gadget_get_link_state(struct dwc3 *dwc);
 int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state);
 int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		unsigned cmd, struct dwc3_gadget_ep_cmd_params *params);
-int dwc3_send_gadget_generic_command(struct dwc3 *dwc, int cmd, u32 param);
+int dwc3_send_gadget_generic_command(struct dwc3 *dwc, unsigned cmd, u32 param);
 #else
 static inline int dwc3_gadget_init(struct dwc3 *dwc)
 { return 0; }

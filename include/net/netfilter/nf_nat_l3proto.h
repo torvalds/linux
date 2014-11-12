@@ -42,8 +42,83 @@ const struct nf_nat_l3proto *__nf_nat_l3proto_find(u8 l3proto);
 int nf_nat_icmp_reply_translation(struct sk_buff *skb, struct nf_conn *ct,
 				  enum ip_conntrack_info ctinfo,
 				  unsigned int hooknum);
+
+unsigned int nf_nat_ipv4_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
+			    const struct net_device *in,
+			    const struct net_device *out,
+			    unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+						     struct sk_buff *skb,
+						     const struct net_device *in,
+						     const struct net_device *out,
+						     struct nf_conn *ct));
+
+unsigned int nf_nat_ipv4_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
+			     const struct net_device *in,
+			     const struct net_device *out,
+			     unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+						      struct sk_buff *skb,
+						      const struct net_device *in,
+						      const struct net_device *out,
+						      struct nf_conn *ct));
+
+unsigned int nf_nat_ipv4_local_fn(const struct nf_hook_ops *ops,
+				  struct sk_buff *skb,
+				  const struct net_device *in,
+				  const struct net_device *out,
+				  unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+							   struct sk_buff *skb,
+							   const struct net_device *in,
+							   const struct net_device *out,
+							   struct nf_conn *ct));
+
+unsigned int nf_nat_ipv4_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
+			    const struct net_device *in,
+			    const struct net_device *out,
+			    unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+						     struct sk_buff *skb,
+						     const struct net_device *in,
+						     const struct net_device *out,
+						     struct nf_conn *ct));
+
 int nf_nat_icmpv6_reply_translation(struct sk_buff *skb, struct nf_conn *ct,
 				    enum ip_conntrack_info ctinfo,
 				    unsigned int hooknum, unsigned int hdrlen);
+
+unsigned int nf_nat_ipv6_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
+			    const struct net_device *in,
+			    const struct net_device *out,
+			    unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+						     struct sk_buff *skb,
+						     const struct net_device *in,
+						     const struct net_device *out,
+						     struct nf_conn *ct));
+
+unsigned int nf_nat_ipv6_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
+			     const struct net_device *in,
+			     const struct net_device *out,
+			     unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+						      struct sk_buff *skb,
+						      const struct net_device *in,
+						      const struct net_device *out,
+						      struct nf_conn *ct));
+
+unsigned int nf_nat_ipv6_local_fn(const struct nf_hook_ops *ops,
+				  struct sk_buff *skb,
+				  const struct net_device *in,
+				  const struct net_device *out,
+				  unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+							   struct sk_buff *skb,
+							   const struct net_device *in,
+							   const struct net_device *out,
+							   struct nf_conn *ct));
+
+unsigned int nf_nat_ipv6_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
+			    const struct net_device *in,
+			    const struct net_device *out,
+			    unsigned int (*do_chain)(const struct nf_hook_ops *ops,
+						     struct sk_buff *skb,
+						     const struct net_device *in,
+						     const struct net_device *out,
+						     struct nf_conn *ct));
 
 #endif /* _NF_NAT_L3PROTO_H */

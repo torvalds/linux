@@ -111,24 +111,28 @@ static int gdm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 static int gdm_tty_open(struct tty_struct *tty, struct file *filp)
 {
 	struct gdm *gdm = tty->driver_data;
+
 	return tty_port_open(&gdm->port, tty, filp);
 }
 
 static void gdm_tty_cleanup(struct tty_struct *tty)
 {
 	struct gdm *gdm = tty->driver_data;
+
 	tty_port_put(&gdm->port);
 }
 
 static void gdm_tty_hangup(struct tty_struct *tty)
 {
 	struct gdm *gdm = tty->driver_data;
+
 	tty_port_hangup(&gdm->port);
 }
 
 static void gdm_tty_close(struct tty_struct *tty, struct file *filp)
 {
 	struct gdm *gdm = tty->driver_data;
+
 	tty_port_close(&gdm->port, tty, filp);
 }
 
@@ -139,6 +143,7 @@ static int gdm_tty_recv_complete(void *data,
 				 int complete)
 {
 	struct gdm *gdm = tty_dev->gdm[index];
+
 	if (!GDM_TTY_READY(gdm)) {
 		if (complete == RECV_PACKET_PROCESS_COMPLETE)
 			gdm_tty_recv(gdm, gdm_tty_recv_complete);

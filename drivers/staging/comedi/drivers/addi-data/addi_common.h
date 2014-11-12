@@ -18,25 +18,6 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-#define LOWORD(W)	(unsigned short)((W) & 0xFFFF)
-#define HIWORD(W)	(unsigned short)(((W) >> 16) & 0xFFFF)
-
-#define ADDI_ENABLE		1
-#define ADDI_DISABLE		0
-#define APCI1710_SAVE_INTERRUPT	1
-
-#define ADDIDATA_EEPROM		1
-#define ADDIDATA_NO_EEPROM	0
-#define ADDIDATA_93C76		"93C76"
-#define ADDIDATA_S5920		"S5920"
-
-/* ADDIDATA Enable Disable */
-#define ADDIDATA_ENABLE		1
-#define ADDIDATA_DISABLE	0
-
-/* Structures */
-
-/* structure for the boardtype */
 struct addi_board {
 	const char *pc_DriverName;	/*  driver name */
 	int i_IorangeBase1;
@@ -126,10 +107,9 @@ struct addi_private {
 	unsigned char b_DmaDoubleBuffer;	/*  we can use double buffering */
 	unsigned int ui_DmaActualBuffer;	/*  which buffer is used now */
 	unsigned short *ul_DmaBufferVirtual[2];	/*  pointers to DMA buffer */
-	unsigned int ul_DmaBufferHw[2];	/*  hw address of DMA buff */
+	dma_addr_t ul_DmaBufferHw[2];		/*  hw address of DMA buff */
 	unsigned int ui_DmaBufferSize[2];	/*  size of dma buffer in bytes */
 	unsigned int ui_DmaBufferUsesize[2];	/*  which size we may now used for transfer */
-	unsigned int ui_DmaBufferPages[2];	/*  number of pages in buffer */
 	unsigned char b_DigitalOutputRegister;	/*  Digital Output Register */
 	unsigned char b_OutputMemoryStatus;
 	unsigned char b_TimerSelectMode;	/*  Contain data written at iobase + 0C */
@@ -141,7 +121,6 @@ struct addi_private {
 	unsigned char b_InterruptMode;	/*  eoc eos or dma */
 	unsigned char b_EocEosInterrupt;	/*  Enable disable eoc eos interrupt */
 	unsigned int ui_EocEosConversionTime;
-	unsigned char b_SingelDiff;
 	unsigned char b_ExttrigEnable;	/* To enable or disable external trigger */
 
 	/* Pointer to the current process */

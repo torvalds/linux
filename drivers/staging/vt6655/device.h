@@ -49,17 +49,13 @@
 #include <linux/sched.h>
 #include <linux/io.h>
 #include <linux/if.h>
+#include <linux/crc32.h>
 //#include <linux/config.h>
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/inetdevice.h>
 #include <linux/reboot.h>
-#ifdef SIOCETHTOOL
-#define DEVICE_ETHTOOL_IOCTL_SUPPORT
 #include <linux/ethtool.h>
-#else
-#undef DEVICE_ETHTOOL_IOCTL_SUPPORT
-#endif
 /* Include Wireless Extension definition and check version - Jean II */
 #include <linux/wireless.h>
 #include <net/iw_handler.h>	// New driver API
@@ -140,19 +136,11 @@
 
 #define	AVAIL_TD(p, q)	((p)->sOpts.nTxDescs[(q)] - ((p)->iTDUsed[(q)]))
 
-//PLICE_DEBUG ->
 #define	NUM				64
-//PLICE_DEUBG <-
 
 #define PRIVATE_Message                 0
 
 /*---------------------  Export Types  ------------------------------*/
-
-#define DBG_PRT(l, p, args...)		\
-do {					\
-	if (l <= msglevel)		\
-		printk(p, ##args);	\
-} while (0)
 
 #define PRINT_K(p, args...)		\
 do {					\
@@ -185,12 +173,6 @@ typedef enum __device_msg_level {
 	MSG_LEVEL_DEBUG = 4           //Only for debug purpose.
 } DEVICE_MSG_LEVEL, *PDEVICE_MSG_LEVEL;
 
-typedef enum __device_init_type {
-	DEVICE_INIT_COLD = 0,         // cold init
-	DEVICE_INIT_RESET,          // reset init or Dx to D0 power remain init
-	DEVICE_INIT_DXPL            // Dx to D0 power lost init
-} DEVICE_INIT_TYPE, *PDEVICE_INIT_TYPE;
-
 //++ NDIS related
 
 #define MAX_BSSIDINFO_4_PMKID   16
@@ -201,8 +183,7 @@ typedef enum __device_init_type {
 // PMKID Structures
 typedef unsigned char NDIS_802_11_PMKID_VALUE[16];
 
-typedef enum _NDIS_802_11_WEP_STATUS
-{
+typedef enum _NDIS_802_11_WEP_STATUS {
 	Ndis802_11WEPEnabled,
 	Ndis802_11Encryption1Enabled = Ndis802_11WEPEnabled,
 	Ndis802_11WEPDisabled,
@@ -218,8 +199,7 @@ typedef enum _NDIS_802_11_WEP_STATUS
 } NDIS_802_11_WEP_STATUS, *PNDIS_802_11_WEP_STATUS,
 	NDIS_802_11_ENCRYPTION_STATUS, *PNDIS_802_11_ENCRYPTION_STATUS;
 
-typedef enum _NDIS_802_11_STATUS_TYPE
-{
+typedef enum _NDIS_802_11_STATUS_TYPE {
 	Ndis802_11StatusType_Authentication,
 	Ndis802_11StatusType_MediaStreamMode,
 	Ndis802_11StatusType_PMKID_CandidateList,
@@ -227,13 +207,12 @@ typedef enum _NDIS_802_11_STATUS_TYPE
 } NDIS_802_11_STATUS_TYPE, *PNDIS_802_11_STATUS_TYPE;
 
 //Added new types for PMKID Candidate lists.
-typedef struct _PMKID_CANDIDATE {
+struct pmkid_candidate {
 	NDIS_802_11_MAC_ADDRESS BSSID;
 	unsigned long Flags;
-} PMKID_CANDIDATE, *PPMKID_CANDIDATE;
+};
 
-typedef struct _BSSID_INFO
-{
+typedef struct _BSSID_INFO {
 	NDIS_802_11_MAC_ADDRESS BSSID;
 	NDIS_802_11_PMKID_VALUE PMKID;
 } BSSID_INFO, *PBSSID_INFO;
@@ -248,7 +227,7 @@ typedef struct tagSPMKIDCandidateEvent {
 	NDIS_802_11_STATUS_TYPE     StatusType;
 	unsigned long Version;       // Version of the structure
 	unsigned long NumCandidates; // No. of pmkid candidates
-	PMKID_CANDIDATE CandidateList[MAX_PMKIDLIST];
+	struct pmkid_candidate CandidateList[MAX_PMKIDLIST];
 } SPMKIDCandidateEvent, *PSPMKIDCandidateEvent;
 
 //--
@@ -293,8 +272,7 @@ typedef struct tagSCache {
 
 #define CB_MAX_RX_FRAG                 64
 // DeFragment Control Block, used for collecting fragments prior to reassembly
-typedef struct tagSDeFragControlBlock
-{
+typedef struct tagSDeFragControlBlock {
 	unsigned short wSequence;
 	unsigned short wFragNum;
 	unsigned char abyAddr2[ETH_ALEN];
@@ -332,17 +310,6 @@ typedef struct tagSDeFragControlBlock
 //for device_set_media_duplex
 #define     DEVICE_LINK_CHANGE           0x00000001UL
 
-//PLICE_DEBUG->
-
-typedef	struct _RxManagementQueue
-{
-	int	packet_num;
-	int	head, tail;
-	PSRxMgmtPacket	Q[NUM];
-} RxManagementQueue, *PSRxManagementQueue;
-
-//PLICE_DEBUG<-
-
 typedef struct __device_opt {
 	int         nRxDescs0;    //Number of RX descriptors0
 	int         nRxDescs1;    //Number of RX descriptors1
@@ -358,20 +325,11 @@ typedef struct __device_opt {
 	u32         flags;
 } OPTIONS, *POPTIONS;
 
-typedef struct __device_info {
-	struct __device_info *next;
-	struct __device_info *prev;
-
+struct vnt_private {
 	struct pci_dev *pcid;
-
-#ifdef CONFIG_PM
-	u32                         pci_state[16];
-#endif
 
 // netdev
 	struct net_device *dev;
-	struct net_device *next_module;
-	struct net_device_stats     stats;
 
 //dma addr, rx/tx pool
 	dma_addr_t                  pool_dma;
@@ -391,7 +349,7 @@ typedef struct __device_info {
 
 	CHIP_TYPE                   chip_id;
 
-	unsigned long               PortOffset;
+	void __iomem                *PortOffset;
 	unsigned long dwIsr;
 	u32                         memaddr;
 	u32                         ioaddr;
@@ -429,15 +387,10 @@ typedef struct __device_info {
 	unsigned char byRxMode;
 
 	spinlock_t                  lock;
-//PLICE_DEBUG->
-	struct	tasklet_struct	RxMngWorkItem;
-	RxManagementQueue	rxManeQueue;
-//PLICE_DEBUG<-
-//PLICE_DEBUG ->
+
 	pid_t			MLMEThr_pid;
 	struct completion	notify;
 	struct semaphore	mlme_semaphore;
-//PLICE_DEBUG <-
 
 	u32                         rx_bytes;
 
@@ -507,13 +460,12 @@ typedef struct __device_info {
 	unsigned short wFragmentationThreshold;
 	unsigned char byShortRetryLimit;
 	unsigned char byLongRetryLimit;
-	CARD_OP_MODE                eOPMode;
+	enum nl80211_iftype op_mode;
 	unsigned char byOpMode;
 	bool bBSSIDFilter;
 	unsigned short wMaxTransmitMSDULifetime;
 	unsigned char abyBSSID[ETH_ALEN];
 	unsigned char abyDesireBSSID[ETH_ALEN];
-	unsigned short wCTSDuration;       // update while speed change
 	unsigned short wACKDuration;       // update while speed change
 	unsigned short wRTSTransmitLen;    // update while speed change
 	unsigned char byRTSServiceField;  // update while speed change
@@ -521,7 +473,6 @@ typedef struct __device_info {
 
 	unsigned long dwMaxReceiveLifetime;       // dot11MaxReceiveLifetime
 
-	bool bCCK;
 	bool bEncryptionEnable;
 	bool bLongHeader;
 	bool bShortSlotTime;
@@ -590,7 +541,7 @@ typedef struct __device_info {
 	SKeyManagement          sKey;
 	unsigned long dwIVCounter;
 
-	QWORD                   qwPacketNumber; //For CCMP and TKIP as TSC(6 bytes)
+	u64 qwPacketNumber; /* For CCMP and TKIP as TSC(6 bytes) */
 	unsigned int	uCurrentWEPMode;
 
 	RC4Ext                  SBox;
@@ -667,12 +618,10 @@ typedef struct __device_info {
 
 	// command timer
 	struct timer_list       sTimerCommand;
-#ifdef TxInSleep
 	struct timer_list       sTimerTxData;
 	unsigned long nTxDataTimeCout;
 	bool fTxDataInSleep;
 	bool IsTxDataTrigger;
-#endif
 
 #ifdef WPA_SM_Transtatus
 	bool fWPA_Authened;           //is WPA/WPA-PSK or WPA2/WPA2-PSK authen??
@@ -768,43 +717,10 @@ typedef struct __device_info {
 
 	struct iw_statistics	wstats;		// wireless stats
 	bool bCommit;
-} DEVICE_INFO, *PSDevice;
+};
 
-//PLICE_DEBUG->
-
-inline  static	void   EnQueue(PSDevice pDevice, PSRxMgmtPacket  pRxMgmtPacket)
+static inline bool device_get_ip(struct vnt_private *pInfo)
 {
-	if ((pDevice->rxManeQueue.tail+1) % NUM == pDevice->rxManeQueue.head) {
-		return;
-	} else {
-		pDevice->rxManeQueue.tail = (pDevice->rxManeQueue.tail + 1) % NUM;
-		pDevice->rxManeQueue.Q[pDevice->rxManeQueue.tail] = pRxMgmtPacket;
-		pDevice->rxManeQueue.packet_num++;
-	}
-}
-
-inline  static  PSRxMgmtPacket DeQueue(PSDevice pDevice)
-{
-	PSRxMgmtPacket  pRxMgmtPacket;
-	if (pDevice->rxManeQueue.tail == pDevice->rxManeQueue.head) {
-		printk("Queue is Empty\n");
-		return NULL;
-	} else {
-		int	x;
-		//x=pDevice->rxManeQueue.head = (pDevice->rxManeQueue.head+1)%NUM;
-		pDevice->rxManeQueue.head = (pDevice->rxManeQueue.head+1)%NUM;
-		x = pDevice->rxManeQueue.head;
-		pRxMgmtPacket = pDevice->rxManeQueue.Q[x];
-		pDevice->rxManeQueue.packet_num--;
-		return pRxMgmtPacket;
-	}
-}
-
-void	InitRxManagementQueue(PSDevice   pDevice);
-
-//PLICE_DEBUG<-
-
-inline static bool device_get_ip(PSDevice pInfo) {
 	struct in_device *in_dev = (struct in_device *)pInfo->dev->ip_ptr;
 	struct in_ifaddr *ifa;
 
@@ -830,7 +746,10 @@ static inline PDEVICE_TD_INFO alloc_td_info(void)
 
 /*---------------------  Export Functions  --------------------------*/
 
-bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeIndex);
-bool device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF);
-int Config_FileOperation(PSDevice pDevice, bool fwrite, unsigned char *Parameter);
+bool device_dma0_xmit(struct vnt_private *pDevice,
+		      struct sk_buff *skb, unsigned int uNodeIndex);
+bool device_alloc_frag_buf(struct vnt_private *pDevice,
+			   PSDeFragControlBlock pDeF);
+int Config_FileOperation(struct vnt_private *pDevice,
+			 bool fwrite, unsigned char *Parameter);
 #endif

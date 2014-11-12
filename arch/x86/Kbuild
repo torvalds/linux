@@ -16,3 +16,5 @@ obj-$(CONFIG_IA32_EMULATION) += ia32/
 
 obj-y += platform/
 obj-y += net/
+
+obj-$(CONFIG_KEXEC_FILE) += purgatory/

@@ -17,16 +17,11 @@
 	interrupt-parent = <&intc>;
 
 	chosen {
-		bootargs = "console=ttyARC0,115200n8 earlyprintk=ttyARC0";
+		bootargs = "earlycon=arc_uart,mmio32,0xc0fc1000,115200n8 console=ttyARC0,115200n8";
 	};
 
 	aliases {
 		serial0 = &arcuart0;
-	};
-
-	memory {
-		device_type = "memory";
-		reg = <0x00000000 0x10000000>;	/* 256M */
 	};
 
 	fpga {

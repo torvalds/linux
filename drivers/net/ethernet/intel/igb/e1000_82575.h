@@ -263,8 +263,8 @@ void igb_vmdq_set_loopback_pf(struct e1000_hw *, bool);
 void igb_vmdq_set_replication_pf(struct e1000_hw *, bool);
 u16 igb_rxpbs_adjust_82580(u32 data);
 s32 igb_read_emi_reg(struct e1000_hw *, u16 addr, u16 *data);
-s32 igb_set_eee_i350(struct e1000_hw *);
-s32 igb_set_eee_i354(struct e1000_hw *);
+s32 igb_set_eee_i350(struct e1000_hw *, bool adv1G, bool adv100M);
+s32 igb_set_eee_i354(struct e1000_hw *, bool adv1G, bool adv100M);
 s32 igb_get_eee_status_i354(struct e1000_hw *hw, bool *status);
 
 #define E1000_I2C_THERMAL_SENSOR_ADDR	0xF8

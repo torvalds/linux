@@ -15,7 +15,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
-#include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 #include <linux/platform_device.h>
 #include <linux/i2c-gpio.h>
 

@@ -200,10 +200,29 @@ config SERIAL_KS8695_CONSOLE
 	  receives all kernel messages and warnings and which allows
 	  logins in single user mode).
 
+config SERIAL_MESON
+	tristate "Meson serial port support"
+	depends on ARCH_MESON
+	select SERIAL_CORE
+	help
+	  This enables the driver for the on-chip UARTs of the Amlogic
+	  MesonX processors.
+
+config SERIAL_MESON_CONSOLE
+	bool "Support for console on meson"
+	depends on SERIAL_MESON=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a Amlogic MesonX UART as the
+	  system console (the system console is the device which
+	  receives all kernel messages and warnings and which allows
+	  logins in single user mode) as /dev/ttyAMLx.
+
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  This enables the driver for the on-chip UARTs of the Cirrus
 	  Logic EP711x/EP721x/EP731x processors.
@@ -220,7 +239,7 @@ config SERIAL_CLPS711X_CONSOLE
 
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
-	depends on PLAT_SAMSUNG
+	depends on PLAT_SAMSUNG || ARCH_EXYNOS
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
@@ -238,7 +257,6 @@ config SERIAL_SAMSUNG_UARTS_4
 config SERIAL_SAMSUNG_UARTS
 	int
 	depends on PLAT_SAMSUNG
-	default 6 if CPU_S5P6450
 	default 4 if SERIAL_SAMSUNG_UARTS_4 || CPU_S3C2416
 	default 3
 	help
@@ -774,7 +792,7 @@ config SERIAL_HS_LPC32XX
 
 config SERIAL_HS_LPC32XX_CONSOLE
 	bool "Enable LPC32XX high speed UART serial console"
-	depends on SERIAL_HS_LPC32XX
+	depends on SERIAL_HS_LPC32XX=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you would like to be able to use one of the high speed serial
@@ -1052,6 +1070,7 @@ config SERIAL_MSM_CONSOLE
 	bool "MSM serial console support"
 	depends on SERIAL_MSM=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 
 config SERIAL_MSM_HS
 	tristate "MSM UART High Speed: Serial Driver"
@@ -1411,6 +1430,7 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 	bool "Cadence UART console support"
 	depends on SERIAL_XILINX_PS_UART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Cadence UART port to be the system console.
 
@@ -1473,6 +1493,7 @@ config SERIAL_ARC_CONSOLE
 	bool "Console on ARC UART"
 	depends on SERIAL_ARC=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable system Console on ARC UART
 

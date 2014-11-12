@@ -565,41 +565,19 @@ static struct snd_soc_dai_driver ml26124_dai = {
 	.symmetric_rates = 1,
 };
 
-#ifdef CONFIG_PM
-static int ml26124_suspend(struct snd_soc_codec *codec)
-{
-	ml26124_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int ml26124_resume(struct snd_soc_codec *codec)
-{
-	ml26124_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define ml26124_suspend NULL
-#define ml26124_resume NULL
-#endif
-
 static int ml26124_probe(struct snd_soc_codec *codec)
 {
 	/* Software Reset */
 	snd_soc_update_bits(codec, ML26124_SW_RST, 0x01, 1);
 	snd_soc_update_bits(codec, ML26124_SW_RST, 0x01, 0);
 
-	ml26124_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_ml26124 = {
 	.probe =	ml26124_probe,
-	.suspend =	ml26124_suspend,
-	.resume =	ml26124_resume,
 	.set_bias_level = ml26124_set_bias_level,
+	.suspend_bias_off = true,
 	.dapm_widgets = ml26124_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(ml26124_dapm_widgets),
 	.dapm_routes = ml26124_intercon,

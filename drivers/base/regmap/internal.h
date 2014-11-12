@@ -49,8 +49,10 @@ struct regmap_async {
 };
 
 struct regmap {
-	struct mutex mutex;
-	spinlock_t spinlock;
+	union {
+		struct mutex mutex;
+		spinlock_t spinlock;
+	};
 	unsigned long spinlock_flags;
 	regmap_lock lock;
 	regmap_unlock unlock;
@@ -146,6 +148,9 @@ struct regcache_ops {
 	enum regcache_type type;
 	int (*init)(struct regmap *map);
 	int (*exit)(struct regmap *map);
+#ifdef CONFIG_DEBUG_FS
+	void (*debugfs_init)(struct regmap *map);
+#endif
 	int (*read)(struct regmap *map, unsigned int reg, unsigned int *value);
 	int (*write)(struct regmap *map, unsigned int reg, unsigned int value);
 	int (*sync)(struct regmap *map, unsigned int min, unsigned int max);

@@ -702,6 +702,15 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@inode points to the inode to use as a reference.
  *	The current task must be the one that nominated @inode.
  *	Return 0 if successful.
+ * @kernel_fw_from_file:
+ *	Load firmware from userspace (not called for built-in firmware).
+ *	@file contains the file structure pointing to the file containing
+ *	the firmware to load. This argument will be NULL if the firmware
+ *	was loaded via the uevent-triggered blob-based interface exposed
+ *	by CONFIG_FW_LOADER_USER_HELPER.
+ *	@buf pointer to buffer containing firmware contents.
+ *	@size length of the firmware contents.
+ *	Return 0 if permission is granted.
  * @kernel_module_request:
  *	Ability to trigger the kernel to automatically upcall to userspace for
  *	userspace to load a kernel module with the given name.
@@ -1550,7 +1559,7 @@ struct security_operations {
 	int (*file_lock) (struct file *file, unsigned int cmd);
 	int (*file_fcntl) (struct file *file, unsigned int cmd,
 			   unsigned long arg);
-	int (*file_set_fowner) (struct file *file);
+	void (*file_set_fowner) (struct file *file);
 	int (*file_send_sigiotask) (struct task_struct *tsk,
 				    struct fown_struct *fown, int sig);
 	int (*file_receive) (struct file *file);
@@ -1565,6 +1574,7 @@ struct security_operations {
 	void (*cred_transfer)(struct cred *new, const struct cred *old);
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
+	int (*kernel_fw_from_file)(struct file *file, char *buf, size_t size);
 	int (*kernel_module_request)(char *kmod_name);
 	int (*kernel_module_from_file)(struct file *file);
 	int (*task_fix_setuid) (struct cred *new, const struct cred *old,
@@ -1824,7 +1834,7 @@ int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
 			   unsigned long prot);
 int security_file_lock(struct file *file, unsigned int cmd);
 int security_file_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
-int security_file_set_fowner(struct file *file);
+void security_file_set_fowner(struct file *file);
 int security_file_send_sigiotask(struct task_struct *tsk,
 				 struct fown_struct *fown, int sig);
 int security_file_receive(struct file *file);
@@ -1837,6 +1847,7 @@ int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp);
 void security_transfer_creds(struct cred *new, const struct cred *old);
 int security_kernel_act_as(struct cred *new, u32 secid);
 int security_kernel_create_files_as(struct cred *new, struct inode *inode);
+int security_kernel_fw_from_file(struct file *file, char *buf, size_t size);
 int security_kernel_module_request(char *kmod_name);
 int security_kernel_module_from_file(struct file *file);
 int security_task_fix_setuid(struct cred *new, const struct cred *old,
@@ -2097,7 +2108,7 @@ static inline int security_dentry_init_security(struct dentry *dentry,
 static inline int security_inode_init_security(struct inode *inode,
 						struct inode *dir,
 						const struct qstr *qstr,
-						const initxattrs initxattrs,
+						const initxattrs xattrs,
 						void *fs_data)
 {
 	return 0;
@@ -2301,9 +2312,9 @@ static inline int security_file_fcntl(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-static inline int security_file_set_fowner(struct file *file)
+static inline void security_file_set_fowner(struct file *file)
 {
-	return 0;
+	return;
 }
 
 static inline int security_file_send_sigiotask(struct task_struct *tsk,
@@ -2359,6 +2370,12 @@ static inline int security_kernel_act_as(struct cred *cred, u32 secid)
 
 static inline int security_kernel_create_files_as(struct cred *cred,
 						  struct inode *inode)
+{
+	return 0;
+}
+
+static inline int security_kernel_fw_from_file(struct file *file,
+					       char *buf, size_t size)
 {
 	return 0;
 }

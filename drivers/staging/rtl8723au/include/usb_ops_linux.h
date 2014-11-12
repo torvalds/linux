@@ -29,13 +29,13 @@ int rtl8723au_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 void rtl8723au_write_port_cancel(struct rtw_adapter *padapter);
 int rtl8723au_read_interrupt(struct rtw_adapter *adapter, u32 addr);
 
-u8 rtl8723au_read8(struct rtw_adapter *padapter, u32 addr);
-u16 rtl8723au_read16(struct rtw_adapter *padapter, u32 addr);
-u32 rtl8723au_read32(struct rtw_adapter *padapter, u32 addr);
-int rtl8723au_write8(struct rtw_adapter *padapter, u32 addr, u8 val);
-int rtl8723au_write16(struct rtw_adapter *padapter, u32 addr, u16 val);
-int rtl8723au_write32(struct rtw_adapter *padapter, u32 addr, u32 val);
+u8 rtl8723au_read8(struct rtw_adapter *padapter, u16 addr);
+u16 rtl8723au_read16(struct rtw_adapter *padapter, u16 addr);
+u32 rtl8723au_read32(struct rtw_adapter *padapter, u16 addr);
+int rtl8723au_write8(struct rtw_adapter *padapter, u16 addr, u8 val);
+int rtl8723au_write16(struct rtw_adapter *padapter, u16 addr, u16 val);
+int rtl8723au_write32(struct rtw_adapter *padapter, u16 addr, u32 val);
 int rtl8723au_writeN(struct rtw_adapter *padapter,
-		     u32 addr, u32 length, u8 *pdata);
+		     u16 addr, u16 length, u8 *pdata);
 
 #endif

@@ -88,29 +88,14 @@ static int pseries_eeh_init(void)
 	 * and its variant since the old firmware probably support address
 	 * of domain/bus/slot/function for EEH RTAS operations.
 	 */
-	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE) {
-		pr_warning("%s: RTAS service <ibm,set-eeh-option> invalid\n",
-			__func__);
-		return -EINVAL;
-	} else if (ibm_set_slot_reset == RTAS_UNKNOWN_SERVICE) {
-		pr_warning("%s: RTAS service <ibm,set-slot-reset> invalid\n",
-			__func__);
-		return -EINVAL;
-	} else if (ibm_read_slot_reset_state2 == RTAS_UNKNOWN_SERVICE &&
-		   ibm_read_slot_reset_state == RTAS_UNKNOWN_SERVICE) {
-		pr_warning("%s: RTAS service <ibm,read-slot-reset-state2> and "
-			"<ibm,read-slot-reset-state> invalid\n",
-			__func__);
-		return -EINVAL;
-	} else if (ibm_slot_error_detail == RTAS_UNKNOWN_SERVICE) {
-		pr_warning("%s: RTAS service <ibm,slot-error-detail> invalid\n",
-			__func__);
-		return -EINVAL;
-	} else if (ibm_configure_pe == RTAS_UNKNOWN_SERVICE &&
-		   ibm_configure_bridge == RTAS_UNKNOWN_SERVICE) {
-		pr_warning("%s: RTAS service <ibm,configure-pe> and "
-			"<ibm,configure-bridge> invalid\n",
-			__func__);
+	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE		||
+	    ibm_set_slot_reset == RTAS_UNKNOWN_SERVICE		||
+	    (ibm_read_slot_reset_state2 == RTAS_UNKNOWN_SERVICE &&
+	     ibm_read_slot_reset_state == RTAS_UNKNOWN_SERVICE)	||
+	    ibm_slot_error_detail == RTAS_UNKNOWN_SERVICE	||
+	    (ibm_configure_pe == RTAS_UNKNOWN_SERVICE		&&
+	     ibm_configure_bridge == RTAS_UNKNOWN_SERVICE)) {
+		pr_info("EEH functionality not supported\n");
 		return -EINVAL;
 	}
 
@@ -118,17 +103,17 @@ static int pseries_eeh_init(void)
 	spin_lock_init(&slot_errbuf_lock);
 	eeh_error_buf_size = rtas_token("rtas-error-log-max");
 	if (eeh_error_buf_size == RTAS_UNKNOWN_SERVICE) {
-		pr_warning("%s: unknown EEH error log size\n",
+		pr_info("%s: unknown EEH error log size\n",
 			__func__);
 		eeh_error_buf_size = 1024;
 	} else if (eeh_error_buf_size > RTAS_ERROR_LOG_MAX) {
-		pr_warning("%s: EEH error log size %d exceeds the maximal %d\n",
+		pr_info("%s: EEH error log size %d exceeds the maximal %d\n",
 			__func__, eeh_error_buf_size, RTAS_ERROR_LOG_MAX);
 		eeh_error_buf_size = RTAS_ERROR_LOG_MAX;
 	}
 
 	/* Set EEH probe mode */
-	eeh_probe_mode_set(EEH_PROBE_MODE_DEVTREE);
+	eeh_add_flag(EEH_PROBE_MODE_DEVTREE | EEH_ENABLE_IO_FOR_LOG);
 
 	return 0;
 }
@@ -270,7 +255,7 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 	/* Retrieve the device address */
 	regs = of_get_property(dn, "reg", NULL);
 	if (!regs) {
-		pr_warning("%s: OF node property %s::reg not found\n",
+		pr_warn("%s: OF node property %s::reg not found\n",
 			__func__, dn->full_name);
 		return NULL;
 	}
@@ -297,7 +282,7 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 			enable = 1;
 
 		if (enable) {
-			eeh_set_enable(true);
+			eeh_add_flag(EEH_ENABLED);
 			eeh_add_to_parent_pe(edev);
 
 			pr_debug("%s: EEH enabled on %s PHB#%d-PE#%x, config addr#%x\n",
@@ -349,7 +334,9 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 		if (pe->addr)
 			config_addr = pe->addr;
 		break;
-
+	case EEH_OPT_FREEZE_PE:
+		/* Not support */
+		return 0;
 	default:
 		pr_err("%s: Invalid option %d\n",
 			__func__, option);
@@ -398,7 +385,7 @@ static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
 				pe->config_addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid), 0);
 		if (ret) {
-			pr_warning("%s: Failed to get address for PHB#%d-PE#%x\n",
+			pr_warn("%s: Failed to get address for PHB#%d-PE#%x\n",
 				__func__, pe->phb->global_number, pe->config_addr);
 			return 0;
 		}
@@ -411,7 +398,7 @@ static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
 				pe->config_addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid), 0);
 		if (ret) {
-			pr_warning("%s: Failed to get address for PHB#%d-PE#%x\n",
+			pr_warn("%s: Failed to get address for PHB#%d-PE#%x\n",
 				__func__, pe->phb->global_number, pe->config_addr);
 			return 0;
 		}
@@ -584,17 +571,17 @@ static int pseries_eeh_wait_state(struct eeh_pe *pe, int max_wait)
 			return ret;
 
 		if (max_wait <= 0) {
-			pr_warning("%s: Timeout when getting PE's state (%d)\n",
+			pr_warn("%s: Timeout when getting PE's state (%d)\n",
 				__func__, max_wait);
 			return EEH_STATE_NOT_SUPPORT;
 		}
 
 		if (mwait <= 0) {
-			pr_warning("%s: Firmware returned bad wait value %d\n",
+			pr_warn("%s: Firmware returned bad wait value %d\n",
 				__func__, mwait);
 			mwait = EEH_STATE_MIN_WAIT_TIME;
 		} else if (mwait > EEH_STATE_MAX_WAIT_TIME) {
-			pr_warning("%s: Firmware returned too long wait value %d\n",
+			pr_warn("%s: Firmware returned too long wait value %d\n",
 				__func__, mwait);
 			mwait = EEH_STATE_MAX_WAIT_TIME;
 		}
@@ -675,7 +662,7 @@ static int pseries_eeh_configure_bridge(struct eeh_pe *pe)
 	}
 
 	if (ret)
-		pr_warning("%s: Unable to configure bridge PHB#%d-PE#%x (%d)\n",
+		pr_warn("%s: Unable to configure bridge PHB#%d-PE#%x (%d)\n",
 			__func__, pe->phb->global_number, pe->addr, ret);
 
 	return ret;
@@ -729,6 +716,7 @@ static struct eeh_ops pseries_eeh_ops = {
 	.wait_state		= pseries_eeh_wait_state,
 	.get_log		= pseries_eeh_get_log,
 	.configure_bridge       = pseries_eeh_configure_bridge,
+	.err_inject		= NULL,
 	.read_config		= pseries_eeh_read_config,
 	.write_config		= pseries_eeh_write_config,
 	.next_error		= NULL,
@@ -743,10 +731,7 @@ static struct eeh_ops pseries_eeh_ops = {
  */
 static int __init eeh_pseries_init(void)
 {
-	int ret = -EINVAL;
-
-	if (!machine_is(pseries))
-		return ret;
+	int ret;
 
 	ret = eeh_ops_register(&pseries_eeh_ops);
 	if (!ret)
@@ -757,5 +742,4 @@ static int __init eeh_pseries_init(void)
 
 	return ret;
 }
-
-early_initcall(eeh_pseries_init);
+machine_early_initcall(pseries, eeh_pseries_init);

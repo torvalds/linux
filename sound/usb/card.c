@@ -591,18 +591,19 @@ static void snd_usb_audio_disconnect(struct usb_device *dev,
 {
 	struct snd_card *card;
 	struct list_head *p;
+	bool was_shutdown;
 
 	if (chip == (void *)-1L)
 		return;
 
 	card = chip->card;
 	down_write(&chip->shutdown_rwsem);
+	was_shutdown = chip->shutdown;
 	chip->shutdown = 1;
 	up_write(&chip->shutdown_rwsem);
 
 	mutex_lock(&register_mutex);
-	chip->num_interfaces--;
-	if (chip->num_interfaces <= 0) {
+	if (!was_shutdown) {
 		struct snd_usb_endpoint *ep;
 
 		snd_card_disconnect(card);
@@ -622,6 +623,10 @@ static void snd_usb_audio_disconnect(struct usb_device *dev,
 		list_for_each(p, &chip->mixer_list) {
 			snd_usb_mixer_disconnect(p);
 		}
+	}
+
+	chip->num_interfaces--;
+	if (chip->num_interfaces <= 0) {
 		usb_chip[chip->index] = NULL;
 		mutex_unlock(&register_mutex);
 		snd_card_free_when_closed(card);
@@ -680,6 +685,7 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 	struct snd_usb_audio *chip = usb_get_intfdata(intf);
 	struct snd_usb_stream *as;
 	struct usb_mixer_interface *mixer;
+	struct list_head *p;
 
 	if (chip == (void *)-1L)
 		return 0;
@@ -691,6 +697,9 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 				snd_pcm_suspend_all(as->pcm);
 				as->substream[0].need_setup_ep =
 					as->substream[1].need_setup_ep = true;
+			}
+			list_for_each(p, &chip->midi_list) {
+				snd_usbmidi_suspend(p);
 			}
 		}
 	} else {
@@ -713,6 +722,7 @@ static int __usb_audio_resume(struct usb_interface *intf, bool reset_resume)
 {
 	struct snd_usb_audio *chip = usb_get_intfdata(intf);
 	struct usb_mixer_interface *mixer;
+	struct list_head *p;
 	int err = 0;
 
 	if (chip == (void *)-1L)
@@ -729,6 +739,10 @@ static int __usb_audio_resume(struct usb_interface *intf, bool reset_resume)
 		err = snd_usb_mixer_resume(mixer, reset_resume);
 		if (err < 0)
 			goto err_out;
+	}
+
+	list_for_each(p, &chip->midi_list) {
+		snd_usbmidi_resume(p);
 	}
 
 	if (!chip->autosuspended)

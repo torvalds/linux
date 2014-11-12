@@ -32,7 +32,7 @@
 #include <asm/mpic.h>
 #include <asm/mmu.h>
 
-static __initdata struct of_device_id iss4xx_of_bus[] = {
+static const struct of_device_id iss4xx_of_bus[] __initconst = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,plb6", },
 	{ .compatible = "ibm,opb", },

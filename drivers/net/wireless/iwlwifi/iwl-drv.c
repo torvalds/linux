@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,6 +69,7 @@
 #include <linux/vmalloc.h>
 
 #include "iwl-drv.h"
+#include "iwl-csr.h"
 #include "iwl-debug.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
@@ -155,6 +158,8 @@ static struct iwlwifi_opmode_table {
 	[MVM_OP_MODE] = { .name = "iwlmvm", .ops = NULL },
 };
 
+#define IWL_DEFAULT_SCAN_CHANNELS 40
+
 /*
  * struct fw_sec: Just for the image parsing proccess.
  * For the fw storage we are using struct fw_desc.
@@ -239,6 +244,23 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 
 	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
 		 name_pre, tag);
+
+	/*
+	 * Starting 8000B - FW name format has changed. This overwrites the
+	 * previous name and uses the new format.
+	 */
+	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
+		char rev_step[2] = {
+			'A' + CSR_HW_REV_STEP(drv->trans->hw_rev), 0
+		};
+
+		/* A-step doesn't have an indication */
+		if (CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_A_STEP)
+			rev_step[0] = 0;
+
+		snprintf(drv->firmware_name, sizeof(drv->firmware_name),
+			 "%s%s-%s.ucode", name_pre, rev_step, tag);
+	}
 
 	IWL_DEBUG_INFO(drv, "attempting to load firmware %s'%s'\n",
 		       (drv->fw_index == UCODE_EXPERIMENTAL_INDEX)
@@ -565,6 +587,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	}
 
 	drv->fw.ucode_ver = le32_to_cpu(ucode->ver);
+	memcpy(drv->fw.human_readable, ucode->human_readable,
+	       sizeof(drv->fw.human_readable));
 	build = le32_to_cpu(ucode->build);
 
 	if (build)
@@ -819,6 +843,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (iwl_store_cscheme(&drv->fw, tlv_data, tlv_len))
 				goto invalid_tlv_len;
 			break;
+		case IWL_UCODE_TLV_N_SCAN_CHANNELS:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->n_scan_channels =
+				le32_to_cpup((__le32 *)tlv_data);
+			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -973,6 +1003,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.max_probe_length = IWL_DEFAULT_MAX_PROBE_LENGTH;
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
+	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
 
 	if (!api_ok)
 		api_ok = api_max;
@@ -1243,7 +1274,9 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
 	.wd_disable = true,
-	.uapsd_disable = false,
+#ifndef CONFIG_IWLWIFI_UAPSD
+	.uapsd_disable = true,
+#endif /* CONFIG_IWLWIFI_UAPSD */
 	/* the rest are 0 by default */
 };
 IWL_EXPORT_SYMBOL(iwlwifi_mod_params);
@@ -1348,7 +1381,7 @@ MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)")
 module_param_named(antenna_coupling, iwlwifi_mod_params.ant_coupling,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(antenna_coupling,
-		 "specify antenna coupling in dB (defualt: 0 dB)");
+		 "specify antenna coupling in dB (default: 0 dB)");
 
 module_param_named(wd_disable, iwlwifi_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
@@ -1359,7 +1392,11 @@ MODULE_PARM_DESC(nvm_file, "NVM file name");
 
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
 		   bool, S_IRUGO);
+#ifdef CONFIG_IWLWIFI_UAPSD
 MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: N)");
+#else
+MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: Y)");
+#endif
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer
@@ -1394,3 +1431,7 @@ module_param_named(power_level, iwlwifi_mod_params.power_level,
 		int, S_IRUGO);
 MODULE_PARM_DESC(power_level,
 		 "default power save level (range from 1 - 5, default: 1)");
+
+module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, S_IRUGO);
+MODULE_PARM_DESC(fw_monitor,
+		 "firmware monitor - to debug FW (default: false - needs lots of memory)");

@@ -611,7 +611,7 @@ static int __init pmac_cpufreq_setup(void)
 	struct device_node	*cpunode;
 	const u32		*value;
 
-	if (strstr(cmd_line, "nocpufreq"))
+	if (strstr(boot_command_line, "nocpufreq"))
 		return 0;
 
 	/* Get first CPU node */

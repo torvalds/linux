@@ -18,8 +18,7 @@ EXPORT_SYMBOL(unblock_signals);
 /*
  * OK, we're invoking a handler
  */
-static void handle_signal(struct pt_regs *regs, unsigned long signr,
-			 struct k_sigaction *ka, struct siginfo *info)
+static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	sigset_t *oldset = sigmask_to_save();
 	int singlestep = 0;
@@ -39,7 +38,7 @@ static void handle_signal(struct pt_regs *regs, unsigned long signr,
 			break;
 
 		case -ERESTARTSYS:
-			if (!(ka->sa.sa_flags & SA_RESTART)) {
+			if (!(ksig->ka.sa.sa_flags & SA_RESTART)) {
 				PT_REGS_SYSCALL_RET(regs) = -EINTR;
 				break;
 			}
@@ -52,32 +51,28 @@ static void handle_signal(struct pt_regs *regs, unsigned long signr,
 	}
 
 	sp = PT_REGS_SP(regs);
-	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags(sp) == 0))
+	if ((ksig->ka.sa.sa_flags & SA_ONSTACK) && (sas_ss_flags(sp) == 0))
 		sp = current->sas_ss_sp + current->sas_ss_size;
 
 #ifdef CONFIG_ARCH_HAS_SC_SIGNALS
-	if (!(ka->sa.sa_flags & SA_SIGINFO))
-		err = setup_signal_stack_sc(sp, signr, ka, regs, oldset);
+	if (!(ksig->ka.sa.sa_flags & SA_SIGINFO))
+		err = setup_signal_stack_sc(sp, ksig, regs, oldset);
 	else
 #endif
-		err = setup_signal_stack_si(sp, signr, ka, regs, info, oldset);
+		err = setup_signal_stack_si(sp, ksig, regs, oldset);
 
-	if (err)
-		force_sigsegv(signr, current);
-	else
-		signal_delivered(signr, info, ka, regs, singlestep);
+	signal_setup_done(err, ksig, singlestep);
 }
 
 static int kern_do_signal(struct pt_regs *regs)
 {
-	struct k_sigaction ka_copy;
-	struct siginfo info;
-	int sig, handled_sig = 0;
+	struct ksignal ksig;
+	int handled_sig = 0;
 
-	while ((sig = get_signal_to_deliver(&info, &ka_copy, regs, NULL)) > 0) {
+	while (get_signal(&ksig)) {
 		handled_sig = 1;
 		/* Whee!  Actually deliver the signal.  */
-		handle_signal(regs, sig, &ka_copy, &info);
+		handle_signal(&ksig, regs);
 	}
 
 	/* Did we come from a system call? */

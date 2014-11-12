@@ -75,7 +75,6 @@ enum i40e_dyn_idx_t {
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) | \
 	((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) | \
-	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_SCTP) | \
 	((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) | \
@@ -122,6 +121,7 @@ enum i40e_dyn_idx_t {
 /* Tx Descriptors needed, worst case */
 #define TXD_USE_COUNT(S) DIV_ROUND_UP((S), I40E_MAX_DATA_PER_TXD)
 #define DESC_NEEDED (MAX_SKB_FRAGS + 4)
+#define I40E_MIN_DESC_PENDING	4
 
 #define I40E_TX_FLAGS_CSUM		(u32)(1)
 #define I40E_TX_FLAGS_HW_VLAN		(u32)(1 << 1)
@@ -131,6 +131,7 @@ enum i40e_dyn_idx_t {
 #define I40E_TX_FLAGS_IPV6		(u32)(1 << 5)
 #define I40E_TX_FLAGS_FCCRC		(u32)(1 << 6)
 #define I40E_TX_FLAGS_FSO		(u32)(1 << 7)
+#define I40E_TX_FLAGS_FD_SB		(u32)(1 << 9)
 #define I40E_TX_FLAGS_VLAN_MASK		0xffff0000
 #define I40E_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define I40E_TX_FLAGS_VLAN_PRIO_SHIFT	29
@@ -139,7 +140,10 @@ enum i40e_dyn_idx_t {
 struct i40e_tx_buffer {
 	struct i40e_tx_desc *next_to_watch;
 	unsigned long time_stamp;
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		void *raw_buf;
+	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
 	DEFINE_DMA_UNMAP_ADDR(dma);

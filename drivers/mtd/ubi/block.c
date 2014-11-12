@@ -188,8 +188,9 @@ static int ubiblock_read_to_buf(struct ubiblock *dev, char *buffer,
 
 	ret = ubi_read(dev->desc, leb, buffer, offset, len);
 	if (ret) {
-		ubi_err("%s ubi_read error %d",
-			dev->gd->disk_name, ret);
+		ubi_err("%s: error %d while reading from LEB %d (offset %d, "
+		        "length %d)", dev->gd->disk_name, ret, leb, offset,
+			len);
 		return ret;
 	}
 	return 0;
@@ -378,9 +379,11 @@ int ubiblock_create(struct ubi_volume_info *vi)
 {
 	struct ubiblock *dev;
 	struct gendisk *gd;
-	int disk_capacity;
+	u64 disk_capacity = vi->used_bytes >> 9;
 	int ret;
 
+	if ((sector_t)disk_capacity != disk_capacity)
+		return -EFBIG;
 	/* Check that the volume isn't already handled */
 	mutex_lock(&devices_mutex);
 	if (find_dev_nolock(vi->ubi_num, vi->vol_id)) {
@@ -412,7 +415,6 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	gd->first_minor = dev->ubi_num * UBI_MAX_VOLUMES + dev->vol_id;
 	gd->private_data = dev;
 	sprintf(gd->disk_name, "ubiblock%d_%d", dev->ubi_num, dev->vol_id);
-	disk_capacity = (vi->size * vi->usable_leb_size) >> 9;
 	set_capacity(gd, disk_capacity);
 	dev->gd = gd;
 
@@ -498,10 +500,10 @@ int ubiblock_remove(struct ubi_volume_info *vi)
 	return 0;
 }
 
-static void ubiblock_resize(struct ubi_volume_info *vi)
+static int ubiblock_resize(struct ubi_volume_info *vi)
 {
 	struct ubiblock *dev;
-	int disk_capacity;
+	u64 disk_capacity = vi->used_bytes >> 9;
 
 	/*
 	 * Need to lock the device list until we stop using the device,
@@ -512,15 +514,25 @@ static void ubiblock_resize(struct ubi_volume_info *vi)
 	dev = find_dev_nolock(vi->ubi_num, vi->vol_id);
 	if (!dev) {
 		mutex_unlock(&devices_mutex);
-		return;
+		return -ENODEV;
+	}
+	if ((sector_t)disk_capacity != disk_capacity) {
+		mutex_unlock(&devices_mutex);
+		ubi_warn("%s: the volume is too big (%d LEBs), cannot resize",
+			 dev->gd->disk_name, vi->size);
+		return -EFBIG;
 	}
 
 	mutex_lock(&dev->dev_mutex);
-	disk_capacity = (vi->size * vi->usable_leb_size) >> 9;
-	set_capacity(dev->gd, disk_capacity);
-	ubi_msg("%s resized to %d LEBs", dev->gd->disk_name, vi->size);
+
+	if (get_capacity(dev->gd) != disk_capacity) {
+		set_capacity(dev->gd, disk_capacity);
+		ubi_msg("%s resized to %lld bytes", dev->gd->disk_name,
+			vi->used_bytes);
+	}
 	mutex_unlock(&dev->dev_mutex);
 	mutex_unlock(&devices_mutex);
+	return 0;
 }
 
 static int ubiblock_notify(struct notifier_block *nb,
@@ -540,6 +552,14 @@ static int ubiblock_notify(struct notifier_block *nb,
 		break;
 	case UBI_VOLUME_RESIZED:
 		ubiblock_resize(&nt->vi);
+		break;
+	case UBI_VOLUME_UPDATED:
+		/*
+		 * If the volume is static, a content update might mean the
+		 * size (i.e. used_bytes) was also changed.
+		 */
+		if (nt->vi.vol_type == UBI_STATIC_VOLUME)
+			ubiblock_resize(&nt->vi);
 		break;
 	default:
 		break;

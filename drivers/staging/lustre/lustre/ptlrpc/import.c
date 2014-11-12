@@ -40,14 +40,14 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include <obd_support.h>
-#include <lustre_ha.h>
-#include <lustre_net.h>
-#include <lustre_import.h>
-#include <lustre_export.h>
-#include <obd.h>
-#include <obd_cksum.h>
-#include <obd_class.h>
+#include "../include/obd_support.h"
+#include "../include/lustre_ha.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_import.h"
+#include "../include/lustre_export.h"
+#include "../include/obd.h"
+#include "../include/obd_cksum.h"
+#include "../include/obd_class.h"
 
 #include "ptlrpc_internal.h"
 
@@ -66,7 +66,7 @@ static void __import_set_state(struct obd_import *imp,
 	imp->imp_state = state;
 	imp->imp_state_hist[imp->imp_state_hist_idx].ish_state = state;
 	imp->imp_state_hist[imp->imp_state_hist_idx].ish_time =
-		cfs_time_current_sec();
+		get_seconds();
 	imp->imp_state_hist_idx = (imp->imp_state_hist_idx + 1) %
 		IMP_STATE_HIST_LEN;
 }
@@ -93,7 +93,7 @@ do {									\
 
 static int ptlrpc_connect_interpret(const struct lu_env *env,
 				    struct ptlrpc_request *request,
-				    void * data, int rc);
+				    void *data, int rc);
 int ptlrpc_import_recovery_state_machine(struct obd_import *imp);
 
 /* Only this function is allowed to change the import state when it is
@@ -242,7 +242,7 @@ ptlrpc_inflight_deadline(struct ptlrpc_request *req, time_t now)
 
 static unsigned int ptlrpc_inflight_timeout(struct obd_import *imp)
 {
-	time_t now = cfs_time_current_sec();
+	time_t now = get_seconds();
 	struct list_head *tmp, *n;
 	struct ptlrpc_request *req;
 	unsigned int timeout = 0;
@@ -275,6 +275,7 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 	if (!imp->imp_invalid || imp->imp_obd->obd_no_recov)
 		ptlrpc_deactivate_import(imp);
 
+	CFS_FAIL_TIMEOUT(OBD_FAIL_MGS_CONNECT_NET, 3 * cfs_fail_val / 2);
 	LASSERT(imp->imp_invalid);
 
 	/* Wait forever until inflight == 0. We really can't do it another
@@ -296,7 +297,8 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 			timeout = 1;
 		}
 
-		CDEBUG(D_RPCTRACE,"Sleeping %d sec for inflight to error out\n",
+		CDEBUG(D_RPCTRACE,
+		       "Sleeping %d sec for inflight to error out\n",
 		       timeout);
 
 		/* Wait for all requests to error out and call completion
@@ -392,6 +394,19 @@ void ptlrpc_activate_import(struct obd_import *imp)
 }
 EXPORT_SYMBOL(ptlrpc_activate_import);
 
+static void ptlrpc_pinger_force(struct obd_import *imp)
+{
+	CDEBUG(D_HA, "%s: waking up pinger s:%s\n", obd2cli_tgt(imp->imp_obd),
+	       ptlrpc_import_state_name(imp->imp_state));
+
+	spin_lock(&imp->imp_lock);
+	imp->imp_force_verify = 1;
+	spin_unlock(&imp->imp_lock);
+
+	if (imp->imp_state != LUSTRE_IMP_CONNECTING)
+		ptlrpc_pinger_wake_up();
+}
+
 void ptlrpc_fail_import(struct obd_import *imp, __u32 conn_cnt)
 {
 	LASSERT(!imp->imp_dlm_fake);
@@ -406,20 +421,30 @@ void ptlrpc_fail_import(struct obd_import *imp, __u32 conn_cnt)
 			ptlrpc_deactivate_import(imp);
 		}
 
-		CDEBUG(D_HA, "%s: waking up pinger\n",
-		       obd2cli_tgt(imp->imp_obd));
-
-		spin_lock(&imp->imp_lock);
-		imp->imp_force_verify = 1;
-		spin_unlock(&imp->imp_lock);
-
-		ptlrpc_pinger_wake_up();
+		ptlrpc_pinger_force(imp);
 	}
 }
 EXPORT_SYMBOL(ptlrpc_fail_import);
 
 int ptlrpc_reconnect_import(struct obd_import *imp)
 {
+#ifdef ENABLE_PINGER
+	struct l_wait_info lwi;
+	int secs = cfs_time_seconds(obd_timeout);
+	int rc;
+
+	ptlrpc_pinger_force(imp);
+
+	CDEBUG(D_HA, "%s: recovery started, waiting %u seconds\n",
+	       obd2cli_tgt(imp->imp_obd), secs);
+
+	lwi = LWI_TIMEOUT(secs, NULL, NULL);
+	rc = l_wait_event(imp->imp_recovery_waitq,
+			  !ptlrpc_import_in_recovery(imp), &lwi);
+	CDEBUG(D_HA, "%s: recovery finished s:%s\n", obd2cli_tgt(imp->imp_obd),
+	       ptlrpc_import_state_name(imp->imp_state));
+	return rc;
+#else
 	ptlrpc_set_import_discon(imp, 0);
 	/* Force a new connect attempt */
 	ptlrpc_invalidate_import(imp);
@@ -444,6 +469,7 @@ int ptlrpc_reconnect_import(struct obd_import *imp)
 	/* Attempt a new connect */
 	ptlrpc_recover_import(imp, NULL, 0);
 	return 0;
+#endif
 }
 EXPORT_SYMBOL(ptlrpc_reconnect_import);
 
@@ -469,7 +495,7 @@ static int import_select_connection(struct obd_import *imp)
 	}
 
 	list_for_each_entry(conn, &imp->imp_conn_list, oic_item) {
-		CDEBUG(D_HA, "%s: connect to NID %s last attempt "LPU64"\n",
+		CDEBUG(D_HA, "%s: connect to NID %s last attempt %llu\n",
 		       imp->imp_obd->obd_name,
 		       libcfs_nid2str(conn->oic_conn->c_peer.nid),
 		       conn->oic_last_attempt);
@@ -643,11 +669,11 @@ int ptlrpc_connect_import(struct obd_import *imp)
 
 	rc = import_select_connection(imp);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	rc = sptlrpc_import_sec_adapt(imp, NULL, NULL);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	/* Reset connect flags to the originally requested flags, in case
 	 * the server is updated on-the-fly we will get the new features. */
@@ -660,17 +686,19 @@ int ptlrpc_connect_import(struct obd_import *imp)
 	rc = obd_reconnect(NULL, imp->imp_obd->obd_self_export, obd,
 			   &obd->obd_uuid, &imp->imp_connect_data, NULL);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	request = ptlrpc_request_alloc(imp, &RQF_MDS_CONNECT);
-	if (request == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (request == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	rc = ptlrpc_request_bufs_pack(request, LUSTRE_OBD_VERSION,
 				      imp->imp_connect_op, bufs, NULL);
 	if (rc) {
 		ptlrpc_request_free(request);
-		GOTO(out, rc);
+		goto out;
 	}
 
 	/* Report the rpc service time to the server so that it knows how long
@@ -778,7 +806,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 		imp->imp_force_reconnect = ptlrpc_busy_reconnect(rc);
 		spin_unlock(&imp->imp_lock);
 		ptlrpc_maybe_ping_import_soon(imp);
-		GOTO(out, rc);
+		goto out;
 	}
 	spin_unlock(&imp->imp_lock);
 
@@ -796,7 +824,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 		CERROR("%s: no connect data from server\n",
 		       imp->imp_obd->obd_name);
 		rc = -EPROTO;
-		GOTO(out, rc);
+		goto out;
 	}
 
 	spin_lock(&imp->imp_lock);
@@ -817,11 +845,11 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	/* check that server granted subset of flags we asked for. */
 	if ((ocd->ocd_connect_flags & imp->imp_connect_flags_orig) !=
 	    ocd->ocd_connect_flags) {
-		CERROR("%s: Server didn't granted asked subset of flags: "
-		       "asked="LPX64" grranted="LPX64"\n",
-		       imp->imp_obd->obd_name,imp->imp_connect_flags_orig,
+		CERROR("%s: Server didn't granted asked subset of flags: asked=%#llx grranted=%#llx\n",
+		       imp->imp_obd->obd_name, imp->imp_connect_flags_orig,
 		       ocd->ocd_connect_flags);
-		GOTO(out, rc = -EPROTO);
+		rc = -EPROTO;
+		goto out;
 	}
 
 	if (!exp) {
@@ -829,7 +857,8 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 		   connect attempt */
 		CERROR("%s: missing export after connect\n",
 		       imp->imp_obd->obd_name);
-		GOTO(out, rc = -ENODEV);
+		rc = -ENODEV;
+		goto out;
 	}
 	old_connect_flags = exp_connect_flags(exp);
 	exp->exp_connect_data = *ocd;
@@ -868,7 +897,8 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			ptlrpc_activate_import(imp);
 		}
 
-		GOTO(finish, rc = 0);
+		rc = 0;
+		goto finish;
 	}
 
 	/* Determine what recovery state to move the import to. */
@@ -876,12 +906,12 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 		memset(&old_hdl, 0, sizeof(old_hdl));
 		if (!memcmp(&old_hdl, lustre_msg_get_handle(request->rq_repmsg),
 			    sizeof(old_hdl))) {
-			LCONSOLE_WARN("Reconnect to %s (at @%s) failed due "
-				      "bad handle "LPX64"\n",
+			LCONSOLE_WARN("Reconnect to %s (at @%s) failed due bad handle %#llx\n",
 				      obd2cli_tgt(imp->imp_obd),
 				      imp->imp_connection->c_remote_uuid.uuid,
 				      imp->imp_dlm_handle.cookie);
-			GOTO(out, rc = -ENOTCONN);
+			rc = -ENOTCONN;
+			goto out;
 		}
 
 		if (memcmp(&imp->imp_remote_handle,
@@ -898,9 +928,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 			 * participate since we can reestablish all of our state
 			 * with server again */
 			if ((MSG_CONNECT_RECOVERING & msg_flags)) {
-				CDEBUG(level,"%s@%s changed server handle from "
-				       LPX64" to "LPX64
-				       " but is still in recovery\n",
+				CDEBUG(level, "%s@%s changed server handle from %#llx to %#llx but is still in recovery\n",
 				       obd2cli_tgt(imp->imp_obd),
 				       imp->imp_connection->c_remote_uuid.uuid,
 				       imp->imp_remote_handle.cookie,
@@ -908,8 +936,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 				       request->rq_repmsg)->cookie);
 			} else {
 				LCONSOLE_WARN("Evicted from %s (at %s) "
-					      "after server handle changed from "
-					      LPX64" to "LPX64"\n",
+					      "after server handle changed from %#llx to %#llx\n",
 					      obd2cli_tgt(imp->imp_obd),
 					      imp->imp_connection-> \
 					      c_remote_uuid.uuid,
@@ -924,7 +951,8 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 
 			if (!(MSG_CONNECT_RECOVERING & msg_flags)) {
 				IMPORT_SET_STATE(imp, LUSTRE_IMP_EVICTED);
-				GOTO(finish, rc = 0);
+				rc = 0;
+				goto finish;
 			}
 
 		} else {
@@ -973,8 +1001,8 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	if (lustre_msg_get_last_committed(request->rq_repmsg) > 0 &&
 	    lustre_msg_get_last_committed(request->rq_repmsg) <
 	    aa->pcaa_peer_committed) {
-		CERROR("%s went back in time (transno "LPD64
-		       " was previously committed, server now claims "LPD64
+		CERROR("%s went back in time (transno %lld"
+		       " was previously committed, server now claims %lld"
 		       ")!  See https://bugzilla.lustre.org/show_bug.cgi?"
 		       "id=9646\n",
 		       obd2cli_tgt(imp->imp_obd), aa->pcaa_peer_committed,
@@ -1004,10 +1032,18 @@ finish:
 
 		spin_unlock(&imp->imp_lock);
 
-		if (!ocd->ocd_ibits_known &&
-		    ocd->ocd_connect_flags & OBD_CONNECT_IBITS)
-			CERROR("Inodebits aware server returned zero compatible"
-			       " bits?\n");
+		if ((imp->imp_connect_flags_orig & OBD_CONNECT_IBITS) &&
+		    !(ocd->ocd_connect_flags & OBD_CONNECT_IBITS)) {
+			LCONSOLE_WARN("%s: MDS %s does not support ibits "
+				      "lock, either very old or invalid: "
+				      "requested %llx, replied %llx\n",
+				      imp->imp_obd->obd_name,
+				      imp->imp_connection->c_remote_uuid.uuid,
+				      imp->imp_connect_flags_orig,
+				      ocd->ocd_connect_flags);
+			rc = -EPROTO;
+			goto out;
+		}
 
 		if ((ocd->ocd_connect_flags & OBD_CONNECT_VERSION) &&
 		    (ocd->ocd_version > LUSTRE_VERSION_CODE +
@@ -1076,7 +1112,7 @@ finish:
 			 * Enforce ADLER for backward compatibility*/
 			cli->cl_supp_cksum_types = OBD_CKSUM_ADLER;
 		}
-		cli->cl_cksum_type =cksum_type_select(cli->cl_supp_cksum_types);
+		cli->cl_cksum_type = cksum_type_select(cli->cl_supp_cksum_types);
 
 		if (ocd->ocd_connect_flags & OBD_CONNECT_BRW_SIZE)
 			cli->cl_max_pages_per_rpc =
@@ -1092,9 +1128,8 @@ finish:
 		 * disable lru_resize, etc. */
 		if (old_connect_flags != exp_connect_flags(exp) ||
 		    aa->pcaa_initial_connect) {
-			CDEBUG(D_HA, "%s: Resetting ns_connect_flags to server "
-			       "flags: "LPX64"\n", imp->imp_obd->obd_name,
-			      ocd->ocd_connect_flags);
+			CDEBUG(D_HA, "%s: Resetting ns_connect_flags to server flags: %#llx\n",
+			       imp->imp_obd->obd_name, ocd->ocd_connect_flags);
 			imp->imp_obd->obd_namespace->ns_connect_flags =
 				ocd->ocd_connect_flags;
 			imp->imp_obd->obd_namespace->ns_orig_connect_flags =
@@ -1190,7 +1225,7 @@ out:
  */
 static int completed_replay_interpret(const struct lu_env *env,
 				      struct ptlrpc_request *req,
-				      void * data, int rc)
+				      void *data, int rc)
 {
 	atomic_dec(&req->rq_import->imp_replay_inflight);
 	if (req->rq_status == 0 &&
@@ -1351,7 +1386,7 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 			IMPORT_SET_STATE(imp, LUSTRE_IMP_REPLAY_LOCKS);
 			rc = ldlm_replay_locks(imp);
 			if (rc)
-				GOTO(out, rc);
+				goto out;
 		}
 		rc = 0;
 	}
@@ -1361,7 +1396,7 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 			IMPORT_SET_STATE(imp, LUSTRE_IMP_REPLAY_WAIT);
 			rc = signal_completed_replay(imp);
 			if (rc)
-				GOTO(out, rc);
+				goto out;
 		}
 
 	}
@@ -1379,7 +1414,7 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 
 		rc = ptlrpc_resend(imp);
 		if (rc)
-			GOTO(out, rc);
+			goto out;
 		IMPORT_SET_STATE(imp, LUSTRE_IMP_FULL);
 		ptlrpc_activate_import(imp);
 
@@ -1406,7 +1441,7 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 	int rq_opc, rc = 0;
 
 	if (imp->imp_obd->obd_force)
-		GOTO(set_state, rc);
+		goto set_state;
 
 	switch (imp->imp_connect_op) {
 	case OST_CONNECT:
@@ -1429,7 +1464,7 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 
 	if (ptlrpc_import_in_recovery(imp)) {
 		struct l_wait_info lwi;
-		cfs_duration_t timeout;
+		long timeout;
 
 		if (AT_OFF) {
 			if (imp->imp_server_timeout)
@@ -1452,7 +1487,7 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_state != LUSTRE_IMP_FULL)
-		GOTO(out, 0);
+		goto out;
 	spin_unlock(&imp->imp_lock);
 
 	req = ptlrpc_request_alloc_pack(imp, &RQF_MDS_DISCONNECT,
@@ -1512,7 +1547,7 @@ extern unsigned int at_min, at_max, at_history;
 int at_measured(struct adaptive_timeout *at, unsigned int val)
 {
 	unsigned int old = at->at_current;
-	time_t now = cfs_time_current_sec();
+	time_t now = get_seconds();
 	time_t binlimit = max_t(time_t, at_history / AT_BINS, 1);
 
 	LASSERT(at);

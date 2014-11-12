@@ -1531,7 +1531,6 @@ bttv_switch_overlay(struct bttv *btv, struct bttv_fh *fh,
 {
 	struct bttv_buffer *old;
 	unsigned long flags;
-	int retval = 0;
 
 	dprintk("switch_overlay: enter [new=%p]\n", new);
 	if (new)
@@ -1551,7 +1550,7 @@ bttv_switch_overlay(struct bttv *btv, struct bttv_fh *fh,
 	if (NULL == new)
 		free_btres_lock(btv,fh,RESOURCE_OVERLAY);
 	dprintk("switch_overlay: done\n");
-	return retval;
+	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -3856,7 +3855,7 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 
 				btwrite(btread(BT848_INT_MASK) & (-1 ^ BT848_INT_GPINT),
 						BT848_INT_MASK);
-			};
+			}
 
 			bttv_print_irqbits(stat,astat);
 
@@ -3886,7 +3885,6 @@ static struct video_device *vdev_init(struct bttv *btv,
 	vfd->v4l2_dev = &btv->c.v4l2_dev;
 	vfd->release = video_device_release;
 	vfd->debug   = bttv_debug;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	video_set_drvdata(vfd, btv);
 	snprintf(vfd->name, sizeof(vfd->name), "BT%d%s %s (%s)",
 		 btv->id, (btv->id==848 && btv->revision==0x12) ? "A" : "",

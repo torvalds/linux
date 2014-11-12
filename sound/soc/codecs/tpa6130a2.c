@@ -381,10 +381,8 @@ static int tpa6130a2_probe(struct i2c_client *client,
 	dev = &client->dev;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
-	if (data == NULL) {
-		dev_err(dev, "Can not allocate memory\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	if (pdata) {
 		data->power_gpio = pdata->power_gpio;

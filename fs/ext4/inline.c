@@ -120,12 +120,6 @@ int ext4_get_max_inline_size(struct inode *inode)
 	return max_inline_size + EXT4_MIN_INLINE_DATA_SIZE;
 }
 
-int ext4_has_inline_data(struct inode *inode)
-{
-	return ext4_test_inode_flag(inode, EXT4_INODE_INLINE_DATA) &&
-	       EXT4_I(inode)->i_inline_off;
-}
-
 /*
  * this function does not take xattr_sem, which is OK because it is
  * currently only used in a code path coming form ext4_iget, before
@@ -600,6 +594,7 @@ retry:
 	if (ret) {
 		unlock_page(page);
 		page_cache_release(page);
+		page = NULL;
 		ext4_orphan_add(handle, inode);
 		up_write(&EXT4_I(inode)->xattr_sem);
 		sem_held = 0;
@@ -619,7 +614,8 @@ retry:
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
-	block_commit_write(page, from, to);
+	if (page)
+		block_commit_write(page, from, to);
 out:
 	if (page) {
 		unlock_page(page);
@@ -1132,8 +1128,7 @@ static int ext4_finish_convert_inline_dir(handle_t *handle,
 	memcpy((void *)de, buf + EXT4_INLINE_DOTDOT_SIZE,
 		inline_size - EXT4_INLINE_DOTDOT_SIZE);
 
-	if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
+	if (ext4_has_metadata_csum(inode->i_sb))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	inode->i_size = inode->i_sb->s_blocksize;
@@ -1177,6 +1172,18 @@ static int ext4_convert_inline_data_nolock(handle_t *handle,
 	error = ext4_read_inline_data(inode, buf, inline_size, iloc);
 	if (error < 0)
 		goto out;
+
+	/*
+	 * Make sure the inline directory entries pass checks before we try to
+	 * convert them, so that we avoid touching stuff that needs fsck.
+	 */
+	if (S_ISDIR(inode->i_mode)) {
+		error = ext4_check_all_de(inode, iloc->bh,
+					buf + EXT4_INLINE_DOTDOT_SIZE,
+					inline_size - EXT4_INLINE_DOTDOT_SIZE);
+		if (error)
+			goto out;
+	}
 
 	error = ext4_destroy_inline_data_nolock(handle, inode);
 	if (error)

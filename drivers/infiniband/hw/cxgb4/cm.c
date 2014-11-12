@@ -79,9 +79,10 @@ static int dack_mode = 1;
 module_param(dack_mode, int, 0644);
 MODULE_PARM_DESC(dack_mode, "Delayed ack mode (default=1)");
 
-int c4iw_max_read_depth = 8;
+uint c4iw_max_read_depth = 32;
 module_param(c4iw_max_read_depth, int, 0644);
-MODULE_PARM_DESC(c4iw_max_read_depth, "Per-connection max ORD/IRD (default=8)");
+MODULE_PARM_DESC(c4iw_max_read_depth,
+		 "Per-connection max ORD/IRD (default=32)");
 
 static int enable_tcp_timestamps;
 module_param(enable_tcp_timestamps, int, 0644);
@@ -235,10 +236,12 @@ static void release_tid(struct c4iw_rdev *rdev, u32 hwtid, struct sk_buff *skb)
 static void set_emss(struct c4iw_ep *ep, u16 opt)
 {
 	ep->emss = ep->com.dev->rdev.lldi.mtus[GET_TCPOPT_MSS(opt)] -
-		   sizeof(struct iphdr) - sizeof(struct tcphdr);
+		   ((AF_INET == ep->com.remote_addr.ss_family) ?
+		    sizeof(struct iphdr) : sizeof(struct ipv6hdr)) -
+		   sizeof(struct tcphdr);
 	ep->mss = ep->emss;
 	if (GET_TCPOPT_TSTAMP(opt))
-		ep->emss -= 12;
+		ep->emss -= round_up(TCPOLEN_TIMESTAMP, 4);
 	if (ep->emss < 128)
 		ep->emss = 128;
 	if (ep->emss & 7)
@@ -414,6 +417,7 @@ static struct dst_entry *find_route(struct c4iw_dev *dev, __be32 local_ip,
 		return NULL;
 	if (!our_interface(dev, n->dev) &&
 	    !(n->dev->flags & IFF_LOOPBACK)) {
+		neigh_release(n);
 		dst_release(&rt->dst);
 		return NULL;
 	}
@@ -474,7 +478,8 @@ static void send_flowc(struct c4iw_ep *ep, struct sk_buff *skb)
 					  16)) | FW_WR_FLOWID(ep->hwtid));
 
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
-	flowc->mnemval[0].val = cpu_to_be32(PCI_FUNC(ep->com.dev->rdev.lldi.pdev->devfn) << 8);
+	flowc->mnemval[0].val = cpu_to_be32(FW_PFVF_CMD_PFN
+					    (ep->com.dev->rdev.lldi.pf));
 	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
 	flowc->mnemval[1].val = cpu_to_be32(ep->tx_chan);
 	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
@@ -579,11 +584,14 @@ static void c4iw_record_pm_msg(struct c4iw_ep *ep,
 }
 
 static void best_mtu(const unsigned short *mtus, unsigned short mtu,
-		     unsigned int *idx, int use_ts)
+		     unsigned int *idx, int use_ts, int ipv6)
 {
-	unsigned short hdr_size = sizeof(struct iphdr) +
+	unsigned short hdr_size = (ipv6 ?
+				   sizeof(struct ipv6hdr) :
+				   sizeof(struct iphdr)) +
 				  sizeof(struct tcphdr) +
-				  (use_ts ? 12 : 0);
+				  (use_ts ?
+				   round_up(TCPOLEN_TIMESTAMP, 4) : 0);
 	unsigned short data_size = mtu - hdr_size;
 
 	cxgb4_best_aligned_mtu(mtus, hdr_size, data_size, 8, idx);
@@ -632,7 +640,8 @@ static int send_connect(struct c4iw_ep *ep)
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, ep->ctrlq_idx);
 
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
-		 enable_tcp_timestamps);
+		 enable_tcp_timestamps,
+		 (AF_INET == ep->com.remote_addr.ss_family) ? 0 : 1);
 	wscale = compute_wscale(rcv_win);
 
 	/*
@@ -666,6 +675,7 @@ static int send_connect(struct c4iw_ep *ep)
 	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
 		opt2 |= T5_OPT_2_VALID;
 		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
 	}
 	t4_set_arp_err_handler(skb, ep, act_open_req_arp_failure);
 
@@ -711,8 +721,6 @@ static int send_connect(struct c4iw_ep *ep)
 	} else {
 		u32 isn = (prandom_u32() & ~7UL) - 1;
 
-		opt2 |= T5_OPT_2_VALID;
-		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
 		if (peer2peer)
 			isn += 4;
 
@@ -754,10 +762,10 @@ static int send_connect(struct c4iw_ep *ep)
 			t5_req6->peer_ip_lo = *((__be64 *)
 						(ra6->sin6_addr.s6_addr + 8));
 			t5_req6->opt0 = cpu_to_be64(opt0);
-			t5_req6->params = (__force __be64)cpu_to_be32(
+			t5_req6->params = cpu_to_be64(V_FILTER_TUPLE(
 							cxgb4_select_ntuple(
 						ep->com.dev->rdev.lldi.ports[0],
-						ep->l2t));
+						ep->l2t)));
 			t5_req6->rsvd = cpu_to_be32(isn);
 			PDBG("%s snd_isn %u\n", __func__,
 			     be32_to_cpu(t5_req6->rsvd));
@@ -821,6 +829,8 @@ static void send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	if (mpa_rev_to_use == 2) {
 		mpa->private_data_size = htons(ntohs(mpa->private_data_size) +
 					       sizeof (struct mpa_v2_conn_params));
+		PDBG("%s initiator ird %u ord %u\n", __func__, ep->ird,
+		     ep->ord);
 		mpa_v2_params.ird = htons((u16)ep->ird);
 		mpa_v2_params.ord = htons((u16)ep->ord);
 
@@ -1190,8 +1200,8 @@ static int connect_request_upcall(struct c4iw_ep *ep)
 			sizeof(struct mpa_v2_conn_params);
 	} else {
 		/* this means MPA_v1 is used. Send max supported */
-		event.ord = c4iw_max_read_depth;
-		event.ird = c4iw_max_read_depth;
+		event.ord = cur_max_read_depth(ep->com.dev);
+		event.ird = cur_max_read_depth(ep->com.dev);
 		event.private_data_len = ep->plen;
 		event.private_data = ep->mpa_pkt + sizeof(struct mpa_message);
 	}
@@ -1254,6 +1264,8 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 	c4iw_ofld_send(&ep->com.dev->rdev, skb);
 	return credits;
 }
+
+#define RELAXED_IRD_NEGOTIATION 1
 
 static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 {
@@ -1366,17 +1378,33 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 				MPA_V2_IRD_ORD_MASK;
 			resp_ord = ntohs(mpa_v2_params->ord) &
 				MPA_V2_IRD_ORD_MASK;
+			PDBG("%s responder ird %u ord %u ep ird %u ord %u\n",
+			     __func__, resp_ird, resp_ord, ep->ird, ep->ord);
 
 			/*
 			 * This is a double-check. Ideally, below checks are
 			 * not required since ird/ord stuff has been taken
 			 * care of in c4iw_accept_cr
 			 */
-			if ((ep->ird < resp_ord) || (ep->ord > resp_ird)) {
+			if (ep->ird < resp_ord) {
+				if (RELAXED_IRD_NEGOTIATION && resp_ord <=
+				    ep->com.dev->rdev.lldi.max_ordird_qp)
+					ep->ird = resp_ord;
+				else
+					insuff_ird = 1;
+			} else if (ep->ird > resp_ord) {
+				ep->ird = resp_ord;
+			}
+			if (ep->ord > resp_ird) {
+				if (RELAXED_IRD_NEGOTIATION)
+					ep->ord = resp_ird;
+				else
+					insuff_ird = 1;
+			}
+			if (insuff_ird) {
 				err = -ENOMEM;
 				ep->ird = resp_ord;
 				ep->ord = resp_ird;
-				insuff_ird = 1;
 			}
 
 			if (ntohs(mpa_v2_params->ird) &
@@ -1579,6 +1607,8 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 				MPA_V2_IRD_ORD_MASK;
 			ep->ord = ntohs(mpa_v2_params->ord) &
 				MPA_V2_IRD_ORD_MASK;
+			PDBG("%s initiator ird %u ord %u\n", __func__, ep->ird,
+			     ep->ord);
 			if (ntohs(mpa_v2_params->ird) & MPA_V2_PEER2PEER_MODEL)
 				if (peer2peer) {
 					if (ntohs(mpa_v2_params->ord) &
@@ -1739,7 +1769,8 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	req->tcb.tx_max = (__force __be32) jiffies;
 	req->tcb.rcv_adv = htons(1);
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
-		 enable_tcp_timestamps);
+		 enable_tcp_timestamps,
+		 (AF_INET == ep->com.remote_addr.ss_family) ? 0 : 1);
 	wscale = compute_wscale(rcv_win);
 
 	/*
@@ -1796,6 +1827,20 @@ static int is_neg_adv(unsigned int status)
 	return status == CPL_ERR_RTX_NEG_ADVICE ||
 	       status == CPL_ERR_PERSIST_NEG_ADVICE ||
 	       status == CPL_ERR_KEEPALV_NEG_ADVICE;
+}
+
+static char *neg_adv_str(unsigned int status)
+{
+	switch (status) {
+	case CPL_ERR_RTX_NEG_ADVICE:
+		return "Retransmit timeout";
+	case CPL_ERR_PERSIST_NEG_ADVICE:
+		return "Persist timeout";
+	case CPL_ERR_KEEPALV_NEG_ADVICE:
+		return "Keepalive timeout";
+	default:
+		return "Unknown";
+	}
 }
 
 static void set_tcp_window(struct c4iw_ep *ep, struct port_info *pi)
@@ -1996,8 +2041,9 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	     status, status2errno(status));
 
 	if (is_neg_adv(status)) {
-		printk(KERN_WARNING MOD "Connection problems for atid %u\n",
-			atid);
+		dev_warn(&dev->rdev.lldi.pdev->dev,
+			 "Connection problems for atid %u status %u (%s)\n",
+			 atid, status, neg_adv_str(status));
 		return 0;
 	}
 
@@ -2123,7 +2169,8 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 						    ep->hwtid));
 
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
-		 enable_tcp_timestamps && req->tcpopt.tstamp);
+		 enable_tcp_timestamps && req->tcpopt.tstamp,
+		 (AF_INET == ep->com.remote_addr.ss_family) ? 0 : 1);
 	wscale = compute_wscale(rcv_win);
 
 	/*
@@ -2472,8 +2519,9 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	ep = lookup_tid(t, tid);
 	if (is_neg_adv(req->status)) {
-		PDBG("%s neg_adv_abort ep %p tid %u\n", __func__, ep,
-		     ep->hwtid);
+		dev_warn(&dev->rdev.lldi.pdev->dev,
+			 "Negative advice on abort - tid %u status %d (%s)\n",
+			 ep->hwtid, req->status, neg_adv_str(req->status));
 		return 0;
 	}
 	PDBG("%s ep %p tid %u state %u\n", __func__, ep, ep->hwtid,
@@ -2731,8 +2779,8 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	BUG_ON(!qp);
 
 	set_bit(ULP_ACCEPT, &ep->com.history);
-	if ((conn_param->ord > c4iw_max_read_depth) ||
-	    (conn_param->ird > c4iw_max_read_depth)) {
+	if ((conn_param->ord > cur_max_read_depth(ep->com.dev)) ||
+	    (conn_param->ird > cur_max_read_depth(ep->com.dev))) {
 		abort_connection(ep, NULL, GFP_KERNEL);
 		err = -EINVAL;
 		goto err;
@@ -2740,31 +2788,41 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	if (ep->mpa_attr.version == 2 && ep->mpa_attr.enhanced_rdma_conn) {
 		if (conn_param->ord > ep->ird) {
-			ep->ird = conn_param->ird;
-			ep->ord = conn_param->ord;
-			send_mpa_reject(ep, conn_param->private_data,
-					conn_param->private_data_len);
-			abort_connection(ep, NULL, GFP_KERNEL);
-			err = -ENOMEM;
-			goto err;
-		}
-		if (conn_param->ird > ep->ord) {
-			if (!ep->ord)
-				conn_param->ird = 1;
-			else {
+			if (RELAXED_IRD_NEGOTIATION) {
+				ep->ord = ep->ird;
+			} else {
+				ep->ird = conn_param->ird;
+				ep->ord = conn_param->ord;
+				send_mpa_reject(ep, conn_param->private_data,
+						conn_param->private_data_len);
 				abort_connection(ep, NULL, GFP_KERNEL);
 				err = -ENOMEM;
 				goto err;
 			}
 		}
-
+		if (conn_param->ird < ep->ord) {
+			if (RELAXED_IRD_NEGOTIATION &&
+			    ep->ord <= h->rdev.lldi.max_ordird_qp) {
+				conn_param->ird = ep->ord;
+			} else {
+				abort_connection(ep, NULL, GFP_KERNEL);
+				err = -ENOMEM;
+				goto err;
+			}
+		}
 	}
 	ep->ird = conn_param->ird;
 	ep->ord = conn_param->ord;
 
-	if (ep->mpa_attr.version != 2)
+	if (ep->mpa_attr.version == 1) {
 		if (peer2peer && ep->ird == 0)
 			ep->ird = 1;
+	} else {
+		if (peer2peer &&
+		    (ep->mpa_attr.p2p_type != FW_RI_INIT_P2PTYPE_DISABLED) &&
+		    (p2p_type == FW_RI_INIT_P2PTYPE_READ_REQ) && ep->ord == 0)
+			ep->ird = 1;
+	}
 
 	PDBG("%s %d ird %d ord %d\n", __func__, __LINE__, ep->ird, ep->ord);
 
@@ -2803,6 +2861,7 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	return 0;
 err1:
 	ep->com.cm_id = NULL;
+	abort_connection(ep, NULL, GFP_KERNEL);
 	cm_id->rem_ref(cm_id);
 err:
 	mutex_unlock(&ep->com.mutex);
@@ -2886,8 +2945,8 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int iptype;
 	int iwpm_err = 0;
 
-	if ((conn_param->ord > c4iw_max_read_depth) ||
-	    (conn_param->ird > c4iw_max_read_depth)) {
+	if ((conn_param->ord > cur_max_read_depth(dev)) ||
+	    (conn_param->ird > cur_max_read_depth(dev))) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -3867,8 +3926,9 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 		return 0;
 	}
 	if (is_neg_adv(req->status)) {
-		PDBG("%s neg_adv_abort ep %p tid %u\n", __func__, ep,
-		     ep->hwtid);
+		dev_warn(&dev->rdev.lldi.pdev->dev,
+			 "Negative advice on abort - tid %u status %d (%s)\n",
+			 ep->hwtid, req->status, neg_adv_str(req->status));
 		kfree_skb(skb);
 		return 0;
 	}

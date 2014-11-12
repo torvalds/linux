@@ -682,7 +682,7 @@ set_videobus_dir (struct zoran *zr,
 	switch (zr->card.type) {
 	case LML33:
 	case LML33R10:
-		if (lml33dpath == 0)
+		if (!lml33dpath)
 			GPIO(zr, 5, val);
 		else
 			GPIO(zr, 5, 1);

@@ -71,9 +71,17 @@ efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 	return ((efx_qword_t *) (tx_queue->txd.buf.addr)) + index;
 }
 
-/* Report whether the NIC considers this TX queue empty, given the
- * write_count used for the last doorbell push.  May return false
- * negative.
+/* Get partner of a TX queue, seen as part of the same net core queue */
+static struct efx_tx_queue *efx_tx_queue_partner(struct efx_tx_queue *tx_queue)
+{
+	if (tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD)
+		return tx_queue - EFX_TXQ_TYPE_OFFLOAD;
+	else
+		return tx_queue + EFX_TXQ_TYPE_OFFLOAD;
+}
+
+/* Report whether this TX queue would be empty for the given write_count.
+ * May return false negative.
  */
 static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
 					 unsigned int write_count)
@@ -86,9 +94,18 @@ static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
 	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0;
 }
 
-static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue)
+/* Decide whether we can use TX PIO, ie. write packet data directly into
+ * a buffer on the device.  This can reduce latency at the expense of
+ * throughput, so we only do this if both hardware and software TX rings
+ * are empty.  This also ensures that only one packet at a time can be
+ * using the PIO buffer.
+ */
+static inline bool efx_nic_may_tx_pio(struct efx_tx_queue *tx_queue)
 {
-	return __efx_nic_tx_is_empty(tx_queue, tx_queue->write_count);
+	struct efx_tx_queue *partner = efx_tx_queue_partner(tx_queue);
+	return tx_queue->piobuf &&
+	       __efx_nic_tx_is_empty(tx_queue, tx_queue->insert_count) &&
+	       __efx_nic_tx_is_empty(partner, partner->insert_count);
 }
 
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
@@ -96,6 +113,8 @@ static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue)
  * descriptor to an empty queue, but is otherwise pointless.  Further,
  * Falcon and Siena have hardware bugs (SF bug 33851) that may be
  * triggered if we don't check this.
+ * We use the write_count used for the last doorbell push, to get the
+ * NIC's view of the tx queue.
  */
 static inline bool efx_nic_may_push_tx_desc(struct efx_tx_queue *tx_queue,
 					    unsigned int write_count)
@@ -134,6 +153,13 @@ enum {
 #define EFX_PAGE_SIZE	4096
 /* Size and alignment of buffer table entries (same) */
 #define EFX_BUF_SIZE	EFX_PAGE_SIZE
+
+/* NIC-generic software stats */
+enum {
+	GENERIC_STAT_rx_noskb_drops,
+	GENERIC_STAT_rx_nodesc_trunc,
+	GENERIC_STAT_COUNT
+};
 
 /**
  * struct falcon_board_type - board operations and type information
@@ -205,7 +231,7 @@ static inline bool falcon_spi_present(const struct falcon_spi_device *spi)
 }
 
 enum {
-	FALCON_STAT_tx_bytes,
+	FALCON_STAT_tx_bytes = GENERIC_STAT_COUNT,
 	FALCON_STAT_tx_packets,
 	FALCON_STAT_tx_pause,
 	FALCON_STAT_tx_control,
@@ -290,7 +316,7 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 }
 
 enum {
-	SIENA_STAT_tx_bytes,
+	SIENA_STAT_tx_bytes = GENERIC_STAT_COUNT,
 	SIENA_STAT_tx_good_bytes,
 	SIENA_STAT_tx_bad_bytes,
 	SIENA_STAT_tx_packets,
@@ -361,7 +387,7 @@ struct siena_nic_data {
 };
 
 enum {
-	EF10_STAT_tx_bytes,
+	EF10_STAT_tx_bytes = GENERIC_STAT_COUNT,
 	EF10_STAT_tx_packets,
 	EF10_STAT_tx_pause,
 	EF10_STAT_tx_control,

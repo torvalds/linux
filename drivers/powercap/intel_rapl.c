@@ -953,6 +953,7 @@ static const struct x86_cpu_id rapl_ids[] = {
 	{ X86_VENDOR_INTEL, 6, 0x3a},/* Ivy Bridge */
 	{ X86_VENDOR_INTEL, 6, 0x3c},/* Haswell */
 	{ X86_VENDOR_INTEL, 6, 0x3d},/* Broadwell */
+	{ X86_VENDOR_INTEL, 6, 0x3f},/* Haswell */
 	{ X86_VENDOR_INTEL, 6, 0x45},/* Haswell ULT */
 	/* TODO: Add more CPU IDs after testing */
 	{}
@@ -1166,11 +1167,10 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 
 	for (i = 0; i < RAPL_DOMAIN_MAX; i++) {
 		/* use physical package id to read counters */
-		if (!rapl_check_domain(cpu, i))
+		if (!rapl_check_domain(cpu, i)) {
 			rp->domain_map |= 1 << i;
-		else
-			pr_warn("RAPL domain %s detection failed\n",
-				rapl_domain_names[i]);
+			pr_info("Found RAPL domain %s\n", rapl_domain_names[i]);
+		}
 	}
 	rp->nr_domains = bitmap_weight(&rp->domain_map,	RAPL_DOMAIN_MAX);
 	if (!rp->nr_domains) {

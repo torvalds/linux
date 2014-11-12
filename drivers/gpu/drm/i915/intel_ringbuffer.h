@@ -5,6 +5,13 @@
 
 #define I915_CMD_HASH_ORDER 9
 
+/* Early gen2 devices have a cacheline of just 32 bytes, using 64 is overkill,
+ * but keeps the logic simple. Indeed, the whole purpose of this macro is just
+ * to give some inclination as to some of the magic values used in the various
+ * workarounds!
+ */
+#define CACHELINE_BYTES 64
+
 /*
  * Gen2 BSpec "1. Programming Environment" / 1.4.4.6 "Ring Buffer Use"
  * Gen3 BSpec "vol1c Memory Interface Functions" / 2.3.4.5 "Ring Buffer Use"
@@ -40,10 +47,37 @@ struct  intel_hw_status_page {
 #define I915_READ_MODE(ring) I915_READ(RING_MI_MODE((ring)->mmio_base))
 #define I915_WRITE_MODE(ring, val) I915_WRITE(RING_MI_MODE((ring)->mmio_base), val)
 
+/* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
+ * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.
+ */
+#define i915_semaphore_seqno_size sizeof(uint64_t)
+#define GEN8_SIGNAL_OFFSET(__ring, to)			     \
+	(i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj) + \
+	((__ring)->id * I915_NUM_RINGS * i915_semaphore_seqno_size) +	\
+	(i915_semaphore_seqno_size * (to)))
+
+#define GEN8_WAIT_OFFSET(__ring, from)			     \
+	(i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj) + \
+	((from) * I915_NUM_RINGS * i915_semaphore_seqno_size) + \
+	(i915_semaphore_seqno_size * (__ring)->id))
+
+#define GEN8_RING_SEMAPHORE_INIT do { \
+	if (!dev_priv->semaphore_obj) { \
+		break; \
+	} \
+	ring->semaphore.signal_ggtt[RCS] = GEN8_SIGNAL_OFFSET(ring, RCS); \
+	ring->semaphore.signal_ggtt[VCS] = GEN8_SIGNAL_OFFSET(ring, VCS); \
+	ring->semaphore.signal_ggtt[BCS] = GEN8_SIGNAL_OFFSET(ring, BCS); \
+	ring->semaphore.signal_ggtt[VECS] = GEN8_SIGNAL_OFFSET(ring, VECS); \
+	ring->semaphore.signal_ggtt[VCS2] = GEN8_SIGNAL_OFFSET(ring, VCS2); \
+	ring->semaphore.signal_ggtt[ring->id] = MI_SEMAPHORE_SYNC_INVALID; \
+	} while(0)
+
 enum intel_ring_hangcheck_action {
 	HANGCHECK_IDLE = 0,
 	HANGCHECK_WAIT,
 	HANGCHECK_ACTIVE,
+	HANGCHECK_ACTIVE_LOOP,
 	HANGCHECK_KICK,
 	HANGCHECK_HUNG,
 };
@@ -52,6 +86,7 @@ enum intel_ring_hangcheck_action {
 
 struct intel_ring_hangcheck {
 	u64 acthd;
+	u64 max_acthd;
 	u32 seqno;
 	int score;
 	enum intel_ring_hangcheck_action action;
@@ -61,6 +96,15 @@ struct intel_ring_hangcheck {
 struct intel_ringbuffer {
 	struct drm_i915_gem_object *obj;
 	void __iomem *virtual_start;
+
+	struct intel_engine_cs *ring;
+
+	/*
+	 * FIXME: This backpointer is an artifact of the history of how the
+	 * execlist patches came into being. It will get removed once the basic
+	 * code has landed.
+	 */
+	struct intel_context *FIXME_lrc_ctx;
 
 	u32 head;
 	u32 tail;
@@ -104,6 +148,8 @@ struct  intel_engine_cs {
 
 	int		(*init)(struct intel_engine_cs *ring);
 
+	int		(*init_context)(struct intel_engine_cs *ring);
+
 	void		(*write_tail)(struct intel_engine_cs *ring,
 				      u32 value);
 	int __must_check (*flush)(struct intel_engine_cs *ring,
@@ -127,15 +173,55 @@ struct  intel_engine_cs {
 #define I915_DISPATCH_PINNED 0x2
 	void		(*cleanup)(struct intel_engine_cs *ring);
 
+	/* GEN8 signal/wait table - never trust comments!
+	 *	  signal to	signal to    signal to   signal to      signal to
+	 *	    RCS		   VCS          BCS        VECS		 VCS2
+	 *      --------------------------------------------------------------------
+	 *  RCS | NOP (0x00) | VCS (0x08) | BCS (0x10) | VECS (0x18) | VCS2 (0x20) |
+	 *	|-------------------------------------------------------------------
+	 *  VCS | RCS (0x28) | NOP (0x30) | BCS (0x38) | VECS (0x40) | VCS2 (0x48) |
+	 *	|-------------------------------------------------------------------
+	 *  BCS | RCS (0x50) | VCS (0x58) | NOP (0x60) | VECS (0x68) | VCS2 (0x70) |
+	 *	|-------------------------------------------------------------------
+	 * VECS | RCS (0x78) | VCS (0x80) | BCS (0x88) |  NOP (0x90) | VCS2 (0x98) |
+	 *	|-------------------------------------------------------------------
+	 * VCS2 | RCS (0xa0) | VCS (0xa8) | BCS (0xb0) | VECS (0xb8) | NOP  (0xc0) |
+	 *	|-------------------------------------------------------------------
+	 *
+	 * Generalization:
+	 *  f(x, y) := (x->id * NUM_RINGS * seqno_size) + (seqno_size * y->id)
+	 *  ie. transpose of g(x, y)
+	 *
+	 *	 sync from	sync from    sync from    sync from	sync from
+	 *	    RCS		   VCS          BCS        VECS		 VCS2
+	 *      --------------------------------------------------------------------
+	 *  RCS | NOP (0x00) | VCS (0x28) | BCS (0x50) | VECS (0x78) | VCS2 (0xa0) |
+	 *	|-------------------------------------------------------------------
+	 *  VCS | RCS (0x08) | NOP (0x30) | BCS (0x58) | VECS (0x80) | VCS2 (0xa8) |
+	 *	|-------------------------------------------------------------------
+	 *  BCS | RCS (0x10) | VCS (0x38) | NOP (0x60) | VECS (0x88) | VCS2 (0xb0) |
+	 *	|-------------------------------------------------------------------
+	 * VECS | RCS (0x18) | VCS (0x40) | BCS (0x68) |  NOP (0x90) | VCS2 (0xb8) |
+	 *	|-------------------------------------------------------------------
+	 * VCS2 | RCS (0x20) | VCS (0x48) | BCS (0x70) | VECS (0x98) |  NOP (0xc0) |
+	 *	|-------------------------------------------------------------------
+	 *
+	 * Generalization:
+	 *  g(x, y) := (y->id * NUM_RINGS * seqno_size) + (seqno_size * x->id)
+	 *  ie. transpose of f(x, y)
+	 */
 	struct {
 		u32	sync_seqno[I915_NUM_RINGS-1];
 
-		struct {
-			/* our mbox written by others */
-			u32		wait[I915_NUM_RINGS];
-			/* mboxes this ring signals to */
-			u32		signal[I915_NUM_RINGS];
-		} mbox;
+		union {
+			struct {
+				/* our mbox written by others */
+				u32		wait[I915_NUM_RINGS];
+				/* mboxes this ring signals to */
+				u32		signal[I915_NUM_RINGS];
+			} mbox;
+			u64		signal_ggtt[I915_NUM_RINGS];
+		};
 
 		/* AKA wait() */
 		int	(*sync_to)(struct intel_engine_cs *ring,
@@ -145,6 +231,18 @@ struct  intel_engine_cs {
 				  /* num_dwords needed by caller */
 				  unsigned int num_dwords);
 	} semaphore;
+
+	/* Execlists */
+	spinlock_t execlist_lock;
+	struct list_head execlist_queue;
+	u8 next_context_status_buffer;
+	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
+	int		(*emit_request)(struct intel_ringbuffer *ringbuf);
+	int		(*emit_flush)(struct intel_ringbuffer *ringbuf,
+				      u32 invalidate_domains,
+				      u32 flush_domains);
+	int		(*emit_bb_start)(struct intel_ringbuffer *ringbuf,
+					 u64 offset, unsigned flags);
 
 	/**
 	 * List of objects currently involved in rendering from the
@@ -219,11 +317,7 @@ struct  intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
-static inline bool
-intel_ring_initialized(struct intel_engine_cs *ring)
-{
-	return ring->buffer && ring->buffer->obj;
-}
+bool intel_ring_initialized(struct intel_engine_cs *ring);
 
 static inline unsigned
 intel_ring_flag(struct intel_engine_cs *ring)
@@ -238,9 +332,11 @@ intel_ring_sync_index(struct intel_engine_cs *ring,
 	int idx;
 
 	/*
-	 * cs -> 0 = vcs, 1 = bcs
-	 * vcs -> 0 = bcs, 1 = cs,
-	 * bcs -> 0 = cs, 1 = vcs.
+	 * rcs -> 0 = vcs, 1 = bcs, 2 = vecs, 3 = vcs2;
+	 * vcs -> 0 = bcs, 1 = vecs, 2 = vcs2, 3 = rcs;
+	 * bcs -> 0 = vecs, 1 = vcs2. 2 = rcs, 3 = vcs;
+	 * vecs -> 0 = vcs2, 1 = rcs, 2 = vcs, 3 = bcs;
+	 * vcs2 -> 0 = rcs, 1 = vcs, 2 = bcs, 3 = vecs;
 	 */
 
 	idx = (other - ring) - 1;
@@ -285,6 +381,10 @@ intel_write_status_page(struct intel_engine_cs *ring,
 #define I915_GEM_HWS_SCRATCH_INDEX	0x30
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
+void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
+int intel_alloc_ringbuffer_obj(struct drm_device *dev,
+			       struct intel_ringbuffer *ringbuf);
+
 void intel_stop_ring_buffer(struct intel_engine_cs *ring);
 void intel_cleanup_ring_buffer(struct intel_engine_cs *ring);
 
@@ -302,12 +402,18 @@ static inline void intel_ring_advance(struct intel_engine_cs *ring)
 	struct intel_ringbuffer *ringbuf = ring->buffer;
 	ringbuf->tail &= ringbuf->size - 1;
 }
+int __intel_ring_space(int head, int tail, int size);
+int intel_ring_space(struct intel_ringbuffer *ringbuf);
+bool intel_ring_stopped(struct intel_engine_cs *ring);
 void __intel_ring_advance(struct intel_engine_cs *ring);
 
 int __must_check intel_ring_idle(struct intel_engine_cs *ring);
 void intel_ring_init_seqno(struct intel_engine_cs *ring, u32 seqno);
 int intel_ring_flush_all_caches(struct intel_engine_cs *ring);
 int intel_ring_invalidate_all_caches(struct intel_engine_cs *ring);
+
+void intel_fini_pipe_control(struct intel_engine_cs *ring);
+int intel_init_pipe_control(struct intel_engine_cs *ring);
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);
@@ -318,9 +424,9 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev);
 u64 intel_ring_get_active_head(struct intel_engine_cs *ring);
 void intel_ring_setup_status_page(struct intel_engine_cs *ring);
 
-static inline u32 intel_ring_get_tail(struct intel_engine_cs *ring)
+static inline u32 intel_ring_get_tail(struct intel_ringbuffer *ringbuf)
 {
-	return ring->buffer->tail;
+	return ringbuf->tail;
 }
 
 static inline u32 intel_ring_get_seqno(struct intel_engine_cs *ring)

@@ -1653,8 +1653,7 @@ static int __init pmz_probe(void)
 	/*
 	 * Find all escc chips in the system
 	 */
-	node_p = of_find_node_by_name(NULL, "escc");
-	while (node_p) {
+	for_each_node_by_name(node_p, "escc") {
 		/*
 		 * First get channel A/B node pointers
 		 * 
@@ -1672,7 +1671,7 @@ static int __init pmz_probe(void)
 			of_node_put(node_b);
 			printk(KERN_ERR "pmac_zilog: missing node %c for escc %s\n",
 				(!node_a) ? 'a' : 'b', node_p->full_name);
-			goto next;
+			continue;
 		}
 
 		/*
@@ -1699,11 +1698,9 @@ static int __init pmz_probe(void)
 			of_node_put(node_b);
 			memset(&pmz_ports[count], 0, sizeof(struct uart_pmac_port));
 			memset(&pmz_ports[count+1], 0, sizeof(struct uart_pmac_port));
-			goto next;
+			continue;
 		}
 		count += 2;
-next:
-		node_p = of_find_node_by_name(node_p, "escc");
 	}
 	pmz_ports_count = count;
 

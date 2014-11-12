@@ -327,6 +327,8 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
 		v |= SUPPORTED_1000baseT_Full;
 	if (word & FW_PORT_CAP_SPEED_10G)
 		v |= SUPPORTED_10000baseT_Full;
+	if (word & FW_PORT_CAP_SPEED_40G)
+		v |= SUPPORTED_40000baseSR4_Full;
 	if (word & FW_PORT_CAP_ANEG)
 		v |= SUPPORTED_Autoneg;
 	init_link_config(&pi->link_cfg, v);
@@ -1352,11 +1354,13 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 		if (word & FW_PORT_CMD_TXPAUSE)
 			fc |= PAUSE_TX;
 		if (word & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100M))
-			speed = SPEED_100;
+			speed = 100;
 		else if (word & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_1G))
-			speed = SPEED_1000;
+			speed = 1000;
 		else if (word & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
-			speed = SPEED_10000;
+			speed = 10000;
+		else if (word & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
+			speed = 40000;
 
 		/*
 		 * Scan all of our "ports" (Virtual Interfaces) looking for

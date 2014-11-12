@@ -38,6 +38,7 @@
 #include <linux/tboot.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <linux/iommu.h>
 #include <asm/irq_remapping.h>
 #include <asm/iommu_table.h>
 
@@ -84,7 +85,7 @@ void *dmar_alloc_dev_scope(void *start, void *end, int *cnt)
 	*cnt = 0;
 	while (start < end) {
 		scope = start;
-		if (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ACPI ||
+		if (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_NAMESPACE ||
 		    scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT ||
 		    scope->entry_type == ACPI_DMAR_SCOPE_TYPE_BRIDGE)
 			(*cnt)++;
@@ -154,6 +155,7 @@ dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
 	if (event == BUS_NOTIFY_ADD_DEVICE) {
 		for (tmp = dev; tmp; tmp = tmp->bus->self) {
 			level--;
+			info->path[level].bus = tmp->bus->number;
 			info->path[level].device = PCI_SLOT(tmp->devfn);
 			info->path[level].function = PCI_FUNC(tmp->devfn);
 			if (pci_is_root_bus(tmp->bus))
@@ -176,17 +178,33 @@ static bool dmar_match_pci_path(struct dmar_pci_notify_info *info, int bus,
 	int i;
 
 	if (info->bus != bus)
-		return false;
+		goto fallback;
 	if (info->level != count)
-		return false;
+		goto fallback;
 
 	for (i = 0; i < count; i++) {
 		if (path[i].device != info->path[i].device ||
 		    path[i].function != info->path[i].function)
-			return false;
+			goto fallback;
 	}
 
 	return true;
+
+fallback:
+
+	if (count != 1)
+		return false;
+
+	i = info->level - 1;
+	if (bus              == info->path[i].bus &&
+	    path[0].device   == info->path[i].device &&
+	    path[0].function == info->path[i].function) {
+		pr_info(FW_BUG "RMRR entry for device %02x:%02x.%x is broken - applying workaround\n",
+			bus, path[0].device, path[0].function);
+		return true;
+	}
+
+	return false;
 }
 
 /* Return: > 0 if match found, 0 if no match found, < 0 if error happens */
@@ -246,7 +264,7 @@ int dmar_remove_dev_scope(struct dmar_pci_notify_info *info, u16 segment,
 
 	for_each_active_dev_scope(devices, count, index, tmp)
 		if (tmp == &info->dev->dev) {
-			rcu_assign_pointer(devices[index].dev, NULL);
+			RCU_INIT_POINTER(devices[index].dev, NULL);
 			synchronize_rcu();
 			put_device(tmp);
 			return 1;
@@ -380,7 +398,7 @@ static int __init dmar_parse_one_andd(struct acpi_dmar_header *header)
 	struct acpi_dmar_andd *andd = (void *)header;
 
 	/* Check for NUL termination within the designated length */
-	if (strnlen(andd->object_name, header->length - 8) == header->length - 8) {
+	if (strnlen(andd->device_name, header->length - 8) == header->length - 8) {
 		WARN_TAINT(1, TAINT_FIRMWARE_WORKAROUND,
 			   "Your BIOS is broken; ANDD object name is not NUL-terminated\n"
 			   "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
@@ -390,7 +408,7 @@ static int __init dmar_parse_one_andd(struct acpi_dmar_header *header)
 		return -EINVAL;
 	}
 	pr_info("ANDD device: %x name: %s\n", andd->device_number,
-		andd->object_name);
+		andd->device_name);
 
 	return 0;
 }
@@ -448,17 +466,17 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 			(unsigned long long)rmrr->base_address,
 			(unsigned long long)rmrr->end_address);
 		break;
-	case ACPI_DMAR_TYPE_ATSR:
+	case ACPI_DMAR_TYPE_ROOT_ATS:
 		atsr = container_of(header, struct acpi_dmar_atsr, header);
 		pr_info("ATSR flags: %#x\n", atsr->flags);
 		break;
-	case ACPI_DMAR_HARDWARE_AFFINITY:
+	case ACPI_DMAR_TYPE_HARDWARE_AFFINITY:
 		rhsa = container_of(header, struct acpi_dmar_rhsa, header);
 		pr_info("RHSA base: %#016Lx proximity domain: %#x\n",
 		       (unsigned long long)rhsa->base_address,
 		       rhsa->proximity_domain);
 		break;
-	case ACPI_DMAR_TYPE_ANDD:
+	case ACPI_DMAR_TYPE_NAMESPACE:
 		/* We don't print this here because we need to sanity-check
 		   it first. So print it in dmar_parse_one_andd() instead. */
 		break;
@@ -539,15 +557,15 @@ parse_dmar_table(void)
 		case ACPI_DMAR_TYPE_RESERVED_MEMORY:
 			ret = dmar_parse_one_rmrr(entry_header);
 			break;
-		case ACPI_DMAR_TYPE_ATSR:
+		case ACPI_DMAR_TYPE_ROOT_ATS:
 			ret = dmar_parse_one_atsr(entry_header);
 			break;
-		case ACPI_DMAR_HARDWARE_AFFINITY:
+		case ACPI_DMAR_TYPE_HARDWARE_AFFINITY:
 #ifdef CONFIG_ACPI_NUMA
 			ret = dmar_parse_one_rhsa(entry_header);
 #endif
 			break;
-		case ACPI_DMAR_TYPE_ANDD:
+		case ACPI_DMAR_TYPE_NAMESPACE:
 			ret = dmar_parse_one_andd(entry_header);
 			break;
 		default:
@@ -631,7 +649,7 @@ static void __init dmar_acpi_insert_dev_scope(u8 device_number,
 		for (scope = (void *)(drhd + 1);
 		     (unsigned long)scope < ((unsigned long)drhd) + drhd->header.length;
 		     scope = ((void *)scope) + scope->length) {
-			if (scope->entry_type != ACPI_DMAR_SCOPE_TYPE_ACPI)
+			if (scope->entry_type != ACPI_DMAR_SCOPE_TYPE_NAMESPACE)
 				continue;
 			if (scope->enumeration_id != device_number)
 				continue;
@@ -666,21 +684,20 @@ static int __init dmar_acpi_dev_scope_init(void)
 	for (andd = (void *)dmar_tbl + sizeof(struct acpi_table_dmar);
 	     ((unsigned long)andd) < ((unsigned long)dmar_tbl) + dmar_tbl->length;
 	     andd = ((void *)andd) + andd->header.length) {
-		if (andd->header.type == ACPI_DMAR_TYPE_ANDD) {
+		if (andd->header.type == ACPI_DMAR_TYPE_NAMESPACE) {
 			acpi_handle h;
 			struct acpi_device *adev;
 
 			if (!ACPI_SUCCESS(acpi_get_handle(ACPI_ROOT_OBJECT,
-							  andd->object_name,
+							  andd->device_name,
 							  &h))) {
 				pr_err("Failed to find handle for ACPI object %s\n",
-				       andd->object_name);
+				       andd->device_name);
 				continue;
 			}
-			acpi_bus_get_device(h, &adev);
-			if (!adev) {
+			if (acpi_bus_get_device(h, &adev)) {
 				pr_err("Failed to get device for ACPI object %s\n",
-				       andd->object_name);
+				       andd->device_name);
 				continue;
 			}
 			dmar_acpi_insert_dev_scope(andd->device_number, adev);
@@ -980,6 +997,12 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	raw_spin_lock_init(&iommu->register_lock);
 
 	drhd->iommu = iommu;
+
+	if (intel_iommu_enabled)
+		iommu->iommu_dev = iommu_device_create(NULL, iommu,
+						       intel_iommu_groups,
+						       iommu->name);
+
 	return 0;
 
  err_unmap:
@@ -991,6 +1014,8 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 
 static void free_iommu(struct intel_iommu *iommu)
 {
+	iommu_device_destroy(iommu->iommu_dev);
+
 	if (iommu->irq) {
 		free_irq(iommu->irq, iommu);
 		irq_set_handler_data(iommu->irq, NULL);
@@ -1338,9 +1363,6 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 		iommu->qi = NULL;
 		return -ENOMEM;
 	}
-
-	qi->free_head = qi->free_tail = 0;
-	qi->free_cnt = QI_LENGTH;
 
 	raw_spin_lock_init(&qi->q_lock);
 

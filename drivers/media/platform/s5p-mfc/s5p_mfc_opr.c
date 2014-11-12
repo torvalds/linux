@@ -41,7 +41,7 @@ int s5p_mfc_alloc_priv_buf(struct device *dev,
 					struct s5p_mfc_priv_buf *b)
 {
 
-	mfc_debug(3, "Allocating priv: %d\n", b->size);
+	mfc_debug(3, "Allocating priv: %zu\n", b->size);
 
 	b->virt = dma_alloc_coherent(dev, b->size, &b->dma, GFP_KERNEL);
 
@@ -50,7 +50,7 @@ int s5p_mfc_alloc_priv_buf(struct device *dev,
 		return -ENOMEM;
 	}
 
-	mfc_debug(3, "Allocated addr %p %08x\n", b->virt, b->dma);
+	mfc_debug(3, "Allocated addr %p %pad\n", b->virt, &b->dma);
 	return 0;
 }
 

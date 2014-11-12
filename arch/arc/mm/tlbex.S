@@ -220,9 +220,9 @@ ex_saved_reg1:
 
 .macro CONV_PTE_TO_TLB
 	and    r3, r0, PTE_BITS_RWX	;       r w x
-	lsl    r2, r3, 3		; r w x 0 0 0
+	lsl    r2, r3, 3		; r w x 0 0 0 (GLOBAL, kernel only)
 	and.f  0,  r0, _PAGE_GLOBAL
-	or.z   r2, r2, r3		; r w x r w x
+	or.z   r2, r2, r3		; r w x r w x (!GLOBAL, user page)
 
 	and r3, r0, PTE_BITS_NON_RWX_IN_PD1 ; Extract PFN+cache bits from PTE
 	or  r3, r3, r2

@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: functions for station ioctl
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -26,7 +26,7 @@
 #include "11n.h"
 #include "cfg80211.h"
 
-static int disconnect_on_suspend = 1;
+static int disconnect_on_suspend;
 module_param(disconnect_on_suspend, int, 0644);
 
 /*
@@ -283,18 +283,17 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 	    priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT) {
 		u8 config_bands;
 
-		ret = mwifiex_deauthenticate(priv, NULL);
-		if (ret)
-			goto done;
-
 		if (!bss_desc)
 			return -1;
 
 		if (mwifiex_band_to_radio_type(bss_desc->bss_band) ==
-						HostCmd_SCAN_RADIO_TYPE_BG)
+						HostCmd_SCAN_RADIO_TYPE_BG) {
 			config_bands = BAND_B | BAND_G | BAND_GN;
-		else
-			config_bands = BAND_A | BAND_AN | BAND_AAC;
+		} else {
+			config_bands = BAND_A | BAND_AN;
+			if (adapter->fw_bands & BAND_AAC)
+				config_bands |= BAND_AAC;
+		}
 
 		if (!((config_bands | adapter->fw_bands) & ~adapter->fw_bands))
 			adapter->config_bands = config_bands;
@@ -345,12 +344,6 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			goto done;
 		}
 
-		/* Exit Adhoc mode first */
-		dev_dbg(adapter->dev, "info: Sending Adhoc Stop\n");
-		ret = mwifiex_deauthenticate(priv, NULL);
-		if (ret)
-			goto done;
-
 		priv->adhoc_is_link_sensed = false;
 
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
@@ -389,8 +382,8 @@ done:
  * This function prepares the correct firmware command and
  * issues it.
  */
-static int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
-				 int cmd_type, struct mwifiex_ds_hs_cfg *hs_cfg)
+int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
+			  int cmd_type, struct mwifiex_ds_hs_cfg *hs_cfg)
 
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -887,7 +880,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			return -1;
 		}
 
-		if (adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2) {
+		if (adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2) {
 			memcpy(encrypt_key->key_material,
 			       wep_key->key_material, wep_key->key_length);
 			encrypt_key->key_len = wep_key->key_length;
@@ -913,7 +906,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			memset(&priv->wep_key[index], 0,
 			       sizeof(struct mwifiex_wep_key));
 
-		if (adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+		if (adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2)
 			enc_key = encrypt_key;
 		else
 			enc_key = NULL;

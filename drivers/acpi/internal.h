@@ -31,6 +31,7 @@ void acpi_pci_link_init(void);
 void acpi_processor_init(void);
 void acpi_platform_init(void);
 void acpi_pnp_init(void);
+void acpi_int340x_thermal_init(void);
 int acpi_sysfs_init(void);
 void acpi_container_init(void);
 void acpi_memory_hotplug_init(void);
@@ -84,8 +85,6 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta);
 void acpi_device_add_finalize(struct acpi_device *device);
 void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
-int acpi_bind_one(struct device *dev, struct acpi_device *adev);
-int acpi_unbind_one(struct device *dev);
 bool acpi_device_is_present(struct acpi_device *adev);
 bool acpi_device_is_battery(struct acpi_device *adev);
 
@@ -105,10 +104,13 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
 int acpi_power_on_resources(struct acpi_device *device, int state);
 int acpi_power_transition(struct acpi_device *device, int state);
 
-int acpi_device_update_power(struct acpi_device *device, int *state_p);
-
 int acpi_wakeup_device_init(void);
+
+#ifdef CONFIG_ARCH_MIGHT_HAVE_ACPI_PDC
 void acpi_early_processor_set_pdc(void);
+#else
+static inline void acpi_early_processor_set_pdc(void) {}
+#endif
 
 /* --------------------------------------------------------------------------
                                   Embedded Controller
@@ -163,13 +165,6 @@ static inline void suspend_nvs_free(void) {}
 static inline int suspend_nvs_save(void) { return 0; }
 static inline void suspend_nvs_restore(void) {}
 #endif
-
-/*--------------------------------------------------------------------------
-				Platform bus support
-  -------------------------------------------------------------------------- */
-struct platform_device;
-
-struct platform_device *acpi_create_platform_device(struct acpi_device *adev);
 
 /*--------------------------------------------------------------------------
 					Video

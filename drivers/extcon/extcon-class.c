@@ -645,6 +645,8 @@ struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
 		return edev;
 	}
 
+	edev->dev.parent = dev;
+
 	*ptr = edev;
 	devres_add(dev, ptr);
 

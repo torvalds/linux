@@ -87,6 +87,8 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 	drm_vblank_cleanup(drm);
 	drm_mode_config_cleanup(drm);
 
+	platform_set_drvdata(drm->platformdev, NULL);
+
 	return 0;
 }
 
@@ -202,7 +204,7 @@ static const struct file_operations imx_drm_driver_fops = {
 
 void imx_drm_connector_destroy(struct drm_connector *connector)
 {
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 EXPORT_SYMBOL_GPL(imx_drm_connector_destroy);
@@ -293,10 +295,10 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	 * userspace will expect to be able to access DRM at this point.
 	 */
 	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
-		ret = drm_sysfs_connector_add(connector);
+		ret = drm_connector_register(connector);
 		if (ret) {
 			dev_err(drm->dev,
-				"[CONNECTOR:%d:%s] drm_sysfs_connector_add failed: %d\n",
+				"[CONNECTOR:%d:%s] drm_connector_register failed: %d\n",
 				connector->base.id,
 				connector->name, ret);
 			goto err_unbind;
@@ -427,6 +429,7 @@ static uint32_t imx_drm_find_crtc_mask(struct imx_drm_device *imxdrm,
 
 	for (i = 0; i < MAX_CRTC; i++) {
 		struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[i];
+
 		if (imx_drm_crtc && imx_drm_crtc->port == port)
 			return drm_crtc_mask(imx_drm_crtc->crtc);
 	}
@@ -438,6 +441,7 @@ static struct device_node *imx_drm_of_get_next_endpoint(
 		const struct device_node *parent, struct device_node *prev)
 {
 	struct device_node *node = of_graph_get_next_endpoint(parent, prev);
+
 	of_node_put(prev);
 	return node;
 }
@@ -471,8 +475,7 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 		crtc_mask |= mask;
 	}
 
-	if (ep)
-		of_node_put(ep);
+	of_node_put(ep);
 	if (i == 0)
 		return -ENOENT;
 
@@ -528,6 +531,7 @@ static struct drm_driver imx_drm_driver = {
 	.unload			= imx_drm_driver_unload,
 	.lastclose		= imx_drm_driver_lastclose,
 	.preclose		= imx_drm_driver_preclose,
+	.set_busid		= drm_platform_set_busid,
 	.gem_free_object	= drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
@@ -570,22 +574,6 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == np;
 }
 
-static LIST_HEAD(imx_drm_components);
-
-static int imx_drm_add_components(struct device *master, struct master *m)
-{
-	struct imx_drm_component *component;
-	int ret;
-
-	list_for_each_entry(component, &imx_drm_components, list) {
-		ret = component_master_add_child(m, compare_of,
-						 component->of_node);
-		if (ret)
-			return ret;
-	}
-	return 0;
-}
-
 static int imx_drm_bind(struct device *dev)
 {
 	return drm_platform_init(&imx_drm_driver, to_platform_device(dev));
@@ -597,43 +585,14 @@ static void imx_drm_unbind(struct device *dev)
 }
 
 static const struct component_master_ops imx_drm_ops = {
-	.add_components = imx_drm_add_components,
 	.bind = imx_drm_bind,
 	.unbind = imx_drm_unbind,
 };
 
-static struct imx_drm_component *imx_drm_find_component(struct device *dev,
-		struct device_node *node)
-{
-	struct imx_drm_component *component;
-
-	list_for_each_entry(component, &imx_drm_components, list)
-		if (component->of_node == node)
-			return component;
-
-	return NULL;
-}
-
-static int imx_drm_add_component(struct device *dev, struct device_node *node)
-{
-	struct imx_drm_component *component;
-
-	if (imx_drm_find_component(dev, node))
-		return 0;
-
-	component = devm_kzalloc(dev, sizeof(*component), GFP_KERNEL);
-	if (!component)
-		return -ENOMEM;
-
-	component->of_node = node;
-	list_add_tail(&component->list, &imx_drm_components);
-
-	return 0;
-}
-
 static int imx_drm_platform_probe(struct platform_device *pdev)
 {
 	struct device_node *ep, *port, *remote;
+	struct component_match *match = NULL;
 	int ret;
 	int i;
 
@@ -647,9 +606,7 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 		if (!port)
 			break;
 
-		ret = imx_drm_add_component(&pdev->dev, port);
-		if (ret < 0)
-			return ret;
+		component_match_add(&pdev->dev, &match, compare_of, port);
 	}
 
 	if (i == 0) {
@@ -675,10 +632,8 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 				continue;
 			}
 
-			ret = imx_drm_add_component(&pdev->dev, remote);
+			component_match_add(&pdev->dev, &match, compare_of, remote);
 			of_node_put(remote);
-			if (ret < 0)
-				return ret;
 		}
 		of_node_put(port);
 	}
@@ -687,7 +642,7 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return component_master_add(&pdev->dev, &imx_drm_ops);
+	return component_master_add_with_match(&pdev->dev, &imx_drm_ops, match);
 }
 
 static int imx_drm_platform_remove(struct platform_device *pdev)
@@ -695,6 +650,36 @@ static int imx_drm_platform_remove(struct platform_device *pdev)
 	component_master_del(&pdev->dev, &imx_drm_ops);
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int imx_drm_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	/* The drm_dev is NULL before .load hook is called */
+	if (drm_dev == NULL)
+		return 0;
+
+	drm_kms_helper_poll_disable(drm_dev);
+
+	return 0;
+}
+
+static int imx_drm_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	if (drm_dev == NULL)
+		return 0;
+
+	drm_helper_resume_force_mode(drm_dev);
+	drm_kms_helper_poll_enable(drm_dev);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(imx_drm_pm_ops, imx_drm_suspend, imx_drm_resume);
 
 static const struct of_device_id imx_drm_dt_ids[] = {
 	{ .compatible = "fsl,imx-display-subsystem", },
@@ -708,6 +693,7 @@ static struct platform_driver imx_drm_pdrv = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "imx-drm",
+		.pm	= &imx_drm_pm_ops,
 		.of_match_table = imx_drm_dt_ids,
 	},
 };

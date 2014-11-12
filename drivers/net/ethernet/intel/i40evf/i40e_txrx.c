@@ -50,7 +50,11 @@ static void i40e_unmap_and_free_tx_resource(struct i40e_ring *ring,
 					    struct i40e_tx_buffer *tx_buffer)
 {
 	if (tx_buffer->skb) {
-		dev_kfree_skb_any(tx_buffer->skb);
+		if (tx_buffer->tx_flags & I40E_TX_FLAGS_FD_SB)
+			kfree(tx_buffer->raw_buf);
+		else
+			dev_kfree_skb_any(tx_buffer->skb);
+
 		if (dma_unmap_len(tx_buffer, len))
 			dma_unmap_single(ring->dev,
 					 dma_unmap_addr(tx_buffer, dma),
@@ -159,11 +163,13 @@ static bool i40e_check_tx_hang(struct i40e_ring *tx_ring)
 	 * pending but without time to complete it yet.
 	 */
 	if ((tx_ring->tx_stats.tx_done_old == tx_ring->stats.packets) &&
-	    tx_pending) {
+	    (tx_pending >= I40E_MIN_DESC_PENDING)) {
 		/* make sure it is true for two checks in a row */
 		ret = test_and_set_bit(__I40E_HANG_CHECK_ARMED,
 				       &tx_ring->state);
-	} else {
+	} else if (!(tx_ring->tx_stats.tx_done_old == tx_ring->stats.packets) ||
+		   !(tx_pending < I40E_MIN_DESC_PENDING) ||
+		   !(tx_pending > 0)) {
 		/* update completed stats and disarm the hang check */
 		tx_ring->tx_stats.tx_done_old = tx_ring->stats.packets;
 		clear_bit(__I40E_HANG_CHECK_ARMED, &tx_ring->state);
@@ -740,7 +746,6 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	ipv6_tunnel = (rx_ptype > I40E_RX_PTYPE_GRENAT6_MAC_PAY3) &&
 		      (rx_ptype < I40E_RX_PTYPE_GRENAT6_MACVLAN_IPV6_ICMP_PAY4);
 
-	skb->encapsulation = ipv4_tunnel || ipv6_tunnel;
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Rx csum enabled and ip headers found? */
@@ -769,8 +774,6 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 
 	/* likely incorrect csum if alternate IP extension headers found */
 	if (ipv6 &&
-	    decoded.inner_prot == I40E_RX_PTYPE_INNER_PROT_TCP &&
-	    rx_error & (1 << I40E_RX_DESC_ERROR_L4E_SHIFT) &&
 	    rx_status & (1 << I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT))
 		/* don't increment checksum err here, non-fatal err */
 		return;
@@ -816,6 +819,7 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	}
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->csum_level = ipv4_tunnel || ipv6_tunnel;
 
 	return;
 
@@ -1336,6 +1340,7 @@ static void i40e_create_tx_ctx(struct i40e_ring *tx_ring,
 	/* cpu_to_le32 and assign to struct fields */
 	context_desc->tunneling_params = cpu_to_le32(cd_tunneling);
 	context_desc->l2tag2 = cpu_to_le16(cd_l2tag2);
+	context_desc->rsvd = cpu_to_le16(0);
 	context_desc->type_cmd_tso_mss = cpu_to_le64(cd_type_cmd_tso_mss);
 }
 
@@ -1594,7 +1599,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 		goto out_drop;
 
 	/* obtain protocol of skb */
-	protocol = skb->protocol;
+	protocol = vlan_get_protocol(skb);
 
 	/* record the location of the first descriptor for this packet */
 	first = &tx_ring->tx_bi[tx_ring->next_to_use];

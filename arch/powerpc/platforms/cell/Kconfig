@@ -86,6 +86,7 @@ config SPU_FS_64K_LS
 config SPU_BASE
 	bool
 	default n
+	select PPC_COPRO_BASE
 
 config CBE_RAS
 	bool "RAS features for bare metal Cell BE"

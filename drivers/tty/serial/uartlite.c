@@ -250,11 +250,6 @@ static void ulite_stop_rx(struct uart_port *port)
 		| ULITE_STATUS_FRAME | ULITE_STATUS_OVERRUN;
 }
 
-static void ulite_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 static void ulite_break_ctl(struct uart_port *port, int ctl)
 {
 	/* N/A */
@@ -395,7 +390,6 @@ static struct uart_ops ulite_ops = {
 	.stop_tx	= ulite_stop_tx,
 	.start_tx	= ulite_start_tx,
 	.stop_rx	= ulite_stop_rx,
-	.enable_ms	= ulite_enable_ms,
 	.break_ctl	= ulite_break_ctl,
 	.startup	= ulite_startup,
 	.shutdown	= ulite_shutdown,
@@ -671,7 +665,6 @@ static struct platform_driver ulite_platform_driver = {
 	.probe = ulite_probe,
 	.remove = ulite_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = "uartlite",
 		.of_match_table = of_match_ptr(ulite_of_match),
 	},

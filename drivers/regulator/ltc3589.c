@@ -372,12 +372,13 @@ static bool ltc3589_volatile_reg(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case LTC3589_IRQSTAT:
 	case LTC3589_PGSTAT:
+	case LTC3589_VCCR:
 		return true;
 	}
 	return false;
 }
 
-struct reg_default ltc3589_reg_defaults[] = {
+static struct reg_default ltc3589_reg_defaults[] = {
 	{ LTC3589_SCR1,   0x00 },
 	{ LTC3589_OVEN,   0x00 },
 	{ LTC3589_SCR2,   0x00 },

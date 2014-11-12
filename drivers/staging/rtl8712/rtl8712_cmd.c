@@ -326,7 +326,7 @@ int r8712_cmd_thread(void *context)
 	struct _adapter *padapter = (struct _adapter *)context;
 	struct	cmd_priv	*pcmdpriv = &(padapter->cmdpriv);
 
-	thread_enter(padapter);
+	allow_signal(SIGTERM);
 	while (1) {
 		if ((_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL)
 			break;
@@ -350,8 +350,9 @@ _next:
 			struct dvobj_priv *pdvobj = (struct dvobj_priv *)
 						    &padapter->dvobjpriv;
 			u8 blnPending = 0;
+
 			pcmdpriv->cmd_issued_cnt++;
-			cmdsz = _RND8((pcmd->cmdsz)); /* _RND8	*/
+			cmdsz = round_up(pcmd->cmdsz, 8);
 			wr_sz = TXDESC_SIZE + 8 + cmdsz;
 			pdesc->txdw0 |= cpu_to_le32((wr_sz-TXDESC_SIZE) &
 						     0x0000ffff);
@@ -410,7 +411,7 @@ _next:
 				}
 			}
 			r8712_free_cmd_obj(pcmd);
-			if (_queue_empty(&(pcmdpriv->cmd_queue))) {
+			if (list_empty(&pcmdpriv->cmd_queue.queue)) {
 				r8712_unregister_cmd_alive(padapter);
 				continue;
 			} else
@@ -468,7 +469,8 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
 	pevt_priv->event_seq++;	/* update evt_seq */
 	if (pevt_priv->event_seq > 127)
 		pevt_priv->event_seq = 0;
-	peventbuf = peventbuf + 2; /* move to event content, 8 bytes alignment */
+	/* move to event content, 8 bytes alignment */
+	peventbuf = peventbuf + 2;
 	event_callback = wlanevents[evt_code].event_callback;
 	if (event_callback)
 		event_callback(padapter, (u8 *)peventbuf);

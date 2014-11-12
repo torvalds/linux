@@ -435,16 +435,6 @@ static void qe_uart_stop_rx(struct uart_port *port)
 	clrbits16(&qe_port->uccp->uccm, UCC_UART_UCCE_RX);
 }
 
-/*
- * Enable status change interrupts
- *
- * We don't support status change interrupts, but we need to define this
- * function otherwise the kernel will panic.
- */
-static void qe_uart_enable_ms(struct uart_port *port)
-{
-}
-
 /* Start or stop sending  break signal
  *
  * This function controls the sending of a break signal.  If break_state=1,
@@ -1102,7 +1092,6 @@ static struct uart_ops qe_uart_pops = {
 	.stop_tx	= qe_uart_stop_tx,
 	.start_tx       = qe_uart_start_tx,
 	.stop_rx	= qe_uart_stop_rx,
-	.enable_ms      = qe_uart_enable_ms,
 	.break_ctl      = qe_uart_break_ctl,
 	.startup	= qe_uart_startup,
 	.shutdown       = qe_uart_shutdown,

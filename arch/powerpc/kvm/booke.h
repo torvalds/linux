@@ -32,9 +32,15 @@
 #define BOOKE_IRQPRIO_ALIGNMENT 2
 #define BOOKE_IRQPRIO_PROGRAM 3
 #define BOOKE_IRQPRIO_FP_UNAVAIL 4
+#ifdef CONFIG_SPE_POSSIBLE
 #define BOOKE_IRQPRIO_SPE_UNAVAIL 5
 #define BOOKE_IRQPRIO_SPE_FP_DATA 6
 #define BOOKE_IRQPRIO_SPE_FP_ROUND 7
+#endif
+#ifdef CONFIG_PPC_E500MC
+#define BOOKE_IRQPRIO_ALTIVEC_UNAVAIL 5
+#define BOOKE_IRQPRIO_ALTIVEC_ASSIST 6
+#endif
 #define BOOKE_IRQPRIO_SYSCALL 8
 #define BOOKE_IRQPRIO_AP_UNAVAIL 9
 #define BOOKE_IRQPRIO_DTLB_MISS 10
@@ -99,13 +105,6 @@ enum int_class {
 
 void kvmppc_set_pending_interrupt(struct kvm_vcpu *vcpu, enum int_class type);
 
-extern void kvmppc_mmu_destroy_44x(struct kvm_vcpu *vcpu);
-extern int kvmppc_core_emulate_op_44x(struct kvm_run *run, struct kvm_vcpu *vcpu,
-				      unsigned int inst, int *advance);
-extern int kvmppc_core_emulate_mtspr_44x(struct kvm_vcpu *vcpu, int sprn,
-					 ulong spr_val);
-extern int kvmppc_core_emulate_mfspr_44x(struct kvm_vcpu *vcpu, int sprn,
-					 ulong *spr_val);
 extern void kvmppc_mmu_destroy_e500(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_emulate_op_e500(struct kvm_run *run,
 				       struct kvm_vcpu *vcpu,
@@ -122,40 +121,6 @@ extern int kvmppc_core_emulate_mtspr_e500(struct kvm_vcpu *vcpu, int sprn,
 					  ulong spr_val);
 extern int kvmppc_core_emulate_mfspr_e500(struct kvm_vcpu *vcpu, int sprn,
 					  ulong *spr_val);
-
-/*
- * Load up guest vcpu FP state if it's needed.
- * It also set the MSR_FP in thread so that host know
- * we're holding FPU, and then host can help to save
- * guest vcpu FP state if other threads require to use FPU.
- * This simulates an FP unavailable fault.
- *
- * It requires to be called with preemption disabled.
- */
-static inline void kvmppc_load_guest_fp(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_PPC_FPU
-	if (vcpu->fpu_active && !(current->thread.regs->msr & MSR_FP)) {
-		enable_kernel_fp();
-		load_fp_state(&vcpu->arch.fp);
-		current->thread.fp_save_area = &vcpu->arch.fp;
-		current->thread.regs->msr |= MSR_FP;
-	}
-#endif
-}
-
-/*
- * Save guest vcpu FP state into thread.
- * It requires to be called with preemption disabled.
- */
-static inline void kvmppc_save_guest_fp(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_PPC_FPU
-	if (vcpu->fpu_active && (current->thread.regs->msr & MSR_FP))
-		giveup_fpu(current);
-	current->thread.fp_save_area = NULL;
-#endif
-}
 
 static inline void kvmppc_clear_dbsr(void)
 {

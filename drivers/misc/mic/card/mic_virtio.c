@@ -417,7 +417,7 @@ static int mic_add_device(struct mic_device_desc __iomem *d,
 
 	virtio_db = mic_next_card_db();
 	mvdev->virtio_cookie = mic_request_card_irq(mic_virtio_intr_handler,
-			"virtio intr", mvdev, virtio_db);
+			NULL, "virtio intr", mvdev, virtio_db);
 	if (IS_ERR(mvdev->virtio_cookie)) {
 		ret = PTR_ERR(mvdev->virtio_cookie);
 		goto kfree;
@@ -462,16 +462,12 @@ static void mic_handle_config_change(struct mic_device_desc __iomem *d,
 	struct mic_device_ctrl __iomem *dc
 		= (void __iomem *)d + mic_aligned_desc_size(d);
 	struct mic_vdev *mvdev = (struct mic_vdev *)ioread64(&dc->vdev);
-	struct virtio_driver *drv;
 
 	if (ioread8(&dc->config_change) != MIC_VIRTIO_PARAM_CONFIG_CHANGED)
 		return;
 
 	dev_dbg(mdrv->dev, "%s %d\n", __func__, __LINE__);
-	drv = container_of(mvdev->vdev.dev.driver,
-				struct virtio_driver, driver);
-	if (drv->config_changed)
-		drv->config_changed(&mvdev->vdev);
+	virtio_config_changed(&mvdev->vdev);
 	iowrite8(1, &dc->guest_ack);
 }
 
@@ -606,8 +602,9 @@ int mic_devices_init(struct mic_driver *mdrv)
 	mic_scan_devices(mdrv, !REMOVE_DEVICES);
 
 	config_db = mic_next_card_db();
-	virtio_config_cookie = mic_request_card_irq(mic_extint_handler,
-			"virtio_config_intr", mdrv, config_db);
+	virtio_config_cookie = mic_request_card_irq(mic_extint_handler, NULL,
+						    "virtio_config_intr", mdrv,
+						    config_db);
 	if (IS_ERR(virtio_config_cookie)) {
 		rc = PTR_ERR(virtio_config_cookie);
 		goto exit;

@@ -31,7 +31,7 @@
 	pcp_op_T__ old__, new__, prev__;				\
 	pcp_op_T__ *ptr__;						\
 	preempt_disable();						\
-	ptr__ = __this_cpu_ptr(&(pcp));					\
+	ptr__ = raw_cpu_ptr(&(pcp));					\
 	prev__ = *ptr__;						\
 	do {								\
 		old__ = prev__;						\
@@ -70,7 +70,7 @@
 	pcp_op_T__ val__ = (val);					\
 	pcp_op_T__ old__, *ptr__;					\
 	preempt_disable();						\
-	ptr__ = __this_cpu_ptr(&(pcp)); 				\
+	ptr__ = raw_cpu_ptr(&(pcp)); 				\
 	if (__builtin_constant_p(val__) &&				\
 	    ((szcast)val__ > -129) && ((szcast)val__ < 128)) {		\
 		asm volatile(						\
@@ -97,7 +97,7 @@
 	pcp_op_T__ val__ = (val);					\
 	pcp_op_T__ old__, *ptr__;					\
 	preempt_disable();						\
-	ptr__ = __this_cpu_ptr(&(pcp)); 				\
+	ptr__ = raw_cpu_ptr(&(pcp));	 				\
 	asm volatile(							\
 		op "    %[old__],%[val__],%[ptr__]\n"			\
 		: [old__] "=d" (old__), [ptr__] "+Q" (*ptr__)		\
@@ -116,7 +116,7 @@
 	pcp_op_T__ val__ = (val);					\
 	pcp_op_T__ old__, *ptr__;					\
 	preempt_disable();						\
-	ptr__ = __this_cpu_ptr(&(pcp)); 				\
+	ptr__ = raw_cpu_ptr(&(pcp));	 				\
 	asm volatile(							\
 		op "    %[old__],%[val__],%[ptr__]\n"			\
 		: [old__] "=d" (old__), [ptr__] "+Q" (*ptr__)		\
@@ -138,7 +138,7 @@
 	pcp_op_T__ ret__;						\
 	pcp_op_T__ *ptr__;						\
 	preempt_disable();						\
-	ptr__ = __this_cpu_ptr(&(pcp));					\
+	ptr__ = raw_cpu_ptr(&(pcp));					\
 	ret__ = cmpxchg(ptr__, oval, nval);				\
 	preempt_enable();						\
 	ret__;								\
@@ -154,7 +154,7 @@
 	typeof(pcp) *ptr__;						\
 	typeof(pcp) ret__;						\
 	preempt_disable();						\
-	ptr__ = __this_cpu_ptr(&(pcp));					\
+	ptr__ = raw_cpu_ptr(&(pcp));					\
 	ret__ = xchg(ptr__, nval);					\
 	preempt_enable();						\
 	ret__;								\
@@ -173,8 +173,8 @@
 	typeof(pcp2) *p2__;						\
 	int ret__;							\
 	preempt_disable();						\
-	p1__ = __this_cpu_ptr(&(pcp1));					\
-	p2__ = __this_cpu_ptr(&(pcp2));					\
+	p1__ = raw_cpu_ptr(&(pcp1));					\
+	p2__ = raw_cpu_ptr(&(pcp2));					\
 	ret__ = __cmpxchg_double(p1__, p2__, o1__, o2__, n1__, n2__);	\
 	preempt_enable();						\
 	ret__;								\

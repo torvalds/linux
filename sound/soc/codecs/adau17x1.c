@@ -359,14 +359,14 @@ static int adau17x1_hw_params(struct snd_pcm_substream *substream,
 	if (adau->dai_fmt != SND_SOC_DAIFMT_RIGHT_J)
 		return 0;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		val = ADAU17X1_SERIAL_PORT1_DELAY16;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		val = ADAU17X1_SERIAL_PORT1_DELAY8;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		val = ADAU17X1_SERIAL_PORT1_DELAY0;
 		break;
 	default:
@@ -815,13 +815,6 @@ int adau17x1_add_routes(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(adau17x1_add_routes);
 
-int adau17x1_suspend(struct snd_soc_codec *codec)
-{
-	codec->driver->set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(adau17x1_suspend);
-
 int adau17x1_resume(struct snd_soc_codec *codec)
 {
 	struct adau *adau = snd_soc_codec_get_drvdata(codec);
@@ -829,7 +822,6 @@ int adau17x1_resume(struct snd_soc_codec *codec)
 	if (adau->switch_mode)
 		adau->switch_mode(codec->dev);
 
-	codec->driver->set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	regcache_sync(adau->regmap);
 
 	return 0;

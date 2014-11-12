@@ -22,6 +22,11 @@ config CIFS
 	  support for OS/2 and Windows ME and similar servers is provided as
 	  well.
 
+	  The module also provides optional support for the followon
+	  protocols for CIFS including SMB3, which enables
+	  useful performance and security features (see the description
+	  of CONFIG_CIFS_SMB2).
+
 	  The cifs module provides an advanced network file system
 	  client for mounting to CIFS compliant servers.  It includes
 	  support for DFS (hierarchical name space), secure per-user
@@ -121,7 +126,8 @@ config CIFS_ACL
 	  depends on CIFS_XATTR && KEYS
 	  help
 	    Allows fetching CIFS/NTFS ACL from the server.  The DACL blob
-	    is handed over to the application/caller.
+	    is handed over to the application/caller.  See the man
+	    page for getcifsacl for more information.
 
 config CIFS_DEBUG
 	bool "Enable CIFS debugging routines"
@@ -162,7 +168,7 @@ config CIFS_NFSD_EXPORT
 	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)
 
 config CIFS_SMB2
-	bool "SMB2 network file system support"
+	bool "SMB2 and SMB3 network file system support"
 	depends on CIFS && INET
 	select NLS
 	select KEYS
@@ -170,16 +176,21 @@ config CIFS_SMB2
 	select DNS_RESOLVER
 
 	help
-	  This enables experimental support for the SMB2 (Server Message Block
-	  version 2) protocol. The SMB2 protocol is the successor to the
-	  popular CIFS and SMB network file sharing protocols. SMB2 is the
-	  native file sharing mechanism for recent versions of Windows
-	  operating systems (since Vista).  SMB2 enablement will eventually
-	  allow users better performance, security and features, than would be
-	  possible with cifs. Note that smb2 mount options also are simpler
-	  (compared to cifs) due to protocol improvements.
-
-	  Unless you are a developer or tester, say N.
+	  This enables support for the Server Message Block version 2
+	  family of protocols, including SMB3.  SMB3 support is
+	  enabled on mount by specifying "vers=3.0" in the mount
+	  options. These protocols are the successors to the popular
+	  CIFS and SMB network file sharing protocols. SMB3 is the
+	  native file sharing mechanism for the more recent
+	  versions of Windows (Windows 8 and Windows 2012 and
+	  later) and Samba server and many others support SMB3 well.
+	  In general SMB3 enables better performance, security
+	  and features, than would be possible with CIFS (Note that
+	  when mounting to Samba, due to the CIFS POSIX extensions,
+	  CIFS mounts can provide slightly better POSIX compatibility
+	  than SMB3 mounts do though). Note that SMB2/SMB3 mount
+	  options are also slightly simpler (compared to CIFS) due
+	  to protocol improvements.
 
 config CIFS_FSCACHE
 	  bool "Provide CIFS client caching support"

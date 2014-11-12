@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,7 +69,7 @@
  * enum iwl_sta_flags - flags for the ADD_STA host command
  * @STA_FLG_REDUCED_TX_PWR_CTRL:
  * @STA_FLG_REDUCED_TX_PWR_DATA:
- * @STA_FLG_FLG_ANT_MSK: Antenna selection
+ * @STA_FLG_DISABLE_TX: set if TX should be disabled
  * @STA_FLG_PS: set if STA is in Power Save
  * @STA_FLG_INVALID: set if STA is invalid
  * @STA_FLG_DLP_EN: Direct Link Protocol is enabled
@@ -91,10 +93,7 @@ enum iwl_sta_flags {
 	STA_FLG_REDUCED_TX_PWR_CTRL	= BIT(3),
 	STA_FLG_REDUCED_TX_PWR_DATA	= BIT(6),
 
-	STA_FLG_FLG_ANT_A		= (1 << 4),
-	STA_FLG_FLG_ANT_B		= (2 << 4),
-	STA_FLG_FLG_ANT_MSK		= (STA_FLG_FLG_ANT_A |
-					   STA_FLG_FLG_ANT_B),
+	STA_FLG_DISABLE_TX		= BIT(4),
 
 	STA_FLG_PS			= BIT(8),
 	STA_FLG_DRAIN_FLOW		= BIT(12),

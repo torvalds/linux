@@ -36,7 +36,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
+#include "../../../include/linux/libcfs/libcfs.h"
 
 #define LNET_MINOR 240
 
@@ -99,30 +99,30 @@ int libcfs_ioctl_popdata(void *arg, void *data, int size)
 extern struct cfs_psdev_ops	  libcfs_psdev_ops;
 
 static int
-libcfs_psdev_open(struct inode * inode, struct file * file)
+libcfs_psdev_open(struct inode *inode, struct file *file)
 {
 	struct libcfs_device_userstate **pdu = NULL;
 	int    rc = 0;
 
 	if (!inode)
-		return (-EINVAL);
+		return -EINVAL;
 	pdu = (struct libcfs_device_userstate **)&file->private_data;
 	if (libcfs_psdev_ops.p_open != NULL)
 		rc = libcfs_psdev_ops.p_open(0, (void *)pdu);
 	else
-		return (-EPERM);
+		return -EPERM;
 	return rc;
 }
 
 /* called when closing /dev/device */
 static int
-libcfs_psdev_release(struct inode * inode, struct file * file)
+libcfs_psdev_release(struct inode *inode, struct file *file)
 {
 	struct libcfs_device_userstate *pdu;
 	int    rc = 0;
 
 	if (!inode)
-		return (-EINVAL);
+		return -EINVAL;
 	pdu = file->private_data;
 	if (libcfs_psdev_ops.p_close != NULL)
 		rc = libcfs_psdev_ops.p_close(0, (void *)pdu);
@@ -140,21 +140,21 @@ static long libcfs_ioctl(struct file *file,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	if ( _IOC_TYPE(cmd) != IOC_LIBCFS_TYPE ||
+	if (_IOC_TYPE(cmd) != IOC_LIBCFS_TYPE ||
 	     _IOC_NR(cmd) < IOC_LIBCFS_MIN_NR  ||
-	     _IOC_NR(cmd) > IOC_LIBCFS_MAX_NR ) {
+	     _IOC_NR(cmd) > IOC_LIBCFS_MAX_NR) {
 		CDEBUG(D_IOCTL, "invalid ioctl ( type %d, nr %d, size %d )\n",
 		       _IOC_TYPE(cmd), _IOC_NR(cmd), _IOC_SIZE(cmd));
-		return (-EINVAL);
+		return -EINVAL;
 	}
 
 	/* Handle platform-dependent IOC requests */
 	switch (cmd) {
 	case IOC_LIBCFS_PANIC:
 		if (!capable(CFS_CAP_SYS_BOOT))
-			return (-EPERM);
+			return -EPERM;
 		panic("debugctl-invoked panic");
-		return (0);
+		return 0;
 	case IOC_LIBCFS_MEMHOG:
 		if (!capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
@@ -167,10 +167,10 @@ static long libcfs_ioctl(struct file *file,
 		rc = libcfs_psdev_ops.p_ioctl(&pfile, cmd, (void *)arg);
 	else
 		rc = -EPERM;
-	return (rc);
+	return rc;
 }
 
-static struct file_operations libcfs_fops = {
+static const struct file_operations libcfs_fops = {
 	.unlocked_ioctl	= libcfs_ioctl,
 	.open		= libcfs_psdev_open,
 	.release	= libcfs_psdev_release,

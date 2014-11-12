@@ -41,7 +41,7 @@ static int ft1000_poll_thread(void *arg)
 	int ret;
 
 	while (!kthread_should_stop()) {
-		msleep(10);
+		usleep_range(10000, 11000);
 		if (!gPollingfailed) {
 			ret = ft1000_poll(arg);
 			if (ret != 0) {
@@ -196,17 +196,10 @@ static int ft1000_probe(struct usb_interface *interface,
 	if (ret)
 		goto err_thread;
 
-	ret = ft1000_init_proc(ft1000dev->net);
-	if (ret)
-		goto err_proc;
-
 	ft1000dev->NetDevRegDone = 1;
 
 	return 0;
 
-err_proc:
-	unregister_netdev(ft1000dev->net);
-	free_netdev(ft1000dev->net);
 err_thread:
 	kthread_stop(ft1000dev->pPollThread);
 err_load:
@@ -230,7 +223,6 @@ static void ft1000_disconnect(struct usb_interface *interface)
 
 	if (pft1000info) {
 		ft1000dev = pft1000info->priv;
-		ft1000_cleanup_proc(pft1000info);
 		if (ft1000dev->pPollThread)
 			kthread_stop(ft1000dev->pPollThread);
 
@@ -254,8 +246,6 @@ static void ft1000_disconnect(struct usb_interface *interface)
 		kfree(ft1000dev);
 	}
 	kfree(pFileStart);
-
-	return;
 }
 
 static struct usb_driver ft1000_usb_driver = {

@@ -202,14 +202,6 @@ static void cpm_uart_stop_rx(struct uart_port *port)
 }
 
 /*
- * Enable Modem status interrupts
- */
-static void cpm_uart_enable_ms(struct uart_port *port)
-{
-	pr_debug("CPM uart[%d]:enable ms\n", port->line);
-}
-
-/*
  * Generate a break.
  */
 static void cpm_uart_break_ctl(struct uart_port *port, int break_state)
@@ -1122,7 +1114,6 @@ static struct uart_ops cpm_uart_pops = {
 	.stop_tx	= cpm_uart_stop_tx,
 	.start_tx	= cpm_uart_start_tx,
 	.stop_rx	= cpm_uart_stop_rx,
-	.enable_ms	= cpm_uart_enable_ms,
 	.break_ctl	= cpm_uart_break_ctl,
 	.startup	= cpm_uart_startup,
 	.shutdown	= cpm_uart_shutdown,

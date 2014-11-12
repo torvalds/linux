@@ -66,7 +66,6 @@ enum hw_io_access {
 				 * subdevice) */
 
 #define SIZE_8254	   4	/* 8254 IO space length */
-#define SIZE_8255	   4	/* 8255 IO space length */
 
 #define PCIDIO_MAINREG	   2	/* main I/O region for all Advantech cards? */
 
@@ -394,7 +393,6 @@ static const struct dio_boardtype boardtypes[] = {
 };
 
 struct pci_dio_private {
-	char valid;		/*  card is usable */
 	char GlobalIrqEnabled;	/*  1= any IRQ source is enabled */
 	/*  PCI-1760 specific data */
 	unsigned char IDICntEnable;	/* counter's counting enable status */
@@ -592,7 +590,7 @@ static int pci1760_unchecked_mbxrequest(struct comedi_device *dev,
 			return 0;
 	}
 
-	comedi_error(dev, "PCI-1760 mailbox request timeout!");
+	dev_err(dev->class_dev, "PCI-1760 mailbox request timeout!\n");
 	return -ETIME;
 }
 
@@ -610,12 +608,13 @@ static int pci1760_mbxrequest(struct comedi_device *dev,
 			      unsigned char *omb, unsigned char *imb)
 {
 	if (omb[2] == CMD_ClearIMB2) {
-		comedi_error(dev,
-			     "bug! this function should not be used for CMD_ClearIMB2 command");
+		dev_err(dev->class_dev,
+			"bug! this function should not be used for CMD_ClearIMB2 command\n");
 		return -EINVAL;
 	}
 	if (inb(dev->iobase + IMB2) == omb[2]) {
 		int retval;
+
 		retval = pci1760_clear_imb2(dev);
 		if (retval < 0)
 			return retval;
@@ -818,7 +817,7 @@ static int pci1760_reset(struct comedi_device *dev)
 */
 static int pci_dio_reset(struct comedi_device *dev)
 {
-	const struct dio_boardtype *this_board = comedi_board(dev);
+	const struct dio_boardtype *this_board = dev->board_ptr;
 
 	switch (this_board->cardtype) {
 	case TYPE_PCI1730:
@@ -826,7 +825,7 @@ static int pci_dio_reset(struct comedi_device *dev)
 		outb(0, dev->iobase + PCI1730_DO + 1);
 		outb(0, dev->iobase + PCI1730_IDO);
 		outb(0, dev->iobase + PCI1730_IDO + 1);
-		/* NO break there! */
+		/* fallthrough */
 	case TYPE_PCI1733:
 		/* disable interrupts */
 		outb(0, dev->iobase + PCI1730_3_INT_EN);
@@ -886,7 +885,7 @@ static int pci_dio_reset(struct comedi_device *dev)
 		outb(0x80, dev->iobase + PCI1753E_ICR1);
 		outb(0x80, dev->iobase + PCI1753E_ICR2);
 		outb(0x80, dev->iobase + PCI1753E_ICR3);
-		/* NO break there! */
+		/* fallthrough */
 	case TYPE_PCI1753:
 		outb(0x88, dev->iobase + PCI1753_ICR0); /* disable & clear
 							 * interrupts */
@@ -976,7 +975,7 @@ static int pci_dio_add_di(struct comedi_device *dev,
 			  struct comedi_subdevice *s,
 			  const struct diosubd_data *d)
 {
-	const struct dio_boardtype *this_board = comedi_board(dev);
+	const struct dio_boardtype *this_board = dev->board_ptr;
 
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | d->specflags;
@@ -1006,7 +1005,7 @@ static int pci_dio_add_do(struct comedi_device *dev,
 			  struct comedi_subdevice *s,
 			  const struct diosubd_data *d)
 {
-	const struct dio_boardtype *this_board = comedi_board(dev);
+	const struct dio_boardtype *this_board = dev->board_ptr;
 
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
@@ -1131,9 +1130,8 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 		for (j = 0; j < this_board->sdio[i].regs; j++) {
 			s = &dev->subdevices[subdev];
 			ret = subdev_8255_init(dev, s, NULL,
-					       dev->iobase +
 					       this_board->sdio[i].addr +
-					       SIZE_8255 * j);
+					       j * I8255_SIZE);
 			if (ret)
 				return ret;
 			subdev++;
@@ -1156,8 +1154,6 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	if (this_board->cardtype == TYPE_PCI1760)
 		pci1760_attach(dev);
 
-	devpriv->valid = 1;
-
 	pci_dio_reset(dev);
 
 	return 0;
@@ -1165,13 +1161,9 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 
 static void pci_dio_detach(struct comedi_device *dev)
 {
-	struct pci_dio_private *devpriv = dev->private;
-
-	if (devpriv) {
-		if (devpriv->valid)
-			pci_dio_reset(dev);
-	}
-	comedi_pci_disable(dev);
+	if (dev->iobase)
+		pci_dio_reset(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver adv_pci_dio_driver = {

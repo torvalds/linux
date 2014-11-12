@@ -21,7 +21,7 @@
 #include <asm/ppc4xx.h>
 #include "44x.h"
 
-static struct of_device_id xilinx_of_bus_ids[] __initdata = {
+static const struct of_device_id xilinx_of_bus_ids[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "xlnx,plb-v46-1.00.a", },
 	{ .compatible = "xlnx,plb-v46-1.02.a", },

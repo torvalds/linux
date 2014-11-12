@@ -31,6 +31,7 @@
 #include <linux/mfd/max77693.h>
 #include <linux/mfd/max77693-private.h>
 #include <linux/regulator/of_regulator.h>
+#include <linux/regmap.h>
 
 #define CHGIN_ILIM_STEP_20mA			20000
 
@@ -39,9 +40,9 @@
 static int max77693_chg_is_enabled(struct regulator_dev *rdev)
 {
 	int ret;
-	u8 val;
+	unsigned int val;
 
-	ret = max77693_read_reg(rdev->regmap, rdev->desc->enable_reg, &val);
+	ret = regmap_read(rdev->regmap, rdev->desc->enable_reg, &val);
 	if (ret)
 		return ret;
 
@@ -57,12 +58,11 @@ static int max77693_chg_get_current_limit(struct regulator_dev *rdev)
 {
 	unsigned int chg_min_uA = rdev->constraints->min_uA;
 	unsigned int chg_max_uA = rdev->constraints->max_uA;
-	u8 reg, sel;
+	unsigned int reg, sel;
 	unsigned int val;
 	int ret;
 
-	ret = max77693_read_reg(rdev->regmap,
-				MAX77693_CHG_REG_CHG_CNFG_09, &reg);
+	ret = regmap_read(rdev->regmap, MAX77693_CHG_REG_CHG_CNFG_09, &reg);
 	if (ret < 0)
 		return ret;
 
@@ -96,7 +96,7 @@ static int max77693_chg_set_current_limit(struct regulator_dev *rdev,
 	/* the first four codes for charger current are all 60mA */
 	sel += 3;
 
-	return max77693_write_reg(rdev->regmap,
+	return regmap_write(rdev->regmap,
 				MAX77693_CHG_REG_CHG_CNFG_09, sel);
 }
 /* end of CHARGER regulator ops */
@@ -227,7 +227,7 @@ static int max77693_pmic_probe(struct platform_device *pdev)
 	struct max77693_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max77693_regulator_data *rdata = NULL;
 	int num_rdata, i;
-	struct regulator_config config;
+	struct regulator_config config = { };
 
 	num_rdata = max77693_pmic_init_rdata(&pdev->dev, &rdata);
 	if (!rdata || num_rdata <= 0) {

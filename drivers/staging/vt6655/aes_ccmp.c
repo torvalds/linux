@@ -35,6 +35,7 @@
 
 #include "device.h"
 #include "80211hdr.h"
+#include "aes_ccmp.h"
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -369,8 +370,5 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	/* =>above is the dec-MIC from packet */
 	/* -------------------------------------------- */
 
-	if (!memcmp(abyMIC, abyTmp, 8))
-		return true;
-	else
-		return false;
+	return !memcmp(abyMIC, abyTmp, 8);
 }

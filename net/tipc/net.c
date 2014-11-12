@@ -1,7 +1,7 @@
 /*
  * net/tipc/net.c: TIPC network routing code
  *
- * Copyright (c) 1995-2006, Ericsson AB
+ * Copyright (c) 1995-2006, 2014, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -38,7 +38,6 @@
 #include "net.h"
 #include "name_distr.h"
 #include "subscr.h"
-#include "port.h"
 #include "socket.h"
 #include "node.h"
 #include "config.h"
@@ -104,67 +103,6 @@
  *     - A local spin_lock protecting the queue of subscriber events.
 */
 
-static void net_route_named_msg(struct sk_buff *buf)
-{
-	struct tipc_msg *msg = buf_msg(buf);
-	u32 dnode;
-	u32 dport;
-
-	if (!msg_named(msg)) {
-		kfree_skb(buf);
-		return;
-	}
-
-	dnode = addr_domain(msg_lookup_scope(msg));
-	dport = tipc_nametbl_translate(msg_nametype(msg), msg_nameinst(msg), &dnode);
-	if (dport) {
-		msg_set_destnode(msg, dnode);
-		msg_set_destport(msg, dport);
-		tipc_net_route_msg(buf);
-		return;
-	}
-	tipc_reject_msg(buf, TIPC_ERR_NO_NAME);
-}
-
-void tipc_net_route_msg(struct sk_buff *buf)
-{
-	struct tipc_msg *msg;
-	u32 dnode;
-
-	if (!buf)
-		return;
-	msg = buf_msg(buf);
-
-	/* Handle message for this node */
-	dnode = msg_short(msg) ? tipc_own_addr : msg_destnode(msg);
-	if (tipc_in_scope(dnode, tipc_own_addr)) {
-		if (msg_isdata(msg)) {
-			if (msg_mcast(msg))
-				tipc_port_mcast_rcv(buf, NULL);
-			else if (msg_destport(msg))
-				tipc_sk_rcv(buf);
-			else
-				net_route_named_msg(buf);
-			return;
-		}
-		switch (msg_user(msg)) {
-		case NAME_DISTRIBUTOR:
-			tipc_named_rcv(buf);
-			break;
-		case CONN_MANAGER:
-			tipc_port_proto_rcv(buf);
-			break;
-		default:
-			kfree_skb(buf);
-		}
-		return;
-	}
-
-	/* Handle message for another node */
-	skb_trim(buf, msg_size(msg));
-	tipc_link_xmit(buf, dnode, msg_link_selector(msg));
-}
-
 int tipc_net_start(u32 addr)
 {
 	char addr_string[16];
@@ -172,7 +110,7 @@ int tipc_net_start(u32 addr)
 
 	tipc_own_addr = addr;
 	tipc_named_reinit();
-	tipc_port_reinit();
+	tipc_sk_reinit();
 	res = tipc_bclink_init();
 	if (res)
 		return res;

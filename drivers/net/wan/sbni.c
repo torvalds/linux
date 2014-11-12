@@ -227,7 +227,8 @@ int __init sbni_probe(int unit)
 	struct net_device *dev;
 	int err;
 
-	dev = alloc_netdev(sizeof(struct net_local), "sbni", sbni_devsetup);
+	dev = alloc_netdev(sizeof(struct net_local), "sbni",
+			   NET_NAME_UNKNOWN, sbni_devsetup);
 	if (!dev)
 		return -ENOMEM;
 
@@ -1477,8 +1478,8 @@ int __init init_module( void )
 	int err;
 
 	while( num < SBNI_MAX_NUM_CARDS ) {
-		dev = alloc_netdev(sizeof(struct net_local), 
-				   "sbni%d", sbni_devsetup);
+		dev = alloc_netdev(sizeof(struct net_local), "sbni%d",
+				   NET_NAME_UNKNOWN, sbni_devsetup);
 		if( !dev)
 			break;
 

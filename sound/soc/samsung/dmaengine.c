@@ -17,6 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/amba/pl08x.h>
+#include <linux/platform_data/dma-s3c24xx.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -29,6 +30,8 @@
 
 #ifdef CONFIG_ARCH_S3C64XX
 #define filter_fn pl08x_filter_id
+#elif defined(CONFIG_ARCH_S3C24XX)
+#define filter_fn s3c24xx_dma_filter
 #else
 #define filter_fn NULL
 #endif

@@ -45,6 +45,7 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe)
 		{ 0x1008b, 0x07, 0xff },
 		{ 0x1001f, priv->cfg.if_agc_polarity << 7, 0x80 },
 		{ 0x10070, priv->cfg.ts_mode, 0xff },
+		{ 0x10071, !priv->cfg.ts_clock_inv << 4, 0x10 },
 	};
 
 	dev_dbg(&priv->i2c->dev, "%s: frequency=%d symbol_rate=%d\n", __func__,
@@ -64,7 +65,7 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe)
 	}
 
 	priv->delivery_system = SYS_DVBC_ANNEX_A;
-	priv->ber_running = 0; /* tune stops BER counter */
+	priv->ber_running = false; /* tune stops BER counter */
 
 	/* program IF frequency */
 	if (fe->ops.tuner_ops.get_if_frequency) {
@@ -167,7 +168,7 @@ int cxd2820r_read_ber_c(struct dvb_frontend *fe, u32 *ber)
 			start_ber = 1;
 		}
 	} else {
-		priv->ber_running = 1;
+		priv->ber_running = true;
 		start_ber = 1;
 	}
 

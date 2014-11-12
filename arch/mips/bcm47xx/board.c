@@ -58,6 +58,7 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_machine_name[] __initconst = 
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_hardware_version[] __initconst = {
 	{{BCM47XX_BOARD_ASUS_RTN10U, "Asus RT-N10U"}, "RTN10U"},
+	{{BCM47XX_BOARD_ASUS_RTN10D, "Asus RT-N10D"}, "RTN10D"},
 	{{BCM47XX_BOARD_ASUS_RTN12, "Asus RT-N12"}, "RT-N12"},
 	{{BCM47XX_BOARD_ASUS_RTN12B1, "Asus RT-N12B1"}, "RTN12B1"},
 	{{BCM47XX_BOARD_ASUS_RTN12C1, "Asus RT-N12C1"}, "RTN12C1"},
@@ -80,6 +81,14 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_hardware_version[] __initcons
 	{ {0}, NULL},
 };
 
+/* hardware_version, boardnum */
+static const
+struct bcm47xx_board_type_list2 bcm47xx_board_list_hw_version_num[] __initconst = {
+	{{BCM47XX_BOARD_MICROSOFT_MN700, "Microsoft MN-700"}, "WL500-", "mn700"},
+	{{BCM47XX_BOARD_ASUS_WL500G, "Asus WL500G"}, "WL500-", "asusX"},
+	{ {0}, NULL},
+};
+
 /* productid */
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_productid[] __initconst = {
@@ -98,7 +107,7 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_productid[] __initconst = {
 /* ModelId */
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_ModelId[] __initconst = {
-	{{BCM47XX_BOARD_DELL_TM2300, "Dell WX-5565"}, "WX-5565"},
+	{{BCM47XX_BOARD_DELL_TM2300, "Dell TrueMobile 2300"}, "WX-5565"},
 	{{BCM47XX_BOARD_MOTOROLA_WE800G, "Motorola WE800G"}, "WE800G"},
 	{{BCM47XX_BOARD_MOTOROLA_WR850GP, "Motorola WR850GP"}, "WR850GP"},
 	{{BCM47XX_BOARD_MOTOROLA_WR850GV2V3, "Motorola WR850G"}, "WR850G"},
@@ -180,9 +189,9 @@ struct bcm47xx_board_type_list3 bcm47xx_board_list_board[] __initconst = {
 	{{BCM47XX_BOARD_PHICOMM_M1, "Phicomm M1"}, "0x0590", "80", "0x1104"},
 	{{BCM47XX_BOARD_ZTE_H218N, "ZTE H218N"}, "0x053d", "1234", "0x1305"},
 	{{BCM47XX_BOARD_NETGEAR_WNR3500L, "Netgear WNR3500L"}, "0x04CF", "3500", "02"},
-	{{BCM47XX_BOARD_LINKSYS_WRT54G, "Linksys WRT54G/GS/GL"}, "0x0101", "42", "0x10"},
-	{{BCM47XX_BOARD_LINKSYS_WRT54G, "Linksys WRT54G/GS/GL"}, "0x0467", "42", "0x10"},
-	{{BCM47XX_BOARD_LINKSYS_WRT54G, "Linksys WRT54G/GS/GL"}, "0x0708", "42", "0x10"},
+	{{BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0101, "Linksys WRT54G/GS/GL"}, "0x0101", "42", "0x10"},
+	{{BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0467, "Linksys WRT54G/GS/GL"}, "0x0467", "42", "0x10"},
+	{{BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0708, "Linksys WRT54G/GS/GL"}, "0x0708", "42", "0x10"},
 	{ {0}, NULL},
 };
 
@@ -234,6 +243,15 @@ static __init const struct bcm47xx_board_type *bcm47xx_board_get_nvram(void)
 		for (e1 = bcm47xx_board_list_hardware_version; e1->value1; e1++) {
 			if (strstarts(buf1, e1->value1))
 				return &e1->board;
+		}
+	}
+
+	if (bcm47xx_nvram_getenv("hardware_version", buf1, sizeof(buf1)) >= 0 &&
+	    bcm47xx_nvram_getenv("boardtype", buf2, sizeof(buf2)) >= 0) {
+		for (e2 = bcm47xx_board_list_boot_hw; e2->value1; e2++) {
+			if (!strstarts(buf1, e2->value1) &&
+			    !strcmp(buf2, e2->value2))
+				return &e2->board;
 		}
 	}
 

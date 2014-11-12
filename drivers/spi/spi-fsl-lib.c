@@ -16,10 +16,10 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/kernel.h>
-#include <linux/interrupt.h>
-#include <linux/fsl_devices.h>
 #include <linux/dma-mapping.h>
+#include <linux/fsl_devices.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/of_platform.h>
 #include <linux/spi/spi.h>
@@ -196,7 +196,7 @@ int of_mpc8xxx_spi_probe(struct platform_device *ofdev)
 
 	pinfo = devm_kzalloc(&ofdev->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
-		return -ENOMEM;
+		return ret;
 
 	pdata = &pinfo->pdata;
 	dev->platform_data = pdata;

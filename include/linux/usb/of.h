@@ -14,6 +14,7 @@
 #if IS_ENABLED(CONFIG_OF)
 enum usb_dr_mode of_usb_get_dr_mode(struct device_node *np);
 enum usb_device_speed of_usb_get_maximum_speed(struct device_node *np);
+bool of_usb_host_tpl_support(struct device_node *np);
 #else
 static inline enum usb_dr_mode of_usb_get_dr_mode(struct device_node *np)
 {
@@ -24,6 +25,10 @@ static inline enum usb_device_speed
 of_usb_get_maximum_speed(struct device_node *np)
 {
 	return USB_SPEED_UNKNOWN;
+}
+static inline bool of_usb_host_tpl_support(struct device_node *np)
+{
+	return false;
 }
 #endif
 

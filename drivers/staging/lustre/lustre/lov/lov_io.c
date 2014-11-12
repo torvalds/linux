@@ -366,7 +366,7 @@ static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 		wake_up_all(&lov->lo_waitq);
 }
 
-static obd_off lov_offset_mod(obd_off val, int delta)
+static u64 lov_offset_mod(u64 val, int delta)
 {
 	if (val != OBD_OBJECT_EOF)
 		val += delta;
@@ -379,9 +379,9 @@ static int lov_io_iter_init(const struct lu_env *env,
 	struct lov_io	*lio = cl2lov_io(env, ios);
 	struct lov_stripe_md *lsm = lio->lis_object->lo_lsm;
 	struct lov_io_sub    *sub;
-	obd_off endpos;
-	obd_off start;
-	obd_off end;
+	u64 endpos;
+	u64 start;
+	u64 end;
 	int stripe;
 	int rc = 0;
 
@@ -398,7 +398,7 @@ static int lov_io_iter_init(const struct lu_env *env,
 					   start, end);
 			rc = cl_io_iter_init(sub->sub_env, sub->sub_io);
 			lov_sub_put(sub);
-			CDEBUG(D_VFSTRACE, "shrink: %d ["LPU64", "LPU64")\n",
+			CDEBUG(D_VFSTRACE, "shrink: %d [%llu, %llu)\n",
 			       stripe, start, end);
 		} else
 			rc = PTR_ERR(sub);
@@ -436,8 +436,8 @@ static int lov_io_rw_iter_init(const struct lu_env *env,
 					      next) - io->u.ci_rw.crw_pos;
 		lio->lis_pos    = io->u.ci_rw.crw_pos;
 		lio->lis_endpos = io->u.ci_rw.crw_pos + io->u.ci_rw.crw_count;
-		CDEBUG(D_VFSTRACE, "stripe: "LPU64" chunk: ["LPU64", "LPU64") "
-		       LPU64"\n", (__u64)start, lio->lis_pos, lio->lis_endpos,
+		CDEBUG(D_VFSTRACE, "stripe: %llu chunk: [%llu, %llu) %llu\n",
+		       (__u64)start, lio->lis_pos, lio->lis_endpos,
 		       (__u64)lio->lis_io_endpos);
 	}
 	/*

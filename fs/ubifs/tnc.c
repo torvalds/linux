@@ -3294,7 +3294,6 @@ int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
 		goto out_unlock;
 
 	if (err) {
-		err = -EINVAL;
 		key = &from_key;
 		goto out_dump;
 	}

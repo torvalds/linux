@@ -449,4 +449,4 @@ struct sirfsoc_uart_port {
 
 /* I/O Mode */
 #define SIRFSOC_UART_IO_RX_MAX_CNT		256
-#define SIRFSOC_UART_IO_TX_REASONABLE_CNT	6
+#define SIRFSOC_UART_IO_TX_REASONABLE_CNT	256

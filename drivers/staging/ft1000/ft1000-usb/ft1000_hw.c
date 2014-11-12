@@ -322,18 +322,23 @@ static void card_reset_dsp(struct ft1000_usb *ft1000dev, bool value)
 *               ptempbuffer - command buffer
 *               size - command buffer size
 */
-void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
+int card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 		       int size)
 {
+	int ret;
 	unsigned short temp;
 	unsigned char *commandbuf;
 
 	DEBUG("card_send_command: enter card_send_command... size=%d\n", size);
 
 	commandbuf = kmalloc(size + 2, GFP_KERNEL);
+	if (!commandbuf)
+		return -ENOMEM;
 	memcpy((void *)commandbuf + 2, (void *)ptempbuffer, size);
 
-	ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
+	ret = ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
+	if (ret)
+		return ret;
 
 	if (temp & 0x0100)
 		usleep_range(900, 1100);
@@ -345,19 +350,23 @@ void card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 	if (size % 4)
 		size += 4 - (size % 4);
 
-	ft1000_write_dpram32(ft1000dev, 0, commandbuf, size);
+	ret = ft1000_write_dpram32(ft1000dev, 0, commandbuf, size);
+	if (ret)
+		return ret;
 	usleep_range(900, 1100);
-	ft1000_write_register(ft1000dev, FT1000_DB_DPRAM_TX,
+	ret = ft1000_write_register(ft1000dev, FT1000_DB_DPRAM_TX,
 			      FT1000_REG_DOORBELL);
+	if (ret)
+		return ret;
 	usleep_range(900, 1100);
 
-	ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
+	ret = ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
 
 #if 0
 	if ((temp & 0x0100) == 0)
 		DEBUG("card_send_command: Message sent\n");
 #endif
-
+	return ret;
 }
 
 /* load or reload the DSP */
@@ -557,10 +566,9 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 *packet, u16 len)
 	if (ret) {
 		DEBUG("ft1000 failed tx_urb %d\n", ret);
 		return ret;
-	} else {
-		pInfo->stats.tx_packets++;
-		pInfo->stats.tx_bytes += (len + 14);
 	}
+	pInfo->stats.tx_packets++;
+	pInfo->stats.tx_bytes += (len + 14);
 
 	return 0;
 }
@@ -989,53 +997,52 @@ static bool ft1000_receive_cmd(struct ft1000_usb *dev, u16 *pbuffer,
 		DEBUG("FT1000:ft1000_receive_cmd:Invalid command length = %d\n",
 		      size);
 		return FALSE;
-	} else {
-		ppseudohdr = (u16 *) pbuffer;
-		ft1000_write_register(dev, FT1000_DPRAM_MAG_RX_BASE,
-				      FT1000_REG_DPRAM_ADDR);
-		ret =
-		    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAH);
-		pbuffer++;
-		ft1000_write_register(dev, FT1000_DPRAM_MAG_RX_BASE + 1,
-				      FT1000_REG_DPRAM_ADDR);
-		for (i = 0; i <= (size >> 2); i++) {
-			ret =
-			    ft1000_read_register(dev, pbuffer,
-						 FT1000_REG_MAG_DPDATAL);
-			pbuffer++;
-			ret =
-			    ft1000_read_register(dev, pbuffer,
-						 FT1000_REG_MAG_DPDATAH);
-			pbuffer++;
-		}
-		/* copy odd aligned word */
-		ret =
-		    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAL);
-
-		pbuffer++;
-		ret =
-		    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAH);
-
-		pbuffer++;
-		if (size & 0x0001) {
-			/* copy odd byte from fifo */
-			ret =
-			    ft1000_read_register(dev, &tempword,
-						 FT1000_REG_DPRAM_DATA);
-			*pbuffer = ntohs(tempword);
-		}
-		/* Check if pseudo header checksum is good
-		 * Calculate pseudo header checksum
-		 */
-		tempword = *ppseudohdr++;
-		for (i = 1; i < 7; i++)
-			tempword ^= *ppseudohdr++;
-
-		if ((tempword != *ppseudohdr))
-			return FALSE;
-
-		return TRUE;
 	}
+	ppseudohdr = (u16 *) pbuffer;
+	ft1000_write_register(dev, FT1000_DPRAM_MAG_RX_BASE,
+			      FT1000_REG_DPRAM_ADDR);
+	ret =
+	    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAH);
+	pbuffer++;
+	ft1000_write_register(dev, FT1000_DPRAM_MAG_RX_BASE + 1,
+			      FT1000_REG_DPRAM_ADDR);
+	for (i = 0; i <= (size >> 2); i++) {
+		ret =
+		    ft1000_read_register(dev, pbuffer,
+					 FT1000_REG_MAG_DPDATAL);
+		pbuffer++;
+		ret =
+		    ft1000_read_register(dev, pbuffer,
+					 FT1000_REG_MAG_DPDATAH);
+		pbuffer++;
+	}
+	/* copy odd aligned word */
+	ret =
+	    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAL);
+
+	pbuffer++;
+	ret =
+	    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAH);
+
+	pbuffer++;
+	if (size & 0x0001) {
+		/* copy odd byte from fifo */
+		ret =
+		    ft1000_read_register(dev, &tempword,
+					 FT1000_REG_DPRAM_DATA);
+		*pbuffer = ntohs(tempword);
+	}
+	/* Check if pseudo header checksum is good
+	 * Calculate pseudo header checksum
+	 */
+	tempword = *ppseudohdr++;
+	for (i = 1; i < 7; i++)
+		tempword ^= *ppseudohdr++;
+
+	if (tempword != *ppseudohdr)
+		return FALSE;
+
+	return TRUE;
 }
 
 static int ft1000_dsp_prov(void *arg)
@@ -1144,6 +1151,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 	} convert;
 
 	char *cmdbuffer = kmalloc(1600, GFP_KERNEL);
+
 	if (!cmdbuffer)
 		return -ENOMEM;
 
@@ -1375,8 +1383,10 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 			*pmsg++ = convert.wrd;
 			*pmsg++ = htons(info->DrvErrNum);
 
-			card_send_command(dev, (unsigned char *)&tempbuffer[0],
+			status = card_send_command(dev, (unsigned char *)&tempbuffer[0],
 					(u16)(0x0012 + PSEUDOSZ));
+			if (status)
+				goto out;
 			info->DrvErrNum = 0;
 		}
 		dev->DrvMsgPend = 0;

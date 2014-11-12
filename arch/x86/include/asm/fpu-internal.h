@@ -344,7 +344,7 @@ static inline void __thread_fpu_end(struct task_struct *tsk)
 
 static inline void __thread_fpu_begin(struct task_struct *tsk)
 {
-	if (!static_cpu_has_safe(X86_FEATURE_EAGER_FPU))
+	if (!use_eager_fpu())
 		clts();
 	__thread_set_has_fpu(tsk);
 }
@@ -508,9 +508,12 @@ static inline void user_fpu_begin(void)
 
 static inline void __save_fpu(struct task_struct *tsk)
 {
-	if (use_xsave())
-		xsave_state(&tsk->thread.fpu.state->xsave, -1);
-	else
+	if (use_xsave()) {
+		if (unlikely(system_state == SYSTEM_BOOTING))
+			xsave_state_booting(&tsk->thread.fpu.state->xsave, -1);
+		else
+			xsave_state(&tsk->thread.fpu.state->xsave, -1);
+	} else
 		fpu_fxsave(&tsk->thread.fpu);
 }
 

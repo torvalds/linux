@@ -252,15 +252,13 @@ static int spinand_enable_ecc(struct spi_device *spi_nand)
 	if (retval < 0)
 		return retval;
 
-	if ((otp & OTP_ECC_MASK) == OTP_ECC_MASK) {
+	if ((otp & OTP_ECC_MASK) == OTP_ECC_MASK)
 		return 0;
-	} else {
-		otp |= OTP_ECC_MASK;
-		retval = spinand_set_otp(spi_nand, &otp);
-		if (retval < 0)
-			return retval;
-		return spinand_get_otp(spi_nand, &otp);
-	}
+	otp |= OTP_ECC_MASK;
+	retval = spinand_set_otp(spi_nand, &otp);
+	if (retval < 0)
+		return retval;
+	return spinand_get_otp(spi_nand, &otp);
 }
 #endif
 
@@ -279,8 +277,8 @@ static int spinand_disable_ecc(struct spi_device *spi_nand)
 		if (retval < 0)
 			return retval;
 		return spinand_get_otp(spi_nand, &otp);
-	} else
-		return 0;
+	}
+	return 0;
 }
 
 /**
@@ -529,8 +527,8 @@ static int spinand_program_page(struct spi_device *spi_nand,
 				dev_err(&spi_nand->dev,
 					"program error, page %d\n", page_id);
 				return -1;
-			} else
-				break;
+			}
+			break;
 		}
 	}
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
@@ -605,8 +603,8 @@ static int spinand_erase_block(struct spi_device *spi_nand, u16 block_id)
 				dev_err(&spi_nand->dev,
 					"erase error, block %d\n", block_id);
 				return -1;
-			} else
-				break;
+			}
+			break;
 		}
 	}
 	return 0;

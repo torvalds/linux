@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: USB specific handling
  *
- * Copyright (C) 2012, Marvell International Ltd.
+ * Copyright (C) 2012-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -357,7 +357,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 		card->usb_boot_state = USB8XXX_FW_READY;
 		break;
 	default:
-		pr_warning("unknown id_product %#x\n", id_product);
+		pr_warn("unknown id_product %#x\n", id_product);
 		card->usb_boot_state = USB8XXX_FW_DNLD;
 		break;
 	}

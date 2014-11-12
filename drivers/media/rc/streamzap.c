@@ -63,13 +63,6 @@ MODULE_DEVICE_TABLE(usb, streamzap_table);
 /* number of samples buffered */
 #define SZ_BUF_LEN 128
 
-/* from ir-rc5-sz-decoder.c */
-#ifdef CONFIG_IR_RC5_SZ_DECODER_MODULE
-#define load_rc5_sz_decode()    request_module("ir-rc5-sz-decoder")
-#else
-#define load_rc5_sz_decode()    {}
-#endif
-
 enum StreamzapDecoderState {
 	PulseSpace,
 	FullPulse,
@@ -316,7 +309,7 @@ static struct rc_dev *streamzap_init_rc_dev(struct streamzap_ir *sz)
 	rdev->dev.parent = dev;
 	rdev->priv = sz;
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rc_set_allowed_protocols(rdev, RC_BIT_ALL);
+	rdev->allowed_protocols = RC_BIT_ALL;
 	rdev->driver_name = DRIVER_NAME;
 	rdev->map_name = RC_MAP_STREAMZAP;
 
@@ -369,16 +362,14 @@ static int streamzap_probe(struct usb_interface *intf,
 	}
 
 	sz->endpoint = &(iface_host->endpoint[0].desc);
-	if ((sz->endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-	    != USB_DIR_IN) {
+	if (!usb_endpoint_dir_in(sz->endpoint)) {
 		dev_err(&intf->dev, "%s: endpoint doesn't match input device "
 			"02%02x\n", __func__, sz->endpoint->bEndpointAddress);
 		retval = -ENODEV;
 		goto free_sz;
 	}
 
-	if ((sz->endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-	    != USB_ENDPOINT_XFER_INT) {
+	if (!usb_endpoint_xfer_int(sz->endpoint)) {
 		dev_err(&intf->dev, "%s: endpoint attributes don't match xfer "
 			"02%02x\n", __func__, sz->endpoint->bmAttributes);
 		retval = -ENODEV;
@@ -451,9 +442,6 @@ static int streamzap_probe(struct usb_interface *intf,
 
 	dev_info(sz->dev, "Registered %s on usb%d:%d\n", name,
 		 usbdev->bus->busnum, usbdev->devnum);
-
-	/* Load the streamzap not-quite-rc5 decoder too */
-	load_rc5_sz_decode();
 
 	return 0;
 

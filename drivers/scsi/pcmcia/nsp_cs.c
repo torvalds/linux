@@ -195,7 +195,7 @@ static int nsp_queuecommand_lck(struct scsi_cmnd *SCpnt,
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 
 	nsp_dbg(NSP_DEBUG_QUEUECOMMAND,
-		"SCpnt=0x%p target=%d lun=%d sglist=0x%p bufflen=%d sg_count=%d",
+		"SCpnt=0x%p target=%d lun=%llu sglist=0x%p bufflen=%d sg_count=%d",
 		SCpnt, target, SCpnt->device->lun, scsi_sglist(SCpnt),
 		scsi_bufflen(SCpnt), scsi_sg_count(SCpnt));
 	//nsp_dbg(NSP_DEBUG_QUEUECOMMAND, "before CurrentSC=0x%p", data->CurrentSC);
@@ -533,7 +533,7 @@ static int nsp_negate_signal(struct scsi_cmnd *SCpnt, unsigned char mask,
 	} while ((--time_out != 0) && (reg & mask) != 0);
 
 	if (time_out == 0) {
-		nsp_msg(KERN_DEBUG, " %s signal off timeut", str);
+		nsp_msg(KERN_DEBUG, " %s signal off timeout", str);
 	}
 
 	return 0;

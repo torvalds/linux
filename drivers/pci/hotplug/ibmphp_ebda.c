@@ -215,9 +215,8 @@ static void __init print_ebda_hpc (void)
 			debug ("%s - cap of the slot: %x\n", __func__, hpc_ptr->slots[index].slot_cap);
 		}
 
-		for (index = 0; index < hpc_ptr->bus_count; index++) {
+		for (index = 0; index < hpc_ptr->bus_count; index++)
 			debug ("%s - bus# of each bus controlled by this ctlr: %x\n", __func__, hpc_ptr->buses[index].bus_num);
-		}
 
 		debug ("%s - type of hpc: %x\n", __func__, hpc_ptr->ctlr_type);
 		switch (hpc_ptr->ctlr_type) {

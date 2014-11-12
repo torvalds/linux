@@ -9,8 +9,6 @@
  * (at your option) any later version.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
@@ -98,6 +96,10 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_AD_INFO]		= { .type = NLA_NESTED },
 };
 
+static const struct nla_policy bond_slave_policy[IFLA_BOND_SLAVE_MAX + 1] = {
+	[IFLA_BOND_SLAVE_QUEUE_ID]	= { .type = NLA_U16 },
+};
+
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 {
 	if (tb[IFLA_ADDRESS]) {
@@ -106,6 +108,33 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
 			return -EADDRNOTAVAIL;
 	}
+	return 0;
+}
+
+static int bond_slave_changelink(struct net_device *bond_dev,
+				 struct net_device *slave_dev,
+				 struct nlattr *tb[], struct nlattr *data[])
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct bond_opt_value newval;
+	int err;
+
+	if (!data)
+		return 0;
+
+	if (data[IFLA_BOND_SLAVE_QUEUE_ID]) {
+		u16 queue_id = nla_get_u16(data[IFLA_BOND_SLAVE_QUEUE_ID]);
+		char queue_id_str[IFNAMSIZ + 7];
+
+		/* queue_id option setting expects slave_name:queue_id */
+		snprintf(queue_id_str, sizeof(queue_id_str), "%s:%u\n",
+			 slave_dev->name, queue_id);
+		bond_opt_initstr(&newval, queue_id_str);
+		err = __bond_opt_set(bond, BOND_OPT_QUEUE_ID, &newval);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -181,8 +210,7 @@ static int bond_changelink(struct net_device *bond_dev,
 		int arp_interval = nla_get_u32(data[IFLA_BOND_ARP_INTERVAL]);
 
 		if (arp_interval && miimon) {
-			pr_err("%s: ARP monitoring cannot be used with MII monitoring\n",
-			       bond->dev->name);
+			netdev_err(bond->dev, "ARP monitoring cannot be used with MII monitoring\n");
 			return -EINVAL;
 		}
 
@@ -207,8 +235,7 @@ static int bond_changelink(struct net_device *bond_dev,
 			i++;
 		}
 		if (i == 0 && bond->params.arp_interval)
-			pr_warn("%s: Removing last arp target with arp_interval on\n",
-				bond->dev->name);
+			netdev_warn(bond->dev, "Removing last arp target with arp_interval on\n");
 		if (err)
 			return err;
 	}
@@ -216,8 +243,7 @@ static int bond_changelink(struct net_device *bond_dev,
 		int arp_validate = nla_get_u32(data[IFLA_BOND_ARP_VALIDATE]);
 
 		if (arp_validate && miimon) {
-			pr_err("%s: ARP validating cannot be used with MII monitoring\n",
-			       bond->dev->name);
+			netdev_err(bond->dev, "ARP validating cannot be used with MII monitoring\n");
 			return -EINVAL;
 		}
 
@@ -398,20 +424,32 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		0;
 }
 
+static int bond_option_active_slave_get_ifindex(struct bonding *bond)
+{
+	const struct net_device *slave;
+	int ifindex;
+
+	rcu_read_lock();
+	slave = bond_option_active_slave_get_rcu(bond);
+	ifindex = slave ? slave->ifindex : 0;
+	rcu_read_unlock();
+	return ifindex;
+}
+
 static int bond_fill_info(struct sk_buff *skb,
 			  const struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct net_device *slave_dev = bond_option_active_slave_get(bond);
-	struct nlattr *targets;
 	unsigned int packets_per_slave;
-	int i, targets_added;
+	int ifindex, i, targets_added;
+	struct nlattr *targets;
+	struct slave *primary;
 
 	if (nla_put_u8(skb, IFLA_BOND_MODE, BOND_MODE(bond)))
 		goto nla_put_failure;
 
-	if (slave_dev &&
-	    nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, slave_dev->ifindex))
+	ifindex = bond_option_active_slave_get_ifindex(bond);
+	if (ifindex && nla_put_u32(skb, IFLA_BOND_ACTIVE_SLAVE, ifindex))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_MIIMON, bond->params.miimon))
@@ -455,9 +493,9 @@ static int bond_fill_info(struct sk_buff *skb,
 			bond->params.arp_all_targets))
 		goto nla_put_failure;
 
-	if (bond->primary_slave &&
-	    nla_put_u32(skb, IFLA_BOND_PRIMARY,
-			bond->primary_slave->dev->ifindex))
+	primary = rtnl_dereference(bond->primary_slave);
+	if (primary &&
+	    nla_put_u32(skb, IFLA_BOND_PRIMARY, primary->dev->ifindex))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_PRIMARY_RESELECT,
@@ -556,6 +594,9 @@ struct rtnl_link_ops bond_link_ops __read_mostly = {
 	.get_num_tx_queues	= bond_get_num_tx_queues,
 	.get_num_rx_queues	= bond_get_num_tx_queues, /* Use the same number
 							     as for TX queues */
+	.slave_maxtype		= IFLA_BOND_SLAVE_MAX,
+	.slave_policy		= bond_slave_policy,
+	.slave_changelink	= bond_slave_changelink,
 	.get_slave_size		= bond_get_slave_size,
 	.fill_slave_info	= bond_fill_slave_info,
 };

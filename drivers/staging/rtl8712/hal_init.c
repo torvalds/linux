@@ -49,14 +49,13 @@ static void rtl871x_load_fw_cb(const struct firmware *firmware, void *context)
 	if (!firmware) {
 		struct usb_device *udev = padapter->dvobjpriv.pusbdev;
 		struct usb_interface *pusb_intf = padapter->pusb_intf;
+
 		dev_err(&udev->dev, "r8712u: Firmware request failed\n");
-		padapter->fw_found = false;
 		usb_put_dev(udev);
 		usb_set_intfdata(pusb_intf, NULL);
 		return;
 	}
 	padapter->fw = firmware;
-	padapter->fw_found = true;
 	/* firmware available - start netdev */
 	register_netdev(padapter->pnetdev);
 }
@@ -390,10 +389,8 @@ uint rtl871x_hal_init(struct _adapter *padapter)
 	padapter->hw_init_completed = false;
 	if (padapter->halpriv.hal_bus_init == NULL)
 		return _FAIL;
-	else {
-		if (padapter->halpriv.hal_bus_init(padapter) != _SUCCESS)
-			return _FAIL;
-	}
+	if (padapter->halpriv.hal_bus_init(padapter) != _SUCCESS)
+		return _FAIL;
 	if (rtl8712_hal_init(padapter) == _SUCCESS)
 		padapter->hw_init_completed = true;
 	else {

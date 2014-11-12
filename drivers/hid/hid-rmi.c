@@ -320,10 +320,7 @@ static int rmi_f11_input_event(struct hid_device *hdev, u8 irq, u8 *data,
 	int offset;
 	int i;
 
-	if (size < hdata->f11.report_size)
-		return 0;
-
-	if (!(irq & hdata->f11.irq_mask))
+	if (!(irq & hdata->f11.irq_mask) || size <= 0)
 		return 0;
 
 	offset = (hdata->max_fingers >> 2) + 1;
@@ -332,9 +329,19 @@ static int rmi_f11_input_event(struct hid_device *hdev, u8 irq, u8 *data,
 		int fs_bit_position = (i & 0x3) << 1;
 		int finger_state = (data[fs_byte_position] >> fs_bit_position) &
 					0x03;
+		int position = offset + 5 * i;
 
-		rmi_f11_process_touch(hdata, i, finger_state,
-				&data[offset + 5 * i]);
+		if (position + 5 > size) {
+			/* partial report, go on with what we received */
+			printk_once(KERN_WARNING
+				"%s %s: Detected incomplete finger report. Finger reports may occasionally get dropped on this platform.\n",
+				 dev_driver_string(&hdev->dev),
+				 dev_name(&hdev->dev));
+			hid_dbg(hdev, "Incomplete finger report\n");
+			break;
+		}
+
+		rmi_f11_process_touch(hdata, i, finger_state, &data[position]);
 	}
 	input_mt_sync_frame(hdata->input);
 	input_sync(hdata->input);
@@ -351,6 +358,11 @@ static int rmi_f30_input_event(struct hid_device *hdev, u8 irq, u8 *data,
 
 	if (!(irq & hdata->f30.irq_mask))
 		return 0;
+
+	if (size < (int)hdata->f30.report_size) {
+		hid_warn(hdev, "Click Button pressed, but the click data is missing\n");
+		return 0;
+	}
 
 	for (i = 0; i < hdata->gpio_led_count; i++) {
 		if (test_bit(i, &hdata->button_mask)) {
@@ -377,7 +389,7 @@ static int rmi_input_event(struct hid_device *hdev, u8 *data, int size)
 	irq_mask |= hdata->f30.irq_mask;
 
 	if (data[1] & ~irq_mask)
-		hid_warn(hdev, "unknown intr source:%02lx %s:%d\n",
+		hid_dbg(hdev, "unknown intr source:%02lx %s:%d\n",
 			data[1] & ~irq_mask, __FILE__, __LINE__);
 
 	if (hdata->f11.interrupt_base < hdata->f30.interrupt_base) {
@@ -400,7 +412,7 @@ static int rmi_read_data_event(struct hid_device *hdev, u8 *data, int size)
 	struct rmi_data *hdata = hid_get_drvdata(hdev);
 
 	if (!test_bit(RMI_READ_REQUEST_PENDING, &hdata->flags)) {
-		hid_err(hdev, "no read request pending\n");
+		hid_dbg(hdev, "no read request pending\n");
 		return 0;
 	}
 
@@ -412,9 +424,29 @@ static int rmi_read_data_event(struct hid_device *hdev, u8 *data, int size)
 	return 1;
 }
 
+static int rmi_check_sanity(struct hid_device *hdev, u8 *data, int size)
+{
+	int valid_size = size;
+	/*
+	 * On the Dell XPS 13 9333, the bus sometimes get confused and fills
+	 * the report with a sentinel value "ff". Synaptics told us that such
+	 * behavior does not comes from the touchpad itself, so we filter out
+	 * such reports here.
+	 */
+
+	while ((data[valid_size - 1] == 0xff) && valid_size > 0)
+		valid_size--;
+
+	return valid_size;
+}
+
 static int rmi_raw_event(struct hid_device *hdev,
 		struct hid_report *report, u8 *data, int size)
 {
+	size = rmi_check_sanity(hdev, data, size);
+	if (size < 2)
+		return 0;
+
 	switch (data[0]) {
 	case RMI_READ_DATA_REPORT_ID:
 		return rmi_read_data_event(hdev, data, size);
@@ -549,10 +581,12 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	u8 buf[20];
 	int ret;
 	bool has_query9;
-	bool has_query10;
+	bool has_query10 = false;
 	bool has_query11;
 	bool has_query12;
 	bool has_physical_props;
+	bool has_gestures;
+	bool has_rel;
 	unsigned x_size, y_size;
 	u16 query12_offset;
 
@@ -589,19 +623,32 @@ static int rmi_populate_f11(struct hid_device *hdev)
 		return -ENODEV;
 	}
 
-	/* query 8 to find out if query 10 exists */
-	ret = rmi_read(hdev, data->f11.query_base_addr + 8, buf);
-	if (ret) {
-		hid_err(hdev, "can not read gesture information: %d.\n", ret);
-		return ret;
+	has_rel = !!(buf[0] & BIT(3));
+	has_gestures = !!(buf[0] & BIT(5));
+
+	if (has_gestures) {
+		/* query 8 to find out if query 10 exists */
+		ret = rmi_read(hdev, data->f11.query_base_addr + 8, buf);
+		if (ret) {
+			hid_err(hdev, "can not read gesture information: %d.\n",
+				ret);
+			return ret;
+		}
+		has_query10 = !!(buf[0] & BIT(2));
 	}
-	has_query10 = !!(buf[0] & BIT(2));
 
 	/*
-	 * At least 8 queries are guaranteed to be present in F11
-	 * +1 for query12.
+	 * At least 4 queries are guaranteed to be present in F11
+	 * +1 for query 5 which is present since absolute events are
+	 * reported and +1 for query 12.
 	 */
-	query12_offset = 9;
+	query12_offset = 6;
+
+	if (has_rel)
+		++query12_offset; /* query 6 is present */
+
+	if (has_gestures)
+		query12_offset += 2; /* query 7 and 8 are present */
 
 	if (has_query9)
 		++query12_offset;
@@ -833,6 +880,8 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct rmi_data *data = NULL;
 	int ret;
 	size_t alloc_size;
+	struct hid_report *input_report;
+	struct hid_report *output_report;
 
 	data = devm_kzalloc(&hdev->dev, sizeof(struct rmi_data), GFP_KERNEL);
 	if (!data)
@@ -851,12 +900,26 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 	}
 
-	data->input_report_size = (hdev->report_enum[HID_INPUT_REPORT]
-		.report_id_hash[RMI_ATTN_REPORT_ID]->size >> 3)
-		+ 1 /* report id */;
-	data->output_report_size = (hdev->report_enum[HID_OUTPUT_REPORT]
-		.report_id_hash[RMI_WRITE_REPORT_ID]->size >> 3)
-		+ 1 /* report id */;
+	input_report = hdev->report_enum[HID_INPUT_REPORT]
+			.report_id_hash[RMI_ATTN_REPORT_ID];
+	if (!input_report) {
+		hid_err(hdev, "device does not have expected input report\n");
+		ret = -ENODEV;
+		return ret;
+	}
+
+	data->input_report_size = (input_report->size >> 3) + 1 /* report id */;
+
+	output_report = hdev->report_enum[HID_OUTPUT_REPORT]
+			.report_id_hash[RMI_WRITE_REPORT_ID];
+	if (!output_report) {
+		hid_err(hdev, "device does not have expected output report\n");
+		ret = -ENODEV;
+		return ret;
+	}
+
+	data->output_report_size = (output_report->size >> 3)
+					+ 1 /* report id */;
 
 	alloc_size = data->output_report_size + data->input_report_size;
 
@@ -878,10 +941,15 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 	}
 
-	if (!test_bit(RMI_STARTED, &data->flags)) {
-		hid_hw_stop(hdev);
-		return -EIO;
-	}
+	if (!test_bit(RMI_STARTED, &data->flags))
+		/*
+		 * The device maybe in the bootloader if rmi_input_configured
+		 * failed to find F11 in the PDT. Print an error, but don't
+		 * return an error from rmi_probe so that hidraw will be
+		 * accessible from userspace. That way a userspace tool
+		 * can be used to reload working firmware on the touchpad.
+		 */
+		hid_err(hdev, "Device failed to be properly configured\n");
 
 	return 0;
 }

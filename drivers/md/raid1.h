@@ -90,7 +90,6 @@ struct r1conf {
 	 */
 	int			recovery_disabled;
 
-
 	/* poolinfo contains information about the content of the
 	 * mempools - it changes when the array grows or shrinks
 	 */
@@ -102,7 +101,6 @@ struct r1conf {
 	 * a read error.
 	 */
 	struct page		*tmppage;
-
 
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.

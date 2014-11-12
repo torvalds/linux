@@ -21,6 +21,8 @@
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
 
+#include <drm/drm_gem.h>
+
 #define DRIVER_AUTHOR		"Matthew Garrett"
 
 #define DRIVER_NAME		"cirrus"
@@ -163,7 +165,7 @@ struct cirrus_bo {
 	struct ttm_placement placement;
 	struct ttm_bo_kmap_obj kmap;
 	struct drm_gem_object gem;
-	u32 placements[3];
+	struct ttm_place placements[3];
 	int pin_count;
 };
 #define gem_to_cirrus_bo(gobj) container_of((gobj), struct cirrus_bo, gem)
@@ -241,7 +243,7 @@ static inline int cirrus_bo_reserve(struct cirrus_bo *bo, bool no_wait)
 {
 	int ret;
 
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, NULL);
 	if (ret) {
 		if (ret != -ERESTARTSYS && ret != -EBUSY)
 			DRM_ERROR("reserve failed %p\n", bo);

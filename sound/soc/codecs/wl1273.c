@@ -341,8 +341,9 @@ static int wl1273_hw_params(struct snd_pcm_substream *substream,
 	struct wl1273_core *core = wl1273->core;
 	unsigned int rate, width, r;
 
-	if (params_format(params) != SNDRV_PCM_FORMAT_S16_LE) {
-		pr_err("Only SNDRV_PCM_FORMAT_S16_LE supported.\n");
+	if (params_width(params) != 16) {
+		dev_err(dai->dev, "%d bits/sample not supported\n",
+			params_width(params));
 		return -EINVAL;
 	}
 
@@ -461,10 +462,8 @@ static int wl1273_probe(struct snd_soc_codec *codec)
 	}
 
 	wl1273 = kzalloc(sizeof(struct wl1273_priv), GFP_KERNEL);
-	if (wl1273 == NULL) {
-		dev_err(codec->dev, "Cannot allocate memory.\n");
+	if (!wl1273)
 		return -ENOMEM;
-	}
 
 	wl1273->mode = WL1273_MODE_BT;
 	wl1273->core = *core;

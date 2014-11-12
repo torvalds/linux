@@ -13,6 +13,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/asmmacro.h>
 #include <asm/cacheops.h>
+#include <asm/eva.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/pm.h>
@@ -165,6 +166,9 @@ dcache_done:
 	 */
 1:	jal	mips_cps_core_init
 	 nop
+
+	/* Do any EVA initialization if necessary */
+	eva_init
 
 	/*
 	 * Boot any other VPEs within this core that should be online, and

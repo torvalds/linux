@@ -1008,7 +1008,6 @@ static const struct uart_ops max310x_ops = {
 	.stop_tx	= max310x_null_void,
 	.start_tx	= max310x_start_tx,
 	.stop_rx	= max310x_null_void,
-	.enable_ms	= max310x_null_void,
 	.break_ctl	= max310x_break_ctl,
 	.startup	= max310x_startup,
 	.shutdown	= max310x_shutdown,
@@ -1249,7 +1248,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 	mutex_destroy(&s->mutex);
 
 #ifdef CONFIG_GPIOLIB
-	WARN_ON(gpiochip_remove(&s->gpio));
+	gpiochip_remove(&s->gpio);
 
 out_uart:
 #endif
@@ -1264,12 +1263,10 @@ out_clk:
 static int max310x_remove(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
-	int i, ret = 0;
+	int i;
 
 #ifdef CONFIG_GPIOLIB
-	ret = gpiochip_remove(&s->gpio);
-	if (ret)
-		return ret;
+	gpiochip_remove(&s->gpio);
 #endif
 
 	for (i = 0; i < s->uart.nr; i++) {
@@ -1283,7 +1280,7 @@ static int max310x_remove(struct device *dev)
 	uart_unregister_driver(&s->uart);
 	clk_disable_unprepare(s->clk);
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id __maybe_unused max310x_dt_ids[] = {

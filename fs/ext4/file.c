@@ -137,10 +137,10 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			iov_iter_truncate(from, sbi->s_bitmap_maxbytes - pos);
 	}
 
+	iocb->private = &overwrite;
 	if (o_direct) {
 		blk_start_plug(&plug);
 
-		iocb->private = &overwrite;
 
 		/* check whether we do a DIO overwrite or not */
 		if (ext4_should_dioread_nolock(inode) && !aio_mutex &&
@@ -200,10 +200,6 @@ static const struct vm_operations_struct ext4_file_vm_ops = {
 
 static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct address_space *mapping = file->f_mapping;
-
-	if (!mapping->a_ops->readpage)
-		return -ENOEXEC;
 	file_accessed(file);
 	vma->vm_ops = &ext4_file_vm_ops;
 	return 0;

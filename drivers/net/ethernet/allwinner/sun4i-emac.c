@@ -633,8 +633,10 @@ static void emac_rx(struct net_device *dev)
 		}
 
 		/* Move data from EMAC */
-		skb = dev_alloc_skb(rxlen + 4);
-		if (good_packet && skb) {
+		if (good_packet) {
+			skb = netdev_alloc_skb(dev, rxlen + 4);
+			if (!skb)
+				continue;
 			skb_reserve(skb, 2);
 			rdptr = (u8 *) skb_put(skb, rxlen - 4);
 
@@ -875,8 +877,6 @@ static int emac_probe(struct platform_device *pdev)
 	db->emacrx_completed_flag = 1;
 	emac_powerup(ndev);
 	emac_reset(db);
-
-	ether_setup(ndev);
 
 	ndev->netdev_ops = &emac_netdev_ops;
 	ndev->watchdog_timeo = msecs_to_jiffies(watchdog);

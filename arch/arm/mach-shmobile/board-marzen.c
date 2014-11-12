@@ -41,13 +41,15 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
+
 #include <media/soc_camera.h>
-#include <mach/r8a7779.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/traps.h>
+
+#include "common.h"
+#include "irqs.h"
+#include "r8a7779.h"
 
 /* Fixed 3.3V regulator to be used by SDHI0 */
 static struct regulator_consumer_supply fixed3v3_power_consumers[] = {
@@ -190,16 +192,15 @@ static struct rcar_du_encoder_data du_encoders[] = {
 			.width_mm = 210,
 			.height_mm = 158,
 			.mode = {
-				.clock = 65000,
-				.hdisplay = 1024,
-				.hsync_start = 1048,
-				.hsync_end = 1184,
-				.htotal = 1344,
-				.vdisplay = 768,
-				.vsync_start = 771,
-				.vsync_end = 777,
-				.vtotal = 806,
-				.flags = 0,
+				.pixelclock = 65000000,
+				.hactive = 1024,
+				.hfront_porch = 20,
+				.hback_porch = 160,
+				.hsync_len = 136,
+				.vactive = 768,
+				.vfront_porch = 3,
+				.vback_porch = 29,
+				.vsync_len = 6,
 			},
 		},
 	},
@@ -272,7 +273,6 @@ static struct resource vin##idx##_resources[] __initdata = {	\
 };								\
 								\
 static struct platform_device_info vin##idx##_info __initdata = { \
-	.parent		= &platform_bus,			\
 	.name		= "r8a7779-vin",			\
 	.id		= idx,					\
 	.res		= vin##idx##_resources,			\

@@ -629,10 +629,14 @@ static int pms_capture(struct pms *dev, char __user *buf, int rgb555, int count)
 {
 	int y;
 	int dw = 2 * dev->width;
-	char tmp[dw + 32]; /* using a temp buffer is faster than direct  */
+	char *tmp; /* using a temp buffer is faster than direct  */
 	int cnt = 0;
 	int len = 0;
 	unsigned char r8 = 0x5;  /* value for reg8  */
+
+	tmp = kmalloc(dw + 32, GFP_KERNEL);
+	if (!tmp)
+		return 0;
 
 	if (rgb555)
 		r8 |= 0x20; /* else use untranslated rgb = 565 */
@@ -664,6 +668,7 @@ static int pms_capture(struct pms *dev, char __user *buf, int rgb555, int count)
 			len += dt;
 		}
 	}
+	kfree(tmp);
 	return len;
 }
 
@@ -1091,7 +1096,6 @@ static int pms_probe(struct device *pdev, unsigned int card)
 	dev->vdev.release = video_device_release_empty;
 	dev->vdev.lock = &dev->lock;
 	dev->vdev.tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
 	video_set_drvdata(&dev->vdev, dev);
 	dev->std = V4L2_STD_NTSC_M;
 	dev->height = 240;

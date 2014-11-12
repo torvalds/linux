@@ -35,7 +35,6 @@ enum {
 	INET6_IFADDR_STATE_DAD,
 	INET6_IFADDR_STATE_POSTDAD,
 	INET6_IFADDR_STATE_ERRDAD,
-	INET6_IFADDR_STATE_UP,
 	INET6_IFADDR_STATE_DEAD,
 };
 
@@ -147,7 +146,6 @@ struct ifacaddr6 {
 	struct ifacaddr6	*aca_next;
 	int			aca_users;
 	atomic_t		aca_refcnt;
-	spinlock_t		aca_lock;
 	unsigned long		aca_cstamp;
 	unsigned long		aca_tstamp;
 };
@@ -205,6 +203,7 @@ struct inet6_dev {
 	struct timer_list	rs_timer;
 	__u8			rs_probes;
 
+	__u8			addr_gen_mode;
 	unsigned long		tstamp; /* ipv6InterfaceTable update timestamp */
 	struct rcu_head		rcu;
 };

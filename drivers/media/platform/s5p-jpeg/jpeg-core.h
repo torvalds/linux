@@ -35,6 +35,8 @@
 #define S5P_JPEG_COEF32			0x6e
 #define S5P_JPEG_COEF33			0x13
 
+#define EXYNOS3250_IRQ_TIMEOUT		0x10000000
+
 /* a selection of JPEG markers */
 #define TEM				0x01
 #define SOF0				0xc0
@@ -49,9 +51,10 @@
 #define SJPEG_FMT_FLAG_DEC_CAPTURE	(1 << 2)
 #define SJPEG_FMT_FLAG_DEC_OUTPUT	(1 << 3)
 #define SJPEG_FMT_FLAG_S5P		(1 << 4)
-#define SJPEG_FMT_FLAG_EXYNOS4		(1 << 5)
-#define SJPEG_FMT_RGB			(1 << 6)
-#define SJPEG_FMT_NON_RGB		(1 << 7)
+#define SJPEG_FMT_FLAG_EXYNOS3250	(1 << 5)
+#define SJPEG_FMT_FLAG_EXYNOS4		(1 << 6)
+#define SJPEG_FMT_RGB			(1 << 7)
+#define SJPEG_FMT_NON_RGB		(1 << 8)
 
 #define S5P_JPEG_ENCODE		0
 #define S5P_JPEG_DECODE		1
@@ -65,8 +68,9 @@
 
 /* Version numbers */
 
-#define SJPEG_S5P	1
-#define SJPEG_EXYNOS4	2
+#define SJPEG_S5P		1
+#define SJPEG_EXYNOS3250	2
+#define SJPEG_EXYNOS4		3
 
 enum exynos4_jpeg_result {
 	OK_ENC_OR_DEC,
@@ -95,8 +99,13 @@ enum  exynos4_jpeg_img_quality_level {
  * @regs:		JPEG IP registers mapping
  * @irq:		JPEG IP irq
  * @clk:		JPEG IP clock
+ * @sclk:		Exynos3250 JPEG IP special clock
  * @dev:		JPEG IP struct device
  * @alloc_ctx:		videobuf2 memory allocator's context
+ * @variant:		driver variant to be used
+ * @irq_status		interrupt flags set during single encode/decode
+			operation
+
  */
 struct s5p_jpeg {
 	struct mutex		lock;
@@ -111,9 +120,11 @@ struct s5p_jpeg {
 	unsigned int		irq;
 	enum exynos4_jpeg_result irq_ret;
 	struct clk		*clk;
+	struct clk		*sclk;
 	struct device		*dev;
 	void			*alloc_ctx;
 	struct s5p_jpeg_variant *variant;
+	u32			irq_status;
 };
 
 struct s5p_jpeg_variant {
@@ -164,9 +175,15 @@ struct s5p_jpeg_q_data {
  * @jpeg:		JPEG IP device for this context
  * @mode:		compression (encode) operation or decompression (decode)
  * @compr_quality:	destination image quality in compression (encode) mode
+ * @restart_interval:	JPEG restart interval for JPEG encoding
+ * @subsampling:	subsampling of a raw format or a JPEG
  * @out_q:		source (output) queue information
- * @cap_fmt:		destination (capture) queue queue information
+ * @cap_q:		destination (capture) queue queue information
+ * @scale_factor:	scale factor for JPEG decoding
+ * @crop_rect:		a rectangle representing crop area of the output buffer
+ * @fh:			V4L2 file handle
  * @hdr_parsed:		set if header has been parsed during decompression
+ * @crop_altered:	set if crop rectangle has been altered by the user space
  * @ctrl_handler:	controls handler
  */
 struct s5p_jpeg_ctx {
@@ -177,8 +194,11 @@ struct s5p_jpeg_ctx {
 	unsigned short		subsampling;
 	struct s5p_jpeg_q_data	out_q;
 	struct s5p_jpeg_q_data	cap_q;
+	unsigned int		scale_factor;
+	struct v4l2_rect	crop_rect;
 	struct v4l2_fh		fh;
 	bool			hdr_parsed;
+	bool			crop_altered;
 	struct v4l2_ctrl_handler ctrl_handler;
 };
 

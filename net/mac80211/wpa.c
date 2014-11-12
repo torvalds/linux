@@ -64,8 +64,11 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	if (!info->control.hw_key)
 		tail += IEEE80211_TKIP_ICV_LEN;
 
-	if (WARN_ON(skb_tailroom(skb) < tail ||
-		    skb_headroom(skb) < IEEE80211_TKIP_IV_LEN))
+	if (WARN(skb_tailroom(skb) < tail ||
+		 skb_headroom(skb) < IEEE80211_TKIP_IV_LEN,
+		 "mmic: not enough head/tail (%d/%d,%d/%d)\n",
+		 skb_headroom(skb), IEEE80211_TKIP_IV_LEN,
+		 skb_tailroom(skb), tail))
 		return TX_DROP;
 
 	key = &tx->key->conf.key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY];
@@ -811,7 +814,7 @@ ieee80211_crypto_hw_encrypt(struct ieee80211_tx_data *tx)
 ieee80211_rx_result
 ieee80211_crypto_hw_decrypt(struct ieee80211_rx_data *rx)
 {
-	if (rx->sta->cipher_scheme)
+	if (rx->sta && rx->sta->cipher_scheme)
 		return ieee80211_crypto_cs_decrypt(rx);
 
 	return RX_DROP_UNUSABLE;

@@ -760,7 +760,8 @@ intr_ret_t acornscsi_kick(AS_Host *host)
 	    SCpnt->tag = SCpnt->device->current_tag;
 	} else
 #endif
-	    set_bit(SCpnt->device->id * 8 + SCpnt->device->lun, host->busyluns);
+	    set_bit(SCpnt->device->id * 8 +
+		    (u8)(SCpnt->device->lun & 0x07), host->busyluns);
 
 	host->stats.removes += 1;
 
@@ -863,7 +864,8 @@ static void acornscsi_done(AS_Host *host, struct scsi_cmnd **SCpntp,
 	if (!SCpnt->scsi_done)
 	    panic("scsi%d.H: null scsi_done function in acornscsi_done", host->host->host_no);
 
-	clear_bit(SCpnt->device->id * 8 + SCpnt->device->lun, host->busyluns);
+	clear_bit(SCpnt->device->id * 8 +
+		  (u8)(SCpnt->device->lun & 0x7), host->busyluns);
 
 	SCpnt->scsi_done(SCpnt);
     } else
@@ -1576,7 +1578,8 @@ void acornscsi_message(AS_Host *host)
 	    printk(KERN_NOTICE "scsi%d.%c: disabling tagged queueing\n",
 		    host->host->host_no, acornscsi_target(host));
 	    host->SCpnt->device->simple_tags = 0;
-	    set_bit(host->SCpnt->device->id * 8 + host->SCpnt->device->lun, host->busyluns);
+	    set_bit(host->SCpnt->device->id * 8 +
+		    (u8)(host->SCpnt->device->lun & 0x7), host->busyluns);
 	    break;
 #endif
 	case EXTENDED_MESSAGE | (EXTENDED_SDTR << 8):
@@ -2671,7 +2674,8 @@ int acornscsi_abort(struct scsi_cmnd *SCpnt)
 //#if (DEBUG & DEBUG_ABORT)
 		printk("clear ");
 //#endif
-		clear_bit(SCpnt->device->id * 8 + SCpnt->device->lun, host->busyluns);
+		clear_bit(SCpnt->device->id * 8 +
+			  (u8)(SCpnt->device->lun & 0x7), host->busyluns);
 
 	/*
 	 * We found the command, and cleared it out.  Either
@@ -2853,7 +2857,7 @@ static int acornscsi_show_info(struct seq_file *m, struct Scsi_Host *instance)
 
     shost_for_each_device(scd, instance) {
 	seq_printf(m, "Device/Lun TaggedQ      Sync\n");
-	seq_printf(m, "     %d/%d   ", scd->id, scd->lun);
+	seq_printf(m, "     %d/%llu   ", scd->id, scd->lun);
 	if (scd->tagged_supported)
 		seq_printf(m, "%3sabled(%3d) ",
 			     scd->simple_tags ? "en" : "dis",

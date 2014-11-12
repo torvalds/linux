@@ -46,12 +46,12 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
-#include <lustre_lite.h>
-#include <lustre_ha.h>
-#include <lustre_dlm.h>
-#include <lprocfs_status.h>
-#include <lustre_disk.h>
-#include <lustre_param.h>
+#include "../include/lustre_lite.h"
+#include "../include/lustre_ha.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lprocfs_status.h"
+#include "../include/lustre_disk.h"
+#include "../include/lustre_param.h"
 #include "llite_internal.h"
 
 struct kmem_cache *ll_remote_perm_cachep = NULL;
@@ -100,7 +100,7 @@ void free_rmtperm_hash(struct hlist_head *hash)
 	struct ll_remote_perm *lrp;
 	struct hlist_node *next;
 
-	if(!hash)
+	if (!hash)
 		return;
 
 	for (i = 0; i < REMOTE_PERM_HASHSIZE; i++)
@@ -144,8 +144,10 @@ static int do_check_remote_perm(struct ll_inode_info *lli, int mask)
 		break;
 	}
 
-	if (!found)
-		GOTO(out, rc = -ENOENT);
+	if (!found) {
+		rc = -ENOENT;
+		goto out;
+	}
 
 	CDEBUG(D_SEC, "found remote perm: %u/%u/%u/%u - %#x\n",
 	       lrp->lrp_uid, lrp->lrp_gid, lrp->lrp_fsuid, lrp->lrp_fsgid,
@@ -249,7 +251,7 @@ int lustre_check_remote_perm(struct inode *inode, int mask)
 	struct ptlrpc_request *req = NULL;
 	struct mdt_remote_perm *perm;
 	struct obd_capa *oc;
-	cfs_time_t save;
+	unsigned long save;
 	int i = 0, rc;
 
 	do {

@@ -454,8 +454,6 @@
 /*  */
 /*  9. Security Control Registers	(Offset: ) */
 /*  */
-	/* IN 8190 Data Sheet is called CAMcmd */
-#define	RWCAM				REG_CAMCMD
 	/*  Software write CAM input content */
 #define	WCAMI				REG_CAMWRITE
 	/*  Software read/write CAM config */
@@ -1323,14 +1321,6 @@ Current IOREG MAP
 #define ENSWBCN				BIT(8)
 #define ENSEC				BIT(9)
 
-/*  Network type */
-#define _NETTYPE(x)			(((x) & 0x3) << 16)
-#define MASK_NETTYPE			0x30000
-#define NT_NO_LINK			0x0
-#define NT_LINK_AD_HOC			0x1
-#define NT_LINK_AP			0x2
-#define NT_AS_AP			0x3
-
 #define _LBMODE(x)			(((x) & 0xF) << 24)
 #define MASK_LBMODE			0xF000000
 #define LOOPBACK_NORMAL			0x0
@@ -1377,9 +1367,9 @@ Current IOREG MAP
 #define _TXDMA_HIQ_MAP(x)		(((x)&0x3) << 14)
 #define _TXDMA_MGQ_MAP(x)		(((x)&0x3) << 12)
 #define _TXDMA_BKQ_MAP(x)		(((x)&0x3) << 10)
-#define _TXDMA_BEQ_MAP(x)		(((x)&0x3) << 8 )
-#define _TXDMA_VIQ_MAP(x)		(((x)&0x3) << 6 )
-#define _TXDMA_VOQ_MAP(x)		(((x)&0x3) << 4 )
+#define _TXDMA_BEQ_MAP(x)		(((x)&0x3) << 8)
+#define _TXDMA_VIQ_MAP(x)		(((x)&0x3) << 6)
+#define _TXDMA_VOQ_MAP(x)		(((x)&0x3) << 4)
 
 #define QUEUE_LOW			1
 #define QUEUE_NORMAL			2

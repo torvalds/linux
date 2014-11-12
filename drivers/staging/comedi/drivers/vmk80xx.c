@@ -767,7 +767,7 @@ static int vmk80xx_alloc_usb_buffers(struct comedi_device *dev)
 
 static int vmk80xx_init_subdevices(struct comedi_device *dev)
 {
-	const struct vmk80xx_board *boardinfo = comedi_board(dev);
+	const struct vmk80xx_board *boardinfo = dev->board_ptr;
 	struct vmk80xx_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int n_subd;
@@ -959,5 +959,4 @@ module_comedi_usb_driver(vmk80xx_driver, vmk80xx_usb_driver);
 MODULE_AUTHOR("Manuel Gebele <forensixs@gmx.de>");
 MODULE_DESCRIPTION("Velleman USB Board Low-Level Driver");
 MODULE_SUPPORTED_DEVICE("K8055/K8061 aka VM110/VM140");
-MODULE_VERSION("0.8.01");
 MODULE_LICENSE("GPL");

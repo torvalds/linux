@@ -8,7 +8,7 @@
  *
  * Author: Frank Haverkamp <haver@linux.vnet.ibm.com>
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
- * Author: Michael Jung <mijung@de.ibm.com>
+ * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -328,6 +328,7 @@ enum genwqe_card_state {
 	GENWQE_CARD_UNUSED = 0,
 	GENWQE_CARD_USED = 1,
 	GENWQE_CARD_FATAL_ERROR = 2,
+	GENWQE_CARD_RELOAD_BITSTREAM = 3,
 	GENWQE_CARD_STATE_MAX,
 };
 

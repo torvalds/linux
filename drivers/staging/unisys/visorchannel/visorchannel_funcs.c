@@ -242,12 +242,12 @@ visorchannel_write(VISORCHANNEL *channel, ulong offset,
 EXPORT_SYMBOL_GPL(visorchannel_write);
 
 int
-visorchannel_clear(VISORCHANNEL *channel, ulong offset, U8 ch, ulong nbytes)
+visorchannel_clear(VISORCHANNEL *channel, ulong offset, u8 ch, ulong nbytes)
 {
 	int rc = -1;
 	int bufsize = 65536;
 	int written = 0;
-	U8 *buf = vmalloc(bufsize);
+	u8 *buf = vmalloc(bufsize);
 
 	if (buf == NULL) {
 		ERRDRV("%s failed memory allocation", __func__);
@@ -257,6 +257,7 @@ visorchannel_clear(VISORCHANNEL *channel, ulong offset, U8 ch, ulong nbytes)
 	while (nbytes > 0) {
 		ulong thisbytes = bufsize;
 		int x = -1;
+
 		if (nbytes < thisbytes)
 			thisbytes = nbytes;
 		x = visor_memregion_write(channel->memregion, offset + written,
@@ -310,7 +311,7 @@ EXPORT_SYMBOL_GPL(visorchannel_get_header);
 			       sizeof((sig_hdr)->FIELD)) >= 0)
 
 static BOOL
-sig_read_header(VISORCHANNEL *channel, U32 queue,
+sig_read_header(VISORCHANNEL *channel, u32 queue,
 		SIGNAL_QUEUE_HEADER *sig_hdr)
 {
 	BOOL rc = FALSE;
@@ -336,8 +337,8 @@ Away:
 }
 
 static BOOL
-sig_do_data(VISORCHANNEL *channel, U32 queue,
-	    SIGNAL_QUEUE_HEADER *sig_hdr, U32 slot, void *data, BOOL is_write)
+sig_do_data(VISORCHANNEL *channel, u32 queue,
+	    SIGNAL_QUEUE_HEADER *sig_hdr, u32 slot, void *data, BOOL is_write)
 {
 	BOOL rc = FALSE;
 	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
@@ -362,15 +363,15 @@ Away:
 }
 
 static inline BOOL
-sig_read_data(VISORCHANNEL *channel, U32 queue,
-	      SIGNAL_QUEUE_HEADER *sig_hdr, U32 slot, void *data)
+sig_read_data(VISORCHANNEL *channel, u32 queue,
+	      SIGNAL_QUEUE_HEADER *sig_hdr, u32 slot, void *data)
 {
 	return sig_do_data(channel, queue, sig_hdr, slot, data, FALSE);
 }
 
 static inline BOOL
-sig_write_data(VISORCHANNEL *channel, U32 queue,
-	       SIGNAL_QUEUE_HEADER *sig_hdr, U32 slot, void *data)
+sig_write_data(VISORCHANNEL *channel, u32 queue,
+	       SIGNAL_QUEUE_HEADER *sig_hdr, u32 slot, void *data)
 {
 	return sig_do_data(channel, queue, sig_hdr, slot, data, TRUE);
 }
@@ -378,7 +379,7 @@ sig_write_data(VISORCHANNEL *channel, U32 queue,
 static inline unsigned char
 safe_sig_queue_validate(pSIGNAL_QUEUE_HEADER psafe_sqh,
 			pSIGNAL_QUEUE_HEADER punsafe_sqh,
-			U32 *phead, U32 *ptail)
+			u32 *phead, u32 *ptail)
 {
 	if ((*phead >= psafe_sqh->MaxSignalSlots)
 	    || (*ptail >= psafe_sqh->MaxSignalSlots)) {
@@ -398,7 +399,7 @@ safe_sig_queue_validate(pSIGNAL_QUEUE_HEADER psafe_sqh,
 }				/* end safe_sig_queue_validate */
 
 BOOL
-visorchannel_signalremove(VISORCHANNEL *channel, U32 queue, void *msg)
+visorchannel_signalremove(VISORCHANNEL *channel, u32 queue, void *msg)
 {
 	BOOL rc = FALSE;
 	SIGNAL_QUEUE_HEADER sig_hdr;
@@ -424,7 +425,7 @@ visorchannel_signalremove(VISORCHANNEL *channel, U32 queue, void *msg)
 	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
 	 * update host memory.
 	 */
-	MEMORYBARRIER;
+	mb(); /* required for channel synch */
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Tail)) {
 		ERRDRV("visor_memregion_write of Tail failed: (status=%d)\n",
 		       rc);
@@ -444,7 +445,7 @@ Away:
 EXPORT_SYMBOL_GPL(visorchannel_signalremove);
 
 BOOL
-visorchannel_signalinsert(VISORCHANNEL *channel, U32 queue, void *msg)
+visorchannel_signalinsert(VISORCHANNEL *channel, u32 queue, void *msg)
 {
 	BOOL rc = FALSE;
 	SIGNAL_QUEUE_HEADER sig_hdr;
@@ -477,7 +478,7 @@ visorchannel_signalinsert(VISORCHANNEL *channel, U32 queue, void *msg)
 	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
 	 * update host memory.
 	 */
-	MEMORYBARRIER;
+	mb(); /* required for channel synch */
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Head)) {
 		ERRDRV("visor_memregion_write of Head failed: (status=%d)\n",
 		       rc);
@@ -498,11 +499,11 @@ EXPORT_SYMBOL_GPL(visorchannel_signalinsert);
 
 
 int
-visorchannel_signalqueue_slots_avail(VISORCHANNEL *channel, U32 queue)
+visorchannel_signalqueue_slots_avail(VISORCHANNEL *channel, u32 queue)
 {
 	SIGNAL_QUEUE_HEADER sig_hdr;
-	U32 slots_avail, slots_used;
-	U32 head, tail;
+	u32 slots_avail, slots_used;
+	u32 head, tail;
 
 	if (!sig_read_header(channel, queue, &sig_hdr))
 		return 0;
@@ -517,9 +518,10 @@ visorchannel_signalqueue_slots_avail(VISORCHANNEL *channel, U32 queue)
 EXPORT_SYMBOL_GPL(visorchannel_signalqueue_slots_avail);
 
 int
-visorchannel_signalqueue_max_slots(VISORCHANNEL *channel, U32 queue)
+visorchannel_signalqueue_max_slots(VISORCHANNEL *channel, u32 queue)
 {
 	SIGNAL_QUEUE_HEADER sig_hdr;
+
 	if (!sig_read_header(channel, queue, &sig_hdr))
 		return 0;
 	return (int) sig_hdr.MaxSignals;
@@ -552,7 +554,7 @@ sigqueue_debug(SIGNAL_QUEUE_HEADER *q, int which, struct seq_file *seq)
 
 void
 visorchannel_debug(VISORCHANNEL *channel, int nQueues,
-		   struct seq_file *seq, U32 off)
+		   struct seq_file *seq, u32 off)
 {
 	HOSTADDRESS addr = 0;
 	ulong nbytes = 0, nbytes_region = 0;
@@ -612,6 +614,7 @@ visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 	else
 		for (i = 0; i < nQueues; i++) {
 			SIGNAL_QUEUE_HEADER q;
+
 			errcode = visorchannel_read(channel,
 						    off + phdr->oChannelSpace +
 						    (i * sizeof(q)),

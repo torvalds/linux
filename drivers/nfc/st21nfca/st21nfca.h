@@ -19,6 +19,8 @@
 
 #include <net/nfc/hci.h>
 
+#include "st21nfca_dep.h"
+
 #define HCI_MODE 0
 
 /* framing in HCI mode */
@@ -73,15 +75,16 @@ struct st21nfca_hci_info {
 	data_exchange_cb_t async_cb;
 	void *async_cb_context;
 
-} __packed;
+	struct st21nfca_dep_info dep_info;
+};
 
 /* Reader RF commands */
 #define ST21NFCA_WR_XCHG_DATA            0x10
 
 #define ST21NFCA_RF_READER_F_GATE               0x14
-#define ST21NFCA_RF_READER_F_DATARATE 0x01
-#define ST21NFCA_RF_READER_F_DATARATE_106 0x01
-#define ST21NFCA_RF_READER_F_DATARATE_212 0x02
-#define ST21NFCA_RF_READER_F_DATARATE_424 0x04
+
+#define ST21NFCA_RF_CARD_F_GATE 0x24
+
+#define ST21NFCA_EVT_SEND_DATA 0x10
 
 #endif /* __LOCAL_ST21NFCA_H_ */

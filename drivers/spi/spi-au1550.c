@@ -141,13 +141,13 @@ static inline void au1550_spi_mask_ack_all(struct au1550_spi *hw)
 		  PSC_SPIMSK_MM | PSC_SPIMSK_RR | PSC_SPIMSK_RO
 		| PSC_SPIMSK_RU | PSC_SPIMSK_TR | PSC_SPIMSK_TO
 		| PSC_SPIMSK_TU | PSC_SPIMSK_SD | PSC_SPIMSK_MD;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	hw->regs->psc_spievent =
 		  PSC_SPIEVNT_MM | PSC_SPIEVNT_RR | PSC_SPIEVNT_RO
 		| PSC_SPIEVNT_RU | PSC_SPIEVNT_TR | PSC_SPIEVNT_TO
 		| PSC_SPIEVNT_TU | PSC_SPIEVNT_SD | PSC_SPIEVNT_MD;
-	au_sync();
+	wmb(); /* drain writebuffer */
 }
 
 static void au1550_spi_reset_fifos(struct au1550_spi *hw)
@@ -155,10 +155,10 @@ static void au1550_spi_reset_fifos(struct au1550_spi *hw)
 	u32 pcr;
 
 	hw->regs->psc_spipcr = PSC_SPIPCR_RC | PSC_SPIPCR_TC;
-	au_sync();
+	wmb(); /* drain writebuffer */
 	do {
 		pcr = hw->regs->psc_spipcr;
-		au_sync();
+		wmb(); /* drain writebuffer */
 	} while (pcr != 0);
 }
 
@@ -188,9 +188,9 @@ static void au1550_spi_chipsel(struct spi_device *spi, int value)
 		au1550_spi_bits_handlers_set(hw, spi->bits_per_word);
 
 		cfg = hw->regs->psc_spicfg;
-		au_sync();
+		wmb(); /* drain writebuffer */
 		hw->regs->psc_spicfg = cfg & ~PSC_SPICFG_DE_ENABLE;
-		au_sync();
+		wmb(); /* drain writebuffer */
 
 		if (spi->mode & SPI_CPOL)
 			cfg |= PSC_SPICFG_BI;
@@ -218,10 +218,10 @@ static void au1550_spi_chipsel(struct spi_device *spi, int value)
 		cfg |= au1550_spi_baudcfg(hw, spi->max_speed_hz);
 
 		hw->regs->psc_spicfg = cfg | PSC_SPICFG_DE_ENABLE;
-		au_sync();
+		wmb(); /* drain writebuffer */
 		do {
 			stat = hw->regs->psc_spistat;
-			au_sync();
+			wmb(); /* drain writebuffer */
 		} while ((stat & PSC_SPISTAT_DR) == 0);
 
 		if (hw->pdata->activate_cs)
@@ -252,9 +252,9 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 	au1550_spi_bits_handlers_set(hw, spi->bits_per_word);
 
 	cfg = hw->regs->psc_spicfg;
-	au_sync();
+	wmb(); /* drain writebuffer */
 	hw->regs->psc_spicfg = cfg & ~PSC_SPICFG_DE_ENABLE;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	if (hw->usedma && bpw <= 8)
 		cfg &= ~PSC_SPICFG_DD_DISABLE;
@@ -268,12 +268,12 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 	cfg |= au1550_spi_baudcfg(hw, hz);
 
 	hw->regs->psc_spicfg = cfg;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	if (cfg & PSC_SPICFG_DE_ENABLE) {
 		do {
 			stat = hw->regs->psc_spistat;
-			au_sync();
+			wmb(); /* drain writebuffer */
 		} while ((stat & PSC_SPISTAT_DR) == 0);
 	}
 
@@ -396,11 +396,11 @@ static int au1550_spi_dma_txrxb(struct spi_device *spi, struct spi_transfer *t)
 
 	/* by default enable nearly all events interrupt */
 	hw->regs->psc_spimsk = PSC_SPIMSK_SD;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	/* start the transfer */
 	hw->regs->psc_spipcr = PSC_SPIPCR_MS;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	wait_for_completion(&hw->master_done);
 
@@ -429,7 +429,7 @@ static irqreturn_t au1550_spi_dma_irq_callback(struct au1550_spi *hw)
 
 	stat = hw->regs->psc_spistat;
 	evnt = hw->regs->psc_spievent;
-	au_sync();
+	wmb(); /* drain writebuffer */
 	if ((stat & PSC_SPISTAT_DI) == 0) {
 		dev_err(hw->dev, "Unexpected IRQ!\n");
 		return IRQ_NONE;
@@ -484,7 +484,7 @@ static irqreturn_t au1550_spi_dma_irq_callback(struct au1550_spi *hw)
 static void au1550_spi_rx_word_##size(struct au1550_spi *hw)		\
 {									\
 	u32 fifoword = hw->regs->psc_spitxrx & (u32)(mask);		\
-	au_sync();							\
+	wmb(); /* drain writebuffer */					\
 	if (hw->rx) {							\
 		*(u##size *)hw->rx = (u##size)fifoword;			\
 		hw->rx += (size) / 8;					\
@@ -504,7 +504,7 @@ static void au1550_spi_tx_word_##size(struct au1550_spi *hw)		\
 	if (hw->tx_count >= hw->len)					\
 		fifoword |= PSC_SPITXRX_LC;				\
 	hw->regs->psc_spitxrx = fifoword;				\
-	au_sync();							\
+	wmb(); /* drain writebuffer */					\
 }
 
 AU1550_SPI_RX_WORD(8,0xff)
@@ -539,18 +539,18 @@ static int au1550_spi_pio_txrxb(struct spi_device *spi, struct spi_transfer *t)
 		}
 
 		stat = hw->regs->psc_spistat;
-		au_sync();
+		wmb(); /* drain writebuffer */
 		if (stat & PSC_SPISTAT_TF)
 			break;
 	}
 
 	/* enable event interrupts */
 	hw->regs->psc_spimsk = mask;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	/* start the transfer */
 	hw->regs->psc_spipcr = PSC_SPIPCR_MS;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	wait_for_completion(&hw->master_done);
 
@@ -564,7 +564,7 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 
 	stat = hw->regs->psc_spistat;
 	evnt = hw->regs->psc_spievent;
-	au_sync();
+	wmb(); /* drain writebuffer */
 	if ((stat & PSC_SPISTAT_DI) == 0) {
 		dev_err(hw->dev, "Unexpected IRQ!\n");
 		return IRQ_NONE;
@@ -594,7 +594,7 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 	do {
 		busy = 0;
 		stat = hw->regs->psc_spistat;
-		au_sync();
+		wmb(); /* drain writebuffer */
 
 		/*
 		 * Take care to not let the Rx FIFO overflow.
@@ -615,7 +615,7 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 	} while (busy);
 
 	hw->regs->psc_spievent = PSC_SPIEVNT_RR | PSC_SPIEVNT_TR;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	/*
 	 * Restart the SPI transmission in case of a transmit underflow.
@@ -634,9 +634,9 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 	 */
 	if (evnt & PSC_SPIEVNT_TU) {
 		hw->regs->psc_spievent = PSC_SPIEVNT_TU | PSC_SPIEVNT_MD;
-		au_sync();
+		wmb(); /* drain writebuffer */
 		hw->regs->psc_spipcr = PSC_SPIPCR_MS;
-		au_sync();
+		wmb(); /* drain writebuffer */
 	}
 
 	if (hw->rx_count >= hw->len) {
@@ -690,19 +690,19 @@ static void au1550_spi_setup_psc_as_spi(struct au1550_spi *hw)
 
 	/* set up the PSC for SPI mode */
 	hw->regs->psc_ctrl = PSC_CTRL_DISABLE;
-	au_sync();
+	wmb(); /* drain writebuffer */
 	hw->regs->psc_sel = PSC_SEL_PS_SPIMODE;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	hw->regs->psc_spicfg = 0;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	hw->regs->psc_ctrl = PSC_CTRL_ENABLE;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	do {
 		stat = hw->regs->psc_spistat;
-		au_sync();
+		wmb(); /* drain writebuffer */
 	} while ((stat & PSC_SPISTAT_SR) == 0);
 
 
@@ -717,16 +717,16 @@ static void au1550_spi_setup_psc_as_spi(struct au1550_spi *hw)
 #endif
 
 	hw->regs->psc_spicfg = cfg;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	au1550_spi_mask_ack_all(hw);
 
 	hw->regs->psc_spicfg |= PSC_SPICFG_DE_ENABLE;
-	au_sync();
+	wmb(); /* drain writebuffer */
 
 	do {
 		stat = hw->regs->psc_spistat;
-		au_sync();
+		wmb(); /* drain writebuffer */
 	} while ((stat & PSC_SPISTAT_DR) == 0);
 
 	au1550_spi_reset_fifos(hw);
@@ -925,8 +925,7 @@ err_no_txdma:
 	iounmap((void __iomem *)hw->regs);
 
 err_ioremap:
-	release_resource(hw->ioarea);
-	kfree(hw->ioarea);
+	release_mem_region(r->start, sizeof(psc_spi_t));
 
 err_no_iores:
 err_no_pdata:
@@ -946,8 +945,7 @@ static int au1550_spi_remove(struct platform_device *pdev)
 	spi_bitbang_stop(&hw->bitbang);
 	free_irq(hw->irq, hw);
 	iounmap((void __iomem *)hw->regs);
-	release_resource(hw->ioarea);
-	kfree(hw->ioarea);
+	release_mem_region(hw->ioarea->start, sizeof(psc_spi_t));
 
 	if (hw->usedma) {
 		au1550_spi_dma_rxtmp_free(hw);

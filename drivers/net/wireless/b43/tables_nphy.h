@@ -165,6 +165,10 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 #define B43_NTAB_C1_LOFEEDTH_R3		B43_NTAB16(27, 448) /* Local Oscillator Feed Through lookup 1 */
 #define B43_NTAB_C1_PAPD_COMP_R3	B43_NTAB16(27, 576)
 
+/* Static N-PHY tables, PHY revision >= 7 */
+#define B43_NTAB_TMAP_R7		B43_NTAB32(12,   0) /* TM AP */
+#define B43_NTAB_NOISEVAR_R7		B43_NTAB32(16,   0) /* noise variance */
+
 #define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_40_SIZE	18
 #define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_20_SIZE	18
 #define B43_NTAB_TX_IQLO_CAL_IQIMB_LADDER_40_SIZE	18
@@ -186,6 +190,8 @@ void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 void b43_nphy_tables_init(struct b43_wldev *dev);
 
 const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev);
+
+const s16 *b43_ntab_get_rf_pwr_offset_table(struct b43_wldev *dev);
 
 extern const s8 b43_ntab_papd_pga_gain_delta_ipa_2g[];
 

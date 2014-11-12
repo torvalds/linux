@@ -80,7 +80,7 @@ static void ath9k_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 	u8 chainmask = ah->txchainmask;
 	u8 rate = 0;
 
-	sband = &common->sbands[common->hw->conf.chandef.chan->band];
+	sband = &common->sbands[sc->cur_chandef.chan->band];
 	rate = sband->bitrates[rateidx].hw_value;
 	if (vif->bss_conf.use_short_preamble)
 		rate |= sband->bitrates[rateidx].hw_value_short;
@@ -144,16 +144,11 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 	mgmt_hdr->u.beacon.timestamp = avp->tsf_adjust;
 
 	info = IEEE80211_SKB_CB(skb);
-	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		/*
-		 * TODO: make sure the seq# gets assigned properly (vs. other
-		 * TX frames)
-		 */
-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-		sc->tx.seq_no += 0x10;
-		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(sc->tx.seq_no);
-	}
+
+	ath_assign_seq(common, skb);
+
+	if (vif->p2p)
+		ath9k_beacon_add_noa(sc, avp, skb);
 
 	bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
 					 skb->len, DMA_TO_DEVICE);
@@ -180,7 +175,7 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 	spin_unlock_bh(&cabq->axq_lock);
 
 	if (skb && cabq_depth) {
-		if (sc->nvifs > 1) {
+		if (sc->cur_chan->nvifs > 1) {
 			ath_dbg(common, BEACON,
 				"Flushing previous cabq traffic\n");
 			ath_draintxq(sc, cabq);
@@ -249,7 +244,7 @@ void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif)
 static int ath9k_beacon_choose_slot(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 	u16 intval;
 	u32 tsftu;
 	u64 tsf;
@@ -277,8 +272,8 @@ static int ath9k_beacon_choose_slot(struct ath_softc *sc)
 static void ath9k_set_tsfadjust(struct ath_softc *sc, struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
 	struct ath_vif *avp = (void *)vif->drv_priv;
+	struct ath_beacon_config *cur_conf = &avp->chanctx->beacon;
 	u32 tsfadjust;
 
 	if (avp->av_bslot == 0)
@@ -374,11 +369,22 @@ void ath9k_beacon_tasklet(unsigned long data)
 	vif = sc->beacon.bslot[slot];
 
 	/* EDMA devices check that in the tx completion function. */
-	if (!edma && ath9k_csa_is_finished(sc, vif))
-		return;
+	if (!edma) {
+		if (ath9k_is_chanctx_enabled()) {
+			ath_chanctx_beacon_sent_ev(sc,
+					  ATH_CHANCTX_EVENT_BEACON_SENT);
+		}
+
+		if (ath9k_csa_is_finished(sc, vif))
+			return;
+	}
 
 	if (!vif || !vif->bss_conf.enable_beacon)
 		return;
+
+	if (ath9k_is_chanctx_enabled()) {
+		ath_chanctx_event(sc, vif, ATH_CHANCTX_EVENT_BEACON_PREPARE);
+	}
 
 	bf = ath9k_beacon_generate(sc->hw, vif);
 
@@ -502,6 +508,17 @@ static bool ath9k_allow_beacon_config(struct ath_softc *sc,
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 
+	if (ath9k_is_chanctx_enabled()) {
+		/*
+		 * If the VIF is not present in the current channel context,
+		 * then we can't do the usual opmode checks. Allow the
+		 * beacon config for the VIF to be updated in this case and
+		 * return immediately.
+		 */
+		if (sc->cur_chan != avp->chanctx)
+			return true;
+	}
+
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
 		if ((vif->type != NL80211_IFTYPE_AP) ||
 		    (sc->nbcnvifs > 1)) {
@@ -514,7 +531,7 @@ static bool ath9k_allow_beacon_config(struct ath_softc *sc,
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_STATION) {
 		if ((vif->type == NL80211_IFTYPE_STATION) &&
 		    test_bit(ATH_OP_BEACONS, &common->op_flags) &&
-		    !avp->primary_sta_vif) {
+		    vif != sc->cur_chan->primary_sta) {
 			ath_dbg(common, CONFIG,
 				"Beacon already configured for a station interface\n");
 			return false;
@@ -525,10 +542,11 @@ static bool ath9k_allow_beacon_config(struct ath_softc *sc,
 }
 
 static void ath9k_cache_beacon_config(struct ath_softc *sc,
+				      struct ath_chanctx *ctx,
 				      struct ieee80211_bss_conf *bss_conf)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &ctx->beacon;
 
 	ath_dbg(common, BEACON,
 		"Caching beacon data for BSS: %pM\n", bss_conf->bssid);
@@ -564,20 +582,29 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 			 u32 changed)
 {
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
         struct ath_hw *ah = sc->sc_ah;
         struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	struct ath_chanctx *ctx = avp->chanctx;
+	struct ath_beacon_config *cur_conf;
 	unsigned long flags;
 	bool skip_beacon = false;
 
+	if (!ctx)
+		return;
+
+	cur_conf = &avp->chanctx->beacon;
 	if (vif->type == NL80211_IFTYPE_AP)
 		ath9k_set_tsfadjust(sc, vif);
 
 	if (!ath9k_allow_beacon_config(sc, vif))
 		return;
 
-	if (sc->sc_ah->opmode == NL80211_IFTYPE_STATION) {
-		ath9k_cache_beacon_config(sc, bss_conf);
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		ath9k_cache_beacon_config(sc, ctx, bss_conf);
+		if (ctx != sc->cur_chan)
+			return;
+
 		ath9k_set_beacon(sc);
 		set_bit(ATH_OP_BEACONS, &common->op_flags);
 		return;
@@ -593,9 +620,12 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 			cur_conf->enable_beacon = false;
 		} else if (bss_conf->enable_beacon) {
 			cur_conf->enable_beacon = true;
-			ath9k_cache_beacon_config(sc, bss_conf);
+			ath9k_cache_beacon_config(sc, ctx, bss_conf);
 		}
 	}
+
+	if (ctx != sc->cur_chan)
+		return;
 
 	/*
 	 * Configure the HW beacon registers only when we have a valid
@@ -631,7 +661,7 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 void ath9k_set_beacon(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 
 	switch (sc->sc_ah->opmode) {
 	case NL80211_IFTYPE_AP:

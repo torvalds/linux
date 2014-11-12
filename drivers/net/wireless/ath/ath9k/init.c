@@ -61,9 +61,13 @@ static int ath9k_ps_enable;
 module_param_named(ps_enable, ath9k_ps_enable, int, 0444);
 MODULE_PARM_DESC(ps_enable, "Enable WLAN PowerSave");
 
-static int ath9k_use_chanctx;
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
+int ath9k_use_chanctx;
 module_param_named(use_chanctx, ath9k_use_chanctx, int, 0444);
 MODULE_PARM_DESC(use_chanctx, "Enable channel context for concurrency");
+
+#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
 
 bool is_ath9k_unloaded;
 
@@ -169,9 +173,9 @@ static void ath9k_reg_notifier(struct wiphy *wiphy,
 
 	/* Set tx power */
 	if (ah->curchan) {
-		sc->config.txpowlimit = 2 * ah->curchan->chan->max_power;
+		sc->cur_chan->txpower = 2 * ah->curchan->chan->max_power;
 		ath9k_ps_wakeup(sc);
-		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
+		ath9k_hw_set_txpowerlimit(ah, sc->cur_chan->txpower, false);
 		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
 		/* synchronize DFS detector if regulatory domain changed */
 		if (sc->dfs_detector != NULL)
@@ -335,7 +339,6 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
 	common->last_rssi = ATH_RSSI_DUMMY_MARKER;
-	sc->config.txpowlimit = ATH_TXPOWER_MAX;
 	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;
 
@@ -511,6 +514,9 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	sc->dfs_detector = dfs_pattern_detector_init(common, NL80211_DFS_UNSET);
 	sc->tx99_power = MAX_RATE_POWER + 1;
 	init_waitqueue_head(&sc->tx_wait);
+	sc->cur_chan = &sc->chanctx[0];
+	if (!ath9k_is_chanctx_enabled())
+		sc->cur_chan->hw_queue_base = 0;
 
 	if (!pdata || pdata->use_eeprom) {
 		ah->ah_flags |= AH_USE_EEPROM;
@@ -556,6 +562,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	spin_lock_init(&common->cc_lock);
 	spin_lock_init(&sc->sc_serial_rw);
 	spin_lock_init(&sc->sc_pm_lock);
+	spin_lock_init(&sc->chan_lock);
 	mutex_init(&sc->mutex);
 	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
 	tasklet_init(&sc->bcon_tasklet, ath9k_beacon_tasklet,
@@ -565,6 +572,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
 	INIT_DELAYED_WORK(&sc->hw_pll_work, ath_hw_pll_work);
+
+	ath9k_init_channel_context(sc);
 
 	/*
 	 * Cache line size is used to size and align various
@@ -593,12 +602,15 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	if (ret)
 		goto err_btcoex;
 
-	sc->p2p_ps_timer = ath_gen_timer_alloc(sc->sc_ah, ath9k_p2p_ps_timer,
-		NULL, sc, AR_FIRST_NDP_TIMER);
+	ret = ath9k_init_p2p(sc);
+	if (ret)
+		goto err_btcoex;
 
 	ath9k_cmn_init_crypto(sc->sc_ah);
 	ath9k_init_misc(sc);
 	ath_fill_led_pin(sc);
+	ath_chanctx_init(sc);
+	ath9k_offchannel_init(sc);
 
 	if (common->bus_ops->aspm_init)
 		common->bus_ops->aspm_init(common);
@@ -664,6 +676,28 @@ static const struct ieee80211_iface_limit wds_limits[] = {
 	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_WDS) },
 };
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
+static const struct ieee80211_iface_limit if_limits_multi[] = {
+	{ .max = 2,	.types = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				 BIT(NL80211_IFTYPE_P2P_GO) },
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_ADHOC) },
+};
+
+static const struct ieee80211_iface_combination if_comb_multi[] = {
+	{
+		.limits = if_limits_multi,
+		.n_limits = ARRAY_SIZE(if_limits_multi),
+		.max_interfaces = 2,
+		.num_different_channels = 2,
+		.beacon_int_infra_match = true,
+	},
+};
+
+#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
+
 static const struct ieee80211_iface_limit if_dfs_limits[] = {
 	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) |
 #ifdef CONFIG_MAC80211_MESH
@@ -700,6 +734,32 @@ static const struct ieee80211_iface_combination if_comb[] = {
 #endif
 };
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+static void ath9k_set_mcc_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!ath9k_is_chanctx_enabled())
+		return;
+
+	hw->flags |= IEEE80211_HW_QUEUE_CONTROL;
+	hw->queues = ATH9K_NUM_TX_QUEUES;
+	hw->offchannel_tx_hw_queue = hw->queues - 1;
+	hw->wiphy->interface_modes &= ~ BIT(NL80211_IFTYPE_WDS);
+	hw->wiphy->iface_combinations = if_comb_multi;
+	hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_multi);
+	hw->wiphy->max_scan_ssids = 255;
+	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+	hw->wiphy->max_remain_on_channel_duration = 10000;
+	hw->chanctx_data_size = sizeof(void *);
+	hw->extra_beacon_tailroom =
+		sizeof(struct ieee80211_p2p_noa_attr) + 9;
+
+	ath_dbg(common, CHAN_CTX, "Use channel contexts\n");
+}
+#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
+
 static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -728,8 +788,9 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	if (AR_SREV_9160_10_OR_LATER(sc->sc_ah) || ath9k_modparam_nohwcrypt)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
 
-	hw->wiphy->features |= (NL80211_FEATURE_ACTIVE_MONITOR |
-				NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE);
+	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR |
+			       NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE |
+			       NL80211_FEATURE_P2P_GO_CTWIN;
 
 	if (!config_enabled(CONFIG_ATH9K_TX99)) {
 		hw->wiphy->interface_modes =
@@ -738,13 +799,11 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			BIT(NL80211_IFTYPE_AP) |
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_ADHOC) |
-			BIT(NL80211_IFTYPE_MESH_POINT);
-		hw->wiphy->iface_combinations = if_comb;
-		if (!ath9k_use_chanctx) {
+			BIT(NL80211_IFTYPE_MESH_POINT) |
+			BIT(NL80211_IFTYPE_WDS);
+
+			hw->wiphy->iface_combinations = if_comb;
 			hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
-			hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_WDS);
-		} else
-			hw->wiphy->n_iface_combinations = 1;
 	}
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -758,7 +817,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	hw->queues = 4;
 	hw->max_rates = 4;
-	hw->max_listen_interval = 1;
+	hw->max_listen_interval = 10;
 	hw->max_rate_tries = 10;
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vif);
@@ -780,6 +839,9 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&common->sbands[IEEE80211_BAND_5GHZ];
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+	ath9k_set_mcc_capab(sc, hw);
+#endif
 	ath9k_init_wow(hw);
 	ath9k_cmn_reload_chainmask(ah);
 
@@ -876,9 +938,7 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 {
 	int i = 0;
 
-	if (sc->p2p_ps_timer)
-		ath_gen_timer_free(sc->sc_ah, sc->p2p_ps_timer);
-
+	ath9k_deinit_p2p(sc);
 	ath9k_deinit_btcoex(sc);
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)

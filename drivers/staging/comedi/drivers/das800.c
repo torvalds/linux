@@ -65,7 +65,6 @@ cmd triggers supported:
 #include "8253.h"
 #include "comedi_fc.h"
 
-#define DAS800_SIZE           8
 #define N_CHAN_AI             8	/*  number of analog input channels */
 
 /* Registers for the das800 */
@@ -249,7 +248,7 @@ static unsigned das800_ind_read(struct comedi_device *dev, unsigned reg)
 
 static void das800_enable(struct comedi_device *dev)
 {
-	const struct das800_board *thisboard = comedi_board(dev);
+	const struct das800_board *thisboard = dev->board_ptr;
 	struct das800_private *devpriv = dev->private;
 	unsigned long irq_flags;
 
@@ -326,7 +325,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_cmd *cmd)
 {
-	const struct das800_board *thisboard = comedi_board(dev);
+	const struct das800_board *thisboard = dev->board_ptr;
 	struct das800_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
@@ -399,7 +398,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 static int das800_ai_do_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	const struct das800_board *thisboard = comedi_board(dev);
+	const struct das800_board *thisboard = dev->board_ptr;
 	struct das800_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -634,7 +633,7 @@ static int das800_do_insn_bits(struct comedi_device *dev,
 
 static int das800_probe(struct comedi_device *dev)
 {
-	const struct das800_board *thisboard = comedi_board(dev);
+	const struct das800_board *thisboard = dev->board_ptr;
 	int board = thisboard ? thisboard - das800_boards : -EINVAL;
 	int id_bits;
 	unsigned long irq_flags;
@@ -686,7 +685,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	ret = comedi_request_region(dev, it->options[0], DAS800_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x8);
 	if (ret)
 		return ret;
 
@@ -696,7 +695,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENODEV;
 	}
 	dev->board_ptr = das800_boards + board;
-	thisboard = comedi_board(dev);
+	thisboard = dev->board_ptr;
 	dev->board_name = thisboard->name;
 
 	if (irq > 1 && irq <= 7) {

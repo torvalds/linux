@@ -1,5 +1,6 @@
 /*
  * Copyright 2004, Instant802 Networks, Inc.
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -118,7 +119,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_AP_VLAN:
 		sta = rcu_dereference(sdata->u.vlan.sta);
 		if (sta) {
-			qos = test_sta_flag(sta, WLAN_STA_WME);
+			qos = sta->sta.wme;
 			break;
 		}
 	case NL80211_IFTYPE_AP:
@@ -145,7 +146,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 	if (!sta && ra && !is_multicast_ether_addr(ra)) {
 		sta = sta_info_get(sdata, ra);
 		if (sta)
-			qos = test_sta_flag(sta, WLAN_STA_WME);
+			qos = sta->sta.wme;
 	}
 	rcu_read_unlock();
 

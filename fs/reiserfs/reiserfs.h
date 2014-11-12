@@ -506,6 +506,9 @@ typedef struct reiserfs_proc_info_data {
 } reiserfs_proc_info_data_t;
 #endif
 
+/* Number of quota types we support */
+#define REISERFS_MAXQUOTAS 2
+
 /* reiserfs union of in-core super block data */
 struct reiserfs_sb_info {
 	/* Buffer containing the super block */
@@ -615,7 +618,7 @@ struct reiserfs_sb_info {
 	spinlock_t old_work_lock;     /* protects old_work and work_queued */
 
 #ifdef CONFIG_QUOTA
-	char *s_qf_names[MAXQUOTAS];
+	char *s_qf_names[REISERFS_MAXQUOTAS];
 	int s_jquota_fmt;
 #endif
 	char *s_jdev;		/* Stored jdev for mount option showing */
@@ -3216,11 +3219,12 @@ int leaf_shift_right(struct tree_balance *tb, int shift_num, int shift_bytes);
 void leaf_delete_items(struct buffer_info *cur_bi, int last_first, int first,
 		       int del_num, int del_bytes);
 void leaf_insert_into_buf(struct buffer_info *bi, int before,
-			  struct item_head *inserted_item_ih,
-			  const char *inserted_item_body, int zeros_number);
-void leaf_paste_in_buffer(struct buffer_info *bi, int pasted_item_num,
-			  int pos_in_item, int paste_size, const char *body,
+			  struct item_head * const inserted_item_ih,
+			  const char * const inserted_item_body,
 			  int zeros_number);
+void leaf_paste_in_buffer(struct buffer_info *bi, int pasted_item_num,
+			  int pos_in_item, int paste_size,
+			  const char * const body, int zeros_number);
 void leaf_cut_from_buffer(struct buffer_info *bi, int cut_item_num,
 			  int pos_in_item, int cut_size);
 void leaf_paste_entries(struct buffer_info *bi, int item_num, int before,

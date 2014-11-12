@@ -40,11 +40,11 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_fid.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
 #include <linux/list.h>
-#include <cl_object.h>
+#include "../include/cl_object.h"
 #include "cl_internal.h"
 
 /** Lock class of cl_lock::cll_guard */
@@ -1938,7 +1938,7 @@ int cl_lock_discard_pages(const struct lu_env *env, struct cl_lock *lock)
 	io->ci_ignore_layout = 1;
 	result = cl_io_init(env, io, CIT_MISC, io->ci_obj);
 	if (result != 0)
-		GOTO(out, result);
+		goto out;
 
 	cb = descr->cld_mode == CLM_READ ? check_and_discard_cb : discard_cb;
 	info->clt_fn_index = info->clt_next_index = descr->cld_start;

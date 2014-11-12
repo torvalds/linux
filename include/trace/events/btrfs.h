@@ -23,6 +23,7 @@ struct map_lookup;
 struct extent_buffer;
 struct btrfs_work;
 struct __btrfs_workqueue;
+struct btrfs_qgroup_operation;
 
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
@@ -157,12 +158,13 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 
 #define show_map_flags(flag)						\
 	__print_flags(flag, "|",					\
-		{ EXTENT_FLAG_PINNED, 		"PINNED" 	},	\
-		{ EXTENT_FLAG_COMPRESSED, 	"COMPRESSED" 	},	\
-		{ EXTENT_FLAG_VACANCY, 		"VACANCY" 	},	\
-		{ EXTENT_FLAG_PREALLOC, 	"PREALLOC" 	},	\
-		{ EXTENT_FLAG_LOGGING,	 	"LOGGING" 	},	\
-		{ EXTENT_FLAG_FILLING,	 	"FILLING" 	})
+		{ (1 << EXTENT_FLAG_PINNED), 		"PINNED" 	},\
+		{ (1 << EXTENT_FLAG_COMPRESSED), 	"COMPRESSED" 	},\
+		{ (1 << EXTENT_FLAG_VACANCY), 		"VACANCY" 	},\
+		{ (1 << EXTENT_FLAG_PREALLOC), 		"PREALLOC" 	},\
+		{ (1 << EXTENT_FLAG_LOGGING),	 	"LOGGING" 	},\
+		{ (1 << EXTENT_FLAG_FILLING),	 	"FILLING" 	},\
+		{ (1 << EXTENT_FLAG_FS_MAPPING),	"FS_MAPPING"	})
 
 TRACE_EVENT_CONDITION(btrfs_get_extent,
 
@@ -996,6 +998,7 @@ DECLARE_EVENT_CLASS(btrfs__work,
 		__field(	void *,	func			)
 		__field(	void *,	ordered_func		)
 		__field(	void *,	ordered_free		)
+		__field(	void *,	normal_work		)
 	),
 
 	TP_fast_assign(
@@ -1004,11 +1007,13 @@ DECLARE_EVENT_CLASS(btrfs__work,
 		__entry->func		= work->func;
 		__entry->ordered_func	= work->ordered_func;
 		__entry->ordered_free	= work->ordered_free;
+		__entry->normal_work	= &work->normal_work;
 	),
 
-	TP_printk("work=%p, wq=%p, func=%p, ordered_func=%p, ordered_free=%p",
-		  __entry->work, __entry->wq, __entry->func,
-		  __entry->ordered_func, __entry->ordered_free)
+	TP_printk("work=%p (normal_work=%p), wq=%p, func=%pf, ordered_func=%p,"
+		  " ordered_free=%p",
+		  __entry->work, __entry->normal_work, __entry->wq,
+		   __entry->func, __entry->ordered_func, __entry->ordered_free)
 );
 
 /* For situiations that the work is freed */
@@ -1037,13 +1042,6 @@ DEFINE_EVENT(btrfs__work, btrfs_work_queued,
 );
 
 DEFINE_EVENT(btrfs__work, btrfs_work_sched,
-
-	TP_PROTO(struct btrfs_work *work),
-
-	TP_ARGS(work)
-);
-
-DEFINE_EVENT(btrfs__work, btrfs_normal_work_done,
 
 	TP_PROTO(struct btrfs_work *work),
 
@@ -1117,6 +1115,61 @@ DEFINE_EVENT(btrfs__workqueue_done, btrfs_workqueue_destroy,
 	TP_PROTO(struct __btrfs_workqueue *wq),
 
 	TP_ARGS(wq)
+);
+
+#define show_oper_type(type)						\
+	__print_symbolic(type,						\
+		{ BTRFS_QGROUP_OPER_ADD_EXCL, 	"OPER_ADD_EXCL" },	\
+		{ BTRFS_QGROUP_OPER_ADD_SHARED, "OPER_ADD_SHARED" },	\
+		{ BTRFS_QGROUP_OPER_SUB_EXCL, 	"OPER_SUB_EXCL" },	\
+		{ BTRFS_QGROUP_OPER_SUB_SHARED,	"OPER_SUB_SHARED" })
+
+DECLARE_EVENT_CLASS(btrfs_qgroup_oper,
+
+	TP_PROTO(struct btrfs_qgroup_operation *oper),
+
+	TP_ARGS(oper),
+
+	TP_STRUCT__entry(
+		__field(	u64,  ref_root		)
+		__field(	u64,  bytenr		)
+		__field(	u64,  num_bytes		)
+		__field(	u64,  seq		)
+		__field(	int,  type		)
+		__field(	u64,  elem_seq		)
+	),
+
+	TP_fast_assign(
+		__entry->ref_root	= oper->ref_root;
+		__entry->bytenr		= oper->bytenr,
+		__entry->num_bytes	= oper->num_bytes;
+		__entry->seq 		= oper->seq;
+		__entry->type		= oper->type;
+		__entry->elem_seq	= oper->elem.seq;
+	),
+
+	TP_printk("ref_root = %llu, bytenr = %llu, num_bytes = %llu, "
+		  "seq = %llu, elem.seq = %llu, type = %s",
+		  (unsigned long long)__entry->ref_root,
+		  (unsigned long long)__entry->bytenr,
+		  (unsigned long long)__entry->num_bytes,
+		  (unsigned long long)__entry->seq,
+		  (unsigned long long)__entry->elem_seq,
+		  show_oper_type(__entry->type))
+);
+
+DEFINE_EVENT(btrfs_qgroup_oper, btrfs_qgroup_account,
+
+	TP_PROTO(struct btrfs_qgroup_operation *oper),
+
+	TP_ARGS(oper)
+);
+
+DEFINE_EVENT(btrfs_qgroup_oper, btrfs_qgroup_record_ref,
+
+	TP_PROTO(struct btrfs_qgroup_operation *oper),
+
+	TP_ARGS(oper)
 );
 
 #endif /* _TRACE_BTRFS_H */

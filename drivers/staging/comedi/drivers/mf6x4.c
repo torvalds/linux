@@ -58,7 +58,6 @@
 #define MF6X4_DA7_R					0x2e
 /* Map DAC cahnnel id to real HW-dependent offset value */
 #define MF6X4_DAC_R(x)					(0x20 + ((x) * 2))
-#define MF6X4_DA_M					0x3fff
 
 /* BAR2 registers */
 #define MF634_GPIOC_R					0x68
@@ -93,7 +92,6 @@ struct mf6x4_private {
 	 * and MF634 yet we will call them 0, 1, 2
 	 */
 	void __iomem *bar0_mem;
-	void __iomem *bar1_mem;
 	void __iomem *bar2_mem;
 
 	/*
@@ -102,31 +100,25 @@ struct mf6x4_private {
 	 * offsets -- this variable makes the access easier
 	 */
 	void __iomem *gpioc_R;
-
-	/* DAC value cache -- used for insn_read function */
-	int ao_readback[8];
 };
 
 static int mf6x4_di_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct mf6x4_private *devpriv = dev->private;
-
-	data[1] = ioread16(devpriv->bar1_mem + MF6X4_DIN_R) & MF6X4_DIN_M;
+	data[1] = ioread16(dev->mmio + MF6X4_DIN_R) & MF6X4_DIN_M;
 
 	return insn->n;
 }
 
 static int mf6x4_do_insn_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct mf6x4_private *devpriv = dev->private;
-
 	if (comedi_dio_update_state(s, data))
-		iowrite16(s->state & MF6X4_DOUT_M,
-			  devpriv->bar1_mem + MF6X4_DOUT_R);
+		iowrite16(s->state & MF6X4_DOUT_M, dev->mmio + MF6X4_DOUT_R);
 
 	data[1] = s->state;
 
@@ -149,43 +141,44 @@ static int mf6x4_ai_eoc(struct comedi_device *dev,
 
 static int mf6x4_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct mf6x4_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 	int ret;
 	int i;
 	int d;
 
 	/* Set the ADC channel number in the scan list */
-	iowrite16((1 << chan) & MF6X4_ADCTRL_M,
-		  devpriv->bar1_mem + MF6X4_ADCTRL_R);
+	iowrite16((1 << chan) & MF6X4_ADCTRL_M, dev->mmio + MF6X4_ADCTRL_R);
 
 	for (i = 0; i < insn->n; i++) {
 		/* Trigger ADC conversion by reading ADSTART */
-		ioread16(devpriv->bar1_mem + MF6X4_ADSTART_R);
+		ioread16(dev->mmio + MF6X4_ADSTART_R);
 
 		ret = comedi_timeout(dev, s, insn, mf6x4_ai_eoc, 0);
 		if (ret)
 			return ret;
 
 		/* Read the actual value */
-		d = ioread16(devpriv->bar1_mem + MF6X4_ADDATA_R);
+		d = ioread16(dev->mmio + MF6X4_ADDATA_R);
 		d &= s->maxdata;
 		data[i] = d;
 	}
 
-	iowrite16(0x0, devpriv->bar1_mem + MF6X4_ADCTRL_R);
+	iowrite16(0x0, dev->mmio + MF6X4_ADCTRL_R);
 
 	return insn->n;
 }
 
 static int mf6x4_ao_insn_write(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct mf6x4_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	uint32_t gpioc;
 	int i;
 
@@ -195,25 +188,10 @@ static int mf6x4_ao_insn_write(struct comedi_device *dev,
 		  devpriv->gpioc_R);
 
 	for (i = 0; i < insn->n; i++) {
-		iowrite16(data[i] & MF6X4_DA_M,
-			  devpriv->bar1_mem + MF6X4_DAC_R(chan));
-
-		devpriv->ao_readback[chan] = data[i];
+		val = data[i];
+		iowrite16(val, dev->mmio + MF6X4_DAC_R(chan));
 	}
-
-	return insn->n;
-}
-
-static int mf6x4_ao_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
-{
-	struct mf6x4_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
+	s->readback[chan] = val;
 
 	return insn->n;
 }
@@ -246,8 +224,8 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 	if (!devpriv->bar0_mem)
 		return -ENODEV;
 
-	devpriv->bar1_mem = pci_ioremap_bar(pcidev, board->bar_nums[1]);
-	if (!devpriv->bar1_mem)
+	dev->mmio = pci_ioremap_bar(pcidev, board->bar_nums[1]);
+	if (!dev->mmio)
 		return -ENODEV;
 
 	devpriv->bar2_mem = pci_ioremap_bar(pcidev, board->bar_nums[2]);
@@ -281,7 +259,11 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 	s->maxdata = 0x3fff; /* 14 bits DAC */
 	s->range_table = &range_bipolar10;
 	s->insn_write = mf6x4_ao_insn_write;
-	s->insn_read = mf6x4_ao_insn_read;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* DIN */
 	s = &dev->subdevices[2];
@@ -308,14 +290,13 @@ static void mf6x4_detach(struct comedi_device *dev)
 {
 	struct mf6x4_private *devpriv = dev->private;
 
-	if (devpriv->bar0_mem)
-		iounmap(devpriv->bar0_mem);
-	if (devpriv->bar1_mem)
-		iounmap(devpriv->bar1_mem);
-	if (devpriv->bar2_mem)
-		iounmap(devpriv->bar2_mem);
-
-	comedi_pci_disable(dev);
+	if (devpriv) {
+		if (devpriv->bar0_mem)
+			iounmap(devpriv->bar0_mem);
+		if (devpriv->bar2_mem)
+			iounmap(devpriv->bar2_mem);
+	}
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver mf6x4_driver = {

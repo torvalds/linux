@@ -118,6 +118,9 @@ struct ovs_vport_stats {
 /* Allow last Netlink attribute to be unaligned */
 #define OVS_DP_F_UNALIGNED	(1 << 0)
 
+/* Allow datapath to associate multiple Netlink PIDs to each vport */
+#define OVS_DP_F_VPORT_PIDS	(1 << 1)
+
 /* Fixed logical ports. */
 #define OVSP_LOCAL      ((__u32)0)
 
@@ -189,6 +192,7 @@ enum ovs_vport_type {
 	OVS_VPORT_TYPE_INTERNAL, /* network device implemented by datapath */
 	OVS_VPORT_TYPE_GRE,      /* GRE tunnel. */
 	OVS_VPORT_TYPE_VXLAN,	 /* VXLAN tunnel. */
+	OVS_VPORT_TYPE_GENEVE,	 /* Geneve tunnel. */
 	__OVS_VPORT_TYPE_MAX
 };
 
@@ -203,9 +207,10 @@ enum ovs_vport_type {
  * this is the name of the network device.  Maximum length %IFNAMSIZ-1 bytes
  * plus a null terminator.
  * @OVS_VPORT_ATTR_OPTIONS: Vport-specific configuration information.
- * @OVS_VPORT_ATTR_UPCALL_PID: The Netlink socket in userspace that
- * OVS_PACKET_CMD_MISS upcalls will be directed to for packets received on
- * this port.  A value of zero indicates that upcalls should not be sent.
+ * @OVS_VPORT_ATTR_UPCALL_PID: The array of Netlink socket pids in userspace
+ * among which OVS_PACKET_CMD_MISS upcalls will be distributed for packets
+ * received on this port.  If this is a single-element array of value 0,
+ * upcalls should not be sent.
  * @OVS_VPORT_ATTR_STATS: A &struct ovs_vport_stats giving statistics for
  * packets sent or received through the vport.
  *
@@ -228,7 +233,8 @@ enum ovs_vport_attr {
 	OVS_VPORT_ATTR_TYPE,	/* u32 OVS_VPORT_TYPE_* constant. */
 	OVS_VPORT_ATTR_NAME,	/* string name, up to IFNAMSIZ bytes long */
 	OVS_VPORT_ATTR_OPTIONS, /* nested attributes, varies by vport type */
-	OVS_VPORT_ATTR_UPCALL_PID, /* u32 Netlink PID to receive upcalls */
+	OVS_VPORT_ATTR_UPCALL_PID, /* array of u32 Netlink socket PIDs for */
+				/* receiving upcalls */
 	OVS_VPORT_ATTR_STATS,	/* struct ovs_vport_stats */
 	__OVS_VPORT_ATTR_MAX
 };
@@ -284,9 +290,12 @@ enum ovs_key_attr {
 	OVS_KEY_ATTR_TUNNEL,    /* Nested set of ovs_tunnel attributes */
 	OVS_KEY_ATTR_SCTP,      /* struct ovs_key_sctp */
 	OVS_KEY_ATTR_TCP_FLAGS,	/* be16 TCP flags. */
+	OVS_KEY_ATTR_DP_HASH,      /* u32 hash value. Value 0 indicates the hash
+				   is not computed by the datapath. */
+	OVS_KEY_ATTR_RECIRC_ID, /* u32 recirc id */
 
 #ifdef __KERNEL__
-	OVS_KEY_ATTR_IPV4_TUNNEL,  /* struct ovs_key_ipv4_tunnel */
+	OVS_KEY_ATTR_TUNNEL_INFO,  /* struct ovs_tunnel_info */
 #endif
 	__OVS_KEY_ATTR_MAX
 };
@@ -301,6 +310,8 @@ enum ovs_tunnel_key_attr {
 	OVS_TUNNEL_KEY_ATTR_TTL,                /* u8 Tunnel IP TTL. */
 	OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT,      /* No argument, set DF. */
 	OVS_TUNNEL_KEY_ATTR_CSUM,               /* No argument. CSUM packet. */
+	OVS_TUNNEL_KEY_ATTR_OAM,                /* No argument. OAM frame.  */
+	OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS,        /* Array of Geneve options. */
 	__OVS_TUNNEL_KEY_ATTR_MAX
 };
 
@@ -488,6 +499,27 @@ struct ovs_action_push_vlan {
 	__be16 vlan_tci;	/* 802.1Q TCI (VLAN ID and priority). */
 };
 
+/* Data path hash algorithm for computing Datapath hash.
+ *
+ * The algorithm type only specifies the fields in a flow
+ * will be used as part of the hash. Each datapath is free
+ * to use its own hash algorithm. The hash value will be
+ * opaque to the user space daemon.
+ */
+enum ovs_hash_alg {
+	OVS_HASH_ALG_L4,
+};
+
+/*
+ * struct ovs_action_hash - %OVS_ACTION_ATTR_HASH action argument.
+ * @hash_alg: Algorithm used to compute hash prior to recirculation.
+ * @hash_basis: basis used for computing hash.
+ */
+struct ovs_action_hash {
+	uint32_t  hash_alg;     /* One of ovs_hash_alg. */
+	uint32_t  hash_basis;
+};
+
 /**
  * enum ovs_action_attr - Action types.
  *
@@ -516,6 +548,8 @@ enum ovs_action_attr {
 	OVS_ACTION_ATTR_PUSH_VLAN,    /* struct ovs_action_push_vlan. */
 	OVS_ACTION_ATTR_POP_VLAN,     /* No argument. */
 	OVS_ACTION_ATTR_SAMPLE,       /* Nested OVS_SAMPLE_ATTR_*. */
+	OVS_ACTION_ATTR_RECIRC,       /* u32 recirc_id. */
+	OVS_ACTION_ATTR_HASH,	      /* struct ovs_action_hash. */
 	__OVS_ACTION_ATTR_MAX
 };
 

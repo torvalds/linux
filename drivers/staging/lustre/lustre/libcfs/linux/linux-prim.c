@@ -40,7 +40,7 @@
 #include <linux/fs_struct.h>
 #include <linux/sched.h>
 
-#include <linux/libcfs/libcfs.h>
+#include "../../../include/linux/libcfs/libcfs.h"
 
 #if defined(CONFIG_KGDB)
 #include <asm/kgdb.h>
@@ -90,7 +90,7 @@ void cfs_timer_done(struct timer_list *t)
 }
 EXPORT_SYMBOL(cfs_timer_done);
 
-void cfs_timer_arm(struct timer_list *t, cfs_time_t deadline)
+void cfs_timer_arm(struct timer_list *t, unsigned long deadline)
 {
 	mod_timer(t, deadline);
 }
@@ -108,7 +108,7 @@ int  cfs_timer_is_armed(struct timer_list *t)
 }
 EXPORT_SYMBOL(cfs_timer_is_armed);
 
-cfs_time_t cfs_timer_deadline(struct timer_list *t)
+unsigned long cfs_timer_deadline(struct timer_list *t)
 {
 	return t->expires;
 }
@@ -130,11 +130,11 @@ cfs_block_allsigs(void)
 	unsigned long	  flags;
 	sigset_t	old;
 
-	SIGNAL_MASK_LOCK(current, flags);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	old = current->blocked;
 	sigfillset(&current->blocked);
 	recalc_sigpending();
-	SIGNAL_MASK_UNLOCK(current, flags);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	return old;
 }
@@ -144,11 +144,11 @@ sigset_t cfs_block_sigs(unsigned long sigs)
 	unsigned long  flags;
 	sigset_t	old;
 
-	SIGNAL_MASK_LOCK(current, flags);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	old = current->blocked;
 	sigaddsetmask(&current->blocked, sigs);
 	recalc_sigpending();
-	SIGNAL_MASK_UNLOCK(current, flags);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 	return old;
 }
 
@@ -158,11 +158,11 @@ sigset_t cfs_block_sigsinv(unsigned long sigs)
 	unsigned long flags;
 	sigset_t old;
 
-	SIGNAL_MASK_LOCK(current, flags);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	old = current->blocked;
 	sigaddsetmask(&current->blocked, ~sigs);
 	recalc_sigpending();
-	SIGNAL_MASK_UNLOCK(current, flags);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	return old;
 }
@@ -172,10 +172,10 @@ cfs_restore_sigs (sigset_t old)
 {
 	unsigned long  flags;
 
-	SIGNAL_MASK_LOCK(current, flags);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	current->blocked = old;
 	recalc_sigpending();
-	SIGNAL_MASK_UNLOCK(current, flags);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 
 int
@@ -189,9 +189,9 @@ cfs_clear_sigpending(void)
 {
 	unsigned long flags;
 
-	SIGNAL_MASK_LOCK(current, flags);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	clear_tsk_thread_flag(current, TIF_SIGPENDING);
-	SIGNAL_MASK_UNLOCK(current, flags);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 
 int

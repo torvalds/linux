@@ -284,7 +284,7 @@ static int memory_subsys_online(struct device *dev)
 	 * attribute and need to set the online_type.
 	 */
 	if (mem->online_type < 0)
-		mem->online_type = ONLINE_KEEP;
+		mem->online_type = MMOP_ONLINE_KEEP;
 
 	ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
 
@@ -315,23 +315,23 @@ store_mem_state(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
-		online_type = ONLINE_KERNEL;
-	else if (!strncmp(buf, "online_movable", min_t(int, count, 14)))
-		online_type = ONLINE_MOVABLE;
-	else if (!strncmp(buf, "online", min_t(int, count, 6)))
-		online_type = ONLINE_KEEP;
-	else if (!strncmp(buf, "offline", min_t(int, count, 7)))
-		online_type = -1;
+	if (sysfs_streq(buf, "online_kernel"))
+		online_type = MMOP_ONLINE_KERNEL;
+	else if (sysfs_streq(buf, "online_movable"))
+		online_type = MMOP_ONLINE_MOVABLE;
+	else if (sysfs_streq(buf, "online"))
+		online_type = MMOP_ONLINE_KEEP;
+	else if (sysfs_streq(buf, "offline"))
+		online_type = MMOP_OFFLINE;
 	else {
 		ret = -EINVAL;
 		goto err;
 	}
 
 	switch (online_type) {
-	case ONLINE_KERNEL:
-	case ONLINE_MOVABLE:
-	case ONLINE_KEEP:
+	case MMOP_ONLINE_KERNEL:
+	case MMOP_ONLINE_MOVABLE:
+	case MMOP_ONLINE_KEEP:
 		/*
 		 * mem->online_type is not protected so there can be a
 		 * race here.  However, when racing online, the first
@@ -342,7 +342,7 @@ store_mem_state(struct device *dev,
 		mem->online_type = online_type;
 		ret = device_online(&mem->dev);
 		break;
-	case -1:
+	case MMOP_OFFLINE:
 		ret = device_offline(&mem->dev);
 		break;
 	default:
@@ -372,6 +372,45 @@ static ssize_t show_phys_device(struct device *dev,
 	struct memory_block *mem = to_memory_block(dev);
 	return sprintf(buf, "%d\n", mem->phys_device);
 }
+
+#ifdef CONFIG_MEMORY_HOTREMOVE
+static ssize_t show_valid_zones(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct memory_block *mem = to_memory_block(dev);
+	unsigned long start_pfn, end_pfn;
+	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
+	struct page *first_page;
+	struct zone *zone;
+
+	start_pfn = section_nr_to_pfn(mem->start_section_nr);
+	end_pfn = start_pfn + nr_pages;
+	first_page = pfn_to_page(start_pfn);
+
+	/* The block contains more than one zone can not be offlined. */
+	if (!test_pages_in_a_zone(start_pfn, end_pfn))
+		return sprintf(buf, "none\n");
+
+	zone = page_zone(first_page);
+
+	if (zone_idx(zone) == ZONE_MOVABLE - 1) {
+		/*The mem block is the last memoryblock of this zone.*/
+		if (end_pfn == zone_end_pfn(zone))
+			return sprintf(buf, "%s %s\n",
+					zone->name, (zone + 1)->name);
+	}
+
+	if (zone_idx(zone) == ZONE_MOVABLE) {
+		/*The mem block is the first memoryblock of ZONE_MOVABLE.*/
+		if (start_pfn == zone->zone_start_pfn)
+			return sprintf(buf, "%s %s\n",
+					zone->name, (zone - 1)->name);
+	}
+
+	return sprintf(buf, "%s\n", zone->name);
+}
+static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
+#endif
 
 static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
 static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
@@ -406,7 +445,9 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
 	int i, ret;
 	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
 
-	phys_addr = simple_strtoull(buf, NULL, 0);
+	ret = kstrtoull(buf, 0, &phys_addr);
+	if (ret)
+		return ret;
 
 	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
 		return -EINVAL;
@@ -521,6 +562,9 @@ static struct attribute *memory_memblk_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_phys_device.attr,
 	&dev_attr_removable.attr,
+#ifdef CONFIG_MEMORY_HOTREMOVE
+	&dev_attr_valid_zones.attr,
+#endif
 	NULL
 };
 

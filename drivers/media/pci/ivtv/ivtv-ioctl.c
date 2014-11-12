@@ -351,7 +351,6 @@ static int ivtv_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 	pixfmt->height = itv->cxhdl.height;
 	pixfmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pixfmt->field = V4L2_FIELD_INTERLACED;
-	pixfmt->priv = 0;
 	if (id->type == IVTV_ENC_STREAM_TYPE_YUV) {
 		pixfmt->pixelformat = V4L2_PIX_FMT_HM12;
 		/* YUV size is (Y=(h*720) + UV=(h*(720/2))) */
@@ -418,7 +417,6 @@ static int ivtv_g_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *f
 	pixfmt->height = itv->main_rect.height;
 	pixfmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pixfmt->field = V4L2_FIELD_INTERLACED;
-	pixfmt->priv = 0;
 	if (id->type == IVTV_DEC_STREAM_TYPE_YUV) {
 		switch (itv->yuv_info.lace_mode & IVTV_YUV_MODE_MASK) {
 		case IVTV_YUV_MODE_INTERLACED:
@@ -1384,7 +1382,6 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 	fb->fmt.bytesperline = fb->fmt.width;
 	fb->fmt.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	fb->fmt.field = V4L2_FIELD_INTERLACED;
-	fb->fmt.priv = 0;
 	if (fb->fmt.pixelformat != V4L2_PIX_FMT_PAL8)
 		fb->fmt.bytesperline *= 2;
 	if (fb->fmt.pixelformat == V4L2_PIX_FMT_RGB32 ||

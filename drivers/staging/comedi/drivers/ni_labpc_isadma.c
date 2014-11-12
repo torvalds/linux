@@ -147,12 +147,12 @@ static void handle_isa_dma(struct comedi_device *dev)
 	enable_dma(devpriv->dma_chan);
 
 	/* clear dma tc interrupt */
-	devpriv->write_byte(0x1, dev->iobase + DMATC_CLEAR_REG);
+	devpriv->write_byte(dev, 0x1, DMATC_CLEAR_REG);
 }
 
 void labpc_handle_dma_status(struct comedi_device *dev)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
+	const struct labpc_boardinfo *board = dev->board_ptr;
 	struct labpc_private *devpriv = dev->private;
 
 	/*

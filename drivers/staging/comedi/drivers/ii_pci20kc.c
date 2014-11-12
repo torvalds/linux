@@ -33,6 +33,7 @@
 /*
  * Register I/O map
  */
+#define II20K_SIZE			0x400
 #define II20K_MOD_OFFSET		0x100
 #define II20K_ID_REG			0x00
 #define II20K_ID_MOD1_EMPTY		(1 << 7)
@@ -131,35 +132,10 @@ static const struct comedi_lrange ii20k_ai_ranges = {
 	},
 };
 
-struct ii20k_ao_private {
-	unsigned int last_data[2];
-};
-
-struct ii20k_private {
-	void __iomem *ioaddr;
-};
-
 static void __iomem *ii20k_module_iobase(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
-	struct ii20k_private *devpriv = dev->private;
-
-	return devpriv->ioaddr + (s->index + 1) * II20K_MOD_OFFSET;
-}
-
-static int ii20k_ao_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn,
-			      unsigned int *data)
-{
-	struct ii20k_ao_private *ao_spriv = s->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = ao_spriv->last_data[chan];
-
-	return insn->n;
+	return dev->mmio + (s->index + 1) * II20K_MOD_OFFSET;
 }
 
 static int ii20k_ao_insn_write(struct comedi_device *dev,
@@ -167,14 +143,14 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct ii20k_ao_private *ao_spriv = s->private;
 	void __iomem *iobase = ii20k_module_iobase(dev, s);
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = ao_spriv->last_data[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
+		unsigned int val = data[i];
+
+		s->readback[chan] = val;
 
 		/* munge data */
 		val += ((s->maxdata + 1) >> 1);
@@ -184,8 +160,6 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 		writeb((val >> 8) & 0xff, iobase + II20K_AO_MSB_REG(chan));
 		writeb(0x00, iobase + II20K_AO_STRB_REG(chan));
 	}
-
-	ao_spriv->last_data[chan] = val;
 
 	return insn->n;
 }
@@ -281,7 +255,6 @@ static int ii20k_ai_insn_read(struct comedi_device *dev,
 static void ii20k_dio_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct ii20k_private *devpriv = dev->private;
 	unsigned char ctrl01 = 0;
 	unsigned char ctrl23 = 0;
 	unsigned char dir_ena = 0;
@@ -338,9 +311,9 @@ static void ii20k_dio_config(struct comedi_device *dev,
 	ctrl23 |= II20K_CTRL23_SET;
 
 	/* order is important */
-	writeb(ctrl01, devpriv->ioaddr + II20K_CTRL01_REG);
-	writeb(ctrl23, devpriv->ioaddr + II20K_CTRL23_REG);
-	writeb(dir_ena, devpriv->ioaddr + II20K_DIR_ENA_REG);
+	writeb(ctrl01, dev->mmio + II20K_CTRL01_REG);
+	writeb(ctrl23, dev->mmio + II20K_CTRL23_REG);
+	writeb(dir_ena, dev->mmio + II20K_DIR_ENA_REG);
 }
 
 static int ii20k_dio_insn_config(struct comedi_device *dev,
@@ -375,29 +348,28 @@ static int ii20k_dio_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct ii20k_private *devpriv = dev->private;
 	unsigned int mask;
 
 	mask = comedi_dio_update_state(s, data);
 	if (mask) {
 		if (mask & 0x000000ff)
 			writeb((s->state >> 0) & 0xff,
-			       devpriv->ioaddr + II20K_DIO0_REG);
+			       dev->mmio + II20K_DIO0_REG);
 		if (mask & 0x0000ff00)
 			writeb((s->state >> 8) & 0xff,
-			       devpriv->ioaddr + II20K_DIO1_REG);
+			       dev->mmio + II20K_DIO1_REG);
 		if (mask & 0x00ff0000)
 			writeb((s->state >> 16) & 0xff,
-			       devpriv->ioaddr + II20K_DIO2_REG);
+			       dev->mmio + II20K_DIO2_REG);
 		if (mask & 0xff000000)
 			writeb((s->state >> 24) & 0xff,
-			       devpriv->ioaddr + II20K_DIO3_REG);
+			       dev->mmio + II20K_DIO3_REG);
 	}
 
-	data[1] = readb(devpriv->ioaddr + II20K_DIO0_REG);
-	data[1] |= readb(devpriv->ioaddr + II20K_DIO1_REG) << 8;
-	data[1] |= readb(devpriv->ioaddr + II20K_DIO2_REG) << 16;
-	data[1] |= readb(devpriv->ioaddr + II20K_DIO3_REG) << 24;
+	data[1] = readb(dev->mmio + II20K_DIO0_REG);
+	data[1] |= readb(dev->mmio + II20K_DIO1_REG) << 8;
+	data[1] |= readb(dev->mmio + II20K_DIO2_REG) << 16;
+	data[1] |= readb(dev->mmio + II20K_DIO3_REG) << 24;
 
 	return insn->n;
 }
@@ -405,26 +377,26 @@ static int ii20k_dio_insn_bits(struct comedi_device *dev,
 static int ii20k_init_module(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct ii20k_ao_private *ao_spriv;
 	void __iomem *iobase = ii20k_module_iobase(dev, s);
 	unsigned char id;
+	int ret;
 
 	id = readb(iobase + II20K_ID_REG);
 	switch (id) {
 	case II20K_ID_PCI20006M_1:
 	case II20K_ID_PCI20006M_2:
-		ao_spriv = comedi_alloc_spriv(s, sizeof(*ao_spriv));
-		if (!ao_spriv)
-			return -ENOMEM;
-
 		/* Analog Output subdevice */
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= (id == II20K_ID_PCI20006M_2) ? 2 : 1;
 		s->maxdata	= 0xffff;
 		s->range_table	= &ii20k_ao_ranges;
-		s->insn_read	= ii20k_ao_insn_read;
 		s->insn_write	= ii20k_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 		break;
 	case II20K_ID_PCI20341M_1:
 		/* Analog Input subdevice */
@@ -446,19 +418,32 @@ static int ii20k_init_module(struct comedi_device *dev,
 static int ii20k_attach(struct comedi_device *dev,
 			struct comedi_devconfig *it)
 {
-	struct ii20k_private *devpriv;
 	struct comedi_subdevice *s;
+	unsigned int membase;
 	unsigned char id;
 	bool has_dio;
 	int ret;
 
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
+	membase = it->options[0];
+	if (!membase || (membase & ~(0x100000 - II20K_SIZE))) {
+		dev_warn(dev->class_dev,
+			 "%s: invalid memory address specified\n",
+			 dev->board_name);
+		return -EINVAL;
+	}
+
+	if (!request_mem_region(membase, II20K_SIZE, dev->board_name)) {
+		dev_warn(dev->class_dev, "%s: I/O mem conflict (%#x,%u)\n",
+			 dev->board_name, membase, II20K_SIZE);
+		return -EIO;
+	}
+	dev->iobase = membase;	/* actually, a memory address */
+
+	dev->mmio = ioremap(membase, II20K_SIZE);
+	if (!dev->mmio)
 		return -ENOMEM;
 
-	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
-
-	id = readb(devpriv->ioaddr + II20K_ID_REG);
+	id = readb(dev->mmio + II20K_ID_REG);
 	switch (id & II20K_ID_MASK) {
 	case II20K_ID_PCI20001C_1A:
 		has_dio = false;
@@ -521,11 +506,19 @@ static int ii20k_attach(struct comedi_device *dev,
 	return 0;
 }
 
+static void ii20k_detach(struct comedi_device *dev)
+{
+	if (dev->mmio)
+		iounmap(dev->mmio);
+	if (dev->iobase)	/* actually, a memory address */
+		release_mem_region(dev->iobase, II20K_SIZE);
+}
+
 static struct comedi_driver ii20k_driver = {
 	.driver_name	= "ii_pci20kc",
 	.module		= THIS_MODULE,
 	.attach		= ii20k_attach,
-	.detach		= comedi_legacy_detach,
+	.detach		= ii20k_detach,
 };
 module_comedi_driver(ii20k_driver);
 

@@ -19,7 +19,7 @@ Required properties:
 - gpio-controller : Marks the device node as a gpio controller.
 - #gpio-cells : Should be one.  It is the pin number.
 
-Example:
+Example for a MMP platform:
 
 	gpio: gpio@d4019000 {
 		compatible = "marvell,mmp-gpio";
@@ -31,6 +31,19 @@ Example:
 		interrupt-controller;
 		#interrupt-cells = <1>;
       };
+
+Example for a PXA3xx platform:
+
+	gpio: gpio@40e00000 {
+		compatible = "intel,pxa3xx-gpio";
+		reg = <0x40e00000 0x10000>;
+		interrupt-names = "gpio0", "gpio1", "gpio_mux";
+		interrupts = <8 9 10>;
+		gpio-controller;
+		#gpio-cells = <0x2>;
+		interrupt-controller;
+		#interrupt-cells = <0x2>;
+	};
 
 * Marvell Orion GPIO Controller
 

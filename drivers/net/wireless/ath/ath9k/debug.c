@@ -202,7 +202,7 @@ static ssize_t write_file_ani(struct file *file,
 	if (kstrtoul(buf, 0, &ani))
 		return -EINVAL;
 
-	if (ani < 0 || ani > 1)
+	if (ani > 1)
 		return -EINVAL;
 
 	common->disable_ani = !ani;
@@ -455,7 +455,7 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			 "%2d          %2x      %1x     %2x           %2x\n",
 			 i, (*qcuBase & (0x7 << qcuOffset)) >> qcuOffset,
 			 (*qcuBase & (0x8 << qcuOffset)) >> (qcuOffset + 3),
-			 val[2] & (0x7 << (i * 3)) >> (i * 3),
+			 (val[2] & (0x7 << (i * 3))) >> (i * 3),
 			 (*dcuBase & (0x1f << dcuOffset)) >> dcuOffset);
 	}
 
@@ -750,13 +750,13 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ieee80211_hw *hw = sc->hw;
 	struct ath9k_vif_iter_data iter_data;
+	struct ath_chanctx *ctx;
 	char buf[512];
 	unsigned int len = 0;
 	ssize_t retval = 0;
 	unsigned int reg;
-	u32 rxfilter;
+	u32 rxfilter, i;
 
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "BSSID: %pM\n", common->curbssid);
@@ -826,14 +826,20 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, sizeof(buf) - len, "\n");
 
-	ath9k_calculate_iter_data(hw, NULL, &iter_data);
+	i = 0;
+	ath_for_each_chanctx(sc, ctx) {
+		if (!ctx->assigned || list_empty(&ctx->vifs))
+			continue;
+		ath9k_calculate_iter_data(sc, ctx, &iter_data);
 
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "VIF-COUNTS: AP: %i STA: %i MESH: %i WDS: %i"
-			 " ADHOC: %i TOTAL: %hi BEACON-VIF: %hi\n",
-			 iter_data.naps, iter_data.nstations, iter_data.nmeshes,
-			 iter_data.nwds, iter_data.nadhocs,
-			 sc->nvifs, sc->nbcnvifs);
+		len += scnprintf(buf + len, sizeof(buf) - len,
+			"VIF-COUNTS: CTX %i AP: %i STA: %i MESH: %i WDS: %i",
+			i++, iter_data.naps, iter_data.nstations,
+			iter_data.nmeshes, iter_data.nwds);
+		len += scnprintf(buf + len, sizeof(buf) - len,
+			" ADHOC: %i TOTAL: %hi BEACON-VIF: %hi\n",
+			iter_data.nadhocs, sc->cur_chan->nvifs, sc->nbcnvifs);
+	}
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -1080,7 +1086,7 @@ static ssize_t read_file_dump_nfcal(struct file *file, char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath9k_nfcal_hist *h = sc->caldata.nfCalHist;
+	struct ath9k_nfcal_hist *h = sc->cur_chan->caldata.nfCalHist;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &common->hw->conf;
 	u32 len = 0, size = 1500;
@@ -1157,6 +1163,29 @@ exit:
 
 static const struct file_operations fops_btcoex = {
 	.read = read_file_btcoex,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+#endif
+
+#ifdef CONFIG_ATH9K_DYNACK
+static ssize_t read_file_ackto(struct file *file, char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	char buf[32];
+	unsigned int len;
+
+	len = sprintf(buf, "%u %c\n", ah->dynack.ackto,
+		      (ah->dynack.enabled) ? 'A' : 'S');
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_ackto = {
+	.read = read_file_ackto,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -1366,6 +1395,11 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    sc->debug.debugfs_phy, sc, &fops_bt_ant_diversity);
 	debugfs_create_file("btcoex", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_btcoex);
+#endif
+
+#ifdef CONFIG_ATH9K_DYNACK
+	debugfs_create_file("ack_to", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+			    sc, &fops_ackto);
 #endif
 
 	return 0;

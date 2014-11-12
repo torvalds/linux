@@ -440,14 +440,12 @@ static int isif_validate_df_csc_params(struct vpfe_isif_df_csc *df_csc)
 {
 	struct vpfe_isif_color_space_conv *csc;
 	int err = -EINVAL;
-	int csc_df_en;
 	int i;
 
 	if (!df_csc->df_or_csc) {
 		/* csc configuration */
 		csc = &df_csc->csc;
 		if (csc->en) {
-			csc_df_en = 1;
 			for (i = 0; i < VPFE_ISIF_CSC_NUM_COEFF; i++)
 				if (csc->coeff[i].integer >
 				    ISIF_CSC_COEF_INTEG_MASK ||

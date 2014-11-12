@@ -86,7 +86,7 @@ static int sst_platform_compr_free(struct snd_compr_stream *cstream)
 	/*need to check*/
 	str_id = stream->id;
 	if (str_id)
-		ret_val = stream->compr_ops->close(str_id);
+		ret_val = stream->compr_ops->close(sst->dev, str_id);
 	module_put(sst->dev->driver->owner);
 	kfree(stream);
 	pr_debug("%s: %d\n", __func__, ret_val);
@@ -100,14 +100,19 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 	int retval;
 	struct snd_sst_params str_params;
 	struct sst_compress_cb cb;
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_platform *platform = rtd->platform;
+	struct sst_data *ctx = snd_soc_platform_get_drvdata(platform);
 
 	stream = cstream->runtime->private_data;
 	/* construct fw structure for this*/
 	memset(&str_params, 0, sizeof(str_params));
 
-	str_params.ops = STREAM_OPS_PLAYBACK;
-	str_params.stream_type = SST_STREAM_TYPE_MUSIC;
-	str_params.device_type = SND_SST_DEVICE_COMPRESS;
+	/* fill the device type and stream id to pass to SST driver */
+	retval = sst_fill_stream_params(cstream, ctx, &str_params, true);
+	pr_debug("compr_set_params: fill stream params ret_val = 0x%x\n", retval);
+	if (retval < 0)
+		return retval;
 
 	switch (params->codec.id) {
 	case SND_AUDIOCODEC_MP3: {
@@ -153,7 +158,7 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 	cb.drain_cb_param = cstream;
 	cb.drain_notify = sst_drain_notify;
 
-	retval = stream->compr_ops->open(&str_params, &cb);
+	retval = stream->compr_ops->open(sst->dev, &str_params, &cb);
 	if (retval < 0) {
 		pr_err("stream allocation failed %d\n", retval);
 		return retval;
@@ -165,10 +170,30 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 
 static int sst_platform_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 {
-	struct sst_runtime_stream *stream =
-		cstream->runtime->private_data;
+	struct sst_runtime_stream *stream = cstream->runtime->private_data;
 
-	return stream->compr_ops->control(cmd, stream->id);
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		if (stream->compr_ops->stream_start)
+			return stream->compr_ops->stream_start(sst->dev, stream->id);
+	case SNDRV_PCM_TRIGGER_STOP:
+		if (stream->compr_ops->stream_drop)
+			return stream->compr_ops->stream_drop(sst->dev, stream->id);
+	case SND_COMPR_TRIGGER_DRAIN:
+		if (stream->compr_ops->stream_drain)
+			return stream->compr_ops->stream_drain(sst->dev, stream->id);
+	case SND_COMPR_TRIGGER_PARTIAL_DRAIN:
+		if (stream->compr_ops->stream_partial_drain)
+			return stream->compr_ops->stream_partial_drain(sst->dev, stream->id);
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (stream->compr_ops->stream_pause)
+			return stream->compr_ops->stream_pause(sst->dev, stream->id);
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (stream->compr_ops->stream_pause_release)
+			return stream->compr_ops->stream_pause_release(sst->dev, stream->id);
+	default:
+		return -EINVAL;
+	}
 }
 
 static int sst_platform_compr_pointer(struct snd_compr_stream *cstream,
@@ -177,7 +202,7 @@ static int sst_platform_compr_pointer(struct snd_compr_stream *cstream,
 	struct sst_runtime_stream *stream;
 
 	stream  = cstream->runtime->private_data;
-	stream->compr_ops->tstamp(stream->id, tstamp);
+	stream->compr_ops->tstamp(sst->dev, stream->id, tstamp);
 	tstamp->byte_offset = tstamp->copied_total %
 				 (u32)cstream->runtime->buffer_size;
 	pr_debug("calc bytes offset/copied bytes as %d\n", tstamp->byte_offset);
@@ -190,7 +215,7 @@ static int sst_platform_compr_ack(struct snd_compr_stream *cstream,
 	struct sst_runtime_stream *stream;
 
 	stream  = cstream->runtime->private_data;
-	stream->compr_ops->ack(stream->id, (unsigned long)bytes);
+	stream->compr_ops->ack(sst->dev, stream->id, (unsigned long)bytes);
 	stream->bytes_written += bytes;
 
 	return 0;
@@ -220,7 +245,7 @@ static int sst_platform_compr_set_metadata(struct snd_compr_stream *cstream,
 	struct sst_runtime_stream *stream  =
 		 cstream->runtime->private_data;
 
-	return stream->compr_ops->set_metadata(stream->id, metadata);
+	return stream->compr_ops->set_metadata(sst->dev, stream->id, metadata);
 }
 
 struct snd_compr_ops sst_platform_compr_ops = {

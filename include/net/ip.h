@@ -31,6 +31,7 @@
 #include <net/route.h>
 #include <net/snmp.h>
 #include <net/flow.h>
+#include <net/flow_keys.h>
 
 struct sock;
 
@@ -179,8 +180,10 @@ static inline __u8 ip_reply_arg_flowi_flags(const struct ip_reply_arg *arg)
 	return (arg->flags & IP_REPLY_ARG_NOSRCCHECK) ? FLOWI_FLAG_ANYSRC : 0;
 }
 
-void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
-			   __be32 saddr, const struct ip_reply_arg *arg,
+void ip_send_unicast_reply(struct net *net, struct sk_buff *skb,
+			   const struct ip_options *sopt,
+			   __be32 daddr, __be32 saddr,
+			   const struct ip_reply_arg *arg,
 			   unsigned int len);
 
 #define IP_INC_STATS(net, field)	SNMP_INC_STATS64((net)->mib.ip_statistics, field)
@@ -215,14 +218,18 @@ static inline int inet_is_local_reserved_port(struct net *net, int port)
 		return 0;
 	return test_bit(port, net->ipv4.sysctl_local_reserved_ports);
 }
+
+static inline bool sysctl_dev_name_is_allowed(const char *name)
+{
+	return strcmp(name, "default") != 0  && strcmp(name, "all") != 0;
+}
+
 #else
 static inline int inet_is_local_reserved_port(struct net *net, int port)
 {
 	return 0;
 }
 #endif
-
-extern int sysctl_ip_nonlocal_bind;
 
 /* From inetpeer.c */
 extern int inet_peer_threshold;
@@ -342,6 +349,27 @@ static inline __wsum inet_compute_pseudo(struct sk_buff *skb, int proto)
 {
 	return csum_tcpudp_nofold(ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
 				  skb->len, proto, 0);
+}
+
+static inline void inet_set_txhash(struct sock *sk)
+{
+	struct inet_sock *inet = inet_sk(sk);
+	struct flow_keys keys;
+
+	keys.src = inet->inet_saddr;
+	keys.dst = inet->inet_daddr;
+	keys.port16[0] = inet->inet_sport;
+	keys.port16[1] = inet->inet_dport;
+
+	sk->sk_txhash = flow_hash_from_keys(&keys);
+}
+
+static inline __wsum inet_gro_compute_pseudo(struct sk_buff *skb, int proto)
+{
+	const struct iphdr *iph = skb_gro_network_header(skb);
+
+	return csum_tcpudp_nofold(iph->saddr, iph->daddr,
+				  skb_gro_len(skb), proto, 0);
 }
 
 /*
@@ -472,7 +500,6 @@ static inline struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user)
 }
 #endif
 int ip_frag_mem(struct net *net);
-int ip_frag_nqueues(struct net *net);
 
 /*
  *	Functions provided by ip_forward.c
@@ -486,7 +513,14 @@ int ip_forward(struct sk_buff *skb);
  
 void ip_options_build(struct sk_buff *skb, struct ip_options *opt,
 		      __be32 daddr, struct rtable *rt, int is_frag);
-int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb);
+
+int __ip_options_echo(struct ip_options *dopt, struct sk_buff *skb,
+		      const struct ip_options *sopt);
+static inline int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb)
+{
+	return __ip_options_echo(dopt, skb, &IPCB(skb)->opt);
+}
+
 void ip_options_fragment(struct sk_buff *skb);
 int ip_options_compile(struct net *net, struct ip_options *opt,
 		       struct sk_buff *skb);
@@ -522,6 +556,10 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err, __be16 port,
 		   u32 info, u8 *payload);
 void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 dport,
 		    u32 info);
+
+bool icmp_global_allow(void);
+extern int sysctl_icmp_msgs_per_sec;
+extern int sysctl_icmp_msgs_burst;
 
 #ifdef CONFIG_PROC_FS
 int ip_misc_proc_init(void);

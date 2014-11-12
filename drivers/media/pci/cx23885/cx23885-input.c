@@ -28,11 +28,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301, USA.
  */
 
 #include <linux/slab.h>
@@ -346,7 +341,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	}
 	rc->dev.parent = &dev->pci->dev;
 	rc->driver_type = driver_type;
-	rc_set_allowed_protocols(rc, allowed_protos);
+	rc->allowed_protocols = allowed_protos;
 	rc->priv = kernel_ir;
 	rc->open = cx23885_input_ir_open;
 	rc->close = cx23885_input_ir_close;

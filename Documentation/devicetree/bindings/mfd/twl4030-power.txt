@@ -23,8 +23,13 @@ down during off-idle. Note that this does not work on all boards
 depending on how the external oscillator is wired.
 
 Optional properties:
-- ti,use_poweroff: With this flag, the chip will initiates an ACTIVE-to-OFF or
-		   SLEEP-to-OFF transition when the system poweroffs.
+
+- ti,system-power-controller: This indicates that TWL4030 is the
+  power supply master of the system. With this flag, the chip will
+  initiate an ACTIVE-to-OFF or SLEEP-to-OFF transition when the
+  system poweroffs.
+
+- ti,use_poweroff: Deprecated name for ti,system-power-controller
 
 Example:
 &i2c1 {

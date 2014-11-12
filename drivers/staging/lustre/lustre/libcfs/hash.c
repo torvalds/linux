@@ -107,7 +107,7 @@
  *   table. Also, user can break the iteration by return 1 in callback.
  */
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/seq_file.h>
 
 #if CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1
@@ -155,8 +155,7 @@ cfs_hash_rw_unlock(union cfs_hash_lock *lock, int exclusive)
 }
 
 /** No lock hash */
-static cfs_hash_lock_ops_t cfs_hash_nl_lops =
-{
+static cfs_hash_lock_ops_t cfs_hash_nl_lops = {
 	.hs_lock	= cfs_hash_nl_lock,
 	.hs_unlock      = cfs_hash_nl_unlock,
 	.hs_bkt_lock    = cfs_hash_nl_lock,
@@ -164,8 +163,7 @@ static cfs_hash_lock_ops_t cfs_hash_nl_lops =
 };
 
 /** no bucket lock, one spinlock to protect everything */
-static cfs_hash_lock_ops_t cfs_hash_nbl_lops =
-{
+static cfs_hash_lock_ops_t cfs_hash_nbl_lops = {
 	.hs_lock	= cfs_hash_spin_lock,
 	.hs_unlock      = cfs_hash_spin_unlock,
 	.hs_bkt_lock    = cfs_hash_nl_lock,
@@ -173,8 +171,7 @@ static cfs_hash_lock_ops_t cfs_hash_nbl_lops =
 };
 
 /** spin bucket lock, rehash is enabled */
-static cfs_hash_lock_ops_t cfs_hash_bkt_spin_lops =
-{
+static cfs_hash_lock_ops_t cfs_hash_bkt_spin_lops = {
 	.hs_lock	= cfs_hash_rw_lock,
 	.hs_unlock      = cfs_hash_rw_unlock,
 	.hs_bkt_lock    = cfs_hash_spin_lock,
@@ -182,8 +179,7 @@ static cfs_hash_lock_ops_t cfs_hash_bkt_spin_lops =
 };
 
 /** rw bucket lock, rehash is enabled */
-static cfs_hash_lock_ops_t cfs_hash_bkt_rw_lops =
-{
+static cfs_hash_lock_ops_t cfs_hash_bkt_rw_lops = {
 	.hs_lock	= cfs_hash_rw_lock,
 	.hs_unlock      = cfs_hash_rw_unlock,
 	.hs_bkt_lock    = cfs_hash_rw_lock,
@@ -191,8 +187,7 @@ static cfs_hash_lock_ops_t cfs_hash_bkt_rw_lops =
 };
 
 /** spin bucket lock, rehash is disabled */
-static cfs_hash_lock_ops_t cfs_hash_nr_bkt_spin_lops =
-{
+static cfs_hash_lock_ops_t cfs_hash_nr_bkt_spin_lops = {
 	.hs_lock	= cfs_hash_nl_lock,
 	.hs_unlock      = cfs_hash_nl_unlock,
 	.hs_bkt_lock    = cfs_hash_spin_lock,
@@ -200,8 +195,7 @@ static cfs_hash_lock_ops_t cfs_hash_nr_bkt_spin_lops =
 };
 
 /** rw bucket lock, rehash is disabled */
-static cfs_hash_lock_ops_t cfs_hash_nr_bkt_rw_lops =
-{
+static cfs_hash_lock_ops_t cfs_hash_nr_bkt_rw_lops = {
 	.hs_lock	= cfs_hash_nl_lock,
 	.hs_unlock      = cfs_hash_nl_unlock,
 	.hs_bkt_lock    = cfs_hash_rw_lock,
@@ -351,7 +345,7 @@ cfs_hash_dh_hnode_add(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 					    cfs_hash_dhead_t, dh_head);
 
 	if (dh->dh_tail != NULL) /* not empty */
-		hlist_add_after(dh->dh_tail, hnode);
+		hlist_add_behind(hnode, dh->dh_tail);
 	else /* empty list */
 		hlist_add_head(hnode, &dh->dh_head);
 	dh->dh_tail = hnode;
@@ -406,7 +400,7 @@ cfs_hash_dd_hnode_add(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 						cfs_hash_dhead_dep_t, dd_head);
 
 	if (dh->dd_tail != NULL) /* not empty */
-		hlist_add_after(dh->dd_tail, hnode);
+		hlist_add_behind(hnode, dh->dd_tail);
 	else /* empty list */
 		hlist_add_head(hnode, &dh->dd_head);
 	dh->dd_tail = hnode;
@@ -2098,7 +2092,7 @@ int cfs_hash_debug_str(struct cfs_hash *hs, struct seq_file *m)
 			maxdepb = ffz(~maxdep);
 		}
 		total += bd.bd_bucket->hsb_count;
-		dist[min(__cfs_fls(bd.bd_bucket->hsb_count/max(theta,1)),7)]++;
+		dist[min(fls(bd.bd_bucket->hsb_count / max(theta, 1)), 7)]++;
 		cfs_hash_bd_unlock(hs, &bd, 0);
 	}
 

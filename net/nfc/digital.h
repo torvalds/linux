@@ -29,6 +29,7 @@
 #define DIGITAL_CMD_TG_SEND        1
 #define DIGITAL_CMD_TG_LISTEN      2
 #define DIGITAL_CMD_TG_LISTEN_MDAA 3
+#define DIGITAL_CMD_TG_LISTEN_MD   4
 
 #define DIGITAL_MAX_HEADER_LEN 7
 #define DIGITAL_CRC_LEN        2
@@ -121,6 +122,8 @@ int digital_tg_send_dep_res(struct nfc_digital_dev *ddev, struct sk_buff *skb);
 
 int digital_tg_listen_nfca(struct nfc_digital_dev *ddev, u8 rf_tech);
 int digital_tg_listen_nfcf(struct nfc_digital_dev *ddev, u8 rf_tech);
+void digital_tg_recv_md_req(struct nfc_digital_dev *ddev, void *arg,
+			    struct sk_buff *resp);
 
 typedef u16 (*crc_func_t)(u16, const u8 *, size_t);
 

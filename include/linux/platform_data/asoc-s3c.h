@@ -15,15 +15,6 @@
 #define S3C64XX_AC97_GPE  1
 extern void s3c64xx_ac97_setup_gpio(int);
 
-/*
- * The machine init code calls s5p*_spdif_setup_gpio with
- * one of these defines in order to select appropriate bank
- * of GPIO for S/PDIF pins
- */
-#define S5PC100_SPDIF_GPD  0
-#define S5PC100_SPDIF_GPG3 1
-extern void s5pc100_spdif_setup_gpio(int);
-
 struct samsung_i2s {
 /* If the Primary DAI has 5.1 Channels */
 #define QUIRK_PRI_6CHAN		(1 << 0)

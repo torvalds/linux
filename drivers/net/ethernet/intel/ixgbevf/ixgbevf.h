@@ -385,7 +385,6 @@ struct ixgbevf_adapter {
 	/* structs defined in ixgbe_vf.h */
 	struct ixgbe_hw hw;
 	u16 msg_enable;
-	u16 bd_number;
 	/* Interrupt Throttle Rate */
 	u32 eitr_param;
 

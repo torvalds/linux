@@ -667,7 +667,7 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				obuf[1] = (msg[j].addr << 1);
 				memcpy(obuf + 2, msg[j].buf, msg[j].len);
 				dw210x_op_rw(d->udev,
-						udev->descriptor.idProduct ==
+						le16_to_cpu(udev->descriptor.idProduct) ==
 						0x7500 ? 0x92 : 0x90, 0, 0,
 						obuf, msg[j].len + 2,
 						DW210X_WRITE_MSG);
@@ -1109,6 +1109,7 @@ static struct ds3000_config su3000_ds3000_config = {
 static struct cxd2820r_config cxd2820r_config = {
 	.i2c_address = 0x6c, /* (0xd8 >> 1) */
 	.ts_mode = 0x38,
+	.ts_clock_inv = 1,
 };
 
 static struct tda18271_config tda18271_config = {
@@ -1387,20 +1388,27 @@ static int su3000_frontend_attach(struct dvb_usb_adapter *d)
 
 static int t220_frontend_attach(struct dvb_usb_adapter *d)
 {
-	u8 obuf[3] = { 0xe, 0x80, 0 };
+	u8 obuf[3] = { 0xe, 0x87, 0 };
 	u8 ibuf[] = { 0 };
 
 	if (dvb_usb_generic_rw(d->dev, obuf, 3, ibuf, 1, 0) < 0)
 		err("command 0x0e transfer failed.");
 
 	obuf[0] = 0xe;
-	obuf[1] = 0x83;
+	obuf[1] = 0x86;
+	obuf[2] = 1;
+
+	if (dvb_usb_generic_rw(d->dev, obuf, 3, ibuf, 1, 0) < 0)
+		err("command 0x0e transfer failed.");
+
+	obuf[0] = 0xe;
+	obuf[1] = 0x80;
 	obuf[2] = 0;
 
 	if (dvb_usb_generic_rw(d->dev, obuf, 3, ibuf, 1, 0) < 0)
 		err("command 0x0e transfer failed.");
 
-	msleep(100);
+	msleep(50);
 
 	obuf[0] = 0xe;
 	obuf[1] = 0x80;
@@ -1482,7 +1490,7 @@ static int dw2102_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, key[0], 1);
+			rc_keydown(d->rc_dev, RC_TYPE_UNKNOWN, key[0], 0);
 		}
 	}
 
@@ -1503,7 +1511,7 @@ static int prof_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, key[0]^0xff, 1);
+			rc_keydown(d->rc_dev, RC_TYPE_UNKNOWN, key[0]^0xff, 0);
 		}
 	}
 
@@ -1524,7 +1532,8 @@ static int su3000_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, key[1] << 8 | key[0], 1);
+			rc_keydown(d->rc_dev, RC_TYPE_RC5,
+				   RC_SCANCODE_RC5(key[1], key[0]), 0);
 		}
 	}
 
@@ -1589,7 +1598,7 @@ static int dw2102_load_firmware(struct usb_device *dev,
 	u8 reset16[] = {0, 0, 0, 0, 0, 0, 0};
 	const struct firmware *fw;
 
-	switch (dev->descriptor.idProduct) {
+	switch (le16_to_cpu(dev->descriptor.idProduct)) {
 	case 0x2101:
 		ret = request_firmware(&fw, DW2101_FIRMWARE, &dev->dev);
 		if (ret != 0) {
@@ -1632,7 +1641,7 @@ static int dw2102_load_firmware(struct usb_device *dev,
 			ret = -EINVAL;
 		}
 		/* init registers */
-		switch (dev->descriptor.idProduct) {
+		switch (le16_to_cpu(dev->descriptor.idProduct)) {
 		case USB_PID_TEVII_S650:
 			dw2104_properties.rc.core.rc_codes = RC_MAP_TEVII_NEC;
 		case USB_PID_DW2104:
@@ -1892,14 +1901,14 @@ static struct dvb_usb_device_properties s6x0_properties = {
 	}
 };
 
-struct dvb_usb_device_properties *p1100;
+static struct dvb_usb_device_properties *p1100;
 static struct dvb_usb_device_description d1100 = {
 	"Prof 1100 USB ",
 	{&dw2102_table[PROF_1100], NULL},
 	{NULL},
 };
 
-struct dvb_usb_device_properties *s660;
+static struct dvb_usb_device_properties *s660;
 static struct dvb_usb_device_description d660 = {
 	"TeVii S660 USB",
 	{&dw2102_table[TEVII_S660], NULL},
@@ -1918,14 +1927,14 @@ static struct dvb_usb_device_description d480_2 = {
 	{NULL},
 };
 
-struct dvb_usb_device_properties *p7500;
+static struct dvb_usb_device_properties *p7500;
 static struct dvb_usb_device_description d7500 = {
 	"Prof 7500 USB DVB-S2",
 	{&dw2102_table[PROF_7500], NULL},
 	{NULL},
 };
 
-struct dvb_usb_device_properties *s421;
+static struct dvb_usb_device_properties *s421;
 static struct dvb_usb_device_description d421 = {
 	"TeVii S421 PCI",
 	{&dw2102_table[TEVII_S421], NULL},

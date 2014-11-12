@@ -3158,8 +3158,8 @@ static void hfa384x_usbin_callback(struct urb *urb)
 
 		/* Check for short packet */
 		if (urb->actual_length == 0) {
-			++(wlandev->linux_stats.rx_errors);
-			++(wlandev->linux_stats.rx_length_errors);
+			wlandev->netdev->stats.rx_errors++;
+			wlandev->netdev->stats.rx_length_errors++;
 			action = RESUBMIT;
 		}
 		break;
@@ -3169,7 +3169,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 			    wlandev->netdev->name);
 		if (!test_and_set_bit(WORK_RX_HALT, &hw->usb_flags))
 			schedule_work(&hw->usb_work);
-		++(wlandev->linux_stats.rx_errors);
+		wlandev->netdev->stats.rx_errors++;
 		action = ABORT;
 		break;
 
@@ -3180,12 +3180,12 @@ static void hfa384x_usbin_callback(struct urb *urb)
 		    !timer_pending(&hw->throttle)) {
 			mod_timer(&hw->throttle, jiffies + THROTTLE_JIFFIES);
 		}
-		++(wlandev->linux_stats.rx_errors);
+		wlandev->netdev->stats.rx_errors++;
 		action = ABORT;
 		break;
 
 	case -EOVERFLOW:
-		++(wlandev->linux_stats.rx_over_errors);
+		wlandev->netdev->stats.rx_over_errors++;
 		action = RESUBMIT;
 		break;
 
@@ -3204,7 +3204,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 	default:
 		pr_debug("urb status=%d, transfer flags=0x%x\n",
 			 urb->status, urb->transfer_flags);
-		++(wlandev->linux_stats.rx_errors);
+		wlandev->netdev->stats.rx_errors++;
 		action = RESUBMIT;
 		break;
 	}
@@ -3474,7 +3474,7 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 		/* If exclude and we receive an unencrypted, drop it */
 		if ((wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED) &&
 		    !WLAN_GET_FC_ISWEP(fc)) {
-			goto done;
+			break;
 		}
 
 		data_len = le16_to_cpu(usbin->rxfrm.desc.data_len);
@@ -3528,12 +3528,8 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 		netdev_warn(hw->wlandev->netdev, "Received frame on unsupported port=%d\n",
 			    HFA384x_RXSTATUS_MACPORT_GET(
 				    usbin->rxfrm.desc.status));
-		goto done;
 		break;
 	}
-
-done:
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -3643,8 +3639,6 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 
 	/* pass it back up */
 	prism2sta_ev_rx(wlandev, skb);
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -3705,13 +3699,14 @@ static void hfa384x_usbout_callback(struct urb *urb)
 		case -EPIPE:
 			{
 				hfa384x_t *hw = wlandev->priv;
+
 				netdev_warn(hw->wlandev->netdev,
 					    "%s tx pipe stalled: requesting reset\n",
 					    wlandev->netdev->name);
 				if (!test_and_set_bit
 				    (WORK_TX_HALT, &hw->usb_flags))
 					schedule_work(&hw->usb_work);
-				++(wlandev->linux_stats.tx_errors);
+				wlandev->netdev->stats.tx_errors++;
 				break;
 			}
 
@@ -3727,7 +3722,7 @@ static void hfa384x_usbout_callback(struct urb *urb)
 					mod_timer(&hw->throttle,
 						  jiffies + THROTTLE_JIFFIES);
 				}
-				++(wlandev->linux_stats.tx_errors);
+				wlandev->netdev->stats.tx_errors++;
 				netif_stop_queue(wlandev->netdev);
 				break;
 			}
@@ -3740,7 +3735,7 @@ static void hfa384x_usbout_callback(struct urb *urb)
 		default:
 			netdev_info(wlandev->netdev, "unknown urb->status=%d\n",
 				    urb->status);
-			++(wlandev->linux_stats.tx_errors);
+			wlandev->netdev->stats.tx_errors++;
 			break;
 		}		/* switch */
 	}
@@ -4126,7 +4121,6 @@ static int hfa384x_isgood_pdrcode(u16 pdrcode)
 	case HFA384x_PDR_HFA3861_MANF_TESTI:
 		/* code is OK */
 		return 1;
-		break;
 	default:
 		if (pdrcode < 0x1000) {
 			/* code is OK, but we don't know exactly what it is */
@@ -4139,7 +4133,6 @@ static int hfa384x_isgood_pdrcode(u16 pdrcode)
 				 pdrcode);
 			return 0;
 		}
-		break;
 	}
 	return 0;		/* avoid compiler warnings */
 }

@@ -702,11 +702,13 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 	struct mlx4_qp_context	*qpc = inbox->buf + 8;
 	struct mlx4_vport_oper_state *vp_oper;
 	struct mlx4_priv *priv;
+	u32 qp_type;
 	int port;
 
 	port = (qpc->pri_path.sched_queue & 0x40) ? 2 : 1;
 	priv = mlx4_priv(dev);
 	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
+	qp_type	= (be32_to_cpu(qpc->flags) >> 16) & 0xff;
 
 	if (MLX4_VGT != vp_oper->state.default_vlan) {
 		/* the reserved QPs (special, proxy, tunnel)
@@ -715,8 +717,20 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 		if (mlx4_is_qp_reserved(dev, qpn))
 			return 0;
 
-		/* force strip vlan by clear vsd */
-		qpc->param3 &= ~cpu_to_be32(MLX4_STRIP_VLAN);
+		/* force strip vlan by clear vsd, MLX QP refers to Raw Ethernet */
+		if (qp_type == MLX4_QP_ST_UD ||
+		    (qp_type == MLX4_QP_ST_MLX && mlx4_is_eth(dev, port))) {
+			if (dev->caps.bmme_flags & MLX4_BMME_FLAG_VSD_INIT2RTR) {
+				*(__be32 *)inbox->buf =
+					cpu_to_be32(be32_to_cpu(*(__be32 *)inbox->buf) |
+					MLX4_QP_OPTPAR_VLAN_STRIPPING);
+				qpc->param3 &= ~cpu_to_be32(MLX4_STRIP_VLAN);
+			} else {
+				struct mlx4_update_qp_params params = {.flags = 0};
+
+				mlx4_update_qp(dev, qpn, MLX4_UPDATE_QP_VSD, &params);
+			}
+		}
 
 		if (vp_oper->state.link_state == IFLA_VF_LINK_STATE_DISABLE &&
 		    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_UPDATE_QP) {
@@ -2613,12 +2627,34 @@ int mlx4_QUERY_MPT_wrapper(struct mlx4_dev *dev, int slave,
 	if (err)
 		return err;
 
-	if (mpt->com.from_state != RES_MPT_HW) {
+	if (mpt->com.from_state == RES_MPT_MAPPED) {
+		/* In order to allow rereg in SRIOV, we need to alter the MPT entry. To do
+		 * that, the VF must read the MPT. But since the MPT entry memory is not
+		 * in the VF's virtual memory space, it must use QUERY_MPT to obtain the
+		 * entry contents. To guarantee that the MPT cannot be changed, the driver
+		 * must perform HW2SW_MPT before this query and return the MPT entry to HW
+		 * ownership fofollowing the change. The change here allows the VF to
+		 * perform QUERY_MPT also when the entry is in SW ownership.
+		 */
+		struct mlx4_mpt_entry *mpt_entry = mlx4_table_find(
+					&mlx4_priv(dev)->mr_table.dmpt_table,
+					mpt->key, NULL);
+
+		if (NULL == mpt_entry || NULL == outbox->buf) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		memcpy(outbox->buf, mpt_entry, sizeof(*mpt_entry));
+
+		err = 0;
+	} else if (mpt->com.from_state == RES_MPT_HW) {
+		err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+	} else {
 		err = -EBUSY;
 		goto out;
 	}
 
-	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
 
 out:
 	put_res(dev, slave, id, RES_MPT);
@@ -3976,13 +4012,17 @@ int mlx4_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
 	}
 
 	port = (rqp->sched_queue >> 6 & 1) + 1;
-	smac_index = cmd->qp_context.pri_path.grh_mylmc;
-	err = mac_find_smac_ix_in_slave(dev, slave, port,
-					smac_index, &mac);
-	if (err) {
-		mlx4_err(dev, "Failed to update qpn 0x%x, MAC is invalid. smac_ix: %d\n",
-			 qpn, smac_index);
-		goto err_mac;
+
+	if (pri_addr_path_mask & (1ULL << MLX4_UPD_QP_PATH_MASK_MAC_INDEX)) {
+		smac_index = cmd->qp_context.pri_path.grh_mylmc;
+		err = mac_find_smac_ix_in_slave(dev, slave, port,
+						smac_index, &mac);
+
+		if (err) {
+			mlx4_err(dev, "Failed to update qpn 0x%x, MAC is invalid. smac_ix: %d\n",
+				 qpn, smac_index);
+			goto err_mac;
+		}
 	}
 
 	err = mlx4_cmd(dev, inbox->dma,
@@ -4796,7 +4836,7 @@ void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work)
 			MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED;
 
 	upd_context = mailbox->buf;
-	upd_context->qp_mask = cpu_to_be64(MLX4_UPD_QP_MASK_VSD);
+	upd_context->qp_mask = cpu_to_be64(1ULL << MLX4_UPD_QP_MASK_VSD);
 
 	spin_lock_irq(mlx4_tlock(dev));
 	list_for_each_entry_safe(qp, tmp, qp_list, com.list) {

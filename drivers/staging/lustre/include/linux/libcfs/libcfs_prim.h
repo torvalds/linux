@@ -50,10 +50,10 @@ void add_wait_queue_exclusive_head(wait_queue_head_t *, wait_queue_t *);
 void cfs_init_timer(struct timer_list *t);
 void cfs_timer_init(struct timer_list *t, cfs_timer_func_t *func, void *arg);
 void cfs_timer_done(struct timer_list *t);
-void cfs_timer_arm(struct timer_list *t, cfs_time_t deadline);
+void cfs_timer_arm(struct timer_list *t, unsigned long deadline);
 void cfs_timer_disarm(struct timer_list *t);
 int  cfs_timer_is_armed(struct timer_list *t);
-cfs_time_t cfs_timer_deadline(struct timer_list *t);
+unsigned long cfs_timer_deadline(struct timer_list *t);
 
 /*
  * Memory
@@ -83,6 +83,5 @@ static inline void cfs_memory_pressure_restore(int old)
 		memory_pressure_set();
 	else
 		memory_pressure_clr();
-	return;
 }
 #endif

@@ -12,7 +12,7 @@ stack trace is displayed upon detection and, by default, the system
 will stay locked up. Alternatively, the kernel can be configured to
 panic; a sysctl, "kernel.softlockup_panic", a kernel parameter,
 "softlockup_panic" (see "Documentation/kernel-parameters.txt" for
-details), and a compile option, "BOOTPARAM_HARDLOCKUP_PANIC", are
+details), and a compile option, "BOOTPARAM_SOFTLOCKUP_PANIC", are
 provided for this.
 
 A 'hardlockup' is defined as a bug that causes the CPU to loop in

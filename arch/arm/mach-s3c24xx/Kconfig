@@ -32,7 +32,6 @@ config CPU_S3C2410
 	select S3C2410_DMA if S3C24XX_DMA
 	select ARM_S3C2410_CPUFREQ if ARM_S3C24XX_CPUFREQ
 	select S3C2410_PM if PM
-	select SAMSUNG_WDT_RESET
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
@@ -76,7 +75,6 @@ config CPU_S3C2442
 config CPU_S3C244X
 	def_bool y
 	depends on CPU_S3C2440 || CPU_S3C2442
-	select SAMSUNG_WDT_RESET
 
 config CPU_S3C2443
 	bool "SAMSUNG S3C2443"

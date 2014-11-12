@@ -35,8 +35,6 @@
 #include "device.h"
 #include "wmgr.h"
 
-/*---------------------  Static Definitions -------------------------*/
-static int msglevel = MSG_LEVEL_INFO;
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
@@ -116,7 +114,7 @@ WPA2vParseRSN(
 	unsigned char *pbyOUI;
 	bool bUseGK = false;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WPA2_ParseRSN: [%d]\n", pRSN->len);
+	pr_debug("WPA2_ParseRSN: [%d]\n", pRSN->len);
 
 	WPA2_ClearRSN(pBSSNode);
 
@@ -135,7 +133,7 @@ WPA2vParseRSN(
 	// information element header makes sense
 	if ((pRSN->byElementID == WLAN_EID_RSN) &&
 	    (pRSN->wVersion == 1)) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Legal 802.11i RSN\n");
+		pr_debug("Legal 802.11i RSN\n");
 
 		pbyOUI = &(pRSN->abyRSN[0]);
 		if (!memcmp(pbyOUI, abyOUIWEP40, 4))
@@ -153,7 +151,7 @@ WPA2vParseRSN(
 			// any vendor checks here
 			pBSSNode->byCSSGK = WLAN_11i_CSS_UNKNOWN;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "802.11i CSS: %X\n", pBSSNode->byCSSGK);
+		pr_debug("802.11i CSS: %X\n", pBSSNode->byCSSGK);
 
 		if (pRSN->len == 6) {
 			pBSSNode->bWPA2Valid = true;
@@ -186,7 +184,8 @@ WPA2vParseRSN(
 						pBSSNode->abyCSSPK[j++] = WLAN_11i_CSS_UNKNOWN;
 					}
 					pbyOUI += 4;
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "abyCSSPK[%d]: %X\n", j-1, pBSSNode->abyCSSPK[j-1]);
+					pr_debug("abyCSSPK[%d]: %X\n",
+						 j-1, pBSSNode->abyCSSPK[j-1]);
 				} else
 					break;
 			} //for
@@ -206,7 +205,7 @@ WPA2vParseRSN(
 				return;
 			}
 			pBSSNode->wCSSPKCount = (unsigned short)j;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wCSSPKCount: %d\n", pBSSNode->wCSSPKCount);
+			pr_debug("wCSSPKCount: %d\n", pBSSNode->wCSSPKCount);
 		}
 
 		m = *((unsigned short *)&(pRSN->abyRSN[4]));
@@ -224,12 +223,15 @@ WPA2vParseRSN(
 					else
 						// any vendor checks here
 						pBSSNode->abyAKMSSAuthType[j++] = WLAN_11i_AKMSS_UNKNOWN;
-					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "abyAKMSSAuthType[%d]: %X\n", j-1, pBSSNode->abyAKMSSAuthType[j-1]);
+					pr_debug("abyAKMSSAuthType[%d]: %X\n",
+						 j-1,
+						 pBSSNode->abyAKMSSAuthType[j-1]);
 				} else
 					break;
 			}
 			pBSSNode->wAKMSSAuthCount = (unsigned short)j;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wAKMSSAuthCount: %d\n", pBSSNode->wAKMSSAuthCount);
+			pr_debug("wAKMSSAuthCount: %d\n",
+				 pBSSNode->wAKMSSAuthCount);
 
 			n = *((unsigned short *)&(pRSN->abyRSN[6+4*m]));
 			if (pRSN->len >= 12 + 4 * m + 4 * n) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*m)+AKMSSCnt(2)+AKMSS(4*n)+Cap(2)

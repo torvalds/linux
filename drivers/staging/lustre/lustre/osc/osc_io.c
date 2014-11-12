@@ -63,6 +63,7 @@ static struct osc_io *cl2osc_io(const struct lu_env *env,
 				const struct cl_io_slice *slice)
 {
 	struct osc_io *oio = container_of0(slice, struct osc_io, oi_cl);
+
 	LINVRNT(oio == osc_env_io(env));
 	return oio;
 }
@@ -204,7 +205,7 @@ static void osc_page_touch_at(const struct lu_env *env,
 	 *
 	 * here
 	 */
-	CDEBUG(D_INODE, "stripe KMS %sincreasing "LPU64"->"LPU64" "LPU64"\n",
+	CDEBUG(D_INODE, "stripe KMS %sincreasing %llu->%llu %llu\n",
 	       kms > loi->loi_kms ? "" : "not ", loi->loi_kms, kms,
 	       loi->loi_lvb.lvb_size);
 
@@ -355,11 +356,12 @@ static int trunc_check_cb(const struct lu_env *env, struct cl_io *io,
 
 	if (oap->oap_cmd & OBD_BRW_WRITE &&
 	    !list_empty(&oap->oap_pending_item))
-		CL_PAGE_DEBUG(D_ERROR, env, page, "exists " LPU64 "/%s.\n",
+		CL_PAGE_DEBUG(D_ERROR, env, page, "exists %llu/%s.\n",
 				start, current->comm);
 
 	{
 		struct page *vmpage = cl_page_vmpage(env, page);
+
 		if (PageLocked(vmpage))
 			CDEBUG(D_CACHE, "page %p index %lu locked for %d.\n",
 			       ops, page->cp_index,
@@ -498,6 +500,7 @@ static void osc_io_setattr_end(const struct lu_env *env,
 
 	if (cl_io_is_trunc(io)) {
 		__u64 size = io->u.ci_setattr.sa_attr.lvb_size;
+
 		osc_trunc_check(env, io, oio, size);
 		if (oio->oi_trunc != NULL) {
 			osc_cache_truncate_end(env, oio, cl2osc(obj));
@@ -711,7 +714,7 @@ static void osc_req_completion(const struct lu_env *env,
 static void osc_req_attr_set(const struct lu_env *env,
 			     const struct cl_req_slice *slice,
 			     const struct cl_object *obj,
-			     struct cl_req_attr *attr, obd_valid flags)
+			     struct cl_req_attr *attr, u64 flags)
 {
 	struct lov_oinfo *oinfo;
 	struct cl_req    *clerq;

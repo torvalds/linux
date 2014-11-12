@@ -131,7 +131,8 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
  * @offs: offset to start at (usually zero)
  * @sbuf: scan buffer (must be c->leb_size)
  *
- * This function returns %0 on success and a negative error code on failure.
+ * This function returns the scanned information on success and a negative error
+ * code on failure.
  */
 struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
 					int offs, void *sbuf)
@@ -157,9 +158,10 @@ struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
 		return ERR_PTR(err);
 	}
 
-	if (err == -EBADMSG)
-		sleb->ecc = 1;
-
+	/*
+	 * Note, we ignore integrity errors (EBASMSG) because all the nodes are
+	 * protected by CRC checksums.
+	 */
 	return sleb;
 }
 
@@ -169,8 +171,6 @@ struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
  * @sleb: scanning information
  * @lnum: logical eraseblock number
  * @offs: offset to start at (usually zero)
- *
- * This function returns %0 on success and a negative error code on failure.
  */
 void ubifs_end_scan(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		    int lnum, int offs)
@@ -257,7 +257,7 @@ void ubifs_scanned_corruption(const struct ubifs_info *c, int lnum, int offs,
  * @quiet: print no messages
  *
  * This function scans LEB number @lnum and returns complete information about
- * its contents. Returns the scaned information in case of success and,
+ * its contents. Returns the scanned information in case of success and,
  * %-EUCLEAN if the LEB neads recovery, and other negative error codes in case
  * of failure.
  *

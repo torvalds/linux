@@ -146,7 +146,7 @@ struct pm860x_priv {
 	struct pm860x_det	det;
 
 	int			irq[4];
-	unsigned char		name[4][MAX_NAME_LEN];
+	unsigned char		name[4][MAX_NAME_LEN+1];
 };
 
 /* -9450dB to 0dB in 150dB steps ( mute instead of -9450dB) */
@@ -945,11 +945,11 @@ static int pm860x_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned char inf = 0, mask = 0;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		inf &= ~PCM_INF2_18WL;
 		break;
-	case SNDRV_PCM_FORMAT_S18_3LE:
+	case 18:
 		inf |= PCM_INF2_18WL;
 		break;
 	default:
@@ -1044,11 +1044,11 @@ static int pm860x_i2s_hw_params(struct snd_pcm_substream *substream,
 	unsigned char inf;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		inf = 0;
 		break;
-	case SNDRV_PCM_FORMAT_S18_3LE:
+	case 18:
 		inf = PCM_INF2_18WL;
 		break;
 	default:
@@ -1337,8 +1337,6 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 		}
 	}
 
-	pm860x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 
 out:
@@ -1354,7 +1352,6 @@ static int pm860x_remove(struct snd_soc_codec *codec)
 
 	for (i = 3; i >= 0; i--)
 		free_irq(pm860x->irq[i], pm860x);
-	pm860x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 

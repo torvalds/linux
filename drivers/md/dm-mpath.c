@@ -317,8 +317,10 @@ static void __choose_pgpath(struct multipath *m, size_t nr_bytes)
 	struct priority_group *pg;
 	unsigned bypassed = 1;
 
-	if (!m->nr_valid_paths)
+	if (!m->nr_valid_paths) {
+		m->queue_io = 0;
 		goto failed;
+	}
 
 	/* Were we instructed to switch PG? */
 	if (m->next_pg) {
@@ -373,8 +375,6 @@ static int __must_push_back(struct multipath *m)
 		 dm_noflush_suspending(m->ti)));
 }
 
-#define pg_ready(m) (!(m)->queue_io && !(m)->pg_init_required)
-
 /*
  * Map cloned requests
  */
@@ -402,11 +402,11 @@ static int multipath_map(struct dm_target *ti, struct request *clone,
 		if (!__must_push_back(m))
 			r = -EIO;	/* Failed */
 		goto out_unlock;
-	}
-	if (!pg_ready(m)) {
+	} else if (m->queue_io || m->pg_init_required) {
 		__pg_init_all_paths(m);
 		goto out_unlock;
 	}
+
 	if (set_mapinfo(m, map_context) < 0)
 		/* ENOMEM, requeue */
 		goto out_unlock;

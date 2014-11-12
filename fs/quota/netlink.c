@@ -32,8 +32,7 @@ static struct genl_family quota_genl_family = {
 
 /**
  * quota_send_warning - Send warning to userspace about exceeded quota
- * @type: The quota type: USRQQUOTA, GRPQUOTA,...
- * @id: The user or group id of the quota that was exceeded
+ * @qid: The kernel internal quota identifier.
  * @dev: The device on which the fs is mounted (sb->s_dev)
  * @warntype: The type of the warning: QUOTA_NL_...
  *

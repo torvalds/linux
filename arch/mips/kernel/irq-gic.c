@@ -28,6 +28,18 @@ unsigned int gic_irq_flags[GIC_NUM_INTRS];
 /* The index into this array is the vector # of the interrupt. */
 struct gic_shared_intr_map gic_shared_intr_map[GIC_NUM_INTRS];
 
+struct gic_pcpu_mask {
+	DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
+};
+
+struct gic_pending_regs {
+	DECLARE_BITMAP(pending, GIC_NUM_INTRS);
+};
+
+struct gic_intrmask_regs {
+	DECLARE_BITMAP(intrmask, GIC_NUM_INTRS);
+};
+
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static struct gic_pending_regs pending_regs[NR_CPUS];
 static struct gic_intrmask_regs intrmask_regs[NR_CPUS];
@@ -177,7 +189,7 @@ unsigned int gic_compare_int(void)
 		return 0;
 }
 
-unsigned int gic_get_int(void)
+void gic_get_int_mask(unsigned long *dst, const unsigned long *src)
 {
 	unsigned int i;
 	unsigned long *pending, *intrmask, *pcpu_mask;
@@ -202,8 +214,17 @@ unsigned int gic_get_int(void)
 
 	bitmap_and(pending, pending, intrmask, GIC_NUM_INTRS);
 	bitmap_and(pending, pending, pcpu_mask, GIC_NUM_INTRS);
+	bitmap_and(dst, src, pending, GIC_NUM_INTRS);
+}
 
-	return find_first_bit(pending, GIC_NUM_INTRS);
+unsigned int gic_get_int(void)
+{
+	DECLARE_BITMAP(interrupts, GIC_NUM_INTRS);
+
+	bitmap_fill(interrupts, GIC_NUM_INTRS);
+	gic_get_int_mask(interrupts, interrupts);
+
+	return find_first_bit(interrupts, GIC_NUM_INTRS);
 }
 
 static void gic_mask_irq(struct irq_data *d)
@@ -269,11 +290,13 @@ static void __init gic_setup_intr(unsigned int intr, unsigned int cpu,
 
 	/* Setup Intr to Pin mapping */
 	if (pin & GIC_MAP_TO_NMI_MSK) {
+		int i;
+
 		GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_PIN(intr)), pin);
 		/* FIXME: hack to route NMI to all cpu's */
-		for (cpu = 0; cpu < NR_CPUS; cpu += 32) {
+		for (i = 0; i < NR_CPUS; i += 32) {
 			GICWRITE(GIC_REG_ADDR(SHARED,
-					  GIC_SH_MAP_TO_VPE_REG_OFF(intr, cpu)),
+					  GIC_SH_MAP_TO_VPE_REG_OFF(intr, i)),
 				 0xffffffff);
 		}
 	} else {
@@ -299,9 +322,10 @@ static void __init gic_setup_intr(unsigned int intr, unsigned int cpu,
 
 	/* Init Intr Masks */
 	GIC_CLR_INTR_MASK(intr);
+
 	/* Initialise per-cpu Interrupt software masks */
-	if (flags & GIC_FLAG_IPI)
-		set_bit(intr, pcpu_masks[cpu].pcpu_mask);
+	set_bit(intr, pcpu_masks[cpu].pcpu_mask);
+
 	if ((flags & GIC_FLAG_TRANSPARENT) && (cpu_has_veic == 0))
 		GIC_SET_INTR_MASK(intr);
 	if (trigtype == GIC_TRIG_EDGE)
@@ -339,8 +363,6 @@ static void __init gic_basic_init(int numintrs, int numvpes,
 	for (i = 0; i < mapsize; i++) {
 		cpu = intrmap[i].cpunum;
 		if (cpu == GIC_UNUSED)
-			continue;
-		if (cpu == 0 && i != 0 && intrmap[i].flags == 0)
 			continue;
 		gic_setup_intr(i,
 			intrmap[i].cpunum,

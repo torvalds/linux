@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: station command handling
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -938,7 +938,7 @@ mwifiex_cmd_802_11_key_material_v1(struct mwifiex_private *priv,
 		cmd->size = cpu_to_le16(sizeof(key_material->action) + S_DS_GEN
 					+ key_param_len);
 
-		if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP) {
+		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
 			tlv_mac = (void *)((u8 *)&key_material->key_param_set +
 					   key_param_len);
 			tlv_mac->header.type =
@@ -965,7 +965,7 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 				u16 cmd_action, u32 cmd_oid,
 				struct mwifiex_ds_encrypt_key *enc_key)
 {
-	if (priv->adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+	if (priv->adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2)
 		return mwifiex_cmd_802_11_key_material_v2(priv, cmd,
 							  cmd_action, cmd_oid,
 							  enc_key);
@@ -1647,7 +1647,7 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 		timeout = (void *)(pos + config_len);
 		timeout->header.type = cpu_to_le16(TLV_TYPE_TDLS_IDLE_TIMEOUT);
 		timeout->header.len = cpu_to_le16(sizeof(timeout->value));
-		timeout->value = cpu_to_le16(MWIFIEX_TDLS_IDLE_TIMEOUT);
+		timeout->value = cpu_to_le16(MWIFIEX_TDLS_IDLE_TIMEOUT_IN_SEC);
 		config_len += sizeof(struct mwifiex_ie_types_tdls_idle_timeout);
 
 		break;

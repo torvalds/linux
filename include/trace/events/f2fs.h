@@ -69,6 +69,12 @@
 		{ GC_GREEDY,	"Greedy" },				\
 		{ GC_CB,	"Cost-Benefit" })
 
+#define show_cpreason(type)						\
+	__print_symbolic(type,						\
+		{ CP_UMOUNT,	"Umount" },				\
+		{ CP_SYNC,	"Sync" },				\
+		{ CP_DISCARD,	"Discard" })
+
 struct victim_sel_policy;
 
 DECLARE_EVENT_CLASS(f2fs__inode,
@@ -587,6 +593,69 @@ TRACE_EVENT(f2fs_fallocate,
 		__entry->ret)
 );
 
+TRACE_EVENT(f2fs_direct_IO_enter,
+
+	TP_PROTO(struct inode *inode, loff_t offset, unsigned long len, int rw),
+
+	TP_ARGS(inode, offset, len, rw),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	pos)
+		__field(unsigned long,	len)
+		__field(int,	rw)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->pos	= offset;
+		__entry->len	= len;
+		__entry->rw	= rw;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu pos = %lld len = %lu rw = %d",
+		show_dev_ino(__entry),
+		__entry->pos,
+		__entry->len,
+		__entry->rw)
+);
+
+TRACE_EVENT(f2fs_direct_IO_exit,
+
+	TP_PROTO(struct inode *inode, loff_t offset, unsigned long len,
+		 int rw, int ret),
+
+	TP_ARGS(inode, offset, len, rw, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	pos)
+		__field(unsigned long,	len)
+		__field(int,	rw)
+		__field(int,	ret)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->pos	= offset;
+		__entry->len	= len;
+		__entry->rw	= rw;
+		__entry->ret	= ret;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu pos = %lld len = %lu "
+		"rw = %d ret = %d",
+		show_dev_ino(__entry),
+		__entry->pos,
+		__entry->len,
+		__entry->rw,
+		__entry->ret)
+);
+
 TRACE_EVENT(f2fs_reserve_new_block,
 
 	TP_PROTO(struct inode *inode, nid_t nid, unsigned int ofs_in_node),
@@ -881,25 +950,25 @@ TRACE_EVENT(f2fs_submit_page_mbio,
 
 TRACE_EVENT(f2fs_write_checkpoint,
 
-	TP_PROTO(struct super_block *sb, bool is_umount, char *msg),
+	TP_PROTO(struct super_block *sb, int reason, char *msg),
 
-	TP_ARGS(sb, is_umount, msg),
+	TP_ARGS(sb, reason, msg),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(bool,	is_umount)
+		__field(int,	reason)
 		__field(char *,	msg)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->is_umount	= is_umount;
+		__entry->reason		= reason;
 		__entry->msg		= msg;
 	),
 
 	TP_printk("dev = (%d,%d), checkpoint for %s, state = %s",
 		show_dev(__entry),
-		__entry->is_umount ? "clean umount" : "consistency",
+		show_cpreason(__entry->reason),
 		__entry->msg)
 );
 
@@ -925,6 +994,30 @@ TRACE_EVENT(f2fs_issue_discard,
 		show_dev(__entry),
 		(unsigned long long)__entry->blkstart,
 		(unsigned long long)__entry->blklen)
+);
+
+TRACE_EVENT(f2fs_issue_flush,
+
+	TP_PROTO(struct super_block *sb, bool nobarrier, bool flush_merge),
+
+	TP_ARGS(sb, nobarrier, flush_merge),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(bool, nobarrier)
+		__field(bool, flush_merge)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->nobarrier = nobarrier;
+		__entry->flush_merge = flush_merge;
+	),
+
+	TP_printk("dev = (%d,%d), %s %s",
+		show_dev(__entry),
+		__entry->nobarrier ? "skip (nobarrier)" : "issue",
+		__entry->flush_merge ? " with flush_merge" : "")
 );
 #endif /* _TRACE_F2FS_H */
 

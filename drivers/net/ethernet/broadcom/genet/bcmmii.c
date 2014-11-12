@@ -6,15 +6,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 
@@ -44,15 +35,15 @@ static int bcmgenet_mii_read(struct mii_bus *bus, int phy_id, int location)
 	u32 reg;
 
 	bcmgenet_umac_writel(priv, (MDIO_RD | (phy_id << MDIO_PMD_SHIFT) |
-			(location << MDIO_REG_SHIFT)), UMAC_MDIO_CMD);
+			     (location << MDIO_REG_SHIFT)), UMAC_MDIO_CMD);
 	/* Start MDIO transaction*/
 	reg = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
 	reg |= MDIO_START_BUSY;
 	bcmgenet_umac_writel(priv, reg, UMAC_MDIO_CMD);
 	wait_event_timeout(priv->wq,
-			!(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD)
-				& MDIO_START_BUSY),
-			HZ / 100);
+			   !(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD)
+			   & MDIO_START_BUSY),
+			   HZ / 100);
 	ret = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
 
 	if (ret & MDIO_READ_FAIL)
@@ -63,22 +54,22 @@ static int bcmgenet_mii_read(struct mii_bus *bus, int phy_id, int location)
 
 /* write a value to the MII */
 static int bcmgenet_mii_write(struct mii_bus *bus, int phy_id,
-			int location, u16 val)
+			      int location, u16 val)
 {
 	struct net_device *dev = bus->priv;
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	u32 reg;
 
 	bcmgenet_umac_writel(priv, (MDIO_WR | (phy_id << MDIO_PMD_SHIFT) |
-			(location << MDIO_REG_SHIFT) | (0xffff & val)),
-			UMAC_MDIO_CMD);
+			     (location << MDIO_REG_SHIFT) | (0xffff & val)),
+			     UMAC_MDIO_CMD);
 	reg = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
 	reg |= MDIO_START_BUSY;
 	bcmgenet_umac_writel(priv, reg, UMAC_MDIO_CMD);
 	wait_event_timeout(priv->wq,
-			!(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD) &
-				MDIO_START_BUSY),
-			HZ / 100);
+			   !(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD) &
+			   MDIO_START_BUSY),
+			   HZ / 100);
 
 	return 0;
 }
@@ -91,24 +82,33 @@ static void bcmgenet_mii_setup(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = priv->phydev;
 	u32 reg, cmd_bits = 0;
-	unsigned int status_changed = 0;
+	bool status_changed = false;
 
 	if (priv->old_link != phydev->link) {
-		status_changed = 1;
+		status_changed = true;
 		priv->old_link = phydev->link;
 	}
 
 	if (phydev->link) {
-		/* program UMAC and RGMII block based on established link
-		 * speed, pause, and duplex.
-		 * the speed set in umac->cmd tell RGMII block which clock
-		 * 25MHz(100Mbps)/125MHz(1Gbps) to use for transmit.
-		 * receive clock is provided by PHY.
-		 */
-		reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
-		reg &= ~OOB_DISABLE;
-		reg |= RGMII_LINK;
-		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
+		/* check speed/duplex/pause changes */
+		if (priv->old_speed != phydev->speed) {
+			status_changed = true;
+			priv->old_speed = phydev->speed;
+		}
+
+		if (priv->old_duplex != phydev->duplex) {
+			status_changed = true;
+			priv->old_duplex = phydev->duplex;
+		}
+
+		if (priv->old_pause != phydev->pause) {
+			status_changed = true;
+			priv->old_pause = phydev->pause;
+		}
+
+		/* done if nothing has changed */
+		if (!status_changed)
+			return;
 
 		/* speed */
 		if (phydev->speed == SPEED_1000)
@@ -119,23 +119,25 @@ static void bcmgenet_mii_setup(struct net_device *dev)
 			cmd_bits = UMAC_SPEED_10;
 		cmd_bits <<= CMD_SPEED_SHIFT;
 
-		if (priv->old_duplex != phydev->duplex) {
-			status_changed = 1;
-			priv->old_duplex = phydev->duplex;
-		}
-
 		/* duplex */
 		if (phydev->duplex != DUPLEX_FULL)
 			cmd_bits |= CMD_HD_EN;
 
-		if (priv->old_pause != phydev->pause) {
-			status_changed = 1;
-			priv->old_pause = phydev->pause;
-		}
-
 		/* pause capability */
 		if (!phydev->pause)
 			cmd_bits |= CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
+
+		/*
+		 * Program UMAC and RGMII block based on established
+		 * link speed, duplex, and pause. The speed set in
+		 * umac->cmd tell RGMII block which clock to use for
+		 * transmit -- 25MHz(100Mbps) or 125MHz(1Gbps).
+		 * Receive clock is provided by the PHY.
+		 */
+		reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
+		reg &= ~OOB_DISABLE;
+		reg |= RGMII_LINK;
+		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
 
 		reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 		reg &= ~((CMD_SPEED_MASK << CMD_SPEED_SHIFT) |
@@ -143,10 +145,16 @@ static void bcmgenet_mii_setup(struct net_device *dev)
 			       CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE);
 		reg |= cmd_bits;
 		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+	} else {
+		/* done if nothing has changed */
+		if (!status_changed)
+			return;
+
+		/* needed for MoCA fixed PHY to reflect correct link status */
+		netif_carrier_off(dev);
 	}
 
-	if (status_changed)
-		phy_print_status(phydev);
+	phy_print_status(phydev);
 }
 
 void bcmgenet_mii_reset(struct net_device *dev)
@@ -247,7 +255,7 @@ int bcmgenet_mii_config(struct net_device *dev)
 		phy_name = "external MII";
 		phydev->supported &= PHY_BASIC_FEATURES;
 		bcmgenet_sys_writel(priv,
-				PORT_MODE_EXT_EPHY, SYS_PORT_CTRL);
+				    PORT_MODE_EXT_EPHY, SYS_PORT_CTRL);
 		break;
 
 	case PHY_INTERFACE_MODE_REVMII:
@@ -283,7 +291,7 @@ int bcmgenet_mii_config(struct net_device *dev)
 		reg |= RGMII_MODE_EN | id_mode_dis;
 		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
 		bcmgenet_sys_writel(priv,
-				PORT_MODE_EXT_GPHY, SYS_PORT_CTRL);
+				    PORT_MODE_EXT_GPHY, SYS_PORT_CTRL);
 		break;
 	default:
 		dev_err(kdev, "unknown phy mode: %d\n", priv->phy_interface);
@@ -300,7 +308,7 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device_node *dn = priv->pdev->dev.of_node;
 	struct phy_device *phydev;
-	unsigned int phy_flags;
+	u32 phy_flags;
 	int ret;
 
 	if (priv->phydev) {
@@ -311,24 +319,30 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 	/* In the case of a fixed PHY, the DT node associated
 	 * to the PHY is the Ethernet MAC DT node.
 	 */
-	if (of_phy_is_fixed_link(dn)) {
+	if (!priv->phy_dn && of_phy_is_fixed_link(dn)) {
 		ret = of_phy_register_fixed_link(dn);
 		if (ret)
 			return ret;
 
-		priv->phy_dn = dn;
+		priv->phy_dn = of_node_get(dn);
 	}
 
-	phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup, 0,
-				priv->phy_interface);
+	/* Communicate the integrated PHY revision */
+	phy_flags = priv->gphy_rev;
+
+	/* Initialize link state variables that bcmgenet_mii_setup() uses */
+	priv->old_link = -1;
+	priv->old_speed = -1;
+	priv->old_duplex = -1;
+	priv->old_pause = -1;
+
+	phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup,
+				phy_flags, priv->phy_interface);
 	if (!phydev) {
 		pr_err("could not attach to PHY\n");
 		return -ENODEV;
 	}
 
-	priv->old_link = -1;
-	priv->old_duplex = -1;
-	priv->old_pause = -1;
 	priv->phydev = phydev;
 
 	/* Configure port multiplexer based on what the probed PHY device since
@@ -342,15 +356,6 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 		return ret;
 	}
 
-	phy_flags = PHY_BRCM_100MBPS_WAR;
-
-	/* workarounds are only needed for 100Mpbs PHYs, and
-	 * never on GENET V1 hardware
-	 */
-	if ((phydev->supported & PHY_GBIT_FEATURES) || GENET_IS_V1(priv))
-		phy_flags = 0;
-
-	phydev->dev_flags |= phy_flags;
 	phydev->advertising = phydev->supported;
 
 	/* The internal PHY has its link interrupts routed to the
@@ -362,7 +367,7 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 		priv->mii_bus->irq[phydev->addr] = PHY_POLL;
 
 	pr_info("attached PHY at address %d [%s]\n",
-			phydev->addr, phydev->drv->name);
+		phydev->addr, phydev->drv->name);
 
 	return 0;
 }
@@ -387,9 +392,9 @@ static int bcmgenet_mii_alloc(struct bcmgenet_priv *priv)
 	bus->read = bcmgenet_mii_read;
 	bus->write = bcmgenet_mii_write;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-%d",
-			priv->pdev->name, priv->pdev->id);
+		 priv->pdev->name, priv->pdev->id);
 
-	bus->irq = kzalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+	bus->irq = kcalloc(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
 	if (!bus->irq) {
 		mdiobus_free(priv->mii_bus);
 		return -ENOMEM;
@@ -452,6 +457,7 @@ int bcmgenet_mii_init(struct net_device *dev)
 	return 0;
 
 out:
+	of_node_put(priv->phy_dn);
 	mdiobus_unregister(priv->mii_bus);
 out_free:
 	kfree(priv->mii_bus->irq);
@@ -463,6 +469,7 @@ void bcmgenet_mii_exit(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 
+	of_node_put(priv->phy_dn);
 	mdiobus_unregister(priv->mii_bus);
 	kfree(priv->mii_bus->irq);
 	mdiobus_free(priv->mii_bus);

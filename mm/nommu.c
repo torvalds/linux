@@ -539,7 +539,7 @@ void __init mmap_init(void)
 {
 	int ret;
 
-	ret = percpu_counter_init(&vm_committed_as, 0);
+	ret = percpu_counter_init(&vm_committed_as, 0, GFP_KERNEL);
 	VM_BUG_ON(ret);
 	vm_region_jar = KMEM_CACHE(vm_region, SLAB_PANIC);
 }
@@ -1979,11 +1979,6 @@ error:
 	vm_unacct_memory(pages);
 
 	return -ENOMEM;
-}
-
-int in_gate_area_no_mm(unsigned long addr)
-{
-	return 0;
 }
 
 int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)

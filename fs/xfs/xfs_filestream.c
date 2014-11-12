@@ -258,7 +258,7 @@ next_ag:
 	if (*agp == NULLAGNUMBER)
 		return 0;
 
-	err = ENOMEM;
+	err = -ENOMEM;
 	item = kmem_alloc(sizeof(*item), KM_MAYFAIL);
 	if (!item)
 		goto out_put_ag;
@@ -268,7 +268,7 @@ next_ag:
 
 	err = xfs_mru_cache_insert(mp->m_filestream, ip->i_ino, &item->mru);
 	if (err) {
-		if (err == EEXIST)
+		if (err == -EEXIST)
 			err = 0;
 		goto out_free_item;
 	}

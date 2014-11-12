@@ -1821,7 +1821,8 @@ static void fas216_allocate_tag(FAS216_Info *info, struct scsi_cmnd *SCpnt)
 			SCpnt->tag = SCpnt->device->current_tag;
 	} else
 #endif
-		set_bit(SCpnt->device->id * 8 + SCpnt->device->lun, info->busyluns);
+		set_bit(SCpnt->device->id * 8 +
+			(u8)(SCpnt->device->lun & 0x7), info->busyluns);
 
 	info->stats.removes += 1;
 	switch (SCpnt->cmnd[0]) {
@@ -2171,7 +2172,8 @@ static void fas216_done(FAS216_Info *info, unsigned int result)
 	 * status.
 	 */
 	info->device[SCpnt->device->id].parity_check = 0;
-	clear_bit(SCpnt->device->id * 8 + SCpnt->device->lun, info->busyluns);
+	clear_bit(SCpnt->device->id * 8 +
+		  (u8)(SCpnt->device->lun & 0x7), info->busyluns);
 
 	fn = (void (*)(FAS216_Info *, struct scsi_cmnd *, unsigned int))SCpnt->host_scribble;
 	fn(info, SCpnt, result);
@@ -2398,7 +2400,8 @@ static enum res_find fas216_find_command(FAS216_Info *info,
 		 * been set.
 		 */
 		info->origSCpnt = NULL;
-		clear_bit(SCpnt->device->id * 8 + SCpnt->device->lun, info->busyluns);
+		clear_bit(SCpnt->device->id * 8 +
+			  (u8)(SCpnt->device->lun & 0x7), info->busyluns);
 		printk("waiting for execution ");
 		res = res_success;
 	} else
@@ -3000,7 +3003,7 @@ void fas216_print_devices(FAS216_Info *info, struct seq_file *m)
 
 	shost_for_each_device(scd, info->host) {
 		dev = &info->device[scd->id];
-		seq_printf(m, "     %d/%d   ", scd->id, scd->lun);
+		seq_printf(m, "     %d/%llu   ", scd->id, scd->lun);
 		if (scd->tagged_supported)
 			seq_printf(m, "%3sabled(%3d) ",
 				     scd->simple_tags ? "en" : "dis",

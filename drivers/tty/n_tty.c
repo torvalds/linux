@@ -1166,7 +1166,7 @@ static void n_tty_receive_break(struct tty_struct *tty)
 	}
 	put_tty_queue('\0', ldata);
 	if (waitqueue_active(&tty->read_wait))
-		wake_up_interruptible(&tty->read_wait);
+		wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 }
 
 /**
@@ -1226,7 +1226,7 @@ static void n_tty_receive_parity_error(struct tty_struct *tty, unsigned char c)
 	} else
 		put_tty_queue(c, ldata);
 	if (waitqueue_active(&tty->read_wait))
-		wake_up_interruptible(&tty->read_wait);
+		wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 }
 
 static void
@@ -1378,7 +1378,7 @@ handle_newline:
 			ldata->canon_head = ldata->read_head;
 			kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 			if (waitqueue_active(&tty->read_wait))
-				wake_up_interruptible(&tty->read_wait);
+				wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 			return 0;
 		}
 	}
@@ -1679,7 +1679,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		L_EXTPROC(tty)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 		if (waitqueue_active(&tty->read_wait))
-			wake_up_interruptible(&tty->read_wait);
+			wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 	}
 }
 
@@ -2413,12 +2413,17 @@ static unsigned int n_tty_poll(struct tty_struct *tty, struct file *file,
 
 	poll_wait(file, &tty->read_wait, wait);
 	poll_wait(file, &tty->write_wait, wait);
-	if (input_available_p(tty, 1))
-		mask |= POLLIN | POLLRDNORM;
-	if (tty->packet && tty->link->ctrl_status)
-		mask |= POLLPRI | POLLIN | POLLRDNORM;
 	if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
 		mask |= POLLHUP;
+	if (input_available_p(tty, 1))
+		mask |= POLLIN | POLLRDNORM;
+	else if (mask & POLLHUP) {
+		tty_flush_to_ldisc(tty);
+		if (input_available_p(tty, 1))
+			mask |= POLLIN | POLLRDNORM;
+	}
+	if (tty->packet && tty->link->ctrl_status)
+		mask |= POLLPRI | POLLIN | POLLRDNORM;
 	if (tty_hung_up_p(file))
 		mask |= POLLHUP;
 	if (!(mask & (POLLHUP | POLLIN | POLLRDNORM))) {

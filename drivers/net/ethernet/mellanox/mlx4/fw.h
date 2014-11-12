@@ -178,6 +178,8 @@ struct mlx4_init_hca_param {
 	u8  uar_page_sz; /* log pg sz in 4k chunks */
 	u8  steering_mode; /* for QUERY_HCA */
 	u64 dev_cap_enabled;
+	u16 cqe_size; /* For use only when CQE stride feature enabled */
+	u16 eqe_size; /* For use only when EQE stride feature enabled */
 };
 
 struct mlx4_init_ib_param {

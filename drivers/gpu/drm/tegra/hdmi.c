@@ -1450,6 +1450,7 @@ static const struct of_device_id tegra_hdmi_of_match[] = {
 	{ .compatible = "nvidia,tegra20-hdmi", .data = &tegra20_hdmi_config },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, tegra_hdmi_of_match);
 
 static int tegra_hdmi_probe(struct platform_device *pdev)
 {

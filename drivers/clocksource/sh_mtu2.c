@@ -23,6 +23,7 @@
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -37,7 +38,6 @@ struct sh_mtu2_channel {
 	unsigned int index;
 
 	void __iomem *base;
-	int irq;
 
 	struct clock_event_device ced;
 };
@@ -48,14 +48,13 @@ struct sh_mtu2_device {
 	void __iomem *mapbase;
 	struct clk *clk;
 
+	raw_spinlock_t lock; /* Protect the shared registers */
+
 	struct sh_mtu2_channel *channels;
 	unsigned int num_channels;
 
-	bool legacy;
 	bool has_clockevent;
 };
-
-static DEFINE_RAW_SPINLOCK(sh_mtu2_lock);
 
 #define TSTR -1 /* shared register */
 #define TCR  0 /* channel register */
@@ -162,12 +161,8 @@ static inline unsigned long sh_mtu2_read(struct sh_mtu2_channel *ch, int reg_nr)
 {
 	unsigned long offs;
 
-	if (reg_nr == TSTR) {
-		if (ch->mtu->legacy)
-			return ioread8(ch->mtu->mapbase);
-		else
-			return ioread8(ch->mtu->mapbase + 0x280);
-	}
+	if (reg_nr == TSTR)
+		return ioread8(ch->mtu->mapbase + 0x280);
 
 	offs = mtu2_reg_offs[reg_nr];
 
@@ -182,12 +177,8 @@ static inline void sh_mtu2_write(struct sh_mtu2_channel *ch, int reg_nr,
 {
 	unsigned long offs;
 
-	if (reg_nr == TSTR) {
-		if (ch->mtu->legacy)
-			return iowrite8(value, ch->mtu->mapbase);
-		else
-			return iowrite8(value, ch->mtu->mapbase + 0x280);
-	}
+	if (reg_nr == TSTR)
+		return iowrite8(value, ch->mtu->mapbase + 0x280);
 
 	offs = mtu2_reg_offs[reg_nr];
 
@@ -202,7 +193,7 @@ static void sh_mtu2_start_stop_ch(struct sh_mtu2_channel *ch, int start)
 	unsigned long flags, value;
 
 	/* start stop register shared by multiple timer channels */
-	raw_spin_lock_irqsave(&sh_mtu2_lock, flags);
+	raw_spin_lock_irqsave(&ch->mtu->lock, flags);
 	value = sh_mtu2_read(ch, TSTR);
 
 	if (start)
@@ -211,7 +202,7 @@ static void sh_mtu2_start_stop_ch(struct sh_mtu2_channel *ch, int start)
 		value &= ~(1 << ch->index);
 
 	sh_mtu2_write(ch, TSTR, value);
-	raw_spin_unlock_irqrestore(&sh_mtu2_lock, flags);
+	raw_spin_unlock_irqrestore(&ch->mtu->lock, flags);
 }
 
 static int sh_mtu2_enable(struct sh_mtu2_channel *ch)
@@ -331,7 +322,6 @@ static void sh_mtu2_register_clockevent(struct sh_mtu2_channel *ch,
 					const char *name)
 {
 	struct clock_event_device *ced = &ch->ced;
-	int ret;
 
 	ced->name = name;
 	ced->features = CLOCK_EVT_FEAT_PERIODIC;
@@ -344,24 +334,12 @@ static void sh_mtu2_register_clockevent(struct sh_mtu2_channel *ch,
 	dev_info(&ch->mtu->pdev->dev, "ch%u: used for clock events\n",
 		 ch->index);
 	clockevents_register_device(ced);
-
-	ret = request_irq(ch->irq, sh_mtu2_interrupt,
-			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
-			  dev_name(&ch->mtu->pdev->dev), ch);
-	if (ret) {
-		dev_err(&ch->mtu->pdev->dev, "ch%u: failed to request irq %d\n",
-			ch->index, ch->irq);
-		return;
-	}
 }
 
-static int sh_mtu2_register(struct sh_mtu2_channel *ch, const char *name,
-			    bool clockevent)
+static int sh_mtu2_register(struct sh_mtu2_channel *ch, const char *name)
 {
-	if (clockevent) {
-		ch->mtu->has_clockevent = true;
-		sh_mtu2_register_clockevent(ch, name);
-	}
+	ch->mtu->has_clockevent = true;
+	sh_mtu2_register_clockevent(ch, name);
 
 	return 0;
 }
@@ -372,40 +350,32 @@ static int sh_mtu2_setup_channel(struct sh_mtu2_channel *ch, unsigned int index,
 	static const unsigned int channel_offsets[] = {
 		0x300, 0x380, 0x000,
 	};
-	bool clockevent;
+	char name[6];
+	int irq;
+	int ret;
 
 	ch->mtu = mtu;
 
-	if (mtu->legacy) {
-		struct sh_timer_config *cfg = mtu->pdev->dev.platform_data;
-
-		clockevent = cfg->clockevent_rating != 0;
-
-		ch->irq = platform_get_irq(mtu->pdev, 0);
-		ch->base = mtu->mapbase - cfg->channel_offset;
-		ch->index = cfg->timer_bit;
-	} else {
-		char name[6];
-
-		clockevent = true;
-
-		sprintf(name, "tgi%ua", index);
-		ch->irq = platform_get_irq_byname(mtu->pdev, name);
-		ch->base = mtu->mapbase + channel_offsets[index];
-		ch->index = index;
-	}
-
-	if (ch->irq < 0) {
+	sprintf(name, "tgi%ua", index);
+	irq = platform_get_irq_byname(mtu->pdev, name);
+	if (irq < 0) {
 		/* Skip channels with no declared interrupt. */
-		if (!mtu->legacy)
-			return 0;
-
-		dev_err(&mtu->pdev->dev, "ch%u: failed to get irq\n",
-			ch->index);
-		return ch->irq;
+		return 0;
 	}
 
-	return sh_mtu2_register(ch, dev_name(&mtu->pdev->dev), clockevent);
+	ret = request_irq(irq, sh_mtu2_interrupt,
+			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			  dev_name(&ch->mtu->pdev->dev), ch);
+	if (ret) {
+		dev_err(&ch->mtu->pdev->dev, "ch%u: failed to request irq %d\n",
+			index, irq);
+		return ret;
+	}
+
+	ch->base = mtu->mapbase + channel_offsets[index];
+	ch->index = index;
+
+	return sh_mtu2_register(ch, dev_name(&mtu->pdev->dev));
 }
 
 static int sh_mtu2_map_memory(struct sh_mtu2_device *mtu)
@@ -422,46 +392,21 @@ static int sh_mtu2_map_memory(struct sh_mtu2_device *mtu)
 	if (mtu->mapbase == NULL)
 		return -ENXIO;
 
-	/*
-	 * In legacy platform device configuration (with one device per channel)
-	 * the resource points to the channel base address.
-	 */
-	if (mtu->legacy) {
-		struct sh_timer_config *cfg = mtu->pdev->dev.platform_data;
-		mtu->mapbase += cfg->channel_offset;
-	}
-
 	return 0;
-}
-
-static void sh_mtu2_unmap_memory(struct sh_mtu2_device *mtu)
-{
-	if (mtu->legacy) {
-		struct sh_timer_config *cfg = mtu->pdev->dev.platform_data;
-		mtu->mapbase -= cfg->channel_offset;
-	}
-
-	iounmap(mtu->mapbase);
 }
 
 static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 			 struct platform_device *pdev)
 {
-	struct sh_timer_config *cfg = pdev->dev.platform_data;
-	const struct platform_device_id *id = pdev->id_entry;
 	unsigned int i;
 	int ret;
 
 	mtu->pdev = pdev;
-	mtu->legacy = id->driver_data;
 
-	if (mtu->legacy && !cfg) {
-		dev_err(&mtu->pdev->dev, "missing platform data\n");
-		return -ENXIO;
-	}
+	raw_spin_lock_init(&mtu->lock);
 
 	/* Get hold of clock. */
-	mtu->clk = clk_get(&mtu->pdev->dev, mtu->legacy ? "mtu2_fck" : "fck");
+	mtu->clk = clk_get(&mtu->pdev->dev, "fck");
 	if (IS_ERR(mtu->clk)) {
 		dev_err(&mtu->pdev->dev, "cannot get clock\n");
 		return PTR_ERR(mtu->clk);
@@ -479,10 +424,7 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 	}
 
 	/* Allocate and setup the channels. */
-	if (mtu->legacy)
-		mtu->num_channels = 1;
-	else
-		mtu->num_channels = 3;
+	mtu->num_channels = 3;
 
 	mtu->channels = kzalloc(sizeof(*mtu->channels) * mtu->num_channels,
 				GFP_KERNEL);
@@ -491,16 +433,10 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 		goto err_unmap;
 	}
 
-	if (mtu->legacy) {
-		ret = sh_mtu2_setup_channel(&mtu->channels[0], 0, mtu);
+	for (i = 0; i < mtu->num_channels; ++i) {
+		ret = sh_mtu2_setup_channel(&mtu->channels[i], i, mtu);
 		if (ret < 0)
 			goto err_unmap;
-	} else {
-		for (i = 0; i < mtu->num_channels; ++i) {
-			ret = sh_mtu2_setup_channel(&mtu->channels[i], i, mtu);
-			if (ret < 0)
-				goto err_unmap;
-		}
 	}
 
 	platform_set_drvdata(pdev, mtu);
@@ -509,7 +445,7 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 
 err_unmap:
 	kfree(mtu->channels);
-	sh_mtu2_unmap_memory(mtu);
+	iounmap(mtu->mapbase);
 err_clk_unprepare:
 	clk_unprepare(mtu->clk);
 err_clk_put:
@@ -560,17 +496,23 @@ static int sh_mtu2_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id sh_mtu2_id_table[] = {
-	{ "sh_mtu2", 1 },
 	{ "sh-mtu2", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, sh_mtu2_id_table);
+
+static const struct of_device_id sh_mtu2_of_table[] __maybe_unused = {
+	{ .compatible = "renesas,mtu2" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sh_mtu2_of_table);
 
 static struct platform_driver sh_mtu2_device_driver = {
 	.probe		= sh_mtu2_probe,
 	.remove		= sh_mtu2_remove,
 	.driver		= {
 		.name	= "sh_mtu2",
+		.of_match_table = of_match_ptr(sh_mtu2_of_table),
 	},
 	.id_table	= sh_mtu2_id_table,
 };

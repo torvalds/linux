@@ -71,7 +71,7 @@ static int __init init_ras_IRQ(void)
 
 	return 0;
 }
-subsys_initcall(init_ras_IRQ);
+machine_subsys_initcall(pseries, init_ras_IRQ);
 
 #define EPOW_SHUTDOWN_NORMAL				1
 #define EPOW_SHUTDOWN_ON_UPS				2
@@ -126,7 +126,7 @@ struct epow_errorlog {
 #define EPOW_MAIN_ENCLOSURE		5
 #define EPOW_POWER_OFF			7
 
-void rtas_parse_epow_errlog(struct rtas_error_log *log)
+static void rtas_parse_epow_errlog(struct rtas_error_log *log)
 {
 	struct pseries_errorlog *pseries_log;
 	struct epow_errorlog *epow_log;

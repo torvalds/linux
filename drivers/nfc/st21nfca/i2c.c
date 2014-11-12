@@ -93,7 +93,7 @@ struct st21nfca_i2c_phy {
 	int hard_fault;
 	struct mutex phy_lock;
 };
-static u8 len_seq[] = { 13, 24, 15, 29 };
+static u8 len_seq[] = { 16, 24, 12, 29 };
 static u16 wait_tab[] = { 2, 3, 5, 15, 20, 40};
 
 #define I2C_DUMP_SKB(info, skb)					\
@@ -271,6 +271,7 @@ static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 static int get_frame_size(u8 *buf, int buflen)
 {
 	int len = 0;
+
 	if (buf[len + 1] == ST21NFCA_SOF_EOF)
 		return 0;
 
@@ -311,6 +312,7 @@ static int check_crc(u8 *buf, int buflen)
 static int st21nfca_hci_i2c_repack(struct sk_buff *skb)
 {
 	int i, j, r, size;
+
 	if (skb->len < 1 || (skb->len > 1 && skb->data[1] != 0))
 		return -EBADMSG;
 
@@ -397,12 +399,11 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 		 * The first read sequence does not start with SOF.
 		 * Data is corrupeted so we drop it.
 		 */
-		if (!phy->current_read_len && buf[0] != ST21NFCA_SOF_EOF) {
+		if (!phy->current_read_len && !IS_START_OF_FRAME(buf)) {
 			skb_trim(skb, 0);
 			phy->current_read_len = 0;
 			return -EIO;
-		} else if (phy->current_read_len &&
-			IS_START_OF_FRAME(buf)) {
+		} else if (phy->current_read_len && IS_START_OF_FRAME(buf)) {
 			/*
 			 * Previous frame transmission was interrupted and
 			 * the frame got repeated.
@@ -487,6 +488,8 @@ static irqreturn_t st21nfca_hci_irq_thread_fn(int irq, void *phy_id)
 		 */
 		nfc_hci_recv_frame(phy->hdev, phy->pending_skb);
 		phy->crc_trials = 0;
+	} else {
+		kfree_skb(phy->pending_skb);
 	}
 
 	phy->pending_skb = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE * 2, GFP_KERNEL);
@@ -524,24 +527,19 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 	}
 
 	/* GPIO request and configuration */
-	r = devm_gpio_request(&client->dev, gpio, "clf_enable");
+	r = devm_gpio_request_one(&client->dev, gpio, GPIOF_OUT_INIT_HIGH,
+				  "clf_enable");
 	if (r) {
 		nfc_err(&client->dev, "Failed to request enable pin\n");
 		return -ENODEV;
 	}
 
-	r = gpio_direction_output(gpio, 1);
-	if (r) {
-		nfc_err(&client->dev, "Failed to set enable pin direction as output\n");
-		return -ENODEV;
-	}
 	phy->gpio_ena = gpio;
 
 	/* IRQ */
 	r = irq_of_parse_and_map(pp, 0);
 	if (r < 0) {
-		nfc_err(&client->dev,
-				"Unable to get irq, error: %d\n", r);
+		nfc_err(&client->dev, "Unable to get irq, error: %d\n", r);
 		return r;
 	}
 
@@ -575,30 +573,18 @@ static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 	phy->gpio_ena = pdata->gpio_ena;
 	phy->irq_polarity = pdata->irq_polarity;
 
-	r = devm_gpio_request(&client->dev, phy->gpio_irq, "wake_up");
+	r = devm_gpio_request_one(&client->dev, phy->gpio_irq, GPIOF_IN,
+				  "wake_up");
 	if (r) {
 		pr_err("%s : gpio_request failed\n", __FILE__);
 		return -ENODEV;
 	}
 
-	r = gpio_direction_input(phy->gpio_irq);
-	if (r) {
-		pr_err("%s : gpio_direction_input failed\n", __FILE__);
-		return -ENODEV;
-	}
-
 	if (phy->gpio_ena > 0) {
-		r = devm_gpio_request(&client->dev,
-					phy->gpio_ena, "clf_enable");
+		r = devm_gpio_request_one(&client->dev, phy->gpio_ena,
+					  GPIOF_OUT_INIT_HIGH, "clf_enable");
 		if (r) {
 			pr_err("%s : ena gpio_request failed\n", __FILE__);
-			return -ENODEV;
-		}
-		r = gpio_direction_output(phy->gpio_ena, 1);
-
-		if (r) {
-			pr_err("%s : ena gpio_direction_output failed\n",
-			       __FILE__);
 			return -ENODEV;
 		}
 	}
@@ -710,7 +696,6 @@ static struct i2c_driver st21nfca_hci_i2c_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = ST21NFCA_HCI_I2C_DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_st21nfca_i2c_match),
 	},
 	.probe = st21nfca_hci_i2c_probe,

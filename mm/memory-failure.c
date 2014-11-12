@@ -148,7 +148,7 @@ static int hwpoison_filter_task(struct page *p)
 	ino = cgroup_ino(css->cgroup);
 	css_put(css);
 
-	if (!ino || ino != hwpoison_filter_memcg)
+	if (ino != hwpoison_filter_memcg)
 		return -EINVAL;
 
 	return 0;
@@ -1171,6 +1171,16 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
 	}
 
 	lock_page(hpage);
+
+	/*
+	 * The page could have changed compound pages during the locking.
+	 * If this happens just bail out.
+	 */
+	if (compound_head(p) != hpage) {
+		action_result(pfn, "different compound page after locking", IGNORED);
+		res = -EBUSY;
+		goto out;
+	}
 
 	/*
 	 * We use page flags to determine what action should be taken, but

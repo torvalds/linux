@@ -69,19 +69,6 @@ static struct snd_soc_dai_driver ac97_dai = {
 	.ops = &ac97_dai_ops,
 };
 
-static unsigned int ac97_read(struct snd_soc_codec *codec,
-	unsigned int reg)
-{
-	return soc_ac97_ops->read(codec->ac97, reg);
-}
-
-static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int val)
-{
-	soc_ac97_ops->write(codec->ac97, reg, val);
-	return 0;
-}
-
 static int ac97_soc_probe(struct snd_soc_codec *codec)
 {
 	struct snd_ac97_bus *ac97_bus;
@@ -89,8 +76,8 @@ static int ac97_soc_probe(struct snd_soc_codec *codec)
 	int ret;
 
 	/* add codec as bus device for standard ac97 */
-	ret = snd_ac97_bus(codec->card->snd_card, 0, soc_ac97_ops, NULL,
-			   &ac97_bus);
+	ret = snd_ac97_bus(codec->component.card->snd_card, 0, soc_ac97_ops,
+			   NULL, &ac97_bus);
 	if (ret < 0)
 		return ret;
 
@@ -122,8 +109,6 @@ static int ac97_soc_resume(struct snd_soc_codec *codec)
 #endif
 
 static struct snd_soc_codec_driver soc_codec_dev_ac97 = {
-	.write =	ac97_write,
-	.read =		ac97_read,
 	.probe = 	ac97_soc_probe,
 	.suspend =	ac97_soc_suspend,
 	.resume =	ac97_soc_resume,

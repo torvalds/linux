@@ -18,7 +18,7 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
-#include <uapi/asm-generic/termios.h>
+#include <linux/termios.h>
 
 #include "serial_mctrl_gpio.h"
 

@@ -224,19 +224,23 @@ EXPORT_SYMBOL_GPL(sst_dsp_shim_update_bits64);
 
 void sst_dsp_dump(struct sst_dsp *sst)
 {
-	sst->ops->dump(sst);
+	if (sst->ops->dump)
+		sst->ops->dump(sst);
 }
 EXPORT_SYMBOL_GPL(sst_dsp_dump);
 
 void sst_dsp_reset(struct sst_dsp *sst)
 {
-	sst->ops->reset(sst);
+	if (sst->ops->reset)
+		sst->ops->reset(sst);
 }
 EXPORT_SYMBOL_GPL(sst_dsp_reset);
 
 int sst_dsp_boot(struct sst_dsp *sst)
 {
-	sst->ops->boot(sst);
+	if (sst->ops->boot)
+		sst->ops->boot(sst);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sst_dsp_boot);

@@ -178,7 +178,6 @@ struct nlm_block {
 	unsigned char		b_granted;	/* VFS granted lock */
 	struct nlm_file *	b_file;		/* file in question */
 	struct cache_req *	b_cache_req;	/* deferred request handling */
-	struct file_lock *	b_fl;		/* set for GETLK */
 	struct cache_deferred_req * b_deferred_req;
 	unsigned int		b_flags;	/* block flags */
 #define B_QUEUED		1	/* lock queued */

@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
@@ -752,7 +753,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 	v4l2_of_parse_endpoint(node, &endpoint);
 
 	state->index = endpoint.base.port - FIMC_INPUT_MIPI_CSI2_0;
-	if (state->index < 0 || state->index >= CSIS_MAX_ENTITIES)
+	if (state->index >= CSIS_MAX_ENTITIES)
 		return -ENXIO;
 
 	/* Get MIPI CSI-2 bus configration from the endpoint node. */

@@ -873,16 +873,16 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 
 	/* select data word length */
 	data = snd_soc_read(codec, AIC3X_ASD_INTF_CTRLB) & (~(0x3 << 4));
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		data |= (0x01 << 4);
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		data |= (0x02 << 4);
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		data |= (0x03 << 4);
 		break;
 	}
@@ -1121,6 +1121,7 @@ static int aic3x_regulator_event(struct notifier_block *nb,
 static int aic3x_set_power(struct snd_soc_codec *codec, int power)
 {
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
+	unsigned int pll_c, pll_d;
 	int ret;
 
 	if (power) {
@@ -1138,6 +1139,18 @@ static int aic3x_set_power(struct snd_soc_codec *codec, int power)
 		/* Sync reg_cache with the hardware */
 		regcache_cache_only(aic3x->regmap, false);
 		regcache_sync(aic3x->regmap);
+
+		/* Rewrite paired PLL D registers in case cached sync skipped
+		 * writing one of them and thus caused other one also not
+		 * being written
+		 */
+		pll_c = snd_soc_read(codec, AIC3X_PLL_PROGC_REG);
+		pll_d = snd_soc_read(codec, AIC3X_PLL_PROGD_REG);
+		if (pll_c == aic3x_reg[AIC3X_PLL_PROGC_REG].def ||
+			pll_d == aic3x_reg[AIC3X_PLL_PROGD_REG].def) {
+			snd_soc_write(codec, AIC3X_PLL_PROGC_REG, pll_c);
+			snd_soc_write(codec, AIC3X_PLL_PROGD_REG, pll_d);
+		}
 	} else {
 		/*
 		 * Do soft reset to this codec instance in order to clear
@@ -1194,7 +1207,8 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 
 #define AIC3X_RATES	SNDRV_PCM_RATE_8000_96000
 #define AIC3X_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
-			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
+			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_LE | \
+			 SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops aic3x_dai_ops = {
 	.hw_params	= aic3x_hw_params,
@@ -1220,20 +1234,6 @@ static struct snd_soc_dai_driver aic3x_dai = {
 	.ops = &aic3x_dai_ops,
 	.symmetric_rates = 1,
 };
-
-static int aic3x_suspend(struct snd_soc_codec *codec)
-{
-	aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int aic3x_resume(struct snd_soc_codec *codec)
-{
-	aic3x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
 
 static void aic3x_mono_init(struct snd_soc_codec *codec)
 {
@@ -1428,8 +1428,6 @@ static struct snd_soc_codec_driver soc_codec_dev_aic3x = {
 	.idle_bias_off = true,
 	.probe = aic3x_probe,
 	.remove = aic3x_remove,
-	.suspend = aic3x_suspend,
-	.resume = aic3x_resume,
 	.controls = aic3x_snd_controls,
 	.num_controls = ARRAY_SIZE(aic3x_snd_controls),
 	.dapm_widgets = aic3x_dapm_widgets,
@@ -1477,10 +1475,8 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	u32 value;
 
 	aic3x = devm_kzalloc(&i2c->dev, sizeof(struct aic3x_priv), GFP_KERNEL);
-	if (aic3x == NULL) {
-		dev_err(&i2c->dev, "failed to create private data\n");
+	if (!aic3x)
 		return -ENOMEM;
-	}
 
 	aic3x->regmap = devm_regmap_init_i2c(i2c, &aic3x_regmap);
 	if (IS_ERR(aic3x->regmap)) {
@@ -1498,10 +1494,8 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	} else if (np) {
 		ai3x_setup = devm_kzalloc(&i2c->dev, sizeof(*ai3x_setup),
 								GFP_KERNEL);
-		if (ai3x_setup == NULL) {
-			dev_err(&i2c->dev, "failed to create private data\n");
+		if (!ai3x_setup)
 			return -ENOMEM;
-		}
 
 		ret = of_get_named_gpio(np, "gpio-reset", 0);
 		if (ret >= 0)

@@ -40,11 +40,11 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_fid.h>
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
 #include <linux/list.h>
-#include <cl_object.h>
+#include "../include/cl_object.h"
 #include "cl_internal.h"
 
 /*****************************************************************************
@@ -126,7 +126,7 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 		info->clt_current_io = NULL;
 
 	/* sanity check for layout change */
-	switch(io->ci_type) {
+	switch (io->ci_type) {
 	case CIT_READ:
 	case CIT_WRITE:
 		break;
@@ -227,7 +227,7 @@ int cl_io_rw_init(const struct lu_env *env, struct cl_io *io,
 	LINVRNT(io->ci_obj != NULL);
 
 	LU_OBJECT_HEADER(D_VFSTRACE, env, &io->ci_obj->co_lu,
-			 "io range: %u ["LPU64", "LPU64") %u %u\n",
+			 "io range: %u [%llu, %llu) %u %u\n",
 			 iot, (__u64)pos, (__u64)pos + count,
 			 io->u.ci_rw.crw_nonblock, io->u.ci_wr.wr_append);
 	io->u.ci_rw.crw_pos    = pos;
@@ -1452,12 +1452,13 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 	if (req != NULL) {
 		int result;
 
+		req->crq_type = crt;
+		INIT_LIST_HEAD(&req->crq_pages);
+		INIT_LIST_HEAD(&req->crq_layers);
+
 		OBD_ALLOC(req->crq_o, nr_objects * sizeof(req->crq_o[0]));
 		if (req->crq_o != NULL) {
 			req->crq_nrobjs = nr_objects;
-			req->crq_type = crt;
-			INIT_LIST_HEAD(&req->crq_pages);
-			INIT_LIST_HEAD(&req->crq_layers);
 			result = cl_req_init(env, req, page);
 		} else
 			result = -ENOMEM;
@@ -1559,7 +1560,7 @@ EXPORT_SYMBOL(cl_req_prep);
  * for the same request.
  */
 void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
-		     struct cl_req_attr *attr, obd_valid flags)
+		     struct cl_req_attr *attr, u64 flags)
 {
 	const struct cl_req_slice *slice;
 	struct cl_page	    *page;

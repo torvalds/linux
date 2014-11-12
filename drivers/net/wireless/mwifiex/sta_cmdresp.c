@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: station command response handling
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -85,8 +85,6 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->scan_processing = false;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
-		if (priv->report_scan_result)
-			priv->report_scan_result = false;
 		break;
 
 	case HostCmd_CMD_MAC_CONTROL:
@@ -637,7 +635,7 @@ static int mwifiex_ret_802_11_key_material_v2(struct mwifiex_private *priv,
 static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
 					   struct host_cmd_ds_command *resp)
 {
-	if (priv->adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+	if (priv->adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2)
 		return mwifiex_ret_802_11_key_material_v2(priv, resp);
 	else
 		return mwifiex_ret_802_11_key_material_v1(priv, resp);
@@ -908,7 +906,7 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 		break;
 	default:
 		dev_err(priv->adapter->dev,
-			"Unknown TDLS command action respnse %d", action);
+			"Unknown TDLS command action response %d", action);
 		return -1;
 	}
 

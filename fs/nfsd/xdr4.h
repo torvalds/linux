@@ -55,6 +55,7 @@ struct nfsd4_compound_state {
 	struct svc_fh		current_fh;
 	struct svc_fh		save_fh;
 	struct nfs4_stateowner	*replay_owner;
+	struct nfs4_client	*clp;
 	/* For sessions DRC */
 	struct nfsd4_session	*session;
 	struct nfsd4_slot	*slot;
@@ -107,8 +108,8 @@ struct nfsd4_create {
 	u32		cr_type;            /* request */
 	union {                             /* request */
 		struct {
-			u32 namelen;
-			char *name;
+			u32 datalen;
+			char *data;
 		} link;   /* NF4LNK */
 		struct {
 			u32 specdata1;
@@ -121,8 +122,8 @@ struct nfsd4_create {
 	struct nfs4_acl *cr_acl;
 	struct xdr_netobj cr_label;
 };
-#define cr_linklen	u.link.namelen
-#define cr_linkname	u.link.name
+#define cr_datalen	u.link.datalen
+#define cr_data		u.link.data
 #define cr_specdata1	u.dev.specdata1
 #define cr_specdata2	u.dev.specdata2
 
@@ -427,6 +428,17 @@ struct nfsd4_reclaim_complete {
 	u32 rca_one_fs;
 };
 
+struct nfsd4_seek {
+	/* request */
+	stateid_t	seek_stateid;
+	loff_t		seek_offset;
+	u32		seek_whence;
+
+	/* response */
+	u32		seek_eof;
+	loff_t		seek_pos;
+};
+
 struct nfsd4_op {
 	int					opnum;
 	__be32					status;
@@ -472,11 +484,22 @@ struct nfsd4_op {
 		struct nfsd4_reclaim_complete	reclaim_complete;
 		struct nfsd4_test_stateid	test_stateid;
 		struct nfsd4_free_stateid	free_stateid;
+
+		/* NFSv4.2 */
+		struct nfsd4_seek		seek;
 	} u;
 	struct nfs4_replay *			replay;
 };
 
 bool nfsd4_cache_this_op(struct nfsd4_op *);
+
+/*
+ * Memory needed just for the duration of processing one compound:
+ */
+struct svcxdr_tmpbuf {
+	struct svcxdr_tmpbuf *next;
+	char buf[];
+};
 
 struct nfsd4_compoundargs {
 	/* scratch variables for XDR decode */
@@ -486,11 +509,7 @@ struct nfsd4_compoundargs {
 	int				pagelen;
 	__be32				tmp[8];
 	__be32 *			tmpp;
-	struct tmpbuf {
-		struct tmpbuf *next;
-		void (*release)(const void *);
-		void *buf;
-	}				*to_free;
+	struct svcxdr_tmpbuf		*to_free;
 
 	struct svc_rqst			*rqstp;
 
@@ -574,7 +593,6 @@ extern __be32 nfsd4_setclientid(struct svc_rqst *rqstp,
 extern __be32 nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *,
 		struct nfsd4_setclientid_confirm *setclientid_confirm);
-extern void nfsd4_store_cache_entry(struct nfsd4_compoundres *resp);
 extern __be32 nfsd4_exchange_id(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_exchange_id *);
 extern __be32 nfsd4_backchannel_ctl(struct svc_rqst *, struct nfsd4_compound_state *, struct nfsd4_backchannel_ctl *);
@@ -585,6 +603,7 @@ extern __be32 nfsd4_create_session(struct svc_rqst *,
 extern __be32 nfsd4_sequence(struct svc_rqst *,
 		struct nfsd4_compound_state *,
 		struct nfsd4_sequence *);
+extern void nfsd4_sequence_done(struct nfsd4_compoundres *resp);
 extern __be32 nfsd4_destroy_session(struct svc_rqst *,
 		struct nfsd4_compound_state *,
 		struct nfsd4_destroy_session *);
@@ -594,7 +613,9 @@ extern __be32 nfsd4_process_open1(struct nfsd4_compound_state *,
 		struct nfsd4_open *open, struct nfsd_net *nn);
 extern __be32 nfsd4_process_open2(struct svc_rqst *rqstp,
 		struct svc_fh *current_fh, struct nfsd4_open *open);
-extern void nfsd4_cleanup_open_state(struct nfsd4_open *open, __be32 status);
+extern void nfsd4_cstate_clear_replay(struct nfsd4_compound_state *cstate);
+extern void nfsd4_cleanup_open_state(struct nfsd4_compound_state *cstate,
+		struct nfsd4_open *open, __be32 status);
 extern __be32 nfsd4_open_confirm(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_open_confirm *oc);
 extern __be32 nfsd4_close(struct svc_rqst *rqstp,
@@ -625,6 +646,7 @@ extern __be32 nfsd4_test_stateid(struct svc_rqst *rqstp,
 extern __be32 nfsd4_free_stateid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_free_stateid *free_stateid);
 extern void nfsd4_bump_seqid(struct nfsd4_compound_state *, __be32 nfserr);
+
 #endif
 
 /*

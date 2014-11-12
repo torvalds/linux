@@ -67,9 +67,9 @@
 
 struct phy_rx_agc_info {
 	#ifdef __LITTLE_ENDIAN
-		u8	gain:7,trsw:1;
+		u8	gain:7, trsw:1;
 	#else
-		u8	trsw:1,gain:7;
+		u8	trsw:1, gain:7;
 	#endif
 };
 
@@ -151,22 +151,5 @@ ODM_PhyStatusQuery23a(
 	u8 *						pPhyStatus,
 	struct odm_packet_info *pPktinfo
 	);
-
-void ODM_MacStatusQuery23a(struct dm_odm_t *pDM_Odm,
-	u8 *pMacStatus,
-	u8 MacID,
-	bool bPacketMatchBSSID,
-	bool bPacketToSelf,
-	bool bPacketBeacon
-);
-
-int ODM_ConfigRFWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
-				  enum RF_RADIO_PATH Content,
-				  enum RF_RADIO_PATH eRFPath);
-
-int ODM_ConfigBBWithHeaderFile23a(struct dm_odm_t *pDM_Odm,
-				  enum odm_bb_config_type ConfigType);
-
-int ODM_ConfigMACWithHeaderFile23a(struct dm_odm_t *pDM_Odm);
 
 #endif

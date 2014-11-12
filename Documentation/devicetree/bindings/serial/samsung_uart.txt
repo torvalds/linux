@@ -1,14 +1,58 @@
 * Samsung's UART Controller
 
-The Samsung's UART controller is used for interfacing SoC with serial communicaion
-devices.
+The Samsung's UART controller is used for interfacing SoC with serial
+communicaion devices.
 
 Required properties:
-- compatible: should be
-  - "samsung,exynos4210-uart", for UART's compatible with Exynos4210 uart ports.
+- compatible: should be one of following:
+  - "samsung,exynos4210-uart" -  Exynos4210 SoC,
+  - "samsung,s3c2410-uart" - compatible with ports present on S3C2410 SoC,
+  - "samsung,s3c2412-uart" - compatible with ports present on S3C2412 SoC,
+  - "samsung,s3c2440-uart" - compatible with ports present on S3C2440 SoC,
+  - "samsung,s3c6400-uart" - compatible with ports present on S3C6400 SoC,
+  - "samsung,s5pv210-uart" - compatible with ports present on S5PV210 SoC.
 
 - reg: base physical address of the controller and length of memory mapped
   region.
 
-- interrupts: interrupt number to the cpu. The interrupt specifier format depends
-  on the interrupt controller parent.
+- interrupts: a single interrupt signal to SoC interrupt controller,
+  according to interrupt bindings documentation [1].
+
+- clock-names: input names of clocks used by the controller:
+  - "uart" - controller bus clock,
+  - "clk_uart_baudN" - Nth baud base clock input (N = 0, 1, ...),
+    according to SoC User's Manual (only N = 0 is allowedfor SoCs without
+    internal baud clock mux).
+- clocks: phandles and specifiers for all clocks specified in "clock-names"
+  property, in the same order, according to clock bindings documentation [2].
+
+[1] Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+[2] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Optional properties:
+- samsung,uart-fifosize: The fifo size supported by the UART channel
+
+Note: Each Samsung UART should have an alias correctly numbered in the
+"aliases" node, according to serialN format, where N is the port number
+(non-negative decimal integer) as specified by User's Manual of respective
+SoC.
+
+Example:
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+	};
+
+Example:
+	uart1: serial@7f005400 {
+		compatible = "samsung,s3c6400-uart";
+		reg = <0x7f005400 0x100>;
+		interrupt-parent = <&vic1>;
+		interrupts = <6>;
+		clock-names = "uart", "clk_uart_baud2",
+				"clk_uart_baud3";
+		clocks = <&clocks PCLK_UART1>, <&clocks PCLK_UART1>,
+				<&clocks SCLK_UART>;
+		samsung,uart-fifosize = <16>;
+	};

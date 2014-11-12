@@ -46,13 +46,12 @@
 #ifndef OSC_CL_INTERNAL_H
 #define OSC_CL_INTERNAL_H
 
-# include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd.h>
+#include "../include/obd.h"
 /* osc_build_res_name() */
-#include <obd_ost.h>
-#include <cl_object.h>
-#include <lclient.h>
+#include "../include/cl_object.h"
+#include "../include/lclient.h"
 #include "osc_internal.h"
 
 /** \defgroup osc osc
@@ -118,7 +117,7 @@ struct osc_object {
 	 * True if locking against this stripe got -EUSERS.
 	 */
 	int		oo_contended;
-	cfs_time_t	 oo_contention_time;
+	unsigned long	 oo_contention_time;
 	/**
 	 * List of pages in transfer.
 	 */
@@ -387,7 +386,7 @@ struct osc_page {
 	/**
 	 * Submit time - the time when the page is starting RPC. For debugging.
 	 */
-	cfs_time_t	    ops_submit_time;
+	unsigned long	    ops_submit_time;
 
 	/**
 	 * A lock of which we hold a reference covers this page. Only used by
@@ -435,7 +434,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 		     enum cl_req_type crt, int brw_flags);
 int osc_cancel_async_page(const struct lu_env *env, struct osc_page *ops);
 int osc_set_async_flags(struct osc_object *obj, struct osc_page *opg,
-			obd_flag async_flags);
+			u32 async_flags);
 int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 			struct page *page, loff_t offset);
 int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,

@@ -95,7 +95,7 @@ struct wlcore_ops {
 	int (*scan_stop)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 	int (*sched_scan_start)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				struct cfg80211_sched_scan_request *req,
-				struct ieee80211_sched_scan_ies *ies);
+				struct ieee80211_scan_ies *ies);
 	void (*sched_scan_stop)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 	int (*get_spare_blocks)(struct wl1271 *wl, bool is_gem);
 	int (*set_key)(struct wl1271 *wl, enum set_key_cmd cmd,
@@ -117,6 +117,10 @@ struct wlcore_ops {
 			      struct wl1271_link *lnk);
 	bool (*lnk_low_prio)(struct wl1271 *wl, u8 hlid,
 			     struct wl1271_link *lnk);
+	int (*smart_config_start)(struct wl1271 *wl, u32 group_bitmap);
+	int (*smart_config_stop)(struct wl1271 *wl);
+	int (*smart_config_set_group_key)(struct wl1271 *wl, u16 group_id,
+					  u8 key_len, u8 *key);
 };
 
 enum wlcore_partitions {
@@ -384,10 +388,10 @@ struct wl1271 {
 	int active_link_count;
 
 	/* Fast/slow links bitmap according to FW */
-	u32 fw_fast_lnk_map;
+	unsigned long fw_fast_lnk_map;
 
 	/* AP-mode - a bitmap of links currently in PS mode according to FW */
-	u32 ap_fw_ps_map;
+	unsigned long ap_fw_ps_map;
 
 	/* AP-mode - a bitmap of links currently in PS mode in mac80211 */
 	unsigned long ap_ps_map;

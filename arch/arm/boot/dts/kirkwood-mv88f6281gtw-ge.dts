@@ -123,11 +123,11 @@
 
 	dsa@0 {
 		compatible = "marvell,dsa";
-		#address-cells = <2>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		dsa,ethernet = <&eth0>;
-		dsa,mii-bus = <&ethphy0>;
+		dsa,ethernet = <&eth0port>;
+		dsa,mii-bus = <&mdio>;
 
 		switch@0 {
 			#address-cells = <1>;
@@ -169,17 +169,13 @@
 
 &mdio {
 	status = "okay";
-
-	ethphy0: ethernet-phy@ff {
-		reg = <0xff>; 	/* No phy attached */
-		speed = <1000>;
-		duplex = <1>;
-	};
 };
 
 &eth0 {
 	status = "okay";
+
 	ethernet0-port@0 {
-		phy-handle = <&ethphy0>;
+		speed = <1000>;
+		duplex = <1>;
 	};
 };

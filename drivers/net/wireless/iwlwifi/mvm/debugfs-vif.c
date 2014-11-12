@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,8 +76,7 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 
 	switch (param) {
 	case MVM_DEBUGFS_PM_KEEP_ALIVE: {
-		struct ieee80211_hw *hw = mvm->hw;
-		int dtimper = hw->conf.ps_dtim_period ?: 1;
+		int dtimper = vif->bss_conf.dtim_period ?: 1;
 		int dtimper_msec = dtimper * vif->bss_conf.beacon_int;
 
 		IWL_DEBUG_POWER(mvm, "debugfs: set keep_alive= %d sec\n", val);
@@ -118,6 +119,10 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 	case MVM_DEBUGFS_PM_UAPSD_MISBEHAVING:
 		IWL_DEBUG_POWER(mvm, "uapsd_misbehaving_enable=%d\n", val);
 		dbgfs_pm->uapsd_misbehaving = val;
+		break;
+	case MVM_DEBUGFS_PM_USE_PS_POLL:
+		IWL_DEBUG_POWER(mvm, "use_ps_poll=%d\n", val);
+		dbgfs_pm->use_ps_poll = val;
 		break;
 	}
 }
@@ -169,6 +174,10 @@ static ssize_t iwl_dbgfs_pm_params_write(struct ieee80211_vif *vif, char *buf,
 		if (sscanf(buf + 18, "%d", &val) != 1)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_UAPSD_MISBEHAVING;
+	} else if (!strncmp("use_ps_poll=", buf, 12)) {
+		if (sscanf(buf + 12, "%d", &val) != 1)
+			return -EINVAL;
+		param = MVM_DEBUGFS_PM_USE_PS_POLL;
 	} else {
 		return -EINVAL;
 	}

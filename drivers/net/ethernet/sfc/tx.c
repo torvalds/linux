@@ -78,7 +78,7 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 	if (buffer->flags & EFX_TX_BUF_SKB) {
 		(*pkts_compl)++;
 		(*bytes_compl) += buffer->skb->len;
-		dev_kfree_skb_any((struct sk_buff *) buffer->skb);
+		dev_consume_skb_any((struct sk_buff *)buffer->skb);
 		netif_vdbg(tx_queue->efx, tx_done, tx_queue->efx->net_dev,
 			   "TX queue %d transmission id %x complete\n",
 			   tx_queue->queue, tx_queue->read_count);
@@ -132,15 +132,6 @@ unsigned int efx_tx_max_skb_descs(struct efx_nic *efx)
 	return max_descs;
 }
 
-/* Get partner of a TX queue, seen as part of the same net core queue */
-static struct efx_tx_queue *efx_tx_queue_partner(struct efx_tx_queue *tx_queue)
-{
-	if (tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD)
-		return tx_queue - EFX_TXQ_TYPE_OFFLOAD;
-	else
-		return tx_queue + EFX_TXQ_TYPE_OFFLOAD;
-}
-
 static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 {
 	/* We need to consider both queues that the net core sees as one */
@@ -189,18 +180,6 @@ struct efx_short_copy_buffer {
 	u8 buf[L1_CACHE_BYTES];
 };
 
-/* Copy in explicit 64-bit writes. */
-static void efx_memcpy_64(void __iomem *dest, void *src, size_t len)
-{
-	u64 *src64 = src;
-	u64 __iomem *dest64 = dest;
-	size_t l64 = len / 8;
-	size_t i;
-
-	for (i = 0; i < l64; i++)
-		writeq(src64[i], &dest64[i]);
-}
-
 /* Copy to PIO, respecting that writes to PIO buffers must be dword aligned.
  * Advances piobuf pointer. Leaves additional data in the copy buffer.
  */
@@ -210,7 +189,7 @@ static void efx_memcpy_toio_aligned(struct efx_nic *efx, u8 __iomem **piobuf,
 {
 	int block_len = len & ~(sizeof(copy_buf->buf) - 1);
 
-	efx_memcpy_64(*piobuf, data, block_len);
+	__iowrite64_copy(*piobuf, data, block_len >> 3);
 	*piobuf += block_len;
 	len -= block_len;
 
@@ -242,7 +221,8 @@ static void efx_memcpy_toio_aligned_cb(struct efx_nic *efx, u8 __iomem **piobuf,
 		if (copy_buf->used < sizeof(copy_buf->buf))
 			return;
 
-		efx_memcpy_64(*piobuf, copy_buf->buf, sizeof(copy_buf->buf));
+		__iowrite64_copy(*piobuf, copy_buf->buf,
+				 sizeof(copy_buf->buf) >> 3);
 		*piobuf += sizeof(copy_buf->buf);
 		data += copy_to_buf;
 		len -= copy_to_buf;
@@ -257,7 +237,8 @@ static void efx_flush_copy_buffer(struct efx_nic *efx, u8 __iomem *piobuf,
 {
 	/* if there's anything in it, write the whole buffer, including junk */
 	if (copy_buf->used)
-		efx_memcpy_64(piobuf, copy_buf->buf, sizeof(copy_buf->buf));
+		__iowrite64_copy(piobuf, copy_buf->buf,
+				 sizeof(copy_buf->buf) >> 3);
 }
 
 /* Traverse skb structure and copy fragments in to PIO buffer.
@@ -316,8 +297,8 @@ efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 		 */
 		BUILD_BUG_ON(L1_CACHE_BYTES >
 			     SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
-		efx_memcpy_64(tx_queue->piobuf, skb->data,
-			      ALIGN(skb->len, L1_CACHE_BYTES));
+		__iowrite64_copy(tx_queue->piobuf, skb->data,
+				 ALIGN(skb->len, L1_CACHE_BYTES) >> 3);
 	}
 
 	EFX_POPULATE_QWORD_5(buffer->option,
@@ -354,14 +335,13 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	struct efx_nic *efx = tx_queue->efx;
 	struct device *dma_dev = &efx->pci_dev->dev;
 	struct efx_tx_buffer *buffer;
+	unsigned int old_insert_count = tx_queue->insert_count;
 	skb_frag_t *fragment;
 	unsigned int len, unmap_len = 0;
 	dma_addr_t dma_addr, unmap_addr = 0;
 	unsigned int dma_len;
 	unsigned short dma_flags;
 	int i = 0;
-
-	EFX_BUG_ON_PARANOID(tx_queue->write_count != tx_queue->insert_count);
 
 	if (skb_shinfo(skb)->gso_size)
 		return efx_enqueue_skb_tso(tx_queue, skb);
@@ -379,9 +359,8 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 
 	/* Consider using PIO for short packets */
 #ifdef EFX_USE_PIO
-	if (skb->len <= efx_piobuf_size && tx_queue->piobuf &&
-	    efx_nic_tx_is_empty(tx_queue) &&
-	    efx_nic_tx_is_empty(efx_tx_queue_partner(tx_queue))) {
+	if (skb->len <= efx_piobuf_size && !skb->xmit_more &&
+	    efx_nic_may_tx_pio(tx_queue)) {
 		buffer = efx_enqueue_skb_pio(tx_queue, skb);
 		dma_flags = EFX_TX_BUF_OPTION;
 		goto finish_packet;
@@ -449,10 +428,13 @@ finish_packet:
 
 	netdev_tx_sent_queue(tx_queue->core_txq, skb->len);
 
-	/* Pass off to hardware */
-	efx_nic_push_buffers(tx_queue);
-
 	efx_tx_maybe_stop_queue(tx_queue);
+
+	/* Pass off to hardware */
+	if (!skb->xmit_more || netif_xmit_stopped(tx_queue->core_txq))
+		efx_nic_push_buffers(tx_queue);
+
+	tx_queue->tx_packets++;
 
 	return NETDEV_TX_OK;
 
@@ -466,7 +448,7 @@ finish_packet:
 	dev_kfree_skb_any(skb);
 
 	/* Work backwards until we hit the original insert pointer value */
-	while (tx_queue->insert_count != tx_queue->write_count) {
+	while (tx_queue->insert_count != old_insert_count) {
 		unsigned int pkts_compl = 0, bytes_compl = 0;
 		--tx_queue->insert_count;
 		buffer = __efx_tx_queue_get_insert_buffer(tx_queue);
@@ -997,12 +979,13 @@ static int efx_tso_put_header(struct efx_tx_queue *tx_queue,
 /* Remove buffers put into a tx_queue.  None of the buffers must have
  * an skb attached.
  */
-static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
+static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue,
+			       unsigned int insert_count)
 {
 	struct efx_tx_buffer *buffer;
 
 	/* Work backwards until we hit the original insert pointer value */
-	while (tx_queue->insert_count != tx_queue->write_count) {
+	while (tx_queue->insert_count != insert_count) {
 		--tx_queue->insert_count;
 		buffer = __efx_tx_queue_get_insert_buffer(tx_queue);
 		efx_dequeue_buffer(tx_queue, buffer, NULL, NULL);
@@ -1245,6 +1228,8 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 
 	++tx_queue->tso_packets;
 
+	++tx_queue->tx_packets;
+
 	return 0;
 }
 
@@ -1264,13 +1249,12 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 			       struct sk_buff *skb)
 {
 	struct efx_nic *efx = tx_queue->efx;
+	unsigned int old_insert_count = tx_queue->insert_count;
 	int frag_i, rc;
 	struct tso_state state;
 
 	/* Find the packet protocol and sanity-check it */
 	state.protocol = efx_tso_check_protocol(skb);
-
-	EFX_BUG_ON_PARANOID(tx_queue->write_count != tx_queue->insert_count);
 
 	rc = tso_start(&state, efx, skb);
 	if (rc)
@@ -1314,10 +1298,11 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
 	netdev_tx_sent_queue(tx_queue->core_txq, skb->len);
 
-	/* Pass off to hardware */
-	efx_nic_push_buffers(tx_queue);
-
 	efx_tx_maybe_stop_queue(tx_queue);
+
+	/* Pass off to hardware */
+	if (!skb->xmit_more || netif_xmit_stopped(tx_queue->core_txq))
+		efx_nic_push_buffers(tx_queue);
 
 	tx_queue->tso_bursts++;
 	return NETDEV_TX_OK;
@@ -1342,6 +1327,6 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 		dma_unmap_single(&efx->pci_dev->dev, state.header_dma_addr,
 				 state.header_unmap_len, DMA_TO_DEVICE);
 
-	efx_enqueue_unwind(tx_queue);
+	efx_enqueue_unwind(tx_queue, old_insert_count);
 	return NETDEV_TX_OK;
 }

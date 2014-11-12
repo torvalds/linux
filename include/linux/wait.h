@@ -25,7 +25,7 @@ struct wait_bit_key {
 	void			*flags;
 	int			bit_nr;
 #define WAIT_ATOMIC_T_BIT_NR	-1
-	unsigned long		private;
+	unsigned long		timeout;
 };
 
 struct wait_bit_queue {
@@ -154,6 +154,7 @@ int __wait_on_bit_lock(wait_queue_head_t *, struct wait_bit_queue *, wait_bit_ac
 void wake_up_bit(void *, int);
 void wake_up_atomic_t(atomic_t *);
 int out_of_line_wait_on_bit(void *, int, wait_bit_action_f *, unsigned);
+int out_of_line_wait_on_bit_timeout(void *, int, wait_bit_action_f *, unsigned, unsigned long);
 int out_of_line_wait_on_bit_lock(void *, int, wait_bit_action_f *, unsigned);
 int out_of_line_wait_on_atomic_t(atomic_t *, int (*)(atomic_t *), unsigned);
 wait_queue_head_t *bit_waitqueue(void *, int);
@@ -280,9 +281,11 @@ do {									\
  * wake_up() has to be called after changing any variable that could
  * change the result of the wait condition.
  *
- * The function returns 0 if the @timeout elapsed, or the remaining
- * jiffies (at least 1) if the @condition evaluated to %true before
- * the @timeout elapsed.
+ * Returns:
+ * 0 if the @condition evaluated to %false after the @timeout elapsed,
+ * 1 if the @condition evaluated to %true after the @timeout elapsed,
+ * or the remaining jiffies (at least 1) if the @condition evaluated
+ * to %true before the @timeout elapsed.
  */
 #define wait_event_timeout(wq, condition, timeout)			\
 ({									\
@@ -363,9 +366,11 @@ do {									\
  * change the result of the wait condition.
  *
  * Returns:
- * 0 if the @timeout elapsed, -%ERESTARTSYS if it was interrupted by
- * a signal, or the remaining jiffies (at least 1) if the @condition
- * evaluated to %true before the @timeout elapsed.
+ * 0 if the @condition evaluated to %false after the @timeout elapsed,
+ * 1 if the @condition evaluated to %true after the @timeout elapsed,
+ * the remaining jiffies (at least 1) if the @condition evaluated
+ * to %true before the @timeout elapsed, or -%ERESTARTSYS if it was
+ * interrupted by a signal.
  */
 #define wait_event_interruptible_timeout(wq, condition, timeout)	\
 ({									\
@@ -859,6 +864,8 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 
 extern int bit_wait(struct wait_bit_key *);
 extern int bit_wait_io(struct wait_bit_key *);
+extern int bit_wait_timeout(struct wait_bit_key *);
+extern int bit_wait_io_timeout(struct wait_bit_key *);
 
 /**
  * wait_on_bit - wait for a bit to be cleared

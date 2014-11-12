@@ -20,6 +20,7 @@
 #include <linux/mfd/samsung/irq.h>
 #include <linux/mfd/samsung/s2mps11.h>
 #include <linux/mfd/samsung/s2mps14.h>
+#include <linux/mfd/samsung/s2mpu02.h>
 #include <linux/mfd/samsung/s5m8763.h>
 #include <linux/mfd/samsung/s5m8767.h>
 
@@ -156,6 +157,77 @@ static const struct regmap_irq s2mps14_irqs[] = {
 		.mask = S2MPS11_IRQ_INT140C_MASK,
 	},
 	[S2MPS14_IRQ_TSD] = {
+		.reg_offset = 2,
+		.mask = S2MPS14_IRQ_TSD_MASK,
+	},
+};
+
+static const struct regmap_irq s2mpu02_irqs[] = {
+	[S2MPU02_IRQ_PWRONF] = {
+		.reg_offset = 0,
+		.mask = S2MPS11_IRQ_PWRONF_MASK,
+	},
+	[S2MPU02_IRQ_PWRONR] = {
+		.reg_offset = 0,
+		.mask = S2MPS11_IRQ_PWRONR_MASK,
+	},
+	[S2MPU02_IRQ_JIGONBF] = {
+		.reg_offset = 0,
+		.mask = S2MPS11_IRQ_JIGONBF_MASK,
+	},
+	[S2MPU02_IRQ_JIGONBR] = {
+		.reg_offset = 0,
+		.mask = S2MPS11_IRQ_JIGONBR_MASK,
+	},
+	[S2MPU02_IRQ_ACOKBF] = {
+		.reg_offset = 0,
+		.mask = S2MPS11_IRQ_ACOKBF_MASK,
+	},
+	[S2MPU02_IRQ_ACOKBR] = {
+		.reg_offset = 0,
+		.mask = S2MPS11_IRQ_ACOKBR_MASK,
+	},
+	[S2MPU02_IRQ_PWRON1S] = {
+		.reg_offset = 0,
+		.mask = S2MPS11_IRQ_PWRON1S_MASK,
+	},
+	[S2MPU02_IRQ_MRB] = {
+		.reg_offset = 0,
+		.mask = S2MPS11_IRQ_MRB_MASK,
+	},
+	[S2MPU02_IRQ_RTC60S] = {
+		.reg_offset = 1,
+		.mask = S2MPS11_IRQ_RTC60S_MASK,
+	},
+	[S2MPU02_IRQ_RTCA1] = {
+		.reg_offset = 1,
+		.mask = S2MPS11_IRQ_RTCA1_MASK,
+	},
+	[S2MPU02_IRQ_RTCA0] = {
+		.reg_offset = 1,
+		.mask = S2MPS11_IRQ_RTCA0_MASK,
+	},
+	[S2MPU02_IRQ_SMPL] = {
+		.reg_offset = 1,
+		.mask = S2MPS11_IRQ_SMPL_MASK,
+	},
+	[S2MPU02_IRQ_RTC1S] = {
+		.reg_offset = 1,
+		.mask = S2MPS11_IRQ_RTC1S_MASK,
+	},
+	[S2MPU02_IRQ_WTSR] = {
+		.reg_offset = 1,
+		.mask = S2MPS11_IRQ_WTSR_MASK,
+	},
+	[S2MPU02_IRQ_INT120C] = {
+		.reg_offset = 2,
+		.mask = S2MPS11_IRQ_INT120C_MASK,
+	},
+	[S2MPU02_IRQ_INT140C] = {
+		.reg_offset = 2,
+		.mask = S2MPS11_IRQ_INT140C_MASK,
+	},
+	[S2MPU02_IRQ_TSD] = {
 		.reg_offset = 2,
 		.mask = S2MPS14_IRQ_TSD_MASK,
 	},
@@ -327,6 +399,16 @@ static const struct regmap_irq_chip s2mps14_irq_chip = {
 	.ack_base = S2MPS14_REG_INT1,
 };
 
+static const struct regmap_irq_chip s2mpu02_irq_chip = {
+	.name = "s2mpu02",
+	.irqs = s2mpu02_irqs,
+	.num_irqs = ARRAY_SIZE(s2mpu02_irqs),
+	.num_regs = 3,
+	.status_base = S2MPU02_REG_INT1,
+	.mask_base = S2MPU02_REG_INT1M,
+	.ack_base = S2MPU02_REG_INT1,
+};
+
 static const struct regmap_irq_chip s5m8767_irq_chip = {
 	.name = "s5m8767",
 	.irqs = s5m8767_irqs,
@@ -351,6 +433,7 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 {
 	int ret = 0;
 	int type = sec_pmic->device_type;
+	const struct regmap_irq_chip *sec_irq_chip;
 
 	if (!sec_pmic->irq) {
 		dev_warn(sec_pmic->dev,
@@ -361,28 +444,19 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 
 	switch (type) {
 	case S5M8763X:
-		ret = regmap_add_irq_chip(sec_pmic->regmap_pmic, sec_pmic->irq,
-				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				  sec_pmic->irq_base, &s5m8763_irq_chip,
-				  &sec_pmic->irq_data);
+		sec_irq_chip = &s5m8763_irq_chip;
 		break;
 	case S5M8767X:
-		ret = regmap_add_irq_chip(sec_pmic->regmap_pmic, sec_pmic->irq,
-				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				  sec_pmic->irq_base, &s5m8767_irq_chip,
-				  &sec_pmic->irq_data);
+		sec_irq_chip = &s5m8767_irq_chip;
 		break;
 	case S2MPS11X:
-		ret = regmap_add_irq_chip(sec_pmic->regmap_pmic, sec_pmic->irq,
-				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				  sec_pmic->irq_base, &s2mps11_irq_chip,
-				  &sec_pmic->irq_data);
+		sec_irq_chip = &s2mps11_irq_chip;
 		break;
 	case S2MPS14X:
-		ret = regmap_add_irq_chip(sec_pmic->regmap_pmic, sec_pmic->irq,
-				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				  sec_pmic->irq_base, &s2mps14_irq_chip,
-				  &sec_pmic->irq_data);
+		sec_irq_chip = &s2mps14_irq_chip;
+		break;
+	case S2MPU02:
+		sec_irq_chip = &s2mpu02_irq_chip;
 		break;
 	default:
 		dev_err(sec_pmic->dev, "Unknown device type %lu\n",
@@ -390,6 +464,10 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 		return -EINVAL;
 	}
 
+	ret = regmap_add_irq_chip(sec_pmic->regmap_pmic, sec_pmic->irq,
+			  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			  sec_pmic->irq_base, sec_irq_chip,
+			  &sec_pmic->irq_data);
 	if (ret != 0) {
 		dev_err(sec_pmic->dev, "Failed to register IRQ chip: %d\n", ret);
 		return ret;

@@ -34,3 +34,4 @@ obj-$(CONFIG_MDIO_BUS_MUX_MMIOREG) += mdio-mux-mmioreg.o
 obj-$(CONFIG_MDIO_SUN4I)	+= mdio-sun4i.o
 obj-$(CONFIG_MDIO_MOXART)	+= mdio-moxart.o
 obj-$(CONFIG_AMD_XGBE_PHY)	+= amd-xgbe-phy.o
+obj-$(CONFIG_MDIO_BCM_UNIMAC)	+= mdio-bcm-unimac.o

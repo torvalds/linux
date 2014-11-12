@@ -37,11 +37,10 @@
 #ifndef _OBD_SUPPORT
 #define _OBD_SUPPORT
 
-#include <linux/libcfs/libcfs.h>
-#include <lvfs.h>
-#include <lprocfs_status.h>
-
-#include <linux/obd_support.h>
+#include <linux/slab.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "linux/lustre_compat25.h"
+#include "lprocfs_status.h"
 
 /* global variables */
 extern struct lprocfs_stats *obd_memory;
@@ -128,12 +127,12 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
  /* Max connect interval for nonresponsive servers; ~50s to avoid building up
     connect requests in the LND queues, but within obd_timeout so we don't
     miss the recovery window */
-#define CONNECTION_SWITCH_MAX min(50U, max(CONNECTION_SWITCH_MIN,obd_timeout))
+#define CONNECTION_SWITCH_MAX min(50U, max(CONNECTION_SWITCH_MIN, obd_timeout))
 #define CONNECTION_SWITCH_INC 5  /* Connection timeout backoff */
 /* In general this should be low to have quick detection of a system
    running on a backup server. (If it's too low, import_select_connection
    will increase the timeout anyhow.)  */
-#define INITIAL_CONNECT_TIMEOUT max(CONNECTION_SWITCH_MIN,obd_timeout/20)
+#define INITIAL_CONNECT_TIMEOUT max(CONNECTION_SWITCH_MIN, obd_timeout/20)
 /* The max delay between connects is SWITCH_MAX + SWITCH_INC + INITIAL */
 #define RECONNECT_DELAY_MAX (CONNECTION_SWITCH_MAX + CONNECTION_SWITCH_INC + \
 			     INITIAL_CONNECT_TIMEOUT)
@@ -403,6 +402,7 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 #define OBD_FAIL_TGT_LAST_REPLAY	 0x710
 #define OBD_FAIL_TGT_CLIENT_ADD	  0x711
 #define OBD_FAIL_TGT_RCVG_FLAG	   0x712
+#define OBD_FAIL_TGT_DELAY_CONDITIONAL	 0x713
 
 #define OBD_FAIL_MDC_REVALIDATE_PAUSE    0x800
 #define OBD_FAIL_MDC_ENQUEUE_PAUSE       0x801
@@ -509,7 +509,7 @@ extern atomic_t libcfs_kmemory;
 
 extern void obd_update_maxusage(void);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 #define obd_memory_add(size)						  \
 	lprocfs_counter_add(obd_memory, OBD_MEMORY_STAT, (long)(size))
 #define obd_memory_sub(size)						  \
@@ -663,12 +663,12 @@ do {									      \
 	if (unlikely((ptr) == NULL)) {					\
 		CERROR("vmalloc of '" #ptr "' (%d bytes) failed\n",	   \
 		       (int)(size));					  \
-		CERROR(LPU64" total bytes allocated by Lustre, %d by LNET\n", \
+		CERROR("%llu total bytes allocated by Lustre, %d by LNET\n", \
 		       obd_memory_sum(), atomic_read(&libcfs_kmemory));   \
 	} else {							      \
 		OBD_ALLOC_POST(ptr, size, "vmalloced");		       \
 	}								     \
-} while(0)
+} while (0)
 
 # define OBD_VMALLOC(ptr, size)						      \
 	 __OBD_VMALLOC_VEROBSE(ptr, NULL, 0, size)
@@ -730,7 +730,7 @@ do {									  \
 	OBD_FREE_PRE(ptr, size, "kfreed");				    \
 	kfree(ptr);							\
 	POISON_PTR(ptr);						      \
-} while(0)
+} while (0)
 
 
 #define OBD_FREE_RCU(ptr, size, handle)					      \
@@ -742,7 +742,7 @@ do {									      \
 	__h->h_size = (size);						      \
 	call_rcu(&__h->h_rcu, class_handle_free_cb);			      \
 	POISON_PTR(ptr);						      \
-} while(0)
+} while (0)
 
 
 #define OBD_VFREE(ptr, size)				\
@@ -776,7 +776,7 @@ do {									      \
 		    OBD_SLAB_FREE_RTN0(ptr, slab)))) {			\
 		OBD_ALLOC_POST(ptr, size, "slab-alloced");		    \
 	}								     \
-} while(0)
+} while (0)
 
 #define OBD_SLAB_ALLOC_GFP(ptr, slab, size, flags)			      \
 	__OBD_SLAB_ALLOC_VERBOSE(ptr, slab, NULL, 0, size, flags)
@@ -790,7 +790,7 @@ do {									  \
 	OBD_FREE_PRE(ptr, size, "slab-freed");				\
 	kmem_cache_free(slab, ptr);					\
 	POISON_PTR(ptr);						      \
-} while(0)
+} while (0)
 
 #define OBD_SLAB_ALLOC(ptr, slab, size)					      \
 	OBD_SLAB_ALLOC_GFP(ptr, slab, size, GFP_NOFS)
@@ -823,11 +823,11 @@ do {									      \
 		alloc_page(gfp_mask) :				      \
 		alloc_pages_node(cfs_cpt_spread_node(cptab, cpt), gfp_mask, 0);\
 	if (unlikely((ptr) == NULL)) {					\
-		CERROR("alloc_pages of '" #ptr "' %d page(s) / "LPU64" bytes "\
+		CERROR("alloc_pages of '" #ptr "' %d page(s) / %llu bytes "\
 		       "failed\n", (int)1,				    \
 		       (__u64)(1 << PAGE_CACHE_SHIFT));			 \
-		CERROR(LPU64" total bytes and "LPU64" total pages "	   \
-		       "("LPU64" bytes) allocated by Lustre, "		\
+		CERROR("%llu total bytes and %llu total pages "	   \
+		       "(%llu bytes) allocated by Lustre, "		\
 		       "%d total bytes by LNET\n",			    \
 		       obd_memory_sum(),				      \
 		       obd_pages_sum() << PAGE_CACHE_SHIFT,		     \
@@ -836,7 +836,7 @@ do {									      \
 	} else {							      \
 		obd_pages_add(0);					     \
 		CDEBUG(D_MALLOC, "alloc_pages '" #ptr "': %d page(s) / "      \
-		       LPU64" bytes at %p.\n",				\
+		       "%llu bytes at %p.\n",				\
 		       (int)1,						\
 		       (__u64)(1 << PAGE_CACHE_SHIFT), ptr);		    \
 	}								     \
@@ -851,7 +851,7 @@ do {									      \
 do {									  \
 	LASSERT(ptr);							 \
 	obd_pages_sub(0);						     \
-	CDEBUG(D_MALLOC, "free_pages '" #ptr "': %d page(s) / "LPU64" bytes " \
+	CDEBUG(D_MALLOC, "free_pages '" #ptr "': %d page(s) / %llu bytes " \
 	       "at %p.\n",						    \
 	       (int)1, (__u64)(1 << PAGE_CACHE_SHIFT),			  \
 	       ptr);							  \

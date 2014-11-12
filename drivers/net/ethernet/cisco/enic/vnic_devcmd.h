@@ -603,6 +603,11 @@ struct filter_tlv {
 	u_int32_t val[0];
 };
 
+enum {
+	CLSF_ADD = 0,
+	CLSF_DEL = 1,
+};
+
 /*
  * Writing cmd register causes STAT_BUSY to get set in status register.
  * When cmd completes, STAT_BUSY will be cleared.

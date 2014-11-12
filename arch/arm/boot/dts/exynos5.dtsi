@@ -18,6 +18,13 @@
 / {
 	interrupt-parent = <&gic>;
 
+	aliases {
+		serial0 = &serial_0;
+		serial1 = &serial_1;
+		serial2 = &serial_2;
+		serial3 = &serial_3;
+	};
+
 	chipid@10000000 {
 		compatible = "samsung,exynos4210-chipid";
 		reg = <0x10000000 0x100>;
@@ -50,25 +57,25 @@
 		interrupts = <1 9 0xf04>;
 	};
 
-	serial@12C00000 {
+	serial_0: serial@12C00000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0x12C00000 0x100>;
 		interrupts = <0 51 0>;
 	};
 
-	serial@12C10000 {
+	serial_1: serial@12C10000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0x12C10000 0x100>;
 		interrupts = <0 52 0>;
 	};
 
-	serial@12C20000 {
+	serial_2: serial@12C20000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0x12C20000 0x100>;
 		interrupts = <0 53 0>;
 	};
 
-	serial@12C30000 {
+	serial_3: serial@12C30000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0x12C30000 0x100>;
 		interrupts = <0 54 0>;
@@ -87,6 +94,7 @@
 		reg = <0x14400000 0x40000>;
 		interrupt-names = "fifo", "vsync", "lcd_sys";
 		interrupts = <18 4>, <18 5>, <18 6>;
+		samsung,sysreg = <&sysreg_system_controller>;
 		status = "disabled";
 	};
 

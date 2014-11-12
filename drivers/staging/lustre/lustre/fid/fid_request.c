@@ -42,15 +42,15 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 #include <linux/module.h>
 
-#include <obd.h>
-#include <obd_class.h>
-#include <obd_support.h>
-#include <lustre_fid.h>
+#include "../include/obd.h"
+#include "../include/obd_class.h"
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
 /* mdc RPC locks */
-#include <lustre_mdc.h>
+#include "../include/lustre_mdc.h"
 #include "fid_internal.h"
 
 static int seq_client_rpc(struct lu_client_seq *seq,
@@ -113,7 +113,7 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	if (seq->lcs_type == LUSTRE_SEQ_METADATA)
 		mdc_put_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	if (rc)
-		GOTO(out_req, rc);
+		goto out_req;
 
 	out = req_capsule_server_get(&req->rq_pill, &RMF_SEQ_RANGE);
 	*output = *out;
@@ -121,13 +121,15 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	if (!range_is_sane(output)) {
 		CERROR("%s: Invalid range received from server: "
 		       DRANGE"\n", seq->lcs_name, PRANGE(output));
-		GOTO(out_req, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out_req;
 	}
 
 	if (range_is_exhausted(output)) {
 		CERROR("%s: Range received from server is exhausted: "
 		       DRANGE"]\n", seq->lcs_name, PRANGE(output));
-		GOTO(out_req, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out_req;
 	}
 
 	CDEBUG_LIMIT(debug_mask, "%s: Allocated %s-sequence "DRANGE"]\n",
@@ -187,7 +189,7 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 
 /* Allocate new sequence for client. */
 static int seq_client_alloc_seq(const struct lu_env *env,
-				struct lu_client_seq *seq, seqno_t *seqnr)
+				struct lu_client_seq *seq, u64 *seqnr)
 {
 	int rc;
 
@@ -197,7 +199,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 		rc = seq_client_alloc_meta(env, seq);
 		if (rc) {
 			CERROR("%s: Can't allocate new meta-sequence, rc %d\n",
-				seq->lcs_name, rc);
+			       seq->lcs_name, rc);
 			return rc;
 		} else {
 			CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
@@ -211,7 +213,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 	*seqnr = seq->lcs_space.lsr_start;
 	seq->lcs_space.lsr_start += 1;
 
-	CDEBUG(D_INFO, "%s: Allocated sequence ["LPX64"]\n", seq->lcs_name,
+	CDEBUG(D_INFO, "%s: Allocated sequence [%#llx]\n", seq->lcs_name,
 	       *seqnr);
 
 	return rc;
@@ -249,7 +251,7 @@ static void seq_fid_alloc_fini(struct lu_client_seq *seq)
  * Allocate the whole seq to the caller.
  **/
 int seq_client_get_seq(const struct lu_env *env,
-		       struct lu_client_seq *seq, seqno_t *seqnr)
+		       struct lu_client_seq *seq, u64 *seqnr)
 {
 	wait_queue_t link;
 	int rc;
@@ -267,14 +269,14 @@ int seq_client_get_seq(const struct lu_env *env,
 	rc = seq_client_alloc_seq(env, seq, seqnr);
 	if (rc) {
 		CERROR("%s: Can't allocate new sequence, rc %d\n",
-			seq->lcs_name, rc);
+		       seq->lcs_name, rc);
 		seq_fid_alloc_fini(seq);
 		mutex_unlock(&seq->lcs_mutex);
 		return rc;
 	}
 
-	CDEBUG(D_INFO, "%s: allocate sequence [0x%16.16"LPF64"x]\n",
-			seq->lcs_name, *seqnr);
+	CDEBUG(D_INFO, "%s: allocate sequence [0x%16.16Lx]\n",
+	       seq->lcs_name, *seqnr);
 
 	/* Since the caller require the whole seq,
 	 * so marked this seq to be used */
@@ -313,7 +315,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 		seq->lcs_fid.f_oid = seq->lcs_width;
 
 	while (1) {
-		seqno_t seqnr;
+		u64 seqnr;
 
 		if (!fid_is_zero(&seq->lcs_fid) &&
 		    fid_oid(&seq->lcs_fid) < seq->lcs_width) {
@@ -330,14 +332,14 @@ int seq_client_alloc_fid(const struct lu_env *env,
 		rc = seq_client_alloc_seq(env, seq, &seqnr);
 		if (rc) {
 			CERROR("%s: Can't allocate new sequence, rc %d\n",
-				seq->lcs_name, rc);
+			       seq->lcs_name, rc);
 			seq_fid_alloc_fini(seq);
 			mutex_unlock(&seq->lcs_mutex);
 			return rc;
 		}
 
-		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16"LPF64"x]\n",
-				seq->lcs_name, seqnr);
+		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16Lx]\n",
+		       seq->lcs_name, seqnr);
 
 		seq->lcs_fid.f_oid = LUSTRE_FID_INIT_OID;
 		seq->lcs_fid.f_seq = seqnr;
@@ -400,18 +402,18 @@ EXPORT_SYMBOL(seq_client_flush);
 
 static void seq_client_proc_fini(struct lu_client_seq *seq)
 {
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 	if (seq->lcs_proc_dir) {
 		if (!IS_ERR(seq->lcs_proc_dir))
 			lprocfs_remove(&seq->lcs_proc_dir);
 		seq->lcs_proc_dir = NULL;
 	}
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */
 }
 
 static int seq_client_proc_init(struct lu_client_seq *seq)
 {
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 	int rc;
 
 	seq->lcs_proc_dir = lprocfs_register(seq->lcs_name,
@@ -429,8 +431,8 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 			      seq_client_proc_list, seq);
 	if (rc) {
 		CERROR("%s: Can't init sequence manager proc, rc %d\n",
-			seq->lcs_name, rc);
-		GOTO(out_cleanup, rc);
+		       seq->lcs_name, rc);
+		goto out_cleanup;
 	}
 
 	return 0;
@@ -439,7 +441,7 @@ out_cleanup:
 	seq_client_proc_fini(seq);
 	return rc;
 
-#else /* LPROCFS */
+#else /* CONFIG_PROC_FS */
 	return 0;
 #endif
 }
@@ -508,8 +510,10 @@ int client_fid_init(struct obd_device *obd,
 		return -ENOMEM;
 
 	OBD_ALLOC(prefix, MAX_OBD_NAME + 5);
-	if (prefix == NULL)
-		GOTO(out_free_seq, rc = -ENOMEM);
+	if (prefix == NULL) {
+		rc = -ENOMEM;
+		goto out_free_seq;
+	}
 
 	snprintf(prefix, MAX_OBD_NAME + 5, "cli-%s", obd->obd_name);
 
@@ -517,7 +521,7 @@ int client_fid_init(struct obd_device *obd,
 	rc = seq_client_init(cli->cl_seq, exp, type, prefix, NULL);
 	OBD_FREE(prefix, MAX_OBD_NAME + 5);
 	if (rc)
-		GOTO(out_free_seq, rc);
+		goto out_free_seq;
 
 	return rc;
 out_free_seq:

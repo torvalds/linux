@@ -279,11 +279,11 @@ static int msm_otg_link_clk_reset(struct msm_otg *motg, bool assert)
 
 static int msm_otg_phy_clk_reset(struct msm_otg *motg)
 {
-	int ret;
+	int ret = 0;
 
 	if (motg->pdata->phy_clk_reset)
 		ret = motg->pdata->phy_clk_reset(motg->phy_reset_clk);
-	else
+	else if (motg->phy_rst)
 		ret = reset_control_reset(motg->phy_rst);
 
 	if (ret)
@@ -1394,7 +1394,7 @@ out:
 	return status;
 }
 
-const struct file_operations msm_otg_mode_fops = {
+static const struct file_operations msm_otg_mode_fops = {
 	.open = msm_otg_mode_open,
 	.read = seq_read,
 	.write = msm_otg_mode_write,
@@ -1429,7 +1429,7 @@ static void msm_otg_debugfs_cleanup(void)
 	debugfs_remove(msm_otg_dbg_root);
 }
 
-static struct of_device_id msm_otg_dt_match[] = {
+static const struct of_device_id msm_otg_dt_match[] = {
 	{
 		.compatible = "qcom,usb-otg-ci",
 		.data = (void *) CI_45NM_INTEGRATED_PHY
@@ -1466,7 +1466,7 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 
 	motg->phy_rst = devm_reset_control_get(&pdev->dev, "phy");
 	if (IS_ERR(motg->phy_rst))
-		return PTR_ERR(motg->phy_rst);
+		motg->phy_rst = NULL;
 
 	pdata->mode = of_usb_get_dr_mode(node);
 	if (pdata->mode == USB_DR_MODE_UNKNOWN)
@@ -1554,11 +1554,14 @@ static int msm_otg_probe(struct platform_device *pdev)
 	phy = &motg->phy;
 	phy->dev = &pdev->dev;
 
-	motg->phy_reset_clk = devm_clk_get(&pdev->dev,
+	if (motg->pdata->phy_clk_reset) {
+		motg->phy_reset_clk = devm_clk_get(&pdev->dev,
 					   np ? "phy" : "usb_phy_clk");
-	if (IS_ERR(motg->phy_reset_clk)) {
-		dev_err(&pdev->dev, "failed to get usb_phy_clk\n");
-		return PTR_ERR(motg->phy_reset_clk);
+
+		if (IS_ERR(motg->phy_reset_clk)) {
+			dev_err(&pdev->dev, "failed to get usb_phy_clk\n");
+			return PTR_ERR(motg->phy_reset_clk);
+		}
 	}
 
 	motg->clk = devm_clk_get(&pdev->dev, np ? "core" : "usb_hs_clk");
@@ -1601,8 +1604,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	 */
 	if (motg->phy_number) {
 		phy_select = devm_ioremap_nocache(&pdev->dev, USB2_PHY_SEL, 4);
-		if (IS_ERR(phy_select))
-			return PTR_ERR(phy_select);
+		if (!phy_select)
+			return -ENOMEM;
 		/* Enable second PHY with the OTG port */
 		writel(0x1, phy_select);
 	}
@@ -1838,7 +1841,6 @@ static struct platform_driver msm_otg_driver = {
 	.remove = msm_otg_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &msm_otg_dev_pm_ops,
 		.of_match_table = msm_otg_dt_match,
 	},

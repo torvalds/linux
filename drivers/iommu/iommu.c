@@ -29,11 +29,17 @@
 #include <linux/idr.h>
 #include <linux/notifier.h>
 #include <linux/err.h>
+#include <linux/pci.h>
+#include <linux/bitops.h>
 #include <trace/events/iommu.h>
 
 static struct kset *iommu_group_kset;
 static struct ida iommu_group_ida;
 static struct mutex iommu_group_mutex;
+
+struct iommu_callback_data {
+	const struct iommu_ops *ops;
+};
 
 struct iommu_group {
 	struct kobject kobj;
@@ -514,9 +520,221 @@ int iommu_group_id(struct iommu_group *group)
 }
 EXPORT_SYMBOL_GPL(iommu_group_id);
 
+static struct iommu_group *get_pci_alias_group(struct pci_dev *pdev,
+					       unsigned long *devfns);
+
+/*
+ * To consider a PCI device isolated, we require ACS to support Source
+ * Validation, Request Redirection, Completer Redirection, and Upstream
+ * Forwarding.  This effectively means that devices cannot spoof their
+ * requester ID, requests and completions cannot be redirected, and all
+ * transactions are forwarded upstream, even as it passes through a
+ * bridge where the target device is downstream.
+ */
+#define REQ_ACS_FLAGS   (PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)
+
+/*
+ * For multifunction devices which are not isolated from each other, find
+ * all the other non-isolated functions and look for existing groups.  For
+ * each function, we also need to look for aliases to or from other devices
+ * that may already have a group.
+ */
+static struct iommu_group *get_pci_function_alias_group(struct pci_dev *pdev,
+							unsigned long *devfns)
+{
+	struct pci_dev *tmp = NULL;
+	struct iommu_group *group;
+
+	if (!pdev->multifunction || pci_acs_enabled(pdev, REQ_ACS_FLAGS))
+		return NULL;
+
+	for_each_pci_dev(tmp) {
+		if (tmp == pdev || tmp->bus != pdev->bus ||
+		    PCI_SLOT(tmp->devfn) != PCI_SLOT(pdev->devfn) ||
+		    pci_acs_enabled(tmp, REQ_ACS_FLAGS))
+			continue;
+
+		group = get_pci_alias_group(tmp, devfns);
+		if (group) {
+			pci_dev_put(tmp);
+			return group;
+		}
+	}
+
+	return NULL;
+}
+
+/*
+ * Look for aliases to or from the given device for exisiting groups.  The
+ * dma_alias_devfn only supports aliases on the same bus, therefore the search
+ * space is quite small (especially since we're really only looking at pcie
+ * device, and therefore only expect multiple slots on the root complex or
+ * downstream switch ports).  It's conceivable though that a pair of
+ * multifunction devices could have aliases between them that would cause a
+ * loop.  To prevent this, we use a bitmap to track where we've been.
+ */
+static struct iommu_group *get_pci_alias_group(struct pci_dev *pdev,
+					       unsigned long *devfns)
+{
+	struct pci_dev *tmp = NULL;
+	struct iommu_group *group;
+
+	if (test_and_set_bit(pdev->devfn & 0xff, devfns))
+		return NULL;
+
+	group = iommu_group_get(&pdev->dev);
+	if (group)
+		return group;
+
+	for_each_pci_dev(tmp) {
+		if (tmp == pdev || tmp->bus != pdev->bus)
+			continue;
+
+		/* We alias them or they alias us */
+		if (((pdev->dev_flags & PCI_DEV_FLAGS_DMA_ALIAS_DEVFN) &&
+		     pdev->dma_alias_devfn == tmp->devfn) ||
+		    ((tmp->dev_flags & PCI_DEV_FLAGS_DMA_ALIAS_DEVFN) &&
+		     tmp->dma_alias_devfn == pdev->devfn)) {
+
+			group = get_pci_alias_group(tmp, devfns);
+			if (group) {
+				pci_dev_put(tmp);
+				return group;
+			}
+
+			group = get_pci_function_alias_group(tmp, devfns);
+			if (group) {
+				pci_dev_put(tmp);
+				return group;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+struct group_for_pci_data {
+	struct pci_dev *pdev;
+	struct iommu_group *group;
+};
+
+/*
+ * DMA alias iterator callback, return the last seen device.  Stop and return
+ * the IOMMU group if we find one along the way.
+ */
+static int get_pci_alias_or_group(struct pci_dev *pdev, u16 alias, void *opaque)
+{
+	struct group_for_pci_data *data = opaque;
+
+	data->pdev = pdev;
+	data->group = iommu_group_get(&pdev->dev);
+
+	return data->group != NULL;
+}
+
+/*
+ * Use standard PCI bus topology, isolation features, and DMA alias quirks
+ * to find or create an IOMMU group for a device.
+ */
+static struct iommu_group *iommu_group_get_for_pci_dev(struct pci_dev *pdev)
+{
+	struct group_for_pci_data data;
+	struct pci_bus *bus;
+	struct iommu_group *group = NULL;
+	u64 devfns[4] = { 0 };
+
+	/*
+	 * Find the upstream DMA alias for the device.  A device must not
+	 * be aliased due to topology in order to have its own IOMMU group.
+	 * If we find an alias along the way that already belongs to a
+	 * group, use it.
+	 */
+	if (pci_for_each_dma_alias(pdev, get_pci_alias_or_group, &data))
+		return data.group;
+
+	pdev = data.pdev;
+
+	/*
+	 * Continue upstream from the point of minimum IOMMU granularity
+	 * due to aliases to the point where devices are protected from
+	 * peer-to-peer DMA by PCI ACS.  Again, if we find an existing
+	 * group, use it.
+	 */
+	for (bus = pdev->bus; !pci_is_root_bus(bus); bus = bus->parent) {
+		if (!bus->self)
+			continue;
+
+		if (pci_acs_path_enabled(bus->self, NULL, REQ_ACS_FLAGS))
+			break;
+
+		pdev = bus->self;
+
+		group = iommu_group_get(&pdev->dev);
+		if (group)
+			return group;
+	}
+
+	/*
+	 * Look for existing groups on device aliases.  If we alias another
+	 * device or another device aliases us, use the same group.
+	 */
+	group = get_pci_alias_group(pdev, (unsigned long *)devfns);
+	if (group)
+		return group;
+
+	/*
+	 * Look for existing groups on non-isolated functions on the same
+	 * slot and aliases of those funcions, if any.  No need to clear
+	 * the search bitmap, the tested devfns are still valid.
+	 */
+	group = get_pci_function_alias_group(pdev, (unsigned long *)devfns);
+	if (group)
+		return group;
+
+	/* No shared group found, allocate new */
+	return iommu_group_alloc();
+}
+
+/**
+ * iommu_group_get_for_dev - Find or create the IOMMU group for a device
+ * @dev: target device
+ *
+ * This function is intended to be called by IOMMU drivers and extended to
+ * support common, bus-defined algorithms when determining or creating the
+ * IOMMU group for a device.  On success, the caller will hold a reference
+ * to the returned IOMMU group, which will already include the provided
+ * device.  The reference should be released with iommu_group_put().
+ */
+struct iommu_group *iommu_group_get_for_dev(struct device *dev)
+{
+	struct iommu_group *group;
+	int ret;
+
+	group = iommu_group_get(dev);
+	if (group)
+		return group;
+
+	if (!dev_is_pci(dev))
+		return ERR_PTR(-EINVAL);
+
+	group = iommu_group_get_for_pci_dev(to_pci_dev(dev));
+
+	if (IS_ERR(group))
+		return group;
+
+	ret = iommu_group_add_device(group, dev);
+	if (ret) {
+		iommu_group_put(group);
+		return ERR_PTR(ret);
+	}
+
+	return group;
+}
+
 static int add_iommu_group(struct device *dev, void *data)
 {
-	struct iommu_ops *ops = data;
+	struct iommu_callback_data *cb = data;
+	const struct iommu_ops *ops = cb->ops;
 
 	if (!ops->add_device)
 		return -ENODEV;
@@ -532,7 +750,7 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 			      unsigned long action, void *data)
 {
 	struct device *dev = data;
-	struct iommu_ops *ops = dev->bus->iommu_ops;
+	const struct iommu_ops *ops = dev->bus->iommu_ops;
 	struct iommu_group *group;
 	unsigned long group_action = 0;
 
@@ -581,14 +799,26 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block iommu_bus_nb = {
-	.notifier_call = iommu_bus_notifier,
-};
-
-static void iommu_bus_init(struct bus_type *bus, struct iommu_ops *ops)
+static int iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
 {
-	bus_register_notifier(bus, &iommu_bus_nb);
-	bus_for_each_dev(bus, NULL, ops, add_iommu_group);
+	int err;
+	struct notifier_block *nb;
+	struct iommu_callback_data cb = {
+		.ops = ops,
+	};
+
+	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
+	if (!nb)
+		return -ENOMEM;
+
+	nb->notifier_call = iommu_bus_notifier;
+
+	err = bus_register_notifier(bus, nb);
+	if (err) {
+		kfree(nb);
+		return err;
+	}
+	return bus_for_each_dev(bus, NULL, &cb, add_iommu_group);
 }
 
 /**
@@ -604,7 +834,7 @@ static void iommu_bus_init(struct bus_type *bus, struct iommu_ops *ops)
  * is set up. With this function the iommu-driver can set the iommu-ops
  * afterwards.
  */
-int bus_set_iommu(struct bus_type *bus, struct iommu_ops *ops)
+int bus_set_iommu(struct bus_type *bus, const struct iommu_ops *ops)
 {
 	if (bus->iommu_ops != NULL)
 		return -EBUSY;
@@ -612,9 +842,7 @@ int bus_set_iommu(struct bus_type *bus, struct iommu_ops *ops)
 	bus->iommu_ops = ops;
 
 	/* Do IOMMU specific setup for this bus-type */
-	iommu_bus_init(bus, ops);
-
-	return 0;
+	return iommu_bus_init(bus, ops);
 }
 EXPORT_SYMBOL_GPL(bus_set_iommu);
 
@@ -623,6 +851,15 @@ bool iommu_present(struct bus_type *bus)
 	return bus->iommu_ops != NULL;
 }
 EXPORT_SYMBOL_GPL(iommu_present);
+
+bool iommu_capable(struct bus_type *bus, enum iommu_cap cap)
+{
+	if (!bus->iommu_ops || !bus->iommu_ops->capable)
+		return false;
+
+	return bus->iommu_ops->capable(cap);
+}
+EXPORT_SYMBOL_GPL(iommu_capable);
 
 /**
  * iommu_set_fault_handler() - set a fault handler for an iommu domain
@@ -754,16 +991,6 @@ phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova)
 }
 EXPORT_SYMBOL_GPL(iommu_iova_to_phys);
 
-int iommu_domain_has_cap(struct iommu_domain *domain,
-			 unsigned long cap)
-{
-	if (unlikely(domain->ops->domain_has_cap == NULL))
-		return 0;
-
-	return domain->ops->domain_has_cap(domain, cap);
-}
-EXPORT_SYMBOL_GPL(iommu_domain_has_cap);
-
 static size_t iommu_pgsize(struct iommu_domain *domain,
 			   unsigned long addr_merge, size_t size)
 {
@@ -804,7 +1031,7 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	size_t orig_size = size;
 	int ret = 0;
 
-	if (unlikely(domain->ops->unmap == NULL ||
+	if (unlikely(domain->ops->map == NULL ||
 		     domain->ops->pgsize_bitmap == 0UL))
 		return -ENODEV;
 

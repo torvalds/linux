@@ -17,6 +17,8 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nft_reject.h>
+#include <linux/icmp.h>
+#include <linux/icmpv6.h>
 
 const struct nla_policy nft_reject_policy[NFTA_REJECT_MAX + 1] = {
 	[NFTA_REJECT_TYPE]		= { .type = NLA_U32 },
@@ -69,6 +71,39 @@ nla_put_failure:
 	return -1;
 }
 EXPORT_SYMBOL_GPL(nft_reject_dump);
+
+static u8 icmp_code_v4[NFT_REJECT_ICMPX_MAX + 1] = {
+	[NFT_REJECT_ICMPX_NO_ROUTE]		= ICMP_NET_UNREACH,
+	[NFT_REJECT_ICMPX_PORT_UNREACH]		= ICMP_PORT_UNREACH,
+	[NFT_REJECT_ICMPX_HOST_UNREACH]		= ICMP_HOST_UNREACH,
+	[NFT_REJECT_ICMPX_ADMIN_PROHIBITED]	= ICMP_PKT_FILTERED,
+};
+
+int nft_reject_icmp_code(u8 code)
+{
+	BUG_ON(code > NFT_REJECT_ICMPX_MAX);
+
+	return icmp_code_v4[code];
+}
+
+EXPORT_SYMBOL_GPL(nft_reject_icmp_code);
+
+
+static u8 icmp_code_v6[NFT_REJECT_ICMPX_MAX + 1] = {
+	[NFT_REJECT_ICMPX_NO_ROUTE]		= ICMPV6_NOROUTE,
+	[NFT_REJECT_ICMPX_PORT_UNREACH]		= ICMPV6_PORT_UNREACH,
+	[NFT_REJECT_ICMPX_HOST_UNREACH]		= ICMPV6_ADDR_UNREACH,
+	[NFT_REJECT_ICMPX_ADMIN_PROHIBITED]	= ICMPV6_ADM_PROHIBITED,
+};
+
+int nft_reject_icmpv6_code(u8 code)
+{
+	BUG_ON(code > NFT_REJECT_ICMPX_MAX);
+
+	return icmp_code_v6[code];
+}
+
+EXPORT_SYMBOL_GPL(nft_reject_icmpv6_code);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");

@@ -35,10 +35,10 @@
  */
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre_lite.h>
-#include <lprocfs_status.h>
+#include "../include/lustre_lite.h"
+#include "../include/lprocfs_status.h"
 #include <linux/seq_file.h>
-#include <obd_support.h>
+#include "../include/obd_support.h"
 
 #include "llite_internal.h"
 #include "vvp_internal.h"
@@ -82,7 +82,7 @@ static int ll_kbytestotal_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -105,7 +105,7 @@ static int ll_kbytesfree_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -128,7 +128,7 @@ static int ll_kbytesavail_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, LPU64"\n", result);
+		rc = seq_printf(m, "%llu\n", result);
 	}
 	return rc;
 }
@@ -145,7 +145,7 @@ static int ll_filestotal_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		 rc = seq_printf(m, LPU64"\n", osfs.os_files);
+		 rc = seq_printf(m, "%llu\n", osfs.os_files);
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_filestotal);
@@ -161,7 +161,7 @@ static int ll_filesfree_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		 rc = seq_printf(m, LPU64"\n", osfs.os_ffree);
+		 rc = seq_printf(m, "%llu\n", osfs.os_ffree);
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_filesfree);
@@ -410,7 +410,8 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 	/* easy - add more LRU slots. */
 	if (diff >= 0) {
 		atomic_add(diff, &cache->ccc_lru_left);
-		GOTO(out, rc = 0);
+		rc = 0;
+		goto out;
 	}
 
 	diff = -diff;
@@ -811,38 +812,39 @@ static ssize_t ll_xattr_cache_seq_write(struct file *file, const char *buffer,
 LPROC_SEQ_FOPS(ll_xattr_cache);
 
 static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
-	{ "uuid",	  &ll_sb_uuid_fops,	  0, 0 },
+	{ "uuid",	  &ll_sb_uuid_fops,	  NULL, 0 },
 	//{ "mntpt_path",   ll_rd_path,	     0, 0 },
-	{ "fstype",       &ll_fstype_fops,	  0, 0 },
-	{ "site",	  &ll_site_stats_fops,    0, 0 },
-	{ "blocksize",    &ll_blksize_fops,	  0, 0 },
-	{ "kbytestotal",  &ll_kbytestotal_fops,   0, 0 },
-	{ "kbytesfree",   &ll_kbytesfree_fops,    0, 0 },
-	{ "kbytesavail",  &ll_kbytesavail_fops,   0, 0 },
-	{ "filestotal",   &ll_filestotal_fops,    0, 0 },
-	{ "filesfree",    &ll_filesfree_fops,	  0, 0 },
-	{ "client_type",  &ll_client_type_fops,   0, 0 },
+	{ "fstype",       &ll_fstype_fops,	  NULL, 0 },
+	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
+	{ "blocksize",    &ll_blksize_fops,	  NULL, 0 },
+	{ "kbytestotal",  &ll_kbytestotal_fops,   NULL, 0 },
+	{ "kbytesfree",   &ll_kbytesfree_fops,    NULL, 0 },
+	{ "kbytesavail",  &ll_kbytesavail_fops,   NULL, 0 },
+	{ "filestotal",   &ll_filestotal_fops,    NULL, 0 },
+	{ "filesfree",    &ll_filesfree_fops,	  NULL, 0 },
+	{ "client_type",  &ll_client_type_fops,   NULL, 0 },
 	//{ "filegroups",   lprocfs_rd_filegroups,  0, 0 },
-	{ "max_read_ahead_mb", &ll_max_readahead_mb_fops, 0 },
-	{ "max_read_ahead_per_file_mb", &ll_max_readahead_per_file_mb_fops, 0 },
-	{ "max_read_ahead_whole_mb", &ll_max_read_ahead_whole_mb_fops, 0 },
-	{ "max_cached_mb",    &ll_max_cached_mb_fops, 0 },
-	{ "checksum_pages",   &ll_checksum_fops, 0 },
-	{ "max_rw_chunk",     &ll_max_rw_chunk_fops, 0 },
-	{ "stats_track_pid",  &ll_track_pid_fops, 0 },
-	{ "stats_track_ppid", &ll_track_ppid_fops, 0 },
-	{ "stats_track_gid",  &ll_track_gid_fops, 0 },
-	{ "statahead_max",    &ll_statahead_max_fops, 0 },
-	{ "statahead_agl",    &ll_statahead_agl_fops, 0 },
-	{ "statahead_stats",  &ll_statahead_stats_fops, 0, 0 },
-	{ "lazystatfs",       &ll_lazystatfs_fops, 0 },
-	{ "max_easize",       &ll_max_easize_fops, 0, 0 },
-	{ "default_easize",   &ll_defult_easize_fops, 0, 0 },
-	{ "max_cookiesize",   &ll_max_cookiesize_fops, 0, 0 },
-	{ "default_cookiesize", &ll_defult_cookiesize_fops, 0, 0 },
-	{ "sbi_flags",	      &ll_sbi_flags_fops, 0, 0 },
-	{ "xattr_cache",      &ll_xattr_cache_fops, 0, 0 },
-	{ 0 }
+	{ "max_read_ahead_mb", &ll_max_readahead_mb_fops, NULL },
+	{ "max_read_ahead_per_file_mb", &ll_max_readahead_per_file_mb_fops,
+		NULL },
+	{ "max_read_ahead_whole_mb", &ll_max_read_ahead_whole_mb_fops, NULL },
+	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
+	{ "checksum_pages",   &ll_checksum_fops, NULL },
+	{ "max_rw_chunk",     &ll_max_rw_chunk_fops, NULL },
+	{ "stats_track_pid",  &ll_track_pid_fops, NULL },
+	{ "stats_track_ppid", &ll_track_ppid_fops, NULL },
+	{ "stats_track_gid",  &ll_track_gid_fops, NULL },
+	{ "statahead_max",    &ll_statahead_max_fops, NULL },
+	{ "statahead_agl",    &ll_statahead_agl_fops, NULL },
+	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
+	{ "lazystatfs",       &ll_lazystatfs_fops, NULL },
+	{ "max_easize",       &ll_max_easize_fops, NULL, 0 },
+	{ "default_easize",   &ll_defult_easize_fops, NULL, 0 },
+	{ "max_cookiesize",   &ll_max_cookiesize_fops, NULL, 0 },
+	{ "default_cookiesize", &ll_defult_cookiesize_fops, NULL, 0 },
+	{ "sbi_flags",	      &ll_sbi_flags_fops, NULL, 0 },
+	{ "xattr_cache",      &ll_xattr_cache_fops, NULL, 0 },
+	{ NULL }
 };
 
 #define MAX_STRING_SIZE 128
@@ -909,7 +911,7 @@ void ll_stats_ops_tally(struct ll_sb_info *sbi, int op, int count)
 		 sbi->ll_stats_track_id == current->pid)
 		lprocfs_counter_add(sbi->ll_stats, op, count);
 	else if (sbi->ll_stats_track_type == STATS_TRACK_PPID &&
-		 sbi->ll_stats_track_id == current->parent->pid)
+		 sbi->ll_stats_track_id == current->real_parent->pid)
 		lprocfs_counter_add(sbi->ll_stats, op, count);
 	else if (sbi->ll_stats_track_type == STATS_TRACK_GID &&
 		 sbi->ll_stats_track_id ==
@@ -996,8 +998,10 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	/* File operations stats */
 	sbi->ll_stats = lprocfs_alloc_stats(LPROC_LL_FILE_OPCODES,
 					    LPROCFS_STATS_FLAG_NONE);
-	if (sbi->ll_stats == NULL)
-		GOTO(out, err = -ENOMEM);
+	if (sbi->ll_stats == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
 	/* do counter init */
 	for (id = 0; id < LPROC_LL_FILE_OPCODES; id++) {
 		__u32 type = llite_opcode_table[id].type;
@@ -1015,12 +1019,14 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	}
 	err = lprocfs_register_stats(sbi->ll_proc_root, "stats", sbi->ll_stats);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	sbi->ll_ra_stats = lprocfs_alloc_stats(ARRAY_SIZE(ra_stat_string),
 					       LPROCFS_STATS_FLAG_NONE);
-	if (sbi->ll_ra_stats == NULL)
-		GOTO(out, err = -ENOMEM);
+	if (sbi->ll_ra_stats == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	for (id = 0; id < ARRAY_SIZE(ra_stat_string); id++)
 		lprocfs_counter_init(sbi->ll_ra_stats, id, 0,
@@ -1028,12 +1034,12 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	err = lprocfs_register_stats(sbi->ll_proc_root, "read_ahead_stats",
 				     sbi->ll_ra_stats);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 
 	err = lprocfs_add_vars(sbi->ll_proc_root, lprocfs_llite_obd_vars, sb);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	/* MDC info */
 	obd = class_name2obd(mdc);
@@ -1043,20 +1049,22 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	LASSERT(obd->obd_type->typ_name != NULL);
 
 	dir = proc_mkdir(obd->obd_type->typ_name, sbi->ll_proc_root);
-	if (dir == NULL)
-		GOTO(out, err = -ENOMEM);
+	if (dir == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	snprintf(name, MAX_STRING_SIZE, "common_name");
 	lvars[0].fops = &llite_name_fops;
 	err = lprocfs_add_vars(dir, lvars, obd);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	snprintf(name, MAX_STRING_SIZE, "uuid");
 	lvars[0].fops = &llite_uuid_fops;
 	err = lprocfs_add_vars(dir, lvars, obd);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	/* OSC */
 	obd = class_name2obd(osc);
@@ -1066,14 +1074,16 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	LASSERT(obd->obd_type->typ_name != NULL);
 
 	dir = proc_mkdir(obd->obd_type->typ_name, sbi->ll_proc_root);
-	if (dir == NULL)
-		GOTO(out, err = -ENOMEM);
+	if (dir == NULL) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	snprintf(name, MAX_STRING_SIZE, "common_name");
 	lvars[0].fops = &llite_name_fops;
 	err = lprocfs_add_vars(dir, lvars, obd);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	snprintf(name, MAX_STRING_SIZE, "uuid");
 	lvars[0].fops = &llite_uuid_fops;
@@ -1097,7 +1107,7 @@ void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi)
 }
 #undef MAX_STRING_SIZE
 
-#define pct(a,b) (b ? a * 100 / b : 0)
+#define pct(a, b) (b ? a * 100 / b : 0)
 
 static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
 				   struct seq_file *seq, int which)
@@ -1112,12 +1122,12 @@ static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
 	write_cum = 0;
 	start = 0;
 
-	for(i = 0; i < LL_HIST_MAX; i++) {
+	for (i = 0; i < LL_HIST_MAX; i++) {
 		read_tot += pp_info->pp_r_hist.oh_buckets[i];
 		write_tot += pp_info->pp_w_hist.oh_buckets[i];
 	}
 
-	for(i = 0; i < LL_HIST_MAX; i++) {
+	for (i = 0; i < LL_HIST_MAX; i++) {
 		r = pp_info->pp_r_hist.oh_buckets[i];
 		w = pp_info->pp_w_hist.oh_buckets[i];
 		read_cum += r;
@@ -1304,15 +1314,15 @@ void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 	int *process_count = &sbi->ll_offset_process_count;
 	struct ll_rw_extents_info *io_extents = &sbi->ll_rw_extents_info;
 
-	if(!sbi->ll_rw_stats_on)
+	if (!sbi->ll_rw_stats_on)
 		return;
 	process = sbi->ll_rw_process_info;
 	offset = sbi->ll_rw_offset_info;
 
 	spin_lock(&sbi->ll_pp_extent_lock);
 	/* Extent statistics */
-	for(i = 0; i < LL_PROCESS_HIST_MAX; i++) {
-		if(io_extents->pp_extents[i].pid == pid) {
+	for (i = 0; i < LL_PROCESS_HIST_MAX; i++) {
+		if (io_extents->pp_extents[i].pid == pid) {
 			cur = i;
 			break;
 		}
@@ -1375,9 +1385,9 @@ void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 				process[i].rw_offset = pos -
 					process[i].rw_last_file_pos;
 			}
-			if(process[i].rw_smallest_extent > count)
+			if (process[i].rw_smallest_extent > count)
 				process[i].rw_smallest_extent = count;
-			if(process[i].rw_largest_extent < count)
+			if (process[i].rw_largest_extent < count)
 				process[i].rw_largest_extent = count;
 			process[i].rw_last_file_pos = pos + count;
 			spin_unlock(&sbi->ll_process_lock);
@@ -1420,7 +1430,7 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 		   "R/W", "PID", "RANGE START", "RANGE END",
 		   "SMALLEST EXTENT", "LARGEST EXTENT", "OFFSET");
 	/* We stored the discontiguous offsets here; print them first */
-	for(i = 0; i < LL_OFFSET_HIST_MAX; i++) {
+	for (i = 0; i < LL_OFFSET_HIST_MAX; i++) {
 		if (offset[i].rw_pid != 0)
 			seq_printf(seq,
 				   "%3c %10d %14Lu %14Lu %17lu %17lu %14Lu",
@@ -1433,7 +1443,7 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 				   offset[i].rw_offset);
 	}
 	/* Then print the current offsets for each process */
-	for(i = 0; i < LL_PROCESS_HIST_MAX; i++) {
+	for (i = 0; i < LL_PROCESS_HIST_MAX; i++) {
 		if (process[i].rw_pid != 0)
 			seq_printf(seq,
 				   "%3c %10d %14Lu %14Lu %17lu %17lu %14Lu",

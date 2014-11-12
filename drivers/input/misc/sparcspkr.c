@@ -86,13 +86,13 @@ static int bbc_spkr_event(struct input_dev *dev, unsigned int type, unsigned int
 	spin_lock_irqsave(&state->lock, flags);
 
 	if (count) {
-		outb(0x01,                 info->regs + 0);
-		outb(0x00,                 info->regs + 2);
-		outb((count >> 16) & 0xff, info->regs + 3);
-		outb((count >>  8) & 0xff, info->regs + 4);
-		outb(0x00,                 info->regs + 5);
+		sbus_writeb(0x01,                 info->regs + 0);
+		sbus_writeb(0x00,                 info->regs + 2);
+		sbus_writeb((count >> 16) & 0xff, info->regs + 3);
+		sbus_writeb((count >>  8) & 0xff, info->regs + 4);
+		sbus_writeb(0x00,                 info->regs + 5);
 	} else {
-		outb(0x00,                 info->regs + 0);
+		sbus_writeb(0x00,                 info->regs + 0);
 	}
 
 	spin_unlock_irqrestore(&state->lock, flags);
@@ -123,15 +123,15 @@ static int grover_spkr_event(struct input_dev *dev, unsigned int type, unsigned 
 
 	if (count) {
 		/* enable counter 2 */
-		outb(inb(info->enable_reg) | 3, info->enable_reg);
+		sbus_writeb(sbus_readb(info->enable_reg) | 3, info->enable_reg);
 		/* set command for counter 2, 2 byte write */
-		outb(0xB6, info->freq_regs + 1);
+		sbus_writeb(0xB6, info->freq_regs + 1);
 		/* select desired HZ */
-		outb(count & 0xff, info->freq_regs + 0);
-		outb((count >> 8) & 0xff, info->freq_regs + 0);
+		sbus_writeb(count & 0xff, info->freq_regs + 0);
+		sbus_writeb((count >> 8) & 0xff, info->freq_regs + 0);
 	} else {
 		/* disable counter 2 */
-		outb(inb_p(info->enable_reg) & 0xFC, info->enable_reg);
+		sbus_writeb(sbus_readb(info->enable_reg) & 0xFC, info->enable_reg);
 	}
 
 	spin_unlock_irqrestore(&state->lock, flags);

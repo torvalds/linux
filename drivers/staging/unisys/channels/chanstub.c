@@ -25,7 +25,7 @@
 
 #include "channel.h"
 #include "chanstub.h"
-#include "timskmodutils.h"
+#include "timskmod.h"
 #include "version.h"
 
 static __init int
@@ -42,11 +42,12 @@ channel_mod_exit(void)
 }
 
 unsigned char
-SignalInsert_withLock(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
+SignalInsert_withLock(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 		      void *pSignal, spinlock_t *lock)
 {
 	unsigned char result;
 	unsigned long flags;
+
 	spin_lock_irqsave(lock, flags);
 	result = visor_signal_insert(pChannel, Queue, pSignal);
 	spin_unlock_irqrestore(lock, flags);
@@ -54,10 +55,11 @@ SignalInsert_withLock(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
 }
 
 unsigned char
-SignalRemove_withLock(CHANNEL_HEADER __iomem *pChannel, U32 Queue,
+SignalRemove_withLock(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 		      void *pSignal, spinlock_t *lock)
 {
 	unsigned char result;
+
 	spin_lock(lock);
 	result = visor_signal_remove(pChannel, Queue, pSignal);
 	spin_unlock(lock);

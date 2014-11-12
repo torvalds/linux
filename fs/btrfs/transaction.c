@@ -218,7 +218,6 @@ loop:
 	spin_lock_init(&cur_trans->delayed_refs.lock);
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
-	INIT_LIST_HEAD(&cur_trans->ordered_operations);
 	INIT_LIST_HEAD(&cur_trans->pending_chunks);
 	INIT_LIST_HEAD(&cur_trans->switch_commits);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
@@ -387,7 +386,7 @@ start_transaction(struct btrfs_root *root, u64 num_items, unsigned int type,
 	int ret;
 
 	/* Send isn't supposed to start transactions. */
-	ASSERT(current->journal_info != (void *)BTRFS_SEND_TRANS_STUB);
+	ASSERT(current->journal_info != BTRFS_SEND_TRANS_STUB);
 
 	if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state))
 		return ERR_PTR(-EROFS);
@@ -409,7 +408,7 @@ start_transaction(struct btrfs_root *root, u64 num_items, unsigned int type,
 	if (num_items > 0 && root != root->fs_info->chunk_root) {
 		if (root->fs_info->quota_enabled &&
 		    is_fstree(root->root_key.objectid)) {
-			qgroup_reserved = num_items * root->leafsize;
+			qgroup_reserved = num_items * root->nodesize;
 			ret = btrfs_qgroup_reserve(root, qgroup_reserved);
 			if (ret)
 				return ERR_PTR(ret);
@@ -419,7 +418,7 @@ start_transaction(struct btrfs_root *root, u64 num_items, unsigned int type,
 		/*
 		 * Do the reservation for the relocation root creation
 		 */
-		if (unlikely(need_reserve_reloc_root(root))) {
+		if (need_reserve_reloc_root(root)) {
 			num_bytes += root->nodesize;
 			reloc_reserved = true;
 		}
@@ -610,7 +609,6 @@ int btrfs_wait_for_commit(struct btrfs_root *root, u64 transid)
 		if (transid <= root->fs_info->last_trans_committed)
 			goto out;
 
-		ret = -EINVAL;
 		/* find specified transaction */
 		spin_lock(&root->fs_info->trans_lock);
 		list_for_each_entry(t, &root->fs_info->trans_list, list) {
@@ -626,9 +624,16 @@ int btrfs_wait_for_commit(struct btrfs_root *root, u64 transid)
 			}
 		}
 		spin_unlock(&root->fs_info->trans_lock);
-		/* The specified transaction doesn't exist */
-		if (!cur_trans)
+
+		/*
+		 * The specified transaction doesn't exist, or we
+		 * raced with btrfs_commit_transaction
+		 */
+		if (!cur_trans) {
+			if (transid > root->fs_info->last_trans_committed)
+				ret = -EINVAL;
 			goto out;
+		}
 	} else {
 		/* find newest transaction that is committing | committed */
 		spin_lock(&root->fs_info->trans_lock);
@@ -852,6 +857,8 @@ int btrfs_wait_marked_extents(struct btrfs_root *root,
 	struct extent_state *cached_state = NULL;
 	u64 start = 0;
 	u64 end;
+	struct btrfs_inode *btree_ino = BTRFS_I(root->fs_info->btree_inode);
+	bool errors = false;
 
 	while (!find_first_extent_bit(dirty_pages, start, &start, &end,
 				      EXTENT_NEED_WAIT, &cached_state)) {
@@ -865,6 +872,26 @@ int btrfs_wait_marked_extents(struct btrfs_root *root,
 	}
 	if (err)
 		werr = err;
+
+	if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
+		if ((mark & EXTENT_DIRTY) &&
+		    test_and_clear_bit(BTRFS_INODE_BTREE_LOG1_ERR,
+				       &btree_ino->runtime_flags))
+			errors = true;
+
+		if ((mark & EXTENT_NEW) &&
+		    test_and_clear_bit(BTRFS_INODE_BTREE_LOG2_ERR,
+				       &btree_ino->runtime_flags))
+			errors = true;
+	} else {
+		if (test_and_clear_bit(BTRFS_INODE_BTREE_ERR,
+				       &btree_ino->runtime_flags))
+			errors = true;
+	}
+
+	if (errors && !werr)
+		werr = -EIO;
+
 	return werr;
 }
 
@@ -1612,27 +1639,6 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 }
 
-static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
-					  struct btrfs_root *root)
-{
-	int ret;
-
-	ret = btrfs_run_delayed_items(trans, root);
-	if (ret)
-		return ret;
-
-	/*
-	 * rename don't use btrfs_join_transaction, so, once we
-	 * set the transaction to blocked above, we aren't going
-	 * to get any new ordered operations.  We can safely run
-	 * it here and no for sure that nothing new will be added
-	 * to the list
-	 */
-	ret = btrfs_run_ordered_operations(trans, root, 1);
-
-	return ret;
-}
-
 static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
 	if (btrfs_test_opt(fs_info->tree_root, FLUSHONCOMMIT))
@@ -1651,14 +1657,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_transaction *prev_trans = NULL;
+	struct btrfs_inode *btree_ino = BTRFS_I(root->fs_info->btree_inode);
 	int ret;
-
-	ret = btrfs_run_ordered_operations(trans, root, 0);
-	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
-		btrfs_end_transaction(trans, root);
-		return ret;
-	}
 
 	/* Stop the commit early if ->aborted is set */
 	if (unlikely(ACCESS_ONCE(cur_trans->aborted))) {
@@ -1740,7 +1740,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto cleanup_transaction;
 
-	ret = btrfs_flush_all_pending_stuffs(trans, root);
+	ret = btrfs_run_delayed_items(trans, root);
 	if (ret)
 		goto cleanup_transaction;
 
@@ -1748,7 +1748,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		   extwriter_counter_read(cur_trans) == 0);
 
 	/* some pending stuffs might be added after the previous flush. */
-	ret = btrfs_flush_all_pending_stuffs(trans, root);
+	ret = btrfs_run_delayed_items(trans, root);
 	if (ret)
 		goto cleanup_transaction;
 
@@ -1897,6 +1897,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	memcpy(root->fs_info->super_for_commit, root->fs_info->super_copy,
 	       sizeof(*root->fs_info->super_copy));
 
+	btrfs_update_commit_device_size(root->fs_info);
+	btrfs_update_commit_device_bytes_used(root, cur_trans);
+
+	clear_bit(BTRFS_INODE_BTREE_LOG1_ERR, &btree_ino->runtime_flags);
+	clear_bit(BTRFS_INODE_BTREE_LOG2_ERR, &btree_ino->runtime_flags);
+
 	spin_lock(&root->fs_info->trans_lock);
 	cur_trans->state = TRANS_STATE_UNBLOCKED;
 	root->fs_info->running_transaction = NULL;
@@ -2010,9 +2016,6 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 		ret = btrfs_drop_snapshot(root, NULL, 0, 0);
 	else
 		ret = btrfs_drop_snapshot(root, NULL, 1, 0);
-	/*
-	 * If we encounter a transaction abort during snapshot cleaning, we
-	 * don't want to crash here
-	 */
+
 	return (ret < 0) ? 0 : 1;
 }

@@ -431,7 +431,8 @@ int snd_soc_dapm_force_enable_pin_unlocked(struct snd_soc_dapm_context *dapm,
 					   const char *pin);
 int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm,
 				const char *pin);
-void snd_soc_dapm_auto_nc_codec_pins(struct snd_soc_codec *codec);
+void snd_soc_dapm_auto_nc_pins(struct snd_soc_card *card);
+unsigned int dapm_kcontrol_get_value(const struct snd_kcontrol *kcontrol);
 
 /* Mostly internal - should not normally be used */
 void dapm_mark_io_dirty(struct snd_soc_dapm_context *dapm);
@@ -441,6 +442,8 @@ int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 	struct snd_soc_dapm_widget_list **list);
 
 struct snd_soc_codec *snd_soc_dapm_kcontrol_codec(struct snd_kcontrol *kcontrol);
+struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_dapm(
+	struct snd_kcontrol *kcontrol);
 
 /* dapm widget types */
 enum snd_soc_dapm_type {
@@ -524,7 +527,6 @@ struct snd_soc_dapm_widget {
 	const char *name;		/* widget name */
 	const char *sname;	/* stream name */
 	struct snd_soc_codec *codec;
-	struct snd_soc_platform *platform;
 	struct list_head list;
 	struct snd_soc_dapm_context *dapm;
 
@@ -586,14 +588,13 @@ struct snd_soc_dapm_context {
 	enum snd_soc_bias_level suspend_bias_level;
 	struct delayed_work delayed_work;
 	unsigned int idle_bias_off:1; /* Use BIAS_OFF instead of STANDBY */
-
+	/* Go to BIAS_OFF in suspend if the DAPM context is idle */
+	unsigned int suspend_bias_off:1;
 	void (*seq_notifier)(struct snd_soc_dapm_context *,
 			     enum snd_soc_dapm_type, int);
 
 	struct device *dev; /* from parent - for debug */
 	struct snd_soc_component *component; /* parent component */
-	struct snd_soc_codec *codec; /* parent codec */
-	struct snd_soc_platform *platform; /* parent platform */
 	struct snd_soc_card *card; /* parent card */
 
 	/* used during DAPM updates */
@@ -601,6 +602,8 @@ struct snd_soc_dapm_context {
 	struct list_head list;
 
 	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
+	int (*set_bias_level)(struct snd_soc_dapm_context *dapm,
+			      enum snd_soc_bias_level level);
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dapm;

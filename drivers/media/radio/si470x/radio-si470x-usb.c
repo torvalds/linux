@@ -607,9 +607,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	/* Set up interrupt endpoint information. */
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) ==
-		 USB_DIR_IN) && ((endpoint->bmAttributes &
-		 USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT))
+		if (usb_endpoint_is_int_in(endpoint))
 			radio->int_in_endpoint = endpoint;
 	}
 	if (!radio->int_in_endpoint) {
@@ -680,7 +678,6 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	radio->videodev.lock = &radio->lock;
 	radio->videodev.v4l2_dev = &radio->v4l2_dev;
 	radio->videodev.release = video_device_release_empty;
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->videodev.flags);
 	video_set_drvdata(&radio->videodev, radio);
 
 	/* get device and chip versions */

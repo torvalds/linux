@@ -1155,8 +1155,7 @@ sddr09_get_cardinfo(struct us_data *us, unsigned char flags) {
 		return NULL;
 	}
 
-	sprintf(blurbtxt, "sddr09: Found Flash card, ID = %02X %02X %02X %02X",
-		deviceID[0], deviceID[1], deviceID[2], deviceID[3]);
+	sprintf(blurbtxt, "sddr09: Found Flash card, ID = %4ph", deviceID);
 
 	/* Byte 0 is the manufacturer */
 	sprintf(blurbtxt + strlen(blurbtxt),
@@ -1498,7 +1497,7 @@ static int dpcm_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	int ret;
 
-	usb_stor_dbg(us, "LUN=%d\n", srb->device->lun);
+	usb_stor_dbg(us, "LUN=%d\n", (u8)srb->device->lun);
 
 	switch (srb->device->lun) {
 	case 0:
@@ -1524,7 +1523,7 @@ static int dpcm_transport(struct scsi_cmnd *srb, struct us_data *us)
 		break;
 
 	default:
-		usb_stor_dbg(us, "Invalid LUN %d\n", srb->device->lun);
+	    usb_stor_dbg(us, "Invalid LUN %d\n", (u8)srb->device->lun);
 		ret = USB_STOR_TRANSPORT_ERROR;
 		break;
 	}

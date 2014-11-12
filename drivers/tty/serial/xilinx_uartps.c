@@ -581,7 +581,7 @@ static unsigned int cdns_uart_tx_empty(struct uart_port *port)
 {
 	unsigned int status;
 
-	status = cdns_uart_readl(CDNS_UART_ISR_OFFSET) & CDNS_UART_IXR_TXEMPTY;
+	status = cdns_uart_readl(CDNS_UART_SR_OFFSET) & CDNS_UART_SR_TXEMPTY;
 	return status ? TIOCSER_TEMT : 0;
 }
 
@@ -918,11 +918,6 @@ static void cdns_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	/* N/A */
 }
 
-static void cdns_uart_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 #ifdef CONFIG_CONSOLE_POLL
 static int cdns_uart_poll_get_char(struct uart_port *port)
 {
@@ -974,7 +969,6 @@ static void cdns_uart_poll_put_char(struct uart_port *port, unsigned char c)
 static struct uart_ops cdns_uart_ops = {
 	.set_mctrl	= cdns_uart_set_mctrl,
 	.get_mctrl	= cdns_uart_get_mctrl,
-	.enable_ms	= cdns_uart_enable_ms,
 	.start_tx	= cdns_uart_start_tx,
 	.stop_tx	= cdns_uart_stop_tx,
 	.stop_rx	= cdns_uart_stop_rx,
@@ -1056,6 +1050,25 @@ static void cdns_uart_console_putchar(struct uart_port *port, int ch)
 	cdns_uart_console_wait_tx(port);
 	cdns_uart_writel(ch, CDNS_UART_FIFO_OFFSET);
 }
+
+static void cdns_early_write(struct console *con, const char *s, unsigned n)
+{
+	struct earlycon_device *dev = con->data;
+
+	uart_console_write(&dev->port, s, n, cdns_uart_console_putchar);
+}
+
+static int __init cdns_early_console_setup(struct earlycon_device *device,
+					   const char *opt)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = cdns_early_write;
+
+	return 0;
+}
+EARLYCON_DECLARE(cdns, cdns_early_console_setup);
 
 /**
  * cdns_uart_console_write - perform write operation
@@ -1434,7 +1447,6 @@ static struct platform_driver cdns_uart_platform_driver = {
 	.probe   = cdns_uart_probe,
 	.remove  = cdns_uart_remove,
 	.driver  = {
-		.owner = THIS_MODULE,
 		.name = CDNS_UART_NAME,
 		.of_match_table = cdns_uart_of_match,
 		.pm = &cdns_uart_dev_pm_ops,

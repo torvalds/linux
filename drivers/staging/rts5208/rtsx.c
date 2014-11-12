@@ -20,8 +20,6 @@
  *   Micky Ching (micky_ching@realsil.com.cn)
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
@@ -315,7 +313,7 @@ int rtsx_read_pci_cfg_byte(u8 bus, u8 dev, u8 func, u8 offset, u8 *val)
  */
 static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
+	struct rtsx_dev *dev = pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
 	if (!dev)
@@ -350,7 +348,7 @@ static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 
 static int rtsx_resume(struct pci_dev *pci)
 {
-	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
+	struct rtsx_dev *dev = pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
 	if (!dev)
@@ -396,7 +394,7 @@ static int rtsx_resume(struct pci_dev *pci)
 
 static void rtsx_shutdown(struct pci_dev *pci)
 {
-	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
+	struct rtsx_dev *dev = pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
 	if (!dev)
@@ -416,8 +414,6 @@ static void rtsx_shutdown(struct pci_dev *pci)
 		pci_disable_msi(pci);
 
 	pci_disable_device(pci);
-
-	return;
 }
 
 static int rtsx_control_thread(void *__dev)
@@ -465,20 +461,20 @@ static int rtsx_control_thread(void *__dev)
 		else if (chip->srb->device->id) {
 			dev_err(&dev->pci->dev, "Bad target number (%d:%d)\n",
 				chip->srb->device->id,
-				chip->srb->device->lun);
+				(u8)chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
 		}
 
 		else if (chip->srb->device->lun > chip->max_lun) {
 			dev_err(&dev->pci->dev, "Bad LUN (%d:%d)\n",
 				chip->srb->device->id,
-				chip->srb->device->lun);
+				(u8)chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
 		}
 
 		/* we've got a command, let's do it! */
 		else {
-			RTSX_DEBUG(scsi_show_command(chip->srb));
+			scsi_show_command(chip);
 			rtsx_invoke_transport(chip->srb, chip);
 		}
 
@@ -600,8 +596,7 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 		spin_unlock(&dev->reg_lock);
 		if (chip->int_reg == 0xFFFFFFFF)
 			return IRQ_HANDLED;
-		else
-			return IRQ_NONE;
+		return IRQ_NONE;
 	}
 
 	status = chip->int_reg;
@@ -864,7 +859,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	int err = 0;
 	struct task_struct *th;
 
-	RTSX_DEBUGP("Realtek PCI-E card reader detected\n");
+	dev_dbg(&pci->dev, "Realtek PCI-E card reader detected\n");
 
 	err = pci_enable_device(pci);
 	if (err < 0) {
@@ -1019,7 +1014,7 @@ errout:
 
 static void rtsx_remove(struct pci_dev *pci)
 {
-	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
+	struct rtsx_dev *dev = pci_get_drvdata(pci);
 
 	dev_info(&pci->dev, "rtsx_remove() called\n");
 

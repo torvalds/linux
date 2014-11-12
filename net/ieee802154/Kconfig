@@ -12,13 +12,6 @@ config IEEE802154
 
 config IEEE802154_6LOWPAN
 	tristate "6lowpan support over IEEE 802.15.4"
-	depends on IEEE802154 && IPV6
-	select 6LOWPAN_IPHC
+	depends on IEEE802154 && 6LOWPAN
 	---help---
 	  IPv6 compression over IEEE 802.15.4.
-
-config 6LOWPAN_IPHC
-	tristate
-	---help---
-	  6lowpan compression code which is shared between IEEE 802.15.4 and Bluetooth
-	  stacks.

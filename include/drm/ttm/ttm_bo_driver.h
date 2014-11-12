@@ -133,6 +133,7 @@ struct ttm_tt {
  * struct ttm_dma_tt
  *
  * @ttm: Base ttm_tt struct.
+ * @cpu_address: The CPU address of the pages
  * @dma_address: The DMA (bus) addresses of the pages
  * @pages_list: used by some page allocation backend
  *
@@ -142,6 +143,7 @@ struct ttm_tt {
  */
 struct ttm_dma_tt {
 	struct ttm_tt ttm;
+	void **cpu_address;
 	dma_addr_t *dma_address;
 	struct list_head pages_list;
 };
@@ -182,6 +184,7 @@ struct ttm_mem_type_manager_func {
 	 * @man: Pointer to a memory type manager.
 	 * @bo: Pointer to the buffer object we're allocating space for.
 	 * @placement: Placement details.
+	 * @flags: Additional placement flags.
 	 * @mem: Pointer to a struct ttm_mem_reg to be filled in.
 	 *
 	 * This function should allocate space in the memory type managed
@@ -205,7 +208,7 @@ struct ttm_mem_type_manager_func {
 	 */
 	int  (*get_node)(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
-			 struct ttm_placement *placement,
+			 const struct ttm_place *place,
 			 struct ttm_mem_reg *mem);
 
 	/**
@@ -309,11 +312,6 @@ struct ttm_mem_type_manager {
  * @move: Callback for a driver to hook in accelerated functions to
  * move a buffer.
  * If set to NULL, a potentially slow memcpy() move is used.
- * @sync_obj_signaled: See ttm_fence_api.h
- * @sync_obj_wait: See ttm_fence_api.h
- * @sync_obj_flush: See ttm_fence_api.h
- * @sync_obj_unref: See ttm_fence_api.h
- * @sync_obj_ref: See ttm_fence_api.h
  */
 
 struct ttm_bo_driver {
@@ -415,23 +413,6 @@ struct ttm_bo_driver {
 	int (*verify_access) (struct ttm_buffer_object *bo,
 			      struct file *filp);
 
-	/**
-	 * In case a driver writer dislikes the TTM fence objects,
-	 * the driver writer can replace those with sync objects of
-	 * his / her own. If it turns out that no driver writer is
-	 * using these. I suggest we remove these hooks and plug in
-	 * fences directly. The bo driver needs the following functionality:
-	 * See the corresponding functions in the fence object API
-	 * documentation.
-	 */
-
-	bool (*sync_obj_signaled) (void *sync_obj);
-	int (*sync_obj_wait) (void *sync_obj,
-			      bool lazy, bool interruptible);
-	int (*sync_obj_flush) (void *sync_obj);
-	void (*sync_obj_unref) (void **sync_obj);
-	void *(*sync_obj_ref) (void *sync_obj);
-
 	/* hook to notify driver about a driver move so it
 	 * can do tiling things */
 	void (*move_notify)(struct ttm_buffer_object *bo,
@@ -518,8 +499,6 @@ struct ttm_bo_global {
  *
  * @driver: Pointer to a struct ttm_bo_driver struct setup by the driver.
  * @man: An array of mem_type_managers.
- * @fence_lock: Protects the synchronizing members on *all* bos belonging
- * to this device.
  * @vma_manager: Address space manager
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
@@ -539,7 +518,6 @@ struct ttm_bo_device {
 	struct ttm_bo_global *glob;
 	struct ttm_bo_driver *driver;
 	struct ttm_mem_type_manager man[TTM_NUM_MEM_TYPES];
-	spinlock_t fence_lock;
 
 	/*
 	 * Protected by internal locks.
@@ -651,18 +629,6 @@ extern void ttm_tt_unbind(struct ttm_tt *ttm);
  * Swap in a previously swap out ttm_tt.
  */
 extern int ttm_tt_swapin(struct ttm_tt *ttm);
-
-/**
- * ttm_tt_cache_flush:
- *
- * @pages: An array of pointers to struct page:s to flush.
- * @num_pages: Number of pages to flush.
- *
- * Flush the data of the indicated pages from the cpu caches.
- * This is used when changing caching attributes of the pages from
- * cache-coherent.
- */
-extern void ttm_tt_cache_flush(struct page *pages[], unsigned long num_pages);
 
 /**
  * ttm_tt_set_placement_caching:
@@ -1034,7 +1000,7 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  * ttm_bo_move_accel_cleanup.
  *
  * @bo: A pointer to a struct ttm_buffer_object.
- * @sync_obj: A sync object that signals when moving is complete.
+ * @fence: A fence object that signals when moving is complete.
  * @evict: This is an evict move. Don't return until the buffer is idle.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
@@ -1048,7 +1014,7 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  */
 
 extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
-				     void *sync_obj,
+				     struct fence *fence,
 				     bool evict, bool no_wait_gpu,
 				     struct ttm_mem_reg *new_mem);
 /**

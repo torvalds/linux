@@ -77,7 +77,7 @@
  76 -> KWorld PlusTV 340U or UB435-Q (ATSC)     (em2870)        [1b80:a340]
  77 -> EM2874 Leadership ISDBT                  (em2874)
  78 -> PCTV nanoStick T2 290e                   (em28174)
- 79 -> Terratec Cinergy H5                      (em2884)        [0ccd:10a2,0ccd:10ad,0ccd:10b6]
+ 79 -> Terratec Cinergy H5                      (em2884)        [eb1a:2885,0ccd:10a2,0ccd:10ad,0ccd:10b6]
  80 -> PCTV DVB-S2 Stick (460e)                 (em28174)
  81 -> Hauppauge WinTV HVR 930C                 (em2884)        [2040:1605]
  82 -> Terratec Cinergy HTC Stick               (em2884)        [0ccd:00b2]

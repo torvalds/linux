@@ -261,10 +261,9 @@ static int idma_mmap(struct snd_pcm_substream *substream,
 static irqreturn_t iis_irq(int irqno, void *dev_id)
 {
 	struct idma_ctrl *prtd = (struct idma_ctrl *)dev_id;
-	u32 iiscon, iisahb, val, addr;
+	u32 iisahb, val, addr;
 
 	iisahb  = readl(idma.regs + I2SAHB);
-	iiscon  = readl(idma.regs + I2SCON);
 
 	val = (iisahb & AHB_LVL0INT) ? AHB_CLRLVL0INT : 0;
 
@@ -352,7 +351,7 @@ static void idma_free(struct snd_pcm *pcm)
 	if (!buf->area)
 		return;
 
-	iounmap(buf->area);
+	iounmap((void __iomem *)buf->area);
 
 	buf->area = NULL;
 	buf->addr = 0;
@@ -370,7 +369,7 @@ static int preallocate_idma_buffer(struct snd_pcm *pcm, int stream)
 	buf->dev.type = SNDRV_DMA_TYPE_CONTINUOUS;
 	buf->addr = idma.lp_tx_addr;
 	buf->bytes = idma_hardware.buffer_bytes_max;
-	buf->area = (unsigned char *)ioremap(buf->addr, buf->bytes);
+	buf->area = (unsigned char * __force)ioremap(buf->addr, buf->bytes);
 
 	return 0;
 }

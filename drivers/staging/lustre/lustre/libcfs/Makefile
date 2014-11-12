@@ -12,10 +12,7 @@ libcfs-linux-objs := $(addprefix linux/,$(libcfs-linux-objs))
 
 libcfs-all-objs := debug.o fail.o nidstrings.o module.o tracefile.o \
 		   libcfs_string.o hash.o kernel_user_comm.o \
-		   prng.o workitem.o upcall_cache.o libcfs_cpu.o \
+		   prng.o workitem.o libcfs_cpu.o \
 		   libcfs_mem.o libcfs_lock.o
 
 libcfs-objs := $(libcfs-linux-objs) $(libcfs-all-objs)
-
-ccflags-y := -I$(src)/../include
-ccflags-y += -I$(src)/

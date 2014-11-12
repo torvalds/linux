@@ -28,15 +28,20 @@
 #define QCA988X_HW_2_0_CHIP_ID_REV	0x2
 #define QCA988X_HW_2_0_FW_DIR		"ath10k/QCA988X/hw2.0"
 #define QCA988X_HW_2_0_FW_FILE		"firmware.bin"
-#define QCA988X_HW_2_0_FW_2_FILE	"firmware-2.bin"
+#define QCA988X_HW_2_0_FW_3_FILE	"firmware-3.bin"
 #define QCA988X_HW_2_0_OTP_FILE		"otp.bin"
 #define QCA988X_HW_2_0_BOARD_DATA_FILE	"board.bin"
 #define QCA988X_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
+#define ATH10K_FW_API3_FILE		"firmware-3.bin"
+
+#define ATH10K_FW_UTF_FILE		"utf.bin"
 
 /* includes also the null byte */
 #define ATH10K_FIRMWARE_MAGIC               "QCA-ATH10K"
+
+#define REG_DUMP_COUNT_QCA988X 60
 
 struct ath10k_fw_ie {
 	__le32 id;

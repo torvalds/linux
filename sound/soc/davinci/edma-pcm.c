@@ -25,11 +25,13 @@
 #include <sound/dmaengine_pcm.h>
 #include <linux/edma.h>
 
+#include "edma-pcm.h"
+
 static const struct snd_pcm_hardware edma_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
-				  SNDRV_PCM_INFO_BATCH |
 				  SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME |
+				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP |
 				  SNDRV_PCM_INFO_INTERLEAVED,
 	.buffer_bytes_max	= 128 * 1024,
 	.period_bytes_min	= 32,

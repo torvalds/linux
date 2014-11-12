@@ -36,7 +36,12 @@ struct cpu_hw_events {
 	struct perf_event *event[MAX_HWEVENTS];
 	u64 events[MAX_HWEVENTS];
 	unsigned int flags[MAX_HWEVENTS];
-	unsigned long mmcr[3];
+	/*
+	 * The order of the MMCR array is:
+	 *  - 64-bit, MMCR0, MMCR1, MMCRA, MMCR2
+	 *  - 32-bit, MMCR0, MMCR1, MMCR2
+	 */
+	unsigned long mmcr[4];
 	struct perf_event *limited_counter[MAX_LIMITED_HWCOUNTERS];
 	u8  limited_hwidx[MAX_LIMITED_HWCOUNTERS];
 	u64 alternatives[MAX_HWEVENTS][MAX_EVENT_ALTERNATIVES];
@@ -54,9 +59,9 @@ struct cpu_hw_events {
 	struct	perf_branch_entry	bhrb_entries[BHRB_MAX_ENTRIES];
 };
 
-DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
+static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 
-struct power_pmu *ppmu;
+static struct power_pmu *ppmu;
 
 /*
  * Normally, to ignore kernel events we set the FCS (freeze counters
@@ -112,14 +117,14 @@ static bool is_ebb_event(struct perf_event *event) { return false; }
 static int ebb_event_check(struct perf_event *event) { return 0; }
 static void ebb_event_add(struct perf_event *event) { }
 static void ebb_switch_out(unsigned long mmcr0) { }
-static unsigned long ebb_switch_in(bool ebb, unsigned long mmcr0)
+static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 {
-	return mmcr0;
+	return cpuhw->mmcr[0];
 }
 
 static inline void power_pmu_bhrb_enable(struct perf_event *event) {}
 static inline void power_pmu_bhrb_disable(struct perf_event *event) {}
-void power_pmu_flush_branch_stack(void) {}
+static void power_pmu_flush_branch_stack(void) {}
 static inline void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw) {}
 static void pmao_restore_workaround(bool ebb) { }
 #endif /* CONFIG_PPC32 */
@@ -370,7 +375,7 @@ static void power_pmu_bhrb_disable(struct perf_event *event)
 /* Called from ctxsw to prevent one process's branch entries to
  * mingle with the other process's entries during context switch.
  */
-void power_pmu_flush_branch_stack(void)
+static void power_pmu_flush_branch_stack(void)
 {
 	if (ppmu->bhrb_nr)
 		power_pmu_bhrb_reset();
@@ -403,7 +408,7 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 }
 
 /* Processing BHRB entries */
-void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw)
+static void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw)
 {
 	u64 val;
 	u64 addr;
@@ -542,8 +547,10 @@ static void ebb_switch_out(unsigned long mmcr0)
 	current->thread.mmcr2 = mfspr(SPRN_MMCR2) & MMCR2_USER_MASK;
 }
 
-static unsigned long ebb_switch_in(bool ebb, unsigned long mmcr0)
+static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 {
+	unsigned long mmcr0 = cpuhw->mmcr[0];
+
 	if (!ebb)
 		goto out;
 
@@ -568,7 +575,15 @@ static unsigned long ebb_switch_in(bool ebb, unsigned long mmcr0)
 	mtspr(SPRN_SIAR, current->thread.siar);
 	mtspr(SPRN_SIER, current->thread.sier);
 	mtspr(SPRN_SDAR, current->thread.sdar);
-	mtspr(SPRN_MMCR2, current->thread.mmcr2);
+
+	/*
+	 * Merge the kernel & user values of MMCR2. The semantics we implement
+	 * are that the user MMCR2 can set bits, ie. cause counters to freeze,
+	 * but not clear bits. If a task wants to be able to clear bits, ie.
+	 * unfreeze counters, it should not set exclude_xxx in its events and
+	 * instead manage the MMCR2 entirely by itself.
+	 */
+	mtspr(SPRN_MMCR2, cpuhw->mmcr[3] | current->thread.mmcr2);
 out:
 	return mmcr0;
 }
@@ -915,6 +930,14 @@ static int check_excludes(struct perf_event **ctrs, unsigned int cflags[],
 	int i, n, first;
 	struct perf_event *event;
 
+	/*
+	 * If the PMU we're on supports per event exclude settings then we
+	 * don't need to do any of this logic. NB. This assumes no PMU has both
+	 * per event exclude and limited PMCs.
+	 */
+	if (ppmu->flags & PPMU_ARCH_207S)
+		return 0;
+
 	n = n_prev + n_new;
 	if (n <= 1)
 		return 0;
@@ -1219,28 +1242,31 @@ static void power_pmu_enable(struct pmu *pmu)
 	}
 
 	/*
-	 * Compute MMCR* values for the new set of events
+	 * Clear all MMCR settings and recompute them for the new set of events.
 	 */
+	memset(cpuhw->mmcr, 0, sizeof(cpuhw->mmcr));
+
 	if (ppmu->compute_mmcr(cpuhw->events, cpuhw->n_events, hwc_index,
-			       cpuhw->mmcr)) {
+			       cpuhw->mmcr, cpuhw->event)) {
 		/* shouldn't ever get here */
 		printk(KERN_ERR "oops compute_mmcr failed\n");
 		goto out;
 	}
 
-	/*
-	 * Add in MMCR0 freeze bits corresponding to the
-	 * attr.exclude_* bits for the first event.
-	 * We have already checked that all events have the
-	 * same values for these bits as the first event.
-	 */
-	event = cpuhw->event[0];
-	if (event->attr.exclude_user)
-		cpuhw->mmcr[0] |= MMCR0_FCP;
-	if (event->attr.exclude_kernel)
-		cpuhw->mmcr[0] |= freeze_events_kernel;
-	if (event->attr.exclude_hv)
-		cpuhw->mmcr[0] |= MMCR0_FCHV;
+	if (!(ppmu->flags & PPMU_ARCH_207S)) {
+		/*
+		 * Add in MMCR0 freeze bits corresponding to the attr.exclude_*
+		 * bits for the first event. We have already checked that all
+		 * events have the same value for these bits as the first event.
+		 */
+		event = cpuhw->event[0];
+		if (event->attr.exclude_user)
+			cpuhw->mmcr[0] |= MMCR0_FCP;
+		if (event->attr.exclude_kernel)
+			cpuhw->mmcr[0] |= freeze_events_kernel;
+		if (event->attr.exclude_hv)
+			cpuhw->mmcr[0] |= MMCR0_FCHV;
+	}
 
 	/*
 	 * Write the new configuration to MMCR* with the freeze
@@ -1252,6 +1278,8 @@ static void power_pmu_enable(struct pmu *pmu)
 	mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
 	mtspr(SPRN_MMCR0, (cpuhw->mmcr[0] & ~(MMCR0_PMC1CE | MMCR0_PMCjCE))
 				| MMCR0_FC);
+	if (ppmu->flags & PPMU_ARCH_207S)
+		mtspr(SPRN_MMCR2, cpuhw->mmcr[3]);
 
 	/*
 	 * Read off any pre-existing events that need to move
@@ -1307,10 +1335,7 @@ static void power_pmu_enable(struct pmu *pmu)
  out_enable:
 	pmao_restore_workaround(ebb);
 
-	if (ppmu->flags & PPMU_ARCH_207S)
-		mtspr(SPRN_MMCR2, 0);
-
-	mmcr0 = ebb_switch_in(ebb, cpuhw->mmcr[0]);
+	mmcr0 = ebb_switch_in(ebb, cpuhw);
 
 	mb();
 	if (cpuhw->bhrb_users)
@@ -1548,7 +1573,7 @@ static void power_pmu_stop(struct perf_event *event, int ef_flags)
  * Set the flag to make pmu::enable() not perform the
  * schedulability test, it will be performed at commit time
  */
-void power_pmu_start_txn(struct pmu *pmu)
+static void power_pmu_start_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
@@ -1562,7 +1587,7 @@ void power_pmu_start_txn(struct pmu *pmu)
  * Clear the flag and pmu::enable() will perform the
  * schedulability test.
  */
-void power_pmu_cancel_txn(struct pmu *pmu)
+static void power_pmu_cancel_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
@@ -1575,7 +1600,7 @@ void power_pmu_cancel_txn(struct pmu *pmu)
  * Perform the group schedulability test as a whole
  * Return 0 if success
  */
-int power_pmu_commit_txn(struct pmu *pmu)
+static int power_pmu_commit_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw;
 	long i, n;
@@ -1863,7 +1888,7 @@ ssize_t power_events_sysfs_show(struct device *dev,
 	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
 }
 
-struct pmu power_pmu = {
+static struct pmu power_pmu = {
 	.pmu_enable	= power_pmu_enable,
 	.pmu_disable	= power_pmu_disable,
 	.event_init	= power_pmu_event_init,

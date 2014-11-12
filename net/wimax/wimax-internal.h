@@ -30,6 +30,12 @@
 #define __WIMAX_INTERNAL_H__
 #ifdef __KERNEL__
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <net/wimax.h>
 

@@ -10,7 +10,7 @@
 #ifndef __INCLUDE_SOUND_ATMEL_AC97C_H
 #define __INCLUDE_SOUND_ATMEL_AC97C_H
 
-#include <linux/dw_dmac.h>
+#include <linux/platform_data/dma-dw.h>
 
 #define AC97C_CAPTURE	0x01
 #define AC97C_PLAYBACK	0x02

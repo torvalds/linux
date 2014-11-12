@@ -20,6 +20,9 @@ Required nodes:
 - default-mode: a videomode within the display with timing parameters
 	as specified below.
 
+Optional properties:
+- lcd-supply: Regulator for LCD supply voltage.
+
 Example:
 
 	fb0: fb@0x00500000 {
@@ -39,13 +42,14 @@ Atmel LCDC Display
 -----------------------------------------------------
 Required properties (as per of_videomode_helper):
 
- - atmel,dmacon: dma controler configuration
- - atmel,lcdcon2: lcd controler configuration
+ - atmel,dmacon: dma controller configuration
+ - atmel,lcdcon2: lcd controller configuration
  - atmel,guard-time: lcd guard time (Delay in frame periods)
  - bits-per-pixel: lcd panel bit-depth.
 
 Optional properties (as per of_videomode_helper):
  - atmel,lcdcon-backlight: enable backlight
+ - atmel,lcdcon-backlight-inverted: invert backlight PWM polarity
  - atmel,lcd-wiring-mode: lcd wiring mode "RGB" or "BRG"
  - atmel,power-control-gpio: gpio to power on or off the LCD (as many as needed)
 

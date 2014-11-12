@@ -43,6 +43,10 @@
 	clock-frequency = <48000000>;
 };
 
+&mtu2 {
+	status = "ok";
+};
+
 &i2c2 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -56,4 +60,14 @@
 
 &scif2 {
 	status = "okay";
+};
+
+&spi4 {
+	status = "okay";
+
+	codec: codec@0 {
+		compatible = "wlf,wm8978";
+		reg = <0>;
+		spi-max-frequency = <5000000>;
+	};
 };

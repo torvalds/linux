@@ -805,8 +805,9 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = snd_soc_register_component(&pdev->dev, &omap_mcbsp_component,
-					 &omap_mcbsp_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &omap_mcbsp_component,
+					      &omap_mcbsp_dai, 1);
 	if (ret)
 		return ret;
 
@@ -816,8 +817,6 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 static int asoc_mcbsp_remove(struct platform_device *pdev)
 {
 	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_component(&pdev->dev);
 
 	if (mcbsp->pdata->ops && mcbsp->pdata->ops->free)
 		mcbsp->pdata->ops->free(mcbsp->id);

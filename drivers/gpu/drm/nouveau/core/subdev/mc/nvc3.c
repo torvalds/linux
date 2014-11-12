@@ -35,4 +35,5 @@ nvc3_mc_oclass = &(struct nouveau_mc_oclass) {
 	},
 	.intr = nvc0_mc_intr,
 	.msi_rearm = nv40_mc_msi_rearm,
+	.unk260 = nvc0_mc_unk260,
 }.base;

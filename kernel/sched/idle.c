@@ -147,7 +147,8 @@ use_default:
 	    clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu))
 		goto use_default;
 
-	trace_cpu_idle_rcuidle(next_state, dev->cpu);
+	/* Take note of the planned idle state. */
+	idle_set_state(this_rq(), &drv->states[next_state]);
 
 	/*
 	 * Enter the idle state previously returned by the governor decision.
@@ -156,7 +157,8 @@ use_default:
 	 */
 	entered_state = cpuidle_enter(drv, dev, next_state);
 
-	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, dev->cpu);
+	/* The cpu is no longer idle or about to enter idle. */
+	idle_set_state(this_rq(), NULL);
 
 	if (broadcast)
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);

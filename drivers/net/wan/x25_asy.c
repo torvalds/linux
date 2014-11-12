@@ -81,8 +81,8 @@ static struct x25_asy *x25_asy_alloc(void)
 		char name[IFNAMSIZ];
 		sprintf(name, "x25asy%d", i);
 
-		dev = alloc_netdev(sizeof(struct x25_asy),
-				   name, x25_asy_setup);
+		dev = alloc_netdev(sizeof(struct x25_asy), name,
+				   NET_NAME_UNKNOWN, x25_asy_setup);
 		if (!dev)
 			return NULL;
 

@@ -26,6 +26,8 @@ static inline int irq_canonicalize(int irq)
 #define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */
 #endif
 
+asmlinkage void plat_irq_dispatch(void);
+
 extern void do_IRQ(unsigned int irq);
 
 extern void arch_init_irq(void);

@@ -41,8 +41,8 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 
-#include <obd.h>
-#include <lustre_lite.h>
+#include "../include/obd.h"
+#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 #include "vvp_internal.h"
 
@@ -394,7 +394,7 @@ static loff_t vvp_pgcache_find(const struct lu_env *env,
 		seq_printf(seq, "%s"#flag, has_flags ? "|" : "");       \
 		has_flags = 1;					  \
 	}							       \
-} while(0)
+} while (0)
 
 static void vvp_pgcache_page_show(const struct lu_env *env,
 				  struct seq_file *seq, struct cl_page *page)
@@ -405,7 +405,7 @@ static void vvp_pgcache_page_show(const struct lu_env *env,
 
 	cpg = cl2ccc_page(cl_page_at(page, &vvp_device_type));
 	vmpage = cpg->cpg_page;
-	seq_printf(seq," %5i | %p %p %s %s %s %s | %p %lu/%u(%p) %lu %u [",
+	seq_printf(seq, " %5i | %p %p %s %s %s %s | %p %lu/%u(%p) %lu %u [",
 		   0 /* gen */,
 		   cpg, page,
 		   "none",

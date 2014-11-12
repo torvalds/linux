@@ -16,6 +16,7 @@
  *
  * based also on:
  *  - portions of rtl8187se Linux staging driver, Copyright Realtek corp.
+ *    (available in drivers/staging/rtl8187se directory of Linux 3.14)
  *  - other GPL, unpublished (until now), Linux driver code,
  *    Copyright Larry Finger <Larry.Finger@lwfinger.net>
  *
@@ -63,7 +64,7 @@ MODULE_AUTHOR("Andrea Merello <andrea.merello@gmail.com>");
 MODULE_DESCRIPTION("RTL8180 / RTL8185 / RTL8187SE PCI wireless driver");
 MODULE_LICENSE("GPL");
 
-static DEFINE_PCI_DEVICE_TABLE(rtl8180_table) = {
+static const struct pci_device_id rtl8180_table[] = {
 
 	/* rtl8187se */
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8199) },
@@ -188,6 +189,9 @@ static const int rtl8187se_queues_map[RTL8187SE_NR_TX_QUEUES] = {5, 4, 3, 2, 7};
 
 static const int rtl8180_queues_map[RTL8180_NR_TX_QUEUES] = {4, 7};
 
+/* LNA gain table for rtl8187se */
+static const u8 rtl8187se_lna_gain[4] = {02, 17, 29, 39};
+
 void rtl8180_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 {
 	struct rtl8180_priv *priv = dev->priv;
@@ -209,25 +213,35 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 	struct rtl8180_priv *priv = dev->priv;
 	struct rtl818x_rx_cmd_desc *cmd_desc;
 	unsigned int count = 32;
-	u8 signal, agc, sq;
+	u8 agc, sq;
+	s8 signal = 1;
 	dma_addr_t mapping;
 
 	while (count--) {
 		void *entry = priv->rx_ring + priv->rx_idx * priv->rx_ring_sz;
 		struct sk_buff *skb = priv->rx_buf[priv->rx_idx];
-		u32 flags, flags2;
+		u32 flags, flags2, flags3 = 0;
 		u64 tsft;
 
 		if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
 			struct rtl8187se_rx_desc *desc = entry;
 
 			flags = le32_to_cpu(desc->flags);
+			/* if ownership flag is set, then we can trust the
+			 * HW has written other fields. We must not trust
+			 * other descriptor data read before we checked (read)
+			 * the ownership flag
+			 */
+			rmb();
+			flags3 = le32_to_cpu(desc->flags3);
 			flags2 = le32_to_cpu(desc->flags2);
 			tsft = le64_to_cpu(desc->tsft);
 		} else {
 			struct rtl8180_rx_desc *desc = entry;
 
 			flags = le32_to_cpu(desc->flags);
+			/* same as above */
+			rmb();
 			flags2 = le32_to_cpu(desc->flags2);
 			tsft = le64_to_cpu(desc->tsft);
 		}
@@ -266,18 +280,34 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			rx_status.rate_idx = (flags >> 20) & 0xF;
 			agc = (flags2 >> 17) & 0x7F;
 
-			if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185) {
+			switch (priv->chip_family) {
+			case RTL818X_CHIP_FAMILY_RTL8185:
 				if (rx_status.rate_idx > 3)
-					signal = 90 - clamp_t(u8, agc, 25, 90);
+					signal = -clamp_t(u8, agc, 25, 90) - 9;
 				else
-					signal = 95 - clamp_t(u8, agc, 30, 95);
-			} else if (priv->chip_family ==
-				   RTL818X_CHIP_FAMILY_RTL8180) {
+					signal = -clamp_t(u8, agc, 30, 95);
+				break;
+			case RTL818X_CHIP_FAMILY_RTL8180:
 				sq = flags2 & 0xff;
 				signal = priv->rf->calc_rssi(agc, sq);
-			} else {
-				/* TODO: rtl8187se rssi */
-				signal = 10;
+				break;
+			case RTL818X_CHIP_FAMILY_RTL8187SE:
+				/* OFDM measure reported by HW is signed,
+				 * in 0.5dBm unit, with zero centered @ -41dBm
+				 * input signal.
+				 */
+				if (rx_status.rate_idx > 3) {
+					signal = (s8)((flags3 >> 16) & 0xff);
+					signal = signal / 2 - 41;
+				} else {
+					int idx, bb;
+
+					idx = (agc & 0x60) >> 5;
+					bb = (agc & 0x1F) * 2;
+					/* bias + BB gain + LNA gain */
+					signal = 4 - bb - rtl8187se_lna_gain[idx];
+				}
+				break;
 			}
 			rx_status.signal = signal;
 			rx_status.freq = dev->conf.chandef.chan->center_freq;
@@ -336,7 +366,6 @@ static void rtl8180_handle_tx(struct ieee80211_hw *dev, unsigned int prio)
 			info->flags |= IEEE80211_TX_STAT_ACK;
 
 		info->status.rates[0].count = (flags & 0xFF) + 1;
-		info->status.rates[1].idx = -1;
 
 		ieee80211_tx_status_irqsafe(dev, skb);
 		if (ring->entries - skb_queue_len(&ring->queue) == 2)
@@ -528,9 +557,7 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 	entry->plcp_len = cpu_to_le16(plcp_len);
 	entry->tx_buf = cpu_to_le32(mapping);
 
-	entry->flags2 = info->control.rates[1].idx >= 0 ?
-		ieee80211_get_alt_retry_rate(dev, info, 0)->bitrate << 4 : 0;
-	entry->retry_limit = info->control.rates[0].count;
+	entry->retry_limit = info->control.rates[0].count - 1;
 
 	/* We must be sure that tx_flags is written last because the HW
 	 * looks at it to check if the rest of data is valid or not
@@ -715,35 +742,49 @@ static void rtl8180_int_disable(struct ieee80211_hw *dev)
 }
 
 static void rtl8180_conf_basic_rates(struct ieee80211_hw *dev,
-			    u32 rates_mask)
+			    u32 basic_mask)
 {
 	struct rtl8180_priv *priv = dev->priv;
-
-	u8 max, min;
 	u16 reg;
+	u32 resp_mask;
+	u8 basic_max;
+	u8 resp_max, resp_min;
 
-	max = fls(rates_mask) - 1;
-	min = ffs(rates_mask) - 1;
+	resp_mask = basic_mask;
+	/* IEEE80211 says the response rate should be equal to the highest basic
+	 * rate that is not faster than received frame. But it says also that if
+	 * the basic rate set does not contains any rate for the current
+	 * modulation class then mandatory rate set must be used for that
+	 * modulation class. Eventually add OFDM mandatory rates..
+	 */
+	if ((resp_mask & 0xf) == resp_mask)
+		resp_mask |= 0x150; /* 6, 12, 24Mbps */
 
 	switch (priv->chip_family) {
 
 	case RTL818X_CHIP_FAMILY_RTL8180:
 		/* in 8180 this is NOT a BITMAP */
+		basic_max = fls(basic_mask) - 1;
 		reg = rtl818x_ioread16(priv, &priv->map->BRSR);
 		reg &= ~3;
-		reg |= max;
+		reg |= basic_max;
 		rtl818x_iowrite16(priv, &priv->map->BRSR, reg);
 		break;
 
 	case RTL818X_CHIP_FAMILY_RTL8185:
+		resp_max = fls(resp_mask) - 1;
+		resp_min = ffs(resp_mask) - 1;
 		/* in 8185 this is a BITMAP */
-		rtl818x_iowrite16(priv, &priv->map->BRSR, rates_mask);
-		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (max << 4) | min);
+		rtl818x_iowrite16(priv, &priv->map->BRSR, basic_mask);
+		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (resp_max << 4) |
+				resp_min);
 		break;
 
 	case RTL818X_CHIP_FAMILY_RTL8187SE:
-		/* in 8187se this is a BITMAP */
-		rtl818x_iowrite16(priv, &priv->map->BRSR_8187SE, rates_mask);
+		/* in 8187se this is a BITMAP. BRSR reg actually sets
+		 * response rates.
+		 */
+		rtl818x_iowrite16(priv, &priv->map->BRSR_8187SE, resp_mask);
 		break;
 	}
 }
@@ -852,7 +893,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 
 	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
 		rtl818x_iowrite8(priv, &priv->map->WPA_CONF, 0);
-		rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, 0x81);
+		rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, 0);
 	} else {
 		rtl818x_iowrite8(priv, &priv->map->SECURITY, 0);
 
@@ -868,6 +909,16 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
 		rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg | (1 << 2));
 		rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+		/* fix eccessive IFS after CTS-to-self */
+		if (priv->map_pio) {
+			u8 reg;
+
+			reg = rtl818x_ioread8(priv, &priv->map->PGSELECT);
+			rtl818x_iowrite8(priv, &priv->map->PGSELECT, reg | 1);
+			rtl818x_iowrite8(priv, REG_ADDR1(0xff), 0x35);
+			rtl818x_iowrite8(priv, &priv->map->PGSELECT, reg);
+		} else
+			rtl818x_iowrite8(priv, REG_ADDR1(0x1ff), 0x35);
 	}
 
 	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
@@ -953,16 +1004,13 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 	else
 		priv->rx_ring_sz = sizeof(struct rtl8180_rx_desc);
 
-	priv->rx_ring = pci_alloc_consistent(priv->pdev,
-					     priv->rx_ring_sz * 32,
-					     &priv->rx_ring_dma);
-
+	priv->rx_ring = pci_zalloc_consistent(priv->pdev, priv->rx_ring_sz * 32,
+					      &priv->rx_ring_dma);
 	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
 		wiphy_err(dev->wiphy, "Cannot allocate RX ring\n");
 		return -ENOMEM;
 	}
 
-	memset(priv->rx_ring, 0, priv->rx_ring_sz * 32);
 	priv->rx_idx = 0;
 
 	for (i = 0; i < 32; i++) {
@@ -1021,14 +1069,14 @@ static int rtl8180_init_tx_ring(struct ieee80211_hw *dev,
 	dma_addr_t dma;
 	int i;
 
-	ring = pci_alloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
+	ring = pci_zalloc_consistent(priv->pdev, sizeof(*ring) * entries,
+				     &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
 		wiphy_err(dev->wiphy, "Cannot allocate TX ring (prio = %d)\n",
 			  prio);
 		return -ENOMEM;
 	}
 
-	memset(ring, 0, sizeof(*ring)*entries);
 	priv->tx_ring[prio].desc = ring;
 	priv->tx_ring[prio].dma = dma;
 	priv->tx_ring[prio].idx = 0;
@@ -1450,9 +1498,10 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 	vif_priv = (struct rtl8180_vif *)&vif->drv_priv;
 
 	if (changed & BSS_CHANGED_BSSID) {
-		for (i = 0; i < ETH_ALEN; i++)
-			rtl818x_iowrite8(priv, &priv->map->BSSID[i],
-					 info->bssid[i]);
+		rtl818x_iowrite16(priv, (__le16 __iomem *)&priv->map->BSSID[0],
+				  le16_to_cpu(*(__le16 *)info->bssid));
+		rtl818x_iowrite32(priv, (__le32 __iomem *)&priv->map->BSSID[2],
+				  le32_to_cpu(*(__le32 *)(info->bssid + 2)));
 
 		if (is_valid_ether_addr(info->bssid)) {
 			if (vif->type == NL80211_IFTYPE_ADHOC)
@@ -1723,17 +1772,20 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	priv = dev->priv;
 	priv->pdev = pdev;
 
-	dev->max_rates = 2;
+	dev->max_rates = 1;
 	SET_IEEE80211_DEV(dev, &pdev->dev);
 	pci_set_drvdata(pdev, dev);
 
+	priv->map_pio = false;
 	priv->map = pci_iomap(pdev, 1, mem_len);
-	if (!priv->map)
+	if (!priv->map) {
 		priv->map = pci_iomap(pdev, 0, io_len);
+		priv->map_pio = true;
+	}
 
 	if (!priv->map) {
-		printk(KERN_ERR "%s (rtl8180): Cannot map device memory\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "Cannot map device memory/PIO\n");
+		err = -ENOMEM;
 		goto err_free_dev;
 	}
 
@@ -1751,8 +1803,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		     IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_SIGNAL_UNSPEC;
+		IEEE80211_HW_RX_INCLUDES_FCS;
 	dev->vif_data_size = sizeof(struct rtl8180_vif);
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					BIT(NL80211_IFTYPE_ADHOC);
@@ -1783,12 +1834,19 @@ static int rtl8180_probe(struct pci_dev *pdev,
 
 	case RTL818X_TX_CONF_RTL8187SE:
 		chip_name = "RTL8187SE";
+		if (priv->map_pio) {
+			dev_err(&pdev->dev,
+				"MMIO failed. PIO not supported on RTL8187SE\n");
+			err = -ENOMEM;
+			goto err_iounmap;
+		}
 		priv->chip_family = RTL818X_CHIP_FAMILY_RTL8187SE;
 		break;
 
 	default:
 		printk(KERN_ERR "%s (rtl8180): Unknown chip! (0x%x)\n",
 		       pci_name(pdev), reg >> 25);
+		err = -ENODEV;
 		goto err_iounmap;
 	}
 
@@ -1808,6 +1866,11 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		priv->band.n_bitrates = ARRAY_SIZE(rtl818x_rates);
 		pci_try_set_mwi(pdev);
 	}
+
+	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180)
+		dev->flags |= IEEE80211_HW_SIGNAL_DBM;
+	else
+		dev->flags |= IEEE80211_HW_SIGNAL_UNSPEC;
 
 	rtl8180_eeprom_read(priv);
 
@@ -1834,12 +1897,14 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	default:
 		printk(KERN_ERR "%s (rtl8180): Unknown RF! (0x%x)\n",
 		       pci_name(pdev), priv->rf_type);
+		err = -ENODEV;
 		goto err_iounmap;
 	}
 
 	if (!priv->rf) {
 		printk(KERN_ERR "%s (rtl8180): %s RF frontend not supported!\n",
 		       pci_name(pdev), rf_name);
+		err = -ENODEV;
 		goto err_iounmap;
 	}
 

@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: utility functions
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -172,7 +172,7 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 
 	cfg80211_rx_mgmt(priv->wdev, priv->roc_cfg.chan.center_freq,
 			 CAL_RSSI(rx_pd->snr, rx_pd->nf), skb->data, pkt_len,
-			 0, GFP_ATOMIC);
+			 0);
 
 	return 0;
 }

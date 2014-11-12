@@ -31,6 +31,7 @@
 
 #define KPF_KSM			21
 #define KPF_THP			22
+#define KPF_BALLOON		23
 
 
 #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */

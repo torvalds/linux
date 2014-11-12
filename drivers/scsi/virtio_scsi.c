@@ -27,6 +27,8 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_tcq.h>
+#include <linux/seqlock.h>
 
 #define VIRTIO_SCSI_MEMPOOL_SZ 64
 #define VIRTIO_SCSI_EVENT_LEN 8
@@ -75,18 +77,16 @@ struct virtio_scsi_vq {
  * queue, and also lets the driver optimize the IRQ affinity for the virtqueues
  * (each virtqueue's affinity is set to the CPU that "owns" the queue).
  *
- * tgt_lock is held to serialize reading and writing req_vq. Reading req_vq
- * could be done locklessly, but we do not do it yet.
+ * tgt_seq is held to serialize reading and writing req_vq.
  *
  * Decrements of reqs are never concurrent with writes of req_vq: before the
  * decrement reqs will be != 0; after the decrement the virtqueue completion
  * routine will not use the req_vq so it can be changed by a new request.
- * Thus they can happen outside the tgt_lock, provided of course we make reqs
+ * Thus they can happen outside the tgt_seq, provided of course we make reqs
  * an atomic_t.
  */
 struct virtio_scsi_target_state {
-	/* This spinlock never held at the same time as vq_lock. */
-	spinlock_t tgt_lock;
+	seqcount_t tgt_seq;
 
 	/* Count of outstanding requests. */
 	atomic_t reqs;
@@ -109,6 +109,9 @@ struct virtio_scsi {
 
 	/* CPU hotplug notifier */
 	struct notifier_block nb;
+
+	/* Protected by event_vq lock */
+	bool stop_events;
 
 	struct virtio_scsi_vq ctrl_vq;
 	struct virtio_scsi_vq event_vq;
@@ -303,6 +306,11 @@ static void virtscsi_cancel_event_work(struct virtio_scsi *vscsi)
 {
 	int i;
 
+	/* Stop scheduling work before calling cancel_work_sync.  */
+	spin_lock_irq(&vscsi->event_vq.vq_lock);
+	vscsi->stop_events = true;
+	spin_unlock_irq(&vscsi->event_vq.vq_lock);
+
 	for (i = 0; i < VIRTIO_SCSI_EVENT_LEN; i++)
 		cancel_work_sync(&vscsi->event_list[i].work);
 }
@@ -390,7 +398,8 @@ static void virtscsi_complete_event(struct virtio_scsi *vscsi, void *buf)
 {
 	struct virtio_scsi_event_node *event_node = buf;
 
-	schedule_work(&event_node->work);
+	if (!vscsi->stop_events)
+		queue_work(system_freezable_wq, &event_node->work);
 }
 
 static void virtscsi_event_done(struct virtqueue *vq)
@@ -559,19 +568,33 @@ static struct virtio_scsi_vq *virtscsi_pick_vq(struct virtio_scsi *vscsi,
 	unsigned long flags;
 	u32 queue_num;
 
-	spin_lock_irqsave(&tgt->tgt_lock, flags);
+	local_irq_save(flags);
+	if (atomic_inc_return(&tgt->reqs) > 1) {
+		unsigned long seq;
 
-	if (atomic_inc_return(&tgt->reqs) > 1)
-		vq = tgt->req_vq;
-	else {
+		do {
+			seq = read_seqcount_begin(&tgt->tgt_seq);
+			vq = tgt->req_vq;
+		} while (read_seqcount_retry(&tgt->tgt_seq, seq));
+	} else {
+		/* no writes can be concurrent because of atomic_t */
+		write_seqcount_begin(&tgt->tgt_seq);
+
+		/* keep previous req_vq if a reader just arrived */
+		if (unlikely(atomic_read(&tgt->reqs) > 1)) {
+			vq = tgt->req_vq;
+			goto unlock;
+		}
+
 		queue_num = smp_processor_id();
 		while (unlikely(queue_num >= vscsi->num_queues))
 			queue_num -= vscsi->num_queues;
-
 		tgt->req_vq = vq = &vscsi->req_vqs[queue_num];
+ unlock:
+		write_seqcount_end(&tgt->tgt_seq);
 	}
+	local_irq_restore(flags);
 
-	spin_unlock_irqrestore(&tgt->tgt_lock, flags);
 	return vq;
 }
 
@@ -641,6 +664,36 @@ static int virtscsi_device_reset(struct scsi_cmnd *sc)
 	return virtscsi_tmf(vscsi, cmd);
 }
 
+/**
+ * virtscsi_change_queue_depth() - Change a virtscsi target's queue depth
+ * @sdev:	Virtscsi target whose queue depth to change
+ * @qdepth:	New queue depth
+ * @reason:	Reason for the queue depth change.
+ */
+static int virtscsi_change_queue_depth(struct scsi_device *sdev,
+				       int qdepth,
+				       int reason)
+{
+	struct Scsi_Host *shost = sdev->host;
+	int max_depth = shost->cmd_per_lun;
+
+	switch (reason) {
+	case SCSI_QDEPTH_QFULL: /* Drop qdepth in response to BUSY state */
+		scsi_track_queue_full(sdev, qdepth);
+		break;
+	case SCSI_QDEPTH_RAMP_UP: /* Raise qdepth after BUSY state resolved */
+	case SCSI_QDEPTH_DEFAULT: /* Manual change via sysfs */
+		scsi_adjust_queue_depth(sdev,
+					scsi_get_tag_type(sdev),
+					min(max_depth, qdepth));
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return sdev->queue_depth;
+}
+
 static int virtscsi_abort(struct scsi_cmnd *sc)
 {
 	struct virtio_scsi *vscsi = shost_priv(sc->device->host);
@@ -667,14 +720,17 @@ static int virtscsi_abort(struct scsi_cmnd *sc)
 
 static int virtscsi_target_alloc(struct scsi_target *starget)
 {
+	struct Scsi_Host *sh = dev_to_shost(starget->dev.parent);
+	struct virtio_scsi *vscsi = shost_priv(sh);
+
 	struct virtio_scsi_target_state *tgt =
 				kmalloc(sizeof(*tgt), GFP_KERNEL);
 	if (!tgt)
 		return -ENOMEM;
 
-	spin_lock_init(&tgt->tgt_lock);
+	seqcount_init(&tgt->tgt_seq);
 	atomic_set(&tgt->reqs, 0);
-	tgt->req_vq = NULL;
+	tgt->req_vq = &vscsi->req_vqs[0];
 
 	starget->hostdata = tgt;
 	return 0;
@@ -693,6 +749,7 @@ static struct scsi_host_template virtscsi_host_template_single = {
 	.this_id = -1,
 	.cmd_size = sizeof(struct virtio_scsi_cmd),
 	.queuecommand = virtscsi_queuecommand_single,
+	.change_queue_depth = virtscsi_change_queue_depth,
 	.eh_abort_handler = virtscsi_abort,
 	.eh_device_reset_handler = virtscsi_device_reset,
 
@@ -710,6 +767,7 @@ static struct scsi_host_template virtscsi_host_template_multi = {
 	.this_id = -1,
 	.cmd_size = sizeof(struct virtio_scsi_cmd),
 	.queuecommand = virtscsi_queuecommand_multi,
+	.change_queue_depth = virtscsi_change_queue_depth,
 	.eh_abort_handler = virtscsi_abort,
 	.eh_device_reset_handler = virtscsi_device_reset,
 
@@ -802,13 +860,6 @@ static void virtscsi_init_vq(struct virtio_scsi_vq *virtscsi_vq,
 	virtscsi_vq->vq = vq;
 }
 
-static void virtscsi_scan(struct virtio_device *vdev)
-{
-	struct Scsi_Host *shost = (struct Scsi_Host *)vdev->priv;
-
-	scsi_scan_host(shost);
-}
-
 static void virtscsi_remove_vqs(struct virtio_device *vdev)
 {
 	struct Scsi_Host *sh = virtio_scsi_host(vdev);
@@ -866,9 +917,6 @@ static int virtscsi_init(struct virtio_device *vdev,
 
 	virtscsi_config_set(vdev, cdb_size, VIRTIO_SCSI_CDB_SIZE);
 	virtscsi_config_set(vdev, sense_size, VIRTIO_SCSI_SENSE_SIZE);
-
-	if (virtio_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG))
-		virtscsi_kick_event_all(vscsi);
 
 	err = 0;
 
@@ -948,10 +996,13 @@ static int virtscsi_probe(struct virtio_device *vdev)
 	err = scsi_add_host(shost, &vdev->dev);
 	if (err)
 		goto scsi_add_host_failed;
-	/*
-	 * scsi_scan_host() happens in virtscsi_scan() via virtio_driver->scan()
-	 * after VIRTIO_CONFIG_S_DRIVER_OK has been set..
-	 */
+
+	virtio_device_ready(vdev);
+
+	if (virtio_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG))
+		virtscsi_kick_event_all(vscsi);
+
+	scsi_scan_host(shost);
 	return 0;
 
 scsi_add_host_failed:
@@ -999,8 +1050,15 @@ static int virtscsi_restore(struct virtio_device *vdev)
 		return err;
 
 	err = register_hotcpu_notifier(&vscsi->nb);
-	if (err)
+	if (err) {
 		vdev->config->del_vqs(vdev);
+		return err;
+	}
+
+	virtio_device_ready(vdev);
+
+	if (virtio_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG))
+		virtscsi_kick_event_all(vscsi);
 
 	return err;
 }
@@ -1024,7 +1082,6 @@ static struct virtio_driver virtio_scsi_driver = {
 	.driver.owner = THIS_MODULE,
 	.id_table = id_table,
 	.probe = virtscsi_probe,
-	.scan = virtscsi_scan,
 #ifdef CONFIG_PM_SLEEP
 	.freeze = virtscsi_freeze,
 	.restore = virtscsi_restore,

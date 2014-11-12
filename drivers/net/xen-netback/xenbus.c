@@ -44,6 +44,185 @@ static void unregister_hotplug_status_watch(struct backend_info *be);
 static void set_backend_state(struct backend_info *be,
 			      enum xenbus_state state);
 
+#ifdef CONFIG_DEBUG_FS
+struct dentry *xen_netback_dbg_root = NULL;
+
+static int xenvif_read_io_ring(struct seq_file *m, void *v)
+{
+	struct xenvif_queue *queue = m->private;
+	struct xen_netif_tx_back_ring *tx_ring = &queue->tx;
+	struct xen_netif_rx_back_ring *rx_ring = &queue->rx;
+	struct netdev_queue *dev_queue;
+
+	if (tx_ring->sring) {
+		struct xen_netif_tx_sring *sring = tx_ring->sring;
+
+		seq_printf(m, "Queue %d\nTX: nr_ents %u\n", queue->id,
+			   tx_ring->nr_ents);
+		seq_printf(m, "req prod %u (%d) cons %u (%d) event %u (%d)\n",
+			   sring->req_prod,
+			   sring->req_prod - sring->rsp_prod,
+			   tx_ring->req_cons,
+			   tx_ring->req_cons - sring->rsp_prod,
+			   sring->req_event,
+			   sring->req_event - sring->rsp_prod);
+		seq_printf(m, "rsp prod %u (base) pvt %u (%d) event %u (%d)\n",
+			   sring->rsp_prod,
+			   tx_ring->rsp_prod_pvt,
+			   tx_ring->rsp_prod_pvt - sring->rsp_prod,
+			   sring->rsp_event,
+			   sring->rsp_event - sring->rsp_prod);
+		seq_printf(m, "pending prod %u pending cons %u nr_pending_reqs %u\n",
+			   queue->pending_prod,
+			   queue->pending_cons,
+			   nr_pending_reqs(queue));
+		seq_printf(m, "dealloc prod %u dealloc cons %u dealloc_queue %u\n\n",
+			   queue->dealloc_prod,
+			   queue->dealloc_cons,
+			   queue->dealloc_prod - queue->dealloc_cons);
+	}
+
+	if (rx_ring->sring) {
+		struct xen_netif_rx_sring *sring = rx_ring->sring;
+
+		seq_printf(m, "RX: nr_ents %u\n", rx_ring->nr_ents);
+		seq_printf(m, "req prod %u (%d) cons %u (%d) event %u (%d)\n",
+			   sring->req_prod,
+			   sring->req_prod - sring->rsp_prod,
+			   rx_ring->req_cons,
+			   rx_ring->req_cons - sring->rsp_prod,
+			   sring->req_event,
+			   sring->req_event - sring->rsp_prod);
+		seq_printf(m, "rsp prod %u (base) pvt %u (%d) event %u (%d)\n\n",
+			   sring->rsp_prod,
+			   rx_ring->rsp_prod_pvt,
+			   rx_ring->rsp_prod_pvt - sring->rsp_prod,
+			   sring->rsp_event,
+			   sring->rsp_event - sring->rsp_prod);
+	}
+
+	seq_printf(m, "NAPI state: %lx NAPI weight: %d TX queue len %u\n"
+		   "Credit timer_pending: %d, credit: %lu, usec: %lu\n"
+		   "remaining: %lu, expires: %lu, now: %lu\n",
+		   queue->napi.state, queue->napi.weight,
+		   skb_queue_len(&queue->tx_queue),
+		   timer_pending(&queue->credit_timeout),
+		   queue->credit_bytes,
+		   queue->credit_usec,
+		   queue->remaining_credit,
+		   queue->credit_timeout.expires,
+		   jiffies);
+
+	dev_queue = netdev_get_tx_queue(queue->vif->dev, queue->id);
+
+	seq_printf(m, "\nRx internal queue: len %u max %u pkts %u %s\n",
+		   queue->rx_queue_len, queue->rx_queue_max,
+		   skb_queue_len(&queue->rx_queue),
+		   netif_tx_queue_stopped(dev_queue) ? "stopped" : "running");
+
+	return 0;
+}
+
+#define XENVIF_KICK_STR "kick"
+#define BUFFER_SIZE     32
+
+static ssize_t
+xenvif_write_io_ring(struct file *filp, const char __user *buf, size_t count,
+		     loff_t *ppos)
+{
+	struct xenvif_queue *queue =
+		((struct seq_file *)filp->private_data)->private;
+	int len;
+	char write[BUFFER_SIZE];
+
+	/* don't allow partial writes and check the length */
+	if (*ppos != 0)
+		return 0;
+	if (count >= sizeof(write))
+		return -ENOSPC;
+
+	len = simple_write_to_buffer(write,
+				     sizeof(write) - 1,
+				     ppos,
+				     buf,
+				     count);
+	if (len < 0)
+		return len;
+
+	write[len] = '\0';
+
+	if (!strncmp(write, XENVIF_KICK_STR, sizeof(XENVIF_KICK_STR) - 1))
+		xenvif_interrupt(0, (void *)queue);
+	else {
+		pr_warn("Unknown command to io_ring_q%d. Available: kick\n",
+			queue->id);
+		count = -EINVAL;
+	}
+	return count;
+}
+
+static int xenvif_dump_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+	void *queue = NULL;
+
+	if (inode->i_private)
+		queue = inode->i_private;
+	ret = single_open(filp, xenvif_read_io_ring, queue);
+	filp->f_mode |= FMODE_PWRITE;
+	return ret;
+}
+
+static const struct file_operations xenvif_dbg_io_ring_ops_fops = {
+	.owner = THIS_MODULE,
+	.open = xenvif_dump_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = xenvif_write_io_ring,
+};
+
+static void xenvif_debugfs_addif(struct xenvif *vif)
+{
+	struct dentry *pfile;
+	int i;
+
+	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
+		return;
+
+	vif->xenvif_dbg_root = debugfs_create_dir(vif->dev->name,
+						  xen_netback_dbg_root);
+	if (!IS_ERR_OR_NULL(vif->xenvif_dbg_root)) {
+		for (i = 0; i < vif->num_queues; ++i) {
+			char filename[sizeof("io_ring_q") + 4];
+
+			snprintf(filename, sizeof(filename), "io_ring_q%d", i);
+			pfile = debugfs_create_file(filename,
+						    S_IRUSR | S_IWUSR,
+						    vif->xenvif_dbg_root,
+						    &vif->queues[i],
+						    &xenvif_dbg_io_ring_ops_fops);
+			if (IS_ERR_OR_NULL(pfile))
+				pr_warn("Creation of io_ring file returned %ld!\n",
+					PTR_ERR(pfile));
+		}
+	} else
+		netdev_warn(vif->dev,
+			    "Creation of vif debugfs dir returned %ld!\n",
+			    PTR_ERR(vif->xenvif_dbg_root));
+}
+
+static void xenvif_debugfs_delif(struct xenvif *vif)
+{
+	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
+		return;
+
+	if (!IS_ERR_OR_NULL(vif->xenvif_dbg_root))
+		debugfs_remove_recursive(vif->xenvif_dbg_root);
+	vif->xenvif_dbg_root = NULL;
+}
+#endif /* CONFIG_DEBUG_FS */
+
 static int netback_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
@@ -246,8 +425,12 @@ static void backend_create_xenvif(struct backend_info *be)
 
 static void backend_disconnect(struct backend_info *be)
 {
-	if (be->vif)
+	if (be->vif) {
+#ifdef CONFIG_DEBUG_FS
+		xenvif_debugfs_delif(be->vif);
+#endif /* CONFIG_DEBUG_FS */
 		xenvif_disconnect(be->vif);
+	}
 }
 
 static void backend_connect(struct backend_info *be)
@@ -528,6 +711,7 @@ static void connect(struct backend_info *be)
 	be->vif->queues = vzalloc(requested_num_queues *
 				  sizeof(struct xenvif_queue));
 	be->vif->num_queues = requested_num_queues;
+	be->vif->stalled_queues = requested_num_queues;
 
 	for (queue_index = 0; queue_index < requested_num_queues; ++queue_index) {
 		queue = &be->vif->queues[queue_index];
@@ -561,6 +745,10 @@ static void connect(struct backend_info *be)
 			goto err;
 		}
 	}
+
+#ifdef CONFIG_DEBUG_FS
+	xenvif_debugfs_addif(be->vif);
+#endif /* CONFIG_DEBUG_FS */
 
 	/* Initialisation completed, tell core driver the number of
 	 * active queues.
@@ -694,15 +882,10 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 	if (!rx_copy)
 		return -EOPNOTSUPP;
 
-	if (vif->dev->tx_queue_len != 0) {
-		if (xenbus_scanf(XBT_NIL, dev->otherend,
-				 "feature-rx-notify", "%d", &val) < 0)
-			val = 0;
-		if (val)
-			vif->can_queue = 1;
-		else
-			/* Must be non-zero for pfifo_fast to work. */
-			vif->dev->tx_queue_len = 1;
+	if (xenbus_scanf(XBT_NIL, dev->otherend,
+			 "feature-rx-notify", "%d", &val) < 0 || val == 0) {
+		xenbus_dev_fatal(dev, -EINVAL, "feature-rx-notify is mandatory");
+		return -EINVAL;
 	}
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-sg",
@@ -758,22 +941,18 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 	return 0;
 }
 
-
-/* ** Driver Registration ** */
-
-
 static const struct xenbus_device_id netback_ids[] = {
 	{ "vif" },
 	{ "" }
 };
 
-
-static DEFINE_XENBUS_DRIVER(netback, ,
+static struct xenbus_driver netback_driver = {
+	.ids = netback_ids,
 	.probe = netback_probe,
 	.remove = netback_remove,
 	.uevent = netback_uevent,
 	.otherend_changed = frontend_changed,
-);
+};
 
 int xenvif_xenbus_init(void)
 {

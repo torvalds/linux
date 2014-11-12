@@ -270,19 +270,19 @@ static int wm8804_hw_params(struct snd_pcm_substream *substream,
 
 	codec = dai->codec;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		blen = 0x0;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		blen = 0x1;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		blen = 0x2;
 		break;
 	default:
 		dev_err(dai->dev, "Unsupported word length: %u\n",
-			params_format(params));
+			params_width(params));
 		return -EINVAL;
 	}
 
@@ -518,23 +518,6 @@ static int wm8804_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8804_suspend(struct snd_soc_codec *codec)
-{
-	wm8804_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8804_resume(struct snd_soc_codec *codec)
-{
-	wm8804_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define wm8804_suspend NULL
-#define wm8804_resume NULL
-#endif
-
 static int wm8804_remove(struct snd_soc_codec *codec)
 {
 	struct wm8804_priv *wm8804;
@@ -671,8 +654,6 @@ static struct snd_soc_dai_driver wm8804_dai = {
 static struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
 	.probe = wm8804_probe,
 	.remove = wm8804_remove,
-	.suspend = wm8804_suspend,
-	.resume = wm8804_resume,
 	.set_bias_level = wm8804_set_bias_level,
 	.idle_bias_off = true,
 

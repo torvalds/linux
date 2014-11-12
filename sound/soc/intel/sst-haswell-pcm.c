@@ -80,7 +80,7 @@ static const struct snd_pcm_hardware hsw_pcm_hardware = {
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME |
 				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FORMAT_S24_LE |
+	.formats		= SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min	= PAGE_SIZE,
 	.period_bytes_max	= (HSW_PCM_PERIODS_MAX / HSW_PCM_PERIODS_MIN) * PAGE_SIZE,
@@ -138,11 +138,10 @@ static inline unsigned int hsw_ipc_to_mixer(u32 value)
 static int hsw_stream_volume_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	struct hsw_priv_data *pdata =
-		snd_soc_platform_get_drvdata(platform);
 	struct hsw_pcm_data *pcm_data = &pdata->pcm[mc->reg];
 	struct sst_hsw *hsw = pdata->hsw;
 	u32 volume;
@@ -176,11 +175,10 @@ static int hsw_stream_volume_put(struct snd_kcontrol *kcontrol,
 static int hsw_stream_volume_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	struct hsw_priv_data *pdata =
-		snd_soc_platform_get_drvdata(platform);
 	struct hsw_pcm_data *pcm_data = &pdata->pcm[mc->reg];
 	struct sst_hsw *hsw = pdata->hsw;
 	u32 volume;
@@ -208,8 +206,8 @@ static int hsw_stream_volume_get(struct snd_kcontrol *kcontrol,
 static int hsw_volume_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
-	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
+	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(cmpnt);
 	struct sst_hsw *hsw = pdata->hsw;
 	u32 volume;
 
@@ -233,8 +231,8 @@ static int hsw_volume_put(struct snd_kcontrol *kcontrol,
 static int hsw_volume_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
-	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
+	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(cmpnt);
 	struct sst_hsw *hsw = pdata->hsw;
 	unsigned int volume = 0;
 
@@ -400,7 +398,15 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		sst_hsw_stream_set_valid(hsw, pcm_data->stream, 16);
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		bits = SST_HSW_DEPTH_24BIT;
+		bits = SST_HSW_DEPTH_32BIT;
+		sst_hsw_stream_set_valid(hsw, pcm_data->stream, 24);
+		break;
+	case SNDRV_PCM_FORMAT_S8:
+		bits = SST_HSW_DEPTH_8BIT;
+		sst_hsw_stream_set_valid(hsw, pcm_data->stream, 8);
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		bits = SST_HSW_DEPTH_32BIT;
 		sst_hsw_stream_set_valid(hsw, pcm_data->stream, 32);
 		break;
 	default:
@@ -685,8 +691,7 @@ static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
 }
 
 #define HSW_FORMATS \
-	(SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S16_LE |\
-	 SNDRV_PCM_FMTBIT_S32_LE)
+	(SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE)
 
 static struct snd_soc_dai_driver hsw_dais[] = {
 	{
@@ -696,7 +701,7 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 			.channels_min = 2,
 			.channels_max = 2,
 			.rates = SNDRV_PCM_RATE_48000,
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
 		},
 	},
 	{
@@ -727,8 +732,8 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 			.stream_name = "Loopback Capture",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_8000_192000,
-			.formats = HSW_FORMATS,
+			.rates = SNDRV_PCM_RATE_48000,
+			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
 		},
 	},
 	{
@@ -737,8 +742,8 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 			.stream_name = "Analog Capture",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_8000_192000,
-			.formats = HSW_FORMATS,
+			.rates = SNDRV_PCM_RATE_48000,
+			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
 		},
 	},
 };
@@ -769,19 +774,10 @@ static const struct snd_soc_dapm_route graph[] = {
 
 static int hsw_pcm_probe(struct snd_soc_platform *platform)
 {
+	struct hsw_priv_data *priv_data = snd_soc_platform_get_drvdata(platform);
 	struct sst_pdata *pdata = dev_get_platdata(platform->dev);
-	struct hsw_priv_data *priv_data;
-	struct device *dma_dev;
+	struct device *dma_dev = pdata->dma_dev;
 	int i, ret = 0;
-
-	if (!pdata)
-		return -ENODEV;
-
-	dma_dev = pdata->dma_dev;
-
-	priv_data = devm_kzalloc(platform->dev, sizeof(*priv_data), GFP_KERNEL);
-	priv_data->hsw = pdata->dsp;
-	snd_soc_platform_set_drvdata(platform, priv_data);
 
 	/* allocate DSP buffer page tables */
 	for (i = 0; i < ARRAY_SIZE(hsw_dais); i++) {
@@ -839,26 +835,37 @@ static struct snd_soc_platform_driver hsw_soc_platform = {
 	.ops		= &hsw_pcm_ops,
 	.pcm_new	= hsw_pcm_new,
 	.pcm_free	= hsw_pcm_free,
-	.controls	= hsw_volume_controls,
-	.num_controls	= ARRAY_SIZE(hsw_volume_controls),
-	.dapm_widgets	= widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(widgets),
-	.dapm_routes	= graph,
-	.num_dapm_routes	= ARRAY_SIZE(graph),
 };
 
 static const struct snd_soc_component_driver hsw_dai_component = {
-	.name		= "haswell-dai",
+	.name = "haswell-dai",
+	.controls = hsw_volume_controls,
+	.num_controls = ARRAY_SIZE(hsw_volume_controls),
+	.dapm_widgets = widgets,
+	.num_dapm_widgets = ARRAY_SIZE(widgets),
+	.dapm_routes = graph,
+	.num_dapm_routes = ARRAY_SIZE(graph),
 };
 
 static int hsw_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct sst_pdata *sst_pdata = dev_get_platdata(&pdev->dev);
+	struct hsw_priv_data *priv_data;
 	int ret;
+
+	if (!sst_pdata)
+		return -EINVAL;
+
+	priv_data = devm_kzalloc(&pdev->dev, sizeof(*priv_data), GFP_KERNEL);
+	if (!priv_data)
+		return -ENOMEM;
 
 	ret = sst_hsw_dsp_init(&pdev->dev, sst_pdata);
 	if (ret < 0)
 		return -ENODEV;
+
+	priv_data->hsw = sst_pdata->dsp;
+	platform_set_drvdata(pdev, priv_data);
 
 	ret = snd_soc_register_platform(&pdev->dev, &hsw_soc_platform);
 	if (ret < 0)

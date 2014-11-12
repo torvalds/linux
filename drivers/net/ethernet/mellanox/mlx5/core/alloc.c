@@ -56,7 +56,7 @@ int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, int max_direct,
 	if (size <= max_direct) {
 		buf->nbufs        = 1;
 		buf->npages       = 1;
-		buf->page_shift   = get_order(size) + PAGE_SHIFT;
+		buf->page_shift   = (u8)get_order(size) + PAGE_SHIFT;
 		buf->direct.buf   = dma_zalloc_coherent(&dev->pdev->dev,
 							size, &t, GFP_KERNEL);
 		if (!buf->direct.buf)

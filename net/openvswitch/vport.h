@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/netlink.h>
 #include <linux/openvswitch.h>
+#include <linux/reciprocal_div.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/u64_stats_sync.h>
@@ -34,7 +35,6 @@ struct vport_parms;
 
 /* The following definitions are for users of the vport subsytem: */
 
-/* The following definitions are for users of the vport subsytem: */
 struct vport_net {
 	struct vport __rcu *gre_vport;
 };
@@ -52,35 +52,52 @@ void ovs_vport_get_stats(struct vport *, struct ovs_vport_stats *);
 int ovs_vport_set_options(struct vport *, struct nlattr *options);
 int ovs_vport_get_options(const struct vport *, struct sk_buff *);
 
+int ovs_vport_set_upcall_portids(struct vport *, struct nlattr *pids);
+int ovs_vport_get_upcall_portids(const struct vport *, struct sk_buff *);
+u32 ovs_vport_find_upcall_portid(const struct vport *, struct sk_buff *);
+
 int ovs_vport_send(struct vport *, struct sk_buff *);
 
 /* The following definitions are for implementers of vport devices: */
 
 struct vport_err_stats {
-	u64 rx_dropped;
-	u64 rx_errors;
-	u64 tx_dropped;
-	u64 tx_errors;
+	atomic_long_t rx_dropped;
+	atomic_long_t rx_errors;
+	atomic_long_t tx_dropped;
+	atomic_long_t tx_errors;
+};
+/**
+ * struct vport_portids - array of netlink portids of a vport.
+ *                        must be protected by rcu.
+ * @rn_ids: The reciprocal value of @n_ids.
+ * @rcu: RCU callback head for deferred destruction.
+ * @n_ids: Size of @ids array.
+ * @ids: Array storing the Netlink socket pids to be used for packets received
+ * on this port that miss the flow table.
+ */
+struct vport_portids {
+	struct reciprocal_value rn_ids;
+	struct rcu_head rcu;
+	u32 n_ids;
+	u32 ids[];
 };
 
 /**
  * struct vport - one port within a datapath
  * @rcu: RCU callback head for deferred destruction.
  * @dp: Datapath to which this port belongs.
- * @upcall_portid: The Netlink port to use for packets received on this port that
- * miss the flow table.
+ * @upcall_portids: RCU protected 'struct vport_portids'.
  * @port_no: Index into @dp's @ports array.
  * @hash_node: Element in @dev_table hash table in vport.c.
  * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
  * @percpu_stats: Points to per-CPU statistics used and maintained by vport
- * @stats_lock: Protects @err_stats;
  * @err_stats: Points to error statistics used and maintained by vport
  */
 struct vport {
 	struct rcu_head rcu;
 	struct datapath	*dp;
-	u32 upcall_portid;
+	struct vport_portids __rcu *upcall_portids;
 	u16 port_no;
 
 	struct hlist_node hash_node;
@@ -89,7 +106,6 @@ struct vport {
 
 	struct pcpu_sw_netstats __percpu *percpu_stats;
 
-	spinlock_t stats_lock;
 	struct vport_err_stats err_stats;
 };
 
@@ -111,7 +127,7 @@ struct vport_parms {
 	/* For ovs_vport_alloc(). */
 	struct datapath *dp;
 	u16 port_no;
-	u32 upcall_portid;
+	struct nlattr *upcall_portids;
 };
 
 /**
@@ -191,7 +207,7 @@ static inline struct vport *vport_from_priv(void *priv)
 }
 
 void ovs_vport_receive(struct vport *, struct sk_buff *,
-		       struct ovs_key_ipv4_tunnel *);
+		       struct ovs_tunnel_info *);
 
 /* List of statically compiled vport implementations.  Don't forget to also
  * add yours to the list at the top of vport.c. */
@@ -199,6 +215,7 @@ extern const struct vport_ops ovs_netdev_vport_ops;
 extern const struct vport_ops ovs_internal_vport_ops;
 extern const struct vport_ops ovs_gre_vport_ops;
 extern const struct vport_ops ovs_vxlan_vport_ops;
+extern const struct vport_ops ovs_geneve_vport_ops;
 
 static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
 				      const void *start, unsigned int len)

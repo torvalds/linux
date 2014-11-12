@@ -19,6 +19,18 @@
 
 #include "dhd_dbg.h"
 
+/* IDs of the 6 default common rings of msgbuf protocol */
+#define BRCMF_H2D_MSGRING_CONTROL_SUBMIT	0
+#define BRCMF_H2D_MSGRING_RXPOST_SUBMIT		1
+#define BRCMF_D2H_MSGRING_CONTROL_COMPLETE	2
+#define BRCMF_D2H_MSGRING_TX_COMPLETE		3
+#define BRCMF_D2H_MSGRING_RX_COMPLETE		4
+
+#define BRCMF_NROF_H2D_COMMON_MSGRINGS		2
+#define BRCMF_NROF_D2H_COMMON_MSGRINGS		3
+#define BRCMF_NROF_COMMON_MSGRINGS	(BRCMF_NROF_H2D_COMMON_MSGRINGS + \
+					 BRCMF_NROF_D2H_COMMON_MSGRINGS)
+
 /* The level of bus communication with the dongle */
 enum brcmf_bus_state {
 	BRCMF_BUS_UNKNOWN,	/* Not determined yet */
@@ -55,6 +67,7 @@ struct brcmf_bus_dcmd {
  * @txctl: transmit a control request message to dongle.
  * @rxctl: receive a control response message from dongle.
  * @gettxq: obtain a reference of bus transmit queue (optional).
+ * @wowl_config: specify if dongle is configured for wowl when going to suspend
  *
  * This structure provides an abstract interface towards the
  * bus specific driver. For control messages to common driver
@@ -68,7 +81,27 @@ struct brcmf_bus_ops {
 	int (*txctl)(struct device *dev, unsigned char *msg, uint len);
 	int (*rxctl)(struct device *dev, unsigned char *msg, uint len);
 	struct pktq * (*gettxq)(struct device *dev);
+	void (*wowl_config)(struct device *dev, bool enabled);
 };
+
+
+/**
+ * struct brcmf_bus_msgbuf - bus ringbuf if in case of msgbuf.
+ *
+ * @commonrings: commonrings which are always there.
+ * @flowrings: commonrings which are dynamically created and destroyed for data.
+ * @rx_dataoffset: if set then all rx data has this this offset.
+ * @max_rxbufpost: maximum number of buffers to post for rx.
+ * @nrof_flowrings: number of flowrings.
+ */
+struct brcmf_bus_msgbuf {
+	struct brcmf_commonring *commonrings[BRCMF_NROF_COMMON_MSGRINGS];
+	struct brcmf_commonring **flowrings;
+	u32 rx_dataoffset;
+	u32 max_rxbufpost;
+	u32 nrof_flowrings;
+};
+
 
 /**
  * struct brcmf_bus - interface structure between common and bus layer
@@ -83,12 +116,14 @@ struct brcmf_bus_ops {
  * @dstats: dongle-based statistical data.
  * @dcmd_list: bus/device specific dongle initialization commands.
  * @chip: device identifier of the dongle chip.
+ * @wowl_supported: is wowl supported by bus driver.
  * @chiprev: revision of the dongle chip.
  */
 struct brcmf_bus {
 	union {
 		struct brcmf_sdio_dev *sdio;
 		struct brcmf_usbdev *usb;
+		struct brcmf_pciedev *pcie;
 	} bus_priv;
 	enum brcmf_bus_protocol_type proto_type;
 	struct device *dev;
@@ -99,8 +134,10 @@ struct brcmf_bus {
 	u32 chip;
 	u32 chiprev;
 	bool always_use_fws_queue;
+	bool wowl_supported;
 
 	struct brcmf_bus_ops *ops;
+	struct brcmf_bus_msgbuf *msgbuf;
 };
 
 /*
@@ -142,6 +179,13 @@ struct pktq *brcmf_bus_gettxq(struct brcmf_bus *bus)
 		return ERR_PTR(-ENOENT);
 
 	return bus->ops->gettxq(bus->dev);
+}
+
+static inline
+void brcmf_bus_wowl_config(struct brcmf_bus *bus, bool enabled)
+{
+	if (bus->ops->wowl_config)
+		bus->ops->wowl_config(bus->dev, enabled);
 }
 
 static inline bool brcmf_bus_ready(struct brcmf_bus *bus)

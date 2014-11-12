@@ -27,6 +27,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 
+#include <sound/asoundef.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -36,18 +37,31 @@
 #include <sound/omap-pcm.h>
 
 #include "davinci-pcm.h"
+#include "edma-pcm.h"
 #include "davinci-mcasp.h"
 
 #define MCASP_MAX_AFIFO_DEPTH	64
 
+static u32 context_regs[] = {
+	DAVINCI_MCASP_TXFMCTL_REG,
+	DAVINCI_MCASP_RXFMCTL_REG,
+	DAVINCI_MCASP_TXFMT_REG,
+	DAVINCI_MCASP_RXFMT_REG,
+	DAVINCI_MCASP_ACLKXCTL_REG,
+	DAVINCI_MCASP_ACLKRCTL_REG,
+	DAVINCI_MCASP_AHCLKXCTL_REG,
+	DAVINCI_MCASP_AHCLKRCTL_REG,
+	DAVINCI_MCASP_PDIR_REG,
+	DAVINCI_MCASP_RXMASK_REG,
+	DAVINCI_MCASP_TXMASK_REG,
+	DAVINCI_MCASP_RXTDM_REG,
+	DAVINCI_MCASP_TXTDM_REG,
+};
+
 struct davinci_mcasp_context {
-	u32	txfmtctl;
-	u32	rxfmtctl;
-	u32	txfmt;
-	u32	rxfmt;
-	u32	aclkxctl;
-	u32	aclkrctl;
-	u32	pdir;
+	u32	config_regs[ARRAY_SIZE(context_regs)];
+	u32	afifo_regs[2]; /* for read/write fifo control registers */
+	u32	*xrsr_regs; /* for serializer configuration */
 };
 
 struct davinci_mcasp {
@@ -63,6 +77,7 @@ struct davinci_mcasp {
 	u8	num_serializer;
 	u8	*serial_dir;
 	u8	version;
+	u8	bclk_div;
 	u16	bclk_lrclk_ratio;
 	int	streams;
 
@@ -400,7 +415,8 @@ out:
 	return ret;
 }
 
-static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
+static int __davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id,
+				      int div, bool explicit)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 
@@ -417,6 +433,8 @@ static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div
 			       ACLKXDIV(div - 1), ACLKXDIV_MASK);
 		mcasp_mod_bits(mcasp, DAVINCI_MCASP_ACLKRCTL_REG,
 			       ACLKRDIV(div - 1), ACLKRDIV_MASK);
+		if (explicit)
+			mcasp->bclk_div = div;
 		break;
 
 	case 2:		/* BCLK/LRCLK ratio */
@@ -428,6 +446,12 @@ static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div
 	}
 
 	return 0;
+}
+
+static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id,
+				    int div)
+{
+	return __davinci_mcasp_set_clkdiv(dai, div_id, div, 1);
 }
 
 static int davinci_mcasp_set_sysclk(struct snd_soc_dai *dai, int clk_id,
@@ -455,8 +479,17 @@ static int davinci_config_channel_size(struct davinci_mcasp *mcasp,
 {
 	u32 fmt;
 	u32 tx_rotate = (word_length / 4) & 0x7;
-	u32 rx_rotate = (32 - word_length) / 4;
 	u32 mask = (1ULL << word_length) - 1;
+	/*
+	 * For captured data we should not rotate, inversion and masking is
+	 * enoguh to get the data to the right position:
+	 * Format	  data from bus		after reverse (XRBUF)
+	 * S16_LE:	|LSB|MSB|xxx|xxx|	|xxx|xxx|MSB|LSB|
+	 * S24_3LE:	|LSB|DAT|MSB|xxx|	|xxx|MSB|DAT|LSB|
+	 * S24_LE:	|LSB|DAT|MSB|xxx|	|xxx|MSB|DAT|LSB|
+	 * S32_LE:	|LSB|DAT|DAT|MSB|	|MSB|DAT|DAT|LSB|
+	 */
+	u32 rx_rotate = 0;
 
 	/*
 	 * if s BCLK-to-LRCLK ratio has been configured via the set_clkdiv()
@@ -637,8 +670,12 @@ static int mcasp_i2s_hw_param(struct davinci_mcasp *mcasp, int stream)
 }
 
 /* S/PDIF */
-static int mcasp_dit_hw_param(struct davinci_mcasp *mcasp)
+static int mcasp_dit_hw_param(struct davinci_mcasp *mcasp,
+			      unsigned int rate)
 {
+	u32 cs_value = 0;
+	u8 *cs_bytes = (u8*) &cs_value;
+
 	/* Set the TX format : 24 bit right rotation, 32 bit slot, Pad 0
 	   and LSB first */
 	mcasp_set_bits(mcasp, DAVINCI_MCASP_TXFMT_REG, TXROT(6) | TXSSZ(15));
@@ -660,6 +697,46 @@ static int mcasp_dit_hw_param(struct davinci_mcasp *mcasp)
 	/* Enable the DIT */
 	mcasp_set_bits(mcasp, DAVINCI_MCASP_TXDITCTL_REG, DITEN);
 
+	/* Set S/PDIF channel status bits */
+	cs_bytes[0] = IEC958_AES0_CON_NOT_COPYRIGHT;
+	cs_bytes[1] = IEC958_AES1_CON_PCM_CODER;
+
+	switch (rate) {
+	case 22050:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_22050;
+		break;
+	case 24000:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_24000;
+		break;
+	case 32000:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_32000;
+		break;
+	case 44100:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_44100;
+		break;
+	case 48000:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_48000;
+		break;
+	case 88200:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_88200;
+		break;
+	case 96000:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_96000;
+		break;
+	case 176400:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_176400;
+		break;
+	case 192000:
+		cs_bytes[3] |= IEC958_AES3_CON_FS_192000;
+		break;
+	default:
+		printk(KERN_WARNING "unsupported sampling rate: %d\n", rate);
+		return -EINVAL;
+	}
+
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_DITCSRA_REG, cs_value);
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_DITCSRB_REG, cs_value);
+
 	return 0;
 }
 
@@ -675,15 +752,22 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	int period_size = params_period_size(params);
 	int ret;
 
-	/* If mcasp is BCLK master we need to set BCLK divider */
-	if (mcasp->bclk_master) {
+	/*
+	 * If mcasp is BCLK master, and a BCLK divider was not provided by
+	 * the machine driver, we need to calculate the ratio.
+	 */
+	if (mcasp->bclk_master && mcasp->bclk_div == 0 && mcasp->sysclk_freq) {
 		unsigned int bclk_freq = snd_soc_params_to_bclk(params);
+		unsigned int div = mcasp->sysclk_freq / bclk_freq;
 		if (mcasp->sysclk_freq % bclk_freq != 0) {
-			dev_err(mcasp->dev, "Can't produce required BCLK\n");
-			return -EINVAL;
+			if (((mcasp->sysclk_freq / div) - bclk_freq) >
+			    (bclk_freq - (mcasp->sysclk_freq / (div+1))))
+				div++;
+			dev_warn(mcasp->dev,
+				 "Inaccurate BCLK: %u Hz / %u != %u Hz\n",
+				 mcasp->sysclk_freq, div, bclk_freq);
 		}
-		davinci_mcasp_set_clkdiv(
-			cpu_dai, 1, mcasp->sysclk_freq / bclk_freq);
+		__davinci_mcasp_set_clkdiv(cpu_dai, 1, div, 0);
 	}
 
 	ret = mcasp_common_hw_param(mcasp, substream->stream,
@@ -692,7 +776,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	if (mcasp->op_mode == DAVINCI_MCASP_DIT_MODE)
-		ret = mcasp_dit_hw_param(mcasp);
+		ret = mcasp_dit_hw_param(mcasp, params_rate(params));
 	else
 		ret = mcasp_i2s_hw_param(mcasp, substream->stream);
 
@@ -720,6 +804,10 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 
 	case SNDRV_PCM_FORMAT_U24_LE:
 	case SNDRV_PCM_FORMAT_S24_LE:
+		dma_params->data_type = 4;
+		word_length = 24;
+		break;
+
 	case SNDRV_PCM_FORMAT_U32_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		dma_params->data_type = 4;
@@ -778,7 +866,7 @@ static int davinci_mcasp_dai_probe(struct snd_soc_dai *dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 
-	if (mcasp->version == MCASP_VERSION_4) {
+	if (mcasp->version >= MCASP_VERSION_3) {
 		/* Using dmaengine PCM */
 		dai->playback_dma_data =
 				&mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
@@ -798,14 +886,24 @@ static int davinci_mcasp_suspend(struct snd_soc_dai *dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 	struct davinci_mcasp_context *context = &mcasp->context;
+	u32 reg;
+	int i;
 
-	context->txfmtctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_TXFMCTL_REG);
-	context->rxfmtctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG);
-	context->txfmt = mcasp_get_reg(mcasp, DAVINCI_MCASP_TXFMT_REG);
-	context->rxfmt = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMT_REG);
-	context->aclkxctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG);
-	context->aclkrctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKRCTL_REG);
-	context->pdir = mcasp_get_reg(mcasp, DAVINCI_MCASP_PDIR_REG);
+	for (i = 0; i < ARRAY_SIZE(context_regs); i++)
+		context->config_regs[i] = mcasp_get_reg(mcasp, context_regs[i]);
+
+	if (mcasp->txnumevt) {
+		reg = mcasp->fifo_base + MCASP_WFIFOCTL_OFFSET;
+		context->afifo_regs[0] = mcasp_get_reg(mcasp, reg);
+	}
+	if (mcasp->rxnumevt) {
+		reg = mcasp->fifo_base + MCASP_RFIFOCTL_OFFSET;
+		context->afifo_regs[1] = mcasp_get_reg(mcasp, reg);
+	}
+
+	for (i = 0; i < mcasp->num_serializer; i++)
+		context->xrsr_regs[i] = mcasp_get_reg(mcasp,
+						DAVINCI_MCASP_XRSRCTL_REG(i));
 
 	return 0;
 }
@@ -814,14 +912,24 @@ static int davinci_mcasp_resume(struct snd_soc_dai *dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 	struct davinci_mcasp_context *context = &mcasp->context;
+	u32 reg;
+	int i;
 
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXFMCTL_REG, context->txfmtctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG, context->rxfmtctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXFMT_REG, context->txfmt);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXFMT_REG, context->rxfmt);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, context->aclkxctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_ACLKRCTL_REG, context->aclkrctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_PDIR_REG, context->pdir);
+	for (i = 0; i < ARRAY_SIZE(context_regs); i++)
+		mcasp_set_reg(mcasp, context_regs[i], context->config_regs[i]);
+
+	if (mcasp->txnumevt) {
+		reg = mcasp->fifo_base + MCASP_WFIFOCTL_OFFSET;
+		mcasp_set_reg(mcasp, reg, context->afifo_regs[0]);
+	}
+	if (mcasp->rxnumevt) {
+		reg = mcasp->fifo_base + MCASP_RFIFOCTL_OFFSET;
+		mcasp_set_reg(mcasp, reg, context->afifo_regs[1]);
+	}
+
+	for (i = 0; i < mcasp->num_serializer; i++)
+		mcasp_set_reg(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
+			      context->xrsr_regs[i]);
 
 	return 0;
 }
@@ -1140,6 +1248,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	mcasp->op_mode = pdata->op_mode;
 	mcasp->tdm_slots = pdata->tdm_slots;
 	mcasp->num_serializer = pdata->num_serializer;
+#ifdef CONFIG_PM_SLEEP
+	mcasp->context.xrsr_regs = devm_kzalloc(&pdev->dev,
+					sizeof(u32) * mcasp->num_serializer,
+					GFP_KERNEL);
+#endif
 	mcasp->serial_dir = pdata->serial_dir;
 	mcasp->version = pdata->version;
 	mcasp->txnumevt = pdata->txnumevt;
@@ -1223,14 +1336,28 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		goto err;
 
 	switch (mcasp->version) {
+#if IS_BUILTIN(CONFIG_SND_DAVINCI_SOC) || \
+	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
+	 IS_MODULE(CONFIG_SND_DAVINCI_SOC))
 	case MCASP_VERSION_1:
 	case MCASP_VERSION_2:
-	case MCASP_VERSION_3:
 		ret = davinci_soc_platform_register(&pdev->dev);
 		break;
+#endif
+#if IS_BUILTIN(CONFIG_SND_EDMA_SOC) || \
+	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
+	 IS_MODULE(CONFIG_SND_EDMA_SOC))
+	case MCASP_VERSION_3:
+		ret = edma_pcm_platform_register(&pdev->dev);
+		break;
+#endif
+#if IS_BUILTIN(CONFIG_SND_OMAP_SOC) || \
+	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
+	 IS_MODULE(CONFIG_SND_OMAP_SOC))
 	case MCASP_VERSION_4:
 		ret = omap_pcm_platform_register(&pdev->dev);
 		break;
+#endif
 	default:
 		dev_err(&pdev->dev, "Invalid McASP version: %d\n",
 			mcasp->version);

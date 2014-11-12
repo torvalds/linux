@@ -15,12 +15,16 @@
  *
  */
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include "common.h"
+#include "rcar2.h"
 
 /*
  *		image of renesas_usbhs
@@ -284,6 +288,8 @@ static void usbhsc_set_buswait(struct usbhs_priv *priv)
 /*
  *		platform default param
  */
+
+/* commonly used on old SH-Mobile SoCs */
 static u32 usbhsc_default_pipe_type[] = {
 		USB_ENDPOINT_XFER_CONTROL,
 		USB_ENDPOINT_XFER_ISOC,
@@ -295,6 +301,26 @@ static u32 usbhsc_default_pipe_type[] = {
 		USB_ENDPOINT_XFER_INT,
 		USB_ENDPOINT_XFER_INT,
 		USB_ENDPOINT_XFER_INT,
+};
+
+/* commonly used on newer SH-Mobile and R-Car SoCs */
+static u32 usbhsc_new_pipe_type[] = {
+		USB_ENDPOINT_XFER_CONTROL,
+		USB_ENDPOINT_XFER_ISOC,
+		USB_ENDPOINT_XFER_ISOC,
+		USB_ENDPOINT_XFER_BULK,
+		USB_ENDPOINT_XFER_BULK,
+		USB_ENDPOINT_XFER_BULK,
+		USB_ENDPOINT_XFER_INT,
+		USB_ENDPOINT_XFER_INT,
+		USB_ENDPOINT_XFER_INT,
+		USB_ENDPOINT_XFER_BULK,
+		USB_ENDPOINT_XFER_BULK,
+		USB_ENDPOINT_XFER_BULK,
+		USB_ENDPOINT_XFER_BULK,
+		USB_ENDPOINT_XFER_BULK,
+		USB_ENDPOINT_XFER_BULK,
+		USB_ENDPOINT_XFER_BULK,
 };
 
 /*
@@ -414,6 +440,43 @@ static int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
 /*
  *		platform functions
  */
+static const struct of_device_id usbhs_of_match[] = {
+	{
+		.compatible = "renesas,usbhs-r8a7790",
+		.data = (void *)USBHS_TYPE_R8A7790,
+	},
+	{
+		.compatible = "renesas,usbhs-r8a7791",
+		.data = (void *)USBHS_TYPE_R8A7791,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, usbhs_of_match);
+
+static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
+{
+	struct renesas_usbhs_platform_info *info;
+	struct renesas_usbhs_driver_param *dparam;
+	const struct of_device_id *of_id = of_match_device(usbhs_of_match, dev);
+	u32 tmp;
+	int gpio;
+
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return NULL;
+
+	dparam = &info->driver_param;
+	dparam->type = of_id ? (u32)of_id->data : 0;
+	if (!of_property_read_u32(dev->of_node, "renesas,buswait", &tmp))
+		dparam->buswait_bwait = tmp;
+	gpio = of_get_named_gpio_flags(dev->of_node, "renesas,enable-gpio", 0,
+				       NULL);
+	if (gpio > 0)
+		dparam->enable_gpio = gpio;
+
+	return info;
+}
+
 static int usbhs_probe(struct platform_device *pdev)
 {
 	struct renesas_usbhs_platform_info *info = dev_get_platdata(&pdev->dev);
@@ -422,9 +485,12 @@ static int usbhs_probe(struct platform_device *pdev)
 	struct resource *res, *irq_res;
 	int ret;
 
+	/* check device node */
+	if (pdev->dev.of_node)
+		info = pdev->dev.platform_data = usbhs_parse_dt(&pdev->dev);
+
 	/* check platform information */
-	if (!info ||
-	    !info->platform_callback.get_id) {
+	if (!info) {
 		dev_err(&pdev->dev, "no platform information\n");
 		return -EINVAL;
 	}
@@ -451,12 +517,31 @@ static int usbhs_probe(struct platform_device *pdev)
 	/*
 	 * care platform info
 	 */
-	memcpy(&priv->pfunc,
-	       &info->platform_callback,
-	       sizeof(struct renesas_usbhs_platform_callback));
+
 	memcpy(&priv->dparam,
 	       &info->driver_param,
 	       sizeof(struct renesas_usbhs_driver_param));
+
+	switch (priv->dparam.type) {
+	case USBHS_TYPE_R8A7790:
+	case USBHS_TYPE_R8A7791:
+		priv->pfunc = usbhs_rcar2_ops;
+		if (!priv->dparam.pipe_type) {
+			priv->dparam.pipe_type = usbhsc_new_pipe_type;
+			priv->dparam.pipe_size =
+				ARRAY_SIZE(usbhsc_new_pipe_type);
+		}
+		break;
+	default:
+		if (!info->platform_callback.get_id) {
+			dev_err(&pdev->dev, "no platform callbacks");
+			return -EINVAL;
+		}
+		memcpy(&priv->pfunc,
+		       &info->platform_callback,
+		       sizeof(struct renesas_usbhs_platform_callback));
+		break;
+	}
 
 	/* set driver callback functions for platform */
 	dfunc			= &info->driver_callback;
@@ -506,6 +591,20 @@ static int usbhs_probe(struct platform_device *pdev)
 	 * USB device might be used in boot loader.
 	 */
 	usbhs_sys_clock_ctrl(priv, 0);
+
+	/* check GPIO determining if USB function should be enabled */
+	if (priv->dparam.enable_gpio) {
+		gpio_request_one(priv->dparam.enable_gpio, GPIOF_IN, NULL);
+		ret = !gpio_get_value(priv->dparam.enable_gpio);
+		gpio_free(priv->dparam.enable_gpio);
+		if (ret) {
+			dev_warn(&pdev->dev,
+				 "USB function not selected (GPIO %d)\n",
+				 priv->dparam.enable_gpio);
+			ret = -ENOTSUPP;
+			goto probe_end_mod_exit;
+		}
+	}
 
 	/*
 	 * platform call
@@ -633,6 +732,7 @@ static struct platform_driver renesas_usbhs_driver = {
 	.driver		= {
 		.name	= "renesas_usbhs",
 		.pm	= &usbhsc_pm_ops,
+		.of_match_table = of_match_ptr(usbhs_of_match),
 	},
 	.probe		= usbhs_probe,
 	.remove		= usbhs_remove,

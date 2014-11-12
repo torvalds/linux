@@ -60,6 +60,7 @@ struct macvlan_dev {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct netpoll		*netpoll;
 #endif
+	unsigned int		macaddr_count;
 };
 
 static inline void macvlan_count_rx(const struct macvlan_dev *vlan,

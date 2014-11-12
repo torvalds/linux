@@ -1545,7 +1545,7 @@ static int r820t_imr_cross(struct r820t_priv *priv,
 		cross[i].value = rc;
 
 		if (cross[i].value < tmp.value)
-			memcpy(&tmp, &cross[i], sizeof(tmp));
+			tmp = cross[i];
 	}
 
 	if ((tmp.phase_y & 0x1f) == 1) {	/* y-direction */
@@ -2300,7 +2300,6 @@ struct dvb_frontend *r820t_attach(struct dvb_frontend *fe,
 	case 0:
 		/* memory allocation failure */
 		goto err_no_gate;
-		break;
 	case 1:
 		/* new tuner instance */
 		priv->cfg = cfg;

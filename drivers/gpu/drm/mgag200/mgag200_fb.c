@@ -158,7 +158,8 @@ static int mgag200fb_create_object(struct mga_fbdev *afbdev,
 static int mgag200fb_create(struct drm_fb_helper *helper,
 			   struct drm_fb_helper_surface_size *sizes)
 {
-	struct mga_fbdev *mfbdev = (struct mga_fbdev *)helper;
+	struct mga_fbdev *mfbdev =
+		container_of(helper, struct mga_fbdev, helper);
 	struct drm_device *dev = mfbdev->helper.dev;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct mga_device *mdev = dev->dev_private;
@@ -272,7 +273,7 @@ static int mga_fbdev_destroy(struct drm_device *dev,
 	return 0;
 }
 
-static struct drm_fb_helper_funcs mga_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs mga_fb_helper_funcs = {
 	.gamma_set = mga_crtc_fb_gamma_set,
 	.gamma_get = mga_crtc_fb_gamma_get,
 	.fb_probe = mgag200fb_create,
@@ -293,8 +294,9 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 		return -ENOMEM;
 
 	mdev->mfbdev = mfbdev;
-	mfbdev->helper.funcs = &mga_fb_helper_funcs;
 	spin_lock_init(&mfbdev->dirty_lock);
+
+	drm_fb_helper_prepare(mdev->dev, &mfbdev->helper, &mga_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(mdev->dev, &mfbdev->helper,
 				 mdev->num_crtc, MGAG200FB_CONN_LIMIT);

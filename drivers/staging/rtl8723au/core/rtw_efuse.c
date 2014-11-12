@@ -59,7 +59,7 @@ static void Efuse_PowerSwitch(struct rtw_adapter *padapter,
 		rtl8723au_write8(padapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_ON);
 
 		/*  1.2V Power: From VDDON with Power
-		    Cut(0x0000h[15]), defualt valid */
+		    Cut(0x0000h[15]), default valid */
 		tmpV16 = rtl8723au_read16(padapter, REG_SYS_ISO_CTRL);
 		if (!(tmpV16 & PWC_EV12V)) {
 			tmpV16 |= PWC_EV12V;
@@ -100,22 +100,6 @@ static void Efuse_PowerSwitch(struct rtw_adapter *padapter,
 	}
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	efuse_GetCurrentSize23a
- *
- * Overview:	Get current efuse size!!!
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/16/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
 u16
 Efuse_GetCurrentSize23a(struct rtw_adapter *pAdapter, u8 efuseType)
 {
@@ -144,7 +128,7 @@ Efuse_CalculateWordCnts23a(u8 word_en)
 /*  */
 /*	Description: */
 /*		Execute E-Fuse read byte operation. */
-/*		Refered from SD1 Richard. */
+/*		Referred from SD1 Richard. */
 /*  */
 /*	Assumption: */
 /*		1. Boot from E-Fuse and successfully auto-load. */
@@ -172,9 +156,7 @@ ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
 	/* Check bit 32 read-ready */
 	retry = 0;
 	value32 = rtl8723au_read32(Adapter, EFUSE_CTRL);
-	/* while(!(((value32 >> 24) & 0xff) & 0x80)  && (retry<10)) */
-	while(!(((value32 >> 24) & 0xff) & 0x80)  && (retry<10000))
-	{
+	while (!((value32 >> 24) & 0x80) && retry < 10000) {
 		value32 = rtl8723au_read32(Adapter, EFUSE_CTRL);
 		retry++;
 	}
@@ -301,8 +283,7 @@ EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
 				 TYPE_EFUSE_REAL_CONTENT_LEN,
 				 (void *)&contentLen);
 
-	if (Address < contentLen)	/* E-fuse 512Byte */
-	{
+	if (Address < contentLen) { /* E-fuse 512Byte */
 		/* Write E-fuse Register address bit0~7 */
 		temp = Address & 0xFF;
 		rtl8723au_write8(Adapter, EFUSE_CTRL+1, temp);
@@ -318,12 +299,10 @@ EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
 
 		/* Wait Write-ready (0x30[31]= 1) */
 		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
-		while(!(Bytetemp & 0x80))
-		{
+		while (!(Bytetemp & 0x80)) {
 			Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 			k++;
-			if (k == 1000)
-			{
+			if (k == 1000) {
 				k = 0;
 				break;
 			}
@@ -373,8 +352,7 @@ EFUSE_Write1Byte(
 				 TYPE_EFUSE_REAL_CONTENT_LEN,
 				 (void *)&contentLen);
 
-	if (Address < contentLen)	/* E-fuse 512Byte */
-	{
+	if (Address < contentLen) { /* E-fuse 512Byte */
 		rtl8723au_write8(Adapter, EFUSE_CTRL, Value);
 
 		/* Write E-fuse Register address bit0~7 */
@@ -393,12 +371,10 @@ EFUSE_Write1Byte(
 
 		/* Wait Write-ready (0x30[31]= 0) */
 		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
-		while(Bytetemp & 0x80)
-		{
+		while (Bytetemp & 0x80) {
 			Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 			k++;
-			if (k == 100)
-			{
+			if (k == 100) {
 				k = 0;
 				break;
 			}
@@ -488,23 +464,19 @@ efuse_WordEnableDataRead23a(u8	word_en,
 			 u8	*sourdata,
 			 u8	*targetdata)
 {
-	if (!(word_en&BIT(0)))
-	{
+	if (!(word_en&BIT(0))) {
 		targetdata[0] = sourdata[0];
 		targetdata[1] = sourdata[1];
 	}
-	if (!(word_en&BIT(1)))
-	{
+	if (!(word_en&BIT(1))) {
 		targetdata[2] = sourdata[2];
 		targetdata[3] = sourdata[3];
 	}
-	if (!(word_en&BIT(2)))
-	{
+	if (!(word_en&BIT(2))) {
 		targetdata[4] = sourdata[4];
 		targetdata[5] = sourdata[5];
 	}
-	if (!(word_en&BIT(3)))
-	{
+	if (!(word_en&BIT(3))) {
 		targetdata[6] = sourdata[6];
 		targetdata[7] = sourdata[7];
 	}
@@ -521,7 +493,7 @@ static int efuse_write8(struct rtw_adapter *padapter, u16 address, u8 *value)
 }
 
 /*
- * read/wirte raw efuse data
+ * read/write raw efuse data
  */
 int rtw_efuse_access23a(struct rtw_adapter *padapter, u8 bWrite, u16 start_addr,
 			u16 cnts, u8 *data)
@@ -574,15 +546,6 @@ u16 efuse_GetMaxSize23a(struct rtw_adapter *padapter)
 				 TYPE_AVAILABLE_EFUSE_BYTES_TOTAL,
 				 (void *)&max_size);
 	return max_size;
-}
-/*  */
-int efuse_GetCurrentSize23a(struct rtw_adapter *padapter, u16 *size)
-{
-	Efuse_PowerSwitch(padapter, false, true);
-	*size = Efuse_GetCurrentSize23a(padapter, EFUSE_WIFI);
-	Efuse_PowerSwitch(padapter, false, false);
-
-	return _SUCCESS;
 }
 /*  */
 int rtw_efuse_map_read23a(struct rtw_adapter *padapter,
@@ -768,7 +731,7 @@ EFUSE_ShadowRead23a(
 	struct rtw_adapter *	pAdapter,
 	u8		Type,
 	u16		Offset,
-	u32		*Value	)
+	u32		*Value)
 {
 	if (Type == 1)
 		efuse_ShadowRead1Byte(pAdapter, Offset, (u8 *)Value);

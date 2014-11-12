@@ -36,6 +36,7 @@ Optional properties:
     - reg : should specify the address and size used for NFC command registers,
             NFC registers and NFC Sram. NFC Sram address and size can be absent
             if don't want to use it.
+    - clocks: phandle to the peripheral clock
   - Optional properties:
     - atmel,write-by-sram: boolean to enable NFC write by sram.
 
@@ -98,6 +99,7 @@ nand0: nand@40000000 {
 		compatible = "atmel,sama5d3-nfc";
 		#address-cells = <1>;
 		#size-cells = <1>;
+		clocks = <&hsmc_clk>
 		reg = <
 			0x70000000 0x10000000	/* NFC Command Registers */
 			0xffffc000 0x00000070	/* NFC HSMC regs */

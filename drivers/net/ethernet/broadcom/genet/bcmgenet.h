@@ -4,18 +4,8 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- *
- *
-*/
+ */
+
 #ifndef __BCMGENET_H__
 #define __BCMGENET_H__
 
@@ -411,6 +401,8 @@ struct bcmgenet_mib_counters {
 #define DMA_ARBITER_MODE_MASK		0x03
 #define DMA_RING_BUF_PRIORITY_MASK	0x1F
 #define DMA_RING_BUF_PRIORITY_SHIFT	5
+#define DMA_PRIO_REG_INDEX(q)		((q) / 6)
+#define DMA_PRIO_REG_SHIFT(q)		(((q) % 6) * DMA_RING_BUF_PRIORITY_SHIFT)
 #define DMA_RATE_ADJ_MASK		0xFF
 
 /* Tx/Rx Dma Descriptor common bits*/
@@ -456,6 +448,7 @@ struct enet_cb {
 enum bcmgenet_power_mode {
 	GENET_POWER_CABLE_SENSE = 0,
 	GENET_POWER_PASSIVE,
+	GENET_POWER_WOL_MAGIC,
 };
 
 struct bcmgenet_priv;
@@ -513,9 +506,9 @@ struct bcmgenet_tx_ring {
 	unsigned int	cb_ptr;		/* Tx ring initial CB ptr */
 	unsigned int	end_ptr;	/* Tx ring end CB ptr */
 	void (*int_enable)(struct bcmgenet_priv *priv,
-				struct bcmgenet_tx_ring *);
+			   struct bcmgenet_tx_ring *);
 	void (*int_disable)(struct bcmgenet_priv *priv,
-				struct bcmgenet_tx_ring *);
+			    struct bcmgenet_tx_ring *);
 };
 
 /* device context */
@@ -554,10 +547,12 @@ struct bcmgenet_priv {
 	struct phy_device *phydev;
 	struct device_node *phy_dn;
 	struct mii_bus *mii_bus;
+	u16 gphy_rev;
 
 	/* PHY device variables */
-	int old_duplex;
 	int old_link;
+	int old_speed;
+	int old_duplex;
 	int old_pause;
 	phy_interface_t phy_interface;
 	int phy_addr;
@@ -569,6 +564,8 @@ struct bcmgenet_priv {
 	int irq1;
 	unsigned int irq0_stat;
 	unsigned int irq1_stat;
+	int wol_irq;
+	bool wol_irq_disabled;
 
 	/* HW descriptors/checksum variables */
 	bool desc_64b_en;
@@ -583,7 +580,6 @@ struct bcmgenet_priv {
 	struct platform_device *pdev;
 
 	/* WOL */
-	unsigned long wol_enabled;
 	struct clk *clk_wol;
 	u32 wolopts;
 
@@ -624,5 +620,13 @@ int bcmgenet_mii_init(struct net_device *dev);
 int bcmgenet_mii_config(struct net_device *dev);
 void bcmgenet_mii_exit(struct net_device *dev);
 void bcmgenet_mii_reset(struct net_device *dev);
+
+/* Wake-on-LAN routines */
+void bcmgenet_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol);
+int bcmgenet_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol);
+int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
+				enum bcmgenet_power_mode mode);
+void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
+			       enum bcmgenet_power_mode mode);
 
 #endif /* __BCMGENET_H__ */

@@ -222,7 +222,8 @@ static int perf_parse_file(config_fn_t fn, void *data)
 	const unsigned char *bomptr = utf8_bom;
 
 	for (;;) {
-		int c = get_next_char();
+		int line, c = get_next_char();
+
 		if (bomptr && *bomptr) {
 			/* We are at the file beginning; skip UTF8-encoded BOM
 			 * if present. Sane editors won't put this in on their
@@ -261,8 +262,16 @@ static int perf_parse_file(config_fn_t fn, void *data)
 		if (!isalpha(c))
 			break;
 		var[baselen] = tolower(c);
-		if (get_value(fn, data, var, baselen+1) < 0)
+
+		/*
+		 * The get_value function might or might not reach the '\n',
+		 * so saving the current line number for error reporting.
+		 */
+		line = config_linenr;
+		if (get_value(fn, data, var, baselen+1) < 0) {
+			config_linenr = line;
 			break;
+		}
 	}
 	die("bad config file line %d in %s", config_linenr, config_file_name);
 }
@@ -281,6 +290,21 @@ static int parse_unit_factor(const char *end, unsigned long *val)
 	}
 	else if (!strcasecmp(end, "g")) {
 		*val *= 1024 * 1024 * 1024;
+		return 1;
+	}
+	return 0;
+}
+
+static int perf_parse_llong(const char *value, long long *ret)
+{
+	if (value && *value) {
+		char *end;
+		long long val = strtoll(value, &end, 0);
+		unsigned long factor = 1;
+
+		if (!parse_unit_factor(end, &factor))
+			return 0;
+		*ret = val * factor;
 		return 1;
 	}
 	return 0;
@@ -305,6 +329,15 @@ static void die_bad_config(const char *name)
 	if (config_file_name)
 		die("bad config value for '%s' in %s", name, config_file_name);
 	die("bad config value for '%s'", name);
+}
+
+u64 perf_config_u64(const char *name, const char *value)
+{
+	long long ret = 0;
+
+	if (!perf_parse_llong(value, &ret))
+		die_bad_config(name);
+	return (u64) ret;
 }
 
 int perf_config_int(const char *name, const char *value)
@@ -371,6 +404,9 @@ int perf_default_config(const char *var, const char *value,
 
 	if (!prefixcmp(var, "ui."))
 		return perf_ui_config(var, value);
+
+	if (!prefixcmp(var, "call-graph."))
+		return perf_callchain_config(var, value);
 
 	/* Add other config variables here. */
 	return 0;

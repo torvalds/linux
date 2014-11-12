@@ -230,13 +230,13 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
 	for (i = 1;
 	     i < num_ids && c45_ids->devices_in_package == 0;
 	     i++) {
-		reg_addr = MII_ADDR_C45 | i << 16 | 6;
+		reg_addr = MII_ADDR_C45 | i << 16 | MDIO_DEVS2;
 		phy_reg = mdiobus_read(bus, addr, reg_addr);
 		if (phy_reg < 0)
 			return -EIO;
 		c45_ids->devices_in_package = (phy_reg & 0xffff) << 16;
 
-		reg_addr = MII_ADDR_C45 | i << 16 | 5;
+		reg_addr = MII_ADDR_C45 | i << 16 | MDIO_DEVS1;
 		phy_reg = mdiobus_read(bus, addr, reg_addr);
 		if (phy_reg < 0)
 			return -EIO;
@@ -709,6 +709,7 @@ int phy_suspend(struct phy_device *phydev)
 		return phydrv->suspend(phydev);
 	return 0;
 }
+EXPORT_SYMBOL(phy_suspend);
 
 int phy_resume(struct phy_device *phydev)
 {
@@ -718,6 +719,7 @@ int phy_resume(struct phy_device *phydev)
 		return phydrv->resume(phydev);
 	return 0;
 }
+EXPORT_SYMBOL(phy_resume);
 
 /* Generic PHY support and helper functions */
 

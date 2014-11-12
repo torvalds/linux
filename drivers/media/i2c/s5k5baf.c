@@ -816,7 +816,7 @@ static void s5k5baf_hw_find_min_fiv(struct s5k5baf *state)
 				 "error setting frame interval: %d\n", err);
 			state->error = -EINVAL;
 		}
-	};
+	}
 	v4l2_err(&state->sd, "cannot find correct frame interval\n");
 	state->error = -ERANGE;
 }
@@ -1312,6 +1312,8 @@ static int s5k5baf_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	struct s5k5baf *state = to_s5k5baf(sd);
 	const struct s5k5baf_pixfmt *pixfmt;
 	int ret = 0;
+
+	mf->field = V4L2_FIELD_NONE;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		*v4l2_subdev_get_try_format(fh, fmt->pad) = *mf;

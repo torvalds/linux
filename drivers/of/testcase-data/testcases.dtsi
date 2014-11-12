@@ -1,4 +1,0 @@
-#include "tests-phandle.dtsi"
-#include "tests-interrupts.dtsi"
-#include "tests-match.dtsi"
-#include "tests-platform.dtsi"

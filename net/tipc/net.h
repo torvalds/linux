@@ -37,8 +37,6 @@
 #ifndef _TIPC_NET_H
 #define _TIPC_NET_H
 
-void tipc_net_route_msg(struct sk_buff *buf);
-
 int tipc_net_start(u32 addr);
 void tipc_net_stop(void);
 

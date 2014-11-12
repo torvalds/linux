@@ -2120,7 +2120,7 @@ static const struct rt2x00_ops rt2500pci_ops = {
 /*
  * RT2500pci module information.
  */
-static DEFINE_PCI_DEVICE_TABLE(rt2500pci_device_table) = {
+static const struct pci_device_id rt2500pci_device_table[] = {
 	{ PCI_DEVICE(0x1814, 0x0201) },
 	{ 0, }
 };

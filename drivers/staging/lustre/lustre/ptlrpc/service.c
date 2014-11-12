@@ -35,11 +35,11 @@
  */
 
 #define DEBUG_SUBSYSTEM S_RPC
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_net.h>
-#include <lu_object.h>
-#include <linux/lnet/types.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
+#include "../include/lu_object.h"
+#include "../../include/linux/lnet/types.h"
 #include "ptlrpc_internal.h"
 
 /* The following are visible and mutable through /sys/module/ptlrpc */
@@ -781,13 +781,15 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 			cpt = cpts != NULL ? cpts[i] : i;
 
 		OBD_CPT_ALLOC(svcpt, cptable, cpt, sizeof(*svcpt));
-		if (svcpt == NULL)
-			GOTO(failed, rc = -ENOMEM);
+		if (svcpt == NULL) {
+			rc = -ENOMEM;
+			goto failed;
+		}
 
 		service->srv_parts[i] = svcpt;
 		rc = ptlrpc_service_part_init(service, svcpt, cpt);
 		if (rc != 0)
-			GOTO(failed, rc);
+			goto failed;
 	}
 
 	ptlrpc_server_nthreads_check(service, conf);
@@ -804,7 +806,7 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 
 	rc = ptlrpc_service_nrs_setup(service);
 	if (rc != 0)
-		GOTO(failed, rc);
+		goto failed;
 
 	CDEBUG(D_NET, "%s: Started, listening on portal %d\n",
 	       service->srv_name, service->srv_req_portal);
@@ -813,7 +815,7 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	if (rc != 0) {
 		CERROR("Failed to start threads for service %s: %d\n",
 		       service->srv_name, rc);
-		GOTO(failed, rc);
+		goto failed;
 	}
 
 	return service;
@@ -1037,7 +1039,7 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 	   will make it to the top of the list. */
 
 	/* Do not pay attention on 1sec or smaller renewals. */
-	new_time = cfs_time_current_sec() + extra_delay;
+	new_time = get_seconds() + extra_delay;
 	if (exp->exp_last_request_time + 1 /*second */ >= new_time)
 		return;
 
@@ -1070,20 +1072,20 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 	/* Note - racing to start/reset the obd_eviction timer is safe */
 	if (exp->exp_obd->obd_eviction_timer == 0) {
 		/* Check if the oldest entry is expired. */
-		if (cfs_time_current_sec() > (oldest_time + PING_EVICT_TIMEOUT +
+		if (get_seconds() > (oldest_time + PING_EVICT_TIMEOUT +
 					      extra_delay)) {
 			/* We need a second timer, in case the net was down and
 			 * it just came back. Since the pinger may skip every
 			 * other PING_INTERVAL (see note in ptlrpc_pinger_main),
 			 * we better wait for 3. */
 			exp->exp_obd->obd_eviction_timer =
-				cfs_time_current_sec() + 3 * PING_INTERVAL;
+				get_seconds() + 3 * PING_INTERVAL;
 			CDEBUG(D_HA, "%s: Think about evicting %s from "CFS_TIME_T"\n",
 			       exp->exp_obd->obd_name,
 			       obd_export_nid2str(oldest_exp), oldest_time);
 		}
 	} else {
-		if (cfs_time_current_sec() >
+		if (get_seconds() >
 		    (exp->exp_obd->obd_eviction_timer + extra_delay)) {
 			/* The evictor won't evict anyone who we've heard from
 			 * recently, so we don't have to check before we start
@@ -1100,6 +1102,7 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
  */
 static int ptlrpc_check_req(struct ptlrpc_request *req)
 {
+	struct obd_device *obd = req->rq_export->exp_obd;
 	int rc = 0;
 
 	if (unlikely(lustre_msg_get_conn_cnt(req->rq_reqmsg) <
@@ -1110,26 +1113,24 @@ static int ptlrpc_check_req(struct ptlrpc_request *req)
 			  req->rq_export->exp_conn_cnt);
 		return -EEXIST;
 	}
-	if (unlikely(req->rq_export->exp_obd &&
-		     req->rq_export->exp_obd->obd_fail)) {
+	if (unlikely(obd == NULL || obd->obd_fail)) {
 		/*
 		 * Failing over, don't handle any more reqs, send
 		 * error response instead.
 		 */
 		CDEBUG(D_RPCTRACE, "Dropping req %p for failed obd %s\n",
-		       req, req->rq_export->exp_obd->obd_name);
+		       req, (obd != NULL) ? obd->obd_name : "unknown");
 		rc = -ENODEV;
 	} else if (lustre_msg_get_flags(req->rq_reqmsg) &
 		   (MSG_REPLAY | MSG_REQ_REPLAY_DONE) &&
-		   !(req->rq_export->exp_obd->obd_recovering)) {
+		   !obd->obd_recovering) {
 			DEBUG_REQ(D_ERROR, req,
 				  "Invalid replay without recovery");
 			class_fail_export(req->rq_export);
 			rc = -ENODEV;
 	} else if (lustre_msg_get_transno(req->rq_reqmsg) != 0 &&
-		   !(req->rq_export->exp_obd->obd_recovering)) {
-			DEBUG_REQ(D_ERROR, req, "Invalid req with transno "
-				  LPU64" without recovery",
+		   !obd->obd_recovering) {
+			DEBUG_REQ(D_ERROR, req, "Invalid req with transno %llu without recovery",
 				  lustre_msg_get_transno(req->rq_reqmsg));
 			class_fail_export(req->rq_export);
 			rc = -ENODEV;
@@ -1153,7 +1154,7 @@ static void ptlrpc_at_set_timer(struct ptlrpc_service_part *svcpt)
 	}
 
 	/* Set timer for closest deadline */
-	next = (__s32)(array->paa_deadline - cfs_time_current_sec() -
+	next = (__s32)(array->paa_deadline - get_seconds() -
 		       at_early_margin);
 	if (next <= 0) {
 		ptlrpc_at_timer((unsigned long)svcpt);
@@ -1173,13 +1174,13 @@ static int ptlrpc_at_add_timed(struct ptlrpc_request *req)
 	__u32 index;
 
 	if (AT_OFF)
-		return(0);
+		return 0;
 
 	if (req->rq_no_reply)
 		return 0;
 
 	if ((lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT) == 0)
-		return(-ENOSYS);
+		return -ENOSYS;
 
 	spin_lock(&svcpt->scp_at_lock);
 	LASSERT(list_empty(&req->rq_timed_list));
@@ -1243,7 +1244,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	struct ptlrpc_service_part *svcpt = req->rq_rqbd->rqbd_svcpt;
 	struct ptlrpc_request *reqcopy;
 	struct lustre_msg *reqmsg;
-	cfs_duration_t olddl = req->rq_deadline - cfs_time_current_sec();
+	long olddl = req->rq_deadline - get_seconds();
 	time_t newdl;
 	int rc;
 
@@ -1288,7 +1289,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 		/* Fake our processing time into the future to ask the clients
 		 * for some extra amount of time */
 		at_measured(&svcpt->scp_at_estimate, at_extra +
-			    cfs_time_current_sec() -
+			    get_seconds() -
 			    req->rq_arrival_time.tv_sec);
 
 		/* Check to see if we've actually increased the deadline -
@@ -1299,18 +1300,20 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 				  "(%ld/%ld), not sending early reply\n",
 				  olddl, req->rq_arrival_time.tv_sec +
 				  at_get(&svcpt->scp_at_estimate) -
-				  cfs_time_current_sec());
+				  get_seconds());
 			return -ETIMEDOUT;
 		}
 	}
-	newdl = cfs_time_current_sec() + at_get(&svcpt->scp_at_estimate);
+	newdl = get_seconds() + at_get(&svcpt->scp_at_estimate);
 
 	reqcopy = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (reqcopy == NULL)
 		return -ENOMEM;
 	OBD_ALLOC_LARGE(reqmsg, req->rq_reqlen);
-	if (!reqmsg)
-		GOTO(out_free, rc = -ENOMEM);
+	if (!reqmsg) {
+		rc = -ENOMEM;
+		goto out_free;
+	}
 
 	*reqcopy = *req;
 	reqcopy->rq_reply_state = NULL;
@@ -1328,24 +1331,29 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	if (atomic_read(&req->rq_refcount) == 1) {
 		DEBUG_REQ(D_ADAPTTO, reqcopy, "Normal reply already sent out, "
 			  "abort sending early reply\n");
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
 	/* Connection ref */
 	reqcopy->rq_export = class_conn2export(
 				     lustre_msg_get_handle(reqcopy->rq_reqmsg));
-	if (reqcopy->rq_export == NULL)
-		GOTO(out, rc = -ENODEV);
+	if (reqcopy->rq_export == NULL) {
+		rc = -ENODEV;
+		goto out;
+	}
 
 	/* RPC ref */
 	class_export_rpc_inc(reqcopy->rq_export);
 	if (reqcopy->rq_export->exp_obd &&
-	    reqcopy->rq_export->exp_obd->obd_fail)
-		GOTO(out_put, rc = -ENODEV);
+	    reqcopy->rq_export->exp_obd->obd_fail) {
+		rc = -ENODEV;
+		goto out_put;
+	}
 
 	rc = lustre_pack_reply_flags(reqcopy, 1, NULL, NULL, LPRFL_EARLY_REPLY);
 	if (rc)
-		GOTO(out_put, rc);
+		goto out_put;
 
 	rc = ptlrpc_send_reply(reqcopy, PTLRPC_REPLY_EARLY);
 
@@ -1381,8 +1389,8 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 	struct list_head work_list;
 	__u32  index, count;
 	time_t deadline;
-	time_t now = cfs_time_current_sec();
-	cfs_duration_t delay;
+	time_t now = get_seconds();
+	long delay;
 	int first, counter = 0;
 
 	spin_lock(&svcpt->scp_at_lock);
@@ -1766,24 +1774,24 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 	if (SPTLRPC_FLVR_POLICY(req->rq_flvr.sf_rpc) != SPTLRPC_POLICY_NULL) {
 		rc = ptlrpc_unpack_req_msg(req, req->rq_reqlen);
 		if (rc != 0) {
-			CERROR("error unpacking request: ptl %d from %s "
-			       "x"LPU64"\n", svc->srv_req_portal,
-			       libcfs_id2str(req->rq_peer), req->rq_xid);
+			CERROR("error unpacking request: ptl %d from %s x%llu\n",
+			       svc->srv_req_portal, libcfs_id2str(req->rq_peer),
+			       req->rq_xid);
 			goto err_req;
 		}
 	}
 
 	rc = lustre_unpack_req_ptlrpc_body(req, MSG_PTLRPC_BODY_OFF);
 	if (rc) {
-		CERROR("error unpacking ptlrpc body: ptl %d from %s x"
-		       LPU64"\n", svc->srv_req_portal,
-		       libcfs_id2str(req->rq_peer), req->rq_xid);
+		CERROR("error unpacking ptlrpc body: ptl %d from %s x%llu\n",
+		       svc->srv_req_portal, libcfs_id2str(req->rq_peer),
+		       req->rq_xid);
 		goto err_req;
 	}
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DROP_REQ_OPC) &&
 	    lustre_msg_get_opc(req->rq_reqmsg) == cfs_fail_val) {
-		CERROR("drop incoming rpc opc %u, x"LPU64"\n",
+		CERROR("drop incoming rpc opc %u, x%llu\n",
 		       cfs_fail_val, req->rq_xid);
 		goto err_req;
 	}
@@ -1808,7 +1816,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 		break;
 	}
 
-	CDEBUG(D_RPCTRACE, "got req x"LPU64"\n", req->rq_xid);
+	CDEBUG(D_RPCTRACE, "got req x%llu\n", req->rq_xid);
 
 	req->rq_export = class_conn2export(
 		lustre_msg_get_handle(req->rq_reqmsg));
@@ -1827,9 +1835,9 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 	}
 
 	/* req_in handling should/must be fast */
-	if (cfs_time_current_sec() - req->rq_arrival_time.tv_sec > 5)
+	if (get_seconds() - req->rq_arrival_time.tv_sec > 5)
 		DEBUG_REQ(D_WARNING, req, "Slow req_in handling "CFS_DURATION_T"s",
-			  cfs_time_sub(cfs_time_current_sec(),
+			  cfs_time_sub(get_seconds(),
 				       req->rq_arrival_time.tv_sec));
 
 	/* Set rpc server deadline and add it to the timed list */
@@ -1850,7 +1858,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 	/* Move it over to the request processing queue */
 	rc = ptlrpc_server_request_add(svcpt, req);
 	if (rc)
-		GOTO(err_req, rc);
+		goto err_req;
 
 	wake_up(&svcpt->scp_waitq);
 	return 1;
@@ -1897,7 +1905,8 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 		libcfs_debug_dumplog();
 
 	do_gettimeofday(&work_start);
-	timediff = cfs_timeval_sub(&work_start, &request->rq_arrival_time,NULL);
+	timediff = cfs_timeval_sub(&work_start, &request->rq_arrival_time,
+				   NULL);
 	if (likely(svc->srv_stats != NULL)) {
 		lprocfs_counter_add(svc->srv_stats, PTLRPC_REQWAIT_CNTR,
 				    timediff);
@@ -1918,7 +1927,7 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	request->rq_session.lc_cookie = 0x5;
 	lu_context_enter(&request->rq_session);
 
-	CDEBUG(D_NET, "got req "LPU64"\n", request->rq_xid);
+	CDEBUG(D_NET, "got req %llu\n", request->rq_xid);
 
 	request->rq_svc_thread = thread;
 	if (thread)
@@ -1932,19 +1941,19 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 
 	/* Discard requests queued for longer than the deadline.
 	   The deadline is increased if we send an early reply. */
-	if (cfs_time_current_sec() > request->rq_deadline) {
+	if (get_seconds() > request->rq_deadline) {
 		DEBUG_REQ(D_ERROR, request, "Dropping timed-out request from %s"
 			  ": deadline "CFS_DURATION_T":"CFS_DURATION_T"s ago\n",
 			  libcfs_id2str(request->rq_peer),
 			  cfs_time_sub(request->rq_deadline,
 			  request->rq_arrival_time.tv_sec),
-			  cfs_time_sub(cfs_time_current_sec(),
+			  cfs_time_sub(get_seconds(),
 			  request->rq_deadline));
 		goto put_conn;
 	}
 
 	CDEBUG(D_RPCTRACE, "Handling RPC pname:cluuid+ref:pid:xid:nid:opc "
-	       "%s:%s+%d:%d:x"LPU64":%s:%d\n", current_comm(),
+	       "%s:%s+%d:%d:x%llu:%s:%d\n", current_comm(),
 	       (request->rq_export ?
 		(char *)request->rq_export->exp_client_uuid.uuid : "0"),
 	       (request->rq_export ?
@@ -1964,22 +1973,22 @@ put_conn:
 	lu_context_exit(&request->rq_session);
 	lu_context_fini(&request->rq_session);
 
-	if (unlikely(cfs_time_current_sec() > request->rq_deadline)) {
+	if (unlikely(get_seconds() > request->rq_deadline)) {
 		DEBUG_REQ(D_WARNING, request,
 			  "Request took longer than estimated ("
 				CFS_DURATION_T":"CFS_DURATION_T
 				"s); client may timeout.",
 			  cfs_time_sub(request->rq_deadline,
 				       request->rq_arrival_time.tv_sec),
-			  cfs_time_sub(cfs_time_current_sec(),
+			  cfs_time_sub(get_seconds(),
 				       request->rq_deadline));
 	}
 
 	do_gettimeofday(&work_end);
 	timediff = cfs_timeval_sub(&work_end, &work_start, NULL);
 	CDEBUG(D_RPCTRACE, "Handled RPC pname:cluuid+ref:pid:xid:nid:opc "
-	       "%s:%s+%d:%d:x"LPU64":%s:%d Request processed in "
-	       "%ldus (%ldus total) trans "LPU64" rc %d/%d\n",
+	       "%s:%s+%d:%d:x%llu:%s:%d Request processed in "
+	       "%ldus (%ldus total) trans %llu rc %d/%d\n",
 		current_comm(),
 		(request->rq_export ?
 		 (char *)request->rq_export->exp_client_uuid.uuid : "0"),
@@ -2084,8 +2093,7 @@ ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 	if (nlocks == 0 && !been_handled) {
 		/* If we see this, we should already have seen the warning
 		 * in mds_steal_ack_locks()  */
-		CDEBUG(D_HA, "All locks stolen from rs %p x"LPD64".t"LPD64
-		       " o%d NID %s\n",
+		CDEBUG(D_HA, "All locks stolen from rs %p x%lld.t%lld o%d NID %s\n",
 		       rs,
 		       rs->rs_xid, rs->rs_transno, rs->rs_opc,
 		       libcfs_nid2str(exp->exp_connection->c_peer.nid));
@@ -2264,9 +2272,7 @@ static int ptlrpc_main(void *arg)
 	struct ptlrpc_service_part	*svcpt = thread->t_svcpt;
 	struct ptlrpc_service		*svc = svcpt->scp_service;
 	struct ptlrpc_reply_state	*rs;
-#ifdef WITH_GROUP_INFO
 	struct group_info *ginfo = NULL;
-#endif
 	struct lu_env *env;
 	int counter = 0, rc = 0;
 
@@ -2282,7 +2288,6 @@ static int ptlrpc_main(void *arg)
 		      svc->srv_name, thread->t_name, svcpt->scp_cpt);
 	}
 
-#ifdef WITH_GROUP_INFO
 	ginfo = groups_alloc(0);
 	if (!ginfo) {
 		rc = -ENOMEM;
@@ -2291,7 +2296,6 @@ static int ptlrpc_main(void *arg)
 
 	set_current_groups(ginfo);
 	put_group_info(ginfo);
-#endif
 
 	if (svc->srv_ops.so_thr_init != NULL) {
 		rc = svc->srv_ops.so_thr_init(thread);
@@ -2792,8 +2796,10 @@ int ptlrpc_hr_init(void)
 		LASSERT(hrp->hrp_nthrs > 0);
 		OBD_CPT_ALLOC(hrp->hrp_thrs, ptlrpc_hr.hr_cpt_table, i,
 			      hrp->hrp_nthrs * sizeof(*hrt));
-		if (hrp->hrp_thrs == NULL)
-			GOTO(out, rc = -ENOMEM);
+		if (hrp->hrp_thrs == NULL) {
+			rc = -ENOMEM;
+			goto out;
+		}
 
 		for (j = 0; j < hrp->hrp_nthrs; j++) {
 			hrt = &hrp->hrp_thrs[j];

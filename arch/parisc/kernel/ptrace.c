@@ -17,6 +17,7 @@
 #include <linux/user.h>
 #include <linux/personality.h>
 #include <linux/security.h>
+#include <linux/seccomp.h>
 #include <linux/compat.h>
 #include <linux/signal.h>
 #include <linux/audit.h>
@@ -270,20 +271,20 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	long ret = 0;
 
+	/* Do the secure computing check first. */
+	secure_computing_strict(regs->gr[20]);
+
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
 		ret = -1L;
 
 #ifdef CONFIG_64BIT
 	if (!is_compat_task())
-		audit_syscall_entry(AUDIT_ARCH_PARISC64,
-			regs->gr[20],
-			regs->gr[26], regs->gr[25],
-			regs->gr[24], regs->gr[23]);
+		audit_syscall_entry(regs->gr[20], regs->gr[26], regs->gr[25],
+				    regs->gr[24], regs->gr[23]);
 	else
 #endif
-		audit_syscall_entry(AUDIT_ARCH_PARISC,
-			regs->gr[20] & 0xffffffff,
+		audit_syscall_entry(regs->gr[20] & 0xffffffff,
 			regs->gr[26] & 0xffffffff,
 			regs->gr[25] & 0xffffffff,
 			regs->gr[24] & 0xffffffff,

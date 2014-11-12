@@ -441,8 +441,7 @@ __resizer_get_format(struct iss_resizer_device *resizer,
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(fh, pad);
-	else
-		return &resizer->formats[pad];
+	return &resizer->formats[pad];
 }
 
 /*

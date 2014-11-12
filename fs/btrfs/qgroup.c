@@ -539,10 +539,9 @@ static int add_qgroup_item(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-	if (unlikely(test_bit(BTRFS_ROOT_DUMMY_ROOT, &quota_root->state)))
+	if (btrfs_test_is_dummy_root(quota_root))
 		return 0;
-#endif
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
@@ -551,9 +550,15 @@ static int add_qgroup_item(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_QGROUP_INFO_KEY;
 	key.offset = qgroupid;
 
+	/*
+	 * Avoid a transaction abort by catching -EEXIST here. In that
+	 * case, we proceed by re-initializing the existing structure
+	 * on disk.
+	 */
+
 	ret = btrfs_insert_empty_item(trans, quota_root, path, &key,
 				      sizeof(*qgroup_info));
-	if (ret)
+	if (ret && ret != -EEXIST)
 		goto out;
 
 	leaf = path->nodes[0];
@@ -572,7 +577,7 @@ static int add_qgroup_item(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_QGROUP_LIMIT_KEY;
 	ret = btrfs_insert_empty_item(trans, quota_root, path, &key,
 				      sizeof(*qgroup_limit));
-	if (ret)
+	if (ret && ret != -EEXIST)
 		goto out;
 
 	leaf = path->nodes[0];
@@ -692,10 +697,9 @@ static int update_qgroup_info_item(struct btrfs_trans_handle *trans,
 	int ret;
 	int slot;
 
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-	if (unlikely(test_bit(BTRFS_ROOT_DUMMY_ROOT, &root->state)))
+	if (btrfs_test_is_dummy_root(root))
 		return 0;
-#endif
+
 	key.objectid = 0;
 	key.type = BTRFS_QGROUP_INFO_KEY;
 	key.offset = qgroup->qgroupid;
@@ -1201,6 +1205,50 @@ out:
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
+
+static int comp_oper_exist(struct btrfs_qgroup_operation *oper1,
+			   struct btrfs_qgroup_operation *oper2)
+{
+	/*
+	 * Ignore seq and type here, we're looking for any operation
+	 * at all related to this extent on that root.
+	 */
+	if (oper1->bytenr < oper2->bytenr)
+		return -1;
+	if (oper1->bytenr > oper2->bytenr)
+		return 1;
+	if (oper1->ref_root < oper2->ref_root)
+		return -1;
+	if (oper1->ref_root > oper2->ref_root)
+		return 1;
+	return 0;
+}
+
+static int qgroup_oper_exists(struct btrfs_fs_info *fs_info,
+			      struct btrfs_qgroup_operation *oper)
+{
+	struct rb_node *n;
+	struct btrfs_qgroup_operation *cur;
+	int cmp;
+
+	spin_lock(&fs_info->qgroup_op_lock);
+	n = fs_info->qgroup_op_tree.rb_node;
+	while (n) {
+		cur = rb_entry(n, struct btrfs_qgroup_operation, n);
+		cmp = comp_oper_exist(cur, oper);
+		if (cmp < 0) {
+			n = n->rb_right;
+		} else if (cmp) {
+			n = n->rb_left;
+		} else {
+			spin_unlock(&fs_info->qgroup_op_lock);
+			return -EEXIST;
+		}
+	}
+	spin_unlock(&fs_info->qgroup_op_lock);
+	return 0;
+}
+
 static int comp_oper(struct btrfs_qgroup_operation *oper1,
 		     struct btrfs_qgroup_operation *oper2)
 {
@@ -1290,6 +1338,25 @@ int btrfs_qgroup_record_ref(struct btrfs_trans_handle *trans,
 	oper->seq = atomic_inc_return(&fs_info->qgroup_op_seq);
 	INIT_LIST_HEAD(&oper->elem.list);
 	oper->elem.seq = 0;
+
+	trace_btrfs_qgroup_record_ref(oper);
+
+	if (type == BTRFS_QGROUP_OPER_SUB_SUBTREE) {
+		/*
+		 * If any operation for this bytenr/ref_root combo
+		 * exists, then we know it's not exclusively owned and
+		 * shouldn't be queued up.
+		 *
+		 * This also catches the case where we have a cloned
+		 * extent that gets queued up multiple times during
+		 * drop snapshot.
+		 */
+		if (qgroup_oper_exists(fs_info, oper)) {
+			kfree(oper);
+			return 0;
+		}
+	}
+
 	ret = insert_qgroup_oper(fs_info, oper);
 	if (ret) {
 		/* Shouldn't happen so have an assert for developers */
@@ -1884,6 +1951,111 @@ out:
 }
 
 /*
+ * Process a reference to a shared subtree. This type of operation is
+ * queued during snapshot removal when we encounter extents which are
+ * shared between more than one root.
+ */
+static int qgroup_subtree_accounting(struct btrfs_trans_handle *trans,
+				     struct btrfs_fs_info *fs_info,
+				     struct btrfs_qgroup_operation *oper)
+{
+	struct ulist *roots = NULL;
+	struct ulist_node *unode;
+	struct ulist_iterator uiter;
+	struct btrfs_qgroup_list *glist;
+	struct ulist *parents;
+	int ret = 0;
+	int err;
+	struct btrfs_qgroup *qg;
+	u64 root_obj = 0;
+	struct seq_list elem = {};
+
+	parents = ulist_alloc(GFP_NOFS);
+	if (!parents)
+		return -ENOMEM;
+
+	btrfs_get_tree_mod_seq(fs_info, &elem);
+	ret = btrfs_find_all_roots(trans, fs_info, oper->bytenr,
+				   elem.seq, &roots);
+	btrfs_put_tree_mod_seq(fs_info, &elem);
+	if (ret < 0)
+		goto out;
+
+	if (roots->nnodes != 1)
+		goto out;
+
+	ULIST_ITER_INIT(&uiter);
+	unode = ulist_next(roots, &uiter); /* Only want 1 so no need to loop */
+	/*
+	 * If we find our ref root then that means all refs
+	 * this extent has to the root have not yet been
+	 * deleted. In that case, we do nothing and let the
+	 * last ref for this bytenr drive our update.
+	 *
+	 * This can happen for example if an extent is
+	 * referenced multiple times in a snapshot (clone,
+	 * etc). If we are in the middle of snapshot removal,
+	 * queued updates for such an extent will find the
+	 * root if we have not yet finished removing the
+	 * snapshot.
+	 */
+	if (unode->val == oper->ref_root)
+		goto out;
+
+	root_obj = unode->val;
+	BUG_ON(!root_obj);
+
+	spin_lock(&fs_info->qgroup_lock);
+	qg = find_qgroup_rb(fs_info, root_obj);
+	if (!qg)
+		goto out_unlock;
+
+	qg->excl += oper->num_bytes;
+	qg->excl_cmpr += oper->num_bytes;
+	qgroup_dirty(fs_info, qg);
+
+	/*
+	 * Adjust counts for parent groups. First we find all
+	 * parents, then in the 2nd loop we do the adjustment
+	 * while adding parents of the parents to our ulist.
+	 */
+	list_for_each_entry(glist, &qg->groups, next_group) {
+		err = ulist_add(parents, glist->group->qgroupid,
+				ptr_to_u64(glist->group), GFP_ATOMIC);
+		if (err < 0) {
+			ret = err;
+			goto out_unlock;
+		}
+	}
+
+	ULIST_ITER_INIT(&uiter);
+	while ((unode = ulist_next(parents, &uiter))) {
+		qg = u64_to_ptr(unode->aux);
+		qg->excl += oper->num_bytes;
+		qg->excl_cmpr += oper->num_bytes;
+		qgroup_dirty(fs_info, qg);
+
+		/* Add any parents of the parents */
+		list_for_each_entry(glist, &qg->groups, next_group) {
+			err = ulist_add(parents, glist->group->qgroupid,
+					ptr_to_u64(glist->group), GFP_ATOMIC);
+			if (err < 0) {
+				ret = err;
+				goto out_unlock;
+			}
+		}
+	}
+
+out_unlock:
+	spin_unlock(&fs_info->qgroup_lock);
+
+out:
+	ulist_free(roots);
+	ulist_free(parents);
+	return ret;
+}
+
+/*
  * btrfs_qgroup_account_ref is called for every ref that is added to or deleted
  * from the fs. First, all roots referencing the extent are searched, and
  * then the space is accounted accordingly to the different roots. The
@@ -1911,6 +2083,8 @@ static int btrfs_qgroup_account(struct btrfs_trans_handle *trans,
 
 	ASSERT(is_fstree(oper->ref_root));
 
+	trace_btrfs_qgroup_account(oper);
+
 	switch (oper->type) {
 	case BTRFS_QGROUP_OPER_ADD_EXCL:
 	case BTRFS_QGROUP_OPER_SUB_EXCL:
@@ -1919,6 +2093,9 @@ static int btrfs_qgroup_account(struct btrfs_trans_handle *trans,
 	case BTRFS_QGROUP_OPER_ADD_SHARED:
 	case BTRFS_QGROUP_OPER_SUB_SHARED:
 		ret = qgroup_shared_accounting(trans, fs_info, oper);
+		break;
+	case BTRFS_QGROUP_OPER_SUB_SUBTREE:
+		ret = qgroup_subtree_accounting(trans, fs_info, oper);
 		break;
 	default:
 		ASSERT(0);
@@ -2068,7 +2245,6 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	if (srcid) {
 		struct btrfs_root *srcroot;
 		struct btrfs_key srckey;
-		int srcroot_level;
 
 		srckey.objectid = srcid;
 		srckey.type = BTRFS_ROOT_ITEM_KEY;
@@ -2080,8 +2256,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 		}
 
 		rcu_read_lock();
-		srcroot_level = btrfs_header_level(srcroot->node);
-		level_size = btrfs_level_size(srcroot, srcroot_level);
+		level_size = srcroot->nodesize;
 		rcu_read_unlock();
 	}
 
@@ -2397,7 +2572,7 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 		    found.type != BTRFS_METADATA_ITEM_KEY)
 			continue;
 		if (found.type == BTRFS_METADATA_ITEM_KEY)
-			num_bytes = fs_info->extent_root->leafsize;
+			num_bytes = fs_info->extent_root->nodesize;
 		else
 			num_bytes = found.offset;
 
@@ -2551,6 +2726,7 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 	memset(&fs_info->qgroup_rescan_work, 0,
 	       sizeof(fs_info->qgroup_rescan_work));
 	btrfs_init_work(&fs_info->qgroup_rescan_work,
+			btrfs_qgroup_rescan_helper,
 			btrfs_qgroup_rescan_worker, NULL, NULL);
 
 	if (ret) {

@@ -84,6 +84,15 @@ struct uinput_ff_erase {
  */
 #define UI_GET_SYSNAME(len)	_IOC(_IOC_READ, UINPUT_IOCTL_BASE, 300, len)
 
+/**
+ * UI_GET_VERSION - Return version of uinput protocol
+ *
+ * This writes uinput protocol version implemented by the kernel into
+ * the integer pointed to by the ioctl argument. The protocol version
+ * is hard-coded in the kernel and is independent of the uinput device.
+ */
+#define UI_GET_VERSION		_IOR(UINPUT_IOCTL_BASE, 301, unsigned int)
+
 /*
  * To write a force-feedback-capable driver, the upload_effect
  * and erase_effect callbacks in input_dev must be implemented.

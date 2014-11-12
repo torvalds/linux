@@ -302,6 +302,12 @@ modulator programming see
 <link linkend="sdr">SDR Capture</link> interface.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_CAP_EXT_PIX_FORMAT</constant></entry>
+	    <entry>0x00200000</entry>
+	    <entry>The device supports the &v4l2-pix-format; extended
+fields.</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_CAP_READWRITE</constant></entry>
 	    <entry>0x01000000</entry>
 	    <entry>The device supports the <link

@@ -27,7 +27,6 @@
 
 struct cgroup_root;
 struct cgroup_subsys;
-struct inode;
 struct cgroup;
 
 extern int cgroup_init_early(void);
@@ -38,7 +37,8 @@ extern void cgroup_exit(struct task_struct *p);
 extern int cgroupstats_build(struct cgroupstats *stats,
 				struct dentry *dentry);
 
-extern int proc_cgroup_show(struct seq_file *, void *);
+extern int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
+			    struct pid *pid, struct task_struct *tsk);
 
 /* define the enumeration of all cgroup subsystems */
 #define SUBSYS(_x) _x ## _cgrp_id,
@@ -161,11 +161,6 @@ static inline void css_put(struct cgroup_subsys_state *css)
 
 /* bits in struct cgroup flags field */
 enum {
-	/*
-	 * Control Group has previously had a child cgroup or a task,
-	 * but no longer (only if CGRP_NOTIFY_ON_RELEASE is set)
-	 */
-	CGRP_RELEASABLE,
 	/* Control Group requires release notifications to userspace */
 	CGRP_NOTIFY_ON_RELEASE,
 	/*
@@ -235,13 +230,6 @@ struct cgroup {
 	struct list_head e_csets[CGROUP_SUBSYS_COUNT];
 
 	/*
-	 * Linked list running through all cgroups that can
-	 * potentially be reaped by the release agent. Protected by
-	 * release_list_lock
-	 */
-	struct list_head release_list;
-
-	/*
 	 * list of pidlists, up to two for each namespace (one for procs, one
 	 * for tasks); created on demand.
 	 */
@@ -250,6 +238,9 @@ struct cgroup {
 
 	/* used to wait for offlining of csses */
 	wait_queue_head_t offline_waitq;
+
+	/* used to schedule release agent */
+	struct work_struct release_agent_work;
 };
 
 #define MAX_CGROUP_ROOT_NAMELEN 64
@@ -536,13 +527,10 @@ static inline bool cgroup_has_tasks(struct cgroup *cgrp)
 	return !list_empty(&cgrp->cset_links);
 }
 
-/* returns ino associated with a cgroup, 0 indicates unmounted root */
+/* returns ino associated with a cgroup */
 static inline ino_t cgroup_ino(struct cgroup *cgrp)
 {
-	if (cgrp->kn)
-		return cgrp->kn->ino;
-	else
-		return 0;
+	return cgrp->kn->ino;
 }
 
 /* cft/css accessors for cftype->write() operation */

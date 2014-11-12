@@ -80,7 +80,7 @@ struct ptldebug_header {
 	__u32 ph_pid;
 	__u32 ph_extern_pid;
 	__u32 ph_line_num;
-} __attribute__((packed));
+} __packed;
 
 #define PH_FLAG_FIRST_RECORD 1
 
@@ -165,7 +165,7 @@ struct ptldebug_header {
 #define CDEBUG_DEFAULT_MIN_DELAY ((cfs_time_seconds(1) + 1) / 2) /* jiffies */
 #define CDEBUG_DEFAULT_BACKOFF   2
 struct cfs_debug_limit_state {
-	cfs_time_t   cdls_next;
+	unsigned long   cdls_next;
 	unsigned int cdls_delay;
 	int	     cdls_count;
 };
@@ -254,20 +254,20 @@ do {									\
 	goto label;							\
 } while (0)
 
-extern int libcfs_debug_msg(struct libcfs_debug_msg_data *msgdata,
+int libcfs_debug_msg(struct libcfs_debug_msg_data *msgdata,
 			    const char *format1, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
-extern int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
+int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 			      const char *format1,
 			      va_list args, const char *format2, ...)
 	__attribute__ ((format (printf, 4, 5)));
 
 /* other external symbols that tracefile provides: */
-extern int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
-				   const char *usr_buffer, int usr_buffer_nob);
-extern int cfs_trace_copyout_string(char *usr_buffer, int usr_buffer_nob,
-				    const char *knl_buffer, char *append);
+int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
+		const char __user *usr_buffer, int usr_buffer_nob);
+int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
+		const char *knl_buffer, char *append);
 
 #define LIBCFS_DEBUG_FILE_PATH_DEFAULT "/tmp/lustre-log"
 

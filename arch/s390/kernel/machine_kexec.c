@@ -25,6 +25,7 @@
 #include <asm/elf.h>
 #include <asm/asm-offsets.h>
 #include <asm/os_info.h>
+#include <asm/switch_to.h>
 
 typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long);
 
@@ -43,7 +44,7 @@ static void add_elf_notes(int cpu)
 
 	memcpy((void *) (4608UL + sa->pref_reg), sa, sizeof(*sa));
 	ptr = (u64 *) per_cpu_ptr(crash_notes, cpu);
-	ptr = fill_cpu_elf_notes(ptr, sa);
+	ptr = fill_cpu_elf_notes(ptr, sa, NULL);
 	memset(ptr, 0, sizeof(struct elf_note));
 }
 
@@ -53,8 +54,11 @@ static void add_elf_notes(int cpu)
 static void setup_regs(void)
 {
 	unsigned long sa = S390_lowcore.prefixreg_save_area + SAVE_AREA_BASE;
+	struct _lowcore *lc;
 	int cpu, this_cpu;
 
+	/* Get lowcore pointer from store status of this CPU (absolute zero) */
+	lc = (struct _lowcore *)(unsigned long)S390_lowcore.prefixreg_save_area;
 	this_cpu = smp_find_processor_id(stap());
 	add_elf_notes(this_cpu);
 	for_each_online_cpu(cpu) {
@@ -64,6 +68,8 @@ static void setup_regs(void)
 			continue;
 		add_elf_notes(cpu);
 	}
+	if (MACHINE_HAS_VX)
+		save_vx_regs_safe((void *) lc->vector_save_area_addr);
 	/* Copy dump CPU store status info to absolute zero */
 	memcpy((void *) SAVE_AREA_BASE, (void *) sa, sizeof(struct save_area));
 }

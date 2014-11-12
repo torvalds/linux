@@ -1955,8 +1955,9 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 
 static int at76_hw_scan(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif,
-			struct cfg80211_scan_request *req)
+			struct ieee80211_scan_request *hw_req)
 {
+	struct cfg80211_scan_request *req = &hw_req->req;
 	struct at76_priv *priv = hw->priv;
 	struct at76_req_scan scan;
 	u8 *ssid = NULL;
@@ -2422,8 +2423,6 @@ static void at76_delete_device(struct at76_priv *priv)
 
 	kfree_skb(priv->rx_skb);
 
-	usb_put_dev(priv->udev);
-
 	at76_dbg(DBG_PROC_ENTRY, "%s: before freeing priv/ieee80211_hw",
 		 __func__);
 	ieee80211_free_hw(priv->hw);
@@ -2557,6 +2556,7 @@ static void at76_disconnect(struct usb_interface *interface)
 
 	wiphy_info(priv->hw->wiphy, "disconnecting\n");
 	at76_delete_device(priv);
+	usb_put_dev(priv->udev);
 	dev_info(&interface->dev, "disconnected\n");
 }
 

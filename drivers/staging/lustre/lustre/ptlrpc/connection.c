@@ -35,13 +35,13 @@
  */
 
 #define DEBUG_SUBSYSTEM S_RPC
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_net.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_net.h"
 
 #include "ptlrpc_internal.h"
 
-static struct cfs_hash *conn_hash = NULL;
+static struct cfs_hash *conn_hash;
 static cfs_hash_ops_t conn_hash_ops;
 
 struct ptlrpc_connection *
@@ -52,7 +52,7 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 
 	conn = cfs_hash_lookup(conn_hash, &peer);
 	if (conn)
-		GOTO(out, conn);
+		goto out;
 
 	OBD_ALLOC_PTR(conn);
 	if (!conn)
@@ -173,7 +173,7 @@ conn_keycmp(const void *key, struct hlist_node *hnode)
 	const lnet_process_id_t *conn_key;
 
 	LASSERT(key != NULL);
-	conn_key = (lnet_process_id_t*)key;
+	conn_key = (lnet_process_id_t *)key;
 	conn = hlist_entry(hnode, struct ptlrpc_connection, c_hash);
 
 	return conn_key->nid == conn->c_peer.nid &&

@@ -31,14 +31,6 @@
 
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
-int private_ioctl(PSDevice pDevice, struct ifreq *rq);
+int private_ioctl(struct vnt_private *, struct ifreq *rq);
 
 #endif // __IOCTL_H__

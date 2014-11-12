@@ -33,8 +33,8 @@
 #define PTP_CLASS_IPV4  0x10 /* event in an IPV4 UDP packet */
 #define PTP_CLASS_IPV6  0x20 /* event in an IPV6 UDP packet */
 #define PTP_CLASS_L2    0x30 /* event in a L2 packet */
-#define PTP_CLASS_VLAN  0x40 /* event in a VLAN tagged L2 packet */
-#define PTP_CLASS_PMASK 0xf0 /* mask for the packet type field */
+#define PTP_CLASS_PMASK 0x30 /* mask for the packet type field */
+#define PTP_CLASS_VLAN  0x40 /* event in a VLAN tagged packet */
 
 #define PTP_CLASS_V1_IPV4 (PTP_CLASS_V1 | PTP_CLASS_IPV4)
 #define PTP_CLASS_V1_IPV6 (PTP_CLASS_V1 | PTP_CLASS_IPV6) /* probably DNE */
@@ -54,7 +54,6 @@
 #define IP6_HLEN	40
 #define UDP_HLEN	8
 #define OFF_IHL		14
-#define OFF_PTP6	(ETH_HLEN + IP6_HLEN + UDP_HLEN)
 #define IPV4_HLEN(data) (((struct iphdr *)(data + OFF_IHL))->ihl << 2)
 
 #if defined(CONFIG_NET_PTP_CLASSIFY)

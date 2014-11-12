@@ -255,7 +255,6 @@ int mdiobus_register(struct mii_bus *bus)
 
 	bus->dev.parent = bus->parent;
 	bus->dev.class = &mdio_bus_class;
-	bus->dev.driver = bus->parent->driver;
 	bus->dev.groups = NULL;
 	dev_set_name(&bus->dev, "%s", bus->id);
 
@@ -554,8 +553,14 @@ static ssize_t
 phy_interface_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct phy_device *phydev = to_phy_device(dev);
+	const char *mode = NULL;
 
-	return sprintf(buf, "%s\n", phy_modes(phydev->interface));
+	if (phy_is_internal(phydev))
+		mode = "internal";
+	else
+		mode = phy_modes(phydev->interface);
+
+	return sprintf(buf, "%s\n", mode);
 }
 static DEVICE_ATTR_RO(phy_interface);
 

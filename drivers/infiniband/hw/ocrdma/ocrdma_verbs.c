@@ -69,11 +69,11 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 	memcpy(&attr->fw_ver, &dev->attr.fw_ver[0],
 	       min(sizeof(dev->attr.fw_ver), sizeof(attr->fw_ver)));
 	ocrdma_get_guid(dev, (u8 *)&attr->sys_image_guid);
-	attr->max_mr_size = ~0ull;
+	attr->max_mr_size = dev->attr.max_mr_size;
 	attr->page_size_cap = 0xffff000;
 	attr->vendor_id = dev->nic_info.pdev->vendor;
 	attr->vendor_part_id = dev->nic_info.pdev->device;
-	attr->hw_ver = 0;
+	attr->hw_ver = dev->asic_id;
 	attr->max_qp = dev->attr.max_qp;
 	attr->max_ah = OCRDMA_MAX_AH;
 	attr->max_qp_wr = dev->attr.max_wqe;
@@ -101,7 +101,7 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 	attr->max_srq_sge = dev->attr.max_srq_sge;
 	attr->max_srq_wr = dev->attr.max_rqe;
 	attr->local_ca_ack_delay = dev->attr.local_ca_ack_delay;
-	attr->max_fast_reg_page_list_len = 0;
+	attr->max_fast_reg_page_list_len = dev->attr.max_pages_per_frmr;
 	attr->max_pkeys = 1;
 	return 0;
 }
@@ -268,7 +268,8 @@ static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 		pd->dpp_enabled =
 			ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R;
 		pd->num_dpp_qp =
-			pd->dpp_enabled ? OCRDMA_PD_MAX_DPP_ENABLED_QP : 0;
+			pd->dpp_enabled ? (dev->nic_info.db_page_size /
+					   dev->attr.wqe_size) : 0;
 	}
 
 retry:
@@ -328,7 +329,10 @@ static int ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 	struct ocrdma_pd *pd = uctx->cntxt_pd;
 	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 
-	BUG_ON(uctx->pd_in_use);
+	if (uctx->pd_in_use) {
+		pr_err("%s(%d) Freeing in use pdid=0x%x.\n",
+		       __func__, dev->id, pd->id);
+	}
 	uctx->cntxt_pd = NULL;
 	status = _ocrdma_dealloc_pd(dev, pd);
 	return status;
@@ -384,7 +388,7 @@ struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 
 	memset(&resp, 0, sizeof(resp));
 	resp.ah_tbl_len = ctx->ah_tbl.len;
-	resp.ah_tbl_page = ctx->ah_tbl.pa;
+	resp.ah_tbl_page = virt_to_phys(ctx->ah_tbl.va);
 
 	status = ocrdma_add_mmap(ctx, resp.ah_tbl_page, resp.ah_tbl_len);
 	if (status)
@@ -843,6 +847,13 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 	if (mr->umem)
 		ib_umem_release(mr->umem);
 	kfree(mr);
+
+	/* Don't stop cleanup, in case FW is unresponsive */
+	if (dev->mqe_ctx.fw_error_state) {
+		status = 0;
+		pr_err("%s(%d) fw not responding.\n",
+		       __func__, dev->id);
+	}
 	return status;
 }
 
@@ -859,7 +870,7 @@ static int ocrdma_copy_cq_uresp(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	uresp.page_size = PAGE_ALIGN(cq->len);
 	uresp.num_pages = 1;
 	uresp.max_hw_cqe = cq->max_hw_cqe;
-	uresp.page_addr[0] = cq->pa;
+	uresp.page_addr[0] = virt_to_phys(cq->va);
 	uresp.db_page_addr =  ocrdma_get_db_addr(dev, uctx->cntxt_pd->id);
 	uresp.db_page_size = dev->nic_info.db_page_size;
 	uresp.phase_change = cq->phase_change ? 1 : 0;
@@ -1112,13 +1123,13 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 	uresp.sq_dbid = qp->sq.dbid;
 	uresp.num_sq_pages = 1;
 	uresp.sq_page_size = PAGE_ALIGN(qp->sq.len);
-	uresp.sq_page_addr[0] = qp->sq.pa;
+	uresp.sq_page_addr[0] = virt_to_phys(qp->sq.va);
 	uresp.num_wqe_allocated = qp->sq.max_cnt;
 	if (!srq) {
 		uresp.rq_dbid = qp->rq.dbid;
 		uresp.num_rq_pages = 1;
 		uresp.rq_page_size = PAGE_ALIGN(qp->rq.len);
-		uresp.rq_page_addr[0] = qp->rq.pa;
+		uresp.rq_page_addr[0] = virt_to_phys(qp->rq.va);
 		uresp.num_rqe_allocated = qp->rq.max_cnt;
 	}
 	uresp.db_page_addr = usr_db;
@@ -1669,7 +1680,7 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
 	memset(&uresp, 0, sizeof(uresp));
 	uresp.rq_dbid = srq->rq.dbid;
 	uresp.num_rq_pages = 1;
-	uresp.rq_page_addr[0] = srq->rq.pa;
+	uresp.rq_page_addr[0] = virt_to_phys(srq->rq.va);
 	uresp.rq_page_size = srq->rq.len;
 	uresp.db_page_addr = dev->nic_info.unmapped_db +
 	    (srq->pd->id * dev->nic_info.db_page_size);
@@ -1859,7 +1870,7 @@ static int ocrdma_build_inline_sges(struct ocrdma_qp *qp,
 		hdr->total_len = ocrdma_sglist_len(wr->sg_list, wr->num_sge);
 		if (unlikely(hdr->total_len > qp->max_inline_data)) {
 			pr_err("%s() supported_len=0x%x,\n"
-			       " unspported len req=0x%x\n", __func__,
+			       " unsupported len req=0x%x\n", __func__,
 				qp->max_inline_data, hdr->total_len);
 			return -EINVAL;
 		}
@@ -2054,6 +2065,13 @@ int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	}
 
 	while (wr) {
+		if (qp->qp_type == IB_QPT_UD &&
+		    (wr->opcode != IB_WR_SEND &&
+		     wr->opcode != IB_WR_SEND_WITH_IMM)) {
+			*bad_wr = wr;
+			status = -EINVAL;
+			break;
+		}
 		if (ocrdma_hwq_free_cnt(&qp->sq) == 0 ||
 		    wr->num_sge > qp->sq.max_sges) {
 			*bad_wr = wr;
@@ -2488,6 +2506,11 @@ static bool ocrdma_poll_err_scqe(struct ocrdma_qp *qp,
 			*stop = true;
 			expand = false;
 		}
+	} else if (is_hw_sq_empty(qp)) {
+		/* Do nothing */
+		expand = false;
+		*polled = false;
+		*stop = false;
 	} else {
 		*polled = true;
 		expand = ocrdma_update_err_scqe(ibwc, cqe, qp, status);
@@ -2593,6 +2616,11 @@ static bool ocrdma_poll_err_rcqe(struct ocrdma_qp *qp, struct ocrdma_cqe *cqe,
 			*stop = true;
 			expand = false;
 		}
+	} else if (is_hw_rq_empty(qp)) {
+		/* Do nothing */
+		expand = false;
+		*polled = false;
+		*stop = false;
 	} else {
 		*polled = true;
 		expand = ocrdma_update_err_rcqe(ibwc, cqe, qp, status);
@@ -2818,11 +2846,9 @@ int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags cq_flags)
 	if (cq->first_arm) {
 		ocrdma_ring_cq_db(dev, cq_id, arm_needed, sol_needed, 0);
 		cq->first_arm = false;
-		goto skip_defer;
 	}
-	cq->deferred_arm = true;
 
-skip_defer:
+	cq->deferred_arm = true;
 	cq->deferred_sol = sol_needed;
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 

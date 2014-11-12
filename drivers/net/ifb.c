@@ -185,7 +185,8 @@ static void ifb_setup(struct net_device *dev)
 
 	dev->flags |= IFF_NOARP;
 	dev->flags &= ~IFF_MULTICAST;
-	dev->priv_flags &= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	netif_keep_dst(dev);
 	eth_hw_addr_random(dev);
 }
 
@@ -269,8 +270,8 @@ static int __init ifb_init_one(int index)
 	struct ifb_private *dp;
 	int err;
 
-	dev_ifb = alloc_netdev(sizeof(struct ifb_private),
-				 "ifb%d", ifb_setup);
+	dev_ifb = alloc_netdev(sizeof(struct ifb_private), "ifb%d",
+			       NET_NAME_UNKNOWN, ifb_setup);
 
 	if (!dev_ifb)
 		return -ENOMEM;

@@ -3880,14 +3880,12 @@ void snd_trident_free_voice(struct snd_trident * trident, struct snd_trident_voi
 {
 	unsigned long flags;
 	void (*private_free)(struct snd_trident_voice *);
-	void *private_data;
 
 	if (voice == NULL || !voice->use)
 		return;
 	snd_trident_clear_voices(trident, voice->number, voice->number);
 	spin_lock_irqsave(&trident->voice_alloc, flags);
 	private_free = voice->private_free;
-	private_data = voice->private_data;
 	voice->private_free = NULL;
 	voice->private_data = NULL;
 	if (voice->pcm)

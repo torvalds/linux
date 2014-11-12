@@ -42,9 +42,12 @@
 #ifndef _LPROCFS_SNMP_H
 #define _LPROCFS_SNMP_H
 
-#include <linux/lprocfs_status.h>
-#include <lustre/lustre_idl.h>
-#include <linux/libcfs/params_tree.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+
+#include "lustre/lustre_idl.h"
 
 struct lprocfs_vars {
 	const char		*name;
@@ -352,7 +355,7 @@ struct obd_histogram;
 
 /* Days / hours / mins / seconds format */
 struct dhms {
-	int d,h,m,s;
+	int d, h, m, s;
 };
 static inline void s2dhms(struct dhms *ts, time_t secs)
 {
@@ -375,7 +378,7 @@ extern int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
 				     int *val, int mult);
 extern int lprocfs_read_frac_helper(char *buffer, unsigned long count,
 				    long val, int mult);
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 
 extern int lprocfs_stats_alloc_one(struct lprocfs_stats *stats,
 				   unsigned int cpuid);
@@ -605,10 +608,10 @@ extern int lprocfs_obd_seq_create(struct obd_device *dev, const char *name,
 
 extern int lprocfs_rd_u64(struct seq_file *m, void *data);
 extern int lprocfs_rd_atomic(struct seq_file *m, void *data);
-extern int lprocfs_wr_atomic(struct file *file, const char *buffer,
+extern int lprocfs_wr_atomic(struct file *file, const char __user *buffer,
 			     unsigned long count, void *data);
 extern int lprocfs_rd_uint(struct seq_file *m, void *data);
-extern int lprocfs_wr_uint(struct file *file, const char *buffer,
+extern int lprocfs_wr_uint(struct file *file, const char __user *buffer,
 			   unsigned long count, void *data);
 extern int lprocfs_rd_uuid(struct seq_file *m, void *data);
 extern int lprocfs_rd_name(struct seq_file *m, void *data);
@@ -662,8 +665,8 @@ unsigned long lprocfs_oh_sum(struct obd_histogram *oh);
 void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 			   struct lprocfs_counter *cnt);
 
-extern int lprocfs_single_release(cfs_inode_t *, struct file *);
-extern int lprocfs_seq_release(cfs_inode_t *, struct file *);
+extern int lprocfs_single_release(struct inode *, struct file *);
+extern int lprocfs_seq_release(struct inode *, struct file *);
 
 /* You must use these macros when you want to refer to
  * the import in a client obd_device for a lprocfs entry */
@@ -674,7 +677,7 @@ extern int lprocfs_seq_release(cfs_inode_t *, struct file *);
 	     up_read(&(obd)->u.cli.cl_sem); \
 	     return -ENODEV;		    \
 	}				       \
-} while(0)
+} while (0)
 #define LPROCFS_CLIMP_EXIT(obd)		 \
 	up_read(&(obd)->u.cli.cl_sem);
 
@@ -684,7 +687,7 @@ extern int lprocfs_seq_release(cfs_inode_t *, struct file *);
   a read-write proc entry, and then call LPROC_SEQ_SEQ instead. Finally,
   call lprocfs_obd_seq_create(obd, filename, 0444, &name#_fops, data); */
 #define __LPROC_SEQ_FOPS(name, custom_seq_write)			\
-static int name##_single_open(cfs_inode_t *inode, struct file *file)	\
+static int name##_single_open(struct inode *inode, struct file *file)	\
 {									\
 	return single_open(file, name##_seq_show, PDE_DATA(inode));	\
 }									\
@@ -727,7 +730,7 @@ static struct file_operations name##_fops = {				\
 	{								\
 		return lprocfs_wr_##type(file, buffer, count, off);	\
 	}								\
-	static int name##_##type##_open(cfs_inode_t *inode, struct file *file) \
+	static int name##_##type##_open(struct inode *inode, struct file *file) \
 	{								\
 		return single_open(file, NULL, PDE_DATA(inode));	\
 	}								\
@@ -806,7 +809,7 @@ extern int lprocfs_quota_wr_qs_factor(struct file *file,
 				      const char *buffer,
 				      unsigned long count, void *data);
 #else
-/* LPROCFS is not defined */
+/* CONFIG_PROC_FS is not defined */
 
 #define proc_lustre_root NULL
 
@@ -865,7 +868,8 @@ static inline void lprocfs_free_md_stats(struct obd_device *obddev)
 struct obd_export;
 static inline int lprocfs_add_clear_entry(struct obd_export *exp)
 { return 0; }
-static inline int lprocfs_exp_setup(struct obd_export *exp,lnet_nid_t *peer_nid,
+static inline int lprocfs_exp_setup(struct obd_export *exp,
+				    lnet_nid_t *peer_nid,
 				    int *newnid)
 { return 0; }
 static inline int lprocfs_exp_cleanup(struct obd_export *exp)
@@ -1000,6 +1004,6 @@ __u64 lprocfs_stats_collector(struct lprocfs_stats *stats, int idx,
 /* lproc_ptlrpc.c */
 #define target_print_req NULL
 
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */
 
 #endif /* LPROCFS_SNMP_H */

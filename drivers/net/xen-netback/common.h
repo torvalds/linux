@@ -44,6 +44,7 @@
 #include <xen/interface/grant_table.h>
 #include <xen/grant_table.h>
 #include <xen/xenbus.h>
+#include <linux/debugfs.h>
 
 typedef unsigned int pending_ring_idx_t;
 #define INVALID_PENDING_RING_IDX (~0U)
@@ -164,6 +165,7 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	u16 dealloc_ring[MAX_PENDING_REQS];
 	struct task_struct *dealloc_task;
 	wait_queue_head_t dealloc_wq;
+	atomic_t inflight_packets;
 
 	/* Use kthread for guest RX */
 	struct task_struct *task;
@@ -174,10 +176,11 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	char rx_irq_name[IRQ_NAME_SIZE]; /* DEVNAME-qN-rx */
 	struct xen_netif_rx_back_ring rx;
 	struct sk_buff_head rx_queue;
-	RING_IDX rx_last_skb_slots;
-	bool rx_queue_purge;
 
-	struct timer_list wake_queue;
+	unsigned int rx_queue_max;
+	unsigned int rx_queue_len;
+	unsigned long last_rx_time;
+	bool stalled;
 
 	struct gnttab_copy grant_copy_op[MAX_GRANT_COPY_OPS];
 
@@ -197,6 +200,16 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	struct xenvif_stats stats;
 };
 
+/* Maximum number of Rx slots a to-guest packet may use, including the
+ * slot needed for GSO meta-data.
+ */
+#define XEN_NETBK_RX_SLOTS_MAX (MAX_SKB_FRAGS + 1)
+
+enum state_bit_shift {
+	/* This bit marks that the vif is connected */
+	VIF_STATUS_CONNECTED,
+};
+
 struct xenvif {
 	/* Unique identifier for this interface. */
 	domid_t          domid;
@@ -212,21 +225,34 @@ struct xenvif {
 	u8 ip_csum:1;
 	u8 ipv6_csum:1;
 
-	/* Internal feature information. */
-	u8 can_queue:1;	    /* can queue packets for receiver? */
-
 	/* Is this interface disabled? True when backend discovers
 	 * frontend is rogue.
 	 */
 	bool disabled;
+	unsigned long status;
 
 	/* Queues */
 	struct xenvif_queue *queues;
 	unsigned int num_queues; /* active queues, resource allocated */
+	unsigned int stalled_queues;
+
+	spinlock_t lock;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *xenvif_dbg_root;
+#endif
 
 	/* Miscellaneous private stuff. */
 	struct net_device *dev;
 };
+
+struct xenvif_rx_cb {
+	unsigned long expires;
+	int meta_slots_used;
+	bool full_coalesce;
+};
+
+#define XENVIF_RX_CB(skb) ((struct xenvif_rx_cb *)(skb)->cb)
 
 static inline struct xenbus_device *xenvif_to_xenbus_device(struct xenvif *vif)
 {
@@ -251,8 +277,6 @@ void xenvif_xenbus_fini(void);
 
 int xenvif_schedulable(struct xenvif *vif);
 
-int xenvif_must_stop_queue(struct xenvif_queue *queue);
-
 int xenvif_queue_stopped(struct xenvif_queue *queue);
 void xenvif_wake_queue(struct xenvif_queue *queue);
 
@@ -274,6 +298,8 @@ int xenvif_kthread_guest_rx(void *data);
 void xenvif_kick_thread(struct xenvif_queue *queue);
 
 int xenvif_dealloc_kthread(void *data);
+
+void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
 
 /* Determine whether the needed number of slots (req) are available,
  * and set req_event if not.
@@ -297,10 +323,20 @@ static inline pending_ring_idx_t nr_pending_reqs(struct xenvif_queue *queue)
 /* Callback from stack when TX packet can be released */
 void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success);
 
+irqreturn_t xenvif_interrupt(int irq, void *dev_id);
+
 extern bool separate_tx_rx_irq;
 
 extern unsigned int rx_drain_timeout_msecs;
 extern unsigned int rx_drain_timeout_jiffies;
 extern unsigned int xenvif_max_queues;
+
+#ifdef CONFIG_DEBUG_FS
+extern struct dentry *xen_netback_dbg_root;
+#endif
+
+void xenvif_skb_zerocopy_prepare(struct xenvif_queue *queue,
+				 struct sk_buff *skb);
+void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue);
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

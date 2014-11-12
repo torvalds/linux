@@ -12,10 +12,9 @@
 
 #include <linux/acpi.h>
 #include <linux/module.h>
+#include <linux/ctype.h>
 
 static const struct acpi_device_id acpi_pnp_device_ids[] = {
-	/* soc_button_array */
-	{"PNP0C40"},
 	/* pata_isapnp */
 	{"PNP0600"},		/* Generic ESDI/IDE/ATA compatible hard disk controller */
 	/* floppy */
@@ -131,10 +130,6 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"PNP0401"},		/* ECP Printer Port */
 	/* apple-gmux */
 	{"APP000B"},
-	/* fujitsu-laptop.c */
-	{"FUJ02bf"},
-	{"FUJ02B1"},
-	{"FUJ02E3"},
 	/* system */
 	{"PNP0c02"},		/* General ID for reserving resources */
 	{"PNP0c01"},		/* memory controller */
@@ -320,11 +315,6 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{""},
 };
 
-static bool is_hex_digit(char c)
-{
-	return (c >= 0 && c <= '9') || (c >= 'A' && c <= 'F');
-}
-
 static bool matching_id(char *idstr, char *list_id)
 {
 	int i;
@@ -335,7 +325,7 @@ static bool matching_id(char *idstr, char *list_id)
 	for (i = 3; i < 7; i++) {
 		char c = toupper(idstr[i]);
 
-		if (!is_hex_digit(c)
+		if (!isxdigit(c)
 		    || (list_id[i] != 'X' && c != toupper(list_id[i])))
 			return false;
 	}

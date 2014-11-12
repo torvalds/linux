@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -72,11 +72,11 @@
 #define  PIDX_MASK   0x00003fffU
 #define  PIDX_SHIFT  0
 #define  PIDX(x)     ((x) << PIDX_SHIFT)
-#define  S_PIDX_T5   0
-#define  M_PIDX_T5   0x1fffU
-#define  PIDX_T5(x)  (((x) >> S_PIDX_T5) & M_PIDX_T5)
+#define  PIDX_SHIFT_T5   0
+#define  PIDX_T5(x)  ((x) << PIDX_SHIFT_T5)
 
 
+#define SGE_TIMERREGS	6
 #define SGE_PF_GTS 0x4
 #define  INGRESSQID_MASK   0xffff0000U
 #define  INGRESSQID_SHIFT  16
@@ -157,7 +157,26 @@
 #define  QUEUESPERPAGEPF0_MASK   0x0000000fU
 #define  QUEUESPERPAGEPF0_GET(x) ((x) & QUEUESPERPAGEPF0_MASK)
 
+#define QUEUESPERPAGEPF0    0
 #define QUEUESPERPAGEPF1    4
+
+/* T5 and later support a new BAR2-based doorbell mechanism for Egress Queues.
+ * The User Doorbells are each 128 bytes in length with a Simple Doorbell at
+ * offsets 8x and a Write Combining single 64-byte Egress Queue Unit
+ * (X_IDXSIZE_UNIT) Gather Buffer interface at offset 64.  For Ingress Queues,
+ * we have a Going To Sleep register at offsets 8x+4.
+ *
+ * As noted above, we have many instances of the Simple Doorbell and Going To
+ * Sleep registers at offsets 8x and 8x+4, respectively.  We want to use a
+ * non-64-byte aligned offset for the Simple Doorbell in order to attempt to
+ * avoid buffering of the writes to the Simple Doorbell and we want to use a
+ * non-contiguous offset for the Going To Sleep writes in order to avoid
+ * possible combining between them.
+ */
+#define SGE_UDB_SIZE            128
+#define SGE_UDB_KDOORBELL       8
+#define SGE_UDB_GTS             20
+#define SGE_UDB_WCDOORBELL      64
 
 #define SGE_INT_CAUSE1 0x1024
 #define SGE_INT_CAUSE2 0x1030
@@ -250,6 +269,12 @@
 #define S_NOCOALESCE    26
 #define V_NOCOALESCE(x) ((x) << S_NOCOALESCE)
 #define F_NOCOALESCE    V_NOCOALESCE(1U)
+
+#define SGE_TIMESTAMP_LO 0x1098
+#define SGE_TIMESTAMP_HI 0x109c
+#define S_TSVAL    0
+#define M_TSVAL    0xfffffffU
+#define GET_TSVAL(x) (((x) >> S_TSVAL) & M_TSVAL)
 
 #define SGE_TIMER_VALUE_0_AND_1 0x10b8
 #define  TIMERVALUE0_MASK   0xffff0000U
@@ -387,6 +412,8 @@
 #define  MSTGRPPERR      0x00000001U
 
 #define PCIE_NONFAT_ERR 0x3010
+#define PCIE_CFG_SPACE_REQ 0x3060
+#define PCIE_CFG_SPACE_DATA 0x3064
 #define PCIE_MEM_ACCESS_BASE_WIN 0x3068
 #define S_PCIEOFST       10
 #define M_PCIEOFST       0x3fffffU
@@ -398,7 +425,11 @@
 #define  WINDOW_MASK     0x000000ffU
 #define  WINDOW_SHIFT    0
 #define  WINDOW(x)       ((x) << WINDOW_SHIFT)
+#define  GET_WINDOW(x)	 (((x) >> WINDOW_SHIFT) & WINDOW_MASK)
 #define PCIE_MEM_ACCESS_OFFSET 0x306c
+#define ENABLE	(1U << 30)
+#define FUNCTION(x) ((x) << 12)
+#define F_LOCALCFG    (1U << 28)
 
 #define S_PFNUM    0
 #define V_PFNUM(x) ((x) << S_PFNUM)
@@ -436,11 +467,13 @@
 #define  TDUE 0x00010000U
 
 #define MC_INT_CAUSE 0x7518
+#define MC_P_INT_CAUSE 0x41318
 #define  ECC_UE_INT_CAUSE 0x00000004U
 #define  ECC_CE_INT_CAUSE 0x00000002U
 #define  PERR_INT_CAUSE   0x00000001U
 
 #define MC_ECC_STATUS 0x751c
+#define MC_P_ECC_STATUS 0x4131c
 #define  ECC_CECNT_MASK   0xffff0000U
 #define  ECC_CECNT_SHIFT  16
 #define  ECC_CECNT(x)     ((x) << ECC_CECNT_SHIFT)
@@ -497,6 +530,7 @@
 #define  MEM_WRAP_CLIENT_NUM_GET(x) (((x) & MEM_WRAP_CLIENT_NUM_MASK) >> MEM_WRAP_CLIENT_NUM_SHIFT)
 #define MA_PCIE_FW 0x30b8
 #define MA_PARITY_ERROR_STATUS 0x77f4
+#define MA_PARITY_ERROR_STATUS2 0x7804
 
 #define MA_EXT_MEMORY1_BAR 0x7808
 #define EDC_0_BASE_ADDR 0x7900
@@ -945,6 +979,7 @@
 #define  TRCMULTIFILTER     0x00000001U
 
 #define MPS_TRC_RSS_CONTROL 0x9808
+#define MPS_T5_TRC_RSS_CONTROL 0xa00c
 #define  RSSCONTROL_MASK    0x00ff0000U
 #define  RSSCONTROL_SHIFT   16
 #define  RSSCONTROL(x)      ((x) << RSSCONTROL_SHIFT)
@@ -1089,6 +1124,7 @@
 #define  I2CM       0x00000002U
 #define  CIM        0x00000001U
 
+#define MC1 0x31
 #define PL_INT_ENABLE 0x19410
 #define PL_INT_MAP0 0x19414
 #define PL_RST 0x19428

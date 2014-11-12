@@ -24,9 +24,9 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <video/of_display_timing.h>
+#include <linux/regulator/consumer.h>
 #include <video/videomode.h>
 
-#include <mach/cpu.h>
 #include <asm/gpio.h>
 
 #include <video/atmel_lcdc.h>
@@ -60,6 +60,7 @@ struct atmel_lcdfb_info {
 	struct atmel_lcdfb_pdata pdata;
 
 	struct atmel_lcdfb_config *config;
+	struct regulator	*reg_lcd;
 };
 
 struct atmel_lcdfb_power_ctrl_gpio {
@@ -290,7 +291,7 @@ static void init_contrast(struct atmel_lcdfb_info *sinfo)
 
 	/* contrast pwm can be 'inverted' */
 	if (pdata->lcdcon_pol_negative)
-			contrast_ctr &= ~(ATMEL_LCDC_POL_POSITIVE);
+		contrast_ctr &= ~(ATMEL_LCDC_POL_POSITIVE);
 
 	/* have some default contrast/backlight settings */
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, contrast_ctr);
@@ -302,10 +303,24 @@ static void init_contrast(struct atmel_lcdfb_info *sinfo)
 
 static inline void atmel_lcdfb_power_control(struct atmel_lcdfb_info *sinfo, int on)
 {
+	int ret;
 	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 
 	if (pdata->atmel_lcdfb_power_control)
 		pdata->atmel_lcdfb_power_control(pdata, on);
+	else if (sinfo->reg_lcd) {
+		if (on) {
+			ret = regulator_enable(sinfo->reg_lcd);
+			if (ret)
+				dev_err(&sinfo->pdev->dev,
+					"lcd regulator enable failed:	%d\n", ret);
+		} else {
+			ret = regulator_disable(sinfo->reg_lcd);
+			if (ret)
+				dev_err(&sinfo->pdev->dev,
+					"lcd regulator disable failed: %d\n", ret);
+		}
+	}
 }
 
 static struct fb_fix_screeninfo atmel_lcdfb_fix __initdata = {
@@ -1097,16 +1112,19 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 	pdata->lcd_wiring_mode = ret;
 
 	pdata->lcdcon_is_backlight = of_property_read_bool(display_np, "atmel,lcdcon-backlight");
+	pdata->lcdcon_pol_negative = of_property_read_bool(display_np, "atmel,lcdcon-backlight-inverted");
 
 	timings = of_get_display_timings(display_np);
 	if (!timings) {
 		dev_err(dev, "failed to get display timings\n");
+		ret = -EINVAL;
 		goto put_display_node;
 	}
 
 	timings_np = of_find_node_by_name(display_np, "display-timings");
 	if (!timings_np) {
 		dev_err(dev, "failed to find display-timings node\n");
+		ret = -ENODEV;
 		goto put_display_node;
 	}
 
@@ -1191,6 +1209,10 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 
 	if (!sinfo->config)
 		goto free_info;
+
+	sinfo->reg_lcd = devm_regulator_get(&pdev->dev, "lcd");
+	if (IS_ERR(sinfo->reg_lcd))
+		sinfo->reg_lcd = NULL;
 
 	info->flags = ATMEL_LCDFB_FBINFO_DEFAULT;
 	info->pseudo_palette = sinfo->pseudo_palette;

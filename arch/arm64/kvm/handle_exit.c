@@ -66,6 +66,8 @@ static int kvm_handle_wfx(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	else
 		kvm_vcpu_block(vcpu);
 
+	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+
 	return 1;
 }
 
@@ -73,9 +75,9 @@ static exit_handle_fn arm_exit_handlers[] = {
 	[ESR_EL2_EC_WFI]	= kvm_handle_wfx,
 	[ESR_EL2_EC_CP15_32]	= kvm_handle_cp15_32,
 	[ESR_EL2_EC_CP15_64]	= kvm_handle_cp15_64,
-	[ESR_EL2_EC_CP14_MR]	= kvm_handle_cp14_access,
+	[ESR_EL2_EC_CP14_MR]	= kvm_handle_cp14_32,
 	[ESR_EL2_EC_CP14_LS]	= kvm_handle_cp14_load_store,
-	[ESR_EL2_EC_CP14_64]	= kvm_handle_cp14_access,
+	[ESR_EL2_EC_CP14_64]	= kvm_handle_cp14_64,
 	[ESR_EL2_EC_HVC32]	= handle_hvc,
 	[ESR_EL2_EC_SMC32]	= handle_smc,
 	[ESR_EL2_EC_HVC64]	= handle_hvc,

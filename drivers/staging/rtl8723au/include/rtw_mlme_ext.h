@@ -266,7 +266,7 @@ struct mlme_handler {
 
 struct action_handler {
 	unsigned int   num;
-	char* str;
+	char *str;
 	int (*func)(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 };
 
@@ -281,16 +281,6 @@ struct	ss_res
 	struct cfg80211_ssid ssid[RTW_SSID_SCAN_AMOUNT];
 	struct rtw_ieee80211_channel ch[RTW_CHANNEL_SCAN_AMOUNT];
 };
-
-/* define AP_MODE				0x0C */
-/* define STATION_MODE	0x08 */
-/* define AD_HOC_MODE		0x04 */
-/* define NO_LINK_MODE	0x00 */
-
-#define		WIFI_FW_NULL_STATE			_HW_STATE_NOLINK_
-#define	WIFI_FW_STATION_STATE		_HW_STATE_STATION_
-#define	WIFI_FW_AP_STATE				_HW_STATE_AP_
-#define	WIFI_FW_ADHOC_STATE			_HW_STATE_ADHOC_
 
 #define	WIFI_FW_AUTH_NULL			0x00000100
 #define	WIFI_FW_AUTH_STATE			0x00000200
@@ -366,8 +356,8 @@ struct mlme_ext_info
 
 	struct ADDBA_request		ADDBA_req;
 	struct WMM_para_element	WMM_param;
-	struct HT_caps_element	HT_caps;
-	struct HT_info_element		HT_info;
+	struct ieee80211_ht_cap ht_cap;
+	struct ieee80211_ht_operation HT_info;
 	struct wlan_bssid_ex			network;/* join network or bss_network, if in ap mode, it is the same to cur_network.network */
 	struct FW_Sta_Info		FW_sta_info[NUM_STA];
 };
@@ -405,7 +395,7 @@ struct p2p_channels {
 };
 
 struct p2p_oper_class_map {
-	enum hw_mode {IEEE80211G,IEEE80211A} mode;
+	enum hw_mode {IEEE80211G, IEEE80211A} mode;
 	u8 op_class;
 	u8 min_chan;
 	u8 max_chan;
@@ -456,7 +446,7 @@ struct mlme_ext_priv {
 	u8 active_keep_alive_check;
 };
 
-int init_mlme_ext_priv23a(struct rtw_adapter* padapter);
+int init_mlme_ext_priv23a(struct rtw_adapter *padapter);
 int init_hw_mlme_ext23a(struct rtw_adapter *padapter);
 void free_mlme_ext_priv23a (struct mlme_ext_priv *pmlmeext);
 void init_mlme_ext_timer23a(struct rtw_adapter *padapter);
@@ -468,10 +458,8 @@ u8 judge_network_type23a(struct rtw_adapter *padapter, unsigned char *rate,
 		      int ratelen);
 void get_rate_set23a(struct rtw_adapter *padapter, unsigned char *pbssrate,
 		  int *bssrate_len);
-void UpdateBrateTbl23a(struct rtw_adapter *padapter,u8 *mBratesOS);
+void UpdateBrateTbl23a(struct rtw_adapter *padapter, u8 *mBratesOS);
 void Update23aTblForSoftAP(u8 *bssrateset, u32 bssratelen);
-
-void Set_MSR23a(struct rtw_adapter *padapter, u8 type);
 
 u8 rtw_get_oper_ch23a(struct rtw_adapter *adapter);
 void rtw_set_oper_ch23a(struct rtw_adapter *adapter, u8 ch);
@@ -495,14 +483,10 @@ void flush_all_cam_entry23a(struct rtw_adapter *padapter);
 
 bool IsLegal5GChannel(struct rtw_adapter *Adapter, u8 channel);
 
-int collect_bss_info23a(struct rtw_adapter *padapter,
-			struct recv_frame *precv_frame,
-			struct wlan_bssid_ex *bssid);
 void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 		    struct rtw_adapter *padapter, bool update_ie);
 
 u8 *get_my_bssid23a(struct wlan_bssid_ex *pnetwork);
-u16 get_beacon_interval23a(struct wlan_bssid_ex *bss);
 
 bool is_client_associated_to_ap23a(struct rtw_adapter *padapter);
 bool is_client_associated_to_ibss23a(struct rtw_adapter *padapter);
@@ -510,18 +494,19 @@ bool is_IBSS_empty23a(struct rtw_adapter *padapter);
 
 unsigned char check_assoc_AP23a(u8 *pframe, uint len);
 
-int WMM_param_handler23a(struct rtw_adapter *padapter, u8 *p);
+int WMM_param_handler23a(struct rtw_adapter *padapter, const u8 *p);
 void WMMOnAssocRsp23a(struct rtw_adapter *padapter);
 
-void HT_caps_handler23a(struct rtw_adapter *padapter, u8 *p);
-void HT_info_handler23a(struct rtw_adapter *padapter, u8 *p);
+void HT_caps_handler23a(struct rtw_adapter *padapter, const u8 *p);
+void HT_info_handler23a(struct rtw_adapter *padapter, const u8 *p);
 void HTOnAssocRsp23a(struct rtw_adapter *padapter);
 
-void ERP_IE_handler23a(struct rtw_adapter *padapter, u8 *p);
+void ERP_IE_handler23a(struct rtw_adapter *padapter, const u8 *p);
 void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta);
 
-void update_beacon23a_info(struct rtw_adapter *padapter, u8 *pframe, uint len,
-			struct sta_info *psta);
+void update_beacon23a_info(struct rtw_adapter *padapter,
+			   struct ieee80211_mgmt *mgmt, uint len,
+			   struct sta_info *psta);
 int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 			  struct ieee80211_mgmt *mgmt, u32 packet_len);
 void update_IOT_info23a(struct rtw_adapter *padapter);
@@ -529,14 +514,14 @@ void update_capinfo23a(struct rtw_adapter *Adapter, u16 updateCap);
 void update_wireless_mode23a(struct rtw_adapter * padapter);
 void update_tx_basic_rate23a(struct rtw_adapter *padapter, u8 modulation);
 void update_bmc_sta_support_rate23a(struct rtw_adapter *padapter, u32 mac_id);
-int update_sta_support_rate23a(struct rtw_adapter *padapter, u8* pvar_ie,
+int update_sta_support_rate23a(struct rtw_adapter *padapter, u8 *pvar_ie,
 			    uint var_ie_len, int cam_idx);
 
 /* for sta/adhoc mode */
 void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta);
 unsigned int update_basic_rate23a(unsigned char *ptn, unsigned int ptn_sz);
 unsigned int update_supported_rate23a(unsigned char *ptn, unsigned int ptn_sz);
-unsigned int update_MSC_rate23a(struct HT_caps_element *pHT_caps);
+unsigned int update_MSC_rate23a(struct ieee80211_ht_cap *ht_cap);
 void Update_RA_Entry23a(struct rtw_adapter *padapter, struct sta_info *psta);
 void set_sta_rate23a(struct rtw_adapter *padapter, struct sta_info *psta);
 
@@ -545,7 +530,7 @@ int receive_disconnect23a(struct rtw_adapter *padapter,
 
 unsigned char get_highest_rate_idx23a(u32 mask);
 int support_short_GI23a(struct rtw_adapter *padapter,
-		     struct HT_caps_element *pHT_caps);
+			struct ieee80211_ht_cap *ht_cap);
 bool is_ap_in_tkip23a(struct rtw_adapter *padapter);
 bool is_ap_in_wep23a(struct rtw_adapter *padapter);
 bool should_forbid_n_rate23a(struct rtw_adapter *padapter);

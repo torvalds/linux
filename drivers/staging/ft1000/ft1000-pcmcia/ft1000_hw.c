@@ -19,8 +19,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/proc_fs.h>
-
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
@@ -64,8 +62,8 @@ static struct timer_list poll_timer = {
 
 static u16 cmdbuffer[1024];
 static u8 tempbuffer[1600];
-static u8 ft1000_card_present = 0;
-static u8 flarion_ft1000_cnt = 0;
+static u8 ft1000_card_present;
+static u8 flarion_ft1000_cnt;
 
 static irqreturn_t ft1000_interrupt(int irq, void *dev_id);
 static void ft1000_enable_interrupts(struct net_device *dev);
@@ -127,7 +125,7 @@ u16 ft1000_read_dpram(struct net_device *dev, int offset)
 	data = ft1000_read_reg(dev, FT1000_REG_DPRAM_DATA);
 	spin_unlock_irqrestore(&info->dpram_lock, flags);
 
-	return (data);
+	return data;
 }
 
 /*---------------------------------------------------------------------------
@@ -185,7 +183,7 @@ u16 ft1000_read_dpram_mag_16(struct net_device *dev, int offset, int Index)
 	}
 	spin_unlock_irqrestore(&info->dpram_lock, flags);
 
-	return (data);
+	return data;
 }
 
 /*---------------------------------------------------------------------------
@@ -242,7 +240,7 @@ u32 ft1000_read_dpram_mag_32(struct net_device *dev, int offset)
 	data = inl(dev->base_addr + FT1000_REG_MAG_DPDATAL);
 	spin_unlock_irqrestore(&info->dpram_lock, flags);
 
-	return (data);
+	return data;
 }
 
 /*---------------------------------------------------------------------------
@@ -1079,7 +1077,7 @@ static void ft1000_proc_drvmsg(struct net_device *dev)
 			}
             }
             else {
-                DEBUG(1,"Media is down\n");
+                DEBUG(1, "Media is down\n");
                 if (info->mediastate == 1) {
                     info->mediastate = 0;
                     netif_carrier_off(dev);
@@ -1924,7 +1922,8 @@ static int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 static struct net_device_stats *ft1000_stats(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
-	return (&info->stats);
+
+	return &info->stats;
 }
 
 static int ft1000_open(struct net_device *dev)
@@ -2064,7 +2063,7 @@ static irqreturn_t ft1000_interrupt(int irq, void *dev_id)
 
 		/* Read interrupt type */
 		inttype = ft1000_read_reg (dev, FT1000_REG_SUP_ISR);
-		DEBUG(1,"ft1000_hw: interrupt status register after clear = 0x%x\n",inttype);
+		DEBUG(1, "ft1000_hw: interrupt status register after clear = 0x%x\n", inttype);
 	}
 	ft1000_enable_interrupts(dev);
 	return IRQ_HANDLED;
@@ -2099,10 +2098,9 @@ void stop_ft1000_card(struct net_device *dev)
 	}
 
 	free_irq(dev->irq, dev);
-	release_region(dev->base_addr,256);
+	release_region(dev->base_addr, 256);
 	release_firmware(fw_entry);
 	flarion_ft1000_cnt--;
-	ft1000CleanupProc(dev);
 
 }
 
@@ -2247,7 +2245,6 @@ struct net_device *init_ft1000_card(struct pcmcia_device *link,
 
 	ft1000_enable_interrupts(dev);
 
-	ft1000InitProc(dev);
 	ft1000_card_present = 1;
 	dev->ethtool_ops = &ops;
 	printk(KERN_INFO "ft1000: %s: addr 0x%04lx irq %d, MAC addr %pM\n",

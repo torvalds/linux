@@ -28,8 +28,6 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#define MULTIQ3_SIZE 16
-
 /*
  * MULTIQ-3 port offsets
  */
@@ -76,10 +74,6 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 #define MULTIQ3_EFLAG_RESET     0x06
 
 #define MULTIQ3_TIMEOUT 30
-
-struct multiq3_private {
-	unsigned int ao_readback[2];
-};
 
 static int multiq3_ai_status(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
@@ -128,38 +122,25 @@ static int multiq3_ai_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-static int multiq3_ao_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	struct multiq3_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
-}
-
 static int multiq3_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	struct multiq3_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
 	for (i = 0; i < insn->n; i++) {
+		val = data[i];
 		outw(MULTIQ3_CONTROL_MUST | MULTIQ3_DA_LOAD | chan,
 		     dev->iobase + MULTIQ3_CONTROL);
-		outw(data[i], dev->iobase + MULTIQ3_DAC_DATA);
+		outw(val, dev->iobase + MULTIQ3_DAC_DATA);
 		outw(MULTIQ3_CONTROL_MUST, dev->iobase + MULTIQ3_CONTROL);
-
-		devpriv->ao_readback[chan] = data[i];
 	}
+	s->readback[chan] = val;
 
-	return i;
+	return insn->n;
 }
 
 static int multiq3_di_insn_bits(struct comedi_device *dev,
@@ -189,12 +170,12 @@ static int multiq3_encoder_insn_read(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	int n;
 	int chan = CR_CHAN(insn->chanspec);
 	int control = MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan << 3);
+	int value;
+	int n;
 
 	for (n = 0; n < insn->n; n++) {
-		int value;
 		outw(control, dev->iobase + MULTIQ3_CONTROL);
 		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CONTROL);
 		outb(MULTIQ3_TRSFRCNTR_OL, dev->iobase + MULTIQ3_ENC_CONTROL);
@@ -229,21 +210,16 @@ static void encoder_reset(struct comedi_device *dev)
 static int multiq3_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	struct multiq3_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], MULTIQ3_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
 		return ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	s = &dev->subdevices[0];
 	/* ai subdevice */
@@ -259,10 +235,14 @@ static int multiq3_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 8;
-	s->insn_read = multiq3_ao_insn_read;
-	s->insn_write = multiq3_ao_insn_write;
 	s->maxdata = 0xfff;
 	s->range_table = &range_bipolar5;
+	s->insn_write = multiq3_ao_insn_write;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* di subdevice */

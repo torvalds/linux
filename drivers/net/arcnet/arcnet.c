@@ -346,7 +346,8 @@ struct net_device *alloc_arcdev(const char *name)
 	struct net_device *dev;
 
 	dev = alloc_netdev(sizeof(struct arcnet_local),
-			   name && *name ? name : "arc%d", arcdev_setup);
+			   name && *name ? name : "arc%d", NET_NAME_UNKNOWN,
+			   arcdev_setup);
 	if(dev) {
 		struct arcnet_local *lp = netdev_priv(dev);
 		spin_lock_init(&lp->lock);
@@ -776,7 +777,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			ACOMMAND(CFLAGScmd | RESETclear);
 		AINTMASK(0);
 		spin_unlock(&lp->lock);
-		return IRQ_HANDLED;
+		return retval;
 	}
 
 	BUGMSG(D_DURING, "in arcnet_inthandler (status=%Xh, intmask=%Xh)\n",

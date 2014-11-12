@@ -447,7 +447,7 @@ static int pcs_get_function(struct pinctrl_dev *pctldev, unsigned pin,
 	return 0;
 }
 
-static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
+static int pcs_set_mux(struct pinctrl_dev *pctldev, unsigned fselector,
 	unsigned group)
 {
 	struct pcs_device *pcs;
@@ -488,61 +488,6 @@ static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 	return 0;
 }
 
-static void pcs_disable(struct pinctrl_dev *pctldev, unsigned fselector,
-					unsigned group)
-{
-	struct pcs_device *pcs;
-	struct pcs_function *func;
-	int i;
-
-	pcs = pinctrl_dev_get_drvdata(pctldev);
-	/* If function mask is null, needn't disable it. */
-	if (!pcs->fmask)
-		return;
-
-	func = radix_tree_lookup(&pcs->ftree, fselector);
-	if (!func) {
-		dev_err(pcs->dev, "%s could not find function%i\n",
-			__func__, fselector);
-		return;
-	}
-
-	/*
-	 * Ignore disable if function-off is not specified. Some hardware
-	 * does not have clearly defined disable function. For pin specific
-	 * off modes, you can use alternate named states as described in
-	 * pinctrl-bindings.txt.
-	 */
-	if (pcs->foff == PCS_OFF_DISABLED) {
-		dev_dbg(pcs->dev, "ignoring disable for %s function%i\n",
-			func->name, fselector);
-		return;
-	}
-
-	dev_dbg(pcs->dev, "disabling function%i %s\n",
-		fselector, func->name);
-
-	for (i = 0; i < func->nvals; i++) {
-		struct pcs_func_vals *vals;
-		unsigned long flags;
-		unsigned val, mask;
-
-		vals = &func->vals[i];
-		raw_spin_lock_irqsave(&pcs->lock, flags);
-		val = pcs->read(vals->reg);
-
-		if (pcs->bits_per_mux)
-			mask = vals->mask;
-		else
-			mask = pcs->fmask;
-
-		val &= ~mask;
-		val |= pcs->foff << pcs->fshift;
-		pcs->write(val, vals->reg);
-		raw_spin_unlock_irqrestore(&pcs->lock, flags);
-	}
-}
-
 static int pcs_request_gpio(struct pinctrl_dev *pctldev,
 			    struct pinctrl_gpio_range *range, unsigned pin)
 {
@@ -574,8 +519,7 @@ static const struct pinmux_ops pcs_pinmux_ops = {
 	.get_functions_count = pcs_get_functions_count,
 	.get_function_name = pcs_get_function_name,
 	.get_function_groups = pcs_get_function_groups,
-	.enable = pcs_enable,
-	.disable = pcs_disable,
+	.set_mux = pcs_set_mux,
 	.gpio_request_enable = pcs_request_gpio,
 };
 
@@ -836,7 +780,7 @@ static int pcs_add_pin(struct pcs_device *pcs, unsigned offset,
 
 	pin = &pcs->pins.pa[i];
 	pn = &pcs->names[i];
-	sprintf(pn->name, "%lx.%d",
+	sprintf(pn->name, "%lx.%u",
 		(unsigned long)pcs->res->start + offset, pin_pos);
 	pin->name = pn->name;
 	pin->number = i;
@@ -1739,11 +1683,10 @@ static void pcs_irq_chain_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct pcs_soc_data *pcs_soc = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip;
-	int res;
 
 	chip = irq_get_chip(irq);
 	chained_irq_enter(chip, desc);
-	res = pcs_irq_handle(pcs_soc);
+	pcs_irq_handle(pcs_soc);
 	/* REVISIT: export and add handle_bad_irq(irq, desc)? */
 	chained_irq_exit(chip, desc);
 
@@ -2038,6 +1981,18 @@ static const struct pcs_soc_data pinctrl_single_omap_wkup = {
 	.irq_status_mask = (1 << 15),	/* OMAP_WAKEUP_EVENT */
 };
 
+static const struct pcs_soc_data pinctrl_single_dra7 = {
+	.flags = PCS_QUIRK_SHARED_IRQ,
+	.irq_enable_mask = (1 << 24),	/* WAKEUPENABLE */
+	.irq_status_mask = (1 << 25),	/* WAKEUPEVENT */
+};
+
+static const struct pcs_soc_data pinctrl_single_am437x = {
+	.flags = PCS_QUIRK_SHARED_IRQ,
+	.irq_enable_mask = (1 << 29),   /* OMAP_WAKEUP_EN */
+	.irq_status_mask = (1 << 30),   /* OMAP_WAKEUP_EVENT */
+};
+
 static const struct pcs_soc_data pinctrl_single = {
 };
 
@@ -2049,6 +2004,8 @@ static struct of_device_id pcs_of_match[] = {
 	{ .compatible = "ti,omap3-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap4-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap5-padconf", .data = &pinctrl_single_omap_wkup },
+	{ .compatible = "ti,dra7-padconf", .data = &pinctrl_single_dra7 },
+	{ .compatible = "ti,am437-padconf", .data = &pinctrl_single_am437x },
 	{ .compatible = "pinctrl-single", .data = &pinctrl_single },
 	{ .compatible = "pinconf-single", .data = &pinconf_single },
 	{ },

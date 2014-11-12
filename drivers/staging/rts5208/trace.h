@@ -49,7 +49,8 @@ static inline char *filename(char *path)
 #define TRACE_RET(chip, ret)						\
 	do {								\
 		char *_file = filename(__FILE__);			\
-		RTSX_DEBUGP("[%s][%s]:[%d]\n", _file, __func__, __LINE__); \
+		dev_dbg(rtsx_dev(chip), "[%s][%s]:[%d]\n", _file,	\
+			__func__, __LINE__);				\
 		(chip)->trace_msg[(chip)->msg_idx].line = (u16)(__LINE__); \
 		strncpy((chip)->trace_msg[(chip)->msg_idx].func, __func__, MSG_FUNC_LEN-1); \
 		strncpy((chip)->trace_msg[(chip)->msg_idx].file, _file, MSG_FILE_LEN-1); \
@@ -65,7 +66,8 @@ static inline char *filename(char *path)
 #define TRACE_GOTO(chip, label)						\
 	do {								\
 		char *_file = filename(__FILE__);			\
-		RTSX_DEBUGP("[%s][%s]:[%d]\n", _file, __func__, __LINE__); \
+		dev_dbg(rtsx_dev(chip), "[%s][%s]:[%d]\n", _file,	\
+			__func__, __LINE__);				\
 		(chip)->trace_msg[(chip)->msg_idx].line = (u16)(__LINE__); \
 		strncpy((chip)->trace_msg[(chip)->msg_idx].func, __func__, MSG_FUNC_LEN-1); \
 		strncpy((chip)->trace_msg[(chip)->msg_idx].file, _file, MSG_FILE_LEN-1); \
@@ -80,14 +82,6 @@ static inline char *filename(char *path)
 #else
 #define TRACE_RET(chip, ret)	return ret
 #define TRACE_GOTO(chip, label)	goto label
-#endif
-
-#ifdef CONFIG_RTS5208_DEBUG
-#define RTSX_DUMP(buf, buf_len)					\
-	print_hex_dump(KERN_DEBUG, RTSX_STOR, DUMP_PREFIX_NONE,	\
-				16, 1, (buf), (buf_len), false)
-#else
-#define RTSX_DUMP(buf, buf_len)
 #endif
 
 #endif  /* __REALTEK_RTSX_TRACE_H */

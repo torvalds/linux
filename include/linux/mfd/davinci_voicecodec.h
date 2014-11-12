@@ -21,7 +21,7 @@
  */
 
 #ifndef __LINUX_MFD_DAVINCI_VOICECODEC_H_
-#define __LINUX_MFD_DAVINIC_VOICECODEC_H_
+#define __LINUX_MFD_DAVINCI_VOICECODEC_H_
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>

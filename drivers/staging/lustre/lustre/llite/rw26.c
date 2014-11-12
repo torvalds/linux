@@ -55,9 +55,9 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre_lite.h>
+#include "../include/lustre_lite.h"
 #include "llite_internal.h"
-#include <linux/lustre_compat25.h>
+#include "../include/linux/lustre_compat25.h"
 
 /**
  * Implements Linux VM address_space::invalidatepage() method. This method is
@@ -436,12 +436,12 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 				size = ((((size / 2) - 1) |
 					 ~CFS_PAGE_MASK) + 1) &
 					CFS_PAGE_MASK;
-				CDEBUG(D_VFSTRACE,"DIO size now %lu\n",
+				CDEBUG(D_VFSTRACE, "DIO size now %lu\n",
 				       size);
 				continue;
 			}
 
-			GOTO(out, result);
+			goto out;
 		}
 		iov_iter_advance(iter, result);
 		tot_bytes += result;

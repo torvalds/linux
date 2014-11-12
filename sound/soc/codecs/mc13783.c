@@ -765,12 +765,18 @@ static int __init mc13783_codec_probe(struct platform_device *pdev)
 			return -ENOSYS;
 
 		ret = of_property_read_u32(np, "adc-port", &priv->adc_ssi_port);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			return ret;
+		}
 
 		ret = of_property_read_u32(np, "dac-port", &priv->dac_ssi_port);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			return ret;
+		}
+
+		of_node_put(np);
 	}
 
 	dev_set_drvdata(&pdev->dev, priv);

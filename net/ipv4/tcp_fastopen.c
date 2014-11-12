@@ -115,7 +115,7 @@ static bool tcp_fastopen_cookie_gen(struct request_sock *req,
 
 		if (__tcp_fastopen_cookie_gen(&ip6h->saddr, &tmp)) {
 			struct in6_addr *buf = (struct in6_addr *) tmp.val;
-			int i = 4;
+			int i;
 
 			for (i = 0; i < 4; i++)
 				buf->s6_addr32[i] ^= ip6h->daddr.s6_addr32[i];

@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -387,15 +389,19 @@ struct iwl_error_event_table {
 struct iwl_umac_error_event_table {
 	u32 valid;		/* (nonzero) valid, (0) log is empty */
 	u32 error_id;		/* type of error */
-	u32 pc;			/* program counter */
 	u32 blink1;		/* branch link */
 	u32 blink2;		/* branch link */
 	u32 ilink1;		/* interrupt link */
 	u32 ilink2;		/* interrupt link */
 	u32 data1;		/* error-specific data */
 	u32 data2;		/* error-specific data */
-	u32 line;		/* source code line of error */
-	u32 umac_ver;		/* umac version */
+	u32 data3;		/* error-specific data */
+	u32 umac_fw_ver;	/* UMAC version */
+	u32 umac_fw_api_ver;	/* UMAC FW API ver */
+	u32 frame_pointer;	/* core register 27*/
+	u32 stack_pointer;	/* core register 28 */
+	u32 cmd_header;	/* latest host cmd sent to UMAC */
+	u32 nic_isr_pref;	/* ISR status register */
 } __packed;
 
 #define ERROR_START_OFFSET  (1 * sizeof(u32))
@@ -409,7 +415,7 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 
 	base = mvm->umac_error_event_table;
 
-	if (base < 0x800000 || base >= 0x80C000) {
+	if (base < 0x800000) {
 		IWL_ERR(mvm,
 			"Not valid error log pointer 0x%08X for %s uCode\n",
 			base,
@@ -428,14 +434,19 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 
 	IWL_ERR(mvm, "0x%08X | %-28s\n", table.error_id,
 		desc_lookup(table.error_id));
-	IWL_ERR(mvm, "0x%08X | umac uPc\n", table.pc);
 	IWL_ERR(mvm, "0x%08X | umac branchlink1\n", table.blink1);
 	IWL_ERR(mvm, "0x%08X | umac branchlink2\n", table.blink2);
 	IWL_ERR(mvm, "0x%08X | umac interruptlink1\n", table.ilink1);
 	IWL_ERR(mvm, "0x%08X | umac interruptlink2\n", table.ilink2);
 	IWL_ERR(mvm, "0x%08X | umac data1\n", table.data1);
 	IWL_ERR(mvm, "0x%08X | umac data2\n", table.data2);
-	IWL_ERR(mvm, "0x%08X | umac version\n", table.umac_ver);
+	IWL_ERR(mvm, "0x%08X | umac data3\n", table.data3);
+	IWL_ERR(mvm, "0x%08X | umac version\n", table.umac_fw_ver);
+	IWL_ERR(mvm, "0x%08X | umac api version\n", table.umac_fw_api_ver);
+	IWL_ERR(mvm, "0x%08X | frame pointer\n", table.frame_pointer);
+	IWL_ERR(mvm, "0x%08X | stack pointer\n", table.stack_pointer);
+	IWL_ERR(mvm, "0x%08X | last host cmd\n", table.cmd_header);
+	IWL_ERR(mvm, "0x%08X | isr status reg\n", table.nic_isr_pref);
 }
 
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
@@ -519,70 +530,51 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 		iwl_mvm_dump_umac_error_log(mvm);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-void iwl_mvm_fw_error_sram_dump(struct iwl_mvm *mvm)
+void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
+			const struct iwl_trans_txq_scd_cfg *cfg)
 {
-	const struct fw_img *img;
-	u32 ofs, sram_len;
-	void *sram;
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		struct iwl_scd_txq_cfg_cmd cmd = {
+			.scd_queue = queue,
+			.enable = 1,
+			.window = cfg->frame_limit,
+			.sta_id = cfg->sta_id,
+			.ssn = cpu_to_le16(ssn),
+			.tx_fifo = cfg->fifo,
+			.aggregate = cfg->aggregate,
+			.flags = IWL_SCD_FLAGS_DQA_ENABLED,
+			.tid = cfg->tid,
+			.control = IWL_SCD_CONTROL_SET_SSN,
+		};
+		int ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0,
+					       sizeof(cmd), &cmd);
+		if (ret)
+			IWL_ERR(mvm,
+				"Failed to configure queue %d on FIFO %d\n",
+				queue, cfg->fifo);
+	}
 
-	if (!mvm->ucode_loaded || mvm->fw_error_sram || mvm->fw_error_dump)
-		return;
-
-	img = &mvm->fw->img[mvm->cur_ucode];
-	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
-	sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
-
-	sram = kzalloc(sram_len, GFP_ATOMIC);
-	if (!sram)
-		return;
-
-	iwl_trans_read_mem_bytes(mvm->trans, ofs, sram, sram_len);
-	mvm->fw_error_sram = sram;
-	mvm->fw_error_sram_len = sram_len;
+	iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn,
+				 iwl_mvm_is_dqa_supported(mvm) ? NULL : cfg);
 }
 
-void iwl_mvm_fw_error_rxf_dump(struct iwl_mvm *mvm)
+void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue)
 {
-	int i, reg_val;
-	unsigned long flags;
+	iwl_trans_txq_disable(mvm->trans, queue,
+			      !iwl_mvm_is_dqa_supported(mvm));
 
-	if (!mvm->ucode_loaded || mvm->fw_error_rxf || mvm->fw_error_dump)
-		return;
-
-	/* reading buffer size */
-	reg_val = iwl_trans_read_prph(mvm->trans, RXF_SIZE_ADDR);
-	mvm->fw_error_rxf_len =
-		(reg_val & RXF_SIZE_BYTE_CNT_MSK) >> RXF_SIZE_BYTE_CND_POS;
-
-	/* the register holds the value divided by 128 */
-	mvm->fw_error_rxf_len = mvm->fw_error_rxf_len << 7;
-
-	if (!mvm->fw_error_rxf_len)
-		return;
-
-	mvm->fw_error_rxf =  kzalloc(mvm->fw_error_rxf_len, GFP_ATOMIC);
-	if (!mvm->fw_error_rxf) {
-		mvm->fw_error_rxf_len = 0;
-		return;
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		struct iwl_scd_txq_cfg_cmd cmd = {
+			.scd_queue = queue,
+			.enable = 0,
+		};
+		int ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, CMD_ASYNC,
+					       sizeof(cmd), &cmd);
+		if (ret)
+			IWL_ERR(mvm, "Failed to disable queue %d (ret=%d)\n",
+				queue, ret);
 	}
-
-	if (!iwl_trans_grab_nic_access(mvm->trans, false, &flags)) {
-		kfree(mvm->fw_error_rxf);
-		mvm->fw_error_rxf = NULL;
-		mvm->fw_error_rxf_len = 0;
-		return;
-	}
-
-	for (i = 0; i < (mvm->fw_error_rxf_len / sizeof(u32)); i++) {
-		iwl_trans_write_prph(mvm->trans, RXF_LD_FENCE_OFFSET_ADDR,
-				     i * sizeof(u32));
-		mvm->fw_error_rxf[i] =
-			iwl_trans_read_prph(mvm->trans, RXF_FIFO_RD_FENCE_ADDR);
-	}
-	iwl_trans_release_nic_access(mvm->trans, &flags);
 }
-#endif
 
 /**
  * iwl_mvm_send_lq_cmd() - Send link quality command

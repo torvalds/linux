@@ -148,8 +148,8 @@ static void nfs_direct_set_hdr_verf(struct nfs_direct_req *dreq,
 {
 	struct nfs_writeverf *verfp;
 
-	verfp = nfs_direct_select_verf(dreq, hdr->data->ds_clp,
-				      hdr->data->ds_idx);
+	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp,
+				      hdr->ds_idx);
 	WARN_ON_ONCE(verfp->committed >= 0);
 	memcpy(verfp, &hdr->verf, sizeof(struct nfs_writeverf));
 	WARN_ON_ONCE(verfp->committed < 0);
@@ -169,8 +169,8 @@ static int nfs_direct_set_or_cmp_hdr_verf(struct nfs_direct_req *dreq,
 {
 	struct nfs_writeverf *verfp;
 
-	verfp = nfs_direct_select_verf(dreq, hdr->data->ds_clp,
-					 hdr->data->ds_idx);
+	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp,
+					 hdr->ds_idx);
 	if (verfp->committed < 0) {
 		nfs_direct_set_hdr_verf(dreq, hdr);
 		return 0;
@@ -178,7 +178,6 @@ static int nfs_direct_set_or_cmp_hdr_verf(struct nfs_direct_req *dreq,
 	return memcmp(verfp, &hdr->verf, sizeof(struct nfs_writeverf));
 }
 
-#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 /*
  * nfs_direct_cmp_commit_data_verf - compare verifier for commit data
  * @dreq - direct request possibly spanning multiple servers
@@ -197,7 +196,6 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
 	WARN_ON_ONCE(verfp->committed < 0);
 	return memcmp(verfp, &data->verf, sizeof(struct nfs_writeverf));
 }
-#endif
 
 /**
  * nfs_direct_IO - NFS address space operation for direct I/O
@@ -222,11 +220,9 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t 
 #else
 	VM_BUG_ON(iocb->ki_nbytes != PAGE_SIZE);
 
-	if (rw == READ || rw == KERNEL_READ)
-		return nfs_file_direct_read(iocb, iter, pos,
-				rw == READ ? true : false);
-	return nfs_file_direct_write(iocb, iter, pos,
-				rw == WRITE ? true : false);
+	if (rw == READ)
+		return nfs_file_direct_read(iocb, iter, pos);
+	return nfs_file_direct_write(iocb, iter, pos);
 #endif /* CONFIG_NFS_SWAP */
 }
 
@@ -512,7 +508,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
  * cache.
  */
 ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
-				loff_t pos, bool uio)
+				loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -576,7 +572,6 @@ out:
 	return result;
 }
 
-#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 {
 	struct nfs_pageio_descriptor desc;
@@ -700,22 +695,11 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 	schedule_work(&dreq->work); /* Calls nfs_direct_write_schedule_work */
 }
 
-#else
-static void nfs_direct_write_schedule_work(struct work_struct *work)
-{
-}
-
-static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode)
-{
-	nfs_direct_complete(dreq, true);
-}
-#endif
-
 static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 {
 	struct nfs_direct_req *dreq = hdr->dreq;
 	struct nfs_commit_info cinfo;
-	int bit = -1;
+	bool request_commit = false;
 	struct nfs_page *req = nfs_list_entry(hdr->pages.next);
 
 	if (test_bit(NFS_IOHDR_REDO, &hdr->flags))
@@ -729,27 +713,20 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 		dreq->flags = 0;
 		dreq->error = hdr->error;
 	}
-	if (dreq->error != 0)
-		bit = NFS_IOHDR_ERROR;
-	else {
+	if (dreq->error == 0) {
 		dreq->count += hdr->good_bytes;
-		if (test_bit(NFS_IOHDR_NEED_RESCHED, &hdr->flags)) {
-			dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
-			bit = NFS_IOHDR_NEED_RESCHED;
-		} else if (test_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags)) {
+		if (nfs_write_need_commit(hdr)) {
 			if (dreq->flags == NFS_ODIRECT_RESCHED_WRITES)
-				bit = NFS_IOHDR_NEED_RESCHED;
+				request_commit = true;
 			else if (dreq->flags == 0) {
 				nfs_direct_set_hdr_verf(dreq, hdr);
-				bit = NFS_IOHDR_NEED_COMMIT;
+				request_commit = true;
 				dreq->flags = NFS_ODIRECT_DO_COMMIT;
 			} else if (dreq->flags == NFS_ODIRECT_DO_COMMIT) {
-				if (nfs_direct_set_or_cmp_hdr_verf(dreq, hdr)) {
+				request_commit = true;
+				if (nfs_direct_set_or_cmp_hdr_verf(dreq, hdr))
 					dreq->flags =
 						NFS_ODIRECT_RESCHED_WRITES;
-					bit = NFS_IOHDR_NEED_RESCHED;
-				} else
-					bit = NFS_IOHDR_NEED_COMMIT;
 			}
 		}
 	}
@@ -759,9 +736,7 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 
 		req = nfs_list_entry(hdr->pages.next);
 		nfs_list_remove_request(req);
-		switch (bit) {
-		case NFS_IOHDR_NEED_RESCHED:
-		case NFS_IOHDR_NEED_COMMIT:
+		if (request_commit) {
 			kref_get(&req->wb_kref);
 			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
 		}
@@ -902,7 +877,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
  * is no atomic O_APPEND write facility in the NFS protocol.
  */
 ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
-				loff_t pos, bool uio)
+				loff_t pos)
 {
 	ssize_t result = -EINVAL;
 	struct file *file = iocb->ki_filp;

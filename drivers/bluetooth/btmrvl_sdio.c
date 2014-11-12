@@ -84,7 +84,27 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_87xx = {
 	.int_read_to_clear = false,
 };
 
-static const struct btmrvl_sdio_card_reg btmrvl_reg_88xx = {
+static const struct btmrvl_sdio_card_reg btmrvl_reg_8887 = {
+	.cfg = 0x00,
+	.host_int_mask = 0x08,
+	.host_intstatus = 0x0C,
+	.card_status = 0x5C,
+	.sq_read_base_addr_a0 = 0x6C,
+	.sq_read_base_addr_a1 = 0x6D,
+	.card_revision = 0xC8,
+	.card_fw_status0 = 0x88,
+	.card_fw_status1 = 0x89,
+	.card_rx_len = 0x8A,
+	.card_rx_unit = 0x8B,
+	.io_port_0 = 0xE4,
+	.io_port_1 = 0xE5,
+	.io_port_2 = 0xE6,
+	.int_read_to_clear = true,
+	.host_int_rsr = 0x04,
+	.card_misc_cfg = 0xD8,
+};
+
+static const struct btmrvl_sdio_card_reg btmrvl_reg_8897 = {
 	.cfg = 0x00,
 	.host_int_mask = 0x02,
 	.host_intstatus = 0x03,
@@ -108,6 +128,7 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8688 = {
 	.helper		= "mrvl/sd8688_helper.bin",
 	.firmware	= "mrvl/sd8688.bin",
 	.reg		= &btmrvl_reg_8688,
+	.support_pscan_win_report = false,
 	.sd_blksz_fw_dl	= 64,
 };
 
@@ -115,6 +136,7 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8787 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8787_uapsta.bin",
 	.reg		= &btmrvl_reg_87xx,
+	.support_pscan_win_report = false,
 	.sd_blksz_fw_dl	= 256,
 };
 
@@ -122,13 +144,23 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8797 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8797_uapsta.bin",
 	.reg		= &btmrvl_reg_87xx,
+	.support_pscan_win_report = false,
+	.sd_blksz_fw_dl	= 256,
+};
+
+static const struct btmrvl_sdio_device btmrvl_sdio_sd8887 = {
+	.helper		= NULL,
+	.firmware	= "mrvl/sd8887_uapsta.bin",
+	.reg		= &btmrvl_reg_8887,
+	.support_pscan_win_report = true,
 	.sd_blksz_fw_dl	= 256,
 };
 
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8897 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8897_uapsta.bin",
-	.reg		= &btmrvl_reg_88xx,
+	.reg		= &btmrvl_reg_8897,
+	.support_pscan_win_report = true,
 	.sd_blksz_fw_dl	= 256,
 };
 
@@ -145,6 +177,9 @@ static const struct sdio_device_id btmrvl_sdio_ids[] = {
 	/* Marvell SD8797 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x912A),
 			.driver_data = (unsigned long) &btmrvl_sdio_sd8797 },
+	/* Marvell SD8887 Bluetooth device */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x9136),
+			.driver_data = (unsigned long)&btmrvl_sdio_sd8887 },
 	/* Marvell SD8897 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x912E),
 			.driver_data = (unsigned long) &btmrvl_sdio_sd8897 },
@@ -1067,6 +1102,7 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 		card->firmware = data->firmware;
 		card->reg = data->reg;
 		card->sd_blksz_fw_dl = data->sd_blksz_fw_dl;
+		card->support_pscan_win_report = data->support_pscan_win_report;
 	}
 
 	if (btmrvl_sdio_register_dev(card) < 0) {
@@ -1164,6 +1200,10 @@ static int btmrvl_sdio_suspend(struct device *dev)
 	}
 
 	priv = card->priv;
+	hcidev = priv->btmrvl_dev.hcidev;
+	BT_DBG("%s: SDIO suspend", hcidev->name);
+	hci_suspend_dev(hcidev);
+	skb_queue_purge(&priv->adapter->tx_queue);
 
 	if (priv->adapter->hs_state != HS_ACTIVATED) {
 		if (btmrvl_enable_hs(priv)) {
@@ -1171,10 +1211,6 @@ static int btmrvl_sdio_suspend(struct device *dev)
 			return -EBUSY;
 		}
 	}
-	hcidev = priv->btmrvl_dev.hcidev;
-	BT_DBG("%s: SDIO suspend", hcidev->name);
-	hci_suspend_dev(hcidev);
-	skb_queue_purge(&priv->adapter->tx_queue);
 
 	priv->adapter->is_suspended = true;
 
@@ -1216,13 +1252,13 @@ static int btmrvl_sdio_resume(struct device *dev)
 		return 0;
 	}
 
-	priv->adapter->is_suspended = false;
-	hcidev = priv->btmrvl_dev.hcidev;
-	BT_DBG("%s: SDIO resume", hcidev->name);
-	hci_resume_dev(hcidev);
 	priv->hw_wakeup_firmware(priv);
 	priv->adapter->hs_state = HS_DEACTIVATED;
+	hcidev = priv->btmrvl_dev.hcidev;
 	BT_DBG("%s: HS DEACTIVATED in resume!", hcidev->name);
+	priv->adapter->is_suspended = false;
+	BT_DBG("%s: SDIO resume", hcidev->name);
+	hci_resume_dev(hcidev);
 
 	return 0;
 }
@@ -1275,4 +1311,5 @@ MODULE_FIRMWARE("mrvl/sd8688_helper.bin");
 MODULE_FIRMWARE("mrvl/sd8688.bin");
 MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8797_uapsta.bin");
+MODULE_FIRMWARE("mrvl/sd8887_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8897_uapsta.bin");

@@ -664,10 +664,8 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 
 	cs4270 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs4270_private),
 			      GFP_KERNEL);
-	if (!cs4270) {
-		dev_err(&i2c_client->dev, "could not allocate codec\n");
+	if (!cs4270)
 		return -ENOMEM;
-	}
 
 	/* get the power supply regulators */
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)

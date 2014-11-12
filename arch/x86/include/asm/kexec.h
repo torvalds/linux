@@ -23,6 +23,9 @@
 
 #include <asm/page.h>
 #include <asm/ptrace.h>
+#include <asm/bootparam.h>
+
+struct kimage;
 
 /*
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.
@@ -60,6 +63,10 @@
 /* The native architecture */
 # define KEXEC_ARCH KEXEC_ARCH_X86_64
 #endif
+
+/* Memory to backup during crash kdump */
+#define KEXEC_BACKUP_SRC_START	(0UL)
+#define KEXEC_BACKUP_SRC_END	(640 * 1024UL)	/* 640K */
 
 /*
  * CPU does not save ss and sp on stack if execution is already
@@ -160,6 +167,44 @@ struct kimage_arch {
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+	/* Details of backup region */
+	unsigned long backup_src_start;
+	unsigned long backup_src_sz;
+
+	/* Physical address of backup segment */
+	unsigned long backup_load_addr;
+
+	/* Core ELF header buffer */
+	void *elf_headers;
+	unsigned long elf_headers_sz;
+	unsigned long elf_load_addr;
+};
+#endif /* CONFIG_X86_32 */
+
+#ifdef CONFIG_X86_64
+/*
+ * Number of elements and order of elements in this structure should match
+ * with the ones in arch/x86/purgatory/entry64.S. If you make a change here
+ * make an appropriate change in purgatory too.
+ */
+struct kexec_entry64_regs {
+	uint64_t rax;
+	uint64_t rcx;
+	uint64_t rdx;
+	uint64_t rbx;
+	uint64_t rsp;
+	uint64_t rbp;
+	uint64_t rsi;
+	uint64_t rdi;
+	uint64_t r8;
+	uint64_t r9;
+	uint64_t r10;
+	uint64_t r11;
+	uint64_t r12;
+	uint64_t r13;
+	uint64_t r14;
+	uint64_t r15;
+	uint64_t rip;
 };
 #endif
 

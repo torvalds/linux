@@ -740,9 +740,9 @@ static bool slic_mac_filter(struct adapter *adapter,
 		if (opts & MAC_BCAST) {
 			adapter->rcv_broadcasts++;
 			return true;
-		} else {
-			return false;
 		}
+
+		return false;
 	}
 
 	if (is_multicast_ether_addr(ether_frame->ether_dhost)) {
@@ -763,10 +763,11 @@ static bool slic_mac_filter(struct adapter *adapter,
 				}
 				mcaddr = mcaddr->next;
 			}
-			return false;
-		} else {
+
 			return false;
 		}
+
+		return false;
 	}
 	if (opts & MAC_DIRECTED) {
 		adapter->rcv_unicasts++;
@@ -1190,18 +1191,15 @@ static int slic_rspqueue_init(struct adapter *adapter)
 	rspq->num_pages = SLIC_RSPQ_PAGES_GB;
 
 	for (i = 0; i < rspq->num_pages; i++) {
-		rspq->vaddr[i] = pci_alloc_consistent(adapter->pcidev,
-						      PAGE_SIZE,
-						      &rspq->paddr[i]);
+		rspq->vaddr[i] = pci_zalloc_consistent(adapter->pcidev,
+						       PAGE_SIZE,
+						       &rspq->paddr[i]);
 		if (!rspq->vaddr[i]) {
 			dev_err(&adapter->pcidev->dev,
 				"pci_alloc_consistent failed\n");
 			slic_rspqueue_free(adapter);
 			return -ENOMEM;
 		}
-		/* FIXME:
-		 * do we really need this assertions (4K PAGE_SIZE aligned addr)? */
-		memset(rspq->vaddr[i], 0, PAGE_SIZE);
 
 		if (paddrh == 0) {
 			slic_reg32_write(&slic_regs->slic_rbar,
@@ -1984,7 +1982,6 @@ static void slic_rcv_handle_error(struct adapter *adapter,
 				adapter->if_events.uflow802++;
 		}
 	}
-	return;
 }
 
 #define TCP_OFFLOAD_FRAME_PUSHFLAG  0x10000000
@@ -2457,6 +2454,7 @@ static void slic_entry_remove(struct pci_dev *pcidev)
 	adapter->allocated = 0;
 	if (!card->adapters_allocated) {
 		struct sliccard *curr_card = slic_global.slic_card;
+
 		if (curr_card == card) {
 			slic_global.slic_card = card->next;
 		} else {
@@ -2553,6 +2551,7 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCSLICTRACEDUMP:
 		{
 			u32 value;
+
 			DBG_IOCTL("slic_ioctl  SIOCSLIC_TRACE_DUMP\n");
 
 			if (copy_from_user(data, rq->ifr_data, 28)) {
@@ -2714,9 +2713,10 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 			dev_err(&adapter->pcidev->dev,
 				"Failed to allocate DMA memory for EEPROM.\n");
 			return -ENOMEM;
-		} else {
-			memset(peeprom, 0, sizeof(struct slic_eeprom));
 		}
+
+		memset(peeprom, 0, sizeof(struct slic_eeprom));
+
 		slic_reg32_write(&slic_regs->slic_icr, ICR_INT_OFF, FLUSH);
 		mdelay(1);
 		pshmem = (struct slic_shmem *)(unsigned long)
@@ -2751,11 +2751,11 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 
 					slic_upr_request_complete(adapter, 0);
 					break;
-				} else {
-					adapter->pshmem->isr = 0;
-					slic_reg32_write(&slic_regs->slic_isr,
-							 0, FLUSH);
 				}
+
+				adapter->pshmem->isr = 0;
+				slic_reg32_write(&slic_regs->slic_isr,
+						 0, FLUSH);
 			} else {
 				mdelay(1);
 				i++;

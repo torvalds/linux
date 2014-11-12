@@ -1,7 +1,8 @@
-/* bnx2fc_io.c: Broadcom NetXtreme II Linux FCoE offload driver.
+/* bnx2fc_io.c: QLogic NetXtreme II Linux FCoE offload driver.
  * IO manager and SCSI IO processing.
  *
  * Copyright (c) 2008 - 2013 Broadcom Corporation
+ * Copyright (c) 2014, QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1450,9 +1451,9 @@ static void bnx2fc_lun_reset_cmpl(struct bnx2fc_cmd *io_req)
 	struct scsi_cmnd *sc_cmd = io_req->sc_cmd;
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	struct bnx2fc_cmd *cmd, *tmp;
-	int tm_lun = sc_cmd->device->lun;
+	u64 tm_lun = sc_cmd->device->lun;
+	u64 lun;
 	int rc = 0;
-	int lun;
 
 	/* called with tgt_lock held */
 	BNX2FC_IO_DBG(io_req, "Entered bnx2fc_lun_reset_cmpl\n");
@@ -1653,6 +1654,10 @@ static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req)
 	u64 addr;
 	int i;
 
+	/*
+	 * Use dma_map_sg directly to ensure we're using the correct
+	 * dev struct off of pcidev.
+	 */
 	sg_count = dma_map_sg(&hba->pcidev->dev, scsi_sglist(sc),
 			      scsi_sg_count(sc), sc->sc_data_direction);
 	scsi_for_each_sg(sc, sg, sg_count, i) {
@@ -1702,9 +1707,16 @@ static int bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req)
 static void bnx2fc_unmap_sg_list(struct bnx2fc_cmd *io_req)
 {
 	struct scsi_cmnd *sc = io_req->sc_cmd;
+	struct bnx2fc_interface *interface = io_req->port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 
-	if (io_req->bd_tbl->bd_valid && sc) {
-		scsi_dma_unmap(sc);
+	/*
+	 * Use dma_unmap_sg directly to ensure we're using the correct
+	 * dev struct off of pcidev.
+	 */
+	if (io_req->bd_tbl->bd_valid && sc && scsi_sg_count(sc)) {
+		dma_unmap_sg(&hba->pcidev->dev, scsi_sglist(sc),
+		    scsi_sg_count(sc), sc->sc_data_direction);
 		io_req->bd_tbl->bd_valid = 0;
 	}
 }

@@ -14,11 +14,13 @@
 #define __VSP1_BRU_H__
 
 #include <media/media-entity.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
 #include "vsp1_entity.h"
 
 struct vsp1_device;
+struct vsp1_rwpf;
 
 #define BRU_PAD_SINK(n)				(n)
 #define BRU_PAD_SOURCE				4
@@ -26,7 +28,12 @@ struct vsp1_device;
 struct vsp1_bru {
 	struct vsp1_entity entity;
 
-	struct v4l2_rect compose[4];
+	struct v4l2_ctrl_handler ctrls;
+
+	struct {
+		struct vsp1_rwpf *rpf;
+		struct v4l2_rect compose;
+	} inputs[4];
 };
 
 static inline struct vsp1_bru *to_bru(struct v4l2_subdev *subdev)

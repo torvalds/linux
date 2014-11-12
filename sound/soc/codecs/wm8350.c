@@ -212,7 +212,7 @@ static void wm8350_pga_work(struct work_struct *work)
 {
 	struct snd_soc_dapm_context *dapm =
 	    container_of(work, struct snd_soc_dapm_context, delayed_work.work);
-	struct snd_soc_codec *codec = dapm->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
 	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out1 = &wm8350_data->out1,
 	    *out2 = &wm8350_data->out2;
@@ -918,16 +918,16 @@ static int wm8350_pcm_hw_params(struct snd_pcm_substream *substream,
 	    ~WM8350_AIF_WL_MASK;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface |= 0x1 << 10;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface |= 0x2 << 10;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface |= 0x3 << 10;
 		break;
 	}
@@ -1341,21 +1341,18 @@ int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 {
 	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350 *wm8350 = priv->wm8350;
-	int irq;
 	int ena;
 
 	switch (which) {
 	case WM8350_JDL:
 		priv->hpl.jack = jack;
 		priv->hpl.report = report;
-		irq = WM8350_IRQ_CODEC_JCK_DET_L;
 		ena = WM8350_JDL_ENA;
 		break;
 
 	case WM8350_JDR:
 		priv->hpr.jack = jack;
 		priv->hpr.report = report;
-		irq = WM8350_IRQ_CODEC_JCK_DET_R;
 		ena = WM8350_JDR_ENA;
 		break;
 

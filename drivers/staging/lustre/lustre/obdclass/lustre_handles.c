@@ -40,9 +40,9 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd_support.h>
-#include <lustre_handles.h>
-#include <lustre_lib.h>
+#include "../include/obd_support.h"
+#include "../include/lustre_handles.h"
+#include "../include/lustre_lib.h"
 
 
 static __u64 handle_base;
@@ -97,7 +97,7 @@ void class_handle_hash(struct portals_handle *h,
 	h->h_in = 1;
 	spin_unlock(&bucket->lock);
 
-	CDEBUG(D_INFO, "added object %p with handle "LPX64" to hash\n",
+	CDEBUG(D_INFO, "added object %p with handle %#llx to hash\n",
 	       h, h->h_cookie);
 }
 EXPORT_SYMBOL(class_handle_hash);
@@ -105,12 +105,12 @@ EXPORT_SYMBOL(class_handle_hash);
 static void class_handle_unhash_nolock(struct portals_handle *h)
 {
 	if (list_empty(&h->h_link)) {
-		CERROR("removing an already-removed handle ("LPX64")\n",
+		CERROR("removing an already-removed handle (%#llx)\n",
 		       h->h_cookie);
 		return;
 	}
 
-	CDEBUG(D_INFO, "removing object %p with handle "LPX64" from hash\n",
+	CDEBUG(D_INFO, "removing object %p with handle %#llx from hash\n",
 	       h, h->h_cookie);
 
 	spin_lock(&h->h_lock);
@@ -178,7 +178,7 @@ void *class_handle2object(__u64 cookie)
 }
 EXPORT_SYMBOL(class_handle2object);
 
-void class_handle_free_cb(cfs_rcu_head_t *rcu)
+void class_handle_free_cb(struct rcu_head *rcu)
 {
 	struct portals_handle *h = RCU2HANDLE(rcu);
 	void *ptr = (void *)(unsigned long)h->h_cookie;
@@ -230,7 +230,7 @@ static int cleanup_all_handles(void)
 
 		spin_lock(&handle_hash[i].lock);
 		list_for_each_entry_rcu(h, &(handle_hash[i].head), h_link) {
-			CERROR("force clean handle "LPX64" addr %p ops %p\n",
+			CERROR("force clean handle %#llx addr %p ops %p\n",
 			       h->h_cookie, h, h->h_ops);
 
 			class_handle_unhash_nolock(h);

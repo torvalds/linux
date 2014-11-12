@@ -39,8 +39,8 @@
 #define OHCI_SCHED_ENABLES \
 	(OHCI_CTRL_CLE|OHCI_CTRL_BLE|OHCI_CTRL_PLE|OHCI_CTRL_IE)
 
-static void dl_done_list (struct ohci_hcd *);
-static void finish_unlinks (struct ohci_hcd *, u16);
+static void update_done_list(struct ohci_hcd *);
+static void ohci_work(struct ohci_hcd *);
 
 #ifdef	CONFIG_PM
 static int ohci_rh_suspend (struct ohci_hcd *ohci, int autostop)
@@ -87,8 +87,8 @@ __acquires(ohci->lock)
 		msleep (8);
 		spin_lock_irq (&ohci->lock);
 	}
-	dl_done_list (ohci);
-	finish_unlinks (ohci, ohci_frame_no(ohci));
+	update_done_list(ohci);
+	ohci_work(ohci);
 
 	/*
 	 * Some controllers don't handle "global" suspend properly if
@@ -309,6 +309,9 @@ static int ohci_bus_suspend (struct usb_hcd *hcd)
 	else
 		rc = ohci_rh_suspend (ohci, 0);
 	spin_unlock_irq (&ohci->lock);
+
+	if (rc == 0)
+		del_timer_sync(&ohci->io_watchdog);
 	return rc;
 }
 
@@ -582,7 +585,7 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 	if (!(status & RH_PS_CCS))
 		return -ENODEV;
 
-	/* khubd will finish the reset later */
+	/* hub_wq will finish the reset later */
 	ohci_writel(ohci, RH_PS_PRS, &ohci->regs->roothub.portstatus [port]);
 	return 0;
 }
@@ -607,7 +610,7 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 /* wrap-aware logic morphed from <linux/jiffies.h> */
 #define tick_before(t1,t2) ((s16)(((s16)(t1))-((s16)(t2))) < 0)
 
-/* called from some task, normally khubd */
+/* called from some task, normally hub_wq */
 static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 {
 	__hc32 __iomem *portstat = &ohci->regs->roothub.portstatus [port];

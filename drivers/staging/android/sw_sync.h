@@ -50,7 +50,7 @@ static inline void sw_sync_timeline_inc(struct sw_sync_timeline *obj, u32 inc)
 }
 
 static inline struct sync_pt *sw_sync_pt_create(struct sw_sync_timeline *obj,
-		u32 value)
+						u32 value)
 {
 	return NULL;
 }

@@ -1,6 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -256,10 +257,14 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @cmd_queue - command queue number
  * @rx_buf_size_8k: 8 kB RX buffer size
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
+ * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @rx_page_order: page order for receive buffer size
  * @wd_timeout: queue watchdog timeout (jiffies)
  * @reg_lock: protect hw register access
  * @cmd_in_flight: true when we have a host command in flight
+ * @fw_mon_phys: physical address of the buffer for the firmware monitor
+ * @fw_mon_page: points to the first page of the buffer for the firmware monitor
+ * @fw_mon_size: size of the buffer for the firmware monitor
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq rxq;
@@ -302,6 +307,7 @@ struct iwl_trans_pcie {
 
 	bool rx_buf_size_8k;
 	bool bc_table_dword;
+	bool scd_set_active;
 	u32 rx_page_order;
 
 	const char *const *command_names;
@@ -312,6 +318,10 @@ struct iwl_trans_pcie {
 	/*protect hw register */
 	spinlock_t reg_lock;
 	bool cmd_in_flight;
+
+	dma_addr_t fw_mon_phys;
+	struct page *fw_mon_page;
+	u32 fw_mon_size;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
@@ -357,9 +367,10 @@ int iwl_pcie_tx_init(struct iwl_trans *trans);
 void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr);
 int iwl_pcie_tx_stop(struct iwl_trans *trans);
 void iwl_pcie_tx_free(struct iwl_trans *trans);
-void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
-			       int sta_id, int tid, int frame_limit, u16 ssn);
-void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue);
+void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int queue, u16 ssn,
+			       const struct iwl_trans_txq_scd_cfg *cfg);
+void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue,
+				bool configure_scd);
 int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      struct iwl_device_cmd *dev_cmd, int txq_id);
 void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans);

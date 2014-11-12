@@ -72,6 +72,12 @@
 #define MUSB_DEVCTL_HR		0x02
 #define MUSB_DEVCTL_SESSION	0x01
 
+/* BABBLE_CTL */
+#define MUSB_BABBLE_FORCE_TXIDLE	0x80
+#define MUSB_BABBLE_SW_SESSION_CTRL	0x40
+#define MUSB_BABBLE_STUCK_J		0x20
+#define MUSB_BABBLE_RCV_DISABLE		0x04
+
 /* MUSB ULPI VBUSCONTROL */
 #define MUSB_ULPI_USE_EXTVBUS	0x01
 #define MUSB_ULPI_USE_EXTVBUSIND 0x02
@@ -246,6 +252,7 @@
  */
 
 #define MUSB_DEVCTL		0x60	/* 8 bit */
+#define MUSB_BABBLE_CTL		0x61	/* 8 bit */
 
 /* These are always controlled through the INDEX register */
 #define MUSB_TXFIFOSZ		0x62	/* 8-bit (see masks) */
@@ -570,7 +577,7 @@ static inline u16 musb_read_hwvers(void __iomem *mbase)
 {
 	/*
 	 * This register is invisible on Blackfin, actually the MUSB
-	 * RTL version of Blackfin is 1.9, so just harcode its value.
+	 * RTL version of Blackfin is 1.9, so just hardcode its value.
 	 */
 	return MUSB_HWVERS_1900;
 }

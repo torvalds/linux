@@ -688,14 +688,14 @@ static int dmatest_func(void *data)
 	runtime = ktime_us_delta(ktime_get(), ktime);
 
 	ret = 0;
+err_dstbuf:
 	for (i = 0; thread->dsts[i]; i++)
 		kfree(thread->dsts[i]);
-err_dstbuf:
 	kfree(thread->dsts);
 err_dsts:
+err_srcbuf:
 	for (i = 0; thread->srcs[i]; i++)
 		kfree(thread->srcs[i]);
-err_srcbuf:
 	kfree(thread->srcs);
 err_srcs:
 	kfree(pq_coefs);

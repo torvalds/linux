@@ -375,11 +375,11 @@ static void __exit cleanup_slots(void)
 
 static int __init rpaphp_init(void)
 {
-	struct device_node *dn = NULL;
+	struct device_node *dn;
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
-	while ((dn = of_find_node_by_name(dn, "pci")))
+	for_each_node_by_name(dn, "pci")
 		rpaphp_add_slot(dn);
 
 	return 0;

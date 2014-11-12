@@ -14,11 +14,15 @@ menuconfig ARCH_MVEBU
 
 if ARCH_MVEBU
 
+config MACH_MVEBU_ANY
+	bool
+
 config MACH_MVEBU_V7
 	bool
 	select ARMADA_370_XP_TIMER
 	select CACHE_L2X0
 	select ARM_CPU_SUSPEND
+	select MACH_MVEBU_ANY
 
 config MACH_ARMADA_370
 	bool "Marvell Armada 370 boards" if ARCH_MULTI_V7
@@ -75,6 +79,7 @@ config MACH_DOVE
 	select CACHE_L2X0
 	select CPU_PJ4
 	select DOVE_CLK
+	select MACH_MVEBU_ANY
 	select ORION_IRQCHIP
 	select ORION_TIMER
 	select PINCTRL_DOVE
@@ -87,6 +92,7 @@ config MACH_KIRKWOOD
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
 	select KIRKWOOD_CLK
+	select MACH_MVEBU_ANY
 	select ORION_IRQCHIP
 	select ORION_TIMER
 	select PCI
@@ -95,5 +101,12 @@ config MACH_KIRKWOOD
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Kirkwood device tree.
+
+config MACH_NETXBIG
+	bool "LaCie 2Big and 5Big Network v2"
+	depends on MACH_KIRKWOOD
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie 2Big and 5Big Network v2
 
 endif

@@ -1603,7 +1603,7 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	} else if (dss_has_feature(FEAT_DSI_PLL_SELFREQDCO)) {
 		f = cinfo->clkin4ddr < 1000000000 ? 0x2 : 0x4;
 
-		l = FLD_MOD(l, f, 4, 1);	/* PLL_SELFREQDCO */
+		l = FLD_MOD(l, f, 3, 1);	/* PLL_SELFREQDCO */
 	}
 
 	l = FLD_MOD(l, 1, 13, 13);		/* DSI_PLL_REFEN */
@@ -2571,7 +2571,10 @@ static int dsi_sync_vc_vp(struct platform_device *dsidev, int channel)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	DECLARE_COMPLETION_ONSTACK(completion);
-	struct dsi_packet_sent_handler_data vp_data = { dsidev, &completion };
+	struct dsi_packet_sent_handler_data vp_data = {
+		.dsidev = dsidev,
+		.completion = &completion
+	};
 	int r = 0;
 	u8 bit;
 
@@ -2617,7 +2620,10 @@ static void dsi_packet_sent_handler_l4(void *data, u32 mask)
 static int dsi_sync_vc_l4(struct platform_device *dsidev, int channel)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
-	struct dsi_packet_sent_handler_data l4_data = { dsidev, &completion };
+	struct dsi_packet_sent_handler_data l4_data = {
+		.dsidev = dsidev,
+		.completion = &completion
+	};
 	int r = 0;
 
 	r = dsi_register_isr_vc(dsidev, channel, dsi_packet_sent_handler_l4,
@@ -5658,18 +5664,11 @@ err_runtime_get:
 	return r;
 }
 
-static int dsi_unregister_child(struct device *dev, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	platform_device_unregister(pdev);
-	return 0;
-}
-
 static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
-	device_for_each_child(&dsidev->dev, NULL, dsi_unregister_child);
+	of_platform_depopulate(&dsidev->dev);
 
 	WARN_ON(dsi->scp_clk_refcount > 0);
 
@@ -5755,6 +5754,7 @@ static struct platform_driver omap_dsihw_driver = {
 		.owner  = THIS_MODULE,
 		.pm	= &dsi_pm_ops,
 		.of_match_table = dsi_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

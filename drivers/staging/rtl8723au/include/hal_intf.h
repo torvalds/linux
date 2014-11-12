@@ -101,10 +101,9 @@ enum hardware_type {
 
 void rtw_hal_def_value_init23a(struct rtw_adapter *padapter);
 int pm_netdev_open23a(struct net_device *pnetdev, u8 bnormal);
-int rtw_resume_process23a(struct rtw_adapter *padapter);
 
-int rtw_hal_init23a(struct rtw_adapter *padapter);
-int rtw_hal_deinit23a(struct rtw_adapter *padapter);
+int rtl8723au_hal_init(struct rtw_adapter *padapter);
+int rtl8723au_hal_deinit(struct rtw_adapter *padapter);
 void rtw_hal_stop(struct rtw_adapter *padapter);
 
 void rtw_hal_update_ra_mask23a(struct sta_info *psta, u8 rssi_level);

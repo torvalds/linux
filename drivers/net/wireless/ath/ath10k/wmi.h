@@ -73,119 +73,280 @@ struct wmi_cmd_hdr {
 #define HTC_PROTOCOL_VERSION    0x0002
 #define WMI_PROTOCOL_VERSION    0x0002
 
-enum wmi_service_id {
-	WMI_SERVICE_BEACON_OFFLOAD = 0,   /* beacon offload */
-	WMI_SERVICE_SCAN_OFFLOAD,	  /* scan offload */
-	WMI_SERVICE_ROAM_OFFLOAD,	  /* roam offload */
-	WMI_SERVICE_BCN_MISS_OFFLOAD,     /* beacon miss offload */
-	WMI_SERVICE_STA_PWRSAVE,	  /* fake sleep + basic power save */
-	WMI_SERVICE_STA_ADVANCED_PWRSAVE, /* uapsd, pspoll, force sleep */
-	WMI_SERVICE_AP_UAPSD,		  /* uapsd on AP */
-	WMI_SERVICE_AP_DFS,		  /* DFS on AP */
-	WMI_SERVICE_11AC,		  /* supports 11ac */
-	WMI_SERVICE_BLOCKACK,	/* Supports triggering ADDBA/DELBA from host*/
-	WMI_SERVICE_PHYERR,		  /* PHY error */
-	WMI_SERVICE_BCN_FILTER,		  /* Beacon filter support */
-	WMI_SERVICE_RTT,		  /* RTT (round trip time) support */
-	WMI_SERVICE_RATECTRL,		  /* Rate-control */
-	WMI_SERVICE_WOW,		  /* WOW Support */
-	WMI_SERVICE_RATECTRL_CACHE,       /* Rate-control caching */
-	WMI_SERVICE_IRAM_TIDS,            /* TIDs in IRAM */
-	WMI_SERVICE_ARPNS_OFFLOAD,	  /* ARP NS Offload support */
-	WMI_SERVICE_NLO,		  /* Network list offload service */
-	WMI_SERVICE_GTK_OFFLOAD,	  /* GTK offload */
-	WMI_SERVICE_SCAN_SCH,		  /* Scan Scheduler Service */
-	WMI_SERVICE_CSA_OFFLOAD,	  /* CSA offload service */
-	WMI_SERVICE_CHATTER,		  /* Chatter service */
-	WMI_SERVICE_COEX_FREQAVOID,	  /* FW report freq range to avoid */
-	WMI_SERVICE_PACKET_POWER_SAVE,	  /* packet power save service */
-	WMI_SERVICE_FORCE_FW_HANG,        /* To test fw recovery mechanism */
-	WMI_SERVICE_GPIO,                 /* GPIO service */
-	WMI_SERVICE_STA_DTIM_PS_MODULATED_DTIM, /* Modulated DTIM support */
-	WMI_STA_UAPSD_BASIC_AUTO_TRIG,    /* UAPSD AC Trigger Generation  */
-	WMI_STA_UAPSD_VAR_AUTO_TRIG,      /* -do- */
-	WMI_SERVICE_STA_KEEP_ALIVE,       /* STA keep alive mechanism support */
-	WMI_SERVICE_TX_ENCAP,             /* Packet type for TX encapsulation */
+enum wmi_service {
+	WMI_SERVICE_BEACON_OFFLOAD = 0,
+	WMI_SERVICE_SCAN_OFFLOAD,
+	WMI_SERVICE_ROAM_OFFLOAD,
+	WMI_SERVICE_BCN_MISS_OFFLOAD,
+	WMI_SERVICE_STA_PWRSAVE,
+	WMI_SERVICE_STA_ADVANCED_PWRSAVE,
+	WMI_SERVICE_AP_UAPSD,
+	WMI_SERVICE_AP_DFS,
+	WMI_SERVICE_11AC,
+	WMI_SERVICE_BLOCKACK,
+	WMI_SERVICE_PHYERR,
+	WMI_SERVICE_BCN_FILTER,
+	WMI_SERVICE_RTT,
+	WMI_SERVICE_RATECTRL,
+	WMI_SERVICE_WOW,
+	WMI_SERVICE_RATECTRL_CACHE,
+	WMI_SERVICE_IRAM_TIDS,
+	WMI_SERVICE_ARPNS_OFFLOAD,
+	WMI_SERVICE_NLO,
+	WMI_SERVICE_GTK_OFFLOAD,
+	WMI_SERVICE_SCAN_SCH,
+	WMI_SERVICE_CSA_OFFLOAD,
+	WMI_SERVICE_CHATTER,
+	WMI_SERVICE_COEX_FREQAVOID,
+	WMI_SERVICE_PACKET_POWER_SAVE,
+	WMI_SERVICE_FORCE_FW_HANG,
+	WMI_SERVICE_GPIO,
+	WMI_SERVICE_STA_DTIM_PS_MODULATED_DTIM,
+	WMI_SERVICE_STA_UAPSD_BASIC_AUTO_TRIG,
+	WMI_SERVICE_STA_UAPSD_VAR_AUTO_TRIG,
+	WMI_SERVICE_STA_KEEP_ALIVE,
+	WMI_SERVICE_TX_ENCAP,
+	WMI_SERVICE_BURST,
+	WMI_SERVICE_SMART_ANTENNA_SW_SUPPORT,
+	WMI_SERVICE_SMART_ANTENNA_HW_SUPPORT,
 
-	WMI_SERVICE_LAST,
-	WMI_MAX_SERVICE = 64		  /* max service */
+	/* keep last */
+	WMI_SERVICE_MAX,
+};
+
+enum wmi_10x_service {
+	WMI_10X_SERVICE_BEACON_OFFLOAD = 0,
+	WMI_10X_SERVICE_SCAN_OFFLOAD,
+	WMI_10X_SERVICE_ROAM_OFFLOAD,
+	WMI_10X_SERVICE_BCN_MISS_OFFLOAD,
+	WMI_10X_SERVICE_STA_PWRSAVE,
+	WMI_10X_SERVICE_STA_ADVANCED_PWRSAVE,
+	WMI_10X_SERVICE_AP_UAPSD,
+	WMI_10X_SERVICE_AP_DFS,
+	WMI_10X_SERVICE_11AC,
+	WMI_10X_SERVICE_BLOCKACK,
+	WMI_10X_SERVICE_PHYERR,
+	WMI_10X_SERVICE_BCN_FILTER,
+	WMI_10X_SERVICE_RTT,
+	WMI_10X_SERVICE_RATECTRL,
+	WMI_10X_SERVICE_WOW,
+	WMI_10X_SERVICE_RATECTRL_CACHE,
+	WMI_10X_SERVICE_IRAM_TIDS,
+	WMI_10X_SERVICE_BURST,
+
+	/* introduced in 10.2 */
+	WMI_10X_SERVICE_SMART_ANTENNA_SW_SUPPORT,
+	WMI_10X_SERVICE_FORCE_FW_HANG,
+	WMI_10X_SERVICE_SMART_ANTENNA_HW_SUPPORT,
+};
+
+enum wmi_main_service {
+	WMI_MAIN_SERVICE_BEACON_OFFLOAD = 0,
+	WMI_MAIN_SERVICE_SCAN_OFFLOAD,
+	WMI_MAIN_SERVICE_ROAM_OFFLOAD,
+	WMI_MAIN_SERVICE_BCN_MISS_OFFLOAD,
+	WMI_MAIN_SERVICE_STA_PWRSAVE,
+	WMI_MAIN_SERVICE_STA_ADVANCED_PWRSAVE,
+	WMI_MAIN_SERVICE_AP_UAPSD,
+	WMI_MAIN_SERVICE_AP_DFS,
+	WMI_MAIN_SERVICE_11AC,
+	WMI_MAIN_SERVICE_BLOCKACK,
+	WMI_MAIN_SERVICE_PHYERR,
+	WMI_MAIN_SERVICE_BCN_FILTER,
+	WMI_MAIN_SERVICE_RTT,
+	WMI_MAIN_SERVICE_RATECTRL,
+	WMI_MAIN_SERVICE_WOW,
+	WMI_MAIN_SERVICE_RATECTRL_CACHE,
+	WMI_MAIN_SERVICE_IRAM_TIDS,
+	WMI_MAIN_SERVICE_ARPNS_OFFLOAD,
+	WMI_MAIN_SERVICE_NLO,
+	WMI_MAIN_SERVICE_GTK_OFFLOAD,
+	WMI_MAIN_SERVICE_SCAN_SCH,
+	WMI_MAIN_SERVICE_CSA_OFFLOAD,
+	WMI_MAIN_SERVICE_CHATTER,
+	WMI_MAIN_SERVICE_COEX_FREQAVOID,
+	WMI_MAIN_SERVICE_PACKET_POWER_SAVE,
+	WMI_MAIN_SERVICE_FORCE_FW_HANG,
+	WMI_MAIN_SERVICE_GPIO,
+	WMI_MAIN_SERVICE_STA_DTIM_PS_MODULATED_DTIM,
+	WMI_MAIN_SERVICE_STA_UAPSD_BASIC_AUTO_TRIG,
+	WMI_MAIN_SERVICE_STA_UAPSD_VAR_AUTO_TRIG,
+	WMI_MAIN_SERVICE_STA_KEEP_ALIVE,
+	WMI_MAIN_SERVICE_TX_ENCAP,
 };
 
 static inline char *wmi_service_name(int service_id)
 {
+#define SVCSTR(x) case x: return #x
+
 	switch (service_id) {
-	case WMI_SERVICE_BEACON_OFFLOAD:
-		return "BEACON_OFFLOAD";
-	case WMI_SERVICE_SCAN_OFFLOAD:
-		return "SCAN_OFFLOAD";
-	case WMI_SERVICE_ROAM_OFFLOAD:
-		return "ROAM_OFFLOAD";
-	case WMI_SERVICE_BCN_MISS_OFFLOAD:
-		return "BCN_MISS_OFFLOAD";
-	case WMI_SERVICE_STA_PWRSAVE:
-		return "STA_PWRSAVE";
-	case WMI_SERVICE_STA_ADVANCED_PWRSAVE:
-		return "STA_ADVANCED_PWRSAVE";
-	case WMI_SERVICE_AP_UAPSD:
-		return "AP_UAPSD";
-	case WMI_SERVICE_AP_DFS:
-		return "AP_DFS";
-	case WMI_SERVICE_11AC:
-		return "11AC";
-	case WMI_SERVICE_BLOCKACK:
-		return "BLOCKACK";
-	case WMI_SERVICE_PHYERR:
-		return "PHYERR";
-	case WMI_SERVICE_BCN_FILTER:
-		return "BCN_FILTER";
-	case WMI_SERVICE_RTT:
-		return "RTT";
-	case WMI_SERVICE_RATECTRL:
-		return "RATECTRL";
-	case WMI_SERVICE_WOW:
-		return "WOW";
-	case WMI_SERVICE_RATECTRL_CACHE:
-		return "RATECTRL CACHE";
-	case WMI_SERVICE_IRAM_TIDS:
-		return "IRAM TIDS";
-	case WMI_SERVICE_ARPNS_OFFLOAD:
-		return "ARPNS_OFFLOAD";
-	case WMI_SERVICE_NLO:
-		return "NLO";
-	case WMI_SERVICE_GTK_OFFLOAD:
-		return "GTK_OFFLOAD";
-	case WMI_SERVICE_SCAN_SCH:
-		return "SCAN_SCH";
-	case WMI_SERVICE_CSA_OFFLOAD:
-		return "CSA_OFFLOAD";
-	case WMI_SERVICE_CHATTER:
-		return "CHATTER";
-	case WMI_SERVICE_COEX_FREQAVOID:
-		return "COEX_FREQAVOID";
-	case WMI_SERVICE_PACKET_POWER_SAVE:
-		return "PACKET_POWER_SAVE";
-	case WMI_SERVICE_FORCE_FW_HANG:
-		return "FORCE FW HANG";
-	case WMI_SERVICE_GPIO:
-		return "GPIO";
-	case WMI_SERVICE_STA_DTIM_PS_MODULATED_DTIM:
-		return "MODULATED DTIM";
-	case WMI_STA_UAPSD_BASIC_AUTO_TRIG:
-		return "BASIC UAPSD";
-	case WMI_STA_UAPSD_VAR_AUTO_TRIG:
-		return "VAR UAPSD";
-	case WMI_SERVICE_STA_KEEP_ALIVE:
-		return "STA KEEP ALIVE";
-	case WMI_SERVICE_TX_ENCAP:
-		return "TX ENCAP";
+	SVCSTR(WMI_SERVICE_BEACON_OFFLOAD);
+	SVCSTR(WMI_SERVICE_SCAN_OFFLOAD);
+	SVCSTR(WMI_SERVICE_ROAM_OFFLOAD);
+	SVCSTR(WMI_SERVICE_BCN_MISS_OFFLOAD);
+	SVCSTR(WMI_SERVICE_STA_PWRSAVE);
+	SVCSTR(WMI_SERVICE_STA_ADVANCED_PWRSAVE);
+	SVCSTR(WMI_SERVICE_AP_UAPSD);
+	SVCSTR(WMI_SERVICE_AP_DFS);
+	SVCSTR(WMI_SERVICE_11AC);
+	SVCSTR(WMI_SERVICE_BLOCKACK);
+	SVCSTR(WMI_SERVICE_PHYERR);
+	SVCSTR(WMI_SERVICE_BCN_FILTER);
+	SVCSTR(WMI_SERVICE_RTT);
+	SVCSTR(WMI_SERVICE_RATECTRL);
+	SVCSTR(WMI_SERVICE_WOW);
+	SVCSTR(WMI_SERVICE_RATECTRL_CACHE);
+	SVCSTR(WMI_SERVICE_IRAM_TIDS);
+	SVCSTR(WMI_SERVICE_ARPNS_OFFLOAD);
+	SVCSTR(WMI_SERVICE_NLO);
+	SVCSTR(WMI_SERVICE_GTK_OFFLOAD);
+	SVCSTR(WMI_SERVICE_SCAN_SCH);
+	SVCSTR(WMI_SERVICE_CSA_OFFLOAD);
+	SVCSTR(WMI_SERVICE_CHATTER);
+	SVCSTR(WMI_SERVICE_COEX_FREQAVOID);
+	SVCSTR(WMI_SERVICE_PACKET_POWER_SAVE);
+	SVCSTR(WMI_SERVICE_FORCE_FW_HANG);
+	SVCSTR(WMI_SERVICE_GPIO);
+	SVCSTR(WMI_SERVICE_STA_DTIM_PS_MODULATED_DTIM);
+	SVCSTR(WMI_SERVICE_STA_UAPSD_BASIC_AUTO_TRIG);
+	SVCSTR(WMI_SERVICE_STA_UAPSD_VAR_AUTO_TRIG);
+	SVCSTR(WMI_SERVICE_STA_KEEP_ALIVE);
+	SVCSTR(WMI_SERVICE_TX_ENCAP);
+	SVCSTR(WMI_SERVICE_BURST);
+	SVCSTR(WMI_SERVICE_SMART_ANTENNA_SW_SUPPORT);
+	SVCSTR(WMI_SERVICE_SMART_ANTENNA_HW_SUPPORT);
 	default:
-		return "UNKNOWN SERVICE\n";
+		return NULL;
 	}
+
+#undef SVCSTR
 }
 
+#define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id) \
+	(__le32_to_cpu((wmi_svc_bmap)[(svc_id)/(sizeof(u32))]) & \
+	 BIT((svc_id)%(sizeof(u32))))
 
-#define WMI_SERVICE_BM_SIZE \
-	((WMI_MAX_SERVICE + sizeof(u32) - 1)/sizeof(u32))
+#define SVCMAP(x, y) \
+	do { \
+		if (WMI_SERVICE_IS_ENABLED((in), (x))) \
+			__set_bit(y, out); \
+	} while (0)
+
+static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out)
+{
+	SVCMAP(WMI_10X_SERVICE_BEACON_OFFLOAD,
+	       WMI_SERVICE_BEACON_OFFLOAD);
+	SVCMAP(WMI_10X_SERVICE_SCAN_OFFLOAD,
+	       WMI_SERVICE_SCAN_OFFLOAD);
+	SVCMAP(WMI_10X_SERVICE_ROAM_OFFLOAD,
+	       WMI_SERVICE_ROAM_OFFLOAD);
+	SVCMAP(WMI_10X_SERVICE_BCN_MISS_OFFLOAD,
+	       WMI_SERVICE_BCN_MISS_OFFLOAD);
+	SVCMAP(WMI_10X_SERVICE_STA_PWRSAVE,
+	       WMI_SERVICE_STA_PWRSAVE);
+	SVCMAP(WMI_10X_SERVICE_STA_ADVANCED_PWRSAVE,
+	       WMI_SERVICE_STA_ADVANCED_PWRSAVE);
+	SVCMAP(WMI_10X_SERVICE_AP_UAPSD,
+	       WMI_SERVICE_AP_UAPSD);
+	SVCMAP(WMI_10X_SERVICE_AP_DFS,
+	       WMI_SERVICE_AP_DFS);
+	SVCMAP(WMI_10X_SERVICE_11AC,
+	       WMI_SERVICE_11AC);
+	SVCMAP(WMI_10X_SERVICE_BLOCKACK,
+	       WMI_SERVICE_BLOCKACK);
+	SVCMAP(WMI_10X_SERVICE_PHYERR,
+	       WMI_SERVICE_PHYERR);
+	SVCMAP(WMI_10X_SERVICE_BCN_FILTER,
+	       WMI_SERVICE_BCN_FILTER);
+	SVCMAP(WMI_10X_SERVICE_RTT,
+	       WMI_SERVICE_RTT);
+	SVCMAP(WMI_10X_SERVICE_RATECTRL,
+	       WMI_SERVICE_RATECTRL);
+	SVCMAP(WMI_10X_SERVICE_WOW,
+	       WMI_SERVICE_WOW);
+	SVCMAP(WMI_10X_SERVICE_RATECTRL_CACHE,
+	       WMI_SERVICE_RATECTRL_CACHE);
+	SVCMAP(WMI_10X_SERVICE_IRAM_TIDS,
+	       WMI_SERVICE_IRAM_TIDS);
+	SVCMAP(WMI_10X_SERVICE_BURST,
+	       WMI_SERVICE_BURST);
+	SVCMAP(WMI_10X_SERVICE_SMART_ANTENNA_SW_SUPPORT,
+	       WMI_SERVICE_SMART_ANTENNA_SW_SUPPORT);
+	SVCMAP(WMI_10X_SERVICE_FORCE_FW_HANG,
+	       WMI_SERVICE_FORCE_FW_HANG);
+	SVCMAP(WMI_10X_SERVICE_SMART_ANTENNA_HW_SUPPORT,
+	       WMI_SERVICE_SMART_ANTENNA_HW_SUPPORT);
+}
+
+static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out)
+{
+	SVCMAP(WMI_MAIN_SERVICE_BEACON_OFFLOAD,
+	       WMI_SERVICE_BEACON_OFFLOAD);
+	SVCMAP(WMI_MAIN_SERVICE_SCAN_OFFLOAD,
+	       WMI_SERVICE_SCAN_OFFLOAD);
+	SVCMAP(WMI_MAIN_SERVICE_ROAM_OFFLOAD,
+	       WMI_SERVICE_ROAM_OFFLOAD);
+	SVCMAP(WMI_MAIN_SERVICE_BCN_MISS_OFFLOAD,
+	       WMI_SERVICE_BCN_MISS_OFFLOAD);
+	SVCMAP(WMI_MAIN_SERVICE_STA_PWRSAVE,
+	       WMI_SERVICE_STA_PWRSAVE);
+	SVCMAP(WMI_MAIN_SERVICE_STA_ADVANCED_PWRSAVE,
+	       WMI_SERVICE_STA_ADVANCED_PWRSAVE);
+	SVCMAP(WMI_MAIN_SERVICE_AP_UAPSD,
+	       WMI_SERVICE_AP_UAPSD);
+	SVCMAP(WMI_MAIN_SERVICE_AP_DFS,
+	       WMI_SERVICE_AP_DFS);
+	SVCMAP(WMI_MAIN_SERVICE_11AC,
+	       WMI_SERVICE_11AC);
+	SVCMAP(WMI_MAIN_SERVICE_BLOCKACK,
+	       WMI_SERVICE_BLOCKACK);
+	SVCMAP(WMI_MAIN_SERVICE_PHYERR,
+	       WMI_SERVICE_PHYERR);
+	SVCMAP(WMI_MAIN_SERVICE_BCN_FILTER,
+	       WMI_SERVICE_BCN_FILTER);
+	SVCMAP(WMI_MAIN_SERVICE_RTT,
+	       WMI_SERVICE_RTT);
+	SVCMAP(WMI_MAIN_SERVICE_RATECTRL,
+	       WMI_SERVICE_RATECTRL);
+	SVCMAP(WMI_MAIN_SERVICE_WOW,
+	       WMI_SERVICE_WOW);
+	SVCMAP(WMI_MAIN_SERVICE_RATECTRL_CACHE,
+	       WMI_SERVICE_RATECTRL_CACHE);
+	SVCMAP(WMI_MAIN_SERVICE_IRAM_TIDS,
+	       WMI_SERVICE_IRAM_TIDS);
+	SVCMAP(WMI_MAIN_SERVICE_ARPNS_OFFLOAD,
+	       WMI_SERVICE_ARPNS_OFFLOAD);
+	SVCMAP(WMI_MAIN_SERVICE_NLO,
+	       WMI_SERVICE_NLO);
+	SVCMAP(WMI_MAIN_SERVICE_GTK_OFFLOAD,
+	       WMI_SERVICE_GTK_OFFLOAD);
+	SVCMAP(WMI_MAIN_SERVICE_SCAN_SCH,
+	       WMI_SERVICE_SCAN_SCH);
+	SVCMAP(WMI_MAIN_SERVICE_CSA_OFFLOAD,
+	       WMI_SERVICE_CSA_OFFLOAD);
+	SVCMAP(WMI_MAIN_SERVICE_CHATTER,
+	       WMI_SERVICE_CHATTER);
+	SVCMAP(WMI_MAIN_SERVICE_COEX_FREQAVOID,
+	       WMI_SERVICE_COEX_FREQAVOID);
+	SVCMAP(WMI_MAIN_SERVICE_PACKET_POWER_SAVE,
+	       WMI_SERVICE_PACKET_POWER_SAVE);
+	SVCMAP(WMI_MAIN_SERVICE_FORCE_FW_HANG,
+	       WMI_SERVICE_FORCE_FW_HANG);
+	SVCMAP(WMI_MAIN_SERVICE_GPIO,
+	       WMI_SERVICE_GPIO);
+	SVCMAP(WMI_MAIN_SERVICE_STA_DTIM_PS_MODULATED_DTIM,
+	       WMI_SERVICE_STA_DTIM_PS_MODULATED_DTIM);
+	SVCMAP(WMI_MAIN_SERVICE_STA_UAPSD_BASIC_AUTO_TRIG,
+	       WMI_SERVICE_STA_UAPSD_BASIC_AUTO_TRIG);
+	SVCMAP(WMI_MAIN_SERVICE_STA_UAPSD_VAR_AUTO_TRIG,
+	       WMI_SERVICE_STA_UAPSD_VAR_AUTO_TRIG);
+	SVCMAP(WMI_MAIN_SERVICE_STA_KEEP_ALIVE,
+	       WMI_SERVICE_STA_KEEP_ALIVE);
+	SVCMAP(WMI_MAIN_SERVICE_TX_ENCAP,
+	       WMI_SERVICE_TX_ENCAP);
+}
+
+#undef SVCMAP
 
 /* 2 word representation of MAC addr */
 struct wmi_mac_addr {
@@ -803,6 +964,159 @@ enum wmi_10x_event_id {
 	WMI_10X_PDEV_UTF_EVENTID = WMI_10X_END_EVENTID-1,
 };
 
+enum wmi_10_2_cmd_id {
+	WMI_10_2_START_CMDID = 0x9000,
+	WMI_10_2_END_CMDID = 0x9FFF,
+	WMI_10_2_INIT_CMDID,
+	WMI_10_2_START_SCAN_CMDID = WMI_10_2_START_CMDID,
+	WMI_10_2_STOP_SCAN_CMDID,
+	WMI_10_2_SCAN_CHAN_LIST_CMDID,
+	WMI_10_2_ECHO_CMDID,
+	WMI_10_2_PDEV_SET_REGDOMAIN_CMDID,
+	WMI_10_2_PDEV_SET_CHANNEL_CMDID,
+	WMI_10_2_PDEV_SET_PARAM_CMDID,
+	WMI_10_2_PDEV_PKTLOG_ENABLE_CMDID,
+	WMI_10_2_PDEV_PKTLOG_DISABLE_CMDID,
+	WMI_10_2_PDEV_SET_WMM_PARAMS_CMDID,
+	WMI_10_2_PDEV_SET_HT_CAP_IE_CMDID,
+	WMI_10_2_PDEV_SET_VHT_CAP_IE_CMDID,
+	WMI_10_2_PDEV_SET_BASE_MACADDR_CMDID,
+	WMI_10_2_PDEV_SET_QUIET_MODE_CMDID,
+	WMI_10_2_PDEV_GREEN_AP_PS_ENABLE_CMDID,
+	WMI_10_2_PDEV_GET_TPC_CONFIG_CMDID,
+	WMI_10_2_VDEV_CREATE_CMDID,
+	WMI_10_2_VDEV_DELETE_CMDID,
+	WMI_10_2_VDEV_START_REQUEST_CMDID,
+	WMI_10_2_VDEV_RESTART_REQUEST_CMDID,
+	WMI_10_2_VDEV_UP_CMDID,
+	WMI_10_2_VDEV_STOP_CMDID,
+	WMI_10_2_VDEV_DOWN_CMDID,
+	WMI_10_2_VDEV_STANDBY_RESPONSE_CMDID,
+	WMI_10_2_VDEV_RESUME_RESPONSE_CMDID,
+	WMI_10_2_VDEV_SET_PARAM_CMDID,
+	WMI_10_2_VDEV_INSTALL_KEY_CMDID,
+	WMI_10_2_VDEV_SET_DSCP_TID_MAP_CMDID,
+	WMI_10_2_PEER_CREATE_CMDID,
+	WMI_10_2_PEER_DELETE_CMDID,
+	WMI_10_2_PEER_FLUSH_TIDS_CMDID,
+	WMI_10_2_PEER_SET_PARAM_CMDID,
+	WMI_10_2_PEER_ASSOC_CMDID,
+	WMI_10_2_PEER_ADD_WDS_ENTRY_CMDID,
+	WMI_10_2_PEER_UPDATE_WDS_ENTRY_CMDID,
+	WMI_10_2_PEER_REMOVE_WDS_ENTRY_CMDID,
+	WMI_10_2_PEER_MCAST_GROUP_CMDID,
+	WMI_10_2_BCN_TX_CMDID,
+	WMI_10_2_BCN_PRB_TMPL_CMDID,
+	WMI_10_2_BCN_FILTER_RX_CMDID,
+	WMI_10_2_PRB_REQ_FILTER_RX_CMDID,
+	WMI_10_2_MGMT_TX_CMDID,
+	WMI_10_2_ADDBA_CLEAR_RESP_CMDID,
+	WMI_10_2_ADDBA_SEND_CMDID,
+	WMI_10_2_ADDBA_STATUS_CMDID,
+	WMI_10_2_DELBA_SEND_CMDID,
+	WMI_10_2_ADDBA_SET_RESP_CMDID,
+	WMI_10_2_SEND_SINGLEAMSDU_CMDID,
+	WMI_10_2_STA_POWERSAVE_MODE_CMDID,
+	WMI_10_2_STA_POWERSAVE_PARAM_CMDID,
+	WMI_10_2_STA_MIMO_PS_MODE_CMDID,
+	WMI_10_2_DBGLOG_CFG_CMDID,
+	WMI_10_2_PDEV_DFS_ENABLE_CMDID,
+	WMI_10_2_PDEV_DFS_DISABLE_CMDID,
+	WMI_10_2_PDEV_QVIT_CMDID,
+	WMI_10_2_ROAM_SCAN_MODE,
+	WMI_10_2_ROAM_SCAN_RSSI_THRESHOLD,
+	WMI_10_2_ROAM_SCAN_PERIOD,
+	WMI_10_2_ROAM_SCAN_RSSI_CHANGE_THRESHOLD,
+	WMI_10_2_ROAM_AP_PROFILE,
+	WMI_10_2_OFL_SCAN_ADD_AP_PROFILE,
+	WMI_10_2_OFL_SCAN_REMOVE_AP_PROFILE,
+	WMI_10_2_OFL_SCAN_PERIOD,
+	WMI_10_2_P2P_DEV_SET_DEVICE_INFO,
+	WMI_10_2_P2P_DEV_SET_DISCOVERABILITY,
+	WMI_10_2_P2P_GO_SET_BEACON_IE,
+	WMI_10_2_P2P_GO_SET_PROBE_RESP_IE,
+	WMI_10_2_AP_PS_PEER_PARAM_CMDID,
+	WMI_10_2_AP_PS_PEER_UAPSD_COEX_CMDID,
+	WMI_10_2_PEER_RATE_RETRY_SCHED_CMDID,
+	WMI_10_2_WLAN_PROFILE_TRIGGER_CMDID,
+	WMI_10_2_WLAN_PROFILE_SET_HIST_INTVL_CMDID,
+	WMI_10_2_WLAN_PROFILE_GET_PROFILE_DATA_CMDID,
+	WMI_10_2_WLAN_PROFILE_ENABLE_PROFILE_ID_CMDID,
+	WMI_10_2_WLAN_PROFILE_LIST_PROFILE_ID_CMDID,
+	WMI_10_2_PDEV_SUSPEND_CMDID,
+	WMI_10_2_PDEV_RESUME_CMDID,
+	WMI_10_2_ADD_BCN_FILTER_CMDID,
+	WMI_10_2_RMV_BCN_FILTER_CMDID,
+	WMI_10_2_WOW_ADD_WAKE_PATTERN_CMDID,
+	WMI_10_2_WOW_DEL_WAKE_PATTERN_CMDID,
+	WMI_10_2_WOW_ENABLE_DISABLE_WAKE_EVENT_CMDID,
+	WMI_10_2_WOW_ENABLE_CMDID,
+	WMI_10_2_WOW_HOSTWAKEUP_FROM_SLEEP_CMDID,
+	WMI_10_2_RTT_MEASREQ_CMDID,
+	WMI_10_2_RTT_TSF_CMDID,
+	WMI_10_2_RTT_KEEPALIVE_CMDID,
+	WMI_10_2_PDEV_SEND_BCN_CMDID,
+	WMI_10_2_VDEV_SPECTRAL_SCAN_CONFIGURE_CMDID,
+	WMI_10_2_VDEV_SPECTRAL_SCAN_ENABLE_CMDID,
+	WMI_10_2_REQUEST_STATS_CMDID,
+	WMI_10_2_GPIO_CONFIG_CMDID,
+	WMI_10_2_GPIO_OUTPUT_CMDID,
+	WMI_10_2_VDEV_RATEMASK_CMDID,
+	WMI_10_2_PDEV_SMART_ANT_ENABLE_CMDID,
+	WMI_10_2_PDEV_SMART_ANT_SET_RX_ANTENNA_CMDID,
+	WMI_10_2_PEER_SMART_ANT_SET_TX_ANTENNA_CMDID,
+	WMI_10_2_PEER_SMART_ANT_SET_TRAIN_INFO_CMDID,
+	WMI_10_2_PEER_SMART_ANT_SET_NODE_CONFIG_OPS_CMDID,
+	WMI_10_2_FORCE_FW_HANG_CMDID,
+	WMI_10_2_PDEV_SET_ANTENNA_SWITCH_TABLE_CMDID,
+	WMI_10_2_PDEV_SET_CTL_TABLE_CMDID,
+	WMI_10_2_PDEV_SET_MIMOGAIN_TABLE_CMDID,
+	WMI_10_2_PDEV_RATEPWR_TABLE_CMDID,
+	WMI_10_2_PDEV_RATEPWR_CHAINMSK_TABLE_CMDID,
+	WMI_10_2_PDEV_UTF_CMDID = WMI_10_2_END_CMDID - 1,
+};
+
+enum wmi_10_2_event_id {
+	WMI_10_2_SERVICE_READY_EVENTID = 0x8000,
+	WMI_10_2_READY_EVENTID,
+	WMI_10_2_DEBUG_MESG_EVENTID,
+	WMI_10_2_START_EVENTID = 0x9000,
+	WMI_10_2_END_EVENTID = 0x9FFF,
+	WMI_10_2_SCAN_EVENTID = WMI_10_2_START_EVENTID,
+	WMI_10_2_ECHO_EVENTID,
+	WMI_10_2_UPDATE_STATS_EVENTID,
+	WMI_10_2_INST_RSSI_STATS_EVENTID,
+	WMI_10_2_VDEV_START_RESP_EVENTID,
+	WMI_10_2_VDEV_STANDBY_REQ_EVENTID,
+	WMI_10_2_VDEV_RESUME_REQ_EVENTID,
+	WMI_10_2_VDEV_STOPPED_EVENTID,
+	WMI_10_2_PEER_STA_KICKOUT_EVENTID,
+	WMI_10_2_HOST_SWBA_EVENTID,
+	WMI_10_2_TBTTOFFSET_UPDATE_EVENTID,
+	WMI_10_2_MGMT_RX_EVENTID,
+	WMI_10_2_CHAN_INFO_EVENTID,
+	WMI_10_2_PHYERR_EVENTID,
+	WMI_10_2_ROAM_EVENTID,
+	WMI_10_2_PROFILE_MATCH,
+	WMI_10_2_DEBUG_PRINT_EVENTID,
+	WMI_10_2_PDEV_QVIT_EVENTID,
+	WMI_10_2_WLAN_PROFILE_DATA_EVENTID,
+	WMI_10_2_RTT_MEASUREMENT_REPORT_EVENTID,
+	WMI_10_2_TSF_MEASUREMENT_REPORT_EVENTID,
+	WMI_10_2_RTT_ERROR_REPORT_EVENTID,
+	WMI_10_2_RTT_KEEPALIVE_EVENTID,
+	WMI_10_2_WOW_WAKEUP_HOST_EVENTID,
+	WMI_10_2_DCS_INTERFERENCE_EVENTID,
+	WMI_10_2_PDEV_TPC_CONFIG_EVENTID,
+	WMI_10_2_GPIO_INPUT_EVENTID,
+	WMI_10_2_PEER_RATECODE_LIST_EVENTID,
+	WMI_10_2_GENERIC_BUFFER_EVENTID,
+	WMI_10_2_MCAST_BUF_RELEASE_EVENTID,
+	WMI_10_2_MCAST_LIST_AGEOUT_EVENTID,
+	WMI_10_2_WDS_PEER_EVENTID,
+	WMI_10_2_PDEV_UTF_EVENTID = WMI_10_2_END_EVENTID - 1,
+};
+
 enum wmi_phy_mode {
 	MODE_11A        = 0,   /* 11a Mode */
 	MODE_11G        = 1,   /* 11b/g Mode */
@@ -955,7 +1269,6 @@ enum wmi_channel_change_cause {
 				WMI_HT_CAP_RX_STBC       | \
 				WMI_HT_CAP_LDPC)
 
-
 /*
  * WMI_VHT_CAP_* these maps to ieee 802.11ac vht capability information
  * field. The fields not defined here are not supported, or reserved.
@@ -1076,10 +1389,6 @@ struct wlan_host_mem_req {
 	__le32 num_units;
 } __packed;
 
-#define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id) \
-	((((wmi_svc_bmap)[(svc_id)/(sizeof(u32))]) & \
-	(1 << ((svc_id)%(sizeof(u32))))) != 0)
-
 /*
  * The following struct holds optional payload for
  * wmi_service_ready_event,e.g., 11ac pass some of the
@@ -1093,7 +1402,7 @@ struct wmi_service_ready_event {
 	__le32 phy_capability;
 	/* Maximum number of frag table entries that SW will populate less 1 */
 	__le32 max_frag_entry;
-	__le32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
+	__le32 wmi_service_bitmap[16];
 	__le32 num_rf_chains;
 	/*
 	 * The following field is only valid for service type
@@ -1132,7 +1441,7 @@ struct wmi_service_ready_event_10x {
 
 	/* Maximum number of frag table entries that SW will populate less 1 */
 	__le32 max_frag_entry;
-	__le32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
+	__le32 wmi_service_bitmap[16];
 	__le32 num_rf_chains;
 
 	/*
@@ -1160,7 +1469,6 @@ struct wmi_service_ready_event_10x {
 
 	struct wlan_host_mem_req mem_reqs[1];
 } __packed;
-
 
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5*HZ)
 #define WMI_UNIFIED_READY_TIMEOUT_HZ (5*HZ)
@@ -1551,6 +1859,16 @@ struct wmi_resource_config_10x {
 	__le32 max_frag_entries;
 } __packed;
 
+struct wmi_resource_config_10_2 {
+	struct wmi_resource_config_10x common;
+	__le32 max_peer_ext_stats;
+	__le32 smart_ant_cap; /* 0-disable, 1-enable */
+	__le32 bk_min_free;
+	__le32 be_min_free;
+	__le32 vi_min_free;
+	__le32 vo_min_free;
+	__le32 rx_batchmode; /* 0-disable, 1-enable */
+} __packed;
 
 #define NUM_UNITS_IS_NUM_VDEVS   0x1
 #define NUM_UNITS_IS_NUM_PEERS   0x2
@@ -1588,11 +1906,28 @@ struct wmi_init_cmd_10x {
 	struct host_memory_chunk host_mem_chunks[1];
 } __packed;
 
+struct wmi_init_cmd_10_2 {
+	struct wmi_resource_config_10_2 resource_config;
+	__le32 num_host_mem_chunks;
+
+	/*
+	 * variable number of host memory chunks.
+	 * This should be the last element in the structure
+	 */
+	struct host_memory_chunk host_mem_chunks[1];
+} __packed;
+
+struct wmi_chan_list_entry {
+	__le16 freq;
+	u8 phy_mode; /* valid for 10.2 only */
+	u8 reserved;
+} __packed;
+
 /* TLV for channel list */
 struct wmi_chan_list {
 	__le32 tag; /* WMI_CHAN_LIST_TAG */
 	__le32 num_chan;
-	__le32 channel_list[0];
+	struct wmi_chan_list_entry channel_list[0];
 } __packed;
 
 struct wmi_bssid_list {
@@ -1788,7 +2123,6 @@ struct wmi_start_scan_cmd_10x {
 	 */
 } __packed;
 
-
 struct wmi_ssid_arg {
 	int len;
 	const u8 *ssid;
@@ -1821,7 +2155,7 @@ struct wmi_start_scan_arg {
 	u32 n_bssids;
 
 	u8 ie[WLAN_SCAN_PARAMS_MAX_IE_LEN];
-	u32 channels[64];
+	u16 channels[64];
 	struct wmi_ssid_arg ssids[WLAN_SCAN_PARAMS_MAX_SSID];
 	struct wmi_bssid_arg bssids[WLAN_SCAN_PARAMS_MAX_BSSID];
 };
@@ -1848,7 +2182,6 @@ struct wmi_start_scan_arg {
 
 /* WMI_SCAN_CLASS_MASK must be the same value as IEEE80211_SCAN_CLASS_MASK */
 #define WMI_SCAN_CLASS_MASK 0xFF000000
-
 
 enum wmi_stop_scan_type {
 	WMI_SCAN_STOP_ONE	= 0x00000000, /* stop by scan_id */
@@ -2034,7 +2367,6 @@ struct wmi_single_phyerr_rx_hdr {
 	__le32 nf_list_1;
 	__le32 nf_list_2;
 
-
 	/* Length of the frame */
 	__le32 buf_len;
 } __packed;
@@ -2067,6 +2399,7 @@ struct wmi_comb_phyerr_rx_event {
 #define PHYERR_TLV_SIG				0xBB
 #define PHYERR_TLV_TAG_SEARCH_FFT_REPORT	0xFB
 #define PHYERR_TLV_TAG_RADAR_PULSE_SUMMARY	0xF8
+#define PHYERR_TLV_TAG_SPECTRAL_SUMMARY_REPORT	0xF9
 
 struct phyerr_radar_report {
 	__le32 reg0; /* RADAR_REPORT_REG0_* */
@@ -2135,7 +2468,6 @@ struct phyerr_fft_report {
 #define SEARCH_FFT_REPORT_REG1_NUM_STR_BINS_IB_MASK	0x000000FF
 #define SEARCH_FFT_REPORT_REG1_NUM_STR_BINS_IB_LSB	0
 
-
 struct phyerr_tlv {
 	__le16 len;
 	u8 tag;
@@ -2165,7 +2497,6 @@ struct wmi_echo_event {
 struct wmi_echo_cmd {
 	__le32 value;
 } __packed;
-
 
 struct wmi_pdev_set_regdomain_cmd {
 	__le32 reg_domain;
@@ -2214,7 +2545,6 @@ struct wmi_pdev_set_quiet_cmd {
 	/* enable/disable */
 	__le32 enabled;
 } __packed;
-
 
 /*
  * 802.11g protection mode.
@@ -2515,6 +2845,19 @@ enum wmi_10x_pdev_param {
 	WMI_10X_PDEV_PARAM_BURST_DUR,
 	/* Set Bursting Enable*/
 	WMI_10X_PDEV_PARAM_BURST_ENABLE,
+
+	/* following are available as of firmware 10.2 */
+	WMI_10X_PDEV_PARAM_SMART_ANTENNA_DEFAULT_ANTENNA,
+	WMI_10X_PDEV_PARAM_IGMPMLD_OVERRIDE,
+	WMI_10X_PDEV_PARAM_IGMPMLD_TID,
+	WMI_10X_PDEV_PARAM_ANTENNA_GAIN,
+	WMI_10X_PDEV_PARAM_RX_DECAP_MODE,
+	WMI_10X_PDEV_PARAM_RX_FILTER,
+	WMI_10X_PDEV_PARAM_SET_MCAST_TO_UCAST_TID,
+	WMI_10X_PDEV_PARAM_PROXY_STA_MODE,
+	WMI_10X_PDEV_PARAM_SET_MCAST2UCAST_MODE,
+	WMI_10X_PDEV_PARAM_SET_MCAST2UCAST_BUFFER,
+	WMI_10X_PDEV_PARAM_REMOVE_MCAST2UCAST_BUFFER,
 };
 
 struct wmi_pdev_set_param_cmd {
@@ -3387,6 +3730,14 @@ enum wmi_10x_vdev_param {
 	WMI_10X_VDEV_PARAM_ENABLE_RTSCTS,
 
 	WMI_10X_VDEV_PARAM_AP_DETECT_OUT_OF_SYNC_SLEEPING_STA_TIME_SECS,
+
+	/* following are available as of firmware 10.2 */
+	WMI_10X_VDEV_PARAM_TX_ENCAP_TYPE,
+	WMI_10X_VDEV_PARAM_CABQ_MAXDUR,
+	WMI_10X_VDEV_PARAM_MFPTEST_SET,
+	WMI_10X_VDEV_PARAM_RTS_FIXED_RATE,
+	WMI_10X_VDEV_PARAM_VHT_SGIMASK,
+	WMI_10X_VDEV_PARAM_VHT80_RATEMASK,
 };
 
 /* slot time long */
@@ -3444,6 +3795,98 @@ struct wmi_vdev_simple_event {
 /* unsupported VDEV combination */
 #define WMI_INIFIED_VDEV_START_RESPONSE_NOT_SUPPORTED	0x2
 
+/* TODO: please add more comments if you have in-depth information */
+struct wmi_vdev_spectral_conf_cmd {
+	__le32 vdev_id;
+
+	/* number of fft samples to send (0 for infinite) */
+	__le32 scan_count;
+	__le32 scan_period;
+	__le32 scan_priority;
+
+	/* number of bins in the FFT: 2^(fft_size - bin_scale) */
+	__le32 scan_fft_size;
+	__le32 scan_gc_ena;
+	__le32 scan_restart_ena;
+	__le32 scan_noise_floor_ref;
+	__le32 scan_init_delay;
+	__le32 scan_nb_tone_thr;
+	__le32 scan_str_bin_thr;
+	__le32 scan_wb_rpt_mode;
+	__le32 scan_rssi_rpt_mode;
+	__le32 scan_rssi_thr;
+	__le32 scan_pwr_format;
+
+	/* rpt_mode: Format of FFT report to software for spectral scan
+	 * triggered FFTs:
+	 *	0: No FFT report (only spectral scan summary report)
+	 *	1: 2-dword summary of metrics for each completed FFT + spectral
+	 *	   scan	summary report
+	 *	2: 2-dword summary of metrics for each completed FFT +
+	 *	   1x- oversampled bins(in-band) per FFT + spectral scan summary
+	 *	   report
+	 *	3: 2-dword summary of metrics for each completed FFT +
+	 *	   2x- oversampled bins	(all) per FFT + spectral scan summary
+	 */
+	__le32 scan_rpt_mode;
+	__le32 scan_bin_scale;
+	__le32 scan_dbm_adj;
+	__le32 scan_chn_mask;
+} __packed;
+
+struct wmi_vdev_spectral_conf_arg {
+	u32 vdev_id;
+	u32 scan_count;
+	u32 scan_period;
+	u32 scan_priority;
+	u32 scan_fft_size;
+	u32 scan_gc_ena;
+	u32 scan_restart_ena;
+	u32 scan_noise_floor_ref;
+	u32 scan_init_delay;
+	u32 scan_nb_tone_thr;
+	u32 scan_str_bin_thr;
+	u32 scan_wb_rpt_mode;
+	u32 scan_rssi_rpt_mode;
+	u32 scan_rssi_thr;
+	u32 scan_pwr_format;
+	u32 scan_rpt_mode;
+	u32 scan_bin_scale;
+	u32 scan_dbm_adj;
+	u32 scan_chn_mask;
+};
+
+#define WMI_SPECTRAL_ENABLE_DEFAULT              0
+#define WMI_SPECTRAL_COUNT_DEFAULT               0
+#define WMI_SPECTRAL_PERIOD_DEFAULT             35
+#define WMI_SPECTRAL_PRIORITY_DEFAULT            1
+#define WMI_SPECTRAL_FFT_SIZE_DEFAULT            7
+#define WMI_SPECTRAL_GC_ENA_DEFAULT              1
+#define WMI_SPECTRAL_RESTART_ENA_DEFAULT         0
+#define WMI_SPECTRAL_NOISE_FLOOR_REF_DEFAULT   -96
+#define WMI_SPECTRAL_INIT_DELAY_DEFAULT         80
+#define WMI_SPECTRAL_NB_TONE_THR_DEFAULT        12
+#define WMI_SPECTRAL_STR_BIN_THR_DEFAULT         8
+#define WMI_SPECTRAL_WB_RPT_MODE_DEFAULT         0
+#define WMI_SPECTRAL_RSSI_RPT_MODE_DEFAULT       0
+#define WMI_SPECTRAL_RSSI_THR_DEFAULT         0xf0
+#define WMI_SPECTRAL_PWR_FORMAT_DEFAULT          0
+#define WMI_SPECTRAL_RPT_MODE_DEFAULT            2
+#define WMI_SPECTRAL_BIN_SCALE_DEFAULT           1
+#define WMI_SPECTRAL_DBM_ADJ_DEFAULT             1
+#define WMI_SPECTRAL_CHN_MASK_DEFAULT            1
+
+struct wmi_vdev_spectral_enable_cmd {
+	__le32 vdev_id;
+	__le32 trigger_cmd;
+	__le32 enable_cmd;
+} __packed;
+
+#define WMI_SPECTRAL_TRIGGER_CMD_TRIGGER  1
+#define WMI_SPECTRAL_TRIGGER_CMD_CLEAR    2
+#define WMI_SPECTRAL_ENABLE_CMD_ENABLE    1
+#define WMI_SPECTRAL_ENABLE_CMD_DISABLE   2
+
 /* Beacon processing related command and event structures */
 struct wmi_bcn_tx_hdr {
 	__le32 vdev_id;
@@ -3470,6 +3913,11 @@ enum wmi_bcn_tx_ref_flags {
 	WMI_BCN_TX_REF_FLAG_DELIVER_CAB = 0x2,
 };
 
+/* TODO: It is unclear why "no antenna" works while any other seemingly valid
+ * chainmask yields no beacons on the air at all.
+ */
+#define WMI_BCN_TX_REF_DEF_ANTENNA 0
+
 struct wmi_bcn_tx_ref_cmd {
 	__le32 vdev_id;
 	__le32 data_len;
@@ -3481,6 +3929,8 @@ struct wmi_bcn_tx_ref_cmd {
 	__le32 frame_control;
 	/* to control CABQ traffic: WMI_BCN_TX_REF_FLAG_ */
 	__le32 flags;
+	/* introduced in 10.2 */
+	__le32 antenna_mask;
 } __packed;
 
 /* Beacon filter */
@@ -3833,7 +4283,6 @@ struct wmi_tbtt_offset_event {
 	__le32 tbttoffset_list[WMI_MAX_AP_VDEV];
 } __packed;
 
-
 struct wmi_peer_create_cmd {
 	__le32 vdev_id;
 	struct wmi_mac_addr peer_macaddr;
@@ -4053,7 +4502,7 @@ struct wmi_peer_set_q_empty_callback_cmd {
 /* Maximum listen interval supported by hw in units of beacon interval */
 #define ATH10K_MAX_HW_LISTEN_INTERVAL 5
 
-struct wmi_peer_assoc_complete_cmd {
+struct wmi_common_peer_assoc_complete_cmd {
 	struct wmi_mac_addr peer_macaddr;
 	__le32 vdev_id;
 	__le32 peer_new_assoc; /* 1=assoc, 0=reassoc */
@@ -4071,9 +4520,28 @@ struct wmi_peer_assoc_complete_cmd {
 	__le32 peer_vht_caps;
 	__le32 peer_phymode;
 	struct wmi_vht_rate_set peer_vht_rates;
+};
+
+struct wmi_main_peer_assoc_complete_cmd {
+	struct wmi_common_peer_assoc_complete_cmd cmd;
+
 	/* HT Operation Element of the peer. Five bytes packed in 2
 	 *  INT32 array and filled from lsb to msb. */
 	__le32 peer_ht_info[2];
+} __packed;
+
+struct wmi_10_1_peer_assoc_complete_cmd {
+	struct wmi_common_peer_assoc_complete_cmd cmd;
+} __packed;
+
+#define WMI_PEER_ASSOC_INFO0_MAX_MCS_IDX_LSB 0
+#define WMI_PEER_ASSOC_INFO0_MAX_MCS_IDX_MASK 0x0f
+#define WMI_PEER_ASSOC_INFO0_MAX_NSS_LSB 4
+#define WMI_PEER_ASSOC_INFO0_MAX_NSS_MASK 0xf0
+
+struct wmi_10_2_peer_assoc_complete_cmd {
+	struct wmi_common_peer_assoc_complete_cmd cmd;
+	__le32 info0; /* WMI_PEER_ASSOC_INFO0_ */
 } __packed;
 
 struct wmi_peer_assoc_complete_arg {
@@ -4260,6 +4728,10 @@ int ath10k_wmi_wait_for_service_ready(struct ath10k *ar);
 int ath10k_wmi_wait_for_unified_ready(struct ath10k *ar);
 
 int ath10k_wmi_connect(struct ath10k *ar);
+
+struct sk_buff *ath10k_wmi_alloc_skb(struct ath10k *ar, u32 len);
+int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
+
 int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
 				const struct wmi_channel_arg *);
 int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt);
@@ -4290,12 +4762,16 @@ int ath10k_wmi_vdev_set_param(struct ath10k *ar, u32 vdev_id,
 			      u32 param_id, u32 param_value);
 int ath10k_wmi_vdev_install_key(struct ath10k *ar,
 				const struct wmi_vdev_install_key_arg *arg);
+int ath10k_wmi_vdev_spectral_conf(struct ath10k *ar,
+				  const struct wmi_vdev_spectral_conf_arg *arg);
+int ath10k_wmi_vdev_spectral_enable(struct ath10k *ar, u32 vdev_id, u32 trigger,
+				    u32 enable);
 int ath10k_wmi_peer_create(struct ath10k *ar, u32 vdev_id,
-		    const u8 peer_addr[ETH_ALEN]);
+			   const u8 peer_addr[ETH_ALEN]);
 int ath10k_wmi_peer_delete(struct ath10k *ar, u32 vdev_id,
-		    const u8 peer_addr[ETH_ALEN]);
+			   const u8 peer_addr[ETH_ALEN]);
 int ath10k_wmi_peer_flush(struct ath10k *ar, u32 vdev_id,
-		   const u8 peer_addr[ETH_ALEN], u32 tid_bitmap);
+			  const u8 peer_addr[ETH_ALEN], u32 tid_bitmap);
 int ath10k_wmi_peer_set_param(struct ath10k *ar, u32 vdev_id,
 			      const u8 *peer_addr,
 			      enum wmi_peer_param param_id, u32 param_value);
@@ -4312,7 +4788,7 @@ int ath10k_wmi_scan_chan_list(struct ath10k *ar,
 			      const struct wmi_scan_chan_list_arg *arg);
 int ath10k_wmi_beacon_send_ref_nowait(struct ath10k_vif *arvif);
 int ath10k_wmi_pdev_set_wmm_params(struct ath10k *ar,
-			const struct wmi_pdev_set_wmm_params_arg *arg);
+				   const struct wmi_pdev_set_wmm_params_arg *arg);
 int ath10k_wmi_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id);
 int ath10k_wmi_force_fw_hang(struct ath10k *ar,
 			     enum wmi_force_fw_hang_type type, u32 delay_ms);

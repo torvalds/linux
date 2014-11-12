@@ -26,6 +26,7 @@ static unsigned int nsecs    = 10;
 /* amount of futexes per thread */
 static unsigned int nfutexes = 1024;
 static bool fshared = false, done = false, silent = false;
+static int futex_flag = 0;
 
 struct timeval start, end, runtime;
 static pthread_mutex_t thread_lock;
@@ -75,8 +76,7 @@ static void *workerfn(void *arg)
 			 * such as internal waitqueue handling, thus enlarging
 			 * the critical region protected by hb->lock.
 			 */
-			ret = futex_wait(&w->futex[i], 1234, NULL,
-					 fshared ? 0 : FUTEX_PRIVATE_FLAG);
+			ret = futex_wait(&w->futex[i], 1234, NULL, futex_flag);
 			if (!silent &&
 			    (!ret || errno != EAGAIN || errno != EWOULDBLOCK))
 				warn("Non-expected futex return call");
@@ -134,6 +134,9 @@ int bench_futex_hash(int argc, const char **argv,
 	worker = calloc(nthreads, sizeof(*worker));
 	if (!worker)
 		goto errmem;
+
+	if (!fshared)
+		futex_flag = FUTEX_PRIVATE_FLAG;
 
 	printf("Run summary [PID %d]: %d threads, each operating on %d [%s] futexes for %d secs.\n\n",
 	       getpid(), nthreads, nfutexes, fshared ? "shared":"private", nsecs);

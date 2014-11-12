@@ -36,8 +36,8 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <linux/vfs.h>
-#include <obd_class.h>
-#include <lprocfs_status.h>
+#include "../include/obd_class.h"
+#include "../include/lprocfs_status.h"
 
 static int mdc_max_rpcs_in_flight_seq_show(struct seq_file *m, void *v)
 {
@@ -56,7 +56,8 @@ static ssize_t mdc_max_rpcs_in_flight_seq_write(struct file *file,
 						size_t count,
 						loff_t *off)
 {
-	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
+	struct obd_device *dev =
+			((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &dev->u.cli;
 	int val, rc;
 
@@ -84,7 +85,8 @@ static int mdc_kuc_open(struct inode *inode, struct file *file)
 static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
 			     size_t count, loff_t *off)
 {
-	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
+	struct obd_device *obd =
+			((struct seq_file *)file->private_data)->private;
 	struct kuc_hdr		*lh;
 	struct hsm_action_list	*hal;
 	struct hsm_action_item	*hai;
@@ -172,43 +174,43 @@ LPROC_SEQ_FOPS_RW_TYPE(mdc, import);
 LPROC_SEQ_FOPS_RW_TYPE(mdc, pinger_recov);
 
 static struct lprocfs_vars lprocfs_mdc_obd_vars[] = {
-	{ "uuid",	    &mdc_uuid_fops,		0, 0 },
-	{ "ping",	    &mdc_ping_fops,		0, 0222 },
-	{ "connect_flags",  &mdc_connect_flags_fops,	0, 0 },
-	{ "blocksize",      &mdc_blksize_fops,		0, 0 },
-	{ "kbytestotal",    &mdc_kbytestotal_fops,	0, 0 },
-	{ "kbytesfree",     &mdc_kbytesfree_fops,	0, 0 },
-	{ "kbytesavail",    &mdc_kbytesavail_fops,	0, 0 },
-	{ "filestotal",     &mdc_filestotal_fops,	0, 0 },
-	{ "filesfree",      &mdc_filesfree_fops,	0, 0 },
-	/*{ "filegroups",      lprocfs_rd_filegroups,  0, 0 },*/
-	{ "mds_server_uuid", &mdc_server_uuid_fops,	0, 0 },
-	{ "mds_conn_uuid",  &mdc_conn_uuid_fops,	0, 0 },
+	{ "uuid",		&mdc_uuid_fops,			NULL, 0 },
+	{ "ping",		&mdc_ping_fops,			NULL, 0222 },
+	{ "connect_flags",	&mdc_connect_flags_fops,	NULL, 0 },
+	{ "blocksize",		&mdc_blksize_fops,		NULL, 0 },
+	{ "kbytestotal",	&mdc_kbytestotal_fops,		NULL, 0 },
+	{ "kbytesfree",		&mdc_kbytesfree_fops,		NULL, 0 },
+	{ "kbytesavail",	&mdc_kbytesavail_fops,		NULL, 0 },
+	{ "filestotal",		&mdc_filestotal_fops,		NULL, 0 },
+	{ "filesfree",		&mdc_filesfree_fops,		NULL, 0 },
+	/*{ "filegroups",	lprocfs_rd_filegroups,		NULL, 0 },*/
+	{ "mds_server_uuid",	&mdc_server_uuid_fops,		NULL, 0 },
+	{ "mds_conn_uuid",	&mdc_conn_uuid_fops,		NULL, 0 },
 	/*
 	 * FIXME: below proc entry is provided, but not in used, instead
 	 * sbi->sb_md_brw_size is used, the per obd variable should be used
 	 * when CMD is enabled, and dir pages are managed in MDC layer.
 	 * Remember to enable proc write function.
 	 */
-	{ "max_pages_per_rpc",  &mdc_obd_max_pages_per_rpc_fops, 0, 0 },
-	{ "max_rpcs_in_flight", &mdc_max_rpcs_in_flight_fops, 0, 0 },
-	{ "timeouts",		&mdc_timeouts_fops,    0, 0 },
-	{ "import",		&mdc_import_fops, 0 },
-	{ "state",		&mdc_state_fops, 0, 0 },
-	{ "hsm_nl",		&mdc_kuc_fops, 0, 0200 },
-	{ "pinger_recov",	&mdc_pinger_recov_fops, 0, 0 },
-	{ 0 }
+	{ "max_pages_per_rpc",	&mdc_obd_max_pages_per_rpc_fops, NULL, 0 },
+	{ "max_rpcs_in_flight",	&mdc_max_rpcs_in_flight_fops,	NULL, 0 },
+	{ "timeouts",		&mdc_timeouts_fops,		NULL, 0 },
+	{ "import",		&mdc_import_fops,		NULL, 0 },
+	{ "state",		&mdc_state_fops,		NULL, 0 },
+	{ "hsm_nl",		&mdc_kuc_fops,			NULL, 0200 },
+	{ "pinger_recov",	&mdc_pinger_recov_fops,		NULL, 0 },
+	{ NULL }
 };
 
 LPROC_SEQ_FOPS_RO_TYPE(mdc, numrefs);
 
 static struct lprocfs_vars lprocfs_mdc_module_vars[] = {
-	{ "num_refs",	&mdc_numrefs_fops,     0, 0 },
-	{ 0 }
+	{ "num_refs",		&mdc_numrefs_fops,		NULL, 0 },
+	{ NULL }
 };
 
 void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars)
 {
-    lvars->module_vars  = lprocfs_mdc_module_vars;
-    lvars->obd_vars     = lprocfs_mdc_obd_vars;
+	lvars->module_vars  = lprocfs_mdc_module_vars;
+	lvars->obd_vars     = lprocfs_mdc_obd_vars;
 }

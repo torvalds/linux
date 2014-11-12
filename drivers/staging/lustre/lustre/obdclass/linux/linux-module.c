@@ -58,20 +58,20 @@
 #include <linux/poll.h>
 #include <linux/list.h>
 #include <linux/highmem.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/ioctls.h>
-#include <asm/poll.h>
-#include <asm/uaccess.h>
+#include <linux/poll.h>
+#include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/seq_file.h>
 
-#include <linux/libcfs/libcfs.h>
-#include <obd_support.h>
-#include <obd_class.h>
-#include <linux/lnet/lnetctl.h>
-#include <lprocfs_status.h>
-#include <lustre_ver.h>
-#include <lustre/lustre_build_version.h>
+#include "../../../include/linux/libcfs/libcfs.h"
+#include "../../../include/linux/lnet/lnetctl.h"
+#include "../../include/obd_support.h"
+#include "../../include/obd_class.h"
+#include "../../include/lprocfs_status.h"
+#include "../../include/lustre_ver.h"
+#include "../../include/lustre/lustre_build_version.h"
 
 int proc_version;
 
@@ -84,7 +84,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	int offset = 0;
 
 	err = copy_from_user(&hdr, (void *)arg, sizeof(hdr));
-	if ( err )
+	if (err)
 		return err;
 
 	if (hdr.ioc_version != OBD_IOCTL_VERSION) {
@@ -118,7 +118,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	data = (struct obd_ioctl_data *)*buf;
 
 	err = copy_from_user(*buf, (void *)arg, hdr.ioc_len);
-	if ( err ) {
+	if (err) {
 		OBD_FREE_LARGE(*buf, hdr.ioc_len);
 		return err;
 	}
@@ -212,7 +212,7 @@ struct miscdevice obd_psdev = {
 };
 
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 int obd_proc_version_seq_show(struct seq_file *m, void *v)
 {
 	return seq_printf(m, "lustre: %s\nkernel: %s\nbuild:  %s\n",
@@ -328,7 +328,7 @@ struct lprocfs_vars lprocfs_base[] = {
 	{ "jobid_var", &obd_proc_jobid_var_fops },
 	{ .name =	"jobid_name",
 	  .fops =	&obd_proc_jobid_name_fops},
-	{ 0 }
+	{ NULL }
 };
 
 static void *obd_device_list_seq_start(struct seq_file *p, loff_t *pos)
@@ -435,4 +435,4 @@ int class_procfs_clean(void)
 	}
 	return 0;
 }
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */

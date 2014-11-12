@@ -991,7 +991,6 @@ static const struct uart_ops sc16is7xx_ops = {
 	.stop_tx	= sc16is7xx_stop_tx,
 	.start_tx	= sc16is7xx_start_tx,
 	.stop_rx	= sc16is7xx_stop_rx,
-	.enable_ms	= sc16is7xx_null_void,
 	.break_ctl	= sc16is7xx_break_ctl,
 	.startup	= sc16is7xx_startup,
 	.shutdown	= sc16is7xx_shutdown,
@@ -1061,7 +1060,6 @@ static int sc16is7xx_probe(struct device *dev,
 			   struct regmap *regmap, int irq, unsigned long flags)
 {
 	unsigned long freq, *pfreq = dev_get_platdata(dev);
-	struct clk *clk;
 	int i, ret;
 	struct sc16is7xx_port *s;
 
@@ -1077,14 +1075,14 @@ static int sc16is7xx_probe(struct device *dev,
 		return -ENOMEM;
 	}
 
-	clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(clk)) {
+	s->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(s->clk)) {
 		if (pfreq)
 			freq = *pfreq;
 		else
-			return PTR_ERR(clk);
+			return PTR_ERR(s->clk);
 	} else {
-		freq = clk_get_rate(clk);
+		freq = clk_get_rate(s->clk);
 	}
 
 	s->regmap = regmap;
@@ -1159,7 +1157,7 @@ static int sc16is7xx_probe(struct device *dev,
 
 #ifdef CONFIG_GPIOLIB
 	if (devtype->nr_gpio)
-		WARN_ON(gpiochip_remove(&s->gpio));
+		gpiochip_remove(&s->gpio);
 
 out_uart:
 #endif
@@ -1175,14 +1173,11 @@ out_clk:
 static int sc16is7xx_remove(struct device *dev)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(dev);
-	int i, ret = 0;
+	int i;
 
 #ifdef CONFIG_GPIOLIB
-	if (s->devtype->nr_gpio) {
-		ret = gpiochip_remove(&s->gpio);
-		if (ret)
-			return ret;
-	}
+	if (s->devtype->nr_gpio)
+		gpiochip_remove(&s->gpio);
 #endif
 
 	for (i = 0; i < s->uart.nr; i++) {
@@ -1197,7 +1192,7 @@ static int sc16is7xx_remove(struct device *dev)
 	if (!IS_ERR(s->clk))
 		clk_disable_unprepare(s->clk);
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id __maybe_unused sc16is7xx_dt_ids[] = {

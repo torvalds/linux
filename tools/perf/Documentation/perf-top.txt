@@ -98,6 +98,9 @@ Default is to monitor all CPUS.
 --hide_user_symbols::
         Hide user symbols.
 
+--demangle-kernel::
+        Demangle kernel symbols.
+
 -D::
 --dump-symtab::
         Dump the symbol table used for profiling.
@@ -192,6 +195,12 @@ Default is to monitor all CPUS.
 	"relative" means it's relative to filtered entries only so that the
 	sum of shown entries will be always 100%. "absolute" means it retains
 	the original value before and after the filter is applied.
+
+-w::
+--column-widths=<width[,width...]>::
+	Force each column width to the provided list, for large terminal
+	readability.  0 means no limit (default behavior).
+
 
 INTERACTIVE PROMPTING KEYS
 --------------------------

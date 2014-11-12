@@ -20,11 +20,11 @@
 #define _IEEE80211_C
 
 #include <drv_types.h>
+#include <osdep_intf.h>
 #include <ieee80211.h>
 #include <wifi.h>
 #include <osdep_service.h>
 #include <wlan_bssdef.h>
-#include <usb_osintf.h>
 
 u8 RTW_WPA_OUI_TYPE[] = { 0x00, 0x50, 0xf2, 1 };
 u16 RTW_WPA_VERSION = 1;
@@ -206,8 +206,8 @@ inline u8 *rtw_set_ie_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl,
 
 	ie_data[0] = ttl;
 	ie_data[1] = flags;
-	RTW_PUT_LE16((u8 *)&ie_data[2], reason);
-	RTW_PUT_LE16((u8 *)&ie_data[4], precedence);
+	*(u16 *)(ie_data+2) = cpu_to_le16(reason);
+	*(u16 *)(ie_data+4) = cpu_to_le16(precedence);
 
 	return rtw_set_ie(buf, 0x118,  6, ie_data, buf_len);
 }
@@ -334,7 +334,7 @@ exit:
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 {
 
-	_rtw_memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
+	memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
 	switch (mode) {
 	case WIRELESS_11B:
@@ -551,7 +551,7 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 
 	/* pairwise_cipher */
 	if (left >= 2) {
-		count = RTW_GET_LE16(pos);
+		count = get_unaligned_le16(pos);
 		pos += 2;
 		left -= 2;
 
@@ -619,7 +619,7 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwi
 
 	/* pairwise_cipher */
 	if (left >= 2) {
-		count = RTW_GET_LE16(pos);
+		count = get_unaligned_le16(pos);
 		pos += 2;
 		left -= 2;
 
@@ -807,8 +807,8 @@ u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id , u8 *buf_at
 
 	while (attr_ptr - wps_ie < wps_ielen) {
 		/*  4 = 2(Attribute ID) + 2(Length) */
-		u16 attr_id = RTW_GET_BE16(attr_ptr);
-		u16 attr_data_len = RTW_GET_BE16(attr_ptr + 2);
+		u16 attr_id = get_unaligned_be16(attr_ptr);
+		u16 attr_data_len = get_unaligned_be16(attr_ptr + 2);
 		u16 attr_len = attr_data_len + 4;
 
 		if (attr_id == target_attr_id) {
@@ -957,7 +957,7 @@ enum parse_res rtw_ieee802_11_parse_elems(u8 *start, uint len,
 	u8 *pos = start;
 	int unknown = 0;
 
-	_rtw_memset(elems, 0, sizeof(*elems));
+	memset(elems, 0, sizeof(*elems));
 
 	while (left >= 2) {
 		u8 id, elen;
@@ -1067,41 +1067,18 @@ enum parse_res rtw_ieee802_11_parse_elems(u8 *start, uint len,
 	return unknown ? ParseUnknown : ParseOK;
 }
 
-u8 key_char2num(u8 ch)
-{
-	if ((ch >= '0') && (ch <= '9'))
-		return ch - '0';
-	else if ((ch >= 'a') && (ch <= 'f'))
-		return ch - 'a' + 10;
-	else if ((ch >= 'A') && (ch <= 'F'))
-		return ch - 'A' + 10;
-	else
-		return 0xff;
-}
-
-u8 str_2char2num(u8 hch, u8 lch)
-{
-    return (key_char2num(hch) * 10) + key_char2num(lch);
-}
-
-u8 key_2char2num(u8 hch, u8 lch)
-{
-    return (key_char2num(hch) << 4) | key_char2num(lch);
-}
-
 void rtw_macaddr_cfg(u8 *mac_addr)
 {
 	u8 mac[ETH_ALEN];
+
 	if (mac_addr == NULL)
 		return;
 
-	if (rtw_initmac) {	/* Users specify the mac address */
-		int jj, kk;
-
-		for (jj = 0, kk = 0; jj < ETH_ALEN; jj++, kk += 3)
-			mac[jj] = key_2char2num(rtw_initmac[kk], rtw_initmac[kk + 1]);
+	if (rtw_initmac && mac_pton(rtw_initmac, mac)) {
+		/* Users specify the mac address */
 		memcpy(mac_addr, mac, ETH_ALEN);
-	} else {	/* Use the mac address stored in the Efuse */
+	} else {
+		/* Use the mac address stored in the Efuse */
 		memcpy(mac, mac_addr, ETH_ALEN);
 	}
 
@@ -1133,9 +1110,6 @@ void dump_ies(u8 *buf, u32 buf_len)
 		len = *(pos+1);
 
 		DBG_88E("%s ID:%u, LEN:%u\n", __func__, id, len);
-		#ifdef CONFIG_88EU_P2P
-		dump_p2p_ie(pos, len);
-		#endif
 		dump_wps_ie(pos, len);
 
 		pos += (2 + len);
@@ -1156,216 +1130,12 @@ void dump_wps_ie(u8 *ie, u32 ie_len)
 
 	pos += 6;
 	while (pos-ie < ie_len) {
-		id = RTW_GET_BE16(pos);
-		len = RTW_GET_BE16(pos + 2);
+		id = get_unaligned_be16(pos);
+		len = get_unaligned_be16(pos + 2);
 		DBG_88E("%s ID:0x%04x, LEN:%u\n", __func__, id, len);
 		pos += (4+len);
 	}
 }
-
-#ifdef CONFIG_88EU_P2P
-void dump_p2p_ie(u8 *ie, u32 ie_len)
-{
-	u8 *pos = (u8 *)ie;
-	u8 id;
-	u16 len;
-	u8 *p2p_ie;
-	uint p2p_ielen;
-
-	p2p_ie = rtw_get_p2p_ie(ie, ie_len, NULL, &p2p_ielen);
-	if (p2p_ie != ie || p2p_ielen == 0)
-		return;
-
-	pos += 6;
-	while (pos-ie < ie_len) {
-		id = *pos;
-		len = RTW_GET_LE16(pos+1);
-		DBG_88E("%s ID:%u, LEN:%u\n", __func__, id, len);
-		pos += (3+len);
-	}
-}
-
-/**
- * rtw_get_p2p_ie - Search P2P IE from a series of IEs
- * @in_ie: Address of IEs to search
- * @in_len: Length limit from in_ie
- * @p2p_ie: If not NULL and P2P IE is found, P2P IE will be copied to the buf starting from p2p_ie
- * @p2p_ielen: If not NULL and P2P IE is found, will set to the length of the entire P2P IE
- *
- * Returns: The address of the P2P IE found, or NULL
- */
-u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen)
-{
-	uint cnt = 0;
-	u8 *p2p_ie_ptr;
-	u8 eid, p2p_oui[4] = {0x50, 0x6F, 0x9A, 0x09};
-
-	if (p2p_ielen != NULL)
-		*p2p_ielen = 0;
-
-	while (cnt < in_len) {
-		eid = in_ie[cnt];
-		if ((in_len < 0) || (cnt > MAX_IE_SZ)) {
-			dump_stack();
-			return NULL;
-		}
-		if ((eid == _VENDOR_SPECIFIC_IE_) && (!memcmp(&in_ie[cnt+2], p2p_oui, 4))) {
-			p2p_ie_ptr = in_ie + cnt;
-
-			if (p2p_ie != NULL)
-				memcpy(p2p_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
-			if (p2p_ielen != NULL)
-				*p2p_ielen = in_ie[cnt + 1] + 2;
-			return p2p_ie_ptr;
-		} else {
-			cnt += in_ie[cnt + 1] + 2; /* goto next */
-		}
-	}
-	return NULL;
-}
-
-/**
- * rtw_get_p2p_attr - Search a specific P2P attribute from a given P2P IE
- * @p2p_ie: Address of P2P IE to search
- * @p2p_ielen: Length limit from p2p_ie
- * @target_attr_id: The attribute ID of P2P attribute to search
- * @buf_attr: If not NULL and the P2P attribute is found, P2P attribute will be copied to the buf starting from buf_attr
- * @len_attr: If not NULL and the P2P attribute is found, will set to the length of the entire P2P attribute
- *
- * Returns: the address of the specific WPS attribute found, or NULL
- */
-u8 *rtw_get_p2p_attr(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id , u8 *buf_attr, u32 *len_attr)
-{
-	u8 *attr_ptr = NULL;
-	u8 *target_attr_ptr = NULL;
-	u8 p2p_oui[4] = {0x50, 0x6F, 0x9A, 0x09};
-
-	if (len_attr)
-		*len_attr = 0;
-
-	if (!p2p_ie || (p2p_ie[0] != _VENDOR_SPECIFIC_IE_) ||
-	    (memcmp(p2p_ie + 2, p2p_oui , 4)))
-		return attr_ptr;
-
-	/*  6 = 1(Element ID) + 1(Length) + 3 (OUI) + 1(OUI Type) */
-	attr_ptr = p2p_ie + 6; /* goto first attr */
-
-	while (attr_ptr - p2p_ie < p2p_ielen) {
-		/*  3 = 1(Attribute ID) + 2(Length) */
-		u8 attr_id = *attr_ptr;
-		u16 attr_data_len = RTW_GET_LE16(attr_ptr + 1);
-		u16 attr_len = attr_data_len + 3;
-
-		if (attr_id == target_attr_id) {
-			target_attr_ptr = attr_ptr;
-
-			if (buf_attr)
-				memcpy(buf_attr, attr_ptr, attr_len);
-			if (len_attr)
-				*len_attr = attr_len;
-			break;
-		} else {
-			attr_ptr += attr_len; /* goto next */
-		}
-	}
-	return target_attr_ptr;
-}
-
-/**
- * rtw_get_p2p_attr_content - Search a specific P2P attribute content from a given P2P IE
- * @p2p_ie: Address of P2P IE to search
- * @p2p_ielen: Length limit from p2p_ie
- * @target_attr_id: The attribute ID of P2P attribute to search
- * @buf_content: If not NULL and the P2P attribute is found, P2P attribute content will be copied to the buf starting from buf_content
- * @len_content: If not NULL and the P2P attribute is found, will set to the length of the P2P attribute content
- *
- * Returns: the address of the specific P2P attribute content found, or NULL
- */
-u8 *rtw_get_p2p_attr_content(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id , u8 *buf_content, uint *len_content)
-{
-	u8 *attr_ptr;
-	u32 attr_len;
-
-	if (len_content)
-		*len_content = 0;
-
-	attr_ptr = rtw_get_p2p_attr(p2p_ie, p2p_ielen, target_attr_id, NULL, &attr_len);
-
-	if (attr_ptr && attr_len) {
-		if (buf_content)
-			memcpy(buf_content, attr_ptr+3, attr_len-3);
-
-		if (len_content)
-			*len_content = attr_len-3;
-
-		return attr_ptr+3;
-	}
-
-	return NULL;
-}
-
-u32 rtw_set_p2p_attr_content(u8 *pbuf, u8 attr_id, u16 attr_len, u8 *pdata_attr)
-{
-	u32 a_len;
-
-	*pbuf = attr_id;
-
-	/* u16*)(pbuf + 1) = cpu_to_le16(attr_len); */
-	RTW_PUT_LE16(pbuf + 1, attr_len);
-
-	if (pdata_attr)
-		memcpy(pbuf + 3, pdata_attr, attr_len);
-
-	a_len = attr_len + 3;
-
-	return a_len;
-}
-
-static uint rtw_p2p_attr_remove(u8 *ie, uint ielen_ori, u8 attr_id)
-{
-	u8 *target_attr;
-	u32 target_attr_len;
-	uint ielen = ielen_ori;
-
-	while (1) {
-		target_attr = rtw_get_p2p_attr(ie, ielen, attr_id, NULL, &target_attr_len);
-		if (target_attr && target_attr_len) {
-			u8 *next_attr = target_attr+target_attr_len;
-			uint remain_len = ielen-(next_attr-ie);
-
-			_rtw_memset(target_attr, 0, target_attr_len);
-			memcpy(target_attr, next_attr, remain_len);
-			_rtw_memset(target_attr+remain_len, 0, target_attr_len);
-			*(ie+1) -= target_attr_len;
-			ielen -= target_attr_len;
-		} else {
-			break;
-		}
-	}
-	return ielen;
-}
-
-void rtw_wlan_bssid_ex_remove_p2p_attr(struct wlan_bssid_ex *bss_ex, u8 attr_id)
-{
-	u8 *p2p_ie;
-	uint p2p_ielen, p2p_ielen_ori;
-
-	p2p_ie = rtw_get_p2p_ie(bss_ex->IEs+_FIXED_IE_LENGTH_, bss_ex->IELength-_FIXED_IE_LENGTH_, NULL, &p2p_ielen_ori);
-	if (p2p_ie) {
-		p2p_ielen = rtw_p2p_attr_remove(p2p_ie, p2p_ielen_ori, attr_id);
-		if (p2p_ielen != p2p_ielen_ori) {
-			u8 *next_ie_ori = p2p_ie+p2p_ielen_ori;
-			u8 *next_ie = p2p_ie+p2p_ielen;
-			uint remain_len = bss_ex->IELength-(next_ie_ori-bss_ex->IEs);
-
-			memcpy(next_ie, next_ie_ori, remain_len);
-			_rtw_memset(next_ie+remain_len, 0, p2p_ielen_ori-p2p_ielen);
-			bss_ex->IELength -= p2p_ielen_ori-p2p_ielen;
-		}
-	}
-}
-
-#endif /* CONFIG_88EU_P2P */
 
 /* Baron adds to avoid FreeBSD warning */
 int ieee80211_is_empty_essid(const char *essid, int essid_len)

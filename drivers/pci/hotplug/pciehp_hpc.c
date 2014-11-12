@@ -160,7 +160,7 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	    ctrl->slot_ctrl & PCI_EXP_SLTCTL_CCIE)
 		rc = wait_event_timeout(ctrl->queue, !ctrl->cmd_busy, timeout);
 	else
-		rc = pcie_poll_cmd(ctrl, timeout);
+		rc = pcie_poll_cmd(ctrl, jiffies_to_msecs(timeout));
 
 	/*
 	 * Controllers with errata like Intel CF118 don't generate
@@ -171,9 +171,9 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	 * interrupts.
 	 */
 	if (!rc)
-		ctrl_info(ctrl, "Timeout on hotplug command %#010x (issued %u msec ago)\n",
+		ctrl_info(ctrl, "Timeout on hotplug command %#06x (issued %u msec ago)\n",
 			  ctrl->slot_ctrl,
-			  jiffies_to_msecs(now - ctrl->cmd_started));
+			  jiffies_to_msecs(jiffies - ctrl->cmd_started));
 }
 
 /**
@@ -422,9 +422,9 @@ void pciehp_set_attention_status(struct slot *slot, u8 value)
 	default:
 		return;
 	}
+	pcie_write_cmd(ctrl, slot_cmd, PCI_EXP_SLTCTL_AIC);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
-	pcie_write_cmd(ctrl, slot_cmd, PCI_EXP_SLTCTL_AIC);
 }
 
 void pciehp_green_led_on(struct slot *slot)
@@ -506,6 +506,8 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
+	struct pci_bus *subordinate = pdev->subordinate;
+	struct pci_dev *dev;
 	struct slot *slot = ctrl->slot;
 	u16 detected, intr_loc;
 
@@ -537,6 +539,16 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		ctrl->cmd_busy = 0;
 		smp_mb();
 		wake_up(&ctrl->queue);
+	}
+
+	if (subordinate) {
+		list_for_each_entry(dev, &subordinate->devices, bus_list) {
+			if (dev->ignore_hotplug) {
+				ctrl_dbg(ctrl, "ignoring hotplug event %#06x (%s requested no hotplug)\n",
+					 intr_loc, pci_name(dev));
+				return IRQ_HANDLED;
+			}
+		}
 	}
 
 	if (!(intr_loc & ~PCI_EXP_SLTSTA_CC))
@@ -602,6 +614,8 @@ void pcie_enable_notification(struct controller *ctrl)
 		PCI_EXP_SLTCTL_DLLSCE);
 
 	pcie_write_cmd(ctrl, cmd, mask);
+	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
+		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, cmd);
 }
 
 static void pcie_disable_notification(struct controller *ctrl)
@@ -613,6 +627,8 @@ static void pcie_disable_notification(struct controller *ctrl)
 		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE |
 		PCI_EXP_SLTCTL_DLLSCE);
 	pcie_write_cmd(ctrl, 0, mask);
+	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
+		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, 0);
 }
 
 /*
@@ -640,6 +656,8 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 	stat_mask |= PCI_EXP_SLTSTA_DLLSC;
 
 	pcie_write_cmd(ctrl, 0, ctrl_mask);
+	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
+		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, 0);
 	if (pciehp_poll_mode)
 		del_timer_sync(&ctrl->poll_timer);
 
@@ -647,6 +665,8 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, stat_mask);
 	pcie_write_cmd(ctrl, ctrl_mask, ctrl_mask);
+	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
+		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, ctrl_mask);
 	if (pciehp_poll_mode)
 		int_poll_timeout(ctrl->poll_timer.data);
 
@@ -784,9 +804,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 		PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 		PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
 		PCI_EXP_SLTSTA_CC | PCI_EXP_SLTSTA_DLLSC);
-
-	/* Disable software notification */
-	pcie_disable_notification(ctrl);
 
 	ctrl_info(ctrl, "Slot #%d AttnBtn%c AttnInd%c PwrInd%c PwrCtrl%c MRL%c Interlock%c NoCompl%c LLActRep%c\n",
 		(slot_cap & PCI_EXP_SLTCAP_PSN) >> 19,

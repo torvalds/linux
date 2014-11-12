@@ -48,8 +48,8 @@
  * @{
  */
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/types.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/types.h"
 #include <linux/backing-dev.h>
 
 /****************** on-disk files *********************/
@@ -545,4 +545,4 @@ int mgc_fsname2resid(char *fsname, struct ldlm_res_id *res_id, int type);
 
 /** @} disk */
 
-#endif // _LUSTRE_DISK_H
+#endif /* _LUSTRE_DISK_H */

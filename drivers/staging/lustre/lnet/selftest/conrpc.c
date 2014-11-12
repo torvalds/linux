@@ -41,8 +41,8 @@
  */
 
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lib-lnet.h"
 #include "timer.h"
 #include "conrpc.h"
 #include "console.h"
@@ -477,7 +477,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 	lstcon_rpc_t	 *crpc;
 	srpc_msg_t	   *msg;
 	lstcon_node_t	*nd;
-	cfs_duration_t	dur;
+	long	dur;
 	struct timeval	tv;
 	int		   error;
 
@@ -503,8 +503,8 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 
 		nd = crpc->crp_node;
 
-		dur = (cfs_duration_t)cfs_time_sub(crpc->crp_stamp,
-		      (cfs_time_t)console_session.ses_id.ses_stamp);
+		dur = (long)cfs_time_sub(crpc->crp_stamp,
+		      (unsigned long)console_session.ses_id.ses_stamp);
 		cfs_duration_usec(dur, &tv);
 
 		if (copy_to_user(&ent->rpe_peer,
@@ -1187,7 +1187,7 @@ lstcon_rpc_pinger(void *arg)
 	}
 
 	if (!console_session.ses_expired &&
-	    cfs_time_current_sec() - console_session.ses_laststamp >
+	    get_seconds() - console_session.ses_laststamp >
 	    (time_t)console_session.ses_timeout)
 		console_session.ses_expired = 1;
 
@@ -1274,7 +1274,7 @@ lstcon_rpc_pinger(void *arg)
 
 	CDEBUG(D_NET, "Ping %d nodes in session\n", count);
 
-	ptimer->stt_expires = (cfs_time_t)(cfs_time_current_sec() + LST_PING_INTERVAL);
+	ptimer->stt_expires = (unsigned long)(get_seconds() + LST_PING_INTERVAL);
 	stt_add_timer(ptimer);
 
 	mutex_unlock(&console_session.ses_mutex);
@@ -1297,7 +1297,7 @@ lstcon_rpc_pinger_start(void)
 	}
 
 	ptimer = &console_session.ses_ping_timer;
-	ptimer->stt_expires = (cfs_time_t)(cfs_time_current_sec() + LST_PING_INTERVAL);
+	ptimer->stt_expires = (unsigned long)(get_seconds() + LST_PING_INTERVAL);
 
 	stt_add_timer(ptimer);
 

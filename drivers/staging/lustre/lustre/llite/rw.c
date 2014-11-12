@@ -54,10 +54,10 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre_lite.h>
-#include <obd_cksum.h>
+#include "../include/lustre_lite.h"
+#include "../include/obd_cksum.h"
 #include "llite_internal.h"
-#include <linux/lustre_compat25.h>
+#include "../include/linux/lustre_compat25.h"
 
 /**
  * Finalizes cl-data before exiting typical address_space operation. Dual to
@@ -317,8 +317,10 @@ static unsigned long ll_ra_count_get(struct ll_sb_info *sbi,
 	 * otherwise it will form small read RPC(< 1M), which hurt server
 	 * performance a lot. */
 	ret = min(ra->ra_max_pages - atomic_read(&ra->ra_cur_pages), pages);
-	if (ret < 0 || ret < min_t(long, PTLRPC_MAX_BRW_PAGES, pages))
-		GOTO(out, ret = 0);
+	if (ret < 0 || ret < min_t(long, PTLRPC_MAX_BRW_PAGES, pages)) {
+		ret = 0;
+		goto out;
+	}
 
 	/* If the non-strided (ria_pages == 0) readahead window
 	 * (ria_start + ret) has grown across an RPC boundary, then trim
@@ -496,14 +498,9 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 	struct cl_object *clob  = ll_i2info(mapping->host)->lli_clob;
 	struct cl_page   *page;
 	enum ra_stat      which = _NR_RA_STAT; /* keep gcc happy */
-	unsigned int      gfp_mask;
 	int	       rc    = 0;
 	const char       *msg   = NULL;
 
-	gfp_mask = GFP_HIGHUSER & ~__GFP_WAIT;
-#ifdef __GFP_NOWARN
-	gfp_mask |= __GFP_NOWARN;
-#endif
 	vmpage = grab_cache_page_nowait(mapping, index);
 	if (vmpage != NULL) {
 		/* Check if vmpage was truncated or reclaimed */
@@ -601,7 +598,7 @@ stride_pg_count(pgoff_t st_off, unsigned long st_len, unsigned long st_pgs,
 	if (end_left > st_pgs)
 		end_left = st_pgs;
 
-	CDEBUG(D_READA, "start "LPU64", end "LPU64" start_left %lu end_left %lu \n",
+	CDEBUG(D_READA, "start %llu, end %llu start_left %lu end_left %lu \n",
 	       start, end, start_left, end_left);
 
 	if (start == end)
@@ -1013,7 +1010,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 		kms_pages = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
 			    PAGE_CACHE_SHIFT;
 
-		CDEBUG(D_READA, "kmsp "LPU64" mwp %lu mp %lu\n", kms_pages,
+		CDEBUG(D_READA, "kmsp %llu mwp %lu mp %lu\n", kms_pages,
 		       ra->ra_max_read_ahead_whole_pages, ra->ra_max_pages_per_file);
 
 		if (kms_pages &&
@@ -1023,7 +1020,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 			ras->ras_next_readahead = 0;
 			ras->ras_window_len = min(ra->ra_max_pages_per_file,
 				ra->ra_max_read_ahead_whole_pages);
-			GOTO(out_unlock, 0);
+			goto out_unlock;
 		}
 	}
 	if (zero) {
@@ -1038,7 +1035,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 			}
 			ras_reset(inode, ras, index);
 			ras->ras_consecutive_pages++;
-			GOTO(out_unlock, 0);
+			goto out_unlock;
 		} else {
 			ras->ras_consecutive_pages = 0;
 			ras->ras_consecutive_requests = 0;
@@ -1063,7 +1060,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 				ras_reset(inode, ras, index);
 				ras->ras_consecutive_pages++;
 				ras_stride_reset(ras);
-				GOTO(out_unlock, 0);
+				goto out_unlock;
 			}
 		} else if (stride_io_mode(ras)) {
 			/* If this is contiguous read but in stride I/O mode
@@ -1095,7 +1092,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 	 * is not incremented and thus can't be used to trigger RA */
 	if (!ras->ras_window_len && ras->ras_consecutive_pages == 4) {
 		ras->ras_window_len = RAS_INCREASE_STEP(inode);
-		GOTO(out_unlock, 0);
+		goto out_unlock;
 	}
 
 	/* Initially reset the stride window offset to next_readahead*/
@@ -1141,8 +1138,10 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 	LASSERT(ll_i2dtexp(inode) != NULL);
 
 	env = cl_env_nested_get(&nest);
-	if (IS_ERR(env))
-		GOTO(out, result = PTR_ERR(env));
+	if (IS_ERR(env)) {
+		result = PTR_ERR(env);
+		goto out;
+	}
 
 	clob  = ll_i2info(inode)->lli_clob;
 	LASSERT(clob != NULL);
@@ -1202,7 +1201,7 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 	}
 
 	cl_env_nested_put(&nest, env);
-	GOTO(out, result);
+	goto out;
 
 out:
 	if (result < 0) {

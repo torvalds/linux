@@ -50,31 +50,15 @@ struct	__queue	{
 #define _pkt struct sk_buff
 #define _buffer unsigned char
 #define thread_exit() complete_and_exit(NULL, 0)
-#define _workitem struct work_struct
 
 #define _init_queue(pqueue)				\
 	do {						\
-		_init_listhead(&((pqueue)->queue));	\
+		INIT_LIST_HEAD(&((pqueue)->queue));	\
 		spin_lock_init(&((pqueue)->lock));	\
 	} while (0)
 
-static inline struct list_head *get_next(struct list_head *list)
-{
-	return list->next;
-}
-
-static inline struct list_head *get_list_head(struct  __queue *queue)
-{
-	return &(queue->queue);
-}
-
 #define LIST_CONTAINOR(ptr, type, member) \
 	((type *)((char *)(ptr)-(SIZE_T)(&((type *)0)->member)))
-
-static inline void list_delete(struct list_head *plist)
-{
-	list_del_init(plist);
-}
 
 static inline void _init_timer(struct timer_list *ptimer,
 			       struct  net_device *padapter,
@@ -96,38 +80,9 @@ static inline void _cancel_timer(struct timer_list *ptimer, u8 *bcancelled)
 	*bcancelled = true; /*true ==1; false==0*/
 }
 
-static inline void _init_workitem(_workitem *pwork, void *pfunc, void *cntx)
-{
-	INIT_WORK(pwork, pfunc);
-}
-
-static inline void _set_workitem(_workitem *pwork)
-{
-	schedule_work(pwork);
-}
-
 #ifndef BIT
 	#define BIT(x)	(1 << (x))
 #endif
-
-/*
-For the following list_xxx operations,
-caller must guarantee the atomic context.
-Otherwise, there will be racing condition.
-*/
-static inline u32 is_list_empty(struct list_head *phead)
-{
-	if (list_empty(phead))
-		return true;
-	else
-		return false;
-}
-
-static inline void list_insert_tail(struct list_head *plist,
-				    struct list_head *phead)
-{
-	list_add_tail(plist, phead);
-}
 
 static inline u32 _down_sema(struct semaphore *sema)
 {
@@ -135,16 +90,6 @@ static inline u32 _down_sema(struct semaphore *sema)
 		return _FAIL;
 	else
 		return _SUCCESS;
-}
-
-static inline void _init_listhead(struct list_head *list)
-{
-	INIT_LIST_HEAD(list);
-}
-
-static inline u32 _queue_empty(struct  __queue *pqueue)
-{
-	return is_list_empty(&(pqueue->queue));
 }
 
 static inline u32 end_of_queue_search(struct list_head *head,
@@ -173,35 +118,10 @@ static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 	return del_timer(ptimer);
 }
 
-static inline void thread_enter(void *context)
-{
-	allow_signal(SIGTERM);
-}
-
 static inline void flush_signals_thread(void)
 {
 	if (signal_pending(current))
 		flush_signals(current);
-}
-
-static inline u32 _RND8(u32 sz)
-{
-	return ((sz >> 3) + ((sz & 7) ? 1 : 0)) << 3;
-}
-
-static inline u32 _RND128(u32 sz)
-{
-	return ((sz >> 7) + ((sz & 127) ? 1 : 0)) << 7;
-}
-
-static inline u32 _RND256(u32 sz)
-{
-	return ((sz >> 8) + ((sz & 255) ? 1 : 0)) << 8;
-}
-
-static inline u32 _RND512(u32 sz)
-{
-	return ((sz >> 9) + ((sz & 511) ? 1 : 0)) << 9;
 }
 
 #endif

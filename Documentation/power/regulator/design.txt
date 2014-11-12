@@ -9,14 +9,14 @@ Safety
 
  - Errors in regulator configuration can have very serious consequences
    for the system, potentially including lasting hardware damage.
- - It is not possible to automatically determine the power confugration
+ - It is not possible to automatically determine the power configuration
    of the system - software-equivalent variants of the same chip may
-   have different power requirments, and not all components with power
+   have different power requirements, and not all components with power
    requirements are visible to software.
 
   => The API should make no changes to the hardware state unless it has
-     specific knowledge that these changes are safe to do perform on
-     this particular system.
+     specific knowledge that these changes are safe to perform on this
+     particular system.
 
 Consumer use cases
 ------------------

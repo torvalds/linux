@@ -639,7 +639,7 @@ static int bt_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations bt_seq_ops = {
+static const struct seq_operations bt_seq_ops = {
 	.start = bt_seq_start,
 	.next  = bt_seq_next,
 	.stop  = bt_seq_stop,
@@ -709,7 +709,10 @@ EXPORT_SYMBOL_GPL(bt_debugfs);
 
 static int __init bt_init(void)
 {
+	struct sk_buff *skb;
 	int err;
+
+	BUILD_BUG_ON(sizeof(struct bt_skb_cb) > sizeof(skb->cb));
 
 	BT_INFO("Core ver %s", VERSION);
 

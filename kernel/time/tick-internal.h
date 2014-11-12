@@ -4,6 +4,8 @@
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 
+#include "timekeeping.h"
+
 extern seqlock_t jiffies_lock;
 
 #define CS_NAME_LEN	32
@@ -96,6 +98,13 @@ static inline int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
 static inline int tick_broadcast_oneshot_active(void) { return 0; }
 static inline bool tick_broadcast_oneshot_available(void) { return false; }
 #endif /* !TICK_ONESHOT */
+
+/* NO_HZ_FULL internal */
+#ifdef CONFIG_NO_HZ_FULL
+extern void tick_nohz_init(void);
+# else
+static inline void tick_nohz_init(void) { }
+#endif
 
 /*
  * Broadcasting support

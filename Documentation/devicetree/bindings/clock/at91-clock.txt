@@ -74,6 +74,9 @@ Required properties:
 	"atmel,at91sam9x5-clk-utmi":
 		at91 utmi clock
 
+	"atmel,sama5d4-clk-h32mx":
+		at91 h32mx clock
+
 Required properties for SCKC node:
 - reg : defines the IO memory reserved for the SCKC.
 - #size-cells : shall be 0 (reg is used to encode clk id).
@@ -446,4 +449,15 @@ For example:
 		interrupts = <AT91_PMC_LOCKU IRQ_TYPE_LEVEL_HIGH>;
 		#clock-cells = <0>;
 		clocks = <&main>;
+	};
+
+Required properties for 32 bits bus Matrix clock (h32mx clock):
+- #clock-cells : from common clock binding; shall be set to 0.
+- clocks : shall be the master clock source phandle.
+
+For example:
+	h32ck: h32mxck {
+		#clock-cells = <0>;
+		compatible = "atmel,sama5d4-clk-h32mx";
+		clocks = <&mck>;
 	};

@@ -615,7 +615,7 @@ static int hdmi_s_power(struct v4l2_subdev *sd, int on)
 	else
 		ret = pm_runtime_put_sync(hdev->dev);
 	/* only values < 0 indicate errors */
-	return IS_ERR_VALUE(ret) ? ret : 0;
+	return ret < 0 ? ret : 0;
 }
 
 static int hdmi_s_dv_timings(struct v4l2_subdev *sd,

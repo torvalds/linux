@@ -730,7 +730,7 @@ static void smc911x_phy_detect(struct net_device *dev)
 			lp->phy_type = id1 << 16 | id2;
 	}
 
-	DBG(SMC_DEBUG_MISC, dev, "phy_id1=0x%x, phy_id2=0x%x phyaddr=0x%d\n",
+	DBG(SMC_DEBUG_MISC, dev, "phy_id1=0x%x, phy_id2=0x%x phyaddr=0x%x\n",
 	    id1, id2, lp->mii.phy_id);
 }
 
@@ -1926,9 +1926,6 @@ static int smc911x_probe(struct net_device *dev)
 		goto err_out;
 	}
 	dev->irq = irq_canonicalize(dev->irq);
-
-	/* Fill in the fields of the device structure with ethernet values. */
-	ether_setup(dev);
 
 	dev->netdev_ops = &smc911x_netdev_ops;
 	dev->watchdog_timeo = msecs_to_jiffies(watchdog);

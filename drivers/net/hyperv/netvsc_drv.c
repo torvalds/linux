@@ -162,7 +162,7 @@ union sub_key {
  * data: network byte order
  * return: host byte order
  */
-static u32 comp_hash(u8 *key, int klen, u8 *data, int dlen)
+static u32 comp_hash(u8 *key, int klen, void *data, int dlen)
 {
 	union sub_key subk;
 	int k_next = 4;
@@ -176,7 +176,7 @@ static u32 comp_hash(u8 *key, int klen, u8 *data, int dlen)
 	for (i = 0; i < dlen; i++) {
 		subk.kb = key[k_next];
 		k_next = (k_next + 1) % klen;
-		dt = data[i];
+		dt = ((u8 *)data)[i];
 		for (j = 0; j < 8; j++) {
 			if (dt & 0x80)
 				ret ^= subk.ka;
@@ -190,26 +190,20 @@ static u32 comp_hash(u8 *key, int klen, u8 *data, int dlen)
 
 static bool netvsc_set_hash(u32 *hash, struct sk_buff *skb)
 {
-	struct iphdr *iphdr;
+	struct flow_keys flow;
 	int data_len;
-	bool ret = false;
 
-	if (eth_hdr(skb)->h_proto != htons(ETH_P_IP))
+	if (!skb_flow_dissect(skb, &flow) || flow.n_proto != htons(ETH_P_IP))
 		return false;
 
-	iphdr = ip_hdr(skb);
+	if (flow.ip_proto == IPPROTO_TCP)
+		data_len = 12;
+	else
+		data_len = 8;
 
-	if (iphdr->version == 4) {
-		if (iphdr->protocol == IPPROTO_TCP)
-			data_len = 12;
-		else
-			data_len = 8;
-		*hash = comp_hash(netvsc_hash_key, HASH_KEYLEN,
-				  (u8 *)&iphdr->saddr, data_len);
-		ret = true;
-	}
+	*hash = comp_hash(netvsc_hash_key, HASH_KEYLEN, &flow, data_len);
 
-	return ret;
+	return true;
 }
 
 static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
@@ -387,6 +381,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	int  hdr_offset;
 	u32 net_trans_info;
 	u32 hash;
+	u32 skb_length = skb->len;
 
 
 	/* We will atmost need two pages to describe the rndis
@@ -555,6 +550,7 @@ do_lso:
 do_send:
 	/* Start filling in the page buffers with the rndis hdr */
 	rndis_msg->msg_len += rndis_msg_size;
+	packet->total_data_buflen = rndis_msg->msg_len;
 	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
 					skb, &packet->page_buf[0]);
 
@@ -562,7 +558,7 @@ do_send:
 
 drop:
 	if (ret == 0) {
-		net->stats.tx_bytes += skb->len;
+		net->stats.tx_bytes += skb_length;
 		net->stats.tx_packets++;
 	} else {
 		kfree(packet);
@@ -579,8 +575,9 @@ drop:
  * netvsc_linkstatus_callback - Link up/down notification
  */
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
-				       unsigned int status)
+				struct rndis_message *resp)
 {
+	struct rndis_indicate_status *indicate = &resp->msg.indicate_status;
 	struct net_device *net;
 	struct net_device_context *ndev_ctx;
 	struct netvsc_device *net_device;
@@ -589,7 +586,19 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 	net_device = hv_get_drvdata(device_obj);
 	rdev = net_device->extension;
 
-	rdev->link_state = status != 1;
+	switch (indicate->status) {
+	case RNDIS_STATUS_MEDIA_CONNECT:
+		rdev->link_state = false;
+		break;
+	case RNDIS_STATUS_MEDIA_DISCONNECT:
+		rdev->link_state = true;
+		break;
+	case RNDIS_STATUS_NETWORK_CHANGE:
+		rdev->link_change = true;
+		break;
+	default:
+		return;
+	}
 
 	net = net_device->ndev;
 
@@ -597,7 +606,7 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 		return;
 
 	ndev_ctx = netdev_priv(net);
-	if (status == 1) {
+	if (!rdev->link_state) {
 		schedule_delayed_work(&ndev_ctx->dwork, 0);
 		schedule_delayed_work(&ndev_ctx->dwork, msecs_to_jiffies(20));
 	} else {
@@ -736,6 +745,14 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	return err;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void netvsc_poll_controller(struct net_device *net)
+{
+	/* As netvsc_start_xmit() works synchronous we don't have to
+	 * trigger anything here.
+	 */
+}
+#endif
 
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
@@ -751,6 +768,9 @@ static const struct net_device_ops device_ops = {
 	.ndo_validate_addr =		eth_validate_addr,
 	.ndo_set_mac_address =		netvsc_set_mac_addr,
 	.ndo_select_queue =		netvsc_select_queue,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller =		netvsc_poll_controller,
+#endif
 };
 
 /*
@@ -767,7 +787,9 @@ static void netvsc_link_change(struct work_struct *w)
 	struct net_device *net;
 	struct netvsc_device *net_device;
 	struct rndis_device *rdev;
-	bool notify;
+	bool notify, refresh = false;
+	char *argv[] = { "/etc/init.d/network", "restart", NULL };
+	char *envp[] = { "HOME=/", "PATH=/sbin:/usr/sbin:/bin:/usr/bin", NULL };
 
 	rtnl_lock();
 
@@ -782,9 +804,16 @@ static void netvsc_link_change(struct work_struct *w)
 	} else {
 		netif_carrier_on(net);
 		notify = true;
+		if (rdev->link_change) {
+			rdev->link_change = false;
+			refresh = true;
+		}
 	}
 
 	rtnl_unlock();
+
+	if (refresh)
+		call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
 
 	if (notify)
 		netdev_notify_peers(net);

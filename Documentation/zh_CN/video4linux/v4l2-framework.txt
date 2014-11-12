@@ -580,11 +580,6 @@ release()回调必须被设置，且在最后一个 video_device 用户退出之
   v4l2_device 无法与特定的 PCI 设备关联，所有没有设置父设备。但当
   video_device 配置后，就知道使用哪个父 PCI 设备了。
 
-- flags：可选。如果你要让框架处理设置 VIDIOC_G/S_PRIORITY ioctls，
-  请设置 V4L2_FL_USE_FH_PRIO。这要求你使用 v4l2_fh 结构体。
-  一旦所有驱动使用了核心的优先级处理，最终这个标志将消失。但现在它
-  必须被显式设置。
-
 如果你使用 v4l2_ioctl_ops，则应该在 v4l2_file_operations 结构体中
 设置 .unlocked_ioctl 指向 video_ioctl2。
 
@@ -789,7 +784,7 @@ v4l2_fh 结构体
 -------------
 
 v4l2_fh 结构体提供一个保存用于 V4L2 框架的文件句柄特定数据的简单方法。
-如果 video_device 的 flag 设置了 V4L2_FL_USE_FH_PRIO 标志，新驱动
+如果 video_device 标志，新驱动
 必须使用 v4l2_fh 结构体，因为它也用于实现优先级处理（VIDIOC_G/S_PRIORITY）。
 
 v4l2_fh 的用户（位于 V4l2 框架中，并非驱动）可通过测试

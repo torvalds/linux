@@ -133,9 +133,13 @@ int sctp_rcv(struct sk_buff *skb)
 	__skb_pull(skb, skb_transport_offset(skb));
 	if (skb->len < sizeof(struct sctphdr))
 		goto discard_it;
-	if (!sctp_checksum_disable && !skb_csum_unnecessary(skb) &&
-		  sctp_rcv_checksum(net, skb) < 0)
+
+	skb->csum_valid = 0; /* Previous value not applicable */
+	if (skb_csum_unnecessary(skb))
+		__skb_decr_checksum_unnecessary(skb);
+	else if (!sctp_checksum_disable && sctp_rcv_checksum(net, skb) < 0)
 		goto discard_it;
+	skb->csum_valid = 1;
 
 	skb_pull(skb, sizeof(struct sctphdr));
 
@@ -574,11 +578,6 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	__u16 saveip, savesctp;
 	int err;
 	struct net *net = dev_net(skb->dev);
-
-	if (skb->len < ihlen + 8) {
-		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
-		return;
-	}
 
 	/* Fix up skb to look at the embedded net header. */
 	saveip = skb->network_header;

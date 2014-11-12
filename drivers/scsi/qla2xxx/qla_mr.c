@@ -695,11 +695,11 @@ qlafx00_pci_info_str(struct scsi_qla_host *vha, char *str)
 }
 
 char *
-qlafx00_fw_version_str(struct scsi_qla_host *vha, char *str)
+qlafx00_fw_version_str(struct scsi_qla_host *vha, char *str, size_t size)
 {
 	struct qla_hw_data *ha = vha->hw;
 
-	sprintf(str, "%s", ha->mr.fw_version);
+	snprintf(str, size, "%s", ha->mr.fw_version);
 	return str;
 }
 
@@ -726,13 +726,13 @@ qlafx00_disable_intrs(struct qla_hw_data *ha)
 }
 
 int
-qlafx00_abort_target(fc_port_t *fcport, unsigned int l, int tag)
+qlafx00_abort_target(fc_port_t *fcport, uint64_t l, int tag)
 {
 	return qla2x00_async_tm_cmd(fcport, TCF_TARGET_RESET, l, tag);
 }
 
 int
-qlafx00_lun_reset(fc_port_t *fcport, unsigned int l, int tag)
+qlafx00_lun_reset(fc_port_t *fcport, uint64_t l, int tag)
 {
 	return qla2x00_async_tm_cmd(fcport, TCF_LUN_RESET, l, tag);
 }
@@ -1551,7 +1551,10 @@ qlafx00_timer_routine(scsi_qla_host_t *vha)
 			ha->mr.fw_reset_timer_tick =
 			    QLAFX00_MAX_RESET_INTERVAL;
 		}
-		ha->mr.old_aenmbx0_state = aenmbx0;
+		if (ha->mr.old_aenmbx0_state != aenmbx0) {
+			ha->mr.old_aenmbx0_state = aenmbx0;
+			ha->mr.fw_reset_timer_tick = QLAFX00_RESET_INTERVAL;
+		}
 		ha->mr.fw_reset_timer_tick--;
 	}
 	if (test_bit(FX00_CRITEMP_RECOVERY, &vha->dpc_flags)) {
@@ -1675,17 +1678,16 @@ qlafx00_get_fcport(struct scsi_qla_host *vha, int tgt_id)
 	fc_port_t	*fcport;
 
 	/* Check for matching device in remote port list. */
-	fcport = NULL;
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		if (fcport->tgt_id == tgt_id) {
 			ql_dbg(ql_dbg_async, vha, 0x5072,
 			    "Matching fcport(%p) found with TGT-ID: 0x%x "
 			    "and Remote TGT_ID: 0x%x\n",
 			    fcport, fcport->tgt_id, tgt_id);
-			break;
+			return fcport;
 		}
 	}
-	return fcport;
+	return NULL;
 }
 
 static void
@@ -2159,7 +2161,7 @@ qlafx00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 
 	if (sense_len) {
 		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x3039,
-		    "Check condition Sense data, nexus%ld:%d:%d cmd=%p.\n",
+		    "Check condition Sense data, nexus%ld:%d:%llu cmd=%p.\n",
 		    sp->fcport->vha->host_no, cp->device->id, cp->device->lun,
 		    cp);
 		ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x3049,
@@ -2524,7 +2526,7 @@ check_scsi_status:
 
 	if (logit)
 		ql_dbg(ql_dbg_io, fcport->vha, 0x3058,
-		    "FCP command status: 0x%x-0x%x (0x%x) nexus=%ld:%d:%d "
+		    "FCP command status: 0x%x-0x%x (0x%x) nexus=%ld:%d:%llu "
 		    "tgt_id: 0x%x lscsi_status: 0x%x cdb=%10phN len=0x%x "
 		    "rsp_info=0x%x resid=0x%x fw_resid=0x%x sense_len=0x%x, "
 		    "par_sense_len=0x%x, rsp_info_len=0x%x\n",
@@ -2924,7 +2926,7 @@ qlafx00_intr_handler(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; clr_intr = 0) {
 		stat = QLAFX00_RD_INTR_REG(ha);
-		if (qla2x00_check_reg_for_disconnect(vha, stat))
+		if (qla2x00_check_reg32_for_disconnect(vha, stat))
 			break;
 		intr_stat = stat & QLAFX00_HST_INT_STS_BITS;
 		if (!intr_stat)

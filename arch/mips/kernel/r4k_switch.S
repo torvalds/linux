@@ -22,6 +22,9 @@
 
 #include <asm/asmmacro.h>
 
+/* preprocessor replaces the fp in ".set fp=64" with $30 otherwise */
+#undef fp
+
 /*
  * Offset to the current process status flags, the first 32 bytes of the
  * stack are not used.
@@ -64,8 +67,14 @@
 	/* Check whether we're saving scalar or vector context. */
 	bgtz	a3, 1f
 
-	/* Save 128b MSA vector context. */
+	/* Save 128b MSA vector context + scalar FP control & status. */
+	.set push
+	SET_HARDFLOAT
+	cfc1	t1, fcr31
 	msa_save_all	a0
+	.set pop	/* SET_HARDFLOAT */
+
+	sw	t1, THREAD_FCR31(a0)
 	b	2f
 
 1:	/* Save 32b/64b scalar FP context. */
@@ -142,6 +151,11 @@ LEAF(_restore_msa)
 	jr	ra
 	END(_restore_msa)
 
+LEAF(_init_msa_upper)
+	msa_init_all_upper
+	jr	ra
+	END(_init_msa_upper)
+
 #endif
 
 /*
@@ -153,6 +167,9 @@ LEAF(_restore_msa)
  */
 
 #define FPU_DEFAULT  0x00000000
+
+	.set push
+	SET_HARDFLOAT
 
 LEAF(_init_fpu)
 	mfc0	t0, CP0_STATUS
@@ -225,7 +242,8 @@ LEAF(_init_fpu)
 
 #ifdef CONFIG_CPU_MIPS32_R2
 	.set    push
-	.set    mips64r2
+	.set    mips32r2
+	.set	fp=64
 	sll     t0, t0, 5			# is Status.FR set?
 	bgez    t0, 1f				# no: skip setting upper 32b
 
@@ -284,3 +302,5 @@ LEAF(_init_fpu)
 #endif
 	jr	ra
 	END(_init_fpu)
+
+	.set pop	/* SET_HARDFLOAT */

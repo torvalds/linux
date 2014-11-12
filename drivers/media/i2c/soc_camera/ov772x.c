@@ -29,6 +29,7 @@
 #include <media/v4l2-clk.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
+#include <media/v4l2-image-sizes.h>
 
 /*
  * register offset
@@ -360,10 +361,6 @@
 #define SCAL0_ACTRL     0x08 /* Auto scaling factor control */
 #define SCAL1_2_ACTRL   0x04 /* Auto scaling factor control */
 
-#define VGA_WIDTH		640
-#define VGA_HEIGHT		480
-#define QVGA_WIDTH		320
-#define QVGA_HEIGHT		240
 #define OV772X_MAX_WIDTH	VGA_WIDTH
 #define OV772X_MAX_HEIGHT	VGA_HEIGHT
 

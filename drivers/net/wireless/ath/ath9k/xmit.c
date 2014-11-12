@@ -103,9 +103,16 @@ void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq)
 		ieee80211_tx_status(sc->hw, skb);
 }
 
-static void ath_tx_queue_tid(struct ath_txq *txq, struct ath_atx_tid *tid)
+static void ath_tx_queue_tid(struct ath_softc *sc, struct ath_txq *txq,
+			     struct ath_atx_tid *tid)
 {
 	struct ath_atx_ac *ac = tid->ac;
+	struct list_head *list;
+	struct ath_vif *avp = (struct ath_vif *) tid->an->vif->drv_priv;
+	struct ath_chanctx *ctx = avp->chanctx;
+
+	if (!ctx)
+		return;
 
 	if (tid->sched)
 		return;
@@ -117,7 +124,9 @@ static void ath_tx_queue_tid(struct ath_txq *txq, struct ath_atx_tid *tid)
 		return;
 
 	ac->sched = true;
-	list_add_tail(&ac->list, &txq->axq_acq);
+
+	list = &ctx->acq[TID_TO_WME_AC(tid->tidno)];
+	list_add_tail(&ac->list, list);
 }
 
 static struct ath_frame_info *get_frame_info(struct sk_buff *skb)
@@ -147,21 +156,23 @@ static void ath_set_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 			     struct sk_buff *skb)
 {
-	int q;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ath_frame_info *fi = get_frame_info(skb);
+	int q = fi->txq;
 
-	q = skb_get_queue_mapping(skb);
-	if (txq == sc->tx.uapsdq)
-		txq = sc->tx.txq_map[q];
-
-	if (txq != sc->tx.txq_map[q])
+	if (q < 0)
 		return;
 
+	txq = sc->tx.txq_map[q];
 	if (WARN_ON(--txq->pending_frames < 0))
 		txq->pending_frames = 0;
 
 	if (txq->stopped &&
 	    txq->pending_frames < sc->tx.txq_max_pending[q]) {
-		ieee80211_wake_queue(sc->hw, q);
+		if (ath9k_is_chanctx_enabled())
+			ieee80211_wake_queue(sc->hw, info->hw_queue);
+		else
+			ieee80211_wake_queue(sc->hw, q);
 		txq->stopped = false;
 	}
 }
@@ -577,6 +588,10 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				memcpy(tx_info->control.rates, rates, sizeof(rates));
 				ath_tx_rc_status(sc, bf, ts, nframes, nbad, txok);
 				rc_update = false;
+				if (bf == bf->bf_lastbf)
+					ath_dynack_sample_tx_ts(sc->sc_ah,
+								bf->bf_mpdu,
+								ts);
 			}
 
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, ts,
@@ -626,7 +641,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 		skb_queue_splice_tail(&bf_pending, &tid->retry_q);
 		if (!an->sleeping) {
-			ath_tx_queue_tid(txq, tid);
+			ath_tx_queue_tid(sc, txq, tid);
 
 			if (ts->ts_status & (ATH9K_TXERR_FILT | ATH9K_TXERR_XRETRY))
 				tid->ac->clear_ps_filter = true;
@@ -671,12 +686,15 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 	if (bf_is_ampdu_not_probing(bf))
 		txq->axq_ampdu_depth--;
 
+	ts->duration = ath9k_hw_get_duration(sc->sc_ah, bf->bf_desc,
+					     ts->ts_rateindex);
 	if (!bf_isampdu(bf)) {
 		if (!flush) {
 			info = IEEE80211_SKB_CB(bf->bf_mpdu);
 			memcpy(info->control.rates, bf->rates,
 			       sizeof(info->control.rates));
 			ath_tx_rc_status(sc, bf, ts, 1, txok ? 0 : 1, txok);
+			ath_dynack_sample_tx_ts(sc->sc_ah, bf->bf_mpdu, ts);
 		}
 		ath_tx_complete_buf(sc, bf, txq, bf_head, ts, txok);
 	} else
@@ -1492,7 +1510,7 @@ void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an)
 		ac->clear_ps_filter = true;
 
 		if (ath_tid_has_buffered(tid)) {
-			ath_tx_queue_tid(txq, tid);
+			ath_tx_queue_tid(sc, txq, tid);
 			ath_txq_schedule(sc, txq);
 		}
 
@@ -1516,7 +1534,7 @@ void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta,
 	tid->baw_size = IEEE80211_MIN_AMPDU_BUF << sta->ht_cap.ampdu_factor;
 
 	if (ath_tid_has_buffered(tid)) {
-		ath_tx_queue_tid(txq, tid);
+		ath_tx_queue_tid(sc, txq, tid);
 		ath_txq_schedule(sc, txq);
 	}
 
@@ -1651,7 +1669,6 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		txq->axq_link = NULL;
 		__skb_queue_head_init(&txq->complete_q);
 		INIT_LIST_HEAD(&txq->axq_q);
-		INIT_LIST_HEAD(&txq->axq_acq);
 		spin_lock_init(&txq->axq_lock);
 		txq->axq_depth = 0;
 		txq->axq_ampdu_depth = 0;
@@ -1695,7 +1712,7 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 int ath_cabq_update(struct ath_softc *sc)
 {
 	struct ath9k_tx_queue_info qi;
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 	int qnum = sc->beacon.cabq->axq_qnum;
 
 	ath9k_hw_get_txq_props(sc->sc_ah, qnum, &qi);
@@ -1813,7 +1830,7 @@ void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq)
 	sc->tx.txqsetup &= ~(1<<txq->axq_qnum);
 }
 
-/* For each axq_acq entry, for each tid, try to schedule packets
+/* For each acq entry, for each tid, try to schedule packets
  * for transmit until ampdu_depth has reached min Q depth.
  */
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
@@ -1821,19 +1838,33 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_atx_ac *ac, *last_ac;
 	struct ath_atx_tid *tid, *last_tid;
+	struct list_head *ac_list;
 	bool sent = false;
 
-	if (test_bit(ATH_OP_HW_RESET, &common->op_flags) ||
-	    list_empty(&txq->axq_acq))
+	if (txq->mac80211_qnum < 0)
 		return;
+
+	if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
+		return;
+
+	spin_lock_bh(&sc->chan_lock);
+	ac_list = &sc->cur_chan->acq[txq->mac80211_qnum];
+
+	if (list_empty(ac_list)) {
+		spin_unlock_bh(&sc->chan_lock);
+		return;
+	}
 
 	rcu_read_lock();
 
-	last_ac = list_entry(txq->axq_acq.prev, struct ath_atx_ac, list);
-	while (!list_empty(&txq->axq_acq)) {
+	last_ac = list_entry(ac_list->prev, struct ath_atx_ac, list);
+	while (!list_empty(ac_list)) {
 		bool stop = false;
 
-		ac = list_first_entry(&txq->axq_acq, struct ath_atx_ac, list);
+		if (sc->cur_chan->stopped)
+			break;
+
+		ac = list_first_entry(ac_list, struct ath_atx_ac, list);
 		last_tid = list_entry(ac->tid_q.prev, struct ath_atx_tid, list);
 		list_del(&ac->list);
 		ac->sched = false;
@@ -1853,7 +1884,7 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 			 * are pending for the tid
 			 */
 			if (ath_tid_has_buffered(tid))
-				ath_tx_queue_tid(txq, tid);
+				ath_tx_queue_tid(sc, txq, tid);
 
 			if (stop || tid == last_tid)
 				break;
@@ -1861,7 +1892,7 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 
 		if (!list_empty(&ac->tid_q) && !ac->sched) {
 			ac->sched = true;
-			list_add_tail(&ac->list, &txq->axq_acq);
+			list_add_tail(&ac->list, ac_list);
 		}
 
 		if (stop)
@@ -1872,12 +1903,27 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 				break;
 
 			sent = false;
-			last_ac = list_entry(txq->axq_acq.prev,
+			last_ac = list_entry(ac_list->prev,
 					     struct ath_atx_ac, list);
 		}
 	}
 
 	rcu_read_unlock();
+	spin_unlock_bh(&sc->chan_lock);
+}
+
+void ath_txq_schedule_all(struct ath_softc *sc)
+{
+	struct ath_txq *txq;
+	int i;
+
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		txq = sc->tx.txq_map[i];
+
+		spin_lock_bh(&txq->axq_lock);
+		ath_txq_schedule(sc, txq);
+		spin_unlock_bh(&txq->axq_lock);
+	}
 }
 
 /***********/
@@ -2008,6 +2054,7 @@ static void setup_frame_info(struct ieee80211_hw *hw,
 		an = (struct ath_node *) sta->drv_priv;
 
 	memset(fi, 0, sizeof(*fi));
+	fi->txq = -1;
 	if (hw_key)
 		fi->keyix = hw_key->hw_key_idx;
 	else if (an && ieee80211_is_data(hdr->frame_control) && an->ps_key > 0)
@@ -2095,6 +2142,28 @@ static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 	return bf;
 }
 
+void ath_assign_seq(struct ath_common *common, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_vif *vif = info->control.vif;
+	struct ath_vif *avp;
+
+	if (!(info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
+		return;
+
+	if (!vif)
+		return;
+
+	avp = (struct ath_vif *)vif->drv_priv;
+
+	if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+		avp->seq_no += 0x10;
+
+	hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+	hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
+}
+
 static int ath_tx_prepare(struct ieee80211_hw *hw, struct sk_buff *skb,
 			  struct ath_tx_control *txctl)
 {
@@ -2118,17 +2187,7 @@ static int ath_tx_prepare(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (info->control.hw_key)
 		frmlen += info->control.hw_key->icv_len;
 
-	/*
-	 * As a temporary workaround, assign seq# here; this will likely need
-	 * to be cleaned up to work better with Beacon transmission and virtual
-	 * BSSes.
-	 */
-	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
-			sc->tx.seq_no += 0x10;
-		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(sc->tx.seq_no);
-	}
+	ath_assign_seq(ath9k_hw_common(sc->sc_ah), skb);
 
 	if ((vif && vif->type != NL80211_IFTYPE_AP &&
 	            vif->type != NL80211_IFTYPE_AP_VLAN) ||
@@ -2159,12 +2218,20 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = txctl->sta;
 	struct ieee80211_vif *vif = info->control.vif;
+	struct ath_frame_info *fi = get_frame_info(skb);
+	struct ath_vif *avp = NULL;
 	struct ath_softc *sc = hw->priv;
 	struct ath_txq *txq = txctl->txq;
 	struct ath_atx_tid *tid = NULL;
 	struct ath_buf *bf;
-	int q;
-	int ret;
+	bool queue, skip_uapsd = false;
+	int q, ret;
+
+	if (vif)
+		avp = (void *)vif->drv_priv;
+
+	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		txctl->force_channel = true;
 
 	ret = ath_tx_prepare(hw, skb, txctl);
 	if (ret)
@@ -2179,22 +2246,40 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	q = skb_get_queue_mapping(skb);
 
 	ath_txq_lock(sc, txq);
-	if (txq == sc->tx.txq_map[q] &&
-	    ++txq->pending_frames > sc->tx.txq_max_pending[q] &&
-	    !txq->stopped) {
-		ieee80211_stop_queue(sc->hw, q);
-		txq->stopped = true;
+	if (txq == sc->tx.txq_map[q]) {
+		fi->txq = q;
+		if (++txq->pending_frames > sc->tx.txq_max_pending[q] &&
+		    !txq->stopped) {
+			if (ath9k_is_chanctx_enabled())
+				ieee80211_stop_queue(sc->hw, info->hw_queue);
+			else
+				ieee80211_stop_queue(sc->hw, q);
+			txq->stopped = true;
+		}
 	}
 
-	if (txctl->an && ieee80211_is_data_present(hdr->frame_control))
+	queue = ieee80211_is_data_present(hdr->frame_control);
+
+	/* Force queueing of all frames that belong to a virtual interface on
+	 * a different channel context, to ensure that they are sent on the
+	 * correct channel.
+	 */
+	if (((avp && avp->chanctx != sc->cur_chan) ||
+	     sc->cur_chan->stopped) && !txctl->force_channel) {
+		if (!txctl->an)
+			txctl->an = &avp->mcast_node;
+		queue = true;
+		skip_uapsd = true;
+	}
+
+	if (txctl->an && queue)
 		tid = ath_get_skb_tid(sc, txctl->an, skb);
 
-	if (info->flags & IEEE80211_TX_CTL_PS_RESPONSE) {
+	if (!skip_uapsd && (info->flags & IEEE80211_TX_CTL_PS_RESPONSE)) {
 		ath_txq_unlock(sc, txq);
 		txq = sc->tx.uapsdq;
 		ath_txq_lock(sc, txq);
-	} else if (txctl->an &&
-		   ieee80211_is_data_present(hdr->frame_control)) {
+	} else if (txctl->an && queue) {
 		WARN_ON(tid->ac->txq != txctl->txq);
 
 		if (info->flags & IEEE80211_TX_CTL_CLEAR_PS_FILT)
@@ -2207,7 +2292,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		TX_STAT_INC(txq->axq_qnum, a_queued_sw);
 		__skb_queue_tail(&tid->buf_q, skb);
 		if (!txctl->an->sleeping)
-			ath_tx_queue_tid(txq, tid);
+			ath_tx_queue_tid(sc, txq, tid);
 
 		ath_txq_schedule(sc, txq);
 		goto out;
@@ -2253,8 +2338,8 @@ void ath_tx_cabq(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int max_duration;
 
 	max_duration =
-		sc->cur_beacon_conf.beacon_interval * 1000 *
-		sc->cur_beacon_conf.dtim_period / ATH_BCBUF;
+		sc->cur_chan->beacon.beacon_interval * 1000 *
+		sc->cur_chan->beacon.dtim_period / ATH_BCBUF;
 
 	do {
 		struct ath_frame_info *fi = get_frame_info(skb);
@@ -2568,6 +2653,11 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		if (ts.qid == sc->beacon.beaconq) {
 			sc->beacon.tx_processed = true;
 			sc->beacon.tx_last = !(ts.ts_status & ATH9K_TXERR_MASK);
+
+			if (ath9k_is_chanctx_enabled()) {
+				ath_chanctx_event(sc, NULL,
+						  ATH_CHANCTX_EVENT_BEACON_SENT);
+			}
 
 			ath9k_csa_update(sc);
 			continue;

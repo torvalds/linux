@@ -33,7 +33,7 @@ enum mb86a20s_bandwidth {
 	MB86A20S_3SEG = 3,
 };
 
-u8 mb86a20s_subchannel[] = {
+static u8 mb86a20s_subchannel[] = {
 	0xb0, 0xc0, 0xd0, 0xe0,
 	0xf0, 0x00, 0x10, 0x20,
 };
@@ -459,6 +459,9 @@ static int mb86a20s_get_interleaving(struct mb86a20s_state *state,
 				     unsigned layer)
 {
 	int rc;
+	int interleaving[] = {
+		0, 1, 2, 4, 8
+	};
 
 	static unsigned char reg[] = {
 		[0] = 0x88,	/* Layer A */
@@ -475,20 +478,7 @@ static int mb86a20s_get_interleaving(struct mb86a20s_state *state,
 	if (rc < 0)
 		return rc;
 
-	switch ((rc >> 4) & 0x07) {
-	case 1:
-		return GUARD_INTERVAL_1_4;
-	case 2:
-		return GUARD_INTERVAL_1_8;
-	case 3:
-		return GUARD_INTERVAL_1_16;
-	case 4:
-		return GUARD_INTERVAL_1_32;
-
-	default:
-	case 0:
-		return GUARD_INTERVAL_AUTO;
-	}
+	return interleaving[(rc >> 4) & 0x07];
 }
 
 static int mb86a20s_get_segment_count(struct mb86a20s_state *state,
@@ -566,7 +556,7 @@ static u32 isdbt_rate[3][5][4] = {
 
 static void mb86a20s_layer_bitrate(struct dvb_frontend *fe, u32 layer,
 				   u32 modulation, u32 forward_error_correction,
-				   u32 interleaving,
+				   u32 guard_interval,
 				   u32 segment)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
@@ -574,7 +564,7 @@ static void mb86a20s_layer_bitrate(struct dvb_frontend *fe, u32 layer,
 	int mod, fec, guard;
 
 	/*
-	 * If modulation/fec/interleaving is not detected, the default is
+	 * If modulation/fec/guard is not detected, the default is
 	 * to consider the lowest bit rate, to avoid taking too long time
 	 * to get BER.
 	 */
@@ -612,7 +602,7 @@ static void mb86a20s_layer_bitrate(struct dvb_frontend *fe, u32 layer,
 		break;
 	}
 
-	switch (interleaving) {
+	switch (guard_interval) {
 	default:
 	case GUARD_INTERVAL_1_4:
 		guard = 0;
@@ -703,7 +693,7 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 		c->layer[layer].interleaving = rc;
 		mb86a20s_layer_bitrate(fe, layer, c->layer[layer].modulation,
 				       c->layer[layer].fec,
-				       c->layer[layer].interleaving,
+				       c->guard_interval,
 				       c->layer[layer].segment_count);
 	}
 
@@ -721,11 +711,10 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 	rc = mb86a20s_readreg(state, 0x07);
 	if (rc < 0)
 		return rc;
+	c->transmission_mode = TRANSMISSION_MODE_AUTO;
 	if ((rc & 0x60) == 0x20) {
-		switch (rc & 0x0c >> 2) {
-		case 0:
-			c->transmission_mode = TRANSMISSION_MODE_2K;
-			break;
+		/* Only modes 2 and 3 are supported */
+		switch ((rc >> 2) & 0x03) {
 		case 1:
 			c->transmission_mode = TRANSMISSION_MODE_4K;
 			break;
@@ -734,7 +723,9 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 			break;
 		}
 	}
+	c->guard_interval = GUARD_INTERVAL_AUTO;
 	if (!(rc & 0x10)) {
+		/* Guard interval 1/32 is not supported */
 		switch (rc & 0x3) {
 		case 0:
 			c->guard_interval = GUARD_INTERVAL_1_4;
@@ -1237,7 +1228,7 @@ struct linear_segments {
  * All tables below return a dB/1000 measurement
  */
 
-static struct linear_segments cnr_to_db_table[] = {
+static const struct linear_segments cnr_to_db_table[] = {
 	{ 19648,     0},
 	{ 18187,  1000},
 	{ 16534,  2000},
@@ -1271,7 +1262,7 @@ static struct linear_segments cnr_to_db_table[] = {
 	{   788, 30000},
 };
 
-static struct linear_segments cnr_64qam_table[] = {
+static const struct linear_segments cnr_64qam_table[] = {
 	{ 3922688,     0},
 	{ 3920384,  1000},
 	{ 3902720,  2000},
@@ -1305,7 +1296,7 @@ static struct linear_segments cnr_64qam_table[] = {
 	{  388864, 30000},
 };
 
-static struct linear_segments cnr_16qam_table[] = {
+static const struct linear_segments cnr_16qam_table[] = {
 	{ 5314816,     0},
 	{ 5219072,  1000},
 	{ 5118720,  2000},
@@ -1339,7 +1330,7 @@ static struct linear_segments cnr_16qam_table[] = {
 	{   95744, 30000},
 };
 
-struct linear_segments cnr_qpsk_table[] = {
+static const struct linear_segments cnr_qpsk_table[] = {
 	{ 2834176,     0},
 	{ 2683648,  1000},
 	{ 2536960,  2000},
@@ -1373,7 +1364,7 @@ struct linear_segments cnr_qpsk_table[] = {
 	{   11520, 30000},
 };
 
-static u32 interpolate_value(u32 value, struct linear_segments *segments,
+static u32 interpolate_value(u32 value, const struct linear_segments *segments,
 			     unsigned len)
 {
 	u64 tmp64;
@@ -1457,7 +1448,7 @@ static int mb86a20s_get_blk_error_layer_CNR(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 mer, cnr;
 	int rc, val, layer;
-	struct linear_segments *segs;
+	const struct linear_segments *segs;
 	unsigned segs_len;
 
 	dev_dbg(&state->i2c->dev, "%s called.\n", __func__);

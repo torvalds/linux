@@ -22,42 +22,6 @@
 #include <linux/mfd/max14577-private.h>
 #include <linux/regulator/of_regulator.h>
 
-/*
- * Valid limits of current for max14577 and max77836 chargers.
- * They must correspond to MBCICHWRCL and MBCICHWRCH fields in CHGCTRL4
- * register for given chipset.
- */
-struct maxim_charger_current {
-	/* Minimal current, set in CHGCTRL4/MBCICHWRCL, uA */
-	unsigned int min;
-	/*
-	 * Minimal current when high setting is active,
-	 * set in CHGCTRL4/MBCICHWRCH, uA
-	 */
-	unsigned int high_start;
-	/* Value of one step in high setting, uA */
-	unsigned int high_step;
-	/* Maximum current of high setting, uA */
-	unsigned int max;
-};
-
-/* Table of valid charger currents for different Maxim chipsets */
-static const struct maxim_charger_current maxim_charger_currents[] = {
-	[MAXIM_DEVICE_TYPE_UNKNOWN] = { 0, 0, 0, 0 },
-	[MAXIM_DEVICE_TYPE_MAX14577] = {
-		.min		= MAX14577_REGULATOR_CURRENT_LIMIT_MIN,
-		.high_start	= MAX14577_REGULATOR_CURRENT_LIMIT_HIGH_START,
-		.high_step	= MAX14577_REGULATOR_CURRENT_LIMIT_HIGH_STEP,
-		.max		= MAX14577_REGULATOR_CURRENT_LIMIT_MAX,
-	},
-	[MAXIM_DEVICE_TYPE_MAX77836] = {
-		.min		= MAX77836_REGULATOR_CURRENT_LIMIT_MIN,
-		.high_start	= MAX77836_REGULATOR_CURRENT_LIMIT_HIGH_START,
-		.high_step	= MAX77836_REGULATOR_CURRENT_LIMIT_HIGH_STEP,
-		.max		= MAX77836_REGULATOR_CURRENT_LIMIT_MAX,
-	},
-};
-
 static int max14577_reg_is_enabled(struct regulator_dev *rdev)
 {
 	int rid = rdev_get_id(rdev);
@@ -103,8 +67,8 @@ static int max14577_reg_get_current_limit(struct regulator_dev *rdev)
 static int max14577_reg_set_current_limit(struct regulator_dev *rdev,
 		int min_uA, int max_uA)
 {
-	int i, current_bits = 0xf;
 	u8 reg_data;
+	int ret;
 	struct max14577 *max14577 = rdev_get_drvdata(rdev);
 	const struct maxim_charger_current *limits =
 		&maxim_charger_currents[max14577->dev_type];
@@ -112,35 +76,9 @@ static int max14577_reg_set_current_limit(struct regulator_dev *rdev,
 	if (rdev_get_id(rdev) != MAX14577_CHARGER)
 		return -EINVAL;
 
-	if (min_uA > limits->max || max_uA < limits->min)
-		return -EINVAL;
-
-	if (max_uA < limits->high_start) {
-		/*
-		 * Less than high_start,
-		 * so set the minimal current (turn only Low Bit off)
-		 */
-		u8 reg_data = 0x0 << CHGCTRL4_MBCICHWRCL_SHIFT;
-		return max14577_update_reg(rdev->regmap,
-				MAX14577_CHG_REG_CHG_CTRL4,
-				CHGCTRL4_MBCICHWRCL_MASK, reg_data);
-	}
-
-	/*
-	 * max_uA is in range: <high_start, inifinite>, so search for
-	 * valid current starting from maximum current.
-	 */
-	for (i = limits->max; i >= limits->high_start; i -= limits->high_step) {
-		if (i <= max_uA)
-			break;
-		current_bits--;
-	}
-	BUG_ON(current_bits < 0); /* Cannot happen */
-
-	/* Turn Low Bit on (use range high_start-max)... */
-	reg_data = 0x1 << CHGCTRL4_MBCICHWRCL_SHIFT;
-	/* and set proper High Bits */
-	reg_data |= current_bits << CHGCTRL4_MBCICHWRCH_SHIFT;
+	ret = maxim_charger_calc_reg_current(limits, min_uA, max_uA, &reg_data);
+	if (ret)
+		return ret;
 
 	return max14577_update_reg(rdev->regmap, MAX14577_CHG_REG_CHG_CTRL4,
 			CHGCTRL4_MBCICHWRCL_MASK | CHGCTRL4_MBCICHWRCH_MASK,
@@ -442,16 +380,6 @@ static struct platform_driver max14577_regulator_driver = {
 
 static int __init max14577_regulator_init(void)
 {
-	/* Check for valid values for charger */
-	BUILD_BUG_ON(MAX14577_REGULATOR_CURRENT_LIMIT_HIGH_START +
-			MAX14577_REGULATOR_CURRENT_LIMIT_HIGH_STEP * 0xf !=
-			MAX14577_REGULATOR_CURRENT_LIMIT_MAX);
-	BUILD_BUG_ON(MAX77836_REGULATOR_CURRENT_LIMIT_HIGH_START +
-			MAX77836_REGULATOR_CURRENT_LIMIT_HIGH_STEP * 0xf !=
-			MAX77836_REGULATOR_CURRENT_LIMIT_MAX);
-	/* Valid charger current values must be provided for each chipset */
-	BUILD_BUG_ON(ARRAY_SIZE(maxim_charger_currents) != MAXIM_DEVICE_TYPE_NUM);
-
 	BUILD_BUG_ON(ARRAY_SIZE(max14577_supported_regulators) != MAX14577_REGULATOR_NUM);
 	BUILD_BUG_ON(ARRAY_SIZE(max77836_supported_regulators) != MAX77836_REGULATOR_NUM);
 

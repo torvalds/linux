@@ -164,6 +164,8 @@
 #define GEM_CLK_SIZE				3
 #define GEM_DBW_OFFSET				21
 #define GEM_DBW_SIZE				2
+#define GEM_RXCOEN_OFFSET			24
+#define GEM_RXCOEN_SIZE				1
 
 /* Constants for data bus width. */
 #define GEM_DBW32				0
@@ -305,6 +307,12 @@
 #define GEM_DBWDEF_OFFSET			25
 #define GEM_DBWDEF_SIZE				3
 
+/* Bitfields in DCFG2. */
+#define GEM_RX_PKT_BUFF_OFFSET			20
+#define GEM_RX_PKT_BUFF_SIZE			1
+#define GEM_TX_PKT_BUFF_OFFSET			21
+#define GEM_TX_PKT_BUFF_SIZE			1
+
 /* Constants for CLK */
 #define MACB_CLK_DIV8				0
 #define MACB_CLK_DIV16				1
@@ -326,7 +334,11 @@
 #define MACB_MAN_CODE				2
 
 /* Capability mask bits */
-#define MACB_CAPS_ISR_CLEAR_ON_WRITE		0x1
+#define MACB_CAPS_ISR_CLEAR_ON_WRITE		0x00000001
+#define MACB_CAPS_FIFO_MODE			0x10000000
+#define MACB_CAPS_GIGABIT_MODE_AVAILABLE	0x20000000
+#define MACB_CAPS_SG_DISABLED			0x40000000
+#define MACB_CAPS_MACB_IS_GEM			0x80000000
 
 /* Bit manipulation macros */
 #define MACB_BIT(name)					\
@@ -442,6 +454,14 @@ struct macb_dma_desc {
 #define MACB_RX_BROADCAST_OFFSET		31
 #define MACB_RX_BROADCAST_SIZE			1
 
+/* RX checksum offload disabled: bit 24 clear in NCFGR */
+#define GEM_RX_TYPEID_MATCH_OFFSET		22
+#define GEM_RX_TYPEID_MATCH_SIZE		2
+
+/* RX checksum offload enabled: bit 24 set in NCFGR */
+#define GEM_RX_CSUM_OFFSET			22
+#define GEM_RX_CSUM_SIZE			2
+
 #define MACB_TX_FRMLEN_OFFSET			0
 #define MACB_TX_FRMLEN_SIZE			11
 #define MACB_TX_LAST_OFFSET			15
@@ -459,14 +479,32 @@ struct macb_dma_desc {
 #define MACB_TX_USED_OFFSET			31
 #define MACB_TX_USED_SIZE			1
 
+#define GEM_TX_FRMLEN_OFFSET			0
+#define GEM_TX_FRMLEN_SIZE			14
+
+/* Buffer descriptor constants */
+#define GEM_RX_CSUM_NONE			0
+#define GEM_RX_CSUM_IP_ONLY			1
+#define GEM_RX_CSUM_IP_TCP			2
+#define GEM_RX_CSUM_IP_UDP			3
+
+/* limit RX checksum offload to TCP and UDP packets */
+#define GEM_RX_CSUM_CHECKED_MASK		2
+
 /**
  * struct macb_tx_skb - data about an skb which is being transmitted
- * @skb: skb currently being transmitted
- * @mapping: DMA address of the skb's data buffer
+ * @skb: skb currently being transmitted, only set for the last buffer
+ *       of the frame
+ * @mapping: DMA address of the skb's fragment buffer
+ * @size: size of the DMA mapped buffer
+ * @mapped_as_page: true when buffer was mapped with skb_frag_dma_map(),
+ *                  false when buffer was mapped with dma_map_single()
  */
 struct macb_tx_skb {
 	struct sk_buff		*skb;
 	dma_addr_t		mapping;
+	size_t			size;
+	bool			mapped_as_page;
 };
 
 /*
@@ -554,6 +592,11 @@ struct macb_or_gem_ops {
 	int	(*mog_rx)(struct macb *bp, int budget);
 };
 
+struct macb_config {
+	u32			caps;
+	unsigned int		dma_burst_length;
+};
+
 struct macb {
 	void __iomem		*regs;
 
@@ -595,6 +638,7 @@ struct macb {
 	unsigned int 		duplex;
 
 	u32			caps;
+	unsigned int		dma_burst_length;
 
 	phy_interface_t		phy_interface;
 
@@ -602,6 +646,7 @@ struct macb {
 	struct sk_buff *skb;			/* holds skb until xmit interrupt completes */
 	dma_addr_t skb_physaddr;		/* phys addr from pci_map_single */
 	int skb_length;				/* saved skb length for pci_unmap_single */
+	unsigned int		max_tx_length;
 };
 
 extern const struct ethtool_ops macb_ethtool_ops;
@@ -615,7 +660,7 @@ void macb_get_hwaddr(struct macb *bp);
 
 static inline bool macb_is_gem(struct macb *bp)
 {
-	return MACB_BFEXT(IDNUM, macb_readl(bp, MID)) == 0x2;
+	return !!(bp->caps & MACB_CAPS_MACB_IS_GEM);
 }
 
 #endif /* _MACB_H */

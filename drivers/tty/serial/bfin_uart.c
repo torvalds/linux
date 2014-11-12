@@ -108,22 +108,23 @@ static void bfin_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 static irqreturn_t bfin_serial_mctrl_cts_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
-	unsigned int status = bfin_serial_get_mctrl(&uart->port);
+	struct uart_port *uport = &uart->port;
+	unsigned int status = bfin_serial_get_mctrl(uport);
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
-	struct tty_struct *tty = uart->port.state->port.tty;
 
 	UART_CLEAR_SCTS(uart);
-	if (tty->hw_stopped) {
+	if (uport->hw_stopped) {
 		if (status) {
-			tty->hw_stopped = 0;
-			uart_write_wakeup(&uart->port);
+			uport->hw_stopped = 0;
+			uart_write_wakeup(uport);
 		}
 	} else {
 		if (!status)
-			tty->hw_stopped = 1;
+			uport->hw_stopped = 1;
 	}
+#else
+	uart_handle_cts_change(uport, status & TIOCM_CTS);
 #endif
-	uart_handle_cts_change(&uart->port, status & TIOCM_CTS);
 
 	return IRQ_HANDLED;
 }
@@ -199,14 +200,6 @@ static void bfin_serial_stop_rx(struct uart_port *port)
 
 	UART_CLEAR_IER(uart, ERBFI);
 }
-
-/*
- * Set the modem control timer to fire immediately.
- */
-static void bfin_serial_enable_ms(struct uart_port *port)
-{
-}
-
 
 #if ANOMALY_05000363 && defined(CONFIG_SERIAL_BFIN_PIO)
 # define UART_GET_ANOMALY_THRESHOLD(uart)    ((uart)->anomaly_threshold)
@@ -793,6 +786,13 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned int ier, lcr = 0;
 	unsigned long timeout;
 
+#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+	if (old == NULL && uart->cts_pin != -1)
+		termios->c_cflag |= CRTSCTS;
+	else if (uart->cts_pin == -1)
+		termios->c_cflag &= ~CRTSCTS;
+#endif
+
 	switch (termios->c_cflag & CSIZE) {
 	case CS8:
 		lcr = WLS(8);
@@ -1014,7 +1014,6 @@ static struct uart_ops bfin_serial_pops = {
 	.stop_tx	= bfin_serial_stop_tx,
 	.start_tx	= bfin_serial_start_tx,
 	.stop_rx	= bfin_serial_stop_rx,
-	.enable_ms	= bfin_serial_enable_ms,
 	.break_ctl	= bfin_serial_break_ctl,
 	.startup	= bfin_serial_startup,
 	.shutdown	= bfin_serial_shutdown,
@@ -1325,12 +1324,8 @@ static int bfin_serial_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 		if (res == NULL)
 			uart->cts_pin = -1;
-		else {
+		else
 			uart->cts_pin = res->start;
-#ifdef CONFIG_SERIAL_BFIN_CTSRTS
-			uart->port.flags |= ASYNC_CTS_FLOW;
-#endif
-		}
 
 		res = platform_get_resource(pdev, IORESOURCE_IO, 1);
 		if (res == NULL)
