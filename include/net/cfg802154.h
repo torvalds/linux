@@ -81,6 +81,14 @@ struct wpan_phy {
 
 	s32 cca_ed_level;
 
+	/* PHY depended MAC PIB values */
+
+	/* 802.15.4 acronym: Tdsym in usec */
+	u8 symbol_duration;
+	/* lifs and sifs periods timing */
+	u16 lifs_period;
+	u16 sifs_period;
+
 	struct device dev;
 
 	char priv[0] __aligned(NETDEV_ALIGN);

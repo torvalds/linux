@@ -731,7 +731,7 @@ at86rf230_tx_complete(void *context)
 			udelay(lp->data->t_sifs);
 	}
 
-	ieee802154_xmit_complete(lp->hw, skb);
+	ieee802154_xmit_complete(lp->hw, skb, false);
 }
 
 static void

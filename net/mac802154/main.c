@@ -125,6 +125,18 @@ void ieee802154_free_hw(struct ieee802154_hw *hw)
 }
 EXPORT_SYMBOL(ieee802154_free_hw);
 
+static void ieee802154_setup_wpan_phy_pib(struct wpan_phy *wpan_phy)
+{
+	/* TODO warn on empty symbol_duration
+	 * Should be done when all drivers sets this value.
+	 */
+
+	wpan_phy->lifs_period = IEEE802154_LIFS_PERIOD *
+				wpan_phy->symbol_duration;
+	wpan_phy->sifs_period = IEEE802154_SIFS_PERIOD *
+				wpan_phy->symbol_duration;
+}
+
 int ieee802154_register_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
@@ -138,7 +150,12 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 		goto out;
 	}
 
+	hrtimer_init(&local->ifs_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	local->ifs_timer.function = ieee802154_xmit_ifs_timer;
+
 	wpan_phy_set_dev(local->phy, local->hw.parent);
+
+	ieee802154_setup_wpan_phy_pib(local->phy);
 
 	rc = wpan_phy_register(local->phy);
 	if (rc < 0)

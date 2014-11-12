@@ -50,9 +50,35 @@ void ieee802154_stop_queue(struct ieee802154_hw *hw)
 }
 EXPORT_SYMBOL(ieee802154_stop_queue);
 
-void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb)
+enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer)
 {
-	ieee802154_wake_queue(hw);
-	consume_skb(skb);
+	struct ieee802154_local *local =
+		container_of(timer, struct ieee802154_local, ifs_timer);
+
+	ieee802154_wake_queue(&local->hw);
+
+	return HRTIMER_NORESTART;
+}
+
+void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
+			      bool ifs_handling)
+{
+	if (ifs_handling) {
+		struct ieee802154_local *local = hw_to_local(hw);
+
+		if (skb->len > 18)
+			hrtimer_start(&local->ifs_timer,
+				      ktime_set(0, hw->phy->lifs_period * NSEC_PER_USEC),
+				      HRTIMER_MODE_REL);
+		else
+			hrtimer_start(&local->ifs_timer,
+				      ktime_set(0, hw->phy->sifs_period * NSEC_PER_USEC),
+				      HRTIMER_MODE_REL);
+
+		consume_skb(skb);
+	} else {
+		ieee802154_wake_queue(hw);
+		consume_skb(skb);
+	}
 }
 EXPORT_SYMBOL(ieee802154_xmit_complete);

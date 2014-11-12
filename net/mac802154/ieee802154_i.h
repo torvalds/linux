@@ -20,6 +20,7 @@
 #define __IEEE802154_I_H
 
 #include <linux/mutex.h>
+#include <linux/hrtimer.h>
 #include <net/cfg802154.h>
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
@@ -50,6 +51,8 @@ struct ieee802154_local {
 	 * with serial driver.
 	 */
 	struct workqueue_struct	*workqueue;
+
+	struct hrtimer ifs_timer;
 
 	bool started;
 
@@ -127,6 +130,7 @@ ieee802154_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void mac802154_wpan_setup(struct net_device *dev);
 netdev_tx_t
 ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
+enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer);
 
 /* MIB callbacks */
 void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val);

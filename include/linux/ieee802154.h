@@ -36,6 +36,9 @@
 
 #define IEEE802154_EXTENDED_ADDR_LEN	8
 
+#define IEEE802154_LIFS_PERIOD		40
+#define IEEE802154_SIFS_PERIOD		12
+
 #define IEEE802154_FC_TYPE_BEACON	0x0	/* Frame is beacon */
 #define	IEEE802154_FC_TYPE_DATA		0x1	/* Frame is data */
 #define IEEE802154_FC_TYPE_ACK		0x2	/* Frame is acknowledgment */
