@@ -500,7 +500,7 @@ EXPORT_SYMBOL(of_device_is_compatible);
  * of_machine_is_compatible - Test root of device tree for a given compatible value
  * @compat: compatible string to look for in root node's compatible property.
  *
- * Returns true if the root node has the given value in its
+ * Returns a positive integer if the root node has the given value in its
  * compatible property.
  */
 int of_machine_is_compatible(const char *compat)
