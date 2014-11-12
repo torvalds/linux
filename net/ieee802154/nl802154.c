@@ -642,6 +642,31 @@ nl802154_set_backoff_exponent(struct sk_buff *skb, struct genl_info *info)
 	return rdev_set_backoff_exponent(rdev, wpan_dev, min_be, max_be);
 }
 
+static int
+nl802154_set_max_csma_backoffs(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	u8 max_csma_backoffs;
+
+	/* conflict here while other running iface settings */
+	if (netif_running(dev))
+		return -EBUSY;
+
+	if (!info->attrs[NL802154_ATTR_MAX_CSMA_BACKOFFS])
+		return -EINVAL;
+
+	max_csma_backoffs = nla_get_u8(
+			info->attrs[NL802154_ATTR_MAX_CSMA_BACKOFFS]);
+
+	/* check 802.15.4 constraints */
+	if (max_csma_backoffs > 5)
+		return -EINVAL;
+
+	return rdev_set_max_csma_backoffs(rdev, wpan_dev, max_csma_backoffs);
+}
+
 #define NL802154_FLAG_NEED_WPAN_PHY	0x01
 #define NL802154_FLAG_NEED_NETDEV	0x02
 #define NL802154_FLAG_NEED_RTNL		0x04
@@ -779,6 +804,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_BACKOFF_EXPONENT,
 		.doit = nl802154_set_backoff_exponent,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_MAX_CSMA_BACKOFFS,
+		.doit = nl802154_set_max_csma_backoffs,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |

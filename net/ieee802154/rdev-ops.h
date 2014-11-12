@@ -50,4 +50,13 @@ rdev_set_backoff_exponent(struct cfg802154_registered_device *rdev,
 					       min_be, max_be);
 }
 
+static inline int
+rdev_set_max_csma_backoffs(struct cfg802154_registered_device *rdev,
+			   struct wpan_dev *wpan_dev,
+			   const u8 max_csma_backoffs)
+{
+	return rdev->ops->set_max_csma_backoffs(&rdev->wpan_phy, wpan_dev,
+						max_csma_backoffs);
+}
+
 #endif /* __CFG802154_RDEV_OPS */

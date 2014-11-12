@@ -45,6 +45,9 @@ struct cfg802154_ops {
 	int	(*set_backoff_exponent)(struct wpan_phy *wpan_phy,
 					struct wpan_dev *wpan_dev, u8 min_be,
 					u8 max_be);
+	int	(*set_max_csma_backoffs)(struct wpan_phy *wpan_phy,
+					 struct wpan_dev *wpan_dev,
+					 u8 max_csma_backoffs);
 };
 
 struct wpan_phy {
