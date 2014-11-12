@@ -1239,10 +1239,11 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		if (err) {
 			dev_err(&dev->dev, "Failed to allocate irq %d: %d\n",
 				dev->irq, err);
-			goto exit_release;
+			priv->features &= ~FEATURE_IRQ;
 		}
-		dev_info(&dev->dev, "SMBus using PCI Interrupt\n");
 	}
+	dev_info(&dev->dev, "SMBus using %s\n",
+		 priv->features & FEATURE_IRQ ? "PCI interrupt" : "polling");
 
 	/* set up the sysfs linkage to our parent device */
 	priv->adapter.dev.parent = &dev->dev;
@@ -1269,7 +1270,6 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 exit_free_irq:
 	if (priv->features & FEATURE_IRQ)
 		free_irq(dev->irq, priv);
-exit_release:
 	pci_release_region(dev, SMBBAR);
 exit:
 	kfree(priv);
