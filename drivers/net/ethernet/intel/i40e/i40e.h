@@ -146,6 +146,7 @@ enum i40e_state_t {
 	__I40E_DOWN_REQUESTED,
 	__I40E_FD_FLUSH_REQUESTED,
 	__I40E_RESET_FAILED,
+	__I40E_PORT_TX_SUSPENDED,
 };
 
 enum i40e_interrupt_policy {

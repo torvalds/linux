@@ -3492,6 +3492,9 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 		}
 
 		wr32(hw, I40E_QTX_ENA(pf_q), tx_reg);
+		/* No waiting for the Tx queue to disable */
+		if (!enable && test_bit(__I40E_PORT_TX_SUSPENDED, &pf->state))
+			continue;
 
 		/* wait for the change to finish */
 		ret = i40e_pf_txq_wait(pf, pf_q, enable);
@@ -3911,6 +3914,56 @@ static void i40e_pf_unquiesce_all_vsi(struct i40e_pf *pf)
 	}
 }
 
+#ifdef CONFIG_I40E_DCB
+/**
+ * i40e_vsi_wait_txq_disabled - Wait for VSI's queues to be disabled
+ * @vsi: the VSI being configured
+ *
+ * This function waits for the given VSI's Tx queues to be disabled.
+ **/
+static int i40e_vsi_wait_txq_disabled(struct i40e_vsi *vsi)
+{
+	struct i40e_pf *pf = vsi->back;
+	int i, pf_q, ret;
+
+	pf_q = vsi->base_queue;
+	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
+		/* Check and wait for the disable status of the queue */
+		ret = i40e_pf_txq_wait(pf, pf_q, false);
+		if (ret) {
+			dev_info(&pf->pdev->dev,
+				 "%s: VSI seid %d Tx ring %d disable timeout\n",
+				 __func__, vsi->seid, pf_q);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * i40e_pf_wait_txq_disabled - Wait for all queues of PF VSIs to be disabled
+ * @pf: the PF
+ *
+ * This function waits for the Tx queues to be in disabled state for all the
+ * VSIs that are managed by this PF.
+ **/
+static int i40e_pf_wait_txq_disabled(struct i40e_pf *pf)
+{
+	int v, ret = 0;
+
+	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+		if (pf->vsi[v]) {
+			ret = i40e_vsi_wait_txq_disabled(pf->vsi[v]);
+			if (ret)
+				break;
+		}
+	}
+
+	return ret;
+}
+
+#endif
 /**
  * i40e_dcb_get_num_tc -  Get the number of TCs from DCBx config
  * @dcbcfg: the corresponding DCBx configuration structure
@@ -5102,6 +5155,7 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	else
 		pf->flags &= ~I40E_FLAG_DCB_ENABLED;
 
+	set_bit(__I40E_PORT_TX_SUSPENDED, &pf->state);
 	/* Reconfiguration needed quiesce all VSIs */
 	i40e_pf_quiesce_all_vsi(pf);
 
@@ -5110,7 +5164,13 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 
 	ret = i40e_resume_port_tx(pf);
 
+	clear_bit(__I40E_PORT_TX_SUSPENDED, &pf->state);
 	/* In case of error no point in resuming VSIs */
+	if (ret)
+		goto exit;
+
+	/* Wait for the PF's Tx queues to be disabled */
+	ret = i40e_pf_wait_txq_disabled(pf);
 	if (!ret)
 		i40e_pf_unquiesce_all_vsi(pf);
 exit:
