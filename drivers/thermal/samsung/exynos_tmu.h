@@ -68,17 +68,6 @@ enum soc_type {
 #define TMU_SUPPORTS(a, b)	(a->features & TMU_SUPPORT_ ## b)
 
 /**
- * struct exynos_tmu_register - register descriptors to access registers.
- * The register validity may vary slightly across different exynos SOC's.
- * @tmu_intstat: Register containing the interrupt status values.
- * @tmu_intclear: Register for clearing the raised interrupt status.
- */
-struct exynos_tmu_registers {
-	u32	tmu_intstat;
-	u32	tmu_intclear;
-};
-
-/**
  * struct exynos_tmu_platform_data
  * @threshold: basic temperature for generating interrupt
  *	       25 <= threshold <= 125 [unit: degree Celsius]
@@ -127,8 +116,6 @@ struct exynos_tmu_registers {
  * @freq_clip_table: Table representing frequency reduction percentage.
  * @freq_tab_count: Count of the above table as frequency reduction may
  *	applicable to only some of the trigger levels.
- * @registers: Pointer to structure containing all the TMU controller registers
- *	and bitfields shifts and masks.
  * @features: a bitfield value indicating the features supported in SOC like
  *	emulation, multi instance etc
  *
@@ -158,7 +145,6 @@ struct exynos_tmu_platform_data {
 	enum soc_type type;
 	struct freq_clip_table freq_tab[4];
 	unsigned int freq_tab_count;
-	const struct exynos_tmu_registers *registers;
 	unsigned int features;
 };
 

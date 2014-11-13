@@ -56,6 +56,7 @@
  * @tmu_control: SoC specific TMU control method
  * @tmu_read: SoC specific TMU temperature read method
  * @tmu_set_emulation: SoC specific TMU emulation setting method
+ * @tmu_clear_irqs: SoC specific TMU interrupts clearing method
  */
 struct exynos_tmu_data {
 	int id;
@@ -75,6 +76,7 @@ struct exynos_tmu_data {
 	int (*tmu_read)(struct exynos_tmu_data *data);
 	void (*tmu_set_emulation)(struct exynos_tmu_data *data,
 				  unsigned long temp);
+	void (*tmu_clear_irqs)(struct exynos_tmu_data *data);
 };
 
 /*
@@ -129,23 +131,6 @@ static int code_to_temp(struct exynos_tmu_data *data, u8 temp_code)
 	}
 
 	return temp;
-}
-
-static void exynos_tmu_clear_irqs(struct exynos_tmu_data *data)
-{
-	const struct exynos_tmu_registers *reg = data->pdata->registers;
-	unsigned int val_irq;
-
-	val_irq = readl(data->base + reg->tmu_intstat);
-	/*
-	 * Clear the interrupts.  Please note that the documentation for
-	 * Exynos3250, Exynos4412, Exynos5250 and Exynos5260 incorrectly
-	 * states that INTCLEAR register has a different placing of bits
-	 * responsible for FALL IRQs than INTSTAT register.  Exynos5420
-	 * and Exynos5440 documentation is correct (Exynos4210 doesn't
-	 * support FALL IRQs at all).
-	 */
-	writel(val_irq, data->base + reg->tmu_intclear);
 }
 
 static void sanitize_temp_error(struct exynos_tmu_data *data, u32 trim_info)
@@ -259,7 +244,7 @@ static int exynos4210_tmu_initialize(struct platform_device *pdev)
 		writeb(pdata->trigger_levels[i], data->base +
 		       EXYNOS4210_TMU_REG_TRIG_LEVEL0 + i * 4);
 
-	exynos_tmu_clear_irqs(data);
+	data->tmu_clear_irqs(data);
 out:
 	return ret;
 }
@@ -304,7 +289,7 @@ static int exynos4412_tmu_initialize(struct platform_device *pdev)
 	writel(rising_threshold, data->base + EXYNOS_THD_TEMP_RISE);
 	writel(get_th_reg(data, 0, true), data->base + EXYNOS_THD_TEMP_FALL);
 
-	exynos_tmu_clear_irqs(data);
+	data->tmu_clear_irqs(data);
 
 	/* if last threshold limit is also present */
 	i = pdata->max_trigger_level - 1;
@@ -353,7 +338,7 @@ static int exynos5440_tmu_initialize(struct platform_device *pdev)
 	writel(rising_threshold, data->base + EXYNOS5440_TMU_S0_7_TH0);
 	writel(0, data->base + EXYNOS5440_TMU_S0_7_TH1);
 
-	exynos_tmu_clear_irqs(data);
+	data->tmu_clear_irqs(data);
 
 	/* if last threshold limit is also present */
 	i = pdata->max_trigger_level - 1;
@@ -557,12 +542,46 @@ static void exynos_tmu_work(struct work_struct *work)
 	clk_enable(data->clk);
 
 	/* TODO: take action based on particular interrupt */
-	exynos_tmu_clear_irqs(data);
+	data->tmu_clear_irqs(data);
 
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 out:
 	enable_irq(data->irq);
+}
+
+static void exynos4210_tmu_clear_irqs(struct exynos_tmu_data *data)
+{
+	unsigned int val_irq;
+	u32 tmu_intstat, tmu_intclear;
+
+	if (data->soc == SOC_ARCH_EXYNOS5260) {
+		tmu_intstat = EXYNOS5260_TMU_REG_INTSTAT;
+		tmu_intclear = EXYNOS5260_TMU_REG_INTCLEAR;
+	} else {
+		tmu_intstat = EXYNOS_TMU_REG_INTSTAT;
+		tmu_intclear = EXYNOS_TMU_REG_INTCLEAR;
+	}
+
+	val_irq = readl(data->base + tmu_intstat);
+	/*
+	 * Clear the interrupts.  Please note that the documentation for
+	 * Exynos3250, Exynos4412, Exynos5250 and Exynos5260 incorrectly
+	 * states that INTCLEAR register has a different placing of bits
+	 * responsible for FALL IRQs than INTSTAT register.  Exynos5420
+	 * and Exynos5440 documentation is correct (Exynos4210 doesn't
+	 * support FALL IRQs at all).
+	 */
+	writel(val_irq, data->base + tmu_intclear);
+}
+
+static void exynos5440_tmu_clear_irqs(struct exynos_tmu_data *data)
+{
+	unsigned int val_irq;
+
+	val_irq = readl(data->base + EXYNOS5440_TMU_S0_7_IRQ);
+	/* clear the interrupts */
+	writel(val_irq, data->base + EXYNOS5440_TMU_S0_7_IRQ);
 }
 
 static irqreturn_t exynos_tmu_irq(int irq, void *id)
@@ -760,6 +779,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		data->tmu_initialize = exynos4210_tmu_initialize;
 		data->tmu_control = exynos4210_tmu_control;
 		data->tmu_read = exynos4210_tmu_read;
+		data->tmu_clear_irqs = exynos4210_tmu_clear_irqs;
 		break;
 	case SOC_ARCH_EXYNOS3250:
 	case SOC_ARCH_EXYNOS4412:
@@ -771,12 +791,14 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		data->tmu_control = exynos4210_tmu_control;
 		data->tmu_read = exynos4412_tmu_read;
 		data->tmu_set_emulation = exynos4412_tmu_set_emulation;
+		data->tmu_clear_irqs = exynos4210_tmu_clear_irqs;
 		break;
 	case SOC_ARCH_EXYNOS5440:
 		data->tmu_initialize = exynos5440_tmu_initialize;
 		data->tmu_control = exynos5440_tmu_control;
 		data->tmu_read = exynos5440_tmu_read;
 		data->tmu_set_emulation = exynos5440_tmu_set_emulation;
+		data->tmu_clear_irqs = exynos5440_tmu_clear_irqs;
 		break;
 	default:
 		ret = -EINVAL;

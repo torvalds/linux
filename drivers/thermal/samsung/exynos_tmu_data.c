@@ -25,11 +25,6 @@
 #include "exynos_tmu_data.h"
 
 #if defined(CONFIG_CPU_EXYNOS4210)
-static const struct exynos_tmu_registers exynos4210_tmu_registers = {
-	.tmu_intstat = EXYNOS_TMU_REG_INTSTAT,
-	.tmu_intclear = EXYNOS_TMU_REG_INTCLEAR,
-};
-
 struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 	.tmu_data = {
 		{
@@ -64,7 +59,6 @@ struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 		},
 		.freq_tab_count = 2,
 		.type = SOC_ARCH_EXYNOS4210,
-		.registers = &exynos4210_tmu_registers,
 		},
 	},
 	.tmu_count = 1,
@@ -72,11 +66,6 @@ struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 #endif
 
 #if defined(CONFIG_SOC_EXYNOS3250)
-static const struct exynos_tmu_registers exynos3250_tmu_registers = {
-	.tmu_intstat = EXYNOS_TMU_REG_INTSTAT,
-	.tmu_intclear = EXYNOS_TMU_REG_INTCLEAR,
-};
-
 #define EXYNOS3250_TMU_DATA \
 	.threshold_falling = 10, \
 	.trigger_levels[0] = 70, \
@@ -112,7 +101,6 @@ static const struct exynos_tmu_registers exynos3250_tmu_registers = {
 		.temp_level = 95, \
 	}, \
 	.freq_tab_count = 2, \
-	.registers = &exynos3250_tmu_registers, \
 	.features = (TMU_SUPPORT_EMULATION | TMU_SUPPORT_FALLING_TRIP | \
 			TMU_SUPPORT_EMUL_TIME)
 #endif
@@ -131,11 +119,6 @@ struct exynos_tmu_init_data const exynos3250_default_tmu_data = {
 #endif
 
 #if defined(CONFIG_SOC_EXYNOS4412) || defined(CONFIG_SOC_EXYNOS5250)
-static const struct exynos_tmu_registers exynos4412_tmu_registers = {
-	.tmu_intstat = EXYNOS_TMU_REG_INTSTAT,
-	.tmu_intclear = EXYNOS_TMU_REG_INTCLEAR,
-};
-
 #define EXYNOS4412_TMU_DATA \
 	.threshold_falling = 10, \
 	.trigger_levels[0] = 70, \
@@ -171,7 +154,6 @@ static const struct exynos_tmu_registers exynos4412_tmu_registers = {
 		.temp_level = 95, \
 	}, \
 	.freq_tab_count = 2, \
-	.registers = &exynos4412_tmu_registers, \
 	.features = (TMU_SUPPORT_EMULATION | TMU_SUPPORT_FALLING_TRIP | \
 			TMU_SUPPORT_EMUL_TIME)
 #endif
@@ -202,11 +184,6 @@ struct exynos_tmu_init_data const exynos5250_default_tmu_data = {
 #endif
 
 #if defined(CONFIG_SOC_EXYNOS5260)
-static const struct exynos_tmu_registers exynos5260_tmu_registers = {
-	.tmu_intstat = EXYNOS5260_TMU_REG_INTSTAT,
-	.tmu_intclear = EXYNOS5260_TMU_REG_INTCLEAR,
-};
-
 #define __EXYNOS5260_TMU_DATA	\
 	.threshold_falling = 10, \
 	.trigger_levels[0] = 85, \
@@ -242,7 +219,6 @@ static const struct exynos_tmu_registers exynos5260_tmu_registers = {
 		.temp_level = 103, \
 	}, \
 	.freq_tab_count = 2, \
-	.registers = &exynos5260_tmu_registers, \
 
 #define EXYNOS5260_TMU_DATA \
 	__EXYNOS5260_TMU_DATA \
@@ -263,11 +239,6 @@ struct exynos_tmu_init_data const exynos5260_default_tmu_data = {
 #endif
 
 #if defined(CONFIG_SOC_EXYNOS5420)
-static const struct exynos_tmu_registers exynos5420_tmu_registers = {
-	.tmu_intstat = EXYNOS_TMU_REG_INTSTAT,
-	.tmu_intclear = EXYNOS_TMU_REG_INTCLEAR,
-};
-
 #define __EXYNOS5420_TMU_DATA	\
 	.threshold_falling = 10, \
 	.trigger_levels[0] = 85, \
@@ -303,7 +274,6 @@ static const struct exynos_tmu_registers exynos5420_tmu_registers = {
 		.temp_level = 103, \
 	}, \
 	.freq_tab_count = 2, \
-	.registers = &exynos5420_tmu_registers, \
 
 #define EXYNOS5420_TMU_DATA \
 	__EXYNOS5420_TMU_DATA \
@@ -330,11 +300,6 @@ struct exynos_tmu_init_data const exynos5420_default_tmu_data = {
 #endif
 
 #if defined(CONFIG_SOC_EXYNOS5440)
-static const struct exynos_tmu_registers exynos5440_tmu_registers = {
-	.tmu_intstat = EXYNOS5440_TMU_S0_7_IRQ,
-	.tmu_intclear = EXYNOS5440_TMU_S0_7_IRQ,
-};
-
 #define EXYNOS5440_TMU_DATA \
 	.trigger_levels[0] = 100, \
 	.trigger_levels[4] = 105, \
@@ -354,7 +319,6 @@ static const struct exynos_tmu_registers exynos5440_tmu_registers = {
 	.second_point_trim = 70, \
 	.default_temp_offset = 25, \
 	.type = SOC_ARCH_EXYNOS5440, \
-	.registers = &exynos5440_tmu_registers, \
 	.features = (TMU_SUPPORT_EMULATION | TMU_SUPPORT_FALLING_TRIP | \
 			TMU_SUPPORT_MULTI_INST | TMU_SUPPORT_ADDRESS_MULTIPLE),
 
