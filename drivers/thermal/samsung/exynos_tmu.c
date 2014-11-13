@@ -373,7 +373,7 @@ static void exynos4210_tmu_control(struct platform_device *pdev, bool on)
 			pdata->trigger_enable[2] << EXYNOS_TMU_INTEN_RISE2_SHIFT |
 			pdata->trigger_enable[1] << EXYNOS_TMU_INTEN_RISE1_SHIFT |
 			pdata->trigger_enable[0] << EXYNOS_TMU_INTEN_RISE0_SHIFT;
-		if (TMU_SUPPORTS(pdata, FALLING_TRIP))
+		if (data->soc != SOC_ARCH_EXYNOS4210)
 			interrupt_en |=
 				interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
 	} else {
@@ -399,9 +399,7 @@ static void exynos5440_tmu_control(struct platform_device *pdev, bool on)
 			pdata->trigger_enable[2] << EXYNOS5440_TMU_INTEN_RISE2_SHIFT |
 			pdata->trigger_enable[1] << EXYNOS5440_TMU_INTEN_RISE1_SHIFT |
 			pdata->trigger_enable[0] << EXYNOS5440_TMU_INTEN_RISE0_SHIFT;
-		if (TMU_SUPPORTS(pdata, FALLING_TRIP))
-			interrupt_en |=
-				interrupt_en << EXYNOS5440_TMU_INTEN_FALL0_SHIFT;
+		interrupt_en |= interrupt_en << EXYNOS5440_TMU_INTEN_FALL0_SHIFT;
 	} else {
 		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
 		interrupt_en = 0; /* Disable all interrupts */
