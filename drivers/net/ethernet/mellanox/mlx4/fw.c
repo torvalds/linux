@@ -143,7 +143,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[14] = "Ethernet protocol control support",
 		[15] = "Ethernet Backplane autoneg support",
 		[16] = "CONFIG DEV support",
-		[17] = "Asymmetric EQs support"
+		[17] = "Asymmetric EQs support",
+		[18] = "More than 80 VFs support"
 	};
 	int i;
 
@@ -860,6 +861,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_VLAN_CONTROL;
 	if (field32 & (1 << 20))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_FSM;
+	if (field32 & (1 << 21))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_80_VFS;
 
 	if (dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
 		for (i = 1; i <= dev_cap->num_ports; ++i) {

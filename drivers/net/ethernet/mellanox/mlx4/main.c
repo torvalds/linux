@@ -2373,6 +2373,24 @@ disable_sriov:
 	return dev_flags & ~MLX4_FLAG_MASTER;
 }
 
+enum {
+	MLX4_DEV_CAP_CHECK_NUM_VFS_ABOVE_64 = -1,
+};
+
+static int mlx4_check_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
+			      int *nvfs)
+{
+	int requested_vfs = nvfs[0] + nvfs[1] + nvfs[2];
+	/* Checking for 64 VFs as a limitation of CX2 */
+	if (!(dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_80_VFS) &&
+	    requested_vfs >= 64) {
+		mlx4_err(dev, "Requested %d VFs, but FW does not support more than 64\n",
+			 requested_vfs);
+		return MLX4_DEV_CAP_CHECK_NUM_VFS_ABOVE_64;
+	}
+	return 0;
+}
+
 static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 			 int total_vfs, int *nvfs, struct mlx4_priv *priv)
 {
@@ -2484,6 +2502,9 @@ slave_start:
 				goto err_fw;
 			}
 
+			if (mlx4_check_dev_cap(dev, dev_cap, nvfs))
+				goto err_fw;
+
 			if (!(dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS)) {
 				u64 dev_flags = mlx4_enable_sriov(dev, pdev, total_vfs,
 								  existing_vfs);
@@ -2512,6 +2533,9 @@ slave_start:
 				mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
 				goto err_fw;
 			}
+
+			if (mlx4_check_dev_cap(dev, dev_cap, nvfs))
+				goto err_fw;
 		}
 	}
 
