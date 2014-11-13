@@ -1,5 +1,6 @@
 /*  SuperH Ethernet device driver
  *
+ *  Copyright (C) 2014  Renesas Electronics Corporation
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2014 Renesas Solutions Corp.
  *  Copyright (C) 2013-2014 Cogent Embedded, Inc.
@@ -2882,6 +2883,9 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			sh_eth_tsu_init(mdp);
 		}
 	}
+
+	if (mdp->cd->rmiimode)
+		sh_eth_write(ndev, 0x1, RMIIMODE);
 
 	/* MDIO bus init */
 	ret = sh_mdio_init(mdp, pd);
