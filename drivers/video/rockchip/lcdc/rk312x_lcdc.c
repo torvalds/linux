@@ -1029,6 +1029,7 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 static void rk312x_lcdc_select_bcsh(struct rk_lcdc_driver *dev_drv,
 				    struct lcdc_device *lcdc_dev)
 {
+	u32 bcsh_ctrl;
 	if (dev_drv->overlay_mode == VOP_YUV_DOMAIN) {
 		if (dev_drv->output_color == COLOR_YCBCR)/* bypass */
 			lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
@@ -1043,9 +1044,15 @@ static void rk312x_lcdc_select_bcsh(struct rk_lcdc_driver *dev_drv,
 			     v_BCSH_R2Y_EN(0));
 	} else {	/* overlay_mode=VOP_RGB_DOMAIN */
 		if (dev_drv->output_color == COLOR_RGB)	/* bypass */
-			lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
-				     m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
-				     v_BCSH_R2Y_EN(1) | v_BCSH_Y2R_EN(1));
+			bcsh_ctrl = lcdc_readl(lcdc_dev, BCSH_CTRL);
+			if(bcsh_ctrl&m_BCSH_EN==1)/*bcsh enabled*/
+				lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
+				     	m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
+				     	v_BCSH_R2Y_EN(1) | v_BCSH_Y2R_EN(1));
+			else/*bcsh disabled*/
+				lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
+				     	m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
+				     	v_BCSH_R2Y_EN(0) | v_BCSH_Y2R_EN(0));
 		else	/* RGB2YUV */
 			lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
 				     m_BCSH_R2Y_EN |
