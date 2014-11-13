@@ -1600,7 +1600,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 		case RX_DESC3_L34T_IPV6_TCP:
 		case RX_DESC3_L34T_IPV6_UDP:
 			packet->rss_hash_type = PKT_HASH_TYPE_L4;
-
+			break;
 		default:
 			packet->rss_hash_type = PKT_HASH_TYPE_L3;
 		}
