@@ -233,6 +233,7 @@ config IA64_SGI_UV
 config IA64_HP_SIM
 	bool "Ski-simulator"
 	select SWIOTLB
+	depends on !PM_RUNTIME
 
 endchoice
 

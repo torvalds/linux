@@ -131,7 +131,6 @@ config PM_WAKELOCKS_GC
 
 config PM_RUNTIME
 	bool "Run-time PM core functionality"
-	depends on !IA64_HP_SIM
 	---help---
 	  Enable functionality allowing I/O devices to be put into energy-saving
 	  (low power) states at run time (or autosuspended) after a specified
