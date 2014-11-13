@@ -195,8 +195,8 @@ PNAME(mux_hsadcout_p)	= { "hsadc_src", "ext_hsadc" };
 PNAME(mux_edp_24m_p)	= { "ext_edp_24m", "xin24m" };
 PNAME(mux_tspout_p)	= { "cpll", "gpll", "npll", "xin27m" };
 
-PNAME(mux_usbphy480m_p)		= { "sclk_otgphy0", "sclk_otgphy1",
-				    "sclk_otgphy2" };
+PNAME(mux_usbphy480m_p)		= { "sclk_otgphy1", "sclk_otgphy2",
+				    "sclk_otgphy0" };
 PNAME(mux_hsicphy480m_p)	= { "cpll", "gpll", "usbphy480m_src" };
 PNAME(mux_hsicphy12m_p)		= { "hsicphy12m_xin12m", "hsicphy12m_usbphy" };
 
