@@ -79,6 +79,7 @@ gb_interface_create(struct gb_module *gmod, u8 interface_id)
 	if (retval) {
 		pr_err("failed to add interface device for id 0x%02hhx\n",
 			interface_id);
+		put_device(&interface->dev);
 		kfree(interface);
 		return NULL;
 	}
