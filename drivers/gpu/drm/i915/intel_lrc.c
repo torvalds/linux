@@ -276,7 +276,8 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 				 struct drm_i915_gem_object *ctx_obj0,
 				 struct drm_i915_gem_object *ctx_obj1)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint64_t temp = 0;
 	uint32_t desc[4];
 	unsigned long flags;
@@ -301,13 +302,18 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 	 * Instead, we do the runtime_pm_get/put when creating/destroying requests.
 	 */
 	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	if (IS_CHERRYVIEW(dev_priv->dev)) {
+	if (IS_CHERRYVIEW(dev) || INTEL_INFO(dev)->gen >= 9) {
 		if (dev_priv->uncore.fw_rendercount++ == 0)
 			dev_priv->uncore.funcs.force_wake_get(dev_priv,
 							      FORCEWAKE_RENDER);
 		if (dev_priv->uncore.fw_mediacount++ == 0)
 			dev_priv->uncore.funcs.force_wake_get(dev_priv,
 							      FORCEWAKE_MEDIA);
+		if (INTEL_INFO(dev)->gen >= 9) {
+			if (dev_priv->uncore.fw_blittercount++ == 0)
+				dev_priv->uncore.funcs.force_wake_get(dev_priv,
+							FORCEWAKE_BLITTER);
+		}
 	} else {
 		if (dev_priv->uncore.forcewake_count++ == 0)
 			dev_priv->uncore.funcs.force_wake_get(dev_priv,
@@ -326,13 +332,18 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 
 	/* Release Force Wakeup (see the big comment above). */
 	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	if (IS_CHERRYVIEW(dev_priv->dev)) {
+	if (IS_CHERRYVIEW(dev) || INTEL_INFO(dev)->gen >= 9) {
 		if (--dev_priv->uncore.fw_rendercount == 0)
 			dev_priv->uncore.funcs.force_wake_put(dev_priv,
 							      FORCEWAKE_RENDER);
 		if (--dev_priv->uncore.fw_mediacount == 0)
 			dev_priv->uncore.funcs.force_wake_put(dev_priv,
 							      FORCEWAKE_MEDIA);
+		if (INTEL_INFO(dev)->gen >= 9) {
+			if (--dev_priv->uncore.fw_blittercount == 0)
+				dev_priv->uncore.funcs.force_wake_put(dev_priv,
+							FORCEWAKE_BLITTER);
+		}
 	} else {
 		if (--dev_priv->uncore.forcewake_count == 0)
 			dev_priv->uncore.funcs.force_wake_put(dev_priv,
