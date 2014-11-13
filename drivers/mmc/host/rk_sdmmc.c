@@ -30,6 +30,7 @@
 #include <linux/stat.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
+#include <linux/suspend.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
@@ -1544,10 +1545,10 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
                 (mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)) {
                 gpio_cd = slot->cd_gpio;
                 if (gpio_is_valid(gpio_cd)) {
-                        gpio_val = gpio_get_value_cansleep(gpio_cd);
+                        gpio_val = gpio_get_value(gpio_cd);
                         msleep(10);
-                        if (gpio_val == gpio_get_value_cansleep(gpio_cd)) {
-                                gpio_cd = gpio_get_value_cansleep(gpio_cd) == 0 ? 1 : 0;
+                        if (gpio_val == gpio_get_value(gpio_cd)) {
+                                gpio_cd = gpio_get_value(gpio_cd) == 0 ? 1 : 0;
                                 if (gpio_cd == 0) {
                                         /* Enable force_jtag wihtout card in slot, ONLY for NCD-package */
                                         grf_writel((0x1 << 24) | (1 << 8), RK312X_GRF_SOC_CON0);
@@ -3204,17 +3205,19 @@ static irqreturn_t dw_mci_gpio_cd_irqt(int irq, void *dev_id)
         struct dw_mci_slot *slot = mmc_priv(mmc);
         struct dw_mci *host = slot->host;
 
-        #if 0
-        if (mmc->ops->card_event)
-                mmc->ops->card_event(mmc);
-
-        mmc_detect_change(mmc, msecs_to_jiffies(200));
-        #endif
-
         /* wakeup system whether gpio debounce or not */
         rk_send_wakeup_key();
-        queue_work(host->card_workqueue, &host->card_work);
-        return IRQ_HANDLED;
+
+	/* no need to trigger detect flow when rescan is disabled.
+           This case happended in dpm, that we just wakeup system and
+           let suspend_post notify callback handle it.
+	 */
+	if(mmc->rescan_disable == 0)
+		queue_work(host->card_workqueue, &host->card_work);
+	else
+		printk("%s: rescan been disabled!\n", __FUNCTION__);
+
+	return IRQ_HANDLED;
 }
 
 static void dw_mci_of_set_cd_gpio_irq(struct device *dev, u32 gpio,
@@ -3340,6 +3343,36 @@ static void dw_mci_init_pinctrl(struct dw_mci *host)
         }
 }
 
+static int dw_mci_pm_notify(struct notifier_block *notify_block,
+					unsigned long mode, void *unused)
+{
+	struct mmc_host *host = container_of(
+		notify_block, struct mmc_host, pm_notify);
+	unsigned long flags;
+
+	switch (mode) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+	        dev_err(host->parent, "dw_mci_pm_notify:  suspend prepare\n");
+		spin_lock_irqsave(&host->lock, flags);
+		host->rescan_disable = 1;
+		spin_unlock_irqrestore(&host->lock, flags);
+		if (cancel_delayed_work(&host->detect))
+                        wake_unlock(&host->detect_wake_lock);
+		break;
+
+	case PM_POST_SUSPEND:
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+	        dev_err(host->parent, "dw_mci_pm_notify:  post suspend\n");
+		spin_lock_irqsave(&host->lock, flags);
+		host->rescan_disable = 0;
+		spin_unlock_irqrestore(&host->lock, flags);
+		mmc_detect_change(host, 10);
+	}
+
+	return 0;
+}
 
 static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 {
@@ -3392,6 +3425,13 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
         if (of_find_property(host->dev->of_node, "supports-tSD", NULL))
 		mmc->restrict_caps |= RESTRICT_CARD_TYPE_TSD;
 
+        if (mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
+                mmc->pm_notify.notifier_call = dw_mci_pm_notify;
+                if (register_pm_notifier(&mmc->pm_notify)) {
+                        printk(KERN_ERR "dw_mci: register_pm_notifier failed\n");
+                        goto err_pm_notifier;
+                }
+        }
 
         /* We assume only low-level chip use gpio_cd */
         if (cpu_is_rk312x() &&
@@ -3557,6 +3597,8 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	slot->last_detect_state = 1;
 
 	return 0;
+err_pm_notifier:
+        unregister_pm_notifier(&mmc->pm_notify);
 
 err_setup_bus:
         if (gpio_is_valid(slot->cd_gpio))
@@ -3836,16 +3878,6 @@ static void dw_mci_dto_timeout(unsigned long host_data)
 	enable_irq(host->irq);
 }
 
-
-void resume_rescan_enable(struct work_struct *work)
-{
-	struct dw_mci *host =
-		container_of(work, struct dw_mci, resume_rescan.work);
-	host->mmc->rescan_disable = 0;
-	mmc_detect_change(host->mmc, 10);
-}
-
-
 int dw_mci_probe(struct dw_mci *host)
 {
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
@@ -3936,7 +3968,6 @@ int dw_mci_probe(struct dw_mci *host)
 	spin_lock_init(&host->slock);
 
 	INIT_LIST_HEAD(&host->queue);
-	INIT_DELAYED_WORK(&host->resume_rescan, resume_rescan_enable);
 	/*
 	 * Get the host data width - this assumes that HCON has been set with
 	 * the correct values.
@@ -4094,7 +4125,6 @@ void dw_mci_remove(struct dw_mci *host)
 	int i;
 
 	del_timer_sync(&host->dto_timer);
-	cancel_delayed_work(&host->resume_rescan);
 
         mci_writel(host, RINTSTS, 0xFFFFFFFF);
         mci_writel(host, INTMASK, 0); /* disable all mmc interrupt first */
@@ -4110,6 +4140,8 @@ void dw_mci_remove(struct dw_mci *host)
         mci_writel(host, CLKSRC, 0);
 
         destroy_workqueue(host->card_workqueue);
+        if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)
+                unregister_pm_notifier(&host->mmc->pm_notify);
 
         if(host->use_dma && host->dma_ops->exit)
                 host->dma_ops->exit(host);
@@ -4147,11 +4179,6 @@ int dw_mci_suspend(struct dw_mci *host)
 
         /*only for sdmmc controller*/
         if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
-                host->mmc->rescan_disable = 1;
-
-                if(cancel_delayed_work(&host->mmc->detect))
-                        wake_unlock(&host->mmc->detect_wake_lock);
-
                 disable_irq(host->irq);
                 if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
                         MMC_DBG_ERR_FUNC(host->mmc, "Idle pinctrl setting failed! [%s]",
@@ -4199,7 +4226,7 @@ int dw_mci_resume(struct dw_mci *host)
 		if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
                         MMC_DBG_ERR_FUNC(host->mmc, "Default pinctrl setting failed! [%s]",
                                                 mmc_hostname(host->mmc));
-		host->mmc->rescan_disable = 1;
+
 		/* Disable jtag*/
 		if(cpu_is_rk3288())
                         grf_writel(((1 << 12) << 16) | (0 << 12), RK3288_GRF_SOC_CON0);
@@ -4257,9 +4284,6 @@ int dw_mci_resume(struct dw_mci *host)
 			dw_mci_setup_bus(slot, true);
 		}
 	}
-
-	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD))
-		schedule_delayed_work(&host->resume_rescan, msecs_to_jiffies(2000));
 
 	return 0;
 }
