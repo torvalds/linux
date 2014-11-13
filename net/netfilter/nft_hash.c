@@ -65,7 +65,7 @@ static int nft_hash_insert(const struct nft_set *set,
 	if (set->flags & NFT_SET_MAP)
 		nft_data_copy(he->data, &elem->data);
 
-	rhashtable_insert(priv, &he->node, GFP_KERNEL);
+	rhashtable_insert(priv, &he->node);
 
 	return 0;
 }
@@ -88,7 +88,7 @@ static void nft_hash_remove(const struct nft_set *set,
 	pprev = elem->cookie;
 	he = rht_dereference((*pprev), priv);
 
-	rhashtable_remove_pprev(priv, he, pprev, GFP_KERNEL);
+	rhashtable_remove_pprev(priv, he, pprev);
 
 	synchronize_rcu();
 	kfree(he);
