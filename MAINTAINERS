@@ -2491,6 +2491,7 @@ F:	include/uapi/linux/coda*.h
 
 COMMON CLK FRAMEWORK
 M:	Mike Turquette <mturquette@linaro.org>
+M:	Stephen Boyd <sboyd@codeaurora.org>
 L:	linux-kernel@vger.kernel.org
 T:	git git://git.linaro.org/people/mturquette/linux.git
 S:	Maintained
