@@ -244,7 +244,6 @@
 	sdhci@78000600 {
 		status = "okay";
 		bus-width = <8>;
-		vmmc-supply = <&vdd_1v8>;
 		non-removable;
 	};
 
