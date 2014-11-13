@@ -153,10 +153,12 @@ static unsigned int nft_hash_privsize(const struct nlattr * const nla[])
 	return sizeof(struct rhashtable);
 }
 
+#ifdef CONFIG_PROVE_LOCKING
 static int lockdep_nfnl_lock_is_held(void)
 {
 	return lockdep_nfnl_is_held(NFNL_SUBSYS_NFTABLES);
 }
+#endif
 
 static int nft_hash_init(const struct nft_set *set,
 			 const struct nft_set_desc *desc,
@@ -171,7 +173,9 @@ static int nft_hash_init(const struct nft_set *set,
 		.hashfn = jhash,
 		.grow_decision = rht_grow_above_75,
 		.shrink_decision = rht_shrink_below_30,
+#ifdef CONFIG_PROVE_LOCKING
 		.mutex_is_held = lockdep_nfnl_lock_is_held,
+#endif
 	};
 
 	return rhashtable_init(priv, &params);
