@@ -616,6 +616,7 @@ void __init omap3_ctrl_init(void)
 
 struct control_init_data {
 	int index;
+	void __iomem *mem;
 };
 
 static struct control_init_data ctrl_data = {
@@ -627,8 +628,37 @@ static const struct of_device_id omap_scrm_dt_match_table[] = {
 	{ .compatible = "ti,am4-scrm", .data = &ctrl_data },
 	{ .compatible = "ti,omap2-scrm", .data = &ctrl_data },
 	{ .compatible = "ti,omap3-scrm", .data = &ctrl_data },
+	{ .compatible = "ti,dm816-scrm", .data = &ctrl_data },
 	{ }
 };
+
+/**
+ * omap2_control_base_init - initialize iomappings for the control driver
+ *
+ * Detects and initializes the iomappings for the control driver, based
+ * on the DT data. Returns 0 in success, negative error value
+ * otherwise.
+ */
+int __init omap2_control_base_init(void)
+{
+	struct device_node *np;
+	const struct of_device_id *match;
+	struct control_init_data *data;
+	void __iomem *mem;
+
+	for_each_matching_node_and_match(np, omap_scrm_dt_match_table, &match) {
+		data = (struct control_init_data *)match->data;
+
+		mem = of_iomap(np, 0);
+		if (!mem)
+			return -ENOMEM;
+
+		omap2_ctrl_base = mem;
+		data->mem = mem;
+	}
+
+	return 0;
+}
 
 /**
  * omap_control_init - low level init for the control driver
@@ -639,7 +669,6 @@ static const struct of_device_id omap_scrm_dt_match_table[] = {
 int __init omap_control_init(void)
 {
 	struct device_node *np;
-	void __iomem *mem;
 	const struct of_device_id *match;
 	const struct omap_prcm_init_data *data;
 	int ret;
@@ -647,14 +676,22 @@ int __init omap_control_init(void)
 	for_each_matching_node_and_match(np, omap_scrm_dt_match_table, &match) {
 		data = match->data;
 
-		mem = of_iomap(np, 0);
-		if (!mem)
-			return -ENOMEM;
-
-		ret = omap2_clk_provider_init(np, data->index, mem);
+		ret = omap2_clk_provider_init(np, data->index, data->mem);
 		if (ret)
 			return ret;
 	}
 
 	return 0;
+}
+
+/**
+ * omap3_control_legacy_iomap_init - legacy iomap init for clock providers
+ *
+ * Legacy iomap init for clock provider. Needed only by legacy boot mode,
+ * where the base addresses are not parsed from DT, but still required
+ * by the clock driver to be setup properly.
+ */
+void __init omap3_control_legacy_iomap_init(void)
+{
+	omap2_clk_legacy_provider_init(TI_CLKM_SCRM, omap2_ctrl_base);
 }

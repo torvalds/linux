@@ -722,11 +722,6 @@ int __init omap_prcm_init(void)
 	return 0;
 }
 
-void __init omap3_prcm_legacy_iomaps_init(void)
-{
-	omap2_clk_legacy_provider_init(TI_CLKM_SCRM, omap_ctrl_base_get());
-}
-
 static int __init prm_late_init(void)
 {
 	if (prm_ll_data->late_init)
