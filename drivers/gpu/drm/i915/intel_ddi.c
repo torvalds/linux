@@ -1243,7 +1243,8 @@ void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc)
 static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
@@ -1253,8 +1254,22 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 		intel_edp_panel_on(intel_dp);
 	}
 
-	WARN_ON(crtc->config.ddi_pll_sel == PORT_CLK_SEL_NONE);
-	I915_WRITE(PORT_CLK_SEL(port), crtc->config.ddi_pll_sel);
+	if (IS_SKYLAKE(dev)) {
+		uint32_t dpll = crtc->config.ddi_pll_sel;
+		uint32_t val;
+
+		val = I915_READ(DPLL_CTRL2);
+
+		val &= ~(DPLL_CTRL2_DDI_CLK_OFF(port) |
+			DPLL_CTRL2_DDI_CLK_SEL_MASK(port));
+		val |= (DPLL_CTRL2_DDI_CLK_SEL(dpll, port) |
+			DPLL_CTRL2_DDI_SEL_OVERRIDE(port));
+
+		I915_WRITE(DPLL_CTRL2, val);
+	} else {
+		WARN_ON(crtc->config.ddi_pll_sel == PORT_CLK_SEL_NONE);
+		I915_WRITE(PORT_CLK_SEL(port), crtc->config.ddi_pll_sel);
+	}
 
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -1278,7 +1293,8 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
 	uint32_t val;
@@ -1306,7 +1322,11 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 		intel_edp_panel_off(intel_dp);
 	}
 
-	I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
+	if (IS_SKYLAKE(dev))
+		I915_WRITE(DPLL_CTRL2, (I915_READ(DPLL_CTRL2) |
+					DPLL_CTRL2_DDI_CLK_OFF(port)));
+	else
+		I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
 }
 
 static void intel_enable_ddi(struct intel_encoder *intel_encoder)
