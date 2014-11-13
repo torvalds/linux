@@ -241,6 +241,8 @@ config USB_M66592
 	   dynamically linked module called "m66592_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
+source "drivers/usb/gadget/udc/bdc/Kconfig"
+
 #
 # Controllers available only in discrete form (and all PCI controllers)
 #
