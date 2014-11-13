@@ -183,6 +183,9 @@ struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 		return NULL;
 	}
 
+	WARN(sysfs_create_link(&priv->adap.dev.kobj, &mux_dev->kobj, "mux_device"),
+			       "can't create symlink to mux device\n");
+
 	dev_info(&parent->dev, "Added multiplexed i2c bus %d\n",
 		 i2c_adapter_id(&priv->adap));
 
@@ -194,6 +197,7 @@ void i2c_del_mux_adapter(struct i2c_adapter *adap)
 {
 	struct i2c_mux_priv *priv = adap->algo_data;
 
+	sysfs_remove_link(&priv->adap.dev.kobj, "mux_device");
 	i2c_del_adapter(adap);
 	kfree(priv);
 }
