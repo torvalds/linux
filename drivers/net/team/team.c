@@ -1179,6 +1179,9 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		goto err_enable_netpoll;
 	}
 
+	if (!(dev->features & NETIF_F_LRO))
+		dev_disable_lro(port_dev);
+
 	err = netdev_rx_handler_register(port_dev, team_handle_frame,
 					 port);
 	if (err) {
