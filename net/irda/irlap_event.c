@@ -78,8 +78,7 @@ static int irlap_state_sclose (struct irlap_cb *self, IRLAP_EVENT event,
 static int irlap_state_reset_check(struct irlap_cb *, IRLAP_EVENT event,
 				   struct sk_buff *, struct irlap_info *);
 
-#ifdef CONFIG_IRDA_DEBUG
-static const char *const irlap_event[] = {
+static const char *const irlap_event[] __maybe_unused = {
 	"DISCOVERY_REQUEST",
 	"CONNECT_REQUEST",
 	"CONNECT_RESPONSE",
@@ -119,7 +118,6 @@ static const char *const irlap_event[] = {
 	"BACKOFF_TIMER_EXPIRED",
 	"MEDIA_BUSY_TIMER_EXPIRED",
 };
-#endif	/* CONFIG_IRDA_DEBUG */
 
 const char *const irlap_state[] = {
 	"LAP_NDM",

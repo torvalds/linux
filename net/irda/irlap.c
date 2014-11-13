@@ -60,8 +60,7 @@ static void __irlap_close(struct irlap_cb *self);
 static void irlap_init_qos_capabilities(struct irlap_cb *self,
 					struct qos_info *qos_user);
 
-#ifdef CONFIG_IRDA_DEBUG
-static const char *const lap_reasons[] = {
+static const char *const lap_reasons[] __maybe_unused = {
 	"ERROR, NOT USED",
 	"LAP_DISC_INDICATION",
 	"LAP_NO_RESPONSE",
@@ -71,7 +70,6 @@ static const char *const lap_reasons[] = {
 	"LAP_PRIMARY_CONFLICT",
 	"ERROR, NOT USED",
 };
-#endif	/* CONFIG_IRDA_DEBUG */
 
 int __init irlap_init(void)
 {
