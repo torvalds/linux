@@ -11,6 +11,7 @@ greybus-y :=	core.o		\
 		operation.o	\
 		i2c-gb.o	\
 		gpio-gb.o	\
+		pwm-gb.o	\
 		sdio-gb.o	\
 		uart-gb.o	\
 		battery-gb.o

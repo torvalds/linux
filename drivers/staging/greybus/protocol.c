@@ -177,6 +177,10 @@ bool gb_protocol_init(void)
 		pr_err("error initializing i2c protocol\n");
 		ret = false;
 	}
+	if (!gb_pwm_protocol_init()) {
+		pr_err("error initializing pwm protocol\n");
+		ret = false;
+	}
 	if (!gb_uart_protocol_init()) {
 		pr_err("error initializing uart protocol\n");
 		ret = false;

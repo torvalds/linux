@@ -55,6 +55,9 @@ extern void gb_gpio_protocol_exit(void);
 extern bool gb_i2c_protocol_init(void);
 extern void gb_i2c_protocol_exit(void);
 
+extern bool gb_pwm_protocol_init(void);
+extern void gb_pwm_protocol_exit(void);
+
 extern bool gb_uart_protocol_init(void);
 extern void gb_uart_protocol_exit(void);
 
