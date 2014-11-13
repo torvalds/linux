@@ -386,7 +386,7 @@ static size_t fsl_edma_desc_residue(struct fsl_edma_chan *fsl_chan,
 					&(edesc->tcd[i].vtcd->daddr));
 
 		len -= size;
-		if (cur_addr > dma_addr && cur_addr < dma_addr + size) {
+		if (cur_addr >= dma_addr && cur_addr < dma_addr + size) {
 			len += dma_addr + size - cur_addr;
 			break;
 		}
