@@ -141,10 +141,10 @@ static void s6e8aa0_dcs_write(struct s6e8aa0 *ctx, const void *data, size_t len)
 	if (ctx->error < 0)
 		return;
 
-	ret = mipi_dsi_dcs_write(dsi, data, len);
+	ret = mipi_dsi_dcs_write_buffer(dsi, data, len);
 	if (ret < 0) {
-		dev_err(ctx->dev, "error %zd writing dcs seq: %*ph\n", ret, len,
-			data);
+		dev_err(ctx->dev, "error %zd writing dcs seq: %*ph\n", ret,
+			(int)len, data);
 		ctx->error = ret;
 	}
 }
@@ -1019,16 +1019,11 @@ static int s6e8aa0_probe(struct mipi_dsi_device *dsi)
 		return ret;
 	}
 
-	ctx->reset_gpio = devm_gpiod_get(dev, "reset");
+	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
 		dev_err(dev, "cannot get reset-gpios %ld\n",
 			PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
-	}
-	ret = gpiod_direction_output(ctx->reset_gpio, 1);
-	if (ret < 0) {
-		dev_err(dev, "cannot configure reset-gpios %d\n", ret);
-		return ret;
 	}
 
 	ctx->brightness = GAMMA_LEVEL_NUM - 1;

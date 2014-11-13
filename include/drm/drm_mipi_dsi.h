@@ -43,6 +43,27 @@ struct mipi_dsi_msg {
 	void *rx_buf;
 };
 
+bool mipi_dsi_packet_format_is_short(u8 type);
+bool mipi_dsi_packet_format_is_long(u8 type);
+
+/**
+ * struct mipi_dsi_packet - represents a MIPI DSI packet in protocol format
+ * @size: size (in bytes) of the packet
+ * @header: the four bytes that make up the header (Data ID, Word Count or
+ *     Packet Data, and ECC)
+ * @payload_length: number of bytes in the payload
+ * @payload: a pointer to a buffer containing the payload, if any
+ */
+struct mipi_dsi_packet {
+	size_t size;
+	u8 header[4];
+	size_t payload_length;
+	const u8 *payload;
+};
+
+int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
+			   const struct mipi_dsi_msg *msg);
+
 /**
  * struct mipi_dsi_host_ops - DSI bus operations
  * @attach: attach DSI device to DSI host
@@ -56,7 +77,7 @@ struct mipi_dsi_host_ops {
 	int (*detach)(struct mipi_dsi_host *host,
 		      struct mipi_dsi_device *dsi);
 	ssize_t (*transfer)(struct mipi_dsi_host *host,
-			    struct mipi_dsi_msg *msg);
+			    const struct mipi_dsi_msg *msg);
 };
 
 /**
@@ -132,8 +153,10 @@ static inline struct mipi_dsi_device *to_mipi_dsi_device(struct device *dev)
 
 int mipi_dsi_attach(struct mipi_dsi_device *dsi);
 int mipi_dsi_detach(struct mipi_dsi_device *dsi);
-ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, const void *data,
-			    size_t len);
+ssize_t mipi_dsi_dcs_write_buffer(struct mipi_dsi_device *dsi,
+				  const void *data, size_t len);
+ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, u8 cmd,
+			   const void *data, size_t len);
 ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 			  size_t len);
 
