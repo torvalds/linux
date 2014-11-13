@@ -149,6 +149,10 @@ static int parse_callchain_sort_key(const char *value)
 		callchain_param.key = CCKEY_ADDRESS;
 		return 0;
 	}
+	if (!strncmp(value, "branch", strlen(value))) {
+		callchain_param.branch_callstack = 1;
+		return 0;
+	}
 	return -1;
 }
 

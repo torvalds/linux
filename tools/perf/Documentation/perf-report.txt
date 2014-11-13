@@ -159,7 +159,7 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
--g [type,min[,limit],order[,key]]::
+-g [type,min[,limit],order[,key][,branch]]::
 --call-graph::
         Display call chains using type, min percent threshold, optional print
 	limit and order.
@@ -176,6 +176,11 @@ OPTIONS
 	key can be:
 	- function: compare on functions
 	- address: compare on individual code addresses
+
+	branch can be:
+	- branch: include last branch information in callgraph
+	when available. Usually more convenient to use --branch-history
+	for this.
 
 	Default: fractal,0.5,callee,function.
 
