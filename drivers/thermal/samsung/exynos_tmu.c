@@ -427,12 +427,10 @@ static int exynos_tmu_read(struct exynos_tmu_data *data)
 static u32 get_emul_con_reg(struct exynos_tmu_data *data, unsigned int val,
 			    unsigned long temp)
 {
-	struct exynos_tmu_platform_data *pdata = data->pdata;
-
 	if (temp) {
 		temp /= MCELSIUS;
 
-		if (TMU_SUPPORTS(pdata, EMUL_TIME)) {
+		if (data->soc != SOC_ARCH_EXYNOS5440) {
 			val &= ~(EXYNOS_EMUL_TIME_MASK << EXYNOS_EMUL_TIME_SHIFT);
 			val |= (EXYNOS_EMUL_TIME << EXYNOS_EMUL_TIME_SHIFT);
 		}
