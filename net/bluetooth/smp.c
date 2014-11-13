@@ -393,8 +393,8 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 		}
 
 		if (smp->remote_irk) {
-			list_del(&smp->remote_irk->list);
-			kfree(smp->remote_irk);
+			list_del_rcu(&smp->remote_irk->list);
+			kfree_rcu(smp->remote_irk, rcu);
 		}
 	}
 
@@ -655,8 +655,8 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 		 * just remove it.
 		 */
 		if (!bacmp(&smp->remote_irk->rpa, BDADDR_ANY)) {
-			list_del(&smp->remote_irk->list);
-			kfree(smp->remote_irk);
+			list_del_rcu(&smp->remote_irk->list);
+			kfree_rcu(smp->remote_irk, rcu);
 			smp->remote_irk = NULL;
 		}
 	}
@@ -1696,7 +1696,7 @@ int smp_register(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
+	tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, 0);
 	if (IS_ERR(tfm_aes)) {
 		int err = PTR_ERR(tfm_aes);
 		BT_ERR("Unable to create crypto context");
