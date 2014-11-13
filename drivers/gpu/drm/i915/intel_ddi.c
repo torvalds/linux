@@ -937,6 +937,226 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 	return true;
 }
 
+struct skl_wrpll_params {
+	uint32_t        dco_fraction;
+	uint32_t        dco_integer;
+	uint32_t        qdiv_ratio;
+	uint32_t        qdiv_mode;
+	uint32_t        kdiv;
+	uint32_t        pdiv;
+	uint32_t        central_freq;
+};
+
+static void
+skl_ddi_calculate_wrpll(int clock /* in Hz */,
+			struct skl_wrpll_params *wrpll_params)
+{
+	uint64_t afe_clock = clock * 5; /* AFE Clock is 5x Pixel clock */
+	uint64_t dco_central_freq[3] = {8400000000, 9000000000, 9600000000};
+	uint32_t min_dco_deviation = 400;
+	uint32_t min_dco_index = 3;
+	uint32_t P0[4] = {1, 2, 3, 7};
+	uint32_t P2[4] = {1, 2, 3, 5};
+	bool found = false;
+	uint32_t candidate_p = 0;
+	uint32_t candidate_p0[3] = {0}, candidate_p1[3] = {0};
+	uint32_t candidate_p2[3] = {0};
+	uint32_t dco_central_freq_deviation[3];
+	uint32_t i, P1, k, dco_count;
+	bool retry_with_odd = false;
+	uint64_t dco_freq;
+
+	/* Determine P0, P1 or P2 */
+	for (dco_count = 0; dco_count < 3; dco_count++) {
+		found = false;
+		candidate_p =
+			div64_u64(dco_central_freq[dco_count], afe_clock);
+		if (retry_with_odd == false)
+			candidate_p = (candidate_p % 2 == 0 ?
+				candidate_p : candidate_p + 1);
+
+		for (P1 = 1; P1 < candidate_p; P1++) {
+			for (i = 0; i < 4; i++) {
+				if (!(P0[i] != 1 || P1 == 1))
+					continue;
+
+				for (k = 0; k < 4; k++) {
+					if (P1 != 1 && P2[k] != 2)
+						continue;
+
+					if (candidate_p == P0[i] * P1 * P2[k]) {
+						/* Found possible P0, P1, P2 */
+						found = true;
+						candidate_p0[dco_count] = P0[i];
+						candidate_p1[dco_count] = P1;
+						candidate_p2[dco_count] = P2[k];
+						goto found;
+					}
+
+				}
+			}
+		}
+
+found:
+		if (found) {
+			dco_central_freq_deviation[dco_count] =
+				div64_u64(10000 *
+					  abs_diff((candidate_p * afe_clock),
+						   dco_central_freq[dco_count]),
+					  dco_central_freq[dco_count]);
+
+			if (dco_central_freq_deviation[dco_count] <
+				min_dco_deviation) {
+				min_dco_deviation =
+					dco_central_freq_deviation[dco_count];
+				min_dco_index = dco_count;
+			}
+		}
+
+		if (min_dco_index > 2 && dco_count == 2) {
+			retry_with_odd = true;
+			dco_count = 0;
+		}
+	}
+
+	if (min_dco_index > 2) {
+		WARN(1, "No valid values found for the given pixel clock\n");
+	} else {
+		 wrpll_params->central_freq = dco_central_freq[min_dco_index];
+
+		 switch (dco_central_freq[min_dco_index]) {
+		 case 9600000000:
+			wrpll_params->central_freq = 0;
+			break;
+		 case 9000000000:
+			wrpll_params->central_freq = 1;
+			break;
+		 case 8400000000:
+			wrpll_params->central_freq = 3;
+		 }
+
+		 switch (candidate_p0[min_dco_index]) {
+		 case 1:
+			wrpll_params->pdiv = 0;
+			break;
+		 case 2:
+			wrpll_params->pdiv = 1;
+			break;
+		 case 3:
+			wrpll_params->pdiv = 2;
+			break;
+		 case 7:
+			wrpll_params->pdiv = 4;
+			break;
+		 default:
+			WARN(1, "Incorrect PDiv\n");
+		 }
+
+		 switch (candidate_p2[min_dco_index]) {
+		 case 5:
+			wrpll_params->kdiv = 0;
+			break;
+		 case 2:
+			wrpll_params->kdiv = 1;
+			break;
+		 case 3:
+			wrpll_params->kdiv = 2;
+			break;
+		 case 1:
+			wrpll_params->kdiv = 3;
+			break;
+		 default:
+			WARN(1, "Incorrect KDiv\n");
+		 }
+
+		 wrpll_params->qdiv_ratio = candidate_p1[min_dco_index];
+		 wrpll_params->qdiv_mode =
+			(wrpll_params->qdiv_ratio == 1) ? 0 : 1;
+
+		 dco_freq = candidate_p0[min_dco_index] *
+			 candidate_p1[min_dco_index] *
+			 candidate_p2[min_dco_index] * afe_clock;
+
+		/*
+		* Intermediate values are in Hz.
+		* Divide by MHz to match bsepc
+		*/
+		 wrpll_params->dco_integer = div_u64(dco_freq, (24 * MHz(1)));
+		 wrpll_params->dco_fraction =
+			 div_u64(((div_u64(dco_freq, 24) -
+				   wrpll_params->dco_integer * MHz(1)) * 0x8000), MHz(1));
+
+	}
+}
+
+
+static bool
+skl_ddi_pll_select(struct intel_crtc *intel_crtc,
+		   struct intel_encoder *intel_encoder,
+		   int clock)
+{
+	struct intel_shared_dpll *pll;
+	uint32_t ctrl1, cfgcr1, cfgcr2;
+
+	/*
+	 * See comment in intel_dpll_hw_state to understand why we always use 0
+	 * as the DPLL id in this function.
+	 */
+
+	ctrl1 = DPLL_CTRL1_OVERRIDE(0);
+
+	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
+		struct skl_wrpll_params wrpll_params = { 0, };
+
+		ctrl1 |= DPLL_CTRL1_HDMI_MODE(0);
+
+		skl_ddi_calculate_wrpll(clock * 1000, &wrpll_params);
+
+		cfgcr1 = DPLL_CFGCR1_FREQ_ENABLE |
+			 DPLL_CFGCR1_DCO_FRACTION(wrpll_params.dco_fraction) |
+			 wrpll_params.dco_integer;
+
+		cfgcr2 = DPLL_CFGCR2_QDIV_RATIO(wrpll_params.qdiv_ratio) |
+			 DPLL_CFGCR2_QDIV_MODE(wrpll_params.qdiv_mode) |
+			 DPLL_CFGCR2_KDIV(wrpll_params.kdiv) |
+			 DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
+			 wrpll_params.central_freq;
+	} else if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
+		struct drm_encoder *encoder = &intel_encoder->base;
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		switch (intel_dp->link_bw) {
+		case DP_LINK_BW_1_62:
+			ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_810, 0);
+			break;
+		case DP_LINK_BW_2_7:
+			ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_1350, 0);
+			break;
+		case DP_LINK_BW_5_4:
+			ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_2700, 0);
+			break;
+		}
+
+		cfgcr1 = cfgcr2 = 0;
+	} else /* eDP */
+		return true;
+
+	intel_crtc->new_config->dpll_hw_state.ctrl1 = ctrl1;
+	intel_crtc->new_config->dpll_hw_state.cfgcr1 = cfgcr1;
+	intel_crtc->new_config->dpll_hw_state.cfgcr2 = cfgcr2;
+
+	pll = intel_get_shared_dpll(intel_crtc);
+	if (pll == NULL) {
+		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
+				 pipe_name(intel_crtc->pipe));
+		return false;
+	}
+
+	/* shared DPLL id 0 is DPLL 1 */
+	intel_crtc->new_config->ddi_pll_sel = pll->id + 1;
+
+	return true;
+}
 
 /*
  * Tries to find a *shared* PLL for the CRTC and store it in
@@ -947,11 +1167,15 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
  */
 bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 {
+	struct drm_device *dev = intel_crtc->base.dev;
 	struct intel_encoder *intel_encoder =
 		intel_ddi_get_crtc_new_encoder(intel_crtc);
 	int clock = intel_crtc->new_config->port_clock;
 
-	return hsw_ddi_pll_select(intel_crtc, intel_encoder, clock);
+	if (IS_SKYLAKE(dev))
+		return skl_ddi_pll_select(intel_crtc, intel_encoder, clock);
+	else
+		return hsw_ddi_pll_select(intel_crtc, intel_encoder, clock);
 }
 
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
