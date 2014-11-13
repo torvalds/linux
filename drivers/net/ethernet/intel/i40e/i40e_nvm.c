@@ -806,8 +806,10 @@ static enum i40e_nvmupd_cmd i40e_nvmupd_validate_command(struct i40e_hw *hw,
 		}
 		break;
 	}
-	i40e_debug(hw, I40E_DEBUG_NVM, "%s\n",
-		   i40e_nvm_update_state_str[upd_cmd]);
+	i40e_debug(hw, I40E_DEBUG_NVM, "%s state %d nvm_release_on_hold %d\n",
+		   i40e_nvm_update_state_str[upd_cmd],
+		   hw->nvmupd_state,
+		   hw->aq.nvm_release_on_done);
 
 	if (upd_cmd == I40E_NVMUPD_INVALID) {
 		*errno = -EFAULT;
