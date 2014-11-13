@@ -1686,9 +1686,17 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5631 = {
 
 static const struct i2c_device_id rt5631_i2c_id[] = {
 	{ "rt5631", 0 },
+	{ "alc5631", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5631_i2c_id);
+
+static struct of_device_id rt5631_i2c_dt_ids[] = {
+	{ .compatible = "realtek,rt5631"},
+	{ .compatible = "realtek,alc5631"},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rt5631_i2c_dt_ids);
 
 static const struct regmap_config rt5631_regmap_config = {
 	.reg_bits = 8,
@@ -1734,6 +1742,7 @@ static struct i2c_driver rt5631_i2c_driver = {
 	.driver = {
 		.name = "rt5631",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(rt5631_i2c_dt_ids),
 	},
 	.probe = rt5631_i2c_probe,
 	.remove   = rt5631_i2c_remove,
