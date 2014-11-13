@@ -73,9 +73,7 @@ ZFCP_DEFINE_ATTR(zfcp_port, port, status, "0x%08x\n",
 ZFCP_DEFINE_ATTR(zfcp_port, port, in_recovery, "%d\n",
 		 (atomic_read(&port->status) &
 		  ZFCP_STATUS_COMMON_ERP_INUSE) != 0);
-ZFCP_DEFINE_ATTR(zfcp_port, port, access_denied, "%d\n",
-		 (atomic_read(&port->status) &
-		  ZFCP_STATUS_COMMON_ACCESS_DENIED) != 0);
+ZFCP_DEFINE_ATTR_CONST(port, access_denied, "%d\n", 0);
 
 ZFCP_DEFINE_ATTR(zfcp_unit, unit, status, "0x%08x\n",
 		 zfcp_unit_sdev_status(unit));
