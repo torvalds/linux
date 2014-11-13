@@ -82,6 +82,13 @@
 		};
 
 		pio: pinctrl@01c20800 {
+			led_pins_m9: led_pins@0 {
+				allwinner,pins = "PH13";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
 			mmc0_cd_pin_m9: mmc0_cd_pin@0 {
 				allwinner,pins = "PH22";
 				allwinner,function = "gpio_in";
@@ -101,6 +108,17 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_pins_a>;
 			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_m9>;
+
+		blue {
+			label = "m9:blue:usr";
+			gpios = <&pio 7 13 0>;
 		};
 	};
 
