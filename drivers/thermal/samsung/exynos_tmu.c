@@ -380,8 +380,8 @@ static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
 		temp /= MCELSIUS;
 
 		if (TMU_SUPPORTS(pdata, EMUL_TIME)) {
-			val &= ~(EXYNOS_EMUL_TIME_MASK << reg->emul_time_shift);
-			val |= (EXYNOS_EMUL_TIME << reg->emul_time_shift);
+			val &= ~(EXYNOS_EMUL_TIME_MASK << EXYNOS_EMUL_TIME_SHIFT);
+			val |= (EXYNOS_EMUL_TIME << EXYNOS_EMUL_TIME_SHIFT);
 		}
 		val &= ~(EXYNOS_EMUL_DATA_MASK << EXYNOS_EMUL_DATA_SHIFT);
 		val |= (temp_to_code(data, temp) << EXYNOS_EMUL_DATA_SHIFT) |
