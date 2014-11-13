@@ -901,6 +901,7 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	 */
 	if (!desc->active_xfer) {
 		dma_set_residue(txstate, desc->xfer_size);
+		spin_unlock_bh(&atchan->lock);
 		return ret;
 	}
 
