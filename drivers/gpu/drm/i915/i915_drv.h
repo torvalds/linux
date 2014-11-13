@@ -213,10 +213,15 @@ enum intel_dpll_id {
 	/* real shared dpll ids must be >= 0 */
 	DPLL_ID_PCH_PLL_A = 0,
 	DPLL_ID_PCH_PLL_B = 1,
+	/* hsw/bdw */
 	DPLL_ID_WRPLL1 = 0,
 	DPLL_ID_WRPLL2 = 1,
+	/* skl */
+	DPLL_ID_SKL_DPLL1 = 0,
+	DPLL_ID_SKL_DPLL2 = 1,
+	DPLL_ID_SKL_DPLL3 = 2,
 };
-#define I915_NUM_PLLS 2
+#define I915_NUM_PLLS 3
 
 struct intel_dpll_hw_state {
 	/* i9xx, pch plls */
@@ -255,6 +260,11 @@ struct intel_shared_dpll {
 			     struct intel_shared_dpll *pll,
 			     struct intel_dpll_hw_state *hw_state);
 };
+
+#define SKL_DPLL0 0
+#define SKL_DPLL1 1
+#define SKL_DPLL2 2
+#define SKL_DPLL3 3
 
 /* Used by dp and fdi links */
 struct intel_link_m_n {
