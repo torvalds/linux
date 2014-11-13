@@ -9480,6 +9480,69 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 	return 0;
 }
 
+static int intel_gen9_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj,
+				 struct intel_engine_cs *ring,
+				 uint32_t flags)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	uint32_t plane = 0, stride;
+	int ret;
+
+	switch(intel_crtc->pipe) {
+	case PIPE_A:
+		plane = MI_DISPLAY_FLIP_SKL_PLANE_1_A;
+		break;
+	case PIPE_B:
+		plane = MI_DISPLAY_FLIP_SKL_PLANE_1_B;
+		break;
+	case PIPE_C:
+		plane = MI_DISPLAY_FLIP_SKL_PLANE_1_C;
+		break;
+	default:
+		WARN_ONCE(1, "unknown plane in flip command\n");
+		return -ENODEV;
+	}
+
+	switch (obj->tiling_mode) {
+	case I915_TILING_NONE:
+		stride = fb->pitches[0] >> 6;
+		break;
+	case I915_TILING_X:
+		stride = fb->pitches[0] >> 9;
+		break;
+	default:
+		WARN_ONCE(1, "unknown tiling in flip command\n");
+		return -ENODEV;
+	}
+
+	ret = intel_ring_begin(ring, 10);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+	intel_ring_emit(ring, DERRMR);
+	intel_ring_emit(ring, ~(DERRMR_PIPEA_PRI_FLIP_DONE |
+				DERRMR_PIPEB_PRI_FLIP_DONE |
+				DERRMR_PIPEC_PRI_FLIP_DONE));
+	intel_ring_emit(ring, MI_STORE_REGISTER_MEM_GEN8(1) |
+			      MI_SRM_LRM_GLOBAL_GTT);
+	intel_ring_emit(ring, DERRMR);
+	intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
+	intel_ring_emit(ring, 0);
+
+	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | plane);
+	intel_ring_emit(ring, stride << 6 | obj->tiling_mode);
+	intel_ring_emit(ring, intel_crtc->unpin_work->gtt_offset);
+
+	intel_mark_page_flip_active(intel_crtc);
+	__intel_ring_advance(ring);
+
+	return 0;
+}
+
 static int intel_default_queue_flip(struct drm_device *dev,
 				    struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
@@ -12647,6 +12710,9 @@ static void intel_init_display(struct drm_device *dev)
 	case 7:
 	case 8: /* FIXME(BDW): Check that the gen8 RCS flip works. */
 		dev_priv->display.queue_flip = intel_gen7_queue_flip;
+		break;
+	case 9:
+		dev_priv->display.queue_flip = intel_gen9_queue_flip;
 		break;
 	}
 

@@ -248,6 +248,16 @@
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_B (3 << 19)
 #define   MI_DISPLAY_FLIP_IVB_PLANE_C  (4 << 19)
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_C (5 << 19)
+/* SKL ones */
+#define   MI_DISPLAY_FLIP_SKL_PLANE_1_A	(0 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_1_B	(1 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_1_C	(2 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_2_A	(4 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_2_B	(5 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_2_C	(6 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_3_A	(7 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_3_B	(8 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_3_C	(9 << 8)
 #define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6, gen7 */
 #define   MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
 #define   MI_SEMAPHORE_UPDATE	    (1<<21)
