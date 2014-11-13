@@ -40,6 +40,7 @@ enum soc_type {
 	SOC_ARCH_EXYNOS4412,
 	SOC_ARCH_EXYNOS5250,
 	SOC_ARCH_EXYNOS5260,
+	SOC_ARCH_EXYNOS5420,
 	SOC_ARCH_EXYNOS5420_TRIMINFO,
 	SOC_ARCH_EXYNOS5440,
 };
@@ -50,8 +51,6 @@ enum soc_type {
  *			temperature to the TMU controller.
  * TMU_SUPPORT_MULTI_INST - This features denotes that the soc
  *			has many instances of TMU.
- * TMU_SUPPORT_TRIM_RELOAD - This features shows that trimming can
- *			be reloaded.
  * TMU_SUPPORT_FALLING_TRIP - This features shows that interrupt can
  *			be registered for falling trips also.
  * TMU_SUPPORT_EMUL_TIME - This features allows to set next temp emulation
@@ -62,10 +61,9 @@ enum soc_type {
  */
 #define TMU_SUPPORT_EMULATION			BIT(0)
 #define TMU_SUPPORT_MULTI_INST			BIT(1)
-#define TMU_SUPPORT_TRIM_RELOAD			BIT(2)
-#define TMU_SUPPORT_FALLING_TRIP		BIT(3)
-#define TMU_SUPPORT_EMUL_TIME			BIT(4)
-#define TMU_SUPPORT_ADDRESS_MULTIPLE		BIT(5)
+#define TMU_SUPPORT_FALLING_TRIP		BIT(2)
+#define TMU_SUPPORT_EMUL_TIME			BIT(3)
+#define TMU_SUPPORT_ADDRESS_MULTIPLE		BIT(4)
 
 #define TMU_SUPPORTS(a, b)	(a->features & TMU_SUPPORT_ ## b)
 
