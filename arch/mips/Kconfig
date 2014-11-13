@@ -1150,6 +1150,9 @@ config SOC_PNX8335
 	bool
 	select SOC_PNX833X
 
+config MIPS_SPRAM
+	bool
+
 config SWAP_IO_SPACE
 	bool
 
@@ -1821,10 +1824,12 @@ config CPU_MIPSR1
 config CPU_MIPSR2
 	bool
 	default y if CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_CAVIUM_OCTEON
+	select MIPS_SPRAM
 
 config CPU_MIPSR6
 	bool
 	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6
+	select MIPS_SPRAM
 
 config EVA
 	bool
