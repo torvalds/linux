@@ -1393,7 +1393,6 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	atxdmac->dma.device_prep_dma_memcpy		= at_xdmac_prep_dma_memcpy;
 	atxdmac->dma.device_prep_slave_sg		= at_xdmac_prep_slave_sg;
 	atxdmac->dma.device_control			= at_xdmac_control;
-	atxdmac->dma.chancnt				= nr_channels;
 	atxdmac->dma.device_slave_caps			= at_xdmac_device_slave_caps;
 
 	/* Disable all chans and interrupts. */
