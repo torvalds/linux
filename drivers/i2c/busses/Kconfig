@@ -524,6 +524,16 @@ config I2C_IBM_IIC
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-ibm_iic.
 
+config I2C_IMG
+	tristate "Imagination Technologies I2C SCB Controller"
+	depends on SOC_TZ1090 || COMPILE_TEST
+	help
+	  Say Y here if you want to use the IMG I2C SCB controller,
+	  available on the TZ1090 SoC.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-img-scb.
+
 config I2C_IMX
 	tristate "IMX I2C interface"
 	depends on ARCH_MXC
