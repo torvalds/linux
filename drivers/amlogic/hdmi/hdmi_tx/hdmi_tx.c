@@ -316,7 +316,6 @@ static void hdmitx_pre_display_init(void)
 // "vic_old==HDMI_720P60" means old vic is HDMI_1080p60, but vmode maybe VMODE_1080P or VMODE_1080P_59HZ 
 static int is_similar_hdmi_vic(HDMI_Video_Codes_t vic_old, vmode_t mode_new)
 {
-	printk("%s[%d] vic_old=%d,mode_new=%d\n", __FUNCTION__, __LINE__,vic_old,mode_new);
 	if( (vic_old==HDMI_480p60_16x9) && (mode_new==VMODE_480P_59HZ) )
 		return 1;	
 	if( (vic_old==HDMI_720p60) && (mode_new==VMODE_720P_59HZ) )
