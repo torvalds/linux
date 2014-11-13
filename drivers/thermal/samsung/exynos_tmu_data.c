@@ -275,8 +275,7 @@ struct exynos_tmu_init_data const exynos5260_default_tmu_data = {
 
 #define EXYNOS5420_TMU_DATA_SHARED \
 	__EXYNOS5420_TMU_DATA \
-	.type = SOC_ARCH_EXYNOS5420_TRIMINFO, \
-	.features = TMU_SUPPORT_ADDRESS_MULTIPLE
+	.type = SOC_ARCH_EXYNOS5420_TRIMINFO
 
 struct exynos_tmu_init_data const exynos5420_default_tmu_data = {
 	.tmu_data = {
@@ -310,7 +309,7 @@ struct exynos_tmu_init_data const exynos5420_default_tmu_data = {
 	.second_point_trim = 70, \
 	.default_temp_offset = 25, \
 	.type = SOC_ARCH_EXYNOS5440, \
-	.features = (TMU_SUPPORT_MULTI_INST | TMU_SUPPORT_ADDRESS_MULTIPLE),
+	.features = TMU_SUPPORT_MULTI_INST,
 
 struct exynos_tmu_init_data const exynos5440_default_tmu_data = {
 	.tmu_data = {
