@@ -760,6 +760,9 @@ int eeh_reset_pe(struct eeh_pe *pe)
 	int flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	int i, state, ret;
 
+	/* Mark as reset and block config space */
+	eeh_pe_state_mark(pe, EEH_PE_RESET | EEH_PE_CFG_BLOCKED);
+
 	/* Take three shots at resetting the bus */
 	for (i = 0; i < 3; i++) {
 		eeh_reset_pe_once(pe);
@@ -788,6 +791,7 @@ int eeh_reset_pe(struct eeh_pe *pe)
 	}
 
 out:
+	eeh_pe_state_clear(pe, EEH_PE_RESET | EEH_PE_CFG_BLOCKED);
 	return ret;
 }
 

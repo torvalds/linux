@@ -72,6 +72,7 @@ struct device_node;
 #define EEH_PE_ISOLATED		(1 << 0)	/* Isolated PE		*/
 #define EEH_PE_RECOVERING	(1 << 1)	/* Recovering PE	*/
 #define EEH_PE_CFG_BLOCKED	(1 << 2)	/* Block config access	*/
+#define EEH_PE_RESET		(1 << 3)	/* PE reset in progress */
 
 #define EEH_PE_KEEP		(1 << 8)	/* Keep PE on hotplug	*/
 #define EEH_PE_CFG_RESTRICTED	(1 << 9)	/* Block config on error */
