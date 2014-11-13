@@ -456,12 +456,6 @@ static int tegra_output_dsi_enable(struct tegra_output *output)
 	if (err < 0)
 		return err;
 
-	err = clk_enable(dsi->clk);
-	if (err < 0)
-		return err;
-
-	reset_control_deassert(dsi->rst);
-
 	value = DSI_CONTROL_CHANNEL(0) | DSI_CONTROL_FORMAT(format) |
 		DSI_CONTROL_LANES(dsi->lanes - 1) |
 		DSI_CONTROL_SOURCE(dc->pipe);
@@ -575,8 +569,6 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 		tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
 		tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 	}
-
-	clk_disable(dsi->clk);
 
 	dsi->enabled = false;
 
@@ -695,7 +687,7 @@ static int tegra_dsi_pad_enable(struct tegra_dsi *dsi)
 
 static int tegra_dsi_pad_calibrate(struct tegra_dsi *dsi)
 {
-	unsigned long value;
+	u32 value;
 
 	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_0);
 	tegra_dsi_writel(dsi, 0, DSI_PAD_CONTROL_1);
@@ -734,12 +726,6 @@ static int tegra_dsi_init(struct host1x_client *client)
 		err = tegra_dsi_debugfs_init(dsi, drm->primary);
 		if (err < 0)
 			dev_err(dsi->dev, "debugfs setup failed: %d\n", err);
-	}
-
-	err = tegra_dsi_pad_calibrate(dsi);
-	if (err < 0) {
-		dev_err(dsi->dev, "MIPI calibration failed: %d\n", err);
-		return err;
 	}
 
 	return 0;
@@ -863,6 +849,13 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	if (IS_ERR(dsi->rst))
 		return PTR_ERR(dsi->rst);
 
+	err = reset_control_deassert(dsi->rst);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to bring DSI out of reset: %d\n",
+			err);
+		return err;
+	}
+
 	dsi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dsi->clk)) {
 		dev_err(&pdev->dev, "cannot get DSI clock\n");
@@ -925,6 +918,12 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	dsi->mipi = tegra_mipi_request(&pdev->dev);
 	if (IS_ERR(dsi->mipi))
 		return PTR_ERR(dsi->mipi);
+
+	err = tegra_dsi_pad_calibrate(dsi);
+	if (err < 0) {
+		dev_err(dsi->dev, "MIPI calibration failed: %d\n", err);
+		return err;
+	}
 
 	dsi->host.ops = &tegra_dsi_host_ops;
 	dsi->host.dev = &pdev->dev;
