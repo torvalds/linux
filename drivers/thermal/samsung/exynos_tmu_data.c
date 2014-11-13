@@ -109,7 +109,6 @@ struct exynos_tmu_init_data const exynos3250_default_tmu_data = {
 		{
 			EXYNOS3250_TMU_DATA,
 			.type = SOC_ARCH_EXYNOS3250,
-			.test_mux = EXYNOS4412_MUX_ADDR_VALUE,
 		},
 	},
 	.tmu_count = 1,
@@ -160,7 +159,6 @@ struct exynos_tmu_init_data const exynos4412_default_tmu_data = {
 		{
 			EXYNOS4412_TMU_DATA,
 			.type = SOC_ARCH_EXYNOS4412,
-			.test_mux = EXYNOS4412_MUX_ADDR_VALUE,
 		},
 	},
 	.tmu_count = 1,
