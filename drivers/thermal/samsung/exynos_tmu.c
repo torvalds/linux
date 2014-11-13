@@ -295,7 +295,7 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 	con = readl(data->base + reg->tmu_ctrl);
 
 	if (pdata->test_mux)
-		con |= (pdata->test_mux << reg->test_mux_addr_shift);
+		con |= (pdata->test_mux << EXYNOS4412_MUX_ADDR_SHIFT);
 
 	con &= ~(EXYNOS_TMU_REF_VOLTAGE_MASK << EXYNOS_TMU_REF_VOLTAGE_SHIFT);
 	con |= pdata->reference_voltage << EXYNOS_TMU_REF_VOLTAGE_SHIFT;
