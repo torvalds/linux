@@ -221,9 +221,13 @@ static ssize_t zfcp_sysfs_port_rescan_store(struct device *dev,
 	if (!adapter)
 		return -ENODEV;
 
-	/* sync the user-space- with the kernel-invocation of scan_work */
-	queue_work(adapter->work_queue, &adapter->scan_work);
-	flush_work(&adapter->scan_work);
+	/*
+	 * Users wish is our command: immediately schedule and flush a
+	 * worker to conduct a synchronous port scan, that is, neither
+	 * a random delay nor a rate limit is applied here.
+	 */
+	queue_delayed_work(adapter->work_queue, &adapter->scan_work, 0);
+	flush_delayed_work(&adapter->scan_work);
 	zfcp_ccw_adapter_put(adapter);
 
 	return (ssize_t) count;
