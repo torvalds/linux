@@ -383,13 +383,13 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 	/* If pairing failed clean up any keys we might have */
 	if (!complete) {
 		if (smp->ltk) {
-			list_del(&smp->ltk->list);
-			kfree(smp->ltk);
+			list_del_rcu(&smp->ltk->list);
+			kfree_rcu(smp->ltk, rcu);
 		}
 
 		if (smp->slave_ltk) {
-			list_del(&smp->slave_ltk->list);
-			kfree(smp->slave_ltk);
+			list_del_rcu(&smp->slave_ltk->list);
+			kfree_rcu(smp->slave_ltk, rcu);
 		}
 
 		if (smp->remote_irk) {
@@ -1321,7 +1321,6 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	skb_pull(skb, sizeof(*rp));
 
-	hci_dev_lock(hdev);
 	authenticated = (hcon->sec_level == BT_SECURITY_HIGH);
 	ltk = hci_add_ltk(hdev, &hcon->dst, hcon->dst_type, SMP_LTK,
 			  authenticated, smp->tk, smp->enc_key_size,
@@ -1329,7 +1328,6 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 	smp->ltk = ltk;
 	if (!(smp->remote_key_dist & KEY_DIST_MASK))
 		smp_distribute_keys(smp);
-	hci_dev_unlock(hdev);
 
 	return 0;
 }

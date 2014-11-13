@@ -108,6 +108,7 @@ struct smp_csrk {
 
 struct smp_ltk {
 	struct list_head list;
+	struct rcu_head rcu;
 	bdaddr_t bdaddr;
 	u8 bdaddr_type;
 	u8 authenticated;
