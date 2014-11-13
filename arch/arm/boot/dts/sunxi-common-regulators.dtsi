@@ -87,6 +87,7 @@
 		regulator-name = "ahci-5v";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
 		enable-active-high;
 		gpio = <&pio 1 8 0>;
 		status = "disabled";
