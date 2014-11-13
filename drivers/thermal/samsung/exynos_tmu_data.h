@@ -104,53 +104,12 @@
 #define EXYNOS5440_TMU_TH_RISE4_SHIFT		24
 #define EXYNOS5440_EFUSE_SWAP_OFFSET		8
 
-#if defined(CONFIG_SOC_EXYNOS3250)
 extern struct exynos_tmu_init_data const exynos3250_default_tmu_data;
-#define EXYNOS3250_TMU_DRV_DATA (&exynos3250_default_tmu_data)
-#else
-#define EXYNOS3250_TMU_DRV_DATA (NULL)
-#endif
-
-#if defined(CONFIG_CPU_EXYNOS4210)
 extern struct exynos_tmu_init_data const exynos4210_default_tmu_data;
-#define EXYNOS4210_TMU_DRV_DATA (&exynos4210_default_tmu_data)
-#else
-#define EXYNOS4210_TMU_DRV_DATA (NULL)
-#endif
-
-#if defined(CONFIG_SOC_EXYNOS4412)
 extern struct exynos_tmu_init_data const exynos4412_default_tmu_data;
-#define EXYNOS4412_TMU_DRV_DATA (&exynos4412_default_tmu_data)
-#else
-#define EXYNOS4412_TMU_DRV_DATA (NULL)
-#endif
-
-#if defined(CONFIG_SOC_EXYNOS5250)
 extern struct exynos_tmu_init_data const exynos5250_default_tmu_data;
-#define EXYNOS5250_TMU_DRV_DATA (&exynos5250_default_tmu_data)
-#else
-#define EXYNOS5250_TMU_DRV_DATA (NULL)
-#endif
-
-#if defined(CONFIG_SOC_EXYNOS5260)
 extern struct exynos_tmu_init_data const exynos5260_default_tmu_data;
-#define EXYNOS5260_TMU_DRV_DATA (&exynos5260_default_tmu_data)
-#else
-#define EXYNOS5260_TMU_DRV_DATA (NULL)
-#endif
-
-#if defined(CONFIG_SOC_EXYNOS5420)
 extern struct exynos_tmu_init_data const exynos5420_default_tmu_data;
-#define EXYNOS5420_TMU_DRV_DATA (&exynos5420_default_tmu_data)
-#else
-#define EXYNOS5420_TMU_DRV_DATA (NULL)
-#endif
-
-#if defined(CONFIG_SOC_EXYNOS5440)
 extern struct exynos_tmu_init_data const exynos5440_default_tmu_data;
-#define EXYNOS5440_TMU_DRV_DATA (&exynos5440_default_tmu_data)
-#else
-#define EXYNOS5440_TMU_DRV_DATA (NULL)
-#endif
 
 #endif /*_EXYNOS_TMU_DATA_H*/

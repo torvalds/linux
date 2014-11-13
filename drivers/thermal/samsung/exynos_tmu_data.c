@@ -24,7 +24,6 @@
 #include "exynos_tmu.h"
 #include "exynos_tmu_data.h"
 
-#if defined(CONFIG_CPU_EXYNOS4210)
 struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 	.tmu_data = {
 		{
@@ -63,9 +62,7 @@ struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 	},
 	.tmu_count = 1,
 };
-#endif
 
-#if defined(CONFIG_SOC_EXYNOS3250)
 #define EXYNOS3250_TMU_DATA \
 	.threshold_falling = 10, \
 	.trigger_levels[0] = 70, \
@@ -101,9 +98,7 @@ struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 		.temp_level = 95, \
 	}, \
 	.freq_tab_count = 2
-#endif
 
-#if defined(CONFIG_SOC_EXYNOS3250)
 struct exynos_tmu_init_data const exynos3250_default_tmu_data = {
 	.tmu_data = {
 		{
@@ -113,9 +108,7 @@ struct exynos_tmu_init_data const exynos3250_default_tmu_data = {
 	},
 	.tmu_count = 1,
 };
-#endif
 
-#if defined(CONFIG_SOC_EXYNOS4412) || defined(CONFIG_SOC_EXYNOS5250)
 #define EXYNOS4412_TMU_DATA \
 	.threshold_falling = 10, \
 	.trigger_levels[0] = 70, \
@@ -151,9 +144,7 @@ struct exynos_tmu_init_data const exynos3250_default_tmu_data = {
 		.temp_level = 95, \
 	}, \
 	.freq_tab_count = 2
-#endif
 
-#if defined(CONFIG_SOC_EXYNOS4412)
 struct exynos_tmu_init_data const exynos4412_default_tmu_data = {
 	.tmu_data = {
 		{
@@ -163,9 +154,7 @@ struct exynos_tmu_init_data const exynos4412_default_tmu_data = {
 	},
 	.tmu_count = 1,
 };
-#endif
 
-#if defined(CONFIG_SOC_EXYNOS5250)
 struct exynos_tmu_init_data const exynos5250_default_tmu_data = {
 	.tmu_data = {
 		{
@@ -175,9 +164,7 @@ struct exynos_tmu_init_data const exynos5250_default_tmu_data = {
 	},
 	.tmu_count = 1,
 };
-#endif
 
-#if defined(CONFIG_SOC_EXYNOS5260)
 #define __EXYNOS5260_TMU_DATA	\
 	.threshold_falling = 10, \
 	.trigger_levels[0] = 85, \
@@ -228,9 +215,7 @@ struct exynos_tmu_init_data const exynos5260_default_tmu_data = {
 	},
 	.tmu_count = 5,
 };
-#endif
 
-#if defined(CONFIG_SOC_EXYNOS5420)
 #define __EXYNOS5420_TMU_DATA	\
 	.threshold_falling = 10, \
 	.trigger_levels[0] = 85, \
@@ -285,9 +270,7 @@ struct exynos_tmu_init_data const exynos5420_default_tmu_data = {
 	},
 	.tmu_count = 5,
 };
-#endif
 
-#if defined(CONFIG_SOC_EXYNOS5440)
 #define EXYNOS5440_TMU_DATA \
 	.trigger_levels[0] = 100, \
 	.trigger_levels[4] = 105, \
@@ -316,4 +299,3 @@ struct exynos_tmu_init_data const exynos5440_default_tmu_data = {
 	},
 	.tmu_count = 3,
 };
-#endif

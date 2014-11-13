@@ -593,35 +593,35 @@ static irqreturn_t exynos_tmu_irq(int irq, void *id)
 static const struct of_device_id exynos_tmu_match[] = {
 	{
 		.compatible = "samsung,exynos3250-tmu",
-		.data = (void *)EXYNOS3250_TMU_DRV_DATA,
+		.data = &exynos3250_default_tmu_data,
 	},
 	{
 		.compatible = "samsung,exynos4210-tmu",
-		.data = (void *)EXYNOS4210_TMU_DRV_DATA,
+		.data = &exynos4210_default_tmu_data,
 	},
 	{
 		.compatible = "samsung,exynos4412-tmu",
-		.data = (void *)EXYNOS4412_TMU_DRV_DATA,
+		.data = &exynos4412_default_tmu_data,
 	},
 	{
 		.compatible = "samsung,exynos5250-tmu",
-		.data = (void *)EXYNOS5250_TMU_DRV_DATA,
+		.data = &exynos5250_default_tmu_data,
 	},
 	{
 		.compatible = "samsung,exynos5260-tmu",
-		.data = (void *)EXYNOS5260_TMU_DRV_DATA,
+		.data = &exynos5260_default_tmu_data,
 	},
 	{
 		.compatible = "samsung,exynos5420-tmu",
-		.data = (void *)EXYNOS5420_TMU_DRV_DATA,
+		.data = &exynos5420_default_tmu_data,
 	},
 	{
 		.compatible = "samsung,exynos5420-tmu-ext-triminfo",
-		.data = (void *)EXYNOS5420_TMU_DRV_DATA,
+		.data = &exynos5420_default_tmu_data,
 	},
 	{
 		.compatible = "samsung,exynos5440-tmu",
-		.data = (void *)EXYNOS5440_TMU_DRV_DATA,
+		.data = &exynos5440_default_tmu_data,
 	},
 	{},
 };
