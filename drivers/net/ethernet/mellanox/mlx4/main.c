@@ -2396,7 +2396,7 @@ slave_start:
 		if (err == -EACCES) {
 			/* Not primary Physical function
 			 * Running in slave mode */
-			mlx4_cmd_cleanup(dev);
+			mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_ALL);
 			dev->flags |= MLX4_FLAG_SLAVE;
 			dev->flags &= ~MLX4_FLAG_MASTER;
 			goto slave_start;
@@ -2561,7 +2561,7 @@ err_mfunc:
 		mlx4_multi_func_cleanup(dev);
 
 err_cmd:
-	mlx4_cmd_cleanup(dev);
+	mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_ALL);
 
 err_sriov:
 	if (dev->flags & MLX4_FLAG_SRIOV && !existing_vfs)
@@ -2805,7 +2805,7 @@ static void mlx4_unload_one(struct pci_dev *pdev)
 	mlx4_close_hca(dev);
 	if (mlx4_is_slave(dev))
 		mlx4_multi_func_cleanup(dev);
-	mlx4_cmd_cleanup(dev);
+	mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_ALL);
 
 	if (dev->flags & MLX4_FLAG_MSI_X)
 		pci_disable_msix(pdev);
