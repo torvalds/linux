@@ -691,18 +691,7 @@ static int virtscsi_change_queue_depth(struct scsi_device *sdev,
 	struct Scsi_Host *shost = sdev->host;
 	int max_depth = shost->cmd_per_lun;
 
-	switch (reason) {
-	case SCSI_QDEPTH_QFULL: /* Drop qdepth in response to BUSY state */
-		scsi_track_queue_full(sdev, qdepth);
-		break;
-	case SCSI_QDEPTH_RAMP_UP: /* Raise qdepth after BUSY state resolved */
-	case SCSI_QDEPTH_DEFAULT: /* Manual change via sysfs */
-		scsi_adjust_queue_depth(sdev, min(max_depth, qdepth));
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
+	scsi_adjust_queue_depth(sdev, min(max_depth, qdepth));
 	return sdev->queue_depth;
 }
 
@@ -770,6 +759,7 @@ static struct scsi_host_template virtscsi_host_template_single = {
 	.use_clustering = ENABLE_CLUSTERING,
 	.target_alloc = virtscsi_target_alloc,
 	.target_destroy = virtscsi_target_destroy,
+	.track_queue_depth = 1,
 };
 
 static struct scsi_host_template virtscsi_host_template_multi = {
@@ -788,6 +778,7 @@ static struct scsi_host_template virtscsi_host_template_multi = {
 	.use_clustering = ENABLE_CLUSTERING,
 	.target_alloc = virtscsi_target_alloc,
 	.target_destroy = virtscsi_target_destroy,
+	.track_queue_depth = 1,
 };
 
 #define virtscsi_config_get(vdev, fld) \

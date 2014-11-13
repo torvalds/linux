@@ -90,6 +90,7 @@ static struct scsi_host_template pm8001_sht = {
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= pm8001_host_attrs,
 	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 /**

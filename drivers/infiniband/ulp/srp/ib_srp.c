@@ -2402,7 +2402,7 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
  * srp_change_queue_depth - setting device queue depth
  * @sdev: scsi device struct
  * @qdepth: requested queue depth
- * @reason: SCSI_QDEPTH_DEFAULT/SCSI_QDEPTH_QFULL/SCSI_QDEPTH_RAMP_UP
+ * @reason: SCSI_QDEPTH_DEFAULT
  * (see include/scsi/scsi_host.h for definition)
  *
  * Returns queue depth.
@@ -2412,18 +2412,13 @@ srp_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
 	struct Scsi_Host *shost = sdev->host;
 	int max_depth;
-	if (reason == SCSI_QDEPTH_DEFAULT || reason == SCSI_QDEPTH_RAMP_UP) {
-		max_depth = shost->can_queue;
-		if (!sdev->tagged_supported)
-			max_depth = 1;
-		if (qdepth > max_depth)
-			qdepth = max_depth;
-		scsi_adjust_queue_depth(sdev, qdepth);
-	} else if (reason == SCSI_QDEPTH_QFULL)
-		scsi_track_queue_full(sdev, qdepth);
-	else
-		return -EOPNOTSUPP;
 
+	max_depth = shost->can_queue;
+	if (!sdev->tagged_supported)
+		max_depth = 1;
+	if (qdepth > max_depth)
+		qdepth = max_depth;
+	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
 
@@ -2766,6 +2761,7 @@ static struct scsi_host_template srp_template = {
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= srp_host_attrs,
 	.use_blk_tags			= 1,
+	.track_queue_depth		= 1,
 };
 
 static int srp_sdev_count(struct Scsi_Host *host)

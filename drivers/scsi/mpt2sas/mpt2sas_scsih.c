@@ -1229,7 +1229,7 @@ _scsih_adjust_queue_depth(struct scsi_device *sdev, int qdepth)
  * _scsih_change_queue_depth - setting device queue depth
  * @sdev: scsi device struct
  * @qdepth: requested queue depth
- * @reason: SCSI_QDEPTH_DEFAULT/SCSI_QDEPTH_QFULL/SCSI_QDEPTH_RAMP_UP
+ * @reason: SCSI_QDEPTH_DEFAULT
  * (see include/scsi/scsi_host.h for definition)
  *
  * Returns queue depth.
@@ -1237,12 +1237,7 @@ _scsih_adjust_queue_depth(struct scsi_device *sdev, int qdepth)
 static int
 _scsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
-	if (reason == SCSI_QDEPTH_DEFAULT || reason == SCSI_QDEPTH_RAMP_UP)
-		_scsih_adjust_queue_depth(sdev, qdepth);
-	else if (reason == SCSI_QDEPTH_QFULL)
-		scsi_track_queue_full(sdev, qdepth);
-	else
-		return -EOPNOTSUPP;
+	_scsih_adjust_queue_depth(sdev, qdepth);
 
 	if (sdev->inquiry_len > 7)
 		sdev_printk(KERN_INFO, sdev, "qdepth(%d), tagged(%d), "
@@ -7637,6 +7632,7 @@ static struct scsi_host_template scsih_driver_template = {
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= mpt2sas_host_attrs,
 	.sdev_attrs			= mpt2sas_dev_attrs,
+	.track_queue_depth		= 1,
 };
 
 /**

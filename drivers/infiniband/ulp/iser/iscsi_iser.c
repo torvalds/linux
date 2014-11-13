@@ -922,6 +922,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.use_clustering         = DISABLE_CLUSTERING,
 	.proc_name              = "iscsi_iser",
 	.this_id                = -1,
+	.track_queue_depth	= 1,
 };
 
 static struct iscsi_transport iscsi_iser_transport = {

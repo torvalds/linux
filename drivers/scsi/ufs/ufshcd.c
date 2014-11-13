@@ -2800,18 +2800,7 @@ static int ufshcd_change_queue_depth(struct scsi_device *sdev,
 	if (depth > hba->nutrs)
 		depth = hba->nutrs;
 
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, depth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		scsi_track_queue_full(sdev, depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
+	scsi_adjust_queue_depth(sdev, depth);
 	return depth;
 }
 
@@ -4231,6 +4220,7 @@ static struct scsi_host_template ufshcd_driver_template = {
 	.can_queue		= UFSHCD_CAN_QUEUE,
 	.max_host_blocked	= 1,
 	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 static int ufshcd_config_vreg_load(struct device *dev, struct ufs_vreg *vreg,

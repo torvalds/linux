@@ -961,20 +961,9 @@ int sas_change_queue_depth(struct scsi_device *sdev, int depth, int reason)
 		return __ata_change_queue_depth(dev->sata_dev.ap, sdev, depth,
 						reason);
 
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-	case SCSI_QDEPTH_RAMP_UP:
-		if (!sdev->tagged_supported)
-			depth = 1;
-		scsi_adjust_queue_depth(sdev, depth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		scsi_track_queue_full(sdev, depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
+	if (!sdev->tagged_supported)
+		depth = 1;
+	scsi_adjust_queue_depth(sdev, depth);
 	return depth;
 }
 

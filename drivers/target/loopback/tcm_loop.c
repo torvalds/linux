@@ -119,19 +119,7 @@ static int tcm_loop_change_queue_depth(
 	int depth,
 	int reason)
 {
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, depth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		scsi_track_queue_full(sdev, depth);
-		break;
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
+	scsi_adjust_queue_depth(sdev, depth);
 	return sdev->queue_depth;
 }
 
@@ -423,6 +411,7 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.slave_alloc		= tcm_loop_slave_alloc,
 	.module			= THIS_MODULE,
 	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 static int tcm_loop_driver_probe(struct device *dev)

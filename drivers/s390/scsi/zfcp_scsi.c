@@ -35,19 +35,7 @@ MODULE_PARM_DESC(allow_lun_scan, "For NPIV, scan and attach all storage LUNs");
 static int zfcp_scsi_change_queue_depth(struct scsi_device *sdev, int depth,
 					int reason)
 {
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, depth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		scsi_track_queue_full(sdev, depth);
-		break;
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
+	scsi_adjust_queue_depth(sdev, depth);
 	return sdev->queue_depth;
 }
 
@@ -320,6 +308,7 @@ static struct scsi_host_template zfcp_scsi_host_template = {
 	.use_clustering		 = 1,
 	.shost_attrs		 = zfcp_sysfs_shost_attrs,
 	.sdev_attrs		 = zfcp_sysfs_sdev_attrs,
+	.track_queue_depth	 = 1,
 };
 
 /**

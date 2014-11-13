@@ -120,6 +120,7 @@ static struct scsi_host_template fnic_host_template = {
 	.max_sectors = 0xffff,
 	.shost_attrs = fnic_attrs,
 	.use_blk_tags = 1,
+	.track_queue_depth = 1,
 };
 
 static void

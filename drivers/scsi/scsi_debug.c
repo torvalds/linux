@@ -4472,7 +4472,6 @@ static int
 sdebug_change_qdepth(struct scsi_device *sdev, int qdepth, int reason)
 {
 	int num_in_q = 0;
-	int bad = 0;
 	unsigned long iflags;
 	struct sdebug_dev_info *devip;
 
@@ -4484,43 +4483,18 @@ sdebug_change_qdepth(struct scsi_device *sdev, int qdepth, int reason)
 	}
 	num_in_q = atomic_read(&devip->num_in_q);
 	spin_unlock_irqrestore(&queued_arr_lock, iflags);
-	if (reason == SCSI_QDEPTH_DEFAULT || reason == SCSI_QDEPTH_RAMP_UP) {
-		if (qdepth < 1)
-			qdepth = 1;
-		/* allow to exceed max host queued_arr elements for testing */
-		if (qdepth > SCSI_DEBUG_CANQUEUE + 10)
-			qdepth = SCSI_DEBUG_CANQUEUE + 10;
-		scsi_adjust_queue_depth(sdev, qdepth);
-	} else if (reason == SCSI_QDEPTH_QFULL)
-		scsi_track_queue_full(sdev, qdepth);
-	else
-		bad = 1;
-	if (bad)
-		sdev_printk(KERN_WARNING, sdev,
-			    "%s: unknown reason=0x%x\n", __func__, reason);
-	if (SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts) {
-		if (SCSI_QDEPTH_QFULL == reason)
-			sdev_printk(KERN_INFO, sdev,
-			    "%s: -> %d, num_in_q=%d, reason: queue full\n",
-				    __func__, qdepth, num_in_q);
-		else {
-			const char *cp;
 
-			switch (reason) {
-			case SCSI_QDEPTH_DEFAULT:
-				cp = "default (sysfs ?)";
-				break;
-			case SCSI_QDEPTH_RAMP_UP:
-				cp = "ramp up";
-				break;
-			default:
-				cp = "unknown";
-				break;
-			}
-			sdev_printk(KERN_INFO, sdev,
-				    "%s: qdepth=%d, num_in_q=%d, reason: %s\n",
-				    __func__, qdepth, num_in_q, cp);
-		}
+	if (qdepth < 1)
+		qdepth = 1;
+	/* allow to exceed max host queued_arr elements for testing */
+	if (qdepth > SCSI_DEBUG_CANQUEUE + 10)
+		qdepth = SCSI_DEBUG_CANQUEUE + 10;
+	scsi_adjust_queue_depth(sdev, qdepth);
+
+	if (SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts) {
+		sdev_printk(KERN_INFO, sdev,
+			    "%s: qdepth=%d, num_in_q=%d\n",
+			    __func__, qdepth, num_in_q);
 	}
 	return sdev->queue_depth;
 }
@@ -4576,6 +4550,7 @@ static struct scsi_host_template sdebug_driver_template = {
 	.max_sectors =		-1U,
 	.use_clustering = 	DISABLE_CLUSTERING,
 	.module =		THIS_MODULE,
+	.track_queue_depth =	1,
 };
 
 static int sdebug_driver_probe(struct device * dev)

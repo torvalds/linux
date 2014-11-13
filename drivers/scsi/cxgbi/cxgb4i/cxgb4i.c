@@ -99,6 +99,7 @@ static struct scsi_host_template cxgb4i_host_template = {
 	.target_alloc	= iscsi_target_alloc,
 	.use_clustering	= DISABLE_CLUSTERING,
 	.this_id	= -1,
+	.track_queue_depth = 1,
 };
 
 static struct iscsi_transport cxgb4i_iscsi_transport = {

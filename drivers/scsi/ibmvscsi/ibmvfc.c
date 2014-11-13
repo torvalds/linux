@@ -3103,6 +3103,7 @@ static struct scsi_host_template driver_template = {
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = ibmvfc_attrs,
 	.use_blk_tags = 1,
+	.track_queue_depth = 1,
 };
 
 /**

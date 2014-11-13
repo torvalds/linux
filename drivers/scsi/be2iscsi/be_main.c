@@ -570,7 +570,7 @@ static struct scsi_host_template beiscsi_sht = {
 	.cmd_per_lun = BEISCSI_CMD_PER_LUN,
 	.use_clustering = ENABLE_CLUSTERING,
 	.vendor_id = SCSI_NL_VID_TYPE_PCI | BE_VENDOR_ID,
-
+	.track_queue_depth = 1,
 };
 
 static struct scsi_transport_template *beiscsi_scsi_transport;

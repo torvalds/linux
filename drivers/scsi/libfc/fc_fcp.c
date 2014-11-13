@@ -2173,19 +2173,7 @@ EXPORT_SYMBOL(fc_slave_alloc);
  */
 int fc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, qdepth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		scsi_track_queue_full(sdev, qdepth);
-		break;
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, qdepth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
+	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
 EXPORT_SYMBOL(fc_change_queue_depth);

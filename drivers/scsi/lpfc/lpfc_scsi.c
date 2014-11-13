@@ -255,26 +255,7 @@ lpfc_update_stats(struct lpfc_hba *phba, struct  lpfc_scsi_buf *lpfc_cmd)
 static int
 lpfc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
-	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
-
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-		/* change request from sysfs, fall through */
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, qdepth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		if (scsi_track_queue_full(sdev, qdepth) == 0)
-			return sdev->queue_depth;
-
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
-				 "0711 detected queue full - lun queue "
-				 "depth adjusted to %d.\n", sdev->queue_depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
+	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
 
@@ -5918,6 +5899,7 @@ struct scsi_host_template lpfc_template = {
 	.change_queue_depth	= lpfc_change_queue_depth,
 	.change_queue_type	= scsi_change_queue_type,
 	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 struct scsi_host_template lpfc_vport_template = {
@@ -5942,4 +5924,5 @@ struct scsi_host_template lpfc_vport_template = {
 	.change_queue_depth	= lpfc_change_queue_depth,
 	.change_queue_type	= scsi_change_queue_type,
 	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
