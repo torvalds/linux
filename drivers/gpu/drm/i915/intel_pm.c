@@ -7067,7 +7067,7 @@ void intel_init_pm(struct drm_device *dev)
 		i915_ironlake_get_mem_freq(dev);
 
 	/* For FIFO watermark updates */
-	if (IS_GEN9(dev)) {
+	if (INTEL_INFO(dev)->gen >= 9) {
 		skl_setup_wm_latency(dev);
 
 		dev_priv->display.init_clock_gating = gen9_init_clock_gating;
