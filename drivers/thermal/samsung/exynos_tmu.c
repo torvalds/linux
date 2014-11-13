@@ -266,7 +266,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 					data->base + reg->threshold_th2);
 			}
 			con = readl(data->base + reg->tmu_ctrl);
-			con |= (1 << reg->therm_trip_en_shift);
+			con |= (1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
 			writel(con, data->base + reg->tmu_ctrl);
 		}
 	}
