@@ -78,14 +78,14 @@ static int _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr,
 			(wait ? FW_WR_COMPL_F : 0));
 	req->wr.wr_lo = wait ? (__force __be64)(unsigned long) &wr_wait : 0L;
 	req->wr.wr_mid = cpu_to_be32(FW_WR_LEN16_V(DIV_ROUND_UP(wr_len, 16)));
-	req->cmd = cpu_to_be32(ULPTX_CMD(ULP_TX_MEM_WRITE));
+	req->cmd = cpu_to_be32(ULPTX_CMD_V(ULP_TX_MEM_WRITE));
 	req->cmd |= cpu_to_be32(V_T5_ULP_MEMIO_ORDER(1));
-	req->dlen = cpu_to_be32(ULP_MEMIO_DATA_LEN(len>>5));
+	req->dlen = cpu_to_be32(ULP_MEMIO_DATA_LEN_V(len>>5));
 	req->len16 = cpu_to_be32(DIV_ROUND_UP(wr_len-sizeof(req->wr), 16));
-	req->lock_addr = cpu_to_be32(ULP_MEMIO_ADDR(addr));
+	req->lock_addr = cpu_to_be32(ULP_MEMIO_ADDR_V(addr));
 
 	sgl = (struct ulptx_sgl *)(req + 1);
-	sgl->cmd_nsge = cpu_to_be32(ULPTX_CMD(ULP_TX_SC_DSGL) |
+	sgl->cmd_nsge = cpu_to_be32(ULPTX_CMD_V(ULP_TX_SC_DSGL) |
 				    ULPTX_NSGE(1));
 	sgl->len0 = cpu_to_be32(len);
 	sgl->addr0 = cpu_to_be64(data);
@@ -107,12 +107,12 @@ static int _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len,
 	u8 wr_len, *to_dp, *from_dp;
 	int copy_len, num_wqe, i, ret = 0;
 	struct c4iw_wr_wait wr_wait;
-	__be32 cmd = cpu_to_be32(ULPTX_CMD(ULP_TX_MEM_WRITE));
+	__be32 cmd = cpu_to_be32(ULPTX_CMD_V(ULP_TX_MEM_WRITE));
 
 	if (is_t4(rdev->lldi.adapter_type))
-		cmd |= cpu_to_be32(ULP_MEMIO_ORDER(1));
+		cmd |= cpu_to_be32(ULP_MEMIO_ORDER_F);
 	else
-		cmd |= cpu_to_be32(V_T5_ULP_MEMIO_IMM(1));
+		cmd |= cpu_to_be32(T5_ULP_MEMIO_IMM_F);
 
 	addr &= 0x7FFFFFF;
 	PDBG("%s addr 0x%x len %u\n", __func__, addr, len);
@@ -144,14 +144,14 @@ static int _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len,
 				       FW_WR_LEN16_V(DIV_ROUND_UP(wr_len, 16)));
 
 		req->cmd = cmd;
-		req->dlen = cpu_to_be32(ULP_MEMIO_DATA_LEN(
+		req->dlen = cpu_to_be32(ULP_MEMIO_DATA_LEN_V(
 				DIV_ROUND_UP(copy_len, T4_ULPTX_MIN_IO)));
 		req->len16 = cpu_to_be32(DIV_ROUND_UP(wr_len-sizeof(req->wr),
 						      16));
-		req->lock_addr = cpu_to_be32(ULP_MEMIO_ADDR(addr + i * 3));
+		req->lock_addr = cpu_to_be32(ULP_MEMIO_ADDR_V(addr + i * 3));
 
 		sc = (struct ulptx_idata *)(req + 1);
-		sc->cmd_more = cpu_to_be32(ULPTX_CMD(ULP_TX_SC_IMM));
+		sc->cmd_more = cpu_to_be32(ULPTX_CMD_V(ULP_TX_SC_IMM));
 		sc->len = cpu_to_be32(roundup(copy_len, T4_ULPTX_MIN_IO));
 
 		to_dp = (u8 *)(sc + 1);

@@ -1395,7 +1395,11 @@ struct fw_eq_ofld_cmd {
  * Macros for VIID parsing:
  * VIID - [10:8] PFN, [7] VI Valid, [6:0] VI number
  */
-#define FW_VIID_PFN_GET(x) (((x) >> 8) & 0x7)
+
+#define FW_VIID_PFN_S           8
+#define FW_VIID_PFN_M           0x7
+#define FW_VIID_PFN_G(x)        (((x) >> FW_VIID_PFN_S) & FW_VIID_PFN_M)
+
 #define FW_VIID_VIVLD_GET(x) (((x) >> 7) & 0x1)
 #define FW_VIID_VIN_GET(x) (((x) >> 0) & 0x7F)
 
