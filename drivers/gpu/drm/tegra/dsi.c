@@ -820,7 +820,7 @@ static int tegra_output_dsi_setup_clock(struct tegra_output *output,
 	/*
 	 * Compute bit clock and round up to the next MHz.
 	 */
-	plld = DIV_ROUND_UP(bclk * 8, 1000000) * 1000000;
+	plld = DIV_ROUND_UP(bclk * 8, USEC_PER_SEC) * USEC_PER_SEC;
 
 	/*
 	 * We divide the frequency by two here, but we make up for that by
