@@ -588,7 +588,7 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 
 	COMPOSITE_NODIV(0, "usbphy480m_src", mux_usbphy480m_p, 0,
 			RK3288_CLKSEL_CON(13), 11, 2, MFLAGS,
-			RK3288_CLKGATE_CON(5), 15, GFLAGS),
+			RK3288_CLKGATE_CON(5), 14, GFLAGS),
 	COMPOSITE_NODIV(SCLK_HSICPHY480M, "sclk_hsicphy480m", mux_hsicphy480m_p, 0,
 			RK3288_CLKSEL_CON(29), 0, 2, MFLAGS,
 			RK3288_CLKGATE_CON(3), 6, GFLAGS),
