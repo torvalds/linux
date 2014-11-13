@@ -185,7 +185,6 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
 	connection->dev.parent = &interface->dev;
-	connection->dev.driver = NULL;
 	connection->dev.bus = &greybus_bus_type;
 	connection->dev.type = &greybus_connection_type;
 	connection->dev.groups = connection_groups;

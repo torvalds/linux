@@ -69,7 +69,6 @@ gb_interface_create(struct gb_module *gmod, u8 interface_id)
 	/* Build up the interface device structures and register it with the
 	 * driver core */
 	interface->dev.parent = &gmod->dev;
-	interface->dev.driver = NULL;
 	interface->dev.bus = &greybus_bus_type;
 	interface->dev.type = &greybus_interface_type;
 	interface->dev.groups = interface_groups;

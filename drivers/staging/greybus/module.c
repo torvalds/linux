@@ -90,7 +90,6 @@ struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 	spin_unlock_irq(&gb_modules_lock);
 
 	gmod->dev.parent = hd->parent;
-	gmod->dev.driver = NULL;
 	gmod->dev.bus = &greybus_bus_type;
 	gmod->dev.type = &greybus_module_type;
 	gmod->dev.groups = greybus_module_groups;
