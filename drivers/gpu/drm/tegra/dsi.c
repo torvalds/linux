@@ -681,15 +681,35 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 	return 0;
 }
 
+static void tegra_dsi_set_timeout(struct tegra_dsi *dsi, unsigned long bclk,
+				  unsigned int vrefresh)
+{
+	unsigned int timeout;
+	u32 value;
+
+	/* one frame high-speed transmission timeout */
+	timeout = (bclk / vrefresh) / 512;
+	value = DSI_TIMEOUT_LRX(0x2000) | DSI_TIMEOUT_HTX(timeout);
+	tegra_dsi_writel(dsi, value, DSI_TIMEOUT_0);
+
+	/* 2 ms peripheral timeout for panel */
+	timeout = 2 * bclk / 512 * 1000;
+	value = DSI_TIMEOUT_PR(timeout) | DSI_TIMEOUT_TA(0x2000);
+	tegra_dsi_writel(dsi, value, DSI_TIMEOUT_1);
+
+	value = DSI_TALLY_TA(0) | DSI_TALLY_LRX(0) | DSI_TALLY_HTX(0);
+	tegra_dsi_writel(dsi, value, DSI_TO_TALLY);
+}
+
 static int tegra_output_dsi_setup_clock(struct tegra_output *output,
 					struct clk *clk, unsigned long pclk,
 					unsigned int *divp)
 {
 	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
 	struct drm_display_mode *mode = &dc->base.mode;
-	unsigned int timeout, mul, div, vrefresh;
 	struct tegra_dsi *dsi = to_dsi(output);
-	unsigned long bclk, plld, value;
+	unsigned int mul, div, vrefresh;
+	unsigned long bclk, plld;
 	int err;
 
 	err = tegra_dsi_get_muldiv(dsi->format, &mul, &div);
@@ -744,19 +764,7 @@ static int tegra_output_dsi_setup_clock(struct tegra_output *output,
 	 * XXX: Move the below somewhere else so that we don't need to have
 	 * access to the vrefresh in this function?
 	 */
-
-	/* one frame high-speed transmission timeout */
-	timeout = (bclk / vrefresh) / 512;
-	value = DSI_TIMEOUT_LRX(0x2000) | DSI_TIMEOUT_HTX(timeout);
-	tegra_dsi_writel(dsi, value, DSI_TIMEOUT_0);
-
-	/* 2 ms peripheral timeout for panel */
-	timeout = 2 * bclk / 512 * 1000;
-	value = DSI_TIMEOUT_PR(timeout) | DSI_TIMEOUT_TA(0x2000);
-	tegra_dsi_writel(dsi, value, DSI_TIMEOUT_1);
-
-	value = DSI_TALLY_TA(0) | DSI_TALLY_LRX(0) | DSI_TALLY_HTX(0);
-	tegra_dsi_writel(dsi, value, DSI_TO_TALLY);
+	tegra_dsi_set_timeout(dsi, bclk, vrefresh);
 
 	return 0;
 }
