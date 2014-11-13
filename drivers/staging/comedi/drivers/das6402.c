@@ -202,6 +202,23 @@ static irqreturn_t das6402_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
+static void das6402_ai_set_mode(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				unsigned int chanspec,
+				unsigned int mode)
+{
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
+
+	mode |= DAS6402_MODE_RANGE(range);
+	if (aref == AREF_GROUND)
+		mode |= DAS6402_MODE_SE;
+	if (comedi_range_is_unipolar(s, range))
+		mode |= DAS6402_MODE_UNI;
+
+	das6402_set_mode(dev, mode);
+}
+
 static int das6402_ai_cmd(struct comedi_device *dev,
 			  struct comedi_subdevice *s)
 {
@@ -349,26 +366,18 @@ static int das6402_ai_insn_read(struct comedi_device *dev,
 				unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
 	unsigned int val;
 	int ret;
 	int i;
 
-	val = DAS6402_MODE_RANGE(range) | DAS6402_MODE_POLLED;
-	if (aref == AREF_DIFF) {
-		if (chan > s->n_chan / 2)
-			return -EINVAL;
-	} else {
-		val |= DAS6402_MODE_SE;
-	}
-	if (comedi_range_is_unipolar(s, range))
-		val |= DAS6402_MODE_UNI;
+	if (aref == AREF_DIFF && chan > (s->n_chan / 2))
+		return -EINVAL;
 
 	/* enable software conversion trigger */
 	outb(DAS6402_CTRL_SOFT_TRIG, dev->iobase + DAS6402_CTRL_REG);
 
-	das6402_set_mode(dev, val);
+	das6402_ai_set_mode(dev, s, insn->chanspec, DAS6402_MODE_POLLED);
 
 	/* load the mux for single channel conversion */
 	outw(DAS6402_AI_MUX_HI(chan) | DAS6402_AI_MUX_LO(chan),
