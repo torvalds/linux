@@ -1017,9 +1017,6 @@ static struct file_system_type ceph_fs_type = {
 };
 MODULE_ALIAS_FS("ceph");
 
-#define _STRINGIFY(x) #x
-#define STRINGIFY(x) _STRINGIFY(x)
-
 static int __init init_ceph(void)
 {
 	int ret = init_caches();
