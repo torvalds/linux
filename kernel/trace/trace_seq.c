@@ -122,7 +122,7 @@ int trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
 	if (s->full || !len)
 		return 0;
 
-	ret = bitmap_scnprintf(s->buffer, len, maskp, nmaskbits);
+	ret = bitmap_scnprintf(s->buffer + s->len, len, maskp, nmaskbits);
 	s->len += ret;
 
 	return 1;
