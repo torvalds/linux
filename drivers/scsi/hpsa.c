@@ -216,8 +216,6 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *h, struct scsi_cmnd *cmd);
 static void hpsa_scan_start(struct Scsi_Host *);
 static int hpsa_scan_finished(struct Scsi_Host *sh,
 	unsigned long elapsed_time);
-static int hpsa_change_queue_depth(struct scsi_device *sdev,
-	int qdepth, int reason);
 
 static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd);
 static int hpsa_eh_abort_handler(struct scsi_cmnd *scsicmd);
@@ -673,7 +671,7 @@ static struct scsi_host_template hpsa_driver_template = {
 	.queuecommand		= hpsa_scsi_queue_command,
 	.scan_start		= hpsa_scan_start,
 	.scan_finished		= hpsa_scan_finished,
-	.change_queue_depth	= hpsa_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.this_id		= -1,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_abort_handler	= hpsa_eh_abort_handler,
@@ -4072,18 +4070,6 @@ static int hpsa_scan_finished(struct Scsi_Host *sh,
 	finished = h->scan_finished;
 	spin_unlock_irqrestore(&h->scan_lock, flags);
 	return finished;
-}
-
-static int hpsa_change_queue_depth(struct scsi_device *sdev,
-	int qdepth, int reason)
-{
-	struct ctlr_info *h = sdev_to_hba(sdev);
-
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -ENOTSUPP;
-
-	scsi_adjust_queue_depth(sdev, qdepth);
-	return sdev->queue_depth;
 }
 
 static void hpsa_unregister_scsi(struct ctlr_info *h)

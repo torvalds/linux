@@ -1164,7 +1164,7 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 
 		depth = min(sdev->host->can_queue, ata_id_queue_depth(dev->id));
 		depth = min(ATA_MAX_QUEUE - 1, depth);
-		scsi_adjust_queue_depth(sdev, depth);
+		scsi_change_queue_depth(sdev, depth);
 	}
 
 	blk_queue_flush_queueable(q, false);
@@ -1243,20 +1243,16 @@ void ata_scsi_slave_destroy(struct scsi_device *sdev)
  *	@ap: ATA port to which the device change the queue depth
  *	@sdev: SCSI device to configure queue depth for
  *	@queue_depth: new queue depth
- *	@reason: calling context
  *
  *	libsas and libata have different approaches for associating a sdev to
  *	its ata_port.
  *
  */
 int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
-			     int queue_depth, int reason)
+			     int queue_depth)
 {
 	struct ata_device *dev;
 	unsigned long flags;
-
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
 
 	if (queue_depth < 1 || queue_depth == sdev->queue_depth)
 		return sdev->queue_depth;
@@ -1282,15 +1278,13 @@ int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
 	if (sdev->queue_depth == queue_depth)
 		return -EINVAL;
 
-	scsi_adjust_queue_depth(sdev, queue_depth);
-	return queue_depth;
+	return scsi_change_queue_depth(sdev, queue_depth);
 }
 
 /**
  *	ata_scsi_change_queue_depth - SCSI callback for queue depth config
  *	@sdev: SCSI device to configure queue depth for
  *	@queue_depth: new queue depth
- *	@reason: calling context
  *
  *	This is libata standard hostt->change_queue_depth callback.
  *	SCSI will call into this callback when user tries to set queue
@@ -1302,12 +1296,11 @@ int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
  *	RETURNS:
  *	Newly configured queue depth.
  */
-int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth,
-				int reason)
+int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 
-	return __ata_change_queue_depth(ap, sdev, queue_depth, reason);
+	return __ata_change_queue_depth(ap, sdev, queue_depth);
 }
 
 /**

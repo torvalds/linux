@@ -696,25 +696,25 @@ static int u14_34f_slave_configure(struct scsi_device *dev) {
    if (TLDEV(dev->type) && dev->tagged_supported)
 
       if (tag_mode == TAG_SIMPLE) {
-         scsi_adjust_queue_depth(dev, tqd);
+         scsi_change_queue_depth(dev, tqd);
          tag_suffix = ", simple tags";
          }
       else if (tag_mode == TAG_ORDERED) {
-         scsi_adjust_queue_depth(dev, tqd);
+         scsi_change_queue_depth(dev, tqd);
          tag_suffix = ", ordered tags";
          }
       else {
-         scsi_adjust_queue_depth(dev, tqd);
+         scsi_change_queue_depth(dev, tqd);
          tag_suffix = ", no tags";
          }
 
    else if (TLDEV(dev->type) && linked_comm) {
-      scsi_adjust_queue_depth(dev, tqd);
+      scsi_change_queue_depth(dev, tqd);
       tag_suffix = ", untagged";
       }
 
    else {
-      scsi_adjust_queue_depth(dev, utqd);
+      scsi_change_queue_depth(dev, utqd);
       tag_suffix = "";
       }
 

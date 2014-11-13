@@ -2194,7 +2194,7 @@ static int dc390_slave_configure(struct scsi_device *sdev)
 
 	if (sdev->tagged_supported && (dcb->DevMode & TAG_QUEUEING_)) {
 		dcb->SyncMode |= EN_TAG_QUEUEING;
-		scsi_adjust_queue_depth(sdev, acb->TagMaxNum);
+		scsi_change_queue_depth(sdev, acb->TagMaxNum);
 	}
 
 	return 0;

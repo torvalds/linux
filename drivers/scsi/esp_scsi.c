@@ -2407,7 +2407,7 @@ static int esp_slave_configure(struct scsi_device *dev)
 		/* XXX make this configurable somehow XXX */
 		int goal_tags = min(ESP_DEFAULT_TAGS, ESP_MAX_TAG);
 
-		scsi_adjust_queue_depth(dev, goal_tags);
+		scsi_change_queue_depth(dev, goal_tags);
 	}
 
 	tp->flags |= ESP_TGT_DISCONNECT;

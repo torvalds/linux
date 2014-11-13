@@ -46,10 +46,6 @@ struct blk_queue_tags;
 #define DISABLE_CLUSTERING 0
 #define ENABLE_CLUSTERING 1
 
-enum {
-	SCSI_QDEPTH_DEFAULT,	/* default requested change, e.g. from sysfs */
-};
-
 struct scsi_host_template {
 	struct module *module;
 	const char *name;
@@ -193,7 +189,7 @@ struct scsi_host_template {
 	 * Things currently recommended to be handled at this time include:
 	 *
 	 * 1.  Setting the device queue depth.  Proper setting of this is
-	 *     described in the comments for scsi_adjust_queue_depth.
+	 *     described in the comments for scsi_change_queue_depth.
 	 * 2.  Determining if the device supports the various synchronous
 	 *     negotiation protocols.  The device struct will already have
 	 *     responded to INQUIRY and the results of the standard items
@@ -279,7 +275,7 @@ struct scsi_host_template {
 	 *
 	 * Status: OPTIONAL
 	 */
-	int (* change_queue_depth)(struct scsi_device *, int, int);
+	int (* change_queue_depth)(struct scsi_device *, int);
 
 	/*
 	 * Fill in this function to allow the changing of tag types

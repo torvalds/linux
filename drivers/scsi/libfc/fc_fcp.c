@@ -2160,23 +2160,10 @@ int fc_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	scsi_adjust_queue_depth(sdev, FC_FCP_DFLT_QUEUE_DEPTH);
+	scsi_change_queue_depth(sdev, FC_FCP_DFLT_QUEUE_DEPTH);
 	return 0;
 }
 EXPORT_SYMBOL(fc_slave_alloc);
-
-/**
- * fc_change_queue_depth() - Change a device's queue depth
- * @sdev:   The SCSI device whose queue depth is to change
- * @qdepth: The new queue depth
- * @reason: The resason for the change
- */
-int fc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
-{
-	scsi_adjust_queue_depth(sdev, qdepth);
-	return sdev->queue_depth;
-}
-EXPORT_SYMBOL(fc_change_queue_depth);
 
 /**
  * fc_fcp_destory() - Tear down the FCP layer for a given local port

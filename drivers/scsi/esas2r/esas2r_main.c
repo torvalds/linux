@@ -254,7 +254,7 @@ static struct scsi_host_template driver_template = {
 	.use_clustering			= ENABLE_CLUSTERING,
 	.emulated			= 0,
 	.proc_name			= ESAS2R_DRVR_NAME,
-	.change_queue_depth		= esas2r_change_queue_depth,
+	.change_queue_depth		= scsi_change_queue_depth,
 	.change_queue_type		= scsi_change_queue_type,
 	.max_sectors			= 0xFFFF,
 	.use_blk_tags			= 1,
@@ -1255,15 +1255,6 @@ int esas2r_target_reset(struct scsi_cmnd *cmd)
 	esas2r_log(ESAS2R_LOG_INFO, "target_reset (%p)", cmd);
 
 	return esas2r_dev_targ_reset(cmd, true);
-}
-
-int esas2r_change_queue_depth(struct scsi_device *dev, int depth, int reason)
-{
-	esas2r_log(ESAS2R_LOG_INFO, "change_queue_depth %p, %d", dev, depth);
-
-	scsi_adjust_queue_depth(dev, depth);
-
-	return dev->queue_depth;
 }
 
 void esas2r_log_request_failure(struct esas2r_adapter *a,

@@ -1653,7 +1653,6 @@ static struct scsi_host_template driver_template = {
 	.can_queue		= WD7000_Q,
 	.this_id		= 7,
 	.sg_tablesize		= WD7000_SG,
-	.cmd_per_lun		= 1,
 	.unchecked_isa_dma	= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
 };

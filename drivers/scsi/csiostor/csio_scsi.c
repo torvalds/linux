@@ -2241,7 +2241,7 @@ csio_slave_alloc(struct scsi_device *sdev)
 static int
 csio_slave_configure(struct scsi_device *sdev)
 {
-	scsi_adjust_queue_depth(sdev, csio_lun_qdepth);
+	scsi_change_queue_depth(sdev, csio_lun_qdepth);
 	return 0;
 }
 

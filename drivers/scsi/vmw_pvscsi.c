@@ -504,19 +504,11 @@ static void pvscsi_setup_all_rings(const struct pvscsi_adapter *adapter)
 	}
 }
 
-static int pvscsi_change_queue_depth(struct scsi_device *sdev,
-				     int qdepth,
-				     int reason)
+static int pvscsi_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		/*
-		 * We support only changing default.
-		 */
-		return -EOPNOTSUPP;
-
 	if (!sdev->tagged_supported)
 		qdepth = 1;
-	scsi_adjust_queue_depth(sdev, qdepth);
+	scsi_change_queue_depth(sdev, qdepth);
 
 	if (sdev->inquiry_len > 7)
 		sdev_printk(KERN_INFO, sdev,

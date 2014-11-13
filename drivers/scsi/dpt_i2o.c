@@ -415,7 +415,7 @@ static int adpt_slave_configure(struct scsi_device * device)
 	pHba = (adpt_hba *) host->hostdata[0];
 
 	if (host->can_queue && device->tagged_supported) {
-		scsi_adjust_queue_depth(device,
+		scsi_change_queue_depth(device,
 				host->can_queue - 1);
 	}
 	return 0;

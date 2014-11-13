@@ -4469,7 +4469,7 @@ sdebug_queuecommand_lock_or_not(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 }
 
 static int
-sdebug_change_qdepth(struct scsi_device *sdev, int qdepth, int reason)
+sdebug_change_qdepth(struct scsi_device *sdev, int qdepth)
 {
 	int num_in_q = 0;
 	unsigned long iflags;
@@ -4489,7 +4489,7 @@ sdebug_change_qdepth(struct scsi_device *sdev, int qdepth, int reason)
 	/* allow to exceed max host queued_arr elements for testing */
 	if (qdepth > SCSI_DEBUG_CANQUEUE + 10)
 		qdepth = SCSI_DEBUG_CANQUEUE + 10;
-	scsi_adjust_queue_depth(sdev, qdepth);
+	scsi_change_queue_depth(sdev, qdepth);
 
 	if (SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts) {
 		sdev_printk(KERN_INFO, sdev,

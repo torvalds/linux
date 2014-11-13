@@ -201,7 +201,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.eh_timed_out		= qla4xxx_eh_cmd_timed_out,
 
 	.slave_alloc		= qla4xxx_slave_alloc,
-	.change_queue_depth	= iscsi_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
@@ -9059,7 +9059,7 @@ static int qla4xxx_slave_alloc(struct scsi_device *sdev)
 	if (ql4xmaxqdepth != 0 && ql4xmaxqdepth <= 0xffffU)
 		queue_depth = ql4xmaxqdepth;
 
-	scsi_adjust_queue_depth(sdev, queue_depth);
+	scsi_change_queue_depth(sdev, queue_depth);
 	return 0;
 }
 

@@ -940,12 +940,12 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 	sas_read_port_mode_page(scsi_dev);
 
 	if (scsi_dev->tagged_supported) {
-		scsi_adjust_queue_depth(scsi_dev, SAS_DEF_QD);
+		scsi_change_queue_depth(scsi_dev, SAS_DEF_QD);
 	} else {
 		SAS_DPRINTK("device %llx, LUN %llx doesn't support "
 			    "TCQ\n", SAS_ADDR(dev->sas_addr),
 			    scsi_dev->lun);
-		scsi_adjust_queue_depth(scsi_dev, 1);
+		scsi_change_queue_depth(scsi_dev, 1);
 	}
 
 	scsi_dev->allow_restart = 1;
@@ -953,18 +953,16 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 	return 0;
 }
 
-int sas_change_queue_depth(struct scsi_device *sdev, int depth, int reason)
+int sas_change_queue_depth(struct scsi_device *sdev, int depth)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
 
 	if (dev_is_sata(dev))
-		return __ata_change_queue_depth(dev->sata_dev.ap, sdev, depth,
-						reason);
+		return __ata_change_queue_depth(dev->sata_dev.ap, sdev, depth);
 
 	if (!sdev->tagged_supported)
 		depth = 1;
-	scsi_adjust_queue_depth(sdev, depth);
-	return depth;
+	return scsi_change_queue_depth(sdev, depth);
 }
 
 int sas_change_queue_type(struct scsi_device *scsi_dev, int type)

@@ -2591,17 +2591,6 @@ megasas_service_aen(struct megasas_instance *instance, struct megasas_cmd *cmd)
 	}
 }
 
-static int megasas_change_queue_depth(struct scsi_device *sdev,
-				      int queue_depth, int reason)
-{
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
-	scsi_adjust_queue_depth(sdev, queue_depth);
-
-	return queue_depth;
-}
-
 static ssize_t
 megasas_fw_crash_buffer_store(struct device *cdev,
 	struct device_attribute *attr, const char *buf, size_t count)
@@ -2766,7 +2755,7 @@ static struct scsi_host_template megasas_template = {
 	.shost_attrs = megaraid_host_attrs,
 	.bios_param = megasas_bios_param,
 	.use_clustering = ENABLE_CLUSTERING,
-	.change_queue_depth = megasas_change_queue_depth,
+	.change_queue_depth = scsi_change_queue_depth,
 	.no_write_same = 1,
 };
 

@@ -682,17 +682,13 @@ static int virtscsi_device_reset(struct scsi_cmnd *sc)
  * virtscsi_change_queue_depth() - Change a virtscsi target's queue depth
  * @sdev:	Virtscsi target whose queue depth to change
  * @qdepth:	New queue depth
- * @reason:	Reason for the queue depth change.
  */
-static int virtscsi_change_queue_depth(struct scsi_device *sdev,
-				       int qdepth,
-				       int reason)
+static int virtscsi_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	struct Scsi_Host *shost = sdev->host;
 	int max_depth = shost->cmd_per_lun;
 
-	scsi_adjust_queue_depth(sdev, min(max_depth, qdepth));
-	return sdev->queue_depth;
+	return scsi_change_queue_depth(sdev, min(max_depth, qdepth));
 }
 
 static int virtscsi_abort(struct scsi_cmnd *sc)

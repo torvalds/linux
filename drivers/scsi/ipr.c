@@ -4328,15 +4328,11 @@ static int ipr_free_dump(struct ipr_ioa_cfg *ioa_cfg) { return 0; };
  * Return value:
  * 	actual depth set
  **/
-static int ipr_change_queue_depth(struct scsi_device *sdev, int qdepth,
-				  int reason)
+static int ipr_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)sdev->host->hostdata;
 	struct ipr_resource_entry *res;
 	unsigned long lock_flags = 0;
-
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	res = (struct ipr_resource_entry *)sdev->hostdata;
@@ -4345,7 +4341,7 @@ static int ipr_change_queue_depth(struct scsi_device *sdev, int qdepth,
 		qdepth = IPR_MAX_CMD_PER_ATA_LUN;
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	scsi_adjust_queue_depth(sdev, qdepth);
+	scsi_change_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
 
@@ -4752,7 +4748,7 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
 		if (ap) {
-			scsi_adjust_queue_depth(sdev, IPR_MAX_CMD_PER_ATA_LUN);
+			scsi_change_queue_depth(sdev, IPR_MAX_CMD_PER_ATA_LUN);
 			ata_sas_slave_configure(sdev, ap);
 		}
 

@@ -1222,20 +1222,18 @@ _scsih_adjust_queue_depth(struct scsi_device *sdev, int qdepth)
 		max_depth = 1;
 	if (qdepth > max_depth)
 		qdepth = max_depth;
-	scsi_adjust_queue_depth(sdev, qdepth);
+	scsi_change_queue_depth(sdev, qdepth);
 }
 
 /**
  * _scsih_change_queue_depth - setting device queue depth
  * @sdev: scsi device struct
  * @qdepth: requested queue depth
- * @reason: SCSI_QDEPTH_DEFAULT
- * (see include/scsi/scsi_host.h for definition)
  *
  * Returns queue depth.
  */
 static int
-_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
+_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	_scsih_adjust_queue_depth(sdev, qdepth);
 
@@ -2077,7 +2075,7 @@ _scsih_slave_configure(struct scsi_device *sdev)
 			    r_level, raid_device->handle,
 			    (unsigned long long)raid_device->wwid,
 			    raid_device->num_pds, ds);
-		_scsih_change_queue_depth(sdev, qdepth, SCSI_QDEPTH_DEFAULT);
+		_scsih_change_queue_depth(sdev, qdepth);
 		/* raid transport support */
 		if (!ioc->is_warpdrive)
 			_scsih_set_level(sdev, raid_device->volume_type);
@@ -2142,7 +2140,7 @@ _scsih_slave_configure(struct scsi_device *sdev)
 		_scsih_display_sata_capabilities(ioc, handle, sdev);
 
 
-	_scsih_change_queue_depth(sdev, qdepth, SCSI_QDEPTH_DEFAULT);
+	_scsih_change_queue_depth(sdev, qdepth);
 
 	if (ssp_target) {
 		sas_read_port_mode_page(sdev);

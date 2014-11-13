@@ -98,7 +98,7 @@ static int fnic_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	scsi_adjust_queue_depth(sdev, fnic_max_qdepth);
+	scsi_change_queue_depth(sdev, fnic_max_qdepth);
 	return 0;
 }
 
@@ -110,7 +110,7 @@ static struct scsi_host_template fnic_host_template = {
 	.eh_device_reset_handler = fnic_device_reset,
 	.eh_host_reset_handler = fnic_host_reset,
 	.slave_alloc = fnic_slave_alloc,
-	.change_queue_depth = fc_change_queue_depth,
+	.change_queue_depth = scsi_change_queue_depth,
 	.change_queue_type = scsi_change_queue_type,
 	.this_id = -1,
 	.cmd_per_lun = 3,

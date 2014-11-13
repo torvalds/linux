@@ -776,7 +776,7 @@ bfad_thread_workq(struct bfad_s *bfad)
 static int
 bfad_im_slave_configure(struct scsi_device *sdev)
 {
-	scsi_adjust_queue_depth(sdev, bfa_lun_queue_depth);
+	scsi_change_queue_depth(sdev, bfa_lun_queue_depth);
 	return 0;
 }
 
@@ -866,7 +866,7 @@ bfad_ramp_up_qdepth(struct bfad_itnim_s *itnim, struct scsi_device *sdev)
 			if (bfa_lun_queue_depth > tmp_sdev->queue_depth) {
 				if (tmp_sdev->id != sdev->id)
 					continue;
-				scsi_adjust_queue_depth(tmp_sdev,
+				scsi_change_queue_depth(tmp_sdev,
 					tmp_sdev->queue_depth + 1);
 
 				itnim->last_ramp_up_time = jiffies;

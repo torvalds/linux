@@ -2695,7 +2695,7 @@ static void ufshcd_set_queue_depth(struct scsi_device *sdev)
 
 	dev_dbg(hba->dev, "%s: activate tcq with queue depth %d\n",
 			__func__, lun_qdepth);
-	scsi_adjust_queue_depth(sdev, lun_qdepth);
+	scsi_change_queue_depth(sdev, lun_qdepth);
 }
 
 /*
@@ -2787,21 +2787,16 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
  * ufshcd_change_queue_depth - change queue depth
  * @sdev: pointer to SCSI device
  * @depth: required depth to set
- * @reason: reason for changing the depth
  *
- * Change queue depth according to the reason and make sure
- * the max. limits are not crossed.
+ * Change queue depth and make sure the max. limits are not crossed.
  */
-static int ufshcd_change_queue_depth(struct scsi_device *sdev,
-		int depth, int reason)
+static int ufshcd_change_queue_depth(struct scsi_device *sdev, int depth)
 {
 	struct ufs_hba *hba = shost_priv(sdev->host);
 
 	if (depth > hba->nutrs)
 		depth = hba->nutrs;
-
-	scsi_adjust_queue_depth(sdev, depth);
-	return depth;
+	return scsi_change_queue_depth(sdev, depth);
 }
 
 /**

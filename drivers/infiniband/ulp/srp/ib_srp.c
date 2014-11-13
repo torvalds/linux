@@ -2402,18 +2402,15 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
  * srp_change_queue_depth - setting device queue depth
  * @sdev: scsi device struct
  * @qdepth: requested queue depth
- * @reason: SCSI_QDEPTH_DEFAULT
- * (see include/scsi/scsi_host.h for definition)
  *
  * Returns queue depth.
  */
 static int
-srp_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
+srp_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	if (!sdev->tagged_supported)
 		qdepth = 1;
-	scsi_adjust_queue_depth(sdev, qdepth);
-	return sdev->queue_depth;
+	return scsi_change_queue_depth(sdev, qdepth);
 }
 
 static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag,

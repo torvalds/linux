@@ -380,7 +380,7 @@ extern struct scsi_device *__scsi_iterate_devices(struct Scsi_Host *,
 #define __shost_for_each_device(sdev, shost) \
 	list_for_each_entry((sdev), &((shost)->__devices), siblings)
 
-extern void scsi_adjust_queue_depth(struct scsi_device *, int);
+extern int scsi_change_queue_depth(struct scsi_device *, int);
 extern int scsi_track_queue_full(struct scsi_device *, int);
 
 extern int scsi_set_medium_removal(struct scsi_device *, char);

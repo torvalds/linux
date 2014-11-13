@@ -632,7 +632,7 @@ static void scsi_handle_queue_ramp_up(struct scsi_device *sdev)
 		    tmp_sdev->queue_depth == sdev->max_queue_depth)
 			continue;
 
-		scsi_adjust_queue_depth(tmp_sdev, tmp_sdev->queue_depth + 1);
+		scsi_change_queue_depth(tmp_sdev, tmp_sdev->queue_depth + 1);
 		sdev->last_queue_ramp_up = jiffies;
 	}
 }

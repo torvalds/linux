@@ -243,23 +243,6 @@ lpfc_update_stats(struct lpfc_hba *phba, struct  lpfc_scsi_buf *lpfc_cmd)
 }
 
 /**
- * lpfc_change_queue_depth - Alter scsi device queue depth
- * @sdev: Pointer the scsi device on which to change the queue depth.
- * @qdepth: New queue depth to set the sdev to.
- * @reason: The reason for the queue depth change.
- *
- * This function is called by the midlayer and the LLD to alter the queue
- * depth for a scsi device. This function sets the queue depth to the new
- * value and sends an event out to log the queue depth change.
- **/
-static int
-lpfc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
-{
-	scsi_adjust_queue_depth(sdev, qdepth);
-	return sdev->queue_depth;
-}
-
-/**
  * lpfc_rampdown_queue_depth - Post RAMP_DOWN_QUEUE event to worker thread
  * @phba: The Hba for which this call is being executed.
  *
@@ -344,8 +327,7 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 				else
 					new_queue_depth = sdev->queue_depth -
 								new_queue_depth;
-				lpfc_change_queue_depth(sdev, new_queue_depth,
-							SCSI_QDEPTH_DEFAULT);
+				scsi_change_queue_depth(sdev, new_queue_depth);
 			}
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -5513,7 +5495,7 @@ lpfc_slave_configure(struct scsi_device *sdev)
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	scsi_adjust_queue_depth(sdev, vport->cfg_lun_queue_depth);
+	scsi_change_queue_depth(sdev, vport->cfg_lun_queue_depth);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_handle_fast_ring_event(phba,
@@ -5896,7 +5878,7 @@ struct scsi_host_template lpfc_template = {
 	.shost_attrs		= lpfc_hba_attrs,
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
-	.change_queue_depth	= lpfc_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.change_queue_type	= scsi_change_queue_type,
 	.use_blk_tags		= 1,
 	.track_queue_depth	= 1,
@@ -5921,7 +5903,7 @@ struct scsi_host_template lpfc_vport_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_vport_attrs,
 	.max_sectors		= 0xFFFF,
-	.change_queue_depth	= lpfc_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.change_queue_type	= scsi_change_queue_type,
 	.use_blk_tags		= 1,
 	.track_queue_depth	= 1,

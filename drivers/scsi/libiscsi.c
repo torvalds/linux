@@ -1771,13 +1771,6 @@ fault:
 }
 EXPORT_SYMBOL_GPL(iscsi_queuecommand);
 
-int iscsi_change_queue_depth(struct scsi_device *sdev, int depth, int reason)
-{
-	scsi_adjust_queue_depth(sdev, depth);
-	return sdev->queue_depth;
-}
-EXPORT_SYMBOL_GPL(iscsi_change_queue_depth);
-
 int iscsi_target_alloc(struct scsi_target *starget)
 {
 	struct iscsi_cls_session *cls_session = starget_to_session(starget);
