@@ -631,7 +631,7 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	struct mlx4_dev_cap	   dev_cap;
 	struct mlx4_func_cap	   func_cap;
 	struct mlx4_init_hca_param hca_param;
-	int			   i;
+	u8			   i;
 
 	memset(&hca_param, 0, sizeof(hca_param));
 	err = mlx4_QUERY_HCA(dev, &hca_param);
@@ -732,7 +732,7 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	}
 
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
-		err = mlx4_QUERY_FUNC_CAP(dev, (u32) i, &func_cap);
+		err = mlx4_QUERY_FUNC_CAP(dev, i, &func_cap);
 		if (err) {
 			mlx4_err(dev, "QUERY_FUNC_CAP port command failed for port %d, aborting (%d)\n",
 				 i, err);

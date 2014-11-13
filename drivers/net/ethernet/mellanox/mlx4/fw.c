@@ -335,7 +335,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	return err;
 }
 
-int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
+int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,
 			struct mlx4_func_cap *func_cap)
 {
 	struct mlx4_cmd_mailbox *mailbox;
