@@ -668,31 +668,37 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 	return 0;
 }
 
-static int cmp_memslot(const void *slot1, const void *slot2)
-{
-	struct kvm_memory_slot *s1, *s2;
-
-	s1 = (struct kvm_memory_slot *)slot1;
-	s2 = (struct kvm_memory_slot *)slot2;
-
-	if (s1->npages < s2->npages)
-		return 1;
-	if (s1->npages > s2->npages)
-		return -1;
-
-	return 0;
-}
-
 /*
- * Sort the memslots base on its size, so the larger slots
- * will get better fit.
+ * Insert memslot and re-sort memslots based on their size,
+ * so the larger slots will get better fit. Sorting algorithm
+ * takes advantage of having initially sorted array and
+ * known changed memslot position.
  */
-static void sort_memslots(struct kvm_memslots *slots)
+static void insert_memslot(struct kvm_memslots *slots,
+			   struct kvm_memory_slot *new)
 {
-	int i;
+	int i = slots->id_to_index[new->id];
+	struct kvm_memory_slot *old = id_to_memslot(slots, new->id);
+	struct kvm_memory_slot *mslots = slots->memslots;
 
-	sort(slots->memslots, KVM_MEM_SLOTS_NUM,
-	      sizeof(struct kvm_memory_slot), cmp_memslot, NULL);
+	if (new->npages == old->npages) {
+		*old = *new;
+		return;
+	}
+
+	while (1) {
+		if (i < (KVM_MEM_SLOTS_NUM - 1) &&
+			new->npages < mslots[i + 1].npages) {
+			mslots[i] = mslots[i + 1];
+			i++;
+		} else if (i > 0 && new->npages > mslots[i - 1].npages) {
+			mslots[i] = mslots[i - 1];
+			i--;
+		} else {
+			mslots[i] = *new;
+			break;
+		}
+	}
 
 	for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
 		slots->id_to_index[slots->memslots[i].id] = i;
@@ -702,13 +708,7 @@ static void update_memslots(struct kvm_memslots *slots,
 			    struct kvm_memory_slot *new)
 {
 	if (new) {
-		int id = new->id;
-		struct kvm_memory_slot *old = id_to_memslot(slots, id);
-		unsigned long npages = old->npages;
-
-		*old = *new;
-		if (new->npages != npages)
-			sort_memslots(slots);
+		insert_memslot(slots, new);
 	}
 }
 
