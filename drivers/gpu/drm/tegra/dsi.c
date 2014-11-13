@@ -318,6 +318,21 @@ static const u32 pkt_seq_video_non_burst_sync_events[NUM_PKT_SEQ] = {
 	[11] = PKT_ID0(MIPI_DSI_BLANKING_PACKET) | PKT_LEN0(4),
 };
 
+static const u32 pkt_seq_command_mode[NUM_PKT_SEQ] = {
+	[ 0] = 0,
+	[ 1] = 0,
+	[ 2] = 0,
+	[ 3] = 0,
+	[ 4] = 0,
+	[ 5] = 0,
+	[ 6] = PKT_ID0(MIPI_DSI_DCS_LONG_WRITE) | PKT_LEN0(3) | PKT_LP,
+	[ 7] = 0,
+	[ 8] = 0,
+	[ 9] = 0,
+	[10] = PKT_ID0(MIPI_DSI_DCS_LONG_WRITE) | PKT_LEN0(5) | PKT_LP,
+	[11] = 0,
+};
+
 static int tegra_dsi_set_phy_timing(struct tegra_dsi *dsi)
 {
 	struct mipi_dphy_timing timing;
@@ -447,9 +462,12 @@ static int tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 	if (dsi->flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
 		DRM_DEBUG_KMS("Non-burst video mode with sync pulses\n");
 		pkt_seq = pkt_seq_video_non_burst_sync_pulses;
-	} else {
+	} else if (dsi->flags & MIPI_DSI_MODE_VIDEO) {
 		DRM_DEBUG_KMS("Non-burst video mode with sync events\n");
 		pkt_seq = pkt_seq_video_non_burst_sync_events;
+	} else {
+		DRM_DEBUG_KMS("Command mode\n");
+		pkt_seq = pkt_seq_command_mode;
 	}
 
 	err = tegra_dsi_get_muldiv(dsi->format, &mul, &div);
@@ -476,7 +494,13 @@ static int tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 		value |= DSI_CONTROL_HS_CLK_CTRL;
 
 	value &= ~DSI_CONTROL_TX_TRIG(3);
-	value &= ~DSI_CONTROL_DCS_ENABLE;
+
+	/* enable DCS commands for command mode */
+	if (dsi->flags & MIPI_DSI_MODE_VIDEO)
+		value &= ~DSI_CONTROL_DCS_ENABLE;
+	else
+		value |= DSI_CONTROL_DCS_ENABLE;
+
 	value |= DSI_CONTROL_VIDEO_ENABLE;
 	value &= ~DSI_CONTROL_HOST_ENABLE;
 	tegra_dsi_writel(dsi, value, DSI_CONTROL);
@@ -488,28 +512,48 @@ static int tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 	for (i = 0; i < NUM_PKT_SEQ; i++)
 		tegra_dsi_writel(dsi, pkt_seq[i], DSI_PKT_SEQ_0_LO + i);
 
-	/* horizontal active pixels */
-	hact = mode->hdisplay * mul / div;
+	if (dsi->flags & MIPI_DSI_MODE_VIDEO) {
+		/* horizontal active pixels */
+		hact = mode->hdisplay * mul / div;
 
-	/* horizontal sync width */
-	hsw = (mode->hsync_end - mode->hsync_start) * mul / div;
-	hsw -= 10;
+		/* horizontal sync width */
+		hsw = (mode->hsync_end - mode->hsync_start) * mul / div;
+		hsw -= 10;
 
-	/* horizontal back porch */
-	hbp = (mode->htotal - mode->hsync_end) * mul / div;
-	hbp -= 14;
+		/* horizontal back porch */
+		hbp = (mode->htotal - mode->hsync_end) * mul / div;
+		hbp -= 14;
 
-	/* horizontal front porch */
-	hfp = (mode->hsync_start  - mode->hdisplay) * mul / div;
-	hfp -= 8;
+		/* horizontal front porch */
+		hfp = (mode->hsync_start - mode->hdisplay) * mul / div;
+		hfp -= 8;
 
-	tegra_dsi_writel(dsi, hsw << 16 | 0, DSI_PKT_LEN_0_1);
-	tegra_dsi_writel(dsi, hact << 16 | hbp, DSI_PKT_LEN_2_3);
-	tegra_dsi_writel(dsi, hfp, DSI_PKT_LEN_4_5);
-	tegra_dsi_writel(dsi, 0x0f0f << 16, DSI_PKT_LEN_6_7);
+		tegra_dsi_writel(dsi, hsw << 16 | 0, DSI_PKT_LEN_0_1);
+		tegra_dsi_writel(dsi, hact << 16 | hbp, DSI_PKT_LEN_2_3);
+		tegra_dsi_writel(dsi, hfp, DSI_PKT_LEN_4_5);
+		tegra_dsi_writel(dsi, 0x0f0f << 16, DSI_PKT_LEN_6_7);
 
-	/* set SOL delay (for non-burst mode only) */
-	tegra_dsi_writel(dsi, 8 * mul / div, DSI_SOL_DELAY);
+		/* set SOL delay (for non-burst mode only) */
+		tegra_dsi_writel(dsi, 8 * mul / div, DSI_SOL_DELAY);
+	} else {
+		u16 bytes;
+
+		/* 1 byte (DCS command) + pixel data */
+		bytes = 1 + mode->hdisplay * mul / div;
+
+		tegra_dsi_writel(dsi, 0, DSI_PKT_LEN_0_1);
+		tegra_dsi_writel(dsi, bytes << 16, DSI_PKT_LEN_2_3);
+		tegra_dsi_writel(dsi, bytes << 16, DSI_PKT_LEN_4_5);
+		tegra_dsi_writel(dsi, 0, DSI_PKT_LEN_6_7);
+
+		value = MIPI_DCS_WRITE_MEMORY_START << 8 |
+			MIPI_DCS_WRITE_MEMORY_CONTINUE;
+		tegra_dsi_writel(dsi, value, DSI_DCS_CMDS);
+
+		value = 8 * mul / div;
+
+		tegra_dsi_writel(dsi, value, DSI_SOL_DELAY);
+	}
 
 	return 0;
 }
