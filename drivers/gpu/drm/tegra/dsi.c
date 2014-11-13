@@ -861,64 +861,72 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	dsi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dsi->clk)) {
 		dev_err(&pdev->dev, "cannot get DSI clock\n");
-		return PTR_ERR(dsi->clk);
+		err = PTR_ERR(dsi->clk);
+		goto reset;
 	}
 
 	err = clk_prepare_enable(dsi->clk);
 	if (err < 0) {
 		dev_err(&pdev->dev, "cannot enable DSI clock\n");
-		return err;
+		goto reset;
 	}
 
 	dsi->clk_lp = devm_clk_get(&pdev->dev, "lp");
 	if (IS_ERR(dsi->clk_lp)) {
 		dev_err(&pdev->dev, "cannot get low-power clock\n");
-		return PTR_ERR(dsi->clk_lp);
+		err = PTR_ERR(dsi->clk_lp);
+		goto disable_clk;
 	}
 
 	err = clk_prepare_enable(dsi->clk_lp);
 	if (err < 0) {
 		dev_err(&pdev->dev, "cannot enable low-power clock\n");
-		return err;
+		goto disable_clk;
 	}
 
 	dsi->clk_parent = devm_clk_get(&pdev->dev, "parent");
 	if (IS_ERR(dsi->clk_parent)) {
 		dev_err(&pdev->dev, "cannot get parent clock\n");
-		return PTR_ERR(dsi->clk_parent);
+		err = PTR_ERR(dsi->clk_parent);
+		goto disable_clk_lp;
 	}
 
 	dsi->vdd = devm_regulator_get(&pdev->dev, "avdd-dsi-csi");
 	if (IS_ERR(dsi->vdd)) {
 		dev_err(&pdev->dev, "cannot get VDD supply\n");
-		return PTR_ERR(dsi->vdd);
+		err = PTR_ERR(dsi->vdd);
+		goto disable_clk_lp;
 	}
 
 	err = regulator_enable(dsi->vdd);
 	if (err < 0) {
 		dev_err(&pdev->dev, "cannot enable VDD supply\n");
-		return err;
+		goto disable_clk_lp;
 	}
 
 	err = tegra_dsi_setup_clocks(dsi);
 	if (err < 0) {
 		dev_err(&pdev->dev, "cannot setup clocks\n");
-		return err;
+		goto disable_vdd;
 	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dsi->regs = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(dsi->regs))
-		return PTR_ERR(dsi->regs);
+	if (IS_ERR(dsi->regs)) {
+		err = PTR_ERR(dsi->regs);
+		goto disable_vdd;
+	}
 
 	dsi->mipi = tegra_mipi_request(&pdev->dev);
-	if (IS_ERR(dsi->mipi))
-		return PTR_ERR(dsi->mipi);
+	if (IS_ERR(dsi->mipi)) {
+		err = PTR_ERR(dsi->mipi);
+		goto disable_vdd;
+	}
 
 	err = tegra_dsi_pad_calibrate(dsi);
 	if (err < 0) {
 		dev_err(dsi->dev, "MIPI calibration failed: %d\n", err);
-		return err;
+		goto mipi_free;
 	}
 
 	dsi->host.ops = &tegra_dsi_host_ops;
@@ -927,7 +935,7 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	err = mipi_dsi_host_register(&dsi->host);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register DSI host: %d\n", err);
-		return err;
+		goto mipi_free;
 	}
 
 	INIT_LIST_HEAD(&dsi->client.list);
@@ -938,12 +946,26 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register host1x client: %d\n",
 			err);
-		return err;
+		goto unregister;
 	}
 
 	platform_set_drvdata(pdev, dsi);
 
 	return 0;
+
+unregister:
+	mipi_dsi_host_unregister(&dsi->host);
+mipi_free:
+	tegra_mipi_free(dsi->mipi);
+disable_vdd:
+	regulator_disable(dsi->vdd);
+disable_clk_lp:
+	clk_disable_unprepare(dsi->clk_lp);
+disable_clk:
+	clk_disable_unprepare(dsi->clk);
+reset:
+	reset_control_assert(dsi->rst);
+	return err;
 }
 
 static int tegra_dsi_remove(struct platform_device *pdev)
