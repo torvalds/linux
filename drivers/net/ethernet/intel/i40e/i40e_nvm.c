@@ -116,8 +116,6 @@ i40e_status i40e_acquire_nvm(struct i40e_hw *hw,
 		}
 		if (ret_code) {
 			hw->nvm.hw_semaphore_timeout = 0;
-			hw->nvm.hw_semaphore_wait =
-						I40E_MS_TO_GTIME(time) + gtime;
 			i40e_debug(hw, I40E_DEBUG_NVM,
 				   "NVM acquire timed out, wait %llu ms before trying again.\n",
 				   time);
