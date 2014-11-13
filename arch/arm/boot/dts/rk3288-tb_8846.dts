@@ -54,7 +54,7 @@
         BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
         BT,reset_gpio = <&gpio4 GPIO_D5 GPIO_ACTIVE_HIGH>;
         BT,wake_gpio = <&gpio4 GPIO_D2 GPIO_ACTIVE_HIGH>;
-        BT,wake_host_irq = <&gpio4 GPIO_D7 GPIO_ACTIVE_LOW>;
+        BT,wake_host_irq = <&gpio4 GPIO_D7 GPIO_ACTIVE_HIGH>;
 
         status = "okay";
     };
