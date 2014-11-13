@@ -140,8 +140,6 @@
 #define GEN8_LR_CONTEXT_RENDER_SIZE (20 * PAGE_SIZE)
 #define GEN8_LR_CONTEXT_OTHER_SIZE (2 * PAGE_SIZE)
 
-#define GEN8_LR_CONTEXT_ALIGN 4096
-
 #define RING_EXECLIST_QFULL		(1 << 0x2)
 #define RING_EXECLIST1_VALID		(1 << 0x3)
 #define RING_EXECLIST0_VALID		(1 << 0x4)
@@ -814,9 +812,40 @@ void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf)
 	execlists_context_queue(ring, ctx, ringbuf->tail);
 }
 
+static int intel_lr_context_pin(struct intel_engine_cs *ring,
+		struct intel_context *ctx)
+{
+	struct drm_i915_gem_object *ctx_obj = ctx->engine[ring->id].state;
+	int ret = 0;
+
+	WARN_ON(!mutex_is_locked(&ring->dev->struct_mutex));
+	if (ctx->engine[ring->id].unpin_count++ == 0) {
+		ret = i915_gem_obj_ggtt_pin(ctx_obj,
+				GEN8_LR_CONTEXT_ALIGN, 0);
+		if (ret)
+			ctx->engine[ring->id].unpin_count = 0;
+	}
+
+	return ret;
+}
+
+void intel_lr_context_unpin(struct intel_engine_cs *ring,
+		struct intel_context *ctx)
+{
+	struct drm_i915_gem_object *ctx_obj = ctx->engine[ring->id].state;
+
+	if (ctx_obj) {
+		WARN_ON(!mutex_is_locked(&ring->dev->struct_mutex));
+		if (--ctx->engine[ring->id].unpin_count == 0)
+			i915_gem_object_ggtt_unpin(ctx_obj);
+	}
+}
+
 static int logical_ring_alloc_seqno(struct intel_engine_cs *ring,
 				    struct intel_context *ctx)
 {
+	int ret;
+
 	if (ring->outstanding_lazy_seqno)
 		return 0;
 
@@ -826,6 +855,14 @@ static int logical_ring_alloc_seqno(struct intel_engine_cs *ring,
 		request = kmalloc(sizeof(*request), GFP_KERNEL);
 		if (request == NULL)
 			return -ENOMEM;
+
+		if (ctx != ring->default_context) {
+			ret = intel_lr_context_pin(ring, ctx);
+			if (ret) {
+				kfree(request);
+				return ret;
+			}
+		}
 
 		/* Hold a reference to the context this request belongs to
 		 * (we will need it when the time comes to emit/retire the
@@ -1680,12 +1717,16 @@ void intel_lr_context_free(struct intel_context *ctx)
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		struct drm_i915_gem_object *ctx_obj = ctx->engine[i].state;
-		struct intel_ringbuffer *ringbuf = ctx->engine[i].ringbuf;
 
 		if (ctx_obj) {
+			struct intel_ringbuffer *ringbuf =
+					ctx->engine[i].ringbuf;
+			struct intel_engine_cs *ring = ringbuf->ring;
+
 			intel_destroy_ringbuffer_obj(ringbuf);
 			kfree(ringbuf);
-			i915_gem_object_ggtt_unpin(ctx_obj);
+			if (ctx == ring->default_context)
+				i915_gem_object_ggtt_unpin(ctx_obj);
 			drm_gem_object_unreference(&ctx_obj->base);
 		}
 	}
@@ -1748,6 +1789,7 @@ static void lrc_setup_hardware_status_page(struct intel_engine_cs *ring,
 int intel_lr_context_deferred_create(struct intel_context *ctx,
 				     struct intel_engine_cs *ring)
 {
+	const bool is_global_default_ctx = (ctx == ring->default_context);
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_gem_object *ctx_obj;
 	uint32_t context_size;
@@ -1767,18 +1809,22 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 		return ret;
 	}
 
-	ret = i915_gem_obj_ggtt_pin(ctx_obj, GEN8_LR_CONTEXT_ALIGN, 0);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Pin LRC backing obj failed: %d\n", ret);
-		drm_gem_object_unreference(&ctx_obj->base);
-		return ret;
+	if (is_global_default_ctx) {
+		ret = i915_gem_obj_ggtt_pin(ctx_obj, GEN8_LR_CONTEXT_ALIGN, 0);
+		if (ret) {
+			DRM_DEBUG_DRIVER("Pin LRC backing obj failed: %d\n",
+					ret);
+			drm_gem_object_unreference(&ctx_obj->base);
+			return ret;
+		}
 	}
 
 	ringbuf = kzalloc(sizeof(*ringbuf), GFP_KERNEL);
 	if (!ringbuf) {
 		DRM_DEBUG_DRIVER("Failed to allocate ringbuffer %s\n",
 				ring->name);
-		i915_gem_object_ggtt_unpin(ctx_obj);
+		if (is_global_default_ctx)
+			i915_gem_object_ggtt_unpin(ctx_obj);
 		drm_gem_object_unreference(&ctx_obj->base);
 		ret = -ENOMEM;
 		return ret;
@@ -1841,7 +1887,8 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 
 error:
 	kfree(ringbuf);
-	i915_gem_object_ggtt_unpin(ctx_obj);
+	if (is_global_default_ctx)
+		i915_gem_object_ggtt_unpin(ctx_obj);
 	drm_gem_object_unreference(&ctx_obj->base);
 	return ret;
 }

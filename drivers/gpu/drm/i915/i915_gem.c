@@ -2576,12 +2576,18 @@ static void i915_set_reset_status(struct drm_i915_private *dev_priv,
 
 static void i915_gem_free_request(struct drm_i915_gem_request *request)
 {
+	struct intel_context *ctx = request->ctx;
+
 	list_del(&request->list);
 	i915_gem_request_remove_from_client(request);
 
-	if (request->ctx)
-		i915_gem_context_unreference(request->ctx);
+	if (i915.enable_execlists && ctx) {
+		struct intel_engine_cs *ring = request->ring;
 
+		if (ctx != ring->default_context)
+			intel_lr_context_unpin(ring, ctx);
+		i915_gem_context_unreference(ctx);
+	}
 	kfree(request);
 }
 
@@ -2636,6 +2642,23 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 	}
 
 	/*
+	 * Clear the execlists queue up before freeing the requests, as those
+	 * are the ones that keep the context and ringbuffer backing objects
+	 * pinned in place.
+	 */
+	while (!list_empty(&ring->execlist_queue)) {
+		struct intel_ctx_submit_request *submit_req;
+
+		submit_req = list_first_entry(&ring->execlist_queue,
+				struct intel_ctx_submit_request,
+				execlist_link);
+		list_del(&submit_req->execlist_link);
+		intel_runtime_pm_put(dev_priv);
+		i915_gem_context_unreference(submit_req->ctx);
+		kfree(submit_req);
+	}
+
+	/*
 	 * We must free the requests after all the corresponding objects have
 	 * been moved off active lists. Which is the same order as the normal
 	 * retire_requests function does. This is important if object hold
@@ -2650,18 +2673,6 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 					   list);
 
 		i915_gem_free_request(request);
-	}
-
-	while (!list_empty(&ring->execlist_queue)) {
-		struct intel_ctx_submit_request *submit_req;
-
-		submit_req = list_first_entry(&ring->execlist_queue,
-				struct intel_ctx_submit_request,
-				execlist_link);
-		list_del(&submit_req->execlist_link);
-		intel_runtime_pm_put(dev_priv);
-		i915_gem_context_unreference(submit_req->ctx);
-		kfree(submit_req);
 	}
 
 	/* These may not have been flush before the reset, do so now */

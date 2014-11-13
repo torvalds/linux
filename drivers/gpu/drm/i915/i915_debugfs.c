@@ -1799,9 +1799,15 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 				continue;
 
 			if (ctx_obj) {
-				struct page *page = i915_gem_object_get_page(ctx_obj, 1);
-				uint32_t *reg_state = kmap_atomic(page);
+				struct page *page;
+				uint32_t *reg_state;
 				int j;
+
+				i915_gem_obj_ggtt_pin(ctx_obj,
+						GEN8_LR_CONTEXT_ALIGN, 0);
+
+				page = i915_gem_object_get_page(ctx_obj, 1);
+				reg_state = kmap_atomic(page);
 
 				seq_printf(m, "CONTEXT: %s %u\n", ring->name,
 						intel_execlists_ctx_id(ctx_obj));
@@ -1813,6 +1819,8 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 					reg_state[j + 2], reg_state[j + 3]);
 				}
 				kunmap_atomic(reg_state);
+
+				i915_gem_object_ggtt_unpin(ctx_obj);
 
 				seq_putc(m, '\n');
 			}
