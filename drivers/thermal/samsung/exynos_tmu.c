@@ -53,6 +53,7 @@
  * @regulator: pointer to the TMU regulator structure.
  * @reg_conf: pointer to structure to register with core thermal.
  * @tmu_initialize: SoC specific TMU initialization method
+ * @tmu_control: SoC specific TMU control method
  */
 struct exynos_tmu_data {
 	int id;
@@ -68,6 +69,7 @@ struct exynos_tmu_data {
 	struct regulator *regulator;
 	struct thermal_sensor_conf *reg_conf;
 	int (*tmu_initialize)(struct platform_device *pdev);
+	void (*tmu_control)(struct platform_device *pdev, bool on);
 };
 
 /*
@@ -221,32 +223,10 @@ static u32 get_con_reg(struct exynos_tmu_data *data, u32 con)
 static void exynos_tmu_control(struct platform_device *pdev, bool on)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
-	struct exynos_tmu_platform_data *pdata = data->pdata;
-	const struct exynos_tmu_registers *reg = pdata->registers;
-	unsigned int con, interrupt_en;
 
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
-
-	con = get_con_reg(data, readl(data->base + reg->tmu_ctrl));
-
-	if (on) {
-		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
-		interrupt_en =
-			pdata->trigger_enable[3] << reg->inten_rise3_shift |
-			pdata->trigger_enable[2] << reg->inten_rise2_shift |
-			pdata->trigger_enable[1] << reg->inten_rise1_shift |
-			pdata->trigger_enable[0] << reg->inten_rise0_shift;
-		if (TMU_SUPPORTS(pdata, FALLING_TRIP))
-			interrupt_en |=
-				interrupt_en << reg->inten_fall0_shift;
-	} else {
-		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
-		interrupt_en = 0; /* Disable all interrupts */
-	}
-	writel(interrupt_en, data->base + reg->tmu_inten);
-	writel(con, data->base + reg->tmu_ctrl);
-
+	data->tmu_control(pdev, on);
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 }
@@ -386,6 +366,58 @@ static int exynos5440_tmu_initialize(struct platform_device *pdev)
 	if (!data->id)
 		writel(0, data->base_second + EXYNOS5440_TMU_PMIN);
 	return ret;
+}
+
+static void exynos4210_tmu_control(struct platform_device *pdev, bool on)
+{
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exynos_tmu_platform_data *pdata = data->pdata;
+	unsigned int con, interrupt_en;
+
+	con = get_con_reg(data, readl(data->base + EXYNOS_TMU_REG_CONTROL));
+
+	if (on) {
+		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		interrupt_en =
+			pdata->trigger_enable[3] << EXYNOS_TMU_INTEN_RISE3_SHIFT |
+			pdata->trigger_enable[2] << EXYNOS_TMU_INTEN_RISE2_SHIFT |
+			pdata->trigger_enable[1] << EXYNOS_TMU_INTEN_RISE1_SHIFT |
+			pdata->trigger_enable[0] << EXYNOS_TMU_INTEN_RISE0_SHIFT;
+		if (TMU_SUPPORTS(pdata, FALLING_TRIP))
+			interrupt_en |=
+				interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
+	} else {
+		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		interrupt_en = 0; /* Disable all interrupts */
+	}
+	writel(interrupt_en, data->base + EXYNOS_TMU_REG_INTEN);
+	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
+}
+
+static void exynos5440_tmu_control(struct platform_device *pdev, bool on)
+{
+	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
+	struct exynos_tmu_platform_data *pdata = data->pdata;
+	unsigned int con, interrupt_en;
+
+	con = get_con_reg(data, readl(data->base + EXYNOS5440_TMU_S0_7_CTRL));
+
+	if (on) {
+		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		interrupt_en =
+			pdata->trigger_enable[3] << EXYNOS5440_TMU_INTEN_RISE3_SHIFT |
+			pdata->trigger_enable[2] << EXYNOS5440_TMU_INTEN_RISE2_SHIFT |
+			pdata->trigger_enable[1] << EXYNOS5440_TMU_INTEN_RISE1_SHIFT |
+			pdata->trigger_enable[0] << EXYNOS5440_TMU_INTEN_RISE0_SHIFT;
+		if (TMU_SUPPORTS(pdata, FALLING_TRIP))
+			interrupt_en |=
+				interrupt_en << EXYNOS5440_TMU_INTEN_FALL0_SHIFT;
+	} else {
+		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		interrupt_en = 0; /* Disable all interrupts */
+	}
+	writel(interrupt_en, data->base + EXYNOS5440_TMU_S0_7_IRQEN);
+	writel(con, data->base + EXYNOS5440_TMU_S0_7_CTRL);
 }
 
 static int exynos_tmu_read(struct exynos_tmu_data *data)
@@ -685,6 +717,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	switch (data->soc) {
 	case SOC_ARCH_EXYNOS4210:
 		data->tmu_initialize = exynos4210_tmu_initialize;
+		data->tmu_control = exynos4210_tmu_control;
 		break;
 	case SOC_ARCH_EXYNOS3250:
 	case SOC_ARCH_EXYNOS4412:
@@ -693,9 +726,11 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	case SOC_ARCH_EXYNOS5420:
 	case SOC_ARCH_EXYNOS5420_TRIMINFO:
 		data->tmu_initialize = exynos4412_tmu_initialize;
+		data->tmu_control = exynos4210_tmu_control;
 		break;
 	case SOC_ARCH_EXYNOS5440:
 		data->tmu_initialize = exynos5440_tmu_initialize;
+		data->tmu_control = exynos5440_tmu_control;
 		break;
 	default:
 		ret = -EINVAL;

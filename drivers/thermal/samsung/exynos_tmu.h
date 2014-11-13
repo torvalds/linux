@@ -68,38 +68,17 @@ enum soc_type {
 #define TMU_SUPPORTS(a, b)	(a->features & TMU_SUPPORT_ ## b)
 
 /**
- * struct exynos_tmu_register - register descriptors to access registers and
- * bitfields. The register validity, offsets and bitfield values may vary
- * slightly across different exynos SOC's.
- * @tmu_ctrl: TMU main controller register.
+ * struct exynos_tmu_register - register descriptors to access registers.
+ * The register validity may vary slightly across different exynos SOC's.
  * @tmu_cur_temp: register containing the current temperature of the TMU.
- * @tmu_inten: register containing the different threshold interrupt
-	enable bits.
- * @inten_rise0_shift: shift bits of rising 0 interrupt bits.
- * @inten_rise1_shift: shift bits of rising 1 interrupt bits.
- * @inten_rise2_shift: shift bits of rising 2 interrupt bits.
- * @inten_rise3_shift: shift bits of rising 3 interrupt bits.
- * @inten_fall0_shift: shift bits of falling 0 interrupt bits.
  * @tmu_intstat: Register containing the interrupt status values.
  * @tmu_intclear: Register for clearing the raised interrupt status.
  * @emul_con: TMU emulation controller register.
  */
 struct exynos_tmu_registers {
-	u32	tmu_ctrl;
-
 	u32	tmu_cur_temp;
-
-	u32	tmu_inten;
-	u32	inten_rise0_shift;
-	u32	inten_rise1_shift;
-	u32	inten_rise2_shift;
-	u32	inten_rise3_shift;
-	u32	inten_fall0_shift;
-
 	u32	tmu_intstat;
-
 	u32	tmu_intclear;
-
 	u32	emul_con;
 };
 
