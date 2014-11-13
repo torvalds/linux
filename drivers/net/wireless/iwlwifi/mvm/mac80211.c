@@ -1354,10 +1354,6 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvm->bf_allowed_vif = mvmvif;
 		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
 				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
-		if (mvm->fw->ucode_capa.flags &
-					IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT &&
-		    !iwlwifi_mod_params.uapsd_disable)
-			vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
 	}
 
 	/*
@@ -2305,6 +2301,20 @@ static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
+static void iwl_mvm_check_uapsd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				const u8 *bssid)
+{
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT))
+		return;
+
+	if (iwlwifi_mod_params.uapsd_disable) {
+		vif->driver_flags &= ~IEEE80211_VIF_SUPPORTS_UAPSD;
+		return;
+	}
+
+	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
+}
+
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -2364,6 +2374,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		 * Reset EBS status here assuming environment has been changed.
 		 */
 		mvm->last_ebs_successful = true;
+		iwl_mvm_check_uapsd(mvm, vif, sta->addr);
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_ASSOC) {

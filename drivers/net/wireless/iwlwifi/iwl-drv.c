@@ -1490,7 +1490,7 @@ module_param_named(d0i3_disable, iwlwifi_mod_params.d0i3_disable,
 MODULE_PARM_DESC(d0i3_disable, "disable d0i3 functionality (default: Y)");
 
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
-		   bool, S_IRUGO);
+		   bool, S_IRUGO | S_IWUSR);
 #ifdef CONFIG_IWLWIFI_UAPSD
 MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: N)");
 #else
