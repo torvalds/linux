@@ -297,13 +297,13 @@ static inline pte_t pte_wrprotect(pte_t pte)
 
 static inline pte_t pte_mkclean(pte_t pte)
 {
-	pte_val(pte) &= ~(_PAGE_MODIFIED|_PAGE_SILENT_WRITE);
+	pte_val(pte) &= ~(_PAGE_MODIFIED | _PAGE_SILENT_WRITE);
 	return pte;
 }
 
 static inline pte_t pte_mkold(pte_t pte)
 {
-	pte_val(pte) &= ~(_PAGE_ACCESSED|_PAGE_SILENT_READ);
+	pte_val(pte) &= ~(_PAGE_ACCESSED | _PAGE_SILENT_READ);
 	return pte;
 }
 
@@ -386,9 +386,9 @@ static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	pte.pte_low  &= _PAGE_CHG_MASK;
-	pte.pte_high &= ~0x3f;
+	pte.pte_high &= (_PFN_MASK | _CACHE_MASK);
 	pte.pte_low  |= pgprot_val(newprot);
-	pte.pte_high |= pgprot_val(newprot) & 0x3f;
+	pte.pte_high |= pgprot_val(newprot) & ~(_PFN_MASK | _CACHE_MASK);
 	return pte;
 }
 #else

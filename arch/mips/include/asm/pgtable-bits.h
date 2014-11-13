@@ -37,34 +37,36 @@
 /*
  * The following bits are directly used by the TLB hardware
  */
-#define _PAGE_R4KBUG		(1 << 0)  /* workaround for r4k bug  */
-#define _PAGE_GLOBAL		(1 << 0)
-#define _PAGE_VALID_SHIFT	1
+#define _PAGE_GLOBAL_SHIFT	0
+#define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
+#define _PAGE_VALID_SHIFT	(_PAGE_GLOBAL_SHIFT + 1)
 #define _PAGE_VALID		(1 << _PAGE_VALID_SHIFT)
-#define _PAGE_SILENT_READ	(1 << 1)  /* synonym		     */
-#define _PAGE_DIRTY_SHIFT	2
-#define _PAGE_DIRTY		(1 << _PAGE_DIRTY_SHIFT)  /* The MIPS dirty bit	     */
-#define _PAGE_SILENT_WRITE	(1 << 2)
-#define _CACHE_SHIFT		3
-#define _CACHE_MASK		(7 << 3)
+#define _PAGE_DIRTY_SHIFT	(_PAGE_VALID_SHIFT + 1)
+#define _PAGE_DIRTY		(1 << _PAGE_DIRTY_SHIFT)
+#define _CACHE_SHIFT		(_PAGE_DIRTY_SHIFT + 1)
+#define _CACHE_MASK		(7 << _CACHE_SHIFT)
 
 /*
  * The following bits are implemented in software
  *
  * _PAGE_FILE semantics: set:pagecache unset:swap
  */
-#define _PAGE_PRESENT_SHIFT	6
+#define _PAGE_PRESENT_SHIFT	(_CACHE_SHIFT + 3)
 #define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
-#define _PAGE_READ_SHIFT	7
+#define _PAGE_READ_SHIFT	(_PAGE_PRESENT_SHIFT + 1)
 #define _PAGE_READ		(1 << _PAGE_READ_SHIFT)
-#define _PAGE_WRITE_SHIFT	8
+#define _PAGE_WRITE_SHIFT	(_PAGE_READ_SHIFT + 1)
 #define _PAGE_WRITE		(1 << _PAGE_WRITE_SHIFT)
-#define _PAGE_ACCESSED_SHIFT	9
+#define _PAGE_ACCESSED_SHIFT	(_PAGE_WRITE_SHIFT + 1)
 #define _PAGE_ACCESSED		(1 << _PAGE_ACCESSED_SHIFT)
-#define _PAGE_MODIFIED_SHIFT	10
+#define _PAGE_MODIFIED_SHIFT	(_PAGE_ACCESSED_SHIFT + 1)
 #define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
 
-#define _PAGE_FILE		(1 << 10)
+#define _PAGE_SILENT_READ	_PAGE_VALID
+#define _PAGE_SILENT_WRITE	_PAGE_DIRTY
+#define _PAGE_FILE		_PAGE_MODIFIED
+
+#define _PFN_SHIFT		(PAGE_SHIFT - 12 + _CACHE_SHIFT + 3)
 
 #elif defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 
