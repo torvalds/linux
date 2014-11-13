@@ -117,7 +117,6 @@ static struct platform_driver replicator_driver = {
 	.remove         = replicator_remove,
 	.driver         = {
 		.name   = "coresight-replicator",
-		.owner	= THIS_MODULE,
 		.of_match_table = replicator_match,
 	},
 };
