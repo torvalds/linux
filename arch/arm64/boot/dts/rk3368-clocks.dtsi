@@ -424,6 +424,7 @@
 						clock-output-names = "clkin_trace";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 				};
@@ -580,6 +581,7 @@
 						clock-output-names = "pclk_pmu_pre";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* 7:5 reserved */
@@ -591,6 +593,7 @@
 						clock-output-names = "pclk_alive_pre";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* 13 reserved */
@@ -676,8 +679,6 @@
 
 					/* 7:5 reserved */
 
-					/* usbphy_480m_en */
-
 					usbphy_480m: usbphy_480m_mux {
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <8 1>;
@@ -733,6 +734,7 @@
 						clock-output-names = "aclk_gpu_mem";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* 13 reserved */
@@ -1175,6 +1177,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>;
 						clock-output-names = "i2s_pll";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* 14:13 reserved */
@@ -1248,6 +1251,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>;
 						clock-output-names = "spdif_8ch_pll";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					/* 15:13 reserved */
@@ -1545,6 +1549,7 @@
                                                 clock-output-names = "clk_mac";
                                                 #clock-cells = <0>;
 						rockchip,flags = <CLK_SET_RATE_PARENT>;
+						#clock-init-cells = <1>;
                                         };
 
 					/* 11:9 reserved */
@@ -1837,6 +1842,7 @@
                                                 clocks = <&clk_cpll>, <&clk_gpll>;
                                                 clock-output-names = "i2s_2ch_pll";
                                                 #clock-cells = <0>;
+						#clock-init-cells = <1>;
                                         };
 
 				};
