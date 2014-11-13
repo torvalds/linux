@@ -66,10 +66,10 @@ enum exynos_drm_output_type {
  * @dma_addr: array of bus(accessed by dma) address to the memory region
  *	      allocated for a overlay.
  * @zpos: order of overlay layer(z position).
- * @default_win: a window to be enabled.
- * @color_key: color key on or off.
  * @index_color: if using color key feature then this value would be used
  *			as index color.
+ * @default_win: a window to be enabled.
+ * @color_key: color key on or off.
  * @local_path: in case of lcd type, local path mode on or off.
  * @transparency: transparency on or off.
  * @activated: activated or not.
@@ -97,13 +97,13 @@ struct exynos_drm_overlay {
 	uint32_t pixel_format;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
 	int zpos;
-
-	bool default_win;
-	bool color_key;
 	unsigned int index_color;
-	bool local_path;
-	bool transparency;
-	bool activated;
+
+	bool default_win:1;
+	bool color_key:1;
+	bool local_path:1;
+	bool transparency:1;
+	bool activated:1;
 };
 
 /*
