@@ -141,6 +141,29 @@ int __init coherency_init(void)
 {
 	struct device_node *np;
 
+	/*
+	 * The coherency fabric is needed:
+	 * - For coherency between processors on Armada XP, so only
+	 *   when SMP is enabled.
+	 * - For coherency between the processor and I/O devices, but
+	 *   this coherency requires many pre-requisites (write
+	 *   allocate cache policy, shareable pages, SMP bit set) that
+	 *   are only meant in SMP situations.
+	 *
+	 * Note that this means that on Armada 370, there is currently
+	 * no way to use hardware I/O coherency, because even when
+	 * CONFIG_SMP is enabled, is_smp() returns false due to the
+	 * Armada 370 being a single-core processor. To lift this
+	 * limitation, we would have to find a way to make the cache
+	 * policy set to write-allocate (on all Armada SoCs), and to
+	 * set the shareable attribute in page tables (on all Armada
+	 * SoCs except the Armada 370). Unfortunately, such decisions
+	 * are taken very early in the kernel boot process, at a point
+	 * where we don't know yet on which SoC we are running.
+	 */
+	if (!is_smp())
+		return 0;
+
 	np = of_find_matching_node(NULL, of_coherency_table);
 	if (np) {
 		pr_info("Initializing Coherency fabric\n");
