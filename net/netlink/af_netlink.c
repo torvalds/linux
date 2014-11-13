@@ -115,7 +115,7 @@ DEFINE_MUTEX(nl_sk_hash_lock);
 EXPORT_SYMBOL_GPL(nl_sk_hash_lock);
 
 #ifdef CONFIG_PROVE_LOCKING
-static int lockdep_nl_sk_hash_is_held(void)
+static int lockdep_nl_sk_hash_is_held(void *parent)
 {
 	if (debug_locks)
 		return lockdep_is_held(&nl_sk_hash_lock) || lockdep_is_held(&nl_table_lock);

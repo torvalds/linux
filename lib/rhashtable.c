@@ -32,7 +32,7 @@
 #ifdef CONFIG_PROVE_LOCKING
 int lockdep_rht_mutex_is_held(const struct rhashtable *ht)
 {
-	return ht->p.mutex_is_held();
+	return ht->p.mutex_is_held(ht->p.parent);
 }
 EXPORT_SYMBOL_GPL(lockdep_rht_mutex_is_held);
 #endif
@@ -618,7 +618,7 @@ EXPORT_SYMBOL_GPL(rhashtable_destroy);
 #define TEST_NEXPANDS	4
 
 #ifdef CONFIG_PROVE_LOCKING
-static int test_mutex_is_held(void)
+static int test_mutex_is_held(void *parent)
 {
 	return 1;
 }

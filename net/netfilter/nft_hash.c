@@ -154,7 +154,7 @@ static unsigned int nft_hash_privsize(const struct nlattr * const nla[])
 }
 
 #ifdef CONFIG_PROVE_LOCKING
-static int lockdep_nfnl_lock_is_held(void)
+static int lockdep_nfnl_lock_is_held(void *parent)
 {
 	return lockdep_nfnl_is_held(NFNL_SUBSYS_NFTABLES);
 }
