@@ -232,6 +232,17 @@ struct intel_dpll_hw_state {
 
 	/* hsw, bdw */
 	uint32_t wrpll;
+
+	/* skl */
+	/*
+	 * DPLL_CTRL1 has 6 bits for each each this DPLL. We store those in
+	 * lower part of crtl1 and they get shifted into position when writing
+	 * the register.  This allows us to easily compare the state to share
+	 * the DPLL.
+	 */
+	uint32_t ctrl1;
+	/* HDMI only, 0 when used for DP */
+	uint32_t cfgcr1, cfgcr2;
 };
 
 struct intel_shared_dpll_config {

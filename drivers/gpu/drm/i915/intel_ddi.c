@@ -1521,12 +1521,136 @@ static void hsw_shared_dplls_init(struct drm_i915_private *dev_priv)
 	}
 }
 
+static const char * const skl_ddi_pll_names[] = {
+	"DPLL 1",
+	"DPLL 2",
+	"DPLL 3",
+};
+
+struct skl_dpll_regs {
+	u32 ctl, cfgcr1, cfgcr2;
+};
+
+/* this array is indexed by the *shared* pll id */
+static const struct skl_dpll_regs skl_dpll_regs[3] = {
+	{
+		/* DPLL 1 */
+		.ctl = LCPLL2_CTL,
+		.cfgcr1 = DPLL1_CFGCR1,
+		.cfgcr2 = DPLL1_CFGCR2,
+	},
+	{
+		/* DPLL 2 */
+		.ctl = WRPLL_CTL1,
+		.cfgcr1 = DPLL2_CFGCR1,
+		.cfgcr2 = DPLL2_CFGCR2,
+	},
+	{
+		/* DPLL 3 */
+		.ctl = WRPLL_CTL2,
+		.cfgcr1 = DPLL3_CFGCR1,
+		.cfgcr2 = DPLL3_CFGCR2,
+	},
+};
+
+static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
+			       struct intel_shared_dpll *pll)
+{
+	uint32_t val;
+	unsigned int dpll;
+	const struct skl_dpll_regs *regs = skl_dpll_regs;
+
+	/* DPLL0 is not part of the shared DPLLs, so pll->id is 0 for DPLL1 */
+	dpll = pll->id + 1;
+
+	val = I915_READ(DPLL_CTRL1);
+
+	val &= ~(DPLL_CTRL1_HDMI_MODE(dpll) | DPLL_CTRL1_SSC(dpll) |
+		 DPLL_CRTL1_LINK_RATE_MASK(dpll));
+	val |= pll->config.hw_state.ctrl1 << (dpll * 6);
+
+	I915_WRITE(DPLL_CTRL1, val);
+	POSTING_READ(DPLL_CTRL1);
+
+	I915_WRITE(regs[pll->id].cfgcr1, pll->config.hw_state.cfgcr1);
+	I915_WRITE(regs[pll->id].cfgcr2, pll->config.hw_state.cfgcr2);
+	POSTING_READ(regs[pll->id].cfgcr1);
+	POSTING_READ(regs[pll->id].cfgcr2);
+
+	/* the enable bit is always bit 31 */
+	I915_WRITE(regs[pll->id].ctl,
+		   I915_READ(regs[pll->id].ctl) | LCPLL_PLL_ENABLE);
+
+	if (wait_for(I915_READ(DPLL_STATUS) & DPLL_LOCK(dpll), 5))
+		DRM_ERROR("DPLL %d not locked\n", dpll);
+}
+
+static void skl_ddi_pll_disable(struct drm_i915_private *dev_priv,
+				struct intel_shared_dpll *pll)
+{
+	const struct skl_dpll_regs *regs = skl_dpll_regs;
+
+	/* the enable bit is always bit 31 */
+	I915_WRITE(regs[pll->id].ctl,
+		   I915_READ(regs[pll->id].ctl) & ~LCPLL_PLL_ENABLE);
+	POSTING_READ(regs[pll->id].ctl);
+}
+
+static bool skl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
+				     struct intel_shared_dpll *pll,
+				     struct intel_dpll_hw_state *hw_state)
+{
+	uint32_t val;
+	unsigned int dpll;
+	const struct skl_dpll_regs *regs = skl_dpll_regs;
+
+	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PLLS))
+		return false;
+
+	/* DPLL0 is not part of the shared DPLLs, so pll->id is 0 for DPLL1 */
+	dpll = pll->id + 1;
+
+	val = I915_READ(regs[pll->id].ctl);
+	if (!(val & LCPLL_PLL_ENABLE))
+		return false;
+
+	val = I915_READ(DPLL_CTRL1);
+	hw_state->ctrl1 = (val >> (dpll * 6)) & 0x3f;
+
+	/* avoid reading back stale values if HDMI mode is not enabled */
+	if (val & DPLL_CTRL1_HDMI_MODE(dpll)) {
+		hw_state->cfgcr1 = I915_READ(regs[pll->id].cfgcr1);
+		hw_state->cfgcr2 = I915_READ(regs[pll->id].cfgcr2);
+	}
+
+	return true;
+}
+
+static void skl_shared_dplls_init(struct drm_i915_private *dev_priv)
+{
+	int i;
+
+	dev_priv->num_shared_dpll = 3;
+
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		dev_priv->shared_dplls[i].id = i;
+		dev_priv->shared_dplls[i].name = skl_ddi_pll_names[i];
+		dev_priv->shared_dplls[i].disable = skl_ddi_pll_disable;
+		dev_priv->shared_dplls[i].enable = skl_ddi_pll_enable;
+		dev_priv->shared_dplls[i].get_hw_state =
+			skl_ddi_pll_get_hw_state;
+	}
+}
+
 void intel_ddi_pll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t val = I915_READ(LCPLL_CTL);
 
-	hsw_shared_dplls_init(dev_priv);
+	if (IS_SKYLAKE(dev))
+		skl_shared_dplls_init(dev_priv);
+	else
+		hsw_shared_dplls_init(dev_priv);
 
 	DRM_DEBUG_KMS("CDCLK running at %dKHz\n",
 		      intel_ddi_get_cdclk_freq(dev_priv));
