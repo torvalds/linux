@@ -20,55 +20,28 @@
 #include "kernel_ver.h"
 
 /* Module fields */
-#define gb_module_attr(field)						\
+#define gb_module_attr(field, type)					\
 static ssize_t module_##field##_show(struct device *dev,		\
 				     struct device_attribute *attr,	\
 				     char *buf)				\
 {									\
 	struct gb_module *gmod = to_gb_module(dev);			\
-	return sprintf(buf, "%x\n", gmod->field);			\
+	return sprintf(buf, "%"#type"\n", gmod->field);			\
 }									\
 static DEVICE_ATTR_RO(module_##field)
 
-gb_module_attr(vendor);
-gb_module_attr(product);
-gb_module_attr(version);
-
-static ssize_t module_serial_number_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	struct gb_module *gmod = to_gb_module(dev);
-
-	return sprintf(buf, "%llX\n", (unsigned long long)gmod->unique_id);
-}
-static DEVICE_ATTR_RO(module_serial_number);
-
-static ssize_t module_vendor_string_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	struct gb_module *gmod = to_gb_module(dev);
-
-	return sprintf(buf, "%s", gmod->vendor_string);
-}
-static DEVICE_ATTR_RO(module_vendor_string);
-
-static ssize_t module_product_string_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	struct gb_module *gmod = to_gb_module(dev);
-
-	return sprintf(buf, "%s", gmod->product_string);
-}
-static DEVICE_ATTR_RO(module_product_string);
+gb_module_attr(vendor, x);
+gb_module_attr(product, x);
+gb_module_attr(version, x);
+gb_module_attr(unique_id, llX);
+gb_module_attr(vendor_string, s);
+gb_module_attr(product_string, s);
 
 static struct attribute *module_attrs[] = {
 	&dev_attr_module_vendor.attr,
 	&dev_attr_module_product.attr,
 	&dev_attr_module_version.attr,
-	&dev_attr_module_serial_number.attr,
+	&dev_attr_module_unique_id.attr,
 	&dev_attr_module_vendor_string.attr,
 	&dev_attr_module_product_string.attr,
 	NULL,
