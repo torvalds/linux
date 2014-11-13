@@ -24,6 +24,23 @@ struct rockchip_gem_object {
 	void *kvaddr;
 	dma_addr_t dma_addr;
 	struct dma_attrs dma_attrs;
+
+#ifdef CONFIG_DRM_DMA_SYNC
+	struct fence *acquire_fence;
+	atomic_t acquire_shared_count;
+	bool acquire_exclusive;
+#endif
+};
+
+/*
+ * rockchip drm GEM object linked list structure.
+ *
+ * @list: list link.
+ * @rockchip_gem_obj: struct rockchhip_gem_object that this entry points to.
+ */
+struct rockchip_gem_object_node {
+	struct list_head		list;
+	struct rockchip_gem_object	*rockchip_gem_obj;
 };
 
 struct sg_table *rockchip_gem_prime_get_sg_table(struct drm_gem_object *obj);
@@ -52,8 +69,6 @@ int rockchip_gem_dumb_create(struct drm_file *file_priv,
 int rockchip_gem_dumb_map_offset(struct drm_file *file_priv,
 				 struct drm_device *dev, uint32_t handle,
 				 uint64_t *offset);
-int rockchip_gem_map_offset_ioctl(struct drm_device *drm, void *data,
-				  struct drm_file *file_priv);
 /*
  * request gem object creation and buffer allocation as the size
  * that it is calculated with framebuffer information such as width,
@@ -65,5 +80,16 @@ int rockchip_gem_create_ioctl(struct drm_device *dev, void *data,
 /* get buffer offset to map to user space. */
 int rockchip_gem_map_offset_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
+
+/*
+ * acquire gem object for CPU access.
+ */
+int rockchip_gem_cpu_acquire_ioctl(struct drm_device *dev, void* data,
+				   struct drm_file *file_priv);
+/*
+ * release gem object after CPU access.
+ */
+int rockchip_gem_cpu_release_ioctl(struct drm_device *dev, void* data,
+				   struct drm_file *file_priv);
 
 #endif /* _ROCKCHIP_DRM_GEM_H */

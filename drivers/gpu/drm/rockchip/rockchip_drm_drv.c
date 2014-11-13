@@ -19,11 +19,13 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_sync_helper.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
+#include <linux/fence.h>
 
 #include <drm/rockchip_drm.h>
 
@@ -157,6 +159,11 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 	INIT_WORK(&private->commit.work, rockchip_drm_atomic_work);
 
 	drm_dev->dev_private = private;
+
+#ifdef CONFIG_DRM_DMA_SYNC
+	private->cpu_fence_context = fence_context_alloc(1);
+	atomic_set(&private->cpu_fence_seqno, 0);
+#endif
 
 	drm_mode_config_init(drm_dev);
 
@@ -300,13 +307,51 @@ static void rockchip_drm_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
 		priv->crtc_funcs[pipe]->cancel_pending_vblank(crtc, file_priv);
 }
 
+static int rockchip_drm_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct rockchip_drm_file_private *file_priv;
+
+	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
+	if (!file_priv)
+		return -ENOMEM;
+	INIT_LIST_HEAD(&file_priv->gem_cpu_acquire_list);
+
+	file->driver_priv = file_priv;
+
+	return 0;
+}
+
 static void rockchip_drm_preclose(struct drm_device *dev,
 				  struct drm_file *file_priv)
 {
+	struct rockchip_drm_file_private *file_private = file_priv->driver_priv;
+	struct rockchip_gem_object_node *cur, *d;
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		rockchip_drm_crtc_cancel_pending_vblank(crtc, file_priv);
+
+	mutex_lock(&dev->struct_mutex);
+	list_for_each_entry_safe(cur, d,
+			&file_private->gem_cpu_acquire_list, list) {
+#ifdef CONFIG_DRM_DMA_SYNC
+		BUG_ON(!cur->rockchip_gem_obj->acquire_fence);
+		drm_fence_signal_and_put(&cur->rockchip_gem_obj->acquire_fence);
+#endif
+		drm_gem_object_unreference(&cur->rockchip_gem_obj->base);
+		kfree(cur);
+	}
+	/* since we are deleting the whole list, just initialize the header
+	 * instead of calling list_del for every element
+	 */
+	INIT_LIST_HEAD(&file_private->gem_cpu_acquire_list);
+	mutex_unlock(&dev->struct_mutex);
+}
+
+static void rockchip_drm_postclose(struct drm_device *dev, struct drm_file *file)
+{
+	kfree(file->driver_priv);
+	file->driver_priv = NULL;
 }
 
 void rockchip_drm_lastclose(struct drm_device *dev)
@@ -321,6 +366,12 @@ static const struct drm_ioctl_desc rockchip_ioctls[] = {
 			  DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_MAP_OFFSET,
 			  rockchip_gem_map_offset_ioctl,
+			  DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_CPU_ACQUIRE,
+			  rockchip_gem_cpu_acquire_ioctl,
+			  DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_CPU_RELEASE,
+			  rockchip_gem_cpu_release_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH),
 };
 
@@ -350,6 +401,8 @@ static struct drm_driver rockchip_drm_driver = {
 	.preclose		= rockchip_drm_preclose,
 	.lastclose		= rockchip_drm_lastclose,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
+	.open			= rockchip_drm_open,
+	.postclose		= rockchip_drm_postclose,
 	.enable_vblank		= rockchip_drm_crtc_enable_vblank,
 	.disable_vblank		= rockchip_drm_crtc_disable_vblank,
 	.gem_vm_ops		= &rockchip_drm_vm_ops,
