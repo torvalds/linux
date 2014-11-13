@@ -532,7 +532,9 @@ static size_t rounded_hashtable_size(struct rhashtable_params *params)
  *	.key_offset = offsetof(struct test_obj, key),
  *	.key_len = sizeof(int),
  *	.hashfn = arch_fast_hash,
+ * #ifdef CONFIG_PROVE_LOCKING
  *	.mutex_is_held = &my_mutex_is_held,
+ * #endif
  * };
  *
  * Configuration Example 2: Variable length keys
@@ -552,7 +554,9 @@ static size_t rounded_hashtable_size(struct rhashtable_params *params)
  *	.head_offset = offsetof(struct test_obj, node),
  *	.hashfn = arch_fast_hash,
  *	.obj_hashfn = my_hash_fn,
+ * #ifdef CONFIG_PROVE_LOCKING
  *	.mutex_is_held = &my_mutex_is_held,
+ * #endif
  * };
  */
 int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
@@ -613,10 +617,12 @@ EXPORT_SYMBOL_GPL(rhashtable_destroy);
 #define TEST_PTR	((void *) 0xdeadbeef)
 #define TEST_NEXPANDS	4
 
+#ifdef CONFIG_PROVE_LOCKING
 static int test_mutex_is_held(void)
 {
 	return 1;
 }
+#endif
 
 struct test_obj {
 	void			*ptr;
@@ -767,7 +773,9 @@ static int __init test_rht_init(void)
 		.key_offset = offsetof(struct test_obj, value),
 		.key_len = sizeof(int),
 		.hashfn = arch_fast_hash,
+#ifdef CONFIG_PROVE_LOCKING
 		.mutex_is_held = &test_mutex_is_held,
+#endif
 		.grow_decision = rht_grow_above_75,
 		.shrink_decision = rht_shrink_below_30,
 	};

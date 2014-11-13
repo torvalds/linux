@@ -65,7 +65,9 @@ struct rhashtable_params {
 						 size_t new_size);
 	bool			(*shrink_decision)(const struct rhashtable *ht,
 						   size_t new_size);
+#ifdef CONFIG_PROVE_LOCKING
 	int			(*mutex_is_held)(void);
+#endif
 };
 
 /**
