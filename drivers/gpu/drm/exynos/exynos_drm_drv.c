@@ -547,85 +547,74 @@ static const struct component_master_ops exynos_drm_ops = {
 	.unbind		= exynos_drm_unbind,
 };
 
+static struct platform_driver *const exynos_drm_kms_drivers[] = {
+#ifdef CONFIG_DRM_EXYNOS_FIMD
+	&fimd_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_DP
+	&dp_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_DSI
+	&dsi_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_HDMI
+	&mixer_driver,
+	&hdmi_driver,
+#endif
+};
+
+static struct platform_driver *const exynos_drm_non_kms_drivers[] = {
+#ifdef CONFIG_DRM_EXYNOS_G2D
+	&g2d_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_FIMC
+	&fimc_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_ROTATOR
+	&rotator_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_GSC
+	&gsc_driver,
+#endif
+#ifdef CONFIG_DRM_EXYNOS_IPP
+	&ipp_driver,
+#endif
+};
+
 static int exynos_drm_platform_probe(struct platform_device *pdev)
 {
 	struct component_match *match;
-	int ret;
+	int ret, i, j;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	exynos_drm_driver.num_ioctls = ARRAY_SIZE(exynos_ioctls);
 
-#ifdef CONFIG_DRM_EXYNOS_FIMD
-	ret = platform_driver_register(&fimd_driver);
-	if (ret < 0)
-		return ret;
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_DP
-	ret = platform_driver_register(&dp_driver);
-	if (ret < 0)
-		goto err_unregister_fimd_drv;
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_DSI
-	ret = platform_driver_register(&dsi_driver);
-	if (ret < 0)
-		goto err_unregister_dp_drv;
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_HDMI
-	ret = platform_driver_register(&mixer_driver);
-	if (ret < 0)
-		goto err_unregister_dsi_drv;
-	ret = platform_driver_register(&hdmi_driver);
-	if (ret < 0)
-		goto err_unregister_mixer_drv;
-#endif
+	for (i = 0; i < ARRAY_SIZE(exynos_drm_kms_drivers); ++i) {
+		ret = platform_driver_register(exynos_drm_kms_drivers[i]);
+		if (ret < 0)
+			goto err_unregister_kms_drivers;
+	}
 
 	match = exynos_drm_match_add(&pdev->dev);
 	if (IS_ERR(match)) {
 		ret = PTR_ERR(match);
-		goto err_unregister_hdmi_drv;
+		goto err_unregister_kms_drivers;
 	}
 
 	ret = component_master_add_with_match(&pdev->dev, &exynos_drm_ops,
 						match);
 	if (ret < 0)
-		goto err_unregister_hdmi_drv;
+		goto err_unregister_kms_drivers;
 
-#ifdef CONFIG_DRM_EXYNOS_G2D
-	ret = platform_driver_register(&g2d_driver);
-	if (ret < 0)
-		goto err_del_component_master;
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_FIMC
-	ret = platform_driver_register(&fimc_driver);
-	if (ret < 0)
-		goto err_unregister_g2d_drv;
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_ROTATOR
-	ret = platform_driver_register(&rotator_driver);
-	if (ret < 0)
-		goto err_unregister_fimc_drv;
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_GSC
-	ret = platform_driver_register(&gsc_driver);
-	if (ret < 0)
-		goto err_unregister_rotator_drv;
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_IPP
-	ret = platform_driver_register(&ipp_driver);
-	if (ret < 0)
-		goto err_unregister_gsc_drv;
+	for (j = 0; j < ARRAY_SIZE(exynos_drm_non_kms_drivers); ++j) {
+		ret = platform_driver_register(exynos_drm_non_kms_drivers[j]);
+		if (ret < 0)
+			goto err_del_component_master;
+	}
 
 	ret = exynos_platform_device_ipp_register();
 	if (ret < 0)
-		goto err_unregister_ipp_drv;
-#endif
+		goto err_unregister_non_kms_drivers;
 
 	/* Probe non kms sub drivers and virtual display driver. */
 	ret = exynos_drm_device_subdrv_probe(platform_get_drvdata(pdev));
@@ -637,98 +626,39 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 err_unregister_resources:
 #ifdef CONFIG_DRM_EXYNOS_IPP
 	exynos_platform_device_ipp_unregister();
-err_unregister_ipp_drv:
-	platform_driver_unregister(&ipp_driver);
-err_unregister_gsc_drv:
 #endif
+err_unregister_non_kms_drivers:
+	while (--j >= 0)
+		platform_driver_unregister(exynos_drm_non_kms_drivers[j]);
 
-#ifdef CONFIG_DRM_EXYNOS_GSC
-	platform_driver_unregister(&gsc_driver);
-err_unregister_rotator_drv:
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_ROTATOR
-	platform_driver_unregister(&rotator_driver);
-err_unregister_fimc_drv:
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_FIMC
-	platform_driver_unregister(&fimc_driver);
-err_unregister_g2d_drv:
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_G2D
-	platform_driver_unregister(&g2d_driver);
 err_del_component_master:
-#endif
 	component_master_del(&pdev->dev, &exynos_drm_ops);
 
-err_unregister_hdmi_drv:
-#ifdef CONFIG_DRM_EXYNOS_HDMI
-	platform_driver_unregister(&hdmi_driver);
-err_unregister_mixer_drv:
-	platform_driver_unregister(&mixer_driver);
-err_unregister_dsi_drv:
-#endif
+err_unregister_kms_drivers:
+	while (--i >= 0)
+		platform_driver_unregister(exynos_drm_kms_drivers[i]);
 
-#ifdef CONFIG_DRM_EXYNOS_DSI
-	platform_driver_unregister(&dsi_driver);
-err_unregister_dp_drv:
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_DP
-	platform_driver_unregister(&dp_driver);
-err_unregister_fimd_drv:
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_FIMD
-	platform_driver_unregister(&fimd_driver);
-#endif
 	return ret;
 }
 
 static int exynos_drm_platform_remove(struct platform_device *pdev)
 {
+	int i;
+
 	exynos_drm_device_subdrv_remove(platform_get_drvdata(pdev));
 
 #ifdef CONFIG_DRM_EXYNOS_IPP
 	exynos_platform_device_ipp_unregister();
-	platform_driver_unregister(&ipp_driver);
 #endif
 
-#ifdef CONFIG_DRM_EXYNOS_GSC
-	platform_driver_unregister(&gsc_driver);
-#endif
+	for (i = ARRAY_SIZE(exynos_drm_non_kms_drivers) - 1; i >= 0; --i)
+		platform_driver_unregister(exynos_drm_non_kms_drivers[i]);
 
-#ifdef CONFIG_DRM_EXYNOS_ROTATOR
-	platform_driver_unregister(&rotator_driver);
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_FIMC
-	platform_driver_unregister(&fimc_driver);
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_G2D
-	platform_driver_unregister(&g2d_driver);
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_HDMI
-	platform_driver_unregister(&mixer_driver);
-	platform_driver_unregister(&hdmi_driver);
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_FIMD
-	platform_driver_unregister(&fimd_driver);
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_DSI
-	platform_driver_unregister(&dsi_driver);
-#endif
-
-#ifdef CONFIG_DRM_EXYNOS_DP
-	platform_driver_unregister(&dp_driver);
-#endif
 	component_master_del(&pdev->dev, &exynos_drm_ops);
+
+	for (i = ARRAY_SIZE(exynos_drm_kms_drivers) - 1; i >= 0; --i)
+		platform_driver_unregister(exynos_drm_kms_drivers[i]);
+
 	return 0;
 }
 
@@ -763,11 +693,9 @@ static int exynos_drm_init(void)
 	if (IS_ERR(exynos_drm_pdev))
 		return PTR_ERR(exynos_drm_pdev);
 
-#ifdef CONFIG_DRM_EXYNOS_VIDI
 	ret = exynos_drm_probe_vidi();
 	if (ret < 0)
 		goto err_unregister_pd;
-#endif
 
 	ret = platform_driver_register(&exynos_drm_platform_driver);
 	if (ret)
@@ -776,11 +704,9 @@ static int exynos_drm_init(void)
 	return 0;
 
 err_remove_vidi:
-#ifdef CONFIG_DRM_EXYNOS_VIDI
 	exynos_drm_remove_vidi();
 
 err_unregister_pd:
-#endif
 	platform_device_unregister(exynos_drm_pdev);
 
 	return ret;
@@ -789,9 +715,9 @@ err_unregister_pd:
 static void exynos_drm_exit(void)
 {
 	platform_driver_unregister(&exynos_drm_platform_driver);
-#ifdef CONFIG_DRM_EXYNOS_VIDI
+
 	exynos_drm_remove_vidi();
-#endif
+
 	platform_device_unregister(exynos_drm_pdev);
 }
 

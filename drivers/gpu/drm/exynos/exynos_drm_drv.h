@@ -323,15 +323,14 @@ int exynos_platform_device_hdmi_register(void);
  */
 void exynos_platform_device_hdmi_unregister(void);
 
-/*
- * this function registers exynos drm ipp platform device.
- */
+#ifdef CONFIG_DRM_EXYNOS_IPP
 int exynos_platform_device_ipp_register(void);
-
-/*
- * this function unregisters exynos drm ipp platform device if it exists.
- */
 void exynos_platform_device_ipp_unregister(void);
+#else
+static inline int exynos_platform_device_ipp_register(void) { return 0; }
+static inline void exynos_platform_device_ipp_unregister(void) {}
+#endif
+
 
 #ifdef CONFIG_DRM_EXYNOS_DPI
 struct exynos_drm_display * exynos_dpi_probe(struct device *dev);
@@ -342,15 +341,13 @@ exynos_dpi_probe(struct device *dev) { return NULL; }
 static inline int exynos_dpi_remove(struct device *dev) { return 0; }
 #endif
 
-/*
- * this function registers exynos drm vidi platform device/driver.
- */
+#ifdef CONFIG_DRM_EXYNOS_VIDI
 int exynos_drm_probe_vidi(void);
-
-/*
- * this function unregister exynos drm vidi platform device/driver.
- */
 void exynos_drm_remove_vidi(void);
+#else
+static inline int exynos_drm_probe_vidi(void) { return 0; }
+static inline void exynos_drm_remove_vidi(void) {}
+#endif
 
 /* This function creates a encoder and a connector, and initializes them. */
 int exynos_drm_create_enc_conn(struct drm_device *dev,
