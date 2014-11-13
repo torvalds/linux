@@ -709,6 +709,7 @@ static bool call_range_handler(struct kvm_vcpu *vcpu,
 
 	mmio32.len = 4;
 	mmio32.is_write = mmio->is_write;
+	mmio32.private = mmio->private;
 
 	mmio32.phys_addr = mmio->phys_addr + 4;
 	if (mmio->is_write)
