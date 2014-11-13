@@ -136,6 +136,8 @@ static inline int i40e_aq_rc_to_posix(u16 aq_rc)
 		-EFBIG,      /* I40E_AQ_RC_EFBIG */
 	};
 
+	if (aq_rc >= ARRAY_SIZE(aq_to_posix))
+		return -ERANGE;
 	return aq_to_posix[aq_rc];
 }
 
