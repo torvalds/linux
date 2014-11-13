@@ -55,6 +55,7 @@ static int stale_bundle(struct dst_entry *dst);
 static int xfrm_bundle_ok(struct xfrm_dst *xdst);
 static void xfrm_policy_queue_process(unsigned long arg);
 
+static void __xfrm_policy_link(struct xfrm_policy *pol, int dir);
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 						int dir);
 
@@ -779,8 +780,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 		hlist_add_behind(&policy->bydst, newpos);
 	else
 		hlist_add_head(&policy->bydst, chain);
-	xfrm_pol_hold(policy);
-	net->xfrm.policy_count[dir]++;
+	__xfrm_policy_link(policy, dir);
 	atomic_inc(&net->xfrm.flow_cache_genid);
 
 	/* After previous checking, family can either be AF_INET or AF_INET6 */
@@ -799,7 +799,6 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	policy->curlft.use_time = 0;
 	if (!mod_timer(&policy->timer, jiffies + HZ))
 		xfrm_pol_hold(policy);
-	list_add(&policy->walk.all, &net->xfrm.policy_all);
 	write_unlock_bh(&net->xfrm.xfrm_policy_lock);
 
 	if (delpol)
