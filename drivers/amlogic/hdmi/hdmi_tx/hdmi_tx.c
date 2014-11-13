@@ -205,6 +205,9 @@ return value: 1, vout; 2, vout2;
 const vinfo_t * hdmi_get_current_vinfo(void)
 {
     const vinfo_t *info;
+    int count = 5;
+
+retry:
 #ifdef CONFIG_AM_TV_OUTPUT2
     if(get_cur_vout_index() == 2){
         info = get_current_vinfo2();
@@ -218,6 +221,12 @@ const vinfo_t * hdmi_get_current_vinfo(void)
 #else
     info = get_current_vinfo();
 #endif
+
+    if ((info == NULL) && (--count > 0)) {
+        msleep(500);
+        goto retry;
+    }
+
     return info;
 }
 
