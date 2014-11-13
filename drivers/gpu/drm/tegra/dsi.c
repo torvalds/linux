@@ -804,10 +804,10 @@ static int tegra_dsi_host_detach(struct mipi_dsi_host *host,
 	struct tegra_output *output = &dsi->output;
 
 	if (output->panel && &device->dev == output->panel->dev) {
+		output->panel = NULL;
+
 		if (output->connector.dev)
 			drm_helper_hpd_irq_event(output->connector.dev);
-
-		output->panel = NULL;
 	}
 
 	return 0;
@@ -835,6 +835,8 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	err = tegra_output_probe(&dsi->output);
 	if (err < 0)
 		return err;
+
+	dsi->output.connector.polled = DRM_CONNECTOR_POLL_HPD;
 
 	/*
 	 * Assume these values by default. When a DSI peripheral driver
