@@ -1510,9 +1510,6 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		l2cap_chan_set_defaults(chan);
 	}
 
-	/* Set default lock nesting level */
-	atomic_set(&chan->nesting, L2CAP_NESTING_NORMAL);
-
 	/* Default config options */
 	chan->flush_to = L2CAP_DEFAULT_FLUSH_TO;
 
