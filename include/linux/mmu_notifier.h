@@ -98,11 +98,11 @@ struct mmu_notifier_ops {
 	/*
 	 * invalidate_range_start() and invalidate_range_end() must be
 	 * paired and are called only when the mmap_sem and/or the
-	 * locks protecting the reverse maps are held. The subsystem
-	 * must guarantee that no additional references are taken to
-	 * the pages in the range established between the call to
-	 * invalidate_range_start() and the matching call to
-	 * invalidate_range_end().
+	 * locks protecting the reverse maps are held. If the subsystem
+	 * can't guarantee that no additional references are taken to
+	 * the pages in the range, it has to implement the
+	 * invalidate_range() notifier to remove any references taken
+	 * after invalidate_range_start().
 	 *
 	 * Invalidation of multiple concurrent ranges may be
 	 * optionally permitted by the driver. Either way the
@@ -144,6 +144,29 @@ struct mmu_notifier_ops {
 	void (*invalidate_range_end)(struct mmu_notifier *mn,
 				     struct mm_struct *mm,
 				     unsigned long start, unsigned long end);
+
+	/*
+	 * invalidate_range() is either called between
+	 * invalidate_range_start() and invalidate_range_end() when the
+	 * VM has to free pages that where unmapped, but before the
+	 * pages are actually freed, or outside of _start()/_end() when
+	 * a (remote) TLB is necessary.
+	 *
+	 * If invalidate_range() is used to manage a non-CPU TLB with
+	 * shared page-tables, it not necessary to implement the
+	 * invalidate_range_start()/end() notifiers, as
+	 * invalidate_range() alread catches the points in time when an
+	 * external TLB range needs to be flushed.
+	 *
+	 * The invalidate_range() function is called under the ptl
+	 * spin-lock and not allowed to sleep.
+	 *
+	 * Note that this function might be called with just a sub-range
+	 * of what was passed to invalidate_range_start()/end(), if
+	 * called between those functions.
+	 */
+	void (*invalidate_range)(struct mmu_notifier *mn, struct mm_struct *mm,
+				 unsigned long start, unsigned long end);
 };
 
 /*
@@ -189,6 +212,8 @@ extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
 extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
 				  unsigned long start, unsigned long end);
 extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+				  unsigned long start, unsigned long end);
+extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 				  unsigned long start, unsigned long end);
 
 static inline void mmu_notifier_release(struct mm_struct *mm)
@@ -245,6 +270,8 @@ static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
 static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
 				  unsigned long start, unsigned long end)
 {
+	if (mm_has_notifiers(mm))
+		__mmu_notifier_invalidate_range(mm, start, end);
 }
 
 static inline void mmu_notifier_mm_init(struct mm_struct *mm)
