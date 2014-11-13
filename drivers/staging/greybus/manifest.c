@@ -328,7 +328,7 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 	struct manifest_desc *module_desc = NULL;
 	u16 manifest_size;
 	u32 found = 0;
-	bool result = false;
+	bool result;
 
 	/* we have to have at _least_ the manifest header */
 	if (size <= sizeof(manifest->header)) {
