@@ -1503,7 +1503,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 		intel_dp_start_link_train(intel_dp);
 		intel_dp_complete_link_train(intel_dp);
-		if (port != PORT_A)
+		if (port != PORT_A || INTEL_INFO(dev)->gen >= 9)
 			intel_dp_stop_link_train(intel_dp);
 	} else if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
@@ -1577,7 +1577,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 	} else if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		if (port == PORT_A)
+		if (port == PORT_A && INTEL_INFO(dev)->gen < 9)
 			intel_dp_stop_link_train(intel_dp);
 
 		intel_edp_backlight_on(intel_dp);
