@@ -1,9 +1,11 @@
+.*
 *.cmd
 *.ko
 *.mod.c
 modules.order
 Module.symvers
 *.o
+*.o.*
 *.swp
 .tmp_versions
 tags
