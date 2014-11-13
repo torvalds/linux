@@ -219,7 +219,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		/* Write temperature code for threshold */
 		threshold_code = temp_to_code(data, pdata->threshold);
 		writeb(threshold_code,
-			data->base + reg->threshold_temp);
+			data->base + EXYNOS4210_TMU_REG_THRESHOLD_TEMP);
 		for (i = 0; i < pdata->non_hw_trigger_levels; i++)
 			writeb(pdata->trigger_levels[i], data->base +
 			reg->threshold_th0 + i * sizeof(reg->threshold_th0));

@@ -84,7 +84,6 @@ enum soc_type {
  * @therm_trip_mode_mask: mask bits of tripping mode in tmu_ctrl register.
  * @therm_trip_en_shift: shift bits of tripping enable in tmu_ctrl register.
  * @tmu_cur_temp: register containing the current temperature of the TMU.
- * @threshold_temp: register containing the base threshold level.
  * @threshold_th0: Register containing first set of rising levels.
  * @threshold_th1: Register containing second set of rising levels.
  * @threshold_th2: Register containing third set of rising levels.
@@ -115,8 +114,6 @@ struct exynos_tmu_registers {
 	u32	therm_trip_en_shift;
 
 	u32	tmu_cur_temp;
-
-	u32	threshold_temp;
 
 	u32	threshold_th0;
 	u32	threshold_th1;
