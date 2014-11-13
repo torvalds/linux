@@ -402,7 +402,6 @@ static const struct exynos_tmu_registers exynos5440_tmu_registers = {
 	.tmu_intstat = EXYNOS5440_TMU_S0_7_IRQ,
 	.tmu_intclear = EXYNOS5440_TMU_S0_7_IRQ,
 	.emul_con = EXYNOS5440_TMU_S0_7_DEBUG,
-	.tmu_pmin = EXYNOS5440_TMU_PMIN,
 };
 
 #define EXYNOS5440_TMU_DATA \

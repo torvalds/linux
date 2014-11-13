@@ -271,8 +271,8 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		}
 	}
 	/*Clear the PMIN in the common TMU register*/
-	if (reg->tmu_pmin && !data->id)
-		writel(0, data->base_second + reg->tmu_pmin);
+	if (data->soc == SOC_ARCH_EXYNOS5440 && !data->id)
+		writel(0, data->base_second + EXYNOS5440_TMU_PMIN);
 out:
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
