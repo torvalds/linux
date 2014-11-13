@@ -25,6 +25,9 @@
 #define DRIVER_MINOR		0
 #define DRIVER_PATCHLEVEL	1
 
+#define UDL_BO_CACHEABLE		(1 << 0)
+#define UDL_BO_WC		(1 << 1)
+
 struct udl_device;
 
 struct urb_node {
@@ -69,6 +72,7 @@ struct udl_gem_object {
 	struct page **pages;
 	void *vmapping;
 	struct sg_table *sg;
+	unsigned int flags;
 };
 
 #define to_udl_bo(x) container_of(x, struct udl_gem_object, base)
