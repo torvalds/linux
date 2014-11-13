@@ -758,30 +758,37 @@ static void eeh_reset_pe_once(struct eeh_pe *pe)
 int eeh_reset_pe(struct eeh_pe *pe)
 {
 	int flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
-	int i, rc;
+	int i, state, ret;
 
 	/* Take three shots at resetting the bus */
-	for (i=0; i<3; i++) {
+	for (i = 0; i < 3; i++) {
 		eeh_reset_pe_once(pe);
 
 		/*
 		 * EEH_PE_ISOLATED is expected to be removed after
 		 * BAR restore.
 		 */
-		rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-		if ((rc & flags) == flags)
-			return 0;
-
-		if (rc < 0) {
-			pr_err("%s: Unrecoverable slot failure on PHB#%d-PE#%x",
-				__func__, pe->phb->global_number, pe->addr);
-			return -1;
+		state = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
+		if ((state & flags) == flags) {
+			ret = 0;
+			goto out;
 		}
-		pr_err("EEH: bus reset %d failed on PHB#%d-PE#%x, rc=%d\n",
-			i+1, pe->phb->global_number, pe->addr, rc);
+
+		if (state < 0) {
+			pr_warn("%s: Unrecoverable slot failure on PHB#%d-PE#%x",
+				__func__, pe->phb->global_number, pe->addr);
+			ret = -ENOTRECOVERABLE;
+			goto out;
+		}
+
+		/* We might run out of credits */
+		ret = -EIO;
+		pr_warn("%s: Failure %d resetting PHB#%x-PE#%x\n (%d)\n",
+			__func__, state, pe->phb->global_number, pe->addr, (i + 1));
 	}
 
-	return -1;
+out:
+	return ret;
 }
 
 /**
