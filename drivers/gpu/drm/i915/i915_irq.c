@@ -2221,6 +2221,11 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	irqreturn_t ret = IRQ_NONE;
 	uint32_t tmp = 0;
 	enum pipe pipe;
+	u32 aux_mask = GEN8_AUX_CHANNEL_A;
+
+	if (IS_GEN9(dev))
+		aux_mask |=  GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
+			GEN9_AUX_CHANNEL_D;
 
 	master_ctl = I915_READ(GEN8_MASTER_IRQ);
 	master_ctl &= ~GEN8_MASTER_IRQ_CONTROL;
@@ -2253,7 +2258,8 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		if (tmp) {
 			I915_WRITE(GEN8_DE_PORT_IIR, tmp);
 			ret = IRQ_HANDLED;
-			if (tmp & GEN8_AUX_CHANNEL_A)
+
+			if (tmp & aux_mask)
 				dp_aux_irq_handler(dev);
 			else
 				DRM_ERROR("Unexpected DE Port interrupt\n");
@@ -3487,11 +3493,14 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	uint32_t de_pipe_masked = GEN8_PIPE_CDCLK_CRC_DONE;
 	uint32_t de_pipe_enables;
 	int pipe;
+	u32 aux_en = GEN8_AUX_CHANNEL_A;
 
-	if (IS_GEN9(dev_priv))
+	if (IS_GEN9(dev_priv)) {
 		de_pipe_masked |= GEN9_PIPE_PLANE1_FLIP_DONE |
 				  GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
-	else
+		aux_en |= GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
+			GEN9_AUX_CHANNEL_D;
+	} else
 		de_pipe_masked |= GEN8_PIPE_PRIMARY_FLIP_DONE |
 				  GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
 
@@ -3509,7 +3518,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 					  dev_priv->de_irq_mask[pipe],
 					  de_pipe_enables);
 
-	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~GEN8_AUX_CHANNEL_A, GEN8_AUX_CHANNEL_A);
+	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~aux_en, aux_en);
 }
 
 static int gen8_irq_postinstall(struct drm_device *dev)
