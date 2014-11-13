@@ -570,7 +570,8 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 	__clear_chan_timer(chan);
 
-	BT_DBG("chan %p, conn %p, err %d", chan, conn, err);
+	BT_DBG("chan %p, conn %p, err %d, state %s", chan, conn, err,
+	       state_to_string(chan->state));
 
 	chan->ops->teardown(chan, err);
 

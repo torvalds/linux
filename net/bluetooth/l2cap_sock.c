@@ -1102,6 +1102,8 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 	chan = l2cap_pi(sk)->chan;
 	conn = chan->conn;
 
+	BT_DBG("chan %p state %s", chan, state_to_string(chan->state));
+
 	if (conn)
 		mutex_lock(&conn->chan_lock);
 
@@ -1159,11 +1161,15 @@ static void l2cap_sock_cleanup_listen(struct sock *parent)
 {
 	struct sock *sk;
 
-	BT_DBG("parent %p", parent);
+	BT_DBG("parent %p state %s", parent,
+	       state_to_string(parent->sk_state));
 
 	/* Close not yet accepted channels */
 	while ((sk = bt_accept_dequeue(parent, NULL))) {
 		struct l2cap_chan *chan = l2cap_pi(sk)->chan;
+
+		BT_DBG("child chan %p state %s", chan,
+		       state_to_string(chan->state));
 
 		l2cap_chan_lock(chan);
 		__clear_chan_timer(chan);
@@ -1251,6 +1257,8 @@ static void l2cap_sock_teardown_cb(struct l2cap_chan *chan, int err)
 {
 	struct sock *sk = chan->data;
 	struct sock *parent;
+
+	BT_DBG("chan %p state %s", chan, state_to_string(chan->state));
 
 	/* This callback can be called both for server (BT_LISTEN)
 	 * sockets as well as "normal" ones. To avoid lockdep warnings
