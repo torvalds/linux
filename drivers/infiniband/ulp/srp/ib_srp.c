@@ -2410,14 +2410,8 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 static int
 srp_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
-	struct Scsi_Host *shost = sdev->host;
-	int max_depth;
-
-	max_depth = shost->can_queue;
 	if (!sdev->tagged_supported)
-		max_depth = 1;
-	if (qdepth > max_depth)
-		qdepth = max_depth;
+		qdepth = 1;
 	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }

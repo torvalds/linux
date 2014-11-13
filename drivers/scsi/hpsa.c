@@ -4082,11 +4082,6 @@ static int hpsa_change_queue_depth(struct scsi_device *sdev,
 	if (reason != SCSI_QDEPTH_DEFAULT)
 		return -ENOTSUPP;
 
-	if (qdepth < 1)
-		qdepth = 1;
-	else
-		if (qdepth > h->nr_cmds)
-			qdepth = h->nr_cmds;
 	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }

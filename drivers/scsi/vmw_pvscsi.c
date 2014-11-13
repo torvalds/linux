@@ -508,20 +508,14 @@ static int pvscsi_change_queue_depth(struct scsi_device *sdev,
 				     int qdepth,
 				     int reason)
 {
-	int max_depth;
-	struct Scsi_Host *shost = sdev->host;
-
 	if (reason != SCSI_QDEPTH_DEFAULT)
 		/*
 		 * We support only changing default.
 		 */
 		return -EOPNOTSUPP;
 
-	max_depth = shost->can_queue;
 	if (!sdev->tagged_supported)
-		max_depth = 1;
-	if (qdepth > max_depth)
-		qdepth = max_depth;
+		qdepth = 1;
 	scsi_adjust_queue_depth(sdev, qdepth);
 
 	if (sdev->inquiry_len > 7)
