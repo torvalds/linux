@@ -54,6 +54,7 @@
  * @reg_conf: pointer to structure to register with core thermal.
  * @tmu_initialize: SoC specific TMU initialization method
  * @tmu_control: SoC specific TMU control method
+ * @tmu_read: SoC specific TMU temperature read method
  */
 struct exynos_tmu_data {
 	int id;
@@ -70,6 +71,7 @@ struct exynos_tmu_data {
 	struct thermal_sensor_conf *reg_conf;
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
+	int (*tmu_read)(struct exynos_tmu_data *data);
 };
 
 /*
@@ -422,29 +424,17 @@ static void exynos5440_tmu_control(struct platform_device *pdev, bool on)
 
 static int exynos_tmu_read(struct exynos_tmu_data *data)
 {
-	struct exynos_tmu_platform_data *pdata = data->pdata;
-	const struct exynos_tmu_registers *reg = pdata->registers;
-	u8 temp_code;
-	int temp;
+	int ret;
 
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
-
-	temp_code = readb(data->base + reg->tmu_cur_temp);
-
-	if (data->soc == SOC_ARCH_EXYNOS4210)
-		/* temp_code should range between 75 and 175 */
-		if (temp_code < 75 || temp_code > 175) {
-			temp = -ENODATA;
-			goto out;
-		}
-
-	temp = code_to_temp(data, temp_code);
-out:
+	ret = data->tmu_read(data);
+	if (ret >= 0)
+		ret = code_to_temp(data, ret);
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 
-	return temp;
+	return ret;
 }
 
 #ifdef CONFIG_THERMAL_EMULATION
@@ -493,6 +483,24 @@ out:
 static int exynos_tmu_set_emulation(void *drv_data,	unsigned long temp)
 	{ return -EINVAL; }
 #endif/*CONFIG_THERMAL_EMULATION*/
+
+static int exynos4210_tmu_read(struct exynos_tmu_data *data)
+{
+	int ret = readb(data->base + EXYNOS_TMU_REG_CURRENT_TEMP);
+
+	/* "temp_code" should range between 75 and 175 */
+	return (ret < 75 || ret > 175) ? -ENODATA : ret;
+}
+
+static int exynos4412_tmu_read(struct exynos_tmu_data *data)
+{
+	return readb(data->base + EXYNOS_TMU_REG_CURRENT_TEMP);
+}
+
+static int exynos5440_tmu_read(struct exynos_tmu_data *data)
+{
+	return readb(data->base + EXYNOS5440_TMU_S0_7_TEMP);
+}
 
 static void exynos_tmu_work(struct work_struct *work)
 {
@@ -718,6 +726,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	case SOC_ARCH_EXYNOS4210:
 		data->tmu_initialize = exynos4210_tmu_initialize;
 		data->tmu_control = exynos4210_tmu_control;
+		data->tmu_read = exynos4210_tmu_read;
 		break;
 	case SOC_ARCH_EXYNOS3250:
 	case SOC_ARCH_EXYNOS4412:
@@ -727,10 +736,12 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	case SOC_ARCH_EXYNOS5420_TRIMINFO:
 		data->tmu_initialize = exynos4412_tmu_initialize;
 		data->tmu_control = exynos4210_tmu_control;
+		data->tmu_read = exynos4412_tmu_read;
 		break;
 	case SOC_ARCH_EXYNOS5440:
 		data->tmu_initialize = exynos5440_tmu_initialize;
 		data->tmu_control = exynos5440_tmu_control;
+		data->tmu_read = exynos5440_tmu_read;
 		break;
 	default:
 		ret = -EINVAL;
