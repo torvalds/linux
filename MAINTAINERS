@@ -2072,8 +2072,9 @@ F:	drivers/clocksource/bcm_kona_timer.c
 
 BROADCOM BCM2835 ARM ARCHITECTURE
 M:	Stephen Warren <swarren@wwwdotorg.org>
+M:	Lee Jones <lee@kernel.org>
 L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/swarren/linux-rpi.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rpi/linux-rpi.git
 S:	Maintained
 N:	bcm2835
 
@@ -9702,11 +9703,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/hid.git
 S:	Maintained
 F:	Documentation/hid/hiddev.txt
 F:	drivers/hid/usbhid/
-
-USB/IP DRIVERS
-L:	linux-usb@vger.kernel.org
-S:	Orphan
-F:	drivers/staging/usbip/
 
 USB ISP116X DRIVER
 M:	Olav Kongas <ok@artecdesign.ee>

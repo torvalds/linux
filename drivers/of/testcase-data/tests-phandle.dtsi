@@ -39,7 +39,9 @@
 				phandle-list-bad-args = <&provider2 1 0>,
 							<&provider3 0>;
 				empty-property;
+				string-property = "foobar";
 				unterminated-string = [40 41 42 43];
+				unterminated-string-list = "first", "second", [40 41 42 43];
 			};
 		};
 	};
