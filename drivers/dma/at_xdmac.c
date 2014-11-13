@@ -562,6 +562,7 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	struct scatterlist	*sg;
 	int			i;
 	u32			cfg;
+	unsigned int		xfer_size = 0;
 
 	if (!sgl)
 		return NULL;
@@ -637,12 +638,13 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
 			 __func__, desc, first);
 		list_add_tail(&desc->desc_node, &first->descs_list);
+		xfer_size += len;
 	}
 
 	spin_unlock_bh(&atchan->lock);
 
 	first->tx_dma_desc.flags = flags;
-	first->xfer_size = sg_len;
+	first->xfer_size = xfer_size;
 	first->direction = direction;
 
 	return &first->tx_dma_desc;
