@@ -1,5 +1,6 @@
 /*
- * Coherency fabric (Aurora) support for Armada 370 and XP platforms.
+ * Coherency fabric (Aurora) support for Armada 370, 375, 38x and XP
+ * platforms.
  *
  * Copyright (C) 2012 Marvell
  *
@@ -11,7 +12,7 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  *
- * The Armada 370 and Armada XP SOCs have a coherency fabric which is
+ * The Armada 370, 375, 38x and XP SOCs have a coherency fabric which is
  * responsible for ensuring hardware coherency between all CPUs and between
  * CPUs and I/O masters. This file initializes the coherency fabric and
  * supplies basic routines for configuring and controlling hardware coherency
