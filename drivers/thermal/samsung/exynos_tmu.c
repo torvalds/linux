@@ -162,15 +162,14 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 	}
 
 	if (TMU_SUPPORTS(pdata, TRIM_RELOAD)) {
-		for (i = 0; i < reg->triminfo_ctrl_count; i++) {
-			if (pdata->triminfo_reload[i]) {
-				ctrl = readl(data->base +
-						reg->triminfo_ctrl[i]);
-				ctrl |= pdata->triminfo_reload[i];
-				writel(ctrl, data->base +
-						reg->triminfo_ctrl[i]);
-			}
+		if (data->soc == SOC_ARCH_EXYNOS3250) {
+			ctrl = readl(data->base + EXYNOS_TMU_TRIMINFO_CON1);
+			ctrl |= EXYNOS_TRIMINFO_RELOAD_ENABLE;
+			writel(ctrl, data->base + EXYNOS_TMU_TRIMINFO_CON1);
 		}
+		ctrl = readl(data->base + EXYNOS_TMU_TRIMINFO_CON2);
+		ctrl |= EXYNOS_TRIMINFO_RELOAD_ENABLE;
+		writel(ctrl, data->base + EXYNOS_TMU_TRIMINFO_CON2);
 	}
 
 	/* Save trimming info in order to perform calibration */
