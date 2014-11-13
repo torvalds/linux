@@ -109,7 +109,7 @@ struct gk20a_clk_pllg_params {
 };
 
 static const struct gk20a_clk_pllg_params gk20a_pllg_params = {
-	.min_vco = 1000, .max_vco = 1700,
+	.min_vco = 1000, .max_vco = 2064,
 	.min_u = 12, .max_u = 38,
 	.min_m = 1, .max_m = 255,
 	.min_n = 8, .max_n = 255,
