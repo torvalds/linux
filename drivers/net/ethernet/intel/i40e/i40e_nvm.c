@@ -61,7 +61,7 @@ i40e_status i40e_init_nvm(struct i40e_hw *hw)
 	} else { /* Blank programming mode */
 		nvm->blank_nvm_mode = true;
 		ret_code = I40E_ERR_NVM_BLANK_MODE;
-		hw_dbg(hw, "NVM init error: unsupported blank mode.\n");
+		i40e_debug(hw, I40E_DEBUG_NVM, "NVM init error: unsupported blank mode.\n");
 	}
 
 	return ret_code;
@@ -118,8 +118,9 @@ i40e_status i40e_acquire_nvm(struct i40e_hw *hw,
 			hw->nvm.hw_semaphore_timeout = 0;
 			hw->nvm.hw_semaphore_wait =
 						I40E_MS_TO_GTIME(time) + gtime;
-			hw_dbg(hw, "NVM acquire timed out, wait %llu ms before trying again.\n",
-				  time);
+			i40e_debug(hw, I40E_DEBUG_NVM,
+				   "NVM acquire timed out, wait %llu ms before trying again.\n",
+				   time);
 		}
 	}
 
@@ -160,7 +161,7 @@ static i40e_status i40e_poll_sr_srctl_done_bit(struct i40e_hw *hw)
 		udelay(5);
 	}
 	if (ret_code == I40E_ERR_TIMEOUT)
-		hw_dbg(hw, "Done bit in GLNVM_SRCTL not set\n");
+		i40e_debug(hw, I40E_DEBUG_NVM, "Done bit in GLNVM_SRCTL not set");
 	return ret_code;
 }
 
@@ -179,7 +180,9 @@ i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 	u32 sr_reg;
 
 	if (offset >= hw->nvm.sr_size) {
-		hw_dbg(hw, "NVM read error: Offset beyond Shadow RAM limit.\n");
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVM read error: offset %d beyond Shadow RAM limit %d\n",
+			   offset, hw->nvm.sr_size);
 		ret_code = I40E_ERR_PARAM;
 		goto read_nvm_exit;
 	}
@@ -202,8 +205,9 @@ i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 		}
 	}
 	if (ret_code)
-		hw_dbg(hw, "NVM read error: Couldn't access Shadow RAM address: 0x%x\n",
-			  offset);
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVM read error: Couldn't access Shadow RAM address: 0x%x\n",
+			   offset);
 
 read_nvm_exit:
 	return ret_code;
@@ -263,14 +267,20 @@ static i40e_status i40e_write_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
 	 * Firmware will check the module-based model.
 	 */
 	if ((offset + words) > hw->nvm.sr_size)
-		hw_dbg(hw, "NVM write error: offset beyond Shadow RAM limit.\n");
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVM write error: offset %d beyond Shadow RAM limit %d\n",
+			   (offset + words), hw->nvm.sr_size);
 	else if (words > I40E_SR_SECTOR_SIZE_IN_WORDS)
 		/* We can write only up to 4KB (one sector), in one AQ write */
-		hw_dbg(hw, "NVM write fail error: cannot write more than 4KB in a single write.\n");
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVM write fail error: tried to write %d words, limit is %d.\n",
+			   words, I40E_SR_SECTOR_SIZE_IN_WORDS);
 	else if (((offset + (words - 1)) / I40E_SR_SECTOR_SIZE_IN_WORDS)
 		 != (offset / I40E_SR_SECTOR_SIZE_IN_WORDS))
 		/* A single write cannot spread over two sectors */
-		hw_dbg(hw, "NVM write error: cannot spread over two sectors in a single write.\n");
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVM write error: cannot spread over two sectors in a single write offset=%d words=%d\n",
+			   offset, words);
 	else
 		ret_code = i40e_aq_update_nvm(hw, module_pointer,
 					      2 * offset,  /*bytes*/
@@ -438,6 +448,22 @@ static inline u8 i40e_nvmupd_get_transaction(u32 val)
 	return (u8)((val & I40E_NVM_TRANS_MASK) >> I40E_NVM_TRANS_SHIFT);
 }
 
+static char *i40e_nvm_update_state_str[] = {
+	"I40E_NVMUPD_INVALID",
+	"I40E_NVMUPD_READ_CON",
+	"I40E_NVMUPD_READ_SNT",
+	"I40E_NVMUPD_READ_LCB",
+	"I40E_NVMUPD_READ_SA",
+	"I40E_NVMUPD_WRITE_ERA",
+	"I40E_NVMUPD_WRITE_CON",
+	"I40E_NVMUPD_WRITE_SNT",
+	"I40E_NVMUPD_WRITE_LCB",
+	"I40E_NVMUPD_WRITE_SA",
+	"I40E_NVMUPD_CSUM_CON",
+	"I40E_NVMUPD_CSUM_SA",
+	"I40E_NVMUPD_CSUM_LCB",
+};
+
 /**
  * i40e_nvmupd_command - Process an NVM update command
  * @hw: pointer to hardware structure
@@ -471,6 +497,8 @@ i40e_status i40e_nvmupd_command(struct i40e_hw *hw,
 
 	default:
 		/* invalid state, should never happen */
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVMUPD: no such state %d\n", hw->nvmupd_state);
 		status = I40E_NOT_SUPPORTED;
 		*errno = -ESRCH;
 		break;
@@ -572,6 +600,9 @@ static i40e_status i40e_nvmupd_state_init(struct i40e_hw *hw,
 		break;
 
 	default:
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVMUPD: bad cmd %s in init state\n",
+			   i40e_nvm_update_state_str[upd_cmd]);
 		status = I40E_ERR_NVM;
 		*errno = -ESRCH;
 		break;
@@ -611,6 +642,9 @@ static i40e_status i40e_nvmupd_state_reading(struct i40e_hw *hw,
 		break;
 
 	default:
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVMUPD: bad cmd %s in reading state.\n",
+			   i40e_nvm_update_state_str[upd_cmd]);
 		status = I40E_NOT_SUPPORTED;
 		*errno = -ESRCH;
 		break;
@@ -671,6 +705,9 @@ static i40e_status i40e_nvmupd_state_writing(struct i40e_hw *hw,
 		break;
 
 	default:
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVMUPD: bad cmd %s in writing state.\n",
+			   i40e_nvm_update_state_str[upd_cmd]);
 		status = I40E_NOT_SUPPORTED;
 		*errno = -ESRCH;
 		break;
@@ -702,8 +739,9 @@ static enum i40e_nvmupd_cmd i40e_nvmupd_validate_command(struct i40e_hw *hw,
 	/* limits on data size */
 	if ((cmd->data_size < 1) ||
 	    (cmd->data_size > I40E_NVMUPD_MAX_DATA)) {
-		hw_dbg(hw, "i40e_nvmupd_validate_command data_size %d\n",
-		       cmd->data_size);
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "i40e_nvmupd_validate_command data_size %d\n",
+			   cmd->data_size);
 		*errno = -EFAULT;
 		return I40E_NVMUPD_INVALID;
 	}
@@ -755,12 +793,14 @@ static enum i40e_nvmupd_cmd i40e_nvmupd_validate_command(struct i40e_hw *hw,
 		}
 		break;
 	}
+	i40e_debug(hw, I40E_DEBUG_NVM, "%s\n",
+		   i40e_nvm_update_state_str[upd_cmd]);
 
 	if (upd_cmd == I40E_NVMUPD_INVALID) {
 		*errno = -EFAULT;
-		hw_dbg(hw,
-		       "i40e_nvmupd_validate_command returns %d  errno: %d\n",
-		       upd_cmd, *errno);
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "i40e_nvmupd_validate_command returns %d errno %d\n",
+			   upd_cmd, *errno);
 	}
 	return upd_cmd;
 }
@@ -785,14 +825,18 @@ static i40e_status i40e_nvmupd_nvm_read(struct i40e_hw *hw,
 	transaction = i40e_nvmupd_get_transaction(cmd->config);
 	module = i40e_nvmupd_get_module(cmd->config);
 	last = (transaction == I40E_NVM_LCB) || (transaction == I40E_NVM_SA);
-	hw_dbg(hw, "i40e_nvmupd_nvm_read mod 0x%x  off 0x%x  len 0x%x\n",
-	       module, cmd->offset, cmd->data_size);
 
 	status = i40e_aq_read_nvm(hw, module, cmd->offset, (u16)cmd->data_size,
 				  bytes, last, NULL);
-	hw_dbg(hw, "i40e_nvmupd_nvm_read status %d\n", status);
-	if (status)
+	if (status) {
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "i40e_nvmupd_nvm_read mod 0x%x  off 0x%x  len 0x%x\n",
+			   module, cmd->offset, cmd->data_size);
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "i40e_nvmupd_nvm_read status %d aq %d\n",
+			   status, hw->aq.asq_last_status);
 		*errno = i40e_aq_rc_to_posix(hw->aq.asq_last_status);
+	}
 
 	return status;
 }
@@ -816,13 +860,17 @@ static i40e_status i40e_nvmupd_nvm_erase(struct i40e_hw *hw,
 	transaction = i40e_nvmupd_get_transaction(cmd->config);
 	module = i40e_nvmupd_get_module(cmd->config);
 	last = (transaction & I40E_NVM_LCB);
-	hw_dbg(hw, "i40e_nvmupd_nvm_erase mod 0x%x  off 0x%x  len 0x%x\n",
-	       module, cmd->offset, cmd->data_size);
 	status = i40e_aq_erase_nvm(hw, module, cmd->offset, (u16)cmd->data_size,
 				   last, NULL);
-	hw_dbg(hw, "i40e_nvmupd_nvm_erase status %d\n", status);
-	if (status)
+	if (status) {
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "i40e_nvmupd_nvm_erase mod 0x%x  off 0x%x len 0x%x\n",
+			   module, cmd->offset, cmd->data_size);
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "i40e_nvmupd_nvm_erase status %d aq %d\n",
+			   status, hw->aq.asq_last_status);
 		*errno = i40e_aq_rc_to_posix(hw->aq.asq_last_status);
+	}
 
 	return status;
 }
@@ -847,13 +895,18 @@ static i40e_status i40e_nvmupd_nvm_write(struct i40e_hw *hw,
 	transaction = i40e_nvmupd_get_transaction(cmd->config);
 	module = i40e_nvmupd_get_module(cmd->config);
 	last = (transaction & I40E_NVM_LCB);
-	hw_dbg(hw, "i40e_nvmupd_nvm_write mod 0x%x off 0x%x len 0x%x\n",
-	       module, cmd->offset, cmd->data_size);
+
 	status = i40e_aq_update_nvm(hw, module, cmd->offset,
 				    (u16)cmd->data_size, bytes, last, NULL);
-	hw_dbg(hw, "i40e_nvmupd_nvm_write status %d\n", status);
-	if (status)
+	if (status) {
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "i40e_nvmupd_nvm_write mod 0x%x off 0x%x len 0x%x\n",
+			   module, cmd->offset, cmd->data_size);
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "i40e_nvmupd_nvm_write status %d aq %d\n",
+			   status, hw->aq.asq_last_status);
 		*errno = i40e_aq_rc_to_posix(hw->aq.asq_last_status);
+	}
 
 	return status;
 }
