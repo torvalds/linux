@@ -56,6 +56,7 @@ struct mlx4_dev_cap {
 	int max_mpts;
 	int reserved_eqs;
 	int max_eqs;
+	int num_sys_eqs;
 	int reserved_mtts;
 	int max_mrw_sz;
 	int reserved_mrws;
@@ -145,6 +146,16 @@ struct mlx4_func_cap {
 	u64	phys_port_id;
 };
 
+struct mlx4_func {
+	int	bus;
+	int	device;
+	int	function;
+	int	physical_function;
+	int	rsvd_eqs;
+	int	max_eq;
+	int	rsvd_uars;
+};
+
 struct mlx4_adapter {
 	char board_id[MLX4_BOARD_ID_LEN];
 	u8   inta_pin;
@@ -170,6 +181,7 @@ struct mlx4_init_hca_param {
 	u8  log_num_srqs;
 	u8  log_num_cqs;
 	u8  log_num_eqs;
+	u16 num_sys_eqs;
 	u8  log_rd_per_qp;
 	u8  log_mc_table_sz;
 	u8  log_mpt_sz;
@@ -204,13 +216,14 @@ struct mlx4_set_ib_param {
 };
 
 int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap);
-int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
+int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,
 			struct mlx4_func_cap *func_cap);
 int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_vhcr *vhcr,
 				struct mlx4_cmd_mailbox *inbox,
 				struct mlx4_cmd_mailbox *outbox,
 				struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_FUNC(struct mlx4_dev *dev, struct mlx4_func *func, int slave);
 int mlx4_MAP_FA(struct mlx4_dev *dev, struct mlx4_icm *icm);
 int mlx4_UNMAP_FA(struct mlx4_dev *dev);
 int mlx4_RUN_FW(struct mlx4_dev *dev);

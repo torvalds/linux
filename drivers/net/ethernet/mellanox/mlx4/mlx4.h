@@ -606,6 +606,7 @@ struct mlx4_cmd {
 	u8			use_events;
 	u8			toggle;
 	u8			comm_toggle;
+	u8			initialized;
 };
 
 enum {
@@ -1126,8 +1127,16 @@ int mlx4_QUERY_QP_wrapper(struct mlx4_dev *dev, int slave,
 
 int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe);
 
+enum {
+	MLX4_CMD_CLEANUP_STRUCT = 1UL << 0,
+	MLX4_CMD_CLEANUP_POOL	= 1UL << 1,
+	MLX4_CMD_CLEANUP_HCR	= 1UL << 2,
+	MLX4_CMD_CLEANUP_VHCR	= 1UL << 3,
+	MLX4_CMD_CLEANUP_ALL	= (MLX4_CMD_CLEANUP_VHCR << 1) - 1
+};
+
 int mlx4_cmd_init(struct mlx4_dev *dev);
-void mlx4_cmd_cleanup(struct mlx4_dev *dev);
+void mlx4_cmd_cleanup(struct mlx4_dev *dev, int cleanup_mask);
 int mlx4_multi_func_init(struct mlx4_dev *dev);
 void mlx4_multi_func_cleanup(struct mlx4_dev *dev);
 void mlx4_cmd_event(struct mlx4_dev *dev, u16 token, u8 status, u64 out_param);

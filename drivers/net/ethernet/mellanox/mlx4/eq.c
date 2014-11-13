@@ -1123,8 +1123,12 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 		goto err_out_free;
 	}
 
-	err = mlx4_bitmap_init(&priv->eq_table.bitmap, dev->caps.num_eqs,
-			       dev->caps.num_eqs - 1, dev->caps.reserved_eqs, 0);
+	err = mlx4_bitmap_init(&priv->eq_table.bitmap,
+			       roundup_pow_of_two(dev->caps.num_eqs),
+			       dev->caps.num_eqs - 1,
+			       dev->caps.reserved_eqs,
+			       roundup_pow_of_two(dev->caps.num_eqs) -
+			       dev->caps.num_eqs);
 	if (err)
 		goto err_out_free;
 
