@@ -5888,6 +5888,9 @@ static int i40e_reconstitute_veb(struct i40e_veb *veb)
 	if (ret)
 		goto end_reconstitute;
 
+	/* Enable LB mode for the main VSI now that it is on a VEB */
+	i40e_enable_pf_switch_lb(pf);
+
 	/* create the remaining VSIs attached to this VEB */
 	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (!pf->vsi[v] || pf->vsi[v] == ctl_vsi)
