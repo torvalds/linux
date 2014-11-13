@@ -256,7 +256,25 @@ static void das6402_ai_set_mode(struct comedi_device *dev,
 static int das6402_ai_cmd(struct comedi_device *dev,
 			  struct comedi_subdevice *s)
 {
-	return -EINVAL;
+	struct das6402_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int chan_lo = CR_CHAN(cmd->chanlist[0]);
+	unsigned int chan_hi = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+
+	das6402_ai_set_mode(dev, s, cmd->chanlist[0], DAS6402_MODE_FIFONEPTY);
+
+	/* load the mux for chanlist conversion */
+	outw(DAS6402_AI_MUX_HI(chan_hi) | DAS6402_AI_MUX_LO(chan_lo),
+	     dev->iobase + DAS6402_AI_MUX_REG);
+
+	das6402_enable_counter(dev, true);
+
+	/* enable interrupt and pacer trigger */
+	outb(DAS6402_CTRL_INTE |
+	     DAS6402_CTRL_IRQ(devpriv->irq) |
+	     DAS6402_CTRL_PACER_TRIG, dev->iobase + DAS6402_CTRL_REG);
+
+	return 0;
 }
 
 static int das6402_ai_check_chanlist(struct comedi_device *dev,
