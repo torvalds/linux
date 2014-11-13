@@ -6430,6 +6430,78 @@ enum punit_power_well {
 #define  LCPLL_CD_SOURCE_FCLK		(1<<21)
 #define  LCPLL_CD_SOURCE_FCLK_DONE	(1<<19)
 
+/*
+ * SKL Clocks
+ */
+
+/* CDCLK_CTL */
+#define CDCLK_CTL			0x46000
+#define  CDCLK_FREQ_SEL_MASK		(3<<26)
+#define  CDCLK_FREQ_450_432		(0<<26)
+#define  CDCLK_FREQ_540			(1<<26)
+#define  CDCLK_FREQ_337_308		(2<<26)
+#define  CDCLK_FREQ_675_617		(3<<26)
+#define  CDCLK_FREQ_DECIMAL_MASK	(0x7ff)
+
+/* LCPLL_CTL */
+#define LCPLL1_CTL		0x46010
+#define LCPLL2_CTL		0x46014
+#define  LCPLL_PLL_ENABLE	(1<<31)
+
+/* DPLL control1 */
+#define DPLL_CTRL1		0x6C058
+#define  DPLL_CTRL1_HDMI_MODE(id)		(1<<((id)*6+5))
+#define  DPLL_CTRL1_SSC(id)			(1<<((id)*6+4))
+#define  DPLL_CRTL1_LINK_RATE_MASK(id)		(7<<((id)*6+1))
+#define  DPLL_CRTL1_LINK_RATE(linkrate, id)	((linkrate)<<((id)*6+1))
+#define  DPLL_CTRL1_OVERRIDE(id)		(1<<((id)*6))
+#define  DPLL_CRTL1_LINK_RATE_2700		0
+#define  DPLL_CRTL1_LINK_RATE_1350		1
+#define  DPLL_CRTL1_LINK_RATE_810		2
+#define  DPLL_CRTL1_LINK_RATE_1620		3
+#define  DPLL_CRTL1_LINK_RATE_1080		4
+#define  DPLL_CRTL1_LINK_RATE_2160		5
+
+/* DPLL control2 */
+#define DPLL_CTRL2				0x6C05C
+#define  DPLL_CTRL2_DDI_CLK_OFF(port)		(1<<(port+15))
+#define  DPLL_CTRL2_DDI_CLK_SEL_MASK(port)	(3<<((port)*3+1))
+#define  DPLL_CTRL2_DDI_CLK_SEL(clk, port)	(clk<<((port)*3+1))
+#define  DPLL_CTRL2_DDI_SEL_OVERRIDE(port)     (1<<((port)*3))
+
+/* DPLL Status */
+#define DPLL_STATUS	0x6C060
+#define  DPLL_LOCK(id) (1<<((id)*8))
+
+/* DPLL cfg */
+#define DPLL1_CFGCR1	0x6C040
+#define DPLL2_CFGCR1	0x6C048
+#define DPLL3_CFGCR1	0x6C050
+#define  DPLL_CFGCR1_FREQ_ENABLE	(1<<31)
+#define  DPLL_CFGCR1_DCO_FRACTION_MASK	(0x7fff<<9)
+#define  DPLL_CFGCR1_DCO_FRACTION(x)	(x<<9)
+#define  DPLL_CFGCR1_DCO_INTEGER_MASK	(0x1ff)
+
+#define DPLL1_CFGCR2	0x6C044
+#define DPLL2_CFGCR2	0x6C04C
+#define DPLL3_CFGCR2	0x6C054
+#define  DPLL_CFGCR2_QDIV_RATIO_MASK	(0xff<<8)
+#define  DPLL_CFGCR2_QDIV_RATIO(x)	(x<<8)
+#define  DPLL_CFGCR2_QDIV_MODE(x)	(x<<7)
+#define  DPLL_CFGCR2_KDIV_MASK		(3<<5)
+#define  DPLL_CFGCR2_KDIV(x)		(x<<5)
+#define  DPLL_CFGCR2_KDIV_5 (0<<5)
+#define  DPLL_CFGCR2_KDIV_2 (1<<5)
+#define  DPLL_CFGCR2_KDIV_3 (2<<5)
+#define  DPLL_CFGCR2_KDIV_1 (3<<5)
+#define  DPLL_CFGCR2_PDIV_MASK		(7<<2)
+#define  DPLL_CFGCR2_PDIV(x)		(x<<2)
+#define  DPLL_CFGCR2_PDIV_1 (0<<2)
+#define  DPLL_CFGCR2_PDIV_2 (1<<2)
+#define  DPLL_CFGCR2_PDIV_3 (2<<2)
+#define  DPLL_CFGCR2_PDIV_7 (4<<2)
+#define  DPLL_CFGCR2_CENTRAL_FREQ_MASK	(3)
+
 /* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
  * since on HSW we can't write to it using I915_WRITE. */
 #define D_COMP_HSW			(MCHBAR_MIRROR_BASE_SNB + 0x5F0C)
