@@ -163,9 +163,6 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 					   NL80211_TDLS_TEARDOWN,
 					   le16_to_cpu(tdls_evt->u.reason_code),
 					   GFP_KERNEL);
-		ret = mwifiex_tdls_oper(priv, tdls_evt->peer_mac,
-					MWIFIEX_TDLS_DISABLE_LINK);
-		queue_work(adapter->workqueue, &adapter->main_work);
 		break;
 	default:
 		break;
