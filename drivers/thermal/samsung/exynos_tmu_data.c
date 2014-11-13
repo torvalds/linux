@@ -308,8 +308,7 @@ struct exynos_tmu_init_data const exynos5420_default_tmu_data = {
 	.first_point_trim = 25, \
 	.second_point_trim = 70, \
 	.default_temp_offset = 25, \
-	.type = SOC_ARCH_EXYNOS5440, \
-	.features = TMU_SUPPORT_MULTI_INST,
+	.type = SOC_ARCH_EXYNOS5440
 
 struct exynos_tmu_init_data const exynos5440_default_tmu_data = {
 	.tmu_data = {
