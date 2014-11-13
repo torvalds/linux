@@ -506,8 +506,11 @@ struct mwifiex_private {
 	struct mwifiex_wmm_desc wmm;
 	atomic_t wmm_tx_pending[IEEE80211_NUM_ACS];
 	struct list_head sta_list;
-	/* spin lock for associated station list */
+	/* spin lock for associated station/TDLS peers list */
 	spinlock_t sta_list_spinlock;
+	struct list_head auto_tdls_list;
+	/* spin lock for auto TDLS peer list */
+	spinlock_t auto_tdls_lock;
 	struct list_head tx_ba_stream_tbl_ptr;
 	/* spin lock for tx_ba_stream_tbl_ptr queue */
 	spinlock_t tx_ba_stream_tbl_lock;
@@ -572,6 +575,9 @@ struct mwifiex_private {
 	bool hs2_enabled;
 	struct station_parameters *sta_params;
 	struct sk_buff_head tdls_txq;
+	u8 check_tdls_tx;
+	struct timer_list auto_tdls_timer;
+	bool auto_tdls_timer_active;
 };
 
 enum mwifiex_ba_status {
@@ -669,6 +675,17 @@ struct mwifiex_sta_node {
 	u16 max_amsdu;
 	u8 tdls_status;
 	struct mwifiex_tdls_capab tdls_cap;
+};
+
+struct mwifiex_auto_tdls_peer {
+	struct list_head list;
+	u8 mac_addr[ETH_ALEN];
+	u8 tdls_status;
+	int rssi;
+	long rssi_jiffies;
+	u8 failure_count;
+	u8 do_discover;
+	u8 do_setup;
 };
 
 struct mwifiex_if_ops {
@@ -848,6 +865,7 @@ struct mwifiex_adapter {
 	struct mwifiex_chan_stats *chan_stats;
 	u32 num_in_chan_stats;
 	int survey_idx;
+	bool auto_tdls;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -1304,6 +1322,17 @@ bool mwifiex_is_bss_in_11ac_mode(struct mwifiex_private *priv);
 u8 mwifiex_get_center_freq_index(struct mwifiex_private *priv, u8 band,
 				 u32 pri_chan, u8 chan_bw);
 int mwifiex_init_channel_scan_gap(struct mwifiex_adapter *adapter);
+
+int mwifiex_tdls_check_tx(struct mwifiex_private *priv, struct sk_buff *skb);
+void mwifiex_flush_auto_tdls_list(struct mwifiex_private *priv);
+void mwifiex_auto_tdls_update_peer_status(struct mwifiex_private *priv,
+					  const u8 *mac, u8 link_status);
+void mwifiex_auto_tdls_update_peer_signal(struct mwifiex_private *priv,
+					  u8 *mac, s8 snr, s8 nflr);
+void mwifiex_check_auto_tdls(unsigned long context);
+void mwifiex_add_auto_tdls_peer(struct mwifiex_private *priv, const u8 *mac);
+void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv);
+void mwifiex_clean_auto_tdls(struct mwifiex_private *priv);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

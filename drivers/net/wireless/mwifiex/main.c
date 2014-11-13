@@ -662,6 +662,13 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	__net_timestamp(skb);
 
+	if (ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
+	    priv->bss_type == MWIFIEX_BSS_TYPE_STA &&
+	    !ether_addr_equal_unaligned(priv->cfg_bssid, skb->data)) {
+		if (priv->adapter->auto_tdls && priv->check_tdls_tx)
+			mwifiex_tdls_check_tx(priv, skb);
+	}
+
 	mwifiex_queue_tx_pkt(priv, skb);
 
 	return 0;

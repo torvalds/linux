@@ -232,6 +232,9 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 			if (sta_ptr)
 				sta_ptr->rx_seq[local_rx_pd->priority] =
 					      le16_to_cpu(local_rx_pd->seq_num);
+			mwifiex_auto_tdls_update_peer_signal(priv, ta,
+							     local_rx_pd->snr,
+							     local_rx_pd->nf);
 		}
 	} else {
 		if (rx_pkt_type != PKT_TYPE_BAR)

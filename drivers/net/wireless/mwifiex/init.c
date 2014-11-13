@@ -137,6 +137,7 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->csa_expire_time = 0;
 	priv->del_list_idx = 0;
 	priv->hs2_enabled = false;
+	priv->check_tdls_tx = false;
 	memcpy(priv->tos_to_tid_inv, tos_to_tid_inv, MAX_NUM_TID);
 
 	return mwifiex_add_bss_prio_tbl(priv);
@@ -248,6 +249,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->hw_dev_mcs_support = 0;
 	adapter->sec_chan_offset = 0;
 	adapter->adhoc_11n_enabled = false;
+	adapter->auto_tdls = false;
 
 	mwifiex_wmm_init(adapter);
 
@@ -366,6 +368,7 @@ static void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
 			list_del(&priv->tx_ba_stream_tbl_ptr);
 			list_del(&priv->rx_reorder_tbl_ptr);
 			list_del(&priv->sta_list);
+			list_del(&priv->auto_tdls_list);
 		}
 	}
 }
@@ -434,6 +437,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 			spin_lock_init(&priv->wmm.ra_list_spinlock);
 			spin_lock_init(&priv->curr_bcn_buf_lock);
 			spin_lock_init(&priv->sta_list_spinlock);
+			spin_lock_init(&priv->auto_tdls_lock);
 		}
 	}
 
@@ -465,6 +469,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 		INIT_LIST_HEAD(&priv->tx_ba_stream_tbl_ptr);
 		INIT_LIST_HEAD(&priv->rx_reorder_tbl_ptr);
 		INIT_LIST_HEAD(&priv->sta_list);
+		INIT_LIST_HEAD(&priv->auto_tdls_list);
 		skb_queue_head_init(&priv->tdls_txq);
 
 		spin_lock_init(&priv->tx_ba_stream_tbl_lock);
@@ -645,6 +650,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 		if (adapter->priv[i]) {
 			priv = adapter->priv[i];
 
+			mwifiex_clean_auto_tdls(priv);
 			mwifiex_clean_txrx(priv);
 			mwifiex_delete_bss_prio_tbl(priv);
 		}

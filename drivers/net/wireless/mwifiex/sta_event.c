@@ -55,8 +55,12 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	priv->scan_block = false;
 
 	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
-	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info)) {
 		mwifiex_disable_all_tdls_links(priv);
+
+		if (priv->adapter->auto_tdls)
+			mwifiex_clean_auto_tdls(priv);
+	}
 
 	/* Free Tx and Rx packets, report disconnect to upper layer */
 	mwifiex_clean_txrx(priv);
