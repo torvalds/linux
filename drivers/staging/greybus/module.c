@@ -85,10 +85,6 @@ struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 	gmod->module_id = module_id;
 	INIT_LIST_HEAD(&gmod->interfaces);
 
-	spin_lock_irq(&gb_modules_lock);
-	list_add_tail(&gmod->links, &hd->modules);
-	spin_unlock_irq(&gb_modules_lock);
-
 	gmod->dev.parent = hd->parent;
 	gmod->dev.bus = &greybus_bus_type;
 	gmod->dev.type = &greybus_module_type;
@@ -102,8 +98,13 @@ struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 		pr_err("failed to add module device for id 0x%02hhx\n",
 			module_id);
 		put_device(&gmod->dev);
+		kfree(gmod);
 		return NULL;
 	}
+
+	spin_lock_irq(&gb_modules_lock);
+	list_add_tail(&gmod->links, &hd->modules);
+	spin_unlock_irq(&gb_modules_lock);
 
 	return gmod;
 }
