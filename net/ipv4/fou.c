@@ -856,7 +856,7 @@ static int ip_tunnel_encap_add_fou_ops(void)
 	return 0;
 }
 
-static int ip_tunnel_encap_del_fou_ops(void)
+static void ip_tunnel_encap_del_fou_ops(void)
 {
 }
 
