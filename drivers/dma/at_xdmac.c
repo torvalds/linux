@@ -1394,6 +1394,11 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_CYCLIC, atxdmac->dma.cap_mask);
 	dma_cap_set(DMA_MEMCPY, atxdmac->dma.cap_mask);
 	dma_cap_set(DMA_SLAVE, atxdmac->dma.cap_mask);
+	/*
+	 * Without DMA_PRIVATE the driver is not able to allocate more than
+	 * one channel, second allocation fails in private_candidate.
+	 */
+	dma_cap_set(DMA_PRIVATE, atxdmac->dma.cap_mask);
 	atxdmac->dma.dev				= &pdev->dev;
 	atxdmac->dma.device_alloc_chan_resources	= at_xdmac_alloc_chan_resources;
 	atxdmac->dma.device_free_chan_resources		= at_xdmac_free_chan_resources;
