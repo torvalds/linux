@@ -18,24 +18,7 @@
 #ifndef SUN3_SCSI_H
 #define SUN3_SCSI_H
 
-/*
- * Int: level 2 autovector
- * IO: type 1, base 0x00140000, 5 bits phys space: A<4..0>
- */
-#define IRQ_SUN3_SCSI 2
-#define IOBASE_SUN3_SCSI 0x00140000
-
-#define IOBASE_SUN3_VMESCSI 0xff200000
-
 #define MAX_TAGS 32
-
-#include <scsi/scsicam.h>
-
-#ifdef SUN3_SCSI_VME
-#define SUN3_SCSI_NAME "Sun3 NCR5380 VME SCSI"
-#else
-#define SUN3_SCSI_NAME "Sun3 NCR5380 SCSI"
-#endif
 
 #define NCR5380_implementation_fields /* none */
 
