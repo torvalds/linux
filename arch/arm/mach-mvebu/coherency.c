@@ -42,8 +42,6 @@ void __iomem *coherency_base;
 static void __iomem *coherency_cpu_base;
 
 /* Coherency fabric registers */
-#define COHERENCY_FABRIC_CFG_OFFSET		   0x4
-
 #define IO_SYNC_BARRIER_CTL_OFFSET		   0x0
 
 enum {
