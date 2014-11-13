@@ -248,12 +248,12 @@ static inline void __iomem *at_xdmac_chan_reg_base(struct at_xdmac *atxdmac, uns
 	return atxdmac->regs + (AT_XDMAC_CHAN_REG_BASE + chan_nb * 0x40);
 }
 
-#define at_xdmac_read(atxdmac, reg) readl((atxdmac)->regs + (reg))
+#define at_xdmac_read(atxdmac, reg) readl_relaxed((atxdmac)->regs + (reg))
 #define at_xdmac_write(atxdmac, reg, value) \
-	writel((value), (atxdmac)->regs + (reg))
+	writel_relaxed((value), (atxdmac)->regs + (reg))
 
-#define at_xdmac_chan_read(atchan, reg) readl((atchan)->ch_regs + (reg))
-#define at_xdmac_chan_write(atchan, reg, value) writel((value), (atchan)->ch_regs + (reg))
+#define at_xdmac_chan_read(atchan, reg) readl_relaxed((atchan)->ch_regs + (reg))
+#define at_xdmac_chan_write(atchan, reg, value) writel_relaxed((value), (atchan)->ch_regs + (reg))
 
 static inline struct at_xdmac_chan *to_at_xdmac_chan(struct dma_chan *dchan)
 {

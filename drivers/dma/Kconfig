@@ -109,7 +109,7 @@ config AT_HDMAC
 
 config AT_XDMAC
 	tristate "Atmel XDMA support"
-	depends on (ARCH_AT91 || COMPILE_TEST)
+	depends on ARCH_AT91
 	select DMA_ENGINE
 	help
 	  Support the Atmel XDMA controller.
