@@ -6453,6 +6453,7 @@ enum punit_power_well {
 #define  DPLL_CTRL1_HDMI_MODE(id)		(1<<((id)*6+5))
 #define  DPLL_CTRL1_SSC(id)			(1<<((id)*6+4))
 #define  DPLL_CRTL1_LINK_RATE_MASK(id)		(7<<((id)*6+1))
+#define  DPLL_CRTL1_LINK_RATE_SHIFT(id)		((id)*6+1)
 #define  DPLL_CRTL1_LINK_RATE(linkrate, id)	((linkrate)<<((id)*6+1))
 #define  DPLL_CTRL1_OVERRIDE(id)		(1<<((id)*6))
 #define  DPLL_CRTL1_LINK_RATE_2700		0
@@ -6466,6 +6467,7 @@ enum punit_power_well {
 #define DPLL_CTRL2				0x6C05C
 #define  DPLL_CTRL2_DDI_CLK_OFF(port)		(1<<(port+15))
 #define  DPLL_CTRL2_DDI_CLK_SEL_MASK(port)	(3<<((port)*3+1))
+#define  DPLL_CTRL2_DDI_CLK_SEL_SHIFT(port)    ((port)*3+1)
 #define  DPLL_CTRL2_DDI_CLK_SEL(clk, port)	(clk<<((port)*3+1))
 #define  DPLL_CTRL2_DDI_SEL_OVERRIDE(port)     (1<<((port)*3))
 
@@ -6501,6 +6503,9 @@ enum punit_power_well {
 #define  DPLL_CFGCR2_PDIV_3 (2<<2)
 #define  DPLL_CFGCR2_PDIV_7 (4<<2)
 #define  DPLL_CFGCR2_CENTRAL_FREQ_MASK	(3)
+
+#define GET_CFG_CR1_REG(id) (DPLL1_CFGCR1 + (id - SKL_DPLL1) * 8)
+#define GET_CFG_CR2_REG(id) (DPLL1_CFGCR2 + (id - SKL_DPLL1) * 8)
 
 /* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
  * since on HSW we can't write to it using I915_WRITE. */

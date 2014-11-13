@@ -670,6 +670,115 @@ static int intel_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	return (refclk * n * 100) / (p * r);
 }
 
+static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
+			       uint32_t dpll)
+{
+	uint32_t cfgcr1_reg, cfgcr2_reg;
+	uint32_t cfgcr1_val, cfgcr2_val;
+	uint32_t p0, p1, p2, dco_freq;
+
+	cfgcr1_reg = GET_CFG_CR1_REG(dpll);
+	cfgcr2_reg = GET_CFG_CR2_REG(dpll);
+
+	cfgcr1_val = I915_READ(cfgcr1_reg);
+	cfgcr2_val = I915_READ(cfgcr2_reg);
+
+	p0 = cfgcr2_val & DPLL_CFGCR2_PDIV_MASK;
+	p2 = cfgcr2_val & DPLL_CFGCR2_KDIV_MASK;
+
+	if (cfgcr2_val &  DPLL_CFGCR2_QDIV_MODE(1))
+		p1 = (cfgcr2_val & DPLL_CFGCR2_QDIV_RATIO_MASK) >> 8;
+	else
+		p1 = 1;
+
+
+	switch (p0) {
+	case DPLL_CFGCR2_PDIV_1:
+		p0 = 1;
+		break;
+	case DPLL_CFGCR2_PDIV_2:
+		p0 = 2;
+		break;
+	case DPLL_CFGCR2_PDIV_3:
+		p0 = 3;
+		break;
+	case DPLL_CFGCR2_PDIV_7:
+		p0 = 7;
+		break;
+	}
+
+	switch (p2) {
+	case DPLL_CFGCR2_KDIV_5:
+		p2 = 5;
+		break;
+	case DPLL_CFGCR2_KDIV_2:
+		p2 = 2;
+		break;
+	case DPLL_CFGCR2_KDIV_3:
+		p2 = 3;
+		break;
+	case DPLL_CFGCR2_KDIV_1:
+		p2 = 1;
+		break;
+	}
+
+	dco_freq = (cfgcr1_val & DPLL_CFGCR1_DCO_INTEGER_MASK) * 24 * 1000;
+
+	dco_freq += (((cfgcr1_val & DPLL_CFGCR1_DCO_FRACTION_MASK) >> 9) * 24 *
+		1000) / 0x8000;
+
+	return dco_freq / (p0 * p1 * p2 * 5);
+}
+
+
+static void skl_ddi_clock_get(struct intel_encoder *encoder,
+				struct intel_crtc_config *pipe_config)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	enum port port = intel_ddi_get_encoder_port(encoder);
+	int link_clock = 0;
+	uint32_t dpll_ctl1, dpll;
+
+	/* FIXME: This should be tracked in the pipe config. */
+	dpll = I915_READ(DPLL_CTRL2);
+	dpll &= DPLL_CTRL2_DDI_CLK_SEL_MASK(port);
+	dpll >>= DPLL_CTRL2_DDI_CLK_SEL_SHIFT(port);
+
+	dpll_ctl1 = I915_READ(DPLL_CTRL1);
+
+	if (dpll_ctl1 & DPLL_CTRL1_HDMI_MODE(dpll)) {
+		link_clock = skl_calc_wrpll_link(dev_priv, dpll);
+	} else {
+		link_clock = dpll_ctl1 & DPLL_CRTL1_LINK_RATE_MASK(dpll);
+		link_clock >>= DPLL_CRTL1_LINK_RATE_SHIFT(dpll);
+
+		switch (link_clock) {
+		case DPLL_CRTL1_LINK_RATE_810:
+			link_clock = 81000;
+			break;
+		case DPLL_CRTL1_LINK_RATE_1350:
+			link_clock = 135000;
+			break;
+		case DPLL_CRTL1_LINK_RATE_2700:
+			link_clock = 270000;
+			break;
+		default:
+			WARN(1, "Unsupported link rate\n");
+			break;
+		}
+		link_clock *= 2;
+	}
+
+	pipe_config->port_clock = link_clock;
+
+	if (pipe_config->has_dp_encoder)
+		pipe_config->adjusted_mode.crtc_clock =
+			intel_dotclock_calculate(pipe_config->port_clock,
+						 &pipe_config->dp_m_n);
+	else
+		pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
+}
+
 static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 			      struct intel_crtc_config *pipe_config)
 {
@@ -1533,6 +1642,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	u32 temp, flags = 0;
+	struct drm_device *dev = dev_priv->dev;
 
 	temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if (temp & TRANS_DDI_PHSYNC)
@@ -1604,7 +1714,10 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		dev_priv->vbt.edp_bpp = pipe_config->pipe_bpp;
 	}
 
-	hsw_ddi_clock_get(encoder, pipe_config);
+	if (INTEL_INFO(dev)->gen <= 8)
+		hsw_ddi_clock_get(encoder, pipe_config);
+	else
+		skl_ddi_clock_get(encoder, pipe_config);
 }
 
 static void intel_ddi_destroy(struct drm_encoder *encoder)
