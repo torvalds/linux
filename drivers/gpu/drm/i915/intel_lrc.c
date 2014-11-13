@@ -136,6 +136,7 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+#define GEN9_LR_CONTEXT_RENDER_SIZE (22 * PAGE_SIZE)
 #define GEN8_LR_CONTEXT_RENDER_SIZE (20 * PAGE_SIZE)
 #define GEN8_LR_CONTEXT_OTHER_SIZE (2 * PAGE_SIZE)
 
@@ -1671,11 +1672,14 @@ static uint32_t get_lr_context_size(struct intel_engine_cs *ring)
 {
 	int ret = 0;
 
-	WARN_ON(INTEL_INFO(ring->dev)->gen != 8);
+	WARN_ON(INTEL_INFO(ring->dev)->gen < 8);
 
 	switch (ring->id) {
 	case RCS:
-		ret = GEN8_LR_CONTEXT_RENDER_SIZE;
+		if (INTEL_INFO(ring->dev)->gen >= 9)
+			ret = GEN9_LR_CONTEXT_RENDER_SIZE;
+		else
+			ret = GEN8_LR_CONTEXT_RENDER_SIZE;
 		break;
 	case VCS:
 	case BCS:
