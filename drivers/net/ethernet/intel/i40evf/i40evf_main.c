@@ -2045,6 +2045,8 @@ static void i40evf_init_task(struct work_struct *work)
 	case __I40EVF_INIT_VERSION_CHECK:
 		if (!i40evf_asq_done(hw)) {
 			dev_err(&pdev->dev, "Admin queue command never completed\n");
+			i40evf_shutdown_adminq(hw);
+			adapter->state = __I40EVF_STARTUP;
 			goto err;
 		}
 
@@ -2078,8 +2080,11 @@ static void i40evf_init_task(struct work_struct *work)
 				goto err;
 		}
 		err = i40evf_get_vf_config(adapter);
-		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
-			goto restart;
+		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
+			dev_info(&pdev->dev, "Resending VF config request\n");
+			err = i40evf_send_vf_config_msg(adapter);
+			goto err;
+		}
 		if (err) {
 			dev_err(&pdev->dev, "Unable to get VF config (%d)\n",
 				err);
