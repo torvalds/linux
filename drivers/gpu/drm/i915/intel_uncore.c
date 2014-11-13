@@ -222,10 +222,6 @@ static void __vlv_force_wake_get(struct drm_i915_private *dev_priv,
 					FORCEWAKE_ACK_TIMEOUT_MS))
 			DRM_ERROR("Timed out: waiting for media to ack.\n");
 	}
-
-	/* WaRsForcewakeWaitTC0:vlv */
-	if (!IS_CHERRYVIEW(dev_priv->dev))
-		__gen6_gt_wait_for_thread_c0(dev_priv);
 }
 
 static void __vlv_force_wake_put(struct drm_i915_private *dev_priv,
