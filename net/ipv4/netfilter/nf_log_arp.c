@@ -75,12 +75,12 @@ static void dump_arp_packet(struct nf_log_buf *m,
 		       ap->mac_src, ap->ip_src, ap->mac_dst, ap->ip_dst);
 }
 
-void nf_log_arp_packet(struct net *net, u_int8_t pf,
-		      unsigned int hooknum, const struct sk_buff *skb,
-		      const struct net_device *in,
-		      const struct net_device *out,
-		      const struct nf_loginfo *loginfo,
-		      const char *prefix)
+static void nf_log_arp_packet(struct net *net, u_int8_t pf,
+			      unsigned int hooknum, const struct sk_buff *skb,
+			      const struct net_device *in,
+			      const struct net_device *out,
+			      const struct nf_loginfo *loginfo,
+			      const char *prefix)
 {
 	struct nf_log_buf *m;
 
