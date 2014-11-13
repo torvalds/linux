@@ -598,7 +598,7 @@ ceph_sync_direct_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos)
 		snapc = ci->i_snap_realm->cached_context;
 		vino = ceph_vino(inode);
 		req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-					    vino, pos, &len,
+					    vino, pos, &len, 0,
 					    2,/*include a 'startsync' command*/
 					    CEPH_OSD_OP_WRITE, flags, snapc,
 					    ci->i_truncate_seq,
@@ -608,6 +608,8 @@ ceph_sync_direct_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos)
 			ret = PTR_ERR(req);
 			break;
 		}
+
+		osd_req_op_init(req, 1, CEPH_OSD_OP_STARTSYNC);
 
 		n = iov_iter_get_pages_alloc(from, &pages, len, &start);
 		if (unlikely(n < 0)) {
@@ -713,7 +715,7 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos)
 		snapc = ci->i_snap_realm->cached_context;
 		vino = ceph_vino(inode);
 		req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-					    vino, pos, &len, 1,
+					    vino, pos, &len, 0, 1,
 					    CEPH_OSD_OP_WRITE, flags, snapc,
 					    ci->i_truncate_seq,
 					    ci->i_truncate_size,
@@ -1111,7 +1113,7 @@ static int ceph_zero_partial_object(struct inode *inode,
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
 					ceph_vino(inode),
 					offset, length,
-					1, op,
+					0, 1, op,
 					CEPH_OSD_FLAG_WRITE |
 					CEPH_OSD_FLAG_ONDISK,
 					NULL, 0, 0, false);

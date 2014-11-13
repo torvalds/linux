@@ -319,7 +319,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	     off, len);
 	vino = ceph_vino(inode);
 	req = ceph_osdc_new_request(osdc, &ci->i_layout, vino, off, &len,
-				    1, CEPH_OSD_OP_READ,
+				    0, 1, CEPH_OSD_OP_READ,
 				    CEPH_OSD_FLAG_READ, NULL,
 				    ci->i_truncate_seq, ci->i_truncate_size,
 				    false);
@@ -750,7 +750,6 @@ retry:
 	last_snapc = snapc;
 
 	while (!done && index <= end) {
-		int num_ops = do_sync ? 2 : 1;
 		unsigned i;
 		int first;
 		pgoff_t next;
@@ -850,7 +849,8 @@ get_more_pages:
 				len = wsize;
 				req = ceph_osdc_new_request(&fsc->client->osdc,
 							&ci->i_layout, vino,
-							offset, &len, num_ops,
+							offset, &len, 0,
+							do_sync ? 2 : 1,
 							CEPH_OSD_OP_WRITE,
 							CEPH_OSD_FLAG_WRITE |
 							CEPH_OSD_FLAG_ONDISK,
@@ -861,6 +861,9 @@ get_more_pages:
 					unlock_page(page);
 					break;
 				}
+
+				if (do_sync)
+					osd_req_op_init(req, 1, CEPH_OSD_OP_STARTSYNC);
 
 				req->r_callback = writepages_finish;
 				req->r_inode = inode;

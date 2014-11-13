@@ -753,7 +753,8 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       struct ceph_file_layout *layout,
 					       struct ceph_vino vino,
-					       u64 off, u64 *plen, int num_ops,
+					       u64 off, u64 *plen,
+					       unsigned int which, int num_ops,
 					       int opcode, int flags,
 					       struct ceph_snap_context *snapc,
 					       u32 truncate_seq,
@@ -785,7 +786,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	}
 
 	if (opcode == CEPH_OSD_OP_CREATE || opcode == CEPH_OSD_OP_DELETE) {
-		osd_req_op_init(req, 0, opcode);
+		osd_req_op_init(req, which, opcode);
 	} else {
 		u32 object_size = le32_to_cpu(layout->fl_object_size);
 		u32 object_base = off - objoff;
@@ -798,17 +799,9 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					truncate_size = object_size;
 			}
 		}
-
-		osd_req_op_extent_init(req, 0, opcode, objoff, objlen,
+		osd_req_op_extent_init(req, which, opcode, objoff, objlen,
 				       truncate_size, truncate_seq);
 	}
-	/*
-	 * A second op in the ops array means the caller wants to
-	 * also issue a include a 'startsync' command so that the
-	 * osd will flush data quickly.
-	 */
-	if (num_ops > 1)
-		osd_req_op_init(req, 1, CEPH_OSD_OP_STARTSYNC);
 
 	req->r_base_oloc.pool = ceph_file_layout_pg_pool(*layout);
 
@@ -2675,7 +2668,7 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 
 	dout("readpages on ino %llx.%llx on %llu~%llu\n", vino.ino,
 	     vino.snap, off, *plen);
-	req = ceph_osdc_new_request(osdc, layout, vino, off, plen, 1,
+	req = ceph_osdc_new_request(osdc, layout, vino, off, plen, 0, 1,
 				    CEPH_OSD_OP_READ, CEPH_OSD_FLAG_READ,
 				    NULL, truncate_seq, truncate_size,
 				    false);
@@ -2718,7 +2711,7 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 	int page_align = off & ~PAGE_MASK;
 
 	BUG_ON(vino.snap != CEPH_NOSNAP);	/* snapshots aren't writeable */
-	req = ceph_osdc_new_request(osdc, layout, vino, off, &len, 1,
+	req = ceph_osdc_new_request(osdc, layout, vino, off, &len, 0, 1,
 				    CEPH_OSD_OP_WRITE,
 				    CEPH_OSD_FLAG_ONDISK | CEPH_OSD_FLAG_WRITE,
 				    snapc, truncate_seq, truncate_size,
