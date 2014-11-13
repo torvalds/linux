@@ -268,7 +268,7 @@ static bool gb_manifest_parse_module(struct gb_module *gmod,
 
 	gmod->product_string = gb_string_get(desc_module->product_stringid);
 	if (IS_ERR(gmod->product_string)) {
-		goto out_err;
+		goto out_free_vendor_string;
 	}
 
 	gmod->vendor = le16_to_cpu(desc_module->vendor);
@@ -289,6 +289,7 @@ static bool gb_manifest_parse_module(struct gb_module *gmod,
 out_err:
 	kfree(gmod->product_string);
 	gmod->product_string = NULL;
+out_free_vendor_string:
 	kfree(gmod->vendor_string);
 	gmod->vendor_string = NULL;
 
