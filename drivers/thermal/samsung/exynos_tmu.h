@@ -76,7 +76,6 @@ enum soc_type {
  * struct exynos_tmu_register - register descriptors to access registers and
  * bitfields. The register validity, offsets and bitfield values may vary
  * slightly across different exynos SOC's.
- * @triminfo_data: register containing 2 pont trimming data
  * @triminfo_ctrl: trim info controller register.
  * @triminfo_ctrl_count: the number of trim info controller register.
  * @tmu_ctrl: TMU main controller register.
@@ -107,8 +106,6 @@ enum soc_type {
  * @tmu_pmin: register to get/set the Pmin value.
  */
 struct exynos_tmu_registers {
-	u32	triminfo_data;
-
 	u32	triminfo_ctrl[MAX_TRIMINFO_CTRL_REG];
 	u32	triminfo_ctrl_count;
 

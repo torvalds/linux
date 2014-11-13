@@ -182,22 +182,22 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		switch (data->id) {
 		case 0:
 			trim_info = readl(data->base +
-			EXYNOS5440_EFUSE_SWAP_OFFSET + reg->triminfo_data);
+			EXYNOS5440_EFUSE_SWAP_OFFSET + EXYNOS5440_TMU_S0_7_TRIM);
 			break;
 		case 1:
-			trim_info = readl(data->base + reg->triminfo_data);
+			trim_info = readl(data->base + EXYNOS5440_TMU_S0_7_TRIM);
 			break;
 		case 2:
 			trim_info = readl(data->base -
-			EXYNOS5440_EFUSE_SWAP_OFFSET + reg->triminfo_data);
+			EXYNOS5440_EFUSE_SWAP_OFFSET + EXYNOS5440_TMU_S0_7_TRIM);
 		}
 	} else {
 		/* On exynos5420 the triminfo register is in the shared space */
 		if (data->soc == SOC_ARCH_EXYNOS5420_TRIMINFO)
 			trim_info = readl(data->base_second +
-							reg->triminfo_data);
+						EXYNOS_TMU_REG_TRIMINFO);
 		else
-			trim_info = readl(data->base + reg->triminfo_data);
+			trim_info = readl(data->base + EXYNOS_TMU_REG_TRIMINFO);
 	}
 	data->temp_error1 = trim_info & EXYNOS_TMU_TEMP_MASK;
 	data->temp_error2 = ((trim_info >> EXYNOS_TRIMINFO_85_SHIFT) &
