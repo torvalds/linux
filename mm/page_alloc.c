@@ -583,9 +583,11 @@ static inline void __free_one_page(struct page *page,
 		 */
 		if (page_is_guard(buddy)) {
 			clear_page_guard_flag(buddy);
-			set_page_private(page, 0);
-			__mod_zone_freepage_state(zone, 1 << order,
-						  migratetype);
+			set_page_private(buddy, 0);
+			if (!is_migrate_isolate(migratetype)) {
+				__mod_zone_freepage_state(zone, 1 << order,
+							  migratetype);
+			}
 		} else {
 			list_del(&buddy->lru);
 			zone->free_area[order].nr_free--;
