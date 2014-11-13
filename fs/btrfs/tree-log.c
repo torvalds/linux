@@ -3635,6 +3635,12 @@ static int wait_ordered_extents(struct btrfs_trans_handle *trans,
 			    test_bit(BTRFS_ORDERED_IOERR, &ordered->flags)));
 
 		if (test_bit(BTRFS_ORDERED_IOERR, &ordered->flags)) {
+			/*
+			 * Clear the AS_EIO/AS_ENOSPC flags from the inode's
+			 * i_mapping flags, so that the next fsync won't get
+			 * an outdated io error too.
+			 */
+			btrfs_inode_check_errors(inode);
 			*ordered_io_error = true;
 			break;
 		}
@@ -4098,6 +4104,21 @@ log_extents:
 	btrfs_release_path(path);
 	btrfs_release_path(dst_path);
 	if (fast_search) {
+		/*
+		 * Some ordered extents started by fsync might have completed
+		 * before we collected the ordered extents in logged_list, which
+		 * means they're gone, not in our logged_list nor in the inode's
+		 * ordered tree. We want the application/user space to know an
+		 * error happened while attempting to persist file data so that
+		 * it can take proper action. If such error happened, we leave
+		 * without writing to the log tree and the fsync must report the
+		 * file data write error and not commit the current transaction.
+		 */
+		err = btrfs_inode_check_errors(inode);
+		if (err) {
+			ctx->io_err = err;
+			goto out_unlock;
+		}
 		ret = btrfs_log_changed_extents(trans, root, inode, dst_path,
 						&logged_list, ctx);
 		if (ret) {
