@@ -535,7 +535,10 @@ static i40e_status i40e_nvmupd_state_init(struct i40e_hw *hw,
 			*errno = i40e_aq_rc_to_posix(hw->aq.asq_last_status);
 		} else {
 			status = i40e_nvmupd_nvm_read(hw, cmd, bytes, errno);
-			hw->nvmupd_state = I40E_NVMUPD_STATE_READING;
+			if (status)
+				i40e_release_nvm(hw);
+			else
+				hw->nvmupd_state = I40E_NVMUPD_STATE_READING;
 		}
 		break;
 
@@ -571,7 +574,10 @@ static i40e_status i40e_nvmupd_state_init(struct i40e_hw *hw,
 			*errno = i40e_aq_rc_to_posix(hw->aq.asq_last_status);
 		} else {
 			status = i40e_nvmupd_nvm_write(hw, cmd, bytes, errno);
-			hw->nvmupd_state = I40E_NVMUPD_STATE_WRITING;
+			if (status)
+				i40e_release_nvm(hw);
+			else
+				hw->nvmupd_state = I40E_NVMUPD_STATE_WRITING;
 		}
 		break;
 
@@ -671,30 +677,30 @@ static i40e_status i40e_nvmupd_state_writing(struct i40e_hw *hw,
 
 	case I40E_NVMUPD_WRITE_LCB:
 		status = i40e_nvmupd_nvm_write(hw, cmd, bytes, errno);
-		if (!status) {
+		if (!status)
 			hw->aq.nvm_release_on_done = true;
-			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
-		}
+		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
 		break;
 
 	case I40E_NVMUPD_CSUM_CON:
-		status = i40e_update_nvm_checksum(hw);
-		if (status)
-			*errno = hw->aq.asq_last_status ?
-				   i40e_aq_rc_to_posix(hw->aq.asq_last_status) :
-				   -EIO;
-		break;
-
-	case I40E_NVMUPD_CSUM_LCB:
 		status = i40e_update_nvm_checksum(hw);
 		if (status) {
 			*errno = hw->aq.asq_last_status ?
 				   i40e_aq_rc_to_posix(hw->aq.asq_last_status) :
 				   -EIO;
-		} else {
-			hw->aq.nvm_release_on_done = true;
 			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
 		}
+		break;
+
+	case I40E_NVMUPD_CSUM_LCB:
+		status = i40e_update_nvm_checksum(hw);
+		if (status)
+			*errno = hw->aq.asq_last_status ?
+				   i40e_aq_rc_to_posix(hw->aq.asq_last_status) :
+				   -EIO;
+		else
+			hw->aq.nvm_release_on_done = true;
+		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
 		break;
 
 	default:
