@@ -875,6 +875,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 		kfree(opts);
 		if (idr_is_empty(&hidg_ida.idr))
 			ghid_cleanup();
+		goto unlock;
 	}
 	config_group_init_type_name(&opts->func_inst.group, "", &hid_func_type);
 
