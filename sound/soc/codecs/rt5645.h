@@ -1855,6 +1855,7 @@
 #define RT5645_M_BB_HPF_R_SFT			6
 #define RT5645_G_BB_BST_MASK			(0x3f)
 #define RT5645_G_BB_BST_SFT			0
+#define RT5645_G_BB_BST_25DB			0x14
 
 /* MP3 Plus Control 1 (0xd0) */
 #define RT5645_M_MP3_L_MASK			(0x1 << 15)

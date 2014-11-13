@@ -2112,8 +2112,11 @@ static int rt5645_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	struct snd_soc_codec *codec = dai->codec;
 	unsigned int val = 0;
 
-	if (rx_mask || tx_mask)
+	if (rx_mask || tx_mask) {
 		val |= (1 << 14);
+		snd_soc_update_bits(codec, RT5645_BASS_BACK,
+			RT5645_G_BB_BST_MASK, RT5645_G_BB_BST_25DB);
+	}
 
 	switch (slots) {
 	case 4:
