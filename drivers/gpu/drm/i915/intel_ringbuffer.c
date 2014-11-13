@@ -1722,13 +1722,42 @@ static int init_phys_status_page(struct intel_engine_cs *ring)
 	return 0;
 }
 
+void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
+{
+	iounmap(ringbuf->virtual_start);
+	ringbuf->virtual_start = NULL;
+	i915_gem_object_ggtt_unpin(ringbuf->obj);
+}
+
+int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
+				     struct intel_ringbuffer *ringbuf)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_gem_object *obj = ringbuf->obj;
+	int ret;
+
+	ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, PIN_MAPPABLE);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_object_set_to_gtt_domain(obj, true);
+	if (ret) {
+		i915_gem_object_ggtt_unpin(obj);
+		return ret;
+	}
+
+	ringbuf->virtual_start = ioremap_wc(dev_priv->gtt.mappable_base +
+			i915_gem_obj_ggtt_offset(obj), ringbuf->size);
+	if (ringbuf->virtual_start == NULL) {
+		i915_gem_object_ggtt_unpin(obj);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
 {
-	if (!ringbuf->obj)
-		return;
-
-	iounmap(ringbuf->virtual_start);
-	i915_gem_object_ggtt_unpin(ringbuf->obj);
 	drm_gem_object_unreference(&ringbuf->obj->base);
 	ringbuf->obj = NULL;
 }
@@ -1736,12 +1765,7 @@ void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
 int intel_alloc_ringbuffer_obj(struct drm_device *dev,
 			       struct intel_ringbuffer *ringbuf)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
-	int ret;
-
-	if (ringbuf->obj)
-		return 0;
 
 	obj = NULL;
 	if (!HAS_LLC(dev))
@@ -1754,30 +1778,9 @@ int intel_alloc_ringbuffer_obj(struct drm_device *dev,
 	/* mark ring buffers as read-only from GPU side by default */
 	obj->gt_ro = 1;
 
-	ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, PIN_MAPPABLE);
-	if (ret)
-		goto err_unref;
-
-	ret = i915_gem_object_set_to_gtt_domain(obj, true);
-	if (ret)
-		goto err_unpin;
-
-	ringbuf->virtual_start =
-		ioremap_wc(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj),
-				ringbuf->size);
-	if (ringbuf->virtual_start == NULL) {
-		ret = -EINVAL;
-		goto err_unpin;
-	}
-
 	ringbuf->obj = obj;
-	return 0;
 
-err_unpin:
-	i915_gem_object_ggtt_unpin(obj);
-err_unref:
-	drm_gem_object_unreference(&obj->base);
-	return ret;
+	return 0;
 }
 
 static int intel_init_ring_buffer(struct drm_device *dev,
@@ -1814,10 +1817,21 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 			goto error;
 	}
 
-	ret = intel_alloc_ringbuffer_obj(dev, ringbuf);
-	if (ret) {
-		DRM_ERROR("Failed to allocate ringbuffer %s: %d\n", ring->name, ret);
-		goto error;
+	if (ringbuf->obj == NULL) {
+		ret = intel_alloc_ringbuffer_obj(dev, ringbuf);
+		if (ret) {
+			DRM_ERROR("Failed to allocate ringbuffer %s: %d\n",
+					ring->name, ret);
+			goto error;
+		}
+
+		ret = intel_pin_and_map_ringbuffer_obj(dev, ringbuf);
+		if (ret) {
+			DRM_ERROR("Failed to pin and map ringbuffer %s: %d\n",
+					ring->name, ret);
+			intel_destroy_ringbuffer_obj(ringbuf);
+			goto error;
+		}
 	}
 
 	/* Workaround an erratum on the i830 which causes a hang if
@@ -1858,6 +1872,7 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 	intel_stop_ring_buffer(ring);
 	WARN_ON(!IS_GEN2(ring->dev) && (I915_READ_MODE(ring) & MODE_IDLE) == 0);
 
+	intel_unpin_ringbuffer_obj(ringbuf);
 	intel_destroy_ringbuffer_obj(ringbuf);
 	ring->preallocated_lazy_request = NULL;
 	ring->outstanding_lazy_seqno = 0;
