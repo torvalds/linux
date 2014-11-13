@@ -104,10 +104,19 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 	unsigned int hdrlen, fraglen;
 
 	/* If frame is small enough to fit in skb->head, pull it completely.
-	 * If not, only pull ieee80211_hdr (including crypto if present) so
-	 * that splice() or TCP coalesce are more efficient.
+	 * If not, only pull ieee80211_hdr (including crypto if present, and
+	 * an additional 8 bytes for SNAP/ethertype, see below) so that
+	 * splice() or TCP coalesce are more efficient.
+	 *
+	 * Since, in addition, ieee80211_data_to_8023() always pull in at
+	 * least 8 bytes (possibly more for mesh) we can do the same here
+	 * to save the cost of doing it later. That still doesn't pull in
+	 * the actual IP header since the typical case has a SNAP header.
+	 * If the latter changes (there are efforts in the standards group
+	 * to do so) we should revisit this and ieee80211_data_to_8023().
 	 */
-	hdrlen = (len <= skb_tailroom(skb)) ? len : sizeof(*hdr) + crypt_len;
+	hdrlen = (len <= skb_tailroom(skb)) ? len :
+					      sizeof(*hdr) + crypt_len + 8;
 
 	memcpy(skb_put(skb, hdrlen), hdr, hdrlen);
 	fraglen = len - hdrlen;
