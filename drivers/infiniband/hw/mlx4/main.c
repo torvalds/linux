@@ -1975,8 +1975,7 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	    dev->caps.num_ports > dev->caps.comp_pool)
 		return;
 
-	eq_per_port = rounddown_pow_of_two(dev->caps.comp_pool/
-					dev->caps.num_ports);
+	eq_per_port = dev->caps.comp_pool / dev->caps.num_ports;
 
 	/* Init eq table */
 	added_eqs = 0;

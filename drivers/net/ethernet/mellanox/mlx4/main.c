@@ -197,6 +197,29 @@ static void mlx4_set_port_mask(struct mlx4_dev *dev)
 		dev->caps.port_mask[i] = dev->caps.port_type[i];
 }
 
+enum {
+	MLX4_QUERY_FUNC_NUM_SYS_EQS = 1 << 0,
+};
+
+static int mlx4_query_func(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
+{
+	int err = 0;
+	struct mlx4_func func;
+
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
+		err = mlx4_QUERY_FUNC(dev, &func, 0);
+		if (err) {
+			mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
+			return err;
+		}
+		dev_cap->max_eqs = func.max_eq;
+		dev_cap->reserved_eqs = func.rsvd_eqs;
+		dev_cap->reserved_uars = func.rsvd_uars;
+		err |= MLX4_QUERY_FUNC_NUM_SYS_EQS;
+	}
+	return err;
+}
+
 static void mlx4_enable_cqe_eqe_stride(struct mlx4_dev *dev)
 {
 	struct mlx4_caps *dev_cap = &dev->caps;
@@ -261,7 +284,10 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	}
 
 	dev->caps.num_ports	     = dev_cap->num_ports;
-	dev->phys_caps.num_phys_eqs  = MLX4_MAX_EQ_NUM;
+	dev->caps.num_sys_eqs = dev_cap->num_sys_eqs;
+	dev->phys_caps.num_phys_eqs = dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS ?
+				      dev->caps.num_sys_eqs :
+				      MLX4_MAX_EQ_NUM;
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
 		dev->caps.vl_cap[i]	    = dev_cap->max_vl[i];
 		dev->caps.ib_mtu_cap[i]	    = dev_cap->ib_mtu[i];
@@ -1130,8 +1156,7 @@ static int mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
 	if (err)
 		goto err_srq;
 
-	num_eqs = (mlx4_is_master(dev)) ? dev->phys_caps.num_phys_eqs :
-		  dev->caps.num_eqs;
+	num_eqs = dev->phys_caps.num_phys_eqs;
 	err = mlx4_init_icm_table(dev, &priv->eq_table.cmpt_table,
 				  cmpt_base +
 				  ((u64) (MLX4_CMPT_TYPE_EQ *
@@ -1193,8 +1218,7 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 	}
 
 
-	num_eqs = (mlx4_is_master(dev)) ? dev->phys_caps.num_phys_eqs :
-		   dev->caps.num_eqs;
+	num_eqs = dev->phys_caps.num_phys_eqs;
 	err = mlx4_init_icm_table(dev, &priv->eq_table.table,
 				  init_hca->eqc_base, dev_cap->eqc_entry_sz,
 				  num_eqs, num_eqs, 0, 0);
@@ -1719,6 +1743,19 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 			mlx4_err(dev, "INIT_HCA command failed, aborting\n");
 			goto err_free_icm;
 		}
+
+		if (dev_cap.flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
+			err = mlx4_query_func(dev, &dev_cap);
+			if (err < 0) {
+				mlx4_err(dev, "QUERY_FUNC command failed, aborting.\n");
+				goto err_stop_fw;
+			} else if (err & MLX4_QUERY_FUNC_NUM_SYS_EQS) {
+				dev->caps.num_eqs = dev_cap.max_eqs;
+				dev->caps.reserved_eqs = dev_cap.reserved_eqs;
+				dev->caps.reserved_uars = dev_cap.reserved_uars;
+			}
+		}
+
 		/*
 		 * If TS is supported by FW
 		 * read HCA frequency by QUERY_HCA command
@@ -2085,12 +2122,11 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct msix_entry *entries;
-	int nreq = min_t(int, dev->caps.num_ports *
-			 min_t(int, num_online_cpus() + 1,
-			       MAX_MSIX_P_PORT) + MSIX_LEGACY_SZ, MAX_MSIX);
 	int i;
 
 	if (msi_x) {
+		int nreq = dev->caps.num_ports * num_online_cpus() + MSIX_LEGACY_SZ;
+
 		nreq = min_t(int, dev->caps.num_eqs - dev->caps.reserved_eqs,
 			     nreq);
 
@@ -2345,6 +2381,7 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 	int err;
 	int port;
 	int i;
+	struct mlx4_dev_cap *dev_cap = NULL;
 	int existing_vfs = 0;
 
 	dev = &priv->dev;
@@ -2381,15 +2418,6 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 			}
 		}
 
-		if (total_vfs) {
-			existing_vfs = pci_num_vf(pdev);
-			dev->flags = MLX4_FLAG_MASTER;
-			dev->flags = mlx4_enable_sriov(dev, pdev, total_vfs,
-						       existing_vfs);
-			if (!SRIOV_VALID_STATE(dev->flags))
-				goto err_sriov;
-		}
-
 		atomic_set(&priv->opreq_count, 0);
 		INIT_WORK(&priv->opreq_task, mlx4_opreq_action);
 
@@ -2402,6 +2430,12 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 		if (err) {
 			mlx4_err(dev, "Failed to reset HCA, aborting\n");
 			goto err_sriov;
+		}
+
+		if (total_vfs) {
+			existing_vfs = pci_num_vf(pdev);
+			dev->flags = MLX4_FLAG_MASTER;
+			dev->num_vfs = total_vfs;
 		}
 	}
 
@@ -2416,9 +2450,10 @@ slave_start:
 	 * before posting commands. Also, init num_slaves before calling
 	 * mlx4_init_hca */
 	if (mlx4_is_mfunc(dev)) {
-		if (mlx4_is_master(dev))
+		if (mlx4_is_master(dev)) {
 			dev->num_slaves = MLX4_MAX_NUM_SLAVES;
-		else {
+
+		} else {
 			dev->num_slaves = 0;
 			err = mlx4_multi_func_init(dev);
 			if (err) {
@@ -2432,6 +2467,52 @@ slave_start:
 	if (err) {
 		mlx4_err(dev, "Failed to init fw, aborting.\n");
 		goto err_mfunc;
+	}
+
+	if (mlx4_is_master(dev)) {
+		if (!dev_cap) {
+			dev_cap = kzalloc(sizeof(*dev_cap), GFP_KERNEL);
+
+			if (!dev_cap) {
+				err = -ENOMEM;
+				goto err_fw;
+			}
+
+			err = mlx4_QUERY_DEV_CAP(dev, dev_cap);
+			if (err) {
+				mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
+				goto err_fw;
+			}
+
+			if (!(dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS)) {
+				u64 dev_flags = mlx4_enable_sriov(dev, pdev, total_vfs,
+								  existing_vfs);
+
+				mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_ALL);
+				dev->flags = dev_flags;
+				if (!SRIOV_VALID_STATE(dev->flags)) {
+					mlx4_err(dev, "Invalid SRIOV state\n");
+					goto err_sriov;
+				}
+				err = mlx4_reset(dev);
+				if (err) {
+					mlx4_err(dev, "Failed to reset HCA, aborting.\n");
+					goto err_sriov;
+				}
+				goto slave_start;
+			}
+		} else {
+			/* Legacy mode FW requires SRIOV to be enabled before
+			 * doing QUERY_DEV_CAP, since max_eq's value is different if
+			 * SRIOV is enabled.
+			 */
+			memset(dev_cap, 0, sizeof(*dev_cap));
+			err = mlx4_QUERY_DEV_CAP(dev, dev_cap);
+			if (err) {
+				mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting.\n");
+				goto err_fw;
+			}
+		}
 	}
 
 	err = mlx4_init_hca(dev);
@@ -2455,6 +2536,30 @@ slave_start:
 			goto slave_start;
 		} else
 			goto err_fw;
+	}
+
+	if (mlx4_is_master(dev) && (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS)) {
+		u64 dev_flags = mlx4_enable_sriov(dev, pdev, total_vfs, existing_vfs);
+
+		if ((dev->flags ^ dev_flags) & (MLX4_FLAG_MASTER | MLX4_FLAG_SLAVE)) {
+			mlx4_cmd_cleanup(dev, MLX4_CMD_CLEANUP_VHCR);
+			dev->flags = dev_flags;
+			err = mlx4_cmd_init(dev);
+			if (err) {
+				/* Only VHCR is cleaned up, so could still
+				 * send FW commands
+				 */
+				mlx4_err(dev, "Failed to init VHCR command interface, aborting\n");
+				goto err_close;
+			}
+		} else {
+			dev->flags = dev_flags;
+		}
+
+		if (!SRIOV_VALID_STATE(dev->flags)) {
+			mlx4_err(dev, "Invalid SRIOV state\n");
+			goto err_close;
+		}
 	}
 
 	/* check if the device is functioning at its maximum possible speed.
@@ -2631,6 +2736,7 @@ err_sriov:
 	if (!mlx4_is_slave(dev))
 		mlx4_free_ownership(dev);
 
+	kfree(dev_cap);
 	return err;
 }
 

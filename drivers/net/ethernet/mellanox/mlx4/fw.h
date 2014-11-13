@@ -56,6 +56,7 @@ struct mlx4_dev_cap {
 	int max_mpts;
 	int reserved_eqs;
 	int max_eqs;
+	int num_sys_eqs;
 	int reserved_mtts;
 	int max_mrw_sz;
 	int reserved_mrws;
@@ -180,6 +181,7 @@ struct mlx4_init_hca_param {
 	u8  log_num_srqs;
 	u8  log_num_cqs;
 	u8  log_num_eqs;
+	u16 num_sys_eqs;
 	u8  log_rd_per_qp;
 	u8  log_mc_table_sz;
 	u8  log_mpt_sz;

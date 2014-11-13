@@ -189,7 +189,8 @@ enum {
 	MLX4_DEV_CAP_FLAG2_EQE_STRIDE		= 1LL <<  13,
 	MLX4_DEV_CAP_FLAG2_ETH_PROT_CTRL        = 1LL <<  14,
 	MLX4_DEV_CAP_FLAG2_ETH_BACKPL_AN_REP	= 1LL <<  15,
-	MLX4_DEV_CAP_FLAG2_CONFIG_DEV		= 1LL <<  16
+	MLX4_DEV_CAP_FLAG2_CONFIG_DEV		= 1LL <<  16,
+	MLX4_DEV_CAP_FLAG2_SYS_EQS		= 1LL <<  17
 };
 
 enum {
@@ -443,6 +444,7 @@ struct mlx4_caps {
 	int			num_cqs;
 	int			max_cqes;
 	int			reserved_cqs;
+	int			num_sys_eqs;
 	int			num_eqs;
 	int			reserved_eqs;
 	int			num_comp_vectors;
