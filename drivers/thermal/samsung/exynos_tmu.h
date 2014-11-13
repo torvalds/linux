@@ -54,8 +54,6 @@ enum soc_type {
  *			be reloaded.
  * TMU_SUPPORT_FALLING_TRIP - This features shows that interrupt can
  *			be registered for falling trips also.
- * TMU_SUPPORT_READY_STATUS - This feature tells that the TMU current
- *			state(active/idle) can be checked.
  * TMU_SUPPORT_EMUL_TIME - This features allows to set next temp emulation
  *			sample time.
  * TMU_SUPPORT_ADDRESS_MULTIPLE - This feature tells that the different TMU
@@ -66,9 +64,8 @@ enum soc_type {
 #define TMU_SUPPORT_MULTI_INST			BIT(1)
 #define TMU_SUPPORT_TRIM_RELOAD			BIT(2)
 #define TMU_SUPPORT_FALLING_TRIP		BIT(3)
-#define TMU_SUPPORT_READY_STATUS		BIT(4)
-#define TMU_SUPPORT_EMUL_TIME			BIT(5)
-#define TMU_SUPPORT_ADDRESS_MULTIPLE		BIT(6)
+#define TMU_SUPPORT_EMUL_TIME			BIT(4)
+#define TMU_SUPPORT_ADDRESS_MULTIPLE		BIT(5)
 
 #define TMU_SUPPORTS(a, b)	(a->features & TMU_SUPPORT_ ## b)
 

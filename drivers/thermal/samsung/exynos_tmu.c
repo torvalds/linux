@@ -153,7 +153,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 	if (!IS_ERR(data->clk_sec))
 		clk_enable(data->clk_sec);
 
-	if (TMU_SUPPORTS(pdata, READY_STATUS)) {
+	if (data->soc != SOC_ARCH_EXYNOS5440) {
 		status = readb(data->base + EXYNOS_TMU_REG_STATUS);
 		if (!status) {
 			ret = -EBUSY;
