@@ -7960,6 +7960,30 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc)
 	return 0;
 }
 
+static void skylake_get_ddi_pll(struct drm_i915_private *dev_priv,
+				enum port port,
+				struct intel_crtc_config *pipe_config)
+{
+	u32 temp;
+
+	temp = I915_READ(DPLL_CTRL2) & DPLL_CTRL2_DDI_CLK_SEL_MASK(port);
+	pipe_config->ddi_pll_sel = temp >> (port * 3 + 1);
+
+	switch (pipe_config->ddi_pll_sel) {
+	case SKL_DPLL1:
+		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL1;
+		break;
+	case SKL_DPLL2:
+		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL2;
+		break;
+	case SKL_DPLL3:
+		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL3;
+		break;
+	default:
+		WARN(1, "Unknown DPLL programmed\n");
+	}
+}
+
 static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_config *pipe_config)
@@ -7989,7 +8013,10 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 
 	port = (tmp & TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
 
-	haswell_get_ddi_pll(dev_priv, port, pipe_config);
+	if (IS_SKYLAKE(dev))
+		skylake_get_ddi_pll(dev_priv, port, pipe_config);
+	else
+		haswell_get_ddi_pll(dev_priv, port, pipe_config);
 
 	if (pipe_config->shared_dpll >= 0) {
 		pll = &dev_priv->shared_dplls[pipe_config->shared_dpll];

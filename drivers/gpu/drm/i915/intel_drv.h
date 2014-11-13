@@ -343,7 +343,10 @@ struct intel_crtc_config {
 	/* Selected dpll when shared or DPLL_ID_PRIVATE. */
 	enum intel_dpll_id shared_dpll;
 
-	/* PORT_CLK_SEL for DDI ports. */
+	/*
+	 * - PORT_CLK_SEL for DDI ports on HSW/BDW.
+	 * - enum skl_dpll on SKL
+	 */
 	uint32_t ddi_pll_sel;
 
 	/* Actual register state of the dpll, for shared dpll cross-checking. */
