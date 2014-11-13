@@ -231,7 +231,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 						pdata->trigger_levels[i]);
 			rising_threshold &= ~(0xff << 8 * i);
 			rising_threshold |= threshold_code << 8 * i;
-			if (pdata->threshold_falling) {
+			if (data->soc != SOC_ARCH_EXYNOS5440) {
 				threshold_code = temp_to_code(data,
 						pdata->trigger_levels[i] -
 						pdata->threshold_falling);
