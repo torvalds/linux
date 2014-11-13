@@ -1130,6 +1130,8 @@ static struct l2cap_chan *bt_6lowpan_listen(void)
 	pchan->state = BT_LISTEN;
 	pchan->src_type = BDADDR_LE_PUBLIC;
 
+	atomic_set(&pchan->nesting, L2CAP_NESTING_PARENT);
+
 	BT_DBG("psm 0x%04x chan %p src type %d", psm_6lowpan, pchan,
 	       pchan->src_type);
 
