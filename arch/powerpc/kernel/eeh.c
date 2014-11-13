@@ -1220,6 +1220,7 @@ int eeh_unfreeze_pe(struct eeh_pe *pe, bool sw_state)
 static struct pci_device_id eeh_reset_ids[] = {
 	{ PCI_DEVICE(0x19a2, 0x0710) },	/* Emulex, BE     */
 	{ PCI_DEVICE(0x10df, 0xe220) },	/* Emulex, Lancer */
+	{ PCI_DEVICE(0x14e4, 0x1657) }, /* Broadcom BCM5719 */
 	{ 0 }
 };
 
