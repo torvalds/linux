@@ -2321,6 +2321,14 @@ static int musb_resume(struct device *dev)
 		schedule_delayed_work(&musb->finish_resume_work,
 				      msecs_to_jiffies(20));
 	}
+
+	/*
+	 * The USB HUB code expects the device to be in RPM_ACTIVE once it came
+	 * out of suspend
+	 */
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 	return 0;
 }
 
