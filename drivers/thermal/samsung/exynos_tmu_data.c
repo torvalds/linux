@@ -22,7 +22,6 @@
 
 #include "exynos_thermal_common.h"
 #include "exynos_tmu.h"
-#include "exynos_tmu_data.h"
 
 struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 	.tmu_data = {

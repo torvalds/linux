@@ -133,4 +133,12 @@ struct exynos_tmu_init_data {
 	struct exynos_tmu_platform_data tmu_data[];
 };
 
+extern struct exynos_tmu_init_data const exynos3250_default_tmu_data;
+extern struct exynos_tmu_init_data const exynos4210_default_tmu_data;
+extern struct exynos_tmu_init_data const exynos4412_default_tmu_data;
+extern struct exynos_tmu_init_data const exynos5250_default_tmu_data;
+extern struct exynos_tmu_init_data const exynos5260_default_tmu_data;
+extern struct exynos_tmu_init_data const exynos5420_default_tmu_data;
+extern struct exynos_tmu_init_data const exynos5440_default_tmu_data;
+
 #endif /* _EXYNOS_TMU_H */
