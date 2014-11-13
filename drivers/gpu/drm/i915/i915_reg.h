@@ -4916,6 +4916,18 @@ enum punit_power_well {
 #define PF_VSCALE(pipe)		_PIPE(pipe, _PFA_VSCALE, _PFB_VSCALE)
 #define PF_HSCALE(pipe)		_PIPE(pipe, _PFA_HSCALE, _PFB_HSCALE)
 
+#define _PSA_CTL		0x68180
+#define _PSB_CTL		0x68980
+#define PS_ENABLE		(1<<31)
+#define _PSA_WIN_SZ		0x68174
+#define _PSB_WIN_SZ		0x68974
+#define _PSA_WIN_POS		0x68170
+#define _PSB_WIN_POS		0x68970
+
+#define PS_CTL(pipe)		_PIPE(pipe, _PSA_CTL, _PSB_CTL)
+#define PS_WIN_SZ(pipe)		_PIPE(pipe, _PSA_WIN_SZ, _PSB_WIN_SZ)
+#define PS_WIN_POS(pipe)	_PIPE(pipe, _PSA_WIN_POS, _PSB_WIN_POS)
+
 /* legacy palette */
 #define _LGC_PALETTE_A           0x4a000
 #define _LGC_PALETTE_B           0x4a800

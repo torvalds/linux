@@ -4003,6 +4003,19 @@ static void cpt_verify_modeset(struct drm_device *dev, int pipe)
 	}
 }
 
+static void skylake_pfit_enable(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = crtc->pipe;
+
+	if (crtc->config.pch_pfit.enabled) {
+		I915_WRITE(PS_CTL(pipe), PS_ENABLE);
+		I915_WRITE(PS_WIN_POS(pipe), crtc->config.pch_pfit.pos);
+		I915_WRITE(PS_WIN_SZ(pipe), crtc->config.pch_pfit.size);
+	}
+}
+
 static void ironlake_pfit_enable(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -4386,7 +4399,10 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_ddi_enable_pipe_clock(intel_crtc);
 
-	ironlake_pfit_enable(intel_crtc);
+	if (IS_SKYLAKE(dev))
+		skylake_pfit_enable(intel_crtc);
+	else
+		ironlake_pfit_enable(intel_crtc);
 
 	/*
 	 * On ILK+ LUT must be loaded before the pipe is running but with
@@ -4418,6 +4434,21 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	 * to change the workaround. */
 	haswell_mode_set_planes_workaround(intel_crtc);
 	intel_crtc_enable_planes(crtc);
+}
+
+static void skylake_pfit_disable(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = crtc->pipe;
+
+	/* To avoid upsetting the power well on haswell only disable the pfit if
+	 * it's in use. The hw state code will make sure we get this right. */
+	if (crtc->config.pch_pfit.enabled) {
+		I915_WRITE(PS_CTL(pipe), 0);
+		I915_WRITE(PS_WIN_POS(pipe), 0);
+		I915_WRITE(PS_WIN_SZ(pipe), 0);
+	}
 }
 
 static void ironlake_pfit_disable(struct intel_crtc *crtc)
@@ -4532,7 +4563,10 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
 
-	ironlake_pfit_disable(intel_crtc);
+	if (IS_SKYLAKE(dev))
+		skylake_pfit_disable(intel_crtc);
+	else
+		ironlake_pfit_disable(intel_crtc);
 
 	intel_ddi_disable_pipe_clock(intel_crtc);
 
@@ -7547,6 +7581,22 @@ static void ironlake_get_fdi_m_n_config(struct intel_crtc *crtc,
 				     &pipe_config->fdi_m_n, NULL);
 }
 
+static void skylake_get_pfit_config(struct intel_crtc *crtc,
+				    struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp;
+
+	tmp = I915_READ(PS_CTL(crtc->pipe));
+
+	if (tmp & PS_ENABLE) {
+		pipe_config->pch_pfit.enabled = true;
+		pipe_config->pch_pfit.pos = I915_READ(PS_WIN_POS(crtc->pipe));
+		pipe_config->pch_pfit.size = I915_READ(PS_WIN_SZ(crtc->pipe));
+	}
+}
+
 static void ironlake_get_pfit_config(struct intel_crtc *crtc,
 				     struct intel_crtc_config *pipe_config)
 {
@@ -8092,8 +8142,12 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	intel_get_pipe_timings(crtc, pipe_config);
 
 	pfit_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
-	if (intel_display_power_is_enabled(dev_priv, pfit_domain))
-		ironlake_get_pfit_config(crtc, pipe_config);
+	if (intel_display_power_is_enabled(dev_priv, pfit_domain)) {
+		if (IS_SKYLAKE(dev))
+			skylake_get_pfit_config(crtc, pipe_config);
+		else
+			ironlake_get_pfit_config(crtc, pipe_config);
+	}
 
 	if (IS_HASWELL(dev))
 		pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
