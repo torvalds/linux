@@ -183,10 +183,9 @@ static u32 gb_manifest_parse_cports(struct gb_interface *interface)
 		struct greybus_descriptor_cport *desc_cport;
 		u8 protocol_id;
 		u16 cport_id;
-		bool found;
+		bool found = false;
 
 		/* Find a cport descriptor */
-		found = false;
 		list_for_each_entry(descriptor, &manifest_descs, links) {
 			if (descriptor->type == GREYBUS_TYPE_CPORT) {
 				desc_cport = descriptor->data;
