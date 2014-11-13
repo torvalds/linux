@@ -167,8 +167,10 @@ static int gb_gpio_proto_version_operation(struct gb_gpio_controller *gb_gpio_co
 		}
 		gb_gpio_controller->version_major = response->major;
 		gb_gpio_controller->version_minor = response->minor;
-printk("%s: version_major = %u version_minor = %u\n", __func__,
-	gb_gpio_controller->version_major, gb_gpio_controller->version_minor);
+
+		pr_debug("%s: version_major = %u version_minor = %u\n", __func__,
+			  gb_gpio_controller->version_major,
+			  gb_gpio_controller->version_minor);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -204,8 +206,9 @@ static int gb_gpio_line_count_operation(struct gb_gpio_controller *gb_gpio_contr
 		ret = -EIO;
 	} else {
 		gb_gpio_controller->line_max = response->count;
-printk("%s: count = %u\n", __func__,
-	gb_gpio_controller->line_max + 1);
+
+		pr_debug("%s: count = %u\n", __func__,
+			  gb_gpio_controller->line_max + 1);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -248,7 +251,8 @@ static int gb_gpio_activate_operation(struct gb_gpio_controller *gb_gpio_control
 		ret = -EIO;
 	} else {
 		gb_gpio_controller->lines[which].active = true;
-printk("%s: %u is now active\n", __func__, which);
+
+		pr_debug("%s: %u is now active\n", __func__, which);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -291,7 +295,7 @@ static int gb_gpio_deactivate_operation(struct gb_gpio_controller *gb_gpio_contr
 		ret = -EIO;
 	} else {
 		gb_gpio_controller->lines[which].active = false;
-printk("%s: %u is now inactive\n", __func__, which);
+		pr_debug("%s: %u is now inactive\n", __func__, which);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -338,8 +342,8 @@ static int gb_gpio_get_direction_operation(struct gb_gpio_controller *gb_gpio_co
 			pr_warn("gpio %u direction was %u (should be 0 or 1)\n",
 				which, direction);
 		gb_gpio_controller->lines[which].direction = direction ? 1 : 0;
-printk("%s: direction of %u is %s\n", __func__, which,
-	direction ? "in" : "out");
+		pr_debug("%s: direction of %u is %s\n", __func__, which,
+			  direction ? "in" : "out");
 	}
 out:
 	gb_operation_destroy(operation);
@@ -382,7 +386,7 @@ static int gb_gpio_direction_in_operation(struct gb_gpio_controller *gb_gpio_con
 		ret = -EIO;
 	} else {
 		gb_gpio_controller->lines[which].direction = 1;
-printk("%s: direction of %u is now in\n", __func__, which);
+		pr_debug("%s: direction of %u is now in\n", __func__, which);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -426,8 +430,8 @@ static int gb_gpio_direction_out_operation(struct gb_gpio_controller *gb_gpio_co
 		ret = -EIO;
 	} else {
 		gb_gpio_controller->lines[which].direction = 0;
-printk("%s: direction of %u is now out, value %s\n", __func__,
-	which, value_high ? "high" : "low");
+		pr_debug("%s: direction of %u is now out, value %s\n", __func__,
+			  which, value_high ? "high" : "low");
 	}
 out:
 	gb_operation_destroy(operation);
@@ -475,8 +479,9 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *gb_gpio_contro
 				which, value);
 		gb_gpio_controller->lines[which].value = value ? 1 : 0;
 		/* XXX should this set direction to out? */
-printk("%s: value of %u is %s\n", __func__,
-	which, gb_gpio_controller->lines[which].value ? "high" : "low");
+		pr_debug("%s: value of %u is %s\n", __func__, which,
+			  gb_gpio_controller->lines[which].value ? "high" :
+			  "low");
 	}
 out:
 	gb_operation_destroy(operation);
@@ -521,8 +526,9 @@ static int gb_gpio_set_value_operation(struct gb_gpio_controller *gb_gpio_contro
 	} else {
 		/* XXX should this set direction to out? */
 		gb_gpio_controller->lines[which].value = request->value;
-printk("%s: out value of %u is now %s\n", __func__,
-	which, gb_gpio_controller->lines[which].value ? "high" : "low");
+		pr_debug("%s: out value of %u is now %s\n", __func__, which,
+			  gb_gpio_controller->lines[which].value ? "high" :
+			  "low");
 	}
 out:
 	gb_operation_destroy(operation);
@@ -566,8 +572,8 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *gb_gpio_con
 		ret = -EIO;
 	} else {
 		gb_gpio_controller->lines[which].debounce_usec = le16_to_cpu(request->usec);
-		printk("%s: debounce of %u is now %hu usec\n", __func__, which,
-			gb_gpio_controller->lines[which].debounce_usec);
+		pr_debug("%s: debounce of %u is now %hu usec\n", __func__, which,
+			  gb_gpio_controller->lines[which].debounce_usec);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -582,7 +588,7 @@ static int gb_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 	if (offset < 0 || offset >= chip->ngpio)
 		return -EINVAL;
-	printk("passed check\n");
+	pr_debug("%s: passed check\n", __func__);
 	ret = gb_gpio_activate_operation(gb_gpio_controller, (u8)offset);
 	if (ret)
 		;	/* return ret; */

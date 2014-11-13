@@ -236,7 +236,7 @@ static void operation_timeout(struct work_struct *work)
 	struct gb_operation *operation;
 
 	operation = container_of(work, struct gb_operation, timeout_work.work);
-	printk("timeout!\n");
+	pr_debug("%s: timeout!\n", __func__);
 
 	operation->result = GB_OP_TIMEOUT;
 	gb_operation_complete(operation);
