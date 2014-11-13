@@ -1235,7 +1235,7 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 {
 	struct tun_pi pi = { 0, skb->protocol };
 	ssize_t total;
-	int vlan_offset;
+	int vlan_offset = 0;
 	int vlan_hlen = 0;
 	int vnet_hdr_sz = 0;
 
@@ -1304,6 +1304,8 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 
 		if (copy_to_iter(&gso, sizeof(gso), iter) != sizeof(gso))
 			return -EFAULT;
+
+		iov_iter_advance(iter, vnet_hdr_sz - sizeof(gso));
 	}
 
 	if (vlan_hlen) {
