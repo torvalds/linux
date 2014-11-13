@@ -678,7 +678,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		      BSS_CHANGED_BEACON_ENABLED |
 		      BSS_CHANGED_BEACON |
 		      BSS_CHANGED_SSID |
-		      BSS_CHANGED_P2P_PS;
+		      BSS_CHANGED_P2P_PS |
+		      BSS_CHANGED_TXPOWER;
 	int err;
 
 	old = sdata_dereference(sdata->u.ap.beacon, sdata);
