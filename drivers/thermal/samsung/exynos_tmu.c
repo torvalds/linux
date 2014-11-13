@@ -252,18 +252,18 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 				(pdata->trigger_type[i] == HW_TRIP)) {
 			threshold_code = temp_to_code(data,
 						pdata->trigger_levels[i]);
-			if (i == EXYNOS_MAX_TRIGGER_PER_REG - 1) {
+			if (data->soc != SOC_ARCH_EXYNOS5440) {
 				/* 1-4 level to be assigned in th0 reg */
 				rising_threshold &= ~(0xff << 8 * i);
 				rising_threshold |= threshold_code << 8 * i;
 				writel(rising_threshold,
-					data->base + reg->threshold_th0);
-			} else if (i == EXYNOS_MAX_TRIGGER_PER_REG) {
+					data->base + EXYNOS_THD_TEMP_RISE);
+			} else {
 				/* 5th level to be assigned in th2 reg */
 				rising_threshold =
-				threshold_code << reg->threshold_th3_l0_shift;
+				threshold_code << EXYNOS5440_TMU_TH_RISE4_SHIFT;
 				writel(rising_threshold,
-					data->base + reg->threshold_th2);
+					data->base + EXYNOS5440_TMU_S0_7_TH2);
 			}
 			con = readl(data->base + reg->tmu_ctrl);
 			con |= (1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);

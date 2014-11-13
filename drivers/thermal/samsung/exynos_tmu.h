@@ -80,8 +80,6 @@ enum soc_type {
  * @tmu_cur_temp: register containing the current temperature of the TMU.
  * @threshold_th0: Register containing first set of rising levels.
  * @threshold_th1: Register containing second set of rising levels.
- * @threshold_th2: Register containing third set of rising levels.
- * @threshold_th3_l0_shift: shift bits of level0 threshold temperature.
  * @tmu_inten: register containing the different threshold interrupt
 	enable bits.
  * @inten_rise0_shift: shift bits of rising 0 interrupt bits.
@@ -100,8 +98,6 @@ struct exynos_tmu_registers {
 
 	u32	threshold_th0;
 	u32	threshold_th1;
-	u32	threshold_th2;
-	u32	threshold_th3_l0_shift;
 
 	u32	tmu_inten;
 	u32	inten_rise0_shift;
