@@ -617,7 +617,6 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 
 	/* pre-emptive resource lock release */
 	i40e_aq_release_resource(hw, I40E_NVM_RESOURCE_ID, 0, NULL);
-	hw->aq.nvm_busy = false;
 
 	ret_code = i40e_aq_set_hmc_resource_profile(hw,
 						    I40E_HMC_PROFILE_DEFAULT,
@@ -751,12 +750,6 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: Admin queue not initialized.\n");
 		status = I40E_ERR_QUEUE_EMPTY;
-		goto asq_send_command_exit;
-	}
-
-	if (i40e_is_nvm_update_op(desc) && hw->aq.nvm_busy) {
-		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQTX: NVM busy.\n");
-		status = I40E_ERR_NVM;
 		goto asq_send_command_exit;
 	}
 
@@ -901,9 +894,6 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 		status = I40E_ERR_ADMIN_QUEUE_TIMEOUT;
 	}
 
-	if (!status && i40e_is_nvm_update_op(desc))
-		hw->aq.nvm_busy = true;
-
 asq_send_command_error:
 	mutex_unlock(&hw->aq.asq_mutex);
 asq_send_command_exit:
@@ -1016,7 +1006,6 @@ clean_arq_element_out:
 	mutex_unlock(&hw->aq.arq_mutex);
 
 	if (i40e_is_nvm_update_op(&e->desc)) {
-		hw->aq.nvm_busy = false;
 		if (hw->aq.nvm_release_on_done) {
 			i40e_release_nvm(hw);
 			hw->aq.nvm_release_on_done = false;

@@ -836,9 +836,6 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 		hw->aq.asq_last_status = (enum i40e_admin_queue_err)retval;
 	}
 
-	if (i40e_is_nvm_update_op(desc))
-		hw->aq.nvm_busy = true;
-
 	i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 		   "AQTX: desc and buffer writeback:\n");
 	i40evf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff,
@@ -930,9 +927,6 @@ i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
 	if (e->msg_buf != NULL && (e->msg_len != 0))
 		memcpy(e->msg_buf, hw->aq.arq.r.arq_bi[desc_idx].va,
 		       e->msg_len);
-
-	if (i40e_is_nvm_update_op(&e->desc))
-		hw->aq.nvm_busy = false;
 
 	i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQRX: desc and buffer:\n");
 	i40evf_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, e->msg_buf,
