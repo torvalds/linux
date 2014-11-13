@@ -304,9 +304,8 @@ static void exynos_tmu_control(struct platform_device *pdev, bool on)
 	con |= (pdata->gain << EXYNOS_TMU_BUF_SLOPE_SEL_SHIFT);
 
 	if (pdata->noise_cancel_mode) {
-		con &= ~(reg->therm_trip_mode_mask <<
-					reg->therm_trip_mode_shift);
-		con |= (pdata->noise_cancel_mode << reg->therm_trip_mode_shift);
+		con &= ~(EXYNOS_TMU_TRIP_MODE_MASK << EXYNOS_TMU_TRIP_MODE_SHIFT);
+		con |= (pdata->noise_cancel_mode << EXYNOS_TMU_TRIP_MODE_SHIFT);
 	}
 
 	if (on) {
