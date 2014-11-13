@@ -707,7 +707,6 @@ complete_reset:
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
 	i40e_flush(hw);
 }
-#ifdef CONFIG_PCI_IOV
 
 /**
  * i40e_enable_pf_switch_lb
@@ -715,7 +714,7 @@ complete_reset:
  *
  * enable switch loop back or die - no point in a return value
  **/
-static void i40e_enable_pf_switch_lb(struct i40e_pf *pf)
+void i40e_enable_pf_switch_lb(struct i40e_pf *pf)
 {
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	struct i40e_vsi_context ctxt;
@@ -742,7 +741,6 @@ static void i40e_enable_pf_switch_lb(struct i40e_pf *pf)
 			 __func__, vsi->back->hw.aq.asq_last_status);
 	}
 }
-#endif
 
 /**
  * i40e_disable_pf_switch_lb

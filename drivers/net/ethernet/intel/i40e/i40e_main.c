@@ -7797,6 +7797,10 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		ctxt.uplink_seid = vsi->uplink_seid;
 		ctxt.connection_type = 0x1;     /* regular data port */
 		ctxt.flags = I40E_AQ_VSI_TYPE_PF;
+		ctxt.info.valid_sections |=
+				cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+		ctxt.info.switch_id =
+				cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
 		i40e_vsi_setup_queue_map(vsi, &ctxt, enabled_tc, true);
 		break;
 
@@ -8182,7 +8186,15 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 		else if ((vsi->flags & I40E_VSI_FLAG_VEB_OWNER) == 0)
 			veb = i40e_veb_setup(pf, 0, vsi->uplink_seid, vsi->seid,
 					     vsi->tc_config.enabled_tc);
-
+		if (veb) {
+			if (vsi->seid != pf->vsi[pf->lan_vsi]->seid) {
+				dev_info(&vsi->back->pdev->dev,
+					 "%s: New VSI creation error, uplink seid of LAN VSI expected.\n",
+					 __func__);
+				return NULL;
+			}
+			i40e_enable_pf_switch_lb(pf);
+		}
 		for (i = 0; i < I40E_MAX_VEB && !veb; i++) {
 			if (pf->veb[i] && pf->veb[i]->seid == vsi->uplink_seid)
 				veb = pf->veb[i];
