@@ -106,6 +106,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		card->mp_tx_agg_buf_size = data->mp_tx_agg_buf_size;
 		card->mp_rx_agg_buf_size = data->mp_rx_agg_buf_size;
 		card->supports_fw_dump = data->supports_fw_dump;
+		card->auto_tdls = data->auto_tdls;
 	}
 
 	sdio_claim_host(func);
@@ -1880,6 +1881,7 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 		return -1;
 	}
 
+	adapter->auto_tdls = card->auto_tdls;
 	return ret;
 }
 

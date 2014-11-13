@@ -249,7 +249,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->hw_dev_mcs_support = 0;
 	adapter->sec_chan_offset = 0;
 	adapter->adhoc_11n_enabled = false;
-	adapter->auto_tdls = false;
 
 	mwifiex_wmm_init(adapter);
 
