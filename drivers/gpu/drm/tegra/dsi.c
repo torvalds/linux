@@ -886,12 +886,6 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 		return PTR_ERR(dsi->clk_parent);
 	}
 
-	err = clk_prepare_enable(dsi->clk_parent);
-	if (err < 0) {
-		dev_err(&pdev->dev, "cannot enable parent clock\n");
-		return err;
-	}
-
 	dsi->vdd = devm_regulator_get(&pdev->dev, "avdd-dsi-csi");
 	if (IS_ERR(dsi->vdd)) {
 		dev_err(&pdev->dev, "cannot get VDD supply\n");
@@ -966,7 +960,6 @@ static int tegra_dsi_remove(struct platform_device *pdev)
 	tegra_mipi_free(dsi->mipi);
 
 	regulator_disable(dsi->vdd);
-	clk_disable_unprepare(dsi->clk_parent);
 	clk_disable_unprepare(dsi->clk_lp);
 	clk_disable_unprepare(dsi->clk);
 	reset_control_assert(dsi->rst);
