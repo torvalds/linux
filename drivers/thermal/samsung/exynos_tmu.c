@@ -476,7 +476,7 @@ static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
 	struct exynos_tmu_platform_data *pdata = data->pdata;
 	int ret = -EINVAL;
 
-	if (!TMU_SUPPORTS(pdata, EMULATION))
+	if (data->soc == SOC_ARCH_EXYNOS4210)
 		goto out;
 
 	if (temp && temp < MCELSIUS)

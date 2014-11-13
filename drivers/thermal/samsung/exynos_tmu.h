@@ -47,17 +47,14 @@ enum soc_type {
 
 /**
  * EXYNOS TMU supported features.
- * TMU_SUPPORT_EMULATION - This features is used to set user defined
- *			temperature to the TMU controller.
  * TMU_SUPPORT_MULTI_INST - This features denotes that the soc
  *			has many instances of TMU.
  * TMU_SUPPORT_ADDRESS_MULTIPLE - This feature tells that the different TMU
  *			sensors shares some common registers.
  * TMU_SUPPORT - macro to compare the above features with the supplied.
  */
-#define TMU_SUPPORT_EMULATION			BIT(0)
-#define TMU_SUPPORT_MULTI_INST			BIT(1)
-#define TMU_SUPPORT_ADDRESS_MULTIPLE		BIT(2)
+#define TMU_SUPPORT_MULTI_INST			BIT(0)
+#define TMU_SUPPORT_ADDRESS_MULTIPLE		BIT(1)
 
 #define TMU_SUPPORTS(a, b)	(a->features & TMU_SUPPORT_ ## b)
 
