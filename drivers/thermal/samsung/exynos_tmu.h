@@ -72,12 +72,10 @@ enum soc_type {
  * The register validity may vary slightly across different exynos SOC's.
  * @tmu_intstat: Register containing the interrupt status values.
  * @tmu_intclear: Register for clearing the raised interrupt status.
- * @emul_con: TMU emulation controller register.
  */
 struct exynos_tmu_registers {
 	u32	tmu_intstat;
 	u32	tmu_intclear;
-	u32	emul_con;
 };
 
 /**

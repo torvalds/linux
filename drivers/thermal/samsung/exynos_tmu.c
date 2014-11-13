@@ -55,6 +55,7 @@
  * @tmu_initialize: SoC specific TMU initialization method
  * @tmu_control: SoC specific TMU control method
  * @tmu_read: SoC specific TMU temperature read method
+ * @tmu_set_emulation: SoC specific TMU emulation setting method
  */
 struct exynos_tmu_data {
 	int id;
@@ -72,6 +73,8 @@ struct exynos_tmu_data {
 	int (*tmu_initialize)(struct platform_device *pdev);
 	void (*tmu_control)(struct platform_device *pdev, bool on);
 	int (*tmu_read)(struct exynos_tmu_data *data);
+	void (*tmu_set_emulation)(struct exynos_tmu_data *data,
+				  unsigned long temp);
 };
 
 /*
@@ -460,12 +463,36 @@ static u32 get_emul_con_reg(struct exynos_tmu_data *data, unsigned int val,
 	return val;
 }
 
+static void exynos4412_tmu_set_emulation(struct exynos_tmu_data *data,
+					 unsigned long temp)
+{
+	unsigned int val;
+	u32 emul_con;
+
+	if (data->soc == SOC_ARCH_EXYNOS5260)
+		emul_con = EXYNOS5260_EMUL_CON;
+	else
+		emul_con = EXYNOS_EMUL_CON;
+
+	val = readl(data->base + emul_con);
+	val = get_emul_con_reg(data, val, temp);
+	writel(val, data->base + emul_con);
+}
+
+static void exynos5440_tmu_set_emulation(struct exynos_tmu_data *data,
+					 unsigned long temp)
+{
+	unsigned int val;
+
+	val = readl(data->base + EXYNOS5440_TMU_S0_7_DEBUG);
+	val = get_emul_con_reg(data, val, temp);
+	writel(val, data->base + EXYNOS5440_TMU_S0_7_DEBUG);
+}
+
 static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
 {
 	struct exynos_tmu_data *data = drv_data;
 	struct exynos_tmu_platform_data *pdata = data->pdata;
-	const struct exynos_tmu_registers *reg = pdata->registers;
-	unsigned int val;
 	int ret = -EINVAL;
 
 	if (!TMU_SUPPORTS(pdata, EMULATION))
@@ -476,11 +503,7 @@ static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
 
 	mutex_lock(&data->lock);
 	clk_enable(data->clk);
-
-	val = readl(data->base + reg->emul_con);
-	val = get_emul_con_reg(data, val, temp);
-	writel(val, data->base + reg->emul_con);
-
+	data->tmu_set_emulation(data, temp);
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
 	return 0;
@@ -488,6 +511,8 @@ out:
 	return ret;
 }
 #else
+#define exynos4412_tmu_set_emulation NULL
+#define exynos5440_tmu_set_emulation NULL
 static int exynos_tmu_set_emulation(void *drv_data,	unsigned long temp)
 	{ return -EINVAL; }
 #endif/*CONFIG_THERMAL_EMULATION*/
@@ -745,11 +770,13 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		data->tmu_initialize = exynos4412_tmu_initialize;
 		data->tmu_control = exynos4210_tmu_control;
 		data->tmu_read = exynos4412_tmu_read;
+		data->tmu_set_emulation = exynos4412_tmu_set_emulation;
 		break;
 	case SOC_ARCH_EXYNOS5440:
 		data->tmu_initialize = exynos5440_tmu_initialize;
 		data->tmu_control = exynos5440_tmu_control;
 		data->tmu_read = exynos5440_tmu_read;
+		data->tmu_set_emulation = exynos5440_tmu_set_emulation;
 		break;
 	default:
 		ret = -EINVAL;
