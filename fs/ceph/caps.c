@@ -2405,6 +2405,7 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 	bool queue_invalidate = false;
 	bool queue_revalidate = false;
 	bool deleted_inode = false;
+	bool fill_inline = false;
 
 	dout("handle_cap_grant inode %p cap %p mds%d seq %d %s\n",
 	     inode, cap, mds, seq, ceph_cap_string(newcaps));
@@ -2578,6 +2579,13 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 	}
 	BUG_ON(cap->issued & ~cap->implemented);
 
+	if (inline_version > 0 && inline_version >= ci->i_inline_version) {
+		ci->i_inline_version = inline_version;
+		if (ci->i_inline_version != CEPH_INLINE_NONE &&
+		    (newcaps & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)))
+			fill_inline = true;
+	}
+
 	spin_unlock(&ci->i_ceph_lock);
 
 	if (le32_to_cpu(grant->op) == CEPH_CAP_OP_IMPORT) {
@@ -2590,6 +2598,9 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 		if (newcaps & ~issued)
 			wake = true;
 	}
+
+	if (fill_inline)
+		ceph_fill_inline_data(inode, NULL, inline_data, inline_len);
 
 	if (queue_trunc) {
 		ceph_queue_vmtruncate(inode);

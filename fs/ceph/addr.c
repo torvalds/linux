@@ -1318,6 +1318,49 @@ out:
 	return ret;
 }
 
+void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
+			   char	*data, size_t len)
+{
+	struct address_space *mapping = inode->i_mapping;
+	struct page *page;
+
+	if (locked_page) {
+		page = locked_page;
+	} else {
+		if (i_size_read(inode) == 0)
+			return;
+		page = find_or_create_page(mapping, 0,
+					   mapping_gfp_mask(mapping) & ~__GFP_FS);
+		if (!page)
+			return;
+		if (PageUptodate(page)) {
+			unlock_page(page);
+			page_cache_release(page);
+			return;
+		}
+	}
+
+	dout("fill_inline_data %p %llx.%llx len %lu locked_page %p\n",
+	     inode, ceph_vinop(inode), len, locked_page);
+
+	if (len > 0) {
+		void *kaddr = kmap_atomic(page);
+		memcpy(kaddr, data, len);
+		kunmap_atomic(kaddr);
+	}
+
+	if (page != locked_page) {
+		if (len < PAGE_CACHE_SIZE)
+			zero_user_segment(page, len, PAGE_CACHE_SIZE);
+		else
+			flush_dcache_page(page);
+
+		SetPageUptodate(page);
+		unlock_page(page);
+		page_cache_release(page);
+	}
+}
+
 static struct vm_operations_struct ceph_vmops = {
 	.fault		= ceph_filemap_fault,
 	.page_mkwrite	= ceph_page_mkwrite,

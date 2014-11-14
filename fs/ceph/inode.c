@@ -387,6 +387,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	spin_lock_init(&ci->i_ceph_lock);
 
 	ci->i_version = 0;
+	ci->i_inline_version = 0;
 	ci->i_time_warp_seq = 0;
 	ci->i_ceph_flags = 0;
 	ci->i_ordered_count = 0;
@@ -676,6 +677,7 @@ static int fill_inode(struct inode *inode,
 	bool wake = false;
 	bool queue_trunc = false;
 	bool new_version = false;
+	bool fill_inline = false;
 
 	dout("fill_inode %p ino %llx.%llx v %llu had %llu\n",
 	     inode, ceph_vinop(inode), le64_to_cpu(info->version),
@@ -875,7 +877,21 @@ static int fill_inode(struct inode *inode,
 			   ceph_vinop(inode));
 		__ceph_get_fmode(ci, cap_fmode);
 	}
+
+	if (iinfo->inline_version > 0 &&
+	    iinfo->inline_version >= ci->i_inline_version) {
+		int cache_caps = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
+		ci->i_inline_version = iinfo->inline_version;
+		if (ci->i_inline_version != CEPH_INLINE_NONE &&
+		    (le32_to_cpu(info->cap.caps) & cache_caps))
+			fill_inline = true;
+	}
+
 	spin_unlock(&ci->i_ceph_lock);
+
+	if (fill_inline)
+		ceph_fill_inline_data(inode, NULL,
+				      iinfo->inline_data, iinfo->inline_len);
 
 	if (wake)
 		wake_up_all(&ci->i_cap_wq);
