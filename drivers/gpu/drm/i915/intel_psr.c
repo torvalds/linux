@@ -21,6 +21,36 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+/**
+ * DOC: Panel Self Refresh (PSR/SRD)
+ *
+ * Since Haswell Display controller supports Panel Self-Refresh on display
+ * panels witch have a remote frame buffer (RFB) implemented according to PSR
+ * spec in eDP1.3. PSR feature allows the display to go to lower standby states
+ * when system is idle but display is on as it eliminates display refresh
+ * request to DDR memory completely as long as the frame buffer for that
+ * display is unchanged.
+ *
+ * Panel Self Refresh must be supported by both Hardware (source) and
+ * Panel (sink).
+ *
+ * PSR saves power by caching the framebuffer in the panel RFB, which allows us
+ * to power down the link and memory controller. For DSI panels the same idea
+ * is called "manual mode".
+ *
+ * The implementation uses the hardware-based PSR support which automatically
+ * enters/exits self-refresh mode. The hardware takes care of sending the
+ * required DP aux message and could even retrain the link (that part isn't
+ * enabled yet though). The hardware also keeps track of any frontbuffer
+ * changes to know when to exit self-refresh mode again. Unfortunately that
+ * part doesn't work too well, hence why the i915 PSR support uses the
+ * software frontbuffer tracking to make sure it doesn't miss a screen
+ * update. For this integration intel_psr_invalidate() and intel_psr_flush()
+ * get called by the frontbuffer tracking code. Note that because of locking
+ * issues the self-refresh re-enable code is done from a work queue, which
+ * must be correctly synchronized/cancelled when shutting down the pipe."
+ */
+
 #include <drm/drmP.h>
 
 #include "intel_drv.h"
@@ -217,6 +247,12 @@ static void intel_psr_do_enable(struct intel_dp *intel_dp)
 	dev_priv->psr.active = true;
 }
 
+/**
+ * intel_psr_enable - Enable PSR
+ * @intel_dp: Intel DP
+ *
+ * This function can only be called after the pipe is fully trained and enabled.
+ */
 void intel_psr_enable(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -258,6 +294,12 @@ unlock:
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
+/**
+ * intel_psr_disable - Disable PSR
+ * @intel_dp: Intel DP
+ *
+ * This function needs to be called before disabling pipe.
+ */
 void intel_psr_disable(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -342,6 +384,18 @@ static void intel_psr_exit(struct drm_device *dev)
 
 }
 
+/**
+ * intel_psr_invalidate - Invalidade PSR
+ * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * Since the hardware frontbuffer tracking has gaps we need to integrate
+ * with the software frontbuffer tracking. This function gets called every
+ * time frontbuffer rendering starts and a buffer gets dirtied. PSR must be
+ * disabled if the frontbuffer mask contains a buffer relevant to PSR.
+ *
+ * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits."
+ */
 void intel_psr_invalidate(struct drm_device *dev,
 			      unsigned frontbuffer_bits)
 {
@@ -366,6 +420,18 @@ void intel_psr_invalidate(struct drm_device *dev,
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
+/**
+ * intel_psr_flush - Flush PSR
+ * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * Since the hardware frontbuffer tracking has gaps we need to integrate
+ * with the software frontbuffer tracking. This function gets called every
+ * time frontbuffer rendering has completed and flushed out to memory. PSR
+ * can be enabled again if no other frontbuffer relevant to PSR is dirty.
+ *
+ * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits.
+ */
 void intel_psr_flush(struct drm_device *dev,
 			 unsigned frontbuffer_bits)
 {
@@ -399,6 +465,13 @@ void intel_psr_flush(struct drm_device *dev,
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
+/**
+ * intel_psr_init - Init basic PSR work and mutex.
+ * @dev: DRM device
+ *
+ * This function is  called only once at driver load to initialize basic
+ * PSR stuff.
+ */
 void intel_psr_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
