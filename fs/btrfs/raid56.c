@@ -131,6 +131,8 @@ struct btrfs_raid_bio {
 	/* number of data stripes (no p/q) */
 	int nr_data;
 
+	int real_stripes;
+
 	int stripe_npages;
 	/*
 	 * set if we're doing a parity rebuild
@@ -638,7 +640,7 @@ static struct page *rbio_pstripe_page(struct btrfs_raid_bio *rbio, int index)
  */
 static struct page *rbio_qstripe_page(struct btrfs_raid_bio *rbio, int index)
 {
-	if (rbio->nr_data + 1 == rbio->bbio->num_stripes)
+	if (rbio->nr_data + 1 == rbio->real_stripes)
 		return NULL;
 
 	index += ((rbio->nr_data + 1) * rbio->stripe_len) >>
@@ -981,7 +983,8 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
 {
 	struct btrfs_raid_bio *rbio;
 	int nr_data = 0;
-	int num_pages = rbio_nr_pages(stripe_len, bbio->num_stripes);
+	int real_stripes = bbio->num_stripes - bbio->num_tgtdevs;
+	int num_pages = rbio_nr_pages(stripe_len, real_stripes);
 	int stripe_npages = DIV_ROUND_UP(stripe_len, PAGE_SIZE);
 	void *p;
 
@@ -1001,6 +1004,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
 	rbio->fs_info = root->fs_info;
 	rbio->stripe_len = stripe_len;
 	rbio->nr_pages = num_pages;
+	rbio->real_stripes = real_stripes;
 	rbio->stripe_npages = stripe_npages;
 	rbio->faila = -1;
 	rbio->failb = -1;
@@ -1017,10 +1021,10 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
 	rbio->bio_pages = p + sizeof(struct page *) * num_pages;
 	rbio->dbitmap = p + sizeof(struct page *) * num_pages * 2;
 
-	if (raid_map[bbio->num_stripes - 1] == RAID6_Q_STRIPE)
-		nr_data = bbio->num_stripes - 2;
+	if (raid_map[real_stripes - 1] == RAID6_Q_STRIPE)
+		nr_data = real_stripes - 2;
 	else
-		nr_data = bbio->num_stripes - 1;
+		nr_data = real_stripes - 1;
 
 	rbio->nr_data = nr_data;
 	return rbio;
@@ -1132,7 +1136,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 static void validate_rbio_for_rmw(struct btrfs_raid_bio *rbio)
 {
 	if (rbio->faila >= 0 || rbio->failb >= 0) {
-		BUG_ON(rbio->faila == rbio->bbio->num_stripes - 1);
+		BUG_ON(rbio->faila == rbio->real_stripes - 1);
 		__raid56_parity_recover(rbio);
 	} else {
 		finish_rmw(rbio);
@@ -1193,7 +1197,7 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 {
 	struct btrfs_bio *bbio = rbio->bbio;
-	void *pointers[bbio->num_stripes];
+	void *pointers[rbio->real_stripes];
 	int stripe_len = rbio->stripe_len;
 	int nr_data = rbio->nr_data;
 	int stripe;
@@ -1207,11 +1211,11 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 
 	bio_list_init(&bio_list);
 
-	if (bbio->num_stripes - rbio->nr_data == 1) {
-		p_stripe = bbio->num_stripes - 1;
-	} else if (bbio->num_stripes - rbio->nr_data == 2) {
-		p_stripe = bbio->num_stripes - 2;
-		q_stripe = bbio->num_stripes - 1;
+	if (rbio->real_stripes - rbio->nr_data == 1) {
+		p_stripe = rbio->real_stripes - 1;
+	} else if (rbio->real_stripes - rbio->nr_data == 2) {
+		p_stripe = rbio->real_stripes - 2;
+		q_stripe = rbio->real_stripes - 1;
 	} else {
 		BUG();
 	}
@@ -1268,7 +1272,7 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 			SetPageUptodate(p);
 			pointers[stripe++] = kmap(p);
 
-			raid6_call.gen_syndrome(bbio->num_stripes, PAGE_SIZE,
+			raid6_call.gen_syndrome(rbio->real_stripes, PAGE_SIZE,
 						pointers);
 		} else {
 			/* raid5 */
@@ -1277,7 +1281,7 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 		}
 
 
-		for (stripe = 0; stripe < bbio->num_stripes; stripe++)
+		for (stripe = 0; stripe < rbio->real_stripes; stripe++)
 			kunmap(page_in_rbio(rbio, stripe, pagenr, 0));
 	}
 
@@ -1286,7 +1290,7 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 	 * higher layers (the bio_list in our rbio) and our p/q.  Ignore
 	 * everything else.
 	 */
-	for (stripe = 0; stripe < bbio->num_stripes; stripe++) {
+	for (stripe = 0; stripe < rbio->real_stripes; stripe++) {
 		for (pagenr = 0; pagenr < pages_per_stripe; pagenr++) {
 			struct page *page;
 			if (stripe < rbio->nr_data) {
@@ -1304,6 +1308,32 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 		}
 	}
 
+	if (likely(!bbio->num_tgtdevs))
+		goto write_data;
+
+	for (stripe = 0; stripe < rbio->real_stripes; stripe++) {
+		if (!bbio->tgtdev_map[stripe])
+			continue;
+
+		for (pagenr = 0; pagenr < pages_per_stripe; pagenr++) {
+			struct page *page;
+			if (stripe < rbio->nr_data) {
+				page = page_in_rbio(rbio, stripe, pagenr, 1);
+				if (!page)
+					continue;
+			} else {
+			       page = rbio_stripe_page(rbio, stripe, pagenr);
+			}
+
+			ret = rbio_add_io_page(rbio, &bio_list, page,
+					       rbio->bbio->tgtdev_map[stripe],
+					       pagenr, rbio->stripe_len);
+			if (ret)
+				goto cleanup;
+		}
+	}
+
+write_data:
 	atomic_set(&rbio->stripes_pending, bio_list_size(&bio_list));
 	BUG_ON(atomic_read(&rbio->stripes_pending) == 0);
 
@@ -1342,7 +1372,8 @@ static int find_bio_stripe(struct btrfs_raid_bio *rbio,
 		stripe = &rbio->bbio->stripes[i];
 		stripe_start = stripe->physical;
 		if (physical >= stripe_start &&
-		    physical < stripe_start + rbio->stripe_len) {
+		    physical < stripe_start + rbio->stripe_len &&
+		    bio->bi_bdev == stripe->dev->bdev) {
 			return i;
 		}
 	}
@@ -1791,7 +1822,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 	int err;
 	int i;
 
-	pointers = kzalloc(rbio->bbio->num_stripes * sizeof(void *),
+	pointers = kzalloc(rbio->real_stripes * sizeof(void *),
 			   GFP_NOFS);
 	if (!pointers) {
 		err = -ENOMEM;
@@ -1821,7 +1852,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 		/* setup our array of pointers with pages
 		 * from each stripe
 		 */
-		for (stripe = 0; stripe < rbio->bbio->num_stripes; stripe++) {
+		for (stripe = 0; stripe < rbio->real_stripes; stripe++) {
 			/*
 			 * if we're rebuilding a read, we have to use
 			 * pages from the bio list
@@ -1836,7 +1867,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 		}
 
 		/* all raid6 handling here */
-		if (rbio->raid_map[rbio->bbio->num_stripes - 1] ==
+		if (rbio->raid_map[rbio->real_stripes - 1] ==
 		    RAID6_Q_STRIPE) {
 
 			/*
@@ -1886,10 +1917,10 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 			}
 
 			if (rbio->raid_map[failb] == RAID5_P_STRIPE) {
-				raid6_datap_recov(rbio->bbio->num_stripes,
+				raid6_datap_recov(rbio->real_stripes,
 						  PAGE_SIZE, faila, pointers);
 			} else {
-				raid6_2data_recov(rbio->bbio->num_stripes,
+				raid6_2data_recov(rbio->real_stripes,
 						  PAGE_SIZE, faila, failb,
 						  pointers);
 			}
@@ -1931,7 +1962,7 @@ pstripe:
 				}
 			}
 		}
-		for (stripe = 0; stripe < rbio->bbio->num_stripes; stripe++) {
+		for (stripe = 0; stripe < rbio->real_stripes; stripe++) {
 			/*
 			 * if we're rebuilding a read, we have to use
 			 * pages from the bio list
@@ -2012,7 +2043,6 @@ static void raid_recover_end_io(struct bio *bio, int err)
 static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 {
 	int bios_to_read = 0;
-	struct btrfs_bio *bbio = rbio->bbio;
 	struct bio_list bio_list;
 	int ret;
 	int nr_pages = DIV_ROUND_UP(rbio->stripe_len, PAGE_CACHE_SIZE);
@@ -2033,7 +2063,7 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 	 * stripe cache, it is possible that some or all of these
 	 * pages are going to be uptodate.
 	 */
-	for (stripe = 0; stripe < bbio->num_stripes; stripe++) {
+	for (stripe = 0; stripe < rbio->real_stripes; stripe++) {
 		if (rbio->faila == stripe || rbio->failb == stripe) {
 			atomic_inc(&rbio->error);
 			continue;
@@ -2139,7 +2169,7 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 	 * asking for mirror 3
 	 */
 	if (mirror_num == 3)
-		rbio->failb = bbio->num_stripes - 2;
+		rbio->failb = rbio->real_stripes - 2;
 
 	ret = lock_stripe_add(rbio);
 
@@ -2205,7 +2235,7 @@ raid56_parity_alloc_scrub_rbio(struct btrfs_root *root, struct bio *bio,
 	ASSERT(!bio->bi_iter.bi_size);
 	rbio->operation = BTRFS_RBIO_PARITY_SCRUB;
 
-	for (i = 0; i < bbio->num_stripes; i++) {
+	for (i = 0; i < rbio->real_stripes; i++) {
 		if (bbio->stripes[i].dev == scrub_dev) {
 			rbio->scrubp = i;
 			break;
@@ -2246,7 +2276,7 @@ static int alloc_rbio_essential_pages(struct btrfs_raid_bio *rbio)
 	struct page *page;
 
 	for_each_set_bit(bit, rbio->dbitmap, rbio->stripe_npages) {
-		for (i = 0; i < rbio->bbio->num_stripes; i++) {
+		for (i = 0; i < rbio->real_stripes; i++) {
 			index = i * rbio->stripe_npages + bit;
 			if (rbio->stripe_pages[index])
 				continue;
@@ -2288,8 +2318,7 @@ static void raid_write_parity_end_io(struct bio *bio, int err)
 static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 					 int need_check)
 {
-	struct btrfs_bio *bbio = rbio->bbio;
-	void *pointers[bbio->num_stripes];
+	void *pointers[rbio->real_stripes];
 	int nr_data = rbio->nr_data;
 	int stripe;
 	int pagenr;
@@ -2303,11 +2332,11 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 
 	bio_list_init(&bio_list);
 
-	if (bbio->num_stripes - rbio->nr_data == 1) {
-		p_stripe = bbio->num_stripes - 1;
-	} else if (bbio->num_stripes - rbio->nr_data == 2) {
-		p_stripe = bbio->num_stripes - 2;
-		q_stripe = bbio->num_stripes - 1;
+	if (rbio->real_stripes - rbio->nr_data == 1) {
+		p_stripe = rbio->real_stripes - 1;
+	} else if (rbio->real_stripes - rbio->nr_data == 2) {
+		p_stripe = rbio->real_stripes - 2;
+		q_stripe = rbio->real_stripes - 1;
 	} else {
 		BUG();
 	}
@@ -2358,7 +2387,7 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 			 */
 			pointers[stripe++] = kmap(q_page);
 
-			raid6_call.gen_syndrome(bbio->num_stripes, PAGE_SIZE,
+			raid6_call.gen_syndrome(rbio->real_stripes, PAGE_SIZE,
 						pointers);
 		} else {
 			/* raid5 */
@@ -2376,7 +2405,7 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 			bitmap_clear(rbio->dbitmap, pagenr, 1);
 		kunmap(p);
 
-		for (stripe = 0; stripe < bbio->num_stripes; stripe++)
+		for (stripe = 0; stripe < rbio->real_stripes; stripe++)
 			kunmap(page_in_rbio(rbio, stripe, pagenr, 0));
 	}
 
@@ -2526,7 +2555,6 @@ static void raid56_parity_scrub_end_io(struct bio *bio, int err)
 static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 {
 	int bios_to_read = 0;
-	struct btrfs_bio *bbio = rbio->bbio;
 	struct bio_list bio_list;
 	int ret;
 	int pagenr;
@@ -2544,7 +2572,7 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 	 * build a list of bios to read all the missing parts of this
 	 * stripe
 	 */
-	for (stripe = 0; stripe < bbio->num_stripes; stripe++) {
+	for (stripe = 0; stripe < rbio->real_stripes; stripe++) {
 		for_each_set_bit(pagenr, rbio->dbitmap, rbio->stripe_npages) {
 			struct page *page;
 			/*

@@ -4881,13 +4881,15 @@ static inline int parity_smaller(u64 a, u64 b)
 static void sort_parity_stripes(struct btrfs_bio *bbio, u64 *raid_map)
 {
 	struct btrfs_bio_stripe s;
+	int real_stripes = bbio->num_stripes - bbio->num_tgtdevs;
 	int i;
 	u64 l;
 	int again = 1;
+	int m;
 
 	while (again) {
 		again = 0;
-		for (i = 0; i < bbio->num_stripes - 1; i++) {
+		for (i = 0; i < real_stripes - 1; i++) {
 			if (parity_smaller(raid_map[i], raid_map[i+1])) {
 				s = bbio->stripes[i];
 				l = raid_map[i];
@@ -4895,6 +4897,14 @@ static void sort_parity_stripes(struct btrfs_bio *bbio, u64 *raid_map)
 				raid_map[i] = raid_map[i+1];
 				bbio->stripes[i+1] = s;
 				raid_map[i+1] = l;
+
+				if (bbio->tgtdev_map) {
+					m = bbio->tgtdev_map[i];
+					bbio->tgtdev_map[i] =
+							bbio->tgtdev_map[i + 1];
+					bbio->tgtdev_map[i + 1] = m;
+				}
+
 				again = 1;
 			}
 		}
@@ -4923,6 +4933,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 	int ret = 0;
 	int num_stripes;
 	int max_errors = 0;
+	int tgtdev_indexes = 0;
 	struct btrfs_bio *bbio = NULL;
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
 	int dev_replace_is_ongoing = 0;
@@ -5234,14 +5245,19 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 			num_alloc_stripes <<= 1;
 		if (rw & REQ_GET_READ_MIRRORS)
 			num_alloc_stripes++;
+		tgtdev_indexes = num_stripes;
 	}
-	bbio = kzalloc(btrfs_bio_size(num_alloc_stripes), GFP_NOFS);
+
+	bbio = kzalloc(btrfs_bio_size(num_alloc_stripes, tgtdev_indexes),
+		       GFP_NOFS);
 	if (!bbio) {
 		kfree(raid_map);
 		ret = -ENOMEM;
 		goto out;
 	}
 	atomic_set(&bbio->error, 0);
+	if (dev_replace_is_ongoing)
+		bbio->tgtdev_map = (int *)(bbio->stripes + num_alloc_stripes);
 
 	if (rw & REQ_DISCARD) {
 		int factor = 0;
@@ -5326,6 +5342,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 	if (rw & (REQ_WRITE | REQ_GET_READ_MIRRORS))
 		max_errors = btrfs_chunk_max_errors(map);
 
+	tgtdev_indexes = 0;
 	if (dev_replace_is_ongoing && (rw & (REQ_WRITE | REQ_DISCARD)) &&
 	    dev_replace->tgtdev != NULL) {
 		int index_where_to_add;
@@ -5354,8 +5371,10 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 				new->physical = old->physical;
 				new->length = old->length;
 				new->dev = dev_replace->tgtdev;
+				bbio->tgtdev_map[i] = index_where_to_add;
 				index_where_to_add++;
 				max_errors++;
+				tgtdev_indexes++;
 			}
 		}
 		num_stripes = index_where_to_add;
@@ -5401,7 +5420,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 				tgtdev_stripe->length =
 					bbio->stripes[index_srcdev].length;
 				tgtdev_stripe->dev = dev_replace->tgtdev;
+				bbio->tgtdev_map[index_srcdev] = num_stripes;
 
+				tgtdev_indexes++;
 				num_stripes++;
 			}
 		}
@@ -5411,6 +5432,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 	bbio->num_stripes = num_stripes;
 	bbio->max_errors = max_errors;
 	bbio->mirror_num = mirror_num;
+	bbio->num_tgtdevs = tgtdev_indexes;
 
 	/*
 	 * this is the case that REQ_READ && dev_replace_is_ongoing &&
