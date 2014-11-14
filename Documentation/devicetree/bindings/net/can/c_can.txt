@@ -12,6 +12,9 @@ Required properties:
 Optional properties:
 - ti,hwmods		: Must be "d_can<n>" or "c_can<n>", n being the
 			  instance number
+- syscon-raminit	: Handle to system control region that contains the
+			  RAMINIT register, register offset to the RAMINIT
+			  register and the CAN instance number (0 offset).
 
 Note: "ti,hwmods" field is used to fetch the base address and irq
 resources from TI, omap hwmod data base during device registration.
