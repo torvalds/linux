@@ -23,13 +23,13 @@ static void _gb_hd_connection_insert(struct greybus_host_device *hd,
 	u16 cport_id = connection->hd_cport_id;
 
 	while (*link) {
-		struct gb_connection *connection;
+		struct gb_connection *_connection;
 
 		above = *link;
-		connection = rb_entry(above, struct gb_connection, hd_node);
-		if (connection->hd_cport_id > cport_id)
+		_connection = rb_entry(above, struct gb_connection, hd_node);
+		if (_connection->hd_cport_id > cport_id)
 			link = &above->rb_left;
-		else if (connection->hd_cport_id < cport_id)
+		else if (_connection->hd_cport_id < cport_id)
 			link = &above->rb_right;
 	}
 	rb_link_node(node, above, link);
