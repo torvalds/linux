@@ -5,6 +5,10 @@
  * Public API for use by IOMMU drivers
  */
 enum io_pgtable_fmt {
+	ARM_32_LPAE_S1,
+	ARM_32_LPAE_S2,
+	ARM_64_LPAE_S1,
+	ARM_64_LPAE_S2,
 	IO_PGTABLE_NUM_FMTS,
 };
 
@@ -47,6 +51,16 @@ struct io_pgtable_cfg {
 
 	/* Low-level data specific to the table format */
 	union {
+		struct {
+			u64	ttbr[2];
+			u64	tcr;
+			u64	mair[2];
+		} arm_lpae_s1_cfg;
+
+		struct {
+			u64	vttbr;
+			u64	vtcr;
+		} arm_lpae_s2_cfg;
 	};
 };
 
