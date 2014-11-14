@@ -253,7 +253,7 @@ static long at91rm9200_clk_usb_round_rate(struct clk_hw *hw, unsigned long rate,
 
 		tmp_parent_rate = rate * usb->divisors[i];
 		tmp_parent_rate = __clk_round_rate(parent, tmp_parent_rate);
-		tmprate = tmp_parent_rate / usb->divisors[i];
+		tmprate = DIV_ROUND_CLOSEST(tmp_parent_rate, usb->divisors[i]);
 		if (tmprate < rate)
 			tmpdiff = rate - tmprate;
 		else
@@ -281,10 +281,10 @@ static int at91rm9200_clk_usb_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct at91_pmc *pmc = usb->pmc;
 	unsigned long div;
 
-	if (!rate || parent_rate % rate)
+	if (!rate)
 		return -EINVAL;
 
-	div = parent_rate / rate;
+	div = DIV_ROUND_CLOSEST(parent_rate, rate);
 
 	for (i = 0; i < RM9200_USB_DIV_TAB_SIZE; i++) {
 		if (usb->divisors[i] == div) {
