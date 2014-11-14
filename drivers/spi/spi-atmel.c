@@ -417,23 +417,6 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as,
 	return err;
 }
 
-static bool filter(struct dma_chan *chan, void *pdata)
-{
-	struct atmel_spi_dma *sl_pdata = pdata;
-	struct at_dma_slave *sl;
-
-	if (!sl_pdata)
-		return false;
-
-	sl = &sl_pdata->dma_slave;
-	if (sl->dma_dev == chan->device->dev) {
-		chan->private = sl;
-		return true;
-	} else {
-		return false;
-	}
-}
-
 static int atmel_spi_configure_dma(struct atmel_spi *as)
 {
 	struct dma_slave_config	slave_config;
@@ -444,9 +427,7 @@ static int atmel_spi_configure_dma(struct atmel_spi *as)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	as->dma.chan_tx = dma_request_slave_channel_compat(mask, filter,
-							   &as->dma,
-							   dev, "tx");
+	as->dma.chan_tx = dma_request_slave_channel(dev, "tx");
 	if (!as->dma.chan_tx) {
 		dev_err(dev,
 			"DMA TX channel not available, SPI unable to use DMA\n");
@@ -454,9 +435,7 @@ static int atmel_spi_configure_dma(struct atmel_spi *as)
 		goto error;
 	}
 
-	as->dma.chan_rx = dma_request_slave_channel_compat(mask, filter,
-							   &as->dma,
-							   dev, "rx");
+	as->dma.chan_rx = dma_request_slave_channel(dev, "rx");
 
 	if (!as->dma.chan_rx) {
 		dev_err(dev,
