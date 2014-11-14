@@ -65,18 +65,32 @@ is_affected_midr_range(struct arm64_cpu_capabilities *entry)
 	.midr_range_max = max
 
 struct arm64_cpu_capabilities arm64_errata[] = {
+#if	defined(CONFIG_ARM64_ERRATUM_826319) || \
+	defined(CONFIG_ARM64_ERRATUM_827319) || \
+	defined(CONFIG_ARM64_ERRATUM_824069)
 	{
 	/* Cortex-A53 r0p[012] */
 		.desc = "ARM errata 826319, 827319, 824069",
 		.capability = ARM64_WORKAROUND_CLEAN_CACHE,
 		MIDR_RANGE(MIDR_CORTEX_A53, 0x00, 0x02),
 	},
+#endif
+#ifdef CONFIG_ARM64_ERRATUM_819472
+	{
+	/* Cortex-A53 r0p[01] */
+		.desc = "ARM errata 819472",
+		.capability = ARM64_WORKAROUND_CLEAN_CACHE,
+		MIDR_RANGE(MIDR_CORTEX_A53, 0x00, 0x01),
+	},
+#endif
+#ifdef CONFIG_ARM64_ERRATUM_832075
 	{
 	/* Cortex-A57 r0p0 - r1p2 */
 		.desc = "ARM erratum 832075",
 		.capability = ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE,
 		MIDR_RANGE(MIDR_CORTEX_A57, 0x00, 0x12),
 	},
+#endif
 	{
 	}
 };
