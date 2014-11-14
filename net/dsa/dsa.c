@@ -607,8 +607,8 @@ static int dsa_of_probe(struct platform_device *pdev)
 	if (pd->nr_chips > DSA_MAX_SWITCHES)
 		pd->nr_chips = DSA_MAX_SWITCHES;
 
-	pd->chip = kzalloc(pd->nr_chips * sizeof(struct dsa_chip_data),
-			GFP_KERNEL);
+	pd->chip = kcalloc(pd->nr_chips, sizeof(struct dsa_chip_data),
+			   GFP_KERNEL);
 	if (!pd->chip) {
 		ret = -ENOMEM;
 		goto out_free;
