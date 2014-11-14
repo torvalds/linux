@@ -4,7 +4,9 @@
 
 config OPENVSWITCH
 	tristate "Open vSwitch"
+	depends on INET
 	select LIBCRC32C
+	select NET_MPLS_GSO
 	---help---
 	  Open vSwitch is a multilayer Ethernet switch targeted at virtualized
 	  environments.  In addition to supporting a variety of features
@@ -30,8 +32,6 @@ config OPENVSWITCH
 
 config OPENVSWITCH_GRE
 	tristate "Open vSwitch GRE tunneling support"
-	select NET_MPLS_GSO
-	depends on INET
 	depends on OPENVSWITCH
 	depends on NET_IPGRE_DEMUX
 	default OPENVSWITCH
@@ -45,7 +45,6 @@ config OPENVSWITCH_GRE
 
 config OPENVSWITCH_VXLAN
 	tristate "Open vSwitch VXLAN tunneling support"
-	depends on INET
 	depends on OPENVSWITCH
 	depends on VXLAN
 	default OPENVSWITCH
@@ -58,7 +57,6 @@ config OPENVSWITCH_VXLAN
 
 config OPENVSWITCH_GENEVE
 	tristate "Open vSwitch Geneve tunneling support"
-	depends on INET
 	depends on OPENVSWITCH
 	depends on GENEVE
 	default OPENVSWITCH
