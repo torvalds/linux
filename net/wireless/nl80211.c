@@ -2645,7 +2645,10 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 	wdev = rdev_add_virtual_intf(rdev,
 				nla_data(info->attrs[NL80211_ATTR_IFNAME]),
 				type, err ? NULL : &flags, &params);
-	if (IS_ERR(wdev)) {
+	if (WARN_ON(!wdev)) {
+		nlmsg_free(msg);
+		return -EPROTO;
+	} else if (IS_ERR(wdev)) {
 		nlmsg_free(msg);
 		return PTR_ERR(wdev);
 	}
