@@ -470,15 +470,19 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 						button->debounce_interval;
 		}
 
-		irq = gpio_to_irq(button->gpio);
-		if (irq < 0) {
-			error = irq;
-			dev_err(dev,
-				"Unable to get irq number for GPIO %d, error %d\n",
-				button->gpio, error);
-			return error;
+		if (button->irq) {
+			bdata->irq = button->irq;
+		} else {
+			irq = gpio_to_irq(button->gpio);
+			if (irq < 0) {
+				error = irq;
+				dev_err(dev,
+					"Unable to get irq number for GPIO %d, error %d\n",
+					button->gpio, error);
+				return error;
+			}
+			bdata->irq = irq;
 		}
-		bdata->irq = irq;
 
 		INIT_WORK(&bdata->work, gpio_keys_gpio_work_func);
 		setup_timer(&bdata->timer,
@@ -618,33 +622,30 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 
 	i = 0;
 	for_each_child_of_node(node, pp) {
-		int gpio = -1;
 		enum of_gpio_flags flags;
 
 		button = &pdata->buttons[i++];
 
-		if (!of_find_property(pp, "gpios", NULL)) {
-			button->irq = irq_of_parse_and_map(pp, 0);
-			if (button->irq == 0) {
-				i--;
-				pdata->nbuttons--;
-				dev_warn(dev, "Found button without gpios or irqs\n");
-				continue;
-			}
-		} else {
-			gpio = of_get_gpio_flags(pp, 0, &flags);
-			if (gpio < 0) {
-				error = gpio;
+		button->gpio = of_get_gpio_flags(pp, 0, &flags);
+		if (button->gpio < 0) {
+			error = button->gpio;
+			if (error != -ENOENT) {
 				if (error != -EPROBE_DEFER)
 					dev_err(dev,
 						"Failed to get gpio flags, error: %d\n",
 						error);
 				return ERR_PTR(error);
 			}
+		} else {
+			button->active_low = flags & OF_GPIO_ACTIVE_LOW;
 		}
 
-		button->gpio = gpio;
-		button->active_low = flags & OF_GPIO_ACTIVE_LOW;
+		button->irq = irq_of_parse_and_map(pp, 0);
+
+		if (!gpio_is_valid(button->gpio) && !button->irq) {
+			dev_err(dev, "Found button without gpios or irqs\n");
+			return ERR_PTR(-EINVAL);
+		}
 
 		if (of_property_read_u32(pp, "linux,code", &button->code)) {
 			dev_err(dev, "Button without keycode: 0x%x\n",
@@ -658,6 +659,8 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 			button->type = EV_KEY;
 
 		button->wakeup = !!of_get_property(pp, "gpio-key,wakeup", NULL);
+
+		button->can_disable = !!of_get_property(pp, "linux,can-disable", NULL);
 
 		if (of_property_read_u32(pp, "debounce-interval",
 					 &button->debounce_interval))
