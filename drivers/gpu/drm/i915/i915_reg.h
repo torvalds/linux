@@ -293,8 +293,9 @@
 #define   MI_SEMAPHORE_POLL		(1<<15)
 #define   MI_SEMAPHORE_SAD_GTE_SDD	(1<<12)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
-#define MI_STORE_DWORD_IMM_GEN8	MI_INSTR(0x20, 2)
-#define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
+#define MI_STORE_DWORD_IMM_GEN4	MI_INSTR(0x20, 2)
+#define   MI_MEM_VIRTUAL	(1 << 22) /* 945,g33,965 */
+#define   MI_USE_GGTT		(1 << 22) /* g4x+ */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
 #define   MI_STORE_DWORD_INDEX_SHIFT 2
 /* Official intel docs are somewhat sloppy concerning MI_LOAD_REGISTER_IMM:
