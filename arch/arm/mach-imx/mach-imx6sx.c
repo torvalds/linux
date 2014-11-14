@@ -51,7 +51,6 @@ static const char * const imx6sx_dt_compat[] __initconst = {
 };
 
 DT_MACHINE_START(IMX6SX, "Freescale i.MX6 SoloX (Device Tree)")
-	.map_io		= debug_ll_io_init,
 	.init_irq	= imx6sx_init_irq,
 	.init_machine	= imx6sx_init_machine,
 	.dt_compat	= imx6sx_dt_compat,
