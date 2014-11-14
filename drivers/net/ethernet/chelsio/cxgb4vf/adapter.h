@@ -299,6 +299,14 @@ struct sge {
 	u16 timer_val[SGE_NTIMERS];	/* interrupt holdoff timer array */
 	u8 counter_val[SGE_NCOUNTERS];	/* interrupt RX threshold array */
 
+	/* Decoded Adapter Parameters.
+	 */
+	u32 fl_pg_order;		/* large page allocation size */
+	u32 stat_len;			/* length of status page at ring end */
+	u32 pktshift;			/* padding between CPL & packet data */
+	u32 fl_align;			/* response queue message alignment */
+	u32 fl_starve_thres;		/* Free List starvation threshold */
+
 	/*
 	 * Reverse maps from Absolute Queue IDs to associated queue pointers.
 	 * The absolute Queue IDs are in a compact range which start at a

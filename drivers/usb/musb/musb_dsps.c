@@ -868,9 +868,15 @@ static int dsps_suspend(struct device *dev)
 	struct dsps_glue *glue = dev_get_drvdata(dev);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	struct musb *musb = platform_get_drvdata(glue->musb);
-	void __iomem *mbase = musb->ctrl_base;
+	void __iomem *mbase;
 
 	del_timer_sync(&glue->timer);
+
+	if (!musb)
+		/* This can happen if the musb device is in -EPROBE_DEFER */
+		return 0;
+
+	mbase = musb->ctrl_base;
 	glue->context.control = dsps_readl(mbase, wrp->control);
 	glue->context.epintr = dsps_readl(mbase, wrp->epintr_set);
 	glue->context.coreintr = dsps_readl(mbase, wrp->coreintr_set);
@@ -887,8 +893,12 @@ static int dsps_resume(struct device *dev)
 	struct dsps_glue *glue = dev_get_drvdata(dev);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	struct musb *musb = platform_get_drvdata(glue->musb);
-	void __iomem *mbase = musb->ctrl_base;
+	void __iomem *mbase;
 
+	if (!musb)
+		return 0;
+
+	mbase = musb->ctrl_base;
 	dsps_writel(mbase, wrp->control, glue->context.control);
 	dsps_writel(mbase, wrp->epintr_set, glue->context.epintr);
 	dsps_writel(mbase, wrp->coreintr_set, glue->context.coreintr);
@@ -896,7 +906,9 @@ static int dsps_resume(struct device *dev)
 	dsps_writel(mbase, wrp->mode, glue->context.mode);
 	dsps_writel(mbase, wrp->tx_mode, glue->context.tx_mode);
 	dsps_writel(mbase, wrp->rx_mode, glue->context.rx_mode);
-	setup_timer(&glue->timer, otg_timer, (unsigned long) musb);
+	if (musb->xceiv->state == OTG_STATE_B_IDLE &&
+	    musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
+		mod_timer(&glue->timer, jiffies + wrp->poll_seconds * HZ);
 
 	return 0;
 }

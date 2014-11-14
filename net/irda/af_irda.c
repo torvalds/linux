@@ -1052,8 +1052,6 @@ static int irda_connect(struct socket *sock, struct sockaddr *uaddr,
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
 		sock->state = SS_UNCONNECTED;
-		if (sk->sk_prot->disconnect(sk, flags))
-			sock->state = SS_DISCONNECTING;
 		err = sock_error(sk);
 		if (!err)
 			err = -ECONNRESET;

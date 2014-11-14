@@ -596,7 +596,8 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 	if (unlikely(!n))
 		return -EINVAL;
 
-	bufl = kmalloc_node(sz, GFP_ATOMIC, inst->accel_dev->numa_node);
+	bufl = kmalloc_node(sz, GFP_ATOMIC,
+			    dev_to_node(&GET_DEV(inst->accel_dev)));
 	if (unlikely(!bufl))
 		return -ENOMEM;
 
@@ -605,6 +606,8 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 		goto err;
 
 	for_each_sg(assoc, sg, assoc_n, i) {
+		if (!sg->length)
+			continue;
 		bufl->bufers[bufs].addr = dma_map_single(dev,
 							 sg_virt(sg),
 							 sg->length,
@@ -640,7 +643,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 		struct qat_alg_buf *bufers;
 
 		buflout = kmalloc_node(sz, GFP_ATOMIC,
-				       inst->accel_dev->numa_node);
+				       dev_to_node(&GET_DEV(inst->accel_dev)));
 		if (unlikely(!buflout))
 			goto err;
 		bloutp = dma_map_single(dev, buflout, sz, DMA_TO_DEVICE);

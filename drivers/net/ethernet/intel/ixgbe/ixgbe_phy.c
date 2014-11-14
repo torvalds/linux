@@ -706,7 +706,6 @@ s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 
 	hw->phy.ops.write_reg(hw, MDIO_CTRL1,
 			      MDIO_MMD_AN, autoneg_reg);
-
 	return 0;
 }
 

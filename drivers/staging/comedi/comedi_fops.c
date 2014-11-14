@@ -1462,10 +1462,7 @@ static int __comedi_get_user_chanlist(struct comedi_device *dev,
 	unsigned int *chanlist;
 	int ret;
 
-	/* user_chanlist could be NULL for do_cmdtest ioctls */
-	if (!user_chanlist)
-		return 0;
-
+	cmd->chanlist = NULL;
 	chanlist = memdup_user(user_chanlist,
 			       cmd->chanlist_len * sizeof(unsigned int));
 	if (IS_ERR(chanlist))
@@ -1609,12 +1606,17 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 
 	s = &dev->subdevices[cmd.subdev];
 
-	/* load channel/gain list */
-	ret = __comedi_get_user_chanlist(dev, s, user_chanlist, &cmd);
-	if (ret)
-		return ret;
+	/* user_chanlist can be NULL for COMEDI_CMDTEST ioctl */
+	if (user_chanlist) {
+		/* load channel/gain list */
+		ret = __comedi_get_user_chanlist(dev, s, user_chanlist, &cmd);
+		if (ret)
+			return ret;
+	}
 
 	ret = s->do_cmdtest(dev, s, &cmd);
+
+	kfree(cmd.chanlist);	/* free kernel copy of user chanlist */
 
 	/* restore chanlist pointer before copying back */
 	cmd.chanlist = (unsigned int __force *)user_chanlist;
@@ -1642,7 +1644,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 
 */
 
-static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg,
+static int do_lock_ioctl(struct comedi_device *dev, unsigned long arg,
 			 void *file)
 {
 	int ret = 0;
@@ -1679,7 +1681,7 @@ static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg,
 	This function isn't protected by the semaphore, since
 	we already own the lock.
 */
-static int do_unlock_ioctl(struct comedi_device *dev, unsigned int arg,
+static int do_unlock_ioctl(struct comedi_device *dev, unsigned long arg,
 			   void *file)
 {
 	struct comedi_subdevice *s;
@@ -1714,7 +1716,7 @@ static int do_unlock_ioctl(struct comedi_device *dev, unsigned int arg,
 		nothing
 
 */
-static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
+static int do_cancel_ioctl(struct comedi_device *dev, unsigned long arg,
 			   void *file)
 {
 	struct comedi_subdevice *s;
@@ -1751,7 +1753,7 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 		nothing
 
 */
-static int do_poll_ioctl(struct comedi_device *dev, unsigned int arg,
+static int do_poll_ioctl(struct comedi_device *dev, unsigned long arg,
 			 void *file)
 {
 	struct comedi_subdevice *s;
