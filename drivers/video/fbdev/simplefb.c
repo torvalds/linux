@@ -27,6 +27,7 @@
 #include <linux/platform_data/simplefb.h>
 #include <linux/platform_device.h>
 #include <linux/clk-provider.h>
+#include <linux/of_platform.h>
 
 static struct fb_fix_screeninfo simplefb_fix = {
 	.id		= "simple",
@@ -392,7 +393,27 @@ static struct platform_driver simplefb_driver = {
 	.probe = simplefb_probe,
 	.remove = simplefb_remove,
 };
-module_platform_driver(simplefb_driver);
+
+static int __init simplefb_init(void)
+{
+	int ret;
+	struct device_node *np;
+
+	ret = platform_driver_register(&simplefb_driver);
+	if (ret)
+		return ret;
+
+	if (IS_ENABLED(CONFIG_OF) && of_chosen) {
+		for_each_child_of_node(of_chosen, np) {
+			if (of_device_is_compatible(np, "simple-framebuffer"))
+				of_platform_device_create(np, NULL, NULL);
+		}
+	}
+
+	return 0;
+}
+
+module_init(simplefb_init);
 
 MODULE_AUTHOR("Stephen Warren <swarren@wwwdotorg.org>");
 MODULE_DESCRIPTION("Simple framebuffer driver");
