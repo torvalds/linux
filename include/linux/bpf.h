@@ -133,4 +133,9 @@ struct bpf_prog *bpf_prog_get(u32 ufd);
 /* verify correctness of eBPF program */
 int bpf_check(struct bpf_prog *fp, union bpf_attr *attr);
 
+/* verifier prototypes for helper functions called from eBPF programs */
+extern struct bpf_func_proto bpf_map_lookup_elem_proto;
+extern struct bpf_func_proto bpf_map_update_elem_proto;
+extern struct bpf_func_proto bpf_map_delete_elem_proto;
+
 #endif /* _LINUX_BPF_H */
