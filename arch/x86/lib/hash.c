@@ -31,12 +31,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/hash.h>
+#include <linux/init.h>
+
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
 #include <asm/hash.h>
-
-#include <linux/hash.h>
-#include <linux/jhash.h>
 
 static inline u32 crc32_u32(u32 crc, u32 val)
 {
@@ -48,7 +48,7 @@ static inline u32 crc32_u32(u32 crc, u32 val)
 	return crc;
 }
 
-u32 __intel_crc4_2_hash(const void *data, u32 len, u32 seed)
+static u32 intel_crc4_2_hash(const void *data, u32 len, u32 seed)
 {
 	const u32 *p32 = (const u32 *) data;
 	u32 i, tmp = 0;
@@ -71,27 +71,22 @@ u32 __intel_crc4_2_hash(const void *data, u32 len, u32 seed)
 
 	return seed;
 }
-EXPORT_SYMBOL(__intel_crc4_2_hash);
 
-u32 __intel_crc4_2_hash2(const u32 *data, u32 len, u32 seed)
+static u32 intel_crc4_2_hash2(const u32 *data, u32 len, u32 seed)
 {
+	const u32 *p32 = (const u32 *) data;
 	u32 i;
 
 	for (i = 0; i < len; i++)
-		seed = crc32_u32(seed, *data++);
+		seed = crc32_u32(seed, *p32++);
 
 	return seed;
 }
-EXPORT_SYMBOL(__intel_crc4_2_hash2);
 
-u32 __jhash(const void *data, u32 len, u32 seed)
+void __init setup_arch_fast_hash(struct fast_hash_ops *ops)
 {
-	return jhash(data, len, seed);
+	if (cpu_has_xmm4_2) {
+		ops->hash  = intel_crc4_2_hash;
+		ops->hash2 = intel_crc4_2_hash2;
+	}
 }
-EXPORT_SYMBOL(__jhash);
-
-u32 __jhash2(const u32 *data, u32 len, u32 seed)
-{
-	return jhash2(data, len, seed);
-}
-EXPORT_SYMBOL(__jhash2);
