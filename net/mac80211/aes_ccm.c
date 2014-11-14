@@ -53,6 +53,9 @@ int ieee80211_aes_ccm_decrypt(struct crypto_aead *tfm, u8 *b_0, u8 *aad,
 		__aligned(__alignof__(struct aead_request));
 	struct aead_request *aead_req = (void *) aead_req_data;
 
+	if (data_len == 0)
+		return -EINVAL;
+
 	memset(aead_req, 0, sizeof(aead_req_data));
 
 	sg_init_one(&pt, data, data_len);

@@ -842,7 +842,8 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 			break;
 		}
 		/* handle command packet here */
-		if (rtlpriv->cfg->ops->rx_command_packet(hw, stats, skb)) {
+		if (rtlpriv->cfg->ops->rx_command_packet &&
+		    rtlpriv->cfg->ops->rx_command_packet(hw, stats, skb)) {
 				dev_kfree_skb_any(skb);
 				goto end;
 		}
@@ -1127,9 +1128,14 @@ static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
 
 	__skb_queue_tail(&ring->queue, pskb);
 
-	rtlpriv->cfg->ops->set_desc(hw, (u8 *)pdesc, true, HW_DESC_OWN,
-				    &temp_one);
-
+	if (rtlpriv->use_new_trx_flow) {
+		temp_one = 4;
+		rtlpriv->cfg->ops->set_desc(hw, (u8 *)pbuffer_desc, true,
+					    HW_DESC_OWN, (u8 *)&temp_one);
+	} else {
+		rtlpriv->cfg->ops->set_desc(hw, (u8 *)pdesc, true, HW_DESC_OWN,
+					    &temp_one);
+	}
 	return;
 }
 
@@ -1370,9 +1376,9 @@ static void _rtl_pci_free_tx_ring(struct ieee80211_hw *hw,
 	ring->desc = NULL;
 	if (rtlpriv->use_new_trx_flow) {
 		pci_free_consistent(rtlpci->pdev,
-				    sizeof(*ring->desc) * ring->entries,
+				    sizeof(*ring->buffer_desc) * ring->entries,
 				    ring->buffer_desc, ring->buffer_desc_dma);
-		ring->desc = NULL;
+		ring->buffer_desc = NULL;
 	}
 }
 
@@ -1543,7 +1549,6 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 							 true,
 							 HW_DESC_TXBUFF_ADDR),
 						 skb->len, PCI_DMA_TODEVICE);
-				ring->idx = (ring->idx + 1) % ring->entries;
 				kfree_skb(skb);
 				ring->idx = (ring->idx + 1) % ring->entries;
 			}
