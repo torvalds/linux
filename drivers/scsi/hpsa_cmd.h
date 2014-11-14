@@ -314,7 +314,7 @@ struct CommandListHeader {
 	u8              ReplyQueue;
 	u8              SGList;
 	u16             SGTotal;
-	struct vals32     Tag;
+	u64		tag;
 	union LUNAddr     LUN;
 };
 
@@ -330,12 +330,12 @@ struct RequestBlock {
 };
 
 struct ErrDescriptor {
-	struct vals32 Addr;
+	u64 Addr;
 	u32  Len;
 };
 
 struct SGDescriptor {
-	struct vals32 Addr;
+	u64 Addr;
 	u32  Len;
 	u32  Ext;
 };
@@ -434,8 +434,8 @@ struct io_accel1_cmd {
 	u16 timeout_sec;		/* 0x62 - 0x63 */
 	u8  ReplyQueue;			/* 0x64 */
 	u8  reserved9[3];		/* 0x65 - 0x67 */
-	struct vals32 Tag;		/* 0x68 - 0x6F */
-	struct vals32 host_addr;	/* 0x70 - 0x77 */
+	u64 tag;			/* 0x68 - 0x6F */
+	u64 host_addr;			/* 0x70 - 0x77 */
 	u8  CISS_LUN[8];		/* 0x78 - 0x7F */
 	struct SGDescriptor SG[IOACCEL1_MAXSGENTRIES];
 } __aligned(IOACCEL1_COMMANDLIST_ALIGNMENT);
@@ -555,8 +555,8 @@ struct hpsa_tmf_struct {
 	u8 reserved1;		/* byte 3 Reserved */
 	u32 it_nexus;		/* SCSI I-T Nexus */
 	u8 lun_id[8];		/* LUN ID for TMF request */
-	struct vals32 Tag;	/* cciss tag associated w/ request */
-	struct vals32 abort_tag;/* cciss tag of SCSI cmd or task to abort */
+	u64 tag;		/* cciss tag associated w/ request */
+	u64 abort_tag;		/* cciss tag of SCSI cmd or task to abort */
 	u64 error_ptr;		/* Error Pointer */
 	u32 error_len;		/* Error Length */
 };
