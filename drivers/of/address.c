@@ -477,7 +477,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	ranges = of_get_property(parent, rprop, &rlen);
 #if !defined(CONFIG_PPC)
 	if (ranges == NULL) {
-		pr_err("OF: no ranges; cannot translate\n");
+		pr_debug("OF: no ranges; cannot translate\n");
 		return 1;
 	}
 #endif /* !defined(CONFIG_PPC) */
