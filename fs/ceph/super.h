@@ -161,6 +161,7 @@ struct ceph_cap_snap {
 	u64 time_warp_seq;
 	int writing;   /* a sync write is still in progress */
 	int dirty_pages;     /* dirty pages awaiting writeback */
+	bool inline_data;
 };
 
 static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)

@@ -975,10 +975,12 @@ static int send_cap_msg(struct ceph_mds_session *session,
 			kuid_t uid, kgid_t gid, umode_t mode,
 			u64 xattr_version,
 			struct ceph_buffer *xattrs_buf,
-			u64 follows)
+			u64 follows, bool inline_data)
 {
 	struct ceph_mds_caps *fc;
 	struct ceph_msg *msg;
+	void *p;
+	size_t extra_len;
 
 	dout("send_cap_msg %s %llx %llx caps %s wanted %s dirty %s"
 	     " seq %u/%u mseq %u follows %lld size %llu/%llu"
@@ -988,7 +990,10 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	     seq, issue_seq, mseq, follows, size, max_size,
 	     xattr_version, xattrs_buf ? (int)xattrs_buf->vec.iov_len : 0);
 
-	msg = ceph_msg_new(CEPH_MSG_CLIENT_CAPS, sizeof(*fc), GFP_NOFS, false);
+	/* flock buffer size + inline version + inline data size */
+	extra_len = 4 + 8 + 4;
+	msg = ceph_msg_new(CEPH_MSG_CLIENT_CAPS, sizeof(*fc) + extra_len,
+			   GFP_NOFS, false);
 	if (!msg)
 		return -ENOMEM;
 
@@ -1019,6 +1024,14 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	fc->uid = cpu_to_le32(from_kuid(&init_user_ns, uid));
 	fc->gid = cpu_to_le32(from_kgid(&init_user_ns, gid));
 	fc->mode = cpu_to_le32(mode);
+
+	p = fc + 1;
+	/* flock buffer size */
+	ceph_encode_32(&p, 0);
+	/* inline version */
+	ceph_encode_64(&p, inline_data ? 0 : CEPH_INLINE_NONE);
+	/* inline data size */
+	ceph_encode_32(&p, 0);
 
 	fc->xattr_version = cpu_to_le64(xattr_version);
 	if (xattrs_buf) {
@@ -1126,6 +1139,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	u64 flush_tid = 0;
 	int i;
 	int ret;
+	bool inline_data;
 
 	held = cap->issued | cap->implemented;
 	revoking = cap->implemented & ~cap->issued;
@@ -1209,13 +1223,15 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 		xattr_version = ci->i_xattrs.version;
 	}
 
+	inline_data = ci->i_inline_version != CEPH_INLINE_NONE;
+
 	spin_unlock(&ci->i_ceph_lock);
 
 	ret = send_cap_msg(session, ceph_vino(inode).ino, cap_id,
 		op, keep, want, flushing, seq, flush_tid, issue_seq, mseq,
 		size, max_size, &mtime, &atime, time_warp_seq,
 		uid, gid, mode, xattr_version, xattr_blob,
-		follows);
+		follows, inline_data);
 	if (ret < 0) {
 		dout("error sending cap msg, must requeue %p\n", inode);
 		delayed = 1;
@@ -1336,7 +1352,7 @@ retry:
 			     capsnap->time_warp_seq,
 			     capsnap->uid, capsnap->gid, capsnap->mode,
 			     capsnap->xattr_version, capsnap->xattr_blob,
-			     capsnap->follows);
+			     capsnap->follows, capsnap->inline_data);
 
 		next_follows = capsnap->follows + 1;
 		ceph_put_cap_snap(capsnap);
