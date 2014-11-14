@@ -735,14 +735,10 @@ static void skl_ddi_clock_get(struct intel_encoder *encoder,
 				struct intel_crtc_config *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
-	enum port port = intel_ddi_get_encoder_port(encoder);
 	int link_clock = 0;
 	uint32_t dpll_ctl1, dpll;
 
-	/* FIXME: This should be tracked in the pipe config. */
-	dpll = I915_READ(DPLL_CTRL2);
-	dpll &= DPLL_CTRL2_DDI_CLK_SEL_MASK(port);
-	dpll >>= DPLL_CTRL2_DDI_CLK_SEL_SHIFT(port);
+	dpll = pipe_config->ddi_pll_sel;
 
 	dpll_ctl1 = I915_READ(DPLL_CTRL1);
 
