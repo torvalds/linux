@@ -320,11 +320,19 @@ struct CommandListHeader {
 
 struct RequestBlock {
 	u8   CDBLen;
-	struct {
-		u8 Type:3;
-		u8 Attribute:3;
-		u8 Direction:2;
-	} Type;
+	/*
+	 * type_attr_dir:
+	 * type: low 3 bits
+	 * attr: middle 3 bits
+	 * dir: high 2 bits
+	 */
+	u8	type_attr_dir;
+#define TYPE_ATTR_DIR(t, a, d) ((((d) & 0x03) << 6) |\
+				(((a) & 0x07) << 3) |\
+				((t) & 0x07))
+#define GET_TYPE(tad) ((tad) & 0x07)
+#define GET_ATTR(tad) (((tad) >> 3) & 0x07)
+#define GET_DIR(tad) (((tad) >> 6) & 0x03)
 	u16  Timeout;
 	u8   CDB[16];
 };
