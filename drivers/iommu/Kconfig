@@ -13,6 +13,14 @@ menuconfig IOMMU_SUPPORT
 
 if IOMMU_SUPPORT
 
+menu "Generic IOMMU Pagetable Support"
+
+# Selected by the actual pagetable implementations
+config IOMMU_IO_PGTABLE
+	bool
+
+endmenu
+
 config OF_IOMMU
        def_bool y
        depends on OF && IOMMU_API
