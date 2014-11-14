@@ -588,6 +588,12 @@ enum {
 	SDF_SKIP_DLM_UNLOCK	= 8,
 };
 
+enum gfs2_freeze_state {
+	SFS_UNFROZEN		= 0,
+	SFS_STARTING_FREEZE	= 1,
+	SFS_FROZEN		= 2,
+};
+
 #define GFS2_FSNAME_LEN		256
 
 struct gfs2_inum_host {
@@ -685,6 +691,7 @@ struct gfs2_sbd {
 	struct gfs2_holder sd_live_gh;
 	struct gfs2_glock *sd_rename_gl;
 	struct gfs2_glock *sd_freeze_gl;
+	struct work_struct sd_freeze_work;
 	wait_queue_head_t sd_glock_wait;
 	atomic_t sd_glock_disposal;
 	struct completion sd_locking_init;
@@ -789,6 +796,9 @@ struct gfs2_sbd {
 	wait_queue_head_t sd_log_flush_wait;
 	int sd_log_error;
 
+	atomic_t sd_reserving_log;
+	wait_queue_head_t sd_reserving_log_wait;
+
 	unsigned int sd_log_flush_head;
 	u64 sd_log_flush_wrapped;
 
@@ -798,12 +808,8 @@ struct gfs2_sbd {
 
 	/* For quiescing the filesystem */
 	struct gfs2_holder sd_freeze_gh;
-	struct gfs2_holder sd_freeze_root_gh;
-	struct gfs2_holder sd_thaw_gh;
-	atomic_t sd_log_freeze;
-	atomic_t sd_frozen_root;
-	wait_queue_head_t sd_frozen_root_wait;
-	wait_queue_head_t sd_log_frozen_wait;
+	atomic_t sd_freeze_state;
+	struct mutex sd_freeze_mutex;
 
 	char sd_fsname[GFS2_FSNAME_LEN];
 	char sd_table_name[GFS2_FSNAME_LEN];
