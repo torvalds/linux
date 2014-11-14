@@ -51,6 +51,13 @@
 #define MPX_BNDCFG_ADDR_MASK	(~((1UL<<MPX_BNDCFG_TAIL)-1))
 #define MPX_BNDSTA_ERROR_CODE	0x3
 
+#define MPX_BD_ENTRY_MASK	((1<<MPX_BD_ENTRY_OFFSET)-1)
+#define MPX_BT_ENTRY_MASK	((1<<MPX_BT_ENTRY_OFFSET)-1)
+#define MPX_GET_BD_ENTRY_OFFSET(addr)	((((addr)>>(MPX_BT_ENTRY_OFFSET+ \
+		MPX_IGN_BITS)) & MPX_BD_ENTRY_MASK) << MPX_BD_ENTRY_SHIFT)
+#define MPX_GET_BT_ENTRY_OFFSET(addr)	((((addr)>>MPX_IGN_BITS) & \
+		MPX_BT_ENTRY_MASK) << MPX_BT_ENTRY_SHIFT)
+
 #ifdef CONFIG_X86_INTEL_MPX
 siginfo_t *mpx_generate_siginfo(struct pt_regs *regs,
 				struct xsave_struct *xsave_buf);
@@ -67,6 +74,8 @@ static inline void mpx_mm_init(struct mm_struct *mm)
 	 */
 	mm->bd_addr = MPX_INVALID_BOUNDS_DIR;
 }
+void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+		      unsigned long start, unsigned long end);
 #else
 static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs,
 					      struct xsave_struct *xsave_buf)
@@ -82,6 +91,11 @@ static inline int kernel_managing_mpx_tables(struct mm_struct *mm)
 	return 0;
 }
 static inline void mpx_mm_init(struct mm_struct *mm)
+{
+}
+static inline void mpx_notify_unmap(struct mm_struct *mm,
+				    struct vm_area_struct *vma,
+				    unsigned long start, unsigned long end)
 {
 }
 #endif /* CONFIG_X86_INTEL_MPX */
