@@ -225,6 +225,13 @@ config SPI_GPIO
 	  GPIO operations, you should be able to leverage that for better
 	  speed with a custom version of this driver; see the source code.
 
+config SPI_IMG_SPFI
+	tristate "IMG SPFI controller"
+	depends on MIPS || COMPILE_TEST
+	help
+	  This enables support for the SPFI master controller found on
+	  IMG SoCs.
+
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
 	depends on ARCH_MXC || COMPILE_TEST
