@@ -6363,15 +6363,15 @@ static int hpsa_pci_init(struct ctlr_info *h)
 		return err;
 	}
 
-	/* Enable bus mastering (pci_disable_device may disable this) */
-	pci_set_master(h->pdev);
-
 	err = pci_request_regions(h->pdev, HPSA);
 	if (err) {
 		dev_err(&h->pdev->dev,
 			"cannot obtain PCI resources, aborting\n");
 		return err;
 	}
+
+	pci_set_master(h->pdev);
+
 	hpsa_interrupt_mode(h);
 	err = hpsa_pci_find_memory_BAR(h->pdev, &h->paddr);
 	if (err)
@@ -6451,7 +6451,9 @@ static int hpsa_init_reset_devices(struct pci_dev *pdev)
 		dev_warn(&pdev->dev, "failed to enable device.\n");
 		return -ENODEV;
 	}
+
 	pci_set_master(pdev);
+
 	/* Reset the controller with a PCI power-cycle or via doorbell */
 	rc = hpsa_kdump_hard_reset_controller(pdev);
 
