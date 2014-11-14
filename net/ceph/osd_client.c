@@ -1007,8 +1007,8 @@ static void put_osd(struct ceph_osd *osd)
 static void __remove_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd)
 {
 	dout("__remove_osd %p\n", osd);
-	BUG_ON(!list_empty(&osd->o_requests));
-	BUG_ON(!list_empty(&osd->o_linger_requests));
+	WARN_ON(!list_empty(&osd->o_requests));
+	WARN_ON(!list_empty(&osd->o_linger_requests));
 
 	rb_erase(&osd->o_node, &osdc->osds);
 	list_del_init(&osd->o_osd_lru);
@@ -1254,6 +1254,8 @@ static void __unregister_linger_request(struct ceph_osd_client *osdc,
 		if (list_empty(&req->r_osd_item))
 			req->r_osd = NULL;
 	}
+
+	list_del_init(&req->r_req_lru_item); /* can be on notarget */
 	ceph_osdc_put_request(req);
 }
 
@@ -1395,6 +1397,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 	if (req->r_osd) {
 		__cancel_request(req);
 		list_del_init(&req->r_osd_item);
+		list_del_init(&req->r_linger_osd_item);
 		req->r_osd = NULL;
 	}
 
