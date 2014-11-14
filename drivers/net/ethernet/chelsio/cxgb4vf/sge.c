@@ -51,14 +51,6 @@
 #include "../cxgb4/t4_msg.h"
 
 /*
- * Decoded Adapter Parameters.
- */
-static u32 FL_PG_ORDER;		/* large page allocation size */
-static u32 STAT_LEN;		/* length of status page at ring end */
-static u32 PKTSHIFT;		/* padding between CPL and packet data */
-static u32 FL_ALIGN;		/* response queue message alignment */
-
-/*
  * Constants ...
  */
 enum {
@@ -100,12 +92,6 @@ enum {
 	 */
 	TX_QCHECK_PERIOD = (HZ / 2),
 	MAX_TIMER_TX_RECLAIM = 100,
-
-	/*
-	 * An FL with <= FL_STARVE_THRES buffers is starving and a periodic
-	 * timer will attempt to refill it.
-	 */
-	FL_STARVE_THRES = 4,
 
 	/*
 	 * Suspend an Ethernet TX queue with fewer available descriptors than
@@ -264,15 +250,19 @@ static inline unsigned int fl_cap(const struct sge_fl *fl)
 
 /**
  *	fl_starving - return whether a Free List is starving.
+ *	@adapter: pointer to the adapter
  *	@fl: the Free List
  *
  *	Tests specified Free List to see whether the number of buffers
  *	available to the hardware has falled below our "starvation"
  *	threshold.
  */
-static inline bool fl_starving(const struct sge_fl *fl)
+static inline bool fl_starving(const struct adapter *adapter,
+			       const struct sge_fl *fl)
 {
-	return fl->avail - fl->pend_cred <= FL_STARVE_THRES;
+	const struct sge *s = &adapter->sge;
+
+	return fl->avail - fl->pend_cred <= s->fl_starve_thres;
 }
 
 /**
@@ -457,13 +447,16 @@ static inline void reclaim_completed_tx(struct adapter *adapter,
 
 /**
  *	get_buf_size - return the size of an RX Free List buffer.
+ *	@adapter: pointer to the associated adapter
  *	@sdesc: pointer to the software buffer descriptor
  */
-static inline int get_buf_size(const struct rx_sw_desc *sdesc)
+static inline int get_buf_size(const struct adapter *adapter,
+			       const struct rx_sw_desc *sdesc)
 {
-	return FL_PG_ORDER > 0 && (sdesc->dma_addr & RX_LARGE_BUF)
-		? (PAGE_SIZE << FL_PG_ORDER)
-		: PAGE_SIZE;
+	const struct sge *s = &adapter->sge;
+
+	return (s->fl_pg_order > 0 && (sdesc->dma_addr & RX_LARGE_BUF)
+		? (PAGE_SIZE << s->fl_pg_order) : PAGE_SIZE);
 }
 
 /**
@@ -483,7 +476,8 @@ static void free_rx_bufs(struct adapter *adapter, struct sge_fl *fl, int n)
 
 		if (is_buf_mapped(sdesc))
 			dma_unmap_page(adapter->pdev_dev, get_buf_addr(sdesc),
-				       get_buf_size(sdesc), PCI_DMA_FROMDEVICE);
+				       get_buf_size(adapter, sdesc),
+				       PCI_DMA_FROMDEVICE);
 		put_page(sdesc->page);
 		sdesc->page = NULL;
 		if (++fl->cidx == fl->size)
@@ -511,7 +505,8 @@ static void unmap_rx_buf(struct adapter *adapter, struct sge_fl *fl)
 
 	if (is_buf_mapped(sdesc))
 		dma_unmap_page(adapter->pdev_dev, get_buf_addr(sdesc),
-			       get_buf_size(sdesc), PCI_DMA_FROMDEVICE);
+			       get_buf_size(adapter, sdesc),
+			       PCI_DMA_FROMDEVICE);
 	sdesc->page = NULL;
 	if (++fl->cidx == fl->size)
 		fl->cidx = 0;
@@ -589,6 +584,7 @@ static inline void poison_buf(struct page *page, size_t sz)
 static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 			      int n, gfp_t gfp)
 {
+	struct sge *s = &adapter->sge;
 	struct page *page;
 	dma_addr_t dma_addr;
 	unsigned int cred = fl->avail;
@@ -608,12 +604,12 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 	 * If we don't support large pages, drop directly into the small page
 	 * allocation code.
 	 */
-	if (FL_PG_ORDER == 0)
+	if (s->fl_pg_order == 0)
 		goto alloc_small_pages;
 
 	while (n) {
 		page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN,
-				   FL_PG_ORDER);
+				   s->fl_pg_order);
 		if (unlikely(!page)) {
 			/*
 			 * We've failed inour attempt to allocate a "large
@@ -623,10 +619,10 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 			fl->large_alloc_failed++;
 			break;
 		}
-		poison_buf(page, PAGE_SIZE << FL_PG_ORDER);
+		poison_buf(page, PAGE_SIZE << s->fl_pg_order);
 
 		dma_addr = dma_map_page(adapter->pdev_dev, page, 0,
-					PAGE_SIZE << FL_PG_ORDER,
+					PAGE_SIZE << s->fl_pg_order,
 					PCI_DMA_FROMDEVICE);
 		if (unlikely(dma_mapping_error(adapter->pdev_dev, dma_addr))) {
 			/*
@@ -637,7 +633,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 			 * because DMA mapping resources are typically
 			 * critical resources once they become scarse.
 			 */
-			__free_pages(page, FL_PG_ORDER);
+			__free_pages(page, s->fl_pg_order);
 			goto out;
 		}
 		dma_addr |= RX_LARGE_BUF;
@@ -693,7 +689,7 @@ out:
 	fl->pend_cred += cred;
 	ring_fl_db(adapter, fl);
 
-	if (unlikely(fl_starving(fl))) {
+	if (unlikely(fl_starving(adapter, fl))) {
 		smp_wmb();
 		set_bit(fl->cntxt_id, adapter->sge.starving_fl);
 	}
@@ -1468,6 +1464,8 @@ static void t4vf_pktgl_free(const struct pkt_gl *gl)
 static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		   const struct cpl_rx_pkt *pkt)
 {
+	struct adapter *adapter = rxq->rspq.adapter;
+	struct sge *s = &adapter->sge;
 	int ret;
 	struct sk_buff *skb;
 
@@ -1478,8 +1476,8 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		return;
 	}
 
-	copy_frags(skb, gl, PKTSHIFT);
-	skb->len = gl->tot_len - PKTSHIFT;
+	copy_frags(skb, gl, s->pktshift);
+	skb->len = gl->tot_len - s->pktshift;
 	skb->data_len = skb->len;
 	skb->truesize += skb->data_len;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1516,6 +1514,8 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	bool csum_ok = pkt->csum_calc && !pkt->err_vec &&
 		       (rspq->netdev->features & NETIF_F_RXCSUM);
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
+	struct adapter *adapter = rspq->adapter;
+	struct sge *s = &adapter->sge;
 
 	/*
 	 * If this is a good TCP packet and we have Generic Receive Offload
@@ -1537,7 +1537,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		rxq->stats.rx_drops++;
 		return 0;
 	}
-	__skb_pull(skb, PKTSHIFT);
+	__skb_pull(skb, s->pktshift);
 	skb->protocol = eth_type_trans(skb, rspq->netdev);
 	skb_record_rx_queue(skb, rspq->idx);
 	rxq->stats.pkts++;
@@ -1648,6 +1648,8 @@ static inline void rspq_next(struct sge_rspq *rspq)
 static int process_responses(struct sge_rspq *rspq, int budget)
 {
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
+	struct adapter *adapter = rspq->adapter;
+	struct sge *s = &adapter->sge;
 	int budget_left = budget;
 
 	while (likely(budget_left)) {
@@ -1697,7 +1699,7 @@ static int process_responses(struct sge_rspq *rspq, int budget)
 				BUG_ON(frag >= MAX_SKB_FRAGS);
 				BUG_ON(rxq->fl.avail == 0);
 				sdesc = &rxq->fl.sdesc[rxq->fl.cidx];
-				bufsz = get_buf_size(sdesc);
+				bufsz = get_buf_size(adapter, sdesc);
 				fp->page = sdesc->page;
 				fp->offset = rspq->offset;
 				fp->size = min(bufsz, len);
@@ -1726,7 +1728,7 @@ static int process_responses(struct sge_rspq *rspq, int budget)
 			 */
 			ret = rspq->handler(rspq, rspq->cur_desc, &gl);
 			if (likely(ret == 0))
-				rspq->offset += ALIGN(fp->size, FL_ALIGN);
+				rspq->offset += ALIGN(fp->size, s->fl_align);
 			else
 				restore_rx_bufs(&gl, &rxq->fl, frag);
 		} else if (likely(rsp_type == RSP_TYPE_CPL)) {
@@ -1963,7 +1965,7 @@ static void sge_rx_timer_cb(unsigned long data)
 			 * schedule napi but the FL is no longer starving.
 			 * No biggie.
 			 */
-			if (fl_starving(fl)) {
+			if (fl_starving(adapter, fl)) {
 				struct sge_eth_rxq *rxq;
 
 				rxq = container_of(fl, struct sge_eth_rxq, fl);
@@ -2047,6 +2049,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		       int intr_dest,
 		       struct sge_fl *fl, rspq_handler_t hnd)
 {
+	struct sge *s = &adapter->sge;
 	struct port_info *pi = netdev_priv(dev);
 	struct fw_iq_cmd cmd, rpl;
 	int ret, iqandst, flsz = 0;
@@ -2117,7 +2120,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		fl->size = roundup(fl->size, FL_PER_EQ_UNIT);
 		fl->desc = alloc_ring(adapter->pdev_dev, fl->size,
 				      sizeof(__be64), sizeof(struct rx_sw_desc),
-				      &fl->addr, &fl->sdesc, STAT_LEN);
+				      &fl->addr, &fl->sdesc, s->stat_len);
 		if (!fl->desc) {
 			ret = -ENOMEM;
 			goto err;
@@ -2129,7 +2132,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		 * free list ring) in Egress Queue Units.
 		 */
 		flsz = (fl->size / FL_PER_EQ_UNIT +
-			STAT_LEN / EQ_UNIT);
+			s->stat_len / EQ_UNIT);
 
 		/*
 		 * Fill in all the relevant firmware Ingress Queue Command
@@ -2217,6 +2220,7 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 			   struct net_device *dev, struct netdev_queue *devq,
 			   unsigned int iqid)
 {
+	struct sge *s = &adapter->sge;
 	int ret, nentries;
 	struct fw_eq_eth_cmd cmd, rpl;
 	struct port_info *pi = netdev_priv(dev);
@@ -2225,7 +2229,7 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 	 * Calculate the size of the hardware TX Queue (including the Status
 	 * Page on the end of the TX Queue) in units of TX Descriptors.
 	 */
-	nentries = txq->q.size + STAT_LEN / sizeof(struct tx_desc);
+	nentries = txq->q.size + s->stat_len / sizeof(struct tx_desc);
 
 	/*
 	 * Allocate the hardware ring for the TX ring (with space for its
@@ -2234,7 +2238,7 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 	txq->q.desc = alloc_ring(adapter->pdev_dev, txq->q.size,
 				 sizeof(struct tx_desc),
 				 sizeof(struct tx_sw_desc),
-				 &txq->q.phys_addr, &txq->q.sdesc, STAT_LEN);
+				 &txq->q.phys_addr, &txq->q.sdesc, s->stat_len);
 	if (!txq->q.desc)
 		return -ENOMEM;
 
@@ -2307,8 +2311,10 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
  */
 static void free_txq(struct adapter *adapter, struct sge_txq *tq)
 {
+	struct sge *s = &adapter->sge;
+
 	dma_free_coherent(adapter->pdev_dev,
-			  tq->size * sizeof(*tq->desc) + STAT_LEN,
+			  tq->size * sizeof(*tq->desc) + s->stat_len,
 			  tq->desc, tq->phys_addr);
 	tq->cntxt_id = 0;
 	tq->sdesc = NULL;
@@ -2322,6 +2328,7 @@ static void free_txq(struct adapter *adapter, struct sge_txq *tq)
 static void free_rspq_fl(struct adapter *adapter, struct sge_rspq *rspq,
 			 struct sge_fl *fl)
 {
+	struct sge *s = &adapter->sge;
 	unsigned int flid = fl ? fl->cntxt_id : 0xffff;
 
 	t4vf_iq_free(adapter, FW_IQ_TYPE_FL_INT_CAP,
@@ -2337,7 +2344,7 @@ static void free_rspq_fl(struct adapter *adapter, struct sge_rspq *rspq,
 	if (fl) {
 		free_rx_bufs(adapter, fl, fl->avail);
 		dma_free_coherent(adapter->pdev_dev,
-				  fl->size * sizeof(*fl->desc) + STAT_LEN,
+				  fl->size * sizeof(*fl->desc) + s->stat_len,
 				  fl->desc, fl->addr);
 		kfree(fl->sdesc);
 		fl->sdesc = NULL;
@@ -2423,6 +2430,7 @@ int t4vf_sge_init(struct adapter *adapter)
 	u32 fl0 = sge_params->sge_fl_buffer_size[0];
 	u32 fl1 = sge_params->sge_fl_buffer_size[1];
 	struct sge *s = &adapter->sge;
+	unsigned int ingpadboundary, ingpackboundary;
 
 	/*
 	 * Start by vetting the basic SGE parameters which have been set up by
@@ -2443,12 +2451,48 @@ int t4vf_sge_init(struct adapter *adapter)
 	 * Now translate the adapter parameters into our internal forms.
 	 */
 	if (fl1)
-		FL_PG_ORDER = ilog2(fl1) - PAGE_SHIFT;
-	STAT_LEN = ((sge_params->sge_control & EGRSTATUSPAGESIZE_MASK)
-		    ? 128 : 64);
-	PKTSHIFT = PKTSHIFT_GET(sge_params->sge_control);
-	FL_ALIGN = 1 << (INGPADBOUNDARY_GET(sge_params->sge_control) +
-			 SGE_INGPADBOUNDARY_SHIFT);
+		s->fl_pg_order = ilog2(fl1) - PAGE_SHIFT;
+	s->stat_len = ((sge_params->sge_control & EGRSTATUSPAGESIZE_MASK)
+			? 128 : 64);
+	s->pktshift = PKTSHIFT_GET(sge_params->sge_control);
+
+	/* T4 uses a single control field to specify both the PCIe Padding and
+	 * Packing Boundary.  T5 introduced the ability to specify these
+	 * separately.  The actual Ingress Packet Data alignment boundary
+	 * within Packed Buffer Mode is the maximum of these two
+	 * specifications.  (Note that it makes no real practical sense to
+	 * have the Pading Boudary be larger than the Packing Boundary but you
+	 * could set the chip up that way and, in fact, legacy T4 code would
+	 * end doing this because it would initialize the Padding Boundary and
+	 * leave the Packing Boundary initialized to 0 (16 bytes).)
+	 */
+	ingpadboundary = 1 << (INGPADBOUNDARY_GET(sge_params->sge_control) +
+			       X_INGPADBOUNDARY_SHIFT);
+	if (is_t4(adapter->params.chip)) {
+		s->fl_align = ingpadboundary;
+	} else {
+		/* T5 has a different interpretation of one of the PCIe Packing
+		 * Boundary values.
+		 */
+		ingpackboundary = INGPACKBOUNDARY_G(sge_params->sge_control2);
+		if (ingpackboundary == INGPACKBOUNDARY_16B_X)
+			ingpackboundary = 16;
+		else
+			ingpackboundary = 1 << (ingpackboundary +
+						INGPACKBOUNDARY_SHIFT_X);
+
+		s->fl_align = max(ingpadboundary, ingpackboundary);
+	}
+
+	/* A FL with <= fl_starve_thres buffers is starving and a periodic
+	 * timer will attempt to refill it.  This needs to be larger than the
+	 * SGE's Egress Congestion Threshold.  If it isn't, then we can get
+	 * stuck waiting for new packets while the SGE is waiting for us to
+	 * give it more Free List entries.  (Note that the SGE's Egress
+	 * Congestion Threshold is in units of 2 Free List pointers.)
+	 */
+	s->fl_starve_thres
+		= EGRTHRESHOLD_GET(sge_params->sge_congestion_control)*2 + 1;
 
 	/*
 	 * Set up tasklet timers.

@@ -489,11 +489,14 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	/* We could not connect to a designated PHY, so use the switch internal
 	 * MDIO bus instead
 	 */
-	if (!p->phy)
+	if (!p->phy) {
 		p->phy = ds->slave_mii_bus->phy_map[p->port];
-	else
+		phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
+				   p->phy_interface);
+	} else {
 		pr_info("attached PHY at address %d [%s]\n",
 			p->phy->addr, p->phy->drv->name);
+	}
 }
 
 int dsa_slave_suspend(struct net_device *slave_dev)
