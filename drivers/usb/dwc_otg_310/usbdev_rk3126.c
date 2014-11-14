@@ -127,6 +127,9 @@ static int usb20otg_get_status(int id)
 		/* id in grf */
 		ret = soc_status0 & (0x1 << 8);
 		break;
+	case USB_STATUS_UARTMODE:
+		ret = readl(RK_GRF_VIRT + RK312X_GRF_UOC1_CON4) & (1 << 12);
+		break;
 	case USB_CHIP_ID:
 		ret = control_usb->chip_id;
 		break;
