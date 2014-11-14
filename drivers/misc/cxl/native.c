@@ -637,18 +637,18 @@ int cxl_detach_process(struct cxl_context *ctx)
 	return detach_process_native_afu_directed(ctx);
 }
 
-int cxl_get_irq(struct cxl_context *ctx, struct cxl_irq_info *info)
+int cxl_get_irq(struct cxl_afu *afu, struct cxl_irq_info *info)
 {
 	u64 pidtid;
 
-	info->dsisr = cxl_p2n_read(ctx->afu, CXL_PSL_DSISR_An);
-	info->dar = cxl_p2n_read(ctx->afu, CXL_PSL_DAR_An);
-	info->dsr = cxl_p2n_read(ctx->afu, CXL_PSL_DSR_An);
-	pidtid = cxl_p2n_read(ctx->afu, CXL_PSL_PID_TID_An);
+	info->dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
+	info->dar = cxl_p2n_read(afu, CXL_PSL_DAR_An);
+	info->dsr = cxl_p2n_read(afu, CXL_PSL_DSR_An);
+	pidtid = cxl_p2n_read(afu, CXL_PSL_PID_TID_An);
 	info->pid = pidtid >> 32;
 	info->tid = pidtid & 0xffffffff;
-	info->afu_err = cxl_p2n_read(ctx->afu, CXL_AFU_ERR_An);
-	info->errstat = cxl_p2n_read(ctx->afu, CXL_PSL_ErrStat_An);
+	info->afu_err = cxl_p2n_read(afu, CXL_AFU_ERR_An);
+	info->errstat = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
 
 	return 0;
 }

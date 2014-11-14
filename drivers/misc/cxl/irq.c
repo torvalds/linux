@@ -92,20 +92,13 @@ static irqreturn_t schedule_cxl_fault(struct cxl_context *ctx, u64 dsisr, u64 da
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cxl_irq(int irq, void *data)
+static irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 {
 	struct cxl_context *ctx = data;
-	struct cxl_irq_info irq_info;
 	u64 dsisr, dar;
-	int result;
 
-	if ((result = cxl_get_irq(ctx, &irq_info))) {
-		WARN(1, "Unable to get CXL IRQ Info: %i\n", result);
-		return IRQ_HANDLED;
-	}
-
-	dsisr = irq_info.dsisr;
-	dar = irq_info.dar;
+	dsisr = irq_info->dsisr;
+	dar = irq_info->dar;
 
 	pr_devel("CXL interrupt %i for afu pe: %i DSISR: %#llx DAR: %#llx\n", irq, ctx->pe, dsisr, dar);
 
@@ -149,9 +142,9 @@ static irqreturn_t cxl_irq(int irq, void *data)
 	if (dsisr & CXL_PSL_DSISR_An_UR)
 		pr_devel("CXL interrupt: AURP PTE not found\n");
 	if (dsisr & CXL_PSL_DSISR_An_PE)
-		return handle_psl_slice_error(ctx, dsisr, irq_info.errstat);
+		return handle_psl_slice_error(ctx, dsisr, irq_info->errstat);
 	if (dsisr & CXL_PSL_DSISR_An_AE) {
-		pr_devel("CXL interrupt: AFU Error %.llx\n", irq_info.afu_err);
+		pr_devel("CXL interrupt: AFU Error %.llx\n", irq_info->afu_err);
 
 		if (ctx->pending_afu_err) {
 			/*
@@ -163,10 +156,10 @@ static irqreturn_t cxl_irq(int irq, void *data)
 			 */
 			dev_err_ratelimited(&ctx->afu->dev, "CXL AFU Error "
 					    "undelivered to pe %i: %.llx\n",
-					    ctx->pe, irq_info.afu_err);
+					    ctx->pe, irq_info->afu_err);
 		} else {
 			spin_lock(&ctx->lock);
-			ctx->afu_err = irq_info.afu_err;
+			ctx->afu_err = irq_info->afu_err;
 			ctx->pending_afu_err = 1;
 			spin_unlock(&ctx->lock);
 
@@ -182,24 +175,43 @@ static irqreturn_t cxl_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t fail_psl_irq(struct cxl_afu *afu, struct cxl_irq_info *irq_info)
+{
+	if (irq_info->dsisr & CXL_PSL_DSISR_TRANS)
+		cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_AE);
+	else
+		cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_A);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t cxl_irq_multiplexed(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
 	struct cxl_context *ctx;
+	struct cxl_irq_info irq_info;
 	int ph = cxl_p2n_read(afu, CXL_PSL_PEHandle_An) & 0xffff;
 	int ret;
+
+	if ((ret = cxl_get_irq(afu, &irq_info))) {
+		WARN(1, "Unable to get CXL IRQ Info: %i\n", ret);
+		return fail_psl_irq(afu, &irq_info);
+	}
 
 	rcu_read_lock();
 	ctx = idr_find(&afu->contexts_idr, ph);
 	if (ctx) {
-		ret = cxl_irq(irq, ctx);
+		ret = cxl_irq(irq, ctx, &irq_info);
 		rcu_read_unlock();
 		return ret;
 	}
 	rcu_read_unlock();
 
-	WARN(1, "Unable to demultiplex CXL PSL IRQ\n");
-	return IRQ_HANDLED;
+	WARN(1, "Unable to demultiplex CXL PSL IRQ for PE %i DSISR %.16llx DAR"
+		" %.16llx\n(Possible AFU HW issue - was a term/remove acked"
+		" with outstanding transactions?)\n", ph, irq_info.dsisr,
+		irq_info.dar);
+	return fail_psl_irq(afu, &irq_info);
 }
 
 static irqreturn_t cxl_irq_afu(int irq, void *data)

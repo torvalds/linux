@@ -612,7 +612,7 @@ int cxl_attach_process(struct cxl_context *ctx, bool kernel, u64 wed,
 			    u64 amr);
 int cxl_detach_process(struct cxl_context *ctx);
 
-int cxl_get_irq(struct cxl_context *ctx, struct cxl_irq_info *info);
+int cxl_get_irq(struct cxl_afu *afu, struct cxl_irq_info *info);
 int cxl_ack_irq(struct cxl_context *ctx, u64 tfc, u64 psl_reset_mask);
 
 int cxl_check_error(struct cxl_afu *afu);
