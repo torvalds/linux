@@ -749,10 +749,13 @@ void intel_dsi_init(struct drm_device *dev)
 	intel_connector->unregister = intel_connector_unregister;
 
 	/* Pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI port C */
-	if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA)
+	if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA) {
 		intel_encoder->crtc_mask = (1 << PIPE_A);
-	else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIC)
+		intel_dsi->ports = (1 << PORT_A);
+	} else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIC) {
 		intel_encoder->crtc_mask = (1 << PIPE_B);
+		intel_dsi->ports = (1 << PORT_C);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(intel_dsi_devices); i++) {
 		dsi = &intel_dsi_devices[i];

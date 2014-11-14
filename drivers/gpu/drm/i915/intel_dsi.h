@@ -78,6 +78,9 @@ struct intel_dsi {
 
 	struct intel_connector *attached_connector;
 
+	/* bit mask of ports being driven */
+	u16 ports;
+
 	/* if true, use HS mode, otherwise LP */
 	bool hs;
 
