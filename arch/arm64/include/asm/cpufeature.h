@@ -46,4 +46,6 @@ static inline void cpus_set_cap(unsigned int num)
 		__set_bit(num, cpu_hwcaps);
 }
 
+void check_local_cpu_errata(void);
+
 #endif
