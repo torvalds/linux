@@ -82,7 +82,7 @@ enum bpf_cmd {
 
 	/* create or update key/value pair in a given map
 	 * err = bpf(BPF_MAP_UPDATE_ELEM, union bpf_attr *attr, u32 size)
-	 * Using attr->map_fd, attr->key, attr->value
+	 * Using attr->map_fd, attr->key, attr->value, attr->flags
 	 * returns zero or negative error
 	 */
 	BPF_MAP_UPDATE_ELEM,
@@ -117,6 +117,11 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_UNSPEC,
 };
 
+/* flags for BPF_MAP_UPDATE_ELEM command */
+#define BPF_ANY		0 /* create new element or update existing */
+#define BPF_NOEXIST	1 /* create new element if it didn't exist */
+#define BPF_EXIST	2 /* update existing element */
+
 union bpf_attr {
 	struct { /* anonymous struct used by BPF_MAP_CREATE command */
 		__u32	map_type;	/* one of enum bpf_map_type */
@@ -132,6 +137,7 @@ union bpf_attr {
 			__aligned_u64 value;
 			__aligned_u64 next_key;
 		};
+		__u64		flags;
 	};
 
 	struct { /* anonymous struct used by BPF_PROG_LOAD command */
