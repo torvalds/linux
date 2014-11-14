@@ -1727,6 +1727,14 @@ enum nl80211_commands {
  *	is located at bit 0 of byte 0. bit index 25 would be located at bit 1
  *	of byte 3 (u8 array).
  *
+ * @NL80211_ATTR_SURVEY_RADIO_STATS: Request overall radio statistics to be
+ *	returned along with other survey data. If set, @NL80211_CMD_GET_SURVEY
+ *	may return a survey entry without a channel indicating global radio
+ *	statistics (only some values are valid and make sense.)
+ *	For devices that don't return such an entry even then, the information
+ *	should be contained in the result as the sum of the respective counters
+ *	over all channels.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2087,6 +2095,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_WIPHY_SELF_MANAGED_REG,
 
 	NL80211_ATTR_EXT_FEATURES,
+
+	NL80211_ATTR_SURVEY_RADIO_STATS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -2816,15 +2826,15 @@ enum nl80211_user_reg_hint_type {
  * @NL80211_SURVEY_INFO_NOISE: noise level of channel (u8, dBm)
  * @NL80211_SURVEY_INFO_IN_USE: channel is currently being used
  * @NL80211_SURVEY_INFO_TIME: amount of time (in ms) that the radio
- *	spent on this channel
+ *	was turned on (on channel or globally)
  * @NL80211_SURVEY_INFO_TIME_BUSY: amount of the time the primary
  *	channel was sensed busy (either due to activity or energy detect)
  * @NL80211_SURVEY_INFO_TIME_EXT_BUSY: amount of time the extension
  *	channel was sensed busy
  * @NL80211_SURVEY_INFO_TIME_RX: amount of time the radio spent
- *	receiving data
+ *	receiving data (on channel or globally)
  * @NL80211_SURVEY_INFO_TIME_TX: amount of time the radio spent
- *	transmitting data
+ *	transmitting data (on channel or globally)
  * @NL80211_SURVEY_INFO_MAX: highest survey info attribute number
  *	currently defined
  * @__NL80211_SURVEY_INFO_AFTER_LAST: internal use

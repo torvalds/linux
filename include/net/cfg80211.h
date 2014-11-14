@@ -542,7 +542,8 @@ enum survey_info_flags {
 /**
  * struct survey_info - channel survey response
  *
- * @channel: the channel this survey record reports, mandatory
+ * @channel: the channel this survey record reports, may be %NULL for a single
+ *	record to report global statistics
  * @filled: bitflag of flags from &enum survey_info_flags
  * @noise: channel noise in dBm. This and all following fields are
  *	optional

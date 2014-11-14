@@ -6613,11 +6613,16 @@ static int nl80211_dump_scan(struct sk_buff *skb, struct netlink_callback *cb)
 }
 
 static int nl80211_send_survey(struct sk_buff *msg, u32 portid, u32 seq,
-				int flags, struct net_device *dev,
-				struct survey_info *survey)
+			       int flags, struct net_device *dev,
+			       bool allow_radio_stats,
+			       struct survey_info *survey)
 {
 	void *hdr;
 	struct nlattr *infoattr;
+
+	/* skip radio stats if userspace didn't request them */
+	if (!survey->channel && !allow_radio_stats)
+		return 0;
 
 	hdr = nl80211hdr_put(msg, portid, seq, flags,
 			     NL80211_CMD_NEW_SURVEY_RESULTS);
@@ -6631,7 +6636,8 @@ static int nl80211_send_survey(struct sk_buff *msg, u32 portid, u32 seq,
 	if (!infoattr)
 		goto nla_put_failure;
 
-	if (nla_put_u32(msg, NL80211_SURVEY_INFO_FREQUENCY,
+	if (survey->channel &&
+	    nla_put_u32(msg, NL80211_SURVEY_INFO_FREQUENCY,
 			survey->channel->center_freq))
 		goto nla_put_failure;
 
@@ -6671,18 +6677,21 @@ static int nl80211_send_survey(struct sk_buff *msg, u32 portid, u32 seq,
 	return -EMSGSIZE;
 }
 
-static int nl80211_dump_survey(struct sk_buff *skb,
-			struct netlink_callback *cb)
+static int nl80211_dump_survey(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct survey_info survey;
 	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
 	int survey_idx = cb->args[2];
 	int res;
+	bool radio_stats;
 
 	res = nl80211_prepare_wdev_dump(skb, cb, &rdev, &wdev);
 	if (res)
 		return res;
+
+	/* prepare_wdev_dump parsed the attributes */
+	radio_stats = nl80211_fam.attrbuf[NL80211_ATTR_SURVEY_RADIO_STATS];
 
 	if (!wdev->netdev) {
 		res = -EINVAL;
@@ -6701,13 +6710,9 @@ static int nl80211_dump_survey(struct sk_buff *skb,
 		if (res)
 			goto out_err;
 
-		/* Survey without a channel doesn't make sense */
-		if (!survey.channel) {
-			res = -EINVAL;
-			goto out;
-		}
-
-		if (survey.channel->flags & IEEE80211_CHAN_DISABLED) {
+		/* don't send disabled channels, but do send non-channel data */
+		if (survey.channel &&
+		    survey.channel->flags & IEEE80211_CHAN_DISABLED) {
 			survey_idx++;
 			continue;
 		}
@@ -6715,7 +6720,7 @@ static int nl80211_dump_survey(struct sk_buff *skb,
 		if (nl80211_send_survey(skb,
 				NETLINK_CB(cb->skb).portid,
 				cb->nlh->nlmsg_seq, NLM_F_MULTI,
-				wdev->netdev, &survey) < 0)
+				wdev->netdev, radio_stats, &survey) < 0)
 			goto out;
 		survey_idx++;
 	}
