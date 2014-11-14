@@ -1484,6 +1484,25 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 		uint32_t dpll = crtc->config.ddi_pll_sel;
 		uint32_t val;
 
+		/*
+		 * DPLL0 is used for eDP and is the only "private" DPLL (as
+		 * opposed to shared) on SKL
+		 */
+		if (type == INTEL_OUTPUT_EDP) {
+			WARN_ON(dpll != SKL_DPLL0);
+
+			val = I915_READ(DPLL_CTRL1);
+
+			val &= ~(DPLL_CTRL1_HDMI_MODE(dpll) |
+				 DPLL_CTRL1_SSC(dpll) |
+				 DPLL_CRTL1_LINK_RATE_MASK(dpll));
+			val |= crtc->config.dpll_hw_state.ctrl1 << (dpll * 6);
+
+			I915_WRITE(DPLL_CTRL1, val);
+			POSTING_READ(DPLL_CTRL1);
+		}
+
+		/* DDI -> PLL mapping  */
 		val = I915_READ(DPLL_CTRL2);
 
 		val &= ~(DPLL_CTRL2_DDI_CLK_OFF(port) |
@@ -1492,6 +1511,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 			DPLL_CTRL2_DDI_SEL_OVERRIDE(port));
 
 		I915_WRITE(DPLL_CTRL2, val);
+
 	} else {
 		WARN_ON(crtc->config.ddi_pll_sel == PORT_CLK_SEL_NONE);
 		I915_WRITE(PORT_CLK_SEL(port), crtc->config.ddi_pll_sel);

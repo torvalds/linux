@@ -1074,6 +1074,33 @@ intel_dp_connector_unregister(struct intel_connector *intel_connector)
 }
 
 static void
+skl_edp_set_pll_config(struct intel_crtc_config *pipe_config, int link_bw)
+{
+	u32 ctrl1;
+
+	pipe_config->ddi_pll_sel = SKL_DPLL0;
+	pipe_config->dpll_hw_state.cfgcr1 = 0;
+	pipe_config->dpll_hw_state.cfgcr2 = 0;
+
+	ctrl1 = DPLL_CTRL1_OVERRIDE(SKL_DPLL0);
+	switch (link_bw) {
+	case DP_LINK_BW_1_62:
+		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_810,
+					      SKL_DPLL0);
+		break;
+	case DP_LINK_BW_2_7:
+		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_1350,
+					      SKL_DPLL0);
+		break;
+	case DP_LINK_BW_5_4:
+		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_2700,
+					      SKL_DPLL0);
+		break;
+	}
+	pipe_config->dpll_hw_state.ctrl1 = ctrl1;
+}
+
+static void
 hsw_dp_set_ddi_pll_sel(struct intel_crtc_config *pipe_config, int link_bw)
 {
 	switch (link_bw) {
@@ -1250,7 +1277,9 @@ found:
 				&pipe_config->dp_m2_n2);
 	}
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_SKYLAKE(dev) && is_edp(intel_dp))
+		skl_edp_set_pll_config(pipe_config, intel_dp->link_bw);
+	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_dp_set_ddi_pll_sel(pipe_config, intel_dp->link_bw);
 	else
 		intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
