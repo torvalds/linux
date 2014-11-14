@@ -1308,30 +1308,22 @@ F:	drivers/*/*rockchip*
 F:	drivers/*/*/*rockchip*
 F:	sound/soc/rockchip/
 
-ARM/SAMSUNG ARM ARCHITECTURES
-M:	Ben Dooks <ben-linux@fluff.org>
-M:	Kukjin Kim <kgene.kim@samsung.com>
+ARM/SAMSUNG EXYNOS ARM ARCHITECTURES
+M:	Kukjin Kim <kgene@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
-W:	http://www.fluff.org/ben/linux/
 S:	Maintained
 F:	arch/arm/boot/dts/s3c*
 F:	arch/arm/boot/dts/exynos*
 F:	arch/arm/plat-samsung/
 F:	arch/arm/mach-s3c24*/
 F:	arch/arm/mach-s3c64xx/
+F:	arch/arm/mach-s5p*/
+F:	arch/arm/mach-exynos*/
 F:	drivers/*/*s3c2410*
 F:	drivers/*/*/*s3c2410*
 F:	drivers/spi/spi-s3c*
 F:	sound/soc/samsung/*
-
-ARM/S5P EXYNOS ARM ARCHITECTURES
-M:	Kukjin Kim <kgene.kim@samsung.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-s5p*/
-F:	arch/arm/mach-exynos*/
 N:	exynos
 
 ARM/SAMSUNG MOBILE MACHINE SUPPORT
