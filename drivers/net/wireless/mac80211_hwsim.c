@@ -2491,12 +2491,10 @@ static void hwsim_mcast_del_radio(int id, const char *hwname,
 	if (ret < 0)
 		goto error;
 
-	if (hwname) {
-		ret = nla_put(skb, HWSIM_ATTR_RADIO_NAME, strlen(hwname),
-			      hwname);
-		if (ret < 0)
-			goto error;
-	}
+	ret = nla_put(skb, HWSIM_ATTR_RADIO_NAME, strlen(hwname),
+		      hwname);
+	if (ret < 0)
+		goto error;
 
 	genlmsg_end(skb, data);
 
@@ -2530,7 +2528,8 @@ static void mac80211_hwsim_free(void)
 						list))) {
 		list_del(&data->list);
 		spin_unlock_bh(&hwsim_radio_lock);
-		mac80211_hwsim_del_radio(data, NULL, NULL);
+		mac80211_hwsim_del_radio(data, wiphy_name(data->hw->wiphy),
+					 NULL);
 		spin_lock_bh(&hwsim_radio_lock);
 	}
 	spin_unlock_bh(&hwsim_radio_lock);
@@ -2816,7 +2815,8 @@ static int hwsim_del_radio_nl(struct sk_buff *msg, struct genl_info *info)
 
 		list_del(&data->list);
 		spin_unlock_bh(&hwsim_radio_lock);
-		mac80211_hwsim_del_radio(data, hwname, info);
+		mac80211_hwsim_del_radio(data, wiphy_name(data->hw->wiphy),
+					 info);
 		return 0;
 	}
 	spin_unlock_bh(&hwsim_radio_lock);
@@ -2861,7 +2861,7 @@ static void destroy_radio(struct work_struct *work)
 	struct mac80211_hwsim_data *data =
 		container_of(work, struct mac80211_hwsim_data, destroy_work);
 
-	mac80211_hwsim_del_radio(data, NULL, NULL);
+	mac80211_hwsim_del_radio(data, wiphy_name(data->hw->wiphy), NULL);
 }
 
 static void remove_user_radios(u32 portid)
