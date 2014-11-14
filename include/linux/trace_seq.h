@@ -24,6 +24,24 @@ trace_seq_init(struct trace_seq *s)
 }
 
 /**
+ * trace_seq_used - amount of actual data written to buffer
+ * @s: trace sequence descriptor
+ *
+ * Returns the amount of data written to the buffer.
+ *
+ * IMPORTANT!
+ *
+ * Use this instead of @s->seq.len if you need to pass the amount
+ * of data from the buffer to another buffer (userspace, or what not).
+ * The @s->seq.len on overflow is bigger than the buffer size and
+ * using it can cause access to undefined memory.
+ */
+static inline int trace_seq_used(struct trace_seq *s)
+{
+	return seq_buf_used(&s->seq);
+}
+
+/**
  * trace_seq_buffer_ptr - return pointer to next location in buffer
  * @s: trace sequence descriptor
  *
@@ -35,7 +53,7 @@ trace_seq_init(struct trace_seq *s)
 static inline unsigned char *
 trace_seq_buffer_ptr(struct trace_seq *s)
 {
-	return s->buffer + s->seq.len;
+	return s->buffer + seq_buf_used(&s->seq);
 }
 
 /**
