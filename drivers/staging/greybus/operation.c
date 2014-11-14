@@ -493,8 +493,8 @@ int gb_operation_init(void)
 
 void gb_operation_exit(void)
 {
-	kmem_cache_destroy(gb_operation_cache);
-	gb_operation_cache = NULL;
 	destroy_workqueue(gb_operation_recv_workqueue);
 	gb_operation_recv_workqueue = NULL;
+	kmem_cache_destroy(gb_operation_cache);
+	gb_operation_cache = NULL;
 }
