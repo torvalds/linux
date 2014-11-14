@@ -1006,8 +1006,6 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (!crtc)
 			continue;
 
-		WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
-
 		funcs = crtc->helper_private;
 
 		if (!funcs || !funcs->atomic_begin)
@@ -1022,8 +1020,6 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 
 		if (!plane)
 			continue;
-
-		WARN_ON(!drm_modeset_is_locked(&plane->mutex));
 
 		funcs = plane->helper_private;
 
