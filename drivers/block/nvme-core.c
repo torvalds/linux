@@ -2156,6 +2156,9 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	dev->entry[0].vector = pdev->irq;
 	pci_set_master(pdev);
 	bars = pci_select_bars(pdev, IORESOURCE_MEM);
+	if (!bars)
+		goto disable_pci;
+
 	if (pci_request_selected_regions(pdev, bars, "nvme"))
 		goto disable_pci;
 
