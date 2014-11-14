@@ -355,6 +355,13 @@ static int __init do_gpage_early_setup(char *param, char *val,
 		if (size != 0) {
 			if (sscanf(val, "%lu", &npages) <= 0)
 				npages = 0;
+			if (npages > MAX_NUMBER_GPAGES) {
+				pr_warn("MMU: %lu pages requested for page "
+					"size %llu KB, limiting to "
+					__stringify(MAX_NUMBER_GPAGES) "\n",
+					npages, size / 1024);
+				npages = MAX_NUMBER_GPAGES;
+			}
 			gpage_npages[shift_to_mmu_psize(__ffs(size))] = npages;
 			size = 0;
 		}
