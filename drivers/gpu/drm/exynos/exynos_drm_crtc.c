@@ -59,10 +59,12 @@ static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct exynos_drm_manager *manager = exynos_crtc->manager;
+	struct exynos_drm_plane *exynos_plane = to_exynos_plane(crtc->primary);
 
 	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 
-	exynos_plane_commit(crtc->primary);
+	if (manager->ops->win_commit)
+		manager->ops->win_commit(manager, exynos_plane->zpos);
 
 	if (manager->ops->commit)
 		manager->ops->commit(manager);

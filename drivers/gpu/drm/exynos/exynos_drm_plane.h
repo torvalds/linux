@@ -14,7 +14,6 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 			  unsigned int crtc_w, unsigned int crtc_h,
 			  uint32_t src_x, uint32_t src_y,
 			  uint32_t src_w, uint32_t src_h);
-void exynos_plane_commit(struct drm_plane *plane);
 void exynos_plane_dpms(struct drm_plane *plane, int mode);
 struct drm_plane *exynos_plane_init(struct drm_device *dev,
 				    unsigned long possible_crtcs,
