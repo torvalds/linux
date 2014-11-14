@@ -3811,11 +3811,6 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 		offload_to_mirror =
 			(offload_to_mirror >= map->layout_map_count - 1)
 			? 0 : offload_to_mirror + 1;
-		/* FIXME: remove after debug/dev */
-		BUG_ON(offload_to_mirror >= map->layout_map_count);
-		dev_warn(&h->pdev->dev,
-			"DEBUG: Using physical disk map index %d from mirror group %d\n",
-			map_index, offload_to_mirror);
 		dev->offload_to_mirror = offload_to_mirror;
 		/* Avoid direct use of dev->offload_to_mirror within this
 		 * function since multiple threads might simultaneously
