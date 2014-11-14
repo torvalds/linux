@@ -37,6 +37,7 @@
 #include <linux/of.h>
 #include <linux/irq_work.h>
 
+#include <asm/alternative.h>
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu.h>
@@ -309,6 +310,7 @@ void cpu_die(void)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	pr_info("SMP: Total of %d processors activated.\n", num_online_cpus());
+	apply_alternatives();
 }
 
 void __init smp_prepare_boot_cpu(void)

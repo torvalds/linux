@@ -39,6 +39,7 @@
 #include <asm/setup.h>
 #include <asm/sizes.h>
 #include <asm/tlb.h>
+#include <asm/alternative.h>
 
 #include "mm.h"
 
@@ -325,6 +326,7 @@ void __init mem_init(void)
 void free_initmem(void)
 {
 	free_initmem_default(0);
+	free_alternatives_memory();
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
