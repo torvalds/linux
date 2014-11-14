@@ -458,7 +458,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 	rq = blk_get_request(q, in_len ? WRITE : READ, __GFP_WAIT);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
-		goto error;
+		goto error_free_buffer;
 	}
 	blk_rq_set_block_pc(rq);
 
@@ -531,9 +531,11 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 	}
 	
 error:
+	blk_put_request(rq);
+
+error_free_buffer:
 	kfree(buffer);
-	if (rq)
-		blk_put_request(rq);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(sg_scsi_ioctl);
