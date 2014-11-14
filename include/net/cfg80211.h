@@ -4592,13 +4592,27 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 		      struct station_info *sinfo, gfp_t gfp);
 
 /**
+ * cfg80211_del_sta_sinfo - notify userspace about deletion of a station
+ * @dev: the netdev
+ * @mac_addr: the station's address
+ * @sinfo: the station information/statistics
+ * @gfp: allocation flags
+ */
+void cfg80211_del_sta_sinfo(struct net_device *dev, const u8 *mac_addr,
+			    struct station_info *sinfo, gfp_t gfp);
+
+/**
  * cfg80211_del_sta - notify userspace about deletion of a station
  *
  * @dev: the netdev
  * @mac_addr: the station's address
  * @gfp: allocation flags
  */
-void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
+static inline void cfg80211_del_sta(struct net_device *dev,
+				    const u8 *mac_addr, gfp_t gfp)
+{
+	cfg80211_del_sta_sinfo(dev, mac_addr, NULL, gfp);
+}
 
 /**
  * cfg80211_conn_failed - connection request failed notification

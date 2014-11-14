@@ -3650,8 +3650,8 @@ static bool nl80211_put_signal(struct sk_buff *msg, u8 mask, s8 *signal,
 	return true;
 }
 
-static int nl80211_send_station(struct sk_buff *msg, u32 portid, u32 seq,
-				int flags,
+static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
+				u32 seq, int flags,
 				struct cfg80211_registered_device *rdev,
 				struct net_device *dev,
 				const u8 *mac_addr, struct station_info *sinfo)
@@ -3659,7 +3659,7 @@ static int nl80211_send_station(struct sk_buff *msg, u32 portid, u32 seq,
 	void *hdr;
 	struct nlattr *sinfoattr, *bss_param;
 
-	hdr = nl80211hdr_put(msg, portid, seq, flags, NL80211_CMD_NEW_STATION);
+	hdr = nl80211hdr_put(msg, portid, seq, flags, cmd);
 	if (!hdr)
 		return -1;
 
@@ -3854,7 +3854,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 		if (err)
 			goto out_err;
 
-		if (nl80211_send_station(skb,
+		if (nl80211_send_station(skb, NL80211_CMD_NEW_STATION,
 				NETLINK_CB(cb->skb).portid,
 				cb->nlh->nlmsg_seq, NLM_F_MULTI,
 				rdev, wdev->netdev, mac_addr,
@@ -3901,7 +3901,8 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 	if (!msg)
 		return -ENOMEM;
 
-	if (nl80211_send_station(msg, info->snd_portid, info->snd_seq, 0,
+	if (nl80211_send_station(msg, NL80211_CMD_NEW_STATION,
+				 info->snd_portid, info->snd_seq, 0,
 				 rdev, dev, mac_addr, &sinfo) < 0) {
 		nlmsg_free(msg);
 		return -ENOBUFS;
@@ -11687,7 +11688,7 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 	if (!msg)
 		return;
 
-	if (nl80211_send_station(msg, 0, 0, 0,
+	if (nl80211_send_station(msg, NL80211_CMD_NEW_STATION, 0, 0, 0,
 				 rdev, dev, mac_addr, sinfo) < 0) {
 		nlmsg_free(msg);
 		return;
@@ -11698,12 +11699,16 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 }
 EXPORT_SYMBOL(cfg80211_new_sta);
 
-void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp)
+void cfg80211_del_sta_sinfo(struct net_device *dev, const u8 *mac_addr,
+			    struct station_info *sinfo, gfp_t gfp)
 {
 	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct sk_buff *msg;
-	void *hdr;
+	struct station_info empty_sinfo = {};
+
+	if (!sinfo)
+		sinfo = &empty_sinfo;
 
 	trace_cfg80211_del_sta(dev, mac_addr);
 
@@ -11711,27 +11716,16 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp)
 	if (!msg)
 		return;
 
-	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_DEL_STATION);
-	if (!hdr) {
+	if (nl80211_send_station(msg, NL80211_CMD_DEL_STATION, 0, 0, 0,
+				 rdev, dev, mac_addr, sinfo)) {
 		nlmsg_free(msg);
 		return;
 	}
 
-	if (nla_put_u32(msg, NL80211_ATTR_IFINDEX, dev->ifindex) ||
-	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, mac_addr))
-		goto nla_put_failure;
-
-	genlmsg_end(msg, hdr);
-
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
 				NL80211_MCGRP_MLME, gfp);
-	return;
-
- nla_put_failure:
-	genlmsg_cancel(msg, hdr);
-	nlmsg_free(msg);
 }
-EXPORT_SYMBOL(cfg80211_del_sta);
+EXPORT_SYMBOL(cfg80211_del_sta_sinfo);
 
 void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
 			  enum nl80211_connect_failed_reason reason,
