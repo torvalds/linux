@@ -181,9 +181,8 @@ static void gb_remove_modules(struct greybus_host_device *hd)
 {
 	struct gb_module *gmod, *temp;
 
-	list_for_each_entry_safe(gmod, temp, &hd->modules, links) {
+	list_for_each_entry_safe(gmod, temp, &hd->modules, links)
 		gb_module_destroy(gmod);
-	}
 }
 
 static DEFINE_MUTEX(hd_mutex);
