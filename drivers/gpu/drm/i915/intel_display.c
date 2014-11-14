@@ -8029,8 +8029,6 @@ static void skylake_get_ddi_pll(struct drm_i915_private *dev_priv,
 	case SKL_DPLL3:
 		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL3;
 		break;
-	default:
-		WARN(1, "Unknown DPLL programmed\n");
 	}
 }
 
