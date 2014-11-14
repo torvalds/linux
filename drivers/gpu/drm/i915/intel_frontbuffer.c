@@ -156,7 +156,7 @@ void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 
 	intel_mark_fb_busy(dev, obj->frontbuffer_bits, ring);
 
-	intel_edp_psr_invalidate(dev, obj->frontbuffer_bits);
+	intel_psr_invalidate(dev, obj->frontbuffer_bits);
 }
 
 /**
@@ -182,7 +182,7 @@ void intel_frontbuffer_flush(struct drm_device *dev,
 
 	intel_mark_fb_busy(dev, frontbuffer_bits, NULL);
 
-	intel_edp_psr_flush(dev, frontbuffer_bits);
+	intel_psr_flush(dev, frontbuffer_bits);
 
 	/*
 	 * FIXME: Unconditional fbc flushing here is a rather gross hack and
