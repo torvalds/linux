@@ -799,6 +799,7 @@ static irqreturn_t mxs_auart_irq_handle(int irq, void *context)
 {
 	u32 istat;
 	struct mxs_auart_port *s = context;
+	u32 mctrl_temp = s->mctrl_prev;
 	u32 stat = readl(s->port.membase + AUART_STAT);
 
 	istat = readl(s->port.membase + AUART_INTR);
@@ -818,7 +819,7 @@ static irqreturn_t mxs_auart_irq_handle(int irq, void *context)
 	    irq == s->gpio_irq[UART_GPIO_DSR] ||
 	    irq == s->gpio_irq[UART_GPIO_RI])
 		mxs_auart_modem_status(s,
-				mctrl_gpio_get(s->gpios, &s->mctrl_prev));
+				mctrl_gpio_get(s->gpios, &mctrl_temp));
 
 	if (istat & AUART_INTR_CTSMIS) {
 		if (CTS_AT_AUART() && s->ms_irq_enabled)
