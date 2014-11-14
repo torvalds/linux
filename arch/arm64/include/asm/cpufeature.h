@@ -21,9 +21,29 @@
 #define MAX_CPU_FEATURES	(8 * sizeof(elf_hwcap))
 #define cpu_feature(x)		ilog2(HWCAP_ ## x)
 
+#define NCAPS			0
+
+extern DECLARE_BITMAP(cpu_hwcaps, NCAPS);
+
 static inline bool cpu_have_feature(unsigned int num)
 {
 	return elf_hwcap & (1UL << num);
+}
+
+static inline bool cpus_have_cap(unsigned int num)
+{
+	if (num >= NCAPS)
+		return false;
+	return test_bit(num, cpu_hwcaps);
+}
+
+static inline void cpus_set_cap(unsigned int num)
+{
+	if (num >= NCAPS)
+		pr_warn("Attempt to set an illegal CPU capability (%d >= %d)\n",
+			num, NCAPS);
+	else
+		__set_bit(num, cpu_hwcaps);
 }
 
 #endif
