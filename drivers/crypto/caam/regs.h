@@ -1,7 +1,7 @@
 /*
  * CAAM hardware register-level view
  *
- * Copyright 008-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2008-2015 Freescale Semiconductor, Inc.
  */
 
 #ifndef REGS_H
@@ -129,52 +129,99 @@ struct jr_outentry {
 } __packed;
 
 /*
- * caam_perfmon - Performance Monitor/Secure Memory Status/
- *                CAAM Global Status/Component Version IDs
- *
- * Spans f00-fff wherever instantiated
+ * CHA version ID / instantiation bitfields
+ * Defined for use within cha_id in perfmon
+ * Note that the same shift/mask selectors can be used to pull out number
+ * of instantiated blocks within cha_num in perfmon, the locations are
+ * the same.
  */
+
+/* Job Ring */
+#define CHA_ID_MS_JR_SHIFT	28
+#define CHA_ID_MS_JR_MASK	(0xfull << CHA_ID_MS_JR_SHIFT)
+
+/* DEscriptor COntroller */
+#define CHA_ID_MS_DECO_SHIFT	24
+#define CHA_ID_MS_DECO_MASK	(0xfull << CHA_ID_MS_DECO_SHIFT)
+#define CHA_NUM_DECONUM_SHIFT	56 /* legacy definition */
+#define CHA_NUM_DECONUM_MASK	(0xfull << CHA_NUM_DECONUM_SHIFT)
 
 /* Number of DECOs */
 #define CHA_NUM_MS_DECONUM_SHIFT	24
 #define CHA_NUM_MS_DECONUM_MASK	(0xfull << CHA_NUM_MS_DECONUM_SHIFT)
 
-/* CHA Version IDs */
+/*
+ * AES Blockcipher + Combo Mode Accelerator
+ * LP = Low Power (includes ECB/CBC/CFB128/OFB/CTR/CCM/CMAC/XCBC-MAC)
+ * HP = High Power (LP + CBCXCBC/CTRXCBC/XTS/GCM)
+ * DIFFPWR = ORed in if differential-power-analysis resistance implemented
+ */
 #define CHA_ID_LS_AES_SHIFT	0
-#define CHA_ID_LS_AES_MASK		(0xfull << CHA_ID_LS_AES_SHIFT)
+#define CHA_ID_LS_AES_MASK	(0xfull << CHA_ID_LS_AES_SHIFT)
+#define CHA_ID_LS_AES_LP	(0x3ull << CHA_ID_LS_AES_SHIFT)
+#define CHA_ID_LS_AES_HP	(0x4ull << CHA_ID_LS_AES_SHIFT)
+#define CHA_ID_LS_AES_DIFFPWR	(0x1ull << CHA_ID_LS_AES_SHIFT)
 
+/* DES Blockcipher Accelerator */
 #define CHA_ID_LS_DES_SHIFT	4
 #define CHA_ID_LS_DES_MASK		(0xfull << CHA_ID_LS_DES_SHIFT)
 
+/* ARC4 Streamcipher */
 #define CHA_ID_LS_ARC4_SHIFT	8
 #define CHA_ID_LS_ARC4_MASK	(0xfull << CHA_ID_LS_ARC4_SHIFT)
+#define CHA_ID_LS_ARC4_LP	(0x0ull << CHA_ID_LS_ARC4_SHIFT)
+#define CHA_ID_LS_ARC4_HP	(0x1ull << CHA_ID_LS_ARC4_SHIFT)
 
+/*
+ * Message Digest
+ * LP256 = Low Power (MD5/SHA1/SHA224/SHA256 + HMAC)
+ * LP512 = Low Power (LP256 + SHA384/SHA512)
+ * HP    = High Power (LP512 + SMAC)
+ */
 #define CHA_ID_LS_MD_SHIFT	12
 #define CHA_ID_LS_MD_MASK	(0xfull << CHA_ID_LS_MD_SHIFT)
+#define CHA_ID_LS_MD_LP256	(0x0ull << CHA_ID_LS_MD_SHIFT)
+#define CHA_ID_LS_MD_LP512	(0x1ull << CHA_ID_LS_MD_SHIFT)
+#define CHA_ID_LS_MD_HP		(0x2ull << CHA_ID_LS_MD_SHIFT)
 
+/*
+ * Random Generator
+ * RNG4 = FIPS-verification-compliant, requires init kickstart for use
+ */
 #define CHA_ID_LS_RNG_SHIFT	16
 #define CHA_ID_LS_RNG_MASK	(0xfull << CHA_ID_LS_RNG_SHIFT)
+#define CHA_ID_LS_RNG_A		(0x1ull << CHA_ID_LS_RNG_SHIFT)
+#define CHA_ID_LS_RNG_B		(0x2ull << CHA_ID_LS_RNG_SHIFT)
+#define CHA_ID_LS_RNG_C		(0x3ull << CHA_ID_LS_RNG_SHIFT)
+#define CHA_ID_LS_RNG_4		(0x4ull << CHA_ID_LS_RNG_SHIFT)
 
+/* ZUC-Authentication */
+#define CHA_ID_MS_ZA_SHIFT	12
+#define CHA_ID_MS_ZA_MASK	(0xfull << CHA_ID_MS_ZA_SHIFT)
+
+/* ZUC-Encryption */
+#define CHA_ID_MS_ZE_SHIFT	8
+#define CHA_ID_MS_ZE_MASK	(0xfull << CHA_ID_MS_ZE_SHIFT)
+
+/* SNOW f8 */
 #define CHA_ID_LS_SNW8_SHIFT	20
 #define CHA_ID_LS_SNW8_MASK	(0xfull << CHA_ID_LS_SNW8_SHIFT)
 
+/* Kasumi */
 #define CHA_ID_LS_KAS_SHIFT	24
 #define CHA_ID_LS_KAS_MASK	(0xfull << CHA_ID_LS_KAS_SHIFT)
 
+/* Public Key */
 #define CHA_ID_LS_PK_SHIFT	28
 #define CHA_ID_LS_PK_MASK	(0xfull << CHA_ID_LS_PK_SHIFT)
 
+/* CRC */
 #define CHA_ID_MS_CRC_SHIFT	0
 #define CHA_ID_MS_CRC_MASK	(0xfull << CHA_ID_MS_CRC_SHIFT)
 
+/* SNOW f9 */
 #define CHA_ID_MS_SNW9_SHIFT	4
 #define CHA_ID_MS_SNW9_MASK	(0xfull << CHA_ID_MS_SNW9_SHIFT)
-
-#define CHA_ID_MS_DECO_SHIFT	24
-#define CHA_ID_MS_DECO_MASK	(0xfull << CHA_ID_MS_DECO_SHIFT)
-
-#define CHA_ID_MS_JR_SHIFT	28
-#define CHA_ID_MS_JR_MASK	(0xfull << CHA_ID_MS_JR_SHIFT)
 
 /*
  * caam_perfmon - Performance Monitor/Secure Memory Status/
@@ -182,6 +229,10 @@ struct jr_outentry {
  *
  * Spans f00-fff wherever instantiated
  */
+
+/* Number of DECOs */
+#define CHA_NUM_DECONUM_SHIFT	56
+#define CHA_NUM_DECONUM_MASK	(0xfull << CHA_NUM_DECONUM_SHIFT)
 
 struct sec_vid {
 	u16 ip_id;
