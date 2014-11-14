@@ -1760,72 +1760,13 @@ static void complete_scsi_command(struct CommandList *cp)
 			/* Get addition sense code qualifier */
 			ascq = ei->SenseInfo[13];
 		}
-
 		if (ei->ScsiStatus == SAM_STAT_CHECK_CONDITION) {
-			if (check_for_unit_attention(h, cp))
-				break;
-			if (sense_key == ILLEGAL_REQUEST) {
-				/*
-				 * SCSI REPORT_LUNS is commonly unsupported on
-				 * Smart Array.  Suppress noisy complaint.
-				 */
-				if (cp->Request.CDB[0] == REPORT_LUNS)
-					break;
-
-				/* If ASC/ASCQ indicate Logical Unit
-				 * Not Supported condition,
-				 */
-				if ((asc == 0x25) && (ascq == 0x0)) {
-					dev_warn(&h->pdev->dev, "cp %p "
-						"has check condition\n", cp);
-					break;
-				}
-			}
-
-			if (sense_key == NOT_READY) {
-				/* If Sense is Not Ready, Logical Unit
-				 * Not ready, Manual Intervention
-				 * required
-				 */
-				if ((asc == 0x04) && (ascq == 0x03)) {
-					dev_warn(&h->pdev->dev, "cp %p "
-						"has check condition: unit "
-						"not ready, manual "
-						"intervention required\n", cp);
-					break;
-				}
-			}
 			if (sense_key == ABORTED_COMMAND) {
-				/* Aborted command is retryable */
-				dev_warn(&h->pdev->dev, "cp %p "
-					"has check condition: aborted command: "
-					"ASC: 0x%x, ASCQ: 0x%x\n",
-					cp, asc, ascq);
 				cmd->result |= DID_SOFT_ERROR << 16;
 				break;
 			}
-			/* Must be some other type of check condition */
-			dev_dbg(&h->pdev->dev, "cp %p has check condition: "
-					"unknown type: "
-					"Sense: 0x%x, ASC: 0x%x, ASCQ: 0x%x, "
-					"Returning result: 0x%x, "
-					"cmd=[%02x %02x %02x %02x %02x "
-					"%02x %02x %02x %02x %02x %02x "
-					"%02x %02x %02x %02x %02x]\n",
-					cp, sense_key, asc, ascq,
-					cmd->result,
-					cmd->cmnd[0], cmd->cmnd[1],
-					cmd->cmnd[2], cmd->cmnd[3],
-					cmd->cmnd[4], cmd->cmnd[5],
-					cmd->cmnd[6], cmd->cmnd[7],
-					cmd->cmnd[8], cmd->cmnd[9],
-					cmd->cmnd[10], cmd->cmnd[11],
-					cmd->cmnd[12], cmd->cmnd[13],
-					cmd->cmnd[14], cmd->cmnd[15]);
 			break;
 		}
-
-
 		/* Problem was not a check condition
 		 * Pass it up to the upper layers...
 		 */
