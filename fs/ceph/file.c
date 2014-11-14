@@ -805,6 +805,7 @@ static ssize_t ceph_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	size_t len = iocb->ki_nbytes;
 	struct inode *inode = file_inode(filp);
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct page *pinned_page = NULL;
 	ssize_t ret;
 	int want, got = 0;
 	int checkeof = 0, read = 0;
@@ -817,7 +818,7 @@ again:
 		want = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 	else
 		want = CEPH_CAP_FILE_CACHE;
-	ret = ceph_get_caps(ci, CEPH_CAP_FILE_RD, want, &got, -1);
+	ret = ceph_get_caps(ci, CEPH_CAP_FILE_RD, want, -1, &got, &pinned_page);
 	if (ret < 0)
 		return ret;
 
@@ -840,6 +841,10 @@ again:
 	}
 	dout("aio_read %p %llx.%llx dropping cap refs on %s = %d\n",
 	     inode, ceph_vinop(inode), ceph_cap_string(got), (int)ret);
+	if (pinned_page) {
+		page_cache_release(pinned_page);
+		pinned_page = NULL;
+	}
 	ceph_put_cap_refs(ci, got);
 
 	if (checkeof && ret >= 0) {
@@ -924,7 +929,8 @@ retry_snap:
 	else
 		want = CEPH_CAP_FILE_BUFFER;
 	got = 0;
-	err = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, &got, pos + count);
+	err = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, pos + count,
+			    &got, NULL);
 	if (err < 0)
 		goto out;
 
@@ -1225,7 +1231,7 @@ static long ceph_fallocate(struct file *file, int mode,
 	else
 		want = CEPH_CAP_FILE_BUFFER;
 
-	ret = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, &got, endoff);
+	ret = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, endoff, &got, NULL);
 	if (ret < 0)
 		goto unlock;
 
