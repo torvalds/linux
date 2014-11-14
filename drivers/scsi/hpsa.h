@@ -164,7 +164,7 @@ struct ctlr_info {
 	 */
 	u32 trans_support;
 	u32 trans_offset;
-	struct TransTable_struct *transtable;
+	struct TransTable_struct __iomem *transtable;
 	unsigned long transMethod;
 
 	/* cap concurrent passthrus at some reasonable maximum */
@@ -181,7 +181,7 @@ struct ctlr_info {
 	u32 *blockFetchTable;
 	u32 *ioaccel1_blockFetchTable;
 	u32 *ioaccel2_blockFetchTable;
-	u32 *ioaccel2_bft2_regs;
+	u32 __iomem *ioaccel2_bft2_regs;
 	unsigned char *hba_inquiry_data;
 	u32 driver_support;
 	u32 fw_support;
@@ -192,7 +192,7 @@ struct ctlr_info {
 	u64 last_heartbeat_timestamp;
 	u32 heartbeat_sample_interval;
 	atomic_t firmware_flash_in_progress;
-	u32 *lockup_detected;
+	u32 __percpu *lockup_detected;
 	struct delayed_work monitor_ctlr_work;
 	int remove_in_progress;
 	u32 fifo_recently_full;
