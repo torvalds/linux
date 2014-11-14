@@ -54,15 +54,15 @@ static void print_stat(struct intel_dsi *intel_dsi)
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 val;
 
-	val = I915_READ(MIPI_INTR_STAT(pipe));
+	val = I915_READ(MIPI_INTR_STAT(port));
 
 #define STAT_BIT(val, bit) (val) & (bit) ? " " #bit : ""
-	DRM_DEBUG_KMS("MIPI_INTR_STAT(%d) = %08x"
+	DRM_DEBUG_KMS("MIPI_INTR_STAT(%c) = %08x"
 		      "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
-		      "\n", pipe, val,
+		      "\n", port_name(port), val,
 		      STAT_BIT(val, TEARING_EFFECT),
 		      STAT_BIT(val, SPL_PKT_SENT_INTERRUPT),
 		      STAT_BIT(val, GEN_READ_DATA_AVAIL),
@@ -110,16 +110,16 @@ void dsi_hs_mode_enable(struct intel_dsi *intel_dsi, bool enable)
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 temp;
 	u32 mask = DBI_FIFO_EMPTY;
 
-	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(pipe)) & mask) == mask, 50))
+	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & mask) == mask, 50))
 		DRM_ERROR("Timeout waiting for DBI FIFO empty\n");
 
-	temp = I915_READ(MIPI_HS_LP_DBI_ENABLE(pipe));
+	temp = I915_READ(MIPI_HS_LP_DBI_ENABLE(port));
 	temp &= DBI_HS_LP_MODE_MASK;
-	I915_WRITE(MIPI_HS_LP_DBI_ENABLE(pipe), enable ? DBI_HS_MODE : DBI_LP_MODE);
+	I915_WRITE(MIPI_HS_LP_DBI_ENABLE(port), enable ? DBI_HS_MODE : DBI_LP_MODE);
 
 	intel_dsi->hs = enable;
 }
@@ -131,7 +131,7 @@ static int dsi_vc_send_short(struct intel_dsi *intel_dsi, int channel,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 ctrl_reg;
 	u32 ctrl;
 	u32 mask;
@@ -140,14 +140,14 @@ static int dsi_vc_send_short(struct intel_dsi *intel_dsi, int channel,
 		      channel, data_type, data);
 
 	if (intel_dsi->hs) {
-		ctrl_reg = MIPI_HS_GEN_CTRL(pipe);
+		ctrl_reg = MIPI_HS_GEN_CTRL(port);
 		mask = HS_CTRL_FIFO_FULL;
 	} else {
-		ctrl_reg = MIPI_LP_GEN_CTRL(pipe);
+		ctrl_reg = MIPI_LP_GEN_CTRL(port);
 		mask = LP_CTRL_FIFO_FULL;
 	}
 
-	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(pipe)) & mask) == 0, 50)) {
+	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & mask) == 0, 50)) {
 		DRM_ERROR("Timeout waiting for HS/LP CTRL FIFO !full\n");
 		print_stat(intel_dsi);
 	}
@@ -173,7 +173,7 @@ static int dsi_vc_send_long(struct intel_dsi *intel_dsi, int channel,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 data_reg;
 	int i, j, n;
 	u32 mask;
@@ -182,14 +182,14 @@ static int dsi_vc_send_long(struct intel_dsi *intel_dsi, int channel,
 		      channel, data_type, len);
 
 	if (intel_dsi->hs) {
-		data_reg = MIPI_HS_GEN_DATA(pipe);
+		data_reg = MIPI_HS_GEN_DATA(port);
 		mask = HS_DATA_FIFO_FULL;
 	} else {
-		data_reg = MIPI_LP_GEN_DATA(pipe);
+		data_reg = MIPI_LP_GEN_DATA(port);
 		mask = LP_DATA_FIFO_FULL;
 	}
 
-	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(pipe)) & mask) == 0, 50))
+	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & mask) == 0, 50))
 		DRM_ERROR("Timeout waiting for HS/LP DATA FIFO !full\n");
 
 	for (i = 0; i < len; i += n) {
@@ -292,14 +292,14 @@ static int dsi_read_data_return(struct intel_dsi *intel_dsi,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	int i, len = 0;
 	u32 data_reg, val;
 
 	if (intel_dsi->hs) {
-		data_reg = MIPI_HS_GEN_DATA(pipe);
+		data_reg = MIPI_HS_GEN_DATA(port);
 	} else {
-		data_reg = MIPI_LP_GEN_DATA(pipe);
+		data_reg = MIPI_LP_GEN_DATA(port);
 	}
 
 	while (len < buflen) {
@@ -318,7 +318,7 @@ int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 mask;
 	int ret;
 
@@ -327,14 +327,14 @@ int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
 	 * longer than MIPI_MAX_RETURN_PKT_SIZE
 	 */
 
-	I915_WRITE(MIPI_INTR_STAT(pipe), GEN_READ_DATA_AVAIL);
+	I915_WRITE(MIPI_INTR_STAT(port), GEN_READ_DATA_AVAIL);
 
 	ret = dsi_vc_dcs_send_read_request(intel_dsi, channel, dcs_cmd);
 	if (ret)
 		return ret;
 
 	mask = GEN_READ_DATA_AVAIL;
-	if (wait_for((I915_READ(MIPI_INTR_STAT(pipe)) & mask) == mask, 50))
+	if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & mask) == mask, 50))
 		DRM_ERROR("Timeout waiting for read data.\n");
 
 	ret = dsi_read_data_return(intel_dsi, buf, buflen);
@@ -354,7 +354,7 @@ int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 mask;
 	int ret;
 
@@ -363,7 +363,7 @@ int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
 	 * longer than MIPI_MAX_RETURN_PKT_SIZE
 	 */
 
-	I915_WRITE(MIPI_INTR_STAT(pipe), GEN_READ_DATA_AVAIL);
+	I915_WRITE(MIPI_INTR_STAT(port), GEN_READ_DATA_AVAIL);
 
 	ret = dsi_vc_generic_send_read_request(intel_dsi, channel, reqdata,
 					       reqlen);
@@ -371,7 +371,7 @@ int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
 		return ret;
 
 	mask = GEN_READ_DATA_AVAIL;
-	if (wait_for((I915_READ(MIPI_INTR_STAT(pipe)) & mask) == mask, 50))
+	if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & mask) == mask, 50))
 		DRM_ERROR("Timeout waiting for read data.\n");
 
 	ret = dsi_read_data_return(intel_dsi, buf, buflen);
@@ -395,7 +395,7 @@ int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs)
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 mask;
 
 	/* XXX: pipe, hs */
@@ -405,16 +405,16 @@ int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs)
 		cmd |= DPI_LP_MODE;
 
 	/* clear bit */
-	I915_WRITE(MIPI_INTR_STAT(pipe), SPL_PKT_SENT_INTERRUPT);
+	I915_WRITE(MIPI_INTR_STAT(port), SPL_PKT_SENT_INTERRUPT);
 
 	/* XXX: old code skips write if control unchanged */
-	if (cmd == I915_READ(MIPI_DPI_CONTROL(pipe)))
+	if (cmd == I915_READ(MIPI_DPI_CONTROL(port)))
 		DRM_ERROR("Same special packet %02x twice in a row.\n", cmd);
 
-	I915_WRITE(MIPI_DPI_CONTROL(pipe), cmd);
+	I915_WRITE(MIPI_DPI_CONTROL(port), cmd);
 
 	mask = SPL_PKT_SENT_INTERRUPT;
-	if (wait_for((I915_READ(MIPI_INTR_STAT(pipe)) & mask) == mask, 100))
+	if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & mask) == mask, 100))
 		DRM_ERROR("Video mode command 0x%08x send failed.\n", cmd);
 
 	return 0;
@@ -426,12 +426,12 @@ void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi)
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 mask;
 
 	mask = LP_CTRL_FIFO_EMPTY | HS_CTRL_FIFO_EMPTY |
 		LP_DATA_FIFO_EMPTY | HS_DATA_FIFO_EMPTY;
 
-	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(pipe)) & mask) == mask, 100))
+	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & mask) == mask, 100))
 		DRM_ERROR("DPI FIFOs are not empty\n");
 }
