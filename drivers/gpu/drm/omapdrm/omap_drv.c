@@ -675,23 +675,6 @@ static struct drm_driver omap_drm_driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
-static int pdev_suspend(struct platform_device *pDevice, pm_message_t state)
-{
-	DBG("");
-	return 0;
-}
-
-static int pdev_resume(struct platform_device *device)
-{
-	DBG("");
-	return 0;
-}
-
-static void pdev_shutdown(struct platform_device *device)
-{
-	DBG("");
-}
-
 static int pdev_probe(struct platform_device *device)
 {
 	int r;
@@ -738,9 +721,6 @@ static struct platform_driver pdev = {
 	},
 	.probe = pdev_probe,
 	.remove = pdev_remove,
-	.suspend = pdev_suspend,
-	.resume = pdev_resume,
-	.shutdown = pdev_shutdown,
 };
 
 static int __init omap_drm_init(void)
