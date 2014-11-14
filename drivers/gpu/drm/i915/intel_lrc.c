@@ -220,6 +220,9 @@ int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists
 {
 	WARN_ON(i915.enable_ppgtt == -1);
 
+	if (INTEL_INFO(dev)->gen >= 9)
+		return 1;
+
 	if (enable_execlists == 0)
 		return 0;
 
