@@ -332,6 +332,10 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 	u32 found = 0;
 	bool result;
 
+	/* Manifest descriptor list should be empty here */
+	if (WARN_ON(!list_empty(&manifest_descs)))
+		return false;
+
 	/* we have to have at _least_ the manifest header */
 	if (size <= sizeof(manifest->header)) {
 		pr_err("short manifest (%zu)\n", size);
