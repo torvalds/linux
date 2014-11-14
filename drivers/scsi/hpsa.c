@@ -6321,11 +6321,11 @@ static void hpsa_find_board_params(struct ctlr_info *h)
 	h->max_cmd_sg_entries = 31;
 	if (h->maxsgentries > 512) {
 		h->max_cmd_sg_entries = 32;
-		h->chainsize = h->maxsgentries - h->max_cmd_sg_entries + 1;
+		h->chainsize = h->maxsgentries - h->max_cmd_sg_entries;
 		h->maxsgentries--; /* save one for chain pointer */
 	} else {
-		h->maxsgentries = 31; /* default to traditional values */
 		h->chainsize = 0;
+		h->maxsgentries = 31; /* default to traditional values */
 	}
 
 	/* Find out what task management functions are supported and cache */
