@@ -119,65 +119,6 @@ void greybus_deregister(struct greybus_driver *driver)
 EXPORT_SYMBOL_GPL(greybus_deregister);
 
 
-/**
- * gb_add_module
- *
- * Pass in a buffer that _should_ contain a Greybus module manifest
- * and register a greybus device structure with the kernel core.
- */
-void gb_add_module(struct greybus_host_device *hd, u8 module_id,
-		   u8 *data, int size)
-{
-	struct gb_module *gmod;
-
-	gmod = gb_module_create(hd, module_id);
-	if (!gmod) {
-		dev_err(hd->parent, "failed to create module\n");
-		return;
-	}
-
-	/*
-	 * Parse the manifest and build up our data structures
-	 * representing what's in it.
-	 */
-	if (!gb_manifest_parse(gmod, data, size)) {
-		dev_err(hd->parent, "manifest error\n");
-		goto err_module;
-	}
-
-	/*
-	 * XXX
-	 * We've successfully parsed the manifest.  Now we need to
-	 * allocate CPort Id's for connecting to the CPorts found on
-	 * other modules.  For each of these, establish a connection
-	 * between the local and remote CPorts (including
-	 * configuring the switch to allow them to communicate).
-	 */
-
-	return;
-
-err_module:
-	gb_module_destroy(gmod);
-}
-
-void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
-{
-	struct gb_module *gmod = gb_module_find(hd, module_id);
-
-	if (gmod)
-		gb_module_destroy(gmod);
-	else
-		dev_err(hd->parent, "module id %d not found\n", module_id);
-}
-
-static void gb_remove_modules(struct greybus_host_device *hd)
-{
-	struct gb_module *gmod, *temp;
-
-	list_for_each_entry_safe(gmod, temp, &hd->modules, links)
-		gb_module_destroy(gmod);
-}
-
 static DEFINE_MUTEX(hd_mutex);
 
 static void free_hd(struct kref *kref)

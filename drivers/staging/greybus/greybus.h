@@ -240,6 +240,7 @@ int greybus_disabled(void);
 void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		   u8 *data, int size);
 void gb_remove_module(struct greybus_host_device *hd, u8 module_id);
+void gb_remove_modules(struct greybus_host_device *hd);
 
 int greybus_svc_in(struct greybus_host_device *hd, u8 *data, int length);
 int gb_ap_init(void);
