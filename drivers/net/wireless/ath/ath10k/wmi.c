@@ -1344,11 +1344,11 @@ static void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 		rx_clear_count -= ar->survey_last_rx_clear_count;
 
 		survey = &ar->survey[idx];
-		survey->channel_time = WMI_CHAN_INFO_MSEC(cycle_count);
-		survey->channel_time_rx = WMI_CHAN_INFO_MSEC(rx_clear_count);
+		survey->time = WMI_CHAN_INFO_MSEC(cycle_count);
+		survey->time_rx = WMI_CHAN_INFO_MSEC(rx_clear_count);
 		survey->noise = noise_floor;
-		survey->filled = SURVEY_INFO_CHANNEL_TIME |
-				 SURVEY_INFO_CHANNEL_TIME_RX |
+		survey->filled = SURVEY_INFO_TIME |
+				 SURVEY_INFO_TIME_RX |
 				 SURVEY_INFO_NOISE_DBM;
 	}
 

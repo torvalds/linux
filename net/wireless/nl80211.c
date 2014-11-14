@@ -6641,25 +6641,25 @@ static int nl80211_send_survey(struct sk_buff *msg, u32 portid, u32 seq,
 	if ((survey->filled & SURVEY_INFO_IN_USE) &&
 	    nla_put_flag(msg, NL80211_SURVEY_INFO_IN_USE))
 		goto nla_put_failure;
-	if ((survey->filled & SURVEY_INFO_CHANNEL_TIME) &&
-	    nla_put_u64(msg, NL80211_SURVEY_INFO_CHANNEL_TIME,
-			survey->channel_time))
+	if ((survey->filled & SURVEY_INFO_TIME) &&
+	    nla_put_u64(msg, NL80211_SURVEY_INFO_TIME,
+			survey->time))
 		goto nla_put_failure;
-	if ((survey->filled & SURVEY_INFO_CHANNEL_TIME_BUSY) &&
-	    nla_put_u64(msg, NL80211_SURVEY_INFO_CHANNEL_TIME_BUSY,
-			survey->channel_time_busy))
+	if ((survey->filled & SURVEY_INFO_TIME_BUSY) &&
+	    nla_put_u64(msg, NL80211_SURVEY_INFO_TIME_BUSY,
+			survey->time_busy))
 		goto nla_put_failure;
-	if ((survey->filled & SURVEY_INFO_CHANNEL_TIME_EXT_BUSY) &&
-	    nla_put_u64(msg, NL80211_SURVEY_INFO_CHANNEL_TIME_EXT_BUSY,
-			survey->channel_time_ext_busy))
+	if ((survey->filled & SURVEY_INFO_TIME_EXT_BUSY) &&
+	    nla_put_u64(msg, NL80211_SURVEY_INFO_TIME_EXT_BUSY,
+			survey->time_ext_busy))
 		goto nla_put_failure;
-	if ((survey->filled & SURVEY_INFO_CHANNEL_TIME_RX) &&
-	    nla_put_u64(msg, NL80211_SURVEY_INFO_CHANNEL_TIME_RX,
-			survey->channel_time_rx))
+	if ((survey->filled & SURVEY_INFO_TIME_RX) &&
+	    nla_put_u64(msg, NL80211_SURVEY_INFO_TIME_RX,
+			survey->time_rx))
 		goto nla_put_failure;
-	if ((survey->filled & SURVEY_INFO_CHANNEL_TIME_TX) &&
-	    nla_put_u64(msg, NL80211_SURVEY_INFO_CHANNEL_TIME_TX,
-			survey->channel_time_tx))
+	if ((survey->filled & SURVEY_INFO_TIME_TX) &&
+	    nla_put_u64(msg, NL80211_SURVEY_INFO_TIME_TX,
+			survey->time_tx))
 		goto nla_put_failure;
 
 	nla_nest_end(msg, infoattr);

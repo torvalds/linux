@@ -1037,10 +1037,11 @@ mwifiex_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	survey->channel = ieee80211_get_channel(wiphy,
 	    ieee80211_channel_to_frequency(pchan_stats[idx].chan_num, band));
 	survey->filled = SURVEY_INFO_NOISE_DBM |
-		SURVEY_INFO_CHANNEL_TIME | SURVEY_INFO_CHANNEL_TIME_BUSY;
+			 SURVEY_INFO_TIME |
+			 SURVEY_INFO_TIME_BUSY;
 	survey->noise = pchan_stats[idx].noise;
-	survey->channel_time = pchan_stats[idx].cca_scan_dur;
-	survey->channel_time_busy = pchan_stats[idx].cca_busy_dur;
+	survey->time = pchan_stats[idx].cca_scan_dur;
+	survey->time_busy = pchan_stats[idx].cca_busy_dur;
 
 	return 0;
 }

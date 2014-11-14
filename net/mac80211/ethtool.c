@@ -175,24 +175,24 @@ do_survey:
 		data[i++] = (u8)survey.noise;
 	else
 		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME)
-		data[i++] = survey.channel_time;
+	if (survey.filled & SURVEY_INFO_TIME)
+		data[i++] = survey.time;
 	else
 		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_BUSY)
-		data[i++] = survey.channel_time_busy;
+	if (survey.filled & SURVEY_INFO_TIME_BUSY)
+		data[i++] = survey.time_busy;
 	else
 		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_EXT_BUSY)
-		data[i++] = survey.channel_time_ext_busy;
+	if (survey.filled & SURVEY_INFO_TIME_EXT_BUSY)
+		data[i++] = survey.time_ext_busy;
 	else
 		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_RX)
-		data[i++] = survey.channel_time_rx;
+	if (survey.filled & SURVEY_INFO_TIME_RX)
+		data[i++] = survey.time_rx;
 	else
 		data[i++] = -1LL;
-	if (survey.filled & SURVEY_INFO_CHANNEL_TIME_TX)
-		data[i++] = survey.channel_time_tx;
+	if (survey.filled & SURVEY_INFO_TIME_TX)
+		data[i++] = survey.time_tx;
 	else
 		data[i++] = -1LL;
 
