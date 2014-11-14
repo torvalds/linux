@@ -2893,7 +2893,7 @@ static int hpsa_get_pdisk_of_ioaccel2(struct ctlr_info *h,
  * Returns 0 on success, -1 otherwise.
  */
 static int hpsa_gather_lun_info(struct ctlr_info *h,
-	int reportlunsize,
+	int reportphyslunsize, int reportloglunsize,
 	struct ReportLUNdata *physdev, u32 *nphysicals, int *physical_mode,
 	struct ReportLUNdata *logdev, u32 *nlogicals)
 {
@@ -2907,7 +2907,7 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 		*physical_mode = HPSA_REPORT_PHYS_EXTENDED;
 		physical_entry_size = 24;
 	}
-	if (hpsa_scsi_do_report_phys_luns(h, physdev, reportlunsize,
+	if (hpsa_scsi_do_report_phys_luns(h, physdev, reportphyslunsize,
 							*physical_mode)) {
 		dev_err(&h->pdev->dev, "report physical LUNs failed.\n");
 		return -1;
@@ -2920,7 +2920,7 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 			*nphysicals - HPSA_MAX_PHYS_LUN);
 		*nphysicals = HPSA_MAX_PHYS_LUN;
 	}
-	if (hpsa_scsi_do_report_log_luns(h, logdev, reportlunsize)) {
+	if (hpsa_scsi_do_report_log_luns(h, logdev, reportloglunsize)) {
 		dev_err(&h->pdev->dev, "report logical LUNs failed.\n");
 		return -1;
 	}
@@ -3013,15 +3013,14 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	u32 ndev_allocated = 0;
 	struct hpsa_scsi_dev_t **currentsd, *this_device, *tmpdevice;
 	int ncurrent = 0;
-	int reportlunsize = sizeof(*physdev_list) + HPSA_MAX_PHYS_LUN * 24;
 	int i, n_ext_target_devs, ndevs_to_allocate;
 	int raid_ctlr_position;
 	int rescan_hba_mode;
 	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
 
 	currentsd = kzalloc(sizeof(*currentsd) * HPSA_MAX_DEVICES, GFP_KERNEL);
-	physdev_list = kzalloc(reportlunsize, GFP_KERNEL);
-	logdev_list = kzalloc(reportlunsize, GFP_KERNEL);
+	physdev_list = kzalloc(sizeof(*physdev_list), GFP_KERNEL);
+	logdev_list = kzalloc(sizeof(*logdev_list), GFP_KERNEL);
 	tmpdevice = kzalloc(sizeof(*tmpdevice), GFP_KERNEL);
 
 	if (!currentsd || !physdev_list || !logdev_list || !tmpdevice) {
@@ -3041,7 +3040,8 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 
 	h->hba_mode_enabled = rescan_hba_mode;
 
-	if (hpsa_gather_lun_info(h, reportlunsize,
+	if (hpsa_gather_lun_info(h,
+			sizeof(*physdev_list), sizeof(*logdev_list),
 			(struct ReportLUNdata *) physdev_list, &nphysicals,
 			&physical_mode, logdev_list, &nlogicals))
 		goto out;

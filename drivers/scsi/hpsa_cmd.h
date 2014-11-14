@@ -252,7 +252,7 @@ struct ReportExtendedLUNdata {
 	u8 LUNListLength[4];
 	u8 extended_response_flag;
 	u8 reserved[3];
-	struct ext_report_lun_entry LUN[HPSA_MAX_LUN];
+	struct ext_report_lun_entry LUN[HPSA_MAX_PHYS_LUN];
 };
 
 struct SenseSubsystem_info {
