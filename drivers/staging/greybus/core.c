@@ -162,19 +162,12 @@ err_module:
 
 void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
 {
-	struct gb_module *gmod;
-	bool found = false;
+	struct gb_module *gmod = gb_module_find(hd, module_id);
 
-	list_for_each_entry(gmod, &hd->modules, links)
-		if (gmod->module_id == module_id) {
-			found = true;
-			break;
-		}
-
-	if (found)
+	if (gmod)
 		gb_module_destroy(gmod);
 	else
-		dev_err(hd->parent, "module id %d remove error\n", module_id);
+		dev_err(hd->parent, "module id %d not found\n", module_id);
 }
 
 static void gb_remove_modules(struct greybus_host_device *hd)
