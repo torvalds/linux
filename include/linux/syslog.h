@@ -48,6 +48,14 @@
 #define SYSLOG_FROM_PROC             1
 
 int do_syslog(int type, char __user *buf, int count, bool from_file);
+
+#ifdef CONFIG_PRINTK
 int check_syslog_permissions(int type, bool from_file);
+#else
+static inline int check_syslog_permissions(int type, bool from_file)
+{
+	return 0;
+}
+#endif
 
 #endif /* _LINUX_SYSLOG_H */
