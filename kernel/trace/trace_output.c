@@ -196,10 +196,7 @@ int ftrace_raw_output_prep(struct trace_iterator *iter,
 	trace_seq_init(p);
 	trace_seq_printf(s, "%s: ", ftrace_event_name(event));
 
-	if (trace_seq_has_overflowed(s))
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	return 0;
+	return trace_handle_return(s);
 }
 EXPORT_SYMBOL(ftrace_raw_output_prep);
 
