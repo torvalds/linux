@@ -91,7 +91,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpmi_nand>;
 	nand-on-flash-bbt;
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c1 {

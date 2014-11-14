@@ -105,10 +105,6 @@
 	status = "okay";
 };
 
-&gpmi {
-	status = "okay";
-};
-
 &hdmi {
 	status = "okay";
 };
