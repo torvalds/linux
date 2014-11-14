@@ -10,6 +10,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/paravirt.h>
+#include <asm/mpx.h>
 #ifndef CONFIG_PARAVIRT
 #include <asm-generic/mm_hooks.h>
 
@@ -101,5 +102,11 @@ do {						\
 	loadsegment(fs, 0);			\
 } while (0)
 #endif
+
+static inline void arch_bprm_mm_init(struct mm_struct *mm,
+		struct vm_area_struct *vma)
+{
+	mpx_mm_init(mm);
+}
 
 #endif /* _ASM_X86_MMU_CONTEXT_H */

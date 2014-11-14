@@ -42,4 +42,9 @@ static inline void activate_mm(struct mm_struct *prev_mm,
 {
 }
 
+static inline void arch_bprm_mm_init(struct mm_struct *mm,
+			struct vm_area_struct *vma)
+{
+}
+
 #endif /* __ASM_GENERIC_MMU_CONTEXT_H */
