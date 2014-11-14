@@ -963,6 +963,12 @@ static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (err)
 		goto out;
 
+	if (ci->i_inline_version != CEPH_INLINE_NONE) {
+		err = ceph_uninline_data(file, NULL);
+		if (err < 0)
+			goto out;
+	}
+
 retry_snap:
 	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL)) {
 		err = -ENOSPC;
@@ -1024,6 +1030,7 @@ retry_snap:
 	if (written >= 0) {
 		int dirty;
 		spin_lock(&ci->i_ceph_lock);
+		ci->i_inline_version = CEPH_INLINE_NONE;
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
 		spin_unlock(&ci->i_ceph_lock);
 		if (dirty)
@@ -1269,6 +1276,12 @@ static long ceph_fallocate(struct file *file, int mode,
 		goto unlock;
 	}
 
+	if (ci->i_inline_version != CEPH_INLINE_NONE) {
+		ret = ceph_uninline_data(file, NULL);
+		if (ret < 0)
+			goto unlock;
+	}
+
 	size = i_size_read(inode);
 	if (!(mode & FALLOC_FL_KEEP_SIZE))
 		endoff = offset + length;
@@ -1295,6 +1308,7 @@ static long ceph_fallocate(struct file *file, int mode,
 
 	if (!ret) {
 		spin_lock(&ci->i_ceph_lock);
+		ci->i_inline_version = CEPH_INLINE_NONE;
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
 		spin_unlock(&ci->i_ceph_lock);
 		if (dirty)
