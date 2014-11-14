@@ -171,6 +171,9 @@
 #endif
 #endif
 
+#ifndef cpu_has_mips_1
+# define cpu_has_mips_1		(!cpu_has_mips_r6)
+#endif
 #ifndef cpu_has_mips_2
 # define cpu_has_mips_2		(cpu_data[0].isa_level & MIPS_CPU_ISA_II)
 #endif
