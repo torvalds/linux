@@ -17,6 +17,19 @@
 #include <linux/seq_buf.h>
 
 /**
+ * seq_buf_can_fit - can the new data fit in the current buffer?
+ * @s: the seq_buf descriptor
+ * @len: The length to see if it can fit in the current buffer
+ *
+ * Returns true if there's enough unused space in the seq_buf buffer
+ * to fit the amount of new data according to @len.
+ */
+static bool seq_buf_can_fit(struct seq_buf *s, size_t len)
+{
+	return s->len + len < s->size;
+}
+
+/**
  * seq_buf_print_seq - move the contents of seq_buf into a seq_file
  * @m: the seq_file descriptor that is the destination
  * @s: the seq_buf descriptor that is the source.
@@ -48,7 +61,7 @@ int seq_buf_vprintf(struct seq_buf *s, const char *fmt, va_list args)
 
 	if (s->len < s->size) {
 		len = vsnprintf(s->buffer + s->len, s->size - s->len, fmt, args);
-		if (s->len + len < s->size) {
+		if (seq_buf_can_fit(s, len)) {
 			s->len += len;
 			return 0;
 		}
@@ -137,7 +150,7 @@ int seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary)
 
 	if (s->len < s->size) {
 		ret = bstr_printf(s->buffer + s->len, len, fmt, binary);
-		if (s->len + ret < s->size) {
+		if (seq_buf_can_fit(s, ret)) {
 			s->len += ret;
 			return 0;
 		}
@@ -161,7 +174,7 @@ int seq_buf_puts(struct seq_buf *s, const char *str)
 
 	WARN_ON(s->size == 0);
 
-	if (s->len + len < s->size) {
+	if (seq_buf_can_fit(s, len)) {
 		memcpy(s->buffer + s->len, str, len);
 		s->len += len;
 		return 0;
@@ -183,7 +196,7 @@ int seq_buf_putc(struct seq_buf *s, unsigned char c)
 {
 	WARN_ON(s->size == 0);
 
-	if (s->len + 1 < s->size) {
+	if (seq_buf_can_fit(s, 1)) {
 		s->buffer[s->len++] = c;
 		return 0;
 	}
@@ -207,7 +220,7 @@ int seq_buf_putmem(struct seq_buf *s, const void *mem, unsigned int len)
 {
 	WARN_ON(s->size == 0);
 
-	if (s->len + len < s->size) {
+	if (seq_buf_can_fit(s, len)) {
 		memcpy(s->buffer + s->len, mem, len);
 		s->len += len;
 		return 0;
