@@ -6,6 +6,7 @@ Required root node property:
 
 compatible: Must contain one of
    "mediatek,mt6589"
+   "mediatek,mt6592"
    "mediatek,mt8127"
    "mediatek,mt8135"
 
@@ -15,6 +16,9 @@ Supported boards:
 - bq Aquaris5 smart phone:
     Required root node properties:
       - compatible = "mundoreader,bq-aquaris5", "mediatek,mt6589";
+- Evaluation board for MT6592:
+    Required root node properties:
+      - compatible = "mediatek,mt6592-evb", "mediatek,mt6592";
 - MTK mt8127 tablet moose EVB:
     Required root node properties:
       - compatible = "mediatek,mt8127-moose", "mediatek,mt8127";
