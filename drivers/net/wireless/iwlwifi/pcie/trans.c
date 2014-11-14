@@ -942,7 +942,8 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	spin_unlock(&trans_pcie->irq_lock);
 
 	/* stop and reset the on-board processor */
-	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
+	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	udelay(20);
 
 	/* clear all status bits */
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
