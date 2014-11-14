@@ -833,11 +833,8 @@ static int qtet_add_controls(struct snd_ice1712 *ice)
 	if (err < 0)
 		return err;
 	/* only capture SPDIF over AK4113 */
-	err = snd_ak4113_build(spec->ak4113,
+	return snd_ak4113_build(spec->ak4113,
 			ice->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
-	if (err < 0)
-		return err;
-	return 0;
 }
 
 static inline int qtet_is_spdif_master(struct snd_ice1712 *ice)

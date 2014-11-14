@@ -2497,11 +2497,8 @@ static int snd_vt1724_build_controls(struct snd_ice1712 *ice)
 			return err;
 	}
 
-	err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_vt1724_mixer_pro_peak, ice));
-	if (err < 0)
-		return err;
-
-	return 0;
+	return snd_ctl_add(ice->card,
+			   snd_ctl_new1(&snd_vt1724_mixer_pro_peak, ice));
 }
 
 static int snd_vt1724_free(struct snd_ice1712 *ice)

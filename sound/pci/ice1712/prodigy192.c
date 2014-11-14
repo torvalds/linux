@@ -758,10 +758,8 @@ static int prodigy192_init(struct snd_ice1712 *ice)
 			"AK4114 initialized with status %d\n", err);
 	} else
 		dev_dbg(ice->card->dev, "AK4114 not found\n");
-	if (err < 0)
-		return err;
 
-	return 0;
+	return err;
 }
 
 
