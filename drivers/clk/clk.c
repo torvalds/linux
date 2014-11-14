@@ -1614,7 +1614,7 @@ static struct clk *__clk_init_parent(struct clk *clk)
 
 	if (clk->num_parents == 1) {
 		if (IS_ERR_OR_NULL(clk->parent))
-			ret = clk->parent = __clk_lookup(clk->parent_names[0]);
+			clk->parent = __clk_lookup(clk->parent_names[0]);
 		ret = clk->parent;
 		goto out;
 	}
