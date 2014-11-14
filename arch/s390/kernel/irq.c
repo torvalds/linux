@@ -127,13 +127,10 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(cpu)
 			seq_printf(p, "CPU%d       ", cpu);
 		seq_putc(p, '\n');
-		goto out;
 	}
 	if (index < NR_IRQS) {
 		if (index >= NR_IRQS_BASE)
 			goto out;
-		/* Adjust index to process irqclass_main_desc array entries */
-		index--;
 		seq_printf(p, "%s: ", irqclass_main_desc[index].name);
 		irq = irqclass_main_desc[index].irq;
 		for_each_online_cpu(cpu)
@@ -158,7 +155,7 @@ out:
 
 unsigned int arch_dynirq_lower_bound(unsigned int from)
 {
-	return from < THIN_INTERRUPT ? THIN_INTERRUPT : from;
+	return from < NR_IRQS_BASE ? NR_IRQS_BASE : from;
 }
 
 /*
