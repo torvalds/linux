@@ -2714,7 +2714,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 		goto out;
 
 	length = sparity->logic_end - sparity->logic_start + 1;
-	ret = btrfs_map_sblock(sctx->dev_root->fs_info, REQ_GET_READ_MIRRORS,
+	ret = btrfs_map_sblock(sctx->dev_root->fs_info, WRITE,
 			       sparity->logic_start,
 			       &length, &bbio, 0, &raid_map);
 	if (ret || !bbio || !raid_map)

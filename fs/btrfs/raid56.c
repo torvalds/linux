@@ -2318,7 +2318,9 @@ static void raid_write_parity_end_io(struct bio *bio, int err)
 static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 					 int need_check)
 {
+	struct btrfs_bio *bbio = rbio->bbio;
 	void *pointers[rbio->real_stripes];
+	DECLARE_BITMAP(pbitmap, rbio->stripe_npages);
 	int nr_data = rbio->nr_data;
 	int stripe;
 	int pagenr;
@@ -2328,6 +2330,7 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 	struct page *q_page = NULL;
 	struct bio_list bio_list;
 	struct bio *bio;
+	int is_replace = 0;
 	int ret;
 
 	bio_list_init(&bio_list);
@@ -2339,6 +2342,11 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 		q_stripe = rbio->real_stripes - 1;
 	} else {
 		BUG();
+	}
+
+	if (bbio->num_tgtdevs && bbio->tgtdev_map[rbio->scrubp]) {
+		is_replace = 1;
+		bitmap_copy(pbitmap, rbio->dbitmap, rbio->stripe_npages);
 	}
 
 	/*
@@ -2429,6 +2437,21 @@ writeback:
 			goto cleanup;
 	}
 
+	if (!is_replace)
+		goto submit_write;
+
+	for_each_set_bit(pagenr, pbitmap, rbio->stripe_npages) {
+		struct page *page;
+
+		page = rbio_stripe_page(rbio, rbio->scrubp, pagenr);
+		ret = rbio_add_io_page(rbio, &bio_list, page,
+				       bbio->tgtdev_map[rbio->scrubp],
+				       pagenr, rbio->stripe_len);
+		if (ret)
+			goto cleanup;
+	}
+
+submit_write:
 	nr_data = bio_list_size(&bio_list);
 	if (!nr_data) {
 		/* Every parity is right */
