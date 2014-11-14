@@ -423,6 +423,7 @@ void musb_hnp_stop(struct musb *musb)
 	musb->port1_status &= ~(USB_PORT_STAT_C_CONNECTION << 16);
 }
 
+static void musb_generic_disable(struct musb *musb);
 /*
  * Interrupt Service Routine to record USB "global" interrupts.
  * Since these do not happen often and signify things of
@@ -846,9 +847,11 @@ b_host:
 	}
 
 	/* handle babble condition */
-	if (int_usb & MUSB_INTR_BABBLE && is_host_active(musb))
+	if (int_usb & MUSB_INTR_BABBLE && is_host_active(musb)) {
+		musb_generic_disable(musb);
 		schedule_delayed_work(&musb->recover_work,
 				      msecs_to_jiffies(100));
+	}
 
 #if 0
 /* REVISIT ... this would be for multiplexing periodic endpoints, or
