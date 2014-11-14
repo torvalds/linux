@@ -21,9 +21,10 @@
 #define MAX_CPU_FEATURES	(8 * sizeof(elf_hwcap))
 #define cpu_feature(x)		ilog2(HWCAP_ ## x)
 
-#define ARM64_WORKAROUND_CLEAN_CACHE	0
+#define ARM64_WORKAROUND_CLEAN_CACHE		0
+#define ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE	1
 
-#define NCAPS				1
+#define NCAPS					2
 
 #ifndef __ASSEMBLY__
 

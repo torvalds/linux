@@ -24,6 +24,7 @@
 #include <asm/cpufeature.h>
 
 #define MIDR_CORTEX_A53 MIDR_CPU_PART(ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A53)
+#define MIDR_CORTEX_A57 MIDR_CPU_PART(ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A57)
 
 /*
  * Add a struct or another datatype to the union below if you need
@@ -69,6 +70,12 @@ struct arm64_cpu_capabilities arm64_errata[] = {
 		.desc = "ARM errata 826319, 827319, 824069",
 		.capability = ARM64_WORKAROUND_CLEAN_CACHE,
 		MIDR_RANGE(MIDR_CORTEX_A53, 0x00, 0x02),
+	},
+	{
+	/* Cortex-A57 r0p0 - r1p2 */
+		.desc = "ARM erratum 832075",
+		.capability = ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE,
+		MIDR_RANGE(MIDR_CORTEX_A57, 0x00, 0x12),
 	},
 	{
 	}
