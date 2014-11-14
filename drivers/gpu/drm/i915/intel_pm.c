@@ -1960,6 +1960,14 @@ static uint32_t ilk_wm_fbc(uint32_t pri_val, uint32_t horiz_pixels,
 	return DIV_ROUND_UP(pri_val * 64, horiz_pixels * bytes_per_pixel) + 2;
 }
 
+struct skl_pipe_wm_parameters {
+	bool active;
+	uint32_t pipe_htotal;
+	uint32_t pixel_rate; /* in KHz */
+	struct intel_plane_wm_parameters plane[I915_MAX_PLANES];
+	struct intel_plane_wm_parameters cursor;
+};
+
 struct ilk_pipe_wm_parameters {
 	bool active;
 	uint32_t pipe_htotal;
@@ -2271,11 +2279,82 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	       PIPE_WM_LINETIME_TIME(linetime);
 }
 
-static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[5])
+static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_GEN9(dev)) {
+		uint32_t val;
+		int ret, i;
+		int level, max_level = ilk_wm_max_level(dev);
+
+		/* read the first set of memory latencies[0:3] */
+		val = 0; /* data0 to be programmed to 0 for first set */
+		mutex_lock(&dev_priv->rps.hw_lock);
+		ret = sandybridge_pcode_read(dev_priv,
+					     GEN9_PCODE_READ_MEM_LATENCY,
+					     &val);
+		mutex_unlock(&dev_priv->rps.hw_lock);
+
+		if (ret) {
+			DRM_ERROR("SKL Mailbox read error = %d\n", ret);
+			return;
+		}
+
+		wm[0] = val & GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[1] = (val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[2] = (val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[3] = (val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+
+		/* read the second set of memory latencies[4:7] */
+		val = 1; /* data0 to be programmed to 1 for second set */
+		mutex_lock(&dev_priv->rps.hw_lock);
+		ret = sandybridge_pcode_read(dev_priv,
+					     GEN9_PCODE_READ_MEM_LATENCY,
+					     &val);
+		mutex_unlock(&dev_priv->rps.hw_lock);
+		if (ret) {
+			DRM_ERROR("SKL Mailbox read error = %d\n", ret);
+			return;
+		}
+
+		wm[4] = val & GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[5] = (val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[6] = (val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[7] = (val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+
+		/*
+		 * punit doesn't take into account the read latency so we need
+		 * to add 2us to the various latency levels we retrieve from
+		 * the punit.
+		 *   - W0 is a bit special in that it's the only level that
+		 *   can't be disabled if we want to have display working, so
+		 *   we always add 2us there.
+		 *   - For levels >=1, punit returns 0us latency when they are
+		 *   disabled, so we respect that and don't add 2us then
+		 *
+		 * Additionally, if a level n (n > 1) has a 0us latency, all
+		 * levels m (m >= n) need to be disabled. We make sure to
+		 * sanitize the values out of the punit to satisfy this
+		 * requirement.
+		 */
+		wm[0] += 2;
+		for (level = 1; level <= max_level; level++)
+			if (wm[level] != 0)
+				wm[level] += 2;
+			else {
+				for (i = level + 1; i <= max_level; i++)
+					wm[i] = 0;
+
+				break;
+			}
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		uint64_t sskpd = I915_READ64(MCH_SSKPD);
 
 		wm[0] = (sskpd >> 56) & 0xFF;
@@ -2323,7 +2402,9 @@ static void intel_fixup_cur_wm_latency(struct drm_device *dev, uint16_t wm[5])
 int ilk_wm_max_level(const struct drm_device *dev)
 {
 	/* how many WM levels are we expecting */
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_GEN9(dev))
+		return 7;
+	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		return 4;
 	else if (INTEL_INFO(dev)->gen >= 6)
 		return 3;
@@ -2333,7 +2414,7 @@ int ilk_wm_max_level(const struct drm_device *dev)
 
 static void intel_print_wm_latency(struct drm_device *dev,
 				   const char *name,
-				   const uint16_t wm[5])
+				   const uint16_t wm[8])
 {
 	int level, max_level = ilk_wm_max_level(dev);
 
@@ -2346,8 +2427,13 @@ static void intel_print_wm_latency(struct drm_device *dev,
 			continue;
 		}
 
-		/* WM1+ latency values in 0.5us units */
-		if (level > 0)
+		/*
+		 * - latencies are in us on gen9.
+		 * - before then, WM1+ latency values are in 0.5us units
+		 */
+		if (IS_GEN9(dev))
+			latency *= 10;
+		else if (level > 0)
 			latency *= 5;
 
 		DRM_DEBUG_KMS("%s WM%d latency %u (%u.%u usec)\n",
@@ -2413,6 +2499,14 @@ static void ilk_setup_wm_latency(struct drm_device *dev)
 
 	if (IS_GEN6(dev))
 		snb_wm_latency_quirk(dev);
+}
+
+static void skl_setup_wm_latency(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_read_wm_latency(dev, dev_priv->wm.skl_latency);
+	intel_print_wm_latency(dev, "Gen9 Plane", dev_priv->wm.skl_latency);
 }
 
 static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
@@ -2905,6 +2999,769 @@ static bool ilk_disable_lp_wm(struct drm_device *dev)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
+/*
+ * On gen9, we need to allocate Display Data Buffer (DDB) portions to the
+ * different active planes.
+ */
+
+#define SKL_DDB_SIZE		896	/* in blocks */
+
+static void
+skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
+				   struct drm_crtc *for_crtc,
+				   const struct intel_wm_config *config,
+				   const struct skl_pipe_wm_parameters *params,
+				   struct skl_ddb_entry *alloc /* out */)
+{
+	struct drm_crtc *crtc;
+	unsigned int pipe_size, ddb_size;
+	int nth_active_pipe;
+
+	if (!params->active) {
+		alloc->start = 0;
+		alloc->end = 0;
+		return;
+	}
+
+	ddb_size = SKL_DDB_SIZE;
+
+	ddb_size -= 4; /* 4 blocks for bypass path allocation */
+
+	nth_active_pipe = 0;
+	for_each_crtc(dev, crtc) {
+		if (!intel_crtc_active(crtc))
+			continue;
+
+		if (crtc == for_crtc)
+			break;
+
+		nth_active_pipe++;
+	}
+
+	pipe_size = ddb_size / config->num_pipes_active;
+	alloc->start = nth_active_pipe * ddb_size / config->num_pipes_active;
+	alloc->end = alloc->start + pipe_size;
+}
+
+static unsigned int skl_cursor_allocation(const struct intel_wm_config *config)
+{
+	if (config->num_pipes_active == 1)
+		return 32;
+
+	return 8;
+}
+
+static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
+{
+	entry->start = reg & 0x3ff;
+	entry->end = (reg >> 16) & 0x3ff;
+	if (entry->end)
+		entry->end += 1;
+}
+
+void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
+			  struct skl_ddb_allocation *ddb /* out */)
+{
+	struct drm_device *dev = dev_priv->dev;
+	enum pipe pipe;
+	int plane;
+	u32 val;
+
+	for_each_pipe(dev_priv, pipe) {
+		for_each_plane(pipe, plane) {
+			val = I915_READ(PLANE_BUF_CFG(pipe, plane));
+			skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane],
+						   val);
+		}
+
+		val = I915_READ(CUR_BUF_CFG(pipe));
+		skl_ddb_entry_init_from_hw(&ddb->cursor[pipe], val);
+	}
+}
+
+static unsigned int
+skl_plane_relative_data_rate(const struct intel_plane_wm_parameters *p)
+{
+	return p->horiz_pixels * p->vert_pixels * p->bytes_per_pixel;
+}
+
+/*
+ * We don't overflow 32 bits. Worst case is 3 planes enabled, each fetching
+ * a 8192x4096@32bpp framebuffer:
+ *   3 * 4096 * 8192  * 4 < 2^32
+ */
+static unsigned int
+skl_get_total_relative_data_rate(struct intel_crtc *intel_crtc,
+				 const struct skl_pipe_wm_parameters *params)
+{
+	unsigned int total_data_rate = 0;
+	int plane;
+
+	for (plane = 0; plane < intel_num_planes(intel_crtc); plane++) {
+		const struct intel_plane_wm_parameters *p;
+
+		p = &params->plane[plane];
+		if (!p->enabled)
+			continue;
+
+		total_data_rate += skl_plane_relative_data_rate(p);
+	}
+
+	return total_data_rate;
+}
+
+static void
+skl_allocate_pipe_ddb(struct drm_crtc *crtc,
+		      const struct intel_wm_config *config,
+		      const struct skl_pipe_wm_parameters *params,
+		      struct skl_ddb_allocation *ddb /* out */)
+{
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
+	struct skl_ddb_entry *alloc = &ddb->pipe[pipe];
+	uint16_t alloc_size, start, cursor_blocks;
+	unsigned int total_data_rate;
+	int plane;
+
+	skl_ddb_get_pipe_allocation_limits(dev, crtc, config, params, alloc);
+	alloc_size = skl_ddb_entry_size(alloc);
+	if (alloc_size == 0) {
+		memset(ddb->plane[pipe], 0, sizeof(ddb->plane[pipe]));
+		memset(&ddb->cursor[pipe], 0, sizeof(ddb->cursor[pipe]));
+		return;
+	}
+
+	cursor_blocks = skl_cursor_allocation(config);
+	ddb->cursor[pipe].start = alloc->end - cursor_blocks;
+	ddb->cursor[pipe].end = alloc->end;
+
+	alloc_size -= cursor_blocks;
+	alloc->end -= cursor_blocks;
+
+	/*
+	 * Each active plane get a portion of the remaining space, in
+	 * proportion to the amount of data they need to fetch from memory.
+	 *
+	 * FIXME: we may not allocate every single block here.
+	 */
+	total_data_rate = skl_get_total_relative_data_rate(intel_crtc, params);
+
+	start = alloc->start;
+	for (plane = 0; plane < intel_num_planes(intel_crtc); plane++) {
+		const struct intel_plane_wm_parameters *p;
+		unsigned int data_rate;
+		uint16_t plane_blocks;
+
+		p = &params->plane[plane];
+		if (!p->enabled)
+			continue;
+
+		data_rate = skl_plane_relative_data_rate(p);
+
+		/*
+		 * promote the expression to 64 bits to avoid overflowing, the
+		 * result is < available as data_rate / total_data_rate < 1
+		 */
+		plane_blocks = div_u64((uint64_t)alloc_size * data_rate,
+				       total_data_rate);
+
+		ddb->plane[pipe][plane].start = start;
+		ddb->plane[pipe][plane].end = start + plane_blocks;
+
+		start += plane_blocks;
+	}
+
+}
+
+static uint32_t skl_pipe_pixel_rate(const struct intel_crtc_config *config)
+{
+	/* TODO: Take into account the scalers once we support them */
+	return config->adjusted_mode.crtc_clock;
+}
+
+/*
+ * The max latency should be 257 (max the punit can code is 255 and we add 2us
+ * for the read latency) and bytes_per_pixel should always be <= 8, so that
+ * should allow pixel_rate up to ~2 GHz which seems sufficient since max
+ * 2xcdclk is 1350 MHz and the pixel rate should never exceed that.
+*/
+static uint32_t skl_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
+			       uint32_t latency)
+{
+	uint32_t wm_intermediate_val, ret;
+
+	if (latency == 0)
+		return UINT_MAX;
+
+	wm_intermediate_val = latency * pixel_rate * bytes_per_pixel;
+	ret = DIV_ROUND_UP(wm_intermediate_val, 1000);
+
+	return ret;
+}
+
+static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
+			       uint32_t horiz_pixels, uint8_t bytes_per_pixel,
+			       uint32_t latency)
+{
+	uint32_t ret, plane_bytes_per_line, wm_intermediate_val;
+
+	if (latency == 0)
+		return UINT_MAX;
+
+	plane_bytes_per_line = horiz_pixels * bytes_per_pixel;
+	wm_intermediate_val = latency * pixel_rate;
+	ret = DIV_ROUND_UP(wm_intermediate_val, pipe_htotal * 1000) *
+				plane_bytes_per_line;
+
+	return ret;
+}
+
+static bool skl_ddb_allocation_changed(const struct skl_ddb_allocation *new_ddb,
+				       const struct intel_crtc *intel_crtc)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct skl_ddb_allocation *cur_ddb = &dev_priv->wm.skl_hw.ddb;
+	enum pipe pipe = intel_crtc->pipe;
+
+	if (memcmp(new_ddb->plane[pipe], cur_ddb->plane[pipe],
+		   sizeof(new_ddb->plane[pipe])))
+		return true;
+
+	if (memcmp(&new_ddb->cursor[pipe], &cur_ddb->cursor[pipe],
+		    sizeof(new_ddb->cursor[pipe])))
+		return true;
+
+	return false;
+}
+
+static void skl_compute_wm_global_parameters(struct drm_device *dev,
+					     struct intel_wm_config *config)
+{
+	struct drm_crtc *crtc;
+	struct drm_plane *plane;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		config->num_pipes_active += intel_crtc_active(crtc);
+
+	/* FIXME: I don't think we need those two global parameters on SKL */
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		struct intel_plane *intel_plane = to_intel_plane(plane);
+
+		config->sprites_enabled |= intel_plane->wm.enabled;
+		config->sprites_scaled |= intel_plane->wm.scaled;
+	}
+}
+
+static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
+					   struct skl_pipe_wm_parameters *p)
+{
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
+	struct drm_plane *plane;
+	int i = 1; /* Index for sprite planes start */
+
+	p->active = intel_crtc_active(crtc);
+	if (p->active) {
+		p->pipe_htotal = intel_crtc->config.adjusted_mode.crtc_htotal;
+		p->pixel_rate = skl_pipe_pixel_rate(&intel_crtc->config);
+
+		/*
+		 * For now, assume primary and cursor planes are always enabled.
+		 */
+		p->plane[0].enabled = true;
+		p->plane[0].bytes_per_pixel =
+			crtc->primary->fb->bits_per_pixel / 8;
+		p->plane[0].horiz_pixels = intel_crtc->config.pipe_src_w;
+		p->plane[0].vert_pixels = intel_crtc->config.pipe_src_h;
+
+		p->cursor.enabled = true;
+		p->cursor.bytes_per_pixel = 4;
+		p->cursor.horiz_pixels = intel_crtc->cursor_width ?
+					 intel_crtc->cursor_width : 64;
+	}
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		struct intel_plane *intel_plane = to_intel_plane(plane);
+
+		if (intel_plane->pipe == pipe)
+			p->plane[i++] = intel_plane->wm;
+	}
+}
+
+static bool skl_compute_plane_wm(struct skl_pipe_wm_parameters *p,
+				 struct intel_plane_wm_parameters *p_params,
+				 uint16_t ddb_allocation,
+				 uint32_t mem_value,
+				 uint16_t *out_blocks, /* out */
+				 uint8_t *out_lines /* out */)
+{
+	uint32_t method1, method2, plane_bytes_per_line, res_blocks, res_lines;
+	uint32_t result_bytes;
+
+	if (mem_value == 0 || !p->active || !p_params->enabled)
+		return false;
+
+	method1 = skl_wm_method1(p->pixel_rate,
+				 p_params->bytes_per_pixel,
+				 mem_value);
+	method2 = skl_wm_method2(p->pixel_rate,
+				 p->pipe_htotal,
+				 p_params->horiz_pixels,
+				 p_params->bytes_per_pixel,
+				 mem_value);
+
+	plane_bytes_per_line = p_params->horiz_pixels *
+					p_params->bytes_per_pixel;
+
+	/* For now xtile and linear */
+	if (((ddb_allocation * 512) / plane_bytes_per_line) >= 1)
+		result_bytes = min(method1, method2);
+	else
+		result_bytes = method1;
+
+	res_blocks = DIV_ROUND_UP(result_bytes, 512) + 1;
+	res_lines = DIV_ROUND_UP(result_bytes, plane_bytes_per_line);
+
+	if (res_blocks > ddb_allocation || res_lines > 31)
+		return false;
+
+	*out_blocks = res_blocks;
+	*out_lines = res_lines;
+
+	return true;
+}
+
+static void skl_compute_wm_level(const struct drm_i915_private *dev_priv,
+				 struct skl_ddb_allocation *ddb,
+				 struct skl_pipe_wm_parameters *p,
+				 enum pipe pipe,
+				 int level,
+				 int num_planes,
+				 struct skl_wm_level *result)
+{
+	uint16_t latency = dev_priv->wm.skl_latency[level];
+	uint16_t ddb_blocks;
+	int i;
+
+	for (i = 0; i < num_planes; i++) {
+		ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][i]);
+
+		result->plane_en[i] = skl_compute_plane_wm(p, &p->plane[i],
+						ddb_blocks,
+						latency,
+						&result->plane_res_b[i],
+						&result->plane_res_l[i]);
+	}
+
+	ddb_blocks = skl_ddb_entry_size(&ddb->cursor[pipe]);
+	result->cursor_en = skl_compute_plane_wm(p, &p->cursor, ddb_blocks,
+						 latency, &result->cursor_res_b,
+						 &result->cursor_res_l);
+}
+
+static uint32_t
+skl_compute_linetime_wm(struct drm_crtc *crtc, struct skl_pipe_wm_parameters *p)
+{
+	if (!intel_crtc_active(crtc))
+		return 0;
+
+	return DIV_ROUND_UP(8 * p->pipe_htotal * 1000, p->pixel_rate);
+
+}
+
+static void skl_compute_transition_wm(struct drm_crtc *crtc,
+				      struct skl_pipe_wm_parameters *params,
+				      struct skl_wm_level *trans_wm /* out */)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int i;
+
+	if (!params->active)
+		return;
+
+	/* Until we know more, just disable transition WMs */
+	for (i = 0; i < intel_num_planes(intel_crtc); i++)
+		trans_wm->plane_en[i] = false;
+	trans_wm->cursor_en = false;
+}
+
+static void skl_compute_pipe_wm(struct drm_crtc *crtc,
+				struct skl_ddb_allocation *ddb,
+				struct skl_pipe_wm_parameters *params,
+				struct skl_pipe_wm *pipe_wm)
+{
+	struct drm_device *dev = crtc->dev;
+	const struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int level, max_level = ilk_wm_max_level(dev);
+
+	for (level = 0; level <= max_level; level++) {
+		skl_compute_wm_level(dev_priv, ddb, params, intel_crtc->pipe,
+				     level, intel_num_planes(intel_crtc),
+				     &pipe_wm->wm[level]);
+	}
+	pipe_wm->linetime = skl_compute_linetime_wm(crtc, params);
+
+	skl_compute_transition_wm(crtc, params, &pipe_wm->trans_wm);
+}
+
+static void skl_compute_wm_results(struct drm_device *dev,
+				   struct skl_pipe_wm_parameters *p,
+				   struct skl_pipe_wm *p_wm,
+				   struct skl_wm_values *r,
+				   struct intel_crtc *intel_crtc)
+{
+	int level, max_level = ilk_wm_max_level(dev);
+	enum pipe pipe = intel_crtc->pipe;
+	uint32_t temp;
+	int i;
+
+	for (level = 0; level <= max_level; level++) {
+		for (i = 0; i < intel_num_planes(intel_crtc); i++) {
+			temp = 0;
+
+			temp |= p_wm->wm[level].plane_res_l[i] <<
+					PLANE_WM_LINES_SHIFT;
+			temp |= p_wm->wm[level].plane_res_b[i];
+			if (p_wm->wm[level].plane_en[i])
+				temp |= PLANE_WM_EN;
+
+			r->plane[pipe][i][level] = temp;
+		}
+
+		temp = 0;
+
+		temp |= p_wm->wm[level].cursor_res_l << PLANE_WM_LINES_SHIFT;
+		temp |= p_wm->wm[level].cursor_res_b;
+
+		if (p_wm->wm[level].cursor_en)
+			temp |= PLANE_WM_EN;
+
+		r->cursor[pipe][level] = temp;
+
+	}
+
+	/* transition WMs */
+	for (i = 0; i < intel_num_planes(intel_crtc); i++) {
+		temp = 0;
+		temp |= p_wm->trans_wm.plane_res_l[i] << PLANE_WM_LINES_SHIFT;
+		temp |= p_wm->trans_wm.plane_res_b[i];
+		if (p_wm->trans_wm.plane_en[i])
+			temp |= PLANE_WM_EN;
+
+		r->plane_trans[pipe][i] = temp;
+	}
+
+	temp = 0;
+	temp |= p_wm->trans_wm.cursor_res_l << PLANE_WM_LINES_SHIFT;
+	temp |= p_wm->trans_wm.cursor_res_b;
+	if (p_wm->trans_wm.cursor_en)
+		temp |= PLANE_WM_EN;
+
+	r->cursor_trans[pipe] = temp;
+
+	r->wm_linetime[pipe] = p_wm->linetime;
+}
+
+static void skl_ddb_entry_write(struct drm_i915_private *dev_priv, uint32_t reg,
+				const struct skl_ddb_entry *entry)
+{
+	if (entry->end)
+		I915_WRITE(reg, (entry->end - 1) << 16 | entry->start);
+	else
+		I915_WRITE(reg, 0);
+}
+
+static void skl_write_wm_values(struct drm_i915_private *dev_priv,
+				const struct skl_wm_values *new)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct intel_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		int i, level, max_level = ilk_wm_max_level(dev);
+		enum pipe pipe = crtc->pipe;
+
+		if (!new->dirty[pipe])
+			continue;
+
+		I915_WRITE(PIPE_WM_LINETIME(pipe), new->wm_linetime[pipe]);
+
+		for (level = 0; level <= max_level; level++) {
+			for (i = 0; i < intel_num_planes(crtc); i++)
+				I915_WRITE(PLANE_WM(pipe, i, level),
+					   new->plane[pipe][i][level]);
+			I915_WRITE(CUR_WM(pipe, level),
+				   new->cursor[pipe][level]);
+		}
+		for (i = 0; i < intel_num_planes(crtc); i++)
+			I915_WRITE(PLANE_WM_TRANS(pipe, i),
+				   new->plane_trans[pipe][i]);
+		I915_WRITE(CUR_WM_TRANS(pipe), new->cursor_trans[pipe]);
+
+		for (i = 0; i < intel_num_planes(crtc); i++)
+			skl_ddb_entry_write(dev_priv,
+					    PLANE_BUF_CFG(pipe, i),
+					    &new->ddb.plane[pipe][i]);
+
+		skl_ddb_entry_write(dev_priv, CUR_BUF_CFG(pipe),
+				    &new->ddb.cursor[pipe]);
+	}
+}
+
+/*
+ * When setting up a new DDB allocation arrangement, we need to correctly
+ * sequence the times at which the new allocations for the pipes are taken into
+ * account or we'll have pipes fetching from space previously allocated to
+ * another pipe.
+ *
+ * Roughly the sequence looks like:
+ *  1. re-allocate the pipe(s) with the allocation being reduced and not
+ *     overlapping with a previous light-up pipe (another way to put it is:
+ *     pipes with their new allocation strickly included into their old ones).
+ *  2. re-allocate the other pipes that get their allocation reduced
+ *  3. allocate the pipes having their allocation increased
+ *
+ * Steps 1. and 2. are here to take care of the following case:
+ * - Initially DDB looks like this:
+ *     |   B    |   C    |
+ * - enable pipe A.
+ * - pipe B has a reduced DDB allocation that overlaps with the old pipe C
+ *   allocation
+ *     |  A  |  B  |  C  |
+ *
+ * We need to sequence the re-allocation: C, B, A (and not B, C, A).
+ */
+
+static void
+skl_wm_flush_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, int pass)
+{
+	struct drm_device *dev = dev_priv->dev;
+	int plane;
+
+	DRM_DEBUG_KMS("flush pipe %c (pass %d)\n", pipe_name(pipe), pass);
+
+	for_each_plane(pipe, plane) {
+		I915_WRITE(PLANE_SURF(pipe, plane),
+			   I915_READ(PLANE_SURF(pipe, plane)));
+	}
+	I915_WRITE(CURBASE(pipe), I915_READ(CURBASE(pipe)));
+}
+
+static bool
+skl_ddb_allocation_included(const struct skl_ddb_allocation *old,
+			    const struct skl_ddb_allocation *new,
+			    enum pipe pipe)
+{
+	uint16_t old_size, new_size;
+
+	old_size = skl_ddb_entry_size(&old->pipe[pipe]);
+	new_size = skl_ddb_entry_size(&new->pipe[pipe]);
+
+	return old_size != new_size &&
+	       new->pipe[pipe].start >= old->pipe[pipe].start &&
+	       new->pipe[pipe].end <= old->pipe[pipe].end;
+}
+
+static void skl_flush_wm_values(struct drm_i915_private *dev_priv,
+				struct skl_wm_values *new_values)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct skl_ddb_allocation *cur_ddb, *new_ddb;
+	bool reallocated[I915_MAX_PIPES] = {false, false, false};
+	struct intel_crtc *crtc;
+	enum pipe pipe;
+
+	new_ddb = &new_values->ddb;
+	cur_ddb = &dev_priv->wm.skl_hw.ddb;
+
+	/*
+	 * First pass: flush the pipes with the new allocation contained into
+	 * the old space.
+	 *
+	 * We'll wait for the vblank on those pipes to ensure we can safely
+	 * re-allocate the freed space without this pipe fetching from it.
+	 */
+	for_each_intel_crtc(dev, crtc) {
+		if (!crtc->active)
+			continue;
+
+		pipe = crtc->pipe;
+
+		if (!skl_ddb_allocation_included(cur_ddb, new_ddb, pipe))
+			continue;
+
+		skl_wm_flush_pipe(dev_priv, pipe, 1);
+		intel_wait_for_vblank(dev, pipe);
+
+		reallocated[pipe] = true;
+	}
+
+
+	/*
+	 * Second pass: flush the pipes that are having their allocation
+	 * reduced, but overlapping with a previous allocation.
+	 *
+	 * Here as well we need to wait for the vblank to make sure the freed
+	 * space is not used anymore.
+	 */
+	for_each_intel_crtc(dev, crtc) {
+		if (!crtc->active)
+			continue;
+
+		pipe = crtc->pipe;
+
+		if (reallocated[pipe])
+			continue;
+
+		if (skl_ddb_entry_size(&new_ddb->pipe[pipe]) <
+		    skl_ddb_entry_size(&cur_ddb->pipe[pipe])) {
+			skl_wm_flush_pipe(dev_priv, pipe, 2);
+			intel_wait_for_vblank(dev, pipe);
+		}
+
+		reallocated[pipe] = true;
+	}
+
+	/*
+	 * Third pass: flush the pipes that got more space allocated.
+	 *
+	 * We don't need to actively wait for the update here, next vblank
+	 * will just get more DDB space with the correct WM values.
+	 */
+	for_each_intel_crtc(dev, crtc) {
+		if (!crtc->active)
+			continue;
+
+		pipe = crtc->pipe;
+
+		/*
+		 * At this point, only the pipes more space than before are
+		 * left to re-allocate.
+		 */
+		if (reallocated[pipe])
+			continue;
+
+		skl_wm_flush_pipe(dev_priv, pipe, 3);
+	}
+}
+
+static bool skl_update_pipe_wm(struct drm_crtc *crtc,
+			       struct skl_pipe_wm_parameters *params,
+			       struct intel_wm_config *config,
+			       struct skl_ddb_allocation *ddb, /* out */
+			       struct skl_pipe_wm *pipe_wm /* out */)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	skl_compute_wm_pipe_parameters(crtc, params);
+	skl_allocate_pipe_ddb(crtc, config, params, ddb);
+	skl_compute_pipe_wm(crtc, ddb, params, pipe_wm);
+
+	if (!memcmp(&intel_crtc->wm.skl_active, pipe_wm, sizeof(*pipe_wm)))
+		return false;
+
+	intel_crtc->wm.skl_active = *pipe_wm;
+	return true;
+}
+
+static void skl_update_other_pipe_wm(struct drm_device *dev,
+				     struct drm_crtc *crtc,
+				     struct intel_wm_config *config,
+				     struct skl_wm_values *r)
+{
+	struct intel_crtc *intel_crtc;
+	struct intel_crtc *this_crtc = to_intel_crtc(crtc);
+
+	/*
+	 * If the WM update hasn't changed the allocation for this_crtc (the
+	 * crtc we are currently computing the new WM values for), other
+	 * enabled crtcs will keep the same allocation and we don't need to
+	 * recompute anything for them.
+	 */
+	if (!skl_ddb_allocation_changed(&r->ddb, this_crtc))
+		return;
+
+	/*
+	 * Otherwise, because of this_crtc being freshly enabled/disabled, the
+	 * other active pipes need new DDB allocation and WM values.
+	 */
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
+				base.head) {
+		struct skl_pipe_wm_parameters params = {};
+		struct skl_pipe_wm pipe_wm = {};
+		bool wm_changed;
+
+		if (this_crtc->pipe == intel_crtc->pipe)
+			continue;
+
+		if (!intel_crtc->active)
+			continue;
+
+		wm_changed = skl_update_pipe_wm(&intel_crtc->base,
+						&params, config,
+						&r->ddb, &pipe_wm);
+
+		/*
+		 * If we end up re-computing the other pipe WM values, it's
+		 * because it was really needed, so we expect the WM values to
+		 * be different.
+		 */
+		WARN_ON(!wm_changed);
+
+		skl_compute_wm_results(dev, &params, &pipe_wm, r, intel_crtc);
+		r->dirty[intel_crtc->pipe] = true;
+	}
+}
+
+static void skl_update_wm(struct drm_crtc *crtc)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct skl_pipe_wm_parameters params = {};
+	struct skl_wm_values *results = &dev_priv->wm.skl_results;
+	struct skl_pipe_wm pipe_wm = {};
+	struct intel_wm_config config = {};
+
+	memset(results, 0, sizeof(*results));
+
+	skl_compute_wm_global_parameters(dev, &config);
+
+	if (!skl_update_pipe_wm(crtc, &params, &config,
+				&results->ddb, &pipe_wm))
+		return;
+
+	skl_compute_wm_results(dev, &params, &pipe_wm, results, intel_crtc);
+	results->dirty[intel_crtc->pipe] = true;
+
+	skl_update_other_pipe_wm(dev, crtc, &config, results);
+	skl_write_wm_values(dev_priv, results);
+	skl_flush_wm_values(dev_priv, results);
+
+	/* store the new configuration */
+	dev_priv->wm.skl_hw = *results;
+}
+
+static void
+skl_update_sprite_wm(struct drm_plane *plane, struct drm_crtc *crtc,
+		     uint32_t sprite_width, uint32_t sprite_height,
+		     int pixel_size, bool enabled, bool scaled)
+{
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+
+	intel_plane->wm.enabled = enabled;
+	intel_plane->wm.scaled = scaled;
+	intel_plane->wm.horiz_pixels = sprite_width;
+	intel_plane->wm.vert_pixels = sprite_height;
+	intel_plane->wm.bytes_per_pixel = pixel_size;
+
+	skl_update_wm(crtc);
+}
+
 static void ilk_update_wm(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -2977,6 +3834,113 @@ ilk_update_sprite_wm(struct drm_plane *plane,
 		intel_wait_for_vblank(dev, intel_plane->pipe);
 
 	ilk_update_wm(crtc);
+}
+
+static void skl_pipe_wm_active_state(uint32_t val,
+				     struct skl_pipe_wm *active,
+				     bool is_transwm,
+				     bool is_cursor,
+				     int i,
+				     int level)
+{
+	bool is_enabled = (val & PLANE_WM_EN) != 0;
+
+	if (!is_transwm) {
+		if (!is_cursor) {
+			active->wm[level].plane_en[i] = is_enabled;
+			active->wm[level].plane_res_b[i] =
+					val & PLANE_WM_BLOCKS_MASK;
+			active->wm[level].plane_res_l[i] =
+					(val >> PLANE_WM_LINES_SHIFT) &
+						PLANE_WM_LINES_MASK;
+		} else {
+			active->wm[level].cursor_en = is_enabled;
+			active->wm[level].cursor_res_b =
+					val & PLANE_WM_BLOCKS_MASK;
+			active->wm[level].cursor_res_l =
+					(val >> PLANE_WM_LINES_SHIFT) &
+						PLANE_WM_LINES_MASK;
+		}
+	} else {
+		if (!is_cursor) {
+			active->trans_wm.plane_en[i] = is_enabled;
+			active->trans_wm.plane_res_b[i] =
+					val & PLANE_WM_BLOCKS_MASK;
+			active->trans_wm.plane_res_l[i] =
+					(val >> PLANE_WM_LINES_SHIFT) &
+						PLANE_WM_LINES_MASK;
+		} else {
+			active->trans_wm.cursor_en = is_enabled;
+			active->trans_wm.cursor_res_b =
+					val & PLANE_WM_BLOCKS_MASK;
+			active->trans_wm.cursor_res_l =
+					(val >> PLANE_WM_LINES_SHIFT) &
+						PLANE_WM_LINES_MASK;
+		}
+	}
+}
+
+static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct skl_wm_values *hw = &dev_priv->wm.skl_hw;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct skl_pipe_wm *active = &intel_crtc->wm.skl_active;
+	enum pipe pipe = intel_crtc->pipe;
+	int level, i, max_level;
+	uint32_t temp;
+
+	max_level = ilk_wm_max_level(dev);
+
+	hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
+
+	for (level = 0; level <= max_level; level++) {
+		for (i = 0; i < intel_num_planes(intel_crtc); i++)
+			hw->plane[pipe][i][level] =
+					I915_READ(PLANE_WM(pipe, i, level));
+		hw->cursor[pipe][level] = I915_READ(CUR_WM(pipe, level));
+	}
+
+	for (i = 0; i < intel_num_planes(intel_crtc); i++)
+		hw->plane_trans[pipe][i] = I915_READ(PLANE_WM_TRANS(pipe, i));
+	hw->cursor_trans[pipe] = I915_READ(CUR_WM_TRANS(pipe));
+
+	if (!intel_crtc_active(crtc))
+		return;
+
+	hw->dirty[pipe] = true;
+
+	active->linetime = hw->wm_linetime[pipe];
+
+	for (level = 0; level <= max_level; level++) {
+		for (i = 0; i < intel_num_planes(intel_crtc); i++) {
+			temp = hw->plane[pipe][i][level];
+			skl_pipe_wm_active_state(temp, active, false,
+						false, i, level);
+		}
+		temp = hw->cursor[pipe][level];
+		skl_pipe_wm_active_state(temp, active, false, true, i, level);
+	}
+
+	for (i = 0; i < intel_num_planes(intel_crtc); i++) {
+		temp = hw->plane_trans[pipe][i];
+		skl_pipe_wm_active_state(temp, active, true, false, i, 0);
+	}
+
+	temp = hw->cursor_trans[pipe];
+	skl_pipe_wm_active_state(temp, active, true, true, i, 0);
+}
+
+void skl_wm_get_hw_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
+	struct drm_crtc *crtc;
+
+	skl_ddb_get_hw_state(dev_priv, ddb);
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		skl_pipe_wm_get_hw_state(crtc);
 }
 
 static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
@@ -3575,6 +4539,13 @@ static void gen8_disable_rps_interrupts(struct drm_device *dev)
 	I915_WRITE(GEN8_GT_IIR(2), dev_priv->pm_rps_events);
 }
 
+static void gen9_disable_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(GEN6_RC_CONTROL, 0);
+}
+
 static void gen6_disable_rps_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3733,6 +4704,45 @@ static void parse_rp_state_cap(struct drm_i915_private *dev_priv, u32 rp_state_c
 
 	if (dev_priv->rps.min_freq_softlimit == 0)
 		dev_priv->rps.min_freq_softlimit = dev_priv->rps.min_freq;
+}
+
+static void gen9_enable_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring;
+	uint32_t rc6_mask = 0;
+	int unused;
+
+	/* 1a: Software RC state - RC0 */
+	I915_WRITE(GEN6_RC_STATE, 0);
+
+	/* 1b: Get forcewake during program sequence. Although the driver
+	 * hasn't enabled a state yet where we need forcewake, BIOS may have.*/
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+
+	/* 2a: Disable RC states. */
+	I915_WRITE(GEN6_RC_CONTROL, 0);
+
+	/* 2b: Program RC6 thresholds.*/
+	I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16);
+	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
+	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
+	for_each_ring(ring, dev_priv, unused)
+		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
+	I915_WRITE(GEN6_RC_SLEEP, 0);
+	I915_WRITE(GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
+
+	/* 3a: Enable RC6 */
+	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
+		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
+	DRM_INFO("RC6 %s\n", (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
+			"on" : "off");
+	I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
+				   GEN6_RC_CTL_EI_MODE(1) |
+				   rc6_mask);
+
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
+
 }
 
 static void gen8_enable_rps(struct drm_device *dev)
@@ -5269,7 +6279,9 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 		intel_suspend_gt_powersave(dev);
 
 		mutex_lock(&dev_priv->rps.hw_lock);
-		if (IS_CHERRYVIEW(dev))
+		if (INTEL_INFO(dev)->gen >= 9)
+			gen9_disable_rps(dev);
+		else if (IS_CHERRYVIEW(dev))
 			cherryview_disable_rps(dev);
 		else if (IS_VALLEYVIEW(dev))
 			valleyview_disable_rps(dev);
@@ -5293,6 +6305,8 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 		cherryview_enable_rps(dev);
 	} else if (IS_VALLEYVIEW(dev)) {
 		valleyview_enable_rps(dev);
+	} else if (INTEL_INFO(dev)->gen >= 9) {
+		gen9_enable_rps(dev);
 	} else if (IS_BROADWELL(dev)) {
 		gen8_enable_rps(dev);
 		__gen6_update_ring_freq(dev);
@@ -6127,7 +7141,11 @@ void intel_init_pm(struct drm_device *dev)
 
 	/* For FIFO watermark updates */
 	if (IS_GEN9(dev)) {
+		skl_setup_wm_latency(dev);
+
 		dev_priv->display.init_clock_gating = gen9_init_clock_gating;
+		dev_priv->display.update_wm = skl_update_wm;
+		dev_priv->display.update_sprite_wm = skl_update_sprite_wm;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		ilk_setup_wm_latency(dev);
 
@@ -6219,6 +7237,8 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
 	}
 
 	I915_WRITE(GEN6_PCODE_DATA, *val);
+	if (INTEL_INFO(dev_priv)->gen >= 9)
+		I915_WRITE(GEN9_PCODE_DATA1, 0);
 	I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
 
 	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,

@@ -123,6 +123,12 @@ struct i915_vma {
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
 
+	/** Flags and address space this VMA is bound to */
+#define GLOBAL_BIND	(1<<0)
+#define LOCAL_BIND	(1<<1)
+#define PTE_READ_ONLY	(1<<2)
+	unsigned int bound : 4;
+
 	/** This object's place on the active/inactive lists */
 	struct list_head mm_list;
 
@@ -155,8 +161,6 @@ struct i915_vma {
 	 * setting the valid PTE entries to a reserved scratch page. */
 	void (*unbind_vma)(struct i915_vma *vma);
 	/* Map an object into an address space with the given cache flags. */
-#define GLOBAL_BIND (1<<0)
-#define PTE_READ_ONLY (1<<1)
 	void (*bind_vma)(struct i915_vma *vma,
 			 enum i915_cache_level cache_level,
 			 u32 flags);

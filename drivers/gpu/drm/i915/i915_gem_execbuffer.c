@@ -357,12 +357,9 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	 * through the ppgtt for non_secure batchbuffers. */
 	if (unlikely(IS_GEN6(dev) &&
 	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
-	    !target_i915_obj->has_global_gtt_mapping)) {
-		struct i915_vma *vma =
-			list_first_entry(&target_i915_obj->vma_list,
-					 typeof(*vma), vma_link);
-		vma->bind_vma(vma, target_i915_obj->cache_level, GLOBAL_BIND);
-	}
+	    !(target_vma->bound & GLOBAL_BIND)))
+		target_vma->bind_vma(target_vma, target_i915_obj->cache_level,
+				GLOBAL_BIND);
 
 	/* Validate that the target is in a valid r/w GPU domain */
 	if (unlikely(reloc->write_domain & (reloc->write_domain - 1))) {
@@ -531,7 +528,7 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 
 	flags = 0;
 	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP)
-		flags |= PIN_MAPPABLE;
+		flags |= PIN_GLOBAL | PIN_MAPPABLE;
 	if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
 		flags |= PIN_GLOBAL;
 	if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
@@ -1368,17 +1365,19 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 				      batch_obj,
 				      args->batch_start_offset,
 				      file->is_master);
-		if (ret)
-			goto err;
-
-		/*
-		 * XXX: Actually do this when enabling batch copy...
-		 *
-		 * Set the DISPATCH_SECURE bit to remove the NON_SECURE bit
-		 * from MI_BATCH_BUFFER_START commands issued in the
-		 * dispatch_execbuffer implementations. We specifically don't
-		 * want that set when the command parser is enabled.
-		 */
+		if (ret) {
+			if (ret != -EACCES)
+				goto err;
+		} else {
+			/*
+			 * XXX: Actually do this when enabling batch copy...
+			 *
+			 * Set the DISPATCH_SECURE bit to remove the NON_SECURE bit
+			 * from MI_BATCH_BUFFER_START commands issued in the
+			 * dispatch_execbuffer implementations. We specifically don't
+			 * want that set when the command parser is enabled.
+			 */
+		}
 	}
 
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure

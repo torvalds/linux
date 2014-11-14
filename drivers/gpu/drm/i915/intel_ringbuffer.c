@@ -1845,11 +1845,14 @@ error:
 
 void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 {
-	struct drm_i915_private *dev_priv = to_i915(ring->dev);
-	struct intel_ringbuffer *ringbuf = ring->buffer;
+	struct drm_i915_private *dev_priv;
+	struct intel_ringbuffer *ringbuf;
 
 	if (!intel_ring_initialized(ring))
 		return;
+
+	dev_priv = to_i915(ring->dev);
+	ringbuf = ring->buffer;
 
 	intel_stop_ring_buffer(ring);
 	WARN_ON(!IS_GEN2(ring->dev) && (I915_READ_MODE(ring) & MODE_IDLE) == 0);

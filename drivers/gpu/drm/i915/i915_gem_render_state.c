@@ -38,6 +38,8 @@ render_state_get_rodata(struct drm_device *dev, const int gen)
 		return &gen7_null_state;
 	case 8:
 		return &gen8_null_state;
+	case 9:
+		return &gen9_null_state;
 	}
 
 	return NULL;

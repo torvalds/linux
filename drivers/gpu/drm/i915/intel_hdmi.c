@@ -661,14 +661,6 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder)
 	if (crtc->config.has_hdmi_sink)
 		hdmi_val |= HDMI_MODE_SELECT_HDMI;
 
-	if (crtc->config.has_audio) {
-		WARN_ON(!crtc->config.has_hdmi_sink);
-		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
-				 pipe_name(crtc->pipe));
-		hdmi_val |= SDVO_AUDIO_ENABLE;
-		intel_write_eld(&encoder->base, adjusted_mode);
-	}
-
 	if (HAS_PCH_CPT(dev))
 		hdmi_val |= SDVO_PIPE_SEL_CPT(crtc->pipe);
 	else if (IS_CHERRYVIEW(dev))
@@ -791,6 +783,13 @@ static void intel_enable_hdmi(struct intel_encoder *encoder)
 		I915_WRITE(intel_hdmi->hdmi_reg, temp);
 		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
+
+	if (intel_crtc->config.has_audio) {
+		WARN_ON(!intel_crtc->config.has_hdmi_sink);
+		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
+				 pipe_name(intel_crtc->pipe));
+		intel_audio_codec_enable(encoder);
+	}
 }
 
 static void vlv_enable_hdmi(struct intel_encoder *encoder)
@@ -802,8 +801,12 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	u32 temp;
 	u32 enable_bits = SDVO_ENABLE | SDVO_AUDIO_ENABLE;
+
+	if (crtc->config.has_audio)
+		intel_audio_codec_disable(encoder);
 
 	temp = I915_READ(intel_hdmi->hdmi_reg);
 

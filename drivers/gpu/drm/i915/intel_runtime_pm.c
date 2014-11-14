@@ -587,6 +587,9 @@ static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 		     power_well->data != PIPE_C);
 
 	chv_set_pipe_power_well(dev_priv, power_well, false);
+
+	if (power_well->data == PIPE_A)
+		vlv_power_sequencer_reset(dev_priv);
 }
 
 static void check_power_well_state(struct drm_i915_private *dev_priv,
@@ -938,12 +941,20 @@ static struct i915_power_well chv_power_wells[] = {
 		.data = PUNIT_POWER_WELL_DISP2D,
 		.ops = &vlv_display_power_well_ops,
 	},
+#endif
 	{
 		.name = "pipe-a",
-		.domains = CHV_PIPE_A_POWER_DOMAINS,
+		/*
+		 * FIXME: pipe A power well seems to be the new disp2d well.
+		 * At least all registers seem to be housed there. Figure
+		 * out if this a a temporary situation in pre-production
+		 * hardware or a permanent state of affairs.
+		 */
+		.domains = CHV_PIPE_A_POWER_DOMAINS | VLV_DISPLAY_POWER_DOMAINS,
 		.data = PIPE_A,
 		.ops = &chv_pipe_power_well_ops,
 	},
+#if 0
 	{
 		.name = "pipe-b",
 		.domains = CHV_PIPE_B_POWER_DOMAINS,
@@ -1137,12 +1148,9 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 	struct i915_power_well *disp2d =
 		lookup_power_well(dev_priv, PUNIT_POWER_WELL_DISP2D);
 
-	/* nothing to do if common lane is already off */
-	if (!cmn->ops->is_enabled(dev_priv, cmn))
-		return;
-
 	/* If the display might be already active skip this */
-	if (disp2d->ops->is_enabled(dev_priv, disp2d) &&
+	if (cmn->ops->is_enabled(dev_priv, cmn) &&
+	    disp2d->ops->is_enabled(dev_priv, disp2d) &&
 	    I915_READ(DPIO_CTL) & DPIO_CMNRST)
 		return;
 

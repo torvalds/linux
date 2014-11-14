@@ -551,8 +551,8 @@ static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 }
 
 static int intel_suspend_complete(struct drm_i915_private *dev_priv);
-static int intel_resume_prepare(struct drm_i915_private *dev_priv,
-				bool rpm_resume);
+static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
+			      bool rpm_resume);
 
 static int i915_drm_suspend(struct drm_device *dev)
 {
@@ -744,7 +744,7 @@ static int i915_drm_resume(struct drm_device *dev)
 static int i915_drm_resume_early(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * We have a resume ordering issue with the snd-hda driver also
@@ -760,11 +760,16 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	pci_set_master(dev->pdev);
 
-	ret = intel_resume_prepare(dev_priv, false);
+	if (IS_VALLEYVIEW(dev_priv))
+		ret = vlv_resume_prepare(dev_priv, false);
 	if (ret)
 		DRM_ERROR("Resume prepare failed: %d,Continuing resume\n", ret);
 
 	intel_uncore_early_sanitize(dev, true);
+
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		hsw_disable_pc8(dev_priv);
+
 	intel_uncore_sanitize(dev);
 	intel_power_domains_init_hw(dev_priv);
 
@@ -982,25 +987,6 @@ static int i915_pm_resume(struct device *dev)
 static int hsw_suspend_complete(struct drm_i915_private *dev_priv)
 {
 	hsw_enable_pc8(dev_priv);
-
-	return 0;
-}
-
-static int snb_resume_prepare(struct drm_i915_private *dev_priv,
-				bool rpm_resume)
-{
-	struct drm_device *dev = dev_priv->dev;
-
-	if (rpm_resume)
-		intel_init_pch_refclk(dev);
-
-	return 0;
-}
-
-static int hsw_resume_prepare(struct drm_i915_private *dev_priv,
-				bool rpm_resume)
-{
-	hsw_disable_pc8(dev_priv);
 
 	return 0;
 }
@@ -1409,13 +1395,9 @@ static int intel_runtime_suspend(struct device *device)
 	i915_gem_release_all_mmaps(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
-	/*
-	 * rps.work can't be rearmed here, since we get here only after making
-	 * sure the GPU is idle and the RPS freq is set to the minimum. See
-	 * intel_mark_idle().
-	 */
-	cancel_work_sync(&dev_priv->rps.work);
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 	intel_runtime_pm_disable_interrupts(dev_priv);
+	intel_suspend_gt_powersave(dev);
 
 	ret = intel_suspend_complete(dev_priv);
 	if (ret) {
@@ -1462,7 +1444,7 @@ static int intel_runtime_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
+	int ret = 0;
 
 	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev)))
 		return -ENODEV;
@@ -1472,7 +1454,13 @@ static int intel_runtime_resume(struct device *device)
 	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
 
-	ret = intel_resume_prepare(dev_priv, true);
+	if (IS_GEN6(dev_priv))
+		intel_init_pch_refclk(dev);
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		hsw_disable_pc8(dev_priv);
+	else if (IS_VALLEYVIEW(dev_priv))
+		ret = vlv_resume_prepare(dev_priv, true);
+
 	/*
 	 * No point of rolling back things in case of an error, as the best
 	 * we can do is to hope that things will still work (and disable RPM).
@@ -1481,7 +1469,7 @@ static int intel_runtime_resume(struct device *device)
 	gen6_update_ring_freq(dev);
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
-	intel_reset_gt_powersave(dev);
+	intel_enable_gt_powersave(dev);
 
 	if (ret)
 		DRM_ERROR("Runtime resume failed, disabling it (%d)\n", ret);
@@ -1504,29 +1492,6 @@ static int intel_suspend_complete(struct drm_i915_private *dev_priv)
 		ret = hsw_suspend_complete(dev_priv);
 	else if (IS_VALLEYVIEW(dev))
 		ret = vlv_suspend_complete(dev_priv);
-	else
-		ret = 0;
-
-	return ret;
-}
-
-/*
- * This function implements common functionality of runtime and system
- * resume sequence. Variable rpm_resume used for implementing different
- * code paths.
- */
-static int intel_resume_prepare(struct drm_i915_private *dev_priv,
-				bool rpm_resume)
-{
-	struct drm_device *dev = dev_priv->dev;
-	int ret;
-
-	if (IS_GEN6(dev))
-		ret = snb_resume_prepare(dev_priv, rpm_resume);
-	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		ret = hsw_resume_prepare(dev_priv, rpm_resume);
-	else if (IS_VALLEYVIEW(dev))
-		ret = vlv_resume_prepare(dev_priv, rpm_resume);
 	else
 		ret = 0;
 

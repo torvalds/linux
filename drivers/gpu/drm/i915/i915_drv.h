@@ -55,7 +55,10 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20141024"
+#define DRIVER_DATE		"20141107"
+
+#undef WARN_ON
+#define WARN_ON(x)		WARN(x, "WARN_ON(" #x ")")
 
 enum pipe {
 	INVALID_PIPE = -1,
@@ -226,14 +229,20 @@ struct intel_dpll_hw_state {
 	uint32_t wrpll;
 };
 
+struct intel_shared_dpll_config {
+	unsigned crtc_mask; /* mask of CRTCs sharing this PLL */
+	struct intel_dpll_hw_state hw_state;
+};
+
 struct intel_shared_dpll {
-	int refcount; /* count of number of CRTCs sharing this PLL */
+	struct intel_shared_dpll_config config;
+	struct intel_shared_dpll_config *new_config;
+
 	int active; /* count of number of active CRTCs (i.e. DPMS on) */
 	bool on; /* is the PLL actually active? Disabled during modeset */
 	const char *name;
 	/* should match the index in the dev_priv->shared_dplls array */
 	enum intel_dpll_id id;
-	struct intel_dpll_hw_state hw_state;
 	/* The mode_set hook is optional and should be used together with the
 	 * intel_prepare_shared_dpll function. */
 	void (*mode_set)(struct drm_i915_private *dev_priv,
@@ -275,7 +284,6 @@ void intel_link_compute_m_n(int bpp, int nlanes,
 #define DRIVER_PATCHLEVEL	0
 
 #define WATCH_LISTS	0
-#define WATCH_GTT	0
 
 struct opregion_header;
 struct opregion_acpi;
@@ -434,6 +442,7 @@ struct drm_i915_error_state {
 };
 
 struct intel_connector;
+struct intel_encoder;
 struct intel_crtc_config;
 struct intel_plane_config;
 struct intel_crtc;
@@ -476,15 +485,14 @@ struct drm_i915_display_funcs {
 				struct intel_crtc_config *);
 	void (*get_plane_config)(struct intel_crtc *,
 				 struct intel_plane_config *);
-	int (*crtc_mode_set)(struct intel_crtc *crtc,
-			     int x, int y,
-			     struct drm_framebuffer *old_fb);
+	int (*crtc_compute_clock)(struct intel_crtc *crtc);
 	void (*crtc_enable)(struct drm_crtc *crtc);
 	void (*crtc_disable)(struct drm_crtc *crtc);
 	void (*off)(struct drm_crtc *crtc);
-	void (*write_eld)(struct drm_connector *connector,
-			  struct drm_crtc *crtc,
-			  struct drm_display_mode *mode);
+	void (*audio_codec_enable)(struct drm_connector *connector,
+				   struct intel_encoder *encoder,
+				   struct drm_display_mode *mode);
+	void (*audio_codec_disable)(struct intel_encoder *encoder);
 	void (*fdi_link_train)(struct drm_crtc *crtc);
 	void (*init_clock_gating)(struct drm_device *dev);
 	int (*queue_flip)(struct drm_device *dev, struct drm_crtc *crtc,
@@ -541,6 +549,7 @@ struct intel_uncore {
 
 	unsigned fw_rendercount;
 	unsigned fw_mediacount;
+	unsigned fw_blittercount;
 
 	struct timer_list force_wake_timer;
 };
@@ -1379,6 +1388,49 @@ struct ilk_wm_values {
 	enum intel_ddb_partitioning partitioning;
 };
 
+struct skl_ddb_entry {
+	uint16_t start, end;	/* in number of blocks, 'end' is exclusive */
+};
+
+static inline uint16_t skl_ddb_entry_size(const struct skl_ddb_entry *entry)
+{
+	return entry->end - entry->start;
+}
+
+static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,
+				       const struct skl_ddb_entry *e2)
+{
+	if (e1->start == e2->start && e1->end == e2->end)
+		return true;
+
+	return false;
+}
+
+struct skl_ddb_allocation {
+	struct skl_ddb_entry pipe[I915_MAX_PIPES];
+	struct skl_ddb_entry plane[I915_MAX_PIPES][I915_MAX_PLANES];
+	struct skl_ddb_entry cursor[I915_MAX_PIPES];
+};
+
+struct skl_wm_values {
+	bool dirty[I915_MAX_PIPES];
+	struct skl_ddb_allocation ddb;
+	uint32_t wm_linetime[I915_MAX_PIPES];
+	uint32_t plane[I915_MAX_PIPES][I915_MAX_PLANES][8];
+	uint32_t cursor[I915_MAX_PIPES][8];
+	uint32_t plane_trans[I915_MAX_PIPES][I915_MAX_PLANES];
+	uint32_t cursor_trans[I915_MAX_PIPES];
+};
+
+struct skl_wm_level {
+	bool plane_en[I915_MAX_PLANES];
+	bool cursor_en;
+	uint16_t plane_res_b[I915_MAX_PLANES];
+	uint8_t plane_res_l[I915_MAX_PLANES];
+	uint16_t cursor_res_b;
+	uint8_t cursor_res_l;
+};
+
 /*
  * This struct helps tracking the state needed for runtime PM, which puts the
  * device in PCI D3 state. Notice that when this happens, nothing on the
@@ -1561,6 +1613,7 @@ struct drm_i915_private {
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 	unsigned int vlv_cdclk_freq;
+	unsigned int hpll_freq;
 
 	/**
 	 * wq - Driver workqueue for GEM.
@@ -1670,9 +1723,25 @@ struct drm_i915_private {
 		uint16_t spr_latency[5];
 		/* cursor */
 		uint16_t cur_latency[5];
+		/*
+		 * Raw watermark memory latency values
+		 * for SKL for all 8 levels
+		 * in 1us units.
+		 */
+		uint16_t skl_latency[8];
+
+		/*
+		 * The skl_wm_values structure is a bit too big for stack
+		 * allocation, so we keep the staging struct where we store
+		 * intermediate results here instead.
+		 */
+		struct skl_wm_values skl_results;
 
 		/* current hardware state */
-		struct ilk_wm_values hw;
+		union {
+			struct ilk_wm_values hw;
+			struct skl_wm_values skl_hw;
+		};
 	} wm;
 
 	struct i915_runtime_pm pm;
@@ -1856,8 +1925,6 @@ struct drm_i915_gem_object {
 	unsigned long gt_ro:1;
 	unsigned int cache_level:3;
 
-	unsigned int has_aliasing_ppgtt_mapping:1;
-	unsigned int has_global_gtt_mapping:1;
 	unsigned int has_dma_mapping:1;
 
 	unsigned int frontbuffer_bits:INTEL_FRONTBUFFER_BITS;
@@ -2292,8 +2359,6 @@ __printf(3, 4)
 void i915_handle_error(struct drm_device *dev, bool wedged,
 		       const char *fmt, ...);
 
-void gen6_set_pm_mask(struct drm_i915_private *dev_priv, u32 pm_iir,
-							int new_delay);
 extern void intel_irq_init(struct drm_i915_private *dev_priv);
 extern void intel_hpd_init(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);
@@ -2531,6 +2596,11 @@ int __i915_add_request(struct intel_engine_cs *ring,
 		       u32 *seqno);
 #define i915_add_request(ring, seqno) \
 	__i915_add_request(ring, NULL, NULL, seqno)
+int __i915_wait_seqno(struct intel_engine_cs *ring, u32 seqno,
+			unsigned reset_counter,
+			bool interruptible,
+			s64 *timeout,
+			struct drm_i915_file_private *file_priv);
 int __must_check i915_wait_seqno(struct intel_engine_cs *ring,
 				 uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
@@ -2800,7 +2870,6 @@ static inline bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 extern void intel_i2c_reset(struct drm_device *dev);
 
 /* intel_opregion.c */
-struct intel_encoder;
 #ifdef CONFIG_ACPI
 extern int intel_opregion_setup(struct drm_device *dev);
 extern void intel_opregion_init(struct drm_device *dev);
@@ -2917,7 +2986,9 @@ int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
 
 #define FORCEWAKE_RENDER	(1 << 0)
 #define FORCEWAKE_MEDIA		(1 << 1)
-#define FORCEWAKE_ALL		(FORCEWAKE_RENDER | FORCEWAKE_MEDIA)
+#define FORCEWAKE_BLITTER	(1 << 2)
+#define FORCEWAKE_ALL		(FORCEWAKE_RENDER | FORCEWAKE_MEDIA | \
+					FORCEWAKE_BLITTER)
 
 
 #define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)

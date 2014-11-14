@@ -459,6 +459,27 @@ intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
 	return ret;
 }
 
+static struct intel_encoder *
+intel_ddi_get_crtc_new_encoder(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_encoder *intel_encoder, *ret = NULL;
+	int num_encoders = 0;
+
+	for_each_intel_encoder(dev, intel_encoder) {
+		if (intel_encoder->new_crtc == crtc) {
+			ret = intel_encoder;
+			num_encoders++;
+		}
+	}
+
+	WARN(num_encoders != 1, "%d encoders on crtc for pipe %c\n", num_encoders,
+	     pipe_name(crtc->pipe));
+
+	BUG_ON(ret == NULL);
+	return ret;
+}
+
 #define LC_FREQ 2700
 #define LC_FREQ_2K U64_C(LC_FREQ * 2000)
 
@@ -792,7 +813,7 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
 		      WRPLL_DIVIDER_POST(p);
 
-		intel_crtc->config.dpll_hw_state.wrpll = val;
+		intel_crtc->new_config->dpll_hw_state.wrpll = val;
 
 		pll = intel_get_shared_dpll(intel_crtc);
 		if (pll == NULL) {
@@ -801,7 +822,7 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 			return false;
 		}
 
-		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL(pll->id);
+		intel_crtc->new_config->ddi_pll_sel = PORT_CLK_SEL_WRPLL(pll->id);
 	}
 
 	return true;
@@ -817,11 +838,9 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
  */
 bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 {
-	struct drm_crtc *crtc = &intel_crtc->base;
-	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
-	int clock = intel_crtc->config.port_clock;
-
-	intel_put_shared_dpll(intel_crtc);
+	struct intel_encoder *intel_encoder =
+		intel_ddi_get_crtc_new_encoder(intel_crtc);
+	int clock = intel_crtc->new_config->port_clock;
 
 	return hsw_ddi_pll_select(intel_crtc, intel_encoder, clock);
 }
@@ -1120,15 +1139,6 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
 
-	if (crtc->config.has_audio) {
-		DRM_DEBUG_DRIVER("Audio on pipe %c on DDI\n",
-				 pipe_name(crtc->pipe));
-
-		/* write eld */
-		DRM_DEBUG_DRIVER("DDI audio: write eld information\n");
-		intel_write_eld(encoder, &crtc->config.adjusted_mode);
-	}
-
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		intel_edp_panel_on(intel_dp);
@@ -1195,12 +1205,10 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
-	uint32_t tmp;
 
 	if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_digital_port *intel_dig_port =
@@ -1225,9 +1233,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 
 	if (intel_crtc->config.has_audio) {
 		intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
-		tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-		tmp |= ((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
-		I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+		intel_audio_codec_enable(intel_encoder);
 	}
 }
 
@@ -1236,19 +1242,12 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
 	int type = intel_encoder->type;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t tmp;
 
-	/* We can't touch HSW_AUD_PIN_ELD_CP_VLD uncionditionally because this
-	 * register is part of the power well on Haswell. */
 	if (intel_crtc->config.has_audio) {
-		tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-		tmp &= ~((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) <<
-			 (pipe * 4));
-		I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+		intel_audio_codec_disable(intel_encoder);
 		intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
 	}
 
@@ -1311,7 +1310,7 @@ int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 static void hsw_ddi_pll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
 {
-	I915_WRITE(WRPLL_CTL(pll->id), pll->hw_state.wrpll);
+	I915_WRITE(WRPLL_CTL(pll->id), pll->config.hw_state.wrpll);
 	POSTING_READ(WRPLL_CTL(pll->id));
 	udelay(20);
 }
@@ -1524,7 +1523,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 
 	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
 		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-		if (temp & (AUDIO_OUTPUT_ENABLE_A << (intel_crtc->pipe * 4)))
+		if (temp & AUDIO_OUTPUT_ENABLE(intel_crtc->pipe))
 			pipe_config->has_audio = true;
 	}
 
