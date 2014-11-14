@@ -101,6 +101,10 @@
 	};
 };
 
+&can1 {
+	status = "okay";
+};
+
 &fec {
 	status = "okay";
 };
