@@ -227,8 +227,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static uint32_t
-pack_aux(const uint8_t *src, int src_bytes)
+uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes)
 {
 	int	i;
 	uint32_t v = 0;
@@ -240,8 +239,7 @@ pack_aux(const uint8_t *src, int src_bytes)
 	return v;
 }
 
-static void
-unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes)
+void intel_dp_unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes)
 {
 	int i;
 	if (dst_bytes > 4)
@@ -863,7 +861,8 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 			/* Load the send data into the aux channel data registers */
 			for (i = 0; i < send_bytes; i += 4)
 				I915_WRITE(ch_data + i,
-					   pack_aux(send + i, send_bytes - i));
+					   intel_dp_pack_aux(send + i,
+							     send_bytes - i));
 
 			/* Send the command and wait for it to complete */
 			I915_WRITE(ch_ctl, send_ctl);
@@ -917,8 +916,8 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		recv_bytes = recv_size;
 
 	for (i = 0; i < recv_bytes; i += 4)
-		unpack_aux(I915_READ(ch_data + i),
-			   recv + i, recv_bytes - i);
+		intel_dp_unpack_aux(I915_READ(ch_data + i),
+				    recv + i, recv_bytes - i);
 
 	ret = recv_bytes;
 out:
@@ -2159,7 +2158,7 @@ static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
 	/* Setup AUX registers */
 	for (i = 0; i < sizeof(aux_msg); i += 4)
 		I915_WRITE(EDP_PSR_AUX_DATA1(dev) + i,
-			   pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
+			   intel_dp_pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
 
 	I915_WRITE(EDP_PSR_AUX_CTL(dev),
 		   DP_AUX_CH_CTL_TIME_OUT_400us |
