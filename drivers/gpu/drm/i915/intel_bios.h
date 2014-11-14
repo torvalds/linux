@@ -80,7 +80,7 @@ struct vbios_data {
 #define BDB_EXT_MMIO_REGS	  6
 #define BDB_SWF_IO		  7
 #define BDB_SWF_MMIO		  8
-#define BDB_DOT_CLOCK_TABLE	  9
+#define BDB_PSR			  9
 #define BDB_MODE_REMOVAL_TABLE	 10
 #define BDB_CHILD_DEVICE_TABLE	 11
 #define BDB_DRIVER_FEATURES	 12
@@ -554,6 +554,26 @@ struct bdb_edp {
 	/* ith bit indicates enabled/disabled for (i+1)th panel */
 	u16 edp_s3d_feature;
 	u16 edp_t3_optimization;
+} __packed;
+
+struct psr_table {
+	/* Feature bits */
+	u8 full_link:1;
+	u8 require_aux_to_wakeup:1;
+	u8 feature_bits_rsvd:6;
+
+	/* Wait times */
+	u8 idle_frames:4;
+	u8 lines_to_wait:3;
+	u8 wait_times_rsvd:1;
+
+	/* TP wake up time in multiple of 100 */
+	u16 tp1_wakeup_time;
+	u16 tp2_tp3_wakeup_time;
+} __packed;
+
+struct bdb_psr {
+	struct psr_table psr_table[16];
 } __packed;
 
 void intel_setup_bios(struct drm_device *dev);

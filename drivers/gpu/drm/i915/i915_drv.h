@@ -1306,6 +1306,13 @@ enum drrs_support_type {
 	SEAMLESS_DRRS_SUPPORT = 2
 };
 
+enum psr_lines_to_wait {
+	PSR_0_LINES_TO_WAIT = 0,
+	PSR_1_LINE_TO_WAIT,
+	PSR_4_LINES_TO_WAIT,
+	PSR_8_LINES_TO_WAIT
+};
+
 struct intel_vbt_data {
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
@@ -1333,6 +1340,15 @@ struct intel_vbt_data {
 	bool edp_support;
 	int edp_bpp;
 	struct edp_power_seq edp_pps;
+
+	struct {
+		bool full_link;
+		bool require_aux_wakeup;
+		int idle_frames;
+		enum psr_lines_to_wait lines_to_wait;
+		int tp1_wakeup_time;
+		int tp2_tp3_wakeup_time;
+	} psr;
 
 	struct {
 		u16 pwm_freq_hz;
