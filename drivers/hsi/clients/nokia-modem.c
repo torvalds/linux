@@ -29,7 +29,7 @@
 #include <linux/of_gpio.h>
 #include <linux/hsi/ssi_protocol.h>
 
-static unsigned int pm;
+static unsigned int pm = 1;
 module_param(pm, int, 0400);
 MODULE_PARM_DESC(pm,
 	"Enable power management (0=disabled, 1=userland based [default])");
