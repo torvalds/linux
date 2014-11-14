@@ -9,6 +9,7 @@
  * version 2 as published by the Free Software Foundation.
  */
 
+#include <linux/crc32.h>
 #include <linux/kernel.h>
 #include <linux/initrd.h>
 #include <linux/memblock.h>
@@ -22,6 +23,7 @@
 #include <linux/libfdt.h>
 #include <linux/debugfs.h>
 #include <linux/serial_core.h>
+#include <linux/sysfs.h>
 
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #include <asm/page.h>
@@ -422,6 +424,8 @@ int __initdata dt_root_size_cells;
 void *initial_boot_params;
 
 #ifdef CONFIG_OF_EARLY_FLATTREE
+
+static u32 of_fdt_crc32;
 
 /**
  * res_mem_reserve_reg() - reserve all memory described in 'reg' property
@@ -1003,6 +1007,8 @@ bool __init early_init_dt_verify(void *params)
 
 	/* Setup flat device-tree pointer */
 	initial_boot_params = params;
+	of_fdt_crc32 = crc32_be(~0, initial_boot_params,
+				fdt_totalsize(initial_boot_params));
 	return true;
 }
 
@@ -1080,27 +1086,32 @@ void __init unflatten_and_copy_device_tree(void)
 	unflatten_device_tree();
 }
 
-#if defined(CONFIG_DEBUG_FS) && defined(DEBUG)
-static struct debugfs_blob_wrapper flat_dt_blob;
-
-static int __init of_flat_dt_debugfs_export_fdt(void)
+#ifdef CONFIG_SYSFS
+static ssize_t of_fdt_raw_read(struct file *filp, struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t off, size_t count)
 {
-	struct dentry *d = debugfs_create_dir("device-tree", NULL);
-
-	if (!d)
-		return -ENOENT;
-
-	flat_dt_blob.data = initial_boot_params;
-	flat_dt_blob.size = fdt_totalsize(initial_boot_params);
-
-	d = debugfs_create_blob("flat-device-tree", S_IFREG | S_IRUSR,
-				d, &flat_dt_blob);
-	if (!d)
-		return -ENOENT;
-
-	return 0;
+	memcpy(buf, initial_boot_params + off, count);
+	return count;
 }
-module_init(of_flat_dt_debugfs_export_fdt);
+
+static int __init of_fdt_raw_init(void)
+{
+	static struct bin_attribute of_fdt_raw_attr =
+		__BIN_ATTR(fdt, S_IRUSR, of_fdt_raw_read, NULL, 0);
+
+	if (!initial_boot_params)
+		return 0;
+
+	if (of_fdt_crc32 != crc32_be(~0, initial_boot_params,
+				     fdt_totalsize(initial_boot_params))) {
+		pr_warn("fdt: not creating '/sys/firmware/fdt': CRC check failed\n");
+		return 0;
+	}
+	of_fdt_raw_attr.size = fdt_totalsize(initial_boot_params);
+	return sysfs_create_bin_file(firmware_kobj, &of_fdt_raw_attr);
+}
+late_initcall(of_fdt_raw_init);
 #endif
 
 #endif /* CONFIG_OF_EARLY_FLATTREE */

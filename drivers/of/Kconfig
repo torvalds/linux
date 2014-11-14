@@ -23,6 +23,7 @@ config OF_FLATTREE
 	bool
 	select DTC
 	select LIBFDT
+	select CRC32
 
 config OF_EARLY_FLATTREE
 	bool
