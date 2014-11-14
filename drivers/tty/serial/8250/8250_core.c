@@ -3191,7 +3191,9 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 
 	serial8250_rpm_get(up);
 
-	if (port->sysrq || oops_in_progress)
+	if (port->sysrq)
+		locked = 0;
+	else if (oops_in_progress)
 		locked = spin_trylock_irqsave(&port->lock, flags);
 	else
 		spin_lock_irqsave(&port->lock, flags);
