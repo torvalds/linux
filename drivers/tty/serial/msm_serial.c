@@ -1046,13 +1046,13 @@ static int msm_serial_probe(struct platform_device *pdev)
 	const struct of_device_id *id;
 	int irq, line;
 
-	if (pdev->id == -1)
-		pdev->id = atomic_inc_return(&msm_uart_next_id) - 1;
-
 	if (pdev->dev.of_node)
 		line = of_alias_get_id(pdev->dev.of_node, "serial");
 	else
 		line = pdev->id;
+
+	if (line < 0)
+		line = atomic_inc_return(&msm_uart_next_id) - 1;
 
 	if (unlikely(line < 0 || line >= UART_NR))
 		return -ENXIO;
