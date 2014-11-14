@@ -2355,6 +2355,11 @@ static void mlx4_en_del_vxlan_port(struct  net_device *dev,
 
 	queue_work(priv->mdev->workqueue, &priv->vxlan_del_task);
 }
+
+static bool mlx4_en_gso_check(struct sk_buff *skb, struct net_device *dev)
+{
+	return vxlan_gso_check(skb);
+}
 #endif
 
 static const struct net_device_ops mlx4_netdev_ops = {
@@ -2386,6 +2391,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 #ifdef CONFIG_MLX4_EN_VXLAN
 	.ndo_add_vxlan_port	= mlx4_en_add_vxlan_port,
 	.ndo_del_vxlan_port	= mlx4_en_del_vxlan_port,
+	.ndo_gso_check		= mlx4_en_gso_check,
 #endif
 };
 
