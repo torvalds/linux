@@ -223,6 +223,7 @@ struct ceph_mds_request {
 	int r_request_release_offset;
 	struct ceph_msg  *r_reply;
 	struct ceph_mds_reply_info_parsed r_reply_info;
+	struct page *r_locked_page;
 	int r_err;
 	bool r_aborted;
 
