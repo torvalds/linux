@@ -375,8 +375,7 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 
 		if (is_module) {
 			if (++found > 1) {
-				pr_err("manifest must have 1 module descriptor (%u found)\n",
-					found);
+				pr_err("multiple module descriptors found in manifest\n");
 				result = false;
 				goto out;
 			} else {
