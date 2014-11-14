@@ -96,6 +96,7 @@ struct fimd_driver_data {
 	unsigned int has_clksel:1;
 	unsigned int has_limited_fmt:1;
 	unsigned int has_vidoutcon:1;
+	unsigned int has_vtsel:1;
 };
 
 static struct fimd_driver_data s3c64xx_fimd_driver_data = {
@@ -118,6 +119,7 @@ static struct fimd_driver_data exynos4_fimd_driver_data = {
 	.lcdblk_vt_shift = 10,
 	.lcdblk_bypass_shift = 1,
 	.has_shadowcon = 1,
+	.has_vtsel = 1,
 };
 
 static struct fimd_driver_data exynos4415_fimd_driver_data = {
@@ -127,6 +129,7 @@ static struct fimd_driver_data exynos4415_fimd_driver_data = {
 	.lcdblk_bypass_shift = 1,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
+	.has_vtsel = 1,
 };
 
 static struct fimd_driver_data exynos5_fimd_driver_data = {
@@ -136,6 +139,7 @@ static struct fimd_driver_data exynos5_fimd_driver_data = {
 	.lcdblk_bypass_shift = 15,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
+	.has_vtsel = 1,
 };
 
 struct fimd_win_data {
@@ -354,7 +358,8 @@ static void fimd_commit(struct exynos_drm_manager *mgr)
 		writel(0, timing_base + I80IFCONFBx(0));
 
 		/* set video type selection to I80 interface */
-		if (ctx->sysreg && regmap_update_bits(ctx->sysreg,
+		if (driver_data->has_vtsel && ctx->sysreg &&
+				regmap_update_bits(ctx->sysreg,
 					driver_data->lcdblk_offset,
 					0x3 << driver_data->lcdblk_vt_shift,
 					0x1 << driver_data->lcdblk_vt_shift)) {
