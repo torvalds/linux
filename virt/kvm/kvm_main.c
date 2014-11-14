@@ -677,31 +677,31 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 static void insert_memslot(struct kvm_memslots *slots,
 			   struct kvm_memory_slot *new)
 {
-	int i = slots->id_to_index[new->id];
-	struct kvm_memory_slot *old = id_to_memslot(slots, new->id);
+	int id = new->id;
+	int i = slots->id_to_index[id];
 	struct kvm_memory_slot *mslots = slots->memslots;
 
-	if (new->npages == old->npages) {
-		*old = *new;
-		return;
-	}
-
-	while (1) {
-		if (i < (KVM_MEM_SLOTS_NUM - 1) &&
-			new->npages < mslots[i + 1].npages) {
-			mslots[i] = mslots[i + 1];
-			i++;
-		} else if (i > 0 && new->npages > mslots[i - 1].npages) {
-			mslots[i] = mslots[i - 1];
-			i--;
+	WARN_ON(mslots[i].id != id);
+	if (new->npages != mslots[i].npages) {
+		if (new->npages < mslots[i].npages) {
+			while (i < KVM_MEM_SLOTS_NUM - 1 &&
+			       new->npages < mslots[i + 1].npages) {
+				mslots[i] = mslots[i + 1];
+				slots->id_to_index[mslots[i].id] = i;
+				i++;
+			}
 		} else {
-			mslots[i] = *new;
-			break;
+			while (i > 0 &&
+			       new->npages > mslots[i - 1].npages) {
+				mslots[i] = mslots[i - 1];
+				slots->id_to_index[mslots[i].id] = i;
+				i--;
+			}
 		}
 	}
 
-	for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
-		slots->id_to_index[slots->memslots[i].id] = i;
+	mslots[i] = *new;
+	slots->id_to_index[mslots[i].id] = i;
 }
 
 static void update_memslots(struct kvm_memslots *slots,
