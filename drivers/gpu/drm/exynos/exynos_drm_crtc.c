@@ -113,7 +113,7 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 				     crtc_w, crtc_h, x, y, crtc_w, crtc_h);
 }
 
-static int exynos_drm_crtc_mode_set_commit(struct drm_crtc *crtc, int x, int y,
+static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 					  struct drm_framebuffer *old_fb)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
@@ -132,12 +132,6 @@ static int exynos_drm_crtc_mode_set_commit(struct drm_crtc *crtc, int x, int y,
 
 	return exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
 				   crtc_w, crtc_h, x, y, crtc_w, crtc_h);
-}
-
-static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-					  struct drm_framebuffer *old_fb)
-{
-	return exynos_drm_crtc_mode_set_commit(crtc, x, y, old_fb);
 }
 
 static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
