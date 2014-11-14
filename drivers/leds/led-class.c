@@ -55,7 +55,7 @@ static ssize_t brightness_store(struct device *dev,
 
 	if (state == LED_OFF)
 		led_trigger_remove(led_cdev);
-	__led_set_brightness(led_cdev, state);
+	led_set_brightness(led_cdev, state);
 
 	ret = size;
 unlock:
@@ -109,7 +109,7 @@ static void led_timer_function(unsigned long data)
 	unsigned long delay;
 
 	if (!led_cdev->blink_delay_on || !led_cdev->blink_delay_off) {
-		__led_set_brightness(led_cdev, LED_OFF);
+		led_set_brightness_async(led_cdev, LED_OFF);
 		return;
 	}
 
@@ -132,7 +132,7 @@ static void led_timer_function(unsigned long data)
 		delay = led_cdev->blink_delay_off;
 	}
 
-	__led_set_brightness(led_cdev, brightness);
+	led_set_brightness_async(led_cdev, brightness);
 
 	/* Return in next iteration if led is in one-shot mode and we are in
 	 * the final blink state so that the led is toggled each delay_on +
@@ -158,7 +158,7 @@ static void set_brightness_delayed(struct work_struct *ws)
 
 	led_stop_software_blink(led_cdev);
 
-	__led_set_brightness(led_cdev, led_cdev->delayed_set_value);
+	led_set_brightness_async(led_cdev, led_cdev->delayed_set_value);
 }
 
 /**
@@ -232,6 +232,8 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 
 	if (!led_cdev->max_brightness)
 		led_cdev->max_brightness = LED_FULL;
+
+	led_cdev->flags |= SET_BRIGHTNESS_ASYNC;
 
 	led_update_brightness(led_cdev);
 
