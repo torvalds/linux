@@ -136,4 +136,5 @@ int gb_gbuf_init(void)
 void gb_gbuf_exit(void)
 {
 	kmem_cache_destroy(gbuf_head_cache);
+	gbuf_head_cache = NULL;
 }

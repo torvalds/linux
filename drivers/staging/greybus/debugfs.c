@@ -26,4 +26,5 @@ int gb_debugfs_init(void)
 void gb_debugfs_cleanup(void)
 {
 	debugfs_remove_recursive(gb_debug_root);
+	gb_debug_root = NULL;
 }

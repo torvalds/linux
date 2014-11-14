@@ -367,6 +367,7 @@ int gb_ap_init(void)
 void gb_ap_exit(void)
 {
 	destroy_workqueue(ap_workqueue);
+	ap_workqueue = NULL;
 }
 
 
