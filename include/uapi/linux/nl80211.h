@@ -2835,6 +2835,8 @@ enum nl80211_user_reg_hint_type {
  *	receiving data (on channel or globally)
  * @NL80211_SURVEY_INFO_TIME_TX: amount of time the radio spent
  *	transmitting data (on channel or globally)
+ * @NL80211_SURVEY_INFO_TIME_SCAN: time the radio spent for scan
+ *	(on this channel or globally)
  * @NL80211_SURVEY_INFO_MAX: highest survey info attribute number
  *	currently defined
  * @__NL80211_SURVEY_INFO_AFTER_LAST: internal use
@@ -2849,6 +2851,7 @@ enum nl80211_survey_info {
 	NL80211_SURVEY_INFO_TIME_EXT_BUSY,
 	NL80211_SURVEY_INFO_TIME_RX,
 	NL80211_SURVEY_INFO_TIME_TX,
+	NL80211_SURVEY_INFO_TIME_SCAN,
 
 	/* keep last */
 	__NL80211_SURVEY_INFO_AFTER_LAST,

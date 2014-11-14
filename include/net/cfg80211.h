@@ -525,6 +525,7 @@ ieee80211_chandef_max_power(struct cfg80211_chan_def *chandef)
  * @SURVEY_INFO_TIME_EXT_BUSY: extension channel busy time was filled in
  * @SURVEY_INFO_TIME_RX: receive time was filled in
  * @SURVEY_INFO_TIME_TX: transmit time was filled in
+ * @SURVEY_INFO_TIME_SCAN: scan time was filled in
  *
  * Used by the driver to indicate which info in &struct survey_info
  * it has filled in during the get_survey().
@@ -537,6 +538,7 @@ enum survey_info_flags {
 	SURVEY_INFO_TIME_EXT_BUSY	= BIT(4),
 	SURVEY_INFO_TIME_RX		= BIT(5),
 	SURVEY_INFO_TIME_TX		= BIT(6),
+	SURVEY_INFO_TIME_SCAN		= BIT(7),
 };
 
 /**
@@ -552,6 +554,7 @@ enum survey_info_flags {
  * @time_ext_busy: amount of time the extension channel was sensed busy
  * @time_rx: amount of time the radio spent receiving data
  * @time_tx: amount of time the radio spent transmitting data
+ * @time_scan: amount of time the radio spent for scanning
  *
  * Used by dump_survey() to report back per-channel survey information.
  *
@@ -565,6 +568,7 @@ struct survey_info {
 	u64 time_ext_busy;
 	u64 time_rx;
 	u64 time_tx;
+	u64 time_scan;
 	u32 filled;
 	s8 noise;
 };

@@ -6667,6 +6667,10 @@ static int nl80211_send_survey(struct sk_buff *msg, u32 portid, u32 seq,
 	    nla_put_u64(msg, NL80211_SURVEY_INFO_TIME_TX,
 			survey->time_tx))
 		goto nla_put_failure;
+	if ((survey->filled & SURVEY_INFO_TIME_SCAN) &&
+	    nla_put_u64(msg, NL80211_SURVEY_INFO_TIME_SCAN,
+			survey->time_scan))
+		goto nla_put_failure;
 
 	nla_nest_end(msg, infoattr);
 
