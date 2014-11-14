@@ -2201,8 +2201,7 @@ static int rt5645_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int rt5645_jack_detect(struct snd_soc_codec *codec,
-	struct snd_soc_jack *jack)
+static int rt5645_jack_detect(struct snd_soc_codec *codec)
 {
 	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
 	int gpio_state, jack_type = 0;
@@ -2245,19 +2244,19 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec,
 		snd_soc_dapm_sync(&codec->dapm);
 	}
 
-	snd_soc_jack_report(rt5645->jack, jack_type, SND_JACK_HEADSET);
-
+	snd_soc_jack_report(rt5645->hp_jack, jack_type, SND_JACK_HEADPHONE);
+	snd_soc_jack_report(rt5645->mic_jack, jack_type, SND_JACK_MICROPHONE);
 	return 0;
 }
 
 int rt5645_set_jack_detect(struct snd_soc_codec *codec,
-	struct snd_soc_jack *jack)
+	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack)
 {
 	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
 
-	rt5645->jack = jack;
-
-	rt5645_jack_detect(codec, rt5645->jack);
+	rt5645->hp_jack = hp_jack;
+	rt5645->mic_jack = mic_jack;
+	rt5645_jack_detect(codec);
 
 	return 0;
 }
@@ -2268,7 +2267,7 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 	struct rt5645_priv *rt5645 =
 		container_of(work, struct rt5645_priv, jack_detect_work.work);
 
-	rt5645_jack_detect(rt5645->codec, rt5645->jack);
+	rt5645_jack_detect(rt5645->codec);
 }
 
 static irqreturn_t rt5645_irq(int irq, void *data)
