@@ -2383,6 +2383,8 @@ static void invalidate_aliases(struct inode *inode)
 static void handle_cap_grant(struct ceph_mds_client *mdsc,
 			     struct inode *inode, struct ceph_mds_caps *grant,
 			     void *snaptrace, int snaptrace_len,
+			     u64 inline_version,
+			     void *inline_data, int inline_len,
 			     struct ceph_buffer *xattr_buf,
 			     struct ceph_mds_session *session,
 			     struct ceph_cap *cap, int issued)
@@ -2996,11 +2998,12 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	u64 cap_id;
 	u64 size, max_size;
 	u64 tid;
+	u64 inline_version = 0;
+	void *inline_data = NULL;
+	u32  inline_len = 0;
 	void *snaptrace;
 	size_t snaptrace_len;
-	void *flock;
-	void *end;
-	u32 flock_len;
+	void *p, *end;
 
 	dout("handle_caps from mds%d\n", mds);
 
@@ -3021,28 +3024,35 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 
 	snaptrace = h + 1;
 	snaptrace_len = le32_to_cpu(h->snap_trace_len);
+	p = snaptrace + snaptrace_len;
 
 	if (le16_to_cpu(msg->hdr.version) >= 2) {
-		void *p = snaptrace + snaptrace_len;
+		u32 flock_len;
 		ceph_decode_32_safe(&p, end, flock_len, bad);
 		if (p + flock_len > end)
 			goto bad;
-		flock = p;
-	} else {
-		flock = NULL;
-		flock_len = 0;
+		p += flock_len;
 	}
 
 	if (le16_to_cpu(msg->hdr.version) >= 3) {
 		if (op == CEPH_CAP_OP_IMPORT) {
-			void *p = flock + flock_len;
 			if (p + sizeof(*peer) > end)
 				goto bad;
 			peer = p;
+			p += sizeof(*peer);
 		} else if (op == CEPH_CAP_OP_EXPORT) {
 			/* recorded in unused fields */
 			peer = (void *)&h->size;
 		}
+	}
+
+	if (le16_to_cpu(msg->hdr.version) >= 4) {
+		ceph_decode_64_safe(&p, end, inline_version, bad);
+		ceph_decode_32_safe(&p, end, inline_len, bad);
+		if (p + inline_len > end)
+			goto bad;
+		inline_data = p;
+		p += inline_len;
 	}
 
 	/* lookup ino */
@@ -3085,6 +3095,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		handle_cap_import(mdsc, inode, h, peer, session,
 				  &cap, &issued);
 		handle_cap_grant(mdsc, inode, h,  snaptrace, snaptrace_len,
+				 inline_version, inline_data, inline_len,
 				 msg->middle, session, cap, issued);
 		goto done_unlocked;
 	}
@@ -3105,8 +3116,9 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	case CEPH_CAP_OP_GRANT:
 		__ceph_caps_issued(ci, &issued);
 		issued |= __ceph_caps_dirty(ci);
-		handle_cap_grant(mdsc, inode, h, NULL, 0, msg->middle,
-				 session, cap, issued);
+		handle_cap_grant(mdsc, inode, h, NULL, 0,
+				 inline_version, inline_data, inline_len,
+				 msg->middle, session, cap, issued);
 		goto done_unlocked;
 
 	case CEPH_CAP_OP_FLUSH_ACK:

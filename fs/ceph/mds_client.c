@@ -89,6 +89,16 @@ static int parse_reply_info_in(void **p, void *end,
 	ceph_decode_need(p, end, info->xattr_len, bad);
 	info->xattr_data = *p;
 	*p += info->xattr_len;
+
+	if (features & CEPH_FEATURE_MDS_INLINE_DATA) {
+		ceph_decode_64_safe(p, end, info->inline_version, bad);
+		ceph_decode_32_safe(p, end, info->inline_len, bad);
+		ceph_decode_need(p, end, info->inline_len, bad);
+		info->inline_data = *p;
+		*p += info->inline_len;
+	} else
+		info->inline_version = CEPH_INLINE_NONE;
+
 	return 0;
 bad:
 	return err;

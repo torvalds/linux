@@ -41,6 +41,9 @@ struct ceph_mds_reply_info_in {
 	char *symlink;
 	u32 xattr_len;
 	char *xattr_data;
+	u64 inline_version;
+	u32 inline_len;
+	char *inline_data;
 };
 
 /*
