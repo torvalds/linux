@@ -706,9 +706,28 @@ static int pdev_remove(struct platform_device *device)
 	return 0;
 }
 
+static int omap_drm_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	drm_kms_helper_poll_disable(drm_dev);
+
+	return 0;
+}
+
+static int omap_drm_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	drm_kms_helper_poll_enable(drm_dev);
+
+	return omap_gem_resume(dev);
+}
+
 #ifdef CONFIG_PM
 static const struct dev_pm_ops omapdrm_pm_ops = {
-	.resume = omap_gem_resume,
+	.suspend = omap_drm_suspend,
+	.resume = omap_drm_resume,
 };
 #endif
 
