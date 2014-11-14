@@ -1236,7 +1236,7 @@ static bool exynos_dsi_is_short_dsi_type(u8 type)
 }
 
 static ssize_t exynos_dsi_host_transfer(struct mipi_dsi_host *host,
-				       struct mipi_dsi_msg *msg)
+				        const struct mipi_dsi_msg *msg)
 {
 	struct exynos_dsi *dsi = host_to_dsi(host);
 	struct exynos_dsi_transfer xfer;
