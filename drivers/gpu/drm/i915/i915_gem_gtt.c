@@ -1942,9 +1942,17 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 	 * Only the snoop bit has meaning for CHV, the rest is
 	 * ignored.
 	 *
-	 * Note that the harware enforces snooping for all page
-	 * table accesses. The snoop bit is actually ignored for
-	 * PDEs.
+	 * The hardware will never snoop for certain types of accesses:
+	 * - CPU GTT (GMADR->GGTT->no snoop->memory)
+	 * - PPGTT page tables
+	 * - some other special cycles
+	 *
+	 * As with BDW, we also need to consider the following for GT accesses:
+	 * "For GGTT, there is NO pat_sel[2:0] from the entry,
+	 * so RTL will always use the value corresponding to
+	 * pat_sel = 000".
+	 * Which means we must set the snoop bit in PAT entry 0
+	 * in order to keep the global status page working.
 	 */
 	pat = GEN8_PPAT(0, CHV_PPAT_SNOOP) |
 	      GEN8_PPAT(1, 0) |
