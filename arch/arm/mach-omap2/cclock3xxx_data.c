@@ -257,6 +257,9 @@ static const struct clk_ops dpll1_ck_ops = {
 	.get_parent	= &omap2_init_dpll_parent,
 	.recalc_rate	= &omap3_dpll_recalc,
 	.set_rate	= &omap3_noncore_dpll_set_rate,
+	.set_parent	= &omap3_noncore_dpll_set_parent,
+	.set_rate_and_parent	= &omap3_noncore_dpll_set_rate_and_parent,
+	.determine_rate	= &omap3_noncore_dpll_determine_rate,
 	.round_rate	= &omap2_dpll_round_rate,
 };
 
@@ -367,6 +370,9 @@ static const struct clk_ops dpll4_ck_ops = {
 	.get_parent	= &omap2_init_dpll_parent,
 	.recalc_rate	= &omap3_dpll_recalc,
 	.set_rate	= &omap3_dpll4_set_rate,
+	.set_parent	= &omap3_noncore_dpll_set_parent,
+	.set_rate_and_parent	= &omap3_dpll4_set_rate_and_parent,
+	.determine_rate	= &omap3_noncore_dpll_determine_rate,
 	.round_rate	= &omap2_dpll_round_rate,
 };
 
