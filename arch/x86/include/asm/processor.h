@@ -379,9 +379,9 @@ struct bndreg {
 	u64 upper_bound;
 } __packed;
 
-struct bndcsr_struct {
-	u64 cfg_reg_u;
-	u64 status_reg;
+struct bndcsr {
+	u64 bndcfgu;
+	u64 bndstatus;
 } __packed;
 
 struct xsave_hdr_struct {
@@ -396,7 +396,7 @@ struct xsave_struct {
 	struct ymmh_struct ymmh;
 	struct lwp_struct lwp;
 	struct bndreg bndreg[4];
-	struct bndcsr_struct bndcsr;
+	struct bndcsr bndcsr;
 	/* new processor state extensions will go here */
 } __attribute__ ((packed, aligned (64)));
 
