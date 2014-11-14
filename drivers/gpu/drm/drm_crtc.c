@@ -4774,6 +4774,16 @@ int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 	if (PAGE_ALIGN(size) == 0)
 		return -EINVAL;
 
+	/*
+	 * handle, pitch and size are output parameters. Zero them out to
+	 * prevent drivers from accidentally using uninitialized data. Since
+	 * not all existing userspace is clearing these fields properly we
+	 * cannot reject IOCTL with garbage in them.
+	 */
+	args->handle = 0;
+	args->pitch = 0;
+	args->size = 0;
+
 	return dev->driver->dumb_create(file_priv, dev, args);
 }
 

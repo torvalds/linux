@@ -126,9 +126,9 @@ int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
 	else
 		align = 16 * args->bpp / 8;
 
-	args->pitch = roundup(max(args->pitch, min_pitch), align);
+	args->pitch = roundup(min_pitch, align);
 
-	return drm_gem_cma_dumb_create(file, dev, args);
+	return drm_gem_cma_dumb_create_internal(file, dev, args);
 }
 
 static struct drm_framebuffer *

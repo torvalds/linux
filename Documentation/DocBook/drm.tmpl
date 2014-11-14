@@ -492,10 +492,10 @@ char *date;</synopsis>
     <sect2>
       <title>The Translation Table Manager (TTM)</title>
       <para>
-	TTM design background and information belongs here.
+        TTM design background and information belongs here.
       </para>
       <sect3>
-	<title>TTM initialization</title>
+        <title>TTM initialization</title>
         <warning><para>This section is outdated.</para></warning>
         <para>
           Drivers wishing to support TTM must fill out a drm_bo_driver
@@ -503,42 +503,42 @@ char *date;</synopsis>
           pointers for initializing the TTM, allocating and freeing memory,
           waiting for command completion and fence synchronization, and memory
           migration. See the radeon_ttm.c file for an example of usage.
-	</para>
-	<para>
-	  The ttm_global_reference structure is made up of several fields:
-	</para>
-	<programlisting>
-	  struct ttm_global_reference {
-	  	enum ttm_global_types global_type;
-	  	size_t size;
-	  	void *object;
-	  	int (*init) (struct ttm_global_reference *);
-	  	void (*release) (struct ttm_global_reference *);
-	  };
-	</programlisting>
-	<para>
-	  There should be one global reference structure for your memory
-	  manager as a whole, and there will be others for each object
-	  created by the memory manager at runtime.  Your global TTM should
-	  have a type of TTM_GLOBAL_TTM_MEM.  The size field for the global
-	  object should be sizeof(struct ttm_mem_global), and the init and
-	  release hooks should point at your driver-specific init and
-	  release routines, which probably eventually call
-	  ttm_mem_global_init and ttm_mem_global_release, respectively.
-	</para>
-	<para>
-	  Once your global TTM accounting structure is set up and initialized
-	  by calling ttm_global_item_ref() on it,
-	  you need to create a buffer object TTM to
-	  provide a pool for buffer object allocation by clients and the
-	  kernel itself.  The type of this object should be TTM_GLOBAL_TTM_BO,
-	  and its size should be sizeof(struct ttm_bo_global).  Again,
-	  driver-specific init and release functions may be provided,
-	  likely eventually calling ttm_bo_global_init() and
-	  ttm_bo_global_release(), respectively.  Also, like the previous
-	  object, ttm_global_item_ref() is used to create an initial reference
-	  count for the TTM, which will call your initialization function.
-	</para>
+        </para>
+        <para>
+          The ttm_global_reference structure is made up of several fields:
+        </para>
+        <programlisting>
+          struct ttm_global_reference {
+                  enum ttm_global_types global_type;
+                  size_t size;
+                  void *object;
+                  int (*init) (struct ttm_global_reference *);
+                  void (*release) (struct ttm_global_reference *);
+          };
+        </programlisting>
+        <para>
+          There should be one global reference structure for your memory
+          manager as a whole, and there will be others for each object
+          created by the memory manager at runtime.  Your global TTM should
+          have a type of TTM_GLOBAL_TTM_MEM.  The size field for the global
+          object should be sizeof(struct ttm_mem_global), and the init and
+          release hooks should point at your driver-specific init and
+          release routines, which probably eventually call
+          ttm_mem_global_init and ttm_mem_global_release, respectively.
+        </para>
+        <para>
+          Once your global TTM accounting structure is set up and initialized
+          by calling ttm_global_item_ref() on it,
+          you need to create a buffer object TTM to
+          provide a pool for buffer object allocation by clients and the
+          kernel itself.  The type of this object should be TTM_GLOBAL_TTM_BO,
+          and its size should be sizeof(struct ttm_bo_global).  Again,
+          driver-specific init and release functions may be provided,
+          likely eventually calling ttm_bo_global_init() and
+          ttm_bo_global_release(), respectively.  Also, like the previous
+          object, ttm_global_item_ref() is used to create an initial reference
+          count for the TTM, which will call your initialization function.
+        </para>
       </sect3>
     </sect2>
     <sect2 id="drm-gem">
@@ -566,19 +566,19 @@ char *date;</synopsis>
         using driver-specific ioctls.
       </para>
       <para>
-	On a fundamental level, GEM involves several operations:
-	<itemizedlist>
-	  <listitem>Memory allocation and freeing</listitem>
-	  <listitem>Command execution</listitem>
-	  <listitem>Aperture management at command execution time</listitem>
-	</itemizedlist>
-	Buffer object allocation is relatively straightforward and largely
+        On a fundamental level, GEM involves several operations:
+        <itemizedlist>
+          <listitem>Memory allocation and freeing</listitem>
+          <listitem>Command execution</listitem>
+          <listitem>Aperture management at command execution time</listitem>
+        </itemizedlist>
+        Buffer object allocation is relatively straightforward and largely
         provided by Linux's shmem layer, which provides memory to back each
         object.
       </para>
       <para>
         Device-specific operations, such as command execution, pinning, buffer
-	read &amp; write, mapping, and domain ownership transfers are left to
+        read &amp; write, mapping, and domain ownership transfers are left to
         driver-specific ioctls.
       </para>
       <sect3>
@@ -738,16 +738,16 @@ char *date;</synopsis>
           respectively. The conversion is handled by the DRM core without any
           driver-specific support.
         </para>
-	<para>
-	  GEM also supports buffer sharing with dma-buf file descriptors through
-	  PRIME. GEM-based drivers must use the provided helpers functions to
-	  implement the exporting and importing correctly. See <xref linkend="drm-prime-support" />.
-	  Since sharing file descriptors is inherently more secure than the
-	  easily guessable and global GEM names it is the preferred buffer
-	  sharing mechanism. Sharing buffers through GEM names is only supported
-	  for legacy userspace. Furthermore PRIME also allows cross-device
-	  buffer sharing since it is based on dma-bufs.
-	</para>
+        <para>
+          GEM also supports buffer sharing with dma-buf file descriptors through
+          PRIME. GEM-based drivers must use the provided helpers functions to
+          implement the exporting and importing correctly. See <xref linkend="drm-prime-support" />.
+          Since sharing file descriptors is inherently more secure than the
+          easily guessable and global GEM names it is the preferred buffer
+          sharing mechanism. Sharing buffers through GEM names is only supported
+          for legacy userspace. Furthermore PRIME also allows cross-device
+          buffer sharing since it is based on dma-bufs.
+        </para>
       </sect3>
       <sect3 id="drm-gem-objects-mapping">
         <title>GEM Objects Mapping</title>
@@ -852,7 +852,7 @@ char *date;</synopsis>
       <sect3>
         <title>Command Execution</title>
         <para>
-	  Perhaps the most important GEM function for GPU devices is providing a
+          Perhaps the most important GEM function for GPU devices is providing a
           command execution interface to clients. Client programs construct
           command buffers containing references to previously allocated memory
           objects, and then submit them to GEM. At that point, GEM takes care to
@@ -874,95 +874,101 @@ char *date;</synopsis>
         <title>GEM Function Reference</title>
 !Edrivers/gpu/drm/drm_gem.c
       </sect3>
-      </sect2>
-      <sect2>
-	<title>VMA Offset Manager</title>
+    </sect2>
+    <sect2>
+      <title>VMA Offset Manager</title>
 !Pdrivers/gpu/drm/drm_vma_manager.c vma offset manager
 !Edrivers/gpu/drm/drm_vma_manager.c
 !Iinclude/drm/drm_vma_manager.h
-      </sect2>
-      <sect2 id="drm-prime-support">
-	<title>PRIME Buffer Sharing</title>
-	<para>
-	  PRIME is the cross device buffer sharing framework in drm, originally
-	  created for the OPTIMUS range of multi-gpu platforms. To userspace
-	  PRIME buffers are dma-buf based file descriptors.
-	</para>
-	<sect3>
-	  <title>Overview and Driver Interface</title>
-	  <para>
-	    Similar to GEM global names, PRIME file descriptors are
-	    also used to share buffer objects across processes. They offer
-	    additional security: as file descriptors must be explicitly sent over
-	    UNIX domain sockets to be shared between applications, they can't be
-	    guessed like the globally unique GEM names.
-	  </para>
-	  <para>
-	    Drivers that support the PRIME
-	    API must set the DRIVER_PRIME bit in the struct
-	    <structname>drm_driver</structname>
-	    <structfield>driver_features</structfield> field, and implement the
-	    <methodname>prime_handle_to_fd</methodname> and
-	    <methodname>prime_fd_to_handle</methodname> operations.
-	  </para>
-	  <para>
-	    <synopsis>int (*prime_handle_to_fd)(struct drm_device *dev,
-			  struct drm_file *file_priv, uint32_t handle,
-			  uint32_t flags, int *prime_fd);
+    </sect2>
+    <sect2 id="drm-prime-support">
+      <title>PRIME Buffer Sharing</title>
+      <para>
+        PRIME is the cross device buffer sharing framework in drm, originally
+        created for the OPTIMUS range of multi-gpu platforms. To userspace
+        PRIME buffers are dma-buf based file descriptors.
+      </para>
+      <sect3>
+        <title>Overview and Driver Interface</title>
+        <para>
+          Similar to GEM global names, PRIME file descriptors are
+          also used to share buffer objects across processes. They offer
+          additional security: as file descriptors must be explicitly sent over
+          UNIX domain sockets to be shared between applications, they can't be
+          guessed like the globally unique GEM names.
+        </para>
+        <para>
+          Drivers that support the PRIME
+          API must set the DRIVER_PRIME bit in the struct
+          <structname>drm_driver</structname>
+          <structfield>driver_features</structfield> field, and implement the
+          <methodname>prime_handle_to_fd</methodname> and
+          <methodname>prime_fd_to_handle</methodname> operations.
+        </para>
+        <para>
+          <synopsis>int (*prime_handle_to_fd)(struct drm_device *dev,
+                          struct drm_file *file_priv, uint32_t handle,
+                          uint32_t flags, int *prime_fd);
 int (*prime_fd_to_handle)(struct drm_device *dev,
-			  struct drm_file *file_priv, int prime_fd,
-			  uint32_t *handle);</synopsis>
-	    Those two operations convert a handle to a PRIME file descriptor and
-	    vice versa. Drivers must use the kernel dma-buf buffer sharing framework
-	    to manage the PRIME file descriptors. Similar to the mode setting
-	    API PRIME is agnostic to the underlying buffer object manager, as
-	    long as handles are 32bit unsigned integers.
-	  </para>
-	  <para>
-	    While non-GEM drivers must implement the operations themselves, GEM
-	    drivers must use the <function>drm_gem_prime_handle_to_fd</function>
-	    and <function>drm_gem_prime_fd_to_handle</function> helper functions.
-	    Those helpers rely on the driver
-	    <methodname>gem_prime_export</methodname> and
-	    <methodname>gem_prime_import</methodname> operations to create a dma-buf
-	    instance from a GEM object (dma-buf exporter role) and to create a GEM
-	    object from a dma-buf instance (dma-buf importer role).
-	  </para>
-	  <para>
-	    <synopsis>struct dma_buf * (*gem_prime_export)(struct drm_device *dev,
-				     struct drm_gem_object *obj,
-				     int flags);
+                          struct drm_file *file_priv, int prime_fd,
+                          uint32_t *handle);</synopsis>
+            Those two operations convert a handle to a PRIME file descriptor and
+            vice versa. Drivers must use the kernel dma-buf buffer sharing framework
+            to manage the PRIME file descriptors. Similar to the mode setting
+            API PRIME is agnostic to the underlying buffer object manager, as
+            long as handles are 32bit unsigned integers.
+          </para>
+          <para>
+            While non-GEM drivers must implement the operations themselves, GEM
+            drivers must use the <function>drm_gem_prime_handle_to_fd</function>
+            and <function>drm_gem_prime_fd_to_handle</function> helper functions.
+            Those helpers rely on the driver
+            <methodname>gem_prime_export</methodname> and
+            <methodname>gem_prime_import</methodname> operations to create a dma-buf
+            instance from a GEM object (dma-buf exporter role) and to create a GEM
+            object from a dma-buf instance (dma-buf importer role).
+          </para>
+          <para>
+            <synopsis>struct dma_buf * (*gem_prime_export)(struct drm_device *dev,
+                             struct drm_gem_object *obj,
+                             int flags);
 struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
-					    struct dma_buf *dma_buf);</synopsis>
-	    These two operations are mandatory for GEM drivers that support
-	    PRIME.
-	  </para>
-	</sect3>
-        <sect3>
-          <title>PRIME Helper Functions</title>
-!Pdrivers/gpu/drm/drm_prime.c PRIME Helpers
+                                            struct dma_buf *dma_buf);</synopsis>
+            These two operations are mandatory for GEM drivers that support
+            PRIME.
+          </para>
         </sect3>
-      </sect2>
-      <sect2>
-	<title>PRIME Function References</title>
+      <sect3>
+        <title>PRIME Helper Functions</title>
+!Pdrivers/gpu/drm/drm_prime.c PRIME Helpers
+      </sect3>
+    </sect2>
+    <sect2>
+      <title>PRIME Function References</title>
 !Edrivers/gpu/drm/drm_prime.c
-      </sect2>
-      <sect2>
-	<title>DRM MM Range Allocator</title>
-	<sect3>
-	  <title>Overview</title>
+    </sect2>
+    <sect2>
+      <title>DRM MM Range Allocator</title>
+      <sect3>
+        <title>Overview</title>
 !Pdrivers/gpu/drm/drm_mm.c Overview
-	</sect3>
-	<sect3>
-	  <title>LRU Scan/Eviction Support</title>
+      </sect3>
+      <sect3>
+        <title>LRU Scan/Eviction Support</title>
 !Pdrivers/gpu/drm/drm_mm.c lru scan roaster
-	</sect3>
+      </sect3>
       </sect2>
-      <sect2>
-	<title>DRM MM Range Allocator Function References</title>
+    <sect2>
+      <title>DRM MM Range Allocator Function References</title>
 !Edrivers/gpu/drm/drm_mm.c
 !Iinclude/drm/drm_mm.h
-      </sect2>
+    </sect2>
+    <sect2>
+      <title>CMA Helper Functions Reference</title>
+!Pdrivers/gpu/drm/drm_gem_cma_helper.c cma helpers
+!Edrivers/gpu/drm/drm_gem_cma_helper.c
+!Iinclude/drm/drm_gem_cma_helper.h
+    </sect2>
   </sect1>
 
   <!-- Internals: mode setting -->
