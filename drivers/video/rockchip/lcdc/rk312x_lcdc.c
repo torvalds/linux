@@ -1043,9 +1043,10 @@ static void rk312x_lcdc_select_bcsh(struct rk_lcdc_driver *dev_drv,
 			     v_BCSH_Y2R_CSC_MODE(VOP_Y2R_CSC_MPEG) |
 			     v_BCSH_R2Y_EN(0));
 	} else {	/* overlay_mode=VOP_RGB_DOMAIN */
-		if (dev_drv->output_color == COLOR_RGB)	/* bypass */
+		if (dev_drv->output_color == COLOR_RGB) {
+			/* bypass */
 			bcsh_ctrl = lcdc_readl(lcdc_dev, BCSH_CTRL);
-			if(bcsh_ctrl&m_BCSH_EN==1)/*bcsh enabled*/
+			if ((bcsh_ctrl&m_BCSH_EN) == 1)/*bcsh enabled*/
 				lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
 				     	m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
 				     	v_BCSH_R2Y_EN(1) | v_BCSH_Y2R_EN(1));
@@ -1053,7 +1054,7 @@ static void rk312x_lcdc_select_bcsh(struct rk_lcdc_driver *dev_drv,
 				lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
 				     	m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
 				     	v_BCSH_R2Y_EN(0) | v_BCSH_Y2R_EN(0));
-		else	/* RGB2YUV */
+		} else	/* RGB2YUV */
 			lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
 				     m_BCSH_R2Y_EN |
 					m_BCSH_R2Y_CSC_MODE | m_BCSH_Y2R_EN,
