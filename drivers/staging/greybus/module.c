@@ -44,6 +44,17 @@ const struct greybus_module_id *gb_module_match_id(struct gb_module *gmod,
 	return NULL;
 }
 
+struct gb_module *gb_module_find(struct greybus_host_device *hd, u8 module_id)
+{
+	struct gb_module *module;
+
+	list_for_each_entry(module, &hd->modules, links)
+		if (module->module_id == module_id)
+			return module;
+
+	return NULL;
+}
+
 static void greybus_module_release(struct device *dev)
 {
 	struct gb_module *gmod = to_gb_module(dev);
@@ -130,17 +141,6 @@ void gb_module_destroy(struct gb_module *gmod)
 	/* kref_put(module->hd); */
 
 	device_del(&gmod->dev);
-}
-
-struct gb_module *gb_module_find(struct greybus_host_device *hd, u8 module_id)
-{
-	struct gb_module *module;
-
-	list_for_each_entry(module, &hd->modules, links)
-		if (module->module_id == module_id)
-			return module;
-
-	return NULL;
 }
 
 int
