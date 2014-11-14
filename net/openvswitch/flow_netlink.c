@@ -1425,10 +1425,8 @@ static int add_action(struct sw_flow_actions **sfa, int attrtype,
 	struct nlattr *a;
 
 	a = __add_action(sfa, attrtype, data, len, log);
-	if (IS_ERR(a))
-		return PTR_ERR(a);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(a);
 }
 
 static inline int add_nested_action_start(struct sw_flow_actions **sfa,
