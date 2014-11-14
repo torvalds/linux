@@ -757,13 +757,10 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 {
 	struct drm_crtc *crtc = NULL;
 	struct mdp4_crtc *mdp4_crtc;
-	int ret;
 
 	mdp4_crtc = kzalloc(sizeof(*mdp4_crtc), GFP_KERNEL);
-	if (!mdp4_crtc) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!mdp4_crtc)
+		return ERR_PTR(-ENOMEM);
 
 	crtc = &mdp4_crtc->base;
 
@@ -784,12 +781,9 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 
 	spin_lock_init(&mdp4_crtc->cursor.lock);
 
-	ret = drm_flip_work_init(&mdp4_crtc->unref_fb_work, 16,
+	drm_flip_work_init(&mdp4_crtc->unref_fb_work,
 			"unref fb", unref_fb_worker);
-	if (ret)
-		goto fail;
-
-	ret = drm_flip_work_init(&mdp4_crtc->unref_cursor_work, 64,
+	drm_flip_work_init(&mdp4_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);
 
 	INIT_FENCE_CB(&mdp4_crtc->pageflip_cb, pageflip_cb);
@@ -800,10 +794,4 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	mdp4_plane_install_properties(mdp4_crtc->plane, &crtc->base);
 
 	return crtc;
-
-fail:
-	if (crtc)
-		mdp4_crtc_destroy(crtc);
-
-	return ERR_PTR(ret);
 }

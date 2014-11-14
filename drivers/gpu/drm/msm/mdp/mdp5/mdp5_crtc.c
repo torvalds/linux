@@ -534,13 +534,10 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 {
 	struct drm_crtc *crtc = NULL;
 	struct mdp5_crtc *mdp5_crtc;
-	int ret;
 
 	mdp5_crtc = kzalloc(sizeof(*mdp5_crtc), GFP_KERNEL);
-	if (!mdp5_crtc) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!mdp5_crtc)
+		return ERR_PTR(-ENOMEM);
 
 	crtc = &mdp5_crtc->base;
 
@@ -553,10 +550,8 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 	snprintf(mdp5_crtc->name, sizeof(mdp5_crtc->name), "%s:%d",
 			pipe2name(mdp5_plane_pipe(plane)), id);
 
-	ret = drm_flip_work_init(&mdp5_crtc->unref_fb_work, 16,
+	drm_flip_work_init(&mdp5_crtc->unref_fb_work,
 			"unref fb", unref_fb_worker);
-	if (ret)
-		goto fail;
 
 	INIT_FENCE_CB(&mdp5_crtc->pageflip_cb, pageflip_cb);
 
@@ -566,10 +561,4 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 	mdp5_plane_install_properties(mdp5_crtc->plane, &crtc->base);
 
 	return crtc;
-
-fail:
-	if (crtc)
-		mdp5_crtc_destroy(crtc);
-
-	return ERR_PTR(ret);
 }

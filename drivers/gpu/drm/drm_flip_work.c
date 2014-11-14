@@ -136,16 +136,12 @@ static void flip_worker(struct work_struct *w)
 /**
  * drm_flip_work_init - initialize flip-work
  * @work: the flip-work to initialize
- * @size: the max queue depth
  * @name: debug name
  * @func: the callback work function
  *
  * Initializes/allocates resources for the flip-work
- *
- * RETURNS:
- * Zero on success, error code on failure.
  */
-int drm_flip_work_init(struct drm_flip_work *work, int size,
+void drm_flip_work_init(struct drm_flip_work *work,
 		const char *name, drm_flip_func_t func)
 {
 	work->name = name;
@@ -155,8 +151,6 @@ int drm_flip_work_init(struct drm_flip_work *work, int size,
 	work->func = func;
 
 	INIT_WORK(&work->worker, flip_worker);
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_flip_work_init);
 

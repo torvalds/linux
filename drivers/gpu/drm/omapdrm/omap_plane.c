@@ -394,14 +394,10 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 
 	omap_plane = kzalloc(sizeof(*omap_plane), GFP_KERNEL);
 	if (!omap_plane)
-		goto fail;
+		return NULL;
 
-	ret = drm_flip_work_init(&omap_plane->unpin_work, 16,
+	drm_flip_work_init(&omap_plane->unpin_work,
 			"unpin", unpin_worker);
-	if (ret) {
-		dev_err(dev->dev, "could not allocate unpin FIFO\n");
-		goto fail;
-	}
 
 	omap_plane->nformats = omap_framebuffer_get_formats(
 			omap_plane->formats, ARRAY_SIZE(omap_plane->formats),
@@ -443,10 +439,4 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 		omap_plane->info.zorder = id;
 
 	return plane;
-
-fail:
-	if (plane)
-		omap_plane_destroy(plane);
-
-	return NULL;
 }

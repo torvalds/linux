@@ -85,7 +85,7 @@ void drm_flip_work_queue_task(struct drm_flip_work *work,
 void drm_flip_work_queue(struct drm_flip_work *work, void *val);
 void drm_flip_work_commit(struct drm_flip_work *work,
 		struct workqueue_struct *wq);
-int drm_flip_work_init(struct drm_flip_work *work, int size,
+void drm_flip_work_init(struct drm_flip_work *work,
 		const char *name, drm_flip_func_t func);
 void drm_flip_work_cleanup(struct drm_flip_work *work);
 
