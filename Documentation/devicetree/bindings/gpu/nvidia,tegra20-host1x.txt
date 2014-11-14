@@ -191,6 +191,8 @@ of the following host1x client modules:
   - nvidia,hpd-gpio: specifies a GPIO used for hotplug detection
   - nvidia,edid: supplies a binary EDID blob
   - nvidia,panel: phandle of a display panel
+  - nvidia,ganged-mode: contains a phandle to a second DSI controller to gang
+    up with in order to support up to 8 data lanes
 
 - sor: serial output resource
 
