@@ -727,6 +727,12 @@ static __be16 fm10k_tx_encap_offload(struct sk_buff *skb)
 	struct ethhdr *eth_hdr;
 	u8 l4_hdr = 0;
 
+/* fm10k supports 184 octets of outer+inner headers. Minus 20 for inner L4. */
+#define FM10K_MAX_ENCAP_TRANSPORT_OFFSET	164
+	if (skb_inner_transport_header(skb) - skb_mac_header(skb) >
+	    FM10K_MAX_ENCAP_TRANSPORT_OFFSET)
+		return 0;
+
 	switch (vlan_get_protocol(skb)) {
 	case htons(ETH_P_IP):
 		l4_hdr = ip_hdr(skb)->protocol;
