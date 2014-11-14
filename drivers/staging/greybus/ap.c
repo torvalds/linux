@@ -146,7 +146,7 @@ static void svc_management(struct svc_function_unipro_management *management,
 				management->link_up.module_id);
 			return;
 		}
-		ret = gb_module_interface_init(module,
+		ret = gb_interface_init(module,
 				management->link_up.interface_id,
 				management->link_up.device_id);
 		if (ret)

@@ -24,6 +24,7 @@ struct gb_interface {
 
 struct gb_interface *gb_interface_create(struct gb_module *gmod, u8 module_id);
 void gb_interface_destroy(struct gb_module *gmod);
+int gb_interface_init(struct gb_module *gmod, u8 module_id, u8 device_id);
 
 struct gb_interface *gb_interface_find(struct gb_module *gmod, u8 interface_id);
 

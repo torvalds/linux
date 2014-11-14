@@ -201,34 +201,3 @@ void gb_remove_modules(struct greybus_host_device *hd)
 	list_for_each_entry_safe(gmod, temp, &hd->modules, links)
 		gb_module_destroy(gmod);
 }
-
-int
-gb_module_interface_init(struct gb_module *gmod, u8 interface_id, u8 device_id)
-{
-	struct gb_interface *interface;
-	int ret;
-
-	interface = gb_interface_find(gmod, interface_id);
-	if (!interface) {
-		dev_err(gmod->hd->parent, "module %hhu not found\n",
-			interface_id);
-		return -ENOENT;
-	}
-	interface->device_id = device_id;
-
-	ret = svc_set_route_send(interface, gmod->hd);
-	if (ret) {
-		dev_err(gmod->hd->parent, "failed to set route (%d)\n", ret);
-		return ret;
-	}
-
-	ret = gb_interface_connections_init(interface);
-	if (ret) {
-		dev_err(gmod->hd->parent, "module interface init error %d\n",
-			ret);
-		/* XXX clear route */
-		return ret;
-	}
-
-	return 0;
-}

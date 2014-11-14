@@ -111,6 +111,36 @@ void gb_interface_destroy(struct gb_module *gmod)
 	spin_unlock_irq(&gb_interfaces_lock);
 }
 
+int gb_interface_init(struct gb_module *gmod, u8 interface_id, u8 device_id)
+{
+	struct gb_interface *interface;
+	int ret;
+
+	interface = gb_interface_find(gmod, interface_id);
+	if (!interface) {
+		dev_err(gmod->hd->parent, "module %hhu not found\n",
+			interface_id);
+		return -ENOENT;
+	}
+	interface->device_id = device_id;
+
+	ret = svc_set_route_send(interface, gmod->hd);
+	if (ret) {
+		dev_err(gmod->hd->parent, "failed to set route (%d)\n", ret);
+		return ret;
+	}
+
+	ret = gb_interface_connections_init(interface);
+	if (ret) {
+		dev_err(gmod->hd->parent, "module interface init error %d\n",
+			ret);
+		/* XXX clear route */
+		return ret;
+	}
+
+	return 0;
+}
+
 struct gb_interface *gb_interface_find(struct gb_module *module,
 				      u8 interface_id)
 {
