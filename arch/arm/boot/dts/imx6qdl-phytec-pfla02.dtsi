@@ -283,6 +283,10 @@
 			>;
 		};
 
+		pinctrl_pcie: pciegrp {
+			fsl,pins = <MX6QDL_PAD_DI0_PIN15__GPIO4_IO17  0x80000000>;
+		};
+
 		pinctrl_uart3: uart3grp {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D24__UART3_TX_DATA	0x1b0b1
@@ -351,6 +355,13 @@
 			>;
 		};
 	};
+};
+
+&pcie {
+	pinctrl-name = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio4 17 0>;
+	status = "disabled";
 };
 
 &uart3 {

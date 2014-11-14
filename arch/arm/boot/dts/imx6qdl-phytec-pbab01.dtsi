@@ -144,6 +144,10 @@
 	status = "okay";
 };
 
+&pcie {
+	status = "okay";
+};
+
 &ssi2 {
 	status = "okay";
 };
