@@ -1436,20 +1436,17 @@ static bool ixgbe_alloc_mapped_page(struct ixgbe_ring *rx_ring,
 				    struct ixgbe_rx_buffer *bi)
 {
 	struct page *page = bi->page;
-	dma_addr_t dma = bi->dma;
+	dma_addr_t dma;
 
 	/* since we are recycling buffers we should seldom need to alloc */
-	if (likely(dma))
+	if (likely(page))
 		return true;
 
 	/* alloc new page for storage */
-	if (likely(!page)) {
-		page = dev_alloc_pages(ixgbe_rx_pg_order(rx_ring));
-		if (unlikely(!page)) {
-			rx_ring->rx_stats.alloc_rx_page_failed++;
-			return false;
-		}
-		bi->page = page;
+	page = dev_alloc_pages(ixgbe_rx_pg_order(rx_ring));
+	if (unlikely(!page)) {
+		rx_ring->rx_stats.alloc_rx_page_failed++;
+		return false;
 	}
 
 	/* map page for use */
@@ -1462,13 +1459,13 @@ static bool ixgbe_alloc_mapped_page(struct ixgbe_ring *rx_ring,
 	 */
 	if (dma_mapping_error(rx_ring->dev, dma)) {
 		__free_pages(page, ixgbe_rx_pg_order(rx_ring));
-		bi->page = NULL;
 
 		rx_ring->rx_stats.alloc_rx_page_failed++;
 		return false;
 	}
 
 	bi->dma = dma;
+	bi->page = page;
 	bi->page_offset = 0;
 
 	return true;
@@ -1512,8 +1509,8 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_ring *rx_ring, u16 cleaned_count)
 			i -= rx_ring->count;
 		}
 
-		/* clear the hdr_addr for the next_to_use descriptor */
-		rx_desc->read.hdr_addr = 0;
+		/* clear the status bits for the next_to_use descriptor */
+		rx_desc->wb.upper.status_error = 0;
 
 		cleaned_count--;
 	} while (cleaned_count);
@@ -1798,15 +1795,18 @@ static void ixgbe_reuse_rx_page(struct ixgbe_ring *rx_ring,
 	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
 
 	/* transfer page from old buffer to new buffer */
-	new_buff->page = old_buff->page;
-	new_buff->dma = old_buff->dma;
-	new_buff->page_offset = old_buff->page_offset;
+	*new_buff = *old_buff;
 
 	/* sync the buffer for use by the device */
 	dma_sync_single_range_for_device(rx_ring->dev, new_buff->dma,
 					 new_buff->page_offset,
 					 ixgbe_rx_bufsz(rx_ring),
 					 DMA_FROM_DEVICE);
+}
+
+static inline bool ixgbe_page_is_reserved(struct page *page)
+{
+	return (page_to_nid(page) != numa_mem_id()) || page->pfmemalloc;
 }
 
 /**
@@ -1844,12 +1844,12 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 
 		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
 
-		/* we can reuse buffer as-is, just make sure it is local */
-		if (likely(page_to_nid(page) == numa_node_id()))
+		/* page is not reserved, we can reuse buffer as-is */
+		if (likely(!ixgbe_page_is_reserved(page)))
 			return true;
 
 		/* this page cannot be reused so discard it */
-		put_page(page);
+		__free_pages(page, ixgbe_rx_pg_order(rx_ring));
 		return false;
 	}
 
@@ -1857,7 +1857,7 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 			rx_buffer->page_offset, size, truesize);
 
 	/* avoid re-using remote pages */
-	if (unlikely(page_to_nid(page) != numa_node_id()))
+	if (unlikely(ixgbe_page_is_reserved(page)))
 		return false;
 
 #if (PAGE_SIZE < 8192)
@@ -1867,21 +1867,18 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 
 	/* flip page offset to other buffer */
 	rx_buffer->page_offset ^= truesize;
-
-	/* Even if we own the page, we are not allowed to use atomic_set()
-	 * This would break get_page_unless_zero() users.
-	 */
-	atomic_inc(&page->_count);
 #else
 	/* move offset up to the next cache line */
 	rx_buffer->page_offset += truesize;
 
 	if (rx_buffer->page_offset > last_offset)
 		return false;
-
-	/* bump ref count on page before it is given to the stack */
-	get_page(page);
 #endif
+
+	/* Even if we own the page, we are not allowed to use atomic_set()
+	 * This would break get_page_unless_zero() users.
+	 */
+	atomic_inc(&page->_count);
 
 	return true;
 }
@@ -1945,6 +1942,8 @@ dma_sync:
 					      rx_buffer->page_offset,
 					      ixgbe_rx_bufsz(rx_ring),
 					      DMA_FROM_DEVICE);
+
+		rx_buffer->skb = NULL;
 	}
 
 	/* pull page into skb */
@@ -1962,8 +1961,6 @@ dma_sync:
 	}
 
 	/* clear contents of buffer_info */
-	rx_buffer->skb = NULL;
-	rx_buffer->dma = 0;
 	rx_buffer->page = NULL;
 
 	return skb;
@@ -4344,29 +4341,26 @@ static void ixgbe_clean_rx_ring(struct ixgbe_ring *rx_ring)
 
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
-		struct ixgbe_rx_buffer *rx_buffer;
+		struct ixgbe_rx_buffer *rx_buffer = &rx_ring->rx_buffer_info[i];
 
-		rx_buffer = &rx_ring->rx_buffer_info[i];
 		if (rx_buffer->skb) {
 			struct sk_buff *skb = rx_buffer->skb;
-			if (IXGBE_CB(skb)->page_released) {
+			if (IXGBE_CB(skb)->page_released)
 				dma_unmap_page(dev,
 					       IXGBE_CB(skb)->dma,
 					       ixgbe_rx_bufsz(rx_ring),
 					       DMA_FROM_DEVICE);
-				IXGBE_CB(skb)->page_released = false;
-			}
 			dev_kfree_skb(skb);
 			rx_buffer->skb = NULL;
 		}
-		if (rx_buffer->dma)
-			dma_unmap_page(dev, rx_buffer->dma,
-				       ixgbe_rx_pg_size(rx_ring),
-				       DMA_FROM_DEVICE);
-		rx_buffer->dma = 0;
-		if (rx_buffer->page)
-			__free_pages(rx_buffer->page,
-				     ixgbe_rx_pg_order(rx_ring));
+
+		if (!rx_buffer->page)
+			continue;
+
+		dma_unmap_page(dev, rx_buffer->dma,
+			       ixgbe_rx_pg_size(rx_ring), DMA_FROM_DEVICE);
+		__free_pages(rx_buffer->page, ixgbe_rx_pg_order(rx_ring));
+
 		rx_buffer->page = NULL;
 	}
 
