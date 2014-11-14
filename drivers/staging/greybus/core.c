@@ -32,7 +32,7 @@ EXPORT_SYMBOL_GPL(greybus_disabled);
 
 static int greybus_module_match(struct device *dev, struct device_driver *drv)
 {
-	struct greybus_driver *driver = to_greybus_driver(dev->driver);
+	struct greybus_driver *driver = to_greybus_driver(drv);
 	struct gb_module *gmod = to_gb_module(dev);
 	const struct greybus_module_id *id;
 
