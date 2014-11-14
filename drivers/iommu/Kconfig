@@ -330,13 +330,13 @@ config SPAPR_TCE_IOMMU
 
 config ARM_SMMU
 	bool "ARM Ltd. System MMU (SMMU) Support"
-	depends on ARM64 || (ARM_LPAE && OF)
+	depends on ARM64 || ARM
 	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU if ARM
 	help
 	  Support for implementations of the ARM System MMU architecture
-	  versions 1 and 2. The driver supports both v7l and v8l table
-	  formats with 4k and 64k page sizes.
+	  versions 1 and 2.
 
 	  Say Y here if your SoC includes an IOMMU device implementing
 	  the ARM SMMU architecture.
