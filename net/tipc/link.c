@@ -224,9 +224,10 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 	char addr_string[16];
 	u32 peer = n_ptr->addr;
 
-	if (n_ptr->link_cnt >= 2) {
+	if (n_ptr->link_cnt >= MAX_BEARERS) {
 		tipc_addr_string_fill(addr_string, n_ptr->addr);
-		pr_err("Attempt to establish third link to %s\n", addr_string);
+		pr_err("Attempt to establish %uth link to %s. Max %u allowed.\n",
+			n_ptr->link_cnt, addr_string, MAX_BEARERS);
 		return NULL;
 	}
 
