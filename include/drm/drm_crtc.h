@@ -197,7 +197,7 @@ struct drm_framebuffer {
 struct drm_property_blob {
 	struct drm_mode_object base;
 	struct list_head head;
-	unsigned int length;
+	size_t length;
 	unsigned char data[];
 };
 
@@ -1162,9 +1162,9 @@ extern void drm_mode_config_reset(struct drm_device *dev);
 extern void drm_mode_config_cleanup(struct drm_device *dev);
 
 extern int drm_mode_connector_set_path_property(struct drm_connector *connector,
-						char *path);
+						const char *path);
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
-						struct edid *edid);
+						   const struct edid *edid);
 
 static inline bool drm_property_type_is(struct drm_property *property,
 		uint32_t type)
@@ -1225,8 +1225,9 @@ extern void drm_property_destroy(struct drm_device *dev, struct drm_property *pr
 extern int drm_property_add_enum(struct drm_property *property, int index,
 				 uint64_t value, const char *name);
 extern int drm_mode_create_dvi_i_properties(struct drm_device *dev);
-extern int drm_mode_create_tv_properties(struct drm_device *dev, int num_formats,
-				     char *formats[]);
+extern int drm_mode_create_tv_properties(struct drm_device *dev,
+					 unsigned int num_modes,
+					 char *modes[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);

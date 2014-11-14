@@ -1386,12 +1386,13 @@ EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
  * responsible for allocating a list of format names and passing them to
  * this routine.
  */
-int drm_mode_create_tv_properties(struct drm_device *dev, int num_modes,
+int drm_mode_create_tv_properties(struct drm_device *dev,
+				  unsigned int num_modes,
 				  char *modes[])
 {
 	struct drm_property *tv_selector;
 	struct drm_property *tv_subconnector;
-	int i;
+	unsigned int i;
 
 	if (dev->mode_config.tv_select_subconnector_property)
 		return 0;
@@ -2260,7 +2261,7 @@ static int __setplane_internal(struct drm_plane *plane,
 {
 	int ret = 0;
 	unsigned int fb_width, fb_height;
-	int i;
+	unsigned int i;
 
 	/* No fb means shut it down */
 	if (!fb) {
@@ -3911,8 +3912,9 @@ done:
 	return ret;
 }
 
-static struct drm_property_blob *drm_property_create_blob(struct drm_device *dev, int length,
-							  void *data)
+static struct drm_property_blob *
+drm_property_create_blob(struct drm_device *dev, size_t length,
+			 const void *data)
 {
 	struct drm_property_blob *blob;
 	int ret;
@@ -4006,11 +4008,11 @@ done:
  * Zero on success, errno on failure.
  */
 int drm_mode_connector_set_path_property(struct drm_connector *connector,
-					 char *path)
+					 const char *path)
 {
 	struct drm_device *dev = connector->dev;
-	int ret, size;
-	size = strlen(path) + 1;
+	size_t size = strlen(path) + 1;
+	int ret;
 
 	connector->path_blob_ptr = drm_property_create_blob(connector->dev,
 							    size, path);
@@ -4036,10 +4038,11 @@ EXPORT_SYMBOL(drm_mode_connector_set_path_property);
  * Zero on success, errno on failure.
  */
 int drm_mode_connector_update_edid_property(struct drm_connector *connector,
-					    struct edid *edid)
+					    const struct edid *edid)
 {
 	struct drm_device *dev = connector->dev;
-	int ret, size;
+	size_t size;
+	int ret;
 
 	/* ignore requests to set edid when overridden */
 	if (connector->override_edid)

@@ -669,7 +669,7 @@ int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
  * the driver is responsible for mapping the pages into the
  * importers address space for use with dma_buf itself.
  */
-struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages)
+struct sg_table *drm_prime_pages_to_sg(struct page **pages, unsigned int nr_pages)
 {
 	struct sg_table *sg = NULL;
 	int ret;
