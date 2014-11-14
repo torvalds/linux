@@ -1074,6 +1074,12 @@
 				clocks = <&clk32k>;
 				status = "disabled";
 			};
+
+			gpbr: syscon@fffffd60 {
+				compatible = "atmel,at91sam9260-gpbr", "syscon";
+				reg = <0xfffffd60 0x10>;
+				status = "disabled";
+			};
 		};
 	};
 

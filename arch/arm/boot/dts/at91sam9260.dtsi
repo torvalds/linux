@@ -974,6 +974,12 @@
 				atmel,idle-halt;
 				status = "disabled";
 			};
+
+			gpbr: syscon@fffffd50 {
+				compatible = "atmel,at91sam9260-gpbr", "syscon";
+				reg = <0xfffffd50 0x10>;
+				status = "disabled";
+			};
 		};
 
 		nand0: nand@40000000 {

@@ -939,6 +939,12 @@
 				clocks = <&slow_xtal>;
 				status = "disabled";
 			};
+
+			gpbr: syscon@fffffd60 {
+				compatible = "atmel,at91sam9260-gpbr", "syscon";
+				reg = <0xfffffd60 0x50>;
+				status = "disabled";
+			};
 		};
 
 		fb0: fb@0x00700000 {
