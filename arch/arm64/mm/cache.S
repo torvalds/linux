@@ -20,6 +20,8 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
+#include <asm/cpufeature.h>
+#include <asm/alternative-asm.h>
 
 #include "proc-macros.S"
 
@@ -210,7 +212,7 @@ __dma_clean_range:
 	dcache_line_size x2, x3
 	sub	x3, x2, #1
 	bic	x0, x0, x3
-1:	dc	cvac, x0			// clean D / U line
+1:	alternative_insn "dc cvac, x0", "dc civac, x0", ARM64_WORKAROUND_CLEAN_CACHE
 	add	x0, x0, x2
 	cmp	x0, x1
 	b.lo	1b
