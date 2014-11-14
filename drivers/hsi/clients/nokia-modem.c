@@ -164,9 +164,9 @@ static int nokia_modem_probe(struct device *dev)
 	dev_set_drvdata(dev, modem);
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq < 0) {
+	if (!irq) {
 		dev_err(dev, "Invalid rst_ind interrupt (%d)\n", irq);
-		return irq;
+		return -EINVAL;
 	}
 	modem->nokia_modem_rst_ind_irq = irq;
 	pflags = irq_get_trigger_type(irq);
