@@ -54,8 +54,7 @@ static void release_manifest_descriptors(void)
  * Returns the number of bytes consumed by the descriptor, or a
  * negative errno.
  */
-static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
-			       bool *is_module)
+static int identify_descriptor(struct greybus_descriptor *desc, size_t size)
 {
 	struct greybus_descriptor_header *desc_header = &desc->header;
 	struct manifest_desc *descriptor;
@@ -80,7 +79,6 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
 				desc_size);
 			return -EINVAL;
 		}
-		*is_module = true;
 		break;
 	case GREYBUS_TYPE_STRING:
 		expected_size = sizeof(struct greybus_descriptor_header);
@@ -311,7 +309,7 @@ out_free_vendor_string:
  * the descriptors it contains, keeping track for each its type
  * and the location size of its data in the buffer.
  *
- * We also identify the module descriptor during this iteration,
+ * Next we scan the descriptors, looking for a module descriptor;
  * there must be exactly one of those.  When found, we record the
  * information it contains, and then remove that descriptor (and any
  * string descriptors it refers to) from further consideration.
@@ -365,9 +363,8 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 	size -= sizeof(*header);
 	while (size) {
 		int desc_size;
-		bool is_module = false;
 
-		desc_size = identify_descriptor(desc, size, &is_module);
+		desc_size = identify_descriptor(desc, size);
 		if (desc_size <= 0) {
 			if (!desc_size)
 				pr_err("zero-sized manifest descriptor\n");
@@ -376,17 +373,19 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 		}
 		desc = (struct greybus_descriptor *)((char *)desc + desc_size);
 		size -= desc_size;
+	}
 
-		if (is_module) {
-			if (++found > 1) {
-				pr_err("manifest must have 1 module descriptor (%u found)\n",
-					found);
-				result = false;
-				goto out;
-			} else {
+	/* There must be a single module descriptor */
+	list_for_each_entry(descriptor, &manifest_descs, links) {
+		if (descriptor->type == GREYBUS_TYPE_MODULE)
+			if (!found++)
 				module_desc = descriptor;
-			}
-		}
+	}
+	if (found != 1) {
+		pr_err("manifest must have 1 module descriptor (%u found)\n",
+			found);
+		result = false;
+		goto out;
 	}
 
 	/* Parse the module manifest, starting with the module descriptor */
