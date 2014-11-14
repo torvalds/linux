@@ -38,6 +38,10 @@ struct crypto_ahash;
  *	       will save the partial state of the transformation into it. On the
  *	       other side, the @import function will load the state from a
  *	       buffer of this size as well.
+ * @base: Start of data structure of cipher algorithm. The common data
+ *	  structure of crypto_alg contains information common to all ciphers.
+ *	  The hash_alg_common data structure now adds the hash-specific
+ *	  information.
  */
 struct hash_alg_common {
 	unsigned int digestsize;
@@ -114,6 +118,7 @@ struct ahash_request {
  *	    entire state of the ongoing transformation from a provided block of
  *	    data so the transformation can continue from this point onward. No
  *	    data processing happens at this point.
+ * @halg: see struct hash_alg_common
  */
 struct ahash_alg {
 	int (*init)(struct ahash_request *req);
@@ -153,7 +158,7 @@ struct shash_desc {
  * @setkey: see struct ahash_alg
  * @digestsize: see struct ahash_alg
  * @statesize: see struct ahash_alg
- * @dedcsize: Size of the operational state for the message digest. This state
+ * @descsize: Size of the operational state for the message digest. This state
  * 	      size is the memory size that needs to be allocated for
  *	      shash_desc.__ctx
  * @base: internally used
