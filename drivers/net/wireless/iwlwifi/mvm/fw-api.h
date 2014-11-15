@@ -201,6 +201,8 @@ enum {
 	/* Power - new power table command */
 	MAC_PM_POWER_TABLE = 0xa9,
 
+	MFUART_LOAD_NOTIFICATION = 0xb1,
+
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
 	BA_NOTIF = 0xc5,
@@ -1210,6 +1212,21 @@ struct iwl_missed_beacons_notif {
 	__le32 num_expected_beacons;
 	__le32 num_recvd_beacons;
 } __packed; /* MISSED_BEACON_NTFY_API_S_VER_3 */
+
+/**
+ * struct iwl_mfuart_load_notif - mfuart image version & status
+ * ( MFUART_LOAD_NOTIFICATION = 0xb1 )
+ * @installed_ver: installed image version
+ * @external_ver: external image version
+ * @status: MFUART loading status
+ * @duration: MFUART loading time
+*/
+struct iwl_mfuart_load_notif {
+	__le32 installed_ver;
+	__le32 external_ver;
+	__le32 status;
+	__le32 duration;
+} __packed; /*MFU_LOADER_NTFY_API_S_VER_1*/
 
 /**
  * struct iwl_set_calib_default_cmd - set default value for calibration.
