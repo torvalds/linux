@@ -62,7 +62,7 @@ static void greybus_module_release(struct device *dev)
 	kfree(gmod);
 }
 
-static struct device_type greybus_module_type = {
+struct device_type greybus_module_type = {
 	.name =		"greybus_module",
 	.release =	greybus_module_release,
 };

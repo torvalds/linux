@@ -31,7 +31,7 @@ static void gb_interface_release(struct device *dev)
 	kfree(interface);
 }
 
-static struct device_type greybus_interface_type = {
+struct device_type greybus_interface_type = {
 	.name =		"greybus_interface",
 	.release =	gb_interface_release,
 };

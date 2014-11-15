@@ -135,7 +135,7 @@ static void gb_connection_release(struct device *dev)
 	kfree(connection);
 }
 
-static struct device_type greybus_connection_type = {
+struct device_type greybus_connection_type = {
 	.name =		"greybus_connection",
 	.release =	gb_connection_release,
 };

@@ -259,5 +259,24 @@ void gb_uart_device_exit(struct gb_connection *connection);
 int svc_set_route_send(struct gb_interface *interface,
 			       struct greybus_host_device *hd);
 
+extern struct device_type greybus_module_type;
+extern struct device_type greybus_interface_type;
+extern struct device_type greybus_connection_type;
+
+static inline int is_gb_module(const struct device *dev)
+{
+	return dev->type == &greybus_module_type;
+}
+
+static inline int is_gb_interface(const struct device *dev)
+{
+	return dev->type == &greybus_interface_type;
+}
+
+static inline int is_gb_connection(const struct device *dev)
+{
+	return dev->type == &greybus_connection_type;
+}
+
 #endif /* __KERNEL__ */
 #endif /* __LINUX_GREYBUS_H */
