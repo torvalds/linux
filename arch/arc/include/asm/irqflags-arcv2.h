@@ -64,6 +64,11 @@ static inline void arch_local_irq_restore(unsigned long flags)
  */
 static inline void arch_local_irq_enable(void)
 {
+	unsigned int irqact = read_aux_reg(AUX_IRQ_ACT);
+
+	if (irqact & 0xffff)
+		write_aux_reg(AUX_IRQ_ACT, irqact & ~0xffff);
+
 	__asm__ __volatile__("	seti	\n" : : : "memory");
 }
 
