@@ -2707,7 +2707,7 @@ static int __exit bcm2048_i2c_driver_remove(struct i2c_client *client)
  *	bcm2048_i2c_driver - i2c driver interface
  */
 static const struct i2c_device_id bcm2048_id[] = {
-	{ "bcm2048" , 0 },
+	{ "bcm2048", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, bcm2048_id);
