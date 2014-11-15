@@ -363,13 +363,13 @@ static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *d
 		input_report_abs(dev, ABS_X,
 				 (__s16) le16_to_cpup((__le16 *)(data + 12)));
 		input_report_abs(dev, ABS_Y,
-				 ~(__s16) le16_to_cpup((__le16 *)(data + 14)));
+				 (~(__s16) le16_to_cpup((__le16 *)(data + 14))) + 1 );
 
 		/* right stick */
 		input_report_abs(dev, ABS_RX,
 				 (__s16) le16_to_cpup((__le16 *)(data + 16)));
 		input_report_abs(dev, ABS_RY,
-				 ~(__s16) le16_to_cpup((__le16 *)(data + 18)));
+				 (~(__s16) le16_to_cpup((__le16 *)(data + 18))) + 1 );
 	}
 
 	/* triggers left/right */
