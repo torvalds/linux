@@ -13,6 +13,9 @@
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
 
+/* Temparory solution for building, will be removed later */
+#include <linux/pci.h>
+
 #ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
 /**
  * msi_domain_set_affinity - Generic affinity setter function for MSI domains
@@ -124,6 +127,78 @@ struct irq_domain *msi_create_irq_domain(struct device_node *of_node,
 		domain->parent = parent;
 
 	return domain;
+}
+
+/**
+ * msi_domain_alloc_irqs - Allocate interrupts from a MSI interrupt domain
+ * @domain:	The domain to allocate from
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are allocated
+ * @nvec:	The number of interrupts to allocate
+ *
+ * Returns 0 on success or an error code.
+ */
+int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
+			  int nvec)
+{
+	struct msi_domain_info *info = domain->host_data;
+	struct msi_domain_ops *ops = info->ops;
+	msi_alloc_info_t arg;
+	struct msi_desc *desc;
+	int i, ret, virq = -1;
+
+	ret = ops->msi_check(domain, info, dev);
+	if (ret == 0)
+		ret = ops->msi_prepare(domain, dev, nvec, &arg);
+	if (ret)
+		return ret;
+
+	for_each_msi_entry(desc, dev) {
+		ops->set_desc(&arg, desc);
+
+		virq = __irq_domain_alloc_irqs(domain, -1, desc->nvec_used,
+					       dev_to_node(dev), &arg, false);
+		if (virq < 0) {
+			ret = -ENOSPC;
+			if (ops->handle_error)
+				ret = ops->handle_error(domain, desc, ret);
+			if (ops->msi_finish)
+				ops->msi_finish(&arg, ret);
+			return ret;
+		}
+
+		for (i = 0; i < desc->nvec_used; i++)
+			irq_set_msi_desc_off(virq, i, desc);
+	}
+
+	if (ops->msi_finish)
+		ops->msi_finish(&arg, 0);
+
+	for_each_msi_entry(desc, dev) {
+		if (desc->nvec_used == 1)
+			dev_dbg(dev, "irq %d for MSI\n", virq);
+		else
+			dev_dbg(dev, "irq [%d-%d] for MSI\n",
+				virq, virq + desc->nvec_used - 1);
+	}
+
+	return 0;
+}
+
+/**
+ * msi_domain_free_irqs - Free interrupts from a MSI interrupt @domain associated tp @dev
+ * @domain:	The domain to managing the interrupts
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are free
+ */
+void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
+{
+	struct msi_desc *desc;
+
+	for_each_msi_entry(desc, dev) {
+		irq_domain_free_irqs(desc->irq, desc->nvec_used);
+		desc->irq = 0;
+	}
 }
 
 /**
