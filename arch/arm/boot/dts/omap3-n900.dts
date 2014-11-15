@@ -567,6 +567,16 @@
 		power-gpio = <&gpio4 2 GPIO_ACTIVE_HIGH>; /* 98 */
 	};
 
+	si4713: si4713@63 {
+		compatible = "silabs,si4713";
+                reg = <0x63>;
+
+                interrupts-extended = <&gpio2 21 IRQ_TYPE_EDGE_FALLING>; /* 53 */
+                reset-gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>; /* 163 */
+                vio-supply = <&vio>;
+                vdd-supply = <&vaux1>;
+	};
+
 	bq24150a: bq24150a@6b {
 		compatible = "ti,bq24150a";
 		reg = <0x6b>;
