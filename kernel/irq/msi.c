@@ -9,6 +9,8 @@
  * This file contains common code to support Message Signalled Interrupt for
  * PCI compatible and non PCI compatible devices.
  */
+#include <linux/types.h>
+#include <linux/device.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
@@ -110,23 +112,112 @@ static struct irq_domain_ops msi_domain_ops = {
 	.deactivate	= msi_domain_deactivate,
 };
 
+#ifdef GENERIC_MSI_DOMAIN_OPS
+static irq_hw_number_t msi_domain_ops_get_hwirq(struct msi_domain_info *info,
+						msi_alloc_info_t *arg)
+{
+	return arg->hwirq;
+}
+
+static int msi_domain_ops_prepare(struct irq_domain *domain, struct device *dev,
+				  int nvec, msi_alloc_info_t *arg)
+{
+	memset(arg, 0, sizeof(*arg));
+	return 0;
+}
+
+static void msi_domain_ops_set_desc(msi_alloc_info_t *arg,
+				    struct msi_desc *desc)
+{
+	arg->desc = desc;
+}
+#else
+#define msi_domain_ops_get_hwirq	NULL
+#define msi_domain_ops_prepare		NULL
+#define msi_domain_ops_set_desc		NULL
+#endif /* !GENERIC_MSI_DOMAIN_OPS */
+
+static int msi_domain_ops_init(struct irq_domain *domain,
+			       struct msi_domain_info *info,
+			       unsigned int virq, irq_hw_number_t hwirq,
+			       msi_alloc_info_t *arg)
+{
+	irq_domain_set_hwirq_and_chip(domain, virq, hwirq, info->chip,
+				      info->chip_data);
+	if (info->handler && info->handler_name) {
+		__irq_set_handler(virq, info->handler, 0, info->handler_name);
+		if (info->handler_data)
+			irq_set_handler_data(virq, info->handler_data);
+	}
+	return 0;
+}
+
+static int msi_domain_ops_check(struct irq_domain *domain,
+				struct msi_domain_info *info,
+				struct device *dev)
+{
+	return 0;
+}
+
+static struct msi_domain_ops msi_domain_ops_default = {
+	.get_hwirq	= msi_domain_ops_get_hwirq,
+	.msi_init	= msi_domain_ops_init,
+	.msi_check	= msi_domain_ops_check,
+	.msi_prepare	= msi_domain_ops_prepare,
+	.set_desc	= msi_domain_ops_set_desc,
+};
+
+static void msi_domain_update_dom_ops(struct msi_domain_info *info)
+{
+	struct msi_domain_ops *ops = info->ops;
+
+	if (ops == NULL) {
+		info->ops = &msi_domain_ops_default;
+		return;
+	}
+
+	if (ops->get_hwirq == NULL)
+		ops->get_hwirq = msi_domain_ops_default.get_hwirq;
+	if (ops->msi_init == NULL)
+		ops->msi_init = msi_domain_ops_default.msi_init;
+	if (ops->msi_check == NULL)
+		ops->msi_check = msi_domain_ops_default.msi_check;
+	if (ops->msi_prepare == NULL)
+		ops->msi_prepare = msi_domain_ops_default.msi_prepare;
+	if (ops->set_desc == NULL)
+		ops->set_desc = msi_domain_ops_default.set_desc;
+}
+
+static void msi_domain_update_chip_ops(struct msi_domain_info *info)
+{
+	struct irq_chip *chip = info->chip;
+
+	BUG_ON(!chip);
+	if (!chip->irq_mask)
+		chip->irq_mask = pci_msi_mask_irq;
+	if (!chip->irq_unmask)
+		chip->irq_unmask = pci_msi_unmask_irq;
+	if (!chip->irq_set_affinity)
+		chip->irq_set_affinity = msi_domain_set_affinity;
+}
+
 /**
  * msi_create_irq_domain - Create a MSI interrupt domain
  * @of_node:	Optional device-tree node of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  */
-struct irq_domain *msi_create_irq_domain(struct device_node *of_node,
+struct irq_domain *msi_create_irq_domain(struct device_node *node,
 					 struct msi_domain_info *info,
 					 struct irq_domain *parent)
 {
-	struct irq_domain *domain;
+	if (info->flags & MSI_FLAG_USE_DEF_DOM_OPS)
+		msi_domain_update_dom_ops(info);
+	if (info->flags & MSI_FLAG_USE_DEF_CHIP_OPS)
+		msi_domain_update_chip_ops(info);
 
-	domain = irq_domain_add_tree(of_node, &msi_domain_ops, info);
-	if (domain)
-		domain->parent = parent;
-
-	return domain;
+	return irq_domain_add_hierarchy(parent, 0, 0, node, &msi_domain_ops,
+					info);
 }
 
 /**
@@ -155,8 +246,12 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 
 	for_each_msi_entry(desc, dev) {
 		ops->set_desc(&arg, desc);
+		if (info->flags & MSI_FLAG_IDENTITY_MAP)
+			virq = (int)ops->get_hwirq(info, &arg);
+		else
+			virq = -1;
 
-		virq = __irq_domain_alloc_irqs(domain, -1, desc->nvec_used,
+		virq = __irq_domain_alloc_irqs(domain, virq, desc->nvec_used,
 					       dev_to_node(dev), &arg, false);
 		if (virq < 0) {
 			ret = -ENOSPC;

@@ -116,6 +116,7 @@ struct msi_controller {
 
 #ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
 
+#include <linux/irqhandler.h>
 #include <asm/msi.h>
 
 struct irq_domain;
@@ -142,11 +143,12 @@ struct msi_domain_info;
  * interfaces which are based on msi_desc.
  */
 struct msi_domain_ops {
-	irq_hw_number_t	(*get_hwirq)(struct msi_domain_info *info, void *arg);
+	irq_hw_number_t	(*get_hwirq)(struct msi_domain_info *info,
+				     msi_alloc_info_t *arg);
 	int		(*msi_init)(struct irq_domain *domain,
 				    struct msi_domain_info *info,
 				    unsigned int virq, irq_hw_number_t hwirq,
-				    void *arg);
+				    msi_alloc_info_t *arg);
 	void		(*msi_free)(struct irq_domain *domain,
 				    struct msi_domain_info *info,
 				    unsigned int virq);
@@ -165,14 +167,44 @@ struct msi_domain_ops {
 
 /**
  * struct msi_domain_info - MSI interrupt domain data
- * @ops:	The callback data structure
- * @chip:	The associated interrupt chip
- * @data:	Domain specific data
+ * @flags:		Flags to decribe features and capabilities
+ * @ops:		The callback data structure
+ * @chip:		Optional: associated interrupt chip
+ * @chip_data:		Optional: associated interrupt chip data
+ * @handler:		Optional: associated interrupt flow handler
+ * @handler_data:	Optional: associated interrupt flow handler data
+ * @handler_name:	Optional: associated interrupt flow handler name
+ * @data:		Optional: domain specific data
  */
 struct msi_domain_info {
+	u32			flags;
 	struct msi_domain_ops	*ops;
 	struct irq_chip		*chip;
+	void			*chip_data;
+	irq_flow_handler_t	handler;
+	void			*handler_data;
+	const char		*handler_name;
 	void			*data;
+};
+
+/* Flags for msi_domain_info */
+enum {
+	/*
+	 * Init non implemented ops callbacks with default MSI domain
+	 * callbacks.
+	 */
+	MSI_FLAG_USE_DEF_DOM_OPS	= (1 << 0),
+	/*
+	 * Init non implemented chip callbacks with default MSI chip
+	 * callbacks.
+	 */
+	MSI_FLAG_USE_DEF_CHIP_OPS	= (1 << 1),
+	/* Build identity map between hwirq and irq */
+	MSI_FLAG_IDENTITY_MAP		= (1 << 2),
+	/* Support multiple PCI MSI interrupts */
+	MSI_FLAG_MULTI_PCI_MSI		= (1 << 3),
+	/* Support PCI MSIX interrupts */
+	MSI_FLAG_PCI_MSIX		= (1 << 4),
 };
 
 int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,
