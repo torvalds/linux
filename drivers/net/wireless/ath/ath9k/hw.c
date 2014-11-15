@@ -1598,16 +1598,19 @@ static void ath9k_hw_init_mfp(struct ath_hw *ah)
 		 * frames when constructing CCMP AAD. */
 		REG_RMW_FIELD(ah, AR_AES_MUTE_MASK1, AR_AES_MUTE_MASK1_FC_MGMT,
 			      0xc7ff);
-		ah->sw_mgmt_crypto = false;
+		ah->sw_mgmt_crypto_tx = false;
+		ah->sw_mgmt_crypto_rx = false;
 	} else if (AR_SREV_9160_10_OR_LATER(ah)) {
 		/* Disable hardware crypto for management frames */
 		REG_CLR_BIT(ah, AR_PCU_MISC_MODE2,
 			    AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE);
 		REG_SET_BIT(ah, AR_PCU_MISC_MODE2,
 			    AR_PCU_MISC_MODE2_NO_CRYPTO_FOR_NON_DATA_PKT);
-		ah->sw_mgmt_crypto = true;
+		ah->sw_mgmt_crypto_tx = true;
+		ah->sw_mgmt_crypto_rx = true;
 	} else {
-		ah->sw_mgmt_crypto = true;
+		ah->sw_mgmt_crypto_tx = true;
+		ah->sw_mgmt_crypto_rx = true;
 	}
 }
 

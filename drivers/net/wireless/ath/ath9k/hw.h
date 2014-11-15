@@ -753,7 +753,8 @@ struct ath_hw {
 	} eeprom;
 	const struct eeprom_ops *eep_ops;
 
-	bool sw_mgmt_crypto;
+	bool sw_mgmt_crypto_tx;
+	bool sw_mgmt_crypto_rx;
 	bool is_pciexpress;
 	bool aspm_enabled;
 	bool is_monitoring;
