@@ -416,7 +416,7 @@ static void me4000_reset(struct comedi_device *dev)
 	val |= PLX9052_CNTRL_PCI_RESET;
 	outl(val, info->plx_regbase + PLX9052_CNTRL);
 	val &= ~PLX9052_CNTRL_PCI_RESET;
-	outl(val , info->plx_regbase + PLX9052_CNTRL);
+	outl(val, info->plx_regbase + PLX9052_CNTRL);
 
 	/* 0x8000 to the DACs means an output voltage of 0V */
 	for (chan = 0; chan < 4; chan++)
