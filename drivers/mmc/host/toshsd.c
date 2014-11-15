@@ -206,14 +206,14 @@ static irqreturn_t toshsd_thread_irq(int irq, void *dev_id)
 static void toshsd_cmd_irq(struct toshsd_host *host)
 {
 	struct mmc_command *cmd = host->cmd;
-	u8 *buf = (u8 *) cmd->resp;
+	u8 *buf;
 	u16 data;
 
 	if (!host->cmd) {
 		dev_warn(&host->pdev->dev, "Spurious CMD irq\n");
 		return;
 	}
-
+	buf = (u8 *)cmd->resp;
 	host->cmd = NULL;
 
 	if (cmd->flags & MMC_RSP_PRESENT && cmd->flags & MMC_RSP_136) {
