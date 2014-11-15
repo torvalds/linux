@@ -37,11 +37,23 @@ struct irq_domain * __weak arch_get_pci_msi_domain(struct pci_dev *dev)
 	return pci_msi_default_domain;
 }
 
+static struct irq_domain *pci_msi_get_domain(struct pci_dev *dev)
+{
+	struct irq_domain *domain = NULL;
+
+	if (dev->bus->msi)
+		domain = dev->bus->msi->domain;
+	if (!domain)
+		domain = arch_get_pci_msi_domain(dev);
+
+	return domain;
+}
+
 static int pci_msi_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct irq_domain *domain;
 
-	domain = arch_get_pci_msi_domain(dev);
+	domain = pci_msi_get_domain(dev);
 	if (domain)
 		return pci_msi_domain_alloc_irqs(domain, dev, nvec, type);
 
@@ -52,7 +64,7 @@ static void pci_msi_teardown_msi_irqs(struct pci_dev *dev)
 {
 	struct irq_domain *domain;
 
-	domain = arch_get_pci_msi_domain(dev);
+	domain = pci_msi_get_domain(dev);
 	if (domain)
 		pci_msi_domain_free_irqs(domain, dev);
 	else
