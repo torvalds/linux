@@ -162,14 +162,14 @@ err:
 /**
  * tipc_msg_build - create buffer chain containing specified header and data
  * @mhdr: Message header, to be prepended to data
- * @iov: User data
+ * @m: User message
  * @offset: Posision in iov to start copying from
  * @dsz: Total length of user data
  * @pktmax: Max packet size that can be used
  * @chain: Buffer or chain of buffers to be returned to caller
  * Returns message data size or errno: -ENOMEM, -EFAULT
  */
-int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
+int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int pktmax , struct sk_buff **chain)
 {
 	int mhsz = msg_hdr_sz(mhdr);
@@ -194,7 +194,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 		skb_copy_to_linear_data(buf, mhdr, mhsz);
 		pktpos = buf->data + mhsz;
 		TIPC_SKB_CB(buf)->chain_sz = 1;
-		if (!dsz || !memcpy_fromiovecend(pktpos, iov, offset, dsz))
+		if (!dsz || !memcpy_fromiovecend(pktpos, m->msg_iov, offset, dsz))
 			return dsz;
 		rc = -EFAULT;
 		goto error;
@@ -223,7 +223,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 		if (drem < pktrem)
 			pktrem = drem;
 
-		if (memcpy_fromiovecend(pktpos, iov, offset, pktrem)) {
+		if (memcpy_fromiovecend(pktpos, m->msg_iov, offset, pktrem)) {
 			rc = -EFAULT;
 			goto error;
 		}

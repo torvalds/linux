@@ -727,7 +727,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 
 new_mtu:
 	mtu = tipc_bclink_get_mtu();
-	rc = tipc_msg_build(mhdr, msg->msg_iov, 0, dsz, mtu, &buf);
+	rc = tipc_msg_build(mhdr, msg, 0, dsz, mtu, &buf);
 	if (unlikely(rc < 0))
 		return rc;
 
@@ -905,7 +905,6 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct tipc_msg *mhdr = &tsk->phdr;
-	struct iovec *iov = m->msg_iov;
 	u32 dnode, dport;
 	struct sk_buff *buf;
 	struct tipc_name_seq *seq = &dest->addr.nameseq;
@@ -982,7 +981,7 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 new_mtu:
 	mtu = tipc_node_get_mtu(dnode, tsk->ref);
-	rc = tipc_msg_build(mhdr, iov, 0, dsz, mtu, &buf);
+	rc = tipc_msg_build(mhdr, m, 0, dsz, mtu, &buf);
 	if (rc < 0)
 		goto exit;
 
@@ -1094,7 +1093,7 @@ static int tipc_send_stream(struct kiocb *iocb, struct socket *sock,
 next:
 	mtu = tsk->max_pkt;
 	send = min_t(uint, dsz - sent, TIPC_MAX_USER_MSG_SIZE);
-	rc = tipc_msg_build(mhdr, m->msg_iov, sent, send, mtu, &buf);
+	rc = tipc_msg_build(mhdr, m, sent, send, mtu, &buf);
 	if (unlikely(rc < 0))
 		goto exit;
 	do {
