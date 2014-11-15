@@ -169,9 +169,7 @@ static const struct file_operations misc_fops = {
  *	the minor number requested is used.
  *
  *	The structure passed is linked into the kernel and may not be
- *	destroyed until it has been unregistered. By default, an open()
- *	syscall to the device sets file->private_data to point to the
- *	structure.
+ *	destroyed until it has been unregistered.
  *
  *	A zero is returned on success and a negative errno code for
  *	failure.
