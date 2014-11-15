@@ -291,54 +291,6 @@ static int mv88e6123_61_65_setup_port(struct dsa_switch *ds, int p)
 	return 0;
 }
 
-#ifdef CONFIG_NET_DSA_HWMON
-
-static int  mv88e6123_61_65_get_temp(struct dsa_switch *ds, int *temp)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int ret;
-	int val;
-
-	*temp = 0;
-
-	mutex_lock(&ps->phy_mutex);
-
-	ret = mv88e6xxx_phy_write(ds, 0x0, 0x16, 0x6);
-	if (ret < 0)
-		goto error;
-
-	/* Enable temperature sensor */
-	ret = mv88e6xxx_phy_read(ds, 0x0, 0x1a);
-	if (ret < 0)
-		goto error;
-
-	ret = mv88e6xxx_phy_write(ds, 0x0, 0x1a, ret | (1 << 5));
-	if (ret < 0)
-		goto error;
-
-	/* Wait for temperature to stabilize */
-	usleep_range(10000, 12000);
-
-	val = mv88e6xxx_phy_read(ds, 0x0, 0x1a);
-	if (val < 0) {
-		ret = val;
-		goto error;
-	}
-
-	/* Disable temperature sensor */
-	ret = mv88e6xxx_phy_write(ds, 0x0, 0x1a, ret & ~(1 << 5));
-	if (ret < 0)
-		goto error;
-
-	*temp = ((val & 0x1f) - 5) * 5;
-
-error:
-	mv88e6xxx_phy_write(ds, 0x0, 0x16, 0x0);
-	mutex_unlock(&ps->phy_mutex);
-	return ret;
-}
-#endif /* CONFIG_NET_DSA_HWMON */
-
 static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -471,7 +423,7 @@ struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
 	.get_ethtool_stats	= mv88e6123_61_65_get_ethtool_stats,
 	.get_sset_count		= mv88e6123_61_65_get_sset_count,
 #ifdef CONFIG_NET_DSA_HWMON
-	.get_temp		= mv88e6123_61_65_get_temp,
+	.get_temp		= mv88e6xxx_get_temp,
 #endif
 	.get_regs_len		= mv88e6xxx_get_regs_len,
 	.get_regs		= mv88e6xxx_get_regs,
