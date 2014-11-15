@@ -3635,12 +3635,19 @@ static int remove_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
+	if (!bacmp(&cp->addr.bdaddr, BDADDR_ANY)) {
+		hci_remote_oob_data_clear(hdev);
+		status = MGMT_STATUS_SUCCESS;
+		goto done;
+	}
+
 	err = hci_remove_remote_oob_data(hdev, &cp->addr.bdaddr);
 	if (err < 0)
 		status = MGMT_STATUS_INVALID_PARAMS;
 	else
 		status = MGMT_STATUS_SUCCESS;
 
+done:
 	err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
 			   status, &cp->addr, sizeof(cp->addr));
 
