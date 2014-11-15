@@ -495,6 +495,12 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 
 	mutex_lock(&drm_component_lock);
 
+	/* Do not retry to probe if there is no any kms driver regitered. */
+	if (list_empty(&drm_component_list)) {
+		mutex_unlock(&drm_component_lock);
+		return ERR_PTR(-ENODEV);
+	}
+
 	list_for_each_entry(cdev, &drm_component_list, list) {
 		/*
 		 * Add components to master only in case that crtc and
@@ -585,10 +591,21 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 		goto err_unregister_mixer_drv;
 #endif
 
+	match = exynos_drm_match_add(&pdev->dev);
+	if (IS_ERR(match)) {
+		ret = PTR_ERR(match);
+		goto err_unregister_hdmi_drv;
+	}
+
+	ret = component_master_add_with_match(&pdev->dev, &exynos_drm_ops,
+						match);
+	if (ret < 0)
+		goto err_unregister_hdmi_drv;
+
 #ifdef CONFIG_DRM_EXYNOS_G2D
 	ret = platform_driver_register(&g2d_driver);
 	if (ret < 0)
-		goto err_unregister_hdmi_drv;
+		goto err_del_component_master;
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_FIMC
@@ -619,23 +636,9 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 		goto err_unregister_ipp_drv;
 #endif
 
-	match = exynos_drm_match_add(&pdev->dev);
-	if (IS_ERR(match)) {
-		ret = PTR_ERR(match);
-		goto err_unregister_resources;
-	}
-
-	ret = component_master_add_with_match(&pdev->dev, &exynos_drm_ops,
-						match);
-	if (ret < 0)
-		goto err_unregister_resources;
-
 	return ret;
 
-err_unregister_resources:
-
 #ifdef CONFIG_DRM_EXYNOS_IPP
-	exynos_platform_device_ipp_unregister();
 err_unregister_ipp_drv:
 	platform_driver_unregister(&ipp_driver);
 err_unregister_gsc_drv:
@@ -658,9 +661,11 @@ err_unregister_g2d_drv:
 
 #ifdef CONFIG_DRM_EXYNOS_G2D
 	platform_driver_unregister(&g2d_driver);
-err_unregister_hdmi_drv:
+err_del_component_master:
 #endif
+	component_master_del(&pdev->dev, &exynos_drm_ops);
 
+err_unregister_hdmi_drv:
 #ifdef CONFIG_DRM_EXYNOS_HDMI
 	platform_driver_unregister(&hdmi_driver);
 err_unregister_mixer_drv:
@@ -740,6 +745,18 @@ static struct platform_driver exynos_drm_platform_driver = {
 static int exynos_drm_init(void)
 {
 	int ret;
+
+	/*
+	 * Register device object only in case of Exynos SoC.
+	 *
+	 * Below codes resolves temporarily infinite loop issue incurred
+	 * by Exynos drm driver when using multi-platform kernel.
+	 * So these codes will be replaced with more generic way later.
+	 */
+	if (!of_machine_is_compatible("samsung,exynos3") &&
+			!of_machine_is_compatible("samsung,exynos4") &&
+			!of_machine_is_compatible("samsung,exynos5"))
+		return -ENODEV;
 
 	exynos_drm_pdev = platform_device_register_simple("exynos-drm", -1,
 								NULL, 0);
