@@ -353,10 +353,9 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 
 	ks_pcie = devm_kzalloc(&pdev->dev, sizeof(*ks_pcie),
 				GFP_KERNEL);
-	if (!ks_pcie) {
-		dev_err(dev, "no memory for keystone pcie\n");
+	if (!ks_pcie)
 		return -ENOMEM;
-	}
+
 	pp = &ks_pcie->pp;
 
 	/* initialize SerDes Phy if present */

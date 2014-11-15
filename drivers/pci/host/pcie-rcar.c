@@ -389,7 +389,7 @@ static void rcar_pcie_add_bus(struct pci_bus *bus)
 	}
 }
 
-struct hw_pci rcar_pci = {
+static struct hw_pci rcar_pci = {
 	.setup          = rcar_pcie_setup,
 	.map_irq        = of_irq_parse_and_map_pci,
 	.ops            = &rcar_pcie_ops,
