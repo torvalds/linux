@@ -385,7 +385,7 @@ static void rate_idx_match_mask(struct ieee80211_tx_rate *rate,
 			*rate = alt_rate;
 			return;
 		}
-	} else {
+	} else if (!(rate->flags & IEEE80211_TX_RC_VHT_MCS)) {
 		/* handle legacy rates */
 		if (rate_idx_match_legacy_mask(rate, sband->n_bitrates, mask))
 			return;
