@@ -5,7 +5,6 @@
 config NET_VENDOR_QUALCOMM
 	bool "Qualcomm devices"
 	default y
-	depends on SPI_MASTER && OF_GPIO
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -20,7 +19,7 @@ if NET_VENDOR_QUALCOMM
 
 config QCA7000
 	tristate "Qualcomm Atheros QCA7000 support"
-	depends on SPI_MASTER && OF_GPIO
+	depends on SPI_MASTER && OF
 	---help---
 	  This SPI protocol driver supports the Qualcomm Atheros QCA7000.
 

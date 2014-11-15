@@ -479,6 +479,16 @@ isolate_freepages_range(struct compact_control *cc,
 
 		block_end_pfn = min(block_end_pfn, end_pfn);
 
+		/*
+		 * pfn could pass the block_end_pfn if isolated freepage
+		 * is more than pageblock order. In this case, we adjust
+		 * scanning range to right one.
+		 */
+		if (pfn >= block_end_pfn) {
+			block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+			block_end_pfn = min(block_end_pfn, end_pfn);
+		}
+
 		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
 			break;
 
@@ -1029,8 +1039,12 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 	}
 
 	acct_isolated(zone, cc);
-	/* Record where migration scanner will be restarted */
-	cc->migrate_pfn = low_pfn;
+	/*
+	 * Record where migration scanner will be restarted. If we end up in
+	 * the same pageblock as the free scanner, make the scanners fully
+	 * meet so that compact_finished() terminates compaction.
+	 */
+	cc->migrate_pfn = (end_pfn <= cc->free_pfn) ? low_pfn : cc->free_pfn;
 
 	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
 }

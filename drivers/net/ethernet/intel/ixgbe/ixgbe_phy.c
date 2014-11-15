@@ -635,7 +635,6 @@ s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
  **/
 s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 {
-	s32 status;
 	u16 autoneg_reg = IXGBE_MII_AUTONEG_REG;
 	bool autoneg = false;
 	ixgbe_link_speed speed;
@@ -700,8 +699,7 @@ s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 
 	hw->phy.ops.write_reg(hw, MDIO_CTRL1,
 			      MDIO_MMD_AN, autoneg_reg);
-
-	return status;
+	return 0;
 }
 
 /**
