@@ -14,6 +14,7 @@
 #include <linux/uaccess.h>
 #include <asm/asm-eva.h>
 #include <asm/barrier.h>
+#include <asm/compiler.h>
 #include <asm/errno.h>
 #include <asm/war.h>
 
@@ -42,8 +43,10 @@
 		"	"__UA_ADDR "\t1b, 4b			\n"	\
 		"	"__UA_ADDR "\t2b, 4b			\n"	\
 		"	.previous				\n"	\
-		: "=r" (ret), "=&r" (oldval), "=R" (*uaddr)		\
-		: "0" (0), "R" (*uaddr), "Jr" (oparg), "i" (-EFAULT)	\
+		: "=r" (ret), "=&r" (oldval),				\
+		  "=" GCC_OFF12_ASM() (*uaddr)				\
+		: "0" (0), GCC_OFF12_ASM() (*uaddr), "Jr" (oparg),	\
+		  "i" (-EFAULT)						\
 		: "memory");						\
 	} else if (cpu_has_llsc) {					\
 		__asm__ __volatile__(					\
@@ -68,8 +71,10 @@
 		"	"__UA_ADDR "\t1b, 4b			\n"	\
 		"	"__UA_ADDR "\t2b, 4b			\n"	\
 		"	.previous				\n"	\
-		: "=r" (ret), "=&r" (oldval), "=R" (*uaddr)		\
-		: "0" (0), "R" (*uaddr), "Jr" (oparg), "i" (-EFAULT)	\
+		: "=r" (ret), "=&r" (oldval),				\
+		  "=" GCC_OFF12_ASM() (*uaddr)				\
+		: "0" (0), GCC_OFF12_ASM() (*uaddr), "Jr" (oparg),	\
+		  "i" (-EFAULT)						\
 		: "memory");						\
 	} else								\
 		ret = -ENOSYS;						\
@@ -166,8 +171,9 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		"	"__UA_ADDR "\t1b, 4b				\n"
 		"	"__UA_ADDR "\t2b, 4b				\n"
 		"	.previous					\n"
-		: "+r" (ret), "=&r" (val), "=R" (*uaddr)
-		: "R" (*uaddr), "Jr" (oldval), "Jr" (newval), "i" (-EFAULT)
+		: "+r" (ret), "=&r" (val), "=" GCC_OFF12_ASM() (*uaddr)
+		: GCC_OFF12_ASM() (*uaddr), "Jr" (oldval), "Jr" (newval),
+		  "i" (-EFAULT)
 		: "memory");
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
@@ -193,8 +199,9 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		"	"__UA_ADDR "\t1b, 4b				\n"
 		"	"__UA_ADDR "\t2b, 4b				\n"
 		"	.previous					\n"
-		: "+r" (ret), "=&r" (val), "=R" (*uaddr)
-		: "R" (*uaddr), "Jr" (oldval), "Jr" (newval), "i" (-EFAULT)
+		: "+r" (ret), "=&r" (val), "=" GCC_OFF12_ASM() (*uaddr)
+		: GCC_OFF12_ASM() (*uaddr), "Jr" (oldval), "Jr" (newval),
+		  "i" (-EFAULT)
 		: "memory");
 	} else
 		return -ENOSYS;

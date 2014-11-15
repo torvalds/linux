@@ -17,6 +17,7 @@
 #include <linux/irqflags.h>
 #include <linux/types.h>
 #include <asm/barrier.h>
+#include <asm/compiler.h>
 #include <asm/cpu-features.h>
 #include <asm/cmpxchg.h>
 #include <asm/war.h>
@@ -53,7 +54,7 @@ static __inline__ void atomic_##op(int i, atomic_t * v)				\
 		"	sc	%0, %1					\n"	\
 		"	beqzl	%0, 1b					\n"	\
 		"	.set	mips0					\n"	\
-		: "=&r" (temp), "+m" (v->counter)				\
+		: "=&r" (temp), "+" GCC_OFF12_ASM() (v->counter)		\
 		: "Ir" (i));							\
 	} else if (kernel_uses_llsc) {						\
 		int temp;							\
@@ -65,7 +66,7 @@ static __inline__ void atomic_##op(int i, atomic_t * v)				\
 			"	" #asm_op " %0, %2			\n"	\
 			"	sc	%0, %1				\n"	\
 			"	.set	mips0				\n"	\
-			: "=&r" (temp), "+m" (v->counter)			\
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (v->counter)	\
 			: "Ir" (i));						\
 		} while (unlikely(!temp));					\
 	} else {								\
@@ -95,7 +96,8 @@ static __inline__ int atomic_##op##_return(int i, atomic_t * v)			\
 		"	beqzl	%0, 1b					\n"	\
 		"	" #asm_op " %0, %1, %3				\n"	\
 		"	.set	mips0					\n"	\
-		: "=&r" (result), "=&r" (temp), "+m" (v->counter)		\
+		: "=&r" (result), "=&r" (temp),					\
+		  "+" GCC_OFF12_ASM() (v->counter)				\
 		: "Ir" (i));							\
 	} else if (kernel_uses_llsc) {						\
 		int temp;							\
@@ -107,7 +109,8 @@ static __inline__ int atomic_##op##_return(int i, atomic_t * v)			\
 			"	" #asm_op " %0, %1, %3			\n"	\
 			"	sc	%0, %2				\n"	\
 			"	.set	mips0				\n"	\
-			: "=&r" (result), "=&r" (temp), "+m" (v->counter)	\
+			: "=&r" (result), "=&r" (temp),				\
+			  "+" GCC_OFF12_ASM() (v->counter)			\
 			: "Ir" (i));						\
 		} while (unlikely(!result));					\
 										\
@@ -167,8 +170,9 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		"	.set	reorder					\n"
 		"1:							\n"
 		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "+m" (v->counter)
-		: "Ir" (i), "m" (v->counter)
+		: "=&r" (result), "=&r" (temp),
+		  "+" GCC_OFF12_ASM() (v->counter)
+		: "Ir" (i), GCC_OFF12_ASM() (v->counter)
 		: "memory");
 	} else if (kernel_uses_llsc) {
 		int temp;
@@ -185,7 +189,8 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		"	.set	reorder					\n"
 		"1:							\n"
 		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "+m" (v->counter)
+		: "=&r" (result), "=&r" (temp),
+		  "+" GCC_OFF12_ASM() (v->counter)
 		: "Ir" (i));
 	} else {
 		unsigned long flags;
@@ -328,7 +333,7 @@ static __inline__ void atomic64_##op(long i, atomic64_t * v)			\
 		"	scd	%0, %1					\n"	\
 		"	beqzl	%0, 1b					\n"	\
 		"	.set	mips0					\n"	\
-		: "=&r" (temp), "+m" (v->counter)				\
+		: "=&r" (temp), "+" GCC_OFF12_ASM() (v->counter)		\
 		: "Ir" (i));							\
 	} else if (kernel_uses_llsc) {						\
 		long temp;							\
@@ -340,7 +345,7 @@ static __inline__ void atomic64_##op(long i, atomic64_t * v)			\
 			"	" #asm_op " %0, %2			\n"	\
 			"	scd	%0, %1				\n"	\
 			"	.set	mips0				\n"	\
-			: "=&r" (temp), "+m" (v->counter)			\
+			: "=&r" (temp), "+" GCC_OFF12_ASM() (v->counter)	\
 			: "Ir" (i));						\
 		} while (unlikely(!temp));					\
 	} else {								\
@@ -370,7 +375,8 @@ static __inline__ long atomic64_##op##_return(long i, atomic64_t * v)		\
 		"	beqzl	%0, 1b					\n"	\
 		"	" #asm_op " %0, %1, %3				\n"	\
 		"	.set	mips0					\n"	\
-		: "=&r" (result), "=&r" (temp), "+m" (v->counter)		\
+		: "=&r" (result), "=&r" (temp),					\
+		  "+" GCC_OFF12_ASM() (v->counter)				\
 		: "Ir" (i));							\
 	} else if (kernel_uses_llsc) {						\
 		long temp;							\
@@ -382,8 +388,9 @@ static __inline__ long atomic64_##op##_return(long i, atomic64_t * v)		\
 			"	" #asm_op " %0, %1, %3			\n"	\
 			"	scd	%0, %2				\n"	\
 			"	.set	mips0				\n"	\
-			: "=&r" (result), "=&r" (temp), "=m" (v->counter)	\
-			: "Ir" (i), "m" (v->counter)				\
+			: "=&r" (result), "=&r" (temp),				\
+			  "=" GCC_OFF12_ASM() (v->counter)			\
+			: "Ir" (i), GCC_OFF12_ASM() (v->counter)		\
 			: "memory");						\
 		} while (unlikely(!result));					\
 										\
@@ -443,8 +450,9 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 		"	.set	reorder					\n"
 		"1:							\n"
 		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "=m" (v->counter)
-		: "Ir" (i), "m" (v->counter)
+		: "=&r" (result), "=&r" (temp),
+		  "=" GCC_OFF12_ASM() (v->counter)
+		: "Ir" (i), GCC_OFF12_ASM() (v->counter)
 		: "memory");
 	} else if (kernel_uses_llsc) {
 		long temp;
@@ -461,7 +469,8 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 		"	.set	reorder					\n"
 		"1:							\n"
 		"	.set	mips0					\n"
-		: "=&r" (result), "=&r" (temp), "+m" (v->counter)
+		: "=&r" (result), "=&r" (temp),
+		  "+" GCC_OFF12_ASM() (v->counter)
 		: "Ir" (i));
 	} else {
 		unsigned long flags;
