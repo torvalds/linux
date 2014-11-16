@@ -2652,7 +2652,7 @@ static int iwl_mvm_cancel_roc(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(mvm, "enter\n");
 
 	mutex_lock(&mvm->mutex);
-	iwl_mvm_stop_p2p_roc(mvm);
+	iwl_mvm_stop_roc(mvm);
 	mutex_unlock(&mvm->mutex);
 
 	IWL_DEBUG_MAC80211(mvm, "leave\n");
