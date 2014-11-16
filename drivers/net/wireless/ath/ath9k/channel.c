@@ -926,8 +926,7 @@ void ath_roc_complete(struct ath_softc *sc, bool abort)
 
 	sc->offchannel.roc_vif = NULL;
 	sc->offchannel.roc_chan = NULL;
-	if (abort)
-		ieee80211_remain_on_channel_expired(sc->hw);
+	ieee80211_remain_on_channel_expired(sc->hw);
 	ath_offchannel_next(sc);
 	ath9k_ps_restore(sc);
 }
@@ -1058,10 +1057,8 @@ static void ath_offchannel_timer(unsigned long data)
 		break;
 	case ATH_OFFCHANNEL_ROC_START:
 	case ATH_OFFCHANNEL_ROC_WAIT:
-		ctx = ath_chanctx_get_oper_chan(sc, false);
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_DONE;
-		ieee80211_remain_on_channel_expired(sc->hw);
-		ath_chanctx_switch(sc, ctx, NULL);
+		ath_roc_complete(sc, false);
 		break;
 	default:
 		break;
@@ -1191,7 +1188,6 @@ static void ath_offchannel_channel_change(struct ath_softc *sc)
 		ieee80211_ready_on_channel(sc->hw);
 		break;
 	case ATH_OFFCHANNEL_ROC_DONE:
-		ath_roc_complete(sc, false);
 		break;
 	default:
 		break;
