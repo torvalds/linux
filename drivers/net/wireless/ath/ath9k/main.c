@@ -2196,6 +2196,28 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 
+static void ath9k_cancel_pending_offchannel(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	if (sc->offchannel.roc_vif) {
+		ath_dbg(common, CHAN_CTX,
+			"%s: Aborting RoC\n", __func__);
+
+		del_timer_sync(&sc->offchannel.timer);
+		if (sc->offchannel.state >= ATH_OFFCHANNEL_ROC_START)
+			ath_roc_complete(sc, true);
+	}
+
+	if (test_bit(ATH_OP_SCANNING, &common->op_flags)) {
+		ath_dbg(common, CHAN_CTX,
+			"%s: Aborting HW scan\n", __func__);
+
+		del_timer_sync(&sc->offchannel.timer);
+		ath_scan_complete(sc, true);
+	}
+}
+
 static int ath9k_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_scan_request *hw_req)
 {
@@ -2382,6 +2404,8 @@ static int ath9k_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath_chanctx *ctx = ath_chanctx_get(conf);
 	int i;
 
+	ath9k_cancel_pending_offchannel(sc);
+
 	mutex_lock(&sc->mutex);
 
 	ath_dbg(common, CHAN_CTX,
@@ -2410,6 +2434,8 @@ static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	struct ath_chanctx *ctx = ath_chanctx_get(conf);
 	int ac;
+
+	ath9k_cancel_pending_offchannel(sc);
 
 	mutex_lock(&sc->mutex);
 
@@ -2456,18 +2482,7 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 	if (!changed)
 		goto out;
 
-	if (test_bit(ATH_OP_SCANNING, &common->op_flags)) {
-		ath_dbg(common, CHAN_CTX,
-			"%s: Aborting HW scan\n", __func__);
-
-		mutex_unlock(&sc->mutex);
-
-		del_timer_sync(&sc->offchannel.timer);
-		ath_scan_complete(sc, true);
-		flush_work(&sc->chanctx_work);
-
-		mutex_lock(&sc->mutex);
-	}
+	ath9k_cancel_pending_offchannel(sc);
 
 	go_ctx = ath_is_go_chanctx_present(sc);
 
@@ -2482,13 +2497,15 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 		beacon_int = TU_TO_USEC(cur_conf->beacon_interval);
 		spin_unlock_bh(&sc->chan_lock);
 
-		timeout = usecs_to_jiffies(beacon_int);
+		timeout = usecs_to_jiffies(beacon_int * 2);
 		init_completion(&sc->go_beacon);
 
+		mutex_unlock(&sc->mutex);
 		if (wait_for_completion_timeout(&sc->go_beacon,
 						timeout) == 0)
 			ath_dbg(common, CHAN_CTX,
 				"Failed to send new NoA\n");
+		mutex_lock(&sc->mutex);
 	}
 
 	ath_dbg(common, CHAN_CTX,
