@@ -1605,6 +1605,7 @@ enum {
 
 #define AR_RESET_TSF        0x8020
 #define AR_RESET_TSF_ONCE   0x01000000
+#define AR_RESET_TSF2_ONCE  0x02000000
 
 #define AR_MAX_CFP_DUR      0x8038
 #define AR_CFP_VAL          0x0000FFFF
@@ -1966,6 +1967,8 @@ enum {
 #define AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET		0x80000000
 #define AR_MAC_PCU_GEN_TIMER_TSF_SEL			0x83d8
 
+#define AR_DIRECT_CONNECT                              0x83a0
+#define AR_DC_AP_STA_EN                                0x00000001
 
 #define AR_AES_MUTE_MASK0       0x805c
 #define AR_AES_MUTE_MASK0_FC    0x0000FFFF

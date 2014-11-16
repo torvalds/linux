@@ -525,6 +525,7 @@ struct ath_gen_timer {
 struct ath_gen_timer_table {
 	struct ath_gen_timer *timers[ATH_MAX_GEN_TIMER];
 	u16 timer_mask;
+	bool tsf2_enabled;
 };
 
 struct ath_hw_antcomb_conf {
@@ -1037,6 +1038,7 @@ void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 			      struct ath_gen_timer *timer,
 			      u32 timer_next,
 			      u32 timer_period);
+void ath9k_hw_gen_timer_start_tsf2(struct ath_hw *ah);
 void ath9k_hw_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
 
 void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer);
