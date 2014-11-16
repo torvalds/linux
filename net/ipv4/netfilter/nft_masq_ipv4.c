@@ -24,6 +24,7 @@ static void nft_masq_ipv4_eval(const struct nft_expr *expr,
 	struct nf_nat_range range;
 	unsigned int verdict;
 
+	memset(&range, 0, sizeof(range));
 	range.flags = priv->flags;
 
 	verdict = nf_nat_masquerade_ipv4(pkt->skb, pkt->ops->hooknum,

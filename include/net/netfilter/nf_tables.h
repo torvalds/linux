@@ -396,14 +396,12 @@ struct nft_rule {
 /**
  *	struct nft_trans - nf_tables object update in transaction
  *
- *	@rcu_head: rcu head to defer release of transaction data
  *	@list: used internally
  *	@msg_type: message type
  *	@ctx: transaction context
  *	@data: internal information related to the transaction
  */
 struct nft_trans {
-	struct rcu_head			rcu_head;
 	struct list_head		list;
 	int				msg_type;
 	struct nft_ctx			ctx;
