@@ -635,13 +635,13 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	platform_data->tpm_i2c_buffer[0] =
-	    kmalloc(TPM_BUFSIZE * sizeof(u8), GFP_KERNEL);
+	    kmalloc(TPM_BUFSIZE, GFP_KERNEL);
 	if (platform_data->tpm_i2c_buffer[0] == NULL) {
 		err = -ENOMEM;
 		goto _tpm_clean_answer;
 	}
 	platform_data->tpm_i2c_buffer[1] =
-	    kmalloc(TPM_BUFSIZE * sizeof(u8), GFP_KERNEL);
+	    kmalloc(TPM_BUFSIZE, GFP_KERNEL);
 	if (platform_data->tpm_i2c_buffer[1] == NULL) {
 		err = -ENOMEM;
 		goto _tpm_clean_response1;
