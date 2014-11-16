@@ -3243,10 +3243,8 @@ static void ixgbe_setup_reta(struct ixgbe_adapter *adapter, const u32 *seed)
 static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	static const u32 seed[10] = { 0xE291D73D, 0x1805EC6C, 0x2A94B30D,
-			  0xA54F2BEC, 0xEA49AF7C, 0xE214AD3D, 0xB855AABE,
-			  0x6A3E67EA, 0x14364D17, 0x3BED200D};
 	u32 mrqc = 0, rss_field = 0;
+	u32 rss_key[10];
 	u32 rxcsum;
 
 	/* Disable indicating checksum in descriptor, enables RSS hash */
@@ -3290,7 +3288,8 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 	if (adapter->flags2 & IXGBE_FLAG2_RSS_FIELD_IPV6_UDP)
 		rss_field |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
 
-	ixgbe_setup_reta(adapter, seed);
+	netdev_rss_key_fill(rss_key, sizeof(rss_key));
+	ixgbe_setup_reta(adapter, rss_key);
 	mrqc |= rss_field;
 	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 }
