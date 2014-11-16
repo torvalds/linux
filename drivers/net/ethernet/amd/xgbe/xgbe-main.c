@@ -338,7 +338,7 @@ static int xgbe_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize RSS hash key and lookup table */
-	get_random_bytes(pdata->rss_key, sizeof(pdata->rss_key));
+	netdev_rss_key_fill(pdata->rss_key, sizeof(pdata->rss_key));
 
 	for (i = 0; i < XGBE_RSS_MAX_TABLE_SIZE; i++)
 		XGMAC_SET_BITS(pdata->rss_table[i], MAC_RSSDR, DMCH,
