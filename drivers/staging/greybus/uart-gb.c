@@ -33,6 +33,83 @@
 #define GB_NUM_MINORS	255	/* 255 is enough for anyone... */
 #define GB_NAME		"ttyGB"
 
+/* Version of the Greybus PWM protocol we support */
+#define GB_UART_VERSION_MAJOR		0x00
+#define GB_UART_VERSION_MINOR		0x01
+
+/* Greybus UART request types */
+#define GB_UART_REQ_INVALID			0x00
+#define GB_UART_REQ_PROTOCOL_VERSION		0x01
+#define GB_UART_REQ_SEND_DATA			0x02
+#define GB_UART_REQ_RECEIVE_DATA		0x03	/* Unsolicited data */
+#define GB_UART_REQ_SET_LINE_CODING		0x04
+#define GB_UART_REQ_SET_CONTROL_LINE_STATE	0x05
+#define GB_UART_REQ_SET_BREAK			0x06
+#define GB_UART_REQ_SERIAL_STATE		0x07	/* Unsolicited data */
+#define GB_UART_TYPE_RESPONSE			0x80	/* OR'd with rest */
+
+struct gb_uart_proto_version_response {
+	__u8	status;
+	__u8	major;
+	__u8	minor;
+};
+
+struct gb_uart_send_data_request {
+	__le16	size;
+	__u8	data[0];
+};
+
+struct gb_serial_line_coding {
+	__le32	rate;
+	__u8	format;
+#define GB_SERIAL_1_STOP_BITS		0
+#define GB_SERIAL_1_5_STOP_BITS		1
+#define GB_SERIAL_2_STOP_BITS		2
+
+	__u8	parity;
+#define GB_SERIAL_NO_PARITY		0
+#define GB_SERIAL_ODD_PARITY		1
+#define GB_SERIAL_EVEN_PARITY		2
+#define GB_SERIAL_MARK_PARITY		3
+#define GB_SERIAL_SPACE_PARITY		4
+
+	__u8	data;
+} __attribute__ ((packed));
+
+struct gb_uart_set_line_coding_request {
+	struct gb_serial_line_coding	line_coding;
+};
+
+/* output control lines */
+#define GB_UART_CTRL_DTR		0x01
+#define GB_UART_CTRL_RTS		0x02
+
+struct gb_uart_set_control_line_state_request {
+	__le16	control;
+};
+
+struct gb_uart_set_break_request {
+	__u8	state;
+};
+
+/* input control lines and line errors */
+#define GB_UART_CTRL_DCD		0x01
+#define GB_UART_CTRL_DSR		0x02
+#define GB_UART_CTRL_BRK		0x04
+#define GB_UART_CTRL_RI			0x08
+
+#define GB_UART_CTRL_FRAMING		0x10
+#define GB_UART_CTRL_PARITY		0x20
+#define GB_UART_CTRL_OVERRUN		0x40
+
+struct gb_uart_serial_state_request {
+	__u16	control;
+};
+
+struct gb_uart_simple_response {
+	__u8	status;
+};
+
 struct gb_tty {
 	struct tty_port port;
 	struct gb_connection *connection;
@@ -49,15 +126,247 @@ struct gb_tty {
 	struct async_icount oldcount;
 	wait_queue_head_t wioctl;
 	struct mutex mutex;
+	u8 version_major;
+	u8 version_minor;
+	unsigned int ctrlin;	/* input control lines */
+	unsigned int ctrlout;	/* output control lines */
+	struct gb_serial_line_coding line_coding;
 };
+
 
 static struct tty_driver *gb_tty_driver;
 static DEFINE_IDR(tty_minors);
 static DEFINE_MUTEX(table_lock);
 static atomic_t reference_count = ATOMIC_INIT(0);
 
-static int gb_tty_init(void);
-static void gb_tty_exit(void);
+
+static int request_operation(struct gb_connection *connection, int type,
+			     void *response, int response_size)
+{
+	struct gb_operation *operation;
+	struct gb_uart_simple_response *fake_request;
+	u8 *local_response;
+	int ret;
+
+	local_response = kmalloc(response_size, GFP_KERNEL);
+	if (!local_response)
+		return -ENOMEM;
+
+	operation = gb_operation_create(connection, type, 0, response_size);
+	if (!operation) {
+		kfree(local_response);
+		return -ENOMEM;
+	}
+
+	/* Synchronous operation--no callback */
+	ret = gb_operation_request_send(operation, NULL);
+	if (ret) {
+		pr_err("version operation failed (%d)\n", ret);
+		goto out;
+	}
+
+	/*
+	 * We only want to look at the status, and all requests have the same
+	 * layout for where the status is, so cast this to a random request so
+	 * we can see the status easier.
+	 */
+	fake_request = (struct gb_uart_simple_response *)local_response;
+	if (fake_request->status) {
+		gb_connection_err(connection, "response %hhu",
+			fake_request->status);
+		ret = -EIO;
+	} else {
+		/* Good request, so copy to the caller's buffer */
+		memcpy(response, local_response, response_size);
+	}
+out:
+	gb_operation_destroy(operation);
+	kfree(local_response);
+
+	return ret;
+}
+
+/*
+ * This request only uses the connection field, and if successful,
+ * fills in the major and minor protocol version of the target.
+ */
+static int get_version(struct gb_tty *tty)
+{
+	struct gb_uart_proto_version_response version_request;
+	int retval;
+
+	retval = request_operation(tty->connection,
+				   GB_UART_REQ_PROTOCOL_VERSION,
+				   &version_request, sizeof(version_request));
+	if (retval)
+		return retval;
+
+	if (version_request.major > GB_UART_VERSION_MAJOR) {
+		pr_err("unsupported major version (%hhu > %hhu)\n",
+			version_request.major, GB_UART_VERSION_MAJOR);
+		return -ENOTSUPP;
+	}
+
+	tty->version_major = version_request.major;
+	tty->version_minor = version_request.minor;
+	return 0;
+}
+
+static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
+{
+	struct gb_connection *connection = tty->connection;
+	struct gb_operation *operation;
+	struct gb_uart_send_data_request *request;
+	struct gb_uart_simple_response *response;
+	int retval;
+
+	if (!data || !size)
+		return 0;
+
+	operation = gb_operation_create(connection, GB_UART_REQ_SEND_DATA,
+					sizeof(*request) + size,
+					sizeof(*response));
+	if (!operation)
+		return -ENOMEM;
+	request = operation->request_payload;
+	request->size = cpu_to_le16(size);
+	memcpy(&request->data[0], data, size);
+
+	/* Synchronous operation--no callback */
+	retval = gb_operation_request_send(operation, NULL);
+	if (retval) {
+		dev_err(&connection->dev,
+			"send data operation failed (%d)\n", retval);
+		goto out;
+	}
+
+	response = operation->response_payload;
+	if (response->status) {
+		gb_connection_err(connection, "send data response %hhu",
+				  response->status);
+		retval = -EIO;
+	}
+out:
+	gb_operation_destroy(operation);
+
+	return retval;
+}
+
+static int send_line_coding(struct gb_tty *tty,
+			    struct gb_serial_line_coding *line_coding)
+{
+	struct gb_connection *connection = tty->connection;
+	struct gb_operation *operation;
+	struct gb_uart_set_line_coding_request *request;
+	struct gb_uart_simple_response *response;
+	int retval;
+
+	operation = gb_operation_create(connection, GB_UART_REQ_SET_LINE_CODING,
+					sizeof(*request),
+					sizeof(*response));
+	if (!operation)
+		return -ENOMEM;
+	request = operation->request_payload;
+	memcpy(&request->line_coding, line_coding, sizeof(*line_coding));
+
+	/* Synchronous operation--no callback */
+	retval = gb_operation_request_send(operation, NULL);
+	if (retval) {
+		dev_err(&connection->dev,
+			"send line coding operation failed (%d)\n", retval);
+		goto out;
+	}
+
+	response = operation->response_payload;
+	if (response->status) {
+		gb_connection_err(connection, "send line coding response %hhu",
+				  response->status);
+		retval = -EIO;
+	}
+out:
+	gb_operation_destroy(operation);
+
+	return retval;
+}
+
+static int send_control(struct gb_tty *tty, u16 control)
+{
+	struct gb_connection *connection = tty->connection;
+	struct gb_operation *operation;
+	struct gb_uart_set_control_line_state_request *request;
+	struct gb_uart_simple_response *response;
+	int retval;
+
+	operation = gb_operation_create(connection,
+					GB_UART_REQ_SET_CONTROL_LINE_STATE,
+					sizeof(*request),
+					sizeof(*response));
+	if (!operation)
+		return -ENOMEM;
+	request = operation->request_payload;
+	request->control = cpu_to_le16(control);
+
+	/* Synchronous operation--no callback */
+	retval = gb_operation_request_send(operation, NULL);
+	if (retval) {
+		dev_err(&connection->dev,
+			"send control operation failed (%d)\n", retval);
+		goto out;
+	}
+
+	response = operation->response_payload;
+	if (response->status) {
+		gb_connection_err(connection, "send control response %hhu",
+				  response->status);
+		retval = -EIO;
+	}
+out:
+	gb_operation_destroy(operation);
+
+	return retval;
+}
+
+static int send_break(struct gb_tty *tty, u8 state)
+{
+	struct gb_connection *connection = tty->connection;
+	struct gb_operation *operation;
+	struct gb_uart_set_break_request *request;
+	struct gb_uart_simple_response *response;
+	int retval;
+
+	if ((state != 0) && (state != 1)) {
+		dev_err(&connection->dev, "invalid break state of %d\n", state);
+		return -EINVAL;
+	}
+
+	operation = gb_operation_create(connection, GB_UART_REQ_SET_BREAK,
+					sizeof(*request),
+					sizeof(*response));
+	if (!operation)
+		return -ENOMEM;
+	request = operation->request_payload;
+	request->state = state;
+
+	/* Synchronous operation--no callback */
+	retval = gb_operation_request_send(operation, NULL);
+	if (retval) {
+		dev_err(&connection->dev,
+			"send break operation failed (%d)\n", retval);
+		goto out;
+	}
+
+	response = operation->response_payload;
+	if (response->status) {
+		gb_connection_err(connection, "send break response %hhu",
+				  response->status);
+		retval = -EIO;
+	}
+out:
+	gb_operation_destroy(operation);
+
+	return retval;
+}
+
 
 static struct gb_tty *get_gb_by_minor(unsigned minor)
 {
@@ -152,11 +461,9 @@ static void gb_tty_hangup(struct tty_struct *tty)
 static int gb_tty_write(struct tty_struct *tty, const unsigned char *buf,
 			int count)
 {
-//	struct gb_tty *gb_tty = tty->driver_data;
+	struct gb_tty *gb_tty = tty->driver_data;
 
-	// FIXME - actually implement...
-
-	return 0;
+	return send_data(gb_tty, count, buf);
 }
 
 static int gb_tty_write_room(struct tty_struct *tty)
@@ -177,33 +484,91 @@ static int gb_tty_chars_in_buffer(struct tty_struct *tty)
 
 static int gb_tty_break_ctl(struct tty_struct *tty, int state)
 {
-//	struct gb_tty *gb_tty = tty->driver_data;
+	struct gb_tty *gb_tty = tty->driver_data;
 
-	// FIXME - send a break, if asked to...
-	return 0;
+	return send_break(gb_tty, state ? 1 : 0);
 }
 
-static void gb_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
+static void gb_tty_set_termios(struct tty_struct *tty,
+			       struct ktermios *termios_old)
 {
-	// FIXME - is this it???
-	tty_termios_copy_hw(&tty->termios, old);
+	struct gb_tty *gb_tty = tty->driver_data;
+	struct ktermios *termios = &tty->termios;
+	struct gb_serial_line_coding newline;
+	int newctrl = gb_tty->ctrlout;
+
+	newline.rate = cpu_to_le32(tty_get_baud_rate(tty));
+	newline.format = termios->c_cflag & CSTOPB ? 2 : 0;
+	newline.parity = termios->c_cflag & PARENB ?
+				(termios->c_cflag & PARODD ? 1 : 2) +
+				(termios->c_cflag & CMSPAR ? 2 : 0) : 0;
+
+	switch (termios->c_cflag & CSIZE) {
+	case CS5:
+		newline.data = 5;
+		break;
+	case CS6:
+		newline.data = 6;
+		break;
+	case CS7:
+		newline.data = 7;
+		break;
+	case CS8:
+	default:
+		newline.data = 8;
+		break;
+	}
+
+	/* FIXME: needs to clear unsupported bits in the termios */
+	gb_tty->clocal = ((termios->c_cflag & CLOCAL) != 0);
+
+	if (C_BAUD(tty) == B0) {
+		newline.rate = gb_tty->line_coding.rate;
+		newctrl &= GB_UART_CTRL_DTR;
+	} else if (termios_old && (termios_old->c_cflag & CBAUD) == B0) {
+		newctrl |= GB_UART_CTRL_DTR;
+	}
+
+	if (newctrl != gb_tty->ctrlout) {
+		gb_tty->ctrlout = newctrl;
+		send_control(gb_tty, newctrl);
+	}
+
+	if (memcpy(&gb_tty->line_coding, &newline, sizeof(newline))) {
+		memcpy(&gb_tty->line_coding, &newline, sizeof(newline));
+		send_line_coding(gb_tty, &gb_tty->line_coding);
+	}
 }
 
 static int gb_tty_tiocmget(struct tty_struct *tty)
 {
-//	struct gb_tty *gb_tty = tty->driver_data;
+	struct gb_tty *gb_tty = tty->driver_data;
 
-	// FIXME - get some tiocms!
-	return 0;
+	return (gb_tty->ctrlout & GB_UART_CTRL_DTR ? TIOCM_DTR : 0) |
+	       (gb_tty->ctrlout & GB_UART_CTRL_RTS ? TIOCM_RTS : 0) |
+	       (gb_tty->ctrlin  & GB_UART_CTRL_DSR ? TIOCM_DSR : 0) |
+	       (gb_tty->ctrlin  & GB_UART_CTRL_RI  ? TIOCM_RI  : 0) |
+	       (gb_tty->ctrlin  & GB_UART_CTRL_DCD ? TIOCM_CD  : 0) |
+	       TIOCM_CTS;
 }
 
 static int gb_tty_tiocmset(struct tty_struct *tty, unsigned int set,
 			   unsigned int clear)
 {
-//	struct gb_tty *gb_tty = tty->driver_data;
+	struct gb_tty *gb_tty = tty->driver_data;
+	unsigned int newctrl = gb_tty->ctrlout;
 
-	// FIXME - set some tiocms!
-	return 0;
+	set = (set & TIOCM_DTR ? GB_UART_CTRL_DTR : 0) |
+	      (set & TIOCM_RTS ? GB_UART_CTRL_RTS : 0);
+	clear = (clear & TIOCM_DTR ? GB_UART_CTRL_DTR : 0) |
+		(clear & TIOCM_RTS ? GB_UART_CTRL_RTS : 0);
+
+	newctrl = (newctrl & ~clear) | set;
+	if (gb_tty->ctrlout == newctrl)
+		return 0;
+
+	gb_tty->ctrlout = newctrl;
+	return send_control(gb_tty, newctrl);
 }
 
 static void gb_tty_throttle(struct tty_struct *tty)
@@ -385,6 +750,9 @@ static const struct tty_operations gb_ops = {
 };
 
 
+static int gb_tty_init(void);
+static void gb_tty_exit(void);
+
 static int gb_uart_connection_init(struct gb_connection *connection)
 {
 	struct gb_tty *gb_tty;
@@ -404,26 +772,39 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	gb_tty = kzalloc(sizeof(*gb_tty), GFP_KERNEL);
 	if (!gb_tty)
 		return -ENOMEM;
+	gb_tty->connection = connection;
+
+	/* Check for compatible protocol version */
+	retval = get_version(gb_tty);
+	if (retval)
+		goto error_version;
 
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
 		if (minor == -ENOSPC) {
-			dev_err(&connection->dev, "no more free minor numbers\n");
+			dev_err(&connection->dev,
+				"no more free minor numbers\n");
 			return -ENODEV;
 		}
 		return minor;
 	}
 
 	gb_tty->minor = minor;
-	gb_tty->connection = connection;
 	spin_lock_init(&gb_tty->write_lock);
 	spin_lock_init(&gb_tty->read_lock);
 	init_waitqueue_head(&gb_tty->wioctl);
 	mutex_init(&gb_tty->mutex);
 
-	/* FIXME - allocate gb buffers */
-
 	connection->private = gb_tty;
+
+	send_control(gb_tty, gb_tty->ctrlout);
+
+	/* initialize the uart to be 9600n81 */
+	gb_tty->line_coding.rate = cpu_to_le32(9600);
+	gb_tty->line_coding.format = GB_SERIAL_1_STOP_BITS;
+	gb_tty->line_coding.parity = GB_SERIAL_NO_PARITY;
+	gb_tty->line_coding.data = 8;
+	send_line_coding(gb_tty, &gb_tty->line_coding);
 
 	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
 					   &connection->dev);
@@ -434,8 +815,10 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 
 	return 0;
 error:
-	connection->private = NULL;
 	release_minor(gb_tty);
+error_version:
+	connection->private = NULL;
+	kfree(gb_tty);
 	return retval;
 }
 
@@ -526,7 +909,7 @@ static struct gb_protocol uart_protocol = {
 	.minor			= 1,
 	.connection_init	= gb_uart_connection_init,
 	.connection_exit	= gb_uart_connection_exit,
-	.request_recv		= NULL,	/* no incoming requests */
+	.request_recv		= NULL,	/* FIXME we have 2 types of requests!!! */
 };
 
 bool gb_uart_protocol_init(void)
