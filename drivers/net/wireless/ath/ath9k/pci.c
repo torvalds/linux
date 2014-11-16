@@ -657,7 +657,9 @@ static const struct pci_device_id ath_pci_id_table[] = {
 			 0x0036,
 			 PCI_VENDOR_ID_DELL,
 			 0x020E),
-	  .driver_data = ATH9K_PCI_AR9565_2ANT | ATH9K_PCI_BT_ANT_DIV },
+	  .driver_data = ATH9K_PCI_AR9565_2ANT |
+			 ATH9K_PCI_BT_ANT_DIV |
+			 ATH9K_PCI_LED_ACT_HI},
 
 	/* PCI-E AR9565 (WB335) */
 	{ PCI_VDEVICE(ATHEROS, 0x0036),

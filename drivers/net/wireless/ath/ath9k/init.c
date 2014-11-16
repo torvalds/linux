@@ -441,6 +441,9 @@ static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 		ah->config.no_pll_pwrsave = true;
 		ath_info(common, "Disable PLL PowerSave\n");
 	}
+
+	if (sc->driver_data & ATH9K_PCI_LED_ACT_HI)
+		ah->config.led_active_high = true;
 }
 
 static void ath9k_eeprom_request_cb(const struct firmware *eeprom_blob,

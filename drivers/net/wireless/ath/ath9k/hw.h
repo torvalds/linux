@@ -329,6 +329,7 @@ struct ath9k_ops_config {
 	bool alt_mingainidx;
 	bool no_pll_pwrsave;
 	bool tx_gain_buffalo;
+	bool led_active_high;
 };
 
 enum ath9k_int {

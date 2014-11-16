@@ -727,7 +727,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	if (ah->led_pin >= 0) {
 		ath9k_hw_cfg_output(ah, ah->led_pin,
 				    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-		ath9k_hw_set_gpio(ah, ah->led_pin, 0);
+		ath9k_hw_set_gpio(ah, ah->led_pin,
+				  (ah->config.led_active_high) ? 1 : 0);
 	}
 
 	/*
@@ -869,7 +870,8 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	spin_lock_bh(&sc->sc_pcu_lock);
 
 	if (ah->led_pin >= 0) {
-		ath9k_hw_set_gpio(ah, ah->led_pin, 1);
+		ath9k_hw_set_gpio(ah, ah->led_pin,
+				  (ah->config.led_active_high) ? 0 : 1);
 		ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
 	}
 

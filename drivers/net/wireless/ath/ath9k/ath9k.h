@@ -931,6 +931,7 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 #define ATH9K_PCI_AR9565_2ANT     0x0100
 #define ATH9K_PCI_NO_PLL_PWRSAVE  0x0200
 #define ATH9K_PCI_KILLER          0x0400
+#define ATH9K_PCI_LED_ACT_HI      0x0800
 
 /*
  * Default cache line size, in bytes.
