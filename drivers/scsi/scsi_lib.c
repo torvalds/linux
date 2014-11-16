@@ -1893,6 +1893,11 @@ static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req,
 		blk_mq_start_request(req);
 	}
 
+	if (blk_queue_tagged(q))
+		req->cmd_flags |= REQ_QUEUED;
+	else
+		req->cmd_flags &= ~REQ_QUEUED;
+
 	scsi_init_cmd_errh(cmd);
 	cmd->scsi_done = scsi_mq_done;
 

@@ -1600,6 +1600,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				break;
 
 			/* attach tuner */
+			memset(&m88ts2022_config, 0, sizeof(m88ts2022_config));
 			m88ts2022_config.fe = fe0->dvb.frontend;
 			m88ts2022_config.clock = 27000000;
 			memset(&info, 0, sizeof(struct i2c_board_info));
@@ -1635,6 +1636,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		/* port c - terrestrial/cable */
 		case 2:
 			/* attach frontend */
+			memset(&si2168_config, 0, sizeof(si2168_config));
 			si2168_config.i2c_adapter = &adapter;
 			si2168_config.fe = &fe0->dvb.frontend;
 			si2168_config.ts_mode = SI2168_TS_SERIAL;
@@ -1654,6 +1656,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			port->i2c_client_demod = client_demod;
 
 			/* attach tuner */
+			memset(&si2157_config, 0, sizeof(si2157_config));
 			si2157_config.fe = fe0->dvb.frontend;
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
