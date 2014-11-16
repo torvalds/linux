@@ -401,6 +401,10 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id,
 		struct of_phandle_args sensor_specs;
 		int ret, id;
 
+		/* Check whether child is enabled or not */
+		if (!of_device_is_available(child))
+			continue;
+
 		/* For now, thermal framework supports only 1 sensor per zone */
 		ret = of_parse_phandle_with_args(child, "thermal-sensors",
 						 "#thermal-sensor-cells",
@@ -771,6 +775,10 @@ int __init of_parse_thermal_zones(void)
 		struct thermal_zone_device *zone;
 		struct thermal_zone_params *tzp;
 
+		/* Check whether child is enabled or not */
+		if (!of_device_is_available(child))
+			continue;
+
 		tz = thermal_of_build_thermal_zone(child);
 		if (IS_ERR(tz)) {
 			pr_err("failed to build thermal zone %s: %ld\n",
@@ -837,6 +845,10 @@ void of_thermal_destroy_zones(void)
 
 	for_each_child_of_node(np, child) {
 		struct thermal_zone_device *zone;
+
+		/* Check whether child is enabled or not */
+		if (!of_device_is_available(child))
+			continue;
 
 		zone = thermal_zone_get_zone_by_name(child->name);
 		if (IS_ERR(zone))

@@ -53,8 +53,15 @@ void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 #else
 	struct page *page;
 	int node = dev_to_node(dev);
+#ifdef CONFIG_FSL_SOC
 	u64 pfn = get_pfn_limit(dev);
 	int zone;
+
+	/*
+	 * This code should be OK on other platforms, but we have drivers that
+	 * don't set coherent_dma_mask. As a workaround we just ifdef it. This
+	 * whole routine needs some serious cleanup.
+	 */
 
 	zone = dma_pfn_limit_to_zone(pfn);
 	if (zone < 0) {
@@ -73,6 +80,7 @@ void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 		break;
 #endif
 	};
+#endif /* CONFIG_FSL_SOC */
 
 	/* ignore region specifiers */
 	flag  &= ~(__GFP_HIGHMEM);

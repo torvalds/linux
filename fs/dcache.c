@@ -2673,11 +2673,13 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 			if (!IS_ROOT(new)) {
 				spin_unlock(&inode->i_lock);
 				dput(new);
+				iput(inode);
 				return ERR_PTR(-EIO);
 			}
 			if (d_ancestor(new, dentry)) {
 				spin_unlock(&inode->i_lock);
 				dput(new);
+				iput(inode);
 				return ERR_PTR(-EIO);
 			}
 			write_seqlock(&rename_lock);

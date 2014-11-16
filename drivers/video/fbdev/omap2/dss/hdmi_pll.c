@@ -124,15 +124,14 @@ static int hdmi_pll_config(struct hdmi_pll_data *pll)
 	r = FLD_MOD(r, 0x0, 14, 14);	/* PHY_CLKINEN de-assert during locking */
 	r = FLD_MOD(r, fmt->refsel, 22, 21);	/* REFSEL */
 
-	if (fmt->dcofreq) {
-		/* divider programming for frequency beyond 1000Mhz */
-		REG_FLD_MOD(pll->base, PLLCTRL_CFG3, fmt->regsd, 17, 10);
+	if (fmt->dcofreq)
 		r = FLD_MOD(r, 0x4, 3, 1);	/* 1000MHz and 2000MHz */
-	} else {
+	else
 		r = FLD_MOD(r, 0x2, 3, 1);	/* 500MHz and 1000MHz */
-	}
 
 	hdmi_write_reg(pll->base, PLLCTRL_CFG2, r);
+
+	REG_FLD_MOD(pll->base, PLLCTRL_CFG3, fmt->regsd, 17, 10);
 
 	r = hdmi_read_reg(pll->base, PLLCTRL_CFG4);
 	r = FLD_MOD(r, fmt->regm2, 24, 18);
@@ -144,8 +143,8 @@ static int hdmi_pll_config(struct hdmi_pll_data *pll)
 
 	/* wait for bit change */
 	if (hdmi_wait_for_bit_change(pll->base, PLLCTRL_PLL_GO,
-			0, 0, 1) != 1) {
-		DSSERR("PLL GO bit not set\n");
+			0, 0, 0) != 0) {
+		DSSERR("PLL GO bit not clearing\n");
 		return -ETIMEDOUT;
 	}
 

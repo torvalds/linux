@@ -105,6 +105,7 @@ static __always_inline bool should_resched(void)
 # ifdef CONFIG_CONTEXT_TRACKING
     extern asmlinkage void ___preempt_schedule_context(void);
 #   define __preempt_schedule_context() asm ("call ___preempt_schedule_context")
+    extern asmlinkage void preempt_schedule_context(void);
 # endif
 #endif
 
