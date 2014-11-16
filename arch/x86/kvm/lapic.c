@@ -341,8 +341,12 @@ EXPORT_SYMBOL_GPL(kvm_apic_update_irr);
 
 static inline void apic_set_irr(int vec, struct kvm_lapic *apic)
 {
-	apic->irr_pending = true;
 	apic_set_vector(vec, apic->regs + APIC_IRR);
+	/*
+	 * irr_pending must be true if any interrupt is pending; set it after
+	 * APIC_IRR to avoid race with apic_clear_irr
+	 */
+	apic->irr_pending = true;
 }
 
 static inline int apic_search_irr(struct kvm_lapic *apic)
@@ -374,13 +378,15 @@ static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
 
 	vcpu = apic->vcpu;
 
-	apic_clear_vector(vec, apic->regs + APIC_IRR);
-	if (unlikely(kvm_apic_vid_enabled(vcpu->kvm)))
+	if (unlikely(kvm_apic_vid_enabled(vcpu->kvm))) {
 		/* try to update RVI */
+		apic_clear_vector(vec, apic->regs + APIC_IRR);
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
-	else {
-		vec = apic_search_irr(apic);
-		apic->irr_pending = (vec != -1);
+	} else {
+		apic->irr_pending = false;
+		apic_clear_vector(vec, apic->regs + APIC_IRR);
+		if (apic_search_irr(apic) != -1)
+			apic->irr_pending = true;
 	}
 }
 
