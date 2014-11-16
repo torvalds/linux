@@ -900,6 +900,11 @@ void ath_offchannel_next(struct ath_softc *sc)
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_START;
 		ath_chanctx_offchan_switch(sc, sc->offchannel.roc_chan);
 	} else {
+		spin_lock_bh(&sc->chan_lock);
+		sc->sched.offchannel_pending = false;
+		sc->sched.wait_switch = false;
+		spin_unlock_bh(&sc->chan_lock);
+
 		ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc, false),
 				   NULL);
 		sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
