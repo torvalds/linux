@@ -3372,14 +3372,11 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 mrqc, rxcsum;
 	u32 j, num_rx_queues;
-	static const u32 rsskey[10] = { 0xDA565A6D, 0xC20E5B25, 0x3D256741,
-					0xB08FA343, 0xCB2BCAD0, 0xB4307BAE,
-					0xA32DCB77, 0x0CF23080, 0x3BB7426A,
-					0xFA01ACBE };
+	u32 rss_key[10];
 
-	/* Fill out hash function seeds */
+	netdev_rss_key_fill(rss_key, sizeof(rss_key));
 	for (j = 0; j < 10; j++)
-		wr32(E1000_RSSRK(j), rsskey[j]);
+		wr32(E1000_RSSRK(j), rss_key[j]);
 
 	num_rx_queues = adapter->rss_queues;
 

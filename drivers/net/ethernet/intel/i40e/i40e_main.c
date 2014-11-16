@@ -7002,20 +7002,16 @@ static int i40e_setup_misc_vector(struct i40e_pf *pf)
  **/
 static int i40e_config_rss(struct i40e_pf *pf)
 {
-	/* Set of random keys generated using kernel random number generator */
-	static const u32 seed[I40E_PFQF_HKEY_MAX_INDEX + 1] = {0x41b01687,
-				0x183cfd8c, 0xce880440, 0x580cbc3c, 0x35897377,
-				0x328b25e1, 0x4fa98922, 0xb7d90c14, 0xd5bad70d,
-				0xcd15a2c1, 0xe8580225, 0x4a1e9d11, 0xfe5731be};
+	u32 rss_key[I40E_PFQF_HKEY_MAX_INDEX + 1];
 	struct i40e_hw *hw = &pf->hw;
 	u32 lut = 0;
 	int i, j;
 	u64 hena;
 	u32 reg_val;
 
-	/* Fill out hash function seed */
+	netdev_rss_key_fill(rss_key, sizeof(rss_key));
 	for (i = 0; i <= I40E_PFQF_HKEY_MAX_INDEX; i++)
-		wr32(hw, I40E_PFQF_HKEY(i), seed[i]);
+		wr32(hw, I40E_PFQF_HKEY(i), rss_key[i]);
 
 	/* By default we enable TCP/UDP with IPv4/IPv6 ptypes */
 	hena = (u64)rd32(hw, I40E_PFQF_HENA(0)) |

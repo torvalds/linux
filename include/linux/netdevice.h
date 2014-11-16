@@ -3422,6 +3422,12 @@ void netdev_upper_dev_unlink(struct net_device *dev,
 void netdev_adjacent_rename_links(struct net_device *dev, char *oldname);
 void *netdev_lower_dev_get_private(struct net_device *dev,
 				   struct net_device *lower_dev);
+
+/* RSS keys are 40 or 52 bytes long */
+#define NETDEV_RSS_KEY_LEN 52
+extern u8 netdev_rss_key[NETDEV_RSS_KEY_LEN];
+void netdev_rss_key_fill(void *buffer, size_t len);
+
 int dev_get_nest_level(struct net_device *dev,
 		       bool (*type_check)(struct net_device *dev));
 int skb_checksum_help(struct sk_buff *skb);

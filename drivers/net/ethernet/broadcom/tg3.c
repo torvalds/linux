@@ -10540,19 +10540,14 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	udelay(100);
 
 	if (tg3_flag(tp, ENABLE_RSS)) {
+		u32 rss_key[10];
+
 		tg3_rss_write_indir_tbl(tp);
 
-		/* Setup the "secret" hash key. */
-		tw32(MAC_RSS_HASH_KEY_0, 0x5f865437);
-		tw32(MAC_RSS_HASH_KEY_1, 0xe4ac62cc);
-		tw32(MAC_RSS_HASH_KEY_2, 0x50103a45);
-		tw32(MAC_RSS_HASH_KEY_3, 0x36621985);
-		tw32(MAC_RSS_HASH_KEY_4, 0xbf14c0e8);
-		tw32(MAC_RSS_HASH_KEY_5, 0x1bc27a1e);
-		tw32(MAC_RSS_HASH_KEY_6, 0x84f4b556);
-		tw32(MAC_RSS_HASH_KEY_7, 0x094ea6fe);
-		tw32(MAC_RSS_HASH_KEY_8, 0x7dda01e7);
-		tw32(MAC_RSS_HASH_KEY_9, 0xc04d7481);
+		netdev_rss_key_fill(rss_key, 10 * sizeof(u32));
+
+		for (i = 0; i < 10 ; i++)
+			tw32(MAC_RSS_HASH_KEY_0 + i*4, rss_key[i]);
 	}
 
 	tp->rx_mode = RX_MODE_ENABLE;
