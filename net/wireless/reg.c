@@ -1598,6 +1598,9 @@ static void handle_channel_custom(struct wiphy *wiphy,
 		bw_flags |= IEEE80211_CHAN_NO_160MHZ;
 
 	chan->dfs_state_entered = jiffies;
+	chan->dfs_state = NL80211_DFS_USABLE;
+
+	chan->beacon_found = false;
 	chan->flags |= map_regdom_flags(reg_rule->flags) | bw_flags;
 	chan->max_antenna_gain = (int) MBI_TO_DBI(power_rule->max_antenna_gain);
 	chan->max_reg_power = chan->max_power =
