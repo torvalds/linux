@@ -1434,17 +1434,11 @@ static int next_queue(struct i40evf_adapter *adapter, int j)
  **/
 static void i40evf_configure_rss(struct i40evf_adapter *adapter)
 {
+	u32 rss_key[I40E_VFQF_HKEY_MAX_INDEX + 1];
 	struct i40e_hw *hw = &adapter->hw;
 	u32 lut = 0;
 	int i, j;
 	u64 hena;
-
-	/* Set of random keys generated using kernel random number generator */
-	static const u32 seed[I40E_VFQF_HKEY_MAX_INDEX + 1] = {
-			0x794221b4, 0xbca0c5ab, 0x6cd5ebd9, 0x1ada6127,
-			0x983b3aa1, 0x1c4e71eb, 0x7f6328b2, 0xfcdc0da0,
-			0xc135cafa, 0x7a6f7e2d, 0xe7102d28, 0x163cd12e,
-			0x4954b126 };
 
 	/* No RSS for single queue. */
 	if (adapter->num_active_queues == 1) {
@@ -1454,8 +1448,9 @@ static void i40evf_configure_rss(struct i40evf_adapter *adapter)
 	}
 
 	/* Hash type is configured by the PF - we just supply the key */
+	netdev_rss_key_fill(rss_key, sizeof(rss_key));
 	for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
-		wr32(hw, I40E_VFQF_HKEY(i), seed[i]);
+		wr32(hw, I40E_VFQF_HKEY(i), rss_key[i]);
 
 	/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
 	hena = I40E_DEFAULT_RSS_HENA;
