@@ -2501,10 +2501,17 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 		init_completion(&sc->go_beacon);
 
 		mutex_unlock(&sc->mutex);
+
 		if (wait_for_completion_timeout(&sc->go_beacon,
-						timeout) == 0)
+						timeout) == 0) {
 			ath_dbg(common, CHAN_CTX,
 				"Failed to send new NoA\n");
+
+			spin_lock_bh(&sc->chan_lock);
+			sc->sched.mgd_prepare_tx = false;
+			spin_unlock_bh(&sc->chan_lock);
+		}
+
 		mutex_lock(&sc->mutex);
 	}
 
