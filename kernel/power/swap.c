@@ -1375,7 +1375,7 @@ out_clean:
 				kthread_stop(data[thr].thr);
 		vfree(data);
 	}
-	if (page) vfree(page);
+	vfree(page);
 
 	return ret;
 }
