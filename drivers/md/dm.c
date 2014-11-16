@@ -525,14 +525,15 @@ retry:
 		goto out;
 
 	tgt = dm_table_get_target(map, 0);
+	if (!tgt->type->ioctl)
+		goto out;
 
 	if (dm_suspended_md(md)) {
 		r = -EAGAIN;
 		goto out;
 	}
 
-	if (tgt->type->ioctl)
-		r = tgt->type->ioctl(tgt, cmd, arg);
+	r = tgt->type->ioctl(tgt, cmd, arg);
 
 out:
 	dm_put_live_table(md, srcu_idx);
