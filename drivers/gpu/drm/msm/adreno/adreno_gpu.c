@@ -2,6 +2,8 @@
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
+ * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
@@ -63,19 +65,21 @@ int adreno_hw_init(struct msm_gpu *gpu)
 	}
 
 	/* Setup REG_CP_RB_CNTL: */
-	gpu_write(gpu, REG_AXXX_CP_RB_CNTL,
+	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_CNTL,
 			/* size is log2(quad-words): */
 			AXXX_CP_RB_CNTL_BUFSZ(ilog2(gpu->rb->size / 8)) |
 			AXXX_CP_RB_CNTL_BLKSZ(ilog2(RB_BLKSIZE / 8)));
 
 	/* Setup ringbuffer address: */
-	gpu_write(gpu, REG_AXXX_CP_RB_BASE, gpu->rb_iova);
-	gpu_write(gpu, REG_AXXX_CP_RB_RPTR_ADDR, rbmemptr(adreno_gpu, rptr));
+	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_BASE, gpu->rb_iova);
+	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_RPTR_ADDR,
+			rbmemptr(adreno_gpu, rptr));
 
 	/* Setup scratch/timestamp: */
-	gpu_write(gpu, REG_AXXX_SCRATCH_ADDR, rbmemptr(adreno_gpu, fence));
+	adreno_gpu_write(adreno_gpu, REG_ADRENO_SCRATCH_ADDR,
+			rbmemptr(adreno_gpu, fence));
 
-	gpu_write(gpu, REG_AXXX_SCRATCH_UMSK, 0x1);
+	adreno_gpu_write(adreno_gpu, REG_ADRENO_SCRATCH_UMSK, 0x1);
 
 	return 0;
 }
@@ -151,7 +155,7 @@ int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	OUT_PKT0(ring, REG_AXXX_CP_SCRATCH_REG2, 1);
 	OUT_RING(ring, submit->fence);
 
-	if (adreno_is_a3xx(adreno_gpu)) {
+	if (adreno_is_a3xx(adreno_gpu) || adreno_is_a4xx(adreno_gpu)) {
 		/* Flush HLSQ lazy updates to make sure there is nothing
 		 * pending for indirect loads after the timestamp has
 		 * passed:
@@ -188,12 +192,13 @@ int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 void adreno_flush(struct msm_gpu *gpu)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	uint32_t wptr = get_wptr(gpu->rb);
 
 	/* ensure writes to ringbuffer have hit system memory: */
 	mb();
 
-	gpu_write(gpu, REG_AXXX_CP_RB_WPTR, wptr);
+	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_WPTR, wptr);
 }
 
 void adreno_idle(struct msm_gpu *gpu)
@@ -319,6 +324,12 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	DBG("fast_rate=%u, slow_rate=%u, bus_freq=%u",
 			gpu->fast_rate, gpu->slow_rate, gpu->bus_freq);
 
+	ret = msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
+			adreno_gpu->info->name, "kgsl_3d0_reg_memory", "kgsl_3d0_irq",
+			RB_SIZE);
+	if (ret)
+		return ret;
+
 	ret = request_firmware(&adreno_gpu->pm4, adreno_gpu->info->pm4fw, drm->dev);
 	if (ret) {
 		dev_err(drm->dev, "failed to load %s PM4 firmware: %d\n",
@@ -332,12 +343,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 				adreno_gpu->info->pfpfw, ret);
 		return ret;
 	}
-
-	ret = msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
-			adreno_gpu->info->name, "kgsl_3d0_reg_memory", "kgsl_3d0_irq",
-			RB_SIZE);
-	if (ret)
-		return ret;
 
 	mmu = gpu->mmu;
 	if (mmu) {

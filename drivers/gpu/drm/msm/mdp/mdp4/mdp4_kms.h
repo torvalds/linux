@@ -194,14 +194,6 @@ uint32_t mdp4_get_formats(enum mdp4_pipe pipe_id, uint32_t *pixel_formats,
 
 void mdp4_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
-void mdp4_plane_set_scanout(struct drm_plane *plane,
-		struct drm_framebuffer *fb);
-int mdp4_plane_mode_set(struct drm_plane *plane,
-		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h);
 enum mdp4_pipe mdp4_plane_pipe(struct drm_plane *plane);
 struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 		enum mdp4_pipe pipe_id, bool private_plane);
@@ -210,8 +202,6 @@ uint32_t mdp4_crtc_vblank(struct drm_crtc *crtc);
 void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file);
 void mdp4_crtc_set_config(struct drm_crtc *crtc, uint32_t config);
 void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf, int mixer);
-void mdp4_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane);
-void mdp4_crtc_detach(struct drm_crtc *crtc, struct drm_plane *plane);
 struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, int id, int ovlp_id,
 		enum mdp4_dma dma_id);

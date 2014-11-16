@@ -68,24 +68,17 @@ void hdmi_destroy(struct kref *kref)
 	platform_set_drvdata(hdmi->pdev, NULL);
 }
 
-/* initialize connector */
-struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
+/* construct hdmi at bind/probe time, grab all the resources.  If
+ * we are to EPROBE_DEFER we want to do it here, rather than later
+ * at modeset_init() time
+ */
+static struct hdmi *hdmi_init(struct platform_device *pdev)
 {
+	struct hdmi_platform_config *config = pdev->dev.platform_data;
 	struct hdmi *hdmi = NULL;
-	struct msm_drm_private *priv = dev->dev_private;
-	struct platform_device *pdev = priv->hdmi_pdev;
-	struct hdmi_platform_config *config;
 	int i, ret;
 
-	if (!pdev) {
-		dev_err(dev->dev, "no hdmi device\n");
-		ret = -ENXIO;
-		goto fail;
-	}
-
-	config = pdev->dev.platform_data;
-
-	hdmi = kzalloc(sizeof(*hdmi), GFP_KERNEL);
+	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi) {
 		ret = -ENOMEM;
 		goto fail;
@@ -93,12 +86,8 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 
 	kref_init(&hdmi->refcount);
 
-	hdmi->dev = dev;
 	hdmi->pdev = pdev;
 	hdmi->config = config;
-	hdmi->encoder = encoder;
-
-	hdmi_audio_infoframe_init(&hdmi->audio.infoframe);
 
 	/* not sure about which phy maps to which msm.. probably I miss some */
 	if (config->phy_init)
@@ -108,7 +97,7 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 
 	if (IS_ERR(hdmi->phy)) {
 		ret = PTR_ERR(hdmi->phy);
-		dev_err(dev->dev, "failed to load phy: %d\n", ret);
+		dev_err(&pdev->dev, "failed to load phy: %d\n", ret);
 		hdmi->phy = NULL;
 		goto fail;
 	}
@@ -127,7 +116,7 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 				config->hpd_reg_names[i]);
 		if (IS_ERR(reg)) {
 			ret = PTR_ERR(reg);
-			dev_err(dev->dev, "failed to get hpd regulator: %s (%d)\n",
+			dev_err(&pdev->dev, "failed to get hpd regulator: %s (%d)\n",
 					config->hpd_reg_names[i], ret);
 			goto fail;
 		}
@@ -143,7 +132,7 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 				config->pwr_reg_names[i]);
 		if (IS_ERR(reg)) {
 			ret = PTR_ERR(reg);
-			dev_err(dev->dev, "failed to get pwr regulator: %s (%d)\n",
+			dev_err(&pdev->dev, "failed to get pwr regulator: %s (%d)\n",
 					config->pwr_reg_names[i], ret);
 			goto fail;
 		}
@@ -158,7 +147,7 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 		clk = devm_clk_get(&pdev->dev, config->hpd_clk_names[i]);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
-			dev_err(dev->dev, "failed to get hpd clk: %s (%d)\n",
+			dev_err(&pdev->dev, "failed to get hpd clk: %s (%d)\n",
 					config->hpd_clk_names[i], ret);
 			goto fail;
 		}
@@ -173,7 +162,7 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 		clk = devm_clk_get(&pdev->dev, config->pwr_clk_names[i]);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
-			dev_err(dev->dev, "failed to get pwr clk: %s (%d)\n",
+			dev_err(&pdev->dev, "failed to get pwr clk: %s (%d)\n",
 					config->pwr_clk_names[i], ret);
 			goto fail;
 		}
@@ -184,10 +173,40 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 	hdmi->i2c = hdmi_i2c_init(hdmi);
 	if (IS_ERR(hdmi->i2c)) {
 		ret = PTR_ERR(hdmi->i2c);
-		dev_err(dev->dev, "failed to get i2c: %d\n", ret);
+		dev_err(&pdev->dev, "failed to get i2c: %d\n", ret);
 		hdmi->i2c = NULL;
 		goto fail;
 	}
+
+	return hdmi;
+
+fail:
+	if (hdmi)
+		hdmi_destroy(&hdmi->refcount);
+
+	return ERR_PTR(ret);
+}
+
+/* Second part of initialization, the drm/kms level modeset_init,
+ * constructs/initializes mode objects, etc, is called from master
+ * driver (not hdmi sub-device's probe/bind!)
+ *
+ * Any resource (regulator/clk/etc) which could be missing at boot
+ * should be handled in hdmi_init() so that failure happens from
+ * hdmi sub-device's probe.
+ */
+int hdmi_modeset_init(struct hdmi *hdmi,
+		struct drm_device *dev, struct drm_encoder *encoder)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct platform_device *pdev = hdmi->pdev;
+	struct hdmi_platform_config *config = pdev->dev.platform_data;
+	int ret;
+
+	hdmi->dev = dev;
+	hdmi->encoder = encoder;
+
+	hdmi_audio_infoframe_init(&hdmi->audio.infoframe);
 
 	hdmi->bridge = hdmi_bridge_init(hdmi);
 	if (IS_ERR(hdmi->bridge)) {
@@ -230,19 +249,20 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 
 	platform_set_drvdata(pdev, hdmi);
 
-	return hdmi;
+	return 0;
 
 fail:
-	if (hdmi) {
-		/* bridge/connector are normally destroyed by drm: */
-		if (hdmi->bridge)
-			hdmi->bridge->funcs->destroy(hdmi->bridge);
-		if (hdmi->connector)
-			hdmi->connector->funcs->destroy(hdmi->connector);
-		hdmi_destroy(&hdmi->refcount);
+	/* bridge/connector are normally destroyed by drm: */
+	if (hdmi->bridge) {
+		hdmi->bridge->funcs->destroy(hdmi->bridge);
+		hdmi->bridge = NULL;
+	}
+	if (hdmi->connector) {
+		hdmi->connector->funcs->destroy(hdmi->connector);
+		hdmi->connector = NULL;
 	}
 
-	return ERR_PTR(ret);
+	return ret;
 }
 
 /*
@@ -251,11 +271,10 @@ fail:
 
 #include <linux/of_gpio.h>
 
-static void set_hdmi_pdev(struct drm_device *dev,
-		struct platform_device *pdev)
+static void set_hdmi(struct drm_device *dev, struct hdmi *hdmi)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	priv->hdmi_pdev = pdev;
+	priv->hdmi = hdmi;
 }
 
 #ifdef CONFIG_OF
@@ -279,6 +298,7 @@ static int get_gpio(struct device *dev, struct device_node *of_node, const char 
 static int hdmi_bind(struct device *dev, struct device *master, void *data)
 {
 	static struct hdmi_platform_config config = {};
+	struct hdmi *hdmi;
 #ifdef CONFIG_OF
 	struct device_node *of_node = dev->of_node;
 
@@ -369,14 +389,17 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	}
 #endif
 	dev->platform_data = &config;
-	set_hdmi_pdev(dev_get_drvdata(master), to_platform_device(dev));
+	hdmi = hdmi_init(to_platform_device(dev));
+	if (IS_ERR(hdmi))
+		return PTR_ERR(hdmi);
+	set_hdmi(dev_get_drvdata(master), hdmi);
 	return 0;
 }
 
 static void hdmi_unbind(struct device *dev, struct device *master,
 		void *data)
 {
-	set_hdmi_pdev(dev_get_drvdata(master), NULL);
+	set_hdmi(dev_get_drvdata(master), NULL);
 }
 
 static const struct component_ops hdmi_ops = {

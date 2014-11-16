@@ -309,6 +309,7 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 	return ret;
 }
 
+/* get iova, taking a reference.  Should have a matching put */
 int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint32_t *iova)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
@@ -326,6 +327,16 @@ int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint32_t *iova)
 	ret = msm_gem_get_iova_locked(obj, id, iova);
 	mutex_unlock(&obj->dev->struct_mutex);
 	return ret;
+}
+
+/* get iova without taking a reference, used in places where you have
+ * already done a 'msm_gem_get_iova()'.
+ */
+uint32_t msm_gem_iova(struct drm_gem_object *obj, int id)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	WARN_ON(!msm_obj->domain[id].iova);
+	return msm_obj->domain[id].iova;
 }
 
 void msm_gem_put_iova(struct drm_gem_object *obj, int id)
@@ -397,23 +408,10 @@ void *msm_gem_vaddr(struct drm_gem_object *obj)
 int msm_gem_queue_inactive_cb(struct drm_gem_object *obj,
 		struct msm_fence_cb *cb)
 {
-	struct drm_device *dev = obj->dev;
-	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	int ret = 0;
-
-	mutex_lock(&dev->struct_mutex);
-	if (!list_empty(&cb->work.entry)) {
-		ret = -EINVAL;
-	} else if (is_active(msm_obj)) {
-		cb->fence = max(msm_obj->read_fence, msm_obj->write_fence);
-		list_add_tail(&cb->work.entry, &priv->fence_cbs);
-	} else {
-		queue_work(priv->wq, &cb->work);
-	}
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
+	uint32_t fence = msm_gem_fence(msm_obj,
+			MSM_PREP_READ | MSM_PREP_WRITE);
+	return msm_queue_fence_cb(obj->dev, cb, fence);
 }
 
 void msm_gem_move_to_active(struct drm_gem_object *obj,
@@ -452,12 +450,8 @@ int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
 	int ret = 0;
 
 	if (is_active(msm_obj)) {
-		uint32_t fence = 0;
+		uint32_t fence = msm_gem_fence(msm_obj, op);
 
-		if (op & MSM_PREP_READ)
-			fence = msm_obj->write_fence;
-		if (op & MSM_PREP_WRITE)
-			fence = max(fence, msm_obj->read_fence);
 		if (op & MSM_PREP_NOSYNC)
 			timeout = NULL;
 
@@ -525,12 +519,10 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	for (id = 0; id < ARRAY_SIZE(msm_obj->domain); id++) {
 		struct msm_mmu *mmu = priv->mmus[id];
 		if (mmu && msm_obj->domain[id].iova) {
-			uint32_t offset = (uint32_t)mmap_offset(obj);
+			uint32_t offset = msm_obj->domain[id].iova;
 			mmu->funcs->unmap(mmu, offset, msm_obj->sgt, obj->size);
 		}
 	}
-
-	drm_gem_free_mmap_offset(obj);
 
 	if (obj->import_attach) {
 		if (msm_obj->vaddr)

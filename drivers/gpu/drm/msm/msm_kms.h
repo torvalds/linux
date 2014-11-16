@@ -65,4 +65,9 @@ static inline void msm_kms_init(struct msm_kms *kms,
 struct msm_kms *mdp4_kms_init(struct drm_device *dev);
 struct msm_kms *mdp5_kms_init(struct drm_device *dev);
 
+/* TODO move these helper iterator macro somewhere common: */
+#define for_each_plane_on_crtc(_crtc, _plane) \
+	list_for_each_entry((_plane), &(_crtc)->dev->mode_config.plane_list, head) \
+		if ((_plane)->crtc == (_crtc))
+
 #endif /* __MSM_KMS_H__ */

@@ -82,6 +82,7 @@ irqreturn_t mdp5_irq(struct msm_kms *kms)
 {
 	struct mdp_kms *mdp_kms = to_mdp_kms(kms);
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(mdp_kms);
+	struct msm_drm_private *priv = mdp5_kms->dev->dev_private;
 	uint32_t intr;
 
 	intr = mdp5_read(mdp5_kms, REG_MDP5_HW_INTR_STATUS);
@@ -92,7 +93,7 @@ irqreturn_t mdp5_irq(struct msm_kms *kms)
 		mdp5_irq_mdp(mdp_kms);
 
 	if (intr & MDP5_HW_INTR_STATUS_INTR_HDMI)
-		hdmi_irq(0, mdp5_kms->hdmi);
+		hdmi_irq(0, priv->hdmi);
 
 	return IRQ_HANDLED;
 }

@@ -10,12 +10,12 @@ git clone https://github.com/freedreno/envytools.git
 The rules-ng-ng source files this header was generated from are:
 - /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    647 bytes, from 2013-11-30 14:45:35)
 - /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20457 bytes, from 2014-08-01 12:22:48)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   1615 bytes, from 2014-07-17 15:34:33)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  22517 bytes, from 2014-07-17 15:34:33)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20136 bytes, from 2014-10-31 16:51:39)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   1940 bytes, from 2014-10-31 16:51:39)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  23963 bytes, from 2014-10-31 16:51:46)
 - /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  11712 bytes, from 2013-08-17 17:13:43)
 - /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    344 bytes, from 2013-08-11 19:26:32)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2014-08-01 12:23:53)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2014-10-31 16:48:57)
 - /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2013-07-05 19:21:12)
 - /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  23613 bytes, from 2014-07-17 15:33:30)
 

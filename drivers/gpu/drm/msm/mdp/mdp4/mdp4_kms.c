@@ -228,7 +228,6 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	struct drm_panel *panel;
-	struct hdmi *hdmi;
 	int ret;
 
 	/* construct non-private planes: */
@@ -326,11 +325,13 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	priv->crtcs[priv->num_crtcs++] = crtc;
 	priv->encoders[priv->num_encoders++] = encoder;
 
-	hdmi = hdmi_init(dev, encoder);
-	if (IS_ERR(hdmi)) {
-		ret = PTR_ERR(hdmi);
-		dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
-		goto fail;
+	if (priv->hdmi) {
+		/* Construct bridge/connector for HDMI: */
+		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
+		if (ret) {
+			dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
+			goto fail;
+		}
 	}
 
 	return 0;
@@ -381,6 +382,10 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	if (IS_ERR(mdp4_kms->dsi_pll_vddio))
 		mdp4_kms->dsi_pll_vddio = NULL;
 
+	/* NOTE: driver for this regulator still missing upstream.. use
+	 * _get_exclusive() and ignore the error if it does not exist
+	 * (and hope that the bootloader left it on for us)
+	 */
 	mdp4_kms->vdd = devm_regulator_get_exclusive(&pdev->dev, "vdd");
 	if (IS_ERR(mdp4_kms->vdd))
 		mdp4_kms->vdd = NULL;

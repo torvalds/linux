@@ -71,8 +71,6 @@ struct mdp5_kms {
 	struct clk *lut_clk;
 	struct clk *vsync_clk;
 
-	struct hdmi *hdmi;
-
 	struct mdp_irq error_handler;
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)
