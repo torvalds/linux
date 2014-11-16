@@ -2116,6 +2116,18 @@ S:	Maintained
 F:	arch/arm/mach-bcm/*brcmstb*
 F:	arch/arm/boot/dts/bcm7*.dts*
 
+BROADCOM BMIPS MIPS ARCHITECTURE
+M:	Kevin Cernekee <cernekee@gmail.com>
+M:	Florian Fainelli <f.fainelli@gmail.com>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/bmips/*
+F:	arch/mips/include/asm/mach-bmips/*
+F:	arch/mips/kernel/*bmips*
+F:	arch/mips/boot/dts/bcm*.dts*
+F:	drivers/irqchip/irq-bcm7*
+F:	drivers/irqchip/irq-brcmstb*
+
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
 M:	Prashant Sreedharan <prashant@broadcom.com>
 M:	Michael Chan <mchan@broadcom.com>
