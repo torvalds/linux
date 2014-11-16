@@ -2744,6 +2744,13 @@ W:	http://www.chelsio.com
 S:	Supported
 F:	drivers/net/ethernet/chelsio/cxgb3/
 
+CXGB3 ISCSI DRIVER (CXGB3I)
+M:      Karen Xie <kxie@chelsio.com>
+L:      linux-scsi@vger.kernel.org
+W:      http://www.chelsio.com
+S:      Supported
+F:      drivers/scsi/cxgbi/cxgb3i
+
 CXGB3 IWARP RNIC DRIVER (IW_CXGB3)
 M:	Steve Wise <swise@chelsio.com>
 L:	linux-rdma@vger.kernel.org
@@ -2757,6 +2764,13 @@ L:	netdev@vger.kernel.org
 W:	http://www.chelsio.com
 S:	Supported
 F:	drivers/net/ethernet/chelsio/cxgb4/
+
+CXGB4 ISCSI DRIVER (CXGB4I)
+M:      Karen Xie <kxie@chelsio.com>
+L:      linux-scsi@vger.kernel.org
+W:      http://www.chelsio.com
+S:      Supported
+F:      drivers/scsi/cxgbi/cxgb4i
 
 CXGB4 IWARP RNIC DRIVER (IW_CXGB4)
 M:	Steve Wise <swise@chelsio.com>
