@@ -81,6 +81,7 @@ void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port);
 void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 			struct ethtool_regs *regs, void *_p);
+int  mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp);
 
 extern struct dsa_switch_driver mv88e6131_switch_driver;
 extern struct dsa_switch_driver mv88e6123_61_65_switch_driver;
