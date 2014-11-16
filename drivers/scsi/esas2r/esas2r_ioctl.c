@@ -1420,9 +1420,10 @@ int esas2r_ioctl_handler(void *hostdata, int cmd, void __user *arg)
 
 		rq = esas2r_alloc_request(a);
 		if (rq == NULL) {
-			up(&a->nvram_semaphore);
-			ioctl->data.prw.code = 0;
-			break;
+			kfree(ioctl);
+			esas2r_log(ESAS2R_LOG_WARN,
+			   "could not allocate an internal request");
+			return -ENOMEM;
 		}
 
 		code = esas2r_write_params(a, rq,
