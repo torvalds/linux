@@ -2191,6 +2191,7 @@ static int __smiapp_get_selection(struct v4l2_subdev *subdev,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		if (ssd == sensor->pixel_array) {
+			sel->r.left = sel->r.top = 0;
 			sel->r.width =
 				sensor->limits[SMIAPP_LIMIT_X_ADDR_MAX] + 1;
 			sel->r.height =
