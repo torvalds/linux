@@ -117,9 +117,8 @@ static void do_fm_api(struct esas2r_adapter *a, struct esas2r_flash_img *fi)
 
 	rq = esas2r_alloc_request(a);
 	if (rq == NULL) {
-		up(&a->fm_api_semaphore);
 		fi->status = FI_STAT_BUSY;
-		return;
+		goto free_sem;
 	}
 
 	if (fi == &a->firmware.header) {
@@ -135,7 +134,7 @@ static void do_fm_api(struct esas2r_adapter *a, struct esas2r_flash_img *fi)
 		if (a->firmware.header_buff == NULL) {
 			esas2r_debug("failed to allocate header buffer!");
 			fi->status = FI_STAT_BUSY;
-			return;
+			goto free_req;
 		}
 
 		memcpy(a->firmware.header_buff, fi,
@@ -171,9 +170,10 @@ all_done:
 				  a->firmware.header_buff,
 				  (dma_addr_t)a->firmware.header_buff_phys);
 	}
-
-	up(&a->fm_api_semaphore);
+free_req:
 	esas2r_free_request(a, (struct esas2r_request *)rq);
+free_sem:
+	up(&a->fm_api_semaphore);
 	return;
 
 }
