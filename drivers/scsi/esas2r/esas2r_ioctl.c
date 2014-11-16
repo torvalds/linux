@@ -1524,9 +1524,12 @@ ioctl_done:
 		case -EINVAL:
 			ioctl->header.return_code = IOCTL_INVALID_PARAM;
 			break;
+
+		default:
+			ioctl->header.return_code = IOCTL_GENERAL_ERROR;
+			break;
 		}
 
-		ioctl->header.return_code = IOCTL_GENERAL_ERROR;
 	}
 
 	/* Always copy the buffer back, if only to pick up the status */
