@@ -34,7 +34,8 @@
 
 		framebuffer0-hdmi {
 			compatible = "simple-framebuffer";
-			clocks = <&ahb_gates 36>, <&ahb_gates 43>, <&ahb_gates 44>;
+			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
+				 <&ahb_gates 44>;
 			status = "disabled";
 		};
 	};

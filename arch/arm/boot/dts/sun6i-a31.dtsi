@@ -69,6 +69,7 @@
 
 		framebuffer0-hdmi {
 			compatible = "simple-framebuffer";
+			clocks = <&pll6 0>;
 			status = "disabled";
 		};
 	};
