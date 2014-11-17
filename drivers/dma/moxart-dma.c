@@ -263,28 +263,6 @@ static int moxart_slave_config(struct dma_chan *chan,
 	return 0;
 }
 
-static int moxart_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-			  unsigned long arg)
-{
-	int ret = 0;
-
-	switch (cmd) {
-	case DMA_PAUSE:
-	case DMA_RESUME:
-		return -EINVAL;
-	case DMA_TERMINATE_ALL:
-		moxart_terminate_all(chan);
-		break;
-	case DMA_SLAVE_CONFIG:
-		ret = moxart_slave_config(chan, (struct dma_slave_config *)arg);
-		break;
-	default:
-		ret = -ENOSYS;
-	}
-
-	return ret;
-}
-
 static struct dma_async_tx_descriptor *moxart_prep_slave_sg(
 	struct dma_chan *chan, struct scatterlist *sgl,
 	unsigned int sg_len, enum dma_transfer_direction dir,
@@ -531,7 +509,8 @@ static void moxart_dma_init(struct dma_device *dma, struct device *dev)
 	dma->device_free_chan_resources		= moxart_free_chan_resources;
 	dma->device_issue_pending		= moxart_issue_pending;
 	dma->device_tx_status			= moxart_tx_status;
-	dma->device_control			= moxart_control;
+	dma->device_config			= moxart_slave_config;
+	dma->device_terminate_all		= moxart_terminate_all;
 	dma->dev				= dev;
 
 	INIT_LIST_HEAD(&dma->channels);
