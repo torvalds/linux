@@ -2627,7 +2627,7 @@ static int pl330_dma_device_slave_caps(struct dma_chan *dchan,
 	struct dma_slave_caps *caps)
 {
 	caps->src_addr_widths = PL330_DMA_BUSWIDTHS;
-	caps->dstn_addr_widths = PL330_DMA_BUSWIDTHS;
+	caps->dst_addr_widths = PL330_DMA_BUSWIDTHS;
 	caps->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	caps->cmd_pause = false;
 	caps->cmd_terminate = true;

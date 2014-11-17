@@ -387,7 +387,7 @@ enum dma_residue_granularity {
 /* struct dma_slave_caps - expose capabilities of a slave channel only
  *
  * @src_addr_widths: bit mask of src addr widths the channel supports
- * @dstn_addr_widths: bit mask of dstn addr widths the channel supports
+ * @dst_addr_widths: bit mask of dstn addr widths the channel supports
  * @directions: bit mask of slave direction the channel supported
  * 	since the enum dma_transfer_direction is not defined as bits for each
  * 	type of direction, the dma controller should fill (1 << <TYPE>) and same
@@ -398,7 +398,7 @@ enum dma_residue_granularity {
  */
 struct dma_slave_caps {
 	u32 src_addr_widths;
-	u32 dstn_addr_widths;
+	u32 dst_addr_widths;
 	u32 directions;
 	bool cmd_pause;
 	bool cmd_terminate;
@@ -639,10 +639,10 @@ struct dma_device {
 	void (*device_free_chan_resources)(struct dma_chan *chan);
 
 	struct dma_async_tx_descriptor *(*device_prep_dma_memcpy)(
-		struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
+		struct dma_chan *chan, dma_addr_t dst, dma_addr_t src,
 		size_t len, unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_xor)(
-		struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
+		struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
 		unsigned int src_cnt, size_t len, unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_xor_val)(
 		struct dma_chan *chan, dma_addr_t *src,	unsigned int src_cnt,
