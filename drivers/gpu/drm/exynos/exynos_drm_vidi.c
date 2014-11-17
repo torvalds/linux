@@ -47,6 +47,7 @@ struct vidi_win_data {
 
 struct vidi_context {
 	struct exynos_drm_manager	manager;
+	struct exynos_drm_display	display;
 	struct drm_device		*drm_dev;
 	struct drm_crtc			*crtc;
 	struct drm_encoder		*encoder;
@@ -554,11 +555,6 @@ static struct exynos_drm_display_ops vidi_display_ops = {
 	.create_connector = vidi_create_connector,
 };
 
-static struct exynos_drm_display vidi_display = {
-	.type = EXYNOS_DISPLAY_TYPE_VIDI,
-	.ops = &vidi_display_ops,
-};
-
 static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 {
 	struct vidi_context *ctx = dev_get_drvdata(dev);
@@ -573,7 +569,7 @@ static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 		return ret;
 	}
 
-	ret = exynos_drm_create_enc_conn(drm_dev, &vidi_display);
+	ret = exynos_drm_create_enc_conn(drm_dev, &ctx->display);
 	if (ret) {
 		crtc->funcs->destroy(crtc);
 		DRM_ERROR("failed to create encoder and connector.\n");
@@ -595,11 +591,13 @@ static int vidi_probe(struct platform_device *pdev)
 
 	ctx->manager.type = EXYNOS_DISPLAY_TYPE_VIDI;
 	ctx->manager.ops = &vidi_manager_ops;
+	ctx->display.type = EXYNOS_DISPLAY_TYPE_VIDI;
+	ctx->display.ops = &vidi_display_ops;
 	ctx->default_win = 0;
 
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
 
-	vidi_display.ctx = ctx;
+	ctx->display.ctx = ctx;
 
 	mutex_init(&ctx->lock);
 
