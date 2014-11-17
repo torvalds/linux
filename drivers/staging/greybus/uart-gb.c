@@ -177,7 +177,8 @@ static int request_operation(struct gb_connection *connection, int type,
 		ret = -EIO;
 	} else {
 		/* Good request, so copy to the caller's buffer */
-		memcpy(response, local_response, response_size);
+		if (response_size && response)
+			memcpy(response, local_response, response_size);
 	}
 out:
 	gb_operation_destroy(operation);
