@@ -17,19 +17,12 @@
 #ifndef __NET_CFG802154_H
 #define __NET_CFG802154_H
 
+#include <linux/ieee802154.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
 #include <linux/bug.h>
 
 #include <net/nl802154.h>
-
-/* According to the IEEE 802.15.4 stadard the upper most significant bits of
- * the 32-bit channel bitmaps shall be used as an integer value to specify 32
- * possible channel pages. The lower 27 bits of the channel bit map shall be
- * used as a bit mask to specify channel numbers within a channel page.
- */
-#define WPAN_NUM_CHANNELS	27
-#define WPAN_NUM_PAGES		32
 
 struct wpan_phy;
 
@@ -81,7 +74,7 @@ struct wpan_phy {
 	 */
 	u8 current_channel;
 	u8 current_page;
-	u32 channels_supported[32];
+	u32 channels_supported[IEEE802154_MAX_PAGE + 1];
 	s8 transmit_power;
 	u8 cca_mode;
 
