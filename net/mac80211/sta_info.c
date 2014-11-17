@@ -1746,7 +1746,6 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	struct ieee80211_local *local = sdata->local;
 	struct rate_control_ref *ref = NULL;
 	struct timespec uptime;
-	u64 packets = 0;
 	u32 thr = 0;
 	int i, ac;
 
@@ -1755,47 +1754,74 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 	sinfo->generation = sdata->local->sta_generation;
 
-	sinfo->filled = STATION_INFO_INACTIVE_TIME |
-			STATION_INFO_RX_BYTES64 |
-			STATION_INFO_TX_BYTES64 |
-			STATION_INFO_RX_PACKETS |
-			STATION_INFO_TX_PACKETS |
-			STATION_INFO_TX_RETRIES |
-			STATION_INFO_TX_FAILED |
-			STATION_INFO_TX_BITRATE |
-			STATION_INFO_RX_BITRATE |
-			STATION_INFO_RX_DROP_MISC |
-			STATION_INFO_BSS_PARAM |
-			STATION_INFO_CONNECTED_TIME |
-			STATION_INFO_STA_FLAGS |
-			STATION_INFO_BEACON_LOSS_COUNT;
+	drv_sta_statistics(local, sdata, &sta->sta, sinfo);
+
+	sinfo->filled |= STATION_INFO_INACTIVE_TIME |
+			 STATION_INFO_STA_FLAGS |
+			 STATION_INFO_BSS_PARAM |
+			 STATION_INFO_CONNECTED_TIME |
+			 STATION_INFO_RX_DROP_MISC |
+			 STATION_INFO_BEACON_LOSS_COUNT;
 
 	ktime_get_ts(&uptime);
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
-
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
-	sinfo->tx_bytes = 0;
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		sinfo->tx_bytes += sta->tx_bytes[ac];
-		packets += sta->tx_packets[ac];
+
+	if (!(sinfo->filled & (STATION_INFO_TX_BYTES64 |
+			       STATION_INFO_TX_BYTES))) {
+		sinfo->tx_bytes = 0;
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+			sinfo->tx_bytes += sta->tx_bytes[ac];
+		sinfo->filled |= STATION_INFO_TX_BYTES64;
 	}
-	sinfo->tx_packets = packets;
-	sinfo->rx_bytes = sta->rx_bytes;
-	sinfo->rx_packets = sta->rx_packets;
-	sinfo->tx_retries = sta->tx_retry_count;
-	sinfo->tx_failed = sta->tx_retry_failed;
+
+	if (!(sinfo->filled & STATION_INFO_TX_PACKETS)) {
+		sinfo->tx_packets = 0;
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+			sinfo->tx_packets += sta->tx_packets[ac];
+		sinfo->filled |= STATION_INFO_TX_PACKETS;
+	}
+
+	if (!(sinfo->filled & (STATION_INFO_RX_BYTES64 |
+			       STATION_INFO_RX_BYTES))) {
+		sinfo->rx_bytes = sta->rx_bytes;
+		sinfo->filled |= STATION_INFO_RX_BYTES64;
+	}
+
+	if (!(sinfo->filled & STATION_INFO_RX_PACKETS)) {
+		sinfo->rx_packets = sta->rx_packets;
+		sinfo->filled |= STATION_INFO_RX_PACKETS;
+	}
+
+	if (!(sinfo->filled & STATION_INFO_TX_RETRIES)) {
+		sinfo->tx_retries = sta->tx_retry_count;
+		sinfo->filled |= STATION_INFO_TX_RETRIES;
+	}
+
+	if (!(sinfo->filled & STATION_INFO_TX_FAILED)) {
+		sinfo->tx_failed = sta->tx_retry_failed;
+		sinfo->filled |= STATION_INFO_TX_FAILED;
+	}
+
 	sinfo->rx_dropped_misc = sta->rx_dropped;
 	sinfo->beacon_loss_count = sta->beacon_loss_count;
 
 	if ((sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) ||
 	    (sta->local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)) {
-		sinfo->filled |= STATION_INFO_SIGNAL | STATION_INFO_SIGNAL_AVG;
-		if (!local->ops->get_rssi ||
-		    drv_get_rssi(local, sdata, &sta->sta, &sinfo->signal))
+		if (!(sinfo->filled & STATION_INFO_SIGNAL)) {
 			sinfo->signal = (s8)sta->last_signal;
-		sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
+			sinfo->filled |= STATION_INFO_SIGNAL;
+		}
+
+		if (!(sinfo->filled & STATION_INFO_SIGNAL_AVG)) {
+			sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
+			sinfo->filled |= STATION_INFO_SIGNAL_AVG;
+		}
 	}
-	if (sta->chains) {
+
+	if (sta->chains &&
+	    !(sinfo->filled & (STATION_INFO_CHAIN_SIGNAL |
+			       STATION_INFO_CHAIN_SIGNAL_AVG))) {
 		sinfo->filled |= STATION_INFO_CHAIN_SIGNAL |
 				 STATION_INFO_CHAIN_SIGNAL_AVG;
 
@@ -1807,8 +1833,15 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		}
 	}
 
-	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
-	sta_set_rate_info_rx(sta, &sinfo->rxrate);
+	if (!(sinfo->filled & STATION_INFO_TX_BITRATE)) {
+		sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
+		sinfo->filled |= STATION_INFO_TX_BITRATE;
+	}
+
+	if (!(sinfo->filled & STATION_INFO_RX_BITRATE)) {
+		sta_set_rate_info_rx(sta, &sinfo->rxrate);
+		sinfo->filled |= STATION_INFO_RX_BITRATE;
+	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
