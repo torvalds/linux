@@ -215,7 +215,6 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 struct hdmi;
 int hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
 		struct drm_encoder *encoder);
-irqreturn_t hdmi_irq(int irq, void *dev_id);
 void __init hdmi_register(void);
 void __exit hdmi_unregister(void);
 

@@ -72,6 +72,11 @@ struct mdp5_kms {
 	struct clk *vsync_clk;
 
 	struct mdp_irq error_handler;
+
+	struct {
+		volatile unsigned long enabled_mask;
+		struct irq_domain *domain;
+	} irqcontroller;
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)
 
@@ -195,6 +200,8 @@ void mdp5_irq_uninstall(struct msm_kms *kms);
 irqreturn_t mdp5_irq(struct msm_kms *kms);
 int mdp5_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 void mdp5_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
+int mdp5_irq_domain_init(struct mdp5_kms *mdp5_kms);
+void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms);
 
 static inline
 uint32_t mdp5_get_formats(enum mdp5_pipe pipe, uint32_t *pixel_formats,
