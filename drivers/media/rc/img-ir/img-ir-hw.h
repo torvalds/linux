@@ -186,9 +186,6 @@ struct img_ir_reg_timings {
 	struct img_ir_timing_regvals	rtimings;
 };
 
-int img_ir_register_decoder(struct img_ir_decoder *dec);
-void img_ir_unregister_decoder(struct img_ir_decoder *dec);
-
 struct img_ir_priv;
 
 #ifdef CONFIG_IR_IMG_HW
