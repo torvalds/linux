@@ -121,7 +121,7 @@
 struct gbuf {
 	struct kref kref;
 
-	struct gb_operation *operation;
+	struct greybus_host_device *hd;
 	u16 dest_cport_id;		/* Destination CPort id */
 	int status;
 
@@ -181,7 +181,7 @@ void greybus_remove_hd(struct greybus_host_device *hd);
 void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
 
-struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
+struct gbuf *greybus_alloc_gbuf(struct greybus_host_device *hd,
 				u16 dest_cport_id, unsigned int size,
 				gfp_t gfp_mask);
 void greybus_free_gbuf(struct gbuf *gbuf);

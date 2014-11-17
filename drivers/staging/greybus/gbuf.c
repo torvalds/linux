@@ -34,12 +34,11 @@ static struct kmem_cache *gbuf_head_cache;
  * that the driver can then fill up with the data to be sent out.  Curse
  * hardware designers for this issue...
  */
-struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
+struct gbuf *greybus_alloc_gbuf(struct greybus_host_device *hd,
 				u16 dest_cport_id,
 				unsigned int size,
 				gfp_t gfp_mask)
 {
-	struct greybus_host_device *hd = operation->connection->hd;
 	struct gbuf *gbuf;
 	int retval;
 
@@ -48,7 +47,7 @@ struct gbuf *greybus_alloc_gbuf(struct gb_operation *operation,
 		return NULL;
 
 	kref_init(&gbuf->kref);
-	gbuf->operation = operation;
+	gbuf->hd = hd;
 	gbuf->dest_cport_id = dest_cport_id;
 	gbuf->status = -EBADR;	/* Initial value--means "never set" */
 
@@ -68,9 +67,8 @@ static DEFINE_MUTEX(gbuf_mutex);
 static void free_gbuf(struct kref *kref)
 {
 	struct gbuf *gbuf = container_of(kref, struct gbuf, kref);
-	struct greybus_host_device *hd = gbuf->operation->connection->hd;
 
-	hd->driver->free_gbuf_data(gbuf);
+	gbuf->hd->driver->free_gbuf_data(gbuf);
 
 	kmem_cache_free(gbuf_head_cache, gbuf);
 	mutex_unlock(&gbuf_mutex);
@@ -94,21 +92,17 @@ EXPORT_SYMBOL_GPL(greybus_get_gbuf);
 
 int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {
-	struct greybus_host_device *hd = gbuf->operation->connection->hd;
-
 	gbuf->status = -EINPROGRESS;
 
-	return hd->driver->submit_gbuf(gbuf, gfp_mask);
+	return gbuf->hd->driver->submit_gbuf(gbuf, gfp_mask);
 }
 
 void greybus_kill_gbuf(struct gbuf *gbuf)
 {
-	struct greybus_host_device *hd = gbuf->operation->connection->hd;
-
 	if (gbuf->status != -EINPROGRESS)
 		return;
 
-	hd->driver->kill_gbuf(gbuf);
+	gbuf->hd->driver->kill_gbuf(gbuf);
 }
 
 void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,

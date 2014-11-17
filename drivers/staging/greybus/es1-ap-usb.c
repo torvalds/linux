@@ -205,7 +205,7 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 
 static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {
-	struct greybus_host_device *hd = gbuf->operation->connection->hd;
+	struct greybus_host_device *hd = gbuf->hd;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
 	int retval;
@@ -391,7 +391,7 @@ exit:
 static void cport_out_callback(struct urb *urb)
 {
 	struct gbuf *gbuf = urb->context;
-	struct es1_ap_dev *es1 = hd_to_es1(gbuf->operation->connection->hd);
+	struct es1_ap_dev *es1 = hd_to_es1(gbuf->hd);
 	unsigned long flags;
 	int i;
 

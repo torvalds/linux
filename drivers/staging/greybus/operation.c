@@ -200,6 +200,7 @@ static struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
 					     u8 type, size_t size,
 					     bool data_out)
 {
+	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
 	struct gbuf *gbuf;
 	gfp_t gfp_flags = data_out ? GFP_KERNEL : GFP_ATOMIC;
@@ -209,11 +210,12 @@ static struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
 		return NULL;	/* Message too big */
 
 	if (data_out)
-		dest_cport_id = operation->connection->interface_cport_id;
+		dest_cport_id = connection->interface_cport_id;
 	else
 		dest_cport_id = CPORT_ID_BAD;
 	size += sizeof(*header);
-	gbuf = greybus_alloc_gbuf(operation, dest_cport_id, size, gfp_flags);
+	gbuf = greybus_alloc_gbuf(connection->hd, dest_cport_id,
+					size, gfp_flags);
 	if (!gbuf)
 		return NULL;
 
