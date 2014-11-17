@@ -152,7 +152,6 @@ struct exynos_drm_display {
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	struct exynos_drm_display_ops *ops;
-	void *ctx;
 };
 
 /*

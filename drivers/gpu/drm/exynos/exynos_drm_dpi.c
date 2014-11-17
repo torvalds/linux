@@ -106,7 +106,7 @@ static struct drm_connector_helper_funcs exynos_dpi_connector_helper_funcs = {
 static int exynos_dpi_create_connector(struct exynos_drm_display *display,
 				       struct drm_encoder *encoder)
 {
-	struct exynos_dpi *ctx = display->ctx;
+	struct exynos_dpi *ctx = display_to_dpi(display);
 	struct drm_connector *connector = &ctx->connector;
 	int ret;
 
@@ -147,7 +147,7 @@ static void exynos_dpi_poweroff(struct exynos_dpi *ctx)
 
 static void exynos_dpi_dpms(struct exynos_drm_display *display, int mode)
 {
-	struct exynos_dpi *ctx = display->ctx;
+	struct exynos_dpi *ctx = display_to_dpi(display);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -307,7 +307,6 @@ struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
 	ctx->display.type = EXYNOS_DISPLAY_TYPE_LCD;
 	ctx->display.ops = &exynos_dpi_display_ops;
 	ctx->dev = dev;
-	ctx->display.ctx = ctx;
 	ctx->dpms_mode = DRM_MODE_DPMS_OFF;
 
 	ret = exynos_drm_component_add(dev,
