@@ -458,7 +458,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 
 struct net_device *
 ieee802154_if_add(struct ieee802154_local *local, const char *name,
-		  struct wpan_dev **new_wpan_dev, enum nl802154_iftype type)
+		  enum nl802154_iftype type)
 {
 	struct net_device *ndev = NULL;
 	struct ieee802154_sub_if_data *sdata = NULL;
@@ -515,9 +515,6 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	mutex_lock(&local->iflist_mtx);
 	list_add_tail_rcu(&sdata->list, &local->interfaces);
 	mutex_unlock(&local->iflist_mtx);
-
-	if (new_wpan_dev)
-		*new_wpan_dev = &sdata->wpan_dev;
 
 	return ndev;
 

@@ -28,7 +28,7 @@ ieee802154_add_iface_deprecated(struct wpan_phy *wpan_phy,
 	struct net_device *dev;
 
 	rtnl_lock();
-	dev = ieee802154_if_add(local, name, NULL, type);
+	dev = ieee802154_if_add(local, name, type);
 	rtnl_unlock();
 
 	return dev;
