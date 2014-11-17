@@ -971,19 +971,6 @@ static void __init edma_chan_init(struct edma_cc *ecc,
 				 BIT(DMA_SLAVE_BUSWIDTH_3_BYTES) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
 
-static int edma_dma_device_slave_caps(struct dma_chan *dchan,
-				      struct dma_slave_caps *caps)
-{
-	caps->src_addr_widths = EDMA_DMA_BUSWIDTHS;
-	caps->dst_addr_widths = EDMA_DMA_BUSWIDTHS;
-	caps->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
-	caps->cmd_pause = true;
-	caps->cmd_terminate = true;
-	caps->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
-
-	return 0;
-}
-
 static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 			  struct device *dev)
 {
@@ -998,7 +985,12 @@ static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 	dma->device_pause = edma_dma_pause;
 	dma->device_resume = edma_dma_resume;
 	dma->device_terminate_all = edma_terminate_all;
-	dma->device_slave_caps = edma_dma_device_slave_caps;
+
+	dma->src_addr_widths = EDMA_DMA_BUSWIDTHS;
+	dma->dst_addr_widths = EDMA_DMA_BUSWIDTHS;
+	dma->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	dma->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+
 	dma->dev = dev;
 
 	/*
