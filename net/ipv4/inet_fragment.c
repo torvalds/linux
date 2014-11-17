@@ -146,7 +146,6 @@ evict_again:
 			atomic_inc(&fq->refcnt);
 			spin_unlock(&hb->chain_lock);
 			del_timer_sync(&fq->timer);
-			WARN_ON(atomic_read(&fq->refcnt) != 1);
 			inet_frag_put(fq, f);
 			goto evict_again;
 		}
@@ -285,7 +284,8 @@ static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 	struct inet_frag_bucket *hb;
 
 	hb = get_frag_bucket_locked(fq, f);
-	hlist_del(&fq->list);
+	if (!(fq->flags & INET_FRAG_EVICTED))
+		hlist_del(&fq->list);
 	spin_unlock(&hb->chain_lock);
 }
 

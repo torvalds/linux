@@ -227,10 +227,14 @@ static int byt_irq_type(struct irq_data *d, unsigned type)
 	spin_lock_irqsave(&vg->lock, flags);
 	value = readl(reg);
 
+	WARN(value & BYT_DIRECT_IRQ_EN,
+		"Bad pad config for io mode, force direct_irq_en bit clearing");
+
 	/* For level trigges the BYT_TRIG_POS and BYT_TRIG_NEG bits
 	 * are used to indicate high and low level triggering
 	 */
-	value &= ~(BYT_TRIG_POS | BYT_TRIG_NEG | BYT_TRIG_LVL);
+	value &= ~(BYT_DIRECT_IRQ_EN | BYT_TRIG_POS | BYT_TRIG_NEG |
+		   BYT_TRIG_LVL);
 
 	switch (type) {
 	case IRQ_TYPE_LEVEL_HIGH:
@@ -318,7 +322,7 @@ static int byt_gpio_direction_output(struct gpio_chip *chip,
 		"Potential Error: Setting GPIO with direct_irq_en to output");
 
 	reg_val = readl(reg) | BYT_DIR_MASK;
-	reg_val &= ~BYT_OUTPUT_EN;
+	reg_val &= ~(BYT_OUTPUT_EN | BYT_INPUT_EN);
 
 	if (value)
 		writel(reg_val | BYT_LEVEL, reg);

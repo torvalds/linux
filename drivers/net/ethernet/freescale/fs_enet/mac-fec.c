@@ -341,6 +341,9 @@ static void restart(struct net_device *dev)
 		FC(fecp, x_cntrl, FEC_TCNTRL_FDEN);	/* FD disable */
 	}
 
+	/* Restore multicast and promiscuous settings */
+	set_multicast_list(dev);
+
 	/*
 	 * Enable interrupts we wish to service.
 	 */

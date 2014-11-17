@@ -244,6 +244,7 @@ static const struct tnt tnts[] = {
  *  'I' - Working around severe firmware bug.
  *  'O' - Out-of-tree module has been loaded.
  *  'E' - Unsigned module has been loaded.
+ *  'L' - A soft lockup has previously occurred.
  *
  *	The string is overwritten by the next call to print_tainted().
  */

@@ -53,6 +53,7 @@
  * TIPC_WAIT_OWN_LINKS_DOWN: wait until peer node is declared down
  * TIPC_NOTIFY_NODE_DOWN: notify node is down
  * TIPC_NOTIFY_NODE_UP: notify node is up
+ * TIPC_DISTRIBUTE_NAME: publish or withdraw link state name type
  */
 enum {
 	TIPC_WAIT_PEER_LINKS_DOWN	= (1 << 1),
@@ -60,7 +61,9 @@ enum {
 	TIPC_NOTIFY_NODE_DOWN		= (1 << 3),
 	TIPC_NOTIFY_NODE_UP		= (1 << 4),
 	TIPC_WAKEUP_USERS		= (1 << 5),
-	TIPC_WAKEUP_BCAST_USERS		= (1 << 6)
+	TIPC_WAKEUP_BCAST_USERS		= (1 << 6),
+	TIPC_NOTIFY_LINK_UP		= (1 << 7),
+	TIPC_NOTIFY_LINK_DOWN		= (1 << 8)
 };
 
 /**
@@ -100,6 +103,7 @@ struct tipc_node_bclink {
  * @working_links: number of working links to node (both active and standby)
  * @link_cnt: number of links to node
  * @signature: node instance identifier
+ * @link_id: local and remote bearer ids of changing link, if any
  * @nsub: list of "node down" subscriptions monitoring node
  * @rcu: rcu struct for tipc_node
  */
@@ -116,6 +120,7 @@ struct tipc_node {
 	int link_cnt;
 	int working_links;
 	u32 signature;
+	u32 link_id;
 	struct list_head nsub;
 	struct sk_buff_head waiting_sks;
 	struct list_head conn_sks;

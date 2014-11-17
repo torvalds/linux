@@ -298,6 +298,16 @@ static void *swap_buffer(void *bufaddr, int len)
 	return bufaddr;
 }
 
+static void swap_buffer2(void *dst_buf, void *src_buf, int len)
+{
+	int i;
+	unsigned int *src = src_buf;
+	unsigned int *dst = dst_buf;
+
+	for (i = 0; i < len; i += 4, src++, dst++)
+		*dst = swab32p(src);
+}
+
 static void fec_dump(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
@@ -1307,7 +1317,7 @@ fec_enet_new_rxbdp(struct net_device *ndev, struct bufdesc *bdp, struct sk_buff 
 }
 
 static bool fec_enet_copybreak(struct net_device *ndev, struct sk_buff **skb,
-			       struct bufdesc *bdp, u32 length)
+			       struct bufdesc *bdp, u32 length, bool swap)
 {
 	struct  fec_enet_private *fep = netdev_priv(ndev);
 	struct sk_buff *new_skb;
@@ -1322,7 +1332,10 @@ static bool fec_enet_copybreak(struct net_device *ndev, struct sk_buff **skb,
 	dma_sync_single_for_cpu(&fep->pdev->dev, bdp->cbd_bufaddr,
 				FEC_ENET_RX_FRSIZE - fep->rx_align,
 				DMA_FROM_DEVICE);
-	memcpy(new_skb->data, (*skb)->data, length);
+	if (!swap)
+		memcpy(new_skb->data, (*skb)->data, length);
+	else
+		swap_buffer2(new_skb->data, (*skb)->data, length);
 	*skb = new_skb;
 
 	return true;
@@ -1352,6 +1365,7 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 	u16	vlan_tag;
 	int	index = 0;
 	bool	is_copybreak;
+	bool	need_swap = id_entry->driver_data & FEC_QUIRK_SWAP_FRAME;
 
 #ifdef CONFIG_M532x
 	flush_cache_all();
@@ -1415,7 +1429,8 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 		 * include that when passing upstream as it messes up
 		 * bridging applications.
 		 */
-		is_copybreak = fec_enet_copybreak(ndev, &skb, bdp, pkt_len - 4);
+		is_copybreak = fec_enet_copybreak(ndev, &skb, bdp, pkt_len - 4,
+						  need_swap);
 		if (!is_copybreak) {
 			skb_new = netdev_alloc_skb(ndev, FEC_ENET_RX_FRSIZE);
 			if (unlikely(!skb_new)) {
@@ -1430,7 +1445,7 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 		prefetch(skb->data - NET_IP_ALIGN);
 		skb_put(skb, pkt_len - 4);
 		data = skb->data;
-		if (id_entry->driver_data & FEC_QUIRK_SWAP_FRAME)
+		if (!is_copybreak && need_swap)
 			swap_buffer(data, pkt_len);
 
 		/* Extract the enhanced buffer descriptor */
@@ -1581,7 +1596,8 @@ fec_enet_interrupt(int irq, void *dev_id)
 		complete(&fep->mdio_done);
 	}
 
-	fec_ptp_check_pps_event(fep);
+	if (fep->ptp_clock)
+		fec_ptp_check_pps_event(fep);
 
 	return ret;
 }
@@ -3342,11 +3358,10 @@ static int __maybe_unused fec_suspend(struct device *dev)
 		netif_device_detach(ndev);
 		netif_tx_unlock_bh(ndev);
 		fec_stop(ndev);
+		fec_enet_clk_enable(ndev, false);
+		pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 	}
 	rtnl_unlock();
-
-	fec_enet_clk_enable(ndev, false);
-	pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
@@ -3366,13 +3381,14 @@ static int __maybe_unused fec_resume(struct device *dev)
 			return ret;
 	}
 
-	pinctrl_pm_select_default_state(&fep->pdev->dev);
-	ret = fec_enet_clk_enable(ndev, true);
-	if (ret)
-		goto failed_clk;
-
 	rtnl_lock();
 	if (netif_running(ndev)) {
+		pinctrl_pm_select_default_state(&fep->pdev->dev);
+		ret = fec_enet_clk_enable(ndev, true);
+		if (ret) {
+			rtnl_unlock();
+			goto failed_clk;
+		}
 		fec_restart(ndev);
 		netif_tx_lock_bh(ndev);
 		netif_device_attach(ndev);

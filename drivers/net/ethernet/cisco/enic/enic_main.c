@@ -940,18 +940,8 @@ static int enic_rq_alloc_buf(struct vnic_rq *rq)
 	struct vnic_rq_buf *buf = rq->to_use;
 
 	if (buf->os_buf) {
-		buf = buf->next;
-		rq->to_use = buf;
-		rq->ring.desc_avail--;
-		if ((buf->index & VNIC_RQ_RETURN_RATE) == 0) {
-			/* Adding write memory barrier prevents compiler and/or
-			 * CPU reordering, thus avoiding descriptor posting
-			 * before descriptor is initialized. Otherwise, hardware
-			 * can read stale descriptor fields.
-			 */
-			wmb();
-			iowrite32(buf->index, &rq->ctrl->posted_index);
-		}
+		enic_queue_rq_desc(rq, buf->os_buf, os_buf_index, buf->dma_addr,
+				   buf->len);
 
 		return 0;
 	}
@@ -1037,7 +1027,10 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 				enic->rq_truncated_pkts++;
 		}
 
+		pci_unmap_single(enic->pdev, buf->dma_addr, buf->len,
+				 PCI_DMA_FROMDEVICE);
 		dev_kfree_skb_any(skb);
+		buf->os_buf = NULL;
 
 		return;
 	}
@@ -1088,7 +1081,10 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		/* Buffer overflow
 		 */
 
+		pci_unmap_single(enic->pdev, buf->dma_addr, buf->len,
+				 PCI_DMA_FROMDEVICE);
 		dev_kfree_skb_any(skb);
+		buf->os_buf = NULL;
 	}
 }
 
@@ -1674,13 +1670,13 @@ static int enic_stop(struct net_device *netdev)
 
 	enic_dev_disable(enic);
 
-	local_bh_disable();
 	for (i = 0; i < enic->rq_count; i++) {
 		napi_disable(&enic->napi[i]);
+		local_bh_disable();
 		while (!enic_poll_lock_napi(&enic->rq[i]))
 			mdelay(1);
+		local_bh_enable();
 	}
-	local_bh_enable();
 
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);

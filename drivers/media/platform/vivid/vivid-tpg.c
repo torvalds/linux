@@ -136,7 +136,7 @@ int tpg_alloc(struct tpg_data *tpg, unsigned max_w)
 		tpg->black_line[plane] = vzalloc(max_w * pixelsz);
 		if (!tpg->black_line[plane])
 			return -ENOMEM;
-		tpg->random_line[plane] = vzalloc(max_w * pixelsz);
+		tpg->random_line[plane] = vzalloc(max_w * 2 * pixelsz);
 		if (!tpg->random_line[plane])
 			return -ENOMEM;
 	}

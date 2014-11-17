@@ -327,6 +327,7 @@ static struct platform_driver panel_dpi_driver = {
 		.name = "panel-dpi",
 		.owner = THIS_MODULE,
 		.of_match_table = panel_dpi_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
