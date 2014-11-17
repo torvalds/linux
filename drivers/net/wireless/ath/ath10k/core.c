@@ -31,12 +31,17 @@
 unsigned int ath10k_debug_mask;
 static bool uart_print;
 static unsigned int ath10k_p2p;
+static bool skip_otp;
+
 module_param_named(debug_mask, ath10k_debug_mask, uint, 0644);
 module_param(uart_print, bool, 0644);
 module_param_named(p2p, ath10k_p2p, uint, 0644);
+module_param(skip_otp, bool, 0644);
+
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 MODULE_PARM_DESC(uart_print, "Uart target debugging");
 MODULE_PARM_DESC(p2p, "Enable ath10k P2P support");
+MODULE_PARM_DESC(skip_otp, "Skip otp failure for calibration in testmode");
 
 static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	{
@@ -280,7 +285,7 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot otp execute result %d\n", result);
 
-	if (result != 0) {
+	if (!skip_otp && result != 0) {
 		ath10k_err(ar, "otp calibration failed: %d", result);
 		return -EINVAL;
 	}
@@ -744,6 +749,25 @@ static void ath10k_core_restart(struct work_struct *work)
 {
 	struct ath10k *ar = container_of(work, struct ath10k, restart_work);
 
+	set_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
+
+	/* Place a barrier to make sure the compiler doesn't reorder
+	 * CRASH_FLUSH and calling other functions.
+	 */
+	barrier();
+
+	ieee80211_stop_queues(ar->hw);
+	ath10k_drain_tx(ar);
+	complete_all(&ar->scan.started);
+	complete_all(&ar->scan.completed);
+	complete_all(&ar->scan.on_channel);
+	complete_all(&ar->offchan_tx_completed);
+	complete_all(&ar->install_key_done);
+	complete_all(&ar->vdev_setup_done);
+	wake_up(&ar->htt.empty_tx_wq);
+	wake_up(&ar->wmi.tx_credits_wq);
+	wake_up(&ar->peer_mapping_wq);
+
 	mutex_lock(&ar->conf_mutex);
 
 	switch (ar->state) {
@@ -780,6 +804,8 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 	int status;
 
 	lockdep_assert_held(&ar->conf_mutex);
+
+	clear_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
 
 	ath10k_bmi_start(ar);
 
@@ -1185,6 +1211,8 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 
 	INIT_LIST_HEAD(&ar->peers);
 	init_waitqueue_head(&ar->peer_mapping_wq);
+	init_waitqueue_head(&ar->htt.empty_tx_wq);
+	init_waitqueue_head(&ar->wmi.tx_credits_wq);
 
 	init_completion(&ar->offchan_tx_completed);
 	INIT_WORK(&ar->offchan_tx_work, ath10k_offchan_tx_work);

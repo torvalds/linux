@@ -779,6 +779,10 @@ int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id)
 		ath10k_wmi_tx_beacons_nowait(ar);
 
 		ret = ath10k_wmi_cmd_send_nowait(ar, skb, cmd_id);
+
+		if (ret && test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
+			ret = -ESHUTDOWN;
+
 		(ret != -EAGAIN);
 	}), 3*HZ);
 
@@ -834,7 +838,8 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi mgmt tx skb %p len %d ftype %02x stype %02x\n",
 		   wmi_skb, wmi_skb->len, fc & IEEE80211_FCTL_FTYPE,
 		   fc & IEEE80211_FCTL_STYPE);
-	trace_ath10k_wmi_mgmt_tx(ar, skb->data, skb->len);
+	trace_ath10k_tx_hdr(ar, skb->data, skb->len);
+	trace_ath10k_tx_payload(ar, skb->data, skb->len);
 
 	/* Send the management frame buffer to the target */
 	ret = ath10k_wmi_cmd_send(ar, wmi_skb, ar->wmi.cmd->mgmt_tx_cmdid);
@@ -1893,7 +1898,9 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		arvif->beacon = bcn;
 		arvif->beacon_sent = false;
 
-		trace_ath10k_wmi_bcn_tx(ar, bcn->data, bcn->len);
+		trace_ath10k_tx_hdr(ar, bcn->data, bcn->len);
+		trace_ath10k_tx_payload(ar, bcn->data, bcn->len);
+
 		ath10k_wmi_tx_beacon_nowait(arvif);
 skip:
 		spin_unlock_bh(&ar->data_lock);
@@ -4187,9 +4194,9 @@ int ath10k_wmi_peer_assoc(struct ath10k *ar,
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
 		if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, ar->fw_features))
-			ath10k_wmi_peer_assoc_fill_10_1(ar, skb->data, arg);
-		else
 			ath10k_wmi_peer_assoc_fill_10_2(ar, skb->data, arg);
+		else
+			ath10k_wmi_peer_assoc_fill_10_1(ar, skb->data, arg);
 	} else {
 		ath10k_wmi_peer_assoc_fill_main(ar, skb->data, arg);
 	}
@@ -4398,7 +4405,6 @@ int ath10k_wmi_attach(struct ath10k *ar)
 
 	init_completion(&ar->wmi.service_ready);
 	init_completion(&ar->wmi.unified_ready);
-	init_waitqueue_head(&ar->wmi.tx_credits_wq);
 
 	return 0;
 }
