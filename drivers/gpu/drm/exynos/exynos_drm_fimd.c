@@ -1092,7 +1092,7 @@ static void fimd_unbind(struct device *dev, struct device *master,
 	fimd_dpms(&ctx->manager, DRM_MODE_DPMS_OFF);
 
 	if (ctx->display)
-		exynos_dpi_remove(dev);
+		exynos_dpi_remove(ctx->display);
 
 	fimd_mgr_remove(&ctx->manager);
 }

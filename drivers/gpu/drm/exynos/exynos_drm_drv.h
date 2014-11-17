@@ -304,7 +304,7 @@ static inline void exynos_platform_device_ipp_unregister(void) {}
 
 #ifdef CONFIG_DRM_EXYNOS_DPI
 struct exynos_drm_display * exynos_dpi_probe(struct device *dev);
-int exynos_dpi_remove(struct device *dev);
+int exynos_dpi_remove(struct exynos_drm_display *display);
 #else
 static inline struct exynos_drm_display *
 exynos_dpi_probe(struct device *dev) { return NULL; }
