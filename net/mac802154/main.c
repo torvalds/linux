@@ -4,8 +4,6 @@
  * Written by:
  * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  *
- * Based on the code from 'linux-zigbee.sourceforge.net' project.
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation.
