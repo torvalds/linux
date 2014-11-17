@@ -1691,12 +1691,14 @@ static const struct i2c_device_id rt5631_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5631_i2c_id);
 
+#ifdef CONFIG_OF
 static struct of_device_id rt5631_i2c_dt_ids[] = {
 	{ .compatible = "realtek,rt5631"},
 	{ .compatible = "realtek,alc5631"},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rt5631_i2c_dt_ids);
+#endif
 
 static const struct regmap_config rt5631_regmap_config = {
 	.reg_bits = 8,
