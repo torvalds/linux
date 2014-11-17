@@ -37,6 +37,7 @@
 
 static const struct pci_device_id mei_txe_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, 0x0F18)}, /* Baytrail */
+	{PCI_VDEVICE(INTEL, 0x2298)}, /* Cherrytrail */
 
 	{0, }
 };
