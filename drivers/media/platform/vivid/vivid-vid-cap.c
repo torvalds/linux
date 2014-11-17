@@ -498,6 +498,20 @@ static unsigned vivid_colorspace_cap(struct vivid_dev *dev)
 	return dev->colorspace_out;
 }
 
+static unsigned vivid_ycbcr_enc_cap(struct vivid_dev *dev)
+{
+	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+		return tpg_g_ycbcr_enc(&dev->tpg);
+	return dev->ycbcr_enc_out;
+}
+
+static unsigned vivid_quantization_cap(struct vivid_dev *dev)
+{
+	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+		return tpg_g_quantization(&dev->tpg);
+	return dev->quantization_out;
+}
+
 int vivid_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
@@ -510,6 +524,8 @@ int vivid_g_fmt_vid_cap(struct file *file, void *priv,
 	mp->field        = dev->field_cap;
 	mp->pixelformat  = dev->fmt_cap->fourcc;
 	mp->colorspace   = vivid_colorspace_cap(dev);
+	mp->ycbcr_enc    = vivid_ycbcr_enc_cap(dev);
+	mp->quantization = vivid_quantization_cap(dev);
 	mp->num_planes = dev->fmt_cap->planes;
 	for (p = 0; p < mp->num_planes; p++) {
 		mp->plane_fmt[p].bytesperline = tpg_g_bytesperline(&dev->tpg, p);
@@ -595,6 +611,8 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 		memset(pfmt[p].reserved, 0, sizeof(pfmt[p].reserved));
 	}
 	mp->colorspace = vivid_colorspace_cap(dev);
+	mp->ycbcr_enc = vivid_ycbcr_enc_cap(dev);
+	mp->quantization = vivid_quantization_cap(dev);
 	memset(mp->reserved, 0, sizeof(mp->reserved));
 	return 0;
 }

@@ -329,6 +329,8 @@ struct vivid_dev {
 	v4l2_std_id			std_out;
 	struct v4l2_dv_timings		dv_timings_out;
 	u32				colorspace_out;
+	u32				ycbcr_enc_out;
+	u32				quantization_out;
 	u32				service_set_out;
 	u32				bytesperline_out[2];
 	unsigned			tv_field_out;
