@@ -28,7 +28,6 @@
 /* vidi has totally three virtual windows. */
 #define WINDOWS_NR		3
 
-#define get_vidi_mgr(dev)	platform_get_drvdata(to_platform_device(dev))
 #define ctx_from_connector(c)	container_of(c, struct vidi_context, \
 					connector)
 
@@ -47,6 +46,7 @@ struct vidi_win_data {
 };
 
 struct vidi_context {
+	struct exynos_drm_manager	manager;
 	struct drm_device		*drm_dev;
 	struct drm_crtc			*crtc;
 	struct drm_encoder		*encoder;
@@ -316,11 +316,6 @@ static struct exynos_drm_manager_ops vidi_manager_ops = {
 	.win_disable = vidi_win_disable,
 };
 
-static struct exynos_drm_manager vidi_manager = {
-	.type = EXYNOS_DISPLAY_TYPE_VIDI,
-	.ops = &vidi_manager_ops,
-};
-
 static void vidi_fake_vblank_handler(struct work_struct *work)
 {
 	struct vidi_context *ctx = container_of(work, struct vidi_context,
@@ -349,9 +344,8 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 static int vidi_show_connection(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
+	struct vidi_context *ctx = dev_get_drvdata(dev);
 	int rc;
-	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
-	struct vidi_context *ctx = mgr->ctx;
 
 	mutex_lock(&ctx->lock);
 
@@ -366,8 +360,7 @@ static int vidi_store_connection(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t len)
 {
-	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = dev_get_drvdata(dev);
 	int ret;
 
 	ret = kstrtoint(buf, 0, &ctx->connected);
@@ -563,14 +556,13 @@ static struct exynos_drm_display vidi_display = {
 
 static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 {
-	struct exynos_drm_manager *mgr = get_vidi_mgr(dev);
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = dev_get_drvdata(dev);
 	struct drm_crtc *crtc = ctx->crtc;
 	int ret;
 
-	vidi_mgr_initialize(mgr, drm_dev);
+	vidi_mgr_initialize(&ctx->manager, drm_dev);
 
-	ret = exynos_drm_crtc_create(&vidi_manager);
+	ret = exynos_drm_crtc_create(&ctx->manager);
 	if (ret) {
 		DRM_ERROR("failed to create crtc.\n");
 		return ret;
@@ -596,16 +588,18 @@ static int vidi_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
+	ctx->manager.type = EXYNOS_DISPLAY_TYPE_VIDI;
+	ctx->manager.ops = &vidi_manager_ops;
 	ctx->default_win = 0;
 
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
 
-	vidi_manager.ctx = ctx;
+	ctx->manager.ctx = ctx;
 	vidi_display.ctx = ctx;
 
 	mutex_init(&ctx->lock);
 
-	platform_set_drvdata(pdev, &vidi_manager);
+	platform_set_drvdata(pdev, ctx);
 
 	subdrv = &ctx->subdrv;
 	subdrv->dev = &pdev->dev;
@@ -628,8 +622,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 static int vidi_remove(struct platform_device *pdev)
 {
-	struct exynos_drm_manager *mgr = platform_get_drvdata(pdev);
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = platform_get_drvdata(pdev);
 
 	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
 		kfree(ctx->raw_edid);
@@ -668,12 +661,19 @@ int exynos_drm_probe_vidi(void)
 	return ret;
 }
 
+static int exynos_drm_remove_vidi_device(struct device *dev, void *data)
+{
+	platform_device_unregister(to_platform_device(dev));
+
+	return 0;
+}
+
 void exynos_drm_remove_vidi(void)
 {
-	struct vidi_context *ctx = vidi_manager.ctx;
-	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct platform_device *pdev = to_platform_device(subdrv->dev);
+	int ret = driver_for_each_device(&vidi_driver.driver, NULL, NULL,
+					 exynos_drm_remove_vidi_device);
+	/* silence compiler warning */
+	(void)ret;
 
 	platform_driver_unregister(&vidi_driver);
-	platform_device_unregister(pdev);
 }
