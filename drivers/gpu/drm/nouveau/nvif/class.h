@@ -133,6 +133,7 @@ struct nv_device_v0 {
 #define NV_DEVICE_V0_DISABLE_COPY1                        0x0000010000000000ULL
 #define NV_DEVICE_V0_DISABLE_VIC                          0x0000020000000000ULL
 #define NV_DEVICE_V0_DISABLE_VENC                         0x0000040000000000ULL
+#define NV_DEVICE_V0_DISABLE_COPY2                        0x0000080000000000ULL
 	__u64 disable;	/* disable particular subsystems */
 	__u64 debug0;	/* as above, but *internal* ids, and *NOT* ABI */
 };
