@@ -935,11 +935,14 @@ static int mcp23s08_probe(struct spi_device *spi)
 		return -ENOMEM;
 	spi_set_drvdata(spi, data);
 
+	spi->irq = irq_of_parse_and_map(spi->dev.of_node, 0);
+
 	for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {
 		if (!(spi_present_mask & (1 << addr)))
 			continue;
 		chips--;
 		data->mcp[addr] = &data->chip[chips];
+		data->mcp[addr]->irq = spi->irq;
 		status = mcp23s08_probe_one(data->mcp[addr], &spi->dev, spi,
 					    0x40 | (addr << 1), type, pdata,
 					    addr);
@@ -980,6 +983,8 @@ static int mcp23s08_remove(struct spi_device *spi)
 		if (!data->mcp[addr])
 			continue;
 
+		if (spi->irq && data->mcp[addr]->irq_controller)
+			mcp23s08_irq_teardown(data->mcp[addr]);
 		gpiochip_remove(&data->mcp[addr]->chip);
 	}
 	kfree(data);
