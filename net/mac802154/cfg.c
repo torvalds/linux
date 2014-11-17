@@ -43,8 +43,7 @@ static void ieee802154_del_iface_deprecated(struct wpan_phy *wpan_phy,
 }
 
 static int
-ieee802154_set_channel(struct wpan_phy *wpan_phy, const u8 page,
-		       const u8 channel)
+ieee802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 	int ret;
@@ -64,8 +63,9 @@ ieee802154_set_channel(struct wpan_phy *wpan_phy, const u8 page,
 	return ret;
 }
 
-static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
-				 struct wpan_dev *wpan_dev, const u16 pan_id)
+static int
+ieee802154_set_pan_id(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
+		      u16 pan_id)
 {
 	ASSERT_RTNL();
 
@@ -86,7 +86,7 @@ static int ieee802154_set_pan_id(struct wpan_phy *wpan_phy,
 static int
 ieee802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
 				struct wpan_dev *wpan_dev,
-				const u8 min_be, const u8 max_be)
+				u8 min_be, u8 max_be)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 
@@ -102,7 +102,7 @@ ieee802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
 
 static int
 ieee802154_set_short_addr(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
-			  const u16 short_addr)
+			  u16 short_addr)
 {
 	ASSERT_RTNL();
 
@@ -125,9 +125,10 @@ ieee802154_set_short_addr(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 	return 0;
 }
 
-static int ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
-					    struct wpan_dev *wpan_dev,
-					    const u8 max_csma_backoffs)
+static int
+ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev,
+				 u8 max_csma_backoffs)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 
@@ -140,9 +141,10 @@ static int ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
 	return 0;
 }
 
-static int ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
-					    struct wpan_dev *wpan_dev,
-					    const s8 max_frame_retries)
+static int
+ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
+				 struct wpan_dev *wpan_dev,
+				 s8 max_frame_retries)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 
@@ -155,9 +157,9 @@ static int ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
 	return 0;
 }
 
-static int ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy,
-				   struct wpan_dev *wpan_dev,
-				   const bool mode)
+static int
+ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
+			bool mode)
 {
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 
