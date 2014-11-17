@@ -1646,6 +1646,9 @@ static bool vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 		} else {
 			vgic_dist_irq_clear_pending(vcpu, irq_num);
 		}
+
+		ret = false;
+		goto out;
 	}
 
 	enabled = vgic_irq_is_enabled(vcpu, irq_num);
