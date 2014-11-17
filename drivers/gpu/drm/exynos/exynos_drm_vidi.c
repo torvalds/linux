@@ -66,6 +66,11 @@ struct vidi_context {
 	int				pipe;
 };
 
+static inline struct vidi_context *manager_to_vidi(struct exynos_drm_manager *m)
+{
+	return container_of(m, struct vidi_context, manager);
+}
+
 static const char fake_edid_info[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x4c, 0x2d, 0x05, 0x05,
 	0x00, 0x00, 0x00, 0x00, 0x30, 0x12, 0x01, 0x03, 0x80, 0x10, 0x09, 0x78,
@@ -93,7 +98,7 @@ static const char fake_edid_info[] = {
 
 static void vidi_apply(struct exynos_drm_manager *mgr)
 {
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = manager_to_vidi(mgr);
 	struct exynos_drm_manager_ops *mgr_ops = mgr->ops;
 	struct vidi_win_data *win_data;
 	int i;
@@ -110,7 +115,7 @@ static void vidi_apply(struct exynos_drm_manager *mgr)
 
 static void vidi_commit(struct exynos_drm_manager *mgr)
 {
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = manager_to_vidi(mgr);
 
 	if (ctx->suspended)
 		return;
@@ -118,7 +123,7 @@ static void vidi_commit(struct exynos_drm_manager *mgr)
 
 static int vidi_enable_vblank(struct exynos_drm_manager *mgr)
 {
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = manager_to_vidi(mgr);
 
 	if (ctx->suspended)
 		return -EPERM;
@@ -140,7 +145,7 @@ static int vidi_enable_vblank(struct exynos_drm_manager *mgr)
 
 static void vidi_disable_vblank(struct exynos_drm_manager *mgr)
 {
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = manager_to_vidi(mgr);
 
 	if (ctx->suspended)
 		return;
@@ -152,7 +157,7 @@ static void vidi_disable_vblank(struct exynos_drm_manager *mgr)
 static void vidi_win_mode_set(struct exynos_drm_manager *mgr,
 			struct exynos_drm_overlay *overlay)
 {
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = manager_to_vidi(mgr);
 	struct vidi_win_data *win_data;
 	int win;
 	unsigned long offset;
@@ -204,7 +209,7 @@ static void vidi_win_mode_set(struct exynos_drm_manager *mgr,
 
 static void vidi_win_commit(struct exynos_drm_manager *mgr, int zpos)
 {
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = manager_to_vidi(mgr);
 	struct vidi_win_data *win_data;
 	int win = zpos;
 
@@ -229,7 +234,7 @@ static void vidi_win_commit(struct exynos_drm_manager *mgr, int zpos)
 
 static void vidi_win_disable(struct exynos_drm_manager *mgr, int zpos)
 {
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = manager_to_vidi(mgr);
 	struct vidi_win_data *win_data;
 	int win = zpos;
 
@@ -247,7 +252,7 @@ static void vidi_win_disable(struct exynos_drm_manager *mgr, int zpos)
 
 static int vidi_power_on(struct exynos_drm_manager *mgr, bool enable)
 {
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = manager_to_vidi(mgr);
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -271,7 +276,7 @@ static int vidi_power_on(struct exynos_drm_manager *mgr, bool enable)
 
 static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)
 {
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = manager_to_vidi(mgr);
 
 	DRM_DEBUG_KMS("%d\n", mode);
 
@@ -297,7 +302,7 @@ static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)
 static int vidi_mgr_initialize(struct exynos_drm_manager *mgr,
 			struct drm_device *drm_dev)
 {
-	struct vidi_context *ctx = mgr->ctx;
+	struct vidi_context *ctx = manager_to_vidi(mgr);
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 
 	mgr->drm_dev = ctx->drm_dev = drm_dev;
@@ -594,7 +599,6 @@ static int vidi_probe(struct platform_device *pdev)
 
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
 
-	ctx->manager.ctx = ctx;
 	vidi_display.ctx = ctx;
 
 	mutex_init(&ctx->lock);
