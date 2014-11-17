@@ -30,7 +30,6 @@
 #include <drm/drm_panel.h>
 #include <drm/bridge/ptn3460.h>
 
-#include "exynos_drm_drv.h"
 #include "exynos_dp_core.h"
 
 #define ctx_from_connector(c)	container_of(c, struct exynos_dp_device, \
@@ -1133,11 +1132,6 @@ static struct exynos_drm_display_ops exynos_dp_display_ops = {
 	.commit = exynos_dp_commit,
 };
 
-static struct exynos_drm_display exynos_dp_display = {
-	.type = EXYNOS_DISPLAY_TYPE_LCD,
-	.ops = &exynos_dp_display_ops,
-};
-
 static struct video_info *exynos_dp_dt_parse_pdata(struct device *dev)
 {
 	struct device_node *dp_node = dev->of_node;
@@ -1211,10 +1205,10 @@ static int exynos_dp_dt_parse_panel(struct exynos_dp_device *dp)
 
 static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 {
+	struct exynos_dp_device *dp = dev_get_drvdata(dev);
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm_dev = data;
 	struct resource *res;
-	struct exynos_dp_device *dp = exynos_dp_display.ctx;
 	unsigned int irq_flags;
 	int ret = 0;
 
@@ -1306,17 +1300,15 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 
 	dp->drm_dev = drm_dev;
 
-	platform_set_drvdata(pdev, &exynos_dp_display);
-
-	return exynos_drm_create_enc_conn(drm_dev, &exynos_dp_display);
+	return exynos_drm_create_enc_conn(drm_dev, &dp->display);
 }
 
 static void exynos_dp_unbind(struct device *dev, struct device *master,
 				void *data)
 {
-	struct exynos_drm_display *display = dev_get_drvdata(dev);
+	struct exynos_dp_device *dp = dev_get_drvdata(dev);
 
-	exynos_dp_dpms(display, DRM_MODE_DPMS_OFF);
+	exynos_dp_dpms(&dp->display, DRM_MODE_DPMS_OFF);
 }
 
 static const struct component_ops exynos_dp_ops = {
@@ -1331,15 +1323,19 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	struct exynos_dp_device *dp;
 	int ret;
 
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
-					exynos_dp_display.type);
-	if (ret)
-		return ret;
-
 	dp = devm_kzalloc(&pdev->dev, sizeof(struct exynos_dp_device),
 				GFP_KERNEL);
 	if (!dp)
 		return -ENOMEM;
+
+	dp->display.type = EXYNOS_DISPLAY_TYPE_LCD;
+	dp->display.ops = &exynos_dp_display_ops;
+	platform_set_drvdata(pdev, dp);
+
+	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
+					dp->display.type);
+	if (ret)
+		return ret;
 
 	panel_node = of_parse_phandle(dev->of_node, "panel", 0);
 	if (panel_node) {
@@ -1349,7 +1345,7 @@ static int exynos_dp_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 	}
 
-	exynos_dp_display.ctx = dp;
+	dp->display.ctx = dp;
 
 	ret = component_add(&pdev->dev, &exynos_dp_ops);
 	if (ret)
@@ -1370,19 +1366,17 @@ static int exynos_dp_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int exynos_dp_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct exynos_drm_display *display = platform_get_drvdata(pdev);
+	struct exynos_dp_device *dp = dev_get_drvdata(dev);
 
-	exynos_dp_dpms(display, DRM_MODE_DPMS_OFF);
+	exynos_dp_dpms(&dp->display, DRM_MODE_DPMS_OFF);
 	return 0;
 }
 
 static int exynos_dp_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct exynos_drm_display *display = platform_get_drvdata(pdev);
+	struct exynos_dp_device *dp = dev_get_drvdata(dev);
 
-	exynos_dp_dpms(display, DRM_MODE_DPMS_ON);
+	exynos_dp_dpms(&dp->display, DRM_MODE_DPMS_ON);
 	return 0;
 }
 #endif
