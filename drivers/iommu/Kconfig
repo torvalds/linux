@@ -28,6 +28,15 @@ config IOMMU_IO_PGTABLE_LPAE
 	  sizes at both stage-1 and stage-2, as well as address spaces
 	  up to 48-bits in size.
 
+config IOMMU_IO_PGTABLE_LPAE_SELFTEST
+	bool "LPAE selftests"
+	depends on IOMMU_IO_PGTABLE_LPAE
+	help
+	  Enable self-tests for LPAE page table allocator. This performs
+	  a series of page-table consistency checks during boot.
+
+	  If unsure, say N here.
+
 endmenu
 
 config OF_IOMMU
