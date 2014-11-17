@@ -984,6 +984,13 @@ static void fimd_trigger(struct device *dev)
 	reg = readl(timing_base + TRIGCON);
 	reg |= (TRGMODE_I80_RGB_ENABLE_I80 | SWTRGCMD_I80_RGB_ENABLE);
 	writel(reg, timing_base + TRIGCON);
+
+	/*
+	 * Exits triggering mode if vblank is not enabled yet, because when the
+	 * VIDINTCON0 register is not set, it can not exit from triggering mode.
+	 */
+	if (!test_bit(0, &ctx->irq_flags))
+		atomic_set(&ctx->triggering, 0);
 }
 
 static void fimd_te_handler(struct exynos_drm_manager *mgr)
