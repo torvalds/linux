@@ -166,7 +166,6 @@ MODULE_DEVICE_TABLE(of, img_ir_match);
 static struct platform_driver img_ir_driver = {
 	.driver = {
 		.name = "img-ir",
-		.owner	= THIS_MODULE,
 		.of_match_table	= img_ir_match,
 		.pm = &img_ir_pmops,
 	},
