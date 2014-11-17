@@ -96,7 +96,6 @@ static void cport_out_callback(struct urb *urb);
 static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 				gfp_t gfp_mask)
 {
-	struct gb_connection *connection = gbuf->operation->connection;
 	u32 cport_reserve = gbuf->dest_cport_id == CPORT_ID_BAD ? 0 : 1;
 	u8 *buffer;
 
@@ -118,20 +117,16 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 	if (!buffer)
 		return -ENOMEM;
 
-	/*
-	 * we will encode the cport number in the first byte of the buffer, so
-	 * set the second byte to be the "transfer buffer"
-	 */
-	if (connection->interface_cport_id > (u16)U8_MAX) {
-		pr_err("gbuf->interface_cport_id (%hd) is out of range!\n",
-			connection->interface_cport_id);
-		kfree(buffer);
-		return -EINVAL;
-	}
-
 	/* Insert the cport id for outbound buffers */
-	if (cport_reserve)
-		*buffer++ = connection->interface_cport_id;
+	if (cport_reserve) {
+		if (gbuf->dest_cport_id > (u16)U8_MAX) {
+			pr_err("gbuf->dest_cport_id (%hd) is out of range!\n",
+				gbuf->dest_cport_id);
+			kfree(buffer);
+			return -EINVAL;
+		}
+		*buffer++ = gbuf->dest_cport_id;
+	}
 	gbuf->transfer_buffer = buffer;
 	gbuf->transfer_buffer_length = size;
 
