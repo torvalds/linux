@@ -21,6 +21,8 @@
 #include <linux/mutex.h>
 #include <linux/bug.h>
 
+#include <net/nl802154.h>
+
 /* According to the IEEE 802.15.4 stadard the upper most significant bits of
  * the 32-bit channel bitmaps shall be used as an integer value to specify 32
  * possible channel pages. The lower 27 bits of the channel bit map shall be
@@ -37,6 +39,9 @@ struct cfg802154_ops {
 							   int type);
 	void	(*del_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
 					       struct net_device *dev);
+	int	(*add_virtual_intf)(struct wpan_phy *wpan_phy,
+				    const char *name,
+				    enum nl802154_iftype type);
 	int	(*set_channel)(struct wpan_phy *wpan_phy, u8 page, u8 channel);
 	int	(*set_pan_id)(struct wpan_phy *wpan_phy,
 			      struct wpan_dev *wpan_dev, u16 pan_id);

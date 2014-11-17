@@ -551,6 +551,32 @@ static int nl802154_get_interface(struct sk_buff *skb, struct genl_info *info)
 	return genlmsg_reply(msg, info);
 }
 
+static int nl802154_new_interface(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	enum nl802154_iftype type = NL802154_IFTYPE_UNSPEC;
+
+	/* TODO avoid failing a new interface
+	 * creation due to pending removal?
+	 */
+
+	if (!info->attrs[NL802154_ATTR_IFNAME])
+		return -EINVAL;
+
+	if (info->attrs[NL802154_ATTR_IFTYPE]) {
+		type = nla_get_u32(info->attrs[NL802154_ATTR_IFTYPE]);
+		if (type > NL802154_IFTYPE_MAX)
+			return -EINVAL;
+	}
+
+	if (!rdev->ops->add_virtual_intf)
+		return -EOPNOTSUPP;
+
+	return rdev_add_virtual_intf(rdev,
+				     nla_data(info->attrs[NL802154_ATTR_IFNAME]),
+				     type);
+}
+
 static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
@@ -816,6 +842,14 @@ static const struct genl_ops nl802154_ops[] = {
 		.policy = nl802154_policy,
 		/* can be retrieved by unprivileged users */
 		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_NEW_INTERFACE,
+		.doit = nl802154_new_interface,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{
