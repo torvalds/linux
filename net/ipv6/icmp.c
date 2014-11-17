@@ -679,6 +679,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	const struct in6_addr *saddr, *daddr;
 	struct icmp6hdr *hdr;
 	u8 type;
+	bool success = false;
 
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 		struct sec_path *sp = skb_sec_path(skb);
@@ -726,7 +727,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		break;
 
 	case ICMPV6_ECHO_REPLY:
-		ping_rcv(skb);
+		success = ping_rcv(skb);
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
@@ -790,7 +791,14 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		icmpv6_notify(skb, type, hdr->icmp6_code, hdr->icmp6_mtu);
 	}
 
-	kfree_skb(skb);
+	/* until the v6 path can be better sorted assume failure and
+	 * preserve the status quo behaviour for the rest of the paths to here
+	 */
+	if (success)
+		consume_skb(skb);
+	else
+		kfree_skb(skb);
+
 	return 0;
 
 csum_error:

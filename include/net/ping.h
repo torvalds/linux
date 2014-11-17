@@ -82,7 +82,7 @@ int  ping_common_sendmsg(int family, struct msghdr *msg, size_t len,
 int  ping_v6_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		     size_t len);
 int  ping_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
-void ping_rcv(struct sk_buff *skb);
+bool ping_rcv(struct sk_buff *skb);
 
 #ifdef CONFIG_PROC_FS
 struct ping_seq_afinfo {
