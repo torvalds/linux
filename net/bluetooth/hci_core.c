@@ -3469,7 +3469,7 @@ void hci_remote_oob_data_clear(struct hci_dev *hdev)
 }
 
 int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			    u8 *hash, u8 *randomizer)
+			    u8 *hash, u8 *rand)
 {
 	struct oob_data *data;
 
@@ -3484,10 +3484,10 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	}
 
 	memcpy(data->hash192, hash, sizeof(data->hash192));
-	memcpy(data->randomizer192, randomizer, sizeof(data->randomizer192));
+	memcpy(data->rand192, rand, sizeof(data->rand192));
 
 	memset(data->hash256, 0, sizeof(data->hash256));
-	memset(data->randomizer256, 0, sizeof(data->randomizer256));
+	memset(data->rand256, 0, sizeof(data->rand256));
 
 	BT_DBG("%s for %pMR", hdev->name, bdaddr);
 
@@ -3495,8 +3495,8 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 }
 
 int hci_add_remote_oob_ext_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				u8 *hash192, u8 *randomizer192,
-				u8 *hash256, u8 *randomizer256)
+				u8 *hash192, u8 *rand192,
+				u8 *hash256, u8 *rand256)
 {
 	struct oob_data *data;
 
@@ -3511,10 +3511,10 @@ int hci_add_remote_oob_ext_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	}
 
 	memcpy(data->hash192, hash192, sizeof(data->hash192));
-	memcpy(data->randomizer192, randomizer192, sizeof(data->randomizer192));
+	memcpy(data->rand192, rand192, sizeof(data->rand192));
 
 	memcpy(data->hash256, hash256, sizeof(data->hash256));
-	memcpy(data->randomizer256, randomizer256, sizeof(data->randomizer256));
+	memcpy(data->rand256, rand256, sizeof(data->rand256));
 
 	BT_DBG("%s for %pMR", hdev->name, bdaddr);
 

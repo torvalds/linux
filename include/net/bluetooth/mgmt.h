@@ -299,28 +299,28 @@ struct mgmt_cp_user_passkey_neg_reply {
 #define MGMT_READ_LOCAL_OOB_DATA_SIZE	0
 struct mgmt_rp_read_local_oob_data {
 	__u8	hash[16];
-	__u8	randomizer[16];
+	__u8	rand[16];
 } __packed;
 struct mgmt_rp_read_local_oob_ext_data {
 	__u8	hash192[16];
-	__u8	randomizer192[16];
+	__u8	rand192[16];
 	__u8	hash256[16];
-	__u8	randomizer256[16];
+	__u8	rand256[16];
 } __packed;
 
 #define MGMT_OP_ADD_REMOTE_OOB_DATA	0x0021
 struct mgmt_cp_add_remote_oob_data {
 	struct mgmt_addr_info addr;
 	__u8	hash[16];
-	__u8	randomizer[16];
+	__u8	rand[16];
 } __packed;
 #define MGMT_ADD_REMOTE_OOB_DATA_SIZE	(MGMT_ADDR_INFO_SIZE + 32)
 struct mgmt_cp_add_remote_oob_ext_data {
 	struct mgmt_addr_info addr;
 	__u8	hash192[16];
-	__u8	randomizer192[16];
+	__u8	rand192[16];
 	__u8	hash256[16];
-	__u8	randomizer256[16];
+	__u8	rand256[16];
 } __packed;
 #define MGMT_ADD_REMOTE_OOB_EXT_DATA_SIZE (MGMT_ADDR_INFO_SIZE + 64)
 

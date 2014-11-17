@@ -994,8 +994,8 @@ static void hci_cc_read_local_oob_data(struct hci_dev *hdev,
 	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
 
 	hci_dev_lock(hdev);
-	mgmt_read_local_oob_data_complete(hdev, rp->hash, rp->randomizer,
-					  NULL, NULL, rp->status);
+	mgmt_read_local_oob_data_complete(hdev, rp->hash, rp->rand, NULL, NULL,
+					  rp->status);
 	hci_dev_unlock(hdev);
 }
 
@@ -1007,8 +1007,8 @@ static void hci_cc_read_local_oob_ext_data(struct hci_dev *hdev,
 	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
 
 	hci_dev_lock(hdev);
-	mgmt_read_local_oob_data_complete(hdev, rp->hash192, rp->randomizer192,
-					  rp->hash256, rp->randomizer256,
+	mgmt_read_local_oob_data_complete(hdev, rp->hash192, rp->rand192,
+					  rp->hash256, rp->rand256,
 					  rp->status);
 	hci_dev_unlock(hdev);
 }
@@ -3996,11 +3996,9 @@ static void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 
 			bacpy(&cp.bdaddr, &ev->bdaddr);
 			memcpy(cp.hash192, data->hash192, sizeof(cp.hash192));
-			memcpy(cp.randomizer192, data->randomizer192,
-			       sizeof(cp.randomizer192));
+			memcpy(cp.rand192, data->rand192, sizeof(cp.rand192));
 			memcpy(cp.hash256, data->hash256, sizeof(cp.hash256));
-			memcpy(cp.randomizer256, data->randomizer256,
-			       sizeof(cp.randomizer256));
+			memcpy(cp.rand256, data->rand256, sizeof(cp.rand256));
 
 			hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_EXT_DATA_REPLY,
 				     sizeof(cp), &cp);
@@ -4009,8 +4007,7 @@ static void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 
 			bacpy(&cp.bdaddr, &ev->bdaddr);
 			memcpy(cp.hash, data->hash192, sizeof(cp.hash));
-			memcpy(cp.randomizer, data->randomizer192,
-			       sizeof(cp.randomizer));
+			memcpy(cp.rand, data->rand192, sizeof(cp.rand));
 
 			hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_REPLY,
 				     sizeof(cp), &cp);

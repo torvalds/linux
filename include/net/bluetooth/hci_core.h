@@ -140,9 +140,9 @@ struct oob_data {
 	struct list_head list;
 	bdaddr_t bdaddr;
 	u8 hash192[16];
-	u8 randomizer192[16];
+	u8 rand192[16];
 	u8 hash256[16];
-	u8 randomizer256[16];
+	u8 rand256[16];
 };
 
 #define HCI_MAX_SHORT_NAME_LENGTH	10
@@ -943,10 +943,10 @@ void hci_remote_oob_data_clear(struct hci_dev *hdev);
 struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
 					  bdaddr_t *bdaddr);
 int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			    u8 *hash, u8 *randomizer);
+			    u8 *hash, u8 *rand);
 int hci_add_remote_oob_ext_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				u8 *hash192, u8 *randomizer192,
-				u8 *hash256, u8 *randomizer256);
+				u8 *hash192, u8 *rand192,
+				u8 *hash256, u8 *rand256);
 int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
@@ -1374,8 +1374,8 @@ void mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
 				    u8 status);
 void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status);
 void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
-				       u8 *randomizer192, u8 *hash256,
-				       u8 *randomizer256, u8 status);
+				       u8 *rand192, u8 *hash256, u8 *rand256,
+				       u8 status);
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		       u8 addr_type, u8 *dev_class, s8 rssi, u32 flags,
 		       u8 *eir, u16 eir_len, u8 *scan_rsp, u8 scan_rsp_len);
