@@ -62,6 +62,7 @@ static const struct mdp5_config msm8x74_config = {
 		.count = 4,
 		.base = { 0x12500, 0x12700, 0x12900, 0x12b00 },
 	},
+	.max_clk = 200000000,
 };
 
 static const struct mdp5_config apq8084_config = {
@@ -99,6 +100,7 @@ static const struct mdp5_config apq8084_config = {
 		.count = 5,
 		.base = { 0x12500, 0x12700, 0x12900, 0x12b00, 0x12d00 },
 	},
+	.max_clk = 320000000,
 };
 
 struct mdp5_config_entry {
@@ -427,11 +429,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	if (ret)
 		goto fail;
 
-	ret = clk_set_rate(mdp5_kms->src_clk, config->max_clk);
-
 	ret = mdp5_select_hw_cfg(kms);
 	if (ret)
 		goto fail;
+
+	/* TODO: compute core clock rate at runtime */
+	clk_set_rate(mdp5_kms->src_clk, mdp5_kms->hw_cfg->max_clk);
 
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if
@@ -493,8 +496,6 @@ static struct mdp5_platform_config *mdp5_get_config(struct platform_device *dev)
 	/* TODO */
 #endif
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
-	/* TODO hard-coded in downstream mdss, but should it be? */
-	config.max_clk = 200000000;
 	/* TODO get from DT: */
 	config.smp_blk_cnt = 22;
 

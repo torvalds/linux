@@ -37,6 +37,8 @@ struct mdp5_config {
 	struct mdp5_sub_block dspp;
 	struct mdp5_sub_block ad;
 	struct mdp5_sub_block intf;
+
+	uint32_t max_clk;
 };
 extern const struct mdp5_config *mdp5_cfg;
 #include "mdp5.xml.h"
@@ -83,7 +85,6 @@ struct mdp5_kms {
 /* platform config data (ie. from DT, or pdata) */
 struct mdp5_platform_config {
 	struct iommu_domain *iommu;
-	uint32_t max_clk;
 	int smp_blk_cnt;
 };
 
