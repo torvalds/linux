@@ -27,7 +27,6 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/hardirq.h>
-#include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
