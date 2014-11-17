@@ -3184,8 +3184,6 @@ fec_probe(struct platform_device *pdev)
 	fep->pdev = pdev;
 	fep->dev_id = dev_id++;
 
-	fep->bufdesc_ex = 0;
-
 	platform_set_drvdata(pdev, ndev);
 
 	phy_node = of_parse_phandle(np, "phy-handle", 0);
@@ -3243,7 +3241,7 @@ fec_probe(struct platform_device *pdev)
 		pdev->id_entry->driver_data & FEC_QUIRK_HAS_BUFDESC_EX;
 	if (IS_ERR(fep->clk_ptp)) {
 		fep->clk_ptp = NULL;
-		fep->bufdesc_ex = 0;
+		fep->bufdesc_ex = false;
 	}
 
 	ret = fec_enet_clk_enable(ndev, true);
