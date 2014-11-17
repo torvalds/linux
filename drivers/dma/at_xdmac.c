@@ -1107,58 +1107,75 @@ static void at_xdmac_issue_pending(struct dma_chan *chan)
 	return;
 }
 
-static int at_xdmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-			    unsigned long arg)
+static int at_xdmac_device_config(struct dma_chan *chan,
+				  struct dma_slave_config *config)
+{
+	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
+	int ret;
+
+	dev_dbg(chan2dev(chan), "%s\n", __func__);
+
+	spin_lock_bh(&atchan->lock);
+	ret = at_xdmac_set_slave_config(chan, config);
+	spin_unlock_bh(&atchan->lock);
+
+	return ret;
+}
+
+static int at_xdmac_device_pause(struct dma_chan *chan)
+{
+	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
+	struct at_xdmac		*atxdmac = to_at_xdmac(atchan->chan.device);
+
+	dev_dbg(chan2dev(chan), "%s\n", __func__);
+
+	spin_lock_bh(&atchan->lock);
+	at_xdmac_write(atxdmac, AT_XDMAC_GRWS, atchan->mask);
+	set_bit(AT_XDMAC_CHAN_IS_PAUSED, &atchan->status);
+	spin_unlock_bh(&atchan->lock);
+
+	return 0;
+}
+
+static int at_xdmac_device_resume(struct dma_chan *chan)
+{
+	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
+	struct at_xdmac		*atxdmac = to_at_xdmac(atchan->chan.device);
+
+	dev_dbg(chan2dev(chan), "%s\n", __func__);
+
+	spin_lock_bh(&atchan->lock);
+	if (!at_xdmac_chan_is_paused(atchan))
+		return 0;
+
+	at_xdmac_write(atxdmac, AT_XDMAC_GRWR, atchan->mask);
+	clear_bit(AT_XDMAC_CHAN_IS_PAUSED, &atchan->status);
+	spin_unlock_bh(&atchan->lock);
+
+	return 0;
+}
+
+static int at_xdmac_device_terminate_all(struct dma_chan *chan)
 {
 	struct at_xdmac_desc	*desc, *_desc;
 	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
 	struct at_xdmac		*atxdmac = to_at_xdmac(atchan->chan.device);
-	int			ret = 0;
 
-	dev_dbg(chan2dev(chan), "%s: cmd=%d\n", __func__, cmd);
+	dev_dbg(chan2dev(chan), "%s\n", __func__);
 
 	spin_lock_bh(&atchan->lock);
+	at_xdmac_write(atxdmac, AT_XDMAC_GD, atchan->mask);
+	while (at_xdmac_read(atxdmac, AT_XDMAC_GS) & atchan->mask)
+		cpu_relax();
 
-	switch (cmd) {
-	case DMA_PAUSE:
-		at_xdmac_write(atxdmac, AT_XDMAC_GRWS, atchan->mask);
-		set_bit(AT_XDMAC_CHAN_IS_PAUSED, &atchan->status);
-		break;
+	/* Cancel all pending transfers. */
+	list_for_each_entry_safe(desc, _desc, &atchan->xfers_list, xfer_node)
+		at_xdmac_remove_xfer(atchan, desc);
 
-	case DMA_RESUME:
-		if (!at_xdmac_chan_is_paused(atchan))
-			break;
-
-		at_xdmac_write(atxdmac, AT_XDMAC_GRWR, atchan->mask);
-		clear_bit(AT_XDMAC_CHAN_IS_PAUSED, &atchan->status);
-		break;
-
-	case DMA_TERMINATE_ALL:
-		at_xdmac_write(atxdmac, AT_XDMAC_GD, atchan->mask);
-		while (at_xdmac_read(atxdmac, AT_XDMAC_GS) & atchan->mask)
-			cpu_relax();
-
-		/* Cancel all pending transfers. */
-		list_for_each_entry_safe(desc, _desc, &atchan->xfers_list, xfer_node)
-			at_xdmac_remove_xfer(atchan, desc);
-
-		clear_bit(AT_XDMAC_CHAN_IS_CYCLIC, &atchan->status);
-		break;
-
-	case DMA_SLAVE_CONFIG:
-		ret = at_xdmac_set_slave_config(chan,
-				(struct dma_slave_config *)arg);
-		break;
-
-	default:
-		dev_err(chan2dev(chan),
-			"unmanaged or unknown dma control cmd: %d\n", cmd);
-		ret = -ENXIO;
-	}
-
+	clear_bit(AT_XDMAC_CHAN_IS_CYCLIC, &atchan->status);
 	spin_unlock_bh(&atchan->lock);
 
-	return ret;
+	return 0;
 }
 
 static int at_xdmac_alloc_chan_resources(struct dma_chan *chan)
@@ -1270,7 +1287,7 @@ static int atmel_xdmac_suspend(struct device *dev)
 
 		if (at_xdmac_chan_is_cyclic(atchan)) {
 			if (!at_xdmac_chan_is_paused(atchan))
-				at_xdmac_control(chan, DMA_PAUSE, 0);
+				at_xdmac_device_pause(chan);
 			atchan->save_cim = at_xdmac_chan_read(atchan, AT_XDMAC_CIM);
 			atchan->save_cnda = at_xdmac_chan_read(atchan, AT_XDMAC_CNDA);
 			atchan->save_cndc = at_xdmac_chan_read(atchan, AT_XDMAC_CNDC);
@@ -1407,7 +1424,10 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	atxdmac->dma.device_prep_dma_cyclic		= at_xdmac_prep_dma_cyclic;
 	atxdmac->dma.device_prep_dma_memcpy		= at_xdmac_prep_dma_memcpy;
 	atxdmac->dma.device_prep_slave_sg		= at_xdmac_prep_slave_sg;
-	atxdmac->dma.device_control			= at_xdmac_control;
+	atxdmac->dma.device_config			= at_xdmac_device_config;
+	atxdmac->dma.device_pause			= at_xdmac_device_pause;
+	atxdmac->dma.device_resume			= at_xdmac_device_resume;
+	atxdmac->dma.device_terminate_all		= at_xdmac_device_terminate_all;
 	atxdmac->dma.device_slave_caps			= at_xdmac_device_slave_caps;
 
 	/* Disable all chans and interrupts. */
