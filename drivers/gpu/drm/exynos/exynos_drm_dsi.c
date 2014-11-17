@@ -1155,6 +1155,7 @@ static int exynos_dsi_init(struct exynos_dsi *dsi)
 static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi)
 {
 	int ret;
+	int te_gpio_irq;
 
 	dsi->te_gpio = of_get_named_gpio(dsi->panel_node, "te-gpios", 0);
 	if (!gpio_is_valid(dsi->te_gpio)) {
@@ -1169,14 +1170,10 @@ static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi)
 		goto out;
 	}
 
-	/*
-	 * This TE GPIO IRQ should not be set to IRQ_NOAUTOEN, because panel
-	 * calls drm_panel_init() first then calls mipi_dsi_attach() in probe().
-	 * It means that te_gpio is invalid when exynos_dsi_enable_irq() is
-	 * called by drm_panel_init() before panel is attached.
-	 */
-	ret = request_threaded_irq(gpio_to_irq(dsi->te_gpio),
-					exynos_dsi_te_irq_handler, NULL,
+	te_gpio_irq = gpio_to_irq(dsi->te_gpio);
+
+	irq_set_status_flags(te_gpio_irq, IRQ_NOAUTOEN);
+	ret = request_threaded_irq(te_gpio_irq, exynos_dsi_te_irq_handler, NULL,
 					IRQF_TRIGGER_RISING, "TE", dsi);
 	if (ret) {
 		dev_err(dsi->dev, "request interrupt failed with %d\n", ret);
