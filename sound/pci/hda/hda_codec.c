@@ -834,8 +834,7 @@ static void snd_hda_bus_free(struct hda_bus *bus)
 	WARN_ON(!list_empty(&bus->codec_list));
 	if (bus->workq)
 		flush_workqueue(bus->workq);
-	if (bus->unsol)
-		kfree(bus->unsol);
+	kfree(bus->unsol);
 	if (bus->ops.private_free)
 		bus->ops.private_free(bus);
 	if (bus->workq)

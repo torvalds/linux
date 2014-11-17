@@ -1130,8 +1130,7 @@ static int azx_free(struct azx *chip)
 	pci_disable_device(chip->pci);
 	kfree(chip->azx_dev);
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
-	if (chip->fw)
-		release_firmware(chip->fw);
+	release_firmware(chip->fw);
 #endif
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 		hda_display_power(false);
