@@ -262,7 +262,7 @@ static void async_req_completion(struct nvme_queue *nvmeq, void *ctx,
 		dev_warn(nvmeq->q_dmadev,
 			"async event result %08x\n", result);
 
-	blk_put_request(req);
+	blk_mq_free_hctx_request(nvmeq->hctx, req);
 }
 
 static void abort_completion(struct nvme_queue *nvmeq, void *ctx,
@@ -273,7 +273,7 @@ static void abort_completion(struct nvme_queue *nvmeq, void *ctx,
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
 	u32 result = le32_to_cpup(&cqe->result);
 
-	blk_put_request(req);
+	blk_mq_free_hctx_request(nvmeq->hctx, req);
 
 	dev_warn(nvmeq->q_dmadev, "Abort status:%x result:%x", status, result);
 	++nvmeq->dev->abort_limit;
@@ -286,7 +286,7 @@ static void async_completion(struct nvme_queue *nvmeq, void *ctx,
 	cmdinfo->result = le32_to_cpup(&cqe->result);
 	cmdinfo->status = le16_to_cpup(&cqe->status) >> 1;
 	queue_kthread_work(cmdinfo->worker, &cmdinfo->work);
-	blk_put_request(cmdinfo->req);
+	blk_mq_free_hctx_request(nvmeq->hctx, cmdinfo->req);
 }
 
 static inline struct nvme_cmd_info *get_cmd_from_tag(struct nvme_queue *nvmeq,
@@ -872,7 +872,7 @@ static int __nvme_submit_admin_cmd(struct nvme_dev *dev, struct nvme_command *cm
 	if (!req)
 		return -ENOMEM;
 	res = nvme_submit_sync_cmd(req, cmd, result, timeout);
-	blk_put_request(req);
+	blk_mq_free_request(req);
 	return res;
 }
 
@@ -893,7 +893,7 @@ int nvme_submit_io_cmd(struct nvme_dev *dev, struct nvme_ns *ns,
 	if (!req)
 		return -ENOMEM;
 	res = nvme_submit_sync_cmd(req, cmd, result, NVME_IO_TIMEOUT);
-	blk_put_request(req);
+	blk_mq_free_request(req);
 	return res;
 }
 
@@ -1047,7 +1047,7 @@ static void nvme_abort_req(struct request *req)
 		dev_warn(nvmeq->q_dmadev,
 				"Could not abort I/O %d QID %d",
 				req->tag, nvmeq->qid);
-		blk_put_request(req);
+		blk_mq_free_request(req);
 	}
 }
 
@@ -1688,7 +1688,7 @@ static int nvme_user_cmd(struct nvme_dev *dev, struct nvme_ns *ns,
 		else {
 			status = nvme_submit_sync_cmd(req, &c, &cmd.result,
 								timeout);
-			blk_put_request(req);
+			blk_mq_free_request(req);
 		}
 	} else
 		status = __nvme_submit_admin_cmd(dev, &c, &cmd.result, timeout);
