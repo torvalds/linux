@@ -789,7 +789,7 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 
 	for (i = 0, wmin = X86_PMC_IDX_MAX, wmax = 0; i < n; i++) {
 		hwc = &cpuc->event_list[i]->hw;
-		c = x86_pmu.get_event_constraints(cpuc, cpuc->event_list[i]);
+		c = x86_pmu.get_event_constraints(cpuc, i, cpuc->event_list[i]);
 		hwc->constraint = c;
 
 		wmin = min(wmin, c->weight);
@@ -1777,7 +1777,7 @@ static int validate_event(struct perf_event *event)
 	if (IS_ERR(fake_cpuc))
 		return PTR_ERR(fake_cpuc);
 
-	c = x86_pmu.get_event_constraints(fake_cpuc, event);
+	c = x86_pmu.get_event_constraints(fake_cpuc, -1, event);
 
 	if (!c || !c->weight)
 		ret = -EINVAL;

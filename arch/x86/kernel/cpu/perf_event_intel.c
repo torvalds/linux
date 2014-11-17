@@ -1827,7 +1827,8 @@ intel_shared_regs_constraints(struct cpu_hw_events *cpuc,
 }
 
 struct event_constraint *
-x86_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
+x86_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+			  struct perf_event *event)
 {
 	struct event_constraint *c;
 
@@ -1844,7 +1845,8 @@ x86_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 }
 
 static struct event_constraint *
-intel_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
+intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+			    struct perf_event *event)
 {
 	struct event_constraint *c;
 
@@ -1860,7 +1862,7 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event
 	if (c)
 		return c;
 
-	return x86_get_event_constraints(cpuc, event);
+	return x86_get_event_constraints(cpuc, idx, event);
 }
 
 static void
@@ -2105,9 +2107,12 @@ static struct event_constraint counter2_constraint =
 			EVENT_CONSTRAINT(0, 0x4, 0);
 
 static struct event_constraint *
-hsw_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
+hsw_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+			  struct perf_event *event)
 {
-	struct event_constraint *c = intel_get_event_constraints(cpuc, event);
+	struct event_constraint *c;
+
+	c = intel_get_event_constraints(cpuc, idx, event);
 
 	/* Handle special quirk on in_tx_checkpointed only in counter 2 */
 	if (event->hw.config & HSW_IN_TX_CHECKPOINTED) {

@@ -456,6 +456,7 @@ struct x86_pmu {
 	u64		max_period;
 	struct event_constraint *
 			(*get_event_constraints)(struct cpu_hw_events *cpuc,
+						 int idx,
 						 struct perf_event *event);
 
 	void		(*put_event_constraints)(struct cpu_hw_events *cpuc,
@@ -751,7 +752,8 @@ static inline bool intel_pmu_has_bts(struct perf_event *event)
 int intel_pmu_save_and_restart(struct perf_event *event);
 
 struct event_constraint *
-x86_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event);
+x86_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+			  struct perf_event *event);
 
 struct intel_shared_regs *allocate_shared_regs(int cpu);
 
