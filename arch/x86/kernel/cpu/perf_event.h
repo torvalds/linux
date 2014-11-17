@@ -72,6 +72,7 @@ struct event_constraint {
 #define PERF_X86_EVENT_PEBS_LD_HSW	0x10 /* haswell style datala, load */
 #define PERF_X86_EVENT_PEBS_NA_HSW	0x20 /* haswell style datala, unknown */
 #define PERF_X86_EVENT_EXCL		0x40 /* HT exclusivity on counter */
+#define PERF_X86_EVENT_DYNAMIC		0x80 /* dynamic alloc'd constraint */
 #define PERF_X86_EVENT_RDPMC_ALLOWED	0x40 /* grant rdpmc permission */
 
 
@@ -133,6 +134,7 @@ enum intel_excl_state_type {
 struct intel_excl_states {
 	enum intel_excl_state_type init_state[X86_PMC_IDX_MAX];
 	enum intel_excl_state_type state[X86_PMC_IDX_MAX];
+	bool sched_started; /* true if scheduling has started */
 };
 
 struct intel_excl_cntrs {
@@ -295,6 +297,10 @@ struct cpu_hw_events {
 /* Like UEVENT_CONSTRAINT, but match flags too */
 #define INTEL_FLAGS_UEVENT_CONSTRAINT(c, n)	\
 	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS)
+
+#define INTEL_EXCLUEVT_CONSTRAINT(c, n)	\
+	__EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK, \
+			   HWEIGHT(n), 0, PERF_X86_EVENT_EXCL)
 
 #define INTEL_PLD_CONSTRAINT(c, n)	\
 	__EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS, \

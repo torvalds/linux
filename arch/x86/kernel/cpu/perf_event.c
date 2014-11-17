@@ -779,7 +779,7 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	struct event_constraint *c;
 	unsigned long used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	struct perf_event *e;
-	int i, wmin, wmax, num = 0;
+	int i, wmin, wmax, unsched = 0;
 	struct hw_perf_event *hwc;
 
 	bitmap_zero(used_mask, X86_PMC_IDX_MAX);
@@ -822,14 +822,20 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 
 	/* slow path */
 	if (i != n)
-		num = perf_assign_events(cpuc->event_list, n, wmin,
-					 wmax, assign);
+		unsched = perf_assign_events(cpuc->event_list, n, wmin,
+					     wmax, assign);
 
 	/*
-	 * Mark the event as committed, so we do not put_constraint()
-	 * in case new events are added and fail scheduling.
+	 * In case of success (unsched = 0), mark events as committed,
+	 * so we do not put_constraint() in case new events are added
+	 * and fail to be scheduled
+	 *
+	 * We invoke the lower level commit callback to lock the resource
+	 *
+	 * We do not need to do all of this in case we are called to
+	 * validate an event group (assign == NULL)
 	 */
-	if (!num && assign) {
+	if (!unsched && assign) {
 		for (i = 0; i < n; i++) {
 			e = cpuc->event_list[i];
 			e->hw.flags |= PERF_X86_EVENT_COMMITTED;
@@ -837,11 +843,9 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 				x86_pmu.commit_scheduling(cpuc, e, assign[i]);
 		}
 	}
-	/*
-	 * scheduling failed or is just a simulation,
-	 * free resources if necessary
-	 */
-	if (!assign || num) {
+
+	if (!assign || unsched) {
+
 		for (i = 0; i < n; i++) {
 			e = cpuc->event_list[i];
 			/*
@@ -851,6 +855,9 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 			if ((e->hw.flags & PERF_X86_EVENT_COMMITTED))
 				continue;
 
+			/*
+			 * release events that failed scheduling
+			 */
 			if (x86_pmu.put_event_constraints)
 				x86_pmu.put_event_constraints(cpuc, e);
 		}
@@ -859,7 +866,7 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	if (x86_pmu.stop_scheduling)
 		x86_pmu.stop_scheduling(cpuc);
 
-	return num ? -EINVAL : 0;
+	return unsched ? -EINVAL : 0;
 }
 
 /*

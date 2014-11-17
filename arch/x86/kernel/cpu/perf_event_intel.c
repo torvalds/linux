@@ -1845,7 +1845,7 @@ x86_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 }
 
 static struct event_constraint *
-intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+__intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 			    struct perf_event *event)
 {
 	struct event_constraint *c;
@@ -1866,6 +1866,254 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 }
 
 static void
+intel_start_scheduling(struct cpu_hw_events *cpuc)
+{
+	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
+	struct intel_excl_states *xl, *xlo;
+	int tid = cpuc->excl_thread_id;
+	int o_tid = 1 - tid; /* sibling thread */
+
+	/*
+	 * nothing needed if in group validation mode
+	 */
+	if (cpuc->is_fake)
+		return;
+	/*
+	 * no exclusion needed
+	 */
+	if (!excl_cntrs)
+		return;
+
+	xlo = &excl_cntrs->states[o_tid];
+	xl = &excl_cntrs->states[tid];
+
+	xl->sched_started = true;
+
+	/*
+	 * lock shared state until we are done scheduling
+	 * in stop_event_scheduling()
+	 * makes scheduling appear as a transaction
+	 */
+	WARN_ON_ONCE(!irqs_disabled());
+	raw_spin_lock(&excl_cntrs->lock);
+
+	/*
+	 * save initial state of sibling thread
+	 */
+	memcpy(xlo->init_state, xlo->state, sizeof(xlo->init_state));
+}
+
+static void
+intel_stop_scheduling(struct cpu_hw_events *cpuc)
+{
+	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
+	struct intel_excl_states *xl, *xlo;
+	int tid = cpuc->excl_thread_id;
+	int o_tid = 1 - tid; /* sibling thread */
+
+	/*
+	 * nothing needed if in group validation mode
+	 */
+	if (cpuc->is_fake)
+		return;
+	/*
+	 * no exclusion needed
+	 */
+	if (!excl_cntrs)
+		return;
+
+	xlo = &excl_cntrs->states[o_tid];
+	xl = &excl_cntrs->states[tid];
+
+	/*
+	 * make new sibling thread state visible
+	 */
+	memcpy(xlo->state, xlo->init_state, sizeof(xlo->state));
+
+	xl->sched_started = false;
+	/*
+	 * release shared state lock (acquired in intel_start_scheduling())
+	 */
+	raw_spin_unlock(&excl_cntrs->lock);
+}
+
+static struct event_constraint *
+intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
+			   int idx, struct event_constraint *c)
+{
+	struct event_constraint *cx;
+	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
+	struct intel_excl_states *xl, *xlo;
+	int is_excl, i;
+	int tid = cpuc->excl_thread_id;
+	int o_tid = 1 - tid; /* alternate */
+
+	/*
+	 * validating a group does not require
+	 * enforcing cross-thread  exclusion
+	 */
+	if (cpuc->is_fake)
+		return c;
+
+	/*
+	 * event requires exclusive counter access
+	 * across HT threads
+	 */
+	is_excl = c->flags & PERF_X86_EVENT_EXCL;
+
+	/*
+	 * xl = state of current HT
+	 * xlo = state of sibling HT
+	 */
+	xl = &excl_cntrs->states[tid];
+	xlo = &excl_cntrs->states[o_tid];
+
+	cx = c;
+
+	/*
+	 * because we modify the constraint, we need
+	 * to make a copy. Static constraints come
+	 * from static const tables.
+	 *
+	 * only needed when constraint has not yet
+	 * been cloned (marked dynamic)
+	 */
+	if (!(c->flags & PERF_X86_EVENT_DYNAMIC)) {
+
+		/* sanity check */
+		if (idx < 0)
+			return &emptyconstraint;
+
+		/*
+		 * grab pre-allocated constraint entry
+		 */
+		cx = &cpuc->constraint_list[idx];
+
+		/*
+		 * initialize dynamic constraint
+		 * with static constraint
+		 */
+		memcpy(cx, c, sizeof(*cx));
+
+		/*
+		 * mark constraint as dynamic, so we
+		 * can free it later on
+		 */
+		cx->flags |= PERF_X86_EVENT_DYNAMIC;
+	}
+
+	/*
+	 * From here on, the constraint is dynamic.
+	 * Either it was just allocated above, or it
+	 * was allocated during a earlier invocation
+	 * of this function
+	 */
+
+	/*
+	 * Modify static constraint with current dynamic
+	 * state of thread
+	 *
+	 * EXCLUSIVE: sibling counter measuring exclusive event
+	 * SHARED   : sibling counter measuring non-exclusive event
+	 * UNUSED   : sibling counter unused
+	 */
+	for_each_set_bit(i, cx->idxmsk, X86_PMC_IDX_MAX) {
+		/*
+		 * exclusive event in sibling counter
+		 * our corresponding counter cannot be used
+		 * regardless of our event
+		 */
+		if (xl->state[i] == INTEL_EXCL_EXCLUSIVE)
+			__clear_bit(i, cx->idxmsk);
+		/*
+		 * if measuring an exclusive event, sibling
+		 * measuring non-exclusive, then counter cannot
+		 * be used
+		 */
+		if (is_excl && xl->state[i] == INTEL_EXCL_SHARED)
+			__clear_bit(i, cx->idxmsk);
+	}
+
+	/*
+	 * recompute actual bit weight for scheduling algorithm
+	 */
+	cx->weight = hweight64(cx->idxmsk64);
+
+	/*
+	 * if we return an empty mask, then switch
+	 * back to static empty constraint to avoid
+	 * the cost of freeing later on
+	 */
+	if (cx->weight == 0)
+		cx = &emptyconstraint;
+
+	return cx;
+}
+
+static struct event_constraint *
+intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
+			    struct perf_event *event)
+{
+	struct event_constraint *c = event->hw.constraint;
+
+	/*
+	 * first time only
+	 * - static constraint: no change across incremental scheduling calls
+	 * - dynamic constraint: handled by intel_get_excl_constraints()
+	 */
+	if (!c)
+		c = __intel_get_event_constraints(cpuc, idx, event);
+
+	if (cpuc->excl_cntrs)
+		return intel_get_excl_constraints(cpuc, event, idx, c);
+
+	return c;
+}
+
+static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
+		struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
+	struct intel_excl_states *xlo, *xl;
+	unsigned long flags = 0; /* keep compiler happy */
+	int tid = cpuc->excl_thread_id;
+	int o_tid = 1 - tid;
+
+	/*
+	 * nothing needed if in group validation mode
+	 */
+	if (cpuc->is_fake)
+		return;
+
+	WARN_ON_ONCE(!excl_cntrs);
+
+	if (!excl_cntrs)
+		return;
+
+	xl = &excl_cntrs->states[tid];
+	xlo = &excl_cntrs->states[o_tid];
+
+	/*
+	 * put_constraint may be called from x86_schedule_events()
+	 * which already has the lock held so here make locking
+	 * conditional
+	 */
+	if (!xl->sched_started)
+		raw_spin_lock_irqsave(&excl_cntrs->lock, flags);
+
+	/*
+	 * if event was actually assigned, then mark the
+	 * counter state as unused now
+	 */
+	if (hwc->idx >= 0)
+		xlo->state[hwc->idx] = INTEL_EXCL_UNUSED;
+
+	if (!xl->sched_started)
+		raw_spin_unlock_irqrestore(&excl_cntrs->lock, flags);
+}
+
+static void
 intel_put_shared_regs_event_constraints(struct cpu_hw_events *cpuc,
 					struct perf_event *event)
 {
@@ -1883,7 +2131,57 @@ intel_put_shared_regs_event_constraints(struct cpu_hw_events *cpuc,
 static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
 					struct perf_event *event)
 {
+	struct event_constraint *c = event->hw.constraint;
+
 	intel_put_shared_regs_event_constraints(cpuc, event);
+
+	/*
+	 * is PMU has exclusive counter restrictions, then
+	 * all events are subject to and must call the
+	 * put_excl_constraints() routine
+	 */
+	if (c && cpuc->excl_cntrs)
+		intel_put_excl_constraints(cpuc, event);
+
+	/* cleanup dynamic constraint */
+	if (c && (c->flags & PERF_X86_EVENT_DYNAMIC))
+		event->hw.constraint = NULL;
+}
+
+static void intel_commit_scheduling(struct cpu_hw_events *cpuc,
+				    struct perf_event *event, int cntr)
+{
+	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
+	struct event_constraint *c = event->hw.constraint;
+	struct intel_excl_states *xlo, *xl;
+	int tid = cpuc->excl_thread_id;
+	int o_tid = 1 - tid;
+	int is_excl;
+
+	if (cpuc->is_fake || !c)
+		return;
+
+	is_excl = c->flags & PERF_X86_EVENT_EXCL;
+
+	if (!(c->flags & PERF_X86_EVENT_DYNAMIC))
+		return;
+
+	WARN_ON_ONCE(!excl_cntrs);
+
+	if (!excl_cntrs)
+		return;
+
+	xl = &excl_cntrs->states[tid];
+	xlo = &excl_cntrs->states[o_tid];
+
+	WARN_ON_ONCE(!raw_spin_is_locked(&excl_cntrs->lock));
+
+	if (cntr >= 0) {
+		if (is_excl)
+			xlo->init_state[cntr] = INTEL_EXCL_EXCLUSIVE;
+		else
+			xlo->init_state[cntr] = INTEL_EXCL_SHARED;
+	}
 }
 
 static void intel_pebs_aliases_core2(struct perf_event *event)
@@ -2347,6 +2645,13 @@ static void intel_pmu_cpu_dying(int cpu)
 		cpuc->excl_cntrs = NULL;
 		kfree(cpuc->constraint_list);
 		cpuc->constraint_list = NULL;
+	}
+
+	c = cpuc->excl_cntrs;
+	if (c) {
+		if (c->core_id == -1 || --c->refcnt == 0)
+			kfree(c);
+		cpuc->excl_cntrs = NULL;
 	}
 
 	fini_debug_store_on_cpu(cpu);
