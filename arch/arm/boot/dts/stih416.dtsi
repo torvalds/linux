@@ -316,5 +316,13 @@
 
 			status	        = "disabled";
 		};
+
+		usb2_phy: phy@0 {
+			compatible = "st,stih416-usb-phy";
+			#phy-cells = <0>;
+			st,syscfg = <&syscfg_rear>;
+			clocks = <&clk_sysin>;
+			clock-names = "osc_phy";
+		};
 	};
 };
