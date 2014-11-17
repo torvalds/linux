@@ -1014,7 +1014,7 @@ static void fimd_te_handler(struct exynos_drm_manager *mgr)
 		wake_up(&ctx->wait_vsync_queue);
 	}
 
-	if (!atomic_read(&ctx->triggering))
+	if (test_bit(0, &ctx->irq_flags))
 		drm_handle_vblank(ctx->drm_dev, ctx->pipe);
 }
 
@@ -1052,13 +1052,15 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	if (ctx->pipe < 0 || !ctx->drm_dev)
 		goto out;
 
-	drm_handle_vblank(ctx->drm_dev, ctx->pipe);
-	exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
-
 	if (ctx->i80_if) {
+		exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
+
 		/* Exits triggering mode */
 		atomic_set(&ctx->triggering, 0);
 	} else {
+		drm_handle_vblank(ctx->drm_dev, ctx->pipe);
+		exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
+
 		/* set wait vsync event to zero and wake up queue. */
 		if (atomic_read(&ctx->wait_vsync_event)) {
 			atomic_set(&ctx->wait_vsync_event, 0);
