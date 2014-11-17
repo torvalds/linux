@@ -228,7 +228,7 @@ static __init void nios2_clockevent_init(struct device_node *timer)
 	nios2_timer_get_base_and_freq(timer, &iobase, &freq);
 
 	irq = irq_of_parse_and_map(timer, 0);
-	if (irq < 0)
+	if (!irq)
 		panic("Unable to parse timer irq\n");
 
 	nios2_ce.timer.base = iobase;
