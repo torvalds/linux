@@ -84,8 +84,6 @@
 /* FIMD has totally five hardware windows. */
 #define WINDOWS_NR	5
 
-#define get_fimd_manager(mgr)	platform_get_drvdata(to_platform_device(dev))
-
 struct fimd_driver_data {
 	unsigned int timing_base;
 	unsigned int lcdblk_offset;
@@ -159,6 +157,7 @@ struct fimd_win_data {
 };
 
 struct fimd_context {
+	struct exynos_drm_manager	manager;
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct clk			*bus_clk;
@@ -965,8 +964,7 @@ static void fimd_dpms(struct exynos_drm_manager *mgr, int mode)
 
 static void fimd_trigger(struct device *dev)
 {
-	struct exynos_drm_manager *mgr = get_fimd_manager(dev);
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = dev_get_drvdata(dev);
 	struct fimd_driver_data *driver_data = ctx->driver_data;
 	void *timing_base = ctx->regs + driver_data->timing_base;
 	u32 reg;
@@ -1032,11 +1030,6 @@ static struct exynos_drm_manager_ops fimd_manager_ops = {
 	.te_handler = fimd_te_handler,
 };
 
-static struct exynos_drm_manager fimd_manager = {
-	.type = EXYNOS_DISPLAY_TYPE_LCD,
-	.ops = &fimd_manager_ops,
-};
-
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
@@ -1074,11 +1067,11 @@ out:
 
 static int fimd_bind(struct device *dev, struct device *master, void *data)
 {
-	struct fimd_context *ctx = fimd_manager.ctx;
+	struct fimd_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 
-	fimd_mgr_initialize(&fimd_manager, drm_dev);
-	exynos_drm_crtc_create(&fimd_manager);
+	fimd_mgr_initialize(&ctx->manager, drm_dev);
+	exynos_drm_crtc_create(&ctx->manager);
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
 
@@ -1089,15 +1082,14 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 static void fimd_unbind(struct device *dev, struct device *master,
 			void *data)
 {
-	struct exynos_drm_manager *mgr = dev_get_drvdata(dev);
-	struct fimd_context *ctx = fimd_manager.ctx;
+	struct fimd_context *ctx = dev_get_drvdata(dev);
 
-	fimd_dpms(mgr, DRM_MODE_DPMS_OFF);
+	fimd_dpms(&ctx->manager, DRM_MODE_DPMS_OFF);
 
 	if (ctx->display)
 		exynos_dpi_remove(dev);
 
-	fimd_mgr_remove(mgr);
+	fimd_mgr_remove(&ctx->manager);
 }
 
 static const struct component_ops fimd_component_ops = {
@@ -1113,21 +1105,20 @@ static int fimd_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = -EINVAL;
 
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
-					fimd_manager.type);
-	if (ret)
-		return ret;
-
-	if (!dev->of_node) {
-		ret = -ENODEV;
-		goto err_del_component;
-	}
+	if (!dev->of_node)
+		return -ENODEV;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx) {
-		ret = -ENOMEM;
-		goto err_del_component;
-	}
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->manager.type = EXYNOS_DISPLAY_TYPE_LCD;
+	ctx->manager.ops = &fimd_manager_ops;
+
+	ret = exynos_drm_component_add(dev, EXYNOS_DEVICE_TYPE_CRTC,
+				       ctx->manager.type);
+	if (ret)
+		return ret;
 
 	ctx->dev = dev;
 	ctx->suspended = true;
@@ -1215,28 +1206,27 @@ static int fimd_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&ctx->wait_vsync_queue);
 	atomic_set(&ctx->wait_vsync_event, 0);
+	ctx->manager.ctx = ctx;
 
-	platform_set_drvdata(pdev, &fimd_manager);
-
-	fimd_manager.ctx = ctx;
+	platform_set_drvdata(pdev, ctx);
 
 	ctx->display = exynos_dpi_probe(dev);
 	if (IS_ERR(ctx->display))
 		return PTR_ERR(ctx->display);
 
-	pm_runtime_enable(&pdev->dev);
+	pm_runtime_enable(dev);
 
-	ret = component_add(&pdev->dev, &fimd_component_ops);
+	ret = component_add(dev, &fimd_component_ops);
 	if (ret)
 		goto err_disable_pm_runtime;
 
 	return ret;
 
 err_disable_pm_runtime:
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_disable(dev);
 
 err_del_component:
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
+	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CRTC);
 	return ret;
 }
 
