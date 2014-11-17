@@ -342,6 +342,8 @@ static const struct acpi_device_id sst_acpi_ids[] = {
 	{ },
 };
 
+MODULE_DEVICE_TABLE(acpi, sst_acpi_ids);
+
 static struct platform_driver sst_acpi_driver = {
 	.driver = {
 		.name			= "intel_sst_acpi",
