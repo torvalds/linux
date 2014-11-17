@@ -326,9 +326,15 @@ struct cpu_hw_events {
 
 /* Check flags and event code, and set the HSW load flag */
 #define INTEL_FLAGS_EVENT_CONSTRAINT_DATALA_LD(code, n) \
-	__EVENT_CONSTRAINT(code, n, 			\
+	__EVENT_CONSTRAINT(code, n,			\
 			  ARCH_PERFMON_EVENTSEL_EVENT|X86_ALL_EVENT_FLAGS, \
 			  HWEIGHT(n), 0, PERF_X86_EVENT_PEBS_LD_HSW)
+
+#define INTEL_FLAGS_EVENT_CONSTRAINT_DATALA_XLD(code, n) \
+	__EVENT_CONSTRAINT(code, n,			\
+			  ARCH_PERFMON_EVENTSEL_EVENT|X86_ALL_EVENT_FLAGS, \
+			  HWEIGHT(n), 0, \
+			  PERF_X86_EVENT_PEBS_LD_HSW|PERF_X86_EVENT_EXCL)
 
 /* Check flags and event code/umask, and set the HSW store flag */
 #define INTEL_FLAGS_UEVENT_CONSTRAINT_DATALA_ST(code, n) \
@@ -336,11 +342,23 @@ struct cpu_hw_events {
 			  INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS, \
 			  HWEIGHT(n), 0, PERF_X86_EVENT_PEBS_ST_HSW)
 
+#define INTEL_FLAGS_UEVENT_CONSTRAINT_DATALA_XST(code, n) \
+	__EVENT_CONSTRAINT(code, n,			\
+			  INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS, \
+			  HWEIGHT(n), 0, \
+			  PERF_X86_EVENT_PEBS_ST_HSW|PERF_X86_EVENT_EXCL)
+
 /* Check flags and event code/umask, and set the HSW load flag */
 #define INTEL_FLAGS_UEVENT_CONSTRAINT_DATALA_LD(code, n) \
 	__EVENT_CONSTRAINT(code, n, 			\
 			  INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS, \
 			  HWEIGHT(n), 0, PERF_X86_EVENT_PEBS_LD_HSW)
+
+#define INTEL_FLAGS_UEVENT_CONSTRAINT_DATALA_XLD(code, n) \
+	__EVENT_CONSTRAINT(code, n,			\
+			  INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS, \
+			  HWEIGHT(n), 0, \
+			  PERF_X86_EVENT_PEBS_LD_HSW|PERF_X86_EVENT_EXCL)
 
 /* Check flags and event code/umask, and set the HSW N/A flag */
 #define INTEL_FLAGS_UEVENT_CONSTRAINT_DATALA_NA(code, n) \
