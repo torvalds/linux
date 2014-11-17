@@ -583,6 +583,26 @@ static int nl802154_new_interface(struct sk_buff *skb, struct genl_info *info)
 				     type, extended_addr);
 }
 
+static int nl802154_del_interface(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct wpan_dev *wpan_dev = info->user_ptr[1];
+
+	if (!rdev->ops->del_virtual_intf)
+		return -EOPNOTSUPP;
+
+	/* If we remove a wpan device without a netdev then clear
+	 * user_ptr[1] so that nl802154_post_doit won't dereference it
+	 * to check if it needs to do dev_put(). Otherwise it crashes
+	 * since the wpan_dev has been freed, unlike with a netdev where
+	 * we need the dev_put() for the netdev to really be freed.
+	 */
+	if (!wpan_dev->netdev)
+		info->user_ptr[1] = NULL;
+
+	return rdev_del_virtual_intf(rdev, wpan_dev);
+}
+
 static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
@@ -856,6 +876,14 @@ static const struct genl_ops nl802154_ops[] = {
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_DEL_INTERFACE,
+		.doit = nl802154_del_interface,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_DEV |
 				  NL802154_FLAG_NEED_RTNL,
 	},
 	{

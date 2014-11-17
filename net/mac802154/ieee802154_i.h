@@ -115,6 +115,12 @@ IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
 	return netdev_priv(dev);
 }
 
+static inline struct ieee802154_sub_if_data *
+IEEE802154_WPAN_DEV_TO_SUB_IF(struct wpan_dev *wpan_dev)
+{
+	return container_of(wpan_dev, struct ieee802154_sub_if_data, wpan_dev);
+}
+
 static inline bool
 ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
 {

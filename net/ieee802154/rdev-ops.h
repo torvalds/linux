@@ -29,6 +29,13 @@ rdev_add_virtual_intf(struct cfg802154_registered_device *rdev, char *name,
 }
 
 static inline int
+rdev_del_virtual_intf(struct cfg802154_registered_device *rdev,
+		      struct wpan_dev *wpan_dev)
+{
+	return rdev->ops->del_virtual_intf(&rdev->wpan_phy, wpan_dev);
+}
+
+static inline int
 rdev_set_channel(struct cfg802154_registered_device *rdev, u8 page, u8 channel)
 {
 	return rdev->ops->set_channel(&rdev->wpan_phy, page, channel);
