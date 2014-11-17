@@ -4194,9 +4194,9 @@ int ath10k_wmi_peer_assoc(struct ath10k *ar,
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
 		if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, ar->fw_features))
-			ath10k_wmi_peer_assoc_fill_10_1(ar, skb->data, arg);
-		else
 			ath10k_wmi_peer_assoc_fill_10_2(ar, skb->data, arg);
+		else
+			ath10k_wmi_peer_assoc_fill_10_1(ar, skb->data, arg);
 	} else {
 		ath10k_wmi_peer_assoc_fill_main(ar, skb->data, arg);
 	}
