@@ -670,6 +670,7 @@ struct iwl_mvm {
 	/* -1 for always, 0 for never, >0 for that many times */
 	s8 restart_fw;
 	struct work_struct fw_error_dump_wk;
+	enum iwl_fw_dbg_conf fw_dbg_conf;
 
 #ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;
