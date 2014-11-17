@@ -281,7 +281,7 @@
 			clocks		= <&clk_s_a1_ls 8>;
 		};
 
-		miphy365x_phy: miphy365x@fe382000 {
+		miphy365x_phy: phy@fe382000 {
 			compatible      = "st,miphy365x-phy";
 			st,syscfg  	= <&syscfg_rear>;
 			#address-cells	= <1>;

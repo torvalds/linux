@@ -20,7 +20,7 @@
 			non-removable;
 		};
 
-		miphy365x_phy: miphy365x@fe382000 {
+		miphy365x_phy: phy@fe382000 {
 			phy_port0: port@fe382000 {
 				st,sata-gen = <3>;
 			};
