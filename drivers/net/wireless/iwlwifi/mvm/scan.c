@@ -1324,7 +1324,7 @@ int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
 	struct iwl_scan_probe_req *preq;
 	struct iwl_mvm_scan_params params = {};
 	u32 flags;
-	int ssid_bitmap = 0;
+	u32 ssid_bitmap = 0;
 	int ret, i;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1763,7 +1763,7 @@ int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			mvm->fw->ucode_capa.n_scan_channels;
 	struct iwl_mvm_scan_params params = {};
 	u32 uid, flags;
-	int ssid_bitmap = 0;
+	u32 ssid_bitmap = 0;
 	int ret, i, uid_idx;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1853,7 +1853,7 @@ int iwl_mvm_sched_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			mvm->fw->ucode_capa.n_scan_channels;
 	struct iwl_mvm_scan_params params = {};
 	u32 uid, flags;
-	int ssid_bitmap = 0;
+	u32 ssid_bitmap = 0;
 	int ret, uid_idx;
 
 	lockdep_assert_held(&mvm->mutex);
