@@ -182,7 +182,6 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 	int min, ret;
 	u32 ctrl0;
 	struct page *vm_page;
-	void *sg_buf;
 	struct {
 		u32			pio[4];
 		struct scatterlist	sg;
@@ -232,13 +231,14 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 				ret = -ENOMEM;
 				goto err_vmalloc;
 			}
-			sg_buf = page_address(vm_page) +
-				((size_t)buf & ~PAGE_MASK);
+
+			sg_init_table(&dma_xfer[sg_count].sg, 1);
+			sg_set_page(&dma_xfer[sg_count].sg, vm_page,
+				    min, offset_in_page(buf));
 		} else {
-			sg_buf = buf;
+			sg_init_one(&dma_xfer[sg_count].sg, buf, min);
 		}
 
-		sg_init_one(&dma_xfer[sg_count].sg, sg_buf, min);
 		ret = dma_map_sg(ssp->dev, &dma_xfer[sg_count].sg, 1,
 			(flags & TXRX_WRITE) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
