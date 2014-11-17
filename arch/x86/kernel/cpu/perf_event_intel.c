@@ -2063,20 +2063,25 @@ static struct event_constraint *
 intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 			    struct perf_event *event)
 {
-	struct event_constraint *c = event->hw.constraint;
+	struct event_constraint *c1 = event->hw.constraint;
+	struct event_constraint *c2;
 
 	/*
 	 * first time only
 	 * - static constraint: no change across incremental scheduling calls
 	 * - dynamic constraint: handled by intel_get_excl_constraints()
 	 */
-	if (!c)
-		c = __intel_get_event_constraints(cpuc, idx, event);
+	c2 = __intel_get_event_constraints(cpuc, idx, event);
+	if (c1 && (c1->flags & PERF_X86_EVENT_DYNAMIC)) {
+		bitmap_copy(c1->idxmsk, c2->idxmsk, X86_PMC_IDX_MAX);
+		c1->weight = c2->weight;
+		c2 = c1;
+	}
 
 	if (cpuc->excl_cntrs)
-		return intel_get_excl_constraints(cpuc, event, idx, c);
+		return intel_get_excl_constraints(cpuc, event, idx, c2);
 
-	return c;
+	return c2;
 }
 
 static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
