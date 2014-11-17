@@ -388,7 +388,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	struct drm_plane *plane = NULL;
 	struct omap_plane *omap_plane;
 	struct omap_overlay_info *info;
-	int ret;
 
 	DBG("%s: priv=%d", plane_names[id], private_plane);
 
