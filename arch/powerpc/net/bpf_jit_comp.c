@@ -181,40 +181,29 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			}
 			break;
 		case BPF_ALU | BPF_MOD | BPF_X: /* A %= X; */
-			ctx->seen |= SEEN_XREG;
-			PPC_CMPWI(r_X, 0);
-			if (ctx->pc_ret0 != -1) {
-				PPC_BCC(COND_EQ, addrs[ctx->pc_ret0]);
-			} else {
-				PPC_BCC_SHORT(COND_NE, (ctx->idx*4)+12);
-				PPC_LI(r_ret, 0);
-				PPC_JMP(exit_addr);
-			}
-			PPC_DIVWU(r_scratch1, r_A, r_X);
-			PPC_MUL(r_scratch1, r_X, r_scratch1);
-			PPC_SUB(r_A, r_A, r_scratch1);
-			break;
-		case BPF_ALU | BPF_MOD | BPF_K: /* A %= K; */
-			PPC_LI32(r_scratch2, K);
-			PPC_DIVWU(r_scratch1, r_A, r_scratch2);
-			PPC_MUL(r_scratch1, r_scratch2, r_scratch1);
-			PPC_SUB(r_A, r_A, r_scratch1);
-			break;
 		case BPF_ALU | BPF_DIV | BPF_X: /* A /= X; */
 			ctx->seen |= SEEN_XREG;
 			PPC_CMPWI(r_X, 0);
 			if (ctx->pc_ret0 != -1) {
 				PPC_BCC(COND_EQ, addrs[ctx->pc_ret0]);
 			} else {
-				/*
-				 * Exit, returning 0; first pass hits here
-				 * (longer worst-case code size).
-				 */
 				PPC_BCC_SHORT(COND_NE, (ctx->idx*4)+12);
 				PPC_LI(r_ret, 0);
 				PPC_JMP(exit_addr);
 			}
-			PPC_DIVWU(r_A, r_A, r_X);
+			if (code == (BPF_ALU | BPF_MOD | BPF_X)) {
+				PPC_DIVWU(r_scratch1, r_A, r_X);
+				PPC_MUL(r_scratch1, r_X, r_scratch1);
+				PPC_SUB(r_A, r_A, r_scratch1);
+			} else {
+				PPC_DIVWU(r_A, r_A, r_X);
+			}
+			break;
+		case BPF_ALU | BPF_MOD | BPF_K: /* A %= K; */
+			PPC_LI32(r_scratch2, K);
+			PPC_DIVWU(r_scratch1, r_A, r_scratch2);
+			PPC_MUL(r_scratch1, r_scratch2, r_scratch1);
+			PPC_SUB(r_A, r_A, r_scratch1);
 			break;
 		case BPF_ALU | BPF_DIV | BPF_K: /* A /= K */
 			if (K == 1)
