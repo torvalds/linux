@@ -71,6 +71,7 @@ struct event_constraint {
 #define PERF_X86_EVENT_COMMITTED	0x8 /* event passed commit_txn */
 #define PERF_X86_EVENT_PEBS_LD_HSW	0x10 /* haswell style datala, load */
 #define PERF_X86_EVENT_PEBS_NA_HSW	0x20 /* haswell style datala, unknown */
+#define PERF_X86_EVENT_EXCL		0x40 /* HT exclusivity on counter */
 #define PERF_X86_EVENT_RDPMC_ALLOWED	0x40 /* grant rdpmc permission */
 
 
@@ -121,6 +122,26 @@ struct intel_shared_regs {
 	struct er_account       regs[EXTRA_REG_MAX];
 	int                     refcnt;		/* per-core: #HT threads */
 	unsigned                core_id;	/* per-core: core id */
+};
+
+enum intel_excl_state_type {
+	INTEL_EXCL_UNUSED    = 0, /* counter is unused */
+	INTEL_EXCL_SHARED    = 1, /* counter can be used by both threads */
+	INTEL_EXCL_EXCLUSIVE = 2, /* counter can be used by one thread only */
+};
+
+struct intel_excl_states {
+	enum intel_excl_state_type init_state[X86_PMC_IDX_MAX];
+	enum intel_excl_state_type state[X86_PMC_IDX_MAX];
+};
+
+struct intel_excl_cntrs {
+	raw_spinlock_t	lock;
+
+	struct intel_excl_states states[2];
+
+	int		refcnt;		/* per-core: #HT threads */
+	unsigned	core_id;	/* per-core: core id */
 };
 
 #define MAX_LBR_ENTRIES		16
@@ -185,6 +206,12 @@ struct cpu_hw_events {
 	 * used on Intel NHM/WSM/SNB
 	 */
 	struct intel_shared_regs	*shared_regs;
+	/*
+	 * manage exclusive counter access between hyperthread
+	 */
+	struct event_constraint *constraint_list; /* in enable order */
+	struct intel_excl_cntrs		*excl_cntrs;
+	int excl_thread_id; /* 0 or 1 */
 
 	/*
 	 * AMD specific bits
@@ -207,6 +234,10 @@ struct cpu_hw_events {
 
 #define EVENT_CONSTRAINT(c, n, m)	\
 	__EVENT_CONSTRAINT(c, n, m, HWEIGHT(n), 0, 0)
+
+#define INTEL_EXCLEVT_CONSTRAINT(c, n)	\
+	__EVENT_CONSTRAINT(c, n, ARCH_PERFMON_EVENTSEL_EVENT, HWEIGHT(n),\
+			   0, PERF_X86_EVENT_EXCL)
 
 /*
  * The overlap flag marks event constraints with overlapping counter
@@ -566,6 +597,7 @@ do {									\
  */
 #define PMU_FL_NO_HT_SHARING	0x1 /* no hyper-threading resource sharing */
 #define PMU_FL_HAS_RSP_1	0x2 /* has 2 equivalent offcore_rsp regs   */
+#define PMU_FL_EXCL_CNTRS	0x4 /* has exclusive counter requirements  */
 
 #define EVENT_VAR(_id)  event_attr_##_id
 #define EVENT_PTR(_id) &event_attr_##_id.attr.attr

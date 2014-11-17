@@ -2224,16 +2224,52 @@ struct intel_shared_regs *allocate_shared_regs(int cpu)
 	return regs;
 }
 
+static struct intel_excl_cntrs *allocate_excl_cntrs(int cpu)
+{
+	struct intel_excl_cntrs *c;
+	int i;
+
+	c = kzalloc_node(sizeof(struct intel_excl_cntrs),
+			 GFP_KERNEL, cpu_to_node(cpu));
+	if (c) {
+		raw_spin_lock_init(&c->lock);
+		for (i = 0; i < X86_PMC_IDX_MAX; i++) {
+			c->states[0].state[i] = INTEL_EXCL_UNUSED;
+			c->states[0].init_state[i] = INTEL_EXCL_UNUSED;
+
+			c->states[1].state[i] = INTEL_EXCL_UNUSED;
+			c->states[1].init_state[i] = INTEL_EXCL_UNUSED;
+		}
+		c->core_id = -1;
+	}
+	return c;
+}
+
 static int intel_pmu_cpu_prepare(int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
 
-	if (!(x86_pmu.extra_regs || x86_pmu.lbr_sel_map))
-		return NOTIFY_OK;
+	if (x86_pmu.extra_regs || x86_pmu.lbr_sel_map) {
+		cpuc->shared_regs = allocate_shared_regs(cpu);
+		if (!cpuc->shared_regs)
+			return NOTIFY_BAD;
+	}
 
-	cpuc->shared_regs = allocate_shared_regs(cpu);
-	if (!cpuc->shared_regs)
-		return NOTIFY_BAD;
+	if (x86_pmu.flags & PMU_FL_EXCL_CNTRS) {
+		size_t sz = X86_PMC_IDX_MAX * sizeof(struct event_constraint);
+
+		cpuc->constraint_list = kzalloc(sz, GFP_KERNEL);
+		if (!cpuc->constraint_list)
+			return NOTIFY_BAD;
+
+		cpuc->excl_cntrs = allocate_excl_cntrs(cpu);
+		if (!cpuc->excl_cntrs) {
+			kfree(cpuc->constraint_list);
+			kfree(cpuc->shared_regs);
+			return NOTIFY_BAD;
+		}
+		cpuc->excl_thread_id = 0;
+	}
 
 	return NOTIFY_OK;
 }
@@ -2274,18 +2310,43 @@ static void intel_pmu_cpu_starting(int cpu)
 
 	if (x86_pmu.lbr_sel_map)
 		cpuc->lbr_sel = &cpuc->shared_regs->regs[EXTRA_REG_LBR];
+
+	if (x86_pmu.flags & PMU_FL_EXCL_CNTRS) {
+		for_each_cpu(i, topology_thread_cpumask(cpu)) {
+			struct intel_excl_cntrs *c;
+
+			c = per_cpu(cpu_hw_events, i).excl_cntrs;
+			if (c && c->core_id == core_id) {
+				cpuc->kfree_on_online[1] = cpuc->excl_cntrs;
+				cpuc->excl_cntrs = c;
+				cpuc->excl_thread_id = 1;
+				break;
+			}
+		}
+		cpuc->excl_cntrs->core_id = core_id;
+		cpuc->excl_cntrs->refcnt++;
+	}
 }
 
 static void intel_pmu_cpu_dying(int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
 	struct intel_shared_regs *pc;
+	struct intel_excl_cntrs *c;
 
 	pc = cpuc->shared_regs;
 	if (pc) {
 		if (pc->core_id == -1 || --pc->refcnt == 0)
 			kfree(pc);
 		cpuc->shared_regs = NULL;
+	}
+	c = cpuc->excl_cntrs;
+	if (c) {
+		if (c->core_id == -1 || --c->refcnt == 0)
+			kfree(c);
+		cpuc->excl_cntrs = NULL;
+		kfree(cpuc->constraint_list);
+		cpuc->constraint_list = NULL;
 	}
 
 	fini_debug_store_on_cpu(cpu);
