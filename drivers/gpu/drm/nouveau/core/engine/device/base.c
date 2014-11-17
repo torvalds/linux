@@ -138,7 +138,7 @@ nouveau_devobj_info(struct nouveau_object *object, void *data, u32 size)
 	}
 
 	args->v0.chipset  = device->chipset;
-	args->v0.revision = device->chipset >= 0x10 ? nv_rd32(device, 0) : 0x00;
+	args->v0.revision = device->chiprev;
 	if (pfb)  args->v0.ram_size = args->v0.ram_user = pfb->ram->size;
 	else      args->v0.ram_size = args->v0.ram_user = 0;
 	if (imem) args->v0.ram_user = args->v0.ram_user - imem->reserved;
@@ -354,12 +354,14 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		/* determine chipset and derive architecture from it */
 		if ((boot0 & 0x1f000000) > 0) {
 			device->chipset = (boot0 & 0x1ff00000) >> 20;
+			device->chiprev = (boot0 & 0x000000ff);
 			switch (device->chipset & 0x1f0) {
 			case 0x010: {
 				if (0x461 & (1 << (device->chipset & 0xf)))
 					device->card_type = NV_10;
 				else
 					device->card_type = NV_11;
+				device->chiprev = 0x00;
 				break;
 			}
 			case 0x020: device->card_type = NV_20; break;

@@ -92,6 +92,7 @@ struct nouveau_device {
 		GM100    = 0x110,
 	} card_type;
 	u32 chipset;
+	u8  chiprev;
 	u32 crystal;
 
 	struct nouveau_oclass *oclass[NVDEV_SUBDEV_NR];
