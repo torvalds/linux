@@ -1207,9 +1207,6 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->mode_flags = device->mode_flags;
 	dsi->panel_node = device->dev.of_node;
 
-	if (dsi->connector.dev)
-		drm_helper_hpd_irq_event(dsi->connector.dev);
-
 	/*
 	 * This is a temporary solution and should be made by more generic way.
 	 *
@@ -1222,6 +1219,9 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 		if (ret)
 			return ret;
 	}
+
+	if (dsi->connector.dev)
+		drm_helper_hpd_irq_event(dsi->connector.dev);
 
 	return 0;
 }
