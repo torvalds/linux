@@ -11469,6 +11469,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 						   &prepare_pipes,
 						   &disable_pipes);
 	if (IS_ERR(pipe_config)) {
+		ret = PTR_ERR(pipe_config);
 		goto fail;
 	} else if (pipe_config) {
 		if (to_intel_crtc(set->crtc)->new_config->has_audio !=
