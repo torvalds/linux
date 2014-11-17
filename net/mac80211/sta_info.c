@@ -1756,51 +1756,51 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 	drv_sta_statistics(local, sdata, &sta->sta, sinfo);
 
-	sinfo->filled |= STATION_INFO_INACTIVE_TIME |
-			 STATION_INFO_STA_FLAGS |
-			 STATION_INFO_BSS_PARAM |
-			 STATION_INFO_CONNECTED_TIME |
-			 STATION_INFO_RX_DROP_MISC |
-			 STATION_INFO_BEACON_LOSS_COUNT;
+	sinfo->filled |= BIT(NL80211_STA_INFO_INACTIVE_TIME) |
+			 BIT(NL80211_STA_INFO_STA_FLAGS) |
+			 BIT(NL80211_STA_INFO_BSS_PARAM) |
+			 BIT(NL80211_STA_INFO_CONNECTED_TIME) |
+			 BIT(NL80211_STA_INFO_RX_DROP_MISC) |
+			 BIT(NL80211_STA_INFO_BEACON_LOSS);
 
 	ktime_get_ts(&uptime);
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
 
-	if (!(sinfo->filled & (STATION_INFO_TX_BYTES64 |
-			       STATION_INFO_TX_BYTES))) {
+	if (!(sinfo->filled & (BIT(NL80211_STA_INFO_TX_BYTES64) |
+			       BIT(NL80211_STA_INFO_TX_BYTES)))) {
 		sinfo->tx_bytes = 0;
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			sinfo->tx_bytes += sta->tx_bytes[ac];
-		sinfo->filled |= STATION_INFO_TX_BYTES64;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES64);
 	}
 
-	if (!(sinfo->filled & STATION_INFO_TX_PACKETS)) {
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_PACKETS))) {
 		sinfo->tx_packets = 0;
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			sinfo->tx_packets += sta->tx_packets[ac];
-		sinfo->filled |= STATION_INFO_TX_PACKETS;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
 	}
 
-	if (!(sinfo->filled & (STATION_INFO_RX_BYTES64 |
-			       STATION_INFO_RX_BYTES))) {
+	if (!(sinfo->filled & (BIT(NL80211_STA_INFO_RX_BYTES64) |
+			       BIT(NL80211_STA_INFO_RX_BYTES)))) {
 		sinfo->rx_bytes = sta->rx_bytes;
-		sinfo->filled |= STATION_INFO_RX_BYTES64;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES64);
 	}
 
-	if (!(sinfo->filled & STATION_INFO_RX_PACKETS)) {
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_RX_PACKETS))) {
 		sinfo->rx_packets = sta->rx_packets;
-		sinfo->filled |= STATION_INFO_RX_PACKETS;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
 	}
 
-	if (!(sinfo->filled & STATION_INFO_TX_RETRIES)) {
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_RETRIES))) {
 		sinfo->tx_retries = sta->tx_retry_count;
-		sinfo->filled |= STATION_INFO_TX_RETRIES;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_RETRIES);
 	}
 
-	if (!(sinfo->filled & STATION_INFO_TX_FAILED)) {
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_FAILED))) {
 		sinfo->tx_failed = sta->tx_retry_failed;
-		sinfo->filled |= STATION_INFO_TX_FAILED;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_FAILED);
 	}
 
 	sinfo->rx_dropped_misc = sta->rx_dropped;
@@ -1808,22 +1808,22 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 	if ((sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) ||
 	    (sta->local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)) {
-		if (!(sinfo->filled & STATION_INFO_SIGNAL)) {
+		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL))) {
 			sinfo->signal = (s8)sta->last_signal;
-			sinfo->filled |= STATION_INFO_SIGNAL;
+			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 		}
 
-		if (!(sinfo->filled & STATION_INFO_SIGNAL_AVG)) {
+		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))) {
 			sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
-			sinfo->filled |= STATION_INFO_SIGNAL_AVG;
+			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL_AVG);
 		}
 	}
 
 	if (sta->chains &&
-	    !(sinfo->filled & (STATION_INFO_CHAIN_SIGNAL |
-			       STATION_INFO_CHAIN_SIGNAL_AVG))) {
-		sinfo->filled |= STATION_INFO_CHAIN_SIGNAL |
-				 STATION_INFO_CHAIN_SIGNAL_AVG;
+	    !(sinfo->filled & (BIT(NL80211_STA_INFO_CHAIN_SIGNAL) |
+			       BIT(NL80211_STA_INFO_CHAIN_SIGNAL_AVG)))) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_CHAIN_SIGNAL) |
+				 BIT(NL80211_STA_INFO_CHAIN_SIGNAL_AVG);
 
 		sinfo->chains = sta->chains;
 		for (i = 0; i < ARRAY_SIZE(sinfo->chain_signal); i++) {
@@ -1833,30 +1833,30 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		}
 	}
 
-	if (!(sinfo->filled & STATION_INFO_TX_BITRATE)) {
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_BITRATE))) {
 		sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
-		sinfo->filled |= STATION_INFO_TX_BITRATE;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
 	}
 
-	if (!(sinfo->filled & STATION_INFO_RX_BITRATE)) {
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_RX_BITRATE))) {
 		sta_set_rate_info_rx(sta, &sinfo->rxrate);
-		sinfo->filled |= STATION_INFO_RX_BITRATE;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
 	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
-		sinfo->filled |= STATION_INFO_LLID |
-				 STATION_INFO_PLID |
-				 STATION_INFO_PLINK_STATE |
-				 STATION_INFO_LOCAL_PM |
-				 STATION_INFO_PEER_PM |
-				 STATION_INFO_NONPEER_PM;
+		sinfo->filled |= BIT(NL80211_STA_INFO_LLID) |
+				 BIT(NL80211_STA_INFO_PLID) |
+				 BIT(NL80211_STA_INFO_PLINK_STATE) |
+				 BIT(NL80211_STA_INFO_LOCAL_PM) |
+				 BIT(NL80211_STA_INFO_PEER_PM) |
+				 BIT(NL80211_STA_INFO_NONPEER_PM);
 
 		sinfo->llid = sta->llid;
 		sinfo->plid = sta->plid;
 		sinfo->plink_state = sta->plink_state;
 		if (test_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN)) {
-			sinfo->filled |= STATION_INFO_T_OFFSET;
+			sinfo->filled |= BIT(NL80211_STA_INFO_T_OFFSET);
 			sinfo->t_offset = sta->t_offset;
 		}
 		sinfo->local_pm = sta->local_pm;
@@ -1905,7 +1905,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		thr = drv_get_expected_throughput(local, &sta->sta);
 
 	if (thr != 0) {
-		sinfo->filled |= STATION_INFO_EXPECTED_THROUGHPUT;
+		sinfo->filled |= BIT(NL80211_STA_INFO_EXPECTED_THROUGHPUT);
 		sinfo->expected_throughput = thr;
 	}
 }

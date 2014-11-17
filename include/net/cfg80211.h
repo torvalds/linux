@@ -866,75 +866,6 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 				  enum cfg80211_station_type statype);
 
 /**
- * enum station_info_flags - station information flags
- *
- * Used by the driver to indicate which info in &struct station_info
- * it has filled in during get_station() or dump_station().
- *
- * @STATION_INFO_INACTIVE_TIME: @inactive_time filled
- * @STATION_INFO_RX_BYTES: @rx_bytes filled
- * @STATION_INFO_TX_BYTES: @tx_bytes filled
- * @STATION_INFO_RX_BYTES64: @rx_bytes filled with 64-bit value
- * @STATION_INFO_TX_BYTES64: @tx_bytes filled with 64-bit value
- * @STATION_INFO_LLID: @llid filled
- * @STATION_INFO_PLID: @plid filled
- * @STATION_INFO_PLINK_STATE: @plink_state filled
- * @STATION_INFO_SIGNAL: @signal filled
- * @STATION_INFO_TX_BITRATE: @txrate fields are filled
- *	(tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
- * @STATION_INFO_RX_PACKETS: @rx_packets filled with 32-bit value
- * @STATION_INFO_TX_PACKETS: @tx_packets filled with 32-bit value
- * @STATION_INFO_TX_RETRIES: @tx_retries filled
- * @STATION_INFO_TX_FAILED: @tx_failed filled
- * @STATION_INFO_RX_DROP_MISC: @rx_dropped_misc filled
- * @STATION_INFO_SIGNAL_AVG: @signal_avg filled
- * @STATION_INFO_RX_BITRATE: @rxrate fields are filled
- * @STATION_INFO_BSS_PARAM: @bss_param filled
- * @STATION_INFO_CONNECTED_TIME: @connected_time filled
- * @STATION_INFO_ASSOC_REQ_IES: @assoc_req_ies filled
- * @STATION_INFO_STA_FLAGS: @sta_flags filled
- * @STATION_INFO_BEACON_LOSS_COUNT: @beacon_loss_count filled
- * @STATION_INFO_T_OFFSET: @t_offset filled
- * @STATION_INFO_LOCAL_PM: @local_pm filled
- * @STATION_INFO_PEER_PM: @peer_pm filled
- * @STATION_INFO_NONPEER_PM: @nonpeer_pm filled
- * @STATION_INFO_CHAIN_SIGNAL: @chain_signal filled
- * @STATION_INFO_CHAIN_SIGNAL_AVG: @chain_signal_avg filled
- * @STATION_INFO_EXPECTED_THROUGHPUT: @expected_throughput filled
- */
-enum station_info_flags {
-	STATION_INFO_INACTIVE_TIME		= BIT(0),
-	STATION_INFO_RX_BYTES			= BIT(1),
-	STATION_INFO_TX_BYTES			= BIT(2),
-	STATION_INFO_LLID			= BIT(3),
-	STATION_INFO_PLID			= BIT(4),
-	STATION_INFO_PLINK_STATE		= BIT(5),
-	STATION_INFO_SIGNAL			= BIT(6),
-	STATION_INFO_TX_BITRATE			= BIT(7),
-	STATION_INFO_RX_PACKETS			= BIT(8),
-	STATION_INFO_TX_PACKETS			= BIT(9),
-	STATION_INFO_TX_RETRIES			= BIT(10),
-	STATION_INFO_TX_FAILED			= BIT(11),
-	STATION_INFO_RX_DROP_MISC		= BIT(12),
-	STATION_INFO_SIGNAL_AVG			= BIT(13),
-	STATION_INFO_RX_BITRATE			= BIT(14),
-	STATION_INFO_BSS_PARAM			= BIT(15),
-	STATION_INFO_CONNECTED_TIME		= BIT(16),
-	STATION_INFO_ASSOC_REQ_IES		= BIT(17),
-	STATION_INFO_STA_FLAGS			= BIT(18),
-	STATION_INFO_BEACON_LOSS_COUNT		= BIT(19),
-	STATION_INFO_T_OFFSET			= BIT(20),
-	STATION_INFO_LOCAL_PM			= BIT(21),
-	STATION_INFO_PEER_PM			= BIT(22),
-	STATION_INFO_NONPEER_PM			= BIT(23),
-	STATION_INFO_RX_BYTES64			= BIT(24),
-	STATION_INFO_TX_BYTES64			= BIT(25),
-	STATION_INFO_CHAIN_SIGNAL		= BIT(26),
-	STATION_INFO_CHAIN_SIGNAL_AVG		= BIT(27),
-	STATION_INFO_EXPECTED_THROUGHPUT	= BIT(28),
-};
-
-/**
  * enum station_info_rate_flags - bitrate info flags
  *
  * Used by the driver to indicate the specific rate transmission
@@ -1015,7 +946,8 @@ struct sta_bss_parameters {
  *
  * Station information filled by driver for get_station() and dump_station.
  *
- * @filled: bitflag of flags from &enum station_info_flags
+ * @filled: bitflag of flags using the bits of &enum nl80211_sta_info to
+ *	indicate the relevant values in this struct for them
  * @connected_time: time(in secs) since a station is last connected
  * @inactive_time: time since last station activity (tx/rx) in milliseconds
  * @rx_bytes: bytes received from this station
@@ -1094,11 +1026,6 @@ struct station_info {
 	enum nl80211_mesh_power_mode nonpeer_pm;
 
 	u32 expected_throughput;
-
-	/*
-	 * Note: Add a new enum station_info_flags value for each new field and
-	 * use it to check which fields are initialized.
-	 */
 };
 
 /**
