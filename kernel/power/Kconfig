@@ -308,4 +308,3 @@ config PM_GENERIC_DOMAINS_OF
 
 config CPU_PM
 	bool
-	depends on SUSPEND || CPU_IDLE
