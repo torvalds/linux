@@ -555,6 +555,7 @@ static int nl802154_new_interface(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	enum nl802154_iftype type = NL802154_IFTYPE_UNSPEC;
+	__le64 extended_addr = cpu_to_le64(0x0000000000000000ULL);
 
 	/* TODO avoid failing a new interface
 	 * creation due to pending removal?
@@ -569,12 +570,17 @@ static int nl802154_new_interface(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 	}
 
+	/* TODO add nla_get_le64 to netlink */
+	if (info->attrs[NL802154_ATTR_EXTENDED_ADDR])
+		extended_addr = (__force __le64)nla_get_u64(
+				info->attrs[NL802154_ATTR_EXTENDED_ADDR]);
+
 	if (!rdev->ops->add_virtual_intf)
 		return -EOPNOTSUPP;
 
 	return rdev_add_virtual_intf(rdev,
 				     nla_data(info->attrs[NL802154_ATTR_IFNAME]),
-				     type);
+				     type, extended_addr);
 }
 
 static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)

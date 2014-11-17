@@ -458,7 +458,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 
 struct net_device *
 ieee802154_if_add(struct ieee802154_local *local, const char *name,
-		  enum nl802154_iftype type)
+		  enum nl802154_iftype type, __le64 extended_addr)
 {
 	struct net_device *ndev = NULL;
 	struct ieee802154_sub_if_data *sdata = NULL;
@@ -477,9 +477,16 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	if (ret < 0)
 		goto err;
 
+	ieee802154_le64_to_be64(ndev->perm_addr,
+				&local->hw.phy->perm_extended_addr);
 	switch (type) {
 	case NL802154_IFTYPE_NODE:
 		ndev->type = ARPHRD_IEEE802154;
+		if (ieee802154_is_valid_extended_addr(extended_addr))
+			ieee802154_le64_to_be64(ndev->dev_addr, &extended_addr);
+		else
+			memcpy(ndev->dev_addr, ndev->perm_addr,
+			       IEEE802154_EXTENDED_ADDR_LEN);
 		break;
 	case NL802154_IFTYPE_MONITOR:
 		ndev->type = ARPHRD_IEEE802154_MONITOR;
@@ -489,9 +496,6 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		goto err;
 	}
 
-	ieee802154_le64_to_be64(ndev->perm_addr,
-				&local->hw.phy->perm_extended_addr);
-	memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
 	/* TODO check this */
 	SET_NETDEV_DEV(ndev, &local->phy->dev);
 	sdata = netdev_priv(ndev);

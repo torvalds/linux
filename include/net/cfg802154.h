@@ -41,7 +41,8 @@ struct cfg802154_ops {
 					       struct net_device *dev);
 	int	(*add_virtual_intf)(struct wpan_phy *wpan_phy,
 				    const char *name,
-				    enum nl802154_iftype type);
+				    enum nl802154_iftype type,
+				    __le64 extended_addr);
 	int	(*set_channel)(struct wpan_phy *wpan_phy, u8 page, u8 channel);
 	int	(*set_pan_id)(struct wpan_phy *wpan_phy,
 			      struct wpan_dev *wpan_dev, u16 pan_id);
