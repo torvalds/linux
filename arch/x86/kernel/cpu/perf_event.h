@@ -460,6 +460,15 @@ struct x86_pmu {
 
 	void		(*put_event_constraints)(struct cpu_hw_events *cpuc,
 						 struct perf_event *event);
+
+	void		(*commit_scheduling)(struct cpu_hw_events *cpuc,
+					     struct perf_event *event,
+					     int cntr);
+
+	void		(*start_scheduling)(struct cpu_hw_events *cpuc);
+
+	void		(*stop_scheduling)(struct cpu_hw_events *cpuc);
+
 	struct event_constraint *event_constraints;
 	struct x86_pmu_quirk *quirks;
 	int		perfctr_second_write;

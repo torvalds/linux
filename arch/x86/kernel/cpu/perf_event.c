@@ -784,6 +784,9 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 
 	bitmap_zero(used_mask, X86_PMC_IDX_MAX);
 
+	if (x86_pmu.start_scheduling)
+		x86_pmu.start_scheduling(cpuc);
+
 	for (i = 0, wmin = X86_PMC_IDX_MAX, wmax = 0; i < n; i++) {
 		hwc = &cpuc->event_list[i]->hw;
 		c = x86_pmu.get_event_constraints(cpuc, cpuc->event_list[i]);
@@ -830,6 +833,8 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 		for (i = 0; i < n; i++) {
 			e = cpuc->event_list[i];
 			e->hw.flags |= PERF_X86_EVENT_COMMITTED;
+			if (x86_pmu.commit_scheduling)
+				x86_pmu.commit_scheduling(cpuc, e, assign[i]);
 		}
 	}
 	/*
@@ -850,6 +855,10 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 				x86_pmu.put_event_constraints(cpuc, e);
 		}
 	}
+
+	if (x86_pmu.stop_scheduling)
+		x86_pmu.stop_scheduling(cpuc);
+
 	return num ? -EINVAL : 0;
 }
 
