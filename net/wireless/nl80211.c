@@ -3768,6 +3768,8 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 
 	PUT_SINFO(T_OFFSET, t_offset, u64);
 	PUT_SINFO(RX_DROP_MISC, rx_dropped_misc, u64);
+	PUT_SINFO(BEACON_RX, rx_beacon, u64);
+	PUT_SINFO(BEACON_SIGNAL_AVG, rx_beacon_signal_avg, u8);
 
 #undef PUT_SINFO
 	nla_nest_end(msg, sinfoattr);
