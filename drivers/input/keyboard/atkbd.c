@@ -456,8 +456,9 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 
 	keycode = atkbd->keycode[code];
 
-	if (keycode != ATKBD_KEY_NULL)
-		input_event(dev, EV_MSC, MSC_SCAN, code);
+	if (!(atkbd->release && test_bit(code, atkbd->force_release_mask)))
+		if (keycode != ATKBD_KEY_NULL)
+			input_event(dev, EV_MSC, MSC_SCAN, code);
 
 	switch (keycode) {
 	case ATKBD_KEY_NULL:
@@ -511,6 +512,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		input_sync(dev);
 
 		if (value && test_bit(code, atkbd->force_release_mask)) {
+			input_event(dev, EV_MSC, MSC_SCAN, code);
 			input_report_key(dev, keycode, 0);
 			input_sync(dev);
 		}
