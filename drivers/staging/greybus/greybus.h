@@ -142,11 +142,6 @@ struct gbuf {
  * of the "main" gb_module structure.
  */
 
-struct gb_i2c_device;
-struct gb_gpio_device;
-struct gb_tty;
-struct gb_usb_device;
-struct gb_battery;
 struct greybus_host_device;
 struct svc_msg;
 
