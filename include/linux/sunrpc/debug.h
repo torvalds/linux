@@ -14,9 +14,6 @@
 /*
  * Enable RPC debugging/profiling.
  */
-#ifdef CONFIG_SUNRPC_DEBUG
-#define  RPC_DEBUG
-#endif
 #ifdef CONFIG_TRACEPOINTS
 #define RPC_TRACEPOINTS
 #endif
@@ -25,7 +22,7 @@
 /*
  * Debugging macros etc
  */
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 extern unsigned int		rpc_debug;
 extern unsigned int		nfs_debug;
 extern unsigned int		nfsd_debug;
@@ -36,7 +33,7 @@ extern unsigned int		nlm_debug;
 #define dprintk_rcu(args...)	dfprintk_rcu(FACILITY, ## args)
 
 #undef ifdebug
-#ifdef RPC_DEBUG			
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define ifdebug(fac)		if (unlikely(rpc_debug & RPCDBG_##fac))
 
 # define dfprintk(fac, args...)	\
@@ -65,7 +62,7 @@ extern unsigned int		nlm_debug;
 /*
  * Sysctl interface for RPC debugging
  */
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 void		rpc_register_sysctl(void);
 void		rpc_unregister_sysctl(void);
 #endif
