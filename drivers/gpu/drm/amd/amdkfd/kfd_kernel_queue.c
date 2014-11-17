@@ -25,6 +25,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/printk.h>
+#include <linux/sched.h>
 #include "kfd_kernel_queue.h"
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
@@ -274,7 +275,7 @@ static int sync_with_hw(struct kernel_queue *kq, unsigned long timeout_ms)
 				*kq->wptr_kernel, *kq->rptr_kernel);
 			return -ETIME;
 		}
-		cpu_relax();
+		schedule();
 	}
 
 	return 0;
