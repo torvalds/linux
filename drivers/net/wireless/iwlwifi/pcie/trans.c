@@ -756,6 +756,64 @@ static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 	return 0;
 }
 
+static void iwl_pcie_apply_destination(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	const struct iwl_fw_dbg_dest_tlv *dest = trans->dbg_dest_tlv;
+	int i;
+
+	if (dest->version)
+		IWL_ERR(trans,
+			"DBG DEST version is %d - expect issues\n",
+			dest->version);
+
+	IWL_INFO(trans, "Applying debug destination %s\n",
+		 get_fw_dbg_mode_string(dest->monitor_mode));
+
+	if (dest->monitor_mode == EXTERNAL_MODE)
+		iwl_pcie_alloc_fw_monitor(trans);
+	else
+		IWL_WARN(trans, "PCI should have external buffer debug\n");
+
+	for (i = 0; i < trans->dbg_dest_reg_num; i++) {
+		u32 addr = le32_to_cpu(dest->reg_ops[i].addr);
+		u32 val = le32_to_cpu(dest->reg_ops[i].val);
+
+		switch (dest->reg_ops[i].op) {
+		case CSR_ASSIGN:
+			iwl_write32(trans, addr, val);
+			break;
+		case CSR_SETBIT:
+			iwl_set_bit(trans, addr, BIT(val));
+			break;
+		case CSR_CLEARBIT:
+			iwl_clear_bit(trans, addr, BIT(val));
+			break;
+		case PRPH_ASSIGN:
+			iwl_write_prph(trans, addr, val);
+			break;
+		case PRPH_SETBIT:
+			iwl_set_bits_prph(trans, addr, BIT(val));
+			break;
+		case PRPH_CLEARBIT:
+			iwl_clear_bits_prph(trans, addr, BIT(val));
+			break;
+		default:
+			IWL_ERR(trans, "FW debug - unknown OP %d\n",
+				dest->reg_ops[i].op);
+			break;
+		}
+	}
+
+	if (dest->monitor_mode == EXTERNAL_MODE && trans_pcie->fw_mon_size) {
+		iwl_write_prph(trans, le32_to_cpu(dest->base_reg),
+			       trans_pcie->fw_mon_phys >> dest->base_shift);
+		iwl_write_prph(trans, le32_to_cpu(dest->end_reg),
+			       (trans_pcie->fw_mon_phys +
+				trans_pcie->fw_mon_size) >> dest->end_shift);
+	}
+}
+
 static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 				const struct fw_img *image)
 {
@@ -796,6 +854,8 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 				       (trans_pcie->fw_mon_phys +
 					trans_pcie->fw_mon_size) >> 4);
 		}
+	} else if (trans->dbg_dest_tlv) {
+		iwl_pcie_apply_destination(trans);
 	}
 
 	/* release CPU reset */

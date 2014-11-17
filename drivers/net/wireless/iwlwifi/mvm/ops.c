@@ -496,6 +496,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
 	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
+	trans->dbg_dest_tlv = mvm->fw->dbg_dest_tlv;
+	trans->dbg_dest_reg_num = mvm->fw->dbg_dest_reg_num;
+	memcpy(trans->dbg_conf_tlv, mvm->fw->dbg_conf_tlv,
+	       sizeof(trans->dbg_conf_tlv));
 
 	/* set up notification wait support */
 	iwl_notification_wait_init(&mvm->notif_wait);
