@@ -227,8 +227,8 @@ int gpiochip_add(struct gpio_chip *chip)
 	unsigned	id;
 	int		base = chip->base;
 
-	if ((!gpio_is_valid(base) || !gpio_is_valid(base + chip->ngpio - 1))
-			&& base >= 0) {
+	if (base >= 0 &&
+	    (!gpio_is_valid(base) || !gpio_is_valid(base + chip->ngpio - 1))) {
 		status = -EINVAL;
 		goto fail;
 	}
