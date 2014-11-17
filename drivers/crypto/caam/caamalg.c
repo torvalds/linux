@@ -3911,6 +3911,22 @@ static struct caam_alg_template driver_algs[] = {
 		.class1_alg_type = OP_ALG_ALGSEL_DES | OP_ALG_AAI_ECB,
 	},
 	{
+		.name = "ecb(arc4)",
+		.driver_name = "ecb-arc4-caam",
+		.blocksize = ARC4_BLOCK_SIZE,
+		.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.template_ablkcipher = {
+			.setkey = ablkcipher_setkey,
+			.encrypt = ablkcipher_encrypt,
+			.decrypt = ablkcipher_decrypt,
+			.geniv = "eseqiv",
+			.min_keysize = ARC4_MIN_KEY_SIZE,
+			.max_keysize = ARC4_MAX_KEY_SIZE,
+			.ivsize = ARC4_BLOCK_SIZE,
+		},
+		.class1_alg_type = OP_ALG_ALGSEL_ARC4 | OP_ALG_AAI_ECB
+	},
+	{
 		.name = "ecb(aes)",
 		.driver_name = "ecb-aes-caam",
 		.blocksize = AES_BLOCK_SIZE,
