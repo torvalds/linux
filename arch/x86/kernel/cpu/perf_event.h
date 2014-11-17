@@ -125,6 +125,12 @@ struct intel_shared_regs {
 
 #define MAX_LBR_ENTRIES		16
 
+enum {
+	X86_PERF_KFREE_SHARED = 0,
+	X86_PERF_KFREE_EXCL   = 1,
+	X86_PERF_KFREE_MAX
+};
+
 struct cpu_hw_events {
 	/*
 	 * Generic x86 PMC bits
@@ -187,7 +193,7 @@ struct cpu_hw_events {
 	/* Inverted mask of bits to clear in the perf_ctr ctrl registers */
 	u64				perf_ctr_virt_mask;
 
-	void				*kfree_on_online;
+	void				*kfree_on_online[X86_PERF_KFREE_MAX];
 };
 
 #define __EVENT_CONSTRAINT(c, n, m, w, o, f) {\
