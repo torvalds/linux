@@ -235,9 +235,11 @@ static int dma_chan_get(struct dma_chan *chan)
 		return -ENODEV;
 
 	/* allocate upon first client reference */
-	ret = chan->device->device_alloc_chan_resources(chan);
-	if (ret < 0)
-		goto err_out;
+	if (chan->device->device_alloc_chan_resources) {
+		ret = chan->device->device_alloc_chan_resources(chan);
+		if (ret < 0)
+			goto err_out;
+	}
 
 	if (!dma_has_cap(DMA_PRIVATE, chan->device->cap_mask))
 		balance_ref_count(chan);
@@ -259,11 +261,15 @@ err_out:
  */
 static void dma_chan_put(struct dma_chan *chan)
 {
+	/* This channel is not in use, bail out */
 	if (!chan->client_count)
-		return; /* this channel failed alloc_chan_resources */
+		return;
+
 	chan->client_count--;
 	module_put(dma_chan_to_owner(chan));
-	if (chan->client_count == 0)
+
+	/* This channel is not in use anymore, free it */
+	if (!chan->client_count && chan->device->device_free_chan_resources)
 		chan->device->device_free_chan_resources(chan);
 }
 
@@ -818,8 +824,6 @@ int dma_async_device_register(struct dma_device *device)
 	BUG_ON(dma_has_cap(DMA_INTERLEAVE, device->cap_mask) &&
 		!device->device_prep_interleaved_dma);
 
-	BUG_ON(!device->device_alloc_chan_resources);
-	BUG_ON(!device->device_free_chan_resources);
 	BUG_ON(!device->device_tx_status);
 	BUG_ON(!device->device_issue_pending);
 	BUG_ON(!device->dev);
