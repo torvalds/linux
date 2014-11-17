@@ -916,7 +916,9 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
 	lrp->args.stateid = stateid;
 	lrp->args.layout_type = NFS_SERVER(ino)->pnfs_curr_ld->id;
 	lrp->args.inode = ino;
-	lrp->args.iomode = iomode;
+	lrp->args.range.iomode = iomode;
+	lrp->args.range.offset = 0;
+	lrp->args.range.length = NFS4_MAX_UINT64;
 	lrp->args.layout = lo;
 	lrp->clp = NFS_SERVER(ino)->nfs_client;
 	lrp->cred = lo->plh_lc_cred;

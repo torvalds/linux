@@ -293,7 +293,7 @@ struct nfs4_layoutreturn_args {
 	struct nfs4_sequence_args seq_args;
 	struct pnfs_layout_hdr *layout;
 	struct inode *inode;
-	enum pnfs_iomode iomode;
+	struct pnfs_layout_range range;
 	nfs4_stateid stateid;
 	__u32   layout_type;
 };
