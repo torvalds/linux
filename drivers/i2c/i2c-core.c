@@ -629,8 +629,10 @@ static int i2c_device_probe(struct device *dev)
 	if (!client->irq && dev->of_node) {
 		int irq = of_irq_get(dev->of_node, 0);
 
-		if (irq < 0)
+		if (irq == -EPROBE_DEFER)
 			return irq;
+		if (irq < 0)
+			irq = 0;
 
 		client->irq = irq;
 	}
