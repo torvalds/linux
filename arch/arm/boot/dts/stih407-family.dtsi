@@ -6,7 +6,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * publishhed by the Free Software Foundation.
  */
-#include "stih407-clock.dtsi"
 #include "stih407-pinctrl.dtsi"
 #include <dt-bindings/reset-controller/stih407-resets.h>
 / {
