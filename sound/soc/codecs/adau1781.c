@@ -174,7 +174,7 @@ static const struct snd_kcontrol_new adau1781_mono_mixer_controls[] = {
 static int adau1781_dejitter_fixup(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct adau *adau = snd_soc_codec_get_drvdata(codec);
 
 	/* After any power changes have been made the dejitter circuit
