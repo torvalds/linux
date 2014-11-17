@@ -22,8 +22,7 @@
 #include <linux/if_arp.h>
 #include <linux/ieee802154.h>
 
-#include <net/rtnetlink.h>
-#include <linux/nl802154.h>
+#include <net/nl802154.h>
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/cfg802154.h>
@@ -144,7 +143,7 @@ static int mac802154_slave_open(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	if (sdata->vif.type == IEEE802154_DEV_WPAN) {
+	if (sdata->vif.type == NL802154_IFTYPE_NODE) {
 		mutex_lock(&sdata->local->iflist_mtx);
 		list_for_each_entry(subif, &sdata->local->interfaces, list) {
 			if (subif != sdata &&
@@ -407,7 +406,8 @@ static void ieee802154_if_setup(struct net_device *dev)
 }
 
 static int
-ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
+ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
+		       enum nl802154_iftype type)
 {
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 
@@ -429,7 +429,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 	wpan_dev->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 
 	switch (type) {
-	case IEEE802154_DEV_WPAN:
+	case NL802154_IFTYPE_NODE:
 		ieee802154_be64_to_le64(&wpan_dev->extended_addr,
 					sdata->dev->dev_addr);
 
@@ -444,7 +444,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 
 		mac802154_llsec_init(&sdata->sec);
 		break;
-	case IEEE802154_DEV_MONITOR:
+	case NL802154_IFTYPE_MONITOR:
 		sdata->dev->destructor = free_netdev;
 		sdata->dev->netdev_ops = &mac802154_monitor_ops;
 		wpan_dev->promiscuous_mode = true;
@@ -458,7 +458,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata, int type)
 
 struct net_device *
 ieee802154_if_add(struct ieee802154_local *local, const char *name,
-		  struct wpan_dev **new_wpan_dev, int type)
+		  struct wpan_dev **new_wpan_dev, enum nl802154_iftype type)
 {
 	struct net_device *ndev = NULL;
 	struct ieee802154_sub_if_data *sdata = NULL;
@@ -478,10 +478,10 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 		goto err;
 
 	switch (type) {
-	case IEEE802154_DEV_WPAN:
+	case NL802154_IFTYPE_NODE:
 		ndev->type = ARPHRD_IEEE802154;
 		break;
-	case IEEE802154_DEV_MONITOR:
+	case NL802154_IFTYPE_MONITOR:
 		ndev->type = ARPHRD_IEEE802154_MONITOR;
 		break;
 	default:

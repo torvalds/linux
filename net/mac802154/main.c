@@ -19,7 +19,7 @@
 #include <linux/netdevice.h>
 
 #include <net/netlink.h>
-#include <linux/nl802154.h>
+#include <net/nl802154.h>
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/route.h>
@@ -161,7 +161,7 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 
 	rtnl_lock();
 
-	dev = ieee802154_if_add(local, "wpan%d", NULL, IEEE802154_DEV_WPAN);
+	dev = ieee802154_if_add(local, "wpan%d", NULL, NL802154_IFTYPE_NODE);
 	if (IS_ERR(dev)) {
 		rtnl_unlock();
 		rc = PTR_ERR(dev);

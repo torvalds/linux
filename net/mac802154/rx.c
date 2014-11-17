@@ -25,8 +25,7 @@
 
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
-#include <net/rtnetlink.h>
-#include <linux/nl802154.h>
+#include <net/nl802154.h>
 
 #include "ieee802154_i.h"
 
@@ -209,7 +208,7 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 	}
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->vif.type != IEEE802154_DEV_WPAN ||
+		if (sdata->vif.type != NL802154_IFTYPE_NODE ||
 		    !netif_running(sdata->dev))
 			continue;
 
@@ -234,7 +233,7 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	skb->protocol = htons(ETH_P_IEEE802154);
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->vif.type != IEEE802154_DEV_MONITOR)
+		if (sdata->vif.type != NL802154_IFTYPE_MONITOR)
 			continue;
 
 		if (!ieee802154_sdata_running(sdata))
