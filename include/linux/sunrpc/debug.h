@@ -10,15 +10,6 @@
 
 #include <uapi/linux/sunrpc/debug.h>
 
-
-/*
- * Enable RPC debugging/profiling.
- */
-#ifdef CONFIG_TRACEPOINTS
-#define RPC_TRACEPOINTS
-#endif
-/* #define  RPC_PROFILE */
-
 /*
  * Debugging macros etc
  */
