@@ -229,6 +229,19 @@ static void fimd_wait_for_vblank(struct exynos_drm_manager *mgr)
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
 }
 
+static void fimd_enable_video_output(struct fimd_context *ctx, int win,
+					bool enable)
+{
+	u32 val = readl(ctx->regs + WINCON(win));
+
+	if (enable)
+		val |= WINCONx_ENWIN;
+	else
+		val &= ~WINCONx_ENWIN;
+
+	writel(val, ctx->regs + WINCON(win));
+}
+
 static void fimd_clear_channel(struct exynos_drm_manager *mgr)
 {
 	struct fimd_context *ctx = mgr->ctx;
@@ -241,9 +254,7 @@ static void fimd_clear_channel(struct exynos_drm_manager *mgr)
 		u32 val = readl(ctx->regs + WINCON(win));
 
 		if (val & WINCONx_ENWIN) {
-			/* wincon */
-			val &= ~WINCONx_ENWIN;
-			writel(val, ctx->regs + WINCON(win));
+			fimd_enable_video_output(ctx, win, false);
 
 			/* unprotect windows */
 			if (ctx->driver_data->has_shadowcon) {
@@ -746,10 +757,7 @@ static void fimd_win_commit(struct exynos_drm_manager *mgr, int zpos)
 	if (win != 0)
 		fimd_win_set_colkey(ctx, win);
 
-	/* wincon */
-	val = readl(ctx->regs + WINCON(win));
-	val |= WINCONx_ENWIN;
-	writel(val, ctx->regs + WINCON(win));
+	fimd_enable_video_output(ctx, win, true);
 
 	if (ctx->driver_data->has_shadowcon) {
 		val = readl(ctx->regs + SHADOWCON);
@@ -790,10 +798,7 @@ static void fimd_win_disable(struct exynos_drm_manager *mgr, int zpos)
 	/* protect windows */
 	fimd_shadow_protect_win(ctx, win, true);
 
-	/* wincon */
-	val = readl(ctx->regs + WINCON(win));
-	val &= ~WINCONx_ENWIN;
-	writel(val, ctx->regs + WINCON(win));
+	fimd_enable_video_output(ctx, win, false);
 
 	/* unprotect windows */
 	if (ctx->driver_data->has_shadowcon) {
