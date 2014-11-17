@@ -1941,13 +1941,13 @@ static int max98090_dai_set_sysclk(struct snd_soc_dai *dai,
 	 *		 0x02 (when master clk is 20MHz to 40MHz)..
 	 *		 0x03 (when master clk is 40MHz to 60MHz)..
 	 */
-	if ((freq >= 10000000) && (freq < 20000000)) {
+	if ((freq >= 10000000) && (freq <= 20000000)) {
 		snd_soc_write(codec, M98090_REG_SYSTEM_CLOCK,
 			M98090_PSCLK_DIV1);
-	} else if ((freq >= 20000000) && (freq < 40000000)) {
+	} else if ((freq > 20000000) && (freq <= 40000000)) {
 		snd_soc_write(codec, M98090_REG_SYSTEM_CLOCK,
 			M98090_PSCLK_DIV2);
-	} else if ((freq >= 40000000) && (freq < 60000000)) {
+	} else if ((freq > 40000000) && (freq <= 60000000)) {
 		snd_soc_write(codec, M98090_REG_SYSTEM_CLOCK,
 			M98090_PSCLK_DIV4);
 	} else {
