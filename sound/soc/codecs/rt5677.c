@@ -55,7 +55,8 @@ static const struct regmap_range_cfg rt5677_ranges[] = {
 };
 
 static const struct reg_default init_list[] = {
-	{RT5677_PR_BASE + 0x3d,	0x364d},
+	{RT5677_ASRC_12, 0x0018},
+	{RT5677_PR_BASE + 0x3d, 0x364d},
 	{RT5677_PR_BASE + 0x17, 0x4fc0},
 	{RT5677_PR_BASE + 0x13, 0x0312},
 	{RT5677_PR_BASE + 0x1e, 0x0000},
@@ -173,7 +174,7 @@ static const struct reg_default rt5677_reg[] = {
 	{RT5677_ASRC_9			, 0x0000},
 	{RT5677_ASRC_10			, 0x0000},
 	{RT5677_ASRC_11			, 0x0000},
-	{RT5677_ASRC_12			, 0x0008},
+	{RT5677_ASRC_12			, 0x0018},
 	{RT5677_ASRC_13			, 0x0000},
 	{RT5677_ASRC_14			, 0x0000},
 	{RT5677_ASRC_15			, 0x0000},
