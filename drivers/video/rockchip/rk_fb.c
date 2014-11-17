@@ -1998,6 +1998,19 @@ ext_win_exit:
 		timeout = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
 				ktime_compare(dev_drv->vsync_info.timestamp, timestamp) > 0,
 				msecs_to_jiffies(25));
+		if ((rk_fb->disp_mode == DUAL) &&
+		    (hdmi_get_hotplug() == HDMI_HPD_ACTIVED) &&
+		    hdmi_switch_complete) {
+			/*
+			 * If dual output, we need make sure the extend display
+			 * cfg take effect before release fence.
+			 */
+			ext_dev_drv = rk_get_extend_lcdc_drv();
+			timeout = wait_event_interruptible_timeout(ext_dev_drv->vsync_info.wait,
+					ktime_compare(ext_dev_drv->vsync_info.timestamp, timestamp) > 0,
+					msecs_to_jiffies(25));
+		}
+
 		dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
 		wait_for_vsync = false;
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
