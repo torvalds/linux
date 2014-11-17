@@ -84,7 +84,7 @@ struct skein_1024_ctx { /* 1024-bit Skein hash context structure */
 	u8 b[SKEIN_1024_BLOCK_BYTES];	/* partial block buf (8-byte aligned) */
 };
 
-static inline int rotl_64(int x, int N)
+static inline u64 rotl_64(u64 x, u8 N)
 {
 	return (x << N) | (x >> (64 - N));
 }
