@@ -994,20 +994,6 @@ static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
 static void tegra_crtc_disable(struct drm_crtc *crtc)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
-	struct drm_device *drm = crtc->dev;
-	struct drm_plane *plane;
-
-	drm_for_each_legacy_plane(plane, &drm->mode_config.plane_list) {
-		if (plane->crtc == crtc) {
-			tegra_window_plane_disable(plane);
-			plane->crtc = NULL;
-
-			if (plane->fb) {
-				drm_framebuffer_unreference(plane->fb);
-				plane->fb = NULL;
-			}
-		}
-	}
 
 	if (!tegra_dc_idle(dc)) {
 		tegra_dc_stop(dc);
