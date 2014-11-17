@@ -830,20 +830,29 @@ static int sdma_load_context(struct sdma_channel *sdmac)
 	return ret;
 }
 
-static void sdma_disable_channel(struct sdma_channel *sdmac)
+static struct sdma_channel *to_sdma_chan(struct dma_chan *chan)
 {
+	return container_of(chan, struct sdma_channel, chan);
+}
+
+static int sdma_disable_channel(struct dma_chan *chan)
+{
+	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
 	int channel = sdmac->channel;
 
 	writel_relaxed(BIT(channel), sdma->regs + SDMA_H_STATSTOP);
 	sdmac->status = DMA_ERROR;
+
+	return 0;
 }
 
-static int sdma_config_channel(struct sdma_channel *sdmac)
+static int sdma_config_channel(struct dma_chan *chan)
 {
+	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	int ret;
 
-	sdma_disable_channel(sdmac);
+	sdma_disable_channel(chan);
 
 	sdmac->event_mask[0] = 0;
 	sdmac->event_mask[1] = 0;
@@ -935,11 +944,6 @@ out:
 	return ret;
 }
 
-static struct sdma_channel *to_sdma_chan(struct dma_chan *chan)
-{
-	return container_of(chan, struct sdma_channel, chan);
-}
-
 static dma_cookie_t sdma_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	unsigned long flags;
@@ -1004,7 +1008,7 @@ static void sdma_free_chan_resources(struct dma_chan *chan)
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
 
-	sdma_disable_channel(sdmac);
+	sdma_disable_channel(chan);
 
 	if (sdmac->event_id0)
 		sdma_event_disable(sdmac, sdmac->event_id0);
@@ -1203,35 +1207,24 @@ err_out:
 	return NULL;
 }
 
-static int sdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-		unsigned long arg)
+static int sdma_config(struct dma_chan *chan,
+		       struct dma_slave_config *dmaengine_cfg)
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
-	struct dma_slave_config *dmaengine_cfg = (void *)arg;
 
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		sdma_disable_channel(sdmac);
-		return 0;
-	case DMA_SLAVE_CONFIG:
-		if (dmaengine_cfg->direction == DMA_DEV_TO_MEM) {
-			sdmac->per_address = dmaengine_cfg->src_addr;
-			sdmac->watermark_level = dmaengine_cfg->src_maxburst *
-						dmaengine_cfg->src_addr_width;
-			sdmac->word_size = dmaengine_cfg->src_addr_width;
-		} else {
-			sdmac->per_address = dmaengine_cfg->dst_addr;
-			sdmac->watermark_level = dmaengine_cfg->dst_maxburst *
-						dmaengine_cfg->dst_addr_width;
-			sdmac->word_size = dmaengine_cfg->dst_addr_width;
-		}
-		sdmac->direction = dmaengine_cfg->direction;
-		return sdma_config_channel(sdmac);
-	default:
-		return -ENOSYS;
+	if (dmaengine_cfg->direction == DMA_DEV_TO_MEM) {
+		sdmac->per_address = dmaengine_cfg->src_addr;
+		sdmac->watermark_level = dmaengine_cfg->src_maxburst *
+			dmaengine_cfg->src_addr_width;
+		sdmac->word_size = dmaengine_cfg->src_addr_width;
+	} else {
+		sdmac->per_address = dmaengine_cfg->dst_addr;
+		sdmac->watermark_level = dmaengine_cfg->dst_maxburst *
+			dmaengine_cfg->dst_addr_width;
+		sdmac->word_size = dmaengine_cfg->dst_addr_width;
 	}
-
-	return -EINVAL;
+	sdmac->direction = dmaengine_cfg->direction;
+	return sdma_config_channel(chan);
 }
 
 static enum dma_status sdma_tx_status(struct dma_chan *chan,
@@ -1600,7 +1593,8 @@ static int sdma_probe(struct platform_device *pdev)
 	sdma->dma_device.device_tx_status = sdma_tx_status;
 	sdma->dma_device.device_prep_slave_sg = sdma_prep_slave_sg;
 	sdma->dma_device.device_prep_dma_cyclic = sdma_prep_dma_cyclic;
-	sdma->dma_device.device_control = sdma_control;
+	sdma->dma_device.device_config = sdma_config;
+	sdma->dma_device.device_terminate_all = sdma_disable_channel;
 	sdma->dma_device.device_issue_pending = sdma_issue_pending;
 	sdma->dma_device.dev->dma_parms = &sdma->dma_parms;
 	dma_set_max_seg_size(sdma->dma_device.dev, 65535);
