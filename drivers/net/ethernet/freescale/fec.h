@@ -504,6 +504,7 @@ struct fec_enet_private {
 	int	irq[FEC_IRQ_NUM];
 	bool	bufdesc_ex;
 	int	pause_flag;
+	u32	quirks;
 
 	struct	napi_struct napi;
 	int	csum_flags;
