@@ -287,15 +287,13 @@ static int fec_enet_get_free_txdesc_num(struct fec_enet_private *fep,
 	return entries > 0 ? entries : entries + txq->tx_ring_size;
 }
 
-static void *swap_buffer(void *bufaddr, int len)
+static void swap_buffer(void *bufaddr, int len)
 {
 	int i;
 	unsigned int *buf = bufaddr;
 
 	for (i = 0; i < len; i += 4, buf++)
 		swab32s(buf);
-
-	return bufaddr;
 }
 
 static void swap_buffer2(void *dst_buf, void *src_buf, int len)
