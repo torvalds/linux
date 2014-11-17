@@ -277,7 +277,7 @@ lnet_find_lnd_by_type(int type)
 	struct list_head	 *tmp;
 
 	/* holding lnd mutex */
-	list_for_each (tmp, &the_lnet.ln_lnds) {
+	list_for_each(tmp, &the_lnet.ln_lnds) {
 		lnd = list_entry(tmp, lnd_t, lnd_list);
 
 		if ((int)lnd->lnd_type == type)
@@ -1645,7 +1645,6 @@ lnet_destroy_ping_info(void)
 		    offsetof(lnet_ping_info_t,
 			     pi_ni[the_lnet.ln_ping_info->pi_nnis]));
 	the_lnet.ln_ping_info = NULL;
-	return;
 }
 
 int
