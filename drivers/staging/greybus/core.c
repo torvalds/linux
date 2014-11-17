@@ -188,7 +188,6 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	INIT_LIST_HEAD(&hd->modules);
 	INIT_LIST_HEAD(&hd->connections);
 	ida_init(&hd->cport_id_map);
-	spin_lock_init(&hd->cport_id_map_lock);
 
 	return hd;
 }

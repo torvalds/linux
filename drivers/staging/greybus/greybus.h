@@ -168,7 +168,6 @@ struct greybus_host_device {
 	struct list_head modules;
 	struct list_head connections;
 	struct ida cport_id_map;
-	spinlock_t cport_id_map_lock;
 	u8 device_id;
 
 	/* Private data for the host driver */
