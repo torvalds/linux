@@ -274,6 +274,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	operation->callback = NULL;	/* set at submit time */
 	init_completion(&operation->completion);
 	INIT_DELAYED_WORK(&operation->timeout_work, operation_timeout);
+	kref_init(&operation->kref);
 
 	spin_lock_irq(&gb_operations_lock);
 	list_add_tail(&operation->links, &connection->operations);
@@ -292,10 +293,11 @@ err_cache:
 /*
  * Destroy a previously created operation.
  */
-void gb_operation_destroy(struct gb_operation *operation)
+static void _gb_operation_destroy(struct kref *kref)
 {
-	if (WARN_ON(!operation))
-		return;
+	struct gb_operation *operation;
+
+	operation = container_of(kref, struct gb_operation, kref);
 
 	/* XXX Make sure it's not in flight */
 	spin_lock_irq(&gb_operations_lock);
@@ -306,6 +308,12 @@ void gb_operation_destroy(struct gb_operation *operation)
 	greybus_free_gbuf(operation->request);
 
 	kmem_cache_free(gb_operation_cache, operation);
+}
+
+void gb_operation_put(struct gb_operation *operation)
+{
+	if (!WARN_ON(!operation))
+		kref_put(&operation->kref, _gb_operation_destroy);
 }
 
 /*

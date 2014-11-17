@@ -65,6 +65,7 @@ struct gb_operation {
 	struct completion	completion;	/* Used if no callback */
 	struct delayed_work	timeout_work;
 
+	struct kref		kref;
 	struct list_head	links;	/* connection->{operations,pending} */
 
 	/* These are what's used by caller */
@@ -78,7 +79,12 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
 					u8 type, size_t request_size,
 					size_t response_size);
-void gb_operation_destroy(struct gb_operation *operation);
+struct gb_operation *gb_operation_get(struct gb_operation *operation);
+void gb_operation_put(struct gb_operation *operation);
+static inline void gb_operation_destroy(struct gb_operation *operation)
+{
+	gb_operation_put(operation);
+}
 
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback);
