@@ -2878,8 +2878,7 @@ static int snd_ice1712_resume(struct device *dev)
 	outw(ice->pm_saved_spdif_ctrl, ICEMT(ice, ROUTE_SPDOUT));
 	outw(ice->pm_saved_route, ICEMT(ice, ROUTE_PSDOUT03));
 
-	if (ice->ac97)
-		snd_ac97_resume(ice->ac97);
+	snd_ac97_resume(ice->ac97);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;

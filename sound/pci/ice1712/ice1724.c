@@ -2875,8 +2875,7 @@ static int snd_vt1724_resume(struct device *dev)
 	outb(ice->pm_saved_spdif_cfg, ICEREG1724(ice, SPDIF_CFG));
 	outl(ice->pm_saved_route, ICEMT1724(ice, ROUTE_PLAYBACK));
 
-	if (ice->ac97)
-		snd_ac97_resume(ice->ac97);
+	snd_ac97_resume(ice->ac97);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
