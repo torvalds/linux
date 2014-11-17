@@ -51,9 +51,16 @@ static void rk3036_hdmi_av_mute(struct hdmi *hdmi_drv, bool enable)
 	struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv,
 						       struct rk_hdmi_device,
 						       driver);
-
-	hdmi_writel(hdmi_dev, AV_MUTE,
-		    v_AUDIO_MUTE(enable) | v_VIDEO_MUTE(enable));
+	if (enable) {
+		hdmi_msk_reg(hdmi_dev, AV_MUTE,
+			     m_AVMUTE_CLEAR | m_AVMUTE_ENABLE,
+			     v_AVMUTE_CLEAR(0) | v_AVMUTE_ENABLE(1));
+	} else {
+		hdmi_msk_reg(hdmi_dev, AV_MUTE,
+			     m_AVMUTE_CLEAR | m_AVMUTE_ENABLE,
+			     v_AVMUTE_CLEAR(1) | v_AVMUTE_ENABLE(0));
+	}
+	hdmi_writel(hdmi_dev, PACKET_SEND_AUTO, m_PACKET_GCP_EN);
 }
 
 static void rk3036_hdmi_sys_power(struct hdmi *hdmi_drv, bool enable)
@@ -100,14 +107,12 @@ static void rk3036_hdmi_set_pwr_mode(struct hdmi *hdmi_drv, int mode)
 		hdmi_writel(hdmi_dev, PHY_CHG_PWR, 0x0f);
 		hdmi_writel(hdmi_dev, 0xce, 0x00);
 		hdmi_writel(hdmi_dev, 0xce, 0x01);
-		rk3036_hdmi_av_mute(hdmi_drv, 1);
 		rk3036_hdmi_sys_power(hdmi_drv, true);
 		break;
 	case LOWER_PWR:
 		hdmi_dbg(hdmi_drv->dev,
 			 "%s change pwr_mode LOWER_PWR pwr_mode = %d, mode = %d\n",
 			 __func__, hdmi_drv->pwr_mode, mode);
-		rk3036_hdmi_av_mute(hdmi_drv, 0);
 		rk3036_hdmi_sys_power(hdmi_drv, false);
 		hdmi_writel(hdmi_dev, PHY_DRIVER, 0x00);
 		hdmi_writel(hdmi_dev, PHY_PRE_EMPHASIS, 0x00);
@@ -526,11 +531,13 @@ static int rk3036_hdmi_config_video(struct hdmi *hdmi_drv,
 			vpara->output_color = VIDEO_OUTPUT_RGB444;*/
 	}
 
-	if (hdmi_drv->pwr_mode == LOWER_PWR)
+/*	if (hdmi_drv->pwr_mode == LOWER_PWR)
 		rk3036_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
-
+*/
 	/* Disable video and audio output */
-	hdmi_writel(hdmi_dev, AV_MUTE, v_AUDIO_MUTE(1) | v_VIDEO_MUTE(1));
+	hdmi_msk_reg(hdmi_dev, AV_MUTE,
+		     m_AUDIO_MUTE | m_VIDEO_BLACK,
+		     v_AUDIO_MUTE(1) | v_VIDEO_MUTE(1));
 
 	/* Input video mode is SDR RGB24bit, Data enable signal from external */
 	hdmi_writel(hdmi_dev, VIDEO_CONTRL1,
@@ -601,7 +608,6 @@ static int rk3036_hdmi_config_video(struct hdmi *hdmi_drv,
 	value = mode->vsync_len;
 	hdmi_writel(hdmi_dev, VIDEO_EXT_VDURATION, value & 0xFF);
 #endif
-
 	if (vpara->output_mode == OUTPUT_HDMI) {
 		rk3036_hdmi_config_avi(hdmi_drv, vpara->vic,
 				      	vpara->output_color);
@@ -740,11 +746,7 @@ void rk3036_hdmi_control_output(struct hdmi *hdmi_drv, int enable)
 	if (enable) {
 		if (hdmi_drv->pwr_mode == LOWER_PWR)
 			rk3036_hdmi_set_pwr_mode(hdmi_drv, NORMAL);
-		hdmi_readl(hdmi_dev, AV_MUTE, &mutestatus);
-		if (mutestatus && (m_AUDIO_MUTE | m_VIDEO_BLACK)) {
-			hdmi_writel(hdmi_dev, AV_MUTE,
-				    v_AUDIO_MUTE(0) | v_VIDEO_MUTE(0));
-		}
+
 		rk3036_hdmi_sys_power(hdmi_drv, true);
 		rk3036_hdmi_sys_power(hdmi_drv, false);
 		delay100us();
@@ -752,9 +754,21 @@ void rk3036_hdmi_control_output(struct hdmi *hdmi_drv, int enable)
 		hdmi_writel(hdmi_dev, 0xce, 0x00);
 		delay100us();
 		hdmi_writel(hdmi_dev, 0xce, 0x01);
+
+		hdmi_readl(hdmi_dev, AV_MUTE, &mutestatus);
+		if (mutestatus && (m_AUDIO_MUTE | m_VIDEO_BLACK)) {
+			hdmi_msk_reg(hdmi_dev, AV_MUTE,
+				     m_AUDIO_MUTE | m_VIDEO_BLACK,
+				     v_AUDIO_MUTE(0) | v_VIDEO_MUTE(0));
+		}
+		rk3036_hdmi_av_mute(hdmi_drv, 0);
 	} else {
-		hdmi_writel(hdmi_dev, AV_MUTE,
-			    v_AUDIO_MUTE(1) | v_VIDEO_MUTE(1));
+		hdmi_msk_reg(hdmi_dev, AV_MUTE,
+			     m_AUDIO_MUTE | m_VIDEO_BLACK,
+			     v_AUDIO_MUTE(1) | v_VIDEO_MUTE(1));
+		rk3036_hdmi_av_mute(hdmi_drv, 1);
+		msleep(100);
+		rk3036_hdmi_set_pwr_mode(hdmi_drv, LOWER_PWR);
 	}
 }
 

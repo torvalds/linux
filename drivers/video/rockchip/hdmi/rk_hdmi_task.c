@@ -130,6 +130,7 @@ static int hdmi_process_command(struct hdmi *hdmi)
 			if (!hdmi->enable || hdmi->suspend) {
 				if (hdmi->hotplug != HDMI_HPD_REMOVED) {
 					hdmi->hotplug = HDMI_HPD_REMOVED;
+					hdmi->control_output(hdmi, HDMI_DISABLE);
 					hdmi_sys_remove(hdmi);
 				}
 				hdmi->state = HDMI_SLEEP;
@@ -158,6 +159,8 @@ static int hdmi_process_command(struct hdmi *hdmi)
 		default:
 			if (state > SYSTEM_CONFIG) {
 				state = SYSTEM_CONFIG;
+				hdmi->control_output(hdmi, HDMI_DISABLE);
+				msleep(2000);
 			} else {
 				if (hdmi->wait == 1) {
 					complete(&hdmi->complete);
@@ -222,7 +225,7 @@ void hdmi_work(struct work_struct *work)
 		hdmi->hotplug = hotplug;
 	} else if (hotplug == HDMI_HPD_REMOVED) {
 		hdmi_sys_sleep(hdmi);
-	}else if (hotplug == HDMI_HPD_ACTIVED) {
+	} else if (hotplug == HDMI_HPD_ACTIVED) {
 		if (hdmi->uboot_logo) {
 			if (hdmi->insert)
 				hdmi->insert(hdmi);
