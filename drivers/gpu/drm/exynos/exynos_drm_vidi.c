@@ -72,6 +72,11 @@ static inline struct vidi_context *manager_to_vidi(struct exynos_drm_manager *m)
 	return container_of(m, struct vidi_context, manager);
 }
 
+static inline struct vidi_context *display_to_vidi(struct exynos_drm_display *d)
+{
+	return container_of(d, struct vidi_context, display);
+}
+
 static const char fake_edid_info[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x4c, 0x2d, 0x05, 0x05,
 	0x00, 0x00, 0x00, 0x00, 0x30, 0x12, 0x01, 0x03, 0x80, 0x10, 0x09, 0x78,
@@ -419,7 +424,7 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 		display = exynos_drm_get_display(encoder);
 
 		if (display->type == EXYNOS_DISPLAY_TYPE_VIDI) {
-			ctx = display->ctx;
+			ctx = display_to_vidi(display);
 			break;
 		}
 	}
@@ -529,7 +534,7 @@ static struct drm_connector_helper_funcs vidi_connector_helper_funcs = {
 static int vidi_create_connector(struct exynos_drm_display *display,
 				struct drm_encoder *encoder)
 {
-	struct vidi_context *ctx = display->ctx;
+	struct vidi_context *ctx = display_to_vidi(display);
 	struct drm_connector *connector = &ctx->connector;
 	int ret;
 
@@ -596,8 +601,6 @@ static int vidi_probe(struct platform_device *pdev)
 	ctx->default_win = 0;
 
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
-
-	ctx->display.ctx = ctx;
 
 	mutex_init(&ctx->lock);
 
