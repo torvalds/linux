@@ -1067,47 +1067,15 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 		goto fail_ioc_init;
 
 	megasas_display_intel_branding(instance);
-	if (megasas_get_ctrl_info(instance, instance->ctrl_info)) {
+	if (megasas_get_ctrl_info(instance)) {
 		dev_err(&instance->pdev->dev,
 			"Could not get controller info. Fail from %s %d\n",
 			__func__, __LINE__);
 		goto fail_ioc_init;
 	}
 
-	instance->supportmax256vd =
-		instance->ctrl_info->adapterOperations3.supportMaxExtLDs;
-	/* Below is additional check to address future FW enhancement */
-	if (instance->ctrl_info->max_lds > 64)
-		instance->supportmax256vd = 1;
-	instance->drv_supported_vd_count = MEGASAS_MAX_LD_CHANNELS
-					* MEGASAS_MAX_DEV_PER_CHANNEL;
-	instance->drv_supported_pd_count = MEGASAS_MAX_PD_CHANNELS
-					* MEGASAS_MAX_DEV_PER_CHANNEL;
-	if (instance->supportmax256vd) {
-		instance->fw_supported_vd_count = MAX_LOGICAL_DRIVES_EXT;
-		instance->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
-	} else {
-		instance->fw_supported_vd_count = MAX_LOGICAL_DRIVES;
-		instance->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
-	}
-	dev_info(&instance->pdev->dev, "Firmware supports %d VDs %d PDs\n"
-		"Driver supports %d VDs  %d PDs\n",
-		instance->fw_supported_vd_count,
-		instance->fw_supported_pd_count,
-		instance->drv_supported_vd_count,
-		instance->drv_supported_pd_count);
-
 	instance->flag_ieee = 1;
 	fusion->fast_path_io = 0;
-
-	fusion->old_map_sz =
-		sizeof(struct MR_FW_RAID_MAP) + (sizeof(struct MR_LD_SPAN_MAP) *
-		(instance->fw_supported_vd_count - 1));
-	fusion->new_map_sz =
-		sizeof(struct MR_FW_RAID_MAP_EXT);
-	fusion->drv_map_sz =
-		sizeof(struct MR_DRV_RAID_MAP) + (sizeof(struct MR_LD_SPAN_MAP) *
-		(instance->drv_supported_vd_count - 1));
 
 	fusion->drv_map_pages = get_order(fusion->drv_map_sz);
 	for (i = 0; i < 2; i++) {
@@ -1123,15 +1091,9 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 					fusion->drv_map_pages);
 			goto fail_ioc_init;
 		}
+		memset(fusion->ld_drv_map[i], 0,
+			((1 << PAGE_SHIFT) << fusion->drv_map_pages));
 	}
-
-	fusion->max_map_sz = max(fusion->old_map_sz, fusion->new_map_sz);
-
-	if (instance->supportmax256vd)
-		fusion->current_map_sz = fusion->new_map_sz;
-	else
-		fusion->current_map_sz = fusion->old_map_sz;
-
 
 	for (i = 0; i < 2; i++) {
 		fusion->ld_map[i] = dma_alloc_coherent(&instance->pdev->dev,
@@ -2387,6 +2349,8 @@ megasas_alloc_host_crash_buffer(struct megasas_instance *instance)
 				"memory allocation failed at index %d\n", i);
 			break;
 		}
+		memset(instance->crash_buf[i], 0,
+			((1 << PAGE_SHIFT) << instance->crash_buf_pages));
 	}
 	instance->drv_buf_alloc = i;
 }
@@ -2844,6 +2808,15 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 			instance->instancet->enable_intr(instance);
 			instance->adprecovery = MEGASAS_HBA_OPERATIONAL;
 
+			if (megasas_get_ctrl_info(instance)) {
+				dev_info(&instance->pdev->dev,
+					"Failed from %s %d\n",
+					__func__, __LINE__);
+				instance->adprecovery =
+					MEGASAS_HW_CRITICAL_ERROR;
+				megaraid_sas_kill_hba(instance);
+				retval = FAILED;
+			}
 			/* Reset load balance info */
 			memset(fusion->load_balance_info, 0,
 			       sizeof(struct LD_LOAD_BALANCE_INFO)

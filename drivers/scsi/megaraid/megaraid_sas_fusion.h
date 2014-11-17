@@ -836,8 +836,6 @@ struct fusion_context {
 
 	u32 max_map_sz;
 	u32 current_map_sz;
-	u32 old_map_sz;
-	u32 new_map_sz;
 	u32 drv_map_sz;
 	u32 drv_map_pages;
 	u8 fast_path_io;

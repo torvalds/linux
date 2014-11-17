@@ -4026,24 +4026,82 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
 	return ret;
 }
 
+/*
+ * megasas_update_ext_vd_details : Update details w.r.t Extended VD
+ * instance			 : Controller's instance
+*/
+static void megasas_update_ext_vd_details(struct megasas_instance *instance)
+{
+	struct fusion_context *fusion;
+	u32 old_map_sz;
+	u32 new_map_sz;
+
+	fusion = instance->ctrl_context;
+	/* For MFI based controllers return dummy success */
+	if (!fusion)
+		return;
+
+	instance->supportmax256vd =
+		instance->ctrl_info->adapterOperations3.supportMaxExtLDs;
+	/* Below is additional check to address future FW enhancement */
+	if (instance->ctrl_info->max_lds > 64)
+		instance->supportmax256vd = 1;
+
+	instance->drv_supported_vd_count = MEGASAS_MAX_LD_CHANNELS
+					* MEGASAS_MAX_DEV_PER_CHANNEL;
+	instance->drv_supported_pd_count = MEGASAS_MAX_PD_CHANNELS
+					* MEGASAS_MAX_DEV_PER_CHANNEL;
+	if (instance->supportmax256vd) {
+		instance->fw_supported_vd_count = MAX_LOGICAL_DRIVES_EXT;
+		instance->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
+	} else {
+		instance->fw_supported_vd_count = MAX_LOGICAL_DRIVES;
+		instance->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
+	}
+	dev_info(&instance->pdev->dev, "Firmware supports %d VD %d PD\n",
+		instance->fw_supported_vd_count,
+		instance->fw_supported_pd_count);
+	dev_info(&instance->pdev->dev, "Driver supports %d VD  %d PD\n",
+		instance->drv_supported_vd_count,
+		instance->drv_supported_pd_count);
+
+	old_map_sz =  sizeof(struct MR_FW_RAID_MAP) +
+				(sizeof(struct MR_LD_SPAN_MAP) *
+				(instance->fw_supported_vd_count - 1));
+	new_map_sz =  sizeof(struct MR_FW_RAID_MAP_EXT);
+	fusion->drv_map_sz =  sizeof(struct MR_DRV_RAID_MAP) +
+				(sizeof(struct MR_LD_SPAN_MAP) *
+				(instance->drv_supported_vd_count - 1));
+
+	fusion->max_map_sz = max(old_map_sz, new_map_sz);
+
+
+	if (instance->supportmax256vd)
+		fusion->current_map_sz = new_map_sz;
+	else
+		fusion->current_map_sz = old_map_sz;
+
+}
+
 /**
  * megasas_get_controller_info -	Returns FW's controller structure
  * @instance:				Adapter soft state
- * @ctrl_info:				Controller information structure
  *
  * Issues an internal command (DCMD) to get the FW's controller structure.
  * This information is mainly used to find out the maximum IO transfer per
  * command supported by the FW.
  */
 int
-megasas_get_ctrl_info(struct megasas_instance *instance,
-		      struct megasas_ctrl_info *ctrl_info)
+megasas_get_ctrl_info(struct megasas_instance *instance)
 {
 	int ret = 0;
 	struct megasas_cmd *cmd;
 	struct megasas_dcmd_frame *dcmd;
 	struct megasas_ctrl_info *ci;
+	struct megasas_ctrl_info *ctrl_info;
 	dma_addr_t ci_h = 0;
+
+	ctrl_info = instance->ctrl_info;
 
 	cmd = megasas_get_cmd(instance);
 
@@ -4084,8 +4142,13 @@ megasas_get_ctrl_info(struct megasas_instance *instance,
 	else
 		ret = megasas_issue_polled(instance, cmd);
 
-	if (!ret)
+	if (!ret) {
 		memcpy(ctrl_info, ci, sizeof(struct megasas_ctrl_info));
+		le32_to_cpus((u32 *)&ctrl_info->properties.OnOffProperties);
+		le32_to_cpus((u32 *)&ctrl_info->adapterOperations2);
+		le32_to_cpus((u32 *)&ctrl_info->adapterOperations3);
+		megasas_update_ext_vd_details(instance);
+	}
 
 	pci_free_consistent(instance->pdev, sizeof(struct megasas_ctrl_info),
 			    ci, ci_h);
@@ -4287,7 +4350,7 @@ megasas_init_adapter_mfi(struct megasas_instance *instance)
 	if (megasas_issue_init_mfi(instance))
 		goto fail_fw_init;
 
-	if (megasas_get_ctrl_info(instance, instance->ctrl_info)) {
+	if (megasas_get_ctrl_info(instance)) {
 		dev_err(&instance->pdev->dev, "(%d): Could get controller info "
 			"Fail from %s %d\n", instance->unique_id,
 			__func__, __LINE__);
@@ -4525,12 +4588,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		dev_info(&instance->pdev->dev,
 			"Controller type: iMR\n");
 	}
-	/* OnOffProperties are converted into CPU arch*/
-	le32_to_cpus((u32 *)&ctrl_info->properties.OnOffProperties);
 	instance->disableOnlineCtrlReset =
 	ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
-	/* adapterOperations2 are converted into CPU arch*/
-	le32_to_cpus((u32 *)&ctrl_info->adapterOperations2);
 	instance->mpio = ctrl_info->adapterOperations2.mpio;
 	instance->UnevenSpanSupport =
 		ctrl_info->adapterOperations2.supportUnevenSpans;
@@ -4560,7 +4619,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		       "requestorId %d\n", instance->requestorId);
 	}
 
-	le32_to_cpus((u32 *)&ctrl_info->adapterOperations3);
 	instance->crash_dump_fw_support =
 		ctrl_info->adapterOperations3.supportCrashDump;
 	instance->crash_dump_drv_support =
@@ -4584,8 +4642,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 						PAGE_SIZE / 512;
 	if (tmp_sectors && (instance->max_sectors_per_req > tmp_sectors))
 		instance->max_sectors_per_req = tmp_sectors;
-
-	kfree(ctrl_info);
 
 	/* Check for valid throttlequeuedepth module parameter */
 	if (instance->is_imr) {
@@ -5081,6 +5137,8 @@ static int megasas_probe_one(struct pci_dev *pdev,
 			goto fail_alloc_dma_buf;
 		}
 		fusion = instance->ctrl_context;
+		memset(fusion, 0,
+			((1 << PAGE_SHIFT) << instance->ctrl_context_pages));
 		INIT_LIST_HEAD(&fusion->cmd_pool);
 		spin_lock_init(&fusion->mpt_pool_lock);
 		memset(fusion->load_balance_info, 0,
