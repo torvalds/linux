@@ -79,9 +79,6 @@ static void gb_pending_operation_remove(struct gb_operation *operation)
 {
 	struct gb_connection *connection = operation->connection;
 
-	/* Shut down our timeout timer */
-	cancel_delayed_work(&operation->timeout_work);
-
 	/* Take us off of the list of pending operations */
 	spin_lock_irq(&gb_operations_lock);
 	list_move_tail(&operation->links, &connection->operations);
@@ -439,6 +436,7 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 			gb_connection_err(connection, "operation not found");
 			return;
 		}
+		cancel_delayed_work(&operation->timeout_work);
 		gb_pending_operation_remove(operation);
 		gbuf = operation->response;
 		gbuf->status = GB_OP_SUCCESS;	/* If we got here we're good */
