@@ -97,7 +97,7 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 				gfp_t gfp_mask)
 {
 	struct gb_connection *connection = gbuf->operation->connection;
-	u32 cport_reserve = gbuf->outbound ? 1 : 0;
+	u32 cport_reserve = gbuf->dest_cport_id == CPORT_ID_BAD ? 0 : 1;
 	u8 *buffer;
 
 	if (size > ES1_GBUF_MSG_SIZE) {
@@ -130,7 +130,7 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 	}
 
 	/* Insert the cport id for outbound buffers */
-	if (gbuf->outbound)
+	if (cport_reserve)
 		*buffer++ = connection->interface_cport_id;
 	gbuf->transfer_buffer = buffer;
 	gbuf->transfer_buffer_length = size;
@@ -147,7 +147,8 @@ static void free_gbuf_data(struct gbuf *gbuf)
 	if (!transfer_buffer)
 		return;
 
-	if (gbuf->outbound)
+	/* Account for the cport id in outbound buffers */
+	if (gbuf->dest_cport_id != CPORT_ID_BAD)
 		transfer_buffer--;	/* Back up to cport id */
 	kfree(transfer_buffer);
 }
