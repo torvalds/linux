@@ -280,6 +280,7 @@ void blk_mq_free_request(struct request *rq)
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 	__blk_mq_free_request(hctx, ctx, rq);
 }
+EXPORT_SYMBOL_GPL(blk_mq_free_request);
 
 inline void __blk_mq_end_request(struct request *rq, int error)
 {
