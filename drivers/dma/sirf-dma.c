@@ -281,9 +281,10 @@ static dma_cookie_t sirfsoc_dma_tx_submit(struct dma_async_tx_descriptor *txd)
 	return cookie;
 }
 
-static int sirfsoc_dma_slave_config(struct sirfsoc_dma_chan *schan,
-	struct dma_slave_config *config)
+static int sirfsoc_dma_slave_config(struct dma_chan *chan,
+				    struct dma_slave_config *config)
 {
+	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	unsigned long flags;
 
 	if ((config->src_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES) ||
@@ -297,8 +298,9 @@ static int sirfsoc_dma_slave_config(struct sirfsoc_dma_chan *schan,
 	return 0;
 }
 
-static int sirfsoc_dma_terminate_all(struct sirfsoc_dma_chan *schan)
+static int sirfsoc_dma_terminate_all(struct dma_chan *chan)
 {
+	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	struct sirfsoc_dma *sdma = dma_chan_to_sirfsoc_dma(&schan->chan);
 	int cid = schan->chan.chan_id;
 	unsigned long flags;
@@ -327,8 +329,9 @@ static int sirfsoc_dma_terminate_all(struct sirfsoc_dma_chan *schan)
 	return 0;
 }
 
-static int sirfsoc_dma_pause_chan(struct sirfsoc_dma_chan *schan)
+static int sirfsoc_dma_pause_chan(struct dma_chan *chan)
 {
+	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	struct sirfsoc_dma *sdma = dma_chan_to_sirfsoc_dma(&schan->chan);
 	int cid = schan->chan.chan_id;
 	unsigned long flags;
@@ -348,8 +351,9 @@ static int sirfsoc_dma_pause_chan(struct sirfsoc_dma_chan *schan)
 	return 0;
 }
 
-static int sirfsoc_dma_resume_chan(struct sirfsoc_dma_chan *schan)
+static int sirfsoc_dma_resume_chan(struct dma_chan *chan)
 {
+	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	struct sirfsoc_dma *sdma = dma_chan_to_sirfsoc_dma(&schan->chan);
 	int cid = schan->chan.chan_id;
 	unsigned long flags;
@@ -367,30 +371,6 @@ static int sirfsoc_dma_resume_chan(struct sirfsoc_dma_chan *schan)
 	spin_unlock_irqrestore(&schan->lock, flags);
 
 	return 0;
-}
-
-static int sirfsoc_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-	unsigned long arg)
-{
-	struct dma_slave_config *config;
-	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
-
-	switch (cmd) {
-	case DMA_PAUSE:
-		return sirfsoc_dma_pause_chan(schan);
-	case DMA_RESUME:
-		return sirfsoc_dma_resume_chan(schan);
-	case DMA_TERMINATE_ALL:
-		return sirfsoc_dma_terminate_all(schan);
-	case DMA_SLAVE_CONFIG:
-		config = (struct dma_slave_config *)arg;
-		return sirfsoc_dma_slave_config(schan, config);
-
-	default:
-		break;
-	}
-
-	return -ENOSYS;
 }
 
 /* Alloc channel resources */
@@ -739,7 +719,10 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 	dma->device_alloc_chan_resources = sirfsoc_dma_alloc_chan_resources;
 	dma->device_free_chan_resources = sirfsoc_dma_free_chan_resources;
 	dma->device_issue_pending = sirfsoc_dma_issue_pending;
-	dma->device_control = sirfsoc_dma_control;
+	dma->device_config = sirfsoc_dma_slave_config;
+	dma->device_pause = sirfsoc_dma_pause_chan;
+	dma->device_resume = sirfsoc_dma_resume_chan;
+	dma->device_terminate_all = sirfsoc_dma_terminate_all;
 	dma->device_tx_status = sirfsoc_dma_tx_status;
 	dma->device_prep_interleaved_dma = sirfsoc_dma_prep_interleaved;
 	dma->device_prep_dma_cyclic = sirfsoc_dma_prep_cyclic;
