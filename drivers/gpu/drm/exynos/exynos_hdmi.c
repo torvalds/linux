@@ -213,6 +213,11 @@ struct hdmi_context {
 	enum hdmi_type			type;
 };
 
+static inline struct hdmi_context *display_to_hdmi(struct exynos_drm_display *d)
+{
+	return container_of(d, struct hdmi_context, display);
+}
+
 struct hdmiphy_config {
 	int pixel_clock;
 	u8 conf[32];
@@ -1123,7 +1128,7 @@ static struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
 static int hdmi_create_connector(struct exynos_drm_display *display,
 			struct drm_encoder *encoder)
 {
-	struct hdmi_context *hdata = display->ctx;
+	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct drm_connector *connector = &hdata->connector;
 	int ret;
 
@@ -2000,7 +2005,7 @@ static void hdmi_v14_mode_set(struct hdmi_context *hdata,
 static void hdmi_mode_set(struct exynos_drm_display *display,
 			struct drm_display_mode *mode)
 {
-	struct hdmi_context *hdata = display->ctx;
+	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct drm_display_mode *m = mode;
 
 	DRM_DEBUG_KMS("xres=%d, yres=%d, refresh=%d, intl=%s\n",
@@ -2019,7 +2024,7 @@ static void hdmi_mode_set(struct exynos_drm_display *display,
 
 static void hdmi_commit(struct exynos_drm_display *display)
 {
-	struct hdmi_context *hdata = display->ctx;
+	struct hdmi_context *hdata = display_to_hdmi(display);
 
 	mutex_lock(&hdata->hdmi_mutex);
 	if (!hdata->powered) {
@@ -2033,7 +2038,7 @@ static void hdmi_commit(struct exynos_drm_display *display)
 
 static void hdmi_poweron(struct exynos_drm_display *display)
 {
-	struct hdmi_context *hdata = display->ctx;
+	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct hdmi_resources *res = &hdata->res;
 
 	mutex_lock(&hdata->hdmi_mutex);
@@ -2064,7 +2069,7 @@ static void hdmi_poweron(struct exynos_drm_display *display)
 
 static void hdmi_poweroff(struct exynos_drm_display *display)
 {
-	struct hdmi_context *hdata = display->ctx;
+	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct hdmi_resources *res = &hdata->res;
 
 	mutex_lock(&hdata->hdmi_mutex);
@@ -2099,7 +2104,7 @@ out:
 
 static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 {
-	struct hdmi_context *hdata = display->ctx;
+	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct drm_encoder *encoder = hdata->encoder;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct drm_crtc_helper_funcs *funcs = NULL;
@@ -2476,7 +2481,6 @@ out_get_phy_port:
 	}
 
 	pm_runtime_enable(dev);
-	hdata->display.ctx = hdata;
 
 	ret = component_add(&pdev->dev, &hdmi_component_ops);
 	if (ret)
