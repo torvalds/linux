@@ -134,6 +134,8 @@ enum intel_excl_state_type {
 struct intel_excl_states {
 	enum intel_excl_state_type init_state[X86_PMC_IDX_MAX];
 	enum intel_excl_state_type state[X86_PMC_IDX_MAX];
+	int  num_alloc_cntrs;/* #counters allocated */
+	int  max_alloc_cntrs;/* max #counters allowed */
 	bool sched_started; /* true if scheduling has started */
 };
 
