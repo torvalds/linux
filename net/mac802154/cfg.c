@@ -88,7 +88,7 @@ ieee802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
 
 static int
 ieee802154_set_pan_id(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
-		      u16 pan_id)
+		      __le16 pan_id)
 {
 	ASSERT_RTNL();
 
@@ -99,10 +99,10 @@ ieee802154_set_pan_id(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 	 *
 	 * This could useful to simple deassociate an device.
 	 */
-	if (pan_id == IEEE802154_PAN_ID_BROADCAST)
+	if (pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
 		return -EINVAL;
 
-	wpan_dev->pan_id = cpu_to_le16(pan_id);
+	wpan_dev->pan_id = pan_id;
 	return 0;
 }
 
@@ -125,7 +125,7 @@ ieee802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
 
 static int
 ieee802154_set_short_addr(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
-			  u16 short_addr)
+			  __le16 short_addr)
 {
 	ASSERT_RTNL();
 
@@ -140,11 +140,11 @@ ieee802154_set_short_addr(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 	 * I think we should allow to set these settings but
 	 * don't allow to allow socket communication with it.
 	 */
-	if (short_addr == IEEE802154_ADDR_SHORT_UNSPEC ||
-	    short_addr == IEEE802154_ADDR_SHORT_BROADCAST)
+	if (short_addr == cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC) ||
+	    short_addr == cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST))
 		return -EINVAL;
 
-	wpan_dev->short_addr = cpu_to_le16(short_addr);
+	wpan_dev->short_addr = short_addr;
 	return 0;
 }
 

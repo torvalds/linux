@@ -627,7 +627,7 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
-	u16 pan_id;
+	__le16 pan_id;
 
 	/* conflict here while tx/rx calls */
 	if (netif_running(dev))
@@ -640,7 +640,7 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL802154_ATTR_PAN_ID])
 		return -EINVAL;
 
-	pan_id = nla_get_u16(info->attrs[NL802154_ATTR_PAN_ID]);
+	pan_id = nla_get_le16(info->attrs[NL802154_ATTR_PAN_ID]);
 
 	return rdev_set_pan_id(rdev, wpan_dev, pan_id);
 }
@@ -650,7 +650,7 @@ static int nl802154_set_short_addr(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
-	u16 short_addr;
+	__le16 short_addr;
 
 	/* conflict here while tx/rx calls */
 	if (netif_running(dev))
@@ -663,7 +663,7 @@ static int nl802154_set_short_addr(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL802154_ATTR_SHORT_ADDR])
 		return -EINVAL;
 
-	short_addr = nla_get_u16(info->attrs[NL802154_ATTR_SHORT_ADDR]);
+	short_addr = nla_get_le16(info->attrs[NL802154_ATTR_SHORT_ADDR]);
 
 	return rdev_set_short_addr(rdev, wpan_dev, short_addr);
 }

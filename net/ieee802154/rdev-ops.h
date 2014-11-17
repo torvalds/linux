@@ -43,14 +43,14 @@ rdev_set_channel(struct cfg802154_registered_device *rdev, u8 page, u8 channel)
 
 static inline int
 rdev_set_pan_id(struct cfg802154_registered_device *rdev,
-		struct wpan_dev *wpan_dev, u16 pan_id)
+		struct wpan_dev *wpan_dev, __le16 pan_id)
 {
 	return rdev->ops->set_pan_id(&rdev->wpan_phy, wpan_dev, pan_id);
 }
 
 static inline int
 rdev_set_short_addr(struct cfg802154_registered_device *rdev,
-		    struct wpan_dev *wpan_dev, u16 short_addr)
+		    struct wpan_dev *wpan_dev, __le16 short_addr)
 {
 	return rdev->ops->set_short_addr(&rdev->wpan_phy, wpan_dev, short_addr);
 }
