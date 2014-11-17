@@ -2803,11 +2803,6 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 				}
 			}
 
-			clear_bit(MEGASAS_FUSION_IN_RESET,
-				  &instance->reset_flags);
-			instance->instancet->enable_intr(instance);
-			instance->adprecovery = MEGASAS_HBA_OPERATIONAL;
-
 			if (megasas_get_ctrl_info(instance)) {
 				dev_info(&instance->pdev->dev,
 					"Failed from %s %d\n",
@@ -2825,6 +2820,11 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 			if (!megasas_get_map_info(instance))
 				megasas_sync_map_info(instance);
 
+			clear_bit(MEGASAS_FUSION_IN_RESET,
+				  &instance->reset_flags);
+			instance->instancet->enable_intr(instance);
+			instance->adprecovery = MEGASAS_HBA_OPERATIONAL;
+
 			/* Restart SR-IOV heartbeat */
 			if (instance->requestorId) {
 				if (!megasas_sriov_start_heartbeat(instance, 0))
@@ -2841,14 +2841,14 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 			       "successful for scsi%d.\n",
 				instance->host->host_no);
 
-			if (instance->crash_dump_drv_support) {
-				if (instance->crash_dump_app_support)
-					megasas_set_crash_dump_params(instance,
-						MR_CRASH_BUF_TURN_ON);
-				else
-					megasas_set_crash_dump_params(instance,
-						MR_CRASH_BUF_TURN_OFF);
-			}
+			if (instance->crash_dump_drv_support &&
+				instance->crash_dump_app_support)
+				megasas_set_crash_dump_params(instance,
+					MR_CRASH_BUF_TURN_ON);
+			else
+				megasas_set_crash_dump_params(instance,
+					MR_CRASH_BUF_TURN_OFF);
+
 			retval = SUCCESS;
 			goto out;
 		}
