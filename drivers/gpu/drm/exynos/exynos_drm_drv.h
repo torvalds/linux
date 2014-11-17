@@ -211,7 +211,6 @@ struct exynos_drm_manager {
 	struct drm_crtc *crtc;
 	int pipe;
 	struct exynos_drm_manager_ops *ops;
-	void *ctx;
 };
 
 struct exynos_drm_g2d_private {

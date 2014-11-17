@@ -185,6 +185,11 @@ struct fimd_context {
 	struct exynos_drm_display *display;
 };
 
+static inline struct fimd_context *mgr_to_fimd(struct exynos_drm_manager *mgr)
+{
+	return container_of(mgr, struct fimd_context, manager);
+}
+
 static const struct of_device_id fimd_driver_dt_match[] = {
 	{ .compatible = "samsung,s3c6400-fimd",
 	  .data = &s3c64xx_fimd_driver_data },
@@ -211,7 +216,7 @@ static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 
 static void fimd_wait_for_vblank(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 
 	if (ctx->suspended)
 		return;
@@ -256,7 +261,7 @@ static void fimd_enable_shadow_channel_path(struct fimd_context *ctx, int win,
 
 static void fimd_clear_channel(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	int win, ch_enabled = 0;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -289,7 +294,7 @@ static void fimd_clear_channel(struct exynos_drm_manager *mgr)
 static int fimd_mgr_initialize(struct exynos_drm_manager *mgr,
 			struct drm_device *drm_dev)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	struct exynos_drm_private *priv;
 	priv = drm_dev->dev_private;
 
@@ -311,7 +316,7 @@ static int fimd_mgr_initialize(struct exynos_drm_manager *mgr,
 
 static void fimd_mgr_remove(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 
 	/* detach this sub driver from iommu mapping if supported. */
 	if (is_drm_iommu_supported(ctx->drm_dev))
@@ -351,14 +356,14 @@ static bool fimd_mode_fixup(struct exynos_drm_manager *mgr,
 static void fimd_mode_set(struct exynos_drm_manager *mgr,
 		const struct drm_display_mode *in_mode)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 
 	drm_mode_copy(&ctx->mode, in_mode);
 }
 
 static void fimd_commit(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	struct drm_display_mode *mode = &ctx->mode;
 	struct fimd_driver_data *driver_data = ctx->driver_data;
 	void *timing_base = ctx->regs + driver_data->timing_base;
@@ -458,7 +463,7 @@ static void fimd_commit(struct exynos_drm_manager *mgr)
 
 static int fimd_enable_vblank(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	u32 val;
 
 	if (ctx->suspended)
@@ -490,7 +495,7 @@ static int fimd_enable_vblank(struct exynos_drm_manager *mgr)
 
 static void fimd_disable_vblank(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	u32 val;
 
 	if (ctx->suspended)
@@ -515,7 +520,7 @@ static void fimd_disable_vblank(struct exynos_drm_manager *mgr)
 static void fimd_win_mode_set(struct exynos_drm_manager *mgr,
 			struct exynos_drm_overlay *overlay)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	struct fimd_win_data *win_data;
 	int win;
 	unsigned long offset;
@@ -673,7 +678,7 @@ static void fimd_shadow_protect_win(struct fimd_context *ctx,
 
 static void fimd_win_commit(struct exynos_drm_manager *mgr, int zpos)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	struct fimd_win_data *win_data;
 	int win = zpos;
 	unsigned long val, alpha, size;
@@ -796,7 +801,7 @@ static void fimd_win_commit(struct exynos_drm_manager *mgr, int zpos)
 
 static void fimd_win_disable(struct exynos_drm_manager *mgr, int zpos)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	struct fimd_win_data *win_data;
 	int win = zpos;
 
@@ -830,7 +835,7 @@ static void fimd_win_disable(struct exynos_drm_manager *mgr, int zpos)
 
 static void fimd_window_suspend(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	struct fimd_win_data *win_data;
 	int i;
 
@@ -844,7 +849,7 @@ static void fimd_window_suspend(struct exynos_drm_manager *mgr)
 
 static void fimd_window_resume(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	struct fimd_win_data *win_data;
 	int i;
 
@@ -857,7 +862,7 @@ static void fimd_window_resume(struct exynos_drm_manager *mgr)
 
 static void fimd_apply(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	struct fimd_win_data *win_data;
 	int i;
 
@@ -874,7 +879,7 @@ static void fimd_apply(struct exynos_drm_manager *mgr)
 
 static int fimd_poweron(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	int ret;
 
 	if (!ctx->suspended)
@@ -922,7 +927,7 @@ bus_clk_err:
 
 static int fimd_poweroff(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 
 	if (ctx->suspended)
 		return 0;
@@ -993,7 +998,7 @@ static void fimd_trigger(struct device *dev)
 
 static void fimd_te_handler(struct exynos_drm_manager *mgr)
 {
-	struct fimd_context *ctx = mgr->ctx;
+	struct fimd_context *ctx = mgr_to_fimd(mgr);
 
 	/* Checks the crtc is detached already from encoder */
 	if (ctx->pipe < 0 || !ctx->drm_dev)
@@ -1206,7 +1211,6 @@ static int fimd_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&ctx->wait_vsync_queue);
 	atomic_set(&ctx->wait_vsync_event, 0);
-	ctx->manager.ctx = ctx;
 
 	platform_set_drvdata(pdev, ctx);
 
