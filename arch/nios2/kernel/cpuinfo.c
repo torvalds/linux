@@ -73,18 +73,14 @@ void __init setup_cpuinfo(void)
 	cpuinfo.has_mul = fcpu_has(cpu, "altr,has-mul");
 	cpuinfo.has_mulx = fcpu_has(cpu, "altr,has-mulx");
 
-#ifdef CONFIG_NIOS2_HW_DIV_SUPPORT
-	if (!cpuinfo.has_div)
+	if (IS_ENABLED(CONFIG_NIOS2_HW_DIV_SUPPORT) && !cpuinfo.has_div)
 		err_cpu("DIV");
-#endif
-#ifdef CONFIG_NIOS2_HW_MUL_SUPPORT
-	if (!cpuinfo.has_mul)
+
+	if (IS_ENABLED(CONFIG_NIOS2_HW_MUL_SUPPORT) && !cpuinfo.has_mul)
 		err_cpu("MUL");
-#endif
-#ifdef CONFIG_NIOS2_HW_MULX_SUPPORT
-	if (!cpuinfo.has_mulx)
+
+	if (IS_ENABLED(CONFIG_NIOS2_HW_MULX_SUPPORT) && !cpuinfo.has_mulx)
 		err_cpu("MULX");
-#endif
 
 	cpuinfo.tlb_num_ways = fcpu(cpu, "altr,tlb-num-ways");
 	if (!cpuinfo.tlb_num_ways)
