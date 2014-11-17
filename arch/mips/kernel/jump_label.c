@@ -27,8 +27,8 @@ void arch_jump_label_transform(struct jump_entry *e,
 	union mips_instruction *insn_p =
 		(union mips_instruction *)(unsigned long)e->code;
 
-	/* Jump only works within a 256MB aligned region. */
-	BUG_ON((e->target & ~J_RANGE_MASK) != (e->code & ~J_RANGE_MASK));
+	/* Jump only works within a 256MB aligned region of its delay slot. */
+	BUG_ON((e->target & ~J_RANGE_MASK) != ((e->code + 4) & ~J_RANGE_MASK));
 
 	/* Target must have 4 byte alignment. */
 	BUG_ON((e->target & 3) != 0);
