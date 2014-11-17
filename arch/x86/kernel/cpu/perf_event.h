@@ -624,6 +624,7 @@ do {									\
 #define PMU_FL_NO_HT_SHARING	0x1 /* no hyper-threading resource sharing */
 #define PMU_FL_HAS_RSP_1	0x2 /* has 2 equivalent offcore_rsp regs   */
 #define PMU_FL_EXCL_CNTRS	0x4 /* has exclusive counter requirements  */
+#define PMU_FL_EXCL_ENABLED	0x8 /* exclusive counter active */
 
 #define EVENT_VAR(_id)  event_attr_##_id
 #define EVENT_PTR(_id) &event_attr_##_id.attr.attr
@@ -904,6 +905,10 @@ int knc_pmu_init(void);
 ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
 			  char *page);
 
+static inline int is_ht_workaround_enabled(void)
+{
+	return !!(x86_pmu.flags & PMU_FL_EXCL_ENABLED);
+}
 #else /* CONFIG_CPU_SUP_INTEL */
 
 static inline void reserve_ds_buffers(void)

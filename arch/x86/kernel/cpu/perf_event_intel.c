@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/watchdog.h>
 
 #include <asm/cpufeature.h>
 #include <asm/hardirq.h>
@@ -1885,8 +1886,9 @@ intel_start_scheduling(struct cpu_hw_events *cpuc)
 	/*
 	 * nothing needed if in group validation mode
 	 */
-	if (cpuc->is_fake)
+	if (cpuc->is_fake || !is_ht_workaround_enabled())
 		return;
+
 	/*
 	 * no exclusion needed
 	 */
@@ -1923,7 +1925,7 @@ intel_stop_scheduling(struct cpu_hw_events *cpuc)
 	/*
 	 * nothing needed if in group validation mode
 	 */
-	if (cpuc->is_fake)
+	if (cpuc->is_fake || !is_ht_workaround_enabled())
 		return;
 	/*
 	 * no exclusion needed
@@ -1961,7 +1963,13 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 * validating a group does not require
 	 * enforcing cross-thread  exclusion
 	 */
-	if (cpuc->is_fake)
+	if (cpuc->is_fake || !is_ht_workaround_enabled())
+		return c;
+
+	/*
+	 * no exclusion needed
+	 */
+	if (!excl_cntrs)
 		return c;
 	/*
 	 * event requires exclusive counter access
@@ -2658,18 +2666,11 @@ static void intel_pmu_cpu_starting(int cpu)
 	}
 }
 
-static void intel_pmu_cpu_dying(int cpu)
+static void free_excl_cntrs(int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
-	struct intel_shared_regs *pc;
 	struct intel_excl_cntrs *c;
 
-	pc = cpuc->shared_regs;
-	if (pc) {
-		if (pc->core_id == -1 || --pc->refcnt == 0)
-			kfree(pc);
-		cpuc->shared_regs = NULL;
-	}
 	c = cpuc->excl_cntrs;
 	if (c) {
 		if (c->core_id == -1 || --c->refcnt == 0)
@@ -2678,13 +2679,21 @@ static void intel_pmu_cpu_dying(int cpu)
 		kfree(cpuc->constraint_list);
 		cpuc->constraint_list = NULL;
 	}
+}
 
-	c = cpuc->excl_cntrs;
-	if (c) {
-		if (c->core_id == -1 || --c->refcnt == 0)
-			kfree(c);
-		cpuc->excl_cntrs = NULL;
+static void intel_pmu_cpu_dying(int cpu)
+{
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	struct intel_shared_regs *pc;
+
+	pc = cpuc->shared_regs;
+	if (pc) {
+		if (pc->core_id == -1 || --pc->refcnt == 0)
+			kfree(pc);
+		cpuc->shared_regs = NULL;
 	}
+
+	free_excl_cntrs(cpu);
 
 	fini_debug_store_on_cpu(cpu);
 }
@@ -2904,18 +2913,18 @@ static __init void intel_nehalem_quirk(void)
  * HSW: HSD29
  *
  * Only needed when HT is enabled. However detecting
- * this is too difficult and model specific so we enable
- * it even with HT off for now.
+ * if HT is enabled is difficult (model specific). So instead,
+ * we enable the workaround in the early boot, and verify if
+ * it is needed in a later initcall phase once we have valid
+ * topology information to check if HT is actually enabled
  */
 static __init void intel_ht_bug(void)
 {
-	x86_pmu.flags |= PMU_FL_EXCL_CNTRS;
+	x86_pmu.flags |= PMU_FL_EXCL_CNTRS | PMU_FL_EXCL_ENABLED;
 
 	x86_pmu.commit_scheduling = intel_commit_scheduling;
 	x86_pmu.start_scheduling = intel_start_scheduling;
 	x86_pmu.stop_scheduling = intel_stop_scheduling;
-
-	pr_info("CPU erratum BJ122, BV98, HSD29 worked around\n");
 }
 
 EVENT_ATTR_STR(mem-loads,	mem_ld_hsw,	"event=0xcd,umask=0x1,ldlat=3");
@@ -3343,3 +3352,47 @@ __init int intel_pmu_init(void)
 
 	return 0;
 }
+
+/*
+ * HT bug: phase 2 init
+ * Called once we have valid topology information to check
+ * whether or not HT is enabled
+ * If HT is off, then we disable the workaround
+ */
+static __init int fixup_ht_bug(void)
+{
+	int cpu = smp_processor_id();
+	int w, c;
+	/*
+	 * problem not present on this CPU model, nothing to do
+	 */
+	if (!(x86_pmu.flags & PMU_FL_EXCL_ENABLED))
+		return 0;
+
+	w = cpumask_weight(topology_thread_cpumask(cpu));
+	if (w > 1) {
+		pr_info("PMU erratum BJ122, BV98, HSD29 worked around, HT is on\n");
+		return 0;
+	}
+
+	watchdog_nmi_disable_all();
+
+	x86_pmu.flags &= ~(PMU_FL_EXCL_CNTRS | PMU_FL_EXCL_ENABLED);
+
+	x86_pmu.commit_scheduling = NULL;
+	x86_pmu.start_scheduling = NULL;
+	x86_pmu.stop_scheduling = NULL;
+
+	watchdog_nmi_enable_all();
+
+	get_online_cpus();
+
+	for_each_online_cpu(c) {
+		free_excl_cntrs(c);
+	}
+
+	put_online_cpus();
+	pr_info("PMU erratum BJ122, BV98, HSD29 workaround disabled, HT off\n");
+	return 0;
+}
+subsys_initcall(fixup_ht_bug)
