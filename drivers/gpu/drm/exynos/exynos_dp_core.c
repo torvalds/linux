@@ -35,6 +35,12 @@
 #define ctx_from_connector(c)	container_of(c, struct exynos_dp_device, \
 					connector)
 
+static inline struct exynos_dp_device *
+display_to_dp(struct exynos_drm_display *d)
+{
+	return container_of(d, struct exynos_dp_device, display);
+}
+
 struct bridge_init {
 	struct i2c_client *client;
 	struct device_node *node;
@@ -881,7 +887,7 @@ static void exynos_dp_hotplug(struct work_struct *work)
 
 static void exynos_dp_commit(struct exynos_drm_display *display)
 {
-	struct exynos_dp_device *dp = display->ctx;
+	struct exynos_dp_device *dp = display_to_dp(display);
 	int ret;
 
 	/* Keep the panel disabled while we configure video */
@@ -1019,7 +1025,7 @@ static int exynos_drm_attach_lcd_bridge(struct drm_device *dev,
 static int exynos_dp_create_connector(struct exynos_drm_display *display,
 				struct drm_encoder *encoder)
 {
-	struct exynos_dp_device *dp = display->ctx;
+	struct exynos_dp_device *dp = display_to_dp(display);
 	struct drm_connector *connector = &dp->connector;
 	int ret;
 
@@ -1063,7 +1069,7 @@ static void exynos_dp_phy_exit(struct exynos_dp_device *dp)
 
 static void exynos_dp_poweron(struct exynos_drm_display *display)
 {
-	struct exynos_dp_device *dp = display->ctx;
+	struct exynos_dp_device *dp = display_to_dp(display);
 
 	if (dp->dpms_mode == DRM_MODE_DPMS_ON)
 		return;
@@ -1084,7 +1090,7 @@ static void exynos_dp_poweron(struct exynos_drm_display *display)
 
 static void exynos_dp_poweroff(struct exynos_drm_display *display)
 {
-	struct exynos_dp_device *dp = display->ctx;
+	struct exynos_dp_device *dp = display_to_dp(display);
 
 	if (dp->dpms_mode != DRM_MODE_DPMS_ON)
 		return;
@@ -1109,7 +1115,7 @@ static void exynos_dp_poweroff(struct exynos_drm_display *display)
 
 static void exynos_dp_dpms(struct exynos_drm_display *display, int mode)
 {
-	struct exynos_dp_device *dp = display->ctx;
+	struct exynos_dp_device *dp = display_to_dp(display);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -1344,8 +1350,6 @@ static int exynos_dp_probe(struct platform_device *pdev)
 		if (!dp->panel)
 			return -EPROBE_DEFER;
 	}
-
-	dp->display.ctx = dp;
 
 	ret = component_add(&pdev->dev, &exynos_dp_ops);
 	if (ret)
