@@ -469,12 +469,19 @@ static int fimd_enable_vblank(struct exynos_drm_manager *mgr)
 		val = readl(ctx->regs + VIDINTCON0);
 
 		val |= VIDINTCON0_INT_ENABLE;
-		val |= VIDINTCON0_INT_FRAME;
 
-		val &= ~VIDINTCON0_FRAMESEL0_MASK;
-		val |= VIDINTCON0_FRAMESEL0_VSYNC;
-		val &= ~VIDINTCON0_FRAMESEL1_MASK;
-		val |= VIDINTCON0_FRAMESEL1_NONE;
+		if (ctx->i80_if) {
+			val |= VIDINTCON0_INT_I80IFDONE;
+			val |= VIDINTCON0_INT_SYSMAINCON;
+			val &= ~VIDINTCON0_INT_SYSSUBCON;
+		} else {
+			val |= VIDINTCON0_INT_FRAME;
+
+			val &= ~VIDINTCON0_FRAMESEL0_MASK;
+			val |= VIDINTCON0_FRAMESEL0_VSYNC;
+			val &= ~VIDINTCON0_FRAMESEL1_MASK;
+			val |= VIDINTCON0_FRAMESEL1_NONE;
+		}
 
 		writel(val, ctx->regs + VIDINTCON0);
 	}
@@ -493,8 +500,14 @@ static void fimd_disable_vblank(struct exynos_drm_manager *mgr)
 	if (test_and_clear_bit(0, &ctx->irq_flags)) {
 		val = readl(ctx->regs + VIDINTCON0);
 
-		val &= ~VIDINTCON0_INT_FRAME;
 		val &= ~VIDINTCON0_INT_ENABLE;
+
+		if (ctx->i80_if) {
+			val &= ~VIDINTCON0_INT_I80IFDONE;
+			val &= ~VIDINTCON0_INT_SYSMAINCON;
+			val &= ~VIDINTCON0_INT_SYSSUBCON;
+		} else
+			val &= ~VIDINTCON0_INT_FRAME;
 
 		writel(val, ctx->regs + VIDINTCON0);
 	}
@@ -959,18 +972,14 @@ static void fimd_trigger(struct device *dev)
 	u32 reg;
 
 	 /*
-	 * Skips to trigger if in triggering state, because multiple triggering
-	 * requests can cause panel reset.
-	 */
+	  * Skips triggering if in triggering state, because multiple triggering
+	  * requests can cause panel reset.
+	  */
 	if (atomic_read(&ctx->triggering))
 		return;
 
+	/* Enters triggering mode */
 	atomic_set(&ctx->triggering, 1);
-
-	reg = readl(ctx->regs + VIDINTCON0);
-	reg |= (VIDINTCON0_INT_ENABLE | VIDINTCON0_INT_I80IFDONE |
-						VIDINTCON0_INT_SYSMAINCON);
-	writel(reg, ctx->regs + VIDINTCON0);
 
 	reg = readl(timing_base + TRIGCON);
 	reg |= (TRGMODE_I80_RGB_ENABLE_I80 | SWTRGCMD_I80_RGB_ENABLE);
@@ -1036,21 +1045,13 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	if (ctx->pipe < 0 || !ctx->drm_dev)
 		goto out;
 
+	drm_handle_vblank(ctx->drm_dev, ctx->pipe);
+	exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
+
 	if (ctx->i80_if) {
-		/* unset I80 frame done interrupt */
-		val = readl(ctx->regs + VIDINTCON0);
-		val &= ~(VIDINTCON0_INT_I80IFDONE | VIDINTCON0_INT_SYSMAINCON);
-		writel(val, ctx->regs + VIDINTCON0);
-
-		/* exit triggering mode */
+		/* Exits triggering mode */
 		atomic_set(&ctx->triggering, 0);
-
-		drm_handle_vblank(ctx->drm_dev, ctx->pipe);
-		exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
 	} else {
-		drm_handle_vblank(ctx->drm_dev, ctx->pipe);
-		exynos_drm_crtc_finish_pageflip(ctx->drm_dev, ctx->pipe);
-
 		/* set wait vsync event to zero and wake up queue. */
 		if (atomic_read(&ctx->wait_vsync_event)) {
 			atomic_set(&ctx->wait_vsync_event, 0);
