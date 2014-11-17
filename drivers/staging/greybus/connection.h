@@ -28,7 +28,7 @@ struct gb_connection {
 	u16				hd_cport_id;
 	u16				interface_cport_id;
 
-	struct rb_node			hd_node;
+	struct list_head		hd_links;
 	struct list_head		interface_links;
 
 	struct gb_protocol		*protocol;

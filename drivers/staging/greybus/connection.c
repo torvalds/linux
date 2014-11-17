@@ -13,51 +13,15 @@
 
 static DEFINE_SPINLOCK(gb_connections_lock);
 
-static void _gb_hd_connection_insert(struct greybus_host_device *hd,
-					struct gb_connection *connection)
-{
-	struct rb_root *root = &hd->connections;
-	struct rb_node *node = &connection->hd_node;
-	struct rb_node **link = &root->rb_node;
-	struct rb_node *above = NULL;
-	u16 cport_id = connection->hd_cport_id;
-
-	while (*link) {
-		struct gb_connection *_connection;
-
-		above = *link;
-		_connection = rb_entry(above, struct gb_connection, hd_node);
-		if (_connection->hd_cport_id > cport_id)
-			link = &above->rb_left;
-		else if (_connection->hd_cport_id < cport_id)
-			link = &above->rb_right;
-	}
-	rb_link_node(node, above, link);
-	rb_insert_color(node, root);
-}
-
-static void _gb_hd_connection_remove(struct gb_connection *connection)
-{
-	rb_erase(&connection->hd_node, &connection->hd->connections);
-}
-
 struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
 						u16 cport_id)
 {
 	struct gb_connection *connection = NULL;
-	struct rb_node *node;
 
 	spin_lock_irq(&gb_connections_lock);
-	node = hd->connections.rb_node;
-	while (node) {
-		connection = rb_entry(node, struct gb_connection, hd_node);
-		if (connection->hd_cport_id > cport_id)
-			node = node->rb_left;
-		else if (connection->hd_cport_id < cport_id)
-			node = node->rb_right;
-		else
+	list_for_each_entry(connection, &hd->connections, hd_links)
+		if (connection->hd_cport_id == cport_id)
 			goto found;
-	}
 	connection = NULL;
  found:
 	spin_unlock_irq(&gb_connections_lock);
@@ -204,7 +168,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	}
 
 	spin_lock_irq(&gb_connections_lock);
-	_gb_hd_connection_insert(hd, connection);
+	list_add_tail(&connection->hd_links, &hd->connections);
 	list_add_tail(&connection->interface_links, &interface->connections);
 	spin_unlock_irq(&gb_connections_lock);
 
@@ -233,7 +197,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	}
 	spin_lock_irq(&gb_connections_lock);
 	list_del(&connection->interface_links);
-	_gb_hd_connection_remove(connection);
+	list_del(&connection->hd_links);
 	spin_unlock_irq(&gb_connections_lock);
 
 	gb_connection_hd_cport_id_free(connection);
