@@ -5307,8 +5307,7 @@ static int snd_hdsp_free(struct hdsp *hdsp)
 
 	snd_hdsp_free_buffers(hdsp);
 
-	if (hdsp->firmware)
-		release_firmware(hdsp->firmware);
+	release_firmware(hdsp->firmware);
 	vfree(hdsp->fw_uploaded);
 
 	if (hdsp->iobase)
