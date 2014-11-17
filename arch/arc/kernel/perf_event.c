@@ -25,6 +25,8 @@ struct arc_pmu {
 	int		ev_hw_idx[PERF_COUNT_ARC_HW_MAX];
 };
 
+static struct arc_pmu *arc_pmu;
+
 /* read counter #idx; note that counter# != event# on ARC! */
 static uint64_t arc_pmu_read_counter(int idx)
 {
@@ -47,7 +49,6 @@ static uint64_t arc_pmu_read_counter(int idx)
 static void arc_perf_event_update(struct perf_event *event,
 				  struct hw_perf_event *hwc, int idx)
 {
-	struct arc_pmu *arc_pmu = container_of(event->pmu, struct arc_pmu, pmu);
 	uint64_t prev_raw_count, new_raw_count;
 	int64_t delta;
 
@@ -95,7 +96,6 @@ static int arc_pmu_cache_event(u64 config)
 /* initializes hw_perf_event structure if event is supported */
 static int arc_pmu_event_init(struct perf_event *event)
 {
-	struct arc_pmu *arc_pmu = container_of(event->pmu, struct arc_pmu, pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	int ret;
 
@@ -183,8 +183,6 @@ static void arc_pmu_stop(struct perf_event *event, int flags)
 
 static void arc_pmu_del(struct perf_event *event, int flags)
 {
-	struct arc_pmu *arc_pmu = container_of(event->pmu, struct arc_pmu, pmu);
-
 	arc_pmu_stop(event, PERF_EF_UPDATE);
 	__clear_bit(event->hw.idx, arc_pmu->used_mask);
 
@@ -194,7 +192,6 @@ static void arc_pmu_del(struct perf_event *event, int flags)
 /* allocate hardware counter and optionally start counting */
 static int arc_pmu_add(struct perf_event *event, int flags)
 {
-	struct arc_pmu *arc_pmu = container_of(event->pmu, struct arc_pmu, pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
