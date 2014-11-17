@@ -243,9 +243,10 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 }
 
 static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
-					     unsigned long size)
+					     unsigned long size,
+					     bool ipa_uncached)
 {
-	if (!vcpu_has_cache_enabled(vcpu))
+	if (!vcpu_has_cache_enabled(vcpu) || ipa_uncached)
 		kvm_flush_dcache_to_poc((void *)hva, size);
 
 	if (!icache_is_aliasing()) {		/* PIPT */
