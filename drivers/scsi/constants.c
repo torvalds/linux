@@ -21,10 +21,6 @@
 
 
 /* Commands with service actions that change the command name */
-#define SERVICE_ACTION_IN_12 0xab
-#define SERVICE_ACTION_OUT_12 0xa9
-#define SERVICE_ACTION_BIDIRECTIONAL 0x9d
-#define SERVICE_ACTION_OUT_16 0x9f
 #define THIRD_PARTY_COPY_OUT 0x83
 #define THIRD_PARTY_COPY_IN 0x84
 

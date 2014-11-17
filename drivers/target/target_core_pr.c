@@ -459,7 +459,7 @@ static int core_scsi3_pr_seq_non_holder(
 	case ACCESS_CONTROL_OUT:
 	case INQUIRY:
 	case LOG_SENSE:
-	case READ_MEDIA_SERIAL_NUMBER:
+	case SERVICE_ACTION_IN_12:
 	case REPORT_LUNS:
 	case REQUEST_SENSE:
 	case PERSISTENT_RESERVE_IN:
