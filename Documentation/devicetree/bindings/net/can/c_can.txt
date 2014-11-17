@@ -4,7 +4,8 @@ Bosch C_CAN/D_CAN controller Device Tree Bindings
 Required properties:
 - compatible		: Should be "bosch,c_can" for C_CAN controllers and
 			  "bosch,d_can" for D_CAN controllers.
-			  Can be "ti,dra7-d_can" or "ti,am3352-d_can".
+			  Can be "ti,dra7-d_can", "ti,am3352-d_can" or
+			  "ti,am4372-d_can".
 - reg			: physical base address and size of the C_CAN/D_CAN
 			  registers map
 - interrupts		: property with a value describing the interrupt
