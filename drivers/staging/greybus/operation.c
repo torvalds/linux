@@ -204,6 +204,9 @@ static struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
 	struct gbuf *gbuf;
 	gfp_t gfp_flags = data_out ? GFP_KERNEL : GFP_ATOMIC;
 
+	if (size > GB_OPERATION_MESSAGE_SIZE_MAX)
+		return NULL;	/* Message too big */
+
 	size += sizeof(*header);
 	gbuf = greybus_alloc_gbuf(operation, size, data_out, gfp_flags);
 	if (!gbuf)
@@ -355,9 +358,18 @@ int gb_operation_response_send(struct gb_operation *operation)
 }
 
 /*
- * Handle data arriving on a connection.  This is called in
- * interrupt context, so just copy the incoming data into a buffer
- * and do remaining handling via a work queue.
+ * Handle data arriving on a connection.  As soon as we return, the
+ * incoming data buffer will be reused, so we need to copy the data
+ * into one of our own operation message buffers.
+ *
+ * If the incoming data is an operation response message, look up
+ * the operation and copy the incoming data into its response
+ * buffer.  Otherwise allocate a new operation and copy the incoming
+ * data into its request buffer.
+ *
+ * This is called in interrupt context, so just copy the incoming
+ * data into the buffer and do remaining handling via a work queue.
+ *
  */
 void gb_connection_operation_recv(struct gb_connection *connection,
 				void *data, size_t size)
@@ -370,8 +382,8 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 	if (connection->state != GB_CONNECTION_STATE_ENABLED)
 		return;
 
-	if (size > GB_OPERATION_MESSAGE_SIZE_MAX) {
-		gb_connection_err(connection, "message too big");
+	if (size < sizeof(*header)) {
+		gb_connection_err(connection, "message too small");
 		return;
 	}
 
@@ -388,11 +400,12 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 		cancel_delayed_work(&operation->timeout_work);
 		gb_pending_operation_remove(operation);
 		gbuf = operation->response;
-		gbuf->status = GB_OP_SUCCESS;	/* If we got here we're good */
 		if (size > gbuf->transfer_buffer_length) {
+			operation->result = GB_OP_OVERFLOW;
 			gb_connection_err(connection, "recv buffer too small");
 			return;
 		}
+		operation->result = GB_OP_SUCCESS;
 	} else {
 		WARN_ON(msg_size != size);
 		operation = gb_operation_create(connection, header->type,
