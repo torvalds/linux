@@ -293,7 +293,7 @@ static void *swap_buffer(void *bufaddr, int len)
 	unsigned int *buf = bufaddr;
 
 	for (i = 0; i < DIV_ROUND_UP(len, 4); i++, buf++)
-		*buf = cpu_to_be32(*buf);
+		swab32s(buf);
 
 	return bufaddr;
 }
