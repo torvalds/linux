@@ -541,9 +541,11 @@ static void img_ir_set_decoder(struct img_ir_priv *priv,
 	if (ir_status & (IMG_IR_RXDVAL | IMG_IR_RXDVALD2)) {
 		ir_status &= ~(IMG_IR_RXDVAL | IMG_IR_RXDVALD2);
 		img_ir_write(priv, IMG_IR_STATUS, ir_status);
-		img_ir_read(priv, IMG_IR_DATA_LW);
-		img_ir_read(priv, IMG_IR_DATA_UP);
 	}
+
+	/* always read data to clear buffer if IR wakes the device */
+	img_ir_read(priv, IMG_IR_DATA_LW);
+	img_ir_read(priv, IMG_IR_DATA_UP);
 
 	/* stop the end timer and switch back to normal mode */
 	del_timer_sync(&hw->end_timer);
