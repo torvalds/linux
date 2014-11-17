@@ -52,7 +52,7 @@ static LIST_HEAD(pnfs_modules_tbl);
 
 static int
 pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
-		       enum pnfs_iomode iomode);
+		       enum pnfs_iomode iomode, bool sync);
 
 /* Return the registered pnfs layout driver module matching given id */
 static struct pnfs_layoutdriver_type *
@@ -392,7 +392,8 @@ pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 		spin_unlock(&inode->i_lock);
 		pnfs_free_lseg(lseg);
 		if (need_return)
-			pnfs_send_layoutreturn(lo, stateid, iomode);
+			pnfs_send_layoutreturn(lo, stateid, iomode,
+					       true);
 		else
 			pnfs_put_layout_hdr(lo);
 	}
@@ -897,7 +898,7 @@ static void pnfs_clear_layoutcommit(struct inode *inode,
 
 static int
 pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
-		       enum pnfs_iomode iomode)
+		       enum pnfs_iomode iomode, bool sync)
 {
 	struct inode *ino = lo->plh_inode;
 	struct nfs4_layoutreturn *lrp;
@@ -923,7 +924,7 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
 	lrp->clp = NFS_SERVER(ino)->nfs_client;
 	lrp->cred = lo->plh_lc_cred;
 
-	status = nfs4_proc_layoutreturn(lrp);
+	status = nfs4_proc_layoutreturn(lrp, sync);
 out:
 	if (status) {
 		spin_lock(&ino->i_lock);
@@ -989,7 +990,7 @@ _pnfs_return_layout(struct inode *ino)
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
 
-	status = pnfs_send_layoutreturn(lo, stateid, IOMODE_ANY);
+	status = pnfs_send_layoutreturn(lo, stateid, IOMODE_ANY, true);
 out:
 	dprintk("<-- %s status: %d\n", __func__, status);
 	return status;
