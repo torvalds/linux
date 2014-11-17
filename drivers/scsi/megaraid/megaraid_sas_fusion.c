@@ -882,7 +882,7 @@ megasas_sync_map_info(struct megasas_instance *instance)
 
 	map = fusion->ld_drv_map[instance->map_id & 1];
 
-	num_lds = le32_to_cpu(map->raidMap.ldCount);
+	num_lds = le16_to_cpu(map->raidMap.ldCount);
 
 	dcmd = &cmd->frame->dcmd;
 
@@ -1137,9 +1137,10 @@ megasas_fire_cmd_fusion(struct megasas_instance *instance,
 			struct megasas_register_set __iomem *regs)
 {
 #if defined(writeq) && defined(CONFIG_64BIT)
-	u64 req_data = (((u64)req_desc_hi << 32) | (u32)req_desc_lo);
+	u64 req_data = (((u64)le32_to_cpu(req_desc_hi) << 32) |
+			le32_to_cpu(req_desc_lo));
 
-	writeq(le64_to_cpu(req_data), &(regs)->inbound_low_queue_port);
+	writeq(req_data, &(regs)->inbound_low_queue_port);
 #else
 	unsigned long flags;
 
@@ -1337,7 +1338,7 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 		/* Logical block reference tag */
 		io_request->CDB.EEDP32.PrimaryReferenceTag =
 			cpu_to_be32(ref_tag);
-		io_request->CDB.EEDP32.PrimaryApplicationTagMask = 0xffff;
+		io_request->CDB.EEDP32.PrimaryApplicationTagMask = cpu_to_be16(0xffff);
 		io_request->IoFlags = cpu_to_le16(32); /* Specify 32-byte cdb */
 
 		/* Transfer length */
@@ -1733,7 +1734,7 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 
 		/* set RAID context values */
 		pRAID_Context->regLockFlags     = REGION_TYPE_SHARED_READ;
-		pRAID_Context->timeoutValue     = raid->fpIoTimeoutForLd;
+		pRAID_Context->timeoutValue     = cpu_to_le16(raid->fpIoTimeoutForLd);
 		pRAID_Context->VirtualDiskTgtId = cpu_to_le16(device_id);
 		pRAID_Context->regLockRowLBA    = 0;
 		pRAID_Context->regLockLength    = 0;
@@ -2218,7 +2219,7 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 	 * megasas_complete_cmd
 	 */
 
-	if (frame_hdr->flags & MFI_FRAME_DONT_POST_IN_REPLY_QUEUE)
+	if (frame_hdr->flags & cpu_to_le16(MFI_FRAME_DONT_POST_IN_REPLY_QUEUE))
 		cmd->flags = MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
 
 	fusion = instance->ctrl_context;
