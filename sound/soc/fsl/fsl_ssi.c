@@ -67,8 +67,6 @@
 /**
  * FSLSSI_I2S_FORMATS: audio formats supported by the SSI
  *
- * This driver currently only supports the SSI running in I2S slave mode.
- *
  * The SSI has a limitation in that the samples must be in the same byte
  * order as the host CPU.  This is because when multiple bytes are written
  * to the STX register, the bytes and bits must be written in the same
