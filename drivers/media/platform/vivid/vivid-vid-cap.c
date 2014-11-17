@@ -443,12 +443,12 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 			break;
 		if (bt->standards & V4L2_DV_BT_STD_CEA861) {
 			if (bt->width == 720 && bt->height <= 576)
-				v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SMPTE170M);
+				v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_170M);
 			else
-				v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_REC709);
+				v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_709);
 			v4l2_ctrl_s_ctrl(dev->real_rgb_range_cap, 1);
 		} else {
-			v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SRGB);
+			v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_SRGB);
 			v4l2_ctrl_s_ctrl(dev->real_rgb_range_cap, 0);
 		}
 		tpg_s_rgb_range(&dev->tpg, v4l2_ctrl_g_ctrl(dev->rgb_range_cap));
@@ -1307,20 +1307,20 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 	if (dev->colorspace) {
 		switch (dev->input_type[i]) {
 		case WEBCAM:
-			v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SRGB);
+			v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_SRGB);
 			break;
 		case TV:
 		case SVID:
-			v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SMPTE170M);
+			v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_170M);
 			break;
 		case HDMI:
 			if (bt->standards & V4L2_DV_BT_STD_CEA861) {
 				if (dev->src_rect.width == 720 && dev->src_rect.height <= 576)
-					v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SMPTE170M);
+					v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_170M);
 				else
-					v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_REC709);
+					v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_709);
 			} else {
-				v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SRGB);
+				v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_SRGB);
 			}
 			break;
 		}

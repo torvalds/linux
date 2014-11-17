@@ -333,6 +333,16 @@ static const struct v4l2_ctrl_ops vivid_user_vid_ctrl_ops = {
 
 static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	static const u32 colorspaces[] = {
+		V4L2_COLORSPACE_SMPTE170M,
+		V4L2_COLORSPACE_REC709,
+		V4L2_COLORSPACE_SRGB,
+		V4L2_COLORSPACE_ADOBERGB,
+		V4L2_COLORSPACE_BT2020,
+		V4L2_COLORSPACE_SMPTE240M,
+		V4L2_COLORSPACE_470_SYSTEM_M,
+		V4L2_COLORSPACE_470_SYSTEM_BG,
+	};
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_vid_cap);
 	unsigned i;
 
@@ -342,7 +352,7 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		tpg_s_pattern(&dev->tpg, ctrl->val);
 		break;
 	case VIVID_CID_COLORSPACE:
-		tpg_s_colorspace(&dev->tpg, ctrl->val);
+		tpg_s_colorspace(&dev->tpg, colorspaces[ctrl->val]);
 		vivid_send_source_change(dev, TV);
 		vivid_send_source_change(dev, SVID);
 		vivid_send_source_change(dev, HDMI);
@@ -662,15 +672,14 @@ static const struct v4l2_ctrl_config vivid_ctrl_max_edid_blocks = {
 };
 
 static const char * const vivid_ctrl_colorspace_strings[] = {
-	"",
 	"SMPTE 170M",
-	"SMPTE 240M",
 	"REC 709",
-	"", /* Skip Bt878 entry */
+	"sRGB",
+	"AdobeRGB",
+	"BT.2020",
+	"SMPTE 240M",
 	"470 System M",
 	"470 System BG",
-	"", /* Skip JPEG entry */
-	"sRGB",
 	NULL,
 };
 
@@ -679,10 +688,8 @@ static const struct v4l2_ctrl_config vivid_ctrl_colorspace = {
 	.id = VIVID_CID_COLORSPACE,
 	.name = "Colorspace",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.min = 1,
-	.max = 8,
-	.menu_skip_mask = (1 << 4) | (1 << 7),
-	.def = 8,
+	.max = 7,
+	.def = 2,
 	.qmenu = vivid_ctrl_colorspace_strings,
 };
 

@@ -116,6 +116,17 @@ enum vivid_signal_mode {
 	CUSTOM_DV_TIMINGS,
 };
 
+enum vivid_colorspace {
+	VIVID_CS_170M,
+	VIVID_CS_709,
+	VIVID_CS_SRGB,
+	VIVID_CS_ADOBERGB,
+	VIVID_CS_2020,
+	VIVID_CS_240M,
+	VIVID_CS_SYS_M,
+	VIVID_CS_SYS_BG,
+};
+
 #define VIVID_INVALID_SIGNAL(mode) \
 	((mode) == NO_SIGNAL || (mode) == NO_LOCK || (mode) == OUT_OF_RANGE)
 
