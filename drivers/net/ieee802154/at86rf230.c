@@ -1043,10 +1043,10 @@ at86rf212_set_channel(struct at86rf230_local *lp, u8 page, u8 channel)
 		}
 	} else {
 		if (page == 0)
-			/* SUB:0 and BPSK:1 -> BPSK-20 */
+			/* SUB:0 and BPSK:1 -> OQPSK-100/200/400 */
 			lp->hw->phy->symbol_duration = 40;
 		else
-			/* SUB:1 and BPSK:1 -> BPSK-20 */
+			/* SUB:1 and BPSK:1 -> OQPSK-250/500/1000 */
 			lp->hw->phy->symbol_duration = 16;
 	}
 
