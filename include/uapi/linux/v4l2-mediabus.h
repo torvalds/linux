@@ -22,6 +22,8 @@
  * @code:	data format code (from enum v4l2_mbus_pixelcode)
  * @field:	used interlacing type (from enum v4l2_field)
  * @colorspace:	colorspace of the data (from enum v4l2_colorspace)
+ * @ycbcr_enc:	YCbCr encoding of the data (from enum v4l2_ycbcr_encoding)
+ * @quantization: quantization of the data (from enum v4l2_quantization)
  */
 struct v4l2_mbus_framefmt {
 	__u32			width;
@@ -29,7 +31,9 @@ struct v4l2_mbus_framefmt {
 	__u32			code;
 	__u32			field;
 	__u32			colorspace;
-	__u32			reserved[7];
+	__u32			ycbcr_enc;
+	__u32			quantization;
+	__u32			reserved[5];
 };
 
 #ifndef __KERNEL__
