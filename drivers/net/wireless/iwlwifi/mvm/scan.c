@@ -1025,17 +1025,17 @@ int iwl_mvm_scan_offload_start(struct iwl_mvm *mvm,
 {
 	int ret;
 
-	if ((mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)) {
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
+		ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
+		if (ret)
+			return ret;
+		ret = iwl_mvm_sched_scan_umac(mvm, vif, req, ies);
+	} else if ((mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)) {
 		mvm->scan_status = IWL_MVM_SCAN_SCHED;
 		ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
 		if (ret)
 			return ret;
 		ret = iwl_mvm_unified_sched_scan_lmac(mvm, vif, req, ies);
-	} else if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
-		ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
-		if (ret)
-			return ret;
-		ret = iwl_mvm_sched_scan_umac(mvm, vif, req, ies);
 	} else {
 		mvm->scan_status = IWL_MVM_SCAN_SCHED;
 		ret = iwl_mvm_config_sched_scan(mvm, vif, req, ies);
