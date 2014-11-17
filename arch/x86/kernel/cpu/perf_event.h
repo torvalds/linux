@@ -521,7 +521,7 @@ struct x86_pmu {
 	 * Extra registers for events
 	 */
 	struct extra_reg *extra_regs;
-	unsigned int er_flags;
+	unsigned int flags;
 
 	/*
 	 * Intel host/guest support (KVM)
@@ -545,8 +545,11 @@ do {									\
 	x86_pmu.quirks = &__quirk;					\
 } while (0)
 
-#define ERF_NO_HT_SHARING	1
-#define ERF_HAS_RSP_1		2
+/*
+ * x86_pmu flags
+ */
+#define PMU_FL_NO_HT_SHARING	0x1 /* no hyper-threading resource sharing */
+#define PMU_FL_HAS_RSP_1	0x2 /* has 2 equivalent offcore_rsp regs   */
 
 #define EVENT_VAR(_id)  event_attr_##_id
 #define EVENT_PTR(_id) &event_attr_##_id.attr.attr
