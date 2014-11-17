@@ -567,9 +567,37 @@ static void watchdog_nmi_disable(unsigned int cpu)
 		cpu0_err = 0;
 	}
 }
+
+void watchdog_nmi_enable_all(void)
+{
+	int cpu;
+
+	if (!watchdog_user_enabled)
+		return;
+
+	get_online_cpus();
+	for_each_online_cpu(cpu)
+		watchdog_nmi_enable(cpu);
+	put_online_cpus();
+}
+
+void watchdog_nmi_disable_all(void)
+{
+	int cpu;
+
+	if (!watchdog_running)
+		return;
+
+	get_online_cpus();
+	for_each_online_cpu(cpu)
+		watchdog_nmi_disable(cpu);
+	put_online_cpus();
+}
 #else
 static int watchdog_nmi_enable(unsigned int cpu) { return 0; }
 static void watchdog_nmi_disable(unsigned int cpu) { return; }
+void watchdog_nmi_enable_all(void) {}
+void watchdog_nmi_disable_all(void) {}
 #endif /* CONFIG_HARDLOCKUP_DETECTOR */
 
 static struct smp_hotplug_thread watchdog_threads = {
