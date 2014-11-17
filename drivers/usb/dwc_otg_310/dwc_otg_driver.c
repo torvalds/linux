@@ -120,9 +120,7 @@ static struct usb20host_pdata_id usb20host_pdata[] = {
 };
 #endif
 
-#ifdef CONFIG_RK_USB_UART
 static u32 usb_to_uart_status;
-#endif
 /*-------------------------------------------------------------------------*/
 /* Encapsulate the module parameter settings */
 
