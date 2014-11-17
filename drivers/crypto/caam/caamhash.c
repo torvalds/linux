@@ -1934,8 +1934,9 @@ static int __init caam_algapi_hash_init(void)
 	struct device_node *dev_node;
 	struct platform_device *pdev;
 	struct device *ctrldev;
-	void *priv;
-	int i = 0, err = 0;
+	struct caam_drv_private *priv;
+	int i = 0, err = 0, md_limit = 0, md_inst;
+	u64 cha_inst;
 
 	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
 	if (!dev_node) {
@@ -1945,10 +1946,9 @@ static int __init caam_algapi_hash_init(void)
 	}
 
 	pdev = of_find_device_by_node(dev_node);
-	if (!pdev) {
-		of_node_put(dev_node);
+	of_node_put(dev_node);
+	if (!pdev)
 		return -ENODEV;
-	}
 
 	ctrldev = &pdev->dev;
 	priv = dev_get_drvdata(ctrldev);
@@ -1963,10 +1963,24 @@ static int __init caam_algapi_hash_init(void)
 
 	INIT_LIST_HEAD(&hash_list);
 
-	/* register crypto algorithms the device supports */
+	/* register algorithms the device supports */
+	cha_inst = rd_reg32(&priv->ctrl->perfmon.cha_num_ls);
+	md_inst = (cha_inst & CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT;
+	if (md_inst) {
+		md_limit = SHA512_DIGEST_SIZE;
+		if ((rd_reg32(&priv->ctrl->perfmon.cha_id_ls) & CHA_ID_LS_MD_MASK)
+		     == CHA_ID_LS_MD_LP256) /* LP256 limits digest size */
+			md_limit = SHA256_DIGEST_SIZE;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(driver_hash); i++) {
-		/* TODO: check if h/w supports alg */
 		struct caam_hash_alg *t_alg;
+
+		/* If no MD instantiated, or MD too small, skip */
+		if ((!md_inst) ||
+		    (driver_hash[i].template_ahash.halg.digestsize >
+		     md_limit))
+			continue;
 
 		/* register hmac version */
 		t_alg = caam_hash_alloc(&driver_hash[i], true);
