@@ -3589,6 +3589,14 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 		struct mgmt_cp_add_remote_oob_data *cp = data;
 		u8 status;
 
+		if (cp->addr.type != BDADDR_BREDR) {
+			err = cmd_complete(sk, hdev->id,
+					   MGMT_OP_ADD_REMOTE_OOB_DATA,
+					   MGMT_STATUS_INVALID_PARAMS,
+					   &cp->addr, sizeof(cp->addr));
+			goto unlock;
+		}
+
 		err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr,
 					      cp->hash, cp->randomizer);
 		if (err < 0)
@@ -3601,6 +3609,14 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 	} else if (len == MGMT_ADD_REMOTE_OOB_EXT_DATA_SIZE) {
 		struct mgmt_cp_add_remote_oob_ext_data *cp = data;
 		u8 status;
+
+		if (cp->addr.type != BDADDR_BREDR) {
+			err = cmd_complete(sk, hdev->id,
+					   MGMT_OP_ADD_REMOTE_OOB_DATA,
+					   MGMT_STATUS_INVALID_PARAMS,
+					   &cp->addr, sizeof(cp->addr));
+			goto unlock;
+		}
 
 		err = hci_add_remote_oob_ext_data(hdev, &cp->addr.bdaddr,
 						  cp->hash192,
@@ -3620,6 +3636,7 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 				 MGMT_STATUS_INVALID_PARAMS);
 	}
 
+unlock:
 	hci_dev_unlock(hdev);
 	return err;
 }
@@ -3632,6 +3649,11 @@ static int remove_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 	int err;
 
 	BT_DBG("%s", hdev->name);
+
+	if (cp->addr.type != BDADDR_BREDR)
+		return cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
+				    MGMT_STATUS_INVALID_PARAMS,
+				    &cp->addr, sizeof(cp->addr));
 
 	hci_dev_lock(hdev);
 
