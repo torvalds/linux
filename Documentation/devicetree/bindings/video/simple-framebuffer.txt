@@ -31,12 +31,10 @@ enable them. This way if e.g. later on support for more display clocks get
 added, the simplefb nodes will already contain this info and the firmware
 does not need to be updated.
 
-If pre-filled framebuffer nodes are used, they should be named
-"framebuffer#-<output>", e.g. "framebuffer0-hdmi". The output should be
-included in the name since different outputs typically require different
-clocks and the clocks are part of the pre-populated nodes. The firmware must
-rename the nodes to the standard "framebuffer@<address>" name using the
-runtime chosen address when enabling the nodes.
+If pre-filled framebuffer nodes are used, the firmware may need extra
+information to find the right node. In that case an extra platform specific
+compatible and platform specific properties should be used and documented,
+see e.g. simple-framebuffer-sunxi.txt .
 
 Required properties:
 - compatible: "simple-framebuffer"
