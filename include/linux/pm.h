@@ -538,11 +538,7 @@ enum rpm_request {
 };
 
 struct wakeup_source;
-
-struct pm_domain_data {
-	struct list_head list_node;
-	struct device *dev;
-};
+struct pm_domain_data;
 
 struct pm_subsys_data {
 	spinlock_t lock;

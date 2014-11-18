@@ -100,6 +100,11 @@ struct gpd_timing_data {
 	bool cached_stop_ok;
 };
 
+struct pm_domain_data {
+	struct list_head list_node;
+	struct device *dev;
+};
+
 struct generic_pm_domain_data {
 	struct pm_domain_data base;
 	struct gpd_timing_data td;
