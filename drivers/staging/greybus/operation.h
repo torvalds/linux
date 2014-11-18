@@ -11,6 +11,8 @@
 
 #include <linux/completion.h>
 
+struct gb_operation;
+
 enum gb_operation_status {
 	GB_OP_SUCCESS		= 0,
 	GB_OP_INVALID		= 1,
@@ -20,6 +22,17 @@ enum gb_operation_status {
 	GB_OP_PROTOCOL_BAD	= 5,
 	GB_OP_OVERFLOW		= 6,
 	GB_OP_TIMEOUT		= 0xff,
+};
+
+struct gbuf {
+	struct greybus_host_device *hd;
+	u16 dest_cport_id;		/* Destination CPort id */
+	int status;
+
+	void *transfer_buffer;
+	u32 transfer_buffer_length;
+
+	void *hcd_data;			/* for the HCD to track the gbuf */
 };
 
 /*
@@ -50,7 +63,6 @@ enum gb_operation_status {
  * is guaranteed to be 64-bit aligned.
  * XXX and callback?
  */
-struct gb_operation;
 typedef void (*gb_operation_callback)(struct gb_operation *);
 struct gb_operation {
 	struct gb_connection	*connection;

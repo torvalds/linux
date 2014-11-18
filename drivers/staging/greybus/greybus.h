@@ -56,80 +56,6 @@
 #define HOST_DEV_CPORT_ID_MAX	CONFIG_HOST_DEV_CPORT_ID_MAX
 #define CPORT_ID_BAD		U16_MAX		/* UniPro max id is 4095 */
 
-/*
-  gbuf
-
-  This is the "main" data structure to send / receive Greybus messages
-
-  There are two different "views" of a gbuf structure:
-    - a greybus driver
-    - a greybus host controller
-
-  A Greybus driver needs to worry about the following:
-    - creating a gbuf
-    - putting data into a gbuf
-    - sending a gbuf to a device
-    - receiving a gbuf from a device
-
-  Creating a gbuf:
-    A greybus driver calls greybus_alloc_gbuf()
-  Putting data into a gbuf:
-    copy data into gbuf->transfer_buffer
-  Send a gbuf:
-    A greybus driver calls greybus_submit_gbuf()
-    The completion function in a gbuf will be called if the gbuf is successful
-    or not.  That completion function runs in user context.  After the
-    completion function is called, the gbuf must not be touched again as the
-    greybus core "owns" it.  But, if a greybus driver wants to "hold on" to a
-    gbuf after the completion function has been called, a reference must be
-    grabbed on the gbuf with a call to greybus_get_gbuf().  When finished with
-    the gbuf, call greybus_free_gbuf() and when the last reference count is
-    dropped, it will be removed from the system.
-  Receive a gbuf:
-    A greybus driver calls gb_register_cport_complete() with a pointer to the
-    callback function to be called for when a gbuf is received from a specific
-    cport and device.  That callback will be made in user context with a gbuf
-    when it is received.  To stop receiving messages, call
-    gb_deregister_cport_complete() for a specific cport.
-
-
-  Greybus Host controller drivers need to provide
-    - a way to allocate the transfer buffer for a gbuf
-    - a way to free the transfer buffer for a gbuf when it is "finished"
-    - a way to submit gbuf for transmissions
-    - notify the core the gbuf is complete
-    - receive gbuf from the wire and submit them to the core
-    - a way to send and receive svc messages
-  Allocate a transfer buffer
-    the host controller function alloc_gbuf_data is called
-  Free a transfer buffer
-    the host controller function free_gbuf_data is called
-  Submit a gbuf to the hardware
-    the host controller function submit_gbuf is called
-  Notify the gbuf is complete
-    the host controller driver must call greybus_gbuf_finished()
-  Submit a SVC message to the hardware
-    the host controller function send_svc_msg is called
-  Receive gbuf messages
-    the host controller driver must call greybus_cport_in() with the data
-  Reveive SVC messages from the hardware
-    The host controller driver must call greybus_svc_in
-
-
-*/
-
-struct gbuf {
-	struct greybus_host_device *hd;
-	u16 dest_cport_id;		/* Destination CPort id */
-	int status;
-
-	void *transfer_buffer;
-	u32 transfer_buffer_length;
-
-	void *hcd_data;			/* for the HCD to track the gbuf */
-};
-
-
 /* For SP1 hardware, we are going to "hardcode" each device to have all logical
  * blocks in order to be able to address them as one unified "unit".  Then
  * higher up layers will then be able to talk to them as one logical block and
@@ -142,6 +68,7 @@ struct gbuf {
 
 struct greybus_host_device;
 struct svc_msg;
+struct gbuf;
 
 /* Greybus "Host driver" structure, needed by a host controller driver to be
  * able to handle both SVC control as well as "real" greybus messages
