@@ -1124,8 +1124,20 @@ static int rk32_mipi_dsi_send_packet(void *arg, unsigned char cmds[], u32 length
 		data = (dsi->vid << 6) | type;
 		data |= (liTmp & 0xffff) << 8;
 		break;
-	case DTYPE_GEN_SWRITE_2P:
+	case DTYPE_GEN_SWRITE_2P: /* one command and one parameter */
 		rk32_dsi_set_bits(dsi, regs[0], gen_sw_2p_tx);
+		if (liTmp <= 2) {
+			/* It is used for normal Generic Short WRITE Packet with 2 parameters. */
+			data = type;
+			data |= regs[2] << 8;	/* dcs command */
+			data |= regs[3] << 16;	/* parameter of command */
+			break;	
+		}
+
+		/* The below is used for Generic Short WRITE Packet with 2 parameters
+		 * that more than 2 parameters. Though it is illegal dcs command, we can't
+		 * make sure the users do not send that command.
+		 */
 		for (i = 0; i < liTmp; i++) {
 			regs[i] = regs[i+2];
 		}
@@ -1145,16 +1157,14 @@ static int rk32_mipi_dsi_send_packet(void *arg, unsigned char cmds[], u32 length
 		data = type;
 		data |= (liTmp & 0xffff) << 8;
 		break;
-	case DTYPE_GEN_SWRITE_1P:
+	case DTYPE_GEN_SWRITE_1P: /* one command without parameter */
 		rk32_dsi_set_bits(dsi, regs[0], gen_sw_1p_tx);
 		data = type;
 		data |= regs[2] << 8;
-		data |= regs[3] << 16;
 		break;
-	case DTYPE_GEN_SWRITE_0P:
+	case DTYPE_GEN_SWRITE_0P: /* nop packet without command and parameter */
 		rk32_dsi_set_bits(dsi, regs[0], gen_sw_0p_tx);
 		data =  type;
-		data |= regs[2] << 8;
 		break;
 	default:
 		printk("0x%x:this type not suppport!\n", type);
