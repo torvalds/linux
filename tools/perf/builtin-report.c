@@ -761,6 +761,7 @@ repeat:
 		symbol_conf.cumulate_callchain = false;
 	}
 	if (branch_call_mode) {
+		callchain_param.key = CCKEY_ADDRESS;
 		callchain_param.branch_callstack = 1;
 		symbol_conf.use_callchain = true;
 		callchain_register_param(&callchain_param);
