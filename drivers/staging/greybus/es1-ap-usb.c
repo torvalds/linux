@@ -20,7 +20,6 @@
 #define ES1_SVC_MSG_SIZE	(sizeof(struct svc_msg) + SZ_64K)
 #define ES1_GBUF_MSG_SIZE	PAGE_SIZE
 
-
 static const struct usb_device_id id_table[] = {
 	/* Made up numbers for the SVC USB Bridge in ES1 */
 	{ USB_DEVICE(0xffff, 0x0001) },
@@ -109,17 +108,19 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 
 	/*
 	 * For ES1 we need to insert a byte at the front of the data
-	 * to indicate the destination CPort id.  So we allocate one
-	 * extra byte to allow for that.
+	 * to indicate the destination CPort id.  We only need one
+	 * extra byte, but we allocate four extra bytes to allow the
+	 * buffer returned to be aligned on a four-byte boundary.
 	 *
 	 * This is only needed for outbound data, but we handle
 	 * buffers for inbound data the same way for consistency.
 	 *
 	 * XXX Do we need to indicate the destination device id too?
 	 */
-	buffer = kzalloc(1 + size, gfp_mask);
+	buffer = kzalloc(GB_BUFFER_ALIGN + size, gfp_mask);
 	if (!buffer)
 		return -ENOMEM;
+	buffer += GB_BUFFER_ALIGN;
 
 	/* Insert the cport id for outbound buffers */
 	if (dest_cport_id != CPORT_ID_BAD && dest_cport_id > (u16)U8_MAX) {
@@ -128,7 +129,7 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 		kfree(buffer);
 		return -EINVAL;
 	}
-	*buffer++ = gbuf->dest_cport_id;
+	*(buffer - 1) = gbuf->dest_cport_id;
 
 	gbuf->transfer_buffer = buffer;
 	gbuf->transfer_buffer_length = size;
@@ -145,8 +146,8 @@ static void free_gbuf_data(struct gbuf *gbuf)
 	if (!transfer_buffer)
 		return;
 
-	/* Account for the prepended cport id */
-	transfer_buffer--;
+	/* Account for the space set aside for the prepended cport id */
+	transfer_buffer -= GB_BUFFER_ALIGN;
 	kfree(transfer_buffer);
 	gbuf->transfer_buffer = NULL;
 }
