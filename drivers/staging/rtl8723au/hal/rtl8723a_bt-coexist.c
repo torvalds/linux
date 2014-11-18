@@ -340,7 +340,7 @@ static u8 bthci_GetAssocInfo(struct rtw_adapter *padapter, u8 EntryNum)
 			tempBuf, TotalLen-BaseMemoryShift);
 
 		pAmpAsoc = (struct amp_assoc_structure *)tempBuf;
-		pAmpAsoc->Length = le16_to_cpu(pAmpAsoc->Length);
+		le16_to_cpus(&pAmpAsoc->Length);
 		BaseMemoryShift += 3 + pAmpAsoc->Length;
 
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("TypeID = 0x%x, ", pAmpAsoc->TypeID));
