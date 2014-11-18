@@ -742,64 +742,68 @@ static int snd_mbox1_create_sync_switch(struct usb_mixer_interface *mixer)
 
 #define _MAKE_NI_CONTROL(bRequest,wIndex) ((bRequest) << 16 | (wIndex))
 
+static int snd_ni_control_init_val(struct usb_mixer_interface *mixer,
+				   struct snd_kcontrol *kctl)
+{
+	struct usb_device *dev = mixer->chip->dev;
+	unsigned int pval = kctl->private_value;
+	u8 value;
+	int err;
+
+	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0),
+			      (pval >> 16) & 0xff,
+			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+			      0, pval & 0xffff, &value, 1);
+	if (err < 0) {
+		dev_err(&dev->dev,
+			"unable to issue vendor read request (ret = %d)", err);
+		return err;
+	}
+
+	kctl->private_value |= (value << 24);
+	return 0;
+}
+
 static int snd_nativeinstruments_control_get(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_value *ucontrol)
 {
-	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
-	struct usb_device *dev = mixer->chip->dev;
-	u8 bRequest = (kcontrol->private_value >> 16) & 0xff;
-	u16 wIndex = kcontrol->private_value & 0xffff;
-	u8 tmp;
-	int ret;
-
-	down_read(&mixer->chip->shutdown_rwsem);
-	if (mixer->chip->shutdown)
-		ret = -ENODEV;
-	else
-		ret = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), bRequest,
-				  USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-				  0, wIndex,
-				  &tmp, sizeof(tmp));
-	up_read(&mixer->chip->shutdown_rwsem);
-
-	if (ret < 0) {
-		dev_err(&dev->dev,
-			"unable to issue vendor read request (ret = %d)", ret);
-		return ret;
-	}
-
-	ucontrol->value.integer.value[0] = tmp;
-
+	ucontrol->value.integer.value[0] = kcontrol->private_value >> 24;
 	return 0;
+}
+
+static int snd_ni_update_cur_val(struct usb_mixer_elem_list *list)
+{
+	struct snd_usb_audio *chip = list->mixer->chip;
+	unsigned int pval = list->kctl->private_value;
+	int err;
+
+	down_read(&chip->shutdown_rwsem);
+	if (chip->shutdown)
+		err = -ENODEV;
+	else
+		err = usb_control_msg(chip->dev, usb_sndctrlpipe(chip->dev, 0),
+				      (pval >> 16) & 0xff,
+				      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+				      pval >> 24, pval & 0xffff, NULL, 0, 1000);
+	up_read(&chip->shutdown_rwsem);
+	return err;
 }
 
 static int snd_nativeinstruments_control_put(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_value *ucontrol)
 {
-	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
-	struct usb_device *dev = mixer->chip->dev;
-	u8 bRequest = (kcontrol->private_value >> 16) & 0xff;
-	u16 wIndex = kcontrol->private_value & 0xffff;
-	u16 wValue = ucontrol->value.integer.value[0];
-	int ret;
+	struct usb_mixer_elem_list *list = snd_kcontrol_chip(kcontrol);
+	u8 oldval = (kcontrol->private_value >> 24) & 0xff;
+	u8 newval = ucontrol->value.integer.value[0];
+	int err;
 
-	down_read(&mixer->chip->shutdown_rwsem);
-	if (mixer->chip->shutdown)
-		ret = -ENODEV;
-	else
-		ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0), bRequest,
-				  USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
-				  wValue, wIndex,
-				  NULL, 0, 1000);
-	up_read(&mixer->chip->shutdown_rwsem);
+	if (oldval == newval)
+		return 0;
 
-	if (ret < 0) {
-		dev_err(&dev->dev,
-			"unable to issue vendor write request (ret = %d)", ret);
-		return ret;
-	}
-
-	return 0;
+	kcontrol->private_value &= ~(0xff << 24);
+	kcontrol->private_value |= newval;
+	err = snd_ni_update_cur_val(list);
+	return err < 0 ? err : 1;
 }
 
 static struct snd_kcontrol_new snd_nativeinstruments_ta6_mixers[] = {
@@ -870,16 +874,17 @@ static int snd_nativeinstruments_create_mixer(struct usb_mixer_interface *mixer,
 	};
 
 	for (i = 0; i < count; i++) {
-		struct snd_kcontrol *c;
+		struct usb_mixer_elem_list *list;
 
 		template.name = kc[i].name;
 		template.private_value = kc[i].private_value;
 
-		c = snd_ctl_new1(&template, mixer);
-		err = snd_ctl_add(mixer->chip->card, c);
-
+		err = add_single_ctl_with_resume(mixer, 0,
+						 snd_ni_update_cur_val,
+						 &template, &list);
 		if (err < 0)
 			break;
+		snd_ni_control_init_val(mixer, list->kctl);
 	}
 
 	return err;
