@@ -99,6 +99,9 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 	u32 cport_reserve = gbuf->dest_cport_id == CPORT_ID_BAD ? 0 : 1;
 	u8 *buffer;
 
+	if (gbuf->transfer_buffer)
+		return -EALREADY;
+
 	if (size > ES1_GBUF_MSG_SIZE) {
 		pr_err("guf was asked to be bigger than %ld!\n",
 		       ES1_GBUF_MSG_SIZE);
@@ -146,6 +149,7 @@ static void free_gbuf_data(struct gbuf *gbuf)
 	if (gbuf->dest_cport_id != CPORT_ID_BAD)
 		transfer_buffer--;	/* Back up to cport id */
 	kfree(transfer_buffer);
+	gbuf->transfer_buffer = NULL;
 }
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
@@ -214,6 +218,8 @@ static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 	struct urb *urb;
 
 	transfer_buffer = gbuf->transfer_buffer;
+	if (!transfer_buffer)
+		return -EINVAL;
 	buffer = &transfer_buffer[-1];	/* yes, we mean -1 */
 
 	/* Find a free urb */
