@@ -925,7 +925,7 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 		kobject_uevent(&fw_priv->dev.kobj, KOBJ_ADD);
 	}
 
-	wait_for_completion(&buf->completion);
+	retval = wait_for_completion_interruptible(&buf->completion);
 
 	cancel_delayed_work_sync(&fw_priv->timeout_work);
 	if (is_fw_load_aborted(buf))
@@ -1004,7 +1004,7 @@ static int sync_cached_firmware_buf(struct firmware_buf *buf)
 			break;
 		}
 		mutex_unlock(&fw_lock);
-		wait_for_completion(&buf->completion);
+		ret = wait_for_completion_interruptible(&buf->completion);
 		mutex_lock(&fw_lock);
 	}
 	mutex_unlock(&fw_lock);
