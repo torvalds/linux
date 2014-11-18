@@ -133,4 +133,10 @@
 #define ESR_ELx_COND_MASK	(UL(0xF) << ESR_ELx_COND_SHIFT)
 #define ESR_ELx_WFx_ISS_WFE	(UL(1) << 0)
 
+#ifndef __ASSEMBLY__
+#include <asm/types.h>
+
+const char *esr_get_class_string(u32 esr);
+#endif /* __ASSEMBLY */
+
 #endif /* __ASM_ESR_H */
