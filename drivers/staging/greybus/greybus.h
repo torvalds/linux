@@ -68,7 +68,6 @@
 
 struct greybus_host_device;
 struct svc_msg;
-struct gbuf;
 
 /* Buffers allocated from the host driver will be aligned to this multiple */
 #define GB_BUFFER_ALIGN	sizeof(u32)
@@ -156,8 +155,6 @@ int gb_ap_init(void);
 void gb_ap_exit(void);
 int gb_debugfs_init(void);
 void gb_debugfs_cleanup(void);
-int gb_gbuf_init(void);
-void gb_gbuf_exit(void);
 
 extern struct bus_type greybus_bus_type;
 extern const struct attribute_group *greybus_module_groups[];
