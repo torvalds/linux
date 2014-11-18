@@ -462,6 +462,8 @@ static int _dln2_transfer(struct dln2_dev *dln2, u16 handle, u16 cmd,
 		if (!ret)
 			ret = -ETIMEDOUT;
 		goto out_free_rx_slot;
+	} else {
+		ret = 0;
 	}
 
 	if (dln2->disconnect) {
@@ -484,10 +486,8 @@ static int _dln2_transfer(struct dln2_dev *dln2, u16 handle, u16 cmd,
 		goto out_free_rx_slot;
 	}
 
-	if (!ibuf) {
-		ret = 0;
+	if (!ibuf)
 		goto out_free_rx_slot;
-	}
 
 	if (*ibuf_len > rsp->hdr.size - sizeof(*rsp))
 		*ibuf_len = rsp->hdr.size - sizeof(*rsp);
