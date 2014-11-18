@@ -913,10 +913,11 @@ static void mxs_auart_shutdown(struct uart_port *u)
 
 static unsigned int mxs_auart_tx_empty(struct uart_port *u)
 {
-	if (readl(u->membase + AUART_STAT) & AUART_STAT_TXFE)
+	if ((readl(u->membase + AUART_STAT) &
+		 (AUART_STAT_TXFE | AUART_STAT_BUSY)) == AUART_STAT_TXFE)
 		return TIOCSER_TEMT;
-	else
-		return 0;
+
+	return 0;
 }
 
 static void mxs_auart_start_tx(struct uart_port *u)
