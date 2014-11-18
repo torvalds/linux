@@ -28,6 +28,7 @@
 #define __L2CAP_H
 
 #include <asm/unaligned.h>
+#include <linux/atomic.h>
 
 /* L2CAP defaults */
 #define L2CAP_DEFAULT_MTU		672
@@ -481,6 +482,7 @@ struct l2cap_chan {
 	struct hci_conn		*hs_hcon;
 	struct hci_chan		*hs_hchan;
 	struct kref	kref;
+	atomic_t	nesting;
 
 	__u8		state;
 
@@ -713,6 +715,17 @@ enum {
 	FLAG_HOLD_HCI_CONN,
 };
 
+/* Lock nesting levels for L2CAP channels. We need these because lockdep
+ * otherwise considers all channels equal and will e.g. complain about a
+ * connection oriented channel triggering SMP procedures or a listening
+ * channel creating and locking a child channel.
+ */
+enum {
+	L2CAP_NESTING_SMP,
+	L2CAP_NESTING_NORMAL,
+	L2CAP_NESTING_PARENT,
+};
+
 enum {
 	L2CAP_TX_STATE_XMIT,
 	L2CAP_TX_STATE_WAIT_F,
@@ -778,7 +791,7 @@ void l2cap_chan_put(struct l2cap_chan *c);
 
 static inline void l2cap_chan_lock(struct l2cap_chan *chan)
 {
-	mutex_lock(&chan->lock);
+	mutex_lock_nested(&chan->lock, atomic_read(&chan->nesting));
 }
 
 static inline void l2cap_chan_unlock(struct l2cap_chan *chan)

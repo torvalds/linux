@@ -639,7 +639,7 @@ struct hci_cp_user_passkey_reply {
 struct hci_cp_remote_oob_data_reply {
 	bdaddr_t bdaddr;
 	__u8     hash[16];
-	__u8     randomizer[16];
+	__u8     rand[16];
 } __packed;
 
 #define HCI_OP_REMOTE_OOB_DATA_NEG_REPLY	0x0433
@@ -731,9 +731,9 @@ struct hci_rp_set_csb {
 struct hci_cp_remote_oob_ext_data_reply {
 	bdaddr_t bdaddr;
 	__u8     hash192[16];
-	__u8     randomizer192[16];
+	__u8     rand192[16];
 	__u8     hash256[16];
-	__u8     randomizer256[16];
+	__u8     rand256[16];
 } __packed;
 
 #define HCI_OP_SNIFF_MODE		0x0803
@@ -940,7 +940,7 @@ struct hci_cp_write_ssp_mode {
 struct hci_rp_read_local_oob_data {
 	__u8     status;
 	__u8     hash[16];
-	__u8     randomizer[16];
+	__u8     rand[16];
 } __packed;
 
 #define HCI_OP_READ_INQ_RSP_TX_POWER	0x0c58
@@ -1024,9 +1024,9 @@ struct hci_cp_write_sc_support {
 struct hci_rp_read_local_oob_ext_data {
 	__u8     status;
 	__u8     hash192[16];
-	__u8     randomizer192[16];
+	__u8     rand192[16];
 	__u8     hash256[16];
-	__u8     randomizer256[16];
+	__u8     rand256[16];
 } __packed;
 
 #define HCI_OP_READ_LOCAL_VERSION	0x1001

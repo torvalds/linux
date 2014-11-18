@@ -133,8 +133,15 @@ static inline u8 smp_ltk_sec_level(struct smp_ltk *key)
 	return BT_SECURITY_MEDIUM;
 }
 
+/* Key preferences for smp_sufficient security */
+enum smp_key_pref {
+	SMP_ALLOW_STK,
+	SMP_USE_LTK,
+};
+
 /* SMP Commands */
-bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level);
+bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level,
+			     enum smp_key_pref key_pref);
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);
 int smp_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, __le32 passkey);
 

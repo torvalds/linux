@@ -20,8 +20,10 @@
 #define __IEEE802154_I_H
 
 #include <linux/mutex.h>
+#include <linux/hrtimer.h>
 #include <net/cfg802154.h>
 #include <net/mac802154.h>
+#include <net/nl802154.h>
 #include <net/ieee802154_netdev.h>
 
 #include "llsec.h"
@@ -50,6 +52,8 @@ struct ieee802154_local {
 	 * with serial driver.
 	 */
 	struct workqueue_struct	*workqueue;
+
+	struct hrtimer ifs_timer;
 
 	bool started;
 
@@ -84,18 +88,6 @@ struct ieee802154_sub_if_data {
 
 	spinlock_t mib_lock;
 
-	__le16 pan_id;
-	__le16 short_addr;
-	__le64 extended_addr;
-	bool promiscuous_mode;
-
-	struct ieee802154_mac_params mac_params;
-
-	/* MAC BSN field */
-	u8 bsn;
-	/* MAC DSN field */
-	u8 dsn;
-
 	/* protects sec from concurrent access by netlink. access by
 	 * encrypt/decrypt/header_create safe without additional protection.
 	 */
@@ -107,6 +99,9 @@ struct ieee802154_sub_if_data {
 };
 
 #define MAC802154_CHAN_NONE		0xff /* No channel is assigned */
+
+/* utility functions/constants */
+extern const void *const mac802154_wpan_phy_privid; /*  for wpan_phy privid */
 
 static inline struct ieee802154_local *
 hw_to_local(struct ieee802154_hw *hw)
@@ -120,22 +115,25 @@ IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
 	return netdev_priv(dev);
 }
 
+static inline struct ieee802154_sub_if_data *
+IEEE802154_WPAN_DEV_TO_SUB_IF(struct wpan_dev *wpan_dev)
+{
+	return container_of(wpan_dev, struct ieee802154_sub_if_data, wpan_dev);
+}
+
 static inline bool
 ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
 {
 	return test_bit(SDATA_STATE_RUNNING, &sdata->state);
 }
 
-extern struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced;
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
 
-void mac802154_monitor_setup(struct net_device *dev);
 netdev_tx_t
 ieee802154_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
-
-void mac802154_wpan_setup(struct net_device *dev);
 netdev_tx_t
 ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
+enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer);
 
 /* MIB callbacks */
 void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val);
@@ -178,11 +176,13 @@ void mac802154_get_table(struct net_device *dev,
 			 struct ieee802154_llsec_table **t);
 void mac802154_unlock_table(struct net_device *dev);
 
-struct net_device *
-mac802154_add_iface(struct wpan_phy *phy, const char *name, int type);
+/* interface handling */
+int ieee802154_iface_init(void);
+void ieee802154_iface_exit(void);
 void ieee802154_if_remove(struct ieee802154_sub_if_data *sdata);
 struct net_device *
 ieee802154_if_add(struct ieee802154_local *local, const char *name,
-		  struct wpan_dev **new_wpan_dev, int type);
+		  enum nl802154_iftype type, __le64 extended_addr);
+void ieee802154_remove_interfaces(struct ieee802154_local *local);
 
 #endif /* __IEEE802154_I_H */

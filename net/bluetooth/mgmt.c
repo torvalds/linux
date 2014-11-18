@@ -3589,8 +3589,16 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 		struct mgmt_cp_add_remote_oob_data *cp = data;
 		u8 status;
 
+		if (cp->addr.type != BDADDR_BREDR) {
+			err = cmd_complete(sk, hdev->id,
+					   MGMT_OP_ADD_REMOTE_OOB_DATA,
+					   MGMT_STATUS_INVALID_PARAMS,
+					   &cp->addr, sizeof(cp->addr));
+			goto unlock;
+		}
+
 		err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr,
-					      cp->hash, cp->randomizer);
+					      cp->hash, cp->rand);
 		if (err < 0)
 			status = MGMT_STATUS_FAILED;
 		else
@@ -3602,11 +3610,17 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 		struct mgmt_cp_add_remote_oob_ext_data *cp = data;
 		u8 status;
 
+		if (cp->addr.type != BDADDR_BREDR) {
+			err = cmd_complete(sk, hdev->id,
+					   MGMT_OP_ADD_REMOTE_OOB_DATA,
+					   MGMT_STATUS_INVALID_PARAMS,
+					   &cp->addr, sizeof(cp->addr));
+			goto unlock;
+		}
+
 		err = hci_add_remote_oob_ext_data(hdev, &cp->addr.bdaddr,
-						  cp->hash192,
-						  cp->randomizer192,
-						  cp->hash256,
-						  cp->randomizer256);
+						  cp->hash192, cp->rand192,
+						  cp->hash256, cp->rand256);
 		if (err < 0)
 			status = MGMT_STATUS_FAILED;
 		else
@@ -3620,6 +3634,7 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 				 MGMT_STATUS_INVALID_PARAMS);
 	}
 
+unlock:
 	hci_dev_unlock(hdev);
 	return err;
 }
@@ -3633,7 +3648,18 @@ static int remove_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 
 	BT_DBG("%s", hdev->name);
 
+	if (cp->addr.type != BDADDR_BREDR)
+		return cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
+				    MGMT_STATUS_INVALID_PARAMS,
+				    &cp->addr, sizeof(cp->addr));
+
 	hci_dev_lock(hdev);
+
+	if (!bacmp(&cp->addr.bdaddr, BDADDR_ANY)) {
+		hci_remote_oob_data_clear(hdev);
+		status = MGMT_STATUS_SUCCESS;
+		goto done;
+	}
 
 	err = hci_remove_remote_oob_data(hdev, &cp->addr.bdaddr);
 	if (err < 0)
@@ -3641,6 +3667,7 @@ static int remove_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 	else
 		status = MGMT_STATUS_SUCCESS;
 
+done:
 	err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
 			   status, &cp->addr, sizeof(cp->addr));
 
@@ -6742,8 +6769,8 @@ void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 }
 
 void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
-				       u8 *randomizer192, u8 *hash256,
-				       u8 *randomizer256, u8 status)
+				       u8 *rand192, u8 *hash256, u8 *rand256,
+				       u8 status)
 {
 	struct pending_cmd *cmd;
 
@@ -6758,16 +6785,14 @@ void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
 			   mgmt_status(status));
 	} else {
 		if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags) &&
-		    hash256 && randomizer256) {
+		    hash256 && rand256) {
 			struct mgmt_rp_read_local_oob_ext_data rp;
 
 			memcpy(rp.hash192, hash192, sizeof(rp.hash192));
-			memcpy(rp.randomizer192, randomizer192,
-			       sizeof(rp.randomizer192));
+			memcpy(rp.rand192, rand192, sizeof(rp.rand192));
 
 			memcpy(rp.hash256, hash256, sizeof(rp.hash256));
-			memcpy(rp.randomizer256, randomizer256,
-			       sizeof(rp.randomizer256));
+			memcpy(rp.rand256, rand256, sizeof(rp.rand256));
 
 			cmd_complete(cmd->sk, hdev->id,
 				     MGMT_OP_READ_LOCAL_OOB_DATA, 0,
@@ -6776,8 +6801,7 @@ void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
 			struct mgmt_rp_read_local_oob_data rp;
 
 			memcpy(rp.hash, hash192, sizeof(rp.hash));
-			memcpy(rp.randomizer, randomizer192,
-			       sizeof(rp.randomizer));
+			memcpy(rp.rand, rand192, sizeof(rp.rand));
 
 			cmd_complete(cmd->sk, hdev->id,
 				     MGMT_OP_READ_LOCAL_OOB_DATA, 0,

@@ -383,18 +383,18 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 	/* If pairing failed clean up any keys we might have */
 	if (!complete) {
 		if (smp->ltk) {
-			list_del(&smp->ltk->list);
-			kfree(smp->ltk);
+			list_del_rcu(&smp->ltk->list);
+			kfree_rcu(smp->ltk, rcu);
 		}
 
 		if (smp->slave_ltk) {
-			list_del(&smp->slave_ltk->list);
-			kfree(smp->slave_ltk);
+			list_del_rcu(&smp->slave_ltk->list);
+			kfree_rcu(smp->slave_ltk, rcu);
 		}
 
 		if (smp->remote_irk) {
-			list_del(&smp->remote_irk->list);
-			kfree(smp->remote_irk);
+			list_del_rcu(&smp->remote_irk->list);
+			kfree_rcu(smp->remote_irk, rcu);
 		}
 	}
 
@@ -514,8 +514,6 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 		set_bit(SMP_FLAG_TK_VALID, &smp->flags);
 	}
 
-	hci_dev_lock(hcon->hdev);
-
 	if (method == REQ_PASSKEY)
 		ret = mgmt_user_passkey_request(hcon->hdev, &hcon->dst,
 						hcon->type, hcon->dst_type);
@@ -527,8 +525,6 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 		ret = mgmt_user_passkey_notify(hcon->hdev, &hcon->dst,
 						hcon->type, hcon->dst_type,
 						passkey, 0);
-
-	hci_dev_unlock(hcon->hdev);
 
 	return ret;
 }
@@ -659,8 +655,8 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 		 * just remove it.
 		 */
 		if (!bacmp(&smp->remote_irk->rpa, BDADDR_ANY)) {
-			list_del(&smp->remote_irk->list);
-			kfree(smp->remote_irk);
+			list_del_rcu(&smp->remote_irk->list);
+			kfree_rcu(smp->remote_irk, rcu);
 			smp->remote_irk = NULL;
 		}
 	}
@@ -1126,18 +1122,20 @@ static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 	return true;
 }
 
-bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level)
+bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level,
+			     enum smp_key_pref key_pref)
 {
 	if (sec_level == BT_SECURITY_LOW)
 		return true;
 
-	/* If we're encrypted with an STK always claim insufficient
-	 * security. This way we allow the connection to be re-encrypted
-	 * with an LTK, even if the LTK provides the same level of
-	 * security. Only exception is if we don't have an LTK (e.g.
-	 * because of key distribution bits).
+	/* If we're encrypted with an STK but the caller prefers using
+	 * LTK claim insufficient security. This way we allow the
+	 * connection to be re-encrypted with an LTK, even if the LTK
+	 * provides the same level of security. Only exception is if we
+	 * don't have an LTK (e.g. because of key distribution bits).
 	 */
-	if (test_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags) &&
+	if (key_pref == SMP_USE_LTK &&
+	    test_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags) &&
 	    hci_find_ltk_by_addr(hcon->hdev, &hcon->dst, hcon->dst_type,
 				 hcon->role))
 		return false;
@@ -1171,7 +1169,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	else
 		sec_level = authreq_to_seclevel(auth);
 
-	if (smp_sufficient_security(hcon, sec_level))
+	if (smp_sufficient_security(hcon, sec_level, SMP_USE_LTK))
 		return 0;
 
 	if (sec_level > hcon->pending_sec_level)
@@ -1221,7 +1219,7 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags))
 		return 1;
 
-	if (smp_sufficient_security(hcon, sec_level))
+	if (smp_sufficient_security(hcon, sec_level, SMP_USE_LTK))
 		return 1;
 
 	if (sec_level > hcon->pending_sec_level)
@@ -1323,7 +1321,6 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	skb_pull(skb, sizeof(*rp));
 
-	hci_dev_lock(hdev);
 	authenticated = (hcon->sec_level == BT_SECURITY_HIGH);
 	ltk = hci_add_ltk(hdev, &hcon->dst, hcon->dst_type, SMP_LTK,
 			  authenticated, smp->tk, smp->enc_key_size,
@@ -1331,7 +1328,6 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 	smp->ltk = ltk;
 	if (!(smp->remote_key_dist & KEY_DIST_MASK))
 		smp_distribute_keys(smp);
-	hci_dev_unlock(hdev);
 
 	return 0;
 }
@@ -1378,8 +1374,6 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 
 	skb_pull(skb, sizeof(*info));
 
-	hci_dev_lock(hcon->hdev);
-
 	/* Strictly speaking the Core Specification (4.1) allows sending
 	 * an empty address which would force us to rely on just the IRK
 	 * as "identity information". However, since such
@@ -1407,8 +1401,6 @@ distribute:
 	if (!(smp->remote_key_dist & KEY_DIST_MASK))
 		smp_distribute_keys(smp);
 
-	hci_dev_unlock(hcon->hdev);
-
 	return 0;
 }
 
@@ -1417,7 +1409,6 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct smp_cmd_sign_info *rp = (void *) skb->data;
 	struct l2cap_chan *chan = conn->smp;
 	struct smp_chan *smp = chan->data;
-	struct hci_dev *hdev = conn->hcon->hdev;
 	struct smp_csrk *csrk;
 
 	BT_DBG("conn %p", conn);
@@ -1430,7 +1421,6 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	skb_pull(skb, sizeof(*rp));
 
-	hci_dev_lock(hdev);
 	csrk = kzalloc(sizeof(*csrk), GFP_KERNEL);
 	if (csrk) {
 		csrk->master = 0x01;
@@ -1438,7 +1428,6 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 	}
 	smp->csrk = csrk;
 	smp_distribute_keys(smp);
-	hci_dev_unlock(hdev);
 
 	return 0;
 }
@@ -1662,6 +1651,13 @@ static inline struct l2cap_chan *smp_new_conn_cb(struct l2cap_chan *pchan)
 	chan->omtu	= pchan->omtu;
 	chan->mode	= pchan->mode;
 
+	/* Other L2CAP channels may request SMP routines in order to
+	 * change the security level. This means that the SMP channel
+	 * lock must be considered in its own category to avoid lockdep
+	 * warnings.
+	 */
+	atomic_set(&chan->nesting, L2CAP_NESTING_SMP);
+
 	BT_DBG("created chan %p", chan);
 
 	return chan;
@@ -1693,7 +1689,7 @@ int smp_register(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
+	tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, 0);
 	if (IS_ERR(tfm_aes)) {
 		int err = PTR_ERR(tfm_aes);
 		BT_ERR("Unable to create crypto context");
@@ -1718,6 +1714,9 @@ int smp_register(struct hci_dev *hdev)
 	chan->mode = L2CAP_MODE_BASIC;
 	chan->imtu = L2CAP_DEFAULT_MTU;
 	chan->ops = &smp_root_chan_ops;
+
+	/* Set correct nesting level for a parent/listening channel */
+	atomic_set(&chan->nesting, L2CAP_NESTING_PARENT);
 
 	hdev->smp_data = chan;
 

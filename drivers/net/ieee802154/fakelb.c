@@ -58,9 +58,6 @@ fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
 	pr_debug("set channel to %d\n", channel);
 
-	hw->phy->current_page = page;
-	hw->phy->current_channel = channel;
-
 	return 0;
 }
 

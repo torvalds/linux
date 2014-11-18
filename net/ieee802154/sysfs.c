@@ -27,6 +27,27 @@ dev_to_rdev(struct device *dev)
 			    wpan_phy.dev);
 }
 
+#define SHOW_FMT(name, fmt, member)					\
+static ssize_t name ## _show(struct device *dev,			\
+			     struct device_attribute *attr,		\
+			     char *buf)					\
+{									\
+	return sprintf(buf, fmt "\n", dev_to_rdev(dev)->member);	\
+}									\
+static DEVICE_ATTR_RO(name)
+
+SHOW_FMT(index, "%d", wpan_phy_idx);
+
+static ssize_t name_show(struct device *dev,
+			 struct device_attribute *attr,
+			 char *buf)
+{
+	struct wpan_phy *wpan_phy = &dev_to_rdev(dev)->wpan_phy;
+
+	return sprintf(buf, "%s\n", dev_name(&wpan_phy->dev));
+}
+static DEVICE_ATTR_RO(name);
+
 #define MASTER_SHOW_COMPLEX(name, format_string, args...)		\
 static ssize_t name ## _show(struct device *dev,			\
 			    struct device_attribute *attr, char *buf)	\
@@ -78,6 +99,9 @@ static void wpan_phy_release(struct device *dev)
 }
 
 static struct attribute *pmib_attrs[] = {
+	&dev_attr_index.attr,
+	&dev_attr_name.attr,
+	/* below will be removed soon */
 	&dev_attr_current_channel.attr,
 	&dev_attr_current_page.attr,
 	&dev_attr_channels_supported.attr,

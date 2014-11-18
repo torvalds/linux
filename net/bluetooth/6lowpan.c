@@ -87,13 +87,6 @@ struct lowpan_dev {
 	struct delayed_work notify_peers;
 };
 
-static inline void peer_free(struct rcu_head *head)
-{
-	struct lowpan_peer *e = container_of(head, struct lowpan_peer, rcu);
-
-	kfree(e);
-}
-
 static inline struct lowpan_dev *lowpan_dev(const struct net_device *netdev)
 {
 	return netdev_priv(netdev);
@@ -108,7 +101,7 @@ static inline void peer_add(struct lowpan_dev *dev, struct lowpan_peer *peer)
 static inline bool peer_del(struct lowpan_dev *dev, struct lowpan_peer *peer)
 {
 	list_del_rcu(&peer->list);
-	call_rcu(&peer->rcu, peer_free);
+	kfree_rcu(peer, rcu);
 
 	module_put(THIS_MODULE);
 
@@ -614,17 +607,13 @@ static netdev_tx_t bt_xmit(struct sk_buff *skb, struct net_device *netdev)
 	int err = 0;
 	bdaddr_t addr;
 	u8 addr_type;
-	struct sk_buff *tmpskb;
 
 	/* We must take a copy of the skb before we modify/replace the ipv6
 	 * header as the header could be used elsewhere
 	 */
-	tmpskb = skb_unshare(skb, GFP_ATOMIC);
-	if (!tmpskb) {
-		kfree_skb(skb);
+	skb = skb_unshare(skb, GFP_ATOMIC);
+	if (!skb)
 		return NET_XMIT_DROP;
-	}
-	skb = tmpskb;
 
 	/* Return values from setup_header()
 	 *  <0 - error, packet is dropped
@@ -1141,6 +1130,8 @@ static struct l2cap_chan *bt_6lowpan_listen(void)
 	pchan->state = BT_LISTEN;
 	pchan->src_type = BDADDR_LE_PUBLIC;
 
+	atomic_set(&pchan->nesting, L2CAP_NESTING_PARENT);
+
 	BT_DBG("psm 0x%04x chan %p src type %d", psm_6lowpan, pchan,
 	       pchan->src_type);
 
@@ -1223,7 +1214,7 @@ static void disconnect_all_peers(void)
 		l2cap_chan_close(peer->chan, ENOENT);
 
 		list_del_rcu(&peer->list);
-		call_rcu(&peer->rcu, peer_free);
+		kfree_rcu(peer, rcu);
 
 		module_put(THIS_MODULE);
 	}

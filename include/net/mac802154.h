@@ -260,6 +260,7 @@ void ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb,
 
 void ieee802154_wake_queue(struct ieee802154_hw *hw);
 void ieee802154_stop_queue(struct ieee802154_hw *hw);
-void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb);
+void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
+			      bool ifs_handling);
 
 #endif /* NET_MAC802154_H */

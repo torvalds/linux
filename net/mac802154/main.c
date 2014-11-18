@@ -4,8 +4,6 @@
  * Written by:
  * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  *
- * Based on the code from 'linux-zigbee.sourceforge.net' project.
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation.
@@ -21,7 +19,7 @@
 #include <linux/netdevice.h>
 
 #include <net/netlink.h>
-#include <linux/nl802154.h>
+#include <net/nl802154.h>
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/route.h>
@@ -86,11 +84,13 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 
 	priv_size = ALIGN(sizeof(*local), NETDEV_ALIGN) + priv_data_len;
 
-	phy = wpan_phy_alloc(&mac802154_config_ops, priv_size);
+	phy = wpan_phy_new(&mac802154_config_ops, priv_size);
 	if (!phy) {
 		pr_err("failure to allocate master IEEE802.15.4 device\n");
 		return NULL;
 	}
+
+	phy->privid = mac802154_wpan_phy_privid;
 
 	local = wpan_phy_priv(phy);
 	local->phy = phy;
@@ -123,6 +123,18 @@ void ieee802154_free_hw(struct ieee802154_hw *hw)
 }
 EXPORT_SYMBOL(ieee802154_free_hw);
 
+static void ieee802154_setup_wpan_phy_pib(struct wpan_phy *wpan_phy)
+{
+	/* TODO warn on empty symbol_duration
+	 * Should be done when all drivers sets this value.
+	 */
+
+	wpan_phy->lifs_period = IEEE802154_LIFS_PERIOD *
+				wpan_phy->symbol_duration;
+	wpan_phy->sifs_period = IEEE802154_SIFS_PERIOD *
+				wpan_phy->symbol_duration;
+}
+
 int ieee802154_register_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
@@ -136,7 +148,12 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 		goto out;
 	}
 
+	hrtimer_init(&local->ifs_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	local->ifs_timer.function = ieee802154_xmit_ifs_timer;
+
 	wpan_phy_set_dev(local->phy, local->hw.parent);
+
+	ieee802154_setup_wpan_phy_pib(local->phy);
 
 	rc = wpan_phy_register(local->phy);
 	if (rc < 0)
@@ -144,7 +161,8 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 
 	rtnl_lock();
 
-	dev = ieee802154_if_add(local, "wpan%d", NULL, IEEE802154_DEV_WPAN);
+	dev = ieee802154_if_add(local, "wpan%d", NL802154_IFTYPE_NODE,
+				cpu_to_le64(0x0000000000000000ULL));
 	if (IS_ERR(dev)) {
 		rtnl_unlock();
 		rc = PTR_ERR(dev);
@@ -165,7 +183,6 @@ EXPORT_SYMBOL(ieee802154_register_hw);
 void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
-	struct ieee802154_sub_if_data *sdata, *next;
 
 	tasklet_kill(&local->tasklet);
 	flush_workqueue(local->workqueue);
@@ -173,13 +190,7 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 
 	rtnl_lock();
 
-	list_for_each_entry_safe(sdata, next, &local->interfaces, list) {
-		mutex_lock(&sdata->local->iflist_mtx);
-		list_del(&sdata->list);
-		mutex_unlock(&sdata->local->iflist_mtx);
-
-		unregister_netdevice(sdata->dev);
-	}
+	ieee802154_remove_interfaces(local);
 
 	rtnl_unlock();
 
@@ -187,5 +198,20 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 }
 EXPORT_SYMBOL(ieee802154_unregister_hw);
 
-MODULE_DESCRIPTION("IEEE 802.15.4 implementation");
+static int __init ieee802154_init(void)
+{
+	return ieee802154_iface_init();
+}
+
+static void __exit ieee802154_exit(void)
+{
+	ieee802154_iface_exit();
+
+	rcu_barrier();
+}
+
+subsys_initcall(ieee802154_init);
+module_exit(ieee802154_exit);
+
+MODULE_DESCRIPTION("IEEE 802.15.4 subsystem");
 MODULE_LICENSE("GPL v2");

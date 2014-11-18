@@ -5,9 +5,21 @@
 
 struct cfg802154_registered_device {
 	const struct cfg802154_ops *ops;
+	struct list_head list;
 
 	/* wpan_phy index, internal only */
 	int wpan_phy_idx;
+
+	/* also protected by devlist_mtx */
+	int opencount;
+	wait_queue_head_t dev_wait;
+
+	/* protected by RTNL only */
+	int num_running_ifaces;
+
+	/* associated wpan interfaces, protected by rtnl or RCU */
+	struct list_head wpan_dev_list;
+	int devlist_generation, wpan_dev_id;
 
 	/* must be last because of the way we do wpan_phy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN
@@ -23,7 +35,12 @@ wpan_phy_to_rdev(struct wpan_phy *wpan_phy)
 			    wpan_phy);
 }
 
+extern struct list_head cfg802154_rdev_list;
+extern int cfg802154_rdev_list_generation;
+
 /* free object */
 void cfg802154_dev_free(struct cfg802154_registered_device *rdev);
+struct cfg802154_registered_device *
+cfg802154_rdev_by_wpan_phy_idx(int wpan_phy_idx);
 
 #endif /* __IEEE802154_CORE_H */
