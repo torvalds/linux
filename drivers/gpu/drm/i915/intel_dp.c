@@ -2887,7 +2887,9 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (INTEL_INFO(dev)->gen >= 9) {
+	if (IS_BROXTON(dev))
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
+	else if (INTEL_INFO(dev)->gen >= 9) {
 		if (dev_priv->vbt.edp_low_vswing && port == PORT_A)
 			return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
