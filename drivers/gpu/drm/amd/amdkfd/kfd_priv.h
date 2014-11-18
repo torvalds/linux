@@ -473,8 +473,9 @@ struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 							struct kfd_process *p);
 void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid);
 struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
-							struct kfd_process *p,
-							int create_pdd);
+							struct kfd_process *p);
+struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
+							struct kfd_process *p);
 
 /* Process device data iterator */
 struct kfd_process_device *kfd_get_first_process_device_data(struct kfd_process *p);

@@ -75,7 +75,6 @@ get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
 	nybble = (pdd->lds_base >> 60) & 0x0E;
 
 	return nybble;
-
 }
 
 static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)

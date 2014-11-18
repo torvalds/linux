@@ -167,8 +167,11 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	q = NULL;
 	kq = NULL;
 
-	pdd = kfd_get_process_device_data(dev, pqm->process, 1);
-	BUG_ON(!pdd);
+	pdd = kfd_get_process_device_data(dev, pqm->process);
+	if (!pdd) {
+		pr_err("Process device data doesn't exist\n");
+		return -1;
+	}
 
 	retval = find_available_queue_slot(pqm, qid);
 	if (retval != 0)
@@ -273,8 +276,11 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		dev = pqn->q->device;
 	BUG_ON(!dev);
 
-	pdd = kfd_get_process_device_data(dev, pqm->process, 1);
-	BUG_ON(!pdd);
+	pdd = kfd_get_process_device_data(dev, pqm->process);
+	if (!pdd) {
+		pr_err("Process device data doesn't exist\n");
+		return -1;
+	}
 
 	if (pqn->kq) {
 		/* destroy kernel queue (DIQ) */
