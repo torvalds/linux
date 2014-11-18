@@ -38,7 +38,7 @@ struct gbuf {
 struct gb_message {
 	void			*payload;
 	struct gb_operation	*operation;
-	struct gbuf		*gbuf;
+	struct gbuf		gbuf;
 };
 
 /*
