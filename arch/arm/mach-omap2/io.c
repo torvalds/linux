@@ -764,7 +764,7 @@ int __init omap_clk_init(void)
 	ti_clk_init_features();
 
 	if (of_have_populated_dt()) {
-		ret = of_prcm_init();
+		ret = omap_prcm_init();
 		if (ret)
 			return ret;
 
