@@ -86,7 +86,8 @@ static int vb2_dma_sg_alloc_compacted(struct vb2_dma_sg_buf *buf,
 	return 0;
 }
 
-static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_flags)
+static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size,
+			      enum dma_data_direction dma_dir, gfp_t gfp_flags)
 {
 	struct vb2_dma_sg_buf *buf;
 	int ret;
@@ -97,7 +98,7 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_fla
 		return NULL;
 
 	buf->vaddr = NULL;
-	buf->dma_dir = DMA_NONE;
+	buf->dma_dir = dma_dir;
 	buf->offset = 0;
 	buf->size = size;
 	/* size is already page aligned */
