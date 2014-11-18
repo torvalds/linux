@@ -63,13 +63,13 @@ static int mdp5_plane_disable(struct drm_plane *plane)
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	enum mdp5_pipe pipe = mdp5_plane->pipe;
-	int i;
 
 	DBG("%s: disable", mdp5_plane->name);
 
-	/* update our SMP request to zero (release all our blks): */
-	for (i = 0; i < pipe2nclients(pipe); i++)
-		mdp5_smp_request(mdp5_kms, pipe2client(pipe, i), 0);
+	if (mdp5_kms) {
+		/* Release the memory we requested earlier from the SMP: */
+		mdp5_smp_release(mdp5_kms->smp_priv, pipe);
+	}
 
 	/* TODO detaching now will cause us not to get the last
 	 * vblank and mdp5_smp_commit().. so other planes will
@@ -149,68 +149,6 @@ void mdp5_plane_set_scanout(struct drm_plane *plane,
 	plane->fb = fb;
 }
 
-/* NOTE: looks like if horizontal decimation is used (if we supported that)
- * then the width used to calculate SMP block requirements is the post-
- * decimated width.  Ie. SMP buffering sits downstream of decimation (which
- * presumably happens during the dma from scanout buffer).
- */
-static int request_smp_blocks(struct drm_plane *plane, uint32_t format,
-		uint32_t nplanes, uint32_t width)
-{
-	struct drm_device *dev = plane->dev;
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
-	struct mdp5_kms *mdp5_kms = get_kms(plane);
-	enum mdp5_pipe pipe = mdp5_plane->pipe;
-	int i, hsub, nlines, nblks, ret;
-
-	hsub = drm_format_horz_chroma_subsampling(format);
-
-	/* different if BWC (compressed framebuffer?) enabled: */
-	nlines = 2;
-
-	for (i = 0, nblks = 0; i < nplanes; i++) {
-		int n, fetch_stride, cpp;
-
-		cpp = drm_format_plane_cpp(format, i);
-		fetch_stride = width * cpp / (i ? hsub : 1);
-
-		n = DIV_ROUND_UP(fetch_stride * nlines, SMP_BLK_SIZE);
-
-		/* for hw rev v1.00 */
-		if (mdp5_kms->rev == 0)
-			n = roundup_pow_of_two(n);
-
-		DBG("%s[%d]: request %d SMP blocks", mdp5_plane->name, i, n);
-		ret = mdp5_smp_request(mdp5_kms, pipe2client(pipe, i), n);
-		if (ret) {
-			dev_err(dev->dev, "Could not allocate %d SMP blocks: %d\n",
-					n, ret);
-			return ret;
-		}
-
-		nblks += n;
-	}
-
-	/* in success case, return total # of blocks allocated: */
-	return nblks;
-}
-
-static void set_fifo_thresholds(struct drm_plane *plane, int nblks)
-{
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
-	struct mdp5_kms *mdp5_kms = get_kms(plane);
-	enum mdp5_pipe pipe = mdp5_plane->pipe;
-	uint32_t val;
-
-	/* 1/4 of SMP pool that is being fetched */
-	val = (nblks * SMP_ENTRIES_PER_BLK) / 4;
-
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_REQPRIO_FIFO_WM_0(pipe), val * 1);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_REQPRIO_FIFO_WM_1(pipe), val * 2);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_REQPRIO_FIFO_WM_2(pipe), val * 3);
-
-}
-
 int mdp5_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		int crtc_x, int crtc_y,
@@ -225,7 +163,7 @@ int mdp5_plane_mode_set(struct drm_plane *plane,
 	uint32_t nplanes, config = 0;
 	uint32_t phasex_step = 0, phasey_step = 0;
 	uint32_t hdecm = 0, vdecm = 0;
-	int i, nblks;
+	int ret;
 
 	nplanes = drm_format_num_planes(fb->pixel_format);
 
@@ -243,12 +181,11 @@ int mdp5_plane_mode_set(struct drm_plane *plane,
 			fb->base.id, src_x, src_y, src_w, src_h,
 			crtc->base.id, crtc_x, crtc_y, crtc_w, crtc_h);
 
-	/*
-	 * Calculate and request required # of smp blocks:
-	 */
-	nblks = request_smp_blocks(plane, fb->pixel_format, nplanes, src_w);
-	if (nblks < 0)
-		return nblks;
+	/* Request some memory from the SMP: */
+	ret = mdp5_smp_request(mdp5_kms->smp_priv,
+			mdp5_plane->pipe, fb->pixel_format, src_w);
+	if (ret)
+		return ret;
 
 	/*
 	 * Currently we update the hw for allocations/requests immediately,
@@ -256,8 +193,7 @@ int mdp5_plane_mode_set(struct drm_plane *plane,
 	 * would move into atomic->check_plane_state(), while updating the
 	 * hw would remain here:
 	 */
-	for (i = 0; i < pipe2nclients(pipe); i++)
-		mdp5_smp_configure(mdp5_kms, pipe2client(pipe, i));
+	mdp5_smp_configure(mdp5_kms->smp_priv, pipe);
 
 	if (src_w != crtc_w) {
 		config |= MDP5_PIPE_SCALE_CONFIG_SCALEX_EN;
@@ -330,8 +266,6 @@ int mdp5_plane_mode_set(struct drm_plane *plane,
 			MDP5_PIPE_SCALE_CONFIG_SCALEX_MAX_FILTER(SCALE_FILTER_NEAREST) |
 			MDP5_PIPE_SCALE_CONFIG_SCALEY_MAX_FILTER(SCALE_FILTER_NEAREST));
 
-	set_fifo_thresholds(plane, nblks);
-
 	/* TODO detach from old crtc (if we had more than one) */
 	mdp5_crtc_attach(crtc, plane);
 
@@ -342,10 +276,8 @@ void mdp5_plane_complete_flip(struct drm_plane *plane)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	enum mdp5_pipe pipe = to_mdp5_plane(plane)->pipe;
-	int i;
 
-	for (i = 0; i < pipe2nclients(pipe); i++)
-		mdp5_smp_commit(mdp5_kms, pipe2client(pipe, i));
+	mdp5_smp_commit(mdp5_kms->smp_priv, pipe);
 }
 
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)

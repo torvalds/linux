@@ -30,6 +30,10 @@ const struct mdp5_config *mdp5_cfg;
 
 static const struct mdp5_config msm8x74_config = {
 	.name = "msm8x74",
+	.smp = {
+		.mmb_count = 22,
+		.mmb_size = 4096,
+	},
 	.ctl = {
 		.count = 5,
 		.base = { 0x00600, 0x00700, 0x00800, 0x00900, 0x00a00 },
@@ -67,6 +71,15 @@ static const struct mdp5_config msm8x74_config = {
 
 static const struct mdp5_config apq8084_config = {
 	.name = "apq8084",
+	.smp = {
+		.mmb_count = 44,
+		.mmb_size = 8192,
+		.reserved_state[0] = GENMASK(7, 0),	/* first 8 MMBs */
+		.reserved[CID_RGB0] = 2,
+		.reserved[CID_RGB1] = 2,
+		.reserved[CID_RGB2] = 2,
+		.reserved[CID_RGB3] = 2,
+	},
 	.ctl = {
 		.count = 5,
 		.base = { 0x00600, 0x00700, 0x00800, 0x00900, 0x00a00 },
@@ -222,6 +235,7 @@ static void mdp5_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct msm_mmu *mmu = mdp5_kms->mmu;
+	void *smp = mdp5_kms->smp_priv;
 
 	mdp5_irq_domain_fini(mdp5_kms);
 
@@ -229,6 +243,9 @@ static void mdp5_destroy(struct msm_kms *kms)
 		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
 		mmu->funcs->destroy(mmu);
 	}
+
+	if (smp)
+		mdp5_smp_destroy(smp);
 
 	kfree(mdp5_kms);
 }
@@ -370,6 +387,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	struct mdp5_kms *mdp5_kms;
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
+	void *priv;
 	int i, ret;
 
 	mdp5_kms = kzalloc(sizeof(*mdp5_kms), GFP_KERNEL);
@@ -384,7 +402,6 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	kms = &mdp5_kms->base.base;
 
 	mdp5_kms->dev = dev;
-	mdp5_kms->smp_blk_cnt = config->smp_blk_cnt;
 
 	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys", "MDP5");
 	if (IS_ERR(mdp5_kms->mmio)) {
@@ -435,6 +452,13 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 	/* TODO: compute core clock rate at runtime */
 	clk_set_rate(mdp5_kms->src_clk, mdp5_kms->hw_cfg->max_clk);
+
+	priv = mdp5_smp_init(mdp5_kms->dev, &mdp5_kms->hw_cfg->smp);
+	if (IS_ERR(priv)) {
+		ret = PTR_ERR(priv);
+		goto fail;
+	}
+	mdp5_kms->smp_priv = priv;
 
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if
@@ -496,8 +520,6 @@ static struct mdp5_platform_config *mdp5_get_config(struct platform_device *dev)
 	/* TODO */
 #endif
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
-	/* TODO get from DT: */
-	config.smp_blk_cnt = 22;
 
 	return &config;
 }

@@ -23,12 +23,22 @@
 #include "mdp/mdp_kms.h"
 /* dynamic offsets used by mdp5.xml.h (initialized in mdp5_kms.c) */
 #define MDP5_MAX_BASES		8
+#define MAX_SMP_BLOCKS		44
+#define MAX_CLIENTS		32
+typedef DECLARE_BITMAP(mdp5_smp_state_t, MAX_SMP_BLOCKS);
 struct mdp5_sub_block {
 	int	count;
 	uint32_t base[MDP5_MAX_BASES];
 };
+struct mdp5_smp_block {
+	int mmb_count;			/* number of SMP MMBs */
+	int mmb_size;			/* MMB: size in bytes */
+	mdp5_smp_state_t reserved_state;/* SMP MMBs statically allocated */
+	int reserved[MAX_CLIENTS];	/* # of MMBs reserved per client */
+};
 struct mdp5_config {
 	char  *name;
+	struct mdp5_smp_block smp;
 	struct mdp5_sub_block ctl;
 	struct mdp5_sub_block pipe_vig;
 	struct mdp5_sub_block pipe_rgb;
@@ -56,10 +66,7 @@ struct mdp5_kms {
 	int id;
 	struct msm_mmu *mmu;
 
-	/* for tracking smp allocation amongst pipes: */
-	mdp5_smp_state_t smp_state;
-	struct mdp5_client_smp_state smp_client_state[CID_MAX];
-	int smp_blk_cnt;
+	void *smp_priv;
 
 	/* io/register spaces: */
 	void __iomem *mmio, *vbif;
@@ -85,7 +92,6 @@ struct mdp5_kms {
 /* platform config data (ie. from DT, or pdata) */
 struct mdp5_platform_config {
 	struct iommu_domain *iommu;
-	int smp_blk_cnt;
 };
 
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
@@ -138,24 +144,6 @@ static inline int pipe2nclients(enum mdp5_pipe pipe)
 		return 1;
 	default:
 		return 3;
-	}
-}
-
-static inline enum mdp5_client_id pipe2client(enum mdp5_pipe pipe, int plane)
-{
-	WARN_ON(plane >= pipe2nclients(pipe));
-	switch (pipe) {
-	case SSPP_VIG0: return CID_VIG0_Y + plane;
-	case SSPP_VIG1: return CID_VIG1_Y + plane;
-	case SSPP_VIG2: return CID_VIG2_Y + plane;
-	case SSPP_RGB0: return CID_RGB0;
-	case SSPP_RGB1: return CID_RGB1;
-	case SSPP_RGB2: return CID_RGB2;
-	case SSPP_DMA0: return CID_DMA0_Y + plane;
-	case SSPP_DMA1: return CID_DMA1_Y + plane;
-	case SSPP_VIG3: return CID_VIG3_Y + plane;
-	case SSPP_RGB3: return CID_RGB3;
-	default:        return CID_UNUSED;
 	}
 }
 
