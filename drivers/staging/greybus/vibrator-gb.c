@@ -134,7 +134,7 @@ static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->timeout_ms = cpu_to_le16(timeout_ms);
 
 	/* Synchronous operation--no callback */
@@ -145,7 +145,7 @@ static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "send data response %hhu",
 				  response->status);
