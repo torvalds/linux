@@ -767,7 +767,14 @@ static int get_target_use_cap(struct ricoh619_battery_info *info)
 	j = info->soca->soc - info->soca->soc/1000*1000;
 	Ocv_now_table = ocv_table[i]*100+(ocv_table[i+1]-ocv_table[i])*j/10;
 
-		Rsys_now = (info->soca->Vsys_ave - Ocv_now_table) / info->soca->Ibat_ave;	
+	Rsys_now = (info->soca->Vsys_ave - Ocv_now_table) / info->soca->Ibat_ave;
+	if (((abs(info->soca->soc - info->soca->displayed_soc)) > 10)
+		&& (info->soca->Ibat_ave > -250)) {
+		if (Rsys_now < 0)
+			Rsys_now = max(-info->soca->Rbat, Rsys_now);
+		else
+			Rsys_now = min(info->soca->Rbat, Rsys_now);
+	}
 
 	Ocv_ZeroPer_now = info->soca->target_vsys * 1000 - Ibat_now * Rsys_now;
 
