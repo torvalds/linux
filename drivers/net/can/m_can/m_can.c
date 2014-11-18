@@ -330,7 +330,7 @@ static void m_can_read_fifo(const struct net_device *dev, struct can_frame *cf,
 			    u32 rxfs)
 {
 	struct m_can_priv *priv = netdev_priv(dev);
-	u32 id, fgi;
+	u32 id, fgi, dlc;
 
 	/* calculate the fifo get index for where to read data */
 	fgi = (rxfs & RXFS_FGI_MASK) >> RXFS_FGI_OFF;
@@ -340,11 +340,12 @@ static void m_can_read_fifo(const struct net_device *dev, struct can_frame *cf,
 	else
 		cf->can_id = (id >> 18) & CAN_SFF_MASK;
 
+	dlc = m_can_fifo_read(priv, fgi, M_CAN_FIFO_DLC);
+	cf->can_dlc = get_can_dlc((dlc >> 16) & 0x0F);
+
 	if (id & RX_BUF_RTR) {
 		cf->can_id |= CAN_RTR_FLAG;
 	} else {
-		id = m_can_fifo_read(priv, fgi, M_CAN_FIFO_DLC);
-		cf->can_dlc = get_can_dlc((id >> 16) & 0x0F);
 		*(u32 *)(cf->data + 0) = m_can_fifo_read(priv, fgi,
 							 M_CAN_FIFO_DATA(0));
 		*(u32 *)(cf->data + 4) = m_can_fifo_read(priv, fgi,
