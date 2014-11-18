@@ -44,6 +44,7 @@
 #undef FRAME_FILTER_DEBUG
 /* #define FRAME_FILTER_DEBUG */
 
+/* Extra statistic and debug information exposed by ethtool */
 struct stmmac_extra_stats {
 	/* Transmit errors */
 	unsigned long tx_underflow ____cacheline_aligned;
@@ -220,6 +221,7 @@ enum dma_irq_status {
 	handle_tx = 0x8,
 };
 
+/* EEE and LPI defines */
 #define	CORE_IRQ_TX_PATH_IN_LPI_MODE	(1 << 0)
 #define	CORE_IRQ_TX_PATH_EXIT_LPI_MODE	(1 << 1)
 #define	CORE_IRQ_RX_PATH_IN_LPI_MODE	(1 << 2)
@@ -229,6 +231,7 @@ enum dma_irq_status {
 #define	CORE_PCS_LINK_STATUS		(1 << 6)
 #define	CORE_RGMII_IRQ			(1 << 7)
 
+/* Physical Coding Sublayer */
 struct rgmii_adv {
 	unsigned int pause;
 	unsigned int duplex;
@@ -294,6 +297,7 @@ struct dma_features {
 
 #define JUMBO_LEN		9000
 
+/* Descriptors helpers */
 struct stmmac_desc_ops {
 	/* DMA RX descriptor ring initialization */
 	void (*init_rx_desc) (struct dma_desc *p, int disable_rx_ic, int mode,
@@ -344,6 +348,7 @@ struct stmmac_desc_ops {
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;
 
+/* Specific DMA helpers */
 struct stmmac_dma_ops {
 	/* DMA core initialization */
 	int (*init) (void __iomem *ioaddr, int pbl, int fb, int mb,
@@ -373,6 +378,7 @@ struct stmmac_dma_ops {
 
 struct mac_device_info;
 
+/* Helpers to program the MAC core */
 struct stmmac_ops {
 	/* MAC core initialization */
 	void (*core_init)(struct mac_device_info *hw, int mtu);
@@ -403,6 +409,7 @@ struct stmmac_ops {
 	void (*get_adv)(struct mac_device_info *hw, struct rgmii_adv *adv);
 };
 
+/* PTP and HW Timer helpers */
 struct stmmac_hwtimestamp {
 	void (*config_hw_tstamping) (void __iomem *ioaddr, u32 data);
 	void (*config_sub_second_increment) (void __iomem *ioaddr);
@@ -426,6 +433,7 @@ struct mii_regs {
 	unsigned int data;	/* MII Data */
 };
 
+/* Helpers to manage the descriptors for chain and ring modes */
 struct stmmac_mode_ops {
 	void (*init) (void *des, dma_addr_t phy_addr, unsigned int size,
 		      unsigned int extend_desc);
