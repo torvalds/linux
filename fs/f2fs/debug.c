@@ -171,7 +171,7 @@ get_cache:
 	si->cache_mem += npages << PAGE_CACHE_SHIFT;
 	si->cache_mem += sbi->n_dirty_dirs * sizeof(struct dir_inode_entry);
 	for (i = 0; i <= UPDATE_INO; i++)
-		si->cache_mem += sbi->ino_num[i] * sizeof(struct ino_entry);
+		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
 }
 
 static int stat_show(struct seq_file *s, void *v)

@@ -499,6 +499,14 @@ struct f2fs_bio_info {
 	struct rw_semaphore io_rwsem;	/* blocking op for bio */
 };
 
+/* for inner inode cache management */
+struct inode_management {
+	struct radix_tree_root ino_root;	/* ino entry array */
+	spinlock_t ino_lock;			/* for ino entry lock */
+	struct list_head ino_list;		/* inode list head */
+	unsigned long ino_num;			/* number of entries */
+};
+
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
@@ -528,11 +536,7 @@ struct f2fs_sb_info {
 	bool por_doing;				/* recovery is doing or not */
 	wait_queue_head_t cp_wait;
 
-	/* for inode management */
-	struct radix_tree_root ino_root[MAX_INO_ENTRY];	/* ino entry array */
-	spinlock_t ino_lock[MAX_INO_ENTRY];		/* for ino entry lock */
-	struct list_head ino_list[MAX_INO_ENTRY];	/* inode list head */
-	unsigned long ino_num[MAX_INO_ENTRY];		/* number of entries */
+	struct inode_management im[MAX_INO_ENTRY];      /* manage inode cache */
 
 	/* for orphan inode, use 0'th array */
 	unsigned int max_orphans;		/* max orphan inodes */

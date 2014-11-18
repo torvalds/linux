@@ -60,8 +60,8 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 		if (sbi->sb->s_bdi->dirty_exceeded)
 			return false;
 		for (i = 0; i <= UPDATE_INO; i++)
-			mem_size += (sbi->ino_num[i] * sizeof(struct ino_entry))
-							>> PAGE_CACHE_SHIFT;
+			mem_size += (sbi->im[i].ino_num *
+				sizeof(struct ino_entry)) >> PAGE_CACHE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
 	}
 	return res;
