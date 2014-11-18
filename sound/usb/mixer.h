@@ -1,6 +1,8 @@
 #ifndef __USBMIXER_H
 #define __USBMIXER_H
 
+#include <sound/info.h>
+
 struct usb_mixer_interface {
 	struct snd_usb_audio *chip;
 	struct usb_host_interface *hostif;
@@ -8,7 +10,7 @@ struct usb_mixer_interface {
 	unsigned int ignore_ctl_error;
 	struct urb *urb;
 	/* array[MAX_ID_ELEMS], indexed by unit id */
-	struct usb_mixer_elem_info **id_elems;
+	struct usb_mixer_elem_list **id_elems;
 
 	/* the usb audio specification version this interface complies to */
 	int protocol;
@@ -36,11 +38,21 @@ enum {
 	USB_MIXER_U16,
 };
 
-struct usb_mixer_elem_info {
+typedef void (*usb_mixer_elem_dump_func_t)(struct snd_info_buffer *buffer,
+					 struct usb_mixer_elem_list *list);
+typedef int (*usb_mixer_elem_resume_func_t)(struct usb_mixer_elem_list *elem);
+
+struct usb_mixer_elem_list {
 	struct usb_mixer_interface *mixer;
-	struct usb_mixer_elem_info *next_id_elem; /* list of controls with same id */
-	struct snd_ctl_elem_id *elem_id;
+	struct usb_mixer_elem_list *next_id_elem; /* list of controls with same id */
+	struct snd_kcontrol *kctl;
 	unsigned int id;
+	usb_mixer_elem_dump_func_t dump;
+	usb_mixer_elem_resume_func_t resume;
+};
+
+struct usb_mixer_elem_info {
+	struct usb_mixer_elem_list head;
 	unsigned int control;	/* CS or ICN (high byte) */
 	unsigned int cmask; /* channel mask bitmap: 0 = master */
 	unsigned int idx_off; /* Control index offset */
@@ -65,8 +77,12 @@ void snd_usb_mixer_notify_id(struct usb_mixer_interface *mixer, int unitid);
 int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 				int request, int validx, int value_set);
 
-int snd_usb_mixer_add_control(struct usb_mixer_interface *mixer,
+int snd_usb_mixer_add_control(struct usb_mixer_elem_list *list,
 			      struct snd_kcontrol *kctl);
+
+void snd_usb_mixer_elem_init_std(struct usb_mixer_elem_list *list,
+				 struct usb_mixer_interface *mixer,
+				 int unitid);
 
 int snd_usb_mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 			  unsigned int size, unsigned int __user *_tlv);
