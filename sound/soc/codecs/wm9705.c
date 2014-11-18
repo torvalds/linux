@@ -300,6 +300,8 @@ static int wm9705_reset(struct snd_soc_codec *codec)
 			return 0; /* Success */
 	}
 
+	dev_err(codec->dev, "Failed to reset: AC97 link error\n");
+
 	return -EIO;
 }
 
@@ -317,10 +319,8 @@ static int wm9705_soc_resume(struct snd_soc_codec *codec)
 	u16 *cache = codec->reg_cache;
 
 	ret = wm9705_reset(codec);
-	if (ret < 0) {
-		printk(KERN_ERR "could not reset AC97 codec\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	for (i = 2; i < ARRAY_SIZE(wm9705_reg) << 1; i += 2) {
 		soc_ac97_ops->write(codec->ac97, i, cache[i>>1]);
@@ -339,16 +339,13 @@ static int wm9705_soc_probe(struct snd_soc_codec *codec)
 
 	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0) {
-		printk(KERN_ERR "wm9705: failed to register AC97 codec\n");
+		dev_err(codec->dev, "Failed to register AC97 codec\n");
 		return ret;
 	}
 
 	ret = wm9705_reset(codec);
 	if (ret)
 		goto reset_err;
-
-	snd_soc_add_codec_controls(codec, wm9705_snd_ac97_controls,
-				ARRAY_SIZE(wm9705_snd_ac97_controls));
 
 	return 0;
 
@@ -374,6 +371,9 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9705 = {
 	.reg_word_size = sizeof(u16),
 	.reg_cache_step = 2,
 	.reg_cache_default = wm9705_reg,
+
+	.controls = wm9705_snd_ac97_controls,
+	.num_controls = ARRAY_SIZE(wm9705_snd_ac97_controls),
 	.dapm_widgets = wm9705_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm9705_dapm_widgets),
 	.dapm_routes = wm9705_audio_map,
