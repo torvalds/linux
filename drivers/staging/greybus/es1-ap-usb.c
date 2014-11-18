@@ -96,7 +96,7 @@ static void cport_out_callback(struct urb *urb);
 static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 				gfp_t gfp_mask)
 {
-	u32 cport_reserve = gbuf->dest_cport_id == CPORT_ID_BAD ? 0 : 1;
+	u8 dest_cport_id = gbuf->dest_cport_id;
 	u8 *buffer;
 
 	if (gbuf->transfer_buffer)
@@ -107,29 +107,29 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 		       ES1_GBUF_MSG_SIZE);
 	}
 
-	/* For ES2 we need to figure out what cport is going to what endpoint,
-	 * but for ES1, it's so dirt simple, we don't have a choice...
+	/*
+	 * For ES1 we need to insert a byte at the front of the data
+	 * to indicate the destination CPort id.  So we allocate one
+	 * extra byte to allow for that.
 	 *
-	 * Also, do a "slow" allocation now, if we need speed, use a cache
+	 * This is only needed for outbound data, but we handle
+	 * buffers for inbound data the same way for consistency.
 	 *
-	 * For ES1 outbound buffers need to insert their target
-	 * CPort Id before the data; set aside an extra byte for
-	 * that purpose in that case.
+	 * XXX Do we need to indicate the destination device id too?
 	 */
-	buffer = kzalloc(cport_reserve + size, gfp_mask);
+	buffer = kzalloc(1 + size, gfp_mask);
 	if (!buffer)
 		return -ENOMEM;
 
 	/* Insert the cport id for outbound buffers */
-	if (cport_reserve) {
-		if (gbuf->dest_cport_id > (u16)U8_MAX) {
-			pr_err("gbuf->dest_cport_id (%hd) is out of range!\n",
-				gbuf->dest_cport_id);
-			kfree(buffer);
-			return -EINVAL;
-		}
-		*buffer++ = gbuf->dest_cport_id;
+	if (dest_cport_id != CPORT_ID_BAD && dest_cport_id > (u16)U8_MAX) {
+		pr_err("dest_cport_id (%hd) is out of range!\n",
+			gbuf->dest_cport_id);
+		kfree(buffer);
+		return -EINVAL;
 	}
+	*buffer++ = gbuf->dest_cport_id;
+
 	gbuf->transfer_buffer = buffer;
 	gbuf->transfer_buffer_length = size;
 
@@ -145,9 +145,8 @@ static void free_gbuf_data(struct gbuf *gbuf)
 	if (!transfer_buffer)
 		return;
 
-	/* Account for the cport id in outbound buffers */
-	if (gbuf->dest_cport_id != CPORT_ID_BAD)
-		transfer_buffer--;	/* Back up to cport id */
+	/* Account for the prepended cport id */
+	transfer_buffer--;
 	kfree(transfer_buffer);
 	gbuf->transfer_buffer = NULL;
 }
@@ -221,6 +220,12 @@ static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 	if (!transfer_buffer)
 		return -EINVAL;
 	buffer = &transfer_buffer[-1];	/* yes, we mean -1 */
+
+	/* Do one last check of the target CPort id */
+	if (*buffer == CPORT_ID_BAD) {
+		pr_err("request to submit inbound buffer\n");
+		return -EINVAL;
+	}
 
 	/* Find a free urb */
 	urb = next_free_urb(es1, gfp_mask);
