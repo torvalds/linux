@@ -32,6 +32,7 @@ config ARMADA_370_XP_TIMER
 
 config MESON6_TIMER
 	bool
+	select CLKSRC_MMIO
 
 config ORION_TIMER
 	select CLKSRC_OF
