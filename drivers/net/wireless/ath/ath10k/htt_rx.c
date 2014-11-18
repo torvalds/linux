@@ -1197,8 +1197,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 	int fw_desc_len;
 	u8 *fw_desc;
 	bool channel_set;
-	int i, j;
-	int ret;
+	int i, ret, mpdu_count = 0;
 
 	lockdep_assert_held(&htt->rx_ring.lock);
 
@@ -1237,51 +1236,50 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			(sizeof(struct htt_rx_indication_mpdu_range) *
 				num_mpdu_ranges));
 
-	for (i = 0; i < num_mpdu_ranges; i++) {
-		for (j = 0; j < mpdu_ranges[i].mpdu_count; j++) {
-			attention = 0;
-			__skb_queue_head_init(&amsdu);
-			ret = ath10k_htt_rx_amsdu_pop(htt, &fw_desc,
-						      &fw_desc_len, &amsdu,
-						      &attention);
+	for (i = 0; i < num_mpdu_ranges; i++)
+		mpdu_count += mpdu_ranges[i].mpdu_count;
 
-			if (ret < 0) {
-				ath10k_warn(ar, "failed to pop amsdu from htt rx ring %d\n",
-					    ret);
-				__skb_queue_purge(&amsdu);
-				continue;
-			}
-
-			if (!ath10k_htt_rx_amsdu_allowed(htt, skb_peek(&amsdu),
-							 channel_set,
-							 attention)) {
-				__skb_queue_purge(&amsdu);
-				continue;
-			}
-
-			if (ret > 0 && ath10k_unchain_msdu(&amsdu) < 0) {
-				__skb_queue_purge(&amsdu);
-				continue;
-			}
-
-			if (attention & RX_ATTENTION_FLAGS_FCS_ERR)
-				rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
-			else
-				rx_status->flag &= ~RX_FLAG_FAILED_FCS_CRC;
-
-			if (attention & RX_ATTENTION_FLAGS_TKIP_MIC_ERR)
-				rx_status->flag |= RX_FLAG_MMIC_ERROR;
-			else
-				rx_status->flag &= ~RX_FLAG_MMIC_ERROR;
-
-			hdr = ath10k_htt_rx_skb_get_hdr(skb_peek(&amsdu));
-
-			if (ath10k_htt_rx_hdr_is_amsdu(hdr))
-				ath10k_htt_rx_amsdu(htt, rx_status, &amsdu);
-			else
-				ath10k_htt_rx_msdu(htt, rx_status,
-						   __skb_dequeue(&amsdu));
+	while (mpdu_count--) {
+		attention = 0;
+		__skb_queue_head_init(&amsdu);
+		ret = ath10k_htt_rx_amsdu_pop(htt, &fw_desc,
+					      &fw_desc_len, &amsdu,
+					      &attention);
+		if (ret < 0) {
+			ath10k_warn(ar, "failed to pop amsdu from htt rx ring %d\n",
+				    ret);
+			__skb_queue_purge(&amsdu);
+			continue;
 		}
+
+		if (!ath10k_htt_rx_amsdu_allowed(htt, skb_peek(&amsdu),
+						 channel_set, attention)) {
+			__skb_queue_purge(&amsdu);
+			continue;
+		}
+
+		if (ret > 0 && ath10k_unchain_msdu(&amsdu) < 0) {
+			__skb_queue_purge(&amsdu);
+			continue;
+		}
+
+		if (attention & RX_ATTENTION_FLAGS_FCS_ERR)
+			rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
+		else
+			rx_status->flag &= ~RX_FLAG_FAILED_FCS_CRC;
+
+		if (attention & RX_ATTENTION_FLAGS_TKIP_MIC_ERR)
+			rx_status->flag |= RX_FLAG_MMIC_ERROR;
+		else
+			rx_status->flag &= ~RX_FLAG_MMIC_ERROR;
+
+		hdr = ath10k_htt_rx_skb_get_hdr(skb_peek(&amsdu));
+
+		if (ath10k_htt_rx_hdr_is_amsdu(hdr))
+			ath10k_htt_rx_amsdu(htt, rx_status, &amsdu);
+		else
+			ath10k_htt_rx_msdu(htt, rx_status,
+					   __skb_dequeue(&amsdu));
 	}
 
 	tasklet_schedule(&htt->rx_replenish_task);
