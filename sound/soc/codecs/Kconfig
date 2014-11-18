@@ -223,6 +223,7 @@ config SND_SOC_AD193X_I2C
 	select SND_SOC_AD193X
 
 config SND_SOC_AD1980
+	select REGMAP_AC97
 	tristate
 
 config SND_SOC_AD73311
