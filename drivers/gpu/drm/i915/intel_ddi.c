@@ -2075,6 +2075,14 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	}
 
+	if (encoder->type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi =
+			enc_to_intel_hdmi(&encoder->base);
+
+		if (intel_hdmi->infoframe_enabled(&encoder->base))
+			pipe_config->has_infoframe = true;
+	}
+
 	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
 		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
 		if (temp & AUDIO_OUTPUT_ENABLE(intel_crtc->pipe))
