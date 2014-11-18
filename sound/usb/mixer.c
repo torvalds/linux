@@ -136,6 +136,10 @@ check_mapped_name(const struct usbmix_name_map *p, char *buf, int buflen)
 	return strlcpy(buf, p->name, buflen);
 }
 
+/* ignore the error value if ignore_ctl_error flag is set */
+#define filter_error(cval, err) \
+	((cval)->mixer->ignore_ctl_error ? 0 : (err))
+
 /* check whether the control should be ignored */
 static inline int
 check_ignored_ctl(const struct usbmix_name_map *p)
@@ -1088,7 +1092,7 @@ static int mixer_ctl_feature_get(struct snd_kcontrol *kcontrol,
 				continue;
 			err = snd_usb_get_cur_mix_value(cval, c + 1, cnt, &val);
 			if (err < 0)
-				return cval->mixer->ignore_ctl_error ? 0 : err;
+				return filter_error(cval, err);
 			val = get_relative_value(cval, val);
 			ucontrol->value.integer.value[cnt] = val;
 			cnt++;
@@ -1098,7 +1102,7 @@ static int mixer_ctl_feature_get(struct snd_kcontrol *kcontrol,
 		/* master channel */
 		err = snd_usb_get_cur_mix_value(cval, 0, 0, &val);
 		if (err < 0)
-			return cval->mixer->ignore_ctl_error ? 0 : err;
+			return filter_error(cval, err);
 		val = get_relative_value(cval, val);
 		ucontrol->value.integer.value[0] = val;
 	}
@@ -1120,7 +1124,7 @@ static int mixer_ctl_feature_put(struct snd_kcontrol *kcontrol,
 				continue;
 			err = snd_usb_get_cur_mix_value(cval, c + 1, cnt, &oval);
 			if (err < 0)
-				return cval->mixer->ignore_ctl_error ? 0 : err;
+				return filter_error(cval, err);
 			val = ucontrol->value.integer.value[cnt];
 			val = get_abs_value(cval, val);
 			if (oval != val) {
@@ -1133,7 +1137,7 @@ static int mixer_ctl_feature_put(struct snd_kcontrol *kcontrol,
 		/* master channel */
 		err = snd_usb_get_cur_mix_value(cval, 0, 0, &oval);
 		if (err < 0)
-			return cval->mixer->ignore_ctl_error ? 0 : err;
+			return filter_error(cval, err);
 		val = ucontrol->value.integer.value[0];
 		val = get_abs_value(cval, val);
 		if (val != oval) {
@@ -1628,12 +1632,10 @@ static int mixer_ctl_procunit_get(struct snd_kcontrol *kcontrol,
 	int err, val;
 
 	err = get_cur_ctl_value(cval, cval->control << 8, &val);
-	if (err < 0 && cval->mixer->ignore_ctl_error) {
+	if (err < 0) {
 		ucontrol->value.integer.value[0] = cval->min;
-		return 0;
+		return filter_error(cval, err);
 	}
-	if (err < 0)
-		return err;
 	val = get_relative_value(cval, val);
 	ucontrol->value.integer.value[0] = val;
 	return 0;
@@ -1647,11 +1649,8 @@ static int mixer_ctl_procunit_put(struct snd_kcontrol *kcontrol,
 	int val, oval, err;
 
 	err = get_cur_ctl_value(cval, cval->control << 8, &oval);
-	if (err < 0) {
-		if (cval->mixer->ignore_ctl_error)
-			return 0;
-		return err;
-	}
+	if (err < 0)
+		return filter_error(cval, err);
 	val = ucontrol->value.integer.value[0];
 	val = get_abs_value(cval, val);
 	if (val != oval) {
@@ -1923,11 +1922,8 @@ static int mixer_ctl_selector_get(struct snd_kcontrol *kcontrol,
 
 	err = get_cur_ctl_value(cval, cval->control << 8, &val);
 	if (err < 0) {
-		if (cval->mixer->ignore_ctl_error) {
-			ucontrol->value.enumerated.item[0] = 0;
-			return 0;
-		}
-		return err;
+		ucontrol->value.enumerated.item[0] = 0;
+		return filter_error(cval, err);
 	}
 	val = get_relative_value(cval, val);
 	ucontrol->value.enumerated.item[0] = val;
@@ -1942,11 +1938,8 @@ static int mixer_ctl_selector_put(struct snd_kcontrol *kcontrol,
 	int val, oval, err;
 
 	err = get_cur_ctl_value(cval, cval->control << 8, &oval);
-	if (err < 0) {
-		if (cval->mixer->ignore_ctl_error)
-			return 0;
-		return err;
-	}
+	if (err < 0)
+		return filter_error(cval, err);
 	val = ucontrol->value.enumerated.item[0];
 	val = get_abs_value(cval, val);
 	if (val != oval) {
