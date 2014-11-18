@@ -3752,6 +3752,8 @@ static int ci_upload_dpm_level_enable_mask(struct radeon_device *rdev)
 	struct ci_power_info *pi = ci_get_pi(rdev);
 	PPSMC_Result result;
 
+	ci_apply_disp_minimum_voltage_request(rdev);
+
 	if (!pi->sclk_dpm_key_disabled) {
 		if (pi->dpm_level_enable_mask.sclk_dpm_enable_mask) {
 			result = ci_send_msg_to_smc_with_parameter(rdev,
@@ -3781,8 +3783,6 @@ static int ci_upload_dpm_level_enable_mask(struct radeon_device *rdev)
 				return -EINVAL;
 		}
 	}
-
-	ci_apply_disp_minimum_voltage_request(rdev);
 
 	return 0;
 }
