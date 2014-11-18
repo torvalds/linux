@@ -195,6 +195,9 @@ static bool dln2_transfer_complete(struct dln2_dev *dln2, struct urb *urb,
 	struct dln2_rx_context *rxc;
 	bool valid_slot = false;
 
+	if (rx_slot >= DLN2_MAX_RX_SLOTS)
+		goto out;
+
 	rxc = &rxs->slots[rx_slot];
 
 	/*
@@ -210,6 +213,7 @@ static bool dln2_transfer_complete(struct dln2_dev *dln2, struct urb *urb,
 	}
 	spin_unlock(&rxs->lock);
 
+out:
 	if (!valid_slot)
 		dev_warn(dev, "bad/late response %d/%d\n", handle, rx_slot);
 
