@@ -29,8 +29,9 @@
 		#size-cells = <1>;
 		ranges;
 
-		framebuffer0-hdmi {
-			compatible = "simple-framebuffer";
+		framebuffer@0 {
+			compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0-hdmi";
 			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
 				 <&ahb_gates 44>;
 			status = "disabled";
