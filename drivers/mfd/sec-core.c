@@ -74,6 +74,15 @@ static const struct mfd_cell s2mps11_devs[] = {
 	}
 };
 
+static const struct mfd_cell s2mps13_devs[] = {
+	{ .name = "s2mps13-pmic", },
+	{ .name = "s2mps13-rtc", },
+	{
+		.name = "s2mps13-clk",
+		.of_compatible = "samsung,s2mps13-clk",
+	},
+};
+
 static const struct mfd_cell s2mps14_devs[] = {
 	{
 		.name = "s2mps14-pmic",
@@ -107,6 +116,9 @@ static const struct of_device_id sec_dt_match[] = {
 	}, {
 		.compatible = "samsung,s2mps11-pmic",
 		.data = (void *)S2MPS11X,
+	}, {
+		.compatible = "samsung,s2mps13-pmic",
+		.data = (void *)S2MPS13X,
 	}, {
 		.compatible = "samsung,s2mps14-pmic",
 		.data = (void *)S2MPS14X,
@@ -377,6 +389,10 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	case S2MPS11X:
 		sec_devs = s2mps11_devs;
 		num_sec_devs = ARRAY_SIZE(s2mps11_devs);
+		break;
+	case S2MPS13X:
+		sec_devs = s2mps13_devs;
+		num_sec_devs = ARRAY_SIZE(s2mps13_devs);
 		break;
 	case S2MPS14X:
 		sec_devs = s2mps14_devs;
