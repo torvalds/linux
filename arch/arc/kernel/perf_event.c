@@ -551,6 +551,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id arc_pmu_match[] = {
 	{ .compatible = "snps,arc700-pct" },
+	{ .compatible = "snps,archs-pct" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, arc_pmu_match);
@@ -558,7 +559,7 @@ MODULE_DEVICE_TABLE(of, arc_pmu_match);
 
 static struct platform_driver arc_pmu_driver = {
 	.driver	= {
-		.name		= "arc700-pct",
+		.name		= "arc-pct",
 		.of_match_table = of_match_ptr(arc_pmu_match),
 	},
 	.probe		= arc_pmu_device_probe,
