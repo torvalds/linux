@@ -153,7 +153,7 @@ static int gb_gpio_proto_version_operation(struct gb_gpio_controller *gb_gpio_co
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "version response %hhu",
 			response->status);
@@ -199,7 +199,7 @@ static int gb_gpio_line_count_operation(struct gb_gpio_controller *gb_gpio_contr
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "line count response %hhu",
 			response->status);
@@ -234,7 +234,7 @@ static int gb_gpio_activate_operation(struct gb_gpio_controller *gb_gpio_control
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -244,7 +244,7 @@ static int gb_gpio_activate_operation(struct gb_gpio_controller *gb_gpio_control
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "activate response %hhu",
 			response->status);
@@ -278,7 +278,7 @@ static int gb_gpio_deactivate_operation(struct gb_gpio_controller *gb_gpio_contr
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -288,7 +288,7 @@ static int gb_gpio_deactivate_operation(struct gb_gpio_controller *gb_gpio_contr
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "deactivate response %hhu",
 			response->status);
@@ -320,7 +320,7 @@ static int gb_gpio_get_direction_operation(struct gb_gpio_controller *gb_gpio_co
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -330,7 +330,7 @@ static int gb_gpio_get_direction_operation(struct gb_gpio_controller *gb_gpio_co
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "get direction response %hhu",
 			response->status);
@@ -369,7 +369,7 @@ static int gb_gpio_direction_in_operation(struct gb_gpio_controller *gb_gpio_con
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -379,7 +379,7 @@ static int gb_gpio_direction_in_operation(struct gb_gpio_controller *gb_gpio_con
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "direction in response %hhu",
 			response->status);
@@ -412,7 +412,7 @@ static int gb_gpio_direction_out_operation(struct gb_gpio_controller *gb_gpio_co
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 	request->value = value_high ? 1 : 0;
 
@@ -423,7 +423,7 @@ static int gb_gpio_direction_out_operation(struct gb_gpio_controller *gb_gpio_co
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "direction out response %hhu",
 			response->status);
@@ -456,7 +456,7 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *gb_gpio_contro
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -466,7 +466,7 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *gb_gpio_contro
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "get value response %hhu",
 			response->status);
@@ -507,7 +507,7 @@ static int gb_gpio_set_value_operation(struct gb_gpio_controller *gb_gpio_contro
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 	request->value = value_high ? 1 : 0;
 
@@ -518,7 +518,7 @@ static int gb_gpio_set_value_operation(struct gb_gpio_controller *gb_gpio_contro
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "set value response %hhu",
 			response->status);
@@ -554,7 +554,7 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *gb_gpio_con
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 	request->usec = cpu_to_le16(debounce_usec);
 
@@ -565,7 +565,7 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *gb_gpio_con
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "set debounce response %hhu",
 			response->status);

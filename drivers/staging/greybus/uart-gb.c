@@ -229,7 +229,7 @@ static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 					sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->size = cpu_to_le16(size);
 	memcpy(&request->data[0], data, size);
 
@@ -241,7 +241,7 @@ static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "send data response %hhu",
 				  response->status);
@@ -267,7 +267,7 @@ static int send_line_coding(struct gb_tty *tty,
 					sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	memcpy(&request->line_coding, line_coding, sizeof(*line_coding));
 
 	/* Synchronous operation--no callback */
@@ -278,7 +278,7 @@ static int send_line_coding(struct gb_tty *tty,
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "send line coding response %hhu",
 				  response->status);
@@ -304,7 +304,7 @@ static int send_control(struct gb_tty *tty, u16 control)
 					sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->control = cpu_to_le16(control);
 
 	/* Synchronous operation--no callback */
@@ -315,7 +315,7 @@ static int send_control(struct gb_tty *tty, u16 control)
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "send control response %hhu",
 				  response->status);
@@ -345,7 +345,7 @@ static int send_break(struct gb_tty *tty, u8 state)
 					sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->state = state;
 
 	/* Synchronous operation--no callback */
@@ -356,7 +356,7 @@ static int send_break(struct gb_tty *tty, u8 state)
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "send break response %hhu",
 				  response->status);

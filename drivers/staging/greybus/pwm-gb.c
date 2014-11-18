@@ -110,7 +110,7 @@ static int gb_pwm_proto_version_operation(struct gb_pwm_chip *pwmc)
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "version response %hhu",
 				  response->status);
@@ -151,7 +151,7 @@ static int gb_pwm_count_operation(struct gb_pwm_chip *pwmc)
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "pwm count response %hhu",
 				  response->status);
@@ -181,7 +181,7 @@ static int gb_pwm_activate_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -191,7 +191,7 @@ static int gb_pwm_activate_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "activate response %hhu",
 				  response->status);
@@ -220,7 +220,7 @@ static int gb_pwm_deactivate_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -230,7 +230,7 @@ static int gb_pwm_deactivate_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "deactivate response %hhu",
 				  response->status);
@@ -258,7 +258,7 @@ static int gb_pwm_config_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 	request->duty = duty;
 	request->period = period;
@@ -270,7 +270,7 @@ static int gb_pwm_config_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "config response %hhu",
 				  response->status);
@@ -299,7 +299,7 @@ static int gb_pwm_set_polarity_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 	request->polarity = polarity;
 
@@ -310,7 +310,7 @@ static int gb_pwm_set_polarity_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "set polarity response %hhu",
 				  response->status);
@@ -339,7 +339,7 @@ static int gb_pwm_enable_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -349,7 +349,7 @@ static int gb_pwm_enable_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "enable response %hhu",
 				  response->status);
@@ -378,7 +378,7 @@ static int gb_pwm_disable_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -388,7 +388,7 @@ static int gb_pwm_disable_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "disable response %hhu",
 				  response->status);

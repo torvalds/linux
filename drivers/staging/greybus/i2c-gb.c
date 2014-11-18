@@ -118,7 +118,7 @@ static int gb_i2c_proto_version_operation(struct gb_i2c_device *gb_i2c_dev)
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "version response %hhu",
 			response->status);
@@ -170,7 +170,7 @@ static int gb_i2c_functionality_operation(struct gb_i2c_device *gb_i2c_dev)
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "functionality response %hhu",
 			response->status);
@@ -198,7 +198,7 @@ static int gb_i2c_timeout_operation(struct gb_i2c_device *gb_i2c_dev, u16 msec)
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->msec = cpu_to_le16(msec);
 
 	/* Synchronous operation--no callback */
@@ -208,7 +208,7 @@ static int gb_i2c_timeout_operation(struct gb_i2c_device *gb_i2c_dev, u16 msec)
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "timeout response %hhu",
 			response->status);
@@ -235,7 +235,7 @@ static int gb_i2c_retries_operation(struct gb_i2c_device *gb_i2c_dev,
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->retries = retries;
 
 	/* Synchronous operation--no callback */
@@ -245,7 +245,7 @@ static int gb_i2c_retries_operation(struct gb_i2c_device *gb_i2c_dev,
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		gb_connection_err(connection, "retries response %hhu",
 			response->status);
@@ -321,7 +321,7 @@ gb_i2c_transfer_request(struct gb_connection *connection,
 	if (!operation)
 		return NULL;
 
-	request = operation->request_payload;
+	request = operation->request.payload;
 	request->op_count = cpu_to_le16(op_count);
 	/* Fill in the ops array */
 	op = &request->ops[0];
@@ -380,7 +380,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 		goto out;
 	}
 
-	response = operation->response_payload;
+	response = operation->response.payload;
 	if (response->status) {
 		if (response->status == GB_OP_RETRY) {
 			ret = -EAGAIN;

@@ -35,6 +35,12 @@ struct gbuf {
 	void *hcd_data;			/* for the HCD to track the gbuf */
 };
 
+struct gb_message {
+	void			*payload;
+	struct gb_operation	*operation;
+	struct gbuf		*gbuf;
+};
+
 /*
  * A Greybus operation is a remote procedure call performed over a
  * connection between the AP and a function on Greybus module.
@@ -66,8 +72,8 @@ struct gbuf {
 typedef void (*gb_operation_callback)(struct gb_operation *);
 struct gb_operation {
 	struct gb_connection	*connection;
-	struct gbuf		*request;
-	struct gbuf		*response;
+	struct gb_message	request;
+	struct gb_message	response;
 	u16			id;
 	bool			canceled;
 
@@ -79,10 +85,6 @@ struct gb_operation {
 
 	struct kref		kref;
 	struct list_head	links;	/* connection->{operations,pending} */
-
-	/* These are what's used by caller */
-	void			*request_payload;
-	void			*response_payload;
 };
 
 void gb_connection_operation_recv(struct gb_connection *connection,
