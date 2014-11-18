@@ -3674,8 +3674,7 @@ static int nf_tables_abort(struct sk_buff *skb)
 			break;
 		case NFT_MSG_NEWCHAIN:
 			if (nft_trans_chain_update(trans)) {
-				if (nft_trans_chain_stats(trans))
-					free_percpu(nft_trans_chain_stats(trans));
+				free_percpu(nft_trans_chain_stats(trans));
 
 				nft_trans_destroy(trans);
 			} else {
