@@ -33,8 +33,8 @@ module_param(debug, int, 0644);
 struct vb2_dma_sg_buf {
 	void				*vaddr;
 	struct page			**pages;
-	int				write;
 	int				offset;
+	enum dma_data_direction		dma_dir;
 	struct sg_table			sg_table;
 	size_t				size;
 	unsigned int			num_pages;
@@ -97,7 +97,7 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_fla
 		return NULL;
 
 	buf->vaddr = NULL;
-	buf->write = 0;
+	buf->dma_dir = DMA_NONE;
 	buf->offset = 0;
 	buf->size = size;
 	/* size is already page aligned */
@@ -162,7 +162,8 @@ static inline int vma_is_io(struct vm_area_struct *vma)
 }
 
 static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
-				    unsigned long size, int write)
+				    unsigned long size,
+				    enum dma_data_direction dma_dir)
 {
 	struct vb2_dma_sg_buf *buf;
 	unsigned long first, last;
@@ -174,7 +175,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 		return NULL;
 
 	buf->vaddr = NULL;
-	buf->write = write;
+	buf->dma_dir = dma_dir;
 	buf->offset = vaddr & ~PAGE_MASK;
 	buf->size = size;
 
@@ -221,7 +222,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 		num_pages_from_user = get_user_pages(current, current->mm,
 					     vaddr & PAGE_MASK,
 					     buf->num_pages,
-					     write,
+					     buf->dma_dir == DMA_FROM_DEVICE,
 					     1, /* force */
 					     buf->pages,
 					     NULL);
@@ -265,7 +266,7 @@ static void vb2_dma_sg_put_userptr(void *buf_priv)
 		vm_unmap_ram(buf->vaddr, buf->num_pages);
 	sg_free_table(&buf->sg_table);
 	while (--i >= 0) {
-		if (buf->write)
+		if (buf->dma_dir == DMA_FROM_DEVICE)
 			set_page_dirty_lock(buf->pages[i]);
 		if (!vma_is_io(buf->vma))
 			put_page(buf->pages[i]);

@@ -229,7 +229,7 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 
 struct vb2_dc_attachment {
 	struct sg_table sgt;
-	enum dma_data_direction dir;
+	enum dma_data_direction dma_dir;
 };
 
 static int vb2_dc_dmabuf_ops_attach(struct dma_buf *dbuf, struct device *dev,
@@ -264,7 +264,7 @@ static int vb2_dc_dmabuf_ops_attach(struct dma_buf *dbuf, struct device *dev,
 		wr = sg_next(wr);
 	}
 
-	attach->dir = DMA_NONE;
+	attach->dma_dir = DMA_NONE;
 	dbuf_attach->priv = attach;
 
 	return 0;
@@ -282,16 +282,16 @@ static void vb2_dc_dmabuf_ops_detach(struct dma_buf *dbuf,
 	sgt = &attach->sgt;
 
 	/* release the scatterlist cache */
-	if (attach->dir != DMA_NONE)
+	if (attach->dma_dir != DMA_NONE)
 		dma_unmap_sg(db_attach->dev, sgt->sgl, sgt->orig_nents,
-			attach->dir);
+			attach->dma_dir);
 	sg_free_table(sgt);
 	kfree(attach);
 	db_attach->priv = NULL;
 }
 
 static struct sg_table *vb2_dc_dmabuf_ops_map(
-	struct dma_buf_attachment *db_attach, enum dma_data_direction dir)
+	struct dma_buf_attachment *db_attach, enum dma_data_direction dma_dir)
 {
 	struct vb2_dc_attachment *attach = db_attach->priv;
 	/* stealing dmabuf mutex to serialize map/unmap operations */
@@ -303,27 +303,27 @@ static struct sg_table *vb2_dc_dmabuf_ops_map(
 
 	sgt = &attach->sgt;
 	/* return previously mapped sg table */
-	if (attach->dir == dir) {
+	if (attach->dma_dir == dma_dir) {
 		mutex_unlock(lock);
 		return sgt;
 	}
 
 	/* release any previous cache */
-	if (attach->dir != DMA_NONE) {
+	if (attach->dma_dir != DMA_NONE) {
 		dma_unmap_sg(db_attach->dev, sgt->sgl, sgt->orig_nents,
-			attach->dir);
-		attach->dir = DMA_NONE;
+			attach->dma_dir);
+		attach->dma_dir = DMA_NONE;
 	}
 
 	/* mapping to the client with new direction */
-	ret = dma_map_sg(db_attach->dev, sgt->sgl, sgt->orig_nents, dir);
+	ret = dma_map_sg(db_attach->dev, sgt->sgl, sgt->orig_nents, dma_dir);
 	if (ret <= 0) {
 		pr_err("failed to map scatterlist\n");
 		mutex_unlock(lock);
 		return ERR_PTR(-EIO);
 	}
 
-	attach->dir = dir;
+	attach->dma_dir = dma_dir;
 
 	mutex_unlock(lock);
 
@@ -331,7 +331,7 @@ static struct sg_table *vb2_dc_dmabuf_ops_map(
 }
 
 static void vb2_dc_dmabuf_ops_unmap(struct dma_buf_attachment *db_attach,
-	struct sg_table *sgt, enum dma_data_direction dir)
+	struct sg_table *sgt, enum dma_data_direction dma_dir)
 {
 	/* nothing to be done here */
 }
@@ -460,7 +460,8 @@ static int vb2_dc_get_user_pfn(unsigned long start, int n_pages,
 }
 
 static int vb2_dc_get_user_pages(unsigned long start, struct page **pages,
-	int n_pages, struct vm_area_struct *vma, int write)
+	int n_pages, struct vm_area_struct *vma,
+	enum dma_data_direction dma_dir)
 {
 	if (vma_is_io(vma)) {
 		unsigned int i;
@@ -482,7 +483,7 @@ static int vb2_dc_get_user_pages(unsigned long start, struct page **pages,
 		int n;
 
 		n = get_user_pages(current, current->mm, start & PAGE_MASK,
-			n_pages, write, 1, pages, NULL);
+			n_pages, dma_dir == DMA_FROM_DEVICE, 1, pages, NULL);
 		/* negative error means that no page was pinned */
 		n = max(n, 0);
 		if (n != n_pages) {
@@ -551,7 +552,7 @@ static inline dma_addr_t vb2_dc_pfn_to_dma(struct device *dev, unsigned long pfn
 #endif
 
 static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
-	unsigned long size, int write)
+	unsigned long size, enum dma_data_direction dma_dir)
 {
 	struct vb2_dc_conf *conf = alloc_ctx;
 	struct vb2_dc_buf *buf;
@@ -582,7 +583,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 		return ERR_PTR(-ENOMEM);
 
 	buf->dev = conf->dev;
-	buf->dma_dir = write ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	buf->dma_dir = dma_dir;
 
 	start = vaddr & PAGE_MASK;
 	offset = vaddr & ~PAGE_MASK;
@@ -618,7 +619,8 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	}
 
 	/* extract page list from userspace mapping */
-	ret = vb2_dc_get_user_pages(start, pages, n_pages, vma, write);
+	ret = vb2_dc_get_user_pages(start, pages, n_pages, vma,
+				    dma_dir == DMA_FROM_DEVICE);
 	if (ret) {
 		unsigned long pfn;
 		if (vb2_dc_get_user_pfn(start, n_pages, vma, &pfn) == 0) {
@@ -782,7 +784,7 @@ static void vb2_dc_detach_dmabuf(void *mem_priv)
 }
 
 static void *vb2_dc_attach_dmabuf(void *alloc_ctx, struct dma_buf *dbuf,
-	unsigned long size, int write)
+	unsigned long size, enum dma_data_direction dma_dir)
 {
 	struct vb2_dc_conf *conf = alloc_ctx;
 	struct vb2_dc_buf *buf;
@@ -804,7 +806,7 @@ static void *vb2_dc_attach_dmabuf(void *alloc_ctx, struct dma_buf *dbuf,
 		return dba;
 	}
 
-	buf->dma_dir = write ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	buf->dma_dir = dma_dir;
 	buf->size = size;
 	buf->db_attach = dba;
 
