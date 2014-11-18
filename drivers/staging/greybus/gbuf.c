@@ -62,8 +62,6 @@ struct gbuf *greybus_alloc_gbuf(struct greybus_host_device *hd,
 }
 EXPORT_SYMBOL_GPL(greybus_alloc_gbuf);
 
-static DEFINE_MUTEX(gbuf_mutex);
-
 static void free_gbuf(struct kref *kref)
 {
 	struct gbuf *gbuf = container_of(kref, struct gbuf, kref);
@@ -71,24 +69,14 @@ static void free_gbuf(struct kref *kref)
 	gbuf->hd->driver->free_gbuf_data(gbuf);
 
 	kmem_cache_free(gbuf_head_cache, gbuf);
-	mutex_unlock(&gbuf_mutex);
 }
 
 void greybus_free_gbuf(struct gbuf *gbuf)
 {
 	/* drop the reference count and get out of here */
-	kref_put_mutex(&gbuf->kref, free_gbuf, &gbuf_mutex);
+	kref_put(&gbuf->kref, free_gbuf);
 }
 EXPORT_SYMBOL_GPL(greybus_free_gbuf);
-
-struct gbuf *greybus_get_gbuf(struct gbuf *gbuf)
-{
-	mutex_lock(&gbuf_mutex);
-	kref_get(&gbuf->kref);
-	mutex_unlock(&gbuf_mutex);
-	return gbuf;
-}
-EXPORT_SYMBOL_GPL(greybus_get_gbuf);
 
 int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {

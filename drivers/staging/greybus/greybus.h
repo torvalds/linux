@@ -184,8 +184,6 @@ struct gbuf *greybus_alloc_gbuf(struct greybus_host_device *hd,
 				u16 dest_cport_id, unsigned int size,
 				gfp_t gfp_mask);
 void greybus_free_gbuf(struct gbuf *gbuf);
-struct gbuf *greybus_get_gbuf(struct gbuf *gbuf);
-#define greybus_put_gbuf	greybus_free_gbuf
 
 int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t mem_flags);
 void greybus_kill_gbuf(struct gbuf *gbuf);
