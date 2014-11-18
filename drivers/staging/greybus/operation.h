@@ -26,8 +26,8 @@ enum gb_operation_status {
 
 struct gb_message {
 	void			*payload;
+
 	struct gb_operation	*operation;
-	struct greybus_host_device *hd;
 	u16			dest_cport_id;	/* Destination CPort id */
 	int			status;
 

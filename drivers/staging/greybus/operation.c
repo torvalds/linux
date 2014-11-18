@@ -105,10 +105,10 @@ gb_pending_operation_find(struct gb_connection *connection, u16 id)
 
 static int gb_message_send(struct gb_message *message, gfp_t gfp_mask)
 {
-	struct greybus_host_device *hd = message->hd;
+	struct gb_connection *connection = message->operation->connection;
 
 	message->status = -EINPROGRESS;
-	message->cookie = hd->driver->buffer_send(hd,
+	message->cookie = connection->hd->driver->buffer_send(connection->hd,
 					message->dest_cport_id,
 					message->buffer,
 					message->buffer_size,
@@ -124,10 +124,13 @@ static int gb_message_send(struct gb_message *message, gfp_t gfp_mask)
 
 static void gb_message_cancel(struct gb_message *message)
 {
+	struct greybus_host_device *hd;
+
 	if (message->status != -EINPROGRESS)
 		return;
 
-	message->hd->driver->buffer_cancel(message->cookie);
+	hd = message->operation->connection->hd;
+	hd->driver->buffer_cancel(message->cookie);
 }
 
 /*
@@ -255,7 +258,6 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	if (!message->buffer)
 		return -ENOMEM;
 	message->buffer_size = size;
-	message->hd = hd;
 	message->dest_cport_id = dest_cport_id;
 	message->status = -EBADR;	/* Initial value--means "never set" */
 
@@ -273,9 +275,13 @@ static int gb_operation_message_init(struct gb_operation *operation,
 
 static void gb_operation_message_exit(struct gb_message *message)
 {
+	struct greybus_host_device *hd;
+
+	hd = message->operation->connection->hd;
+	hd->driver->buffer_free(message->buffer);
+
 	message->operation = NULL;
 	message->payload = NULL;
-	message->hd->driver->buffer_free(message->buffer);
 	message->buffer = NULL;
 	message->buffer_size = 0;
 }
