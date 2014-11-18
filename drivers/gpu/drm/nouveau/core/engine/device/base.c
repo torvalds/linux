@@ -29,6 +29,7 @@
 #include <nvif/unpack.h>
 #include <nvif/class.h>
 
+#include <subdev/bios.h>
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 
@@ -432,6 +433,10 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		}
 
 		nv_debug(device, "crystal freq: %dKHz\n", device->crystal);
+	} else
+	if ( (args->v0.disable & NV_DEVICE_V0_DISABLE_IDENTIFY)) {
+		device->cname = "NULL";
+		device->oclass[NVDEV_SUBDEV_VBIOS] = &nouveau_bios_oclass;
 	}
 
 	if (!(args->v0.disable & NV_DEVICE_V0_DISABLE_MMIO) &&
