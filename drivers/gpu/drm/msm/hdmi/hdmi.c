@@ -55,9 +55,8 @@ static irqreturn_t hdmi_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void hdmi_destroy(struct kref *kref)
+static void hdmi_destroy(struct hdmi *hdmi)
 {
-	struct hdmi *hdmi = container_of(kref, struct hdmi, refcount);
 	struct hdmi_phy *phy = hdmi->phy;
 
 	if (phy)
@@ -84,8 +83,6 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail;
 	}
-
-	kref_init(&hdmi->refcount);
 
 	hdmi->pdev = pdev;
 	hdmi->config = config;
@@ -183,7 +180,7 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 
 fail:
 	if (hdmi)
-		hdmi_destroy(&hdmi->refcount);
+		hdmi_destroy(hdmi);
 
 	return ERR_PTR(ret);
 }
@@ -269,12 +266,6 @@ fail:
 
 #include <linux/of_gpio.h>
 
-static void set_hdmi(struct drm_device *dev, struct hdmi *hdmi)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	priv->hdmi = hdmi;
-}
-
 #ifdef CONFIG_OF
 static int get_gpio(struct device *dev, struct device_node *of_node, const char *name)
 {
@@ -295,6 +286,8 @@ static int get_gpio(struct device *dev, struct device_node *of_node, const char 
 
 static int hdmi_bind(struct device *dev, struct device *master, void *data)
 {
+	struct drm_device *drm = dev_get_drvdata(master);
+	struct msm_drm_private *priv = drm->dev_private;
 	static struct hdmi_platform_config config = {};
 	struct hdmi *hdmi;
 #ifdef CONFIG_OF
@@ -389,14 +382,19 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	hdmi = hdmi_init(to_platform_device(dev));
 	if (IS_ERR(hdmi))
 		return PTR_ERR(hdmi);
-	set_hdmi(dev_get_drvdata(master), hdmi);
+	priv->hdmi = hdmi;
 	return 0;
 }
 
 static void hdmi_unbind(struct device *dev, struct device *master,
 		void *data)
 {
-	set_hdmi(dev_get_drvdata(master), NULL);
+	struct drm_device *drm = dev_get_drvdata(master);
+	struct msm_drm_private *priv = drm->dev_private;
+	if (priv->hdmi) {
+		hdmi_destroy(priv->hdmi);
+		priv->hdmi = NULL;
+	}
 }
 
 static const struct component_ops hdmi_ops = {

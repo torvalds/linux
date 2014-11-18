@@ -330,8 +330,6 @@ static void hdmi_connector_destroy(struct drm_connector *connector)
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 
-	hdmi_unreference(hdmi_connector->hdmi);
-
 	kfree(hdmi_connector);
 }
 
@@ -425,7 +423,7 @@ struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
 		goto fail;
 	}
 
-	hdmi_connector->hdmi = hdmi_reference(hdmi);
+	hdmi_connector->hdmi = hdmi;
 	INIT_WORK(&hdmi_connector->hpd_work, hotplug_work);
 
 	connector = &hdmi_connector->base;
