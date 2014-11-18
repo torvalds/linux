@@ -20,6 +20,9 @@
 #include <asm/traps.h>
 #include <asm/uaccess.h>
 
+#define CREATE_TRACE_POINTS
+#include "trace-events-emulation.h"
+
 /*
  * The runtime support for deprecated instruction support can be in one of
  * following three states -
@@ -358,6 +361,11 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 		regs->user_regs.regs[destreg] = data;
 
 ret:
+	if (type == TYPE_SWPB)
+		trace_instruction_emulation("swpb", regs->pc);
+	else
+		trace_instruction_emulation("swp", regs->pc);
+
 	pr_warn_ratelimited("\"%s\" (%ld) uses obsolete SWP{B} instruction at 0x%llx\n",
 			current->comm, (unsigned long)current->pid, regs->pc);
 
@@ -415,10 +423,15 @@ static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
 		 * dmb - mcr p15, 0, Rt, c7, c10, 5
 		 * dsb - mcr p15, 0, Rt, c7, c10, 4
 		 */
-		if (aarch32_insn_mcr_extract_opc2(instr) == 5)
+		if (aarch32_insn_mcr_extract_opc2(instr) == 5) {
 			dmb(sy);
-		else
+			trace_instruction_emulation(
+				"mcr p15, 0, Rt, c7, c10, 5 ; dmb", regs->pc);
+		} else {
 			dsb(sy);
+			trace_instruction_emulation(
+				"mcr p15, 0, Rt, c7, c10, 4 ; dsb", regs->pc);
+		}
 		break;
 	case 5:
 		/*
@@ -427,6 +440,8 @@ static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
 		 * Taking an exception or returning from one acts as an
 		 * instruction barrier. So no explicit barrier needed here.
 		 */
+		trace_instruction_emulation(
+			"mcr p15, 0, Rt, c7, c5, 4 ; isb", regs->pc);
 		break;
 	}
 
