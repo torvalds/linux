@@ -98,6 +98,26 @@
 				reg = <0x68>;
 				interrupts = <0x1 0x1 0 0>;
 			};
+			ina220@40 {
+				compatible = "ti,ina220";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+			ina220@41 {
+				compatible = "ti,ina220";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+			ina220@44 {
+				compatible = "ti,ina220";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+			ina220@45 {
+				compatible = "ti,ina220";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
 			adt7461@4c {
 				compatible = "adi,adt7461";
 				reg = <0x4c>;

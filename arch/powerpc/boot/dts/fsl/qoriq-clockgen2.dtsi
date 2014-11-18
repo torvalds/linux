@@ -1,18 +1,18 @@
 /*
- * BSC9131 RDB Device Tree Source stub (no addresses or top-level ranges)
+ * QorIQ clock control device tree stub [ controller @ offset 0xe1000 ]
  *
- * Copyright 2011-2012 Freescale Semiconductor Inc.
+ * Copyright 2014 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *	 notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
+ *	 notice, this list of conditions and the following disclaimer in the
+ *	 documentation and/or other materials provided with the distribution.
  *     * Neither the name of Freescale Semiconductor nor the
- *       names of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written permission.
+ *	 names of its contributors may be used to endorse or promote products
+ *	 derived from this software without specific prior written permission.
  *
  *
  * ALTERNATIVELY, this software may be distributed under the terms of the
@@ -32,61 +32,37 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-&board_ifc {
+global-utilities@e1000 {
+	compatible = "fsl,qoriq-clockgen-2.0";
+	ranges = <0x0 0xe1000 0x1000>;
+	reg = <0xe1000 0x1000>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
-	nand@0,0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "fsl,ifc-nand";
-		reg = <0x0 0x0 0x4000>;
-
+	sysclk: sysclk {
+		#clock-cells = <0>;
+		compatible = "fsl,qoriq-sysclk-2.0", "fixed-clock";
+		clock-output-names = "sysclk";
 	};
-};
-
-&board_soc {
-	/* BSC9131RDB does not have any device on i2c@3100 */
-	i2c@3100 {
-		status = "disabled";
+	pll0: pll0@800 {
+		#clock-cells = <1>;
+		reg = <0x800 0x4>;
+		compatible = "fsl,qoriq-core-pll-2.0";
+		clocks = <&sysclk>;
+		clock-output-names = "pll0", "pll0-div2", "pll0-div4";
 	};
-
-	spi@7000 {
-		flash@0 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "spansion,s25sl12801";
-			reg = <0>;
-			spi-max-frequency = <50000000>;
-
-		};
+	pll1: pll1@820 {
+		#clock-cells = <1>;
+		reg = <0x820 0x4>;
+		compatible = "fsl,qoriq-core-pll-2.0";
+		clocks = <&sysclk>;
+		clock-output-names = "pll1", "pll1-div2", "pll1-div4";
 	};
-
-	usb@22000 {
-		phy_type = "ulpi";
-	};
-
-	mdio@24000 {
-		phy0: ethernet-phy@0 {
-			interrupts = <3 1 0 0>;
-			reg = <0x0>;
-		};
-
-		phy1: ethernet-phy@1 {
-			interrupts = <2 1 0 0>;
-			reg = <0x3>;
-		};
-	};
-
-	sdhc@2e000 {
-		status = "disabled";
-	};
-
-	enet0: ethernet@b0000 {
-		phy-handle = <&phy0>;
-		phy-connection-type = "rgmii-id";
-	};
-
-	enet1: ethernet@b1000 {
-		phy-handle = <&phy1>;
-		phy-connection-type = "rgmii-id";
+	platform_pll: platform-pll@c00 {
+		#clock-cells = <1>;
+		reg = <0xc00 0x4>;
+		compatible = "fsl,qoriq-platform-pll-2.0";
+		clocks = <&sysclk>;
+		clock-output-names = "platform-pll", "platform-pll-div2";
 	};
 };

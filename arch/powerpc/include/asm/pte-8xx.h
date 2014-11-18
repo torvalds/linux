@@ -48,19 +48,22 @@
  */
 #define _PAGE_RW	0x0400	/* lsb PP bits, inverted in HW */
 #define _PAGE_USER	0x0800	/* msb PP bits */
+/* set when neither _PAGE_USER nor _PAGE_RW are set */
+#define _PAGE_KNLRO	0x0200
 
 #define _PMD_PRESENT	0x0001
 #define _PMD_BAD	0x0ff0
 #define _PMD_PAGE_MASK	0x000c
 #define _PMD_PAGE_8M	0x000c
 
-#define _PTE_NONE_MASK _PAGE_ACCESSED
+#define _PTE_NONE_MASK _PAGE_KNLRO
 
 /* Until my rework is finished, 8xx still needs atomic PTE updates */
 #define PTE_ATOMIC_UPDATES	1
 
 /* We need to add _PAGE_SHARED to kernel pages */
-#define _PAGE_KERNEL_RO	(_PAGE_SHARED)
+#define _PAGE_KERNEL_RO	(_PAGE_SHARED | _PAGE_KNLRO)
+#define _PAGE_KERNEL_ROX	(_PAGE_EXEC | _PAGE_KNLRO)
 #define _PAGE_KERNEL_RW	(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE)
 
 #endif /* __KERNEL__ */

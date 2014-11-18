@@ -250,9 +250,9 @@
 		fsl,liodn-bits = <12>;
 	};
 
-	clockgen: global-utilities@e1000 {
+/include/ "fsl/qoriq-clockgen2.dtsi"
+	global-utilities@e1000 {
 		compatible = "fsl,t4240-clockgen", "fsl,qoriq-clockgen-2.0";
-		reg = <0xe1000 0x1000>;
 	};
 
 /include/ "fsl/qoriq-dma-0.dtsi"
