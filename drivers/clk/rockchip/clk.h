@@ -62,6 +62,15 @@ enum rockchip_pll_type {
 	.bwadj = (_nf >> 1),			\
 }
 
+#define RK3066_PLL_RATE_BWADJ(_rate, _nr, _nf, _no, _bw)	\
+{								\
+	.rate	= _rate##U,					\
+	.nr = _nr,						\
+	.nf = _nf,						\
+	.no = _no,						\
+	.bwadj = _bw,						\
+}
+
 struct rockchip_pll_rate_table {
 	unsigned long rate;
 	unsigned int nr;
