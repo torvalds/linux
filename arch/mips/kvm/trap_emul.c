@@ -554,6 +554,8 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 
 static int kvm_trap_emul_vcpu_get_regs(struct kvm_vcpu *vcpu)
 {
+	kvm_lose_fpu(vcpu);
+
 	return 0;
 }
 

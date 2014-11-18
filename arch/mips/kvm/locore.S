@@ -353,6 +353,23 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	LONG_L	k0, VCPU_HOST_EBASE(k1)
 	mtc0	k0,CP0_EBASE
 
+	/*
+	 * If FPU is enabled, save FCR31 and clear it so that later ctc1's don't
+	 * trigger FPE for pending exceptions.
+	 */
+	.set	at
+	and	v1, v0, ST0_CU1
+	beqz	v1, 1f
+	 nop
+	.set	push
+	SET_HARDFLOAT
+	cfc1	t0, fcr31
+	sw	t0, VCPU_FCR31(k1)
+	ctc1	zero,fcr31
+	.set	pop
+	.set	noat
+1:
+
 	/* Now that the new EBASE has been loaded, unset BEV and KSU_USER */
 	.set	at
 	and	v0, v0, ~(ST0_EXL | KSU_USER | ST0_IE)

@@ -404,6 +404,44 @@ void output_kvm_defines(void)
 	OFFSET(VCPU_LO, kvm_vcpu_arch, lo);
 	OFFSET(VCPU_HI, kvm_vcpu_arch, hi);
 	OFFSET(VCPU_PC, kvm_vcpu_arch, pc);
+	BLANK();
+
+	OFFSET(VCPU_FPR0, kvm_vcpu_arch, fpu.fpr[0]);
+	OFFSET(VCPU_FPR1, kvm_vcpu_arch, fpu.fpr[1]);
+	OFFSET(VCPU_FPR2, kvm_vcpu_arch, fpu.fpr[2]);
+	OFFSET(VCPU_FPR3, kvm_vcpu_arch, fpu.fpr[3]);
+	OFFSET(VCPU_FPR4, kvm_vcpu_arch, fpu.fpr[4]);
+	OFFSET(VCPU_FPR5, kvm_vcpu_arch, fpu.fpr[5]);
+	OFFSET(VCPU_FPR6, kvm_vcpu_arch, fpu.fpr[6]);
+	OFFSET(VCPU_FPR7, kvm_vcpu_arch, fpu.fpr[7]);
+	OFFSET(VCPU_FPR8, kvm_vcpu_arch, fpu.fpr[8]);
+	OFFSET(VCPU_FPR9, kvm_vcpu_arch, fpu.fpr[9]);
+	OFFSET(VCPU_FPR10, kvm_vcpu_arch, fpu.fpr[10]);
+	OFFSET(VCPU_FPR11, kvm_vcpu_arch, fpu.fpr[11]);
+	OFFSET(VCPU_FPR12, kvm_vcpu_arch, fpu.fpr[12]);
+	OFFSET(VCPU_FPR13, kvm_vcpu_arch, fpu.fpr[13]);
+	OFFSET(VCPU_FPR14, kvm_vcpu_arch, fpu.fpr[14]);
+	OFFSET(VCPU_FPR15, kvm_vcpu_arch, fpu.fpr[15]);
+	OFFSET(VCPU_FPR16, kvm_vcpu_arch, fpu.fpr[16]);
+	OFFSET(VCPU_FPR17, kvm_vcpu_arch, fpu.fpr[17]);
+	OFFSET(VCPU_FPR18, kvm_vcpu_arch, fpu.fpr[18]);
+	OFFSET(VCPU_FPR19, kvm_vcpu_arch, fpu.fpr[19]);
+	OFFSET(VCPU_FPR20, kvm_vcpu_arch, fpu.fpr[20]);
+	OFFSET(VCPU_FPR21, kvm_vcpu_arch, fpu.fpr[21]);
+	OFFSET(VCPU_FPR22, kvm_vcpu_arch, fpu.fpr[22]);
+	OFFSET(VCPU_FPR23, kvm_vcpu_arch, fpu.fpr[23]);
+	OFFSET(VCPU_FPR24, kvm_vcpu_arch, fpu.fpr[24]);
+	OFFSET(VCPU_FPR25, kvm_vcpu_arch, fpu.fpr[25]);
+	OFFSET(VCPU_FPR26, kvm_vcpu_arch, fpu.fpr[26]);
+	OFFSET(VCPU_FPR27, kvm_vcpu_arch, fpu.fpr[27]);
+	OFFSET(VCPU_FPR28, kvm_vcpu_arch, fpu.fpr[28]);
+	OFFSET(VCPU_FPR29, kvm_vcpu_arch, fpu.fpr[29]);
+	OFFSET(VCPU_FPR30, kvm_vcpu_arch, fpu.fpr[30]);
+	OFFSET(VCPU_FPR31, kvm_vcpu_arch, fpu.fpr[31]);
+
+	OFFSET(VCPU_FCR31, kvm_vcpu_arch, fpu.fcr31);
+	BLANK();
+
 	OFFSET(VCPU_COP0, kvm_vcpu_arch, cop0);
 	OFFSET(VCPU_GUEST_KERNEL_ASID, kvm_vcpu_arch, guest_kernel_asid);
 	OFFSET(VCPU_GUEST_USER_ASID, kvm_vcpu_arch, guest_user_asid);

@@ -11,6 +11,7 @@
 
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/kdebug.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
@@ -1178,11 +1179,132 @@ skip_emul:
 		}
 	}
 
+	if (ret == RESUME_GUEST) {
+		/*
+		 * If FPU is enabled (i.e. the guest's FPU context is live),
+		 * restore FCR31.
+		 *
+		 * This should be before returning to the guest exception
+		 * vector, as it may well cause an FP exception if there are
+		 * pending exception bits unmasked. (see
+		 * kvm_mips_csr_die_notifier() for how that is handled).
+		 */
+		if (kvm_mips_guest_has_fpu(&vcpu->arch) &&
+		    read_c0_status() & ST0_CU1)
+			__kvm_restore_fcsr(&vcpu->arch);
+	}
+
 	/* Disable HTW before returning to guest or host */
 	htw_stop();
 
 	return ret;
 }
+
+/* Enable FPU for guest and restore context */
+void kvm_own_fpu(struct kvm_vcpu *vcpu)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	unsigned int sr, cfg5;
+
+	preempt_disable();
+
+	/*
+	 * Enable FPU for guest
+	 * We set FR and FRE according to guest context
+	 */
+	sr = kvm_read_c0_guest_status(cop0);
+	change_c0_status(ST0_CU1 | ST0_FR, sr);
+	if (cpu_has_fre) {
+		cfg5 = kvm_read_c0_guest_config5(cop0);
+		change_c0_config5(MIPS_CONF5_FRE, cfg5);
+	}
+	enable_fpu_hazard();
+
+	/* If guest FPU state not active, restore it now */
+	if (!(vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU)) {
+		__kvm_restore_fpu(&vcpu->arch);
+		vcpu->arch.fpu_inuse |= KVM_MIPS_FPU_FPU;
+	}
+
+	preempt_enable();
+}
+
+/* Drop FPU without saving it */
+void kvm_drop_fpu(struct kvm_vcpu *vcpu)
+{
+	preempt_disable();
+	if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU) {
+		clear_c0_status(ST0_CU1 | ST0_FR);
+		vcpu->arch.fpu_inuse &= ~KVM_MIPS_FPU_FPU;
+	}
+	preempt_enable();
+}
+
+/* Save and disable FPU */
+void kvm_lose_fpu(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * FPU gets disabled in root context (hardware) when it is disabled in
+	 * guest context (software), but the register state in the hardware may
+	 * still be in use. This is why we explicitly re-enable the hardware
+	 * before saving.
+	 */
+
+	preempt_disable();
+	if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU) {
+		set_c0_status(ST0_CU1);
+		enable_fpu_hazard();
+
+		__kvm_save_fpu(&vcpu->arch);
+		vcpu->arch.fpu_inuse &= ~KVM_MIPS_FPU_FPU;
+
+		/* Disable FPU */
+		clear_c0_status(ST0_CU1 | ST0_FR);
+	}
+	preempt_enable();
+}
+
+/*
+ * Step over a specific ctc1 to FCSR which is used to restore guest FCSR state
+ * and may trigger a "harmless" FP exception if cause bits are set in the value
+ * being written.
+ */
+static int kvm_mips_csr_die_notify(struct notifier_block *self,
+				   unsigned long cmd, void *ptr)
+{
+	struct die_args *args = (struct die_args *)ptr;
+	struct pt_regs *regs = args->regs;
+	unsigned long pc;
+
+	/* Only interested in FPE */
+	if (cmd != DIE_FP)
+		return NOTIFY_DONE;
+
+	/* Return immediately if guest context isn't active */
+	if (!(current->flags & PF_VCPU))
+		return NOTIFY_DONE;
+
+	/* Should never get here from user mode */
+	BUG_ON(user_mode(regs));
+
+	pc = instruction_pointer(regs);
+	switch (cmd) {
+	case DIE_FP:
+		/* match 2nd instruction in __kvm_restore_fcsr */
+		if (pc != (unsigned long)&__kvm_restore_fcsr + 4)
+			return NOTIFY_DONE;
+		break;
+	}
+
+	/* Move PC forward a little and continue executing */
+	instruction_pointer(regs) += 4;
+
+	return NOTIFY_STOP;
+}
+
+static struct notifier_block kvm_mips_csr_die_notifier = {
+	.notifier_call = kvm_mips_csr_die_notify,
+};
 
 int __init kvm_mips_init(void)
 {
@@ -1192,6 +1314,8 @@ int __init kvm_mips_init(void)
 
 	if (ret)
 		return ret;
+
+	register_die_notifier(&kvm_mips_csr_die_notifier);
 
 	/*
 	 * On MIPS, kernel modules are executed from "mapped space", which
@@ -1215,6 +1339,8 @@ void __exit kvm_mips_exit(void)
 	kvm_mips_gfn_to_pfn = NULL;
 	kvm_mips_release_pfn_clean = NULL;
 	kvm_mips_is_error_pfn = NULL;
+
+	unregister_die_notifier(&kvm_mips_csr_die_notifier);
 }
 
 module_init(kvm_mips_init);

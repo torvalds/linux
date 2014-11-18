@@ -357,6 +357,8 @@ struct kvm_mips_tlb {
 	long tlb_lo1;
 };
 
+#define KVM_MIPS_FPU_FPU	0x1
+
 #define KVM_MIPS_GUEST_TLB_SIZE	64
 struct kvm_vcpu_arch {
 	void *host_ebase, *guest_ebase;
@@ -378,6 +380,8 @@ struct kvm_vcpu_arch {
 
 	/* FPU State */
 	struct mips_fpu_struct fpu;
+	/* Which FPU state is loaded (KVM_MIPS_FPU_*) */
+	unsigned int fpu_inuse;
 
 	/* COP0 State */
 	struct mips_coproc *cop0;
@@ -424,6 +428,8 @@ struct kvm_vcpu_arch {
 
 	/* WAIT executed */
 	int wait;
+
+	u8 fpu_enabled;
 };
 
 
@@ -554,6 +560,19 @@ static inline void _kvm_atomic_change_c0_guest_reg(unsigned long *reg,
 	kvm_set_c0_guest_ebase(cop0, ((val) & (change)));		\
 }
 
+/* Helpers */
+
+static inline bool kvm_mips_guest_can_have_fpu(struct kvm_vcpu_arch *vcpu)
+{
+	return (!__builtin_constant_p(cpu_has_fpu) || cpu_has_fpu) &&
+		vcpu->fpu_enabled;
+}
+
+static inline bool kvm_mips_guest_has_fpu(struct kvm_vcpu_arch *vcpu)
+{
+	return kvm_mips_guest_can_have_fpu(vcpu) &&
+		kvm_read_c0_guest_config1(vcpu->cop0) & MIPS_CONF1_FP;
+}
 
 struct kvm_mips_callbacks {
 	int (*handle_cop_unusable)(struct kvm_vcpu *vcpu);
@@ -596,6 +615,14 @@ int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu);
 
 /* Trampoline ASM routine to start running in "Guest" context */
 extern int __kvm_mips_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu);
+
+/* FPU context management */
+void __kvm_save_fpu(struct kvm_vcpu_arch *vcpu);
+void __kvm_restore_fpu(struct kvm_vcpu_arch *vcpu);
+void __kvm_restore_fcsr(struct kvm_vcpu_arch *vcpu);
+void kvm_own_fpu(struct kvm_vcpu *vcpu);
+void kvm_drop_fpu(struct kvm_vcpu *vcpu);
+void kvm_lose_fpu(struct kvm_vcpu *vcpu);
 
 /* TLB handling */
 uint32_t kvm_get_kernel_asid(struct kvm_vcpu *vcpu);
