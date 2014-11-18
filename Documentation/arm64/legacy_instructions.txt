@@ -38,3 +38,8 @@ Supported legacy instructions
 Node: /proc/sys/abi/swp
 Status: Obsolete
 Default: Undef (0)
+
+* CP15 Barriers
+Node: /proc/sys/abi/cp15_barrier
+Status: Deprecated
+Default: Emulate (1)

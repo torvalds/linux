@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/perf_event.h>
@@ -391,6 +392,133 @@ static struct insn_emulation_ops swp_ops = {
 	.set_hw_mode = NULL,
 };
 
+static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
+{
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->pc);
+
+	switch (arm_check_condition(instr, regs->pstate)) {
+	case ARM_OPCODE_CONDTEST_PASS:
+		break;
+	case ARM_OPCODE_CONDTEST_FAIL:
+		/* Condition failed - return to next instruction */
+		goto ret;
+	case ARM_OPCODE_CONDTEST_UNCOND:
+		/* If unconditional encoding - not a barrier instruction */
+		return -EFAULT;
+	default:
+		return -EINVAL;
+	}
+
+	switch (aarch32_insn_mcr_extract_crm(instr)) {
+	case 10:
+		/*
+		 * dmb - mcr p15, 0, Rt, c7, c10, 5
+		 * dsb - mcr p15, 0, Rt, c7, c10, 4
+		 */
+		if (aarch32_insn_mcr_extract_opc2(instr) == 5)
+			dmb(sy);
+		else
+			dsb(sy);
+		break;
+	case 5:
+		/*
+		 * isb - mcr p15, 0, Rt, c7, c5, 4
+		 *
+		 * Taking an exception or returning from one acts as an
+		 * instruction barrier. So no explicit barrier needed here.
+		 */
+		break;
+	}
+
+ret:
+	pr_warn_ratelimited("\"%s\" (%ld) uses deprecated CP15 Barrier instruction at 0x%llx\n",
+			current->comm, (unsigned long)current->pid, regs->pc);
+
+	regs->pc += 4;
+	return 0;
+}
+
+#define SCTLR_EL1_CP15BEN (1 << 5)
+
+static inline void config_sctlr_el1(u32 clear, u32 set)
+{
+	u32 val;
+
+	asm volatile("mrs %0, sctlr_el1" : "=r" (val));
+	val &= ~clear;
+	val |= set;
+	asm volatile("msr sctlr_el1, %0" : : "r" (val));
+}
+
+static void enable_cp15_ben(void *info)
+{
+	config_sctlr_el1(0, SCTLR_EL1_CP15BEN);
+}
+
+static void disable_cp15_ben(void *info)
+{
+	config_sctlr_el1(SCTLR_EL1_CP15BEN, 0);
+}
+
+static int cpu_hotplug_notify(struct notifier_block *b,
+			      unsigned long action, void *hcpu)
+{
+	switch (action) {
+	case CPU_STARTING:
+	case CPU_STARTING_FROZEN:
+		enable_cp15_ben(NULL);
+		return NOTIFY_DONE;
+	case CPU_DYING:
+	case CPU_DYING_FROZEN:
+		disable_cp15_ben(NULL);
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block cpu_hotplug_notifier = {
+	.notifier_call = cpu_hotplug_notify,
+};
+
+static int cp15_barrier_set_hw_mode(bool enable)
+{
+	if (enable) {
+		register_cpu_notifier(&cpu_hotplug_notifier);
+		on_each_cpu(enable_cp15_ben, NULL, true);
+	} else {
+		unregister_cpu_notifier(&cpu_hotplug_notifier);
+		on_each_cpu(disable_cp15_ben, NULL, true);
+	}
+
+	return true;
+}
+
+static struct undef_hook cp15_barrier_hooks[] = {
+	{
+		.instr_mask	= 0x0fff0fdf,
+		.instr_val	= 0x0e070f9a,
+		.pstate_mask	= COMPAT_PSR_MODE_MASK,
+		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.fn		= cp15barrier_handler,
+	},
+	{
+		.instr_mask	= 0x0fff0fff,
+		.instr_val	= 0x0e070f95,
+		.pstate_mask	= COMPAT_PSR_MODE_MASK,
+		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.fn		= cp15barrier_handler,
+	},
+	{ }
+};
+
+static struct insn_emulation_ops cp15_barrier_ops = {
+	.name = "cp15_barrier",
+	.status = INSN_DEPRECATED,
+	.hooks = cp15_barrier_hooks,
+	.set_hw_mode = cp15_barrier_set_hw_mode,
+};
+
 /*
  * Invoked as late_initcall, since not needed before init spawned.
  */
@@ -398,6 +526,9 @@ static int __init armv8_deprecated_init(void)
 {
 	if (IS_ENABLED(CONFIG_SWP_EMULATION))
 		register_insn_emulation(&swp_ops);
+
+	if (IS_ENABLED(CONFIG_CP15_BARRIER_EMULATION))
+		register_insn_emulation(&cp15_barrier_ops);
 
 	register_insn_emulation_sysctl(ctl_abi);
 

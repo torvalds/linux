@@ -201,6 +201,21 @@ config SWP_EMULATION
 
 	  If unsure, say Y
 
+config CP15_BARRIER_EMULATION
+	bool "Emulate CP15 Barrier instructions"
+	help
+	  The CP15 barrier instructions - CP15ISB, CP15DSB, and
+	  CP15DMB - are deprecated in ARMv8 (and ARMv7). It is
+	  strongly recommended to use the ISB, DSB, and DMB
+	  instructions instead.
+
+	  Say Y here to enable software emulation of these
+	  instructions for AArch32 userspace code. When this option is
+	  enabled, CP15 barrier usage is traced which can help
+	  identify software that needs updating.
+
+	  If unsure, say Y
+
 endif
 
 endmenu

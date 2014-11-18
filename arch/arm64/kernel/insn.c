@@ -972,3 +972,16 @@ u32 aarch32_insn_extract_reg_num(u32 insn, int offset)
 {
 	return (insn & (0xf << offset)) >> offset;
 }
+
+#define OPC2_MASK	0x7
+#define OPC2_OFFSET	5
+u32 aarch32_insn_mcr_extract_opc2(u32 insn)
+{
+	return (insn & (OPC2_MASK << OPC2_OFFSET)) >> OPC2_OFFSET;
+}
+
+#define CRM_MASK	0xf
+u32 aarch32_insn_mcr_extract_crm(u32 insn)
+{
+	return insn & CRM_MASK;
+}
