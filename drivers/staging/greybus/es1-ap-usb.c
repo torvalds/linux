@@ -226,13 +226,15 @@ static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 	return retval;
 }
 
-static void kill_gbuf(struct gbuf *gbuf)
+static void buffer_cancel(void *cookie)
 {
-	struct urb *urb = gbuf->hcd_data;
+	struct urb *urb = cookie;
 
-	if (!urb)
-		return;
-
+	/*
+	 * We really should be defensive and track all outstanding
+	 * (sent) buffers rather than trusting the cookie provided
+	 * is valid.  For the time being, this will do.
+	 */
 	usb_kill_urb(urb);
 }
 
@@ -240,9 +242,9 @@ static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
 	.buffer_alloc		= buffer_alloc,
 	.buffer_free		= buffer_free,
-	.submit_svc		= submit_svc,
 	.submit_gbuf		= submit_gbuf,
-	.kill_gbuf		= kill_gbuf,
+	.buffer_cancel		= buffer_cancel,
+	.submit_svc		= submit_svc,
 };
 
 /* Common function to report consistent warnings based on URB status */

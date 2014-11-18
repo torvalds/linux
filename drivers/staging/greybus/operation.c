@@ -115,8 +115,9 @@ static void greybus_kill_gbuf(struct gbuf *gbuf)
 	if (gbuf->status != -EINPROGRESS)
 		return;
 
-	gbuf->hd->driver->kill_gbuf(gbuf);
+	gbuf->hd->driver->buffer_cancel(gbuf->hcd_data);
 }
+
 /*
  * An operations's response message has arrived.  If no callback was
  * supplied it was submitted for asynchronous completion, so we notify

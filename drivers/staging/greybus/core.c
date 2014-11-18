@@ -170,9 +170,9 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	 * so that we don't have to every time we make them.
 	 */
 	if ((!driver->buffer_alloc) || (!driver->buffer_free) ||
-	    (!driver->submit_svc) ||
 	    (!driver->submit_gbuf) ||
-	    (!driver->kill_gbuf)) {
+	    (!driver->buffer_cancel) ||
+	    (!driver->submit_svc)) {
 		pr_err("Must implement all greybus_host_driver callbacks!\n");
 		return NULL;
 	}
