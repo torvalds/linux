@@ -300,16 +300,17 @@ enum ixgbe_ring_f_enum {
 	RING_F_ARRAY_SIZE      /* must be last in enum set */
 };
 
-#define IXGBE_MAX_RSS_INDICES  16
-#define IXGBE_MAX_VMDQ_INDICES 64
-#define IXGBE_MAX_FDIR_INDICES 63	/* based on q_vector limit */
-#define IXGBE_MAX_FCOE_INDICES  8
-#define MAX_RX_QUEUES (IXGBE_MAX_FDIR_INDICES + 1)
-#define MAX_TX_QUEUES (IXGBE_MAX_FDIR_INDICES + 1)
-#define IXGBE_MAX_L2A_QUEUES 4
-#define IXGBE_BAD_L2A_QUEUE 3
-#define IXGBE_MAX_MACVLANS	31
-#define IXGBE_MAX_DCBMACVLANS	8
+#define IXGBE_MAX_RSS_INDICES		16
+#define IXGBE_MAX_RSS_INDICES_X550	64
+#define IXGBE_MAX_VMDQ_INDICES		64
+#define IXGBE_MAX_FDIR_INDICES		63	/* based on q_vector limit */
+#define IXGBE_MAX_FCOE_INDICES		8
+#define MAX_RX_QUEUES			(IXGBE_MAX_FDIR_INDICES + 1)
+#define MAX_TX_QUEUES			(IXGBE_MAX_FDIR_INDICES + 1)
+#define IXGBE_MAX_L2A_QUEUES		4
+#define IXGBE_BAD_L2A_QUEUE		3
+#define IXGBE_MAX_MACVLANS		31
+#define IXGBE_MAX_DCBMACVLANS		8
 
 struct ixgbe_ring_feature {
 	u16 limit;	/* upper limit on feature indices */
@@ -763,6 +764,21 @@ struct ixgbe_adapter {
 	u8 default_up;
 	unsigned long fwd_bitmask; /* Bitmask indicating in use pools */
 };
+
+static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)
+{
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB:
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		return IXGBE_MAX_RSS_INDICES;
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+		return IXGBE_MAX_RSS_INDICES_X550;
+	default:
+		return 0;
+	}
+}
 
 struct ixgbe_fdir_filter {
 	struct hlist_node fdir_node;
