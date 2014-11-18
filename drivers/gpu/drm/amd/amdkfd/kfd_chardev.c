@@ -121,12 +121,8 @@ static int kfd_open(struct inode *inode, struct file *filep)
 	if (IS_ERR(process))
 		return PTR_ERR(process);
 
-	process->is_32bit_user_mode = is_32bit_user_mode;
-
 	dev_dbg(kfd_device, "process %d opened, compat mode (32 bit) - %d\n",
 		process->pasid, process->is_32bit_user_mode);
-
-	kfd_init_apertures(process);
 
 	return 0;
 }
