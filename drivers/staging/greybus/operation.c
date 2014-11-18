@@ -222,7 +222,6 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	struct gbuf *gbuf;
 	gfp_t gfp_flags = request && !outbound ? GFP_ATOMIC : GFP_KERNEL;
 	u16 dest_cport_id;
-	int ret;
 
 	if (size > GB_OPERATION_MESSAGE_SIZE_MAX)
 		return -E2BIG;
@@ -241,9 +240,10 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	else
 		dest_cport_id = CPORT_ID_BAD;
 
-	ret = hd->driver->alloc_gbuf_data(gbuf, size, gfp_flags);
-	if (ret)
-		return ret;
+	gbuf->transfer_buffer = hd->driver->buffer_alloc(size, gfp_flags);
+	if (!gbuf->transfer_buffer)
+		return -ENOMEM;
+	gbuf->transfer_buffer_length = size;
 	gbuf->hd = hd;
 	gbuf->dest_cport_id = dest_cport_id;
 	gbuf->status = -EBADR;	/* Initial value--means "never set" */

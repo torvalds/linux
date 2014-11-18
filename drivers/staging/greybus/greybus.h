@@ -79,8 +79,7 @@ struct gbuf;
 struct greybus_host_driver {
 	size_t	hd_priv_size;
 
-	int (*alloc_gbuf_data)(struct gbuf *gbuf, unsigned int size,
-					gfp_t gfp_mask);
+	void *(*buffer_alloc)(unsigned int size, gfp_t gfp_mask);
 	void (*free_gbuf_data)(struct gbuf *gbuf);
 	int (*submit_svc)(struct svc_msg *svc_msg,
 			    struct greybus_host_device *hd);

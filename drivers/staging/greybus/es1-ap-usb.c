@@ -85,20 +85,11 @@ static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
 static void cport_out_callback(struct urb *urb);
 
 /*
- * Allocate the actual buffer for this gbuf and device and cport
- *
- * We are responsible for setting the following fields in a struct gbuf:
- *	void *hcpriv;
- *	void *transfer_buffer;
- *	u32 transfer_buffer_length;
+ * Allocate a buffer to be sent via UniPro.
  */
-static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
-				gfp_t gfp_mask)
+static void *buffer_alloc(unsigned int size, gfp_t gfp_mask)
 {
 	u8 *buffer;
-
-	if (gbuf->transfer_buffer)
-		return -EALREADY;
 
 	if (size > ES1_GBUF_MSG_SIZE) {
 		pr_err("guf was asked to be bigger than %ld!\n",
@@ -117,14 +108,10 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 	 * XXX Do we need to indicate the destination device id too?
 	 */
 	buffer = kzalloc(GB_BUFFER_ALIGN + size, gfp_mask);
-	if (!buffer)
-		return -ENOMEM;
-	buffer += GB_BUFFER_ALIGN;
+	if (buffer)
+		buffer += GB_BUFFER_ALIGN;
 
-	gbuf->transfer_buffer = buffer;
-	gbuf->transfer_buffer_length = size;
-
-	return 0;
+	return buffer;
 }
 
 /* Free the memory we allocated with a gbuf */
@@ -252,7 +239,7 @@ static void kill_gbuf(struct gbuf *gbuf)
 
 static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
-	.alloc_gbuf_data	= alloc_gbuf_data,
+	.buffer_alloc		= buffer_alloc,
 	.free_gbuf_data		= free_gbuf_data,
 	.submit_svc		= submit_svc,
 	.submit_gbuf		= submit_gbuf,
