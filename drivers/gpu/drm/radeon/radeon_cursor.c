@@ -117,8 +117,10 @@ static void radeon_show_cursor(struct drm_crtc *crtc)
 	}
 }
 
+static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y);
+
 static void radeon_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj,
-			      uint64_t gpu_addr)
+			      uint64_t gpu_addr, int hot_x, int hot_y)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
@@ -142,13 +144,28 @@ static void radeon_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj,
 		/* offset is from DISP(2)_BASE_ADDRESS */
 		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, radeon_crtc->legacy_cursor_offset);
 	}
+
+	if (hot_x != radeon_crtc->cursor_hot_x ||
+	    hot_y != radeon_crtc->cursor_hot_y) {
+		int x, y;
+
+		x = radeon_crtc->cursor_x + radeon_crtc->cursor_hot_x - hot_x;
+		y = radeon_crtc->cursor_y + radeon_crtc->cursor_hot_y - hot_y;
+
+		radeon_cursor_move_locked(crtc, x, y);
+
+		radeon_crtc->cursor_hot_x = hot_x;
+		radeon_crtc->cursor_hot_y = hot_y;
+	}
 }
 
-int radeon_crtc_cursor_set(struct drm_crtc *crtc,
-			   struct drm_file *file_priv,
-			   uint32_t handle,
-			   uint32_t width,
-			   uint32_t height)
+int radeon_crtc_cursor_set2(struct drm_crtc *crtc,
+			    struct drm_file *file_priv,
+			    uint32_t handle,
+			    uint32_t width,
+			    uint32_t height,
+			    int32_t hot_x,
+			    int32_t hot_y)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
@@ -192,7 +209,7 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 	radeon_crtc->cursor_height = height;
 
 	radeon_lock_cursor(crtc, true);
-	radeon_set_cursor(crtc, obj, gpu_addr);
+	radeon_set_cursor(crtc, obj, gpu_addr, hot_x, hot_y);
 	radeon_show_cursor(crtc);
 	radeon_lock_cursor(crtc, false);
 
@@ -215,8 +232,7 @@ fail:
 	return ret;
 }
 
-int radeon_crtc_cursor_move(struct drm_crtc *crtc,
-			    int x, int y)
+static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
@@ -281,7 +297,6 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 		}
 	}
 
-	radeon_lock_cursor(crtc, true);
 	if (ASIC_IS_DCE4(rdev)) {
 		WREG32(EVERGREEN_CUR_POSITION + radeon_crtc->crtc_offset, (x << 16) | y);
 		WREG32(EVERGREEN_CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
@@ -308,7 +323,21 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, (radeon_crtc->legacy_cursor_offset +
 								      (yorigin * 256)));
 	}
-	radeon_lock_cursor(crtc, false);
+
+	radeon_crtc->cursor_x = x;
+	radeon_crtc->cursor_y = y;
 
 	return 0;
+}
+
+int radeon_crtc_cursor_move(struct drm_crtc *crtc,
+			    int x, int y)
+{
+	int ret;
+
+	radeon_lock_cursor(crtc, true);
+	ret = radeon_cursor_move_locked(crtc, x, y);
+	radeon_lock_cursor(crtc, false);
+
+	return ret;
 }
