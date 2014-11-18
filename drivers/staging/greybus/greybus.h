@@ -102,12 +102,6 @@ struct greybus_host_device {
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *hd,
 					      struct device *parent);
 void greybus_remove_hd(struct greybus_host_device *hd);
-void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
-			u8 *data, size_t length);
-
-int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t mem_flags);
-void greybus_kill_gbuf(struct gbuf *gbuf);
-
 
 struct greybus_driver {
 	const char *name;

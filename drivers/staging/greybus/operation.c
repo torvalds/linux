@@ -103,6 +103,20 @@ gb_pending_operation_find(struct gb_connection *connection, u16 id)
 	return found ? operation : NULL;
 }
 
+static int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
+{
+	gbuf->status = -EINPROGRESS;
+
+	return gbuf->hd->driver->submit_gbuf(gbuf, gfp_mask);
+}
+
+static void greybus_kill_gbuf(struct gbuf *gbuf)
+{
+	if (gbuf->status != -EINPROGRESS)
+		return;
+
+	gbuf->hd->driver->kill_gbuf(gbuf);
+}
 /*
  * An operations's response message has arrived.  If no callback was
  * supplied it was submitted for asynchronous completion, so we notify

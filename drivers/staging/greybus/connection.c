@@ -29,6 +29,21 @@ struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
 	return connection;
 }
 
+void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
+			u8 *data, size_t length)
+{
+	struct gb_connection *connection;
+
+	connection = gb_hd_connection_find(hd, cport_id);
+	if (!connection) {
+		dev_err(hd->parent,
+			"nonexistent connection (%zu bytes dropped)\n", length);
+		return;
+	}
+	gb_connection_operation_recv(connection, data, length);
+}
+EXPORT_SYMBOL_GPL(greybus_cport_in);
+
 /*
  * Allocate an available CPort Id for use for the host side of the
  * given connection.  The lowest-available id is returned, so the
