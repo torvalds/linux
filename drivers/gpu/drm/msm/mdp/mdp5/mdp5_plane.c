@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2014 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -17,12 +18,20 @@
 
 #include "mdp5_kms.h"
 
+#define MAX_PLANE	4
 
 struct mdp5_plane {
 	struct drm_plane base;
 	const char *name;
 
 	enum mdp5_pipe pipe;
+
+	spinlock_t pipe_lock;	/* protect REG_MDP5_PIPE_* registers */
+	uint32_t reg_offset;
+
+	uint32_t flush_mask;	/* used to commit pipe registers */
+
+	struct mdp5_overlay_info overlay_info;
 
 	uint32_t nformats;
 	uint32_t formats[32];
@@ -95,6 +104,22 @@ static void mdp5_plane_destroy(struct drm_plane *plane)
 	kfree(mdp5_plane);
 }
 
+void mdp5_plane_set_overlay_info(struct drm_plane *plane,
+		const struct mdp5_overlay_info *overlay_info)
+{
+	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+
+	memcpy(&mdp5_plane->overlay_info, overlay_info, sizeof(*overlay_info));
+}
+
+struct mdp5_overlay_info *mdp5_plane_get_overlay_info(
+		struct drm_plane *plane)
+{
+	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+
+	return &mdp5_plane->overlay_info;
+}
+
 /* helper to install properties which are common to planes and crtcs */
 void mdp5_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj)
@@ -116,35 +141,58 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.set_property = mdp5_plane_set_property,
 };
 
-void mdp5_plane_set_scanout(struct drm_plane *plane,
-		struct drm_framebuffer *fb)
+static int get_fb_addr(struct drm_plane *plane, struct drm_framebuffer *fb,
+		uint32_t iova[MAX_PLANE])
 {
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
-	enum mdp5_pipe pipe = mdp5_plane->pipe;
 	uint32_t nplanes = drm_format_num_planes(fb->pixel_format);
-	uint32_t iova[4];
 	int i;
 
 	for (i = 0; i < nplanes; i++) {
 		struct drm_gem_object *bo = msm_framebuffer_bo(fb, i);
 		msm_gem_get_iova(bo, mdp5_kms->id, &iova[i]);
 	}
-	for (; i < 4; i++)
+	for (; i < MAX_PLANE; i++)
 		iova[i] = 0;
 
+	return 0;
+}
+
+static void set_scanout_locked(struct drm_plane *plane,
+		uint32_t pitches[MAX_PLANE], uint32_t src_addr[MAX_PLANE])
+{
+	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	enum mdp5_pipe pipe = mdp5_plane->pipe;
+
+	WARN_ON(!spin_is_locked(&mdp5_plane->pipe_lock));
+
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_STRIDE_A(pipe),
-			MDP5_PIPE_SRC_STRIDE_A_P0(fb->pitches[0]) |
-			MDP5_PIPE_SRC_STRIDE_A_P1(fb->pitches[1]));
+			MDP5_PIPE_SRC_STRIDE_A_P0(pitches[0]) |
+			MDP5_PIPE_SRC_STRIDE_A_P1(pitches[1]));
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_STRIDE_B(pipe),
-			MDP5_PIPE_SRC_STRIDE_B_P2(fb->pitches[2]) |
-			MDP5_PIPE_SRC_STRIDE_B_P3(fb->pitches[3]));
+			MDP5_PIPE_SRC_STRIDE_B_P2(pitches[2]) |
+			MDP5_PIPE_SRC_STRIDE_B_P3(pitches[3]));
 
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC0_ADDR(pipe), iova[0]);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC1_ADDR(pipe), iova[1]);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC2_ADDR(pipe), iova[2]);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC3_ADDR(pipe), iova[3]);
+	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC0_ADDR(pipe), src_addr[0]);
+	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC1_ADDR(pipe), src_addr[1]);
+	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC2_ADDR(pipe), src_addr[2]);
+	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC3_ADDR(pipe), src_addr[3]);
+}
+
+void mdp5_plane_set_scanout(struct drm_plane *plane,
+		struct drm_framebuffer *fb)
+{
+	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+	uint32_t src_addr[MAX_PLANE];
+	unsigned long flags;
+
+	get_fb_addr(plane, fb, src_addr);
+
+	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
+	set_scanout_locked(plane, fb->pitches, src_addr);
+	spin_unlock_irqrestore(&mdp5_plane->pipe_lock, flags);
 
 	plane->fb = fb;
 }
@@ -163,6 +211,8 @@ int mdp5_plane_mode_set(struct drm_plane *plane,
 	uint32_t nplanes, config = 0;
 	uint32_t phasex_step = 0, phasey_step = 0;
 	uint32_t hdecm = 0, vdecm = 0;
+	uint32_t src_addr[MAX_PLANE];
+	unsigned long flags;
 	int ret;
 
 	nplanes = drm_format_num_planes(fb->pixel_format);
@@ -205,6 +255,12 @@ int mdp5_plane_mode_set(struct drm_plane *plane,
 		/* TODO calc phasey_step, vdecm */
 	}
 
+	ret = get_fb_addr(plane, fb, src_addr);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
+
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_IMG_SIZE(pipe),
 			MDP5_PIPE_SRC_IMG_SIZE_WIDTH(src_w) |
 			MDP5_PIPE_SRC_IMG_SIZE_HEIGHT(src_h));
@@ -224,8 +280,6 @@ int mdp5_plane_mode_set(struct drm_plane *plane,
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_OUT_XY(pipe),
 			MDP5_PIPE_OUT_XY_X(crtc_x) |
 			MDP5_PIPE_OUT_XY_Y(crtc_y));
-
-	mdp5_plane_set_scanout(plane, fb);
 
 	format = to_mdp_format(msm_framebuffer_format(fb));
 
@@ -266,10 +320,14 @@ int mdp5_plane_mode_set(struct drm_plane *plane,
 			MDP5_PIPE_SCALE_CONFIG_SCALEX_MAX_FILTER(SCALE_FILTER_NEAREST) |
 			MDP5_PIPE_SCALE_CONFIG_SCALEY_MAX_FILTER(SCALE_FILTER_NEAREST));
 
-	/* TODO detach from old crtc (if we had more than one) */
-	mdp5_crtc_attach(crtc, plane);
+	set_scanout_locked(plane, fb->pitches, src_addr);
 
-	return 0;
+	spin_unlock_irqrestore(&mdp5_plane->pipe_lock, flags);
+
+	/* TODO detach from old crtc (if we had more than one) */
+	ret = mdp5_crtc_attach(crtc, plane);
+
+	return ret;
 }
 
 void mdp5_plane_complete_flip(struct drm_plane *plane)
@@ -286,9 +344,16 @@ enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)
 	return mdp5_plane->pipe;
 }
 
+uint32_t mdp5_plane_get_flush(struct drm_plane *plane)
+{
+	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+
+	return mdp5_plane->flush_mask;
+}
+
 /* initialize plane */
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
-		enum mdp5_pipe pipe, bool private_plane)
+		enum mdp5_pipe pipe, bool private_plane, uint32_t reg_offset)
 {
 	struct drm_plane *plane = NULL;
 	struct mdp5_plane *mdp5_plane;
@@ -308,6 +373,10 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 
 	mdp5_plane->nformats = mdp5_get_formats(pipe, mdp5_plane->formats,
 			ARRAY_SIZE(mdp5_plane->formats));
+
+	mdp5_plane->flush_mask = mdp_ctl_flush_mask_pipe(pipe);
+	mdp5_plane->reg_offset = reg_offset;
+	spin_lock_init(&mdp5_plane->pipe_lock);
 
 	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,

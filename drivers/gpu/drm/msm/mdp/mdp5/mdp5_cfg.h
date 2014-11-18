@@ -24,6 +24,7 @@
  */
 extern const struct mdp5_cfg_hw *mdp5_cfg;
 
+#define MAX_CTL			8
 #define MAX_BASES		8
 #define MAX_SMP_BLOCKS		44
 #define MAX_CLIENTS		32
