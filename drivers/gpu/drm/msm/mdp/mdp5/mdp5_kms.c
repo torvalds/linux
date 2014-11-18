@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -24,158 +25,10 @@ static const char *iommu_ports[] = {
 		"mdp_0",
 };
 
-static struct mdp5_platform_config *mdp5_get_config(struct platform_device *dev);
-
-const struct mdp5_config *mdp5_cfg;
-
-static const struct mdp5_config msm8x74_config = {
-	.name = "msm8x74",
-	.smp = {
-		.mmb_count = 22,
-		.mmb_size = 4096,
-	},
-	.ctl = {
-		.count = 5,
-		.base = { 0x00600, 0x00700, 0x00800, 0x00900, 0x00a00 },
-	},
-	.pipe_vig = {
-		.count = 3,
-		.base = { 0x01200, 0x01600, 0x01a00 },
-	},
-	.pipe_rgb = {
-		.count = 3,
-		.base = { 0x01e00, 0x02200, 0x02600 },
-	},
-	.pipe_dma = {
-		.count = 2,
-		.base = { 0x02a00, 0x02e00 },
-	},
-	.lm = {
-		.count = 5,
-		.base = { 0x03200, 0x03600, 0x03a00, 0x03e00, 0x04200 },
-	},
-	.dspp = {
-		.count = 3,
-		.base = { 0x04600, 0x04a00, 0x04e00 },
-	},
-	.ad = {
-		.count = 2,
-		.base = { 0x13100, 0x13300 }, /* NOTE: no ad in v1.0 */
-	},
-	.intf = {
-		.count = 4,
-		.base = { 0x12500, 0x12700, 0x12900, 0x12b00 },
-	},
-	.max_clk = 200000000,
-};
-
-static const struct mdp5_config apq8084_config = {
-	.name = "apq8084",
-	.smp = {
-		.mmb_count = 44,
-		.mmb_size = 8192,
-		.reserved_state[0] = GENMASK(7, 0),	/* first 8 MMBs */
-		.reserved[CID_RGB0] = 2,
-		.reserved[CID_RGB1] = 2,
-		.reserved[CID_RGB2] = 2,
-		.reserved[CID_RGB3] = 2,
-	},
-	.ctl = {
-		.count = 5,
-		.base = { 0x00600, 0x00700, 0x00800, 0x00900, 0x00a00 },
-	},
-	.pipe_vig = {
-		.count = 4,
-		.base = { 0x01200, 0x01600, 0x01a00, 0x01e00 },
-	},
-	.pipe_rgb = {
-		.count = 4,
-		.base = { 0x02200, 0x02600, 0x02a00, 0x02e00 },
-	},
-	.pipe_dma = {
-		.count = 2,
-		.base = { 0x03200, 0x03600 },
-	},
-	.lm = {
-		.count = 6,
-		.base = { 0x03a00, 0x03e00, 0x04200, 0x04600, 0x04a00, 0x04e00 },
-	},
-	.dspp = {
-		.count = 4,
-		.base = { 0x05200, 0x05600, 0x05a00, 0x05e00 },
-
-	},
-	.ad = {
-		.count = 3,
-		.base = { 0x13500, 0x13700, 0x13900 },
-	},
-	.intf = {
-		.count = 5,
-		.base = { 0x12500, 0x12700, 0x12900, 0x12b00, 0x12d00 },
-	},
-	.max_clk = 320000000,
-};
-
-struct mdp5_config_entry {
-	int revision;
-	const struct mdp5_config *config;
-};
-
-static const struct mdp5_config_entry mdp5_configs[] = {
-	{ .revision = 0, .config = &msm8x74_config },
-	{ .revision = 2, .config = &msm8x74_config },
-	{ .revision = 3, .config = &apq8084_config },
-};
-
-static int mdp5_select_hw_cfg(struct msm_kms *kms)
-{
-	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct drm_device *dev = mdp5_kms->dev;
-	uint32_t version, major, minor;
-	int i, ret = 0;
-
-	mdp5_enable(mdp5_kms);
-	version = mdp5_read(mdp5_kms, REG_MDP5_MDP_VERSION);
-	mdp5_disable(mdp5_kms);
-
-	major = FIELD(version, MDP5_MDP_VERSION_MAJOR);
-	minor = FIELD(version, MDP5_MDP_VERSION_MINOR);
-
-	DBG("found MDP5 version v%d.%d", major, minor);
-
-	if (major != 1) {
-		dev_err(dev->dev, "unexpected MDP major version: v%d.%d\n",
-				major, minor);
-		ret = -ENXIO;
-		goto out;
-	}
-
-	mdp5_kms->rev = minor;
-
-	/* only after mdp5_cfg global pointer's init can we access the hw */
-	for (i = 0; i < ARRAY_SIZE(mdp5_configs); i++) {
-		if (mdp5_configs[i].revision != minor)
-			continue;
-		mdp5_kms->hw_cfg = mdp5_cfg = mdp5_configs[i].config;
-		break;
-	}
-	if (unlikely(!mdp5_kms->hw_cfg)) {
-		dev_err(dev->dev, "unexpected MDP minor revision: v%d.%d\n",
-				major, minor);
-		ret = -ENXIO;
-		goto out;
-	}
-
-	DBG("MDP5: %s config selected", mdp5_kms->hw_cfg->name);
-
-	return 0;
-out:
-	return ret;
-}
-
 static int mdp5_hw_init(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	const struct mdp5_cfg_hw *hw_cfg;
 	struct drm_device *dev = mdp5_kms->dev;
 	int i;
 
@@ -207,7 +60,9 @@ static int mdp5_hw_init(struct msm_kms *kms)
 
 	mdp5_write(mdp5_kms, REG_MDP5_DISP_INTF_SEL, 0);
 
-	for (i = 0; i < mdp5_kms->hw_cfg->ctl.count; i++)
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg_priv);
+
+	for (i = 0; i < hw_cfg->ctl.count; i++)
 		mdp5_write(mdp5_kms, REG_MDP5_CTL_OP(i), 0);
 
 	pm_runtime_put_sync(dev->dev);
@@ -236,6 +91,7 @@ static void mdp5_destroy(struct msm_kms *kms)
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct msm_mmu *mmu = mdp5_kms->mmu;
 	void *smp = mdp5_kms->smp_priv;
+	void *cfg = mdp5_kms->cfg_priv;
 
 	mdp5_irq_domain_fini(mdp5_kms);
 
@@ -246,6 +102,8 @@ static void mdp5_destroy(struct msm_kms *kms)
 
 	if (smp)
 		mdp5_smp_destroy(smp);
+	if (cfg)
+		mdp5_cfg_destroy(cfg);
 
 	kfree(mdp5_kms);
 }
@@ -299,7 +157,10 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_encoder *encoder;
+	const struct mdp5_cfg_hw *hw_cfg;
 	int i, ret;
+
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg_priv);
 
 	/* register our interrupt-controller for hdmi/eDP/dsi/etc
 	 * to use for irqs routed through mdp:
@@ -309,7 +170,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		goto fail;
 
 	/* construct CRTCs: */
-	for (i = 0; i < mdp5_kms->hw_cfg->pipe_rgb.count; i++) {
+	for (i = 0; i < hw_cfg->pipe_rgb.count; i++) {
 		struct drm_plane *plane;
 		struct drm_crtc *crtc;
 
@@ -367,6 +228,21 @@ fail:
 	return ret;
 }
 
+static void read_hw_revision(struct mdp5_kms *mdp5_kms,
+		uint32_t *major, uint32_t *minor)
+{
+	uint32_t version;
+
+	mdp5_enable(mdp5_kms);
+	version = mdp5_read(mdp5_kms, REG_MDP5_MDP_VERSION);
+	mdp5_disable(mdp5_kms);
+
+	*major = FIELD(version, MDP5_MDP_VERSION_MAJOR);
+	*minor = FIELD(version, MDP5_MDP_VERSION_MINOR);
+
+	DBG("MDP5 version v%d.%d", *major, *minor);
+}
+
 static int get_clk(struct platform_device *pdev, struct clk **clkp,
 		const char *name)
 {
@@ -383,10 +259,11 @@ static int get_clk(struct platform_device *pdev, struct clk **clkp,
 struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 {
 	struct platform_device *pdev = dev->platformdev;
-	struct mdp5_platform_config *config = mdp5_get_config(pdev);
+	struct mdp5_cfg *config;
 	struct mdp5_kms *mdp5_kms;
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
+	uint32_t major, minor;
 	void *priv;
 	int i, ret;
 
@@ -446,14 +323,19 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	if (ret)
 		goto fail;
 
-	ret = mdp5_select_hw_cfg(kms);
-	if (ret)
+	read_hw_revision(mdp5_kms, &major, &minor);
+	priv = mdp5_cfg_init(mdp5_kms, major, minor);
+	if (IS_ERR(priv)) {
+		ret = PTR_ERR(priv);
 		goto fail;
+	}
+	mdp5_kms->cfg_priv = priv;
+	config = mdp5_cfg_get_config(mdp5_kms->cfg_priv);
 
 	/* TODO: compute core clock rate at runtime */
-	clk_set_rate(mdp5_kms->src_clk, mdp5_kms->hw_cfg->max_clk);
+	clk_set_rate(mdp5_kms->src_clk, config->hw->max_clk);
 
-	priv = mdp5_smp_init(mdp5_kms->dev, &mdp5_kms->hw_cfg->smp);
+	priv = mdp5_smp_init(mdp5_kms->dev, &config->hw->smp);
 	if (IS_ERR(priv)) {
 		ret = PTR_ERR(priv);
 		goto fail;
@@ -465,13 +347,13 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	 * we don't disable):
 	 */
 	mdp5_enable(mdp5_kms);
-	for (i = 0; i < mdp5_kms->hw_cfg->intf.count; i++)
+	for (i = 0; i < config->hw->intf.count; i++)
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
 	mdp5_disable(mdp5_kms);
 	mdelay(16);
 
-	if (config->iommu) {
-		mmu = msm_iommu_new(&pdev->dev, config->iommu);
+	if (config->platform.iommu) {
+		mmu = msm_iommu_new(&pdev->dev, config->platform.iommu);
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
 			dev_err(dev->dev, "failed to init iommu: %d\n", ret);
@@ -511,15 +393,4 @@ fail:
 	if (kms)
 		mdp5_destroy(kms);
 	return ERR_PTR(ret);
-}
-
-static struct mdp5_platform_config *mdp5_get_config(struct platform_device *dev)
-{
-	static struct mdp5_platform_config config = {};
-#ifdef CONFIG_OF
-	/* TODO */
-#endif
-	config.iommu = iommu_domain_alloc(&platform_bus_type);
-
-	return &config;
 }

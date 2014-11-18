@@ -21,36 +21,7 @@
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "mdp/mdp_kms.h"
-/* dynamic offsets used by mdp5.xml.h (initialized in mdp5_kms.c) */
-#define MDP5_MAX_BASES		8
-#define MAX_SMP_BLOCKS		44
-#define MAX_CLIENTS		32
-typedef DECLARE_BITMAP(mdp5_smp_state_t, MAX_SMP_BLOCKS);
-struct mdp5_sub_block {
-	int	count;
-	uint32_t base[MDP5_MAX_BASES];
-};
-struct mdp5_smp_block {
-	int mmb_count;			/* number of SMP MMBs */
-	int mmb_size;			/* MMB: size in bytes */
-	mdp5_smp_state_t reserved_state;/* SMP MMBs statically allocated */
-	int reserved[MAX_CLIENTS];	/* # of MMBs reserved per client */
-};
-struct mdp5_config {
-	char  *name;
-	struct mdp5_smp_block smp;
-	struct mdp5_sub_block ctl;
-	struct mdp5_sub_block pipe_vig;
-	struct mdp5_sub_block pipe_rgb;
-	struct mdp5_sub_block pipe_dma;
-	struct mdp5_sub_block lm;
-	struct mdp5_sub_block dspp;
-	struct mdp5_sub_block ad;
-	struct mdp5_sub_block intf;
-
-	uint32_t max_clk;
-};
-extern const struct mdp5_config *mdp5_cfg;
+#include "mdp5_cfg.h"	/* must be included before mdp5.xml.h */
 #include "mdp5.xml.h"
 #include "mdp5_smp.h"
 
@@ -59,8 +30,7 @@ struct mdp5_kms {
 
 	struct drm_device *dev;
 
-	int rev;
-	const struct mdp5_config *hw_cfg;
+	void *cfg_priv;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
@@ -88,11 +58,6 @@ struct mdp5_kms {
 	} irqcontroller;
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)
-
-/* platform config data (ie. from DT, or pdata) */
-struct mdp5_platform_config {
-	struct iommu_domain *iommu;
-};
 
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
 {

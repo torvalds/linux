@@ -108,10 +108,14 @@ static int smp_request_block(struct mdp5_smp *smp,
 		enum mdp5_client_id cid, int nblks)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
+	const struct mdp5_cfg_hw *hw_cfg;
 	struct mdp5_client_smp_state *ps = &smp->client_state[cid];
 	int i, ret, avail, cur_nblks, cnt = smp->blk_cnt;
-	int reserved = mdp5_kms->hw_cfg->smp.reserved[cid];
+	int reserved;
 	unsigned long flags;
+
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg_priv);
+	reserved = hw_cfg->smp.reserved[cid];
 
 	spin_lock_irqsave(&smp->state_lock, flags);
 
@@ -175,6 +179,7 @@ int mdp5_smp_request(void *handler, enum mdp5_pipe pipe, u32 fmt, u32 width)
 	struct mdp5_smp *smp = handler;
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	struct drm_device *dev = mdp5_kms->dev;
+	int rev = mdp5_cfg_get_hw_rev(mdp5_kms->cfg_priv);
 	int i, hsub, nplanes, nlines, nblks, ret;
 
 	nplanes = drm_format_num_planes(fmt);
@@ -192,7 +197,7 @@ int mdp5_smp_request(void *handler, enum mdp5_pipe pipe, u32 fmt, u32 width)
 		n = DIV_ROUND_UP(fetch_stride * nlines, smp->blk_size);
 
 		/* for hw rev v1.00 */
-		if (mdp5_kms->rev == 0)
+		if (rev == 0)
 			n = roundup_pow_of_two(n);
 
 		DBG("%s[%d]: request %d SMP blocks", pipe2name(pipe), i, n);
