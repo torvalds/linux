@@ -100,6 +100,16 @@ static int sirf_usp_pcm_set_dai_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_NF:
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		usp->daifmt_format |= (fmt & SND_SOC_DAIFMT_INV_MASK);
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -177,7 +187,7 @@ static int sirf_usp_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	shifter_len = data_len;
 
-	switch (usp->daifmt_format) {
+	switch (usp->daifmt_format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		regmap_update_bits(usp->regmap, USP_RX_FRAME_CTRL,
 			USP_I2S_SYNC_CHG, USP_I2S_SYNC_CHG);
@@ -190,6 +200,18 @@ static int sirf_usp_pcm_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(dai->dev, "Only support I2S and DSP_A mode\n");
+		return -EINVAL;
+	}
+
+	switch (usp->daifmt_format & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_NF:
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		regmap_update_bits(usp->regmap, USP_MODE1,
+			USP_RXD_ACT_EDGE_FALLING | USP_TXD_ACT_EDGE_FALLING,
+			USP_RXD_ACT_EDGE_FALLING);
+		break;
+	default:
 		return -EINVAL;
 	}
 

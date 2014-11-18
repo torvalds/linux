@@ -684,7 +684,7 @@ static bool fsl_asrc_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config fsl_asrc_regmap_config = {
+static const struct regmap_config fsl_asrc_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -801,10 +801,6 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		return PTR_ERR(regs);
 
 	asrc_priv->paddr = res->start;
-
-	/* Register regmap and let it prepare core clock */
-	if (of_property_read_bool(np, "big-endian"))
-		fsl_asrc_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
 
 	asrc_priv->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "mem", regs,
 						      &fsl_asrc_regmap_config);

@@ -1,0 +1,15 @@
+Analog Devices SSM4567 audio amplifier
+
+This device supports I2C only.
+
+Required properties:
+  - compatible : Must be "adi,ssm4567"
+  - reg : the I2C address of the device. This will either be 0x34 (LR_SEL/ADDR connected to AGND),
+	0x35 (LR_SEL/ADDR connected to IOVDD) or 0x36 (LR_SEL/ADDR open).
+
+Example:
+
+	ssm4567: ssm4567@34 {
+		compatible = "adi,ssm4567";
+		reg = <0x34>;
+	};

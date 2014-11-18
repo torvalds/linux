@@ -97,7 +97,8 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct inode *inode,
 			   int inode_only,
 			   const loff_t start,
-			   const loff_t end);
+			   const loff_t end,
+			   struct btrfs_log_ctx *ctx);
 static int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid);
@@ -1498,7 +1499,7 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 		return -EIO;
 
 	key.objectid = BTRFS_TREE_LOG_FIXUP_OBJECTID;
-	btrfs_set_key_type(&key, BTRFS_ORPHAN_ITEM_KEY);
+	key.type = BTRFS_ORPHAN_ITEM_KEY;
 	key.offset = objectid;
 
 	ret = btrfs_insert_empty_item(trans, root, path, &key, 0);
@@ -1637,6 +1638,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	    found_key.type == log_key.type &&
 	    found_key.offset == log_key.offset &&
 	    btrfs_dir_type(path->nodes[0], dst_di) == log_type) {
+		update_size = false;
 		goto out;
 	}
 
@@ -2157,7 +2159,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 		bytenr = btrfs_node_blockptr(cur, path->slots[*level]);
 		ptr_gen = btrfs_node_ptr_generation(cur, path->slots[*level]);
-		blocksize = btrfs_level_size(root, *level - 1);
+		blocksize = root->nodesize;
 
 		parent = path->nodes[*level];
 		root_owner = btrfs_header_owner(parent);
@@ -2983,8 +2985,6 @@ static noinline int log_dir_items(struct btrfs_trans_handle *trans,
 	min_key.type = key_type;
 	min_key.offset = min_offset;
 
-	path->keep_locks = 1;
-
 	ret = btrfs_search_forward(root, &min_key, path, trans->transid);
 
 	/*
@@ -3364,7 +3364,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 		 * or deletes of this inode don't have to relog the inode
 		 * again
 		 */
-		if (btrfs_key_type(ins_keys + i) == BTRFS_EXTENT_DATA_KEY &&
+		if (ins_keys[i].type == BTRFS_EXTENT_DATA_KEY &&
 		    !skip_csum) {
 			int found_type;
 			extent = btrfs_item_ptr(src, start_slot + i,
@@ -3573,107 +3573,33 @@ static int extent_cmp(void *priv, struct list_head *a, struct list_head *b)
 	return 0;
 }
 
-static int log_one_extent(struct btrfs_trans_handle *trans,
-			  struct inode *inode, struct btrfs_root *root,
-			  struct extent_map *em, struct btrfs_path *path,
-			  struct list_head *logged_list)
+static int wait_ordered_extents(struct btrfs_trans_handle *trans,
+				struct inode *inode,
+				struct btrfs_root *root,
+				const struct extent_map *em,
+				const struct list_head *logged_list,
+				bool *ordered_io_error)
 {
-	struct btrfs_root *log = root->log_root;
-	struct btrfs_file_extent_item *fi;
-	struct extent_buffer *leaf;
 	struct btrfs_ordered_extent *ordered;
-	struct list_head ordered_sums;
-	struct btrfs_map_token token;
-	struct btrfs_key key;
+	struct btrfs_root *log = root->log_root;
 	u64 mod_start = em->mod_start;
 	u64 mod_len = em->mod_len;
+	const bool skip_csum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 	u64 csum_offset;
 	u64 csum_len;
-	u64 extent_offset = em->start - em->orig_start;
-	u64 block_len;
-	int ret;
-	bool skip_csum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
-	int extent_inserted = 0;
+	LIST_HEAD(ordered_sums);
+	int ret = 0;
 
-	INIT_LIST_HEAD(&ordered_sums);
-	btrfs_init_map_token(&token);
+	*ordered_io_error = false;
 
-	ret = __btrfs_drop_extents(trans, log, inode, path, em->start,
-				   em->start + em->len, NULL, 0, 1,
-				   sizeof(*fi), &extent_inserted);
-	if (ret)
-		return ret;
-
-	if (!extent_inserted) {
-		key.objectid = btrfs_ino(inode);
-		key.type = BTRFS_EXTENT_DATA_KEY;
-		key.offset = em->start;
-
-		ret = btrfs_insert_empty_item(trans, log, path, &key,
-					      sizeof(*fi));
-		if (ret)
-			return ret;
-	}
-	leaf = path->nodes[0];
-	fi = btrfs_item_ptr(leaf, path->slots[0],
-			    struct btrfs_file_extent_item);
-
-	btrfs_set_token_file_extent_generation(leaf, fi, em->generation,
-					       &token);
-	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
-		skip_csum = true;
-		btrfs_set_token_file_extent_type(leaf, fi,
-						 BTRFS_FILE_EXTENT_PREALLOC,
-						 &token);
-	} else {
-		btrfs_set_token_file_extent_type(leaf, fi,
-						 BTRFS_FILE_EXTENT_REG,
-						 &token);
-		if (em->block_start == EXTENT_MAP_HOLE)
-			skip_csum = true;
-	}
-
-	block_len = max(em->block_len, em->orig_block_len);
-	if (em->compress_type != BTRFS_COMPRESS_NONE) {
-		btrfs_set_token_file_extent_disk_bytenr(leaf, fi,
-							em->block_start,
-							&token);
-		btrfs_set_token_file_extent_disk_num_bytes(leaf, fi, block_len,
-							   &token);
-	} else if (em->block_start < EXTENT_MAP_LAST_BYTE) {
-		btrfs_set_token_file_extent_disk_bytenr(leaf, fi,
-							em->block_start -
-							extent_offset, &token);
-		btrfs_set_token_file_extent_disk_num_bytes(leaf, fi, block_len,
-							   &token);
-	} else {
-		btrfs_set_token_file_extent_disk_bytenr(leaf, fi, 0, &token);
-		btrfs_set_token_file_extent_disk_num_bytes(leaf, fi, 0,
-							   &token);
-	}
-
-	btrfs_set_token_file_extent_offset(leaf, fi,
-					   em->start - em->orig_start,
-					   &token);
-	btrfs_set_token_file_extent_num_bytes(leaf, fi, em->len, &token);
-	btrfs_set_token_file_extent_ram_bytes(leaf, fi, em->ram_bytes, &token);
-	btrfs_set_token_file_extent_compression(leaf, fi, em->compress_type,
-						&token);
-	btrfs_set_token_file_extent_encryption(leaf, fi, 0, &token);
-	btrfs_set_token_file_extent_other_encoding(leaf, fi, 0, &token);
-	btrfs_mark_buffer_dirty(leaf);
-
-	btrfs_release_path(path);
-	if (ret) {
-		return ret;
-	}
-
-	if (skip_csum)
+	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags) ||
+	    em->block_start == EXTENT_MAP_HOLE)
 		return 0;
 
 	/*
-	 * First check and see if our csums are on our outstanding ordered
-	 * extents.
+	 * Wait far any ordered extent that covers our extent map. If it
+	 * finishes without an error, first check and see if our csums are on
+	 * our outstanding ordered extents.
 	 */
 	list_for_each_entry(ordered, logged_list, log_list) {
 		struct btrfs_ordered_sum *sum;
@@ -3685,6 +3611,24 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 		    mod_start + mod_len <= ordered->file_offset)
 			continue;
 
+		if (!test_bit(BTRFS_ORDERED_IO_DONE, &ordered->flags) &&
+		    !test_bit(BTRFS_ORDERED_IOERR, &ordered->flags) &&
+		    !test_bit(BTRFS_ORDERED_DIRECT, &ordered->flags)) {
+			const u64 start = ordered->file_offset;
+			const u64 end = ordered->file_offset + ordered->len - 1;
+
+			WARN_ON(ordered->inode != inode);
+			filemap_fdatawrite_range(inode->i_mapping, start, end);
+		}
+
+		wait_event(ordered->wait,
+			   (test_bit(BTRFS_ORDERED_IO_DONE, &ordered->flags) ||
+			    test_bit(BTRFS_ORDERED_IOERR, &ordered->flags)));
+
+		if (test_bit(BTRFS_ORDERED_IOERR, &ordered->flags)) {
+			*ordered_io_error = true;
+			break;
+		}
 		/*
 		 * We are going to copy all the csums on this ordered extent, so
 		 * go ahead and adjust mod_start and mod_len in case this
@@ -3716,6 +3660,9 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 			}
 		}
 
+		if (skip_csum)
+			continue;
+
 		/*
 		 * To keep us from looping for the above case of an ordered
 		 * extent that falls inside of the logged extent.
@@ -3733,18 +3680,16 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 		list_for_each_entry(sum, &ordered->list, list) {
 			ret = btrfs_csum_file_blocks(trans, log, sum);
 			if (ret)
-				goto unlocked;
+				break;
 		}
-
 	}
-unlocked:
 
-	if (!mod_len || ret)
+	if (*ordered_io_error || !mod_len || ret || skip_csum)
 		return ret;
 
 	if (em->compress_type) {
 		csum_offset = 0;
-		csum_len = block_len;
+		csum_len = max(em->block_len, em->orig_block_len);
 	} else {
 		csum_offset = mod_start - em->start;
 		csum_len = mod_len;
@@ -3771,11 +3716,106 @@ unlocked:
 	return ret;
 }
 
+static int log_one_extent(struct btrfs_trans_handle *trans,
+			  struct inode *inode, struct btrfs_root *root,
+			  const struct extent_map *em,
+			  struct btrfs_path *path,
+			  const struct list_head *logged_list,
+			  struct btrfs_log_ctx *ctx)
+{
+	struct btrfs_root *log = root->log_root;
+	struct btrfs_file_extent_item *fi;
+	struct extent_buffer *leaf;
+	struct btrfs_map_token token;
+	struct btrfs_key key;
+	u64 extent_offset = em->start - em->orig_start;
+	u64 block_len;
+	int ret;
+	int extent_inserted = 0;
+	bool ordered_io_err = false;
+
+	ret = wait_ordered_extents(trans, inode, root, em, logged_list,
+				   &ordered_io_err);
+	if (ret)
+		return ret;
+
+	if (ordered_io_err) {
+		ctx->io_err = -EIO;
+		return 0;
+	}
+
+	btrfs_init_map_token(&token);
+
+	ret = __btrfs_drop_extents(trans, log, inode, path, em->start,
+				   em->start + em->len, NULL, 0, 1,
+				   sizeof(*fi), &extent_inserted);
+	if (ret)
+		return ret;
+
+	if (!extent_inserted) {
+		key.objectid = btrfs_ino(inode);
+		key.type = BTRFS_EXTENT_DATA_KEY;
+		key.offset = em->start;
+
+		ret = btrfs_insert_empty_item(trans, log, path, &key,
+					      sizeof(*fi));
+		if (ret)
+			return ret;
+	}
+	leaf = path->nodes[0];
+	fi = btrfs_item_ptr(leaf, path->slots[0],
+			    struct btrfs_file_extent_item);
+
+	btrfs_set_token_file_extent_generation(leaf, fi, em->generation,
+					       &token);
+	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+		btrfs_set_token_file_extent_type(leaf, fi,
+						 BTRFS_FILE_EXTENT_PREALLOC,
+						 &token);
+	else
+		btrfs_set_token_file_extent_type(leaf, fi,
+						 BTRFS_FILE_EXTENT_REG,
+						 &token);
+
+	block_len = max(em->block_len, em->orig_block_len);
+	if (em->compress_type != BTRFS_COMPRESS_NONE) {
+		btrfs_set_token_file_extent_disk_bytenr(leaf, fi,
+							em->block_start,
+							&token);
+		btrfs_set_token_file_extent_disk_num_bytes(leaf, fi, block_len,
+							   &token);
+	} else if (em->block_start < EXTENT_MAP_LAST_BYTE) {
+		btrfs_set_token_file_extent_disk_bytenr(leaf, fi,
+							em->block_start -
+							extent_offset, &token);
+		btrfs_set_token_file_extent_disk_num_bytes(leaf, fi, block_len,
+							   &token);
+	} else {
+		btrfs_set_token_file_extent_disk_bytenr(leaf, fi, 0, &token);
+		btrfs_set_token_file_extent_disk_num_bytes(leaf, fi, 0,
+							   &token);
+	}
+
+	btrfs_set_token_file_extent_offset(leaf, fi, extent_offset, &token);
+	btrfs_set_token_file_extent_num_bytes(leaf, fi, em->len, &token);
+	btrfs_set_token_file_extent_ram_bytes(leaf, fi, em->ram_bytes, &token);
+	btrfs_set_token_file_extent_compression(leaf, fi, em->compress_type,
+						&token);
+	btrfs_set_token_file_extent_encryption(leaf, fi, 0, &token);
+	btrfs_set_token_file_extent_other_encoding(leaf, fi, 0, &token);
+	btrfs_mark_buffer_dirty(leaf);
+
+	btrfs_release_path(path);
+
+	return ret;
+}
+
 static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
 				     struct inode *inode,
 				     struct btrfs_path *path,
-				     struct list_head *logged_list)
+				     struct list_head *logged_list,
+				     struct btrfs_log_ctx *ctx)
 {
 	struct extent_map *em, *n;
 	struct list_head extents;
@@ -3833,7 +3873,8 @@ process:
 
 		write_unlock(&tree->lock);
 
-		ret = log_one_extent(trans, inode, root, em, path, logged_list);
+		ret = log_one_extent(trans, inode, root, em, path, logged_list,
+				     ctx);
 		write_lock(&tree->lock);
 		clear_em_logging(tree, em);
 		free_extent_map(em);
@@ -3863,7 +3904,8 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct inode *inode,
 			   int inode_only,
 			   const loff_t start,
-			   const loff_t end)
+			   const loff_t end,
+			   struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_path *path;
 	struct btrfs_path *dst_path;
@@ -3964,7 +4006,6 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		err = ret;
 		goto out_unlock;
 	}
-	path->keep_locks = 1;
 
 	while (1) {
 		ins_nr = 0;
@@ -4049,7 +4090,7 @@ log_extents:
 	btrfs_release_path(dst_path);
 	if (fast_search) {
 		ret = btrfs_log_changed_extents(trans, root, inode, dst_path,
-						&logged_list);
+						&logged_list, ctx);
 		if (ret) {
 			err = ret;
 			goto out_unlock;
@@ -4239,7 +4280,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto end_no_trans;
 
-	ret = btrfs_log_inode(trans, root, inode, inode_only, start, end);
+	ret = btrfs_log_inode(trans, root, inode, inode_only, start, end, ctx);
 	if (ret)
 		goto end_trans;
 
@@ -4268,7 +4309,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		if (BTRFS_I(inode)->generation >
 		    root->fs_info->last_trans_committed) {
 			ret = btrfs_log_inode(trans, root, inode, inode_only,
-					      0, LLONG_MAX);
+					      0, LLONG_MAX, ctx);
 			if (ret)
 				goto end_trans;
 		}
@@ -4360,7 +4401,7 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 again:
 	key.objectid = BTRFS_TREE_LOG_OBJECTID;
 	key.offset = (u64)-1;
-	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+	key.type = BTRFS_ROOT_ITEM_KEY;
 
 	while (1) {
 		ret = btrfs_search_slot(NULL, log_root_tree, &key, path, 0, 0);

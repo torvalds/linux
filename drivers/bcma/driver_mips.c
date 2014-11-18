@@ -115,7 +115,7 @@ static u32 bcma_core_mips_irqflag(struct bcma_device *dev)
  * If disabled, 5 is returned.
  * If not supported, 6 is returned.
  */
-static unsigned int bcma_core_mips_irq(struct bcma_device *dev)
+unsigned int bcma_core_mips_irq(struct bcma_device *dev)
 {
 	struct bcma_device *mdev = dev->bus->drv_mips.core;
 	u32 irqflag;
@@ -132,13 +132,6 @@ static unsigned int bcma_core_mips_irq(struct bcma_device *dev)
 
 	return 5;
 }
-
-unsigned int bcma_core_irq(struct bcma_device *dev)
-{
-	unsigned int mips_irq = bcma_core_mips_irq(dev);
-	return mips_irq <= 4 ? mips_irq + 2 : 0;
-}
-EXPORT_SYMBOL(bcma_core_irq);
 
 static void bcma_core_mips_set_irq(struct bcma_device *dev, unsigned int irq)
 {
@@ -423,7 +416,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 		break;
 	default:
 		list_for_each_entry(core, &bus->cores, list) {
-			core->irq = bcma_core_irq(core);
+			core->irq = bcma_core_irq(core, 0);
 		}
 		bcma_err(bus,
 			 "Unknown device (0x%x) found, can not configure IRQs\n",

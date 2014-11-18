@@ -133,7 +133,7 @@ static void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans)
 		break;
 	}
 
-	if (!page)
+	if (WARN_ON_ONCE(!page))
 		return;
 
 	trans_pcie->fw_mon_page = page;
@@ -174,6 +174,7 @@ static void iwl_pcie_apm_config(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u16 lctl;
+	u16 cap;
 
 	/*
 	 * HW bug W/A for instability in PCIe bus L0S->L1 transition.
@@ -184,16 +185,17 @@ static void iwl_pcie_apm_config(struct iwl_trans *trans)
 	 *    power savings, even without L1.
 	 */
 	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_LNKCTL, &lctl);
-	if (lctl & PCI_EXP_LNKCTL_ASPM_L1) {
-		/* L1-ASPM enabled; disable(!) L0S */
+	if (lctl & PCI_EXP_LNKCTL_ASPM_L1)
 		iwl_set_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
-		dev_info(trans->dev, "L1 Enabled; Disabling L0S\n");
-	} else {
-		/* L1-ASPM disabled; enable(!) L0S */
+	else
 		iwl_clear_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
-		dev_info(trans->dev, "L1 Disabled; Enabling L0S\n");
-	}
 	trans->pm_support = !(lctl & PCI_EXP_LNKCTL_ASPM_L0S);
+
+	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_DEVCTL2, &cap);
+	trans->ltr_enabled = cap & PCI_EXP_DEVCTL2_LTR_EN;
+	dev_info(trans->dev, "L1 %sabled - LTR %sabled\n",
+		 (lctl & PCI_EXP_LNKCTL_ASPM_L1) ? "En" : "Dis",
+		 trans->ltr_enabled ? "En" : "Dis");
 }
 
 /*
@@ -428,7 +430,7 @@ static int iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 	ret = iwl_poll_bit(trans, CSR_RESET,
 			   CSR_RESET_REG_FLAG_MASTER_DISABLED,
 			   CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-	if (ret)
+	if (ret < 0)
 		IWL_WARN(trans, "Master Disable Timed Out, 100 usec\n");
 
 	IWL_DEBUG_INFO(trans, "stop master\n");
@@ -544,7 +546,7 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 		msleep(25);
 	}
 
-	IWL_DEBUG_INFO(trans, "got NIC after %d iterations\n", iter);
+	IWL_ERR(trans, "Couldn't prepare the card\n");
 
 	return ret;
 }
@@ -745,14 +747,11 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 	int first_ucode_section;
 
 	IWL_DEBUG_FW(trans,
-		     "working with %s image\n",
-		     image->is_secure ? "Secured" : "Non Secured");
-	IWL_DEBUG_FW(trans,
 		     "working with %s CPU\n",
 		     image->is_dual_cpus ? "Dual" : "Single");
 
 	/* configure the ucode to be ready to get the secured image */
-	if (image->is_secure) {
+	if (iwl_has_secure_boot(trans->hw_rev, trans->cfg->device_family)) {
 		/* set secure boot inspector addresses */
 		iwl_write_prph(trans,
 			       LMPM_SECURE_INSPECTOR_CODE_ADDR,
@@ -788,7 +787,8 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 			       LMPM_SECURE_CPU2_HDR_MEM_SPACE);
 
 		/* load to FW the binary sections of CPU2 */
-		if (image->is_secure)
+		if (iwl_has_secure_boot(trans->hw_rev,
+					trans->cfg->device_family))
 			ret = iwl_pcie_load_cpu_secured_sections(
 							trans, image, 2,
 							&first_ucode_section);
@@ -819,7 +819,7 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 	else
 		iwl_write32(trans, CSR_RESET, 0);
 
-	if (image->is_secure) {
+	if (iwl_has_secure_boot(trans->hw_rev, trans->cfg->device_family)) {
 		/* wait for image verification to complete  */
 		ret = iwl_poll_prph_bit(trans,
 					LMPM_SECURE_BOOT_CPU1_STATUS_ADDR,
@@ -1021,14 +1021,6 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 		return 0;
 	}
 
-	iwl_pcie_set_pwr(trans, false);
-
-	val = iwl_read32(trans, CSR_RESET);
-	if (val & CSR_RESET_REG_FLAG_NEVO_RESET) {
-		*status = IWL_D3_STATUS_RESET;
-		return 0;
-	}
-
 	/*
 	 * Also enables interrupts - none will happen as the device doesn't
 	 * know we're waking it up, only when the opmode actually tells it
@@ -1043,10 +1035,12 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			   25000);
-	if (ret) {
+	if (ret < 0) {
 		IWL_ERR(trans, "Failed to resume the device (mac ready)\n");
 		return ret;
 	}
+
+	iwl_pcie_set_pwr(trans, false);
 
 	iwl_trans_pcie_tx_reset(trans);
 
@@ -1056,7 +1050,12 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 		return ret;
 	}
 
-	*status = IWL_D3_STATUS_ALIVE;
+	val = iwl_read32(trans, CSR_RESET);
+	if (val & CSR_RESET_REG_FLAG_NEVO_RESET)
+		*status = IWL_D3_STATUS_RESET;
+	else
+		*status = IWL_D3_STATUS_ALIVE;
+
 	return 0;
 }
 
@@ -1765,6 +1764,13 @@ err:
 	IWL_ERR(trans, "failed to create the trans debugfs entry\n");
 	return -ENOMEM;
 }
+#else
+static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
+					 struct dentry *dir)
+{
+	return 0;
+}
+#endif /*CONFIG_IWLWIFI_DEBUGFS */
 
 static u32 iwl_trans_pcie_get_cmdlen(struct iwl_tfd *tfd)
 {
@@ -2043,13 +2049,6 @@ struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 
 	return dump_data;
 }
-#else
-static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
-					 struct dentry *dir)
-{
-	return 0;
-}
-#endif /*CONFIG_IWLWIFI_DEBUGFS */
 
 static const struct iwl_trans_ops trans_ops_pcie = {
 	.start_hw = iwl_trans_pcie_start_hw,
@@ -2086,9 +2085,7 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.release_nic_access = iwl_trans_pcie_release_nic_access,
 	.set_bits_mask = iwl_trans_pcie_set_bits_mask,
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
 	.dump_data = iwl_trans_pcie_dump_data,
-#endif
 };
 
 struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,

@@ -57,6 +57,8 @@ struct device;
 struct phy_device;
 /* 802.11 specific */
 struct wireless_dev;
+/* 802.15.4 specific */
+struct wpan_dev;
 
 void netdev_set_default_ethtool_ops(struct net_device *dev,
 				    const struct ethtool_ops *ops);
@@ -998,6 +1000,12 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *	Callback to use for xmit over the accelerated station. This
  *	is used in place of ndo_start_xmit on accelerated net
  *	devices.
+ * bool	(*ndo_gso_check) (struct sk_buff *skb,
+ *			  struct net_device *dev);
+ *	Called by core transmit path to determine if device is capable of
+ *	performing GSO on a packet. The device returns true if it is
+ *	able to GSO the packet, false otherwise. If the return value is
+ *	false the stack will do software GSO.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1147,6 +1155,8 @@ struct net_device_ops {
 							struct net_device *dev,
 							void *priv);
 	int			(*ndo_get_lock_subclass)(struct net_device *dev);
+	bool			(*ndo_gso_check) (struct sk_buff *skb,
+						  struct net_device *dev);
 };
 
 /**
@@ -1564,6 +1574,7 @@ struct net_device {
 	struct inet6_dev __rcu	*ip6_ptr;
 	void			*ax25_ptr;
 	struct wireless_dev	*ieee80211_ptr;
+	struct wpan_dev		*ieee802154_ptr;
 
 /*
  * Cache lines mostly used on receive path (including eth_type_trans())
@@ -3572,10 +3583,12 @@ static inline bool skb_gso_ok(struct sk_buff *skb, netdev_features_t features)
 	       (!skb_has_frag_list(skb) || (features & NETIF_F_FRAGLIST));
 }
 
-static inline bool netif_needs_gso(struct sk_buff *skb,
+static inline bool netif_needs_gso(struct net_device *dev, struct sk_buff *skb,
 				   netdev_features_t features)
 {
 	return skb_is_gso(skb) && (!skb_gso_ok(skb, features) ||
+		(dev->netdev_ops->ndo_gso_check &&
+		 !dev->netdev_ops->ndo_gso_check(skb, dev)) ||
 		unlikely((skb->ip_summed != CHECKSUM_PARTIAL) &&
 			 (skb->ip_summed != CHECKSUM_UNNECESSARY)));
 }

@@ -434,7 +434,7 @@ static int xgene_ahci_mux_select(struct xgene_ahci_context *ctx)
 	u32 val;
 
 	/* Check for optional MUX resource */
-	if (IS_ERR(ctx->csr_mux))
+	if (!ctx->csr_mux)
 		return 0;
 
 	val = readl(ctx->csr_mux + SATA_ENET_CONFIG_REG);
@@ -484,7 +484,13 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 
 	/* Retrieve the optional IP mux resource */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
-	ctx->csr_mux = devm_ioremap_resource(dev, res);
+	if (res) {
+		void __iomem *csr = devm_ioremap_resource(dev, res);
+		if (IS_ERR(csr))
+			return PTR_ERR(csr);
+
+		ctx->csr_mux = csr;
+	}
 
 	dev_dbg(dev, "VAddr 0x%p Mmio VAddr 0x%p\n", ctx->csr_core,
 		hpriv->mmio);

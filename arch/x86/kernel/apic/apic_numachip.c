@@ -32,7 +32,7 @@
 
 static int numachip_system __read_mostly;
 
-static const struct apic apic_numachip __read_mostly;
+static const struct apic apic_numachip;
 
 static unsigned int get_apic_id(unsigned long x)
 {

@@ -670,7 +670,7 @@ static int svm_hardware_enable(void)
 
 	if (static_cpu_has(X86_FEATURE_TSCRATEMSR)) {
 		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
-		__get_cpu_var(current_tsc_ratio) = TSC_RATIO_DEFAULT;
+		__this_cpu_write(current_tsc_ratio, TSC_RATIO_DEFAULT);
 	}
 
 
@@ -1313,8 +1313,8 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 
 	if (static_cpu_has(X86_FEATURE_TSCRATEMSR) &&
-	    svm->tsc_ratio != __get_cpu_var(current_tsc_ratio)) {
-		__get_cpu_var(current_tsc_ratio) = svm->tsc_ratio;
+	    svm->tsc_ratio != __this_cpu_read(current_tsc_ratio)) {
+		__this_cpu_write(current_tsc_ratio, svm->tsc_ratio);
 		wrmsrl(MSR_AMD64_TSC_RATIO, svm->tsc_ratio);
 	}
 }

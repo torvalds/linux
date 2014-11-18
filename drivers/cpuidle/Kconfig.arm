@@ -7,6 +7,7 @@ config ARM_BIG_LITTLE_CPUIDLE
 	depends on MCPM
 	select ARM_CPU_SUSPEND
 	select CPU_IDLE_MULTIPLE_DRIVERS
+	select DT_IDLE_STATES
 	help
 	  Select this option to enable CPU idle driver for big.LITTLE based
 	  ARM systems. Driver manages CPUs coordination through MCPM and

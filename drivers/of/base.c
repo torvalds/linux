@@ -1021,6 +1021,9 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 	struct device_node *np;
 	unsigned long flags;
 
+	if (!handle)
+		return NULL;
+
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	for (np = of_allnodes; np; np = np->allnext)
 		if (np->phandle == handle)

@@ -85,7 +85,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 	{
 	        .type = INTEL_DVO_CHIP_TMDS,
 		.name = "ns2501",
-		.dvo_reg = DVOC,
+		.dvo_reg = DVOB,
 		.slave_addr = NS2501_ADDR,
 		.dev_ops = &ns2501_ops,
        }
@@ -185,11 +185,12 @@ static void intel_enable_dvo(struct intel_encoder *encoder)
 	u32 dvo_reg = intel_dvo->dev.dvo_reg;
 	u32 temp = I915_READ(dvo_reg);
 
-	I915_WRITE(dvo_reg, temp | DVO_ENABLE);
-	I915_READ(dvo_reg);
 	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
 					 &crtc->config.requested_mode,
 					 &crtc->config.adjusted_mode);
+
+	I915_WRITE(dvo_reg, temp | DVO_ENABLE);
+	I915_READ(dvo_reg);
 
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 }
@@ -225,10 +226,6 @@ static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 		intel_dvo->base.connectors_active = true;
 
 		intel_crtc_update_dpms(crtc);
-
-		intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
-						 &config->requested_mode,
-						 &config->adjusted_mode);
 
 		intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 	} else {

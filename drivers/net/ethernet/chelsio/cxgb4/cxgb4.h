@@ -968,7 +968,7 @@ void t4_intr_enable(struct adapter *adapter);
 void t4_intr_disable(struct adapter *adapter);
 int t4_slow_intr_handler(struct adapter *adapter);
 
-int t4_wait_dev_ready(struct adapter *adap);
+int t4_wait_dev_ready(void __iomem *regs);
 int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc);
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
@@ -986,6 +986,8 @@ static inline int t4_memory_write(struct adapter *adap, int mtype, u32 addr,
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
+int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
+		  const u8 *fw_data, unsigned int size, int force);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);

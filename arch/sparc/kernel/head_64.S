@@ -427,6 +427,12 @@ sun4v_chip_type:
 	cmp	%g2, '5'
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_NIAGARA5, %g4
+	cmp	%g2, '6'
+	be,pt	%xcc, 5f
+	 mov	SUN4V_CHIP_SPARC_M6, %g4
+	cmp	%g2, '7'
+	be,pt	%xcc, 5f
+	 mov	SUN4V_CHIP_SPARC_M7, %g4
 	ba,pt	%xcc, 49f
 	 nop
 
@@ -583,6 +589,12 @@ niagara_tlb_fixup:
 	be,pt	%xcc, niagara4_patch
 	 nop
 	cmp	%g1, SUN4V_CHIP_NIAGARA5
+	be,pt	%xcc, niagara4_patch
+	 nop
+	cmp	%g1, SUN4V_CHIP_SPARC_M6
+	be,pt	%xcc, niagara4_patch
+	 nop
+	cmp	%g1, SUN4V_CHIP_SPARC_M7
 	be,pt	%xcc, niagara4_patch
 	 nop
 

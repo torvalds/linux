@@ -525,21 +525,31 @@ void __init setup_system(void)
 	printk("Starting Linux PPC64 %s\n", init_utsname()->version);
 
 	printk("-----------------------------------------------------\n");
-	printk("ppc64_pft_size                = 0x%llx\n", ppc64_pft_size);
-	printk("physicalMemorySize            = 0x%llx\n", memblock_phys_mem_size());
+	printk("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
+	printk("phys_mem_size     = 0x%llx\n", memblock_phys_mem_size());
+
 	if (ppc64_caches.dline_size != 0x80)
-		printk("ppc64_caches.dcache_line_size = 0x%x\n",
-		       ppc64_caches.dline_size);
+		printk("dcache_line_size  = 0x%x\n", ppc64_caches.dline_size);
 	if (ppc64_caches.iline_size != 0x80)
-		printk("ppc64_caches.icache_line_size = 0x%x\n",
-		       ppc64_caches.iline_size);
+		printk("icache_line_size  = 0x%x\n", ppc64_caches.iline_size);
+
+	printk("cpu_features      = 0x%016lx\n", cur_cpu_spec->cpu_features);
+	printk("  possible        = 0x%016lx\n", CPU_FTRS_POSSIBLE);
+	printk("  always          = 0x%016lx\n", CPU_FTRS_ALWAYS);
+	printk("cpu_user_features = 0x%08x 0x%08x\n", cur_cpu_spec->cpu_user_features,
+		cur_cpu_spec->cpu_user_features2);
+	printk("mmu_features      = 0x%08x\n", cur_cpu_spec->mmu_features);
+	printk("firmware_features = 0x%016lx\n", powerpc_firmware_features);
+
 #ifdef CONFIG_PPC_STD_MMU_64
 	if (htab_address)
-		printk("htab_address                  = 0x%p\n", htab_address);
-	printk("htab_hash_mask                = 0x%lx\n", htab_hash_mask);
-#endif /* CONFIG_PPC_STD_MMU_64 */
+		printk("htab_address      = 0x%p\n", htab_address);
+
+	printk("htab_hash_mask    = 0x%lx\n", htab_hash_mask);
+#endif
+
 	if (PHYSICAL_START > 0)
-		printk("physical_start                = 0x%llx\n",
+		printk("physical_start    = 0x%llx\n",
 		       (unsigned long long)PHYSICAL_START);
 	printk("-----------------------------------------------------\n");
 
@@ -657,7 +667,7 @@ void __init setup_arch(char **cmdline_p)
 {
 	ppc64_boot_msg(0x12, "Setup Arch");
 
-	*cmdline_p = cmd_line;
+	*cmdline_p = boot_command_line;
 
 	/*
 	 * Set cache line size based on type of cpu as a default.

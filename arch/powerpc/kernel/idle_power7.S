@@ -73,7 +73,7 @@ _GLOBAL(power7_powersave_common)
 
 	/* Check if something happened while soft-disabled */
 	lbz	r0,PACAIRQHAPPENED(r13)
-	cmpwi	cr0,r0,0
+	andi.	r0,r0,~PACA_IRQ_HARD_DIS@l
 	beq	1f
 	cmpwi	cr0,r4,0
 	beq	1f

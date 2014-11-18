@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
@@ -26,16 +22,15 @@
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
+#include <linux/ieee802154.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <net/sock.h>
 #include <linux/nl802154.h>
 #include <linux/export.h>
 #include <net/af_ieee802154.h>
-#include <net/nl802154.h>
-#include <net/ieee802154.h>
 #include <net/ieee802154_netdev.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 
 #include "ieee802154.h"
 
@@ -59,186 +54,7 @@ static __le16 nla_get_shortaddr(const struct nlattr *nla)
 	return cpu_to_le16(nla_get_u16(nla));
 }
 
-int ieee802154_nl_assoc_indic(struct net_device *dev,
-			      struct ieee802154_addr *addr,
-			      u8 cap)
-{
-	struct sk_buff *msg;
-
-	pr_debug("%s\n", __func__);
-
-	if (addr->mode != IEEE802154_ADDR_LONG) {
-		pr_err("%s: received non-long source address!\n", __func__);
-		return -EINVAL;
-	}
-
-	msg = ieee802154_nl_create(0, IEEE802154_ASSOCIATE_INDIC);
-	if (!msg)
-		return -ENOBUFS;
-
-	if (nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name) ||
-	    nla_put_u32(msg, IEEE802154_ATTR_DEV_INDEX, dev->ifindex) ||
-	    nla_put(msg, IEEE802154_ATTR_HW_ADDR, IEEE802154_ADDR_LEN,
-		    dev->dev_addr) ||
-	    nla_put_hwaddr(msg, IEEE802154_ATTR_SRC_HW_ADDR,
-			   addr->extended_addr) ||
-	    nla_put_u8(msg, IEEE802154_ATTR_CAPABILITY, cap))
-		goto nla_put_failure;
-
-	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
-
-nla_put_failure:
-	nlmsg_free(msg);
-	return -ENOBUFS;
-}
-EXPORT_SYMBOL(ieee802154_nl_assoc_indic);
-
-int ieee802154_nl_assoc_confirm(struct net_device *dev, __le16 short_addr,
-				u8 status)
-{
-	struct sk_buff *msg;
-
-	pr_debug("%s\n", __func__);
-
-	msg = ieee802154_nl_create(0, IEEE802154_ASSOCIATE_CONF);
-	if (!msg)
-		return -ENOBUFS;
-
-	if (nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name) ||
-	    nla_put_u32(msg, IEEE802154_ATTR_DEV_INDEX, dev->ifindex) ||
-	    nla_put(msg, IEEE802154_ATTR_HW_ADDR, IEEE802154_ADDR_LEN,
-		    dev->dev_addr) ||
-	    nla_put_shortaddr(msg, IEEE802154_ATTR_SHORT_ADDR, short_addr) ||
-	    nla_put_u8(msg, IEEE802154_ATTR_STATUS, status))
-		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
-
-nla_put_failure:
-	nlmsg_free(msg);
-	return -ENOBUFS;
-}
-EXPORT_SYMBOL(ieee802154_nl_assoc_confirm);
-
-int ieee802154_nl_disassoc_indic(struct net_device *dev,
-				 struct ieee802154_addr *addr,
-				 u8 reason)
-{
-	struct sk_buff *msg;
-
-	pr_debug("%s\n", __func__);
-
-	msg = ieee802154_nl_create(0, IEEE802154_DISASSOCIATE_INDIC);
-	if (!msg)
-		return -ENOBUFS;
-
-	if (nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name) ||
-	    nla_put_u32(msg, IEEE802154_ATTR_DEV_INDEX, dev->ifindex) ||
-	    nla_put(msg, IEEE802154_ATTR_HW_ADDR, IEEE802154_ADDR_LEN,
-		    dev->dev_addr))
-		goto nla_put_failure;
-	if (addr->mode == IEEE802154_ADDR_LONG) {
-		if (nla_put_hwaddr(msg, IEEE802154_ATTR_SRC_HW_ADDR,
-				   addr->extended_addr))
-			goto nla_put_failure;
-	} else {
-		if (nla_put_shortaddr(msg, IEEE802154_ATTR_SRC_SHORT_ADDR,
-				      addr->short_addr))
-			goto nla_put_failure;
-	}
-	if (nla_put_u8(msg, IEEE802154_ATTR_REASON, reason))
-		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
-
-nla_put_failure:
-	nlmsg_free(msg);
-	return -ENOBUFS;
-}
-EXPORT_SYMBOL(ieee802154_nl_disassoc_indic);
-
-int ieee802154_nl_disassoc_confirm(struct net_device *dev, u8 status)
-{
-	struct sk_buff *msg;
-
-	pr_debug("%s\n", __func__);
-
-	msg = ieee802154_nl_create(0, IEEE802154_DISASSOCIATE_CONF);
-	if (!msg)
-		return -ENOBUFS;
-
-	if (nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name) ||
-	    nla_put_u32(msg, IEEE802154_ATTR_DEV_INDEX, dev->ifindex) ||
-	    nla_put(msg, IEEE802154_ATTR_HW_ADDR, IEEE802154_ADDR_LEN,
-		    dev->dev_addr) ||
-	    nla_put_u8(msg, IEEE802154_ATTR_STATUS, status))
-		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
-
-nla_put_failure:
-	nlmsg_free(msg);
-	return -ENOBUFS;
-}
-EXPORT_SYMBOL(ieee802154_nl_disassoc_confirm);
-
-int ieee802154_nl_beacon_indic(struct net_device *dev, __le16 panid,
-			       __le16 coord_addr)
-{
-	struct sk_buff *msg;
-
-	pr_debug("%s\n", __func__);
-
-	msg = ieee802154_nl_create(0, IEEE802154_BEACON_NOTIFY_INDIC);
-	if (!msg)
-		return -ENOBUFS;
-
-	if (nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name) ||
-	    nla_put_u32(msg, IEEE802154_ATTR_DEV_INDEX, dev->ifindex) ||
-	    nla_put(msg, IEEE802154_ATTR_HW_ADDR, IEEE802154_ADDR_LEN,
-		    dev->dev_addr) ||
-	    nla_put_shortaddr(msg, IEEE802154_ATTR_COORD_SHORT_ADDR,
-			      coord_addr) ||
-	    nla_put_shortaddr(msg, IEEE802154_ATTR_COORD_PAN_ID, panid))
-		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
-
-nla_put_failure:
-	nlmsg_free(msg);
-	return -ENOBUFS;
-}
-EXPORT_SYMBOL(ieee802154_nl_beacon_indic);
-
-int ieee802154_nl_scan_confirm(struct net_device *dev,
-			       u8 status, u8 scan_type,
-			       u32 unscanned, u8 page,
-			       u8 *edl/* , struct list_head *pan_desc_list */)
-{
-	struct sk_buff *msg;
-
-	pr_debug("%s\n", __func__);
-
-	msg = ieee802154_nl_create(0, IEEE802154_SCAN_CONF);
-	if (!msg)
-		return -ENOBUFS;
-
-	if (nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name) ||
-	    nla_put_u32(msg, IEEE802154_ATTR_DEV_INDEX, dev->ifindex) ||
-	    nla_put(msg, IEEE802154_ATTR_HW_ADDR, IEEE802154_ADDR_LEN,
-		    dev->dev_addr) ||
-	    nla_put_u8(msg, IEEE802154_ATTR_STATUS, status) ||
-	    nla_put_u8(msg, IEEE802154_ATTR_SCAN_TYPE, scan_type) ||
-	    nla_put_u32(msg, IEEE802154_ATTR_CHANNELS, unscanned) ||
-	    nla_put_u8(msg, IEEE802154_ATTR_PAGE, page) ||
-	    (edl &&
-	     nla_put(msg, IEEE802154_ATTR_ED_LIST, 27, edl)))
-		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
-
-nla_put_failure:
-	nlmsg_free(msg);
-	return -ENOBUFS;
-}
-EXPORT_SYMBOL(ieee802154_nl_scan_confirm);
-
-int ieee802154_nl_start_confirm(struct net_device *dev, u8 status)
+static int ieee802154_nl_start_confirm(struct net_device *dev, u8 status)
 {
 	struct sk_buff *msg;
 
@@ -278,8 +94,9 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 		goto out;
 
 	ops = ieee802154_mlme_ops(dev);
-	phy = ops->get_phy(dev);
+	phy = dev->ieee802154_ptr->wpan_phy;
 	BUG_ON(!phy);
+	get_device(&phy->dev);
 
 	short_addr = ops->get_short_addr(dev);
 	pan_id = ops->get_pan_id(dev);
@@ -481,7 +298,7 @@ int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 	u8 channel, bcn_ord, sf_ord;
 	u8 page;
 	int pan_coord, blx, coord_realign;
-	int ret = -EOPNOTSUPP;
+	int ret = -EBUSY;
 
 	if (!info->attrs[IEEE802154_ATTR_COORD_PAN_ID] ||
 	    !info->attrs[IEEE802154_ATTR_COORD_SHORT_ADDR] ||
@@ -497,8 +314,14 @@ int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
 		return -ENODEV;
-	if (!ieee802154_mlme_ops(dev)->start_req)
+
+	if (netif_running(dev))
 		goto out;
+
+	if (!ieee802154_mlme_ops(dev)->start_req) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	addr.mode = IEEE802154_ADDR_SHORT;
 	addr.short_addr = nla_get_shortaddr(
@@ -527,6 +350,11 @@ int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 
 	ret = ieee802154_mlme_ops(dev)->start_req(dev, &addr, channel, page,
 		bcn_ord, sf_ord, pan_coord, blx, coord_realign);
+
+	/* FIXME: add validation for unused parameters to be sane
+	 * for SoftMAC
+	 */
+	ieee802154_nl_start_confirm(dev, IEEE802154_SUCCESS);
 
 out:
 	dev_put(dev);
@@ -666,21 +494,8 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 	    !info->attrs[IEEE802154_ATTR_FRAME_RETRIES])
 		goto out;
 
-	phy = ops->get_phy(dev);
-
-	if ((!phy->set_lbt && info->attrs[IEEE802154_ATTR_LBT_ENABLED]) ||
-	    (!phy->set_cca_mode && info->attrs[IEEE802154_ATTR_CCA_MODE]) ||
-	    (!phy->set_cca_ed_level &&
-	     info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]) ||
-	    (!phy->set_csma_params &&
-	     (info->attrs[IEEE802154_ATTR_CSMA_RETRIES] ||
-	      info->attrs[IEEE802154_ATTR_CSMA_MIN_BE] ||
-	      info->attrs[IEEE802154_ATTR_CSMA_MAX_BE])) ||
-	    (!phy->set_frame_retries &&
-	     info->attrs[IEEE802154_ATTR_FRAME_RETRIES])) {
-		rc = -EOPNOTSUPP;
-		goto out_phy;
-	}
+	phy = dev->ieee802154_ptr->wpan_phy;
+	get_device(&phy->dev);
 
 	ops->get_mac_params(dev, &params);
 
@@ -712,10 +527,9 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 
 	wpan_phy_put(phy);
 	dev_put(dev);
-	return rc;
 
-out_phy:
-	wpan_phy_put(phy);
+	return 0;
+
 out:
 	dev_put(dev);
 	return rc;

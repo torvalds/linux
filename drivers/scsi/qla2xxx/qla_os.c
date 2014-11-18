@@ -4875,7 +4875,6 @@ qla2x00_do_dpc(void *data)
 		    "DPC handler sleeping.\n");
 
 		schedule();
-		__set_current_state(TASK_RUNNING);
 
 		if (!base_vha->flags.init_done || ha->flags.mbox_busy)
 			goto end_loop;

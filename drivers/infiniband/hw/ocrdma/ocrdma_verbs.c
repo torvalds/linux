@@ -388,7 +388,7 @@ struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 
 	memset(&resp, 0, sizeof(resp));
 	resp.ah_tbl_len = ctx->ah_tbl.len;
-	resp.ah_tbl_page = ctx->ah_tbl.pa;
+	resp.ah_tbl_page = virt_to_phys(ctx->ah_tbl.va);
 
 	status = ocrdma_add_mmap(ctx, resp.ah_tbl_page, resp.ah_tbl_len);
 	if (status)
@@ -870,7 +870,7 @@ static int ocrdma_copy_cq_uresp(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	uresp.page_size = PAGE_ALIGN(cq->len);
 	uresp.num_pages = 1;
 	uresp.max_hw_cqe = cq->max_hw_cqe;
-	uresp.page_addr[0] = cq->pa;
+	uresp.page_addr[0] = virt_to_phys(cq->va);
 	uresp.db_page_addr =  ocrdma_get_db_addr(dev, uctx->cntxt_pd->id);
 	uresp.db_page_size = dev->nic_info.db_page_size;
 	uresp.phase_change = cq->phase_change ? 1 : 0;
@@ -1123,13 +1123,13 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 	uresp.sq_dbid = qp->sq.dbid;
 	uresp.num_sq_pages = 1;
 	uresp.sq_page_size = PAGE_ALIGN(qp->sq.len);
-	uresp.sq_page_addr[0] = qp->sq.pa;
+	uresp.sq_page_addr[0] = virt_to_phys(qp->sq.va);
 	uresp.num_wqe_allocated = qp->sq.max_cnt;
 	if (!srq) {
 		uresp.rq_dbid = qp->rq.dbid;
 		uresp.num_rq_pages = 1;
 		uresp.rq_page_size = PAGE_ALIGN(qp->rq.len);
-		uresp.rq_page_addr[0] = qp->rq.pa;
+		uresp.rq_page_addr[0] = virt_to_phys(qp->rq.va);
 		uresp.num_rqe_allocated = qp->rq.max_cnt;
 	}
 	uresp.db_page_addr = usr_db;
@@ -1680,7 +1680,7 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
 	memset(&uresp, 0, sizeof(uresp));
 	uresp.rq_dbid = srq->rq.dbid;
 	uresp.num_rq_pages = 1;
-	uresp.rq_page_addr[0] = srq->rq.pa;
+	uresp.rq_page_addr[0] = virt_to_phys(srq->rq.va);
 	uresp.rq_page_size = srq->rq.len;
 	uresp.db_page_addr = dev->nic_info.unmapped_db +
 	    (srq->pd->id * dev->nic_info.db_page_size);

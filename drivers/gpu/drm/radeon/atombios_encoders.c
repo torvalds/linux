@@ -291,29 +291,6 @@ static void radeon_atom_backlight_exit(struct radeon_encoder *encoder)
 bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 				struct drm_display_mode *mode);
 
-
-static inline bool radeon_encoder_is_digital(struct drm_encoder *encoder)
-{
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	switch (radeon_encoder->encoder_id) {
-	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
-	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
-	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-	case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
-	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
-	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
-	case ENCODER_OBJECT_ID_INTERNAL_DDI:
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)

@@ -647,41 +647,30 @@ static const struct seq_operations debug_lockres_ops = {
 static int debug_lockres_open(struct inode *inode, struct file *file)
 {
 	struct dlm_ctxt *dlm = inode->i_private;
-	int ret = -ENOMEM;
-	struct seq_file *seq;
-	struct debug_lockres *dl = NULL;
+	struct debug_lockres *dl;
+	void *buf;
 
-	dl = kzalloc(sizeof(struct debug_lockres), GFP_KERNEL);
-	if (!dl) {
-		mlog_errno(ret);
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
 		goto bail;
-	}
+
+	dl = __seq_open_private(file, &debug_lockres_ops, sizeof(*dl));
+	if (!dl)
+		goto bailfree;
 
 	dl->dl_len = PAGE_SIZE;
-	dl->dl_buf = kmalloc(dl->dl_len, GFP_KERNEL);
-	if (!dl->dl_buf) {
-		mlog_errno(ret);
-		goto bail;
-	}
-
-	ret = seq_open(file, &debug_lockres_ops);
-	if (ret) {
-		mlog_errno(ret);
-		goto bail;
-	}
-
-	seq = file->private_data;
-	seq->private = dl;
+	dl->dl_buf = buf;
 
 	dlm_grab(dlm);
 	dl->dl_ctxt = dlm;
 
 	return 0;
+
+bailfree:
+	kfree(buf);
 bail:
-	if (dl)
-		kfree(dl->dl_buf);
-	kfree(dl);
-	return ret;
+	mlog_errno(-ENOMEM);
+	return -ENOMEM;
 }
 
 static int debug_lockres_release(struct inode *inode, struct file *file)

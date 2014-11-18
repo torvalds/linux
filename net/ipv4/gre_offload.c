@@ -55,12 +55,12 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	if (csum)
 		skb->encap_hdr_csum = 1;
 
-	if (unlikely(!pskb_may_pull(skb, ghl)))
-		goto out;
-
 	/* setup inner skb. */
 	skb->protocol = greh->protocol;
 	skb->encapsulation = 0;
+
+	if (unlikely(!pskb_may_pull(skb, ghl)))
+		goto out;
 
 	__skb_pull(skb, ghl);
 	skb_reset_mac_header(skb);

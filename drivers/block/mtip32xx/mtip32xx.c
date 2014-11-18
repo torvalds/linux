@@ -247,7 +247,7 @@ static void mtip_async_complete(struct mtip_port *port,
 	if (unlikely(cmd->unaligned))
 		up(&port->cmd_slot_unal);
 
-	blk_mq_end_io(rq, status ? -EIO : 0);
+	blk_mq_end_request(rq, status ? -EIO : 0);
 }
 
 /*
@@ -3739,7 +3739,7 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
 		int err;
 
 		err = mtip_send_trim(dd, blk_rq_pos(rq), blk_rq_sectors(rq));
-		blk_mq_end_io(rq, err);
+		blk_mq_end_request(rq, err);
 		return 0;
 	}
 
@@ -3775,12 +3775,15 @@ static bool mtip_check_unal_depth(struct blk_mq_hw_ctx *hctx,
 	return false;
 }
 
-static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq)
+static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq,
+		bool last)
 {
 	int ret;
 
 	if (unlikely(mtip_check_unal_depth(hctx, rq)))
 		return BLK_MQ_RQ_QUEUE_BUSY;
+
+	blk_mq_start_request(rq);
 
 	ret = mtip_submit_request(hctx, rq);
 	if (likely(!ret))
@@ -3951,6 +3954,7 @@ skip_create_disk:
 
 	/* Set device limits. */
 	set_bit(QUEUE_FLAG_NONROT, &dd->queue->queue_flags);
+	clear_bit(QUEUE_FLAG_ADD_RANDOM, &dd->queue->queue_flags);
 	blk_queue_max_segments(dd->queue, MTIP_MAX_SG);
 	blk_queue_physical_block_size(dd->queue, 4096);
 	blk_queue_max_hw_sectors(dd->queue, 0xffff);

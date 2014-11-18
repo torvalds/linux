@@ -26,6 +26,7 @@
 #include <subdev/bus.h>
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
+#include <subdev/fuse.h>
 #include <subdev/clock.h>
 #include <subdev/therm.h>
 #include <subdev/mxm.h>
@@ -62,10 +63,9 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nve0_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nvd0_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gm107_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nve0_clock_oclass;
-#if 0
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &nvd0_therm_oclass;
-#endif
+		device->oclass[NVDEV_SUBDEV_THERM  ] = &gm107_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gm107_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
@@ -77,8 +77,9 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
-#if 0
 		device->oclass[NVDEV_SUBDEV_PWR    ] =  nv108_pwr_oclass;
+
+#if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nvd0_dmaeng_oclass;

@@ -149,7 +149,7 @@ static u32 ddb_i2c_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-struct i2c_algorithm ddb_i2c_algo = {
+static struct i2c_algorithm ddb_i2c_algo = {
 	.master_xfer   = ddb_i2c_master_xfer,
 	.functionality = ddb_i2c_functionality,
 };
@@ -266,7 +266,7 @@ static void io_free(struct pci_dev *pdev, u8 **vbuf,
 	for (i = 0; i < num; i++) {
 		if (vbuf[i]) {
 			pci_free_consistent(pdev, size, vbuf[i], pbuf[i]);
-			vbuf[i] = 0;
+			vbuf[i] = NULL;
 		}
 	}
 }
@@ -440,7 +440,7 @@ static u32 ddb_output_free(struct ddb_output *output)
 }
 
 static ssize_t ddb_output_write(struct ddb_output *output,
-				const u8 *buf, size_t count)
+				const __user u8 *buf, size_t count)
 {
 	struct ddb *dev = output->port->dev;
 	u32 idx, off, stat = output->stat;
@@ -506,7 +506,7 @@ static u32 ddb_input_avail(struct ddb_input *input)
 	return 0;
 }
 
-static ssize_t ddb_input_read(struct ddb_input *input, u8 *buf, size_t count)
+static ssize_t ddb_input_read(struct ddb_input *input, __user u8 *buf, size_t count)
 {
 	struct ddb *dev = input->port->dev;
 	u32 left = count;
@@ -849,7 +849,7 @@ static int dvb_input_attach(struct ddb_input *input)
 		return ret;
 	input->attached = 4;
 
-	input->fe = 0;
+	input->fe = NULL;
 	switch (port->type) {
 	case DDB_TUNER_DVBS_ST:
 		if (demod_attach_stv0900(input, 0) < 0)
@@ -895,7 +895,7 @@ static int dvb_input_attach(struct ddb_input *input)
 /****************************************************************************/
 /****************************************************************************/
 
-static ssize_t ts_write(struct file *file, const char *buf,
+static ssize_t ts_write(struct file *file, const __user char *buf,
 			size_t count, loff_t *ppos)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -920,7 +920,7 @@ static ssize_t ts_write(struct file *file, const char *buf,
 	return (left == count) ? -EAGAIN : (count - left);
 }
 
-static ssize_t ts_read(struct file *file, char *buf,
+static ssize_t ts_read(struct file *file, __user char *buf,
 		       size_t count, loff_t *ppos)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -975,11 +975,9 @@ static const struct file_operations ci_fops = {
 	.open    = dvb_generic_open,
 	.release = dvb_generic_release,
 	.poll    = ts_poll,
-	.mmap    = 0,
 };
 
 static struct dvb_device dvbdev_ci = {
-	.priv    = 0,
 	.readers = -1,
 	.writers = -1,
 	.users   = -1,
@@ -1038,7 +1036,7 @@ static void output_tasklet(unsigned long data)
 }
 
 
-struct cxd2099_cfg cxd_cfg = {
+static struct cxd2099_cfg cxd_cfg = {
 	.bitrate =  62000,
 	.adr     =  0x40,
 	.polarity = 1,
@@ -1127,7 +1125,7 @@ static void ddb_ports_detach(struct ddb *dev)
 				ddb_output_stop(port->output);
 				dvb_ca_en50221_release(port->en);
 				kfree(port->en);
-				port->en = 0;
+				port->en = NULL;
 				dvb_unregister_adapter(&port->output->adap);
 			}
 			break;
@@ -1413,9 +1411,9 @@ static int flashio(struct ddb *dev, u8 *wbuf, u32 wlen, u8 *rbuf, u32 rlen)
 #define DDB_MAGIC 'd'
 
 struct ddb_flashio {
-	__u8 *write_buf;
+	__user __u8 *write_buf;
 	__u32 write_len;
-	__u8 *read_buf;
+	__user __u8 *read_buf;
 	__u32 read_len;
 };
 
@@ -1439,7 +1437,7 @@ static int ddb_open(struct inode *inode, struct file *file)
 static long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct ddb *dev = file->private_data;
-	void *parg = (void *)arg;
+	__user void *parg = (__user void *)arg;
 	int res;
 
 	switch (cmd) {
@@ -1558,7 +1556,7 @@ static void ddb_remove(struct pci_dev *pdev)
 	ddb_device_destroy(dev);
 
 	ddb_unmap(dev);
-	pci_set_drvdata(pdev, 0);
+	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 }
 
@@ -1637,7 +1635,7 @@ fail1:
 fail:
 	printk(KERN_ERR "fail\n");
 	ddb_unmap(dev);
-	pci_set_drvdata(pdev, 0);
+	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 	return -1;
 }

@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
@@ -24,14 +20,14 @@
 
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
+#include <linux/ieee802154.h>
 
-#include <net/ieee802154.h>
 #include <net/ieee802154_netdev.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 #include <net/mac802154.h>
-#include <net/nl802154.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
+#include "driver-ops.h"
 
 static int mac802154_mlme_start_req(struct net_device *dev,
 				    struct ieee802154_addr *addr,
@@ -47,7 +43,6 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 
 	mac802154_dev_set_pan_id(dev, addr->pan_id);
 	mac802154_dev_set_short_addr(dev, addr->short_addr);
-	mac802154_dev_set_ieee_addr(dev);
 	mac802154_dev_set_page_channel(dev, page, channel);
 
 	if (ops->llsec) {
@@ -69,21 +64,49 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 		rc = ops->llsec->set_params(dev, &params, changed);
 	}
 
-	/* FIXME: add validation for unused parameters to be sane
-	 * for SoftMAC
-	 */
-	ieee802154_nl_start_confirm(dev, IEEE802154_SUCCESS);
-
 	return rc;
 }
 
-static struct wpan_phy *mac802154_get_phy(const struct net_device *dev)
+static int mac802154_set_mac_params(struct net_device *dev,
+				    const struct ieee802154_mac_params *params)
 {
-	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct ieee802154_local *local = sdata->local;
+	int ret;
 
-	BUG_ON(dev->type != ARPHRD_IEEE802154);
+	mutex_lock(&sdata->local->iflist_mtx);
+	sdata->mac_params = *params;
+	mutex_unlock(&sdata->local->iflist_mtx);
 
-	return to_phy(get_device(&priv->hw->phy->dev));
+	if (local->hw.flags & IEEE802154_HW_TXPOWER) {
+		ret = drv_set_tx_power(local, params->transmit_power);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_CCA_MODE) {
+		ret = drv_set_cca_mode(local, params->cca_mode);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_CCA_ED_LEVEL) {
+		ret = drv_set_cca_ed_level(local, params->cca_ed_level);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void mac802154_get_mac_params(struct net_device *dev,
+				     struct ieee802154_mac_params *params)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	*params = sdata->mac_params;
+	mutex_unlock(&sdata->local->iflist_mtx);
 }
 
 static struct ieee802154_llsec_ops mac802154_llsec_ops = {
@@ -102,12 +125,7 @@ static struct ieee802154_llsec_ops mac802154_llsec_ops = {
 	.unlock_table = mac802154_unlock_table,
 };
 
-struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced = {
-	.get_phy = mac802154_get_phy,
-};
-
 struct ieee802154_mlme_ops mac802154_mlme_wpan = {
-	.get_phy = mac802154_get_phy,
 	.start_req = mac802154_mlme_start_req,
 	.get_pan_id = mac802154_dev_get_pan_id,
 	.get_short_addr = mac802154_dev_get_short_addr,

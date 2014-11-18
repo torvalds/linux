@@ -290,8 +290,11 @@ static void cleanup_params(void)
 
 static void pr_err_with_code(const char *msg, int err)
 {
+	char sbuf[STRERR_BUFSIZE];
+
 	pr_err("%s", msg);
-	pr_debug(" Reason: %s (Code: %d)", strerror(-err), err);
+	pr_debug(" Reason: %s (Code: %d)",
+		 strerror_r(-err, sbuf, sizeof(sbuf)), err);
 	pr_err("\n");
 }
 
@@ -373,6 +376,8 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			"target executable name or path", opt_set_target),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Disable symbol demangling"),
+	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
+		    "Enable kernel symbol demangling"),
 	OPT_END()
 	};
 	int ret;
@@ -467,7 +472,8 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			usage_with_options(probe_usage, options);
 		}
 
-		ret = show_line_range(&params.line_range, params.target);
+		ret = show_line_range(&params.line_range, params.target,
+				      params.uprobes);
 		if (ret < 0)
 			pr_err_with_code("  Error: Failed to show lines.", ret);
 		return ret;

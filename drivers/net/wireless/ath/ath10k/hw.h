@@ -20,15 +20,16 @@
 
 #include "targaddrs.h"
 
+#define ATH10K_FW_DIR			"ath10k"
+
 /* QCA988X 1.0 definitions (unsupported) */
 #define QCA988X_HW_1_0_CHIP_ID_REV	0x0
 
 /* QCA988X 2.0 definitions */
 #define QCA988X_HW_2_0_VERSION		0x4100016c
 #define QCA988X_HW_2_0_CHIP_ID_REV	0x2
-#define QCA988X_HW_2_0_FW_DIR		"ath10k/QCA988X/hw2.0"
+#define QCA988X_HW_2_0_FW_DIR		ATH10K_FW_DIR "/QCA988X/hw2.0"
 #define QCA988X_HW_2_0_FW_FILE		"firmware.bin"
-#define QCA988X_HW_2_0_FW_3_FILE	"firmware-3.bin"
 #define QCA988X_HW_2_0_OTP_FILE		"otp.bin"
 #define QCA988X_HW_2_0_BOARD_DATA_FILE	"board.bin"
 #define QCA988X_HW_2_0_PATCH_LOAD_ADDR	0x1234
@@ -42,6 +43,8 @@
 #define ATH10K_FIRMWARE_MAGIC               "QCA-ATH10K"
 
 #define REG_DUMP_COUNT_QCA988X 60
+
+#define QCA988X_CAL_DATA_LEN		2116
 
 struct ath10k_fw_ie {
 	__le32 id;
@@ -77,6 +80,15 @@ enum ath10k_mcast2ucast_mode {
 	ATH10K_MCAST2UCAST_DISABLED = 0,
 	ATH10K_MCAST2UCAST_ENABLED = 1,
 };
+
+struct ath10k_pktlog_hdr {
+	__le16 flags;
+	__le16 missed_cnt;
+	__le16 log_type;
+	__le16 size;
+	__le32 timestamp;
+	u8 payload[0];
+} __packed;
 
 /* Target specific defines for MAIN firmware */
 #define TARGET_NUM_VDEVS			8
@@ -279,6 +291,7 @@ enum ath10k_mcast2ucast_mode {
 #define SI_RX_DATA1_OFFSET			0x00000014
 
 #define CORE_CTRL_CPU_INTR_MASK			0x00002000
+#define CORE_CTRL_PCIE_REG_31_MASK		0x00000800
 #define CORE_CTRL_ADDRESS			0x0000
 #define PCIE_INTR_ENABLE_ADDRESS		0x0008
 #define PCIE_INTR_CAUSE_ADDRESS			0x000c

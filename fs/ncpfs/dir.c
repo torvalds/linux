@@ -388,7 +388,6 @@ static struct dentry *
 ncp_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
 {
 	struct dentry *dent = dentry;
-	struct list_head *next;
 
 	if (d_validate(dent, parent)) {
 		if (dent->d_name.len <= NCP_MAXPATHLEN &&
@@ -404,9 +403,7 @@ ncp_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
 
 	/* If a pointer is invalid, we search the dentry. */
 	spin_lock(&parent->d_lock);
-	next = parent->d_subdirs.next;
-	while (next != &parent->d_subdirs) {
-		dent = list_entry(next, struct dentry, d_u.d_child);
+	list_for_each_entry(dent, &parent->d_subdirs, d_u.d_child) {
 		if ((unsigned long)dent->d_fsdata == fpos) {
 			if (dent->d_inode)
 				dget(dent);
@@ -415,7 +412,6 @@ ncp_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
 			spin_unlock(&parent->d_lock);
 			goto out;
 		}
-		next = next->next;
 	}
 	spin_unlock(&parent->d_lock);
 	return NULL;
@@ -1181,9 +1177,6 @@ static int ncp_mknod(struct inode * dir, struct dentry *dentry,
 static int day_n[] =
 {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 0, 0, 0, 0};
 /* Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec */
-
-
-extern struct timezone sys_tz;
 
 static int utc2local(int time)
 {

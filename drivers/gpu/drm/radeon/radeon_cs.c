@@ -78,7 +78,8 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	struct radeon_cs_chunk *chunk;
 	struct radeon_cs_buckets buckets;
 	unsigned i, j;
-	bool duplicate;
+	bool duplicate, need_mmap_lock = false;
+	int r;
 
 	if (p->chunk_relocs_idx == -1) {
 		return 0;
@@ -136,10 +137,13 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			   + !!r->write_domain;
 
 		/* the first reloc of an UVD job is the msg and that must be in
-		   VRAM, also but everything into VRAM on AGP cards to avoid
-		   image corruptions */
+		   VRAM, also but everything into VRAM on AGP cards and older
+		   IGP chips to avoid image corruptions */
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
-		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev))) {
+		    (i == 0 || drm_pci_device_is_agp(p->rdev->ddev) ||
+		     p->rdev->family == CHIP_RS780 ||
+		     p->rdev->family == CHIP_RS880)) {
+
 			/* TODO: is this still needed for NI+ ? */
 			p->relocs[i].prefered_domains =
 				RADEON_GEM_DOMAIN_VRAM;
@@ -165,7 +169,21 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].allowed_domains = domain;
 		}
 
+		if (radeon_ttm_tt_has_userptr(p->relocs[i].robj->tbo.ttm)) {
+			uint32_t domain = p->relocs[i].prefered_domains;
+			if (!(domain & RADEON_GEM_DOMAIN_GTT)) {
+				DRM_ERROR("Only RADEON_GEM_DOMAIN_GTT is "
+					  "allowed for userptr BOs\n");
+				return -EINVAL;
+			}
+			need_mmap_lock = true;
+			domain = RADEON_GEM_DOMAIN_GTT;
+			p->relocs[i].prefered_domains = domain;
+			p->relocs[i].allowed_domains = domain;
+		}
+
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
+		p->relocs[i].tv.shared = !r->write_domain;
 		p->relocs[i].handle = r->handle;
 
 		radeon_cs_buckets_add(&buckets, &p->relocs[i].tv.head,
@@ -177,8 +195,15 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	if (p->cs_flags & RADEON_CS_USE_VM)
 		p->vm_bos = radeon_vm_get_bos(p->rdev, p->ib.vm,
 					      &p->validated);
+	if (need_mmap_lock)
+		down_read(&current->mm->mmap_sem);
 
-	return radeon_bo_list_validate(p->rdev, &p->ticket, &p->validated, p->ring);
+	r = radeon_bo_list_validate(p->rdev, &p->ticket, &p->validated, p->ring);
+
+	if (need_mmap_lock)
+		up_read(&current->mm->mmap_sem);
+
+	return r;
 }
 
 static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority)
@@ -224,17 +249,24 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 	return 0;
 }
 
-static void radeon_cs_sync_rings(struct radeon_cs_parser *p)
+static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 {
-	int i;
+	int i, r = 0;
 
 	for (i = 0; i < p->nrelocs; i++) {
+		struct reservation_object *resv;
+
 		if (!p->relocs[i].robj)
 			continue;
 
-		radeon_semaphore_sync_to(p->ib.semaphore,
-					 p->relocs[i].robj->tbo.sync_obj);
+		resv = p->relocs[i].robj->tbo.resv;
+		r = radeon_semaphore_sync_resv(p->rdev, p->ib.semaphore, resv,
+					       p->relocs[i].tv.shared);
+
+		if (r)
+			break;
 	}
+	return r;
 }
 
 /* XXX: note that this is called from the legacy UMS CS ioctl as well */
@@ -403,7 +435,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 					    &parser->validated,
-					    parser->ib.fence);
+					    &parser->ib.fence->base);
 	} else if (backoff) {
 		ttm_eu_backoff_reservation(&parser->ticket,
 					   &parser->validated);
@@ -444,13 +476,19 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		return r;
 	}
 
+	r = radeon_cs_sync_rings(parser);
+	if (r) {
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to sync rings: %i\n", r);
+		return r;
+	}
+
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
 		radeon_uvd_note_usage(rdev);
 	else if ((parser->ring == TN_RING_TYPE_VCE1_INDEX) ||
 		 (parser->ring == TN_RING_TYPE_VCE2_INDEX))
 		radeon_vce_note_usage(rdev);
 
-	radeon_cs_sync_rings(parser);
 	r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
 	if (r) {
 		DRM_ERROR("Failed to schedule IB !\n");
@@ -537,8 +575,14 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	if (r) {
 		goto out;
 	}
-	radeon_cs_sync_rings(parser);
-	radeon_semaphore_sync_to(parser->ib.semaphore, vm->fence);
+
+	r = radeon_cs_sync_rings(parser);
+	if (r) {
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to sync rings: %i\n", r);
+		goto out;
+	}
+	radeon_semaphore_sync_fence(parser->ib.semaphore, vm->fence);
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
@@ -628,6 +672,13 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (!rdev->accel_working) {
 		up_read(&rdev->exclusive_lock);
 		return -EBUSY;
+	}
+	if (rdev->in_reset) {
+		up_read(&rdev->exclusive_lock);
+		r = radeon_gpu_reset(rdev);
+		if (!r)
+			r = -EAGAIN;
+		return r;
 	}
 	/* initialize parser */
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));

@@ -862,7 +862,6 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 {
 	struct sun6i_dma_dev *sdc;
 	struct resource *res;
-	struct clk *mux, *pll6;
 	int ret, i;
 
 	sdc = devm_kzalloc(&pdev->dev, sizeof(*sdc), GFP_KERNEL);
@@ -884,28 +883,6 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	if (IS_ERR(sdc->clk)) {
 		dev_err(&pdev->dev, "No clock specified\n");
 		return PTR_ERR(sdc->clk);
-	}
-
-	mux = clk_get(NULL, "ahb1_mux");
-	if (IS_ERR(mux)) {
-		dev_err(&pdev->dev, "Couldn't get AHB1 Mux\n");
-		return PTR_ERR(mux);
-	}
-
-	pll6 = clk_get(NULL, "pll6");
-	if (IS_ERR(pll6)) {
-		dev_err(&pdev->dev, "Couldn't get PLL6\n");
-		clk_put(mux);
-		return PTR_ERR(pll6);
-	}
-
-	ret = clk_set_parent(mux, pll6);
-	clk_put(pll6);
-	clk_put(mux);
-
-	if (ret) {
-		dev_err(&pdev->dev, "Couldn't reparent AHB1 on PLL6\n");
-		return ret;
 	}
 
 	sdc->rstc = devm_reset_control_get(&pdev->dev, NULL);

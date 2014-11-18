@@ -552,6 +552,7 @@ bnad_cq_setup_skb_frags(struct bna_rcb *rcb, struct sk_buff *skb,
 
 		len = (vec == nvecs) ?
 			last_fraglen : unmap->vector.len;
+		skb->truesize += unmap->vector.len;
 		totlen += len;
 
 		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
@@ -563,7 +564,6 @@ bnad_cq_setup_skb_frags(struct bna_rcb *rcb, struct sk_buff *skb,
 
 	skb->len += totlen;
 	skb->data_len += totlen;
-	skb->truesize += totlen;
 }
 
 static inline void

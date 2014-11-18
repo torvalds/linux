@@ -116,6 +116,12 @@ config POWER6_CPU
 config POWER7_CPU
 	bool "POWER7"
 	depends on PPC_BOOK3S_64
+	select ARCH_HAS_FAST_MULTIPLIER
+
+config POWER8_CPU
+	bool "POWER8"
+	depends on PPC_BOOK3S_64
+	select ARCH_HAS_FAST_MULTIPLIER
 
 config E5500_CPU
 	bool "Freescale e5500"

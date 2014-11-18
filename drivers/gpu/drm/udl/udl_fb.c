@@ -472,7 +472,8 @@ udl_framebuffer_init(struct drm_device *dev,
 static int udlfb_create(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes)
 {
-	struct udl_fbdev *ufbdev = (struct udl_fbdev *)helper;
+	struct udl_fbdev *ufbdev =
+		container_of(helper, struct udl_fbdev, helper);
 	struct drm_device *dev = ufbdev->helper.dev;
 	struct fb_info *info;
 	struct device *device = dev->dev;

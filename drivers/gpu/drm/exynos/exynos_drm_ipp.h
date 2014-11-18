@@ -48,7 +48,6 @@ struct drm_exynos_ipp_cmd_work {
 /*
  * A structure of command node.
  *
- * @dev: IPP device.
  * @list: list head to command queue information.
  * @event_list: list head of event.
  * @mem_list: list head to source,destination memory queue information.
@@ -62,9 +61,9 @@ struct drm_exynos_ipp_cmd_work {
  * @stop_work: stop command work structure.
  * @event_work: event work structure.
  * @state: state of command node.
+ * @filp: associated file pointer.
  */
 struct drm_exynos_ipp_cmd_node {
-	struct device		*dev;
 	struct list_head	list;
 	struct list_head	event_list;
 	struct list_head	mem_list[EXYNOS_DRM_OPS_MAX];
@@ -78,6 +77,7 @@ struct drm_exynos_ipp_cmd_node {
 	struct drm_exynos_ipp_cmd_work *stop_work;
 	struct drm_exynos_ipp_event_work *event_work;
 	enum drm_exynos_ipp_state	state;
+	struct drm_file	*filp;
 };
 
 /*

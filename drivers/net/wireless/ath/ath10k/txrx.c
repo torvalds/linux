@@ -78,6 +78,7 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	info = IEEE80211_SKB_CB(msdu);
 	memset(&info->status, 0, sizeof(info->status));
+	trace_ath10k_txrx_tx_unref(ar, tx_done->msdu_id);
 
 	if (tx_done->discard) {
 		ieee80211_free_txskb(htt->ar->hw, msdu);
@@ -145,7 +146,8 @@ static int ath10k_wait_for_peer_common(struct ath10k *ar, int vdev_id,
 			mapped = !!ath10k_peer_find(ar, vdev_id, addr);
 			spin_unlock_bh(&ar->data_lock);
 
-			mapped == expect_mapped;
+			(mapped == expect_mapped ||
+			 test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags));
 		}), 3*HZ);
 
 	if (ret <= 0)

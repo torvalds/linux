@@ -22,6 +22,8 @@
 #define TEST_SUSPEND_SECONDS	10
 
 static unsigned long suspend_test_start_time;
+static u32 test_repeat_count_max = 1;
+static u32 test_repeat_count_current;
 
 void suspend_test_start(void)
 {
@@ -74,6 +76,7 @@ static void __init test_wakealarm(struct rtc_device *rtc, suspend_state_t state)
 	int			status;
 
 	/* this may fail if the RTC hasn't been initialized */
+repeat:
 	status = rtc_read_time(rtc, &alm.time);
 	if (status < 0) {
 		printk(err_readtime, dev_name(&rtc->dev), status);
@@ -100,9 +103,20 @@ static void __init test_wakealarm(struct rtc_device *rtc, suspend_state_t state)
 	if (state == PM_SUSPEND_STANDBY) {
 		printk(info_test, pm_states[state]);
 		status = pm_suspend(state);
+		if (status < 0)
+			state = PM_SUSPEND_FREEZE;
 	}
+	if (state == PM_SUSPEND_FREEZE) {
+		printk(info_test, pm_states[state]);
+		status = pm_suspend(state);
+	}
+
 	if (status < 0)
 		printk(err_suspend, status);
+
+	test_repeat_count_current++;
+	if (test_repeat_count_current < test_repeat_count_max)
+		goto repeat;
 
 	/* Some platforms can't detect that the alarm triggered the
 	 * wakeup, or (accordingly) disable it after it afterwards.
@@ -137,16 +151,28 @@ static char warn_bad_state[] __initdata =
 static int __init setup_test_suspend(char *value)
 {
 	int i;
+	char *repeat;
+	char *suspend_type;
 
-	/* "=mem" ==> "mem" */
+	/* example : "=mem[,N]" ==> "mem[,N]" */
 	value++;
+	suspend_type = strsep(&value, ",");
+	if (!suspend_type)
+		return 0;
+
+	repeat = strsep(&value, ",");
+	if (repeat) {
+		if (kstrtou32(repeat, 0, &test_repeat_count_max))
+			return 0;
+	}
+
 	for (i = 0; pm_labels[i]; i++)
-		if (!strcmp(pm_labels[i], value)) {
+		if (!strcmp(pm_labels[i], suspend_type)) {
 			test_state_label = pm_labels[i];
 			return 0;
 		}
 
-	printk(warn_bad_state, value);
+	printk(warn_bad_state, suspend_type);
 	return 0;
 }
 __setup("test_suspend", setup_test_suspend);

@@ -219,8 +219,8 @@ struct vgic_v2_cpu_if {
 	u32		vgic_hcr;
 	u32		vgic_vmcr;
 	u32		vgic_misr;	/* Saved only */
-	u32		vgic_eisr[2];	/* Saved only */
-	u32		vgic_elrsr[2];	/* Saved only */
+	u64		vgic_eisr;	/* Saved only */
+	u64		vgic_elrsr;	/* Saved only */
 	u32		vgic_apr;
 	u32		vgic_lr[VGIC_V2_MAX_LRS];
 };
@@ -329,6 +329,14 @@ static inline int kvm_vgic_init(struct kvm *kvm)
 static inline int kvm_vgic_create(struct kvm *kvm)
 {
 	return 0;
+}
+
+static inline void kvm_vgic_destroy(struct kvm *kvm)
+{
+}
+
+static inline void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
+{
 }
 
 static inline int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)

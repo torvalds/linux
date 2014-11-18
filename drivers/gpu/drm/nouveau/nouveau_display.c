@@ -126,7 +126,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 	if (etime) *etime = ns_to_ktime(args.scan.time[1]);
 
 	if (*vpos < 0)
-		ret |= DRM_SCANOUTPOS_INVBL;
+		ret |= DRM_SCANOUTPOS_IN_VBLANK;
 	return ret;
 }
 
@@ -657,7 +657,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* Synchronize with the old framebuffer */
-	ret = nouveau_fence_sync(old_bo->bo.sync_obj, chan);
+	ret = nouveau_fence_sync(old_bo, chan, false, false);
 	if (ret)
 		goto fail;
 
@@ -716,19 +716,24 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	}
 
 	mutex_lock(&cli->mutex);
+	ret = ttm_bo_reserve(&new_bo->bo, true, false, false, NULL);
+	if (ret)
+		goto fail_unpin;
 
 	/* synchronise rendering channel with the kernel's channel */
-	spin_lock(&new_bo->bo.bdev->fence_lock);
-	fence = nouveau_fence_ref(new_bo->bo.sync_obj);
-	spin_unlock(&new_bo->bo.bdev->fence_lock);
-	ret = nouveau_fence_sync(fence, chan);
-	nouveau_fence_unref(&fence);
-	if (ret)
+	ret = nouveau_fence_sync(new_bo, chan, false, true);
+	if (ret) {
+		ttm_bo_unreserve(&new_bo->bo);
 		goto fail_unpin;
+	}
 
-	ret = ttm_bo_reserve(&old_bo->bo, true, false, false, NULL);
-	if (ret)
-		goto fail_unpin;
+	if (new_bo != old_bo) {
+		ttm_bo_unreserve(&new_bo->bo);
+
+		ret = ttm_bo_reserve(&old_bo->bo, true, false, false, NULL);
+		if (ret)
+			goto fail_unpin;
+	}
 
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
@@ -774,7 +779,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Update the crtc struct and cleanup */
 	crtc->primary->fb = fb;
 
-	nouveau_bo_fence(old_bo, fence);
+	nouveau_bo_fence(old_bo, fence, false);
 	ttm_bo_unreserve(&old_bo->bo);
 	if (old_bo != new_bo)
 		nouveau_bo_unpin(old_bo);

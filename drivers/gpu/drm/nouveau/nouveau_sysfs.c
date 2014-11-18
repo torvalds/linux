@@ -29,7 +29,7 @@
 #include "nouveau_sysfs.h"
 
 MODULE_PARM_DESC(pstate, "enable sysfs pstate file, which will be moved in the future");
-static int nouveau_pstate;
+int nouveau_pstate;
 module_param_named(pstate, nouveau_pstate, int, 0400);
 
 static inline struct drm_device *

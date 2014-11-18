@@ -789,11 +789,11 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 	if (platform_device_add(pdev))
 		goto out_pdev;
 	return;
+
 out_pdev:
 	platform_device_put(pdev);
 out_gpio:
-	if (gpiochip_remove(&iocled->chip))
-		return;
+	gpiochip_remove(&iocled->chip);
 out_unmap:
 	iounmap(iocled->mmioaddr);
 out_free:

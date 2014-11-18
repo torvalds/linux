@@ -24,6 +24,7 @@
 #include "common-init.h"
 #include "common-beacon.h"
 #include "common-debug.h"
+#include "common-spectral.h"
 
 /* Common header for Atheros 802.11n base driver cores */
 

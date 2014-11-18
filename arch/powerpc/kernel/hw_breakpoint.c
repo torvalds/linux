@@ -293,7 +293,7 @@ out:
 /*
  * Handle single-step exceptions following a DABR hit.
  */
-int __kprobes single_step_dabr_instruction(struct die_args *args)
+static int __kprobes single_step_dabr_instruction(struct die_args *args)
 {
 	struct pt_regs *regs = args->regs;
 	struct perf_event *bp = NULL;

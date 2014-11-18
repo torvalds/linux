@@ -159,7 +159,7 @@ cyber2000_seqw(unsigned int reg, unsigned int val, struct cfb_info *cfb)
 static void
 cyber2000fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-	struct cfb_info *cfb = (struct cfb_info *)info;
+	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
 	unsigned long dst, col;
 
 	if (!(cfb->fb.var.accel_flags & FB_ACCELF_TEXT)) {
@@ -191,7 +191,7 @@ cyber2000fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 static void
 cyber2000fb_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 {
-	struct cfb_info *cfb = (struct cfb_info *)info;
+	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
 	unsigned int cmd = CO_CMD_L_PATTERN_FGCOL;
 	unsigned long src, dst;
 
@@ -241,7 +241,7 @@ cyber2000fb_imageblit(struct fb_info *info, const struct fb_image *image)
 
 static int cyber2000fb_sync(struct fb_info *info)
 {
-	struct cfb_info *cfb = (struct cfb_info *)info;
+	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
 	int count = 100000;
 
 	if (!(cfb->fb.var.accel_flags & FB_ACCELF_TEXT))
@@ -276,7 +276,7 @@ static int
 cyber2000fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		      u_int transp, struct fb_info *info)
 {
-	struct cfb_info *cfb = (struct cfb_info *)info;
+	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
 	struct fb_var_screeninfo *var = &cfb->fb.var;
 	u32 pseudo_val;
 	int ret = 1;
@@ -758,7 +758,7 @@ cyber2000fb_decode_clock(struct par_info *hw, struct cfb_info *cfb,
 static int
 cyber2000fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	struct cfb_info *cfb = (struct cfb_info *)info;
+	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
 	struct par_info hw;
 	unsigned int mem;
 	int err;
@@ -861,7 +861,7 @@ cyber2000fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static int cyber2000fb_set_par(struct fb_info *info)
 {
-	struct cfb_info *cfb = (struct cfb_info *)info;
+	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
 	struct fb_var_screeninfo *var = &cfb->fb.var;
 	struct par_info hw;
 	unsigned int mem;
@@ -971,7 +971,7 @@ static int cyber2000fb_set_par(struct fb_info *info)
 static int
 cyber2000fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	struct cfb_info *cfb = (struct cfb_info *)info;
+	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
 
 	if (cyber2000fb_update_start(cfb, var))
 		return -EINVAL;
@@ -1007,7 +1007,7 @@ cyber2000fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
  */
 static int cyber2000fb_blank(int blank, struct fb_info *info)
 {
-	struct cfb_info *cfb = (struct cfb_info *)info;
+	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
 	unsigned int sync = 0;
 	int i;
 

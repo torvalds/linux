@@ -262,7 +262,7 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 {
 	struct ar5416_eeprom_def *eep = &ah->eeprom.def;
 	struct ath_common *common = ath9k_hw_common(ah);
-	u16 *eepdata, temp, magic, magic2;
+	u16 *eepdata, temp, magic;
 	u32 sum = 0, el;
 	bool need_swap = false;
 	int i, addr, size;
@@ -272,27 +272,16 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 		return false;
 	}
 
-	if (!ath9k_hw_use_flash(ah)) {
-		ath_dbg(common, EEPROM, "Read Magic = 0x%04X\n", magic);
+	if (swab16(magic) == AR5416_EEPROM_MAGIC &&
+	    !(ah->ah_flags & AH_NO_EEP_SWAP)) {
+		size = sizeof(struct ar5416_eeprom_def);
+		need_swap = true;
+		eepdata = (u16 *) (&ah->eeprom);
 
-		if (magic != AR5416_EEPROM_MAGIC) {
-			magic2 = swab16(magic);
-
-			if (magic2 == AR5416_EEPROM_MAGIC) {
-				size = sizeof(struct ar5416_eeprom_def);
-				need_swap = true;
-				eepdata = (u16 *) (&ah->eeprom);
-
-				for (addr = 0; addr < size / sizeof(u16); addr++) {
-					temp = swab16(*eepdata);
-					*eepdata = temp;
-					eepdata++;
-				}
-			} else {
-				ath_err(common,
-					"Invalid EEPROM Magic. Endianness mismatch.\n");
-				return -EINVAL;
-			}
+		for (addr = 0; addr < size / sizeof(u16); addr++) {
+			temp = swab16(*eepdata);
+			*eepdata = temp;
+			eepdata++;
 		}
 	}
 

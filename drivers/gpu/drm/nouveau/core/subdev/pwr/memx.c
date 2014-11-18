@@ -20,10 +20,11 @@ memx_out(struct nouveau_memx *memx)
 	struct nouveau_pwr *ppwr = memx->ppwr;
 	int i;
 
-	if (memx->c.size) {
+	if (memx->c.mthd) {
 		nv_wr32(ppwr, 0x10a1c4, (memx->c.size << 16) | memx->c.mthd);
 		for (i = 0; i < memx->c.size; i++)
 			nv_wr32(ppwr, 0x10a1c4, memx->c.data[i]);
+		memx->c.mthd = 0;
 		memx->c.size = 0;
 	}
 }
@@ -32,7 +33,7 @@ static void
 memx_cmd(struct nouveau_memx *memx, u32 mthd, u32 size, u32 data[])
 {
 	if ((memx->c.size + size >= ARRAY_SIZE(memx->c.data)) ||
-	    (memx->c.size && memx->c.mthd != mthd))
+	    (memx->c.mthd && memx->c.mthd != mthd))
 		memx_out(memx);
 	memcpy(&memx->c.data[memx->c.size], data, size * sizeof(data[0]));
 	memx->c.size += size;
@@ -62,8 +63,7 @@ nouveau_memx_init(struct nouveau_pwr *ppwr, struct nouveau_memx **pmemx)
 		nv_wr32(ppwr, 0x10a580, 0x00000003);
 	} while (nv_rd32(ppwr, 0x10a580) != 0x00000003);
 	nv_wr32(ppwr, 0x10a1c0, 0x01000000 | memx->base);
-	nv_wr32(ppwr, 0x10a1c4, 0x00010000 | MEMX_ENTER);
-	nv_wr32(ppwr, 0x10a1c4, 0x00000000);
+
 	return 0;
 }
 
@@ -78,7 +78,6 @@ nouveau_memx_fini(struct nouveau_memx **pmemx, bool exec)
 	memx_out(memx);
 
 	/* release data segment access */
-	nv_wr32(ppwr, 0x10a1c4, 0x00000000 | MEMX_LEAVE);
 	finish = nv_rd32(ppwr, 0x10a1c0) & 0x00ffffff;
 	nv_wr32(ppwr, 0x10a580, 0x00000000);
 
@@ -88,6 +87,8 @@ nouveau_memx_fini(struct nouveau_memx **pmemx, bool exec)
 				 memx->base, finish);
 	}
 
+	nv_debug(memx->ppwr, "Exec took %uns, PPWR_IN %08x\n",
+		 reply[0], reply[1]);
 	kfree(memx);
 	return 0;
 }
@@ -115,6 +116,53 @@ nouveau_memx_nsec(struct nouveau_memx *memx, u32 nsec)
 	nv_debug(memx->ppwr, "    DELAY = %d ns\n", nsec);
 	memx_cmd(memx, MEMX_DELAY, 1, (u32[]){ nsec });
 	memx_out(memx); /* fuc can't handle multiple */
+}
+
+void
+nouveau_memx_wait_vblank(struct nouveau_memx *memx)
+{
+	struct nouveau_pwr *ppwr = memx->ppwr;
+	u32 heads, x, y, px = 0;
+	int i, head_sync;
+
+	if (nv_device(ppwr)->chipset < 0xd0) {
+		heads = nv_rd32(ppwr, 0x610050);
+		for (i = 0; i < 2; i++) {
+			/* Heuristic: sync to head with biggest resolution */
+			if (heads & (2 << (i << 3))) {
+				x = nv_rd32(ppwr, 0x610b40 + (0x540 * i));
+				y = (x & 0xffff0000) >> 16;
+				x &= 0x0000ffff;
+				if ((x * y) > px) {
+					px = (x * y);
+					head_sync = i;
+				}
+			}
+		}
+	}
+
+	if (px == 0) {
+		nv_debug(memx->ppwr, "WAIT VBLANK !NO ACTIVE HEAD\n");
+		return;
+	}
+
+	nv_debug(memx->ppwr, "WAIT VBLANK HEAD%d\n", head_sync);
+	memx_cmd(memx, MEMX_VBLANK, 1, (u32[]){ head_sync });
+	memx_out(memx); /* fuc can't handle multiple */
+}
+
+void
+nouveau_memx_block(struct nouveau_memx *memx)
+{
+	nv_debug(memx->ppwr, "   HOST BLOCKED\n");
+	memx_cmd(memx, MEMX_ENTER, 0, NULL);
+}
+
+void
+nouveau_memx_unblock(struct nouveau_memx *memx)
+{
+	nv_debug(memx->ppwr, "   HOST UNBLOCKED\n");
+	memx_cmd(memx, MEMX_LEAVE, 0, NULL);
 }
 
 #endif

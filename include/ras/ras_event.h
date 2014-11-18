@@ -8,6 +8,7 @@
 #include <linux/tracepoint.h>
 #include <linux/edac.h>
 #include <linux/ktime.h>
+#include <linux/pci.h>
 #include <linux/aer.h>
 #include <linux/cper.h>
 
@@ -173,25 +174,34 @@ TRACE_EVENT(mc_event,
  * u8 severity -	error severity 0:NONFATAL 1:FATAL 2:CORRECTED
  */
 
-#define aer_correctable_errors		\
-	{BIT(0),	"Receiver Error"},		\
-	{BIT(6),	"Bad TLP"},			\
-	{BIT(7),	"Bad DLLP"},			\
-	{BIT(8),	"RELAY_NUM Rollover"},		\
-	{BIT(12),	"Replay Timer Timeout"},	\
-	{BIT(13),	"Advisory Non-Fatal"}
+#define aer_correctable_errors					\
+	{PCI_ERR_COR_RCVR,	"Receiver Error"},		\
+	{PCI_ERR_COR_BAD_TLP,	"Bad TLP"},			\
+	{PCI_ERR_COR_BAD_DLLP,	"Bad DLLP"},			\
+	{PCI_ERR_COR_REP_ROLL,	"RELAY_NUM Rollover"},		\
+	{PCI_ERR_COR_REP_TIMER,	"Replay Timer Timeout"},	\
+	{PCI_ERR_COR_ADV_NFAT,	"Advisory Non-Fatal Error"},	\
+	{PCI_ERR_COR_INTERNAL,	"Corrected Internal Error"},	\
+	{PCI_ERR_COR_LOG_OVER,	"Header Log Overflow"}
 
-#define aer_uncorrectable_errors		\
-	{BIT(4),	"Data Link Protocol"},		\
-	{BIT(12),	"Poisoned TLP"},		\
-	{BIT(13),	"Flow Control Protocol"},	\
-	{BIT(14),	"Completion Timeout"},		\
-	{BIT(15),	"Completer Abort"},		\
-	{BIT(16),	"Unexpected Completion"},	\
-	{BIT(17),	"Receiver Overflow"},		\
-	{BIT(18),	"Malformed TLP"},		\
-	{BIT(19),	"ECRC"},			\
-	{BIT(20),	"Unsupported Request"}
+#define aer_uncorrectable_errors				\
+	{PCI_ERR_UNC_UND,	"Undefined"},			\
+	{PCI_ERR_UNC_DLP,	"Data Link Protocol Error"},	\
+	{PCI_ERR_UNC_SURPDN,	"Surprise Down Error"},		\
+	{PCI_ERR_UNC_POISON_TLP,"Poisoned TLP"},		\
+	{PCI_ERR_UNC_FCP,	"Flow Control Protocol Error"},	\
+	{PCI_ERR_UNC_COMP_TIME,	"Completion Timeout"},		\
+	{PCI_ERR_UNC_COMP_ABORT,"Completer Abort"},		\
+	{PCI_ERR_UNC_UNX_COMP,	"Unexpected Completion"},	\
+	{PCI_ERR_UNC_RX_OVER,	"Receiver Overflow"},		\
+	{PCI_ERR_UNC_MALF_TLP,	"Malformed TLP"},		\
+	{PCI_ERR_UNC_ECRC,	"ECRC Error"},			\
+	{PCI_ERR_UNC_UNSUP,	"Unsupported Request Error"},	\
+	{PCI_ERR_UNC_ACSV,	"ACS Violation"},		\
+	{PCI_ERR_UNC_INTN,	"Uncorrectable Internal Error"},\
+	{PCI_ERR_UNC_MCBTLP,	"MC Blocked TLP"},		\
+	{PCI_ERR_UNC_ATOMEG,	"AtomicOp Egress Blocked"},	\
+	{PCI_ERR_UNC_TLPPRE,	"TLP Prefix Blocked Error"}
 
 TRACE_EVENT(aer_event,
 	TP_PROTO(const char *dev_name,

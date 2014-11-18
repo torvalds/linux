@@ -114,6 +114,8 @@
 #define DSIM_SYNC_INFORM		(1 << 27)
 #define DSIM_EOT_DISABLE		(1 << 28)
 #define DSIM_MFLUSH_VS			(1 << 29)
+/* This flag is valid only for exynos3250/3472/4415/5260/5430 */
+#define DSIM_CLKLANE_STOP		(1 << 30)
 
 /* DSIM_ESCMODE */
 #define DSIM_TX_TRIGGER_RST		(1 << 4)
@@ -262,6 +264,7 @@ struct exynos_dsi_driver_data {
 	unsigned int plltmr_reg;
 
 	unsigned int has_freqband:1;
+	unsigned int has_clklane_stop:1;
 };
 
 struct exynos_dsi {
@@ -301,9 +304,16 @@ struct exynos_dsi {
 #define host_to_dsi(host) container_of(host, struct exynos_dsi, dsi_host)
 #define connector_to_dsi(c) container_of(c, struct exynos_dsi, connector)
 
+static struct exynos_dsi_driver_data exynos3_dsi_driver_data = {
+	.plltmr_reg = 0x50,
+	.has_freqband = 1,
+	.has_clklane_stop = 1,
+};
+
 static struct exynos_dsi_driver_data exynos4_dsi_driver_data = {
 	.plltmr_reg = 0x50,
 	.has_freqband = 1,
+	.has_clklane_stop = 1,
 };
 
 static struct exynos_dsi_driver_data exynos5_dsi_driver_data = {
@@ -311,6 +321,8 @@ static struct exynos_dsi_driver_data exynos5_dsi_driver_data = {
 };
 
 static struct of_device_id exynos_dsi_of_match[] = {
+	{ .compatible = "samsung,exynos3250-mipi-dsi",
+	  .data = &exynos3_dsi_driver_data },
 	{ .compatible = "samsung,exynos4210-mipi-dsi",
 	  .data = &exynos4_dsi_driver_data },
 	{ .compatible = "samsung,exynos5410-mipi-dsi",
@@ -421,7 +433,7 @@ static unsigned long exynos_dsi_set_pll(struct exynos_dsi *dsi,
 	if (!fout) {
 		dev_err(dsi->dev,
 			"failed to find PLL PMS for requested frequency\n");
-		return -EFAULT;
+		return 0;
 	}
 	dev_dbg(dsi->dev, "PLL freq %lu, (p %d, m %d, s %d)\n", fout, p, m, s);
 
@@ -453,7 +465,7 @@ static unsigned long exynos_dsi_set_pll(struct exynos_dsi *dsi,
 	do {
 		if (timeout-- == 0) {
 			dev_err(dsi->dev, "PLL failed to stabilize\n");
-			return -EFAULT;
+			return 0;
 		}
 		reg = readl(dsi->reg_base + DSIM_STATUS_REG);
 	} while ((reg & DSIM_PLL_STABLE) == 0);
@@ -569,6 +581,7 @@ static void exynos_dsi_disable_clock(struct exynos_dsi *dsi)
 
 static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 {
+	struct exynos_dsi_driver_data *driver_data = dsi->driver_data;
 	int timeout;
 	u32 reg;
 	u32 lanes_mask;
@@ -649,6 +662,20 @@ static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 	lanes_mask = BIT(dsi->lanes) - 1;
 	reg |= DSIM_LANE_EN(lanes_mask);
 	writel(reg, dsi->reg_base + DSIM_CONFIG_REG);
+
+	/*
+	 * Use non-continuous clock mode if the periparal wants and
+	 * host controller supports
+	 *
+	 * In non-continous clock mode, host controller will turn off
+	 * the HS clock between high-speed transmissions to reduce
+	 * power consumption.
+	 */
+	if (driver_data->has_clklane_stop &&
+			dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) {
+		reg |= DSIM_CLKLANE_STOP;
+		writel(reg, dsi->reg_base + DSIM_CONFIG_REG);
+	}
 
 	/* Check clock and data lane state are stop state */
 	timeout = 100;
@@ -1414,6 +1441,9 @@ exynos_dsi_detect(struct drm_connector *connector, bool force)
 
 static void exynos_dsi_connector_destroy(struct drm_connector *connector)
 {
+	drm_connector_unregister(connector);
+	drm_connector_cleanup(connector);
+	connector->dev = NULL;
 }
 
 static struct drm_connector_funcs exynos_dsi_connector_funcs = {
@@ -1634,10 +1664,10 @@ static void exynos_dsi_unbind(struct device *dev, struct device *master,
 
 	exynos_dsi_dpms(&exynos_dsi_display, DRM_MODE_DPMS_OFF);
 
-	mipi_dsi_host_unregister(&dsi->dsi_host);
-
+	exynos_dsi_connector_destroy(&dsi->connector);
 	encoder->funcs->destroy(encoder);
-	drm_connector_cleanup(&dsi->connector);
+
+	mipi_dsi_host_unregister(&dsi->dsi_host);
 }
 
 static const struct component_ops exynos_dsi_component_ops = {

@@ -718,6 +718,7 @@ struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 	kfree(new);
 	return res;
 }
+EXPORT_SYMBOL_GPL(nfs_get_lock_context);
 
 void nfs_put_lock_context(struct nfs_lock_context *l_ctx)
 {
@@ -730,6 +731,7 @@ void nfs_put_lock_context(struct nfs_lock_context *l_ctx)
 	spin_unlock(&inode->i_lock);
 	kfree(l_ctx);
 }
+EXPORT_SYMBOL_GPL(nfs_put_lock_context);
 
 /**
  * nfs_close_context - Common close_context() routine NFSv2/v3

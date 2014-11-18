@@ -43,10 +43,10 @@ static int make_ov_request(struct drbd_device *, int);
 static int make_resync_request(struct drbd_device *, int);
 
 /* endio handlers:
- *   drbd_md_io_complete (defined here)
+ *   drbd_md_endio (defined here)
  *   drbd_request_endio (defined here)
  *   drbd_peer_request_endio (defined here)
- *   bm_async_io_complete (defined in drbd_bitmap.c)
+ *   drbd_bm_endio (defined in drbd_bitmap.c)
  *
  * For all these callbacks, note the following:
  * The callbacks will be called in irq context by the IDE drivers,
@@ -65,7 +65,7 @@ rwlock_t global_state_lock;
 /* used for synchronous meta data and bitmap IO
  * submitted by drbd_md_sync_page_io()
  */
-void drbd_md_io_complete(struct bio *bio, int error)
+void drbd_md_endio(struct bio *bio, int error)
 {
 	struct drbd_device *device;
 
@@ -1853,9 +1853,12 @@ static void drbd_ldev_destroy(struct drbd_device *device)
 	device->resync = NULL;
 	lc_destroy(device->act_log);
 	device->act_log = NULL;
-	__no_warn(local,
-		drbd_free_ldev(device->ldev);
-		device->ldev = NULL;);
+
+	__acquire(local);
+	drbd_free_ldev(device->ldev);
+	device->ldev = NULL;
+	__release(local);
+
 	clear_bit(GOING_DISKLESS, &device->flags);
 	wake_up(&device->misc_wait);
 }
@@ -1928,19 +1931,18 @@ void __update_timing_details(
 	++(*cb_nr);
 }
 
-#define WORK_PENDING(work_bit, todo)	(todo & (1UL << work_bit))
 static void do_device_work(struct drbd_device *device, const unsigned long todo)
 {
-	if (WORK_PENDING(MD_SYNC, todo))
+	if (test_bit(MD_SYNC, &todo))
 		do_md_sync(device);
-	if (WORK_PENDING(RS_DONE, todo) ||
-	    WORK_PENDING(RS_PROGRESS, todo))
-		update_on_disk_bitmap(device, WORK_PENDING(RS_DONE, todo));
-	if (WORK_PENDING(GO_DISKLESS, todo))
+	if (test_bit(RS_DONE, &todo) ||
+	    test_bit(RS_PROGRESS, &todo))
+		update_on_disk_bitmap(device, test_bit(RS_DONE, &todo));
+	if (test_bit(GO_DISKLESS, &todo))
 		go_diskless(device);
-	if (WORK_PENDING(DESTROY_DISK, todo))
+	if (test_bit(DESTROY_DISK, &todo))
 		drbd_ldev_destroy(device);
-	if (WORK_PENDING(RS_START, todo))
+	if (test_bit(RS_START, &todo))
 		do_start_resync(device);
 }
 
@@ -1992,22 +1994,13 @@ static bool dequeue_work_batch(struct drbd_work_queue *queue, struct list_head *
 	return !list_empty(work_list);
 }
 
-static bool dequeue_work_item(struct drbd_work_queue *queue, struct list_head *work_list)
-{
-	spin_lock_irq(&queue->q_lock);
-	if (!list_empty(&queue->q))
-		list_move(queue->q.next, work_list);
-	spin_unlock_irq(&queue->q_lock);
-	return !list_empty(work_list);
-}
-
 static void wait_for_work(struct drbd_connection *connection, struct list_head *work_list)
 {
 	DEFINE_WAIT(wait);
 	struct net_conf *nc;
 	int uncork, cork;
 
-	dequeue_work_item(&connection->sender_work, work_list);
+	dequeue_work_batch(&connection->sender_work, work_list);
 	if (!list_empty(work_list))
 		return;
 
@@ -2033,8 +2026,6 @@ static void wait_for_work(struct drbd_connection *connection, struct list_head *
 		prepare_to_wait(&connection->sender_work.q_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_lock_irq(&connection->resource->req_lock);
 		spin_lock(&connection->sender_work.q_lock);	/* FIXME get rid of this one? */
-		/* dequeue single item only,
-		 * we still use drbd_queue_work_front() in some places */
 		if (!list_empty(&connection->sender_work.q))
 			list_splice_tail_init(&connection->sender_work.q, work_list);
 		spin_unlock(&connection->sender_work.q_lock);	/* FIXME get rid of this one? */
@@ -2121,7 +2112,7 @@ int drbd_worker(struct drbd_thread *thi)
 		if (get_t_state(thi) != RUNNING)
 			break;
 
-		while (!list_empty(&work_list)) {
+		if (!list_empty(&work_list)) {
 			w = list_first_entry(&work_list, struct drbd_work, list);
 			list_del_init(&w->list);
 			update_worker_timing_details(connection, w->cb);
@@ -2137,13 +2128,13 @@ int drbd_worker(struct drbd_thread *thi)
 			update_worker_timing_details(connection, do_unqueued_work);
 			do_unqueued_work(connection);
 		}
-		while (!list_empty(&work_list)) {
+		if (!list_empty(&work_list)) {
 			w = list_first_entry(&work_list, struct drbd_work, list);
 			list_del_init(&w->list);
 			update_worker_timing_details(connection, w->cb);
 			w->cb(w, 1);
-		}
-		dequeue_work_batch(&connection->sender_work, &work_list);
+		} else
+			dequeue_work_batch(&connection->sender_work, &work_list);
 	} while (!list_empty(&work_list) || test_bit(DEVICE_WORK_PENDING, &connection->flags));
 
 	rcu_read_lock();

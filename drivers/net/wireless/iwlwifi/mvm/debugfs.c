@@ -121,78 +121,6 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 	return ret;
 }
 
-static int iwl_dbgfs_fw_error_dump_open(struct inode *inode, struct file *file)
-{
-	struct iwl_mvm *mvm = inode->i_private;
-	int ret;
-
-	if (!mvm)
-		return -EINVAL;
-
-	mutex_lock(&mvm->mutex);
-	if (!mvm->fw_error_dump) {
-		ret = -ENODATA;
-		goto out;
-	}
-
-	file->private_data = mvm->fw_error_dump;
-	mvm->fw_error_dump = NULL;
-	ret = 0;
-
-out:
-	mutex_unlock(&mvm->mutex);
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_fw_error_dump_read(struct file *file,
-					    char __user *user_buf,
-					    size_t count, loff_t *ppos)
-{
-	struct iwl_mvm_dump_ptrs *dump_ptrs = (void *)file->private_data;
-	ssize_t bytes_read = 0;
-	ssize_t bytes_read_trans = 0;
-
-	if (*ppos < dump_ptrs->op_mode_len)
-		bytes_read +=
-			simple_read_from_buffer(user_buf, count, ppos,
-						dump_ptrs->op_mode_ptr,
-						dump_ptrs->op_mode_len);
-
-	if (bytes_read < 0 || *ppos < dump_ptrs->op_mode_len)
-		return bytes_read;
-
-	if (dump_ptrs->trans_ptr) {
-		*ppos -= dump_ptrs->op_mode_len;
-		bytes_read_trans =
-			simple_read_from_buffer(user_buf + bytes_read,
-						count - bytes_read, ppos,
-						dump_ptrs->trans_ptr->data,
-						dump_ptrs->trans_ptr->len);
-		*ppos += dump_ptrs->op_mode_len;
-
-		if (bytes_read_trans >= 0)
-			bytes_read += bytes_read_trans;
-		else if (!bytes_read)
-			/* propagate the failure */
-			return bytes_read_trans;
-	}
-
-	return bytes_read;
-
-}
-
-static int iwl_dbgfs_fw_error_dump_release(struct inode *inode,
-					   struct file *file)
-{
-	struct iwl_mvm_dump_ptrs *dump_ptrs = (void *)file->private_data;
-
-	vfree(dump_ptrs->op_mode_ptr);
-	vfree(dump_ptrs->trans_ptr);
-	kfree(dump_ptrs);
-
-	return 0;
-}
-
 static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
@@ -1250,6 +1178,126 @@ static ssize_t iwl_dbgfs_d3_sram_read(struct file *file, char __user *user_buf,
 
 	return ret;
 }
+
+#define MAX_NUM_ND_MATCHSETS 10
+
+static ssize_t iwl_dbgfs_netdetect_write(struct iwl_mvm *mvm, char *buf,
+					 size_t count, loff_t *ppos)
+{
+	const char *seps = ",\n";
+	char *buf_ptr = buf;
+	char *value_str = NULL;
+	int ret, i;
+
+	/* TODO: don't free if write is being called several times in one go */
+	if (mvm->nd_config) {
+		kfree(mvm->nd_config->match_sets);
+		kfree(mvm->nd_config);
+		mvm->nd_config = NULL;
+		kfree(mvm->nd_ies);
+		mvm->nd_ies = NULL;
+	}
+
+	mvm->nd_ies = kzalloc(sizeof(*mvm->nd_ies), GFP_KERNEL);
+	if (!mvm->nd_ies)
+		return -ENOMEM;
+
+	mvm->nd_config = kzalloc(sizeof(*mvm->nd_config) +
+				 (11 * sizeof(struct ieee80211_channel *)),
+				 GFP_KERNEL);
+	if (!mvm->nd_config) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+
+	mvm->nd_config->n_channels = 11;
+	mvm->nd_config->scan_width = NL80211_BSS_CHAN_WIDTH_20;
+	mvm->nd_config->interval = 5;
+	mvm->nd_config->min_rssi_thold = -80;
+	for (i = 0; i < mvm->nd_config->n_channels; i++)
+		mvm->nd_config->channels[i] = &mvm->nvm_data->channels[i];
+
+	mvm->nd_config->match_sets =
+		kcalloc(MAX_NUM_ND_MATCHSETS,
+			sizeof(*mvm->nd_config->match_sets),
+			GFP_KERNEL);
+	if (!mvm->nd_config->match_sets) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+
+	while ((value_str = strsep(&buf_ptr, seps)) &&
+	       strlen(value_str)) {
+		struct cfg80211_match_set *set;
+
+		if (mvm->nd_config->n_match_sets >= MAX_NUM_ND_MATCHSETS) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		set = &mvm->nd_config->match_sets[mvm->nd_config->n_match_sets];
+		set->ssid.ssid_len = strlen(value_str);
+
+		if (set->ssid.ssid_len > IEEE80211_MAX_SSID_LEN) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		memcpy(set->ssid.ssid, value_str, set->ssid.ssid_len);
+
+		mvm->nd_config->n_match_sets++;
+	}
+
+	ret = count;
+
+	if (mvm->nd_config->n_match_sets)
+		goto out;
+
+out_free:
+	if (mvm->nd_config)
+		kfree(mvm->nd_config->match_sets);
+	kfree(mvm->nd_config);
+	mvm->nd_config = NULL;
+	kfree(mvm->nd_ies);
+	mvm->nd_ies = NULL;
+out:
+	return ret;
+}
+
+static ssize_t
+iwl_dbgfs_netdetect_read(struct file *file, char __user *user_buf,
+			 size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	size_t bufsz, ret;
+	char *buf;
+	int i, n_match_sets, pos = 0;
+
+	n_match_sets = mvm->nd_config ? mvm->nd_config->n_match_sets : 0;
+
+	bufsz = n_match_sets * (IEEE80211_MAX_SSID_LEN + 1) + 1;
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	for (i = 0; i < n_match_sets; i++) {
+		if (pos +
+		    mvm->nd_config->match_sets[i].ssid.ssid_len + 2 > bufsz) {
+			ret = -EIO;
+			goto out;
+		}
+
+		memcpy(buf + pos, mvm->nd_config->match_sets[i].ssid.ssid,
+		       mvm->nd_config->match_sets[i].ssid.ssid_len);
+		pos += mvm->nd_config->match_sets[i].ssid.ssid_len;
+		buf[pos++] = '\n';
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+out:
+	kfree(buf);
+	return ret;
+}
 #endif
 
 #define PRINT_MVM_REF(ref) do {						\
@@ -1415,12 +1463,6 @@ MVM_DEBUGFS_WRITE_FILE_OPS(bt_force_ant, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 
-static const struct file_operations iwl_dbgfs_fw_error_dump_ops = {
-	.open = iwl_dbgfs_fw_error_dump_open,
-	.read = iwl_dbgfs_fw_error_dump_read,
-	.release = iwl_dbgfs_fw_error_dump_release,
-};
-
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
@@ -1428,6 +1470,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
 
 #ifdef CONFIG_PM_SLEEP
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram, 8);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(netdetect, 384);
 #endif
 
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
@@ -1446,7 +1489,6 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 			     S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(nic_temp, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(fw_error_dump, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir,
@@ -1487,6 +1529,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	if (!debugfs_create_bool("d3_wake_sysassert", S_IRUSR | S_IWUSR,
 				 mvm->debugfs_dir, &mvm->d3_wake_sysassert))
 		goto err;
+	MVM_DEBUGFS_ADD_FILE(netdetect, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
 #endif
 
 	if (!debugfs_create_u8("low_latency_agg_frame_limit", S_IRUSR | S_IWUSR,

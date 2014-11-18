@@ -26,6 +26,87 @@
 #include <linux/mfd/max14577.h>
 #include <linux/mfd/max14577-private.h>
 
+/*
+ * Table of valid charger currents for different Maxim chipsets.
+ * It is placed here because it is used by both charger and regulator driver.
+ */
+const struct maxim_charger_current maxim_charger_currents[] = {
+	[MAXIM_DEVICE_TYPE_UNKNOWN] = { 0, 0, 0, 0 },
+	[MAXIM_DEVICE_TYPE_MAX14577] = {
+		.min		= MAX14577_CHARGER_CURRENT_LIMIT_MIN,
+		.high_start	= MAX14577_CHARGER_CURRENT_LIMIT_HIGH_START,
+		.high_step	= MAX14577_CHARGER_CURRENT_LIMIT_HIGH_STEP,
+		.max		= MAX14577_CHARGER_CURRENT_LIMIT_MAX,
+	},
+	[MAXIM_DEVICE_TYPE_MAX77836] = {
+		.min		= MAX77836_CHARGER_CURRENT_LIMIT_MIN,
+		.high_start	= MAX77836_CHARGER_CURRENT_LIMIT_HIGH_START,
+		.high_step	= MAX77836_CHARGER_CURRENT_LIMIT_HIGH_STEP,
+		.max		= MAX77836_CHARGER_CURRENT_LIMIT_MAX,
+	},
+};
+EXPORT_SYMBOL_GPL(maxim_charger_currents);
+
+/*
+ * maxim_charger_calc_reg_current - Calculate register value for current
+ * @limits:	constraints for charger, matching the MBCICHWRC register
+ * @min_ua:	minimal requested current, micro Amps
+ * @max_ua:	maximum requested current, micro Amps
+ * @dst:	destination to store calculated register value
+ *
+ * Calculates the value of MBCICHWRC (Fast Battery Charge Current) register
+ * for given current and stores it under pointed 'dst'. The stored value
+ * combines low bit (MBCICHWRCL) and high bits (MBCICHWRCH). It is also
+ * properly shifted.
+ *
+ * The calculated register value matches the current which:
+ *  - is always between <limits.min, limits.max>;
+ *  - is always less or equal to max_ua;
+ *  - is the highest possible value;
+ *  - may be lower than min_ua.
+ *
+ * On success returns 0. On error returns -EINVAL (requested min/max current
+ * is outside of given charger limits) and 'dst' is not set.
+ */
+int maxim_charger_calc_reg_current(const struct maxim_charger_current *limits,
+		unsigned int min_ua, unsigned int max_ua, u8 *dst)
+{
+	unsigned int current_bits = 0xf;
+
+	if (min_ua > max_ua)
+		return -EINVAL;
+
+	if (min_ua > limits->max || max_ua < limits->min)
+		return -EINVAL;
+
+	if (max_ua < limits->high_start) {
+		/*
+		 * Less than high_start, so set the minimal current
+		 * (turn Low Bit off, 0 as high bits).
+		 */
+		*dst = 0x0;
+		return 0;
+	}
+
+	/* max_ua is in range: <high_start, infinite>, cut it to limits.max */
+	max_ua = min(limits->max, max_ua);
+	max_ua -= limits->high_start;
+	/*
+	 * There is no risk of overflow 'max_ua' here because:
+	 *  - max_ua >= limits.high_start
+	 *  - BUILD_BUG checks that 'limits' are: max >= high_start + high_step
+	 */
+	current_bits = max_ua / limits->high_step;
+
+	/* Turn Low Bit on (use range <limits.high_start, limits.max>) ... */
+	*dst = 0x1 << CHGCTRL4_MBCICHWRCL_SHIFT;
+	/* and set proper High Bits */
+	*dst |= current_bits << CHGCTRL4_MBCICHWRCH_SHIFT;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(maxim_charger_calc_reg_current);
+
 static const struct mfd_cell max14577_devs[] = {
 	{
 		.name = "max14577-muic",
@@ -35,7 +116,10 @@ static const struct mfd_cell max14577_devs[] = {
 		.name = "max14577-regulator",
 		.of_compatible = "maxim,max14577-regulator",
 	},
-	{ .name = "max14577-charger", },
+	{
+		.name = "max14577-charger",
+		.of_compatible = "maxim,max14577-charger",
+	},
 };
 
 static const struct mfd_cell max77836_devs[] = {
@@ -372,8 +456,7 @@ static int max14577_i2c_probe(struct i2c_client *i2c,
 	}
 
 	ret = mfd_add_devices(max14577->dev, -1, mfd_devs,
-			mfd_devs_size, NULL, 0,
-			regmap_irq_get_domain(max14577->irq_data));
+			mfd_devs_size, NULL, 0, NULL);
 	if (ret < 0)
 		goto err_mfd;
 
@@ -462,6 +545,20 @@ static int __init max14577_i2c_init(void)
 {
 	BUILD_BUG_ON(ARRAY_SIZE(max14577_i2c_id) != MAXIM_DEVICE_TYPE_NUM);
 	BUILD_BUG_ON(ARRAY_SIZE(max14577_dt_match) != MAXIM_DEVICE_TYPE_NUM);
+
+	/* Valid charger current values must be provided for each chipset */
+	BUILD_BUG_ON(ARRAY_SIZE(maxim_charger_currents) != MAXIM_DEVICE_TYPE_NUM);
+
+	/* Check for valid values for charger */
+	BUILD_BUG_ON(MAX14577_CHARGER_CURRENT_LIMIT_HIGH_START +
+			MAX14577_CHARGER_CURRENT_LIMIT_HIGH_STEP * 0xf !=
+			MAX14577_CHARGER_CURRENT_LIMIT_MAX);
+	BUILD_BUG_ON(MAX14577_CHARGER_CURRENT_LIMIT_HIGH_STEP == 0);
+
+	BUILD_BUG_ON(MAX77836_CHARGER_CURRENT_LIMIT_HIGH_START +
+			MAX77836_CHARGER_CURRENT_LIMIT_HIGH_STEP * 0xf !=
+			MAX77836_CHARGER_CURRENT_LIMIT_MAX);
+	BUILD_BUG_ON(MAX77836_CHARGER_CURRENT_LIMIT_HIGH_STEP == 0);
 
 	return i2c_add_driver(&max14577_i2c_driver);
 }

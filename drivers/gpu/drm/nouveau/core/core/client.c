@@ -91,9 +91,10 @@ nvkm_client_notify_del(struct nouveau_client *client, int index)
 }
 
 int
-nvkm_client_notify_new(struct nouveau_client *client,
+nvkm_client_notify_new(struct nouveau_object *object,
 		       struct nvkm_event *event, void *data, u32 size)
 {
+	struct nouveau_client *client = nouveau_client(object);
 	struct nvkm_client_notify *notify;
 	union {
 		struct nvif_notify_req_v0 v0;
@@ -127,8 +128,8 @@ nvkm_client_notify_new(struct nouveau_client *client,
 	}
 
 	if (ret == 0) {
-		ret = nvkm_notify_init(event, nvkm_client_notify, false,
-				       data, size, reply, &notify->n);
+		ret = nvkm_notify_init(object, event, nvkm_client_notify,
+				       false, data, size, reply, &notify->n);
 		if (ret == 0) {
 			client->notify[index] = notify;
 			notify->client = client;

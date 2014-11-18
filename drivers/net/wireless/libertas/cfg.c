@@ -590,7 +590,6 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 		int chan_no = -1;
 		const u8 *ssid = NULL;
 		u8 ssid_len = 0;
-		DECLARE_SSID_BUF(ssid_buf);
 
 		int len = get_unaligned_le16(pos);
 		pos += 2;
@@ -644,10 +643,8 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 			struct ieee80211_channel *channel =
 				ieee80211_get_channel(wiphy, freq);
 
-			lbs_deb_scan("scan: %pM, capa %04x, chan %2d, %s, "
-				     "%d dBm\n",
-				     bssid, capa, chan_no,
-				     print_ssid(ssid_buf, ssid, ssid_len),
+			lbs_deb_scan("scan: %pM, capa %04x, chan %2d, %*pE, %d dBm\n",
+				     bssid, capa, chan_no, ssid_len, ssid,
 				     LBS_SCAN_RSSI_TO_MBM(rssi)/100);
 
 			if (channel &&
@@ -1984,7 +1981,6 @@ static int lbs_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	struct lbs_private *priv = wiphy_priv(wiphy);
 	int ret = 0;
 	struct cfg80211_bss *bss;
-	DECLARE_SSID_BUF(ssid_buf);
 
 	if (dev == priv->mesh_dev)
 		return -EOPNOTSUPP;

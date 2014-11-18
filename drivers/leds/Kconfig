@@ -468,6 +468,15 @@ config LEDS_OT200
 	  This option enables support for the LEDs on the Bachmann OT200.
 	  Say Y to enable LEDs on the Bachmann OT200.
 
+config LEDS_MENF21BMC
+	tristate "LED support for the MEN 14F021P00 BMC"
+	depends on LEDS_CLASS && MFD_MENF21BMC
+	help
+	  Say Y here to include support for the MEN 14F021P00 BMC LEDs.
+
+	  This driver can also be built as a module. If so the module
+	  will be called leds-menf21bmc.
+
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 
 config LEDS_BLINKM

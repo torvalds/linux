@@ -80,6 +80,8 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
 	inodes = list_lru_count_node(&sb->s_inode_lru, sc->nid);
 	dentries = list_lru_count_node(&sb->s_dentry_lru, sc->nid);
 	total_objects = dentries + inodes + fs_objects + 1;
+	if (!total_objects)
+		total_objects = 1;
 
 	/* proportion the scan between the caches */
 	dentries = mult_frac(sc->nr_to_scan, dentries, total_objects);
@@ -175,7 +177,8 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 		goto fail;
 
 	for (i = 0; i < SB_FREEZE_LEVELS; i++) {
-		if (percpu_counter_init(&s->s_writers.counter[i], 0) < 0)
+		if (percpu_counter_init(&s->s_writers.counter[i], 0,
+					GFP_KERNEL) < 0)
 			goto fail;
 		lockdep_init_map(&s->s_writers.lock_map[i], sb_writers_name[i],
 				 &type->s_writers_key[i], 0);

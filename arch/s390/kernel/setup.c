@@ -343,6 +343,9 @@ static void __init setup_lowcore(void)
 		__ctl_set_bit(14, 29);
 	}
 #else
+	if (MACHINE_HAS_VX)
+		lc->vector_save_area_addr =
+			(unsigned long) &lc->vector_save_area;
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
@@ -452,8 +455,8 @@ static void __init setup_memory_end(void)
 #ifdef CONFIG_64BIT
 	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
 	tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
-	tmp = tmp * (sizeof(struct page) + PAGE_SIZE) + vmalloc_size;
-	if (tmp <= (1UL << 42))
+	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
+	if (tmp + vmalloc_size + MODULES_LEN <= (1UL << 42))
 		vmax = 1UL << 42;	/* 3-level kernel page table */
 	else
 		vmax = 1UL << 53;	/* 4-level kernel page table */
@@ -765,6 +768,12 @@ static void __init setup_hwcaps(void)
 	 */
 	if (test_facility(50) && test_facility(73))
 		elf_hwcap |= HWCAP_S390_TE;
+
+	/*
+	 * Vector extension HWCAP_S390_VXRS is bit 11.
+	 */
+	if (test_facility(129))
+		elf_hwcap |= HWCAP_S390_VXRS;
 #endif
 
 	get_cpu_id(&cpu_id);

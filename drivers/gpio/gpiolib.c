@@ -308,10 +308,9 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip);
  *
  * A gpio_chip with any GPIOs still requested may not be removed.
  */
-int gpiochip_remove(struct gpio_chip *chip)
+void gpiochip_remove(struct gpio_chip *chip)
 {
 	unsigned long	flags;
-	int		status = 0;
 	unsigned	id;
 
 	acpi_gpiochip_remove(chip);
@@ -323,24 +322,15 @@ int gpiochip_remove(struct gpio_chip *chip)
 	of_gpiochip_remove(chip);
 
 	for (id = 0; id < chip->ngpio; id++) {
-		if (test_bit(FLAG_REQUESTED, &chip->desc[id].flags)) {
-			status = -EBUSY;
-			break;
-		}
+		if (test_bit(FLAG_REQUESTED, &chip->desc[id].flags))
+			dev_crit(chip->dev, "REMOVING GPIOCHIP WITH GPIOS STILL REQUESTED\n");
 	}
-	if (status == 0) {
-		for (id = 0; id < chip->ngpio; id++)
-			chip->desc[id].chip = NULL;
+	for (id = 0; id < chip->ngpio; id++)
+		chip->desc[id].chip = NULL;
 
-		list_del(&chip->list);
-	}
-
+	list_del(&chip->list);
 	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	if (status == 0)
-		gpiochip_unexport(chip);
-
-	return status;
+	gpiochip_unexport(chip);
 }
 EXPORT_SYMBOL_GPL(gpiochip_remove);
 
@@ -395,30 +385,47 @@ static struct gpio_chip *find_chip_by_name(const char *name)
  */
 
 /**
- * gpiochip_add_chained_irqchip() - adds a chained irqchip to a gpiochip
- * @gpiochip: the gpiochip to add the irqchip to
- * @irqchip: the irqchip to add to the gpiochip
+ * gpiochip_set_chained_irqchip() - sets a chained irqchip to a gpiochip
+ * @gpiochip: the gpiochip to set the irqchip chain to
+ * @irqchip: the irqchip to chain to the gpiochip
  * @parent_irq: the irq number corresponding to the parent IRQ for this
  * chained irqchip
  * @parent_handler: the parent interrupt handler for the accumulated IRQ
- * coming out of the gpiochip
+ * coming out of the gpiochip. If the interrupt is nested rather than
+ * cascaded, pass NULL in this handler argument
  */
 void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 				  struct irq_chip *irqchip,
 				  int parent_irq,
 				  irq_flow_handler_t parent_handler)
 {
-	if (gpiochip->can_sleep) {
-		chip_err(gpiochip, "you cannot have chained interrupts on a chip that may sleep\n");
+	unsigned int offset;
+
+	if (!gpiochip->irqdomain) {
+		chip_err(gpiochip, "called %s before setting up irqchip\n",
+			 __func__);
 		return;
 	}
 
-	/*
-	 * The parent irqchip is already using the chip_data for this
-	 * irqchip, so our callbacks simply use the handler_data.
-	 */
-	irq_set_handler_data(parent_irq, gpiochip);
-	irq_set_chained_handler(parent_irq, parent_handler);
+	if (parent_handler) {
+		if (gpiochip->can_sleep) {
+			chip_err(gpiochip,
+				 "you cannot have chained interrupts on a "
+				 "chip that may sleep\n");
+			return;
+		}
+		/*
+		 * The parent irqchip is already using the chip_data for this
+		 * irqchip, so our callbacks simply use the handler_data.
+		 */
+		irq_set_handler_data(parent_irq, gpiochip);
+		irq_set_chained_handler(parent_irq, parent_handler);
+	}
+
+	/* Set the parent IRQ for all affected IRQs */
+	for (offset = 0; offset < gpiochip->ngpio; offset++)
+		irq_set_parent(irq_find_mapping(gpiochip->irqdomain, offset),
+			       parent_irq);
 }
 EXPORT_SYMBOL_GPL(gpiochip_set_chained_irqchip);
 
@@ -447,7 +454,7 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_set_lockdep_class(irq, &gpiochip_irq_lock_class);
 	irq_set_chip_and_handler(irq, chip->irqchip, chip->irq_handler);
 	/* Chips that can sleep need nested thread handlers */
-	if (chip->can_sleep)
+	if (chip->can_sleep && !chip->irq_not_threaded)
 		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 	set_irq_flags(irq, IRQF_VALID);
@@ -524,7 +531,8 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
 	/* Remove all IRQ mappings and delete the domain */
 	if (gpiochip->irqdomain) {
 		for (offset = 0; offset < gpiochip->ngpio; offset++)
-			irq_dispose_mapping(gpiochip->irq_base + offset);
+			irq_dispose_mapping(
+				irq_find_mapping(gpiochip->irqdomain, offset));
 		irq_domain_remove(gpiochip->irqdomain);
 	}
 
@@ -895,12 +903,22 @@ EXPORT_SYMBOL_GPL(gpiochip_is_requested);
  * allows the GPIO chip module to be unloaded as needed (we assume that the
  * GPIO chip driver handles freeing the GPIOs it has requested).
  */
-int gpiochip_request_own_desc(struct gpio_desc *desc, const char *label)
+struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
+					    const char *label)
 {
-	if (!desc || !desc->chip)
-		return -EINVAL;
+	struct gpio_desc *desc = gpiochip_get_desc(chip, hwnum);
+	int err;
 
-	return __gpiod_request(desc, label);
+	if (IS_ERR(desc)) {
+		chip_err(chip, "failed to get GPIO descriptor\n");
+		return desc;
+	}
+
+	err = __gpiod_request(desc, label);
+	if (err < 0)
+		return ERR_PTR(err);
+
+	return desc;
 }
 EXPORT_SYMBOL_GPL(gpiochip_request_own_desc);
 
@@ -1652,7 +1670,7 @@ struct gpio_desc *__must_check __gpiod_get_index(struct device *dev,
 	 * a result. In that case, use platform lookup as a fallback.
 	 */
 	if (!desc || desc == ERR_PTR(-ENOENT)) {
-		dev_dbg(dev, "using lookup tables for GPIO lookup");
+		dev_dbg(dev, "using lookup tables for GPIO lookup\n");
 		desc = gpiod_find(dev, con_id, idx, &lookupflags);
 	}
 

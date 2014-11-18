@@ -56,8 +56,16 @@ struct sti_vtac_mode {
 	u32 phyts_per_pixel;
 };
 
-static const struct sti_vtac_mode vtac_mode_main = {0x2, 0x2, VTAC_5_PPP};
-static const struct sti_vtac_mode vtac_mode_aux = {0x1, 0x0, VTAC_17_PPP};
+static const struct sti_vtac_mode vtac_mode_main = {
+	.vid_in_width = 0x2,
+	.phyts_width = 0x2,
+	.phyts_per_pixel = VTAC_5_PPP,
+};
+static const struct sti_vtac_mode vtac_mode_aux = {
+	.vid_in_width = 0x1,
+	.phyts_width = 0x0,
+	.phyts_per_pixel = VTAC_17_PPP,
+};
 
 /**
  * VTAC structure

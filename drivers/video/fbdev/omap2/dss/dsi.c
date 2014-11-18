@@ -2571,7 +2571,10 @@ static int dsi_sync_vc_vp(struct platform_device *dsidev, int channel)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	DECLARE_COMPLETION_ONSTACK(completion);
-	struct dsi_packet_sent_handler_data vp_data = { dsidev, &completion };
+	struct dsi_packet_sent_handler_data vp_data = {
+		.dsidev = dsidev,
+		.completion = &completion
+	};
 	int r = 0;
 	u8 bit;
 
@@ -2617,7 +2620,10 @@ static void dsi_packet_sent_handler_l4(void *data, u32 mask)
 static int dsi_sync_vc_l4(struct platform_device *dsidev, int channel)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
-	struct dsi_packet_sent_handler_data l4_data = { dsidev, &completion };
+	struct dsi_packet_sent_handler_data l4_data = {
+		.dsidev = dsidev,
+		.completion = &completion
+	};
 	int r = 0;
 
 	r = dsi_register_isr_vc(dsidev, channel, dsi_packet_sent_handler_l4,

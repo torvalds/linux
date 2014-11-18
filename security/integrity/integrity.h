@@ -31,6 +31,7 @@
 #define IMA_DIGSIG		0x01000000
 #define IMA_DIGSIG_REQUIRED	0x02000000
 #define IMA_PERMIT_DIRECTIO	0x04000000
+#define IMA_NEW_FILE		0x08000000
 
 #define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE | IMA_AUDIT | \
 				 IMA_APPRAISE_SUBMASK)
@@ -116,7 +117,6 @@ struct integrity_iint_cache {
 /* rbtree tree calls to lookup, insert, delete
  * integrity data associated with an inode.
  */
-struct integrity_iint_cache *integrity_iint_insert(struct inode *inode);
 struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 
 #define INTEGRITY_KEYRING_EVM		0

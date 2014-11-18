@@ -683,7 +683,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 
 	switch (c->transmission_mode) {
 	case TRANSMISSION_MODE_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case TRANSMISSION_MODE_2K:
 		break;
@@ -693,12 +693,12 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid transmission_mode\n",
 				__func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	switch (c->guard_interval) {
 	case GUARD_INTERVAL_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case GUARD_INTERVAL_1_32:
 		break;
@@ -714,12 +714,12 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid guard_interval\n",
 				__func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	switch (c->hierarchy) {
 	case HIERARCHY_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case HIERARCHY_NONE:
 		break;
@@ -734,12 +734,12 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		break;
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid hierarchy\n", __func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	switch (c->modulation) {
 	case QAM_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case QPSK:
 		break;
@@ -751,7 +751,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		break;
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid modulation\n", __func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	/* Use HP. How and which case we can switch to LP? */
@@ -759,7 +759,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 
 	switch (c->code_rate_HP) {
 	case FEC_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case FEC_1_2:
 		break;
@@ -778,12 +778,12 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid code_rate_HP\n",
 				__func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	switch (c->code_rate_LP) {
 	case FEC_AUTO:
-		auto_mode = 1;
+		auto_mode = true;
 		break;
 	case FEC_1_2:
 		break;
@@ -804,7 +804,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 	default:
 		dev_dbg(&state->i2c->dev, "%s: invalid code_rate_LP\n",
 				__func__);
-		auto_mode = 1;
+		auto_mode = true;
 	}
 
 	switch (c->bandwidth_hz) {

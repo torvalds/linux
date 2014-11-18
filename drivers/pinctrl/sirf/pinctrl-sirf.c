@@ -891,8 +891,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 
 out_no_range:
 out_banks:
-	if (gpiochip_remove(&sgpio->chip.gc))
-		dev_err(&pdev->dev, "could not remove gpio chip\n");
+	gpiochip_remove(&sgpio->chip.gc);
 out:
 	iounmap(regs);
 	return err;

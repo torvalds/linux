@@ -13,7 +13,7 @@
  *
  * The refcount will have a range of 0 to ((1U << 31) - 1), i.e. one bit less
  * than an atomic_t - this is because of the way shutdown works, see
- * percpu_ref_kill()/PCPU_COUNT_BIAS.
+ * percpu_ref_kill()/PERCPU_COUNT_BIAS.
  *
  * Before you call percpu_ref_kill(), percpu_ref_put() does not check for the
  * refcount hitting 0 - it can't, if it was in percpu mode. percpu_ref_kill()
@@ -49,29 +49,60 @@
 #include <linux/kernel.h>
 #include <linux/percpu.h>
 #include <linux/rcupdate.h>
+#include <linux/gfp.h>
 
 struct percpu_ref;
 typedef void (percpu_ref_func_t)(struct percpu_ref *);
 
+/* flags set in the lower bits of percpu_ref->percpu_count_ptr */
+enum {
+	__PERCPU_REF_ATOMIC	= 1LU << 0,	/* operating in atomic mode */
+	__PERCPU_REF_DEAD	= 1LU << 1,	/* (being) killed */
+	__PERCPU_REF_ATOMIC_DEAD = __PERCPU_REF_ATOMIC | __PERCPU_REF_DEAD,
+
+	__PERCPU_REF_FLAG_BITS	= 2,
+};
+
+/* @flags for percpu_ref_init() */
+enum {
+	/*
+	 * Start w/ ref == 1 in atomic mode.  Can be switched to percpu
+	 * operation using percpu_ref_switch_to_percpu().  If initialized
+	 * with this flag, the ref will stay in atomic mode until
+	 * percpu_ref_switch_to_percpu() is invoked on it.
+	 */
+	PERCPU_REF_INIT_ATOMIC	= 1 << 0,
+
+	/*
+	 * Start dead w/ ref == 0 in atomic mode.  Must be revived with
+	 * percpu_ref_reinit() before used.  Implies INIT_ATOMIC.
+	 */
+	PERCPU_REF_INIT_DEAD	= 1 << 1,
+};
+
 struct percpu_ref {
-	atomic_t		count;
+	atomic_long_t		count;
 	/*
 	 * The low bit of the pointer indicates whether the ref is in percpu
 	 * mode; if set, then get/put will manipulate the atomic_t.
 	 */
-	unsigned long		pcpu_count_ptr;
+	unsigned long		percpu_count_ptr;
 	percpu_ref_func_t	*release;
-	percpu_ref_func_t	*confirm_kill;
+	percpu_ref_func_t	*confirm_switch;
+	bool			force_atomic:1;
 	struct rcu_head		rcu;
 };
 
 int __must_check percpu_ref_init(struct percpu_ref *ref,
-				 percpu_ref_func_t *release);
-void percpu_ref_reinit(struct percpu_ref *ref);
+				 percpu_ref_func_t *release, unsigned int flags,
+				 gfp_t gfp);
 void percpu_ref_exit(struct percpu_ref *ref);
+void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
+				 percpu_ref_func_t *confirm_switch);
+void percpu_ref_switch_to_percpu(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill);
-void __percpu_ref_kill_expedited(struct percpu_ref *ref);
+void percpu_ref_reinit(struct percpu_ref *ref);
 
 /**
  * percpu_ref_kill - drop the initial ref
@@ -88,26 +119,24 @@ static inline void percpu_ref_kill(struct percpu_ref *ref)
 	return percpu_ref_kill_and_confirm(ref, NULL);
 }
 
-#define PCPU_REF_DEAD		1
-
 /*
  * Internal helper.  Don't use outside percpu-refcount proper.  The
  * function doesn't return the pointer and let the caller test it for NULL
  * because doing so forces the compiler to generate two conditional
- * branches as it can't assume that @ref->pcpu_count is not NULL.
+ * branches as it can't assume that @ref->percpu_count is not NULL.
  */
-static inline bool __pcpu_ref_alive(struct percpu_ref *ref,
-				    unsigned __percpu **pcpu_countp)
+static inline bool __ref_is_percpu(struct percpu_ref *ref,
+					  unsigned long __percpu **percpu_countp)
 {
-	unsigned long pcpu_ptr = ACCESS_ONCE(ref->pcpu_count_ptr);
+	unsigned long percpu_ptr = ACCESS_ONCE(ref->percpu_count_ptr);
 
 	/* paired with smp_store_release() in percpu_ref_reinit() */
 	smp_read_barrier_depends();
 
-	if (unlikely(pcpu_ptr & PCPU_REF_DEAD))
+	if (unlikely(percpu_ptr & __PERCPU_REF_ATOMIC))
 		return false;
 
-	*pcpu_countp = (unsigned __percpu *)pcpu_ptr;
+	*percpu_countp = (unsigned long __percpu *)percpu_ptr;
 	return true;
 }
 
@@ -115,18 +144,20 @@ static inline bool __pcpu_ref_alive(struct percpu_ref *ref,
  * percpu_ref_get - increment a percpu refcount
  * @ref: percpu_ref to get
  *
- * Analagous to atomic_inc().
-  */
+ * Analagous to atomic_long_inc().
+ *
+ * This function is safe to call as long as @ref is between init and exit.
+ */
 static inline void percpu_ref_get(struct percpu_ref *ref)
 {
-	unsigned __percpu *pcpu_count;
+	unsigned long __percpu *percpu_count;
 
 	rcu_read_lock_sched();
 
-	if (__pcpu_ref_alive(ref, &pcpu_count))
-		this_cpu_inc(*pcpu_count);
+	if (__ref_is_percpu(ref, &percpu_count))
+		this_cpu_inc(*percpu_count);
 	else
-		atomic_inc(&ref->count);
+		atomic_long_inc(&ref->count);
 
 	rcu_read_unlock_sched();
 }
@@ -138,20 +169,20 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
  * Increment a percpu refcount unless its count already reached zero.
  * Returns %true on success; %false on failure.
  *
- * The caller is responsible for ensuring that @ref stays accessible.
+ * This function is safe to call as long as @ref is between init and exit.
  */
 static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 {
-	unsigned __percpu *pcpu_count;
-	int ret = false;
+	unsigned long __percpu *percpu_count;
+	int ret;
 
 	rcu_read_lock_sched();
 
-	if (__pcpu_ref_alive(ref, &pcpu_count)) {
-		this_cpu_inc(*pcpu_count);
+	if (__ref_is_percpu(ref, &percpu_count)) {
+		this_cpu_inc(*percpu_count);
 		ret = true;
 	} else {
-		ret = atomic_inc_not_zero(&ref->count);
+		ret = atomic_long_inc_not_zero(&ref->count);
 	}
 
 	rcu_read_unlock_sched();
@@ -166,23 +197,26 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
  * Increment a percpu refcount unless it has already been killed.  Returns
  * %true on success; %false on failure.
  *
- * Completion of percpu_ref_kill() in itself doesn't guarantee that tryget
- * will fail.  For such guarantee, percpu_ref_kill_and_confirm() should be
- * used.  After the confirm_kill callback is invoked, it's guaranteed that
- * no new reference will be given out by percpu_ref_tryget().
+ * Completion of percpu_ref_kill() in itself doesn't guarantee that this
+ * function will fail.  For such guarantee, percpu_ref_kill_and_confirm()
+ * should be used.  After the confirm_kill callback is invoked, it's
+ * guaranteed that no new reference will be given out by
+ * percpu_ref_tryget_live().
  *
- * The caller is responsible for ensuring that @ref stays accessible.
+ * This function is safe to call as long as @ref is between init and exit.
  */
 static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 {
-	unsigned __percpu *pcpu_count;
+	unsigned long __percpu *percpu_count;
 	int ret = false;
 
 	rcu_read_lock_sched();
 
-	if (__pcpu_ref_alive(ref, &pcpu_count)) {
-		this_cpu_inc(*pcpu_count);
+	if (__ref_is_percpu(ref, &percpu_count)) {
+		this_cpu_inc(*percpu_count);
 		ret = true;
+	} else if (!(ACCESS_ONCE(ref->percpu_count_ptr) & __PERCPU_REF_DEAD)) {
+		ret = atomic_long_inc_not_zero(&ref->count);
 	}
 
 	rcu_read_unlock_sched();
@@ -196,16 +230,18 @@ static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
  *
  * Decrement the refcount, and if 0, call the release function (which was passed
  * to percpu_ref_init())
+ *
+ * This function is safe to call as long as @ref is between init and exit.
  */
 static inline void percpu_ref_put(struct percpu_ref *ref)
 {
-	unsigned __percpu *pcpu_count;
+	unsigned long __percpu *percpu_count;
 
 	rcu_read_lock_sched();
 
-	if (__pcpu_ref_alive(ref, &pcpu_count))
-		this_cpu_dec(*pcpu_count);
-	else if (unlikely(atomic_dec_and_test(&ref->count)))
+	if (__ref_is_percpu(ref, &percpu_count))
+		this_cpu_dec(*percpu_count);
+	else if (unlikely(atomic_long_dec_and_test(&ref->count)))
 		ref->release(ref);
 
 	rcu_read_unlock_sched();
@@ -216,14 +252,16 @@ static inline void percpu_ref_put(struct percpu_ref *ref)
  * @ref: percpu_ref to test
  *
  * Returns %true if @ref reached zero.
+ *
+ * This function is safe to call as long as @ref is between init and exit.
  */
 static inline bool percpu_ref_is_zero(struct percpu_ref *ref)
 {
-	unsigned __percpu *pcpu_count;
+	unsigned long __percpu *percpu_count;
 
-	if (__pcpu_ref_alive(ref, &pcpu_count))
+	if (__ref_is_percpu(ref, &percpu_count))
 		return false;
-	return !atomic_read(&ref->count);
+	return !atomic_long_read(&ref->count);
 }
 
 #endif

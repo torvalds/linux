@@ -514,9 +514,9 @@ unsigned long sm501_set_clock(struct device *dev,
 	unsigned long mode = smc501_readl(sm->regs + SM501_POWER_MODE_CONTROL);
 	unsigned long gate = smc501_readl(sm->regs + SM501_CURRENT_GATE);
 	unsigned long clock = smc501_readl(sm->regs + SM501_CURRENT_CLOCK);
-	unsigned char reg;
 	unsigned int pll_reg = 0;
 	unsigned long sm501_freq; /* the actual frequency achieved */
+	u64 reg;
 
 	struct sm501_clock to;
 
@@ -1047,7 +1047,6 @@ static int sm501_register_gpio(struct sm501_devdata *sm)
 	struct sm501_gpio *gpio = &sm->gpio;
 	resource_size_t iobase = sm->io_res->start + SM501_GPIO;
 	int ret;
-	int tmp;
 
 	dev_dbg(sm->dev, "registering gpio block %08llx\n",
 		(unsigned long long)iobase);
@@ -1086,11 +1085,7 @@ static int sm501_register_gpio(struct sm501_devdata *sm)
 	return 0;
 
  err_low_chip:
-	tmp = gpiochip_remove(&gpio->low.gpio);
-	if (tmp) {
-		dev_err(sm->dev, "cannot remove low chip, cannot tidy up\n");
-		return ret;
-	}
+	gpiochip_remove(&gpio->low.gpio);
 
  err_mapped:
 	iounmap(gpio->regs);
@@ -1105,18 +1100,12 @@ static int sm501_register_gpio(struct sm501_devdata *sm)
 static void sm501_gpio_remove(struct sm501_devdata *sm)
 {
 	struct sm501_gpio *gpio = &sm->gpio;
-	int ret;
 
 	if (!sm->gpio.registered)
 		return;
 
-	ret = gpiochip_remove(&gpio->low.gpio);
-	if (ret)
-		dev_err(sm->dev, "cannot remove low chip, cannot tidy up\n");
-
-	ret = gpiochip_remove(&gpio->high.gpio);
-	if (ret)
-		dev_err(sm->dev, "cannot remove high chip, cannot tidy up\n");
+	gpiochip_remove(&gpio->low.gpio);
+	gpiochip_remove(&gpio->high.gpio);
 
 	iounmap(gpio->regs);
 	release_resource(gpio->regs_res);

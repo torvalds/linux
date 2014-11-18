@@ -102,7 +102,7 @@ xfs_new_eof(struct xfs_inode *ip, xfs_fsize_t new_size)
 {
 	xfs_fsize_t i_size = i_size_read(VFS_I(ip));
 
-	if (new_size > i_size)
+	if (new_size > i_size || new_size < 0)
 		new_size = i_size;
 	return new_size > ip->i_d.di_size ? new_size : 0;
 }

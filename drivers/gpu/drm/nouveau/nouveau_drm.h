@@ -10,7 +10,7 @@
 
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		2
-#define DRIVER_PATCHLEVEL	0
+#define DRIVER_PATCHLEVEL	1
 
 /*
  * 1.1.1:
@@ -26,6 +26,8 @@
  * 1.2.0:
  * 	- object api exposed to userspace
  * 	- fermi,kepler,maxwell zbc
+ * 1.2.1:
+ *      - allow concurrent access to bo's mapped read/write.
  */
 
 #include <nvif/client.h>

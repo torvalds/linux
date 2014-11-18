@@ -162,6 +162,7 @@ static int mmc_decode_csd(struct mmc_card *card)
 	csd->read_partial = UNSTUFF_BITS(resp, 79, 1);
 	csd->write_misalign = UNSTUFF_BITS(resp, 78, 1);
 	csd->read_misalign = UNSTUFF_BITS(resp, 77, 1);
+	csd->dsr_imp = UNSTUFF_BITS(resp, 76, 1);
 	csd->r2w_factor = UNSTUFF_BITS(resp, 26, 3);
 	csd->write_blkbits = UNSTUFF_BITS(resp, 22, 4);
 	csd->write_partial = UNSTUFF_BITS(resp, 21, 1);
@@ -225,9 +226,7 @@ static int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 				"Card will be ignored.\n",
 				mmc_hostname(card->host));
 		} else {
-			pr_warning("%s: unable to read "
-				"EXT_CSD, performance might "
-				"suffer.\n",
+			pr_warn("%s: unable to read EXT_CSD, performance might suffer\n",
 				mmc_hostname(card->host));
 			err = 0;
 		}
@@ -298,6 +297,97 @@ static void mmc_select_card_type(struct mmc_card *card)
 	card->mmc_avail_type = avail_type;
 }
 
+static void mmc_manage_enhanced_area(struct mmc_card *card, u8 *ext_csd)
+{
+	u8 hc_erase_grp_sz, hc_wp_grp_sz;
+
+	/*
+	 * Disable these attributes by default
+	 */
+	card->ext_csd.enhanced_area_offset = -EINVAL;
+	card->ext_csd.enhanced_area_size = -EINVAL;
+
+	/*
+	 * Enhanced area feature support -- check whether the eMMC
+	 * card has the Enhanced area enabled.  If so, export enhanced
+	 * area offset and size to user by adding sysfs interface.
+	 */
+	if ((ext_csd[EXT_CSD_PARTITION_SUPPORT] & 0x2) &&
+	    (ext_csd[EXT_CSD_PARTITION_ATTRIBUTE] & 0x1)) {
+		if (card->ext_csd.partition_setting_completed) {
+			hc_erase_grp_sz =
+				ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
+			hc_wp_grp_sz =
+				ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
+
+			/*
+			 * calculate the enhanced data area offset, in bytes
+			 */
+			card->ext_csd.enhanced_area_offset =
+				(ext_csd[139] << 24) + (ext_csd[138] << 16) +
+				(ext_csd[137] << 8) + ext_csd[136];
+			if (mmc_card_blockaddr(card))
+				card->ext_csd.enhanced_area_offset <<= 9;
+			/*
+			 * calculate the enhanced data area size, in kilobytes
+			 */
+			card->ext_csd.enhanced_area_size =
+				(ext_csd[142] << 16) + (ext_csd[141] << 8) +
+				ext_csd[140];
+			card->ext_csd.enhanced_area_size *=
+				(size_t)(hc_erase_grp_sz * hc_wp_grp_sz);
+			card->ext_csd.enhanced_area_size <<= 9;
+		} else {
+			pr_warn("%s: defines enhanced area without partition setting complete\n",
+				mmc_hostname(card->host));
+		}
+	}
+}
+
+static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
+{
+	int idx;
+	u8 hc_erase_grp_sz, hc_wp_grp_sz;
+	unsigned int part_size;
+
+	/*
+	 * General purpose partition feature support --
+	 * If ext_csd has the size of general purpose partitions,
+	 * set size, part_cfg, partition name in mmc_part.
+	 */
+	if (ext_csd[EXT_CSD_PARTITION_SUPPORT] &
+	    EXT_CSD_PART_SUPPORT_PART_EN) {
+		hc_erase_grp_sz =
+			ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
+		hc_wp_grp_sz =
+			ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
+
+		for (idx = 0; idx < MMC_NUM_GP_PARTITION; idx++) {
+			if (!ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3] &&
+			    !ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 1] &&
+			    !ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 2])
+				continue;
+			if (card->ext_csd.partition_setting_completed == 0) {
+				pr_warn("%s: has partition size defined without partition complete\n",
+					mmc_hostname(card->host));
+				break;
+			}
+			part_size =
+				(ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 2]
+				<< 16) +
+				(ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 1]
+				<< 8) +
+				ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3];
+			part_size *= (size_t)(hc_erase_grp_sz *
+				hc_wp_grp_sz);
+			mmc_part_add(card, part_size << 19,
+				EXT_CSD_PART_CONFIG_ACC_GP0 + idx,
+				"gp%d", idx, false,
+				MMC_BLK_DATA_AREA_GP);
+		}
+	}
+}
+
 /*
  * Decode extended CSD.
  */
@@ -305,7 +395,6 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 {
 	int err = 0, idx;
 	unsigned int part_size;
-	u8 hc_erase_grp_sz = 0, hc_wp_grp_sz = 0;
 
 	BUG_ON(!card);
 
@@ -402,80 +491,16 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		ext_csd[EXT_CSD_TRIM_MULT];
 	card->ext_csd.raw_partition_support = ext_csd[EXT_CSD_PARTITION_SUPPORT];
 	if (card->ext_csd.rev >= 4) {
-		/*
-		 * Enhanced area feature support -- check whether the eMMC
-		 * card has the Enhanced area enabled.  If so, export enhanced
-		 * area offset and size to user by adding sysfs interface.
-		 */
-		if ((ext_csd[EXT_CSD_PARTITION_SUPPORT] & 0x2) &&
-		    (ext_csd[EXT_CSD_PARTITION_ATTRIBUTE] & 0x1)) {
-			hc_erase_grp_sz =
-				ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
-			hc_wp_grp_sz =
-				ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
+		if (ext_csd[EXT_CSD_PARTITION_SETTING_COMPLETED] &
+		    EXT_CSD_PART_SETTING_COMPLETED)
+			card->ext_csd.partition_setting_completed = 1;
+		else
+			card->ext_csd.partition_setting_completed = 0;
 
-			card->ext_csd.enhanced_area_en = 1;
-			/*
-			 * calculate the enhanced data area offset, in bytes
-			 */
-			card->ext_csd.enhanced_area_offset =
-				(ext_csd[139] << 24) + (ext_csd[138] << 16) +
-				(ext_csd[137] << 8) + ext_csd[136];
-			if (mmc_card_blockaddr(card))
-				card->ext_csd.enhanced_area_offset <<= 9;
-			/*
-			 * calculate the enhanced data area size, in kilobytes
-			 */
-			card->ext_csd.enhanced_area_size =
-				(ext_csd[142] << 16) + (ext_csd[141] << 8) +
-				ext_csd[140];
-			card->ext_csd.enhanced_area_size *=
-				(size_t)(hc_erase_grp_sz * hc_wp_grp_sz);
-			card->ext_csd.enhanced_area_size <<= 9;
-		} else {
-			/*
-			 * If the enhanced area is not enabled, disable these
-			 * device attributes.
-			 */
-			card->ext_csd.enhanced_area_offset = -EINVAL;
-			card->ext_csd.enhanced_area_size = -EINVAL;
-		}
+		mmc_manage_enhanced_area(card, ext_csd);
 
-		/*
-		 * General purpose partition feature support --
-		 * If ext_csd has the size of general purpose partitions,
-		 * set size, part_cfg, partition name in mmc_part.
-		 */
-		if (ext_csd[EXT_CSD_PARTITION_SUPPORT] &
-			EXT_CSD_PART_SUPPORT_PART_EN) {
-			if (card->ext_csd.enhanced_area_en != 1) {
-				hc_erase_grp_sz =
-					ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE];
-				hc_wp_grp_sz =
-					ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
+		mmc_manage_gp_partitions(card, ext_csd);
 
-				card->ext_csd.enhanced_area_en = 1;
-			}
-
-			for (idx = 0; idx < MMC_NUM_GP_PARTITION; idx++) {
-				if (!ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3] &&
-				!ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 1] &&
-				!ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 2])
-					continue;
-				part_size =
-				(ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 2]
-					<< 16) +
-				(ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3 + 1]
-					<< 8) +
-				ext_csd[EXT_CSD_GP_SIZE_MULT + idx * 3];
-				part_size *= (size_t)(hc_erase_grp_sz *
-					hc_wp_grp_sz);
-				mmc_part_add(card, part_size << 19,
-					EXT_CSD_PART_CONFIG_ACC_GP0 + idx,
-					"gp%d", idx, false,
-					MMC_BLK_DATA_AREA_GP);
-			}
-		}
 		card->ext_csd.sec_trim_mult =
 			ext_csd[EXT_CSD_SEC_TRIM_MULT];
 		card->ext_csd.sec_erase_mult =
@@ -789,8 +814,8 @@ static int __mmc_select_powerclass(struct mmc_card *card,
 				ext_csd->raw_pwr_cl_200_360;
 		break;
 	default:
-		pr_warning("%s: Voltage range not supported "
-			   "for power class.\n", mmc_hostname(host));
+		pr_warn("%s: Voltage range not supported for power class\n",
+			mmc_hostname(host));
 		return -EINVAL;
 	}
 
@@ -987,19 +1012,35 @@ static int mmc_select_hs_ddr(struct mmc_card *card)
 	 * 1.8V vccq at 3.3V core voltage (vcc) is not required
 	 * in the JEDEC spec for DDR.
 	 *
-	 * Do not force change in vccq since we are obviously
-	 * working and no change to vccq is needed.
+	 * Even (e)MMC card can support 3.3v to 1.2v vccq, but not all
+	 * host controller can support this, like some of the SDHCI
+	 * controller which connect to an eMMC device. Some of these
+	 * host controller still needs to use 1.8v vccq for supporting
+	 * DDR mode.
+	 *
+	 * So the sequence will be:
+	 * if (host and device can both support 1.2v IO)
+	 *	use 1.2v IO;
+	 * else if (host and device can both support 1.8v IO)
+	 *	use 1.8v IO;
+	 * so if host and device can only support 3.3v IO, this is the
+	 * last choice.
 	 *
 	 * WARNING: eMMC rules are NOT the same as SD DDR
 	 */
-	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_DDR_1_2V) {
-		err = __mmc_set_signal_voltage(host,
-				MMC_SIGNAL_VOLTAGE_120);
-		if (err)
-			return err;
-	}
+	err = -EINVAL;
+	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_DDR_1_2V)
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
 
-	mmc_set_timing(host, MMC_TIMING_MMC_DDR52);
+	if (err && (card->mmc_avail_type & EXT_CSD_CARD_TYPE_DDR_1_8V))
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
+
+	/* make sure vccq is 3.3v after switching disaster */
+	if (err)
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330);
+
+	if (!err)
+		mmc_set_timing(host, MMC_TIMING_MMC_DDR52);
 
 	return err;
 }
@@ -1133,6 +1174,38 @@ bus_speed:
 	mmc_set_bus_speed(card);
 	return err;
 }
+
+const u8 tuning_blk_pattern_4bit[MMC_TUNING_BLK_PATTERN_4BIT_SIZE] = {
+	0xff, 0x0f, 0xff, 0x00, 0xff, 0xcc, 0xc3, 0xcc,
+	0xc3, 0x3c, 0xcc, 0xff, 0xfe, 0xff, 0xfe, 0xef,
+	0xff, 0xdf, 0xff, 0xdd, 0xff, 0xfb, 0xff, 0xfb,
+	0xbf, 0xff, 0x7f, 0xff, 0x77, 0xf7, 0xbd, 0xef,
+	0xff, 0xf0, 0xff, 0xf0, 0x0f, 0xfc, 0xcc, 0x3c,
+	0xcc, 0x33, 0xcc, 0xcf, 0xff, 0xef, 0xff, 0xee,
+	0xff, 0xfd, 0xff, 0xfd, 0xdf, 0xff, 0xbf, 0xff,
+	0xbb, 0xff, 0xf7, 0xff, 0xf7, 0x7f, 0x7b, 0xde,
+};
+EXPORT_SYMBOL(tuning_blk_pattern_4bit);
+
+const u8 tuning_blk_pattern_8bit[MMC_TUNING_BLK_PATTERN_8BIT_SIZE] = {
+	0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00,
+	0xff, 0xff, 0xcc, 0xcc, 0xcc, 0x33, 0xcc, 0xcc,
+	0xcc, 0x33, 0x33, 0xcc, 0xcc, 0xcc, 0xff, 0xff,
+	0xff, 0xee, 0xff, 0xff, 0xff, 0xee, 0xee, 0xff,
+	0xff, 0xff, 0xdd, 0xff, 0xff, 0xff, 0xdd, 0xdd,
+	0xff, 0xff, 0xff, 0xbb, 0xff, 0xff, 0xff, 0xbb,
+	0xbb, 0xff, 0xff, 0xff, 0x77, 0xff, 0xff, 0xff,
+	0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee, 0xff,
+	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
+	0x00, 0xff, 0xff, 0xcc, 0xcc, 0xcc, 0x33, 0xcc,
+	0xcc, 0xcc, 0x33, 0x33, 0xcc, 0xcc, 0xcc, 0xff,
+	0xff, 0xff, 0xee, 0xff, 0xff, 0xff, 0xee, 0xee,
+	0xff, 0xff, 0xff, 0xdd, 0xff, 0xff, 0xff, 0xdd,
+	0xdd, 0xff, 0xff, 0xff, 0xbb, 0xff, 0xff, 0xff,
+	0xbb, 0xbb, 0xff, 0xff, 0xff, 0x77, 0xff, 0xff,
+	0xff, 0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee,
+};
+EXPORT_SYMBOL(tuning_blk_pattern_8bit);
 
 /*
  * Execute tuning sequence to seek the proper bus operating
@@ -1272,6 +1345,13 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	/*
+	 * handling only for cards supporting DSR and hosts requesting
+	 * DSR configuration
+	 */
+	if (card->csd.dsr_imp && host->dsr_req)
+		mmc_set_dsr(host);
+
+	/*
 	 * Select card, as all following commands rely on that.
 	 */
 	if (!mmc_host_is_spi(host)) {
@@ -1308,7 +1388,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * If enhanced_area_en is TRUE, host needs to enable ERASE_GRP_DEF
 	 * bit.  This bit will be lost every time after a reset or power off.
 	 */
-	if (card->ext_csd.enhanced_area_en ||
+	if (card->ext_csd.partition_setting_completed ||
 	    (card->ext_csd.rev >= 3 && (host->caps2 & MMC_CAP2_HC_ERASE_SZ))) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_ERASE_GROUP_DEF, 1,
@@ -1408,8 +1488,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		if (err && err != -EBADMSG)
 			goto free_card;
 		if (err) {
-			pr_warning("%s: Enabling HPI failed\n",
-				   mmc_hostname(card->host));
+			pr_warn("%s: Enabling HPI failed\n",
+				mmc_hostname(card->host));
 			err = 0;
 		} else
 			card->ext_csd.hpi_en = 1;
@@ -1430,9 +1510,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		 * Only if no error, cache is turned on successfully.
 		 */
 		if (err) {
-			pr_warning("%s: Cache is supported, "
-					"but failed to turn on (%d)\n",
-					mmc_hostname(card->host), err);
+			pr_warn("%s: Cache is supported, but failed to turn on (%d)\n",
+				mmc_hostname(card->host), err);
 			card->ext_csd.cache_ctrl = 0;
 			err = 0;
 		} else {

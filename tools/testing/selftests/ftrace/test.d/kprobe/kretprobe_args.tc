@@ -1,0 +1,15 @@
+#!/bin/sh
+# description: Kretprobe dynamic event with arguments
+
+[ -f kprobe_events ] || exit_unsupported # this is configurable
+
+echo 0 > events/enable
+echo > kprobe_events
+echo 'r:testprobe2 do_fork $retval' > kprobe_events
+grep testprobe2 kprobe_events
+test -d events/kprobes/testprobe2
+echo 1 > events/kprobes/testprobe2/enable
+( echo "forked")
+echo 0 > events/kprobes/testprobe2/enable
+echo '-:testprobe2' >> kprobe_events
+test -d events/kprobes/testprobe2 && exit 1 || exit 0

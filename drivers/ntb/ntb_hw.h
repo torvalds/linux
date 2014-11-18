@@ -78,13 +78,15 @@ static inline void writeq(u64 val, void __iomem *addr)
 
 #define NTB_BAR_MMIO		0
 #define NTB_BAR_23		2
-#define NTB_BAR_45		4
+#define NTB_BAR_4		4
+#define NTB_BAR_5		5
+
 #define NTB_BAR_MASK		((1 << NTB_BAR_MMIO) | (1 << NTB_BAR_23) |\
-				 (1 << NTB_BAR_45))
+				 (1 << NTB_BAR_4))
+#define NTB_SPLITBAR_MASK	((1 << NTB_BAR_MMIO) | (1 << NTB_BAR_23) |\
+				 (1 << NTB_BAR_4) | (1 << NTB_BAR_5))
 
 #define NTB_HB_TIMEOUT		msecs_to_jiffies(1000)
-
-#define NTB_MAX_NUM_MW		2
 
 enum ntb_hw_event {
 	NTB_EVENT_SW_EVENT0 = 0,
@@ -109,11 +111,13 @@ struct ntb_db_cb {
 	struct tasklet_struct irq_work;
 };
 
+#define WA_SNB_ERR	0x00000001
+
 struct ntb_device {
 	struct pci_dev *pdev;
 	struct msix_entry *msix_entries;
 	void __iomem *reg_base;
-	struct ntb_mw mw[NTB_MAX_NUM_MW];
+	struct ntb_mw *mw;
 	struct {
 		unsigned char max_mw;
 		unsigned char max_spads;
@@ -126,6 +130,7 @@ struct ntb_device {
 		void __iomem *rdb;
 		void __iomem *bar2_xlat;
 		void __iomem *bar4_xlat;
+		void __iomem *bar5_xlat;
 		void __iomem *spad_write;
 		void __iomem *spad_read;
 		void __iomem *lnk_cntl;
@@ -145,6 +150,7 @@ struct ntb_device {
 	unsigned char link_width;
 	unsigned char link_speed;
 	unsigned char link_status;
+	unsigned char split_bar;
 
 	struct delayed_work hb_timer;
 	unsigned long last_ts;
@@ -152,6 +158,9 @@ struct ntb_device {
 	struct delayed_work lr_timer;
 
 	struct dentry *debugfs_dir;
+	struct dentry *debugfs_info;
+
+	unsigned int wa_flags;
 };
 
 /**

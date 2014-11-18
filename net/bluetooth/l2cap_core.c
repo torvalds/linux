@@ -3873,9 +3873,7 @@ static int l2cap_connect_req(struct l2cap_conn *conn,
 	hci_dev_lock(hdev);
 	if (test_bit(HCI_MGMT, &hdev->dev_flags) &&
 	    !test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &hcon->flags))
-		mgmt_device_connected(hdev, &hcon->dst, hcon->type,
-				      hcon->dst_type, 0, NULL, 0,
-				      hcon->dev_class);
+		mgmt_device_connected(hdev, hcon, 0, NULL, 0);
 	hci_dev_unlock(hdev);
 
 	l2cap_connect(conn, cmd, data, L2CAP_CONN_RSP, 0);
@@ -4084,7 +4082,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn,
 		chan->num_conf_req++;
 	}
 
-	/* Got Conf Rsp PENDING from remote side and asume we sent
+	/* Got Conf Rsp PENDING from remote side and assume we sent
 	   Conf Rsp PENDING in the code above */
 	if (test_bit(CONF_REM_CONF_PEND, &chan->conf_state) &&
 	    test_bit(CONF_LOC_CONF_PEND, &chan->conf_state)) {
@@ -5494,6 +5492,7 @@ static inline int l2cap_le_credits(struct l2cap_conn *conn,
 	if (credits > max_credits) {
 		BT_ERR("LE credits overflow");
 		l2cap_send_disconn_req(chan, ECONNRESET);
+		l2cap_chan_unlock(chan);
 
 		/* Return 0 so that we don't trigger an unnecessary
 		 * command reject packet.

@@ -69,6 +69,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
 #include <linux/if_arp.h>
+#include <linux/devcoredump.h>
 #include <net/mac80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/tcp.h>
@@ -526,7 +527,8 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	}
 
 	if (IEEE80211_SKB_CB(skb)->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
-	    !test_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status))
+	    !test_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status) &&
+	    !test_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status))
 		goto drop;
 
 	/* treat non-bufferable MMPDUs as broadcast if sta is sleeping */
@@ -678,10 +680,51 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	memset(&mvmvif->bf_data, 0, sizeof(mvmvif->bf_data));
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+static ssize_t iwl_mvm_read_coredump(char *buffer, loff_t offset, size_t count,
+				     const void *data, size_t datalen)
+{
+	const struct iwl_mvm_dump_ptrs *dump_ptrs = data;
+	ssize_t bytes_read;
+	ssize_t bytes_read_trans;
+
+	if (offset < dump_ptrs->op_mode_len) {
+		bytes_read = min_t(ssize_t, count,
+				   dump_ptrs->op_mode_len - offset);
+		memcpy(buffer, (u8 *)dump_ptrs->op_mode_ptr + offset,
+		       bytes_read);
+		offset += bytes_read;
+		count -= bytes_read;
+
+		if (count == 0)
+			return bytes_read;
+	} else {
+		bytes_read = 0;
+	}
+
+	if (!dump_ptrs->trans_ptr)
+		return bytes_read;
+
+	offset -= dump_ptrs->op_mode_len;
+	bytes_read_trans = min_t(ssize_t, count,
+				 dump_ptrs->trans_ptr->len - offset);
+	memcpy(buffer + bytes_read,
+	       (u8 *)dump_ptrs->trans_ptr->data + offset,
+	       bytes_read_trans);
+
+	return bytes_read + bytes_read_trans;
+}
+
+static void iwl_mvm_free_coredump(const void *data)
+{
+	const struct iwl_mvm_dump_ptrs *fw_error_dump = data;
+
+	vfree(fw_error_dump->op_mode_ptr);
+	vfree(fw_error_dump->trans_ptr);
+	kfree(fw_error_dump);
+}
+
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 {
-	static char *env[] = { "DRIVER=iwlwifi", "EVENT=error_dump", NULL };
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
@@ -694,10 +737,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (mvm->fw_error_dump)
-		return;
-
-	fw_error_dump = kzalloc(sizeof(*mvm->fw_error_dump), GFP_KERNEL);
+	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
 	if (!fw_error_dump)
 		return;
 
@@ -772,12 +812,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (fw_error_dump->trans_ptr)
 		file_len += fw_error_dump->trans_ptr->len;
 	dump_file->file_len = cpu_to_le32(file_len);
-	mvm->fw_error_dump = fw_error_dump;
 
-	/* notify the userspace about the error we had */
-	kobject_uevent_env(&mvm->hw->wiphy->dev.kobj, KOBJ_CHANGE, env);
+	dev_coredumpm(mvm->trans->dev, THIS_MODULE, fw_error_dump, 0,
+		      GFP_KERNEL, iwl_mvm_read_coredump, iwl_mvm_free_coredump);
 }
-#endif
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
@@ -1099,7 +1137,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif)
 {
-	u32 tfd_msk = iwl_mvm_mac_get_queues_mask(mvm, vif);
+	u32 tfd_msk = iwl_mvm_mac_get_queues_mask(vif);
 
 	if (tfd_msk) {
 		mutex_lock(&mvm->mutex);
@@ -1394,6 +1432,9 @@ bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
 		.mvm = mvm,
 		.cmd = cmd,
 	};
+
+	if (IWL_MVM_FW_BCAST_FILTER_PASS_ALL)
+		return false;
 
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->max_bcast_filters = ARRAY_SIZE(cmd->filters);
@@ -1748,6 +1789,13 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 	if (changes & BSS_CHANGED_BEACON &&
 	    iwl_mvm_mac_ctxt_beacon_changed(mvm, vif))
 		IWL_WARN(mvm, "Failed updating beacon data\n");
+
+	if (changes & BSS_CHANGED_TXPOWER) {
+		IWL_DEBUG_CALIB(mvm, "Changing TX Power to %d\n",
+				bss_conf->txpower);
+		iwl_mvm_set_tx_power(mvm, vif, bss_conf->txpower);
+	}
+
 }
 
 static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
@@ -2176,25 +2224,9 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mvm->scan_status = IWL_MVM_SCAN_SCHED;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)) {
-		ret = iwl_mvm_config_sched_scan(mvm, vif, req, ies);
-		if (ret)
-			goto err;
-	}
-
-	ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
+	ret = iwl_mvm_scan_offload_start(mvm, vif, req, ies);
 	if (ret)
-		goto err;
-
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
-		ret = iwl_mvm_unified_sched_scan_lmac(mvm, vif, req, ies);
-	else
-		ret = iwl_mvm_sched_scan_start(mvm, req);
-
-	if (!ret)
-		goto out;
-err:
-	mvm->scan_status = IWL_MVM_SCAN_NONE;
+		mvm->scan_status = IWL_MVM_SCAN_NONE;
 out:
 	mutex_unlock(&mvm->mutex);
 	return ret;
@@ -2381,14 +2413,19 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 	/* Set the node address */
 	memcpy(aux_roc_req.node_addr, vif->addr, ETH_ALEN);
 
+	lockdep_assert_held(&mvm->mutex);
+
+	spin_lock_bh(&mvm->time_event_lock);
+
+	if (WARN_ON(te_data->id == HOT_SPOT_CMD)) {
+		spin_unlock_bh(&mvm->time_event_lock);
+		return -EIO;
+	}
+
 	te_data->vif = vif;
 	te_data->duration = duration;
 	te_data->id = HOT_SPOT_CMD;
 
-	lockdep_assert_held(&mvm->mutex);
-
-	spin_lock_bh(&mvm->time_event_lock);
-	list_add_tail(&te_data->list, &mvm->time_event_list);
 	spin_unlock_bh(&mvm->time_event_lock);
 
 	/*
@@ -2444,21 +2481,22 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
 			   duration, type);
 
+	mutex_lock(&mvm->mutex);
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		/* Use aux roc framework (HS20) */
 		ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
 					       vif, duration);
-		return ret;
+		goto out_unlock;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* handle below */
 		break;
 	default:
 		IWL_ERR(mvm, "vif isn't P2P_DEVICE: %d\n", vif->type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock;
 	}
-
-	mutex_lock(&mvm->mutex);
 
 	for (i = 0; i < NUM_PHY_CTX; i++) {
 		phy_ctxt = &mvm->phy_ctxts[i];
@@ -3010,18 +3048,24 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, mvmvif->ap_sta_id);
 
-	if (WARN_ON_ONCE(!mvmsta))
-		goto done;
+	if (WARN_ON_ONCE(!mvmsta)) {
+		mutex_unlock(&mvm->mutex);
+		return;
+	}
 
 	if (drop) {
 		if (iwl_mvm_flush_tx_path(mvm, mvmsta->tfd_queue_msk, true))
 			IWL_ERR(mvm, "flush request fail\n");
+		mutex_unlock(&mvm->mutex);
 	} else {
-		iwl_trans_wait_tx_queue_empty(mvm->trans,
-					      mvmsta->tfd_queue_msk);
+		u32 tfd_queue_msk = mvmsta->tfd_queue_msk;
+		mutex_unlock(&mvm->mutex);
+
+		/* this can take a while, and we may need/want other operations
+		 * to succeed while doing this, so do it without the mutex held
+		 */
+		iwl_trans_wait_tx_queue_empty(mvm->trans, tfd_queue_msk);
 	}
-done:
-	mutex_unlock(&mvm->mutex);
 }
 
 const struct ieee80211_ops iwl_mvm_hw_ops = {

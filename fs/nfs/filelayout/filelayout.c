@@ -1031,7 +1031,7 @@ filelayout_clear_request_commit(struct nfs_page *req,
 	}
 out:
 	nfs_request_remove_commit_list(req, cinfo);
-	pnfs_put_lseg_async(freeme);
+	pnfs_put_lseg_locked(freeme);
 }
 
 static void

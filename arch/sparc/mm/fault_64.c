@@ -346,6 +346,9 @@ retry:
 		down_read(&mm->mmap_sem);
 	}
 
+	if (fault_code & FAULT_CODE_BAD_RA)
+		goto do_sigbus;
+
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto bad_area;

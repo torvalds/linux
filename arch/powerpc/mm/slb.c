@@ -46,9 +46,6 @@ static inline unsigned long mk_esid_data(unsigned long ea, int ssize,
 	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | slot;
 }
 
-#define slb_vsid_shift(ssize)	\
-	((ssize) == MMU_SEGSIZE_256M? SLB_VSID_SHIFT: SLB_VSID_SHIFT_1T)
-
 static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
 					 unsigned long flags)
 {

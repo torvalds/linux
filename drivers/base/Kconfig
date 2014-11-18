@@ -252,6 +252,9 @@ config DMA_CMA
 	  to allocate big physically-contiguous blocks of memory for use with
 	  hardware components that do not support I/O map nor scatter-gather.
 
+	  You can disable CMA by specifying "cma=0" on the kernel's command
+	  line.
+
 	  For more information see <include/linux/dma-contiguous.h>.
 	  If unsure, say "n".
 

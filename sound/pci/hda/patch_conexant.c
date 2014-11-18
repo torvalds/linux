@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <sound/core.h>
 #include <sound/jack.h>
-#include <sound/tlv.h>
 
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -394,7 +393,8 @@ static void olpc_xo_update_mic_pins(struct hda_codec *codec)
 }
 
 /* mic_autoswitch hook */
-static void olpc_xo_automic(struct hda_codec *codec, struct hda_jack_tbl *jack)
+static void olpc_xo_automic(struct hda_codec *codec,
+			    struct hda_jack_callback *jack)
 {
 	struct conexant_spec *spec = codec->spec;
 	int saved_cached_write = codec->cached_write;
@@ -752,6 +752,7 @@ static const struct hda_model_fixup cxt5051_fixup_models[] = {
 static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x1025, 0x0543, "Acer Aspire One 522", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x1025, 0x054c, "Acer Aspire 3830TG", CXT_FIXUP_ASPIRE_DMIC),
+	SND_PCI_QUIRK(0x1025, 0x054f, "Acer Aspire 4830T", CXT_FIXUP_ASPIRE_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x138d, "Asus", CXT_FIXUP_HEADPHONE_MIC_PIN),
 	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT_FIXUP_OLPC_XO),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400", CXT_PINCFG_LENOVO_TP410),
@@ -787,6 +788,7 @@ static const struct hda_model_fixup cxt5066_fixup_models[] = {
  */
 static void add_cx5051_fake_mutes(struct hda_codec *codec)
 {
+	struct conexant_spec *spec = codec->spec;
 	static hda_nid_t out_nids[] = {
 		0x10, 0x11, 0
 	};
@@ -796,6 +798,7 @@ static void add_cx5051_fake_mutes(struct hda_codec *codec)
 		snd_hda_override_amp_caps(codec, *p, HDA_OUTPUT,
 					  AC_AMPCAP_MIN_MUTE |
 					  query_amp_caps(codec, *p, HDA_OUTPUT));
+	spec->gen.dac_min_mute = true;
 }
 
 static int patch_conexant_auto(struct hda_codec *codec)
@@ -867,11 +870,6 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
 		goto error;
-
-	if (codec->vendor_id == 0x14f15051) {
-		/* minimum value is actually mute */
-		spec->gen.vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
-	}
 
 	codec->patch_ops = cx_auto_patch_ops;
 

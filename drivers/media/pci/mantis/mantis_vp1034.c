@@ -36,7 +36,7 @@
 #include "mantis_vp1034.h"
 #include "mantis_reg.h"
 
-struct mb86a16_config vp1034_mb86a16_config = {
+static struct mb86a16_config vp1034_mb86a16_config = {
 	.demod_address	= 0x08,
 	.set_voltage	= vp1034_set_voltage,
 };

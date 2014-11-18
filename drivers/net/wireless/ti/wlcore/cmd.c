@@ -64,6 +64,9 @@ static int __wlcore_cmd_send(struct wl1271 *wl, u16 id, void *buf,
 		     id != CMD_STOP_FWLOGGER))
 		return -EIO;
 
+	if (WARN_ON_ONCE(len < sizeof(*cmd)))
+		return -EIO;
+
 	cmd = buf;
 	cmd->id = cpu_to_le16(id);
 	cmd->status = 0;
@@ -128,8 +131,9 @@ static int __wlcore_cmd_send(struct wl1271 *wl, u16 id, void *buf,
  * send command to fw and return cmd status on success
  * valid_rets contains a bitmap of allowed error codes
  */
-int wlcore_cmd_send_failsafe(struct wl1271 *wl, u16 id, void *buf, size_t len,
-			     size_t res_len, unsigned long valid_rets)
+static int wlcore_cmd_send_failsafe(struct wl1271 *wl, u16 id, void *buf,
+				    size_t len, size_t res_len,
+				    unsigned long valid_rets)
 {
 	int ret = __wlcore_cmd_send(wl, id, buf, len, res_len);
 
@@ -150,7 +154,6 @@ fail:
 	wl12xx_queue_recovery_work(wl);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(wl1271_cmd_send);
 
 /*
  * wrapper for wlcore_cmd_send that accept only CMD_STATUS_SUCCESS
@@ -165,6 +168,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		return ret;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1271_cmd_send);
 
 /*
  * Poll the mailbox event field until any of the bits in the mask is set or a
@@ -890,6 +894,9 @@ int wlcore_cmd_configure_failsafe(struct wl1271 *wl, u16 id, void *buf,
 	int ret;
 
 	wl1271_debug(DEBUG_CMD, "cmd configure (%d)", id);
+
+	if (WARN_ON_ONCE(len < sizeof(*acx)))
+		return -EIO;
 
 	acx->id = cpu_to_le16(id);
 

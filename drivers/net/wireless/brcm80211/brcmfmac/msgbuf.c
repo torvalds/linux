@@ -24,13 +24,13 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 
-#include "dhd.h"
-#include "dhd_dbg.h"
+#include "core.h"
+#include "debug.h"
 #include "proto.h"
 #include "msgbuf.h"
 #include "commonring.h"
 #include "flowring.h"
-#include "dhd_bus.h"
+#include "bus.h"
 #include "tracepoint.h"
 
 

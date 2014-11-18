@@ -914,26 +914,6 @@ out_uninit:
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
 
 /**
- * gfs2_setlease - acquire/release a file lease
- * @file: the file pointer
- * @arg: lease type
- * @fl: file lock
- *
- * We don't currently have a way to enforce a lease across the whole
- * cluster; until we do, disable leases (by just returning -EINVAL),
- * unless the administrator has requested purely local locking.
- *
- * Locking: called under i_lock
- *
- * Returns: errno
- */
-
-static int gfs2_setlease(struct file *file, long arg, struct file_lock **fl)
-{
-	return -EINVAL;
-}
-
-/**
  * gfs2_lock - acquire/release a posix lock on a file
  * @file: the file pointer
  * @cmd: either modify or retrieve lock state, possibly wait
@@ -1078,7 +1058,7 @@ const struct file_operations gfs2_file_fops = {
 	.flock		= gfs2_flock,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
-	.setlease	= gfs2_setlease,
+	.setlease	= simple_nosetlease,
 	.fallocate	= gfs2_fallocate,
 };
 

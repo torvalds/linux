@@ -380,26 +380,14 @@ no_config:
 static int fscache_objlist_open(struct inode *inode, struct file *file)
 {
 	struct fscache_objlist_data *data;
-	struct seq_file *m;
-	int ret;
 
-	ret = seq_open(file, &fscache_objlist_ops);
-	if (ret < 0)
-		return ret;
-
-	m = file->private_data;
-
-	/* buffer for key extraction */
-	data = kmalloc(sizeof(struct fscache_objlist_data), GFP_KERNEL);
-	if (!data) {
-		seq_release(inode, file);
+	data = __seq_open_private(file, &fscache_objlist_ops, sizeof(*data));
+	if (!data)
 		return -ENOMEM;
-	}
 
 	/* get the configuration key */
 	fscache_objlist_config(data);
 
-	m->private = data;
 	return 0;
 }
 

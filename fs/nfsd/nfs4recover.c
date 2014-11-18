@@ -675,7 +675,6 @@ __cld_pipe_upcall(struct rpc_pipe *pipe, struct cld_msg *cmsg)
 	}
 
 	schedule();
-	set_current_state(TASK_RUNNING);
 
 	if (msg.errno < 0)
 		ret = msg.errno;

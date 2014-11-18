@@ -1172,13 +1172,6 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
 
 		if (find_vma_intersection(current->mm, addr, addr + size))
 			goto invalid;
-		/*
-		 * If shm segment goes below stack, make sure there is some
-		 * space left for the stack to grow (at least 4 pages).
-		 */
-		if (addr < current->mm->start_stack &&
-		    addr > current->mm->start_stack - size - PAGE_SIZE * 5)
-			goto invalid;
 	}
 
 	addr = do_mmap_pgoff(file, addr, size, prot, flags, 0, &populate);

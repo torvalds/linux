@@ -346,7 +346,7 @@ static irqreturn_t bmips43xx_ipi_interrupt(int irq, void *dev_id)
 	int action, cpu = irq - IPI0_IRQ;
 
 	spin_lock_irqsave(&ipi_lock, flags);
-	action = __get_cpu_var(ipi_action_mask);
+	action = __this_cpu_read(ipi_action_mask);
 	per_cpu(ipi_action_mask, cpu) = 0;
 	clear_c0_cause(cpu ? C_SW1 : C_SW0);
 	spin_unlock_irqrestore(&ipi_lock, flags);

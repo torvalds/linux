@@ -122,7 +122,7 @@ typedef int (*test_fn_t)(struct perf_evsel *, struct machine *);
 static int test1(struct perf_evsel *evsel, struct machine *machine)
 {
 	int err;
-	struct hists *hists = &evsel->hists;
+	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
 	struct rb_root *root;
 	struct rb_node *node;
@@ -159,7 +159,7 @@ static int test1(struct perf_evsel *evsel, struct machine *machine)
 		print_hists_out(hists);
 	}
 
-	root = &evsel->hists.entries;
+	root = &hists->entries;
 	node = rb_first(root);
 	he = rb_entry(node, struct hist_entry, rb_node);
 	TEST_ASSERT_VAL("Invalid hist entry",
@@ -224,7 +224,7 @@ out:
 static int test2(struct perf_evsel *evsel, struct machine *machine)
 {
 	int err;
-	struct hists *hists = &evsel->hists;
+	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
 	struct rb_root *root;
 	struct rb_node *node;
@@ -259,7 +259,7 @@ static int test2(struct perf_evsel *evsel, struct machine *machine)
 		print_hists_out(hists);
 	}
 
-	root = &evsel->hists.entries;
+	root = &hists->entries;
 	node = rb_first(root);
 	he = rb_entry(node, struct hist_entry, rb_node);
 	TEST_ASSERT_VAL("Invalid hist entry",
@@ -280,7 +280,7 @@ out:
 static int test3(struct perf_evsel *evsel, struct machine *machine)
 {
 	int err;
-	struct hists *hists = &evsel->hists;
+	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
 	struct rb_root *root;
 	struct rb_node *node;
@@ -313,7 +313,7 @@ static int test3(struct perf_evsel *evsel, struct machine *machine)
 		print_hists_out(hists);
 	}
 
-	root = &evsel->hists.entries;
+	root = &hists->entries;
 	node = rb_first(root);
 	he = rb_entry(node, struct hist_entry, rb_node);
 	TEST_ASSERT_VAL("Invalid hist entry",
@@ -354,7 +354,7 @@ out:
 static int test4(struct perf_evsel *evsel, struct machine *machine)
 {
 	int err;
-	struct hists *hists = &evsel->hists;
+	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
 	struct rb_root *root;
 	struct rb_node *node;
@@ -391,7 +391,7 @@ static int test4(struct perf_evsel *evsel, struct machine *machine)
 		print_hists_out(hists);
 	}
 
-	root = &evsel->hists.entries;
+	root = &hists->entries;
 	node = rb_first(root);
 	he = rb_entry(node, struct hist_entry, rb_node);
 	TEST_ASSERT_VAL("Invalid hist entry",
@@ -456,7 +456,7 @@ out:
 static int test5(struct perf_evsel *evsel, struct machine *machine)
 {
 	int err;
-	struct hists *hists = &evsel->hists;
+	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
 	struct rb_root *root;
 	struct rb_node *node;
@@ -494,7 +494,7 @@ static int test5(struct perf_evsel *evsel, struct machine *machine)
 		print_hists_out(hists);
 	}
 
-	root = &evsel->hists.entries;
+	root = &hists->entries;
 	node = rb_first(root);
 	he = rb_entry(node, struct hist_entry, rb_node);
 

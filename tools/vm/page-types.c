@@ -132,6 +132,7 @@ static const char * const page_flag_names[] = {
 	[KPF_NOPAGE]		= "n:nopage",
 	[KPF_KSM]		= "x:ksm",
 	[KPF_THP]		= "t:thp",
+	[KPF_BALLOON]		= "o:balloon",
 
 	[KPF_RESERVED]		= "r:reserved",
 	[KPF_MLOCKED]		= "m:mlocked",

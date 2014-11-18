@@ -72,6 +72,10 @@ int uvd_v2_2_resume(struct radeon_device *rdev)
 	uint32_t chip_id, size;
 	int r;
 
+	/* RV770 uses V1.0 MC */
+	if (rdev->family == CHIP_RV770)
+		return uvd_v1_0_resume(rdev);
+
 	r = radeon_uvd_resume(rdev);
 	if (r)
 		return r;

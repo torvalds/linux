@@ -23,6 +23,7 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifspdu.h"
+#include "cifs_unicode.h"
 
 /*
  * An NT cancel request header looks just like the original request except:
@@ -530,13 +531,11 @@ cifs_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = CIFSSMBQPathInfo(xid, tcon, full_path, file_info,
 			      0 /* not legacy */, cifs_sb->local_nls,
-			      cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
+			      cifs_remap(cifs_sb));
 
 	if (rc == -EOPNOTSUPP || rc == -EINVAL)
 		rc = SMBQueryInformation(xid, tcon, full_path, file_info,
-				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-				  CIFS_MOUNT_MAP_SPECIAL_CHR);
+				cifs_sb->local_nls, cifs_remap(cifs_sb));
 	kfree(file_info);
 	return rc;
 }
@@ -552,8 +551,7 @@ cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	/* could do find first instead but this returns more info */
 	rc = CIFSSMBQPathInfo(xid, tcon, full_path, data, 0 /* not legacy */,
-			      cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+			      cifs_sb->local_nls, cifs_remap(cifs_sb));
 	/*
 	 * BB optimize code so we do not make the above call when server claims
 	 * no NT SMB support and the above call failed at least once - set flag
@@ -562,8 +560,7 @@ cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if ((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
 		rc = SMBQueryInformation(xid, tcon, full_path, data,
 					 cifs_sb->local_nls,
-					 cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					 cifs_remap(cifs_sb));
 		*adjustTZ = true;
 	}
 
@@ -611,8 +608,7 @@ cifs_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
 	 */
 	return CIFSGetSrvInodeNumber(xid, tcon, full_path, uniqueid,
 				     cifs_sb->local_nls,
-				     cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+				     cifs_remap(cifs_sb));
 }
 
 static int
@@ -703,8 +699,7 @@ cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
 	dosattrs = cifsInode->cifsAttrs|ATTR_READONLY;
 	info.Attributes = cpu_to_le32(dosattrs);
 	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, &info, cifs_sb->local_nls,
-				cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+				cifs_remap(cifs_sb));
 	if (rc == 0)
 		cifsInode->cifsAttrs = dosattrs;
 }
@@ -720,8 +715,7 @@ cifs_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 				     oparms->create_options,
 				     &oparms->fid->netfid, oplock, buf,
 				     oparms->cifs_sb->local_nls,
-				     oparms->cifs_sb->mnt_cifs_flags
-						& CIFS_MOUNT_MAP_SPECIAL_CHR);
+				     cifs_remap(oparms->cifs_sb));
 	return CIFS_open(xid, oparms, oplock, buf);
 }
 
@@ -749,21 +743,21 @@ cifs_flush_file(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 static int
-cifs_sync_read(const unsigned int xid, struct cifsFileInfo *cfile,
+cifs_sync_read(const unsigned int xid, struct cifs_fid *pfid,
 	       struct cifs_io_parms *parms, unsigned int *bytes_read,
 	       char **buf, int *buf_type)
 {
-	parms->netfid = cfile->fid.netfid;
+	parms->netfid = pfid->netfid;
 	return CIFSSMBRead(xid, parms, bytes_read, buf, buf_type);
 }
 
 static int
-cifs_sync_write(const unsigned int xid, struct cifsFileInfo *cfile,
+cifs_sync_write(const unsigned int xid, struct cifs_fid *pfid,
 		struct cifs_io_parms *parms, unsigned int *written,
 		struct kvec *iov, unsigned long nr_segs)
 {
 
-	parms->netfid = cfile->fid.netfid;
+	parms->netfid = pfid->netfid;
 	return CIFSSMBWrite2(xid, parms, written, iov, nr_segs);
 }
 
@@ -800,8 +794,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	tcon = tlink_tcon(tlink);
 
 	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf, cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+				cifs_remap(cifs_sb));
 	if (rc == 0) {
 		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
 		goto out;

@@ -430,7 +430,7 @@ void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi)
 	u32 mask;
 
 	mask = LP_CTRL_FIFO_EMPTY | HS_CTRL_FIFO_EMPTY |
-					LP_DATA_FIFO_EMPTY | HS_DATA_FIFO_EMPTY;
+		LP_DATA_FIFO_EMPTY | HS_DATA_FIFO_EMPTY;
 
 	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(pipe)) & mask) == mask, 100))
 		DRM_ERROR("DPI FIFOs are not empty\n");

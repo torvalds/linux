@@ -68,6 +68,10 @@ nvf0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
+	ret = nvkm_event_init(&nvd0_disp_chan_uevent, 1, 17, &priv->uevent);
+	if (ret)
+		return ret;
+
 	nv_engine(priv)->sclass = nvf0_disp_base_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nvd0_disp_intr;
@@ -80,7 +84,7 @@ nvf0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
 	priv->sor.hda_eld = nvd0_hda_eld;
-	priv->sor.hdmi = nvd0_hdmi_ctrl;
+	priv->sor.hdmi = nve0_hdmi_ctrl;
 	return 0;
 }
 

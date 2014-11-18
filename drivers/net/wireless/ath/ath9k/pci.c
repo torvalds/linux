@@ -30,6 +30,7 @@ static const struct pci_device_id ath_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, 0x0029) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x002A) }, /* PCI-E */
 
+#ifdef CONFIG_ATH9K_PCOEM
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x002A,
 			 PCI_VENDOR_ID_AZWAVE,
@@ -82,6 +83,7 @@ static const struct pci_device_id ath_pci_id_table[] = {
 			 PCI_VENDOR_ID_AZWAVE,
 			 0x2C37),
 	  .driver_data = ATH9K_PCI_BT_ANT_DIV },
+#endif
 
 	{ PCI_VDEVICE(ATHEROS, 0x002B) }, /* PCI-E */
 	{ PCI_VDEVICE(ATHEROS, 0x002C) }, /* PCI-E 802.11n bonded out */
@@ -102,6 +104,7 @@ static const struct pci_device_id ath_pci_id_table[] = {
 
 	{ PCI_VDEVICE(ATHEROS, 0x0030) }, /* PCI-E  AR9300 */
 
+#ifdef CONFIG_ATH9K_PCOEM
 	/* PCI-E CUS198 */
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0032,
@@ -294,10 +297,12 @@ static const struct pci_device_id ath_pci_id_table[] = {
 			 PCI_VENDOR_ID_ASUSTEK,
 			 0x850D),
 	  .driver_data = ATH9K_PCI_NO_PLL_PWRSAVE },
+#endif
 
 	{ PCI_VDEVICE(ATHEROS, 0x0032) }, /* PCI-E  AR9485 */
 	{ PCI_VDEVICE(ATHEROS, 0x0033) }, /* PCI-E  AR9580 */
 
+#ifdef CONFIG_ATH9K_PCOEM
 	/* PCI-E CUS217 */
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x0034,
@@ -652,11 +657,14 @@ static const struct pci_device_id ath_pci_id_table[] = {
 			 0x0036,
 			 PCI_VENDOR_ID_DELL,
 			 0x020E),
-	  .driver_data = ATH9K_PCI_AR9565_2ANT | ATH9K_PCI_BT_ANT_DIV },
+	  .driver_data = ATH9K_PCI_AR9565_2ANT |
+			 ATH9K_PCI_BT_ANT_DIV |
+			 ATH9K_PCI_LED_ACT_HI},
 
 	/* PCI-E AR9565 (WB335) */
 	{ PCI_VDEVICE(ATHEROS, 0x0036),
 	  .driver_data = ATH9K_PCI_BT_ANT_DIV },
+#endif
 
 	{ 0 }
 };

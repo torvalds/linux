@@ -1276,7 +1276,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 				   IRQ_TYPE_EDGE_FALLING);
 	if (ret) {
 		dev_err(&dev->dev, "could not add irqchip\n");
-		ret = gpiochip_remove(&nmk_chip->chip);
+		gpiochip_remove(&nmk_chip->chip);
 		return -ENODEV;
 	}
 	/* Then register the chain on the parent IRQ */

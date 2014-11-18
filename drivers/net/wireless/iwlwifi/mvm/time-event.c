@@ -305,8 +305,8 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 		te_data->running = false;
 		te_data->vif = NULL;
 		te_data->uid = 0;
+		te_data->id = TE_MAX;
 	} else if (le32_to_cpu(notif->action) == TE_V2_NOTIF_HOST_EVENT_START) {
-		set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
 		set_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status);
 		te_data->running = true;
 		ieee80211_ready_on_channel(mvm->hw); /* Start TE */

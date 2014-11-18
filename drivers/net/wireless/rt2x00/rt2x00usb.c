@@ -116,7 +116,7 @@ EXPORT_SYMBOL_GPL(rt2x00usb_vendor_req_buff_lock);
 int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 				  const u8 request, const u8 requesttype,
 				  const u16 offset, void *buffer,
-				  const u16 buffer_length, const int timeout)
+				  const u16 buffer_length)
 {
 	int status = 0;
 	unsigned char *tb;
@@ -131,7 +131,7 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 		bsize = min_t(u16, CSR_CACHE_SIZE, len);
 		status = rt2x00usb_vendor_req_buff_lock(rt2x00dev, request,
 							requesttype, off, tb,
-							bsize, timeout);
+							bsize, REGISTER_TIMEOUT);
 
 		tb  += bsize;
 		len -= bsize;

@@ -342,7 +342,6 @@ struct vmw_sw_context{
 	uint32_t *cmd_bounce;
 	uint32_t cmd_bounce_size;
 	struct list_head resource_list;
-	uint32_t fence_flags;
 	struct ttm_buffer_object *cur_query_bo;
 	struct list_head res_relocations;
 	uint32_t *buf_start;
@@ -704,6 +703,7 @@ extern void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes);
 extern void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes);
 extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 			       uint32_t *seqno);
+extern void vmw_fifo_ping_host_locked(struct vmw_private *, uint32_t reason);
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);

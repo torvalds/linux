@@ -4549,7 +4549,7 @@ int kvm_mmu_module_init(void)
 	if (!mmu_page_header_cache)
 		goto nomem;
 
-	if (percpu_counter_init(&kvm_total_used_mmu_pages, 0))
+	if (percpu_counter_init(&kvm_total_used_mmu_pages, 0, GFP_KERNEL))
 		goto nomem;
 
 	register_shrinker(&mmu_shrinker);

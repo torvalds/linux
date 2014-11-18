@@ -1,6 +1,5 @@
 config EVM
 	boolean "EVM support"
-	depends on SECURITY
 	select KEYS
 	select ENCRYPTED_KEYS
 	select CRYPTO_HMAC
@@ -11,10 +10,6 @@ config EVM
 	  integrity attacks.
 
 	  If you are unsure how to answer this question, answer N.
-
-if EVM
-
-menu "EVM options"
 
 config EVM_ATTR_FSUUID
 	bool "FSUUID (version 2)"
@@ -47,6 +42,3 @@ config EVM_EXTRA_SMACK_XATTRS
 	  additional info to the calculation, requires existing EVM
 	  labeled file systems to be relabeled.
 
-endmenu
-
-endif

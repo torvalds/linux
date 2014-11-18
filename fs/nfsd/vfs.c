@@ -721,7 +721,7 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type,
 		goto out_nfserr;
 	}
 
-	host_err = ima_file_check(file, may_flags);
+	host_err = ima_file_check(file, may_flags, 0);
 	if (host_err) {
 		nfsd_close(file);
 		goto out_nfserr;

@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include <linux/signal.h>
 #include <asm/ptrace.h>
-#include <asm/cputime.h>
+#include <asm/idle.h>
 
 extern void *restart_stack;
 extern unsigned long suspend_zero_pages;
@@ -20,6 +20,8 @@ void psw_idle(struct s390_idle_data *, unsigned long);
 
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
+
+int alloc_vector_registers(struct task_struct *tsk);
 
 void do_protection_exception(struct pt_regs *regs);
 void do_dat_exception(struct pt_regs *regs);
@@ -43,8 +45,10 @@ void special_op_exception(struct pt_regs *regs);
 void specification_exception(struct pt_regs *regs);
 void transaction_exception(struct pt_regs *regs);
 void translation_exception(struct pt_regs *regs);
+void vector_exception(struct pt_regs *regs);
 
 void do_per_trap(struct pt_regs *regs);
+void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str);
 void syscall_trace(struct pt_regs *regs, int entryexit);
 void kernel_stack_overflow(struct pt_regs * regs);
 void do_signal(struct pt_regs *regs);

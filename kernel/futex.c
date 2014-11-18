@@ -343,6 +343,8 @@ static void get_futex_key_refs(union futex_key *key)
 	case FUT_OFF_MMSHARED:
 		futex_get_mm(key); /* implies MB (B) */
 		break;
+	default:
+		smp_mb(); /* explicit MB (B) */
 	}
 }
 

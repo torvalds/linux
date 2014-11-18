@@ -388,7 +388,6 @@ MODULE_DEVICE_TABLE(of, sdhci_esdhc_of_match);
 static struct platform_driver sdhci_esdhc_driver = {
 	.driver = {
 		.name = "sdhci-esdhc",
-		.owner = THIS_MODULE,
 		.of_match_table = sdhci_esdhc_of_match,
 		.pm = ESDHC_PMOPS,
 	},

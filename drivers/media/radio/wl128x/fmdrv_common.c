@@ -440,7 +440,7 @@ static int fm_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type,	void *payload,
 		 * command with u16 payload - convert to be16
 		 */
 		if (payload != NULL)
-			*(u16 *)payload = cpu_to_be16(*(u16 *)payload);
+			*(__be16 *)payload = cpu_to_be16(*(u16 *)payload);
 
 	} else if (payload != NULL) {
 		fm_cb(skb)->fm_op = *((u8 *)payload + 2);
@@ -595,7 +595,7 @@ static void fm_irq_handle_flag_getcmd_resp(struct fmdev *fmdev)
 	skb_pull(skb, sizeof(struct fm_event_msg_hdr));
 	memcpy(&fmdev->irq_info.flag, skb->data, fm_evt_hdr->dlen);
 
-	fmdev->irq_info.flag = be16_to_cpu(fmdev->irq_info.flag);
+	fmdev->irq_info.flag = be16_to_cpu((__force __be16)fmdev->irq_info.flag);
 	fmdbg("irq: flag register(0x%x)\n", fmdev->irq_info.flag);
 
 	/* Continue next function in interrupt handler table */
@@ -764,7 +764,7 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 			 * Extract PI code and store in local cache.
 			 * We need this during AF switch processing.
 			 */
-			cur_picode = be16_to_cpu(rds_fmt.data.groupgeneral.pidata);
+			cur_picode = be16_to_cpu((__force __be16)rds_fmt.data.groupgeneral.pidata);
 			if (fmdev->rx.stat_info.picode != cur_picode)
 				fmdev->rx.stat_info.picode = cur_picode;
 
@@ -989,7 +989,7 @@ static void fm_irq_afjump_rd_freq_resp(struct fmdev *fmdev)
 	/* Skip header info and copy only response data */
 	skb_pull(skb, sizeof(struct fm_event_msg_hdr));
 	memcpy(&read_freq, skb->data, sizeof(read_freq));
-	read_freq = be16_to_cpu(read_freq);
+	read_freq = be16_to_cpu((__force __be16)read_freq);
 	curr_freq = fmdev->rx.region.bot_freq + ((u32)read_freq * FM_FREQ_MUL);
 
 	jumped_freq = fmdev->rx.stat_info.af_cache[fmdev->rx.afjump_idx];
@@ -1317,7 +1317,8 @@ static int load_default_rx_configuration(struct fmdev *fmdev)
 /* Does FM power on sequence */
 static int fm_power_up(struct fmdev *fmdev, u8 mode)
 {
-	u16 payload, asic_id, asic_ver;
+	u16 payload;
+	__be16 asic_id, asic_ver;
 	int resp_len, ret;
 	u8 fw_name[50];
 

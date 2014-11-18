@@ -835,8 +835,8 @@ static void alps_process_packet_v4(struct psmouse *psmouse)
 		f->fingers = alps_process_bitmap(priv, f);
 	}
 
-	f->left = packet[4] & 0x01;
-	f->right = packet[4] & 0x02;
+	f->left = !!(packet[4] & 0x01);
+	f->right = !!(packet[4] & 0x02);
 
 	f->st.x = ((packet[1] & 0x7f) << 4) | ((packet[3] & 0x30) >> 2) |
 		  ((packet[0] & 0x30) >> 4);

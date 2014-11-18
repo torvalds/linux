@@ -309,13 +309,18 @@ enum em28xx_ac97_mode {
 
 struct em28xx_audio_mode {
 	enum em28xx_ac97_mode ac97;
+};
 
-	u16 ac97_feat;
-	u32 ac97_vendor_id;
+enum em28xx_int_audio_type {
+	EM28XX_INT_AUDIO_NONE = 0,
+	EM28XX_INT_AUDIO_AC97,
+	EM28XX_INT_AUDIO_I2S,
+};
 
-	unsigned int has_audio:1;
-
-	u8 i2s_samplerates;
+enum em28xx_usb_audio_type {
+	EM28XX_USB_AUDIO_NONE = 0,
+	EM28XX_USB_AUDIO_CLASS,
+	EM28XX_USB_AUDIO_VENDOR,
 };
 
 /* em28xx has two audio inputs: tuner and line in.
@@ -608,9 +613,9 @@ struct em28xx {
 	unsigned int is_em25xx:1;	/* em25xx/em276x/7x/8x family bridge */
 	unsigned char disconnected:1;	/* device has been diconnected */
 	unsigned int has_video:1;
-	unsigned int has_audio_class:1;
-	unsigned int has_alsa_audio:1;
 	unsigned int is_audio_only:1;
+	enum em28xx_int_audio_type int_audio_type;
+	enum em28xx_usb_audio_type usb_audio_type;
 
 	struct em28xx_board board;
 

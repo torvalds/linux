@@ -540,7 +540,7 @@ static void async_resume_noirq(void *data, async_cookie_t cookie)
  * Call the "noirq" resume handlers for all devices in dpm_noirq_list and
  * enable device drivers to receive interrupts.
  */
-static void dpm_resume_noirq(pm_message_t state)
+void dpm_resume_noirq(pm_message_t state)
 {
 	struct device *dev;
 	ktime_t starttime = ktime_get();
@@ -662,7 +662,7 @@ static void async_resume_early(void *data, async_cookie_t cookie)
  * dpm_resume_early - Execute "early resume" callbacks for all devices.
  * @state: PM transition of the system being carried out.
  */
-static void dpm_resume_early(pm_message_t state)
+void dpm_resume_early(pm_message_t state)
 {
 	struct device *dev;
 	ktime_t starttime = ktime_get();
@@ -1093,7 +1093,7 @@ static int device_suspend_noirq(struct device *dev)
  * Prevent device drivers from receiving interrupts and call the "noirq" suspend
  * handlers for all non-sysdev devices.
  */
-static int dpm_suspend_noirq(pm_message_t state)
+int dpm_suspend_noirq(pm_message_t state)
 {
 	ktime_t starttime = ktime_get();
 	int error = 0;
@@ -1232,7 +1232,7 @@ static int device_suspend_late(struct device *dev)
  * dpm_suspend_late - Execute "late suspend" callbacks for all devices.
  * @state: PM transition of the system being carried out.
  */
-static int dpm_suspend_late(pm_message_t state)
+int dpm_suspend_late(pm_message_t state)
 {
 	ktime_t starttime = ktime_get();
 	int error = 0;

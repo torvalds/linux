@@ -194,6 +194,7 @@ my $config_bisect_check;
 
 my $patchcheck_type;
 my $patchcheck_start;
+my $patchcheck_cherry;
 my $patchcheck_end;
 
 # set when a test is something other that just building or install
@@ -320,6 +321,7 @@ my %option_map = (
 
     "PATCHCHECK_TYPE"		=> \$patchcheck_type,
     "PATCHCHECK_START"		=> \$patchcheck_start,
+    "PATCHCHECK_CHERRY"		=> \$patchcheck_cherry,
     "PATCHCHECK_END"		=> \$patchcheck_end,
 );
 
@@ -1448,6 +1450,12 @@ sub wait_for_monitor {
 	}
     }
     print "** Monitor flushed **\n";
+
+    # if stop is defined but wasn't hit, return error
+    # used by reboot (which wants to see a reboot)
+    if (defined($stop) && !$booted) {
+	$bug = 1;
+    }
     return $bug;
 }
 
@@ -2336,15 +2344,17 @@ sub success {
 
 sub answer_bisect {
     for (;;) {
-	doprint "Pass or fail? [p/f]";
+	doprint "Pass, fail, or skip? [p/f/s]";
 	my $ans = <STDIN>;
 	chomp $ans;
 	if ($ans eq "p" || $ans eq "P") {
 	    return 1;
 	} elsif ($ans eq "f" || $ans eq "F") {
 	    return 0;
+	} elsif ($ans eq "s" || $ans eq "S") {
+	    return -1;
 	} else {
-	    print "Please answer 'P' or 'F'\n";
+	    print "Please answer 'p', 'f', or 's'\n";
 	}
     }
 }
@@ -2726,15 +2736,17 @@ sub bisect {
     run_command "git bisect start$start_files" or
 	dodie "could not start bisect";
 
-    run_command "git bisect good $good" or
-	dodie "could not set bisect good to $good";
-
-    run_git_bisect "git bisect bad $bad" or
-	dodie "could not set bisect bad to $bad";
-
     if (defined($replay)) {
 	run_command "git bisect replay $replay" or
 	    dodie "failed to run replay";
+    } else {
+
+	run_command "git bisect good $good" or
+	    dodie "could not set bisect good to $good";
+
+	run_git_bisect "git bisect bad $bad" or
+	    dodie "could not set bisect bad to $bad";
+
     }
 
     if (defined($start)) {
@@ -3181,9 +3193,16 @@ sub patchcheck {
 
     my $start = $patchcheck_start;
 
+    my $cherry = $patchcheck_cherry;
+    if (!defined($cherry)) {
+	$cherry = 0;
+    }
+
     my $end = "HEAD";
     if (defined($patchcheck_end)) {
 	$end = $patchcheck_end;
+    } elsif ($cherry) {
+	die "PATCHCHECK_END must be defined with PATCHCHECK_CHERRY\n";
     }
 
     # Get the true sha1's since we can use things like HEAD~3
@@ -3197,24 +3216,38 @@ sub patchcheck {
 	$type = "boot";
     }
 
-    open (IN, "git log --pretty=oneline $end|") or
-	dodie "could not get git list";
+    if ($cherry) {
+	open (IN, "git cherry -v $start $end|") or
+	    dodie "could not get git list";
+    } else {
+	open (IN, "git log --pretty=oneline $end|") or
+	    dodie "could not get git list";
+    }
 
     my @list;
 
     while (<IN>) {
 	chomp;
+	# git cherry adds a '+' we want to remove
+	s/^\+ //;
 	$list[$#list+1] = $_;
 	last if (/^$start/);
     }
     close(IN);
 
-    if ($list[$#list] !~ /^$start/) {
-	fail "SHA1 $start not found";
+    if (!$cherry) {
+	if ($list[$#list] !~ /^$start/) {
+	    fail "SHA1 $start not found";
+	}
+
+	# go backwards in the list
+	@list = reverse @list;
     }
 
-    # go backwards in the list
-    @list = reverse @list;
+    doprint("Going to test the following commits:\n");
+    foreach my $l (@list) {
+	doprint "$l\n";
+    }
 
     my $save_clean = $noclean;
     my %ignored_warnings;

@@ -23,6 +23,8 @@ static int __init default_appraise_setup(char *str)
 {
 	if (strncmp(str, "off", 3) == 0)
 		ima_appraise = 0;
+	else if (strncmp(str, "log", 3) == 0)
+		ima_appraise = IMA_APPRAISE_LOG;
 	else if (strncmp(str, "fix", 3) == 0)
 		ima_appraise = IMA_APPRAISE_FIX;
 	return 1;
@@ -183,7 +185,7 @@ int ima_read_xattr(struct dentry *dentry,
 int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			     struct file *file, const unsigned char *filename,
 			     struct evm_ima_xattr_data *xattr_value,
-			     int xattr_len)
+			     int xattr_len, int opened)
 {
 	static const char op[] = "appraise_data";
 	char *cause = "unknown";
@@ -192,8 +194,6 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 	enum integrity_status status = INTEGRITY_UNKNOWN;
 	int rc = xattr_len, hash_start = 0;
 
-	if (!ima_appraise)
-		return 0;
 	if (!inode->i_op->getxattr)
 		return INTEGRITY_UNKNOWN;
 
@@ -202,8 +202,11 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			goto out;
 
 		cause = "missing-hash";
-		status =
-		    (inode->i_size == 0) ? INTEGRITY_PASS : INTEGRITY_NOLABEL;
+		status = INTEGRITY_NOLABEL;
+		if (opened & FILE_CREATED) {
+			iint->flags |= IMA_NEW_FILE;
+			status = INTEGRITY_PASS;
+		}
 		goto out;
 	}
 
@@ -315,7 +318,7 @@ void ima_inode_post_setattr(struct dentry *dentry)
 	struct integrity_iint_cache *iint;
 	int must_appraise, rc;
 
-	if (!ima_initialized || !ima_appraise || !S_ISREG(inode->i_mode)
+	if (!(ima_policy_flag & IMA_APPRAISE) || !S_ISREG(inode->i_mode)
 	    || !inode->i_op->removexattr)
 		return;
 
@@ -353,7 +356,7 @@ static void ima_reset_appraise_flags(struct inode *inode, int digsig)
 {
 	struct integrity_iint_cache *iint;
 
-	if (!ima_initialized || !ima_appraise || !S_ISREG(inode->i_mode))
+	if (!(ima_policy_flag & IMA_APPRAISE) || !S_ISREG(inode->i_mode))
 		return;
 
 	iint = integrity_iint_find(inode);

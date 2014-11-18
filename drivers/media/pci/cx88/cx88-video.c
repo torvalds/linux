@@ -696,7 +696,6 @@ static struct videobuf_queue *get_queue(struct file *file)
 		return &fh->vbiq;
 	default:
 		BUG();
-		return NULL;
 	}
 }
 
@@ -711,7 +710,6 @@ static int get_resource(struct file *file)
 		return RESOURCE_VBI;
 	default:
 		BUG();
-		return 0;
 	}
 }
 
@@ -812,7 +810,6 @@ video_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 					    file->f_flags & O_NONBLOCK);
 	default:
 		BUG();
-		return 0;
 	}
 }
 

@@ -145,7 +145,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 	if (ib->vm) {
 		struct radeon_fence *vm_id_fence;
 		vm_id_fence = radeon_vm_grab_id(rdev, ib->vm, ib->ring);
-        	radeon_semaphore_sync_to(ib->semaphore, vm_id_fence);
+		radeon_semaphore_sync_fence(ib->semaphore, vm_id_fence);
 	}
 
 	/* sync with other rings */
@@ -269,6 +269,7 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
 
 		r = radeon_ib_test(rdev, i, ring);
 		if (r) {
+			radeon_fence_driver_force_completion(rdev, i);
 			ring->ready = false;
 			rdev->needs_reset = false;
 

@@ -97,7 +97,8 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  uint32_t src_w, uint32_t src_h)
 {
 	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
-	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
+	struct nouveau_plane *nv_plane =
+		container_of(plane, struct nouveau_plane, base);
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_bo *cur = nv_plane->cur;
@@ -173,7 +174,8 @@ static int
 nv10_disable_plane(struct drm_plane *plane)
 {
 	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
-	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
+	struct nouveau_plane *nv_plane =
+		container_of(plane, struct nouveau_plane, base);
 
 	nvif_wr32(dev, NV_PVIDEO_STOP, 1);
 	if (nv_plane->cur) {
@@ -224,7 +226,8 @@ nv_set_property(struct drm_plane *plane,
 		struct drm_property *property,
 		uint64_t value)
 {
-	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
+	struct nouveau_plane *nv_plane =
+		container_of(plane, struct nouveau_plane, base);
 
 	if (property == nv_plane->props.colorkey)
 		nv_plane->colorkey = value;
@@ -344,7 +347,8 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  uint32_t src_w, uint32_t src_h)
 {
 	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
-	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
+	struct nouveau_plane *nv_plane =
+		container_of(plane, struct nouveau_plane, base);
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nouveau_bo *cur = nv_plane->cur;
 	uint32_t overlay = 1;
@@ -423,7 +427,8 @@ static int
 nv04_disable_plane(struct drm_plane *plane)
 {
 	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
-	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
+	struct nouveau_plane *nv_plane =
+		container_of(plane, struct nouveau_plane, base);
 
 	nvif_mask(dev, NV_PVIDEO_OVERLAY, 1, 0);
 	nvif_wr32(dev, NV_PVIDEO_OE_STATE, 0);

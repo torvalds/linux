@@ -106,11 +106,11 @@ unsigned long __max_low_memory = MAX_LOW_MEM;
 void MMU_setup(void)
 {
 	/* Check for nobats option (used in mapin_ram). */
-	if (strstr(cmd_line, "nobats")) {
+	if (strstr(boot_command_line, "nobats")) {
 		__map_without_bats = 1;
 	}
 
-	if (strstr(cmd_line, "noltlbs")) {
+	if (strstr(boot_command_line, "noltlbs")) {
 		__map_without_ltlbs = 1;
 	}
 #ifdef CONFIG_DEBUG_PAGEALLOC

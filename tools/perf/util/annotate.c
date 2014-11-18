@@ -232,9 +232,16 @@ static int mov__parse(struct ins_operands *ops)
 		return -1;
 
 	target = ++s;
+	comment = strchr(s, '#');
 
-	while (s[0] != '\0' && !isspace(s[0]))
-		++s;
+	if (comment != NULL)
+		s = comment - 1;
+	else
+		s = strchr(s, '\0') - 1;
+
+	while (s > target && isspace(s[0]))
+		--s;
+	s++;
 	prev = *s;
 	*s = '\0';
 
@@ -244,7 +251,6 @@ static int mov__parse(struct ins_operands *ops)
 	if (ops->target.raw == NULL)
 		goto out_free_source;
 
-	comment = strchr(s, '#');
 	if (comment == NULL)
 		return 0;
 
@@ -472,7 +478,7 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
-	if (addr < sym->start || addr > sym->end)
+	if (addr < sym->start || addr >= sym->end)
 		return -ERANGE;
 
 	offset = addr - sym->start;
@@ -830,7 +836,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 		    end = map__rip_2objdump(map, sym->end);
 
 		offset = line_ip - start;
-		if ((u64)line_ip < start || (u64)line_ip > end)
+		if ((u64)line_ip < start || (u64)line_ip >= end)
 			offset = -1;
 		else
 			parsed_line = tmp2 + 1;
@@ -899,10 +905,8 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 	struct kcore_extract kce;
 	bool delete_extract = false;
 
-	if (filename) {
-		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
-			 symbol_conf.symfs, filename);
-	}
+	if (filename)
+		symbol__join_symfs(symfs_filename, filename);
 
 	if (filename == NULL) {
 		if (dso->has_build_id) {
@@ -922,8 +926,7 @@ fallback:
 		 * DSO is the same as when 'perf record' ran.
 		 */
 		filename = (char *)dso->long_name;
-		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
-			 symbol_conf.symfs, filename);
+		symbol__join_symfs(symfs_filename, filename);
 		free_filename = false;
 	}
 
@@ -963,7 +966,7 @@ fallback:
 		kce.kcore_filename = symfs_filename;
 		kce.addr = map__rip_2objdump(map, sym->start);
 		kce.offs = sym->start;
-		kce.len = sym->end + 1 - sym->start;
+		kce.len = sym->end - sym->start;
 		if (!kcore_extract__create(&kce)) {
 			delete_extract = true;
 			strlcpy(symfs_filename, kce.extract_filename,
@@ -984,7 +987,7 @@ fallback:
 		 disassembler_style ? "-M " : "",
 		 disassembler_style ? disassembler_style : "",
 		 map__rip_2objdump(map, sym->start),
-		 map__rip_2objdump(map, sym->end+1),
+		 map__rip_2objdump(map, sym->end),
 		 symbol_conf.annotate_asm_raw ? "" : "--no-show-raw",
 		 symbol_conf.annotate_src ? "-S" : "",
 		 symfs_filename, filename);

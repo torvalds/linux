@@ -175,7 +175,7 @@ TRACE_EVENT(snd_soc_dapm_output_path,
 		__entry->path_sink = (long)path->sink;
 	),
 
-	TP_printk("%c%s -> %s -> %s\n",
+	TP_printk("%c%s -> %s -> %s",
 		(int) __entry->path_sink &&
 		(int) __entry->path_connect ? '*' : ' ',
 		__get_str(wname), __get_str(pname), __get_str(psname))
@@ -204,7 +204,7 @@ TRACE_EVENT(snd_soc_dapm_input_path,
 		__entry->path_source = (long)path->source;
 	),
 
-	TP_printk("%c%s <- %s <- %s\n",
+	TP_printk("%c%s <- %s <- %s",
 		(int) __entry->path_source &&
 		(int) __entry->path_connect ? '*' : ' ',
 		__get_str(wname), __get_str(pname), __get_str(psname))
@@ -226,7 +226,7 @@ TRACE_EVENT(snd_soc_dapm_connected,
 		__entry->stream = stream;
 	),
 
-	TP_printk("%s: found %d paths\n",
+	TP_printk("%s: found %d paths",
 		__entry->stream ? "capture" : "playback", __entry->paths)
 );
 

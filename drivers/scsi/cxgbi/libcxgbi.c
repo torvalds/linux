@@ -275,6 +275,7 @@ struct cxgbi_device *cxgbi_device_find_by_netdev_rcu(struct net_device *ndev,
 }
 EXPORT_SYMBOL_GPL(cxgbi_device_find_by_netdev_rcu);
 
+#if IS_ENABLED(CONFIG_IPV6)
 static struct cxgbi_device *cxgbi_device_find_by_mac(struct net_device *ndev,
 						     int *port)
 {
@@ -307,6 +308,7 @@ static struct cxgbi_device *cxgbi_device_find_by_mac(struct net_device *ndev,
 		  ndev, ndev->name);
 	return NULL;
 }
+#endif
 
 void cxgbi_hbas_remove(struct cxgbi_device *cdev)
 {

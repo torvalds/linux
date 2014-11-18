@@ -158,14 +158,14 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	if (bio_add_page(bio, device->md_io.page, size, 0) != size)
 		goto out;
 	bio->bi_private = device;
-	bio->bi_end_io = drbd_md_io_complete;
+	bio->bi_end_io = drbd_md_endio;
 	bio->bi_rw = rw;
 
 	if (!(rw & WRITE) && device->state.disk == D_DISKLESS && device->ldev == NULL)
 		/* special case, drbd_md_read() during drbd_adm_attach(): no get_ldev */
 		;
 	else if (!get_ldev_if_state(device, D_ATTACHING)) {
-		/* Corresponding put_ldev in drbd_md_io_complete() */
+		/* Corresponding put_ldev in drbd_md_endio() */
 		drbd_err(device, "ASSERT FAILED: get_ldev_if_state() == 1 in _drbd_md_sync_page_io()\n");
 		err = -ENODEV;
 		goto out;

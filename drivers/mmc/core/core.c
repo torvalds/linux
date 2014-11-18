@@ -433,8 +433,8 @@ static void mmc_wait_for_req_done(struct mmc_host *host,
 		 */
 		if (cmd->sanitize_busy && cmd->error == -ETIMEDOUT) {
 			if (!mmc_interrupt_hpi(host->card)) {
-				pr_warning("%s: %s: Interrupted sanitize\n",
-					   mmc_hostname(host), __func__);
+				pr_warn("%s: %s: Interrupted sanitize\n",
+					mmc_hostname(host), __func__);
 				cmd->error = 0;
 				break;
 			} else {
@@ -995,7 +995,7 @@ void mmc_set_chip_select(struct mmc_host *host, int mode)
  */
 static void __mmc_set_clock(struct mmc_host *host, unsigned int hz)
 {
-	WARN_ON(hz < host->f_min);
+	WARN_ON(hz && hz < host->f_min);
 
 	if (hz > host->f_max)
 		hz = host->f_max;
@@ -1221,21 +1221,29 @@ int mmc_regulator_get_ocrmask(struct regulator *supply)
 	int			result = 0;
 	int			count;
 	int			i;
+	int			vdd_uV;
+	int			vdd_mV;
 
 	count = regulator_count_voltages(supply);
 	if (count < 0)
 		return count;
 
 	for (i = 0; i < count; i++) {
-		int		vdd_uV;
-		int		vdd_mV;
-
 		vdd_uV = regulator_list_voltage(supply, i);
 		if (vdd_uV <= 0)
 			continue;
 
 		vdd_mV = vdd_uV / 1000;
 		result |= mmc_vddrange_to_ocrmask(vdd_mV, vdd_mV);
+	}
+
+	if (!result) {
+		vdd_uV = regulator_get_voltage(supply);
+		if (vdd_uV <= 0)
+			return vdd_uV;
+
+		vdd_mV = vdd_uV / 1000;
+		result = mmc_vddrange_to_ocrmask(vdd_mV, vdd_mV);
 	}
 
 	return result;
@@ -1263,7 +1271,6 @@ int mmc_regulator_set_ocr(struct mmc_host *mmc,
 
 	if (vdd_bit) {
 		int		tmp;
-		int		voltage;
 
 		/*
 		 * REVISIT mmc_vddrange_to_ocrmask() may have set some
@@ -1280,22 +1287,7 @@ int mmc_regulator_set_ocr(struct mmc_host *mmc,
 			max_uV = min_uV + 100 * 1000;
 		}
 
-		/*
-		 * If we're using a fixed/static regulator, don't call
-		 * regulator_set_voltage; it would fail.
-		 */
-		voltage = regulator_get_voltage(supply);
-
-		if (!regulator_can_change_voltage(supply))
-			min_uV = max_uV = voltage;
-
-		if (voltage < 0)
-			result = voltage;
-		else if (voltage < min_uV || voltage > max_uV)
-			result = regulator_set_voltage(supply, min_uV, max_uV);
-		else
-			result = 0;
-
+		result = regulator_set_voltage(supply, min_uV, max_uV);
 		if (result == 0 && !mmc->regulator_enabled) {
 			result = regulator_enable(supply);
 			if (!result)
@@ -1425,8 +1417,8 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, u32 ocr)
 	if (!host->ops->start_signal_voltage_switch)
 		return -EPERM;
 	if (!host->ops->card_busy)
-		pr_warning("%s: cannot verify signal voltage switch\n",
-				mmc_hostname(host));
+		pr_warn("%s: cannot verify signal voltage switch\n",
+			mmc_hostname(host));
 
 	cmd.opcode = SD_SWITCH_VOLTAGE;
 	cmd.arg = 0;
@@ -1761,7 +1753,7 @@ void mmc_init_erase(struct mmc_card *card)
 		card->erase_shift = ffs(card->ssr.au) - 1;
 	} else if (card->ext_csd.hc_erase_size) {
 		card->pref_erase = card->ext_csd.hc_erase_size;
-	} else {
+	} else if (card->erase_size) {
 		sz = (card->csd.capacity << (card->csd.read_blkbits - 9)) >> 11;
 		if (sz < 128)
 			card->pref_erase = 512 * 1024 / 512;
@@ -1778,7 +1770,8 @@ void mmc_init_erase(struct mmc_card *card)
 			if (sz)
 				card->pref_erase += card->erase_size - sz;
 		}
-	}
+	} else
+		card->pref_erase = 0;
 }
 
 static unsigned int mmc_mmc_erase_timeout(struct mmc_card *card,
@@ -2489,6 +2482,7 @@ void mmc_start_host(struct mmc_host *host)
 {
 	host->f_init = max(freqs[0], host->f_min);
 	host->rescan_disable = 0;
+	host->ios.power_mode = MMC_POWER_UNDEFINED;
 	if (host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)
 		mmc_power_off(host);
 	else

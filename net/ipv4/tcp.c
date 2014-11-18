@@ -2941,7 +2941,7 @@ struct tcp_md5sig_pool *tcp_get_md5sig_pool(void)
 	local_bh_disable();
 	p = ACCESS_ONCE(tcp_md5sig_pool);
 	if (p)
-		return __this_cpu_ptr(p);
+		return raw_cpu_ptr(p);
 
 	local_bh_enable();
 	return NULL;
@@ -3071,8 +3071,8 @@ void __init tcp_init(void)
 
 	BUILD_BUG_ON(sizeof(struct tcp_skb_cb) > sizeof(skb->cb));
 
-	percpu_counter_init(&tcp_sockets_allocated, 0);
-	percpu_counter_init(&tcp_orphan_count, 0);
+	percpu_counter_init(&tcp_sockets_allocated, 0, GFP_KERNEL);
+	percpu_counter_init(&tcp_orphan_count, 0, GFP_KERNEL);
 	tcp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("tcp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,

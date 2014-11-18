@@ -134,7 +134,7 @@ static void dwmac1000_set_filter(struct mac_device_info *hw,
 	void __iomem *ioaddr = (void __iomem *)dev->base_addr;
 	unsigned int value = 0;
 	unsigned int perfect_addr_number = hw->unicast_filter_entries;
-	u32 mc_filter[2];
+	u32 mc_filter[8];
 	int mcbitslog2 = hw->mcast_bits_log2;
 
 	pr_debug("%s: # mcasts %d, # unicast %d\n", __func__,
@@ -182,7 +182,7 @@ static void dwmac1000_set_filter(struct mac_device_info *hw,
 		struct netdev_hw_addr *ha;
 
 		netdev_for_each_uc_addr(ha, dev) {
-			stmmac_get_mac_addr(ioaddr, ha->addr,
+			stmmac_set_mac_addr(ioaddr, ha->addr,
 					    GMAC_ADDR_HIGH(reg),
 					    GMAC_ADDR_LOW(reg));
 			reg++;

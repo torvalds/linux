@@ -21,13 +21,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
-
-#include <asm/system_misc.h>
 
 #define WDT_MAX_TIMEOUT         16
 #define WDT_MIN_TIMEOUT         1
@@ -50,6 +49,7 @@ static unsigned int timeout = WDT_MAX_TIMEOUT;
 struct sunxi_wdt_dev {
 	struct watchdog_device wdt_dev;
 	void __iomem *wdt_base;
+	struct notifier_block restart_handler;
 };
 
 /*
@@ -74,24 +74,29 @@ static const int wdt_timeout_map[] = {
 	[16] = 0xB, /* 16s */
 };
 
-static void __iomem *reboot_wdt_base;
 
-static void sun4i_wdt_restart(enum reboot_mode mode, const char *cmd)
+static int sunxi_restart_handle(struct notifier_block *this, unsigned long mode,
+				void *cmd)
 {
+	struct sunxi_wdt_dev *sunxi_wdt = container_of(this,
+						       struct sunxi_wdt_dev,
+						       restart_handler);
+	void __iomem *wdt_base = sunxi_wdt->wdt_base;
+
 	/* Enable timer and set reset bit in the watchdog */
-	writel(WDT_MODE_EN | WDT_MODE_RST_EN, reboot_wdt_base + WDT_MODE);
+	writel(WDT_MODE_EN | WDT_MODE_RST_EN, wdt_base + WDT_MODE);
 
 	/*
 	 * Restart the watchdog. The default (and lowest) interval
 	 * value for the watchdog is 0.5s.
 	 */
-	writel(WDT_CTRL_RELOAD, reboot_wdt_base + WDT_CTRL);
+	writel(WDT_CTRL_RELOAD, wdt_base + WDT_CTRL);
 
 	while (1) {
 		mdelay(5);
-		writel(WDT_MODE_EN | WDT_MODE_RST_EN,
-		       reboot_wdt_base + WDT_MODE);
+		writel(WDT_MODE_EN | WDT_MODE_RST_EN, wdt_base + WDT_MODE);
 	}
+	return NOTIFY_DONE;
 }
 
 static int sunxi_wdt_ping(struct watchdog_device *wdt_dev)
@@ -205,8 +210,12 @@ static int sunxi_wdt_probe(struct platform_device *pdev)
 	if (unlikely(err))
 		return err;
 
-	reboot_wdt_base = sunxi_wdt->wdt_base;
-	arm_pm_restart = sun4i_wdt_restart;
+	sunxi_wdt->restart_handler.notifier_call = sunxi_restart_handle;
+	sunxi_wdt->restart_handler.priority = 128;
+	err = register_restart_handler(&sunxi_wdt->restart_handler);
+	if (err)
+		dev_err(&pdev->dev,
+			"cannot register restart handler (err=%d)\n", err);
 
 	dev_info(&pdev->dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
 			sunxi_wdt->wdt_dev.timeout, nowayout);
@@ -218,7 +227,7 @@ static int sunxi_wdt_remove(struct platform_device *pdev)
 {
 	struct sunxi_wdt_dev *sunxi_wdt = platform_get_drvdata(pdev);
 
-	arm_pm_restart = NULL;
+	unregister_restart_handler(&sunxi_wdt->restart_handler);
 
 	watchdog_unregister_device(&sunxi_wdt->wdt_dev);
 	watchdog_set_drvdata(&sunxi_wdt->wdt_dev, NULL);

@@ -888,11 +888,11 @@ payload contents" for more information.
 				const char *callout_info);
 
     This is used to request a key or keyring with a description that matches
-    the description specified according to the key type's match function. This
-    permits approximate matching to occur. If callout_string is not NULL, then
-    /sbin/request-key will be invoked in an attempt to obtain the key from
-    userspace. In that case, callout_string will be passed as an argument to
-    the program.
+    the description specified according to the key type's match_preparse()
+    method. This permits approximate matching to occur. If callout_string is
+    not NULL, then /sbin/request-key will be invoked in an attempt to obtain
+    the key from userspace. In that case, callout_string will be passed as an
+    argument to the program.
 
     Should the function fail error ENOKEY, EKEYEXPIRED or EKEYREVOKED will be
     returned.
@@ -1170,7 +1170,7 @@ The structure has a number of fields, some of which are mandatory:
      The method should return 0 if successful or a negative error code
      otherwise.
 
-     
+
  (*) void (*free_preparse)(struct key_preparsed_payload *prep);
 
      This method is only required if the preparse() method is provided,
@@ -1225,16 +1225,55 @@ The structure has a number of fields, some of which are mandatory:
      It is safe to sleep in this method.
 
 
- (*) int (*match)(const struct key *key, const void *desc);
+ (*) int (*match_preparse)(struct key_match_data *match_data);
 
-     This method is called to match a key against a description. It should
-     return non-zero if the two match, zero if they don't.
+     This method is optional.  It is called when a key search is about to be
+     performed.  It is given the following structure:
 
-     This method should not need to lock the key in any way. The type and
-     description can be considered invariant, and the payload should not be
-     accessed (the key may not yet be instantiated).
+	struct key_match_data {
+		bool (*cmp)(const struct key *key,
+			    const struct key_match_data *match_data);
+		const void	*raw_data;
+		void		*preparsed;
+		unsigned	lookup_type;
+	};
 
-     It is not safe to sleep in this method; the caller may hold spinlocks.
+     On entry, raw_data will be pointing to the criteria to be used in matching
+     a key by the caller and should not be modified.  (*cmp)() will be pointing
+     to the default matcher function (which does an exact description match
+     against raw_data) and lookup_type will be set to indicate a direct lookup.
+
+     The following lookup_type values are available:
+
+      [*] KEYRING_SEARCH_LOOKUP_DIRECT - A direct lookup hashes the type and
+      	  description to narrow down the search to a small number of keys.
+
+      [*] KEYRING_SEARCH_LOOKUP_ITERATE - An iterative lookup walks all the
+      	  keys in the keyring until one is matched.  This must be used for any
+      	  search that's not doing a simple direct match on the key description.
+
+     The method may set cmp to point to a function of its choice that does some
+     other form of match, may set lookup_type to KEYRING_SEARCH_LOOKUP_ITERATE
+     and may attach something to the preparsed pointer for use by (*cmp)().
+     (*cmp)() should return true if a key matches and false otherwise.
+
+     If preparsed is set, it may be necessary to use the match_free() method to
+     clean it up.
+
+     The method should return 0 if successful or a negative error code
+     otherwise.
+
+     It is permitted to sleep in this method, but (*cmp)() may not sleep as
+     locks will be held over it.
+
+     If match_preparse() is not provided, keys of this type will be matched
+     exactly by their description.
+
+
+ (*) void (*match_free)(struct key_match_data *match_data);
+
+     This method is optional.  If given, it called to clean up
+     match_data->preparsed after a successful call to match_preparse().
 
 
  (*) void (*revoke)(struct key *key);

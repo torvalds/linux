@@ -735,7 +735,6 @@ static struct platform_driver mxs_mmc_driver = {
 	.id_table	= mxs_ssp_ids,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &mxs_mmc_pm_ops,
 #endif

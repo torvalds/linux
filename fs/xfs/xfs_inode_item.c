@@ -615,7 +615,7 @@ xfs_iflush_done(
 	blip = bp->b_fspriv;
 	prev = NULL;
 	while (blip != NULL) {
-		if (lip->li_cb != xfs_iflush_done) {
+		if (blip->li_cb != xfs_iflush_done) {
 			prev = blip;
 			blip = blip->li_bio_list;
 			continue;

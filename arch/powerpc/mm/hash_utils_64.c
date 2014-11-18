@@ -51,7 +51,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
-#include <asm/spu.h>
+#include <asm/copro.h>
 #include <asm/udbg.h>
 #include <asm/code-patching.h>
 #include <asm/fadump.h>
@@ -92,12 +92,14 @@ extern unsigned long dart_tablebase;
 
 static unsigned long _SDR1;
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+EXPORT_SYMBOL_GPL(mmu_psize_defs);
 
 struct hash_pte *htab_address;
 unsigned long htab_size_bytes;
 unsigned long htab_hash_mask;
 EXPORT_SYMBOL_GPL(htab_hash_mask);
 int mmu_linear_psize = MMU_PAGE_4K;
+EXPORT_SYMBOL_GPL(mmu_linear_psize);
 int mmu_virtual_psize = MMU_PAGE_4K;
 int mmu_vmalloc_psize = MMU_PAGE_4K;
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
@@ -105,6 +107,7 @@ int mmu_vmemmap_psize = MMU_PAGE_4K;
 #endif
 int mmu_io_psize = MMU_PAGE_4K;
 int mmu_kernel_ssize = MMU_SEGSIZE_256M;
+EXPORT_SYMBOL_GPL(mmu_kernel_ssize);
 int mmu_highuser_ssize = MMU_SEGSIZE_256M;
 u16 mmu_slb_size = 64;
 EXPORT_SYMBOL_GPL(mmu_slb_size);
@@ -333,70 +336,69 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 		return 0;
 
 	prop = of_get_flat_dt_prop(node, "ibm,segment-page-sizes", &size);
-	if (prop != NULL) {
-		pr_info("Page sizes from device-tree:\n");
-		size /= 4;
-		cur_cpu_spec->mmu_features &= ~(MMU_FTR_16M_PAGE);
-		while(size > 0) {
-			unsigned int base_shift = be32_to_cpu(prop[0]);
-			unsigned int slbenc = be32_to_cpu(prop[1]);
-			unsigned int lpnum = be32_to_cpu(prop[2]);
-			struct mmu_psize_def *def;
-			int idx, base_idx;
+	if (!prop)
+		return 0;
 
-			size -= 3; prop += 3;
-			base_idx = get_idx_from_shift(base_shift);
-			if (base_idx < 0) {
-				/*
-				 * skip the pte encoding also
-				 */
-				prop += lpnum * 2; size -= lpnum * 2;
-				continue;
-			}
-			def = &mmu_psize_defs[base_idx];
-			if (base_idx == MMU_PAGE_16M)
-				cur_cpu_spec->mmu_features |= MMU_FTR_16M_PAGE;
+	pr_info("Page sizes from device-tree:\n");
+	size /= 4;
+	cur_cpu_spec->mmu_features &= ~(MMU_FTR_16M_PAGE);
+	while(size > 0) {
+		unsigned int base_shift = be32_to_cpu(prop[0]);
+		unsigned int slbenc = be32_to_cpu(prop[1]);
+		unsigned int lpnum = be32_to_cpu(prop[2]);
+		struct mmu_psize_def *def;
+		int idx, base_idx;
 
-			def->shift = base_shift;
-			if (base_shift <= 23)
-				def->avpnm = 0;
-			else
-				def->avpnm = (1 << (base_shift - 23)) - 1;
-			def->sllp = slbenc;
-			/*
-			 * We don't know for sure what's up with tlbiel, so
-			 * for now we only set it for 4K and 64K pages
-			 */
-			if (base_idx == MMU_PAGE_4K || base_idx == MMU_PAGE_64K)
-				def->tlbiel = 1;
-			else
-				def->tlbiel = 0;
-
-			while (size > 0 && lpnum) {
-				unsigned int shift = be32_to_cpu(prop[0]);
-				int penc  = be32_to_cpu(prop[1]);
-
-				prop += 2; size -= 2;
-				lpnum--;
-
-				idx = get_idx_from_shift(shift);
-				if (idx < 0)
-					continue;
-
-				if (penc == -1)
-					pr_err("Invalid penc for base_shift=%d "
-					       "shift=%d\n", base_shift, shift);
-
-				def->penc[idx] = penc;
-				pr_info("base_shift=%d: shift=%d, sllp=0x%04lx,"
-					" avpnm=0x%08lx, tlbiel=%d, penc=%d\n",
-					base_shift, shift, def->sllp,
-					def->avpnm, def->tlbiel, def->penc[idx]);
-			}
+		size -= 3; prop += 3;
+		base_idx = get_idx_from_shift(base_shift);
+		if (base_idx < 0) {
+			/* skip the pte encoding also */
+			prop += lpnum * 2; size -= lpnum * 2;
+			continue;
 		}
-		return 1;
+		def = &mmu_psize_defs[base_idx];
+		if (base_idx == MMU_PAGE_16M)
+			cur_cpu_spec->mmu_features |= MMU_FTR_16M_PAGE;
+
+		def->shift = base_shift;
+		if (base_shift <= 23)
+			def->avpnm = 0;
+		else
+			def->avpnm = (1 << (base_shift - 23)) - 1;
+		def->sllp = slbenc;
+		/*
+		 * We don't know for sure what's up with tlbiel, so
+		 * for now we only set it for 4K and 64K pages
+		 */
+		if (base_idx == MMU_PAGE_4K || base_idx == MMU_PAGE_64K)
+			def->tlbiel = 1;
+		else
+			def->tlbiel = 0;
+
+		while (size > 0 && lpnum) {
+			unsigned int shift = be32_to_cpu(prop[0]);
+			int penc  = be32_to_cpu(prop[1]);
+
+			prop += 2; size -= 2;
+			lpnum--;
+
+			idx = get_idx_from_shift(shift);
+			if (idx < 0)
+				continue;
+
+			if (penc == -1)
+				pr_err("Invalid penc for base_shift=%d "
+				       "shift=%d\n", base_shift, shift);
+
+			def->penc[idx] = penc;
+			pr_info("base_shift=%d: shift=%d, sllp=0x%04lx,"
+				" avpnm=0x%08lx, tlbiel=%d, penc=%d\n",
+				base_shift, shift, def->sllp,
+				def->avpnm, def->tlbiel, def->penc[idx]);
+		}
 	}
-	return 0;
+
+	return 1;
 }
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -867,7 +869,7 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 }
 
 #ifdef CONFIG_PPC_MM_SLICES
-unsigned int get_paca_psize(unsigned long addr)
+static unsigned int get_paca_psize(unsigned long addr)
 {
 	u64 lpsizes;
 	unsigned char *hpsizes;
@@ -901,10 +903,8 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 	if (get_slice_psize(mm, addr) == MMU_PAGE_4K)
 		return;
 	slice_set_range_psize(mm, addr, 1, MMU_PAGE_4K);
-#ifdef CONFIG_SPU_BASE
-	spu_flush_all_slbs(mm);
-#endif
-	if (get_paca_psize(addr) != MMU_PAGE_4K) {
+	copro_flush_all_slbs(mm);
+	if ((get_paca_psize(addr) != MMU_PAGE_4K) && (current->mm == mm)) {
 		get_paca()->context = mm->context;
 		slb_flush_and_rebolt();
 	}
@@ -989,12 +989,11 @@ static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
  * -1 - critical hash insertion error
  * -2 - access not permitted by subpage protection mechanism
  */
-int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
+int hash_page_mm(struct mm_struct *mm, unsigned long ea, unsigned long access, unsigned long trap)
 {
 	enum ctx_state prev_state = exception_enter();
 	pgd_t *pgdir;
 	unsigned long vsid;
-	struct mm_struct *mm;
 	pte_t *ptep;
 	unsigned hugeshift;
 	const struct cpumask *tmp;
@@ -1008,7 +1007,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
  	switch (REGION_ID(ea)) {
 	case USER_REGION_ID:
 		user_region = 1;
-		mm = current->mm;
 		if (! mm) {
 			DBG_LOW(" user region with no mm !\n");
 			rc = 1;
@@ -1019,7 +1017,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		vsid = get_vsid(mm->context.id, ea, ssize);
 		break;
 	case VMALLOC_REGION_ID:
-		mm = &init_mm;
 		vsid = get_kernel_vsid(ea, mmu_kernel_ssize);
 		if (ea < VMALLOC_END)
 			psize = mmu_vmalloc_psize;
@@ -1104,7 +1101,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			WARN_ON(1);
 		}
 #endif
-		check_paca_psize(ea, mm, psize, user_region);
+		if (current->mm == mm)
+			check_paca_psize(ea, mm, psize, user_region);
 
 		goto bail;
 	}
@@ -1141,13 +1139,12 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			       "to 4kB pages because of "
 			       "non-cacheable mapping\n");
 			psize = mmu_vmalloc_psize = MMU_PAGE_4K;
-#ifdef CONFIG_SPU_BASE
-			spu_flush_all_slbs(mm);
-#endif
+			copro_flush_all_slbs(mm);
 		}
 	}
 
-	check_paca_psize(ea, mm, psize, user_region);
+	if (current->mm == mm)
+		check_paca_psize(ea, mm, psize, user_region);
 #endif /* CONFIG_PPC_64K_PAGES */
 
 #ifdef CONFIG_PPC_HAS_HASH_64K
@@ -1181,6 +1178,17 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 bail:
 	exception_exit(prev_state);
 	return rc;
+}
+EXPORT_SYMBOL_GPL(hash_page_mm);
+
+int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
+{
+	struct mm_struct *mm = current->mm;
+
+	if (REGION_ID(ea) == VMALLOC_REGION_ID)
+		mm = &init_mm;
+
+	return hash_page_mm(mm, ea, access, trap);
 }
 EXPORT_SYMBOL_GPL(hash_page);
 

@@ -2232,7 +2232,6 @@ ksocknal_connd (void *arg)
 		nloops = 0;
 		schedule_timeout(timeout);
 
-		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&ksocknal_data.ksnd_connd_waitq, &wait);
 		spin_lock_bh(connd_lock);
 	}

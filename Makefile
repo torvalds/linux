@@ -10,11 +10,9 @@ NAME = Shuffling Zombie Juror
 # Comments in this file are targeted only to the developer, do not
 # expect to learn how to build the kernel reading this file.
 
-# Do not:
-# o  use make's built-in rules and variables
-#    (this increases performance and avoids hard-to-debug behaviour);
-# o  print "Entering directory ...";
-MAKEFLAGS += -rR --no-print-directory
+# Do not use make's built-in rules and variables
+# (this increases performance and avoids hard-to-debug behaviour);
+MAKEFLAGS += -rR
 
 # Avoid funny character set dependencies
 unexport LC_ALL
@@ -97,34 +95,6 @@ endif
 
 export quiet Q KBUILD_VERBOSE
 
-# Call a source code checker (by default, "sparse") as part of the
-# C compilation.
-#
-# Use 'make C=1' to enable checking of only re-compiled files.
-# Use 'make C=2' to enable checking of *all* source files, regardless
-# of whether they are re-compiled or not.
-#
-# See the file "Documentation/sparse.txt" for more details, including
-# where to get the "sparse" utility.
-
-ifeq ("$(origin C)", "command line")
-  KBUILD_CHECKSRC = $(C)
-endif
-ifndef KBUILD_CHECKSRC
-  KBUILD_CHECKSRC = 0
-endif
-
-# Use make M=dir to specify directory of external module to build
-# Old syntax make ... SUBDIRS=$PWD is still supported
-# Setting the environment variable KBUILD_EXTMOD take precedence
-ifdef SUBDIRS
-  KBUILD_EXTMOD ?= $(SUBDIRS)
-endif
-
-ifeq ("$(origin M)", "command line")
-  KBUILD_EXTMOD := $(M)
-endif
-
 # kbuild supports saving output files in a separate directory.
 # To locate output files in a separate directory two syntaxes are supported.
 # In both cases the working directory must be the root of the kernel src.
@@ -139,7 +109,6 @@ endif
 #
 # The O= assignment takes precedence over the KBUILD_OUTPUT environment
 # variable.
-
 
 # KBUILD_SRC is set on invocation of make in OBJ directory
 # KBUILD_SRC is not intended to be used by the regular user (for now)
@@ -172,17 +141,9 @@ PHONY += $(MAKECMDGOALS) sub-make
 $(filter-out _all sub-make $(CURDIR)/Makefile, $(MAKECMDGOALS)) _all: sub-make
 	@:
 
-# Fake the "Entering directory" message once, so that IDEs/editors are
-# able to understand relative filenames.
-       echodir := @echo
- quiet_echodir := @echo
-silent_echodir := @:
 sub-make: FORCE
-	$($(quiet)echodir) "make[1]: Entering directory \`$(KBUILD_OUTPUT)'"
-	$(if $(KBUILD_VERBOSE:1=),@)$(MAKE) -C $(KBUILD_OUTPUT) \
-	KBUILD_SRC=$(CURDIR) \
-	KBUILD_EXTMOD="$(KBUILD_EXTMOD)" -f $(CURDIR)/Makefile \
-	$(filter-out _all sub-make,$(MAKECMDGOALS))
+	$(Q)$(MAKE) -C $(KBUILD_OUTPUT) KBUILD_SRC=$(CURDIR) \
+	-f $(CURDIR)/Makefile $(filter-out _all sub-make,$(MAKECMDGOALS))
 
 # Leave processing to above invocation of make
 skip-makefile := 1
@@ -191,6 +152,39 @@ endif # ifeq ($(KBUILD_SRC),)
 
 # We process the rest of the Makefile if this is the final invocation of make
 ifeq ($(skip-makefile),)
+
+# Do not print "Entering directory ...",
+# but we want to display it when entering to the output directory
+# so that IDEs/editors are able to understand relative filenames.
+MAKEFLAGS += --no-print-directory
+
+# Call a source code checker (by default, "sparse") as part of the
+# C compilation.
+#
+# Use 'make C=1' to enable checking of only re-compiled files.
+# Use 'make C=2' to enable checking of *all* source files, regardless
+# of whether they are re-compiled or not.
+#
+# See the file "Documentation/sparse.txt" for more details, including
+# where to get the "sparse" utility.
+
+ifeq ("$(origin C)", "command line")
+  KBUILD_CHECKSRC = $(C)
+endif
+ifndef KBUILD_CHECKSRC
+  KBUILD_CHECKSRC = 0
+endif
+
+# Use make M=dir to specify directory of external module to build
+# Old syntax make ... SUBDIRS=$PWD is still supported
+# Setting the environment variable KBUILD_EXTMOD take precedence
+ifdef SUBDIRS
+  KBUILD_EXTMOD ?= $(SUBDIRS)
+endif
+
+ifeq ("$(origin M)", "command line")
+  KBUILD_EXTMOD := $(M)
+endif
 
 # If building an external module we do not care about the all: rule
 # but instead _all depend on modules
@@ -889,9 +883,7 @@ vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, $(init-y) $(init-m) \
 		     $(net-y) $(net-m) $(libs-y) $(libs-m)))
 
 vmlinux-alldirs	:= $(sort $(vmlinux-dirs) $(patsubst %/,%,$(filter %/, \
-		     $(init-n) $(init-) \
-		     $(core-n) $(core-) $(drivers-n) $(drivers-) \
-		     $(net-n)  $(net-)  $(libs-n)    $(libs-))))
+		     $(init-) $(core-) $(drivers-) $(net-) $(libs-))))
 
 init-y		:= $(patsubst %/, %/built-in.o, $(init-y))
 core-y		:= $(patsubst %/, %/built-in.o, $(core-y))
@@ -1591,7 +1583,7 @@ endif
 # Shorthand for $(Q)$(MAKE) -f scripts/Makefile.clean obj=dir
 # Usage:
 # $(Q)$(MAKE) $(clean)=dir
-clean := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.clean obj
+clean := -f $(srctree)/scripts/Makefile.clean obj
 
 endif	# skip-makefile
 

@@ -48,10 +48,6 @@ ifneq ($(ARCH),$(filter $(ARCH),x86 arm))
   NO_LIBDW_DWARF_UNWIND := 1
 endif
 
-ifeq ($(ARCH),powerpc)
-  CFLAGS += -DHAVE_SKIP_CALLCHAIN_IDX
-endif
-
 ifeq ($(LIBUNWIND_LIBS),)
   NO_LIBUNWIND := 1
 else
@@ -118,6 +114,29 @@ ifdef PARSER_DEBUG
   PARSER_DEBUG_BISON := -t
   PARSER_DEBUG_FLEX  := -d
   CFLAGS             += -DPARSER_DEBUG
+endif
+
+ifndef NO_LIBPYTHON
+  # Try different combinations to accommodate systems that only have
+  # python[2][-config] in weird combinations but always preferring
+  # python2 and python2-config as per pep-0394. If we catch a
+  # python[-config] in version 3, the version check will kill it.
+  PYTHON2 := $(if $(call get-executable,python2),python2,python)
+  override PYTHON := $(call get-executable-or-default,PYTHON,$(PYTHON2))
+  PYTHON2_CONFIG := \
+    $(if $(call get-executable,$(PYTHON)-config),$(PYTHON)-config,python-config)
+  override PYTHON_CONFIG := \
+    $(call get-executable-or-default,PYTHON_CONFIG,$(PYTHON2_CONFIG))
+
+  PYTHON_CONFIG_SQ := $(call shell-sq,$(PYTHON_CONFIG))
+
+  PYTHON_EMBED_LDOPTS := $(shell $(PYTHON_CONFIG_SQ) --ldflags 2>/dev/null)
+  PYTHON_EMBED_CCOPTS := $(shell $(PYTHON_CONFIG_SQ) --cflags 2>/dev/null)
+
+  FEATURE_CHECK_CFLAGS-libpython := $(PYTHON_EMBED_CCOPTS)
+  FEATURE_CHECK_LDFLAGS-libpython := $(PYTHON_EMBED_LDOPTS)
+  FEATURE_CHECK_CFLAGS-libpython-version := $(PYTHON_EMBED_CCOPTS)
+  FEATURE_CHECK_LDFLAGS-libpython-version := $(PYTHON_EMBED_LDOPTS)
 endif
 
 CFLAGS += -fno-omit-frame-pointer
@@ -355,6 +374,12 @@ ifndef NO_LIBELF
   endif # NO_DWARF
 endif # NO_LIBELF
 
+ifeq ($(ARCH),powerpc)
+  ifndef NO_DWARF
+    CFLAGS += -DHAVE_SKIP_CALLCHAIN_IDX
+  endif
+endif
+
 ifndef NO_LIBUNWIND
   ifneq ($(feature-libunwind), 1)
     msg := $(warning No libunwind found. Please install libunwind-dev[el] >= 1.1 and/or set LIBUNWIND_DIR);
@@ -482,21 +507,14 @@ define disable-python_code
   NO_LIBPYTHON := 1
 endef
 
-override PYTHON := \
-  $(call get-executable-or-default,PYTHON,python)
-
-ifndef PYTHON
-  $(call disable-python,python interpreter)
+ifdef NO_LIBPYTHON
+  $(call disable-python)
 else
 
-  PYTHON_WORD := $(call shell-wordify,$(PYTHON))
-
-  ifdef NO_LIBPYTHON
-    $(call disable-python)
+  ifndef PYTHON
+    $(call disable-python,python interpreter)
   else
-
-    override PYTHON_CONFIG := \
-      $(call get-executable-or-default,PYTHON_CONFIG,$(PYTHON)-config)
+    PYTHON_WORD := $(call shell-wordify,$(PYTHON))
 
     ifndef PYTHON_CONFIG
       $(call disable-python,python-config tool)
@@ -635,11 +653,13 @@ else
 sysconfdir = $(prefix)/etc
 ETC_PERFCONFIG = etc/perfconfig
 endif
+ifndef lib
 ifeq ($(IS_X86_64),1)
 lib = lib64
 else
 lib = lib
 endif
+endif # lib
 libdir = $(prefix)/$(lib)
 
 # Shell quote (do not use $(call) to accommodate ancient setups);

@@ -20,7 +20,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "firmware.h"
 
 char brcmf_firmware_path[BRCMF_FW_PATH_LEN];

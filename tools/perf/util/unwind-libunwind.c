@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <libunwind.h>
 #include <libunwind-ptrace.h>
+#include "callchain.h"
 #include "thread.h"
 #include "session.h"
 #include "perf_regs.h"
@@ -525,6 +526,35 @@ static unw_accessors_t accessors = {
 	.get_proc_name		= get_proc_name,
 };
 
+int unwind__prepare_access(struct thread *thread)
+{
+	unw_addr_space_t addr_space;
+
+	if (callchain_param.record_mode != CALLCHAIN_DWARF)
+		return 0;
+
+	addr_space = unw_create_addr_space(&accessors, 0);
+	if (!addr_space) {
+		pr_err("unwind: Can't create unwind address space.\n");
+		return -ENOMEM;
+	}
+
+	thread__set_priv(thread, addr_space);
+
+	return 0;
+}
+
+void unwind__finish_access(struct thread *thread)
+{
+	unw_addr_space_t addr_space;
+
+	if (callchain_param.record_mode != CALLCHAIN_DWARF)
+		return;
+
+	addr_space = thread__priv(thread);
+	unw_destroy_addr_space(addr_space);
+}
+
 static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 		       void *arg, int max_stack)
 {
@@ -532,11 +562,9 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	unw_cursor_t c;
 	int ret;
 
-	addr_space = unw_create_addr_space(&accessors, 0);
-	if (!addr_space) {
-		pr_err("unwind: Can't create unwind address space.\n");
-		return -ENOMEM;
-	}
+	addr_space = thread__priv(ui->thread);
+	if (addr_space == NULL)
+		return -1;
 
 	ret = unw_init_remote(&c, addr_space, ui);
 	if (ret)
@@ -549,7 +577,6 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 		ret = ip ? entry(ip, ui->thread, ui->machine, cb, arg) : 0;
 	}
 
-	unw_destroy_addr_space(addr_space);
 	return ret;
 }
 

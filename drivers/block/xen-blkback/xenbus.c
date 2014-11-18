@@ -270,6 +270,9 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		blkif->blk_rings.common.sring = NULL;
 	}
 
+	/* Remove all persistent grants and the cache of ballooned pages. */
+	xen_blkbk_free_caches(blkif);
+
 	return 0;
 }
 
@@ -280,9 +283,6 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 
 	xen_blkif_disconnect(blkif);
 	xen_vbd_free(&blkif->vbd);
-
-	/* Remove all persistent grants and the cache of ballooned pages. */
-	xen_blkbk_free_caches(blkif);
 
 	/* Make sure everything is drained before shutting down */
 	BUG_ON(blkif->persistent_gnt_c != 0);
@@ -907,22 +907,17 @@ static int connect_ring(struct backend_info *be)
 	return 0;
 }
 
-
-/* ** Driver Registration ** */
-
-
 static const struct xenbus_device_id xen_blkbk_ids[] = {
 	{ "vbd" },
 	{ "" }
 };
 
-
-static DEFINE_XENBUS_DRIVER(xen_blkbk, ,
+static struct xenbus_driver xen_blkbk_driver = {
+	.ids  = xen_blkbk_ids,
 	.probe = xen_blkbk_probe,
 	.remove = xen_blkbk_remove,
 	.otherend_changed = frontend_changed
-);
-
+};
 
 int xen_blkif_xenbus_init(void)
 {

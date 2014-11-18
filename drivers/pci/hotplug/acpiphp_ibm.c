@@ -302,7 +302,7 @@ static int ibm_get_table_from_acpi(char **bufp)
 		goto read_table_done;
 	}
 
-	for(size = 0, i = 0; i < package->package.count; i++) {
+	for (size = 0, i = 0; i < package->package.count; i++) {
 		if (package->package.elements[i].type != ACPI_TYPE_BUFFER) {
 			pr_err("%s:  Invalid APCI element %d\n", __func__, i);
 			goto read_table_done;

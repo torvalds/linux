@@ -43,6 +43,9 @@ enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 #define IMA_TEMPLATE_IMA_NAME "ima"
 #define IMA_TEMPLATE_IMA_FMT "d|n"
 
+/* current content of the policy */
+extern int ima_policy_flag;
+
 /* set during initialization */
 extern int ima_initialized;
 extern int ima_used_chip;
@@ -90,10 +93,7 @@ extern struct list_head ima_measurements;	/* list of all measurements */
 
 /* Internal IMA function definitions */
 int ima_init(void);
-void ima_cleanup(void);
 int ima_fs_init(void);
-void ima_fs_cleanup(void);
-int ima_inode_alloc(struct inode *inode);
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 			   const char *op, struct inode *inode,
 			   const unsigned char *filename);
@@ -108,8 +108,6 @@ int ima_init_crypto(void);
 void ima_putc(struct seq_file *m, void *data, int datalen);
 void ima_print_digest(struct seq_file *m, u8 *digest, int size);
 struct ima_template_desc *ima_template_desc_current(void);
-int ima_init_template(void);
-
 int ima_init_template(void);
 
 /*
@@ -151,12 +149,6 @@ int ima_store_template(struct ima_template_entry *entry, int violation,
 void ima_free_template_entry(struct ima_template_entry *entry);
 const char *ima_d_path(struct path *path, char **pathbuf);
 
-/* rbtree tree calls to lookup, insert, delete
- * integrity data associated with an inode.
- */
-struct integrity_iint_cache *integrity_iint_insert(struct inode *inode);
-struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
-
 /* IMA policy related functions */
 enum ima_hooks { FILE_CHECK = 1, MMAP_CHECK, BPRM_CHECK, MODULE_CHECK, FIRMWARE_CHECK, POST_SETATTR };
 
@@ -164,20 +156,22 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		     int flags);
 void ima_init_policy(void);
 void ima_update_policy(void);
+void ima_update_policy_flag(void);
 ssize_t ima_parse_add_rule(char *);
 void ima_delete_rules(void);
 
 /* Appraise integrity measurements */
 #define IMA_APPRAISE_ENFORCE	0x01
 #define IMA_APPRAISE_FIX	0x02
-#define IMA_APPRAISE_MODULES	0x04
-#define IMA_APPRAISE_FIRMWARE	0x08
+#define IMA_APPRAISE_LOG	0x04
+#define IMA_APPRAISE_MODULES	0x08
+#define IMA_APPRAISE_FIRMWARE	0x10
 
 #ifdef CONFIG_IMA_APPRAISE
 int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			     struct file *file, const unsigned char *filename,
 			     struct evm_ima_xattr_data *xattr_value,
-			     int xattr_len);
+			     int xattr_len, int opened);
 int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func);
 void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file);
 enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
@@ -193,7 +187,7 @@ static inline int ima_appraise_measurement(int func,
 					   struct file *file,
 					   const unsigned char *filename,
 					   struct evm_ima_xattr_data *xattr_value,
-					   int xattr_len)
+					   int xattr_len, int opened)
 {
 	return INTEGRITY_UNKNOWN;
 }

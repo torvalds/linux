@@ -13,12 +13,8 @@
 #include <asm/ipl.h>
 #include <asm/cio.h>
 #include <asm/pci.h>
+#include <asm/sections.h>
 #include "entry.h"
-
-/*
- * References to section boundaries
- */
-extern const void __nosave_begin, __nosave_end;
 
 /*
  * The restore of the saved pages in an hibernation image will set

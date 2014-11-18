@@ -34,7 +34,8 @@ struct mmp_dma_data {
 		SNDRV_PCM_INFO_MMAP_VALID |	\
 		SNDRV_PCM_INFO_INTERLEAVED |	\
 		SNDRV_PCM_INFO_PAUSE |		\
-		SNDRV_PCM_INFO_RESUME)
+		SNDRV_PCM_INFO_RESUME |		\
+		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP)
 
 static struct snd_pcm_hardware mmp_pcm_hardware[] = {
 	{

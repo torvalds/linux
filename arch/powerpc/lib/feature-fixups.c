@@ -164,7 +164,7 @@ static long calc_offset(struct fixup_entry *entry, unsigned int *p)
 	return (unsigned long)p - (unsigned long)entry;
 }
 
-void test_basic_patching(void)
+static void test_basic_patching(void)
 {
 	extern unsigned int ftr_fixup_test1;
 	extern unsigned int end_ftr_fixup_test1;

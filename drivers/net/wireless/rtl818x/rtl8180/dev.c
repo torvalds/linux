@@ -742,35 +742,49 @@ static void rtl8180_int_disable(struct ieee80211_hw *dev)
 }
 
 static void rtl8180_conf_basic_rates(struct ieee80211_hw *dev,
-			    u32 rates_mask)
+			    u32 basic_mask)
 {
 	struct rtl8180_priv *priv = dev->priv;
-
-	u8 max, min;
 	u16 reg;
+	u32 resp_mask;
+	u8 basic_max;
+	u8 resp_max, resp_min;
 
-	max = fls(rates_mask) - 1;
-	min = ffs(rates_mask) - 1;
+	resp_mask = basic_mask;
+	/* IEEE80211 says the response rate should be equal to the highest basic
+	 * rate that is not faster than received frame. But it says also that if
+	 * the basic rate set does not contains any rate for the current
+	 * modulation class then mandatory rate set must be used for that
+	 * modulation class. Eventually add OFDM mandatory rates..
+	 */
+	if ((resp_mask & 0xf) == resp_mask)
+		resp_mask |= 0x150; /* 6, 12, 24Mbps */
 
 	switch (priv->chip_family) {
 
 	case RTL818X_CHIP_FAMILY_RTL8180:
 		/* in 8180 this is NOT a BITMAP */
+		basic_max = fls(basic_mask) - 1;
 		reg = rtl818x_ioread16(priv, &priv->map->BRSR);
 		reg &= ~3;
-		reg |= max;
+		reg |= basic_max;
 		rtl818x_iowrite16(priv, &priv->map->BRSR, reg);
 		break;
 
 	case RTL818X_CHIP_FAMILY_RTL8185:
+		resp_max = fls(resp_mask) - 1;
+		resp_min = ffs(resp_mask) - 1;
 		/* in 8185 this is a BITMAP */
-		rtl818x_iowrite16(priv, &priv->map->BRSR, rates_mask);
-		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (max << 4) | min);
+		rtl818x_iowrite16(priv, &priv->map->BRSR, basic_mask);
+		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (resp_max << 4) |
+				resp_min);
 		break;
 
 	case RTL818X_CHIP_FAMILY_RTL8187SE:
-		/* in 8187se this is a BITMAP */
-		rtl818x_iowrite16(priv, &priv->map->BRSR_8187SE, rates_mask);
+		/* in 8187se this is a BITMAP. BRSR reg actually sets
+		 * response rates.
+		 */
+		rtl818x_iowrite16(priv, &priv->map->BRSR_8187SE, resp_mask);
 		break;
 	}
 }

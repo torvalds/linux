@@ -362,16 +362,14 @@ static int streamzap_probe(struct usb_interface *intf,
 	}
 
 	sz->endpoint = &(iface_host->endpoint[0].desc);
-	if ((sz->endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-	    != USB_DIR_IN) {
+	if (!usb_endpoint_dir_in(sz->endpoint)) {
 		dev_err(&intf->dev, "%s: endpoint doesn't match input device "
 			"02%02x\n", __func__, sz->endpoint->bEndpointAddress);
 		retval = -ENODEV;
 		goto free_sz;
 	}
 
-	if ((sz->endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-	    != USB_ENDPOINT_XFER_INT) {
+	if (!usb_endpoint_xfer_int(sz->endpoint)) {
 		dev_err(&intf->dev, "%s: endpoint attributes don't match xfer "
 			"02%02x\n", __func__, sz->endpoint->bmAttributes);
 		retval = -ENODEV;

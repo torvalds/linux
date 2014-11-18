@@ -143,6 +143,7 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 	list[0].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].tv.bo = &vm->page_directory->tbo;
+	list[0].tv.shared = false;
 	list[0].tiling_flags = 0;
 	list[0].handle = 0;
 	list_add(&list[0].tv.head, head);
@@ -156,6 +157,7 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 		list[idx].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].tv.bo = &list[idx].robj->tbo;
+		list[idx].tv.shared = false;
 		list[idx].tiling_flags = 0;
 		list[idx].handle = 0;
 		list_add(&list[idx++].tv.head, head);
@@ -395,11 +397,12 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 
         memset(&tv, 0, sizeof(tv));
         tv.bo = &bo->tbo;
+	tv.shared = false;
 
         INIT_LIST_HEAD(&head);
         list_add(&tv.head, &head);
 
-        r = ttm_eu_reserve_buffers(&ticket, &head);
+        r = ttm_eu_reserve_buffers(&ticket, &head, true);
         if (r)
 		return r;
 
@@ -424,7 +427,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 	if (r)
                 goto error;
 
-	ttm_eu_fence_buffer_objects(&ticket, &head, ib.fence);
+	ttm_eu_fence_buffer_objects(&ticket, &head, &ib.fence->base);
 	radeon_ib_free(rdev, &ib);
 
 	return 0;
@@ -545,7 +548,8 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 
 		r = radeon_bo_create(rdev, RADEON_VM_PTE_COUNT * 8,
 				     RADEON_GPU_PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &pt);
+				     RADEON_GEM_DOMAIN_VRAM, 0,
+				     NULL, NULL, &pt);
 		if (r)
 			return r;
 
@@ -694,8 +698,9 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 
 	if (ib.length_dw != 0) {
 		radeon_asic_vm_pad_ib(rdev, &ib);
-		radeon_semaphore_sync_to(ib.semaphore, pd->tbo.sync_obj);
-		radeon_semaphore_sync_to(ib.semaphore, vm->last_id_use);
+
+		radeon_semaphore_sync_resv(rdev, ib.semaphore, pd->tbo.resv, false);
+		radeon_semaphore_sync_fence(ib.semaphore, vm->last_id_use);
 		WARN_ON(ib.length_dw > ndw);
 		r = radeon_ib_schedule(rdev, &ib, NULL, false);
 		if (r) {
@@ -821,7 +826,7 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 		unsigned nptes;
 		uint64_t pte;
 
-		radeon_semaphore_sync_to(ib->semaphore, pt->tbo.sync_obj);
+		radeon_semaphore_sync_resv(rdev, ib->semaphore, pt->tbo.resv, false);
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
@@ -892,6 +897,9 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	bo_va->flags &= ~RADEON_VM_PAGE_VALID;
 	bo_va->flags &= ~RADEON_VM_PAGE_SYSTEM;
 	bo_va->flags &= ~RADEON_VM_PAGE_SNOOPED;
+	if (bo_va->bo && radeon_ttm_tt_is_readonly(bo_va->bo->tbo.ttm))
+		bo_va->flags &= ~RADEON_VM_PAGE_WRITEABLE;
+
 	if (mem) {
 		addr = mem->start << PAGE_SHIFT;
 		if (mem->mem_type != TTM_PL_SYSTEM) {
@@ -960,7 +968,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	radeon_asic_vm_pad_ib(rdev, &ib);
 	WARN_ON(ib.length_dw > ndw);
 
-	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
+	radeon_semaphore_sync_fence(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
@@ -1120,7 +1128,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 
 	r = radeon_bo_create(rdev, pd_size, align, true,
 			     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
-			     &vm->page_directory);
+			     NULL, &vm->page_directory);
 	if (r)
 		return r;
 

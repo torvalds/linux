@@ -434,6 +434,7 @@ xfs_qm_dquot_isolate(
 	struct list_head	*item,
 	spinlock_t		*lru_lock,
 	void			*arg)
+		__releases(lru_lock) __acquires(lru_lock)
 {
 	struct xfs_dquot	*dqp = container_of(item,
 						struct xfs_dquot, q_lru);

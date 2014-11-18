@@ -824,6 +824,18 @@ config SCHEDSTATS
 	  application, you can say N to avoid the very slight overhead
 	  this adds.
 
+config SCHED_STACK_END_CHECK
+	bool "Detect stack corruption on calls to schedule()"
+	depends on DEBUG_KERNEL
+	default n
+	help
+	  This option checks for a stack overrun on calls to schedule().
+	  If the stack end location is found to be over written always panic as
+	  the content of the corrupted region can no longer be trusted.
+	  This is to ensure no erroneous behaviour occurs which could result in
+	  data corruption or a sporadic crash at a later stage once the region
+	  is examined. The runtime overhead introduced is minimal.
+
 config TIMER_STATS
 	bool "Collect kernel timers statistics"
 	depends on DEBUG_KERNEL && PROC_FS
@@ -952,7 +964,7 @@ config PROVE_LOCKING
 	 the proof of observed correctness is also maintained for an
 	 arbitrary combination of these separate locking variants.
 
-	 For more details, see Documentation/lockdep-design.txt.
+	 For more details, see Documentation/locking/lockdep-design.txt.
 
 config LOCKDEP
 	bool
@@ -973,7 +985,7 @@ config LOCK_STAT
 	help
 	 This feature enables tracking lock contention points
 
-	 For more details, see Documentation/lockstat.txt
+	 For more details, see Documentation/locking/lockstat.txt
 
 	 This also enables lock events required by "perf lock",
 	 subcommand of perf.
@@ -1636,7 +1648,7 @@ config DMA_API_DEBUG
 
 	  If unsure, say N.
 
-config TEST_MODULE
+config TEST_LKM
 	tristate "Test module loading with 'hello world' module"
 	default n
 	depends on m

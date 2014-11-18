@@ -1440,6 +1440,8 @@ static int gpmc_probe_nand_child(struct platform_device *pdev,
 				break;
 			}
 
+	gpmc_nand_data->flash_bbt = of_get_nand_on_flash_bbt(child);
+
 	val = of_get_nand_bus_width(child);
 	if (val == 16)
 		gpmc_nand_data->devsize = NAND_BUSWIDTH_16;

@@ -19,9 +19,9 @@
 #include <linux/etherdevice.h>
 #include <brcmu_utils.h>
 
-#include "dhd.h"
-#include "dhd_dbg.h"
-#include "dhd_bus.h"
+#include "core.h"
+#include "debug.h"
+#include "bus.h"
 #include "proto.h"
 #include "flowring.h"
 #include "msgbuf.h"

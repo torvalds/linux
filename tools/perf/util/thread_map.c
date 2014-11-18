@@ -214,6 +214,17 @@ out_free_threads:
 	goto out;
 }
 
+struct thread_map *thread_map__new_dummy(void)
+{
+	struct thread_map *threads = malloc(sizeof(*threads) + sizeof(pid_t));
+
+	if (threads != NULL) {
+		threads->map[0]	= -1;
+		threads->nr	= 1;
+	}
+	return threads;
+}
+
 static struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 {
 	struct thread_map *threads = NULL, *nt;
@@ -224,14 +235,8 @@ static struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 	struct strlist *slist;
 
 	/* perf-stat expects threads to be generated even if tid not given */
-	if (!tid_str) {
-		threads = malloc(sizeof(*threads) + sizeof(pid_t));
-		if (threads != NULL) {
-			threads->map[0] = -1;
-			threads->nr	= 1;
-		}
-		return threads;
-	}
+	if (!tid_str)
+		return thread_map__new_dummy();
 
 	slist = strlist__new(false, tid_str);
 	if (!slist)

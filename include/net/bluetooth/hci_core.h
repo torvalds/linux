@@ -398,6 +398,8 @@ struct hci_conn {
 	__u16		le_conn_interval;
 	__u16		le_conn_latency;
 	__u16		le_supv_timeout;
+	__u8		le_adv_data[HCI_MAX_AD_LENGTH];
+	__u8		le_adv_data_len;
 	__s8		rssi;
 	__s8		tx_power;
 	__s8		max_tx_power;
@@ -553,6 +555,7 @@ enum {
 	HCI_CONN_STK_ENCRYPT,
 	HCI_CONN_AUTH_INITIATOR,
 	HCI_CONN_DROP,
+	HCI_CONN_PARAM_REMOVAL_PEND,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
@@ -641,6 +644,26 @@ static inline unsigned int hci_conn_count(struct hci_dev *hdev)
 	struct hci_conn_hash *c = &hdev->conn_hash;
 
 	return c->acl_num + c->amp_num + c->sco_num + c->le_num;
+}
+
+static inline __u8 hci_conn_lookup_type(struct hci_dev *hdev, __u16 handle)
+{
+	struct hci_conn_hash *h = &hdev->conn_hash;
+	struct hci_conn *c;
+	__u8 type = INVALID_LINK;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->handle == handle) {
+			type = c->type;
+			break;
+		}
+	}
+
+	rcu_read_unlock();
+
+	return type;
 }
 
 static inline struct hci_conn *hci_conn_hash_lookup_handle(struct hci_dev *hdev,
@@ -853,6 +876,7 @@ int hci_register_dev(struct hci_dev *hdev);
 void hci_unregister_dev(struct hci_dev *hdev);
 int hci_suspend_dev(struct hci_dev *hdev);
 int hci_resume_dev(struct hci_dev *hdev);
+int hci_reset_dev(struct hci_dev *hdev);
 int hci_dev_open(__u16 dev);
 int hci_dev_close(__u16 dev);
 int hci_dev_reset(__u16 dev);
@@ -1310,9 +1334,8 @@ int mgmt_update_adv_data(struct hci_dev *hdev);
 void mgmt_discoverable_timeout(struct hci_dev *hdev);
 void mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 		       bool persistent);
-void mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-			   u8 addr_type, u32 flags, u8 *name, u8 name_len,
-			   u8 *dev_class);
+void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
+			   u32 flags, u8 *name, u8 name_len);
 void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			      u8 link_type, u8 addr_type, u8 reason,
 			      bool mgmt_connected);

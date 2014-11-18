@@ -1348,7 +1348,7 @@ static void ar9003_hw_set_radar_params(struct ath_hw *ah,
 				       struct ath_hw_radar_conf *conf)
 {
 	unsigned int regWrites = 0;
-	u32 radar_0 = 0, radar_1 = 0;
+	u32 radar_0 = 0, radar_1;
 
 	if (!conf) {
 		REG_CLR_BIT(ah, AR_PHY_RADAR_0, AR_PHY_RADAR_0_ENA);
@@ -1362,6 +1362,9 @@ static void ar9003_hw_set_radar_params(struct ath_hw *ah,
 	radar_0 |= SM(conf->pulse_rssi, AR_PHY_RADAR_0_PRSSI);
 	radar_0 |= SM(conf->pulse_inband, AR_PHY_RADAR_0_INBAND);
 
+	radar_1 = REG_READ(ah, AR_PHY_RADAR_1);
+	radar_1 &= ~(AR_PHY_RADAR_1_MAXLEN | AR_PHY_RADAR_1_RELSTEP_THRESH |
+		     AR_PHY_RADAR_1_RELPWR_THRESH);
 	radar_1 |= AR_PHY_RADAR_1_MAX_RRSSI;
 	radar_1 |= AR_PHY_RADAR_1_BLOCK_CHECK;
 	radar_1 |= SM(conf->pulse_maxlen, AR_PHY_RADAR_1_MAXLEN);
@@ -1388,7 +1391,7 @@ static void ar9003_hw_set_radar_conf(struct ath_hw *ah)
 	conf->fir_power = -28;
 	conf->radar_rssi = 0;
 	conf->pulse_height = 10;
-	conf->pulse_rssi = 24;
+	conf->pulse_rssi = 15;
 	conf->pulse_inband = 8;
 	conf->pulse_maxlen = 255;
 	conf->pulse_inband_step = 12;

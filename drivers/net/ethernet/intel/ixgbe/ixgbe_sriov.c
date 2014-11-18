@@ -1261,6 +1261,9 @@ int ixgbe_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 regval;
 
+	if (vf >= adapter->num_vfs)
+		return -EINVAL;
+
 	adapter->vfinfo[vf].spoofchk_enabled = setting;
 
 	regval = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));

@@ -141,21 +141,9 @@ static void __init boot_flags_init(char *commands)
 				process_switch(*commands++);
 			continue;
 		}
-		if (!strncmp(commands, "mem=", 4)) {
-			/*
-			 * "mem=XXX[kKmM]" overrides the PROM-reported
-			 * memory size.
-			 */
-			cmdline_memory_size = simple_strtoul(commands + 4,
-							     &commands, 0);
-			if (*commands == 'K' || *commands == 'k') {
-				cmdline_memory_size <<= 10;
-				commands++;
-			} else if (*commands=='M' || *commands=='m') {
-				cmdline_memory_size <<= 20;
-				commands++;
-			}
-		}
+		if (!strncmp(commands, "mem=", 4))
+			cmdline_memory_size = memparse(commands + 4, &commands);
+
 		while (*commands && *commands != ' ')
 			commands++;
 	}
@@ -500,12 +488,16 @@ static void __init init_sparc64_elf_hwcap(void)
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA5 ||
+		    sun4v_chip_type == SUN4V_CHIP_SPARC_M6 ||
+		    sun4v_chip_type == SUN4V_CHIP_SPARC_M7 ||
 		    sun4v_chip_type == SUN4V_CHIP_SPARC64X)
 			cap |= HWCAP_SPARC_BLKINIT;
 		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA5 ||
+		    sun4v_chip_type == SUN4V_CHIP_SPARC_M6 ||
+		    sun4v_chip_type == SUN4V_CHIP_SPARC_M7 ||
 		    sun4v_chip_type == SUN4V_CHIP_SPARC64X)
 			cap |= HWCAP_SPARC_N2;
 	}
@@ -533,6 +525,8 @@ static void __init init_sparc64_elf_hwcap(void)
 			    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
 			    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
 			    sun4v_chip_type == SUN4V_CHIP_NIAGARA5 ||
+			    sun4v_chip_type == SUN4V_CHIP_SPARC_M6 ||
+			    sun4v_chip_type == SUN4V_CHIP_SPARC_M7 ||
 			    sun4v_chip_type == SUN4V_CHIP_SPARC64X)
 				cap |= (AV_SPARC_VIS | AV_SPARC_VIS2 |
 					AV_SPARC_ASI_BLK_INIT |
@@ -540,6 +534,8 @@ static void __init init_sparc64_elf_hwcap(void)
 			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
 			    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
 			    sun4v_chip_type == SUN4V_CHIP_NIAGARA5 ||
+			    sun4v_chip_type == SUN4V_CHIP_SPARC_M6 ||
+			    sun4v_chip_type == SUN4V_CHIP_SPARC_M7 ||
 			    sun4v_chip_type == SUN4V_CHIP_SPARC64X)
 				cap |= (AV_SPARC_VIS3 | AV_SPARC_HPC |
 					AV_SPARC_FMAF);

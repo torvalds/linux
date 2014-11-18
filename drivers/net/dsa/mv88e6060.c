@@ -21,8 +21,12 @@
 
 static int reg_read(struct dsa_switch *ds, int addr, int reg)
 {
-	return mdiobus_read(to_mii_bus(ds->master_dev),
-			    ds->pd->sw_addr + addr, reg);
+	struct mii_bus *bus = dsa_host_dev_to_mii_bus(ds->master_dev);
+
+	if (bus == NULL)
+		return -EINVAL;
+
+	return mdiobus_read(bus, ds->pd->sw_addr + addr, reg);
 }
 
 #define REG_READ(addr, reg)					\
@@ -38,8 +42,12 @@ static int reg_read(struct dsa_switch *ds, int addr, int reg)
 
 static int reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 {
-	return mdiobus_write(to_mii_bus(ds->master_dev),
-			     ds->pd->sw_addr + addr, reg, val);
+	struct mii_bus *bus = dsa_host_dev_to_mii_bus(ds->master_dev);
+
+	if (bus == NULL)
+		return -EINVAL;
+
+	return mdiobus_write(bus, ds->pd->sw_addr + addr, reg, val);
 }
 
 #define REG_WRITE(addr, reg, val)				\

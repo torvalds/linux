@@ -28,6 +28,8 @@
 #ifndef _SIS_DRV_H_
 #define _SIS_DRV_H_
 
+#include <drm/drm_legacy.h>
+
 /* General customization:
  */
 

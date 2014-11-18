@@ -1,0 +1,38 @@
+* HI6421 Multi-Functional Device (MFD), by HiSilicon Ltd.
+
+Required parent device properties:
+- compatible	: contains "hisilicon,hi6421-pmic";
+- reg		: register range space of hi6421;
+
+Supported Hi6421 sub-devices include:
+
+Device                     IRQ Names              Supply Names   Description
+------                     ---------              ------------   -----------
+regulators               :  None                 : None         : Regulators
+
+Required child device properties:
+None.
+
+Example:
+	hi6421 {
+		compatible = "hisilicon,hi6421-pmic";
+		reg = <0xfcc00000 0x0180>; /* 0x60 << 2 */
+
+		regulators {
+			// supply for MLC NAND/ eMMC
+			hi6421_vout0_reg: hi6421_vout0 {
+				regulator-name = "VOUT0";
+				regulator-min-microvolt = <2850000>;
+				regulator-max-microvolt = <2850000>;
+			};
+
+			// supply for 26M Oscillator
+			hi6421_vout1_reg: hi6421_vout1 {
+				regulator-name = "VOUT1";
+				regulator-min-microvolt = <1700000>;
+				regulator-max-microvolt = <2000000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};

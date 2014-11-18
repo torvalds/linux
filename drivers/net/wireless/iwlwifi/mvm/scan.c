@@ -270,7 +270,8 @@ static void iwl_mvm_scan_condition_iterator(void *data, u8 *mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool *global_bound = data;
 
-	if (mvmvif->phy_ctxt && mvmvif->phy_ctxt->id < MAX_PHYS)
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE && mvmvif->phy_ctxt &&
+	    mvmvif->phy_ctxt->id < MAX_PHYS)
 		*global_bound = true;
 }
 
@@ -459,7 +460,8 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 				basic_ssid ? 1 : 0);
 
 	cmd->tx_cmd.tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
-					   TX_CMD_FLG_BT_DIS);
+					   3 << TX_CMD_FLG_BT_PRIO_POS);
+
 	cmd->tx_cmd.sta_id = mvm->aux_sta.sta_id;
 	cmd->tx_cmd.life_time = cpu_to_le32(TX_CMD_LIFE_TIME_INFINITE);
 	cmd->tx_cmd.rate_n_flags =
@@ -671,6 +673,7 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 		mvm->scan_status = IWL_MVM_SCAN_NONE;
 		ieee80211_scan_completed(mvm->hw,
 					 status == IWL_SCAN_OFFLOAD_ABORTED);
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 	}
 
 	mvm->last_ebs_successful = !ebs_status;
@@ -1006,6 +1009,31 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 				    sizeof(scan_req), &scan_req);
 }
 
+int iwl_mvm_scan_offload_start(struct iwl_mvm *mvm,
+			       struct ieee80211_vif *vif,
+			       struct cfg80211_sched_scan_request *req,
+			       struct ieee80211_scan_ies *ies)
+{
+	int ret;
+
+	if ((mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)) {
+		ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
+		if (ret)
+			return ret;
+		ret = iwl_mvm_unified_sched_scan_lmac(mvm, vif, req, ies);
+	} else {
+		ret = iwl_mvm_config_sched_scan(mvm, vif, req, ies);
+		if (ret)
+			return ret;
+		ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
+		if (ret)
+			return ret;
+		ret = iwl_mvm_sched_scan_start(mvm, req);
+	}
+
+	return ret;
+}
+
 static int iwl_mvm_send_scan_offload_abort(struct iwl_mvm *mvm)
 {
 	int ret;
@@ -1080,8 +1108,12 @@ int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 	/*
 	 * Clear the scan status so the next scan requests will succeed. This
 	 * also ensures the Rx handler doesn't do anything, as the scan was
-	 * stopped from above.
+	 * stopped from above. Since the rx handler won't do anything now,
+	 * we have to release the scan reference here.
 	 */
+	if (mvm->scan_status == IWL_MVM_SCAN_OS)
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
 
 	if (notify) {

@@ -1065,7 +1065,8 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			err = -EFAULT;
 			if (get_user(pid, (int __user *)argp))
 				break;
-			err = f_setown(sock->file, pid, 1);
+			f_setown(sock->file, pid, 1);
+			err = 0;
 			break;
 		case FIOGETOWN:
 		case SIOCGPGRP:

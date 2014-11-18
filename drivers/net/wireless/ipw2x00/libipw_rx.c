@@ -1120,7 +1120,6 @@ static int libipw_parse_info_param(struct libipw_info_element
 				      *info_element, u16 length,
 				      struct libipw_network *network)
 {
-	DECLARE_SSID_BUF(ssid);
 	u8 i;
 #ifdef CONFIG_LIBIPW_DEBUG
 	char rates_str[64];
@@ -1151,10 +1150,9 @@ static int libipw_parse_info_param(struct libipw_info_element
 				memset(network->ssid + network->ssid_len, 0,
 				       IW_ESSID_MAX_SIZE - network->ssid_len);
 
-			LIBIPW_DEBUG_MGMT("WLAN_EID_SSID: '%s' len=%d.\n",
-					     print_ssid(ssid, network->ssid,
-							network->ssid_len),
-					     network->ssid_len);
+			LIBIPW_DEBUG_MGMT("WLAN_EID_SSID: '%*pE' len=%d.\n",
+					  network->ssid_len, network->ssid,
+					  network->ssid_len);
 			break;
 
 		case WLAN_EID_SUPP_RATES:
@@ -1300,13 +1298,6 @@ static int libipw_parse_info_param(struct libipw_info_element
 			break;
 
 		case WLAN_EID_IBSS_DFS:
-			if (network->ibss_dfs)
-				break;
-			network->ibss_dfs = kmemdup(info_element->data,
-						    info_element->len,
-						    GFP_ATOMIC);
-			if (!network->ibss_dfs)
-				return 1;
 			network->flags |= NETWORK_HAS_IBSS_DFS;
 			break;
 
@@ -1337,9 +1328,7 @@ static int libipw_parse_info_param(struct libipw_info_element
 static int libipw_handle_assoc_resp(struct libipw_device *ieee, struct libipw_assoc_response
 				       *frame, struct libipw_rx_stats *stats)
 {
-	struct libipw_network network_resp = {
-		.ibss_dfs = NULL,
-	};
+	struct libipw_network network_resp = { };
 	struct libipw_network *network = &network_resp;
 	struct net_device *dev = ieee->dev;
 
@@ -1399,8 +1388,6 @@ static int libipw_network_init(struct libipw_device *ieee, struct libipw_probe_r
 					 struct libipw_network *network,
 					 struct libipw_rx_stats *stats)
 {
-	DECLARE_SSID_BUF(ssid);
-
 	network->qos_data.active = 0;
 	network->qos_data.supported = 0;
 	network->qos_data.param_count = 0;
@@ -1447,11 +1434,9 @@ static int libipw_network_init(struct libipw_device *ieee, struct libipw_probe_r
 	}
 
 	if (network->mode == 0) {
-		LIBIPW_DEBUG_SCAN("Filtered out '%s (%pM)' "
-				     "network.\n",
-				     print_ssid(ssid, network->ssid,
-						 network->ssid_len),
-				     network->bssid);
+		LIBIPW_DEBUG_SCAN("Filtered out '%*pE (%pM)' network.\n",
+				  network->ssid_len, network->ssid,
+				  network->bssid);
 		return 1;
 	}
 
@@ -1477,9 +1462,6 @@ static void update_network(struct libipw_network *dst,
 {
 	int qos_active;
 	u8 old_param;
-
-	libipw_network_reset(dst);
-	dst->ibss_dfs = src->ibss_dfs;
 
 	/* We only update the statistics if they were created by receiving
 	 * the network information on the actual channel the network is on.
@@ -1554,20 +1536,16 @@ static void libipw_process_probe_response(struct libipw_device
 						    *stats)
 {
 	struct net_device *dev = ieee->dev;
-	struct libipw_network network = {
-		.ibss_dfs = NULL,
-	};
+	struct libipw_network network = { };
 	struct libipw_network *target;
 	struct libipw_network *oldest = NULL;
 #ifdef CONFIG_LIBIPW_DEBUG
 	struct libipw_info_element *info_element = beacon->info_element;
 #endif
 	unsigned long flags;
-	DECLARE_SSID_BUF(ssid);
 
-	LIBIPW_DEBUG_SCAN("'%s' (%pM"
-		     "): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
-		     print_ssid(ssid, info_element->data, info_element->len),
+	LIBIPW_DEBUG_SCAN("'%*pE' (%pM): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
+		     info_element->len, info_element->data,
 		     beacon->header.addr3,
 		     (beacon->capability & cpu_to_le16(1 << 0xf)) ? '1' : '0',
 		     (beacon->capability & cpu_to_le16(1 << 0xe)) ? '1' : '0',
@@ -1587,12 +1565,11 @@ static void libipw_process_probe_response(struct libipw_device
 		     (beacon->capability & cpu_to_le16(1 << 0x0)) ? '1' : '0');
 
 	if (libipw_network_init(ieee, beacon, &network, stats)) {
-		LIBIPW_DEBUG_SCAN("Dropped '%s' (%pM) via %s.\n",
-				     print_ssid(ssid, info_element->data,
-						 info_element->len),
-				     beacon->header.addr3,
-				     is_beacon(beacon->header.frame_ctl) ?
-				     "BEACON" : "PROBE RESPONSE");
+		LIBIPW_DEBUG_SCAN("Dropped '%*pE' (%pM) via %s.\n",
+				  info_element->len, info_element->data,
+				  beacon->header.addr3,
+				  is_beacon(beacon->header.frame_ctl) ?
+				  "BEACON" : "PROBE RESPONSE");
 		return;
 	}
 
@@ -1624,12 +1601,9 @@ static void libipw_process_probe_response(struct libipw_device
 			/* If there are no more slots, expire the oldest */
 			list_del(&oldest->list);
 			target = oldest;
-			LIBIPW_DEBUG_SCAN("Expired '%s' (%pM) from "
-					     "network list.\n",
-					     print_ssid(ssid, target->ssid,
-							 target->ssid_len),
-					     target->bssid);
-			libipw_network_reset(target);
+			LIBIPW_DEBUG_SCAN("Expired '%*pE' (%pM) from network list.\n",
+					  target->ssid_len, target->ssid,
+					  target->bssid);
 		} else {
 			/* Otherwise just pull from the free list */
 			target = list_entry(ieee->network_free_list.next,
@@ -1638,25 +1612,21 @@ static void libipw_process_probe_response(struct libipw_device
 		}
 
 #ifdef CONFIG_LIBIPW_DEBUG
-		LIBIPW_DEBUG_SCAN("Adding '%s' (%pM) via %s.\n",
-				     print_ssid(ssid, network.ssid,
-						 network.ssid_len),
-				     network.bssid,
-				     is_beacon(beacon->header.frame_ctl) ?
-				     "BEACON" : "PROBE RESPONSE");
+		LIBIPW_DEBUG_SCAN("Adding '%*pE' (%pM) via %s.\n",
+				  network.ssid_len, network.ssid,
+				  network.bssid,
+				  is_beacon(beacon->header.frame_ctl) ?
+				  "BEACON" : "PROBE RESPONSE");
 #endif
 		memcpy(target, &network, sizeof(*target));
-		network.ibss_dfs = NULL;
 		list_add_tail(&target->list, &ieee->network_list);
 	} else {
-		LIBIPW_DEBUG_SCAN("Updating '%s' (%pM) via %s.\n",
-				     print_ssid(ssid, target->ssid,
-						 target->ssid_len),
-				     target->bssid,
-				     is_beacon(beacon->header.frame_ctl) ?
-				     "BEACON" : "PROBE RESPONSE");
+		LIBIPW_DEBUG_SCAN("Updating '%*pE' (%pM) via %s.\n",
+				  target->ssid_len, target->ssid,
+				  target->bssid,
+				  is_beacon(beacon->header.frame_ctl) ?
+				  "BEACON" : "PROBE RESPONSE");
 		update_network(target, &network);
-		network.ibss_dfs = NULL;
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);

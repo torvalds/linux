@@ -794,25 +794,21 @@ COMPAT_SYSCALL_DEFINE5(mount, const char __user *, dev_name,
 	char *kernel_type;
 	unsigned long data_page;
 	char *kernel_dev;
-	struct filename *dir;
 	int retval;
 
-	retval = copy_mount_string(type, &kernel_type);
-	if (retval < 0)
+	kernel_type = copy_mount_string(type);
+	retval = PTR_ERR(kernel_type);
+	if (IS_ERR(kernel_type))
 		goto out;
 
-	dir = getname(dir_name);
-	retval = PTR_ERR(dir);
-	if (IS_ERR(dir))
+	kernel_dev = copy_mount_string(dev_name);
+	retval = PTR_ERR(kernel_dev);
+	if (IS_ERR(kernel_dev))
 		goto out1;
-
-	retval = copy_mount_string(dev_name, &kernel_dev);
-	if (retval < 0)
-		goto out2;
 
 	retval = copy_mount_options(data, &data_page);
 	if (retval < 0)
-		goto out3;
+		goto out2;
 
 	retval = -EINVAL;
 
@@ -821,19 +817,17 @@ COMPAT_SYSCALL_DEFINE5(mount, const char __user *, dev_name,
 			do_ncp_super_data_conv((void *)data_page);
 		} else if (!strcmp(kernel_type, NFS4_NAME)) {
 			if (do_nfs4_super_data_conv((void *) data_page))
-				goto out4;
+				goto out3;
 		}
 	}
 
-	retval = do_mount(kernel_dev, dir->name, kernel_type,
+	retval = do_mount(kernel_dev, dir_name, kernel_type,
 			flags, (void*)data_page);
 
- out4:
-	free_page(data_page);
  out3:
-	kfree(kernel_dev);
+	free_page(data_page);
  out2:
-	putname(dir);
+	kfree(kernel_dev);
  out1:
 	kfree(kernel_type);
  out:

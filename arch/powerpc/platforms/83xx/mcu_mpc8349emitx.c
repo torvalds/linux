@@ -141,7 +141,8 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 
 static int mcu_gpiochip_remove(struct mcu *mcu)
 {
-	return gpiochip_remove(&mcu->gc);
+	gpiochip_remove(&mcu->gc);
+	return 0;
 }
 
 static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -213,7 +214,7 @@ static const struct i2c_device_id mcu_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcu_ids);
 
-static struct of_device_id mcu_of_match_table[] = {
+static const struct of_device_id mcu_of_match_table[] = {
 	{ .compatible = "fsl,mcu-mpc8349emitx", },
 	{ },
 };
