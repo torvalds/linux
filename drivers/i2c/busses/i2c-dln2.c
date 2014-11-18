@@ -54,7 +54,6 @@ struct dln2_i2c {
 
 static int dln2_i2c_enable(struct dln2_i2c *dln2, bool enable)
 {
-	int ret;
 	u16 cmd;
 	struct {
 		u8 port;
@@ -67,11 +66,7 @@ static int dln2_i2c_enable(struct dln2_i2c *dln2, bool enable)
 	else
 		cmd = DLN2_I2C_DISABLE;
 
-	ret = dln2_transfer_tx(dln2->pdev, cmd, &tx, sizeof(tx));
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return dln2_transfer_tx(dln2->pdev, cmd, &tx, sizeof(tx));
 }
 
 static int dln2_i2c_write(struct dln2_i2c *dln2, u8 addr,
