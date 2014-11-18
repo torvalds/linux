@@ -142,8 +142,7 @@ int netlink_add_tap(struct netlink_tap *nt)
 	list_add_rcu(&nt->list, &netlink_tap_all);
 	spin_unlock(&netlink_tap_lock);
 
-	if (nt->module)
-		__module_get(nt->module);
+	__module_get(nt->module);
 
 	return 0;
 }
