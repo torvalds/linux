@@ -297,8 +297,8 @@ const struct vb2_ops vivid_sdr_cap_qops = {
 	.buf_queue		= sdr_cap_buf_queue,
 	.start_streaming	= sdr_cap_start_streaming,
 	.stop_streaming		= sdr_cap_stop_streaming,
-	.wait_prepare		= vivid_unlock,
-	.wait_finish		= vivid_lock,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 };
 
 int vivid_sdr_enum_freq_bands(struct file *file, void *fh, struct v4l2_frequency_band *band)

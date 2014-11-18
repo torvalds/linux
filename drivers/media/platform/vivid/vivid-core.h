@@ -514,7 +514,4 @@ static inline bool vivid_is_hdmi_out(const struct vivid_dev *dev)
 	return dev->output_type[dev->output] == HDMI;
 }
 
-void vivid_lock(struct vb2_queue *vq);
-void vivid_unlock(struct vb2_queue *vq);
-
 #endif
