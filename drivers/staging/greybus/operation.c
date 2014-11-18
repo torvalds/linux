@@ -230,13 +230,12 @@ static void operation_timeout(struct work_struct *work)
  */
 static int gb_operation_message_init(struct gb_operation *operation,
 					u8 type, size_t size,
-					bool request, bool outbound)
+					bool request, gfp_t gfp_flags)
 {
 	struct gb_connection *connection = operation->connection;
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
-	gfp_t gfp_flags = request && !outbound ? GFP_ATOMIC : GFP_KERNEL;
 
 	if (size > GB_OPERATION_MESSAGE_SIZE_MAX)
 		return -E2BIG;
@@ -311,13 +310,13 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	operation->connection = connection;
 
 	ret = gb_operation_message_init(operation, type, request_size,
-						true, outgoing);
+						true, gfp_flags);
 	if (ret)
 		goto err_cache;
 
 	if (outgoing) {
 		ret = gb_operation_message_init(operation, type, response_size,
-						false, false);
+						false, GFP_KERNEL);
 		if (ret)
 			goto err_request;
 	}
