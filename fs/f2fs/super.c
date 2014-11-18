@@ -669,7 +669,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 			f2fs_sync_fs(sb, 1);
 			need_restart_gc = true;
 		}
-	} else if (test_opt(sbi, BG_GC) && !sbi->gc_thread) {
+	} else if (!sbi->gc_thread) {
 		err = start_gc_thread(sbi);
 		if (err)
 			goto restore_opts;
@@ -682,7 +682,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 */
 	if ((*flags & MS_RDONLY) || !test_opt(sbi, FLUSH_MERGE)) {
 		destroy_flush_cmd_control(sbi);
-	} else if (test_opt(sbi, FLUSH_MERGE) && !SM_I(sbi)->cmd_control_info) {
+	} else if (!SM_I(sbi)->cmd_control_info) {
 		err = create_flush_cmd_control(sbi);
 		if (err)
 			goto restore_gc;
