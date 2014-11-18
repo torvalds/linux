@@ -95,7 +95,6 @@ static void cport_out_callback(struct urb *urb);
 static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 				gfp_t gfp_mask)
 {
-	u8 dest_cport_id = gbuf->dest_cport_id;
 	u8 *buffer;
 
 	if (gbuf->transfer_buffer)
@@ -121,15 +120,6 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 	if (!buffer)
 		return -ENOMEM;
 	buffer += GB_BUFFER_ALIGN;
-
-	/* Insert the cport id for outbound buffers */
-	if (dest_cport_id != CPORT_ID_BAD && dest_cport_id > (u16)U8_MAX) {
-		pr_err("dest_cport_id (%hd) is out of range!\n",
-			gbuf->dest_cport_id);
-		kfree(buffer);
-		return -EINVAL;
-	}
-	*(buffer - 1) = gbuf->dest_cport_id;
 
 	gbuf->transfer_buffer = buffer;
 	gbuf->transfer_buffer_length = size;
@@ -212,6 +202,7 @@ static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 	struct greybus_host_device *hd = gbuf->hd;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
+	u16 dest_cport_id = gbuf->dest_cport_id;
 	int retval;
 	u8 *transfer_buffer;
 	u8 *buffer;
@@ -222,11 +213,17 @@ static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 		return -EINVAL;
 	buffer = &transfer_buffer[-1];	/* yes, we mean -1 */
 
-	/* Do one last check of the target CPort id */
-	if (*buffer == CPORT_ID_BAD) {
-		pr_err("request to submit inbound buffer\n");
+	/* Do one last check of the target CPort id before filling it in */
+	if (dest_cport_id == CPORT_ID_BAD) {
+		pr_err("request to send inbound data buffer\n");
 		return -EINVAL;
 	}
+	if (dest_cport_id > (u16)U8_MAX) {
+		pr_err("dest_cport_id (%hd) is out of range for ES1\n",
+			dest_cport_id);
+		return -EINVAL;
+	}
+	*buffer = dest_cport_id;
 
 	/* Find a free urb */
 	urb = next_free_urb(es1, gfp_mask);

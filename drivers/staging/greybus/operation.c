@@ -241,12 +241,12 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	else
 		dest_cport_id = CPORT_ID_BAD;
 
-	gbuf->hd = hd;
-	gbuf->dest_cport_id = dest_cport_id;
-	gbuf->status = -EBADR;	/* Initial value--means "never set" */
 	ret = hd->driver->alloc_gbuf_data(gbuf, size, gfp_flags);
 	if (ret)
 		return ret;
+	gbuf->hd = hd;
+	gbuf->dest_cport_id = dest_cport_id;
+	gbuf->status = -EBADR;	/* Initial value--means "never set" */
 
 	/* Fill in the header structure */
 	header = (struct gb_operation_msg_hdr *)gbuf->transfer_buffer;
