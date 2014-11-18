@@ -213,14 +213,14 @@ static void operation_timeout(struct work_struct *work)
  */
 static int gb_operation_message_init(struct gb_operation *operation,
 					u8 type, size_t size,
-					bool request, bool data_out)
+					bool request, bool outbound)
 {
 	struct gb_connection *connection = operation->connection;
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
 	struct gbuf *gbuf;
-	gfp_t gfp_flags = data_out ? GFP_KERNEL : GFP_ATOMIC;
+	gfp_t gfp_flags = request && !outbound ? GFP_ATOMIC : GFP_KERNEL;
 	u16 dest_cport_id;
 	int ret;
 
@@ -236,7 +236,7 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	}
 	gbuf = &message->gbuf;
 
-	if (data_out)
+	if (outbound)
 		dest_cport_id = connection->interface_cport_id;
 	else
 		dest_cport_id = CPORT_ID_BAD;
