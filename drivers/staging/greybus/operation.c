@@ -106,10 +106,11 @@ gb_pending_operation_find(struct gb_connection *connection, u16 id)
 static int gb_message_send(struct gb_message *message, gfp_t gfp_mask)
 {
 	struct gb_connection *connection = message->operation->connection;
+	u16 dest_cport_id = connection->interface_cport_id;
 
 	message->status = -EINPROGRESS;
 	message->cookie = connection->hd->driver->buffer_send(connection->hd,
-					message->dest_cport_id,
+					dest_cport_id,
 					message->buffer,
 					message->buffer_size,
 					gfp_mask);
@@ -236,7 +237,6 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
 	gfp_t gfp_flags = request && !outbound ? GFP_ATOMIC : GFP_KERNEL;
-	u16 dest_cport_id;
 
 	if (size > GB_OPERATION_MESSAGE_SIZE_MAX)
 		return -E2BIG;
@@ -249,16 +249,10 @@ static int gb_operation_message_init(struct gb_operation *operation,
 		type |= GB_OPERATION_TYPE_RESPONSE;
 	}
 
-	if (outbound)
-		dest_cport_id = connection->interface_cport_id;
-	else
-		dest_cport_id = CPORT_ID_BAD;
-
 	message->buffer = hd->driver->buffer_alloc(size, gfp_flags);
 	if (!message->buffer)
 		return -ENOMEM;
 	message->buffer_size = size;
-	message->dest_cport_id = dest_cport_id;
 	message->status = -EBADR;	/* Initial value--means "never set" */
 
 	/* Fill in the header structure */

@@ -28,7 +28,6 @@ struct gb_message {
 	void			*payload;
 
 	struct gb_operation	*operation;
-	u16			dest_cport_id;	/* Destination CPort id */
 	int			status;
 
 	void			*buffer;
