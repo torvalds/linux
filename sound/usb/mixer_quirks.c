@@ -543,38 +543,52 @@ static int snd_emu0204_controls_create(struct usb_mixer_interface *mixer)
 static int snd_xonar_u1_switch_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
-
-	ucontrol->value.integer.value[0] = !!(mixer->xonar_u1_status & 0x02);
+	ucontrol->value.integer.value[0] = !!(kcontrol->private_value & 0x02);
 	return 0;
+}
+
+static int snd_xonar_u1_switch_update(struct usb_mixer_interface *mixer,
+				      unsigned char status)
+{
+	struct snd_usb_audio *chip = mixer->chip;
+	int err;
+
+	down_read(&chip->shutdown_rwsem);
+	if (chip->shutdown)
+		err = -ENODEV;
+	else
+		err = snd_usb_ctl_msg(chip->dev,
+			      usb_sndctrlpipe(chip->dev, 0), 0x08,
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
+			      50, 0, &status, 1);
+	up_read(&chip->shutdown_rwsem);
+	return err;
 }
 
 static int snd_xonar_u1_switch_put(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
+	struct usb_mixer_elem_list *list = snd_kcontrol_chip(kcontrol);
 	u8 old_status, new_status;
-	int err, changed;
+	int err;
 
-	old_status = mixer->xonar_u1_status;
+	old_status = kcontrol->private_value;
 	if (ucontrol->value.integer.value[0])
 		new_status = old_status | 0x02;
 	else
 		new_status = old_status & ~0x02;
-	changed = new_status != old_status;
-	down_read(&mixer->chip->shutdown_rwsem);
-	if (mixer->chip->shutdown)
-		err = -ENODEV;
-	else
-		err = snd_usb_ctl_msg(mixer->chip->dev,
-			      usb_sndctrlpipe(mixer->chip->dev, 0), 0x08,
-			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-			      50, 0, &new_status, 1);
-	up_read(&mixer->chip->shutdown_rwsem);
-	if (err < 0)
-		return err;
-	mixer->xonar_u1_status = new_status;
-	return changed;
+	if (new_status == old_status)
+		return 0;
+
+	kcontrol->private_value = new_status;
+	err = snd_xonar_u1_switch_update(list->mixer, new_status);
+	return err < 0 ? err : 1;
+}
+
+static int snd_xonar_u1_switch_resume(struct usb_mixer_elem_list *list)
+{
+	return snd_xonar_u1_switch_update(list->mixer,
+					  list->kctl->private_value);
 }
 
 static struct snd_kcontrol_new snd_xonar_u1_output_switch = {
@@ -583,18 +597,14 @@ static struct snd_kcontrol_new snd_xonar_u1_output_switch = {
 	.info = snd_ctl_boolean_mono_info,
 	.get = snd_xonar_u1_switch_get,
 	.put = snd_xonar_u1_switch_put,
+	.private_value = 0x05,
 };
 
 static int snd_xonar_u1_controls_create(struct usb_mixer_interface *mixer)
 {
-	int err;
-
-	err = snd_ctl_add(mixer->chip->card,
-			  snd_ctl_new1(&snd_xonar_u1_output_switch, mixer));
-	if (err < 0)
-		return err;
-	mixer->xonar_u1_status = 0x05;
-	return 0;
+	return add_single_ctl_with_resume(mixer, 0,
+					  snd_xonar_u1_switch_resume,
+					  &snd_xonar_u1_output_switch, NULL);
 }
 
 /* Digidesign Mbox 1 clock source switch (internal/spdif) */
