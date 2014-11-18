@@ -107,6 +107,9 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size,
 	struct sg_table *sgt;
 	int ret;
 	int num_pages;
+	DEFINE_DMA_ATTRS(attrs);
+
+	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
 
 	if (WARN_ON(alloc_ctx == NULL))
 		return NULL;
@@ -140,9 +143,13 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size,
 	buf->dev = get_device(conf->dev);
 
 	sgt = &buf->sg_table;
-	if (dma_map_sg(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir) == 0)
+	/*
+	 * No need to sync to the device, this will happen later when the
+	 * prepare() memop is called.
+	 */
+	if (dma_map_sg_attrs(buf->dev, sgt->sgl, sgt->nents,
+			     buf->dma_dir, &attrs) == 0)
 		goto fail_map;
-	dma_sync_sg_for_cpu(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir);
 
 	buf->handler.refcount = &buf->refcount;
 	buf->handler.put = vb2_dma_sg_put;
@@ -175,9 +182,13 @@ static void vb2_dma_sg_put(void *buf_priv)
 	int i = buf->num_pages;
 
 	if (atomic_dec_and_test(&buf->refcount)) {
+		DEFINE_DMA_ATTRS(attrs);
+
+		dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
 		dprintk(1, "%s: Freeing buffer of %d pages\n", __func__,
 			buf->num_pages);
-		dma_unmap_sg(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir);
+		dma_unmap_sg_attrs(buf->dev, sgt->sgl, sgt->nents,
+				   buf->dma_dir, &attrs);
 		if (buf->vaddr)
 			vm_unmap_ram(buf->vaddr, buf->num_pages);
 		sg_free_table(buf->dma_sgt);
@@ -228,6 +239,9 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	int num_pages_from_user;
 	struct vm_area_struct *vma;
 	struct sg_table *sgt;
+	DEFINE_DMA_ATTRS(attrs);
+
+	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
@@ -296,9 +310,13 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 		goto userptr_fail_alloc_table_from_pages;
 
 	sgt = &buf->sg_table;
-	if (dma_map_sg(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir) == 0)
+	/*
+	 * No need to sync to the device, this will happen later when the
+	 * prepare() memop is called.
+	 */
+	if (dma_map_sg_attrs(buf->dev, sgt->sgl, sgt->nents,
+			     buf->dma_dir, &attrs) == 0)
 		goto userptr_fail_map;
-	dma_sync_sg_for_cpu(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir);
 	return buf;
 
 userptr_fail_map:
@@ -327,10 +345,13 @@ static void vb2_dma_sg_put_userptr(void *buf_priv)
 	struct vb2_dma_sg_buf *buf = buf_priv;
 	struct sg_table *sgt = &buf->sg_table;
 	int i = buf->num_pages;
+	DEFINE_DMA_ATTRS(attrs);
+
+	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
 
 	dprintk(1, "%s: Releasing userspace buffer of %d pages\n",
 	       __func__, buf->num_pages);
-	dma_unmap_sg(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir);
+	dma_unmap_sg_attrs(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir, &attrs);
 	if (buf->vaddr)
 		vm_unmap_ram(buf->vaddr, buf->num_pages);
 	sg_free_table(buf->dma_sgt);
