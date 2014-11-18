@@ -825,7 +825,7 @@ static int nvme_submit_async_admin_req(struct nvme_dev *dev)
 	struct nvme_cmd_info *cmd_info;
 	struct request *req;
 
-	req = blk_mq_alloc_request(dev->admin_q, WRITE, GFP_KERNEL, false);
+	req = blk_mq_alloc_request(dev->admin_q, WRITE, GFP_ATOMIC, false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
