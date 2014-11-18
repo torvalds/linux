@@ -226,12 +226,6 @@ static int __init gb_init(void)
 		goto error_ap;
 	}
 
-	retval = gb_gbuf_init();
-	if (retval) {
-		pr_err("gb_gbuf_init failed\n");
-		goto error_gbuf;
-	}
-
 	retval = gb_operation_init();
 	if (retval) {
 		pr_err("gb_operation_init failed\n");
@@ -250,8 +244,6 @@ static int __init gb_init(void)
 error_protocol:
 	gb_operation_exit();
 error_operation:
-	gb_gbuf_exit();
-error_gbuf:
 	gb_ap_exit();
 error_ap:
 	bus_unregister(&greybus_bus_type);
@@ -265,7 +257,6 @@ static void __exit gb_exit(void)
 {
 	gb_protocol_exit();
 	gb_operation_exit();
-	gb_gbuf_exit();
 	gb_ap_exit();
 	bus_unregister(&greybus_bus_type);
 	gb_debugfs_cleanup();
