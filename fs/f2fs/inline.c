@@ -141,8 +141,8 @@ int f2fs_convert_inline_inode(struct inode *inode)
 
 	ipage = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(ipage)) {
-		f2fs_unlock_op(sbi);
-		return PTR_ERR(ipage);
+		err = PTR_ERR(ipage);
+		goto out;
 	}
 
 	set_new_dnode(&dn, inode, ipage, ipage, 0);
@@ -151,7 +151,7 @@ int f2fs_convert_inline_inode(struct inode *inode)
 		err = f2fs_convert_inline_page(&dn, page);
 
 	f2fs_put_dnode(&dn);
-
+out:
 	f2fs_unlock_op(sbi);
 
 	f2fs_put_page(page, 1);
