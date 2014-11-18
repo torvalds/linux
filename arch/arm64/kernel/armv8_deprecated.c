@@ -8,10 +8,16 @@
 
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/perf_event.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 
+#include <asm/insn.h>
+#include <asm/opcodes.h>
+#include <asm/system_misc.h>
 #include <asm/traps.h>
+#include <asm/uaccess.h>
 
 /*
  * The runtime support for deprecated instruction support can be in one of
@@ -204,10 +210,195 @@ static void register_insn_emulation_sysctl(struct ctl_table *table)
 }
 
 /*
+ *  Implement emulation of the SWP/SWPB instructions using load-exclusive and
+ *  store-exclusive.
+ *
+ *  Syntax of SWP{B} instruction: SWP{B}<c> <Rt>, <Rt2>, [<Rn>]
+ *  Where: Rt  = destination
+ *	   Rt2 = source
+ *	   Rn  = address
+ */
+
+/*
+ * Error-checking SWP macros implemented using ldxr{b}/stxr{b}
+ */
+#define __user_swpX_asm(data, addr, res, temp, B)		\
+	__asm__ __volatile__(					\
+	"	mov		%w2, %w1\n"			\
+	"0:	ldxr"B"		%w1, [%3]\n"			\
+	"1:	stxr"B"		%w0, %w2, [%3]\n"		\
+	"	cbz		%w0, 2f\n"			\
+	"	mov		%w0, %w4\n"			\
+	"2:\n"							\
+	"	.pushsection	 .fixup,\"ax\"\n"		\
+	"	.align		2\n"				\
+	"3:	mov		%w0, %w5\n"			\
+	"	b		2b\n"				\
+	"	.popsection"					\
+	"	.pushsection	 __ex_table,\"a\"\n"		\
+	"	.align		3\n"				\
+	"	.quad		0b, 3b\n"			\
+	"	.quad		1b, 3b\n"			\
+	"	.popsection"					\
+	: "=&r" (res), "+r" (data), "=&r" (temp)		\
+	: "r" (addr), "i" (-EAGAIN), "i" (-EFAULT)		\
+	: "memory")
+
+#define __user_swp_asm(data, addr, res, temp) \
+	__user_swpX_asm(data, addr, res, temp, "")
+#define __user_swpb_asm(data, addr, res, temp) \
+	__user_swpX_asm(data, addr, res, temp, "b")
+
+/*
+ * Bit 22 of the instruction encoding distinguishes between
+ * the SWP and SWPB variants (bit set means SWPB).
+ */
+#define TYPE_SWPB (1 << 22)
+
+/*
+ * Set up process info to signal segmentation fault - called on access error.
+ */
+static void set_segfault(struct pt_regs *regs, unsigned long addr)
+{
+	siginfo_t info;
+
+	down_read(&current->mm->mmap_sem);
+	if (find_vma(current->mm, addr) == NULL)
+		info.si_code = SEGV_MAPERR;
+	else
+		info.si_code = SEGV_ACCERR;
+	up_read(&current->mm->mmap_sem);
+
+	info.si_signo = SIGSEGV;
+	info.si_errno = 0;
+	info.si_addr  = (void *) instruction_pointer(regs);
+
+	pr_debug("SWP{B} emulation: access caused memory abort!\n");
+	arm64_notify_die("Illegal memory access", regs, &info, 0);
+}
+
+static int emulate_swpX(unsigned int address, unsigned int *data,
+			unsigned int type)
+{
+	unsigned int res = 0;
+
+	if ((type != TYPE_SWPB) && (address & 0x3)) {
+		/* SWP to unaligned address not permitted */
+		pr_debug("SWP instruction on unaligned pointer!\n");
+		return -EFAULT;
+	}
+
+	while (1) {
+		unsigned long temp;
+
+		if (type == TYPE_SWPB)
+			__user_swpb_asm(*data, address, res, temp);
+		else
+			__user_swp_asm(*data, address, res, temp);
+
+		if (likely(res != -EAGAIN) || signal_pending(current))
+			break;
+
+		cond_resched();
+	}
+
+	return res;
+}
+
+/*
+ * swp_handler logs the id of calling process, dissects the instruction, sanity
+ * checks the memory location, calls emulate_swpX for the actual operation and
+ * deals with fixup/error handling before returning
+ */
+static int swp_handler(struct pt_regs *regs, u32 instr)
+{
+	u32 destreg, data, type, address = 0;
+	int rn, rt2, res = 0;
+
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->pc);
+
+	type = instr & TYPE_SWPB;
+
+	switch (arm_check_condition(instr, regs->pstate)) {
+	case ARM_OPCODE_CONDTEST_PASS:
+		break;
+	case ARM_OPCODE_CONDTEST_FAIL:
+		/* Condition failed - return to next instruction */
+		goto ret;
+	case ARM_OPCODE_CONDTEST_UNCOND:
+		/* If unconditional encoding - not a SWP, undef */
+		return -EFAULT;
+	default:
+		return -EINVAL;
+	}
+
+	rn = aarch32_insn_extract_reg_num(instr, A32_RN_OFFSET);
+	rt2 = aarch32_insn_extract_reg_num(instr, A32_RT2_OFFSET);
+
+	address = (u32)regs->user_regs.regs[rn];
+	data	= (u32)regs->user_regs.regs[rt2];
+	destreg = aarch32_insn_extract_reg_num(instr, A32_RT_OFFSET);
+
+	pr_debug("addr in r%d->0x%08x, dest is r%d, source in r%d->0x%08x)\n",
+		rn, address, destreg,
+		aarch32_insn_extract_reg_num(instr, A32_RT2_OFFSET), data);
+
+	/* Check access in reasonable access range for both SWP and SWPB */
+	if (!access_ok(VERIFY_WRITE, (address & ~3), 4)) {
+		pr_debug("SWP{B} emulation: access to 0x%08x not allowed!\n",
+			address);
+		goto fault;
+	}
+
+	res = emulate_swpX(address, &data, type);
+	if (res == -EFAULT)
+		goto fault;
+	else if (res == 0)
+		regs->user_regs.regs[destreg] = data;
+
+ret:
+	pr_warn_ratelimited("\"%s\" (%ld) uses obsolete SWP{B} instruction at 0x%llx\n",
+			current->comm, (unsigned long)current->pid, regs->pc);
+
+	regs->pc += 4;
+	return 0;
+
+fault:
+	set_segfault(regs, address);
+
+	return 0;
+}
+
+/*
+ * Only emulate SWP/SWPB executed in ARM state/User mode.
+ * The kernel must be SWP free and SWP{B} does not exist in Thumb.
+ */
+static struct undef_hook swp_hooks[] = {
+	{
+		.instr_mask	= 0x0fb00ff0,
+		.instr_val	= 0x01000090,
+		.pstate_mask	= COMPAT_PSR_MODE_MASK,
+		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.fn		= swp_handler
+	},
+	{ }
+};
+
+static struct insn_emulation_ops swp_ops = {
+	.name = "swp",
+	.status = INSN_OBSOLETE,
+	.hooks = swp_hooks,
+	.set_hw_mode = NULL,
+};
+
+/*
  * Invoked as late_initcall, since not needed before init spawned.
  */
 static int __init armv8_deprecated_init(void)
 {
+	if (IS_ENABLED(CONFIG_SWP_EMULATION))
+		register_insn_emulation(&swp_ops);
+
 	register_insn_emulation_sysctl(ctl_abi);
 
 	return 0;

@@ -964,3 +964,11 @@ bool aarch32_insn_is_wide(u32 insn)
 {
 	return insn >= 0xe800;
 }
+
+/*
+ * Macros/defines for extracting register numbers from instruction.
+ */
+u32 aarch32_insn_extract_reg_num(u32 insn, int offset)
+{
+	return (insn & (0xf << offset)) >> offset;
+}

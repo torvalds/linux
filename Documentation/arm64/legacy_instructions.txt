@@ -31,3 +31,10 @@ behaviours and the corresponding values of the sysctl nodes -
 The default mode depends on the status of the instruction in the
 architecture. Deprecated instructions should default to emulation
 while obsolete instructions must be undefined by default.
+
+Supported legacy instructions
+-----------------------------
+* SWP{B}
+Node: /proc/sys/abi/swp
+Status: Obsolete
+Default: Undef (0)
