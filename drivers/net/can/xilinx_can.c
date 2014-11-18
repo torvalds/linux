@@ -962,6 +962,7 @@ static const struct net_device_ops xcan_netdev_ops = {
 	.ndo_open	= xcan_open,
 	.ndo_stop	= xcan_close,
 	.ndo_start_xmit	= xcan_start_xmit,
+	.ndo_change_mtu	= can_change_mtu,
 };
 
 /**
