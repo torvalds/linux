@@ -118,13 +118,30 @@ static int quota_getfmt(struct super_block *sb, int type, void __user *addr)
 
 static int quota_getinfo(struct super_block *sb, int type, void __user *addr)
 {
-	struct if_dqinfo info;
+	struct qc_state state;
+	struct qc_type_state *tstate;
+	struct if_dqinfo uinfo;
 	int ret;
 
-	if (!sb->s_qcop->get_info)
+	/* This checks whether qc_state has enough entries... */
+	BUILD_BUG_ON(MAXQUOTAS > XQM_MAXQUOTAS);
+	if (!sb->s_qcop->get_state)
 		return -ENOSYS;
-	ret = sb->s_qcop->get_info(sb, type, &info);
-	if (!ret && copy_to_user(addr, &info, sizeof(info)))
+	ret = sb->s_qcop->get_state(sb, &state);
+	if (ret)
+		return ret;
+	tstate = state.s_state + type;
+	if (!(tstate->flags & QCI_ACCT_ENABLED))
+		return -ESRCH;
+	memset(&uinfo, 0, sizeof(uinfo));
+	uinfo.dqi_bgrace = tstate->spc_timelimit;
+	uinfo.dqi_igrace = tstate->ino_timelimit;
+	if (tstate->flags & QCI_SYSFILE)
+		uinfo.dqi_flags |= DQF_SYS_FILE;
+	if (tstate->flags & QCI_ROOT_SQUASH)
+		uinfo.dqi_flags |= DQF_ROOT_SQUASH;
+	uinfo.dqi_valid = IIF_ALL;
+	if (!ret && copy_to_user(addr, &uinfo, sizeof(uinfo)))
 		return -EFAULT;
 	return ret;
 }

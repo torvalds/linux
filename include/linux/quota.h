@@ -366,6 +366,37 @@ struct qc_dqblk {
 #define	QC_RT_SPACE	(1<<14)
 #define QC_ACCT_MASK (QC_SPACE | QC_INO_COUNT | QC_RT_SPACE)
 
+#define QCI_SYSFILE		(1 << 0)	/* Quota file is hidden from userspace */
+#define QCI_ROOT_SQUASH		(1 << 1)	/* Root squash turned on */
+#define QCI_ACCT_ENABLED	(1 << 2)	/* Quota accounting enabled */
+#define QCI_LIMITS_ENFORCED	(1 << 3)	/* Quota limits enforced */
+
+/* Structures for communicating via ->get_state */
+struct qc_type_state {
+	unsigned int flags;		/* Flags QCI_* */
+	unsigned int spc_timelimit;	/* Time after which space softlimit is
+					 * enforced */
+	unsigned int ino_timelimit;	/* Ditto for inode softlimit */
+	unsigned int rt_spc_timelimit;	/* Ditto for real-time space */
+	unsigned int spc_warnlimit;	/* Limit for number of space warnings */
+	unsigned int ino_warnlimit;	/* Ditto for inodes */
+	unsigned int rt_spc_warnlimit;	/* Ditto for real-time space */
+	unsigned long long ino;		/* Inode number of quota file */
+	blkcnt_t blocks;		/* Number of 512-byte blocks in the file */
+	blkcnt_t nextents;		/* Number of extents in the file */
+};
+
+struct qc_state {
+	unsigned int s_incoredqs;	/* Number of dquots in core */
+	/*
+	 * Per quota type information. The array should really have
+	 * max(MAXQUOTAS, XQM_MAXQUOTAS) entries. BUILD_BUG_ON in
+	 * quota_getinfo() makes sure XQM_MAXQUOTAS is large enough.  Once VFS
+	 * supports project quotas, this can be changed to MAXQUOTAS
+	 */
+	struct qc_type_state s_state[XQM_MAXQUOTAS];
+};
+
 /* Operations handling requests from userspace */
 struct quotactl_ops {
 	int (*quota_on)(struct super_block *, int, int, struct path *);
@@ -373,10 +404,10 @@ struct quotactl_ops {
 	int (*quota_enable)(struct super_block *, unsigned int);
 	int (*quota_disable)(struct super_block *, unsigned int);
 	int (*quota_sync)(struct super_block *, int);
-	int (*get_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*set_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*get_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
 	int (*set_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
+	int (*get_state)(struct super_block *, struct qc_state *);
 	int (*get_xstate)(struct super_block *, struct fs_quota_stat *);
 	int (*get_xstatev)(struct super_block *, struct fs_quota_statv *);
 	int (*rm_xquota)(struct super_block *, unsigned int);
