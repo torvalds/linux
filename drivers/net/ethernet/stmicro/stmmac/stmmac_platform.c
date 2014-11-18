@@ -51,7 +51,11 @@ MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
 
 #ifdef CONFIG_OF
 
-/* This function validates the number of Multicast filtering bins specified
+/**
+ * dwmac1000_validate_mcast_bins - validates the number of Multicast filter bins
+ * @mcast_bins: Multicast filtering bins
+ * Description:
+ * this function validates the number of Multicast filtering bins specified
  * by the configuration through the device tree. The Synopsys GMAC supports
  * 64 bins, 128 bins, or 256 bins. "bins" refer to the division of CRC
  * number space. 64 bins correspond to 6 bits of the CRC, 128 corresponds
@@ -77,7 +81,11 @@ static int dwmac1000_validate_mcast_bins(int mcast_bins)
 	return x;
 }
 
-/* This function validates the number of Unicast address entries supported
+/**
+ * dwmac1000_validate_ucast_entries - validate the Unicast address entries
+ * @ucast_entries: number of Unicast address entries
+ * Description:
+ * This function validates the number of Unicast address entries supported
  * by a particular Synopsys 10/100/1000 controller. The Synopsys controller
  * supports 1, 32, 64, or 128 Unicast filter entries for it's Unicast filter
  * logic. This function validates a valid, supported configuration is
@@ -103,6 +111,15 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
 	return x;
 }
 
+/**
+ * stmmac_probe_config_dt - parse device-tree driver parameters
+ * @pdev: platform_device structure
+ * @plat: driver data platform structure
+ * @mac: MAC address to use
+ * Description:
+ * this function is to read the driver parameters from device-tree and
+ * set some private fields that will be used by the main at runtime.
+ */
 static int stmmac_probe_config_dt(struct platform_device *pdev,
 				  struct plat_stmmacenet_data *plat,
 				  const char **mac)
@@ -242,11 +259,11 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 #endif /* CONFIG_OF */
 
 /**
- * stmmac_pltfr_probe
+ * stmmac_pltfr_probe - platform driver probe.
  * @pdev: platform device pointer
- * Description: platform_device probe function. It allocates
- * the necessary resources and invokes the main to init
- * the net device, register the mdio bus etc.
+ * Description: platform_device probe function. It is to allocate
+ * the necessary platform resources, invoke custom helper (if required) and
+ * invoke the main probe function.
  */
 static int stmmac_pltfr_probe(struct platform_device *pdev)
 {
@@ -363,6 +380,13 @@ static int stmmac_pltfr_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+/**
+ * stmmac_pltfr_suspend
+ * @dev: device pointer
+ * Description: this function is invoked when suspend the driver and it direcly
+ * call the main suspend function and then, if required, on some platform, it
+ * can call an exit helper.
+ */
 static int stmmac_pltfr_suspend(struct device *dev)
 {
 	int ret;
@@ -377,6 +401,13 @@ static int stmmac_pltfr_suspend(struct device *dev)
 	return ret;
 }
 
+/**
+ * stmmac_pltfr_resume
+ * @dev: device pointer
+ * Description: this function is invoked when resume the driver before calling
+ * the main resume function, on some platforms, it can call own init helper
+ * if required.
+ */
 static int stmmac_pltfr_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
