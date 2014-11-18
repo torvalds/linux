@@ -242,11 +242,15 @@ static const char *hangcheck_action_to_str(enum intel_ring_hangcheck_action a)
 
 static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 				  struct drm_device *dev,
-				  struct drm_i915_error_ring *ring)
+				  struct drm_i915_error_state *error,
+				  int ring_idx)
 {
+	struct drm_i915_error_ring *ring = &error->ring[ring_idx];
+
 	if (!ring->valid)
 		return;
 
+	err_printf(m, "%s command stream:\n", ring_str(ring_idx));
 	err_printf(m, "  HEAD: 0x%08x\n", ring->head);
 	err_printf(m, "  TAIL: 0x%08x\n", ring->tail);
 	err_printf(m, "  CTL: 0x%08x\n", ring->ctl);
@@ -388,10 +392,8 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	if (INTEL_INFO(dev)->gen == 7)
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
-	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
-		err_printf(m, "%s command stream:\n", ring_str(i));
-		i915_ring_error_state(m, dev, &error->ring[i]);
-	}
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++)
+		i915_ring_error_state(m, dev, error, i);
 
 	for (i = 0; i < error->vm_count; i++) {
 		err_printf(m, "vm[%d]\n", i);
