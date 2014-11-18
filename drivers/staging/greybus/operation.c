@@ -106,8 +106,16 @@ gb_pending_operation_find(struct gb_connection *connection, u16 id)
 static int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {
 	gbuf->status = -EINPROGRESS;
+	gbuf->hcd_data = gbuf->hd->driver->buffer_send(gbuf->hd,
+				gbuf->dest_cport_id, gbuf->transfer_buffer,
+				gbuf->transfer_buffer_length, gfp_mask);
+	if (IS_ERR(gbuf->hcd_data)) {
+		gbuf->status = PTR_ERR(gbuf->hcd_data);
+		gbuf->hcd_data = NULL;
 
-	return gbuf->hd->driver->submit_gbuf(gbuf, gfp_mask);
+		return gbuf->status;
+	}
+	return 0;
 }
 
 static void greybus_kill_gbuf(struct gbuf *gbuf)

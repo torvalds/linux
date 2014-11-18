@@ -81,7 +81,8 @@ struct greybus_host_driver {
 
 	void *(*buffer_alloc)(unsigned int size, gfp_t gfp_mask);
 	void (*buffer_free)(void *buffer);
-	int (*submit_gbuf)(struct gbuf *gbuf, gfp_t gfp_mask);
+	void *(*buffer_send)(struct greybus_host_device *hd, u16 dest_cport_id,
+			void *buffer, size_t buffer_size, gfp_t gfp_mask);
 	void (*buffer_cancel)(void *cookie);
 	int (*submit_svc)(struct svc_msg *svc_msg,
 			    struct greybus_host_device *hd);

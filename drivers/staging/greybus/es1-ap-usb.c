@@ -183,47 +183,65 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 	return urb;
 }
 
-static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
+/*
+ * Returns an opaque cookie value if successful, or a pointer coded
+ * error otherwise.  If the caller wishes to cancel the in-flight
+ * buffer, it must supply the returned cookie to the cancel routine.
+ */
+static void *buffer_send(struct greybus_host_device *hd, u16 dest_cport_id,
+			void *buffer, size_t buffer_size, gfp_t gfp_mask)
 {
-	struct greybus_host_device *hd = gbuf->hd;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
-	u16 dest_cport_id = gbuf->dest_cport_id;
+	u8 *transfer_buffer = buffer;
+	int transfer_buffer_size;
 	int retval;
-	u8 *transfer_buffer;
-	u8 *buffer;
 	struct urb *urb;
 
-	transfer_buffer = gbuf->transfer_buffer;
-	if (!transfer_buffer)
-		return -EINVAL;
-	buffer = &transfer_buffer[-1];	/* yes, we mean -1 */
+	if (!buffer) {
+		pr_err("null buffer supplied to send\n");
+		return ERR_PTR(-EINVAL);
+	}
+	if (buffer_size > (size_t)INT_MAX) {
+		pr_err("bad buffer size (%zu) supplied to send\n", buffer_size);
+		return ERR_PTR(-EINVAL);
+	}
+	transfer_buffer--;
+	transfer_buffer_size = buffer_size + 1;
 
-	/* Do one last check of the target CPort id before filling it in */
+	/*
+	 * The data actually transferred will include an indication
+	 * of where the data should be sent.  Do one last check of
+	 * the target CPort id before filling it in.
+	 */
 	if (dest_cport_id == CPORT_ID_BAD) {
 		pr_err("request to send inbound data buffer\n");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 	if (dest_cport_id > (u16)U8_MAX) {
 		pr_err("dest_cport_id (%hd) is out of range for ES1\n",
 			dest_cport_id);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
-	*buffer = dest_cport_id;
+	/* OK, the destination is fine; record it in the transfer buffer */
+	*transfer_buffer = dest_cport_id;
 
 	/* Find a free urb */
 	urb = next_free_urb(es1, gfp_mask);
 	if (!urb)
-		return -ENOMEM;
-
-	gbuf->hcd_data = urb;
+		return ERR_PTR(-ENOMEM);
 
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev, es1->cport_out_endpoint),
-			  buffer, gbuf->transfer_buffer_length + 1,
+			  transfer_buffer, transfer_buffer_size,
 			  cport_out_callback, hd);
 	retval = usb_submit_urb(urb, gfp_mask);
-	return retval;
+	if (retval) {
+		pr_err("error %d submitting URB\n", retval);
+		return ERR_PTR(retval);
+	}
+
+	return urb;
 }
 
 static void buffer_cancel(void *cookie)
@@ -242,7 +260,7 @@ static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
 	.buffer_alloc		= buffer_alloc,
 	.buffer_free		= buffer_free,
-	.submit_gbuf		= submit_gbuf,
+	.buffer_send		= buffer_send,
 	.buffer_cancel		= buffer_cancel,
 	.submit_svc		= submit_svc,
 };
