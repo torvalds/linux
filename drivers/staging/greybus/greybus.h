@@ -119,8 +119,6 @@
 */
 
 struct gbuf {
-	struct kref kref;
-
 	struct greybus_host_device *hd;
 	u16 dest_cport_id;		/* Destination CPort id */
 	int status;

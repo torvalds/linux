@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
-#include <linux/kref.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 
@@ -46,7 +45,6 @@ struct gbuf *greybus_alloc_gbuf(struct greybus_host_device *hd,
 	if (!gbuf)
 		return NULL;
 
-	kref_init(&gbuf->kref);
 	gbuf->hd = hd;
 	gbuf->dest_cport_id = dest_cport_id;
 	gbuf->status = -EBADR;	/* Initial value--means "never set" */
@@ -62,19 +60,11 @@ struct gbuf *greybus_alloc_gbuf(struct greybus_host_device *hd,
 }
 EXPORT_SYMBOL_GPL(greybus_alloc_gbuf);
 
-static void free_gbuf(struct kref *kref)
+void greybus_free_gbuf(struct gbuf *gbuf)
 {
-	struct gbuf *gbuf = container_of(kref, struct gbuf, kref);
-
 	gbuf->hd->driver->free_gbuf_data(gbuf);
 
 	kmem_cache_free(gbuf_head_cache, gbuf);
-}
-
-void greybus_free_gbuf(struct gbuf *gbuf)
-{
-	/* drop the reference count and get out of here */
-	kref_put(&gbuf->kref, free_gbuf);
 }
 EXPORT_SYMBOL_GPL(greybus_free_gbuf);
 
