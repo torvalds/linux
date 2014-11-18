@@ -2405,7 +2405,7 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 	case INTUOSPS:
 		/* touch interface does not have the pad device */
 		if (features->device_type != BTN_TOOL_PEN)
-			return 1;
+			return -ENODEV;
 
 		for (i = 0; i < 7; i++)
 			__set_bit(BTN_0 + i, input_dev->keybit);
@@ -2450,7 +2450,7 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 	case BAMBOO_PT:
 		/* pad device is on the touch interface */
 		if (features->device_type != BTN_TOOL_FINGER)
-			return 1;
+			return -ENODEV;
 
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
@@ -2463,7 +2463,7 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 
 	default:
 		/* no pad supported */
-		return 1;
+		return -ENODEV;
 	}
 	return 0;
 }
