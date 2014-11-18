@@ -63,7 +63,6 @@ config CPU_FREQ_DEFAULT_GOV_PERFORMANCE
 
 config CPU_FREQ_DEFAULT_GOV_POWERSAVE
 	bool "powersave"
-	depends on EXPERT
 	select CPU_FREQ_GOV_POWERSAVE
 	help
 	  Use the CPUFreq governor 'powersave' as default. This sets
@@ -245,6 +244,16 @@ config LOONGSON2_CPUFREQ
 	  support software configurable cpu frequency.
 
 	  Loongson2F and it's successors support this feature.
+
+	  For details, take a look at <file:Documentation/cpu-freq/>.
+
+	  If in doubt, say N.
+
+config LOONGSON1_CPUFREQ
+	tristate "Loongson1 CPUFreq Driver"
+	help
+	  This option adds a CPUFreq driver for loongson1 processors which
+	  support software configurable cpu frequency.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
