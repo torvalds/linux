@@ -23,6 +23,7 @@
 
 /*
  * XXX This needs to be coordinated with host driver parameters
+ * XXX May need to reduce to allow for message header within a page
  */
 #define GB_OPERATION_MESSAGE_SIZE_MAX	4096
 
@@ -196,36 +197,56 @@ static void operation_timeout(struct work_struct *work)
  * initialize it here (it'll be overwritten by the incoming
  * message).
  */
-static struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
-					     u8 type, size_t size,
-					     bool data_out)
+static int gb_operation_message_init(struct gb_operation *operation,
+					u8 type, size_t size,
+					bool request, bool data_out)
 {
 	struct gb_connection *connection = operation->connection;
+	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
-	struct gbuf *gbuf;
 	gfp_t gfp_flags = data_out ? GFP_KERNEL : GFP_ATOMIC;
 	u16 dest_cport_id;
 
 	if (size > GB_OPERATION_MESSAGE_SIZE_MAX)
-		return NULL;	/* Message too big */
+		return -E2BIG;
 
+	if (request) {
+		message = &operation->request;
+	} else {
+		message = &operation->response;
+		type |= GB_OPERATION_TYPE_RESPONSE;
+	}
 	if (data_out)
 		dest_cport_id = connection->interface_cport_id;
 	else
 		dest_cport_id = CPORT_ID_BAD;
+
+	if (message->gbuf)
+		return -EALREADY;	/* Sanity check */
 	size += sizeof(*header);
-	gbuf = greybus_alloc_gbuf(connection->hd, dest_cport_id,
+	message->gbuf = greybus_alloc_gbuf(connection->hd, dest_cport_id,
 					size, gfp_flags);
-	if (!gbuf)
-		return NULL;
+	if (!message->gbuf)
+		return -ENOMEM;
 
 	/* Fill in the header structure */
-	header = (struct gb_operation_msg_hdr *)gbuf->transfer_buffer;
+	header = (struct gb_operation_msg_hdr *)message->gbuf->transfer_buffer;
 	header->size = cpu_to_le16(size);
 	header->id = 0;		/* Filled in when submitted */
 	header->type = type;
 
-	return gbuf;
+	message->payload = header + 1;
+	message->operation = operation;
+
+	return 0;
+}
+
+static void gb_operation_message_exit(struct gb_message *message)
+{
+	message->operation = NULL;
+	message->payload = NULL;
+	greybus_free_gbuf(message->gbuf);
+	message->gbuf = NULL;
 }
 
 /*
@@ -251,32 +272,23 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	struct gb_operation *operation;
 	gfp_t gfp_flags = response_size ? GFP_KERNEL : GFP_ATOMIC;
 	bool outgoing = response_size != 0;
+	int ret;
 
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
 	if (!operation)
 		return NULL;
 	operation->connection = connection;
 
-	operation->request.gbuf = gb_operation_gbuf_create(operation, type,
-							request_size,
-							outgoing);
-	if (!operation->request.gbuf)
+	ret = gb_operation_message_init(operation, type, request_size,
+						true, outgoing);
+	if (ret)
 		goto err_cache;
-	operation->request.operation = operation;
-	operation->request.payload = operation->request.gbuf->transfer_buffer +
-					sizeof(struct gb_operation_msg_hdr);
 
 	if (outgoing) {
-		type |= GB_OPERATION_TYPE_RESPONSE;
-		operation->response.gbuf = gb_operation_gbuf_create(operation,
-						type, response_size,
-						false);
-		if (!operation->response.gbuf)
+		ret = gb_operation_message_init(operation, type, response_size,
+						false, false);
+		if (ret)
 			goto err_request;
-		operation->response.operation = operation;
-		operation->response.payload =
-				operation->response.gbuf->transfer_buffer +
-				sizeof(struct gb_operation_msg_hdr);
 	}
 
 	INIT_WORK(&operation->recv_work, gb_operation_recv_work);
@@ -292,7 +304,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	return operation;
 
 err_request:
-	greybus_free_gbuf(operation->request.gbuf);
+	gb_operation_message_exit(&operation->request);
 err_cache:
 	kmem_cache_free(gb_operation_cache, operation);
 
@@ -313,8 +325,8 @@ static void _gb_operation_destroy(struct kref *kref)
 	list_del(&operation->links);
 	spin_unlock_irq(&gb_operations_lock);
 
-	greybus_free_gbuf(operation->response.gbuf);
-	greybus_free_gbuf(operation->request.gbuf);
+	gb_operation_message_exit(&operation->response);
+	gb_operation_message_exit(&operation->request);
 
 	kmem_cache_free(gb_operation_cache, operation);
 }
