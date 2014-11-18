@@ -2050,9 +2050,6 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	switch (features->type) {
 	case WACOM_MO:
-		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
-		/* fall through */
-
 	case WACOM_G4:
 		/* fall through */
 
@@ -2306,9 +2303,7 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 
 	case WACOM_G4:
 		__set_bit(BTN_BACK, input_dev->keybit);
-		__set_bit(BTN_LEFT, input_dev->keybit);
 		__set_bit(BTN_FORWARD, input_dev->keybit);
-		__set_bit(BTN_RIGHT, input_dev->keybit);
 		input_set_capability(input_dev, EV_REL, REL_WHEEL);
 		break;
 
