@@ -314,20 +314,13 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 
 	lockdep_assert_held(&htt->rx_ring.lock);
 
-	if (htt->rx_confused) {
-		ath10k_warn(ar, "htt is confused. refusing rx\n");
-		return -1;
-	}
-
 	for (;;) {
 		int last_msdu, msdu_len_invalid, msdu_chained;
 
 		msdu = ath10k_htt_rx_netbuf_pop(htt);
 		if (!msdu) {
-			ath10k_err(ar, "failed to pop msdu\n");
 			__skb_queue_purge(amsdu);
-			htt->rx_confused = true;
-			break;
+			return -ENOENT;
 		}
 
 		__skb_queue_tail(amsdu, msdu);
@@ -349,10 +342,8 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		 */
 		if (!(__le32_to_cpu(rx_desc->attention.flags)
 				& RX_ATTENTION_FLAGS_MSDU_DONE)) {
-			ath10k_err(ar, "popped an incomplete msdu\n");
 			__skb_queue_purge(amsdu);
-			htt->rx_confused = true;
-			break;
+			return -EIO;
 		}
 
 		*attention |= __le32_to_cpu(rx_desc->attention.flags) &
@@ -420,10 +411,8 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		while (msdu_chained--) {
 			msdu = ath10k_htt_rx_netbuf_pop(htt);
 			if (!msdu) {
-				ath10k_warn(ar, "failed to pop chained msdu\n");
 				__skb_queue_purge(amsdu);
-				htt->rx_confused = true;
-				break;
+				return -ENOENT;
 			}
 
 			__skb_queue_tail(amsdu, msdu);
@@ -1201,6 +1190,9 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 
 	lockdep_assert_held(&htt->rx_ring.lock);
 
+	if (htt->rx_confused)
+		return;
+
 	fw_desc_len = __le16_to_cpu(rx->prefix.fw_rx_desc_bytes);
 	fw_desc = (u8 *)&rx->fw_desc;
 
@@ -1246,10 +1238,13 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 					      &fw_desc_len, &amsdu,
 					      &attention);
 		if (ret < 0) {
-			ath10k_warn(ar, "failed to pop amsdu from htt rx ring %d\n",
-				    ret);
+			ath10k_warn(ar, "rx ring became corrupted: %d\n", ret);
 			__skb_queue_purge(&amsdu);
-			continue;
+			/* FIXME: It's probably a good idea to reboot the
+			 * device instead of leaving it inoperable.
+			 */
+			htt->rx_confused = true;
+			break;
 		}
 
 		if (!ath10k_htt_rx_amsdu_allowed(htt, skb_peek(&amsdu),
