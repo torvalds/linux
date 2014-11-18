@@ -5482,11 +5482,11 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	trace_kvm_page_fault(gpa, exit_qualification);
 
 	/* It is a write fault? */
-	error_code = exit_qualification & (1U << 1);
+	error_code = exit_qualification & PFERR_WRITE_MASK;
 	/* It is a fetch fault? */
-	error_code |= (exit_qualification & (1U << 2)) << 2;
+	error_code |= (exit_qualification << 2) & PFERR_FETCH_MASK;
 	/* ept page table is present? */
-	error_code |= (exit_qualification >> 3) & 0x1;
+	error_code |= (exit_qualification >> 3) & PFERR_PRESENT_MASK;
 
 	vcpu->arch.exit_qualification = exit_qualification;
 
