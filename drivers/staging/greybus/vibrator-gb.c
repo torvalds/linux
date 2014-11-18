@@ -11,11 +11,13 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/kdev_t.h>
+#include <linux/idr.h>
 #include "greybus.h"
 
 struct gb_vibrator_device {
 	struct gb_connection	*connection;
 	struct device		*dev;
+	int			minor;		/* vibrator minor number */
 	u8			version_major;
 	u8			version_minor;
 };
@@ -202,7 +204,7 @@ static struct class vibrator_class = {
 #endif
 };
 
-static int minor;
+static DEFINE_IDR(minors);
 
 static int gb_vibrator_connection_init(struct gb_connection *connection)
 {
@@ -221,17 +223,21 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 		goto error;
 
 	/*
-	 * FIXME: for now we create a device in sysfs for the vibrator, but odds
-	 * are there is a "real" device somewhere in the kernel for this, but I
+	 * For now we create a device in sysfs for the vibrator, but odds are
+	 * there is a "real" device somewhere in the kernel for this, but I
 	 * can't find it at the moment...
 	 */
+	vib->minor = idr_alloc(&minors, vib, 0, 0, GFP_KERNEL);
+	if (vib->minor < 0) {
+		retval = vib->minor;
+		goto error;
+	}
 	dev = device_create(&vibrator_class, &connection->dev, MKDEV(0, 0), vib,
-			    "vibrator%d", minor);
+			    "vibrator%d", vib->minor);
 	if (IS_ERR(dev)) {
 		retval = -EINVAL;
 		goto error;
 	}
-	minor++;
 	vib->dev = dev;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,11,0)
@@ -261,6 +267,7 @@ static void gb_vibrator_connection_exit(struct gb_connection *connection)
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,11,0)
 	sysfs_remove_group(&vib->dev->kobj, vibrator_groups[0]);
 #endif
+	idr_remove(&minors, vib->minor);
 	device_unregister(vib->dev);
 	kfree(vib);
 }
