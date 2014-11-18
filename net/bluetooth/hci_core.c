@@ -2561,6 +2561,11 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		cancel_delayed_work_sync(&hdev->rpa_expired);
 
+	/* Avoid potential lockdep warnings from the *_flush() calls by
+	 * ensuring the workqueue is empty up front.
+	 */
+	drain_workqueue(hdev->workqueue);
+
 	hci_dev_lock(hdev);
 	hci_inquiry_cache_flush(hdev);
 	hci_pend_le_actions_clear(hdev);
@@ -2683,6 +2688,11 @@ int hci_dev_reset(__u16 dev)
 	/* Drop queues */
 	skb_queue_purge(&hdev->rx_q);
 	skb_queue_purge(&hdev->cmd_q);
+
+	/* Avoid potential lockdep warnings from the *_flush() calls by
+	 * ensuring the workqueue is empty up front.
+	 */
+	drain_workqueue(hdev->workqueue);
 
 	hci_dev_lock(hdev);
 	hci_inquiry_cache_flush(hdev);
