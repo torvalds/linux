@@ -930,6 +930,16 @@ static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
 	}
 
 	list_for_each_entry(request, &ring->request_list, list) {
+		/*
+		 * The request queue is per-engine, so can contain requests
+		 * from multiple ringbuffers. Here, we must ignore any that
+		 * aren't from the ringbuffer we're considering.
+		 */
+		struct intel_context *ctx = request->ctx;
+		if (ctx->engine[ring->id].ringbuf != ringbuf)
+			continue;
+
+		/* Would completion of this request free enough space? */
 		if (__intel_ring_space(request->tail, ringbuf->tail,
 				       ringbuf->size) >= bytes) {
 			seqno = request->seqno;
