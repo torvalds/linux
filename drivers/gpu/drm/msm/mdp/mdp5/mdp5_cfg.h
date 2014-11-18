@@ -78,12 +78,14 @@ struct mdp5_cfg {
 };
 
 struct mdp5_kms;
+struct mdp5_cfg_handler;
 
-const struct mdp5_cfg_hw *mdp5_cfg_get_hw_config(void *cfg_hnd);
-struct mdp5_cfg *mdp5_cfg_get_config(void *cfg_hnd);
-int mdp5_cfg_get_hw_rev(void *cfg_hnd);
+const struct mdp5_cfg_hw *mdp5_cfg_get_hw_config(struct mdp5_cfg_handler *cfg_hnd);
+struct mdp5_cfg *mdp5_cfg_get_config(struct mdp5_cfg_handler *cfg_hnd);
+int mdp5_cfg_get_hw_rev(struct mdp5_cfg_handler *cfg_hnd);
 
-void *mdp5_cfg_init(struct mdp5_kms *mdp5_kms, uint32_t major, uint32_t minor);
-void mdp5_cfg_destroy(void *cfg_hnd);
+struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
+		uint32_t major, uint32_t minor);
+void mdp5_cfg_destroy(struct mdp5_cfg_handler *cfg_hnd);
 
 #endif /* __MDP5_CFG_H__ */

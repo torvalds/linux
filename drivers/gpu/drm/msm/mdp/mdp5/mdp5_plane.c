@@ -77,7 +77,7 @@ static int mdp5_plane_disable(struct drm_plane *plane)
 
 	if (mdp5_kms) {
 		/* Release the memory we requested earlier from the SMP: */
-		mdp5_smp_release(mdp5_kms->smp_priv, pipe);
+		mdp5_smp_release(mdp5_kms->smp, pipe);
 	}
 
 	/* TODO detaching now will cause us not to get the last
@@ -232,7 +232,7 @@ int mdp5_plane_mode_set(struct drm_plane *plane,
 			crtc->base.id, crtc_x, crtc_y, crtc_w, crtc_h);
 
 	/* Request some memory from the SMP: */
-	ret = mdp5_smp_request(mdp5_kms->smp_priv,
+	ret = mdp5_smp_request(mdp5_kms->smp,
 			mdp5_plane->pipe, fb->pixel_format, src_w);
 	if (ret)
 		return ret;
@@ -243,7 +243,7 @@ int mdp5_plane_mode_set(struct drm_plane *plane,
 	 * would move into atomic->check_plane_state(), while updating the
 	 * hw would remain here:
 	 */
-	mdp5_smp_configure(mdp5_kms->smp_priv, pipe);
+	mdp5_smp_configure(mdp5_kms->smp, pipe);
 
 	if (src_w != crtc_w) {
 		config |= MDP5_PIPE_SCALE_CONFIG_SCALEX_EN;
@@ -335,7 +335,7 @@ void mdp5_plane_complete_flip(struct drm_plane *plane)
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	enum mdp5_pipe pipe = to_mdp5_plane(plane)->pipe;
 
-	mdp5_smp_commit(mdp5_kms->smp_priv, pipe);
+	mdp5_smp_commit(mdp5_kms->smp, pipe);
 }
 
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)

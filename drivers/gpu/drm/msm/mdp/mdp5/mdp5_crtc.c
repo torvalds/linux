@@ -37,7 +37,7 @@ struct mdp5_crtc {
 	spinlock_t lm_lock;	/* protect REG_MDP5_LM_* registers */
 
 	/* CTL used for this CRTC: */
-	void *ctl;
+	struct mdp5_ctl *ctl;
 
 	/* if there is a pending flip, these will be non-null: */
 	struct drm_pending_vblank_event *event;
@@ -261,7 +261,7 @@ static void blend_setup(struct drm_crtc *crtc)
 	unsigned long flags;
 #define blender(stage)	((stage) - STAGE_BASE)
 
-	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg_priv);
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
 	spin_lock_irqsave(&mdp5_crtc->lm_lock, flags);
 
@@ -327,7 +327,7 @@ static int mdp5_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* request a free CTL, if none is already allocated for this CRTC */
 	if (!mdp5_crtc->ctl) {
-		mdp5_crtc->ctl = mdp5_ctl_request(mdp5_kms->ctl_priv, crtc);
+		mdp5_crtc->ctl = mdp5_ctlm_request(mdp5_kms->ctlm, crtc);
 		if (!mdp5_crtc->ctl)
 			return -EBUSY;
 	}
@@ -595,7 +595,7 @@ int mdp5_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane)
 	enum mdp_mixer_stage_id stage = STAGE_BASE;
 	int max_nb_planes;
 
-	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg_priv);
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 	max_nb_planes = hw_cfg->lm.nb_stages;
 
 	if (count_planes(crtc) >= max_nb_planes) {

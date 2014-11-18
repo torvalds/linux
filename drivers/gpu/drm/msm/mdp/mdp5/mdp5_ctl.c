@@ -50,7 +50,8 @@ struct mdp5_ctl {
 	u32 flush_mask;
 
 	bool cursor_on;
-	void *crtc;
+
+	struct drm_crtc *crtc;
 };
 
 struct mdp5_ctl_manager {
@@ -96,9 +97,8 @@ u32 ctl_read(struct mdp5_ctl *ctl, u32 reg)
 }
 
 
-int mdp5_ctl_set_intf(void *c, enum mdp5_intf intf)
+int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, enum mdp5_intf intf)
 {
-	struct mdp5_ctl *ctl = c;
 	unsigned long flags;
 	static const enum mdp5_intfnum intfnum[] = {
 			INTF0, INTF1, INTF2, INTF3,
@@ -113,10 +113,9 @@ int mdp5_ctl_set_intf(void *c, enum mdp5_intf intf)
 	return 0;
 }
 
-int mdp5_ctl_set_cursor(void *c, bool enable)
+int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, bool enable)
 {
 	struct mdp5_ctl_manager *ctl_mgr = &mdp5_ctl_mgr;
-	struct mdp5_ctl *ctl = c;
 	unsigned long flags;
 	u32 blend_cfg;
 	int lm;
@@ -147,9 +146,8 @@ int mdp5_ctl_set_cursor(void *c, bool enable)
 }
 
 
-int mdp5_ctl_blend(void *c, u32 lm, u32 blend_cfg)
+int mdp5_ctl_blend(struct mdp5_ctl *ctl, u32 lm, u32 blend_cfg)
 {
-	struct mdp5_ctl *ctl = c;
 	unsigned long flags;
 
 	if (ctl->cursor_on)
@@ -164,10 +162,9 @@ int mdp5_ctl_blend(void *c, u32 lm, u32 blend_cfg)
 	return 0;
 }
 
-int mdp5_ctl_commit(void *c, u32 flush_mask)
+int mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask)
 {
 	struct mdp5_ctl_manager *ctl_mgr = &mdp5_ctl_mgr;
-	struct mdp5_ctl *ctl = c;
 	unsigned long flags;
 
 	if (flush_mask & MDP5_CTL_FLUSH_CURSOR_DUMMY) {
@@ -190,17 +187,14 @@ int mdp5_ctl_commit(void *c, u32 flush_mask)
 	return 0;
 }
 
-u32 mdp5_ctl_get_flush(void *c)
+u32 mdp5_ctl_get_flush(struct mdp5_ctl *ctl)
 {
-	struct mdp5_ctl *ctl = c;
-
 	return ctl->flush_mask;
 }
 
-void mdp5_ctl_release(void *c)
+void mdp5_ctl_release(struct mdp5_ctl *ctl)
 {
 	struct mdp5_ctl_manager *ctl_mgr = &mdp5_ctl_mgr;
-	struct mdp5_ctl *ctl = c;
 	unsigned long flags;
 
 	if (unlikely(WARN_ON(ctl->id >= MAX_CTL) || !ctl->busy)) {
@@ -223,9 +217,9 @@ void mdp5_ctl_release(void *c)
  *
  * @return first free CTL
  */
-void *mdp5_ctl_request(void *ctlm, void *crtc)
+struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctl_mgr,
+		struct drm_crtc *crtc)
 {
-	struct mdp5_ctl_manager *ctl_mgr = ctlm;
 	struct mdp5_ctl *ctl = NULL;
 	unsigned long flags;
 	int c;
@@ -252,9 +246,8 @@ unlock:
 	return ctl;
 }
 
-void mdp5_ctlm_hw_reset(void *ctlm)
+void mdp5_ctlm_hw_reset(struct mdp5_ctl_manager *ctl_mgr)
 {
-	struct mdp5_ctl_manager *ctl_mgr = ctlm;
 	unsigned long flags;
 	int c;
 
@@ -267,15 +260,13 @@ void mdp5_ctlm_hw_reset(void *ctlm)
 	}
 }
 
-void mdp5_ctlm_destroy(void *ctlm)
+void mdp5_ctlm_destroy(struct mdp5_ctl_manager *ctl_mgr)
 {
-	struct mdp5_ctl_manager *ctl_mgr = ctlm;
-
 	kfree(ctl_mgr);
 }
 
-void *mdp5_ctlm_init(struct drm_device *dev, void __iomem *mmio_base,
-		const struct mdp5_cfg_hw *hw_cfg)
+struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
+		void __iomem *mmio_base, const struct mdp5_cfg_hw *hw_cfg)
 {
 	struct mdp5_ctl_manager *ctl_mgr = &mdp5_ctl_mgr;
 	const struct mdp5_sub_block *ctl_cfg = &hw_cfg->ctl;

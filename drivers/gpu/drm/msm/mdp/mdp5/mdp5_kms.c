@@ -61,7 +61,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	mdp5_write(mdp5_kms, REG_MDP5_DISP_INTF_SEL, 0);
 	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
 
-	mdp5_ctlm_hw_reset(mdp5_kms->ctl_priv);
+	mdp5_ctlm_hw_reset(mdp5_kms->ctlm);
 
 	pm_runtime_put_sync(dev->dev);
 
@@ -88,9 +88,6 @@ static void mdp5_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct msm_mmu *mmu = mdp5_kms->mmu;
-	void *smp = mdp5_kms->smp_priv;
-	void *cfg = mdp5_kms->cfg_priv;
-	void *ctl = mdp5_kms->ctl_priv;
 
 	mdp5_irq_domain_fini(mdp5_kms);
 
@@ -98,12 +95,13 @@ static void mdp5_destroy(struct msm_kms *kms)
 		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
 		mmu->funcs->destroy(mmu);
 	}
-	if (ctl)
-		mdp5_ctlm_destroy(ctl);
-	if (smp)
-		mdp5_smp_destroy(smp);
-	if (cfg)
-		mdp5_cfg_destroy(cfg);
+
+	if (mdp5_kms->ctlm)
+		mdp5_ctlm_destroy(mdp5_kms->ctlm);
+	if (mdp5_kms->smp)
+		mdp5_smp_destroy(mdp5_kms->smp);
+	if (mdp5_kms->cfg)
+		mdp5_cfg_destroy(mdp5_kms->cfg);
 
 	kfree(mdp5_kms);
 }
@@ -163,7 +161,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	const struct mdp5_cfg_hw *hw_cfg;
 	int i, ret;
 
-	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg_priv);
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
 	/* register our interrupt-controller for hdmi/eDP/dsi/etc
 	 * to use for irqs routed through mdp:
@@ -282,7 +280,6 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
 	uint32_t major, minor;
-	void *priv;
 	int i, ret;
 
 	mdp5_kms = kzalloc(sizeof(*mdp5_kms), GFP_KERNEL);
@@ -350,30 +347,32 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	clk_set_rate(mdp5_kms->src_clk, 200000000);
 
 	read_hw_revision(mdp5_kms, &major, &minor);
-	priv = mdp5_cfg_init(mdp5_kms, major, minor);
-	if (IS_ERR(priv)) {
-		ret = PTR_ERR(priv);
+
+	mdp5_kms->cfg = mdp5_cfg_init(mdp5_kms, major, minor);
+	if (IS_ERR(mdp5_kms->cfg)) {
+		ret = PTR_ERR(mdp5_kms->cfg);
+		mdp5_kms->cfg = NULL;
 		goto fail;
 	}
-	mdp5_kms->cfg_priv = priv;
-	config = mdp5_cfg_get_config(mdp5_kms->cfg_priv);
+
+	config = mdp5_cfg_get_config(mdp5_kms->cfg);
 
 	/* TODO: compute core clock rate at runtime */
 	clk_set_rate(mdp5_kms->src_clk, config->hw->max_clk);
 
-	priv = mdp5_smp_init(mdp5_kms->dev, &config->hw->smp);
-	if (IS_ERR(priv)) {
-		ret = PTR_ERR(priv);
+	mdp5_kms->smp = mdp5_smp_init(mdp5_kms->dev, &config->hw->smp);
+	if (IS_ERR(mdp5_kms->smp)) {
+		ret = PTR_ERR(mdp5_kms->smp);
+		mdp5_kms->smp = NULL;
 		goto fail;
 	}
-	mdp5_kms->smp_priv = priv;
 
-	priv = mdp5_ctlm_init(dev, mdp5_kms->mmio, config->hw);
-	if (IS_ERR(priv)) {
-		ret = PTR_ERR(priv);
+	mdp5_kms->ctlm = mdp5_ctlm_init(dev, mdp5_kms->mmio, config->hw);
+	if (IS_ERR(mdp5_kms->ctlm)) {
+		ret = PTR_ERR(mdp5_kms->ctlm);
+		mdp5_kms->ctlm = NULL;
 		goto fail;
 	}
-	mdp5_kms->ctl_priv = priv;
 
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if

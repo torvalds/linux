@@ -31,14 +31,14 @@ struct mdp5_kms {
 
 	struct drm_device *dev;
 
-	void *cfg_priv;
+	struct mdp5_cfg_handler *cfg;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
 	struct msm_mmu *mmu;
 
-	void *smp_priv;
-	void *ctl_priv;
+	struct mdp5_smp *smp;
+	struct mdp5_ctl_manager *ctlm;
 
 	/* io/register spaces: */
 	void __iomem *mmio, *vbif;

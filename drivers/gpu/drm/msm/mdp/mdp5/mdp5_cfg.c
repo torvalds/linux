@@ -121,35 +121,27 @@ static const struct mdp5_cfg_handler cfg_handlers[] = {
 
 static struct mdp5_cfg_platform *mdp5_get_config(struct platform_device *dev);
 
-const struct mdp5_cfg_hw *mdp5_cfg_get_hw_config(void *cfg_hnd)
+const struct mdp5_cfg_hw *mdp5_cfg_get_hw_config(struct mdp5_cfg_handler *cfg_handler)
 {
-	struct mdp5_cfg_handler *cfg_handler = cfg_hnd;
-
 	return cfg_handler->config.hw;
 }
 
-struct mdp5_cfg *mdp5_cfg_get_config(void *cfg_hnd)
+struct mdp5_cfg *mdp5_cfg_get_config(struct mdp5_cfg_handler *cfg_handler)
 {
-	struct mdp5_cfg_handler *cfg_handler = cfg_hnd;
-
 	return &cfg_handler->config;
 }
 
-int mdp5_cfg_get_hw_rev(void *cfg_hnd)
+int mdp5_cfg_get_hw_rev(struct mdp5_cfg_handler *cfg_handler)
 {
-	struct mdp5_cfg_handler *cfg_handler = cfg_hnd;
-
 	return cfg_handler->revision;
 }
 
-void mdp5_cfg_destroy(void *cfg_hnd)
+void mdp5_cfg_destroy(struct mdp5_cfg_handler *cfg_handler)
 {
-	struct mdp5_cfg_handler *cfg_handler = cfg_hnd;
-
 	kfree(cfg_handler);
 }
 
-void *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
+struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 		uint32_t major, uint32_t minor)
 {
 	struct drm_device *dev = mdp5_kms->dev;

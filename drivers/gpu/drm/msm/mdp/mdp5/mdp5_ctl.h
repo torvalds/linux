@@ -21,30 +21,31 @@
  * mdp5_ctlm_init() returns a ctlm (CTL Manager) handler,
  * which is then used to call the other mdp5_ctlm_*(ctlm, ...) functions.
  */
-void *mdp5_ctlm_init(struct drm_device *dev, void __iomem *mmio_base,
-		const struct mdp5_cfg_hw *hw_cfg);
-void  mdp5_ctlm_hw_reset(void *ctlm);
-void  mdp5_ctlm_destroy(void *ctlm);
+struct mdp5_ctl_manager;
+struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
+		void __iomem *mmio_base, const struct mdp5_cfg_hw *hw_cfg);
+void mdp5_ctlm_hw_reset(struct mdp5_ctl_manager *ctlm);
+void mdp5_ctlm_destroy(struct mdp5_ctl_manager *ctlm);
 
 /*
  * CTL prototypes:
  * mdp5_ctl_request(ctlm, ...) returns a ctl (CTL resource) handler,
  * which is then used to call the other mdp5_ctl_*(ctl, ...) functions.
  */
-void *mdp5_ctl_request(void *ctlm, void *crtc);
+struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctlm, struct drm_crtc *crtc);
 
-int mdp5_ctl_set_intf(void *ctl, enum mdp5_intf intf);
+int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, enum mdp5_intf intf);
 
-int mdp5_ctl_set_cursor(void *ctl, bool enable);
+int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, bool enable);
 
 /* @blend_cfg: see LM blender config definition below */
-int mdp5_ctl_blend(void *ctl, u32 lm, u32 blend_cfg);
+int mdp5_ctl_blend(struct mdp5_ctl *ctl, u32 lm, u32 blend_cfg);
 
 /* @flush_mask: see CTL flush masks definitions below */
-int mdp5_ctl_commit(void *ctl, u32 flush_mask);
-u32 mdp5_ctl_get_flush(void *ctl);
+int mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask);
+u32 mdp5_ctl_get_flush(struct mdp5_ctl *ctl);
 
-void mdp5_ctl_release(void *ctl);
+void mdp5_ctl_release(struct mdp5_ctl *ctl);
 
 /*
  * blend_cfg (LM blender config):

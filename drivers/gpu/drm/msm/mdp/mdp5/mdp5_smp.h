@@ -27,6 +27,7 @@ struct mdp5_client_smp_state {
 };
 
 struct mdp5_kms;
+struct mdp5_smp;
 
 /*
  * SMP module prototypes:
@@ -34,12 +35,12 @@ struct mdp5_kms;
  * which is then used to call the other mdp5_smp_*(handler, ...) functions.
  */
 
-void *mdp5_smp_init(struct drm_device *dev, const struct mdp5_smp_block *cfg);
-void  mdp5_smp_destroy(void *handler);
+struct mdp5_smp *mdp5_smp_init(struct drm_device *dev, const struct mdp5_smp_block *cfg);
+void  mdp5_smp_destroy(struct mdp5_smp *smp);
 
-int  mdp5_smp_request(void *handler, enum mdp5_pipe pipe, u32 fmt, u32 width);
-void mdp5_smp_configure(void *handler, enum mdp5_pipe pipe);
-void mdp5_smp_commit(void *handler, enum mdp5_pipe pipe);
-void mdp5_smp_release(void *handler, enum mdp5_pipe pipe);
+int  mdp5_smp_request(struct mdp5_smp *smp, enum mdp5_pipe pipe, u32 fmt, u32 width);
+void mdp5_smp_configure(struct mdp5_smp *smp, enum mdp5_pipe pipe);
+void mdp5_smp_commit(struct mdp5_smp *smp, enum mdp5_pipe pipe);
+void mdp5_smp_release(struct mdp5_smp *smp, enum mdp5_pipe pipe);
 
 #endif /* __MDP5_SMP_H__ */
