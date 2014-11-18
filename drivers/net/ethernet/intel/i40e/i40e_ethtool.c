@@ -644,10 +644,18 @@ static void i40e_get_pauseparam(struct net_device *netdev,
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_link_status *hw_link_info = &hw->phy.link_info;
+	struct i40e_dcbx_config *dcbx_cfg = &hw->local_dcbx_config;
 
 	pause->autoneg =
 		((hw_link_info->an_info & I40E_AQ_AN_COMPLETED) ?
 		  AUTONEG_ENABLE : AUTONEG_DISABLE);
+
+	/* PFC enabled so report LFC as off */
+	if (dcbx_cfg->pfc.pfcenable) {
+		pause->rx_pause = 0;
+		pause->tx_pause = 0;
+		return;
+	}
 
 	if (hw->fc.current_mode == I40E_FC_RX_PAUSE) {
 		pause->rx_pause = 1;
@@ -672,6 +680,7 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_link_status *hw_link_info = &hw->phy.link_info;
+	struct i40e_dcbx_config *dcbx_cfg = &hw->local_dcbx_config;
 	bool link_up = hw_link_info->link_info & I40E_AQ_LINK_UP;
 	i40e_status status;
 	u8 aq_failures;
@@ -693,8 +702,9 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 		netdev_info(netdev, "Autoneg did not complete so changing settings may not result in an actual change.\n");
 	}
 
-	if (hw->fc.current_mode == I40E_FC_PFC) {
-		netdev_info(netdev, "Priority flow control enabled. Cannot set link flow control.\n");
+	if (dcbx_cfg->pfc.pfcenable) {
+		netdev_info(netdev,
+			    "Priority flow control enabled. Cannot set link flow control.\n");
 		return -EOPNOTSUPP;
 	}
 

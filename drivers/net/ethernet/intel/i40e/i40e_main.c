@@ -38,8 +38,8 @@ static const char i40e_driver_string[] =
 #define DRV_KERN "-k"
 
 #define DRV_VERSION_MAJOR 1
-#define DRV_VERSION_MINOR 0
-#define DRV_VERSION_BUILD 21
+#define DRV_VERSION_MINOR 1
+#define DRV_VERSION_BUILD 23
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -2382,6 +2382,35 @@ static void i40e_vsi_free_rx_resources(struct i40e_vsi *vsi)
 }
 
 /**
+ * i40e_config_xps_tx_ring - Configure XPS for a Tx ring
+ * @ring: The Tx ring to configure
+ *
+ * This enables/disables XPS for a given Tx descriptor ring
+ * based on the TCs enabled for the VSI that ring belongs to.
+ **/
+static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
+{
+	struct i40e_vsi *vsi = ring->vsi;
+	cpumask_var_t mask;
+
+	if (ring->q_vector && ring->netdev) {
+		/* Single TC mode enable XPS */
+		if (vsi->tc_config.numtc <= 1 &&
+		    !test_and_set_bit(__I40E_TX_XPS_INIT_DONE, &ring->state)) {
+			netif_set_xps_queue(ring->netdev,
+					    &ring->q_vector->affinity_mask,
+					    ring->queue_index);
+		} else if (alloc_cpumask_var(&mask, GFP_KERNEL)) {
+			/* Disable XPS to allow selection based on TC */
+			bitmap_zero(cpumask_bits(mask), nr_cpumask_bits);
+			netif_set_xps_queue(ring->netdev, mask,
+					    ring->queue_index);
+			free_cpumask_var(mask);
+		}
+	}
+}
+
+/**
  * i40e_configure_tx_ring - Configure a transmit ring context and rest
  * @ring: The Tx ring to configure
  *
@@ -2404,13 +2433,8 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 		ring->atr_sample_rate = 0;
 	}
 
-	/* initialize XPS */
-	if (ring->q_vector && ring->netdev &&
-	    vsi->tc_config.numtc <= 1 &&
-	    !test_and_set_bit(__I40E_TX_XPS_INIT_DONE, &ring->state))
-		netif_set_xps_queue(ring->netdev,
-				    &ring->q_vector->affinity_mask,
-				    ring->queue_index);
+	/* configure XPS */
+	i40e_config_xps_tx_ring(ring);
 
 	/* clear the context structure first */
 	memset(&tx_ctx, 0, sizeof(tx_ctx));
@@ -3492,6 +3516,9 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 		}
 
 		wr32(hw, I40E_QTX_ENA(pf_q), tx_reg);
+		/* No waiting for the Tx queue to disable */
+		if (!enable && test_bit(__I40E_PORT_TX_SUSPENDED, &pf->state))
+			continue;
 
 		/* wait for the change to finish */
 		ret = i40e_pf_txq_wait(pf, pf_q, enable);
@@ -3859,6 +3886,15 @@ static void i40e_quiesce_vsi(struct i40e_vsi *vsi)
 	if (test_bit(__I40E_DOWN, &vsi->state))
 		return;
 
+	/* No need to disable FCoE VSI when Tx suspended */
+	if ((test_bit(__I40E_PORT_TX_SUSPENDED, &vsi->back->state)) &&
+	    vsi->type == I40E_VSI_FCOE) {
+		dev_dbg(&vsi->back->pdev->dev,
+			"%s: VSI seid %d skipping FCoE VSI disable\n",
+			 __func__, vsi->seid);
+		return;
+	}
+
 	set_bit(__I40E_NEEDS_RESTART, &vsi->state);
 	if (vsi->netdev && netif_running(vsi->netdev)) {
 		vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
@@ -3911,6 +3947,57 @@ static void i40e_pf_unquiesce_all_vsi(struct i40e_pf *pf)
 	}
 }
 
+#ifdef CONFIG_I40E_DCB
+/**
+ * i40e_vsi_wait_txq_disabled - Wait for VSI's queues to be disabled
+ * @vsi: the VSI being configured
+ *
+ * This function waits for the given VSI's Tx queues to be disabled.
+ **/
+static int i40e_vsi_wait_txq_disabled(struct i40e_vsi *vsi)
+{
+	struct i40e_pf *pf = vsi->back;
+	int i, pf_q, ret;
+
+	pf_q = vsi->base_queue;
+	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
+		/* Check and wait for the disable status of the queue */
+		ret = i40e_pf_txq_wait(pf, pf_q, false);
+		if (ret) {
+			dev_info(&pf->pdev->dev,
+				 "%s: VSI seid %d Tx ring %d disable timeout\n",
+				 __func__, vsi->seid, pf_q);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * i40e_pf_wait_txq_disabled - Wait for all queues of PF VSIs to be disabled
+ * @pf: the PF
+ *
+ * This function waits for the Tx queues to be in disabled state for all the
+ * VSIs that are managed by this PF.
+ **/
+static int i40e_pf_wait_txq_disabled(struct i40e_pf *pf)
+{
+	int v, ret = 0;
+
+	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
+		/* No need to wait for FCoE VSI queues */
+		if (pf->vsi[v] && pf->vsi[v]->type != I40E_VSI_FCOE) {
+			ret = i40e_vsi_wait_txq_disabled(pf->vsi[v]);
+			if (ret)
+				break;
+		}
+	}
+
+	return ret;
+}
+
+#endif
 /**
  * i40e_dcb_get_num_tc -  Get the number of TCs from DCBx config
  * @dcbcfg: the corresponding DCBx configuration structure
@@ -4382,6 +4469,31 @@ static void i40e_dcb_reconfigure(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_resume_port_tx - Resume port Tx
+ * @pf: PF struct
+ *
+ * Resume a port's Tx and issue a PF reset in case of failure to
+ * resume.
+ **/
+static int i40e_resume_port_tx(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	int ret;
+
+	ret = i40e_aq_resume_port_tx(hw, NULL);
+	if (ret) {
+		dev_info(&pf->pdev->dev,
+			 "AQ command Resume Port Tx failed = %d\n",
+			  pf->hw.aq.asq_last_status);
+		/* Schedule PF reset to recover */
+		set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
+		i40e_service_event_schedule(pf);
+	}
+
+	return ret;
+}
+
+/**
  * i40e_init_pf_dcb - Initialize DCB configuration
  * @pf: PF being configured
  *
@@ -4417,6 +4529,8 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 			/* Enable DCB tagging only when more than one TC */
 			if (i40e_dcb_get_num_tc(&hw->local_dcbx_config) > 1)
 				pf->flags |= I40E_FLAG_DCB_ENABLED;
+			dev_dbg(&pf->pdev->dev,
+				"DCBX offload is supported for this PF.\n");
 		}
 	} else {
 		dev_info(&pf->pdev->dev, "AQ Querying DCB configuration failed: %d\n",
@@ -4998,6 +5112,8 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 		dev_dbg(&pf->pdev->dev, "APP Table change detected.\n");
 	}
 
+	dev_dbg(&pf->pdev->dev, "%s: need_reconfig=%d\n", __func__,
+		need_reconfig);
 	return need_reconfig;
 }
 
@@ -5025,11 +5141,16 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	/* Ignore if event is not for Nearest Bridge */
 	type = ((mib->type >> I40E_AQ_LLDP_BRIDGE_TYPE_SHIFT)
 		& I40E_AQ_LLDP_BRIDGE_TYPE_MASK);
+	dev_dbg(&pf->pdev->dev,
+		"%s: LLDP event mib bridge type 0x%x\n", __func__, type);
 	if (type != I40E_AQ_LLDP_BRIDGE_TYPE_NEAREST_BRIDGE)
 		return ret;
 
 	/* Check MIB Type and return if event for Remote MIB update */
 	type = mib->type & I40E_AQ_LLDP_MIB_TYPE_MASK;
+	dev_dbg(&pf->pdev->dev,
+		"%s: LLDP event mib type %s\n", __func__,
+		type ? "remote" : "local");
 	if (type == I40E_AQ_LLDP_MIB_REMOTE) {
 		/* Update the remote cached instance and return */
 		ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_REMOTE,
@@ -5038,12 +5159,14 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 		goto exit;
 	}
 
-	/* Convert/store the DCBX data from LLDPDU temporarily */
 	memset(&tmp_dcbx_cfg, 0, sizeof(tmp_dcbx_cfg));
-	ret = i40e_lldp_to_dcb_config(e->msg_buf, &tmp_dcbx_cfg);
+	/* Store the old configuration */
+	tmp_dcbx_cfg = *dcbx_cfg;
+
+	/* Get updated DCBX data from firmware */
+	ret = i40e_get_dcb_config(&pf->hw);
 	if (ret) {
-		/* Error in LLDPDU parsing return */
-		dev_info(&pf->pdev->dev, "Failed parsing LLDPDU from event buffer\n");
+		dev_info(&pf->pdev->dev, "Failed querying DCB configuration data from firmware.\n");
 		goto exit;
 	}
 
@@ -5053,12 +5176,9 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 		goto exit;
 	}
 
-	need_reconfig = i40e_dcb_need_reconfig(pf, dcbx_cfg, &tmp_dcbx_cfg);
+	need_reconfig = i40e_dcb_need_reconfig(pf, &tmp_dcbx_cfg, dcbx_cfg);
 
-	i40e_dcbnl_flush_apps(pf, &tmp_dcbx_cfg);
-
-	/* Overwrite the new configuration */
-	*dcbx_cfg = tmp_dcbx_cfg;
+	i40e_dcbnl_flush_apps(pf, dcbx_cfg);
 
 	if (!need_reconfig)
 		goto exit;
@@ -5069,13 +5189,24 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	else
 		pf->flags &= ~I40E_FLAG_DCB_ENABLED;
 
+	set_bit(__I40E_PORT_TX_SUSPENDED, &pf->state);
 	/* Reconfiguration needed quiesce all VSIs */
 	i40e_pf_quiesce_all_vsi(pf);
 
 	/* Changes in configuration update VEB/VSI */
 	i40e_dcb_reconfigure(pf);
 
-	i40e_pf_unquiesce_all_vsi(pf);
+	ret = i40e_resume_port_tx(pf);
+
+	clear_bit(__I40E_PORT_TX_SUSPENDED, &pf->state);
+	/* In case of error no point in resuming VSIs */
+	if (ret)
+		goto exit;
+
+	/* Wait for the PF's Tx queues to be disabled */
+	ret = i40e_pf_wait_txq_disabled(pf);
+	if (!ret)
+		i40e_pf_unquiesce_all_vsi(pf);
 exit:
 	return ret;
 }
@@ -8242,6 +8373,7 @@ static int i40e_veb_get_bw_info(struct i40e_veb *veb)
 	veb->bw_limit = le16_to_cpu(ets_data.port_bw_limit);
 	veb->bw_max_quanta = ets_data.tc_bw_max;
 	veb->is_abs_credits = bw_data.absolute_credits_enable;
+	veb->enabled_tc = ets_data.tc_valid_bits;
 	tc_bw_max = le16_to_cpu(bw_data.tc_bw_max[0]) |
 		    (le16_to_cpu(bw_data.tc_bw_max[1]) << 16);
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
