@@ -103,17 +103,21 @@ gb_pending_operation_find(struct gb_connection *connection, u16 id)
 	return found ? operation : NULL;
 }
 
-static int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
+static int gb_message_send(struct gb_message *message, gfp_t gfp_mask)
 {
-	gbuf->status = -EINPROGRESS;
-	gbuf->hcd_data = gbuf->hd->driver->buffer_send(gbuf->hd,
-				gbuf->dest_cport_id, gbuf->transfer_buffer,
-				gbuf->transfer_buffer_length, gfp_mask);
-	if (IS_ERR(gbuf->hcd_data)) {
-		gbuf->status = PTR_ERR(gbuf->hcd_data);
-		gbuf->hcd_data = NULL;
+	struct greybus_host_device *hd = message->gbuf.hd;
 
-		return gbuf->status;
+	message->gbuf.status = -EINPROGRESS;
+	message->gbuf.hcd_data = hd->driver->buffer_send(hd,
+					message->gbuf.dest_cport_id,
+					message->gbuf.transfer_buffer,
+					message->gbuf.transfer_buffer_length,
+					gfp_mask);
+	if (IS_ERR(message->gbuf.hcd_data)) {
+		message->gbuf.status = PTR_ERR(message->gbuf.hcd_data);
+		message->gbuf.hcd_data = NULL;
+
+		return message->gbuf.status;
 	}
 	return 0;
 }
@@ -390,7 +394,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	 */
 	operation->callback = callback;
 	gb_pending_operation_insert(operation);
-	ret = greybus_submit_gbuf(&operation->request.gbuf, GFP_KERNEL);
+	ret = gb_message_send(&operation->request, GFP_KERNEL);
 	if (ret)
 		return ret;
 
