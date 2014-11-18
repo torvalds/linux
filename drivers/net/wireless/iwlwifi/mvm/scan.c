@@ -1224,14 +1224,25 @@ static u8 *iwl_mvm_copy_and_insert_ds_elem(struct iwl_mvm *mvm, const u8 *ies,
 static void
 iwl_mvm_build_unified_scan_probe(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				 struct ieee80211_scan_ies *ies,
-				 struct iwl_scan_probe_req *preq)
+				 struct iwl_scan_probe_req *preq,
+				 const u8 *mac_addr, const u8 *mac_addr_mask)
 {
 	struct ieee80211_mgmt *frame = (struct ieee80211_mgmt *)preq->buf;
 	u8 *pos, *newpos;
 
+	/*
+	 * Unfortunately, right now the offload scan doesn't support randomising
+	 * within the firmware, so until the firmware API is ready we implement
+	 * it in the driver. This means that the scan iterations won't really be
+	 * random, only when it's restarted, but at least that helps a bit.
+	 */
+	if (mac_addr)
+		get_random_mask_addr(frame->sa, mac_addr, mac_addr_mask);
+	else
+		memcpy(frame->sa, vif->addr, ETH_ALEN);
+
 	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
 	eth_broadcast_addr(frame->da);
-	memcpy(frame->sa, vif->addr, ETH_ALEN);
 	eth_broadcast_addr(frame->bssid);
 	frame->seq_ctrl = 0;
 
@@ -1375,7 +1386,10 @@ int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
 	preq = (void *)(cmd->data + sizeof(struct iwl_scan_channel_cfg_lmac) *
 			mvm->fw->ucode_capa.n_scan_channels);
 
-	iwl_mvm_build_unified_scan_probe(mvm, vif, &req->ies, preq);
+	iwl_mvm_build_unified_scan_probe(mvm, vif, &req->ies, preq,
+		req->req.flags & NL80211_SCAN_FLAG_RANDOM_ADDR ?
+			req->req.mac_addr : NULL,
+		req->req.mac_addr_mask);
 
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
 	if (!ret) {
@@ -1466,7 +1480,10 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 	preq = (void *)(cmd->data + sizeof(struct iwl_scan_channel_cfg_lmac) *
 			mvm->fw->ucode_capa.n_scan_channels);
 
-	iwl_mvm_build_unified_scan_probe(mvm, vif, ies, preq);
+	iwl_mvm_build_unified_scan_probe(mvm, vif, ies, preq,
+		req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR ?
+			req->mac_addr : NULL,
+		req->mac_addr_mask);
 
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
 	if (!ret) {
@@ -1796,7 +1813,10 @@ int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	sec_part->schedule[0].iter_count = 1;
 	sec_part->delay = 0;
 
-	iwl_mvm_build_unified_scan_probe(mvm, vif, &req->ies, &sec_part->preq);
+	iwl_mvm_build_unified_scan_probe(mvm, vif, &req->ies, &sec_part->preq,
+		req->req.flags & NL80211_SCAN_FLAG_RANDOM_ADDR ?
+			req->req.mac_addr : NULL,
+		req->req.mac_addr_mask);
 
 	iwl_mvm_scan_fill_ssids(sec_part->direct_scan, req->req.ssids,
 				req->req.n_ssids, 0);
@@ -1901,7 +1921,10 @@ int iwl_mvm_sched_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	sec_part->delay = 0;
 
-	iwl_mvm_build_unified_scan_probe(mvm, vif, ies, &sec_part->preq);
+	iwl_mvm_build_unified_scan_probe(mvm, vif, ies, &sec_part->preq,
+		req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR ?
+			req->mac_addr : NULL,
+		req->mac_addr_mask);
 
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
 	if (!ret) {
