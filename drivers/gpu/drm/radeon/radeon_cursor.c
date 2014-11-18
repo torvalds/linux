@@ -117,7 +117,115 @@ static void radeon_show_cursor(struct drm_crtc *crtc)
 	}
 }
 
-static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y);
+static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct radeon_device *rdev = crtc->dev->dev_private;
+	int xorigin = 0, yorigin = 0;
+	int w = radeon_crtc->cursor_width;
+
+	if (ASIC_IS_AVIVO(rdev)) {
+		/* avivo cursor are offset into the total surface */
+		x += crtc->x;
+		y += crtc->y;
+	}
+	DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
+
+	if (x < 0) {
+		xorigin = min(-x, radeon_crtc->max_cursor_width - 1);
+		x = 0;
+	}
+	if (y < 0) {
+		yorigin = min(-y, radeon_crtc->max_cursor_height - 1);
+		y = 0;
+	}
+
+	/* fixed on DCE6 and newer */
+	if (ASIC_IS_AVIVO(rdev) && !ASIC_IS_DCE6(rdev)) {
+		int i = 0;
+		struct drm_crtc *crtc_p;
+
+		/*
+		 * avivo cursor image can't end on 128 pixel boundary or
+		 * go past the end of the frame if both crtcs are enabled
+		 *
+		 * NOTE: It is safe to access crtc->enabled of other crtcs
+		 * without holding either the mode_config lock or the other
+		 * crtc's lock as long as write access to this flag _always_
+		 * grabs all locks.
+		 */
+		list_for_each_entry(crtc_p, &crtc->dev->mode_config.crtc_list, head) {
+			if (crtc_p->enabled)
+				i++;
+		}
+		if (i > 1) {
+			int cursor_end, frame_end;
+
+			cursor_end = x - xorigin + w;
+			frame_end = crtc->x + crtc->mode.crtc_hdisplay;
+			if (cursor_end >= frame_end) {
+				w = w - (cursor_end - frame_end);
+				if (!(frame_end & 0x7f))
+					w--;
+			} else {
+				if (!(cursor_end & 0x7f))
+					w--;
+			}
+			if (w <= 0) {
+				w = 1;
+				cursor_end = x - xorigin + w;
+				if (!(cursor_end & 0x7f)) {
+					x--;
+					WARN_ON_ONCE(x < 0);
+				}
+			}
+		}
+	}
+
+	if (ASIC_IS_DCE4(rdev)) {
+		WREG32(EVERGREEN_CUR_POSITION + radeon_crtc->crtc_offset, (x << 16) | y);
+		WREG32(EVERGREEN_CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
+		WREG32(EVERGREEN_CUR_SIZE + radeon_crtc->crtc_offset,
+		       ((w - 1) << 16) | (radeon_crtc->cursor_height - 1));
+	} else if (ASIC_IS_AVIVO(rdev)) {
+		WREG32(AVIVO_D1CUR_POSITION + radeon_crtc->crtc_offset, (x << 16) | y);
+		WREG32(AVIVO_D1CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
+		WREG32(AVIVO_D1CUR_SIZE + radeon_crtc->crtc_offset,
+		       ((w - 1) << 16) | (radeon_crtc->cursor_height - 1));
+	} else {
+		if (crtc->mode.flags & DRM_MODE_FLAG_DBLSCAN)
+			y *= 2;
+
+		WREG32(RADEON_CUR_HORZ_VERT_OFF + radeon_crtc->crtc_offset,
+		       (RADEON_CUR_LOCK
+			| (xorigin << 16)
+			| yorigin));
+		WREG32(RADEON_CUR_HORZ_VERT_POSN + radeon_crtc->crtc_offset,
+		       (RADEON_CUR_LOCK
+			| (x << 16)
+			| y));
+		/* offset is from DISP(2)_BASE_ADDRESS */
+		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, (radeon_crtc->legacy_cursor_offset +
+								      (yorigin * 256)));
+	}
+
+	radeon_crtc->cursor_x = x;
+	radeon_crtc->cursor_y = y;
+
+	return 0;
+}
+
+int radeon_crtc_cursor_move(struct drm_crtc *crtc,
+			    int x, int y)
+{
+	int ret;
+
+	radeon_lock_cursor(crtc, true);
+	ret = radeon_cursor_move_locked(crtc, x, y);
+	radeon_lock_cursor(crtc, false);
+
+	return ret;
+}
 
 static void radeon_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj,
 			      uint64_t gpu_addr, int hot_x, int hot_y)
@@ -228,116 +336,6 @@ unpin:
 	return 0;
 fail:
 	drm_gem_object_unreference_unlocked(obj);
-
-	return ret;
-}
-
-static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y)
-{
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	struct radeon_device *rdev = crtc->dev->dev_private;
-	int xorigin = 0, yorigin = 0;
-	int w = radeon_crtc->cursor_width;
-
-	if (ASIC_IS_AVIVO(rdev)) {
-		/* avivo cursor are offset into the total surface */
-		x += crtc->x;
-		y += crtc->y;
-	}
-	DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
-
-	if (x < 0) {
-		xorigin = min(-x, radeon_crtc->max_cursor_width - 1);
-		x = 0;
-	}
-	if (y < 0) {
-		yorigin = min(-y, radeon_crtc->max_cursor_height - 1);
-		y = 0;
-	}
-
-	/* fixed on DCE6 and newer */
-	if (ASIC_IS_AVIVO(rdev) && !ASIC_IS_DCE6(rdev)) {
-		int i = 0;
-		struct drm_crtc *crtc_p;
-
-		/*
-		 * avivo cursor image can't end on 128 pixel boundary or
-		 * go past the end of the frame if both crtcs are enabled
-		 *
-		 * NOTE: It is safe to access crtc->enabled of other crtcs
-		 * without holding either the mode_config lock or the other
-		 * crtc's lock as long as write access to this flag _always_
-		 * grabs all locks.
-		 */
-		list_for_each_entry(crtc_p, &crtc->dev->mode_config.crtc_list, head) {
-			if (crtc_p->enabled)
-				i++;
-		}
-		if (i > 1) {
-			int cursor_end, frame_end;
-
-			cursor_end = x - xorigin + w;
-			frame_end = crtc->x + crtc->mode.crtc_hdisplay;
-			if (cursor_end >= frame_end) {
-				w = w - (cursor_end - frame_end);
-				if (!(frame_end & 0x7f))
-					w--;
-			} else {
-				if (!(cursor_end & 0x7f))
-					w--;
-			}
-			if (w <= 0) {
-				w = 1;
-				cursor_end = x - xorigin + w;
-				if (!(cursor_end & 0x7f)) {
-					x--;
-					WARN_ON_ONCE(x < 0);
-				}
-			}
-		}
-	}
-
-	if (ASIC_IS_DCE4(rdev)) {
-		WREG32(EVERGREEN_CUR_POSITION + radeon_crtc->crtc_offset, (x << 16) | y);
-		WREG32(EVERGREEN_CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
-		WREG32(EVERGREEN_CUR_SIZE + radeon_crtc->crtc_offset,
-		       ((w - 1) << 16) | (radeon_crtc->cursor_height - 1));
-	} else if (ASIC_IS_AVIVO(rdev)) {
-		WREG32(AVIVO_D1CUR_POSITION + radeon_crtc->crtc_offset, (x << 16) | y);
-		WREG32(AVIVO_D1CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
-		WREG32(AVIVO_D1CUR_SIZE + radeon_crtc->crtc_offset,
-		       ((w - 1) << 16) | (radeon_crtc->cursor_height - 1));
-	} else {
-		if (crtc->mode.flags & DRM_MODE_FLAG_DBLSCAN)
-			y *= 2;
-
-		WREG32(RADEON_CUR_HORZ_VERT_OFF + radeon_crtc->crtc_offset,
-		       (RADEON_CUR_LOCK
-			| (xorigin << 16)
-			| yorigin));
-		WREG32(RADEON_CUR_HORZ_VERT_POSN + radeon_crtc->crtc_offset,
-		       (RADEON_CUR_LOCK
-			| (x << 16)
-			| y));
-		/* offset is from DISP(2)_BASE_ADDRESS */
-		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, (radeon_crtc->legacy_cursor_offset +
-								      (yorigin * 256)));
-	}
-
-	radeon_crtc->cursor_x = x;
-	radeon_crtc->cursor_y = y;
-
-	return 0;
-}
-
-int radeon_crtc_cursor_move(struct drm_crtc *crtc,
-			    int x, int y)
-{
-	int ret;
-
-	radeon_lock_cursor(crtc, true);
-	ret = radeon_cursor_move_locked(crtc, x, y);
-	radeon_lock_cursor(crtc, false);
 
 	return ret;
 }
