@@ -131,13 +131,11 @@ static void __init omap3_sbc_t3730_legacy_init(void)
 {
 	omap3_sbc_t3x_usb_hub_init(167, "sb-t35 usb hub");
 	legacy_init_wl12xx(WL12XX_REFCLOCK_38, 0, 136);
-	omap_ads7846_init(1, 57, 0, NULL);
 }
 
 static void __init omap3_sbc_t3530_legacy_init(void)
 {
 	omap3_sbc_t3x_usb_hub_init(167, "sb-t35 usb hub");
-	omap_ads7846_init(1, 57, 0, NULL);
 }
 
 struct ti_st_plat_data wilink_pdata = {
@@ -249,7 +247,6 @@ static void __init omap3_sbc_t3517_legacy_init(void)
 	hsmmc2_internal_input_clk();
 	omap3_sbc_t3517_wifi_init();
 	legacy_init_wl12xx(WL12XX_REFCLOCK_38, 0, 145);
-	omap_ads7846_init(1, 57, 0, NULL);
 }
 
 static void __init am3517_evm_legacy_init(void)
