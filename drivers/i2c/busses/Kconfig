@@ -526,10 +526,10 @@ config I2C_IBM_IIC
 
 config I2C_IMG
 	tristate "Imagination Technologies I2C SCB Controller"
-	depends on SOC_TZ1090 || COMPILE_TEST
+	depends on MIPS || METAG || COMPILE_TEST
 	help
 	  Say Y here if you want to use the IMG I2C SCB controller,
-	  available on the TZ1090 SoC.
+	  available on the TZ1090 and other IMG SoCs.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-img-scb.
