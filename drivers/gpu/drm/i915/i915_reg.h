@@ -1260,6 +1260,21 @@ enum skl_disp_power_wells {
 						      _PORT_REF_DW8_A)
 
 /* BXT PHY PCS registers */
+#define _PORT_PCS_DW10_LN01_A		0x162428
+#define _PORT_PCS_DW10_LN01_B		0x6C428
+#define _PORT_PCS_DW10_LN01_C		0x6C828
+#define _PORT_PCS_DW10_GRP_A		0x162C28
+#define _PORT_PCS_DW10_GRP_B		0x6CC28
+#define _PORT_PCS_DW10_GRP_C		0x6CE28
+#define BXT_PORT_PCS_DW10_LN01(port)	_PORT3(port, _PORT_PCS_DW10_LN01_A, \
+						     _PORT_PCS_DW10_LN01_B, \
+						     _PORT_PCS_DW10_LN01_C)
+#define BXT_PORT_PCS_DW10_GRP(port)	_PORT3(port, _PORT_PCS_DW10_GRP_A,  \
+						     _PORT_PCS_DW10_GRP_B,  \
+						     _PORT_PCS_DW10_GRP_C)
+#define   TX2_SWING_CALC_INIT		(1 << 31)
+#define   TX1_SWING_CALC_INIT		(1 << 30)
+
 #define _PORT_PCS_DW12_LN01_A		0x162430
 #define _PORT_PCS_DW12_LN01_B		0x6C430
 #define _PORT_PCS_DW12_LN01_C		0x6C830
@@ -1284,6 +1299,52 @@ enum skl_disp_power_wells {
 /* BXT PHY TX registers */
 #define _BXT_LANE_OFFSET(lane)           (((lane) >> 1) * 0x200 +	\
 					  ((lane) & 1) * 0x80)
+
+#define _PORT_TX_DW2_LN0_A		0x162508
+#define _PORT_TX_DW2_LN0_B		0x6C508
+#define _PORT_TX_DW2_LN0_C		0x6C908
+#define _PORT_TX_DW2_GRP_A		0x162D08
+#define _PORT_TX_DW2_GRP_B		0x6CD08
+#define _PORT_TX_DW2_GRP_C		0x6CF08
+#define BXT_PORT_TX_DW2_GRP(port)	_PORT3(port, _PORT_TX_DW2_GRP_A,  \
+						     _PORT_TX_DW2_GRP_B,  \
+						     _PORT_TX_DW2_GRP_C)
+#define BXT_PORT_TX_DW2_LN0(port)	_PORT3(port, _PORT_TX_DW2_LN0_A,  \
+						     _PORT_TX_DW2_LN0_B,  \
+						     _PORT_TX_DW2_LN0_C)
+#define   MARGIN_000_SHIFT		16
+#define   MARGIN_000			(0xFF << MARGIN_000_SHIFT)
+#define   UNIQ_TRANS_SCALE_SHIFT	8
+#define   UNIQ_TRANS_SCALE		(0xFF << UNIQ_TRANS_SCALE_SHIFT)
+
+#define _PORT_TX_DW3_LN0_A		0x16250C
+#define _PORT_TX_DW3_LN0_B		0x6C50C
+#define _PORT_TX_DW3_LN0_C		0x6C90C
+#define _PORT_TX_DW3_GRP_A		0x162D0C
+#define _PORT_TX_DW3_GRP_B		0x6CD0C
+#define _PORT_TX_DW3_GRP_C		0x6CF0C
+#define BXT_PORT_TX_DW3_GRP(port)	_PORT3(port, _PORT_TX_DW3_GRP_A,  \
+						     _PORT_TX_DW3_GRP_B,  \
+						     _PORT_TX_DW3_GRP_C)
+#define BXT_PORT_TX_DW3_LN0(port)	_PORT3(port, _PORT_TX_DW3_LN0_A,  \
+						     _PORT_TX_DW3_LN0_B,  \
+						     _PORT_TX_DW3_LN0_C)
+#define   UNIQE_TRANGE_EN_METHOD	(1 << 27)
+
+#define _PORT_TX_DW4_LN0_A		0x162510
+#define _PORT_TX_DW4_LN0_B		0x6C510
+#define _PORT_TX_DW4_LN0_C		0x6C910
+#define _PORT_TX_DW4_GRP_A		0x162D10
+#define _PORT_TX_DW4_GRP_B		0x6CD10
+#define _PORT_TX_DW4_GRP_C		0x6CF10
+#define BXT_PORT_TX_DW4_LN0(port)	_PORT3(port, _PORT_TX_DW4_LN0_A,  \
+						     _PORT_TX_DW4_LN0_B,  \
+						     _PORT_TX_DW4_LN0_C)
+#define BXT_PORT_TX_DW4_GRP(port)	_PORT3(port, _PORT_TX_DW4_GRP_A,  \
+						     _PORT_TX_DW4_GRP_B,  \
+						     _PORT_TX_DW4_GRP_C)
+#define   DEEMPH_SHIFT			24
+#define   DE_EMPHASIS			(0xFF << DEEMPH_SHIFT)
 
 #define _PORT_TX_DW14_LN0_A		0x162538
 #define _PORT_TX_DW14_LN0_B		0x6C538

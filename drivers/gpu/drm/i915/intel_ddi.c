@@ -168,6 +168,48 @@ static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
 	{ 0x00000018, 0x000000c7 },
 };
 
+struct bxt_ddi_buf_trans {
+	u32 margin;	/* swing value */
+	u32 scale;	/* scale value */
+	u32 enable;	/* scale enable */
+	u32 deemphasis;
+	bool default_index; /* true if the entry represents default value */
+};
+
+/* BSpec does not define separate vswing/pre-emphasis values for eDP.
+ * Using DP values for eDP as well.
+ */
+static const struct bxt_ddi_buf_trans bxt_ddi_translations_dp[] = {
+					/* Idx	NT mV diff	db  */
+	{ 52,  0,    0, 128, true  },	/* 0:	400		0   */
+	{ 78,  0,    0, 85,  false },	/* 1:	400		3.5 */
+	{ 104, 0,    0, 64,  false },	/* 2:	400		6   */
+	{ 154, 0,    0, 43,  false },	/* 3:	400		9.5 */
+	{ 77,  0,    0, 128, false },	/* 4:	600		0   */
+	{ 116, 0,    0, 85,  false },	/* 5:	600		3.5 */
+	{ 154, 0,    0, 64,  false },	/* 6:	600		6   */
+	{ 102, 0,    0, 128, false },	/* 7:	800		0   */
+	{ 154, 0,    0, 85,  false },	/* 8:	800		3.5 */
+	{ 154, 0x9A, 1, 128, false },  /* 9:	1200		0   */
+};
+
+/* BSpec has 2 recommended values - entries 0 and 8.
+ * Using the entry with higher vswing.
+ */
+static const struct bxt_ddi_buf_trans bxt_ddi_translations_hdmi[] = {
+					/* Idx	NT mV diff	db  */
+	{ 52,  0,    0, 128, false },	/* 0:	400		0   */
+	{ 52,  0,    0, 85,  false },	/* 1:	400		3.5 */
+	{ 52,  0,    0, 64,  false },	/* 2:	400		6   */
+	{ 42,  0,    0, 43,  false },	/* 3:	400		9.5 */
+	{ 77,  0,    0, 128, false },	/* 4:	600		0   */
+	{ 77,  0,    0, 85,  false },	/* 5:	600		3.5 */
+	{ 77,  0,    0, 64,  false },	/* 6:	600		6   */
+	{ 102, 0,    0, 128, false },	/* 7:	800		0   */
+	{ 102, 0,    0, 85,  false },	/* 8:	800		3.5 */
+	{ 154, 0x9A, 1, 128, true },	/* 9:	1200		0   */
+};
+
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
@@ -219,7 +261,15 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev,
 	const struct ddi_buf_trans *ddi_translations_hdmi;
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_SKYLAKE(dev)) {
+	if (IS_BROXTON(dev)) {
+		if (!intel_dig_port_supports_hdmi(intel_dig_port))
+			return;
+
+		/* Vswing programming for HDMI */
+		bxt_ddi_vswing_sequence(dev, hdmi_level, port,
+					INTEL_OUTPUT_HDMI);
+		return;
+	} else if (IS_SKYLAKE(dev)) {
 		ddi_translations_fdi = NULL;
 		ddi_translations_dp = skl_ddi_translations_dp;
 		n_dp_entries = ARRAY_SIZE(skl_ddi_translations_dp);
@@ -1695,6 +1745,67 @@ void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc)
 			   TRANS_CLK_SEL_DISABLED);
 }
 
+void bxt_ddi_vswing_sequence(struct drm_device *dev, u32 level,
+			     enum port port, int type)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct bxt_ddi_buf_trans *ddi_translations;
+	u32 n_entries, i;
+	uint32_t val;
+
+	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
+		n_entries = ARRAY_SIZE(bxt_ddi_translations_dp);
+		ddi_translations = bxt_ddi_translations_dp;
+	} else if (type == INTEL_OUTPUT_HDMI) {
+		n_entries = ARRAY_SIZE(bxt_ddi_translations_hdmi);
+		ddi_translations = bxt_ddi_translations_hdmi;
+	} else {
+		DRM_DEBUG_KMS("Vswing programming not done for encoder %d\n",
+				type);
+		return;
+	}
+
+	/* Check if default value has to be used */
+	if (level >= n_entries ||
+	    (type == INTEL_OUTPUT_HDMI && level == HDMI_LEVEL_SHIFT_UNKNOWN)) {
+		for (i = 0; i < n_entries; i++) {
+			if (ddi_translations[i].default_index) {
+				level = i;
+				break;
+			}
+		}
+	}
+
+	/*
+	 * While we write to the group register to program all lanes at once we
+	 * can read only lane registers and we pick lanes 0/1 for that.
+	 */
+	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
+	val &= ~(TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT);
+	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
+
+	val = I915_READ(BXT_PORT_TX_DW2_LN0(port));
+	val &= ~(MARGIN_000 | UNIQ_TRANS_SCALE);
+	val |= ddi_translations[level].margin << MARGIN_000_SHIFT |
+	       ddi_translations[level].scale << UNIQ_TRANS_SCALE_SHIFT;
+	I915_WRITE(BXT_PORT_TX_DW2_GRP(port), val);
+
+	val = I915_READ(BXT_PORT_TX_DW3_LN0(port));
+	val &= ~UNIQE_TRANGE_EN_METHOD;
+	if (ddi_translations[level].enable)
+		val |= UNIQE_TRANGE_EN_METHOD;
+	I915_WRITE(BXT_PORT_TX_DW3_GRP(port), val);
+
+	val = I915_READ(BXT_PORT_TX_DW4_LN0(port));
+	val &= ~DE_EMPHASIS;
+	val |= ddi_translations[level].deemphasis << DEEMPH_SHIFT;
+	I915_WRITE(BXT_PORT_TX_DW4_GRP(port), val);
+
+	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
+	val |= TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT;
+	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
+}
+
 static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
@@ -1703,6 +1814,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
+	int hdmi_level;
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -1759,6 +1871,12 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 	} else if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 
+		if (IS_BROXTON(dev)) {
+			hdmi_level = dev_priv->vbt.
+				ddi_port_info[port].hdmi_level_shift;
+			bxt_ddi_vswing_sequence(dev, hdmi_level, port,
+					INTEL_OUTPUT_HDMI);
+		}
 		intel_hdmi->set_infoframes(encoder,
 					   crtc->config->has_hdmi_sink,
 					   &crtc->config->base.adjusted_mode);
