@@ -40,7 +40,7 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			"nonexistent connection (%zu bytes dropped)\n", length);
 		return;
 	}
-	gb_connection_operation_recv(connection, data, length);
+	gb_connection_recv(connection, data, length);
 }
 EXPORT_SYMBOL_GPL(greybus_cport_in);
 

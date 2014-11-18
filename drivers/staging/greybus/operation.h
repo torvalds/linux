@@ -87,7 +87,7 @@ struct gb_operation {
 	struct list_head	links;	/* connection->{operations,pending} */
 };
 
-void gb_connection_operation_recv(struct gb_connection *connection,
+void gb_connection_recv(struct gb_connection *connection,
 					void *data, size_t size);
 
 struct gb_operation *gb_operation_create(struct gb_connection *connection,

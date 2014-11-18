@@ -431,12 +431,12 @@ int gb_operation_response_send(struct gb_operation *operation)
  * data into the buffer and do remaining handling via a work queue.
  *
  */
-void gb_connection_operation_recv(struct gb_connection *connection,
+void gb_connection_recv(struct gb_connection *connection,
 				void *data, size_t size)
 {
 	struct gb_operation_msg_hdr *header;
 	struct gb_operation *operation;
-	struct gbuf *gbuf;
+	struct gb_message *message;
 	u16 msg_size;
 
 	if (connection->state != GB_CONNECTION_STATE_ENABLED)
@@ -459,8 +459,8 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 		}
 		cancel_delayed_work(&operation->timeout_work);
 		gb_pending_operation_remove(operation);
-		gbuf = &operation->response.gbuf;
-		if (size > gbuf->transfer_buffer_length) {
+		message = &operation->response;
+		if (size > message->gbuf.transfer_buffer_length) {
 			operation->result = GB_OP_OVERFLOW;
 			gb_connection_err(connection, "recv buffer too small");
 			return;
@@ -474,10 +474,10 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 			gb_connection_err(connection, "can't create operation");
 			return;
 		}
-		gbuf = &operation->request.gbuf;
+		message = &operation->request;
 	}
 
-	memcpy(gbuf->transfer_buffer, data, msg_size);
+	memcpy(message->gbuf.transfer_buffer, data, msg_size);
 
 	/* The rest will be handled in work queue context */
 	queue_work(gb_operation_recv_workqueue, &operation->recv_work);
