@@ -260,7 +260,7 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 	struct acpi_resource *ares;
 	u32 accessor_type = function >> 16;
 	u8 action = function & ACPI_IO_MASK;
-	acpi_status ret = AE_OK;
+	acpi_status ret;
 	int status;
 
 	ret = acpi_buffer_to_resource(info->connection, info->length, &ares);
