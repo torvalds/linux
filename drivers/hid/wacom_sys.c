@@ -192,9 +192,15 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 	if (!pen && !finger)
 		return;
 
-	if (finger && !features->touch_max)
-		/* touch device at least supports one touch point */
-		features->touch_max = 1;
+	/*
+	 * Bamboo models do not support HID_DG_CONTACTMAX.
+	 * And, Bamboo Pen only descriptor contains touch.
+	 */
+	if (features->type != BAMBOO_PT) {
+		/* ISDv4 touch devices at least supports one touch point */
+		if (finger && !features->touch_max)
+			features->touch_max = 1;
+	}
 
 	switch (usage->hid) {
 	case HID_GD_X:
@@ -1151,13 +1157,12 @@ static int wacom_register_inputs(struct wacom *wacom)
 	if (!input_dev || !pad_input_dev)
 		return -EINVAL;
 
-	error = wacom_setup_input_capabilities(input_dev, wacom_wac);
-	if (error)
-		return error;
-
-	error = input_register_device(input_dev);
-	if (error)
-		return error;
+	error = wacom_setup_pentouch_input_capabilities(input_dev, wacom_wac);
+	if (!error) {
+		error = input_register_device(input_dev);
+		if (error)
+			return error;
+	}
 
 	error = wacom_setup_pad_input_capabilities(pad_input_dev, wacom_wac);
 	if (error) {
