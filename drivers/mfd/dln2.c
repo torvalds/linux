@@ -436,6 +436,7 @@ static int _dln2_transfer(struct dln2_dev *dln2, u16 handle, u16 cmd,
 	struct device *dev = &dln2->interface->dev;
 	const unsigned long timeout = DLN2_USB_TIMEOUT * HZ / 1000;
 	struct dln2_mod_rx_slots *rxs = &dln2->mod_rx_slots[handle];
+	int size;
 
 	spin_lock(&dln2->disconnect_lock);
 	if (!dln2->disconnect)
@@ -477,8 +478,9 @@ static int _dln2_transfer(struct dln2_dev *dln2, u16 handle, u16 cmd,
 
 	/* if we got here we know that the response header has been checked */
 	rsp = rxc->urb->transfer_buffer;
+	size = le16_to_cpu(rsp->hdr.size);
 
-	if (rsp->hdr.size < sizeof(*rsp)) {
+	if (size < sizeof(*rsp)) {
 		ret = -EPROTO;
 		goto out_free_rx_slot;
 	}
@@ -493,8 +495,8 @@ static int _dln2_transfer(struct dln2_dev *dln2, u16 handle, u16 cmd,
 	if (!ibuf)
 		goto out_free_rx_slot;
 
-	if (*ibuf_len > rsp->hdr.size - sizeof(*rsp))
-		*ibuf_len = rsp->hdr.size - sizeof(*rsp);
+	if (*ibuf_len > size - sizeof(*rsp))
+		*ibuf_len = size - sizeof(*rsp);
 
 	memcpy(ibuf, rsp + 1, *ibuf_len);
 
