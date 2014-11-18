@@ -189,11 +189,16 @@ bool gb_protocol_init(void)
 		pr_err("error initializing sdio protocol\n");
 		ret = false;
 	}
+	if (!gb_vibrator_protocol_init()) {
+		pr_err("error initializing vibrator protocol\n");
+		ret = false;
+	}
 	return ret;
 }
 
 void gb_protocol_exit(void)
 {
+	gb_vibrator_protocol_exit();
 	gb_sdio_protocol_exit();
 	gb_uart_protocol_exit();
 	gb_i2c_protocol_exit();

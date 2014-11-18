@@ -14,7 +14,8 @@ greybus-y :=	core.o		\
 		pwm-gb.o	\
 		sdio-gb.o	\
 		uart-gb.o	\
-		battery-gb.o
+		battery-gb.o	\
+		vibrator-gb.o
 
 obj-m += greybus.o
 obj-m += es1-ap-usb.o

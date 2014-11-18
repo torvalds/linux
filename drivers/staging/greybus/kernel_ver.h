@@ -18,6 +18,18 @@
 	struct device_attribute dev_attr_##_name = __ATTR_RO(_name)
 #endif
 
+#ifndef DEVICE_ATTR_WO
+#define DEVICE_ATTR_WO(_name) \
+	struct device_attribute dev_attr_##_name = __ATTR_WO(_name)
+#endif
+
+#ifndef __ATTR_WO
+#define __ATTR_WO(_name) {						\
+        .attr   = { .name = __stringify(_name), .mode = S_IWUSR },      \
+        .store  = _name##_store,                                        \
+}
+#endif
+
 #ifndef U8_MAX
 #define U8_MAX	((u8)~0U)
 #endif /* ! U8_MAX */
