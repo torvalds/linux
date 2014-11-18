@@ -20,7 +20,6 @@
 #define ES1_SVC_MSG_SIZE	(sizeof(struct svc_msg) + SZ_64K)
 #define ES1_GBUF_MSG_SIZE	PAGE_SIZE
 
-
 static const struct usb_device_id id_table[] = {
 	/* Made up numbers for the SVC USB Bridge in ES1 */
 	{ USB_DEVICE(0xffff, 0x0001) },
@@ -86,70 +85,47 @@ static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
 static void cport_out_callback(struct urb *urb);
 
 /*
- * Allocate the actual buffer for this gbuf and device and cport
- *
- * We are responsible for setting the following fields in a struct gbuf:
- *	void *hcpriv;
- *	void *transfer_buffer;
- *	u32 transfer_buffer_length;
+ * Allocate a buffer to be sent via UniPro.
  */
-static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
-				gfp_t gfp_mask)
+static void *buffer_alloc(unsigned int size, gfp_t gfp_mask)
 {
-	u32 cport_reserve = gbuf->dest_cport_id == CPORT_ID_BAD ? 0 : 1;
 	u8 *buffer;
-
-	if (gbuf->transfer_buffer)
-		return -EALREADY;
 
 	if (size > ES1_GBUF_MSG_SIZE) {
 		pr_err("guf was asked to be bigger than %ld!\n",
 		       ES1_GBUF_MSG_SIZE);
 	}
 
-	/* For ES2 we need to figure out what cport is going to what endpoint,
-	 * but for ES1, it's so dirt simple, we don't have a choice...
+	/*
+	 * For ES1 we need to insert a byte at the front of the data
+	 * to indicate the destination CPort id.  We only need one
+	 * extra byte, but we allocate four extra bytes to allow the
+	 * buffer returned to be aligned on a four-byte boundary.
 	 *
-	 * Also, do a "slow" allocation now, if we need speed, use a cache
+	 * This is only needed for outbound data, but we handle
+	 * buffers for inbound data the same way for consistency.
 	 *
-	 * For ES1 outbound buffers need to insert their target
-	 * CPort Id before the data; set aside an extra byte for
-	 * that purpose in that case.
+	 * XXX Do we need to indicate the destination device id too?
 	 */
-	buffer = kzalloc(cport_reserve + size, gfp_mask);
-	if (!buffer)
-		return -ENOMEM;
+	buffer = kzalloc(GB_BUFFER_ALIGN + size, gfp_mask);
+	if (buffer)
+		buffer += GB_BUFFER_ALIGN;
 
-	/* Insert the cport id for outbound buffers */
-	if (cport_reserve) {
-		if (gbuf->dest_cport_id > (u16)U8_MAX) {
-			pr_err("gbuf->dest_cport_id (%hd) is out of range!\n",
-				gbuf->dest_cport_id);
-			kfree(buffer);
-			return -EINVAL;
-		}
-		*buffer++ = gbuf->dest_cport_id;
-	}
-	gbuf->transfer_buffer = buffer;
-	gbuf->transfer_buffer_length = size;
-
-	return 0;
+	return buffer;
 }
 
-/* Free the memory we allocated with a gbuf */
-static void free_gbuf_data(struct gbuf *gbuf)
+/* Free a previously-allocated buffer */
+static void buffer_free(void *buffer)
 {
-	u8 *transfer_buffer = gbuf->transfer_buffer;
+	u8 *allocated = buffer;
 
-	/* Can be called with a NULL transfer_buffer on some error paths */
-	if (!transfer_buffer)
+	/* Can be called with a NULL buffer on some error paths */
+	if (!allocated)
 		return;
 
-	/* Account for the cport id in outbound buffers */
-	if (gbuf->dest_cport_id != CPORT_ID_BAD)
-		transfer_buffer--;	/* Back up to cport id */
-	kfree(transfer_buffer);
-	gbuf->transfer_buffer = NULL;
+	/* Account for the space set aside for the prepended cport id */
+	allocated -= GB_BUFFER_ALIGN;
+	kfree(allocated);
 }
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
@@ -207,53 +183,86 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 	return urb;
 }
 
-static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
+/*
+ * Returns an opaque cookie value if successful, or a pointer coded
+ * error otherwise.  If the caller wishes to cancel the in-flight
+ * buffer, it must supply the returned cookie to the cancel routine.
+ */
+static void *buffer_send(struct greybus_host_device *hd, u16 dest_cport_id,
+			void *buffer, size_t buffer_size, gfp_t gfp_mask)
 {
-	struct greybus_host_device *hd = gbuf->hd;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
+	u8 *transfer_buffer = buffer;
+	int transfer_buffer_size;
 	int retval;
-	u8 *transfer_buffer;
-	u8 *buffer;
 	struct urb *urb;
 
-	transfer_buffer = gbuf->transfer_buffer;
-	if (!transfer_buffer)
-		return -EINVAL;
-	buffer = &transfer_buffer[-1];	/* yes, we mean -1 */
+	if (!buffer) {
+		pr_err("null buffer supplied to send\n");
+		return ERR_PTR(-EINVAL);
+	}
+	if (buffer_size > (size_t)INT_MAX) {
+		pr_err("bad buffer size (%zu) supplied to send\n", buffer_size);
+		return ERR_PTR(-EINVAL);
+	}
+	transfer_buffer--;
+	transfer_buffer_size = buffer_size + 1;
+
+	/*
+	 * The data actually transferred will include an indication
+	 * of where the data should be sent.  Do one last check of
+	 * the target CPort id before filling it in.
+	 */
+	if (dest_cport_id == CPORT_ID_BAD) {
+		pr_err("request to send inbound data buffer\n");
+		return ERR_PTR(-EINVAL);
+	}
+	if (dest_cport_id > (u16)U8_MAX) {
+		pr_err("dest_cport_id (%hd) is out of range for ES1\n",
+			dest_cport_id);
+		return ERR_PTR(-EINVAL);
+	}
+	/* OK, the destination is fine; record it in the transfer buffer */
+	*transfer_buffer = dest_cport_id;
 
 	/* Find a free urb */
 	urb = next_free_urb(es1, gfp_mask);
 	if (!urb)
-		return -ENOMEM;
-
-	gbuf->hcd_data = urb;
+		return ERR_PTR(-ENOMEM);
 
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev, es1->cport_out_endpoint),
-			  buffer, gbuf->transfer_buffer_length + 1,
-			  cport_out_callback, gbuf);
+			  transfer_buffer, transfer_buffer_size,
+			  cport_out_callback, hd);
 	retval = usb_submit_urb(urb, gfp_mask);
-	return retval;
+	if (retval) {
+		pr_err("error %d submitting URB\n", retval);
+		return ERR_PTR(retval);
+	}
+
+	return urb;
 }
 
-static void kill_gbuf(struct gbuf *gbuf)
+static void buffer_cancel(void *cookie)
 {
-	struct urb *urb = gbuf->hcd_data;
+	struct urb *urb = cookie;
 
-	if (!urb)
-		return;
-
+	/*
+	 * We really should be defensive and track all outstanding
+	 * (sent) buffers rather than trusting the cookie provided
+	 * is valid.  For the time being, this will do.
+	 */
 	usb_kill_urb(urb);
 }
 
 static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
-	.alloc_gbuf_data	= alloc_gbuf_data,
-	.free_gbuf_data		= free_gbuf_data,
+	.buffer_alloc		= buffer_alloc,
+	.buffer_free		= buffer_free,
+	.buffer_send		= buffer_send,
+	.buffer_cancel		= buffer_cancel,
 	.submit_svc		= submit_svc,
-	.submit_gbuf		= submit_gbuf,
-	.kill_gbuf		= kill_gbuf,
 };
 
 /* Common function to report consistent warnings based on URB status */
@@ -329,7 +338,8 @@ static void ap_disconnect(struct usb_interface *interface)
 /* Callback for when we get a SVC message */
 static void svc_in_callback(struct urb *urb)
 {
-	struct es1_ap_dev *es1 = urb->context;
+	struct greybus_host_device *hd = urb->context;
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct device *dev = &urb->dev->dev;
 	int status = check_urb_status(urb);
 	int retval;
@@ -355,8 +365,9 @@ exit:
 
 static void cport_in_callback(struct urb *urb)
 {
+	struct greybus_host_device *hd = urb->context;
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct device *dev = &urb->dev->dev;
-	struct es1_ap_dev *es1 = urb->context;
 	int status = check_urb_status(urb);
 	int retval;
 	u8 cport;
@@ -396,14 +407,11 @@ exit:
 
 static void cport_out_callback(struct urb *urb)
 {
-	struct gbuf *gbuf = urb->context;
-	struct es1_ap_dev *es1 = hd_to_es1(gbuf->hd);
+	struct greybus_host_device *hd = urb->context;
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	unsigned long flags;
+	/* int status = check_urb_status(urb); */
 	int i;
-
-	/* Record whether the transfer was successful */
-	gbuf->status = check_urb_status(urb);
-	gbuf->hcd_data = NULL;
 
 	/*
 	 * See if this was an urb in our pool, if so mark it "free", otherwise
@@ -423,6 +431,8 @@ static void cport_out_callback(struct urb *urb)
 	usb_free_urb(urb);
 
 	/*
+	 * Rest assured Greg, this craziness is getting fixed.
+	 *
 	 * Yes, you are right, we aren't telling anyone that the urb finished.
 	 * "That's crazy!  How does this all even work?" you might be saying.
 	 * The "magic" is the idea that greybus works on the "operation" level,
@@ -529,7 +539,7 @@ static int ap_probe(struct usb_interface *interface,
 	usb_fill_int_urb(es1->svc_urb, udev,
 			 usb_rcvintpipe(udev, es1->svc_endpoint),
 			 es1->svc_buffer, ES1_SVC_MSG_SIZE, svc_in_callback,
-			 es1, svc_interval);
+			 hd, svc_interval);
 	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
 	if (retval)
 		goto error;
@@ -549,7 +559,7 @@ static int ap_probe(struct usb_interface *interface,
 		usb_fill_bulk_urb(urb, udev,
 				  usb_rcvbulkpipe(udev, es1->cport_in_endpoint),
 				  buffer, ES1_GBUF_MSG_SIZE, cport_in_callback,
-				  es1);
+				  hd);
 		es1->cport_in_urb[i] = urb;
 		es1->cport_in_buffer[i] = buffer;
 		retval = usb_submit_urb(urb, GFP_KERNEL);

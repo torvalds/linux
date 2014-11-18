@@ -24,21 +24,16 @@ enum gb_operation_status {
 	GB_OP_TIMEOUT		= 0xff,
 };
 
-struct gbuf {
-	struct greybus_host_device *hd;
-	u16 dest_cport_id;		/* Destination CPort id */
-	int status;
-
-	void *transfer_buffer;
-	u32 transfer_buffer_length;
-
-	void *hcd_data;			/* for the HCD to track the gbuf */
-};
-
 struct gb_message {
 	void			*payload;
+
 	struct gb_operation	*operation;
-	struct gbuf		gbuf;
+	int			status;
+
+	void			*buffer;
+	size_t			buffer_size;
+
+	void			*cookie;
 };
 
 /*
@@ -87,7 +82,7 @@ struct gb_operation {
 	struct list_head	links;	/* connection->{operations,pending} */
 };
 
-void gb_connection_operation_recv(struct gb_connection *connection,
+void gb_connection_recv(struct gb_connection *connection,
 					void *data, size_t size);
 
 struct gb_operation *gb_operation_create(struct gb_connection *connection,

@@ -68,7 +68,9 @@
 
 struct greybus_host_device;
 struct svc_msg;
-struct gbuf;
+
+/* Buffers allocated from the host driver will be aligned to this multiple */
+#define GB_BUFFER_ALIGN	sizeof(u32)
 
 /* Greybus "Host driver" structure, needed by a host controller driver to be
  * able to handle both SVC control as well as "real" greybus messages
@@ -76,13 +78,13 @@ struct gbuf;
 struct greybus_host_driver {
 	size_t	hd_priv_size;
 
-	int (*alloc_gbuf_data)(struct gbuf *gbuf, unsigned int size,
-					gfp_t gfp_mask);
-	void (*free_gbuf_data)(struct gbuf *gbuf);
+	void *(*buffer_alloc)(unsigned int size, gfp_t gfp_mask);
+	void (*buffer_free)(void *buffer);
+	void *(*buffer_send)(struct greybus_host_device *hd, u16 dest_cport_id,
+			void *buffer, size_t buffer_size, gfp_t gfp_mask);
+	void (*buffer_cancel)(void *cookie);
 	int (*submit_svc)(struct svc_msg *svc_msg,
 			    struct greybus_host_device *hd);
-	int (*submit_gbuf)(struct gbuf *gbuf, gfp_t gfp_mask);
-	void (*kill_gbuf)(struct gbuf *gbuf);
 };
 
 struct greybus_host_device {
@@ -153,8 +155,6 @@ int gb_ap_init(void);
 void gb_ap_exit(void);
 int gb_debugfs_init(void);
 void gb_debugfs_cleanup(void);
-int gb_gbuf_init(void);
-void gb_gbuf_exit(void);
 
 extern struct bus_type greybus_bus_type;
 extern const struct attribute_group *greybus_module_groups[];
