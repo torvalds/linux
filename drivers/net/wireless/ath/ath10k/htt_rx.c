@@ -1518,9 +1518,7 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 		return;
 	}
 
-	/* FIXME: implement signal strength */
-	rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
-
+	ath10k_htt_rx_h_ppdu(ar, &amsdu, rx_status);
 	ath10k_htt_rx_h_filter(ar, &amsdu, rx_status);
 	ath10k_htt_rx_h_mpdu(ar, &amsdu, rx_status);
 	ath10k_htt_rx_h_deliver(ar, &amsdu, rx_status);
