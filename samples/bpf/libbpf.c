@@ -27,12 +27,13 @@ int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
 	return syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));
 }
 
-int bpf_update_elem(int fd, void *key, void *value)
+int bpf_update_elem(int fd, void *key, void *value, unsigned long long flags)
 {
 	union bpf_attr attr = {
 		.map_fd = fd,
 		.key = ptr_to_u64(key),
 		.value = ptr_to_u64(value),
+		.flags = flags,
 	};
 
 	return syscall(__NR_bpf, BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));

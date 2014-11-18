@@ -18,26 +18,18 @@ struct bpf_context {
 	u64 arg2;
 };
 
-static u64 test_func(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
-{
-	return 0;
-}
-
-static struct bpf_func_proto test_funcs[] = {
-	[BPF_FUNC_unspec] = {
-		.func = test_func,
-		.gpl_only = true,
-		.ret_type = RET_PTR_TO_MAP_VALUE_OR_NULL,
-		.arg1_type = ARG_CONST_MAP_PTR,
-		.arg2_type = ARG_PTR_TO_MAP_KEY,
-	},
-};
-
 static const struct bpf_func_proto *test_func_proto(enum bpf_func_id func_id)
 {
-	if (func_id < 0 || func_id >= ARRAY_SIZE(test_funcs))
+	switch (func_id) {
+	case BPF_FUNC_map_lookup_elem:
+		return &bpf_map_lookup_elem_proto;
+	case BPF_FUNC_map_update_elem:
+		return &bpf_map_update_elem_proto;
+	case BPF_FUNC_map_delete_elem:
+		return &bpf_map_delete_elem_proto;
+	default:
 		return NULL;
-	return &test_funcs[func_id];
+	}
 }
 
 static const struct bpf_context_access {
@@ -78,38 +70,8 @@ static struct bpf_prog_type_list tl_prog = {
 	.type = BPF_PROG_TYPE_UNSPEC,
 };
 
-static struct bpf_map *test_map_alloc(union bpf_attr *attr)
-{
-	struct bpf_map *map;
-
-	map = kzalloc(sizeof(*map), GFP_USER);
-	if (!map)
-		return ERR_PTR(-ENOMEM);
-
-	map->key_size = attr->key_size;
-	map->value_size = attr->value_size;
-	map->max_entries = attr->max_entries;
-	return map;
-}
-
-static void test_map_free(struct bpf_map *map)
-{
-	kfree(map);
-}
-
-static struct bpf_map_ops test_map_ops = {
-	.map_alloc = test_map_alloc,
-	.map_free = test_map_free,
-};
-
-static struct bpf_map_type_list tl_map = {
-	.ops = &test_map_ops,
-	.type = BPF_MAP_TYPE_UNSPEC,
-};
-
 static int __init register_test_ops(void)
 {
-	bpf_register_map_type(&tl_map);
 	bpf_register_prog_type(&tl_prog);
 	return 0;
 }
