@@ -106,7 +106,8 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
 
 struct gbuf *greybus_alloc_gbuf(struct greybus_host_device *hd,
-				u16 dest_cport_id, unsigned int size,
+				u16 dest_cport_id,
+				unsigned int size,
 				gfp_t gfp_mask);
 void greybus_free_gbuf(struct gbuf *gbuf);
 

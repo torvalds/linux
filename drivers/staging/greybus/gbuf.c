@@ -38,32 +38,12 @@ struct gbuf *greybus_alloc_gbuf(struct greybus_host_device *hd,
 				unsigned int size,
 				gfp_t gfp_mask)
 {
-	struct gbuf *gbuf;
-	int retval;
-
-	gbuf = kmem_cache_zalloc(gbuf_head_cache, gfp_mask);
-	if (!gbuf)
-		return NULL;
-
-	gbuf->hd = hd;
-	gbuf->dest_cport_id = dest_cport_id;
-	gbuf->status = -EBADR;	/* Initial value--means "never set" */
-
-	/* Host controller specific allocation for the actual buffer */
-	retval = hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
-	if (retval) {
-		kmem_cache_free(gbuf_head_cache, gbuf);
-		return NULL;
-	}
-
-	return gbuf;
+	return kmem_cache_zalloc(gbuf_head_cache, gfp_mask);
 }
 EXPORT_SYMBOL_GPL(greybus_alloc_gbuf);
 
 void greybus_free_gbuf(struct gbuf *gbuf)
 {
-	gbuf->hd->driver->free_gbuf_data(gbuf);
-
 	kmem_cache_free(gbuf_head_cache, gbuf);
 }
 EXPORT_SYMBOL_GPL(greybus_free_gbuf);

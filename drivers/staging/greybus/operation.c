@@ -202,10 +202,13 @@ static int gb_operation_message_init(struct gb_operation *operation,
 					bool request, bool data_out)
 {
 	struct gb_connection *connection = operation->connection;
+	struct greybus_host_device *hd = connection->hd;
 	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
+	struct gbuf *gbuf;
 	gfp_t gfp_flags = data_out ? GFP_KERNEL : GFP_ATOMIC;
 	u16 dest_cport_id;
+	int ret;
 
 	if (size > GB_OPERATION_MESSAGE_SIZE_MAX)
 		return -E2BIG;
@@ -224,19 +227,27 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	if (message->gbuf)
 		return -EALREADY;	/* Sanity check */
 	size += sizeof(*header);
-	message->gbuf = greybus_alloc_gbuf(connection->hd, dest_cport_id,
-					size, gfp_flags);
-	if (!message->gbuf)
+	gbuf = greybus_alloc_gbuf(hd, dest_cport_id, size, gfp_flags);
+	if (!gbuf)
 		return -ENOMEM;
+	gbuf->hd = hd;
+	gbuf->dest_cport_id = dest_cport_id;
+	gbuf->status = -EBADR;	/* Initial value--means "never set" */
+	ret = hd->driver->alloc_gbuf_data(gbuf, size, gfp_flags);
+	if (ret) {
+		greybus_free_gbuf(gbuf);
+		return ret;
+	}
 
 	/* Fill in the header structure */
-	header = (struct gb_operation_msg_hdr *)message->gbuf->transfer_buffer;
+	header = (struct gb_operation_msg_hdr *)gbuf->transfer_buffer;
 	header->size = cpu_to_le16(size);
 	header->id = 0;		/* Filled in when submitted */
 	header->type = type;
 
 	message->payload = header + 1;
 	message->operation = operation;
+	message->gbuf = gbuf;
 
 	return 0;
 }
@@ -245,6 +256,7 @@ static void gb_operation_message_exit(struct gb_message *message)
 {
 	message->operation = NULL;
 	message->payload = NULL;
+	message->gbuf->hd->driver->free_gbuf_data(message->gbuf);
 	greybus_free_gbuf(message->gbuf);
 	message->gbuf = NULL;
 }
