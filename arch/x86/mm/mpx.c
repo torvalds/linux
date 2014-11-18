@@ -102,8 +102,8 @@ enum reg_type {
 	REG_TYPE_BASE,
 };
 
-static unsigned long get_reg_offset(struct insn *insn, struct pt_regs *regs,
-				    enum reg_type type)
+static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
+			  enum reg_type type)
 {
 	int regno = 0;
 
@@ -174,9 +174,8 @@ static unsigned long get_reg_offset(struct insn *insn, struct pt_regs *regs,
  */
 static void __user *mpx_get_addr_ref(struct insn *insn, struct pt_regs *regs)
 {
-	unsigned long addr, addr_offset;
-	unsigned long base, base_offset;
-	unsigned long indx, indx_offset;
+	unsigned long addr, base, indx;
+	int addr_offset, base_offset, indx_offset;
 	insn_byte_t sib;
 
 	insn_get_modrm(insn);
