@@ -221,7 +221,7 @@ static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev, es1->cport_out_endpoint),
 			  buffer, gbuf->transfer_buffer_length + 1,
-			  cport_out_callback, gbuf);
+			  cport_out_callback, hd);
 	retval = usb_submit_urb(urb, gfp_mask);
 	return retval;
 }
@@ -320,7 +320,8 @@ static void ap_disconnect(struct usb_interface *interface)
 /* Callback for when we get a SVC message */
 static void svc_in_callback(struct urb *urb)
 {
-	struct es1_ap_dev *es1 = urb->context;
+	struct greybus_host_device *hd = urb->context;
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct device *dev = &urb->dev->dev;
 	int status = check_urb_status(urb);
 	int retval;
@@ -346,8 +347,9 @@ exit:
 
 static void cport_in_callback(struct urb *urb)
 {
+	struct greybus_host_device *hd = urb->context;
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct device *dev = &urb->dev->dev;
-	struct es1_ap_dev *es1 = urb->context;
 	int status = check_urb_status(urb);
 	int retval;
 	u8 cport;
@@ -387,14 +389,11 @@ exit:
 
 static void cport_out_callback(struct urb *urb)
 {
-	struct gbuf *gbuf = urb->context;
-	struct es1_ap_dev *es1 = hd_to_es1(gbuf->hd);
+	struct greybus_host_device *hd = urb->context;
+	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	unsigned long flags;
+	/* int status = check_urb_status(urb); */
 	int i;
-
-	/* Record whether the transfer was successful */
-	gbuf->status = check_urb_status(urb);
-	gbuf->hcd_data = NULL;
 
 	/*
 	 * See if this was an urb in our pool, if so mark it "free", otherwise
@@ -414,6 +413,8 @@ static void cport_out_callback(struct urb *urb)
 	usb_free_urb(urb);
 
 	/*
+	 * Rest assured Greg, this craziness is getting fixed.
+	 *
 	 * Yes, you are right, we aren't telling anyone that the urb finished.
 	 * "That's crazy!  How does this all even work?" you might be saying.
 	 * The "magic" is the idea that greybus works on the "operation" level,
@@ -520,7 +521,7 @@ static int ap_probe(struct usb_interface *interface,
 	usb_fill_int_urb(es1->svc_urb, udev,
 			 usb_rcvintpipe(udev, es1->svc_endpoint),
 			 es1->svc_buffer, ES1_SVC_MSG_SIZE, svc_in_callback,
-			 es1, svc_interval);
+			 hd, svc_interval);
 	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
 	if (retval)
 		goto error;
@@ -540,7 +541,7 @@ static int ap_probe(struct usb_interface *interface,
 		usb_fill_bulk_urb(urb, udev,
 				  usb_rcvbulkpipe(udev, es1->cport_in_endpoint),
 				  buffer, ES1_GBUF_MSG_SIZE, cport_in_callback,
-				  es1);
+				  hd);
 		es1->cport_in_urb[i] = urb;
 		es1->cport_in_buffer[i] = buffer;
 		retval = usb_submit_urb(urb, GFP_KERNEL);
