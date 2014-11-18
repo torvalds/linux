@@ -35,9 +35,14 @@
 #include <linux/usb_usual.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/f_mtp.h>
+#include <linux/configfs.h>
+#include <linux/usb/composite.h>
+
+#include "configfs.h"
 
 #define MTP_BULK_BUFFER_SIZE       16384
 #define INTR_BUFFER_SIZE           28
+#define MAX_INST_NAME_LEN          40
 
 /* String IDs */
 #define INTERFACE_STRING_INDEX	0
@@ -66,8 +71,9 @@
 /* constants for device status */
 #define MTP_RESPONSE_OK             0x2001
 #define MTP_RESPONSE_DEVICE_BUSY    0x2019
+#define DRIVER_NAME "mtp"
 
-static const char mtp_shortname[] = "mtp_usb";
+static const char mtp_shortname[] = DRIVER_NAME "_usb";
 
 struct mtp_dev {
 	struct usb_function function;
@@ -280,6 +286,12 @@ struct mtp_data_header {
 	__le32	transaction_id;
 };
 
+struct mtp_instance {
+	struct usb_function_instance func_inst;
+	const char *name;
+	struct mtp_dev *dev;
+};
+
 /* temporary variable used between mtp_open() and mtp_gadget_bind() */
 static struct mtp_dev *_mtp_dev;
 
@@ -456,7 +468,7 @@ static int mtp_create_bulk_endpoints(struct mtp_dev *dev,
 	return 0;
 
 fail:
-	printk(KERN_ERR "mtp_bind() could not allocate requests\n");
+	pr_err("mtp_bind() could not allocate requests\n");
 	return -1;
 }
 
@@ -1099,6 +1111,13 @@ mtp_function_bind(struct usb_configuration *c, struct usb_function *f)
 		return id;
 	mtp_interface_desc.bInterfaceNumber = id;
 
+	if (mtp_string_defs[INTERFACE_STRING_INDEX].id == 0) {
+		ret = usb_string_id(c->cdev);
+		if (ret < 0)
+			return ret;
+		mtp_string_defs[INTERFACE_STRING_INDEX].id = ret;
+		mtp_interface_desc.iInterface = ret;
+	}
 	/* allocate endpoints */
 	ret = mtp_create_bulk_endpoints(dev, &mtp_fullspeed_in_desc,
 			&mtp_fullspeed_out_desc, &mtp_intr_desc);
@@ -1126,6 +1145,7 @@ mtp_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_request *req;
 	int i;
 
+	mtp_string_defs[INTERFACE_STRING_INDEX].id = 0;
 	while ((req = mtp_req_get(dev, &dev->tx_idle)))
 		mtp_request_free(req, dev->ep_in);
 	for (i = 0; i < RX_REQ_MAX; i++)
@@ -1213,7 +1233,7 @@ static int mtp_bind_config(struct usb_configuration *c, bool ptp_config)
 	}
 
 	dev->cdev = c->cdev;
-	dev->function.name = "mtp";
+	dev->function.name = DRIVER_NAME;
 	dev->function.strings = mtp_strings;
 	if (ptp_config) {
 		dev->function.fs_descriptors = fs_ptp_descs;
@@ -1230,12 +1250,16 @@ static int mtp_bind_config(struct usb_configuration *c, bool ptp_config)
 	return usb_add_function(c, &dev->function);
 }
 
-static int mtp_setup(void)
+static int __mtp_setup(struct mtp_instance *fi_mtp)
 {
 	struct mtp_dev *dev;
 	int ret;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+
+	if (fi_mtp != NULL)
+		fi_mtp->dev = dev;
+
 	if (!dev)
 		return -ENOMEM;
 
@@ -1273,6 +1297,17 @@ err1:
 	return ret;
 }
 
+static int mtp_setup(void)
+{
+	return __mtp_setup(NULL);
+}
+
+static int mtp_setup_configfs(struct mtp_instance *fi_mtp)
+{
+	return __mtp_setup(fi_mtp);
+}
+
+
 static void mtp_cleanup(void)
 {
 	struct mtp_dev *dev = _mtp_dev;
@@ -1285,3 +1320,138 @@ static void mtp_cleanup(void)
 	_mtp_dev = NULL;
 	kfree(dev);
 }
+
+static struct mtp_instance *to_mtp_instance(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct mtp_instance,
+		func_inst.group);
+}
+
+static void mtp_attr_release(struct config_item *item)
+{
+	struct mtp_instance *fi_mtp = to_mtp_instance(item);
+	usb_put_function_instance(&fi_mtp->func_inst);
+}
+
+static struct configfs_item_operations mtp_item_ops = {
+	.release        = mtp_attr_release,
+};
+
+static struct config_item_type mtp_func_type = {
+	.ct_item_ops    = &mtp_item_ops,
+	.ct_owner       = THIS_MODULE,
+};
+
+
+static struct mtp_instance *to_fi_mtp(struct usb_function_instance *fi)
+{
+	return container_of(fi, struct mtp_instance, func_inst);
+}
+
+static int mtp_set_inst_name(struct usb_function_instance *fi, const char *name)
+{
+	struct mtp_instance *fi_mtp;
+	char *ptr;
+	int name_len;
+
+	name_len = strlen(name) + 1;
+	if (name_len > MAX_INST_NAME_LEN)
+		return -ENAMETOOLONG;
+
+	ptr = kstrndup(name, name_len, GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	fi_mtp = to_fi_mtp(fi);
+	fi_mtp->name = ptr;
+
+	return 0;
+}
+
+static void mtp_free_inst(struct usb_function_instance *fi)
+{
+	struct mtp_instance *fi_mtp;
+
+	fi_mtp = to_fi_mtp(fi);
+	kfree(fi_mtp->name);
+	mtp_cleanup();
+	kfree(fi_mtp);
+}
+
+struct usb_function_instance *alloc_inst_mtp_ptp(bool mtp_config)
+{
+	struct mtp_instance *fi_mtp;
+	int ret = 0;
+
+	fi_mtp = kzalloc(sizeof(*fi_mtp), GFP_KERNEL);
+	if (!fi_mtp)
+		return ERR_PTR(-ENOMEM);
+	fi_mtp->func_inst.set_inst_name = mtp_set_inst_name;
+	fi_mtp->func_inst.free_func_inst = mtp_free_inst;
+
+	if (mtp_config) {
+		ret = mtp_setup_configfs(fi_mtp);
+		if (ret) {
+			kfree(fi_mtp);
+			pr_err("Error setting MTP\n");
+			return ERR_PTR(ret);
+		}
+	} else
+		fi_mtp->dev = _mtp_dev;
+
+	config_group_init_type_name(&fi_mtp->func_inst.group,
+					"", &mtp_func_type);
+
+	return  &fi_mtp->func_inst;
+}
+EXPORT_SYMBOL_GPL(alloc_inst_mtp_ptp);
+
+static struct usb_function_instance *mtp_alloc_inst(void)
+{
+		return alloc_inst_mtp_ptp(true);
+}
+
+static int mtp_ctrlreq_configfs(struct usb_function *f,
+				const struct usb_ctrlrequest *ctrl)
+{
+	return mtp_ctrlrequest(f->config->cdev, ctrl);
+}
+
+static void mtp_free(struct usb_function *f)
+{
+	/*NO-OP: no function specific resource allocation in mtp_alloc*/
+}
+
+struct usb_function *function_alloc_mtp_ptp(struct usb_function_instance *fi,
+					bool mtp_config)
+{
+	struct mtp_instance *fi_mtp = to_fi_mtp(fi);
+	struct mtp_dev *dev = fi_mtp->dev;
+
+	dev->function.name = DRIVER_NAME;
+	dev->function.strings = mtp_strings;
+	if (mtp_config) {
+		dev->function.fs_descriptors = fs_mtp_descs;
+		dev->function.hs_descriptors = hs_mtp_descs;
+	} else {
+		dev->function.fs_descriptors = fs_ptp_descs;
+		dev->function.hs_descriptors = hs_ptp_descs;
+	}
+	dev->function.bind = mtp_function_bind;
+	dev->function.unbind = mtp_function_unbind;
+	dev->function.set_alt = mtp_function_set_alt;
+	dev->function.disable = mtp_function_disable;
+	dev->function.setup = mtp_ctrlreq_configfs;
+	dev->function.free_func = mtp_free;
+
+	return &dev->function;
+}
+EXPORT_SYMBOL_GPL(function_alloc_mtp_ptp);
+
+static struct usb_function *mtp_alloc(struct usb_function_instance *fi)
+{
+	return function_alloc_mtp_ptp(fi, true);
+}
+
+DECLARE_USB_FUNCTION_INIT(mtp, mtp_alloc_inst, mtp_alloc);
+MODULE_LICENSE("GPL");

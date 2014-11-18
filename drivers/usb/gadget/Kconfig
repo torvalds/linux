@@ -209,6 +209,12 @@ config USB_F_PRINTER
 config USB_F_TCM
 	tristate
 
+config USB_F_MTP
+	tristate
+
+config USB_F_PTP
+	tristate
+
 # this first set of drivers all depend on bulk-capable hardware.
 
 config USB_CONFIGFS
@@ -361,6 +367,20 @@ config USB_CONFIGFS_F_FS
 	  of composite gadgets such that some of the functions are
 	  implemented in kernel space (for instance Ethernet, serial or
 	  mass storage) and other are implemented in user space.
+
+config USB_CONFIGFS_F_MTP
+	boolean "MTP gadget"
+	depends on USB_CONFIGFS
+	select USB_F_MTP
+	help
+	  USB gadget MTP support
+
+config USB_CONFIGFS_F_PTP
+	boolean "PTP gadget"
+	depends on USB_CONFIGFS && USB_CONFIGFS_F_MTP
+	select USB_F_PTP
+	help
+	  USB gadget PTP support
 
 config USB_CONFIGFS_F_UAC1
 	bool "Audio Class 1.0"
