@@ -122,12 +122,12 @@ static int gb_message_send(struct gb_message *message, gfp_t gfp_mask)
 	return 0;
 }
 
-static void greybus_kill_gbuf(struct gbuf *gbuf)
+static void gb_message_cancel(struct gb_message *message)
 {
-	if (gbuf->status != -EINPROGRESS)
+	if (message->gbuf.status != -EINPROGRESS)
 		return;
 
-	gbuf->hd->driver->buffer_cancel(gbuf->hcd_data);
+	message->gbuf.hd->driver->buffer_cancel(message->gbuf.hcd_data);
 }
 
 /*
@@ -152,7 +152,7 @@ int gb_operation_wait(struct gb_operation *operation)
 	ret = wait_for_completion_interruptible(&operation->completion);
 	/* If interrupted, cancel the in-flight buffer */
 	if (ret < 0)
-		greybus_kill_gbuf(&operation->request.gbuf);
+		gb_message_cancel(&operation->request);
 	return ret;
 
 }
@@ -489,9 +489,9 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 void gb_operation_cancel(struct gb_operation *operation)
 {
 	operation->canceled = true;
-	greybus_kill_gbuf(&operation->request.gbuf);
+	gb_message_cancel(&operation->request);
 	if (operation->response.gbuf.transfer_buffer)
-		greybus_kill_gbuf(&operation->response.gbuf);
+		gb_message_cancel(&operation->response);
 }
 
 int gb_operation_init(void)
