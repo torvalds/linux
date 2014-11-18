@@ -660,7 +660,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mmc);
 
 	ret = devm_request_irq(&pdev->dev, irq_err, mxs_mmc_irq_handler, 0,
-			       DRIVER_NAME, host);
+			       dev_name(&pdev->dev), host);
 	if (ret)
 		goto out_free_dma;
 
