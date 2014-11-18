@@ -11765,8 +11765,8 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	struct drm_rect *src = &state->src;
 
 	crtc->primary->fb = fb;
-	crtc->x = src->x1;
-	crtc->y = src->y1;
+	crtc->x = src->x1 >> 16;
+	crtc->y = src->y1 >> 16;
 
 	intel_plane->crtc_x = state->orig_dst.x1;
 	intel_plane->crtc_y = state->orig_dst.y1;
