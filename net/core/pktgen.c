@@ -3728,8 +3728,7 @@ static int pktgen_remove_device(struct pktgen_thread *t,
 	/* Remove proc before if_list entry, because add_device uses
 	 * list to determine if interface already exist, avoid race
 	 * with proc_create_data() */
-	if (pkt_dev->entry)
-		proc_remove(pkt_dev->entry);
+	proc_remove(pkt_dev->entry);
 
 	/* And update the thread if_list */
 	_rem_dev_from_if_list(t, pkt_dev);
