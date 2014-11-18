@@ -26,6 +26,7 @@ struct rt5645_platform_data {
 
 	/* true if codec's jd function is used */
 	bool en_jd_func;
+	unsigned int jd_mode;
 };
 
 #endif

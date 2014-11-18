@@ -594,6 +594,7 @@
 #define RT5645_M_DAC1_HM_SFT			14
 #define RT5645_M_HPVOL_HM			(0x1 << 13)
 #define RT5645_M_HPVOL_HM_SFT			13
+#define RT5645_IRQ_PSV_MODE			(0x1 << 12)
 
 /* SPK Left Mixer Control (0x46) */
 #define RT5645_G_RM_L_SM_L_MASK			(0x3 << 14)
@@ -1350,6 +1351,10 @@
 #define RT5645_PWR_CLK25M_PU			(0x1 << 4)
 #define RT5645_IRQ_CLK_MCLK			(0x0 << 3)
 #define RT5645_IRQ_CLK_INT			(0x1 << 3)
+#define RT5645_JD1_MODE_MASK			(0x3 << 0)
+#define RT5645_JD1_MODE_0			(0x0 << 0)
+#define RT5645_JD1_MODE_1			(0x1 << 0)
+#define RT5645_JD1_MODE_2			(0x2 << 0)
 
 /* VAD Control 4 (0x9d) */
 #define RT5645_VAD_SEL_MASK			(0x3 << 8)
@@ -1638,6 +1643,7 @@
 #define RT5645_OT_P_SFT				10
 #define RT5645_OT_P_NOR				(0x0 << 10)
 #define RT5645_OT_P_INV				(0x1 << 10)
+#define RT5645_IRQ_JD_1_1_EN			(0x1 << 9)
 
 /* IRQ Control 2 (0xbe) */
 #define RT5645_IRQ_MB1_OC_MASK			(0x1 << 15)
@@ -2120,6 +2126,7 @@ enum {
 #define RT5645_RXDP2_SEL_SFT			(3)
 
 /* General Control3 (0xfc) */
+#define RT5645_JD_PSV_MODE			(0x1 << 12)
 #define RT5645_IRQ_CLK_GATE_CTRL		(0x1 << 11)
 #define RT5645_MICINDET_MANU			(0x1 << 7)
 

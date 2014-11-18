@@ -2239,7 +2239,8 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec)
 
 		snd_soc_dapm_disable_pin(&codec->dapm, "micbias1");
 		snd_soc_dapm_disable_pin(&codec->dapm, "micbias2");
-		snd_soc_dapm_disable_pin(&codec->dapm, "LDO2");
+		if (rt5645->pdata.jd_mode == 0)
+			snd_soc_dapm_disable_pin(&codec->dapm, "LDO2");
 		snd_soc_dapm_disable_pin(&codec->dapm, "Mic Det Power");
 		snd_soc_dapm_sync(&codec->dapm);
 	}
@@ -2541,6 +2542,38 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 			RT5645_JD_CBJ_EN | RT5645_JD_CBJ_POL);
 		regmap_update_bits(rt5645->regmap, RT5645_MICBIAS,
 			RT5645_IRQ_CLK_INT, RT5645_IRQ_CLK_INT);
+	}
+
+	if (rt5645->pdata.jd_mode) {
+		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
+				   RT5645_IRQ_JD_1_1_EN, RT5645_IRQ_JD_1_1_EN);
+		regmap_update_bits(rt5645->regmap, RT5645_GEN_CTRL3,
+				   RT5645_JD_PSV_MODE, RT5645_JD_PSV_MODE);
+		regmap_update_bits(rt5645->regmap, RT5645_HPO_MIXER,
+				   RT5645_IRQ_PSV_MODE, RT5645_IRQ_PSV_MODE);
+		regmap_update_bits(rt5645->regmap, RT5645_MICBIAS,
+				   RT5645_MIC2_OVCD_EN, RT5645_MIC2_OVCD_EN);
+		regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
+				   RT5645_GP1_PIN_IRQ, RT5645_GP1_PIN_IRQ);
+		switch (rt5645->pdata.jd_mode) {
+		case 1:
+			regmap_update_bits(rt5645->regmap, RT5645_A_JD_CTRL1,
+					   RT5645_JD1_MODE_MASK,
+					   RT5645_JD1_MODE_0);
+			break;
+		case 2:
+			regmap_update_bits(rt5645->regmap, RT5645_A_JD_CTRL1,
+					   RT5645_JD1_MODE_MASK,
+					   RT5645_JD1_MODE_1);
+			break;
+		case 3:
+			regmap_update_bits(rt5645->regmap, RT5645_A_JD_CTRL1,
+					   RT5645_JD1_MODE_MASK,
+					   RT5645_JD1_MODE_2);
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (rt5645->i2c->irq) {
