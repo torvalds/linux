@@ -23,6 +23,7 @@
 
 /*
  * XXX This needs to be coordinated with host driver parameters
+ * XXX May need to reduce to allow for message header within a page
  */
 #define GB_OPERATION_MESSAGE_SIZE_MAX	4096
 
@@ -71,7 +72,7 @@ static void gb_pending_operation_insert(struct gb_operation *operation)
 	spin_unlock_irq(&gb_operations_lock);
 
 	/* Store the operation id in the request header */
-	header = operation->request->transfer_buffer;
+	header = operation->request.gbuf.transfer_buffer;
 	header->id = cpu_to_le16(operation->id);
 }
 
@@ -102,6 +103,20 @@ gb_pending_operation_find(struct gb_connection *connection, u16 id)
 	return found ? operation : NULL;
 }
 
+static int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
+{
+	gbuf->status = -EINPROGRESS;
+
+	return gbuf->hd->driver->submit_gbuf(gbuf, gfp_mask);
+}
+
+static void greybus_kill_gbuf(struct gbuf *gbuf)
+{
+	if (gbuf->status != -EINPROGRESS)
+		return;
+
+	gbuf->hd->driver->kill_gbuf(gbuf);
+}
 /*
  * An operations's response message has arrived.  If no callback was
  * supplied it was submitted for asynchronous completion, so we notify
@@ -124,7 +139,7 @@ int gb_operation_wait(struct gb_operation *operation)
 	ret = wait_for_completion_interruptible(&operation->completion);
 	/* If interrupted, cancel the in-flight buffer */
 	if (ret < 0)
-		greybus_kill_gbuf(operation->request);
+		greybus_kill_gbuf(&operation->request.gbuf);
 	return ret;
 
 }
@@ -134,7 +149,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 	struct gb_protocol *protocol = operation->connection->protocol;
 	struct gb_operation_msg_hdr *header;
 
-	header = operation->request->transfer_buffer;
+	header = operation->request.gbuf.transfer_buffer;
 
 	/*
 	 * If the protocol has no incoming request handler, report
@@ -164,7 +179,7 @@ static void gb_operation_recv_work(struct work_struct *recv_work)
 	bool incoming_request;
 
 	operation = container_of(recv_work, struct gb_operation, recv_work);
-	incoming_request = operation->response == NULL;
+	incoming_request = operation->response.gbuf.transfer_buffer == NULL;
 	if (incoming_request)
 		gb_operation_request_handle(operation);
 	gb_operation_complete(operation);
@@ -196,28 +211,42 @@ static void operation_timeout(struct work_struct *work)
  * initialize it here (it'll be overwritten by the incoming
  * message).
  */
-static struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
-					     u8 type, size_t size,
-					     bool data_out)
+static int gb_operation_message_init(struct gb_operation *operation,
+					u8 type, size_t size,
+					bool request, bool data_out)
 {
 	struct gb_connection *connection = operation->connection;
+	struct greybus_host_device *hd = connection->hd;
+	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
 	struct gbuf *gbuf;
 	gfp_t gfp_flags = data_out ? GFP_KERNEL : GFP_ATOMIC;
 	u16 dest_cport_id;
+	int ret;
 
 	if (size > GB_OPERATION_MESSAGE_SIZE_MAX)
-		return NULL;	/* Message too big */
+		return -E2BIG;
+	size += sizeof(*header);
+
+	if (request) {
+		message = &operation->request;
+	} else {
+		message = &operation->response;
+		type |= GB_OPERATION_TYPE_RESPONSE;
+	}
+	gbuf = &message->gbuf;
 
 	if (data_out)
 		dest_cport_id = connection->interface_cport_id;
 	else
 		dest_cport_id = CPORT_ID_BAD;
-	size += sizeof(*header);
-	gbuf = greybus_alloc_gbuf(connection->hd, dest_cport_id,
-					size, gfp_flags);
-	if (!gbuf)
-		return NULL;
+
+	gbuf->hd = hd;
+	gbuf->dest_cport_id = dest_cport_id;
+	gbuf->status = -EBADR;	/* Initial value--means "never set" */
+	ret = hd->driver->alloc_gbuf_data(gbuf, size, gfp_flags);
+	if (ret)
+		return ret;
 
 	/* Fill in the header structure */
 	header = (struct gb_operation_msg_hdr *)gbuf->transfer_buffer;
@@ -225,7 +254,17 @@ static struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
 	header->id = 0;		/* Filled in when submitted */
 	header->type = type;
 
-	return gbuf;
+	message->payload = header + 1;
+	message->operation = operation;
+
+	return 0;
+}
+
+static void gb_operation_message_exit(struct gb_message *message)
+{
+	message->operation = NULL;
+	message->payload = NULL;
+	message->gbuf.hd->driver->free_gbuf_data(&message->gbuf);
 }
 
 /*
@@ -251,30 +290,23 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	struct gb_operation *operation;
 	gfp_t gfp_flags = response_size ? GFP_KERNEL : GFP_ATOMIC;
 	bool outgoing = response_size != 0;
+	int ret;
 
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
 	if (!operation)
 		return NULL;
 	operation->connection = connection;
 
-	operation->request = gb_operation_gbuf_create(operation, type,
-							request_size,
-							outgoing);
-	if (!operation->request)
+	ret = gb_operation_message_init(operation, type, request_size,
+						true, outgoing);
+	if (ret)
 		goto err_cache;
-	operation->request_payload = operation->request->transfer_buffer +
-					sizeof(struct gb_operation_msg_hdr);
 
 	if (outgoing) {
-		type |= GB_OPERATION_TYPE_RESPONSE;
-		operation->response = gb_operation_gbuf_create(operation,
-						type, response_size,
-						false);
-		if (!operation->response)
+		ret = gb_operation_message_init(operation, type, response_size,
+						false, false);
+		if (ret)
 			goto err_request;
-		operation->response_payload =
-				operation->response->transfer_buffer +
-				sizeof(struct gb_operation_msg_hdr);
 	}
 
 	INIT_WORK(&operation->recv_work, gb_operation_recv_work);
@@ -290,7 +322,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	return operation;
 
 err_request:
-	greybus_free_gbuf(operation->request);
+	gb_operation_message_exit(&operation->request);
 err_cache:
 	kmem_cache_free(gb_operation_cache, operation);
 
@@ -311,8 +343,8 @@ static void _gb_operation_destroy(struct kref *kref)
 	list_del(&operation->links);
 	spin_unlock_irq(&gb_operations_lock);
 
-	greybus_free_gbuf(operation->response);
-	greybus_free_gbuf(operation->request);
+	gb_operation_message_exit(&operation->response);
+	gb_operation_message_exit(&operation->request);
 
 	kmem_cache_free(gb_operation_cache, operation);
 }
@@ -349,7 +381,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	 */
 	operation->callback = callback;
 	gb_pending_operation_insert(operation);
-	ret = greybus_submit_gbuf(operation->request, GFP_KERNEL);
+	ret = greybus_submit_gbuf(&operation->request.gbuf, GFP_KERNEL);
 	if (ret)
 		return ret;
 
@@ -414,7 +446,7 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 		}
 		cancel_delayed_work(&operation->timeout_work);
 		gb_pending_operation_remove(operation);
-		gbuf = operation->response;
+		gbuf = &operation->response.gbuf;
 		if (size > gbuf->transfer_buffer_length) {
 			operation->result = GB_OP_OVERFLOW;
 			gb_connection_err(connection, "recv buffer too small");
@@ -429,7 +461,7 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 			gb_connection_err(connection, "can't create operation");
 			return;
 		}
-		gbuf = operation->request;
+		gbuf = &operation->request.gbuf;
 	}
 
 	memcpy(gbuf->transfer_buffer, data, msg_size);
@@ -444,9 +476,9 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 void gb_operation_cancel(struct gb_operation *operation)
 {
 	operation->canceled = true;
-	greybus_kill_gbuf(operation->request);
-	if (operation->response)
-		greybus_kill_gbuf(operation->response);
+	greybus_kill_gbuf(&operation->request.gbuf);
+	if (operation->response.gbuf.transfer_buffer)
+		greybus_kill_gbuf(&operation->response.gbuf);
 }
 
 int gb_operation_init(void)
