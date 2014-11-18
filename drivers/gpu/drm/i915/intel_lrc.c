@@ -986,7 +986,6 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 	end = jiffies + 60 * HZ;
 
 	do {
-		ringbuf->head = I915_READ_HEAD(ring);
 		ringbuf->space = intel_ring_space(ringbuf);
 		if (ringbuf->space >= bytes) {
 			ret = 0;
