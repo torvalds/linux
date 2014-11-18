@@ -264,7 +264,9 @@ static void gb_operation_message_exit(struct gb_message *message)
 {
 	message->operation = NULL;
 	message->payload = NULL;
-	message->gbuf.hd->driver->free_gbuf_data(&message->gbuf);
+	message->gbuf.hd->driver->buffer_free(message->gbuf.transfer_buffer);
+	message->gbuf.transfer_buffer = NULL;
+	message->gbuf.transfer_buffer_length = 0;
 }
 
 /*

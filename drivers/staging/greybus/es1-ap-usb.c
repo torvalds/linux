@@ -114,19 +114,18 @@ static void *buffer_alloc(unsigned int size, gfp_t gfp_mask)
 	return buffer;
 }
 
-/* Free the memory we allocated with a gbuf */
-static void free_gbuf_data(struct gbuf *gbuf)
+/* Free a previously-allocated buffer */
+static void buffer_free(void *buffer)
 {
-	u8 *transfer_buffer = gbuf->transfer_buffer;
+	u8 *allocated = buffer;
 
-	/* Can be called with a NULL transfer_buffer on some error paths */
-	if (!transfer_buffer)
+	/* Can be called with a NULL buffer on some error paths */
+	if (!allocated)
 		return;
 
 	/* Account for the space set aside for the prepended cport id */
-	transfer_buffer -= GB_BUFFER_ALIGN;
-	kfree(transfer_buffer);
-	gbuf->transfer_buffer = NULL;
+	allocated -= GB_BUFFER_ALIGN;
+	kfree(allocated);
 }
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
@@ -240,7 +239,7 @@ static void kill_gbuf(struct gbuf *gbuf)
 static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
 	.buffer_alloc		= buffer_alloc,
-	.free_gbuf_data		= free_gbuf_data,
+	.buffer_free		= buffer_free,
 	.submit_svc		= submit_svc,
 	.submit_gbuf		= submit_gbuf,
 	.kill_gbuf		= kill_gbuf,
