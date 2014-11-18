@@ -959,3 +959,8 @@ u32 aarch64_insn_gen_logical_shifted_reg(enum aarch64_insn_register dst,
 
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_6, insn, shift);
 }
+
+bool aarch32_insn_is_wide(u32 insn)
+{
+	return insn >= 0xe800;
+}
