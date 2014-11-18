@@ -616,28 +616,11 @@ static int snd_mbox1_switch_get(struct snd_kcontrol *kctl,
 	return 0;
 }
 
-static int snd_mbox1_switch_put(struct snd_kcontrol *kctl,
-				struct snd_ctl_elem_value *ucontrol)
+static int snd_mbox1_switch_update(struct usb_mixer_interface *mixer, int val)
 {
-	struct snd_usb_audio *chip;
-	struct usb_mixer_interface *mixer;
+	struct snd_usb_audio *chip = mixer->chip;
 	int err;
-	bool cur_val, new_val;
 	unsigned char buff[3];
-
-	cur_val = kctl->private_value;
-	new_val = ucontrol->value.enumerated.item[0];
-
-	mixer = snd_kcontrol_chip(kctl);
-	if (snd_BUG_ON(!mixer))
-		return -EINVAL;
-
-	chip = mixer->chip;
-	if (snd_BUG_ON(!chip))
-		return -EINVAL;
-
-	if (cur_val == new_val)
-		return 0;
 
 	down_read(&chip->shutdown_rwsem);
 	if (chip->shutdown) {
@@ -668,7 +651,7 @@ static int snd_mbox1_switch_put(struct snd_kcontrol *kctl,
 	 *     while S/PDIF sync is enabled and confusing
 	 *     this configuration.
 	 */
-	if (new_val == 0) {
+	if (val == 0) {
 		buff[0] = 0x80;
 		buff[1] = 0xbb;
 		buff[2] = 0x00;
@@ -697,10 +680,27 @@ static int snd_mbox1_switch_put(struct snd_kcontrol *kctl,
 				USB_RECIP_ENDPOINT, 0x100, 0x2, buff, 3);
 	if (err < 0)
 		goto err;
-	kctl->private_value = new_val;
 
 err:
 	up_read(&chip->shutdown_rwsem);
+	return err;
+}
+
+static int snd_mbox1_switch_put(struct snd_kcontrol *kctl,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_list *list = snd_kcontrol_chip(kctl);
+	struct usb_mixer_interface *mixer = list->mixer;
+	int err;
+	bool cur_val, new_val;
+
+	cur_val = kctl->private_value;
+	new_val = ucontrol->value.enumerated.item[0];
+	if (cur_val == new_val)
+		return 0;
+
+	kctl->private_value = new_val;
+	err = snd_mbox1_switch_update(mixer, new_val);
 	return err < 0 ? err : 1;
 }
 
@@ -713,6 +713,11 @@ static int snd_mbox1_switch_info(struct snd_kcontrol *kcontrol,
 	};
 
 	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(texts), texts);
+}
+
+static int snd_mbox1_switch_resume(struct usb_mixer_elem_list *list)
+{
+	return snd_mbox1_switch_update(list->mixer, list->kctl->private_value);
 }
 
 static struct snd_kcontrol_new snd_mbox1_switch = {
@@ -728,8 +733,9 @@ static struct snd_kcontrol_new snd_mbox1_switch = {
 
 static int snd_mbox1_create_sync_switch(struct usb_mixer_interface *mixer)
 {
-	return snd_ctl_add(mixer->chip->card,
-			snd_ctl_new1(&snd_mbox1_switch, mixer));
+	return add_single_ctl_with_resume(mixer, 0,
+					  snd_mbox1_switch_resume,
+					  &snd_mbox1_switch, NULL);
 }
 
 /* Native Instruments device quirks */
