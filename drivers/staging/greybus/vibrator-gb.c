@@ -1,5 +1,5 @@
 /*
- * I2C bridge driver for the Greybus "generic" I2C module.
+ * Greybus Vibrator protocol driver.
  *
  * Copyright 2014 Google Inc.
  *
@@ -153,20 +153,13 @@ out:
 	gb_operation_destroy(operation);
 
 	return retval;
-
-	return 0;
 }
 
 static int turn_off(struct gb_vibrator_device *vib)
 {
 	struct gb_connection *connection = vib->connection;
-	int retval;
 
-	retval = request_operation(connection, GB_VIBRATOR_TYPE_OFF, NULL, 0);
-	if (retval)
-		return retval;
-
-	return 0;
+	return request_operation(connection, GB_VIBRATOR_TYPE_OFF, NULL, 0);
 }
 
 static ssize_t timeout_store(struct device *dev, struct device_attribute *attr,
@@ -232,7 +225,7 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 	 * are there is a "real" device somewhere in the kernel for this, but I
 	 * can't find it at the moment...
 	 */
-	dev = device_create(&vibrator_class, NULL, MKDEV(0, 0), vib,
+	dev = device_create(&vibrator_class, &connection->dev, MKDEV(0, 0), vib,
 			    "vibrator%d", minor);
 	if (IS_ERR(dev)) {
 		retval = -EINVAL;
@@ -243,7 +236,8 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,11,0)
 	/*
-	 * Newer kernels handle this in a race-free manner, for us, we need
+	 * Newer kernels handle this in a race-free manner, by the dev_groups
+	 * field in the struct class up above.  But for older kernels, we need
 	 * to "open code this :(
 	 */
 	retval = sysfs_create_group(&dev->kobj, vibrator_groups[0]);
