@@ -1889,7 +1889,6 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid,
 	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, ns->queue);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, ns->queue);
 	queue_flag_set_unlocked(QUEUE_FLAG_SG_GAPS, ns->queue);
-	queue_flag_clear_unlocked(QUEUE_FLAG_IO_STAT, ns->queue);
 	ns->dev = dev;
 	ns->queue->queuedata = ns;
 
