@@ -29,7 +29,7 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pci_regs.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -401,11 +401,11 @@ error:
 	} else {
 		if (config && *config) {
 			size = 256;
-			free_bootmem(__pa(*config), size);
+			memblock_free(__pa(*config), size);
 		}
 		if (res && *res) {
 			size = sizeof(struct celleb_pci_resource);
-			free_bootmem(__pa(*res), size);
+			memblock_free(__pa(*res), size);
 		}
 	}
 

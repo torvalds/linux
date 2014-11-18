@@ -125,12 +125,7 @@ static void __init prealloc(struct ps3_prealloc *p)
 	if (!p->size)
 		return;
 
-	p->address = __alloc_bootmem(p->size, p->align, __pa(MAX_DMA_ADDRESS));
-	if (!p->address) {
-		printk(KERN_ERR "%s: Cannot allocate %s\n", __func__,
-		       p->name);
-		return;
-	}
+	p->address = memblock_virt_alloc(p->size, p->align);
 
 	printk(KERN_INFO "%s: %lu bytes at %p\n", p->name, p->size,
 	       p->address);

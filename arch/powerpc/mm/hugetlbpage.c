@@ -315,7 +315,7 @@ int alloc_bootmem_huge_page(struct hstate *hstate)
 	 * If gpages can be in highmem we can't use the trick of storing the
 	 * data structure in the page; allocate space for this
 	 */
-	m = alloc_bootmem(sizeof(struct huge_bootmem_page));
+	m = memblock_virt_alloc(sizeof(struct huge_bootmem_page), 0);
 	m->phys = gpage_freearray[idx].gpage_list[--nr_gpages];
 #else
 	m = phys_to_virt(gpage_freearray[idx].gpage_list[--nr_gpages]);

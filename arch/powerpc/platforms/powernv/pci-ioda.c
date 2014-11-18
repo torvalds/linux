@@ -1940,19 +1940,14 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	phb_id = be64_to_cpup(prop64);
 	pr_debug("  PHB-ID  : 0x%016llx\n", phb_id);
 
-	phb = alloc_bootmem(sizeof(struct pnv_phb));
-	if (!phb) {
-		pr_err("  Out of memory !\n");
-		return;
-	}
+	phb = memblock_virt_alloc(sizeof(struct pnv_phb), 0);
 
 	/* Allocate PCI controller */
-	memset(phb, 0, sizeof(struct pnv_phb));
 	phb->hose = hose = pcibios_alloc_controller(np);
 	if (!phb->hose) {
 		pr_err("  Can't allocate PCI controller for %s\n",
 		       np->full_name);
-		free_bootmem((unsigned long)phb, sizeof(struct pnv_phb));
+		memblock_free(__pa(phb), sizeof(struct pnv_phb));
 		return;
 	}
 
@@ -2019,8 +2014,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	}
 	pemap_off = size;
 	size += phb->ioda.total_pe * sizeof(struct pnv_ioda_pe);
-	aux = alloc_bootmem(size);
-	memset(aux, 0, size);
+	aux = memblock_virt_alloc(size, 0);
 	phb->ioda.pe_alloc = aux;
 	phb->ioda.m32_segmap = aux + m32map_off;
 	if (phb->type == PNV_PHB_IODA1)

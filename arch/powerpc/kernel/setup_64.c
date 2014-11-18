@@ -660,7 +660,7 @@ static void __init emergency_stack_init(void)
 }
 
 /*
- * Called into from start_kernel this initializes bootmem, which is used
+ * Called into from start_kernel this initializes memblock, which is used
  * to manage page allocation until mem_init is called.
  */
 void __init setup_arch(char **cmdline_p)
