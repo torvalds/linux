@@ -228,7 +228,6 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
-	struct gbuf *gbuf;
 	gfp_t gfp_flags = request && !outbound ? GFP_ATOMIC : GFP_KERNEL;
 	u16 dest_cport_id;
 
@@ -242,23 +241,22 @@ static int gb_operation_message_init(struct gb_operation *operation,
 		message = &operation->response;
 		type |= GB_OPERATION_TYPE_RESPONSE;
 	}
-	gbuf = &message->gbuf;
 
 	if (outbound)
 		dest_cport_id = connection->interface_cport_id;
 	else
 		dest_cport_id = CPORT_ID_BAD;
 
-	gbuf->transfer_buffer = hd->driver->buffer_alloc(size, gfp_flags);
-	if (!gbuf->transfer_buffer)
+	message->gbuf.transfer_buffer = hd->driver->buffer_alloc(size, gfp_flags);
+	if (!message->gbuf.transfer_buffer)
 		return -ENOMEM;
-	gbuf->transfer_buffer_length = size;
-	gbuf->hd = hd;
-	gbuf->dest_cport_id = dest_cport_id;
-	gbuf->status = -EBADR;	/* Initial value--means "never set" */
+	message->gbuf.transfer_buffer_length = size;
+	message->gbuf.hd = hd;
+	message->gbuf.dest_cport_id = dest_cport_id;
+	message->gbuf.status = -EBADR;	/* Initial value--means "never set" */
 
 	/* Fill in the header structure */
-	header = (struct gb_operation_msg_hdr *)gbuf->transfer_buffer;
+	header = message->gbuf.transfer_buffer;
 	header->size = cpu_to_le16(size);
 	header->id = 0;		/* Filled in when submitted */
 	header->type = type;
