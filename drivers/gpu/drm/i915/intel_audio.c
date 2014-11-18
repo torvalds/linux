@@ -194,6 +194,7 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder)
 	/* Invalidate ELD */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
 	tmp &= ~AUDIO_ELD_VALID(pipe);
+	tmp &= ~AUDIO_OUTPUT_ENABLE(pipe);
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 }
 
