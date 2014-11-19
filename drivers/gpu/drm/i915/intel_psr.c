@@ -195,6 +195,23 @@ static void vlv_psr_enable_source(struct intel_dp *intel_dp)
 		   VLV_EDP_PSR_ENABLE);
 }
 
+static void vlv_psr_activate(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dig_port->base.base.crtc;
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+
+	/* Let's do the transition from PSR_state 1 to PSR_state 2
+	 * that is PSR transition to active - static frame transmission.
+	 * Then Hardware is responsible for the transition to PSR_state 3
+	 * that is PSR active - no Remote Frame Buffer (RFB) update.
+	 */
+	I915_WRITE(VLV_PSRCTL(pipe), I915_READ(VLV_PSRCTL(pipe)) |
+		   VLV_EDP_PSR_ACTIVE_ENTRY);
+}
+
 static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -283,12 +300,16 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 	WARN_ON(dev_priv->psr.active);
 	lockdep_assert_held(&dev_priv->psr.lock);
 
-	/* Enable/Re-enable PSR on the host
-	 * On HSW+ after we enable PSR on source it will activate it
-	 * as soon as it match configure idle_frame count. So
-	 * we just actually enable it here on activation time.
-	 */
-	hsw_psr_enable_source(intel_dp);
+	/* Enable/Re-enable PSR on the host */
+	if (HAS_DDI(dev))
+		/* On HSW+ after we enable PSR on source it will activate it
+		 * as soon as it match configure idle_frame count. So
+		 * we just actually enable it here on activation time.
+		 */
+		hsw_psr_enable_source(intel_dp);
+	else
+		vlv_psr_activate(intel_dp);
+
 	dev_priv->psr.active = true;
 }
 
@@ -436,18 +457,27 @@ static void intel_psr_work(struct work_struct *work)
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), psr.work.work);
 	struct intel_dp *intel_dp = dev_priv->psr.enabled;
+	struct drm_crtc *crtc = dp_to_dig_port(intel_dp)->base.base.crtc;
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 
 	/* We have to make sure PSR is ready for re-enable
 	 * otherwise it keeps disabled until next full enable/disable cycle.
 	 * PSR might take some time to get fully disabled
 	 * and be ready for re-enable.
 	 */
-	if (wait_for((I915_READ(EDP_PSR_STATUS_CTL(dev_priv->dev)) &
-		      EDP_PSR_STATUS_STATE_MASK) == 0, 50)) {
-		DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
-		return;
+	if (HAS_DDI(dev_priv->dev)) {
+		if (wait_for((I915_READ(EDP_PSR_STATUS_CTL(dev_priv->dev)) &
+			      EDP_PSR_STATUS_STATE_MASK) == 0, 50)) {
+			DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
+			return;
+		}
+	} else {
+		if (wait_for((I915_READ(VLV_PSRSTAT(pipe)) &
+			      VLV_EDP_PSR_IN_TRANS) == 0, 1)) {
+			DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
+			return;
+		}
 	}
-
 	mutex_lock(&dev_priv->psr.lock);
 	intel_dp = dev_priv->psr.enabled;
 
@@ -470,17 +500,47 @@ unlock:
 static void intel_psr_exit(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_dp *intel_dp = dev_priv->psr.enabled;
+	struct drm_crtc *crtc = dp_to_dig_port(intel_dp)->base.base.crtc;
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	u32 val;
 
-	if (dev_priv->psr.active) {
-		u32 val = I915_READ(EDP_PSR_CTL(dev));
+	if (!dev_priv->psr.active)
+		return;
+
+	if (HAS_DDI(dev)) {
+		val = I915_READ(EDP_PSR_CTL(dev));
 
 		WARN_ON(!(val & EDP_PSR_ENABLE));
 
 		I915_WRITE(EDP_PSR_CTL(dev), val & ~EDP_PSR_ENABLE);
 
 		dev_priv->psr.active = false;
+	} else {
+		val = I915_READ(VLV_PSRCTL(pipe));
+
+		/* Here we do the transition from PSR_state 3 to PSR_state 5
+		 * directly once PSR State 4 that is active with single frame
+		 * update can be skipped. PSR_state 5 that is PSR exit then
+		 * Hardware is responsible to transition back to PSR_state 1
+		 * that is PSR inactive. Same state after
+		 * vlv_edp_psr_enable_source.
+		 */
+		val &= ~VLV_EDP_PSR_ACTIVE_ENTRY;
+		I915_WRITE(VLV_PSRCTL(pipe), val);
+
+		/* Send AUX wake up - Spec says after transitioning to PSR
+		 * active we have to send AUX wake up by writing 01h in DPCD
+		 * 600h of sink device.
+		 * XXX: This might slow down the transition, but without this
+		 * HW doesn't complete the transition to PSR_state 1 and we
+		 * never get the screen updated.
+		 */
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER,
+				   DP_SET_POWER_D0);
 	}
 
+	dev_priv->psr.active = false;
 }
 
 /**
@@ -556,6 +616,17 @@ void intel_psr_flush(struct drm_device *dev,
 	 */
 	if (IS_HASWELL(dev) &&
 	    (frontbuffer_bits & INTEL_FRONTBUFFER_SPRITE(pipe)))
+		intel_psr_exit(dev);
+
+	/*
+	 * On Valleyview and Cherryview we don't use hardware tracking so
+	 * sprite plane updates or cursor moves don't result in a PSR
+	 * invalidating. Which means we need to manually fake this in
+	 * software for all flushes, not just when we've seen a preceding
+	 * invalidation through frontbuffer rendering. */
+	if (!HAS_DDI(dev) &&
+	    ((frontbuffer_bits & INTEL_FRONTBUFFER_SPRITE(pipe)) ||
+	     (frontbuffer_bits & INTEL_FRONTBUFFER_CURSOR(pipe))))
 		intel_psr_exit(dev);
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
