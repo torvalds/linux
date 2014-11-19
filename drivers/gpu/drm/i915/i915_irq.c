@@ -988,7 +988,6 @@ static void notify_ring(struct drm_device *dev,
 	trace_i915_gem_request_complete(ring);
 
 	wake_up_all(&ring->irq_queue);
-	i915_queue_hangcheck(dev);
 }
 
 static u32 vlv_c0_residency(struct drm_i915_private *dev_priv,
@@ -3041,11 +3040,15 @@ static void i915_hangcheck_elapsed(unsigned long data)
 void i915_queue_hangcheck(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct timer_list *timer = &dev_priv->gpu_error.hangcheck_timer;
+
 	if (!i915.enable_hangcheck)
 		return;
 
-	mod_timer(&dev_priv->gpu_error.hangcheck_timer,
-		  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
+	/* Don't continually defer the hangcheck, but make sure it is active */
+	if (!timer_pending(timer))
+		timer->expires = round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES);
+	mod_timer(timer, timer->expires);
 }
 
 static void ibx_irq_reset(struct drm_device *dev)
