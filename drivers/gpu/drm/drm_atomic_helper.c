@@ -976,18 +976,18 @@ EXPORT_SYMBOL(drm_atomic_helper_prepare_planes);
 /**
  * drm_atomic_helper_commit_planes - commit plane state
  * @dev: DRM device
- * @state: atomic state
+ * @old_state: atomic state object with old state structures
  *
  * This function commits the new plane state using the plane and atomic helper
  * functions for planes and crtcs. It assumes that the atomic state has already
  * been pushed into the relevant object state pointers, since this step can no
  * longer fail.
  *
- * It still requires the global state object @state to know which planes and
+ * It still requires the global state object @old_state to know which planes and
  * crtcs need to be updated though.
  */
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_state *old_state)
 {
 	int nplanes = dev->mode_config.num_total_plane;
 	int ncrtcs = dev->mode_config.num_crtc;
@@ -995,7 +995,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 
 	for (i = 0; i < ncrtcs; i++) {
 		struct drm_crtc_helper_funcs *funcs;
-		struct drm_crtc *crtc = state->crtcs[i];
+		struct drm_crtc *crtc = old_state->crtcs[i];
 
 		if (!crtc)
 			continue;
@@ -1010,7 +1010,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 
 	for (i = 0; i < nplanes; i++) {
 		struct drm_plane_helper_funcs *funcs;
-		struct drm_plane *plane = state->planes[i];
+		struct drm_plane *plane = old_state->planes[i];
 
 		if (!plane)
 			continue;
@@ -1025,7 +1025,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 
 	for (i = 0; i < ncrtcs; i++) {
 		struct drm_crtc_helper_funcs *funcs;
-		struct drm_crtc *crtc = state->crtcs[i];
+		struct drm_crtc *crtc = old_state->crtcs[i];
 
 		if (!crtc)
 			continue;
