@@ -21,6 +21,7 @@
  */
 
 #include <linux/types.h>
+#include <cs5536/cs5536_pci.h>
 #include <cs5536/cs5536_vsm.h>
 
 enum {
