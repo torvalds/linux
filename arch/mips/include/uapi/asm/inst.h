@@ -83,9 +83,12 @@ enum spec3_op {
 	swe_op    = 0x1f, bshfl_op  = 0x20,
 	swle_op   = 0x21, swre_op   = 0x22,
 	prefe_op  = 0x23, dbshfl_op = 0x24,
-	lbue_op   = 0x28, lhue_op   = 0x29,
-	lbe_op    = 0x2c, lhe_op    = 0x2d,
-	lle_op    = 0x2e, lwe_op    = 0x2f,
+	cache6_op = 0x25, sc6_op    = 0x26,
+	scd6_op   = 0x27, lbue_op   = 0x28,
+	lhue_op   = 0x29, lbe_op    = 0x2c,
+	lhe_op    = 0x2d, lle_op    = 0x2e,
+	lwe_op    = 0x2f, pref6_op  = 0x35,
+	ll6_op    = 0x36, lld6_op   = 0x37,
 	rdhwr_op  = 0x3b
 };
 
