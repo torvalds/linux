@@ -112,7 +112,7 @@
 
 #define USB_INTERFERENCE_ISSUE // this should be checked in all usb interface
 //#define CONFIG_ADAPTOR_INFO_CACHING_FILE // now just applied on 8192cu only, should make it general...
-//#define CONFIG_RESUME_IN_WORKQUEUE
+#define CONFIG_RESUME_IN_WORKQUEUE
 //#define CONFIG_SET_SCAN_DENY_TIMER
 #define CONFIG_LONG_DELAY_ISSUE
 #define CONFIG_NEW_SIGNAL_STAT_PROCESS
