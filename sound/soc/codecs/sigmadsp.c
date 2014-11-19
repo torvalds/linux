@@ -7,7 +7,6 @@
  */
 
 #include <linux/crc32.h>
-#include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
@@ -28,9 +27,6 @@ enum {
 	SIGMA_ACTION_WRITEXBYTES = 0,
 	SIGMA_ACTION_WRITESINGLE,
 	SIGMA_ACTION_WRITESAFELOAD,
-	SIGMA_ACTION_DELAY,
-	SIGMA_ACTION_PLLWAIT,
-	SIGMA_ACTION_NOOP,
 	SIGMA_ACTION_END,
 };
 
@@ -78,10 +74,6 @@ process_sigma_action(struct sigma_firmware *ssfw, struct sigma_action *sa)
 		ret = ssfw->write(ssfw->control_data, sa, len);
 		if (ret < 0)
 			return -EINVAL;
-		break;
-	case SIGMA_ACTION_DELAY:
-		udelay(len);
-		len = 0;
 		break;
 	case SIGMA_ACTION_END:
 		return 0;
