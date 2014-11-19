@@ -1326,6 +1326,10 @@ static int f2fs_write_node_page(struct page *page,
 	dec_page_count(sbi, F2FS_DIRTY_NODES);
 	up_read(&sbi->node_write);
 	unlock_page(page);
+
+	if (wbc->for_reclaim)
+		f2fs_submit_merged_bio(sbi, NODE, WRITE);
+
 	return 0;
 
 redirty_out:
