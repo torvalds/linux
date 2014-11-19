@@ -1128,6 +1128,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 	err = hci_req_run(&req, hci_req_sync_complete);
 	if (err < 0) {
 		remove_wait_queue(&hdev->req_wait_q, &wait);
+		set_current_state(TASK_RUNNING);
 		return ERR_PTR(err);
 	}
 
@@ -1196,6 +1197,7 @@ static int __hci_req_sync(struct hci_dev *hdev,
 		hdev->req_status = 0;
 
 		remove_wait_queue(&hdev->req_wait_q, &wait);
+		set_current_state(TASK_RUNNING);
 
 		/* ENODATA means the HCI request command queue is empty.
 		 * This can happen when a request with conditionals doesn't
