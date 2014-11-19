@@ -820,7 +820,7 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 		unsigned nptes;
 		uint64_t pte;
 
-		radeon_sync_resv(rdev, &ib->sync, pt->tbo.resv, false);
+		radeon_sync_resv(rdev, &ib->sync, pt->tbo.resv, true);
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
@@ -979,6 +979,13 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	if (r)
 		return r;
 	ib.length_dw = 0;
+
+	if (!(bo_va->flags & RADEON_VM_PAGE_VALID)) {
+		unsigned i;
+
+		for (i = 0; i < RADEON_NUM_RINGS; ++i)
+			radeon_sync_fence(&ib.sync, vm->ids[i].last_id_use);
+	}
 
 	radeon_vm_update_ptes(rdev, vm, &ib, bo_va->it.start,
 			      bo_va->it.last + 1, addr,
