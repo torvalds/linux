@@ -896,7 +896,7 @@ static void selftest_data_remove(void)
 		return;
 	}
 
-	while (last_node_index >= 0) {
+	while (last_node_index-- > 0) {
 		if (nodes[last_node_index]) {
 			np = of_find_node_by_path(nodes[last_node_index]->full_name);
 			if (strcmp(np->full_name, "/aliases") != 0) {
@@ -908,7 +908,6 @@ static void selftest_data_remove(void)
 				}
 			}
 		}
-		last_node_index--;
 	}
 }
 
