@@ -2760,22 +2760,29 @@ static struct dma_pl330_desc *pl330_get_desc(struct dma_pl330_chan *pch)
 	struct dma_pl330_dmac *pdmac = pch->dmac;
 	u8 *peri_id = pch->chan.private;
 	struct dma_pl330_desc *desc;
+	int i = 0;
 
 	/* Pluck one desc from the pool of DMAC */
 	desc = pluck_desc(pdmac);
 
 	/* If the DMAC pool is empty, alloc new */
 	if (!desc) {
-		if (!add_desc(pdmac, GFP_ATOMIC, 1))
-			return NULL;
+		for(i = 0; i < 3; i++) {
+			if (!add_desc(pdmac, GFP_ATOMIC, 1))
+				continue;
 
-		/* Try again */
-		desc = pluck_desc(pdmac);
-		if (!desc) {
-			dev_err(pch->dmac->pif.dev,
-				"%s:%d ALERT!\n", __func__, __LINE__);
-			return NULL;
+			/* Try again */
+			desc = pluck_desc(pdmac);
+			if (!desc) {
+				dev_err(pch->dmac->pif.dev,
+					"%s:%d i=%d ALERT!\n", __func__, __LINE__,i);
+				continue;
+			}
+			break;
 		}
+
+		if(!desc && i >= 3)
+			return NULL;
 	}
 
 	/* Initialize the descriptor */
