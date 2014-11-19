@@ -591,8 +591,7 @@ static int fw_map_pages_buf(struct firmware_buf *buf)
 	if (!buf->is_paged_buf)
 		return 0;
 
-	if (buf->data)
-		vunmap(buf->data);
+	vunmap(buf->data);
 	buf->data = vmap(buf->pages, buf->nr_pages, 0, PAGE_KERNEL_RO);
 	if (!buf->data)
 		return -ENOMEM;
