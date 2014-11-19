@@ -79,8 +79,8 @@ static int netpoll_start_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	if (vlan_tx_tag_present(skb) &&
 	    !vlan_hw_offload_capable(features, skb->vlan_proto)) {
-		skb = __vlan_put_tag(skb, skb->vlan_proto,
-				     vlan_tx_tag_get(skb));
+		skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
+						vlan_tx_tag_get(skb));
 		if (unlikely(!skb)) {
 			/* This is actually a packet drop, but we
 			 * don't want the code that calls this

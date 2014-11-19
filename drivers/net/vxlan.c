@@ -1600,9 +1600,9 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 		return err;
 
 	if (vlan_tx_tag_present(skb)) {
-		if (WARN_ON(!__vlan_put_tag(skb,
-					    skb->vlan_proto,
-					    vlan_tx_tag_get(skb))))
+		skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
+						vlan_tx_tag_get(skb));
+		if (WARN_ON(!skb))
 			return -ENOMEM;
 
 		skb->vlan_tci = 0;
@@ -1644,9 +1644,9 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 		return err;
 
 	if (vlan_tx_tag_present(skb)) {
-		if (WARN_ON(!__vlan_put_tag(skb,
-					    skb->vlan_proto,
-					    vlan_tx_tag_get(skb))))
+		skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
+						vlan_tx_tag_get(skb));
+		if (WARN_ON(!skb))
 			return -ENOMEM;
 
 		skb->vlan_tci = 0;

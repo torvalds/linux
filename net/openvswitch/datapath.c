@@ -425,7 +425,8 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		if (!nskb)
 			return -ENOMEM;
 
-		nskb = __vlan_put_tag(nskb, nskb->vlan_proto, vlan_tx_tag_get(nskb));
+		nskb = vlan_insert_tag_set_proto(nskb, nskb->vlan_proto,
+						 vlan_tx_tag_get(nskb));
 		if (!nskb)
 			return -ENOMEM;
 

@@ -132,12 +132,11 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 		return err;
 
 	if (vlan_tx_tag_present(skb)) {
-		if (unlikely(!__vlan_put_tag(skb,
-					     skb->vlan_proto,
-					     vlan_tx_tag_get(skb)))) {
-			err = -ENOMEM;
-			return err;
-		}
+		skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
+						vlan_tx_tag_get(skb));
+		if (unlikely(!skb)
+			return -ENOMEM;
+
 		skb->vlan_tci = 0;
 	}
 

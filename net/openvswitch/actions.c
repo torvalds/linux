@@ -287,7 +287,9 @@ static int push_vlan(struct sk_buff *skb, struct sw_flow_key *key,
 		/* push down current VLAN tag */
 		current_tag = vlan_tx_tag_get(skb);
 
-		if (!__vlan_put_tag(skb, skb->vlan_proto, current_tag))
+		skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
+						current_tag);
+		if (!skb)
 			return -ENOMEM;
 		/* Update mac_len for subsequent MPLS actions */
 		skb->mac_len += VLAN_HLEN;
