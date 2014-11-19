@@ -6310,8 +6310,7 @@ static void drxk_release(struct dvb_frontend *fe)
 	struct drxk_state *state = fe->demodulator_priv;
 
 	dprintk(1, "\n");
-	if (state->fw)
-		release_firmware(state->fw);
+	release_firmware(state->fw);
 
 	kfree(state);
 }
