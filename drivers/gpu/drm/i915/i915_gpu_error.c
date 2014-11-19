@@ -809,9 +809,8 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 
 	if (!error->semaphore_obj)
 		error->semaphore_obj =
-			i915_error_object_create(dev_priv,
-						 dev_priv->semaphore_obj,
-						 &dev_priv->gtt.base);
+			i915_error_ggtt_object_create(dev_priv,
+						      dev_priv->semaphore_obj);
 
 	for_each_ring(to, dev_priv, i) {
 		int idx;
