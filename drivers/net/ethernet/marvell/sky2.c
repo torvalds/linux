@@ -1290,14 +1290,6 @@ static void rx_set_checksum(struct sky2_port *sky2)
 		     ? BMU_ENA_RX_CHKSUM : BMU_DIS_RX_CHKSUM);
 }
 
-/*
- * Fixed initial key as seed to RSS.
- */
-static const uint32_t rss_init_key[10] = {
-	0x7c3351da, 0x51c5cf4e,	0x44adbdd1, 0xe8d38d18,	0x48897c43,
-	0xb1d60e7e, 0x6a3dd760, 0x01a2e453, 0x16f46f13, 0x1a0e7b30
-};
-
 /* Enable/disable receive hash calculation (RSS) */
 static void rx_set_rss(struct net_device *dev, netdev_features_t features)
 {
@@ -1313,9 +1305,12 @@ static void rx_set_rss(struct net_device *dev, netdev_features_t features)
 
 	/* Program RSS initial values */
 	if (features & NETIF_F_RXHASH) {
+		u32 rss_key[10];
+
+		netdev_rss_key_fill(rss_key, sizeof(rss_key));
 		for (i = 0; i < nkeys; i++)
 			sky2_write32(hw, SK_REG(sky2->port, RSS_KEY + i * 4),
-				     rss_init_key[i]);
+				     rss_key[i]);
 
 		/* Need to turn on (undocumented) flag to make hashing work  */
 		sky2_write32(hw, SK_REG(sky2->port, RX_GMF_CTRL_T),
