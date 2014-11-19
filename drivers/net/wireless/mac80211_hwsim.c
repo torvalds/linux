@@ -2191,7 +2191,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	if (err != 0) {
 		printk(KERN_DEBUG "mac80211_hwsim: device_bind_driver failed (%d)\n",
 		       err);
-		goto failed_hw;
+		goto failed_bind;
 	}
 
 	skb_queue_head_init(&data->pending);
@@ -2397,6 +2397,8 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	return idx;
 
 failed_hw:
+	device_release_driver(data->dev);
+failed_bind:
 	device_unregister(data->dev);
 failed_drvdata:
 	ieee80211_free_hw(hw);
