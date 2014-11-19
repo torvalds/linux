@@ -116,10 +116,7 @@ struct gb_tty {
 	u16 cport_id;
 	unsigned int minor;
 	unsigned char clocal;
-	unsigned int throttled:1;
-	unsigned int throttle_req:1;
 	bool disconnected;
-	int writesize;		// FIXME - set this somehow.
 	spinlock_t read_lock;
 	spinlock_t write_lock;
 	struct async_icount iocount;
@@ -567,25 +564,39 @@ static int gb_tty_tiocmset(struct tty_struct *tty, unsigned int set,
 static void gb_tty_throttle(struct tty_struct *tty)
 {
 	struct gb_tty *gb_tty = tty->driver_data;
+	unsigned char stop_char;
+	int retval;
 
-	spin_lock_irq(&gb_tty->read_lock);
-	gb_tty->throttle_req = 1;
-	spin_unlock_irq(&gb_tty->read_lock);
+	if (I_IXOFF(tty)) {
+		stop_char = STOP_CHAR(tty);
+		retval = gb_tty_write(tty, &stop_char, 1);
+		if (retval <= 0)
+			return;
+	}
+
+	if (tty->termios.c_cflag & CRTSCTS) {
+		gb_tty->ctrlout &= ~GB_UART_CTRL_RTS;
+		retval = send_control(gb_tty, gb_tty->ctrlout);
+	}
+
 }
 
 static void gb_tty_unthrottle(struct tty_struct *tty)
 {
 	struct gb_tty *gb_tty = tty->driver_data;
-	unsigned int was_throttled;
+	unsigned char start_char;
+	int retval;
 
-	spin_lock_irq(&gb_tty->read_lock);
-	was_throttled = gb_tty->throttled;
-	gb_tty->throttle_req = 0;
-	gb_tty->throttled = 0;
-	spin_unlock_irq(&gb_tty->read_lock);
+	if (I_IXOFF(tty)) {
+		start_char = START_CHAR(tty);
+		retval = gb_tty_write(tty, &start_char, 1);
+		if (retval <= 0)
+			return;
+	}
 
-	if (was_throttled) {
-		// FIXME - send more data
+	if (tty->termios.c_cflag & CRTSCTS) {
+		gb_tty->ctrlout |= GB_UART_CTRL_RTS;
+		retval = send_control(gb_tty, gb_tty->ctrlout);
 	}
 }
 
@@ -598,9 +609,11 @@ static int get_serial_info(struct gb_tty *gb_tty,
 		return -EINVAL;
 
 	memset(&tmp, 0, sizeof(tmp));
-	tmp.flags = ASYNC_LOW_LATENCY;
-	tmp.xmit_fifo_size = gb_tty->writesize;
-	tmp.baud_base = 0;	// FIXME
+	tmp.flags = ASYNC_LOW_LATENCY | ASYNC_SKIP_TEST;
+	tmp.type = PORT_16550A;
+	tmp.line = gb_tty->minor;
+	tmp.xmit_fifo_size = 16;
+	tmp.baud_base = 9600;
 	tmp.close_delay = gb_tty->port.close_delay / 10;
 	tmp.closing_wait = gb_tty->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
 				ASYNC_CLOSING_WAIT_NONE : gb_tty->port.closing_wait / 10;
