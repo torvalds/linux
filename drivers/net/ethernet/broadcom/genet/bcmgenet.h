@@ -143,6 +143,9 @@ struct bcmgenet_mib_counters {
 	u32	rbuf_ovflow_cnt;
 	u32	rbuf_err_cnt;
 	u32	mdf_err_cnt;
+	u32	alloc_rx_buff_failed;
+	u32	rx_dma_failed;
+	u32	tx_dma_failed;
 };
 
 #define UMAC_HD_BKP_CTRL		0x004
