@@ -150,9 +150,6 @@ extern int radeon_backlight;
 /* number of hw syncs before falling back on blocking */
 #define RADEON_NUM_SYNCS			4
 
-/* number of hw syncs before falling back on blocking */
-#define RADEON_NUM_SYNCS			4
-
 /* hardcode those limit for now */
 #define RADEON_VA_IB_OFFSET			(1 << 20)
 #define RADEON_VA_RESERVED_SIZE			(8 << 20)
@@ -576,10 +573,9 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
  * Semaphores.
  */
 struct radeon_semaphore {
-	struct radeon_sa_bo		*sa_bo;
-	signed				waiters;
-	uint64_t			gpu_addr;
-	struct radeon_fence		*sync_to[RADEON_NUM_RINGS];
+	struct radeon_sa_bo	*sa_bo;
+	signed			waiters;
+	uint64_t		gpu_addr;
 };
 
 int radeon_semaphore_create(struct radeon_device *rdev,
@@ -588,18 +584,30 @@ bool radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
 				  struct radeon_semaphore *semaphore);
 bool radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
 				struct radeon_semaphore *semaphore);
-void radeon_semaphore_sync_fence(struct radeon_semaphore *semaphore,
-				 struct radeon_fence *fence);
-int radeon_semaphore_sync_resv(struct radeon_device *rdev,
-			       struct radeon_semaphore *semaphore,
-			       struct reservation_object *resv,
-			       bool shared);
-int radeon_semaphore_sync_rings(struct radeon_device *rdev,
-				struct radeon_semaphore *semaphore,
-				int waiting_ring);
 void radeon_semaphore_free(struct radeon_device *rdev,
 			   struct radeon_semaphore **semaphore,
 			   struct radeon_fence *fence);
+
+/*
+ * Synchronization
+ */
+struct radeon_sync {
+	struct radeon_semaphore *semaphores[RADEON_NUM_SYNCS];
+	struct radeon_fence	*sync_to[RADEON_NUM_RINGS];
+};
+
+void radeon_sync_create(struct radeon_sync *sync);
+void radeon_sync_fence(struct radeon_sync *sync,
+		       struct radeon_fence *fence);
+int radeon_sync_resv(struct radeon_device *rdev,
+		     struct radeon_sync *sync,
+		     struct reservation_object *resv,
+		     bool shared);
+int radeon_sync_rings(struct radeon_device *rdev,
+		      struct radeon_sync *sync,
+		      int waiting_ring);
+void radeon_sync_free(struct radeon_device *rdev, struct radeon_sync *sync,
+		      struct radeon_fence *fence);
 
 /*
  * GART structures, functions & helpers
@@ -818,7 +826,7 @@ struct radeon_ib {
 	struct radeon_fence		*fence;
 	struct radeon_vm		*vm;
 	bool				is_const_ib;
-	struct radeon_semaphore		*semaphore;
+	struct radeon_sync		sync;
 };
 
 struct radeon_ring {

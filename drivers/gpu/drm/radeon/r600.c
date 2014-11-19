@@ -2889,31 +2889,27 @@ struct radeon_fence *r600_copy_cpdma(struct radeon_device *rdev,
 				     unsigned num_gpu_pages,
 				     struct reservation_object *resv)
 {
-	struct radeon_semaphore *sem = NULL;
 	struct radeon_fence *fence;
+	struct radeon_sync sync;
 	int ring_index = rdev->asic->copy.blit_ring_index;
 	struct radeon_ring *ring = &rdev->ring[ring_index];
 	u32 size_in_bytes, cur_size_in_bytes, tmp;
 	int i, num_loops;
 	int r = 0;
 
-	r = radeon_semaphore_create(rdev, &sem);
-	if (r) {
-		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		return ERR_PTR(r);
-	}
+	radeon_sync_create(&sync);
 
 	size_in_bytes = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT);
 	num_loops = DIV_ROUND_UP(size_in_bytes, 0x1fffff);
 	r = radeon_ring_lock(rdev, ring, num_loops * 6 + 24);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		radeon_semaphore_free(rdev, &sem, NULL);
+		radeon_sync_free(rdev, &sync, NULL);
 		return ERR_PTR(r);
 	}
 
-	radeon_semaphore_sync_resv(rdev, sem, resv, false);
-	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
+	radeon_sync_resv(rdev, &sync, resv, false);
+	radeon_sync_rings(rdev, &sync, ring->idx);
 
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 	radeon_ring_write(ring, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
@@ -2942,12 +2938,12 @@ struct radeon_fence *r600_copy_cpdma(struct radeon_device *rdev,
 	r = radeon_fence_emit(rdev, &fence, ring->idx);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
-		radeon_semaphore_free(rdev, &sem, NULL);
+		radeon_sync_free(rdev, &sync, NULL);
 		return ERR_PTR(r);
 	}
 
 	radeon_ring_unlock_commit(rdev, ring, false);
-	radeon_semaphore_free(rdev, &sem, fence);
+	radeon_sync_free(rdev, &sync, fence);
 
 	return fence;
 }
