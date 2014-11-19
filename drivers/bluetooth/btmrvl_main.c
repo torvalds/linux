@@ -492,13 +492,18 @@ static int btmrvl_download_cal_data(struct btmrvl_private *priv,
 	return 0;
 }
 
-static int btmrvl_cal_data_dt(struct btmrvl_private *priv)
+static int btmrvl_check_device_tree(struct btmrvl_private *priv)
 {
 	struct device_node *dt_node;
 	u8 cal_data[BT_CAL_HDR_LEN + BT_CAL_DATA_SIZE];
 	int ret;
+	u32 val;
 
 	for_each_compatible_node(dt_node, NULL, "btmrvl,cfgdata") {
+		ret = of_property_read_u32(dt_node, "btmrvl,gpio-gap", &val);
+		if (!ret)
+			priv->btmrvl_dev.gpio_gap = val;
+
 		ret = of_property_read_u8_array(dt_node, "btmrvl,cal-data",
 						cal_data + BT_CAL_HDR_LEN,
 						BT_CAL_DATA_SIZE);
@@ -523,14 +528,15 @@ static int btmrvl_setup(struct hci_dev *hdev)
 
 	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
 
-	btmrvl_cal_data_dt(priv);
+	priv->btmrvl_dev.gpio_gap = 0xffff;
+
+	btmrvl_check_device_tree(priv);
 
 	btmrvl_pscan_window_reporting(priv, 0x01);
 
 	priv->btmrvl_dev.psmode = 1;
 	btmrvl_enable_ps(priv);
 
-	priv->btmrvl_dev.gpio_gap = 0xffff;
 	btmrvl_send_hscfg_cmd(priv);
 
 	return 0;
