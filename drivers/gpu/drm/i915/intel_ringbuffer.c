@@ -1859,10 +1859,6 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	if (ret)
 		goto error;
 
-	ret = ring->init_hw(ring);
-	if (ret)
-		goto error;
-
 	return 0;
 
 error:

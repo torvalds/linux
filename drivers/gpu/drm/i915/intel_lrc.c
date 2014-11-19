@@ -1387,12 +1387,6 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 	if (ret)
 		return ret;
 
-	if (ring->init_hw) {
-		ret = ring->init_hw(ring);
-		if (ret)
-			return ret;
-	}
-
 	ret = intel_lr_context_deferred_create(ring->default_context, ring);
 
 	return ret;

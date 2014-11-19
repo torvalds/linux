@@ -4769,6 +4769,7 @@ int
 i915_gem_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring;
 	int ret, i;
 
 	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
@@ -4795,9 +4796,11 @@ i915_gem_init_hw(struct drm_device *dev)
 
 	i915_gem_init_swizzling(dev);
 
-	ret = dev_priv->gt.init_rings(dev);
-	if (ret)
-		return ret;
+	for_each_ring(ring, dev_priv, i) {
+		ret = ring->init_hw(ring);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < NUM_L3_SLICES(dev); i++)
 		i915_gem_l3_remap(&dev_priv->ring[RCS], i);
@@ -4869,6 +4872,10 @@ int i915_gem_init(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
+
+	ret = dev_priv->gt.init_rings(dev);
+	if (ret)
+		return ret;
 
 	ret = i915_gem_init_hw(dev);
 	if (ret == -EIO) {
