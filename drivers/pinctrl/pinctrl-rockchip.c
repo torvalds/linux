@@ -89,6 +89,7 @@ struct rockchip_iomux {
  * @reg_pull: optional separate register for additional pull settings
  * @clk: clock of the gpio bank
  * @irq: interrupt of the gpio bank
+ * @saved_enables: Saved content of GPIO_INTEN at suspend time.
  * @pin_base: first pin number
  * @nr_pins: number of pins in this bank
  * @name: name of the bank
@@ -107,6 +108,7 @@ struct rockchip_pin_bank {
 	struct regmap			*regmap_pull;
 	struct clk			*clk;
 	int				irq;
+	u32				saved_enables;
 	u32				pin_base;
 	u8				nr_pins;
 	char				*name;
@@ -1543,6 +1545,23 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
+static void rockchip_irq_suspend(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct rockchip_pin_bank *bank = gc->private;
+
+	bank->saved_enables = irq_reg_readl(gc, GPIO_INTEN);
+	irq_reg_writel(gc, gc->wake_active, GPIO_INTEN);
+}
+
+static void rockchip_irq_resume(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct rockchip_pin_bank *bank = gc->private;
+
+	irq_reg_writel(gc, bank->saved_enables, GPIO_INTEN);
+}
+
 static int rockchip_interrupts_register(struct platform_device *pdev,
 						struct rockchip_pinctrl *info)
 {
@@ -1587,6 +1606,8 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 		gc->chip_types[0].chip.irq_mask = irq_gc_mask_clr_bit;
 		gc->chip_types[0].chip.irq_unmask = irq_gc_mask_set_bit;
 		gc->chip_types[0].chip.irq_set_wake = irq_gc_set_wake;
+		gc->chip_types[0].chip.irq_suspend = rockchip_irq_suspend;
+		gc->chip_types[0].chip.irq_resume = rockchip_irq_resume;
 		gc->chip_types[0].chip.irq_set_type = rockchip_irq_set_type;
 		gc->wake_enabled = IRQ_MSK(bank->nr_pins);
 
