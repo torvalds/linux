@@ -905,33 +905,39 @@ struct radeon_vm_pt {
 	uint64_t			addr;
 };
 
+struct radeon_vm_id {
+	unsigned		id;
+	uint64_t		pd_gpu_addr;
+	/* last flushed PD/PT update */
+	struct radeon_fence	*flushed_updates;
+	/* last use of vmid */
+	struct radeon_fence	*last_id_use;
+};
+
 struct radeon_vm {
-	struct rb_root			va;
-	unsigned			id;
+	struct rb_root		va;
 
 	/* BOs moved, but not yet updated in the PT */
-	struct list_head		invalidated;
+	struct list_head	invalidated;
 
 	/* BOs freed, but not yet updated in the PT */
-	struct list_head		freed;
+	struct list_head	freed;
 
 	/* contains the page directory */
-	struct radeon_bo		*page_directory;
-	uint64_t			pd_gpu_addr;
-	unsigned			max_pde_used;
+	struct radeon_bo	*page_directory;
+	unsigned		max_pde_used;
 
 	/* array of page tables, one for each page directory entry */
-	struct radeon_vm_pt		*page_tables;
+	struct radeon_vm_pt	*page_tables;
 
-	struct radeon_bo_va		*ib_bo_va;
+	struct radeon_bo_va	*ib_bo_va;
 
-	struct mutex			mutex;
+	struct mutex		mutex;
 	/* last fence for cs using this vm */
-	struct radeon_fence		*fence;
-	/* last flushed PD/PT update */
-	struct radeon_fence		*flushed_updates;
-	/* last use of vmid */
-	struct radeon_fence		*last_id_use;
+	struct radeon_fence	*fence;
+
+	/* for id and flush management per ring */
+	struct radeon_vm_id	ids[RADEON_NUM_RINGS];
 };
 
 struct radeon_vm_manager {

@@ -4066,6 +4066,7 @@ struct radeon_fence *cik_copy_cpdma(struct radeon_device *rdev,
 void cik_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
+	unsigned vm_id = ib->vm ? ib->vm->ids[ib->ring].id : 0;
 	u32 header, control = INDIRECT_BUFFER_VALID;
 
 	if (ib->is_const_ib) {
@@ -4094,8 +4095,7 @@ void cik_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 	}
 
-	control |= ib->length_dw |
-		(ib->vm ? (ib->vm->id << 24) : 0);
+	control |= ib->length_dw | (vm_id << 24);
 
 	radeon_ring_write(ring, header);
 	radeon_ring_write(ring,

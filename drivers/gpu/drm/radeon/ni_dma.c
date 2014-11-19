@@ -123,6 +123,7 @@ void cayman_dma_ring_ib_execute(struct radeon_device *rdev,
 				struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
+	unsigned vm_id = ib->vm ? ib->vm->ids[ib->ring].id : 0;
 
 	if (rdev->wb.enabled) {
 		u32 next_rptr = ring->wptr + 4;
@@ -140,7 +141,7 @@ void cayman_dma_ring_ib_execute(struct radeon_device *rdev,
 	 */
 	while ((ring->wptr & 7) != 5)
 		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
-	radeon_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, ib->vm ? ib->vm->id : 0, 0));
+	radeon_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, vm_id, 0));
 	radeon_ring_write(ring, (ib->gpu_addr & 0xFFFFFFE0));
 	radeon_ring_write(ring, (ib->length_dw << 12) | (upper_32_bits(ib->gpu_addr) & 0xFF));
 

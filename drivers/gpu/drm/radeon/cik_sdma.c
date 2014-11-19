@@ -134,7 +134,7 @@ void cik_sdma_ring_ib_execute(struct radeon_device *rdev,
 			      struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
-	u32 extra_bits = (ib->vm ? ib->vm->id : 0) & 0xf;
+	u32 extra_bits = (ib->vm ? ib->vm->ids[ib->ring].id : 0) & 0xf;
 
 	if (rdev->wb.enabled) {
 		u32 next_rptr = ring->wptr + 5;
