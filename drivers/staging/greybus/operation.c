@@ -176,14 +176,12 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 	 */
 	if (protocol->request_recv) {
 		protocol->request_recv(header->type, operation);
-		goto out;
+		return;
 	}
 
 	gb_connection_err(operation->connection,
 		"unexpected incoming request type 0x%02hhx\n", header->type);
 	operation->result = GB_OP_PROTOCOL_BAD;
-out:
-	gb_operation_complete(operation);
 }
 
 /*
