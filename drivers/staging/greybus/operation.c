@@ -288,6 +288,35 @@ static void gb_operation_message_exit(struct gb_message *message)
 }
 
 /*
+ * Map an enum gb_operation_status value (which is represted in a
+ * message as a single back a single byte) to an appropriate Linux
+ * negative errno.
+ */
+int gb_operation_status_map(u8 status)
+{
+	switch (status) {
+	case GB_OP_SUCCESS:
+		return 0;
+	case GB_OP_INVALID:
+		return -EINVAL;
+	case GB_OP_NO_MEMORY:
+		return -ENOMEM;
+	case GB_OP_INTERRUPTED:
+		return -EINTR;
+	case GB_OP_RETRY:
+		return -EAGAIN;
+	case GB_OP_PROTOCOL_BAD:
+		return -EPROTONOSUPPORT;
+	case GB_OP_OVERFLOW:
+		return -E2BIG;
+	case GB_OP_TIMEOUT:
+		return -ETIMEDOUT;
+	default:
+		return -EIO;
+	}
+}
+
+/*
  * Create a Greybus operation to be sent over the given connection.
  * The request buffer will big enough for a payload of the given
  * size.  Outgoing requests must specify the size of the response

@@ -101,6 +101,8 @@ int gb_operation_response_send(struct gb_operation *operation);
 void gb_operation_cancel(struct gb_operation *operation);
 int gb_operation_wait(struct gb_operation *operation);
 
+int gb_operation_status_map(u8 status);
+
 int gb_operation_init(void);
 void gb_operation_exit(void);
 
