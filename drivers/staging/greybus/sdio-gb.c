@@ -46,7 +46,7 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
 
-	mmc = mmc_alloc_host(sizeof(struct gb_sdio_host), &connection->dev);
+	mmc = mmc_alloc_host(sizeof(*host), &connection->dev);
 	if (!mmc)
 		return -ENOMEM;
 

@@ -311,8 +311,8 @@ gb_i2c_transfer_request(struct gb_connection *connection,
 		else
 			data_out_size += (u32)msg->len;
 
-	request_size = sizeof(struct gb_i2c_transfer_request);
-	request_size += msg_count * sizeof(struct gb_i2c_transfer_op);
+	request_size = sizeof(*request);
+	request_size += msg_count * sizeof(*op);
 	request_size += data_out_size;
 
 	/* Response consists only of incoming data */

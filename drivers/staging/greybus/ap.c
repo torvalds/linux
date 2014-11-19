@@ -83,7 +83,7 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 {
 	struct svc_msg *svc_msg;
 
-	if (payload_length != sizeof(struct svc_function_handshake)) {
+	if (payload_length != sizeof(*handshake)) {
 		dev_err(hd->parent,
 			"Illegal size of svc handshake message %d\n",
 			payload_length);
@@ -114,7 +114,7 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 	svc_msg->header.function_id = SVC_FUNCTION_HANDSHAKE;
 	svc_msg->header.message_type = SVC_MSG_DATA;
 	svc_msg->header.payload_length =
-		cpu_to_le16(sizeof(struct svc_function_handshake));
+		cpu_to_le16(sizeof(*handshake));
 	svc_msg->handshake.version_major = GREYBUS_VERSION_MAJOR;
 	svc_msg->handshake.version_minor = GREYBUS_VERSION_MINOR;
 	svc_msg->handshake.handshake_type = SVC_HANDSHAKE_AP_HELLO;
@@ -128,7 +128,7 @@ static void svc_management(struct svc_function_unipro_management *management,
 	struct gb_module *module;
 	int ret;
 
-	if (payload_length != sizeof(struct svc_function_unipro_management)) {
+	if (payload_length != sizeof(*management)) {
 		dev_err(hd->parent,
 			"Illegal size of svc management message %d\n",
 			payload_length);
@@ -221,7 +221,7 @@ static void svc_power(struct svc_function_power *power,
 	 * big, we can just check the union of the whole structure to validate
 	 * the size of this message.
 	 */
-	if (payload_length != sizeof(struct svc_function_power)) {
+	if (payload_length != sizeof(*power)) {
 		dev_err(hd->parent,
 			"Illegal size of svc power message %d\n",
 			payload_length);

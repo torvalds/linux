@@ -81,7 +81,7 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size)
 		}
 		break;
 	case GREYBUS_TYPE_STRING:
-		expected_size = sizeof(struct greybus_descriptor_header);
+		expected_size = sizeof(*desc_header);
 		expected_size += sizeof(struct greybus_descriptor_string);
 		expected_size += (size_t)desc->string.length;
 		if (desc_size < expected_size) {
