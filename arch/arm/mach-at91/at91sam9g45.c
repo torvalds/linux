@@ -11,7 +11,6 @@
  */
 
 #include <asm/system_misc.h>
-#include <mach/cpu.h>
 #include <mach/hardware.h>
 
 #include "soc.h"
