@@ -112,21 +112,24 @@ EXPORT_SYMBOL(drm_atomic_state_alloc);
 void drm_atomic_state_clear(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
+	struct drm_mode_config *config = &dev->mode_config;
 	int i;
 
 	DRM_DEBUG_KMS("Clearing atomic state %p\n", state);
 
-	for (i = 0; i < dev->mode_config.num_connector; i++) {
+	for (i = 0; i < config->num_connector; i++) {
 		struct drm_connector *connector = state->connectors[i];
 
 		if (!connector)
 			continue;
 
+		WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
+
 		connector->funcs->atomic_destroy_state(connector,
 						       state->connector_states[i]);
 	}
 
-	for (i = 0; i < dev->mode_config.num_crtc; i++) {
+	for (i = 0; i < config->num_crtc; i++) {
 		struct drm_crtc *crtc = state->crtcs[i];
 
 		if (!crtc)
@@ -136,7 +139,7 @@ void drm_atomic_state_clear(struct drm_atomic_state *state)
 						  state->crtc_states[i]);
 	}
 
-	for (i = 0; i < dev->mode_config.num_total_plane; i++) {
+	for (i = 0; i < config->num_total_plane; i++) {
 		struct drm_plane *plane = state->planes[i];
 
 		if (!plane)
