@@ -51,7 +51,7 @@ int bochs_hw_init(struct drm_device *dev, uint32_t flags)
 {
 	struct bochs_device *bochs = dev->dev_private;
 	struct pci_dev *pdev = dev->pdev;
-	unsigned long addr, size, mem, ioaddr, iosize;
+	unsigned long addr, size, mem, ioaddr, iosize, qext_size;
 	u16 id;
 
 	if (pdev->resource[2].flags & IORESOURCE_MEM) {
@@ -115,6 +115,24 @@ int bochs_hw_init(struct drm_device *dev, uint32_t flags)
 		 size / 1024, addr,
 		 bochs->ioports ? "ioports" : "mmio",
 		 ioaddr);
+
+	if (bochs->mmio && pdev->revision >= 2) {
+		qext_size = readl(bochs->mmio + 0x600);
+		if (qext_size < 4 || qext_size > iosize)
+			goto noext;
+		DRM_DEBUG("Found qemu ext regs, size %ld\n", qext_size);
+		if (qext_size >= 8) {
+#ifdef __BIG_ENDIAN
+			writel(0xbebebebe, bochs->mmio + 0x604);
+#else
+			writel(0x1e1e1e1e, bochs->mmio + 0x604);
+#endif
+			DRM_DEBUG("  qext endian: 0x%x\n",
+				  readl(bochs->mmio + 0x604));
+		}
+	}
+
+noext:
 	return 0;
 }
 
