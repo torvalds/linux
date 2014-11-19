@@ -932,7 +932,7 @@ static int hackrf_set_bandwidth(struct hackrf_dev *dev)
 	dev->bandwidth->val = bandwidth;
 	dev->bandwidth->cur.val = bandwidth;
 
-	dev_dbg(dev->dev, "bandwidth selected=%d\n", bandwidth_lut[i].freq);
+	dev_dbg(dev->dev, "bandwidth selected=%d\n", bandwidth);
 
 	u16tmp = 0;
 	u16tmp |= ((bandwidth >> 0) & 0xff) << 0;

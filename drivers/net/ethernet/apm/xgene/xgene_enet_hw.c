@@ -575,9 +575,23 @@ static void xgene_gmac_tx_disable(struct xgene_enet_pdata *pdata)
 	xgene_enet_wr_mcx_mac(pdata, MAC_CONFIG_1_ADDR, data & ~TX_EN);
 }
 
-static void xgene_enet_reset(struct xgene_enet_pdata *pdata)
+bool xgene_ring_mgr_init(struct xgene_enet_pdata *p)
+{
+	if (!ioread32(p->ring_csr_addr + CLKEN_ADDR))
+		return false;
+
+	if (ioread32(p->ring_csr_addr + SRST_ADDR))
+		return false;
+
+	return true;
+}
+
+static int xgene_enet_reset(struct xgene_enet_pdata *pdata)
 {
 	u32 val;
+
+	if (!xgene_ring_mgr_init(pdata))
+		return -ENODEV;
 
 	clk_prepare_enable(pdata->clk);
 	clk_disable_unprepare(pdata->clk);
@@ -590,6 +604,8 @@ static void xgene_enet_reset(struct xgene_enet_pdata *pdata)
 	val |= SCAN_AUTO_INCR;
 	MGMT_CLOCK_SEL_SET(&val, 1);
 	xgene_enet_wr_mcx_mac(pdata, MII_MGMT_CONFIG_ADDR, val);
+
+	return 0;
 }
 
 static void xgene_gport_shutdown(struct xgene_enet_pdata *pdata)

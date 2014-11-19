@@ -374,14 +374,13 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	snprintf(eq->name, MLX5_MAX_EQ_NAME, "%s@pci:%s",
 		 name, pci_name(dev->pdev));
 	eq->eqn = out.eq_number;
+	eq->irqn = vecidx;
+	eq->dev = dev;
+	eq->doorbell = uar->map + MLX5_EQ_DOORBEL_OFFSET;
 	err = request_irq(table->msix_arr[vecidx].vector, mlx5_msix_handler, 0,
 			  eq->name, eq);
 	if (err)
 		goto err_eq;
-
-	eq->irqn = vecidx;
-	eq->dev = dev;
-	eq->doorbell = uar->map + MLX5_EQ_DOORBEL_OFFSET;
 
 	err = mlx5_debug_eq_add(dev, eq);
 	if (err)
@@ -420,6 +419,7 @@ int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 	if (err)
 		mlx5_core_warn(dev, "failed to destroy a previously created eq: eqn %d\n",
 			       eq->eqn);
+	synchronize_irq(table->msix_arr[eq->irqn].vector);
 	mlx5_buf_free(dev, &eq->buf);
 
 	return err;

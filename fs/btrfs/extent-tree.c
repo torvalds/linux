@@ -710,8 +710,8 @@ void btrfs_clear_space_info_full(struct btrfs_fs_info *info)
 	rcu_read_unlock();
 }
 
-/* simple helper to search for an existing extent at a given offset */
-int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len)
+/* simple helper to search for an existing data extent at a given offset */
+int btrfs_lookup_data_extent(struct btrfs_root *root, u64 start, u64 len)
 {
 	int ret;
 	struct btrfs_key key;
@@ -726,12 +726,6 @@ int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len)
 	key.type = BTRFS_EXTENT_ITEM_KEY;
 	ret = btrfs_search_slot(NULL, root->fs_info->extent_root, &key, path,
 				0, 0);
-	if (ret > 0) {
-		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-		if (key.objectid == start &&
-		    key.type == BTRFS_METADATA_ITEM_KEY)
-			ret = 0;
-	}
 	btrfs_free_path(path);
 	return ret;
 }
@@ -786,7 +780,6 @@ search_again:
 	else
 		key.type = BTRFS_EXTENT_ITEM_KEY;
 
-again:
 	ret = btrfs_search_slot(trans, root->fs_info->extent_root,
 				&key, path, 0, 0);
 	if (ret < 0)
@@ -801,13 +794,6 @@ again:
 			    key.type == BTRFS_EXTENT_ITEM_KEY &&
 			    key.offset == root->nodesize)
 				ret = 0;
-		}
-		if (ret) {
-			key.objectid = bytenr;
-			key.type = BTRFS_EXTENT_ITEM_KEY;
-			key.offset = root->nodesize;
-			btrfs_release_path(path);
-			goto again;
 		}
 	}
 

@@ -720,6 +720,7 @@ static struct platform_driver omap_dpi_driver = {
 	.driver         = {
 		.name   = "omapdss_dpi",
 		.owner  = THIS_MODULE,
+		.suppress_bind_attrs = true,
 	},
 };
 

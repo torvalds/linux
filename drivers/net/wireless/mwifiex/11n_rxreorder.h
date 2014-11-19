@@ -21,6 +21,8 @@
 #define _MWIFIEX_11N_RXREORDER_H_
 
 #define MIN_FLUSH_TIMER_MS		50
+#define MIN_FLUSH_TIMER_15_MS		15
+#define MWIFIEX_BA_WIN_SIZE_32		32
 
 #define PKT_TYPE_BAR 0xE7
 #define MAX_TID_VALUE			(2 << 11)

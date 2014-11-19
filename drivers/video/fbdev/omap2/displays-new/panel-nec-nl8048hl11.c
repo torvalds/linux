@@ -424,6 +424,7 @@ static struct spi_driver nec_8048_driver = {
 		.owner	= THIS_MODULE,
 		.pm	= NEC_8048_PM_OPS,
 		.of_match_table = nec_8048_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe	= nec_8048_probe,
 	.remove	= nec_8048_remove,

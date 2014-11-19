@@ -1173,18 +1173,24 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 		err = __mlx4_ib_create_flow(qp, flow_attr, domain, type[i],
 					    &mflow->reg_id[i]);
 		if (err)
-			goto err_free;
+			goto err_create_flow;
 		i++;
 	}
 
 	if (i < ARRAY_SIZE(type) && flow_attr->type == IB_FLOW_ATTR_NORMAL) {
 		err = mlx4_ib_tunnel_steer_add(qp, flow_attr, &mflow->reg_id[i]);
 		if (err)
-			goto err_free;
+			goto err_create_flow;
+		i++;
 	}
 
 	return &mflow->ibflow;
 
+err_create_flow:
+	while (i) {
+		(void)__mlx4_ib_destroy_flow(to_mdev(qp->device)->dev, mflow->reg_id[i]);
+		i--;
+	}
 err_free:
 	kfree(mflow);
 	return ERR_PTR(err);

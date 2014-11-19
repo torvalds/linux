@@ -738,7 +738,6 @@ static const struct drm_crtc_funcs tegra_crtc_funcs = {
 
 static void tegra_crtc_disable(struct drm_crtc *crtc)
 {
-	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct drm_device *drm = crtc->dev;
 	struct drm_plane *plane;
 
@@ -754,7 +753,7 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 		}
 	}
 
-	drm_vblank_off(drm, dc->pipe);
+	drm_crtc_vblank_off(crtc);
 }
 
 static bool tegra_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -843,8 +842,6 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	u32 value;
 	int err;
 
-	drm_vblank_pre_modeset(crtc->dev, dc->pipe);
-
 	err = tegra_crtc_setup_clk(crtc, mode);
 	if (err) {
 		dev_err(dc->dev, "failed to setup clock for CRTC: %d\n", err);
@@ -898,6 +895,8 @@ static void tegra_crtc_prepare(struct drm_crtc *crtc)
 	unsigned int syncpt;
 	unsigned long value;
 
+	drm_crtc_vblank_off(crtc);
+
 	/* hardware initialization */
 	reset_control_deassert(dc->rst);
 	usleep_range(10000, 20000);
@@ -945,7 +944,7 @@ static void tegra_crtc_commit(struct drm_crtc *crtc)
 	value = GENERAL_ACT_REQ | WIN_A_ACT_REQ;
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
 
-	drm_vblank_post_modeset(crtc->dev, dc->pipe);
+	drm_crtc_vblank_on(crtc);
 }
 
 static void tegra_crtc_load_lut(struct drm_crtc *crtc)

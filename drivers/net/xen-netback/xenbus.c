@@ -52,6 +52,7 @@ static int xenvif_read_io_ring(struct seq_file *m, void *v)
 	struct xenvif_queue *queue = m->private;
 	struct xen_netif_tx_back_ring *tx_ring = &queue->tx;
 	struct xen_netif_rx_back_ring *rx_ring = &queue->rx;
+	struct netdev_queue *dev_queue;
 
 	if (tx_ring->sring) {
 		struct xen_netif_tx_sring *sring = tx_ring->sring;
@@ -111,6 +112,13 @@ static int xenvif_read_io_ring(struct seq_file *m, void *v)
 		   queue->remaining_credit,
 		   queue->credit_timeout.expires,
 		   jiffies);
+
+	dev_queue = netdev_get_tx_queue(queue->vif->dev, queue->id);
+
+	seq_printf(m, "\nRx internal queue: len %u max %u pkts %u %s\n",
+		   queue->rx_queue_len, queue->rx_queue_max,
+		   skb_queue_len(&queue->rx_queue),
+		   netif_tx_queue_stopped(dev_queue) ? "stopped" : "running");
 
 	return 0;
 }
@@ -703,6 +711,7 @@ static void connect(struct backend_info *be)
 	be->vif->queues = vzalloc(requested_num_queues *
 				  sizeof(struct xenvif_queue));
 	be->vif->num_queues = requested_num_queues;
+	be->vif->stalled_queues = requested_num_queues;
 
 	for (queue_index = 0; queue_index < requested_num_queues; ++queue_index) {
 		queue = &be->vif->queues[queue_index];
@@ -873,15 +882,10 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 	if (!rx_copy)
 		return -EOPNOTSUPP;
 
-	if (vif->dev->tx_queue_len != 0) {
-		if (xenbus_scanf(XBT_NIL, dev->otherend,
-				 "feature-rx-notify", "%d", &val) < 0)
-			val = 0;
-		if (val)
-			vif->can_queue = 1;
-		else
-			/* Must be non-zero for pfifo_fast to work. */
-			vif->dev->tx_queue_len = 1;
+	if (xenbus_scanf(XBT_NIL, dev->otherend,
+			 "feature-rx-notify", "%d", &val) < 0 || val == 0) {
+		xenbus_dev_fatal(dev, -EINVAL, "feature-rx-notify is mandatory");
+		return -EINVAL;
 	}
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-sg",

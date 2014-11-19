@@ -311,7 +311,8 @@ int mmc_of_parse(struct mmc_host *host)
 	struct device_node *np;
 	u32 bus_width;
 	int len, ret;
-	bool cap_invert, gpio_invert;
+	bool cd_cap_invert, cd_gpio_invert = false;
+	bool ro_cap_invert, ro_gpio_invert = false;
 
 	if (!host->parent || !host->parent->of_node)
 		return 0;
@@ -359,16 +360,13 @@ int mmc_of_parse(struct mmc_host *host)
 	if (of_find_property(np, "non-removable", &len)) {
 		host->caps |= MMC_CAP_NONREMOVABLE;
 	} else {
-		if (of_property_read_bool(np, "cd-inverted"))
-			cap_invert = true;
-		else
-			cap_invert = false;
+		cd_cap_invert = of_property_read_bool(np, "cd-inverted");
 
 		if (of_find_property(np, "broken-cd", &len))
 			host->caps |= MMC_CAP_NEEDS_POLL;
 
 		ret = mmc_gpiod_request_cd(host, "cd", 0, true,
-					   0, &gpio_invert);
+					   0, &cd_gpio_invert);
 		if (ret) {
 			if (ret == -EPROBE_DEFER)
 				return ret;
@@ -391,17 +389,14 @@ int mmc_of_parse(struct mmc_host *host)
 		 * both inverted, the end result is that the CD line is
 		 * not inverted.
 		 */
-		if (cap_invert ^ gpio_invert)
+		if (cd_cap_invert ^ cd_gpio_invert)
 			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 	}
 
 	/* Parse Write Protection */
-	if (of_property_read_bool(np, "wp-inverted"))
-		cap_invert = true;
-	else
-		cap_invert = false;
+	ro_cap_invert = of_property_read_bool(np, "wp-inverted");
 
-	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &gpio_invert);
+	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &ro_gpio_invert);
 	if (ret) {
 		if (ret == -EPROBE_DEFER)
 			goto out;
@@ -414,7 +409,7 @@ int mmc_of_parse(struct mmc_host *host)
 		dev_info(host->parent, "Got WP GPIO\n");
 
 	/* See the comment on CD inversion above */
-	if (cap_invert ^ gpio_invert)
+	if (ro_cap_invert ^ ro_gpio_invert)
 		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
 	if (of_find_property(np, "cap-sd-highspeed", &len))

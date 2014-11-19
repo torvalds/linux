@@ -1026,6 +1026,7 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 				pr_cont("\n");
 		}
 	}
+	synchronize_irq(eq->irq);
 
 	mlx4_mtt_cleanup(dev, &eq->mtt);
 	for (i = 0; i < npages; ++i)

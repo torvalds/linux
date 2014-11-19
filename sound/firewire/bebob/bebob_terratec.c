@@ -24,7 +24,12 @@ phase88_rack_clk_src_get(struct snd_bebob *bebob, unsigned int *id)
 	if (err < 0)
 		goto end;
 
-	*id = (enable_ext & 0x01) | ((enable_word & 0x01) << 1);
+	if (enable_ext == 0)
+		*id = 0;
+	else if (enable_word == 0)
+		*id = 1;
+	else
+		*id = 2;
 end:
 	return err;
 }

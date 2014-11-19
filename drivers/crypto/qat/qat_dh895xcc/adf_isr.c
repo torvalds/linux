@@ -168,7 +168,7 @@ static int adf_isr_alloc_msix_entry_table(struct adf_accel_dev *accel_dev)
 	uint32_t msix_num_entries = hw_data->num_banks + 1;
 
 	entries = kzalloc_node(msix_num_entries * sizeof(*entries),
-			       GFP_KERNEL, accel_dev->numa_node);
+			       GFP_KERNEL, dev_to_node(&GET_DEV(accel_dev)));
 	if (!entries)
 		return -ENOMEM;
 
