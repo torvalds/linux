@@ -41,6 +41,11 @@ void btmrvl_interrupt(struct btmrvl_private *priv)
 
 	priv->adapter->int_count++;
 
+	if (priv->adapter->hs_state == HS_ACTIVATED) {
+		BT_DBG("BT: HS DEACTIVATED in ISR!\n");
+		priv->adapter->hs_state = HS_DEACTIVATED;
+	}
+
 	wake_up_interruptible(&priv->main_thread.wait_q);
 }
 EXPORT_SYMBOL_GPL(btmrvl_interrupt);
@@ -323,6 +328,7 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 		} else {
 			ret = priv->hw_wakeup_firmware(priv);
 			priv->adapter->hs_state = HS_DEACTIVATED;
+			BT_DBG("BT: HS DEACTIVATED due to host activity!\n");
 		}
 	}
 
