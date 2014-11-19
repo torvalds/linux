@@ -592,10 +592,9 @@ static void ieee80211_tx_latency_end_msrmnt(struct ieee80211_local *local,
 #define STA_LOST_TDLS_PKT_THRESHOLD	10
 #define STA_LOST_TDLS_PKT_TIME		(10*HZ) /* 10secs since last ACK */
 
-static void ieee80211_lost_packet(struct sta_info *sta, struct sk_buff *skb)
+static void ieee80211_lost_packet(struct sta_info *sta,
+				  struct ieee80211_tx_info *info)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
 	/* This packet was aggregated but doesn't carry status info */
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) &&
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
@@ -767,7 +766,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 				if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
 					sta->last_tdls_pkt_time = jiffies;
 			} else {
-				ieee80211_lost_packet(sta, skb);
+				ieee80211_lost_packet(sta, info);
 			}
 		}
 
