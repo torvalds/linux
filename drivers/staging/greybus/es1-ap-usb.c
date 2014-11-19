@@ -346,7 +346,6 @@ static void ap_disconnect(struct usb_interface *interface)
 static void svc_in_callback(struct urb *urb)
 {
 	struct greybus_host_device *hd = urb->context;
-	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct device *dev = &urb->dev->dev;
 	int status = check_urb_status(urb);
 	int retval;
@@ -361,7 +360,7 @@ static void svc_in_callback(struct urb *urb)
 	/* We have a message, create a new message structure, add it to the
 	 * list, and wake up our thread that will process the messages.
 	 */
-	greybus_svc_in(es1->hd, urb->transfer_buffer, urb->actual_length);
+	greybus_svc_in(hd, urb->transfer_buffer, urb->actual_length);
 
 exit:
 	/* resubmit the urb to get more messages */
@@ -373,11 +372,10 @@ exit:
 static void cport_in_callback(struct urb *urb)
 {
 	struct greybus_host_device *hd = urb->context;
-	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct device *dev = &urb->dev->dev;
 	int status = check_urb_status(urb);
 	int retval;
-	u8 cport;
+	u16 cport_id;
 	u8 *data;
 
 	if (status) {
@@ -398,11 +396,11 @@ static void cport_in_callback(struct urb *urb)
 	 * the stream is "real" data
 	 */
 	data = urb->transfer_buffer;
-	cport = data[0];
+	cport_id = (u16)data[0];
 	data = &data[1];
 
 	/* Pass this data to the greybus core */
-	greybus_cport_in(es1->hd, cport, data, urb->actual_length - 1);
+	greybus_cport_in(hd, cport_id, data, urb->actual_length - 1);
 
 exit:
 	/* put our urb back in the request pool */
