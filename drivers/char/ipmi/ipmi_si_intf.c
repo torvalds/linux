@@ -92,12 +92,9 @@ enum si_intf_state {
 	SI_GETTING_FLAGS,
 	SI_GETTING_EVENTS,
 	SI_CLEARING_FLAGS,
-	SI_CLEARING_FLAGS_THEN_SET_IRQ,
 	SI_GETTING_MESSAGES,
-	SI_ENABLE_INTERRUPTS1,
-	SI_ENABLE_INTERRUPTS2,
-	SI_DISABLE_INTERRUPTS1,
-	SI_DISABLE_INTERRUPTS2
+	SI_CHECKING_ENABLES,
+	SI_SETTING_ENABLES
 	/* FIXME - add watchdog stuff. */
 };
 
@@ -260,6 +257,11 @@ struct smi_info {
 	 */
 	bool interrupt_disabled;
 
+	/*
+	 * Does the BMC support events?
+	 */
+	bool supports_event_msg_buff;
+
 	/* From the get device id response... */
 	struct ipmi_device_id device_id;
 
@@ -386,22 +388,7 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 	return rv;
 }
 
-static void start_enable_irq(struct smi_info *smi_info)
-{
-	unsigned char msg[2];
-
-	/*
-	 * If we are enabling interrupts, we have to tell the
-	 * BMC to use them.
-	 */
-	msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
-	msg[1] = IPMI_GET_BMC_GLOBAL_ENABLES_CMD;
-
-	smi_info->handlers->start_transaction(smi_info->si_sm, msg, 2);
-	smi_info->si_state = SI_ENABLE_INTERRUPTS1;
-}
-
-static void start_disable_irq(struct smi_info *smi_info)
+static void start_check_enables(struct smi_info *smi_info)
 {
 	unsigned char msg[2];
 
@@ -409,7 +396,7 @@ static void start_disable_irq(struct smi_info *smi_info)
 	msg[1] = IPMI_GET_BMC_GLOBAL_ENABLES_CMD;
 
 	smi_info->handlers->start_transaction(smi_info->si_sm, msg, 2);
-	smi_info->si_state = SI_DISABLE_INTERRUPTS1;
+	smi_info->si_state = SI_CHECKING_ENABLES;
 }
 
 static void start_clear_flags(struct smi_info *smi_info)
@@ -467,8 +454,8 @@ static void smi_mod_timer(struct smi_info *smi_info, unsigned long new_val)
 static inline bool disable_si_irq(struct smi_info *smi_info)
 {
 	if ((smi_info->irq) && (!smi_info->interrupt_disabled)) {
-		start_disable_irq(smi_info);
 		smi_info->interrupt_disabled = true;
+		start_check_enables(smi_info);
 		return true;
 	}
 	return false;
@@ -477,8 +464,8 @@ static inline bool disable_si_irq(struct smi_info *smi_info)
 static inline bool enable_si_irq(struct smi_info *smi_info)
 {
 	if ((smi_info->irq) && (smi_info->interrupt_disabled)) {
-		start_enable_irq(smi_info);
 		smi_info->interrupt_disabled = false;
+		start_check_enables(smi_info);
 		return true;
 	}
 	return false;
@@ -538,6 +525,36 @@ static void handle_flags(struct smi_info *smi_info)
 		smi_info->si_state = SI_NORMAL;
 }
 
+/*
+ * Global enables we care about.
+ */
+#define GLOBAL_ENABLES_MASK (IPMI_BMC_EVT_MSG_BUFF | IPMI_BMC_RCV_MSG_INTR | \
+			     IPMI_BMC_EVT_MSG_INTR)
+
+static u8 current_global_enables(struct smi_info *smi_info, u8 base)
+{
+	u8 enables = 0;
+
+	if (smi_info->supports_event_msg_buff)
+		enables |= IPMI_BMC_EVT_MSG_BUFF;
+	else
+		enables &= ~IPMI_BMC_EVT_MSG_BUFF;
+
+	if (smi_info->irq && !smi_info->interrupt_disabled)
+		enables |= IPMI_BMC_RCV_MSG_INTR;
+	else
+		enables &= ~IPMI_BMC_RCV_MSG_INTR;
+
+	if (smi_info->supports_event_msg_buff &&
+	    smi_info->irq && !smi_info->interrupt_disabled)
+
+		enables |= IPMI_BMC_EVT_MSG_INTR;
+	else
+		enables &= ~IPMI_BMC_EVT_MSG_INTR;
+
+	return enables;
+}
+
 static void handle_transaction_done(struct smi_info *smi_info)
 {
 	struct ipmi_smi_msg *msg;
@@ -592,7 +609,6 @@ static void handle_transaction_done(struct smi_info *smi_info)
 	}
 
 	case SI_CLEARING_FLAGS:
-	case SI_CLEARING_FLAGS_THEN_SET_IRQ:
 	{
 		unsigned char msg[3];
 
@@ -603,10 +619,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 			dev_warn(smi_info->dev,
 				 "Error clearing flags: %2.2x\n", msg[2]);
 		}
-		if (smi_info->si_state == SI_CLEARING_FLAGS_THEN_SET_IRQ)
-			start_enable_irq(smi_info);
-		else
-			smi_info->si_state = SI_NORMAL;
+		smi_info->si_state = SI_NORMAL;
 		break;
 	}
 
@@ -686,9 +699,10 @@ static void handle_transaction_done(struct smi_info *smi_info)
 		break;
 	}
 
-	case SI_ENABLE_INTERRUPTS1:
+	case SI_CHECKING_ENABLES:
 	{
 		unsigned char msg[4];
+		u8 enables;
 
 		/* We got the flags from the SMI, now handle them. */
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
@@ -698,72 +712,50 @@ static void handle_transaction_done(struct smi_info *smi_info)
 			dev_warn(smi_info->dev,
 				 "Maybe ok, but ipmi might run very slowly.\n");
 			smi_info->si_state = SI_NORMAL;
-		} else {
+			break;
+		}
+		enables = current_global_enables(smi_info, 0);
+		if (enables != (msg[3] & GLOBAL_ENABLES_MASK)) {
+			/* Enables are not correct, fix them. */
 			msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
 			msg[1] = IPMI_SET_BMC_GLOBAL_ENABLES_CMD;
-			msg[2] = (msg[3] |
-				  IPMI_BMC_RCV_MSG_INTR |
-				  IPMI_BMC_EVT_MSG_INTR);
+			msg[2] = enables | (msg[3] & ~GLOBAL_ENABLES_MASK);
 			smi_info->handlers->start_transaction(
 				smi_info->si_sm, msg, 3);
-			smi_info->si_state = SI_ENABLE_INTERRUPTS2;
-		}
-		break;
-	}
-
-	case SI_ENABLE_INTERRUPTS2:
-	{
-		unsigned char msg[4];
-
-		/* We got the flags from the SMI, now handle them. */
-		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
-		if (msg[2] != 0) {
-			dev_warn(smi_info->dev,
-				 "Couldn't set irq info: %x.\n", msg[2]);
-			dev_warn(smi_info->dev,
-				 "Maybe ok, but ipmi might run very slowly.\n");
-		} else
-			smi_info->interrupt_disabled = false;
-
-		/* We enabled interrupts, flags may be pending. */
-		handle_flags(smi_info);
-		break;
-	}
-
-	case SI_DISABLE_INTERRUPTS1:
-	{
-		unsigned char msg[4];
-
-		/* We got the flags from the SMI, now handle them. */
-		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
-		if (msg[2] != 0) {
-			dev_warn(smi_info->dev, "Could not disable interrupts"
-				 ", failed get.\n");
+			smi_info->si_state = SI_SETTING_ENABLES;
+		} else if (smi_info->supports_event_msg_buff) {
+			smi_info->curr_msg = ipmi_alloc_smi_msg();
+			if (!smi_info->curr_msg) {
+				smi_info->si_state = SI_NORMAL;
+				break;
+			}
+			start_getting_msg_queue(smi_info);
+		} else {
 			smi_info->si_state = SI_NORMAL;
-		} else {
-			msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
-			msg[1] = IPMI_SET_BMC_GLOBAL_ENABLES_CMD;
-			msg[2] = (msg[3] &
-				  ~(IPMI_BMC_RCV_MSG_INTR |
-				    IPMI_BMC_EVT_MSG_INTR));
-			smi_info->handlers->start_transaction(
-				smi_info->si_sm, msg, 3);
-			smi_info->si_state = SI_DISABLE_INTERRUPTS2;
 		}
 		break;
 	}
 
-	case SI_DISABLE_INTERRUPTS2:
+	case SI_SETTING_ENABLES:
 	{
 		unsigned char msg[4];
 
-		/* We got the flags from the SMI, now handle them. */
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
-		if (msg[2] != 0) {
-			dev_warn(smi_info->dev, "Could not disable interrupts"
-				 ", failed set.\n");
+		if (msg[2] != 0)
+			dev_warn(smi_info->dev,
+				 "Could not set the global enables: 0x%x.\n",
+				 msg[2]);
+
+		if (smi_info->supports_event_msg_buff) {
+			smi_info->curr_msg = ipmi_alloc_smi_msg();
+			if (!smi_info->curr_msg) {
+				smi_info->si_state = SI_NORMAL;
+				break;
+			}
+			start_getting_msg_queue(smi_info);
+		} else {
+			smi_info->si_state = SI_NORMAL;
 		}
-		smi_info->si_state = SI_NORMAL;
 		break;
 	}
 	}
@@ -859,19 +851,21 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 		 */
 		atomic_set(&smi_info->req_events, 0);
 
-		smi_info->curr_msg = ipmi_alloc_smi_msg();
-		if (!smi_info->curr_msg)
-			goto out;
+		/*
+		 * Take this opportunity to check the interrupt and
+		 * message enable state for the BMC.  The BMC can be
+		 * asynchronously reset, and may thus get interrupts
+		 * disable and messages disabled.
+		 */
+		if (smi_info->supports_event_msg_buff || smi_info->irq) {
+			start_check_enables(smi_info);
+		} else {
+			smi_info->curr_msg = alloc_msg_handle_irq(smi_info);
+			if (!smi_info->curr_msg)
+				goto out;
 
-		smi_info->curr_msg->data[0] = (IPMI_NETFN_APP_REQUEST << 2);
-		smi_info->curr_msg->data[1] = IPMI_READ_EVENT_MSG_BUFFER_CMD;
-		smi_info->curr_msg->data_size = 2;
-
-		smi_info->handlers->start_transaction(
-			smi_info->si_sm,
-			smi_info->curr_msg->data,
-			smi_info->curr_msg->data_size);
-		smi_info->si_state = SI_GETTING_EVENTS;
+			start_getting_events(smi_info);
+		}
 		goto restart;
 	}
  out:
@@ -2918,9 +2912,11 @@ static int try_enable_event_buffer(struct smi_info *smi_info)
 		goto out;
 	}
 
-	if (resp[3] & IPMI_BMC_EVT_MSG_BUFF)
+	if (resp[3] & IPMI_BMC_EVT_MSG_BUFF) {
 		/* buffer is already enabled, nothing to do. */
+		smi_info->supports_event_msg_buff = true;
 		goto out;
+	}
 
 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
 	msg[1] = IPMI_SET_BMC_GLOBAL_ENABLES_CMD;
@@ -2953,6 +2949,9 @@ static int try_enable_event_buffer(struct smi_info *smi_info)
 		 * that the event buffer is not supported.
 		 */
 		rv = -ENOENT;
+	else
+		smi_info->supports_event_msg_buff = true;
+
  out:
 	kfree(resp);
 	return rv;
@@ -3392,9 +3391,15 @@ static int try_smi_init(struct smi_info *new_smi)
 	 * timer to avoid racing with the timer.
 	 */
 	start_clear_flags(new_smi);
-	/* IRQ is defined to be set when non-zero. */
-	if (new_smi->irq)
-		new_smi->si_state = SI_CLEARING_FLAGS_THEN_SET_IRQ;
+
+	/*
+	 * IRQ is defined to be set when non-zero.  req_events will
+	 * cause a global flags check that will enable interrupts.
+	 */
+	if (new_smi->irq) {
+		new_smi->interrupt_disabled = false;
+		atomic_set(&new_smi->req_events, 1);
+	}
 
 	if (!new_smi->dev) {
 		/*
