@@ -21,7 +21,6 @@ obj-$(CONFIG_SOC_SAMA5D3)	+= sama5d3.o
 obj-$(CONFIG_SOC_SAMA5D4)	+= sama5d4.o
 
 obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200_devices.o
-obj-$(CONFIG_ARCH_AT91SAM9260)	+= at91sam9260_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9261)	+= at91sam9261_devices.o
 
 # AT91RM9200 board-specific support

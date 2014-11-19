@@ -15,12 +15,6 @@ config ARCH_AT91RM9200
 	select AT91_USE_OLD_CLK
 	select OLD_IRQ_AT91
 
-config ARCH_AT91SAM9260
-	bool "AT91SAM9260 or AT91SAM9XE or AT91SAM9G20"
-	select SOC_AT91SAM9260
-	select AT91_USE_OLD_CLK
-	select OLD_IRQ_AT91
-
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261 or AT91SAM9G10"
 	select SOC_AT91SAM9261
@@ -28,10 +22,6 @@ config ARCH_AT91SAM9261
 	select OLD_IRQ_AT91
 
 endchoice
-
-config ARCH_AT91SAM9G20
-	bool
-	select ARCH_AT91SAM9260
 
 config ARCH_AT91SAM9G10
 	bool
@@ -119,113 +109,6 @@ config MACH_ECO920
 	bool "eco920"
 	help
 	  Select this if you are using the eco920 board
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91SAM9260
-
-comment "AT91SAM9260 Variants"
-
-comment "AT91SAM9260 / AT91SAM9XE Board Type"
-
-config MACH_AT91SAM9260EK
-	bool "Atmel AT91SAM9260-EK / AT91SAM9XE Evaluation Kit"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT91SAM9260-EK or AT91SAM9XE Evaluation Kit
-	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3933>
-
-config MACH_CAM60
-	bool "KwikByte KB9260 (CAM60) board"
-	help
-	  Select this if you are using KwikByte's KB9260 (CAM60) board based on the Atmel AT91SAM9260.
-	  <http://www.kwikbyte.com/KB9260.html>
-
-config MACH_SAM9_L9260
-	bool "Olimex SAM9-L9260 board"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Olimex's SAM9-L9260 board based on the Atmel AT91SAM9260.
-	  <http://www.olimex.com/dev/sam9-L9260.html>
-
-config MACH_AFEB9260
-	bool "Custom afeb9260 board v1"
-	help
-	  Select this if you are using custom afeb9260 board based on
-	  open hardware design. Select this for revision 1 of the board.
-	  <svn://194.85.238.22/home/users/george/svn/arm9eb>
-	  <http://groups.google.com/group/arm9fpga-evolution-board>
-
-config MACH_CPU9260
-	bool "Eukrea CPU9260 board"
-	help
-	  Select this if you are using a Eukrea Electromatique's
-	  CPU9260 Board <http://www.eukrea.com/>
-
-config MACH_FLEXIBITY
-	bool "Flexibity Connect board"
-	help
-	  Select this if you are using Flexibity Connect board
-	  <http://www.flexibity.com>
-
-comment "AT91SAM9G20 Board Type"
-
-config MACH_AT91SAM9G20EK
-	bool "Atmel AT91SAM9G20-EK Evaluation Kit"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT91SAM9G20-EK Evaluation Kit
-	  that embeds only one SD/MMC slot.
-
-config MACH_AT91SAM9G20EK_2MMC
-	depends on MACH_AT91SAM9G20EK
-	bool "Atmel AT91SAM9G20-EK Evaluation Kit with 2 SD/MMC Slots"
-	help
-	  Select this if you are using an Atmel AT91SAM9G20-EK Evaluation Kit
-	  with 2 SD/MMC Slots. This is the case for AT91SAM9G20-EK rev. C and
-	  onwards.
-	  <http://www.atmel.com/tools/SAM9G20-EK.aspx>
-
-config MACH_CPU9G20
-	bool "Eukrea CPU9G20 board"
-	help
-	  Select this if you are using a Eukrea Electromatique's
-	  CPU9G20 Board <http://www.eukrea.com/>
-
-config MACH_PORTUXG20
-	bool "taskit PortuxG20"
-	help
-	  Select this if you are using taskit's PortuxG20.
-	  <http://www.taskit.de/en/>
-
-config MACH_STAMP9G20
-	bool "taskit Stamp9G20 CPU module"
-	help
-	  Select this if you are using taskit's Stamp9G20 CPU module on its
-	  evaluation board.
-	  <http://www.taskit.de/en/>
-
-config MACH_PCONTROL_G20
-	bool "PControl G20 CPU module"
-	help
-	  Select this if you are using taskit's Stamp9G20 CPU module on this
-	  carrier board, being the decentralized unit of a building automation
-	  system; featuring nvram, eth-switch, iso-rs485, display, io
-
-config MACH_GSIA18S
-	bool "GS_IA18_S board"
-	help
-	  This enables support for the GS_IA18_S board
-	  produced by GeoSIG Ltd company. This is an internet accelerograph.
-	  <http://www.geosig.com>
-
-config MACH_SNAPPER_9260
-	bool "Bluewater Systems Snapper 9260/9G20 module"
-	help
-	  Select this if you are using the Bluewater Systems Snapper 9260 or
-	  Snapper 9G20 modules.
-	  <http://www.bluewatersys.com/>
 endif
 
 # ----------------------------------------------------------
