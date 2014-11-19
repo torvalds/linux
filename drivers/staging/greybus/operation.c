@@ -418,29 +418,83 @@ int gb_operation_response_send(struct gb_operation *operation)
 }
 
 /*
- * Handle data arriving on a connection.  As soon as we return, the
- * incoming data buffer will be reused, so we need to copy the data
- * into one of our own operation message buffers.
- *
- * If the incoming data is an operation response message, look up
- * the operation and copy the incoming data into its response
- * buffer.  Otherwise allocate a new operation and copy the incoming
- * data into its request buffer.
+ * We've received data on a connection, and it doesn't look like a
+ * response, so we assume it's a request.
  *
  * This is called in interrupt context, so just copy the incoming
- * data into the buffer and do remaining handling via a work queue.
+ * data into the request buffer and handle the rest via workqueue.
+ */
+void gb_connection_recv_request(struct gb_connection *connection,
+	u16 operation_id, u8 type, void *data, size_t size)
+{
+	struct gb_operation *operation;
+
+	operation = gb_operation_create(connection, type, size, 0);
+	if (!operation) {
+		gb_connection_err(connection, "can't create operation");
+		return;		/* XXX Respond with pre-allocated ENOMEM */
+	}
+	operation->id = operation_id;
+	memcpy(operation->request.buffer, data, size);
+
+	/* The rest will be handled in work queue context */
+	queue_work(gb_operation_recv_workqueue, &operation->recv_work);
+}
+
+/*
+ * We've received data that appears to be an operation response
+ * message.  Look up the operation, and record that we've received
+ * its repsonse.
  *
+ * This is called in interrupt context, so just copy the incoming
+ * data into the response buffer and handle the rest via workqueue.
+ */
+static void gb_connection_recv_response(struct gb_connection *connection,
+				u16 operation_id, void *data, size_t size)
+{
+	struct gb_operation *operation;
+	struct gb_message *message;
+
+	operation = gb_pending_operation_find(connection, operation_id);
+	if (!operation) {
+		gb_connection_err(connection, "operation not found");
+		return;
+	}
+
+	cancel_delayed_work(&operation->timeout_work);
+	gb_pending_operation_remove(operation);
+
+	message = &operation->response;
+	if (size > message->buffer_size) {
+		operation->result = GB_OP_OVERFLOW;
+		gb_connection_err(connection, "recv buffer too small");
+		return;		/* XXX Should still complete operation */
+	}
+	operation->result = GB_OP_SUCCESS;	/* XXX Maybe not yet? */
+
+	memcpy(message->buffer, data, size);
+
+	/* The rest will be handled in work queue context */
+	queue_work(gb_operation_recv_workqueue, &operation->recv_work);
+}
+
+/*
+ * Handle data arriving on a connection.  As soon as we return the
+ * supplied data buffer will be reused (so unless we do something
+ * with, it's effectively dropped).
  */
 void gb_connection_recv(struct gb_connection *connection,
 				void *data, size_t size)
 {
 	struct gb_operation_msg_hdr *header;
-	struct gb_operation *operation;
-	struct gb_message *message;
-	u16 msg_size;
+	size_t msg_size;
+	u16 operation_id;
 
-	if (connection->state != GB_CONNECTION_STATE_ENABLED)
+	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
+		gb_connection_err(connection, "dropping %zu received bytes",
+			size);
 		return;
+	}
 
 	if (size < sizeof(*header)) {
 		gb_connection_err(connection, "message too small");
@@ -448,39 +502,19 @@ void gb_connection_recv(struct gb_connection *connection,
 	}
 
 	header = data;
-	msg_size = le16_to_cpu(header->size);
-	if (header->type & GB_OPERATION_TYPE_RESPONSE) {
-		u16 operation_id = le16_to_cpu(header->operation_id);
-
-		operation = gb_pending_operation_find(connection, operation_id);
-		if (!operation) {
-			gb_connection_err(connection, "operation not found");
-			return;
-		}
-		cancel_delayed_work(&operation->timeout_work);
-		gb_pending_operation_remove(operation);
-		message = &operation->response;
-		if (size > message->buffer_size) {
-			operation->result = GB_OP_OVERFLOW;
-			gb_connection_err(connection, "recv buffer too small");
-			return;
-		}
-		operation->result = GB_OP_SUCCESS;
-	} else {
-		WARN_ON(msg_size != size);
-		operation = gb_operation_create(connection, header->type,
-							msg_size, 0);
-		if (!operation) {
-			gb_connection_err(connection, "can't create operation");
-			return;
-		}
-		message = &operation->request;
+	msg_size = (size_t)le16_to_cpu(header->size);
+	if (msg_size > size) {
+		gb_connection_err(connection, "incomplete message");
+		return;		/* XXX Should still complete operation */
 	}
 
-	memcpy(message->buffer, data, msg_size);
-
-	/* The rest will be handled in work queue context */
-	queue_work(gb_operation_recv_workqueue, &operation->recv_work);
+	operation_id = le16_to_cpu(header->operation_id);
+	if (header->type & GB_OPERATION_TYPE_RESPONSE)
+		gb_connection_recv_response(connection, operation_id,
+						data, msg_size);
+	else
+		gb_connection_recv_request(connection, operation_id,
+						header->type, data, msg_size);
 }
 
 /*
