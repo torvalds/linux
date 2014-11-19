@@ -19,6 +19,13 @@ static int sigmadsp_write_regmap(void *control_data,
 		data, len);
 }
 
+static int sigmadsp_read_regmap(void *control_data,
+	unsigned int addr, uint8_t data[], size_t len)
+{
+	return regmap_raw_read(control_data, addr,
+		data, len);
+}
+
 /**
  * devm_sigmadsp_init_i2c() - Initialize SigmaDSP instance
  * @dev: The parent device
@@ -42,6 +49,7 @@ struct sigmadsp *devm_sigmadsp_init_regmap(struct device *dev,
 
 	sigmadsp->control_data = regmap;
 	sigmadsp->write = sigmadsp_write_regmap;
+	sigmadsp->read = sigmadsp_read_regmap;
 
 	return sigmadsp;
 }

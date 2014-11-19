@@ -27,14 +27,20 @@ struct sigmadsp_ops {
 struct sigmadsp {
 	const struct sigmadsp_ops *ops;
 
+	struct list_head ctrl_list;
 	struct list_head data_list;
+
+	struct snd_pcm_hw_constraint_list rate_constraints;
 
 	unsigned int current_samplerate;
 	struct snd_soc_component *component;
 	struct device *dev;
 
+	struct mutex lock;
+
 	void *control_data;
 	int (*write)(void *, unsigned int, const uint8_t *, size_t);
+	int (*read)(void *, unsigned int, uint8_t *, size_t);
 };
 
 struct sigmadsp *devm_sigmadsp_init(struct device *dev,
