@@ -48,9 +48,9 @@ static struct workqueue_struct *gb_operation_recv_workqueue;
  * header, and is 64-bit aligned.
  */
 struct gb_operation_msg_hdr {
-	__le16	size;	/* Size in bytes of header + payload */
-	__le16	id;	/* Operation unique id */
-	__u8	type;	/* E.g GB_I2C_TYPE_* or GB_GPIO_TYPE_* */
+	__le16	size;		/* Size in bytes of header + payload */
+	__le16	operation_id;	/* Operation unique id */
+	__u8	type;		/* E.g GB_I2C_TYPE_* or GB_GPIO_TYPE_* */
 	/* 3 bytes pad, must be zero (ignore when read) */
 } __aligned(sizeof(u64));
 
@@ -73,7 +73,7 @@ static void gb_pending_operation_insert(struct gb_operation *operation)
 
 	/* Store the operation id in the request header */
 	header = operation->request.buffer;
-	header->id = cpu_to_le16(operation->id);
+	header->operation_id = cpu_to_le16(operation->id);
 }
 
 static void gb_pending_operation_remove(struct gb_operation *operation)
@@ -87,14 +87,14 @@ static void gb_pending_operation_remove(struct gb_operation *operation)
 }
 
 static struct gb_operation *
-gb_pending_operation_find(struct gb_connection *connection, u16 id)
+gb_pending_operation_find(struct gb_connection *connection, u16 operation_id)
 {
 	struct gb_operation *operation;
 	bool found = false;
 
 	spin_lock_irq(&gb_operations_lock);
 	list_for_each_entry(operation, &connection->pending, links)
-		if (operation->id == id) {
+		if (operation->id == operation_id) {
 			found = true;
 			break;
 		}
@@ -258,7 +258,7 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	/* Fill in the header structure */
 	header = message->buffer;
 	header->size = cpu_to_le16(size);
-	header->id = 0;		/* Filled in when submitted */
+	header->operation_id = 0;	/* Filled in when submitted */
 	header->type = type;
 
 	message->payload = header + 1;
@@ -450,9 +450,9 @@ void gb_connection_recv(struct gb_connection *connection,
 	header = data;
 	msg_size = le16_to_cpu(header->size);
 	if (header->type & GB_OPERATION_TYPE_RESPONSE) {
-		u16 id = le16_to_cpu(header->id);
+		u16 operation_id = le16_to_cpu(header->operation_id);
 
-		operation = gb_pending_operation_find(connection, id);
+		operation = gb_pending_operation_find(connection, operation_id);
 		if (!operation) {
 			gb_connection_err(connection, "operation not found");
 			return;
