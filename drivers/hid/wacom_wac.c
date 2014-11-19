@@ -600,8 +600,8 @@ static void wacom_intuos_general(struct wacom_wac *wacom)
 		}
 		input_report_abs(input, ABS_PRESSURE, t);
 		input_report_abs(input, ABS_TILT_X,
-				((data[7] << 1) & 0x7e) | (data[8] >> 7));
-		input_report_abs(input, ABS_TILT_Y, data[8] & 0x7f);
+				 (((data[7] << 1) & 0x7e) | (data[8] >> 7)) - 64);
+		input_report_abs(input, ABS_TILT_Y, (data[8] & 0x7f) - 64);
 		input_report_key(input, BTN_STYLUS, data[1] & 2);
 		input_report_key(input, BTN_STYLUS2, data[1] & 4);
 		input_report_key(input, BTN_TOUCH, t > 10);
@@ -612,8 +612,8 @@ static void wacom_intuos_general(struct wacom_wac *wacom)
 		input_report_abs(input, ABS_WHEEL,
 				(data[6] << 2) | ((data[7] >> 6) & 3));
 		input_report_abs(input, ABS_TILT_X,
-				((data[7] << 1) & 0x7e) | (data[8] >> 7));
-		input_report_abs(input, ABS_TILT_Y, data[8] & 0x7f);
+				 (((data[7] << 1) & 0x7e) | (data[8] >> 7)) - 64);
+		input_report_abs(input, ABS_TILT_Y, (data[8] & 0x7f) - 64);
 	}
 }
 
@@ -915,8 +915,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 				input_report_key(input, BTN_EXTRA,  data[6] & 0x10);
 
 				input_report_abs(input, ABS_TILT_X,
-					((data[7] << 1) & 0x7e) | (data[8] >> 7));
-				input_report_abs(input, ABS_TILT_Y, data[8] & 0x7f);
+					(((data[7] << 1) & 0x7e) | (data[8] >> 7)) - 64);
+				input_report_abs(input, ABS_TILT_Y, (data[8] & 0x7f) - 64);
 			} else {
 				/* 2D mouse packet */
 				input_report_key(input, BTN_LEFT,   data[8] & 0x04);
@@ -1929,8 +1929,8 @@ static void wacom_setup_cintiq(struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_DISTANCE,
 			     0, wacom_wac->features.distance_max, 0, 0);
 	input_set_abs_params(input_dev, ABS_WHEEL, 0, 1023, 0, 0);
-	input_set_abs_params(input_dev, ABS_TILT_X, 0, 127, 0, 0);
-	input_set_abs_params(input_dev, ABS_TILT_Y, 0, 127, 0, 0);
+	input_set_abs_params(input_dev, ABS_TILT_X, -64, 63, 0, 0);
+	input_set_abs_params(input_dev, ABS_TILT_Y, -64, 63, 0, 0);
 }
 
 static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
