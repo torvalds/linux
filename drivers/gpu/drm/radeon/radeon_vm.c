@@ -695,7 +695,7 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 	if (ib.length_dw != 0) {
 		radeon_asic_vm_pad_ib(rdev, &ib);
 
-		radeon_sync_resv(rdev, &ib.sync, pd->tbo.resv, false);
+		radeon_sync_resv(rdev, &ib.sync, pd->tbo.resv, true);
 		WARN_ON(ib.length_dw > ndw);
 		r = radeon_ib_schedule(rdev, &ib, NULL, false);
 		if (r) {
