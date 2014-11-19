@@ -4526,8 +4526,6 @@ static void gen6_disable_rps(struct drm_device *dev)
 
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 	I915_WRITE(GEN6_RPNSWREQ, 1 << 31);
-
-	gen6_disable_rps_interrupts(dev);
 }
 
 static void cherryview_disable_rps(struct drm_device *dev)
@@ -4535,8 +4533,6 @@ static void cherryview_disable_rps(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	I915_WRITE(GEN6_RC_CONTROL, 0);
-
-	gen6_disable_rps_interrupts(dev);
 }
 
 static void valleyview_disable_rps(struct drm_device *dev)
@@ -4550,8 +4546,6 @@ static void valleyview_disable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
-
-	gen6_disable_rps_interrupts(dev);
 }
 
 static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
@@ -6230,6 +6224,14 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 			valleyview_disable_rps(dev);
 		else
 			gen6_disable_rps(dev);
+
+		/*
+		 * TODO: disable RPS interrupts on GEN9+ too once RPS support
+		 * is added for it.
+		 */
+		if (INTEL_INFO(dev)->gen < 9)
+			gen6_disable_rps_interrupts(dev);
+
 		dev_priv->rps.enabled = false;
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	}
