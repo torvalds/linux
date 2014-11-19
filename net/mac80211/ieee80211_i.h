@@ -1238,7 +1238,7 @@ struct ieee80211_local {
 	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
 	struct cfg80211_scan_request *int_scan_req;
-	struct cfg80211_scan_request *scan_req;
+	struct cfg80211_scan_request __rcu *scan_req;
 	struct ieee80211_scan_request *hw_scan_req;
 	struct cfg80211_chan_def scan_chandef;
 	enum ieee80211_band hw_scan_band;
@@ -1248,7 +1248,7 @@ struct ieee80211_local {
 
 	struct work_struct sched_scan_stopped_work;
 	struct ieee80211_sub_if_data __rcu *sched_scan_sdata;
-	struct cfg80211_sched_scan_request *sched_scan_req;
+	struct cfg80211_sched_scan_request __rcu *sched_scan_req;
 
 	unsigned long leave_oper_channel_time;
 	enum mac80211_scan_state next_scan_state;

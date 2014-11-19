@@ -1721,6 +1721,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	int res, i;
 	bool reconfig_due_to_wowlan = false;
 	struct ieee80211_sub_if_data *sched_scan_sdata;
+	struct cfg80211_sched_scan_request *sched_scan_req;
 	bool sched_scan_stopped = false;
 
 #ifdef CONFIG_PM
@@ -2011,13 +2012,15 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mutex_lock(&local->mtx);
 	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
 						lockdep_is_held(&local->mtx));
-	if (sched_scan_sdata && local->sched_scan_req)
+	sched_scan_req = rcu_dereference_protected(local->sched_scan_req,
+						lockdep_is_held(&local->mtx));
+	if (sched_scan_sdata && sched_scan_req)
 		/*
 		 * Sched scan stopped, but we don't want to report it. Instead,
 		 * we're trying to reschedule.
 		 */
 		if (__ieee80211_request_sched_scan_start(sched_scan_sdata,
-							 local->sched_scan_req))
+							 sched_scan_req))
 			sched_scan_stopped = true;
 	mutex_unlock(&local->mtx);
 
