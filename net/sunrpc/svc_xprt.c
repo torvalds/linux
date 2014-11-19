@@ -509,7 +509,7 @@ void svc_wake_up(struct svc_serv *serv)
 			 */
 			wake_up_process(rqstp->rq_task);
 		} else
-			pool->sp_task_pending = 1;
+			set_bit(SP_TASK_PENDING, &pool->sp_flags);
 		spin_unlock_bh(&pool->sp_lock);
 	}
 }
@@ -644,10 +644,9 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 		 * long for cache updates.
 		 */
 		rqstp->rq_chandle.thread_wait = 1*HZ;
-		pool->sp_task_pending = 0;
+		clear_bit(SP_TASK_PENDING, &pool->sp_flags);
 	} else {
-		if (pool->sp_task_pending) {
-			pool->sp_task_pending = 0;
+		if (test_and_clear_bit(SP_TASK_PENDING, &pool->sp_flags)) {
 			xprt = ERR_PTR(-EAGAIN);
 			goto out;
 		}
