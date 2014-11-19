@@ -4552,7 +4552,7 @@ static struct regmap_irq_chip rt5677_irq_chip = {
 	.mask_invert = 1,
 };
 
-static int rt5677_irq_init(struct i2c_client *i2c)
+static int rt5677_init_irq(struct i2c_client *i2c)
 {
 	int ret;
 	struct rt5677_priv *rt5677 = i2c_get_clientdata(i2c);
@@ -4579,7 +4579,7 @@ static int rt5677_irq_init(struct i2c_client *i2c)
 	return 0;
 }
 
-static void rt5677_irq_exit(struct i2c_client *i2c)
+static void rt5677_free_irq(struct i2c_client *i2c)
 {
 	struct rt5677_priv *rt5677 = i2c_get_clientdata(i2c);
 
@@ -4693,7 +4693,7 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 	}
 
 	rt5677_init_gpio(i2c);
-	rt5677_irq_init(i2c);
+	rt5677_init_irq(i2c);
 
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5677,
 				      rt5677_dai, ARRAY_SIZE(rt5677_dai));
@@ -4701,9 +4701,8 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 
 static int rt5677_i2c_remove(struct i2c_client *i2c)
 {
-	rt5677_irq_exit(i2c);
-
 	snd_soc_unregister_codec(&i2c->dev);
+	rt5677_free_irq(i2c);
 	rt5677_free_gpio(i2c);
 
 	return 0;
