@@ -701,7 +701,6 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 		radeon_asic_vm_pad_ib(rdev, &ib);
 
 		radeon_semaphore_sync_resv(rdev, ib.semaphore, pd->tbo.resv, false);
-		radeon_semaphore_sync_fence(ib.semaphore, vm->last_id_use);
 		WARN_ON(ib.length_dw > ndw);
 		r = radeon_ib_schedule(rdev, &ib, NULL, false);
 		if (r) {
@@ -969,7 +968,6 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	radeon_asic_vm_pad_ib(rdev, &ib);
 	WARN_ON(ib.length_dw > ndw);
 
-	radeon_semaphore_sync_fence(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
