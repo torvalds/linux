@@ -74,6 +74,10 @@
 	status = "okay";
 };
 
+&tmu0 {
+	status = "okay";
+};
+
 &pfc {
 	scif0_pins: serial0 {
 		renesas,groups = "scif0_data_a", "scif0_ctrl";

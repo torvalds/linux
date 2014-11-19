@@ -288,8 +288,6 @@ void __init r8a7778_add_dt_devices(void)
 		l2x0_init(base, 0x00400000, 0xc20f0fff);
 	}
 #endif
-
-	r8a7778_register_tmu(0);
 }
 
 /* HPB-DMA */
@@ -497,6 +495,7 @@ static void __init r8a7778_register_hpb_dmae(void)
 void __init r8a7778_add_standard_devices(void)
 {
 	r8a7778_add_dt_devices();
+	r8a7778_register_tmu(0);
 	r8a7778_register_scif(0);
 	r8a7778_register_scif(1);
 	r8a7778_register_scif(2);

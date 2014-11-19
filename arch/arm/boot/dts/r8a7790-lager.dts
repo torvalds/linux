@@ -19,8 +19,8 @@
 	compatible = "renesas,lager", "renesas,r8a7790";
 
 	aliases {
-		serial6 = &scif0;
-		serial7 = &scif1;
+		serial6 = &scifa0;
+		serial7 = &scifa1;
 	};
 
 	chosen {
@@ -207,9 +207,9 @@
 		renesas,function = "du";
 	};
 
-	scif0_pins: serial0 {
-		renesas,groups = "scif0_data";
-		renesas,function = "scif0";
+	scifa0_pins: serial0 {
+		renesas,groups = "scifa0_data";
+		renesas,function = "scifa0";
 	};
 
 	ether_pins: ether {
@@ -222,9 +222,9 @@
 		renesas,function = "intc";
 	};
 
-	scif1_pins: serial1 {
-		renesas,groups = "scif1_data";
-		renesas,function = "scif1";
+	scifa1_pins: serial1 {
+		renesas,groups = "scifa1_data";
+		renesas,function = "scifa1";
 	};
 
 	sdhi0_pins: sd0 {
@@ -266,6 +266,11 @@
 	iic3_pins: iic3 {
 		renesas,groups = "iic3";
 		renesas,function = "iic3";
+	};
+
+	hsusb_pins: hsusb {
+		renesas,groups = "usb0_ovc_vbus";
+		renesas,function = "usb0";
 	};
 
 	usb0_pins: usb0 {
@@ -356,15 +361,15 @@
 	};
 };
 
-&scif0 {
-	pinctrl-0 = <&scif0_pins>;
+&scifa0 {
+	pinctrl-0 = <&scifa0_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
 };
 
-&scif1 {
-	pinctrl-0 = <&scif1_pins>;
+&scifa1 {
+	pinctrl-0 = <&scifa1_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
@@ -466,10 +471,27 @@
 	pinctrl-names = "default";
 };
 
+&xhci {
+	status = "okay";
+	pinctrl-0 = <&usb2_pins>;
+	pinctrl-names = "default";
+};
+
 &pci2 {
 	status = "okay";
 	pinctrl-0 = <&usb2_pins>;
 	pinctrl-names = "default";
+};
+
+&hsusb {
+	status = "okay";
+	pinctrl-0 = <&hsusb_pins>;
+	pinctrl-names = "default";
+	renesas,enable-gpio = <&gpio5 18 GPIO_ACTIVE_HIGH>;
+};
+
+&usbphy {
+	status = "okay";
 };
 
 /* composite video input */

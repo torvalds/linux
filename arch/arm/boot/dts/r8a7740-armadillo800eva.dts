@@ -299,3 +299,7 @@
 
 	status = "okay";
 };
+
+&tmu0 {
+	status = "okay";
+};

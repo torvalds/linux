@@ -71,6 +71,7 @@
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp2_clks R8A7740_CLK_INTCA>;
 	};
 
 	/* irqpin1: IRQ8 - IRQ15 */
@@ -91,6 +92,7 @@
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp2_clks R8A7740_CLK_INTCA>;
 	};
 
 	/* irqpin2: IRQ16 - IRQ23 */
@@ -111,6 +113,7 @@
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp2_clks R8A7740_CLK_INTCA>;
 	};
 
 	/* irqpin3: IRQ24 - IRQ31 */
@@ -131,6 +134,7 @@
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH
 			      0 149 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp2_clks R8A7740_CLK_INTCA>;
 	};
 
 	ether: ethernet@e9a00000 {
@@ -193,7 +197,7 @@
 		compatible = "renesas,scifa-r8a7740", "renesas,scifa";
 		reg = <0xe6c60000 0x100>;
 		interrupts = <0 102 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp2_clks R8A7740_CLK_SCIFA0>;
+		clocks = <&mstp2_clks R8A7740_CLK_SCIFA2>;
 		clock-names = "sci_ick";
 		status = "disabled";
 	};
@@ -331,6 +335,34 @@
 		status = "disabled";
 	};
 
+	tmu0: timer@fff80000 {
+		compatible = "renesas,tmu-r8a7740", "renesas,tmu";
+		reg = <0xfff80000 0x2c>;
+		interrupts = <0 198 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 199 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 200 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp1_clks R8A7740_CLK_TMU0>;
+		clock-names = "fck";
+
+		#renesas,channels = <3>;
+
+		status = "disabled";
+	};
+
+	tmu1: timer@fff90000 {
+		compatible = "renesas,tmu-r8a7740", "renesas,tmu";
+		reg = <0xfff90000 0x2c>;
+		interrupts = <0 170 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 171 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 172 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp1_clks R8A7740_CLK_TMU1>;
+		clock-names = "fck";
+
+		#renesas,channels = <3>;
+
+		status = "disabled";
+	};
+
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -448,8 +480,8 @@
 		mstp2_clks: mstp2_clks@e6150138 {
 			compatible = "renesas,r8a7740-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0xe6150138 4>, <0xe6150040 4>;
-			clocks = <&sub_clk>, <&sub_clk>,
-				 <&cpg_clocks R8A7740_CLK_HP>,
+			clocks = <&sub_clk>, <&cpg_clocks R8A7740_CLK_HP>,
+				 <&sub_clk>, <&cpg_clocks R8A7740_CLK_HP>,
 				 <&cpg_clocks R8A7740_CLK_HP>,
 				 <&cpg_clocks R8A7740_CLK_HP>,
 				 <&cpg_clocks R8A7740_CLK_HP>,
@@ -458,7 +490,8 @@
 				 <&sub_clk>;
 			#clock-cells = <1>;
 			renesas,clock-indices = <
-				R8A7740_CLK_SCIFA6 R8A7740_CLK_SCIFA7
+				R8A7740_CLK_SCIFA6 R8A7740_CLK_INTCA
+				R8A7740_CLK_SCIFA7
 				R8A7740_CLK_DMAC1 R8A7740_CLK_DMAC2
 				R8A7740_CLK_DMAC3 R8A7740_CLK_USBDMAC
 				R8A7740_CLK_SCIFA5 R8A7740_CLK_SCIFB
@@ -467,7 +500,8 @@
 				R8A7740_CLK_SCIFA4
 			>;
 			clock-output-names =
-				"scifa6", "scifa7", "dmac1", "dmac2", "dmac3",
+				"scifa6", "intca",
+				"scifa7", "dmac1", "dmac2", "dmac3",
 				"usbdmac", "scifa5", "scifb", "scifa0", "scifa1",
 				"scifa2", "scifa3", "scifa4";
 		};
