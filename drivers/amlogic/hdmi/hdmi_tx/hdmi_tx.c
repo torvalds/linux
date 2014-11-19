@@ -684,6 +684,9 @@ const char* disp_mode_t[]={
     "4k2k25hz",
     "4k2k24hz",
     "4k2ksmpte",
+    "vga",
+    "sxga",
+    "1920x1200",
     NULL
 };
 

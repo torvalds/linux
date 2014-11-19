@@ -232,6 +232,9 @@ int tvoutc_setclk(tvmode_t mode)
 		case TVMODE_1080I_50HZ:
 		case TVMODE_1080P:
 		case TVMODE_1080P_50HZ:
+		case TVMODE_SVGA:
+		case TVMODE_SXGA:
+		case TVMODE_1920x1200:
 			  setreg(&hd[xtal]);
 			  if(xtal == 1)
 			  {

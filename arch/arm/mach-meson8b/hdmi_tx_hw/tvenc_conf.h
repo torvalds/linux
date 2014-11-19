@@ -181,6 +181,56 @@ static  reg_t hdmi_tvenc_regs_720p50[] = {
     {0,0}
 };    
 
+static  reg_t hdmi_tvenc_regs_640x480p60[] = {
+    //{ENCP_VIDEO_MODE,                    0x00004040},
+    //{ENCP_DE_H_BEGIN,                    0x00000112},
+    //{ENCP_DE_H_END,                      0x00000612},
+    //{ENCP_DE_V_BEGIN_EVEN,               0x00000029},
+    //{ENCP_DE_V_END_EVEN,                 0x00000429},
+    //{ENCP_DVI_HSO_BEGIN,                 0x00000052},
+    //{ENCP_DVI_HSO_END,                   0x000000c2},
+    //{ENCP_DVI_VSO_BLINE_EVN,             0x00000000},
+    //{ENCP_DVI_VSO_ELINE_EVN,             0x00000003},
+    //{ENCP_DVI_VSO_BEGIN_EVN,             0x00000052},
+    //{ENCP_DVI_VSO_END_EVN,               0x00000052},
+    //{VENC_DVI_SETTING_MORE,              0x00000000},
+    //{VENC_DVI_SETTING,                   0x0000809d},
+    {0,0}
+};   
+ 
+static  reg_t hdmi_tvenc_regs_1280x1024x60[] = {
+    //{ENCP_VIDEO_MODE,                    0x00004040},
+    //{ENCP_DE_H_BEGIN,                    0x00000112},
+    //{ENCP_DE_H_END,                      0x00000612},
+    //{ENCP_DE_V_BEGIN_EVEN,               0x00000029},
+    //{ENCP_DE_V_END_EVEN,                 0x00000429},
+    //{ENCP_DVI_HSO_BEGIN,                 0x00000052},
+    //{ENCP_DVI_HSO_END,                   0x000000c2},
+    //{ENCP_DVI_VSO_BLINE_EVN,             0x00000000},
+    //{ENCP_DVI_VSO_ELINE_EVN,             0x00000003},
+    //{ENCP_DVI_VSO_BEGIN_EVN,             0x00000052},
+    //{ENCP_DVI_VSO_END_EVN,               0x00000052},
+    //{VENC_DVI_SETTING_MORE,              0x00000000},
+    //{VENC_DVI_SETTING,                   0x0000809d},
+    {0,0}
+};  
+
+static  reg_t hdmi_tvenc_regs_1920x1200[] = {//60hz
+    //{ENCP_VIDEO_MODE,                    0x00004040},
+    //{ENCP_DE_H_BEGIN,                    0x00000112},
+    //{ENCP_DE_H_END,                      0x00000612},
+    //{ENCP_DE_V_BEGIN_EVEN,               0x00000029},
+    //{ENCP_DE_V_END_EVEN,                 0x00000429},
+    //{ENCP_DVI_HSO_BEGIN,                 0x00000052},
+    //{ENCP_DVI_HSO_END,                   0x000000c2},
+    //{ENCP_DVI_VSO_BLINE_EVN,             0x00000000},
+    //{ENCP_DVI_VSO_ELINE_EVN,             0x00000003},
+    //{ENCP_DVI_VSO_BEGIN_EVN,             0x00000052},
+    //{ENCP_DVI_VSO_END_EVN,               0x00000052},
+    //{VENC_DVI_SETTING_MORE,              0x00000000},
+    //{VENC_DVI_SETTING,                   0x0000809d},
+    {0,0}
+};  
 static  reg_t hdmi_tvenc_regs_1080p50[] = {
     {ENCP_VIDEO_MODE,                    0x00004040},
     {ENCP_DE_H_BEGIN,                    0x00000112},
@@ -205,7 +255,7 @@ typedef struct hdmi_tvenc_config_
 }hdmi_tvenc_config_t;
 
 static const hdmi_tvenc_config_t hdmi_tvenc_configs[] = {
-    {HDMI_640x480p60  ,          NULL          },
+    {HDMI_640x480p60  ,          hdmi_tvenc_regs_640x480p60},
     {HDMI_480p60,                hdmi_tvenc_regs_480p},
     {HDMI_480p60_16x9,           hdmi_tvenc_regs_480p},
     {HDMI_720p60,                hdmi_tvenc_regs_720p},
@@ -218,6 +268,8 @@ static const hdmi_tvenc_config_t hdmi_tvenc_configs[] = {
     {HDMI_576p50,                hdmi_tvenc_regs_576p},
     {HDMI_576p50_16x9,           hdmi_tvenc_regs_576p},
     {HDMI_720p50,                hdmi_tvenc_regs_720p50},
+    {HDMI_1280x1024,             hdmi_tvenc_regs_1280x1024x60},
+    {HDMI_1920x1200,             hdmi_tvenc_regs_1920x1200},
     {HDMI_1080i50,               hdmi_tvenc_regs_1080i50},
     {HDMI_576i50,                hdmi_tvenc_regs_576i},
     {HDMI_576i50_16x9,           hdmi_tvenc_regs_576i},
