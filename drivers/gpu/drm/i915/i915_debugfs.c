@@ -1240,11 +1240,12 @@ static int vlv_drpc_info(struct seq_file *m)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rpmodectl1, rcctl1;
+	u32 rpmodectl1, rcctl1, pw_status;
 	unsigned fw_rendercount = 0, fw_mediacount = 0;
 
 	intel_runtime_pm_get(dev_priv);
 
+	pw_status = I915_READ(VLV_GTLC_PW_STATUS);
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
 	rcctl1 = I915_READ(GEN6_RC_CONTROL);
 
@@ -1263,11 +1264,9 @@ static int vlv_drpc_info(struct seq_file *m)
 		   yesno(rcctl1 & (GEN7_RC_CTL_TO_MODE |
 					GEN6_RC_CTL_EI_MODE(1))));
 	seq_printf(m, "Render Power Well: %s\n",
-			(I915_READ(VLV_GTLC_PW_STATUS) &
-				VLV_GTLC_PW_RENDER_STATUS_MASK) ? "Up" : "Down");
+		   (pw_status & VLV_GTLC_PW_RENDER_STATUS_MASK) ? "Up" : "Down");
 	seq_printf(m, "Media Power Well: %s\n",
-			(I915_READ(VLV_GTLC_PW_STATUS) &
-				VLV_GTLC_PW_MEDIA_STATUS_MASK) ? "Up" : "Down");
+		   (pw_status & VLV_GTLC_PW_MEDIA_STATUS_MASK) ? "Up" : "Down");
 
 	seq_printf(m, "Render RC6 residency since boot: %u\n",
 		   I915_READ(VLV_GT_RENDER_RC6));
