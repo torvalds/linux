@@ -624,6 +624,11 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	inode = gfs2_dir_search(dir, &dentry->d_name, !S_ISREG(mode) || excl);
 	error = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
+		if (S_ISDIR(inode->i_mode)) {
+			iput(inode);
+			inode = ERR_PTR(-EISDIR);
+			goto fail_gunlock;
+		}
 		d = d_splice_alias(inode, dentry);
 		error = PTR_ERR(d);
 		if (IS_ERR(d)) {
