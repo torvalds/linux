@@ -22,7 +22,7 @@ struct gb_vibrator_device {
 	u8			version_minor;
 };
 
-/* Version of the Greybus i2c protocol we support */
+/* Version of the Greybus vibrator protocol we support */
 #define	GB_VIBRATOR_VERSION_MAJOR		0x00
 #define	GB_VIBRATOR_VERSION_MINOR		0x01
 
