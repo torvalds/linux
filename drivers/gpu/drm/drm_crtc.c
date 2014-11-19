@@ -867,6 +867,8 @@ int drm_connector_init(struct drm_device *dev,
 
 	drm_connector_get_cmdline_mode(connector);
 
+	/* We should add connectors at the end to avoid upsetting the connector
+	 * index too much. */
 	list_add_tail(&connector->head, &dev->mode_config.connector_list);
 	dev->mode_config.num_connector++;
 
@@ -930,6 +932,9 @@ unsigned int drm_connector_index(struct drm_connector *connector)
 {
 	unsigned int index = 0;
 	struct drm_connector *tmp;
+	struct drm_mode_config *config = &connector->dev->mode_config;
+
+	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
 
 	list_for_each_entry(tmp, &connector->dev->mode_config.connector_list, head) {
 		if (tmp == connector)
