@@ -3693,8 +3693,8 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	} while (--attempts && (buf & DP_TEST_COUNT_MASK) == test_crc_count);
 
 	if (attempts == 0) {
-		DRM_ERROR("Panel is unable to calculate CRC after 6 vblanks\n");
-		return -EIO;
+		DRM_DEBUG_KMS("Panel is unable to calculate CRC after 6 vblanks\n");
+		return -ETIMEDOUT;
 	}
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0)
