@@ -206,8 +206,7 @@ static int i2c_atmel_remove(struct i2c_client *client)
 	struct device *dev = &(client->dev);
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
-	if (chip)
-		tpm_dev_vendor_release(chip);
+	tpm_dev_vendor_release(chip);
 	tpm_remove_hardware(dev);
 	kfree(chip);
 	return 0;
