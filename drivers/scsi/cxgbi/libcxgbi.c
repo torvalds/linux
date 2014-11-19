@@ -816,7 +816,7 @@ static void cxgbi_inform_iscsi_conn_closing(struct cxgbi_sock *csk)
 		read_lock_bh(&csk->callback_lock);
 		if (csk->user_data)
 			iscsi_conn_failure(csk->user_data,
-					ISCSI_ERR_CONN_FAILED);
+					ISCSI_ERR_TCP_CONN_CLOSE);
 		read_unlock_bh(&csk->callback_lock);
 	}
 }
