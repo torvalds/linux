@@ -54,7 +54,7 @@ struct gb_battery_proto_version_response {
 #define GB_BATTERY_TECH_NiCd			0x0005
 #define GB_BATTERY_TECH_LiMn			0x0006
 
-struct gb_battery_technology_request {
+struct gb_battery_technology_response {
 	__u8	status;
 	__le32	technology;
 };
@@ -66,50 +66,53 @@ struct gb_battery_technology_request {
 #define GB_BATTERY_STATUS_NOT_CHARGING		0x0003
 #define GB_BATTERY_STATUS_FULL			0x0004
 
-struct gb_battery_status_request {
+struct gb_battery_status_response {
 	__u8	status;
 	__le16	battery_status;
 };
 
-struct gb_battery_max_voltage_request {
+struct gb_battery_max_voltage_response {
 	__u8	status;
 	__le32	max_voltage;
 };
 
-struct gb_battery_capacity_request {
+struct gb_battery_capacity_response {
 	__u8	status;
 	__le32	capacity;
 };
 
-struct gb_battery_temperature_request {
+struct gb_battery_temperature_response {
 	__u8	status;
 	__le32	temperature;
 };
 
-struct gb_battery_voltage_request {
+struct gb_battery_voltage_response {
 	__u8	status;
 	__le32	voltage;
 };
 
+/* Generia response structure--prefix for all other responses */
+struct gb_generic_battery_response {
+	__u8	status;
+};
 
+/*
+ * None of the battery operation requests have any payload.  This
+ * function implements all of the requests by allowing the caller to
+ * supply a buffer into which the operation response should be
+ * copied.
+ */
 static int battery_operation(struct gb_battery *gb, int type,
 			     void *response, int response_size)
 {
 	struct gb_connection *connection = gb->connection;
 	struct gb_operation *operation;
-	struct gb_battery_technology_request *fake_request;
-	u8 *local_response;
+	struct gb_generic_battery_response *fake_response;
 	int ret;
 
-	local_response = kmalloc(response_size, GFP_KERNEL);
-	if (!local_response)
-		return -ENOMEM;
-
 	operation = gb_operation_create(connection, type, 0, response_size);
-	if (!operation) {
-		kfree(local_response);
+	if (!operation)
 		return -ENOMEM;
-	}
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
@@ -123,18 +126,17 @@ static int battery_operation(struct gb_battery *gb, int type,
 	 * layout for where the status is, so cast this to a random request so
 	 * we can see the status easier.
 	 */
-	fake_request = (struct gb_battery_technology_request *)local_response;
-	if (fake_request->status) {
+	fake_response = operation->response.payload;
+	if (fake_response->status) {
 		gb_connection_err(connection, "version response %hhu",
-			fake_request->status);
+			fake_response->status);
 		ret = -EIO;
 	} else {
-		/* Good request, so copy to the caller's buffer */
-		memcpy(response, local_response, response_size);
+		/* Good response, so copy to the caller's buffer */
+		memcpy(response, fake_response, response_size);
 	}
 out:
 	gb_operation_destroy(operation);
-	kfree(local_response);
 
 	return ret;
 }
@@ -145,33 +147,33 @@ out:
  */
 static int get_version(struct gb_battery *gb)
 {
-	struct gb_battery_proto_version_response version_request;
+	struct gb_battery_proto_version_response version_response;
 	int retval;
 
 	retval = battery_operation(gb, GB_BATTERY_TYPE_PROTOCOL_VERSION,
-				   &version_request, sizeof(version_request));
+				   &version_response, sizeof(version_response));
 	if (retval)
 		return retval;
 
-	if (version_request.major > GB_BATTERY_VERSION_MAJOR) {
+	if (version_response.major > GB_BATTERY_VERSION_MAJOR) {
 		pr_err("unsupported major version (%hhu > %hhu)\n",
-			version_request.major, GB_BATTERY_VERSION_MAJOR);
+			version_response.major, GB_BATTERY_VERSION_MAJOR);
 		return -ENOTSUPP;
 	}
 
-	gb->version_major = version_request.major;
-	gb->version_minor = version_request.minor;
+	gb->version_major = version_response.major;
+	gb->version_minor = version_response.minor;
 	return 0;
 }
 
 static int get_tech(struct gb_battery *gb)
 {
-	struct gb_battery_technology_request tech_request;
+	struct gb_battery_technology_response tech_response;
 	u32 technology;
 	int retval;
 
 	retval = battery_operation(gb, GB_BATTERY_TYPE_TECHNOLOGY,
-				   &tech_request, sizeof(tech_request));
+				   &tech_response, sizeof(tech_response));
 	if (retval)
 		return retval;
 
@@ -180,7 +182,7 @@ static int get_tech(struct gb_battery *gb)
 	 * "identical" which should allow gcc to optomize the code away to
 	 * nothing.
 	 */
-	technology = le32_to_cpu(tech_request.technology);
+	technology = le32_to_cpu(tech_response.technology);
 	switch (technology) {
 	case GB_BATTERY_TECH_NiMH:
 		technology = POWER_SUPPLY_TECHNOLOGY_NiMH;
@@ -210,12 +212,12 @@ static int get_tech(struct gb_battery *gb)
 
 static int get_status(struct gb_battery *gb)
 {
-	struct gb_battery_status_request status_request;
+	struct gb_battery_status_response status_response;
 	u16 battery_status;
 	int retval;
 
 	retval = battery_operation(gb, GB_BATTERY_TYPE_STATUS,
-				   &status_request, sizeof(status_request));
+				   &status_response, sizeof(status_response));
 	if (retval)
 		return retval;
 
@@ -224,7 +226,7 @@ static int get_status(struct gb_battery *gb)
 	 * "identical" which should allow gcc to optomize the code away to
 	 * nothing.
 	 */
-	battery_status = le16_to_cpu(status_request.battery_status);
+	battery_status = le16_to_cpu(status_response.battery_status);
 	switch (battery_status) {
 	case GB_BATTERY_STATUS_CHARGING:
 		battery_status = POWER_SUPPLY_STATUS_CHARGING;
@@ -248,61 +250,61 @@ static int get_status(struct gb_battery *gb)
 
 static int get_max_voltage(struct gb_battery *gb)
 {
-	struct gb_battery_max_voltage_request volt_request;
+	struct gb_battery_max_voltage_response volt_response;
 	u32 max_voltage;
 	int retval;
 
 	retval = battery_operation(gb, GB_BATTERY_TYPE_MAX_VOLTAGE,
-				   &volt_request, sizeof(volt_request));
+				   &volt_response, sizeof(volt_response));
 	if (retval)
 		return retval;
 
-	max_voltage = le32_to_cpu(volt_request.max_voltage);
+	max_voltage = le32_to_cpu(volt_response.max_voltage);
 	return max_voltage;
 }
 
 static int get_capacity(struct gb_battery *gb)
 {
-	struct gb_battery_capacity_request capacity_request;
+	struct gb_battery_capacity_response capacity_response;
 	u32 capacity;
 	int retval;
 
 	retval = battery_operation(gb, GB_BATTERY_TYPE_CAPACITY,
-				   &capacity_request, sizeof(capacity_request));
+				   &capacity_response, sizeof(capacity_response));
 	if (retval)
 		return retval;
 
-	capacity = le32_to_cpu(capacity_request.capacity);
+	capacity = le32_to_cpu(capacity_response.capacity);
 	return capacity;
 }
 
 static int get_temp(struct gb_battery *gb)
 {
-	struct gb_battery_temperature_request temp_request;
+	struct gb_battery_temperature_response temp_response;
 	u32 temperature;
 	int retval;
 
 	retval = battery_operation(gb, GB_BATTERY_TYPE_TEMPERATURE,
-				   &temp_request, sizeof(temp_request));
+				   &temp_response, sizeof(temp_response));
 	if (retval)
 		return retval;
 
-	temperature = le32_to_cpu(temp_request.temperature);
+	temperature = le32_to_cpu(temp_response.temperature);
 	return temperature;
 }
 
 static int get_voltage(struct gb_battery *gb)
 {
-	struct gb_battery_voltage_request voltage_request;
+	struct gb_battery_voltage_response voltage_response;
 	u32 voltage;
 	int retval;
 
 	retval = battery_operation(gb, GB_BATTERY_TYPE_VOLTAGE,
-				   &voltage_request, sizeof(voltage_request));
+				   &voltage_response, sizeof(voltage_response));
 	if (retval)
 		return retval;
 
-	voltage = le32_to_cpu(voltage_request.voltage);
+	voltage = le32_to_cpu(voltage_response.voltage);
 	return voltage;
 }
 
