@@ -782,9 +782,6 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	if (time_after(jiffies, mi->stats_update + (mp->update_interval / 2 * HZ) / 1000)) {
 		update = true;
 		minstrel_ht_update_stats(mp, mi);
-		if (!(info->flags & IEEE80211_TX_CTL_AMPDU) &&
-		    mi->max_prob_rate / MCS_GROUP_RATES != MINSTREL_CCK_GROUP)
-			minstrel_aggr_check(sta, skb);
 	}
 
 	if (update)
@@ -1025,6 +1022,10 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 	if (!msp->is_ht)
 		return mac80211_minstrel.get_rate(priv, sta, &msp->legacy, txrc);
+
+	if (!(info->flags & IEEE80211_TX_CTL_AMPDU) &&
+	    mi->max_prob_rate / MCS_GROUP_RATES != MINSTREL_CCK_GROUP)
+		minstrel_aggr_check(sta, txrc->skb);
 
 	info->flags |= mi->tx_flags;
 	minstrel_ht_check_cck_shortpreamble(mp, mi, txrc->short_preamble);
