@@ -68,6 +68,11 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev);
 /* TODO move these helper iterator macro somewhere common: */
 #define for_each_plane_on_crtc(_crtc, _plane) \
 	list_for_each_entry((_plane), &(_crtc)->dev->mode_config.plane_list, head) \
-		if ((_plane)->crtc == (_crtc))
+		if ((_plane)->state->crtc == (_crtc))
+
+#define for_each_pending_plane_on_crtc(_state, _crtc, _plane) \
+	list_for_each_entry((_plane), &(_crtc)->dev->mode_config.plane_list, head) \
+		if (({struct drm_plane_state *_ps = (_state)->plane_states[drm_plane_index(_plane)]; \
+			_ps && _ps->crtc == (_crtc);}))
 
 #endif /* __MSM_KMS_H__ */
