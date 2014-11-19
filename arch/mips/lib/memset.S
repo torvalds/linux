@@ -114,8 +114,7 @@
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), .Lfirst_fixup\@)	/* make word/dword aligned */
-#endif
-#ifdef __MIPSEL__
+#else
 	EX(LONG_S_R, a1, (a0), .Lfirst_fixup\@)	/* make word/dword aligned */
 #endif
 	PTR_SUBU	a0, t0			/* long align ptr */
@@ -164,8 +163,7 @@
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_R, a1, -1(a0), .Llast_fixup\@)
-#endif
-#ifdef __MIPSEL__
+#else
 	EX(LONG_S_L, a1, -1(a0), .Llast_fixup\@)
 #endif
 1:	jr		ra
