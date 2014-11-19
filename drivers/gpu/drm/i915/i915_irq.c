@@ -1689,9 +1689,9 @@ static void i9xx_pipe_crc_irq_handler(struct drm_device *dev, enum pipe pipe)
  * the work queue. */
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
-	/* TODO: RPS on GEN9 is not supported yet. */
-	if (WARN_ONCE(INTEL_INFO(dev_priv)->gen == 9,
-		      "GEN9: unexpected RPS IRQ\n"))
+	/* TODO: RPS on GEN9+ is not supported yet. */
+	if (WARN_ONCE(INTEL_INFO(dev_priv)->gen >= 9,
+		      "GEN9+: unexpected RPS IRQ\n"))
 		return;
 
 	if (pm_iir & dev_priv->pm_rps_events) {
