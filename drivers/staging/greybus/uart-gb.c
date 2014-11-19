@@ -136,15 +136,19 @@ static DEFINE_IDR(tty_minors);
 static DEFINE_MUTEX(table_lock);
 static atomic_t reference_count = ATOMIC_INIT(0);
 
-
-static int request_operation(struct gb_connection *connection, int type,
-			     void *response, int response_size)
+/*
+ * This request only uses the connection field, and if successful,
+ * fills in the major and minor protocol version of the target.
+ */
+static int get_version(struct gb_tty *tty)
 {
 	struct gb_operation *operation;
-	struct gb_uart_simple_response *fake_response;
+	struct gb_uart_proto_version_response *response;
 	int ret;
 
-	operation = gb_operation_create(connection, type, 0, response_size);
+	operation = gb_operation_create(tty->connection,
+					GB_UART_REQ_PROTOCOL_VERSION,
+					0, sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
 
@@ -155,51 +159,28 @@ static int request_operation(struct gb_connection *connection, int type,
 		goto out;
 	}
 
-	/*
-	 * We only want to look at the status, and all requests have the same
-	 * layout for where the status is, so cast this to a random request so
-	 * we can see the status easier.
-	 */
-	fake_response = operation->response.payload;
-	if (fake_response->status) {
-		gb_connection_err(connection, "response %hhu",
-			fake_response->status);
+	response = operation->response.payload;
+	if (response->status) {
+		gb_connection_err(tty->connection, "response %hhu",
+			response->status);
 		ret = -EIO;
 	} else {
-		/* Good request, so copy to the caller's buffer */
-		if (response_size && response)
-			memcpy(response, fake_response, response_size);
+		if (response->major > GB_UART_VERSION_MAJOR) {
+			pr_err("unsupported major version (%hhu > %hhu)\n",
+				response->major, GB_UART_VERSION_MAJOR);
+			ret = -ENOTSUPP;
+			goto out;
+		}
+		tty->version_major = response->major;
+		tty->version_minor = response->minor;
+
+		pr_debug("%s: version_major = %u version_minor = %u\n",
+			__func__, tty->version_major, tty->version_minor);
 	}
 out:
 	gb_operation_destroy(operation);
 
 	return ret;
-}
-
-/*
- * This request only uses the connection field, and if successful,
- * fills in the major and minor protocol version of the target.
- */
-static int get_version(struct gb_tty *tty)
-{
-	struct gb_uart_proto_version_response version_response;
-	int retval;
-
-	retval = request_operation(tty->connection,
-				   GB_UART_REQ_PROTOCOL_VERSION,
-				   &version_response, sizeof(version_response));
-	if (retval)
-		return retval;
-
-	if (version_response.major > GB_UART_VERSION_MAJOR) {
-		pr_err("unsupported major version (%hhu > %hhu)\n",
-			version_response.major, GB_UART_VERSION_MAJOR);
-		return -ENOTSUPP;
-	}
-
-	tty->version_major = version_response.major;
-	tty->version_minor = version_response.minor;
-	return 0;
 }
 
 static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
