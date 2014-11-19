@@ -294,13 +294,13 @@ static void gb_operation_message_exit(struct gb_message *message)
  * Returns a pointer to the new operation or a null pointer if an
  * error occurs.
  */
-struct gb_operation *gb_operation_create(struct gb_connection *connection,
-					u8 type, size_t request_size,
-					size_t response_size)
+static struct gb_operation *
+gb_operation_create_common(struct gb_connection *connection, bool outgoing,
+				u8 type, size_t request_size,
+				size_t response_size)
 {
 	struct gb_operation *operation;
 	gfp_t gfp_flags = response_size ? GFP_KERNEL : GFP_ATOMIC;
-	bool outgoing = response_size != 0;
 	int ret;
 
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
@@ -338,6 +338,23 @@ err_cache:
 	kmem_cache_free(gb_operation_cache, operation);
 
 	return NULL;
+}
+
+struct gb_operation *gb_operation_create(struct gb_connection *connection,
+					u8 type, size_t request_size,
+					size_t response_size)
+{
+	return gb_operation_create_common(connection, true, type,
+					request_size, response_size);
+}
+
+static struct gb_operation *
+gb_operation_create_incoming(struct gb_connection *connection,
+					u8 type, size_t request_size,
+					size_t response_size)
+{
+	return gb_operation_create_common(connection, false, type,
+					request_size, response_size);
 }
 
 /*
@@ -427,7 +444,7 @@ void gb_connection_recv_request(struct gb_connection *connection,
 {
 	struct gb_operation *operation;
 
-	operation = gb_operation_create(connection, type, size, 0);
+	operation = gb_operation_create_incoming(connection, type, size, 0);
 	if (!operation) {
 		gb_connection_err(connection, "can't create operation");
 		return;		/* XXX Respond with pre-allocated ENOMEM */
