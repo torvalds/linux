@@ -1012,11 +1012,7 @@ int pci_save_state(struct pci_dev *dev)
 	if (i != 0)
 		return i;
 
-	i = pci_save_vc_state(dev);
-	if (i != 0)
-		return i;
-
-	return 0;
+	return pci_save_vc_state(dev);
 }
 EXPORT_SYMBOL(pci_save_state);
 
@@ -3144,12 +3140,10 @@ static int pcie_flr(struct pci_dev *dev, int probe)
 		return 0;
 
 	if (!pci_wait_for_pending_transaction(dev))
-		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
+		dev_err(&dev->dev, "timed out waiting for pending transaction; performing function level reset anyway\n");
 
 	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
-
 	msleep(100);
-
 	return 0;
 }
 
@@ -3174,16 +3168,12 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 	 * is used, so we use the conrol offset rather than status and shift
 	 * the test bit to match.
 	 */
-	if (pci_wait_for_pending(dev, pos + PCI_AF_CTRL,
+	if (!pci_wait_for_pending(dev, pos + PCI_AF_CTRL,
 				 PCI_AF_STATUS_TP << 8))
-		goto clear;
+		dev_err(&dev->dev, "timed out waiting for pending transaction; performing AF function level reset anyway\n");
 
-	dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
-
-clear:
 	pci_write_config_byte(dev, pos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
 	msleep(100);
-
 	return 0;
 }
 
@@ -4180,7 +4170,8 @@ int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
 		return dev->rom_base_reg;
 	} else if (resno < PCI_BRIDGE_RESOURCES) {
 		/* device specific resource */
-		reg = pci_iov_resource_bar(dev, resno, type);
+		*type = pci_bar_unknown;
+		reg = pci_iov_resource_bar(dev, resno);
 		if (reg)
 			return reg;
 	}
