@@ -9,13 +9,6 @@
 	compatible = "nvidia,tegra114";
 	interrupt-parent = <&gic>;
 
-	aliases {
-		serial0 = &uarta;
-		serial1 = &uartb;
-		serial2 = &uartc;
-		serial3 = &uartd;
-	};
-
 	host1x@50000000 {
 		compatible = "nvidia,tegra114-host1x", "simple-bus";
 		reg = <0x50000000 0x00028000>;
