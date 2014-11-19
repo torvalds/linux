@@ -88,7 +88,11 @@ enum ad_link_speed_type {
 	AD_LINK_SPEED_10MBPS,
 	AD_LINK_SPEED_100MBPS,
 	AD_LINK_SPEED_1000MBPS,
-	AD_LINK_SPEED_10000MBPS
+	AD_LINK_SPEED_2500MBPS,
+	AD_LINK_SPEED_10000MBPS,
+	AD_LINK_SPEED_20000MBPS,
+	AD_LINK_SPEED_40000MBPS,
+	AD_LINK_SPEED_56000MBPS
 };
 
 /* compare MAC addresses */
@@ -247,7 +251,11 @@ static inline int __check_agg_selection_timer(struct port *port)
  *     %AD_LINK_SPEED_10MBPS,
  *     %AD_LINK_SPEED_100MBPS,
  *     %AD_LINK_SPEED_1000MBPS,
+ *     %AD_LINK_SPEED_2500MBPS,
  *     %AD_LINK_SPEED_10000MBPS
+ *     %AD_LINK_SPEED_20000MBPS
+ *     %AD_LINK_SPEED_40000MBPS
+ *     %AD_LINK_SPEED_56000MBPS
  */
 static u16 __get_link_speed(struct port *port)
 {
@@ -275,8 +283,24 @@ static u16 __get_link_speed(struct port *port)
 			speed = AD_LINK_SPEED_1000MBPS;
 			break;
 
+		case SPEED_2500:
+			speed = AD_LINK_SPEED_2500MBPS;
+			break;
+
 		case SPEED_10000:
 			speed = AD_LINK_SPEED_10000MBPS;
+			break;
+
+		case SPEED_20000:
+			speed = AD_LINK_SPEED_20000MBPS;
+			break;
+
+		case SPEED_40000:
+			speed = AD_LINK_SPEED_40000MBPS;
+			break;
+
+		case SPEED_56000:
+			speed = AD_LINK_SPEED_56000MBPS;
 			break;
 
 		default:
@@ -639,8 +663,20 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 		case AD_LINK_SPEED_1000MBPS:
 			bandwidth = aggregator->num_of_ports * 1000;
 			break;
+		case AD_LINK_SPEED_2500MBPS:
+			bandwidth = aggregator->num_of_ports * 2500;
+			break;
 		case AD_LINK_SPEED_10000MBPS:
 			bandwidth = aggregator->num_of_ports * 10000;
+			break;
+		case AD_LINK_SPEED_20000MBPS:
+			bandwidth = aggregator->num_of_ports * 20000;
+			break;
+		case AD_LINK_SPEED_40000MBPS:
+			bandwidth = aggregator->num_of_ports * 40000;
+			break;
+		case AD_LINK_SPEED_56000MBPS:
+			bandwidth = aggregator->num_of_ports * 56000;
 			break;
 		default:
 			bandwidth = 0; /* to silence the compiler */
