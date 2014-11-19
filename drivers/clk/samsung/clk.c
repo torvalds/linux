@@ -14,6 +14,8 @@
 #include <linux/syscore_ops.h>
 #include "clk.h"
 
+static LIST_HEAD(clock_reg_cache_list);
+
 void samsung_clk_save(void __iomem *base,
 				    struct samsung_clk_reg_dump *rd,
 				    unsigned int num_regs)
@@ -312,4 +314,100 @@ unsigned long _get_rate(const char *clk_name)
 	}
 
 	return clk_get_rate(clk);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int samsung_clk_suspend(void)
+{
+	struct samsung_clock_reg_cache *reg_cache;
+
+	list_for_each_entry(reg_cache, &clock_reg_cache_list, node)
+		samsung_clk_save(reg_cache->reg_base, reg_cache->rdump,
+				reg_cache->rd_num);
+	return 0;
+}
+
+static void samsung_clk_resume(void)
+{
+	struct samsung_clock_reg_cache *reg_cache;
+
+	list_for_each_entry(reg_cache, &clock_reg_cache_list, node)
+		samsung_clk_restore(reg_cache->reg_base, reg_cache->rdump,
+				reg_cache->rd_num);
+}
+
+static struct syscore_ops samsung_clk_syscore_ops = {
+	.suspend = samsung_clk_suspend,
+	.resume = samsung_clk_resume,
+};
+
+static void samsung_clk_sleep_init(void __iomem *reg_base,
+		const unsigned long *rdump,
+		unsigned long nr_rdump)
+{
+	struct samsung_clock_reg_cache *reg_cache;
+
+	reg_cache = kzalloc(sizeof(struct samsung_clock_reg_cache),
+			GFP_KERNEL);
+	if (!reg_cache)
+		panic("could not allocate register reg_cache.\n");
+	reg_cache->rdump = samsung_clk_alloc_reg_dump(rdump, nr_rdump);
+
+	if (!reg_cache->rdump)
+		panic("could not allocate register dump storage.\n");
+
+	if (list_empty(&clock_reg_cache_list))
+		register_syscore_ops(&samsung_clk_syscore_ops);
+
+	reg_cache->reg_base = reg_base;
+	reg_cache->rd_num = nr_rdump;
+	list_add_tail(&reg_cache->node, &clock_reg_cache_list);
+}
+
+#else
+static void samsung_clk_sleep_init(void __iomem *reg_base,
+		const unsigned long *rdump,
+		unsigned long nr_rdump) {}
+#endif
+
+/*
+ * Common function which registers plls, muxes, dividers and gates
+ * for each CMU. It also add CMU register list to register cache.
+ */
+void __init samsung_cmu_register_one(struct device_node *np,
+			struct samsung_cmu_info *cmu)
+{
+	void __iomem *reg_base;
+	struct samsung_clk_provider *ctx;
+
+	reg_base = of_iomap(np, 0);
+	if (!reg_base)
+		panic("%s: failed to map registers\n", __func__);
+
+	ctx = samsung_clk_init(np, reg_base, cmu->nr_clk_ids);
+	if (!ctx)
+		panic("%s: unable to alllocate ctx\n", __func__);
+
+	if (cmu->pll_clks)
+		samsung_clk_register_pll(ctx, cmu->pll_clks, cmu->nr_pll_clks,
+			reg_base);
+	if (cmu->mux_clks)
+		samsung_clk_register_mux(ctx, cmu->mux_clks,
+			cmu->nr_mux_clks);
+	if (cmu->div_clks)
+		samsung_clk_register_div(ctx, cmu->div_clks, cmu->nr_div_clks);
+	if (cmu->gate_clks)
+		samsung_clk_register_gate(ctx, cmu->gate_clks,
+			cmu->nr_gate_clks);
+	if (cmu->fixed_clks)
+		samsung_clk_register_fixed_rate(ctx, cmu->fixed_clks,
+			cmu->nr_fixed_clks);
+	if (cmu->fixed_factor_clks)
+		samsung_clk_register_fixed_factor(ctx, cmu->fixed_factor_clks,
+			cmu->nr_fixed_factor_clks);
+	if (cmu->clk_regs)
+		samsung_clk_sleep_init(reg_base, cmu->clk_regs,
+			cmu->nr_clk_regs);
+
+	samsung_clk_of_add_provider(np, ctx);
 }
