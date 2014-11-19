@@ -143,7 +143,7 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 	list[0].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].tv.bo = &vm->page_directory->tbo;
-	list[0].tv.shared = false;
+	list[0].tv.shared = true;
 	list[0].tiling_flags = 0;
 	list[0].handle = 0;
 	list_add(&list[0].tv.head, head);
@@ -157,7 +157,7 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 		list[idx].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].tv.bo = &list[idx].robj->tbo;
-		list[idx].tv.shared = false;
+		list[idx].tv.shared = true;
 		list[idx].tiling_flags = 0;
 		list[idx].handle = 0;
 		list_add(&list[idx++].tv.head, head);
@@ -388,35 +388,25 @@ static void radeon_vm_set_pages(struct radeon_device *rdev,
 static int radeon_vm_clear_bo(struct radeon_device *rdev,
 			      struct radeon_bo *bo)
 {
-        struct ttm_validate_buffer tv;
-        struct ww_acquire_ctx ticket;
-        struct list_head head;
 	struct radeon_ib ib;
 	unsigned entries;
 	uint64_t addr;
 	int r;
 
-        memset(&tv, 0, sizeof(tv));
-        tv.bo = &bo->tbo;
-	tv.shared = false;
-
-        INIT_LIST_HEAD(&head);
-        list_add(&tv.head, &head);
-
-        r = ttm_eu_reserve_buffers(&ticket, &head, true);
-        if (r)
+	r = radeon_bo_reserve(bo, false);
+	if (r)
 		return r;
 
-        r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-        if (r)
-                goto error;
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+	if (r)
+		goto error_unreserve;
 
 	addr = radeon_bo_gpu_offset(bo);
 	entries = radeon_bo_size(bo) / 8;
 
 	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib, NULL, 256);
 	if (r)
-                goto error;
+		goto error_unreserve;
 
 	ib.length_dw = 0;
 
@@ -426,15 +416,15 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r)
-                goto error;
+		goto error_free;
 
-	ttm_eu_fence_buffer_objects(&ticket, &head, &ib.fence->base);
+	radeon_bo_fence(bo, ib.fence, false);
+
+error_free:
 	radeon_ib_free(rdev, &ib);
 
-	return 0;
-
-error:
-	ttm_eu_backoff_reservation(&ticket, &head);
+error_unreserve:
+	radeon_bo_unreserve(bo);
 	return r;
 }
 
@@ -707,6 +697,7 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 			radeon_ib_free(rdev, &ib);
 			return r;
 		}
+		radeon_bo_fence(pd, ib.fence, false);
 		radeon_fence_unref(&vm->fence);
 		vm->fence = radeon_fence_ref(ib.fence);
 		radeon_fence_unref(&vm->last_flush);
@@ -863,6 +854,31 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 }
 
 /**
+ * radeon_vm_fence_pts - fence page tables after an update
+ *
+ * @vm: requested vm
+ * @start: start of GPU address range
+ * @end: end of GPU address range
+ * @fence: fence to use
+ *
+ * Fence the page tables in the range @start - @end (cayman+).
+ *
+ * Global and local mutex must be locked!
+ */
+static void radeon_vm_fence_pts(struct radeon_vm *vm,
+				uint64_t start, uint64_t end,
+				struct radeon_fence *fence)
+{
+	unsigned i;
+
+	start >>= radeon_vm_block_size;
+	end >>= radeon_vm_block_size;
+
+	for (i = start; i <= end; ++i)
+		radeon_bo_fence(vm->page_tables[i].bo, fence, false);
+}
+
+/**
  * radeon_vm_bo_update - map a bo into the vm page table
  *
  * @rdev: radeon_device pointer
@@ -973,6 +989,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 		radeon_ib_free(rdev, &ib);
 		return r;
 	}
+	radeon_vm_fence_pts(vm, bo_va->it.start, bo_va->it.last + 1, ib.fence);
 	radeon_fence_unref(&vm->fence);
 	vm->fence = radeon_fence_ref(ib.fence);
 	radeon_ib_free(rdev, &ib);
