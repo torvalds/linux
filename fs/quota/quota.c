@@ -350,12 +350,9 @@ static int quota_getxstate(struct super_block *sb, void __user *addr)
 	struct fs_quota_stat fqs;
 	int ret;
 
-	if (!sb->s_qcop->get_xstate && !sb->s_qcop->get_state)
+	if (!sb->s_qcop->get_state)
 		return -ENOSYS;
-	if (sb->s_qcop->get_state)
-		ret = quota_getstate(sb, &fqs);
-	else
-		ret = sb->s_qcop->get_xstate(sb, &fqs);
+	ret = quota_getstate(sb, &fqs);
 	if (!ret && copy_to_user(addr, &fqs, sizeof(fqs)))
 		return -EFAULT;
 	return ret;
@@ -414,7 +411,7 @@ static int quota_getxstatev(struct super_block *sb, void __user *addr)
 	struct fs_quota_statv fqs;
 	int ret;
 
-	if (!sb->s_qcop->get_xstatev && !sb->s_qcop->get_state)
+	if (!sb->s_qcop->get_state)
 		return -ENOSYS;
 
 	memset(&fqs, 0, sizeof(fqs));
@@ -428,10 +425,7 @@ static int quota_getxstatev(struct super_block *sb, void __user *addr)
 	default:
 		return -EINVAL;
 	}
-	if (sb->s_qcop->get_state)
-		ret = quota_getstatev(sb, &fqs);
-	else
-		ret = sb->s_qcop->get_xstatev(sb, &fqs);
+	ret = quota_getstatev(sb, &fqs);
 	if (!ret && copy_to_user(addr, &fqs, sizeof(fqs)))
 		return -EFAULT;
 	return ret;
