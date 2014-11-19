@@ -21,13 +21,23 @@
 #include <asm/smp_plat.h>
 
 #include "common.h"
+#include "platsmp-apmu.h"
 #include "r8a7791.h"
 #include "rcar-gen2.h"
+
+static struct rcar_apmu_config r8a7791_apmu_config[] = {
+	{
+		.iomem = DEFINE_RES_MEM(0xe6152000, 0x88),
+		.cpus = { 0, 1 },
+	}
+};
 
 static void __init r8a7791_smp_prepare_cpus(unsigned int max_cpus)
 {
 	/* let APMU code install data related to shmobile_boot_vector */
-	shmobile_smp_apmu_prepare_cpus(max_cpus);
+	shmobile_smp_apmu_prepare_cpus(max_cpus,
+				       r8a7791_apmu_config,
+				       ARRAY_SIZE(r8a7791_apmu_config));
 
 	r8a7791_pm_init();
 }
