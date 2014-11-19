@@ -601,6 +601,7 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 		if (bo_va->it.start) {
 			args->operation = RADEON_VA_RESULT_VA_EXIST;
 			args->offset = bo_va->it.start * RADEON_GPU_PAGE_SIZE;
+			radeon_bo_unreserve(rbo);
 			goto out;
 		}
 		r = radeon_vm_bo_set_addr(rdev, bo_va, args->offset, args->flags);
@@ -616,7 +617,6 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 		args->operation = RADEON_VA_RESULT_ERROR;
 	}
 out:
-	radeon_bo_unreserve(rbo);
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;
 }

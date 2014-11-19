@@ -628,8 +628,6 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 						  RADEON_VA_IB_OFFSET,
 						  RADEON_VM_PAGE_READABLE |
 						  RADEON_VM_PAGE_SNOOPED);
-
-			radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
 			if (r) {
 				radeon_vm_fini(rdev, vm);
 				kfree(fpriv);
