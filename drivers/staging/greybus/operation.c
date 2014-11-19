@@ -34,14 +34,22 @@ static struct workqueue_struct *gb_operation_recv_workqueue;
 
 /*
  * All operation messages (both requests and responses) begin with
- * a common header that encodes the size of the data (header
- * included).  This header also contains a unique identifier, which
- * is used to keep track of in-flight operations.  Finally, the
- * header contains a operation type field, whose interpretation is
- * dependent on what type of device lies on the other end of the
- * connection.  Response messages are distinguished from request
- * messages by setting the high bit (0x80) in the operation type
- * value.
+ * a header that encodes the size of the data (header included).
+ * This header also contains a unique identifier, which is used to
+ * keep track of in-flight operations.  The header contains an
+ * operation type field, whose interpretation is dependent on what
+ * type of protocol is used over the connection.
+ *
+ * The high bit (0x80) of the operation type field is used to
+ * indicate whether the message is a request (clear) or a response
+ * (set).
+ *
+ * Response messages include an additional status byte, which
+ * communicates the result of the corresponding request.  A zero
+ * status value means the operation completed successfully.  Any
+ * other value indicates an error; in this case, the payload of the
+ * response message (if any) is ignored.  The status byte must be
+ * zero in the header for a request message.
  *
  * The wire format for all numeric fields in the header is little
  * endian.  Any operation-specific data begins immediately after the
@@ -51,7 +59,8 @@ struct gb_operation_msg_hdr {
 	__le16	size;		/* Size in bytes of header + payload */
 	__le16	operation_id;	/* Operation unique id */
 	__u8	type;		/* E.g GB_I2C_TYPE_* or GB_GPIO_TYPE_* */
-	/* 3 bytes pad, must be zero (ignore when read) */
+	__u8	result;		/* Result of request (in responses only) */
+	/* 2 bytes pad, must be zero (ignore when read) */
 } __aligned(sizeof(u64));
 
 /* XXX Could be per-host device, per-module, or even per-connection */
@@ -469,6 +478,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 {
 	struct gb_operation *operation;
 	struct gb_message *message;
+	struct gb_operation_msg_hdr *header;
 
 	operation = gb_pending_operation_find(connection, operation_id);
 	if (!operation) {
@@ -485,9 +495,13 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 		gb_connection_err(connection, "recv buffer too small");
 		return;		/* XXX Should still complete operation */
 	}
-	operation->result = GB_OP_SUCCESS;	/* XXX Maybe not yet? */
 
-	memcpy(message->buffer, data, size);
+	/* Hack the status from the buffer into the header */
+	header = message->buffer;
+	header->result = *(char *)message->payload;	/* Eeew. */
+	operation->result = header->result;
+	if (operation->result == GB_OP_SUCCESS)
+		memcpy(message->buffer, data, size);
 
 	/* The rest will be handled in work queue context */
 	queue_work(gb_operation_recv_workqueue, &operation->recv_work);
