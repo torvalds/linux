@@ -1391,8 +1391,8 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 	if (ret)
 		return ret;
 
-	if (ring->init) {
-		ret = ring->init(ring);
+	if (ring->init_hw) {
+		ret = ring->init_hw(ring);
 		if (ret)
 			return ret;
 	}
@@ -1417,7 +1417,7 @@ static int logical_render_ring_init(struct drm_device *dev)
 	if (HAS_L3_DPF(dev))
 		ring->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
-	ring->init = gen8_init_render_ring;
+	ring->init_hw = gen8_init_render_ring;
 	ring->init_context = intel_logical_ring_workarounds_emit;
 	ring->cleanup = intel_fini_pipe_control;
 	ring->get_seqno = gen8_get_seqno;
@@ -1444,7 +1444,7 @@ static int logical_bsd_ring_init(struct drm_device *dev)
 	ring->irq_keep_mask =
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
 
-	ring->init = gen8_init_common_ring;
+	ring->init_hw = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
 	ring->emit_request = gen8_emit_request;
@@ -1469,7 +1469,7 @@ static int logical_bsd2_ring_init(struct drm_device *dev)
 	ring->irq_keep_mask =
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
 
-	ring->init = gen8_init_common_ring;
+	ring->init_hw = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
 	ring->emit_request = gen8_emit_request;
@@ -1494,7 +1494,7 @@ static int logical_blt_ring_init(struct drm_device *dev)
 	ring->irq_keep_mask =
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
 
-	ring->init = gen8_init_common_ring;
+	ring->init_hw = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
 	ring->emit_request = gen8_emit_request;
@@ -1519,7 +1519,7 @@ static int logical_vebox_ring_init(struct drm_device *dev)
 	ring->irq_keep_mask =
 		GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
 
-	ring->init = gen8_init_common_ring;
+	ring->init_hw = gen8_init_common_ring;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
 	ring->emit_request = gen8_emit_request;

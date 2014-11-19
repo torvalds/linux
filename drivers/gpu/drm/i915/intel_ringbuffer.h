@@ -146,7 +146,7 @@ struct  intel_engine_cs {
 	bool __must_check (*irq_get)(struct intel_engine_cs *ring);
 	void		(*irq_put)(struct intel_engine_cs *ring);
 
-	int		(*init)(struct intel_engine_cs *ring);
+	int		(*init_hw)(struct intel_engine_cs *ring);
 
 	int		(*init_context)(struct intel_engine_cs *ring,
 					struct intel_context *ctx);
