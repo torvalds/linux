@@ -2145,22 +2145,12 @@ doit:
 	return 0;
 }
 
-static int
-pfm_no_open(struct inode *irrelevant, struct file *dontcare)
-{
-	DPRINT(("pfm_no_open called\n"));
-	return -ENXIO;
-}
-
-
-
 static const struct file_operations pfm_file_ops = {
 	.llseek		= no_llseek,
 	.read		= pfm_read,
 	.write		= pfm_write,
 	.poll		= pfm_poll,
 	.unlocked_ioctl = pfm_ioctl,
-	.open		= pfm_no_open,	/* special open code to disallow open via /proc */
 	.fasync		= pfm_fasync,
 	.release	= pfm_close,
 	.flush		= pfm_flush
