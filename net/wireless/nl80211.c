@@ -9658,6 +9658,98 @@ static int nl80211_del_tx_ts(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static int nl80211_tdls_channel_switch(struct sk_buff *skb,
+				       struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_chan_def chandef = {};
+	const u8 *addr;
+	u8 oper_class;
+	int err;
+
+	if (!rdev->ops->tdls_channel_switch ||
+	    !(rdev->wiphy.features & NL80211_FEATURE_TDLS_CHANNEL_SWITCH))
+		return -EOPNOTSUPP;
+
+	switch (dev->ieee80211_ptr->iftype) {
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (!info->attrs[NL80211_ATTR_MAC] ||
+	    !info->attrs[NL80211_ATTR_OPER_CLASS])
+		return -EINVAL;
+
+	err = nl80211_parse_chandef(rdev, info, &chandef);
+	if (err)
+		return err;
+
+	/*
+	 * Don't allow wide channels on the 2.4Ghz band, as per IEEE802.11-2012
+	 * section 10.22.6.2.1. Disallow 5/10Mhz channels as well for now, the
+	 * specification is not defined for them.
+	 */
+	if (chandef.chan->band == IEEE80211_BAND_2GHZ &&
+	    chandef.width != NL80211_CHAN_WIDTH_20_NOHT &&
+	    chandef.width != NL80211_CHAN_WIDTH_20)
+		return -EINVAL;
+
+	/* we will be active on the TDLS link */
+	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &chandef, wdev->iftype))
+		return -EINVAL;
+
+	/* don't allow switching to DFS channels */
+	if (cfg80211_chandef_dfs_required(wdev->wiphy, &chandef, wdev->iftype))
+		return -EINVAL;
+
+	addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	oper_class = nla_get_u8(info->attrs[NL80211_ATTR_OPER_CLASS]);
+
+	wdev_lock(wdev);
+	err = rdev_tdls_channel_switch(rdev, dev, addr, oper_class, &chandef);
+	wdev_unlock(wdev);
+
+	return err;
+}
+
+static int nl80211_tdls_cancel_channel_switch(struct sk_buff *skb,
+					      struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	const u8 *addr;
+
+	if (!rdev->ops->tdls_channel_switch ||
+	    !rdev->ops->tdls_cancel_channel_switch ||
+	    !(rdev->wiphy.features & NL80211_FEATURE_TDLS_CHANNEL_SWITCH))
+		return -EOPNOTSUPP;
+
+	switch (dev->ieee80211_ptr->iftype) {
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (!info->attrs[NL80211_ATTR_MAC])
+		return -EINVAL;
+
+	addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	wdev_lock(wdev);
+	rdev_tdls_cancel_channel_switch(rdev, dev, addr);
+	wdev_unlock(wdev);
+
+	return 0;
+}
+
 #define NL80211_FLAG_NEED_WIPHY		0x01
 #define NL80211_FLAG_NEED_NETDEV	0x02
 #define NL80211_FLAG_NEED_RTNL		0x04
@@ -10451,6 +10543,22 @@ static const struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_DEL_TX_TS,
 		.doit = nl80211_del_tx_ts,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_TDLS_CHANNEL_SWITCH,
+		.doit = nl80211_tdls_channel_switch,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_TDLS_CANCEL_CHANNEL_SWITCH,
+		.doit = nl80211_tdls_cancel_channel_switch,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |

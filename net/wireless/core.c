@@ -541,6 +541,10 @@ int wiphy_register(struct wiphy *wiphy)
 		    !wiphy->wowlan->tcp))
 		return -EINVAL;
 #endif
+	if (WARN_ON((wiphy->features & NL80211_FEATURE_TDLS_CHANNEL_SWITCH) &&
+		    (!rdev->ops->tdls_channel_switch ||
+		     !rdev->ops->tdls_cancel_channel_switch)))
+		return -EINVAL;
 
 	if (WARN_ON(wiphy->coalesce &&
 		    (!wiphy->coalesce->n_rules ||
