@@ -13540,11 +13540,13 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
 
+	intel_disable_gt_powersave(dev);
+
 	intel_backlight_unregister(dev);
 
 	/*
 	 * Interrupts and polling as the first thing to avoid creating havoc.
-	 * Too much stuff here (turning of rps, connectors, ...) would
+	 * Too much stuff here (turning of connectors, ...) would
 	 * experience fancy races otherwise.
 	 */
 	intel_irq_uninstall(dev_priv);
@@ -13560,8 +13562,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	intel_unregister_dsm_handler();
 
 	intel_disable_fbc(dev);
-
-	intel_disable_gt_powersave(dev);
 
 	ironlake_teardown_rc6(dev);
 

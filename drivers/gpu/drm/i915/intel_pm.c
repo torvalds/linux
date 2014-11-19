@@ -6183,9 +6183,6 @@ void intel_suspend_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* Interrupts should be disabled already to avoid re-arming. */
-	WARN_ON(intel_irqs_enabled(dev_priv));
-
 	if (INTEL_INFO(dev)->gen < 6)
 		return;
 
