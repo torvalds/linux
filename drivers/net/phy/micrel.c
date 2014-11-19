@@ -75,6 +75,7 @@
 
 struct kszphy_type {
 	u32 led_mode_reg;
+	bool has_broadcast_disable;
 };
 
 struct kszphy_priv {
@@ -96,6 +97,7 @@ static const struct kszphy_type ksz8051_type = {
 
 static const struct kszphy_type ksz8081_type = {
 	.led_mode_reg		= MII_KSZPHY_CTRL_2,
+	.has_broadcast_disable	= true,
 };
 
 static int ksz_config_flags(struct phy_device *phydev)
@@ -247,6 +249,9 @@ static int kszphy_config_init(struct phy_device *phydev)
 
 	type = priv->type;
 
+	if (type->has_broadcast_disable)
+		kszphy_broadcast_disable(phydev);
+
 	if (priv->led_mode >= 0)
 		kszphy_setup_led(phydev, type->led_mode_reg, priv->led_mode);
 
@@ -276,13 +281,6 @@ static int ks8051_config_init(struct phy_device *phydev)
 
 	rc = ksz_config_flags(phydev);
 	return rc < 0 ? rc : 0;
-}
-
-static int ksz8081_config_init(struct phy_device *phydev)
-{
-	kszphy_broadcast_disable(phydev);
-
-	return kszphy_config_init(phydev);
 }
 
 static int ksz9021_load_values_from_of(struct phy_device *phydev,
@@ -692,7 +690,7 @@ static struct phy_driver ksphy_driver[] = {
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz8081_type,
 	.probe		= kszphy_probe,
-	.config_init	= ksz8081_config_init,
+	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
