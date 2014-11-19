@@ -48,6 +48,8 @@ void radeon_sync_create(struct radeon_sync *sync)
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i)
 		sync->sync_to[i] = NULL;
+
+	sync->last_vm_update = NULL;
 }
 
 /**
@@ -68,6 +70,11 @@ void radeon_sync_fence(struct radeon_sync *sync,
 
 	other = sync->sync_to[fence->ring];
 	sync->sync_to[fence->ring] = radeon_fence_later(fence, other);
+
+	if (fence->is_vm_update) {
+		other = sync->last_vm_update;
+		sync->last_vm_update = radeon_fence_later(fence, other);
+	}
 }
 
 /**

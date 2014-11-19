@@ -360,14 +360,15 @@ struct radeon_fence_driver {
 };
 
 struct radeon_fence {
-	struct fence base;
+	struct fence		base;
 
-	struct radeon_device		*rdev;
-	uint64_t			seq;
+	struct radeon_device	*rdev;
+	uint64_t		seq;
 	/* RB, DMA, etc. */
-	unsigned			ring;
+	unsigned		ring;
+	bool			is_vm_update;
 
-	wait_queue_t			fence_wake;
+	wait_queue_t		fence_wake;
 };
 
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
@@ -594,6 +595,7 @@ void radeon_semaphore_free(struct radeon_device *rdev,
 struct radeon_sync {
 	struct radeon_semaphore *semaphores[RADEON_NUM_SYNCS];
 	struct radeon_fence	*sync_to[RADEON_NUM_RINGS];
+	struct radeon_fence	*last_vm_update;
 };
 
 void radeon_sync_create(struct radeon_sync *sync);
@@ -926,8 +928,8 @@ struct radeon_vm {
 	struct mutex			mutex;
 	/* last fence for cs using this vm */
 	struct radeon_fence		*fence;
-	/* last flush or NULL if we still need to flush */
-	struct radeon_fence		*last_flush;
+	/* last flushed PD/PT update */
+	struct radeon_fence		*flushed_updates;
 	/* last use of vmid */
 	struct radeon_fence		*last_id_use;
 };
@@ -2975,7 +2977,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 				       struct radeon_vm *vm, int ring);
 void radeon_vm_flush(struct radeon_device *rdev,
                      struct radeon_vm *vm,
-                     int ring);
+		     int ring, struct radeon_fence *fence);
 void radeon_vm_fence(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_fence *fence);

@@ -190,7 +190,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 		return NULL;
 
 	/* we definately need to flush */
-	radeon_fence_unref(&vm->last_flush);
+	vm->pd_gpu_addr = ~0ll;
 
 	/* skip over VMID 0, since it is the system VM */
 	for (i = 1; i < rdev->vm_manager.nvm; ++i) {
@@ -228,6 +228,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
  * @rdev: radeon_device pointer
  * @vm: vm we want to flush
  * @ring: ring to use for flush
+ * @updates: last vm update that is waited for
  *
  * Flush the vm (cayman+).
  *
@@ -235,13 +236,16 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
  */
 void radeon_vm_flush(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
-		     int ring)
+		     int ring, struct radeon_fence *updates)
 {
 	uint64_t pd_addr = radeon_bo_gpu_offset(vm->page_directory);
 
-	/* if we can't remember our last VM flush then flush now! */
-	if (!vm->last_flush || pd_addr != vm->pd_gpu_addr) {
+	if (pd_addr != vm->pd_gpu_addr || !vm->flushed_updates ||
+	    radeon_fence_is_earlier(vm->flushed_updates, updates)) {
+
 		trace_radeon_vm_flush(pd_addr, ring, vm->id);
+		radeon_fence_unref(&vm->flushed_updates);
+		vm->flushed_updates = radeon_fence_ref(updates);
 		vm->pd_gpu_addr = pd_addr;
 		radeon_ring_vm_flush(rdev, &rdev->ring[ring],
 				     vm->id, vm->pd_gpu_addr);
@@ -272,10 +276,6 @@ void radeon_vm_fence(struct radeon_device *rdev,
 
 	radeon_fence_unref(&vm->last_id_use);
 	vm->last_id_use = radeon_fence_ref(fence);
-
-        /* we just flushed the VM, remember that */
-        if (!vm->last_flush)
-                vm->last_flush = radeon_fence_ref(fence);
 }
 
 /**
@@ -418,6 +418,7 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 	if (r)
 		goto error_free;
 
+	ib.fence->is_vm_update = true;
 	radeon_bo_fence(bo, ib.fence, false);
 
 error_free:
@@ -697,10 +698,10 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 			radeon_ib_free(rdev, &ib);
 			return r;
 		}
+		ib.fence->is_vm_update = true;
 		radeon_bo_fence(pd, ib.fence, false);
 		radeon_fence_unref(&vm->fence);
 		vm->fence = radeon_fence_ref(ib.fence);
-		radeon_fence_unref(&vm->last_flush);
 	}
 	radeon_ib_free(rdev, &ib);
 
@@ -989,11 +990,11 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 		radeon_ib_free(rdev, &ib);
 		return r;
 	}
+	ib.fence->is_vm_update = true;
 	radeon_vm_fence_pts(vm, bo_va->it.start, bo_va->it.last + 1, ib.fence);
 	radeon_fence_unref(&vm->fence);
 	vm->fence = radeon_fence_ref(ib.fence);
 	radeon_ib_free(rdev, &ib);
-	radeon_fence_unref(&vm->last_flush);
 
 	return 0;
 }
@@ -1124,7 +1125,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	vm->id = 0;
 	vm->ib_bo_va = NULL;
 	vm->fence = NULL;
-	vm->last_flush = NULL;
+	vm->flushed_updates = NULL;
 	vm->last_id_use = NULL;
 	mutex_init(&vm->mutex);
 	vm->va = RB_ROOT;
@@ -1196,7 +1197,7 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	radeon_bo_unref(&vm->page_directory);
 
 	radeon_fence_unref(&vm->fence);
-	radeon_fence_unref(&vm->last_flush);
+	radeon_fence_unref(&vm->flushed_updates);
 	radeon_fence_unref(&vm->last_id_use);
 
 	mutex_destroy(&vm->mutex);

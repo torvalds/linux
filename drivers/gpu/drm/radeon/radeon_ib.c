@@ -154,7 +154,8 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 	}
 
 	if (ib->vm)
-		radeon_vm_flush(rdev, ib->vm, ib->ring);
+		radeon_vm_flush(rdev, ib->vm, ib->ring,
+				ib->sync.last_vm_update);
 
 	if (const_ib) {
 		radeon_ring_ib_execute(rdev, const_ib->ring, const_ib);
