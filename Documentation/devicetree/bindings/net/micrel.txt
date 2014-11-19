@@ -19,6 +19,17 @@ Optional properties:
 
 	See the respective PHY datasheet for the mode values.
 
+ - micrel,rmii-reference-clock-select-25-mhz: RMII Reference Clock Select
+						bit selects 25 MHz mode
+
+	Setting the RMII Reference Clock Select bit enables 25 MHz rather
+	than 50 MHz clock mode.
+
+	Note that this option in only needed for certain PHY revisions with a
+	non-standard, inverted function of this configuration bit.
+	Specifically, a clock reference ("rmii-ref" below) is always needed to
+	actually select a mode.
+
  - clocks, clock-names: contains clocks according to the common clock bindings.
 
 	supported clocks:
