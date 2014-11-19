@@ -4451,7 +4451,7 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 					dev_priv->rps.min_freq_softlimit);
 
 	if (wait_for(((vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS))
-				& GENFREQSTATUS) == 0, 5))
+				& GENFREQSTATUS) == 0, 100))
 		DRM_ERROR("timed out waiting for Punit\n");
 
 	vlv_force_gfx_clock(dev_priv, false);
