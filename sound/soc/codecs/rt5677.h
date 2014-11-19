@@ -1687,6 +1687,7 @@ struct rt5677_priv {
 	bool dsp_vad_en;
 	struct regmap_irq_chip_data *irq_data;
 	bool is_dsp_mode;
+	bool is_vref_slow;
 };
 
 #endif /* __RT5677_H__ */

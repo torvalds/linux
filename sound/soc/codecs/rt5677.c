@@ -2184,6 +2184,31 @@ static int rt5677_if2_adc_tdm_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int rt5677_vref_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (codec->dapm.bias_level != SND_SOC_BIAS_ON &&
+			!rt5677->is_vref_slow) {
+			mdelay(20);
+			regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG1,
+				RT5677_PWR_FV1 | RT5677_PWR_FV2,
+				RT5677_PWR_FV1 | RT5677_PWR_FV2);
+			rt5677->is_vref_slow = true;
+		}
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("PLL1", RT5677_PWR_ANLG2, RT5677_PWR_PLL1_BIT,
 		0, rt5677_set_pll1_event, SND_SOC_DAPM_POST_PMU),
@@ -2669,12 +2694,19 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("PDM2 R Mux", RT5677_PDM_OUT_CTRL, RT5677_M_PDM2_R_SFT,
 		1, &rt5677_pdm2_r_mux),
 
-	SND_SOC_DAPM_PGA_S("LOUT1 amp", 1, RT5677_PWR_ANLG1, RT5677_PWR_LO1_BIT,
+	SND_SOC_DAPM_PGA_S("LOUT1 amp", 0, RT5677_PWR_ANLG1, RT5677_PWR_LO1_BIT,
 		0, NULL, 0),
-	SND_SOC_DAPM_PGA_S("LOUT2 amp", 1, RT5677_PWR_ANLG1, RT5677_PWR_LO2_BIT,
+	SND_SOC_DAPM_PGA_S("LOUT2 amp", 0, RT5677_PWR_ANLG1, RT5677_PWR_LO2_BIT,
 		0, NULL, 0),
-	SND_SOC_DAPM_PGA_S("LOUT3 amp", 1, RT5677_PWR_ANLG1, RT5677_PWR_LO3_BIT,
+	SND_SOC_DAPM_PGA_S("LOUT3 amp", 0, RT5677_PWR_ANLG1, RT5677_PWR_LO3_BIT,
 		0, NULL, 0),
+
+	SND_SOC_DAPM_PGA_S("LOUT1 vref", 1, SND_SOC_NOPM, 0, 0,
+		rt5677_vref_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_PGA_S("LOUT2 vref", 1, SND_SOC_NOPM, 0, 0,
+		rt5677_vref_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_PGA_S("LOUT3 vref", 1, SND_SOC_NOPM, 0, 0,
+		rt5677_vref_event, SND_SOC_DAPM_POST_PMU),
 
 	/* Output Lines */
 	SND_SOC_DAPM_OUTPUT("LOUT1"),
@@ -2684,6 +2716,8 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("PDM1R"),
 	SND_SOC_DAPM_OUTPUT("PDM2L"),
 	SND_SOC_DAPM_OUTPUT("PDM2R"),
+
+	SND_SOC_DAPM_POST("vref", rt5677_vref_event),
 };
 
 static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
@@ -3572,9 +3606,13 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "LOUT2 amp", NULL, "DAC 2" },
 	{ "LOUT3 amp", NULL, "DAC 3" },
 
-	{ "LOUT1", NULL, "LOUT1 amp" },
-	{ "LOUT2", NULL, "LOUT2 amp" },
-	{ "LOUT3", NULL, "LOUT3 amp" },
+	{ "LOUT1 vref", NULL, "LOUT1 amp" },
+	{ "LOUT2 vref", NULL, "LOUT2 amp" },
+	{ "LOUT3 vref", NULL, "LOUT3 amp" },
+
+	{ "LOUT1", NULL, "LOUT1 vref" },
+	{ "LOUT2", NULL, "LOUT2 vref" },
+	{ "LOUT3", NULL, "LOUT3 vref" },
 
 	{ "PDM1L", NULL, "PDM1 L Mux" },
 	{ "PDM1R", NULL, "PDM1 R Mux" },
@@ -3957,14 +3995,12 @@ static int rt5677_set_bias_level(struct snd_soc_codec *codec,
 				RT5677_PR_BASE + RT5677_BIAS_CUR4,
 				0x0f00, 0x0f00);
 			regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG1,
+				RT5677_PWR_FV1 | RT5677_PWR_FV2 |
 				RT5677_PWR_VREF1 | RT5677_PWR_MB |
 				RT5677_PWR_BG | RT5677_PWR_VREF2,
 				RT5677_PWR_VREF1 | RT5677_PWR_MB |
 				RT5677_PWR_BG | RT5677_PWR_VREF2);
-			mdelay(20);
-			regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG1,
-				RT5677_PWR_FV1 | RT5677_PWR_FV2,
-				RT5677_PWR_FV1 | RT5677_PWR_FV2);
+			rt5677->is_vref_slow = false;
 			regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG2,
 				RT5677_PWR_CORE, RT5677_PWR_CORE);
 			regmap_update_bits(rt5677->regmap, RT5677_DIG_MISC,
