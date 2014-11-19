@@ -51,19 +51,12 @@ static int request_operation(struct gb_connection *connection, int type,
 			     void *response, int response_size)
 {
 	struct gb_operation *operation;
-	struct gb_vibrator_simple_response *fake_request;
-	u8 *local_response;
+	struct gb_vibrator_simple_response *fake_response;
 	int ret;
 
-	local_response = kmalloc(response_size, GFP_KERNEL);
-	if (!local_response)
-		return -ENOMEM;
-
 	operation = gb_operation_create(connection, type, 0, response_size);
-	if (!operation) {
-		kfree(local_response);
+	if (!operation)
 		return -ENOMEM;
-	}
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
@@ -77,19 +70,18 @@ static int request_operation(struct gb_connection *connection, int type,
 	 * layout for where the status is, so cast this to a random request so
 	 * we can see the status easier.
 	 */
-	fake_request = (struct gb_vibrator_simple_response *)local_response;
-	if (fake_request->status) {
+	fake_response = operation->response.payload;
+	if (fake_response->status) {
 		gb_connection_err(connection, "response %hhu",
-			fake_request->status);
+			fake_response->status);
 		ret = -EIO;
 	} else {
 		/* Good request, so copy to the caller's buffer */
 		if (response_size && response)
-			memcpy(response, local_response, response_size);
+			memcpy(response, fake_response, response_size);
 	}
 out:
 	gb_operation_destroy(operation);
-	kfree(local_response);
 
 	return ret;
 }
@@ -101,24 +93,24 @@ out:
 static int get_version(struct gb_vibrator_device *vib)
 {
 	struct gb_connection *connection = vib->connection;
-	struct gb_vibrator_proto_version_response version_request;
+	struct gb_vibrator_proto_version_response version_response;
 	int retval;
 
 	retval = request_operation(connection,
 				   GB_VIBRATOR_TYPE_PROTOCOL_VERSION,
-				   &version_request, sizeof(version_request));
+				   &version_response, sizeof(version_response));
 	if (retval)
 		return retval;
 
-	if (version_request.major > GB_VIBRATOR_VERSION_MAJOR) {
+	if (version_response.major > GB_VIBRATOR_VERSION_MAJOR) {
 		dev_err(&connection->dev,
 			"unsupported major version (%hhu > %hhu)\n",
-			version_request.major, GB_VIBRATOR_VERSION_MAJOR);
+			version_response.major, GB_VIBRATOR_VERSION_MAJOR);
 		return -ENOTSUPP;
 	}
 
-	vib->version_major = version_request.major;
-	vib->version_minor = version_request.minor;
+	vib->version_major = version_response.major;
+	vib->version_minor = version_response.minor;
 	return 0;
 }
 
