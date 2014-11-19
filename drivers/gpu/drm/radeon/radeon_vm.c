@@ -243,7 +243,8 @@ void radeon_vm_flush(struct radeon_device *rdev,
 	if (!vm->last_flush || pd_addr != vm->pd_gpu_addr) {
 		trace_radeon_vm_flush(pd_addr, ring, vm->id);
 		vm->pd_gpu_addr = pd_addr;
-		radeon_ring_vm_flush(rdev, ring, vm);
+		radeon_ring_vm_flush(rdev, &rdev->ring[ring],
+				     vm->id, vm->pd_gpu_addr);
 	}
 }
 
