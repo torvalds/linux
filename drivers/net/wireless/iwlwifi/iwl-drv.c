@@ -78,9 +78,6 @@
 #include "iwl-config.h"
 #include "iwl-modparams.h"
 
-/* private includes */
-#include "iwl-fw-file.h"
-
 /******************************************************************************
  *
  * module boiler plate
