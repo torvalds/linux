@@ -5071,6 +5071,43 @@ void ieee80211_tdls_oper_request(struct ieee80211_vif *vif, const u8 *peer,
 				 u16 reason_code, gfp_t gfp);
 
 /**
+ * ieee80211_reserve_tid - request to reserve a specific TID
+ *
+ * There is sometimes a need (such as in TDLS) for blocking the driver from
+ * using a specific TID so that the FW can use it for certain operations such
+ * as sending PTI requests. To make sure that the driver doesn't use that TID,
+ * this function must be called as it flushes out packets on this TID and marks
+ * it as blocked, so that any transmit for the station on this TID will be
+ * redirected to the alternative TID in the same AC.
+ *
+ * Note that this function blocks and may call back into the driver, so it
+ * should be called without driver locks held. Also note this function should
+ * only be called from the driver's @sta_state callback.
+ *
+ * @sta: the station to reserve the TID for
+ * @tid: the TID to reserve
+ *
+ * Returns: 0 on success, else on failure
+ */
+int ieee80211_reserve_tid(struct ieee80211_sta *sta, u8 tid);
+
+/**
+ * ieee80211_unreserve_tid - request to unreserve a specific TID
+ *
+ * Once there is no longer any need for reserving a certain TID, this function
+ * should be called, and no longer will packets have their TID modified for
+ * preventing use of this TID in the driver.
+ *
+ * Note that this function blocks and acquires a lock, so it should be called
+ * without driver locks held. Also note this function should only be called
+ * from the driver's @sta_state callback.
+ *
+ * @sta: the station
+ * @tid: the TID to unreserve
+ */
+void ieee80211_unreserve_tid(struct ieee80211_sta *sta, u8 tid);
+
+/**
  * ieee80211_ie_split - split an IE buffer according to ordering
  *
  * @ies: the IE buffer

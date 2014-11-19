@@ -3107,6 +3107,97 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_get_buffered_bc);
 
+int ieee80211_reserve_tid(struct ieee80211_sta *pubsta, u8 tid)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
+	int ret;
+	u32 queues;
+
+	lockdep_assert_held(&local->sta_mtx);
+
+	/* only some cases are supported right now */
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	if (WARN_ON(tid >= IEEE80211_NUM_UPS))
+		return -EINVAL;
+
+	if (sta->reserved_tid == tid) {
+		ret = 0;
+		goto out;
+	}
+
+	if (sta->reserved_tid != IEEE80211_TID_UNRESERVED) {
+		sdata_err(sdata, "TID reservation already active\n");
+		ret = -EALREADY;
+		goto out;
+	}
+
+	ieee80211_stop_vif_queues(sdata->local, sdata,
+				  IEEE80211_QUEUE_STOP_REASON_RESERVE_TID);
+
+	synchronize_net();
+
+	/* Tear down BA sessions so we stop aggregating on this TID */
+	if (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+		set_sta_flag(sta, WLAN_STA_BLOCK_BA);
+		__ieee80211_stop_tx_ba_session(sta, tid,
+					       AGG_STOP_LOCAL_REQUEST);
+	}
+
+	queues = BIT(sdata->vif.hw_queue[ieee802_1d_to_ac[tid]]);
+	__ieee80211_flush_queues(local, sdata, queues);
+
+	sta->reserved_tid = tid;
+
+	ieee80211_wake_vif_queues(local, sdata,
+				  IEEE80211_QUEUE_STOP_REASON_RESERVE_TID);
+
+	if (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)
+		clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
+
+	ret = 0;
+ out:
+	return ret;
+}
+EXPORT_SYMBOL(ieee80211_reserve_tid);
+
+void ieee80211_unreserve_tid(struct ieee80211_sta *pubsta, u8 tid)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+
+	lockdep_assert_held(&sdata->local->sta_mtx);
+
+	/* only some cases are supported right now */
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	if (tid != sta->reserved_tid) {
+		sdata_err(sdata, "TID to unreserve (%d) isn't reserved\n", tid);
+		return;
+	}
+
+	sta->reserved_tid = IEEE80211_TID_UNRESERVED;
+}
+EXPORT_SYMBOL(ieee80211_unreserve_tid);
+
 void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb, int tid,
 				 enum ieee80211_band band)

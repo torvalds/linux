@@ -53,6 +53,36 @@ static int wme_downgrade_ac(struct sk_buff *skb)
 	}
 }
 
+/**
+ * ieee80211_fix_reserved_tid - return the TID to use if this one is reserved
+ * @tid: the assumed-reserved TID
+ *
+ * Returns: the alternative TID to use, or 0 on error
+ */
+static inline u8 ieee80211_fix_reserved_tid(u8 tid)
+{
+	switch (tid) {
+	case 0:
+		return 3;
+	case 1:
+		return 2;
+	case 2:
+		return 1;
+	case 3:
+		return 0;
+	case 4:
+		return 5;
+	case 5:
+		return 4;
+	case 6:
+		return 7;
+	case 7:
+		return 6;
+	}
+
+	return 0;
+}
+
 static u16 ieee80211_downgrade_queue(struct ieee80211_sub_if_data *sdata,
 				     struct sta_info *sta, struct sk_buff *skb)
 {
@@ -76,6 +106,10 @@ static u16 ieee80211_downgrade_queue(struct ieee80211_sub_if_data *sdata,
 			break;
 		}
 	}
+
+	/* Check to see if this is a reserved TID */
+	if (sta && sta->reserved_tid == skb->priority)
+		skb->priority = ieee80211_fix_reserved_tid(skb->priority);
 
 	/* look up which queue to use for frames with this 1d tag */
 	return ieee802_1d_to_ac[skb->priority];
@@ -143,6 +177,11 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 		break;
 #endif
 	case NL80211_IFTYPE_STATION:
+		/* might be a TDLS station */
+		sta = sta_info_get(sdata, skb->data);
+		if (sta)
+			qos = sta->sta.wme;
+
 		ra = sdata->u.mgd.bssid;
 		break;
 	case NL80211_IFTYPE_ADHOC:
