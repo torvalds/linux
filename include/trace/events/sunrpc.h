@@ -414,7 +414,8 @@ TRACE_EVENT(xs_tcp_data_recv,
 
 #define show_rqstp_flags(flags)				\
 	__print_flags(flags, "|",			\
-		{ (1UL << RQ_SECURE),	"RQ_SECURE"})
+		{ (1UL << RQ_SECURE),	"RQ_SECURE"},	\
+		{ (1UL << RQ_LOCAL),	"RQ_LOCAL"})
 
 TRACE_EVENT(svc_recv,
 	TP_PROTO(struct svc_rqst *rqst, int status),
