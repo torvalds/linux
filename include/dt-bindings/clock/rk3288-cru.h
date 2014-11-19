@@ -71,6 +71,7 @@
 #define SCLK_HDMI_CEC		110
 #define SCLK_HEVC_CABAC		111
 #define SCLK_HEVC_CORE		112
+#define SCLK_I2S0_OUT		113
 
 #define DCLK_VOP0		190
 #define DCLK_VOP1		191
