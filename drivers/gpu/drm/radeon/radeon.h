@@ -456,6 +456,7 @@ struct radeon_bo_va {
 	struct list_head		bo_list;
 	uint32_t			flags;
 	uint64_t			addr;
+	struct radeon_fence		*last_pt_update;
 	unsigned			ref_count;
 
 	/* protected by vm mutex */
@@ -915,6 +916,8 @@ struct radeon_vm_id {
 };
 
 struct radeon_vm {
+	struct mutex		mutex;
+
 	struct rb_root		va;
 
 	/* BOs moved, but not yet updated in the PT */
@@ -931,10 +934,6 @@ struct radeon_vm {
 	struct radeon_vm_pt	*page_tables;
 
 	struct radeon_bo_va	*ib_bo_va;
-
-	struct mutex		mutex;
-	/* last fence for cs using this vm */
-	struct radeon_fence	*fence;
 
 	/* for id and flush management per ring */
 	struct radeon_vm_id	ids[RADEON_NUM_RINGS];

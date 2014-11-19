@@ -275,9 +275,6 @@ void radeon_vm_fence(struct radeon_device *rdev,
 {
 	unsigned vm_id = vm->ids[fence->ring].id;
 
-	radeon_fence_unref(&vm->fence);
-	vm->fence = radeon_fence_ref(fence);
-
 	radeon_fence_unref(&rdev->vm_manager.active[vm_id]);
 	rdev->vm_manager.active[vm_id] = radeon_fence_ref(fence);
 
@@ -707,8 +704,6 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 		}
 		ib.fence->is_vm_update = true;
 		radeon_bo_fence(pd, ib.fence, false);
-		radeon_fence_unref(&vm->fence);
-		vm->fence = radeon_fence_ref(ib.fence);
 	}
 	radeon_ib_free(rdev, &ib);
 
@@ -999,8 +994,8 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	}
 	ib.fence->is_vm_update = true;
 	radeon_vm_fence_pts(vm, bo_va->it.start, bo_va->it.last + 1, ib.fence);
-	radeon_fence_unref(&vm->fence);
-	vm->fence = radeon_fence_ref(ib.fence);
+	radeon_fence_unref(&bo_va->last_pt_update);
+	bo_va->last_pt_update = radeon_fence_ref(ib.fence);
 	radeon_ib_free(rdev, &ib);
 
 	return 0;
@@ -1026,6 +1021,7 @@ int radeon_vm_clear_freed(struct radeon_device *rdev,
 	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status) {
 		r = radeon_vm_bo_update(rdev, bo_va, NULL);
 		radeon_bo_unref(&bo_va->bo);
+		radeon_fence_unref(&bo_va->last_pt_update);
 		kfree(bo_va);
 		if (r)
 			return r;
@@ -1084,6 +1080,7 @@ void radeon_vm_bo_rmv(struct radeon_device *rdev,
 		bo_va->bo = radeon_bo_ref(bo_va->bo);
 		list_add(&bo_va->vm_status, &vm->freed);
 	} else {
+		radeon_fence_unref(&bo_va->last_pt_update);
 		kfree(bo_va);
 	}
 
@@ -1130,8 +1127,6 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	int i, r;
 
 	vm->ib_bo_va = NULL;
-	vm->fence = NULL;
-
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 		vm->ids[i].id = 0;
 		vm->ids[i].flushed_updates = NULL;
@@ -1192,11 +1187,13 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 		if (!r) {
 			list_del_init(&bo_va->bo_list);
 			radeon_bo_unreserve(bo_va->bo);
+			radeon_fence_unref(&bo_va->last_pt_update);
 			kfree(bo_va);
 		}
 	}
 	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status) {
 		radeon_bo_unref(&bo_va->bo);
+		radeon_fence_unref(&bo_va->last_pt_update);
 		kfree(bo_va);
 	}
 
@@ -1205,8 +1202,6 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	kfree(vm->page_tables);
 
 	radeon_bo_unref(&vm->page_directory);
-
-	radeon_fence_unref(&vm->fence);
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 		radeon_fence_unref(&vm->ids[i].flushed_updates);

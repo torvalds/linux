@@ -505,6 +505,9 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 	if (r)
 		return r;
 
+	radeon_sync_resv(p->rdev, &p->ib.sync, vm->page_directory->tbo.resv,
+			 true);
+
 	r = radeon_vm_clear_freed(rdev, vm);
 	if (r)
 		return r;
@@ -536,6 +539,8 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 		r = radeon_vm_bo_update(rdev, bo_va, &bo->tbo.mem);
 		if (r)
 			return r;
+
+		radeon_sync_fence(&p->ib.sync, bo_va->last_pt_update);
 	}
 
 	return radeon_vm_clear_invalids(rdev, vm);
@@ -580,7 +585,6 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 			DRM_ERROR("Failed to sync rings: %i\n", r);
 		goto out;
 	}
-	radeon_sync_fence(&parser->ib.sync, vm->fence);
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
