@@ -36,12 +36,13 @@
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
-int
+void
 print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
             const struct nf_conntrack_l3proto *l3proto,
             const struct nf_conntrack_l4proto *l4proto)
 {
-	return l3proto->print_tuple(s, tuple) || l4proto->print_tuple(s, tuple);
+	l3proto->print_tuple(s, tuple);
+	l4proto->print_tuple(s, tuple);
 }
 EXPORT_SYMBOL_GPL(print_tuple);
 
@@ -119,7 +120,7 @@ static void ct_seq_stop(struct seq_file *s, void *v)
 }
 
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
-static int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
+static void ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 {
 	int ret;
 	u32 len;
@@ -127,22 +128,20 @@ static int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 
 	ret = security_secid_to_secctx(ct->secmark, &secctx, &len);
 	if (ret)
-		return 0;
+		return;
 
-	ret = seq_printf(s, "secctx=%s ", secctx);
+	seq_printf(s, "secctx=%s ", secctx);
 
 	security_release_secctx(secctx, len);
-	return ret;
 }
 #else
-static inline int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
+static inline void ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 {
-	return 0;
 }
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
-static int ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
+static void ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 {
 	struct ct_iter_state *st = s->private;
 	struct nf_conn_tstamp *tstamp;
@@ -156,16 +155,15 @@ static int ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 		else
 			delta_time = 0;
 
-		return seq_printf(s, "delta-time=%llu ",
-				  (unsigned long long)delta_time);
+		seq_printf(s, "delta-time=%llu ",
+			   (unsigned long long)delta_time);
 	}
-	return 0;
+	return;
 }
 #else
-static inline int
+static inline void
 ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 {
-	return 0;
 }
 #endif
 
@@ -192,55 +190,54 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	NF_CT_ASSERT(l4proto);
 
 	ret = -ENOSPC;
-	if (seq_printf(s, "%-8s %u %-8s %u %ld ",
-		       l3proto->name, nf_ct_l3num(ct),
-		       l4proto->name, nf_ct_protonum(ct),
-		       timer_pending(&ct->timeout)
-		       ? (long)(ct->timeout.expires - jiffies)/HZ : 0) != 0)
-		goto release;
+	seq_printf(s, "%-8s %u %-8s %u %ld ",
+		   l3proto->name, nf_ct_l3num(ct),
+		   l4proto->name, nf_ct_protonum(ct),
+		   timer_pending(&ct->timeout)
+		   ? (long)(ct->timeout.expires - jiffies)/HZ : 0);
 
-	if (l4proto->print_conntrack && l4proto->print_conntrack(s, ct))
-		goto release;
+	if (l4proto->print_conntrack)
+		l4proto->print_conntrack(s, ct);
 
-	if (print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
-			l3proto, l4proto))
+	print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+		    l3proto, l4proto);
+
+	if (seq_has_overflowed(s))
 		goto release;
 
 	if (seq_print_acct(s, ct, IP_CT_DIR_ORIGINAL))
 		goto release;
 
 	if (!(test_bit(IPS_SEEN_REPLY_BIT, &ct->status)))
-		if (seq_printf(s, "[UNREPLIED] "))
-			goto release;
+		seq_printf(s, "[UNREPLIED] ");
 
-	if (print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
-			l3proto, l4proto))
-		goto release;
+	print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
+		    l3proto, l4proto);
 
 	if (seq_print_acct(s, ct, IP_CT_DIR_REPLY))
 		goto release;
 
 	if (test_bit(IPS_ASSURED_BIT, &ct->status))
-		if (seq_printf(s, "[ASSURED] "))
-			goto release;
+		seq_printf(s, "[ASSURED] ");
+
+	if (seq_has_overflowed(s))
+		goto release;
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
-	if (seq_printf(s, "mark=%u ", ct->mark))
-		goto release;
+	seq_printf(s, "mark=%u ", ct->mark);
 #endif
 
-	if (ct_show_secctx(s, ct))
-		goto release;
+	ct_show_secctx(s, ct);
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES
-	if (seq_printf(s, "zone=%u ", nf_ct_zone(ct)))
-		goto release;
+	seq_printf(s, "zone=%u ", nf_ct_zone(ct));
 #endif
 
-	if (ct_show_delta_time(s, ct))
-		goto release;
+	ct_show_delta_time(s, ct);
 
-	if (seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use)))
+	seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use));
+
+	if (seq_has_overflowed(s))
 		goto release;
 
 	ret = 0;

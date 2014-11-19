@@ -180,23 +180,19 @@ output must be passed to the seq_file code. Some utility functions have
 been defined which make this task easy.
 
 Most code will simply use seq_printf(), which works pretty much like
-printk(), but which requires the seq_file pointer as an argument. It is
-common to ignore the return value from seq_printf(), but a function
-producing complicated output may want to check that value and quit if
-something non-zero is returned; an error return means that the seq_file
-buffer has been filled and further output will be discarded.
+printk(), but which requires the seq_file pointer as an argument.
 
 For straight character output, the following functions may be used:
 
-	int seq_putc(struct seq_file *m, char c);
-	int seq_puts(struct seq_file *m, const char *s);
-	int seq_escape(struct seq_file *m, const char *s, const char *esc);
+	seq_putc(struct seq_file *m, char c);
+	seq_puts(struct seq_file *m, const char *s);
+	seq_escape(struct seq_file *m, const char *s, const char *esc);
 
 The first two output a single character and a string, just like one would
 expect. seq_escape() is like seq_puts(), except that any character in s
 which is in the string esc will be represented in octal form in the output.
 
-There is also a pair of functions for printing filenames:
+There are also a pair of functions for printing filenames:
 
 	int seq_path(struct seq_file *m, struct path *path, char *esc);
 	int seq_path_root(struct seq_file *m, struct path *path,
@@ -208,6 +204,14 @@ the path relative to the current process's filesystem root.  If a different
 root is desired, it can be used with seq_path_root().  Note that, if it
 turns out that path cannot be reached from root, the value of root will be
 changed in seq_file_root() to a root which *does* work.
+
+A function producing complicated output may want to check
+	bool seq_has_overflowed(struct seq_file *m);
+and avoid further seq_<output> calls if true is returned.
+
+A true return from seq_has_overflowed means that the seq_file buffer will
+be discarded and the seq_show function will attempt to allocate a larger
+buffer and retry printing.
 
 
 Making it all work

@@ -947,9 +947,10 @@ static int xt_table_seq_show(struct seq_file *seq, void *v)
 {
 	struct xt_table *table = list_entry(v, struct xt_table, list);
 
-	if (strlen(table->name))
-		return seq_printf(seq, "%s\n", table->name);
-	else
+	if (strlen(table->name)) {
+		seq_printf(seq, "%s\n", table->name);
+		return seq_has_overflowed(seq);
+	} else
 		return 0;
 }
 
@@ -1086,8 +1087,10 @@ static int xt_match_seq_show(struct seq_file *seq, void *v)
 		if (trav->curr == trav->head)
 			return 0;
 		match = list_entry(trav->curr, struct xt_match, list);
-		return (*match->name == '\0') ? 0 :
-		       seq_printf(seq, "%s\n", match->name);
+		if (*match->name == '\0')
+			return 0;
+		seq_printf(seq, "%s\n", match->name);
+		return seq_has_overflowed(seq);
 	}
 	return 0;
 }
@@ -1139,8 +1142,10 @@ static int xt_target_seq_show(struct seq_file *seq, void *v)
 		if (trav->curr == trav->head)
 			return 0;
 		target = list_entry(trav->curr, struct xt_target, list);
-		return (*target->name == '\0') ? 0 :
-		       seq_printf(seq, "%s\n", target->name);
+		if (*target->name == '\0')
+			return 0;
+		seq_printf(seq, "%s\n", target->name);
+		return seq_has_overflowed(seq);
 	}
 	return 0;
 }

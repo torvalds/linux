@@ -294,19 +294,19 @@ static int seq_show(struct seq_file *s, void *v)
 {
 	loff_t *pos = v;
 	const struct nf_logger *logger;
-	int i, ret;
+	int i;
 	struct net *net = seq_file_net(s);
 
 	logger = rcu_dereference_protected(net->nf.nf_loggers[*pos],
 					   lockdep_is_held(&nf_log_mutex));
 
 	if (!logger)
-		ret = seq_printf(s, "%2lld NONE (", *pos);
+		seq_printf(s, "%2lld NONE (", *pos);
 	else
-		ret = seq_printf(s, "%2lld %s (", *pos, logger->name);
+		seq_printf(s, "%2lld %s (", *pos, logger->name);
 
-	if (ret < 0)
-		return ret;
+	if (seq_has_overflowed(s))
+		return -ENOSPC;
 
 	for (i = 0; i < NF_LOG_TYPE_MAX; i++) {
 		if (loggers[*pos][i] == NULL)
@@ -314,17 +314,19 @@ static int seq_show(struct seq_file *s, void *v)
 
 		logger = rcu_dereference_protected(loggers[*pos][i],
 					   lockdep_is_held(&nf_log_mutex));
-		ret = seq_printf(s, "%s", logger->name);
-		if (ret < 0)
-			return ret;
-		if (i == 0 && loggers[*pos][i + 1] != NULL) {
-			ret = seq_printf(s, ",");
-			if (ret < 0)
-				return ret;
-		}
+		seq_printf(s, "%s", logger->name);
+		if (i == 0 && loggers[*pos][i + 1] != NULL)
+			seq_printf(s, ",");
+
+		if (seq_has_overflowed(s))
+			return -ENOSPC;
 	}
 
-	return seq_printf(s, ")\n");
+	seq_printf(s, ")\n");
+
+	if (seq_has_overflowed(s))
+		return -ENOSPC;
+	return 0;
 }
 
 static const struct seq_operations nflog_seq_ops = {
