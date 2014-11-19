@@ -70,9 +70,22 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev);
 	list_for_each_entry((_plane), &(_crtc)->dev->mode_config.plane_list, head) \
 		if ((_plane)->state->crtc == (_crtc))
 
+static inline bool
+__plane_will_be_attached_to_crtc(struct drm_atomic_state *state,
+		struct drm_plane *plane, struct drm_crtc *crtc)
+{
+	int idx = drm_plane_index(plane);
+
+	/* if plane is modified in incoming state, use the new state: */
+	if (state->plane_states[idx])
+		return state->plane_states[idx]->crtc == crtc;
+
+	/* otherwise, current state: */
+	return plane->state->crtc == crtc;
+}
+
 #define for_each_pending_plane_on_crtc(_state, _crtc, _plane) \
 	list_for_each_entry((_plane), &(_crtc)->dev->mode_config.plane_list, head) \
-		if (({struct drm_plane_state *_ps = (_state)->plane_states[drm_plane_index(_plane)]; \
-			_ps && _ps->crtc == (_crtc);}))
+		if (__plane_will_be_attached_to_crtc((_state), (_plane), (_crtc)))
 
 #endif /* __MSM_KMS_H__ */

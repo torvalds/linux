@@ -18,6 +18,7 @@
 
 #include "mdp5_kms.h"
 
+#include <linux/sort.h>
 #include <drm/drm_mode.h>
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
@@ -41,24 +42,10 @@ struct mdp5_crtc {
 
 	/* if there is a pending flip, these will be non-null: */
 	struct drm_pending_vblank_event *event;
-	struct msm_fence_cb pageflip_cb;
 
 #define PENDING_CURSOR 0x1
 #define PENDING_FLIP   0x2
 	atomic_t pending;
-
-	/* the fb that we logically (from PoV of KMS API) hold a ref
-	 * to.  Which we may not yet be scanning out (we may still
-	 * be scanning out previous in case of page_flip while waiting
-	 * for gpu rendering to complete:
-	 */
-	struct drm_framebuffer *fb;
-
-	/* the fb that we currently hold a scanout ref to: */
-	struct drm_framebuffer *scanout_fb;
-
-	/* for unref'ing framebuffers after scanout completes: */
-	struct drm_flip_work unref_fb_work;
 
 	struct mdp_irq vblank;
 	struct mdp_irq err;
@@ -113,41 +100,6 @@ static void crtc_flush_all(struct drm_crtc *crtc)
 	crtc_flush(crtc, flush_mask);
 }
 
-static void update_fb(struct drm_crtc *crtc, struct drm_framebuffer *new_fb)
-{
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-	struct drm_framebuffer *old_fb = mdp5_crtc->fb;
-
-	/* grab reference to incoming scanout fb: */
-	drm_framebuffer_reference(new_fb);
-	mdp5_crtc->base.primary->fb = new_fb;
-	mdp5_crtc->fb = new_fb;
-
-	if (old_fb)
-		drm_flip_work_queue(&mdp5_crtc->unref_fb_work, old_fb);
-}
-
-/* unlike update_fb(), take a ref to the new scanout fb *before* updating
- * plane, then call this.  Needed to ensure we don't unref the buffer that
- * is actually still being scanned out.
- *
- * Note that this whole thing goes away with atomic.. since we can defer
- * calling into driver until rendering is done.
- */
-static void update_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
-{
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-
-	if (mdp5_crtc->scanout_fb)
-		drm_flip_work_queue(&mdp5_crtc->unref_fb_work,
-				mdp5_crtc->scanout_fb);
-
-	mdp5_crtc->scanout_fb = fb;
-
-	/* enable vblank to complete flip: */
-	request_pending(crtc, PENDING_FLIP);
-}
-
 /* if file!=NULL, this is preclose potential cancel-flip path */
 static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 {
@@ -166,6 +118,7 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 		 */
 		if (!file || (event->base.file_priv == file)) {
 			mdp5_crtc->event = NULL;
+			DBG("%s: send event: %p", mdp5_crtc->name, event);
 			drm_send_vblank_event(dev, mdp5_crtc->id, event);
 		}
 	}
@@ -175,39 +128,11 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 		mdp5_plane_complete_flip(plane);
 }
 
-static void pageflip_cb(struct msm_fence_cb *cb)
-{
-	struct mdp5_crtc *mdp5_crtc =
-		container_of(cb, struct mdp5_crtc, pageflip_cb);
-	struct drm_crtc *crtc = &mdp5_crtc->base;
-	struct drm_framebuffer *fb = mdp5_crtc->fb;
-
-	if (!fb)
-		return;
-
-	drm_framebuffer_reference(fb);
-	mdp5_plane_set_scanout(crtc->primary, fb);
-	update_scanout(crtc, fb);
-	crtc_flush_all(crtc);
-}
-
-static void unref_fb_worker(struct drm_flip_work *work, void *val)
-{
-	struct mdp5_crtc *mdp5_crtc =
-		container_of(work, struct mdp5_crtc, unref_fb_work);
-	struct drm_device *dev = mdp5_crtc->base.dev;
-
-	mutex_lock(&dev->mode_config.mutex);
-	drm_framebuffer_unreference(val);
-	mutex_unlock(&dev->mode_config.mutex);
-}
-
 static void mdp5_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 
 	drm_crtc_cleanup(crtc);
-	drm_flip_work_cleanup(&mdp5_crtc->unref_fb_work);
 
 	kfree(mdp5_crtc);
 }
@@ -257,7 +182,6 @@ static void blend_setup(struct drm_crtc *crtc)
 	struct drm_plane *plane;
 	const struct mdp5_cfg_hw *hw_cfg;
 	uint32_t lm = mdp5_crtc->lm, blend_cfg = 0;
-	enum mdp_mixer_stage_id stage;
 	unsigned long flags;
 #define blender(stage)	((stage) - STAGE_BASE)
 
@@ -270,10 +194,8 @@ static void blend_setup(struct drm_crtc *crtc)
 		goto out;
 
 	for_each_plane_on_crtc(crtc, plane) {
-		struct mdp5_overlay_info *overlay;
-
-		overlay = mdp5_plane_get_overlay_info(plane);
-		stage = overlay->zorder;
+		enum mdp_mixer_stage_id stage =
+			to_mdp5_plane_state(plane->state)->stage;
 
 		/*
 		 * Note: This cannot happen with current implementation but
@@ -303,18 +225,17 @@ out:
 	spin_unlock_irqrestore(&mdp5_crtc->lm_lock, flags);
 }
 
-static int mdp5_crtc_mode_set(struct drm_crtc *crtc,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode,
-		int x, int y,
-		struct drm_framebuffer *old_fb)
+static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	unsigned long flags;
-	int ret;
+	struct drm_display_mode *mode;
 
-	mode = adjusted_mode;
+	if (WARN_ON(!crtc->state))
+		return;
+
+	mode = &crtc->state->adjusted_mode;
 
 	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
 			mdp5_crtc->name, mode->base.id, mode->name,
@@ -325,38 +246,11 @@ static int mdp5_crtc_mode_set(struct drm_crtc *crtc,
 			mode->vsync_end, mode->vtotal,
 			mode->type, mode->flags);
 
-	/* request a free CTL, if none is already allocated for this CRTC */
-	if (!mdp5_crtc->ctl) {
-		mdp5_crtc->ctl = mdp5_ctlm_request(mdp5_kms->ctlm, crtc);
-		if (!mdp5_crtc->ctl)
-			return -EBUSY;
-	}
-
-	/* grab extra ref for update_scanout() */
-	drm_framebuffer_reference(crtc->primary->fb);
-
-	ret = mdp5_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
-			0, 0, mode->hdisplay, mode->vdisplay,
-			x << 16, y << 16,
-			mode->hdisplay << 16, mode->vdisplay << 16);
-	if (ret) {
-		drm_framebuffer_unreference(crtc->primary->fb);
-		dev_err(crtc->dev->dev, "%s: failed to set mode on plane: %d\n",
-				mdp5_crtc->name, ret);
-		return ret;
-	}
-
 	spin_lock_irqsave(&mdp5_crtc->lm_lock, flags);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_OUT_SIZE(mdp5_crtc->lm),
 			MDP5_LM_OUT_SIZE_WIDTH(mode->hdisplay) |
 			MDP5_LM_OUT_SIZE_HEIGHT(mode->vdisplay));
 	spin_unlock_irqrestore(&mdp5_crtc->lm_lock, flags);
-
-	update_fb(crtc, crtc->primary->fb);
-	update_scanout(crtc, crtc->primary->fb);
-	/* crtc_flush_all(crtc) will be called in _commit callback */
-
-	return 0;
 }
 
 static void mdp5_crtc_prepare(struct drm_crtc *crtc)
@@ -370,79 +264,119 @@ static void mdp5_crtc_prepare(struct drm_crtc *crtc)
 
 static void mdp5_crtc_commit(struct drm_crtc *crtc)
 {
+	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	DBG("%s", mdp5_crtc->name);
 	mdp5_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 	crtc_flush_all(crtc);
 	/* drop the ref to mdp clk's that we got in prepare: */
 	mdp5_disable(get_kms(crtc));
 }
 
-static int mdp5_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-		struct drm_framebuffer *old_fb)
-{
-	struct drm_plane *plane = crtc->primary;
-	struct drm_display_mode *mode = &crtc->mode;
-	int ret;
-
-	/* grab extra ref for update_scanout() */
-	drm_framebuffer_reference(crtc->primary->fb);
-
-	ret = mdp5_plane_mode_set(plane, crtc, crtc->primary->fb,
-			0, 0, mode->hdisplay, mode->vdisplay,
-			x << 16, y << 16,
-			mode->hdisplay << 16, mode->vdisplay << 16);
-	if (ret) {
-		drm_framebuffer_unreference(crtc->primary->fb);
-		return ret;
-	}
-
-	update_fb(crtc, crtc->primary->fb);
-	update_scanout(crtc, crtc->primary->fb);
-	crtc_flush_all(crtc);
-
-	return 0;
-}
-
 static void mdp5_crtc_load_lut(struct drm_crtc *crtc)
 {
 }
 
-static void mdp5_crtc_disable(struct drm_crtc *crtc)
+struct plane_state {
+	struct drm_plane *plane;
+	struct mdp5_plane_state *state;
+};
+
+static int pstate_cmp(const void *a, const void *b)
 {
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-
-	DBG("%s", mdp5_crtc->name);
-
-	if (mdp5_crtc->ctl) {
-		mdp5_ctl_release(mdp5_crtc->ctl);
-		mdp5_crtc->ctl = NULL;
-	}
+	struct plane_state *pa = (struct plane_state *)a;
+	struct plane_state *pb = (struct plane_state *)b;
+	return pa->state->zpos - pb->state->zpos;
 }
 
-
-static int mdp5_crtc_page_flip(struct drm_crtc *crtc,
-		struct drm_framebuffer *new_fb,
-		struct drm_pending_vblank_event *event,
-		uint32_t page_flip_flags)
+static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
+		struct drm_crtc_state *state)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct drm_plane *plane;
 	struct drm_device *dev = crtc->dev;
-	struct drm_gem_object *obj;
-	unsigned long flags;
+	struct plane_state pstates[STAGE3 + 1];
+	int cnt = 0, i;
+
+	DBG("%s: check", mdp5_crtc->name);
 
 	if (mdp5_crtc->event) {
 		dev_err(dev->dev, "already pending flip!\n");
 		return -EBUSY;
 	}
 
-	obj = msm_framebuffer_bo(new_fb, 0);
+	/* request a free CTL, if none is already allocated for this CRTC */
+	if (state->enable && !mdp5_crtc->ctl) {
+		mdp5_crtc->ctl = mdp5_ctlm_request(mdp5_kms->ctlm, crtc);
+		if (WARN_ON(!mdp5_crtc->ctl))
+			return -EINVAL;
+	}
+
+	/* verify that there are not too many planes attached to crtc
+	 * and that we don't have conflicting mixer stages:
+	 */
+	for_each_pending_plane_on_crtc(state->state, crtc, plane) {
+		struct drm_plane_state *pstate;
+
+		if (cnt >= ARRAY_SIZE(pstates)) {
+			dev_err(dev->dev, "too many planes!\n");
+			return -EINVAL;
+		}
+
+		pstate = state->state->plane_states[drm_plane_index(plane)];
+
+		/* plane might not have changed, in which case take
+		 * current state:
+		 */
+		if (!pstate)
+			pstate = plane->state;
+
+		pstates[cnt].plane = plane;
+		pstates[cnt].state = to_mdp5_plane_state(pstate);
+
+		cnt++;
+	}
+
+	sort(pstates, cnt, sizeof(pstates[0]), pstate_cmp, NULL);
+
+	for (i = 0; i < cnt; i++) {
+		pstates[i].state->stage = STAGE_BASE + i;
+		DBG("%s: assign pipe %s on stage=%d", mdp5_crtc->name,
+				pipe2name(mdp5_plane_pipe(pstates[i].plane)),
+				pstates[i].state->stage);
+	}
+
+	return 0;
+}
+
+static void mdp5_crtc_atomic_begin(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	DBG("%s: begin", mdp5_crtc->name);
+}
+
+static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	unsigned long flags;
+
+	DBG("%s: flush", mdp5_crtc->name);
+
+	WARN_ON(mdp5_crtc->event);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-	mdp5_crtc->event = event;
+	mdp5_crtc->event = crtc->state->event;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	update_fb(crtc, new_fb);
+	blend_setup(crtc);
+	crtc_flush_all(crtc);
+	request_pending(crtc, PENDING_FLIP);
 
-	return msm_gem_queue_inactive_cb(obj, &mdp5_crtc->pageflip_cb);
+	if (mdp5_crtc->ctl && !crtc->state->enable) {
+		mdp5_ctl_release(mdp5_crtc->ctl);
+		mdp5_crtc->ctl = NULL;
+	}
 }
 
 static int mdp5_crtc_set_property(struct drm_crtc *crtc,
@@ -453,28 +387,33 @@ static int mdp5_crtc_set_property(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_funcs mdp5_crtc_funcs = {
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = drm_atomic_helper_set_config,
 	.destroy = mdp5_crtc_destroy,
-	.page_flip = mdp5_crtc_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 	.set_property = mdp5_crtc_set_property,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
 	.dpms = mdp5_crtc_dpms,
 	.mode_fixup = mdp5_crtc_mode_fixup,
-	.mode_set = mdp5_crtc_mode_set,
+	.mode_set_nofb = mdp5_crtc_mode_set_nofb,
+	.mode_set = drm_helper_crtc_mode_set,
+	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.prepare = mdp5_crtc_prepare,
 	.commit = mdp5_crtc_commit,
-	.mode_set_base = mdp5_crtc_mode_set_base,
 	.load_lut = mdp5_crtc_load_lut,
-	.disable = mdp5_crtc_disable,
+	.atomic_check = mdp5_crtc_atomic_check,
+	.atomic_begin = mdp5_crtc_atomic_begin,
+	.atomic_flush = mdp5_crtc_atomic_flush,
 };
 
 static void mdp5_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)
 {
 	struct mdp5_crtc *mdp5_crtc = container_of(irq, struct mdp5_crtc, vblank);
 	struct drm_crtc *crtc = &mdp5_crtc->base;
-	struct msm_drm_private *priv = crtc->dev->dev_private;
 	unsigned pending;
 
 	mdp_irq_unregister(&get_kms(crtc)->base, &mdp5_crtc->vblank);
@@ -483,7 +422,6 @@ static void mdp5_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)
 
 	if (pending & PENDING_FLIP) {
 		complete_flip(crtc, NULL);
-		drm_flip_work_commit(&mdp5_crtc->unref_fb_work, priv->wq);
 	}
 }
 
@@ -560,92 +498,6 @@ void mdp5_crtc_set_intf(struct drm_crtc *crtc, int intf,
 	crtc_flush(crtc, flush_mask);
 }
 
-static int count_planes(struct drm_crtc *crtc)
-{
-	struct drm_plane *plane;
-	int cnt = 0;
-	for_each_plane_on_crtc(crtc, plane)
-		cnt++;
-	return cnt;
-}
-
-static void set_attach(struct drm_crtc *crtc, enum mdp5_pipe pipe_id,
-		struct drm_plane *plane)
-{
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-
-	if (plane)
-		plane->crtc = crtc;
-
-	DBG("%s: %d planes attached", mdp5_crtc->name, count_planes(crtc));
-
-	blend_setup(crtc);
-	if (mdp5_crtc->enabled)
-		crtc_flush_all(crtc);
-}
-
-int mdp5_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane)
-{
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-	struct mdp5_kms *mdp5_kms = get_kms(crtc);
-	struct device *dev = crtc->dev->dev;
-	const struct mdp5_cfg_hw *hw_cfg;
-	bool private_plane = (plane == crtc->primary);
-	struct mdp5_overlay_info overlay_info;
-	enum mdp_mixer_stage_id stage = STAGE_BASE;
-	int max_nb_planes;
-
-	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
-	max_nb_planes = hw_cfg->lm.nb_stages;
-
-	if (count_planes(crtc) >= max_nb_planes) {
-		dev_err(dev, "%s: max # of planes (%d) reached\n",
-				mdp5_crtc->name, max_nb_planes);
-		return -EBUSY;
-	}
-
-	/*
-	 * Set default z-ordering depending on the type of plane
-	 * private -> lower stage
-	 * public  -> topmost stage
-	 *
-	 * TODO: add a property to give userspace an API to change this...
-	 * (will come in a subsequent patch)
-	 */
-	if (private_plane) {
-		stage = STAGE_BASE;
-	} else {
-		struct drm_plane *attached_plane;
-		for_each_plane_on_crtc(crtc, attached_plane) {
-			struct mdp5_overlay_info *overlay;
-
-			if (!attached_plane)
-				continue;
-			overlay = mdp5_plane_get_overlay_info(attached_plane);
-			stage = max(stage, overlay->zorder);
-		}
-		stage++;
-	}
-	overlay_info.zorder = stage;
-	mdp5_plane_set_overlay_info(plane, &overlay_info);
-
-	DBG("%s: %s plane %s set to stage %d by default", mdp5_crtc->name,
-			private_plane ? "private" : "public",
-			pipe2name(mdp5_plane_pipe(plane)), overlay_info.zorder);
-
-	set_attach(crtc, mdp5_plane_pipe(plane), plane);
-
-	return 0;
-}
-
-void mdp5_crtc_detach(struct drm_crtc *crtc, struct drm_plane *plane)
-{
-	/* don't actually detatch our primary plane: */
-	if (crtc->primary == plane)
-		return;
-	set_attach(crtc, mdp5_plane_pipe(plane), NULL);
-}
-
 int mdp5_crtc_get_lm(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
@@ -679,11 +531,6 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 
 	snprintf(mdp5_crtc->name, sizeof(mdp5_crtc->name), "%s:%d",
 			pipe2name(mdp5_plane_pipe(plane)), id);
-
-	drm_flip_work_init(&mdp5_crtc->unref_fb_work,
-			"unref fb", unref_fb_worker);
-
-	INIT_FENCE_CB(&mdp5_crtc->pageflip_cb, pageflip_cb);
 
 	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp5_crtc_funcs);
 	drm_crtc_helper_add(crtc, &mdp5_crtc_helper_funcs);

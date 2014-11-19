@@ -67,9 +67,32 @@ struct mdp5_kms {
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)
 
-struct mdp5_overlay_info {
-	enum mdp_mixer_stage_id zorder;
+struct mdp5_plane_state {
+	struct drm_plane_state base;
+
+	/* "virtual" zpos.. we calculate actual mixer-stage at runtime
+	 * by sorting the attached planes by zpos and then assigning
+	 * mixer stage lowest to highest.  Private planes get default
+	 * zpos of zero, and public planes a unique value that is
+	 * greater than zero.  This way, things work out if a naive
+	 * userspace assigns planes to a crtc without setting zpos.
+	 */
+	int zpos;
+
+	/* the actual mixer stage, calculated in crtc->atomic_check()
+	 * NOTE: this should move to mdp5_crtc_state, when that exists
+	 */
+	enum mdp_mixer_stage_id stage;
+
+	/* some additional transactional status to help us know in the
+	 * apply path whether we need to update SMP allocation, and
+	 * whether current update is still pending:
+	 */
+	bool mode_changed : 1;
+	bool pending : 1;
 };
+#define to_mdp5_plane_state(x) \
+		container_of(x, struct mdp5_plane_state, base)
 
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
 {
@@ -154,18 +177,7 @@ uint32_t mdp5_get_formats(enum mdp5_pipe pipe, uint32_t *pixel_formats,
 
 void mdp5_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
-void mdp5_plane_set_overlay_info(struct drm_plane *plane,
-		const struct mdp5_overlay_info *overlay_info);
-struct mdp5_overlay_info *mdp5_plane_get_overlay_info(struct drm_plane *plane);
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
-void mdp5_plane_set_scanout(struct drm_plane *plane,
-		struct drm_framebuffer *fb);
-int mdp5_plane_mode_set(struct drm_plane *plane,
-		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h);
 void mdp5_plane_complete_flip(struct drm_plane *plane);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
@@ -177,8 +189,6 @@ int mdp5_crtc_get_lm(struct drm_crtc *crtc);
 void mdp5_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file);
 void mdp5_crtc_set_intf(struct drm_crtc *crtc, int intf,
 		enum mdp5_intf intf_id);
-int  mdp5_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane);
-void mdp5_crtc_detach(struct drm_crtc *crtc, struct drm_plane *plane);
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, int id);
 
