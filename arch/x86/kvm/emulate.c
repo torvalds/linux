@@ -575,40 +575,6 @@ static int emulate_nm(struct x86_emulate_ctxt *ctxt)
 	return emulate_exception(ctxt, NM_VECTOR, 0, false);
 }
 
-static inline int assign_eip_far(struct x86_emulate_ctxt *ctxt, ulong dst,
-			       int cs_l)
-{
-	switch (ctxt->op_bytes) {
-	case 2:
-		ctxt->_eip = (u16)dst;
-		break;
-	case 4:
-		ctxt->_eip = (u32)dst;
-		break;
-#ifdef CONFIG_X86_64
-	case 8:
-		if ((cs_l && is_noncanonical_address(dst)) ||
-		    (!cs_l && (dst >> 32) != 0))
-			return emulate_gp(ctxt, 0);
-		ctxt->_eip = dst;
-		break;
-#endif
-	default:
-		WARN(1, "unsupported eip assignment size\n");
-	}
-	return X86EMUL_CONTINUE;
-}
-
-static inline int assign_eip_near(struct x86_emulate_ctxt *ctxt, ulong dst)
-{
-	return assign_eip_far(ctxt, dst, ctxt->mode == X86EMUL_MODE_PROT64);
-}
-
-static inline int jmp_rel(struct x86_emulate_ctxt *ctxt, int rel)
-{
-	return assign_eip_near(ctxt, ctxt->_eip + rel);
-}
-
 static u16 get_segment_selector(struct x86_emulate_ctxt *ctxt, unsigned seg)
 {
 	u16 selector;
@@ -656,7 +622,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 				       struct segmented_address addr,
 				       unsigned *max_size, unsigned size,
 				       bool write, bool fetch,
-				       ulong *linear)
+				       enum x86emul_mode mode, ulong *linear)
 {
 	struct desc_struct desc;
 	bool usable;
@@ -666,7 +632,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 
 	la = seg_base(ctxt, addr.seg) + addr.ea;
 	*max_size = 0;
-	switch (ctxt->mode) {
+	switch (mode) {
 	case X86EMUL_MODE_PROT64:
 		if (is_noncanonical_address(la))
 			return emulate_gp(ctxt, 0);
@@ -725,9 +691,55 @@ static int linearize(struct x86_emulate_ctxt *ctxt,
 		     ulong *linear)
 {
 	unsigned max_size;
-	return __linearize(ctxt, addr, &max_size, size, write, false, linear);
+	return __linearize(ctxt, addr, &max_size, size, write, false,
+			   ctxt->mode, linear);
 }
 
+static inline int assign_eip(struct x86_emulate_ctxt *ctxt, ulong dst,
+			     enum x86emul_mode mode)
+{
+	ulong linear;
+	int rc;
+	unsigned max_size;
+	struct segmented_address addr = { .seg = VCPU_SREG_CS,
+					   .ea = dst };
+
+	if (ctxt->op_bytes != sizeof(unsigned long))
+		addr.ea = dst & ((1UL << (ctxt->op_bytes << 3)) - 1);
+	rc = __linearize(ctxt, addr, &max_size, 1, false, true, mode, &linear);
+	if (rc == X86EMUL_CONTINUE)
+		ctxt->_eip = addr.ea;
+	return rc;
+}
+
+static inline int assign_eip_near(struct x86_emulate_ctxt *ctxt, ulong dst)
+{
+	return assign_eip(ctxt, dst, ctxt->mode);
+}
+
+static int assign_eip_far(struct x86_emulate_ctxt *ctxt, ulong dst,
+			  const struct desc_struct *cs_desc)
+{
+	enum x86emul_mode mode = ctxt->mode;
+
+#ifdef CONFIG_X86_64
+	if (ctxt->mode >= X86EMUL_MODE_PROT32 && cs_desc->l) {
+		u64 efer = 0;
+
+		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
+		if (efer & EFER_LMA)
+			mode = X86EMUL_MODE_PROT64;
+	}
+#endif
+	if (mode == X86EMUL_MODE_PROT16 || mode == X86EMUL_MODE_PROT32)
+		mode = cs_desc->d ? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
+	return assign_eip(ctxt, dst, mode);
+}
+
+static inline int jmp_rel(struct x86_emulate_ctxt *ctxt, int rel)
+{
+	return assign_eip_near(ctxt, ctxt->_eip + rel);
+}
 
 static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
 			      struct segmented_address addr,
@@ -766,7 +778,8 @@ static int __do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt, int op_size)
 	 * boundary check itself.  Instead, we use max_size to check
 	 * against op_size.
 	 */
-	rc = __linearize(ctxt, addr, &max_size, 0, false, true, &linear);
+	rc = __linearize(ctxt, addr, &max_size, 0, false, true, ctxt->mode,
+			 &linear);
 	if (unlikely(rc != X86EMUL_CONTINUE))
 		return rc;
 
@@ -2032,7 +2045,7 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	rc = assign_eip_far(ctxt, ctxt->src.val, new_desc.l);
+	rc = assign_eip_far(ctxt, ctxt->src.val, &new_desc);
 	if (rc != X86EMUL_CONTINUE) {
 		WARN_ON(ctxt->mode != X86EMUL_MODE_PROT64);
 		/* assigning eip failed; restore the old cs */
@@ -2120,7 +2133,7 @@ static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 				       &new_desc);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
-	rc = assign_eip_far(ctxt, eip, new_desc.l);
+	rc = assign_eip_far(ctxt, eip, &new_desc);
 	if (rc != X86EMUL_CONTINUE) {
 		WARN_ON(ctxt->mode != X86EMUL_MODE_PROT64);
 		ops->set_segment(ctxt, old_cs, &old_desc, 0, VCPU_SREG_CS);
@@ -3010,7 +3023,7 @@ static int em_call_far(struct x86_emulate_ctxt *ctxt)
 	if (rc != X86EMUL_CONTINUE)
 		return X86EMUL_CONTINUE;
 
-	rc = assign_eip_far(ctxt, ctxt->src.val, new_desc.l);
+	rc = assign_eip_far(ctxt, ctxt->src.val, &new_desc);
 	if (rc != X86EMUL_CONTINUE)
 		goto fail;
 
