@@ -852,10 +852,7 @@ int i915_reset(struct drm_device *dev)
 	 * was running at the time of the reset (i.e. we weren't VT
 	 * switched away).
 	 */
-	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
-			!dev_priv->ums.mm_suspended) {
-		dev_priv->ums.mm_suspended = 0;
-
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		/* Used to prevent gem_check_wedged returning -EAGAIN during gpu reset */
 		dev_priv->gpu_error.reload_in_reset = true;
 

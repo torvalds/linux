@@ -1121,18 +1121,6 @@ struct i915_power_domains {
 	struct i915_power_well *power_wells;
 };
 
-struct i915_ums_state {
-	/**
-	 * Flag if the X Server, and thus DRM, is not currently in
-	 * control of the device.
-	 *
-	 * This is set between LeaveVT and EnterVT.  It needs to be
-	 * replaced with a semaphore.  It also needs to be
-	 * transitioned away from for kernel modesetting.
-	 */
-	int mm_suspended;
-};
-
 #define MAX_L3_SLICES 2
 struct intel_l3_parity {
 	u32 *remap_info[MAX_L3_SLICES];
@@ -1767,9 +1755,6 @@ struct drm_i915_private {
 	struct workqueue_struct *dp_wq;
 
 	uint32_t bios_vgacntr;
-
-	/* Old ums support infrastructure, same warning applies. */
-	struct i915_ums_state ums;
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {

@@ -815,9 +815,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			DRM_ERROR("failed to init modeset\n");
 			goto out_power_well;
 		}
-	} else {
-		/* Start out suspended in ums mode. */
-		dev_priv->ums.mm_suspended = 1;
 	}
 
 	i915_setup_sysfs(dev);

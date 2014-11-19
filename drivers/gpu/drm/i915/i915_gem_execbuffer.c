@@ -1338,12 +1338,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		goto pre_mutex_err;
 
-	if (dev_priv->ums.mm_suspended) {
-		mutex_unlock(&dev->struct_mutex);
-		ret = -EBUSY;
-		goto pre_mutex_err;
-	}
-
 	ctx = i915_gem_validate_context(dev, file, ring, ctx_id);
 	if (IS_ERR(ctx)) {
 		mutex_unlock(&dev->struct_mutex);
