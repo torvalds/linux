@@ -224,8 +224,7 @@ struct se_dev_entry *core_get_se_deve_from_rtpi(
 		if (port->sep_rtpi != rtpi)
 			continue;
 
-		atomic_inc(&deve->pr_ref_count);
-		smp_mb__after_atomic();
+		atomic_inc_mb(&deve->pr_ref_count);
 		spin_unlock_irq(&nacl->device_list_lock);
 
 		return deve;
@@ -1019,6 +1018,23 @@ int se_dev_set_enforce_pr_isids(struct se_device *dev, int flag)
 	return 0;
 }
 
+int se_dev_set_force_pr_aptpl(struct se_device *dev, int flag)
+{
+	if ((flag != 0) && (flag != 1)) {
+		printk(KERN_ERR "Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to set force_pr_aptpl while"
+		       " export_count is %d\n", dev, dev->export_count);
+		return -EINVAL;
+	}
+
+	dev->dev_attrib.force_pr_aptpl = flag;
+	pr_debug("dev[%p]: SE Device force_pr_aptpl: %d\n", dev, flag);
+	return 0;
+}
+
 int se_dev_set_is_nonrot(struct se_device *dev, int flag)
 {
 	if ((flag != 0) && (flag != 1)) {
@@ -1250,24 +1266,16 @@ struct se_lun *core_dev_add_lun(
  *
  *
  */
-int core_dev_del_lun(
+void core_dev_del_lun(
 	struct se_portal_group *tpg,
-	u32 unpacked_lun)
+	struct se_lun *lun)
 {
-	struct se_lun *lun;
-
-	lun = core_tpg_pre_dellun(tpg, unpacked_lun);
-	if (IS_ERR(lun))
-		return PTR_ERR(lun);
-
-	core_tpg_post_dellun(tpg, lun);
-
-	pr_debug("%s_TPG[%u]_LUN[%u] - Deactivated %s Logical Unit from"
+	pr_debug("%s_TPG[%u]_LUN[%u] - Deactivating %s Logical Unit from"
 		" device object\n", tpg->se_tpg_tfo->get_fabric_name(),
-		tpg->se_tpg_tfo->tpg_get_tag(tpg), unpacked_lun,
+		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
 		tpg->se_tpg_tfo->get_fabric_name());
 
-	return 0;
+	core_tpg_remove_lun(tpg, lun);
 }
 
 struct se_lun *core_get_lun_from_tpg(struct se_portal_group *tpg, u32 unpacked_lun)
@@ -1396,8 +1404,7 @@ int core_dev_add_initiator_node_lun_acl(
 
 	spin_lock(&lun->lun_acl_lock);
 	list_add_tail(&lacl->lacl_list, &lun->lun_acl_list);
-	atomic_inc(&lun->lun_acl_count);
-	smp_mb__after_atomic();
+	atomic_inc_mb(&lun->lun_acl_count);
 	spin_unlock(&lun->lun_acl_lock);
 
 	pr_debug("%s_TPG[%hu]_LUN[%u->%u] - Added %s ACL for "
@@ -1409,7 +1416,8 @@ int core_dev_add_initiator_node_lun_acl(
 	 * Check to see if there are any existing persistent reservation APTPL
 	 * pre-registrations that need to be enabled for this LUN ACL..
 	 */
-	core_scsi3_check_aptpl_registration(lun->lun_se_dev, tpg, lun, lacl);
+	core_scsi3_check_aptpl_registration(lun->lun_se_dev, tpg, lun, nacl,
+					    lacl->mapped_lun);
 	return 0;
 }
 
@@ -1430,8 +1438,7 @@ int core_dev_del_initiator_node_lun_acl(
 
 	spin_lock(&lun->lun_acl_lock);
 	list_del(&lacl->lacl_list);
-	atomic_dec(&lun->lun_acl_count);
-	smp_mb__after_atomic();
+	atomic_dec_mb(&lun->lun_acl_count);
 	spin_unlock(&lun->lun_acl_lock);
 
 	core_disable_device_list_for_node(lun, NULL, lacl->mapped_lun,
@@ -1554,6 +1561,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.emulate_3pc = DA_EMULATE_3PC;
 	dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE0_PROT;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
+	dev->dev_attrib.force_pr_aptpl = DA_FORCE_PR_APTPL;
 	dev->dev_attrib.is_nonrot = DA_IS_NONROT;
 	dev->dev_attrib.emulate_rest_reord = DA_EMULATE_REST_REORD;
 	dev->dev_attrib.max_unmap_lba_count = DA_MAX_UNMAP_LBA_COUNT;

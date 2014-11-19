@@ -298,7 +298,7 @@ retry_walk:
 	}
 #endif
 	walker->max_level = walker->level;
-	ASSERT(!is_long_mode(vcpu) && is_pae(vcpu));
+	ASSERT(!(is_long_mode(vcpu) && !is_pae(vcpu)));
 
 	accessed_dirty = PT_GUEST_ACCESSED_MASK;
 	pt_access = pte_access = ACC_ALL;

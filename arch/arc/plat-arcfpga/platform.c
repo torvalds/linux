@@ -8,37 +8,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/types.h>
 #include <linux/init.h>
-#include <linux/device.h>
-#include <linux/platform_device.h>
-#include <linux/io.h>
-#include <linux/console.h>
-#include <linux/of_platform.h>
-#include <asm/setup.h>
-#include <asm/clk.h>
 #include <asm/mach_desc.h>
-#include <plat/memmap.h>
 #include <plat/smp.h>
-#include <plat/irq.h>
-
-static void __init plat_fpga_early_init(void)
-{
-	pr_info("[plat-arcfpga]: registering early dev resources\n");
-
-#ifdef CONFIG_ISS_SMP_EXTN
-	iss_model_init_early_smp();
-#endif
-}
-
-static void __init plat_fpga_populate_dev(void)
-{
-	/*
-	 * Traverses flattened DeviceTree - registering platform devices
-	 * (if any) complete with their resources
-	 */
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
 
 /*----------------------- Machine Descriptions ------------------------------
  *
@@ -48,41 +20,26 @@ static void __init plat_fpga_populate_dev(void)
  * callback set, by matching the DT compatible name.
  */
 
-static const char *aa4_compat[] __initconst = {
+static const char *legacy_fpga_compat[] __initconst = {
 	"snps,arc-angel4",
-	NULL,
-};
-
-MACHINE_START(ANGEL4, "angel4")
-	.dt_compat	= aa4_compat,
-	.init_early	= plat_fpga_early_init,
-	.init_machine	= plat_fpga_populate_dev,
-#ifdef CONFIG_ISS_SMP_EXTN
-	.init_smp	= iss_model_init_smp,
-#endif
-MACHINE_END
-
-static const char *ml509_compat[] __initconst = {
 	"snps,arc-ml509",
 	NULL,
 };
 
-MACHINE_START(ML509, "ml509")
-	.dt_compat	= ml509_compat,
-	.init_early	= plat_fpga_early_init,
-	.init_machine	= plat_fpga_populate_dev,
-#ifdef CONFIG_SMP
+MACHINE_START(LEGACY_FPGA, "legacy_fpga")
+	.dt_compat	= legacy_fpga_compat,
+#ifdef CONFIG_ISS_SMP_EXTN
+	.init_early	= iss_model_init_early_smp,
 	.init_smp	= iss_model_init_smp,
 #endif
 MACHINE_END
 
-static const char *nsimosci_compat[] __initconst = {
+static const char *simulation_compat[] __initconst = {
+	"snps,nsim",
 	"snps,nsimosci",
 	NULL,
 };
 
-MACHINE_START(NSIMOSCI, "nsimosci")
-	.dt_compat	= nsimosci_compat,
-	.init_early	= NULL,
-	.init_machine	= plat_fpga_populate_dev,
+MACHINE_START(SIMULATION, "simulation")
+	.dt_compat	= simulation_compat,
 MACHINE_END

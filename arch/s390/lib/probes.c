@@ -4,7 +4,7 @@
  *    Copyright IBM Corp. 2014
  */
 
-#include <linux/kprobes.h>
+#include <asm/kprobes.h>
 #include <asm/dis.h>
 
 int probe_is_prohibited_opcode(u16 *insn)

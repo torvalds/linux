@@ -1962,7 +1962,7 @@ static int xdst_queue_output(struct sock *sk, struct sk_buff *skb)
 	struct xfrm_policy *pol = xdst->pols[0];
 	struct xfrm_policy_queue *pq = &pol->polq;
 
-	if (unlikely(skb_fclone_busy(skb))) {
+	if (unlikely(skb_fclone_busy(sk, skb))) {
 		kfree_skb(skb);
 		return 0;
 	}

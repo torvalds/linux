@@ -749,14 +749,18 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 				ret = -EINVAL;
 				goto out;
 			}
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			pdv->pdv_host_id = arg;
 			pr_debug("PSCSI[%d]: Referencing SCSI Host ID:"
 				" %d\n", phv->phv_host_id, pdv->pdv_host_id);
 			pdv->pdv_flags |= PDF_HAS_VIRT_HOST_ID;
 			break;
 		case Opt_scsi_channel_id:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			pdv->pdv_channel_id = arg;
 			pr_debug("PSCSI[%d]: Referencing SCSI Channel"
 				" ID: %d\n",  phv->phv_host_id,
@@ -764,7 +768,9 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 			pdv->pdv_flags |= PDF_HAS_CHANNEL_ID;
 			break;
 		case Opt_scsi_target_id:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			pdv->pdv_target_id = arg;
 			pr_debug("PSCSI[%d]: Referencing SCSI Target"
 				" ID: %d\n", phv->phv_host_id,
@@ -772,7 +778,9 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 			pdv->pdv_flags |= PDF_HAS_TARGET_ID;
 			break;
 		case Opt_scsi_lun_id:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			pdv->pdv_lun_id = arg;
 			pr_debug("PSCSI[%d]: Referencing SCSI LUN ID:"
 				" %d\n", phv->phv_host_id, pdv->pdv_lun_id);

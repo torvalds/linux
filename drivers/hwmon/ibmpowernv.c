@@ -181,7 +181,7 @@ static int __init populate_attr_groups(struct platform_device *pdev)
 
 	opal = of_find_node_by_path("/ibm,opal/sensors");
 	if (!opal) {
-		dev_err(&pdev->dev, "Opal node 'sensors' not found\n");
+		dev_dbg(&pdev->dev, "Opal node 'sensors' not found\n");
 		return -ENODEV;
 	}
 
@@ -335,7 +335,9 @@ static int __init ibmpowernv_init(void)
 
 	err = platform_driver_probe(&ibmpowernv_driver, ibmpowernv_probe);
 	if (err) {
-		pr_err("Platfrom driver probe failed\n");
+		if (err != -ENODEV)
+			pr_err("Platform driver probe failed (%d)\n", err);
+
 		goto exit_device_del;
 	}
 
