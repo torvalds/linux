@@ -19,7 +19,6 @@ struct kvm_vcpu;
 /* Direct registers. */
 #define IOAPIC_REG_SELECT  0x00
 #define IOAPIC_REG_WINDOW  0x10
-#define IOAPIC_REG_EOI     0x40	/* IA64 IOSAPIC only */
 
 /* Indirect registers. */
 #define IOAPIC_REG_APIC_ID 0x00	/* x86 IOAPIC only */

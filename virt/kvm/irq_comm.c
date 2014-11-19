@@ -26,9 +26,6 @@
 #include <trace/events/kvm.h>
 
 #include <asm/msidef.h>
-#ifdef CONFIG_IA64
-#include <asm/iosapic.h>
-#endif
 
 #include "irq.h"
 
@@ -57,12 +54,7 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 
 inline static bool kvm_is_dm_lowest_prio(struct kvm_lapic_irq *irq)
 {
-#ifdef CONFIG_IA64
-	return irq->delivery_mode ==
-		(IOSAPIC_LOWEST_PRIORITY << IOSAPIC_DELIVERY_SHIFT);
-#else
 	return irq->delivery_mode == APIC_DM_LOWEST;
-#endif
 }
 
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
@@ -346,20 +338,6 @@ static const struct kvm_irq_routing_entry default_routing[] = {
 	ROUTING_ENTRY1(18), ROUTING_ENTRY1(19),
 	ROUTING_ENTRY1(20), ROUTING_ENTRY1(21),
 	ROUTING_ENTRY1(22), ROUTING_ENTRY1(23),
-#ifdef CONFIG_IA64
-	ROUTING_ENTRY1(24), ROUTING_ENTRY1(25),
-	ROUTING_ENTRY1(26), ROUTING_ENTRY1(27),
-	ROUTING_ENTRY1(28), ROUTING_ENTRY1(29),
-	ROUTING_ENTRY1(30), ROUTING_ENTRY1(31),
-	ROUTING_ENTRY1(32), ROUTING_ENTRY1(33),
-	ROUTING_ENTRY1(34), ROUTING_ENTRY1(35),
-	ROUTING_ENTRY1(36), ROUTING_ENTRY1(37),
-	ROUTING_ENTRY1(38), ROUTING_ENTRY1(39),
-	ROUTING_ENTRY1(40), ROUTING_ENTRY1(41),
-	ROUTING_ENTRY1(42), ROUTING_ENTRY1(43),
-	ROUTING_ENTRY1(44), ROUTING_ENTRY1(45),
-	ROUTING_ENTRY1(46), ROUTING_ENTRY1(47),
-#endif
 };
 
 int kvm_setup_default_irq_routing(struct kvm *kvm)
