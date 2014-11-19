@@ -76,7 +76,7 @@ static void fl2f_shutdown(void)
 
 /* reset support for yeeloong2f and mengloong2f notebook */
 
-void ml2f_reboot(void)
+static void ml2f_reboot(void)
 {
 	reset_cpu();
 
