@@ -355,25 +355,6 @@ static inline void __vlan_hwaccel_put_tag(struct sk_buff *skb,
 }
 
 /**
- * vlan_put_tag - inserts VLAN tag according to device features
- * @skb: skbuff to tag
- * @vlan_tci: VLAN TCI to insert
- *
- * Assumes skb->dev is the target that will xmit this frame.
- * Returns a VLAN tagged skb.
- */
-static inline struct sk_buff *vlan_put_tag(struct sk_buff *skb,
-					   __be16 vlan_proto, u16 vlan_tci)
-{
-	if (vlan_hw_offload_capable(skb->dev->features, vlan_proto)) {
-		__vlan_hwaccel_put_tag(skb, vlan_proto, vlan_tci);
-		return skb;
-	} else {
-		return __vlan_put_tag(skb, vlan_proto, vlan_tci);
-	}
-}
-
-/**
  * __vlan_get_tag - get the VLAN ID that is part of the payload
  * @skb: skbuff to query
  * @vlan_tci: buffer to store vlaue

@@ -2159,12 +2159,8 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op,
 	if (outer_tag->vlan_id) {
 		netdev_dbg(slave_dev, "outer tag: proto %X vid %X\n",
 			   ntohs(outer_tag->vlan_proto), outer_tag->vlan_id);
-		skb = vlan_put_tag(skb, outer_tag->vlan_proto,
-				   outer_tag->vlan_id);
-		if (!skb) {
-			net_err_ratelimited("failed to insert outer VLAN tag\n");
-			return;
-		}
+		__vlan_hwaccel_put_tag(skb, outer_tag->vlan_proto,
+				       outer_tag->vlan_id);
 	}
 
 xmit:
