@@ -28,7 +28,6 @@ struct gb_message {
 	void			*payload;
 
 	struct gb_operation	*operation;
-	int			status;
 
 	void			*buffer;
 	size_t			buffer_size;

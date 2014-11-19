@@ -107,28 +107,30 @@ static int gb_message_send(struct gb_message *message, gfp_t gfp_mask)
 {
 	struct gb_connection *connection = message->operation->connection;
 	u16 dest_cport_id = connection->interface_cport_id;
+	int ret = 0;
 
-	message->status = -EINPROGRESS;
 	message->cookie = connection->hd->driver->buffer_send(connection->hd,
 					dest_cport_id,
 					message->buffer,
 					message->buffer_size,
 					gfp_mask);
 	if (IS_ERR(message->cookie)) {
-		message->status = PTR_ERR(message->cookie);
+		ret = PTR_ERR(message->cookie);
 		message->cookie = NULL;
-
-		return message->status;
 	}
-	return 0;
+	return ret;
 }
 
+/*
+ * Cancel a message whose buffer we have passed to the host device
+ * layer to be sent.
+ */
 static void gb_message_cancel(struct gb_message *message)
 {
 	struct greybus_host_device *hd;
 
-	if (message->status != -EINPROGRESS)
-		return;
+	if (!message->cookie)
+		return;	/* Don't bother if the message isn't in flight */
 
 	hd = message->operation->connection->hd;
 	hd->driver->buffer_cancel(message->cookie);
@@ -252,7 +254,6 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	if (!message->buffer)
 		return -ENOMEM;
 	message->buffer_size = size;
-	message->status = -EBADR;	/* Initial value--means "never set" */
 
 	/* Fill in the header structure */
 	header = message->buffer;
