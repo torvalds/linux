@@ -6186,9 +6186,17 @@ void intel_suspend_gt_powersave(struct drm_device *dev)
 	/* Interrupts should be disabled already to avoid re-arming. */
 	WARN_ON(intel_irqs_enabled(dev_priv));
 
+	if (INTEL_INFO(dev)->gen < 6)
+		return;
+
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	cancel_work_sync(&dev_priv->rps.work);
+	/*
+	 * TODO: disable RPS interrupts on GEN9+ too once RPS support
+	 * is added for it.
+	 */
+	if (INTEL_INFO(dev)->gen < 9)
+		gen6_disable_rps_interrupts(dev);
 
 	/* Force GPU to min freq during suspend */
 	gen6_rps_idle(dev_priv);
@@ -6216,13 +6224,6 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 			valleyview_disable_rps(dev);
 		else
 			gen6_disable_rps(dev);
-
-		/*
-		 * TODO: disable RPS interrupts on GEN9+ too once RPS support
-		 * is added for it.
-		 */
-		if (INTEL_INFO(dev)->gen < 9)
-			gen6_disable_rps_interrupts(dev);
 
 		dev_priv->rps.enabled = false;
 		mutex_unlock(&dev_priv->rps.hw_lock);

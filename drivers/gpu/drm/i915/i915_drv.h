@@ -998,8 +998,12 @@ struct intel_rps_ei {
 };
 
 struct intel_gen6_power_mgmt {
-	/* work and pm_iir are protected by dev_priv->irq_lock */
+	/*
+	 * work, interrupts_enabled and pm_iir are protected by
+	 * dev_priv->irq_lock
+	 */
 	struct work_struct work;
+	bool interrupts_enabled;
 	u32 pm_iir;
 
 	/* Frequencies are stored in potentially platform dependent multiples.

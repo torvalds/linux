@@ -274,6 +274,7 @@ void gen6_enable_rps_interrupts(struct drm_device *dev)
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir);
 	WARN_ON(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
+	dev_priv->rps.interrupts_enabled = true;
 	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
@@ -282,14 +283,16 @@ void gen6_disable_rps_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	spin_lock_irq(&dev_priv->irq_lock);
+	dev_priv->rps.interrupts_enabled = false;
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	cancel_work_sync(&dev_priv->rps.work);
+
 	I915_WRITE(GEN6_PMINTRMSK, INTEL_INFO(dev_priv)->gen >= 8 ?
 		   ~GEN8_PMINTR_REDIRECT_TO_NON_DISP : ~0);
 	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) &
 				~dev_priv->pm_rps_events);
-	/* Complete PM interrupt masking here doesn't race with the rps work
-	 * item again unmasking PM interrupts because that is using a different
-	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
-	 * stale bits in PMIIR and PMIMR which gen6_enable_rps will clean up. */
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	dev_priv->rps.pm_iir = 0;
@@ -1135,6 +1138,11 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	int new_delay, adj;
 
 	spin_lock_irq(&dev_priv->irq_lock);
+	/* Speed up work cancelation during disabling rps interrupts. */
+	if (!dev_priv->rps.interrupts_enabled) {
+		spin_unlock_irq(&dev_priv->irq_lock);
+		return;
+	}
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
 	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
@@ -1708,11 +1716,12 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 
 	if (pm_iir & dev_priv->pm_rps_events) {
 		spin_lock(&dev_priv->irq_lock);
-		dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
 		gen6_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
+		if (dev_priv->rps.interrupts_enabled) {
+			dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
+			queue_work(dev_priv->wq, &dev_priv->rps.work);
+		}
 		spin_unlock(&dev_priv->irq_lock);
-
-		queue_work(dev_priv->wq, &dev_priv->rps.work);
 	}
 
 	if (INTEL_INFO(dev_priv)->gen >= 8)
