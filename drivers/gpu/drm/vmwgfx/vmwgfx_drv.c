@@ -889,8 +889,7 @@ static int vmw_driver_unload(struct drm_device *dev)
 
 	if (dev_priv->ctx.res_ht_initialized)
 		drm_ht_remove(&dev_priv->ctx.res_ht);
-	if (dev_priv->ctx.cmd_bounce)
-		vfree(dev_priv->ctx.cmd_bounce);
+	vfree(dev_priv->ctx.cmd_bounce);
 	if (dev_priv->enable_fb) {
 		vmw_fb_close(dev_priv);
 		vmw_kms_restore_vga(dev_priv);
