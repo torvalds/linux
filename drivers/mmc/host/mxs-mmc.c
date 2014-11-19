@@ -583,7 +583,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 
 	irq_err = platform_get_irq(pdev, 0);
 	if (irq_err < 0)
-		return -EINVAL;
+		return irq_err;
 
 	mmc = mmc_alloc_host(sizeof(struct mxs_mmc_host), &pdev->dev);
 	if (!mmc)
