@@ -1286,6 +1286,41 @@ void snd_soc_component_async_complete(struct snd_soc_component *component);
 int snd_soc_component_test_bits(struct snd_soc_component *component,
 	unsigned int reg, unsigned int mask, unsigned int value);
 
+void snd_soc_component_init_regmap(struct snd_soc_component *component,
+	struct regmap *regmap);
+void snd_soc_component_exit_regmap(struct snd_soc_component *component);
+
+/**
+ * snd_soc_codec_init_regmap() - Initialize regmap instance for the CODEC
+ * @codec: The CODEC for which to initialize the regmap instance
+ * @regmap: The regmap instance that should be used by the CODEC
+ *
+ * This function allows deferred assignment of the regmap instance that is
+ * associated with the CODEC. Only use this if the regmap instance is not yet
+ * ready when the CODEC is registered. The function must also be called before
+ * the first IO attempt of the CODEC.
+ */
+static inline void snd_soc_codec_init_regmap(struct snd_soc_codec *codec,
+	struct regmap *regmap)
+{
+	snd_soc_component_init_regmap(&codec->component, regmap);
+}
+
+/**
+ * snd_soc_codec_exit_regmap() - De-initialize regmap instance for the CODEC
+ * @codec: The CODEC for which to de-initialize the regmap instance
+ *
+ * Calls regmap_exit() on the regmap instance associated to the CODEC and
+ * removes the regmap instance from the CODEC.
+ *
+ * This function should only be used if snd_soc_codec_init_regmap() was used to
+ * initialize the regmap instance.
+ */
+static inline void snd_soc_codec_exit_regmap(struct snd_soc_codec *codec)
+{
+	snd_soc_component_exit_regmap(&codec->component);
+}
+
 /* device driver data */
 
 static inline void snd_soc_card_set_drvdata(struct snd_soc_card *card,
