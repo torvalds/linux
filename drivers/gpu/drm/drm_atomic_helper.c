@@ -249,7 +249,6 @@ static int
 mode_fixup(struct drm_atomic_state *state)
 {
 	int ncrtcs = state->dev->mode_config.num_crtc;
-	int nconnectors = state->dev->mode_config.num_connector;
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector_state *conn_state;
 	int i;
@@ -264,7 +263,7 @@ mode_fixup(struct drm_atomic_state *state)
 		drm_mode_copy(&crtc_state->adjusted_mode, &crtc_state->mode);
 	}
 
-	for (i = 0; i < nconnectors; i++) {
+	for (i = 0; i < state->num_connector; i++) {
 		struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
 
@@ -336,7 +335,6 @@ drm_atomic_helper_check_prepare(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
 	int ncrtcs = dev->mode_config.num_crtc;
-	int nconnectors = dev->mode_config.num_connector;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int i, ret;
@@ -361,7 +359,7 @@ drm_atomic_helper_check_prepare(struct drm_device *dev,
 		}
 	}
 
-	for (i = 0; i < nconnectors; i++) {
+	for (i = 0; i < state->num_connector; i++) {
 		/*
 		 * This only sets crtc->mode_changed for routing changes,
 		 * drivers must set crtc->mode_changed themselves when connector
@@ -485,10 +483,9 @@ static void
 disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
 	int ncrtcs = old_state->dev->mode_config.num_crtc;
-	int nconnectors = old_state->dev->mode_config.num_connector;
 	int i;
 
-	for (i = 0; i < nconnectors; i++) {
+	for (i = 0; i < old_state->num_connector; i++) {
 		struct drm_connector_state *old_conn_state;
 		struct drm_connector *connector;
 		struct drm_encoder_helper_funcs *funcs;
@@ -553,12 +550,11 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 static void
 set_routing_links(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
-	int nconnectors = dev->mode_config.num_connector;
 	int ncrtcs = old_state->dev->mode_config.num_crtc;
 	int i;
 
 	/* clear out existing links */
-	for (i = 0; i < nconnectors; i++) {
+	for (i = 0; i < old_state->num_connector; i++) {
 		struct drm_connector *connector;
 
 		connector = old_state->connectors[i];
@@ -573,7 +569,7 @@ set_routing_links(struct drm_device *dev, struct drm_atomic_state *old_state)
 	}
 
 	/* set new links */
-	for (i = 0; i < nconnectors; i++) {
+	for (i = 0; i < old_state->num_connector; i++) {
 		struct drm_connector *connector;
 
 		connector = old_state->connectors[i];
@@ -608,7 +604,6 @@ static void
 crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
 	int ncrtcs = old_state->dev->mode_config.num_crtc;
-	int nconnectors = old_state->dev->mode_config.num_connector;
 	int i;
 
 	for (i = 0; i < ncrtcs; i++) {
@@ -626,7 +621,7 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 			funcs->mode_set_nofb(crtc);
 	}
 
-	for (i = 0; i < nconnectors; i++) {
+	for (i = 0; i < old_state->num_connector; i++) {
 		struct drm_connector *connector;
 		struct drm_crtc_state *new_crtc_state;
 		struct drm_encoder_helper_funcs *funcs;
@@ -687,7 +682,6 @@ void drm_atomic_helper_commit_post_planes(struct drm_device *dev,
 					  struct drm_atomic_state *old_state)
 {
 	int ncrtcs = old_state->dev->mode_config.num_crtc;
-	int nconnectors = old_state->dev->mode_config.num_connector;
 	int i;
 
 	for (i = 0; i < ncrtcs; i++) {
@@ -706,7 +700,7 @@ void drm_atomic_helper_commit_post_planes(struct drm_device *dev,
 			funcs->commit(crtc);
 	}
 
-	for (i = 0; i < nconnectors; i++) {
+	for (i = 0; i < old_state->num_connector; i++) {
 		struct drm_connector *connector;
 		struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
@@ -1304,7 +1298,6 @@ static int update_output_state(struct drm_atomic_state *state,
 {
 	struct drm_device *dev = set->crtc->dev;
 	struct drm_connector_state *conn_state;
-	int nconnectors = state->dev->mode_config.num_connector;
 	int ncrtcs = state->dev->mode_config.num_crtc;
 	int ret, i, j;
 
@@ -1333,7 +1326,7 @@ static int update_output_state(struct drm_atomic_state *state,
 	}
 
 	/* Then recompute connector->crtc links and crtc enabling state. */
-	for (i = 0; i < nconnectors; i++) {
+	for (i = 0; i < state->num_connector; i++) {
 		struct drm_connector *connector;
 
 		connector = state->connectors[i];

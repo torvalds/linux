@@ -56,6 +56,8 @@ drm_atomic_state_alloc(struct drm_device *dev)
 	if (!state)
 		return NULL;
 
+	state->num_connector = ACCESS_ONCE(dev->mode_config.num_connector);
+
 	state->crtcs = kcalloc(dev->mode_config.num_crtc,
 			       sizeof(*state->crtcs), GFP_KERNEL);
 	if (!state->crtcs)
@@ -72,12 +74,12 @@ drm_atomic_state_alloc(struct drm_device *dev)
 				      sizeof(*state->plane_states), GFP_KERNEL);
 	if (!state->plane_states)
 		goto fail;
-	state->connectors = kcalloc(dev->mode_config.num_connector,
+	state->connectors = kcalloc(state->num_connector,
 				    sizeof(*state->connectors),
 				    GFP_KERNEL);
 	if (!state->connectors)
 		goto fail;
-	state->connector_states = kcalloc(dev->mode_config.num_connector,
+	state->connector_states = kcalloc(state->num_connector,
 					  sizeof(*state->connector_states),
 					  GFP_KERNEL);
 	if (!state->connector_states)
@@ -117,7 +119,7 @@ void drm_atomic_state_clear(struct drm_atomic_state *state)
 
 	DRM_DEBUG_KMS("Clearing atomic state %p\n", state);
 
-	for (i = 0; i < config->num_connector; i++) {
+	for (i = 0; i < state->num_connector; i++) {
 		struct drm_connector *connector = state->connectors[i];
 
 		if (!connector)
@@ -303,6 +305,21 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 		return ERR_PTR(ret);
 
 	index = drm_connector_index(connector);
+
+	/*
+	 * Construction of atomic state updates can race with a connector
+	 * hot-add which might overflow. In this case flip the table and just
+	 * restart the entire ioctl - no one is fast enough to livelock a cpu
+	 * with physical hotplug events anyway.
+	 *
+	 * Note that we only grab the indexes once we have the right lock to
+	 * prevent hotplug/unplugging of connectors. So removal is no problem,
+	 * at most the array is a bit too large.
+	 */
+	if (index >= state->num_connector) {
+		DRM_DEBUG_KMS("Hot-added connector would overflow state array, restarting\n");
+		return -EAGAIN;
+	}
 
 	if (state->connector_states[index])
 		return state->connector_states[index];
@@ -499,10 +516,9 @@ int
 drm_atomic_connectors_for_crtc(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc)
 {
-	int nconnectors = state->dev->mode_config.num_connector;
 	int i, num_connected_connectors = 0;
 
-	for (i = 0; i < nconnectors; i++) {
+	for (i = 0; i < state->num_connector; i++) {
 		struct drm_connector_state *conn_state;
 
 		conn_state = state->connector_states[i];
