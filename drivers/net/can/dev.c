@@ -110,7 +110,7 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	long rate;
 	u64 v64;
 
-	/* Use CIA recommended sample points */
+	/* Use CiA recommended sample points */
 	if (bt->sample_point) {
 		sampl_pt = bt->sample_point;
 	} else {
@@ -382,7 +382,7 @@ void can_free_echo_skb(struct net_device *dev, unsigned int idx)
 	BUG_ON(idx >= priv->echo_skb_max);
 
 	if (priv->echo_skb[idx]) {
-		kfree_skb(priv->echo_skb[idx]);
+		dev_kfree_skb_any(priv->echo_skb[idx]);
 		priv->echo_skb[idx] = NULL;
 	}
 }
