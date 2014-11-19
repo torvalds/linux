@@ -184,8 +184,7 @@ void udl_gem_vunmap(struct udl_gem_object *obj)
 		return;
 	}
 
-	if (obj->vmapping)
-		vunmap(obj->vmapping);
+	vunmap(obj->vmapping);
 
 	udl_gem_put_pages(obj);
 }
