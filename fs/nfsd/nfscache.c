@@ -490,7 +490,7 @@ found_entry:
 	/* From the hall of fame of impractical attacks:
 	 * Is this a user who tries to snoop on the cache? */
 	rtn = RC_DOIT;
-	if (!rqstp->rq_secure && rp->c_secure)
+	if (!test_bit(RQ_SECURE, &rqstp->rq_flags) && rp->c_secure)
 		goto out;
 
 	/* Compose RPC reply header */
@@ -579,7 +579,7 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 	spin_lock(&b->cache_lock);
 	drc_mem_usage += bufsize;
 	lru_put_end(b, rp);
-	rp->c_secure = rqstp->rq_secure;
+	rp->c_secure = test_bit(RQ_SECURE, &rqstp->rq_flags);
 	rp->c_type = cachetype;
 	rp->c_state = RC_DONE;
 	spin_unlock(&b->cache_lock);

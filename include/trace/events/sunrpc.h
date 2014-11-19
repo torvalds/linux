@@ -412,6 +412,10 @@ TRACE_EVENT(xs_tcp_data_recv,
 			__entry->copied, __entry->reclen, __entry->offset)
 );
 
+#define show_rqstp_flags(flags)				\
+	__print_flags(flags, "|",			\
+		{ (1UL << RQ_SECURE),	"RQ_SECURE"})
+
 TRACE_EVENT(svc_recv,
 	TP_PROTO(struct svc_rqst *rqst, int status),
 
@@ -421,16 +425,19 @@ TRACE_EVENT(svc_recv,
 		__field(struct sockaddr *, addr)
 		__field(__be32, xid)
 		__field(int, status)
+		__field(unsigned long, flags)
 	),
 
 	TP_fast_assign(
 		__entry->addr = (struct sockaddr *)&rqst->rq_addr;
 		__entry->xid = status > 0 ? rqst->rq_xid : 0;
 		__entry->status = status;
+		__entry->flags = rqst->rq_flags;
 	),
 
-	TP_printk("addr=%pIScp xid=0x%x status=%d", __entry->addr,
-			be32_to_cpu(__entry->xid), __entry->status)
+	TP_printk("addr=%pIScp xid=0x%x status=%d flags=%s", __entry->addr,
+			be32_to_cpu(__entry->xid), __entry->status,
+			show_rqstp_flags(__entry->flags))
 );
 
 DECLARE_EVENT_CLASS(svc_rqst_status,
@@ -444,6 +451,7 @@ DECLARE_EVENT_CLASS(svc_rqst_status,
 		__field(__be32, xid)
 		__field(int, dropme)
 		__field(int, status)
+		__field(unsigned long, flags)
 	),
 
 	TP_fast_assign(
@@ -451,11 +459,12 @@ DECLARE_EVENT_CLASS(svc_rqst_status,
 		__entry->xid = rqst->rq_xid;
 		__entry->dropme = (int)rqst->rq_dropme;
 		__entry->status = status;
+		__entry->flags = rqst->rq_flags;
 	),
 
-	TP_printk("addr=%pIScp rq_xid=0x%x dropme=%d status=%d",
+	TP_printk("addr=%pIScp rq_xid=0x%x dropme=%d status=%d flags=%s",
 		__entry->addr, be32_to_cpu(__entry->xid), __entry->dropme,
-		__entry->status)
+		__entry->status, show_rqstp_flags(__entry->flags))
 );
 
 DEFINE_EVENT(svc_rqst_status, svc_process,
