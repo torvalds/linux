@@ -1850,14 +1850,19 @@ static bool gfs2_rgrp_congested(const struct gfs2_rgrpd *rgd, int loops)
 	const struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_lkstats *st;
 	s64 r_dcount, l_dcount;
-	s64 r_srttb, l_srttb;
+	s64 l_srttb, a_srttb = 0;
 	s64 srttb_diff;
 	s64 sqr_diff;
 	s64 var;
+	int cpu;
 
 	preempt_disable();
+	for_each_present_cpu(cpu) {
+		st = &per_cpu_ptr(sdp->sd_lkstats, cpu)->lkstats[LM_TYPE_RGRP];
+		a_srttb += st->stats[GFS2_LKS_SRTTB];
+	}
 	st = &this_cpu_ptr(sdp->sd_lkstats)->lkstats[LM_TYPE_RGRP];
-	r_srttb = st->stats[GFS2_LKS_SRTTB];
+	a_srttb /= num_present_cpus();
 	r_dcount = st->stats[GFS2_LKS_DCOUNT];
 	var = st->stats[GFS2_LKS_SRTTVARB] +
 	      gl->gl_stats.stats[GFS2_LKS_SRTTVARB];
@@ -1866,10 +1871,10 @@ static bool gfs2_rgrp_congested(const struct gfs2_rgrpd *rgd, int loops)
 	l_srttb = gl->gl_stats.stats[GFS2_LKS_SRTTB];
 	l_dcount = gl->gl_stats.stats[GFS2_LKS_DCOUNT];
 
-	if ((l_dcount < 1) || (r_dcount < 1) || (r_srttb == 0))
+	if ((l_dcount < 1) || (r_dcount < 1) || (a_srttb == 0))
 		return false;
 
-	srttb_diff = r_srttb - l_srttb;
+	srttb_diff = a_srttb - l_srttb;
 	sqr_diff = srttb_diff * srttb_diff;
 
 	var *= 2;
