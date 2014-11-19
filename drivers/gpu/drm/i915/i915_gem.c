@@ -4976,61 +4976,6 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 		dev_priv->gt.cleanup_ring(ring);
 }
 
-int
-i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return 0;
-
-	if (i915_reset_in_progress(&dev_priv->gpu_error)) {
-		DRM_ERROR("Reenabling wedged hardware, good luck\n");
-		atomic_set(&dev_priv->gpu_error.reset_counter, 0);
-	}
-
-	mutex_lock(&dev->struct_mutex);
-	dev_priv->ums.mm_suspended = 0;
-
-	ret = i915_gem_init_hw(dev);
-	if (ret != 0) {
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
-
-	BUG_ON(!list_empty(&dev_priv->gtt.base.active_list));
-
-	ret = drm_irq_install(dev, dev->pdev->irq);
-	if (ret)
-		goto cleanup_ringbuffer;
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-
-cleanup_ringbuffer:
-	i915_gem_cleanup_ringbuffer(dev);
-	dev_priv->ums.mm_suspended = 1;
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
-}
-
-int
-i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv)
-{
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return 0;
-
-	mutex_lock(&dev->struct_mutex);
-	drm_irq_uninstall(dev);
-	mutex_unlock(&dev->struct_mutex);
-
-	return i915_gem_suspend(dev);
-}
-
 void
 i915_gem_lastclose(struct drm_device *dev)
 {
