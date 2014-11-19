@@ -581,9 +581,8 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	struct regulator *reg_vmmc;
 	struct mxs_ssp *ssp;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_err = platform_get_irq(pdev, 0);
-	if (!iores || irq_err < 0)
+	if (irq_err < 0)
 		return -EINVAL;
 
 	mmc = mmc_alloc_host(sizeof(struct mxs_mmc_host), &pdev->dev);
@@ -593,6 +592,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	ssp = &host->ssp;
 	ssp->dev = &pdev->dev;
+	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ssp->base = devm_ioremap_resource(&pdev->dev, iores);
 	if (IS_ERR(ssp->base)) {
 		ret = PTR_ERR(ssp->base);
