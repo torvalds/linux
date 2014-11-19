@@ -49,7 +49,6 @@
 #define GB_UART_TYPE_RESPONSE			0x80	/* OR'd with rest */
 
 struct gb_uart_proto_version_response {
-	__u8	status;
 	__u8	major;
 	__u8	minor;
 };
@@ -106,10 +105,6 @@ struct gb_uart_serial_state_request {
 	__u16	control;
 };
 
-struct gb_uart_simple_response {
-	__u8	status;
-};
-
 struct gb_tty {
 	struct tty_port port;
 	struct gb_connection *connection;
@@ -159,11 +154,10 @@ static int get_version(struct gb_tty *tty)
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(tty->connection, "response %hhu",
-			response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(tty->connection, "result %hhu",
+			operation->result);
 	} else {
 		if (response->major > GB_UART_VERSION_MAJOR) {
 			pr_err("unsupported major version (%hhu > %hhu)\n",
@@ -188,15 +182,13 @@ static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 	struct gb_connection *connection = tty->connection;
 	struct gb_operation *operation;
 	struct gb_uart_send_data_request *request;
-	struct gb_uart_simple_response *response;
 	int retval;
 
 	if (!data || !size)
 		return 0;
 
 	operation = gb_operation_create(connection, GB_UART_REQ_SEND_DATA,
-					sizeof(*request) + size,
-					sizeof(*response));
+					sizeof(*request) + size, 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -211,11 +203,10 @@ static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "send data response %hhu",
-				  response->status);
-		retval = -EIO;
+	if (operation->result) {
+		retval = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "send data result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -229,12 +220,10 @@ static int send_line_coding(struct gb_tty *tty,
 	struct gb_connection *connection = tty->connection;
 	struct gb_operation *operation;
 	struct gb_uart_set_line_coding_request *request;
-	struct gb_uart_simple_response *response;
 	int retval;
 
 	operation = gb_operation_create(connection, GB_UART_REQ_SET_LINE_CODING,
-					sizeof(*request),
-					sizeof(*response));
+					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -248,11 +237,10 @@ static int send_line_coding(struct gb_tty *tty,
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "send line coding response %hhu",
-				  response->status);
-		retval = -EIO;
+	if (operation->result) {
+		retval = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "send line coding result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -265,13 +253,11 @@ static int send_control(struct gb_tty *tty, u16 control)
 	struct gb_connection *connection = tty->connection;
 	struct gb_operation *operation;
 	struct gb_uart_set_control_line_state_request *request;
-	struct gb_uart_simple_response *response;
 	int retval;
 
 	operation = gb_operation_create(connection,
 					GB_UART_REQ_SET_CONTROL_LINE_STATE,
-					sizeof(*request),
-					sizeof(*response));
+					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -285,11 +271,10 @@ static int send_control(struct gb_tty *tty, u16 control)
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "send control response %hhu",
-				  response->status);
-		retval = -EIO;
+	if (operation->result) {
+		retval = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "send control result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -302,7 +287,6 @@ static int send_break(struct gb_tty *tty, u8 state)
 	struct gb_connection *connection = tty->connection;
 	struct gb_operation *operation;
 	struct gb_uart_set_break_request *request;
-	struct gb_uart_simple_response *response;
 	int retval;
 
 	if ((state != 0) && (state != 1)) {
@@ -311,8 +295,7 @@ static int send_break(struct gb_tty *tty, u8 state)
 	}
 
 	operation = gb_operation_create(connection, GB_UART_REQ_SET_BREAK,
-					sizeof(*request),
-					sizeof(*response));
+					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -326,11 +309,10 @@ static int send_break(struct gb_tty *tty, u8 state)
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "send break response %hhu",
-				  response->status);
-		retval = -EIO;
+	if (operation->result) {
+		retval = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "send break result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);

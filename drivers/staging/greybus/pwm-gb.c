@@ -41,20 +41,14 @@ struct gb_pwm_chip {
 #define	GB_PWM_TYPE_DISABLE		0x08
 #define	GB_PWM_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
-struct gb_pwm_simple_response {
-	__u8	status;
-};
-
 /* version request has no payload */
 struct gb_pwm_proto_version_response {
-	__u8	status;
 	__u8	major;
 	__u8	minor;
 };
 
 /* pwm count request has no payload */
 struct gb_pwm_count_response {
-	__u8	status;
 	__u8	count;
 };
 
@@ -110,12 +104,12 @@ static int gb_pwm_proto_version_operation(struct gb_pwm_chip *pwmc)
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "version response %hhu",
-				  response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "version result %hhu",
+				  operation->result);
 	} else {
+		response = operation->response.payload;
 		if (response->major > GB_PWM_VERSION_MAJOR) {
 			pr_err("unsupported major version (%hhu > %hhu)\n",
 				response->major, GB_PWM_VERSION_MAJOR);
@@ -151,12 +145,12 @@ static int gb_pwm_count_operation(struct gb_pwm_chip *pwmc)
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "pwm count response %hhu",
-				  response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "pwm count result %hhu",
+				  operation->result);
 	} else
+		response = operation->response.payload;
 		pwmc->pwm_max = response->count;
 out:
 	gb_operation_destroy(operation);
@@ -170,7 +164,6 @@ static int gb_pwm_activate_operation(struct gb_pwm_chip *pwmc,
 	struct gb_connection *connection = pwmc->connection;
 	struct gb_operation *operation;
 	struct gb_pwm_activate_request *request;
-	struct gb_pwm_simple_response *response;
 	int ret;
 
 	if (which > pwmc->pwm_max)
@@ -178,7 +171,7 @@ static int gb_pwm_activate_operation(struct gb_pwm_chip *pwmc,
 
 	/* activate response has no payload */
 	operation = gb_operation_create(connection, GB_PWM_TYPE_ACTIVATE,
-					sizeof(*request), sizeof(*response));
+					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -191,11 +184,10 @@ static int gb_pwm_activate_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "activate response %hhu",
-				  response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "activate result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -209,7 +201,6 @@ static int gb_pwm_deactivate_operation(struct gb_pwm_chip *pwmc,
 	struct gb_connection *connection = pwmc->connection;
 	struct gb_operation *operation;
 	struct gb_pwm_deactivate_request *request;
-	struct gb_pwm_simple_response *response;
 	int ret;
 
 	if (which > pwmc->pwm_max)
@@ -217,7 +208,7 @@ static int gb_pwm_deactivate_operation(struct gb_pwm_chip *pwmc,
 
 	/* deactivate response has no payload */
 	operation = gb_operation_create(connection, GB_PWM_TYPE_DEACTIVATE,
-					sizeof(*request), sizeof(*response));
+					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -230,11 +221,10 @@ static int gb_pwm_deactivate_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "deactivate response %hhu",
-				  response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "deactivate result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -248,14 +238,13 @@ static int gb_pwm_config_operation(struct gb_pwm_chip *pwmc,
 	struct gb_connection *connection = pwmc->connection;
 	struct gb_operation *operation;
 	struct gb_pwm_config_request *request;
-	struct gb_pwm_simple_response *response;
 	int ret;
 
 	if (which > pwmc->pwm_max)
 		return -EINVAL;
 
 	operation = gb_operation_create(connection, GB_PWM_TYPE_CONFIG,
-					sizeof(*request), sizeof(*response));
+					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -270,11 +259,10 @@ static int gb_pwm_config_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "config response %hhu",
-				  response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "config result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -289,14 +277,13 @@ static int gb_pwm_set_polarity_operation(struct gb_pwm_chip *pwmc,
 	struct gb_connection *connection = pwmc->connection;
 	struct gb_operation *operation;
 	struct gb_pwm_polarity_request *request;
-	struct gb_pwm_simple_response *response;
 	int ret;
 
 	if (which > pwmc->pwm_max)
 		return -EINVAL;
 
 	operation = gb_operation_create(connection, GB_PWM_TYPE_POLARITY,
-					sizeof(*request), sizeof(*response));
+					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -310,11 +297,10 @@ static int gb_pwm_set_polarity_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "set polarity response %hhu",
-				  response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "set polarity result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -328,7 +314,6 @@ static int gb_pwm_enable_operation(struct gb_pwm_chip *pwmc,
 	struct gb_connection *connection = pwmc->connection;
 	struct gb_operation *operation;
 	struct gb_pwm_enable_request *request;
-	struct gb_pwm_simple_response *response;
 	int ret;
 
 	if (which > pwmc->pwm_max)
@@ -336,7 +321,7 @@ static int gb_pwm_enable_operation(struct gb_pwm_chip *pwmc,
 
 	/* enable response has no payload */
 	operation = gb_operation_create(connection, GB_PWM_TYPE_ENABLE,
-					sizeof(*request), sizeof(*response));
+					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -349,11 +334,10 @@ static int gb_pwm_enable_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "enable response %hhu",
-				  response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "enable result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -367,7 +351,6 @@ static int gb_pwm_disable_operation(struct gb_pwm_chip *pwmc,
 	struct gb_connection *connection = pwmc->connection;
 	struct gb_operation *operation;
 	struct gb_pwm_disable_request *request;
-	struct gb_pwm_simple_response *response;
 	int ret;
 
 	if (which > pwmc->pwm_max)
@@ -375,7 +358,7 @@ static int gb_pwm_disable_operation(struct gb_pwm_chip *pwmc,
 
 	/* disable response has no payload */
 	operation = gb_operation_create(connection, GB_PWM_TYPE_DISABLE,
-					sizeof(*request), sizeof(*response));
+					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -388,11 +371,10 @@ static int gb_pwm_disable_operation(struct gb_pwm_chip *pwmc,
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "disable response %hhu",
-				  response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "disable result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);

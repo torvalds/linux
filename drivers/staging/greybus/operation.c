@@ -525,10 +525,11 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 		return;		/* XXX Should still complete operation */
 	}
 
-	/* Hack the status from the buffer into the header */
+	/* The status in the response is the result of the operation */
 	header = message->buffer;
-	header->result = *(char *)message->payload;	/* Eeew. */
 	operation->result = header->result;
+
+	/* We must ignore the payload if a bad status is returned */
 	if (operation->result == GB_OP_SUCCESS)
 		memcpy(message->buffer, data, size);
 

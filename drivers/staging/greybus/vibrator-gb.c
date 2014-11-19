@@ -34,7 +34,6 @@ struct gb_vibrator_device {
 #define	GB_VIBRATOR_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
 struct gb_vibrator_proto_version_response {
-	__u8	status;
 	__u8	major;
 	__u8	minor;
 };
@@ -43,15 +42,10 @@ struct gb_vibrator_on_request {
 	__le16	timeout_ms;
 };
 
-struct gb_vibrator_simple_response {
-	__u8	status;
-};
-
 static int request_operation(struct gb_connection *connection, int type,
 			     void *response, int response_size)
 {
 	struct gb_operation *operation;
-	struct gb_vibrator_simple_response *fake_response;
 	int ret;
 
 	operation = gb_operation_create(connection, type, 0, response_size);
@@ -70,15 +64,15 @@ static int request_operation(struct gb_connection *connection, int type,
 	 * layout for where the status is, so cast this to a random request so
 	 * we can see the status easier.
 	 */
-	fake_response = operation->response.payload;
-	if (fake_response->status) {
-		gb_connection_err(connection, "response %hhu",
-			fake_response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "operation result %hhu",
+			operation->result);
 	} else {
 		/* Good request, so copy to the caller's buffer */
 		if (response_size && response)
-			memcpy(response, fake_response, response_size);
+			memcpy(response, operation->response.payload,
+						response_size);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -119,11 +113,10 @@ static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
 	struct gb_connection *connection = vib->connection;
 	struct gb_operation *operation;
 	struct gb_vibrator_on_request *request;
-	struct gb_vibrator_simple_response *response;
 	int retval;
 
 	operation = gb_operation_create(connection, GB_VIBRATOR_TYPE_ON,
-					sizeof(*request), sizeof(*response));
+					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
 	request = operation->request.payload;
@@ -137,11 +130,10 @@ static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
 		goto out;
 	}
 
-	response = operation->response.payload;
-	if (response->status) {
-		gb_connection_err(connection, "send data response %hhu",
-				  response->status);
-		retval = -EIO;
+	if (operation->result) {
+		retval = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "send data result %hhu",
+				  operation->result);
 	}
 out:
 	gb_operation_destroy(operation);

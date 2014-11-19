@@ -40,7 +40,6 @@ struct gb_battery {
 #define	GB_BATTERY_TYPE_VOLTAGE			0x07
 
 struct gb_battery_proto_version_response {
-	__u8	status;
 	__u8	major;
 	__u8	minor;
 };
@@ -55,7 +54,6 @@ struct gb_battery_proto_version_response {
 #define GB_BATTERY_TECH_LiMn			0x0006
 
 struct gb_battery_technology_response {
-	__u8	status;
 	__le32	technology;
 };
 
@@ -67,33 +65,23 @@ struct gb_battery_technology_response {
 #define GB_BATTERY_STATUS_FULL			0x0004
 
 struct gb_battery_status_response {
-	__u8	status;
 	__le16	battery_status;
 };
 
 struct gb_battery_max_voltage_response {
-	__u8	status;
 	__le32	max_voltage;
 };
 
 struct gb_battery_capacity_response {
-	__u8	status;
 	__le32	capacity;
 };
 
 struct gb_battery_temperature_response {
-	__u8	status;
 	__le32	temperature;
 };
 
 struct gb_battery_voltage_response {
-	__u8	status;
 	__le32	voltage;
-};
-
-/* Generia response structure--prefix for all other responses */
-struct gb_generic_battery_response {
-	__u8	status;
 };
 
 /*
@@ -107,7 +95,6 @@ static int battery_operation(struct gb_battery *gb, int type,
 {
 	struct gb_connection *connection = gb->connection;
 	struct gb_operation *operation;
-	struct gb_generic_battery_response *fake_response;
 	int ret;
 
 	operation = gb_operation_create(connection, type, 0, response_size);
@@ -126,14 +113,13 @@ static int battery_operation(struct gb_battery *gb, int type,
 	 * layout for where the status is, so cast this to a random request so
 	 * we can see the status easier.
 	 */
-	fake_response = operation->response.payload;
-	if (fake_response->status) {
-		gb_connection_err(connection, "version response %hhu",
-			fake_response->status);
-		ret = -EIO;
+	if (operation->result) {
+		ret = gb_operation_status_map(operation->result);
+		gb_connection_err(connection, "operation result %hhu",
+			operation->result);
 	} else {
 		/* Good response, so copy to the caller's buffer */
-		memcpy(response, fake_response, response_size);
+		memcpy(response, operation->response.payload, response_size);
 	}
 out:
 	gb_operation_destroy(operation);
