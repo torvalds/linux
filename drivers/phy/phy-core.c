@@ -26,6 +26,7 @@
 static struct class *phy_class;
 static DEFINE_MUTEX(phy_provider_mutex);
 static LIST_HEAD(phy_provider_list);
+static LIST_HEAD(phys);
 static DEFINE_IDA(phy_ida);
 
 static void devm_phy_release(struct device *dev, void *res)
@@ -82,6 +83,87 @@ static struct phy *phy_lookup(struct device *device, const char *port)
 
 	class_dev_iter_exit(&iter);
 	return ERR_PTR(-ENODEV);
+}
+
+/**
+ * phy_create_lookup() - allocate and register PHY/device association
+ * @phy: the phy of the association
+ * @con_id: connection ID string on device
+ * @dev_id: the device of the association
+ *
+ * Creates and registers phy_lookup entry.
+ */
+int phy_create_lookup(struct phy *phy, const char *con_id, const char *dev_id)
+{
+	struct phy_lookup *pl;
+
+	if (!phy || !dev_id || !con_id)
+		return -EINVAL;
+
+	pl = kzalloc(sizeof(*pl), GFP_KERNEL);
+	if (!pl)
+		return -ENOMEM;
+
+	pl->dev_id = dev_id;
+	pl->con_id = con_id;
+	pl->phy = phy;
+
+	mutex_lock(&phy_provider_mutex);
+	list_add_tail(&pl->node, &phys);
+	mutex_unlock(&phy_provider_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(phy_create_lookup);
+
+/**
+ * phy_remove_lookup() - find and remove PHY/device association
+ * @phy: the phy of the association
+ * @con_id: connection ID string on device
+ * @dev_id: the device of the association
+ *
+ * Finds and unregisters phy_lookup entry that was created with
+ * phy_create_lookup().
+ */
+void phy_remove_lookup(struct phy *phy, const char *con_id, const char *dev_id)
+{
+	struct phy_lookup *pl;
+
+	if (!phy || !dev_id || !con_id)
+		return;
+
+	mutex_lock(&phy_provider_mutex);
+	list_for_each_entry(pl, &phys, node)
+		if (pl->phy == phy && !strcmp(pl->dev_id, dev_id) &&
+		    !strcmp(pl->con_id, con_id)) {
+			list_del(&pl->node);
+			kfree(pl);
+			break;
+		}
+	mutex_unlock(&phy_provider_mutex);
+}
+EXPORT_SYMBOL_GPL(phy_remove_lookup);
+
+static struct phy *phy_find(struct device *dev, const char *con_id)
+{
+	const char *dev_id = dev_name(dev);
+	struct phy_lookup *p, *pl = NULL;
+	struct phy *phy;
+
+	mutex_lock(&phy_provider_mutex);
+	list_for_each_entry(p, &phys, node)
+		if (!strcmp(p->dev_id, dev_id) && !strcmp(p->con_id, con_id)) {
+			pl = p;
+			break;
+		}
+	mutex_unlock(&phy_provider_mutex);
+
+	phy = pl ? pl->phy : ERR_PTR(-ENODEV);
+
+	/* fall-back to the old lookup method for now */
+	if (IS_ERR(phy))
+		phy = phy_lookup(dev, con_id);
+	return phy;
 }
 
 static struct phy_provider *of_phy_provider_lookup(struct device_node *node)
@@ -455,7 +537,7 @@ struct phy *phy_get(struct device *dev, const char *string)
 			string);
 		phy = _of_phy_get(dev->of_node, index);
 	} else {
-		phy = phy_lookup(dev, string);
+		phy = phy_find(dev, string);
 	}
 	if (IS_ERR(phy))
 		return phy;

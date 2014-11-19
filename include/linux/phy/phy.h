@@ -110,6 +110,13 @@ struct phy_init_data {
 	.port		= _port,				\
 }
 
+struct phy_lookup {
+	struct list_head node;
+	const char *dev_id;
+	const char *con_id;
+	struct phy *phy;
+};
+
 #define	to_phy(a)	(container_of((a), struct phy, dev))
 
 #define	of_phy_provider_register(dev, xlate)	\
@@ -174,6 +181,8 @@ struct phy_provider *__devm_of_phy_provider_register(struct device *dev,
 void of_phy_provider_unregister(struct phy_provider *phy_provider);
 void devm_of_phy_provider_unregister(struct device *dev,
 	struct phy_provider *phy_provider);
+int phy_create_lookup(struct phy *phy, const char *con_id, const char *dev_id);
+void phy_remove_lookup(struct phy *phy, const char *con_id, const char *dev_id);
 #else
 static inline int phy_pm_runtime_get(struct phy *phy)
 {
@@ -345,6 +354,13 @@ static inline void devm_of_phy_provider_unregister(struct device *dev,
 	struct phy_provider *phy_provider)
 {
 }
+static inline int
+phy_create_lookup(struct phy *phy, const char *con_id, const char *dev_id)
+{
+	return 0;
+}
+static inline void phy_remove_lookup(struct phy *phy, const char *con_id,
+				     const char *dev_id) { }
 #endif
 
 #endif /* __DRIVERS_PHY_H */
