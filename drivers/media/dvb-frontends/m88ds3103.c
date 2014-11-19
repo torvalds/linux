@@ -640,7 +640,7 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 
 	ret = m88ds3103_wr_reg(priv, 0xb2, 0x01);
 	if (ret)
-		goto err;
+		goto error_fw_release;
 
 	for (remaining = fw->size; remaining > 0;
 			remaining -= (priv->cfg->i2c_wr_max - 1)) {
@@ -654,13 +654,13 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 			dev_err(&priv->i2c->dev,
 					"%s: firmware download failed=%d\n",
 					KBUILD_MODNAME, ret);
-			goto err;
+			goto error_fw_release;
 		}
 	}
 
 	ret = m88ds3103_wr_reg(priv, 0xb2, 0x00);
 	if (ret)
-		goto err;
+		goto error_fw_release;
 
 	release_firmware(fw);
 	fw = NULL;
@@ -686,9 +686,10 @@ skip_fw_download:
 	priv->warm = true;
 
 	return 0;
-err:
-	release_firmware(fw);
 
+error_fw_release:
+	release_firmware(fw);
+err:
 	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
