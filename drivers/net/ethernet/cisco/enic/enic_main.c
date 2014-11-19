@@ -533,6 +533,7 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 	struct vnic_wq *wq;
 	unsigned long flags;
 	unsigned int txq_map;
+	struct netdev_queue *txq;
 
 	if (skb->len <= 0) {
 		dev_kfree_skb_any(skb);
@@ -541,6 +542,7 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 
 	txq_map = skb_get_queue_mapping(skb) % enic->wq_count;
 	wq = &enic->wq[txq_map];
+	txq = netdev_get_tx_queue(netdev, txq_map);
 
 	/* Non-TSO sends must fit within ENIC_NON_TSO_MAX_DESC descs,
 	 * which is very likely.  In the off chance it's going to take
@@ -558,7 +560,7 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 
 	if (vnic_wq_desc_avail(wq) <
 	    skb_shinfo(skb)->nr_frags + ENIC_DESC_MAX_SPLITS) {
-		netif_tx_stop_queue(netdev_get_tx_queue(netdev, txq_map));
+		netif_tx_stop_queue(txq);
 		/* This is a hard error, log it */
 		netdev_err(netdev, "BUG! Tx ring full when queue awake!\n");
 		spin_unlock_irqrestore(&enic->wq_lock[txq_map], flags);
@@ -568,7 +570,9 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 	enic_queue_wq_skb(enic, wq, skb);
 
 	if (vnic_wq_desc_avail(wq) < MAX_SKB_FRAGS + ENIC_DESC_MAX_SPLITS)
-		netif_tx_stop_queue(netdev_get_tx_queue(netdev, txq_map));
+		netif_tx_stop_queue(txq);
+	if (!skb->xmit_more || netif_xmit_stopped(txq))
+		vnic_wq_doorbell(wq);
 
 	spin_unlock_irqrestore(&enic->wq_lock[txq_map], flags);
 
