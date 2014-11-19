@@ -194,10 +194,8 @@ static __u64 mds_pack_open_flags(__u64 flags, __u32 mode)
 		cr_flags |= MDS_OPEN_SYNC;
 	if (flags & O_DIRECTORY)
 		cr_flags |= MDS_OPEN_DIRECTORY;
-#ifdef FMODE_EXEC
-	if (flags & FMODE_EXEC)
+	if (flags & __FMODE_EXEC)
 		cr_flags |= MDS_FMODE_EXEC;
-#endif
 	if (cl_is_lov_delay_create(flags))
 		cr_flags |= MDS_OPEN_DELAY_CREATE;
 
