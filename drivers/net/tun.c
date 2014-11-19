@@ -103,6 +103,21 @@ do {								\
 } while (0)
 #endif
 
+/* TUN device flags */
+
+/* IFF_ATTACH_QUEUE is never stored in device flags,
+ * overload it to mean fasync when stored there.
+ */
+#define TUN_FASYNC	IFF_ATTACH_QUEUE
+#define TUN_NO_PI	IFF_NO_PI
+/* This flag has no real effect */
+#define TUN_ONE_QUEUE	IFF_ONE_QUEUE
+#define TUN_PERSIST 	IFF_PERSIST
+#define TUN_VNET_HDR 	IFF_VNET_HDR
+#define TUN_TAP_MQ      IFF_MULTI_QUEUE
+
+#define TUN_FEATURES (IFF_NO_PI | IFF_ONE_QUEUE | IFF_VNET_HDR | \
+		      IFF_MULTI_QUEUE)
 #define GOODCOPY_LEN 128
 
 #define FLT_EXACT_COUNT 8
@@ -1521,32 +1536,7 @@ static struct proto tun_proto = {
 
 static int tun_flags(struct tun_struct *tun)
 {
-	int flags = 0;
-
-	if (tun->flags & TUN_TUN_DEV)
-		flags |= IFF_TUN;
-	else
-		flags |= IFF_TAP;
-
-	if (tun->flags & TUN_NO_PI)
-		flags |= IFF_NO_PI;
-
-	/* This flag has no real effect.  We track the value for backwards
-	 * compatibility.
-	 */
-	if (tun->flags & TUN_ONE_QUEUE)
-		flags |= IFF_ONE_QUEUE;
-
-	if (tun->flags & TUN_VNET_HDR)
-		flags |= IFF_VNET_HDR;
-
-	if (tun->flags & TUN_TAP_MQ)
-		flags |= IFF_MULTI_QUEUE;
-
-	if (tun->flags & TUN_PERSIST)
-		flags |= IFF_PERSIST;
-
-	return flags;
+	return tun->flags & (TUN_FEATURES | IFF_PERSIST | IFF_TUN | IFF_TAP);
 }
 
 static ssize_t tun_show_flags(struct device *dev, struct device_attribute *attr,
@@ -1706,28 +1696,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 	tun_debug(KERN_INFO, tun, "tun_set_iff\n");
 
-	if (ifr->ifr_flags & IFF_NO_PI)
-		tun->flags |= TUN_NO_PI;
-	else
-		tun->flags &= ~TUN_NO_PI;
-
-	/* This flag has no real effect.  We track the value for backwards
-	 * compatibility.
-	 */
-	if (ifr->ifr_flags & IFF_ONE_QUEUE)
-		tun->flags |= TUN_ONE_QUEUE;
-	else
-		tun->flags &= ~TUN_ONE_QUEUE;
-
-	if (ifr->ifr_flags & IFF_VNET_HDR)
-		tun->flags |= TUN_VNET_HDR;
-	else
-		tun->flags &= ~TUN_VNET_HDR;
-
-	if (ifr->ifr_flags & IFF_MULTI_QUEUE)
-		tun->flags |= TUN_TAP_MQ;
-	else
-		tun->flags &= ~TUN_TAP_MQ;
+	tun->flags = (tun->flags & ~TUN_FEATURES) |
+		(ifr->ifr_flags & TUN_FEATURES);
 
 	/* Make sure persistent devices do not get stuck in
 	 * xoff state.
@@ -1890,9 +1860,9 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	if (cmd == TUNGETFEATURES) {
 		/* Currently this just means: "what IFF flags are valid?".
 		 * This is needed because we never checked for invalid flags on
-		 * TUNSETIFF. */
-		return put_user(IFF_TUN | IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE |
-				IFF_VNET_HDR | IFF_MULTI_QUEUE,
+		 * TUNSETIFF.
+		 */
+		return put_user(IFF_TUN | IFF_TAP | TUN_FEATURES,
 				(unsigned int __user*)argp);
 	} else if (cmd == TUNSETQUEUE)
 		return tun_set_queue(file, &ifr);
