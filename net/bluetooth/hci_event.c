@@ -3324,8 +3324,8 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	 */
 	if (key->type == HCI_LK_DEBUG_COMBINATION &&
 	    !test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags)) {
-		list_del(&key->list);
-		kfree(key);
+		list_del_rcu(&key->list);
+		kfree_rcu(key, rcu);
 	} else if (conn) {
 		if (persistent)
 			clear_bit(HCI_CONN_FLUSH_KEY, &conn->flags);

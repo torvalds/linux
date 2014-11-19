@@ -130,6 +130,7 @@ struct smp_irk {
 
 struct link_key {
 	struct list_head list;
+	struct rcu_head rcu;
 	bdaddr_t bdaddr;
 	u8 type;
 	u8 val[HCI_LINK_KEY_SIZE];
