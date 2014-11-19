@@ -878,6 +878,10 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 	};
 	int ret;
 
+	ret = iwl_mvm_switch_to_d3(mvm);
+	if (ret)
+		return ret;
+
 	ret = iwl_mvm_d3_reprogram(mvm, vif, ap_sta);
 	if (ret)
 		return ret;
@@ -962,6 +966,33 @@ out:
 	return ret;
 }
 
+static int
+iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
+			 struct cfg80211_wowlan *wowlan,
+			 struct cfg80211_sched_scan_request *nd_config,
+			 struct ieee80211_vif *vif)
+{
+	struct iwl_wowlan_config_cmd_v3 wowlan_config_cmd = {};
+	int ret;
+
+	ret = iwl_mvm_switch_to_d3(mvm);
+	if (ret)
+		return ret;
+
+	/* rfkill release can be either for wowlan or netdetect */
+	if (wowlan->rfkill_release)
+		wowlan_config_cmd.common.wakeup_filter |=
+			cpu_to_le32(IWL_WOWLAN_WAKEUP_RF_KILL_DEASSERT);
+
+	ret = iwl_mvm_send_wowlan_config_cmd(mvm, &wowlan_config_cmd);
+	if (ret)
+		return ret;
+
+	ret = iwl_mvm_scan_offload_start(mvm, vif, nd_config, &mvm->nd_ies);
+
+	return ret;
+}
+
 static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			     struct cfg80211_wowlan *wowlan,
 			     bool test)
@@ -970,7 +1001,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	struct ieee80211_vif *vif = NULL;
 	struct iwl_mvm_vif *mvmvif = NULL;
 	struct ieee80211_sta *ap_sta = NULL;
-	struct iwl_wowlan_config_cmd_v3 wowlan_config_cmd = {};
 	struct iwl_d3_manager_config d3_cfg_cmd_data = {
 		/*
 		 * Program the minimum sleep time to 10 seconds, as many
@@ -1007,8 +1037,20 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	/* if we're associated, this is wowlan */
-	if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
+	if (mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT) {
+		/* if we're not associated, this must be netdetect */
+		if (!wowlan->nd_config && !mvm->nd_config) {
+			ret = 1;
+			goto out_noreset;
+		}
+
+		ret = iwl_mvm_netdetect_config(
+			mvm, wowlan, wowlan->nd_config ?: mvm->nd_config, vif);
+		if (ret)
+			goto out;
+	} else {
+		struct iwl_wowlan_config_cmd_v3 wowlan_config_cmd = {};
+
 		ap_sta = rcu_dereference_protected(
 			mvm->fw_id_to_mac_id[mvmvif->ap_sta_id],
 			lockdep_is_held(&mvm->mutex));
@@ -1021,29 +1063,10 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 						vif, mvmvif, ap_sta);
 		if (ret)
 			goto out_noreset;
-
-		ret = iwl_mvm_switch_to_d3(mvm);
-		if (ret)
-			goto out;
-
 		ret = iwl_mvm_wowlan_config(mvm, wowlan, &wowlan_config_cmd,
 					    vif, mvmvif, ap_sta);
 		if (ret)
 			goto out;
-	} else if (wowlan->nd_config || mvm->nd_config) {
-		ret = iwl_mvm_switch_to_d3(mvm);
-		if (ret)
-			goto out;
-
-		ret = iwl_mvm_scan_offload_start(
-			mvm, vif,
-			wowlan->nd_config ?: mvm->nd_config,
-			&mvm->nd_ies);
-		if (ret)
-			goto out;
-	} else {
-		ret = 1;
-		goto out_noreset;
 	}
 
 	ret = iwl_mvm_power_update_device(mvm);
