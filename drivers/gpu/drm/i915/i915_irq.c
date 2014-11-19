@@ -255,14 +255,26 @@ void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 	snb_update_pm_irq(dev_priv, mask, 0);
 }
 
+void gen6_reset_rps_interrupts(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t reg = gen6_pm_iir(dev_priv);
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	I915_WRITE(reg, dev_priv->pm_rps_events);
+	I915_WRITE(reg, dev_priv->pm_rps_events);
+	POSTING_READ(reg);
+	spin_unlock_irq(&dev_priv->irq_lock);
+}
+
 void gen6_enable_rps_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir);
+	WARN_ON(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
 	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
-	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 

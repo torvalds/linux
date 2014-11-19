@@ -791,6 +791,7 @@ void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen6_reset_rps_interrupts(struct drm_device *dev);
 void gen6_enable_rps_interrupts(struct drm_device *dev);
 void gen6_disable_rps_interrupts(struct drm_device *dev);
 void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);
