@@ -216,7 +216,7 @@ struct drm_property {
 	uint64_t *values;
 	struct drm_device *dev;
 
-	struct list_head enum_blob_list;
+	struct list_head enum_list;
 };
 
 struct drm_crtc;
