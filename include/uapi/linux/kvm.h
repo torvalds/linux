@@ -162,7 +162,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_TPR_ACCESS       12
 #define KVM_EXIT_S390_SIEIC       13
 #define KVM_EXIT_S390_RESET       14
-#define KVM_EXIT_DCR              15
+#define KVM_EXIT_DCR              15 /* deprecated */
 #define KVM_EXIT_NMI              16
 #define KVM_EXIT_INTERNAL_ERROR   17
 #define KVM_EXIT_OSI              18
@@ -268,7 +268,7 @@ struct kvm_run {
 			__u64 trans_exc_code;
 			__u32 pgm_code;
 		} s390_ucontrol;
-		/* KVM_EXIT_DCR */
+		/* KVM_EXIT_DCR (deprecated) */
 		struct {
 			__u32 dcrn;
 			__u32 data;
@@ -399,13 +399,18 @@ struct kvm_vapic_addr {
 	__u64 vapic_addr;
 };
 
-/* for KVM_SET_MPSTATE */
+/* for KVM_SET_MP_STATE */
 
+/* not all states are valid on all architectures */
 #define KVM_MP_STATE_RUNNABLE          0
 #define KVM_MP_STATE_UNINITIALIZED     1
 #define KVM_MP_STATE_INIT_RECEIVED     2
 #define KVM_MP_STATE_HALTED            3
 #define KVM_MP_STATE_SIPI_RECEIVED     4
+#define KVM_MP_STATE_STOPPED           5
+#define KVM_MP_STATE_CHECK_STOP        6
+#define KVM_MP_STATE_OPERATING         7
+#define KVM_MP_STATE_LOAD              8
 
 struct kvm_mp_state {
 	__u32 mp_state;
@@ -758,6 +763,8 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_VM_ATTRIBUTES 101
 #define KVM_CAP_ARM_PSCI_0_2 102
 #define KVM_CAP_PPC_FIXUP_HCALL 103
+#define KVM_CAP_PPC_ENABLE_HCALL 104
+#define KVM_CAP_CHECK_EXTENSION_VM 105
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

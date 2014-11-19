@@ -590,8 +590,8 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 		else
 			clkrate = clk_round_rate(ssi_private->baudclk, tmprate);
 
-		do_div(clkrate, factor);
-		afreq = (u32)clkrate / (i + 1);
+		clkrate /= factor;
+		afreq = clkrate / (i + 1);
 
 		if (freq == afreq)
 			sub = 0;
@@ -748,8 +748,9 @@ static int fsl_ssi_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int _fsl_ssi_set_dai_fmt(struct fsl_ssi_private *ssi_private,
-		unsigned int fmt)
+static int _fsl_ssi_set_dai_fmt(struct device *dev,
+				struct fsl_ssi_private *ssi_private,
+				unsigned int fmt)
 {
 	struct regmap *regs = ssi_private->regs;
 	u32 strcr = 0, stcr, srcr, scr, mask;
@@ -758,7 +759,7 @@ static int _fsl_ssi_set_dai_fmt(struct fsl_ssi_private *ssi_private,
 	ssi_private->dai_fmt = fmt;
 
 	if (fsl_ssi_is_i2s_master(ssi_private) && IS_ERR(ssi_private->baudclk)) {
-		dev_err(&ssi_private->pdev->dev, "baudclk is missing which is necessary for master mode\n");
+		dev_err(dev, "baudclk is missing which is necessary for master mode\n");
 		return -EINVAL;
 	}
 
@@ -913,7 +914,7 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
 
-	return _fsl_ssi_set_dai_fmt(ssi_private, fmt);
+	return _fsl_ssi_set_dai_fmt(cpu_dai->dev, ssi_private, fmt);
 }
 
 /**
@@ -1032,12 +1033,14 @@ static const struct snd_soc_dai_ops fsl_ssi_dai_ops = {
 static struct snd_soc_dai_driver fsl_ssi_dai_template = {
 	.probe = fsl_ssi_dai_probe,
 	.playback = {
+		.stream_name = "CPU-Playback",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = FSLSSI_I2S_RATES,
 		.formats = FSLSSI_I2S_FORMATS,
 	},
 	.capture = {
+		.stream_name = "CPU-Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = FSLSSI_I2S_RATES,
@@ -1385,7 +1388,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 
 done:
 	if (ssi_private->dai_fmt)
-		_fsl_ssi_set_dai_fmt(ssi_private, ssi_private->dai_fmt);
+		_fsl_ssi_set_dai_fmt(&pdev->dev, ssi_private,
+				     ssi_private->dai_fmt);
 
 	return 0;
 

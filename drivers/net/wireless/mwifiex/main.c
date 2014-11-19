@@ -1,7 +1,7 @@
 /*
  * Marvell Wireless LAN device driver: major functions
  *
- * Copyright (C) 2011, Marvell International Ltd.
+ * Copyright (C) 2011-2014, Marvell International Ltd.
  *
  * This software file (the "File") is distributed by Marvell International
  * Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -33,6 +33,7 @@ static void scan_delay_timer_fn(unsigned long data)
 	struct mwifiex_private *priv = (struct mwifiex_private *)data;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *cmd_node, *tmp_node;
+	spinlock_t *scan_q_lock = &adapter->scan_pending_q_lock;
 	unsigned long flags;
 
 	if (adapter->surprise_removed)
@@ -44,13 +45,13 @@ static void scan_delay_timer_fn(unsigned long data)
 		 * Abort scan operation by cancelling all pending scan
 		 * commands
 		 */
-		spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
+		spin_lock_irqsave(scan_q_lock, flags);
 		list_for_each_entry_safe(cmd_node, tmp_node,
 					 &adapter->scan_pending_q, list) {
 			list_del(&cmd_node->list);
 			mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
 		}
-		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
+		spin_unlock_irqrestore(scan_q_lock, flags);
 
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->scan_processing = false;
@@ -79,12 +80,17 @@ static void scan_delay_timer_fn(unsigned long data)
 			 */
 			adapter->scan_delay_cnt = 0;
 			adapter->empty_tx_q_cnt = 0;
-			spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
+			spin_lock_irqsave(scan_q_lock, flags);
+
+			if (list_empty(&adapter->scan_pending_q)) {
+				spin_unlock_irqrestore(scan_q_lock, flags);
+				goto done;
+			}
+
 			cmd_node = list_first_entry(&adapter->scan_pending_q,
 						    struct cmd_ctrl_node, list);
 			list_del(&cmd_node->list);
-			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
-					       flags);
+			spin_unlock_irqrestore(scan_q_lock, flags);
 
 			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
 							true);
@@ -609,7 +615,6 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
-	struct timeval tv;
 
 	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d-%d): Data <= kernel\n",
 		jiffies, priv->bss_type, priv->bss_num);
@@ -657,8 +662,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * firmware for aggregate delay calculation for stats and
 	 * MSDU lifetime expiry.
 	 */
-	do_gettimeofday(&tv);
-	skb->tstamp = timeval_to_ktime(tv);
+	__net_timestamp(skb);
 
 	mwifiex_queue_tx_pkt(priv, skb);
 
@@ -882,6 +886,8 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 		goto err_kmalloc;
 
 	INIT_WORK(&adapter->main_work, mwifiex_main_work_queue);
+	if (adapter->if_ops.iface_work)
+		INIT_WORK(&adapter->iface_work, adapter->if_ops.iface_work);
 
 	/* Register the device. Fill up the private data structure with relevant
 	   information from the card. */

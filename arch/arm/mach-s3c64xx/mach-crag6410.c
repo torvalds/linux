@@ -58,7 +58,6 @@
 #include <linux/platform_data/spi-s3c64xx.h>
 
 #include <plat/keypad.h>
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/adc.h>

@@ -25,7 +25,7 @@
 ENTRY(c_backtrace)
 
 #if !defined(CONFIG_FRAME_POINTER) || !defined(CONFIG_PRINTK)
-		mov	pc, lr
+		ret	lr
 ENDPROC(c_backtrace)
 #else
 		stmfd	sp!, {r4 - r8, lr}	@ Save an extra register so we have a location...

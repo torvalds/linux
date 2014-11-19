@@ -41,7 +41,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
 #define CFS_WS_NAME_LEN	 16
 
@@ -365,6 +365,7 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 		return -ENOMEM;
 
 	strncpy(sched->ws_name, name, CFS_WS_NAME_LEN);
+	sched->ws_name[CFS_WS_NAME_LEN - 1] = '\0';
 	sched->ws_cptab = cptab;
 	sched->ws_cpt = cpt;
 

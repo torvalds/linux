@@ -25,6 +25,7 @@
 #include <asm/mach/arch.h>
 
 #include "common.h"
+#include "devices.h"
 
 static void __init
 fixup_clep7312(struct tag *tags, char **cmdline)
@@ -37,8 +38,8 @@ MACHINE_START(CLEP7212, "Cirrus Logic 7212/7312")
 	.atag_offset	= 0x0100,
 	.fixup		= fixup_clep7312,
 	.map_io		= clps711x_map_io,
-	.init_early	= clps711x_init_early,
 	.init_irq	= clps711x_init_irq,
 	.init_time	= clps711x_timer_init,
+	.init_machine	= clps711x_devices_init,
 	.restart	= clps711x_restart,
 MACHINE_END

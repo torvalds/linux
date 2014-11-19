@@ -539,7 +539,7 @@ static umode_t beiscsi_eth_get_attr_visibility(void *data, int type)
 }
 
 /*------------------- PCI Driver operations and data ----------------- */
-static DEFINE_PCI_DEVICE_TABLE(beiscsi_pci_id_table) = {
+static const struct pci_device_id beiscsi_pci_id_table[] = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
@@ -3538,10 +3538,9 @@ static int be_queue_alloc(struct beiscsi_hba *phba, struct be_queue_info *q,
 	q->len = len;
 	q->entry_size = entry_size;
 	mem->size = len * entry_size;
-	mem->va = pci_alloc_consistent(phba->pcidev, mem->size, &mem->dma);
+	mem->va = pci_zalloc_consistent(phba->pcidev, mem->size, &mem->dma);
 	if (!mem->va)
 		return -ENOMEM;
-	memset(mem->va, 0, mem->size);
 	return 0;
 }
 
@@ -4320,9 +4319,9 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 			    "BM_%d : No boot session\n");
 		return ret;
 	}
-	nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
-				sizeof(*session_resp),
-				&nonemb_cmd.dma);
+	nonemb_cmd.va = pci_zalloc_consistent(phba->ctrl.pdev,
+					      sizeof(*session_resp),
+					      &nonemb_cmd.dma);
 	if (nonemb_cmd.va == NULL) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
@@ -4332,7 +4331,6 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 		return -ENOMEM;
 	}
 
-	memset(nonemb_cmd.va, 0, sizeof(*session_resp));
 	tag = mgmt_get_session_info(phba, s_handle,
 				    &nonemb_cmd);
 	if (!tag) {

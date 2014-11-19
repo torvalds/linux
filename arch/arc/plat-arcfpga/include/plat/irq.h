@@ -24,6 +24,4 @@
 #define IDU_INTERRUPT_0 16
 #endif
 
-extern void __init plat_fpga_init_IRQ(void);
-
 #endif

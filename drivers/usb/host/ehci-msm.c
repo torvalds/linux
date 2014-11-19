@@ -190,7 +190,7 @@ static const struct dev_pm_ops ehci_msm_dev_pm_ops = {
 	.resume          = ehci_msm_pm_resume,
 };
 
-static struct of_device_id msm_ehci_dt_match[] = {
+static const struct of_device_id msm_ehci_dt_match[] = {
 	{ .compatible = "qcom,ehci-host", },
 	{}
 };

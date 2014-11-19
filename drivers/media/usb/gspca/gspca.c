@@ -603,10 +603,13 @@ static void gspca_stream_off(struct gspca_dev *gspca_dev)
 }
 
 /*
- * look for an input transfer endpoint in an alternate setting
+ * look for an input transfer endpoint in an alternate setting.
+ *
+ * If xfer_ep is invalid, return the first valid ep found, otherwise
+ * look for exactly the ep with address equal to xfer_ep.
  */
 static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
-					  int xfer)
+					  int xfer, int xfer_ep)
 {
 	struct usb_host_endpoint *ep;
 	int i, attr;
@@ -616,7 +619,8 @@ static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
 		attr = ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 		if (attr == xfer
 		    && ep->desc.wMaxPacketSize != 0
-		    && usb_endpoint_dir_in(&ep->desc))
+		    && usb_endpoint_dir_in(&ep->desc)
+		    && (xfer_ep < 0 || ep->desc.bEndpointAddress == xfer_ep))
 			return ep;
 	}
 	return NULL;
@@ -689,7 +693,8 @@ static int build_isoc_ep_tb(struct gspca_dev *gspca_dev,
 		found = 0;
 		for (j = 0; j < nbalt; j++) {
 			ep = alt_xfer(&intf->altsetting[j],
-				      USB_ENDPOINT_XFER_ISOC);
+				      USB_ENDPOINT_XFER_ISOC,
+				      gspca_dev->xfer_ep);
 			if (ep == NULL)
 				continue;
 			if (ep->desc.bInterval == 0) {
@@ -862,7 +867,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 	/* if bulk or the subdriver forced an altsetting, get the endpoint */
 	if (gspca_dev->alt != 0) {
 		gspca_dev->alt--;	/* (previous version compatibility) */
-		ep = alt_xfer(&intf->altsetting[gspca_dev->alt], xfer);
+		ep = alt_xfer(&intf->altsetting[gspca_dev->alt], xfer,
+			      gspca_dev->xfer_ep);
 		if (ep == NULL) {
 			pr_err("bad altsetting %d\n", gspca_dev->alt);
 			return -EIO;
@@ -904,7 +910,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		if (!gspca_dev->cam.no_urb_create) {
 			PDEBUG(D_STREAM, "init transfer alt %d", alt);
 			ret = create_urbs(gspca_dev,
-				alt_xfer(&intf->altsetting[alt], xfer));
+				alt_xfer(&intf->altsetting[alt], xfer,
+					 gspca_dev->xfer_ep));
 			if (ret < 0) {
 				destroy_urbs(gspca_dev);
 				goto out;
@@ -1102,8 +1109,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
 	fmt->fmt.pix = gspca_dev->pixfmt;
-	/* some drivers use priv internally, zero it before giving it to
-	   userspace */
+	/* some drivers use priv internally, zero it before giving it back to
+	   the core */
 	fmt->fmt.pix.priv = 0;
 	return 0;
 }
@@ -1139,8 +1146,8 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 		fmt->fmt.pix.height = h;
 		gspca_dev->sd_desc->try_fmt(gspca_dev, fmt);
 	}
-	/* some drivers use priv internally, zero it before giving it to
-	   userspace */
+	/* some drivers use priv internally, zero it before giving it back to
+	   the core */
 	fmt->fmt.pix.priv = 0;
 	return mode;			/* used when s_fmt */
 }
@@ -2030,6 +2037,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	}
 	gspca_dev->dev = dev;
 	gspca_dev->iface = intf->cur_altsetting->desc.bInterfaceNumber;
+	gspca_dev->xfer_ep = -1;
 
 	/* check if any audio device */
 	if (dev->actconfig->desc.bNumInterfaces != 1) {
@@ -2058,7 +2066,6 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	gspca_dev->vdev = gspca_template;
 	gspca_dev->vdev.v4l2_dev = &gspca_dev->v4l2_dev;
 	video_set_drvdata(&gspca_dev->vdev, gspca_dev);
-	set_bit(V4L2_FL_USE_FH_PRIO, &gspca_dev->vdev.flags);
 	gspca_dev->module = module;
 	gspca_dev->present = 1;
 

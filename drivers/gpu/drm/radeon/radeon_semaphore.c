@@ -34,7 +34,7 @@
 int radeon_semaphore_create(struct radeon_device *rdev,
 			    struct radeon_semaphore **semaphore)
 {
-	uint32_t *cpu_addr;
+	uint64_t *cpu_addr;
 	int i, r;
 
 	*semaphore = kmalloc(sizeof(struct radeon_semaphore), GFP_KERNEL);
@@ -179,7 +179,7 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 			continue;
 		}
 
-		radeon_ring_commit(rdev, &rdev->ring[i]);
+		radeon_ring_commit(rdev, &rdev->ring[i], false);
 		radeon_fence_note_sync(fence, ring);
 
 		semaphore->gpu_addr += 8;

@@ -87,7 +87,7 @@ enum power_event {
 				(reg * 8))
 #define GMAC_ADDR_LOW(reg)	(((reg > 15) ? 0x00000804 : 0x00000044) + \
 				(reg * 8))
-#define GMAC_MAX_PERFECT_ADDRESSES	32
+#define GMAC_MAX_PERFECT_ADDRESSES	1
 
 /* PCS registers (AN/TBI/SGMII/RGMII) offset */
 #define GMAC_AN_CTRL	0x000000c0	/* AN control */
@@ -153,7 +153,7 @@ enum inter_frame_gap {
 #define GMAC_CONTROL_RE		0x00000004	/* Receiver Enable */
 
 #define GMAC_CORE_INIT (GMAC_CONTROL_JD | GMAC_CONTROL_PS | GMAC_CONTROL_ACS | \
-			GMAC_CONTROL_BE)
+			GMAC_CONTROL_BE | GMAC_CONTROL_DCRS)
 
 /* GMAC Frame Filter defines */
 #define GMAC_FRAME_FILTER_PR	0x00000001	/* Promiscuous Mode */
@@ -261,6 +261,7 @@ enum rtc_control {
 #define GMAC_MMC_RX_INTR   0x104
 #define GMAC_MMC_TX_INTR   0x108
 #define GMAC_MMC_RX_CSUM_OFFLOAD   0x208
+#define GMAC_EXTHASH_BASE  0x500
 
 extern const struct stmmac_dma_ops dwmac1000_dma_ops;
 #endif /* __DWMAC1000_H__ */

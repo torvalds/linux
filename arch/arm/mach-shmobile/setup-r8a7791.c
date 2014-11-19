@@ -26,11 +26,13 @@
 #include <linux/platform_data/irq-renesas-irqc.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
-#include <mach/r8a7791.h>
-#include <mach/rcar-gen2.h>
+
 #include <asm/mach/arch.h>
+
+#include "common.h"
+#include "irqs.h"
+#include "r8a7791.h"
+#include "rcar-gen2.h"
 
 static const struct resource pfc_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe6060000, 0x250),
@@ -65,7 +67,7 @@ R8A7791_GPIO(6, 0xe6055400, 32);
 R8A7791_GPIO(7, 0xe6055800, 26);
 
 #define r8a7791_register_gpio(idx)					\
-	platform_device_register_resndata(&platform_bus, "gpio_rcar", idx, \
+	platform_device_register_resndata(NULL, "gpio_rcar", idx,	\
 		r8a7791_gpio##idx##_resources,				\
 		ARRAY_SIZE(r8a7791_gpio##idx##_resources),		\
 		&r8a7791_gpio##idx##_platform_data,			\
@@ -122,7 +124,7 @@ R8A7791_SCIFA(13, 0xe6c78000, gic_spi(30)); /* SCIFA4 */
 R8A7791_SCIFA(14, 0xe6c80000, gic_spi(31)); /* SCIFA5 */
 
 #define r8a7791_register_scif(index)					       \
-	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+	platform_device_register_resndata(NULL, "sh-sci", index,  	       \
 					  scif##index##_resources,	       \
 					  ARRAY_SIZE(scif##index##_resources), \
 					  &scif##index##_platform_data,	       \
@@ -138,7 +140,7 @@ static struct resource cmt0_resources[] = {
 };
 
 #define r8a7791_register_cmt(idx)					\
-	platform_device_register_resndata(&platform_bus, "sh-cmt-48-gen2", \
+	platform_device_register_resndata(NULL, "sh-cmt-48-gen2",	\
 					  idx, cmt##idx##_resources,	\
 					  ARRAY_SIZE(cmt##idx##_resources), \
 					  &cmt##idx##_platform_data,	\
@@ -163,7 +165,7 @@ static struct resource irqc0_resources[] = {
 };
 
 #define r8a7791_register_irqc(idx)					\
-	platform_device_register_resndata(&platform_bus, "renesas_irqc", \
+	platform_device_register_resndata(NULL, "renesas_irqc",		\
 					  idx, irqc##idx##_resources,	\
 					  ARRAY_SIZE(irqc##idx##_resources), \
 					  &irqc##idx##_data,		\
@@ -217,6 +219,8 @@ DT_MACHINE_START(R8A7791_DT, "Generic R8A7791 (Flattened Device Tree)")
 	.smp		= smp_ops(r8a7791_smp_ops),
 	.init_early	= shmobile_init_delay,
 	.init_time	= rcar_gen2_timer_init,
+	.init_late	= shmobile_init_late,
+	.reserve	= rcar_gen2_reserve,
 	.dt_compat	= r8a7791_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

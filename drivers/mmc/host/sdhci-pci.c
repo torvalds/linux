@@ -103,6 +103,10 @@ static const struct sdhci_pci_fixes sdhci_cafe = {
 			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
 };
 
+static const struct sdhci_pci_fixes sdhci_intel_qrk = {
+	.quirks		= SDHCI_QUIRK_NO_HISPD_BIT,
+};
+
 static int mrst_hc_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA;
@@ -264,7 +268,7 @@ static void sdhci_pci_int_hw_reset(struct sdhci_host *host)
 static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE |
-				 MMC_CAP_HW_RESET;
+				 MMC_CAP_HW_RESET | MMC_CAP_1_8V_DDR;
 	slot->host->mmc->caps2 |= MMC_CAP2_HC_ERASE_SZ;
 	slot->hw_reset = sdhci_pci_int_hw_reset;
 	return 0;
@@ -279,6 +283,7 @@ static int byt_sdio_probe_slot(struct sdhci_pci_slot *slot)
 static const struct sdhci_pci_fixes sdhci_intel_byt_emmc = {
 	.allow_runtime_pm = true,
 	.probe_slot	= byt_emmc_probe_slot,
+	.quirks2	= SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
 static const struct sdhci_pci_fixes sdhci_intel_byt_sdio = {
@@ -753,6 +758,14 @@ static const struct pci_device_id pci_ids[] = {
 
 	{
 		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_QRK_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_qrk,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
 		.device		= PCI_DEVICE_ID_INTEL_MRST_SD0,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
@@ -1130,18 +1143,13 @@ static int sdhci_pci_suspend(struct device *dev)
 			goto err_pci_suspend;
 	}
 
-	pci_save_state(pdev);
 	if (pm_flags & MMC_PM_KEEP_POWER) {
-		if (pm_flags & MMC_PM_WAKE_SDIO_IRQ) {
-			pci_pme_active(pdev, true);
-			pci_enable_wake(pdev, PCI_D3hot, 1);
-		}
-		pci_set_power_state(pdev, PCI_D3hot);
-	} else {
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_disable_device(pdev);
-		pci_set_power_state(pdev, PCI_D3hot);
-	}
+		if (pm_flags & MMC_PM_WAKE_SDIO_IRQ)
+			device_init_wakeup(dev, true);
+		else
+			device_init_wakeup(dev, false);
+	} else
+		device_init_wakeup(dev, false);
 
 	return 0;
 
@@ -1161,12 +1169,6 @@ static int sdhci_pci_resume(struct device *dev)
 	chip = pci_get_drvdata(pdev);
 	if (!chip)
 		return 0;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	ret = pci_enable_device(pdev);
-	if (ret)
-		return ret;
 
 	if (chip->fixes && chip->fixes->resume) {
 		ret = chip->fixes->resume(chip);

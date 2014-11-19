@@ -107,5 +107,5 @@ struct cgroup_subsys net_cls_cgrp_subsys = {
 	.css_online		= cgrp_css_online,
 	.css_free		= cgrp_css_free,
 	.attach			= cgrp_attach,
-	.base_cftypes		= ss_files,
+	.legacy_cftypes		= ss_files,
 };

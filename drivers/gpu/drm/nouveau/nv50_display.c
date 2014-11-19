@@ -28,6 +28,8 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
 
+#include <nvif/class.h>
+
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_gem.h"
@@ -36,15 +38,6 @@
 #include "nouveau_crtc.h"
 #include "nouveau_fence.h"
 #include "nv50_display.h"
-
-#include <core/client.h>
-#include <core/gpuobj.h>
-#include <core/class.h>
-
-#include <subdev/timer.h>
-#include <subdev/bar.h>
-#include <subdev/fb.h>
-#include <subdev/i2c.h>
 
 #define EVO_DMA_NR 9
 
@@ -60,45 +53,34 @@
 #define EVO_FLIP_SEM0(c)  EVO_SYNC((c) + 1, 0x00)
 #define EVO_FLIP_SEM1(c)  EVO_SYNC((c) + 1, 0x10)
 
-#define EVO_CORE_HANDLE      (0xd1500000)
-#define EVO_CHAN_HANDLE(t,i) (0xd15c0000 | (((t) & 0x00ff) << 8) | (i))
-#define EVO_CHAN_OCLASS(t,c) ((nv_hclass(c) & 0xff00) | ((t) & 0x00ff))
-#define EVO_PUSH_HANDLE(t,i) (0xd15b0000 | (i) |                               \
-			      (((NV50_DISP_##t##_CLASS) & 0x00ff) << 8))
-
 /******************************************************************************
  * EVO channel
  *****************************************************************************/
 
 struct nv50_chan {
-	struct nouveau_object *user;
-	u32 handle;
+	struct nvif_object user;
 };
 
 static int
-nv50_chan_create(struct nouveau_object *core, u32 bclass, u8 head,
+nv50_chan_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 		 void *data, u32 size, struct nv50_chan *chan)
 {
-	struct nouveau_object *client = nv_pclass(core, NV_CLIENT_CLASS);
-	const u32 oclass = EVO_CHAN_OCLASS(bclass, core);
-	const u32 handle = EVO_CHAN_HANDLE(bclass, head);
-	int ret;
-
-	ret = nouveau_object_new(client, EVO_CORE_HANDLE, handle,
-				 oclass, data, size, &chan->user);
-	if (ret)
-		return ret;
-
-	chan->handle = handle;
-	return 0;
+	while (oclass[0]) {
+		int ret = nvif_object_init(disp, NULL, (oclass[0] << 16) | head,
+					   oclass[0], data, size,
+					  &chan->user);
+		if (oclass++, ret == 0) {
+			nvif_object_map(&chan->user);
+			return ret;
+		}
+	}
+	return -ENOSYS;
 }
 
 static void
-nv50_chan_destroy(struct nouveau_object *core, struct nv50_chan *chan)
+nv50_chan_destroy(struct nv50_chan *chan)
 {
-	struct nouveau_object *client = nv_pclass(core, NV_CLIENT_CLASS);
-	if (chan->handle)
-		nouveau_object_del(client, EVO_CORE_HANDLE, chan->handle);
+	nvif_object_fini(&chan->user);
 }
 
 /******************************************************************************
@@ -110,16 +92,70 @@ struct nv50_pioc {
 };
 
 static void
-nv50_pioc_destroy(struct nouveau_object *core, struct nv50_pioc *pioc)
+nv50_pioc_destroy(struct nv50_pioc *pioc)
 {
-	nv50_chan_destroy(core, &pioc->base);
+	nv50_chan_destroy(&pioc->base);
 }
 
 static int
-nv50_pioc_create(struct nouveau_object *core, u32 bclass, u8 head,
+nv50_pioc_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 		 void *data, u32 size, struct nv50_pioc *pioc)
 {
-	return nv50_chan_create(core, bclass, head, data, size, &pioc->base);
+	return nv50_chan_create(disp, oclass, head, data, size, &pioc->base);
+}
+
+/******************************************************************************
+ * Cursor Immediate
+ *****************************************************************************/
+
+struct nv50_curs {
+	struct nv50_pioc base;
+};
+
+static int
+nv50_curs_create(struct nvif_object *disp, int head, struct nv50_curs *curs)
+{
+	struct nv50_disp_cursor_v0 args = {
+		.head = head,
+	};
+	static const u32 oclass[] = {
+		GK104_DISP_CURSOR,
+		GF110_DISP_CURSOR,
+		GT214_DISP_CURSOR,
+		G82_DISP_CURSOR,
+		NV50_DISP_CURSOR,
+		0
+	};
+
+	return nv50_pioc_create(disp, oclass, head, &args, sizeof(args),
+			       &curs->base);
+}
+
+/******************************************************************************
+ * Overlay Immediate
+ *****************************************************************************/
+
+struct nv50_oimm {
+	struct nv50_pioc base;
+};
+
+static int
+nv50_oimm_create(struct nvif_object *disp, int head, struct nv50_oimm *oimm)
+{
+	struct nv50_disp_cursor_v0 args = {
+		.head = head,
+	};
+	static const u32 oclass[] = {
+		GK104_DISP_OVERLAY,
+		GF110_DISP_OVERLAY,
+		GT214_DISP_OVERLAY,
+		G82_DISP_OVERLAY,
+		NV50_DISP_OVERLAY,
+		0
+	};
+
+	return nv50_pioc_create(disp, oclass, head, &args, sizeof(args),
+			       &oimm->base);
 }
 
 /******************************************************************************
@@ -131,6 +167,9 @@ struct nv50_dmac {
 	dma_addr_t handle;
 	u32 *ptr;
 
+	struct nvif_object sync;
+	struct nvif_object vram;
+
 	/* Protects against concurrent pushbuf access to this channel, lock is
 	 * grabbed by evo_wait (if the pushbuf reservation is successful) and
 	 * dropped again by evo_kick. */
@@ -138,207 +177,113 @@ struct nv50_dmac {
 };
 
 static void
-nv50_dmac_destroy(struct nouveau_object *core, struct nv50_dmac *dmac)
+nv50_dmac_destroy(struct nv50_dmac *dmac, struct nvif_object *disp)
 {
+	nvif_object_fini(&dmac->vram);
+	nvif_object_fini(&dmac->sync);
+
+	nv50_chan_destroy(&dmac->base);
+
 	if (dmac->ptr) {
-		struct pci_dev *pdev = nv_device(core)->pdev;
+		struct pci_dev *pdev = nvkm_device(nvif_device(disp))->pdev;
 		pci_free_consistent(pdev, PAGE_SIZE, dmac->ptr, dmac->handle);
 	}
-
-	nv50_chan_destroy(core, &dmac->base);
 }
 
 static int
-nv50_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
-{
-	struct nouveau_fb *pfb = nouveau_fb(core);
-	struct nouveau_object *client = nv_pclass(core, NV_CLIENT_CLASS);
-	struct nouveau_object *object;
-	int ret = nouveau_object_new(client, parent, NvEvoVRAM_LP,
-				     NV_DMA_IN_MEMORY_CLASS,
-				     &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
-					.start = 0,
-					.limit = pfb->ram->size - 1,
-					.conf0 = NV50_DMA_CONF0_ENABLE |
-					         NV50_DMA_CONF0_PART_256,
-				     }, sizeof(struct nv_dma_class), &object);
-	if (ret)
-		return ret;
-
-	ret = nouveau_object_new(client, parent, NvEvoFB16,
-				 NV_DMA_IN_MEMORY_CLASS,
-				 &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
-					.start = 0,
-					.limit = pfb->ram->size - 1,
-					.conf0 = NV50_DMA_CONF0_ENABLE | 0x70 |
-					         NV50_DMA_CONF0_PART_256,
-				 }, sizeof(struct nv_dma_class), &object);
-	if (ret)
-		return ret;
-
-	ret = nouveau_object_new(client, parent, NvEvoFB32,
-				 NV_DMA_IN_MEMORY_CLASS,
-				 &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
-					.start = 0,
-					.limit = pfb->ram->size - 1,
-					.conf0 = NV50_DMA_CONF0_ENABLE | 0x7a |
-					         NV50_DMA_CONF0_PART_256,
-				 }, sizeof(struct nv_dma_class), &object);
-	return ret;
-}
-
-static int
-nvc0_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
-{
-	struct nouveau_fb *pfb = nouveau_fb(core);
-	struct nouveau_object *client = nv_pclass(core, NV_CLIENT_CLASS);
-	struct nouveau_object *object;
-	int ret = nouveau_object_new(client, parent, NvEvoVRAM_LP,
-				     NV_DMA_IN_MEMORY_CLASS,
-				     &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
-					.start = 0,
-					.limit = pfb->ram->size - 1,
-					.conf0 = NVC0_DMA_CONF0_ENABLE,
-				     }, sizeof(struct nv_dma_class), &object);
-	if (ret)
-		return ret;
-
-	ret = nouveau_object_new(client, parent, NvEvoFB16,
-				 NV_DMA_IN_MEMORY_CLASS,
-				 &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
-					.start = 0,
-					.limit = pfb->ram->size - 1,
-					.conf0 = NVC0_DMA_CONF0_ENABLE | 0xfe,
-				 }, sizeof(struct nv_dma_class), &object);
-	if (ret)
-		return ret;
-
-	ret = nouveau_object_new(client, parent, NvEvoFB32,
-				 NV_DMA_IN_MEMORY_CLASS,
-				 &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
-					.start = 0,
-					.limit = pfb->ram->size - 1,
-					.conf0 = NVC0_DMA_CONF0_ENABLE | 0xfe,
-				 }, sizeof(struct nv_dma_class), &object);
-	return ret;
-}
-
-static int
-nvd0_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
-{
-	struct nouveau_fb *pfb = nouveau_fb(core);
-	struct nouveau_object *client = nv_pclass(core, NV_CLIENT_CLASS);
-	struct nouveau_object *object;
-	int ret = nouveau_object_new(client, parent, NvEvoVRAM_LP,
-				     NV_DMA_IN_MEMORY_CLASS,
-				     &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
-					.start = 0,
-					.limit = pfb->ram->size - 1,
-					.conf0 = NVD0_DMA_CONF0_ENABLE |
-						 NVD0_DMA_CONF0_PAGE_LP,
-				     }, sizeof(struct nv_dma_class), &object);
-	if (ret)
-		return ret;
-
-	ret = nouveau_object_new(client, parent, NvEvoFB32,
-				 NV_DMA_IN_MEMORY_CLASS,
-				 &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
-					.start = 0,
-					.limit = pfb->ram->size - 1,
-					.conf0 = NVD0_DMA_CONF0_ENABLE | 0xfe |
-						 NVD0_DMA_CONF0_PAGE_LP,
-				 }, sizeof(struct nv_dma_class), &object);
-	return ret;
-}
-
-static int
-nv50_dmac_create(struct nouveau_object *core, u32 bclass, u8 head,
+nv50_dmac_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 		 void *data, u32 size, u64 syncbuf,
 		 struct nv50_dmac *dmac)
 {
-	struct nouveau_fb *pfb = nouveau_fb(core);
-	struct nouveau_object *client = nv_pclass(core, NV_CLIENT_CLASS);
-	struct nouveau_object *object;
-	u32 pushbuf = *(u32 *)data;
+	struct nvif_device *device = nvif_device(disp);
+	struct nv50_disp_core_channel_dma_v0 *args = data;
+	struct nvif_object pushbuf;
 	int ret;
 
 	mutex_init(&dmac->lock);
 
-	dmac->ptr = pci_alloc_consistent(nv_device(core)->pdev, PAGE_SIZE,
-					&dmac->handle);
+	dmac->ptr = pci_alloc_consistent(nvkm_device(device)->pdev,
+					 PAGE_SIZE, &dmac->handle);
 	if (!dmac->ptr)
 		return -ENOMEM;
 
-	ret = nouveau_object_new(client, NVDRM_DEVICE, pushbuf,
-				 NV_DMA_FROM_MEMORY_CLASS,
-				 &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_PCI_US |
-						 NV_DMA_ACCESS_RD,
+	ret = nvif_object_init(nvif_object(device), NULL,
+			       args->pushbuf, NV_DMA_FROM_MEMORY,
+			       &(struct nv_dma_v0) {
+					.target = NV_DMA_V0_TARGET_PCI_US,
+					.access = NV_DMA_V0_ACCESS_RD,
 					.start = dmac->handle + 0x0000,
 					.limit = dmac->handle + 0x0fff,
-				 }, sizeof(struct nv_dma_class), &object);
+			       }, sizeof(struct nv_dma_v0), &pushbuf);
 	if (ret)
 		return ret;
 
-	ret = nv50_chan_create(core, bclass, head, data, size, &dmac->base);
+	ret = nv50_chan_create(disp, oclass, head, data, size, &dmac->base);
+	nvif_object_fini(&pushbuf);
 	if (ret)
 		return ret;
 
-	ret = nouveau_object_new(client, dmac->base.handle, NvEvoSync,
-				 NV_DMA_IN_MEMORY_CLASS,
-				 &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
+	ret = nvif_object_init(&dmac->base.user, NULL, 0xf0000000,
+			       NV_DMA_IN_MEMORY,
+			       &(struct nv_dma_v0) {
+					.target = NV_DMA_V0_TARGET_VRAM,
+					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = syncbuf + 0x0000,
 					.limit = syncbuf + 0x0fff,
-				 }, sizeof(struct nv_dma_class), &object);
+			       }, sizeof(struct nv_dma_v0),
+			       &dmac->sync);
 	if (ret)
 		return ret;
 
-	ret = nouveau_object_new(client, dmac->base.handle, NvEvoVRAM,
-				 NV_DMA_IN_MEMORY_CLASS,
-				 &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
+	ret = nvif_object_init(&dmac->base.user, NULL, 0xf0000001,
+			       NV_DMA_IN_MEMORY,
+			       &(struct nv_dma_v0) {
+					.target = NV_DMA_V0_TARGET_VRAM,
+					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = 0,
-					.limit = pfb->ram->size - 1,
-				 }, sizeof(struct nv_dma_class), &object);
+					.limit = device->info.ram_user - 1,
+			       }, sizeof(struct nv_dma_v0),
+			       &dmac->vram);
 	if (ret)
 		return ret;
 
-	if (nv_device(core)->card_type < NV_C0)
-		ret = nv50_dmac_create_fbdma(core, dmac->base.handle);
-	else
-	if (nv_device(core)->card_type < NV_D0)
-		ret = nvc0_dmac_create_fbdma(core, dmac->base.handle);
-	else
-		ret = nvd0_dmac_create_fbdma(core, dmac->base.handle);
 	return ret;
 }
+
+/******************************************************************************
+ * Core
+ *****************************************************************************/
 
 struct nv50_mast {
 	struct nv50_dmac base;
 };
 
-struct nv50_curs {
-	struct nv50_pioc base;
-};
+static int
+nv50_core_create(struct nvif_object *disp, u64 syncbuf, struct nv50_mast *core)
+{
+	struct nv50_disp_core_channel_dma_v0 args = {
+		.pushbuf = 0xb0007d00,
+	};
+	static const u32 oclass[] = {
+		GM107_DISP_CORE_CHANNEL_DMA,
+		GK110_DISP_CORE_CHANNEL_DMA,
+		GK104_DISP_CORE_CHANNEL_DMA,
+		GF110_DISP_CORE_CHANNEL_DMA,
+		GT214_DISP_CORE_CHANNEL_DMA,
+		GT206_DISP_CORE_CHANNEL_DMA,
+		GT200_DISP_CORE_CHANNEL_DMA,
+		G82_DISP_CORE_CHANNEL_DMA,
+		NV50_DISP_CORE_CHANNEL_DMA,
+		0
+	};
+
+	return nv50_dmac_create(disp, oclass, 0, &args, sizeof(args), syncbuf,
+			       &core->base);
+}
+
+/******************************************************************************
+ * Base
+ *****************************************************************************/
 
 struct nv50_sync {
 	struct nv50_dmac base;
@@ -346,13 +291,58 @@ struct nv50_sync {
 	u32 data;
 };
 
+static int
+nv50_base_create(struct nvif_object *disp, int head, u64 syncbuf,
+		 struct nv50_sync *base)
+{
+	struct nv50_disp_base_channel_dma_v0 args = {
+		.pushbuf = 0xb0007c00 | head,
+		.head = head,
+	};
+	static const u32 oclass[] = {
+		GK110_DISP_BASE_CHANNEL_DMA,
+		GK104_DISP_BASE_CHANNEL_DMA,
+		GF110_DISP_BASE_CHANNEL_DMA,
+		GT214_DISP_BASE_CHANNEL_DMA,
+		GT200_DISP_BASE_CHANNEL_DMA,
+		G82_DISP_BASE_CHANNEL_DMA,
+		NV50_DISP_BASE_CHANNEL_DMA,
+		0
+	};
+
+	return nv50_dmac_create(disp, oclass, head, &args, sizeof(args),
+				syncbuf, &base->base);
+}
+
+/******************************************************************************
+ * Overlay
+ *****************************************************************************/
+
 struct nv50_ovly {
 	struct nv50_dmac base;
 };
 
-struct nv50_oimm {
-	struct nv50_pioc base;
-};
+static int
+nv50_ovly_create(struct nvif_object *disp, int head, u64 syncbuf,
+		 struct nv50_ovly *ovly)
+{
+	struct nv50_disp_overlay_channel_dma_v0 args = {
+		.pushbuf = 0xb0007e00 | head,
+		.head = head,
+	};
+	static const u32 oclass[] = {
+		GK104_DISP_OVERLAY_CONTROL_DMA,
+		GF110_DISP_OVERLAY_CONTROL_DMA,
+		GT214_DISP_OVERLAY_CHANNEL_DMA,
+		GT200_DISP_OVERLAY_CHANNEL_DMA,
+		G82_DISP_OVERLAY_CHANNEL_DMA,
+		NV50_DISP_OVERLAY_CHANNEL_DMA,
+		0
+	};
+
+	return nv50_dmac_create(disp, oclass, head, &args, sizeof(args),
+				syncbuf, &ovly->base);
+}
 
 struct nv50_head {
 	struct nouveau_crtc base;
@@ -369,13 +359,19 @@ struct nv50_head {
 #define nv50_ovly(c) (&nv50_head(c)->ovly)
 #define nv50_oimm(c) (&nv50_head(c)->oimm)
 #define nv50_chan(c) (&(c)->base.base)
-#define nv50_vers(c) nv_mclass(nv50_chan(c)->user)
+#define nv50_vers(c) nv50_chan(c)->user.oclass
+
+struct nv50_fbdma {
+	struct list_head head;
+	struct nvif_object core;
+	struct nvif_object base[4];
+};
 
 struct nv50_disp {
-	struct nouveau_object *core;
+	struct nvif_object *disp;
 	struct nv50_mast mast;
 
-	u32 modeset;
+	struct list_head fbdma;
 
 	struct nouveau_bo *sync;
 };
@@ -401,16 +397,16 @@ static u32 *
 evo_wait(void *evoc, int nr)
 {
 	struct nv50_dmac *dmac = evoc;
-	u32 put = nv_ro32(dmac->base.user, 0x0000) / 4;
+	u32 put = nvif_rd32(&dmac->base.user, 0x0000) / 4;
 
 	mutex_lock(&dmac->lock);
 	if (put + nr >= (PAGE_SIZE / 4) - 8) {
 		dmac->ptr[put] = 0x20000000;
 
-		nv_wo32(dmac->base.user, 0x0000, 0x00000000);
-		if (!nv_wait(dmac->base.user, 0x0004, ~0, 0x00000000)) {
+		nvif_wr32(&dmac->base.user, 0x0000, 0x00000000);
+		if (!nvkm_wait(&dmac->base.user, 0x0004, ~0, 0x00000000)) {
 			mutex_unlock(&dmac->lock);
-			NV_ERROR(dmac->base.user, "channel stalled\n");
+			nv_error(nvkm_object(&dmac->base.user), "channel stalled\n");
 			return NULL;
 		}
 
@@ -424,7 +420,7 @@ static void
 evo_kick(u32 *push, void *evoc)
 {
 	struct nv50_dmac *dmac = evoc;
-	nv_wo32(dmac->base.user, 0x0000, (push - dmac->ptr) << 2);
+	nvif_wr32(&dmac->base.user, 0x0000, (push - dmac->ptr) << 2);
 	mutex_unlock(&dmac->lock);
 }
 
@@ -443,7 +439,7 @@ evo_sync_wait(void *data)
 static int
 evo_sync(struct drm_device *dev)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_mast *mast = nv50_mast(dev);
 	u32 *push = evo_wait(mast, 8);
@@ -455,7 +451,7 @@ evo_sync(struct drm_device *dev)
 		evo_data(push, 0x00000000);
 		evo_data(push, 0x00000000);
 		evo_kick(push, mast);
-		if (nv_wait_cb(device, evo_sync_wait, disp->sync))
+		if (nv_wait_cb(nvkm_device(device), evo_sync_wait, disp->sync))
 			return 0;
 	}
 
@@ -490,7 +486,7 @@ nv50_display_flip_wait(void *data)
 void
 nv50_display_flip_stop(struct drm_crtc *crtc)
 {
-	struct nouveau_device *device = nouveau_dev(crtc->dev);
+	struct nvif_device *device = &nouveau_drm(crtc->dev)->device;
 	struct nv50_display_flip flip = {
 		.disp = nv50_disp(crtc->dev),
 		.chan = nv50_sync(crtc),
@@ -510,7 +506,7 @@ nv50_display_flip_stop(struct drm_crtc *crtc)
 		evo_kick(push, flip.chan);
 	}
 
-	nv_wait_cb(device, nv50_display_flip_wait, &flip);
+	nv_wait_cb(nvkm_device(device), nv50_display_flip_wait, &flip);
 }
 
 int
@@ -534,7 +530,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (unlikely(push == NULL))
 		return -EBUSY;
 
-	if (chan && nv_mclass(chan->object) < NV84_CHANNEL_IND_CLASS) {
+	if (chan && chan->object->oclass < G82_CHANNEL_GPFIFO) {
 		ret = RING_SPACE(chan, 8);
 		if (ret)
 			return ret;
@@ -548,14 +544,14 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		OUT_RING  (chan, sync->addr);
 		OUT_RING  (chan, sync->data);
 	} else
-	if (chan && nv_mclass(chan->object) < NVC0_CHANNEL_IND_CLASS) {
+	if (chan && chan->object->oclass < FERMI_CHANNEL_GPFIFO) {
 		u64 addr = nv84_fence_crtc(chan, nv_crtc->index) + sync->addr;
 		ret = RING_SPACE(chan, 12);
 		if (ret)
 			return ret;
 
 		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
-		OUT_RING  (chan, chan->vram);
+		OUT_RING  (chan, chan->vram.handle);
 		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 		OUT_RING  (chan, upper_32_bits(addr ^ 0x10));
 		OUT_RING  (chan, lower_32_bits(addr ^ 0x10));
@@ -606,16 +602,16 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	evo_data(push, sync->addr);
 	evo_data(push, sync->data++);
 	evo_data(push, sync->data);
-	evo_data(push, NvEvoSync);
+	evo_data(push, sync->base.sync.handle);
 	evo_mthd(push, 0x00a0, 2);
 	evo_data(push, 0x00000000);
 	evo_data(push, 0x00000000);
 	evo_mthd(push, 0x00c0, 1);
-	evo_data(push, nv_fb->r_dma);
+	evo_data(push, nv_fb->r_handle);
 	evo_mthd(push, 0x0110, 2);
 	evo_data(push, 0x00000000);
 	evo_data(push, 0x00000000);
-	if (nv50_vers(sync) < NVD0_DISP_SYNC_CLASS) {
+	if (nv50_vers(sync) < GF110_DISP_BASE_CHANNEL_DMA) {
 		evo_mthd(push, 0x0800, 5);
 		evo_data(push, nv_fb->nvbo->bo.offset >> 8);
 		evo_data(push, 0);
@@ -667,11 +663,11 @@ nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 
 	push = evo_wait(mast, 4);
 	if (push) {
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x08a0 + (nv_crtc->index * 0x0400), 1);
 			evo_data(push, mode);
 		} else
-		if (nv50_vers(mast) < NVE0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GK104_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0490 + (nv_crtc->index * 0x0300), 1);
 			evo_data(push, mode);
 		} else {
@@ -762,7 +758,7 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 
 	push = evo_wait(mast, 8);
 	if (push) {
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			/*XXX: SCALE_CTRL_ACTIVE??? */
 			evo_mthd(push, 0x08d8 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, (oY << 16) | oX);
@@ -807,7 +803,7 @@ nv50_crtc_set_color_vibrance(struct nouveau_crtc *nv_crtc, bool update)
 
 	push = evo_wait(mast, 16);
 	if (push) {
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x08a8 + (nv_crtc->index * 0x400), 1);
 			evo_data(push, (hue << 20) | (vib << 8));
 		} else {
@@ -835,7 +831,7 @@ nv50_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 
 	push = evo_wait(mast, 16);
 	if (push) {
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0860 + (nv_crtc->index * 0x400), 1);
 			evo_data(push, nvfb->nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x0868 + (nv_crtc->index * 0x400), 3);
@@ -844,9 +840,9 @@ nv50_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 			evo_data(push, nvfb->r_format);
 			evo_mthd(push, 0x08c0 + (nv_crtc->index * 0x400), 1);
 			evo_data(push, (y << 16) | x);
-			if (nv50_vers(mast) > NV50_DISP_MAST_CLASS) {
+			if (nv50_vers(mast) > NV50_DISP_CORE_CHANNEL_DMA) {
 				evo_mthd(push, 0x0874 + (nv_crtc->index * 0x400), 1);
-				evo_data(push, nvfb->r_dma);
+				evo_data(push, nvfb->r_handle);
 			}
 		} else {
 			evo_mthd(push, 0x0460 + (nv_crtc->index * 0x300), 1);
@@ -855,7 +851,7 @@ nv50_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 			evo_data(push, (fb->height << 16) | fb->width);
 			evo_data(push, nvfb->r_pitch);
 			evo_data(push, nvfb->r_format);
-			evo_data(push, nvfb->r_dma);
+			evo_data(push, nvfb->r_handle);
 			evo_mthd(push, 0x04b0 + (nv_crtc->index * 0x300), 1);
 			evo_data(push, (y << 16) | x);
 		}
@@ -867,7 +863,7 @@ nv50_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 		evo_kick(push, mast);
 	}
 
-	nv_crtc->fb.tile_flags = nvfb->r_dma;
+	nv_crtc->fb.handle = nvfb->r_handle;
 	return 0;
 }
 
@@ -877,23 +873,23 @@ nv50_crtc_cursor_show(struct nouveau_crtc *nv_crtc)
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
 	u32 *push = evo_wait(mast, 16);
 	if (push) {
-		if (nv50_vers(mast) < NV84_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < G82_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x85000000);
 			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
 		} else
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x85000000);
 			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x089c + (nv_crtc->index * 0x400), 1);
-			evo_data(push, NvEvoVRAM);
+			evo_data(push, mast->base.vram.handle);
 		} else {
 			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 2);
 			evo_data(push, 0x85000000);
 			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
-			evo_data(push, NvEvoVRAM);
+			evo_data(push, mast->base.vram.handle);
 		}
 		evo_kick(push, mast);
 	}
@@ -905,11 +901,11 @@ nv50_crtc_cursor_hide(struct nouveau_crtc *nv_crtc)
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
 	u32 *push = evo_wait(mast, 16);
 	if (push) {
-		if (nv50_vers(mast) < NV84_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < G82_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 1);
 			evo_data(push, 0x05000000);
 		} else
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 1);
 			evo_data(push, 0x05000000);
 			evo_mthd(push, 0x089c + (nv_crtc->index * 0x400), 1);
@@ -960,13 +956,13 @@ nv50_crtc_prepare(struct drm_crtc *crtc)
 
 	push = evo_wait(mast, 6);
 	if (push) {
-		if (nv50_vers(mast) < NV84_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < G82_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0874 + (nv_crtc->index * 0x400), 1);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 1);
 			evo_data(push, 0x40000000);
 		} else
-		if (nv50_vers(mast) <  NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) <  GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0874 + (nv_crtc->index * 0x400), 1);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 1);
@@ -997,31 +993,31 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 
 	push = evo_wait(mast, 32);
 	if (push) {
-		if (nv50_vers(mast) < NV84_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < G82_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0874 + (nv_crtc->index * 0x400), 1);
-			evo_data(push, NvEvoVRAM_LP);
+			evo_data(push, nv_crtc->fb.handle);
 			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0xc0000000);
 			evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
 		} else
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0874 + (nv_crtc->index * 0x400), 1);
-			evo_data(push, nv_crtc->fb.tile_flags);
+			evo_data(push, nv_crtc->fb.handle);
 			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0xc0000000);
 			evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x085c + (nv_crtc->index * 0x400), 1);
-			evo_data(push, NvEvoVRAM);
+			evo_data(push, mast->base.vram.handle);
 		} else {
 			evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
-			evo_data(push, nv_crtc->fb.tile_flags);
+			evo_data(push, nv_crtc->fb.handle);
 			evo_mthd(push, 0x0440 + (nv_crtc->index * 0x300), 4);
 			evo_data(push, 0x83000000);
 			evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
 			evo_data(push, 0x00000000);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
-			evo_data(push, NvEvoVRAM);
+			evo_data(push, mast->base.vram.handle);
 			evo_mthd(push, 0x0430 + (nv_crtc->index * 0x300), 1);
 			evo_data(push, 0xffffff00);
 		}
@@ -1099,7 +1095,7 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 
 	push = evo_wait(mast, 64);
 	if (push) {
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0804 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x00800000 | mode->clock);
 			evo_data(push, (ilace == 2) ? 2 : 0);
@@ -1192,7 +1188,7 @@ nv50_crtc_lut_load(struct drm_crtc *crtc)
 		u16 g = nv_crtc->lut.g[i] >> 2;
 		u16 b = nv_crtc->lut.b[i] >> 2;
 
-		if (nv_mclass(disp->core) < NVD0_DISP_CLASS) {
+		if (disp->disp->oclass < GF110_DISP) {
 			writew(r + 0x0000, lut + (i * 0x08) + 0);
 			writew(g + 0x0000, lut + (i * 0x08) + 2);
 			writew(b + 0x0000, lut + (i * 0x08) + 4);
@@ -1259,8 +1255,8 @@ nv50_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct nv50_curs *curs = nv50_curs(crtc);
 	struct nv50_chan *chan = nv50_chan(curs);
-	nv_wo32(chan->user, 0x0084, (y << 16) | (x & 0xffff));
-	nv_wo32(chan->user, 0x0080, 0x00000000);
+	nvif_wr32(&chan->user, 0x0084, (y << 16) | (x & 0xffff));
+	nvif_wr32(&chan->user, 0x0080, 0x00000000);
 	return 0;
 }
 
@@ -1287,11 +1283,16 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv50_disp *disp = nv50_disp(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
+	struct nv50_fbdma *fbdma;
 
-	nv50_dmac_destroy(disp->core, &head->ovly.base);
-	nv50_pioc_destroy(disp->core, &head->oimm.base);
-	nv50_dmac_destroy(disp->core, &head->sync.base);
-	nv50_pioc_destroy(disp->core, &head->curs.base);
+	list_for_each_entry(fbdma, &disp->fbdma, head) {
+		nvif_object_fini(&fbdma->base[nv_crtc->index]);
+	}
+
+	nv50_dmac_destroy(&head->ovly.base, disp->disp);
+	nv50_pioc_destroy(&head->oimm.base);
+	nv50_dmac_destroy(&head->sync.base, disp->disp);
+	nv50_pioc_destroy(&head->curs.base);
 
 	/*XXX: this shouldn't be necessary, but the core doesn't call
 	 *     disconnect() during the cleanup paths
@@ -1346,7 +1347,7 @@ nv50_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
 }
 
 static int
-nv50_crtc_create(struct drm_device *dev, struct nouveau_object *core, int index)
+nv50_crtc_create(struct drm_device *dev, int index)
 {
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
@@ -1395,11 +1396,7 @@ nv50_crtc_create(struct drm_device *dev, struct nouveau_object *core, int index)
 	nv50_crtc_lut_load(crtc);
 
 	/* allocate cursor resources */
-	ret = nv50_pioc_create(disp->core, NV50_DISP_CURS_CLASS, index,
-			      &(struct nv50_display_curs_class) {
-					.head = index,
-			      }, sizeof(struct nv50_display_curs_class),
-			      &head->curs.base);
+	ret = nv50_curs_create(disp->disp, index, &head->curs);
 	if (ret)
 		goto out;
 
@@ -1420,12 +1417,8 @@ nv50_crtc_create(struct drm_device *dev, struct nouveau_object *core, int index)
 		goto out;
 
 	/* allocate page flip / sync resources */
-	ret = nv50_dmac_create(disp->core, NV50_DISP_SYNC_CLASS, index,
-			      &(struct nv50_display_sync_class) {
-					.pushbuf = EVO_PUSH_HANDLE(SYNC, index),
-					.head = index,
-			      }, sizeof(struct nv50_display_sync_class),
-			      disp->sync->bo.offset, &head->sync.base);
+	ret = nv50_base_create(disp->disp, index, disp->sync->bo.offset,
+			      &head->sync);
 	if (ret)
 		goto out;
 
@@ -1433,20 +1426,12 @@ nv50_crtc_create(struct drm_device *dev, struct nouveau_object *core, int index)
 	head->sync.data = 0x00000000;
 
 	/* allocate overlay resources */
-	ret = nv50_pioc_create(disp->core, NV50_DISP_OIMM_CLASS, index,
-			      &(struct nv50_display_oimm_class) {
-					.head = index,
-			      }, sizeof(struct nv50_display_oimm_class),
-			      &head->oimm.base);
+	ret = nv50_oimm_create(disp->disp, index, &head->oimm);
 	if (ret)
 		goto out;
 
-	ret = nv50_dmac_create(disp->core, NV50_DISP_OVLY_CLASS, index,
-			      &(struct nv50_display_ovly_class) {
-					.pushbuf = EVO_PUSH_HANDLE(OVLY, index),
-					.head = index,
-			      }, sizeof(struct nv50_display_ovly_class),
-			      disp->sync->bo.offset, &head->ovly.base);
+	ret = nv50_ovly_create(disp->disp, index, disp->sync->bo.offset,
+			      &head->ovly);
 	if (ret)
 		goto out;
 
@@ -1464,16 +1449,23 @@ nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	int or = nv_encoder->or;
-	u32 dpms_ctrl;
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_dac_pwr_v0 pwr;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_DAC_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+		.pwr.state = 1,
+		.pwr.data  = 1,
+		.pwr.vsync = (mode != DRM_MODE_DPMS_SUSPEND &&
+			      mode != DRM_MODE_DPMS_OFF),
+		.pwr.hsync = (mode != DRM_MODE_DPMS_STANDBY &&
+			      mode != DRM_MODE_DPMS_OFF),
+	};
 
-	dpms_ctrl = 0x00000000;
-	if (mode == DRM_MODE_DPMS_STANDBY || mode == DRM_MODE_DPMS_OFF)
-		dpms_ctrl |= 0x00000001;
-	if (mode == DRM_MODE_DPMS_SUSPEND || mode == DRM_MODE_DPMS_OFF)
-		dpms_ctrl |= 0x00000004;
-
-	nv_call(disp->core, NV50_DISP_DAC_PWR + or, dpms_ctrl);
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 static bool
@@ -1514,7 +1506,7 @@ nv50_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	push = evo_wait(mast, 8);
 	if (push) {
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			u32 syncs = 0x00000000;
 
 			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
@@ -1563,7 +1555,7 @@ nv50_dac_disconnect(struct drm_encoder *encoder)
 
 		push = evo_wait(mast, 4);
 		if (push) {
-			if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 				evo_mthd(push, 0x0400 + (or * 0x080), 1);
 				evo_data(push, 0x00000000);
 			} else {
@@ -1580,14 +1572,25 @@ nv50_dac_disconnect(struct drm_encoder *encoder)
 static enum drm_connector_status
 nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	int ret, or = nouveau_encoder(encoder)->or;
-	u32 load = nouveau_drm(encoder->dev)->vbios.dactestval;
-	if (load == 0)
-		load = 340;
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_dac_load_v0 load;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_DAC_LOAD,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+	};
+	int ret;
 
-	ret = nv_exec(disp->core, NV50_DISP_DAC_LOAD + or, &load, sizeof(load));
-	if (ret || !load)
+	args.load.data = nouveau_drm(encoder->dev)->vbios.dactestval;
+	if (args.load.data == 0)
+		args.load.data = 340;
+
+	ret = nvif_mthd(disp->disp, 0, &args, sizeof(args));
+	if (ret || !args.load.load)
 		return connector_status_disconnected;
 
 	return connector_status_connected;
@@ -1619,7 +1622,7 @@ static int
 nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type = DRM_MODE_ENCODER_DAC;
@@ -1650,16 +1653,25 @@ nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_connector *nv_connector;
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_hda_eld_v0 eld;
+		u8 data[sizeof(nv_connector->base.eld)];
+	} args = {
+		.base.version = 1,
+		.base.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
+		.base.hasht   = nv_encoder->dcb->hasht,
+		.base.hashm   = nv_encoder->dcb->hashm,
+	};
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	if (!drm_detect_monitor_audio(nv_connector->edid))
 		return;
 
 	drm_edid_to_eld(&nv_connector->base, nv_connector->edid);
+	memcpy(args.data, nv_connector->base.eld, sizeof(args.data));
 
-	nv_exec(disp->core, NVA3_DISP_SOR_HDA_ELD + nv_encoder->or,
-			    nv_connector->base.eld,
-			    nv_connector->base.eld[2] * 4);
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 static void
@@ -1667,8 +1679,17 @@ nv50_audio_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_hda_eld_v0 eld;
+	} args = {
+		.base.version = 1,
+		.base.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
+		.base.hasht   = nv_encoder->dcb->hasht,
+		.base.hashm   = nv_encoder->dcb->hashm,
+	};
 
-	nv_exec(disp->core, NVA3_DISP_SOR_HDA_ELD + nv_encoder->or, NULL, 0);
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 /******************************************************************************
@@ -1679,10 +1700,20 @@ nv50_hdmi_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nouveau_connector *nv_connector;
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	const u32 moff = (nv_crtc->index << 3) | nv_encoder->or;
-	u32 rekey = 56; /* binary driver, and tegra constant */
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_hdmi_pwr_v0 pwr;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_SOR_HDMI_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = (0xf0ff & nv_encoder->dcb->hashm) |
+			       (0x0100 << nv_crtc->index),
+		.pwr.state = 1,
+		.pwr.rekey = 56, /* binary driver, and tegra, constant */
+	};
+	struct nouveau_connector *nv_connector;
 	u32 max_ac_packet;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
@@ -1690,14 +1721,11 @@ nv50_hdmi_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 		return;
 
 	max_ac_packet  = mode->htotal - mode->hdisplay;
-	max_ac_packet -= rekey;
+	max_ac_packet -= args.pwr.rekey;
 	max_ac_packet -= 18; /* constant from tegra */
-	max_ac_packet /= 32;
+	args.pwr.max_ac_packet = max_ac_packet / 32;
 
-	nv_call(disp->core, NV84_DISP_SOR_HDMI_PWR + moff,
-			    NV84_DISP_SOR_HDMI_PWR_STATE_ON |
-			    (max_ac_packet << 16) | rekey);
-
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 	nv50_audio_mode_set(encoder, mode);
 }
 
@@ -1706,11 +1734,20 @@ nv50_hdmi_disconnect(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	const u32 moff = (nv_crtc->index << 3) | nv_encoder->or;
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_hdmi_pwr_v0 pwr;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_SOR_HDMI_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = (0xf0ff & nv_encoder->dcb->hashm) |
+			       (0x0100 << nv_crtc->index),
+	};
 
 	nv50_audio_disconnect(encoder);
 
-	nv_call(disp->core, NV84_DISP_SOR_HDMI_PWR + moff, 0x00000000);
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 /******************************************************************************
@@ -1720,10 +1757,29 @@ static void
 nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_pwr_v0 pwr;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_SOR_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+		.pwr.state = mode == DRM_MODE_DPMS_ON,
+	};
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_dp_pwr_v0 pwr;
+	} link = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_SOR_DP_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+		.pwr.state = mode == DRM_MODE_DPMS_ON,
+	};
 	struct drm_device *dev = encoder->dev;
-	struct nv50_disp *disp = nv50_disp(dev);
 	struct drm_encoder *partner;
-	u32 mthd;
 
 	nv_encoder->last_dpms = mode;
 
@@ -1741,18 +1797,13 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 		}
 	}
 
-	mthd  = (ffs(nv_encoder->dcb->heads) - 1) << 3;
-	mthd |= (ffs(nv_encoder->dcb->sorconf.link) - 1) << 2;
-	mthd |= nv_encoder->or;
-
 	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
-		nv_call(disp->core, NV50_DISP_SOR_PWR | mthd, 1);
-		mthd |= NV94_DISP_SOR_DP_PWR;
+		args.pwr.state = 1;
+		nvif_mthd(disp->disp, 0, &args, sizeof(args));
+		nvif_mthd(disp->disp, 0, &link, sizeof(link));
 	} else {
-		mthd |= NV50_DISP_SOR_PWR;
+		nvif_mthd(disp->disp, 0, &args, sizeof(args));
 	}
-
-	nv_call(disp->core, mthd, (mode == DRM_MODE_DPMS_ON));
 }
 
 static bool
@@ -1781,7 +1832,7 @@ nv50_sor_ctrl(struct nouveau_encoder *nv_encoder, u32 mask, u32 data)
 	struct nv50_mast *mast = nv50_mast(nv_encoder->base.base.dev);
 	u32 temp = (nv_encoder->ctrl & ~mask) | (data & mask), *push;
 	if (temp != nv_encoder->ctrl && (push = evo_wait(mast, 2))) {
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0600 + (nv_encoder->or * 0x40), 1);
 			evo_data(push, (nv_encoder->ctrl = temp));
 		} else {
@@ -1817,15 +1868,24 @@ static void
 nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		  struct drm_display_mode *mode)
 {
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_lvds_script_v0 lvds;
+	} lvds = {
+		.base.version = 1,
+		.base.method  = NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT,
+		.base.hasht   = nv_encoder->dcb->hasht,
+		.base.hashm   = nv_encoder->dcb->hashm,
+	};
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	struct nv50_mast *mast = nv50_mast(encoder->dev);
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
 	struct nvbios *bios = &drm->vbios;
-	u32 lvds = 0, mask, ctrl;
+	u32 mask, ctrl;
 	u8 owner = 1 << nv_crtc->index;
 	u8 proto = 0xf;
 	u8 depth = 0x0;
@@ -1851,31 +1911,31 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 		if (bios->fp_no_ddc) {
 			if (bios->fp.dual_link)
-				lvds |= 0x0100;
+				lvds.lvds.script |= 0x0100;
 			if (bios->fp.if_is_24bit)
-				lvds |= 0x0200;
+				lvds.lvds.script |= 0x0200;
 		} else {
 			if (nv_connector->type == DCB_CONNECTOR_LVDS_SPWG) {
 				if (((u8 *)nv_connector->edid)[121] == 2)
-					lvds |= 0x0100;
+					lvds.lvds.script |= 0x0100;
 			} else
 			if (mode->clock >= bios->fp.duallink_transition_clk) {
-				lvds |= 0x0100;
+				lvds.lvds.script |= 0x0100;
 			}
 
-			if (lvds & 0x0100) {
+			if (lvds.lvds.script & 0x0100) {
 				if (bios->fp.strapless_is_24bit & 2)
-					lvds |= 0x0200;
+					lvds.lvds.script |= 0x0200;
 			} else {
 				if (bios->fp.strapless_is_24bit & 1)
-					lvds |= 0x0200;
+					lvds.lvds.script |= 0x0200;
 			}
 
 			if (nv_connector->base.display_info.bpc == 8)
-				lvds |= 0x0200;
+				lvds.lvds.script |= 0x0200;
 		}
 
-		nv_call(disp->core, NV50_DISP_SOR_LVDS_SCRIPT + nv_encoder->or, lvds);
+		nvif_mthd(disp->disp, 0, &lvds, sizeof(lvds));
 		break;
 	case DCB_OUTPUT_DP:
 		if (nv_connector->base.display_info.bpc == 6) {
@@ -1902,7 +1962,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 	nv50_sor_dpms(&nv_encoder->base.base, DRM_MODE_DPMS_ON);
 
-	if (nv50_vers(mast) >= NVD0_DISP_CLASS) {
+	if (nv50_vers(mast) >= GF110_DISP) {
 		u32 *push = evo_wait(mast, 3);
 		if (push) {
 			u32 magic = 0x31ec6000 | (nv_crtc->index << 25);
@@ -1961,7 +2021,7 @@ static int
 nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type;
@@ -2002,9 +2062,19 @@ nv50_pior_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	u32 mthd = (nv_encoder->dcb->type << 12) | nv_encoder->or;
-	u32 ctrl = (mode == DRM_MODE_DPMS_ON);
-	nv_call(disp->core, NV50_DISP_PIOR_PWR + mthd, ctrl);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_pior_pwr_v0 pwr;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_PIOR_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = nv_encoder->dcb->hashm,
+		.pwr.state = mode == DRM_MODE_DPMS_ON,
+		.pwr.type = nv_encoder->dcb->type,
+	};
+
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 static bool
@@ -2067,7 +2137,7 @@ nv50_pior_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	push = evo_wait(mast, 8);
 	if (push) {
-		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			u32 ctrl = (depth << 16) | (proto << 8) | owner;
 			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 				ctrl |= 0x00001000;
@@ -2096,7 +2166,7 @@ nv50_pior_disconnect(struct drm_encoder *encoder)
 
 		push = evo_wait(mast, 4);
 		if (push) {
-			if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 				evo_mthd(push, 0x0700 + (or * 0x040), 1);
 				evo_data(push, 0x00000000);
 			}
@@ -2132,7 +2202,7 @@ static int
 nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
 	struct nouveau_i2c_port *ddc = NULL;
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
@@ -2169,8 +2239,151 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 }
 
 /******************************************************************************
+ * Framebuffer
+ *****************************************************************************/
+
+static void
+nv50_fbdma_fini(struct nv50_fbdma *fbdma)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(fbdma->base); i++)
+		nvif_object_fini(&fbdma->base[i]);
+	nvif_object_fini(&fbdma->core);
+	list_del(&fbdma->head);
+	kfree(fbdma);
+}
+
+static int
+nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kind)
+{
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nv50_disp *disp = nv50_disp(dev);
+	struct nv50_mast *mast = nv50_mast(dev);
+	struct __attribute__ ((packed)) {
+		struct nv_dma_v0 base;
+		union {
+			struct nv50_dma_v0 nv50;
+			struct gf100_dma_v0 gf100;
+			struct gf110_dma_v0 gf110;
+		};
+	} args = {};
+	struct nv50_fbdma *fbdma;
+	struct drm_crtc *crtc;
+	u32 size = sizeof(args.base);
+	int ret;
+
+	list_for_each_entry(fbdma, &disp->fbdma, head) {
+		if (fbdma->core.handle == name)
+			return 0;
+	}
+
+	fbdma = kzalloc(sizeof(*fbdma), GFP_KERNEL);
+	if (!fbdma)
+		return -ENOMEM;
+	list_add(&fbdma->head, &disp->fbdma);
+
+	args.base.target = NV_DMA_V0_TARGET_VRAM;
+	args.base.access = NV_DMA_V0_ACCESS_RDWR;
+	args.base.start = offset;
+	args.base.limit = offset + length - 1;
+
+	if (drm->device.info.chipset < 0x80) {
+		args.nv50.part = NV50_DMA_V0_PART_256;
+		size += sizeof(args.nv50);
+	} else
+	if (drm->device.info.chipset < 0xc0) {
+		args.nv50.part = NV50_DMA_V0_PART_256;
+		args.nv50.kind = kind;
+		size += sizeof(args.nv50);
+	} else
+	if (drm->device.info.chipset < 0xd0) {
+		args.gf100.kind = kind;
+		size += sizeof(args.gf100);
+	} else {
+		args.gf110.page = GF110_DMA_V0_PAGE_LP;
+		args.gf110.kind = kind;
+		size += sizeof(args.gf110);
+	}
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nv50_head *head = nv50_head(crtc);
+		int ret = nvif_object_init(&head->sync.base.base.user, NULL,
+					    name, NV_DMA_IN_MEMORY, &args, size,
+					   &fbdma->base[head->base.index]);
+		if (ret) {
+			nv50_fbdma_fini(fbdma);
+			return ret;
+		}
+	}
+
+	ret = nvif_object_init(&mast->base.base.user, NULL, name,
+				NV_DMA_IN_MEMORY, &args, size,
+			       &fbdma->core);
+	if (ret) {
+		nv50_fbdma_fini(fbdma);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void
+nv50_fb_dtor(struct drm_framebuffer *fb)
+{
+}
+
+static int
+nv50_fb_ctor(struct drm_framebuffer *fb)
+{
+	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
+	struct nouveau_drm *drm = nouveau_drm(fb->dev);
+	struct nouveau_bo *nvbo = nv_fb->nvbo;
+	struct nv50_disp *disp = nv50_disp(fb->dev);
+	u8 kind = nouveau_bo_tile_layout(nvbo) >> 8;
+	u8 tile = nvbo->tile_mode;
+
+	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) {
+		NV_ERROR(drm, "framebuffer requires contiguous bo\n");
+		return -EINVAL;
+	}
+
+	if (drm->device.info.chipset >= 0xc0)
+		tile >>= 4; /* yep.. */
+
+	switch (fb->depth) {
+	case  8: nv_fb->r_format = 0x1e00; break;
+	case 15: nv_fb->r_format = 0xe900; break;
+	case 16: nv_fb->r_format = 0xe800; break;
+	case 24:
+	case 32: nv_fb->r_format = 0xcf00; break;
+	case 30: nv_fb->r_format = 0xd100; break;
+	default:
+		 NV_ERROR(drm, "unknown depth %d\n", fb->depth);
+		 return -EINVAL;
+	}
+
+	if (disp->disp->oclass < G82_DISP) {
+		nv_fb->r_pitch   = kind ? (((fb->pitches[0] / 4) << 4) | tile) :
+					    (fb->pitches[0] | 0x00100000);
+		nv_fb->r_format |= kind << 16;
+	} else
+	if (disp->disp->oclass < GF110_DISP) {
+		nv_fb->r_pitch  = kind ? (((fb->pitches[0] / 4) << 4) | tile) :
+					   (fb->pitches[0] | 0x00100000);
+	} else {
+		nv_fb->r_pitch  = kind ? (((fb->pitches[0] / 4) << 4) | tile) :
+					   (fb->pitches[0] | 0x01000000);
+	}
+	nv_fb->r_handle = 0xffff0000 | kind;
+
+	return nv50_fbdma_init(fb->dev, nv_fb->r_handle, 0,
+			       drm->device.info.ram_user, kind);
+}
+
+/******************************************************************************
  * Init
  *****************************************************************************/
+
 void
 nv50_display_fini(struct drm_device *dev)
 {
@@ -2193,7 +2406,7 @@ nv50_display_init(struct drm_device *dev)
 	}
 
 	evo_mthd(push, 0x0088, 1);
-	evo_data(push, NvEvoSync);
+	evo_data(push, nv50_mast(dev)->base.sync.handle);
 	evo_kick(push, nv50_mast(dev));
 	return 0;
 }
@@ -2202,8 +2415,13 @@ void
 nv50_display_destroy(struct drm_device *dev)
 {
 	struct nv50_disp *disp = nv50_disp(dev);
+	struct nv50_fbdma *fbdma, *fbtmp;
 
-	nv50_dmac_destroy(disp->core, &disp->mast.base);
+	list_for_each_entry_safe(fbdma, fbtmp, &disp->fbdma, head) {
+		nv50_fbdma_fini(fbdma);
+	}
+
+	nv50_dmac_destroy(&disp->mast.base, disp->disp);
 
 	nouveau_bo_unmap(disp->sync);
 	if (disp->sync)
@@ -2217,7 +2435,7 @@ nv50_display_destroy(struct drm_device *dev)
 int
 nv50_display_create(struct drm_device *dev)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *tmp;
@@ -2228,12 +2446,15 @@ nv50_display_create(struct drm_device *dev)
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
 		return -ENOMEM;
+	INIT_LIST_HEAD(&disp->fbdma);
 
 	nouveau_display(dev)->priv = disp;
 	nouveau_display(dev)->dtor = nv50_display_destroy;
 	nouveau_display(dev)->init = nv50_display_init;
 	nouveau_display(dev)->fini = nv50_display_fini;
-	disp->core = nouveau_display(dev)->core;
+	nouveau_display(dev)->fb_ctor = nv50_fb_ctor;
+	nouveau_display(dev)->fb_dtor = nv50_fb_dtor;
+	disp->disp = &nouveau_display(dev)->disp;
 
 	/* small shared memory area we use for notifiers and semaphores */
 	ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
@@ -2253,22 +2474,19 @@ nv50_display_create(struct drm_device *dev)
 		goto out;
 
 	/* allocate master evo channel */
-	ret = nv50_dmac_create(disp->core, NV50_DISP_MAST_CLASS, 0,
-			      &(struct nv50_display_mast_class) {
-					.pushbuf = EVO_PUSH_HANDLE(MAST, 0),
-			      }, sizeof(struct nv50_display_mast_class),
-			      disp->sync->bo.offset, &disp->mast.base);
+	ret = nv50_core_create(disp->disp, disp->sync->bo.offset,
+			      &disp->mast);
 	if (ret)
 		goto out;
 
 	/* create crtc objects to represent the hw heads */
-	if (nv_mclass(disp->core) >= NVD0_DISP_CLASS)
-		crtcs = nv_rd32(device, 0x022448);
+	if (disp->disp->oclass >= GF110_DISP)
+		crtcs = nvif_rd32(device, 0x022448);
 	else
 		crtcs = 2;
 
 	for (i = 0; i < crtcs; i++) {
-		ret = nv50_crtc_create(dev, disp->core, i);
+		ret = nv50_crtc_create(dev, i);
 		if (ret)
 			goto out;
 	}

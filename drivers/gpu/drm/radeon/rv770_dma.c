@@ -90,7 +90,7 @@ int rv770_copy_dma(struct radeon_device *rdev,
 		return r;
 	}
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 	radeon_semaphore_free(rdev, &sem, *fence);
 
 	return r;

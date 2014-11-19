@@ -61,7 +61,7 @@ static ssize_t lua_sysfs_write(struct file *fp, struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&lua->lua_lock);
-	retval = roccat_common2_send(usb_dev, command, (void *)buf, real_size);
+	retval = roccat_common2_send(usb_dev, command, buf, real_size);
 	mutex_unlock(&lua->lua_lock);
 
 	return retval ? retval : real_size;

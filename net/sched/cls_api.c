@@ -561,13 +561,14 @@ EXPORT_SYMBOL(tcf_exts_change);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
+	struct nlattr *nest;
+
 	if (exts->action && !list_empty(&exts->actions)) {
 		/*
 		 * again for backward compatible mode - we want
 		 * to work with both old and new modes of entering
 		 * tc data even if iproute2  was newer - jhs
 		 */
-		struct nlattr *nest;
 		if (exts->type != TCA_OLD_COMPAT) {
 			nest = nla_nest_start(skb, exts->action);
 			if (nest == NULL)
@@ -585,10 +586,14 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 			nla_nest_end(skb, nest);
 		}
 	}
-#endif
 	return 0;
-nla_put_failure: __attribute__ ((unused))
+
+nla_put_failure:
+	nla_nest_cancel(skb, nest);
 	return -1;
+#else
+	return 0;
+#endif
 }
 EXPORT_SYMBOL(tcf_exts_dump);
 

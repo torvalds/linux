@@ -830,8 +830,11 @@
 #define __NR_sched_getattr	(__NR_Linux + 335)
 #define __NR_utimes		(__NR_Linux + 336)
 #define __NR_renameat2		(__NR_Linux + 337)
+#define __NR_seccomp		(__NR_Linux + 338)
+#define __NR_getrandom		(__NR_Linux + 339)
+#define __NR_memfd_create	(__NR_Linux + 340)
 
-#define __NR_Linux_syscalls	(__NR_renameat2 + 1)
+#define __NR_Linux_syscalls	(__NR_memfd_create + 1)
 
 
 #define __IGNORE_select		/* newselect */

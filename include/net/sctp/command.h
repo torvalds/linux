@@ -118,6 +118,7 @@ typedef enum {
 #define SCTP_MAX_NUM_COMMANDS 14
 
 typedef union {
+	void *zero_all;	/* Set to NULL to clear the entire union */
 	__s32 i32;
 	__u32 u32;
 	__be32 be32;
@@ -154,7 +155,7 @@ typedef union {
 static inline sctp_arg_t	\
 SCTP_## name (type arg)		\
 { sctp_arg_t retval;\
-  memset(&retval, 0, sizeof(sctp_arg_t));\
+  retval.zero_all = NULL;\
   retval.elt = arg;\
   return retval;\
 }
@@ -191,7 +192,7 @@ static inline sctp_arg_t SCTP_NOFORCE(void)
 static inline sctp_arg_t SCTP_NULL(void)
 {
 	sctp_arg_t retval;
-	memset(&retval, 0, sizeof(sctp_arg_t));
+	retval.zero_all = NULL;
 	return retval;
 }
 
@@ -202,27 +203,49 @@ typedef struct {
 
 typedef struct {
 	sctp_cmd_t cmds[SCTP_MAX_NUM_COMMANDS];
-	__u8 next_free_slot;
-	__u8 next_cmd;
+	sctp_cmd_t *last_used_slot;
+	sctp_cmd_t *next_cmd;
 } sctp_cmd_seq_t;
 
 
 /* Initialize a block of memory as a command sequence.
  * Return 0 if the initialization fails.
  */
-int sctp_init_cmd_seq(sctp_cmd_seq_t *seq);
+static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
+{
+	/* cmds[] is filled backwards to simplify the overflow BUG() check */
+	seq->last_used_slot = seq->cmds + SCTP_MAX_NUM_COMMANDS;
+	seq->next_cmd = seq->last_used_slot;
+	return 1;		/* We always succeed.  */
+}
+
 
 /* Add a command to an sctp_cmd_seq_t.
  *
  * Use the SCTP_* constructors defined by SCTP_ARG_CONSTRUCTOR() above
  * to wrap data which goes in the obj argument.
  */
-void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb, sctp_arg_t obj);
+static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
+				   sctp_arg_t obj)
+{
+	sctp_cmd_t *cmd = seq->last_used_slot - 1;
+
+	BUG_ON(cmd < seq->cmds);
+
+	cmd->verb = verb;
+	cmd->obj = obj;
+	seq->last_used_slot = cmd;
+}
 
 /* Return the next command structure in an sctp_cmd_seq.
  * Return NULL at the end of the sequence.
  */
-sctp_cmd_t *sctp_next_cmd(sctp_cmd_seq_t *seq);
+static inline sctp_cmd_t *sctp_next_cmd(sctp_cmd_seq_t *seq)
+{
+	if (seq->next_cmd <= seq->last_used_slot)
+		return NULL;
+
+	return --seq->next_cmd;
+}
 
 #endif /* __net_sctp_command_h__ */
-

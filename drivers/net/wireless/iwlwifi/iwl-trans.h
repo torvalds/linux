@@ -394,6 +394,11 @@ struct iwl_trans_config {
 	const char *const *command_names;
 };
 
+struct iwl_trans_dump_data {
+	u32 len;
+	u8 data[];
+};
+
 struct iwl_trans;
 
 /**
@@ -461,10 +466,8 @@ struct iwl_trans;
  * @unref: release a reference previously taken with @ref. Note that
  *	initially the reference count is 1, making an initial @unref
  *	necessary to allow low power states.
- * @dump_data: fill a data dump with debug data, maybe containing last
- *	TX'ed commands and similar. When called with a NULL buffer and
- *	zero buffer length, provide only the (estimated) required buffer
- *	length. Return the used buffer length.
+ * @dump_data: return a vmalloc'ed buffer with debug data, maybe containing last
+ *	TX'ed commands and similar. The buffer will be vfree'd by the caller.
  *	Note that the transport must fill in the proper file headers.
  */
 struct iwl_trans_ops {
@@ -518,7 +521,7 @@ struct iwl_trans_ops {
 	void (*unref)(struct iwl_trans *trans);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	u32 (*dump_data)(struct iwl_trans *trans, void *buf, u32 buflen);
+	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans);
 #endif
 };
 
@@ -685,12 +688,12 @@ static inline void iwl_trans_unref(struct iwl_trans *trans)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-static inline u32 iwl_trans_dump_data(struct iwl_trans *trans,
-				      void *buf, u32 buflen)
+static inline struct iwl_trans_dump_data *
+iwl_trans_dump_data(struct iwl_trans *trans)
 {
 	if (!trans->ops->dump_data)
-		return 0;
-	return trans->ops->dump_data(trans, buf, buflen);
+		return NULL;
+	return trans->ops->dump_data(trans);
 }
 #endif
 

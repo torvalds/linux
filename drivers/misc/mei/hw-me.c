@@ -710,64 +710,10 @@ end:
 	return IRQ_HANDLED;
 }
 
-/**
- * mei_me_fw_status - retrieve fw status from the pci config space
- *
- * @dev: the device structure
- * @fw_status: fw status registers storage
- *
- * returns 0 on success an error code otherwise
- */
-static int mei_me_fw_status(struct mei_device *dev,
-			    struct mei_fw_status *fw_status)
-{
-	const u32 pci_cfg_reg[] = {PCI_CFG_HFS_1, PCI_CFG_HFS_2};
-	int i;
-
-	if (!fw_status)
-		return -EINVAL;
-
-	switch (dev->pdev->device) {
-	case MEI_DEV_ID_IBXPK_1:
-	case MEI_DEV_ID_IBXPK_2:
-	case MEI_DEV_ID_CPT_1:
-	case MEI_DEV_ID_PBG_1:
-	case MEI_DEV_ID_PPT_1:
-	case MEI_DEV_ID_PPT_2:
-	case MEI_DEV_ID_PPT_3:
-	case MEI_DEV_ID_LPT_H:
-	case MEI_DEV_ID_LPT_W:
-	case MEI_DEV_ID_LPT_LP:
-	case MEI_DEV_ID_LPT_HR:
-	case MEI_DEV_ID_WPT_LP:
-		fw_status->count = 2;
-		break;
-	case MEI_DEV_ID_ICH10_1:
-	case MEI_DEV_ID_ICH10_2:
-	case MEI_DEV_ID_ICH10_3:
-	case MEI_DEV_ID_ICH10_4:
-		fw_status->count = 1;
-		break;
-	default:
-		fw_status->count = 0;
-		break;
-	}
-
-	for (i = 0; i < fw_status->count && i < MEI_FW_STATUS_MAX; i++) {
-		int ret;
-		ret = pci_read_config_dword(dev->pdev,
-				pci_cfg_reg[i], &fw_status->status[i]);
-		if (ret)
-			return ret;
-	}
-	return 0;
-}
-
 static const struct mei_hw_ops mei_me_hw_ops = {
 
 	.pg_state  = mei_me_pg_state,
 
-	.fw_status = mei_me_fw_status,
 	.host_is_ready = mei_me_host_is_ready,
 
 	.hw_is_ready = mei_me_hw_is_ready,

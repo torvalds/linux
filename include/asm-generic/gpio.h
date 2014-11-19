@@ -110,9 +110,6 @@ static inline int __gpio_to_irq(unsigned gpio)
 	return gpiod_to_irq(gpio_to_desc(gpio));
 }
 
-extern int gpio_lock_as_irq(struct gpio_chip *chip, unsigned int offset);
-extern void gpio_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
-
 extern int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
 extern int gpio_request_array(const struct gpio *array, size_t num);
 extern void gpio_free_array(const struct gpio *array, size_t num);

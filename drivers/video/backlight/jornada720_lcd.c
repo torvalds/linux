@@ -43,37 +43,38 @@ static int jornada_lcd_get_contrast(struct lcd_device *ld)
 
 	jornada_ssp_start();
 
-	if (jornada_ssp_byte(GETCONTRAST) != TXDUMMY) {
-		dev_err(&ld->dev, "get contrast failed\n");
-		jornada_ssp_end();
-		return -ETIMEDOUT;
-	} else {
+	if (jornada_ssp_byte(GETCONTRAST) == TXDUMMY) {
 		ret = jornada_ssp_byte(TXDUMMY);
-		jornada_ssp_end();
-		return ret;
+		goto success;
 	}
+
+	dev_err(&ld->dev, "failed to set contrast\n");
+	ret = -ETIMEDOUT;
+
+success:
+	jornada_ssp_end();
+	return ret;
 }
 
 static int jornada_lcd_set_contrast(struct lcd_device *ld, int value)
 {
-	int ret;
+	int ret = 0;
 
 	jornada_ssp_start();
 
 	/* start by sending our set contrast cmd to mcu */
-	ret = jornada_ssp_byte(SETCONTRAST);
-
-	/* push the new value */
-	if (jornada_ssp_byte(value) != TXDUMMY) {
-		dev_err(&ld->dev, "set contrast failed\n");
-		jornada_ssp_end();
-		return -ETIMEDOUT;
+	if (jornada_ssp_byte(SETCONTRAST) == TXDUMMY) {
+		/* if successful push the new value */
+		if (jornada_ssp_byte(value) == TXDUMMY)
+			goto success;
 	}
 
-	/* if we get here we can assume everything went well */
-	jornada_ssp_end();
+	dev_err(&ld->dev, "failed to set contrast\n");
+	ret = -ETIMEDOUT;
 
-	return 0;
+success:
+	jornada_ssp_end();
+	return ret;
 }
 
 static int jornada_lcd_set_power(struct lcd_device *ld, int power)

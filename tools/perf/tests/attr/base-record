@@ -1,7 +1,8 @@
 [event]
 fd=1
 group_fd=-1
-flags=0
+# 0 or PERF_FLAG_FD_CLOEXEC flag
+flags=0|8
 cpu=*
 type=0|1
 size=96

@@ -75,9 +75,6 @@ Configuration Options:
 #include "comedi_fc.h"
 
 /* Imaginary registers for the imaginary board */
-
-#define SKEL_SIZE 0
-
 #define SKEL_START_AI_CONV	0
 #define SKEL_AI_READ		0
 
@@ -129,7 +126,7 @@ struct skel_private {
  * convert ns nanoseconds to a counter value suitable for programming
  * the device.  Also, it should adjust ns so that it cooresponds to
  * the actual time that the device will use. */
-static int skel_ns_to_timer(unsigned int *ns, int round)
+static int skel_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
 	/* trivial timer */
 	/* if your timing is done through two cascaded timers, the
@@ -287,12 +284,12 @@ static int skel_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		skel_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		skel_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		skel_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		skel_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {

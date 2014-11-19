@@ -682,7 +682,7 @@
 					regulator-max-microamp = <3500000>;
 					regulator-always-on;
 					regulator-boot-on;
-					ams,external-control = <2>;
+					ams,ext-control = <2>;
 				};
 
 				sd1 {
@@ -693,7 +693,7 @@
 					regulator-max-microamp = <2500000>;
 					regulator-always-on;
 					regulator-boot-on;
-					ams,external-control = <1>;
+					ams,ext-control = <1>;
 				};
 
 				vdd_1v35_lp0: sd2 {
@@ -742,7 +742,7 @@
 					regulator-max-microvolt = <1050000>;
 					regulator-boot-on;
 					regulator-always-on;
-					ams,external-control = <1>;
+					ams,ext-control = <1>;
 				};
 
 				ldo1 {
@@ -816,7 +816,7 @@
 	spi@0,7000d400 {
 		status = "okay";
 
-		cros-ec@0 {
+		cros_ec: cros-ec@0 {
 			compatible = "google,cros-ec-spi";
 			spi-max-frequency = <4000000>;
 			interrupt-parent = <&gpio>;
@@ -825,96 +825,30 @@
 
 			google,cros-ec-spi-msg-delay = <2000>;
 
-			cros-ec-keyb {
-				compatible = "google,cros-ec-keyb";
-				keypad,num-rows = <8>;
-				keypad,num-columns = <13>;
-				google,needs-ghost-filter;
+			i2c-tunnel {
+				compatible = "google,cros-ec-i2c-tunnel";
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				linux,keymap = <
-					MATRIX_KEY(0x00, 0x01, KEY_LEFTMETA)
-					MATRIX_KEY(0x00, 0x02, KEY_F1)
-					MATRIX_KEY(0x00, 0x03, KEY_B)
-					MATRIX_KEY(0x00, 0x04, KEY_F10)
-					MATRIX_KEY(0x00, 0x06, KEY_N)
-					MATRIX_KEY(0x00, 0x08, KEY_EQUAL)
-					MATRIX_KEY(0x00, 0x0a, KEY_RIGHTALT)
+				google,remote-bus = <0>;
 
-					MATRIX_KEY(0x01, 0x01, KEY_ESC)
-					MATRIX_KEY(0x01, 0x02, KEY_F4)
-					MATRIX_KEY(0x01, 0x03, KEY_G)
-					MATRIX_KEY(0x01, 0x04, KEY_F7)
-					MATRIX_KEY(0x01, 0x06, KEY_H)
-					MATRIX_KEY(0x01, 0x08, KEY_APOSTROPHE)
-					MATRIX_KEY(0x01, 0x09, KEY_F9)
-					MATRIX_KEY(0x01, 0x0b, KEY_BACKSPACE)
+				charger: bq24735@9 {
+					compatible = "ti,bq24735";
+					reg = <0x9>;
+					interrupt-parent = <&gpio>;
+					interrupts = <TEGRA_GPIO(J, 0)
+							GPIO_ACTIVE_HIGH>;
+					ti,ac-detect-gpios = <&gpio
+							TEGRA_GPIO(J, 0)
+							GPIO_ACTIVE_HIGH>;
+				};
 
-					MATRIX_KEY(0x02, 0x00, KEY_LEFTCTRL)
-					MATRIX_KEY(0x02, 0x01, KEY_TAB)
-					MATRIX_KEY(0x02, 0x02, KEY_F3)
-					MATRIX_KEY(0x02, 0x03, KEY_T)
-					MATRIX_KEY(0x02, 0x04, KEY_F6)
-					MATRIX_KEY(0x02, 0x05, KEY_RIGHTBRACE)
-					MATRIX_KEY(0x02, 0x06, KEY_Y)
-					MATRIX_KEY(0x02, 0x07, KEY_102ND)
-					MATRIX_KEY(0x02, 0x08, KEY_LEFTBRACE)
-					MATRIX_KEY(0x02, 0x09, KEY_F8)
-
-					MATRIX_KEY(0x03, 0x01, KEY_GRAVE)
-					MATRIX_KEY(0x03, 0x02, KEY_F2)
-					MATRIX_KEY(0x03, 0x03, KEY_5)
-					MATRIX_KEY(0x03, 0x04, KEY_F5)
-					MATRIX_KEY(0x03, 0x06, KEY_6)
-					MATRIX_KEY(0x03, 0x08, KEY_MINUS)
-					MATRIX_KEY(0x03, 0x0b, KEY_BACKSLASH)
-
-					MATRIX_KEY(0x04, 0x00, KEY_RIGHTCTRL)
-					MATRIX_KEY(0x04, 0x01, KEY_A)
-					MATRIX_KEY(0x04, 0x02, KEY_D)
-					MATRIX_KEY(0x04, 0x03, KEY_F)
-					MATRIX_KEY(0x04, 0x04, KEY_S)
-					MATRIX_KEY(0x04, 0x05, KEY_K)
-					MATRIX_KEY(0x04, 0x06, KEY_J)
-					MATRIX_KEY(0x04, 0x08, KEY_SEMICOLON)
-					MATRIX_KEY(0x04, 0x09, KEY_L)
-					MATRIX_KEY(0x04, 0x0a, KEY_BACKSLASH)
-					MATRIX_KEY(0x04, 0x0b, KEY_ENTER)
-
-					MATRIX_KEY(0x05, 0x01, KEY_Z)
-					MATRIX_KEY(0x05, 0x02, KEY_C)
-					MATRIX_KEY(0x05, 0x03, KEY_V)
-					MATRIX_KEY(0x05, 0x04, KEY_X)
-					MATRIX_KEY(0x05, 0x05, KEY_COMMA)
-					MATRIX_KEY(0x05, 0x06, KEY_M)
-					MATRIX_KEY(0x05, 0x07, KEY_LEFTSHIFT)
-					MATRIX_KEY(0x05, 0x08, KEY_SLASH)
-					MATRIX_KEY(0x05, 0x09, KEY_DOT)
-					MATRIX_KEY(0x05, 0x0b, KEY_SPACE)
-
-					MATRIX_KEY(0x06, 0x01, KEY_1)
-					MATRIX_KEY(0x06, 0x02, KEY_3)
-					MATRIX_KEY(0x06, 0x03, KEY_4)
-					MATRIX_KEY(0x06, 0x04, KEY_2)
-					MATRIX_KEY(0x06, 0x05, KEY_8)
-					MATRIX_KEY(0x06, 0x06, KEY_7)
-					MATRIX_KEY(0x06, 0x08, KEY_0)
-					MATRIX_KEY(0x06, 0x09, KEY_9)
-					MATRIX_KEY(0x06, 0x0a, KEY_LEFTALT)
-					MATRIX_KEY(0x06, 0x0b, KEY_DOWN)
-					MATRIX_KEY(0x06, 0x0c, KEY_RIGHT)
-
-					MATRIX_KEY(0x07, 0x01, KEY_Q)
-					MATRIX_KEY(0x07, 0x02, KEY_E)
-					MATRIX_KEY(0x07, 0x03, KEY_R)
-					MATRIX_KEY(0x07, 0x04, KEY_W)
-					MATRIX_KEY(0x07, 0x05, KEY_I)
-					MATRIX_KEY(0x07, 0x06, KEY_U)
-					MATRIX_KEY(0x07, 0x07, KEY_RIGHTSHIFT)
-					MATRIX_KEY(0x07, 0x08, KEY_P)
-					MATRIX_KEY(0x07, 0x09, KEY_O)
-					MATRIX_KEY(0x07, 0x0b, KEY_UP)
-					MATRIX_KEY(0x07, 0x0c, KEY_LEFT)
-				>;
+				battery: sbs-battery@b {
+					compatible = "sbs,sbs-battery";
+					reg = <0xb>;
+					sbs,i2c-retry-count = <2>;
+					sbs,poll-retry-count = <1>;
+				};
 			};
 		};
 	};
@@ -938,6 +872,10 @@
 		nvidia,core-pwr-off-time = <61036>;
 		nvidia,core-power-req-active-high;
 		nvidia,sys-clock-req-active-high;
+	};
+
+	hda@0,70030000 {
+		status = "okay";
 	};
 
 	sdhci@0,700b0400 {
@@ -1205,3 +1143,5 @@
 		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };
+
+#include "cros-ec-keyboard.dtsi"

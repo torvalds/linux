@@ -59,6 +59,8 @@ dtb-$(CONFIG_ARCH_BERLIN) += \
 	berlin2-sony-nsz-gs7.dtb	\
 	berlin2cd-google-chromecast.dtb	\
 	berlin2q-marvell-dmp.dtb
+dtb-$(CONFIG_ARCH_BRCMSTB) += \
+	bcm7445-bcm97445svmb.dtb
 dtb-$(CONFIG_ARCH_DAVINCI) += da850-enbw-cmc.dtb \
 	da850-evm.dtb
 dtb-$(CONFIG_ARCH_EFM32) += efm32gg-dk3750.dtb
@@ -66,7 +68,9 @@ dtb-$(CONFIG_ARCH_EXYNOS) += exynos4210-origen.dtb \
 	exynos4210-smdkv310.dtb \
 	exynos4210-trats.dtb \
 	exynos4210-universal_c210.dtb \
+	exynos4412-odroidu3.dtb \
 	exynos4412-odroidx.dtb \
+	exynos4412-odroidx2.dtb \
 	exynos4412-origen.dtb \
 	exynos4412-smdk4412.dtb \
 	exynos4412-tiny4412.dtb \
@@ -83,6 +87,7 @@ dtb-$(CONFIG_ARCH_EXYNOS) += exynos4210-origen.dtb \
 	exynos5440-ssdk5440.dtb \
 	exynos5800-peach-pi.dtb
 dtb-$(CONFIG_ARCH_HI3xxx) += hi3620-hi4511.dtb
+dtb-$(CONFIG_ARCH_HIX5HD2) += hisi-x5hd2-dkb.dtb
 dtb-$(CONFIG_ARCH_HIGHBANK) += highbank.dtb \
 	ecx-2000.dtb
 dtb-$(CONFIG_ARCH_INTEGRATOR) += integratorap.dtb \
@@ -90,9 +95,9 @@ dtb-$(CONFIG_ARCH_INTEGRATOR) += integratorap.dtb \
 dtb-$(CONFIG_ARCH_KEYSTONE) += k2hk-evm.dtb \
 	k2l-evm.dtb \
 	k2e-evm.dtb
-kirkwood := \
-	kirkwood-b3.dtb \
+dtb-$(CONFIG_MACH_KIRKWOOD) += kirkwood-b3.dtb \
 	kirkwood-cloudbox.dtb \
+	kirkwood-d2net.dtb \
 	kirkwood-db-88f6281.dtb \
 	kirkwood-db-88f6282.dtb \
 	kirkwood-dns320.dtb \
@@ -123,6 +128,8 @@ kirkwood := \
 	kirkwood-lsxhl.dtb \
 	kirkwood-mplcec4.dtb \
 	kirkwood-mv88f6281gtw-ge.dtb \
+	kirkwood-net2big.dtb \
+	kirkwood-net5big.dtb \
 	kirkwood-netgear_readynas_duo_v2.dtb \
 	kirkwood-netgear_readynas_nv+_v2.dtb \
 	kirkwood-ns2.dtb \
@@ -150,17 +157,19 @@ kirkwood := \
 	kirkwood-ts219-6282.dtb \
 	kirkwood-ts419-6281.dtb \
 	kirkwood-ts419-6282.dtb
-dtb-$(CONFIG_ARCH_KIRKWOOD) += $(kirkwood)
-dtb-$(CONFIG_MACH_KIRKWOOD) += $(kirkwood)
 dtb-$(CONFIG_ARCH_LPC32XX) += ea3250.dtb phy3250.dtb
 dtb-$(CONFIG_ARCH_MARCO) += marco-evb.dtb
 dtb-$(CONFIG_ARCH_MOXART) += moxart-uc7112lx.dtb
 dtb-$(CONFIG_ARCH_MXC) += \
 	imx25-eukrea-mbimxsd25-baseboard.dtb \
+	imx25-eukrea-mbimxsd25-baseboard-cmo-qvga.dtb \
+	imx25-eukrea-mbimxsd25-baseboard-dvi-svga.dtb \
+	imx25-eukrea-mbimxsd25-baseboard-dvi-vga.dtb \
 	imx25-karo-tx25.dtb \
 	imx25-pdk.dtb \
 	imx27-apf27.dtb \
 	imx27-apf27dev.dtb \
+	imx27-eukrea-mbimxsd27-baseboard.dtb \
 	imx27-pdk.dtb \
 	imx27-phytec-phycore-rdk.dtb \
 	imx27-phytec-phycard-s-rdk.dtb \
@@ -182,6 +191,8 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx53-tx53-x03x.dtb \
 	imx53-tx53-x13x.dtb \
 	imx53-voipac-bsb.dtb \
+	imx6dl-aristainetos_4.dtb \
+	imx6dl-aristainetos_7.dtb \
 	imx6dl-cubox-i.dtb \
 	imx6dl-dfi-fs700-m60.dtb \
 	imx6dl-gw51xx.dtb \
@@ -191,11 +202,16 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx6dl-hummingboard.dtb \
 	imx6dl-nitrogen6x.dtb \
 	imx6dl-phytec-pbab01.dtb \
+	imx6dl-rex-basic.dtb \
 	imx6dl-riotboard.dtb \
 	imx6dl-sabreauto.dtb \
 	imx6dl-sabrelite.dtb \
 	imx6dl-sabresd.dtb \
+	imx6dl-tx6dl-comtft.dtb \
+	imx6dl-tx6u-801x.dtb \
+	imx6dl-tx6u-811x.dtb \
 	imx6dl-wandboard.dtb \
+	imx6dl-wandboard-revb1.dtb \
 	imx6q-arm2.dtb \
 	imx6q-cm-fx6.dtb \
 	imx6q-cubox-i.dtb \
@@ -209,13 +225,21 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx6q-gw54xx.dtb \
 	imx6q-nitrogen6x.dtb \
 	imx6q-phytec-pbab01.dtb \
+	imx6q-rex-pro.dtb \
 	imx6q-sabreauto.dtb \
 	imx6q-sabrelite.dtb \
 	imx6q-sabresd.dtb \
 	imx6q-sbc6x.dtb \
 	imx6q-udoo.dtb \
 	imx6q-wandboard.dtb \
+	imx6q-wandboard-revb1.dtb \
+	imx6q-tx6q-1010.dtb \
+	imx6q-tx6q-1010-comtft.dtb \
+	imx6q-tx6q-1020.dtb \
+	imx6q-tx6q-1020-comtft.dtb \
+	imx6q-tx6q-1110.dtb \
 	imx6sl-evk.dtb \
+	imx6sx-sdb.dtb \
 	vf610-colibri.dtb \
 	vf610-cosmic.dtb \
 	vf610-twr.dtb
@@ -291,7 +315,8 @@ dtb-$(CONFIG_SOC_AM33XX) += am335x-base0033.dtb \
 	am335x-boneblack.dtb \
 	am335x-evm.dtb \
 	am335x-evmsk.dtb \
-	am335x-nano.dtb
+	am335x-nano.dtb \
+	am335x-pepper.dtb
 dtb-$(CONFIG_ARCH_OMAP4) += omap4-duovero-parlor.dtb \
 	omap4-panda.dtb \
 	omap4-panda-a4.dtb \
@@ -301,6 +326,7 @@ dtb-$(CONFIG_ARCH_OMAP4) += omap4-duovero-parlor.dtb \
 	omap4-var-dvk-om44.dtb \
 	omap4-var-stk-om44.dtb
 dtb-$(CONFIG_SOC_AM43XX) += am43x-epos-evm.dtb \
+	am437x-sk-evm.dtb \
 	am437x-gp-evm.dtb
 dtb-$(CONFIG_SOC_OMAP5) += omap5-cm-t54.dtb \
 	omap5-sbc-t54.dtb \
@@ -318,16 +344,25 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-apq8084-mtp.dtb \
 	qcom-msm8660-surf.dtb \
 	qcom-msm8960-cdp.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += \
+	rk3066a-bqcurie2.dtb \
+	rk3188-radxarock.dtb \
+	rk3288-evb-act8846.dtb \
+	rk3288-evb-rk808.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += s3c6410-mini6410.dtb \
 	s3c6410-smdk6410.dtb
+dtb-$(CONFIG_ARCH_S5PV210) += s5pv210-aquila.dtb \
+	s5pv210-goni.dtb \
+	s5pv210-smdkc110.dtb \
+	s5pv210-smdkv210.dtb \
+	s5pv210-torbreck.dtb
 dtb-$(CONFIG_ARCH_SHMOBILE_LEGACY) += r7s72100-genmai.dtb \
 	r8a7740-armadillo800eva.dtb \
 	r8a7778-bockw.dtb \
 	r8a7778-bockw-reference.dtb \
 	r8a7740-armadillo800eva-reference.dtb \
 	r8a7779-marzen.dtb \
-	r8a7779-marzen-reference.dtb \
 	r8a7791-koelsch.dtb \
 	r8a7790-lager.dtb \
 	sh73a0-kzm9g.dtb \
@@ -339,7 +374,8 @@ dtb-$(CONFIG_ARCH_SHMOBILE_MULTI) += emev2-kzm9d.dtb \
 	r7s72100-genmai.dtb \
 	r8a7791-henninger.dtb \
 	r8a7791-koelsch.dtb \
-	r8a7790-lager.dtb
+	r8a7790-lager.dtb \
+	r8a7779-marzen.dtb
 dtb-$(CONFIG_ARCH_SOCFPGA) += socfpga_arria5_socdk.dtb \
 	socfpga_cyclone5_socdk.dtb \
 	socfpga_cyclone5_sockit.dtb \
@@ -360,6 +396,7 @@ dtb-$(CONFIG_ARCH_STI)+= stih407-b2120.dtb \
 	stih416-b2020e.dtb
 dtb-$(CONFIG_MACH_SUN4I) += \
 	sun4i-a10-a1000.dtb \
+	sun4i-a10-ba10-tvbox.dtb \
 	sun4i-a10-cubieboard.dtb \
 	sun4i-a10-mini-xplus.dtb \
 	sun4i-a10-hackberry.dtb \
@@ -374,12 +411,16 @@ dtb-$(CONFIG_MACH_SUN5I) += \
 dtb-$(CONFIG_MACH_SUN6I) += \
 	sun6i-a31-app4-evb1.dtb \
 	sun6i-a31-colombus.dtb \
+	sun6i-a31-hummingbird.dtb \
 	sun6i-a31-m9.dtb
 dtb-$(CONFIG_MACH_SUN7I) += \
 	sun7i-a20-cubieboard2.dtb \
 	sun7i-a20-cubietruck.dtb \
 	sun7i-a20-i12-tvbox.dtb \
-	sun7i-a20-olinuxino-micro.dtb
+	sun7i-a20-olinuxino-micro.dtb \
+	sun7i-a20-pcduino3.dtb
+dtb-$(CONFIG_MACH_SUN8I) += \
+	sun8i-a23-ippo-q8h-v5.dtb
 dtb-$(CONFIG_ARCH_TEGRA) += tegra20-harmony.dtb \
 	tegra20-iris-512.dtb \
 	tegra20-medcom-wide.dtb \
@@ -390,6 +431,7 @@ dtb-$(CONFIG_ARCH_TEGRA) += tegra20-harmony.dtb \
 	tegra20-trimslice.dtb \
 	tegra20-ventana.dtb \
 	tegra20-whistler.dtb \
+	tegra30-apalis-eval.dtb \
 	tegra30-beaver.dtb \
 	tegra30-cardhu-a02.dtb \
 	tegra30-cardhu-a04.dtb \
@@ -419,7 +461,9 @@ dtb-$(CONFIG_ARCH_VT8500) += vt8500-bv07.dtb \
 	wm8650-mid.dtb \
 	wm8750-apc8750.dtb \
 	wm8850-w70v2.dtb
-dtb-$(CONFIG_ARCH_ZYNQ) += zynq-zc702.dtb \
+dtb-$(CONFIG_ARCH_ZYNQ) += \
+	zynq-parallella.dtb \
+	zynq-zc702.dtb \
 	zynq-zc706.dtb \
 	zynq-zed.dtb
 dtb-$(CONFIG_MACH_ARMADA_370) += \
@@ -437,11 +481,13 @@ dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-axpwifiap.dtb \
 	armada-xp-db.dtb \
 	armada-xp-gp.dtb \
-	armada-xp-netgear-rn2120.dtb \
+	armada-xp-lenovo-ix4-300d.dtb \
 	armada-xp-matrix.dtb \
+	armada-xp-netgear-rn2120.dtb \
 	armada-xp-openblocks-ax3-4.dtb
 dtb-$(CONFIG_MACH_DOVE) += dove-cm-a510.dtb \
 	dove-cubox.dtb \
+	dove-cubox-es.dtb \
 	dove-d2plug.dtb \
 	dove-d3plug.dtb \
 	dove-dove-db.dtb

@@ -117,6 +117,9 @@ void synaptics_reset(struct psmouse *psmouse)
 }
 
 #ifdef CONFIG_MOUSE_PS2_SYNAPTICS
+
+static bool cr48_profile_sensor;
+
 struct min_max_quirk {
 	const char * const *pnp_ids;
 	int x_min, x_max, y_min, y_max;
@@ -626,10 +629,61 @@ static int synaptics_parse_hw_state(const unsigned char buf[],
 			 ((buf[0] & 0x04) >> 1) |
 			 ((buf[3] & 0x04) >> 2));
 
+		if ((SYN_CAP_ADV_GESTURE(priv->ext_cap_0c) ||
+			SYN_CAP_IMAGE_SENSOR(priv->ext_cap_0c)) &&
+		    hw->w == 2) {
+			synaptics_parse_agm(buf, priv, hw);
+			return 1;
+		}
+
+		hw->x = (((buf[3] & 0x10) << 8) |
+			 ((buf[1] & 0x0f) << 8) |
+			 buf[4]);
+		hw->y = (((buf[3] & 0x20) << 7) |
+			 ((buf[1] & 0xf0) << 4) |
+			 buf[5]);
+		hw->z = buf[2];
+
 		hw->left  = (buf[0] & 0x01) ? 1 : 0;
 		hw->right = (buf[0] & 0x02) ? 1 : 0;
 
-		if (SYN_CAP_CLICKPAD(priv->ext_cap_0c)) {
+		if (SYN_CAP_FORCEPAD(priv->ext_cap_0c)) {
+			/*
+			 * ForcePads, like Clickpads, use middle button
+			 * bits to report primary button clicks.
+			 * Unfortunately they report primary button not
+			 * only when user presses on the pad above certain
+			 * threshold, but also when there are more than one
+			 * finger on the touchpad, which interferes with
+			 * out multi-finger gestures.
+			 */
+			if (hw->z == 0) {
+				/* No contacts */
+				priv->press = priv->report_press = false;
+			} else if (hw->w >= 4 && ((buf[0] ^ buf[3]) & 0x01)) {
+				/*
+				 * Single-finger touch with pressure above
+				 * the threshold. If pressure stays long
+				 * enough, we'll start reporting primary
+				 * button. We rely on the device continuing
+				 * sending data even if finger does not
+				 * move.
+				 */
+				if  (!priv->press) {
+					priv->press_start = jiffies;
+					priv->press = true;
+				} else if (time_after(jiffies,
+						priv->press_start +
+							msecs_to_jiffies(50))) {
+					priv->report_press = true;
+				}
+			} else {
+				priv->press = false;
+			}
+
+			hw->left = priv->report_press;
+
+		} else if (SYN_CAP_CLICKPAD(priv->ext_cap_0c)) {
 			/*
 			 * Clickpad's button is transmitted as middle button,
 			 * however, since it is primary button, we will report
@@ -647,21 +701,6 @@ static int synaptics_parse_hw_state(const unsigned char buf[],
 			hw->up   = ((buf[0] ^ buf[3]) & 0x01) ? 1 : 0;
 			hw->down = ((buf[0] ^ buf[3]) & 0x02) ? 1 : 0;
 		}
-
-		if ((SYN_CAP_ADV_GESTURE(priv->ext_cap_0c) ||
-			SYN_CAP_IMAGE_SENSOR(priv->ext_cap_0c)) &&
-		    hw->w == 2) {
-			synaptics_parse_agm(buf, priv, hw);
-			return 1;
-		}
-
-		hw->x = (((buf[3] & 0x10) << 8) |
-			 ((buf[1] & 0x0f) << 8) |
-			 buf[4]);
-		hw->y = (((buf[3] & 0x20) << 7) |
-			 ((buf[1] & 0xf0) << 4) |
-			 buf[5]);
-		hw->z = buf[2];
 
 		if (SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap) &&
 		    ((buf[0] ^ buf[3]) & 0x02)) {
@@ -1152,6 +1191,42 @@ static void synaptics_image_sensor_process(struct psmouse *psmouse,
 	priv->agm_pending = false;
 }
 
+static void synaptics_profile_sensor_process(struct psmouse *psmouse,
+					     struct synaptics_hw_state *sgm,
+					     int num_fingers)
+{
+	struct input_dev *dev = psmouse->dev;
+	struct synaptics_data *priv = psmouse->private;
+	struct synaptics_hw_state *hw[2] = { sgm, &priv->agm };
+	struct input_mt_pos pos[2];
+	int slot[2], nsemi, i;
+
+	nsemi = clamp_val(num_fingers, 0, 2);
+
+	for (i = 0; i < nsemi; i++) {
+		pos[i].x = hw[i]->x;
+		pos[i].y = synaptics_invert_y(hw[i]->y);
+	}
+
+	input_mt_assign_slots(dev, slot, pos, nsemi);
+
+	for (i = 0; i < nsemi; i++) {
+		input_mt_slot(dev, slot[i]);
+		input_mt_report_slot_state(dev, MT_TOOL_FINGER, true);
+		input_report_abs(dev, ABS_MT_POSITION_X, pos[i].x);
+		input_report_abs(dev, ABS_MT_POSITION_Y, pos[i].y);
+		input_report_abs(dev, ABS_MT_PRESSURE, hw[i]->z);
+	}
+
+	input_mt_drop_unused(dev);
+	input_mt_report_pointer_emulation(dev, false);
+	input_mt_report_finger_count(dev, num_fingers);
+
+	synaptics_report_buttons(psmouse, sgm);
+
+	input_sync(dev);
+}
+
 /*
  *  called for each full received packet from the touchpad
  */
@@ -1213,6 +1288,11 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 	} else {
 		num_fingers = 0;
 		finger_width = 0;
+	}
+
+	if (cr48_profile_sensor) {
+		synaptics_profile_sensor_process(psmouse, &hw, num_fingers);
+		return;
 	}
 
 	if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c))
@@ -1360,6 +1440,9 @@ static void set_input_params(struct psmouse *psmouse,
 	set_abs_position_params(dev, priv, ABS_X, ABS_Y);
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
 
+	if (cr48_profile_sensor)
+		input_set_abs_params(dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
+
 	if (SYN_CAP_IMAGE_SENSOR(priv->ext_cap_0c)) {
 		set_abs_position_params(dev, priv, ABS_MT_POSITION_X,
 					ABS_MT_POSITION_Y);
@@ -1371,11 +1454,16 @@ static void set_input_params(struct psmouse *psmouse,
 		__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
 		__set_bit(BTN_TOOL_QUINTTAP, dev->keybit);
 	} else if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c)) {
-		/* Non-image sensors with AGM use semi-mt */
-		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
-		input_mt_init_slots(dev, 2, 0);
 		set_abs_position_params(dev, priv, ABS_MT_POSITION_X,
 					ABS_MT_POSITION_Y);
+		/*
+		 * Profile sensor in CR-48 tracks contacts reasonably well,
+		 * other non-image sensors with AGM use semi-mt.
+		 */
+		input_mt_init_slots(dev, 2,
+				    INPUT_MT_POINTER |
+				    (cr48_profile_sensor ?
+					INPUT_MT_TRACK : INPUT_MT_SEMI_MT));
 	}
 
 	if (SYN_CAP_PALMDETECT(priv->capabilities))
@@ -1577,10 +1665,24 @@ static const struct dmi_system_id olpc_dmi_table[] __initconst = {
 	{ }
 };
 
+static const struct dmi_system_id __initconst cr48_dmi_table[] = {
+#if defined(CONFIG_DMI) && defined(CONFIG_X86)
+	{
+		/* Cr-48 Chromebook (Codename Mario) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IEC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Mario"),
+		},
+	},
+#endif
+	{ }
+};
+
 void __init synaptics_module_init(void)
 {
 	impaired_toshiba_kbc = dmi_check_system(toshiba_dmi_table);
 	broken_olpc_ec = dmi_check_system(olpc_dmi_table);
+	cr48_profile_sensor = dmi_check_system(cr48_dmi_table);
 }
 
 static int __synaptics_init(struct psmouse *psmouse, bool absolute_mode)

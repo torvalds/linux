@@ -30,6 +30,7 @@
 #include "unwind.h"
 #include "symbol.h"
 #include "util.h"
+#include "debug.h"
 
 extern int
 UNW_OBJ(dwarf_search_unwind_table) (unw_addr_space_t as,

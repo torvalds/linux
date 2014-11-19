@@ -96,7 +96,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  uint32_t src_x, uint32_t src_y,
 		  uint32_t src_w, uint32_t src_h)
 {
-	struct nouveau_device *dev = nouveau_dev(plane->dev);
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
@@ -117,7 +117,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (format > 0xffff)
 		return -ERANGE;
 
-	if (dev->chipset >= 0x30) {
+	if (dev->info.chipset >= 0x30) {
 		if (crtc_w < (src_w >> 1) || crtc_h < (src_h >> 1))
 			return -ERANGE;
 	} else {
@@ -131,17 +131,17 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	nv_plane->cur = nv_fb->nvbo;
 
-	nv_mask(dev, NV_PCRTC_ENGINE_CTRL + soff, NV_CRTC_FSEL_OVERLAY, NV_CRTC_FSEL_OVERLAY);
-	nv_mask(dev, NV_PCRTC_ENGINE_CTRL + soff2, NV_CRTC_FSEL_OVERLAY, 0);
+	nvif_mask(dev, NV_PCRTC_ENGINE_CTRL + soff, NV_CRTC_FSEL_OVERLAY, NV_CRTC_FSEL_OVERLAY);
+	nvif_mask(dev, NV_PCRTC_ENGINE_CTRL + soff2, NV_CRTC_FSEL_OVERLAY, 0);
 
-	nv_wr32(dev, NV_PVIDEO_BASE(flip), 0);
-	nv_wr32(dev, NV_PVIDEO_OFFSET_BUFF(flip), nv_fb->nvbo->bo.offset);
-	nv_wr32(dev, NV_PVIDEO_SIZE_IN(flip), src_h << 16 | src_w);
-	nv_wr32(dev, NV_PVIDEO_POINT_IN(flip), src_y << 16 | src_x);
-	nv_wr32(dev, NV_PVIDEO_DS_DX(flip), (src_w << 20) / crtc_w);
-	nv_wr32(dev, NV_PVIDEO_DT_DY(flip), (src_h << 20) / crtc_h);
-	nv_wr32(dev, NV_PVIDEO_POINT_OUT(flip), crtc_y << 16 | crtc_x);
-	nv_wr32(dev, NV_PVIDEO_SIZE_OUT(flip), crtc_h << 16 | crtc_w);
+	nvif_wr32(dev, NV_PVIDEO_BASE(flip), 0);
+	nvif_wr32(dev, NV_PVIDEO_OFFSET_BUFF(flip), nv_fb->nvbo->bo.offset);
+	nvif_wr32(dev, NV_PVIDEO_SIZE_IN(flip), src_h << 16 | src_w);
+	nvif_wr32(dev, NV_PVIDEO_POINT_IN(flip), src_y << 16 | src_x);
+	nvif_wr32(dev, NV_PVIDEO_DS_DX(flip), (src_w << 20) / crtc_w);
+	nvif_wr32(dev, NV_PVIDEO_DT_DY(flip), (src_h << 20) / crtc_h);
+	nvif_wr32(dev, NV_PVIDEO_POINT_OUT(flip), crtc_y << 16 | crtc_x);
+	nvif_wr32(dev, NV_PVIDEO_SIZE_OUT(flip), crtc_h << 16 | crtc_w);
 
 	if (fb->pixel_format != DRM_FORMAT_UYVY)
 		format |= NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8;
@@ -153,14 +153,14 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		format |= NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY;
 
 	if (fb->pixel_format == DRM_FORMAT_NV12) {
-		nv_wr32(dev, NV_PVIDEO_UVPLANE_BASE(flip), 0);
-		nv_wr32(dev, NV_PVIDEO_UVPLANE_OFFSET_BUFF(flip),
+		nvif_wr32(dev, NV_PVIDEO_UVPLANE_BASE(flip), 0);
+		nvif_wr32(dev, NV_PVIDEO_UVPLANE_OFFSET_BUFF(flip),
 			nv_fb->nvbo->bo.offset + fb->offsets[1]);
 	}
-	nv_wr32(dev, NV_PVIDEO_FORMAT(flip), format);
-	nv_wr32(dev, NV_PVIDEO_STOP, 0);
+	nvif_wr32(dev, NV_PVIDEO_FORMAT(flip), format);
+	nvif_wr32(dev, NV_PVIDEO_STOP, 0);
 	/* TODO: wait for vblank? */
-	nv_wr32(dev, NV_PVIDEO_BUFFER, flip ? 0x10 : 0x1);
+	nvif_wr32(dev, NV_PVIDEO_BUFFER, flip ? 0x10 : 0x1);
 	nv_plane->flip = !flip;
 
 	if (cur)
@@ -172,10 +172,10 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 static int
 nv10_disable_plane(struct drm_plane *plane)
 {
-	struct nouveau_device *dev = nouveau_dev(plane->dev);
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
 
-	nv_wr32(dev, NV_PVIDEO_STOP, 1);
+	nvif_wr32(dev, NV_PVIDEO_STOP, 1);
 	if (nv_plane->cur) {
 		nouveau_bo_unpin(nv_plane->cur);
 		nv_plane->cur = NULL;
@@ -195,24 +195,24 @@ nv_destroy_plane(struct drm_plane *plane)
 static void
 nv10_set_params(struct nouveau_plane *plane)
 {
-	struct nouveau_device *dev = nouveau_dev(plane->base.dev);
+	struct nvif_device *dev = &nouveau_drm(plane->base.dev)->device;
 	u32 luma = (plane->brightness - 512) << 16 | plane->contrast;
 	u32 chroma = ((sin_mul(plane->hue, plane->saturation) & 0xffff) << 16) |
 		(cos_mul(plane->hue, plane->saturation) & 0xffff);
 	u32 format = 0;
 
-	nv_wr32(dev, NV_PVIDEO_LUMINANCE(0), luma);
-	nv_wr32(dev, NV_PVIDEO_LUMINANCE(1), luma);
-	nv_wr32(dev, NV_PVIDEO_CHROMINANCE(0), chroma);
-	nv_wr32(dev, NV_PVIDEO_CHROMINANCE(1), chroma);
-	nv_wr32(dev, NV_PVIDEO_COLOR_KEY, plane->colorkey & 0xffffff);
+	nvif_wr32(dev, NV_PVIDEO_LUMINANCE(0), luma);
+	nvif_wr32(dev, NV_PVIDEO_LUMINANCE(1), luma);
+	nvif_wr32(dev, NV_PVIDEO_CHROMINANCE(0), chroma);
+	nvif_wr32(dev, NV_PVIDEO_CHROMINANCE(1), chroma);
+	nvif_wr32(dev, NV_PVIDEO_COLOR_KEY, plane->colorkey & 0xffffff);
 
 	if (plane->cur) {
 		if (plane->iturbt_709)
 			format |= NV_PVIDEO_FORMAT_MATRIX_ITURBT709;
 		if (plane->colorkey & (1 << 24))
 			format |= NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY;
-		nv_mask(dev, NV_PVIDEO_FORMAT(plane->flip),
+		nvif_mask(dev, NV_PVIDEO_FORMAT(plane->flip),
 			NV_PVIDEO_FORMAT_MATRIX_ITURBT709 |
 			NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY,
 			format);
@@ -256,7 +256,7 @@ static const struct drm_plane_funcs nv10_plane_funcs = {
 static void
 nv10_overlay_init(struct drm_device *device)
 {
-	struct nouveau_device *dev = nouveau_dev(device);
+	struct nouveau_drm *drm = nouveau_drm(device);
 	struct nouveau_plane *plane = kzalloc(sizeof(struct nouveau_plane), GFP_KERNEL);
 	int num_formats = ARRAY_SIZE(formats);
 	int ret;
@@ -264,7 +264,7 @@ nv10_overlay_init(struct drm_device *device)
 	if (!plane)
 		return;
 
-	switch (dev->chipset) {
+	switch (drm->device.info.chipset) {
 	case 0x10:
 	case 0x11:
 	case 0x15:
@@ -333,7 +333,7 @@ cleanup:
 	drm_plane_cleanup(&plane->base);
 err:
 	kfree(plane);
-	nv_error(dev, "Failed to create plane\n");
+	NV_ERROR(drm, "Failed to create plane\n");
 }
 
 static int
@@ -343,7 +343,7 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  uint32_t src_x, uint32_t src_y,
 		  uint32_t src_w, uint32_t src_h)
 {
-	struct nouveau_device *dev = nouveau_dev(plane->dev);
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nouveau_bo *cur = nv_plane->cur;
@@ -375,43 +375,43 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	nv_plane->cur = nv_fb->nvbo;
 
-	nv_wr32(dev, NV_PVIDEO_OE_STATE, 0);
-	nv_wr32(dev, NV_PVIDEO_SU_STATE, 0);
-	nv_wr32(dev, NV_PVIDEO_RM_STATE, 0);
+	nvif_wr32(dev, NV_PVIDEO_OE_STATE, 0);
+	nvif_wr32(dev, NV_PVIDEO_SU_STATE, 0);
+	nvif_wr32(dev, NV_PVIDEO_RM_STATE, 0);
 
 	for (i = 0; i < 2; i++) {
-		nv_wr32(dev, NV_PVIDEO_BUFF0_START_ADDRESS + 4 * i,
+		nvif_wr32(dev, NV_PVIDEO_BUFF0_START_ADDRESS + 4 * i,
 			nv_fb->nvbo->bo.offset);
-		nv_wr32(dev, NV_PVIDEO_BUFF0_PITCH_LENGTH + 4 * i, pitch);
-		nv_wr32(dev, NV_PVIDEO_BUFF0_OFFSET + 4 * i, 0);
+		nvif_wr32(dev, NV_PVIDEO_BUFF0_PITCH_LENGTH + 4 * i, pitch);
+		nvif_wr32(dev, NV_PVIDEO_BUFF0_OFFSET + 4 * i, 0);
 	}
-	nv_wr32(dev, NV_PVIDEO_WINDOW_START, crtc_y << 16 | crtc_x);
-	nv_wr32(dev, NV_PVIDEO_WINDOW_SIZE, crtc_h << 16 | crtc_w);
-	nv_wr32(dev, NV_PVIDEO_STEP_SIZE,
+	nvif_wr32(dev, NV_PVIDEO_WINDOW_START, crtc_y << 16 | crtc_x);
+	nvif_wr32(dev, NV_PVIDEO_WINDOW_SIZE, crtc_h << 16 | crtc_w);
+	nvif_wr32(dev, NV_PVIDEO_STEP_SIZE,
 		(uint32_t)(((src_h - 1) << 11) / (crtc_h - 1)) << 16 | (uint32_t)(((src_w - 1) << 11) / (crtc_w - 1)));
 
 	/* It should be possible to convert hue/contrast to this */
-	nv_wr32(dev, NV_PVIDEO_RED_CSC_OFFSET, 0x69 - brightness);
-	nv_wr32(dev, NV_PVIDEO_GREEN_CSC_OFFSET, 0x3e + brightness);
-	nv_wr32(dev, NV_PVIDEO_BLUE_CSC_OFFSET, 0x89 - brightness);
-	nv_wr32(dev, NV_PVIDEO_CSC_ADJUST, 0);
+	nvif_wr32(dev, NV_PVIDEO_RED_CSC_OFFSET, 0x69 - brightness);
+	nvif_wr32(dev, NV_PVIDEO_GREEN_CSC_OFFSET, 0x3e + brightness);
+	nvif_wr32(dev, NV_PVIDEO_BLUE_CSC_OFFSET, 0x89 - brightness);
+	nvif_wr32(dev, NV_PVIDEO_CSC_ADJUST, 0);
 
-	nv_wr32(dev, NV_PVIDEO_CONTROL_Y, 0x001); /* (BLUR_ON, LINE_HALF) */
-	nv_wr32(dev, NV_PVIDEO_CONTROL_X, 0x111); /* (WEIGHT_HEAVY, SHARPENING_ON, SMOOTHING_ON) */
+	nvif_wr32(dev, NV_PVIDEO_CONTROL_Y, 0x001); /* (BLUR_ON, LINE_HALF) */
+	nvif_wr32(dev, NV_PVIDEO_CONTROL_X, 0x111); /* (WEIGHT_HEAVY, SHARPENING_ON, SMOOTHING_ON) */
 
-	nv_wr32(dev, NV_PVIDEO_FIFO_BURST_LENGTH, 0x03);
-	nv_wr32(dev, NV_PVIDEO_FIFO_THRES_SIZE, 0x38);
+	nvif_wr32(dev, NV_PVIDEO_FIFO_BURST_LENGTH, 0x03);
+	nvif_wr32(dev, NV_PVIDEO_FIFO_THRES_SIZE, 0x38);
 
-	nv_wr32(dev, NV_PVIDEO_KEY, nv_plane->colorkey);
+	nvif_wr32(dev, NV_PVIDEO_KEY, nv_plane->colorkey);
 
 	if (nv_plane->colorkey & (1 << 24))
 		overlay |= 0x10;
 	if (fb->pixel_format == DRM_FORMAT_YUYV)
 		overlay |= 0x100;
 
-	nv_wr32(dev, NV_PVIDEO_OVERLAY, overlay);
+	nvif_wr32(dev, NV_PVIDEO_OVERLAY, overlay);
 
-	nv_wr32(dev, NV_PVIDEO_SU_STATE, nv_rd32(dev, NV_PVIDEO_SU_STATE) ^ (1 << 16));
+	nvif_wr32(dev, NV_PVIDEO_SU_STATE, nvif_rd32(dev, NV_PVIDEO_SU_STATE) ^ (1 << 16));
 
 	if (cur)
 		nouveau_bo_unpin(cur);
@@ -422,13 +422,13 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 static int
 nv04_disable_plane(struct drm_plane *plane)
 {
-	struct nouveau_device *dev = nouveau_dev(plane->dev);
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane = (struct nouveau_plane *)plane;
 
-	nv_mask(dev, NV_PVIDEO_OVERLAY, 1, 0);
-	nv_wr32(dev, NV_PVIDEO_OE_STATE, 0);
-	nv_wr32(dev, NV_PVIDEO_SU_STATE, 0);
-	nv_wr32(dev, NV_PVIDEO_RM_STATE, 0);
+	nvif_mask(dev, NV_PVIDEO_OVERLAY, 1, 0);
+	nvif_wr32(dev, NV_PVIDEO_OE_STATE, 0);
+	nvif_wr32(dev, NV_PVIDEO_SU_STATE, 0);
+	nvif_wr32(dev, NV_PVIDEO_RM_STATE, 0);
 	if (nv_plane->cur) {
 		nouveau_bo_unpin(nv_plane->cur);
 		nv_plane->cur = NULL;
@@ -447,7 +447,7 @@ static const struct drm_plane_funcs nv04_plane_funcs = {
 static void
 nv04_overlay_init(struct drm_device *device)
 {
-	struct nouveau_device *dev = nouveau_dev(device);
+	struct nouveau_drm *drm = nouveau_drm(device);
 	struct nouveau_plane *plane = kzalloc(sizeof(struct nouveau_plane), GFP_KERNEL);
 	int ret;
 
@@ -483,15 +483,15 @@ cleanup:
 	drm_plane_cleanup(&plane->base);
 err:
 	kfree(plane);
-	nv_error(dev, "Failed to create plane\n");
+	NV_ERROR(drm, "Failed to create plane\n");
 }
 
 void
 nouveau_overlay_init(struct drm_device *device)
 {
-	struct nouveau_device *dev = nouveau_dev(device);
-	if (dev->chipset < 0x10)
+	struct nvif_device *dev = &nouveau_drm(device)->device;
+	if (dev->info.chipset < 0x10)
 		nv04_overlay_init(device);
-	else if (dev->chipset <= 0x40)
+	else if (dev->info.chipset <= 0x40)
 		nv10_overlay_init(device);
 }

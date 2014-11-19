@@ -543,7 +543,42 @@ out:
 }
 
 static DEVICE_ATTR(isolation, 0644, qeth_dev_isolation_show,
-		   qeth_dev_isolation_store);
+			qeth_dev_isolation_store);
+
+static ssize_t qeth_dev_switch_attrs_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	struct qeth_switch_info sw_info;
+	int	rc = 0;
+
+	if (!card)
+		return -EINVAL;
+
+	if (card->state != CARD_STATE_SOFTSETUP && card->state != CARD_STATE_UP)
+		return sprintf(buf, "n/a\n");
+
+	rc = qeth_query_switch_attributes(card, &sw_info);
+	if (rc)
+		return rc;
+
+	if (!sw_info.capabilities)
+		rc = sprintf(buf, "unknown");
+
+	if (sw_info.capabilities & QETH_SWITCH_FORW_802_1)
+		rc = sprintf(buf, (sw_info.settings & QETH_SWITCH_FORW_802_1 ?
+							"[802.1]" : "802.1"));
+	if (sw_info.capabilities & QETH_SWITCH_FORW_REFL_RELAY)
+		rc += sprintf(buf + rc,
+			(sw_info.settings & QETH_SWITCH_FORW_REFL_RELAY ?
+							" [rr]" : " rr"));
+	rc += sprintf(buf + rc, "\n");
+
+	return rc;
+}
+
+static DEVICE_ATTR(switch_attrs, 0444,
+		   qeth_dev_switch_attrs_show, NULL);
 
 static ssize_t qeth_hw_trap_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -728,6 +763,7 @@ static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_layer2.attr,
 	&dev_attr_isolation.attr,
 	&dev_attr_hw_trap.attr,
+	&dev_attr_switch_attrs.attr,
 	NULL,
 };
 static struct attribute_group qeth_device_attr_group = {

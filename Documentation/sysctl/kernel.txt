@@ -826,6 +826,7 @@ can be ORed together:
 4096 - An out-of-tree module has been loaded.
 8192 - An unsigned module has been loaded in a kernel supporting module
        signature.
+16384 - A soft lockup has previously occurred on the system.
 
 ==============================================================
 

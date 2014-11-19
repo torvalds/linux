@@ -430,7 +430,7 @@ struct intel8x0 {
 	u32 int_sta_mask;		/* interrupt status mask */
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_intel8x0_ids) = {
+static const struct pci_device_id snd_intel8x0_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x2415), DEVICE_INTEL },	/* 82801AA */
 	{ PCI_VDEVICE(INTEL, 0x2425), DEVICE_INTEL },	/* 82901AB */
 	{ PCI_VDEVICE(INTEL, 0x2445), DEVICE_INTEL },	/* 82801BA */

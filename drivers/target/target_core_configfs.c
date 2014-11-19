@@ -2363,7 +2363,7 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_support_##_name(\
 		pr_err("Invalid value '%ld', must be '0' or '1'\n", tmp); \
 		return -EINVAL;						\
 	}								\
-	if (!tmp)							\
+	if (tmp)							\
 		t->_var |= _bit;					\
 	else								\
 		t->_var &= ~_bit;					\

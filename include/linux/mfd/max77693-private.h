@@ -262,6 +262,41 @@ enum max77693_irq_source {
 	MAX77693_IRQ_GROUP_NR,
 };
 
+#define LED_IRQ_FLED2_OPEN		BIT(0)
+#define LED_IRQ_FLED2_SHORT		BIT(1)
+#define LED_IRQ_FLED1_OPEN		BIT(2)
+#define LED_IRQ_FLED1_SHORT		BIT(3)
+#define LED_IRQ_MAX_FLASH		BIT(4)
+
+#define TOPSYS_IRQ_T120C_INT		BIT(0)
+#define TOPSYS_IRQ_T140C_INT		BIT(1)
+#define TOPSYS_IRQ_LOWSYS_INT		BIT(3)
+
+#define CHG_IRQ_BYP_I			BIT(0)
+#define CHG_IRQ_THM_I			BIT(2)
+#define CHG_IRQ_BAT_I			BIT(3)
+#define CHG_IRQ_CHG_I			BIT(4)
+#define CHG_IRQ_CHGIN_I			BIT(6)
+
+#define MUIC_IRQ_INT1_ADC		BIT(0)
+#define MUIC_IRQ_INT1_ADC_LOW		BIT(1)
+#define MUIC_IRQ_INT1_ADC_ERR		BIT(2)
+#define MUIC_IRQ_INT1_ADC1K		BIT(3)
+
+#define MUIC_IRQ_INT2_CHGTYP		BIT(0)
+#define MUIC_IRQ_INT2_CHGDETREUN	BIT(1)
+#define MUIC_IRQ_INT2_DCDTMR		BIT(2)
+#define MUIC_IRQ_INT2_DXOVP		BIT(3)
+#define MUIC_IRQ_INT2_VBVOLT		BIT(4)
+#define MUIC_IRQ_INT2_VIDRM		BIT(5)
+
+#define MUIC_IRQ_INT3_EOC		BIT(0)
+#define MUIC_IRQ_INT3_CGMBC		BIT(1)
+#define MUIC_IRQ_INT3_OVP		BIT(2)
+#define MUIC_IRQ_INT3_MBCCHG_ERR	BIT(3)
+#define MUIC_IRQ_INT3_CHG_ENABLED	BIT(4)
+#define MUIC_IRQ_INT3_BAT_DET		BIT(5)
+
 enum max77693_irq {
 	/* PMIC - FLASH */
 	MAX77693_LED_IRQ_FLED2_OPEN,
@@ -282,6 +317,10 @@ enum max77693_irq {
 	MAX77693_CHG_IRQ_CHG_I,
 	MAX77693_CHG_IRQ_CHGIN_I,
 
+	MAX77693_IRQ_NR,
+};
+
+enum max77693_irq_muic {
 	/* MUIC INT1 */
 	MAX77693_MUIC_IRQ_INT1_ADC,
 	MAX77693_MUIC_IRQ_INT1_ADC_LOW,
@@ -304,7 +343,7 @@ enum max77693_irq {
 	MAX77693_MUIC_IRQ_INT3_CHG_ENABLED,
 	MAX77693_MUIC_IRQ_INT3_BAT_DET,
 
-	MAX77693_IRQ_NR,
+	MAX77693_MUIC_IRQ_NR,
 };
 
 struct max77693_dev {
@@ -319,7 +358,10 @@ struct max77693_dev {
 	struct regmap *regmap_muic;
 	struct regmap *regmap_haptic;
 
-	struct irq_domain *irq_domain;
+	struct regmap_irq_chip_data *irq_data_led;
+	struct regmap_irq_chip_data *irq_data_topsys;
+	struct regmap_irq_chip_data *irq_data_charger;
+	struct regmap_irq_chip_data *irq_data_muic;
 
 	int irq;
 	int irq_gpio;
@@ -331,14 +373,6 @@ struct max77693_dev {
 enum max77693_types {
 	TYPE_MAX77693,
 };
-
-extern int max77693_read_reg(struct regmap *map, u8 reg, u8 *dest);
-extern int max77693_bulk_read(struct regmap *map, u8 reg, int count,
-				u8 *buf);
-extern int max77693_write_reg(struct regmap *map, u8 reg, u8 value);
-extern int max77693_bulk_write(struct regmap *map, u8 reg, int count,
-				u8 *buf);
-extern int max77693_update_reg(struct regmap *map, u8 reg, u8 val, u8 mask);
 
 extern int max77693_irq_init(struct max77693_dev *max77686);
 extern void max77693_irq_exit(struct max77693_dev *max77686);

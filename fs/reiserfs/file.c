@@ -6,7 +6,7 @@
 #include "reiserfs.h"
 #include "acl.h"
 #include "xattr.h"
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>

@@ -184,7 +184,7 @@ do {								\
 	 */
 #define emit_alu_K(OPCODE, K)					\
 do {								\
-	if (K) {						\
+	if (K || OPCODE == AND || OPCODE == MUL) {		\
 		unsigned int _insn = OPCODE;			\
 		_insn |= RS1(r_A) | RD(r_A);			\
 		if (is_simm13(K)) {				\
@@ -234,12 +234,18 @@ do {	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u8));	\
 	__emit_load8(BASE, STRUCT, FIELD, DEST);			\
 } while (0)
 
-#define emit_ldmem(OFF, DEST)					\
-do {	*prog++ = LD32I | RS1(FP) | S13(-(OFF)) | RD(DEST);	\
+#ifdef CONFIG_SPARC64
+#define BIAS (STACK_BIAS - 4)
+#else
+#define BIAS (-4)
+#endif
+
+#define emit_ldmem(OFF, DEST)						\
+do {	*prog++ = LD32I | RS1(SP) | S13(BIAS - (OFF)) | RD(DEST);	\
 } while (0)
 
-#define emit_stmem(OFF, SRC)					\
-do {	*prog++ = LD32I | RS1(FP) | S13(-(OFF)) | RD(SRC);	\
+#define emit_stmem(OFF, SRC)						\
+do {	*prog++ = ST32I | RS1(SP) | S13(BIAS - (OFF)) | RD(SRC);	\
 } while (0)
 
 #ifdef CONFIG_SMP
@@ -354,7 +360,7 @@ do {	*prog++ = BR_OPC | WDISP22(OFF);		\
  * emit_jump() calls with adjusted offsets.
  */
 
-void bpf_jit_compile(struct sk_filter *fp)
+void bpf_jit_compile(struct bpf_prog *fp)
 {
 	unsigned int cleanup_addr, proglen, oldproglen = 0;
 	u32 temp[8], *prog, *func, seen = 0, pass;
@@ -615,10 +621,11 @@ void bpf_jit_compile(struct sk_filter *fp)
 			case BPF_ANC | SKF_AD_VLAN_TAG:
 			case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
 				emit_skb_load16(vlan_tci, r_A);
-				if (code == (BPF_ANC | SKF_AD_VLAN_TAG)) {
-					emit_andi(r_A, VLAN_VID_MASK, r_A);
+				if (code != (BPF_ANC | SKF_AD_VLAN_TAG)) {
+					emit_alu_K(SRL, 12);
+					emit_andi(r_A, 1, r_A);
 				} else {
-					emit_loadimm(VLAN_TAG_PRESENT, r_TMP);
+					emit_loadimm(~VLAN_TAG_PRESENT, r_TMP);
 					emit_and(r_A, r_TMP, r_A);
 				}
 				break;
@@ -630,15 +637,19 @@ void bpf_jit_compile(struct sk_filter *fp)
 				emit_loadimm(K, r_X);
 				break;
 			case BPF_LD | BPF_MEM:
+				seen |= SEEN_MEM;
 				emit_ldmem(K * 4, r_A);
 				break;
 			case BPF_LDX | BPF_MEM:
+				seen |= SEEN_MEM | SEEN_XREG;
 				emit_ldmem(K * 4, r_X);
 				break;
 			case BPF_ST:
+				seen |= SEEN_MEM;
 				emit_stmem(K * 4, r_A);
 				break;
 			case BPF_STX:
+				seen |= SEEN_MEM | SEEN_XREG;
 				emit_stmem(K * 4, r_X);
 				break;
 
@@ -808,7 +819,7 @@ out:
 	return;
 }
 
-void bpf_jit_free(struct sk_filter *fp)
+void bpf_jit_free(struct bpf_prog *fp)
 {
 	if (fp->jited)
 		module_free(NULL, fp->bpf_func);

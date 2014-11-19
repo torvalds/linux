@@ -802,7 +802,7 @@ int ath10k_core_start(struct ath10k *ar)
 
 	INIT_LIST_HEAD(&ar->arvifs);
 
-	if (!test_bit(ATH10K_FLAG_FIRST_BOOT_DONE, &ar->dev_flags))
+	if (!test_bit(ATH10K_FLAG_FIRST_BOOT_DONE, &ar->dev_flags)) {
 		ath10k_info("%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d\n",
 			    ar->hw_params.name,
 			    ar->target_version,
@@ -811,6 +811,12 @@ int ath10k_core_start(struct ath10k *ar)
 			    ar->fw_api,
 			    ar->htt.target_version_major,
 			    ar->htt.target_version_minor);
+		ath10k_info("debug %d debugfs %d tracing %d dfs %d\n",
+			    config_enabled(CONFIG_ATH10K_DEBUG),
+			    config_enabled(CONFIG_ATH10K_DEBUGFS),
+			    config_enabled(CONFIG_ATH10K_TRACING),
+			    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED));
+	}
 
 	__set_bit(ATH10K_FLAG_FIRST_BOOT_DONE, &ar->dev_flags);
 
@@ -988,7 +994,9 @@ err_unregister_mac:
 err_release_fw:
 	ath10k_core_free_firmware_files(ar);
 err:
-	device_release_driver(ar->dev);
+	/* TODO: It's probably a good idea to release device from the driver
+	 * but calling device_release_driver() here will cause a deadlock.
+	 */
 	return;
 }
 

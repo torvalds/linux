@@ -358,8 +358,6 @@ vMgrObjectInit(
 	pMgmt->byCSSGK = KEY_CTL_NONE;
 	pMgmt->wIBSSBeaconPeriod = DEFAULT_IBSS_BI;
 	BSSvClearBSSList((void *)pDevice, false);
-
-	return;
 }
 
 /*+
@@ -403,8 +401,6 @@ vMgrTimerInit(
 	pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
 	pDevice->uCmdDequeueIdx = 0;
 	pDevice->uCmdEnqueueIdx = 0;
-
-	return;
 }
 
 /*+
@@ -429,8 +425,6 @@ vMgrObjectReset(
 	pMgmt->eCurrState = WMAC_STATE_IDLE;
 	pDevice->bEnablePSMode = false;
 	// TODO: timer
-
-	return;
 }
 
 /*+
@@ -498,8 +492,6 @@ vMgrAssocBeginSta(
 	} else {
 		*pStatus = CMD_STATUS_RESOURCES;
 	}
-
-	return;
 }
 
 /*+
@@ -565,8 +557,6 @@ vMgrReAssocBeginSta(
 		else
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Reassociation tx sending.\n");
 	}
-
-	return;
 }
 
 /*+
@@ -625,8 +615,6 @@ vMgrDisassocBeginSta(
 		pMgmt->eCurrState = WMAC_STATE_IDLE;
 		*pStatus = CMD_STATUS_SUCCESS;
 	}
-
-	return;
 }
 
 /*+
@@ -710,7 +698,7 @@ s_vMgrRxAssocRequest(
 		pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate =
 			pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
 #ifdef	PLICE_DEBUG
-		printk("RxAssocRequest:wTxDataRate is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
+		pr_debug("RxAssocRequest:wTxDataRate is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
 #endif
 		// Todo: check sta preamble, if ap can't support, set status code
 		pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble =
@@ -732,8 +720,8 @@ s_vMgrRxAssocRequest(
 		if (!pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble)
 			pDevice->bBarkerPreambleMd = true;
 
-		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Associate AID= %d \n", wAssocAID);
-		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X \n",
+		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Associate AID= %d\n", wAssocAID);
+		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
 			sFrame.pHdr->sA3.abyAddr2[0],
 			sFrame.pHdr->sA3.abyAddr2[1],
 			sFrame.pHdr->sA3.abyAddr2[2],
@@ -741,7 +729,7 @@ s_vMgrRxAssocRequest(
 			sFrame.pHdr->sA3.abyAddr2[4],
 			sFrame.pHdr->sA3.abyAddr2[5]
 			);
-		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Max Support rate = %d \n",
+		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Max Support rate = %d\n",
 			pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate);
 	} else {
 		/* TODO: received STA under state1 handle */
@@ -771,8 +759,6 @@ s_vMgrRxAssocRequest(
 		else
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Assoc response tx sending..\n");
 	}
-
-	return;
 }
 
 /*+
@@ -860,7 +846,7 @@ s_vMgrRxReAssocRequest(
 		pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate =
 			pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
 #ifdef	PLICE_DEBUG
-		printk("RxReAssocRequest:TxDataRate is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
+		pr_debug("RxReAssocRequest:TxDataRate is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
 #endif
 		// Todo: check sta preamble, if ap can't support, set status code
 		pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble =
@@ -883,8 +869,8 @@ s_vMgrRxReAssocRequest(
 		if (!pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble)
 			pDevice->bBarkerPreambleMd = true;
 
-		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Rx ReAssociate AID= %d \n", wAssocAID);
-		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X \n",
+		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Rx ReAssociate AID= %d\n", wAssocAID);
+		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
 			sFrame.pHdr->sA3.abyAddr2[0],
 			sFrame.pHdr->sA3.abyAddr2[1],
 			sFrame.pHdr->sA3.abyAddr2[2],
@@ -892,7 +878,7 @@ s_vMgrRxReAssocRequest(
 			sFrame.pHdr->sA3.abyAddr2[4],
 			sFrame.pHdr->sA3.abyAddr2[5]
 			);
-		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Max Support rate = %d \n",
+		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Max Support rate = %d\n",
 			pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate);
 
 	}
@@ -921,7 +907,6 @@ s_vMgrRxReAssocRequest(
 		else
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:ReAssoc response tx sending..\n");
 	}
-	return;
 }
 
 /*+
@@ -1070,7 +1055,6 @@ s_vMgrRxAssocResponse(
 
 	if (pMgmt->eCurrState == WMAC_STATE_ASSOC)
 		timer_expire(pDevice->sTimerCommand, 0);
-	return;
 }
 
 /*+
@@ -1125,8 +1109,6 @@ vMgrAuthenBeginSta(
 		pMgmt->eCurrState = WMAC_STATE_AUTHPENDING;
 		*pStatus = CMD_STATUS_SUCCESS;
 	}
-
-	return;
 }
 
 /*+
@@ -1178,8 +1160,6 @@ vMgrDeAuthenBeginSta(
 	*pStatus = csMgmt_xmit(pDevice, pTxPacket);
 	if (*pStatus == CMD_STATUS_PENDING)
 		*pStatus = CMD_STATUS_SUCCESS;
-
-	return;
 }
 
 /*+
@@ -1232,7 +1212,6 @@ s_vMgrRxAuthentication(
 			cpu_to_le16((*(sFrame.pwAuthSequence))));
 		break;
 	}
-	return;
 }
 
 /*+
@@ -1329,11 +1308,9 @@ s_vMgrRxAuthenSequence_1(
 	if (pDevice->bEnableHostapd)
 		return;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx.. \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx..\n");
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx failed.\n");
-
-	return;
 }
 
 /*+
@@ -1418,7 +1395,6 @@ s_vMgrRxAuthenSequence_2(
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt: rx auth.seq = 2 unknown AuthAlgorithm=%d\n", cpu_to_le16((*(pFrame->pwAuthAlgorithm))));
 		break;
 	}
-	return;
 }
 
 /*+
@@ -1504,8 +1480,6 @@ reply:
 
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_4 tx failed.\n");
-
-	return;
 }
 
 /*+
@@ -1596,16 +1570,15 @@ s_vMgrRxDisassociation(
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 		{
 			union iwreq_data  wrqu;
+
 			memset(&wrqu, 0, sizeof(wrqu));
 			wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-			printk("wireless_send_event--->SIOCGIWAP(disassociated)\n");
+			pr_debug("wireless_send_event--->SIOCGIWAP(disassociated)\n");
 			wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
 		}
 #endif
 	}
 	/* else, ignore it */
-
-	return;
 }
 
 /*+
@@ -1677,6 +1650,7 @@ s_vMgrRxDeauthentication(
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 			{
 				union iwreq_data  wrqu;
+
 				memset(&wrqu, 0, sizeof(wrqu));
 				wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 				PRINT_K("wireless_send_event--->SIOCGIWAP(disauthen)\n");
@@ -1688,7 +1662,6 @@ s_vMgrRxDeauthentication(
 		/* else, ignore it.  TODO: IBSS authentication service
 		   would be implemented here */
 	}
-	return;
 }
 
 //2008-8-4 <add> by chester
@@ -1993,7 +1966,7 @@ s_vMgrRxBeacon(
 		}
 	}
 
-//    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Beacon 2 \n");
+//    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Beacon 2\n");
 	// check if CF field exists
 	if (WLAN_GET_CAP_INFO_ESS(*sFrame.pwCapInfo)) {
 		if (sFrame.pCFParms->wCFPDurRemaining > 0) {
@@ -2137,14 +2110,14 @@ s_vMgrRxBeacon(
 				pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate = pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
 #ifdef	PLICE_DEBUG
 				{
-					printk("s_vMgrRxBeacon:TxDataRate is %d,Index is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate, uNodeIndex);
+					pr_debug("s_vMgrRxBeacon:TxDataRate is %d,Index is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate, uNodeIndex);
 				}
 #endif
 			}
 
 			// if other stations joined, indicate connection to upper layer..
 			if (pMgmt->eCurrState == WMAC_STATE_STARTED) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Current IBSS State: [Started]........to: [Jointed] \n");
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Current IBSS State: [Started]........to: [Jointed]\n");
 				pMgmt->eCurrState = WMAC_STATE_JOINTED;
 				pDevice->bLinkPass = true;
 				if (netif_queue_stopped(pDevice->dev))
@@ -2197,8 +2170,6 @@ if (bUpdateTSF) {
 		CARDbGetCurrentTSF(pDevice->PortOffset, &qwCurrTSF);
 		CARDvUpdateNextTBTT(pDevice->PortOffset, qwTimestamp, pMgmt->wCurrBeaconPeriod);
 	}
-
-	return;
 }
 
 /*+
@@ -2434,8 +2405,6 @@ vMgrCreateOwnIBSS(
 	// Prepare beacon to send
 	if (bMgrPrepareBeaconToSend((void *)pDevice, pMgmt))
 		*pStatus = CMD_STATUS_SUCCESS;
-
-	return;
 }
 
 /*+
@@ -2574,6 +2543,7 @@ vMgrJoinBSSBegin(
 			// This should only works for WPA2 BSS, and WPA2 BSS check must be done before.
 			if (pMgmt->eAuthenMode == WMAC_AUTH_WPA2) {
 				bool bResult = bAdd_PMKID_Candidate((void *)pDevice, pMgmt->abyCurrBSSID, &pCurr->sRSNCapObj);
+
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "bAdd_PMKID_Candidate: 1(%d)\n", bResult);
 				if (!bResult) {
 					vFlush_PMKID_Candidate((void *)pDevice);
@@ -2656,7 +2626,6 @@ vMgrJoinBSSBegin(
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
 		}
 	}
-	return;
 }
 
 /*+
@@ -2838,8 +2807,6 @@ static void  Encyption_Rebuild(
 			}
 		}
 	}
-
-	return;
 }
 
 /*+
@@ -3144,7 +3111,7 @@ s_MgrMakeBeacon(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeProbeResponse(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,
@@ -3326,7 +3293,7 @@ s_MgrMakeProbeResponse(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeAssocRequest(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,
@@ -3586,7 +3553,7 @@ s_MgrMakeAssocRequest(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeReAssocRequest(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,
@@ -3831,7 +3798,7 @@ s_MgrMakeReAssocRequest(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeAssocResponse(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,
@@ -3902,7 +3869,7 @@ s_MgrMakeAssocResponse(
  *
  -*/
 
-PSTxMgmtPacket
+static PSTxMgmtPacket
 s_MgrMakeReAssocResponse(
 	PSDevice pDevice,
 	PSMgmtObject pMgmt,
@@ -3999,13 +3966,13 @@ s_vMgrRxProbeResponse(
 	    (sFrame.pwCapInfo == NULL) ||
 	    (sFrame.pSSID == NULL) ||
 	    (sFrame.pSuppRates == NULL)) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe resp:Fail addr:[%p] \n", pRxPacket->p80211Header);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe resp:Fail addr:[%p]\n", pRxPacket->p80211Header);
 		DBG_PORT80(0xCC);
 		return;
 	}
 
 	if (sFrame.pSSID->len == 0)
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rx Probe resp: SSID len = 0 \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rx Probe resp: SSID len = 0\n");
 
 	if (sFrame.pDSParms != NULL) {
 		if (byCurrChannel > CB_MAX_CHANNEL_24G) {
@@ -4079,7 +4046,6 @@ s_vMgrRxProbeResponse(
 				    (void *)pRxPacket
 );
 	}
-	return;
 }
 
 /*+
@@ -4148,13 +4114,10 @@ s_vMgrRxProbeRequest(
 		if (pTxPacket != NULL) {
 			/* send the frame */
 			Status = csMgmt_xmit(pDevice, pTxPacket);
-			if (Status != CMD_STATUS_PENDING) {
+			if (Status != CMD_STATUS_PENDING)
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Probe response tx failed\n");
-			}
 		}
 	}
-
-	return;
 }
 
 /*+
@@ -4297,8 +4260,6 @@ vMgrRxManagePacket(
 	default:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx unknown mgmt\n");
 	}
-
-	return;
 }
 
 /*+
@@ -4438,7 +4399,7 @@ bAdd_PMKID_Candidate(
 )
 {
 	PSDevice         pDevice = (PSDevice)hDeviceContext;
-	PPMKID_CANDIDATE pCandidateList;
+	struct pmkid_candidate *pCandidateList;
 	unsigned int ii = 0;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "bAdd_PMKID_Candidate START: (%d)\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);

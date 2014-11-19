@@ -755,6 +755,8 @@ static int efx_ef10_reset(struct efx_nic *efx, enum reset_type reset_type)
 	{ NULL, 64, 8 * MC_CMD_MAC_ ## mcdi_name }
 #define EF10_OTHER_STAT(ext_name)				\
 	[EF10_STAT_ ## ext_name] = { #ext_name, 0, 0 }
+#define GENERIC_SW_STAT(ext_name)				\
+	[GENERIC_STAT_ ## ext_name] = { #ext_name, 0, 0 }
 
 static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	EF10_DMA_STAT(tx_bytes, TX_BYTES),
@@ -798,6 +800,8 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	EF10_DMA_STAT(rx_align_error, RX_ALIGN_ERROR_PKTS),
 	EF10_DMA_STAT(rx_length_error, RX_LENGTH_ERROR_PKTS),
 	EF10_DMA_STAT(rx_nodesc_drops, RX_NODESC_DROPS),
+	GENERIC_SW_STAT(rx_nodesc_trunc),
+	GENERIC_SW_STAT(rx_noskb_drops),
 	EF10_DMA_STAT(rx_pm_trunc_bb_overflow, PM_TRUNC_BB_OVERFLOW),
 	EF10_DMA_STAT(rx_pm_discard_bb_overflow, PM_DISCARD_BB_OVERFLOW),
 	EF10_DMA_STAT(rx_pm_trunc_vfifo_full, PM_TRUNC_VFIFO_FULL),
@@ -841,7 +845,9 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 			       (1ULL << EF10_STAT_rx_gtjumbo) |		\
 			       (1ULL << EF10_STAT_rx_bad_gtjumbo) |	\
 			       (1ULL << EF10_STAT_rx_overflow) |	\
-			       (1ULL << EF10_STAT_rx_nodesc_drops))
+			       (1ULL << EF10_STAT_rx_nodesc_drops) |	\
+			       (1ULL << GENERIC_STAT_rx_nodesc_trunc) |	\
+			       (1ULL << GENERIC_STAT_rx_noskb_drops))
 
 /* These statistics are only provided by the 10G MAC.  For a 10G/40G
  * switchable port we do not expose these because they might not
@@ -951,7 +957,7 @@ static int efx_ef10_try_update_nic_stats(struct efx_nic *efx)
 		stats[EF10_STAT_rx_bytes_minus_good_bytes];
 	efx_update_diff_stat(&stats[EF10_STAT_rx_bad_bytes],
 			     stats[EF10_STAT_rx_bytes_minus_good_bytes]);
-
+	efx_update_sw_stats(efx, stats);
 	return 0;
 }
 
@@ -990,7 +996,9 @@ static size_t efx_ef10_update_stats(struct efx_nic *efx, u64 *full_stats,
 		core_stats->tx_packets = stats[EF10_STAT_tx_packets];
 		core_stats->rx_bytes = stats[EF10_STAT_rx_bytes];
 		core_stats->tx_bytes = stats[EF10_STAT_tx_bytes];
-		core_stats->rx_dropped = stats[EF10_STAT_rx_nodesc_drops];
+		core_stats->rx_dropped = stats[EF10_STAT_rx_nodesc_drops] +
+					 stats[GENERIC_STAT_rx_nodesc_trunc] +
+					 stats[GENERIC_STAT_rx_noskb_drops];
 		core_stats->multicast = stats[EF10_STAT_rx_multicast];
 		core_stats->rx_length_errors =
 			stats[EF10_STAT_rx_gtjumbo] +

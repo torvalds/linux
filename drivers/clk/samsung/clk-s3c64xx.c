@@ -518,6 +518,8 @@ void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 					ARRAY_SIZE(s3c64xx_clock_aliases));
 	s3c64xx_clk_sleep_init();
 
+	samsung_clk_of_add_provider(np, ctx);
+
 	pr_info("%s clocks: apll = %lu, mpll = %lu\n"
 		"\tepll = %lu, arm_clk = %lu\n",
 		is_s3c6400 ? "S3C6400" : "S3C6410",

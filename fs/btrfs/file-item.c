@@ -756,7 +756,7 @@ again:
 				found_next = 1;
 			if (ret != 0)
 				goto insert;
-			slot = 0;
+			slot = path->slots[0];
 		}
 		btrfs_item_key_to_cpu(path->nodes[0], &found_key, slot);
 		if (found_key.objectid != BTRFS_EXTENT_CSUM_OBJECTID ||

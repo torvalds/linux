@@ -45,8 +45,6 @@ int omap2430_clk_init(void);
 #define omap2430_clk_init()	do { } while(0)
 #endif
 
-extern void __iomem *prcm_clksrc_ctrl;
-
 extern struct clk_hw *dclk_hw;
 int omap2_enable_osc_ck(struct clk_hw *hw);
 void omap2_disable_osc_ck(struct clk_hw *hw);

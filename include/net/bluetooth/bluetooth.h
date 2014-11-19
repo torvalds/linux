@@ -260,15 +260,15 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock);
 
 /* Skb helpers */
 struct l2cap_ctrl {
-	unsigned int	sframe:1,
-			poll:1,
-			final:1,
-			fcs:1,
-			sar:2,
-			super:2;
-	__u16		reqseq;
-	__u16		txseq;
-	__u8		retries;
+	__u8	sframe:1,
+		poll:1,
+		final:1,
+		fcs:1,
+		sar:2,
+		super:2;
+	__u16	reqseq;
+	__u16	txseq;
+	__u8	retries;
 };
 
 struct hci_dev;

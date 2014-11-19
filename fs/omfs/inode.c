@@ -321,7 +321,7 @@ static int omfs_get_imap(struct super_block *sb)
 		goto out;
 
 	sbi->s_imap_size = array_size;
-	sbi->s_imap = kzalloc(array_size * sizeof(unsigned long *), GFP_KERNEL);
+	sbi->s_imap = kcalloc(array_size, sizeof(unsigned long *), GFP_KERNEL);
 	if (!sbi->s_imap)
 		goto nomem;
 

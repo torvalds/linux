@@ -367,16 +367,16 @@ static int wm8737_hw_params(struct snd_pcm_substream *substream,
 
 	clocking |= coeff_div[i].usb | (coeff_div[i].sr << WM8737_SR_SHIFT);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		af |= 0x8;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		af |= 0x10;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		af |= 0x18;
 		break;
 	default:

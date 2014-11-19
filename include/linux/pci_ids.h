@@ -6,6 +6,8 @@
  *	Do not add new entries to this file unless the definitions
  *	are shared between multiple drivers.
  */
+#ifndef _LINUX_PCI_IDS_H
+#define _LINUX_PCI_IDS_H
 
 /* Device classes and subclasses */
 
@@ -2968,3 +2970,5 @@
 #define PCI_DEVICE_ID_XEN_PLATFORM	0x0001
 
 #define PCI_VENDOR_ID_OCZ		0x1b85
+
+#endif /* _LINUX_PCI_IDS_H */

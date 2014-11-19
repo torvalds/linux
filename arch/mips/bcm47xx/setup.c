@@ -59,7 +59,16 @@ static void bcm47xx_machine_restart(char *command)
 	switch (bcm47xx_bus_type) {
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
+		if (bcm47xx_bus.ssb.chip_id == 0x4785)
+			write_c0_diag4(1 << 22);
 		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 1);
+		if (bcm47xx_bus.ssb.chip_id == 0x4785) {
+			__asm__ __volatile__(
+				".set\tmips3\n\t"
+				"sync\n\t"
+				"wait\n\t"
+				".set\tmips0");
+		}
 		break;
 #endif
 #ifdef CONFIG_BCM47XX_BCMA
@@ -218,6 +227,9 @@ void __init plat_mem_setup(void)
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
 		bcm47xx_register_bcma();
 		bcm47xx_set_system_type(bcm47xx_bus.bcma.bus.chipinfo.id);
+#ifdef CONFIG_HIGHMEM
+		bcm47xx_prom_highmem_init();
+#endif
 #endif
 	} else {
 		printk(KERN_INFO "bcm47xx: using ssb bus\n");

@@ -151,12 +151,10 @@ static int send_msg( struct mixart_mgr *mgr,
 {
 	u32 headptr, tailptr;
 	u32 msg_frame_address;
-	int err, i;
+	int i;
 
 	if (snd_BUG_ON(msg->size % 4))
 		return -EINVAL;
-
-	err = 0;
 
 	/* get message frame address */
 	tailptr = readl_be(MIXART_MEM(mgr, MSG_INBOUND_FREE_TAIL));

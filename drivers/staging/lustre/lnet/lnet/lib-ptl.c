@@ -36,7 +36,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/lnet/lib-lnet.h>
+#include "../../include/linux/lnet/lib-lnet.h"
 
 /* NB: add /proc interfaces in upcoming patches */
 int	portal_rotor	= LNET_PTL_ROTOR_HASH_RT;
@@ -184,8 +184,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 		mlength = info->mi_rlength;
 	} else if ((md->md_options & LNET_MD_TRUNCATE) == 0) {
 		/* this packet _really_ is too big */
-		CERROR("Matching packet from %s, match "LPU64
-		       " length %d too big: %d left, %d allowed\n",
+		CERROR("Matching packet from %s, match %llu length %d too big: %d left, %d allowed\n",
 		       libcfs_id2str(info->mi_id), info->mi_mbits,
 		       info->mi_rlength, md->md_length - offset, mlength);
 
@@ -194,7 +193,7 @@ lnet_try_match_md(lnet_libmd_t *md,
 
 	/* Commit to this ME/MD */
 	CDEBUG(D_NET, "Incoming %s index %x from %s of "
-	       "length %d/%d into md "LPX64" [%d] + %d\n",
+	       "length %d/%d into md %#llx [%d] + %d\n",
 	       (info->mi_opc == LNET_MD_OP_PUT) ? "put" : "get",
 	       info->mi_portal, libcfs_id2str(info->mi_id), mlength,
 	       info->mi_rlength, md->md_lh.lh_cookie, md->md_niov, offset);
@@ -541,9 +540,9 @@ lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 	struct lnet_portal	*ptl;
 	int			rc;
 
-	CDEBUG(D_NET, "Request from %s of length %d into portal %d "
-	       "MB="LPX64"\n", libcfs_id2str(info->mi_id),
-	       info->mi_rlength, info->mi_portal, info->mi_mbits);
+	CDEBUG(D_NET, "Request from %s of length %d into portal %d MB=%#llx\n",
+	       libcfs_id2str(info->mi_id), info->mi_rlength, info->mi_portal,
+	       info->mi_mbits);
 
 	if (info->mi_portal >= the_lnet.ln_nportals) {
 		CERROR("Invalid portal %d not in [0-%d]\n",
@@ -597,7 +596,7 @@ lnet_ptl_match_md(struct lnet_match_info *info, struct lnet_msg *msg)
 
 	if (msg->msg_rx_delayed) {
 		CDEBUG(D_NET,
-		       "Delaying %s from %s ptl %d MB "LPX64" off %d len %d\n",
+		       "Delaying %s from %s ptl %d MB %#llx off %d len %d\n",
 		       info->mi_opc == LNET_MD_OP_PUT ? "PUT" : "GET",
 		       libcfs_id2str(info->mi_id), info->mi_portal,
 		       info->mi_mbits, info->mi_roffset, info->mi_rlength);
@@ -687,8 +686,7 @@ lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
 		if ((rc & LNET_MATCHMD_OK) != 0) {
 			list_add_tail(&msg->msg_list, matches);
 
-			CDEBUG(D_NET, "Resuming delayed PUT from %s portal %d "
-			       "match "LPU64" offset %d length %d.\n",
+			CDEBUG(D_NET, "Resuming delayed PUT from %s portal %d match %llu offset %d length %d.\n",
 			       libcfs_id2str(info.mi_id),
 			       info.mi_portal, info.mi_mbits,
 			       info.mi_roffset, info.mi_rlength);

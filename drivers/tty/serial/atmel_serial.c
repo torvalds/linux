@@ -527,6 +527,45 @@ static void atmel_enable_ms(struct uart_port *port)
 }
 
 /*
+ * Disable modem status interrupts
+ */
+static void atmel_disable_ms(struct uart_port *port)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	uint32_t idr = 0;
+
+	/*
+	 * Interrupt should not be disabled twice
+	 */
+	if (!atmel_port->ms_irq_enabled)
+		return;
+
+	atmel_port->ms_irq_enabled = false;
+
+	if (atmel_port->gpio_irq[UART_GPIO_CTS] >= 0)
+		disable_irq(atmel_port->gpio_irq[UART_GPIO_CTS]);
+	else
+		idr |= ATMEL_US_CTSIC;
+
+	if (atmel_port->gpio_irq[UART_GPIO_DSR] >= 0)
+		disable_irq(atmel_port->gpio_irq[UART_GPIO_DSR]);
+	else
+		idr |= ATMEL_US_DSRIC;
+
+	if (atmel_port->gpio_irq[UART_GPIO_RI] >= 0)
+		disable_irq(atmel_port->gpio_irq[UART_GPIO_RI]);
+	else
+		idr |= ATMEL_US_RIIC;
+
+	if (atmel_port->gpio_irq[UART_GPIO_DCD] >= 0)
+		disable_irq(atmel_port->gpio_irq[UART_GPIO_DCD]);
+	else
+		idr |= ATMEL_US_DCDIC;
+
+	UART_PUT_IDR(port, idr);
+}
+
+/*
  * Control the transmission of a break signal
  */
 static void atmel_break_ctl(struct uart_port *port, int break_state)
@@ -706,7 +745,7 @@ static void atmel_release_tx_dma(struct uart_port *port)
 		dmaengine_terminate_all(chan);
 		dma_release_channel(chan);
 		dma_unmap_sg(port->dev, &atmel_port->sg_tx, 1,
-				DMA_MEM_TO_DEV);
+				DMA_TO_DEVICE);
 	}
 
 	atmel_port->desc_tx = NULL;
@@ -804,7 +843,7 @@ static int atmel_prepare_tx_dma(struct uart_port *port)
 	nent = dma_map_sg(port->dev,
 				&atmel_port->sg_tx,
 				1,
-				DMA_MEM_TO_DEV);
+				DMA_TO_DEVICE);
 
 	if (!nent) {
 		dev_dbg(port->dev, "need to release resource of dma\n");
@@ -883,7 +922,7 @@ static void atmel_release_rx_dma(struct uart_port *port)
 		dmaengine_terminate_all(chan);
 		dma_release_channel(chan);
 		dma_unmap_sg(port->dev, &atmel_port->sg_rx, 1,
-				DMA_DEV_TO_MEM);
+				DMA_FROM_DEVICE);
 	}
 
 	atmel_port->desc_rx = NULL;
@@ -968,7 +1007,7 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 			nent = dma_map_sg(port->dev,
 					&atmel_port->sg_rx,
 					1,
-					DMA_DEV_TO_MEM);
+					DMA_FROM_DEVICE);
 
 	if (!nent) {
 		dev_dbg(port->dev, "need to release resource of dma\n");
@@ -1993,7 +2032,9 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* CTS flow-control and modem-status interrupts */
 	if (UART_ENABLE_MS(port, termios->c_cflag))
-		port->ops->enable_ms(port);
+		atmel_enable_ms(port);
+	else
+		atmel_disable_ms(port);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }

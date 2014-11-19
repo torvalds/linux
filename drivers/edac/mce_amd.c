@@ -78,7 +78,8 @@ static const char * const f15h_mc1_mce_desc[] = {
 	"uop queue",
 	"insn buffer",
 	"predecode buffer",
-	"fetch address FIFO"
+	"fetch address FIFO",
+	"dispatch uop queue"
 };
 
 static const char * const f15h_mc2_mce_desc[] = {
@@ -267,6 +268,12 @@ static bool f15h_mc0_mce(u16 ec, u8 xec)
 			pr_cont("System Read Data Error.\n");
 		else
 			pr_cont(" Internal error condition type %d.\n", xec);
+	} else if (INT_ERROR(ec)) {
+		if (xec <= 0x1f)
+			pr_cont("Hardware Assert.\n");
+		else
+			ret = false;
+
 	} else
 		ret = false;
 
@@ -373,7 +380,7 @@ static bool f15h_mc1_mce(u16 ec, u8 xec)
 		pr_cont("%s.\n", f15h_mc1_mce_desc[xec-4]);
 		break;
 
-	case 0x11 ... 0x14:
+	case 0x11 ... 0x15:
 		pr_cont("Decoder %s parity error.\n", f15h_mc1_mce_desc[xec-4]);
 		break;
 
@@ -397,10 +404,20 @@ static void decode_mc1_mce(struct mce *m)
 		bool k8 = (boot_cpu_data.x86 == 0xf && (m->status & BIT_64(58)));
 
 		pr_cont("during %s.\n", (k8 ? "system linefill" : "NB data read"));
+	} else if (INT_ERROR(ec)) {
+		if (xec <= 0x3f)
+			pr_cont("Hardware Assert.\n");
+		else
+			goto wrong_mc1_mce;
 	} else if (fam_ops->mc1_mce(ec, xec))
 		;
 	else
-		pr_emerg(HW_ERR "Corrupted MC1 MCE info?\n");
+		goto wrong_mc1_mce;
+
+	return;
+
+wrong_mc1_mce:
+	pr_emerg(HW_ERR "Corrupted MC1 MCE info?\n");
 }
 
 static bool k8_mc2_mce(u16 ec, u8 xec)
@@ -468,6 +485,11 @@ static bool f15h_mc2_mce(u16 ec, u8 xec)
 		default:
 			ret = false;
 		}
+	} else if (INT_ERROR(ec)) {
+		if (xec <= 0x3f)
+			pr_cont("Hardware Assert.\n");
+		else
+			ret = false;
 	}
 
 	return ret;
@@ -615,12 +637,21 @@ static void decode_mc4_mce(struct mce *m)
 static void decode_mc5_mce(struct mce *m)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
+	u16 ec = EC(m->status);
 	u8 xec = XEC(m->status, xec_mask);
 
 	if (c->x86 == 0xf || c->x86 == 0x11)
 		goto wrong_mc5_mce;
 
 	pr_emerg(HW_ERR "MC5 Error: ");
+
+	if (INT_ERROR(ec)) {
+		if (xec <= 0x1f) {
+			pr_cont("Hardware Assert.\n");
+			return;
+		} else
+			goto wrong_mc5_mce;
+	}
 
 	if (xec == 0x0 || xec == 0xc)
 		pr_cont("%s.\n", mc5_mce_desc[xec]);
@@ -642,6 +673,10 @@ static void decode_mc6_mce(struct mce *m)
 	pr_emerg(HW_ERR "MC6 Error: ");
 
 	switch (xec) {
+	case 0x0:
+		pr_cont("Hardware Assertion");
+		break;
+
 	case 0x1:
 		pr_cont("Free List");
 		break;
@@ -857,7 +892,8 @@ static int __init mce_amd_init(void)
 		break;
 
 	case 0x15:
-		xec_mask = 0x1f;
+		xec_mask = c->x86_model == 0x60 ? 0x3f : 0x1f;
+
 		fam_ops->mc0_mce = f15h_mc0_mce;
 		fam_ops->mc1_mce = f15h_mc1_mce;
 		fam_ops->mc2_mce = f15h_mc2_mce;

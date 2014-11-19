@@ -33,6 +33,7 @@
 #include <linux/export.h>
 
 #include <asm/tlbflush.h>
+#include <asm/dma.h>
 
 #include "mmu_decl.h"
 

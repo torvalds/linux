@@ -34,8 +34,8 @@
 
 #ifndef __OBD_CKSUM
 #define __OBD_CKSUM
-#include <linux/libcfs/libcfs.h>
-#include <lustre/lustre_idl.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "lustre/lustre_idl.h"
 
 static inline unsigned char cksum_obd2cfs(cksum_type_t cksum_type)
 {

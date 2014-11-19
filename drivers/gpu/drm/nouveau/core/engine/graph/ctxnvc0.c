@@ -982,34 +982,93 @@ nvc0_grctx_pack_tpc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
-void
-nvc0_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
+int
+nvc0_grctx_mmio_data(struct nvc0_grctx *info, u32 size, u32 align, u32 access)
 {
+	if (info->data) {
+		info->buffer[info->buffer_nr] = round_up(info->addr, align);
+		info->addr = info->buffer[info->buffer_nr] + size;
+		info->data->size = size;
+		info->data->align = align;
+		info->data->access = access;
+		info->data++;
+		return info->buffer_nr++;
+	}
+	return -1;
+}
+
+void
+nvc0_grctx_mmio_item(struct nvc0_grctx *info, u32 addr, u32 data,
+		     int shift, int buffer)
+{
+	if (info->data) {
+		if (shift >= 0) {
+			info->mmio->addr = addr;
+			info->mmio->data = data;
+			info->mmio->shift = shift;
+			info->mmio->buffer = buffer;
+			if (buffer >= 0)
+				data |= info->buffer[buffer] >> shift;
+			info->mmio++;
+		} else
+			return;
+	} else {
+		if (buffer >= 0)
+			return;
+	}
+
+	nv_wr32(info->priv, addr, data);
+}
+
+void
+nvc0_grctx_generate_bundle(struct nvc0_grctx *info)
+{
+	const struct nvc0_grctx_oclass *impl = nvc0_grctx_impl(info->priv);
+	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
+	const int s = 8;
+	const int b = mmio_vram(info, impl->bundle_size, (1 << s), access);
+	mmio_refn(info, 0x408004, 0x00000000, s, b);
+	mmio_refn(info, 0x408008, 0x80000000 | (impl->bundle_size >> s), 0, b);
+	mmio_refn(info, 0x418808, 0x00000000, s, b);
+	mmio_refn(info, 0x41880c, 0x80000000 | (impl->bundle_size >> s), 0, b);
+}
+
+void
+nvc0_grctx_generate_pagepool(struct nvc0_grctx *info)
+{
+	const struct nvc0_grctx_oclass *impl = nvc0_grctx_impl(info->priv);
+	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
+	const int s = 8;
+	const int b = mmio_vram(info, impl->pagepool_size, (1 << s), access);
+	mmio_refn(info, 0x40800c, 0x00000000, s, b);
+	mmio_wr32(info, 0x408010, 0x80000000);
+	mmio_refn(info, 0x419004, 0x00000000, s, b);
+	mmio_wr32(info, 0x419008, 0x00000000);
+}
+
+void
+nvc0_grctx_generate_attrib(struct nvc0_grctx *info)
+{
+	struct nvc0_graph_priv *priv = info->priv;
+	const struct nvc0_grctx_oclass *impl = nvc0_grctx_impl(priv);
+	const u32 attrib = impl->attrib_nr;
+	const u32   size = 0x20 * (impl->attrib_nr_max + impl->alpha_nr_max);
+	const u32 access = NV_MEM_ACCESS_RW;
+	const int s = 12;
+	const int b = mmio_vram(info, size * priv->tpc_total, (1 << s), access);
 	int gpc, tpc;
-	u32 offset;
+	u32 bo = 0;
 
-	mmio_data(0x002000, 0x0100, NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS);
-	mmio_data(0x008000, 0x0100, NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS);
-	mmio_data(0x060000, 0x1000, NV_MEM_ACCESS_RW);
+	mmio_refn(info, 0x418810, 0x80000000, s, b);
+	mmio_refn(info, 0x419848, 0x10000000, s, b);
+	mmio_wr32(info, 0x405830, (attrib << 16));
 
-	mmio_list(0x408004, 0x00000000,  8, 0);
-	mmio_list(0x408008, 0x80000018,  0, 0);
-	mmio_list(0x40800c, 0x00000000,  8, 1);
-	mmio_list(0x408010, 0x80000000,  0, 0);
-	mmio_list(0x418810, 0x80000000, 12, 2);
-	mmio_list(0x419848, 0x10000000, 12, 2);
-	mmio_list(0x419004, 0x00000000,  8, 1);
-	mmio_list(0x419008, 0x00000000,  0, 0);
-	mmio_list(0x418808, 0x00000000,  8, 0);
-	mmio_list(0x41880c, 0x80000018,  0, 0);
-
-	mmio_list(0x405830, 0x02180000, 0, 0);
-
-	for (gpc = 0, offset = 0; gpc < priv->gpc_nr; gpc++) {
+	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
 		for (tpc = 0; tpc < priv->tpc_nr[gpc]; tpc++) {
-			u32 addr = TPC_UNIT(gpc, tpc, 0x0520);
-			mmio_list(addr, 0x02180000 | offset, 0, 0);
-			offset += 0x0324;
+			const u32 o = TPC_UNIT(gpc, tpc, 0x0520);
+			mmio_skip(info, o, (attrib << 16) | ++bo);
+			mmio_wr32(info, o, (attrib << 16) | --bo);
+			bo += impl->attrib_nr_max;
 		}
 	}
 }
@@ -1170,7 +1229,7 @@ nvc0_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 {
 	struct nvc0_grctx_oclass *oclass = (void *)nv_engine(priv)->cclass;
 
-	nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
+	nouveau_mc(priv)->unk260(nouveau_mc(priv), 0);
 
 	nvc0_graph_mmio(priv, oclass->hub);
 	nvc0_graph_mmio(priv, oclass->gpc);
@@ -1180,7 +1239,9 @@ nvc0_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 
 	nv_wr32(priv, 0x404154, 0x00000000);
 
-	oclass->mods(priv, info);
+	oclass->bundle(info);
+	oclass->pagepool(info);
+	oclass->attrib(info);
 	oclass->unkn(priv);
 
 	nvc0_grctx_generate_tpcid(priv);
@@ -1192,7 +1253,7 @@ nvc0_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	nvc0_graph_icmd(priv, oclass->icmd);
 	nv_wr32(priv, 0x404154, 0x00000400);
 	nvc0_graph_mthd(priv, oclass->mthd);
-	nv_mask(priv, 0x000260, 0x00000001, 0x00000001);
+	nouveau_mc(priv)->unk260(nouveau_mc(priv), 1);
 }
 
 int
@@ -1308,7 +1369,6 @@ nvc0_grctx_oclass = &(struct nvc0_grctx_oclass) {
 		.wr32 = _nouveau_graph_context_wr32,
 	},
 	.main  = nvc0_grctx_generate_main,
-	.mods  = nvc0_grctx_generate_mods,
 	.unkn  = nvc0_grctx_generate_unkn,
 	.hub   = nvc0_grctx_pack_hub,
 	.gpc   = nvc0_grctx_pack_gpc,
@@ -1316,4 +1376,11 @@ nvc0_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	.tpc   = nvc0_grctx_pack_tpc,
 	.icmd  = nvc0_grctx_pack_icmd,
 	.mthd  = nvc0_grctx_pack_mthd,
+	.bundle = nvc0_grctx_generate_bundle,
+	.bundle_size = 0x1800,
+	.pagepool = nvc0_grctx_generate_pagepool,
+	.pagepool_size = 0x8000,
+	.attrib = nvc0_grctx_generate_attrib,
+	.attrib_nr_max = 0x324,
+	.attrib_nr = 0x218,
 }.base;

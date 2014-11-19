@@ -308,5 +308,16 @@
 #define PLL13					292
 #define PLL14					293
 #define PLL14_VOTE				294
+#define USB_HS3_H_CLK				295
+#define USB_HS3_XCVR_SRC			296
+#define USB_HS3_XCVR_CLK			297
+#define USB_HS4_H_CLK				298
+#define USB_HS4_XCVR_SRC			299
+#define USB_HS4_XCVR_CLK			300
+#define SATA_PHY_CFG_CLK			301
+#define SATA_A_CLK				302
+#define CE3_SRC					303
+#define CE3_CORE_CLK				304
+#define CE3_H_CLK				305
 
 #endif

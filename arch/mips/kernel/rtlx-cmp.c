@@ -77,6 +77,9 @@ int __init rtlx_module_init(void)
 		dev = device_create(mt_class, NULL, MKDEV(major, i), NULL,
 				    "%s%d", RTLX_MODULE_NAME, i);
 		if (IS_ERR(dev)) {
+			while (i--)
+				device_destroy(mt_class, MKDEV(major, i));
+
 			err = PTR_ERR(dev);
 			goto out_chrdev;
 		}

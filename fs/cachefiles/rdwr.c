@@ -151,7 +151,6 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 	struct cachefiles_one_read *monitor;
 	struct cachefiles_object *object;
 	struct fscache_retrieval *op;
-	struct pagevec pagevec;
 	int error, max;
 
 	op = container_of(_op, struct fscache_retrieval, op);
@@ -159,8 +158,6 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 			      struct cachefiles_object, fscache);
 
 	_enter("{ino=%lu}", object->backer->d_inode->i_ino);
-
-	pagevec_init(&pagevec, 0);
 
 	max = 8;
 	spin_lock_irq(&object->work_lock);
@@ -396,7 +393,6 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 {
 	struct cachefiles_object *object;
 	struct cachefiles_cache *cache;
-	struct pagevec pagevec;
 	struct inode *inode;
 	sector_t block0, block;
 	unsigned shift;
@@ -426,8 +422,6 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	op->op.flags &= FSCACHE_OP_KEEP_FLAGS;
 	op->op.flags |= FSCACHE_OP_ASYNC;
 	op->op.processor = cachefiles_read_copier;
-
-	pagevec_init(&pagevec, 0);
 
 	/* we assume the absence or presence of the first block is a good
 	 * enough indication for the page as a whole

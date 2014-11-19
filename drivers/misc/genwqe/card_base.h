@@ -291,6 +291,8 @@ struct genwqe_dev {
 	struct task_struct *health_thread;
 	wait_queue_head_t health_waitq;
 
+	int use_platform_recovery;	/* use platform recovery mechanisms */
+
 	/* char device */
 	dev_t  devnum_genwqe;		/* major/minor num card */
 	struct class *class_genwqe;	/* reference to class object */

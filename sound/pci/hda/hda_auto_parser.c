@@ -17,8 +17,6 @@
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 
-#define SFX	"hda_codec: "
-
 /*
  * Helper for automatic pin configuration
  */
@@ -856,7 +854,7 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 {
 	const struct snd_hda_pin_quirk *pq;
 
-	if (codec->fixup_forced)
+	if (codec->fixup_id != HDA_FIXUP_ID_NOT_SET)
 		return;
 
 	for (pq = pin_quirk; pq->subvendor; pq++) {
@@ -882,14 +880,17 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_fixup *fixlist)
 {
 	const struct snd_pci_quirk *q;
-	int id = -1;
+	int id = HDA_FIXUP_ID_NOT_SET;
 	const char *name = NULL;
+
+	if (codec->fixup_id != HDA_FIXUP_ID_NOT_SET)
+		return;
 
 	/* when model=nofixup is given, don't pick up any fixups */
 	if (codec->modelname && !strcmp(codec->modelname, "nofixup")) {
 		codec->fixup_list = NULL;
-		codec->fixup_id = -1;
-		codec->fixup_forced = 1;
+		codec->fixup_name = NULL;
+		codec->fixup_id = HDA_FIXUP_ID_NO_FIXUP;
 		return;
 	}
 
@@ -899,13 +900,12 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 				codec->fixup_id = models->id;
 				codec->fixup_name = models->name;
 				codec->fixup_list = fixlist;
-				codec->fixup_forced = 1;
 				return;
 			}
 			models++;
 		}
 	}
-	if (id < 0 && quirk) {
+	if (quirk) {
 		q = snd_pci_quirk_lookup(codec->bus->pci, quirk);
 		if (q) {
 			id = q->value;
@@ -929,7 +929,6 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 		}
 	}
 
-	codec->fixup_forced = 0;
 	codec->fixup_id = id;
 	if (id >= 0) {
 		codec->fixup_list = fixlist;

@@ -32,7 +32,6 @@
 
 #include "ttype.h"
 
-/*---------------------  Export Definitions -------------------------*/
 /************************************************************************
  * The definition here should be complied with the INF country order
  * Please check with VNWL.inf/VNWL64.inf/VNWL*.inf

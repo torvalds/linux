@@ -113,6 +113,14 @@ static void lpss_i2c_setup(struct lpss_private_data *pdata)
 	writel(val, pdata->mmio_base + offset);
 }
 
+static struct lpss_device_desc wpt_dev_desc = {
+	.clk_required = true,
+	.prv_offset = 0x800,
+	.ltr_required = true,
+	.clk_divider = true,
+	.clk_gate = true,
+};
+
 static struct lpss_device_desc lpt_dev_desc = {
 	.clk_required = true,
 	.prv_offset = 0x800,
@@ -188,6 +196,17 @@ static struct lpss_device_desc byt_i2c_dev_desc = {
 	.setup = lpss_i2c_setup,
 };
 
+static struct lpss_shared_clock bsw_pwm_clock = {
+	.name = "pwm_clk",
+	.rate = 19200000,
+};
+
+static struct lpss_device_desc bsw_pwm_dev_desc = {
+	.clk_required = true,
+	.save_ctx = true,
+	.shared_clock = &bsw_pwm_clock,
+};
+
 #else
 
 #define LPSS_ADDR(desc) (0UL)
@@ -217,6 +236,12 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT33B2", },
 	{ "INT33FC", },
 
+	/* Braswell LPSS devices */
+	{ "80862288", LPSS_ADDR(bsw_pwm_dev_desc) },
+	{ "8086228A", LPSS_ADDR(byt_uart_dev_desc) },
+	{ "8086228E", LPSS_ADDR(byt_spi_dev_desc) },
+	{ "808622C1", LPSS_ADDR(byt_i2c_dev_desc) },
+
 	{ "INT3430", LPSS_ADDR(lpt_dev_desc) },
 	{ "INT3431", LPSS_ADDR(lpt_dev_desc) },
 	{ "INT3432", LPSS_ADDR(lpt_i2c_dev_desc) },
@@ -225,6 +250,8 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT3435", LPSS_ADDR(lpt_uart_dev_desc) },
 	{ "INT3436", LPSS_ADDR(lpt_sdio_dev_desc) },
 	{ "INT3437", },
+
+	{ "INT3438", LPSS_ADDR(wpt_dev_desc) },
 
 	{ }
 };
@@ -392,7 +419,6 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 	adev->driver_data = pdata;
 	pdev = acpi_create_platform_device(adev);
 	if (!IS_ERR_OR_NULL(pdev)) {
-		device_enable_async_suspend(&pdev->dev);
 		return 1;
 	}
 
@@ -583,7 +609,7 @@ static int acpi_lpss_suspend_late(struct device *dev)
 	return acpi_dev_suspend_late(dev);
 }
 
-static int acpi_lpss_restore_early(struct device *dev)
+static int acpi_lpss_resume_early(struct device *dev)
 {
 	int ret = acpi_dev_resume_early(dev);
 
@@ -623,15 +649,15 @@ static int acpi_lpss_runtime_resume(struct device *dev)
 static struct dev_pm_domain acpi_lpss_pm_domain = {
 	.ops = {
 #ifdef CONFIG_PM_SLEEP
-		.suspend_late = acpi_lpss_suspend_late,
-		.restore_early = acpi_lpss_restore_early,
 		.prepare = acpi_subsys_prepare,
 		.complete = acpi_subsys_complete,
 		.suspend = acpi_subsys_suspend,
-		.resume_early = acpi_subsys_resume_early,
+		.suspend_late = acpi_lpss_suspend_late,
+		.resume_early = acpi_lpss_resume_early,
 		.freeze = acpi_subsys_freeze,
 		.poweroff = acpi_subsys_suspend,
-		.poweroff_late = acpi_subsys_suspend_late,
+		.poweroff_late = acpi_lpss_suspend_late,
+		.restore_early = acpi_lpss_resume_early,
 #endif
 #ifdef CONFIG_PM_RUNTIME
 		.runtime_suspend = acpi_lpss_runtime_suspend,

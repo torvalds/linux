@@ -83,8 +83,8 @@ static int mic_shutdown_init(void)
 	int shutdown_db;
 
 	shutdown_db = mic_next_card_db();
-	shutdown_cookie = mic_request_card_irq(mic_shutdown_isr,
-			"Shutdown", mdrv, shutdown_db);
+	shutdown_cookie = mic_request_card_irq(mic_shutdown_isr, NULL,
+					       "Shutdown", mdrv, shutdown_db);
 	if (IS_ERR(shutdown_cookie))
 		rc = PTR_ERR(shutdown_cookie);
 	else
@@ -136,7 +136,8 @@ static void mic_dp_uninit(void)
 /**
  * mic_request_card_irq - request an irq.
  *
- * @func: The callback function that handles the interrupt.
+ * @handler: interrupt handler passed to request_threaded_irq.
+ * @thread_fn: thread fn. passed to request_threaded_irq.
  * @name: The ASCII name of the callee requesting the irq.
  * @data: private data that is returned back when calling the
  * function handler.
@@ -149,17 +150,19 @@ static void mic_dp_uninit(void)
  * error code.
  *
  */
-struct mic_irq *mic_request_card_irq(irqreturn_t (*func)(int irq, void *data),
-	const char *name, void *data, int index)
+struct mic_irq *
+mic_request_card_irq(irq_handler_t handler,
+		     irq_handler_t thread_fn, const char *name,
+		     void *data, int index)
 {
 	int rc = 0;
 	unsigned long cookie;
 	struct mic_driver *mdrv = g_drv;
 
-	rc  = request_irq(mic_db_to_irq(mdrv, index), func,
-		0, name, data);
+	rc  = request_threaded_irq(mic_db_to_irq(mdrv, index), handler,
+				   thread_fn, 0, name, data);
 	if (rc) {
-		dev_err(mdrv->dev, "request_irq failed rc = %d\n", rc);
+		dev_err(mdrv->dev, "request_threaded_irq failed rc = %d\n", rc);
 		goto err;
 	}
 	mdrv->irq_info.irq_usage_count[index]++;
@@ -172,9 +175,9 @@ err:
 /**
  * mic_free_card_irq - free irq.
  *
- * @cookie: cookie obtained during a successful call to mic_request_irq
+ * @cookie: cookie obtained during a successful call to mic_request_threaded_irq
  * @data: private data specified by the calling function during the
- * mic_request_irq
+ * mic_request_threaded_irq
  *
  * returns: none.
  */

@@ -65,17 +65,17 @@
 
 /**
  * @fw_mapping provides memory remapping table
+ *
+ * array size should be in sync with the declaration in the wil6210.h
  */
-static const struct {
-	u32 from; /* linker address - from, inclusive */
-	u32 to;   /* linker address - to, exclusive */
-	u32 host; /* PCI/Host address - BAR0 + 0x880000 */
-} fw_mapping[] = {
-	{0x000000, 0x040000, 0x8c0000}, /* FW code RAM 256k */
-	{0x800000, 0x808000, 0x900000}, /* FW data RAM 32k */
-	{0x840000, 0x860000, 0x908000}, /* peripheral data RAM 128k/96k used */
-	{0x880000, 0x88a000, 0x880000}, /* various RGF */
-	{0x8c0000, 0x949000, 0x8c0000}, /* trivial mapping for upper area */
+const struct fw_map fw_mapping[] = {
+	{0x000000, 0x040000, 0x8c0000, "fw_code"}, /* FW code RAM      256k */
+	{0x800000, 0x808000, 0x900000, "fw_data"}, /* FW data RAM       32k */
+	{0x840000, 0x860000, 0x908000, "fw_peri"}, /* periph. data RAM 128k */
+	{0x880000, 0x88a000, 0x880000, "rgf"},     /* various RGF       40k */
+	{0x88a000, 0x88b000, 0x88a000, "AGC_tbl"}, /* AGC table          4k */
+	{0x88b000, 0x88c000, 0x88b000, "rgf_ext"}, /* Pcie_ext_rgf       4k */
+	{0x8c0000, 0x949000, 0x8c0000, "upper"},   /* upper area       548k */
 	/*
 	 * 920000..930000 ucode code RAM
 	 * 930000..932000 ucode data RAM
@@ -327,6 +327,17 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 
 	if (ieee80211_is_beacon(fc) || ieee80211_is_probe_resp(fc)) {
 		struct cfg80211_bss *bss;
+		u64 tsf = le64_to_cpu(rx_mgmt_frame->u.beacon.timestamp);
+		u16 cap = le16_to_cpu(rx_mgmt_frame->u.beacon.capab_info);
+		u16 bi = le16_to_cpu(rx_mgmt_frame->u.beacon.beacon_int);
+		const u8 *ie_buf = rx_mgmt_frame->u.beacon.variable;
+		size_t ie_len = d_len - offsetof(struct ieee80211_mgmt,
+						 u.beacon.variable);
+		wil_dbg_wmi(wil, "Capability info : 0x%04x\n", cap);
+		wil_dbg_wmi(wil, "TSF : 0x%016llx\n", tsf);
+		wil_dbg_wmi(wil, "Beacon interval : %d\n", bi);
+		wil_hex_dump_wmi("IE ", DUMP_PREFIX_OFFSET, 16, 1, ie_buf,
+				 ie_len, true);
 
 		bss = cfg80211_inform_bss_frame(wiphy, channel, rx_mgmt_frame,
 						d_len, signal, GFP_KERNEL);
@@ -351,6 +362,9 @@ static void wmi_evt_scan_complete(struct wil6210_priv *wil, int id,
 		bool aborted = (data->status != WMI_SCAN_SUCCESS);
 
 		wil_dbg_wmi(wil, "SCAN_COMPLETE(0x%08x)\n", data->status);
+		wil_dbg_misc(wil, "Complete scan_request 0x%p aborted %d\n",
+			     wil->scan_request, aborted);
+
 		del_timer_sync(&wil->scan_timer);
 		cfg80211_scan_done(wil->scan_request, aborted);
 		wil->scan_request = NULL;
@@ -668,14 +682,12 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 
 	for (n = 0;; n++) {
 		u16 len;
+		bool q;
 
 		r->head = ioread32(wil->csr + HOST_MBOX +
 				   offsetof(struct wil6210_mbox_ctl, rx.head));
-		if (r->tail == r->head) {
-			if (n == 0)
-				wil_dbg_wmi(wil, "No events?\n");
-			return;
-		}
+		if (r->tail == r->head)
+			break;
 
 		wil_dbg_wmi(wil, "Mbox head %08x tail %08x\n",
 			    r->head, r->tail);
@@ -684,14 +696,14 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 				     sizeof(struct wil6210_mbox_ring_desc));
 		if (d_tail.sync == 0) {
 			wil_err(wil, "Mbox evt not owned by FW?\n");
-			return;
+			break;
 		}
 
 		/* read cmd header from descriptor */
 		if (0 != wmi_read_hdr(wil, d_tail.addr, &hdr)) {
 			wil_err(wil, "Mbox evt at 0x%08x?\n",
 				le32_to_cpu(d_tail.addr));
-			return;
+			break;
 		}
 		len = le16_to_cpu(hdr.len);
 		wil_dbg_wmi(wil, "Mbox evt %04x %04x %04x %02x\n",
@@ -705,7 +717,7 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 					     event.wmi) + len, 4),
 			      GFP_KERNEL);
 		if (!evt)
-			return;
+			break;
 
 		evt->event.hdr = hdr;
 		cmd = (void *)&evt->event.wmi;
@@ -737,14 +749,11 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 		spin_lock_irqsave(&wil->wmi_ev_lock, flags);
 		list_add_tail(&evt->list, &wil->pending_wmi_ev);
 		spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
-		{
-			int q =	queue_work(wil->wmi_wq,
-					   &wil->wmi_event_worker);
-			wil_dbg_wmi(wil, "queue_work -> %d\n", q);
-		}
+		q = queue_work(wil->wmi_wq, &wil->wmi_event_worker);
+		wil_dbg_wmi(wil, "queue_work -> %d\n", q);
 	}
-	if (n > 1)
-		wil_dbg_wmi(wil, "%s -> %d events processed\n", __func__, n);
+	/* normally, 1 event per IRQ should be processed */
+	wil_dbg_wmi(wil, "%s -> %d events queued\n", __func__, n);
 }
 
 int wmi_call(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len,

@@ -16,6 +16,7 @@
 #include <asm/rtas.h>
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
+#include <asm/machdep.h>
 
 static int query_token, change_token;
 
@@ -532,5 +533,4 @@ static int rtas_msi_init(void)
 
 	return 0;
 }
-arch_initcall(rtas_msi_init);
-
+machine_arch_initcall(pseries, rtas_msi_init);

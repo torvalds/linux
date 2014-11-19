@@ -126,6 +126,11 @@ flush_merge	       Merge concurrent cache_flush commands as much as possible
                        to eliminate redundant command issues. If the underlying
 		       device handles the cache_flush command relatively slowly,
 		       recommend to enable this option.
+nobarrier              This option can be used if underlying storage guarantees
+                       its cached data should be written to the novolatile area.
+		       If this option is set, no cache_flush commands are issued
+		       but f2fs still guarantees the write ordering of all the
+		       data writes.
 
 ================================================================================
 DEBUGFS ENTRIES

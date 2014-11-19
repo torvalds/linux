@@ -1709,7 +1709,6 @@ static int register_device(struct vpbe_layer *vpbe_display_layer,
 	vpbe_display_layer->disp_dev = disp_dev;
 	/* set the driver data in platform device */
 	platform_set_drvdata(pdev, disp_dev);
-	set_bit(V4L2_FL_USE_FH_PRIO, &vpbe_display_layer->video_dev.flags);
 	video_set_drvdata(&vpbe_display_layer->video_dev,
 			  vpbe_display_layer);
 

@@ -339,6 +339,7 @@ struct tracer_flags {
  * @reset: called when one switches to another tracer
  * @start: called when tracing is unpaused (echo 1 > tracing_enabled)
  * @stop: called when tracing is paused (echo 0 > tracing_enabled)
+ * @update_thresh: called when tracing_thresh is updated
  * @open: called when the trace file is opened
  * @pipe_open: called when the trace_pipe file is opened
  * @close: called when the trace file is released
@@ -357,6 +358,7 @@ struct tracer {
 	void			(*reset)(struct trace_array *tr);
 	void			(*start)(struct trace_array *tr);
 	void			(*stop)(struct trace_array *tr);
+	int			(*update_thresh)(struct trace_array *tr);
 	void			(*open)(struct trace_iterator *iter);
 	void			(*pipe_open)(struct trace_iterator *iter);
 	void			(*close)(struct trace_iterator *iter);

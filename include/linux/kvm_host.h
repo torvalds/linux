@@ -325,24 +325,7 @@ struct kvm_kernel_irq_routing_entry {
 	struct hlist_node link;
 };
 
-#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
-
-struct kvm_irq_routing_table {
-	int chip[KVM_NR_IRQCHIPS][KVM_IRQCHIP_NUM_PINS];
-	struct kvm_kernel_irq_routing_entry *rt_entries;
-	u32 nr_rt_entries;
-	/*
-	 * Array indexed by gsi. Each entry contains list of irq chips
-	 * the gsi is connected to.
-	 */
-	struct hlist_head map[0];
-};
-
-#else
-
-struct kvm_irq_routing_table {};
-
-#endif
+struct kvm_irq_routing_table;
 
 #ifndef KVM_PRIVATE_MEM_SLOTS
 #define KVM_PRIVATE_MEM_SLOTS 0
@@ -401,11 +384,12 @@ struct kvm {
 	struct mutex irq_lock;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 	/*
-	 * Update side is protected by irq_lock and,
-	 * if configured, irqfds.lock.
+	 * Update side is protected by irq_lock.
 	 */
 	struct kvm_irq_routing_table __rcu *irq_routing;
 	struct hlist_head mask_notifier_list;
+#endif
+#ifdef CONFIG_HAVE_KVM_IRQFD
 	struct hlist_head irq_ack_notifier_list;
 #endif
 
@@ -455,7 +439,7 @@ void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 int __must_check vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
 
-#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
+#ifdef CONFIG_HAVE_KVM_IRQFD
 int kvm_irqfd_init(void);
 void kvm_irqfd_exit(void);
 #else
@@ -602,7 +586,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg);
 int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf);
 
-int kvm_dev_ioctl_check_extension(long ext);
+int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext);
 
 int kvm_get_dirty_log(struct kvm *kvm,
 			struct kvm_dirty_log *log, int *is_dirty);
@@ -751,6 +735,10 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 				      struct kvm_irq_mask_notifier *kimn);
 void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 			     bool mask);
+
+int kvm_irq_map_gsi(struct kvm *kvm,
+		    struct kvm_kernel_irq_routing_entry *entries, int gsi);
+int kvm_irq_map_chip_pin(struct kvm *kvm, unsigned irqchip, unsigned pin);
 
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 		bool line_status);
@@ -942,12 +930,9 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			const struct kvm_irq_routing_entry *entries,
 			unsigned nr,
 			unsigned flags);
-int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,
-			  struct kvm_kernel_irq_routing_entry *e,
+int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue);
 void kvm_free_irq_routing(struct kvm *kvm);
-
-int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
 
 #else
 
@@ -955,15 +940,17 @@ static inline void kvm_free_irq_routing(struct kvm *kvm) {}
 
 #endif
 
+int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
+
 #ifdef CONFIG_HAVE_KVM_EVENTFD
 
 void kvm_eventfd_init(struct kvm *kvm);
 int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
 
-#ifdef CONFIG_HAVE_KVM_IRQCHIP
+#ifdef CONFIG_HAVE_KVM_IRQFD
 int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args);
 void kvm_irqfd_release(struct kvm *kvm);
-void kvm_irq_routing_update(struct kvm *, struct kvm_irq_routing_table *);
+void kvm_irq_routing_update(struct kvm *);
 #else
 static inline int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args)
 {
@@ -985,10 +972,8 @@ static inline int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args)
 static inline void kvm_irqfd_release(struct kvm *kvm) {}
 
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
-static inline void kvm_irq_routing_update(struct kvm *kvm,
-					  struct kvm_irq_routing_table *irq_rt)
+static inline void kvm_irq_routing_update(struct kvm *kvm)
 {
-	rcu_assign_pointer(kvm->irq_routing, irq_rt);
 }
 #endif
 

@@ -272,7 +272,6 @@ struct ftrace_event_call {
 	struct trace_event	event;
 	const char		*print_fmt;
 	struct event_filter	*filter;
-	struct list_head	*files;
 	void			*mod;
 	void			*data;
 	/*
@@ -404,8 +403,6 @@ enum event_trigger_type {
 	ETT_EVENT_ENABLE	= (1 << 3),
 };
 
-extern void destroy_preds(struct ftrace_event_file *file);
-extern void destroy_call_preds(struct ftrace_event_call *call);
 extern int filter_match_preds(struct event_filter *filter, void *rec);
 
 extern int filter_check_discard(struct ftrace_event_file *file, void *rec,
@@ -573,40 +570,6 @@ do {									\
 	} else								\
 		__trace_printk(ip, fmt, ##args);			\
 } while (0)
-
-/**
- * tracepoint_string - register constant persistent string to trace system
- * @str - a constant persistent string that will be referenced in tracepoints
- *
- * If constant strings are being used in tracepoints, it is faster and
- * more efficient to just save the pointer to the string and reference
- * that with a printf "%s" instead of saving the string in the ring buffer
- * and wasting space and time.
- *
- * The problem with the above approach is that userspace tools that read
- * the binary output of the trace buffers do not have access to the string.
- * Instead they just show the address of the string which is not very
- * useful to users.
- *
- * With tracepoint_string(), the string will be registered to the tracing
- * system and exported to userspace via the debugfs/tracing/printk_formats
- * file that maps the string address to the string text. This way userspace
- * tools that read the binary buffers have a way to map the pointers to
- * the ASCII strings they represent.
- *
- * The @str used must be a constant string and persistent as it would not
- * make sense to show a string that no longer exists. But it is still fine
- * to be used with modules, because when modules are unloaded, if they
- * had tracepoints, the ring buffers are cleared too. As long as the string
- * does not change during the life of the module, it is fine to use
- * tracepoint_string() within a module.
- */
-#define tracepoint_string(str)						\
-	({								\
-		static const char *___tp_str __tracepoint_string = str; \
-		___tp_str;						\
-	})
-#define __tracepoint_string	__attribute__((section("__tracepoint_str")))
 
 #ifdef CONFIG_PERF_EVENTS
 struct perf_event;

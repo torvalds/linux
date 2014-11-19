@@ -42,9 +42,7 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
-#include <subdev/i2c.h>
-#include <subdev/gpio.h>
-#include <engine/disp.h>
+#include <nvif/event.h>
 
 MODULE_PARM_DESC(tv_disable, "Disable TV-out detection");
 static int nouveau_tv_disable = 0;
@@ -63,7 +61,7 @@ find_encoder(struct drm_connector *connector, int type)
 {
 	struct drm_device *dev = connector->dev;
 	struct nouveau_encoder *nv_encoder;
-	struct drm_mode_object *obj;
+	struct drm_encoder *enc;
 	int i, id;
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
@@ -71,10 +69,10 @@ find_encoder(struct drm_connector *connector, int type)
 		if (!id)
 			break;
 
-		obj = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
+		enc = drm_encoder_find(dev, id);
+		if (!enc)
 			continue;
-		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
+		nv_encoder = nouveau_encoder(enc);
 
 		if (type == DCB_OUTPUT_ANY ||
 		    (nv_encoder->dcb && nv_encoder->dcb->type == type))
@@ -102,9 +100,9 @@ static void
 nouveau_connector_destroy(struct drm_connector *connector)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
-	nouveau_event_ref(NULL, &nv_connector->hpd);
+	nvif_notify_fini(&nv_connector->hpd);
 	kfree(nv_connector->edid);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	if (nv_connector->aux.transfer)
 		drm_dp_aux_unregister(&nv_connector->aux);
@@ -117,9 +115,9 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
+	struct nouveau_gpio *gpio = nvkm_gpio(&drm->device);
 	struct nouveau_encoder *nv_encoder;
-	struct drm_mode_object *obj;
+	struct drm_encoder *encoder;
 	int i, panel = -ENODEV;
 
 	/* eDP panels need powering on by us (if the VBIOS doesn't default it
@@ -139,10 +137,10 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 		if (id == 0)
 			break;
 
-		obj = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
+		encoder = drm_encoder_find(dev, id);
+		if (!encoder)
 			continue;
-		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
+		nv_encoder = nouveau_encoder(encoder);
 
 		if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 			int ret = nouveau_dp_detect(nv_encoder);
@@ -206,7 +204,7 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		return;
 	nv_connector->detected_encoder = nv_encoder;
 
-	if (nv_device(drm->device)->card_type >= NV_50) {
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		connector->interlace_allowed = true;
 		connector->doublescan_allowed = true;
 	} else
@@ -216,9 +214,8 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		connector->interlace_allowed = false;
 	} else {
 		connector->doublescan_allowed = true;
-		if (nv_device(drm->device)->card_type == NV_20 ||
-		    ((nv_device(drm->device)->card_type == NV_10 ||
-		      nv_device(drm->device)->card_type == NV_11) &&
+		if (drm->device.info.family == NV_DEVICE_INFO_V0_KELVIN ||
+		    (drm->device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
 		     (dev->pdev->device & 0x0ff0) != 0x0100 &&
 		     (dev->pdev->device & 0x0ff0) != 0x0150))
 			/* HW is broken */
@@ -802,11 +799,11 @@ get_tmds_link_bandwidth(struct drm_connector *connector)
 	struct dcb_output *dcb = nv_connector->detected_encoder->dcb;
 
 	if (dcb->location != DCB_LOC_ON_CHIP ||
-	    nv_device(drm->device)->chipset >= 0x46)
+	    drm->device.info.chipset >= 0x46)
 		return 165000;
-	else if (nv_device(drm->device)->chipset >= 0x40)
+	else if (drm->device.info.chipset >= 0x40)
 		return 155000;
-	else if (nv_device(drm->device)->chipset >= 0x18)
+	else if (drm->device.info.chipset >= 0x18)
 		return 135000;
 	else
 		return 112000;
@@ -939,18 +936,19 @@ nouveau_connector_funcs_dp = {
 	.force = nouveau_connector_force
 };
 
-static void
-nouveau_connector_hotplug_work(struct work_struct *work)
+static int
+nouveau_connector_hotplug(struct nvif_notify *notify)
 {
 	struct nouveau_connector *nv_connector =
-		container_of(work, typeof(*nv_connector), work);
+		container_of(notify, typeof(*nv_connector), hpd);
 	struct drm_connector *connector = &nv_connector->base;
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	const struct nvif_notify_conn_rep_v0 *rep = notify->data;
 	const char *name = connector->name;
 
-	if (nv_connector->status & NVKM_HPD_IRQ) {
+	if (rep->mask & NVIF_NOTIFY_CONN_V0_IRQ) {
 	} else {
-		bool plugged = (nv_connector->status != NVKM_HPD_UNPLUG);
+		bool plugged = (rep->mask != NVIF_NOTIFY_CONN_V0_UNPLUG);
 
 		NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un", name);
 
@@ -961,16 +959,7 @@ nouveau_connector_hotplug_work(struct work_struct *work)
 		drm_helper_hpd_irq_event(connector->dev);
 	}
 
-	nouveau_event_get(nv_connector->hpd);
-}
-
-static int
-nouveau_connector_hotplug(void *data, u32 type, int index)
-{
-	struct nouveau_connector *nv_connector = data;
-	nv_connector->status = type;
-	schedule_work(&nv_connector->work);
-	return NVKM_EVENT_DROP;
+	return NVIF_NOTIFY_KEEP;
 }
 
 static ssize_t
@@ -1040,7 +1029,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_connector *nv_connector = NULL;
-	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
 	struct drm_connector *connector;
 	int type, ret = 0;
 	bool dummy;
@@ -1194,7 +1182,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 
 	switch (nv_connector->type) {
 	case DCB_CONNECTOR_VGA:
-		if (nv_device(drm->device)->card_type >= NV_50) {
+		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			drm_object_attach_property(&connector->base,
 					dev->mode_config.scaling_mode_property,
 					nv_connector->scaling_mode);
@@ -1226,16 +1214,20 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	}
 
-	ret = nouveau_event_new(pdisp->hpd, NVKM_HPD, index,
-				nouveau_connector_hotplug,
-				nv_connector, &nv_connector->hpd);
+	ret = nvif_notify_init(&disp->disp, NULL, nouveau_connector_hotplug,
+				true, NV04_DISP_NTFY_CONN,
+			       &(struct nvif_notify_conn_req_v0) {
+				.mask = NVIF_NOTIFY_CONN_V0_ANY,
+				.conn = index,
+			       },
+			       sizeof(struct nvif_notify_conn_req_v0),
+			       sizeof(struct nvif_notify_conn_rep_v0),
+			       &nv_connector->hpd);
 	if (ret)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	else
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	INIT_WORK(&nv_connector->work, nouveau_connector_hotplug_work);
-
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 	return connector;
 }

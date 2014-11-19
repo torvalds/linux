@@ -6,30 +6,16 @@
 
 config PLAT_SAMSUNG
 	bool
-	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P || ARCH_EXYNOS
+	depends on PLAT_S3C24XX || ARCH_S3C64XX || ARCH_EXYNOS || ARCH_S5PV210
 	default y
 	select GENERIC_IRQ_CHIP
 	select NO_IOPORT_MAP
 	help
 	  Base platform code for all Samsung SoC based systems
 
-config PLAT_S5P
-	bool
-	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
-	default y
-	select ARCH_REQUIRE_GPIOLIB
-	select ARM_VIC
-	select NO_IOPORT_MAP
-	select PLAT_SAMSUNG
-	select S3C_GPIO_TRACK
-	select S5P_GPIO_DRVSTR
-	select SAMSUNG_CLKSRC if !COMMON_CLK
-	help
-	  Base platform code for Samsung's S5P series SoC.
-
 config SAMSUNG_PM
 	bool
-	depends on PM && (PLAT_S3C24XX || ARCH_S3C64XX || ARCH_S5P64X0 || S5P_PM)
+	depends on PM && (PLAT_S3C24XX || ARCH_S3C64XX)
 	default y
 	help
 	  Base platform power management code for samsung code
@@ -65,65 +51,6 @@ config SAMSUNG_ATAGS
 
 if SAMSUNG_ATAGS
 
-# clock options
-
-config SAMSUNG_CLOCK
-	bool
-	default y if !COMMON_CLK
-
-config SAMSUNG_CLKSRC
-	bool
-	help
-	  Select the clock code for the clksrc implementation
-	  used by newer systems such as the S3C64XX.
-
-config S5P_CLOCK
-	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
-	help
-	  Support common clock part for ARCH_S5P and ARCH_EXYNOS SoCs
-
-# options for IRQ support
-
-config S5P_IRQ
-	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
-	help
-	  Support common interrupt part for ARCH_S5P SoCs
-
-config S5P_EXT_INT
-	bool
-	help
-	  Use the external interrupts (other than GPIO interrupts.)
-	  Note: Do not choose this for S5P6440 and S5P6450.
-
-config S5P_GPIO_INT
-	bool
-	help
-	  Common code for the GPIO interrupts (other than external interrupts.)
-
-# options for gpio configuration support
-
-config S5P_GPIO_DRVSTR
-	bool
-	help
-	  Internal configuration to get and set correct GPIO driver strength
-	  helper
-
-config SAMSUNG_GPIO_EXTRA
-	int "Number of additional GPIO pins"
-	default 128 if SAMSUNG_GPIO_EXTRA128
-	default 64 if SAMSUNG_GPIO_EXTRA64
-	default 0
-	help
-	  Use additional GPIO space in addition to the GPIO's the SOC
-	  provides. This allows expanding the GPIO space for use with
-	  GPIO expanders.
-
-config SAMSUNG_GPIO_EXTRA64
-	bool
-
-config SAMSUNG_GPIO_EXTRA128
-	bool
-
 config S3C_GPIO_SPACE
 	int "Space between gpio banks"
 	default 0
@@ -138,12 +65,6 @@ config S3C_GPIO_TRACK
 	help
 	  Internal configuration option to enable the s3c specific gpio
 	  chip tracking if the platform requires it.
-
-# uart options
-
-config S5P_DEV_UART
-	def_bool y
-	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
 
 # ADC driver
 
@@ -302,66 +223,6 @@ config SAMSUNG_DEV_BACKLIGHT
 	help
 	  Compile in platform device definition LCD backlight with PWM Timer
 
-config S5P_DEV_CSIS0
-	bool
-	help
-	  Compile in platform device definitions for MIPI-CSIS channel 0
-
-config S5P_DEV_CSIS1
-	bool
-	help
-	  Compile in platform device definitions for MIPI-CSIS channel 1
-
-config S5P_DEV_FIMC0
-	bool
-	help
-	  Compile in platform device definitions for FIMC controller 0
-
-config S5P_DEV_FIMC1
-	bool
-	help
-	  Compile in platform device definitions for FIMC controller 1
-
-config S5P_DEV_FIMC2
-	bool
-	help
-	  Compile in platform device definitions for FIMC controller 2
-
-config S5P_DEV_FIMC3
-	bool
-	help
-	  Compile in platform device definitions for FIMC controller 3
-
-config S5P_DEV_FIMD0
-	bool
-	help
-	  Compile in platform device definitions for FIMD controller 0
-
-config S5P_DEV_G2D
-	bool
-	help
-	  Compile in platform device definitions for G2D device
-
-config S5P_DEV_I2C_HDMIPHY
-	bool
-	help
-	  Compile in platform device definitions for I2C HDMIPHY controller
-
-config S5P_DEV_JPEG
-	bool
-	help
-	  Compile in platform device definitions for JPEG codec
-
-config S5P_DEV_ONENAND
-	bool
-	help
-	  Compile in platform device definition for OneNAND controller
-
-config S5P_DEV_TV
-	bool
-	help
-	  Compile in platform device definition for TV interface
-
 config S3C24XX_PWM
 	bool "PWM device support"
 	select PWM
@@ -382,12 +243,6 @@ config S3C_DMA
 	help
 	  Internal configuration for S3C DMA core
 
-config S5P_IRQ_PM
-	bool
-	default y if S5P_PM
-	help
-	  Legacy IRQ power management for S5P platforms
-
 config SAMSUNG_PM_GPIO
 	bool
 	default y if GPIO_SAMSUNG && PM
@@ -397,7 +252,7 @@ config SAMSUNG_PM_GPIO
 
 config SAMSUNG_DMADEV
 	bool "Use legacy Samsung DMA abstraction"
-	depends on CPU_S5PV210 || CPU_S5PC100 || ARCH_S5P64X0 || ARCH_S3C64XX
+	depends on CPU_S5PV210 || ARCH_S3C64XX
 	select DMADEVICES
 	default y
 	help
@@ -469,18 +324,6 @@ config SAMSUNG_WDT_RESET
 	help
 	  Compile support for system restart by triggering watchdog reset.
 	  Used on SoCs that do not provide dedicated reset control.
-
-config S5P_PM
-	bool
-	help
-	  Common code for power management support on S5P and newer SoCs
-	  Note: Do not select this for S5P6440 and S5P6450.
-
-config S5P_SLEEP
-	bool
-	help
-	  Internal config node to apply common S5P sleep management code.
-	  Can be selected by S5P and newer SoCs with similar sleep procedure.
 
 config DEBUG_S3C_UART
 	depends on PLAT_SAMSUNG

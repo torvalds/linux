@@ -85,6 +85,7 @@ struct regulator_state {
  *           bootloader then it will be enabled when the constraints are
  *           applied.
  * @apply_uV: Apply the voltage constraint when initialising.
+ * @ramp_disable: Disable ramp delay when initialising or when setting voltage.
  *
  * @input_uV: Input voltage for regulator when supplied by another regulator.
  *

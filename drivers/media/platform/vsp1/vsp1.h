@@ -36,9 +36,9 @@ struct vsp1_rwpf;
 struct vsp1_sru;
 struct vsp1_uds;
 
-#define VPS1_MAX_RPF		5
-#define VPS1_MAX_UDS		3
-#define VPS1_MAX_WPF		4
+#define VSP1_MAX_RPF		5
+#define VSP1_MAX_UDS		3
+#define VSP1_MAX_WPF		4
 
 struct vsp1_device {
 	struct device *dev;
@@ -55,10 +55,10 @@ struct vsp1_device {
 	struct vsp1_hsit *hst;
 	struct vsp1_lif *lif;
 	struct vsp1_lut *lut;
-	struct vsp1_rwpf *rpf[VPS1_MAX_RPF];
+	struct vsp1_rwpf *rpf[VSP1_MAX_RPF];
 	struct vsp1_sru *sru;
-	struct vsp1_uds *uds[VPS1_MAX_UDS];
-	struct vsp1_rwpf *wpf[VPS1_MAX_WPF];
+	struct vsp1_uds *uds[VSP1_MAX_UDS];
+	struct vsp1_rwpf *wpf[VSP1_MAX_WPF];
 
 	struct list_head entities;
 
@@ -66,7 +66,7 @@ struct vsp1_device {
 	struct media_device media_dev;
 };
 
-struct vsp1_device *vsp1_device_get(struct vsp1_device *vsp1);
+int vsp1_device_get(struct vsp1_device *vsp1);
 void vsp1_device_put(struct vsp1_device *vsp1);
 
 static inline u32 vsp1_read(struct vsp1_device *vsp1, u32 reg)

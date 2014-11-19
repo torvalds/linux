@@ -108,7 +108,7 @@ static inline int handle_dev_cpu_collision(struct sk_buff *skb,
 
 /*
  * Transmit one skb, and handle the return status as required. Holding the
- * __QDISC_STATE_RUNNING bit guarantees that only one CPU can execute this
+ * __QDISC___STATE_RUNNING bit guarantees that only one CPU can execute this
  * function.
  *
  * Returns to the caller:
@@ -156,7 +156,7 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 /*
  * NOTE: Called under qdisc_lock(q) with locally disabled BH.
  *
- * __QDISC_STATE_RUNNING guarantees only one CPU can process
+ * __QDISC___STATE_RUNNING guarantees only one CPU can process
  * this qdisc at a time. qdisc_lock(q) serializes queue accesses for
  * this queue.
  *

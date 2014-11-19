@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 struct efi __read_mostly efi = {
 	.mps        = EFI_INVALID_TABLE_ADDR,
@@ -104,16 +105,19 @@ static struct attribute *efi_subsys_attrs[] = {
 static umode_t efi_attr_is_visible(struct kobject *kobj,
 				   struct attribute *attr, int n)
 {
-	umode_t mode = attr->mode;
+	if (attr == &efi_attr_fw_vendor.attr) {
+		if (efi_enabled(EFI_PARAVIRT) ||
+				efi.fw_vendor == EFI_INVALID_TABLE_ADDR)
+			return 0;
+	} else if (attr == &efi_attr_runtime.attr) {
+		if (efi.runtime == EFI_INVALID_TABLE_ADDR)
+			return 0;
+	} else if (attr == &efi_attr_config_table.attr) {
+		if (efi.config_table == EFI_INVALID_TABLE_ADDR)
+			return 0;
+	}
 
-	if (attr == &efi_attr_fw_vendor.attr)
-		return (efi.fw_vendor == EFI_INVALID_TABLE_ADDR) ? 0 : mode;
-	else if (attr == &efi_attr_runtime.attr)
-		return (efi.runtime == EFI_INVALID_TABLE_ADDR) ? 0 : mode;
-	else if (attr == &efi_attr_config_table.attr)
-		return (efi.config_table == EFI_INVALID_TABLE_ADDR) ? 0 : mode;
-
-	return mode;
+	return attr->mode;
 }
 
 static struct attribute_group efi_subsys_attr_group = {
@@ -298,7 +302,7 @@ int __init efi_config_init(efi_config_table_type_t *arch_tables)
 			if (table64 >> 32) {
 				pr_cont("\n");
 				pr_err("Table located above 4GB, disabling EFI.\n");
-				early_iounmap(config_tables,
+				early_memunmap(config_tables,
 					       efi.systab->nr_tables * sz);
 				return -EINVAL;
 			}
@@ -314,12 +318,26 @@ int __init efi_config_init(efi_config_table_type_t *arch_tables)
 		tablep += sz;
 	}
 	pr_cont("\n");
-	early_iounmap(config_tables, efi.systab->nr_tables * sz);
+	early_memunmap(config_tables, efi.systab->nr_tables * sz);
 
 	set_bit(EFI_CONFIG_TABLES, &efi.flags);
 
 	return 0;
 }
+
+#ifdef CONFIG_EFI_VARS_MODULE
+static int __init efi_load_efivars(void)
+{
+	struct platform_device *pdev;
+
+	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+		return 0;
+
+	pdev = platform_device_register_simple("efivars", 0, NULL, 0);
+	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
+}
+device_initcall(efi_load_efivars);
+#endif
 
 #ifdef CONFIG_EFI_PARAMS_FROM_FDT
 

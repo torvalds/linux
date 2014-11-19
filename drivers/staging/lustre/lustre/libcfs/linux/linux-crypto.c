@@ -29,8 +29,8 @@
 
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
-#include <linux/libcfs/libcfs.h>
-#include <linux/libcfs/linux/linux-crypto.h>
+#include "../../../include/linux/libcfs/libcfs.h"
+#include "linux-crypto.h"
 /**
  *  Array of  hash algorithm speed in MByte per second
  */

@@ -168,7 +168,7 @@ xfs_growfs_data_private(
 	nb = in->newblocks;
 	pct = in->imaxpct;
 	if (nb < mp->m_sb.sb_dblocks || pct < 0 || pct > 100)
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 	if ((error = xfs_sb_validate_fsb_count(&mp->m_sb, nb)))
 		return error;
 	dpct = pct - mp->m_sb.sb_imax_pct;
@@ -176,7 +176,7 @@ xfs_growfs_data_private(
 				XFS_FSB_TO_BB(mp, nb) - XFS_FSS_TO_BB(mp, 1),
 				XFS_FSS_TO_BB(mp, 1), 0, NULL);
 	if (!bp)
-		return EIO;
+		return -EIO;
 	if (bp->b_error) {
 		error = bp->b_error;
 		xfs_buf_relse(bp);
@@ -191,7 +191,7 @@ xfs_growfs_data_private(
 		nagcount--;
 		nb = (xfs_rfsblock_t)nagcount * mp->m_sb.sb_agblocks;
 		if (nb < mp->m_sb.sb_dblocks)
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 	}
 	new = nb - mp->m_sb.sb_dblocks;
 	oagcount = mp->m_sb.sb_agcount;
@@ -229,7 +229,7 @@ xfs_growfs_data_private(
 				XFS_FSS_TO_BB(mp, 1), 0,
 				&xfs_agf_buf_ops);
 		if (!bp) {
-			error = ENOMEM;
+			error = -ENOMEM;
 			goto error0;
 		}
 
@@ -270,7 +270,7 @@ xfs_growfs_data_private(
 				XFS_FSS_TO_BB(mp, 1), 0,
 				&xfs_agfl_buf_ops);
 		if (!bp) {
-			error = ENOMEM;
+			error = -ENOMEM;
 			goto error0;
 		}
 
@@ -298,7 +298,7 @@ xfs_growfs_data_private(
 				XFS_FSS_TO_BB(mp, 1), 0,
 				&xfs_agi_buf_ops);
 		if (!bp) {
-			error = ENOMEM;
+			error = -ENOMEM;
 			goto error0;
 		}
 
@@ -336,7 +336,7 @@ xfs_growfs_data_private(
 				&xfs_allocbt_buf_ops);
 
 		if (!bp) {
-			error = ENOMEM;
+			error = -ENOMEM;
 			goto error0;
 		}
 
@@ -365,7 +365,7 @@ xfs_growfs_data_private(
 				BTOBB(mp->m_sb.sb_blocksize), 0,
 				&xfs_allocbt_buf_ops);
 		if (!bp) {
-			error = ENOMEM;
+			error = -ENOMEM;
 			goto error0;
 		}
 
@@ -395,7 +395,7 @@ xfs_growfs_data_private(
 				BTOBB(mp->m_sb.sb_blocksize), 0,
 				&xfs_inobt_buf_ops);
 		if (!bp) {
-			error = ENOMEM;
+			error = -ENOMEM;
 			goto error0;
 		}
 
@@ -420,7 +420,7 @@ xfs_growfs_data_private(
 				BTOBB(mp->m_sb.sb_blocksize), 0,
 				&xfs_inobt_buf_ops);
 			if (!bp) {
-				error = ENOMEM;
+				error = -ENOMEM;
 				goto error0;
 			}
 
@@ -531,7 +531,7 @@ xfs_growfs_data_private(
 				bp->b_ops = &xfs_sb_buf_ops;
 				xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
 			} else
-				error = ENOMEM;
+				error = -ENOMEM;
 		}
 
 		/*
@@ -576,17 +576,17 @@ xfs_growfs_log_private(
 
 	nb = in->newblocks;
 	if (nb < XFS_MIN_LOG_BLOCKS || nb < XFS_B_TO_FSB(mp, XFS_MIN_LOG_BYTES))
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 	if (nb == mp->m_sb.sb_logblocks &&
 	    in->isint == (mp->m_sb.sb_logstart != 0))
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 	/*
 	 * Moving the log is hard, need new interfaces to sync
 	 * the log first, hold off all activity while moving it.
 	 * Can have shorter or longer log in the same space,
 	 * or transform internal to external log or vice versa.
 	 */
-	return XFS_ERROR(ENOSYS);
+	return -ENOSYS;
 }
 
 /*
@@ -604,9 +604,9 @@ xfs_growfs_data(
 	int error;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return XFS_ERROR(EPERM);
+		return -EPERM;
 	if (!mutex_trylock(&mp->m_growlock))
-		return XFS_ERROR(EWOULDBLOCK);
+		return -EWOULDBLOCK;
 	error = xfs_growfs_data_private(mp, in);
 	mutex_unlock(&mp->m_growlock);
 	return error;
@@ -620,9 +620,9 @@ xfs_growfs_log(
 	int error;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return XFS_ERROR(EPERM);
+		return -EPERM;
 	if (!mutex_trylock(&mp->m_growlock))
-		return XFS_ERROR(EWOULDBLOCK);
+		return -EWOULDBLOCK;
 	error = xfs_growfs_log_private(mp, in);
 	mutex_unlock(&mp->m_growlock);
 	return error;
@@ -674,7 +674,7 @@ xfs_reserve_blocks(
 	/* If inval is null, report current values and return */
 	if (inval == (__uint64_t *)NULL) {
 		if (!outval)
-			return EINVAL;
+			return -EINVAL;
 		outval->resblks = mp->m_resblks;
 		outval->resblks_avail = mp->m_resblks_avail;
 		return 0;
@@ -757,7 +757,7 @@ out:
 		int error;
 		error = xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS,
 						 fdblks_delta, 0);
-		if (error == ENOSPC)
+		if (error == -ENOSPC)
 			goto retry;
 	}
 	return 0;
@@ -818,7 +818,7 @@ xfs_fs_goingdown(
 				SHUTDOWN_FORCE_UMOUNT | SHUTDOWN_LOG_IO_ERROR);
 		break;
 	default:
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 	}
 
 	return 0;

@@ -424,8 +424,9 @@ static int proc_sctp_do_alpha_beta(struct ctl_table *ctl, int write,
 				   void __user *buffer, size_t *lenp,
 				   loff_t *ppos)
 {
-	pr_warn_once("Changing rto_alpha or rto_beta may lead to "
-		     "suboptimal rtt/srtt estimations!\n");
+	if (write)
+		pr_warn_once("Changing rto_alpha or rto_beta may lead to "
+			     "suboptimal rtt/srtt estimations!\n");
 
 	return proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
 }

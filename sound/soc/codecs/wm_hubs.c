@@ -183,10 +183,8 @@ static void wm_hubs_dcs_cache_set(struct snd_soc_codec *codec, u16 dcs_cfg)
 		return;
 
 	cache = devm_kzalloc(codec->dev, sizeof(*cache), GFP_KERNEL);
-	if (!cache) {
-		dev_err(codec->dev, "Failed to allocate DCS cache entry\n");
+	if (!cache)
 		return;
-	}
 
 	cache->left = snd_soc_read(codec, WM8993_LEFT_OUTPUT_VOLUME);
 	cache->left &= WM8993_HPOUT1L_VOL_MASK;

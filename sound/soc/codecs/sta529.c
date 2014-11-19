@@ -4,7 +4,7 @@
  * sound/soc/codecs/sta529.c -- spear ALSA Soc codec driver
  *
  * Copyright (C) 2012 ST Microelectronics
- * Rajeev Kumar <rajeev-dlh.kumar@st.com>
+ * Rajeev Kumar <rajeevkumar.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -197,16 +197,16 @@ static int sta529_hw_params(struct snd_pcm_substream *substream,
 	int pdata, play_freq_val, record_freq_val;
 	int bclk_to_fs_ratio;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		pdata = 1;
 		bclk_to_fs_ratio = 0;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		pdata = 2;
 		bclk_to_fs_ratio = 1;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		pdata = 3;
 		bclk_to_fs_ratio = 2;
 		break;
@@ -380,10 +380,8 @@ static int sta529_i2c_probe(struct i2c_client *i2c,
 		return -EINVAL;
 
 	sta529 = devm_kzalloc(&i2c->dev, sizeof(struct sta529), GFP_KERNEL);
-	if (sta529 == NULL) {
-		dev_err(&i2c->dev, "Can not allocate memory\n");
+	if (!sta529)
 		return -ENOMEM;
-	}
 
 	sta529->regmap = devm_regmap_init_i2c(i2c, &sta529_regmap);
 	if (IS_ERR(sta529->regmap)) {
@@ -428,5 +426,5 @@ static struct i2c_driver sta529_i2c_driver = {
 module_i2c_driver(sta529_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC STA529 codec driver");
-MODULE_AUTHOR("Rajeev Kumar <rajeev-dlh.kumar@st.com>");
+MODULE_AUTHOR("Rajeev Kumar <rajeevkumar.linux@gmail.com>");
 MODULE_LICENSE("GPL");

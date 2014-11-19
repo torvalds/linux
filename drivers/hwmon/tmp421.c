@@ -13,15 +13,11 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
  * Driver for the Texas Instruments TMP421 SMBus temperature sensor IC.
- * Supported models: TMP421, TMP422, TMP423
+ * Supported models: TMP421, TMP422, TMP423, TMP441, TMP442
  */
 
 #include <linux/module.h>
@@ -39,9 +35,10 @@
 static const unsigned short normal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
 					     I2C_CLIENT_END };
 
-enum chips { tmp421, tmp422, tmp423 };
+enum chips { tmp421, tmp422, tmp423, tmp441, tmp442 };
 
 /* The TMP421 registers */
+#define TMP421_STATUS_REG			0x08
 #define TMP421_CONFIG_REG_1			0x09
 #define TMP421_CONVERSION_RATE_REG		0x0B
 #define TMP421_MANUFACTURER_ID_REG		0xFE
@@ -59,11 +56,15 @@ static const u8 TMP421_TEMP_LSB[4]		= { 0x10, 0x11, 0x12, 0x13 };
 #define TMP421_DEVICE_ID			0x21
 #define TMP422_DEVICE_ID			0x22
 #define TMP423_DEVICE_ID			0x23
+#define TMP441_DEVICE_ID			0x41
+#define TMP442_DEVICE_ID			0x42
 
 static const struct i2c_device_id tmp421_id[] = {
 	{ "tmp421", 2 },
 	{ "tmp422", 3 },
 	{ "tmp423", 4 },
+	{ "tmp441", 2 },
+	{ "tmp442", 3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp421_id);
@@ -234,7 +235,9 @@ static int tmp421_detect(struct i2c_client *client,
 {
 	enum chips kind;
 	struct i2c_adapter *adapter = client->adapter;
-	const char *names[] = { "TMP421", "TMP422", "TMP423" };
+	const char * const names[] = { "TMP421", "TMP422", "TMP423",
+				       "TMP441", "TMP442" };
+	int addr = client->addr;
 	u8 reg;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -244,16 +247,36 @@ static int tmp421_detect(struct i2c_client *client,
 	if (reg != TMP421_MANUFACTURER_ID)
 		return -ENODEV;
 
+	reg = i2c_smbus_read_byte_data(client, TMP421_CONVERSION_RATE_REG);
+	if (reg & 0xf8)
+		return -ENODEV;
+
+	reg = i2c_smbus_read_byte_data(client, TMP421_STATUS_REG);
+	if (reg & 0x7f)
+		return -ENODEV;
+
 	reg = i2c_smbus_read_byte_data(client, TMP421_DEVICE_ID_REG);
 	switch (reg) {
 	case TMP421_DEVICE_ID:
 		kind = tmp421;
 		break;
 	case TMP422_DEVICE_ID:
+		if (addr == 0x2a)
+			return -ENODEV;
 		kind = tmp422;
 		break;
 	case TMP423_DEVICE_ID:
+		if (addr != 0x4c && addr != 0x4d)
+			return -ENODEV;
 		kind = tmp423;
+		break;
+	case TMP441_DEVICE_ID:
+		kind = tmp441;
+		break;
+	case TMP442_DEVICE_ID:
+		if (addr != 0x4c && addr != 0x4d)
+			return -ENODEV;
+		kind = tmp442;
 		break;
 	default:
 		return -ENODEV;
@@ -305,5 +328,5 @@ static struct i2c_driver tmp421_driver = {
 module_i2c_driver(tmp421_driver);
 
 MODULE_AUTHOR("Andre Prendel <andre.prendel@gmx.de>");
-MODULE_DESCRIPTION("Texas Instruments TMP421/422/423 temperature sensor driver");
+MODULE_DESCRIPTION("Texas Instruments TMP421/422/423/441/442 temperature sensor driver");
 MODULE_LICENSE("GPL");

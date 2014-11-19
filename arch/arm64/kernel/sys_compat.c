@@ -26,7 +26,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
-#include <asm/unistd32.h>
+#include <asm/unistd.h>
 
 static inline void
 do_compat_cache_op(unsigned long start, unsigned long end, int flags)
@@ -79,6 +79,12 @@ long compat_arm_syscall(struct pt_regs *regs)
 
 	case __ARM_NR_compat_set_tls:
 		current->thread.tp_value = regs->regs[0];
+
+		/*
+		 * Protect against register corruption from context switch.
+		 * See comment in tls_thread_flush.
+		 */
+		barrier();
 		asm ("msr tpidrro_el0, %0" : : "r" (regs->regs[0]));
 		return 0;
 

@@ -43,11 +43,11 @@
 
 #define LNET_ONLY
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lnet.h>
-#include <linux/lnet/lib-lnet.h>
-#include <linux/lnet/lib-types.h>
-#include <linux/lnet/lnetst.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/lnet/lnet.h"
+#include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lib-types.h"
+#include "../../include/linux/lnet/lnetst.h"
 
 #include "rpc.h"
 #include "timer.h"
@@ -334,7 +334,7 @@ typedef struct {
 	atomic_t      sn_refcount;
 	atomic_t      sn_brw_errors;
 	atomic_t      sn_ping_errors;
-	cfs_time_t	sn_started;
+	unsigned long	sn_started;
 } sfw_session_t;
 
 #define sfw_sid_equal(sid0, sid1)     ((sid0).ses_nid == (sid1).ses_nid && \

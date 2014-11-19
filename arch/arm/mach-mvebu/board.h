@@ -13,4 +13,9 @@
 #ifndef __ARCH_MVEBU_BOARD_H
 #define __ARCH_MVEBU_BOARD_H
 
+#ifdef CONFIG_MACH_NETXBIG
+void netxbig_init(void);
+#else
+static inline void netxbig_init(void) {};
+#endif
 #endif

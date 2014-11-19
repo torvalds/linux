@@ -2451,8 +2451,8 @@ lot of {Linux} into your technology!!!"
 ,month="February"
 ,year="2010"
 ,note="Available:
-\url{http://kerneltrap.com/mailarchive/linux-netdev/2010/2/26/6270589}
-[Viewed March 20, 2011]"
+\url{http://thread.gmane.org/gmane.linux.network/153338}
+[Viewed June 9, 2014]"
 ,annotation={
 	Use a pair of list_head structures to support RCU-protected
 	resizable hash tables.

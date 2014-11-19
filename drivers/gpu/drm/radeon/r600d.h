@@ -44,13 +44,6 @@
 #define R6XX_MAX_PIPES				8
 #define R6XX_MAX_PIPES_MASK			0xff
 
-/* PTE flags */
-#define PTE_VALID				(1 << 0)
-#define PTE_SYSTEM				(1 << 1)
-#define PTE_SNOOPED				(1 << 2)
-#define PTE_READABLE				(1 << 5)
-#define PTE_WRITEABLE				(1 << 6)
-
 /* tiling bits */
 #define     ARRAY_LINEAR_GENERAL              0x00000000
 #define     ARRAY_LINEAR_ALIGNED              0x00000001
@@ -1597,6 +1590,7 @@
 		 */
 #              define PACKET3_CP_DMA_CMD_SAIC      (1 << 28)
 #              define PACKET3_CP_DMA_CMD_DAIC      (1 << 29)
+#define	PACKET3_PFP_SYNC_ME				0x42 /* r7xx+ only */
 #define	PACKET3_SURFACE_SYNC				0x43
 #              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
 #              define PACKET3_FULL_CACHE_ENA       (1 << 20) /* r7xx+ only */

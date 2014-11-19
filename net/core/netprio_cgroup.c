@@ -249,7 +249,7 @@ struct cgroup_subsys net_prio_cgrp_subsys = {
 	.css_online	= cgrp_css_online,
 	.css_free	= cgrp_css_free,
 	.attach		= net_prio_attach,
-	.base_cftypes	= ss_files,
+	.legacy_cftypes	= ss_files,
 };
 
 static int netprio_device_event(struct notifier_block *unused,

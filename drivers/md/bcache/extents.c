@@ -474,9 +474,8 @@ out:
 	return false;
 }
 
-static bool bch_extent_invalid(struct btree_keys *bk, const struct bkey *k)
+bool __bch_extent_invalid(struct cache_set *c, const struct bkey *k)
 {
-	struct btree *b = container_of(bk, struct btree, keys);
 	char buf[80];
 
 	if (!KEY_SIZE(k))
@@ -485,14 +484,20 @@ static bool bch_extent_invalid(struct btree_keys *bk, const struct bkey *k)
 	if (KEY_SIZE(k) > KEY_OFFSET(k))
 		goto bad;
 
-	if (__ptr_invalid(b->c, k))
+	if (__ptr_invalid(c, k))
 		goto bad;
 
 	return false;
 bad:
 	bch_extent_to_text(buf, sizeof(buf), k);
-	cache_bug(b->c, "spotted extent %s: %s", buf, bch_ptr_status(b->c, k));
+	cache_bug(c, "spotted extent %s: %s", buf, bch_ptr_status(c, k));
 	return true;
+}
+
+static bool bch_extent_invalid(struct btree_keys *bk, const struct bkey *k)
+{
+	struct btree *b = container_of(bk, struct btree, keys);
+	return __bch_extent_invalid(b->c, k);
 }
 
 static bool bch_extent_bad_expensive(struct btree *b, const struct bkey *k,

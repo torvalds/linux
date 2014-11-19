@@ -7092,7 +7092,7 @@ static int nfs4_xdr_dec_reclaim_complete(struct rpc_rqst *rqstp,
 	if (!status)
 		status = decode_sequence(xdr, &res->seq_res, rqstp);
 	if (!status)
-		status = decode_reclaim_complete(xdr, (void *)NULL);
+		status = decode_reclaim_complete(xdr, NULL);
 	return status;
 }
 

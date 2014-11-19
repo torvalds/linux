@@ -101,7 +101,6 @@ void rtl8192_setBBreg(struct net_device *dev, u32 reg_addr, u32 bitmask,
 	} else {
 		write_nic_dword(dev, reg_addr, data);
 	}
-	return;
 }
 
 /******************************************************************************
@@ -281,7 +280,6 @@ static void rtl8192_phy_RFSerialWrite(struct net_device *dev,
 					 priv->RfReg0Value[eRFPath] << 16);
 		}
 	}
-	return;
 }
 
 /******************************************************************************
@@ -332,7 +330,6 @@ void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath,
 			rtl8192_phy_RFSerialWrite(dev, eRFPath, reg_addr, data);
 		}
 	}
-	return;
 }
 
 /******************************************************************************
@@ -513,7 +510,6 @@ void rtl8192_phy_configmac(struct net_device *dev)
 		rtl8192_setBBreg(dev, pdwArray[i], pdwArray[i+1],
 				 pdwArray[i+2]);
 	}
-	return;
 }
 
 /******************************************************************************
@@ -559,7 +555,6 @@ void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 				 rtl819XAGCTAB_Array[i+1]);
 		}
 	}
-	return;
 }
 
 /******************************************************************************
@@ -846,7 +841,6 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	priv->bCckHighPower = (u8)rtl8192_QueryBBReg(dev,
 						     rFPGA0_XA_HSSIParameter2,
 						     0x200);
-	return;
 }
 
 /******************************************************************************
@@ -864,7 +858,6 @@ void rtl8192_BBConfig(struct net_device *dev)
 	 * implemented, so use file first.
 	 * FIXME: should implement it for hardcode? */
 	rtl8192_BB_Config_ParaFile(dev);
-	return;
 }
 
 
@@ -912,8 +905,6 @@ void rtl8192_phy_getTxPower(struct net_device *dev)
 
 	/* Read SIFS (save the value read fome MACPHY_REG.txt) */
 	read_nic_word(dev, SIFS, &priv->SifsTime);
-
-	return;
 }
 
 /******************************************************************************
@@ -942,7 +933,6 @@ void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel)
 			 __func__);
 		break;
 	}
-	return;
 }
 
 /******************************************************************************
@@ -956,14 +946,13 @@ void rtl8192_phy_RFConfig(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	switch (priv->rf_chip) {
-		case RF_8256:
-			PHY_RF8256_Config(dev);
-			break;
-		default:
-			RT_TRACE(COMP_ERR, "error chip id\n");
-			break;
+	case RF_8256:
+		PHY_RF8256_Config(dev);
+		break;
+	default:
+		RT_TRACE(COMP_ERR, "error chip id\n");
+		break;
 	}
-	return;
 }
 
 /******************************************************************************
@@ -974,7 +963,6 @@ void rtl8192_phy_RFConfig(struct net_device *dev)
  ******************************************************************************/
 void rtl8192_phy_updateInitGain(struct net_device *dev)
 {
-	return;
 }
 
 /******************************************************************************
@@ -1094,7 +1082,6 @@ static void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 		RT_TRACE(COMP_ERR, "unknown rf chip ID in %s()\n", __func__);
 		break;
 	}
-	return;
 }
 
 /******************************************************************************

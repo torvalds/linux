@@ -315,7 +315,8 @@ static struct ip6_tnl *ip6_tnl_create(struct net *net, struct __ip6_tnl_parm *p)
 	else
 		sprintf(name, "ip6tnl%%d");
 
-	dev = alloc_netdev(sizeof (*t), name, ip6_tnl_dev_setup);
+	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN,
+			   ip6_tnl_dev_setup);
 	if (dev == NULL)
 		goto failed;
 
@@ -363,8 +364,12 @@ static struct ip6_tnl *ip6_tnl_locate(struct net *net,
 	     (t = rtnl_dereference(*tp)) != NULL;
 	     tp = &t->next) {
 		if (ipv6_addr_equal(local, &t->parms.laddr) &&
-		    ipv6_addr_equal(remote, &t->parms.raddr))
+		    ipv6_addr_equal(remote, &t->parms.raddr)) {
+			if (create)
+				return NULL;
+
 			return t;
+		}
 	}
 	if (!create)
 		return NULL;
@@ -1046,7 +1051,8 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
 	ipv6h = ipv6_hdr(skb);
-	ip6_flow_hdr(ipv6h, INET_ECN_encapsulate(0, dsfield), fl6->flowlabel);
+	ip6_flow_hdr(ipv6h, INET_ECN_encapsulate(0, dsfield),
+		     ip6_make_flowlabel(net, skb, fl6->flowlabel, false));
 	ipv6h->hop_limit = t->parms.hop_limit;
 	ipv6h->nexthdr = proto;
 	ipv6h->saddr = fl6->saddr;
@@ -1772,7 +1778,7 @@ static int __net_init ip6_tnl_init_net(struct net *net)
 
 	err = -ENOMEM;
 	ip6n->fb_tnl_dev = alloc_netdev(sizeof(struct ip6_tnl), "ip6tnl0",
-				      ip6_tnl_dev_setup);
+					NET_NAME_UNKNOWN, ip6_tnl_dev_setup);
 
 	if (!ip6n->fb_tnl_dev)
 		goto err_alloc_dev;

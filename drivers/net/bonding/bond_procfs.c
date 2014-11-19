@@ -252,8 +252,8 @@ void bond_create_proc_entry(struct bonding *bond)
 						    S_IRUGO, bn->proc_dir,
 						    &bond_info_fops, bond);
 		if (bond->proc_entry == NULL)
-			pr_warn("Warning: Cannot create /proc/net/%s/%s\n",
-				DRV_NAME, bond_dev->name);
+			netdev_warn(bond_dev, "Cannot create /proc/net/%s/%s\n",
+				    DRV_NAME, bond_dev->name);
 		else
 			memcpy(bond->proc_file_name, bond_dev->name, IFNAMSIZ);
 	}

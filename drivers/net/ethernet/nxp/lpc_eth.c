@@ -1220,6 +1220,9 @@ static int lpc_eth_open(struct net_device *ndev)
 
 	__lpc_eth_clock_enable(pldat, true);
 
+	/* Suspended PHY makes LPC ethernet core block, so resume now */
+	phy_resume(pldat->phy_dev);
+
 	/* Reset and initialize */
 	__lpc_eth_reset(pldat);
 	__lpc_eth_init(pldat);

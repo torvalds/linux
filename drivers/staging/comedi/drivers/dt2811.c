@@ -169,8 +169,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 
 #define TIMEOUT 10000
 
-#define DT2811_SIZE 8
-
 #define DT2811_ADCSR 0
 #define DT2811_ADGCR 1
 #define DT2811_ADDATLO 2
@@ -344,7 +342,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret;
 	struct comedi_subdevice *s;
 
-	ret = comedi_request_region(dev, it->options[0], DT2811_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x8);
 	if (ret)
 		return ret;
 

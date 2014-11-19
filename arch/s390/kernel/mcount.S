@@ -21,13 +21,9 @@ ENTRY(_mcount)
 ENTRY(ftrace_caller)
 #endif
 	stm	%r2,%r5,16(%r15)
-	bras	%r1,2f
+	bras	%r1,1f
 0:	.long	ftrace_trace_function
-1:	.long	function_trace_stop
-2:	l	%r2,1b-0b(%r1)
-	icm	%r2,0xf,0(%r2)
-	jnz	3f
-	st	%r14,56(%r15)
+1:	st	%r14,56(%r15)
 	lr	%r0,%r15
 	ahi	%r15,-96
 	l	%r3,100(%r15)
@@ -50,7 +46,7 @@ ENTRY(ftrace_graph_caller)
 #endif
 	ahi	%r15,96
 	l	%r14,56(%r15)
-3:	lm	%r2,%r5,16(%r15)
+	lm	%r2,%r5,16(%r15)
 	br	%r14
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER

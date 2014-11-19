@@ -143,7 +143,7 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 		*pos++ = csa_settings->block_tx ? 1 : 0;
 		*pos++ = ieee80211_frequency_to_channel(
 				csa_settings->chandef.chan->center_freq);
-		sdata->csa_counter_offset_beacon[0] = (pos - presp->head);
+		presp->csa_counter_offsets[0] = (pos - presp->head);
 		*pos++ = csa_settings->count;
 	}
 
@@ -189,17 +189,8 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 						 chandef, 0);
 	}
 
-	if (local->hw.queues >= IEEE80211_NUM_ACS) {
-		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
-		*pos++ = 7; /* len */
-		*pos++ = 0x00; /* Microsoft OUI 00:50:F2 */
-		*pos++ = 0x50;
-		*pos++ = 0xf2;
-		*pos++ = 2; /* WME */
-		*pos++ = 0; /* WME info */
-		*pos++ = 1; /* WME ver */
-		*pos++ = 0; /* U-APSD no in use */
-	}
+	if (local->hw.queues >= IEEE80211_NUM_ACS)
+		pos = ieee80211_add_wmm_info_ie(pos, 0); /* U-APSD not in use */
 
 	presp->head_len = pos - presp->head;
 	if (WARN_ON(presp->head_len > frame_len))

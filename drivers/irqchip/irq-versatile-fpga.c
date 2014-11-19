@@ -14,6 +14,8 @@
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
 
+#include "irqchip.h"
+
 #define IRQ_STATUS		0x00
 #define IRQ_RAW_STATUS		0x04
 #define IRQ_ENABLE_SET		0x08
@@ -25,6 +27,8 @@
 #define FIQ_ENABLE		0x28
 #define FIQ_ENABLE_SET		0x28
 #define FIQ_ENABLE_CLEAR	0x2C
+
+#define PIC_ENABLES             0x20	/* set interrupt pass through bits */
 
 /**
  * struct fpga_irq_data - irq data container for the FPGA IRQ controller
@@ -201,14 +205,26 @@ int __init fpga_irq_of_init(struct device_node *node,
 
 	/* Some chips are cascaded from a parent IRQ */
 	parent_irq = irq_of_parse_and_map(node, 0);
-	if (!parent_irq)
+	if (!parent_irq) {
+		set_handle_irq(fpga_handle_irq);
 		parent_irq = -1;
+	}
 
 	fpga_irq_init(base, node->name, 0, parent_irq, valid_mask, node);
 
 	writel(clear_mask, base + IRQ_ENABLE_CLEAR);
 	writel(clear_mask, base + FIQ_ENABLE_CLEAR);
 
+	/*
+	 * On Versatile AB/PB, some secondary interrupts have a direct
+	 * pass-thru to the primary controller for IRQs 20 and 22-31 which need
+	 * to be enabled. See section 3.10 of the Versatile AB user guide.
+	 */
+	if (of_device_is_compatible(node, "arm,versatile-sic"))
+		writel(0xffd00000, base + PIC_ENABLES);
+
 	return 0;
 }
+IRQCHIP_DECLARE(arm_fpga, "arm,versatile-fpga-irq", fpga_irq_of_init);
+IRQCHIP_DECLARE(arm_fpga_sic, "arm,versatile-sic", fpga_irq_of_init);
 #endif

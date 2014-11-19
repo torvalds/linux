@@ -1887,6 +1887,7 @@ static const struct of_device_id fimc_of_match[] = {
 	{ .compatible = "samsung,exynos4212-fimc" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, fimc_of_match);
 
 struct platform_driver fimc_driver = {
 	.probe		= fimc_probe,

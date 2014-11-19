@@ -2325,7 +2325,7 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "HDCP keys read: %s%s\n",
 			(hdmi_read(sd, 0x04) & 0x20) ? "yes" : "no",
 			(hdmi_read(sd, 0x04) & 0x10) ? "ERROR" : "");
-	if (!is_hdmi(sd)) {
+	if (is_hdmi(sd)) {
 		bool audio_pll_locked = hdmi_read(sd, 0x04) & 0x01;
 		bool audio_sample_packet_detect = hdmi_read(sd, 0x18) & 0x01;
 		bool audio_mute = io_read(sd, 0x65) & 0x40;
@@ -2588,8 +2588,11 @@ static const struct adv7604_reg_seq adv7604_recommended_settings_hdmi[] = {
 };
 
 static const struct adv7604_reg_seq adv7611_recommended_settings_hdmi[] = {
+	/* ADV7611 Register Settings Recommendations Rev 1.5, May 2014 */
 	{ ADV7604_REG(ADV7604_PAGE_CP, 0x6c), 0x00 },
-	{ ADV7604_REG(ADV7604_PAGE_HDMI, 0x6f), 0x0c },
+	{ ADV7604_REG(ADV7604_PAGE_HDMI, 0x9b), 0x03 },
+	{ ADV7604_REG(ADV7604_PAGE_HDMI, 0x6f), 0x08 },
+	{ ADV7604_REG(ADV7604_PAGE_HDMI, 0x85), 0x1f },
 	{ ADV7604_REG(ADV7604_PAGE_HDMI, 0x87), 0x70 },
 	{ ADV7604_REG(ADV7604_PAGE_HDMI, 0x57), 0xda },
 	{ ADV7604_REG(ADV7604_PAGE_HDMI, 0x58), 0x01 },

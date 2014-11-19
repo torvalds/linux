@@ -389,14 +389,6 @@ static int bfin_pmu_event_init(struct perf_event *event)
 	if (attr->exclude_hv || attr->exclude_idle)
 		return -EPERM;
 
-	/*
-	 * All of the on-chip counters are "limited", in that they have
-	 * no interrupts, and are therefore unable to do sampling without
-	 * further work and timer assistance.
-	 */
-	if (hwc->sample_period)
-		return -EINVAL;
-
 	ret = 0;
 	switch (attr->type) {
 	case PERF_TYPE_RAW:
@@ -489,6 +481,13 @@ bfin_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 static int __init bfin_pmu_init(void)
 {
 	int ret;
+
+	/*
+	 * All of the on-chip counters are "limited", in that they have
+	 * no interrupts, and are therefore unable to do sampling without
+	 * further work and timer assistance.
+	 */
+	pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 
 	ret = perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
 	if (!ret)

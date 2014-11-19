@@ -65,7 +65,7 @@ MODULE_VERSION(ATL2_DRV_VERSION);
 /*
  * atl2_pci_tbl - PCI Device ID Table
  */
-static DEFINE_PCI_DEVICE_TABLE(atl2_pci_tbl) = {
+static const struct pci_device_id atl2_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L2)},
 	/* required last entry */
 	{0,}
@@ -2493,7 +2493,6 @@ static s32 atl2_get_speed_and_duplex(struct atl2_hw *hw, u16 *speed,
 		break;
 	default:
 		return ATLX_ERR_PHY_SPEED;
-		break;
 	}
 
 	if (phy_data & MII_ATLX_PSSR_DPLX)
@@ -2933,11 +2932,9 @@ static int atl2_validate_option(int *value, struct atl2_option *opt)
 		case OPTION_ENABLED:
 			printk(KERN_INFO "%s Enabled\n", opt->name);
 			return 0;
-			break;
 		case OPTION_DISABLED:
 			printk(KERN_INFO "%s Disabled\n", opt->name);
 			return 0;
-			break;
 		}
 		break;
 	case range_option:

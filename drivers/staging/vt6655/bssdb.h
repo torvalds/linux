@@ -35,8 +35,6 @@
 #include "80211mgr.h"
 #include "card.h"
 
-/*---------------------  Export Definitions -------------------------*/
-
 #define MAX_NODE_NUM             64
 #define MAX_BSS_NUM              42
 #define LOST_BEACON_COUNT        10   // 10 sec, XP defined
@@ -67,18 +65,11 @@
 
 #define MAX_WPA_IE_LEN      64
 
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Types  ------------------------------*/
-
 //
 // IEEE 802.11 Structures and definitions
 //
 
-typedef enum _NDIS_802_11_NETWORK_TYPE
-{
+typedef enum _NDIS_802_11_NETWORK_TYPE {
 	Ndis802_11FH,
 	Ndis802_11DS,
 	Ndis802_11OFDM5,
@@ -99,7 +90,6 @@ typedef struct tagSRSNCapObject {
 // BSS info(AP)
 #pragma pack(1)
 typedef struct tagKnownBSS {
-	// BSS info
 	bool bActive;
 	unsigned char abyBSSID[WLAN_BSSID_LEN];
 	unsigned int	uChannel;
@@ -116,10 +106,8 @@ typedef struct tagKnownBSS {
 	long            ldBmMAX;
 	long            ldBmAverage[RSSI_STAT_COUNT];
 	long            ldBmAverRange;
-	//For any BSSID selection improvment
 	bool bSelected;
 
-	//++ WPA informations
 	bool bWPAValid;
 	unsigned char byGKType;
 	unsigned char abyPKType[4];
@@ -128,9 +116,7 @@ typedef struct tagKnownBSS {
 	unsigned short wAuthCount;
 	unsigned char byDefaultK_as_PK;
 	unsigned char byReplayIdx;
-	//--
 
-	//++ WPA2 informations
 	bool bWPA2Valid;
 	unsigned char byCSSGK;
 	unsigned short wCSSPKCount;
@@ -138,28 +124,24 @@ typedef struct tagKnownBSS {
 	unsigned short wAKMSSAuthCount;
 	unsigned char abyAKMSSAuthType[4];
 
-	//++  wpactl
 	unsigned char byWPAIE[MAX_WPA_IE_LEN];
 	unsigned char byRSNIE[MAX_WPA_IE_LEN];
 	unsigned short wWPALen;
 	unsigned short wRSNLen;
 
-	// Clear count
 	unsigned int	uClearCount;
 	unsigned int	uIELength;
 	QWORD           qwBSSTimestamp;
-	QWORD           qwLocalTSF;     // local TSF timer
+	QWORD           qwLocalTSF;
 
-//    NDIS_802_11_NETWORK_TYPE    NetworkTypeInUse;
 	CARD_PHY_TYPE   eNetworkTypeInUse;
 
 	ERPObject       sERP;
 	SRSNCapObject   sRSNCapObj;
-	unsigned char abyIEs[1024];   // don't move this field !!
+	unsigned char abyIEs[1024];
 } __attribute__ ((__packed__))
 KnownBSS , *PKnownBSS;
 
-//2006-1116-01,<Add> by NomadZhao
 #pragma pack()
 
 typedef enum tagNODE_STATE {
@@ -172,7 +154,6 @@ typedef enum tagNODE_STATE {
 
 // STA node info
 typedef struct tagKnownNodeDB {
-	// STA info
 	bool bActive;
 	unsigned char abyMACAddr[WLAN_ADDR_LEN];
 	unsigned char abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
@@ -211,7 +192,6 @@ typedef struct tagKnownNodeDB {
 	unsigned short wTSC15_0;
 	unsigned int	uWepKeyLength;
 	unsigned char abyWepKey[WLAN_WEPMAX_KEYLEN];
-	//
 	// Auto rate fallback vars
 	bool bIsInFallback;
 	unsigned int	uAverageRSSI;
@@ -227,8 +207,6 @@ typedef struct tagKnownNodeDB {
 	unsigned int	uTxFail[MAX_RATE+1];
 	unsigned int	uTimeCount;
 } KnownNodeDB, *PKnownNodeDB;
-
-/*---------------------  Export Functions  --------------------------*/
 
 PKnownBSS
 BSSpSearchBSSList(

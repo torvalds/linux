@@ -864,12 +864,6 @@ static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	return error;
 }
 
-static int gfs2_umount_recovery_wait(void *word)
-{
-	schedule();
-	return 0;
-}
-
 /**
  * gfs2_put_super - Unmount the filesystem
  * @sb: The VFS superblock
@@ -894,7 +888,7 @@ restart:
 			continue;
 		spin_unlock(&sdp->sd_jindex_spin);
 		wait_on_bit(&jd->jd_flags, JDF_RECOVERY,
-			    gfs2_umount_recovery_wait, TASK_UNINTERRUPTIBLE);
+			    TASK_UNINTERRUPTIBLE);
 		goto restart;
 	}
 	spin_unlock(&sdp->sd_jindex_spin);
@@ -1300,7 +1294,7 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 	int val;
 
 	if (is_ancestor(root, sdp->sd_master_dir))
-		seq_printf(s, ",meta");
+		seq_puts(s, ",meta");
 	if (args->ar_lockproto[0])
 		seq_printf(s, ",lockproto=%s", args->ar_lockproto);
 	if (args->ar_locktable[0])
@@ -1308,13 +1302,13 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 	if (args->ar_hostdata[0])
 		seq_printf(s, ",hostdata=%s", args->ar_hostdata);
 	if (args->ar_spectator)
-		seq_printf(s, ",spectator");
+		seq_puts(s, ",spectator");
 	if (args->ar_localflocks)
-		seq_printf(s, ",localflocks");
+		seq_puts(s, ",localflocks");
 	if (args->ar_debug)
-		seq_printf(s, ",debug");
+		seq_puts(s, ",debug");
 	if (args->ar_posix_acl)
-		seq_printf(s, ",acl");
+		seq_puts(s, ",acl");
 	if (args->ar_quota != GFS2_QUOTA_DEFAULT) {
 		char *state;
 		switch (args->ar_quota) {
@@ -1334,7 +1328,7 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",quota=%s", state);
 	}
 	if (args->ar_suiddir)
-		seq_printf(s, ",suiddir");
+		seq_puts(s, ",suiddir");
 	if (args->ar_data != GFS2_DATA_DEFAULT) {
 		char *state;
 		switch (args->ar_data) {
@@ -1351,7 +1345,7 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",data=%s", state);
 	}
 	if (args->ar_discard)
-		seq_printf(s, ",discard");
+		seq_puts(s, ",discard");
 	val = sdp->sd_tune.gt_logd_secs;
 	if (val != 30)
 		seq_printf(s, ",commit=%d", val);
@@ -1382,11 +1376,11 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",errors=%s", state);
 	}
 	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
-		seq_printf(s, ",nobarrier");
+		seq_puts(s, ",nobarrier");
 	if (test_bit(SDF_DEMOTE, &sdp->sd_flags))
-		seq_printf(s, ",demote_interface_used");
+		seq_puts(s, ",demote_interface_used");
 	if (args->ar_rgrplvb)
-		seq_printf(s, ",rgrplvb");
+		seq_puts(s, ",rgrplvb");
 	return 0;
 }
 

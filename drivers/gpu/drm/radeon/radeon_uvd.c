@@ -117,7 +117,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	bo_size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 8) +
 		  RADEON_UVD_STACK_SIZE + RADEON_UVD_HEAP_SIZE;
 	r = radeon_bo_create(rdev, bo_size, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->uvd.vcpu_bo);
+			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &rdev->uvd.vcpu_bo);
 	if (r) {
 		dev_err(rdev->dev, "(%d) failed to allocate UVD bo\n", r);
 		return r;
@@ -646,7 +646,7 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 		ib.ptr[i] = PACKET2(0);
 	ib.length_dw = 16;
 
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r)
 		goto err;
 	ttm_eu_fence_buffer_objects(&ticket, &head, ib.fence);
@@ -674,7 +674,7 @@ int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
 	int r, i;
 
 	r = radeon_bo_create(rdev, 1024, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM, NULL, &bo);
+			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &bo);
 	if (r)
 		return r;
 
@@ -720,7 +720,7 @@ int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 	int r, i;
 
 	r = radeon_bo_create(rdev, 1024, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM, NULL, &bo);
+			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &bo);
 	if (r)
 		return r;
 

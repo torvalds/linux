@@ -699,7 +699,8 @@ void rtl_swlps_wq_callback(void *data)
 }
 
 
-void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data, unsigned int len)
+static void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data,
+			   unsigned int len)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct ieee80211_mgmt *mgmt = (void *)data;
@@ -799,7 +800,8 @@ void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data, unsigned int len)
 	}
 }
 
-void rtl_p2p_action_ie(struct ieee80211_hw *hw, void *data, unsigned int len)
+static void rtl_p2p_action_ie(struct ieee80211_hw *hw, void *data,
+			      unsigned int len)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct ieee80211_mgmt *mgmt = (void *)data;

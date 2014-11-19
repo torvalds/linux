@@ -76,7 +76,7 @@ static struct sk_buff *ath9k_build_tx99_skb(struct ath_softc *sc)
 	tx_info = IEEE80211_SKB_CB(skb);
 	memset(tx_info, 0, sizeof(*tx_info));
 	rate = &tx_info->control.rates[0];
-	tx_info->band = hw->conf.chandef.chan->band;
+	tx_info->band = sc->cur_chan->chandef.chan->band;
 	tx_info->flags = IEEE80211_TX_CTL_NO_ACK;
 	tx_info->control.vif = sc->tx99_vif;
 	rate->count = 1;

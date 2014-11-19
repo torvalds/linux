@@ -23,6 +23,10 @@
 	aliases {
 		i2c0 = &i2c0;
 		pinctrl0 = &pinctrl0;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
 	};
 
 	cpus {

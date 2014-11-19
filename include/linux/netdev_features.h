@@ -176,4 +176,12 @@ enum {
 				 NETIF_F_HW_VLAN_STAG_RX | \
 				 NETIF_F_HW_VLAN_STAG_TX)
 
+#define NETIF_F_GSO_ENCAP_ALL	(NETIF_F_GSO_GRE |			\
+				 NETIF_F_GSO_GRE_CSUM |			\
+				 NETIF_F_GSO_IPIP |			\
+				 NETIF_F_GSO_SIT |			\
+				 NETIF_F_GSO_UDP_TUNNEL |		\
+				 NETIF_F_GSO_UDP_TUNNEL_CSUM |		\
+				 NETIF_F_GSO_MPLS)
+
 #endif	/* _LINUX_NETDEV_FEATURES_H */

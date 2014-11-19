@@ -38,6 +38,7 @@
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include "drm_legacy.h"
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
@@ -112,55 +113,12 @@ err_undo:
 EXPORT_SYMBOL(drm_open);
 
 /**
- * File \c open operation.
- *
- * \param inode device inode.
- * \param filp file pointer.
- *
- * Puts the dev->fops corresponding to the device minor number into
- * \p filp, call the \c open method, and restore the file operations.
- */
-int drm_stub_open(struct inode *inode, struct file *filp)
-{
-	struct drm_device *dev;
-	struct drm_minor *minor;
-	int err = -ENODEV;
-	const struct file_operations *new_fops;
-
-	DRM_DEBUG("\n");
-
-	mutex_lock(&drm_global_mutex);
-	minor = drm_minor_acquire(iminor(inode));
-	if (IS_ERR(minor))
-		goto out_unlock;
-
-	dev = minor->dev;
-	new_fops = fops_get(dev->driver->fops);
-	if (!new_fops)
-		goto out_release;
-
-	replace_fops(filp, new_fops);
-	if (filp->f_op->open)
-		err = filp->f_op->open(inode, filp);
-
-out_release:
-	drm_minor_release(minor);
-out_unlock:
-	mutex_unlock(&drm_global_mutex);
-	return err;
-}
-
-/**
  * Check whether DRI will run on this CPU.
  *
  * \return non-zero if the DRI will run on this CPU, or zero otherwise.
  */
 static int drm_cpu_valid(void)
 {
-#if defined(__i386__)
-	if (boot_cpu_data.x86 == 3)
-		return 0;	/* No cmpxchg on a 386 */
-#endif
 #if defined(__sparc__) && !defined(__sparc_v9__)
 	return 0;		/* No cmpxchg before v9 sparc. */
 #endif
@@ -203,8 +161,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	priv->minor = minor;
 
 	/* for compatibility root is always authenticated */
-	priv->always_authenticated = capable(CAP_SYS_ADMIN);
-	priv->authenticated = priv->always_authenticated;
+	priv->authenticated = capable(CAP_SYS_ADMIN);
 	priv->lock_count = 0;
 
 	INIT_LIST_HEAD(&priv->lhead);
@@ -429,6 +386,10 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
+	mutex_lock(&dev->struct_mutex);
+	list_del(&file_priv->lhead);
+	mutex_unlock(&dev->struct_mutex);
+
 	if (dev->driver->preclose)
 		dev->driver->preclose(dev, file_priv);
 
@@ -461,44 +422,18 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_release(dev, file_priv);
 
-	mutex_lock(&dev->ctxlist_mutex);
-	if (!list_empty(&dev->ctxlist)) {
-		struct drm_ctx_list *pos, *n;
-
-		list_for_each_entry_safe(pos, n, &dev->ctxlist, head) {
-			if (pos->tag == file_priv &&
-			    pos->handle != DRM_KERNEL_CONTEXT) {
-				if (dev->driver->context_dtor)
-					dev->driver->context_dtor(dev,
-								  pos->handle);
-
-				drm_ctxbitmap_free(dev, pos->handle);
-
-				list_del(&pos->head);
-				kfree(pos);
-			}
-		}
-	}
-	mutex_unlock(&dev->ctxlist_mutex);
+	drm_legacy_ctxbitmap_flush(dev, file_priv);
 
 	mutex_lock(&dev->master_mutex);
 
 	if (file_priv->is_master) {
 		struct drm_master *master = file_priv->master;
-		struct drm_file *temp;
-
-		mutex_lock(&dev->struct_mutex);
-		list_for_each_entry(temp, &dev->filelist, lhead) {
-			if ((temp->master == file_priv->master) &&
-			    (temp != file_priv))
-				temp->authenticated = temp->always_authenticated;
-		}
 
 		/**
 		 * Since the master is disappearing, so is the
 		 * possibility to lock.
 		 */
-
+		mutex_lock(&dev->struct_mutex);
 		if (master->lock.hw_lock) {
 			if (dev->sigdata.lock == master->lock.hw_lock)
 				dev->sigdata.lock = NULL;
@@ -521,10 +456,6 @@ int drm_release(struct inode *inode, struct file *filp)
 		drm_master_put(&file_priv->master);
 	file_priv->is_master = 0;
 	mutex_unlock(&dev->master_mutex);
-
-	mutex_lock(&dev->struct_mutex);
-	list_del(&file_priv->lhead);
-	mutex_unlock(&dev->struct_mutex);
 
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, file_priv);

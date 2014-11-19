@@ -200,6 +200,9 @@ static void __init sirfsoc_prima2_timer_init(struct device_node *np)
 
 	clk = of_clk_get(np, 0);
 	BUG_ON(IS_ERR(clk));
+
+	BUG_ON(clk_prepare_enable(clk));
+
 	rate = clk_get_rate(clk);
 
 	BUG_ON(rate < PRIMA2_CLOCK_FREQ);

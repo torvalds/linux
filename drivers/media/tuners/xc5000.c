@@ -56,7 +56,7 @@ struct xc5000_priv {
 
 	u32 if_khz;
 	u16 xtal_khz;
-	u32 freq_hz;
+	u32 freq_hz, freq_offset;
 	u32 bandwidth;
 	u8  video_standard;
 	u8  rf_mode;
@@ -625,48 +625,30 @@ static int xc_set_xtal(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int xc5000_fwupload(struct dvb_frontend *fe)
+static int xc5000_fwupload(struct dvb_frontend *fe,
+			   const struct xc5000_fw_cfg *desired_fw,
+			   const struct firmware *fw)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	const struct firmware *fw;
 	int ret;
-	const struct xc5000_fw_cfg *desired_fw =
-		xc5000_assign_firmware(priv->chip_id);
+
+	/* request the firmware, this will block and timeout */
+	dprintk(1, "waiting for firmware upload (%s)...\n",
+		desired_fw->name);
+
 	priv->pll_register_no = desired_fw->pll_reg;
 	priv->init_status_supported = desired_fw->init_status_supported;
 	priv->fw_checksum_supported = desired_fw->fw_checksum_supported;
 
-	/* request the firmware, this will block and timeout */
-	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
-		desired_fw->name);
 
-	ret = request_firmware(&fw, desired_fw->name,
-		priv->i2c_props.adap->dev.parent);
-	if (ret) {
-		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
-		goto out;
-	} else {
-		printk(KERN_DEBUG "xc5000: firmware read %Zu bytes.\n",
-		       fw->size);
-		ret = 0;
-	}
+	dprintk(1, "firmware uploading...\n");
+	ret = xc_load_i2c_sequence(fe,  fw->data);
+	if (!ret) {
+		ret = xc_set_xtal(fe);
+		dprintk(1, "Firmware upload complete...\n");
+	} else
+		printk(KERN_ERR "xc5000: firmware upload failed...\n");
 
-	if (fw->size != desired_fw->size) {
-		printk(KERN_ERR "xc5000: firmware incorrect size\n");
-		ret = -EINVAL;
-	} else {
-		printk(KERN_INFO "xc5000: firmware uploading...\n");
-		ret = xc_load_i2c_sequence(fe,  fw->data);
-		if (0 == ret)
-			ret = xc_set_xtal(fe);
-		if (0 == ret)
-			printk(KERN_INFO "xc5000: firmware upload complete...\n");
-		else
-			printk(KERN_ERR "xc5000: firmware upload failed...\n");
-	}
-
-out:
-	release_firmware(fw);
 	return ret;
 }
 
@@ -749,13 +731,13 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 	case SYS_ATSC:
 		dprintk(1, "%s() VSB modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_AIR;
-		priv->freq_hz = freq - 1750000;
+		priv->freq_offset = 1750000;
 		priv->video_standard = DTV6;
 		break;
 	case SYS_DVBC_ANNEX_B:
 		dprintk(1, "%s() QAM modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_CABLE;
-		priv->freq_hz = freq - 1750000;
+		priv->freq_offset = 1750000;
 		priv->video_standard = DTV6;
 		break;
 	case SYS_ISDBT:
@@ -770,15 +752,15 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 		switch (bw) {
 		case 6000000:
 			priv->video_standard = DTV6;
-			priv->freq_hz = freq - 1750000;
+			priv->freq_offset = 1750000;
 			break;
 		case 7000000:
 			priv->video_standard = DTV7;
-			priv->freq_hz = freq - 2250000;
+			priv->freq_offset = 2250000;
 			break;
 		case 8000000:
 			priv->video_standard = DTV8;
-			priv->freq_hz = freq - 2750000;
+			priv->freq_offset = 2750000;
 			break;
 		default:
 			printk(KERN_ERR "xc5000 bandwidth not set!\n");
@@ -792,15 +774,15 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 		priv->rf_mode = XC_RF_MODE_CABLE;
 		if (bw <= 6000000) {
 			priv->video_standard = DTV6;
-			priv->freq_hz = freq - 1750000;
+			priv->freq_offset = 1750000;
 			b = 6;
 		} else if (bw <= 7000000) {
 			priv->video_standard = DTV7;
-			priv->freq_hz = freq - 2250000;
+			priv->freq_offset = 2250000;
 			b = 7;
 		} else {
 			priv->video_standard = DTV7_8;
-			priv->freq_hz = freq - 2750000;
+			priv->freq_offset = 2750000;
 			b = 8;
 		}
 		dprintk(1, "%s() Bandwidth %dMHz (%d)\n", __func__,
@@ -810,6 +792,8 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 		printk(KERN_ERR "xc5000: delivery system is not supported!\n");
 		return -EINVAL;
 	}
+
+	priv->freq_hz = freq - priv->freq_offset;
 
 	dprintk(1, "%s() frequency=%d (compensated to %d)\n",
 		__func__, freq, priv->freq_hz);
@@ -1061,7 +1045,7 @@ static int xc5000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	dprintk(1, "%s()\n", __func__);
-	*freq = priv->freq_hz;
+	*freq = priv->freq_hz + priv->freq_offset;
 	return 0;
 }
 
@@ -1099,42 +1083,65 @@ static int xc5000_get_status(struct dvb_frontend *fe, u32 *status)
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	int ret = 0;
+	const struct xc5000_fw_cfg *desired_fw = xc5000_assign_firmware(priv->chip_id);
+	const struct firmware *fw;
+	int ret, i;
 	u16 pll_lock_status;
 	u16 fw_ck;
 
 	cancel_delayed_work(&priv->timer_sleep);
 
-	if (force || xc5000_is_firmware_loaded(fe) != 0) {
+	if (!force && xc5000_is_firmware_loaded(fe) == 0)
+		return 0;
 
-fw_retry:
+	ret = request_firmware(&fw, desired_fw->name,
+			       priv->i2c_props.adap->dev.parent);
+	if (ret) {
+		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
+		return ret;
+	}
 
-		ret = xc5000_fwupload(fe);
+	dprintk(1, "firmware read %Zu bytes.\n", fw->size);
+
+	if (fw->size != desired_fw->size) {
+		printk(KERN_ERR "xc5000: Firmware file with incorrect size\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/* Try up to 5 times to load firmware */
+	for (i = 0; i < 5; i++) {
+		if (i)
+			printk(KERN_CONT " - retrying to upload firmware.\n");
+
+		ret = xc5000_fwupload(fe, desired_fw, fw);
 		if (ret != 0)
-			return ret;
+			goto err;
 
 		msleep(20);
 
 		if (priv->fw_checksum_supported) {
-			if (xc5000_readreg(priv, XREG_FW_CHECKSUM, &fw_ck)
-			    != 0) {
-				dprintk(1, "%s() FW checksum reading failed.\n",
-					__func__);
-				goto fw_retry;
+			if (xc5000_readreg(priv, XREG_FW_CHECKSUM, &fw_ck)) {
+				printk(KERN_ERR
+				       "xc5000: FW checksum reading failed.");
+				continue;
 			}
 
-			if (fw_ck == 0) {
-				dprintk(1, "%s() FW checksum failed = 0x%04x\n",
-					__func__, fw_ck);
-				goto fw_retry;
+			if (!fw_ck) {
+				printk(KERN_ERR
+				       "xc5000: FW checksum failed = 0x%04x.",
+				       fw_ck);
+				continue;
 			}
 		}
 
 		/* Start the tuner self-calibration process */
-		ret |= xc_initialize(priv);
-
-		if (ret != 0)
-			goto fw_retry;
+		ret = xc_initialize(priv);
+		if (ret) {
+			printk(KERN_ERR
+			       "xc5000: Can't request Self-callibration.");
+			continue;
+		}
 
 		/* Wait for calibration to complete.
 		 * We could continue but XC5000 will clock stretch subsequent
@@ -1144,15 +1151,17 @@ fw_retry:
 		msleep(100);
 
 		if (priv->init_status_supported) {
-			if (xc5000_readreg(priv, XREG_INIT_STATUS, &fw_ck) != 0) {
-				dprintk(1, "%s() FW failed reading init status.\n",
-					__func__);
-				goto fw_retry;
+			if (xc5000_readreg(priv, XREG_INIT_STATUS, &fw_ck)) {
+				printk(KERN_ERR
+				       "xc5000: FW failed reading init status.");
+				continue;
 			}
 
-			if (fw_ck == 0) {
-				dprintk(1, "%s() FW init status failed = 0x%04x\n", __func__, fw_ck);
-				goto fw_retry;
+			if (!fw_ck) {
+				printk(KERN_ERR
+				       "xc5000: FW init status failed = 0x%04x.",
+				       fw_ck);
+				continue;
 			}
 		}
 
@@ -1161,15 +1170,27 @@ fw_retry:
 				       &pll_lock_status);
 			if (pll_lock_status > 63) {
 				/* PLL is unlocked, force reload of the firmware */
-				printk(KERN_ERR "xc5000: PLL not running after fwload.\n");
-				goto fw_retry;
+				printk(KERN_ERR
+				       "xc5000: PLL not running after fwload.");
+				continue;
 			}
 		}
 
 		/* Default to "CABLE" mode */
-		ret |= xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
+		ret = xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
+		if (!ret)
+			break;
+		printk(KERN_ERR "xc5000: can't set to cable mode.");
 	}
 
+err:
+	if (!ret)
+		printk(KERN_INFO "xc5000: Firmware %s loaded and running.\n",
+		       desired_fw->name);
+	else
+		printk(KERN_CONT " - too many retries. Giving up\n");
+
+	release_firmware(fw);
 	return ret;
 }
 
@@ -1302,7 +1323,6 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 	switch (instance) {
 	case 0:
 		goto fail;
-		break;
 	case 1:
 		/* new tuner instance */
 		priv->bandwidth = 6000000;

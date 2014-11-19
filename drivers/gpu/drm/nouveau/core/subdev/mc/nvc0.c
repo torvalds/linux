@@ -41,7 +41,7 @@ nvc0_mc_intr[] = {
 	{ 0x00200000, NVDEV_SUBDEV_GPIO },	/* PMGR->GPIO */
 	{ 0x00200000, NVDEV_SUBDEV_I2C },	/* PMGR->I2C/AUX */
 	{ 0x01000000, NVDEV_SUBDEV_PWR },
-	{ 0x02000000, NVDEV_SUBDEV_LTCG },
+	{ 0x02000000, NVDEV_SUBDEV_LTC },
 	{ 0x08000000, NVDEV_SUBDEV_FB },
 	{ 0x10000000, NVDEV_SUBDEV_BUS },
 	{ 0x40000000, NVDEV_SUBDEV_IBUS },
@@ -56,6 +56,12 @@ nvc0_mc_msi_rearm(struct nouveau_mc *pmc)
 	nv_wr32(priv, 0x088704, 0x00000000);
 }
 
+void
+nvc0_mc_unk260(struct nouveau_mc *pmc, u32 data)
+{
+	nv_wr32(pmc, 0x000260, data);
+}
+
 struct nouveau_oclass *
 nvc0_mc_oclass = &(struct nouveau_mc_oclass) {
 	.base.handle = NV_SUBDEV(MC, 0xc0),
@@ -67,4 +73,5 @@ nvc0_mc_oclass = &(struct nouveau_mc_oclass) {
 	},
 	.intr = nvc0_mc_intr,
 	.msi_rearm = nvc0_mc_msi_rearm,
+	.unk260 = nvc0_mc_unk260,
 }.base;

@@ -344,7 +344,6 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 		     int is_leading)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct iscsi_session *session;
 	struct iser_conn *ib_conn;
 	struct iscsi_endpoint *ep;
 	int error;
@@ -363,9 +362,17 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	}
 	ib_conn = ep->dd_data;
 
-	session = conn->session;
-	if (iser_alloc_rx_descriptors(ib_conn, session))
-		return -ENOMEM;
+	mutex_lock(&ib_conn->state_mutex);
+	if (ib_conn->state != ISER_CONN_UP) {
+		error = -EINVAL;
+		iser_err("iser_conn %p state is %d, teardown started\n",
+			 ib_conn, ib_conn->state);
+		goto out;
+	}
+
+	error = iser_alloc_rx_descriptors(ib_conn, conn->session);
+	if (error)
+		goto out;
 
 	/* binds the iSER connection retrieved from the previously
 	 * connected ep_handle to the iSCSI layer connection. exchanges
@@ -375,7 +382,9 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	conn->dd_data = ib_conn;
 	ib_conn->iscsi_conn = conn;
 
-	return 0;
+out:
+	mutex_unlock(&ib_conn->state_mutex);
+	return error;
 }
 
 static int
@@ -596,20 +605,28 @@ iscsi_iser_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	struct iser_conn *ib_conn;
 	struct iscsi_endpoint *ep;
 
-	ep = iscsi_create_endpoint(sizeof(*ib_conn));
+	ep = iscsi_create_endpoint(0);
 	if (!ep)
 		return ERR_PTR(-ENOMEM);
 
-	ib_conn = ep->dd_data;
+	ib_conn = kzalloc(sizeof(*ib_conn), GFP_KERNEL);
+	if (!ib_conn) {
+		err = -ENOMEM;
+		goto failure;
+	}
+
+	ep->dd_data = ib_conn;
 	ib_conn->ep = ep;
 	iser_conn_init(ib_conn);
 
-	err = iser_connect(ib_conn, NULL, (struct sockaddr_in *)dst_addr,
-			   non_blocking);
+	err = iser_connect(ib_conn, NULL, dst_addr, non_blocking);
 	if (err)
-		return ERR_PTR(err);
+		goto failure;
 
 	return ep;
+failure:
+	iscsi_destroy_endpoint(ep);
+	return ERR_PTR(err);
 }
 
 static int
@@ -619,15 +636,16 @@ iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 	int rc;
 
 	ib_conn = ep->dd_data;
-	rc = wait_event_interruptible_timeout(ib_conn->wait,
-			     ib_conn->state == ISER_CONN_UP,
-			     msecs_to_jiffies(timeout_ms));
-
+	rc = wait_for_completion_interruptible_timeout(&ib_conn->up_completion,
+						       msecs_to_jiffies(timeout_ms));
 	/* if conn establishment failed, return error code to iscsi */
-	if (!rc &&
-	    (ib_conn->state == ISER_CONN_TERMINATING ||
-	     ib_conn->state == ISER_CONN_DOWN))
-		rc = -1;
+	if (rc == 0) {
+		mutex_lock(&ib_conn->state_mutex);
+		if (ib_conn->state == ISER_CONN_TERMINATING ||
+		    ib_conn->state == ISER_CONN_DOWN)
+			rc = -1;
+		mutex_unlock(&ib_conn->state_mutex);
+	}
 
 	iser_info("ib conn %p rc = %d\n", ib_conn, rc);
 
@@ -646,19 +664,25 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 
 	ib_conn = ep->dd_data;
 	iser_info("ep %p ib conn %p state %d\n", ep, ib_conn, ib_conn->state);
+	mutex_lock(&ib_conn->state_mutex);
 	iser_conn_terminate(ib_conn);
 
 	/*
-	 * if iser_conn and iscsi_conn are bound, we must wait iscsi_conn_stop
-	 * call and ISER_CONN_DOWN state before freeing the iser resources.
-	 * otherwise we are safe to free resources immediately.
+	 * if iser_conn and iscsi_conn are bound, we must wait for
+	 * iscsi_conn_stop and flush errors completion before freeing
+	 * the iser resources. Otherwise we are safe to free resources
+	 * immediately.
 	 */
 	if (ib_conn->iscsi_conn) {
 		INIT_WORK(&ib_conn->release_work, iser_release_work);
 		queue_work(release_wq, &ib_conn->release_work);
+		mutex_unlock(&ib_conn->state_mutex);
 	} else {
+		ib_conn->state = ISER_CONN_DOWN;
+		mutex_unlock(&ib_conn->state_mutex);
 		iser_conn_release(ib_conn);
 	}
+	iscsi_destroy_endpoint(ep);
 }
 
 static umode_t iser_attr_is_visible(int param_type, int param)

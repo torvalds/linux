@@ -63,6 +63,15 @@ config DVB_TDA18271C2DD
 
 	  Say Y when you want to support this tuner.
 
+config DVB_SI2165
+	tristate "Silicon Labs si2165 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A DVB-C/T demodulator.
+
+	  Say Y when you want to support this frontend.
+
 comment "DVB-S (satellite) frontends"
 	depends on DVB_CORE
 
@@ -445,6 +454,15 @@ config DVB_RTL2832
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
+
+config DVB_RTL2832_SDR
+	tristate "Realtek RTL2832 SDR"
+	depends on DVB_CORE && I2C && I2C_MUX && VIDEO_V4L2 && MEDIA_SDR_SUPPORT && USB
+	select DVB_RTL2832
+	select VIDEOBUF2_VMALLOC
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this SDR module.
 
 config DVB_SI2168
 	tristate "Silicon Labs Si2168"

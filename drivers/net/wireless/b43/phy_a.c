@@ -573,7 +573,7 @@ static void b43_aphy_op_pwork_60sec(struct b43_wldev *dev)
 {//TODO
 }
 
-const struct b43_phy_operations b43_phyops_a = {
+static const struct b43_phy_operations b43_phyops_a = {
 	.allocate		= b43_aphy_op_allocate,
 	.free			= b43_aphy_op_free,
 	.prepare_structs	= b43_aphy_op_prepare_structs,

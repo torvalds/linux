@@ -262,6 +262,23 @@ static int hdmic_audio_config(struct omap_dss_device *dssdev,
 	return 0;
 }
 
+static int hdmic_set_hdmi_mode(struct omap_dss_device *dssdev, bool hdmi_mode)
+{
+	struct panel_drv_data *ddata = to_panel_data(dssdev);
+	struct omap_dss_device *in = ddata->in;
+
+	return in->ops.hdmi->set_hdmi_mode(in, hdmi_mode);
+}
+
+static int hdmic_set_infoframe(struct omap_dss_device *dssdev,
+		const struct hdmi_avi_infoframe *avi)
+{
+	struct panel_drv_data *ddata = to_panel_data(dssdev);
+	struct omap_dss_device *in = ddata->in;
+
+	return in->ops.hdmi->set_infoframe(in, avi);
+}
+
 static struct omap_dss_driver hdmic_driver = {
 	.connect		= hdmic_connect,
 	.disconnect		= hdmic_disconnect,
@@ -277,6 +294,8 @@ static struct omap_dss_driver hdmic_driver = {
 
 	.read_edid		= hdmic_read_edid,
 	.detect			= hdmic_detect,
+	.set_hdmi_mode		= hdmic_set_hdmi_mode,
+	.set_hdmi_infoframe	= hdmic_set_infoframe,
 
 	.audio_enable		= hdmic_audio_enable,
 	.audio_disable		= hdmic_audio_disable,

@@ -30,7 +30,7 @@ struct cls_bpf_head {
 };
 
 struct cls_bpf_prog {
-	struct sk_filter *filter;
+	struct bpf_prog *filter;
 	struct sock_filter *bpf_ops;
 	struct tcf_exts exts;
 	struct tcf_result res;
@@ -54,7 +54,7 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	int ret;
 
 	list_for_each_entry(prog, &head->plist, link) {
-		int filter_res = SK_RUN_FILTER(prog->filter, skb);
+		int filter_res = BPF_PROG_RUN(prog->filter, skb);
 
 		if (filter_res == 0)
 			continue;
@@ -92,7 +92,7 @@ static void cls_bpf_delete_prog(struct tcf_proto *tp, struct cls_bpf_prog *prog)
 	tcf_unbind_filter(tp, &prog->res);
 	tcf_exts_destroy(tp, &prog->exts);
 
-	sk_unattached_filter_destroy(prog->filter);
+	bpf_prog_destroy(prog->filter);
 
 	kfree(prog->bpf_ops);
 	kfree(prog);
@@ -161,7 +161,7 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 	struct sock_filter *bpf_ops, *bpf_old;
 	struct tcf_exts exts;
 	struct sock_fprog_kern tmp;
-	struct sk_filter *fp, *fp_old;
+	struct bpf_prog *fp, *fp_old;
 	u16 bpf_size, bpf_len;
 	u32 classid;
 	int ret;
@@ -193,7 +193,7 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 	tmp.len = bpf_len;
 	tmp.filter = bpf_ops;
 
-	ret = sk_unattached_filter_create(&fp, &tmp);
+	ret = bpf_prog_create(&fp, &tmp);
 	if (ret)
 		goto errout_free;
 
@@ -211,7 +211,7 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 	tcf_exts_change(tp, &prog->exts, &exts);
 
 	if (fp_old)
-		sk_unattached_filter_destroy(fp_old);
+		bpf_prog_destroy(fp_old);
 	if (bpf_old)
 		kfree(bpf_old);
 

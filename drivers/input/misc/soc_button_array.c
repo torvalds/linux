@@ -83,6 +83,9 @@ soc_button_device_create(struct pnp_dev *pdev,
 				       sizeof(*gpio_keys_pdata) +
 					sizeof(*gpio_keys) * MAX_NBUTTONS,
 				       GFP_KERNEL);
+	if (!gpio_keys_pdata)
+		return ERR_PTR(-ENOMEM);
+
 	gpio_keys = (void *)(gpio_keys_pdata + 1);
 
 	for (info = button_info; info->name; info++) {

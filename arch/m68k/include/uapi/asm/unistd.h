@@ -357,5 +357,7 @@
 #define __NR_sched_setattr	349
 #define __NR_sched_getattr	350
 #define __NR_renameat2		351
+#define __NR_getrandom		352
+#define __NR_memfd_create	353
 
 #endif /* _UAPI_ASM_M68K_UNISTD_H_ */

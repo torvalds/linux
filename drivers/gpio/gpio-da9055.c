@@ -174,7 +174,8 @@ static int da9055_gpio_remove(struct platform_device *pdev)
 {
 	struct da9055_gpio *gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&gpio->gp);
+	gpiochip_remove(&gpio->gp);
+	return 0;
 }
 
 static struct platform_driver da9055_gpio_driver = {

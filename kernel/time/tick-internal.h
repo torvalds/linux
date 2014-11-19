@@ -4,6 +4,8 @@
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 
+#include "timekeeping.h"
+
 extern seqlock_t jiffies_lock;
 
 #define CS_NAME_LEN	32

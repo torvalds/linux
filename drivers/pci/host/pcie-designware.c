@@ -20,6 +20,7 @@
 #include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
+#include <linux/platform_device.h>
 #include <linux/types.h>
 
 #include "pcie-designware.h"
@@ -217,27 +218,47 @@ static int find_valid_pos0(struct pcie_port *pp, int msgvec, int pos, int *pos0)
 	return 0;
 }
 
+static void dw_pcie_msi_clear_irq(struct pcie_port *pp, int irq)
+{
+	unsigned int res, bit, val;
+
+	res = (irq / 32) * 12;
+	bit = irq % 32;
+	dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
+	val &= ~(1 << bit);
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
+}
+
 static void clear_irq_range(struct pcie_port *pp, unsigned int irq_base,
 			    unsigned int nvec, unsigned int pos)
 {
-	unsigned int i, res, bit, val;
+	unsigned int i;
 
 	for (i = 0; i < nvec; i++) {
 		irq_set_msi_desc_off(irq_base, i, NULL);
 		clear_bit(pos + i, pp->msi_irq_in_use);
 		/* Disable corresponding interrupt on MSI controller */
-		res = ((pos + i) / 32) * 12;
-		bit = (pos + i) % 32;
-		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
-		val &= ~(1 << bit);
-		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
+		if (pp->ops->msi_clear_irq)
+			pp->ops->msi_clear_irq(pp, pos + i);
+		else
+			dw_pcie_msi_clear_irq(pp, pos + i);
 	}
+}
+
+static void dw_pcie_msi_set_irq(struct pcie_port *pp, int irq)
+{
+	unsigned int res, bit, val;
+
+	res = (irq / 32) * 12;
+	bit = irq % 32;
+	dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
+	val |= 1 << bit;
+	dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
 }
 
 static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 {
-	int res, bit, irq, pos0, pos1, i;
-	u32 val;
+	int irq, pos0, pos1, i;
 	struct pcie_port *pp = sys_to_pcie(desc->dev->bus->sysdata);
 
 	if (!pp) {
@@ -281,11 +302,10 @@ static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 		}
 		set_bit(pos0 + i, pp->msi_irq_in_use);
 		/*Enable corresponding interrupt in MSI interrupt controller */
-		res = ((pos0 + i) / 32) * 12;
-		bit = (pos0 + i) % 32;
-		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, &val);
-		val |= 1 << bit;
-		dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE + res, 4, val);
+		if (pp->ops->msi_set_irq)
+			pp->ops->msi_set_irq(pp, pos0 + i);
+		else
+			dw_pcie_msi_set_irq(pp, pos0 + i);
 	}
 
 	*pos = pos0;
@@ -353,7 +373,10 @@ static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 	 */
 	desc->msi_attrib.multiple = msgvec;
 
-	msg.address_lo = virt_to_phys((void *)pp->msi_data);
+	if (pp->ops->get_msi_data)
+		msg.address_lo = pp->ops->get_msi_data(pp);
+	else
+		msg.address_lo = virt_to_phys((void *)pp->msi_data);
 	msg.address_hi = 0x0;
 	msg.data = pos;
 	write_msi_msg(irq, &msg);
@@ -396,10 +419,35 @@ static const struct irq_domain_ops msi_domain_ops = {
 int __init dw_pcie_host_init(struct pcie_port *pp)
 {
 	struct device_node *np = pp->dev->of_node;
+	struct platform_device *pdev = to_platform_device(pp->dev);
 	struct of_pci_range range;
 	struct of_pci_range_parser parser;
-	u32 val;
-	int i;
+	struct resource *cfg_res;
+	u32 val, na, ns;
+	const __be32 *addrp;
+	int i, index;
+
+	/* Find the address cell size and the number of cells in order to get
+	 * the untranslated address.
+	 */
+	of_property_read_u32(np, "#address-cells", &na);
+	ns = of_n_size_cells(np);
+
+	cfg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
+	if (cfg_res) {
+		pp->config.cfg0_size = resource_size(cfg_res)/2;
+		pp->config.cfg1_size = resource_size(cfg_res)/2;
+		pp->cfg0_base = cfg_res->start;
+		pp->cfg1_base = cfg_res->start + pp->config.cfg0_size;
+
+		/* Find the untranslated configuration space address */
+		index = of_property_match_string(np, "reg-names", "config");
+		addrp = of_get_address(np, index, false, false);
+		pp->cfg0_mod_base = of_read_number(addrp, ns);
+		pp->cfg1_mod_base = pp->cfg0_mod_base + pp->config.cfg0_size;
+	} else {
+		dev_err(pp->dev, "missing *config* reg space\n");
+	}
 
 	if (of_pci_range_parser_init(&parser, np)) {
 		dev_err(pp->dev, "missing ranges property\n");
@@ -422,17 +470,33 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 			pp->config.io_size = resource_size(&pp->io);
 			pp->config.io_bus_addr = range.pci_addr;
 			pp->io_base = range.cpu_addr;
+
+			/* Find the untranslated IO space address */
+			pp->io_mod_base = of_read_number(parser.range -
+							 parser.np + na, ns);
 		}
 		if (restype == IORESOURCE_MEM) {
 			of_pci_range_to_resource(&range, np, &pp->mem);
 			pp->mem.name = "MEM";
 			pp->config.mem_size = resource_size(&pp->mem);
 			pp->config.mem_bus_addr = range.pci_addr;
+
+			/* Find the untranslated MEM space address */
+			pp->mem_mod_base = of_read_number(parser.range -
+							  parser.np + na, ns);
 		}
 		if (restype == 0) {
 			of_pci_range_to_resource(&range, np, &pp->cfg);
 			pp->config.cfg0_size = resource_size(&pp->cfg)/2;
 			pp->config.cfg1_size = resource_size(&pp->cfg)/2;
+			pp->cfg0_base = pp->cfg.start;
+			pp->cfg1_base = pp->cfg.start + pp->config.cfg0_size;
+
+			/* Find the untranslated configuration space address */
+			pp->cfg0_mod_base = of_read_number(parser.range -
+							   parser.np + na, ns);
+			pp->cfg1_mod_base = pp->cfg0_mod_base +
+					    pp->config.cfg0_size;
 		}
 	}
 
@@ -445,8 +509,6 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 		}
 	}
 
-	pp->cfg0_base = pp->cfg.start;
-	pp->cfg1_base = pp->cfg.start + pp->config.cfg0_size;
 	pp->mem_base = pp->mem.start;
 
 	pp->va_cfg0_base = devm_ioremap(pp->dev, pp->cfg0_base,
@@ -509,9 +571,9 @@ static void dw_pcie_prog_viewport_cfg0(struct pcie_port *pp, u32 busdev)
 	/* Program viewport 0 : OUTBOUND : CFG0 */
 	dw_pcie_writel_rc(pp, PCIE_ATU_REGION_OUTBOUND | PCIE_ATU_REGION_INDEX0,
 			  PCIE_ATU_VIEWPORT);
-	dw_pcie_writel_rc(pp, pp->cfg0_base, PCIE_ATU_LOWER_BASE);
-	dw_pcie_writel_rc(pp, (pp->cfg0_base >> 32), PCIE_ATU_UPPER_BASE);
-	dw_pcie_writel_rc(pp, pp->cfg0_base + pp->config.cfg0_size - 1,
+	dw_pcie_writel_rc(pp, pp->cfg0_mod_base, PCIE_ATU_LOWER_BASE);
+	dw_pcie_writel_rc(pp, (pp->cfg0_mod_base >> 32), PCIE_ATU_UPPER_BASE);
+	dw_pcie_writel_rc(pp, pp->cfg0_mod_base + pp->config.cfg0_size - 1,
 			  PCIE_ATU_LIMIT);
 	dw_pcie_writel_rc(pp, busdev, PCIE_ATU_LOWER_TARGET);
 	dw_pcie_writel_rc(pp, 0, PCIE_ATU_UPPER_TARGET);
@@ -525,9 +587,9 @@ static void dw_pcie_prog_viewport_cfg1(struct pcie_port *pp, u32 busdev)
 	dw_pcie_writel_rc(pp, PCIE_ATU_REGION_OUTBOUND | PCIE_ATU_REGION_INDEX1,
 			  PCIE_ATU_VIEWPORT);
 	dw_pcie_writel_rc(pp, PCIE_ATU_TYPE_CFG1, PCIE_ATU_CR1);
-	dw_pcie_writel_rc(pp, pp->cfg1_base, PCIE_ATU_LOWER_BASE);
-	dw_pcie_writel_rc(pp, (pp->cfg1_base >> 32), PCIE_ATU_UPPER_BASE);
-	dw_pcie_writel_rc(pp, pp->cfg1_base + pp->config.cfg1_size - 1,
+	dw_pcie_writel_rc(pp, pp->cfg1_mod_base, PCIE_ATU_LOWER_BASE);
+	dw_pcie_writel_rc(pp, (pp->cfg1_mod_base >> 32), PCIE_ATU_UPPER_BASE);
+	dw_pcie_writel_rc(pp, pp->cfg1_mod_base + pp->config.cfg1_size - 1,
 			  PCIE_ATU_LIMIT);
 	dw_pcie_writel_rc(pp, busdev, PCIE_ATU_LOWER_TARGET);
 	dw_pcie_writel_rc(pp, 0, PCIE_ATU_UPPER_TARGET);
@@ -540,9 +602,9 @@ static void dw_pcie_prog_viewport_mem_outbound(struct pcie_port *pp)
 	dw_pcie_writel_rc(pp, PCIE_ATU_REGION_OUTBOUND | PCIE_ATU_REGION_INDEX0,
 			  PCIE_ATU_VIEWPORT);
 	dw_pcie_writel_rc(pp, PCIE_ATU_TYPE_MEM, PCIE_ATU_CR1);
-	dw_pcie_writel_rc(pp, pp->mem_base, PCIE_ATU_LOWER_BASE);
-	dw_pcie_writel_rc(pp, (pp->mem_base >> 32), PCIE_ATU_UPPER_BASE);
-	dw_pcie_writel_rc(pp, pp->mem_base + pp->config.mem_size - 1,
+	dw_pcie_writel_rc(pp, pp->mem_mod_base, PCIE_ATU_LOWER_BASE);
+	dw_pcie_writel_rc(pp, (pp->mem_mod_base >> 32), PCIE_ATU_UPPER_BASE);
+	dw_pcie_writel_rc(pp, pp->mem_mod_base + pp->config.mem_size - 1,
 			  PCIE_ATU_LIMIT);
 	dw_pcie_writel_rc(pp, pp->config.mem_bus_addr, PCIE_ATU_LOWER_TARGET);
 	dw_pcie_writel_rc(pp, upper_32_bits(pp->config.mem_bus_addr),
@@ -556,9 +618,9 @@ static void dw_pcie_prog_viewport_io_outbound(struct pcie_port *pp)
 	dw_pcie_writel_rc(pp, PCIE_ATU_REGION_OUTBOUND | PCIE_ATU_REGION_INDEX1,
 			  PCIE_ATU_VIEWPORT);
 	dw_pcie_writel_rc(pp, PCIE_ATU_TYPE_IO, PCIE_ATU_CR1);
-	dw_pcie_writel_rc(pp, pp->io_base, PCIE_ATU_LOWER_BASE);
-	dw_pcie_writel_rc(pp, (pp->io_base >> 32), PCIE_ATU_UPPER_BASE);
-	dw_pcie_writel_rc(pp, pp->io_base + pp->config.io_size - 1,
+	dw_pcie_writel_rc(pp, pp->io_mod_base, PCIE_ATU_LOWER_BASE);
+	dw_pcie_writel_rc(pp, (pp->io_mod_base >> 32), PCIE_ATU_UPPER_BASE);
+	dw_pcie_writel_rc(pp, pp->io_mod_base + pp->config.io_size - 1,
 			  PCIE_ATU_LIMIT);
 	dw_pcie_writel_rc(pp, pp->config.io_bus_addr, PCIE_ATU_LOWER_TARGET);
 	dw_pcie_writel_rc(pp, upper_32_bits(pp->config.io_bus_addr),
@@ -656,7 +718,11 @@ static int dw_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 	}
 
 	if (bus->number != pp->root_bus_nr)
-		ret = dw_pcie_rd_other_conf(pp, bus, devfn,
+		if (pp->ops->rd_other_conf)
+			ret = pp->ops->rd_other_conf(pp, bus, devfn,
+						where, size, val);
+		else
+			ret = dw_pcie_rd_other_conf(pp, bus, devfn,
 						where, size, val);
 	else
 		ret = dw_pcie_rd_own_conf(pp, where, size, val);
@@ -679,7 +745,11 @@ static int dw_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (bus->number != pp->root_bus_nr)
-		ret = dw_pcie_wr_other_conf(pp, bus, devfn,
+		if (pp->ops->wr_other_conf)
+			ret = pp->ops->wr_other_conf(pp, bus, devfn,
+						where, size, val);
+		else
+			ret = dw_pcie_wr_other_conf(pp, bus, devfn,
 						where, size, val);
 	else
 		ret = dw_pcie_wr_own_conf(pp, where, size, val);

@@ -206,45 +206,6 @@ static int shdma_setup_slave(struct shdma_chan *schan, int slave_id,
 	return 0;
 }
 
-/*
- * This is the standard shdma filter function to be used as a replacement to the
- * "old" method, using the .private pointer. If for some reason you allocate a
- * channel without slave data, use something like ERR_PTR(-EINVAL) as a filter
- * parameter. If this filter is used, the slave driver, after calling
- * dma_request_channel(), will also have to call dmaengine_slave_config() with
- * .slave_id, .direction, and either .src_addr or .dst_addr set.
- * NOTE: this filter doesn't support multiple DMAC drivers with the DMA_SLAVE
- * capability! If this becomes a requirement, hardware glue drivers, using this
- * services would have to provide their own filters, which first would check
- * the device driver, similar to how other DMAC drivers, e.g., sa11x0-dma.c, do
- * this, and only then, in case of a match, call this common filter.
- * NOTE 2: This filter function is also used in the DT case by shdma_of_xlate().
- * In that case the MID-RID value is used for slave channel filtering and is
- * passed to this function in the "arg" parameter.
- */
-bool shdma_chan_filter(struct dma_chan *chan, void *arg)
-{
-	struct shdma_chan *schan = to_shdma_chan(chan);
-	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
-	const struct shdma_ops *ops = sdev->ops;
-	int match = (long)arg;
-	int ret;
-
-	if (match < 0)
-		/* No slave requested - arbitrary channel */
-		return true;
-
-	if (!schan->dev->of_node && match >= slave_num)
-		return false;
-
-	ret = ops->set_slave(schan, match, 0, true);
-	if (ret < 0)
-		return false;
-
-	return true;
-}
-EXPORT_SYMBOL(shdma_chan_filter);
-
 static int shdma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct shdma_chan *schan = to_shdma_chan(chan);
@@ -294,6 +255,51 @@ esetslave:
 	chan->private = NULL;
 	return ret;
 }
+
+/*
+ * This is the standard shdma filter function to be used as a replacement to the
+ * "old" method, using the .private pointer. If for some reason you allocate a
+ * channel without slave data, use something like ERR_PTR(-EINVAL) as a filter
+ * parameter. If this filter is used, the slave driver, after calling
+ * dma_request_channel(), will also have to call dmaengine_slave_config() with
+ * .slave_id, .direction, and either .src_addr or .dst_addr set.
+ * NOTE: this filter doesn't support multiple DMAC drivers with the DMA_SLAVE
+ * capability! If this becomes a requirement, hardware glue drivers, using this
+ * services would have to provide their own filters, which first would check
+ * the device driver, similar to how other DMAC drivers, e.g., sa11x0-dma.c, do
+ * this, and only then, in case of a match, call this common filter.
+ * NOTE 2: This filter function is also used in the DT case by shdma_of_xlate().
+ * In that case the MID-RID value is used for slave channel filtering and is
+ * passed to this function in the "arg" parameter.
+ */
+bool shdma_chan_filter(struct dma_chan *chan, void *arg)
+{
+	struct shdma_chan *schan;
+	struct shdma_dev *sdev;
+	int match = (long)arg;
+	int ret;
+
+	/* Only support channels handled by this driver. */
+	if (chan->device->device_alloc_chan_resources !=
+	    shdma_alloc_chan_resources)
+		return false;
+
+	if (match < 0)
+		/* No slave requested - arbitrary channel */
+		return true;
+
+	schan = to_shdma_chan(chan);
+	if (!schan->dev->of_node && match >= slave_num)
+		return false;
+
+	sdev = to_shdma_dev(schan->dma_chan.device);
+	ret = sdev->ops->set_slave(schan, match, 0, true);
+	if (ret < 0)
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL(shdma_chan_filter);
 
 static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 {
@@ -662,15 +668,16 @@ static struct dma_async_tx_descriptor *shdma_prep_slave_sg(
 static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 	size_t period_len, enum dma_transfer_direction direction,
-	unsigned long flags, void *context)
+	unsigned long flags)
 {
 	struct shdma_chan *schan = to_shdma_chan(chan);
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
+	struct dma_async_tx_descriptor *desc;
 	const struct shdma_ops *ops = sdev->ops;
 	unsigned int sg_len = buf_len / period_len;
 	int slave_id = schan->slave_id;
 	dma_addr_t slave_addr;
-	struct scatterlist sgl[SHDMA_MAX_SG_LEN];
+	struct scatterlist *sgl;
 	int i;
 
 	if (!chan)
@@ -694,7 +701,16 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 
 	slave_addr = ops->slave_addr(schan);
 
+	/*
+	 * Allocate the sg list dynamically as it would consumer too much stack
+	 * space.
+	 */
+	sgl = kcalloc(sg_len, sizeof(*sgl), GFP_KERNEL);
+	if (!sgl)
+		return NULL;
+
 	sg_init_table(sgl, sg_len);
+
 	for (i = 0; i < sg_len; i++) {
 		dma_addr_t src = buf_addr + (period_len * i);
 
@@ -704,8 +720,11 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 		sg_dma_len(&sgl[i]) = period_len;
 	}
 
-	return shdma_prep_sg(schan, sgl, sg_len, &slave_addr,
+	desc = shdma_prep_sg(schan, sgl, sg_len, &slave_addr,
 			     direction, flags, true);
+
+	kfree(sgl);
+	return desc;
 }
 
 static int shdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,

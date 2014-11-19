@@ -77,6 +77,9 @@ osl_map_table(acpi_size address,
 
 static void osl_unmap_table(struct acpi_table_header *table);
 
+static acpi_physical_address
+osl_find_rsdp_via_efi_by_keyword(FILE * file, const char *keyword);
+
 static acpi_physical_address osl_find_rsdp_via_efi(void);
 
 static acpi_status osl_load_rsdp(void);
@@ -417,6 +420,38 @@ acpi_os_get_table_by_index(u32 index,
 
 /******************************************************************************
  *
+ * FUNCTION:    osl_find_rsdp_via_efi_by_keyword
+ *
+ * PARAMETERS:  keyword         - Character string indicating ACPI GUID version
+ *                                in the EFI table
+ *
+ * RETURN:      RSDP address if found
+ *
+ * DESCRIPTION: Find RSDP address via EFI using keyword indicating the ACPI
+ *              GUID version.
+ *
+ *****************************************************************************/
+
+static acpi_physical_address
+osl_find_rsdp_via_efi_by_keyword(FILE * file, const char *keyword)
+{
+	char buffer[80];
+	unsigned long long address = 0;
+	char format[32];
+
+	snprintf(format, 32, "%s=%s", keyword, "%llx");
+	fseek(file, 0, SEEK_SET);
+	while (fgets(buffer, 80, file)) {
+		if (sscanf(buffer, format, &address) == 1) {
+			break;
+		}
+	}
+
+	return ((acpi_physical_address) (address));
+}
+
+/******************************************************************************
+ *
  * FUNCTION:    osl_find_rsdp_via_efi
  *
  * PARAMETERS:  None
@@ -430,20 +465,19 @@ acpi_os_get_table_by_index(u32 index,
 static acpi_physical_address osl_find_rsdp_via_efi(void)
 {
 	FILE *file;
-	char buffer[80];
-	unsigned long address = 0;
+	acpi_physical_address address = 0;
 
 	file = fopen(EFI_SYSTAB, "r");
 	if (file) {
-		while (fgets(buffer, 80, file)) {
-			if (sscanf(buffer, "ACPI20=0x%lx", &address) == 1) {
-				break;
-			}
+		address = osl_find_rsdp_via_efi_by_keyword(file, "ACPI20");
+		if (!address) {
+			address =
+			    osl_find_rsdp_via_efi_by_keyword(file, "ACPI");
 		}
 		fclose(file);
 	}
 
-	return ((acpi_physical_address) (address));
+	return (address);
 }
 
 /******************************************************************************

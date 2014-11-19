@@ -492,16 +492,11 @@ static int max77686_rtc_init_reg(struct max77686_rtc_info *info)
 	return ret;
 }
 
-static struct regmap_config max77686_rtc_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-};
-
 static int max77686_rtc_probe(struct platform_device *pdev)
 {
 	struct max77686_dev *max77686 = dev_get_drvdata(pdev->dev.parent);
 	struct max77686_rtc_info *info;
-	int ret, virq;
+	int ret;
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
@@ -514,14 +509,7 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->max77686 = max77686;
 	info->rtc = max77686->rtc;
-	info->max77686->rtc_regmap = devm_regmap_init_i2c(info->max77686->rtc,
-					 &max77686_rtc_regmap_config);
-	if (IS_ERR(info->max77686->rtc_regmap)) {
-		ret = PTR_ERR(info->max77686->rtc_regmap);
-		dev_err(info->max77686->dev, "Failed to allocate register map: %d\n",
-				ret);
-		return ret;
-	}
+
 	platform_set_drvdata(pdev, info);
 
 	ret = max77686_rtc_init_reg(info);
@@ -550,15 +538,16 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 			ret = -EINVAL;
 		goto err_rtc;
 	}
-	virq = irq_create_mapping(max77686->irq_domain, MAX77686_RTCIRQ_RTCA1);
-	if (!virq) {
+
+	info->virq = regmap_irq_get_virq(max77686->rtc_irq_data,
+					 MAX77686_RTCIRQ_RTCA1);
+	if (!info->virq) {
 		ret = -ENXIO;
 		goto err_rtc;
 	}
-	info->virq = virq;
 
-	ret = devm_request_threaded_irq(&pdev->dev, virq, NULL,
-				max77686_rtc_alarm_irq, 0, "rtc-alarm0", info);
+	ret = devm_request_threaded_irq(&pdev->dev, info->virq, NULL,
+				max77686_rtc_alarm_irq, 0, "rtc-alarm1", info);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			info->virq, ret);

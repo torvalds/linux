@@ -47,8 +47,8 @@
  * @{
  */
 
-#include <lustre_handles.h>
-#include <lustre/lustre_idl.h>
+#include "lustre_handles.h"
+#include "lustre/lustre_idl.h"
 
 
 /**
@@ -200,7 +200,7 @@ struct obd_import {
 	 */
 	struct ptlrpc_sec	*imp_sec;
 	struct mutex		  imp_sec_mutex;
-	cfs_time_t		imp_sec_expire;
+	unsigned long		imp_sec_expire;
 	/** @} */
 
 	/** Wait queue for those who need to wait for recovery completion */
@@ -247,7 +247,7 @@ struct obd_import {
 	 */
 	struct lustre_handle      imp_remote_handle;
 	/** When to perform next ping. time in jiffies. */
-	cfs_time_t		imp_next_ping;
+	unsigned long		imp_next_ping;
 	/** When we last successfully connected. time in 64bit jiffies */
 	__u64		     imp_last_success_conn;
 
@@ -350,7 +350,7 @@ static inline void at_reset(struct adaptive_timeout *at, int val) {
 	spin_lock(&at->at_lock);
 	at->at_current = val;
 	at->at_worst_ever = val;
-	at->at_worst_time = cfs_time_current_sec();
+	at->at_worst_time = get_seconds();
 	spin_unlock(&at->at_lock);
 }
 static inline void at_init(struct adaptive_timeout *at, int val, int flags) {

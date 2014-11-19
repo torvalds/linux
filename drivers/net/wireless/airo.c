@@ -57,7 +57,7 @@
 #define DRV_NAME "airo"
 
 #ifdef CONFIG_PCI
-static DEFINE_PCI_DEVICE_TABLE(card_ids) = {
+static const struct pci_device_id card_ids[] = {
 	{ 0x14b9, 1, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0x14b9, 0x4500, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0x14b9, 0x4800, PCI_ANY_ID, PCI_ANY_ID, },
@@ -2685,7 +2685,8 @@ static struct net_device *init_wifidev(struct airo_info *ai,
 					struct net_device *ethdev)
 {
 	int err;
-	struct net_device *dev = alloc_netdev(0, "wifi%d", wifi_setup);
+	struct net_device *dev = alloc_netdev(0, "wifi%d", NET_NAME_UNKNOWN,
+					      wifi_setup);
 	if (!dev)
 		return NULL;
 	dev->ml_priv = ethdev->ml_priv;
@@ -2785,7 +2786,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	CapabilityRid cap_rid;
 
 	/* Create the network device object. */
-	dev = alloc_netdev(sizeof(*ai), "", ether_setup);
+	dev = alloc_netdev(sizeof(*ai), "", NET_NAME_UNKNOWN, ether_setup);
 	if (!dev) {
 		airo_print_err("", "Couldn't alloc_etherdev");
 		return NULL;
@@ -7817,7 +7818,6 @@ static int readrids(struct net_device *dev, aironet_ioctl *comp) {
 	case AIRORRID:      ridcode = comp->ridnum;     break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	if ((iobuf = kmalloc(RIDSIZE, GFP_KERNEL)) == NULL)

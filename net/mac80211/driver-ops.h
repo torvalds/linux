@@ -314,7 +314,7 @@ static inline void drv_update_tkip_key(struct ieee80211_local *local,
 
 static inline int drv_hw_scan(struct ieee80211_local *local,
 			      struct ieee80211_sub_if_data *sdata,
-			      struct cfg80211_scan_request *req)
+			      struct ieee80211_scan_request *req)
 {
 	int ret;
 
@@ -346,7 +346,7 @@ static inline int
 drv_sched_scan_start(struct ieee80211_local *local,
 		     struct ieee80211_sub_if_data *sdata,
 		     struct cfg80211_sched_scan_request *req,
-		     struct ieee80211_sched_scan_ies *ies)
+		     struct ieee80211_scan_ies *ies)
 {
 	int ret;
 
@@ -967,6 +967,22 @@ static inline void drv_mgd_prepare_tx(struct ieee80211_local *local,
 	trace_drv_mgd_prepare_tx(local, sdata);
 	if (local->ops->mgd_prepare_tx)
 		local->ops->mgd_prepare_tx(&local->hw, &sdata->vif);
+	trace_drv_return_void(local);
+}
+
+static inline void
+drv_mgd_protect_tdls_discover(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
+
+	trace_drv_mgd_protect_tdls_discover(local, sdata);
+	if (local->ops->mgd_protect_tdls_discover)
+		local->ops->mgd_protect_tdls_discover(&local->hw, &sdata->vif);
 	trace_drv_return_void(local);
 }
 

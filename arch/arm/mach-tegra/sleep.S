@@ -87,7 +87,7 @@ ENTRY(tegra_init_l2_for_a15)
 	mcrne	p15, 0x1, r0, c9, c0, 2
 _exit_init_l2_a15:
 
-	mov	pc, lr
+	ret	lr
 ENDPROC(tegra_init_l2_for_a15)
 
 /*
@@ -111,7 +111,7 @@ ENTRY(tegra_sleep_cpu_finish)
 	add	r3, r3, r0
 	mov	r0, r1
 
-	mov	pc, r3
+	ret	r3
 ENDPROC(tegra_sleep_cpu_finish)
 
 /*
@@ -139,7 +139,7 @@ ENTRY(tegra_shut_off_mmu)
 	moveq	r3, #0
 	streq	r3, [r2, #L2X0_CTRL]
 #endif
-	mov	pc, r0
+	ret	r0
 ENDPROC(tegra_shut_off_mmu)
 	.popsection
 
@@ -156,6 +156,6 @@ ENTRY(tegra_switch_cpu_to_pllp)
 	str	r0, [r5, #CLK_RESET_CCLK_BURST]
 	mov	r0, #0
 	str	r0, [r5, #CLK_RESET_CCLK_DIVIDER]
-	mov	pc, lr
+	ret	lr
 ENDPROC(tegra_switch_cpu_to_pllp)
 #endif

@@ -33,7 +33,6 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 #include <linux/usb/of.h>
-#include <asm/mach-types.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/usb/tegra_usb_phy.h>
 #include <linux/regulator/consumer.h>
@@ -686,10 +685,8 @@ static int ulpi_phy_power_off(struct tegra_usb_phy *phy)
 	return gpio_direction_output(phy->reset_gpio, 0);
 }
 
-static void tegra_usb_phy_close(struct usb_phy *x)
+static void tegra_usb_phy_close(struct tegra_usb_phy *phy)
 {
-	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
-
 	if (!IS_ERR(phy->vbus))
 		regulator_disable(phy->vbus);
 
@@ -881,8 +878,8 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 		return -ENOMEM;
 	}
 
-	tegra_phy->config = devm_kzalloc(&pdev->dev,
-		sizeof(*tegra_phy->config), GFP_KERNEL);
+	tegra_phy->config = devm_kzalloc(&pdev->dev, sizeof(*config),
+					 GFP_KERNEL);
 	if (!tegra_phy->config) {
 		dev_err(&pdev->dev,
 			"unable to allocate memory for USB UTMIP config\n");
@@ -965,7 +962,7 @@ static const struct tegra_phy_soc_config tegra30_soc_config = {
 	.requires_extra_tuning_parameters = true,
 };
 
-static struct of_device_id tegra_usb_phy_id_table[] = {
+static const struct of_device_id tegra_usb_phy_id_table[] = {
 	{ .compatible = "nvidia,tegra30-usb-phy", .data = &tegra30_soc_config },
 	{ .compatible = "nvidia,tegra20-usb-phy", .data = &tegra20_soc_config },
 	{ },
@@ -1061,14 +1058,13 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	tegra_phy->u_phy.shutdown = tegra_usb_phy_close;
 	tegra_phy->u_phy.set_suspend = tegra_usb_phy_suspend;
 
 	platform_set_drvdata(pdev, tegra_phy);
 
 	err = usb_add_phy_dev(&tegra_phy->u_phy);
 	if (err < 0) {
-		tegra_usb_phy_close(&tegra_phy->u_phy);
+		tegra_usb_phy_close(tegra_phy);
 		return err;
 	}
 
@@ -1080,6 +1076,7 @@ static int tegra_usb_phy_remove(struct platform_device *pdev)
 	struct tegra_usb_phy *tegra_phy = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&tegra_phy->u_phy);
+	tegra_usb_phy_close(tegra_phy);
 
 	return 0;
 }

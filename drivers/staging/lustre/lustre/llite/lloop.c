@@ -103,8 +103,8 @@
 
 #include <asm/uaccess.h>
 
-#include <lustre_lib.h>
-#include <lustre_lite.h>
+#include "../include/lustre_lib.h"
+#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 
 #define LLOOP_MAX_SEGMENTS	LNET_MAX_IOV

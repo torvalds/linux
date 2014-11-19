@@ -22,8 +22,6 @@
  * Authors: Ben Skeggs
  */
 
-#include <engine/fifo.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
@@ -59,7 +57,7 @@ nv04_fence_sync(struct nouveau_fence *fence,
 static u32
 nv04_fence_read(struct nouveau_channel *chan)
 {
-	struct nouveau_fifo_chan *fifo = (void *)chan->object;
+	struct nouveau_fifo_chan *fifo = nvkm_fifo_chan(chan);;
 	return atomic_read(&fifo->refcnt);
 }
 

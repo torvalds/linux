@@ -40,8 +40,6 @@ struct drm_device;
 struct exynos_drm_overlay;
 struct drm_connector;
 
-extern unsigned int drm_vblank_offdelay;
-
 /* This enumerates device type. */
 enum exynos_drm_device_type {
 	EXYNOS_DEVICE_TYPE_NONE,
@@ -188,6 +186,8 @@ struct exynos_drm_display {
  * @win_commit: apply hardware specific overlay data to registers.
  * @win_enable: enable hardware specific overlay.
  * @win_disable: disable hardware specific overlay.
+ * @te_handler: trigger to transfer video image at the tearing effect
+ *	synchronization signal if there is a page flip request.
  */
 struct exynos_drm_manager;
 struct exynos_drm_manager_ops {
@@ -206,6 +206,7 @@ struct exynos_drm_manager_ops {
 	void (*win_commit)(struct exynos_drm_manager *mgr, int zpos);
 	void (*win_enable)(struct exynos_drm_manager *mgr, int zpos);
 	void (*win_disable)(struct exynos_drm_manager *mgr, int zpos);
+	void (*te_handler)(struct exynos_drm_manager *mgr);
 };
 
 /*
@@ -236,14 +237,9 @@ struct exynos_drm_g2d_private {
 	struct list_head	userptr_list;
 };
 
-struct exynos_drm_ipp_private {
-	struct device	*dev;
-	struct list_head	event_list;
-};
-
 struct drm_exynos_file_private {
 	struct exynos_drm_g2d_private	*g2d_priv;
-	struct exynos_drm_ipp_private	*ipp_priv;
+	struct device			*ipp_dev;
 	struct file			*anon_filp;
 };
 

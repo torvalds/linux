@@ -348,6 +348,8 @@ static int __rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 
 	/* Make sure we're not setting alarms in the past */
 	err = __rtc_read_time(rtc, &tm);
+	if (err)
+		return err;
 	rtc_tm_to_time(&tm, &now);
 	if (scheduled <= now)
 		return -ETIME;

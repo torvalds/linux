@@ -270,19 +270,19 @@ static int wm8804_hw_params(struct snd_pcm_substream *substream,
 
 	codec = dai->codec;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		blen = 0x0;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		blen = 0x1;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		blen = 0x2;
 		break;
 	default:
 		dev_err(dai->dev, "Unsupported word length: %u\n",
-			params_format(params));
+			params_width(params));
 		return -EINVAL;
 	}
 

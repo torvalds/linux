@@ -348,7 +348,7 @@ static int rxrpc_krb5_decode_tagged_array(struct krb5_tagged_data **_td,
 
 	n_elem = ntohl(*xdr++);
 	toklen -= 4;
-	if (n_elem < 0 || n_elem > max_n_elem)
+	if (n_elem > max_n_elem)
 		return -EINVAL;
 	*_n_elem = n_elem;
 	if (n_elem > 0) {
@@ -1141,7 +1141,7 @@ static long rxrpc_read(const struct key *key,
 		if (copy_to_user(xdr, (s), _l) != 0)			\
 			goto fault;					\
 		if (_l & 3 &&						\
-		    copy_to_user((u8 *)xdr + _l, &zero, 4 - (_l & 3)) != 0) \
+		    copy_to_user((u8 __user *)xdr + _l, &zero, 4 - (_l & 3)) != 0) \
 			goto fault;					\
 		xdr += (_l + 3) >> 2;					\
 	} while(0)

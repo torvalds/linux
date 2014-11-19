@@ -31,14 +31,14 @@
 struct vmw_marker {
 	struct list_head head;
 	uint32_t seqno;
-	struct timespec submitted;
+	u64 submitted;
 };
 
 void vmw_marker_queue_init(struct vmw_marker_queue *queue)
 {
 	INIT_LIST_HEAD(&queue->head);
-	queue->lag = ns_to_timespec(0);
-	getrawmonotonic(&queue->lag_time);
+	queue->lag = 0;
+	queue->lag_time = ktime_get_raw_ns();
 	spin_lock_init(&queue->lock);
 }
 
@@ -62,7 +62,7 @@ int vmw_marker_push(struct vmw_marker_queue *queue,
 		return -ENOMEM;
 
 	marker->seqno = seqno;
-	getrawmonotonic(&marker->submitted);
+	marker->submitted = ktime_get_raw_ns();
 	spin_lock(&queue->lock);
 	list_add_tail(&marker->head, &queue->head);
 	spin_unlock(&queue->lock);
@@ -74,14 +74,14 @@ int vmw_marker_pull(struct vmw_marker_queue *queue,
 		   uint32_t signaled_seqno)
 {
 	struct vmw_marker *marker, *next;
-	struct timespec now;
 	bool updated = false;
+	u64 now;
 
 	spin_lock(&queue->lock);
-	getrawmonotonic(&now);
+	now = ktime_get_raw_ns();
 
 	if (list_empty(&queue->head)) {
-		queue->lag = ns_to_timespec(0);
+		queue->lag = 0;
 		queue->lag_time = now;
 		updated = true;
 		goto out_unlock;
@@ -91,7 +91,7 @@ int vmw_marker_pull(struct vmw_marker_queue *queue,
 		if (signaled_seqno - marker->seqno > (1 << 30))
 			continue;
 
-		queue->lag = timespec_sub(now, marker->submitted);
+		queue->lag = now - marker->submitted;
 		queue->lag_time = now;
 		updated = true;
 		list_del(&marker->head);
@@ -104,27 +104,13 @@ out_unlock:
 	return (updated) ? 0 : -EBUSY;
 }
 
-static struct timespec vmw_timespec_add(struct timespec t1,
-					struct timespec t2)
+static u64 vmw_fifo_lag(struct vmw_marker_queue *queue)
 {
-	t1.tv_sec += t2.tv_sec;
-	t1.tv_nsec += t2.tv_nsec;
-	if (t1.tv_nsec >= 1000000000L) {
-		t1.tv_sec += 1;
-		t1.tv_nsec -= 1000000000L;
-	}
-
-	return t1;
-}
-
-static struct timespec vmw_fifo_lag(struct vmw_marker_queue *queue)
-{
-	struct timespec now;
+	u64 now;
 
 	spin_lock(&queue->lock);
-	getrawmonotonic(&now);
-	queue->lag = vmw_timespec_add(queue->lag,
-				      timespec_sub(now, queue->lag_time));
+	now = ktime_get_raw_ns();
+	queue->lag += now - queue->lag_time;
 	queue->lag_time = now;
 	spin_unlock(&queue->lock);
 	return queue->lag;
@@ -134,11 +120,9 @@ static struct timespec vmw_fifo_lag(struct vmw_marker_queue *queue)
 static bool vmw_lag_lt(struct vmw_marker_queue *queue,
 		       uint32_t us)
 {
-	struct timespec lag, cond;
+	u64 cond = (u64) us * NSEC_PER_USEC;
 
-	cond = ns_to_timespec((s64) us * 1000);
-	lag = vmw_fifo_lag(queue);
-	return (timespec_compare(&lag, &cond) < 1);
+	return vmw_fifo_lag(queue) <= cond;
 }
 
 int vmw_wait_lag(struct vmw_private *dev_priv,

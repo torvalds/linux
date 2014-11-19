@@ -149,7 +149,6 @@ sfw_register_test (srpc_service_t *service, sfw_test_client_ops_t *cliops)
 	if (tsc == NULL)
 		return -ENOMEM;
 
-	memset(tsc, 0, sizeof(sfw_test_case_t));
 	tsc->tsc_cli_ops     = cliops;
 	tsc->tsc_srv_service = service;
 
@@ -172,7 +171,7 @@ sfw_add_session_timer (void)
 
 	sn->sn_timer_active = 1;
 	timer->stt_expires = cfs_time_add(sn->sn_timeout,
-					  cfs_time_current_sec());
+					  get_seconds());
 	stt_add_timer(timer);
 	return;
 }
@@ -249,7 +248,7 @@ sfw_session_expired (void *data)
 	LASSERT (sn->sn_timer_active);
 	LASSERT (sn == sfw_data.fw_session);
 
-	CWARN ("Session expired! sid: %s-"LPU64", name: %s\n",
+	CWARN ("Session expired! sid: %s-%llu, name: %s\n",
 	       libcfs_nid2str(sn->sn_id.ses_nid),
 	       sn->sn_id.ses_stamp, &sn->sn_name[0]);
 
@@ -742,12 +741,11 @@ sfw_add_test_instance (sfw_batch_t *tsb, srpc_server_rpc_t *rpc)
 
 	LIBCFS_ALLOC(tsi, sizeof(*tsi));
 	if (tsi == NULL) {
-		CERROR ("Can't allocate test instance for batch: "LPU64"\n",
+		CERROR ("Can't allocate test instance for batch: %llu\n",
 			tsb->bat_id.bat_id);
 		return -ENOMEM;
 	}
 
-	memset(tsi, 0, sizeof(*tsi));
 	spin_lock_init(&tsi->tsi_lock);
 	atomic_set(&tsi->tsi_nactive, 0);
 	INIT_LIST_HEAD(&tsi->tsi_units);
@@ -1004,7 +1002,7 @@ sfw_run_batch (sfw_batch_t *tsb)
 	sfw_test_instance_t *tsi;
 
 	if (sfw_batch_active(tsb)) {
-		CDEBUG(D_NET, "Batch already active: "LPU64" (%d)\n",
+		CDEBUG(D_NET, "Batch already active: %llu (%d)\n",
 		       tsb->bat_id.bat_id, atomic_read(&tsb->bat_nactive));
 		return 0;
 	}
@@ -1039,7 +1037,7 @@ sfw_stop_batch (sfw_batch_t *tsb, int force)
 	srpc_client_rpc_t   *rpc;
 
 	if (!sfw_batch_active(tsb)) {
-		CDEBUG(D_NET, "Batch "LPU64" inactive\n", tsb->bat_id.bat_id);
+		CDEBUG(D_NET, "Batch %llu inactive\n", tsb->bat_id.bat_id);
 		return 0;
 	}
 

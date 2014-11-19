@@ -22,7 +22,6 @@
 
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <linux/acct.h>
 #include <linux/blkdev.h>
 #include <linux/mount.h>
 #include <linux/security.h>
@@ -218,7 +217,6 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 	lockdep_set_class(&s->s_vfs_rename_mutex, &type->s_vfs_rename_key);
 	mutex_init(&s->s_dquot.dqio_mutex);
 	mutex_init(&s->s_dquot.dqonoff_mutex);
-	init_rwsem(&s->s_dquot.dqptr_sem);
 	s->s_maxbytes = MAX_NON_LFS;
 	s->s_op = &default_op;
 	s->s_time_gran = 1000000000;
@@ -702,11 +700,21 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 		return -EACCES;
 #endif
 
-	if (flags & MS_RDONLY)
-		acct_auto_close(sb);
-	shrink_dcache_sb(sb);
-
 	remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
+
+	if (remount_ro) {
+		if (sb->s_pins.first) {
+			up_write(&sb->s_umount);
+			sb_pin_kill(sb);
+			down_write(&sb->s_umount);
+			if (!sb->s_root)
+				return 0;
+			if (sb->s_writers.frozen != SB_UNFROZEN)
+				return -EBUSY;
+			remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
+		}
+	}
+	shrink_dcache_sb(sb);
 
 	/* If we are remounting RDONLY and current sb is read/write,
 	   make sure there are no rw files opened */

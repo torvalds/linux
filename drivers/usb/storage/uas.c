@@ -970,6 +970,13 @@ static struct scsi_host_template uas_host_template = {
 	.cmd_per_lun = 1,	/* until we override it */
 	.skip_settle_delay = 1,
 	.ordered_tag = 1,
+
+	/*
+	 * The uas drivers expects tags not to be bigger than the maximum
+	 * per-device queue depth, which is not true with the blk-mq tag
+	 * allocator.
+	 */
+	.disable_blk_mq = true,
 };
 
 #define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
@@ -1026,7 +1033,7 @@ static int uas_configure_endpoints(struct uas_dev_info *devinfo)
 					    usb_endpoint_num(&eps[3]->desc));
 
 	if (udev->speed != USB_SPEED_SUPER) {
-		devinfo->qdepth = 256;
+		devinfo->qdepth = 32;
 		devinfo->use_streams = 0;
 	} else {
 		devinfo->qdepth = usb_alloc_streams(devinfo->intf, eps + 1,

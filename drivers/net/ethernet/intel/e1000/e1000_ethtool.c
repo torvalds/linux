@@ -1316,7 +1316,6 @@ static int e1000_set_phy_loopback(struct e1000_adapter *adapter)
 	case e1000_82547:
 	case e1000_82547_rev_2:
 		return e1000_integrated_phy_loopback(adapter);
-		break;
 	default:
 		/* Default PHY loopback work is to read the MII
 		 * control register and assert bit 14 (loopback mode).
@@ -1325,7 +1324,6 @@ static int e1000_set_phy_loopback(struct e1000_adapter *adapter)
 		phy_reg |= MII_CR_LOOPBACK;
 		e1000_write_phy_reg(hw, PHY_CTRL, phy_reg);
 		return 0;
-		break;
 	}
 
 	return 8;
@@ -1344,7 +1342,6 @@ static int e1000_setup_loopback_test(struct e1000_adapter *adapter)
 		case e1000_82545_rev_3:
 		case e1000_82546_rev_3:
 			return e1000_set_phy_loopback(adapter);
-			break;
 		default:
 			rctl = er32(RCTL);
 			rctl |= E1000_RCTL_LBM_TCVR;

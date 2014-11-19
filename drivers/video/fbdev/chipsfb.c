@@ -273,7 +273,7 @@ static struct chips_init_reg chips_init_xr[] = {
 	{ 0xa8, 0x00 }
 };
 
-static void __init chips_hw_init(void)
+static void chips_hw_init(void)
 {
 	int i;
 

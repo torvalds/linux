@@ -50,7 +50,7 @@ static struct sync_pt *sw_sync_pt_dup(struct sync_pt *sync_pt)
 {
 	struct sw_sync_pt *pt = (struct sw_sync_pt *) sync_pt;
 	struct sw_sync_timeline *obj =
-		(struct sw_sync_timeline *)sync_pt->parent;
+		(struct sw_sync_timeline *)sync_pt_parent(sync_pt);
 
 	return (struct sync_pt *) sw_sync_pt_create(obj, pt->value);
 }
@@ -59,7 +59,7 @@ static int sw_sync_pt_has_signaled(struct sync_pt *sync_pt)
 {
 	struct sw_sync_pt *pt = (struct sw_sync_pt *)sync_pt;
 	struct sw_sync_timeline *obj =
-		(struct sw_sync_timeline *)sync_pt->parent;
+		(struct sw_sync_timeline *)sync_pt_parent(sync_pt);
 
 	return sw_sync_cmp(obj->value, pt->value) >= 0;
 }
@@ -97,7 +97,6 @@ static void sw_sync_pt_value_str(struct sync_pt *sync_pt,
 				       char *str, int size)
 {
 	struct sw_sync_pt *pt = (struct sw_sync_pt *)sync_pt;
-
 	snprintf(str, size, "%d", pt->value);
 }
 
@@ -157,7 +156,6 @@ static int sw_sync_open(struct inode *inode, struct file *file)
 static int sw_sync_release(struct inode *inode, struct file *file)
 {
 	struct sw_sync_timeline *obj = file->private_data;
-
 	sync_timeline_destroy(&obj->obj);
 	return 0;
 }

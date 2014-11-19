@@ -71,7 +71,7 @@ static int __init init_ras_IRQ(void)
 
 	return 0;
 }
-subsys_initcall(init_ras_IRQ);
+machine_subsys_initcall(pseries, init_ras_IRQ);
 
 #define EPOW_SHUTDOWN_NORMAL				1
 #define EPOW_SHUTDOWN_ON_UPS				2

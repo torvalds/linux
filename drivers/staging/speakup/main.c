@@ -2067,7 +2067,7 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 			if (up_flag)
 				goto out;
 			if (last_keycode == keycode &&
-			    last_spk_jiffy + MAX_DELAY > jiffies) {
+			    time_after(last_spk_jiffy + MAX_DELAY, jiffies)) {
 				spk_close_press = 1;
 				offset = spk_shift_table[shift_info + 32];
 				/* double press? */

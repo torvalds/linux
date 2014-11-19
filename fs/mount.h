@@ -55,7 +55,7 @@ struct mount {
 	int mnt_id;			/* mount identifier */
 	int mnt_group_id;		/* peer group identifier */
 	int mnt_expiry_mark;		/* true if marked for expiry */
-	int mnt_pinned;
+	struct hlist_head mnt_pins;
 	struct path mnt_ex_mountpoint;
 };
 

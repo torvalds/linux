@@ -133,10 +133,16 @@ static void choke_drop_by_idx(struct Qdisc *sch, unsigned int idx)
 	--sch->q.qlen;
 }
 
+/* private part of skb->cb[] that a qdisc is allowed to use
+ * is limited to QDISC_CB_PRIV_LEN bytes.
+ * As a flow key might be too large, we store a part of it only.
+ */
+#define CHOKE_K_LEN min_t(u32, sizeof(struct flow_keys), QDISC_CB_PRIV_LEN - 3)
+
 struct choke_skb_cb {
 	u16			classid;
 	u8			keys_valid;
-	struct flow_keys	keys;
+	u8			keys[QDISC_CB_PRIV_LEN - 3];
 };
 
 static inline struct choke_skb_cb *choke_skb_cb(const struct sk_buff *skb)
@@ -163,22 +169,26 @@ static u16 choke_get_classid(const struct sk_buff *skb)
 static bool choke_match_flow(struct sk_buff *skb1,
 			     struct sk_buff *skb2)
 {
+	struct flow_keys temp;
+
 	if (skb1->protocol != skb2->protocol)
 		return false;
 
 	if (!choke_skb_cb(skb1)->keys_valid) {
 		choke_skb_cb(skb1)->keys_valid = 1;
-		skb_flow_dissect(skb1, &choke_skb_cb(skb1)->keys);
+		skb_flow_dissect(skb1, &temp);
+		memcpy(&choke_skb_cb(skb1)->keys, &temp, CHOKE_K_LEN);
 	}
 
 	if (!choke_skb_cb(skb2)->keys_valid) {
 		choke_skb_cb(skb2)->keys_valid = 1;
-		skb_flow_dissect(skb2, &choke_skb_cb(skb2)->keys);
+		skb_flow_dissect(skb2, &temp);
+		memcpy(&choke_skb_cb(skb2)->keys, &temp, CHOKE_K_LEN);
 	}
 
 	return !memcmp(&choke_skb_cb(skb1)->keys,
 		       &choke_skb_cb(skb2)->keys,
-		       sizeof(struct flow_keys));
+		       CHOKE_K_LEN);
 }
 
 /*

@@ -26,7 +26,10 @@
 
  */
 
+#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
+#include <linux/jiffies.h>
 #include <linux/drbd.h>
 #include <asm/uaccess.h>
 #include <asm/types.h>
@@ -54,16 +57,14 @@
 #include "drbd_int.h"
 #include "drbd_protocol.h"
 #include "drbd_req.h" /* only for _req_mod in tl_release and tl_clear */
-
 #include "drbd_vli.h"
+#include "drbd_debugfs.h"
 
 static DEFINE_MUTEX(drbd_main_mutex);
 static int drbd_open(struct block_device *bdev, fmode_t mode);
 static void drbd_release(struct gendisk *gd, fmode_t mode);
-static int w_md_sync(struct drbd_work *w, int unused);
 static void md_sync_timer_fn(unsigned long data);
 static int w_bitmap_io(struct drbd_work *w, int unused);
-static int w_go_diskless(struct drbd_work *w, int unused);
 
 MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
 	      "Lars Ellenberg <lars@linbit.com>");
@@ -264,7 +265,7 @@ bail:
 
 /**
  * _tl_restart() - Walks the transfer log, and applies an action to all requests
- * @device:	DRBD device.
+ * @connection:	DRBD connection to operate on.
  * @what:       The action/event to perform with all request objects
  *
  * @what might be one of CONNECTION_LOST_WHILE_PENDING, RESEND, FAIL_FROZEN_DISK_IO,
@@ -662,6 +663,11 @@ static int __send_command(struct drbd_connection *connection, int vnr,
 			    msg_flags);
 	if (data && !err)
 		err = drbd_send_all(connection, sock->socket, data, size, 0);
+	/* DRBD protocol "pings" are latency critical.
+	 * This is supposed to trigger tcp_push_pending_frames() */
+	if (!err && (cmd == P_PING || cmd == P_PING_ACK))
+		drbd_tcp_nodelay(sock->socket);
+
 	return err;
 }
 
@@ -1636,7 +1642,10 @@ int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *
 	if (peer_device->connection->agreed_pro_version >= 100) {
 		if (req->rq_state & RQ_EXP_RECEIVE_ACK)
 			dp_flags |= DP_SEND_RECEIVE_ACK;
-		if (req->rq_state & RQ_EXP_WRITE_ACK)
+		/* During resync, request an explicit write ack,
+		 * even in protocol != C */
+		if (req->rq_state & RQ_EXP_WRITE_ACK
+		|| (dp_flags & DP_MAY_SET_IN_SYNC))
 			dp_flags |= DP_SEND_WRITE_ACK;
 	}
 	p->dp_flags = cpu_to_be32(dp_flags);
@@ -1900,6 +1909,7 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	drbd_set_defaults(device);
 
 	atomic_set(&device->ap_bio_cnt, 0);
+	atomic_set(&device->ap_actlog_cnt, 0);
 	atomic_set(&device->ap_pending_cnt, 0);
 	atomic_set(&device->rs_pending_cnt, 0);
 	atomic_set(&device->unacked_cnt, 0);
@@ -1908,7 +1918,7 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	atomic_set(&device->rs_sect_in, 0);
 	atomic_set(&device->rs_sect_ev, 0);
 	atomic_set(&device->ap_in_flight, 0);
-	atomic_set(&device->md_io_in_use, 0);
+	atomic_set(&device->md_io.in_use, 0);
 
 	mutex_init(&device->own_state_mutex);
 	device->state_mutex = &device->own_state_mutex;
@@ -1924,17 +1934,15 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	INIT_LIST_HEAD(&device->resync_reads);
 	INIT_LIST_HEAD(&device->resync_work.list);
 	INIT_LIST_HEAD(&device->unplug_work.list);
-	INIT_LIST_HEAD(&device->go_diskless.list);
-	INIT_LIST_HEAD(&device->md_sync_work.list);
-	INIT_LIST_HEAD(&device->start_resync_work.list);
 	INIT_LIST_HEAD(&device->bm_io_work.w.list);
+	INIT_LIST_HEAD(&device->pending_master_completion[0]);
+	INIT_LIST_HEAD(&device->pending_master_completion[1]);
+	INIT_LIST_HEAD(&device->pending_completion[0]);
+	INIT_LIST_HEAD(&device->pending_completion[1]);
 
 	device->resync_work.cb  = w_resync_timer;
 	device->unplug_work.cb  = w_send_write_hint;
-	device->go_diskless.cb  = w_go_diskless;
-	device->md_sync_work.cb = w_md_sync;
 	device->bm_io_work.w.cb = w_bitmap_io;
-	device->start_resync_work.cb = w_start_resync;
 
 	init_timer(&device->resync_timer);
 	init_timer(&device->md_sync_timer);
@@ -1992,7 +2000,7 @@ void drbd_device_cleanup(struct drbd_device *device)
 		drbd_bm_cleanup(device);
 	}
 
-	drbd_free_bc(device->ldev);
+	drbd_free_ldev(device->ldev);
 	device->ldev = NULL;
 
 	clear_bit(AL_SUSPENDED, &device->flags);
@@ -2006,7 +2014,6 @@ void drbd_device_cleanup(struct drbd_device *device)
 	D_ASSERT(device, list_empty(&first_peer_device(device)->connection->sender_work.q));
 	D_ASSERT(device, list_empty(&device->resync_work.list));
 	D_ASSERT(device, list_empty(&device->unplug_work.list));
-	D_ASSERT(device, list_empty(&device->go_diskless.list));
 
 	drbd_set_defaults(device);
 }
@@ -2129,20 +2136,6 @@ Enomem:
 	return -ENOMEM;
 }
 
-static int drbd_notify_sys(struct notifier_block *this, unsigned long code,
-	void *unused)
-{
-	/* just so we have it.  you never know what interesting things we
-	 * might want to do here some day...
-	 */
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block drbd_notifier = {
-	.notifier_call = drbd_notify_sys,
-};
-
 static void drbd_release_all_peer_reqs(struct drbd_device *device)
 {
 	int rr;
@@ -2173,7 +2166,7 @@ void drbd_destroy_device(struct kref *kref)
 {
 	struct drbd_device *device = container_of(kref, struct drbd_device, kref);
 	struct drbd_resource *resource = device->resource;
-	struct drbd_connection *connection;
+	struct drbd_peer_device *peer_device, *tmp_peer_device;
 
 	del_timer_sync(&device->request_timer);
 
@@ -2187,7 +2180,7 @@ void drbd_destroy_device(struct kref *kref)
 	if (device->this_bdev)
 		bdput(device->this_bdev);
 
-	drbd_free_bc(device->ldev);
+	drbd_free_ldev(device->ldev);
 	device->ldev = NULL;
 
 	drbd_release_all_peer_reqs(device);
@@ -2200,15 +2193,20 @@ void drbd_destroy_device(struct kref *kref)
 
 	if (device->bitmap) /* should no longer be there. */
 		drbd_bm_cleanup(device);
-	__free_page(device->md_io_page);
+	__free_page(device->md_io.page);
 	put_disk(device->vdisk);
 	blk_cleanup_queue(device->rq_queue);
 	kfree(device->rs_plan_s);
-	kfree(first_peer_device(device));
-	kfree(device);
 
-	for_each_connection(connection, resource)
-		kref_put(&connection->kref, drbd_destroy_connection);
+	/* not for_each_connection(connection, resource):
+	 * those may have been cleaned up and disassociated already.
+	 */
+	for_each_peer_device_safe(peer_device, tmp_peer_device, device) {
+		kref_put(&peer_device->connection->kref, drbd_destroy_connection);
+		kfree(peer_device);
+	}
+	memset(device, 0xfd, sizeof(*device));
+	kfree(device);
 	kref_put(&resource->kref, drbd_destroy_resource);
 }
 
@@ -2236,7 +2234,7 @@ static void do_retry(struct work_struct *ws)
 	list_for_each_entry_safe(req, tmp, &writes, tl_requests) {
 		struct drbd_device *device = req->device;
 		struct bio *bio = req->master_bio;
-		unsigned long start_time = req->start_time;
+		unsigned long start_jif = req->start_jif;
 		bool expected;
 
 		expected =
@@ -2271,10 +2269,12 @@ static void do_retry(struct work_struct *ws)
 		/* We are not just doing generic_make_request(),
 		 * as we want to keep the start_time information. */
 		inc_ap_bio(device);
-		__drbd_make_request(device, bio, start_time);
+		__drbd_make_request(device, bio, start_jif);
 	}
 }
 
+/* called via drbd_req_put_completion_ref(),
+ * holds resource->req_lock */
 void drbd_restart_request(struct drbd_request *req)
 {
 	unsigned long flags;
@@ -2298,6 +2298,7 @@ void drbd_destroy_resource(struct kref *kref)
 	idr_destroy(&resource->devices);
 	free_cpumask_var(resource->cpu_mask);
 	kfree(resource->name);
+	memset(resource, 0xf2, sizeof(*resource));
 	kfree(resource);
 }
 
@@ -2307,8 +2308,10 @@ void drbd_free_resource(struct drbd_resource *resource)
 
 	for_each_connection_safe(connection, tmp, resource) {
 		list_del(&connection->connections);
+		drbd_debugfs_connection_cleanup(connection);
 		kref_put(&connection->kref, drbd_destroy_connection);
 	}
+	drbd_debugfs_resource_cleanup(resource);
 	kref_put(&resource->kref, drbd_destroy_resource);
 }
 
@@ -2317,8 +2320,6 @@ static void drbd_cleanup(void)
 	unsigned int i;
 	struct drbd_device *device;
 	struct drbd_resource *resource, *tmp;
-
-	unregister_reboot_notifier(&drbd_notifier);
 
 	/* first remove proc,
 	 * drbdsetup uses it's presence to detect
@@ -2335,6 +2336,7 @@ static void drbd_cleanup(void)
 		destroy_workqueue(retry.wq);
 
 	drbd_genl_unregister();
+	drbd_debugfs_cleanup();
 
 	idr_for_each_entry(&drbd_devices, device, i)
 		drbd_delete_device(device);
@@ -2350,7 +2352,7 @@ static void drbd_cleanup(void)
 
 	idr_destroy(&drbd_devices);
 
-	printk(KERN_INFO "drbd: module cleanup done.\n");
+	pr_info("module cleanup done.\n");
 }
 
 /**
@@ -2539,6 +2541,20 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
 	if (nr_cpu_ids > 1 && res_opts->cpu_mask[0] != 0) {
 		err = bitmap_parse(res_opts->cpu_mask, DRBD_CPU_MASK_SIZE,
 				   cpumask_bits(new_cpu_mask), nr_cpu_ids);
+		if (err == -EOVERFLOW) {
+			/* So what. mask it out. */
+			cpumask_var_t tmp_cpu_mask;
+			if (zalloc_cpumask_var(&tmp_cpu_mask, GFP_KERNEL)) {
+				cpumask_setall(tmp_cpu_mask);
+				cpumask_and(new_cpu_mask, new_cpu_mask, tmp_cpu_mask);
+				drbd_warn(resource, "Overflow in bitmap_parse(%.12s%s), truncating to %u bits\n",
+					res_opts->cpu_mask,
+					strlen(res_opts->cpu_mask) > 12 ? "..." : "",
+					nr_cpu_ids);
+				free_cpumask_var(tmp_cpu_mask);
+				err = 0;
+			}
+		}
 		if (err) {
 			drbd_warn(resource, "bitmap_parse() failed with %d\n", err);
 			/* retcode = ERR_CPU_MASK_PARSE; */
@@ -2579,10 +2595,12 @@ struct drbd_resource *drbd_create_resource(const char *name)
 	kref_init(&resource->kref);
 	idr_init(&resource->devices);
 	INIT_LIST_HEAD(&resource->connections);
+	resource->write_ordering = WO_bdev_flush;
 	list_add_tail_rcu(&resource->resources, &drbd_resources);
 	mutex_init(&resource->conf_update);
 	mutex_init(&resource->adm_mutex);
 	spin_lock_init(&resource->req_lock);
+	drbd_debugfs_resource_add(resource);
 	return resource;
 
 fail_free_name:
@@ -2593,7 +2611,7 @@ fail:
 	return NULL;
 }
 
-/* caller must be under genl_lock() */
+/* caller must be under adm_mutex */
 struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 {
 	struct drbd_resource *resource;
@@ -2617,7 +2635,6 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	INIT_LIST_HEAD(&connection->current_epoch->list);
 	connection->epochs = 1;
 	spin_lock_init(&connection->epoch_lock);
-	connection->write_ordering = WO_bdev_flush;
 
 	connection->send.seen_any_write_yet = false;
 	connection->send.current_epoch_nr = 0;
@@ -2652,6 +2669,7 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 
 	kref_get(&resource->kref);
 	list_add_tail_rcu(&connection->connections, &resource->connections);
+	drbd_debugfs_connection_add(connection);
 	return connection;
 
 fail_resource:
@@ -2680,6 +2698,7 @@ void drbd_destroy_connection(struct kref *kref)
 	drbd_free_socket(&connection->data);
 	kfree(connection->int_dig_in);
 	kfree(connection->int_dig_vv);
+	memset(connection, 0xfc, sizeof(*connection));
 	kfree(connection);
 	kref_put(&resource->kref, drbd_destroy_resource);
 }
@@ -2694,7 +2713,6 @@ static int init_submitter(struct drbd_device *device)
 		return -ENOMEM;
 
 	INIT_WORK(&device->submit.worker, do_submit);
-	spin_lock_init(&device->submit.lock);
 	INIT_LIST_HEAD(&device->submit.writes);
 	return 0;
 }
@@ -2764,8 +2782,8 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	blk_queue_merge_bvec(q, drbd_merge_bvec);
 	q->queue_lock = &resource->req_lock;
 
-	device->md_io_page = alloc_page(GFP_KERNEL);
-	if (!device->md_io_page)
+	device->md_io.page = alloc_page(GFP_KERNEL);
+	if (!device->md_io.page)
 		goto out_no_io_page;
 
 	if (drbd_bm_init(device))
@@ -2794,6 +2812,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	kref_get(&device->kref);
 
 	INIT_LIST_HEAD(&device->peer_devices);
+	INIT_LIST_HEAD(&device->pending_bitmap_io);
 	for_each_connection(connection, resource) {
 		peer_device = kzalloc(sizeof(struct drbd_peer_device), GFP_KERNEL);
 		if (!peer_device)
@@ -2829,7 +2848,10 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 		for_each_peer_device(peer_device, device)
 			drbd_connected(peer_device);
 	}
-
+	/* move to create_peer_device() */
+	for_each_peer_device(peer_device, device)
+		drbd_debugfs_peer_device_add(peer_device);
+	drbd_debugfs_device_add(device);
 	return NO_ERROR;
 
 out_idr_remove_vol:
@@ -2853,7 +2875,7 @@ out_idr_remove_minor:
 out_no_minor_idr:
 	drbd_bm_cleanup(device);
 out_no_bitmap:
-	__free_page(device->md_io_page);
+	__free_page(device->md_io.page);
 out_no_io_page:
 	put_disk(disk);
 out_no_disk:
@@ -2868,8 +2890,13 @@ void drbd_delete_device(struct drbd_device *device)
 {
 	struct drbd_resource *resource = device->resource;
 	struct drbd_connection *connection;
+	struct drbd_peer_device *peer_device;
 	int refs = 3;
 
+	/* move to free_peer_device() */
+	for_each_peer_device(peer_device, device)
+		drbd_debugfs_peer_device_cleanup(peer_device);
+	drbd_debugfs_device_cleanup(device);
 	for_each_connection(connection, resource) {
 		idr_remove(&connection->peer_devices, device->vnr);
 		refs++;
@@ -2881,13 +2908,12 @@ void drbd_delete_device(struct drbd_device *device)
 	kref_sub(&device->kref, refs, drbd_destroy_device);
 }
 
-int __init drbd_init(void)
+static int __init drbd_init(void)
 {
 	int err;
 
 	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
-		printk(KERN_ERR
-		       "drbd: invalid minor_count (%d)\n", minor_count);
+		pr_err("invalid minor_count (%d)\n", minor_count);
 #ifdef MODULE
 		return -EINVAL;
 #else
@@ -2897,13 +2923,10 @@ int __init drbd_init(void)
 
 	err = register_blkdev(DRBD_MAJOR, "drbd");
 	if (err) {
-		printk(KERN_ERR
-		       "drbd: unable to register block device major %d\n",
+		pr_err("unable to register block device major %d\n",
 		       DRBD_MAJOR);
 		return err;
 	}
-
-	register_reboot_notifier(&drbd_notifier);
 
 	/*
 	 * allocate all necessary structs
@@ -2918,7 +2941,7 @@ int __init drbd_init(void)
 
 	err = drbd_genl_register();
 	if (err) {
-		printk(KERN_ERR "drbd: unable to register generic netlink family\n");
+		pr_err("unable to register generic netlink family\n");
 		goto fail;
 	}
 
@@ -2929,38 +2952,39 @@ int __init drbd_init(void)
 	err = -ENOMEM;
 	drbd_proc = proc_create_data("drbd", S_IFREG | S_IRUGO , NULL, &drbd_proc_fops, NULL);
 	if (!drbd_proc)	{
-		printk(KERN_ERR "drbd: unable to register proc file\n");
+		pr_err("unable to register proc file\n");
 		goto fail;
 	}
 
 	retry.wq = create_singlethread_workqueue("drbd-reissue");
 	if (!retry.wq) {
-		printk(KERN_ERR "drbd: unable to create retry workqueue\n");
+		pr_err("unable to create retry workqueue\n");
 		goto fail;
 	}
 	INIT_WORK(&retry.worker, do_retry);
 	spin_lock_init(&retry.lock);
 	INIT_LIST_HEAD(&retry.writes);
 
-	printk(KERN_INFO "drbd: initialized. "
+	if (drbd_debugfs_init())
+		pr_notice("failed to initialize debugfs -- will not be available\n");
+
+	pr_info("initialized. "
 	       "Version: " REL_VERSION " (api:%d/proto:%d-%d)\n",
 	       API_VERSION, PRO_VERSION_MIN, PRO_VERSION_MAX);
-	printk(KERN_INFO "drbd: %s\n", drbd_buildtag());
-	printk(KERN_INFO "drbd: registered as block device major %d\n",
-		DRBD_MAJOR);
-
+	pr_info("%s\n", drbd_buildtag());
+	pr_info("registered as block device major %d\n", DRBD_MAJOR);
 	return 0; /* Success! */
 
 fail:
 	drbd_cleanup();
 	if (err == -ENOMEM)
-		printk(KERN_ERR "drbd: ran out of memory\n");
+		pr_err("ran out of memory\n");
 	else
-		printk(KERN_ERR "drbd: initialization failure\n");
+		pr_err("initialization failure\n");
 	return err;
 }
 
-void drbd_free_bc(struct drbd_backing_dev *ldev)
+void drbd_free_ldev(struct drbd_backing_dev *ldev)
 {
 	if (ldev == NULL)
 		return;
@@ -2972,22 +2996,27 @@ void drbd_free_bc(struct drbd_backing_dev *ldev)
 	kfree(ldev);
 }
 
+static void drbd_free_one_sock(struct drbd_socket *ds)
+{
+	struct socket *s;
+	mutex_lock(&ds->mutex);
+	s = ds->socket;
+	ds->socket = NULL;
+	mutex_unlock(&ds->mutex);
+	if (s) {
+		/* so debugfs does not need to mutex_lock() */
+		synchronize_rcu();
+		kernel_sock_shutdown(s, SHUT_RDWR);
+		sock_release(s);
+	}
+}
+
 void drbd_free_sock(struct drbd_connection *connection)
 {
-	if (connection->data.socket) {
-		mutex_lock(&connection->data.mutex);
-		kernel_sock_shutdown(connection->data.socket, SHUT_RDWR);
-		sock_release(connection->data.socket);
-		connection->data.socket = NULL;
-		mutex_unlock(&connection->data.mutex);
-	}
-	if (connection->meta.socket) {
-		mutex_lock(&connection->meta.mutex);
-		kernel_sock_shutdown(connection->meta.socket, SHUT_RDWR);
-		sock_release(connection->meta.socket);
-		connection->meta.socket = NULL;
-		mutex_unlock(&connection->meta.mutex);
-	}
+	if (connection->data.socket)
+		drbd_free_one_sock(&connection->data);
+	if (connection->meta.socket)
+		drbd_free_one_sock(&connection->meta);
 }
 
 /* meta data management */
@@ -3093,7 +3122,7 @@ void drbd_md_sync(struct drbd_device *device)
 	if (!get_ldev_if_state(device, D_FAILED))
 		return;
 
-	buffer = drbd_md_get_buffer(device);
+	buffer = drbd_md_get_buffer(device, __func__);
 	if (!buffer)
 		goto out;
 
@@ -3253,7 +3282,7 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
 	if (device->state.disk != D_DISKLESS)
 		return ERR_DISK_CONFIGURED;
 
-	buffer = drbd_md_get_buffer(device);
+	buffer = drbd_md_get_buffer(device, __func__);
 	if (!buffer)
 		return ERR_NOMEM;
 
@@ -3466,23 +3495,19 @@ void drbd_uuid_set_bm(struct drbd_device *device, u64 val) __must_hold(local)
  *
  * Sets all bits in the bitmap and writes the whole bitmap to stable storage.
  */
-int drbd_bmio_set_n_write(struct drbd_device *device)
+int drbd_bmio_set_n_write(struct drbd_device *device) __must_hold(local)
 {
 	int rv = -EIO;
 
-	if (get_ldev_if_state(device, D_ATTACHING)) {
-		drbd_md_set_flag(device, MDF_FULL_SYNC);
+	drbd_md_set_flag(device, MDF_FULL_SYNC);
+	drbd_md_sync(device);
+	drbd_bm_set_all(device);
+
+	rv = drbd_bm_write(device);
+
+	if (!rv) {
+		drbd_md_clear_flag(device, MDF_FULL_SYNC);
 		drbd_md_sync(device);
-		drbd_bm_set_all(device);
-
-		rv = drbd_bm_write(device);
-
-		if (!rv) {
-			drbd_md_clear_flag(device, MDF_FULL_SYNC);
-			drbd_md_sync(device);
-		}
-
-		put_ldev(device);
 	}
 
 	return rv;
@@ -3494,18 +3519,11 @@ int drbd_bmio_set_n_write(struct drbd_device *device)
  *
  * Clears all bits in the bitmap and writes the whole bitmap to stable storage.
  */
-int drbd_bmio_clear_n_write(struct drbd_device *device)
+int drbd_bmio_clear_n_write(struct drbd_device *device) __must_hold(local)
 {
-	int rv = -EIO;
-
 	drbd_resume_al(device);
-	if (get_ldev_if_state(device, D_ATTACHING)) {
-		drbd_bm_clear_all(device);
-		rv = drbd_bm_write(device);
-		put_ldev(device);
-	}
-
-	return rv;
+	drbd_bm_clear_all(device);
+	return drbd_bm_write(device);
 }
 
 static int w_bitmap_io(struct drbd_work *w, int unused)
@@ -3537,61 +3555,6 @@ static int w_bitmap_io(struct drbd_work *w, int unused)
 	return 0;
 }
 
-void drbd_ldev_destroy(struct drbd_device *device)
-{
-	lc_destroy(device->resync);
-	device->resync = NULL;
-	lc_destroy(device->act_log);
-	device->act_log = NULL;
-	__no_warn(local,
-		drbd_free_bc(device->ldev);
-		device->ldev = NULL;);
-
-	clear_bit(GO_DISKLESS, &device->flags);
-}
-
-static int w_go_diskless(struct drbd_work *w, int unused)
-{
-	struct drbd_device *device =
-		container_of(w, struct drbd_device, go_diskless);
-
-	D_ASSERT(device, device->state.disk == D_FAILED);
-	/* we cannot assert local_cnt == 0 here, as get_ldev_if_state will
-	 * inc/dec it frequently. Once we are D_DISKLESS, no one will touch
-	 * the protected members anymore, though, so once put_ldev reaches zero
-	 * again, it will be safe to free them. */
-
-	/* Try to write changed bitmap pages, read errors may have just
-	 * set some bits outside the area covered by the activity log.
-	 *
-	 * If we have an IO error during the bitmap writeout,
-	 * we will want a full sync next time, just in case.
-	 * (Do we want a specific meta data flag for this?)
-	 *
-	 * If that does not make it to stable storage either,
-	 * we cannot do anything about that anymore.
-	 *
-	 * We still need to check if both bitmap and ldev are present, we may
-	 * end up here after a failed attach, before ldev was even assigned.
-	 */
-	if (device->bitmap && device->ldev) {
-		/* An interrupted resync or similar is allowed to recounts bits
-		 * while we detach.
-		 * Any modifications would not be expected anymore, though.
-		 */
-		if (drbd_bitmap_io_from_worker(device, drbd_bm_write,
-					"detach", BM_LOCKED_TEST_ALLOWED)) {
-			if (test_bit(WAS_READ_ERROR, &device->flags)) {
-				drbd_md_set_flag(device, MDF_FULL_SYNC);
-				drbd_md_sync(device);
-			}
-		}
-	}
-
-	drbd_force_state(device, NS(disk, D_DISKLESS));
-	return 0;
-}
-
 /**
  * drbd_queue_bitmap_io() - Queues an IO operation on the whole bitmap
  * @device:	DRBD device.
@@ -3603,6 +3566,9 @@ static int w_go_diskless(struct drbd_work *w, int unused)
  * that drbd_set_out_of_sync() can not be called. This function MAY ONLY be
  * called from worker context. It MUST NOT be used while a previous such
  * work is still pending!
+ *
+ * Its worker function encloses the call of io_fn() by get_ldev() and
+ * put_ldev().
  */
 void drbd_queue_bitmap_io(struct drbd_device *device,
 			  int (*io_fn)(struct drbd_device *),
@@ -3685,25 +3651,7 @@ int drbd_md_test_flag(struct drbd_backing_dev *bdev, int flag)
 static void md_sync_timer_fn(unsigned long data)
 {
 	struct drbd_device *device = (struct drbd_device *) data;
-
-	/* must not double-queue! */
-	if (list_empty(&device->md_sync_work.list))
-		drbd_queue_work_front(&first_peer_device(device)->connection->sender_work,
-				      &device->md_sync_work);
-}
-
-static int w_md_sync(struct drbd_work *w, int unused)
-{
-	struct drbd_device *device =
-		container_of(w, struct drbd_device, md_sync_work);
-
-	drbd_warn(device, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
-#ifdef DEBUG
-	drbd_warn(device, "last md_mark_dirty: %s:%u\n",
-		device->last_md_mark_dirty.func, device->last_md_mark_dirty.line);
-#endif
-	drbd_md_sync(device);
-	return 0;
+	drbd_device_post_work(device, MD_SYNC);
 }
 
 const char *cmdname(enum drbd_packet cmd)

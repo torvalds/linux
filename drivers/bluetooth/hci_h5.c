@@ -355,10 +355,7 @@ static void h5_complete_rx_pkt(struct hci_uart *hu)
 
 static int h5_rx_crc(struct hci_uart *hu, unsigned char c)
 {
-	struct h5 *h5 = hu->priv;
-
 	h5_complete_rx_pkt(hu);
-	h5_reset_rx(h5);
 
 	return 0;
 }
@@ -373,7 +370,6 @@ static int h5_rx_payload(struct hci_uart *hu, unsigned char c)
 		h5->rx_pending = 2;
 	} else {
 		h5_complete_rx_pkt(hu);
-		h5_reset_rx(h5);
 	}
 
 	return 0;

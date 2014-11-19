@@ -10,6 +10,7 @@
 #include <linux/ioport.h>
 #include <linux/elfcore.h>
 #include <linux/elf.h>
+#include <linux/module.h>
 #include <asm/kexec.h>
 
 /* Verify architecture specific macros are defined */
@@ -69,7 +70,18 @@ typedef unsigned long kimage_entry_t;
 #define IND_SOURCE       0x8
 
 struct kexec_segment {
-	void __user *buf;
+	/*
+	 * This pointer can point to user memory if kexec_load() system
+	 * call is used or will point to kernel memory if
+	 * kexec_file_load() system call is used.
+	 *
+	 * Use ->buf when expecting to deal with user memory and use ->kbuf
+	 * when expecting to deal with kernel memory.
+	 */
+	union {
+		void __user *buf;
+		void *kbuf;
+	};
 	size_t bufsz;
 	unsigned long mem;
 	size_t memsz;
@@ -83,6 +95,27 @@ struct compat_kexec_segment {
 	compat_size_t memsz;
 };
 #endif
+
+struct kexec_sha_region {
+	unsigned long start;
+	unsigned long len;
+};
+
+struct purgatory_info {
+	/* Pointer to elf header of read only purgatory */
+	Elf_Ehdr *ehdr;
+
+	/* Pointer to purgatory sechdrs which are modifiable */
+	Elf_Shdr *sechdrs;
+	/*
+	 * Temporary buffer location where purgatory is loaded and relocated
+	 * This memory can be freed post image load
+	 */
+	void *purgatory_buf;
+
+	/* Address where purgatory is finally loaded and is executed from */
+	unsigned long purgatory_load_addr;
+};
 
 struct kimage {
 	kimage_entry_t head;
@@ -100,7 +133,7 @@ struct kimage {
 
 	struct list_head control_pages;
 	struct list_head dest_pages;
-	struct list_head unuseable_pages;
+	struct list_head unusable_pages;
 
 	/* Address of next control page to allocate for crash kernels. */
 	unsigned long control_page;
@@ -110,13 +143,63 @@ struct kimage {
 #define KEXEC_TYPE_DEFAULT 0
 #define KEXEC_TYPE_CRASH   1
 	unsigned int preserve_context : 1;
+	/* If set, we are using file mode kexec syscall */
+	unsigned int file_mode:1;
 
 #ifdef ARCH_HAS_KIMAGE_ARCH
 	struct kimage_arch arch;
 #endif
+
+	/* Additional fields for file based kexec syscall */
+	void *kernel_buf;
+	unsigned long kernel_buf_len;
+
+	void *initrd_buf;
+	unsigned long initrd_buf_len;
+
+	char *cmdline_buf;
+	unsigned long cmdline_buf_len;
+
+	/* File operations provided by image loader */
+	struct kexec_file_ops *fops;
+
+	/* Image loader handling the kernel can store a pointer here */
+	void *image_loader_data;
+
+	/* Information for loading purgatory */
+	struct purgatory_info purgatory_info;
 };
 
+/*
+ * Keeps track of buffer parameters as provided by caller for requesting
+ * memory placement of buffer.
+ */
+struct kexec_buf {
+	struct kimage *image;
+	char *buffer;
+	unsigned long bufsz;
+	unsigned long memsz;
+	unsigned long buf_align;
+	unsigned long buf_min;
+	unsigned long buf_max;
+	bool top_down;		/* allocate from top of memory hole */
+};
 
+typedef int (kexec_probe_t)(const char *kernel_buf, unsigned long kernel_size);
+typedef void *(kexec_load_t)(struct kimage *image, char *kernel_buf,
+			     unsigned long kernel_len, char *initrd,
+			     unsigned long initrd_len, char *cmdline,
+			     unsigned long cmdline_len);
+typedef int (kexec_cleanup_t)(void *loader_data);
+typedef int (kexec_verify_sig_t)(const char *kernel_buf,
+				 unsigned long kernel_len);
+
+struct kexec_file_ops {
+	kexec_probe_t *probe;
+	kexec_load_t *load;
+	kexec_cleanup_t *cleanup;
+	kexec_verify_sig_t *verify_sig;
+};
 
 /* kexec interface functions */
 extern void machine_kexec(struct kimage *image);
@@ -127,8 +210,21 @@ extern asmlinkage long sys_kexec_load(unsigned long entry,
 					struct kexec_segment __user *segments,
 					unsigned long flags);
 extern int kernel_kexec(void);
+extern int kexec_add_buffer(struct kimage *image, char *buffer,
+			    unsigned long bufsz, unsigned long memsz,
+			    unsigned long buf_align, unsigned long buf_min,
+			    unsigned long buf_max, bool top_down,
+			    unsigned long *load_addr);
 extern struct page *kimage_alloc_control_pages(struct kimage *image,
 						unsigned int order);
+extern int kexec_load_purgatory(struct kimage *image, unsigned long min,
+				unsigned long max, int top_down,
+				unsigned long *load_addr);
+extern int kexec_purgatory_get_set_symbol(struct kimage *image,
+					  const char *name, void *buf,
+					  unsigned int size, bool get_value);
+extern void *kexec_purgatory_get_symbol_addr(struct kimage *image,
+					     const char *name);
 extern void crash_kexec(struct pt_regs *);
 int kexec_should_crash(struct task_struct *);
 void crash_save_cpu(struct pt_regs *regs, int cpu);
@@ -176,6 +272,10 @@ extern int kexec_load_disabled;
 #else
 #define KEXEC_FLAGS    (KEXEC_ON_CRASH | KEXEC_PRESERVE_CONTEXT)
 #endif
+
+/* List of defined/legal kexec file flags */
+#define KEXEC_FILE_FLAGS	(KEXEC_FILE_UNLOAD | KEXEC_FILE_ON_CRASH | \
+				 KEXEC_FILE_NO_INITRAMFS)
 
 #define VMCOREINFO_BYTES           (4096)
 #define VMCOREINFO_NOTE_NAME       "VMCOREINFO"

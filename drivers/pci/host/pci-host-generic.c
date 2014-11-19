@@ -385,4 +385,4 @@ module_platform_driver(gen_pci_driver);
 
 MODULE_DESCRIPTION("Generic PCI host driver");
 MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");

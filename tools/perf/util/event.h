@@ -288,6 +288,16 @@ int perf_event__preprocess_sample(const union perf_event *event,
 				  struct addr_location *al,
 				  struct perf_sample *sample);
 
+struct thread;
+
+bool is_bts_event(struct perf_event_attr *attr);
+bool sample_addr_correlates_sym(struct perf_event_attr *attr);
+void perf_event__preprocess_sample_addr(union perf_event *event,
+					struct perf_sample *sample,
+					struct machine *machine,
+					struct thread *thread,
+					struct addr_location *al);
+
 const char *perf_event__name(unsigned int id);
 
 size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,

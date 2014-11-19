@@ -139,9 +139,13 @@ static long atl_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 static int atl_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 			    unsigned long parent_rate)
 {
-	struct dra7_atl_desc *cdesc = to_atl_desc(hw);
+	struct dra7_atl_desc *cdesc;
 	u32 divider;
 
+	if (!hw || !rate)
+		return -EINVAL;
+
+	cdesc = to_atl_desc(hw);
 	divider = ((parent_rate + rate / 2) / rate) - 1;
 	if (divider > DRA7_ATL_DIVIDER_MASK)
 		divider = DRA7_ATL_DIVIDER_MASK;

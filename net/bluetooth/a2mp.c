@@ -63,7 +63,7 @@ void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data)
 	msg.msg_iov = (struct iovec *) &iv;
 	msg.msg_iovlen = 1;
 
-	l2cap_chan_send(chan, &msg, total_len, 0);
+	l2cap_chan_send(chan, &msg, total_len);
 
 	kfree(cmd);
 }
@@ -693,18 +693,19 @@ static void a2mp_chan_state_change_cb(struct l2cap_chan *chan, int state,
 }
 
 static struct sk_buff *a2mp_chan_alloc_skb_cb(struct l2cap_chan *chan,
+					      unsigned long hdr_len,
 					      unsigned long len, int nb)
 {
 	struct sk_buff *skb;
 
-	skb = bt_skb_alloc(len, GFP_KERNEL);
+	skb = bt_skb_alloc(hdr_len + len, GFP_KERNEL);
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
 
 	return skb;
 }
 
-static struct l2cap_ops a2mp_chan_ops = {
+static const struct l2cap_ops a2mp_chan_ops = {
 	.name = "L2CAP A2MP channel",
 	.recv = a2mp_chan_recv_cb,
 	.close = a2mp_chan_close_cb,
@@ -719,6 +720,7 @@ static struct l2cap_ops a2mp_chan_ops = {
 	.resume = l2cap_chan_no_resume,
 	.set_shutdown = l2cap_chan_no_set_shutdown,
 	.get_sndtimeo = l2cap_chan_no_get_sndtimeo,
+	.memcpy_fromiovec = l2cap_chan_no_memcpy_fromiovec,
 };
 
 static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)

@@ -1395,8 +1395,8 @@ static int btrfs_wq_run_delayed_node(struct btrfs_delayed_root *delayed_root,
 		return -ENOMEM;
 
 	async_work->delayed_root = delayed_root;
-	btrfs_init_work(&async_work->work, btrfs_async_run_delayed_root,
-			NULL, NULL);
+	btrfs_init_work(&async_work->work, btrfs_delayed_meta_helper,
+			btrfs_async_run_delayed_root, NULL, NULL);
 	async_work->nr = nr;
 
 	btrfs_queue_work(root->fs_info->delayed_workers, &async_work->work);

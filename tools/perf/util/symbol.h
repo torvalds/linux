@@ -118,7 +118,8 @@ struct symbol_conf {
 			annotate_src,
 			event_group,
 			demangle,
-			filter_relative;
+			filter_relative,
+			show_hist_headers;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
@@ -215,6 +216,7 @@ struct symsrc {
 	GElf_Shdr dynshdr;
 
 	bool adjust_symbols;
+	bool is_64_bit;
 #endif
 };
 
@@ -237,6 +239,11 @@ struct symbol *dso__find_symbol(struct dso *dso, enum map_type type,
 				u64 addr);
 struct symbol *dso__find_symbol_by_name(struct dso *dso, enum map_type type,
 					const char *name);
+
+struct symbol *dso__first_symbol(struct dso *dso, enum map_type type);
+struct symbol *dso__next_symbol(struct symbol *sym);
+
+enum dso_type dso__type_fd(int fd);
 
 int filename__read_build_id(const char *filename, void *bf, size_t size);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);

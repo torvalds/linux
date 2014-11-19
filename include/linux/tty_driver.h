@@ -35,14 +35,14 @@
  * 	This routine is mandatory; if this routine is not filled in,
  * 	the attempted open will fail with ENODEV.
  *
- *	Required method.
- *     
+ *	Required method. Called with tty lock held.
+ *
  * void (*close)(struct tty_struct * tty, struct file * filp);
  *
  * 	This routine is called when a particular tty device is closed.
  *	Note: called even if the corresponding open() failed.
  *
- *	Required method.
+ *	Required method. Called with tty lock held.
  *
  * void (*shutdown)(struct tty_struct * tty);
  *
@@ -171,6 +171,8 @@
  * 	tty device.
  *
  *	Optional:
+ *
+ *	Called with tty lock held.
  *
  * int (*break_ctl)(struct tty_struct *tty, int state);
  *

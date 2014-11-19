@@ -44,7 +44,7 @@
  * 1 if the insertion succeeds, 0 if the queue was full.
  */
 unsigned char
-visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, U32 Queue, void *pSignal)
+visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, u32 Queue, void *pSignal)
 {
 	void __iomem *psignal;
 	unsigned int head, tail, nof;
@@ -102,7 +102,7 @@ EXPORT_SYMBOL_GPL(visor_signal_insert);
  * 1 if the removal succeeds, 0 if the queue was empty.
  */
 unsigned char
-visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, U32 Queue, void *pSignal)
+visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, u32 Queue, void *pSignal)
 {
 	void __iomem *psource;
 	unsigned int head, tail;
@@ -157,7 +157,7 @@ EXPORT_SYMBOL_GPL(visor_signal_remove);
  * # of signals copied.
  */
 unsigned int
-SignalRemoveAll(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
+SignalRemoveAll(pCHANNEL_HEADER pChannel, u32 Queue, void *pSignal)
 {
 	void *psource;
 	unsigned int head, tail, signalCount = 0;
@@ -208,7 +208,7 @@ SignalRemoveAll(pCHANNEL_HEADER pChannel, U32 Queue, void *pSignal)
  * 1 if the signal queue is empty, 0 otherwise.
  */
 unsigned char
-visor_signalqueue_empty(CHANNEL_HEADER __iomem *pChannel, U32 Queue)
+visor_signalqueue_empty(CHANNEL_HEADER __iomem *pChannel, u32 Queue)
 {
 	SIGNAL_QUEUE_HEADER __iomem *pqhdr =
 	    (SIGNAL_QUEUE_HEADER __iomem *) ((char __iomem *) pChannel +

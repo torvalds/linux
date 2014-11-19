@@ -43,10 +43,7 @@ struct ahci_host_priv *ahci_platform_get_resources(
 	struct platform_device *pdev);
 int ahci_platform_init_host(struct platform_device *pdev,
 			    struct ahci_host_priv *hpriv,
-			    const struct ata_port_info *pi_template,
-			    unsigned long host_flags,
-			    unsigned int force_port_map,
-			    unsigned int mask_port_map);
+			    const struct ata_port_info *pi_template);
 
 int ahci_platform_suspend_host(struct device *dev);
 int ahci_platform_resume_host(struct device *dev);

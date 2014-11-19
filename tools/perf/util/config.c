@@ -350,6 +350,16 @@ static int perf_default_core_config(const char *var __maybe_unused,
 	return 0;
 }
 
+static int perf_ui_config(const char *var, const char *value)
+{
+	/* Add other config variables here. */
+	if (!strcmp(var, "ui.show-headers")) {
+		symbol_conf.show_hist_headers = perf_config_bool(var, value);
+		return 0;
+	}
+	return 0;
+}
+
 int perf_default_config(const char *var, const char *value,
 			void *dummy __maybe_unused)
 {
@@ -358,6 +368,9 @@ int perf_default_config(const char *var, const char *value,
 
 	if (!prefixcmp(var, "hist."))
 		return perf_hist_config(var, value);
+
+	if (!prefixcmp(var, "ui."))
+		return perf_ui_config(var, value);
 
 	/* Add other config variables here. */
 	return 0;

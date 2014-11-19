@@ -175,7 +175,7 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_octetcount_g),
 	STMMAC_MMC_STAT(mmc_rx_broadcastframe_g),
 	STMMAC_MMC_STAT(mmc_rx_multicastframe_g),
-	STMMAC_MMC_STAT(mmc_rx_crc_errror),
+	STMMAC_MMC_STAT(mmc_rx_crc_error),
 	STMMAC_MMC_STAT(mmc_rx_align_error),
 	STMMAC_MMC_STAT(mmc_rx_run_error),
 	STMMAC_MMC_STAT(mmc_rx_jabber_error),
@@ -262,7 +262,7 @@ static int stmmac_ethtool_getsettings(struct net_device *dev,
 
 		/* Get and convert ADV/LP_ADV from the HW AN registers */
 		if (priv->hw->mac->get_adv)
-			priv->hw->mac->get_adv(priv->ioaddr, &adv);
+			priv->hw->mac->get_adv(priv->hw, &adv);
 		else
 			return -EOPNOTSUPP;	/* should never happen indeed */
 
@@ -350,7 +350,7 @@ static int stmmac_ethtool_setsettings(struct net_device *dev,
 
 			spin_lock(&priv->lock);
 			if (priv->hw->mac->ctrl_ane)
-				priv->hw->mac->ctrl_ane(priv->ioaddr, 1);
+				priv->hw->mac->ctrl_ane(priv->hw, 1);
 			spin_unlock(&priv->lock);
 		}
 
@@ -464,7 +464,7 @@ stmmac_set_pauseparam(struct net_device *netdev,
 		if (netif_running(netdev))
 			ret = phy_start_aneg(phy);
 	} else
-		priv->hw->mac->flow_ctrl(priv->ioaddr, phy->duplex,
+		priv->hw->mac->flow_ctrl(priv->hw, phy->duplex,
 					 priv->flow_ctrl, priv->pause);
 	return ret;
 }

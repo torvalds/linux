@@ -19,9 +19,11 @@
  */
 
 #include <linux/of_platform.h>
-#include <mach/common.h>
-#include <mach/r8a7778.h>
+
 #include <asm/mach/arch.h>
+
+#include "common.h"
+#include "r8a7778.h"
 
 /*
  *	see board-bock.c for checking detail of dip-switch

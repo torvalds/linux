@@ -42,7 +42,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LLITE
-#include <lustre_lite.h>
+#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 #include <linux/exportfs.h>
 

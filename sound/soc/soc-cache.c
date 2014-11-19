@@ -78,7 +78,7 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 	mutex_init(&codec->cache_rw_mutex);
 
 	dev_dbg(codec->dev, "ASoC: Initializing cache for %s codec\n",
-				codec->name);
+				codec->component.name);
 
 	if (codec_drv->reg_cache_default)
 		codec->reg_cache = kmemdup(codec_drv->reg_cache_default,
@@ -98,8 +98,7 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 int snd_soc_cache_exit(struct snd_soc_codec *codec)
 {
 	dev_dbg(codec->dev, "ASoC: Destroying cache for %s codec\n",
-			codec->name);
-
+			codec->component.name);
 	kfree(codec->reg_cache);
 	codec->reg_cache = NULL;
 	return 0;
@@ -192,7 +191,7 @@ int snd_soc_cache_sync(struct snd_soc_codec *codec)
 		return 0;
 
 	dev_dbg(codec->dev, "ASoC: Syncing cache for %s codec\n",
-		codec->name);
+		codec->component.name);
 	trace_snd_soc_cache_sync(codec, name, "start");
 	ret = snd_soc_flat_cache_sync(codec);
 	if (!ret)

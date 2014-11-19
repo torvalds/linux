@@ -87,7 +87,7 @@ TRACE_EVENT(foo_bar,
 	),
 
 	TP_fast_assign(
-		strncpy(__entry->foo, foo, 10);
+		strlcpy(__entry->foo, foo, 10);
 		__entry->bar	= bar;
 	),
 

@@ -359,7 +359,7 @@ static void dwapb_gpio_unregister(struct dwapb_gpio *gpio)
 
 	for (m = 0; m < gpio->nr_ports; ++m)
 		if (gpio->ports[m].is_registered)
-			WARN_ON(gpiochip_remove(&gpio->ports[m].bgc.gc));
+			gpiochip_remove(&gpio->ports[m].bgc.gc);
 }
 
 static int dwapb_gpio_probe(struct platform_device *pdev)

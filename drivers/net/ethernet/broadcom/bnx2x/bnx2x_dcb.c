@@ -2303,8 +2303,8 @@ static int bnx2x_set_admin_app_up(struct bnx2x *bp, u8 idtype, u16 idval, u8 up)
 	return 0;
 }
 
-static u8 bnx2x_dcbnl_set_app_up(struct net_device *netdev, u8 idtype,
-				 u16 idval, u8 up)
+static int bnx2x_dcbnl_set_app_up(struct net_device *netdev, u8 idtype,
+				  u16 idval, u8 up)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
 

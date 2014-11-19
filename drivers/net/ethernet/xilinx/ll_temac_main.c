@@ -72,7 +72,7 @@ void temac_iow(struct temac_local *lp, int offset, u32 value)
 
 int temac_indirect_busywait(struct temac_local *lp)
 {
-	long end = jiffies + 2;
+	unsigned long end = jiffies + 2;
 
 	while (!(temac_ior(lp, XTE_RDY0_OFFSET) & XTE_RDY0_HARD_ACS_RDY_MASK)) {
 		if (time_before_eq(end, jiffies)) {
@@ -1148,8 +1148,7 @@ static int temac_of_remove(struct platform_device *op)
 	temac_mdio_teardown(lp);
 	unregister_netdev(ndev);
 	sysfs_remove_group(&lp->dev->kobj, &temac_attr_group);
-	if (lp->phy_node)
-		of_node_put(lp->phy_node);
+	of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
 	iounmap(lp->regs);
 	if (lp->sdma_regs)
@@ -1171,7 +1170,6 @@ static struct platform_driver temac_of_driver = {
 	.probe = temac_of_probe,
 	.remove = temac_of_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "xilinx_temac",
 		.of_match_table = temac_of_match,
 	},

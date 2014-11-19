@@ -205,6 +205,7 @@ struct inet6_dev {
 	struct timer_list	rs_timer;
 	__u8			rs_probes;
 
+	__u8			addr_gen_mode;
 	unsigned long		tstamp; /* ipv6InterfaceTable update timestamp */
 	struct rcu_head		rcu;
 };

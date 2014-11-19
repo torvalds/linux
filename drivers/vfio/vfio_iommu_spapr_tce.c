@@ -156,7 +156,16 @@ static long tce_iommu_ioctl(void *iommu_data,
 
 	switch (cmd) {
 	case VFIO_CHECK_EXTENSION:
-		return (arg == VFIO_SPAPR_TCE_IOMMU) ? 1 : 0;
+		switch (arg) {
+		case VFIO_SPAPR_TCE_IOMMU:
+			ret = 1;
+			break;
+		default:
+			ret = vfio_spapr_iommu_eeh_ioctl(NULL, cmd, arg);
+			break;
+		}
+
+		return (ret < 0) ? 0 : ret;
 
 	case VFIO_IOMMU_SPAPR_TCE_GET_INFO: {
 		struct vfio_iommu_spapr_tce_info info;
@@ -283,6 +292,12 @@ static long tce_iommu_ioctl(void *iommu_data,
 		tce_iommu_disable(container);
 		mutex_unlock(&container->lock);
 		return 0;
+	case VFIO_EEH_PE_OP:
+		if (!container->tbl || !container->tbl->it_group)
+			return -ENODEV;
+
+		return vfio_spapr_iommu_eeh_ioctl(container->tbl->it_group,
+						  cmd, arg);
 	}
 
 	return -ENOTTY;

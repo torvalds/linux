@@ -526,21 +526,21 @@ static void m_stop(struct seq_file *seq, void *v)
 	return;
 }
 
-struct seq_operations proc_uid_seq_operations = {
+const struct seq_operations proc_uid_seq_operations = {
 	.start = uid_m_start,
 	.stop = m_stop,
 	.next = m_next,
 	.show = uid_m_show,
 };
 
-struct seq_operations proc_gid_seq_operations = {
+const struct seq_operations proc_gid_seq_operations = {
 	.start = gid_m_start,
 	.stop = m_stop,
 	.next = m_next,
 	.show = gid_m_show,
 };
 
-struct seq_operations proc_projid_seq_operations = {
+const struct seq_operations proc_projid_seq_operations = {
 	.start = projid_m_start,
 	.stop = m_stop,
 	.next = m_next,

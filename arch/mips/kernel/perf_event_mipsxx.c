@@ -558,7 +558,7 @@ static int mipspmu_get_irq(void)
 	if (mipspmu.irq >= 0) {
 		/* Request my own irq handler. */
 		err = request_irq(mipspmu.irq, mipsxx_pmu_handle_irq,
-			IRQF_PERCPU | IRQF_NOBALANCING,
+			IRQF_PERCPU | IRQF_NOBALANCING | IRQF_NO_THREAD,
 			"mips_perf_pmu", NULL);
 		if (err) {
 			pr_warning("Unable to request IRQ%d for MIPS "
@@ -1386,6 +1386,9 @@ static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 /* proAptiv */
 #define IS_BOTH_COUNTERS_PROAPTIV_EVENT(b)				\
 	((b) == 0 || (b) == 1)
+/* P5600 */
+#define IS_BOTH_COUNTERS_P5600_EVENT(b)					\
+	((b) == 0 || (b) == 1)
 
 /* 1004K */
 #define IS_BOTH_COUNTERS_1004K_EVENT(b)					\
@@ -1420,19 +1423,22 @@ static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 
 
 /*
- * User can use 0-255 raw events, where 0-127 for the events of even
- * counters, and 128-255 for odd counters. Note that bit 7 is used to
- * indicate the parity. So, for example, when user wants to take the
- * Event Num of 15 for odd counters (by referring to the user manual),
- * then 128 needs to be added to 15 as the input for the event config,
- * i.e., 143 (0x8F) to be used.
+ * For most cores the user can use 0-255 raw events, where 0-127 for the events
+ * of even counters, and 128-255 for odd counters. Note that bit 7 is used to
+ * indicate the even/odd bank selector. So, for example, when user wants to take
+ * the Event Num of 15 for odd counters (by referring to the user manual), then
+ * 128 needs to be added to 15 as the input for the event config, i.e., 143 (0x8F)
+ * to be used.
+ *
+ * Some newer cores have even more events, in which case the user can use raw
+ * events 0-511, where 0-255 are for the events of even counters, and 256-511
+ * are for odd counters, so bit 8 is used to indicate the even/odd bank selector.
  */
 static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 {
+	/* currently most cores have 7-bit event numbers */
 	unsigned int raw_id = config & 0xff;
 	unsigned int base_id = raw_id & 0x7f;
-
-	raw_event.event_id = base_id;
 
 	switch (current_cpu_type()) {
 	case CPU_24K:
@@ -1485,6 +1491,19 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 		raw_event.range = P;
 #endif
 		break;
+	case CPU_P5600:
+		/* 8-bit event numbers */
+		raw_id = config & 0x1ff;
+		base_id = raw_id & 0xff;
+		if (IS_BOTH_COUNTERS_P5600_EVENT(base_id))
+			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
+		else
+			raw_event.cntr_mask =
+				raw_id > 255 ? CNTR_ODD : CNTR_EVEN;
+#ifdef CONFIG_MIPS_MT_SMP
+		raw_event.range = P;
+#endif
+		break;
 	case CPU_1004K:
 		if (IS_BOTH_COUNTERS_1004K_EVENT(base_id))
 			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
@@ -1522,6 +1541,8 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 			raw_event.cntr_mask =
 				raw_id > 127 ? CNTR_ODD : CNTR_EVEN;
 	}
+
+	raw_event.event_id = base_id;
 
 	return &raw_event;
 }
@@ -1630,6 +1651,11 @@ init_hw_perf_events(void)
 		break;
 	case CPU_PROAPTIV:
 		mipspmu.name = "mips/proAptiv";
+		mipspmu.general_event_map = &mipsxxcore_event_map2;
+		mipspmu.cache_event_map = &mipsxxcore_cache_map2;
+		break;
+	case CPU_P5600:
+		mipspmu.name = "mips/P5600";
 		mipspmu.general_event_map = &mipsxxcore_event_map2;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map2;
 		break;

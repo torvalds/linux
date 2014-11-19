@@ -1560,13 +1560,6 @@ static void sci_stop_rx(struct uart_port *port)
 	serial_port_out(port, SCSCR, ctrl);
 }
 
-static void sci_enable_ms(struct uart_port *port)
-{
-	/*
-	 * Not supported by hardware, always a nop.
-	 */
-}
-
 static void sci_break_ctl(struct uart_port *port, int break_state)
 {
 	struct sci_port *s = to_sci_port(port);
@@ -1783,30 +1776,71 @@ static unsigned int sci_scbrr_calc(struct sci_port *s, unsigned int bps,
 	return ((freq + 16 * bps) / (32 * bps) - 1);
 }
 
+/* calculate frame length from SMR */
+static int sci_baud_calc_frame_len(unsigned int smr_val)
+{
+	int len = 10;
+
+	if (smr_val & SCSMR_CHR)
+		len--;
+	if (smr_val & SCSMR_PE)
+		len++;
+	if (smr_val & SCSMR_STOP)
+		len++;
+
+	return len;
+}
+
+
 /* calculate sample rate, BRR, and clock select for HSCIF */
 static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq,
 				int *brr, unsigned int *srr,
-				unsigned int *cks)
+				unsigned int *cks, int frame_len)
 {
-	int sr, c, br, err;
+	int sr, c, br, err, recv_margin;
 	int min_err = 1000; /* 100% */
+	int recv_max_margin = 0;
 
 	/* Find the combination of sample rate and clock select with the
 	   smallest deviation from the desired baud rate. */
 	for (sr = 8; sr <= 32; sr++) {
 		for (c = 0; c <= 3; c++) {
 			/* integerized formulas from HSCIF documentation */
-			br = freq / (sr * (1 << (2 * c + 1)) * bps) - 1;
-			if (br < 0 || br > 255)
+			br = DIV_ROUND_CLOSEST(freq, (sr *
+					      (1 << (2 * c + 1)) * bps)) - 1;
+			br = clamp(br, 0, 255);
+			err = DIV_ROUND_CLOSEST(freq, ((br + 1) * bps * sr *
+					       (1 << (2 * c + 1)) / 1000)) -
+					       1000;
+			if (err < 0)
 				continue;
-			err = freq / ((br + 1) * bps * sr *
-			      (1 << (2 * c + 1)) / 1000) - 1000;
+
+			/* Calc recv margin
+			 * M: Receive margin (%)
+			 * N: Ratio of bit rate to clock (N = sampling rate)
+			 * D: Clock duty (D = 0 to 1.0)
+			 * L: Frame length (L = 9 to 12)
+			 * F: Absolute value of clock frequency deviation
+			 *
+			 *  M = |(0.5 - 1 / 2 * N) - ((L - 0.5) * F) -
+			 *      (|D - 0.5| / N * (1 + F))|
+			 *  NOTE: Usually, treat D for 0.5, F is 0 by this
+			 *        calculation.
+			 */
+			recv_margin = abs((500 -
+					DIV_ROUND_CLOSEST(1000, sr << 1)) / 10);
 			if (min_err > err) {
 				min_err = err;
-				*brr = br;
-				*srr = sr - 1;
-				*cks = c;
-			}
+				recv_max_margin = recv_margin;
+			} else if ((min_err == err) &&
+				   (recv_margin > recv_max_margin))
+				recv_max_margin = recv_margin;
+			else
+				continue;
+
+			*brr = br;
+			*srr = sr - 1;
+			*cks = c;
 		}
 	}
 
@@ -1840,9 +1874,18 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct sci_port *s = to_sci_port(port);
 	struct plat_sci_reg *reg;
-	unsigned int baud, smr_val, max_baud, cks = 0;
+	unsigned int baud, smr_val = 0, max_baud, cks = 0;
 	int t = -1;
 	unsigned int srr = 15;
+
+	if ((termios->c_cflag & CSIZE) == CS7)
+		smr_val |= SCSMR_CHR;
+	if (termios->c_cflag & PARENB)
+		smr_val |= SCSMR_PE;
+	if (termios->c_cflag & PARODD)
+		smr_val |= SCSMR_PE | SCSMR_ODD;
+	if (termios->c_cflag & CSTOPB)
+		smr_val |= SCSMR_STOP;
 
 	/*
 	 * earlyprintk comes here early on with port->uartclk set to zero.
@@ -1857,8 +1900,9 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
 	if (likely(baud && port->uartclk)) {
 		if (s->cfg->type == PORT_HSCIF) {
+			int frame_len = sci_baud_calc_frame_len(smr_val);
 			sci_baud_calc_hscif(baud, port->uartclk, &t, &srr,
-					    &cks);
+					    &cks, frame_len);
 		} else {
 			t = sci_scbrr_calc(s, baud, port->uartclk);
 			for (cks = 0; t >= 256 && cks <= 3; cks++)
@@ -1870,16 +1914,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	sci_reset(port);
 
-	smr_val = serial_port_in(port, SCSMR) & 3;
-
-	if ((termios->c_cflag & CSIZE) == CS7)
-		smr_val |= SCSMR_CHR;
-	if (termios->c_cflag & PARENB)
-		smr_val |= SCSMR_PE;
-	if (termios->c_cflag & PARODD)
-		smr_val |= SCSMR_PE | SCSMR_ODD;
-	if (termios->c_cflag & CSTOPB)
-		smr_val |= SCSMR_STOP;
+	smr_val |= serial_port_in(port, SCSMR) & 3;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 
@@ -2080,7 +2115,6 @@ static struct uart_ops sci_uart_ops = {
 	.start_tx	= sci_start_tx,
 	.stop_tx	= sci_stop_tx,
 	.stop_rx	= sci_stop_rx,
-	.enable_ms	= sci_enable_ms,
 	.break_ctl	= sci_break_ctl,
 	.startup	= sci_startup,
 	.shutdown	= sci_shutdown,

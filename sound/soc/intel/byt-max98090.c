@@ -39,8 +39,7 @@ static const struct snd_soc_dapm_widget byt_max98090_widgets[] = {
 
 static const struct snd_soc_dapm_route byt_max98090_audio_map[] = {
 	{"IN34", NULL, "Headset Mic"},
-	{"IN34", NULL, "MICBIAS"},
-	{"MICBIAS", NULL, "Headset Mic"},
+	{"Headset Mic", NULL, "MICBIAS"},
 	{"DMICL", NULL, "Int Mic"},
 	{"Headphone", NULL, "HPL"},
 	{"Headphone", NULL, "HPR"},
@@ -64,14 +63,6 @@ static struct snd_soc_jack_pin hs_jack_pins[] = {
 		.pin	= "Headset Mic",
 		.mask	= SND_JACK_MICROPHONE,
 	},
-	{
-		.pin	= "Ext Spk",
-		.mask	= SND_JACK_LINEOUT,
-	},
-	{
-		.pin	= "Int Mic",
-		.mask	= SND_JACK_LINEIN,
-	},
 };
 
 static struct snd_soc_jack_gpio hs_jack_gpios[] = {
@@ -84,7 +75,8 @@ static struct snd_soc_jack_gpio hs_jack_gpios[] = {
 	{
 		.name		= "mic-gpio",
 		.idx		= 1,
-		.report		= SND_JACK_MICROPHONE | SND_JACK_LINEIN,
+		.invert		= 1,
+		.report		= SND_JACK_MICROPHONE,
 		.debounce_time	= 200,
 	},
 };
@@ -108,7 +100,8 @@ static int byt_max98090_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	/* Enable jack detection */
-	ret = snd_soc_jack_new(codec, "Headphone", SND_JACK_HEADPHONE, jack);
+	ret = snd_soc_jack_new(codec, "Headset",
+			       SND_JACK_LINEOUT | SND_JACK_HEADSET, jack);
 	if (ret)
 		return ret;
 
@@ -117,13 +110,9 @@ static int byt_max98090_init(struct snd_soc_pcm_runtime *runtime)
 	if (ret)
 		return ret;
 
-	ret = snd_soc_jack_add_gpiods(card->dev->parent, jack,
-				      ARRAY_SIZE(hs_jack_gpios),
-				      hs_jack_gpios);
-	if (ret)
-		return ret;
-
-	return max98090_mic_detect(codec, jack);
+	return snd_soc_jack_add_gpiods(card->dev->parent, jack,
+				       ARRAY_SIZE(hs_jack_gpios),
+				       hs_jack_gpios);
 }
 
 static struct snd_soc_dai_link byt_max98090_dais[] = {

@@ -813,6 +813,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		else {
 			dst_release(transport->dst);
 			transport->dst = NULL;
+			ulp_notify = false;
 		}
 
 		spc_state = SCTP_ADDR_UNREACHABLE;
@@ -1244,7 +1245,7 @@ static struct sctp_transport *sctp_trans_elect_best(struct sctp_transport *curr,
 {
 	u8 score_curr, score_best;
 
-	if (best == NULL)
+	if (best == NULL || curr == best)
 		return curr;
 
 	score_curr = sctp_trans_score(curr);
@@ -1355,14 +1356,11 @@ static void sctp_select_active_and_retran_path(struct sctp_association *asoc)
 		trans_sec = trans_pri;
 
 	/* If we failed to find a usable transport, just camp on the
-	 * primary or retran, even if they are inactive, if possible
-	 * pick a PF iff it's the better choice.
+	 * active or pick a PF iff it's the better choice.
 	 */
 	if (trans_pri == NULL) {
-		trans_pri = sctp_trans_elect_best(asoc->peer.primary_path,
-						  asoc->peer.retran_path);
-		trans_pri = sctp_trans_elect_best(trans_pri, trans_pf);
-		trans_sec = asoc->peer.primary_path;
+		trans_pri = sctp_trans_elect_best(asoc->peer.active_path, trans_pf);
+		trans_sec = trans_pri;
 	}
 
 	/* Set the active and retran transports. */

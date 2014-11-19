@@ -386,7 +386,7 @@ sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
 			 struct sh_mmcif_plat_data *pdata,
 			 enum dma_transfer_direction direction)
 {
-	struct dma_slave_config cfg;
+	struct dma_slave_config cfg = { 0, };
 	struct dma_chan *chan;
 	unsigned int slave_id;
 	struct resource *res;
@@ -417,8 +417,15 @@ sh_mmcif_request_dma_one(struct sh_mmcif_host *host,
 	/* In the OF case the driver will get the slave ID from the DT */
 	cfg.slave_id = slave_id;
 	cfg.direction = direction;
-	cfg.dst_addr = res->start + MMCIF_CE_DATA;
-	cfg.src_addr = 0;
+
+	if (direction == DMA_DEV_TO_MEM) {
+		cfg.src_addr = res->start + MMCIF_CE_DATA;
+		cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	} else {
+		cfg.dst_addr = res->start + MMCIF_CE_DATA;
+		cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	}
+
 	ret = dmaengine_slave_config(chan, &cfg);
 	if (ret < 0) {
 		dma_release_channel(chan);
@@ -1378,26 +1385,19 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Get irq error\n");
 		return -ENXIO;
 	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "platform_get_resource error.\n");
-		return -ENXIO;
-	}
-	reg = ioremap(res->start, resource_size(res));
-	if (!reg) {
-		dev_err(&pdev->dev, "ioremap error.\n");
-		return -ENOMEM;
-	}
+	reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	mmc = mmc_alloc_host(sizeof(struct sh_mmcif_host), &pdev->dev);
-	if (!mmc) {
-		ret = -ENOMEM;
-		goto ealloch;
-	}
+	if (!mmc)
+		return -ENOMEM;
 
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
-		goto eofparse;
+		goto err_host;
 
 	host		= mmc_priv(mmc);
 	host->mmc	= mmc;
@@ -1427,19 +1427,19 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	host->power = false;
 
-	host->hclk = clk_get(&pdev->dev, NULL);
+	host->hclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->hclk)) {
 		ret = PTR_ERR(host->hclk);
 		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
-		goto eclkget;
+		goto err_pm;
 	}
 	ret = sh_mmcif_clk_update(host);
 	if (ret < 0)
-		goto eclkupdate;
+		goto err_pm;
 
 	ret = pm_runtime_resume(&pdev->dev);
 	if (ret < 0)
-		goto eresume;
+		goto err_clk;
 
 	INIT_DELAYED_WORK(&host->timeout_work, mmcif_timeout_work);
 
@@ -1447,65 +1447,55 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
 
 	name = irq[1] < 0 ? dev_name(&pdev->dev) : "sh_mmc:error";
-	ret = request_threaded_irq(irq[0], sh_mmcif_intr, sh_mmcif_irqt, 0, name, host);
+	ret = devm_request_threaded_irq(&pdev->dev, irq[0], sh_mmcif_intr,
+					sh_mmcif_irqt, 0, name, host);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq error (%s)\n", name);
-		goto ereqirq0;
+		goto err_clk;
 	}
 	if (irq[1] >= 0) {
-		ret = request_threaded_irq(irq[1], sh_mmcif_intr, sh_mmcif_irqt,
-					   0, "sh_mmc:int", host);
+		ret = devm_request_threaded_irq(&pdev->dev, irq[1],
+						sh_mmcif_intr, sh_mmcif_irqt,
+						0, "sh_mmc:int", host);
 		if (ret) {
 			dev_err(&pdev->dev, "request_irq error (sh_mmc:int)\n");
-			goto ereqirq1;
+			goto err_clk;
 		}
 	}
 
 	if (pd && pd->use_cd_gpio) {
 		ret = mmc_gpio_request_cd(mmc, pd->cd_gpio, 0);
 		if (ret < 0)
-			goto erqcd;
+			goto err_clk;
 	}
 
 	mutex_init(&host->thread_lock);
 
-	clk_disable_unprepare(host->hclk);
 	ret = mmc_add_host(mmc);
 	if (ret < 0)
-		goto emmcaddh;
+		goto err_clk;
 
 	dev_pm_qos_expose_latency_limit(&pdev->dev, 100);
 
-	dev_info(&pdev->dev, "driver version %s\n", DRIVER_VERSION);
-	dev_dbg(&pdev->dev, "chip ver H'%04x\n",
-		sh_mmcif_readl(host->addr, MMCIF_CE_VERSION) & 0x0000ffff);
+	dev_info(&pdev->dev, "Chip version 0x%04x, clock rate %luMHz\n",
+		 sh_mmcif_readl(host->addr, MMCIF_CE_VERSION) & 0xffff,
+		 clk_get_rate(host->hclk) / 1000000UL);
+
+	clk_disable_unprepare(host->hclk);
 	return ret;
 
-emmcaddh:
-erqcd:
-	if (irq[1] >= 0)
-		free_irq(irq[1], host);
-ereqirq1:
-	free_irq(irq[0], host);
-ereqirq0:
-	pm_runtime_suspend(&pdev->dev);
-eresume:
+err_clk:
 	clk_disable_unprepare(host->hclk);
-eclkupdate:
-	clk_put(host->hclk);
-eclkget:
+err_pm:
 	pm_runtime_disable(&pdev->dev);
-eofparse:
+err_host:
 	mmc_free_host(mmc);
-ealloch:
-	iounmap(reg);
 	return ret;
 }
 
 static int sh_mmcif_remove(struct platform_device *pdev)
 {
 	struct sh_mmcif_host *host = platform_get_drvdata(pdev);
-	int irq[2];
 
 	host->dying = true;
 	clk_prepare_enable(host->hclk);
@@ -1522,16 +1512,6 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	 * (a query on the linux-mmc mailing list didn't bring any replies).
 	 */
 	cancel_delayed_work_sync(&host->timeout_work);
-
-	if (host->addr)
-		iounmap(host->addr);
-
-	irq[0] = platform_get_irq(pdev, 0);
-	irq[1] = platform_get_irq(pdev, 1);
-
-	free_irq(irq[0], host);
-	if (irq[1] >= 0)
-		free_irq(irq[1], host);
 
 	clk_disable_unprepare(host->hclk);
 	mmc_free_host(host->mmc);

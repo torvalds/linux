@@ -10,6 +10,7 @@ Required properties:
 - compatible : Should be "ti,irq-crossbar"
 - reg: Base address and the size of the crossbar registers.
 - ti,max-irqs: Total number of irqs available at the interrupt controller.
+- ti,max-crossbar-sources: Maximum number of crossbar sources that can be routed.
 - ti,reg-size: Size of a individual register in bytes. Every individual
 	    register is assumed to be of same size. Valid sizes are 1, 2, 4.
 - ti,irqs-reserved: List of the reserved irq lines that are not muxed using
@@ -17,11 +18,46 @@ Required properties:
 		 so crossbar bar driver should not consider them as free
 		 lines.
 
+Optional properties:
+- ti,irqs-skip: This is similar to "ti,irqs-reserved", but these are for
+  SOC-specific hard-wiring of those irqs which unexpectedly bypasses the
+  crossbar. These irqs have a crossbar register, but still cannot be used.
+
+- ti,irqs-safe-map: integer which maps to a safe configuration to use
+  when the interrupt controller irq is unused (when not provided, default is 0)
+
 Examples:
 		crossbar_mpu: @4a020000 {
 			compatible = "ti,irq-crossbar";
 			reg = <0x4a002a48 0x130>;
 			ti,max-irqs = <160>;
+			ti,max-crossbar-sources = <400>;
 			ti,reg-size = <2>;
 			ti,irqs-reserved = <0 1 2 3 5 6 131 132 139 140>;
+			ti,irqs-skip = <10 133 139 140>;
 		};
+
+Consumer:
+========
+See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt and
+Documentation/devicetree/bindings/arm/gic.txt for further details.
+
+An interrupt consumer on an SoC using crossbar will use:
+	interrupts = <GIC_SPI request_number interrupt_level>
+When the request number is between 0 to that described by
+"ti,max-crossbar-sources", it is assumed to be a crossbar mapping. If the
+request_number is greater than "ti,max-crossbar-sources", then it is mapped as a
+quirky hardware mapping direct to GIC.
+
+Example:
+	device_x@0x4a023000 {
+		/* Crossbar 8 used */
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		...
+	};
+
+	device_y@0x4a033000 {
+		/* Direct mapped GIC SPI 1 used */
+		interrupts = <GIC_SPI DIRECT_IRQ(1) IRQ_TYPE_LEVEL_HIGH>;
+		...
+	};

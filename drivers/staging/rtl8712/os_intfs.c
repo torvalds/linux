@@ -345,8 +345,7 @@ u8 r8712_free_drv_sw(struct _adapter *padapter)
 	r8712_free_mlme_priv(&padapter->mlmepriv);
 	r8712_free_io_queue(padapter);
 	_free_xmit_priv(&padapter->xmitpriv);
-	if (padapter->fw_found)
-		_r8712_free_sta_priv(&padapter->stapriv);
+	_r8712_free_sta_priv(&padapter->stapriv);
 	_r8712_free_recv_priv(&padapter->recvpriv);
 	mp871xdeinit(padapter);
 	if (pnetdev)

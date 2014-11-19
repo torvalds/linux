@@ -4,6 +4,7 @@
  * (c) 2009 Manuel Lauss <manuel.lauss@googlemail.com>
  */
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
@@ -169,7 +170,7 @@ static void au1300_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 
 static int au1300_nand_device_ready(struct mtd_info *mtd)
 {
-	return __raw_readl((void __iomem *)MEM_STSTAT) & 1;
+	return alchemy_rdsmem(AU1000_MEM_STSTAT) & 1;
 }
 
 static struct mtd_partition db1300_nand_parts[] = {
@@ -731,6 +732,7 @@ static struct platform_device *db1300_dev[] __initdata = {
 int __init db1300_dev_setup(void)
 {
 	int swapped, cpldirq;
+	struct clk *c;
 
 	/* setup CPLD IRQ muxer */
 	cpldirq = au1300_gpio_to_irq(AU1300_PIN_EXTCLK1);
@@ -761,6 +763,11 @@ int __init db1300_dev_setup(void)
 	    (void __iomem *)KSEG1ADDR(AU1300_PSC2_PHYS_ADDR) + PSC_SEL_OFFSET);
 	wmb();
 	/* I2C uses internal 48MHz EXTCLK1 */
+	c = clk_get(NULL, "psc3_intclk");
+	if (!IS_ERR(c)) {
+		clk_prepare_enable(c);
+		clk_put(c);
+	}
 	__raw_writel(PSC_SEL_CLK_INTCLK,
 	    (void __iomem *)KSEG1ADDR(AU1300_PSC3_PHYS_ADDR) + PSC_SEL_OFFSET);
 	wmb();

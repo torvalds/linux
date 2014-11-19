@@ -7,61 +7,62 @@
  *
  * Author: Michal Dobes <dobes@tesnet.cz>
  *
-*/
+ */
+
 /*
-Driver: adl_pci9118
-Description: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
-Author: Michal Dobes <dobes@tesnet.cz>
-Devices: [ADLink] PCI-9118DG (pci9118dg), PCI-9118HG (pci9118hg),
-  PCI-9118HR (pci9118hr)
-Status: works
-
-This driver supports AI, AO, DI and DO subdevices.
-AI subdevice supports cmd and insn interface,
-other subdevices support only insn interface.
-For AI:
-- If cmd->scan_begin_src=TRIG_EXT then trigger input is TGIN (pin 46).
-- If cmd->convert_src=TRIG_EXT then trigger input is EXTTRG (pin 44).
-- If cmd->start_src/stop_src=TRIG_EXT then trigger input is TGIN (pin 46).
-- It is not necessary to have cmd.scan_end_arg=cmd.chanlist_len but
-  cmd.scan_end_arg modulo cmd.chanlist_len must by 0.
-- If return value of cmdtest is 5 then you've bad channel list
-  (it isn't possible mixture S.E. and DIFF inputs or bipolar and unipolar
-  ranges).
-
-There are some hardware limitations:
-a) You cann't use mixture of unipolar/bipoar ranges or differencial/single
-   ended inputs.
-b) DMA transfers must have the length aligned to two samples (32 bit),
-   so there is some problems if cmd->chanlist_len is odd. This driver tries
-   bypass this with adding one sample to the end of the every scan and discard
-   it on output but this cann't be used if cmd->scan_begin_src=TRIG_FOLLOW
-   and is used flag TRIG_WAKE_EOS, then driver switch to interrupt driven mode
-   with interrupt after every sample.
-c) If isn't used DMA then you can use only mode where
-   cmd->scan_begin_src=TRIG_FOLLOW.
-
-Configuration options:
-  [0] - PCI bus of device (optional)
-  [1] - PCI slot of device (optional)
-	If bus/slot is not specified, then first available PCI
-	card will be used.
-  [2] - 0= standard 8 DIFF/16 SE channels configuration
-	n = external multiplexer connected, 1 <= n <= 256
-  [3] - 0=autoselect DMA or EOC interrupts operation
-	1 = disable DMA mode
-	3 = disable DMA and INT, only insn interface will work
-  [4] - sample&hold signal - card can generate signal for external S&H board
-	0 = use SSHO(pin 45) signal is generated in onboard hardware S&H logic
-	0 != use ADCHN7(pin 23) signal is generated from driver, number say how
-		long delay is requested in ns and sign polarity of the hold
-		(in this case external multiplexor can serve only 128 channels)
-  [5] - 0=stop measure on all hardware errors
-	2 | = ignore ADOR - A/D Overrun status
-	8|=ignore Bover - A/D Burst Mode Overrun status
-	256|=ignore nFull - A/D FIFO Full status
-
-*/
+ * Driver: adl_pci9118
+ * Description: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
+ * Author: Michal Dobes <dobes@tesnet.cz>
+ * Devices: [ADLink] PCI-9118DG (pci9118dg), PCI-9118HG (pci9118hg),
+ * PCI-9118HR (pci9118hr)
+ * Status: works
+ *
+ * This driver supports AI, AO, DI and DO subdevices.
+ * AI subdevice supports cmd and insn interface,
+ * other subdevices support only insn interface.
+ * For AI:
+ * - If cmd->scan_begin_src=TRIG_EXT then trigger input is TGIN (pin 46).
+ * - If cmd->convert_src=TRIG_EXT then trigger input is EXTTRG (pin 44).
+ * - If cmd->start_src/stop_src=TRIG_EXT then trigger input is TGIN (pin 46).
+ * - It is not necessary to have cmd.scan_end_arg=cmd.chanlist_len but
+ * cmd.scan_end_arg modulo cmd.chanlist_len must by 0.
+ * - If return value of cmdtest is 5 then you've bad channel list
+ * (it isn't possible mixture S.E. and DIFF inputs or bipolar and unipolar
+ * ranges).
+ *
+ * There are some hardware limitations:
+ * a) You cann't use mixture of unipolar/bipoar ranges or differencial/single
+ *  ended inputs.
+ * b) DMA transfers must have the length aligned to two samples (32 bit),
+ *  so there is some problems if cmd->chanlist_len is odd. This driver tries
+ *  bypass this with adding one sample to the end of the every scan and discard
+ *  it on output but this cann't be used if cmd->scan_begin_src=TRIG_FOLLOW
+ *  and is used flag TRIG_WAKE_EOS, then driver switch to interrupt driven mode
+ *  with interrupt after every sample.
+ * c) If isn't used DMA then you can use only mode where
+ *  cmd->scan_begin_src=TRIG_FOLLOW.
+ *
+ * Configuration options:
+ * [0] - PCI bus of device (optional)
+ * [1] - PCI slot of device (optional)
+ *	 If bus/slot is not specified, then first available PCI
+ *	 card will be used.
+ * [2] - 0= standard 8 DIFF/16 SE channels configuration
+ *	 n = external multiplexer connected, 1 <= n <= 256
+ * [3] - 0=autoselect DMA or EOC interrupts operation
+ *	 1 = disable DMA mode
+ *	 3 = disable DMA and INT, only insn interface will work
+ * [4] - sample&hold signal - card can generate signal for external S&H board
+ *	 0 = use SSHO(pin 45) signal is generated in onboard hardware S&H logic
+ *	 0 != use ADCHN7(pin 23) signal is generated from driver, number say how
+ *		long delay is requested in ns and sign polarity of the hold
+ *		(in this case external multiplexor can serve only 128 channels)
+ * [5] - 0=stop measure on all hardware errors
+ *	 2 | = ignore ADOR - A/D Overrun status
+ *	 8|=ignore Bover - A/D Burst Mode Overrun status
+ *	 256|=ignore nFull - A/D FIFO Full status
+ *
+ */
 
 /*
  * FIXME
@@ -346,7 +347,7 @@ struct pci9118_private {
 						 * on external start
 						 */
 	unsigned short ao_data[2];		/* data output buffer */
-	char dma_doublebuf;			/* we can use double buffering */
+	char dma_doublebuf;			/* use double buffering */
 	unsigned int dma_actbuf;		/* which buffer is used now */
 	unsigned short *dmabuf_virt[2];		/*
 						 * pointers to begin of
@@ -394,12 +395,12 @@ static int check_channel_list(struct comedi_device *dev,
 
 	/* correct channel and range number check itself comedi/range.c */
 	if (n_chan < 1) {
-		comedi_error(dev, "range/channel list is empty!");
+		dev_err(dev->class_dev, "range/channel list is empty!\n");
 		return 0;
 	}
 	if ((frontadd + n_chan + backadd) > s->len_chanlist) {
-		comedi_error(dev,
-			    "range/channel list is too long for actual configuration!\n");
+		dev_err(dev->class_dev,
+			"range/channel list is too long for actual configuration!\n");
 		return 0;
 	}
 
@@ -411,23 +412,20 @@ static int check_channel_list(struct comedi_device *dev,
 		for (i = 1; i < n_chan; i++) {	/* check S.E/diff */
 			if ((CR_AREF(chanlist[i]) == AREF_DIFF) !=
 			    (differencial)) {
-				comedi_error(dev,
-					     "Differencial and single ended "
-						"inputs can't be mixtured!");
+				dev_err(dev->class_dev,
+					"Differential and single ended inputs can't be mixed!\n");
 				return 0;
 			}
 			if ((CR_RANGE(chanlist[i]) < PCI9118_BIPOLAR_RANGES) !=
 			    (bipolar)) {
-				comedi_error(dev,
-					     "Bipolar and unipolar ranges "
-							"can't be mixtured!");
+				dev_err(dev->class_dev,
+					"Bipolar and unipolar ranges can't be mixed!\n");
 				return 0;
 			}
 			if (!devpriv->usemux && differencial &&
 			    (CR_CHAN(chanlist[i]) >= this_board->n_aichand)) {
-				comedi_error(dev,
-					     "If AREF_DIFF is used then is "
-					"available only first 8 channels!");
+				dev_err(dev->class_dev,
+					"AREF_DIFF is only available for the first 8 channels!\n");
 				return 0;
 			}
 		}
@@ -864,20 +862,21 @@ static char pci9118_decode_error_status(struct comedi_device *dev,
 	struct pci9118_private *devpriv = dev->private;
 
 	if (m & 0x100) {
-		comedi_error(dev, "A/D FIFO Full status (Fatal Error!)");
+		dev_err(dev->class_dev,
+			"A/D FIFO Full status (Fatal Error!)\n");
 		devpriv->ai_maskerr &= ~0x100L;
 	}
 	if (m & 0x008) {
-		comedi_error(dev,
-			     "A/D Burst Mode Overrun Status (Fatal Error!)");
+		dev_err(dev->class_dev,
+			"A/D Burst Mode Overrun Status (Fatal Error!)\n");
 		devpriv->ai_maskerr &= ~0x008L;
 	}
 	if (m & 0x004) {
-		comedi_error(dev, "A/D Over Speed Status (Warning!)");
+		dev_err(dev->class_dev, "A/D Over Speed Status (Warning!)\n");
 		devpriv->ai_maskerr &= ~0x004L;
 	}
 	if (m & 0x002) {
-		comedi_error(dev, "A/D Overrun Status (Fatal Error!)");
+		dev_err(dev->class_dev, "A/D Overrun Status (Fatal Error!)\n");
 		devpriv->ai_maskerr &= ~0x002L;
 	}
 	if (m & devpriv->ai_maskharderr) {
@@ -966,14 +965,14 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	unsigned int next_dma_buf, samplesinbuf, sampls, m;
 
 	if (int_amcc & MASTER_ABORT_INT) {
-		comedi_error(dev, "AMCC IRQ - MASTER DMA ABORT!");
+		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
 		return;
 	}
 
 	if (int_amcc & TARGET_ABORT_INT) {
-		comedi_error(dev, "AMCC IRQ - TARGET DMA ABORT!");
+		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		cfc_handle_events(dev, s);
 		return;
@@ -1427,17 +1426,16 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		devpriv->AdControlReg |= AdControl_TmrTr;
 		break;
 	case 2:
-		comedi_error(dev, "pci9118_ai_docmd_sampl() mode 2 bug!\n");
+		dev_err(dev->class_dev, "%s mode 2 bug!\n", __func__);
 		return -EIO;
 	case 3:
 		devpriv->AdControlReg |= AdControl_ExtM;
 		break;
 	case 4:
-		comedi_error(dev, "pci9118_ai_docmd_sampl() mode 4 bug!\n");
+		dev_err(dev->class_dev, "%s mode 4 bug!\n", __func__);
 		return -EIO;
 	default:
-		comedi_error(dev,
-			     "pci9118_ai_docmd_sampl() mode number bug!\n");
+		dev_err(dev->class_dev, "%s mode number bug!\n", __func__);
 		return -EIO;
 	}
 
@@ -1509,7 +1507,7 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		devpriv->AdFunctionReg |= AdFunction_Start;
 		break;
 	default:
-		comedi_error(dev, "pci9118_ai_docmd_dma() mode number bug!\n");
+		dev_err(dev->class_dev, "%s mode number bug!\n", __func__);
 		return -EIO;
 	}
 
@@ -1677,9 +1675,8 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		(cmd->convert_src == TRIG_NOW))) {
 						/* double timed action */
 		if (!devpriv->usedma) {
-			comedi_error(dev,
-				     "cmd->scan_begin_src=TRIG_TIMER works "
-						"only with bus mastering!");
+			dev_err(dev->class_dev,
+				"cmd->scan_begin_src=TRIG_TIMER works only with bus mastering!\n");
 			return -EIO;
 		}
 

@@ -38,7 +38,6 @@
 #include <linux/notifier.h>
 #include <linux/device.h>
 #include <linux/log2.h>
-#include <linux/genwqe/genwqe_card.h>
 
 #include "card_base.h"
 #include "card_ddcb.h"
@@ -58,7 +57,7 @@ static struct dentry *debugfs_genwqe;
 static struct genwqe_dev *genwqe_devices[GENWQE_CARD_NO_MAX];
 
 /* PCI structure for identifying device by PCI vendor and device ID */
-static DEFINE_PCI_DEVICE_TABLE(genwqe_device_table) = {
+static const struct pci_device_id genwqe_device_table[] = {
 	{ .vendor      = PCI_VENDOR_ID_IBM,
 	  .device      = PCI_DEVICE_GENWQE,
 	  .subvendor   = PCI_SUBVENDOR_ID_IBM,
@@ -139,6 +138,12 @@ static struct genwqe_dev *genwqe_dev_alloc(void)
 	cd->card_idx = i;
 	cd->class_genwqe = class_genwqe;
 	cd->debugfs_genwqe = debugfs_genwqe;
+
+	/*
+	 * This comes from kernel config option and can be overritten via
+	 * debugfs.
+	 */
+	cd->use_platform_recovery = CONFIG_GENWQE_PLATFORM_ERROR_RECOVERY;
 
 	init_waitqueue_head(&cd->queue_waitq);
 
@@ -761,6 +766,124 @@ static u64 genwqe_fir_checking(struct genwqe_dev *cd)
 }
 
 /**
+ * genwqe_pci_fundamental_reset() - trigger a PCIe fundamental reset on the slot
+ *
+ * Note: pci_set_pcie_reset_state() is not implemented on all archs, so this
+ * reset method will not work in all cases.
+ *
+ * Return: 0 on success or error code from pci_set_pcie_reset_state()
+ */
+static int genwqe_pci_fundamental_reset(struct pci_dev *pci_dev)
+{
+	int rc;
+
+	/*
+	 * lock pci config space access from userspace,
+	 * save state and issue PCIe fundamental reset
+	 */
+	pci_cfg_access_lock(pci_dev);
+	pci_save_state(pci_dev);
+	rc = pci_set_pcie_reset_state(pci_dev, pcie_warm_reset);
+	if (!rc) {
+		/* keep PCIe reset asserted for 250ms */
+		msleep(250);
+		pci_set_pcie_reset_state(pci_dev, pcie_deassert_reset);
+		/* Wait for 2s to reload flash and train the link */
+		msleep(2000);
+	}
+	pci_restore_state(pci_dev);
+	pci_cfg_access_unlock(pci_dev);
+	return rc;
+}
+
+
+static int genwqe_platform_recovery(struct genwqe_dev *cd)
+{
+	struct pci_dev *pci_dev = cd->pci_dev;
+	int rc;
+
+	dev_info(&pci_dev->dev,
+		 "[%s] resetting card for error recovery\n", __func__);
+
+	/* Clear out error injection flags */
+	cd->err_inject &= ~(GENWQE_INJECT_HARDWARE_FAILURE |
+			    GENWQE_INJECT_GFIR_FATAL |
+			    GENWQE_INJECT_GFIR_INFO);
+
+	genwqe_stop(cd);
+
+	/* Try recoverying the card with fundamental reset */
+	rc = genwqe_pci_fundamental_reset(pci_dev);
+	if (!rc) {
+		rc = genwqe_start(cd);
+		if (!rc)
+			dev_info(&pci_dev->dev,
+				 "[%s] card recovered\n", __func__);
+		else
+			dev_err(&pci_dev->dev,
+				"[%s] err: cannot start card services! (err=%d)\n",
+				__func__, rc);
+	} else {
+		dev_err(&pci_dev->dev,
+			"[%s] card reset failed\n", __func__);
+	}
+
+	return rc;
+}
+
+/*
+ * genwqe_reload_bistream() - reload card bitstream
+ *
+ * Set the appropriate register and call fundamental reset to reaload the card
+ * bitstream.
+ *
+ * Return: 0 on success, error code otherwise
+ */
+static int genwqe_reload_bistream(struct genwqe_dev *cd)
+{
+	struct pci_dev *pci_dev = cd->pci_dev;
+	int rc;
+
+	dev_info(&pci_dev->dev,
+		 "[%s] resetting card for bitstream reload\n",
+		 __func__);
+
+	genwqe_stop(cd);
+
+	/*
+	 * Cause a CPLD reprogram with the 'next_bitstream'
+	 * partition on PCIe hot or fundamental reset
+	 */
+	__genwqe_writeq(cd, IO_SLC_CFGREG_SOFTRESET,
+			(cd->softreset & 0xcull) | 0x70ull);
+
+	rc = genwqe_pci_fundamental_reset(pci_dev);
+	if (rc) {
+		/*
+		 * A fundamental reset failure can be caused
+		 * by lack of support on the arch, so we just
+		 * log the error and try to start the card
+		 * again.
+		 */
+		dev_err(&pci_dev->dev,
+			"[%s] err: failed to reset card for bitstream reload\n",
+			__func__);
+	}
+
+	rc = genwqe_start(cd);
+	if (rc) {
+		dev_err(&pci_dev->dev,
+			"[%s] err: cannot start card services! (err=%d)\n",
+			__func__, rc);
+		return rc;
+	}
+	dev_info(&pci_dev->dev,
+		 "[%s] card reloaded\n", __func__);
+	return 0;
+}
+
+
+/**
  * genwqe_health_thread() - Health checking thread
  *
  * This thread is only started for the PF of the card.
@@ -786,6 +909,7 @@ static int genwqe_health_thread(void *data)
 	struct pci_dev *pci_dev = cd->pci_dev;
 	u64 gfir, gfir_masked, slu_unitcfg, app_unitcfg;
 
+ health_thread_begin:
 	while (!kthread_should_stop()) {
 		rc = wait_event_interruptible_timeout(cd->health_waitq,
 			 (genwqe_health_check_cond(cd, &gfir) ||
@@ -846,6 +970,13 @@ static int genwqe_health_thread(void *data)
 			}
 		}
 
+		if (cd->card_state == GENWQE_CARD_RELOAD_BITSTREAM) {
+			/* Userspace requested card bitstream reload */
+			rc = genwqe_reload_bistream(cd);
+			if (rc)
+				goto fatal_error;
+		}
+
 		cd->last_gfir = gfir;
 		cond_resched();
 	}
@@ -853,6 +984,28 @@ static int genwqe_health_thread(void *data)
 	return 0;
 
  fatal_error:
+	if (cd->use_platform_recovery) {
+		/*
+		 * Since we use raw accessors, EEH errors won't be detected
+		 * by the platform until we do a non-raw MMIO or config space
+		 * read
+		 */
+		readq(cd->mmio + IO_SLC_CFGREG_GFIR);
+
+		/* We do nothing if the card is going over PCI recovery */
+		if (pci_channel_offline(pci_dev))
+			return -EIO;
+
+		/*
+		 * If it's supported by the platform, we try a fundamental reset
+		 * to recover from a fatal error. Otherwise, we continue to wait
+		 * for an external recovery procedure to take care of it.
+		 */
+		rc = genwqe_platform_recovery(cd);
+		if (!rc)
+			goto health_thread_begin;
+	}
+
 	dev_err(&pci_dev->dev,
 		"[%s] card unusable. Please trigger unbind!\n", __func__);
 
@@ -957,6 +1110,9 @@ static int genwqe_pci_setup(struct genwqe_dev *cd)
 
 	pci_set_master(pci_dev);
 	pci_enable_pcie_error_reporting(pci_dev);
+
+	/* EEH recovery requires PCIe fundamental reset */
+	pci_dev->needs_freset = 1;
 
 	/* request complete BAR-0 space (length = 0) */
 	cd->mmio_len = pci_resource_len(pci_dev, 0);
@@ -1096,23 +1252,40 @@ static pci_ers_result_t genwqe_err_error_detected(struct pci_dev *pci_dev,
 
 	dev_err(&pci_dev->dev, "[%s] state=%d\n", __func__, state);
 
-	if (pci_dev == NULL)
-		return PCI_ERS_RESULT_NEED_RESET;
-
 	cd = dev_get_drvdata(&pci_dev->dev);
 	if (cd == NULL)
-		return PCI_ERS_RESULT_NEED_RESET;
+		return PCI_ERS_RESULT_DISCONNECT;
 
-	switch (state) {
-	case pci_channel_io_normal:
-		return PCI_ERS_RESULT_CAN_RECOVER;
-	case pci_channel_io_frozen:
+	/* Stop the card */
+	genwqe_health_check_stop(cd);
+	genwqe_stop(cd);
+
+	/*
+	 * On permanent failure, the PCI code will call device remove
+	 * after the return of this function.
+	 * genwqe_stop() can be called twice.
+	 */
+	if (state == pci_channel_io_perm_failure) {
+		return PCI_ERS_RESULT_DISCONNECT;
+	} else {
+		genwqe_pci_remove(cd);
 		return PCI_ERS_RESULT_NEED_RESET;
-	case pci_channel_io_perm_failure:
+	}
+}
+
+static pci_ers_result_t genwqe_err_slot_reset(struct pci_dev *pci_dev)
+{
+	int rc;
+	struct genwqe_dev *cd = dev_get_drvdata(&pci_dev->dev);
+
+	rc = genwqe_pci_setup(cd);
+	if (!rc) {
+		return PCI_ERS_RESULT_RECOVERED;
+	} else {
+		dev_err(&pci_dev->dev,
+			"err: problems with PCI setup (err=%d)\n", rc);
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
-
-	return PCI_ERS_RESULT_NEED_RESET;
 }
 
 static pci_ers_result_t genwqe_err_result_none(struct pci_dev *dev)
@@ -1120,8 +1293,22 @@ static pci_ers_result_t genwqe_err_result_none(struct pci_dev *dev)
 	return PCI_ERS_RESULT_NONE;
 }
 
-static void genwqe_err_resume(struct pci_dev *dev)
+static void genwqe_err_resume(struct pci_dev *pci_dev)
 {
+	int rc;
+	struct genwqe_dev *cd = dev_get_drvdata(&pci_dev->dev);
+
+	rc = genwqe_start(cd);
+	if (!rc) {
+		rc = genwqe_health_check_start(cd);
+		if (rc)
+			dev_err(&pci_dev->dev,
+				"err: cannot start health checking! (err=%d)\n",
+				rc);
+	} else {
+		dev_err(&pci_dev->dev,
+			"err: cannot start card services! (err=%d)\n", rc);
+	}
 }
 
 static int genwqe_sriov_configure(struct pci_dev *dev, int numvfs)
@@ -1144,7 +1331,7 @@ static struct pci_error_handlers genwqe_err_handler = {
 	.error_detected = genwqe_err_error_detected,
 	.mmio_enabled	= genwqe_err_result_none,
 	.link_reset	= genwqe_err_result_none,
-	.slot_reset	= genwqe_err_result_none,
+	.slot_reset	= genwqe_err_slot_reset,
 	.resume		= genwqe_err_resume,
 };
 

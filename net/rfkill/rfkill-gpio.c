@@ -54,7 +54,7 @@ static int rfkill_gpio_set_power(void *data, bool blocked)
 	if (blocked && !IS_ERR(rfkill->clk) && rfkill->clk_enabled)
 		clk_disable(rfkill->clk);
 
-	rfkill->clk_enabled = blocked;
+	rfkill->clk_enabled = !blocked;
 
 	return 0;
 }
@@ -158,10 +158,12 @@ static const struct acpi_device_id rfkill_acpi_match[] = {
 	{ "BCM2E1A", RFKILL_TYPE_BLUETOOTH },
 	{ "BCM2E39", RFKILL_TYPE_BLUETOOTH },
 	{ "BCM2E3D", RFKILL_TYPE_BLUETOOTH },
+	{ "BCM2E64", RFKILL_TYPE_BLUETOOTH },
 	{ "BCM4752", RFKILL_TYPE_GPS },
 	{ "LNV4752", RFKILL_TYPE_GPS },
 	{ },
 };
+MODULE_DEVICE_TABLE(acpi, rfkill_acpi_match);
 #endif
 
 static struct platform_driver rfkill_gpio_driver = {

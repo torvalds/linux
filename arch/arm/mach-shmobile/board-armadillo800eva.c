@@ -45,9 +45,7 @@
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/i2c-gpio.h>
 #include <linux/reboot.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
-#include <mach/r8a7740.h>
+
 #include <media/mt9t112.h>
 #include <media/sh_mobile_ceu.h>
 #include <media/soc_camera.h>
@@ -62,6 +60,10 @@
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
 
+#include "common.h"
+#include "irqs.h"
+#include "pm-rmobile.h"
+#include "r8a7740.h"
 #include "sh-gpio.h"
 
 /*
@@ -578,6 +580,40 @@ static struct platform_device hdmi_lcdc_device = {
 	},
 };
 
+/* LEDS */
+static struct gpio_led gpio_leds[] = {
+	{
+		.name		= "LED3",
+		.gpio		= 102,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}, {
+		.name		= "LED4",
+		.gpio		= 111,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}, {
+		.name		= "LED5",
+		.gpio		= 110,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}, {
+		.name		= "LED6",
+		.gpio		= 177,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+};
+
+static struct gpio_led_platform_data leds_gpio_info = {
+	.leds		= gpio_leds,
+	.num_leds	= ARRAY_SIZE(gpio_leds),
+};
+
+static struct platform_device leds_gpio_device = {
+	.name   = "leds-gpio",
+	.id     = -1,
+	.dev    = {
+		.platform_data  = &leds_gpio_info,
+	},
+};
+
 /* GPIO KEY */
 #define GPIO_KEY(c, g, d, ...) \
 	{ .code = c, .gpio = g, .desc = d, .active_low = 1, __VA_ARGS__ }
@@ -998,6 +1034,8 @@ static struct platform_device fsi_wm8978_device = {
 	.id	= 0,
 	.dev	= {
 		.platform_data	= &fsi_wm8978_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_wm8978_device.dev.coherent_dma_mask,
 	},
 };
 
@@ -1021,6 +1059,8 @@ static struct platform_device fsi_hdmi_device = {
 	.id	= 1,
 	.dev	= {
 		.platform_data	= &fsi2_hdmi_info,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &fsi_hdmi_device.dev.coherent_dma_mask,
 	},
 };
 
@@ -1069,6 +1109,7 @@ static struct platform_device *eva_devices[] __initdata = {
 	&lcdc0_device,
 	&pwm_device,
 	&pwm_backlight_device,
+	&leds_gpio_device,
 	&gpio_keys_device,
 	&sh_eth_device,
 	&vcc_sdhi0,

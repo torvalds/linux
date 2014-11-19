@@ -2632,7 +2632,7 @@ int ath6kl_wmi_set_htcap_cmd(struct wmi *wmi, u8 if_idx,
 			     struct ath6kl_htcap *htcap);
 int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len);
 
-s32 ath6kl_wmi_get_rate(s8 rate_index);
+s32 ath6kl_wmi_get_rate(struct wmi *wmi, s8 rate_index);
 
 int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, u8 if_idx,
 			  __be32 ips0, __be32 ips1);

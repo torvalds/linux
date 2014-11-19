@@ -208,6 +208,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 
 	/* Rx IRQ will be enabled when NAPI processing finished */
 
+	atomic_inc(&wil->isr_count_rx);
 	return IRQ_HANDLED;
 }
 
@@ -246,6 +247,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 
 	/* Tx IRQ will be enabled when NAPI processing finished */
 
+	atomic_inc(&wil->isr_count_tx);
 	return IRQ_HANDLED;
 }
 
@@ -257,6 +259,7 @@ static void wil_notify_fw_error(struct wil6210_priv *wil)
 		[1] = "EVENT=FW_ERROR",
 		[2] = NULL,
 	};
+	wil_err(wil, "Notify about firmware error\n");
 	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
 }
 

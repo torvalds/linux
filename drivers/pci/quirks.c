@@ -2986,6 +2986,103 @@ DECLARE_PCI_FIXUP_HEADER(0x1814, 0x0601, /* Ralink RT2800 802.11n PCI */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_REALTEK, 0x8169,
 			 quirk_broken_intx_masking);
 
+#ifdef CONFIG_ACPI
+/*
+ * Apple: Shutdown Cactus Ridge Thunderbolt controller.
+ *
+ * On Apple hardware the Cactus Ridge Thunderbolt controller needs to be
+ * shutdown before suspend. Otherwise the native host interface (NHI) will not
+ * be present after resume if a device was plugged in before suspend.
+ *
+ * The thunderbolt controller consists of a pcie switch with downstream
+ * bridges leading to the NHI and to the tunnel pci bridges.
+ *
+ * This quirk cuts power to the whole chip. Therefore we have to apply it
+ * during suspend_noirq of the upstream bridge.
+ *
+ * Power is automagically restored before resume. No action is needed.
+ */
+static void quirk_apple_poweroff_thunderbolt(struct pci_dev *dev)
+{
+	acpi_handle bridge, SXIO, SXFP, SXLV;
+
+	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
+		return;
+	if (pci_pcie_type(dev) != PCI_EXP_TYPE_UPSTREAM)
+		return;
+	bridge = ACPI_HANDLE(&dev->dev);
+	if (!bridge)
+		return;
+	/*
+	 * SXIO and SXLV are present only on machines requiring this quirk.
+	 * TB bridges in external devices might have the same device id as those
+	 * on the host, but they will not have the associated ACPI methods. This
+	 * implicitly checks that we are at the right bridge.
+	 */
+	if (ACPI_FAILURE(acpi_get_handle(bridge, "DSB0.NHI0.SXIO", &SXIO))
+	    || ACPI_FAILURE(acpi_get_handle(bridge, "DSB0.NHI0.SXFP", &SXFP))
+	    || ACPI_FAILURE(acpi_get_handle(bridge, "DSB0.NHI0.SXLV", &SXLV)))
+		return;
+	dev_info(&dev->dev, "quirk: cutting power to thunderbolt controller...\n");
+
+	/* magic sequence */
+	acpi_execute_simple_method(SXIO, NULL, 1);
+	acpi_execute_simple_method(SXFP, NULL, 0);
+	msleep(300);
+	acpi_execute_simple_method(SXLV, NULL, 0);
+	acpi_execute_simple_method(SXIO, NULL, 0);
+	acpi_execute_simple_method(SXLV, NULL, 0);
+}
+DECLARE_PCI_FIXUP_SUSPEND_LATE(PCI_VENDOR_ID_INTEL, 0x1547,
+			       quirk_apple_poweroff_thunderbolt);
+
+/*
+ * Apple: Wait for the thunderbolt controller to reestablish pci tunnels.
+ *
+ * During suspend the thunderbolt controller is reset and all pci
+ * tunnels are lost. The NHI driver will try to reestablish all tunnels
+ * during resume. We have to manually wait for the NHI since there is
+ * no parent child relationship between the NHI and the tunneled
+ * bridges.
+ */
+static void quirk_apple_wait_for_thunderbolt(struct pci_dev *dev)
+{
+	struct pci_dev *sibling = NULL;
+	struct pci_dev *nhi = NULL;
+
+	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
+		return;
+	if (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)
+		return;
+	/*
+	 * Find the NHI and confirm that we are a bridge on the tb host
+	 * controller and not on a tb endpoint.
+	 */
+	sibling = pci_get_slot(dev->bus, 0x0);
+	if (sibling == dev)
+		goto out; /* we are the downstream bridge to the NHI */
+	if (!sibling || !sibling->subordinate)
+		goto out;
+	nhi = pci_get_slot(sibling->subordinate, 0x0);
+	if (!nhi)
+		goto out;
+	if (nhi->vendor != PCI_VENDOR_ID_INTEL
+			|| (nhi->device != 0x1547 && nhi->device != 0x156c)
+			|| nhi->subsystem_vendor != 0x2222
+			|| nhi->subsystem_device != 0x1111)
+		goto out;
+	dev_info(&dev->dev, "quirk: wating for thunderbolt to reestablish pci tunnels...\n");
+	device_pm_wait_for_dev(&dev->dev, &nhi->dev);
+out:
+	pci_dev_put(nhi);
+	pci_dev_put(sibling);
+}
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_INTEL, 0x1547,
+			       quirk_apple_wait_for_thunderbolt);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_INTEL, 0x156d,
+			       quirk_apple_wait_for_thunderbolt);
+#endif
+
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)
 {
@@ -3018,6 +3115,8 @@ extern struct pci_fixup __start_pci_fixups_resume_early[];
 extern struct pci_fixup __end_pci_fixups_resume_early[];
 extern struct pci_fixup __start_pci_fixups_suspend[];
 extern struct pci_fixup __end_pci_fixups_suspend[];
+extern struct pci_fixup __start_pci_fixups_suspend_late[];
+extern struct pci_fixup __end_pci_fixups_suspend_late[];
 
 static bool pci_apply_fixup_final_quirks;
 
@@ -3061,6 +3160,11 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 	case pci_fixup_suspend:
 		start = __start_pci_fixups_suspend;
 		end = __end_pci_fixups_suspend;
+		break;
+
+	case pci_fixup_suspend_late:
+		start = __start_pci_fixups_suspend_late;
+		end = __end_pci_fixups_suspend_late;
 		break;
 
 	default:
@@ -3405,6 +3509,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ASMEDIA, 0x1080,
 DECLARE_PCI_FIXUP_HEADER(0x10e3, 0x8113, quirk_use_pcie_bridge_dma_alias);
 /* ITE 8892, https://bugzilla.kernel.org/show_bug.cgi?id=73551 */
 DECLARE_PCI_FIXUP_HEADER(0x1283, 0x8892, quirk_use_pcie_bridge_dma_alias);
+/* Intel 82801, https://bugzilla.kernel.org/show_bug.cgi?id=44881#c49 */
+DECLARE_PCI_FIXUP_HEADER(0x8086, 0x244e, quirk_use_pcie_bridge_dma_alias);
 
 static struct pci_dev *pci_func_0_dma_source(struct pci_dev *dev)
 {

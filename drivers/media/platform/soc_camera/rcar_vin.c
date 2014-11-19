@@ -19,6 +19,8 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -31,6 +33,7 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mediabus.h>
+#include <media/v4l2-of.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 
@@ -126,13 +129,13 @@ struct rcar_vin_priv {
 	int				sequence;
 	/* State of the VIN module in capturing mode */
 	enum rcar_vin_state		state;
-	struct rcar_vin_platform_data	*pdata;
 	struct soc_camera_host		ici;
 	struct list_head		capture;
 #define MAX_BUFFER_NUM			3
 	struct vb2_buffer		*queue_buf[MAX_BUFFER_NUM];
 	struct vb2_alloc_ctx		*alloc_ctx;
 	enum v4l2_field			field;
+	unsigned int			pdata_flags;
 	unsigned int			vb_count;
 	unsigned int			nr_hw_slots;
 	bool				request_to_stop;
@@ -275,12 +278,12 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 		break;
 	case V4L2_MBUS_FMT_YUYV8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
-		vnmc |= priv->pdata->flags & RCAR_VIN_BT656 ?
+		vnmc |= priv->pdata_flags & RCAR_VIN_BT656 ?
 			VNMC_INF_YUV8_BT656 : VNMC_INF_YUV8_BT601;
 		break;
 	case V4L2_MBUS_FMT_YUYV10_2X10:
 		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
-		vnmc |= priv->pdata->flags & RCAR_VIN_BT656 ?
+		vnmc |= priv->pdata_flags & RCAR_VIN_BT656 ?
 			VNMC_INF_YUV10_BT656 : VNMC_INF_YUV10_BT601;
 		break;
 	default:
@@ -797,7 +800,7 @@ static int rcar_vin_set_bus_param(struct soc_camera_device *icd)
 	/* Make choises, based on platform preferences */
 	if ((common_flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH) &&
 	    (common_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)) {
-		if (priv->pdata->flags & RCAR_VIN_HSYNC_ACTIVE_LOW)
+		if (priv->pdata_flags & RCAR_VIN_HSYNC_ACTIVE_LOW)
 			common_flags &= ~V4L2_MBUS_HSYNC_ACTIVE_HIGH;
 		else
 			common_flags &= ~V4L2_MBUS_HSYNC_ACTIVE_LOW;
@@ -805,7 +808,7 @@ static int rcar_vin_set_bus_param(struct soc_camera_device *icd)
 
 	if ((common_flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH) &&
 	    (common_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)) {
-		if (priv->pdata->flags & RCAR_VIN_VSYNC_ACTIVE_LOW)
+		if (priv->pdata_flags & RCAR_VIN_VSYNC_ACTIVE_LOW)
 			common_flags &= ~V4L2_MBUS_VSYNC_ACTIVE_HIGH;
 		else
 			common_flags &= ~V4L2_MBUS_VSYNC_ACTIVE_LOW;
@@ -1390,6 +1393,17 @@ static struct soc_camera_host_ops rcar_vin_host_ops = {
 	.init_videobuf2	= rcar_vin_init_videobuf2,
 };
 
+#ifdef CONFIG_OF
+static struct of_device_id rcar_vin_of_table[] = {
+	{ .compatible = "renesas,vin-r8a7791", .data = (void *)RCAR_GEN2 },
+	{ .compatible = "renesas,vin-r8a7790", .data = (void *)RCAR_GEN2 },
+	{ .compatible = "renesas,vin-r8a7779", .data = (void *)RCAR_H1 },
+	{ .compatible = "renesas,vin-r8a7778", .data = (void *)RCAR_M1 },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, rcar_vin_of_table);
+#endif
+
 static struct platform_device_id rcar_vin_id_table[] = {
 	{ "r8a7791-vin",  RCAR_GEN2 },
 	{ "r8a7790-vin",  RCAR_GEN2 },
@@ -1402,15 +1416,52 @@ MODULE_DEVICE_TABLE(platform, rcar_vin_id_table);
 
 static int rcar_vin_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match = NULL;
 	struct rcar_vin_priv *priv;
 	struct resource *mem;
 	struct rcar_vin_platform_data *pdata;
+	unsigned int pdata_flags;
 	int irq, ret;
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata || !pdata->flags) {
-		dev_err(&pdev->dev, "platform data not set\n");
-		return -EINVAL;
+	if (pdev->dev.of_node) {
+		struct v4l2_of_endpoint ep;
+		struct device_node *np;
+
+		match = of_match_device(of_match_ptr(rcar_vin_of_table),
+					&pdev->dev);
+
+		np = of_graph_get_next_endpoint(pdev->dev.of_node, NULL);
+		if (!np) {
+			dev_err(&pdev->dev, "could not find endpoint\n");
+			return -EINVAL;
+		}
+
+		ret = v4l2_of_parse_endpoint(np, &ep);
+		if (ret) {
+			dev_err(&pdev->dev, "could not parse endpoint\n");
+			return ret;
+		}
+
+		if (ep.bus_type == V4L2_MBUS_BT656)
+			pdata_flags = RCAR_VIN_BT656;
+		else {
+			pdata_flags = 0;
+			if (ep.bus.parallel.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
+				pdata_flags |= RCAR_VIN_HSYNC_ACTIVE_LOW;
+			if (ep.bus.parallel.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
+				pdata_flags |= RCAR_VIN_VSYNC_ACTIVE_LOW;
+		}
+
+		of_node_put(np);
+
+		dev_dbg(&pdev->dev, "pdata_flags = %08x\n", pdata_flags);
+	} else {
+		pdata = pdev->dev.platform_data;
+		if (!pdata || !pdata->flags) {
+			dev_err(&pdev->dev, "platform data not set\n");
+			return -EINVAL;
+		}
+		pdata_flags = pdata->flags;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1441,12 +1492,18 @@ static int rcar_vin_probe(struct platform_device *pdev)
 
 	priv->ici.priv = priv;
 	priv->ici.v4l2_dev.dev = &pdev->dev;
-	priv->ici.nr = pdev->id;
 	priv->ici.drv_name = dev_name(&pdev->dev);
 	priv->ici.ops = &rcar_vin_host_ops;
 
-	priv->pdata = pdata;
-	priv->chip = pdev->id_entry->driver_data;
+	priv->pdata_flags = pdata_flags;
+	if (!match) {
+		priv->ici.nr = pdev->id;
+		priv->chip = pdev->id_entry->driver_data;
+	} else {
+		priv->ici.nr = of_alias_get_id(pdev->dev.of_node, "vin");
+		priv->chip = (enum chip_id)match->data;
+	};
+
 	spin_lock_init(&priv->lock);
 	INIT_LIST_HEAD(&priv->capture);
 
@@ -1487,6 +1544,7 @@ static struct platform_driver rcar_vin_driver = {
 	.driver		= {
 		.name		= DRV_NAME,
 		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(rcar_vin_of_table),
 	},
 	.id_table	= rcar_vin_id_table,
 };

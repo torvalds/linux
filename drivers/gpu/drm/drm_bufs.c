@@ -1217,7 +1217,6 @@ int drm_infobufs(struct drm_device *dev, void *data,
 				struct drm_buf_desc __user *to =
 				    &request->list[count];
 				struct drm_buf_entry *from = &dma->bufs[i];
-				struct drm_freelist *list = &dma->bufs[i].freelist;
 				if (copy_to_user(&to->count,
 						 &from->buf_count,
 						 sizeof(from->buf_count)) ||
@@ -1225,19 +1224,19 @@ int drm_infobufs(struct drm_device *dev, void *data,
 						 &from->buf_size,
 						 sizeof(from->buf_size)) ||
 				    copy_to_user(&to->low_mark,
-						 &list->low_mark,
-						 sizeof(list->low_mark)) ||
+						 &from->low_mark,
+						 sizeof(from->low_mark)) ||
 				    copy_to_user(&to->high_mark,
-						 &list->high_mark,
-						 sizeof(list->high_mark)))
+						 &from->high_mark,
+						 sizeof(from->high_mark)))
 					return -EFAULT;
 
 				DRM_DEBUG("%d %d %d %d %d\n",
 					  i,
 					  dma->bufs[i].buf_count,
 					  dma->bufs[i].buf_size,
-					  dma->bufs[i].freelist.low_mark,
-					  dma->bufs[i].freelist.high_mark);
+					  dma->bufs[i].low_mark,
+					  dma->bufs[i].high_mark);
 				++count;
 			}
 		}
@@ -1290,8 +1289,8 @@ int drm_markbufs(struct drm_device *dev, void *data,
 	if (request->high_mark < 0 || request->high_mark > entry->buf_count)
 		return -EINVAL;
 
-	entry->freelist.low_mark = request->low_mark;
-	entry->freelist.high_mark = request->high_mark;
+	entry->low_mark = request->low_mark;
+	entry->high_mark = request->high_mark;
 
 	return 0;
 }

@@ -2345,14 +2345,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5645,
-			rt5645_dai, ARRAY_SIZE(rt5645_dai));
-	if (ret < 0)
-		goto err;
-
-	return 0;
-err:
-	return ret;
+	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5645,
+				      rt5645_dai, ARRAY_SIZE(rt5645_dai));
 }
 
 static int rt5645_i2c_remove(struct i2c_client *i2c)

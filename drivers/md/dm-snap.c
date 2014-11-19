@@ -1032,21 +1032,13 @@ static void start_merge(struct dm_snapshot *s)
 		snapshot_merge_next_chunks(s);
 }
 
-static int wait_schedule(void *ptr)
-{
-	schedule();
-
-	return 0;
-}
-
 /*
  * Stop the merging process and wait until it finishes.
  */
 static void stop_merge(struct dm_snapshot *s)
 {
 	set_bit(SHUTDOWN_MERGE, &s->state_bits);
-	wait_on_bit(&s->state_bits, RUNNING_MERGE, wait_schedule,
-		    TASK_UNINTERRUPTIBLE);
+	wait_on_bit(&s->state_bits, RUNNING_MERGE, TASK_UNINTERRUPTIBLE);
 	clear_bit(SHUTDOWN_MERGE, &s->state_bits);
 }
 

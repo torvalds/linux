@@ -12,6 +12,7 @@
 #include <linux/hrtimer.h>
 #include <linux/context_tracking_state.h>
 #include <linux/cpumask.h>
+#include <linux/sched.h>
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 
@@ -162,6 +163,7 @@ static inline u64 get_cpu_iowait_time_us(int cpu, u64 *unused) { return -1; }
 #ifdef CONFIG_NO_HZ_FULL
 extern bool tick_nohz_full_running;
 extern cpumask_var_t tick_nohz_full_mask;
+extern cpumask_var_t housekeeping_mask;
 
 static inline bool tick_nohz_full_enabled(void)
 {
@@ -182,6 +184,7 @@ static inline bool tick_nohz_full_cpu(int cpu)
 extern void tick_nohz_init(void);
 extern void __tick_nohz_full_check(void);
 extern void tick_nohz_full_kick(void);
+extern void tick_nohz_full_kick_cpu(int cpu);
 extern void tick_nohz_full_kick_all(void);
 extern void __tick_nohz_task_switch(struct task_struct *tsk);
 #else
@@ -189,10 +192,29 @@ static inline void tick_nohz_init(void) { }
 static inline bool tick_nohz_full_enabled(void) { return false; }
 static inline bool tick_nohz_full_cpu(int cpu) { return false; }
 static inline void __tick_nohz_full_check(void) { }
+static inline void tick_nohz_full_kick_cpu(int cpu) { }
 static inline void tick_nohz_full_kick(void) { }
 static inline void tick_nohz_full_kick_all(void) { }
 static inline void __tick_nohz_task_switch(struct task_struct *tsk) { }
 #endif
+
+static inline bool is_housekeeping_cpu(int cpu)
+{
+#ifdef CONFIG_NO_HZ_FULL
+	if (tick_nohz_full_enabled())
+		return cpumask_test_cpu(cpu, housekeeping_mask);
+#endif
+	return true;
+}
+
+static inline void housekeeping_affine(struct task_struct *t)
+{
+#ifdef CONFIG_NO_HZ_FULL
+	if (tick_nohz_full_enabled())
+		set_cpus_allowed_ptr(t, housekeeping_mask);
+
+#endif
+}
 
 static inline void tick_nohz_full_check(void)
 {

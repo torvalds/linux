@@ -191,20 +191,20 @@ int ieee80211_encrypt_fragment(
 		printk("=========>%s(), crypt is null\n", __func__);
 		return -1;
 	}
-#ifdef CONFIG_IEEE80211_CRYPT_TKIP
-	struct ieee80211_hdr *header;
 
 	if (ieee->tkip_countermeasures &&
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
-		header = (struct ieee80211_hdr *) frag->data;
 		if (net_ratelimit()) {
+			struct ieee80211_hdr_3addrqos *header;
+
+			header = (struct ieee80211_hdr_3addrqos *)frag->data;
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
 			       "TX packet to %pM\n",
 			       ieee->dev->name, header->addr1);
 		}
 		return -1;
 	}
-#endif
+
 	/* To encrypt, frame format is:
 	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
 

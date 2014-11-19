@@ -280,9 +280,9 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 
 	WARN_ON(btrfs_header_generation(buf) > trans->transid);
 	if (new_root_objectid == BTRFS_TREE_RELOC_OBJECTID)
-		ret = btrfs_inc_ref(trans, root, cow, 1, 1);
+		ret = btrfs_inc_ref(trans, root, cow, 1);
 	else
-		ret = btrfs_inc_ref(trans, root, cow, 0, 1);
+		ret = btrfs_inc_ref(trans, root, cow, 0);
 
 	if (ret)
 		return ret;
@@ -1035,14 +1035,14 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 		if ((owner == root->root_key.objectid ||
 		     root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID) &&
 		    !(flags & BTRFS_BLOCK_FLAG_FULL_BACKREF)) {
-			ret = btrfs_inc_ref(trans, root, buf, 1, 1);
+			ret = btrfs_inc_ref(trans, root, buf, 1);
 			BUG_ON(ret); /* -ENOMEM */
 
 			if (root->root_key.objectid ==
 			    BTRFS_TREE_RELOC_OBJECTID) {
-				ret = btrfs_dec_ref(trans, root, buf, 0, 1);
+				ret = btrfs_dec_ref(trans, root, buf, 0);
 				BUG_ON(ret); /* -ENOMEM */
-				ret = btrfs_inc_ref(trans, root, cow, 1, 1);
+				ret = btrfs_inc_ref(trans, root, cow, 1);
 				BUG_ON(ret); /* -ENOMEM */
 			}
 			new_flags |= BTRFS_BLOCK_FLAG_FULL_BACKREF;
@@ -1050,9 +1050,9 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 
 			if (root->root_key.objectid ==
 			    BTRFS_TREE_RELOC_OBJECTID)
-				ret = btrfs_inc_ref(trans, root, cow, 1, 1);
+				ret = btrfs_inc_ref(trans, root, cow, 1);
 			else
-				ret = btrfs_inc_ref(trans, root, cow, 0, 1);
+				ret = btrfs_inc_ref(trans, root, cow, 0);
 			BUG_ON(ret); /* -ENOMEM */
 		}
 		if (new_flags != 0) {
@@ -1069,11 +1069,11 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 		if (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
 			if (root->root_key.objectid ==
 			    BTRFS_TREE_RELOC_OBJECTID)
-				ret = btrfs_inc_ref(trans, root, cow, 1, 1);
+				ret = btrfs_inc_ref(trans, root, cow, 1);
 			else
-				ret = btrfs_inc_ref(trans, root, cow, 0, 1);
+				ret = btrfs_inc_ref(trans, root, cow, 0);
 			BUG_ON(ret); /* -ENOMEM */
-			ret = btrfs_dec_ref(trans, root, buf, 1, 1);
+			ret = btrfs_dec_ref(trans, root, buf, 1);
 			BUG_ON(ret); /* -ENOMEM */
 		}
 		clean_tree_block(trans, root, buf);

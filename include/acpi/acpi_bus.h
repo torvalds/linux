@@ -118,6 +118,7 @@ struct acpi_device;
 struct acpi_hotplug_profile {
 	struct kobject kobj;
 	int (*scan_dependent)(struct acpi_device *adev);
+	void (*notify_online)(struct acpi_device *adev);
 	bool enabled:1;
 	bool demand_offline:1;
 };
@@ -204,10 +205,9 @@ struct acpi_device_flags {
 	u32 match_driver:1;
 	u32 initialized:1;
 	u32 visited:1;
-	u32 no_hotplug:1;
 	u32 hotplug_notify:1;
 	u32 is_dock_station:1;
-	u32 reserved:22;
+	u32 reserved:23;
 };
 
 /* File System */
@@ -246,7 +246,6 @@ struct acpi_device_pnp {
 	acpi_device_name device_name;	/* Driver-determined */
 	acpi_device_class device_class;	/*        "          */
 	union acpi_object *str_obj;	/* unicode string for _STR method */
-	unsigned long sun;		/* _SUN */
 };
 
 #define acpi_device_bid(d)	((d)->pnp.bus_id)
@@ -315,12 +314,19 @@ struct acpi_device_wakeup_flags {
 	u8 notifier_present:1;  /* Wake-up notify handler has been installed */
 };
 
+struct acpi_device_wakeup_context {
+	struct work_struct work;
+	struct device *dev;
+};
+
 struct acpi_device_wakeup {
 	acpi_handle gpe_device;
 	u64 gpe_number;
 	u64 sleep_state;
 	struct list_head resources;
 	struct acpi_device_wakeup_flags flags;
+	struct acpi_device_wakeup_context context;
+	struct wakeup_source *ws;
 	int prepare_count;
 };
 
@@ -372,15 +378,9 @@ static inline void acpi_set_device_status(struct acpi_device *adev, u32 sta)
 }
 
 static inline void acpi_set_hp_context(struct acpi_device *adev,
-				       struct acpi_hotplug_context *hp,
-				       int (*notify)(struct acpi_device *, u32),
-				       void (*uevent)(struct acpi_device *, u32),
-				       void (*fixup)(struct acpi_device *))
+				       struct acpi_hotplug_context *hp)
 {
 	hp->self = adev;
-	hp->notify = notify;
-	hp->uevent = uevent;
-	hp->fixup = fixup;
 	adev->hp = hp;
 }
 
@@ -411,7 +411,6 @@ void acpi_bus_private_data_handler(acpi_handle, void *);
 int acpi_bus_get_private_data(acpi_handle, void **);
 int acpi_bus_attach_private_data(acpi_handle, void *);
 void acpi_bus_detach_private_data(acpi_handle);
-void acpi_bus_no_hotplug(acpi_handle handle);
 extern int acpi_notifier_call_chain(struct acpi_device *, u32, u32);
 extern int register_acpi_notifier(struct notifier_block *);
 extern int unregister_acpi_notifier(struct notifier_block *);
@@ -487,6 +486,8 @@ struct acpi_bus_type {
 };
 int register_acpi_bus_type(struct acpi_bus_type *);
 int unregister_acpi_bus_type(struct acpi_bus_type *);
+int acpi_bind_one(struct device *dev, struct acpi_device *adev);
+int acpi_unbind_one(struct device *dev);
 
 struct acpi_pci_root {
 	struct acpi_device * device;
@@ -510,20 +511,18 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev, int state);
 int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 
 #ifdef CONFIG_PM
-acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
-				 acpi_notify_handler handler, void *context);
-acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
-				    acpi_notify_handler handler);
+acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
+				 void (*work_func)(struct work_struct *work));
+acpi_status acpi_remove_pm_notifier(struct acpi_device *adev);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 #else
 static inline acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
-					       acpi_notify_handler handler,
-					       void *context)
+					       struct device *dev,
+				               void (*work_func)(struct work_struct *work))
 {
 	return AE_SUPPORT;
 }
-static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
-						  acpi_notify_handler handler)
+static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev)
 {
 	return AE_SUPPORT;
 }
@@ -538,13 +537,8 @@ static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 #endif
 
 #ifdef CONFIG_PM_RUNTIME
-int __acpi_device_run_wake(struct acpi_device *, bool);
 int acpi_pm_device_run_wake(struct device *, bool);
 #else
-static inline int __acpi_device_run_wake(struct acpi_device *adev, bool en)
-{
-	return -ENODEV;
-}
 static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
 {
 	return -ENODEV;
@@ -552,14 +546,8 @@ static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
 #endif
 
 #ifdef CONFIG_PM_SLEEP
-int __acpi_device_sleep_wake(struct acpi_device *, u32, bool);
 int acpi_pm_device_sleep_wake(struct device *, bool);
 #else
-static inline int __acpi_device_sleep_wake(struct acpi_device *adev,
-					   u32 target_state, bool enable)
-{
-	return -ENODEV;
-}
 static inline int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 {
 	return -ENODEV;

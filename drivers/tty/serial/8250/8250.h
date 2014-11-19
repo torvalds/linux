@@ -12,6 +12,7 @@
  */
 
 #include <linux/serial_8250.h>
+#include <linux/serial_reg.h>
 #include <linux/dmaengine.h>
 
 struct uart_8250_dma {
@@ -60,6 +61,7 @@ struct serial8250_config {
 	unsigned short	fifo_size;
 	unsigned short	tx_loadsz;
 	unsigned char	fcr;
+	unsigned char	rxtrig_bytes[UART_FCR_R_TRIG_MAX_STATE];
 	unsigned int	flags;
 };
 

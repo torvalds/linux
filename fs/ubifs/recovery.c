@@ -596,7 +596,6 @@ static void drop_last_group(struct ubifs_scan_leb *sleb, int *offs)
  * drop_last_node - drop the last node.
  * @sleb: scanned LEB information
  * @offs: offset of dropped nodes is returned here
- * @grouped: non-zero if whole group of nodes have to be dropped
  *
  * This is a helper function for 'ubifs_recover_leb()' which drops the last
  * node of the scanned LEB.
@@ -629,8 +628,8 @@ static void drop_last_node(struct ubifs_scan_leb *sleb, int *offs)
  *
  * This function does a scan of a LEB, but caters for errors that might have
  * been caused by the unclean unmount from which we are attempting to recover.
- * Returns %0 in case of success, %-EUCLEAN if an unrecoverable corruption is
- * found, and a negative error code in case of failure.
+ * Returns the scanned information on success and a negative error code on
+ * failure.
  */
 struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 					 int offs, void *sbuf, int jhead)

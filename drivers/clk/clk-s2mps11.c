@@ -46,7 +46,6 @@ struct s2mps11_clk {
 	struct clk *clk;
 	struct clk_lookup *lookup;
 	u32 mask;
-	bool enabled;
 	unsigned int reg;
 };
 
@@ -63,8 +62,6 @@ static int s2mps11_clk_prepare(struct clk_hw *hw)
 	ret = regmap_update_bits(s2mps11->iodev->regmap_pmic,
 				 s2mps11->reg,
 				 s2mps11->mask, s2mps11->mask);
-	if (!ret)
-		s2mps11->enabled = true;
 
 	return ret;
 }
@@ -76,32 +73,32 @@ static void s2mps11_clk_unprepare(struct clk_hw *hw)
 
 	ret = regmap_update_bits(s2mps11->iodev->regmap_pmic, s2mps11->reg,
 			   s2mps11->mask, ~s2mps11->mask);
-
-	if (!ret)
-		s2mps11->enabled = false;
 }
 
-static int s2mps11_clk_is_enabled(struct clk_hw *hw)
+static int s2mps11_clk_is_prepared(struct clk_hw *hw)
 {
+	int ret;
+	u32 val;
 	struct s2mps11_clk *s2mps11 = to_s2mps11_clk(hw);
 
-	return s2mps11->enabled;
+	ret = regmap_read(s2mps11->iodev->regmap_pmic,
+				s2mps11->reg, &val);
+	if (ret < 0)
+		return -EINVAL;
+
+	return val & s2mps11->mask;
 }
 
 static unsigned long s2mps11_clk_recalc_rate(struct clk_hw *hw,
 					     unsigned long parent_rate)
 {
-	struct s2mps11_clk *s2mps11 = to_s2mps11_clk(hw);
-	if (s2mps11->enabled)
-		return 32768;
-	else
-		return 0;
+	return 32768;
 }
 
 static struct clk_ops s2mps11_clk_ops = {
 	.prepare	= s2mps11_clk_prepare,
 	.unprepare	= s2mps11_clk_unprepare,
-	.is_enabled	= s2mps11_clk_is_enabled,
+	.is_prepared	= s2mps11_clk_is_prepared,
 	.recalc_rate	= s2mps11_clk_recalc_rate,
 };
 
@@ -169,7 +166,6 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	unsigned int s2mps11_reg;
 	struct clk_init_data *clks_init;
 	int i, ret = 0;
-	u32 val;
 
 	s2mps11_clks = devm_kzalloc(&pdev->dev, sizeof(*s2mps11_clk) *
 					S2MPS11_CLKS_NUM, GFP_KERNEL);
@@ -213,13 +209,6 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 		s2mps11_clk->hw.init = &clks_init[i];
 		s2mps11_clk->mask = 1 << i;
 		s2mps11_clk->reg = s2mps11_reg;
-
-		ret = regmap_read(s2mps11_clk->iodev->regmap_pmic,
-				  s2mps11_clk->reg, &val);
-		if (ret < 0)
-			goto err_reg;
-
-		s2mps11_clk->enabled = val & s2mps11_clk->mask;
 
 		s2mps11_clk->clk = devm_clk_register(&pdev->dev,
 							&s2mps11_clk->hw);

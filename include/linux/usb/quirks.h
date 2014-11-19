@@ -30,4 +30,15 @@
    descriptor */
 #define USB_QUIRK_DELAY_INIT		0x00000040
 
+/*
+ * For high speed and super speed interupt endpoints, the USB 2.0 and
+ * USB 3.0 spec require the interval in microframes
+ * (1 microframe = 125 microseconds) to be calculated as
+ * interval = 2 ^ (bInterval-1).
+ *
+ * Devices with this quirk report their bInterval as the result of this
+ * calculation instead of the exponent variable used in the calculation.
+ */
+#define USB_QUIRK_LINEAR_UFRAME_INTR_BINTERVAL	0x00000080
+
 #endif /* __LINUX_USB_QUIRKS_H */

@@ -347,8 +347,8 @@ static inline void __set_test_and_free(struct f2fs_sb_info *sbi,
 	if (test_and_clear_bit(segno, free_i->free_segmap)) {
 		free_i->free_segments++;
 
-		next = find_next_bit(free_i->free_segmap, TOTAL_SEGS(sbi),
-								start_segno);
+		next = find_next_bit(free_i->free_segmap,
+				start_segno + sbi->segs_per_sec, start_segno);
 		if (next >= start_segno + sbi->segs_per_sec) {
 			if (test_and_clear_bit(secno, free_i->free_secmap))
 				free_i->free_sections++;
@@ -486,6 +486,10 @@ static inline bool need_inplace_update(struct inode *inode)
 	if (S_ISDIR(inode->i_mode))
 		return false;
 
+	/* this is only set during fdatasync */
+	if (is_inode_flag_set(F2FS_I(inode), FI_NEED_IPU))
+		return true;
+
 	switch (SM_I(sbi)->ipu_policy) {
 	case F2FS_IPU_FORCE:
 		return true;
@@ -545,7 +549,7 @@ static inline void verify_block_addr(struct f2fs_sb_info *sbi, block_t blk_addr)
 }
 
 /*
- * Summary block is always treated as invalid block
+ * Summary block is always treated as an invalid block
  */
 static inline void check_block_count(struct f2fs_sb_info *sbi,
 		int segno, struct f2fs_sit_entry *raw_sit)

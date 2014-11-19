@@ -626,7 +626,7 @@ int sample__resolve_callchain(struct perf_sample *sample, struct symbol **parent
 
 int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample)
 {
-	if (!symbol_conf.use_callchain)
+	if (!symbol_conf.use_callchain || sample->callchain == NULL)
 		return 0;
 	return callchain_append(he->callchain, &callchain_cursor, sample->period);
 }

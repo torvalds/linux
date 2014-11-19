@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -153,7 +153,6 @@ static u8 ixgbe_dcbnl_get_state(struct net_device *netdev)
 static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	int err = 0;
 
 	/* Fail command if not in CEE mode */
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
@@ -161,12 +160,10 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 
 	/* verify there is something to do, if not then exit */
 	if (!state == !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
-		goto out;
+		return 0;
 
-	err = ixgbe_setup_tc(netdev,
-			     state ? adapter->dcb_cfg.num_tcs.pg_tcs : 0);
-out:
-	return !!err;
+	return !!ixgbe_setup_tc(netdev,
+				state ? adapter->dcb_cfg.num_tcs.pg_tcs : 0);
 }
 
 static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
@@ -331,12 +328,12 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 
 	/* Fail command if not in CEE mode */
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
-		return ret;
+		return DCB_NO_HW_CHG;
 
 	adapter->dcb_set_bitmap |= ixgbe_copy_dcb_cfg(adapter,
 						      MAX_TRAFFIC_CLASS);
 	if (!adapter->dcb_set_bitmap)
-		return ret;
+		return DCB_NO_HW_CHG;
 
 	if (adapter->dcb_set_bitmap & (BIT_PG_TX|BIT_PG_RX)) {
 		u16 refill[MAX_TRAFFIC_CLASS], max[MAX_TRAFFIC_CLASS];
@@ -460,7 +457,6 @@ static int ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 			break;
 		default:
 			return -EINVAL;
-			break;
 		}
 	} else {
 		return -EINVAL;
@@ -495,10 +491,10 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
  * @id: id is either ether type or TCP/UDP port number
  *
  * Returns : on success, returns a non-zero 802.1p user priority bitmap
- * otherwise returns 0 as the invalid user priority bitmap to indicate an
+ * otherwise returns -EINVAL as the invalid user priority bitmap to indicate an
  * error.
  */
-static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
+static int ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct dcb_app app = {
@@ -507,7 +503,7 @@ static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 			     };
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
-		return 0;
+		return -EINVAL;
 
 	return dcb_getapp(netdev, &app);
 }
@@ -537,7 +533,7 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
-	int i, err = 0;
+	int i, err;
 	__u8 max_tc = 0;
 	__u8 map_chg = 0;
 
@@ -574,17 +570,15 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 	if (max_tc > adapter->dcb_cfg.num_tcs.pg_tcs)
 		return -EINVAL;
 
-	if (max_tc != netdev_get_num_tc(dev))
+	if (max_tc != netdev_get_num_tc(dev)) {
 		err = ixgbe_setup_tc(dev, max_tc);
-	else if (map_chg)
+		if (err)
+			return err;
+	} else if (map_chg) {
 		ixgbe_dcbnl_devreset(dev);
+	}
 
-	if (err)
-		goto err_out;
-
-	err = ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
-err_out:
-	return err;
+	return ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
 }
 
 static int ixgbe_dcbnl_ieee_getpfc(struct net_device *dev,
@@ -648,10 +642,10 @@ static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 				   struct dcb_app *app)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	int err = -EINVAL;
+	int err;
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
-		return err;
+		return -EINVAL;
 
 	err = dcb_ieee_setapp(dev, app);
 	if (err)
@@ -663,7 +657,7 @@ static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 		u8 app_mask = dcb_ieee_getapp_mask(dev, app);
 
 		if (app_mask & (1 << adapter->fcoe.up))
-			return err;
+			return 0;
 
 		adapter->fcoe.up = app->priority;
 		ixgbe_dcbnl_devreset(dev);
@@ -706,7 +700,7 @@ static int ixgbe_dcbnl_ieee_delapp(struct net_device *dev,
 		u8 app_mask = dcb_ieee_getapp_mask(dev, app);
 
 		if (app_mask & (1 << adapter->fcoe.up))
-			return err;
+			return 0;
 
 		adapter->fcoe.up = app_mask ?
 				   ffs(app_mask) - 1 : IXGBE_FCOE_DEFTC;

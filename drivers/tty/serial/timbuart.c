@@ -244,11 +244,6 @@ static void timbuart_mctrl_check(struct uart_port *port, u32 isr, u32 *ier)
 	*ier |= CTS_DELTA;
 }
 
-static void timbuart_enable_ms(struct uart_port *port)
-{
-	/* N/A */
-}
-
 static void timbuart_break_ctl(struct uart_port *port, int ctl)
 {
 	/* N/A */
@@ -405,7 +400,6 @@ static struct uart_ops timbuart_ops = {
 	.start_tx = timbuart_start_tx,
 	.flush_buffer = timbuart_flush_buffer,
 	.stop_rx = timbuart_stop_rx,
-	.enable_ms = timbuart_enable_ms,
 	.break_ctl = timbuart_break_ctl,
 	.startup = timbuart_startup,
 	.shutdown = timbuart_shutdown,

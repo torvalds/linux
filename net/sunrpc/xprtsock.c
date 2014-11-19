@@ -594,6 +594,7 @@ static int xs_local_send_request(struct rpc_task *task)
 	}
 
 	switch (status) {
+	case -ENOBUFS:
 	case -EAGAIN:
 		status = xs_nospace(task);
 		break;
@@ -661,6 +662,7 @@ static int xs_udp_send_request(struct rpc_task *task)
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
 			-status);
 	case -ENETUNREACH:
+	case -ENOBUFS:
 	case -EPIPE:
 	case -ECONNREFUSED:
 		/* When the server has died, an ICMP port unreachable message
@@ -758,6 +760,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		status = -ENOTCONN;
 		/* Should we call xs_close() here? */
 		break;
+	case -ENOBUFS:
 	case -EAGAIN:
 		status = xs_nospace(task);
 		break;
@@ -1946,6 +1949,7 @@ static int xs_local_setup_socket(struct sock_xprt *transport)
 		dprintk("RPC:       xprt %p connected to %s\n",
 				xprt, xprt->address_strings[RPC_DISPLAY_ADDR]);
 		xprt_set_connected(xprt);
+	case -ENOBUFS:
 		break;
 	case -ENOENT:
 		dprintk("RPC:       xprt %p: socket %s does not exist\n",
@@ -2281,6 +2285,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	case -ECONNREFUSED:
 	case -ECONNRESET:
 	case -ENETUNREACH:
+	case -ENOBUFS:
 		/* retry with existing socket, after a delay */
 		goto out;
 	}
@@ -3054,12 +3059,12 @@ static int param_set_uint_minmax(const char *val,
 		const struct kernel_param *kp,
 		unsigned int min, unsigned int max)
 {
-	unsigned long num;
+	unsigned int num;
 	int ret;
 
 	if (!val)
 		return -EINVAL;
-	ret = strict_strtoul(val, 0, &num);
+	ret = kstrtouint(val, 0, &num);
 	if (ret == -EINVAL || num < min || num > max)
 		return -EINVAL;
 	*((unsigned int *)kp->arg) = num;

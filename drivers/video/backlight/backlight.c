@@ -223,6 +223,8 @@ static ssize_t actual_brightness_show(struct device *dev,
 	mutex_lock(&bd->ops_lock);
 	if (bd->ops && bd->ops->get_brightness)
 		rc = sprintf(buf, "%d\n", bd->ops->get_brightness(bd));
+	else
+		rc = sprintf(buf, "%d\n", bd->props.brightness);
 	mutex_unlock(&bd->ops_lock);
 
 	return rc;

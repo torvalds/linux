@@ -25,11 +25,13 @@
 #include <linux/sh_eth.h>
 #include <linux/spi/rspi.h>
 #include <linux/spi/spi.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
-#include <mach/r7s72100.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
+#include "common.h"
+#include "irqs.h"
+#include "r7s72100.h"
 
 /* Ether */
 static const struct sh_eth_plat_data ether_pdata __initconst = {
@@ -46,7 +48,6 @@ static const struct resource ether_resources[] __initconst = {
 };
 
 static const struct platform_device_info ether_info __initconst = {
-	.parent		= &platform_bus,
 	.name		= "r7s72100-ether",
 	.id		= -1,
 	.res		= ether_resources,
@@ -76,7 +77,7 @@ static const struct rspi_plat_data rspi_pdata __initconst = {
 };
 
 #define r7s72100_register_rspi(idx)					   \
-	platform_device_register_resndata(&platform_bus, "rspi-rz", idx,   \
+	platform_device_register_resndata(NULL, "rspi-rz", idx,            \
 					rspi##idx##_resources,		   \
 					ARRAY_SIZE(rspi##idx##_resources), \
 					&rspi_pdata, sizeof(rspi_pdata))
@@ -118,7 +119,7 @@ R7S72100_SCIF(6, 0xe800a000, gic_iid(245));
 R7S72100_SCIF(7, 0xe800a800, gic_iid(249));
 
 #define r7s72100_register_scif(index)					       \
-	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+	platform_device_register_resndata(NULL, "sh-sci", index,               \
 					  scif##index##_resources,	       \
 					  ARRAY_SIZE(scif##index##_resources), \
 					  &scif##index##_platform_data,	       \
@@ -154,7 +155,7 @@ static const char * const genmai_boards_compat_dt[] __initconst = {
 };
 
 DT_MACHINE_START(GENMAI_DT, "genmai")
-	.init_early	= r7s72100_init_early,
+	.init_early	= shmobile_init_delay,
 	.init_machine	= genmai_add_standard_devices,
 	.dt_compat	= genmai_boards_compat_dt,
 MACHINE_END

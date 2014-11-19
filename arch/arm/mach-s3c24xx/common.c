@@ -49,9 +49,7 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/clock.h>
 #include <plat/cpu-freq.h>
-#include <plat/pll.h>
 #include <plat/pwm-core.h>
 #include <plat/watchdog-reset.h>
 

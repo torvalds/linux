@@ -20,9 +20,6 @@ ENTRY(_mcount)
 
 ENTRY(ftrace_caller)
 #endif
-	larl	%r1,function_trace_stop
-	icm	%r1,0xf,0(%r1)
-	bnzr	%r14
 	stmg	%r2,%r5,32(%r15)
 	stg	%r14,112(%r15)
 	lgr	%r1,%r15

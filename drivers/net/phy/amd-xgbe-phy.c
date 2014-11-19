@@ -74,7 +74,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/uaccess.h>
-#include <asm/irq.h>
 
 
 MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
@@ -85,6 +84,8 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #define XGBE_PHY_ID	0x000162d0
 #define XGBE_PHY_MASK	0xfffffff0
 
+#define XGBE_PHY_SPEEDSET_PROPERTY	"amd,speed-set"
+
 #define XGBE_AN_INT_CMPLT		0x01
 #define XGBE_AN_INC_LINK		0x02
 #define XGBE_AN_PG_RCV			0x04
@@ -93,6 +94,8 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #define XNP_ACK_PROCESSED		(1 << 12)
 #define XNP_MP_FORMATTED		(1 << 13)
 #define XNP_NP_EXCHANGE			(1 << 15)
+
+#define XGBE_PHY_RATECHANGE_COUNT	500
 
 #ifndef MDIO_PMA_10GBR_PMD_CTRL
 #define MDIO_PMA_10GBR_PMD_CTRL		0x0096
@@ -116,10 +119,13 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #endif
 
 /* SerDes integration register offsets */
+#define SIR0_KR_RT_1			0x002c
 #define SIR0_STATUS			0x0040
 #define SIR1_SPEED			0x0000
 
 /* SerDes integration register entry bit positions and sizes */
+#define SIR0_KR_RT_1_RESET_INDEX	11
+#define SIR0_KR_RT_1_RESET_WIDTH	1
 #define SIR0_STATUS_RX_READY_INDEX	0
 #define SIR0_STATUS_RX_READY_WIDTH	1
 #define SIR0_STATUS_TX_READY_INDEX	8
@@ -145,7 +151,7 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 
 #define SPEED_2500_CDR			0x2
 #define SPEED_2500_PLL			0x0
-#define SPEED_2500_RATE			0x2
+#define SPEED_2500_RATE			0x1
 #define SPEED_2500_TXAMP		0xf
 #define SPEED_2500_WORD			0x1
 
@@ -191,6 +197,16 @@ do {									\
 	(_var) &= ~(((0x1 << (_width)) - 1) << (_index));		\
 	(_var) |= (((_val) & ((0x1 << (_width)) - 1)) << (_index));	\
 } while (0)
+
+#define XSIR_GET_BITS(_var, _prefix, _field)				\
+	GET_BITS((_var),						\
+		 _prefix##_##_field##_INDEX,				\
+		 _prefix##_##_field##_WIDTH)
+
+#define XSIR_SET_BITS(_var, _prefix, _field, _val)			\
+	SET_BITS((_var),						\
+		 _prefix##_##_field##_INDEX,				\
+		 _prefix##_##_field##_WIDTH, (_val))
 
 /* Macros for reading or writing SerDes integration registers
  *  The ioread macros will get bit fields or full values using the
@@ -292,6 +308,11 @@ enum amd_xgbe_phy_mode {
 	AMD_XGBE_MODE_KX,
 };
 
+enum amd_xgbe_phy_speedset {
+	AMD_XGBE_PHY_SPEEDSET_1000_10000,
+	AMD_XGBE_PHY_SPEEDSET_2500_10000,
+};
+
 struct amd_xgbe_phy_priv {
 	struct platform_device *pdev;
 	struct device *dev;
@@ -311,6 +332,7 @@ struct amd_xgbe_phy_priv {
 	/* Maintain link status for re-starting auto-negotiation */
 	unsigned int link;
 	enum amd_xgbe_phy_mode mode;
+	unsigned int speed_set;
 
 	/* Auto-negotiation state machine support */
 	struct mutex an_mutex;
@@ -380,14 +402,25 @@ static void amd_xgbe_phy_serdes_start_ratechange(struct phy_device *phydev)
 static void amd_xgbe_phy_serdes_complete_ratechange(struct phy_device *phydev)
 {
 	struct amd_xgbe_phy_priv *priv = phydev->priv;
+	unsigned int wait;
+	u16 status;
 
 	/* Release Rx and Tx ratechange */
 	XSIR1_IOWRITE_BITS(priv, SIR1_SPEED, RATECHANGE, 0);
 
 	/* Wait for Rx and Tx ready */
-	while (!XSIR0_IOREAD_BITS(priv, SIR0_STATUS, RX_READY) &&
-	       !XSIR0_IOREAD_BITS(priv, SIR0_STATUS, TX_READY))
-		usleep_range(10, 20);
+	wait = XGBE_PHY_RATECHANGE_COUNT;
+	while (wait--) {
+		usleep_range(50, 75);
+
+		status = XSIR0_IOREAD(priv, SIR0_STATUS);
+		if (XSIR_GET_BITS(status, SIR0_STATUS, RX_READY) &&
+		    XSIR_GET_BITS(status, SIR0_STATUS, TX_READY))
+			return;
+	}
+
+	netdev_dbg(phydev->attached_dev, "SerDes rx/tx not ready (%#hx)\n",
+		   status);
 }
 
 static int amd_xgbe_phy_xgmii_mode(struct phy_device *phydev)
@@ -546,10 +579,14 @@ static int amd_xgbe_phy_switch_mode(struct phy_device *phydev)
 	int ret;
 
 	/* If we are in KR switch to KX, and vice-versa */
-	if (priv->mode == AMD_XGBE_MODE_KR)
-		ret = amd_xgbe_phy_gmii_mode(phydev);
-	else
+	if (priv->mode == AMD_XGBE_MODE_KR) {
+		if (priv->speed_set == AMD_XGBE_PHY_SPEEDSET_1000_10000)
+			ret = amd_xgbe_phy_gmii_mode(phydev);
+		else
+			ret = amd_xgbe_phy_gmii_2500_mode(phydev);
+	} else {
 		ret = amd_xgbe_phy_xgmii_mode(phydev);
+	}
 
 	return ret;
 }
@@ -602,8 +639,12 @@ static enum amd_xgbe_phy_an amd_xgbe_an_tx_training(struct phy_device *phydev,
 	if (ret < 0)
 		return AMD_XGBE_AN_ERROR;
 
+	XSIR0_IOWRITE_BITS(priv, SIR0_KR_RT_1, RESET, 1);
+
 	ret |= 0x01;
 	phy_write_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL, ret);
+
+	XSIR0_IOWRITE_BITS(priv, SIR0_KR_RT_1, RESET, 0);
 
 	return AMD_XGBE_AN_EVENT;
 }
@@ -713,7 +754,8 @@ static enum amd_xgbe_phy_an amd_xgbe_an_start(struct phy_device *phydev)
 	else
 		ret &= ~0x80;
 
-	if (phydev->supported & SUPPORTED_1000baseKX_Full)
+	if ((phydev->supported & SUPPORTED_1000baseKX_Full) ||
+	    (phydev->supported & SUPPORTED_2500baseX_Full))
 		ret |= 0x20;
 	else
 		ret &= ~0x20;
@@ -815,6 +857,7 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 	struct phy_device *phydev = priv->phydev;
 	enum amd_xgbe_phy_an cur_state;
 	int sleep;
+	unsigned int an_supported = 0;
 
 	while (1) {
 		mutex_lock(&priv->an_mutex);
@@ -824,6 +867,7 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 		switch (priv->an_state) {
 		case AMD_XGBE_AN_START:
 			priv->an_state = amd_xgbe_an_start(phydev);
+			an_supported = 0;
 			break;
 
 		case AMD_XGBE_AN_EVENT:
@@ -832,6 +876,7 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 
 		case AMD_XGBE_AN_PAGE_RECEIVED:
 			priv->an_state = amd_xgbe_an_page_received(phydev);
+			an_supported++;
 			break;
 
 		case AMD_XGBE_AN_INCOMPAT_LINK:
@@ -839,6 +884,11 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 			break;
 
 		case AMD_XGBE_AN_COMPLETE:
+			netdev_info(phydev->attached_dev, "%s successful\n",
+				    an_supported ? "Auto negotiation"
+						 : "Parallel detection");
+			/* fall through */
+
 		case AMD_XGBE_AN_NO_LINK:
 		case AMD_XGBE_AN_EXIT:
 			goto exit_unlock;
@@ -896,14 +946,22 @@ static int amd_xgbe_phy_soft_reset(struct phy_device *phydev)
 
 static int amd_xgbe_phy_config_init(struct phy_device *phydev)
 {
+	struct amd_xgbe_phy_priv *priv = phydev->priv;
+
 	/* Initialize supported features */
 	phydev->supported = SUPPORTED_Autoneg;
 	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 	phydev->supported |= SUPPORTED_Backplane;
-	phydev->supported |= SUPPORTED_1000baseKX_Full |
-			     SUPPORTED_2500baseX_Full;
 	phydev->supported |= SUPPORTED_10000baseKR_Full |
 			     SUPPORTED_10000baseR_FEC;
+	switch (priv->speed_set) {
+	case AMD_XGBE_PHY_SPEEDSET_1000_10000:
+		phydev->supported |= SUPPORTED_1000baseKX_Full;
+		break;
+	case AMD_XGBE_PHY_SPEEDSET_2500_10000:
+		phydev->supported |= SUPPORTED_2500baseX_Full;
+		break;
+	}
 	phydev->advertising = phydev->supported;
 
 	/* Turn off and clear interrupts */
@@ -1020,9 +1078,9 @@ static int amd_xgbe_phy_update_link(struct phy_device *phydev)
 	 * (re-)established (cable connected after the interface is
 	 * up, etc.), the link status may report no link. If there
 	 * is no link, try switching modes and checking the status
-	 * again.
+	 * again if auto negotiation is enabled.
 	 */
-	check_again = 1;
+	check_again = (phydev->autoneg == AUTONEG_ENABLE) ? 1 : 0;
 again:
 	/* Link status is latched low, so read once to clear
 	 * and then read again to get current state
@@ -1038,8 +1096,10 @@ again:
 	phydev->link = (ret & MDIO_STAT1_LSTATUS) ? 1 : 0;
 
 	if (!phydev->link) {
-		ret = amd_xgbe_phy_switch_mode(phydev);
 		if (check_again) {
+			ret = amd_xgbe_phy_switch_mode(phydev);
+			if (ret < 0)
+				return ret;
 			check_again = 0;
 			goto again;
 		}
@@ -1059,6 +1119,7 @@ again:
 
 static int amd_xgbe_phy_read_status(struct phy_device *phydev)
 {
+	struct amd_xgbe_phy_priv *priv = phydev->priv;
 	u32 mmd_mask = phydev->c45_ids.devices_in_package;
 	int ret, mode, ad_ret, lp_ret;
 
@@ -1108,9 +1169,19 @@ static int amd_xgbe_phy_read_status(struct phy_device *phydev)
 					return ret;
 			}
 		} else {
-			phydev->speed = SPEED_1000;
+			int (*mode_fcn)(struct phy_device *);
+
+			if (priv->speed_set ==
+			    AMD_XGBE_PHY_SPEEDSET_1000_10000) {
+				phydev->speed = SPEED_1000;
+				mode_fcn = amd_xgbe_phy_gmii_mode;
+			} else {
+				phydev->speed = SPEED_2500;
+				mode_fcn = amd_xgbe_phy_gmii_2500_mode;
+			}
+
 			if (mode == MDIO_PCS_CTRL2_10GBR) {
-				ret = amd_xgbe_phy_gmii_mode(phydev);
+				ret = mode_fcn(phydev);
 				if (ret < 0)
 					return ret;
 			}
@@ -1118,8 +1189,15 @@ static int amd_xgbe_phy_read_status(struct phy_device *phydev)
 
 		phydev->duplex = DUPLEX_FULL;
 	} else {
-		phydev->speed = (mode == MDIO_PCS_CTRL2_10GBR) ? SPEED_10000
-							       : SPEED_1000;
+		if (mode == MDIO_PCS_CTRL2_10GBR) {
+			phydev->speed = SPEED_10000;
+		} else {
+			if (priv->speed_set ==
+			    AMD_XGBE_PHY_SPEEDSET_1000_10000)
+				phydev->speed = SPEED_1000;
+			else
+				phydev->speed = SPEED_2500;
+		}
 		phydev->duplex = DUPLEX_FULL;
 		phydev->pause = 0;
 		phydev->asym_pause = 0;
@@ -1176,6 +1254,8 @@ static int amd_xgbe_phy_probe(struct phy_device *phydev)
 	struct platform_device *pdev;
 	struct device *dev;
 	char *wq_name;
+	const __be32 *property;
+	unsigned int speed_set;
 	int ret;
 
 	if (!phydev->dev.of_node)
@@ -1225,6 +1305,26 @@ static int amd_xgbe_phy_probe(struct phy_device *phydev)
 		dev_err(dev, "sir1 ioremap failed\n");
 		ret = PTR_ERR(priv->sir1_regs);
 		goto err_sir0;
+	}
+
+	/* Get the device speed set property */
+	speed_set = 0;
+	property = of_get_property(dev->of_node, XGBE_PHY_SPEEDSET_PROPERTY,
+				   NULL);
+	if (property)
+		speed_set = be32_to_cpu(*property);
+
+	switch (speed_set) {
+	case 0:
+		priv->speed_set = AMD_XGBE_PHY_SPEEDSET_1000_10000;
+		break;
+	case 1:
+		priv->speed_set = AMD_XGBE_PHY_SPEEDSET_2500_10000;
+		break;
+	default:
+		dev_err(dev, "invalid amd,speed-set property\n");
+		ret = -EINVAL;
+		goto err_sir1;
 	}
 
 	priv->link = 1;

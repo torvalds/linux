@@ -837,7 +837,7 @@ struct MPT2SAS_ADAPTER {
 	u8		msix_enable;
 	u16		msix_vector_count;
 	u8		*cpu_msix_table;
-	resource_size_t	**reply_post_host_index;
+	resource_size_t	__iomem **reply_post_host_index;
 	u16		cpu_msix_table_sz;
 	u32		ioc_reset_count;
 	MPT2SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;

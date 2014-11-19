@@ -140,11 +140,11 @@ void klist_add_tail(struct klist_node *n, struct klist *k)
 EXPORT_SYMBOL_GPL(klist_add_tail);
 
 /**
- * klist_add_after - Init a klist_node and add it after an existing node
+ * klist_add_behind - Init a klist_node and add it after an existing node
  * @n: node we're adding.
  * @pos: node to put @n after
  */
-void klist_add_after(struct klist_node *n, struct klist_node *pos)
+void klist_add_behind(struct klist_node *n, struct klist_node *pos)
 {
 	struct klist *k = knode_klist(pos);
 
@@ -153,7 +153,7 @@ void klist_add_after(struct klist_node *n, struct klist_node *pos)
 	list_add(&n->n_node, &pos->n_node);
 	spin_unlock(&k->k_lock);
 }
-EXPORT_SYMBOL_GPL(klist_add_after);
+EXPORT_SYMBOL_GPL(klist_add_behind);
 
 /**
  * klist_add_before - Init a klist_node and add it before an existing node

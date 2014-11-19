@@ -126,13 +126,13 @@
 static inline
 void msm_write(struct uart_port *port, unsigned int val, unsigned int off)
 {
-	__raw_writel(val, port->membase + off);
+	writel_relaxed(val, port->membase + off);
 }
 
 static inline
 unsigned int msm_read(struct uart_port *port, unsigned int off)
 {
-	return __raw_readl(port->membase + off);
+	return readl_relaxed(port->membase + off);
 }
 
 /*

@@ -48,7 +48,7 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct sharp_dec *data = &dev->raw->sharp;
 	u32 msg, echo, address, command, scancode;
 
-	if (!rc_protocols_enabled(dev, RC_BIT_SHARP))
+	if (!(dev->enabled_protocols & RC_BIT_SHARP))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -162,7 +162,7 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		scancode = address << 8 | command;
 		IR_dprintk(1, "Sharp scancode 0x%04x\n", scancode);
 
-		rc_keydown(dev, scancode, 0);
+		rc_keydown(dev, RC_TYPE_SHARP, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}

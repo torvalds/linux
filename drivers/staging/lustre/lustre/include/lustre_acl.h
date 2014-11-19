@@ -37,6 +37,6 @@
 #ifndef _LUSTRE_ACL_H
 #define _LUSTRE_ACL_H
 
-#include <linux/lustre_acl.h>
+#include "linux/lustre_acl.h"
 
 #endif

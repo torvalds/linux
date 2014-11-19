@@ -22,8 +22,17 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/pwr.h>
 #include <subdev/timer.h>
+
+#include "priv.h"
+
+static void
+nouveau_pwr_pgob(struct nouveau_pwr *ppwr, bool enable)
+{
+	const struct nvkm_pwr_impl *impl = (void *)nv_oclass(ppwr);
+	if (impl->pgob)
+		impl->pgob(ppwr, enable);
+}
 
 static int
 nouveau_pwr_send(struct nouveau_pwr *ppwr, u32 reply[2],
@@ -177,6 +186,7 @@ _nouveau_pwr_fini(struct nouveau_object *object, bool suspend)
 int
 _nouveau_pwr_init(struct nouveau_object *object)
 {
+	const struct nvkm_pwr_impl *impl = (void *)object->oclass;
 	struct nouveau_pwr *ppwr = (void *)object;
 	int ret, i;
 
@@ -186,6 +196,7 @@ _nouveau_pwr_init(struct nouveau_object *object)
 
 	nv_subdev(ppwr)->intr = nouveau_pwr_intr;
 	ppwr->message = nouveau_pwr_send;
+	ppwr->pgob = nouveau_pwr_pgob;
 
 	/* prevent previous ucode from running, wait for idle, reset */
 	nv_wr32(ppwr, 0x10a014, 0x0000ffff); /* INTR_EN_CLR = ALL */
@@ -195,15 +206,15 @@ _nouveau_pwr_init(struct nouveau_object *object)
 
 	/* upload data segment */
 	nv_wr32(ppwr, 0x10a1c0, 0x01000000);
-	for (i = 0; i < ppwr->data.size / 4; i++)
-		nv_wr32(ppwr, 0x10a1c4, ppwr->data.data[i]);
+	for (i = 0; i < impl->data.size / 4; i++)
+		nv_wr32(ppwr, 0x10a1c4, impl->data.data[i]);
 
 	/* upload code segment */
 	nv_wr32(ppwr, 0x10a180, 0x01000000);
-	for (i = 0; i < ppwr->code.size / 4; i++) {
+	for (i = 0; i < impl->code.size / 4; i++) {
 		if ((i & 0x3f) == 0)
 			nv_wr32(ppwr, 0x10a188, i >> 6);
-		nv_wr32(ppwr, 0x10a184, ppwr->code.data[i]);
+		nv_wr32(ppwr, 0x10a184, impl->code.data[i]);
 	}
 
 	/* start it running */
@@ -244,4 +255,16 @@ nouveau_pwr_create_(struct nouveau_object *parent,
 	INIT_WORK(&ppwr->recv.work, nouveau_pwr_recv);
 	init_waitqueue_head(&ppwr->recv.wait);
 	return 0;
+}
+
+int
+_nouveau_pwr_ctor(struct nouveau_object *parent,
+		  struct nouveau_object *engine,
+		  struct nouveau_oclass *oclass, void *data, u32 size,
+		  struct nouveau_object **pobject)
+{
+	struct nouveau_pwr *ppwr;
+	int ret = nouveau_pwr_create(parent, engine, oclass, &ppwr);
+	*pobject = nv_object(ppwr);
+	return ret;
 }

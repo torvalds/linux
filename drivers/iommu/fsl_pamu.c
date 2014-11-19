@@ -92,7 +92,7 @@ struct gen_pool *spaace_pool;
  * subwindow count per liodn.
  *
  */
-u32 pamu_get_max_subwin_cnt()
+u32 pamu_get_max_subwin_cnt(void)
 {
 	return max_subwindow_count;
 }

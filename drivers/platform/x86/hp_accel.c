@@ -74,7 +74,7 @@ static inline void delayed_sysfs_set(struct led_classdev *led_cdev,
 /* HP-specific accelerometer driver ------------------------------------ */
 
 /* For automatic insertion of the module */
-static struct acpi_device_id lis3lv02d_device_ids[] = {
+static const struct acpi_device_id lis3lv02d_device_ids[] = {
 	{"HPQ0004", 0}, /* HP Mobile Data Protection System PNP */
 	{"HPQ6000", 0}, /* HP Mobile Data Protection System PNP */
 	{"HPQ6007", 0}, /* HP Mobile Data Protection System PNP */
@@ -192,7 +192,7 @@ DEFINE_CONV(xy_swap_yz_inverted, 2, -1, -3);
 	},						\
 	.driver_data = &lis3lv02d_axis_##_axis		\
 }
-static struct dmi_system_id lis3lv02d_dmi_ids[] = {
+static const struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	/* product names are truncated to match all kinds of a same model */
 	AXIS_DMI_MATCH("NC64x0", "HP Compaq nc64", x_inverted),
 	AXIS_DMI_MATCH("NC84x0", "HP Compaq nc84", z_inverted),

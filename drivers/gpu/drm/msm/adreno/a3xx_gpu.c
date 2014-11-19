@@ -392,12 +392,9 @@ static const unsigned int a3xx_registers[] = {
 #ifdef CONFIG_DEBUG_FS
 static void a3xx_show(struct msm_gpu *gpu, struct seq_file *m)
 {
-	struct drm_device *dev = gpu->dev;
 	int i;
 
 	adreno_show(gpu, m);
-
-	mutex_lock(&dev->struct_mutex);
 
 	gpu->funcs->pm_resume(gpu);
 
@@ -418,8 +415,6 @@ static void a3xx_show(struct msm_gpu *gpu, struct seq_file *m)
 	}
 
 	gpu->funcs->pm_suspend(gpu);
-
-	mutex_unlock(&dev->struct_mutex);
 }
 #endif
 
@@ -685,6 +680,8 @@ static int a3xx_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id dt_match[] = {
+	{ .compatible = "qcom,adreno-3xx" },
+	/* for backwards compat w/ downstream kgsl DT files: */
 	{ .compatible = "qcom,kgsl-3d0" },
 	{}
 };

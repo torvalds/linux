@@ -438,14 +438,17 @@ static void __blk_drain_queue(struct request_queue *q, bool drain_all)
  */
 void blk_queue_bypass_start(struct request_queue *q)
 {
-	bool drain;
-
 	spin_lock_irq(q->queue_lock);
-	drain = !q->bypass_depth++;
+	q->bypass_depth++;
 	queue_flag_set(QUEUE_FLAG_BYPASS, q);
 	spin_unlock_irq(q->queue_lock);
 
-	if (drain) {
+	/*
+	 * Queues start drained.  Skip actual draining till init is
+	 * complete.  This avoids lenghty delays during queue init which
+	 * can happen many times during boot.
+	 */
+	if (blk_queue_init_done(q)) {
 		spin_lock_irq(q->queue_lock);
 		__blk_drain_queue(q, false);
 		spin_unlock_irq(q->queue_lock);
@@ -511,7 +514,7 @@ void blk_cleanup_queue(struct request_queue *q)
 	 * prevent that q->request_fn() gets invoked after draining finished.
 	 */
 	if (q->mq_ops) {
-		blk_mq_drain_queue(q);
+		blk_mq_freeze_queue(q);
 		spin_lock_irq(lock);
 	} else {
 		spin_lock_irq(lock);
@@ -1249,7 +1252,6 @@ void blk_rq_set_block_pc(struct request *rq)
 	rq->__sector = (sector_t) -1;
 	rq->bio = rq->biotail = NULL;
 	memset(rq->__cmd, 0, sizeof(rq->__cmd));
-	rq->cmd = rq->__cmd;
 }
 EXPORT_SYMBOL(blk_rq_set_block_pc);
 

@@ -41,6 +41,7 @@ struct nf_acct {
 };
 
 #define NFACCT_F_QUOTA (NFACCT_F_QUOTA_PKTS | NFACCT_F_QUOTA_BYTES)
+#define NFACCT_OVERQUOTA_BIT	2	/* NFACCT_F_OVERQUOTA */
 
 static int
 nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
@@ -77,7 +78,8 @@ nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
 			smp_mb__before_atomic();
 			/* reset overquota flag if quota is enabled. */
 			if ((matching->flags & NFACCT_F_QUOTA))
-				clear_bit(NFACCT_F_OVERQUOTA, &matching->flags);
+				clear_bit(NFACCT_OVERQUOTA_BIT,
+					  &matching->flags);
 			return 0;
 		}
 		return -EBUSY;
@@ -129,6 +131,7 @@ nfnl_acct_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	struct nfgenmsg *nfmsg;
 	unsigned int flags = portid ? NLM_F_MULTI : 0;
 	u64 pkts, bytes;
+	u32 old_flags;
 
 	event |= NFNL_SUBSYS_ACCT << 8;
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
@@ -143,12 +146,13 @@ nfnl_acct_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	if (nla_put_string(skb, NFACCT_NAME, acct->name))
 		goto nla_put_failure;
 
+	old_flags = acct->flags;
 	if (type == NFNL_MSG_ACCT_GET_CTRZERO) {
 		pkts = atomic64_xchg(&acct->pkts, 0);
 		bytes = atomic64_xchg(&acct->bytes, 0);
 		smp_mb__before_atomic();
 		if (acct->flags & NFACCT_F_QUOTA)
-			clear_bit(NFACCT_F_OVERQUOTA, &acct->flags);
+			clear_bit(NFACCT_OVERQUOTA_BIT, &acct->flags);
 	} else {
 		pkts = atomic64_read(&acct->pkts);
 		bytes = atomic64_read(&acct->bytes);
@@ -160,7 +164,7 @@ nfnl_acct_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	if (acct->flags & NFACCT_F_QUOTA) {
 		u64 *quota = (u64 *)acct->data;
 
-		if (nla_put_be32(skb, NFACCT_FLAGS, htonl(acct->flags)) ||
+		if (nla_put_be32(skb, NFACCT_FLAGS, htonl(old_flags)) ||
 		    nla_put_be64(skb, NFACCT_QUOTA, cpu_to_be64(*quota)))
 			goto nla_put_failure;
 	}
@@ -412,7 +416,7 @@ int nfnl_acct_overquota(const struct sk_buff *skb, struct nf_acct *nfacct)
 	ret = now > *quota;
 
 	if (now >= *quota &&
-	    !test_and_set_bit(NFACCT_F_OVERQUOTA, &nfacct->flags)) {
+	    !test_and_set_bit(NFACCT_OVERQUOTA_BIT, &nfacct->flags)) {
 		nfnl_overquota_report(nfacct);
 	}
 

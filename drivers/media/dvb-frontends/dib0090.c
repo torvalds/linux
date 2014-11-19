@@ -2557,10 +2557,19 @@ static int dib0090_set_params(struct dvb_frontend *fe)
 
 	do {
 		ret = dib0090_tune(fe);
-		if (ret != FE_CALLBACK_TIME_NEVER)
-			msleep(ret / 10);
-		else
+		if (ret == FE_CALLBACK_TIME_NEVER)
 			break;
+
+		/*
+		 * Despite dib0090_tune returns time at a 0.1 ms range,
+		 * the actual sleep time depends on CONFIG_HZ. The worse case
+		 * is when CONFIG_HZ=100. In such case, the minimum granularity
+		 * is 10ms. On some real field tests, the tuner sometimes don't
+		 * lock when this timer is lower than 10ms. So, enforce a 10ms
+		 * granularity and use usleep_range() instead of msleep().
+		 */
+		ret = 10 * (ret + 99)/100;
+		usleep_range(ret * 1000, (ret + 1) * 1000);
 	} while (state->tune_state != CT_TUNER_STOP);
 
 	return 0;

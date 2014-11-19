@@ -244,20 +244,20 @@ static int pcf50633_probe(struct i2c_client *client,
 
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++) {
 		struct platform_device *pdev;
+		int j;
 
 		pdev = platform_device_alloc("pcf50633-regulator", i);
-		if (!pdev) {
-			dev_err(pcf->dev, "Cannot create regulator %d\n", i);
-			continue;
-		}
+		if (!pdev)
+			return -ENOMEM;
 
 		pdev->dev.parent = pcf->dev;
-		if (platform_device_add_data(pdev, &pdata->reg_init_data[i],
-					sizeof(pdata->reg_init_data[i])) < 0) {
+		ret = platform_device_add_data(pdev, &pdata->reg_init_data[i],
+					       sizeof(pdata->reg_init_data[i]));
+		if (ret) {
 			platform_device_put(pdev);
-			dev_err(pcf->dev, "Out of memory for regulator parameters %d\n",
-									i);
-			continue;
+			for (j = 0; j < i; j++)
+				platform_device_put(pcf->regulator_pdev[j]);
+			return ret;
 		}
 		pcf->regulator_pdev[i] = pdev;
 

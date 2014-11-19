@@ -86,6 +86,8 @@ enum {
 
 #define IWL_MVM_STATION_COUNT	16
 
+#define IWL_MVM_TDLS_STA_COUNT	4
+
 /* commands */
 enum {
 	MVM_ALIVE = 0x1,
@@ -131,10 +133,12 @@ enum {
 	/* Scan offload */
 	SCAN_OFFLOAD_REQUEST_CMD = 0x51,
 	SCAN_OFFLOAD_ABORT_CMD = 0x52,
+	HOT_SPOT_CMD = 0x53,
 	SCAN_OFFLOAD_COMPLETE = 0x6D,
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
 	SCAN_OFFLOAD_CONFIG_CMD = 0x6f,
 	MATCH_FOUND_NOTIFICATION = 0xd9,
+	SCAN_ITERATION_COMPLETE = 0xe7,
 
 	/* Phy */
 	PHY_CONFIGURATION_CMD = 0x6a,
@@ -163,7 +167,6 @@ enum {
 	BEACON_NOTIFICATION = 0x90,
 	BEACON_TEMPLATE_CMD = 0x91,
 	TX_ANT_CONFIGURATION_CMD = 0x98,
-	BT_CONFIG = 0x9b,
 	STATISTICS_NOTIFICATION = 0x9d,
 	EOSP_NOTIFICATION = 0x9e,
 	REDUCE_TX_POWER_CMD = 0x9f,
@@ -185,6 +188,10 @@ enum {
 	BT_COEX_PRIO_TABLE = 0xcc,
 	BT_COEX_PROT_ENV = 0xcd,
 	BT_PROFILE_NOTIFICATION = 0xce,
+	BT_CONFIG = 0x9b,
+	BT_COEX_UPDATE_SW_BOOST = 0x5a,
+	BT_COEX_UPDATE_CORUN_LUT = 0x5b,
+	BT_COEX_UPDATE_REDUCED_TXP = 0x5c,
 	BT_COEX_CI = 0x5d,
 
 	REPLY_SF_CFG_CMD = 0xd1,
@@ -533,6 +540,9 @@ enum iwl_time_event_type {
 
 	/* WiDi Sync Events */
 	TE_WIDI_TX_SYNC,
+
+	/* Channel Switch NoA */
+	TE_P2P_GO_CSA_NOA,
 
 	TE_MAX
 }; /* MAC_EVENT_TYPE_API_E_VER_1 */
@@ -900,6 +910,72 @@ struct iwl_phy_context_cmd {
 	__le32 acquisition_data;
 	__le32 dsp_cfg_flags;
 } __packed; /* PHY_CONTEXT_CMD_API_VER_1 */
+
+/*
+ * Aux ROC command
+ *
+ * Command requests the firmware to create a time event for a certain duration
+ * and remain on the given channel. This is done by using the Aux framework in
+ * the FW.
+ * The command was first used for Hot Spot issues - but can be used regardless
+ * to Hot Spot.
+ *
+ * ( HOT_SPOT_CMD 0x53 )
+ *
+ * @id_and_color: ID and color of the MAC
+ * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @event_unique_id: If the action FW_CTXT_ACTION_REMOVE then the
+ *	event_unique_id should be the id of the time event assigned by ucode.
+ *	Otherwise ignore the event_unique_id.
+ * @sta_id_and_color: station id and color, resumed during "Remain On Channel"
+ *	activity.
+ * @channel_info: channel info
+ * @node_addr: Our MAC Address
+ * @reserved: reserved for alignment
+ * @apply_time: GP2 value to start (should always be the current GP2 value)
+ * @apply_time_max_delay: Maximum apply time delay value in TU. Defines max
+ *	time by which start of the event is allowed to be postponed.
+ * @duration: event duration in TU To calculate event duration:
+ *	timeEventDuration = min(duration, remainingQuota)
+ */
+struct iwl_hs20_roc_req {
+	/* COMMON_INDEX_HDR_API_S_VER_1 hdr */
+	__le32 id_and_color;
+	__le32 action;
+	__le32 event_unique_id;
+	__le32 sta_id_and_color;
+	struct iwl_fw_channel_info channel_info;
+	u8 node_addr[ETH_ALEN];
+	__le16 reserved;
+	__le32 apply_time;
+	__le32 apply_time_max_delay;
+	__le32 duration;
+} __packed; /* HOT_SPOT_CMD_API_S_VER_1 */
+
+/*
+ * values for AUX ROC result values
+ */
+enum iwl_mvm_hot_spot {
+	HOT_SPOT_RSP_STATUS_OK,
+	HOT_SPOT_RSP_STATUS_TOO_MANY_EVENTS,
+	HOT_SPOT_MAX_NUM_OF_SESSIONS,
+};
+
+/*
+ * Aux ROC command response
+ *
+ * In response to iwl_hs20_roc_req the FW sends this command to notify the
+ * driver the uid of the timevent.
+ *
+ * ( HOT_SPOT_CMD 0x53 )
+ *
+ * @event_unique_id: Unique ID of time event assigned by ucode
+ * @status: Return status 0 is success, all the rest used for specific errors
+ */
+struct iwl_hs20_roc_res {
+	__le32 event_unique_id;
+	__le32 status;
+} __packed; /* HOT_SPOT_RSP_API_S_VER_1 */
 
 #define IWL_RX_INFO_PHY_CNT 8
 #define IWL_RX_INFO_ENERGY_ANT_ABC_IDX 1
@@ -1487,14 +1563,14 @@ enum iwl_sf_scenario {
 
 /**
  * Smart Fifo configuration command.
- * @state: smart fifo state, types listed in iwl_sf_sate.
+ * @state: smart fifo state, types listed in enum %iwl_sf_sate.
  * @watermark: Minimum allowed availabe free space in RXF for transient state.
  * @long_delay_timeouts: aging and idle timer values for each scenario
  * in long delay state.
  * @full_on_timeouts: timer values for each scenario in full on state.
  */
 struct iwl_sf_cfg_cmd {
-	enum iwl_sf_state state;
+	__le32 state;
 	__le32 watermark[SF_TRANSIENT_STATES_NUMBER];
 	__le32 long_delay_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 	__le32 full_on_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];

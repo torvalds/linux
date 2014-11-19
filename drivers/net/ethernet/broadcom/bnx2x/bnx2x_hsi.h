@@ -2233,7 +2233,12 @@ struct shmem2_region {
 	u32 reserved3;				/* Offset 0x14C */
 	u32 reserved4;				/* Offset 0x150 */
 	u32 link_attr_sync[PORT_MAX];		/* Offset 0x154 */
-	#define LINK_ATTR_SYNC_KR2_ENABLE	(1<<0)
+	#define LINK_ATTR_SYNC_KR2_ENABLE	0x00000001
+	#define LINK_SFP_EEPROM_COMP_CODE_MASK	0x0000ff00
+	#define LINK_SFP_EEPROM_COMP_CODE_SHIFT		 8
+	#define LINK_SFP_EEPROM_COMP_CODE_SR	0x00001000
+	#define LINK_SFP_EEPROM_COMP_CODE_LR	0x00002000
+	#define LINK_SFP_EEPROM_COMP_CODE_LRM	0x00004000
 
 	u32 reserved5[2];
 	u32 reserved6[PORT_MAX];

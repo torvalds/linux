@@ -33,10 +33,13 @@
 #include <linux/kernel.h>
 #include <linux/srcu.h>
 #include <linux/slab.h>
+#include <linux/seqlock.h>
+#include <trace/events/kvm.h>
 
+#include "irq.h"
 #include "iodev.h"
 
-#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
+#ifdef CONFIG_HAVE_KVM_IRQFD
 /*
  * --------------------------------------------------------------------
  * irqfd: Allows an fd to be used to inject an interrupt to the guest
@@ -75,7 +78,8 @@ struct _irqfd {
 	struct kvm *kvm;
 	wait_queue_t wait;
 	/* Update side is protected by irqfds.lock */
-	struct kvm_kernel_irq_routing_entry __rcu *irq_entry;
+	struct kvm_kernel_irq_routing_entry irq_entry;
+	seqcount_t irq_entry_sc;
 	/* Used for level IRQ fast-path */
 	int gsi;
 	struct work_struct inject;
@@ -223,16 +227,20 @@ irqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
 {
 	struct _irqfd *irqfd = container_of(wait, struct _irqfd, wait);
 	unsigned long flags = (unsigned long)key;
-	struct kvm_kernel_irq_routing_entry *irq;
+	struct kvm_kernel_irq_routing_entry irq;
 	struct kvm *kvm = irqfd->kvm;
+	unsigned seq;
 	int idx;
 
 	if (flags & POLLIN) {
 		idx = srcu_read_lock(&kvm->irq_srcu);
-		irq = srcu_dereference(irqfd->irq_entry, &kvm->irq_srcu);
+		do {
+			seq = read_seqcount_begin(&irqfd->irq_entry_sc);
+			irq = irqfd->irq_entry;
+		} while (read_seqcount_retry(&irqfd->irq_entry_sc, seq));
 		/* An event has been signaled, inject an interrupt */
-		if (irq)
-			kvm_set_msi(irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1,
+		if (irq.type == KVM_IRQ_ROUTING_MSI)
+			kvm_set_msi(&irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1,
 					false);
 		else
 			schedule_work(&irqfd->inject);
@@ -272,34 +280,37 @@ irqfd_ptable_queue_proc(struct file *file, wait_queue_head_t *wqh,
 }
 
 /* Must be called under irqfds.lock */
-static void irqfd_update(struct kvm *kvm, struct _irqfd *irqfd,
-			 struct kvm_irq_routing_table *irq_rt)
+static void irqfd_update(struct kvm *kvm, struct _irqfd *irqfd)
 {
 	struct kvm_kernel_irq_routing_entry *e;
+	struct kvm_kernel_irq_routing_entry entries[KVM_NR_IRQCHIPS];
+	int i, n_entries;
 
-	if (irqfd->gsi >= irq_rt->nr_rt_entries) {
-		rcu_assign_pointer(irqfd->irq_entry, NULL);
-		return;
-	}
+	n_entries = kvm_irq_map_gsi(kvm, entries, irqfd->gsi);
 
-	hlist_for_each_entry(e, &irq_rt->map[irqfd->gsi], link) {
+	write_seqcount_begin(&irqfd->irq_entry_sc);
+
+	irqfd->irq_entry.type = 0;
+
+	e = entries;
+	for (i = 0; i < n_entries; ++i, ++e) {
 		/* Only fast-path MSI. */
 		if (e->type == KVM_IRQ_ROUTING_MSI)
-			rcu_assign_pointer(irqfd->irq_entry, e);
-		else
-			rcu_assign_pointer(irqfd->irq_entry, NULL);
+			irqfd->irq_entry = *e;
 	}
+
+	write_seqcount_end(&irqfd->irq_entry_sc);
 }
 
 static int
 kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 {
-	struct kvm_irq_routing_table *irq_rt;
 	struct _irqfd *irqfd, *tmp;
 	struct fd f;
 	struct eventfd_ctx *eventfd = NULL, *resamplefd = NULL;
 	int ret;
 	unsigned int events;
+	int idx;
 
 	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL);
 	if (!irqfd)
@@ -310,6 +321,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	INIT_LIST_HEAD(&irqfd->list);
 	INIT_WORK(&irqfd->inject, irqfd_inject);
 	INIT_WORK(&irqfd->shutdown, irqfd_shutdown);
+	seqcount_init(&irqfd->irq_entry_sc);
 
 	f = fdget(args->fd);
 	if (!f.file) {
@@ -392,9 +404,9 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 		goto fail;
 	}
 
-	irq_rt = rcu_dereference_protected(kvm->irq_routing,
-					   lockdep_is_held(&kvm->irqfds.lock));
-	irqfd_update(kvm, irqfd, irq_rt);
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	irqfd_update(kvm, irqfd);
+	srcu_read_unlock(&kvm->irq_srcu, idx);
 
 	list_add_tail(&irqfd->list, &kvm->irqfds.items);
 
@@ -433,12 +445,73 @@ out:
 	kfree(irqfd);
 	return ret;
 }
+
+bool kvm_irq_has_notifier(struct kvm *kvm, unsigned irqchip, unsigned pin)
+{
+	struct kvm_irq_ack_notifier *kian;
+	int gsi, idx;
+
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
+	if (gsi != -1)
+		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
+					 link)
+			if (kian->gsi == gsi) {
+				srcu_read_unlock(&kvm->irq_srcu, idx);
+				return true;
+			}
+
+	srcu_read_unlock(&kvm->irq_srcu, idx);
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(kvm_irq_has_notifier);
+
+void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
+{
+	struct kvm_irq_ack_notifier *kian;
+	int gsi, idx;
+
+	trace_kvm_ack_irq(irqchip, pin);
+
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
+	if (gsi != -1)
+		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
+					 link)
+			if (kian->gsi == gsi)
+				kian->irq_acked(kian);
+	srcu_read_unlock(&kvm->irq_srcu, idx);
+}
+
+void kvm_register_irq_ack_notifier(struct kvm *kvm,
+				   struct kvm_irq_ack_notifier *kian)
+{
+	mutex_lock(&kvm->irq_lock);
+	hlist_add_head_rcu(&kian->link, &kvm->irq_ack_notifier_list);
+	mutex_unlock(&kvm->irq_lock);
+#ifdef __KVM_HAVE_IOAPIC
+	kvm_vcpu_request_scan_ioapic(kvm);
+#endif
+}
+
+void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
+				    struct kvm_irq_ack_notifier *kian)
+{
+	mutex_lock(&kvm->irq_lock);
+	hlist_del_init_rcu(&kian->link);
+	mutex_unlock(&kvm->irq_lock);
+	synchronize_srcu(&kvm->irq_srcu);
+#ifdef __KVM_HAVE_IOAPIC
+	kvm_vcpu_request_scan_ioapic(kvm);
+#endif
+}
 #endif
 
 void
 kvm_eventfd_init(struct kvm *kvm)
 {
-#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
+#ifdef CONFIG_HAVE_KVM_IRQFD
 	spin_lock_init(&kvm->irqfds.lock);
 	INIT_LIST_HEAD(&kvm->irqfds.items);
 	INIT_LIST_HEAD(&kvm->irqfds.resampler_list);
@@ -447,7 +520,7 @@ kvm_eventfd_init(struct kvm *kvm)
 	INIT_LIST_HEAD(&kvm->ioeventfds);
 }
 
-#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
+#ifdef CONFIG_HAVE_KVM_IRQFD
 /*
  * shutdown any irqfd's that match fd+gsi
  */
@@ -466,14 +539,14 @@ kvm_irqfd_deassign(struct kvm *kvm, struct kvm_irqfd *args)
 	list_for_each_entry_safe(irqfd, tmp, &kvm->irqfds.items, list) {
 		if (irqfd->eventfd == eventfd && irqfd->gsi == args->gsi) {
 			/*
-			 * This rcu_assign_pointer is needed for when
+			 * This clearing of irq_entry.type is needed for when
 			 * another thread calls kvm_irq_routing_update before
 			 * we flush workqueue below (we synchronize with
 			 * kvm_irq_routing_update using irqfds.lock).
-			 * It is paired with synchronize_srcu done by caller
-			 * of that function.
 			 */
-			rcu_assign_pointer(irqfd->irq_entry, NULL);
+			write_seqcount_begin(&irqfd->irq_entry_sc);
+			irqfd->irq_entry.type = 0;
+			write_seqcount_end(&irqfd->irq_entry_sc);
 			irqfd_deactivate(irqfd);
 		}
 	}
@@ -528,20 +601,17 @@ kvm_irqfd_release(struct kvm *kvm)
 }
 
 /*
- * Change irq_routing and irqfd.
+ * Take note of a change in irq routing.
  * Caller must invoke synchronize_srcu(&kvm->irq_srcu) afterwards.
  */
-void kvm_irq_routing_update(struct kvm *kvm,
-			    struct kvm_irq_routing_table *irq_rt)
+void kvm_irq_routing_update(struct kvm *kvm)
 {
 	struct _irqfd *irqfd;
 
 	spin_lock_irq(&kvm->irqfds.lock);
 
-	rcu_assign_pointer(kvm->irq_routing, irq_rt);
-
 	list_for_each_entry(irqfd, &kvm->irqfds.items, list)
-		irqfd_update(kvm, irqfd, irq_rt);
+		irqfd_update(kvm, irqfd);
 
 	spin_unlock_irq(&kvm->irqfds.lock);
 }

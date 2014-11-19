@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/bug.h>
+#include <linux/nmi.h>
 
 #include <asm/ptrace.h>
 #include <asm/string.h>
@@ -374,6 +375,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 #endif
 
 	local_irq_save(flags);
+	hard_irq_disable();
 
 	bp = in_breakpoint_table(regs->nip, &offset);
 	if (bp != NULL) {
@@ -558,6 +560,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 #endif
 	insert_cpu_bpts();
 
+	touch_nmi_watchdog();
 	local_irq_restore(flags);
 
 	return cmd != 'X' && cmd != EOF;
@@ -2058,10 +2061,6 @@ static void dump_one_paca(int cpu)
 	DUMP(p, kernel_toc, "lx");
 	DUMP(p, kernelbase, "lx");
 	DUMP(p, kernel_msr, "lx");
-#ifdef CONFIG_PPC_STD_MMU_64
-	DUMP(p, stab_real, "lx");
-	DUMP(p, stab_addr, "lx");
-#endif
 	DUMP(p, emergency_sp, "p");
 #ifdef CONFIG_PPC_BOOK3S_64
 	DUMP(p, mc_emergency_sp, "p");
@@ -2694,7 +2693,7 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
-static void dump_slb(void)
+void dump_segments(void)
 {
 	int i;
 	unsigned long esid,vsid,valid;
@@ -2725,34 +2724,6 @@ static void dump_slb(void)
 				printf("\n");
 		}
 	}
-}
-
-static void dump_stab(void)
-{
-	int i;
-	unsigned long *tmp = (unsigned long *)local_paca->stab_addr;
-
-	printf("Segment table contents of cpu 0x%x\n", smp_processor_id());
-
-	for (i = 0; i < PAGE_SIZE/16; i++) {
-		unsigned long a, b;
-
-		a = *tmp++;
-		b = *tmp++;
-
-		if (a || b) {
-			printf("%03d %016lx ", i, a);
-			printf("%016lx\n", b);
-		}
-	}
-}
-
-void dump_segments(void)
-{
-	if (mmu_has_feature(MMU_FTR_SLB))
-		dump_slb();
-	else
-		dump_stab();
 }
 #endif
 

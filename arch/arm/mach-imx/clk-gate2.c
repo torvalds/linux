@@ -97,7 +97,7 @@ static int clk_gate2_is_enabled(struct clk_hw *hw)
 	struct clk_gate2 *gate = to_clk_gate2(hw);
 
 	if (gate->share_count)
-		return !!(*gate->share_count);
+		return !!__clk_get_enable_count(hw->clk);
 	else
 		return clk_gate2_reg_is_enabled(gate->reg, gate->bit_idx);
 }
@@ -127,10 +127,6 @@ struct clk *clk_register_gate2(struct device *dev, const char *name,
 	gate->bit_idx = bit_idx;
 	gate->flags = clk_gate2_flags;
 	gate->lock = lock;
-
-	/* Initialize share_count per hardware state */
-	if (share_count)
-		*share_count = clk_gate2_reg_is_enabled(reg, bit_idx) ? 1 : 0;
 	gate->share_count = share_count;
 
 	init.name = name;

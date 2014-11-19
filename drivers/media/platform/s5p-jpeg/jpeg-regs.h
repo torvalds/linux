@@ -2,7 +2,7 @@
  *
  * Register definition file for Samsung JPEG codec driver
  *
- * Copyright (c) 2011-2013 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2011-2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Author: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
@@ -372,6 +372,251 @@
 
 /* JPEG AC chrominance (values) Huffman table register */
 #define EXYNOS4_HUFF_TBL_HACCV	0x310
+
+/* Register and bit definitions for Exynos 3250 */
+
+/* JPEG mode register */
+#define EXYNOS3250_JPGMOD			0x00
+#define EXYNOS3250_PROC_MODE_MASK		(0x1 << 3)
+#define EXYNOS3250_PROC_MODE_DECOMPR		(0x1 << 3)
+#define EXYNOS3250_PROC_MODE_COMPR		(0x0 << 3)
+#define EXYNOS3250_SUBSAMPLING_MODE_MASK	(0x7 << 0)
+#define EXYNOS3250_SUBSAMPLING_MODE_444		(0x0 << 0)
+#define EXYNOS3250_SUBSAMPLING_MODE_422		(0x1 << 0)
+#define EXYNOS3250_SUBSAMPLING_MODE_420		(0x2 << 0)
+#define EXYNOS3250_SUBSAMPLING_MODE_411		(0x6 << 0)
+#define EXYNOS3250_SUBSAMPLING_MODE_GRAY	(0x3 << 0)
+
+/* JPEG operation status register */
+#define EXYNOS3250_JPGOPR			0x04
+#define EXYNOS3250_JPGOPR_MASK			0x01
+
+/* Quantization and Huffman tables register */
+#define EXYNOS3250_QHTBL			0x08
+#define EXYNOS3250_QT_NUM_SHIFT(t)		((((t) - 1) << 1) + 8)
+#define EXYNOS3250_QT_NUM_MASK(t)		(0x3 << EXYNOS3250_QT_NUM_SHIFT(t))
+
+/* Huffman tables */
+#define EXYNOS3250_HT_NUM_AC_SHIFT(t)		(((t) << 1) - 1)
+#define EXYNOS3250_HT_NUM_AC_MASK(t)		(0x1 << EXYNOS3250_HT_NUM_AC_SHIFT(t))
+
+#define EXYNOS3250_HT_NUM_DC_SHIFT(t)		(((t) - 1) << 1)
+#define EXYNOS3250_HT_NUM_DC_MASK(t)		(0x1 << EXYNOS3250_HT_NUM_DC_SHIFT(t))
+
+/* JPEG restart interval register */
+#define EXYNOS3250_JPGDRI			0x0c
+#define EXYNOS3250_JPGDRI_MASK			0xffff
+
+/* JPEG vertical resolution register */
+#define EXYNOS3250_JPGY				0x10
+#define EXYNOS3250_JPGY_MASK			0xffff
+
+/* JPEG horizontal resolution register */
+#define EXYNOS3250_JPGX				0x14
+#define EXYNOS3250_JPGX_MASK			0xffff
+
+/* JPEG byte count register */
+#define EXYNOS3250_JPGCNT			0x18
+#define EXYNOS3250_JPGCNT_MASK			0xffffff
+
+/* JPEG interrupt mask register */
+#define EXYNOS3250_JPGINTSE			0x1c
+#define EXYNOS3250_JPEG_DONE_EN			(1 << 11)
+#define EXYNOS3250_WDMA_DONE_EN			(1 << 10)
+#define EXYNOS3250_RDMA_DONE_EN			(1 << 9)
+#define EXYNOS3250_ENC_STREAM_INT_EN		(1 << 8)
+#define EXYNOS3250_CORE_DONE_EN			(1 << 5)
+#define EXYNOS3250_ERR_INT_EN			(1 << 4)
+#define EXYNOS3250_HEAD_INT_EN			(1 << 3)
+
+/* JPEG interrupt status register */
+#define EXYNOS3250_JPGINTST			0x20
+#define EXYNOS3250_JPEG_DONE			(1 << 11)
+#define EXYNOS3250_WDMA_DONE			(1 << 10)
+#define EXYNOS3250_RDMA_DONE			(1 << 9)
+#define EXYNOS3250_ENC_STREAM_STAT		(1 << 8)
+#define EXYNOS3250_RESULT_STAT			(1 << 5)
+#define EXYNOS3250_STREAM_STAT			(1 << 4)
+#define EXYNOS3250_HEADER_STAT			(1 << 3)
+
+/*
+ * Base address of the luma component DMA buffer
+ * of the raw input or output image.
+ */
+#define EXYNOS3250_LUMA_BASE			0x100
+#define EXYNOS3250_SRC_TILE_EN_MASK		0x100
+
+/* Stride of source or destination luma raw image buffer */
+#define EXYNOS3250_LUMA_STRIDE			0x104
+
+/* Horizontal/vertical offset of active region in luma raw image buffer */
+#define EXYNOS3250_LUMA_XY_OFFSET		0x108
+#define EXYNOS3250_LUMA_YY_OFFSET_SHIFT		18
+#define EXYNOS3250_LUMA_YY_OFFSET_MASK		(0x1fff << EXYNOS3250_LUMA_YY_OFFSET_SHIFT)
+#define EXYNOS3250_LUMA_YX_OFFSET_SHIFT		2
+#define EXYNOS3250_LUMA_YX_OFFSET_MASK		(0x1fff << EXYNOS3250_LUMA_YX_OFFSET_SHIFT)
+
+/*
+ * Base address of the chroma(Cb) component DMA buffer
+ * of the raw input or output image.
+ */
+#define EXYNOS3250_CHROMA_BASE			0x10c
+
+/* Stride of source or destination chroma(Cb) raw image buffer */
+#define EXYNOS3250_CHROMA_STRIDE		0x110
+
+/* Horizontal/vertical offset of active region in chroma(Cb) raw image buffer */
+#define EXYNOS3250_CHROMA_XY_OFFSET		0x114
+#define EXYNOS3250_CHROMA_YY_OFFSET_SHIFT	18
+#define EXYNOS3250_CHROMA_YY_OFFSET_MASK	(0x1fff << EXYNOS3250_CHROMA_YY_OFFSET_SHIFT)
+#define EXYNOS3250_CHROMA_YX_OFFSET_SHIFT	2
+#define EXYNOS3250_CHROMA_YX_OFFSET_MASK	(0x1fff << EXYNOS3250_CHROMA_YX_OFFSET_SHIFT)
+
+/*
+ * Base address of the chroma(Cr) component DMA buffer
+ * of the raw input or output image.
+ */
+#define EXYNOS3250_CHROMA_CR_BASE		0x118
+
+/* Stride of source or destination chroma(Cr) raw image buffer */
+#define EXYNOS3250_CHROMA_CR_STRIDE		0x11c
+
+/* Horizontal/vertical offset of active region in chroma(Cb) raw image buffer */
+#define EXYNOS3250_CHROMA_CR_XY_OFFSET		0x120
+#define EXYNOS3250_CHROMA_CR_YY_OFFSET_SHIFT	18
+#define EXYNOS3250_CHROMA_CR_YY_OFFSET_MASK	(0x1fff << EXYNOS3250_CHROMA_CR_YY_OFFSET_SHIFT)
+#define EXYNOS3250_CHROMA_CR_YX_OFFSET_SHIFT	2
+#define EXYNOS3250_CHROMA_CR_YX_OFFSET_MASK	(0x1fff << EXYNOS3250_CHROMA_CR_YX_OFFSET_SHIFT)
+
+/* Raw image data r/w address register */
+#define EXYNOS3250_JPG_IMGADR			0x50
+
+/* Source or destination JPEG file DMA buffer address */
+#define EXYNOS3250_JPG_JPGADR			0x124
+
+/* Coefficients for RGB-to-YCbCr converter register */
+#define EXYNOS3250_JPG_COEF(n)			(0x128 + (((n) - 1) << 2))
+#define EXYNOS3250_COEF_SHIFT(j)		((3 - (j)) << 3)
+#define EXYNOS3250_COEF_MASK(j)			(0xff << EXYNOS3250_COEF_SHIFT(j))
+
+/* Raw input format setting */
+#define EXYNOS3250_JPGCMOD			0x134
+#define EXYNOS3250_SRC_TILE_EN			(0x1 << 10)
+#define EXYNOS3250_SRC_NV_MASK			(0x1 << 9)
+#define EXYNOS3250_SRC_NV12			(0x0 << 9)
+#define EXYNOS3250_SRC_NV21			(0x1 << 9)
+#define EXYNOS3250_SRC_BIG_ENDIAN_MASK		(0x1 << 8)
+#define EXYNOS3250_SRC_BIG_ENDIAN		(0x1 << 8)
+#define EXYNOS3250_MODE_SEL_MASK		(0x7 << 5)
+#define EXYNOS3250_MODE_SEL_420_2P		(0x0 << 5)
+#define EXYNOS3250_MODE_SEL_422_1P_LUM_CHR	(0x1 << 5)
+#define EXYNOS3250_MODE_SEL_RGB565		(0x2 << 5)
+#define EXYNOS3250_MODE_SEL_422_1P_CHR_LUM	(0x3 << 5)
+#define EXYNOS3250_MODE_SEL_ARGB8888		(0x4 << 5)
+#define EXYNOS3250_MODE_SEL_420_3P		(0x5 << 5)
+#define EXYNOS3250_SRC_SWAP_RGB			(0x1 << 3)
+#define EXYNOS3250_SRC_SWAP_UV			(0x1 << 2)
+#define EXYNOS3250_MODE_Y16_MASK		(0x1 << 1)
+#define EXYNOS3250_MODE_Y16			(0x1 << 1)
+#define EXYNOS3250_HALF_EN_MASK			(0x1 << 0)
+#define EXYNOS3250_HALF_EN			(0x1 << 0)
+
+/* Power on/off and clock down control */
+#define EXYNOS3250_JPGCLKCON			0x138
+#define EXYNOS3250_CLK_DOWN_READY		(0x1 << 1)
+#define EXYNOS3250_POWER_ON			(0x1 << 0)
+
+/* Start compression or decompression */
+#define EXYNOS3250_JSTART			0x13c
+
+/* Restart decompression after header analysis */
+#define EXYNOS3250_JRSTART			0x140
+
+/* JPEG SW reset register */
+#define EXYNOS3250_SW_RESET			0x144
+
+/* JPEG timer setting register */
+#define EXYNOS3250_TIMER_SE			0x148
+#define EXYNOS3250_TIMER_INT_EN_SHIFT		31
+#define EXYNOS3250_TIMER_INT_EN			(1 << EXYNOS3250_TIMER_INT_EN_SHIFT)
+#define EXYNOS3250_TIMER_INIT_MASK		0x7fffffff
+
+/* JPEG timer status register */
+#define EXYNOS3250_TIMER_ST			0x14c
+#define EXYNOS3250_TIMER_INT_STAT_SHIFT		31
+#define EXYNOS3250_TIMER_INT_STAT		(1 << EXYNOS3250_TIMER_INT_STAT_SHIFT)
+#define EXYNOS3250_TIMER_CNT_SHIFT		0
+#define EXYNOS3250_TIMER_CNT_MASK		0x7fffffff
+
+/* Command status register */
+#define EXYNOS3250_COMSTAT			0x150
+#define EXYNOS3250_CUR_PROC_MODE		(0x1 << 1)
+#define EXYNOS3250_CUR_COM_MODE			(0x1 << 0)
+
+/* JPEG decompression output format register */
+#define EXYNOS3250_OUTFORM			0x154
+#define EXYNOS3250_OUT_ALPHA_MASK		(0xff << 24)
+#define EXYNOS3250_OUT_TILE_EN			(0x1 << 10)
+#define EXYNOS3250_OUT_NV_MASK			(0x1 << 9)
+#define EXYNOS3250_OUT_NV12			(0x0 << 9)
+#define EXYNOS3250_OUT_NV21			(0x1 << 9)
+#define EXYNOS3250_OUT_BIG_ENDIAN_MASK		(0x1 << 8)
+#define EXYNOS3250_OUT_BIG_ENDIAN		(0x1 << 8)
+#define EXYNOS3250_OUT_SWAP_RGB			(0x1 << 7)
+#define EXYNOS3250_OUT_SWAP_UV			(0x1 << 6)
+#define EXYNOS3250_OUT_FMT_MASK			(0x7 << 0)
+#define EXYNOS3250_OUT_FMT_420_2P		(0x0 << 0)
+#define EXYNOS3250_OUT_FMT_422_1P_LUM_CHR	(0x1 << 0)
+#define EXYNOS3250_OUT_FMT_422_1P_CHR_LUM	(0x3 << 0)
+#define EXYNOS3250_OUT_FMT_420_3P		(0x4 << 0)
+#define EXYNOS3250_OUT_FMT_RGB565		(0x5 << 0)
+#define EXYNOS3250_OUT_FMT_ARGB8888		(0x6 << 0)
+
+/* Input JPEG stream byte size for decompression */
+#define EXYNOS3250_DEC_STREAM_SIZE		0x158
+#define EXYNOS3250_DEC_STREAM_MASK		0x1fffffff
+
+/* The upper bound of the byte size of output compressed stream */
+#define EXYNOS3250_ENC_STREAM_BOUND		0x15c
+#define EXYNOS3250_ENC_STREAM_BOUND_MASK	0xffffc0
+
+/* Scale-down ratio when decoding */
+#define EXYNOS3250_DEC_SCALING_RATIO		0x160
+#define EXYNOS3250_DEC_SCALE_FACTOR_MASK	0x3
+#define EXYNOS3250_DEC_SCALE_FACTOR_8_8		0x0
+#define EXYNOS3250_DEC_SCALE_FACTOR_4_8		0x1
+#define EXYNOS3250_DEC_SCALE_FACTOR_2_8		0x2
+#define EXYNOS3250_DEC_SCALE_FACTOR_1_8		0x3
+
+/* Error check */
+#define EXYNOS3250_CRC_RESULT			0x164
+
+/* RDMA and WDMA operation status register */
+#define EXYNOS3250_DMA_OPER_STATUS		0x168
+#define EXYNOS3250_WDMA_OPER_STATUS		(0x1 << 1)
+#define EXYNOS3250_RDMA_OPER_STATUS		(0x1 << 0)
+
+/* DMA issue gathering number and issue number settings */
+#define EXYNOS3250_DMA_ISSUE_NUM		0x16c
+#define EXYNOS3250_WDMA_ISSUE_NUM_SHIFT		16
+#define EXYNOS3250_WDMA_ISSUE_NUM_MASK		(0x7 << EXYNOS3250_WDMA_ISSUE_NUM_SHIFT)
+#define EXYNOS3250_RDMA_ISSUE_NUM_SHIFT		8
+#define EXYNOS3250_RDMA_ISSUE_NUM_MASK		(0x7 << EXYNOS3250_RDMA_ISSUE_NUM_SHIFT)
+#define EXYNOS3250_ISSUE_GATHER_NUM_SHIFT	0
+#define EXYNOS3250_ISSUE_GATHER_NUM_MASK	(0x7 << EXYNOS3250_ISSUE_GATHER_NUM_SHIFT)
+#define EXYNOS3250_DMA_MO_COUNT			0x7
+
+/* Version register */
+#define EXYNOS3250_VERSION			0x1fc
+
+/* RGB <-> YUV conversion coefficients */
+#define EXYNOS3250_JPEG_ENC_COEF1		0x01352e1e
+#define EXYNOS3250_JPEG_ENC_COEF2		0x00b0ae83
+#define EXYNOS3250_JPEG_ENC_COEF3		0x020cdc13
+
+#define EXYNOS3250_JPEG_DEC_COEF1		0x04a80199
+#define EXYNOS3250_JPEG_DEC_COEF2		0x04a9a064
+#define EXYNOS3250_JPEG_DEC_COEF3		0x04a80102
 
 #endif /* JPEG_REGS_H_ */
 

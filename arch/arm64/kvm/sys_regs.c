@@ -30,6 +30,7 @@
 #include <asm/kvm_mmu.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
+#include <asm/debug-monitors.h>
 #include <trace/events/kvm.h>
 
 #include "sys_regs.h"
@@ -137,10 +138,11 @@ static bool access_vm_reg(struct kvm_vcpu *vcpu,
 	if (!p->is_aarch32) {
 		vcpu_sys_reg(vcpu, r->reg) = val;
 	} else {
-		vcpu_cp15(vcpu, r->reg) = val & 0xffffffffUL;
 		if (!p->is_32bit)
-			vcpu_cp15(vcpu, r->reg + 1) = val >> 32;
+			vcpu_cp15_64_high(vcpu, r->reg) = val >> 32;
+		vcpu_cp15_64_low(vcpu, r->reg) = val & 0xffffffffUL;
 	}
+
 	return true;
 }
 
@@ -163,23 +165,81 @@ static bool access_sctlr(struct kvm_vcpu *vcpu,
 	return true;
 }
 
-/*
- * We could trap ID_DFR0 and tell the guest we don't support performance
- * monitoring.  Unfortunately the patch to make the kernel check ID_DFR0 was
- * NAKed, so it will read the PMCR anyway.
- *
- * Therefore we tell the guest we have 0 counters.  Unfortunately, we
- * must always support PMCCNTR (the cycle counter): we just RAZ/WI for
- * all PM registers, which doesn't crash the guest kernel at least.
- */
-static bool pm_fake(struct kvm_vcpu *vcpu,
-		    const struct sys_reg_params *p,
-		    const struct sys_reg_desc *r)
+static bool trap_raz_wi(struct kvm_vcpu *vcpu,
+			const struct sys_reg_params *p,
+			const struct sys_reg_desc *r)
 {
 	if (p->is_write)
 		return ignore_write(vcpu, p);
 	else
 		return read_zero(vcpu, p);
+}
+
+static bool trap_oslsr_el1(struct kvm_vcpu *vcpu,
+			   const struct sys_reg_params *p,
+			   const struct sys_reg_desc *r)
+{
+	if (p->is_write) {
+		return ignore_write(vcpu, p);
+	} else {
+		*vcpu_reg(vcpu, p->Rt) = (1 << 3);
+		return true;
+	}
+}
+
+static bool trap_dbgauthstatus_el1(struct kvm_vcpu *vcpu,
+				   const struct sys_reg_params *p,
+				   const struct sys_reg_desc *r)
+{
+	if (p->is_write) {
+		return ignore_write(vcpu, p);
+	} else {
+		u32 val;
+		asm volatile("mrs %0, dbgauthstatus_el1" : "=r" (val));
+		*vcpu_reg(vcpu, p->Rt) = val;
+		return true;
+	}
+}
+
+/*
+ * We want to avoid world-switching all the DBG registers all the
+ * time:
+ * 
+ * - If we've touched any debug register, it is likely that we're
+ *   going to touch more of them. It then makes sense to disable the
+ *   traps and start doing the save/restore dance
+ * - If debug is active (DBG_MDSCR_KDE or DBG_MDSCR_MDE set), it is
+ *   then mandatory to save/restore the registers, as the guest
+ *   depends on them.
+ * 
+ * For this, we use a DIRTY bit, indicating the guest has modified the
+ * debug registers, used as follow:
+ *
+ * On guest entry:
+ * - If the dirty bit is set (because we're coming back from trapping),
+ *   disable the traps, save host registers, restore guest registers.
+ * - If debug is actively in use (DBG_MDSCR_KDE or DBG_MDSCR_MDE set),
+ *   set the dirty bit, disable the traps, save host registers,
+ *   restore guest registers.
+ * - Otherwise, enable the traps
+ *
+ * On guest exit:
+ * - If the dirty bit is set, save guest registers, restore host
+ *   registers and clear the dirty bit. This ensure that the host can
+ *   now use the debug registers.
+ */
+static bool trap_debug_regs(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_params *p,
+			    const struct sys_reg_desc *r)
+{
+	if (p->is_write) {
+		vcpu_sys_reg(vcpu, r->reg) = *vcpu_reg(vcpu, p->Rt);
+		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+	} else {
+		*vcpu_reg(vcpu, p->Rt) = vcpu_sys_reg(vcpu, r->reg);
+	}
+
+	return true;
 }
 
 static void reset_amair_el1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
@@ -198,9 +258,39 @@ static void reset_mpidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	vcpu_sys_reg(vcpu, MPIDR_EL1) = (1UL << 31) | (vcpu->vcpu_id & 0xff);
 }
 
+/* Silly macro to expand the DBG{BCR,BVR,WVR,WCR}n_EL1 registers in one go */
+#define DBG_BCR_BVR_WCR_WVR_EL1(n)					\
+	/* DBGBVRn_EL1 */						\
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b100),	\
+	  trap_debug_regs, reset_val, (DBGBVR0_EL1 + (n)), 0 },		\
+	/* DBGBCRn_EL1 */						\
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b101),	\
+	  trap_debug_regs, reset_val, (DBGBCR0_EL1 + (n)), 0 },		\
+	/* DBGWVRn_EL1 */						\
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b110),	\
+	  trap_debug_regs, reset_val, (DBGWVR0_EL1 + (n)), 0 },		\
+	/* DBGWCRn_EL1 */						\
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b111),	\
+	  trap_debug_regs, reset_val, (DBGWCR0_EL1 + (n)), 0 }
+
 /*
  * Architected system registers.
  * Important: Must be sorted ascending by Op0, Op1, CRn, CRm, Op2
+ *
+ * We could trap ID_DFR0 and tell the guest we don't support performance
+ * monitoring.  Unfortunately the patch to make the kernel check ID_DFR0 was
+ * NAKed, so it will read the PMCR anyway.
+ *
+ * Therefore we tell the guest we have 0 counters.  Unfortunately, we
+ * must always support PMCCNTR (the cycle counter): we just RAZ/WI for
+ * all PM registers, which doesn't crash the guest kernel at least.
+ *
+ * Debug handling: We do trap most, if not all debug related system
+ * registers. The implementation is good enough to ensure that a guest
+ * can use these with minimal performance degradation. The drawback is
+ * that we don't implement any of the external debug, none of the
+ * OSlock protocol. This should be revisited if we ever encounter a
+ * more demanding guest...
  */
 static const struct sys_reg_desc sys_reg_descs[] = {
 	/* DC ISW */
@@ -213,12 +303,71 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ Op0(0b01), Op1(0b000), CRn(0b0111), CRm(0b1110), Op2(0b010),
 	  access_dcsw },
 
+	DBG_BCR_BVR_WCR_WVR_EL1(0),
+	DBG_BCR_BVR_WCR_WVR_EL1(1),
+	/* MDCCINT_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b000),
+	  trap_debug_regs, reset_val, MDCCINT_EL1, 0 },
+	/* MDSCR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b010),
+	  trap_debug_regs, reset_val, MDSCR_EL1, 0 },
+	DBG_BCR_BVR_WCR_WVR_EL1(2),
+	DBG_BCR_BVR_WCR_WVR_EL1(3),
+	DBG_BCR_BVR_WCR_WVR_EL1(4),
+	DBG_BCR_BVR_WCR_WVR_EL1(5),
+	DBG_BCR_BVR_WCR_WVR_EL1(6),
+	DBG_BCR_BVR_WCR_WVR_EL1(7),
+	DBG_BCR_BVR_WCR_WVR_EL1(8),
+	DBG_BCR_BVR_WCR_WVR_EL1(9),
+	DBG_BCR_BVR_WCR_WVR_EL1(10),
+	DBG_BCR_BVR_WCR_WVR_EL1(11),
+	DBG_BCR_BVR_WCR_WVR_EL1(12),
+	DBG_BCR_BVR_WCR_WVR_EL1(13),
+	DBG_BCR_BVR_WCR_WVR_EL1(14),
+	DBG_BCR_BVR_WCR_WVR_EL1(15),
+
+	/* MDRAR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b000),
+	  trap_raz_wi },
+	/* OSLAR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b100),
+	  trap_raz_wi },
+	/* OSLSR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0001), Op2(0b100),
+	  trap_oslsr_el1 },
+	/* OSDLR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0011), Op2(0b100),
+	  trap_raz_wi },
+	/* DBGPRCR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0100), Op2(0b100),
+	  trap_raz_wi },
+	/* DBGCLAIMSET_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1000), Op2(0b110),
+	  trap_raz_wi },
+	/* DBGCLAIMCLR_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1001), Op2(0b110),
+	  trap_raz_wi },
+	/* DBGAUTHSTATUS_EL1 */
+	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1110), Op2(0b110),
+	  trap_dbgauthstatus_el1 },
+
 	/* TEECR32_EL1 */
 	{ Op0(0b10), Op1(0b010), CRn(0b0000), CRm(0b0000), Op2(0b000),
 	  NULL, reset_val, TEECR32_EL1, 0 },
 	/* TEEHBR32_EL1 */
 	{ Op0(0b10), Op1(0b010), CRn(0b0001), CRm(0b0000), Op2(0b000),
 	  NULL, reset_val, TEEHBR32_EL1, 0 },
+
+	/* MDCCSR_EL1 */
+	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0001), Op2(0b000),
+	  trap_raz_wi },
+	/* DBGDTR_EL0 */
+	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0100), Op2(0b000),
+	  trap_raz_wi },
+	/* DBGDTR[TR]X_EL0 */
+	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0101), Op2(0b000),
+	  trap_raz_wi },
+
 	/* DBGVCR32_EL2 */
 	{ Op0(0b10), Op1(0b100), CRn(0b0000), CRm(0b0111), Op2(0b000),
 	  NULL, reset_val, DBGVCR32_EL2, 0 },
@@ -260,10 +409,10 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	/* PMINTENSET_EL1 */
 	{ Op0(0b11), Op1(0b000), CRn(0b1001), CRm(0b1110), Op2(0b001),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMINTENCLR_EL1 */
 	{ Op0(0b11), Op1(0b000), CRn(0b1001), CRm(0b1110), Op2(0b010),
-	  pm_fake },
+	  trap_raz_wi },
 
 	/* MAIR_EL1 */
 	{ Op0(0b11), Op1(0b000), CRn(0b1010), CRm(0b0010), Op2(0b000),
@@ -292,43 +441,43 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	/* PMCR_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b000),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMCNTENSET_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b001),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMCNTENCLR_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b010),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMOVSCLR_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b011),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMSWINC_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b100),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMSELR_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b101),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMCEID0_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b110),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMCEID1_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b111),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMCCNTR_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1101), Op2(0b000),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMXEVTYPER_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1101), Op2(0b001),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMXEVCNTR_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1101), Op2(0b010),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMUSERENR_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1110), Op2(0b000),
-	  pm_fake },
+	  trap_raz_wi },
 	/* PMOVSSET_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1110), Op2(0b011),
-	  pm_fake },
+	  trap_raz_wi },
 
 	/* TPIDR_EL0 */
 	{ Op0(0b11), Op1(0b011), CRn(0b1101), CRm(0b0000), Op2(0b010),
@@ -348,13 +497,161 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	  NULL, reset_val, FPEXC32_EL2, 0x70 },
 };
 
+static bool trap_dbgidr(struct kvm_vcpu *vcpu,
+			const struct sys_reg_params *p,
+			const struct sys_reg_desc *r)
+{
+	if (p->is_write) {
+		return ignore_write(vcpu, p);
+	} else {
+		u64 dfr = read_cpuid(ID_AA64DFR0_EL1);
+		u64 pfr = read_cpuid(ID_AA64PFR0_EL1);
+		u32 el3 = !!((pfr >> 12) & 0xf);
+
+		*vcpu_reg(vcpu, p->Rt) = ((((dfr >> 20) & 0xf) << 28) |
+					  (((dfr >> 12) & 0xf) << 24) |
+					  (((dfr >> 28) & 0xf) << 20) |
+					  (6 << 16) | (el3 << 14) | (el3 << 12));
+		return true;
+	}
+}
+
+static bool trap_debug32(struct kvm_vcpu *vcpu,
+			 const struct sys_reg_params *p,
+			 const struct sys_reg_desc *r)
+{
+	if (p->is_write) {
+		vcpu_cp14(vcpu, r->reg) = *vcpu_reg(vcpu, p->Rt);
+		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+	} else {
+		*vcpu_reg(vcpu, p->Rt) = vcpu_cp14(vcpu, r->reg);
+	}
+
+	return true;
+}
+
+#define DBG_BCR_BVR_WCR_WVR(n)					\
+	/* DBGBVRn */						\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 4), trap_debug32,	\
+	  NULL, (cp14_DBGBVR0 + (n) * 2) },			\
+	/* DBGBCRn */						\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_debug32,	\
+	  NULL, (cp14_DBGBCR0 + (n) * 2) },			\
+	/* DBGWVRn */						\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_debug32,	\
+	  NULL, (cp14_DBGWVR0 + (n) * 2) },			\
+	/* DBGWCRn */						\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 7), trap_debug32,	\
+	  NULL, (cp14_DBGWCR0 + (n) * 2) }
+
+#define DBGBXVR(n)						\
+	{ Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_debug32,	\
+	  NULL, cp14_DBGBXVR0 + n * 2 }
+
+/*
+ * Trapped cp14 registers. We generally ignore most of the external
+ * debug, on the principle that they don't really make sense to a
+ * guest. Revisit this one day, whould this principle change.
+ */
+static const struct sys_reg_desc cp14_regs[] = {
+	/* DBGIDR */
+	{ Op1( 0), CRn( 0), CRm( 0), Op2( 0), trap_dbgidr },
+	/* DBGDTRRXext */
+	{ Op1( 0), CRn( 0), CRm( 0), Op2( 2), trap_raz_wi },
+
+	DBG_BCR_BVR_WCR_WVR(0),
+	/* DBGDSCRint */
+	{ Op1( 0), CRn( 0), CRm( 1), Op2( 0), trap_raz_wi },
+	DBG_BCR_BVR_WCR_WVR(1),
+	/* DBGDCCINT */
+	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), trap_debug32 },
+	/* DBGDSCRext */
+	{ Op1( 0), CRn( 0), CRm( 2), Op2( 2), trap_debug32 },
+	DBG_BCR_BVR_WCR_WVR(2),
+	/* DBGDTR[RT]Xint */
+	{ Op1( 0), CRn( 0), CRm( 3), Op2( 0), trap_raz_wi },
+	/* DBGDTR[RT]Xext */
+	{ Op1( 0), CRn( 0), CRm( 3), Op2( 2), trap_raz_wi },
+	DBG_BCR_BVR_WCR_WVR(3),
+	DBG_BCR_BVR_WCR_WVR(4),
+	DBG_BCR_BVR_WCR_WVR(5),
+	/* DBGWFAR */
+	{ Op1( 0), CRn( 0), CRm( 6), Op2( 0), trap_raz_wi },
+	/* DBGOSECCR */
+	{ Op1( 0), CRn( 0), CRm( 6), Op2( 2), trap_raz_wi },
+	DBG_BCR_BVR_WCR_WVR(6),
+	/* DBGVCR */
+	{ Op1( 0), CRn( 0), CRm( 7), Op2( 0), trap_debug32 },
+	DBG_BCR_BVR_WCR_WVR(7),
+	DBG_BCR_BVR_WCR_WVR(8),
+	DBG_BCR_BVR_WCR_WVR(9),
+	DBG_BCR_BVR_WCR_WVR(10),
+	DBG_BCR_BVR_WCR_WVR(11),
+	DBG_BCR_BVR_WCR_WVR(12),
+	DBG_BCR_BVR_WCR_WVR(13),
+	DBG_BCR_BVR_WCR_WVR(14),
+	DBG_BCR_BVR_WCR_WVR(15),
+
+	/* DBGDRAR (32bit) */
+	{ Op1( 0), CRn( 1), CRm( 0), Op2( 0), trap_raz_wi },
+
+	DBGBXVR(0),
+	/* DBGOSLAR */
+	{ Op1( 0), CRn( 1), CRm( 0), Op2( 4), trap_raz_wi },
+	DBGBXVR(1),
+	/* DBGOSLSR */
+	{ Op1( 0), CRn( 1), CRm( 1), Op2( 4), trap_oslsr_el1 },
+	DBGBXVR(2),
+	DBGBXVR(3),
+	/* DBGOSDLR */
+	{ Op1( 0), CRn( 1), CRm( 3), Op2( 4), trap_raz_wi },
+	DBGBXVR(4),
+	/* DBGPRCR */
+	{ Op1( 0), CRn( 1), CRm( 4), Op2( 4), trap_raz_wi },
+	DBGBXVR(5),
+	DBGBXVR(6),
+	DBGBXVR(7),
+	DBGBXVR(8),
+	DBGBXVR(9),
+	DBGBXVR(10),
+	DBGBXVR(11),
+	DBGBXVR(12),
+	DBGBXVR(13),
+	DBGBXVR(14),
+	DBGBXVR(15),
+
+	/* DBGDSAR (32bit) */
+	{ Op1( 0), CRn( 2), CRm( 0), Op2( 0), trap_raz_wi },
+
+	/* DBGDEVID2 */
+	{ Op1( 0), CRn( 7), CRm( 0), Op2( 7), trap_raz_wi },
+	/* DBGDEVID1 */
+	{ Op1( 0), CRn( 7), CRm( 1), Op2( 7), trap_raz_wi },
+	/* DBGDEVID */
+	{ Op1( 0), CRn( 7), CRm( 2), Op2( 7), trap_raz_wi },
+	/* DBGCLAIMSET */
+	{ Op1( 0), CRn( 7), CRm( 8), Op2( 6), trap_raz_wi },
+	/* DBGCLAIMCLR */
+	{ Op1( 0), CRn( 7), CRm( 9), Op2( 6), trap_raz_wi },
+	/* DBGAUTHSTATUS */
+	{ Op1( 0), CRn( 7), CRm(14), Op2( 6), trap_dbgauthstatus_el1 },
+};
+
+/* Trapped cp14 64bit registers */
+static const struct sys_reg_desc cp14_64_regs[] = {
+	/* DBGDRAR (64bit) */
+	{ Op1( 0), CRm( 1), .access = trap_raz_wi },
+
+	/* DBGDSAR (64bit) */
+	{ Op1( 0), CRm( 2), .access = trap_raz_wi },
+};
+
 /*
  * Trapped cp15 registers. TTBR0/TTBR1 get a double encoding,
  * depending on the way they are accessed (as a 32bit or a 64bit
  * register).
  */
 static const struct sys_reg_desc cp15_regs[] = {
-	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, c2_TTBR0 },
 	{ Op1( 0), CRn( 1), CRm( 0), Op2( 0), access_sctlr, NULL, c1_SCTLR },
 	{ Op1( 0), CRn( 2), CRm( 0), Op2( 0), access_vm_reg, NULL, c2_TTBR0 },
 	{ Op1( 0), CRn( 2), CRm( 0), Op2( 1), access_vm_reg, NULL, c2_TTBR1 },
@@ -374,26 +671,30 @@ static const struct sys_reg_desc cp15_regs[] = {
 	{ Op1( 0), CRn( 7), CRm(10), Op2( 2), access_dcsw },
 	{ Op1( 0), CRn( 7), CRm(14), Op2( 2), access_dcsw },
 
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 0), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 1), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 2), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 3), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 5), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 6), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 7), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(13), Op2( 0), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(13), Op2( 1), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(13), Op2( 2), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(14), Op2( 0), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(14), Op2( 1), pm_fake },
-	{ Op1( 0), CRn( 9), CRm(14), Op2( 2), pm_fake },
+	/* PMU */
+	{ Op1( 0), CRn( 9), CRm(12), Op2( 0), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(12), Op2( 1), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(12), Op2( 2), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(12), Op2( 3), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(12), Op2( 5), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(12), Op2( 6), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(12), Op2( 7), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(13), Op2( 0), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(13), Op2( 1), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(13), Op2( 2), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(14), Op2( 0), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(14), Op2( 1), trap_raz_wi },
+	{ Op1( 0), CRn( 9), CRm(14), Op2( 2), trap_raz_wi },
 
 	{ Op1( 0), CRn(10), CRm( 2), Op2( 0), access_vm_reg, NULL, c10_PRRR },
 	{ Op1( 0), CRn(10), CRm( 2), Op2( 1), access_vm_reg, NULL, c10_NMRR },
 	{ Op1( 0), CRn(10), CRm( 3), Op2( 0), access_vm_reg, NULL, c10_AMAIR0 },
 	{ Op1( 0), CRn(10), CRm( 3), Op2( 1), access_vm_reg, NULL, c10_AMAIR1 },
 	{ Op1( 0), CRn(13), CRm( 0), Op2( 1), access_vm_reg, NULL, c13_CID },
+};
 
+static const struct sys_reg_desc cp15_64_regs[] = {
+	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, c2_TTBR0 },
 	{ Op1( 1), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, c2_TTBR1 },
 };
 
@@ -454,26 +755,29 @@ int kvm_handle_cp14_load_store(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return 1;
 }
 
-int kvm_handle_cp14_access(struct kvm_vcpu *vcpu, struct kvm_run *run)
+/*
+ * emulate_cp --  tries to match a sys_reg access in a handling table, and
+ *                call the corresponding trap handler.
+ *
+ * @params: pointer to the descriptor of the access
+ * @table: array of trap descriptors
+ * @num: size of the trap descriptor array
+ *
+ * Return 0 if the access has been handled, and -1 if not.
+ */
+static int emulate_cp(struct kvm_vcpu *vcpu,
+		      const struct sys_reg_params *params,
+		      const struct sys_reg_desc *table,
+		      size_t num)
 {
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
+	const struct sys_reg_desc *r;
 
-static void emulate_cp15(struct kvm_vcpu *vcpu,
-			 const struct sys_reg_params *params)
-{
-	size_t num;
-	const struct sys_reg_desc *table, *r;
+	if (!table)
+		return -1;	/* Not handled */
 
-	table = get_target_table(vcpu->arch.target, false, &num);
-
-	/* Search target-specific then generic table. */
 	r = find_reg(params, table, num);
-	if (!r)
-		r = find_reg(params, cp15_regs, ARRAY_SIZE(cp15_regs));
 
-	if (likely(r)) {
+	if (r) {
 		/*
 		 * Not having an accessor means that we have
 		 * configured a trap that we don't know how to
@@ -485,22 +789,51 @@ static void emulate_cp15(struct kvm_vcpu *vcpu,
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
 			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
-			return;
 		}
-		/* If access function fails, it should complain. */
+
+		/* Handled */
+		return 0;
 	}
 
-	kvm_err("Unsupported guest CP15 access at: %08lx\n", *vcpu_pc(vcpu));
+	/* Not handled */
+	return -1;
+}
+
+static void unhandled_cp_access(struct kvm_vcpu *vcpu,
+				struct sys_reg_params *params)
+{
+	u8 hsr_ec = kvm_vcpu_trap_get_class(vcpu);
+	int cp;
+
+	switch(hsr_ec) {
+	case ESR_EL2_EC_CP15_32:
+	case ESR_EL2_EC_CP15_64:
+		cp = 15;
+		break;
+	case ESR_EL2_EC_CP14_MR:
+	case ESR_EL2_EC_CP14_64:
+		cp = 14;
+		break;
+	default:
+		WARN_ON((cp = -1));
+	}
+
+	kvm_err("Unsupported guest CP%d access at: %08lx\n",
+		cp, *vcpu_pc(vcpu));
 	print_sys_reg_instr(params);
 	kvm_inject_undefined(vcpu);
 }
 
 /**
- * kvm_handle_cp15_64 -- handles a mrrc/mcrr trap on a guest CP15 access
+ * kvm_handle_cp_64 -- handles a mrrc/mcrr trap on a guest CP15 access
  * @vcpu: The VCPU pointer
  * @run:  The kvm_run struct
  */
-int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_desc *global,
+			    size_t nr_global,
+			    const struct sys_reg_desc *target_specific,
+			    size_t nr_specific)
 {
 	struct sys_reg_params params;
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
@@ -529,8 +862,14 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		*vcpu_reg(vcpu, params.Rt) = val;
 	}
 
-	emulate_cp15(vcpu, &params);
+	if (!emulate_cp(vcpu, &params, target_specific, nr_specific))
+		goto out;
+	if (!emulate_cp(vcpu, &params, global, nr_global))
+		goto out;
 
+	unhandled_cp_access(vcpu, &params);
+
+out:
 	/* Do the opposite hack for the read side */
 	if (!params.is_write) {
 		u64 val = *vcpu_reg(vcpu, params.Rt);
@@ -546,7 +885,11 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
  * @vcpu: The VCPU pointer
  * @run:  The kvm_run struct
  */
-int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static int kvm_handle_cp_32(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_desc *global,
+			    size_t nr_global,
+			    const struct sys_reg_desc *target_specific,
+			    size_t nr_specific)
 {
 	struct sys_reg_params params;
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
@@ -561,8 +904,49 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	params.Op1 = (hsr >> 14) & 0x7;
 	params.Op2 = (hsr >> 17) & 0x7;
 
-	emulate_cp15(vcpu, &params);
+	if (!emulate_cp(vcpu, &params, target_specific, nr_specific))
+		return 1;
+	if (!emulate_cp(vcpu, &params, global, nr_global))
+		return 1;
+
+	unhandled_cp_access(vcpu, &params);
 	return 1;
+}
+
+int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	const struct sys_reg_desc *target_specific;
+	size_t num;
+
+	target_specific = get_target_table(vcpu->arch.target, false, &num);
+	return kvm_handle_cp_64(vcpu,
+				cp15_64_regs, ARRAY_SIZE(cp15_64_regs),
+				target_specific, num);
+}
+
+int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	const struct sys_reg_desc *target_specific;
+	size_t num;
+
+	target_specific = get_target_table(vcpu->arch.target, false, &num);
+	return kvm_handle_cp_32(vcpu,
+				cp15_regs, ARRAY_SIZE(cp15_regs),
+				target_specific, num);
+}
+
+int kvm_handle_cp14_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	return kvm_handle_cp_64(vcpu,
+				cp14_64_regs, ARRAY_SIZE(cp14_64_regs),
+				NULL, 0);
+}
+
+int kvm_handle_cp14_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	return kvm_handle_cp_32(vcpu,
+				cp14_regs, ARRAY_SIZE(cp14_regs),
+				NULL, 0);
 }
 
 static int emulate_sys_reg(struct kvm_vcpu *vcpu,
@@ -776,17 +1160,15 @@ static struct sys_reg_desc invariant_sys_regs[] = {
 	  NULL, get_ctr_el0 },
 };
 
-static int reg_from_user(void *val, const void __user *uaddr, u64 id)
+static int reg_from_user(u64 *val, const void __user *uaddr, u64 id)
 {
-	/* This Just Works because we are little endian. */
 	if (copy_from_user(val, uaddr, KVM_REG_SIZE(id)) != 0)
 		return -EFAULT;
 	return 0;
 }
 
-static int reg_to_user(void __user *uaddr, const void *val, u64 id)
+static int reg_to_user(void __user *uaddr, const u64 *val, u64 id)
 {
-	/* This Just Works because we are little endian. */
 	if (copy_to_user(uaddr, val, KVM_REG_SIZE(id)) != 0)
 		return -EFAULT;
 	return 0;
@@ -962,7 +1344,7 @@ static unsigned int num_demux_regs(void)
 
 static int write_demux_regids(u64 __user *uindices)
 {
-	u64 val = KVM_REG_ARM | KVM_REG_SIZE_U32 | KVM_REG_ARM_DEMUX;
+	u64 val = KVM_REG_ARM64 | KVM_REG_SIZE_U32 | KVM_REG_ARM_DEMUX;
 	unsigned int i;
 
 	val |= KVM_REG_ARM_DEMUX_ID_CCSIDR;
@@ -1069,14 +1451,32 @@ int kvm_arm_copy_sys_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 	return write_demux_regids(uindices);
 }
 
+static int check_sysreg_table(const struct sys_reg_desc *table, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 1; i < n; i++) {
+		if (cmp_sys_reg(&table[i-1], &table[i]) >= 0) {
+			kvm_err("sys_reg table %p out of order (%d)\n", table, i - 1);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 void kvm_sys_reg_table_init(void)
 {
 	unsigned int i;
 	struct sys_reg_desc clidr;
 
 	/* Make sure tables are unique and in order. */
-	for (i = 1; i < ARRAY_SIZE(sys_reg_descs); i++)
-		BUG_ON(cmp_sys_reg(&sys_reg_descs[i-1], &sys_reg_descs[i]) >= 0);
+	BUG_ON(check_sysreg_table(sys_reg_descs, ARRAY_SIZE(sys_reg_descs)));
+	BUG_ON(check_sysreg_table(cp14_regs, ARRAY_SIZE(cp14_regs)));
+	BUG_ON(check_sysreg_table(cp14_64_regs, ARRAY_SIZE(cp14_64_regs)));
+	BUG_ON(check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs)));
+	BUG_ON(check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs)));
+	BUG_ON(check_sysreg_table(invariant_sys_regs, ARRAY_SIZE(invariant_sys_regs)));
 
 	/* We abuse the reset function to overwrite the table itself. */
 	for (i = 0; i < ARRAY_SIZE(invariant_sys_regs); i++)

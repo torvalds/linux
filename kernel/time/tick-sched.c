@@ -154,6 +154,7 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 
 #ifdef CONFIG_NO_HZ_FULL
 cpumask_var_t tick_nohz_full_mask;
+cpumask_var_t housekeeping_mask;
 bool tick_nohz_full_running;
 
 static bool can_stop_full_tick(void)
@@ -224,13 +225,29 @@ static DEFINE_PER_CPU(struct irq_work, nohz_full_kick_work) = {
 };
 
 /*
- * Kick the current CPU if it's full dynticks in order to force it to
+ * Kick this CPU if it's full dynticks in order to force it to
  * re-evaluate its dependency on the tick and restart it if necessary.
+ * This kick, unlike tick_nohz_full_kick_cpu() and tick_nohz_full_kick_all(),
+ * is NMI safe.
  */
 void tick_nohz_full_kick(void)
 {
-	if (tick_nohz_full_cpu(smp_processor_id()))
-		irq_work_queue(&__get_cpu_var(nohz_full_kick_work));
+	if (!tick_nohz_full_cpu(smp_processor_id()))
+		return;
+
+	irq_work_queue(&__get_cpu_var(nohz_full_kick_work));
+}
+
+/*
+ * Kick the CPU if it's full dynticks in order to force it to
+ * re-evaluate its dependency on the tick and restart it if necessary.
+ */
+void tick_nohz_full_kick_cpu(int cpu)
+{
+	if (!tick_nohz_full_cpu(cpu))
+		return;
+
+	irq_work_queue_on(&per_cpu(nohz_full_kick_work, cpu), cpu);
 }
 
 static void nohz_full_kick_ipi(void *info)
@@ -281,6 +298,7 @@ static int __init tick_nohz_full_setup(char *str)
 	int cpu;
 
 	alloc_bootmem_cpumask_var(&tick_nohz_full_mask);
+	alloc_bootmem_cpumask_var(&housekeeping_mask);
 	if (cpulist_parse(str, tick_nohz_full_mask) < 0) {
 		pr_warning("NOHZ: Incorrect nohz_full cpumask\n");
 		return 1;
@@ -291,6 +309,8 @@ static int __init tick_nohz_full_setup(char *str)
 		pr_warning("NO_HZ: Clearing %d from nohz_full range for timekeeping\n", cpu);
 		cpumask_clear_cpu(cpu, tick_nohz_full_mask);
 	}
+	cpumask_andnot(housekeeping_mask,
+		       cpu_possible_mask, tick_nohz_full_mask);
 	tick_nohz_full_running = true;
 
 	return 1;
@@ -332,9 +352,15 @@ static int tick_nohz_init_all(void)
 		pr_err("NO_HZ: Can't allocate full dynticks cpumask\n");
 		return err;
 	}
+	if (!alloc_cpumask_var(&housekeeping_mask, GFP_KERNEL)) {
+		pr_err("NO_HZ: Can't allocate not-full dynticks cpumask\n");
+		return err;
+	}
 	err = 0;
 	cpumask_setall(tick_nohz_full_mask);
 	cpumask_clear_cpu(smp_processor_id(), tick_nohz_full_mask);
+	cpumask_clear(housekeeping_mask);
+	cpumask_set_cpu(smp_processor_id(), housekeeping_mask);
 	tick_nohz_full_running = true;
 #endif
 	return err;

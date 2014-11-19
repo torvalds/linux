@@ -1904,6 +1904,7 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	     req->r_tid, ceph_mds_op_name(req->r_op), req->r_attempts);
 
 	if (req->r_got_unsafe) {
+		void *p;
 		/*
 		 * Replay.  Do not regenerate message (and rebuild
 		 * paths, etc.); just use the original message.
@@ -1924,8 +1925,13 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 
 		/* remove cap/dentry releases from message */
 		rhead->num_releases = 0;
-		msg->hdr.front_len = cpu_to_le32(req->r_request_release_offset);
-		msg->front.iov_len = req->r_request_release_offset;
+
+		/* time stamp */
+		p = msg->front.iov_base + req->r_request_release_offset;
+		ceph_encode_copy(&p, &req->r_stamp, sizeof(req->r_stamp));
+
+		msg->front.iov_len = p - msg->front.iov_base;
+		msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 		return 0;
 	}
 
@@ -2061,11 +2067,12 @@ static void __wake_requests(struct ceph_mds_client *mdsc,
 static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 {
 	struct ceph_mds_request *req;
-	struct rb_node *p;
+	struct rb_node *p = rb_first(&mdsc->request_tree);
 
 	dout("kick_requests mds%d\n", mds);
-	for (p = rb_first(&mdsc->request_tree); p; p = rb_next(p)) {
+	while (p) {
 		req = rb_entry(p, struct ceph_mds_request, r_node);
+		p = rb_next(p);
 		if (req->r_got_unsafe)
 			continue;
 		if (req->r_session &&
@@ -2248,6 +2255,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	 */
 	if (result == -ESTALE) {
 		dout("got ESTALE on request %llu", req->r_tid);
+		req->r_resend_mds = -1;
 		if (req->r_direct_mode != USE_AUTH_MDS) {
 			dout("not using auth, setting for that now");
 			req->r_direct_mode = USE_AUTH_MDS;

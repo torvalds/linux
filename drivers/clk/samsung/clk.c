@@ -53,7 +53,6 @@ struct samsung_clk_provider *__init samsung_clk_init(struct device_node *np,
 {
 	struct samsung_clk_provider *ctx;
 	struct clk **clk_table;
-	int ret;
 	int i;
 
 	ctx = kzalloc(sizeof(struct samsung_clk_provider), GFP_KERNEL);
@@ -72,15 +71,17 @@ struct samsung_clk_provider *__init samsung_clk_init(struct device_node *np,
 	ctx->clk_data.clk_num = nr_clks;
 	spin_lock_init(&ctx->lock);
 
-	if (!np)
-		return ctx;
-
-	ret = of_clk_add_provider(np, of_clk_src_onecell_get,
-			&ctx->clk_data);
-	if (ret)
-		panic("could not register clock provide\n");
-
 	return ctx;
+}
+
+void __init samsung_clk_of_add_provider(struct device_node *np,
+				struct samsung_clk_provider *ctx)
+{
+	if (np) {
+		if (of_clk_add_provider(np, of_clk_src_onecell_get,
+					&ctx->clk_data))
+			panic("could not register clk provider\n");
+	}
 }
 
 /* add a clock instance to the clock lookup table used for dt based lookup */
@@ -284,7 +285,7 @@ void __init samsung_clk_register_gate(struct samsung_clk_provider *ctx,
 void __init samsung_clk_of_register_fixed_ext(struct samsung_clk_provider *ctx,
 			struct samsung_fixed_rate_clock *fixed_rate_clk,
 			unsigned int nr_fixed_rate_clk,
-			struct of_device_id *clk_matches)
+			const struct of_device_id *clk_matches)
 {
 	const struct of_device_id *match;
 	struct device_node *clk_np;

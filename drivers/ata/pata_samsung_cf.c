@@ -54,7 +54,6 @@
 
 enum s3c_cpu_type {
 	TYPE_S3C64XX,
-	TYPE_S5PC100,
 	TYPE_S5PV210,
 };
 
@@ -361,7 +360,7 @@ static int pata_s3c_wait_after_reset(struct ata_link *link,
 /*
  * pata_s3c_bus_softreset - PATA device software reset
  */
-static unsigned int pata_s3c_bus_softreset(struct ata_port *ap,
+static int pata_s3c_bus_softreset(struct ata_port *ap,
 		unsigned long deadline)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
@@ -476,10 +475,6 @@ static void pata_s3c_hwinit(struct s3c_ide_info *info,
 		writel(0x1b, info->ide_addr + S3C_ATA_IRQ_MSK);
 		break;
 
-	case TYPE_S5PC100:
-		pata_s3c_cfg_mode(info->sfr_addr);
-		/* FALLTHROUGH */
-
 	case TYPE_S5PV210:
 		/* Configure as little endian */
 		pata_s3c_set_endian(info->ide_addr, 0);
@@ -549,11 +544,6 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 		info->sfr_addr = info->ide_addr + 0x1800;
 		info->ide_addr += 0x1900;
 		info->fifo_status_reg = 0x94;
-	} else if (cpu_type == TYPE_S5PC100) {
-		ap->ops = &pata_s5p_port_ops;
-		info->sfr_addr = info->ide_addr + 0x1800;
-		info->ide_addr += 0x1900;
-		info->fifo_status_reg = 0x84;
 	} else {
 		ap->ops = &pata_s5p_port_ops;
 		info->fifo_status_reg = 0x84;
@@ -652,9 +642,6 @@ static struct platform_device_id pata_s3c_driver_ids[] = {
 	{
 		.name		= "s3c64xx-pata",
 		.driver_data	= TYPE_S3C64XX,
-	}, {
-		.name		= "s5pc100-pata",
-		.driver_data	= TYPE_S5PC100,
 	}, {
 		.name		= "s5pv210-pata",
 		.driver_data	= TYPE_S5PV210,

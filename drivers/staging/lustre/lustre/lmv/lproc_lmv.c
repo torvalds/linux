@@ -38,8 +38,8 @@
 
 #include <linux/seq_file.h>
 #include <asm/statfs.h>
-#include <lprocfs_status.h>
-#include <obd_class.h>
+#include "../include/lprocfs_status.h"
+#include "../include/obd_class.h"
 
 static int lmv_numobd_seq_show(struct seq_file *m, void *v)
 {

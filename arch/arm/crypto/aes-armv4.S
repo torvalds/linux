@@ -35,6 +35,7 @@
 @ that is being targetted.
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 
 .text
 
@@ -648,7 +649,7 @@ _armv4_AES_set_encrypt_key:
 
 .Ldone:	mov	r0,#0
 	ldmia   sp!,{r4-r12,lr}
-.Labrt:	mov	pc,lr
+.Labrt:	ret	lr
 ENDPROC(private_AES_set_encrypt_key)
 
 .align	5

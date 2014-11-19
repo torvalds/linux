@@ -284,8 +284,8 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
 }
 #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
 
-static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
-			   unsigned long end_pfn)
+static void __meminit grow_zone_span(struct zone *zone, unsigned long start_pfn,
+				     unsigned long end_pfn)
 {
 	unsigned long old_zone_end_pfn;
 
@@ -427,8 +427,8 @@ out_fail:
 	return -1;
 }
 
-static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
-			    unsigned long end_pfn)
+static void __meminit grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
+				      unsigned long end_pfn)
 {
 	unsigned long old_pgdat_end_pfn = pgdat_end_pfn(pgdat);
 
@@ -977,15 +977,18 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	zone = page_zone(pfn_to_page(pfn));
 
 	ret = -EINVAL;
-	if ((zone_idx(zone) > ZONE_NORMAL || online_type == ONLINE_MOVABLE) &&
+	if ((zone_idx(zone) > ZONE_NORMAL ||
+	    online_type == MMOP_ONLINE_MOVABLE) &&
 	    !can_online_high_movable(zone))
 		goto out;
 
-	if (online_type == ONLINE_KERNEL && zone_idx(zone) == ZONE_MOVABLE) {
+	if (online_type == MMOP_ONLINE_KERNEL &&
+	    zone_idx(zone) == ZONE_MOVABLE) {
 		if (move_pfn_range_left(zone - 1, zone, pfn, pfn + nr_pages))
 			goto out;
 	}
-	if (online_type == ONLINE_MOVABLE && zone_idx(zone) == ZONE_MOVABLE - 1) {
+	if (online_type == MMOP_ONLINE_MOVABLE &&
+	    zone_idx(zone) == ZONE_MOVABLE - 1) {
 		if (move_pfn_range_right(zone, zone + 1, pfn, pfn + nr_pages))
 			goto out;
 	}
@@ -1154,6 +1157,34 @@ static int check_hotplug_memory_range(u64 start, u64 size)
 	}
 
 	return 0;
+}
+
+/*
+ * If movable zone has already been setup, newly added memory should be check.
+ * If its address is higher than movable zone, it should be added as movable.
+ * Without this check, movable zone may overlap with other zone.
+ */
+static int should_add_memory_movable(int nid, u64 start, u64 size)
+{
+	unsigned long start_pfn = start >> PAGE_SHIFT;
+	pg_data_t *pgdat = NODE_DATA(nid);
+	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
+
+	if (zone_is_empty(movable_zone))
+		return 0;
+
+	if (movable_zone->zone_start_pfn <= start_pfn)
+		return 1;
+
+	return 0;
+}
+
+int zone_for_memory(int nid, u64 start, u64 size, int zone_default)
+{
+	if (should_add_memory_movable(nid, start, size))
+		return ZONE_MOVABLE;
+
+	return zone_default;
 }
 
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */

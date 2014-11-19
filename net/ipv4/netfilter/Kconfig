@@ -36,6 +36,16 @@ config NF_CONNTRACK_PROC_COMPAT
 
 	  If unsure, say Y.
 
+config NF_LOG_ARP
+	tristate "ARP packet logging"
+	default m if NETFILTER_ADVANCED=n
+	select NF_LOG_COMMON
+
+config NF_LOG_IPV4
+	tristate "IPv4 packet logging"
+	default m if NETFILTER_ADVANCED=n
+	select NF_LOG_COMMON
+
 config NF_TABLES_IPV4
 	depends on NF_TABLES
 	tristate "IPv4 nf_tables support"
@@ -71,6 +81,52 @@ config NF_TABLES_ARP
 	tristate "ARP nf_tables support"
 	help
 	  This option enables the ARP support for nf_tables.
+
+config NF_NAT_IPV4
+	tristate "IPv4 NAT"
+	depends on NF_CONNTRACK_IPV4
+	default m if NETFILTER_ADVANCED=n
+	select NF_NAT
+	help
+	  The IPv4 NAT option allows masquerading, port forwarding and other
+	  forms of full Network Address Port Translation. This can be
+	  controlled by iptables or nft.
+
+if NF_NAT_IPV4
+
+config NF_NAT_SNMP_BASIC
+	tristate "Basic SNMP-ALG support"
+	depends on NF_CONNTRACK_SNMP
+	depends on NETFILTER_ADVANCED
+	default NF_NAT && NF_CONNTRACK_SNMP
+	---help---
+
+	  This module implements an Application Layer Gateway (ALG) for
+	  SNMP payloads.  In conjunction with NAT, it allows a network
+	  management system to access multiple private networks with
+	  conflicting addresses.  It works by modifying IP addresses
+	  inside SNMP payloads to match IP-layer NAT mapping.
+
+	  This is the "basic" form of SNMP-ALG, as described in RFC 2962
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_NAT_PROTO_GRE
+	tristate
+	depends on NF_CT_PROTO_GRE
+
+config NF_NAT_PPTP
+	tristate
+	depends on NF_CONNTRACK
+	default NF_CONNTRACK_PPTP
+	select NF_NAT_PROTO_GRE
+
+config NF_NAT_H323
+	tristate
+	depends on NF_CONNTRACK
+	default NF_CONNTRACK_H323
+
+endif # NF_NAT_IPV4
 
 config IP_NF_IPTABLES
 	tristate "IP tables support (required for filtering/masq/NAT)"
@@ -159,39 +215,22 @@ config IP_NF_TARGET_SYNPROXY
 
 	  To compile it as a module, choose M here. If unsure, say N.
 
-config IP_NF_TARGET_ULOG
-	tristate "ULOG target support (obsolete)"
-	default m if NETFILTER_ADVANCED=n
-	---help---
-
-	  This option enables the old IPv4-only "ipt_ULOG" implementation
-	  which has been obsoleted by the new "nfnetlink_log" code (see
-	  CONFIG_NETFILTER_NETLINK_LOG).
-
-	  This option adds a `ULOG' target, which allows you to create rules in
-	  any iptables table. The packet is passed to a userspace logging
-	  daemon using netlink multicast sockets; unlike the LOG target
-	  which can only be viewed through syslog.
-
-	  The appropriate userspace logging daemon (ulogd) may be obtained from
-	  <http://www.netfilter.org/projects/ulogd/index.html>
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 # NAT + specific targets: nf_conntrack
-config NF_NAT_IPV4
-	tristate "IPv4 NAT"
+config IP_NF_NAT
+	tristate "iptables NAT support"
 	depends on NF_CONNTRACK_IPV4
 	default m if NETFILTER_ADVANCED=n
 	select NF_NAT
+	select NF_NAT_IPV4
+	select NETFILTER_XT_NAT
 	help
-	  The IPv4 NAT option allows masquerading, port forwarding and other
-	  forms of full Network Address Port Translation.  It is controlled by
-	  the `nat' table in iptables: see the man page for iptables(8).
+	  This enables the `nat' table in iptables. This allows masquerading,
+	  port forwarding and other forms of full Network Address Port
+	  Translation.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-if NF_NAT_IPV4
+if IP_NF_NAT
 
 config IP_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
@@ -223,47 +262,7 @@ config IP_NF_TARGET_REDIRECT
 	(e.g. when running oldconfig). It selects
 	CONFIG_NETFILTER_XT_TARGET_REDIRECT.
 
-endif
-
-config NF_NAT_SNMP_BASIC
-	tristate "Basic SNMP-ALG support"
-	depends on NF_CONNTRACK_SNMP && NF_NAT_IPV4
-	depends on NETFILTER_ADVANCED
-	default NF_NAT && NF_CONNTRACK_SNMP
-	---help---
-
-	  This module implements an Application Layer Gateway (ALG) for
-	  SNMP payloads.  In conjunction with NAT, it allows a network
-	  management system to access multiple private networks with
-	  conflicting addresses.  It works by modifying IP addresses
-	  inside SNMP payloads to match IP-layer NAT mapping.
-
-	  This is the "basic" form of SNMP-ALG, as described in RFC 2962
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-# If they want FTP, set to $CONFIG_IP_NF_NAT (m or y),
-# or $CONFIG_IP_NF_FTP (m or y), whichever is weaker.
-# From kconfig-language.txt:
-#
-#           <expr> '&&' <expr>                   (6)
-#
-# (6) Returns the result of min(/expr/, /expr/).
-
-config NF_NAT_PROTO_GRE
-	tristate
-	depends on NF_NAT_IPV4 && NF_CT_PROTO_GRE
-
-config NF_NAT_PPTP
-	tristate
-	depends on NF_CONNTRACK && NF_NAT_IPV4
-	default NF_NAT_IPV4 && NF_CONNTRACK_PPTP
-	select NF_NAT_PROTO_GRE
-
-config NF_NAT_H323
-	tristate
-	depends on NF_CONNTRACK && NF_NAT_IPV4
-	default NF_NAT_IPV4 && NF_CONNTRACK_H323
+endif # IP_NF_NAT
 
 # mangle + specific targets
 config IP_NF_MANGLE

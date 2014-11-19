@@ -301,7 +301,6 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 					unsigned int gem_handle,
 					struct drm_file *filp)
 {
-	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct drm_gem_object *obj;
 
 	obj = drm_gem_object_lookup(dev, filp, gem_handle);
@@ -309,8 +308,6 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 		DRM_ERROR("failed to lookup gem object.\n");
 		return;
 	}
-
-	exynos_gem_obj = to_exynos_gem_obj(obj);
 
 	drm_gem_object_unreference_unlocked(obj);
 

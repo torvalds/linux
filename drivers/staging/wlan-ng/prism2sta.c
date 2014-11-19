@@ -360,6 +360,7 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, struct p80211msg *msg)
 	case DIDmsg_lnxreq_ifstate:
 		{
 			struct p80211msg_lnxreq_ifstate *ifstatemsg;
+
 			pr_debug("Received mlme ifstate request\n");
 			ifstatemsg = (struct p80211msg_lnxreq_ifstate *) msg;
 			result =
@@ -467,8 +468,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 			break;
 		case WLAN_MSD_RUNNING:
 			netdev_warn(wlandev->netdev,
-			       "Cannot enter fwload state from enable state,"
-			       "you must disable first.\n");
+				    "Cannot enter fwload state from enable state, you must disable first.\n");
 			result = P80211ENUM_resultcode_invalid_parameters;
 			break;
 		case WLAN_MSD_HWFAIL:
@@ -1407,6 +1407,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 */
 		if (hw->join_ap && --hw->join_retries > 0) {
 			hfa384x_JoinRequest_data_t joinreq;
+
 			joinreq = hw->joinreq;
 			/* Send the join request */
 			hfa384x_drvr_setconfig(hw,
@@ -1847,7 +1848,7 @@ void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status)
 {
 	pr_debug("Tx Complete, status=0x%04x\n", status);
 	/* update linux network stats */
-	wlandev->linux_stats.tx_packets++;
+	wlandev->netdev->stats.tx_packets++;
 }
 
 /*----------------------------------------------------------------

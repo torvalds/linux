@@ -127,7 +127,7 @@ static void vmw_resource_release(struct kref *kref)
 	if (res->backup) {
 		struct ttm_buffer_object *bo = &res->backup->base;
 
-		ttm_bo_reserve(bo, false, false, false, 0);
+		ttm_bo_reserve(bo, false, false, false, NULL);
 		if (!list_empty(&res->mob_head) &&
 		    res->func->unbind != NULL) {
 			struct ttm_validate_buffer val_buf;

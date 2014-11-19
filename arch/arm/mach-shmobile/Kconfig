@@ -12,6 +12,7 @@ menuconfig ARCH_SHMOBILE_MULTI
 	select NO_IOPORT_MAP
 	select PINCTRL
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_OPP
 
 if ARCH_SHMOBILE_MULTI
 
@@ -24,6 +25,11 @@ config ARCH_EMEV2
 config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
 	select SYS_SUPPORTS_SH_MTU2
+
+config ARCH_R8A7779
+	bool "R-Car H1 (R8A77790)"
+	select RENESAS_INTC_IRQPIN
+	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_R8A7790
 	bool "R-Car H2 (R8A77900)"
@@ -51,6 +57,11 @@ config MACH_LAGER
 	depends on ARCH_R8A7790
 	select MICREL_PHY if SH_ETH
 
+config MACH_MARZEN
+	bool "MARZEN board"
+	depends on ARCH_R8A7779
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+
 comment "Renesas ARM SoCs System Configuration"
 endif
 
@@ -64,6 +75,7 @@ config ARCH_SH7372
 	select ARM_CPU_SUSPEND if PM || CPU_IDLE
 	select CPU_V7
 	select SH_CLK_CPG
+	select SH_INTC
 	select SYS_SUPPORTS_SH_CMT
 	select SYS_SUPPORTS_SH_TMU
 
@@ -74,6 +86,7 @@ config ARCH_SH73A0
 	select CPU_V7
 	select I2C
 	select SH_CLK_CPG
+	select SH_INTC
 	select RENESAS_INTC_IRQPIN
 	select SYS_SUPPORTS_SH_CMT
 	select SYS_SUPPORTS_SH_TMU
@@ -85,7 +98,6 @@ config ARCH_R8A73A4
 	select CPU_V7
 	select SH_CLK_CPG
 	select RENESAS_IRQC
-	select ARCH_HAS_OPP
 	select SYS_SUPPORTS_SH_CMT
 	select SYS_SUPPORTS_SH_TMU
 
@@ -234,19 +246,6 @@ config MACH_MARZEN
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select USE_OF
 
-config MACH_MARZEN_REFERENCE
-	bool "MARZEN board - Reference Device Tree Implementation"
-	depends on ARCH_R8A7779
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select USE_OF
-	---help---
-	   Use reference implementation of Marzen board support
-	   which makes use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
-
 config MACH_LAGER
 	bool "Lager board"
 	depends on ARCH_R8A7790
@@ -263,7 +262,6 @@ config MACH_KOELSCH
 config MACH_KZM9G
 	bool "KZM-A9-GT board"
 	depends on ARCH_SH73A0
-	select ARCH_HAS_OPP
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD

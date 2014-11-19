@@ -125,7 +125,7 @@ int bond_sysfs_slave_add(struct slave *slave)
 	for (a = slave_attrs; *a; ++a) {
 		err = sysfs_create_file(&slave->kobj, &((*a)->attr));
 		if (err) {
-			kobject_del(&slave->kobj);
+			kobject_put(&slave->kobj);
 			return err;
 		}
 	}
@@ -140,5 +140,5 @@ void bond_sysfs_slave_del(struct slave *slave)
 	for (a = slave_attrs; *a; ++a)
 		sysfs_remove_file(&slave->kobj, &((*a)->attr));
 
-	kobject_del(&slave->kobj);
+	kobject_put(&slave->kobj);
 }

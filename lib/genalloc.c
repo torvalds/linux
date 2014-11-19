@@ -588,6 +588,7 @@ struct gen_pool *of_get_named_gen_pool(struct device_node *np,
 	if (!np_pool)
 		return NULL;
 	pdev = of_find_device_by_node(np_pool);
+	of_node_put(np_pool);
 	if (!pdev)
 		return NULL;
 	return dev_get_gen_pool(&pdev->dev);

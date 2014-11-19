@@ -39,7 +39,7 @@
  */
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/libcfs/lucache.h>
+#include "../../include/linux/libcfs/lucache.h"
 
 static struct upcall_cache_entry *alloc_entry(struct upcall_cache *cache,
 					      __u64 key, void *args)
@@ -68,7 +68,7 @@ static void free_entry(struct upcall_cache *cache,
 		cache->uc_ops->free_entry(cache, entry);
 
 	list_del(&entry->ue_hash);
-	CDEBUG(D_OTHER, "destroy cache entry %p for key "LPU64"\n",
+	CDEBUG(D_OTHER, "destroy cache entry %p for key %llu\n",
 	       entry, entry->ue_key);
 	LIBCFS_FREE(entry, sizeof(*entry));
 }
@@ -117,13 +117,12 @@ static int check_unlink_entry(struct upcall_cache *cache,
 			      struct upcall_cache_entry *entry)
 {
 	if (UC_CACHE_IS_VALID(entry) &&
-	    cfs_time_before(cfs_time_current(), entry->ue_expire))
+	    time_before(cfs_time_current(), entry->ue_expire))
 		return 0;
 
 	if (UC_CACHE_IS_ACQUIRING(entry)) {
 		if (entry->ue_acquire_expire == 0 ||
-		    cfs_time_before(cfs_time_current(),
-				    entry->ue_acquire_expire))
+		    time_before(cfs_time_current(), entry->ue_acquire_expire))
 			return 0;
 
 		UC_CACHE_SET_EXPIRED(entry);
@@ -230,7 +229,7 @@ find_again:
 		if (UC_CACHE_IS_ACQUIRING(entry)) {
 			/* we're interrupted or upcall failed in the middle */
 			rc = left > 0 ? -EINTR : -ETIMEDOUT;
-			CERROR("acquire for key "LPU64": error %d\n",
+			CERROR("acquire for key %llu: error %d\n",
 			       entry->ue_key, rc);
 			put_entry(cache, entry);
 			GOTO(out, entry = ERR_PTR(rc));
@@ -303,7 +302,7 @@ int upcall_cache_downcall(struct upcall_cache *cache, __u32 err, __u64 key,
 	}
 
 	if (!found) {
-		CDEBUG(D_OTHER, "%s: upcall for key "LPU64" not expected\n",
+		CDEBUG(D_OTHER, "%s: upcall for key %llu not expected\n",
 		       cache->uc_name, key);
 		/* haven't found, it's possible */
 		spin_unlock(&cache->uc_lock);
@@ -311,19 +310,19 @@ int upcall_cache_downcall(struct upcall_cache *cache, __u32 err, __u64 key,
 	}
 
 	if (err) {
-		CDEBUG(D_OTHER, "%s: upcall for key "LPU64" returned %d\n",
+		CDEBUG(D_OTHER, "%s: upcall for key %llu returned %d\n",
 		       cache->uc_name, entry->ue_key, err);
 		GOTO(out, rc = -EINVAL);
 	}
 
 	if (!UC_CACHE_IS_ACQUIRING(entry)) {
-		CDEBUG(D_RPCTRACE,"%s: found uptodate entry %p (key "LPU64")\n",
+		CDEBUG(D_RPCTRACE,"%s: found uptodate entry %p (key %llu)\n",
 		       cache->uc_name, entry, entry->ue_key);
 		GOTO(out, rc = 0);
 	}
 
 	if (UC_CACHE_IS_INVALID(entry) || UC_CACHE_IS_EXPIRED(entry)) {
-		CERROR("%s: found a stale entry %p (key "LPU64") in ioctl\n",
+		CERROR("%s: found a stale entry %p (key %llu) in ioctl\n",
 		       cache->uc_name, entry, entry->ue_key);
 		GOTO(out, rc = -EINVAL);
 	}
@@ -337,7 +336,7 @@ int upcall_cache_downcall(struct upcall_cache *cache, __u32 err, __u64 key,
 
 	entry->ue_expire = cfs_time_shift(cache->uc_entry_expire);
 	UC_CACHE_SET_VALID(entry);
-	CDEBUG(D_OTHER, "%s: created upcall cache entry %p for key "LPU64"\n",
+	CDEBUG(D_OTHER, "%s: created upcall cache entry %p for key %llu\n",
 	       cache->uc_name, entry, entry->ue_key);
 out:
 	if (rc) {
@@ -402,11 +401,10 @@ void upcall_cache_flush_one(struct upcall_cache *cache, __u64 key, void *args)
 	}
 
 	if (found) {
-		CWARN("%s: flush entry %p: key "LPU64", ref %d, fl %x, "
-		      "cur %lu, ex %ld/%ld\n",
+		CWARN("%s: flush entry %p: key %llu, ref %d, fl %x, cur %lu, ex %ld/%ld\n",
 		      cache->uc_name, entry, entry->ue_key,
 		      atomic_read(&entry->ue_refcount), entry->ue_flags,
-		      cfs_time_current_sec(), entry->ue_acquire_expire,
+		      get_seconds(), entry->ue_acquire_expire,
 		      entry->ue_expire);
 		UC_CACHE_SET_EXPIRED(entry);
 		if (!atomic_read(&entry->ue_refcount))

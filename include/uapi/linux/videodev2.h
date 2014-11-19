@@ -124,6 +124,10 @@ enum v4l2_field {
 	 (field) == V4L2_FIELD_INTERLACED_BT ||\
 	 (field) == V4L2_FIELD_SEQ_TB ||\
 	 (field) == V4L2_FIELD_SEQ_BT)
+#define V4L2_FIELD_HAS_T_OR_B(field)	\
+	((field) == V4L2_FIELD_BOTTOM ||\
+	 (field) == V4L2_FIELD_TOP ||\
+	 (field) == V4L2_FIELD_ALTERNATE)
 
 enum v4l2_buf_type {
 	V4L2_BUF_TYPE_VIDEO_CAPTURE        = 1,
@@ -268,6 +272,7 @@ struct v4l2_capability {
 #define V4L2_CAP_MODULATOR		0x00080000  /* has a modulator */
 
 #define V4L2_CAP_SDR_CAPTURE		0x00100000  /* Is a SDR capture device */
+#define V4L2_CAP_EXT_PIX_FORMAT		0x00200000  /* Supports the extended pixel format */
 
 #define V4L2_CAP_READWRITE              0x01000000  /* read/write systemcalls */
 #define V4L2_CAP_ASYNCIO                0x02000000  /* async I/O */
@@ -287,6 +292,7 @@ struct v4l2_pix_format {
 	__u32          		sizeimage;
 	__u32			colorspace;	/* enum v4l2_colorspace */
 	__u32			priv;		/* private data, depends on pixelformat */
+	__u32			flags;		/* format flags (V4L2_PIX_FMT_FLAG_*) */
 };
 
 /*      Pixel format         FOURCC                          depth  Description  */
@@ -294,7 +300,11 @@ struct v4l2_pix_format {
 /* RGB formats */
 #define V4L2_PIX_FMT_RGB332  v4l2_fourcc('R', 'G', 'B', '1') /*  8  RGB-3-3-2     */
 #define V4L2_PIX_FMT_RGB444  v4l2_fourcc('R', '4', '4', '4') /* 16  xxxxrrrr ggggbbbb */
+#define V4L2_PIX_FMT_ARGB444 v4l2_fourcc('A', 'R', '1', '2') /* 16  aaaarrrr ggggbbbb */
+#define V4L2_PIX_FMT_XRGB444 v4l2_fourcc('X', 'R', '1', '2') /* 16  xxxxrrrr ggggbbbb */
 #define V4L2_PIX_FMT_RGB555  v4l2_fourcc('R', 'G', 'B', 'O') /* 16  RGB-5-5-5     */
+#define V4L2_PIX_FMT_ARGB555 v4l2_fourcc('A', 'R', '1', '5') /* 16  ARGB-1-5-5-5  */
+#define V4L2_PIX_FMT_XRGB555 v4l2_fourcc('X', 'R', '1', '5') /* 16  XRGB-1-5-5-5  */
 #define V4L2_PIX_FMT_RGB565  v4l2_fourcc('R', 'G', 'B', 'P') /* 16  RGB-5-6-5     */
 #define V4L2_PIX_FMT_RGB555X v4l2_fourcc('R', 'G', 'B', 'Q') /* 16  RGB-5-5-5 BE  */
 #define V4L2_PIX_FMT_RGB565X v4l2_fourcc('R', 'G', 'B', 'R') /* 16  RGB-5-6-5 BE  */
@@ -302,7 +312,11 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_BGR24   v4l2_fourcc('B', 'G', 'R', '3') /* 24  BGR-8-8-8     */
 #define V4L2_PIX_FMT_RGB24   v4l2_fourcc('R', 'G', 'B', '3') /* 24  RGB-8-8-8     */
 #define V4L2_PIX_FMT_BGR32   v4l2_fourcc('B', 'G', 'R', '4') /* 32  BGR-8-8-8-8   */
+#define V4L2_PIX_FMT_ABGR32  v4l2_fourcc('A', 'R', '2', '4') /* 32  BGRA-8-8-8-8  */
+#define V4L2_PIX_FMT_XBGR32  v4l2_fourcc('X', 'R', '2', '4') /* 32  BGRX-8-8-8-8  */
 #define V4L2_PIX_FMT_RGB32   v4l2_fourcc('R', 'G', 'B', '4') /* 32  RGB-8-8-8-8   */
+#define V4L2_PIX_FMT_ARGB32  v4l2_fourcc('B', 'A', '2', '4') /* 32  ARGB-8-8-8-8  */
+#define V4L2_PIX_FMT_XRGB32  v4l2_fourcc('B', 'X', '2', '4') /* 32  XRGB-8-8-8-8  */
 
 /* Grey formats */
 #define V4L2_PIX_FMT_GREY    v4l2_fourcc('G', 'R', 'E', 'Y') /*  8  Greyscale     */
@@ -439,6 +453,15 @@ struct v4l2_pix_format {
 /* SDR formats - used only for Software Defined Radio devices */
 #define V4L2_SDR_FMT_CU8          v4l2_fourcc('C', 'U', '0', '8') /* IQ u8 */
 #define V4L2_SDR_FMT_CU16LE       v4l2_fourcc('C', 'U', '1', '6') /* IQ u16le */
+#define V4L2_SDR_FMT_CS8          v4l2_fourcc('C', 'S', '0', '8') /* complex s8 */
+#define V4L2_SDR_FMT_CS14LE       v4l2_fourcc('C', 'S', '1', '4') /* complex s14le */
+#define V4L2_SDR_FMT_RU12LE       v4l2_fourcc('R', 'U', '1', '2') /* real u12le */
+
+/* priv field value to indicates that subsequent fields are valid. */
+#define V4L2_PIX_FMT_PRIV_MAGIC		0xfeedcafe
+
+/* Flags */
+#define V4L2_PIX_FMT_FLAG_PREMUL_ALPHA	0x00000001
 
 /*
  *	F O R M A T   E N U M E R A T I O N
@@ -744,7 +767,16 @@ struct v4l2_framebuffer {
 /* FIXME: in theory we should pass something like PCI device + memory
  * region + offset instead of some physical address */
 	void                    *base;
-	struct v4l2_pix_format	fmt;
+	struct {
+		__u32		width;
+		__u32		height;
+		__u32		pixelformat;
+		__u32		field;		/* enum v4l2_field */
+		__u32		bytesperline;	/* for padding, zero if unused */
+		__u32		sizeimage;
+		__u32		colorspace;	/* enum v4l2_colorspace */
+		__u32		priv;		/* reserved field, set to 0 */
+	} fmt;
 };
 /*  Flags for the 'capability' field. Read only */
 #define V4L2_FBUF_CAP_EXTERNOVERLAY	0x0001
@@ -1254,6 +1286,10 @@ struct v4l2_ext_control {
 		__s32 value;
 		__s64 value64;
 		char *string;
+		__u8 *p_u8;
+		__u16 *p_u16;
+		__u32 *p_u32;
+		void *ptr;
 	};
 } __attribute__ ((packed));
 
@@ -1268,6 +1304,7 @@ struct v4l2_ext_controls {
 #define V4L2_CTRL_ID_MASK      	  (0x0fffffff)
 #define V4L2_CTRL_ID2CLASS(id)    ((id) & 0x0fff0000UL)
 #define V4L2_CTRL_DRIVER_PRIV(id) (((id) & 0xffff) >= 0x1000)
+#define V4L2_CTRL_MAX_DIMS	  (4)
 
 enum v4l2_ctrl_type {
 	V4L2_CTRL_TYPE_INTEGER	     = 1,
@@ -1278,7 +1315,13 @@ enum v4l2_ctrl_type {
 	V4L2_CTRL_TYPE_CTRL_CLASS    = 6,
 	V4L2_CTRL_TYPE_STRING        = 7,
 	V4L2_CTRL_TYPE_BITMASK       = 8,
-	V4L2_CTRL_TYPE_INTEGER_MENU = 9,
+	V4L2_CTRL_TYPE_INTEGER_MENU  = 9,
+
+	/* Compound types are >= 0x0100 */
+	V4L2_CTRL_COMPOUND_TYPES     = 0x0100,
+	V4L2_CTRL_TYPE_U8	     = 0x0100,
+	V4L2_CTRL_TYPE_U16	     = 0x0101,
+	V4L2_CTRL_TYPE_U32	     = 0x0102,
 };
 
 /*  Used in the VIDIOC_QUERYCTRL ioctl for querying controls */
@@ -1292,6 +1335,23 @@ struct v4l2_queryctrl {
 	__s32		     default_value;
 	__u32                flags;
 	__u32		     reserved[2];
+};
+
+/*  Used in the VIDIOC_QUERY_EXT_CTRL ioctl for querying extended controls */
+struct v4l2_query_ext_ctrl {
+	__u32		     id;
+	__u32		     type;
+	char		     name[32];
+	__s64		     minimum;
+	__s64		     maximum;
+	__u64		     step;
+	__s64		     default_value;
+	__u32                flags;
+	__u32                elem_size;
+	__u32                elems;
+	__u32                nr_of_dims;
+	__u32                dims[V4L2_CTRL_MAX_DIMS];
+	__u32		     reserved[32];
 };
 
 /*  Used in the VIDIOC_QUERYMENU ioctl for querying menu items */
@@ -1314,9 +1374,11 @@ struct v4l2_querymenu {
 #define V4L2_CTRL_FLAG_SLIDER 		0x0020
 #define V4L2_CTRL_FLAG_WRITE_ONLY 	0x0040
 #define V4L2_CTRL_FLAG_VOLATILE		0x0080
+#define V4L2_CTRL_FLAG_HAS_PAYLOAD	0x0100
 
-/*  Query flag, to be ORed with the control ID */
+/*  Query flags, to be ORed with the control ID */
 #define V4L2_CTRL_FLAG_NEXT_CTRL	0x80000000
+#define V4L2_CTRL_FLAG_NEXT_COMPOUND	0x40000000
 
 /*  User-class control IDs defined by V4L2 */
 #define V4L2_CID_MAX_CTRLS		1024
@@ -1582,6 +1644,12 @@ struct v4l2_vbi_format {
 #define V4L2_VBI_UNSYNC		(1 << 0)
 #define V4L2_VBI_INTERLACED	(1 << 1)
 
+/* ITU-R start lines for each field */
+#define V4L2_VBI_ITU_525_F1_START (1)
+#define V4L2_VBI_ITU_525_F2_START (264)
+#define V4L2_VBI_ITU_625_F1_START (1)
+#define V4L2_VBI_ITU_625_F2_START (314)
+
 /* Sliced VBI
  *
  *    This implements is a proposal V4L2 API to allow SLICED VBI
@@ -1705,6 +1773,7 @@ struct v4l2_plane_pix_format {
  * @colorspace:		enum v4l2_colorspace; supplemental to pixelformat
  * @plane_fmt:		per-plane information
  * @num_planes:		number of planes for this format
+ * @flags:		format flags (V4L2_PIX_FMT_FLAG_*)
  */
 struct v4l2_pix_format_mplane {
 	__u32				width;
@@ -1715,16 +1784,19 @@ struct v4l2_pix_format_mplane {
 
 	struct v4l2_plane_pix_format	plane_fmt[VIDEO_MAX_PLANES];
 	__u8				num_planes;
-	__u8				reserved[11];
+	__u8				flags;
+	__u8				reserved[10];
 } __attribute__ ((packed));
 
 /**
  * struct v4l2_sdr_format - SDR format definition
  * @pixelformat:	little endian four character code (fourcc)
+ * @buffersize:		maximum size in bytes required for data
  */
 struct v4l2_sdr_format {
 	__u32				pixelformat;
-	__u8				reserved[28];
+	__u32				buffersize;
+	__u8				reserved[24];
 } __attribute__ ((packed));
 
 /**
@@ -1771,6 +1843,7 @@ struct v4l2_streamparm {
 #define V4L2_EVENT_CTRL				3
 #define V4L2_EVENT_FRAME_SYNC			4
 #define V4L2_EVENT_SOURCE_CHANGE		5
+#define V4L2_EVENT_MOTION_DET			6
 #define V4L2_EVENT_PRIVATE_START		0x08000000
 
 /* Payload for V4L2_EVENT_VSYNC */
@@ -1808,6 +1881,21 @@ struct v4l2_event_src_change {
 	__u32 changes;
 };
 
+#define V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ	(1 << 0)
+
+/**
+ * struct v4l2_event_motion_det - motion detection event
+ * @flags:             if V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ is set, then the
+ *                     frame_sequence field is valid.
+ * @frame_sequence:    the frame sequence number associated with this event.
+ * @region_mask:       which regions detected motion.
+ */
+struct v4l2_event_motion_det {
+	__u32 flags;
+	__u32 frame_sequence;
+	__u32 region_mask;
+};
+
 struct v4l2_event {
 	__u32				type;
 	union {
@@ -1815,6 +1903,7 @@ struct v4l2_event {
 		struct v4l2_event_ctrl		ctrl;
 		struct v4l2_event_frame_sync	frame_sync;
 		struct v4l2_event_src_change	src_change;
+		struct v4l2_event_motion_det	motion_det;
 		__u8				data[64];
 	} u;
 	__u32				pending;
@@ -2004,6 +2093,8 @@ struct v4l2_create_buffers {
 /* Experimental, meant for debugging, testing and internal use.
    Never use these in applications! */
 #define VIDIOC_DBG_G_CHIP_INFO  _IOWR('V', 102, struct v4l2_dbg_chip_info)
+
+#define VIDIOC_QUERY_EXT_CTRL	_IOWR('V', 103, struct v4l2_query_ext_ctrl)
 
 /* Reminder: when adding new ioctls please add support for them to
    drivers/media/video/v4l2-compat-ioctl32.c as well! */

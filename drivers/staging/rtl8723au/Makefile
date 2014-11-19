@@ -1,7 +1,6 @@
 r8723au-y :=				\
 		core/rtw_cmd.o		\
 		core/rtw_efuse.o	\
-		core/rtw_ioctl_set.o	\
 		core/rtw_ieee80211.o	\
 		core/rtw_led.o		\
 		core/rtw_mlme.o		\
@@ -53,4 +52,5 @@ r8723au-$(CONFIG_8723AU_AP_MODE) += core/rtw_ap.o
 
 obj-$(CONFIG_R8723AU)	:= r8723au.o
 
-ccflags-y += -Wtype-limits -D__CHECK_ENDIAN__ -I$(src)/include
+ccflags-y += $(call cc-option,-Wtype-limits,)
+ccflags-y += -D__CHECK_ENDIAN__ -I$(src)/include

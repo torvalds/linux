@@ -158,10 +158,43 @@ radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device, uint8
 	return ret;
 }
 
+static void radeon_encoder_add_backlight(struct radeon_encoder *radeon_encoder,
+					 struct drm_connector *connector)
+{
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	bool use_bl = false;
+
+	if (!(radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)))
+		return;
+
+	if (radeon_backlight == 0) {
+		return;
+	} else if (radeon_backlight == 1) {
+		use_bl = true;
+	} else if (radeon_backlight == -1) {
+		/* Quirks */
+		/* Amilo Xi 2550 only works with acpi bl */
+		if ((rdev->pdev->device == 0x9583) &&
+		    (rdev->pdev->subsystem_vendor == 0x1734) &&
+		    (rdev->pdev->subsystem_device == 0x1107))
+			use_bl = false;
+		else
+			use_bl = true;
+	}
+
+	if (use_bl) {
+		if (rdev->is_atom_bios)
+			radeon_atom_backlight_init(radeon_encoder, connector);
+		else
+			radeon_legacy_backlight_init(radeon_encoder, connector);
+		rdev->mode_info.bl_encoder = radeon_encoder;
+	}
+}
+
 void
 radeon_link_encoder_connector(struct drm_device *dev)
 {
-	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
 	struct drm_encoder *encoder;
@@ -174,13 +207,8 @@ radeon_link_encoder_connector(struct drm_device *dev)
 			radeon_encoder = to_radeon_encoder(encoder);
 			if (radeon_encoder->devices & radeon_connector->devices) {
 				drm_mode_connector_attach_encoder(connector, encoder);
-				if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-					if (rdev->is_atom_bios)
-						radeon_atom_backlight_init(radeon_encoder, connector);
-					else
-						radeon_legacy_backlight_init(radeon_encoder, connector);
-					rdev->mode_info.bl_encoder = radeon_encoder;
-				}
+				if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
+					radeon_encoder_add_backlight(radeon_encoder, connector);
 			}
 		}
 	}
@@ -343,7 +371,7 @@ bool radeon_dig_monitor_is_duallink(struct drm_encoder *encoder,
 	case DRM_MODE_CONNECTOR_HDMIB:
 		if (radeon_connector->use_digital) {
 			/* HDMI 1.3 supports up to 340 Mhz over single link */
-			if (ASIC_IS_DCE6(rdev) && drm_detect_hdmi_monitor(radeon_connector->edid)) {
+			if (ASIC_IS_DCE6(rdev) && drm_detect_hdmi_monitor(radeon_connector_edid(connector))) {
 				if (pixel_clock > 340000)
 					return true;
 				else
@@ -365,7 +393,7 @@ bool radeon_dig_monitor_is_duallink(struct drm_encoder *encoder,
 			return false;
 		else {
 			/* HDMI 1.3 supports up to 340 Mhz over single link */
-			if (ASIC_IS_DCE6(rdev) && drm_detect_hdmi_monitor(radeon_connector->edid)) {
+			if (ASIC_IS_DCE6(rdev) && drm_detect_hdmi_monitor(radeon_connector_edid(connector))) {
 				if (pixel_clock > 340000)
 					return true;
 				else

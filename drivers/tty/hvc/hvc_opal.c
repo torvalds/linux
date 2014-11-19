@@ -342,22 +342,13 @@ static void udbg_init_opal_common(void)
 
 void __init hvc_opal_init_early(void)
 {
-	struct device_node *stdout_node = NULL;
+	struct device_node *stdout_node = of_node_get(of_stdout);
 	const __be32 *termno;
-	const char *name = NULL;
 	const struct hv_ops *ops;
 	u32 index;
 
-	/* find the boot console from /chosen/stdout */
-	if (of_chosen)
-		name = of_get_property(of_chosen, "linux,stdout-path", NULL);
-	if (name) {
-		stdout_node = of_find_node_by_path(name);
-		if (!stdout_node) {
-			pr_err("hvc_opal: Failed to locate default console!\n");
-			return;
-		}
-	} else {
+	/* If the console wasn't in /chosen, try /ibm,opal */
+	if (!stdout_node) {
 		struct device_node *opal, *np;
 
 		/* Current OPAL takeover doesn't provide the stdout

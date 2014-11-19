@@ -902,7 +902,6 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 	default:
 		e_dbg("Flow control param set incorrectly\n");
 		return -E1000_ERR_CONFIG;
-		break;
 	}
 
 	/* Since auto-negotiation is enabled, take the link out of reset (the
@@ -5041,7 +5040,6 @@ static s32 e1000_get_cable_length(struct e1000_hw *hw, u16 *min_length,
 			break;
 		default:
 			return -E1000_ERR_PHY;
-			break;
 		}
 	} else if (hw->phy_type == e1000_phy_igp) {	/* For IGP PHY */
 		u16 cur_agc_value;

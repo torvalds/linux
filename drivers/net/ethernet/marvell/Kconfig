@@ -54,6 +54,14 @@ config MVNETA
 	  driver, which should be used for the older Marvell SoCs
 	  (Dove, Orion, Discovery, Kirkwood).
 
+config MVPP2
+	tristate "Marvell Armada 375 network interface support"
+	depends on MACH_ARMADA_375
+	select MVMDIO
+	---help---
+	  This driver supports the network interface units in the
+	  Marvell ARMADA 375 SoC.
+
 config PXA168_ETH
 	tristate "Marvell pxa168 ethernet support"
 	depends on CPU_PXA168

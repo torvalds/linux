@@ -290,7 +290,6 @@ static int config_reg_write(struct cw1200_common *priv, u32 val)
 	case HIF_8601_SILICON:
 	default:
 		return cw1200_reg_write_32(priv, ST90TDS_CONFIG_REG_ID, val);
-		break;
 	}
 	return 0;
 }

@@ -986,11 +986,21 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	pte_t *ptep;
 
 	down_read(&mm->mmap_sem);
+retry:
 	ptep = get_locked_pte(current->mm, addr, &ptl);
 	if (unlikely(!ptep)) {
 		up_read(&mm->mmap_sem);
 		return -EFAULT;
 	}
+	if (!(pte_val(*ptep) & _PAGE_INVALID) &&
+	     (pte_val(*ptep) & _PAGE_PROTECT)) {
+			pte_unmap_unlock(*ptep, ptl);
+			if (fixup_user_fault(current, mm, addr, FAULT_FLAG_WRITE)) {
+				up_read(&mm->mmap_sem);
+				return -EFAULT;
+			}
+			goto retry;
+		}
 
 	new = old = pgste_get_lock(ptep);
 	pgste_val(new) &= ~(PGSTE_GR_BIT | PGSTE_GC_BIT |
@@ -1279,6 +1289,7 @@ static unsigned long page_table_realloc_pmd(struct mmu_gather *tlb,
 {
 	unsigned long next, *table, *new;
 	struct page *page;
+	spinlock_t *ptl;
 	pmd_t *pmd;
 
 	pmd = pmd_offset(pud, addr);
@@ -1296,7 +1307,7 @@ again:
 		if (!new)
 			return -ENOMEM;
 
-		spin_lock(&mm->page_table_lock);
+		ptl = pmd_lock(mm, pmd);
 		if (likely((unsigned long *) pmd_deref(*pmd) == table)) {
 			/* Nuke pmd entry pointing to the "short" page table */
 			pmdp_flush_lazy(mm, addr, pmd);
@@ -1310,7 +1321,7 @@ again:
 			page_table_free_rcu(tlb, table);
 			new = NULL;
 		}
-		spin_unlock(&mm->page_table_lock);
+		spin_unlock(ptl);
 		if (new) {
 			page_table_free_pgste(new);
 			goto again;
@@ -1432,6 +1443,9 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
 {
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 
+	entry = pmd_mkyoung(entry);
+	if (dirty)
+		entry = pmd_mkdirty(entry);
 	if (pmd_same(*pmdp, entry))
 		return 0;
 	pmdp_invalidate(vma, address, pmdp);

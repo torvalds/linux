@@ -139,7 +139,7 @@ extern int SMB2_set_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 			     __le16 *target_file);
 extern int SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, u32 pid,
-			__le64 *eof);
+			__le64 *eof, bool is_fallocate);
 extern int SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 			 u64 persistent_fid, u64 volatile_fid,
 			 FILE_BASIC_INFO *buf);

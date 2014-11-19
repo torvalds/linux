@@ -116,6 +116,7 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 {
 	struct device_node *node;
 	struct clk *clk;
+	u32 val;
 	int ret;
 
 	/*
@@ -151,10 +152,8 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 		}
 
 		dai->sysclk = clk_get_rate(clk);
-	} else if (of_property_read_bool(np, "system-clock-frequency")) {
-		of_property_read_u32(np,
-				     "system-clock-frequency",
-				     &dai->sysclk);
+	} else if (!of_property_read_u32(np, "system-clock-frequency", &val)) {
+		dai->sysclk = val;
 	} else {
 		clk = of_clk_get(node, 0);
 		if (!IS_ERR(clk))
@@ -303,6 +302,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 {
 	struct snd_soc_dai_link *dai_link = priv->snd_card.dai_link;
 	struct simple_dai_props *dai_props = priv->dai_props;
+	u32 val;
 	int ret;
 
 	/* parsing the card name from DT */
@@ -325,8 +325,9 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	}
 
 	/* Factor to mclk, used in hw_params() */
-	of_property_read_u32(node, "simple-audio-card,mclk-fs",
-			     &priv->mclk_fs);
+	ret = of_property_read_u32(node, "simple-audio-card,mclk-fs", &val);
+	if (ret == 0)
+		priv->mclk_fs = val;
 
 	dev_dbg(dev, "New simple-card: %s\n", priv->snd_card.name ?
 		priv->snd_card.name : "");
@@ -480,10 +481,17 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(&priv->snd_card, priv);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, &priv->snd_card);
+	if (ret >= 0)
+		return ret;
 
 err:
 	asoc_simple_card_unref(pdev);
 	return ret;
+}
+
+static int asoc_simple_card_remove(struct platform_device *pdev)
+{
+	return asoc_simple_card_unref(pdev);
 }
 
 static const struct of_device_id asoc_simple_of_match[] = {
@@ -499,6 +507,7 @@ static struct platform_driver asoc_simple_card = {
 		.of_match_table = asoc_simple_of_match,
 	},
 	.probe = asoc_simple_card_probe,
+	.remove = asoc_simple_card_remove,
 };
 
 module_platform_driver(asoc_simple_card);

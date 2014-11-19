@@ -945,11 +945,11 @@ static int pm860x_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned char inf = 0, mask = 0;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		inf &= ~PCM_INF2_18WL;
 		break;
-	case SNDRV_PCM_FORMAT_S18_3LE:
+	case 18:
 		inf |= PCM_INF2_18WL;
 		break;
 	default:
@@ -1044,11 +1044,11 @@ static int pm860x_i2s_hw_params(struct snd_pcm_substream *substream,
 	unsigned char inf;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		inf = 0;
 		break;
-	case SNDRV_PCM_FORMAT_S18_3LE:
+	case 18:
 		inf = PCM_INF2_18WL;
 		break;
 	default:

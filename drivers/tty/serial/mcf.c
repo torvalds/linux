@@ -150,12 +150,6 @@ static void mcf_break_ctl(struct uart_port *port, int break_state)
 
 /****************************************************************************/
 
-static void mcf_enable_ms(struct uart_port *port)
-{
-}
-
-/****************************************************************************/
-
 static int mcf_startup(struct uart_port *port)
 {
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
@@ -507,7 +501,6 @@ static const struct uart_ops mcf_uart_ops = {
 	.start_tx	= mcf_start_tx,
 	.stop_tx	= mcf_stop_tx,
 	.stop_rx	= mcf_stop_rx,
-	.enable_ms	= mcf_enable_ms,
 	.break_ctl	= mcf_break_ctl,
 	.startup	= mcf_startup,
 	.shutdown	= mcf_shutdown,
@@ -544,7 +537,7 @@ int __init early_mcf_setup(struct mcf_platform_uart *platp)
 		port->iotype = SERIAL_IO_MEM;
 		port->irq = platp[i].irq;
 		port->uartclk = MCF_BUSCLK;
-		port->flags = ASYNC_BOOT_AUTOCONF;
+		port->flags = UPF_BOOT_AUTOCONF;
 		port->ops = &mcf_uart_ops;
 	}
 
@@ -669,7 +662,7 @@ static int mcf_probe(struct platform_device *pdev)
 		port->irq = platp[i].irq;
 		port->uartclk = MCF_BUSCLK;
 		port->ops = &mcf_uart_ops;
-		port->flags = ASYNC_BOOT_AUTOCONF;
+		port->flags = UPF_BOOT_AUTOCONF;
 
 		uart_add_one_port(&mcf_driver, port);
 	}

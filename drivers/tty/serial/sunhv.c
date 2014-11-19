@@ -285,11 +285,6 @@ static void sunhv_stop_rx(struct uart_port *port)
 {
 }
 
-/* port->lock held by caller.  */
-static void sunhv_enable_ms(struct uart_port *port)
-{
-}
-
 /* port->lock is not held.  */
 static void sunhv_break_ctl(struct uart_port *port, int break_state)
 {
@@ -379,7 +374,6 @@ static struct uart_ops sunhv_pops = {
 	.start_tx	= sunhv_start_tx,
 	.send_xchar	= sunhv_send_xchar,
 	.stop_rx	= sunhv_stop_rx,
-	.enable_ms	= sunhv_enable_ms,
 	.break_ctl	= sunhv_break_ctl,
 	.startup	= sunhv_startup,
 	.shutdown	= sunhv_shutdown,

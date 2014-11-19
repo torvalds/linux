@@ -1213,9 +1213,17 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		dvb->fe[0] = dvb_attach(lgdt3305_attach,
 					   &em2870_lgdt3304_dev,
 					   &dev->i2c_adap[dev->def_i2c_bus]);
-		if (dvb->fe[0] != NULL)
-			dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
-				   &dev->i2c_adap[dev->def_i2c_bus], &kworld_a340_config);
+		if (!dvb->fe[0]) {
+			result = -EINVAL;
+			goto out_free;
+		}
+		if (!dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
+			&dev->i2c_adap[dev->def_i2c_bus],
+			&kworld_a340_config)) {
+				dvb_frontend_detach(dvb->fe[0]);
+				result = -EINVAL;
+				goto out_free;
+		}
 		break;
 	case EM28174_BOARD_PCTV_290E:
 		/* set default GPIO0 for LNA, used if GPIOLIB is undefined */
@@ -1545,6 +1553,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			dvb->i2c_client_demod = client;
 
 			/* attach tuner */
+			memset(&si2157_config, 0, sizeof(si2157_config));
 			si2157_config.fe = dvb->fe[0];
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
@@ -1645,10 +1654,14 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	if (dev->disconnected) {
 		/* We cannot tell the device to sleep
 		 * once it has been unplugged. */
-		if (dvb->fe[0])
+		if (dvb->fe[0]) {
 			prevent_sleep(&dvb->fe[0]->ops);
-		if (dvb->fe[1])
+			dvb->fe[0]->exit = DVB_FE_DEVICE_REMOVED;
+		}
+		if (dvb->fe[1]) {
 			prevent_sleep(&dvb->fe[1]->ops);
+			dvb->fe[1]->exit = DVB_FE_DEVICE_REMOVED;
+		}
 	}
 
 	/* remove I2C tuner */
@@ -1712,7 +1725,6 @@ static int em28xx_dvb_resume(struct em28xx *dev)
 	em28xx_info("Resuming DVB extension");
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
-		struct i2c_client *client = dvb->i2c_client_tuner;
 
 		if (dvb->fe[0]) {
 			ret = dvb_frontend_resume(dvb->fe[0]);
@@ -1723,22 +1735,6 @@ static int em28xx_dvb_resume(struct em28xx *dev)
 			ret = dvb_frontend_resume(dvb->fe[1]);
 			em28xx_info("fe1 resume %d", ret);
 		}
-		/* remove I2C tuner */
-		if (client) {
-			module_put(client->dev.driver->owner);
-			i2c_unregister_device(client);
-		}
-
-		/* remove I2C demod */
-		client = dvb->i2c_client_demod;
-		if (client) {
-			module_put(client->dev.driver->owner);
-			i2c_unregister_device(client);
-		}
-
-		em28xx_unregister_dvb(dvb);
-		kfree(dvb);
-		dev->dvb = NULL;
 	}
 
 	return 0;

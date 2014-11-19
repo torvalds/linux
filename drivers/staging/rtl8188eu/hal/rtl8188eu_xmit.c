@@ -22,7 +22,7 @@
 #include <drv_types.h>
 #include <wifi.h>
 #include <osdep_intf.h>
-#include <usb_ops.h>
+#include <usb_ops_linux.h>
 #include <rtl8188e_hal.h>
 
 s32	rtl8188eu_init_xmit_priv(struct adapter *adapt)
@@ -33,10 +33,6 @@ s32	rtl8188eu_init_xmit_priv(struct adapter *adapt)
 		     (void(*)(unsigned long))rtl8188eu_xmit_tasklet,
 		     (unsigned long)adapt);
 	return _SUCCESS;
-}
-
-void	rtl8188eu_free_xmit_priv(struct adapter *adapt)
-{
 }
 
 static u8 urb_zero_packet_chk(struct adapter *adapt, int sz)
@@ -72,7 +68,7 @@ void rtl8188e_fill_fake_txdesc(struct adapter *adapt, u8 *desc, u32 BufferLen, u
 
 	/*  Clear all status */
 	ptxdesc = (struct tx_desc *)desc;
-	_rtw_memset(desc, 0, TXDESC_SIZE);
+	memset(desc, 0, TXDESC_SIZE);
 
 	/* offset 0 */
 	ptxdesc->txdw0 |= cpu_to_le32(OWN | FSG | LSG); /* own, bFirstSeg, bLastSeg; */
@@ -196,7 +192,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 		}
 	}
 
-	_rtw_memset(ptxdesc, 0, sizeof(struct tx_desc));
+	memset(ptxdesc, 0, sizeof(struct tx_desc));
 
 	/* 4 offset 0 */
 	ptxdesc->txdw0 |= cpu_to_le32(OWN | FSG | LSG);
@@ -310,9 +306,6 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 		ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate(pmlmeext->tx_rate));
 	} else if ((pxmitframe->frame_tag&0x0f) == TXAGG_FRAMETAG) {
 		DBG_88E("pxmitframe->frame_tag == TXAGG_FRAMETAG\n");
-	} else if (((pxmitframe->frame_tag&0x0f) == MP_FRAMETAG) &&
-		   (adapt->registrypriv.mp_mode == 1)) {
-		fill_txdesc_for_mp(adapt, ptxdesc);
 	} else {
 		DBG_88E("pxmitframe->frame_tag = %d\n", pxmitframe->frame_tag);
 
@@ -397,7 +390,7 @@ static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 		}
 		ff_hwaddr = rtw_get_ff_hwaddr(pxmitframe);
 
-		inner_ret = rtw_write_port(adapt, ff_hwaddr, w_sz, (unsigned char *)pxmitbuf);
+		inner_ret = usb_write_port(adapt, ff_hwaddr, w_sz, (unsigned char *)pxmitbuf);
 
 		rtw_count_tx_stats(adapt, pxmitframe, sz);
 
@@ -405,7 +398,7 @@ static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 
 		mem_addr += w_sz;
 
-		mem_addr = (u8 *)RND4(((size_t)(mem_addr)));
+		mem_addr = (u8 *) round_up((size_t)mem_addr, 4);
 	}
 
 	rtw_free_xmitframe(pxmitpriv, pxmitframe);
@@ -497,7 +490,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	pfirstframe = pxmitframe;
 	len = xmitframe_need_length(pfirstframe) + TXDESC_SIZE + (pfirstframe->pkt_offset*PACKET_OFFSET_SZ);
 	pbuf_tail = len;
-	pbuf = _RND8(pbuf_tail);
+	pbuf = round_up(pbuf_tail, 8);
 
 	/*  check pkt amount in one bulk */
 	desc_cnt = 0;
@@ -539,7 +532,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	xmitframe_phead = get_list_head(&ptxservq->sta_pending);
 	xmitframe_plist = xmitframe_phead->next;
 
-	while (!rtw_end_of_queue_search(xmitframe_phead, xmitframe_plist)) {
+	while (xmitframe_phead != xmitframe_plist) {
 		pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
 		xmitframe_plist = xmitframe_plist->next;
 
@@ -548,12 +541,12 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 		len = xmitframe_need_length(pxmitframe) + TXDESC_SIZE + (pxmitframe->pkt_offset*PACKET_OFFSET_SZ);
 
-		if (_RND8(pbuf + len) > MAX_XMITBUF_SZ) {
+		if (round_up(pbuf + len, 8) > MAX_XMITBUF_SZ) {
 			pxmitframe->agg_num = 1;
 			pxmitframe->pkt_offset = 1;
 			break;
 		}
-		rtw_list_delete(&pxmitframe->list);
+		list_del_init(&pxmitframe->list);
 		ptxservq->qcnt--;
 		phwxmit->accnt--;
 
@@ -571,7 +564,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 		/*  handle pointer and stop condition */
 		pbuf_tail = pbuf + len;
-		pbuf = _RND8(pbuf_tail);
+		pbuf = round_up(pbuf_tail, 8);
 
 		pfirstframe->agg_num++;
 		if (MAX_TX_AGG_PACKET_NUMBER == pfirstframe->agg_num)
@@ -587,8 +580,8 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 		}
 	} /* end while (aggregate same priority and same DA(AP or STA) frames) */
 
-	if (_rtw_queue_empty(&ptxservq->sta_pending) == true)
-		rtw_list_delete(&ptxservq->tx_pending);
+	if (list_empty(&ptxservq->sta_pending.queue))
+		list_del_init(&ptxservq->tx_pending);
 
 	spin_unlock_bh(&pxmitpriv->lock);
 	if ((pfirstframe->attrib.ether_type != 0x0806) &&
@@ -608,7 +601,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 	/* 3 4. write xmit buffer to USB FIFO */
 	ff_hwaddr = rtw_get_ff_hwaddr(pfirstframe);
-	rtw_write_port(adapt, ff_hwaddr, pbuf_tail, (u8 *)pxmitbuf);
+	usb_write_port(adapt, ff_hwaddr, pbuf_tail, (u8 *)pxmitbuf);
 
 	/* 3 5. update statisitc */
 	pbuf_tail -= (pfirstframe->agg_num * TXDESC_SIZE);

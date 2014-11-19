@@ -75,7 +75,7 @@ void vmw_display_unit_cleanup(struct vmw_display_unit *du)
 		vmw_surface_unreference(&du->cursor_surface);
 	if (du->cursor_dmabuf)
 		vmw_dmabuf_unreference(&du->cursor_dmabuf);
-	drm_sysfs_connector_remove(&du->connector);
+	drm_connector_unregister(&du->connector);
 	drm_crtc_cleanup(&du->crtc);
 	drm_encoder_cleanup(&du->encoder);
 	drm_connector_cleanup(&du->connector);
@@ -136,7 +136,7 @@ int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
 	kmap_offset = 0;
 	kmap_num = (width*height*4 + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	ret = ttm_bo_reserve(&dmabuf->base, true, false, false, 0);
+	ret = ttm_bo_reserve(&dmabuf->base, true, false, false, NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("reserve failed\n");
 		return -EINVAL;
@@ -343,7 +343,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	kmap_offset = cmd->dma.guest.ptr.offset >> PAGE_SHIFT;
 	kmap_num = (64*64*4) >> PAGE_SHIFT;
 
-	ret = ttm_bo_reserve(bo, true, false, false, 0);
+	ret = ttm_bo_reserve(bo, true, false, false, NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("reserve failed\n");
 		return;
@@ -1501,7 +1501,6 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_vmw_cursor_bypass_arg *arg = data;
 	struct vmw_display_unit *du;
-	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
 	int ret = 0;
 
@@ -1519,13 +1518,12 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	obj = drm_mode_object_find(dev, arg->crtc_id, DRM_MODE_OBJECT_CRTC);
-	if (!obj) {
+	crtc = drm_crtc_find(dev, arg->crtc_id);
+	if (!crtc) {
 		ret = -ENOENT;
 		goto out;
 	}
 
-	crtc = obj_to_crtc(obj);
 	du = vmw_crtc_to_du(crtc);
 
 	du->hotspot_x = arg->xhot;

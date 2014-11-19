@@ -36,11 +36,11 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include <linux/libcfs/libcfs.h>
+#include "../../include/linux/libcfs/libcfs.h"
 
-#include <obd_class.h>
-#include <lustre/lustre_idl.h>
-
+#include "../include/obd_class.h"
+#include "../include/obd_ost.h"
+#include "../include/lustre/lustre_idl.h"
 #include "lov_internal.h"
 
 static void lov_init_set(struct lov_request_set *set)
@@ -140,16 +140,16 @@ void lov_set_add_req(struct lov_request *req, struct lov_request_set *set)
 
 static int lov_check_set(struct lov_obd *lov, int idx)
 {
-	int rc = 0;
+	int rc;
+	struct lov_tgt_desc *tgt;
+
 	mutex_lock(&lov->lov_lock);
-
-	if (lov->lov_tgts[idx] == NULL ||
-	    lov->lov_tgts[idx]->ltd_active ||
-	    (lov->lov_tgts[idx]->ltd_exp != NULL &&
-	     class_exp2cliimp(lov->lov_tgts[idx]->ltd_exp)->imp_connect_tried))
-		rc = 1;
-
+	tgt = lov->lov_tgts[idx];
+	rc = !tgt || tgt->ltd_active ||
+		(tgt->ltd_exp &&
+		 class_exp2cliimp(tgt->ltd_exp)->imp_connect_tried);
 	mutex_unlock(&lov->lov_lock);
+
 	return rc;
 }
 
@@ -194,13 +194,9 @@ out:
 	return rc;
 }
 
-extern void osc_update_enqueue(struct lustre_handle *lov_lockhp,
-			       struct lov_oinfo *loi, int flags,
-			       struct ost_lvb *lvb, __u32 mode, int rc);
-
 static int lov_update_enqueue_lov(struct obd_export *exp,
 				  struct lustre_handle *lov_lockhp,
-				  struct lov_oinfo *loi, int flags, int idx,
+				  struct lov_oinfo *loi, __u64 flags, int idx,
 				  struct ost_id *oi, int rc)
 {
 	struct lov_obd *lov = &exp->exp_obd->u.lov;
@@ -443,7 +439,7 @@ out_set:
 	return rc;
 }
 
-int lov_fini_match_set(struct lov_request_set *set, __u32 mode, int flags)
+int lov_fini_match_set(struct lov_request_set *set, __u32 mode, __u64 flags)
 {
 	int rc = 0;
 
@@ -482,7 +478,7 @@ int lov_prep_match_set(struct obd_export *exp, struct obd_info *oinfo,
 		GOTO(out_set, rc = -ENOMEM);
 	lockh->cookie = set->set_lockh->llh_handle.h_cookie;
 
-	for (i = 0; i < lsm->lsm_stripe_count; i++){
+	for (i = 0; i < lsm->lsm_stripe_count; i++) {
 		struct lov_oinfo *loi;
 		struct lov_request *req;
 		obd_off start, end;
@@ -570,7 +566,7 @@ int lov_prep_cancel_set(struct obd_export *exp, struct obd_info *oinfo,
 	}
 	lockh->cookie = set->set_lockh->llh_handle.h_cookie;
 
-	for (i = 0; i < lsm->lsm_stripe_count; i++){
+	for (i = 0; i < lsm->lsm_stripe_count; i++) {
 		struct lov_request *req;
 		struct lustre_handle *lov_lockhp;
 		struct lov_oinfo *loi = lsm->lsm_oinfo[i];
@@ -738,7 +734,7 @@ int lov_prep_brw_set(struct obd_export *exp, struct obd_info *oinfo,
 
 	/* alloc and initialize lov request */
 	shift = 0;
-	for (i = 0; i < oinfo->oi_md->lsm_stripe_count; i++){
+	for (i = 0; i < oinfo->oi_md->lsm_stripe_count; i++) {
 		struct lov_oinfo *loi = NULL;
 		struct lov_request *req;
 
@@ -840,6 +836,7 @@ static int cb_getattr_update(void *cookie, int rc)
 {
 	struct obd_info *oinfo = cookie;
 	struct lov_request *lovreq;
+
 	lovreq = container_of(oinfo, struct lov_request, rq_oi);
 	return lov_update_common_set(lovreq->rq_rqset, lovreq, rc);
 }
@@ -1022,6 +1019,7 @@ static int cb_setattr_update(void *cookie, int rc)
 {
 	struct obd_info *oinfo = cookie;
 	struct lov_request *lovreq;
+
 	lovreq = container_of(oinfo, struct lov_request, rq_oi);
 	return lov_update_setattr_set(lovreq->rq_rqset, lovreq, rc);
 }
@@ -1080,7 +1078,7 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 			if (off < 0 && req->rq_oi.oi_oa->o_size)
 				req->rq_oi.oi_oa->o_size--;
 
-			CDEBUG(D_INODE, "stripe %d has size "LPU64"/"LPU64"\n",
+			CDEBUG(D_INODE, "stripe %d has size %llu/%llu\n",
 			       i, req->rq_oi.oi_oa->o_size,
 			       oinfo->oi_oa->o_size);
 		}
@@ -1145,6 +1143,7 @@ static int cb_update_punch(void *cookie, int rc)
 {
 	struct obd_info *oinfo = cookie;
 	struct lov_request *lovreq;
+
 	lovreq = container_of(oinfo, struct lov_request, rq_oi);
 	return lov_update_punch_set(lovreq->rq_rqset, lovreq, rc);
 }

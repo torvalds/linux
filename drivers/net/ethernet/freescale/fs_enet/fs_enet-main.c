@@ -1033,7 +1033,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 		/* In the case of a fixed PHY, the DT node associated
 		 * to the PHY is the Ethernet MAC DT node.
 		 */
-		fpi->phy_node = ofdev->dev.of_node;
+		fpi->phy_node = of_node_get(ofdev->dev.of_node);
 	}
 
 	if (of_device_is_compatible(ofdev->dev.of_node, "fsl,mpc5125-fec")) {

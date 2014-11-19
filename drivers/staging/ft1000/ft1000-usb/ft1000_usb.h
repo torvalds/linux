@@ -136,7 +136,7 @@ extern spinlock_t free_buff_lock;
 
 int ft1000_create_dev(struct ft1000_usb *dev);
 void ft1000_destroy_dev(struct net_device *dev);
-extern void card_send_command(struct ft1000_usb *ft1000dev,
+extern int card_send_command(struct ft1000_usb *ft1000dev,
 			      void *ptempbuffer, int size);
 
 struct dpram_blk *ft1000_get_buffer(struct list_head *bufflist);
@@ -148,8 +148,5 @@ struct usb_interface;
 int reg_ft1000_netdev(struct ft1000_usb *ft1000dev,
 		      struct usb_interface *intf);
 int ft1000_poll(void *dev_id);
-
-int ft1000_init_proc(struct net_device *dev);
-void ft1000_cleanup_proc(struct ft1000_info *info);
 
 #endif  /* _FT1000_USB_H_ */

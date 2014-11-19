@@ -132,7 +132,7 @@ int drm_bufs_info(struct seq_file *m, void *data)
 				   i,
 				   dma->bufs[i].buf_size,
 				   dma->bufs[i].buf_count,
-				   atomic_read(&dma->bufs[i].freelist.count),
+				   0,
 				   dma->bufs[i].seg_count,
 				   seg_pages,
 				   seg_pages * PAGE_SIZE / 1024);

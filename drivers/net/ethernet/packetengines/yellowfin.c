@@ -236,7 +236,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 	{ }
 };
 
-static DEFINE_PCI_DEVICE_TABLE(yellowfin_pci_tbl) = {
+static const struct pci_device_id yellowfin_pci_tbl[] = {
 	{ 0x1000, 0x0702, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0x1000, 0x0701, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1 },
 	{ }

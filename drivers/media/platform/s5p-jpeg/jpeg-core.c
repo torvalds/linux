@@ -1,6 +1,6 @@
 /* linux/drivers/media/platform/s5p-jpeg/jpeg-core.c
  *
- * Copyright (c) 2011-2013 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2011-2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Author: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
@@ -32,6 +32,7 @@
 #include "jpeg-core.h"
 #include "jpeg-hw-s5p.h"
 #include "jpeg-hw-exynos4.h"
+#include "jpeg-hw-exynos3250.h"
 #include "jpeg-regs.h"
 
 static struct s5p_jpeg_fmt sjpeg_formats[] = {
@@ -41,6 +42,7 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 		.flags		= SJPEG_FMT_FLAG_ENC_CAPTURE |
 				  SJPEG_FMT_FLAG_DEC_OUTPUT |
 				  SJPEG_FMT_FLAG_S5P |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
 				  SJPEG_FMT_FLAG_EXYNOS4,
 	},
 	{
@@ -70,6 +72,19 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_422,
 	},
 	{
+		.name		= "YUV 4:2:2 packed, YCbYCr",
+		.fourcc		= V4L2_PIX_FMT_YUYV,
+		.depth		= 16,
+		.colplanes	= 1,
+		.h_align	= 2,
+		.v_align	= 0,
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
+				  SJPEG_FMT_NON_RGB,
+		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_422,
+	},
+	{
 		.name		= "YUV 4:2:2 packed, YCrYCb",
 		.fourcc		= V4L2_PIX_FMT_YVYU,
 		.depth		= 16,
@@ -83,6 +98,45 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_422,
 	},
 	{
+		.name		= "YUV 4:2:2 packed, YCrYCb",
+		.fourcc		= V4L2_PIX_FMT_YVYU,
+		.depth		= 16,
+		.colplanes	= 1,
+		.h_align	= 2,
+		.v_align	= 0,
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
+				  SJPEG_FMT_NON_RGB,
+		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_422,
+	},
+	{
+		.name		= "YUV 4:2:2 packed, YCrYCb",
+		.fourcc		= V4L2_PIX_FMT_UYVY,
+		.depth		= 16,
+		.colplanes	= 1,
+		.h_align	= 2,
+		.v_align	= 0,
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
+				  SJPEG_FMT_NON_RGB,
+		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_422,
+	},
+	{
+		.name		= "YUV 4:2:2 packed, YCrYCb",
+		.fourcc		= V4L2_PIX_FMT_VYUY,
+		.depth		= 16,
+		.colplanes	= 1,
+		.h_align	= 2,
+		.v_align	= 0,
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
+				  SJPEG_FMT_NON_RGB,
+		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_422,
+	},
+	{
 		.name		= "RGB565",
 		.fourcc		= V4L2_PIX_FMT_RGB565,
 		.depth		= 16,
@@ -92,6 +146,32 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
 				  SJPEG_FMT_FLAG_DEC_CAPTURE |
 				  SJPEG_FMT_FLAG_EXYNOS4 |
+				  SJPEG_FMT_RGB,
+		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_444,
+	},
+	{
+		.name		= "RGB565",
+		.fourcc		= V4L2_PIX_FMT_RGB565,
+		.depth		= 16,
+		.colplanes	= 1,
+		.h_align	= 2,
+		.v_align	= 0,
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
+				  SJPEG_FMT_RGB,
+		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_444,
+	},
+	{
+		.name		= "RGB565X",
+		.fourcc		= V4L2_PIX_FMT_RGB565X,
+		.depth		= 16,
+		.colplanes	= 1,
+		.h_align	= 2,
+		.v_align	= 0,
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
 				  SJPEG_FMT_RGB,
 		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_444,
 	},
@@ -117,6 +197,19 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
 				  SJPEG_FMT_FLAG_DEC_CAPTURE |
 				  SJPEG_FMT_FLAG_EXYNOS4 |
+				  SJPEG_FMT_RGB,
+		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_444,
+	},
+	{
+		.name		= "ARGB8888, 32 bpp",
+		.fourcc		= V4L2_PIX_FMT_RGB32,
+		.depth		= 32,
+		.colplanes	= 1,
+		.h_align	= 2,
+		.v_align	= 0,
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
 				  SJPEG_FMT_RGB,
 		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_444,
 	},
@@ -190,10 +283,37 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 		.fourcc		= V4L2_PIX_FMT_NV12,
 		.depth		= 12,
 		.colplanes	= 2,
+		.h_align	= 3,
+		.v_align	= 3,
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
+				  SJPEG_FMT_NON_RGB,
+		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_420,
+	},
+	{
+		.name		= "YUV 4:2:0 planar, Y/CbCr",
+		.fourcc		= V4L2_PIX_FMT_NV12,
+		.depth		= 12,
+		.colplanes	= 2,
 		.h_align	= 4,
 		.v_align	= 4,
-		.flags		= SJPEG_FMT_FLAG_DEC_CAPTURE |
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
 				  SJPEG_FMT_FLAG_S5P |
+				  SJPEG_FMT_NON_RGB,
+		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_420,
+	},
+	{
+		.name		= "YUV 4:2:0 planar, Y/CrCb",
+		.fourcc		= V4L2_PIX_FMT_NV21,
+		.depth		= 12,
+		.colplanes	= 2,
+		.h_align	= 3,
+		.v_align	= 3,
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
 				  SJPEG_FMT_NON_RGB,
 		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_420,
 	},
@@ -206,6 +326,7 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 		.v_align	= 1,
 		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
 				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
 				  SJPEG_FMT_FLAG_EXYNOS4 |
 				  SJPEG_FMT_NON_RGB,
 		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_420,
@@ -220,6 +341,19 @@ static struct s5p_jpeg_fmt sjpeg_formats[] = {
 		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
 				  SJPEG_FMT_FLAG_DEC_CAPTURE |
 				  SJPEG_FMT_FLAG_EXYNOS4 |
+				  SJPEG_FMT_NON_RGB,
+		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_420,
+	},
+	{
+		.name		= "YUV 4:2:0 contiguous 3-planar, Y/Cb/Cr",
+		.fourcc		= V4L2_PIX_FMT_YUV420,
+		.depth		= 12,
+		.colplanes	= 3,
+		.h_align	= 4,
+		.v_align	= 4,
+		.flags		= SJPEG_FMT_FLAG_ENC_OUTPUT |
+				  SJPEG_FMT_FLAG_DEC_CAPTURE |
+				  SJPEG_FMT_FLAG_EXYNOS3250 |
 				  SJPEG_FMT_NON_RGB,
 		.subsampling	= V4L2_JPEG_CHROMA_SUBSAMPLING_420,
 	},
@@ -457,6 +591,16 @@ static int exynos4x12_decoded_subsampling[] = {
 	V4L2_JPEG_CHROMA_SUBSAMPLING_420,
 };
 
+static int exynos3250_decoded_subsampling[] = {
+	V4L2_JPEG_CHROMA_SUBSAMPLING_444,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_422,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_420,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY,
+	-1,
+	-1,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_411,
+};
+
 static inline struct s5p_jpeg_ctx *ctrl_to_ctx(struct v4l2_ctrl *c)
 {
 	return container_of(c->handler, struct s5p_jpeg_ctx, ctrl_handler);
@@ -471,14 +615,21 @@ static int s5p_jpeg_to_user_subsampling(struct s5p_jpeg_ctx *ctx)
 {
 	WARN_ON(ctx->subsampling > 3);
 
-	if (ctx->jpeg->variant->version == SJPEG_S5P) {
+	switch (ctx->jpeg->variant->version) {
+	case SJPEG_S5P:
 		if (ctx->subsampling > 2)
 			return V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY;
 		return ctx->subsampling;
-	} else {
+	case SJPEG_EXYNOS3250:
+		if (ctx->subsampling > 3)
+			return V4L2_JPEG_CHROMA_SUBSAMPLING_411;
+		return exynos3250_decoded_subsampling[ctx->subsampling];
+	case SJPEG_EXYNOS4:
 		if (ctx->subsampling > 2)
 			return V4L2_JPEG_CHROMA_SUBSAMPLING_420;
 		return exynos4x12_decoded_subsampling[ctx->subsampling];
+	default:
+		return V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY;
 	}
 }
 
@@ -646,6 +797,7 @@ static int s5p_jpeg_open(struct file *file)
 							FMT_TYPE_OUTPUT);
 		cap_fmt = s5p_jpeg_find_format(ctx, V4L2_PIX_FMT_YUYV,
 							FMT_TYPE_CAPTURE);
+		ctx->scale_factor = EXYNOS3250_DEC_SCALE_FACTOR_8_8;
 	}
 
 	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(jpeg->m2m_dev, ctx, queue_init);
@@ -754,14 +906,14 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 	while (notfound) {
 		c = get_byte(&jpeg_buffer);
 		if (c == -1)
-			break;
+			return false;
 		if (c != 0xff)
 			continue;
 		do
 			c = get_byte(&jpeg_buffer);
 		while (c == 0xff);
 		if (c == -1)
-			break;
+			return false;
 		if (c == 0)
 			continue;
 		length = 0;
@@ -981,7 +1133,8 @@ static struct s5p_jpeg_fmt *s5p_jpeg_find_format(struct s5p_jpeg_ctx *ctx,
 	return NULL;
 }
 
-static void jpeg_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
+static void jpeg_bound_align_image(struct s5p_jpeg_ctx *ctx,
+				   u32 *w, unsigned int wmin, unsigned int wmax,
 				   unsigned int walign,
 				   u32 *h, unsigned int hmin, unsigned int hmax,
 				   unsigned int halign)
@@ -993,13 +1146,27 @@ static void jpeg_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
 
 	w_step = 1 << walign;
 	h_step = 1 << halign;
+
+	if (ctx->jpeg->variant->version == SJPEG_EXYNOS3250) {
+		/*
+		 * Rightmost and bottommost pixels are cropped by the
+		 * Exynos3250 JPEG IP for RGB formats, for the specific
+		 * width and height values respectively. This assignment
+		 * will result in v4l_bound_align_image returning dimensions
+		 * reduced by 1 for the aforementioned cases.
+		 */
+		if (w_step == 4 && ((width & 3) == 1)) {
+			wmax = width;
+			hmax = height;
+		}
+	}
+
 	v4l_bound_align_image(w, wmin, wmax, walign, h, hmin, hmax, halign, 0);
 
 	if (*w < width && (*w + w_step) < wmax)
 		*w += w_step;
 	if (*h < height && (*h + h_step) < hmax)
 		*h += h_step;
-
 }
 
 static int vidioc_try_fmt(struct v4l2_format *f, struct s5p_jpeg_fmt *fmt,
@@ -1015,12 +1182,12 @@ static int vidioc_try_fmt(struct v4l2_format *f, struct s5p_jpeg_fmt *fmt,
 	/* V4L2 specification suggests the driver corrects the format struct
 	 * if any of the dimensions is unsupported */
 	if (q_type == FMT_TYPE_OUTPUT)
-		jpeg_bound_align_image(&pix->width, S5P_JPEG_MIN_WIDTH,
+		jpeg_bound_align_image(ctx, &pix->width, S5P_JPEG_MIN_WIDTH,
 				       S5P_JPEG_MAX_WIDTH, 0,
 				       &pix->height, S5P_JPEG_MIN_HEIGHT,
 				       S5P_JPEG_MAX_HEIGHT, 0);
 	else
-		jpeg_bound_align_image(&pix->width, S5P_JPEG_MIN_WIDTH,
+		jpeg_bound_align_image(ctx, &pix->width, S5P_JPEG_MIN_WIDTH,
 				       S5P_JPEG_MAX_WIDTH, fmt->h_align,
 				       &pix->height, S5P_JPEG_MIN_HEIGHT,
 				       S5P_JPEG_MAX_HEIGHT, fmt->v_align);
@@ -1142,7 +1309,7 @@ static int exynos4_jpeg_get_output_buffer_size(struct s5p_jpeg_ctx *ctx,
 	else
 		wh_align = 1;
 
-	jpeg_bound_align_image(&w, S5P_JPEG_MIN_WIDTH,
+	jpeg_bound_align_image(ctx, &w, S5P_JPEG_MIN_WIDTH,
 			       S5P_JPEG_MAX_WIDTH, wh_align,
 			       &h, S5P_JPEG_MIN_HEIGHT,
 			       S5P_JPEG_MAX_HEIGHT, wh_align);
@@ -1150,12 +1317,16 @@ static int exynos4_jpeg_get_output_buffer_size(struct s5p_jpeg_ctx *ctx,
 	return w * h * fmt_depth >> 3;
 }
 
+static int exynos3250_jpeg_try_downscale(struct s5p_jpeg_ctx *ctx,
+				   struct v4l2_rect *r);
+
 static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
 {
 	struct vb2_queue *vq;
 	struct s5p_jpeg_q_data *q_data = NULL;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_ctrl *ctrl_subs;
+	struct v4l2_rect scale_rect;
 	unsigned int f_type;
 
 	vq = v4l2_m2m_get_vq(ct->fh.m2m_ctx, f->type);
@@ -1200,6 +1371,35 @@ static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
 					V4L2_CID_JPEG_CHROMA_SUBSAMPLING);
 		if (ctrl_subs)
 			v4l2_ctrl_s_ctrl(ctrl_subs, q_data->fmt->subsampling);
+		ct->crop_altered = false;
+	}
+
+	/*
+	 * For decoding init crop_rect with capture buffer dimmensions which
+	 * contain aligned dimensions of the input JPEG image and do it only
+	 * if crop rectangle hasn't been altered by the user space e.g. with
+	 * S_SELECTION ioctl. For encoding assign output buffer dimensions.
+	 */
+	if (!ct->crop_altered &&
+	    ((ct->mode == S5P_JPEG_DECODE && f_type == FMT_TYPE_CAPTURE) ||
+	     (ct->mode == S5P_JPEG_ENCODE && f_type == FMT_TYPE_OUTPUT))) {
+		ct->crop_rect.width = pix->width;
+		ct->crop_rect.height = pix->height;
+	}
+
+	/*
+	 * Prevent downscaling to YUV420 format by more than 2
+	 * for Exynos3250 SoC as it produces broken raw image
+	 * in such cases.
+	 */
+	if (ct->mode == S5P_JPEG_DECODE &&
+	    f_type == FMT_TYPE_CAPTURE &&
+	    ct->jpeg->variant->version == SJPEG_EXYNOS3250 &&
+	    pix->pixelformat == V4L2_PIX_FMT_YUV420 &&
+	    ct->scale_factor > 2) {
+		scale_rect.width = ct->out_q.w / 2;
+		scale_rect.height = ct->out_q.h / 2;
+		exynos3250_jpeg_try_downscale(ct, &scale_rect);
 	}
 
 	return 0;
@@ -1229,6 +1429,101 @@ static int s5p_jpeg_s_fmt_vid_out(struct file *file, void *priv,
 	return s5p_jpeg_s_fmt(fh_to_ctx(priv), f);
 }
 
+static int exynos3250_jpeg_try_downscale(struct s5p_jpeg_ctx *ctx,
+				   struct v4l2_rect *r)
+{
+	int w_ratio, h_ratio, scale_factor, cur_ratio, i;
+
+	w_ratio = ctx->out_q.w / r->width;
+	h_ratio = ctx->out_q.h / r->height;
+
+	scale_factor = w_ratio > h_ratio ? w_ratio : h_ratio;
+	scale_factor = clamp_val(scale_factor, 1, 8);
+
+	/* Align scale ratio to the nearest power of 2 */
+	for (i = 0; i <= 3; ++i) {
+		cur_ratio = 1 << i;
+		if (scale_factor <= cur_ratio) {
+			ctx->scale_factor = cur_ratio;
+			break;
+		}
+	}
+
+	r->width = round_down(ctx->out_q.w / ctx->scale_factor, 2);
+	r->height = round_down(ctx->out_q.h / ctx->scale_factor, 2);
+
+	ctx->crop_rect.width = r->width;
+	ctx->crop_rect.height = r->height;
+	ctx->crop_rect.left = 0;
+	ctx->crop_rect.top = 0;
+
+	ctx->crop_altered = true;
+
+	return 0;
+}
+
+/* Return 1 if rectangle a is enclosed in rectangle b, or 0 otherwise. */
+static int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
+{
+	if (a->left < b->left || a->top < b->top)
+		return 0;
+	if (a->left + a->width > b->left + b->width)
+		return 0;
+	if (a->top + a->height > b->top + b->height)
+		return 0;
+
+	return 1;
+}
+
+static int exynos3250_jpeg_try_crop(struct s5p_jpeg_ctx *ctx,
+				   struct v4l2_rect *r)
+{
+	struct v4l2_rect base_rect;
+	int w_step, h_step;
+
+	switch (ctx->cap_q.fmt->fourcc) {
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		w_step = 1;
+		h_step = 2;
+		break;
+	case V4L2_PIX_FMT_YUV420:
+		w_step = 2;
+		h_step = 2;
+		break;
+	default:
+		w_step = 1;
+		h_step = 1;
+		break;
+	}
+
+	base_rect.top = 0;
+	base_rect.left = 0;
+	base_rect.width = ctx->out_q.w;
+	base_rect.height = ctx->out_q.h;
+
+	r->width = round_down(r->width, w_step);
+	r->height = round_down(r->height, h_step);
+	r->left = round_down(r->left, 2);
+	r->top = round_down(r->top, 2);
+
+	if (!enclosed_rectangle(r, &base_rect))
+		return -EINVAL;
+
+	ctx->crop_rect.left = r->left;
+	ctx->crop_rect.top = r->top;
+	ctx->crop_rect.width = r->width;
+	ctx->crop_rect.height = r->height;
+
+	ctx->crop_altered = true;
+
+	return 0;
+}
+
+/*
+ * V4L2 controls
+ */
+
 static int s5p_jpeg_g_selection(struct file *file, void *priv,
 			 struct v4l2_selection *s)
 {
@@ -1243,27 +1538,53 @@ static int s5p_jpeg_g_selection(struct file *file, void *priv,
 	case V4L2_SEL_TGT_CROP:
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
 		s->r.width = ctx->out_q.w;
 		s->r.height = ctx->out_q.h;
+		s->r.left = 0;
+		s->r.top = 0;
 		break;
+	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 	case V4L2_SEL_TGT_COMPOSE_PADDED:
-		s->r.width = ctx->cap_q.w;
-		s->r.height = ctx->cap_q.h;
+		s->r.width = ctx->crop_rect.width;
+		s->r.height =  ctx->crop_rect.height;
+		s->r.left = ctx->crop_rect.left;
+		s->r.top = ctx->crop_rect.top;
 		break;
 	default:
 		return -EINVAL;
 	}
-	s->r.left = 0;
-	s->r.top = 0;
 	return 0;
 }
 
 /*
  * V4L2 controls
  */
+static int s5p_jpeg_s_selection(struct file *file, void *fh,
+				  struct v4l2_selection *s)
+{
+	struct s5p_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
+	struct v4l2_rect *rect = &s->r;
+	int ret = -EINVAL;
+
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (s->target == V4L2_SEL_TGT_COMPOSE) {
+		if (ctx->mode != S5P_JPEG_DECODE)
+			return -EINVAL;
+		if (ctx->jpeg->variant->version == SJPEG_EXYNOS3250)
+			ret = exynos3250_jpeg_try_downscale(ctx, rect);
+	} else if (s->target == V4L2_SEL_TGT_CROP) {
+		if (ctx->mode != S5P_JPEG_ENCODE)
+			return -EINVAL;
+		if (ctx->jpeg->variant->version == SJPEG_EXYNOS3250)
+			ret = exynos3250_jpeg_try_crop(ctx, rect);
+	}
+
+	return ret;
+}
 
 static int s5p_jpeg_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1282,6 +1603,42 @@ static int s5p_jpeg_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
+static int s5p_jpeg_adjust_subs_ctrl(struct s5p_jpeg_ctx *ctx, int *ctrl_val)
+{
+	switch (ctx->jpeg->variant->version) {
+	case SJPEG_S5P:
+		return 0;
+	case SJPEG_EXYNOS3250:
+		/*
+		 * The exynos3250 device can produce JPEG image only
+		 * of 4:4:4 subsampling when given RGB32 source image.
+		 */
+		if (ctx->out_q.fmt->fourcc == V4L2_PIX_FMT_RGB32)
+			*ctrl_val = 0;
+		break;
+	case SJPEG_EXYNOS4:
+		/*
+		 * The exynos4x12 device requires input raw image fourcc
+		 * to be V4L2_PIX_FMT_GREY if gray jpeg format
+		 * is to be set.
+		 */
+		if (ctx->out_q.fmt->fourcc != V4L2_PIX_FMT_GREY &&
+		    *ctrl_val == V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY)
+			return -EINVAL;
+		break;
+	}
+
+	/*
+	 * The exynos4x12 and exynos3250 devices require resulting
+	 * jpeg subsampling not to be lower than the input raw image
+	 * subsampling.
+	 */
+	if (ctx->out_q.fmt->subsampling > *ctrl_val)
+		*ctrl_val = ctx->out_q.fmt->subsampling;
+
+	return 0;
+}
+
 static int s5p_jpeg_try_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct s5p_jpeg_ctx *ctx = ctrl_to_ctx(ctrl);
@@ -1290,28 +1647,9 @@ static int s5p_jpeg_try_ctrl(struct v4l2_ctrl *ctrl)
 
 	spin_lock_irqsave(&ctx->jpeg->slock, flags);
 
-	if (ctrl->id == V4L2_CID_JPEG_CHROMA_SUBSAMPLING) {
-		if (ctx->jpeg->variant->version == SJPEG_S5P)
-			goto error_free;
-		/*
-		 * The exynos4x12 device requires input raw image fourcc
-		 * to be V4L2_PIX_FMT_GREY if gray jpeg format
-		 * is to be set.
-		 */
-		if (ctx->out_q.fmt->fourcc != V4L2_PIX_FMT_GREY &&
-		    ctrl->val == V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY) {
-			ret = -EINVAL;
-			goto error_free;
-		}
-		/*
-		 * The exynos4x12 device requires resulting jpeg subsampling
-		 * not to be lower than the input raw image subsampling.
-		 */
-		if (ctx->out_q.fmt->subsampling > ctrl->val)
-			ctrl->val = ctx->out_q.fmt->subsampling;
-	}
+	if (ctrl->id == V4L2_CID_JPEG_CHROMA_SUBSAMPLING)
+		ret = s5p_jpeg_adjust_subs_ctrl(ctx, &ctrl->val);
 
-error_free:
 	spin_unlock_irqrestore(&ctx->jpeg->slock, flags);
 	return ret;
 }
@@ -1414,6 +1752,7 @@ static const struct v4l2_ioctl_ops s5p_jpeg_ioctl_ops = {
 	.vidioc_streamoff		= v4l2_m2m_ioctl_streamoff,
 
 	.vidioc_g_selection		= s5p_jpeg_g_selection,
+	.vidioc_s_selection		= s5p_jpeg_s_selection,
 };
 
 /*
@@ -1604,6 +1943,135 @@ static void exynos4_jpeg_device_run(void *priv)
 	spin_unlock_irqrestore(&ctx->jpeg->slock, flags);
 }
 
+static void exynos3250_jpeg_set_img_addr(struct s5p_jpeg_ctx *ctx)
+{
+	struct s5p_jpeg *jpeg = ctx->jpeg;
+	struct s5p_jpeg_fmt *fmt;
+	struct vb2_buffer *vb;
+	struct s5p_jpeg_addr jpeg_addr;
+	u32 pix_size;
+
+	pix_size = ctx->cap_q.w * ctx->cap_q.h;
+
+	if (ctx->mode == S5P_JPEG_ENCODE) {
+		vb = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+		fmt = ctx->out_q.fmt;
+	} else {
+		vb = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
+		fmt = ctx->cap_q.fmt;
+	}
+
+	jpeg_addr.y = vb2_dma_contig_plane_dma_addr(vb, 0);
+
+	if (fmt->colplanes == 2) {
+		jpeg_addr.cb = jpeg_addr.y + pix_size;
+	} else if (fmt->colplanes == 3) {
+		jpeg_addr.cb = jpeg_addr.y + pix_size;
+		if (fmt->fourcc == V4L2_PIX_FMT_YUV420)
+			jpeg_addr.cr = jpeg_addr.cb + pix_size / 4;
+		else
+			jpeg_addr.cr = jpeg_addr.cb + pix_size / 2;
+	}
+
+	exynos3250_jpeg_imgadr(jpeg->regs, &jpeg_addr);
+}
+
+static void exynos3250_jpeg_set_jpeg_addr(struct s5p_jpeg_ctx *ctx)
+{
+	struct s5p_jpeg *jpeg = ctx->jpeg;
+	struct vb2_buffer *vb;
+	unsigned int jpeg_addr = 0;
+
+	if (ctx->mode == S5P_JPEG_ENCODE)
+		vb = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
+	else
+		vb = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+
+	jpeg_addr = vb2_dma_contig_plane_dma_addr(vb, 0);
+	exynos3250_jpeg_jpgadr(jpeg->regs, jpeg_addr);
+}
+
+static void exynos3250_jpeg_device_run(void *priv)
+{
+	struct s5p_jpeg_ctx *ctx = priv;
+	struct s5p_jpeg *jpeg = ctx->jpeg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx->jpeg->slock, flags);
+
+	exynos3250_jpeg_reset(jpeg->regs);
+	exynos3250_jpeg_set_dma_num(jpeg->regs);
+	exynos3250_jpeg_poweron(jpeg->regs);
+	exynos3250_jpeg_clk_set(jpeg->regs);
+	exynos3250_jpeg_proc_mode(jpeg->regs, ctx->mode);
+
+	if (ctx->mode == S5P_JPEG_ENCODE) {
+		exynos3250_jpeg_input_raw_fmt(jpeg->regs,
+					      ctx->out_q.fmt->fourcc);
+		exynos3250_jpeg_dri(jpeg->regs, ctx->restart_interval);
+
+		/*
+		 * JPEG IP allows storing 4 quantization tables
+		 * We fill table 0 for luma and table 1 for chroma
+		 */
+		s5p_jpeg_set_qtbl_lum(jpeg->regs, ctx->compr_quality);
+		s5p_jpeg_set_qtbl_chr(jpeg->regs, ctx->compr_quality);
+		/* use table 0 for Y */
+		exynos3250_jpeg_qtbl(jpeg->regs, 1, 0);
+		/* use table 1 for Cb and Cr*/
+		exynos3250_jpeg_qtbl(jpeg->regs, 2, 1);
+		exynos3250_jpeg_qtbl(jpeg->regs, 3, 1);
+
+		/* Y, Cb, Cr use Huffman table 0 */
+		exynos3250_jpeg_htbl_ac(jpeg->regs, 1);
+		exynos3250_jpeg_htbl_dc(jpeg->regs, 1);
+		exynos3250_jpeg_htbl_ac(jpeg->regs, 2);
+		exynos3250_jpeg_htbl_dc(jpeg->regs, 2);
+		exynos3250_jpeg_htbl_ac(jpeg->regs, 3);
+		exynos3250_jpeg_htbl_dc(jpeg->regs, 3);
+
+		exynos3250_jpeg_set_x(jpeg->regs, ctx->crop_rect.width);
+		exynos3250_jpeg_set_y(jpeg->regs, ctx->crop_rect.height);
+		exynos3250_jpeg_stride(jpeg->regs, ctx->out_q.fmt->fourcc,
+								ctx->out_q.w);
+		exynos3250_jpeg_offset(jpeg->regs, ctx->crop_rect.left,
+							ctx->crop_rect.top);
+		exynos3250_jpeg_set_img_addr(ctx);
+		exynos3250_jpeg_set_jpeg_addr(ctx);
+		exynos3250_jpeg_subsampling_mode(jpeg->regs, ctx->subsampling);
+
+		/* ultimately comes from sizeimage from userspace */
+		exynos3250_jpeg_enc_stream_bound(jpeg->regs, ctx->cap_q.size);
+
+		if (ctx->out_q.fmt->fourcc == V4L2_PIX_FMT_RGB565 ||
+		    ctx->out_q.fmt->fourcc == V4L2_PIX_FMT_RGB565X ||
+		    ctx->out_q.fmt->fourcc == V4L2_PIX_FMT_RGB32)
+			exynos3250_jpeg_set_y16(jpeg->regs, true);
+	} else {
+		exynos3250_jpeg_set_img_addr(ctx);
+		exynos3250_jpeg_set_jpeg_addr(ctx);
+		exynos3250_jpeg_stride(jpeg->regs, ctx->cap_q.fmt->fourcc,
+								ctx->cap_q.w);
+		exynos3250_jpeg_offset(jpeg->regs, 0, 0);
+		exynos3250_jpeg_dec_scaling_ratio(jpeg->regs,
+							ctx->scale_factor);
+		exynos3250_jpeg_dec_stream_size(jpeg->regs, ctx->out_q.size);
+		exynos3250_jpeg_output_raw_fmt(jpeg->regs,
+						ctx->cap_q.fmt->fourcc);
+	}
+
+	exynos3250_jpeg_interrupts_enable(jpeg->regs);
+
+	/* JPEG RGB to YCbCr conversion matrix */
+	exynos3250_jpeg_coef(jpeg->regs, ctx->mode);
+
+	exynos3250_jpeg_set_timer(jpeg->regs, EXYNOS3250_IRQ_TIMEOUT);
+	jpeg->irq_status = 0;
+	exynos3250_jpeg_start(jpeg->regs);
+
+	spin_unlock_irqrestore(&ctx->jpeg->slock, flags);
+}
+
 static int s5p_jpeg_job_ready(void *priv)
 {
 	struct s5p_jpeg_ctx *ctx = priv;
@@ -1621,8 +2089,14 @@ static struct v4l2_m2m_ops s5p_jpeg_m2m_ops = {
 	.device_run	= s5p_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 	.job_abort	= s5p_jpeg_job_abort,
-}
-;
+};
+
+static struct v4l2_m2m_ops exynos3250_jpeg_m2m_ops = {
+	.device_run	= exynos3250_jpeg_device_run,
+	.job_ready	= s5p_jpeg_job_ready,
+	.job_abort	= s5p_jpeg_job_abort,
+};
+
 static struct v4l2_m2m_ops exynos4_jpeg_m2m_ops = {
 	.device_run	= exynos4_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
@@ -1895,6 +2369,70 @@ static irqreturn_t exynos4_jpeg_irq(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t exynos3250_jpeg_irq(int irq, void *dev_id)
+{
+	struct s5p_jpeg *jpeg = dev_id;
+	struct s5p_jpeg_ctx *curr_ctx;
+	struct vb2_buffer *src_buf, *dst_buf;
+	unsigned long payload_size = 0;
+	enum vb2_buffer_state state = VB2_BUF_STATE_DONE;
+	bool interrupt_timeout = false;
+	u32 irq_status;
+
+	spin_lock(&jpeg->slock);
+
+	irq_status = exynos3250_jpeg_get_timer_status(jpeg->regs);
+	if (irq_status & EXYNOS3250_TIMER_INT_STAT) {
+		exynos3250_jpeg_clear_timer_status(jpeg->regs);
+		interrupt_timeout = true;
+		dev_err(jpeg->dev, "Interrupt timeout occurred.\n");
+	}
+
+	irq_status = exynos3250_jpeg_get_int_status(jpeg->regs);
+	exynos3250_jpeg_clear_int_status(jpeg->regs, irq_status);
+
+	jpeg->irq_status |= irq_status;
+
+	curr_ctx = v4l2_m2m_get_curr_priv(jpeg->m2m_dev);
+
+	if (!curr_ctx)
+		goto exit_unlock;
+
+	if ((irq_status & EXYNOS3250_HEADER_STAT) &&
+	    (curr_ctx->mode == S5P_JPEG_DECODE)) {
+		exynos3250_jpeg_rstart(jpeg->regs);
+		goto exit_unlock;
+	}
+
+	if (jpeg->irq_status & (EXYNOS3250_JPEG_DONE |
+				EXYNOS3250_WDMA_DONE |
+				EXYNOS3250_RDMA_DONE |
+				EXYNOS3250_RESULT_STAT))
+		payload_size = exynos3250_jpeg_compressed_size(jpeg->regs);
+	else if (interrupt_timeout)
+		state = VB2_BUF_STATE_ERROR;
+	else
+		goto exit_unlock;
+
+	src_buf = v4l2_m2m_src_buf_remove(curr_ctx->fh.m2m_ctx);
+	dst_buf = v4l2_m2m_dst_buf_remove(curr_ctx->fh.m2m_ctx);
+
+	dst_buf->v4l2_buf.timecode = src_buf->v4l2_buf.timecode;
+	dst_buf->v4l2_buf.timestamp = src_buf->v4l2_buf.timestamp;
+
+	v4l2_m2m_buf_done(src_buf, state);
+	if (curr_ctx->mode == S5P_JPEG_ENCODE)
+		vb2_set_plane_payload(dst_buf, 0, payload_size);
+	v4l2_m2m_buf_done(dst_buf, state);
+	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
+
+	curr_ctx->subsampling =
+			exynos3250_jpeg_get_subsampling_mode(jpeg->regs);
+exit_unlock:
+	spin_unlock(&jpeg->slock);
+	return IRQ_HANDLED;
+}
+
 static void *jpeg_get_drv_data(struct device *dev);
 
 /*
@@ -1949,6 +2487,10 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 		return ret;
 	}
 	dev_dbg(&pdev->dev, "clock source %p\n", jpeg->clk);
+
+	jpeg->sclk = clk_get(&pdev->dev, "sclk");
+	if (IS_ERR(jpeg->sclk))
+		dev_info(&pdev->dev, "sclk clock not available\n");
 
 	/* v4l2 device */
 	ret = v4l2_device_register(&pdev->dev, &jpeg->v4l2_dev);
@@ -2057,6 +2599,8 @@ device_register_rollback:
 
 clk_get_rollback:
 	clk_put(jpeg->clk);
+	if (!IS_ERR(jpeg->sclk))
+		clk_put(jpeg->sclk);
 
 	return ret;
 }
@@ -2075,10 +2619,15 @@ static int s5p_jpeg_remove(struct platform_device *pdev)
 	v4l2_m2m_release(jpeg->m2m_dev);
 	v4l2_device_unregister(&jpeg->v4l2_dev);
 
-	if (!pm_runtime_status_suspended(&pdev->dev))
+	if (!pm_runtime_status_suspended(&pdev->dev)) {
 		clk_disable_unprepare(jpeg->clk);
+		if (!IS_ERR(jpeg->sclk))
+			clk_disable_unprepare(jpeg->sclk);
+	}
 
 	clk_put(jpeg->clk);
+	if (!IS_ERR(jpeg->sclk))
+		clk_put(jpeg->sclk);
 
 	return 0;
 }
@@ -2088,6 +2637,8 @@ static int s5p_jpeg_runtime_suspend(struct device *dev)
 	struct s5p_jpeg *jpeg = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(jpeg->clk);
+	if (!IS_ERR(jpeg->sclk))
+		clk_disable_unprepare(jpeg->sclk);
 
 	return 0;
 }
@@ -2102,15 +2653,24 @@ static int s5p_jpeg_runtime_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
+	if (!IS_ERR(jpeg->sclk)) {
+		ret = clk_prepare_enable(jpeg->sclk);
+		if (ret < 0)
+			return ret;
+	}
+
 	spin_lock_irqsave(&jpeg->slock, flags);
 
 	/*
-	 * JPEG IP allows storing two Huffman tables for each component
+	 * JPEG IP allows storing two Huffman tables for each component.
 	 * We fill table 0 for each component and do this here only
-	 * for S5PC210 device as Exynos4x12 requires programming its
-	 * Huffman tables each time the encoding process is initialized.
+	 * for S5PC210 and Exynos3250 SoCs. Exynos4x12 SoC requires
+	 * programming its Huffman tables each time the encoding process
+	 * is initialized, and thus it is accomplished in the device_run
+	 * callback of m2m_ops.
 	 */
-	if (jpeg->variant->version == SJPEG_S5P) {
+	if (jpeg->variant->version == SJPEG_S5P ||
+	    jpeg->variant->version == SJPEG_EXYNOS3250) {
 		s5p_jpeg_set_hdctbl(jpeg->regs);
 		s5p_jpeg_set_hdctblg(jpeg->regs);
 		s5p_jpeg_set_hactbl(jpeg->regs);
@@ -2150,6 +2710,13 @@ static struct s5p_jpeg_variant s5p_jpeg_drvdata = {
 	.fmt_ver_flag	= SJPEG_FMT_FLAG_S5P,
 };
 
+static struct s5p_jpeg_variant exynos3250_jpeg_drvdata = {
+	.version	= SJPEG_EXYNOS3250,
+	.jpeg_irq	= exynos3250_jpeg_irq,
+	.m2m_ops	= &exynos3250_jpeg_m2m_ops,
+	.fmt_ver_flag	= SJPEG_FMT_FLAG_EXYNOS3250,
+};
+
 static struct s5p_jpeg_variant exynos4_jpeg_drvdata = {
 	.version	= SJPEG_EXYNOS4,
 	.jpeg_irq	= exynos4_jpeg_irq,
@@ -2162,8 +2729,11 @@ static const struct of_device_id samsung_jpeg_match[] = {
 		.compatible = "samsung,s5pv210-jpeg",
 		.data = &s5p_jpeg_drvdata,
 	}, {
+		.compatible = "samsung,exynos3250-jpeg",
+		.data = &exynos3250_jpeg_drvdata,
+	}, {
 		.compatible = "samsung,exynos4210-jpeg",
-		.data = &s5p_jpeg_drvdata,
+		.data = &exynos4_jpeg_drvdata,
 	}, {
 		.compatible = "samsung,exynos4212-jpeg",
 		.data = &exynos4_jpeg_drvdata,

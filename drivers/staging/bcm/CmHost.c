@@ -972,6 +972,7 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		pstAddIndication->sfAuthorizedSet.bValid = 1;
 	for (nIndex = 0; nIndex < nCurClassifierCnt; nIndex++) {
 		struct bcm_convergence_types *psfCSType = NULL;
+
 		psfCSType =  &pstAddIndication->sfAuthorizedSet.cConvergenceSLTypes[nIndex];
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "psfCSType = %p", psfCSType);
@@ -1418,7 +1419,7 @@ static inline ULONG RestoreSFParam(struct bcm_mini_adapter *Adapter,
 	ulAddrSFParamSet = ntohl(ulAddrSFParamSet);
 
 	/* Read out the SF Param Set At the indicated Location */
-	if (rdm(Adapter, ulAddrSFParamSet,(PUCHAR)pucDestBuffer, nBytesToRead) < 0)
+	if (rdm(Adapter, ulAddrSFParamSet, (PUCHAR)pucDestBuffer, nBytesToRead) < 0)
 		return STATUS_FAILURE;
 
 	return 1;

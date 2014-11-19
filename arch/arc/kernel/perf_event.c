@@ -99,10 +99,6 @@ static int arc_pmu_event_init(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	int ret;
 
-	/* ARC 700 PMU does not support sampling events */
-	if (is_sampling_event(event))
-		return -ENOENT;
-
 	switch (event->attr.type) {
 	case PERF_TYPE_HARDWARE:
 		if (event->attr.config >= PERF_COUNT_HW_MAX)
@@ -297,6 +293,9 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		.stop		= arc_pmu_stop,
 		.read		= arc_pmu_read,
 	};
+
+	/* ARC 700 PMU does not support sampling events */
+	arc_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 
 	ret = perf_pmu_register(&arc_pmu->pmu, pdev->name, PERF_TYPE_RAW);
 

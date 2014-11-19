@@ -56,7 +56,7 @@
 /*
  * super-class definitions.
  */
-#include <dt_object.h>
+#include "dt_object.h"
 
 struct md_device;
 struct md_device_operations;

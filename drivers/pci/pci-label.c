@@ -161,8 +161,8 @@ enum acpi_attr_enum {
 static void dsm_label_utf16s_to_utf8s(union acpi_object *obj, char *buf)
 {
 	int len;
-	len = utf16s_to_utf8s((const wchar_t *)obj->string.pointer,
-			      obj->string.length,
+	len = utf16s_to_utf8s((const wchar_t *)obj->buffer.pointer,
+			      obj->buffer.length,
 			      UTF16_LITTLE_ENDIAN,
 			      buf, PAGE_SIZE);
 	buf[len] = '\n';
@@ -187,16 +187,22 @@ static int dsm_get_label(struct device *dev, char *buf,
 	tmp = obj->package.elements;
 	if (obj->type == ACPI_TYPE_PACKAGE && obj->package.count == 2 &&
 	    tmp[0].type == ACPI_TYPE_INTEGER &&
-	    tmp[1].type == ACPI_TYPE_STRING) {
+	    (tmp[1].type == ACPI_TYPE_STRING ||
+	     tmp[1].type == ACPI_TYPE_BUFFER)) {
 		/*
 		 * The second string element is optional even when
 		 * this _DSM is implemented; when not implemented,
 		 * this entry must return a null string.
 		 */
-		if (attr == ACPI_ATTR_INDEX_SHOW)
+		if (attr == ACPI_ATTR_INDEX_SHOW) {
 			scnprintf(buf, PAGE_SIZE, "%llu\n", tmp->integer.value);
-		else if (attr == ACPI_ATTR_LABEL_SHOW)
-			dsm_label_utf16s_to_utf8s(tmp + 1, buf);
+		} else if (attr == ACPI_ATTR_LABEL_SHOW) {
+			if (tmp[1].type == ACPI_TYPE_STRING)
+				scnprintf(buf, PAGE_SIZE, "%s\n",
+					  tmp[1].string.pointer);
+			else if (tmp[1].type == ACPI_TYPE_BUFFER)
+				dsm_label_utf16s_to_utf8s(tmp + 1, buf);
+		}
 		len = strlen(buf) > 0 ? strlen(buf) : -1;
 	}
 

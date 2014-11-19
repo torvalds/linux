@@ -143,8 +143,6 @@ __be32 ic_servaddr = NONE;	/* Boot server IP address */
 __be32 root_server_addr = NONE;	/* Address of NFS server */
 u8 root_server_path[256] = { 0, };	/* Path to mount as root */
 
-__be32 ic_dev_xid;		/* Device under configuration */
-
 /* vendor class identifier */
 static char vendor_class_identifier[253] __initdata;
 
@@ -654,6 +652,7 @@ static struct packet_type bootp_packet_type __initdata = {
 	.func =	ic_bootp_recv,
 };
 
+static __be32 ic_dev_xid;		/* Device under configuration */
 
 /*
  *  Initialize DHCP/BOOTP extension fields in the request.
@@ -1218,10 +1217,10 @@ static int __init ic_dynamic(void)
 	get_random_bytes(&timeout, sizeof(timeout));
 	timeout = CONF_BASE_TIMEOUT + (timeout % (unsigned int) CONF_TIMEOUT_RANDOM);
 	for (;;) {
+#ifdef IPCONFIG_BOOTP
 		/* Track the device we are configuring */
 		ic_dev_xid = d->xid;
 
-#ifdef IPCONFIG_BOOTP
 		if (do_bootp && (d->able & IC_BOOTP))
 			ic_bootp_send_if(d, jiffies - start_jiffies);
 #endif

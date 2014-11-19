@@ -27,6 +27,7 @@
 #include <asm/firmware.h>
 #include <asm/cputable.h>
 #include <asm/trace.h>
+#include <asm/machdep.h>
 
 DEFINE_PER_CPU(struct hcall_stats[HCALL_STAT_ARRAY_SIZE], hcall_stats);
 
@@ -162,4 +163,4 @@ static int __init hcall_inst_init(void)
 
 	return 0;
 }
-__initcall(hcall_inst_init);
+machine_device_initcall(pseries, hcall_inst_init);

@@ -187,7 +187,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		goto out;
 
 	ret = NULL;
-	req = inet6_reqsk_alloc(&tcp6_request_sock_ops);
+	req = inet_reqsk_alloc(&tcp6_request_sock_ops);
 	if (!req)
 		goto out;
 

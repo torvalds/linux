@@ -131,32 +131,20 @@ struct s3c_pcm_info {
 	struct s3c_dma_params	*dma_capture;
 };
 
-static struct s3c_dma_client s3c_pcm_dma_client_out = {
-	.name		= "PCM Stereo out"
-};
-
-static struct s3c_dma_client s3c_pcm_dma_client_in = {
-	.name		= "PCM Stereo in"
-};
-
 static struct s3c_dma_params s3c_pcm_stereo_out[] = {
 	[0] = {
-		.client		= &s3c_pcm_dma_client_out,
 		.dma_size	= 4,
 	},
 	[1] = {
-		.client		= &s3c_pcm_dma_client_out,
 		.dma_size	= 4,
 	},
 };
 
 static struct s3c_dma_params s3c_pcm_stereo_in[] = {
 	[0] = {
-		.client		= &s3c_pcm_dma_client_in,
 		.dma_size	= 4,
 	},
 	[1] = {
-		.client		= &s3c_pcm_dma_client_in,
 		.dma_size	= 4,
 	},
 };

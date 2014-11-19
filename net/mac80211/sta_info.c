@@ -100,7 +100,8 @@ static void __cleanup_single_sta(struct sta_info *sta)
 	struct ps_data *ps;
 
 	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
-	    test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
+	    test_sta_flag(sta, WLAN_STA_PS_DRIVER) ||
+	    test_sta_flag(sta, WLAN_STA_PS_DELIVER)) {
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
 		    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			ps = &sdata->bss->ps;
@@ -111,6 +112,7 @@ static void __cleanup_single_sta(struct sta_info *sta)
 
 		clear_sta_flag(sta, WLAN_STA_PS_STA);
 		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+		clear_sta_flag(sta, WLAN_STA_PS_DELIVER);
 
 		atomic_dec(&ps->num_sta_ps);
 		sta_info_recalc_tim(sta);
@@ -125,7 +127,7 @@ static void __cleanup_single_sta(struct sta_info *sta)
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_sta_cleanup(sta);
 
-	cancel_work_sync(&sta->drv_unblock_wk);
+	cancel_work_sync(&sta->drv_deliver_wk);
 
 	/*
 	 * Destroy aggregation state here. It would be nice to wait for the
@@ -253,33 +255,23 @@ static void sta_info_hash_add(struct ieee80211_local *local,
 	rcu_assign_pointer(local->sta_hash[STA_HASH(sta->sta.addr)], sta);
 }
 
-static void sta_unblock(struct work_struct *wk)
+static void sta_deliver_ps_frames(struct work_struct *wk)
 {
 	struct sta_info *sta;
 
-	sta = container_of(wk, struct sta_info, drv_unblock_wk);
+	sta = container_of(wk, struct sta_info, drv_deliver_wk);
 
 	if (sta->dead)
 		return;
 
-	if (!test_sta_flag(sta, WLAN_STA_PS_STA)) {
-		local_bh_disable();
+	local_bh_disable();
+	if (!test_sta_flag(sta, WLAN_STA_PS_STA))
 		ieee80211_sta_ps_deliver_wakeup(sta);
-		local_bh_enable();
-	} else if (test_and_clear_sta_flag(sta, WLAN_STA_PSPOLL)) {
-		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-
-		local_bh_disable();
+	else if (test_and_clear_sta_flag(sta, WLAN_STA_PSPOLL))
 		ieee80211_sta_ps_deliver_poll_response(sta);
-		local_bh_enable();
-	} else if (test_and_clear_sta_flag(sta, WLAN_STA_UAPSD)) {
-		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-
-		local_bh_disable();
+	else if (test_and_clear_sta_flag(sta, WLAN_STA_UAPSD))
 		ieee80211_sta_ps_deliver_uapsd(sta);
-		local_bh_enable();
-	} else
-		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+	local_bh_enable();
 }
 
 static int sta_prepare_rate_control(struct ieee80211_local *local,
@@ -341,7 +333,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->ps_lock);
-	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
+	INIT_WORK(&sta->drv_deliver_wk, sta_deliver_ps_frames);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 	mutex_init(&sta->ampdu_mlme.mtx);
 #ifdef CONFIG_MAC80211_MESH
@@ -358,7 +350,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	sta->sta_state = IEEE80211_STA_NONE;
 
-	do_posix_clock_monotonic_gettime(&uptime);
+	ktime_get_ts(&uptime);
 	sta->last_connected = uptime.tv_sec;
 	ewma_init(&sta->avg_signal, 1024, 8);
 	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
@@ -1102,8 +1094,11 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	unsigned long flags;
 	struct ps_data *ps;
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP ||
-	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		sdata = container_of(sdata->bss, struct ieee80211_sub_if_data,
+				     u.ap);
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
 		ps = &sdata->bss->ps;
 	else if (ieee80211_vif_is_mesh(&sdata->vif))
 		ps = &sdata->u.mesh.ps;
@@ -1141,8 +1136,15 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	}
 
 	ieee80211_add_pending_skbs(local, &pending);
-	clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-	clear_sta_flag(sta, WLAN_STA_PS_STA);
+
+	/* now we're no longer in the deliver code */
+	clear_sta_flag(sta, WLAN_STA_PS_DELIVER);
+
+	/* The station might have polled and then woken up before we responded,
+	 * so clear these flags now to avoid them sticking around.
+	 */
+	clear_sta_flag(sta, WLAN_STA_PSPOLL);
+	clear_sta_flag(sta, WLAN_STA_UAPSD);
 	spin_unlock(&sta->ps_lock);
 
 	atomic_dec(&ps->num_sta_ps);
@@ -1543,10 +1545,26 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 
 	trace_api_sta_block_awake(sta->local, pubsta, block);
 
-	if (block)
+	if (block) {
 		set_sta_flag(sta, WLAN_STA_PS_DRIVER);
-	else if (test_sta_flag(sta, WLAN_STA_PS_DRIVER))
-		ieee80211_queue_work(hw, &sta->drv_unblock_wk);
+		return;
+	}
+
+	if (!test_sta_flag(sta, WLAN_STA_PS_DRIVER))
+		return;
+
+	if (!test_sta_flag(sta, WLAN_STA_PS_STA)) {
+		set_sta_flag(sta, WLAN_STA_PS_DELIVER);
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+		ieee80211_queue_work(hw, &sta->drv_deliver_wk);
+	} else if (test_sta_flag(sta, WLAN_STA_PSPOLL) ||
+		   test_sta_flag(sta, WLAN_STA_UAPSD)) {
+		/* must be asleep in this case */
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+		ieee80211_queue_work(hw, &sta->drv_deliver_wk);
+	} else {
+		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+	}
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);
 
@@ -1703,4 +1721,141 @@ u8 sta_info_tx_streams(struct sta_info *sta)
 
 	return ((ht_cap->mcs.tx_params & IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK)
 			>> IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT) + 1;
+}
+
+void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
+	struct rate_control_ref *ref = NULL;
+	struct timespec uptime;
+	u64 packets = 0;
+	u32 thr = 0;
+	int i, ac;
+
+	if (test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
+		ref = local->rate_ctrl;
+
+	sinfo->generation = sdata->local->sta_generation;
+
+	sinfo->filled = STATION_INFO_INACTIVE_TIME |
+			STATION_INFO_RX_BYTES64 |
+			STATION_INFO_TX_BYTES64 |
+			STATION_INFO_RX_PACKETS |
+			STATION_INFO_TX_PACKETS |
+			STATION_INFO_TX_RETRIES |
+			STATION_INFO_TX_FAILED |
+			STATION_INFO_TX_BITRATE |
+			STATION_INFO_RX_BITRATE |
+			STATION_INFO_RX_DROP_MISC |
+			STATION_INFO_BSS_PARAM |
+			STATION_INFO_CONNECTED_TIME |
+			STATION_INFO_STA_FLAGS |
+			STATION_INFO_BEACON_LOSS_COUNT;
+
+	ktime_get_ts(&uptime);
+	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
+
+	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
+	sinfo->tx_bytes = 0;
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		sinfo->tx_bytes += sta->tx_bytes[ac];
+		packets += sta->tx_packets[ac];
+	}
+	sinfo->tx_packets = packets;
+	sinfo->rx_bytes = sta->rx_bytes;
+	sinfo->rx_packets = sta->rx_packets;
+	sinfo->tx_retries = sta->tx_retry_count;
+	sinfo->tx_failed = sta->tx_retry_failed;
+	sinfo->rx_dropped_misc = sta->rx_dropped;
+	sinfo->beacon_loss_count = sta->beacon_loss_count;
+
+	if ((sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) ||
+	    (sta->local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)) {
+		sinfo->filled |= STATION_INFO_SIGNAL | STATION_INFO_SIGNAL_AVG;
+		if (!local->ops->get_rssi ||
+		    drv_get_rssi(local, sdata, &sta->sta, &sinfo->signal))
+			sinfo->signal = (s8)sta->last_signal;
+		sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
+	}
+	if (sta->chains) {
+		sinfo->filled |= STATION_INFO_CHAIN_SIGNAL |
+				 STATION_INFO_CHAIN_SIGNAL_AVG;
+
+		sinfo->chains = sta->chains;
+		for (i = 0; i < ARRAY_SIZE(sinfo->chain_signal); i++) {
+			sinfo->chain_signal[i] = sta->chain_signal_last[i];
+			sinfo->chain_signal_avg[i] =
+				(s8) -ewma_read(&sta->chain_signal_avg[i]);
+		}
+	}
+
+	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
+	sta_set_rate_info_rx(sta, &sinfo->rxrate);
+
+	if (ieee80211_vif_is_mesh(&sdata->vif)) {
+#ifdef CONFIG_MAC80211_MESH
+		sinfo->filled |= STATION_INFO_LLID |
+				 STATION_INFO_PLID |
+				 STATION_INFO_PLINK_STATE |
+				 STATION_INFO_LOCAL_PM |
+				 STATION_INFO_PEER_PM |
+				 STATION_INFO_NONPEER_PM;
+
+		sinfo->llid = sta->llid;
+		sinfo->plid = sta->plid;
+		sinfo->plink_state = sta->plink_state;
+		if (test_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN)) {
+			sinfo->filled |= STATION_INFO_T_OFFSET;
+			sinfo->t_offset = sta->t_offset;
+		}
+		sinfo->local_pm = sta->local_pm;
+		sinfo->peer_pm = sta->peer_pm;
+		sinfo->nonpeer_pm = sta->nonpeer_pm;
+#endif
+	}
+
+	sinfo->bss_param.flags = 0;
+	if (sdata->vif.bss_conf.use_cts_prot)
+		sinfo->bss_param.flags |= BSS_PARAM_FLAGS_CTS_PROT;
+	if (sdata->vif.bss_conf.use_short_preamble)
+		sinfo->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_PREAMBLE;
+	if (sdata->vif.bss_conf.use_short_slot)
+		sinfo->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
+	sinfo->bss_param.dtim_period = sdata->vif.bss_conf.dtim_period;
+	sinfo->bss_param.beacon_interval = sdata->vif.bss_conf.beacon_int;
+
+	sinfo->sta_flags.set = 0;
+	sinfo->sta_flags.mask = BIT(NL80211_STA_FLAG_AUTHORIZED) |
+				BIT(NL80211_STA_FLAG_SHORT_PREAMBLE) |
+				BIT(NL80211_STA_FLAG_WME) |
+				BIT(NL80211_STA_FLAG_MFP) |
+				BIT(NL80211_STA_FLAG_AUTHENTICATED) |
+				BIT(NL80211_STA_FLAG_ASSOCIATED) |
+				BIT(NL80211_STA_FLAG_TDLS_PEER);
+	if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHORIZED);
+	if (test_sta_flag(sta, WLAN_STA_SHORT_PREAMBLE))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_SHORT_PREAMBLE);
+	if (test_sta_flag(sta, WLAN_STA_WME))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_WME);
+	if (test_sta_flag(sta, WLAN_STA_MFP))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_MFP);
+	if (test_sta_flag(sta, WLAN_STA_AUTH))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_AUTHENTICATED);
+	if (test_sta_flag(sta, WLAN_STA_ASSOC))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_ASSOCIATED);
+	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER))
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_TDLS_PEER);
+
+	/* check if the driver has a SW RC implementation */
+	if (ref && ref->ops->get_expected_throughput)
+		thr = ref->ops->get_expected_throughput(sta->rate_ctrl_priv);
+	else
+		thr = drv_get_expected_throughput(local, &sta->sta);
+
+	if (thr != 0) {
+		sinfo->filled |= STATION_INFO_EXPECTED_THROUGHPUT;
+		sinfo->expected_throughput = thr;
+	}
 }

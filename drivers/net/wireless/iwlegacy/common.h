@@ -1787,7 +1787,7 @@ int il_scan_cancel(struct il_priv *il);
 int il_scan_cancel_timeout(struct il_priv *il, unsigned long ms);
 void il_force_scan_end(struct il_priv *il);
 int il_mac_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   struct cfg80211_scan_request *req);
+		   struct ieee80211_scan_request *hw_req);
 void il_internal_short_hw_scan(struct il_priv *il);
 int il_force_reset(struct il_priv *il, bool external);
 u16 il_fill_probe_req(struct il_priv *il, struct ieee80211_mgmt *frame,

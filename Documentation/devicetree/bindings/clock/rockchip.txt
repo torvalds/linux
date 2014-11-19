@@ -6,6 +6,9 @@ This binding uses the common clock binding[1].
 
 == Gate clocks ==
 
+These bindings are deprecated!
+Please use the soc specific CRU bindings instead.
+
 The gate registers form a continuos block which makes the dt node
 structure a matter of taste, as either all gates can be put into
 one gate clock spanning all registers or they can be divided into

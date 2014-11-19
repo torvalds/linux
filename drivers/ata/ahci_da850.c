@@ -85,8 +85,7 @@ static int ahci_da850_probe(struct platform_device *pdev)
 
 	da850_sata_init(dev, pwrdn_reg, hpriv->mmio);
 
-	rc = ahci_platform_init_host(pdev, hpriv, &ahci_da850_port_info,
-				     0, 0, 0);
+	rc = ahci_platform_init_host(pdev, hpriv, &ahci_da850_port_info);
 	if (rc)
 		goto disable_resources;
 

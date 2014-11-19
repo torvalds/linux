@@ -136,6 +136,21 @@ enum ath6kl_fw_capability {
 	 */
 	ATH6KL_FW_CAPABILITY_HEART_BEAT_POLL,
 
+	/* WMI_SET_TX_SELECT_RATES_CMDID uses 64 bit size rate table */
+	ATH6KL_FW_CAPABILITY_64BIT_RATES,
+
+	/* WMI_AP_CONN_INACT_CMDID uses minutes as units */
+	ATH6KL_FW_CAPABILITY_AP_INACTIVITY_MINS,
+
+	/* use low priority endpoint for all data */
+	ATH6KL_FW_CAPABILITY_MAP_LP_ENDPOINT,
+
+	/* ratetable is the 2 stream version (max MCS15) */
+	ATH6KL_FW_CAPABILITY_RATETABLE_MCS15,
+
+	/* firmare doesn't support IP checksumming */
+	ATH6KL_FW_CAPABILITY_NO_IP_CHECKSUM,
+
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
 };
@@ -149,15 +164,13 @@ struct ath6kl_fw_ie {
 };
 
 enum ath6kl_hw_flags {
-	ATH6KL_HW_64BIT_RATES		= BIT(0),
-	ATH6KL_HW_AP_INACTIVITY_MINS	= BIT(1),
-	ATH6KL_HW_MAP_LP_ENDPOINT	= BIT(2),
 	ATH6KL_HW_SDIO_CRC_ERROR_WAR	= BIT(3),
 };
 
 #define ATH6KL_FW_API2_FILE "fw-2.bin"
 #define ATH6KL_FW_API3_FILE "fw-3.bin"
 #define ATH6KL_FW_API4_FILE "fw-4.bin"
+#define ATH6KL_FW_API5_FILE "fw-5.bin"
 
 /* AR6003 1.0 definitions */
 #define AR6003_HW_1_0_VERSION                 0x300002ba
@@ -215,8 +228,21 @@ enum ath6kl_hw_flags {
 #define AR6004_HW_1_3_VERSION			0x31c8088a
 #define AR6004_HW_1_3_FW_DIR			"ath6k/AR6004/hw1.3"
 #define AR6004_HW_1_3_FIRMWARE_FILE		"fw.ram.bin"
-#define AR6004_HW_1_3_BOARD_DATA_FILE		"ath6k/AR6004/hw1.3/bdata.bin"
-#define AR6004_HW_1_3_DEFAULT_BOARD_DATA_FILE	"ath6k/AR6004/hw1.3/bdata.bin"
+#define AR6004_HW_1_3_TCMD_FIRMWARE_FILE	"utf.bin"
+#define AR6004_HW_1_3_UTF_FIRMWARE_FILE		"utf.bin"
+#define AR6004_HW_1_3_TESTSCRIPT_FILE		"nullTestFlow.bin"
+#define AR6004_HW_1_3_BOARD_DATA_FILE	      AR6004_HW_1_3_FW_DIR "/bdata.bin"
+#define AR6004_HW_1_3_DEFAULT_BOARD_DATA_FILE AR6004_HW_1_3_FW_DIR "/bdata.bin"
+
+/* AR6004 3.0 definitions */
+#define AR6004_HW_3_0_VERSION			0x31C809F8
+#define AR6004_HW_3_0_FW_DIR			"ath6k/AR6004/hw3.0"
+#define AR6004_HW_3_0_FIRMWARE_FILE		"fw.ram.bin"
+#define AR6004_HW_3_0_TCMD_FIRMWARE_FILE	"utf.bin"
+#define AR6004_HW_3_0_UTF_FIRMWARE_FILE		"utf.bin"
+#define AR6004_HW_3_0_TESTSCRIPT_FILE		"nullTestFlow.bin"
+#define AR6004_HW_3_0_BOARD_DATA_FILE	      AR6004_HW_3_0_FW_DIR "/bdata.bin"
+#define AR6004_HW_3_0_DEFAULT_BOARD_DATA_FILE AR6004_HW_3_0_FW_DIR "/bdata.bin"
 
 /* Per STA data, used in AP mode */
 #define STA_PS_AWAKE		BIT(0)
