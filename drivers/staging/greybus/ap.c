@@ -249,11 +249,11 @@ static void svc_suspend(struct svc_function_suspend *suspend,
 	dev_err(hd->parent, "Got an suspend message???\n");
 }
 
-static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg,
-					  struct greybus_host_device *hd)
+static struct svc_msg *convert_ap_message(struct ap_msg *ap_msg)
 {
 	struct svc_msg *svc_msg;
 	struct svc_msg_header *header;
+	struct greybus_host_device *hd = ap_msg->hd;
 
 	svc_msg = (struct svc_msg *)ap_msg->data;
 	header = &svc_msg->header;
@@ -285,7 +285,7 @@ static void ap_process_event(struct work_struct *work)
 	hd = ap_msg->hd;
 
 	/* Turn the "raw" data into a real message */
-	svc_msg = convert_ap_message(ap_msg, hd);
+	svc_msg = convert_ap_message(ap_msg);
 	if (!svc_msg)
 		return;
 
