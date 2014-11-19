@@ -1664,10 +1664,10 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 	}
 }
 
-int i915_gem_setup_global_gtt(struct drm_device *dev,
-			      unsigned long start,
-			      unsigned long mappable_end,
-			      unsigned long end)
+static int i915_gem_setup_global_gtt(struct drm_device *dev,
+				     unsigned long start,
+				     unsigned long mappable_end,
+				     unsigned long end)
 {
 	/* Let GEM Manage all of the aperture.
 	 *

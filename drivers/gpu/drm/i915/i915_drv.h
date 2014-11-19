@@ -2378,8 +2378,6 @@ void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 	ibx_display_interrupt_update((dev_priv), (bits), 0)
 
 /* i915_gem.c */
-int i915_gem_init_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
 int i915_gem_create_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 int i915_gem_pread_ioctl(struct drm_device *dev, void *data,
