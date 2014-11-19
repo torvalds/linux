@@ -54,8 +54,7 @@ int bochs_hw_init(struct drm_device *dev, uint32_t flags)
 	unsigned long addr, size, mem, ioaddr, iosize;
 	u16 id;
 
-	if (/* (ent->driver_data == BOCHS_QEMU_STDVGA) && */
-	    (pdev->resource[2].flags & IORESOURCE_MEM)) {
+	if (pdev->resource[2].flags & IORESOURCE_MEM) {
 		/* mmio bar with vga and bochs registers present */
 		if (pci_request_region(pdev, 2, "bochs-drm") != 0) {
 			DRM_ERROR("Cannot request mmio region\n");
