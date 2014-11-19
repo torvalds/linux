@@ -260,7 +260,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, phy);
 	pm_runtime_enable(phy->dev);
 
-	generic_phy = devm_phy_create(phy->dev, NULL, &ops, NULL);
+	generic_phy = devm_phy_create(phy->dev, NULL, &ops);
 	if (IS_ERR(generic_phy)) {
 		pm_runtime_disable(phy->dev);
 		return PTR_ERR(generic_phy);

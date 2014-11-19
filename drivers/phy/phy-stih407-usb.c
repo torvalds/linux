@@ -137,7 +137,7 @@ static int stih407_usb2_picophy_probe(struct platform_device *pdev)
 	}
 	phy_dev->param = res->start;
 
-	phy = devm_phy_create(dev, NULL, &stih407_usb2_picophy_data, NULL);
+	phy = devm_phy_create(dev, NULL, &stih407_usb2_picophy_data);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create Display Port PHY\n");
 		return PTR_ERR(phy);

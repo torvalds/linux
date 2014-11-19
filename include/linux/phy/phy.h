@@ -61,7 +61,6 @@ struct phy {
 	struct device		dev;
 	int			id;
 	const struct phy_ops	*ops;
-	struct phy_init_data	*init_data;
 	struct mutex		mutex;
 	int			init_count;
 	int			power_count;
@@ -83,32 +82,6 @@ struct phy_provider {
 	struct phy * (*of_xlate)(struct device *dev,
 		struct of_phandle_args *args);
 };
-
-/**
- * struct phy_consumer - represents the phy consumer
- * @dev_name: the device name of the controller that will use this PHY device
- * @port: name given to the consumer port
- */
-struct phy_consumer {
-	const char *dev_name;
-	const char *port;
-};
-
-/**
- * struct phy_init_data - contains the list of PHY consumers
- * @num_consumers: number of consumers for this PHY device
- * @consumers: list of PHY consumers
- */
-struct phy_init_data {
-	unsigned int num_consumers;
-	struct phy_consumer *consumers;
-};
-
-#define PHY_CONSUMER(_dev_name, _port)				\
-{								\
-	.dev_name	= _dev_name,				\
-	.port		= _port,				\
-}
 
 struct phy_lookup {
 	struct list_head node;
@@ -166,10 +139,9 @@ struct phy *of_phy_get(struct device_node *np, const char *con_id);
 struct phy *of_phy_simple_xlate(struct device *dev,
 	struct of_phandle_args *args);
 struct phy *phy_create(struct device *dev, struct device_node *node,
-		       const struct phy_ops *ops,
-		       struct phy_init_data *init_data);
+		       const struct phy_ops *ops);
 struct phy *devm_phy_create(struct device *dev, struct device_node *node,
-	const struct phy_ops *ops, struct phy_init_data *init_data);
+			    const struct phy_ops *ops);
 void phy_destroy(struct phy *phy);
 void devm_phy_destroy(struct device *dev, struct phy *phy);
 struct phy_provider *__of_phy_provider_register(struct device *dev,
@@ -310,16 +282,14 @@ static inline struct phy *of_phy_simple_xlate(struct device *dev,
 
 static inline struct phy *phy_create(struct device *dev,
 				     struct device_node *node,
-				     const struct phy_ops *ops,
-				     struct phy_init_data *init_data)
+				     const struct phy_ops *ops)
 {
 	return ERR_PTR(-ENOSYS);
 }
 
 static inline struct phy *devm_phy_create(struct device *dev,
 					  struct device_node *node,
-					  const struct phy_ops *ops,
-					  struct phy_init_data *init_data)
+					  const struct phy_ops *ops)
 {
 	return ERR_PTR(-ENOSYS);
 }

@@ -192,8 +192,7 @@ static int phy_berlin_usb_probe(struct platform_device *pdev)
 
 	priv->pll_divider = *((u32 *)match->data);
 
-	priv->phy = devm_phy_create(&pdev->dev, NULL, &phy_berlin_usb_ops,
-				    NULL);
+	priv->phy = devm_phy_create(&pdev->dev, NULL, &phy_berlin_usb_ops);
 	if (IS_ERR(priv->phy)) {
 		dev_err(&pdev->dev, "failed to create PHY\n");
 		return PTR_ERR(priv->phy);

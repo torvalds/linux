@@ -1231,7 +1231,7 @@ static int miphy28lp_probe(struct platform_device *pdev)
 
 		miphy_dev->phys[port] = miphy_phy;
 
-		phy = devm_phy_create(&pdev->dev, child, &miphy28lp_ops, NULL);
+		phy = devm_phy_create(&pdev->dev, child, &miphy28lp_ops);
 		if (IS_ERR(phy)) {
 			dev_err(&pdev->dev, "failed to create PHY\n");
 			return PTR_ERR(phy);

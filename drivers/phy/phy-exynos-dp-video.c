@@ -112,7 +112,7 @@ static int exynos_dp_video_phy_probe(struct platform_device *pdev)
 	match = of_match_node(exynos_dp_video_phy_of_match, dev->of_node);
 	state->drvdata = match->data;
 
-	phy = devm_phy_create(dev, NULL, &exynos_dp_video_phy_ops, NULL);
+	phy = devm_phy_create(dev, NULL, &exynos_dp_video_phy_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create Display Port PHY\n");
 		return PTR_ERR(phy);

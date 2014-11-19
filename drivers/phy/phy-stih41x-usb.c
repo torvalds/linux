@@ -148,7 +148,7 @@ static int stih41x_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(phy_dev->clk);
 	}
 
-	phy = devm_phy_create(dev, NULL, &stih41x_usb_phy_ops, NULL);
+	phy = devm_phy_create(dev, NULL, &stih41x_usb_phy_ops);
 
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create phy\n");
