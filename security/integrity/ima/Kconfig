@@ -131,3 +131,28 @@ config IMA_TRUSTED_KEYRING
 	help
 	   This option requires that all keys added to the .ima
 	   keyring be signed by a key on the system trusted keyring.
+
+config IMA_LOAD_X509
+	bool "Load X509 certificate onto the '.ima' trusted keyring"
+	depends on IMA_TRUSTED_KEYRING
+	default n
+	help
+	   File signature verification is based on the public keys
+	   loaded on the .ima trusted keyring. These public keys are
+	   X509 certificates signed by a trusted key on the
+	   .system keyring.  This option enables X509 certificate
+	   loading from the kernel onto the '.ima' trusted keyring.
+
+config IMA_X509_PATH
+	string "IMA X509 certificate path"
+	depends on IMA_LOAD_X509
+	default "/etc/keys/x509_ima.der"
+	help
+	   This option defines IMA X509 certificate path.
+
+config IMA_APPRAISE_SIGNED_INIT
+	bool "Require signed user-space initialization"
+	depends on IMA_LOAD_X509
+	default n
+	help
+	   This option requires user-space init to be signed.
