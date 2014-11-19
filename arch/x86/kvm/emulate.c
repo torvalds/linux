@@ -2595,7 +2595,6 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 	ret = ops->read_std(ctxt, old_tss_base, &tss_seg, sizeof tss_seg,
 			    &ctxt->exception);
 	if (ret != X86EMUL_CONTINUE)
-		/* FIXME: need to provide precise fault address */
 		return ret;
 
 	save_state_to_tss16(ctxt, &tss_seg);
@@ -2603,13 +2602,11 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 	ret = ops->write_std(ctxt, old_tss_base, &tss_seg, sizeof tss_seg,
 			     &ctxt->exception);
 	if (ret != X86EMUL_CONTINUE)
-		/* FIXME: need to provide precise fault address */
 		return ret;
 
 	ret = ops->read_std(ctxt, new_tss_base, &tss_seg, sizeof tss_seg,
 			    &ctxt->exception);
 	if (ret != X86EMUL_CONTINUE)
-		/* FIXME: need to provide precise fault address */
 		return ret;
 
 	if (old_tss_sel != 0xffff) {
@@ -2620,7 +2617,6 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 				     sizeof tss_seg.prev_task_link,
 				     &ctxt->exception);
 		if (ret != X86EMUL_CONTINUE)
-			/* FIXME: need to provide precise fault address */
 			return ret;
 	}
 
