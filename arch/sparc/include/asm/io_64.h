@@ -101,6 +101,7 @@ static inline void __raw_writeq(u64 q, const volatile void __iomem *addr)
  * the cache by using ASI_PHYS_BYPASS_EC_E_L
  */
 #define readb readb
+#define readb_relaxed readb
 static inline u8 readb(const volatile void __iomem *addr)
 {	u8 ret;
 
@@ -112,6 +113,7 @@ static inline u8 readb(const volatile void __iomem *addr)
 }
 
 #define readw readw
+#define readw_relaxed readw
 static inline u16 readw(const volatile void __iomem *addr)
 {	u16 ret;
 
@@ -124,6 +126,7 @@ static inline u16 readw(const volatile void __iomem *addr)
 }
 
 #define readl readl
+#define readl_relaxed readl
 static inline u32 readl(const volatile void __iomem *addr)
 {	u32 ret;
 
@@ -149,6 +152,7 @@ static inline u64 readq(const volatile void __iomem *addr)
 }
 
 #define writeb writeb
+#define writeb_relaxed writeb
 static inline void writeb(u8 b, volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stba\t%r0, [%1] %2\t/* pci_writeb */"
@@ -158,6 +162,7 @@ static inline void writeb(u8 b, volatile void __iomem *addr)
 }
 
 #define writew writew
+#define writew_relaxed writew
 static inline void writew(u16 w, volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stha\t%r0, [%1] %2\t/* pci_writew */"
@@ -167,6 +172,7 @@ static inline void writew(u16 w, volatile void __iomem *addr)
 }
 
 #define writel writel
+#define writel_relaxed writel
 static inline void writel(u32 l, volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stwa\t%r0, [%1] %2\t/* pci_writel */"
