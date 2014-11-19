@@ -496,25 +496,22 @@ static int btmrvl_cal_data_dt(struct btmrvl_private *priv)
 {
 	struct device_node *dt_node;
 	u8 cal_data[BT_CAL_HDR_LEN + BT_CAL_DATA_SIZE];
-	const char name[] = "btmrvl_caldata";
-	const char property[] = "btmrvl,caldata";
 	int ret;
 
-	dt_node = of_find_node_by_name(NULL, name);
-	if (!dt_node)
-		return -ENODEV;
+	for_each_compatible_node(dt_node, NULL, "btmrvl,cfgdata") {
+		ret = of_property_read_u8_array(dt_node, "btmrvl,cal-data",
+						cal_data + BT_CAL_HDR_LEN,
+						BT_CAL_DATA_SIZE);
+		if (ret)
+			return ret;
 
-	ret = of_property_read_u8_array(dt_node, property,
-					cal_data + BT_CAL_HDR_LEN,
-					BT_CAL_DATA_SIZE);
-	if (ret)
-		return ret;
-
-	BT_DBG("Use cal data from device tree");
-	ret = btmrvl_download_cal_data(priv, cal_data, BT_CAL_DATA_SIZE);
-	if (ret) {
-		BT_ERR("Fail to download calibrate data");
-		return ret;
+		BT_DBG("Use cal data from device tree");
+		ret = btmrvl_download_cal_data(priv, cal_data,
+					       BT_CAL_DATA_SIZE);
+		if (ret) {
+			BT_ERR("Fail to download calibrate data");
+			return ret;
+		}
 	}
 
 	return 0;
