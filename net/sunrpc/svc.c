@@ -1090,7 +1090,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	/* Will be turned off only in gss privacy case: */
 	rqstp->rq_splice_ok = true;
 	/* Will be turned off only when NFSv4 Sessions are used */
-	rqstp->rq_usedeferral = true;
+	set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
 	rqstp->rq_dropme = false;
 
 	/* Setup reply header */
