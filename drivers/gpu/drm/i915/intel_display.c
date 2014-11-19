@@ -4939,10 +4939,23 @@ static void valleyview_modeset_global_resources(struct drm_device *dev)
 	int req_cdclk = valleyview_calc_cdclk(dev_priv, max_pixclk);
 
 	if (req_cdclk != dev_priv->vlv_cdclk_freq) {
+		/*
+		 * FIXME: We can end up here with all power domains off, yet
+		 * with a CDCLK frequency other than the minimum. To account
+		 * for this take the PIPE-A power domain, which covers the HW
+		 * blocks needed for the following programming. This can be
+		 * removed once it's guaranteed that we get here either with
+		 * the minimum CDCLK set, or the required power domains
+		 * enabled.
+		 */
+		intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
+
 		if (IS_CHERRYVIEW(dev))
 			cherryview_set_cdclk(dev, req_cdclk);
 		else
 			valleyview_set_cdclk(dev, req_cdclk);
+
+		intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
 	}
 }
 
