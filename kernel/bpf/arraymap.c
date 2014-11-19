@@ -25,7 +25,7 @@ struct bpf_array {
 static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 {
 	struct bpf_array *array;
-	u32 elem_size;
+	u32 elem_size, array_size;
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
@@ -34,11 +34,17 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 
 	elem_size = round_up(attr->value_size, 8);
 
+	/* check round_up into zero and u32 overflow */
+	if (elem_size == 0 ||
+	    attr->max_entries > (U32_MAX - sizeof(*array)) / elem_size)
+		return ERR_PTR(-ENOMEM);
+
+	array_size = sizeof(*array) + attr->max_entries * elem_size;
+
 	/* allocate all map elements and zero-initialize them */
-	array = kzalloc(sizeof(*array) + attr->max_entries * elem_size,
-			GFP_USER | __GFP_NOWARN);
+	array = kzalloc(array_size, GFP_USER | __GFP_NOWARN);
 	if (!array) {
-		array = vzalloc(array->map.max_entries * array->elem_size);
+		array = vzalloc(array_size);
 		if (!array)
 			return ERR_PTR(-ENOMEM);
 	}
@@ -51,7 +57,6 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 	array->elem_size = elem_size;
 
 	return &array->map;
-
 }
 
 /* Called from syscall or from eBPF program */
@@ -101,7 +106,7 @@ static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
 		return -E2BIG;
 
 	if (map_flags == BPF_NOEXIST)
-		/* all elemenets already exist */
+		/* all elements already exist */
 		return -EEXIST;
 
 	memcpy(array->value + array->elem_size * index, value, array->elem_size);

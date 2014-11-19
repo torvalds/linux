@@ -65,6 +65,11 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		goto free_htab;
 
 	err = -ENOMEM;
+	/* prevent zero size kmalloc and check for u32 overflow */
+	if (htab->n_buckets == 0 ||
+	    htab->n_buckets > U32_MAX / sizeof(struct hlist_head))
+		goto free_htab;
+
 	htab->buckets = kmalloc_array(htab->n_buckets, sizeof(struct hlist_head),
 				      GFP_USER | __GFP_NOWARN);
 
