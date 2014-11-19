@@ -1328,8 +1328,18 @@ static void dispc_init_mflag(void)
 {
 	int i;
 
+	/*
+	 * HACK: NV12 color format and MFLAG seem to have problems working
+	 * together: using two displays, and having an NV12 overlay on one of
+	 * the displays will cause underflows/synclosts when MFLAG_CTRL=2.
+	 * Changing MFLAG thresholds and PRELOAD to certain values seem to
+	 * remove the errors, but there doesn't seem to be a clear logic on
+	 * which values work and which not.
+	 *
+	 * As a work-around, set force MFLAG to always on.
+	 */
 	dispc_write_reg(DISPC_GLOBAL_MFLAG_ATTRIBUTE,
-		(2 << 0) |	/* MFLAG_CTRL = enable */
+		(1 << 0) |	/* MFLAG_CTRL = force always on */
 		(0 << 2));	/* MFLAG_START = disable */
 
 	for (i = 0; i < dss_feat_get_num_ovls(); ++i) {
