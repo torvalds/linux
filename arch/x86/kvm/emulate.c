@@ -690,13 +690,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 		if (!fetch && (desc.type & 8) && !(desc.type & 2))
 			goto bad;
 		lim = desc_limit_scaled(&desc);
-		if ((ctxt->mode == X86EMUL_MODE_REAL) && !fetch &&
-		    (ctxt->d & NoBigReal)) {
-			/* la is between zero and 0xffff */
-			if (la > 0xffff)
-				goto bad;
-			*max_size = 0x10000 - la;
-		} else if ((desc.type & 8) || !(desc.type & 4)) {
+		if ((desc.type & 8) || !(desc.type & 4)) {
 			/* expand-up segment */
 			if (addr.ea > lim)
 				goto bad;
