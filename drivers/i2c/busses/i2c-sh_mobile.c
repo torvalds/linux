@@ -507,6 +507,17 @@ static irqreturn_t sh_mobile_i2c_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void sh_mobile_i2c_dma_unmap(struct sh_mobile_i2c_data *pd)
+{
+	struct dma_chan *chan = pd->dma_direction == DMA_FROM_DEVICE
+				? pd->dma_rx : pd->dma_tx;
+
+	dma_unmap_single(chan->device->dev, sg_dma_address(&pd->sg),
+			 pd->msg->len, pd->dma_direction);
+
+	pd->dma_direction = DMA_NONE;
+}
+
 static void sh_mobile_i2c_cleanup_dma(struct sh_mobile_i2c_data *pd)
 {
 	if (pd->dma_direction == DMA_NONE)
@@ -516,20 +527,14 @@ static void sh_mobile_i2c_cleanup_dma(struct sh_mobile_i2c_data *pd)
 	else if (pd->dma_direction == DMA_TO_DEVICE)
 		dmaengine_terminate_all(pd->dma_tx);
 
-	dma_unmap_single(pd->dev, sg_dma_address(&pd->sg),
-			 pd->msg->len, pd->dma_direction);
-
-	pd->dma_direction = DMA_NONE;
+	sh_mobile_i2c_dma_unmap(pd);
 }
 
 static void sh_mobile_i2c_dma_callback(void *data)
 {
 	struct sh_mobile_i2c_data *pd = data;
 
-	dma_unmap_single(pd->dev, sg_dma_address(&pd->sg),
-			 pd->msg->len, pd->dma_direction);
-
-	pd->dma_direction = DMA_NONE;
+	sh_mobile_i2c_dma_unmap(pd);
 	pd->pos = pd->msg->len;
 
 	iic_set_clr(pd, ICIC, 0, ICIC_TDMAE | ICIC_RDMAE);
@@ -547,7 +552,7 @@ static void sh_mobile_i2c_xfer_dma(struct sh_mobile_i2c_data *pd)
 	if (!chan)
 		return;
 
-	dma_addr = dma_map_single(pd->dev, pd->msg->buf, pd->msg->len, dir);
+	dma_addr = dma_map_single(chan->device->dev, pd->msg->buf, pd->msg->len, dir);
 	if (dma_mapping_error(pd->dev, dma_addr)) {
 		dev_dbg(pd->dev, "dma map failed, using PIO\n");
 		return;
