@@ -292,7 +292,7 @@ static void olq_update_info(struct buffer_head *bh, void *private)
 	ldinfo = (struct ocfs2_local_disk_dqinfo *)(bh->b_data +
 						OCFS2_LOCAL_INFO_OFF);
 	spin_lock(&dq_data_lock);
-	ldinfo->dqi_flags = cpu_to_le32(info->dqi_flags & DQF_MASK);
+	ldinfo->dqi_flags = cpu_to_le32(oinfo->dqi_flags);
 	ldinfo->dqi_chunks = cpu_to_le32(oinfo->dqi_chunks);
 	ldinfo->dqi_blocks = cpu_to_le32(oinfo->dqi_blocks);
 	spin_unlock(&dq_data_lock);
@@ -737,13 +737,13 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	}
 	ldinfo = (struct ocfs2_local_disk_dqinfo *)(bh->b_data +
 						OCFS2_LOCAL_INFO_OFF);
-	info->dqi_flags = le32_to_cpu(ldinfo->dqi_flags);
+	oinfo->dqi_flags = le32_to_cpu(ldinfo->dqi_flags);
 	oinfo->dqi_chunks = le32_to_cpu(ldinfo->dqi_chunks);
 	oinfo->dqi_blocks = le32_to_cpu(ldinfo->dqi_blocks);
 	oinfo->dqi_libh = bh;
 
 	/* We crashed when using local quota file? */
-	if (!(info->dqi_flags & OLQF_CLEAN)) {
+	if (!(oinfo->dqi_flags & OLQF_CLEAN)) {
 		rec = OCFS2_SB(sb)->quota_rec;
 		if (!rec) {
 			rec = ocfs2_alloc_quota_recovery();
@@ -772,7 +772,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	}
 
 	/* Now mark quota file as used */
-	info->dqi_flags &= ~OLQF_CLEAN;
+	oinfo->dqi_flags &= ~OLQF_CLEAN;
 	status = ocfs2_modify_bh(lqinode, bh, olq_update_info, info);
 	if (status < 0) {
 		mlog_errno(status);
@@ -857,7 +857,7 @@ static int ocfs2_local_free_info(struct super_block *sb, int type)
 		goto out;
 
 	/* Mark local file as clean */
-	info->dqi_flags |= OLQF_CLEAN;
+	oinfo->dqi_flags |= OLQF_CLEAN;
 	status = ocfs2_modify_bh(sb_dqopt(sb)->files[type],
 				 oinfo->dqi_libh,
 				 olq_update_info,
