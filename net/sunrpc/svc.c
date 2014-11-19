@@ -482,9 +482,6 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 		spin_lock_init(&pool->sp_lock);
 	}
 
-	if (svc_uses_rpcbind(serv) && (!serv->sv_shutdown))
-		serv->sv_shutdown = svc_rpcb_cleanup;
-
 	return serv;
 }
 
