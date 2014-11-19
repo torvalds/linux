@@ -153,8 +153,6 @@ DO_ERROR_INFO(privileged_op, SIGILL, ILL_PRVOPC,
 	      "privileged operation")
 DO_ERROR_INFO(special_op_exception, SIGILL, ILL_ILLOPN,
 	      "special operation exception")
-DO_ERROR_INFO(translation_exception, SIGILL, ILL_ILLOPN,
-	      "translation exception")
 
 #ifdef CONFIG_64BIT
 DO_ERROR_INFO(transaction_exception, SIGILL, ILL_ILLOPN,
@@ -179,6 +177,12 @@ static inline void do_fp_trap(struct pt_regs *regs, int fpc)
 			si_code = FPE_FLTRES;
 	}
 	do_trap(regs, SIGFPE, si_code, "floating point exception");
+}
+
+void translation_exception(struct pt_regs *regs)
+{
+	/* May never happen. */
+	die(regs, "Translation exception");
 }
 
 void illegal_op(struct pt_regs *regs)
