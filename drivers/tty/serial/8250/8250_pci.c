@@ -1554,25 +1554,48 @@ static int pci_fintek_setup(struct serial_private *priv,
 	unsigned long iobase;
 	unsigned long ciobase = 0;
 	u8 config_base;
+	u32 bar_data[3];
 
 	/*
-	 * We are supposed to be able to read these from the PCI config space,
-	 * but the values there don't seem to match what we need to use, so
-	 * just use these hard-coded values for now, as they are correct.
+	 * Find each UARTs offset in PCI configuraion space
 	 */
 	switch (idx) {
-	case 0: iobase = 0xe000; config_base = 0x40; break;
-	case 1: iobase = 0xe008; config_base = 0x48; break;
-	case 2: iobase = 0xe010; config_base = 0x50; break;
-	case 3: iobase = 0xe018; config_base = 0x58; break;
-	case 4: iobase = 0xe020; config_base = 0x60; break;
-	case 5: iobase = 0xe028; config_base = 0x68; break;
-	case 6: iobase = 0xe030; config_base = 0x70; break;
-	case 7: iobase = 0xe038; config_base = 0x78; break;
-	case 8: iobase = 0xe040; config_base = 0x80; break;
-	case 9: iobase = 0xe048; config_base = 0x88; break;
-	case 10: iobase = 0xe050; config_base = 0x90; break;
-	case 11: iobase = 0xe058; config_base = 0x98; break;
+	case 0:
+		config_base = 0x40;
+		break;
+	case 1:
+		config_base = 0x48;
+		break;
+	case 2:
+		config_base = 0x50;
+		break;
+	case 3:
+		config_base = 0x58;
+		break;
+	case 4:
+		config_base = 0x60;
+		break;
+	case 5:
+		config_base = 0x68;
+		break;
+	case 6:
+		config_base = 0x70;
+		break;
+	case 7:
+		config_base = 0x78;
+		break;
+	case 8:
+		config_base = 0x80;
+		break;
+	case 9:
+		config_base = 0x88;
+		break;
+	case 10:
+		config_base = 0x90;
+		break;
+	case 11:
+		config_base = 0x98;
+		break;
 	default:
 		/* Unknown number of ports, get out of here */
 		return -EINVAL;
@@ -1582,6 +1605,14 @@ static int pci_fintek_setup(struct serial_private *priv,
 		base = pci_resource_start(priv->dev, 3);
 		ciobase = (int)(base + (0x8 * idx));
 	}
+
+	/* Get the io address dispatch from the BIOS */
+	pci_read_config_dword(pdev, 0x24, &bar_data[0]);
+	pci_read_config_dword(pdev, 0x20, &bar_data[1]);
+	pci_read_config_dword(pdev, 0x1c, &bar_data[2]);
+
+	/* Calculate Real IO Port */
+	iobase = (bar_data[idx/4] & 0xffffffe0) + (idx % 4) * 8;
 
 	dev_dbg(&pdev->dev, "%s: idx=%d iobase=0x%lx ciobase=0x%lx config_base=0x%2x\n",
 		__func__, idx, iobase, ciobase, config_base);
