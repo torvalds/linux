@@ -262,6 +262,11 @@ struct smi_info {
 	 */
 	bool supports_event_msg_buff;
 
+	/*
+	 * Did we get an attention that we did not handle?
+	 */
+	bool got_attn;
+
 	/* From the get device id response... */
 	struct ipmi_device_id device_id;
 
@@ -813,25 +818,35 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 	 * We prefer handling attn over new messages.  But don't do
 	 * this if there is not yet an upper layer to handle anything.
 	 */
-	if (likely(smi_info->intf) && si_sm_result == SI_SM_ATTN) {
+	if (likely(smi_info->intf) &&
+	    (si_sm_result == SI_SM_ATTN || smi_info->got_attn)) {
 		unsigned char msg[2];
 
-		smi_inc_stat(smi_info, attentions);
+		if (smi_info->si_state != SI_NORMAL) {
+			/*
+			 * We got an ATTN, but we are doing something else.
+			 * Handle the ATTN later.
+			 */
+			smi_info->got_attn = true;
+		} else {
+			smi_info->got_attn = false;
+			smi_inc_stat(smi_info, attentions);
 
-		/*
-		 * Got a attn, send down a get message flags to see
-		 * what's causing it.  It would be better to handle
-		 * this in the upper layer, but due to the way
-		 * interrupts work with the SMI, that's not really
-		 * possible.
-		 */
-		msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
-		msg[1] = IPMI_GET_MSG_FLAGS_CMD;
+			/*
+			 * Got a attn, send down a get message flags to see
+			 * what's causing it.  It would be better to handle
+			 * this in the upper layer, but due to the way
+			 * interrupts work with the SMI, that's not really
+			 * possible.
+			 */
+			msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
+			msg[1] = IPMI_GET_MSG_FLAGS_CMD;
 
-		smi_info->handlers->start_transaction(
-			smi_info->si_sm, msg, 2);
-		smi_info->si_state = SI_GETTING_FLAGS;
-		goto restart;
+			smi_info->handlers->start_transaction(
+				smi_info->si_sm, msg, 2);
+			smi_info->si_state = SI_GETTING_FLAGS;
+			goto restart;
+		}
 	}
 
 	/* If we are currently idle, try to start the next message. */
