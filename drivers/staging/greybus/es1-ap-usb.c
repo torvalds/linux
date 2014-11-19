@@ -16,6 +16,13 @@
 #include "svc_msg.h"
 #include "kernel_ver.h"
 
+/*
+ * Macros for making pointers explicitly opaque, such that the result
+ * isn't valid but also can't be mistaken for an ERR_PTR() value.
+ */
+#define conceal_urb(urb)	((void *)((uintptr_t)(urb) ^ 0xbad))
+#define reveal_urb(cookie)	((void *)((uintptr_t)(cookie) ^ 0xbad))
+
 /* Memory sizes for the buffers sent to/from the ES1 controller */
 #define ES1_SVC_MSG_SIZE	(sizeof(struct svc_msg) + SZ_64K)
 #define ES1_GBUF_MSG_SIZE	PAGE_SIZE
@@ -241,12 +248,12 @@ static void *buffer_send(struct greybus_host_device *hd, u16 dest_cport_id,
 		return ERR_PTR(retval);
 	}
 
-	return urb;
+	return conceal_urb(urb);
 }
 
 static void buffer_cancel(void *cookie)
 {
-	struct urb *urb = cookie;
+	struct urb *urb = reveal_urb(cookie);
 
 	/*
 	 * We really should be defensive and track all outstanding
