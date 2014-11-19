@@ -126,6 +126,7 @@ static struct net_device_ops l2tp_eth_netdev_ops = {
 	.ndo_uninit		= l2tp_eth_dev_uninit,
 	.ndo_start_xmit		= l2tp_eth_dev_xmit,
 	.ndo_get_stats64	= l2tp_eth_get_stats64,
+	.ndo_set_mac_address	= eth_mac_addr,
 };
 
 static void l2tp_eth_dev_setup(struct net_device *dev)
