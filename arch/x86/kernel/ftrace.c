@@ -712,7 +712,8 @@ union ftrace_op_code_union {
 	} __attribute__((packed));
 };
 
-static unsigned long create_trampoline(struct ftrace_ops *ops)
+static unsigned long
+create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 {
 	unsigned const char *jmp;
 	unsigned long start_offset;
@@ -748,6 +749,8 @@ static unsigned long create_trampoline(struct ftrace_ops *ops)
 	trampoline = alloc_tramp(size + MCOUNT_INSN_SIZE + sizeof(void *));
 	if (!trampoline)
 		return 0;
+
+	*tramp_size = size + MCOUNT_INSN_SIZE + sizeof(void *);
 
 	/* Copy ftrace_caller onto the trampoline memory */
 	ret = probe_kernel_read(trampoline, (void *)start_offset, size);
@@ -819,6 +822,7 @@ void arch_ftrace_update_trampoline(struct ftrace_ops *ops)
 	unsigned char *new;
 	unsigned long offset;
 	unsigned long ip;
+	unsigned int size;
 	int ret;
 
 	if (ops->trampoline) {
@@ -829,9 +833,10 @@ void arch_ftrace_update_trampoline(struct ftrace_ops *ops)
 		if (!(ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP))
 			return;
 	} else {
-		ops->trampoline = create_trampoline(ops);
+		ops->trampoline = create_trampoline(ops, &size);
 		if (!ops->trampoline)
 			return;
+		ops->trampoline_size = size;
 	}
 
 	offset = calc_trampoline_call_offset(ops->flags & FTRACE_OPS_FL_SAVE_REGS);

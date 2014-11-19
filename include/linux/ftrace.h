@@ -150,6 +150,7 @@ struct ftrace_ops {
 	struct ftrace_ops_hash		*func_hash;
 	struct ftrace_ops_hash		old_hash;
 	unsigned long			trampoline;
+	unsigned long			trampoline_size;
 #endif
 };
 
@@ -296,6 +297,8 @@ extern void unregister_ftrace_function_probe_all(char *glob);
 extern int ftrace_text_reserved(const void *start, const void *end);
 
 extern int ftrace_nr_registered_ops(void);
+
+bool is_ftrace_trampoline(unsigned long addr);
 
 /*
  * The dyn_ftrace record's flags field is split into two parts.
@@ -596,6 +599,11 @@ static inline ssize_t ftrace_notrace_write(struct file *file, const char __user 
 			     size_t cnt, loff_t *ppos) { return -ENODEV; }
 static inline int
 ftrace_regex_release(struct inode *inode, struct file *file) { return -ENODEV; }
+
+static inline bool is_ftrace_trampoline(unsigned long addr)
+{
+	return false;
+}
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /* totally disable ftrace - can not re-enable after this */

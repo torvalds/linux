@@ -1117,6 +1117,43 @@ static struct ftrace_ops global_ops = {
 					  FTRACE_OPS_FL_INITIALIZED,
 };
 
+/*
+ * This is used by __kernel_text_address() to return true if the
+ * the address is on a dynamically allocated trampoline that would
+ * not return true for either core_kernel_text() or
+ * is_module_text_address().
+ */
+bool is_ftrace_trampoline(unsigned long addr)
+{
+	struct ftrace_ops *op;
+	bool ret = false;
+
+	/*
+	 * Some of the ops may be dynamically allocated,
+	 * they are freed after a synchronize_sched().
+	 */
+	preempt_disable_notrace();
+
+	do_for_each_ftrace_op(op, ftrace_ops_list) {
+		/*
+		 * This is to check for dynamically allocated trampolines.
+		 * Trampolines that are in kernel text will have
+		 * core_kernel_text() return true.
+		 */
+		if (op->trampoline && op->trampoline_size)
+			if (addr >= op->trampoline &&
+			    addr < op->trampoline + op->trampoline_size) {
+				ret = true;
+				goto out;
+			}
+	} while_for_each_ftrace_op(op);
+
+ out:
+	preempt_enable_notrace();
+
+	return ret;
+}
+
 struct ftrace_page {
 	struct ftrace_page	*next;
 	struct dyn_ftrace	*records;
@@ -5373,6 +5410,7 @@ static struct ftrace_ops graph_ops = {
 				   FTRACE_OPS_FL_STUB,
 #ifdef FTRACE_GRAPH_TRAMP_ADDR
 	.trampoline		= FTRACE_GRAPH_TRAMP_ADDR,
+	/* trampoline_size is only needed for dynamically allocated tramps */
 #endif
 	ASSIGN_OPS_HASH(graph_ops, &global_ops.local_hash)
 };
