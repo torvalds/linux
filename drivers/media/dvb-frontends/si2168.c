@@ -455,7 +455,7 @@ static int si2168_init(struct dvb_frontend *fe)
 			dev_err(&s->client->dev,
 					"firmware file '%s' not found\n",
 					fw_file);
-			goto err;
+			goto error_fw_release;
 		}
 	}
 
@@ -475,7 +475,7 @@ static int si2168_init(struct dvb_frontend *fe)
 			dev_err(&s->client->dev,
 					"firmware download failed=%d\n",
 					ret);
-			goto err;
+			goto error_fw_release;
 		}
 	}
 
@@ -506,9 +506,10 @@ warm:
 	s->active = true;
 
 	return 0;
-err:
-	release_firmware(fw);
 
+error_fw_release:
+	release_firmware(fw);
+err:
 	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
