@@ -178,7 +178,7 @@ static int f2fs_write_meta_page(struct page *page,
 
 	if (unlikely(sbi->por_doing))
 		goto redirty_out;
-	if (wbc->for_reclaim)
+	if (wbc->for_reclaim && page->index < GET_SUM_BLOCK(sbi, 0))
 		goto redirty_out;
 	if (unlikely(f2fs_cp_error(sbi)))
 		goto redirty_out;
@@ -187,6 +187,9 @@ static int f2fs_write_meta_page(struct page *page,
 	write_meta_page(sbi, page);
 	dec_page_count(sbi, F2FS_DIRTY_META);
 	unlock_page(page);
+
+	if (wbc->for_reclaim)
+		f2fs_submit_merged_bio(sbi, META, WRITE);
 	return 0;
 
 redirty_out:
