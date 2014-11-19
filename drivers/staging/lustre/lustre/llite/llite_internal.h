@@ -748,7 +748,7 @@ int ll_file_release(struct inode *inode, struct file *file);
 int ll_glimpse_ioctl(struct ll_sb_info *sbi,
 		     struct lov_stripe_md *lsm, lstat_t *st);
 void ll_ioepoch_open(struct ll_inode_info *lli, __u64 ioepoch);
-int ll_release_openhandle(struct dentry *, struct lookup_intent *);
+int ll_release_openhandle(struct inode *, struct lookup_intent *);
 int ll_md_real_close(struct inode *inode, fmode_t fmode);
 void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		      struct obd_client_handle **och, unsigned long flags);
@@ -763,7 +763,7 @@ struct posix_acl *ll_get_acl(struct inode *inode, int type);
 
 int ll_inode_permission(struct inode *inode, int mask);
 
-int ll_lov_setstripe_ea_info(struct inode *inode, struct file *file,
+int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 			     int flags, struct lov_user_md *lum,
 			     int lum_size);
 int ll_lov_getstripe_ea_info(struct inode *inode, const char *filename,
@@ -1413,7 +1413,7 @@ extern ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 static inline int ll_file_nolock(const struct file *file)
 {
 	struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
 	LASSERT(fd != NULL);
 	return ((fd->fd_flags & LL_FILE_IGNORE_LOCK) ||
@@ -1489,8 +1489,8 @@ static inline void __d_lustre_invalidate(struct dentry *dentry)
  */
 static inline void d_lustre_invalidate(struct dentry *dentry, int nested)
 {
-	CDEBUG(D_DENTRY, "invalidate dentry %.*s (%p) parent %p inode %p "
-	       "refc %d\n", dentry->d_name.len, dentry->d_name.name, dentry,
+	CDEBUG(D_DENTRY, "invalidate dentry %pd (%p) parent %p inode %p "
+	       "refc %d\n", dentry, dentry,
 	       dentry->d_parent, dentry->d_inode, d_count(dentry));
 
 	spin_lock_nested(&dentry->d_lock,
