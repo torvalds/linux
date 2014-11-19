@@ -6318,6 +6318,66 @@ static void ixgbe_watchdog_flush_tx(struct ixgbe_adapter *adapter)
 	}
 }
 
+#ifdef CONFIG_PCI_IOV
+static inline void ixgbe_issue_vf_flr(struct ixgbe_adapter *adapter,
+				      struct pci_dev *vfdev)
+{
+	if (!pci_wait_for_pending_transaction(vfdev))
+		e_dev_warn("Issuing VFLR with pending transactions\n");
+
+	e_dev_err("Issuing VFLR for VF %s\n", pci_name(vfdev));
+	pcie_capability_set_word(vfdev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
+
+	msleep(100);
+}
+
+static void ixgbe_check_for_bad_vf(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *vfdev;
+	u32 gpc;
+	int pos;
+	unsigned short vf_id;
+
+	if (!(netif_carrier_ok(adapter->netdev)))
+		return;
+
+	gpc = IXGBE_READ_REG(hw, IXGBE_TXDGPC);
+	if (gpc) /* If incrementing then no need for the check below */
+		return;
+	/* Check to see if a bad DMA write target from an errant or
+	 * malicious VF has caused a PCIe error.  If so then we can
+	 * issue a VFLR to the offending VF(s) and then resume without
+	 * requesting a full slot reset.
+	 */
+
+	if (!pdev)
+		return;
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+	if (!pos)
+		return;
+
+	/* get the device ID for the VF */
+	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_DID, &vf_id);
+
+	/* check status reg for all VFs owned by this PF */
+	vfdev = pci_get_device(pdev->vendor, vf_id, NULL);
+	while (vfdev) {
+		if (vfdev->is_virtfn && (vfdev->physfn == pdev)) {
+			u16 status_reg;
+
+			pci_read_config_word(vfdev, PCI_STATUS, &status_reg);
+			if (status_reg & PCI_STATUS_REC_MASTER_ABORT)
+				/* issue VFLR */
+				ixgbe_issue_vf_flr(adapter, vfdev);
+		}
+
+		vfdev = pci_get_device(pdev->vendor, vf_id, vfdev);
+	}
+}
+
 static void ixgbe_spoof_check(struct ixgbe_adapter *adapter)
 {
 	u32 ssvpc;
@@ -6338,6 +6398,17 @@ static void ixgbe_spoof_check(struct ixgbe_adapter *adapter)
 
 	e_warn(drv, "%u Spoofed packets detected\n", ssvpc);
 }
+#else
+static void ixgbe_spoof_check(struct ixgbe_adapter __always_unused *adapter)
+{
+}
+
+static void
+ixgbe_check_for_bad_vf(struct ixgbe_adapter __always_unused *adapter)
+{
+}
+#endif /* CONFIG_PCI_IOV */
+
 
 /**
  * ixgbe_watchdog_subtask - check and bring link up
@@ -6358,6 +6429,7 @@ static void ixgbe_watchdog_subtask(struct ixgbe_adapter *adapter)
 	else
 		ixgbe_watchdog_link_is_down(adapter);
 
+	ixgbe_check_for_bad_vf(adapter);
 	ixgbe_spoof_check(adapter);
 	ixgbe_update_stats(adapter);
 
@@ -6469,51 +6541,6 @@ static void ixgbe_sfp_link_config_subtask(struct ixgbe_adapter *adapter)
 	clear_bit(__IXGBE_IN_SFP_INIT, &adapter->state);
 }
 
-#ifdef CONFIG_PCI_IOV
-static void ixgbe_check_for_bad_vf(struct ixgbe_adapter *adapter)
-{
-	int vf;
-	struct ixgbe_hw *hw = &adapter->hw;
-	struct net_device *netdev = adapter->netdev;
-	u32 gpc;
-	u32 ciaa, ciad;
-
-	gpc = IXGBE_READ_REG(hw, IXGBE_TXDGPC);
-	if (gpc) /* If incrementing then no need for the check below */
-		return;
-	/*
-	 * Check to see if a bad DMA write target from an errant or
-	 * malicious VF has caused a PCIe error.  If so then we can
-	 * issue a VFLR to the offending VF(s) and then resume without
-	 * requesting a full slot reset.
-	 */
-
-	for (vf = 0; vf < adapter->num_vfs; vf++) {
-		ciaa = (vf << 16) | 0x80000000;
-		/* 32 bit read so align, we really want status at offset 6 */
-		ciaa |= PCI_COMMAND;
-		IXGBE_WRITE_REG(hw, IXGBE_CIAA_BY_MAC(hw), ciaa);
-		ciad = IXGBE_READ_REG(hw, IXGBE_CIAD_BY_MAC(hw));
-		ciaa &= 0x7FFFFFFF;
-		/* disable debug mode asap after reading data */
-		IXGBE_WRITE_REG(hw, IXGBE_CIAA_BY_MAC(hw), ciaa);
-		/* Get the upper 16 bits which will be the PCI status reg */
-		ciad >>= 16;
-		if (ciad & PCI_STATUS_REC_MASTER_ABORT) {
-			netdev_err(netdev, "VF %d Hung DMA\n", vf);
-			/* Issue VFLR */
-			ciaa = (vf << 16) | 0x80000000;
-			ciaa |= 0xA8;
-			IXGBE_WRITE_REG(hw, IXGBE_CIAA_BY_MAC(hw), ciaa);
-			ciad = 0x00008000;  /* VFLR */
-			IXGBE_WRITE_REG(hw, IXGBE_CIAD_BY_MAC(hw), ciad);
-			ciaa &= 0x7FFFFFFF;
-			IXGBE_WRITE_REG(hw, IXGBE_CIAA_BY_MAC(hw), ciaa);
-		}
-	}
-}
-
-#endif
 /**
  * ixgbe_service_timer - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
@@ -6522,7 +6549,6 @@ static void ixgbe_service_timer(unsigned long data)
 {
 	struct ixgbe_adapter *adapter = (struct ixgbe_adapter *)data;
 	unsigned long next_event_offset;
-	bool ready = true;
 
 	/* poll faster when waiting for link */
 	if (adapter->flags & IXGBE_FLAG_NEED_LINK_UPDATE)
@@ -6530,32 +6556,10 @@ static void ixgbe_service_timer(unsigned long data)
 	else
 		next_event_offset = HZ * 2;
 
-#ifdef CONFIG_PCI_IOV
-	/*
-	 * don't bother with SR-IOV VF DMA hang check if there are
-	 * no VFs or the link is down
-	 */
-	if (!adapter->num_vfs ||
-	    (adapter->flags & IXGBE_FLAG_NEED_LINK_UPDATE))
-		goto normal_timer_service;
-
-	/* If we have VFs allocated then we must check for DMA hangs */
-	ixgbe_check_for_bad_vf(adapter);
-	next_event_offset = HZ / 50;
-	adapter->timer_event_accumulator++;
-
-	if (adapter->timer_event_accumulator >= 100)
-		adapter->timer_event_accumulator = 0;
-	else
-		ready = false;
-
-normal_timer_service:
-#endif
 	/* Reset the timer */
 	mod_timer(&adapter->service_timer, next_event_offset + jiffies);
 
-	if (ready)
-		ixgbe_service_event_schedule(adapter);
+	ixgbe_service_event_schedule(adapter);
 }
 
 static void ixgbe_reset_subtask(struct ixgbe_adapter *adapter)
@@ -8643,8 +8647,7 @@ static pci_ers_result_t ixgbe_io_error_detected(struct pci_dev *pdev,
 		 * VFLR.  Just clean up the AER in that case.
 		 */
 		if (vfdev) {
-			e_dev_err("Issuing VFLR to VF %d\n", vf);
-			pci_write_config_dword(vfdev, 0xA8, 0x00008000);
+			ixgbe_issue_vf_flr(adapter, vfdev);
 			/* Free device reference count */
 			pci_dev_put(vfdev);
 		}
