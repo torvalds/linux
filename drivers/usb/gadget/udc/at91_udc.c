@@ -1537,20 +1537,11 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 
 /*-------------------------------------------------------------------------*/
 
-static void nop_release(struct device *dev)
-{
-	/* nothing to free */
-}
-
 static struct at91_udc controller = {
 	.gadget = {
 		.ops	= &at91_udc_ops,
 		.ep0	= &controller.ep[0].ep,
 		.name	= driver_name,
-		.dev	= {
-			.init_name = "gadget",
-			.release = nop_release,
-		}
 	},
 	.ep[0] = {
 		.ep = {
