@@ -251,17 +251,6 @@
 		};
 
 		internal-regs {
-			pinctrl {
-				compatible = "marvell,mv78260-pinctrl";
-				reg = <0x18000 0x38>;
-
-				sdio_pins: sdio-pins {
-					marvell,pins = "mpp30", "mpp31", "mpp32",
-						       "mpp33", "mpp34", "mpp35";
-					marvell,function = "sd0";
-				};
-			};
-
 			gpio0: gpio@18100 {
 				compatible = "marvell,orion-gpio";
 				reg = <0x18100 0x40>;
@@ -304,4 +293,8 @@
 			};
 		};
 	};
+};
+
+&pinctrl {
+	compatible = "marvell,mv78260-pinctrl";
 };

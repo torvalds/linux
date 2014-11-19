@@ -35,7 +35,7 @@
 		pcie-controller {
 			status = "okay";
 
-			/* Connected to Marvell SATA controller */
+			/* Connected to Marvell 88SE9170 SATA controller */
 			pcie@1,0 {
 				/* Port 0, Lane 0 */
 				status = "okay";
@@ -53,8 +53,9 @@
 				status = "okay";
 			};
 
+			/* eSATA interface */
 			sata@a0000 {
-				nr-ports = <2>;
+				nr-ports = <1>;
 				status = "okay";
 			};
 
@@ -204,20 +205,20 @@
 			default-state = "keep";
 		};
 
-		green-sata1-led {
-			label = "rn102:green:sata1";
+		blue-sata1-led {
+			label = "rn102:blue:sata1";
 			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		green-sata2-led {
-			label = "rn102:green:sata2";
+		blue-sata2-led {
+			label = "rn102:blue:sata2";
 			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		green-backup-led {
-			label = "rn102:green:backup";
+		blue-backup-led {
+			label = "rn102:blue:backup";
 			gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
