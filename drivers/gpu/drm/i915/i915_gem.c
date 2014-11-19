@@ -4964,19 +4964,6 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 		dev_priv->gt.cleanup_ring(ring);
 }
 
-void
-i915_gem_lastclose(struct drm_device *dev)
-{
-	int ret;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return;
-
-	ret = i915_gem_suspend(dev);
-	if (ret)
-		DRM_ERROR("failed to idle hardware: %d\n", ret);
-}
-
 static void
 init_ring_lists(struct intel_engine_cs *ring)
 {

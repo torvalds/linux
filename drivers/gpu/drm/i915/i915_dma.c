@@ -980,21 +980,8 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
  */
 void i915_driver_lastclose(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/* On gen6+ we refuse to init without kms enabled, but then the drm core
-	 * goes right around and calls lastclose. Check for this and don't clean
-	 * up anything. */
-	if (!dev_priv)
-		return;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		intel_fbdev_restore_mode(dev);
-		vga_switcheroo_process_delayed_switch();
-		return;
-	}
-
-	i915_gem_lastclose(dev);
+	intel_fbdev_restore_mode(dev);
+	vga_switcheroo_process_delayed_switch();
 }
 
 void i915_driver_preclose(struct drm_device *dev, struct drm_file *file)
