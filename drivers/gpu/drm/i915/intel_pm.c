@@ -4766,7 +4766,8 @@ static void gen8_enable_rps(struct drm_device *dev)
 
 	/* 6: Ring frequency + overclocking (our driver does this later */
 
-	gen6_set_rps(dev, (I915_READ(GEN6_GT_PERF_STATUS) & 0xff00) >> 8);
+	dev_priv->rps.power = HIGH_POWER; /* force a reset */
+	gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
 
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
