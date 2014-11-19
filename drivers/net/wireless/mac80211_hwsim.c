@@ -2808,8 +2808,7 @@ static int hwsim_del_radio_nl(struct sk_buff *msg, struct genl_info *info)
 			if (data->idx != idx)
 				continue;
 		} else {
-			if (hwname &&
-			    strcmp(hwname, wiphy_name(data->hw->wiphy)))
+			if (strcmp(hwname, wiphy_name(data->hw->wiphy)))
 				continue;
 		}
 
