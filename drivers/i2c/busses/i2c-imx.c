@@ -657,11 +657,7 @@ static int i2c_imx_dma_write(struct imx_i2c_struct *i2c_imx,
 	if (result)
 		return result;
 
-	result = i2c_imx_acked(i2c_imx);
-	if (result)
-		return result;
-
-	return 0;
+	return i2c_imx_acked(i2c_imx);
 }
 
 static int i2c_imx_dma_read(struct imx_i2c_struct *i2c_imx,
