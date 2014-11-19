@@ -530,6 +530,9 @@ enum nft_chain_type {
 	NFT_CHAIN_T_MAX
 };
 
+int nft_chain_validate_dependency(const struct nft_chain *chain,
+				  enum nft_chain_type type);
+
 struct nft_stats {
 	u64			bytes;
 	u64			pkts;

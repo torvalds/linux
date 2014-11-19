@@ -41,6 +41,28 @@ struct efi __read_mostly efi = {
 };
 EXPORT_SYMBOL(efi);
 
+static bool disable_runtime;
+static int __init setup_noefi(char *arg)
+{
+	disable_runtime = true;
+	return 0;
+}
+early_param("noefi", setup_noefi);
+
+bool efi_runtime_disabled(void)
+{
+	return disable_runtime;
+}
+
+static int __init parse_efi_cmdline(char *str)
+{
+	if (parse_option_str(str, "noruntime"))
+		disable_runtime = true;
+
+	return 0;
+}
+early_param("efi", parse_efi_cmdline);
+
 static struct kobject *efi_kobj;
 static struct kobject *efivars_kobj;
 
@@ -423,3 +445,60 @@ int __init efi_get_fdt_params(struct efi_fdt_params *params, int verbose)
 	return ret;
 }
 #endif /* CONFIG_EFI_PARAMS_FROM_FDT */
+
+static __initdata char memory_type_name[][20] = {
+	"Reserved",
+	"Loader Code",
+	"Loader Data",
+	"Boot Code",
+	"Boot Data",
+	"Runtime Code",
+	"Runtime Data",
+	"Conventional Memory",
+	"Unusable Memory",
+	"ACPI Reclaim Memory",
+	"ACPI Memory NVS",
+	"Memory Mapped I/O",
+	"MMIO Port Space",
+	"PAL Code"
+};
+
+char * __init efi_md_typeattr_format(char *buf, size_t size,
+				     const efi_memory_desc_t *md)
+{
+	char *pos;
+	int type_len;
+	u64 attr;
+
+	pos = buf;
+	if (md->type >= ARRAY_SIZE(memory_type_name))
+		type_len = snprintf(pos, size, "[type=%u", md->type);
+	else
+		type_len = snprintf(pos, size, "[%-*s",
+				    (int)(sizeof(memory_type_name[0]) - 1),
+				    memory_type_name[md->type]);
+	if (type_len >= size)
+		return buf;
+
+	pos += type_len;
+	size -= type_len;
+
+	attr = md->attribute;
+	if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
+		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_WP |
+		     EFI_MEMORY_RP | EFI_MEMORY_XP | EFI_MEMORY_RUNTIME))
+		snprintf(pos, size, "|attr=0x%016llx]",
+			 (unsigned long long)attr);
+	else
+		snprintf(pos, size, "|%3s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+			 attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
+			 attr & EFI_MEMORY_XP      ? "XP"  : "",
+			 attr & EFI_MEMORY_RP      ? "RP"  : "",
+			 attr & EFI_MEMORY_WP      ? "WP"  : "",
+			 attr & EFI_MEMORY_UCE     ? "UCE" : "",
+			 attr & EFI_MEMORY_WB      ? "WB"  : "",
+			 attr & EFI_MEMORY_WT      ? "WT"  : "",
+			 attr & EFI_MEMORY_WC      ? "WC"  : "",
+			 attr & EFI_MEMORY_UC      ? "UC"  : "");
+	return buf;
+}

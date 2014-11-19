@@ -19,8 +19,51 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
-#include <asm/uaccess.h> /* for set_fs */
 #include <net/netfilter/nf_tables.h>
+
+static const struct {
+       const char	*name;
+       u8		type;
+} table_to_chaintype[] = {
+       { "filter",     NFT_CHAIN_T_DEFAULT },
+       { "raw",        NFT_CHAIN_T_DEFAULT },
+       { "security",   NFT_CHAIN_T_DEFAULT },
+       { "mangle",     NFT_CHAIN_T_ROUTE },
+       { "nat",        NFT_CHAIN_T_NAT },
+       { },
+};
+
+static int nft_compat_table_to_chaintype(const char *table)
+{
+	int i;
+
+	for (i = 0; table_to_chaintype[i].name != NULL; i++) {
+		if (strcmp(table_to_chaintype[i].name, table) == 0)
+			return table_to_chaintype[i].type;
+	}
+
+	return -1;
+}
+
+static int nft_compat_chain_validate_dependency(const char *tablename,
+						const struct nft_chain *chain)
+{
+	enum nft_chain_type type;
+	const struct nft_base_chain *basechain;
+
+	if (!tablename || !(chain->flags & NFT_BASE_CHAIN))
+		return 0;
+
+	type = nft_compat_table_to_chaintype(tablename);
+	if (type < 0)
+		return -EINVAL;
+
+	basechain = nft_base_chain(chain);
+	if (basechain->type->type != type)
+		return -EINVAL;
+
+	return 0;
+}
 
 union nft_entry {
 	struct ipt_entry e4;
@@ -95,6 +138,8 @@ nft_target_set_tgchk_param(struct xt_tgchk_param *par,
 		const struct nf_hook_ops *ops = &basechain->ops[0];
 
 		par->hook_mask = 1 << ops->hooknum;
+	} else {
+		par->hook_mask = 0;
 	}
 	par->family	= ctx->afi->family;
 }
@@ -150,6 +195,10 @@ nft_target_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	bool inv = false;
 	union nft_entry e = {};
 	int ret;
+
+	ret = nft_compat_chain_validate_dependency(target->table, ctx->chain);
+	if (ret < 0)
+		goto err;
 
 	target_compat_from_user(target, nla_data(tb[NFTA_TARGET_INFO]), info);
 
@@ -216,6 +265,7 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 {
 	struct xt_target *target = expr->ops->data;
 	unsigned int hook_mask = 0;
+	int ret;
 
 	if (ctx->chain->flags & NFT_BASE_CHAIN) {
 		const struct nft_base_chain *basechain =
@@ -223,11 +273,13 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 		const struct nf_hook_ops *ops = &basechain->ops[0];
 
 		hook_mask = 1 << ops->hooknum;
-		if (hook_mask & target->hooks)
-			return 0;
+		if (!(hook_mask & target->hooks))
+			return -EINVAL;
 
-		/* This target is being called from an invalid chain */
-		return -EINVAL;
+		ret = nft_compat_chain_validate_dependency(target->table,
+							   ctx->chain);
+		if (ret < 0)
+			return ret;
 	}
 	return 0;
 }
@@ -293,6 +345,8 @@ nft_match_set_mtchk_param(struct xt_mtchk_param *par, const struct nft_ctx *ctx,
 		const struct nf_hook_ops *ops = &basechain->ops[0];
 
 		par->hook_mask = 1 << ops->hooknum;
+	} else {
+		par->hook_mask = 0;
 	}
 	par->family	= ctx->afi->family;
 }
@@ -319,6 +373,10 @@ nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	bool inv = false;
 	union nft_entry e = {};
 	int ret;
+
+	ret = nft_compat_chain_validate_dependency(match->name, ctx->chain);
+	if (ret < 0)
+		goto err;
 
 	match_compat_from_user(match, nla_data(tb[NFTA_MATCH_INFO]), info);
 
@@ -379,6 +437,7 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 {
 	struct xt_match *match = expr->ops->data;
 	unsigned int hook_mask = 0;
+	int ret;
 
 	if (ctx->chain->flags & NFT_BASE_CHAIN) {
 		const struct nft_base_chain *basechain =
@@ -386,11 +445,13 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 		const struct nf_hook_ops *ops = &basechain->ops[0];
 
 		hook_mask = 1 << ops->hooknum;
-		if (hook_mask & match->hooks)
-			return 0;
+		if (!(hook_mask & match->hooks))
+			return -EINVAL;
 
-		/* This match is being called from an invalid chain */
-		return -EINVAL;
+		ret = nft_compat_chain_validate_dependency(match->name,
+							   ctx->chain);
+		if (ret < 0)
+			return ret;
 	}
 	return 0;
 }
@@ -611,7 +672,7 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 	family = ctx->afi->family;
 
 	/* Re-use the existing target if it's already loaded. */
-	list_for_each_entry(nft_target, &nft_match_list, head) {
+	list_for_each_entry(nft_target, &nft_target_list, head) {
 		struct xt_target *target = nft_target->ops.data;
 
 		if (strcmp(target->name, tg_name) == 0 &&

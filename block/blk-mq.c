@@ -107,11 +107,7 @@ static void blk_mq_usage_counter_release(struct percpu_ref *ref)
 	wake_up_all(&q->mq_freeze_wq);
 }
 
-/*
- * Guarantee no request is in use, so we can change any data structure of
- * the queue afterward.
- */
-void blk_mq_freeze_queue(struct request_queue *q)
+static void blk_mq_freeze_queue_start(struct request_queue *q)
 {
 	bool freeze;
 
@@ -123,7 +119,21 @@ void blk_mq_freeze_queue(struct request_queue *q)
 		percpu_ref_kill(&q->mq_usage_counter);
 		blk_mq_run_queues(q, false);
 	}
+}
+
+static void blk_mq_freeze_queue_wait(struct request_queue *q)
+{
 	wait_event(q->mq_freeze_wq, percpu_ref_is_zero(&q->mq_usage_counter));
+}
+
+/*
+ * Guarantee no request is in use, so we can change any data structure of
+ * the queue afterward.
+ */
+void blk_mq_freeze_queue(struct request_queue *q)
+{
+	blk_mq_freeze_queue_start(q);
+	blk_mq_freeze_queue_wait(q);
 }
 
 static void blk_mq_unfreeze_queue(struct request_queue *q)
@@ -1921,7 +1931,7 @@ void blk_mq_free_queue(struct request_queue *q)
 /* Basically redo blk_mq_init_queue with queue frozen */
 static void blk_mq_queue_reinit(struct request_queue *q)
 {
-	blk_mq_freeze_queue(q);
+	WARN_ON_ONCE(!q->mq_freeze_depth);
 
 	blk_mq_sysfs_unregister(q);
 
@@ -1936,8 +1946,6 @@ static void blk_mq_queue_reinit(struct request_queue *q)
 	blk_mq_map_swqueue(q);
 
 	blk_mq_sysfs_register(q);
-
-	blk_mq_unfreeze_queue(q);
 }
 
 static int blk_mq_queue_reinit_notify(struct notifier_block *nb,
@@ -1956,8 +1964,25 @@ static int blk_mq_queue_reinit_notify(struct notifier_block *nb,
 		return NOTIFY_OK;
 
 	mutex_lock(&all_q_mutex);
+
+	/*
+	 * We need to freeze and reinit all existing queues.  Freezing
+	 * involves synchronous wait for an RCU grace period and doing it
+	 * one by one may take a long time.  Start freezing all queues in
+	 * one swoop and then wait for the completions so that freezing can
+	 * take place in parallel.
+	 */
+	list_for_each_entry(q, &all_q_list, all_q_node)
+		blk_mq_freeze_queue_start(q);
+	list_for_each_entry(q, &all_q_list, all_q_node)
+		blk_mq_freeze_queue_wait(q);
+
 	list_for_each_entry(q, &all_q_list, all_q_node)
 		blk_mq_queue_reinit(q);
+
+	list_for_each_entry(q, &all_q_list, all_q_node)
+		blk_mq_unfreeze_queue(q);
+
 	mutex_unlock(&all_q_mutex);
 	return NOTIFY_OK;
 }

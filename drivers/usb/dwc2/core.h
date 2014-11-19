@@ -619,7 +619,7 @@ struct dwc2_hsotg {
 			unsigned port_suspend_change:1;
 			unsigned port_over_current_change:1;
 			unsigned port_l1_change:1;
-			unsigned reserved:26;
+			unsigned reserved:25;
 		} b;
 	} flags;
 

@@ -55,12 +55,19 @@
 bool separate_tx_rx_irq = 1;
 module_param(separate_tx_rx_irq, bool, 0644);
 
-/* When guest ring is filled up, qdisc queues the packets for us, but we have
- * to timeout them, otherwise other guests' packets can get stuck there
+/* The time that packets can stay on the guest Rx internal queue
+ * before they are dropped.
  */
 unsigned int rx_drain_timeout_msecs = 10000;
 module_param(rx_drain_timeout_msecs, uint, 0444);
 unsigned int rx_drain_timeout_jiffies;
+
+/* The length of time before the frontend is considered unresponsive
+ * because it isn't providing Rx slots.
+ */
+static unsigned int rx_stall_timeout_msecs = 60000;
+module_param(rx_stall_timeout_msecs, uint, 0444);
+static unsigned int rx_stall_timeout_jiffies;
 
 unsigned int xenvif_max_queues;
 module_param_named(max_queues, xenvif_max_queues, uint, 0644);
@@ -83,7 +90,6 @@ static void make_tx_response(struct xenvif_queue *queue,
 			     s8       st);
 
 static inline int tx_work_todo(struct xenvif_queue *queue);
-static inline int rx_work_todo(struct xenvif_queue *queue);
 
 static struct xen_netif_rx_response *make_rx_response(struct xenvif_queue *queue,
 					     u16      id,
@@ -163,6 +169,69 @@ bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue, int needed)
 	return false;
 }
 
+void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&queue->rx_queue.lock, flags);
+
+	__skb_queue_tail(&queue->rx_queue, skb);
+
+	queue->rx_queue_len += skb->len;
+	if (queue->rx_queue_len > queue->rx_queue_max)
+		netif_tx_stop_queue(netdev_get_tx_queue(queue->vif->dev, queue->id));
+
+	spin_unlock_irqrestore(&queue->rx_queue.lock, flags);
+}
+
+static struct sk_buff *xenvif_rx_dequeue(struct xenvif_queue *queue)
+{
+	struct sk_buff *skb;
+
+	spin_lock_irq(&queue->rx_queue.lock);
+
+	skb = __skb_dequeue(&queue->rx_queue);
+	if (skb)
+		queue->rx_queue_len -= skb->len;
+
+	spin_unlock_irq(&queue->rx_queue.lock);
+
+	return skb;
+}
+
+static void xenvif_rx_queue_maybe_wake(struct xenvif_queue *queue)
+{
+	spin_lock_irq(&queue->rx_queue.lock);
+
+	if (queue->rx_queue_len < queue->rx_queue_max)
+		netif_tx_wake_queue(netdev_get_tx_queue(queue->vif->dev, queue->id));
+
+	spin_unlock_irq(&queue->rx_queue.lock);
+}
+
+
+static void xenvif_rx_queue_purge(struct xenvif_queue *queue)
+{
+	struct sk_buff *skb;
+	while ((skb = xenvif_rx_dequeue(queue)) != NULL)
+		kfree_skb(skb);
+}
+
+static void xenvif_rx_queue_drop_expired(struct xenvif_queue *queue)
+{
+	struct sk_buff *skb;
+
+	for(;;) {
+		skb = skb_peek(&queue->rx_queue);
+		if (!skb)
+			break;
+		if (time_before(jiffies, XENVIF_RX_CB(skb)->expires))
+			break;
+		xenvif_rx_dequeue(queue);
+		kfree_skb(skb);
+	}
+}
+
 /*
  * Returns true if we should start a new receive buffer instead of
  * adding 'size' bytes to a buffer which currently contains 'offset'
@@ -236,13 +305,6 @@ static struct xenvif_rx_meta *get_next_rx_buffer(struct xenvif_queue *queue,
 
 	return meta;
 }
-
-struct xenvif_rx_cb {
-	int meta_slots_used;
-	bool full_coalesce;
-};
-
-#define XENVIF_RX_CB(skb) ((struct xenvif_rx_cb *)(skb)->cb)
 
 /*
  * Set up the grant operations for this fragment. If it's a flipping
@@ -587,11 +649,14 @@ static void xenvif_rx_action(struct xenvif_queue *queue)
 
 	skb_queue_head_init(&rxq);
 
-	while ((skb = skb_dequeue(&queue->rx_queue)) != NULL) {
+	while (xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX)
+	       && (skb = xenvif_rx_dequeue(queue)) != NULL) {
 		RING_IDX max_slots_needed;
 		RING_IDX old_req_cons;
 		RING_IDX ring_slots_used;
 		int i;
+
+		queue->last_rx_time = jiffies;
 
 		/* We need a cheap worse case estimate for the number of
 		 * slots we'll use.
@@ -633,15 +698,6 @@ static void xenvif_rx_action(struct xenvif_queue *queue)
 		   (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4 ||
 		    skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6))
 			max_slots_needed++;
-
-		/* If the skb may not fit then bail out now */
-		if (!xenvif_rx_ring_slots_available(queue, max_slots_needed)) {
-			skb_queue_head(&queue->rx_queue, skb);
-			need_to_notify = true;
-			queue->rx_last_skb_slots = max_slots_needed;
-			break;
-		} else
-			queue->rx_last_skb_slots = 0;
 
 		old_req_cons = queue->rx.req_cons;
 		XENVIF_RX_CB(skb)->meta_slots_used = xenvif_gop_skb(skb, &npo, queue);
@@ -1869,12 +1925,6 @@ void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx)
 	}
 }
 
-static inline int rx_work_todo(struct xenvif_queue *queue)
-{
-	return (!skb_queue_empty(&queue->rx_queue) &&
-	       xenvif_rx_ring_slots_available(queue, queue->rx_last_skb_slots));
-}
-
 static inline int tx_work_todo(struct xenvif_queue *queue)
 {
 	if (likely(RING_HAS_UNCONSUMED_REQUESTS(&queue->tx)))
@@ -1931,92 +1981,121 @@ err:
 	return err;
 }
 
-static void xenvif_start_queue(struct xenvif_queue *queue)
+static void xenvif_queue_carrier_off(struct xenvif_queue *queue)
 {
-	if (xenvif_schedulable(queue->vif))
-		xenvif_wake_queue(queue);
+	struct xenvif *vif = queue->vif;
+
+	queue->stalled = true;
+
+	/* At least one queue has stalled? Disable the carrier. */
+	spin_lock(&vif->lock);
+	if (vif->stalled_queues++ == 0) {
+		netdev_info(vif->dev, "Guest Rx stalled");
+		netif_carrier_off(vif->dev);
+	}
+	spin_unlock(&vif->lock);
 }
 
-/* Only called from the queue's thread, it handles the situation when the guest
- * doesn't post enough requests on the receiving ring.
- * First xenvif_start_xmit disables QDisc and start a timer, and then either the
- * timer fires, or the guest send an interrupt after posting new request. If it
- * is the timer, the carrier is turned off here.
- * */
-static void xenvif_rx_purge_event(struct xenvif_queue *queue)
+static void xenvif_queue_carrier_on(struct xenvif_queue *queue)
 {
-	/* Either the last unsuccesful skb or at least 1 slot should fit */
-	int needed = queue->rx_last_skb_slots ?
-		     queue->rx_last_skb_slots : 1;
+	struct xenvif *vif = queue->vif;
 
-	/* It is assumed that if the guest post new slots after this, the RX
-	 * interrupt will set the QUEUE_STATUS_RX_PURGE_EVENT bit and wake up
-	 * the thread again
-	 */
-	set_bit(QUEUE_STATUS_RX_STALLED, &queue->status);
-	if (!xenvif_rx_ring_slots_available(queue, needed)) {
-		rtnl_lock();
-		if (netif_carrier_ok(queue->vif->dev)) {
-			/* Timer fired and there are still no slots. Turn off
-			 * everything except the interrupts
-			 */
-			netif_carrier_off(queue->vif->dev);
-			skb_queue_purge(&queue->rx_queue);
-			queue->rx_last_skb_slots = 0;
-			if (net_ratelimit())
-				netdev_err(queue->vif->dev, "Carrier off due to lack of guest response on queue %d\n", queue->id);
-		} else {
-			/* Probably an another queue already turned the carrier
-			 * off, make sure nothing is stucked in the internal
-			 * queue of this queue
-			 */
-			skb_queue_purge(&queue->rx_queue);
-			queue->rx_last_skb_slots = 0;
-		}
-		rtnl_unlock();
-	} else if (!netif_carrier_ok(queue->vif->dev)) {
-		unsigned int num_queues = queue->vif->num_queues;
-		unsigned int i;
-		/* The carrier was down, but an interrupt kicked
-		 * the thread again after new requests were
-		 * posted
-		 */
-		clear_bit(QUEUE_STATUS_RX_STALLED,
-			  &queue->status);
-		rtnl_lock();
-		netif_carrier_on(queue->vif->dev);
-		netif_tx_wake_all_queues(queue->vif->dev);
-		rtnl_unlock();
+	queue->last_rx_time = jiffies; /* Reset Rx stall detection. */
+	queue->stalled = false;
 
-		for (i = 0; i < num_queues; i++) {
-			struct xenvif_queue *temp = &queue->vif->queues[i];
-
-			xenvif_napi_schedule_or_enable_events(temp);
-		}
-		if (net_ratelimit())
-			netdev_err(queue->vif->dev, "Carrier on again\n");
-	} else {
-		/* Queuing were stopped, but the guest posted
-		 * new requests and sent an interrupt
-		 */
-		clear_bit(QUEUE_STATUS_RX_STALLED,
-			  &queue->status);
-		del_timer_sync(&queue->rx_stalled);
-		xenvif_start_queue(queue);
+	/* All queues are ready? Enable the carrier. */
+	spin_lock(&vif->lock);
+	if (--vif->stalled_queues == 0) {
+		netdev_info(vif->dev, "Guest Rx ready");
+		netif_carrier_on(vif->dev);
 	}
+	spin_unlock(&vif->lock);
+}
+
+static bool xenvif_rx_queue_stalled(struct xenvif_queue *queue)
+{
+	RING_IDX prod, cons;
+
+	prod = queue->rx.sring->req_prod;
+	cons = queue->rx.req_cons;
+
+	return !queue->stalled
+		&& prod - cons < XEN_NETBK_RX_SLOTS_MAX
+		&& time_after(jiffies,
+			      queue->last_rx_time + rx_stall_timeout_jiffies);
+}
+
+static bool xenvif_rx_queue_ready(struct xenvif_queue *queue)
+{
+	RING_IDX prod, cons;
+
+	prod = queue->rx.sring->req_prod;
+	cons = queue->rx.req_cons;
+
+	return queue->stalled
+		&& prod - cons >= XEN_NETBK_RX_SLOTS_MAX;
+}
+
+static bool xenvif_have_rx_work(struct xenvif_queue *queue)
+{
+	return (!skb_queue_empty(&queue->rx_queue)
+		&& xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX))
+		|| xenvif_rx_queue_stalled(queue)
+		|| xenvif_rx_queue_ready(queue)
+		|| kthread_should_stop()
+		|| queue->vif->disabled;
+}
+
+static long xenvif_rx_queue_timeout(struct xenvif_queue *queue)
+{
+	struct sk_buff *skb;
+	long timeout;
+
+	skb = skb_peek(&queue->rx_queue);
+	if (!skb)
+		return MAX_SCHEDULE_TIMEOUT;
+
+	timeout = XENVIF_RX_CB(skb)->expires - jiffies;
+	return timeout < 0 ? 0 : timeout;
+}
+
+/* Wait until the guest Rx thread has work.
+ *
+ * The timeout needs to be adjusted based on the current head of the
+ * queue (and not just the head at the beginning).  In particular, if
+ * the queue is initially empty an infinite timeout is used and this
+ * needs to be reduced when a skb is queued.
+ *
+ * This cannot be done with wait_event_timeout() because it only
+ * calculates the timeout once.
+ */
+static void xenvif_wait_for_rx_work(struct xenvif_queue *queue)
+{
+	DEFINE_WAIT(wait);
+
+	if (xenvif_have_rx_work(queue))
+		return;
+
+	for (;;) {
+		long ret;
+
+		prepare_to_wait(&queue->wq, &wait, TASK_INTERRUPTIBLE);
+		if (xenvif_have_rx_work(queue))
+			break;
+		ret = schedule_timeout(xenvif_rx_queue_timeout(queue));
+		if (!ret)
+			break;
+	}
+	finish_wait(&queue->wq, &wait);
 }
 
 int xenvif_kthread_guest_rx(void *data)
 {
 	struct xenvif_queue *queue = data;
-	struct sk_buff *skb;
+	struct xenvif *vif = queue->vif;
 
-	while (!kthread_should_stop()) {
-		wait_event_interruptible(queue->wq,
-					 rx_work_todo(queue) ||
-					 queue->vif->disabled ||
-					 test_bit(QUEUE_STATUS_RX_PURGE_EVENT, &queue->status) ||
-					 kthread_should_stop());
+	for (;;) {
+		xenvif_wait_for_rx_work(queue);
 
 		if (kthread_should_stop())
 			break;
@@ -2028,35 +2107,38 @@ int xenvif_kthread_guest_rx(void *data)
 		 * context so we defer it here, if this thread is
 		 * associated with queue 0.
 		 */
-		if (unlikely(queue->vif->disabled && queue->id == 0)) {
-			xenvif_carrier_off(queue->vif);
-		} else if (unlikely(queue->vif->disabled)) {
-			/* kthread_stop() would be called upon this thread soon,
-			 * be a bit proactive
-			 */
-			skb_queue_purge(&queue->rx_queue);
-			queue->rx_last_skb_slots = 0;
-		} else if (unlikely(test_and_clear_bit(QUEUE_STATUS_RX_PURGE_EVENT,
-						     &queue->status))) {
-			xenvif_rx_purge_event(queue);
-		} else if (!netif_carrier_ok(queue->vif->dev)) {
-			/* Another queue stalled and turned the carrier off, so
-			 * purge the internal queue of queues which were not
-			 * blocked
-			 */
-			skb_queue_purge(&queue->rx_queue);
-			queue->rx_last_skb_slots = 0;
+		if (unlikely(vif->disabled && queue->id == 0)) {
+			xenvif_carrier_off(vif);
+			xenvif_rx_queue_purge(queue);
+			continue;
 		}
 
 		if (!skb_queue_empty(&queue->rx_queue))
 			xenvif_rx_action(queue);
 
+		/* If the guest hasn't provided any Rx slots for a
+		 * while it's probably not responsive, drop the
+		 * carrier so packets are dropped earlier.
+		 */
+		if (xenvif_rx_queue_stalled(queue))
+			xenvif_queue_carrier_off(queue);
+		else if (xenvif_rx_queue_ready(queue))
+			xenvif_queue_carrier_on(queue);
+
+		/* Queued packets may have foreign pages from other
+		 * domains.  These cannot be queued indefinitely as
+		 * this would starve guests of grant refs and transmit
+		 * slots.
+		 */
+		xenvif_rx_queue_drop_expired(queue);
+
+		xenvif_rx_queue_maybe_wake(queue);
+
 		cond_resched();
 	}
 
 	/* Bin any remaining skbs */
-	while ((skb = skb_dequeue(&queue->rx_queue)) != NULL)
-		dev_kfree_skb(skb);
+	xenvif_rx_queue_purge(queue);
 
 	return 0;
 }
@@ -2113,6 +2195,7 @@ static int __init netback_init(void)
 		goto failed_init;
 
 	rx_drain_timeout_jiffies = msecs_to_jiffies(rx_drain_timeout_msecs);
+	rx_stall_timeout_jiffies = msecs_to_jiffies(rx_stall_timeout_msecs);
 
 #ifdef CONFIG_DEBUG_FS
 	xen_netback_dbg_root = debugfs_create_dir("xen-netback", NULL);

@@ -48,7 +48,7 @@ static void gpio_trig_work(struct work_struct *work)
 	if (!gpio_data->gpio)
 		return;
 
-	tmp = gpio_get_value(gpio_data->gpio);
+	tmp = gpio_get_value_cansleep(gpio_data->gpio);
 	if (gpio_data->inverted)
 		tmp = !tmp;
 

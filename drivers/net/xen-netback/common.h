@@ -176,10 +176,11 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	char rx_irq_name[IRQ_NAME_SIZE]; /* DEVNAME-qN-rx */
 	struct xen_netif_rx_back_ring rx;
 	struct sk_buff_head rx_queue;
-	RING_IDX rx_last_skb_slots;
-	unsigned long status;
 
-	struct timer_list rx_stalled;
+	unsigned int rx_queue_max;
+	unsigned int rx_queue_len;
+	unsigned long last_rx_time;
+	bool stalled;
 
 	struct gnttab_copy grant_copy_op[MAX_GRANT_COPY_OPS];
 
@@ -199,18 +200,14 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	struct xenvif_stats stats;
 };
 
+/* Maximum number of Rx slots a to-guest packet may use, including the
+ * slot needed for GSO meta-data.
+ */
+#define XEN_NETBK_RX_SLOTS_MAX (MAX_SKB_FRAGS + 1)
+
 enum state_bit_shift {
 	/* This bit marks that the vif is connected */
 	VIF_STATUS_CONNECTED,
-	/* This bit signals the RX thread that queuing was stopped (in
-	 * start_xmit), and either the timer fired or an RX interrupt came
-	 */
-	QUEUE_STATUS_RX_PURGE_EVENT,
-	/* This bit tells the interrupt handler that this queue was the reason
-	 * for the carrier off, so it should kick the thread. Only queues which
-	 * brought it down can turn on the carrier.
-	 */
-	QUEUE_STATUS_RX_STALLED
 };
 
 struct xenvif {
@@ -228,9 +225,6 @@ struct xenvif {
 	u8 ip_csum:1;
 	u8 ipv6_csum:1;
 
-	/* Internal feature information. */
-	u8 can_queue:1;	    /* can queue packets for receiver? */
-
 	/* Is this interface disabled? True when backend discovers
 	 * frontend is rogue.
 	 */
@@ -240,6 +234,9 @@ struct xenvif {
 	/* Queues */
 	struct xenvif_queue *queues;
 	unsigned int num_queues; /* active queues, resource allocated */
+	unsigned int stalled_queues;
+
+	spinlock_t lock;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *xenvif_dbg_root;
@@ -248,6 +245,14 @@ struct xenvif {
 	/* Miscellaneous private stuff. */
 	struct net_device *dev;
 };
+
+struct xenvif_rx_cb {
+	unsigned long expires;
+	int meta_slots_used;
+	bool full_coalesce;
+};
+
+#define XENVIF_RX_CB(skb) ((struct xenvif_rx_cb *)(skb)->cb)
 
 static inline struct xenbus_device *xenvif_to_xenbus_device(struct xenvif *vif)
 {
@@ -272,8 +277,6 @@ void xenvif_xenbus_fini(void);
 
 int xenvif_schedulable(struct xenvif *vif);
 
-int xenvif_must_stop_queue(struct xenvif_queue *queue);
-
 int xenvif_queue_stopped(struct xenvif_queue *queue);
 void xenvif_wake_queue(struct xenvif_queue *queue);
 
@@ -295,6 +298,8 @@ int xenvif_kthread_guest_rx(void *data);
 void xenvif_kick_thread(struct xenvif_queue *queue);
 
 int xenvif_dealloc_kthread(void *data);
+
+void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
 
 /* Determine whether the needed number of slots (req) are available,
  * and set req_event if not.

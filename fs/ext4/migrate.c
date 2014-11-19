@@ -41,8 +41,7 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	ext4_ext_store_pblock(&newext, lb->first_pblock);
 	/* Locking only for convinience since we are operating on temp inode */
 	down_write(&EXT4_I(inode)->i_data_sem);
-	path = ext4_ext_find_extent(inode, lb->first_block, NULL, 0);
-
+	path = ext4_find_extent(inode, lb->first_block, NULL, 0);
 	if (IS_ERR(path)) {
 		retval = PTR_ERR(path);
 		path = NULL;
@@ -81,13 +80,11 @@ static int finish_range(handle_t *handle, struct inode *inode,
 				goto err_out;
 		}
 	}
-	retval = ext4_ext_insert_extent(handle, inode, path, &newext, 0);
+	retval = ext4_ext_insert_extent(handle, inode, &path, &newext, 0);
 err_out:
 	up_write((&EXT4_I(inode)->i_data_sem));
-	if (path) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
-	}
+	ext4_ext_drop_refs(path);
+	kfree(path);
 	lb->first_pblock = 0;
 	return retval;
 }

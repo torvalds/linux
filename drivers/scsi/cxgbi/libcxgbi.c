@@ -399,6 +399,35 @@ EXPORT_SYMBOL_GPL(cxgbi_hbas_add);
  *   If the source port is outside our allocation range, the caller is
  *   responsible for keeping track of their port usage.
  */
+
+static struct cxgbi_sock *find_sock_on_port(struct cxgbi_device *cdev,
+					    unsigned char port_id)
+{
+	struct cxgbi_ports_map *pmap = &cdev->pmap;
+	unsigned int i;
+	unsigned int used;
+
+	if (!pmap->max_connect || !pmap->used)
+		return NULL;
+
+	spin_lock_bh(&pmap->lock);
+	used = pmap->used;
+	for (i = 0; used && i < pmap->max_connect; i++) {
+		struct cxgbi_sock *csk = pmap->port_csk[i];
+
+		if (csk) {
+			if (csk->port_id == port_id) {
+				spin_unlock_bh(&pmap->lock);
+				return csk;
+			}
+			used--;
+		}
+	}
+	spin_unlock_bh(&pmap->lock);
+
+	return NULL;
+}
+
 static int sock_get_port(struct cxgbi_sock *csk)
 {
 	struct cxgbi_device *cdev = csk->cdev;
@@ -749,6 +778,7 @@ static struct cxgbi_sock *cxgbi_check_route6(struct sockaddr *dst_addr)
 	csk->daddr6.sin6_addr = daddr6->sin6_addr;
 	csk->daddr6.sin6_port = daddr6->sin6_port;
 	csk->daddr6.sin6_family = daddr6->sin6_family;
+	csk->saddr6.sin6_family = daddr6->sin6_family;
 	csk->saddr6.sin6_addr = pref_saddr;
 
 	neigh_release(n);
@@ -875,18 +905,16 @@ void cxgbi_sock_rcv_abort_rpl(struct cxgbi_sock *csk)
 {
 	cxgbi_sock_get(csk);
 	spin_lock_bh(&csk->lock);
+
+	cxgbi_sock_set_flag(csk, CTPF_ABORT_RPL_RCVD);
 	if (cxgbi_sock_flag(csk, CTPF_ABORT_RPL_PENDING)) {
-		if (!cxgbi_sock_flag(csk, CTPF_ABORT_RPL_RCVD))
-			cxgbi_sock_set_flag(csk, CTPF_ABORT_RPL_RCVD);
-		else {
-			cxgbi_sock_clear_flag(csk, CTPF_ABORT_RPL_RCVD);
-			cxgbi_sock_clear_flag(csk, CTPF_ABORT_RPL_PENDING);
-			if (cxgbi_sock_flag(csk, CTPF_ABORT_REQ_RCVD))
-				pr_err("csk 0x%p,%u,0x%lx,%u,ABT_RPL_RSS.\n",
-					csk, csk->state, csk->flags, csk->tid);
-			cxgbi_sock_closed(csk);
-		}
+		cxgbi_sock_clear_flag(csk, CTPF_ABORT_RPL_PENDING);
+		if (cxgbi_sock_flag(csk, CTPF_ABORT_REQ_RCVD))
+			pr_err("csk 0x%p,%u,0x%lx,%u,ABT_RPL_RSS.\n",
+			       csk, csk->state, csk->flags, csk->tid);
+		cxgbi_sock_closed(csk);
 	}
+
 	spin_unlock_bh(&csk->lock);
 	cxgbi_sock_put(csk);
 }
@@ -2647,12 +2675,14 @@ int cxgbi_get_host_param(struct Scsi_Host *shost, enum iscsi_host_param param,
 		break;
 	case ISCSI_HOST_PARAM_IPADDRESS:
 	{
-		__be32 addr;
-
-		addr = cxgbi_get_iscsi_ipv4(chba);
-		len = sprintf(buf, "%pI4", &addr);
+		struct cxgbi_sock *csk = find_sock_on_port(chba->cdev,
+							   chba->port_id);
+		if (csk) {
+			len = sprintf(buf, "%pIS",
+				      (struct sockaddr *)&csk->saddr);
+		}
 		log_debug(1 << CXGBI_DBG_ISCSI,
-			"hba %s, ipv4 %pI4.\n", chba->ndev->name, &addr);
+			  "hba %s, addr %s.\n", chba->ndev->name, buf);
 		break;
 	}
 	default:

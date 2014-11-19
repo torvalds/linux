@@ -13,4 +13,7 @@ int nft_masq_init(const struct nft_ctx *ctx,
 
 int nft_masq_dump(struct sk_buff *skb, const struct nft_expr *expr);
 
+int nft_masq_validate(const struct nft_ctx *ctx, const struct nft_expr *expr,
+		      const struct nft_data **data);
+
 #endif /* _NFT_MASQ_H_ */

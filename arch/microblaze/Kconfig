@@ -129,6 +129,10 @@ endmenu
 
 menu "Kernel features"
 
+config NR_CPUS
+	int
+	default "1"
+
 config ADVANCED_OPTIONS
 	bool "Prompt for advanced kernel configuration options"
 	help

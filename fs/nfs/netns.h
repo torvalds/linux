@@ -19,6 +19,7 @@ struct nfs_net {
 	struct rpc_pipe *bl_device_pipe;
 	struct bl_dev_msg bl_mount_reply;
 	wait_queue_head_t bl_wq;
+	struct mutex bl_mutex;
 	struct list_head nfs_client_list;
 	struct list_head nfs_volume_list;
 #if IS_ENABLED(CONFIG_NFS_V4)

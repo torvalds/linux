@@ -952,6 +952,7 @@ int radeon_atombios_init(struct radeon_device *rdev)
 	}
 
 	mutex_init(&rdev->mode_info.atom_context->mutex);
+	mutex_init(&rdev->mode_info.atom_context->scratch_mutex);
 	radeon_atom_initialize_bios_scratch_regs(rdev->ddev);
 	atom_allocate_fb_scratch(rdev->mode_info.atom_context);
 	return 0;
@@ -1130,7 +1131,7 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 	if (radeon_vm_block_size == -1) {
 
 		/* Total bits covered by PD + PTs */
-		unsigned bits = ilog2(radeon_vm_size) + 17;
+		unsigned bits = ilog2(radeon_vm_size) + 18;
 
 		/* Make sure the PD is 4K in size up to 8GB address space.
 		   Above that split equal between PD and PTs */

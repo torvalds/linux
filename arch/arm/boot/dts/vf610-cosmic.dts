@@ -33,6 +33,13 @@
 
 };
 
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	bus-width = <4>;
+	status = "okay";
+};
+
 &fec1 {
 	phy-mode = "rmii";
 	pinctrl-names = "default";
@@ -42,6 +49,18 @@
 
 &iomuxc {
 	vf610-cosmic {
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,pins = <
+				VF610_PAD_PTA24__ESDHC1_CLK	0x31ef
+				VF610_PAD_PTA25__ESDHC1_CMD	0x31ef
+				VF610_PAD_PTA26__ESDHC1_DAT0	0x31ef
+				VF610_PAD_PTA27__ESDHC1_DAT1	0x31ef
+				VF610_PAD_PTA28__ESDHC1_DATA2	0x31ef
+				VF610_PAD_PTA29__ESDHC1_DAT3	0x31ef
+				VF610_PAD_PTB28__GPIO_98	0x219d
+			>;
+		};
+
 		pinctrl_fec1: fec1grp {
 			fsl,pins = <
 				VF610_PAD_PTC9__ENET_RMII1_MDC		0x30d2

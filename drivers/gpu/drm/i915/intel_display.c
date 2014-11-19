@@ -73,9 +73,6 @@ static const uint32_t intel_cursor_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
-#define DIV_ROUND_CLOSEST_ULL(ll, d)	\
-({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
-
 static void intel_increase_pllclock(struct drm_device *dev,
 				    enum pipe pipe);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
@@ -4588,7 +4585,7 @@ static void vlv_update_cdclk(struct drm_device *dev)
 	 * BSpec erroneously claims we should aim for 4MHz, but
 	 * in fact 1MHz is the correct frequency.
 	 */
-	I915_WRITE(GMBUSFREQ_VLV, dev_priv->vlv_cdclk_freq);
+	I915_WRITE(GMBUSFREQ_VLV, DIV_ROUND_UP(dev_priv->vlv_cdclk_freq, 1000));
 }
 
 /* Adjust CDclk dividers to allow high res or save power if possible */
@@ -12357,27 +12354,36 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(PCH_DP_D) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_D, PORT_D);
 	} else if (IS_VALLEYVIEW(dev)) {
-		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIB) & SDVO_DETECTED) {
+		/*
+		 * The DP_DETECTED bit is the latched state of the DDC
+		 * SDA pin at boot. However since eDP doesn't require DDC
+		 * (no way to plug in a DP->HDMI dongle) the DDC pins for
+		 * eDP ports may have been muxed to an alternate function.
+		 * Thus we can't rely on the DP_DETECTED bit alone to detect
+		 * eDP ports. Consult the VBT as well as DP_DETECTED to
+		 * detect eDP ports.
+		 */
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIB) & SDVO_DETECTED)
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIB,
 					PORT_B);
-			if (I915_READ(VLV_DISPLAY_BASE + DP_B) & DP_DETECTED)
-				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_B, PORT_B);
-		}
+		if (I915_READ(VLV_DISPLAY_BASE + DP_B) & DP_DETECTED ||
+		    intel_dp_is_edp(dev, PORT_B))
+			intel_dp_init(dev, VLV_DISPLAY_BASE + DP_B, PORT_B);
 
-		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIC) & SDVO_DETECTED) {
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIC) & SDVO_DETECTED)
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIC,
 					PORT_C);
-			if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED)
-				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
-		}
+		if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED ||
+		    intel_dp_is_edp(dev, PORT_C))
+			intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
 
 		if (IS_CHERRYVIEW(dev)) {
-			if (I915_READ(VLV_DISPLAY_BASE + CHV_HDMID) & SDVO_DETECTED) {
+			if (I915_READ(VLV_DISPLAY_BASE + CHV_HDMID) & SDVO_DETECTED)
 				intel_hdmi_init(dev, VLV_DISPLAY_BASE + CHV_HDMID,
 						PORT_D);
-				if (I915_READ(VLV_DISPLAY_BASE + DP_D) & DP_DETECTED)
-					intel_dp_init(dev, VLV_DISPLAY_BASE + DP_D, PORT_D);
-			}
+			/* eDP not supported on port D, so don't check VBT */
+			if (I915_READ(VLV_DISPLAY_BASE + DP_D) & DP_DETECTED)
+				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_D, PORT_D);
 		}
 
 		intel_dsi_init(dev);
@@ -12878,6 +12884,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Acer C720 Chromebook (Core i3 4005U) */
 	{ 0x0a16, 0x1025, 0x0a11, quirk_backlight_present },
+
+	/* Apple Macbook 2,1 (Core 2 T7400) */
+	{ 0x27a2, 0x8086, 0x7270, quirk_backlight_present },
 
 	/* Toshiba CB35 Chromebook (Celeron 2955U) */
 	{ 0x0a06, 0x1179, 0x0a88, quirk_backlight_present },

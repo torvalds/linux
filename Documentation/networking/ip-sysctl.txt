@@ -56,6 +56,13 @@ ip_forward_use_pmtu - BOOLEAN
 	0 - disabled
 	1 - enabled
 
+fwmark_reflect - BOOLEAN
+	Controls the fwmark of kernel-generated IPv4 reply packets that are not
+	associated with a socket for example, TCP RSTs or ICMP echo replies).
+	If unset, these packets have a fwmark of zero. If set, they have the
+	fwmark of the packet they are replying to.
+	Default: 0
+
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
@@ -1200,6 +1207,13 @@ conf/all/forwarding - BOOLEAN
 
 proxy_ndp - BOOLEAN
 	Do proxy ndp.
+
+fwmark_reflect - BOOLEAN
+	Controls the fwmark of kernel-generated IPv6 reply packets that are not
+	associated with a socket for example, TCP RSTs or ICMPv6 echo replies).
+	If unset, these packets have a fwmark of zero. If set, they have the
+	fwmark of the packet they are replying to.
+	Default: 0
 
 conf/interface/*:
 	Change special settings per interface.

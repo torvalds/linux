@@ -682,6 +682,7 @@ void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 	slice_convert(mm, mask, psize);
 }
 
+#ifdef CONFIG_HUGETLB_PAGE
 /*
  * is_hugepage_only_range() is used by generic code to verify whether
  * a normal mmap mapping (non hugetlbfs) is valid on a given area.
@@ -726,4 +727,4 @@ int is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 #endif
 	return !slice_check_fit(mask, available);
 }
-
+#endif

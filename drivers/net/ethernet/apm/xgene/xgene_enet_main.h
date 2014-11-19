@@ -38,6 +38,9 @@
 #define SKB_BUFFER_SIZE		(XGENE_ENET_MAX_MTU - NET_IP_ALIGN)
 #define NUM_PKT_BUF	64
 #define NUM_BUFPOOL	32
+#define START_ETH_BUFNUM	2
+#define START_BP_BUFNUM		0x22
+#define START_RING_NUM		8
 
 #define PHY_POLL_LINK_ON	(10 * HZ)
 #define PHY_POLL_LINK_OFF	(PHY_POLL_LINK_ON / 5)
@@ -83,7 +86,7 @@ struct xgene_mac_ops {
 };
 
 struct xgene_port_ops {
-	void (*reset)(struct xgene_enet_pdata *pdata);
+	int (*reset)(struct xgene_enet_pdata *pdata);
 	void (*cle_bypass)(struct xgene_enet_pdata *pdata,
 			   u32 dst_ring_num, u16 bufpool_id);
 	void (*shutdown)(struct xgene_enet_pdata *pdata);

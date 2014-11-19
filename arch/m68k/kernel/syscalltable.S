@@ -374,4 +374,5 @@ ENTRY(sys_call_table)
 	.long sys_renameat2
 	.long sys_getrandom
 	.long sys_memfd_create
+	.long sys_bpf
 

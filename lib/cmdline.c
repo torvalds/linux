@@ -160,3 +160,32 @@ unsigned long long memparse(const char *ptr, char **retptr)
 	return ret;
 }
 EXPORT_SYMBOL(memparse);
+
+/**
+ *	parse_option_str - Parse a string and check an option is set or not
+ *	@str: String to be parsed
+ *	@option: option name
+ *
+ *	This function parses a string containing a comma-separated list of
+ *	strings like a=b,c.
+ *
+ *	Return true if there's such option in the string, or return false.
+ */
+bool parse_option_str(const char *str, const char *option)
+{
+	while (*str) {
+		if (!strncmp(str, option, strlen(option))) {
+			str += strlen(option);
+			if (!*str || *str == ',')
+				return true;
+		}
+
+		while (*str && *str != ',')
+			str++;
+
+		if (*str == ',')
+			str++;
+	}
+
+	return false;
+}

@@ -21,60 +21,64 @@
 
 #include "cxl.h"
 
-static struct cxl_sste* find_free_sste(struct cxl_sste *primary_group,
-				       bool sec_hash,
-				       struct cxl_sste *secondary_group,
-				       unsigned int *lru)
+static bool sste_matches(struct cxl_sste *sste, struct copro_slb *slb)
 {
-	unsigned int i, entry;
-	struct cxl_sste *sste, *group = primary_group;
-
-	for (i = 0; i < 2; i++) {
-		for (entry = 0; entry < 8; entry++) {
-			sste = group + entry;
-			if (!(be64_to_cpu(sste->esid_data) & SLB_ESID_V))
-				return sste;
-		}
-		if (!sec_hash)
-			break;
-		group = secondary_group;
-	}
-	/* Nothing free, select an entry to cast out */
-	if (sec_hash && (*lru & 0x8))
-		sste = secondary_group + (*lru & 0x7);
-	else
-		sste = primary_group + (*lru & 0x7);
-	*lru = (*lru + 1) & 0xf;
-
-	return sste;
+	return ((sste->vsid_data == cpu_to_be64(slb->vsid)) &&
+		(sste->esid_data == cpu_to_be64(slb->esid)));
 }
 
-static void cxl_load_segment(struct cxl_context *ctx, struct copro_slb *slb)
+/*
+ * This finds a free SSTE for the given SLB, or returns NULL if it's already in
+ * the segment table.
+ */
+static struct cxl_sste* find_free_sste(struct cxl_context *ctx,
+				       struct copro_slb *slb)
 {
-	/* mask is the group index, we search primary and secondary here. */
-	unsigned int mask = (ctx->sst_size >> 7)-1; /* SSTP0[SegTableSize] */
-	bool sec_hash = 1;
-	struct cxl_sste *sste;
+	struct cxl_sste *primary, *sste, *ret = NULL;
+	unsigned int mask = (ctx->sst_size >> 7) - 1; /* SSTP0[SegTableSize] */
+	unsigned int entry;
 	unsigned int hash;
-	unsigned long flags;
-
-
-	sec_hash = !!(cxl_p1n_read(ctx->afu, CXL_PSL_SR_An) & CXL_PSL_SR_An_SC);
 
 	if (slb->vsid & SLB_VSID_B_1T)
 		hash = (slb->esid >> SID_SHIFT_1T) & mask;
 	else /* 256M */
 		hash = (slb->esid >> SID_SHIFT) & mask;
 
+	primary = ctx->sstp + (hash << 3);
+
+	for (entry = 0, sste = primary; entry < 8; entry++, sste++) {
+		if (!ret && !(be64_to_cpu(sste->esid_data) & SLB_ESID_V))
+			ret = sste;
+		if (sste_matches(sste, slb))
+			return NULL;
+	}
+	if (ret)
+		return ret;
+
+	/* Nothing free, select an entry to cast out */
+	ret = primary + ctx->sst_lru;
+	ctx->sst_lru = (ctx->sst_lru + 1) & 0x7;
+
+	return ret;
+}
+
+static void cxl_load_segment(struct cxl_context *ctx, struct copro_slb *slb)
+{
+	/* mask is the group index, we search primary and secondary here. */
+	struct cxl_sste *sste;
+	unsigned long flags;
+
 	spin_lock_irqsave(&ctx->sste_lock, flags);
-	sste = find_free_sste(ctx->sstp + (hash << 3), sec_hash,
-			      ctx->sstp + ((~hash & mask) << 3), &ctx->sst_lru);
+	sste = find_free_sste(ctx, slb);
+	if (!sste)
+		goto out_unlock;
 
 	pr_devel("CXL Populating SST[%li]: %#llx %#llx\n",
 			sste - ctx->sstp, slb->vsid, slb->esid);
 
 	sste->vsid_data = cpu_to_be64(slb->vsid);
 	sste->esid_data = cpu_to_be64(slb->esid);
+out_unlock:
 	spin_unlock_irqrestore(&ctx->sste_lock, flags);
 }
 
