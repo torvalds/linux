@@ -503,13 +503,15 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 	unsigned int npools = svc_pool_map_get();
 
 	serv = __svc_create(prog, bufsize, npools, shutdown);
+	if (!serv)
+		goto out_err;
 
-	if (serv != NULL) {
-		serv->sv_function = func;
-		serv->sv_module = mod;
-	}
-
+	serv->sv_function = func;
+	serv->sv_module = mod;
 	return serv;
+out_err:
+	svc_pool_map_put();
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(svc_create_pooled);
 
