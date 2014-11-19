@@ -1133,8 +1133,7 @@ static int drbd_check_al_size(struct drbd_device *device, struct disk_conf *dc)
 		lc_destroy(n);
 		return -EBUSY;
 	} else {
-		if (t)
-			lc_destroy(t);
+		lc_destroy(t);
 	}
 	drbd_md_mark_dirty(device); /* we changed device->act_log->nr_elemens */
 	return 0;
