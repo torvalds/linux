@@ -26,6 +26,7 @@
 #include <linux/of_platform.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/i2c/i2c-sh_mobile.h>
 #include <linux/io.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
@@ -192,11 +193,18 @@ static struct resource i2c4_resources[] = {
 	},
 };
 
+static struct i2c_sh_mobile_platform_data i2c_platform_data = {
+	.clks_per_count	= 2,
+};
+
 static struct platform_device i2c0_device = {
 	.name		= "i2c-sh_mobile",
 	.id		= 0,
 	.resource	= i2c0_resources,
 	.num_resources	= ARRAY_SIZE(i2c0_resources),
+	.dev		= {
+		.platform_data	= &i2c_platform_data,
+	},
 };
 
 static struct platform_device i2c1_device = {
@@ -204,6 +212,9 @@ static struct platform_device i2c1_device = {
 	.id		= 1,
 	.resource	= i2c1_resources,
 	.num_resources	= ARRAY_SIZE(i2c1_resources),
+	.dev		= {
+		.platform_data	= &i2c_platform_data,
+	},
 };
 
 static struct platform_device i2c2_device = {
@@ -211,6 +222,9 @@ static struct platform_device i2c2_device = {
 	.id		= 2,
 	.resource	= i2c2_resources,
 	.num_resources	= ARRAY_SIZE(i2c2_resources),
+	.dev		= {
+		.platform_data	= &i2c_platform_data,
+	},
 };
 
 static struct platform_device i2c3_device = {
@@ -218,6 +232,9 @@ static struct platform_device i2c3_device = {
 	.id		= 3,
 	.resource	= i2c3_resources,
 	.num_resources	= ARRAY_SIZE(i2c3_resources),
+	.dev		= {
+		.platform_data	= &i2c_platform_data,
+	},
 };
 
 static struct platform_device i2c4_device = {
@@ -225,6 +242,9 @@ static struct platform_device i2c4_device = {
 	.id		= 4,
 	.resource	= i2c4_resources,
 	.num_resources	= ARRAY_SIZE(i2c4_resources),
+	.dev		= {
+		.platform_data	= &i2c_platform_data,
+	},
 };
 
 static const struct sh_dmae_slave_config sh73a0_dmae_slaves[] = {
