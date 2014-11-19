@@ -22,5 +22,5 @@ Optional properties:
  - clocks, clock-names: contains clocks according to the common clock bindings.
 
               supported clocks:
-	      - KSZ8021, KSZ8031: "rmii-ref": The RMII refence input clock. Used
-		to determine the XI input clock.
+	      - KSZ8021, KSZ8031, KSZ8081, KSZ8091: "rmii-ref": The RMII
+		refence input clock. Used to determine the XI input clock.
