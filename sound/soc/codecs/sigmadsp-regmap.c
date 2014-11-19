@@ -12,24 +12,40 @@
 
 #include "sigmadsp.h"
 
-static int sigma_action_write_regmap(void *control_data,
-	const struct sigma_action *sa, size_t len)
+static int sigmadsp_write_regmap(void *control_data,
+	unsigned int addr, const uint8_t data[], size_t len)
 {
-	return regmap_raw_write(control_data, be16_to_cpu(sa->addr),
-		sa->payload, len - 2);
+	return regmap_raw_write(control_data, addr,
+		data, len);
 }
 
-int process_sigma_firmware_regmap(struct device *dev, struct regmap *regmap,
-	const char *name)
+/**
+ * devm_sigmadsp_init_i2c() - Initialize SigmaDSP instance
+ * @dev: The parent device
+ * @regmap: Regmap instance to use
+ * @ops: The sigmadsp_ops to use for this instance
+ * @firmware_name: Name of the firmware file to load
+ *
+ * Allocates a SigmaDSP instance and loads the specified firmware file.
+ *
+ * Returns a pointer to a struct sigmadsp on success, or a PTR_ERR() on error.
+ */
+struct sigmadsp *devm_sigmadsp_init_regmap(struct device *dev,
+	struct regmap *regmap, const struct sigmadsp_ops *ops,
+	const char *firmware_name)
 {
-	struct sigma_firmware ssfw;
+	struct sigmadsp *sigmadsp;
 
-	ssfw.control_data = regmap;
-	ssfw.write = sigma_action_write_regmap;
+	sigmadsp = devm_sigmadsp_init(dev, ops, firmware_name);
+	if (IS_ERR(sigmadsp))
+		return sigmadsp;
 
-	return _process_sigma_firmware(dev, &ssfw, name);
+	sigmadsp->control_data = regmap;
+	sigmadsp->write = sigmadsp_write_regmap;
+
+	return sigmadsp;
 }
-EXPORT_SYMBOL(process_sigma_firmware_regmap);
+EXPORT_SYMBOL_GPL(devm_sigmadsp_init_regmap);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("SigmaDSP regmap firmware loader");

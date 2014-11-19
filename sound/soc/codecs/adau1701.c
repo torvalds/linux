@@ -103,6 +103,8 @@ struct adau1701 {
 	unsigned int sysclk;
 	struct regmap *regmap;
 	u8 pin_config[12];
+
+	struct sigmadsp *sigmadsp;
 };
 
 static const struct snd_kcontrol_new adau1701_controls[] = {
@@ -238,11 +240,13 @@ static int adau1701_reg_read(void *context, unsigned int reg,
 	return 0;
 }
 
-static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
+static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv,
+	unsigned int rate)
 {
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
-	struct i2c_client *client = to_i2c_client(codec->dev);
 	int ret;
+
+	sigmadsp_reset(adau1701->sigmadsp);
 
 	if (clkdiv != ADAU1707_CLKDIV_UNSET &&
 	    gpio_is_valid(adau1701->gpio_pll_mode[0]) &&
@@ -284,7 +288,7 @@ static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 	 * know the correct PLL setup
 	 */
 	if (clkdiv != ADAU1707_CLKDIV_UNSET) {
-		ret = process_sigma_firmware(client, ADAU1701_FIRMWARE);
+		ret = sigmadsp_setup(adau1701->sigmadsp, rate);
 		if (ret) {
 			dev_warn(codec->dev, "Failed to load firmware\n");
 			return ret;
@@ -385,7 +389,7 @@ static int adau1701_hw_params(struct snd_pcm_substream *substream,
 	 * firmware upload.
 	 */
 	if (clkdiv != adau1701->pll_clkdiv) {
-		ret = adau1701_reset(codec, clkdiv);
+		ret = adau1701_reset(codec, clkdiv, params_rate(params));
 		if (ret < 0)
 			return ret;
 	}
@@ -554,6 +558,14 @@ static int adau1701_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	return 0;
 }
 
+static int adau1701_startup(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
+{
+	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(dai->codec);
+
+	return sigmadsp_restrict_params(adau1701->sigmadsp, substream);
+}
+
 #define ADAU1701_RATES (SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 | \
 	SNDRV_PCM_RATE_192000)
 
@@ -564,6 +576,7 @@ static const struct snd_soc_dai_ops adau1701_dai_ops = {
 	.set_fmt	= adau1701_set_dai_fmt,
 	.hw_params	= adau1701_hw_params,
 	.digital_mute	= adau1701_digital_mute,
+	.startup	= adau1701_startup,
 };
 
 static struct snd_soc_dai_driver adau1701_dai = {
@@ -600,6 +613,10 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 	unsigned int val;
 	struct adau1701 *adau1701 = snd_soc_codec_get_drvdata(codec);
 
+	ret = sigmadsp_attach(adau1701->sigmadsp, &codec->component);
+	if (ret)
+		return ret;
+
 	/*
 	 * Let the pll_clkdiv variable default to something that won't happen
 	 * at runtime. That way, we can postpone the firmware download from
@@ -609,7 +626,7 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 	adau1701->pll_clkdiv = ADAU1707_CLKDIV_UNSET;
 
 	/* initalize with pre-configured pll mode settings */
-	ret = adau1701_reset(codec, adau1701->pll_clkdiv);
+	ret = adau1701_reset(codec, adau1701->pll_clkdiv, 0);
 	if (ret < 0)
 		return ret;
 
@@ -722,6 +739,12 @@ static int adau1701_i2c_probe(struct i2c_client *client,
 	adau1701->gpio_pll_mode[1] = gpio_pll_mode[1];
 
 	i2c_set_clientdata(client, adau1701);
+
+	adau1701->sigmadsp = devm_sigmadsp_init_i2c(client, NULL,
+		ADAU1701_FIRMWARE);
+	if (IS_ERR(adau1701->sigmadsp))
+		return PTR_ERR(adau1701->sigmadsp);
+
 	ret = snd_soc_register_codec(&client->dev, &adau1701_codec_drv,
 			&adau1701_dai, 1);
 	return ret;
