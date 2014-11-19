@@ -357,7 +357,8 @@ static void omap_plane_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 {
 	struct omap_plane *omap_plane =
 			container_of(irq, struct omap_plane, error_irq);
-	DRM_ERROR("%s: errors: %08x\n", omap_plane->name, irqstatus);
+	DRM_ERROR_RATELIMITED("%s: errors: %08x\n", omap_plane->name,
+		irqstatus);
 }
 
 static const char *plane_names[] = {

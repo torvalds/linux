@@ -261,7 +261,7 @@ static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 	struct omap_crtc *omap_crtc =
 			container_of(irq, struct omap_crtc, error_irq);
 	struct drm_crtc *crtc = &omap_crtc->base;
-	DRM_ERROR("%s: errors: %08x\n", omap_crtc->name, irqstatus);
+	DRM_ERROR_RATELIMITED("%s: errors: %08x\n", omap_crtc->name, irqstatus);
 	/* avoid getting in a flood, unregister the irq until next vblank */
 	__omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
 }
