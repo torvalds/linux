@@ -60,6 +60,24 @@ static int svc_msg_send(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 }
 
 
+int svc_set_route_send(struct gb_interface *interface,
+			       struct greybus_host_device *hd)
+{
+	struct svc_msg *svc_msg;
+
+	svc_msg = svc_msg_alloc(SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT);
+	if (!svc_msg)
+		return -ENOMEM;
+
+	svc_msg->header.function_id = SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT;
+	svc_msg->header.message_type = SVC_MSG_DATA;
+	svc_msg->header.payload_length =
+		cpu_to_le16(sizeof(struct svc_function_unipro_set_route));
+	svc_msg->management.set_route.device_id = interface->device_id;
+
+	return svc_msg_send(svc_msg, hd);
+}
+
 static void svc_handshake(struct svc_function_handshake *handshake,
 			  int payload_length, struct greybus_host_device *hd)
 {
@@ -102,24 +120,6 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 	svc_msg->handshake.handshake_type = SVC_HANDSHAKE_AP_HELLO;
 
 	(void)svc_msg_send(svc_msg, hd);
-}
-
-int svc_set_route_send(struct gb_interface *interface,
-			       struct greybus_host_device *hd)
-{
-	struct svc_msg *svc_msg;
-
-	svc_msg = svc_msg_alloc(SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT);
-	if (!svc_msg)
-		return -ENOMEM;
-
-	svc_msg->header.function_id = SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT;
-	svc_msg->header.message_type = SVC_MSG_DATA;
-	svc_msg->header.payload_length =
-		cpu_to_le16(sizeof(struct svc_function_unipro_set_route));
-	svc_msg->management.set_route.device_id = interface->device_id;
-
-	return svc_msg_send(svc_msg, hd);
 }
 
 static void svc_management(struct svc_function_unipro_management *management,
