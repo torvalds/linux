@@ -1150,7 +1150,8 @@ void __init imx6sx_pm_init(void)
 	if (np)
 		console_base = of_iomap(np, 0);
 	if (imx_src_is_m4_enabled()) {
-		np = of_find_node_by_path("/soc/aips-bus@02100000/qspi@021e4000");
+		np = of_find_compatible_node(NULL, NULL,
+				"fsl,imx6sx-qspi-m4-restore");
 		if (np)
 			qspi_base = of_iomap(np, 0);
 		WARN_ON(!qspi_base);
