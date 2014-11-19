@@ -635,8 +635,7 @@ intel_init_pipe_control(struct intel_engine_cs *ring)
 {
 	int ret;
 
-	if (ring->scratch.obj)
-		return 0;
+	WARN_ON(ring->scratch.obj);
 
 	ring->scratch.obj = i915_gem_alloc_object(ring->dev, 4096);
 	if (ring->scratch.obj == NULL) {
@@ -1799,15 +1798,15 @@ int intel_alloc_ringbuffer_obj(struct drm_device *dev,
 static int intel_init_ring_buffer(struct drm_device *dev,
 				  struct intel_engine_cs *ring)
 {
-	struct intel_ringbuffer *ringbuf = ring->buffer;
+	struct intel_ringbuffer *ringbuf;
 	int ret;
 
-	if (ringbuf == NULL) {
-		ringbuf = kzalloc(sizeof(*ringbuf), GFP_KERNEL);
-		if (!ringbuf)
-			return -ENOMEM;
-		ring->buffer = ringbuf;
-	}
+	WARN_ON(ring->buffer);
+
+	ringbuf = kzalloc(sizeof(*ringbuf), GFP_KERNEL);
+	if (!ringbuf)
+		return -ENOMEM;
+	ring->buffer = ringbuf;
 
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
@@ -1830,21 +1829,21 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 			goto error;
 	}
 
-	if (ringbuf->obj == NULL) {
-		ret = intel_alloc_ringbuffer_obj(dev, ringbuf);
-		if (ret) {
-			DRM_ERROR("Failed to allocate ringbuffer %s: %d\n",
-					ring->name, ret);
-			goto error;
-		}
+	WARN_ON(ringbuf->obj);
 
-		ret = intel_pin_and_map_ringbuffer_obj(dev, ringbuf);
-		if (ret) {
-			DRM_ERROR("Failed to pin and map ringbuffer %s: %d\n",
-					ring->name, ret);
-			intel_destroy_ringbuffer_obj(ringbuf);
-			goto error;
-		}
+	ret = intel_alloc_ringbuffer_obj(dev, ringbuf);
+	if (ret) {
+		DRM_ERROR("Failed to allocate ringbuffer %s: %d\n",
+				ring->name, ret);
+		goto error;
+	}
+
+	ret = intel_pin_and_map_ringbuffer_obj(dev, ringbuf);
+	if (ret) {
+		DRM_ERROR("Failed to pin and map ringbuffer %s: %d\n",
+				ring->name, ret);
+		intel_destroy_ringbuffer_obj(ringbuf);
+		goto error;
 	}
 
 	/* Workaround an erratum on the i830 which causes a hang if

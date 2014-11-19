@@ -1833,8 +1833,7 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 	int ret;
 
 	WARN_ON(ctx->legacy_hw_ctx.rcs_state != NULL);
-	if (ctx->engine[ring->id].state)
-		return 0;
+	WARN_ON(ctx->engine[ring->id].state);
 
 	context_size = round_up(get_lr_context_size(ring), 4096);
 
