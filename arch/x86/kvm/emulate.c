@@ -665,8 +665,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 	u16 sel;
 	unsigned cpl;
 
-	la = seg_base(ctxt, addr.seg) +
-	    (fetch || ctxt->ad_bytes == 8 ? addr.ea : (u32)addr.ea);
+	la = seg_base(ctxt, addr.seg) + addr.ea;
 	*max_size = 0;
 	switch (ctxt->mode) {
 	case X86EMUL_MODE_PROT64:
@@ -1289,7 +1288,8 @@ static void fetch_bit_operand(struct x86_emulate_ctxt *ctxt)
 		else
 			sv = (s64)ctxt->src.val & (s64)mask;
 
-		ctxt->dst.addr.mem.ea += (sv >> 3);
+		ctxt->dst.addr.mem.ea = address_mask(ctxt,
+					   ctxt->dst.addr.mem.ea + (sv >> 3));
 	}
 
 	/* only subword offset */
@@ -4638,7 +4638,8 @@ done_prefixes:
 	rc = decode_operand(ctxt, &ctxt->dst, (ctxt->d >> DstShift) & OpMask);
 
 	if (ctxt->rip_relative)
-		ctxt->memopp->addr.mem.ea += ctxt->_eip;
+		ctxt->memopp->addr.mem.ea = address_mask(ctxt,
+					ctxt->memopp->addr.mem.ea + ctxt->_eip);
 
 done:
 	return (rc != X86EMUL_CONTINUE) ? EMULATION_FAILED : EMULATION_OK;
