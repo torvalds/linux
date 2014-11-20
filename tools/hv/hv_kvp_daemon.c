@@ -1559,8 +1559,15 @@ int main(int argc, char *argv[])
 				addr_p, &addr_l);
 
 		if (len < 0) {
+			int saved_errno = errno;
 			syslog(LOG_ERR, "recvfrom failed; pid:%u error:%d %s",
 					addr.nl_pid, errno, strerror(errno));
+
+			if (saved_errno == ENOBUFS) {
+				syslog(LOG_ERR, "receive error: ignored");
+				continue;
+			}
+
 			close(fd);
 			return -1;
 		}
@@ -1763,8 +1770,15 @@ kvp_done:
 
 		len = netlink_send(fd, incoming_cn_msg);
 		if (len < 0) {
+			int saved_errno = errno;
 			syslog(LOG_ERR, "net_link send failed; error: %d %s", errno,
 					strerror(errno));
+
+			if (saved_errno == ENOMEM || saved_errno == ENOBUFS) {
+				syslog(LOG_ERR, "send error: ignored");
+				continue;
+			}
+
 			exit(EXIT_FAILURE);
 		}
 	}
