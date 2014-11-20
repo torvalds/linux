@@ -1873,7 +1873,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 		} else {
 			path_get(&nd->path);
 		}
-		return 0;
+		goto done;
 	}
 
 	nd->root.mnt = NULL;
@@ -1934,13 +1934,16 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 
 	nd->inode = nd->path.dentry->d_inode;
 	if (!(flags & LOOKUP_RCU))
-		return 0;
+		goto done;
 	if (likely(!read_seqcount_retry(&nd->path.dentry->d_seq, nd->seq)))
-		return 0;
+		goto done;
 	if (!(nd->flags & LOOKUP_ROOT))
 		nd->root.mnt = NULL;
 	rcu_read_unlock();
 	return -ECHILD;
+done:
+	current->total_link_count = 0;
+	return link_path_walk(name, nd);
 }
 
 static void path_cleanup(struct nameidata *nd)
@@ -1984,13 +1987,6 @@ static int path_lookupat(int dfd, const char *name,
 	 * be able to complete).
 	 */
 	err = path_init(dfd, name, flags, nd);
-
-	if (unlikely(err))
-		goto out;
-
-	current->total_link_count = 0;
-	err = link_path_walk(name, nd);
-
 	if (!err && !(flags & LOOKUP_PARENT)) {
 		err = lookup_last(nd, &path);
 		while (err > 0) {
@@ -2018,7 +2014,6 @@ static int path_lookupat(int dfd, const char *name,
 		}
 	}
 
-out:
 	path_cleanup(nd);
 	return err;
 }
@@ -2331,11 +2326,6 @@ path_mountpoint(int dfd, const char *name, struct path *path, unsigned int flags
 
 	err = path_init(dfd, name, flags, &nd);
 	if (unlikely(err))
-		goto out;
-
-	current->total_link_count = 0;
-	err = link_path_walk(name, &nd);
-	if (err)
 		goto out;
 
 	err = mountpoint_last(&nd, path);
@@ -3221,11 +3211,6 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 	}
 
 	error = path_init(dfd, pathname->name, flags, nd);
-	if (unlikely(error))
-		goto out;
-
-	current->total_link_count = 0;
-	error = link_path_walk(pathname->name, nd);
 	if (unlikely(error))
 		goto out;
 
