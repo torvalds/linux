@@ -409,6 +409,7 @@ static int unregister_process_nocpsch(struct device_queue_manager *dqm,
 	list_for_each_entry_safe(cur, next, &dqm->queues, list) {
 		if (qpd == cur->qpd) {
 			list_del(&cur->list);
+			kfree(cur);
 			dqm->processes_count--;
 			goto out;
 		}
