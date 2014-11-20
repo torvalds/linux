@@ -10,6 +10,7 @@ Required properties:
 
 Optional properties:
 - linux,rc-map-name : Remote control map name.
+- resets : phandle + reset specifier pair
 
 Example:
 
@@ -17,6 +18,7 @@ ir0: ir@01c21800 {
 	compatible = "allwinner,sun4i-a10-ir";
 	clocks = <&apb0_gates 6>, <&ir0_clk>;
 	clock-names = "apb", "ir";
+	resets = <&apb0_rst 1>;
 	interrupts = <0 5 1>;
 	reg = <0x01C21800 0x40>;
 	linux,rc-map-name = "rc-rc6-mce";
