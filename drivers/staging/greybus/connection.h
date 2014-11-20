@@ -53,7 +53,7 @@ void gb_connection_exit(struct gb_connection *connection);
 struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
 				u16 cport_id);
 
-void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
+void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
 __printf(2, 3)
 void gb_connection_err(struct gb_connection *connection, const char *fmt, ...);

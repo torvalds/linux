@@ -29,7 +29,11 @@ struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
 	return connection;
 }
 
-void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
+/*
+ * Callback from the host driver to let us know that data has been
+ * received on the interface.
+ */
+void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length)
 {
 	struct gb_connection *connection;
@@ -42,7 +46,7 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 	}
 	gb_connection_recv(connection, data, length);
 }
-EXPORT_SYMBOL_GPL(greybus_cport_in);
+EXPORT_SYMBOL_GPL(greybus_data_rcvd);
 
 /*
  * Allocate an available CPort Id for use for the host side of the

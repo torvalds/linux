@@ -392,7 +392,7 @@ static void cport_in_callback(struct urb *urb)
 	data = &data[1];
 
 	/* Pass this data to the greybus core */
-	greybus_cport_in(hd, cport_id, data, urb->actual_length - 1);
+	greybus_data_rcvd(hd, cport_id, data, urb->actual_length - 1);
 
 exit:
 	/* put our urb back in the request pool */
