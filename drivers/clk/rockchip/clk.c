@@ -199,7 +199,8 @@ void __init rockchip_clk_register_plls(struct rockchip_pll_clock *list,
 				list->parent_names, list->num_parents,
 				reg_base, list->con_offset, grf_lock_offset,
 				list->lock_shift, list->mode_offset,
-				list->mode_shift, list->rate_table, &clk_lock);
+				list->mode_shift, list->rate_table,
+				list->pll_flags, &clk_lock);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n", __func__,
 				list->name);

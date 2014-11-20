@@ -90,6 +90,7 @@ struct rockchip_pll_rate_table {
  * @mode_shift: offset inside the mode-register for the mode of this pll.
  * @lock_shift: offset inside the lock register for the lock status.
  * @type: Type of PLL to be registered.
+ * @pll_flags: hardware-specific flags
  * @rate_table: Table of usable pll rates
  */
 struct rockchip_pll_clock {
@@ -103,11 +104,12 @@ struct rockchip_pll_clock {
 	int			mode_shift;
 	int			lock_shift;
 	enum rockchip_pll_type	type;
+	u8			pll_flags;
 	struct rockchip_pll_rate_table *rate_table;
 };
 
 #define PLL(_type, _id, _name, _pnames, _flags, _con, _mode, _mshift,	\
-		_lshift, _rtable)					\
+		_lshift, _pflags, _rtable)				\
 	{								\
 		.id		= _id,					\
 		.type		= _type,				\
@@ -119,6 +121,7 @@ struct rockchip_pll_clock {
 		.mode_offset	= _mode,				\
 		.mode_shift	= _mshift,				\
 		.lock_shift	= _lshift,				\
+		.pll_flags	= _pflags,				\
 		.rate_table	= _rtable,				\
 	}
 
@@ -127,7 +130,7 @@ struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
 		void __iomem *base, int con_offset, int grf_lock_offset,
 		int lock_shift, int reg_mode, int mode_shift,
 		struct rockchip_pll_rate_table *rate_table,
-		spinlock_t *lock);
+		u8 clk_pll_flags, spinlock_t *lock);
 
 struct rockchip_cpuclk_clksel {
 	int reg;

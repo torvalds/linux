@@ -39,6 +39,7 @@ struct rockchip_clk_pll {
 	int			lock_offset;
 	unsigned int		lock_shift;
 	enum rockchip_pll_type	type;
+	u8			flags;
 	const struct rockchip_pll_rate_table *rate_table;
 	unsigned int		rate_count;
 	spinlock_t		*lock;
@@ -282,7 +283,7 @@ struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
 		void __iomem *base, int con_offset, int grf_lock_offset,
 		int lock_shift, int mode_offset, int mode_shift,
 		struct rockchip_pll_rate_table *rate_table,
-		spinlock_t *lock)
+		u8 clk_pll_flags, spinlock_t *lock)
 {
 	const char *pll_parents[3];
 	struct clk_init_data init;
@@ -345,6 +346,7 @@ struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
 	pll->reg_base = base + con_offset;
 	pll->lock_offset = grf_lock_offset;
 	pll->lock_shift = lock_shift;
+	pll->flags = clk_pll_flags;
 	pll->lock = lock;
 
 	pll_clk = clk_register(NULL, &pll->hw);

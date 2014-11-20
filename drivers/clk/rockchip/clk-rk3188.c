@@ -212,13 +212,13 @@ PNAME(mux_sclk_macref_p)	= { "mac_src", "ext_rmii" };
 
 static struct rockchip_pll_clock rk3188_pll_clks[] __initdata = {
 	[apll] = PLL(pll_rk3066, PLL_APLL, "apll", mux_pll_p, 0, RK2928_PLL_CON(0),
-		     RK2928_MODE_CON, 0, 6, rk3188_pll_rates),
+		     RK2928_MODE_CON, 0, 6, 0, rk3188_pll_rates),
 	[dpll] = PLL(pll_rk3066, PLL_DPLL, "dpll", mux_pll_p, 0, RK2928_PLL_CON(4),
-		     RK2928_MODE_CON, 4, 5, NULL),
+		     RK2928_MODE_CON, 4, 5, 0, NULL),
 	[cpll] = PLL(pll_rk3066, PLL_CPLL, "cpll", mux_pll_p, 0, RK2928_PLL_CON(8),
-		     RK2928_MODE_CON, 8, 7, rk3188_pll_rates),
+		     RK2928_MODE_CON, 8, 7, 0, rk3188_pll_rates),
 	[gpll] = PLL(pll_rk3066, PLL_GPLL, "gpll", mux_pll_p, 0, RK2928_PLL_CON(12),
-		     RK2928_MODE_CON, 12, 8, rk3188_pll_rates),
+		     RK2928_MODE_CON, 12, 8, 0, rk3188_pll_rates),
 };
 
 #define MFLAGS CLK_MUX_HIWORD_MASK
