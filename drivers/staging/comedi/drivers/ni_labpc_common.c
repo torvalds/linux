@@ -1099,8 +1099,6 @@ static int labpc_eeprom_write(struct comedi_device *dev,
 		dev_err(dev->class_dev, "eeprom write timed out\n");
 		return -ETIME;
 	}
-	/*  update software copy of eeprom */
-	devpriv->eeprom_data[address] = value;
 
 	/*  enable read/write to eeprom */
 	devpriv->cmd5 &= ~CMD5_EEPROMCS;
@@ -1202,25 +1200,14 @@ static int labpc_eeprom_insn_write(struct comedi_device *dev,
 	 * data would be overwritten anyway.
 	 */
 	if (insn->n > 0) {
-		ret = labpc_eeprom_write(dev, chan, data[insn->n - 1]);
+		unsigned int val = data[insn->n - 1];
+
+		ret = labpc_eeprom_write(dev, chan, val);
 		if (ret)
 			return ret;
+
+		s->readback[chan] = val;
 	}
-
-	return insn->n;
-}
-
-static int labpc_eeprom_insn_read(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn,
-				  unsigned int *data)
-{
-	struct labpc_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->eeprom_data[chan];
 
 	return insn->n;
 }
@@ -1339,11 +1326,14 @@ int labpc_common_attach(struct comedi_device *dev,
 		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan	= EEPROM_SIZE;
 		s->maxdata	= 0xff;
-		s->insn_read	= labpc_eeprom_insn_read;
 		s->insn_write	= labpc_eeprom_insn_write;
 
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
 		for (i = 0; i < s->n_chan; i++)
-			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
+			s->readback[i] = labpc_eeprom_read(dev, i);
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
