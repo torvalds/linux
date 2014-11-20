@@ -1542,9 +1542,15 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 		hptp = (__be64 *)(kvm->arch.hpt_virt + (i * HPTE_SIZE));
 		lbuf = (unsigned long __user *)buf;
 		for (j = 0; j < hdr.n_valid; ++j) {
+			__be64 hpte_v;
+			__be64 hpte_r;
+
 			err = -EFAULT;
-			if (__get_user(v, lbuf) || __get_user(r, lbuf + 1))
+			if (__get_user(hpte_v, lbuf) ||
+			    __get_user(hpte_r, lbuf + 1))
 				goto out;
+			v = be64_to_cpu(hpte_v);
+			r = be64_to_cpu(hpte_r);
 			err = -EINVAL;
 			if (!(v & HPTE_V_VALID))
 				goto out;
