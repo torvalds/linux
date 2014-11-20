@@ -159,7 +159,7 @@ static int get_version(struct gb_tty *tty)
 		gb_connection_err(tty->connection, "result %hhu",
 			operation->result);
 	} else {
-		response = operation->response.payload;
+		response = operation->response->payload;
 		if (response->major > GB_UART_VERSION_MAJOR) {
 			pr_err("unsupported major version (%hhu > %hhu)\n",
 				response->major, GB_UART_VERSION_MAJOR);
@@ -192,7 +192,7 @@ static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 					sizeof(*request) + size, 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->size = cpu_to_le16(size);
 	memcpy(&request->data[0], data, size);
 
@@ -227,7 +227,7 @@ static int send_line_coding(struct gb_tty *tty,
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	memcpy(&request->line_coding, line_coding, sizeof(*line_coding));
 
 	/* Synchronous operation--no callback */
@@ -261,7 +261,7 @@ static int send_control(struct gb_tty *tty, u16 control)
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->control = cpu_to_le16(control);
 
 	/* Synchronous operation--no callback */
@@ -299,7 +299,7 @@ static int send_break(struct gb_tty *tty, u8 state)
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->state = state;
 
 	/* Synchronous operation--no callback */

@@ -119,7 +119,7 @@ static int battery_operation(struct gb_battery *gb, int type,
 			operation->result);
 	} else {
 		/* Good response, so copy to the caller's buffer */
-		memcpy(response, operation->response.payload, response_size);
+		memcpy(response, operation->response->payload, response_size);
 	}
 out:
 	gb_operation_destroy(operation);

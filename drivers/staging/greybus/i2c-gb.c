@@ -116,7 +116,7 @@ static int gb_i2c_proto_version_operation(struct gb_i2c_device *gb_i2c_dev)
 		gb_connection_err(connection, "version result %hhu",
 			operation->result);
 	} else {
-		response = operation->response.payload;
+		response = operation->response->payload;
 		if (response->major > GB_I2C_VERSION_MAJOR) {
 			pr_err("unsupported major version (%hhu > %hhu)\n",
 				response->major, GB_I2C_VERSION_MAJOR);
@@ -168,7 +168,7 @@ static int gb_i2c_functionality_operation(struct gb_i2c_device *gb_i2c_dev)
 		gb_connection_err(connection, "functionality result %hhu",
 			operation->result);
 	} else {
-		response = operation->response.payload;
+		response = operation->response->payload;
 		functionality = le32_to_cpu(response->functionality);
 		gb_i2c_dev->functionality =
 			gb_i2c_functionality_map(functionality);
@@ -190,7 +190,7 @@ static int gb_i2c_timeout_operation(struct gb_i2c_device *gb_i2c_dev, u16 msec)
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->msec = cpu_to_le16(msec);
 
 	/* Synchronous operation--no callback */
@@ -225,7 +225,7 @@ static int gb_i2c_retries_operation(struct gb_i2c_device *gb_i2c_dev,
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->retries = retries;
 
 	/* Synchronous operation--no callback */
@@ -310,7 +310,7 @@ gb_i2c_transfer_request(struct gb_connection *connection,
 	if (!operation)
 		return NULL;
 
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->op_count = cpu_to_le16(op_count);
 	/* Fill in the ops array */
 	op = &request->ops[0];
@@ -376,7 +376,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 				operation->result);
 		}
 	} else {
-		response = operation->response.payload;
+		response = operation->response->payload;
 		gb_i2c_transfer_response(msgs, msg_count, response->data);
 		ret = msg_count;
 	}

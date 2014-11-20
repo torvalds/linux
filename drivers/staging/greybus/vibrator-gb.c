@@ -71,7 +71,7 @@ static int request_operation(struct gb_connection *connection, int type,
 	} else {
 		/* Good request, so copy to the caller's buffer */
 		if (response_size && response)
-			memcpy(response, operation->response.payload,
+			memcpy(response, operation->response->payload,
 						response_size);
 	}
 out:
@@ -119,7 +119,7 @@ static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->timeout_ms = cpu_to_le16(timeout_ms);
 
 	/* Synchronous operation--no callback */

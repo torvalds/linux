@@ -81,7 +81,7 @@ static void gb_pending_operation_insert(struct gb_operation *operation)
 	spin_unlock_irq(&gb_operations_lock);
 
 	/* Store the operation id in the request header */
-	header = operation->request.header;
+	header = operation->request->header;
 	header->operation_id = cpu_to_le16(operation->id);
 }
 
@@ -167,7 +167,7 @@ int gb_operation_wait(struct gb_operation *operation)
 	ret = wait_for_completion_interruptible(&operation->completion);
 	/* If interrupted, cancel the in-flight buffer */
 	if (ret < 0)
-		gb_message_cancel(&operation->request);
+		gb_message_cancel(operation->request);
 	return ret;
 
 }
@@ -177,7 +177,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 	struct gb_protocol *protocol = operation->connection->protocol;
 	struct gb_operation_msg_hdr *header;
 
-	header = operation->request.header;
+	header = operation->request->header;
 
 	/*
 	 * If the protocol has no incoming request handler, report
@@ -205,7 +205,7 @@ static void gb_operation_recv_work(struct work_struct *recv_work)
 	bool incoming_request;
 
 	operation = container_of(recv_work, struct gb_operation, recv_work);
-	incoming_request = operation->response.header == NULL;
+	incoming_request = operation->response->header == NULL;
 	if (incoming_request)
 		gb_operation_request_handle(operation);
 	gb_operation_complete(operation);
@@ -251,61 +251,53 @@ gb_buffer_free(struct greybus_host_device *hd, void *buffer)
 }
 
 /*
- * Allocate a buffer to be used for an operation request or response
- * message.  For outgoing messages, both types of message contain a
+ * Allocate a message to be used for an operation request or
+ * response.  For outgoing messages, both types of message contain a
  * common header, which is filled in here.  Incoming requests or
  * responses also contain the same header, but there's no need to
  * initialize it here (it'll be overwritten by the incoming
  * message).
  */
-static int gb_operation_message_init(struct gb_operation *operation,
-					u8 type, size_t size,
-					bool request, gfp_t gfp_flags)
+static struct gb_message *
+gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
+				size_t size, gfp_t gfp_flags)
 {
-	struct gb_connection *connection = operation->connection;
-	struct greybus_host_device *hd = connection->hd;
 	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
 
 	size += sizeof(*header);
 	if (size > hd->buffer_size_max)
-		return -E2BIG;
+		return NULL;
 
-	if (request) {
-		message = &operation->request;
-	} else {
-		message = &operation->response;
-		type |= GB_OPERATION_TYPE_RESPONSE;
+	message = kzalloc(sizeof(*message), gfp_flags);
+	if (!message)
+		return NULL;
+
+	header = gb_buffer_alloc(hd, size, gfp_flags);
+	if (!header) {
+		kfree(message);
+		return NULL;
 	}
 
-	message->header = gb_buffer_alloc(hd, size, gfp_flags);
-	if (!message->header)
-		return -ENOMEM;
-	message->size = size;
-
 	/* Fill in the header structure */
-	header = message->header;
 	header->size = cpu_to_le16(size);
 	header->operation_id = 0;	/* Filled in when submitted */
 	header->type = type;
 
+	message->header = header;
 	message->payload = header + 1;
-	message->operation = operation;
+	message->size = size;
 
-	return 0;
+	return message;
 }
 
-static void gb_operation_message_exit(struct gb_message *message)
+static void gb_operation_message_free(struct gb_message *message)
 {
 	struct greybus_host_device *hd;
 
 	hd = message->operation->connection->hd;
 	gb_buffer_free(hd, message->header);
-
-	message->operation = NULL;
-	message->payload = NULL;
-	message->header = NULL;
-	message->size = 0;
+	kfree(message);
 }
 
 /*
@@ -358,25 +350,28 @@ gb_operation_create_common(struct gb_connection *connection, bool outgoing,
 				u8 type, size_t request_size,
 				size_t response_size)
 {
+	struct greybus_host_device *hd = connection->hd;
 	struct gb_operation *operation;
 	gfp_t gfp_flags = response_size ? GFP_KERNEL : GFP_ATOMIC;
-	int ret;
 
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
 	if (!operation)
 		return NULL;
 	operation->connection = connection;
 
-	ret = gb_operation_message_init(operation, type, request_size,
-						true, gfp_flags);
-	if (ret)
+	operation->request = gb_operation_message_alloc(hd, type, request_size,
+							gfp_flags);
+	if (!operation->request)
 		goto err_cache;
+	operation->request->operation = operation;
 
 	if (outgoing) {
-		ret = gb_operation_message_init(operation, type, response_size,
-						false, GFP_KERNEL);
-		if (ret)
+		type |= GB_OPERATION_TYPE_RESPONSE;
+		operation->response = gb_operation_message_alloc(hd, type,
+						response_size, GFP_KERNEL);
+		if (!operation->response)
 			goto err_request;
+		operation->response->operation = operation;
 	}
 
 	INIT_WORK(&operation->recv_work, gb_operation_recv_work);
@@ -392,7 +387,7 @@ gb_operation_create_common(struct gb_connection *connection, bool outgoing,
 	return operation;
 
 err_request:
-	gb_operation_message_exit(&operation->request);
+	gb_operation_message_free(operation->request);
 err_cache:
 	kmem_cache_free(gb_operation_cache, operation);
 
@@ -430,8 +425,8 @@ static void _gb_operation_destroy(struct kref *kref)
 	list_del(&operation->links);
 	spin_unlock_irq(&gb_operations_lock);
 
-	gb_operation_message_exit(&operation->response);
-	gb_operation_message_exit(&operation->request);
+	gb_operation_message_free(operation->response);
+	gb_operation_message_free(operation->request);
 
 	kmem_cache_free(gb_operation_cache, operation);
 }
@@ -478,7 +473,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	schedule_delayed_work(&operation->timeout_work, timeout);
 
 	/* All set, send the request */
-	ret = gb_message_send(&operation->request, GFP_KERNEL);
+	ret = gb_message_send(operation->request, GFP_KERNEL);
 	if (ret)
 		return ret;
 
@@ -516,7 +511,7 @@ void gb_connection_recv_request(struct gb_connection *connection,
 		return;		/* XXX Respond with pre-allocated ENOMEM */
 	}
 	operation->id = operation_id;
-	memcpy(operation->request.header, data, size);
+	memcpy(operation->request->header, data, size);
 
 	/* The rest will be handled in work queue context */
 	queue_work(gb_operation_recv_workqueue, &operation->recv_work);
@@ -546,7 +541,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	cancel_delayed_work(&operation->timeout_work);
 	gb_pending_operation_remove(operation);
 
-	message = &operation->response;
+	message = operation->response;
 	if (size <= message->size) {
 		/* Transfer the operation result from the response header */
 		header = message->header;
@@ -609,9 +604,9 @@ void gb_connection_recv(struct gb_connection *connection,
 void gb_operation_cancel(struct gb_operation *operation)
 {
 	operation->canceled = true;
-	gb_message_cancel(&operation->request);
-	if (operation->response.header)
-		gb_message_cancel(&operation->response);
+	gb_message_cancel(operation->request);
+	if (operation->response->header)
+		gb_message_cancel(operation->response);
 }
 
 int gb_operation_init(void)

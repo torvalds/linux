@@ -142,7 +142,7 @@ static int gb_gpio_proto_version_operation(struct gb_gpio_controller *gb_gpio_co
 		gb_connection_err(connection, "version result %hhu",
 			operation->result);
 	} else {
-		response = operation->response.payload;
+		response = operation->response->payload;
 		if (response->major > GB_GPIO_VERSION_MAJOR) {
 			pr_err("unsupported major version (%hhu > %hhu)\n",
 				response->major, GB_GPIO_VERSION_MAJOR);
@@ -188,7 +188,7 @@ static int gb_gpio_line_count_operation(struct gb_gpio_controller *gb_gpio_contr
 		gb_connection_err(connection, "line count result %hhu",
 			operation->result);
 	} else {
-		response = operation->response.payload;
+		response = operation->response->payload;
 		gb_gpio_controller->line_max = response->count;
 
 		pr_debug("%s: count = %u\n", __func__,
@@ -217,7 +217,7 @@ static int gb_gpio_activate_operation(struct gb_gpio_controller *gb_gpio_control
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -259,7 +259,7 @@ static int gb_gpio_deactivate_operation(struct gb_gpio_controller *gb_gpio_contr
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -300,7 +300,7 @@ static int gb_gpio_get_direction_operation(struct gb_gpio_controller *gb_gpio_co
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -317,7 +317,7 @@ static int gb_gpio_get_direction_operation(struct gb_gpio_controller *gb_gpio_co
 	} else {
 		u8 direction;
 
-		response = operation->response.payload;
+		response = operation->response->payload;
 		direction = response->direction;
 		if (direction && direction != 1)
 			pr_warn("gpio %u direction was %u (should be 0 or 1)\n",
@@ -349,7 +349,7 @@ static int gb_gpio_direction_in_operation(struct gb_gpio_controller *gb_gpio_con
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -390,7 +390,7 @@ static int gb_gpio_direction_out_operation(struct gb_gpio_controller *gb_gpio_co
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 	request->value = value_high ? 1 : 0;
 
@@ -433,7 +433,7 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *gb_gpio_contro
 					sizeof(*request), sizeof(*response));
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -450,7 +450,7 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *gb_gpio_contro
 	} else {
 		u8 value;
 
-		response = operation->response.payload;
+		response = operation->response->payload;
 		value = response->value;
 		if (value && value != 1)
 			pr_warn("gpio %u value was %u (should be 0 or 1)\n",
@@ -484,7 +484,7 @@ static int gb_gpio_set_value_operation(struct gb_gpio_controller *gb_gpio_contro
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 	request->value = value_high ? 1 : 0;
 
@@ -529,7 +529,7 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *gb_gpio_con
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 	request->usec = cpu_to_le16(debounce_usec);
 

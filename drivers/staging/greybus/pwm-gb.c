@@ -109,7 +109,7 @@ static int gb_pwm_proto_version_operation(struct gb_pwm_chip *pwmc)
 		gb_connection_err(connection, "version result %hhu",
 				  operation->result);
 	} else {
-		response = operation->response.payload;
+		response = operation->response->payload;
 		if (response->major > GB_PWM_VERSION_MAJOR) {
 			pr_err("unsupported major version (%hhu > %hhu)\n",
 				response->major, GB_PWM_VERSION_MAJOR);
@@ -150,7 +150,7 @@ static int gb_pwm_count_operation(struct gb_pwm_chip *pwmc)
 		gb_connection_err(connection, "pwm count result %hhu",
 				  operation->result);
 	} else {
-		response = operation->response.payload;
+		response = operation->response->payload;
 		pwmc->pwm_max = response->count;
 	}
 out:
@@ -175,7 +175,7 @@ static int gb_pwm_activate_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -212,7 +212,7 @@ static int gb_pwm_deactivate_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -248,7 +248,7 @@ static int gb_pwm_config_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 	request->duty = duty;
 	request->period = period;
@@ -287,7 +287,7 @@ static int gb_pwm_set_polarity_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 	request->polarity = polarity;
 
@@ -325,7 +325,7 @@ static int gb_pwm_enable_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */
@@ -362,7 +362,7 @@ static int gb_pwm_disable_operation(struct gb_pwm_chip *pwmc,
 					sizeof(*request), 0);
 	if (!operation)
 		return -ENOMEM;
-	request = operation->request.payload;
+	request = operation->request->payload;
 	request->which = which;
 
 	/* Synchronous operation--no callback */

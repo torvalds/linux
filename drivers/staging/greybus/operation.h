@@ -64,8 +64,8 @@ struct gb_message {
 typedef void (*gb_operation_callback)(struct gb_operation *);
 struct gb_operation {
 	struct gb_connection	*connection;
-	struct gb_message	request;
-	struct gb_message	response;
+	struct gb_message	*request;
+	struct gb_message	*response;
 	u16			id;
 	bool			canceled;
 
