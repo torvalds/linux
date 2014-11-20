@@ -74,7 +74,7 @@ static int pxa310_ulpi_poll(void)
 		cpu_relax();
 	}
 
-	pr_warning("%s: ULPI access timed out!\n", __func__);
+	pr_warn("%s: ULPI access timed out!\n", __func__);
 
 	return -ETIMEDOUT;
 }
@@ -84,7 +84,7 @@ static int pxa310_ulpi_read(struct usb_phy *otg, u32 reg)
 	int err;
 
 	if (pxa310_ulpi_get_phymode() != SYNCH) {
-		pr_warning("%s: PHY is not in SYNCH mode!\n", __func__);
+		pr_warn("%s: PHY is not in SYNCH mode!\n", __func__);
 		return -EBUSY;
 	}
 
@@ -101,7 +101,7 @@ static int pxa310_ulpi_read(struct usb_phy *otg, u32 reg)
 static int pxa310_ulpi_write(struct usb_phy *otg, u32 val, u32 reg)
 {
 	if (pxa310_ulpi_get_phymode() != SYNCH) {
-		pr_warning("%s: PHY is not in SYNCH mode!\n", __func__);
+		pr_warn("%s: PHY is not in SYNCH mode!\n", __func__);
 		return -EBUSY;
 	}
 
