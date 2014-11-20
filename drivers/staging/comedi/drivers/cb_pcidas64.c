@@ -1107,7 +1107,6 @@ struct pcidas64_private {
 	unsigned int ext_trig_falling;
 	/*  states of various devices stored to enable read-back */
 	unsigned int ad8402_state[2];
-	unsigned int caldac_state[8];
 	short ai_cmd_running;
 	unsigned int ai_fifo_segment_length;
 	struct ext_clock_info ext_clock;
@@ -3550,9 +3549,6 @@ static void caldac_write(struct comedi_device *dev, unsigned int channel,
 			 unsigned int value)
 {
 	const struct pcidas64_board *thisboard = dev->board_ptr;
-	struct pcidas64_private *devpriv = dev->private;
-
-	devpriv->caldac_state[channel] = value;
 
 	switch (thisboard->layout) {
 	case LAYOUT_60XX:
@@ -3571,27 +3567,15 @@ static int calib_write_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	struct pcidas64_private *devpriv = dev->private;
 	int channel = CR_CHAN(insn->chanspec);
 
 	/* return immediately if setting hasn't changed, since
 	 * programming these things is slow */
-	if (devpriv->caldac_state[channel] == data[0])
+	if (s->readback[channel] == data[0])
 		return 1;
 
 	caldac_write(dev, channel, data[0]);
-
-	return 1;
-}
-
-static int calib_read_insn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned int channel = CR_CHAN(insn->chanspec);
-
-	data[0] = devpriv->caldac_state[channel];
+	s->readback[channel] = data[0];
 
 	return 1;
 }
@@ -3864,10 +3848,16 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->maxdata = 0xfff;
 	else
 		s->maxdata = 0xff;
-	s->insn_read = calib_read_insn;
 	s->insn_write = calib_write_insn;
-	for (i = 0; i < s->n_chan; i++)
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < s->n_chan; i++) {
 		caldac_write(dev, i, s->maxdata / 2);
+		s->readback[i] = s->maxdata / 2;
+	}
 
 	/*  2 channel ad8402 potentiometer */
 	s = &dev->subdevices[7];
