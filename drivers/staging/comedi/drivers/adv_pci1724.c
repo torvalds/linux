@@ -130,79 +130,66 @@ static int adv_pci1724_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* Allocate and initialize the subdevice structures.
- */
-static int setup_subdevices(struct comedi_device *dev)
-{
-	struct comedi_subdevice *s;
-	int ret;
-
-	ret = comedi_alloc_subdevices(dev, 3);
-	if (ret)
-		return ret;
-
-	/* analog output subdevice */
-	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
-	s->n_chan = 32;
-	s->maxdata = 0x3fff;
-	s->range_table = &ao_ranges_1724;
-	s->insn_write = adv_pci1724_insn_write;
-	s->private = (void *)PCI1724_DAC_CTRL_MODE_NORMAL;
-
-	ret = comedi_alloc_subdev_readback(s);
-	if (ret)
-		return ret;
-
-	/* offset calibration */
-	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_CALIB;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-	s->n_chan = 32;
-	s->maxdata = 0x3fff;
-	s->insn_write = adv_pci1724_insn_write;
-	s->private = (void *)PCI1724_DAC_CTRL_MODE_OFFSET;
-
-	ret = comedi_alloc_subdev_readback(s);
-	if (ret)
-		return ret;
-
-	/* gain calibration */
-	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_CALIB;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-	s->n_chan = 32;
-	s->maxdata = 0x3fff;
-	s->insn_write = adv_pci1724_insn_write;
-	s->private = (void *)PCI1724_DAC_CTRL_MODE_GAIN;
-
-	ret = comedi_alloc_subdev_readback(s);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int adv_pci1724_auto_attach(struct comedi_device *dev,
 				   unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	int retval;
+	struct comedi_subdevice *s;
 	unsigned int board_id;
+	int ret;
 
-	retval = comedi_pci_enable(dev);
-	if (retval)
-		return retval;
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 2);
 	board_id = inl(dev->iobase + PCI1724_BOARD_ID_REG);
 	dev_info(dev->class_dev, "board id: %d\n",
 		 board_id & PCI1724_BOARD_ID_MASK);
 
-	retval = setup_subdevices(dev);
-	if (retval < 0)
-		return retval;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
+
+	/* Analog Output subdevice */
+	s = &dev->subdevices[0];
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
+	s->n_chan	= 32;
+	s->maxdata	= 0x3fff;
+	s->range_table	= &ao_ranges_1724;
+	s->insn_write	= adv_pci1724_insn_write;
+	s->private	= (void *)PCI1724_DAC_CTRL_MODE_NORMAL;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
+
+	/* Offset Calibration subdevice */
+	s = &dev->subdevices[1];
+	s->type		= COMEDI_SUBD_CALIB;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->n_chan	= 32;
+	s->maxdata	= 0x3fff;
+	s->insn_write	= adv_pci1724_insn_write;
+	s->private	= (void *)PCI1724_DAC_CTRL_MODE_OFFSET;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
+
+	/* Gain Calibration subdevice */
+	s = &dev->subdevices[2];
+	s->type		= COMEDI_SUBD_CALIB;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->n_chan	= 32;
+	s->maxdata	= 0x3fff;
+	s->insn_write	= adv_pci1724_insn_write;
+	s->private	= (void *)PCI1724_DAC_CTRL_MODE_GAIN;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	dev_info(dev->class_dev, "%s (pci %s) attached, board id: %u\n",
 		 dev->board_name, pci_name(pcidev), board_id);
