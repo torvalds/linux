@@ -6223,9 +6223,6 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* Interrupts should be disabled already to avoid re-arming. */
-	WARN_ON(intel_irqs_enabled(dev_priv));
-
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_disable_drps(dev);
 		ironlake_disable_rc6(dev);
