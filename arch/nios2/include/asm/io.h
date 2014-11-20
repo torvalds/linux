@@ -24,8 +24,6 @@
 #define writew_relaxed(x, addr)	writew(x, addr)
 #define writel_relaxed(x, addr)	writel(x, addr)
 
-#include <asm-generic/io.h>
-
 extern void __iomem *__ioremap(unsigned long physaddr, unsigned long size,
 			unsigned long cacheflag);
 extern void __iounmap(void __iomem *addr);
@@ -56,5 +54,7 @@ static inline void iounmap(void __iomem *addr)
 /* Clear top 3 bits */
 #define virt_to_phys(vaddr)	\
 	((unsigned long)((unsigned long)(vaddr) & ~0xE0000000))
+
+#include <asm-generic/io.h>
 
 #endif /* _ASM_NIOS2_IO_H */
