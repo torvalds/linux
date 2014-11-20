@@ -36,9 +36,6 @@
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 
-#include "soc.h"
-#include "omap_device.h"
-
 #include <asm/mach-types.h>
 
 #define	DEVICE_NAME		"omap-gpmc"
@@ -2009,34 +2006,8 @@ static __exit void gpmc_exit(void)
 
 }
 
-omap_postcore_initcall(gpmc_init);
+postcore_initcall(gpmc_init);
 module_exit(gpmc_exit);
-
-static int __init omap_gpmc_init(void)
-{
-	struct omap_hwmod *oh;
-	struct platform_device *pdev;
-	char *oh_name = "gpmc";
-
-	/*
-	 * if the board boots up with a populated DT, do not
-	 * manually add the device from this initcall
-	 */
-	if (of_have_populated_dt())
-		return -ENODEV;
-
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh) {
-		pr_err("Could not look up %s\n", oh_name);
-		return -ENODEV;
-	}
-
-	pdev = omap_device_build(DEVICE_NAME, -1, oh, NULL, 0);
-	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
-
-	return PTR_RET(pdev);
-}
-omap_postcore_initcall(omap_gpmc_init);
 
 static irqreturn_t gpmc_handle_irq(int irq, void *dev)
 {
