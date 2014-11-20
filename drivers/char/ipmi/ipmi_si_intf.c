@@ -536,7 +536,8 @@ static void handle_flags(struct smi_info *smi_info)
 #define GLOBAL_ENABLES_MASK (IPMI_BMC_EVT_MSG_BUFF | IPMI_BMC_RCV_MSG_INTR | \
 			     IPMI_BMC_EVT_MSG_INTR)
 
-static u8 current_global_enables(struct smi_info *smi_info, u8 base)
+static u8 current_global_enables(struct smi_info *smi_info, u8 base,
+				 bool *irq_on)
 {
 	u8 enables = 0;
 
@@ -557,7 +558,25 @@ static u8 current_global_enables(struct smi_info *smi_info, u8 base)
 	else
 		enables &= ~IPMI_BMC_EVT_MSG_INTR;
 
+	*irq_on = enables & (IPMI_BMC_EVT_MSG_INTR | IPMI_BMC_RCV_MSG_INTR);
+
 	return enables;
+}
+
+static void check_bt_irq(struct smi_info *smi_info, bool irq_on)
+{
+	u8 irqstate = smi_info->io.inputb(&smi_info->io, IPMI_BT_INTMASK_REG);
+
+	irqstate &= IPMI_BT_INTMASK_ENABLE_IRQ_BIT;
+
+	if ((bool)irqstate == irq_on)
+		return;
+
+	if (irq_on)
+		smi_info->io.outputb(&smi_info->io, IPMI_BT_INTMASK_REG,
+				     IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
+	else
+		smi_info->io.outputb(&smi_info->io, IPMI_BT_INTMASK_REG, 0);
 }
 
 static void handle_transaction_done(struct smi_info *smi_info)
@@ -708,6 +727,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 	{
 		unsigned char msg[4];
 		u8 enables;
+		bool irq_on;
 
 		/* We got the flags from the SMI, now handle them. */
 		smi_info->handlers->get_result(smi_info->si_sm, msg, 4);
@@ -719,7 +739,10 @@ static void handle_transaction_done(struct smi_info *smi_info)
 			smi_info->si_state = SI_NORMAL;
 			break;
 		}
-		enables = current_global_enables(smi_info, 0);
+		enables = current_global_enables(smi_info, 0, &irq_on);
+		if (smi_info->si_type == SI_BT)
+			/* BT has its own interrupt enable bit. */
+			check_bt_irq(smi_info, irq_on);
 		if (enables != (msg[3] & GLOBAL_ENABLES_MASK)) {
 			/* Enables are not correct, fix them. */
 			msg[0] = (IPMI_NETFN_APP_REQUEST << 2);
