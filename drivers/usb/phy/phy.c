@@ -191,7 +191,9 @@ struct usb_phy *devm_usb_get_phy_by_phandle(struct device *dev,
 
 	phy = __of_usb_find_phy(node);
 	if (IS_ERR(phy) || !try_module_get(phy->dev->driver->owner)) {
-		phy = ERR_PTR(-EPROBE_DEFER);
+		if (!IS_ERR(phy))
+			phy = ERR_PTR(-EPROBE_DEFER);
+
 		devres_free(ptr);
 		goto err1;
 	}
