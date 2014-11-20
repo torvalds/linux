@@ -113,6 +113,8 @@ asmlinkage void mce_threshold_interrupt(void);
 
 extern enum ctx_state ist_enter(struct pt_regs *regs);
 extern void ist_exit(struct pt_regs *regs, enum ctx_state prev_state);
+extern void ist_begin_non_atomic(struct pt_regs *regs);
+extern void ist_end_non_atomic(void);
 
 /* Interrupts/Exceptions */
 enum {

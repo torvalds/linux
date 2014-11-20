@@ -141,6 +141,44 @@ void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
 		rcu_nmi_exit();
 }
 
+/**
+ * ist_begin_non_atomic() - begin a non-atomic section in an IST exception
+ * @regs:	regs passed to the IST exception handler
+ *
+ * IST exception handlers normally cannot schedule.  As a special
+ * exception, if the exception interrupted userspace code (i.e.
+ * user_mode_vm(regs) would return true) and the exception was not
+ * a double fault, it can be safe to schedule.  ist_begin_non_atomic()
+ * begins a non-atomic section within an ist_enter()/ist_exit() region.
+ * Callers are responsible for enabling interrupts themselves inside
+ * the non-atomic section, and callers must call is_end_non_atomic()
+ * before ist_exit().
+ */
+void ist_begin_non_atomic(struct pt_regs *regs)
+{
+	BUG_ON(!user_mode_vm(regs));
+
+	/*
+	 * Sanity check: we need to be on the normal thread stack.  This
+	 * will catch asm bugs and any attempt to use ist_preempt_enable
+	 * from double_fault.
+	 */
+	BUG_ON(((current_stack_pointer() ^ this_cpu_read_stable(kernel_stack))
+		& ~(THREAD_SIZE - 1)) != 0);
+
+	preempt_count_sub(HARDIRQ_OFFSET);
+}
+
+/**
+ * ist_end_non_atomic() - begin a non-atomic section in an IST exception
+ *
+ * Ends a non-atomic section started with ist_begin_non_atomic().
+ */
+void ist_end_non_atomic(void)
+{
+	preempt_count_add(HARDIRQ_OFFSET);
+}
+
 static nokprobe_inline int
 do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 		  struct pt_regs *regs,	long error_code)
