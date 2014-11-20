@@ -37,16 +37,26 @@ SunXi family
           http://dl.linux-sunxi.org/A20/A20%20User%20Manual%202013-03-22.pdf
 
       - Allwinner A23
-        + Not Supported
+        + Datasheet
+          http://dl.linux-sunxi.org/A23/A23%20Datasheet%20V1.0%2020130830.pdf
+        + User Manual
+          http://dl.linux-sunxi.org/A23/A23%20User%20Manual%20V1.0%2020130830.pdf
 
     * Quad ARM Cortex-A7 based SoCs
       - Allwinner A31 (sun6i)
         + Datasheet
-          http://dl.linux-sunxi.org/A31/A31%20Datasheet%20-%20v1.00%20(2012-12-24).pdf
+          http://dl.linux-sunxi.org/A31/A3x_release_document/A31/IC/A31%20datasheet%20V1.3%2020131106.pdf
+        + User Manual
+          http://dl.linux-sunxi.org/A31/A3x_release_document/A31/IC/A31%20user%20manual%20V1.1%2020130630.pdf
 
       - Allwinner A31s (sun6i)
         + Not Supported
+        + Datasheet
+          http://dl.linux-sunxi.org/A31/A3x_release_document/A31s/IC/A31s%20datasheet%20V1.3%2020131106.pdf
+        + User Manual
+          http://dl.linux-sunxi.org/A31/A3x_release_document/A31s/IC/A31s%20User%20Manual%20%20V1.0%2020130322.pdf
 
     * Quad ARM Cortex-A15, Quad ARM Cortex-A7 based SoCs
       - Allwinner A80
-        + Not Supported
+        + Datasheet
+	  http://dl.linux-sunxi.org/A80/A80_Datasheet_Revision_1.0_0404.pdf
