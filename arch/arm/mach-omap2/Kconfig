@@ -79,7 +79,9 @@ config ARCH_OMAP2PLUS
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
 	select MACH_OMAP_GENERIC
+	select MEMORY
 	select OMAP_DM_TIMER
+	select OMAP_GPMC
 	select PINCTRL
 	select SOC_BUS
 	select TI_PRIV_EDMA
