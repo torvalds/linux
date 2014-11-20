@@ -447,13 +447,20 @@ int gb_operation_request_send(struct gb_operation *operation,
 	 */
 	operation->callback = callback;
 	gb_pending_operation_insert(operation);
+
+	/*
+	 * We impose a time limit for requests to complete.  We need
+	 * to set the timer before we send the request though, so we
+	 * don't lose a race with the receipt of the resposne.
+	 */
+	timeout = msecs_to_jiffies(OPERATION_TIMEOUT_DEFAULT);
+	schedule_delayed_work(&operation->timeout_work, timeout);
+
+	/* All set, send the request */
 	ret = gb_message_send(&operation->request, GFP_KERNEL);
 	if (ret)
 		return ret;
 
-	/* We impose a time limit for requests to complete.  */
-	timeout = msecs_to_jiffies(OPERATION_TIMEOUT_DEFAULT);
-	schedule_delayed_work(&operation->timeout_work, timeout);
 	if (!callback)
 		ret = gb_operation_wait(operation);
 
