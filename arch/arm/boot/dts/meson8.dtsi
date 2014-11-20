@@ -16,10 +16,8 @@
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- *     You should have received a copy of the GNU General Public
- *     License along with this library; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  * Or, alternatively,
  *
@@ -48,8 +46,8 @@
 /include/ "meson.dtsi"
 
 / {
-	model = "Amlogic Meson6 SoC";
-	compatible = "amlogic,meson6";
+	model = "Amlogic Meson8 SoC";
+	compatible = "amlogic,meson8";
 
 	interrupt-parent = <&gic>;
 
@@ -70,11 +68,25 @@
 			next-level-cache = <&L2>;
 			reg = <0x201>;
 		};
+
+		cpu@202 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x202>;
+		};
+
+		cpu@203 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x203>;
+		};
 	};
 
 	clk81: clk@0 {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
-		clock-frequency = <200000000>;
+		clock-frequency = <141666666>;
 	};
 }; /* end of / */
