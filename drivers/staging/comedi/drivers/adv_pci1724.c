@@ -57,8 +57,6 @@ supported PCI devices are configured as comedi devices automatically.
 
 #include "../comedidev.h"
 
-#define PCI_VENDOR_ID_ADVANTECH	0x13fe
-
 /* register offsets */
 enum board_registers {
 	DAC_CONTROL_REG = 0x0,
