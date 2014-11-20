@@ -72,12 +72,8 @@ supported PCI devices are configured as comedi devices automatically.
 #define PCI1724_SYNC_CTRL_DACSTAT	(1 << 1)
 #define PCI1724_SYNC_CTRL_SYN		(1 << 0)
 #define PCI1724_EEPROM_CTRL_REG		0x08
-#define PCI1724_SYNC_OUTPUT_TRIG_REG	0x0c
+#define PCI1724_SYNC_TRIG_REG		0x0c  /* any value works */
 #define PCI1724_BOARD_ID_REG		0x10
-
-enum sync_output_trigger_contents {
-	SYNC_TRIGGER_BITS = 0x0 /* any value works */
-};
 
 enum board_id_contents {
 	BOARD_ID_MASK = 0xf
