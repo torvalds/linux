@@ -149,9 +149,10 @@ static int gb_pwm_count_operation(struct gb_pwm_chip *pwmc)
 		ret = gb_operation_status_map(operation->result);
 		gb_connection_err(connection, "pwm count result %hhu",
 				  operation->result);
-	} else
+	} else {
 		response = operation->response.payload;
 		pwmc->pwm_max = response->count;
+	}
 out:
 	gb_operation_destroy(operation);
 
