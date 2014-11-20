@@ -323,6 +323,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	if (ret)
 		goto fail;
 
+	/* we need to set a default rate before enabling.  Set a safe
+	 * rate first, then figure out hw revision, and then set a
+	 * more optimal rate:
+	 */
+	clk_set_rate(mdp5_kms->src_clk, 200000000);
+
 	read_hw_revision(mdp5_kms, &major, &minor);
 	priv = mdp5_cfg_init(mdp5_kms, major, minor);
 	if (IS_ERR(priv)) {
