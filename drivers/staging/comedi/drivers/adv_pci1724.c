@@ -60,8 +60,6 @@ supported PCI devices are configured as comedi devices automatically.
 
 #define PCI_VENDOR_ID_ADVANTECH	0x13fe
 
-#define NUM_AO_CHANNELS 32
-
 /* register offsets */
 enum board_registers {
 	DAC_CONTROL_REG = 0x0,
@@ -236,7 +234,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
-	s->n_chan = NUM_AO_CHANNELS;
+	s->n_chan = 32;
 	s->maxdata = 0x3fff;
 	s->range_table = &ao_ranges_1724;
 	s->insn_write = ao_winsn;
@@ -249,7 +247,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-	s->n_chan = NUM_AO_CHANNELS;
+	s->n_chan = 32;
 	s->maxdata = 0x3fff;
 	s->insn_write = offset_write_insn;
 
@@ -261,7 +259,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-	s->n_chan = NUM_AO_CHANNELS;
+	s->n_chan = 32;
 	s->maxdata = 0x3fff;
 	s->insn_write = gain_write_insn;
 
