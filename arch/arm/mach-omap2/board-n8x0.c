@@ -22,7 +22,6 @@
 #include <linux/spi/spi.h>
 #include <linux/usb/musb.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
-#include <linux/platform_data/mtd-onenand-omap2.h>
 #include <linux/mfd/menelaus.h>
 #include <sound/tlv320aic3x.h>
 
@@ -32,7 +31,6 @@
 #include "common.h"
 #include "mmc.h"
 #include "soc.h"
-#include "gpmc-onenand.h"
 #include "common-board-devices.h"
 
 #define TUSB6010_ASYNC_CS	1

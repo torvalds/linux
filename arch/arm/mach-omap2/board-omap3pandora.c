@@ -24,6 +24,7 @@
 #include <linux/spi/spi.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
+#include <linux/omap-gpmc.h>
 #include <linux/wl12xx.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
@@ -51,7 +52,6 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
-#include "gpmc-nand.h"
 
 #define PANDORA_WIFI_IRQ_GPIO		21
 #define PANDORA_WIFI_NRESET_GPIO	23

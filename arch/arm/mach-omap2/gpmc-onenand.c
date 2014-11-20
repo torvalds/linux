@@ -15,14 +15,13 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/onenand_regs.h>
 #include <linux/io.h>
+#include <linux/omap-gpmc.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 #include <linux/err.h>
 
 #include <asm/mach/flash.h>
 
-#include "gpmc.h"
 #include "soc.h"
-#include "gpmc-onenand.h"
 
 #define	ONENAND_IO_SIZE	SZ_128K
 

@@ -12,14 +12,13 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/omap-gpmc.h>
 #include <linux/mtd/nand.h>
 #include <linux/platform_data/mtd-nand-omap2.h>
 
 #include <asm/mach/flash.h>
 
-#include "gpmc.h"
 #include "soc.h"
-#include "gpmc-nand.h"
 
 /* minimum size for IO mapping */
 #define	NAND_IO_SIZE	4

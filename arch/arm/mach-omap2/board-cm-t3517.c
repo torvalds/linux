@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/omap-gpmc.h>
 #include <linux/rtc-v3020.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -41,7 +42,6 @@
 
 #include "common.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include "gpmc.h"
 
 #include "am35xx.h"
 
@@ -50,7 +50,6 @@
 #include "hsmmc.h"
 #include "common-board-devices.h"
 #include "am35xx-emac.h"
-#include "gpmc-nand.h"
 
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
 static struct gpio_led cm_t3517_leds[] = {
