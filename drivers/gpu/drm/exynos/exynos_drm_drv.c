@@ -108,6 +108,11 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_unbind_all;
 
+	/* Probe non kms sub drivers and virtual display driver. */
+	ret = exynos_drm_device_subdrv_probe(dev);
+	if (ret)
+		goto err_cleanup_vblank;
+
 	/*
 	 * enable drm irq mode.
 	 * - with irq_enabled = true, we can use the vblank feature.
@@ -133,6 +138,8 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 	return 0;
 
+err_cleanup_vblank:
+	drm_vblank_cleanup(dev);
 err_unbind_all:
 	component_unbind_all(dev->dev, dev);
 err_mode_config_cleanup:
@@ -146,6 +153,8 @@ err_free_private:
 
 static int exynos_drm_unload(struct drm_device *dev)
 {
+	exynos_drm_device_subdrv_remove(dev);
+
 	exynos_drm_fbdev_fini(dev);
 	drm_kms_helper_poll_fini(dev);
 
@@ -614,14 +623,8 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_unregister_non_kms_drivers;
 
-	/* Probe non kms sub drivers and virtual display driver. */
-	ret = exynos_drm_device_subdrv_probe(platform_get_drvdata(pdev));
-	if (ret)
-		goto err_unregister_resources;
-
 	return ret;
 
-err_unregister_resources:
 #ifdef CONFIG_DRM_EXYNOS_IPP
 	exynos_platform_device_ipp_unregister();
 #endif
@@ -642,8 +645,6 @@ err_unregister_kms_drivers:
 static int exynos_drm_platform_remove(struct platform_device *pdev)
 {
 	int i;
-
-	exynos_drm_device_subdrv_remove(platform_get_drvdata(pdev));
 
 #ifdef CONFIG_DRM_EXYNOS_IPP
 	exynos_platform_device_ipp_unregister();
