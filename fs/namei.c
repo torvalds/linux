@@ -1851,7 +1851,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 	int retval = 0;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
-	nd->flags = flags | LOOKUP_JUMPED;
+	nd->flags = flags | LOOKUP_JUMPED | LOOKUP_PARENT;
 	nd->depth = 0;
 	nd->base = NULL;
 	if (flags & LOOKUP_ROOT) {
@@ -1983,7 +1983,7 @@ static int path_lookupat(int dfd, const char *name,
 	 * be handled by restarting a traditional ref-walk (which will always
 	 * be able to complete).
 	 */
-	err = path_init(dfd, name, flags | LOOKUP_PARENT, nd);
+	err = path_init(dfd, name, flags, nd);
 
 	if (unlikely(err))
 		goto out;
@@ -2329,7 +2329,7 @@ path_mountpoint(int dfd, const char *name, struct path *path, unsigned int flags
 	struct nameidata nd;
 	int err;
 
-	err = path_init(dfd, name, flags | LOOKUP_PARENT, &nd);
+	err = path_init(dfd, name, flags, &nd);
 	if (unlikely(err))
 		goto out;
 
@@ -3220,7 +3220,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		goto out;
 	}
 
-	error = path_init(dfd, pathname->name, flags | LOOKUP_PARENT, nd);
+	error = path_init(dfd, pathname->name, flags, nd);
 	if (unlikely(error))
 		goto out;
 
