@@ -428,8 +428,7 @@ static void fimc_is_load_firmware(const struct firmware *fw, void *context)
 	 * needed around for copying to the IS working memory every
 	 * time before the Cortex-A5 is restarted.
 	 */
-	if (is->fw.f_w)
-		release_firmware(is->fw.f_w);
+	release_firmware(is->fw.f_w);
 	is->fw.f_w = fw;
 done:
 	mutex_unlock(&is->lock);
@@ -937,8 +936,7 @@ static int fimc_is_remove(struct platform_device *pdev)
 	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
 	fimc_is_put_clocks(is);
 	fimc_is_debugfs_remove(is);
-	if (is->fw.f_w)
-		release_firmware(is->fw.f_w);
+	release_firmware(is->fw.f_w);
 	fimc_is_free_cpu_memory(is);
 
 	return 0;
