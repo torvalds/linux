@@ -105,7 +105,7 @@ struct rcu_state sname##_state = { \
 	.name = RCU_STATE_NAME(sname), \
 	.abbr = sabbr, \
 }; \
-DEFINE_PER_CPU(struct rcu_data, sname##_data)
+DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, sname##_data)
 
 RCU_STATE_INITIALIZER(rcu_sched, 's', call_rcu_sched);
 RCU_STATE_INITIALIZER(rcu_bh, 'b', call_rcu_bh);
@@ -151,19 +151,6 @@ EXPORT_SYMBOL_GPL(rcu_scheduler_active);
  * a time.
  */
 static int rcu_scheduler_fully_active __read_mostly;
-
-#ifdef CONFIG_RCU_BOOST
-
-/*
- * Control variables for per-CPU and per-rcu_node kthreads.  These
- * handle all flavors of RCU.
- */
-static DEFINE_PER_CPU(struct task_struct *, rcu_cpu_kthread_task);
-DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
-DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
-DEFINE_PER_CPU(char, rcu_cpu_has_work);
-
-#endif /* #ifdef CONFIG_RCU_BOOST */
 
 static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
 static void invoke_rcu_core(void);
@@ -286,11 +273,11 @@ static void rcu_momentary_dyntick_idle(void)
  * and requires special handling for preemptible RCU.
  * The caller must have disabled preemption.
  */
-void rcu_note_context_switch(int cpu)
+void rcu_note_context_switch(void)
 {
 	trace_rcu_utilization(TPS("Start context switch"));
 	rcu_sched_qs();
-	rcu_preempt_note_context_switch(cpu);
+	rcu_preempt_note_context_switch();
 	if (unlikely(raw_cpu_read(rcu_sched_qs_mask)))
 		rcu_momentary_dyntick_idle();
 	trace_rcu_utilization(TPS("End context switch"));
@@ -325,7 +312,7 @@ static void force_qs_rnp(struct rcu_state *rsp,
 				  unsigned long *maxj),
 			 bool *isidle, unsigned long *maxj);
 static void force_quiescent_state(struct rcu_state *rsp);
-static int rcu_pending(int cpu);
+static int rcu_pending(void);
 
 /*
  * Return the number of RCU-sched batches processed thus far for debug & stats.
@@ -510,11 +497,11 @@ cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
  * we really have entered idle, and must do the appropriate accounting.
  * The caller must have disabled interrupts.
  */
-static void rcu_eqs_enter_common(struct rcu_dynticks *rdtp, long long oldval,
-				bool user)
+static void rcu_eqs_enter_common(long long oldval, bool user)
 {
 	struct rcu_state *rsp;
 	struct rcu_data *rdp;
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	trace_rcu_dyntick(TPS("Start"), oldval, rdtp->dynticks_nesting);
 	if (!user && !is_idle_task(current)) {
@@ -531,7 +518,7 @@ static void rcu_eqs_enter_common(struct rcu_dynticks *rdtp, long long oldval,
 		rdp = this_cpu_ptr(rsp->rda);
 		do_nocb_deferred_wakeup(rdp);
 	}
-	rcu_prepare_for_idle(smp_processor_id());
+	rcu_prepare_for_idle();
 	/* CPUs seeing atomic_inc() must see prior RCU read-side crit sects */
 	smp_mb__before_atomic();  /* See above. */
 	atomic_inc(&rdtp->dynticks);
@@ -565,7 +552,7 @@ static void rcu_eqs_enter(bool user)
 	WARN_ON_ONCE((oldval & DYNTICK_TASK_NEST_MASK) == 0);
 	if ((oldval & DYNTICK_TASK_NEST_MASK) == DYNTICK_TASK_NEST_VALUE) {
 		rdtp->dynticks_nesting = 0;
-		rcu_eqs_enter_common(rdtp, oldval, user);
+		rcu_eqs_enter_common(oldval, user);
 	} else {
 		rdtp->dynticks_nesting -= DYNTICK_TASK_NEST_VALUE;
 	}
@@ -589,7 +576,7 @@ void rcu_idle_enter(void)
 
 	local_irq_save(flags);
 	rcu_eqs_enter(false);
-	rcu_sysidle_enter(this_cpu_ptr(&rcu_dynticks), 0);
+	rcu_sysidle_enter(0);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(rcu_idle_enter);
@@ -639,8 +626,8 @@ void rcu_irq_exit(void)
 	if (rdtp->dynticks_nesting)
 		trace_rcu_dyntick(TPS("--="), oldval, rdtp->dynticks_nesting);
 	else
-		rcu_eqs_enter_common(rdtp, oldval, true);
-	rcu_sysidle_enter(rdtp, 1);
+		rcu_eqs_enter_common(oldval, true);
+	rcu_sysidle_enter(1);
 	local_irq_restore(flags);
 }
 
@@ -651,16 +638,17 @@ void rcu_irq_exit(void)
  * we really have exited idle, and must do the appropriate accounting.
  * The caller must have disabled interrupts.
  */
-static void rcu_eqs_exit_common(struct rcu_dynticks *rdtp, long long oldval,
-			       int user)
+static void rcu_eqs_exit_common(long long oldval, int user)
 {
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+
 	rcu_dynticks_task_exit();
 	smp_mb__before_atomic();  /* Force ordering w/previous sojourn. */
 	atomic_inc(&rdtp->dynticks);
 	/* CPUs seeing atomic_inc() must see later RCU read-side crit sects */
 	smp_mb__after_atomic();  /* See above. */
 	WARN_ON_ONCE(!(atomic_read(&rdtp->dynticks) & 0x1));
-	rcu_cleanup_after_idle(smp_processor_id());
+	rcu_cleanup_after_idle();
 	trace_rcu_dyntick(TPS("End"), oldval, rdtp->dynticks_nesting);
 	if (!user && !is_idle_task(current)) {
 		struct task_struct *idle __maybe_unused =
@@ -691,7 +679,7 @@ static void rcu_eqs_exit(bool user)
 		rdtp->dynticks_nesting += DYNTICK_TASK_NEST_VALUE;
 	} else {
 		rdtp->dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
-		rcu_eqs_exit_common(rdtp, oldval, user);
+		rcu_eqs_exit_common(oldval, user);
 	}
 }
 
@@ -712,7 +700,7 @@ void rcu_idle_exit(void)
 
 	local_irq_save(flags);
 	rcu_eqs_exit(false);
-	rcu_sysidle_exit(this_cpu_ptr(&rcu_dynticks), 0);
+	rcu_sysidle_exit(0);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(rcu_idle_exit);
@@ -763,8 +751,8 @@ void rcu_irq_enter(void)
 	if (oldval)
 		trace_rcu_dyntick(TPS("++="), oldval, rdtp->dynticks_nesting);
 	else
-		rcu_eqs_exit_common(rdtp, oldval, true);
-	rcu_sysidle_exit(rdtp, 1);
+		rcu_eqs_exit_common(oldval, true);
+	rcu_sysidle_exit(1);
 	local_irq_restore(flags);
 }
 
@@ -2387,7 +2375,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
  * invoked from the scheduling-clock interrupt.  If rcu_pending returns
  * false, there is no point in invoking rcu_check_callbacks().
  */
-void rcu_check_callbacks(int cpu, int user)
+void rcu_check_callbacks(int user)
 {
 	trace_rcu_utilization(TPS("Start scheduler-tick"));
 	increment_cpu_stall_ticks();
@@ -2419,8 +2407,8 @@ void rcu_check_callbacks(int cpu, int user)
 
 		rcu_bh_qs();
 	}
-	rcu_preempt_check_callbacks(cpu);
-	if (rcu_pending(cpu))
+	rcu_preempt_check_callbacks();
+	if (rcu_pending())
 		invoke_rcu_core();
 	if (user)
 		rcu_note_voluntary_context_switch(current);
@@ -2963,6 +2951,9 @@ static int synchronize_sched_expedited_cpu_stop(void *data)
  */
 void synchronize_sched_expedited(void)
 {
+	cpumask_var_t cm;
+	bool cma = false;
+	int cpu;
 	long firstsnap, s, snap;
 	int trycount = 0;
 	struct rcu_state *rsp = &rcu_sched_state;
@@ -2997,11 +2988,26 @@ void synchronize_sched_expedited(void)
 	}
 	WARN_ON_ONCE(cpu_is_offline(raw_smp_processor_id()));
 
+	/* Offline CPUs, idle CPUs, and any CPU we run on are quiescent. */
+	cma = zalloc_cpumask_var(&cm, GFP_KERNEL);
+	if (cma) {
+		cpumask_copy(cm, cpu_online_mask);
+		cpumask_clear_cpu(raw_smp_processor_id(), cm);
+		for_each_cpu(cpu, cm) {
+			struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
+
+			if (!(atomic_add_return(0, &rdtp->dynticks) & 0x1))
+				cpumask_clear_cpu(cpu, cm);
+		}
+		if (cpumask_weight(cm) == 0)
+			goto all_cpus_idle;
+	}
+
 	/*
 	 * Each pass through the following loop attempts to force a
 	 * context switch on each CPU.
 	 */
-	while (try_stop_cpus(cpu_online_mask,
+	while (try_stop_cpus(cma ? cm : cpu_online_mask,
 			     synchronize_sched_expedited_cpu_stop,
 			     NULL) == -EAGAIN) {
 		put_online_cpus();
@@ -3013,6 +3019,7 @@ void synchronize_sched_expedited(void)
 			/* ensure test happens before caller kfree */
 			smp_mb__before_atomic(); /* ^^^ */
 			atomic_long_inc(&rsp->expedited_workdone1);
+			free_cpumask_var(cm);
 			return;
 		}
 
@@ -3022,6 +3029,7 @@ void synchronize_sched_expedited(void)
 		} else {
 			wait_rcu_gp(call_rcu_sched);
 			atomic_long_inc(&rsp->expedited_normal);
+			free_cpumask_var(cm);
 			return;
 		}
 
@@ -3031,6 +3039,7 @@ void synchronize_sched_expedited(void)
 			/* ensure test happens before caller kfree */
 			smp_mb__before_atomic(); /* ^^^ */
 			atomic_long_inc(&rsp->expedited_workdone2);
+			free_cpumask_var(cm);
 			return;
 		}
 
@@ -3045,12 +3054,16 @@ void synchronize_sched_expedited(void)
 			/* CPU hotplug operation in flight, use normal GP. */
 			wait_rcu_gp(call_rcu_sched);
 			atomic_long_inc(&rsp->expedited_normal);
+			free_cpumask_var(cm);
 			return;
 		}
 		snap = atomic_long_read(&rsp->expedited_start);
 		smp_mb(); /* ensure read is before try_stop_cpus(). */
 	}
 	atomic_long_inc(&rsp->expedited_stoppedcpus);
+
+all_cpus_idle:
+	free_cpumask_var(cm);
 
 	/*
 	 * Everyone up to our most recent fetch is covered by our grace
@@ -3143,12 +3156,12 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
  * by the current CPU, returning 1 if so.  This function is part of the
  * RCU implementation; it is -not- an exported member of the RCU API.
  */
-static int rcu_pending(int cpu)
+static int rcu_pending(void)
 {
 	struct rcu_state *rsp;
 
 	for_each_rcu_flavor(rsp)
-		if (__rcu_pending(rsp, per_cpu_ptr(rsp->rda, cpu)))
+		if (__rcu_pending(rsp, this_cpu_ptr(rsp->rda)))
 			return 1;
 	return 0;
 }
@@ -3158,7 +3171,7 @@ static int rcu_pending(int cpu)
  * non-NULL, store an indication of whether all callbacks are lazy.
  * (If there are no callbacks, all of them are deemed to be lazy.)
  */
-static int __maybe_unused rcu_cpu_has_callbacks(int cpu, bool *all_lazy)
+static int __maybe_unused rcu_cpu_has_callbacks(bool *all_lazy)
 {
 	bool al = true;
 	bool hc = false;
@@ -3166,7 +3179,7 @@ static int __maybe_unused rcu_cpu_has_callbacks(int cpu, bool *all_lazy)
 	struct rcu_state *rsp;
 
 	for_each_rcu_flavor(rsp) {
-		rdp = per_cpu_ptr(rsp->rda, cpu);
+		rdp = this_cpu_ptr(rsp->rda);
 		if (!rdp->nxtlist)
 			continue;
 		hc = true;
@@ -3485,8 +3498,10 @@ static int rcu_cpu_notify(struct notifier_block *self,
 	case CPU_DEAD_FROZEN:
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
-		for_each_rcu_flavor(rsp)
+		for_each_rcu_flavor(rsp) {
 			rcu_cleanup_dead_cpu(cpu, rsp);
+			do_nocb_deferred_wakeup(per_cpu_ptr(rsp->rda, cpu));
+		}
 		break;
 	default:
 		break;
@@ -3766,6 +3781,8 @@ void __init rcu_init(void)
 	pm_notifier(rcu_pm_notify, 0);
 	for_each_online_cpu(cpu)
 		rcu_cpu_notify(NULL, CPU_UP_PREPARE, (void *)(long)cpu);
+
+	rcu_early_boot_tests();
 }
 
 #include "tree_plugin.h"

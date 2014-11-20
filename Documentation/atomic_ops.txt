@@ -7,12 +7,13 @@
 maintainers on how to implement atomic counter, bitops, and spinlock
 interfaces properly.
 
-	The atomic_t type should be defined as a signed integer.
-Also, it should be made opaque such that any kind of cast to a normal
-C integer type will fail.  Something like the following should
-suffice:
+	The atomic_t type should be defined as a signed integer and
+the atomic_long_t type as a signed long integer.  Also, they should
+be made opaque such that any kind of cast to a normal C integer type
+will fail.  Something like the following should suffice:
 
 	typedef struct { int counter; } atomic_t;
+	typedef struct { long counter; } atomic_long_t;
 
 Historically, counter has been declared volatile.  This is now discouraged.
 See Documentation/volatile-considered-harmful.txt for the complete rationale.
@@ -36,6 +37,9 @@ are guaranteed to be correct reflecting the initialized value if the
 initializer is used before runtime.  If the initializer is used at runtime, a
 proper implicit or explicit read memory barrier is needed before reading the
 value with atomic_read from another thread.
+
+As with all of the atomic_ interfaces, replace the leading "atomic_"
+with "atomic_long_" to operate on atomic_long_t.
 
 The second interface can be used at runtime, as in:
 
