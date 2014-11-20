@@ -9526,21 +9526,49 @@ static bool use_mmio_flip(struct intel_engine_cs *ring,
 		return ring != obj->ring;
 }
 
-static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
+static void skl_do_mmio_flip(struct intel_crtc *intel_crtc)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_framebuffer *fb = intel_crtc->base.primary->fb;
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj = intel_fb->obj;
+	const enum pipe pipe = intel_crtc->pipe;
+	u32 ctl, stride;
+
+	ctl = I915_READ(PLANE_CTL(pipe, 0));
+	ctl &= ~PLANE_CTL_TILED_MASK;
+	if (obj->tiling_mode == I915_TILING_X)
+		ctl |= PLANE_CTL_TILED_X;
+
+	/*
+	 * The stride is either expressed as a multiple of 64 bytes chunks for
+	 * linear buffers or in number of tiles for tiled buffers.
+	 */
+	stride = fb->pitches[0] >> 6;
+	if (obj->tiling_mode == I915_TILING_X)
+		stride = fb->pitches[0] >> 9; /* X tiles are 512 bytes wide */
+
+	/*
+	 * Both PLANE_CTL and PLANE_STRIDE are not updated on vblank but on
+	 * PLANE_SURF updates, the update is then guaranteed to be atomic.
+	 */
+	I915_WRITE(PLANE_CTL(pipe, 0), ctl);
+	I915_WRITE(PLANE_STRIDE(pipe, 0), stride);
+
+	I915_WRITE(PLANE_SURF(pipe, 0), intel_crtc->unpin_work->gtt_offset);
+	POSTING_READ(PLANE_SURF(pipe, 0));
+}
+
+static void ilk_do_mmio_flip(struct intel_crtc *intel_crtc)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_framebuffer *intel_fb =
 		to_intel_framebuffer(intel_crtc->base.primary->fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
-	bool atomic_update;
-	u32 start_vbl_count;
 	u32 dspcntr;
 	u32 reg;
-
-	intel_mark_page_flip_active(intel_crtc);
-
-	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
 
 	reg = DSPCNTR(intel_crtc->plane);
 	dspcntr = I915_READ(reg);
@@ -9555,6 +9583,28 @@ static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
 	I915_WRITE(DSPSURF(intel_crtc->plane),
 		   intel_crtc->unpin_work->gtt_offset);
 	POSTING_READ(DSPSURF(intel_crtc->plane));
+
+}
+
+/*
+ * XXX: This is the temporary way to update the plane registers until we get
+ * around to using the usual plane update functions for MMIO flips
+ */
+static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	bool atomic_update;
+	u32 start_vbl_count;
+
+	intel_mark_page_flip_active(intel_crtc);
+
+	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
+
+	if (INTEL_INFO(dev)->gen >= 9)
+		skl_do_mmio_flip(intel_crtc);
+	else
+		/* use_mmio_flip() retricts MMIO flips to ilk+ */
+		ilk_do_mmio_flip(intel_crtc);
 
 	if (atomic_update)
 		intel_pipe_update_end(intel_crtc, start_vbl_count);
