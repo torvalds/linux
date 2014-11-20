@@ -61,16 +61,6 @@ static bool is_edp_psr(struct intel_dp *intel_dp)
 	return intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED;
 }
 
-bool intel_psr_is_enabled(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (!HAS_PSR(dev))
-		return false;
-
-	return I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
-}
-
 static void intel_psr_write_vsc(struct intel_dp *intel_dp,
 				    struct edp_vsc_psr *vsc_psr)
 {

@@ -1115,7 +1115,6 @@ void intel_backlight_unregister(struct drm_device *dev);
 
 
 /* intel_psr.c */
-bool intel_psr_is_enabled(struct drm_device *dev);
 void intel_psr_enable(struct intel_dp *intel_dp);
 void intel_psr_disable(struct intel_dp *intel_dp);
 void intel_psr_invalidate(struct drm_device *dev,

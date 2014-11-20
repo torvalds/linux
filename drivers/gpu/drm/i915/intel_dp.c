@@ -4763,14 +4763,9 @@ void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 	}
 
 	/*
-	 * FIXME: This needs proper synchronization with psr state. But really
-	 * hard to tell without seeing the user of this function of this code.
-	 * Check locking and ordering once that lands.
+	 * FIXME: This needs proper synchronization with psr state for some
+	 * platforms that cannot have PSR and DRRS enabled at the same time.
 	 */
-	if (INTEL_INFO(dev)->gen < 8 && intel_psr_is_enabled(dev)) {
-		DRM_DEBUG_KMS("DRRS is disabled as PSR is enabled\n");
-		return;
-	}
 
 	encoder = intel_attached_encoder(&intel_connector->base);
 	intel_dp = enc_to_intel_dp(&encoder->base);
