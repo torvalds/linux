@@ -103,15 +103,14 @@ struct comm *thread__exec_comm(const struct thread *thread)
 	return last;
 }
 
-/* CHECKME: time should always be 0 if event aren't ordered */
 int __thread__set_comm(struct thread *thread, const char *str, u64 timestamp,
 		       bool exec)
 {
 	struct comm *new, *curr = thread__comm(thread);
 	int err;
 
-	/* Override latest entry if it had no specific time coverage */
-	if (!curr->start && !curr->exec) {
+	/* Override the default :tid entry */
+	if (!thread->comm_set) {
 		err = comm__override(curr, str, timestamp, exec);
 		if (err)
 			return err;

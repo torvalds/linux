@@ -58,6 +58,7 @@ struct disasm_line {
 	char		    *line;
 	char		    *name;
 	struct ins	    *ins;
+	int		    line_nr;
 	struct ins_operands ops;
 };
 

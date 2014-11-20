@@ -25,5 +25,6 @@ int perf_session__cache_build_ids(struct perf_session *session);
 int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 			  const char *name, bool is_kallsyms, bool is_vdso);
 int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir);
+void disable_buildid_cache(void);
 
 #endif
