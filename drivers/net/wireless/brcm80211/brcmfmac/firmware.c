@@ -262,8 +262,7 @@ static void brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 
 fail:
 	brcmf_dbg(TRACE, "failed: dev=%s\n", dev_name(fwctx->dev));
-	if (fwctx->code)
-		release_firmware(fwctx->code);
+	release_firmware(fwctx->code);
 	device_release_driver(fwctx->dev);
 	kfree(fwctx);
 }
