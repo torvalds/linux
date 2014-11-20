@@ -67,8 +67,7 @@ struct gb_gpio_line_count_response {
 struct gb_gpio_activate_request {
 	__u8	which;
 };
-struct gb_gpio_activate_response {
-};
+/* activate response has no payload */
 
 struct gb_gpio_deactivate_request {
 	__u8	which;
