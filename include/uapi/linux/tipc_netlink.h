@@ -45,6 +45,7 @@ enum {
 	TIPC_NL_BEARER_ENABLE,
 	TIPC_NL_BEARER_GET,
 	TIPC_NL_BEARER_SET,
+	TIPC_NL_SOCK_GET,
 
 	__TIPC_NL_CMD_MAX,
 	TIPC_NL_CMD_MAX = __TIPC_NL_CMD_MAX - 1
@@ -54,6 +55,7 @@ enum {
 enum {
 	TIPC_NLA_UNSPEC,
 	TIPC_NLA_BEARER,		/* nest */
+	TIPC_NLA_SOCK,			/* nest */
 
 	__TIPC_NLA_MAX,
 	TIPC_NLA_MAX = __TIPC_NLA_MAX - 1
@@ -68,6 +70,32 @@ enum {
 
 	__TIPC_NLA_BEARER_MAX,
 	TIPC_NLA_BEARER_MAX = __TIPC_NLA_BEARER_MAX - 1
+};
+
+/* Socket info */
+enum {
+	TIPC_NLA_SOCK_UNSPEC,
+	TIPC_NLA_SOCK_ADDR,		/* u32 */
+	TIPC_NLA_SOCK_REF,		/* u32 */
+	TIPC_NLA_SOCK_CON,		/* nest */
+	TIPC_NLA_SOCK_HAS_PUBL,		/* flag */
+
+	__TIPC_NLA_SOCK_MAX,
+	TIPC_NLA_SOCK_MAX = __TIPC_NLA_SOCK_MAX - 1
+};
+
+/* Nest, connection info */
+enum {
+	TIPC_NLA_CON_UNSPEC,
+
+	TIPC_NLA_CON_FLAG,		/* flag */
+	TIPC_NLA_CON_NODE,		/* u32 */
+	TIPC_NLA_CON_SOCK,		/* u32 */
+	TIPC_NLA_CON_TYPE,		/* u32 */
+	TIPC_NLA_CON_INST,		/* u32 */
+
+	__TIPC_NLA_CON_MAX,
+	TIPC_NLA_CON_MAX = __TIPC_NLA_CON_MAX - 1
 };
 
 /* Nest, link propreties. Valid for link, media and bearer */
