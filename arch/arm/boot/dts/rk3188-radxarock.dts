@@ -243,6 +243,18 @@
 	disable-wp;
 };
 
+&pwm1 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
+};
+
 &pinctrl {
 	pcfg_output_low: pcfg-output-low {
 		output-low;
