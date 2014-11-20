@@ -19,6 +19,29 @@
 #include <linux/syscalls.h>
 #include <linux/utime.h>
 
+static ssize_t __init xwrite(int fd, const char *p, size_t count)
+{
+	ssize_t out = 0;
+
+	/* sys_write only can write MAX_RW_COUNT aka 2G-4K bytes at most */
+	while (count) {
+		ssize_t rv = sys_write(fd, p, count);
+
+		if (rv < 0) {
+			if (rv == -EINTR || rv == -EAGAIN)
+				continue;
+			return out ? out : rv;
+		} else if (rv == 0)
+			break;
+
+		p += rv;
+		out += rv;
+		count -= rv;
+	}
+
+	return out;
+}
+
 static __initdata char *message;
 static void __init error(char *x)
 {
@@ -174,24 +197,24 @@ static __initdata enum state {
 } state, next_state;
 
 static __initdata char *victim;
-static __initdata unsigned count;
+static unsigned long byte_count __initdata;
 static __initdata loff_t this_header, next_header;
 
 static inline void __init eat(unsigned n)
 {
 	victim += n;
 	this_header += n;
-	count -= n;
+	byte_count -= n;
 }
 
 static __initdata char *vcollected;
 static __initdata char *collected;
-static __initdata int remains;
+static long remains __initdata;
 static __initdata char *collect;
 
 static void __init read_into(char *buf, unsigned size, enum state next)
 {
-	if (count >= size) {
+	if (byte_count >= size) {
 		collected = victim;
 		eat(size);
 		state = next;
@@ -213,9 +236,9 @@ static int __init do_start(void)
 
 static int __init do_collect(void)
 {
-	unsigned n = remains;
-	if (count < n)
-		n = count;
+	unsigned long n = remains;
+	if (byte_count < n)
+		n = byte_count;
 	memcpy(collect, victim, n);
 	eat(n);
 	collect += n;
@@ -257,8 +280,8 @@ static int __init do_header(void)
 
 static int __init do_skip(void)
 {
-	if (this_header + count < next_header) {
-		eat(count);
+	if (this_header + byte_count < next_header) {
+		eat(byte_count);
 		return 1;
 	} else {
 		eat(next_header - this_header);
@@ -269,9 +292,9 @@ static int __init do_skip(void)
 
 static int __init do_reset(void)
 {
-	while(count && *victim == '\0')
+	while (byte_count && *victim == '\0')
 		eat(1);
-	if (count && (this_header & 3))
+	if (byte_count && (this_header & 3))
 		error("broken padding");
 	return 1;
 }
@@ -286,11 +309,11 @@ static int __init maybe_link(void)
 	return 0;
 }
 
-static void __init clean_path(char *path, umode_t mode)
+static void __init clean_path(char *path, umode_t fmode)
 {
 	struct stat st;
 
-	if (!sys_newlstat(path, &st) && (st.st_mode^mode) & S_IFMT) {
+	if (!sys_newlstat(path, &st) && (st.st_mode ^ fmode) & S_IFMT) {
 		if (S_ISDIR(st.st_mode))
 			sys_rmdir(path);
 		else
@@ -345,8 +368,9 @@ static int __init do_name(void)
 
 static int __init do_copy(void)
 {
-	if (count >= body_len) {
-		sys_write(wfd, victim, body_len);
+	if (byte_count >= body_len) {
+		if (xwrite(wfd, victim, body_len) != body_len)
+			error("write error");
 		sys_close(wfd);
 		do_utime(vcollected, mtime);
 		kfree(vcollected);
@@ -354,9 +378,10 @@ static int __init do_copy(void)
 		state = SkipIt;
 		return 0;
 	} else {
-		sys_write(wfd, victim, count);
-		body_len -= count;
-		eat(count);
+		if (xwrite(wfd, victim, byte_count) != byte_count)
+			error("write error");
+		body_len -= byte_count;
+		eat(byte_count);
 		return 1;
 	}
 }
@@ -384,21 +409,21 @@ static __initdata int (*actions[])(void) = {
 	[Reset]		= do_reset,
 };
 
-static int __init write_buffer(char *buf, unsigned len)
+static long __init write_buffer(char *buf, unsigned long len)
 {
-	count = len;
+	byte_count = len;
 	victim = buf;
 
 	while (!actions[state]())
 		;
-	return len - count;
+	return len - byte_count;
 }
 
-static int __init flush_buffer(void *bufv, unsigned len)
+static long __init flush_buffer(void *bufv, unsigned long len)
 {
 	char *buf = (char *) bufv;
-	int written;
-	int origLen = len;
+	long written;
+	long origLen = len;
 	if (message)
 		return -1;
 	while ((written = write_buffer(buf, len)) < len && !message) {
@@ -417,13 +442,13 @@ static int __init flush_buffer(void *bufv, unsigned len)
 	return origLen;
 }
 
-static unsigned my_inptr;   /* index of next byte to be processed in inbuf */
+static unsigned long my_inptr; /* index of next byte to be processed in inbuf */
 
 #include <linux/decompress/generic.h>
 
-static char * __init unpack_to_rootfs(char *buf, unsigned len)
+static char * __init unpack_to_rootfs(char *buf, unsigned long len)
 {
-	int written, res;
+	long written;
 	decompress_fn decompress;
 	const char *compress_name;
 	static __initdata char msg_buf[64];
@@ -457,7 +482,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len)
 		decompress = decompress_method(buf, len, &compress_name);
 		pr_debug("Detected %s compressed data\n", compress_name);
 		if (decompress) {
-			res = decompress(buf, len, NULL, flush_buffer, NULL,
+			int res = decompress(buf, len, NULL, flush_buffer, NULL,
 				   &my_inptr, error);
 			if (res)
 				error("decompressor failed");
@@ -603,8 +628,13 @@ static int __init populate_rootfs(void)
 		fd = sys_open("/initrd.image",
 			      O_WRONLY|O_CREAT, 0700);
 		if (fd >= 0) {
-			sys_write(fd, (char *)initrd_start,
-					initrd_end - initrd_start);
+			ssize_t written = xwrite(fd, (char *)initrd_start,
+						initrd_end - initrd_start);
+
+			if (written != initrd_end - initrd_start)
+				pr_err("/initrd.image: incomplete write (%zd != %ld)\n",
+				       written, initrd_end - initrd_start);
+
 			sys_close(fd);
 			free_initrd();
 		}

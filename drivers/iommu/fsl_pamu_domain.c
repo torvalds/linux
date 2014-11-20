@@ -411,8 +411,7 @@ static phys_addr_t fsl_pamu_iova_to_phys(struct iommu_domain *domain,
 	return get_phys_addr(dma_domain, iova);
 }
 
-static int fsl_pamu_domain_has_cap(struct iommu_domain *domain,
-				      unsigned long cap)
+static bool fsl_pamu_capable(enum iommu_cap cap)
 {
 	return cap == IOMMU_CAP_CACHE_COHERENCY;
 }
@@ -984,7 +983,7 @@ static int fsl_pamu_add_device(struct device *dev)
 	struct iommu_group *group = ERR_PTR(-ENODEV);
 	struct pci_dev *pdev;
 	const u32 *prop;
-	int ret, len;
+	int ret = 0, len;
 
 	/*
 	 * For platform devices we allocate a separate group for
@@ -1007,7 +1006,13 @@ static int fsl_pamu_add_device(struct device *dev)
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
-	ret = iommu_group_add_device(group, dev);
+	/*
+	 * Check if device has already been added to an iommu group.
+	 * Group could have already been created for a PCI device in
+	 * the iommu_group_get_for_dev path.
+	 */
+	if (!dev->iommu_group)
+		ret = iommu_group_add_device(group, dev);
 
 	iommu_group_put(group);
 	return ret;
@@ -1074,6 +1079,7 @@ static u32 fsl_pamu_get_windows(struct iommu_domain *domain)
 }
 
 static const struct iommu_ops fsl_pamu_ops = {
+	.capable	= fsl_pamu_capable,
 	.domain_init	= fsl_pamu_domain_init,
 	.domain_destroy = fsl_pamu_domain_destroy,
 	.attach_dev	= fsl_pamu_attach_device,
@@ -1083,7 +1089,6 @@ static const struct iommu_ops fsl_pamu_ops = {
 	.domain_get_windows = fsl_pamu_get_windows,
 	.domain_set_windows = fsl_pamu_set_windows,
 	.iova_to_phys	= fsl_pamu_iova_to_phys,
-	.domain_has_cap = fsl_pamu_domain_has_cap,
 	.domain_set_attr = fsl_pamu_set_domain_attr,
 	.domain_get_attr = fsl_pamu_get_domain_attr,
 	.add_device	= fsl_pamu_add_device,

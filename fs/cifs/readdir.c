@@ -87,8 +87,6 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 		return;
 
 	if (dentry) {
-		int err;
-
 		inode = dentry->d_inode;
 		if (inode) {
 			/*
@@ -105,10 +103,8 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 				goto out;
 			}
 		}
-		err = d_invalidate(dentry);
+		d_invalidate(dentry);
 		dput(dentry);
-		if (err)
-			return;
 	}
 
 	/*
@@ -243,7 +239,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 	rc = CIFSSMBOpen(xid, ptcon, full_path, FILE_OPEN, GENERIC_READ,
 			OPEN_REPARSE_POINT, &fid, &oplock, NULL,
 			cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+			cifs_remap(cifs_sb);
 	if (!rc) {
 		tmpbuffer = kmalloc(maxpath);
 		rc = CIFSSMBQueryReparseLinkInfo(xid, ptcon, full_path,
@@ -593,11 +589,11 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 		/* close and restart search */
 		cifs_dbg(FYI, "search backing up - close and restart search\n");
 		spin_lock(&cifs_file_list_lock);
-		if (!cfile->srch_inf.endOfSearch && !cfile->invalidHandle) {
+		if (server->ops->dir_needs_close(cfile)) {
 			cfile->invalidHandle = true;
 			spin_unlock(&cifs_file_list_lock);
-			if (server->ops->close)
-				server->ops->close(xid, tcon, &cfile->fid);
+			if (server->ops->close_dir)
+				server->ops->close_dir(xid, tcon, &cfile->fid);
 		} else
 			spin_unlock(&cifs_file_list_lock);
 		if (cfile->srch_inf.ntwrk_buf_start) {
@@ -708,15 +704,15 @@ static int cifs_filldir(char *find_entry, struct file *file,
 
 	if (file_info->srch_inf.unicode) {
 		struct nls_table *nlt = cifs_sb->local_nls;
+		int map_type;
 
+		map_type = cifs_remap(cifs_sb);
 		name.name = scratch_buf;
 		name.len =
 			cifs_from_utf16((char *)name.name, (__le16 *)de.name,
 					UNICODE_NAME_MAX,
 					min_t(size_t, de.namelen,
-					      (size_t)max_len), nlt,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					      (size_t)max_len), nlt, map_type);
 		name.len -= nls_nullsize(nlt);
 	} else {
 		name.name = de.name;

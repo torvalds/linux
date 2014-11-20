@@ -298,6 +298,9 @@ struct smc_local {
 	struct sk_buff *pending_tx_skb;
 	struct tasklet_struct tx_task;
 
+	struct gpio_desc *power_gpio;
+	struct gpio_desc *reset_gpio;
+
 	/* version/revision of the SMC91x chip */
 	int	version;
 

@@ -981,7 +981,7 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 
 		if (shift == 3) {
 			dev_err(dev,
-				"Failed to configure the client below %ux%x\n",
+				"Failed to configure the client below %ux%u\n",
 				mf.width, mf.height);
 			return -EIO;
 		}
@@ -1502,7 +1502,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	} else {
 		priv->ici.nr = of_alias_get_id(pdev->dev.of_node, "vin");
 		priv->chip = (enum chip_id)match->data;
-	};
+	}
 
 	spin_lock_init(&priv->lock);
 	INIT_LIST_HEAD(&priv->capture);

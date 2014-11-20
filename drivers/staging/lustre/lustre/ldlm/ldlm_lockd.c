@@ -202,7 +202,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 	lvb_len = req_capsule_get_size(&req->rq_pill, &RMF_DLM_LVB, RCL_CLIENT);
 	if (lvb_len < 0) {
 		LDLM_ERROR(lock, "Fail to get lvb_len, rc = %d", lvb_len);
-		GOTO(out, rc = lvb_len);
+		rc = lvb_len;
+		goto out;
 	} else if (lvb_len > 0) {
 		if (lock->l_lvb_len > 0) {
 			/* for extent lock, lvb contains ost_lvb{}. */
@@ -213,7 +214,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 					   "expectation, expected = %d, "
 					   "replied = %d",
 					   lock->l_lvb_len, lvb_len);
-				GOTO(out, rc = -EINVAL);
+				rc = -EINVAL;
+				goto out;
 			}
 		} else if (ldlm_has_layout(lock)) { /* for layout lock, lvb has
 						     * variable length */
@@ -222,7 +224,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 			OBD_ALLOC(lvb_data, lvb_len);
 			if (lvb_data == NULL) {
 				LDLM_ERROR(lock, "No memory: %d.\n", lvb_len);
-				GOTO(out, rc = -ENOMEM);
+				rc = -ENOMEM;
+				goto out;
 			}
 
 			lock_res_and_lock(lock);
@@ -240,7 +243,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 		/* bug 11300: the lock has already been granted */
 		unlock_res_and_lock(lock);
 		LDLM_DEBUG(lock, "Double grant race happened");
-		GOTO(out, rc = 0);
+		rc = 0;
+		goto out;
 	}
 
 	/* If we receive the completion AST before the actual enqueue returned,
@@ -267,7 +271,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 				&dlm_req->lock_desc.l_resource.lr_name);
 		if (rc < 0) {
 			LDLM_ERROR(lock, "Failed to allocate resource");
-			GOTO(out, rc);
+			goto out;
 		}
 		LDLM_DEBUG(lock, "completion AST, new resource");
 		CERROR("change resource!\n");
@@ -287,7 +291,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 				   lock->l_lvb_data, lvb_len);
 		if (rc < 0) {
 			unlock_res_and_lock(lock);
-			GOTO(out, rc);
+			goto out;
 		}
 	}
 
@@ -304,7 +308,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 
 	LDLM_DEBUG_NOLOCK("client completion callback handler END (lock %p)",
 			  lock);
-	GOTO(out, rc);
+	goto out;
 
 out:
 	if (rc < 0) {
@@ -980,7 +984,7 @@ int ldlm_init_export(struct obd_export *exp)
 
 	rc = ldlm_init_flock_export(exp);
 	if (rc)
-		GOTO(err, rc);
+		goto err;
 
 	return 0;
 err:
@@ -1014,7 +1018,7 @@ static int ldlm_setup(void)
 
 	rc = ldlm_proc_setup();
 	if (rc != 0)
-		GOTO(out, rc);
+		goto out;
 
 	memset(&conf, 0, sizeof(conf));
 	conf = (typeof(conf)) {
@@ -1051,13 +1055,15 @@ static int ldlm_setup(void)
 		CERROR("failed to start service\n");
 		rc = PTR_ERR(ldlm_state->ldlm_cb_service);
 		ldlm_state->ldlm_cb_service = NULL;
-		GOTO(out, rc);
+		goto out;
 	}
 
 
 	OBD_ALLOC(blp, sizeof(*blp));
-	if (blp == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (blp == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 	ldlm_state->ldlm_bl_pool = blp;
 
 	spin_lock_init(&blp->blp_lock);
@@ -1079,14 +1085,14 @@ static int ldlm_setup(void)
 	for (i = 0; i < blp->blp_min_threads; i++) {
 		rc = ldlm_bl_thread_start(blp);
 		if (rc < 0)
-			GOTO(out, rc);
+			goto out;
 	}
 
 
 	rc = ldlm_pools_init();
 	if (rc) {
 		CERROR("Failed to initialize LDLM pools: %d\n", rc);
-		GOTO(out, rc);
+		goto out;
 	}
 	return 0;
 

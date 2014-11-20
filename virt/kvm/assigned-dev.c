@@ -302,7 +302,7 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 	else
 		pci_restore_state(assigned_dev->dev);
 
-	assigned_dev->dev->dev_flags &= ~PCI_DEV_FLAGS_ASSIGNED;
+	pci_clear_dev_assigned(assigned_dev->dev);
 
 	pci_release_regions(assigned_dev->dev);
 	pci_disable_device(assigned_dev->dev);
@@ -526,8 +526,10 @@ static int assign_guest_irq(struct kvm *kvm,
 		dev->irq_requested_type |= guest_irq_type;
 		if (dev->ack_notifier.gsi != -1)
 			kvm_register_irq_ack_notifier(kvm, &dev->ack_notifier);
-	} else
+	} else {
 		kvm_free_irq_source_id(kvm, dev->irq_source_id);
+		dev->irq_source_id = -1;
+	}
 
 	return r;
 }

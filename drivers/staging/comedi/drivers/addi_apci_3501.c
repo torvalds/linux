@@ -104,9 +104,9 @@ static int apci3501_ao_insn_write(struct comedi_device *dev,
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int val = 0;
-	int i;
+	unsigned int cfg = APCI3501_AO_DATA_CHAN(chan);
 	int ret;
+	int i;
 
 	/*
 	 * All analog output channels have the same output range.
@@ -117,14 +117,14 @@ static int apci3501_ao_insn_write(struct comedi_device *dev,
 	if (range) {
 		outl(0, dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
 	} else {
-		val |= APCI3501_AO_DATA_BIPOLAR;
+		cfg |= APCI3501_AO_DATA_BIPOLAR;
 		outl(APCI3501_AO_CTRL_BIPOLAR,
 		     dev->iobase + APCI3501_AO_CTRL_STATUS_REG);
 	}
 
-	val |= APCI3501_AO_DATA_CHAN(chan);
-
 	for (i = 0; i < insn->n; i++) {
+		unsigned int val = data[i];
+
 		if (range == 1) {
 			if (data[i] > 0x1fff) {
 				dev_err(dev->class_dev,
@@ -137,8 +137,10 @@ static int apci3501_ao_insn_write(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		outl(val | APCI3501_AO_DATA_VAL(data[i]),
+		outl(cfg | APCI3501_AO_DATA_VAL(val),
 		     dev->iobase + APCI3501_AO_DATA_REG);
+
+		s->readback[chan] = val;
 	}
 
 	return insn->n;
@@ -360,6 +362,11 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 		s->maxdata	= 0x3fff;
 		s->range_table	= &apci3501_ao_range;
 		s->insn_write	= apci3501_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
@@ -410,9 +417,7 @@ static void apci3501_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		apci3501_reset(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver apci3501_driver = {

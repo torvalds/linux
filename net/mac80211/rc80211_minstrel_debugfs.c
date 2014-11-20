@@ -62,16 +62,17 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 	unsigned int i, tp, prob, eprob;
 	char *p;
 
-	ms = kmalloc(sizeof(*ms) + 4096, GFP_KERNEL);
+	ms = kmalloc(2048, GFP_KERNEL);
 	if (!ms)
 		return -ENOMEM;
 
 	file->private_data = ms;
 	p = ms->buf;
-	p += sprintf(p, "rate      throughput  ewma prob  this prob  "
-			"this succ/attempt   success    attempts\n");
+	p += sprintf(p, "rate          tpt eprob *prob"
+			"  *ok(*cum)        ok(      cum)\n");
 	for (i = 0; i < mi->n_rates; i++) {
 		struct minstrel_rate *mr = &mi->r[i];
+		struct minstrel_rate_stats *mrs = &mi->r[i].stats;
 
 		*(p++) = (i == mi->max_tp_rate[0]) ? 'A' : ' ';
 		*(p++) = (i == mi->max_tp_rate[1]) ? 'B' : ' ';
@@ -81,25 +82,27 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 		p += sprintf(p, "%3u%s", mr->bitrate / 2,
 				(mr->bitrate & 1 ? ".5" : "  "));
 
-		tp = MINSTREL_TRUNC(mr->cur_tp / 10);
-		prob = MINSTREL_TRUNC(mr->cur_prob * 1000);
-		eprob = MINSTREL_TRUNC(mr->probability * 1000);
+		tp = MINSTREL_TRUNC(mrs->cur_tp / 10);
+		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
+		eprob = MINSTREL_TRUNC(mrs->probability * 1000);
 
-		p += sprintf(p, "  %6u.%1u   %6u.%1u   %6u.%1u        "
-				"   %3u(%3u)  %8llu    %8llu\n",
+		p += sprintf(p, " %4u.%1u %3u.%1u %3u.%1u"
+				" %4u(%4u) %9llu(%9llu)\n",
 				tp / 10, tp % 10,
 				eprob / 10, eprob % 10,
 				prob / 10, prob % 10,
-				mr->last_success,
-				mr->last_attempts,
-				(unsigned long long)mr->succ_hist,
-				(unsigned long long)mr->att_hist);
+				mrs->last_success,
+				mrs->last_attempts,
+				(unsigned long long)mrs->succ_hist,
+				(unsigned long long)mrs->att_hist);
 	}
 	p += sprintf(p, "\nTotal packet count::    ideal %d      "
 			"lookaround %d\n\n",
-			mi->packet_count - mi->sample_count,
-			mi->sample_count);
+			mi->total_packets - mi->sample_packets,
+			mi->sample_packets);
 	ms->len = p - ms->buf;
+
+	WARN_ON(ms->len + sizeof(*ms) > 2048);
 
 	return 0;
 }

@@ -233,9 +233,9 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 	return disp;
 
 timingfail:
-	if (native_mode)
-		of_node_put(native_mode);
+	of_node_put(native_mode);
 	display_timings_release(disp);
+	disp = NULL;
 entryfail:
 	kfree(disp);
 dispfail:

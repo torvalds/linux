@@ -97,7 +97,7 @@ struct stmpe_client_info {
 	void (*init)(struct stmpe *stmpe);
 };
 
-int stmpe_probe(struct stmpe_client_info *ci, int partnum);
+int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum);
 int stmpe_remove(struct stmpe *stmpe);
 
 #define STMPE_ICR_LSB_HIGH	(1 << 2)
@@ -269,7 +269,7 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE24XX_REG_CHIP_ID		0x80
 #define STMPE24XX_REG_IEGPIOR_LSB	0x18
 #define STMPE24XX_REG_ISGPIOR_MSB	0x19
-#define STMPE24XX_REG_GPMR_LSB		0xA5
+#define STMPE24XX_REG_GPMR_LSB		0xA4
 #define STMPE24XX_REG_GPSR_LSB		0x85
 #define STMPE24XX_REG_GPCR_LSB		0x88
 #define STMPE24XX_REG_GPDR_LSB		0x8B

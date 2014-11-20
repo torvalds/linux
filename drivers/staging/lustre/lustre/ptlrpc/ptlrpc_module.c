@@ -75,45 +75,45 @@ __init int ptlrpc_init(void)
 	cleanup_phase = 1;
 	rc = ptlrpc_request_cache_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 2;
 	rc = ptlrpc_init_portals();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 3;
 
 	rc = ptlrpc_connection_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 4;
 	ptlrpc_put_connection_superhack = ptlrpc_connection_put;
 
 	rc = ptlrpc_start_pinger();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 5;
 	rc = ldlm_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 6;
 	rc = sptlrpc_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 7;
 	rc = ptlrpc_nrs_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 
 	cleanup_phase = 8;
 	rc = tgt_mod_init();
 	if (rc)
-		GOTO(cleanup, rc);
+		goto cleanup;
 	return 0;
 
 cleanup:

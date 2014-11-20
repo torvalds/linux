@@ -830,7 +830,7 @@ static int bcm2835_pmx_get_function_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int bcm2835_pmx_enable(struct pinctrl_dev *pctldev,
+static int bcm2835_pmx_set(struct pinctrl_dev *pctldev,
 		unsigned func_selector,
 		unsigned group_selector)
 {
@@ -839,16 +839,6 @@ static int bcm2835_pmx_enable(struct pinctrl_dev *pctldev,
 	bcm2835_pinctrl_fsel_set(pc, group_selector, func_selector);
 
 	return 0;
-}
-
-static void bcm2835_pmx_disable(struct pinctrl_dev *pctldev,
-		unsigned func_selector,
-		unsigned group_selector)
-{
-	struct bcm2835_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
-
-	/* disable by setting to GPIO_IN */
-	bcm2835_pinctrl_fsel_set(pc, group_selector, BCM2835_FSEL_GPIO_IN);
 }
 
 static void bcm2835_pmx_gpio_disable_free(struct pinctrl_dev *pctldev,
@@ -879,8 +869,7 @@ static const struct pinmux_ops bcm2835_pmx_ops = {
 	.get_functions_count = bcm2835_pmx_get_functions_count,
 	.get_function_name = bcm2835_pmx_get_function_name,
 	.get_function_groups = bcm2835_pmx_get_function_groups,
-	.enable = bcm2835_pmx_enable,
-	.disable = bcm2835_pmx_disable,
+	.set_mux = bcm2835_pmx_set,
 	.gpio_disable_free = bcm2835_pmx_gpio_disable_free,
 	.gpio_set_direction = bcm2835_pmx_gpio_set_direction,
 };

@@ -38,6 +38,7 @@
 #include "config.h"
 #include "node.h"
 #include "name_distr.h"
+#include "socket.h"
 
 #define NODE_HTABLE_SIZE 512
 
@@ -49,6 +50,13 @@ LIST_HEAD(tipc_node_list);
 static u32 tipc_num_nodes;
 static u32 tipc_num_links;
 static DEFINE_SPINLOCK(node_list_lock);
+
+struct tipc_sock_conn {
+	u32 port;
+	u32 peer_port;
+	u32 peer_node;
+	struct list_head list;
+};
 
 /*
  * A trivial power-of-two bitmask technique is used for speed, since this
@@ -100,6 +108,8 @@ struct tipc_node *tipc_node_create(u32 addr)
 	INIT_HLIST_NODE(&n_ptr->hash);
 	INIT_LIST_HEAD(&n_ptr->list);
 	INIT_LIST_HEAD(&n_ptr->nsub);
+	INIT_LIST_HEAD(&n_ptr->conn_sks);
+	__skb_queue_head_init(&n_ptr->waiting_sks);
 
 	hlist_add_head_rcu(&n_ptr->hash, &node_htable[tipc_hashfn(addr)]);
 
@@ -136,6 +146,71 @@ void tipc_node_stop(void)
 	spin_unlock_bh(&node_list_lock);
 }
 
+int tipc_node_add_conn(u32 dnode, u32 port, u32 peer_port)
+{
+	struct tipc_node *node;
+	struct tipc_sock_conn *conn;
+
+	if (in_own_node(dnode))
+		return 0;
+
+	node = tipc_node_find(dnode);
+	if (!node) {
+		pr_warn("Connecting sock to node 0x%x failed\n", dnode);
+		return -EHOSTUNREACH;
+	}
+	conn = kmalloc(sizeof(*conn), GFP_ATOMIC);
+	if (!conn)
+		return -EHOSTUNREACH;
+	conn->peer_node = dnode;
+	conn->port = port;
+	conn->peer_port = peer_port;
+
+	tipc_node_lock(node);
+	list_add_tail(&conn->list, &node->conn_sks);
+	tipc_node_unlock(node);
+	return 0;
+}
+
+void tipc_node_remove_conn(u32 dnode, u32 port)
+{
+	struct tipc_node *node;
+	struct tipc_sock_conn *conn, *safe;
+
+	if (in_own_node(dnode))
+		return;
+
+	node = tipc_node_find(dnode);
+	if (!node)
+		return;
+
+	tipc_node_lock(node);
+	list_for_each_entry_safe(conn, safe, &node->conn_sks, list) {
+		if (port != conn->port)
+			continue;
+		list_del(&conn->list);
+		kfree(conn);
+	}
+	tipc_node_unlock(node);
+}
+
+void tipc_node_abort_sock_conns(struct list_head *conns)
+{
+	struct tipc_sock_conn *conn, *safe;
+	struct sk_buff *buf;
+
+	list_for_each_entry_safe(conn, safe, conns, list) {
+		buf = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
+				      SHORT_H_SIZE, 0, tipc_own_addr,
+				      conn->peer_node, conn->port,
+				      conn->peer_port, TIPC_ERR_NO_NODE);
+		if (likely(buf))
+			tipc_sk_rcv(buf);
+		list_del(&conn->list);
+		kfree(conn);
+	}
+}
+
 /**
  * tipc_node_link_up - handle addition of link
  *
@@ -144,11 +219,11 @@ void tipc_node_stop(void)
 void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	struct tipc_link **active = &n_ptr->active_links[0];
-	u32 addr = n_ptr->addr;
 
 	n_ptr->working_links++;
-	tipc_nametbl_publish(TIPC_LINK_STATE, addr, addr, TIPC_NODE_SCOPE,
-			     l_ptr->bearer_id, addr);
+	n_ptr->action_flags |= TIPC_NOTIFY_LINK_UP;
+	n_ptr->link_id = l_ptr->peer_bearer_id << 16 | l_ptr->bearer_id;
+
 	pr_info("Established link <%s> on network plane %c\n",
 		l_ptr->name, l_ptr->net_plane);
 
@@ -209,10 +284,10 @@ static void node_select_active_links(struct tipc_node *n_ptr)
 void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	struct tipc_link **active;
-	u32 addr = n_ptr->addr;
 
 	n_ptr->working_links--;
-	tipc_nametbl_withdraw(TIPC_LINK_STATE, addr, l_ptr->bearer_id, addr);
+	n_ptr->action_flags |= TIPC_NOTIFY_LINK_DOWN;
+	n_ptr->link_id = l_ptr->peer_bearer_id << 16 | l_ptr->bearer_id;
 
 	if (!tipc_link_is_active(l_ptr)) {
 		pr_info("Lost standby link <%s> on network plane %c\n",
@@ -474,25 +549,55 @@ int tipc_node_get_linkname(u32 bearer_id, u32 addr, char *linkname, size_t len)
 void tipc_node_unlock(struct tipc_node *node)
 {
 	LIST_HEAD(nsub_list);
+	LIST_HEAD(conn_sks);
+	struct sk_buff_head waiting_sks;
 	u32 addr = 0;
+	int flags = node->action_flags;
+	u32 link_id = 0;
 
-	if (likely(!node->action_flags)) {
+	if (likely(!flags)) {
 		spin_unlock_bh(&node->lock);
 		return;
 	}
 
-	if (node->action_flags & TIPC_NOTIFY_NODE_DOWN) {
+	addr = node->addr;
+	link_id = node->link_id;
+	__skb_queue_head_init(&waiting_sks);
+
+	if (flags & TIPC_WAKEUP_USERS)
+		skb_queue_splice_init(&node->waiting_sks, &waiting_sks);
+
+	if (flags & TIPC_NOTIFY_NODE_DOWN) {
 		list_replace_init(&node->nsub, &nsub_list);
-		node->action_flags &= ~TIPC_NOTIFY_NODE_DOWN;
+		list_replace_init(&node->conn_sks, &conn_sks);
 	}
-	if (node->action_flags & TIPC_NOTIFY_NODE_UP) {
-		node->action_flags &= ~TIPC_NOTIFY_NODE_UP;
-		addr = node->addr;
-	}
+	node->action_flags &= ~(TIPC_WAKEUP_USERS | TIPC_NOTIFY_NODE_DOWN |
+				TIPC_NOTIFY_NODE_UP | TIPC_NOTIFY_LINK_UP |
+				TIPC_NOTIFY_LINK_DOWN |
+				TIPC_WAKEUP_BCAST_USERS);
+
 	spin_unlock_bh(&node->lock);
+
+	while (!skb_queue_empty(&waiting_sks))
+		tipc_sk_rcv(__skb_dequeue(&waiting_sks));
+
+	if (!list_empty(&conn_sks))
+		tipc_node_abort_sock_conns(&conn_sks);
 
 	if (!list_empty(&nsub_list))
 		tipc_nodesub_notify(&nsub_list);
-	if (addr)
+
+	if (flags & TIPC_WAKEUP_BCAST_USERS)
+		tipc_bclink_wakeup_users();
+
+	if (flags & TIPC_NOTIFY_NODE_UP)
 		tipc_named_node_up(addr);
+
+	if (flags & TIPC_NOTIFY_LINK_UP)
+		tipc_nametbl_publish(TIPC_LINK_STATE, addr, addr,
+				     TIPC_NODE_SCOPE, link_id, addr);
+
+	if (flags & TIPC_NOTIFY_LINK_DOWN)
+		tipc_nametbl_withdraw(TIPC_LINK_STATE, addr,
+				      link_id, addr);
 }

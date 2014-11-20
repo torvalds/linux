@@ -128,7 +128,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(XGBE_DRV_VERSION);
@@ -172,7 +171,7 @@ static struct xgbe_channel *xgbe_alloc_rings(struct xgbe_prv_data *pdata)
 		}
 
 		if (i < pdata->rx_ring_count) {
-			spin_lock_init(&tx_ring->lock);
+			spin_lock_init(&rx_ring->lock);
 			channel->rx_ring = rx_ring++;
 		}
 

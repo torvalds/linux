@@ -75,8 +75,7 @@ struct libcfs_ioctl_hdr {
 	__u32 ioc_version;
 };
 
-struct libcfs_debug_ioctl_data
-{
+struct libcfs_debug_ioctl_data {
 	struct libcfs_ioctl_hdr hdr;
 	unsigned int subs;
 	unsigned int debug;

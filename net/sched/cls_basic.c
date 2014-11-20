@@ -24,6 +24,7 @@
 struct basic_head {
 	u32			hgenerator;
 	struct list_head	flist;
+	struct rcu_head		rcu;
 };
 
 struct basic_filter {
@@ -31,17 +32,19 @@ struct basic_filter {
 	struct tcf_exts		exts;
 	struct tcf_ematch_tree	ematches;
 	struct tcf_result	res;
+	struct tcf_proto	*tp;
 	struct list_head	link;
+	struct rcu_head		rcu;
 };
 
 static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			  struct tcf_result *res)
 {
 	int r;
-	struct basic_head *head = tp->root;
+	struct basic_head *head = rcu_dereference_bh(tp->root);
 	struct basic_filter *f;
 
-	list_for_each_entry(f, &head->flist, link) {
+	list_for_each_entry_rcu(f, &head->flist, link) {
 		if (!tcf_em_tree_match(skb, &f->ematches, NULL))
 			continue;
 		*res = f->res;
@@ -56,7 +59,7 @@ static int basic_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 static unsigned long basic_get(struct tcf_proto *tp, u32 handle)
 {
 	unsigned long l = 0UL;
-	struct basic_head *head = tp->root;
+	struct basic_head *head = rtnl_dereference(tp->root);
 	struct basic_filter *f;
 
 	if (head == NULL)
@@ -81,41 +84,43 @@ static int basic_init(struct tcf_proto *tp)
 	if (head == NULL)
 		return -ENOBUFS;
 	INIT_LIST_HEAD(&head->flist);
-	tp->root = head;
+	rcu_assign_pointer(tp->root, head);
 	return 0;
 }
 
-static void basic_delete_filter(struct tcf_proto *tp, struct basic_filter *f)
+static void basic_delete_filter(struct rcu_head *head)
 {
-	tcf_unbind_filter(tp, &f->res);
-	tcf_exts_destroy(tp, &f->exts);
-	tcf_em_tree_destroy(tp, &f->ematches);
+	struct basic_filter *f = container_of(head, struct basic_filter, rcu);
+
+	tcf_exts_destroy(&f->exts);
+	tcf_em_tree_destroy(&f->ematches);
 	kfree(f);
 }
 
 static void basic_destroy(struct tcf_proto *tp)
 {
-	struct basic_head *head = tp->root;
+	struct basic_head *head = rtnl_dereference(tp->root);
 	struct basic_filter *f, *n;
 
 	list_for_each_entry_safe(f, n, &head->flist, link) {
-		list_del(&f->link);
-		basic_delete_filter(tp, f);
+		list_del_rcu(&f->link);
+		tcf_unbind_filter(tp, &f->res);
+		call_rcu(&f->rcu, basic_delete_filter);
 	}
-	kfree(head);
+	RCU_INIT_POINTER(tp->root, NULL);
+	kfree_rcu(head, rcu);
 }
 
 static int basic_delete(struct tcf_proto *tp, unsigned long arg)
 {
-	struct basic_head *head = tp->root;
+	struct basic_head *head = rtnl_dereference(tp->root);
 	struct basic_filter *t, *f = (struct basic_filter *) arg;
 
 	list_for_each_entry(t, &head->flist, link)
 		if (t == f) {
-			tcf_tree_lock(tp);
-			list_del(&t->link);
-			tcf_tree_unlock(tp);
-			basic_delete_filter(tp, t);
+			list_del_rcu(&t->link);
+			tcf_unbind_filter(tp, &t->res);
+			call_rcu(&t->rcu, basic_delete_filter);
 			return 0;
 		}
 
@@ -152,10 +157,11 @@ static int basic_set_parms(struct net *net, struct tcf_proto *tp,
 
 	tcf_exts_change(tp, &f->exts, &e);
 	tcf_em_tree_change(tp, &f->ematches, &t);
+	f->tp = tp;
 
 	return 0;
 errout:
-	tcf_exts_destroy(tp, &e);
+	tcf_exts_destroy(&e);
 	return err;
 }
 
@@ -164,9 +170,10 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 			struct nlattr **tca, unsigned long *arg, bool ovr)
 {
 	int err;
-	struct basic_head *head = tp->root;
+	struct basic_head *head = rtnl_dereference(tp->root);
 	struct nlattr *tb[TCA_BASIC_MAX + 1];
-	struct basic_filter *f = (struct basic_filter *) *arg;
+	struct basic_filter *fold = (struct basic_filter *) *arg;
+	struct basic_filter *fnew;
 
 	if (tca[TCA_OPTIONS] == NULL)
 		return -EINVAL;
@@ -176,22 +183,23 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		return err;
 
-	if (f != NULL) {
-		if (handle && f->handle != handle)
+	if (fold != NULL) {
+		if (handle && fold->handle != handle)
 			return -EINVAL;
-		return basic_set_parms(net, tp, f, base, tb, tca[TCA_RATE], ovr);
 	}
 
 	err = -ENOBUFS;
-	f = kzalloc(sizeof(*f), GFP_KERNEL);
-	if (f == NULL)
+	fnew = kzalloc(sizeof(*fnew), GFP_KERNEL);
+	if (fnew == NULL)
 		goto errout;
 
-	tcf_exts_init(&f->exts, TCA_BASIC_ACT, TCA_BASIC_POLICE);
+	tcf_exts_init(&fnew->exts, TCA_BASIC_ACT, TCA_BASIC_POLICE);
 	err = -EINVAL;
-	if (handle)
-		f->handle = handle;
-	else {
+	if (handle) {
+		fnew->handle = handle;
+	} else if (fold) {
+		fnew->handle = fold->handle;
+	} else {
 		unsigned int i = 0x80000000;
 		do {
 			if (++head->hgenerator == 0x7FFFFFFF)
@@ -203,29 +211,32 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 			goto errout;
 		}
 
-		f->handle = head->hgenerator;
+		fnew->handle = head->hgenerator;
 	}
 
-	err = basic_set_parms(net, tp, f, base, tb, tca[TCA_RATE], ovr);
+	err = basic_set_parms(net, tp, fnew, base, tb, tca[TCA_RATE], ovr);
 	if (err < 0)
 		goto errout;
 
-	tcf_tree_lock(tp);
-	list_add(&f->link, &head->flist);
-	tcf_tree_unlock(tp);
-	*arg = (unsigned long) f;
+	*arg = (unsigned long)fnew;
+
+	if (fold) {
+		list_replace_rcu(&fold->link, &fnew->link);
+		tcf_unbind_filter(tp, &fold->res);
+		call_rcu(&fold->rcu, basic_delete_filter);
+	} else {
+		list_add_rcu(&fnew->link, &head->flist);
+	}
 
 	return 0;
 errout:
-	if (*arg == 0UL && f)
-		kfree(f);
-
+	kfree(fnew);
 	return err;
 }
 
 static void basic_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 {
-	struct basic_head *head = tp->root;
+	struct basic_head *head = rtnl_dereference(tp->root);
 	struct basic_filter *f;
 
 	list_for_each_entry(f, &head->flist, link) {

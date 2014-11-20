@@ -10,9 +10,14 @@ LIB_OBJS=
 
 LIB_H += fs/debugfs.h
 LIB_H += fs/fs.h
+# See comment below about piggybacking...
+LIB_H += fd/array.h
 
 LIB_OBJS += $(OUTPUT)fs/debugfs.o
 LIB_OBJS += $(OUTPUT)fs/fs.o
+# XXX piggybacking here, need to introduce libapikfd, or rename this
+# to plain libapik.a and make it have it all api goodies
+LIB_OBJS += $(OUTPUT)fd/array.o
 
 LIBFILE = libapikfs.a
 
@@ -29,7 +34,7 @@ $(LIBFILE): $(LIB_OBJS)
 $(LIB_OBJS): $(LIB_H)
 
 libapi_dirs:
-	$(QUIET_MKDIR)mkdir -p $(OUTPUT)fs/
+	$(QUIET_MKDIR)mkdir -p $(OUTPUT)fd $(OUTPUT)fs
 
 $(OUTPUT)%.o: %.c libapi_dirs
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $<

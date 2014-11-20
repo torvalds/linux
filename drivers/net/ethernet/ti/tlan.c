@@ -116,7 +116,7 @@ static struct board {
 	  TLAN_ADAPTER_ACTIVITY_LED, 0x83 }, /* EISA card */
 };
 
-static DEFINE_PCI_DEVICE_TABLE(tlan_pci_tbl) = {
+static const struct pci_device_id tlan_pci_tbl[] = {
 	{ PCI_VENDOR_ID_COMPAQ, PCI_DEVICE_ID_COMPAQ_NETEL10,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_COMPAQ, PCI_DEVICE_ID_COMPAQ_NETEL100,

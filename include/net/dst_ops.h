@@ -63,7 +63,7 @@ static inline void dst_entries_add(struct dst_ops *dst, int val)
 
 static inline int dst_entries_init(struct dst_ops *dst)
 {
-	return percpu_counter_init(&dst->pcpuc_entries, 0);
+	return percpu_counter_init(&dst->pcpuc_entries, 0, GFP_KERNEL);
 }
 
 static inline void dst_entries_destroy(struct dst_ops *dst)

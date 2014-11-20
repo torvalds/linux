@@ -77,19 +77,19 @@
 bool IFRFbWriteEmbedded(void __iomem *dwIoBase, unsigned long dwData);
 bool RFbSelectChannel(void __iomem *dwIoBase, unsigned char byRFType, unsigned char byChannel);
 bool RFbInit(
-	PSDevice  pDevice
+	struct vnt_private *
 );
 bool RFvWriteWakeProgSyn(void __iomem *dwIoBase, unsigned char byRFType, unsigned int uChannel);
-bool RFbSetPower(PSDevice pDevice, unsigned int uRATE, unsigned int uCH);
+bool RFbSetPower(struct vnt_private *, unsigned int uRATE, unsigned int uCH);
 bool RFbRawSetPower(
-	PSDevice  pDevice,
+	struct vnt_private *,
 	unsigned char byPwr,
 	unsigned int uRATE
 );
 
 void
 RFvRSSITodBm(
-	PSDevice pDevice,
+	struct vnt_private *,
 	unsigned char byCurrRSSI,
 	long    *pldBm
 );

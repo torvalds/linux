@@ -1047,7 +1047,6 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 		int tx_index;
 		struct tx_desc *desc;
 		u32 cmd_sts;
-		struct sk_buff *skb;
 
 		tx_index = txq->tx_used_desc;
 		desc = &txq->tx_desc_area[tx_index];
@@ -1066,19 +1065,22 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 		reclaimed++;
 		txq->tx_desc_count--;
 
-		skb = NULL;
-		if (cmd_sts & TX_LAST_DESC)
-			skb = __skb_dequeue(&txq->tx_skb);
+		if (!IS_TSO_HEADER(txq, desc->buf_ptr))
+			dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
+					 desc->byte_cnt, DMA_TO_DEVICE);
+
+		if (cmd_sts & TX_ENABLE_INTERRUPT) {
+			struct sk_buff *skb = __skb_dequeue(&txq->tx_skb);
+
+			if (!WARN_ON(!skb))
+				dev_kfree_skb(skb);
+		}
 
 		if (cmd_sts & ERROR_SUMMARY) {
 			netdev_info(mp->dev, "tx error\n");
 			mp->dev->stats.tx_errors++;
 		}
 
-		if (!IS_TSO_HEADER(txq, desc->buf_ptr))
-			dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
-					 desc->byte_cnt, DMA_TO_DEVICE);
-		dev_kfree_skb(skb);
 	}
 
 	__netif_tx_unlock_bh(nq);

@@ -30,7 +30,6 @@
 #include <subdev/vm.h>
 
 #include <core/client.h>
-#include <core/class.h>
 #include <core/enum.h>
 
 

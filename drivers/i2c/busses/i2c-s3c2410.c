@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <linux/kernel.h>
@@ -1128,11 +1124,11 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		s3c24xx_i2c_parse_dt(pdev->dev.of_node, i2c);
 
 	strlcpy(i2c->adap.name, "s3c2410-i2c", sizeof(i2c->adap.name));
-	i2c->adap.owner   = THIS_MODULE;
-	i2c->adap.algo    = &s3c24xx_i2c_algorithm;
+	i2c->adap.owner = THIS_MODULE;
+	i2c->adap.algo = &s3c24xx_i2c_algorithm;
 	i2c->adap.retries = 2;
-	i2c->adap.class   = I2C_CLASS_HWMON | I2C_CLASS_SPD | I2C_CLASS_DEPRECATED;
-	i2c->tx_setup     = 50;
+	i2c->adap.class = I2C_CLASS_DEPRECATED;
+	i2c->tx_setup = 50;
 
 	init_waitqueue_head(&i2c->wait);
 
@@ -1267,7 +1263,7 @@ static int s3c24xx_i2c_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int s3c24xx_i2c_resume(struct device *dev)
+static int s3c24xx_i2c_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
@@ -1285,7 +1281,11 @@ static int s3c24xx_i2c_resume(struct device *dev)
 static const struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
 #ifdef CONFIG_PM_SLEEP
 	.suspend_noirq = s3c24xx_i2c_suspend_noirq,
-	.resume = s3c24xx_i2c_resume,
+	.resume_noirq = s3c24xx_i2c_resume_noirq,
+	.freeze_noirq = s3c24xx_i2c_suspend_noirq,
+	.thaw_noirq = s3c24xx_i2c_resume_noirq,
+	.poweroff_noirq = s3c24xx_i2c_suspend_noirq,
+	.restore_noirq = s3c24xx_i2c_resume_noirq,
 #endif
 };
 

@@ -128,7 +128,6 @@
 #include <linux/net_tstamp.h>
 #include <net/dcbnl.h>
 
-
 #define XGBE_DRV_NAME		"amd-xgbe"
 #define XGBE_DRV_VERSION	"1.0.0-a"
 #define XGBE_DRV_DESC		"AMD 10 Gigabit Ethernet Driver"
@@ -183,6 +182,7 @@
 #define XGMAC_DRIVER_CONTEXT	1
 #define XGMAC_IOCTL_CONTEXT	2
 
+#define XGBE_FIFO_MAX		81920
 #define XGBE_FIFO_SIZE_B(x)	(x)
 #define XGBE_FIFO_SIZE_KB(x)	(x * 1024)
 
@@ -197,7 +197,6 @@
 #define XGBE_GET_DESC_DATA(_ring, _idx)				\
 	((_ring)->rdata +					\
 	 ((_idx) & ((_ring)->rdesc_count - 1)))
-
 
 /* Default coalescing parameters */
 #define XGMAC_INIT_DMA_TX_USECS		50
@@ -526,6 +525,9 @@ struct xgbe_desc_if {
  * or configurations are present in the device.
  */
 struct xgbe_hw_features {
+	/* HW Version */
+	unsigned int version;
+
 	/* HW Feature Register0 */
 	unsigned int gmii;		/* 1000 Mbps support */
 	unsigned int vlhash;		/* VLAN Hash Filter */

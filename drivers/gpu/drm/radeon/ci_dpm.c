@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_ucode.h"
 #include "cikd.h"
 #include "r600_dpm.h"
@@ -162,8 +163,6 @@ static const struct ci_pt_config_reg didt_config_ci[] =
 };
 
 extern u8 rv770_get_memory_module_index(struct radeon_device *rdev);
-extern void btc_get_max_clock_from_voltage_dependency_table(struct radeon_clock_voltage_dependency_table *table,
-							    u32 *max_clock);
 extern int ni_copy_and_switch_arb_sets(struct radeon_device *rdev,
 				       u32 arb_freq_src, u32 arb_freq_dest);
 extern u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock);
@@ -748,7 +747,6 @@ static void ci_apply_state_adjust_rules(struct radeon_device *rdev,
 	struct radeon_clock_and_voltage_limits *max_limits;
 	bool disable_mclk_switching;
 	u32 sclk, mclk;
-	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	int i;
 
 	if (rps->vce_active) {
@@ -781,29 +779,6 @@ static void ci_apply_state_adjust_rules(struct radeon_device *rdev,
 				ps->performance_levels[i].mclk = max_limits->mclk;
 			if (ps->performance_levels[i].sclk > max_limits->sclk)
 				ps->performance_levels[i].sclk = max_limits->sclk;
-		}
-	}
-
-	/* limit clocks to max supported clocks based on voltage dependency tables */
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
-							&max_sclk_vddc);
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
-							&max_mclk_vddci);
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
-							&max_mclk_vddc);
-
-	for (i = 0; i < ps->performance_level_count; i++) {
-		if (max_sclk_vddc) {
-			if (ps->performance_levels[i].sclk > max_sclk_vddc)
-				ps->performance_levels[i].sclk = max_sclk_vddc;
-		}
-		if (max_mclk_vddci) {
-			if (ps->performance_levels[i].mclk > max_mclk_vddci)
-				ps->performance_levels[i].mclk = max_mclk_vddci;
-		}
-		if (max_mclk_vddc) {
-			if (ps->performance_levels[i].mclk > max_mclk_vddc)
-				ps->performance_levels[i].mclk = max_mclk_vddc;
 		}
 	}
 
@@ -868,6 +843,9 @@ static int ci_set_thermal_temperature_range(struct radeon_device *rdev,
 	tmp |= DIG_THERM_DPM(high_temp / 1000);
 	WREG32_SMC(CG_THERMAL_CTRL, tmp);
 #endif
+
+	rdev->pm.dpm.thermal.min_temp = low_temp;
+	rdev->pm.dpm.thermal.max_temp = high_temp;
 
 	return 0;
 }
@@ -940,7 +918,18 @@ static void ci_get_leakage_voltages(struct radeon_device *rdev)
 	pi->vddc_leakage.count = 0;
 	pi->vddci_leakage.count = 0;
 
-	if (radeon_atom_get_leakage_id_from_vbios(rdev, &leakage_id) == 0) {
+	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_EVV) {
+		for (i = 0; i < CISLANDS_MAX_LEAKAGE_COUNT; i++) {
+			virtual_voltage_id = ATOM_VIRTUAL_VOLTAGE_ID0 + i;
+			if (radeon_atom_get_voltage_evv(rdev, virtual_voltage_id, &vddc) != 0)
+				continue;
+			if (vddc != 0 && vddc != virtual_voltage_id) {
+				pi->vddc_leakage.actual_voltage[pi->vddc_leakage.count] = vddc;
+				pi->vddc_leakage.leakage_id[pi->vddc_leakage.count] = virtual_voltage_id;
+				pi->vddc_leakage.count++;
+			}
+		}
+	} else if (radeon_atom_get_leakage_id_from_vbios(rdev, &leakage_id) == 0) {
 		for (i = 0; i < CISLANDS_MAX_LEAKAGE_COUNT; i++) {
 			virtual_voltage_id = ATOM_VIRTUAL_VOLTAGE_ID0 + i;
 			if (radeon_atom_get_leakage_vddc_based_on_leakage_params(rdev, &vddc, &vddci,
@@ -5279,9 +5268,13 @@ int ci_dpm_init(struct radeon_device *rdev)
 void ci_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
+	struct ci_power_info *pi = ci_get_pi(rdev);
+	struct radeon_ps *rps = &pi->current_rps;
 	u32 sclk = ci_get_average_sclk_freq(rdev);
 	u32 mclk = ci_get_average_mclk_freq(rdev);
 
+	seq_printf(m, "uvd    %sabled\n", pi->uvd_enabled ? "en" : "dis");
+	seq_printf(m, "vce    %sabled\n", rps->vce_active ? "en" : "dis");
 	seq_printf(m, "power level avg    sclk: %u mclk: %u\n",
 		   sclk, mclk);
 }

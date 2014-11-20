@@ -17,8 +17,6 @@
 
 #include <linux/types.h>
 
-#ifdef __KERNEL__
-
 #define __HAVE_ARCH_MEMSET
 #define __HAVE_ARCH_MEMCPY
 #define __HAVE_ARCH_MEMCMP
@@ -36,5 +34,4 @@ extern char *strcpy(char *dest, const char *src);
 extern int strcmp(const char *cs, const char *ct);
 extern __kernel_size_t strlen(const char *);
 
-#endif /* __KERNEL__ */
 #endif /* _ASM_ARC_STRING_H */

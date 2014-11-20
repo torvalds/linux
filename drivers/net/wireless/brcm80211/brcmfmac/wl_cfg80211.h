@@ -35,7 +35,7 @@
 #define WL_SCAN_PASSIVE_TIME		120
 
 #define WL_ESCAN_BUF_SIZE		(1024 * 64)
-#define WL_ESCAN_TIMER_INTERVAL_MS	8000 /* E-Scan timeout */
+#define WL_ESCAN_TIMER_INTERVAL_MS	10000 /* E-Scan timeout */
 
 #define WL_ESCAN_ACTION_START		1
 #define WL_ESCAN_ACTION_CONTINUE	2
@@ -363,6 +363,8 @@ struct brcmf_cfg80211_vif_event {
  * @vif_list: linked list of vif instances.
  * @vif_cnt: number of vif instances.
  * @vif_event: vif event signalling.
+ * @wowl_enabled; set during suspend, is wowl used.
+ * @pre_wowl_pmmode: intermediate storage of pm mode during wowl.
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
@@ -371,7 +373,6 @@ struct brcmf_cfg80211_info {
 	struct brcmf_btcoex_info *btcoex;
 	struct cfg80211_scan_request *scan_request;
 	struct mutex usr_sync;
-	struct brcmf_scan_results *bss_list;
 	struct brcmf_cfg80211_scan_req scan_req_int;
 	struct wl_cfg80211_bss_info *bss_info;
 	struct brcmf_cfg80211_ie ie;
@@ -397,6 +398,8 @@ struct brcmf_cfg80211_info {
 	struct brcmf_cfg80211_vif_event vif_event;
 	struct completion vif_disabled;
 	struct brcmu_d11inf d11inf;
+	bool wowl_enabled;
+	u32 pre_wowl_pmmode;
 };
 
 /**

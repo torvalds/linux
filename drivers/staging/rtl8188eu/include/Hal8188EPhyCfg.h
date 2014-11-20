@@ -198,41 +198,15 @@ struct ant_sel_cck {
 /*  */
 /*  BB and RF register read/write */
 /*  */
-u32 rtl8188e_PHY_QueryBBReg(struct adapter *adapter, u32 regaddr, u32 mask);
-void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr,
-			   u32 mask, u32 data);
-u32 rtl8188e_PHY_QueryRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
-			    u32 regaddr, u32 mask);
-void rtl8188e_PHY_SetRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
-			   u32 regaddr, u32 mask, u32 data);
-
-/*  Initialization related function */
-/* MAC/BB/RF HAL config */
-int PHY_MACConfig8188E(struct adapter *adapter);
-int PHY_BBConfig8188E(struct adapter *adapter);
-int PHY_RFConfig8188E(struct adapter *adapter);
-
-/* RF config */
-int rtl8188e_PHY_ConfigRFWithParaFile(struct adapter *adapter, u8 *filename,
-				      enum rf_radio_path rfpath);
-int rtl8188e_PHY_ConfigRFWithHeaderFile(struct adapter *adapter,
-					enum rf_radio_path rfpath);
 
 /* Read initi reg value for tx power setting. */
 void rtl8192c_PHY_GetHWRegOriginalValue(struct adapter *adapter);
 
 /*  BB TX Power R/W */
 void PHY_GetTxPowerLevel8188E(struct adapter *adapter, u32 *powerlevel);
-void PHY_SetTxPowerLevel8188E(struct adapter *adapter, u8 channel);
 
 void PHY_ScanOperationBackup8188E(struct adapter *Adapter, u8 Operation);
 
-/*  Switch bandwidth for 8192S */
-void PHY_SetBWMode8188E(struct adapter *adapter,
-			enum ht_channel_width chnlwidth, unsigned char offset);
-
-/*  channel switch related funciton */
-void PHY_SwChnl8188E(struct adapter *adapter, u8 channel);
 /*  Call after initialization */
 void ChkFwCmdIoDone(struct adapter *adapter);
 
@@ -245,18 +219,7 @@ void PHY_EnableHostClkReq(struct adapter *adapter);
 
 bool SetAntennaConfig92C(struct adapter *adapter, u8 defaultant);
 
-void storePwrIndexDiffRateOffset(struct adapter *adapter, u32 regaddr,
-				 u32 mask, u32 data);
 /*--------------------------Exported Function prototype---------------------*/
-
-#define PHY_QueryBBReg(adapt, regaddr, mask)			\
-	 rtl8188e_PHY_QueryBBReg((adapt), (regaddr), (mask))
-#define PHY_SetBBReg(adapt, regaddr, bitmask, data)		\
-	 rtl8188e_PHY_SetBBReg((adapt), (regaddr), (bitmask), (data))
-#define PHY_QueryRFReg(adapt, rfpath, regaddr, bitmask)	\
-	rtl8188e_PHY_QueryRFReg((adapt), (rfpath), (regaddr), (bitmask))
-#define PHY_SetRFReg(adapt, rfpath, regaddr, bitmask, data)	\
-	rtl8188e_PHY_SetRFReg((adapt), (rfpath), (regaddr), (bitmask), (data))
 
 #define PHY_SetMacReg	PHY_SetBBReg
 

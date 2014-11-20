@@ -56,7 +56,6 @@
 # define DEBUG_SUBSYSTEM S_LNET
 
 #include "../../../include/linux/libcfs/libcfs.h"
-#include "../../../include/linux/libcfs/linux/portals_compat25.h"
 
 #include "../tracefile.h"
 
@@ -82,11 +81,11 @@ void libcfs_run_debug_log_upcall(char *file)
 	argv[0] = lnet_debug_log_upcall;
 
 	LASSERTF(file != NULL, "called on a null filename\n");
-	argv[1] = file; //only need to pass the path of the file
+	argv[1] = file; /* only need to pass the path of the file */
 
 	argv[2] = NULL;
 
-	rc = USERMODEHELPER(argv[0], argv, envp);
+	rc = call_usermodehelper(argv[0], argv, envp, 1);
 	if (rc < 0 && rc != -ENOENT) {
 		CERROR("Error %d invoking LNET debug log upcall %s %s; "
 		       "check /proc/sys/lnet/debug_log_upcall\n",
@@ -113,7 +112,7 @@ void libcfs_run_upcall(char **argv)
 
 	LASSERT(argc >= 2);
 
-	rc = USERMODEHELPER(argv[0], argv, envp);
+	rc = call_usermodehelper(argv[0], argv, envp, 1);
 	if (rc < 0 && rc != -ENOENT) {
 		CERROR("Error %d invoking LNET upcall %s %s%s%s%s%s%s%s%s; "
 		       "check /proc/sys/lnet/upcall\n",

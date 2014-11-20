@@ -1136,11 +1136,13 @@ static const struct xenbus_device_id xenpci_ids[] = {
 	{""},
 };
 
-static DEFINE_XENBUS_DRIVER(xenpci, "pcifront",
+static struct xenbus_driver xenpci_driver = {
+	.name			= "pcifront",
+	.ids			= xenpci_ids,
 	.probe			= pcifront_xenbus_probe,
 	.remove			= pcifront_xenbus_remove,
 	.otherend_changed	= pcifront_backend_changed,
-);
+};
 
 static int __init pcifront_init(void)
 {

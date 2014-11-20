@@ -76,10 +76,10 @@ static int mlx4_alloc_pages(struct mlx4_en_priv *priv,
 	page_alloc->dma = dma;
 	page_alloc->page_offset = frag_info->frag_align;
 	/* Not doing get_page() for each frag is a big win
-	 * on asymetric workloads.
+	 * on asymetric workloads. Note we can not use atomic_set().
 	 */
-	atomic_set(&page->_count,
-		   page_alloc->page_size / frag_info->frag_stride);
+	atomic_add(page_alloc->page_size / frag_info->frag_stride - 1,
+		   &page->_count);
 	return 0;
 }
 
@@ -588,6 +588,8 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 		skb_copy_to_linear_data(skb, va, length);
 		skb->tail += length;
 	} else {
+		unsigned int pull_len;
+
 		/* Move relevant fragments to skb */
 		used_frags = mlx4_en_complete_rx_desc(priv, rx_desc, frags,
 							skb, length);
@@ -597,16 +599,17 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 		}
 		skb_shinfo(skb)->nr_frags = used_frags;
 
+		pull_len = eth_get_headlen(va, SMALL_PACKET_SIZE);
 		/* Copy headers into the skb linear buffer */
-		memcpy(skb->data, va, HEADER_COPY_SIZE);
-		skb->tail += HEADER_COPY_SIZE;
+		memcpy(skb->data, va, pull_len);
+		skb->tail += pull_len;
 
 		/* Skip headers in first fragment */
-		skb_shinfo(skb)->frags[0].page_offset += HEADER_COPY_SIZE;
+		skb_shinfo(skb)->frags[0].page_offset += pull_len;
 
 		/* Adjust size of first fragment */
-		skb_frag_size_sub(&skb_shinfo(skb)->frags[0], HEADER_COPY_SIZE);
-		skb->data_len = length - HEADER_COPY_SIZE;
+		skb_frag_size_sub(&skb_shinfo(skb)->frags[0], pull_len);
+		skb->data_len = length - pull_len;
 	}
 	return skb;
 }
@@ -668,7 +671,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	 * descriptor offset can be deduced from the CQE index instead of
 	 * reading 'cqe->index' */
 	index = cq->mcq.cons_index & ring->size_mask;
-	cqe = &cq->buf[(index << factor) + factor];
+	cqe = mlx4_en_get_cqe(cq->buf, index, priv->cqe_size) + factor;
 
 	/* Process all completed CQEs */
 	while (XNOR(cqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK,
@@ -769,7 +772,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 					gro_skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 					if (l2_tunnel)
-						gro_skb->encapsulation = 1;
+						gro_skb->csum_level = 1;
 					if ((cqe->vlan_my_qpn &
 					    cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK)) &&
 					    (dev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
@@ -823,8 +826,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		skb->protocol = eth_type_trans(skb, dev);
 		skb_record_rx_queue(skb, cq->ring);
 
-		if (l2_tunnel)
-			skb->encapsulation = 1;
+		if (l2_tunnel && ip_summed == CHECKSUM_UNNECESSARY)
+			skb->csum_level = 1;
 
 		if (dev->features & NETIF_F_RXHASH)
 			skb_set_hash(skb,
@@ -855,7 +858,7 @@ next:
 
 		++cq->mcq.cons_index;
 		index = (cq->mcq.cons_index) & ring->size_mask;
-		cqe = &cq->buf[(index << factor) + factor];
+		cqe = mlx4_en_get_cqe(cq->buf, index, priv->cqe_size) + factor;
 		if (++polled == budget)
 			goto out;
 	}

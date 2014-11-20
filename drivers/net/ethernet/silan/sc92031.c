@@ -1561,7 +1561,7 @@ out:
 	return 0;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(sc92031_pci_device_id_table) = {
+static const struct pci_device_id sc92031_pci_device_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x2031) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x8139) },
 	{ PCI_DEVICE(0x1088, 0x2031) },

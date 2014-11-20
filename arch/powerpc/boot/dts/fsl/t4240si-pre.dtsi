@@ -57,6 +57,7 @@
 		pci3 = &pci3;
 		dma0 = &dma0;
 		dma1 = &dma1;
+		dma2 = &dma2;
 		sdhc = &sdhc;
 	};
 

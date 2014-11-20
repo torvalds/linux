@@ -21,7 +21,7 @@
 #include <linux/rculist.h>
 
 struct rhash_head {
-	struct rhash_head		*next;
+	struct rhash_head __rcu		*next;
 };
 
 #define INIT_HASH_HEAD(ptr) ((ptr)->next = NULL)
@@ -44,6 +44,7 @@ struct rhashtable;
  * @head_offset: Offset of rhash_head in struct to be hashed
  * @hash_rnd: Seed to use while hashing
  * @max_shift: Maximum number of shifts while expanding
+ * @min_shift: Minimum number of shifts while shrinking
  * @hashfn: Function to hash key
  * @obj_hashfn: Function to hash object
  * @grow_decision: If defined, may return true if table should expand
@@ -57,6 +58,7 @@ struct rhashtable_params {
 	size_t			head_offset;
 	u32			hash_rnd;
 	size_t			max_shift;
+	size_t			min_shift;
 	rht_hashfn_t		hashfn;
 	rht_obj_hashfn_t	obj_hashfn;
 	bool			(*grow_decision)(const struct rhashtable *ht,
@@ -97,7 +99,7 @@ u32 rhashtable_obj_hashfn(const struct rhashtable *ht, void *ptr);
 void rhashtable_insert(struct rhashtable *ht, struct rhash_head *node, gfp_t);
 bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *node, gfp_t);
 void rhashtable_remove_pprev(struct rhashtable *ht, struct rhash_head *obj,
-			     struct rhash_head **pprev, gfp_t flags);
+			     struct rhash_head __rcu **pprev, gfp_t flags);
 
 bool rht_grow_above_75(const struct rhashtable *ht, size_t new_size);
 bool rht_shrink_below_30(const struct rhashtable *ht, size_t new_size);
@@ -117,17 +119,11 @@ void rhashtable_destroy(const struct rhashtable *ht);
 #define rht_dereference_rcu(p, ht) \
 	rcu_dereference_check(p, lockdep_rht_mutex_is_held(ht))
 
-/* Internal, use rht_obj() instead */
 #define rht_entry(ptr, type, member) container_of(ptr, type, member)
 #define rht_entry_safe(ptr, type, member) \
 ({ \
 	typeof(ptr) __ptr = (ptr); \
 	   __ptr ? rht_entry(__ptr, type, member) : NULL; \
-})
-#define rht_entry_safe_rcu(ptr, type, member) \
-({ \
-	typeof(*ptr) __rcu *__ptr = (typeof(*ptr) __rcu __force *)ptr; \
-	__ptr ? container_of((typeof(ptr))rcu_dereference_raw(__ptr), type, member) : NULL; \
 })
 
 #define rht_next_entry_safe(pos, ht, member) \
@@ -205,9 +201,10 @@ void rhashtable_destroy(const struct rhashtable *ht);
  * traversal is guarded by rcu_read_lock().
  */
 #define rht_for_each_entry_rcu(pos, head, member) \
-	for (pos = rht_entry_safe_rcu(head, typeof(*(pos)), member); \
+	for (pos = rht_entry_safe(rcu_dereference_raw(head), \
+				  typeof(*(pos)), member); \
 	     pos; \
-	     pos = rht_entry_safe_rcu((pos)->member.next, \
-				      typeof(*(pos)), member))
+	     pos = rht_entry_safe(rcu_dereference_raw((pos)->member.next), \
+				  typeof(*(pos)), member))
 
 #endif /* _LINUX_RHASHTABLE_H */

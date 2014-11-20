@@ -166,8 +166,8 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		const char *name, const char *ioname, const char *irqname, int ringsz);
 void msm_gpu_cleanup(struct msm_gpu *gpu);
 
-struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
-void __init a3xx_register(void);
-void __exit a3xx_unregister(void);
+struct msm_gpu *adreno_load_gpu(struct drm_device *dev);
+void __init adreno_register(void);
+void __exit adreno_unregister(void);
 
 #endif /* __MSM_GPU_H__ */

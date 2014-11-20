@@ -187,8 +187,8 @@ int ll_d_init(struct dentry *de)
 	if (de->d_fsdata == NULL) {
 		struct ll_dentry_data *lld;
 
-		OBD_ALLOC_PTR(lld);
-		if (likely(lld != NULL)) {
+		lld = kzalloc(sizeof(*lld), GFP_NOFS);
+		if (likely(lld)) {
 			spin_lock(&de->d_lock);
 			if (likely(de->d_fsdata == NULL)) {
 				de->d_fsdata = lld;

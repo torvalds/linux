@@ -796,7 +796,7 @@ static struct ab8500_regulator_reg_init ab8505_reg_init[] = {
 	INIT_REGULATOR_REGISTER(AB8505_CTRLVAUX6,              0x00, 0x00),
 };
 
-struct regulator_init_data ab8505_regulators[AB8505_NUM_REGULATORS] = {
+static struct regulator_init_data ab8505_regulators[AB8505_NUM_REGULATORS] = {
 	/* supplies to the display/camera */
 	[AB8505_LDO_AUX1] = {
 		.constraints = {

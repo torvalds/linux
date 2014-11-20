@@ -38,11 +38,11 @@
 
 #define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
 
-#if (TEXT_OFFSET & 0xf) != 0
-#error TEXT_OFFSET must be at least 16B aligned
-#elif (PAGE_OFFSET & 0xfffff) != 0
+#if (TEXT_OFFSET & 0xfff) != 0
+#error TEXT_OFFSET must be at least 4KB aligned
+#elif (PAGE_OFFSET & 0x1fffff) != 0
 #error PAGE_OFFSET must be at least 2MB aligned
-#elif TEXT_OFFSET > 0xfffff
+#elif TEXT_OFFSET > 0x1fffff
 #error TEXT_OFFSET must be less than 2MB
 #endif
 
@@ -151,7 +151,7 @@ optional_header:
 	.short	0x20b				// PE32+ format
 	.byte	0x02				// MajorLinkerVersion
 	.byte	0x14				// MinorLinkerVersion
-	.long	_edata - stext			// SizeOfCode
+	.long	_end - stext			// SizeOfCode
 	.long	0				// SizeOfInitializedData
 	.long	0				// SizeOfUninitializedData
 	.long	efi_stub_entry - efi_head	// AddressOfEntryPoint
@@ -169,7 +169,7 @@ extra_header_fields:
 	.short	0				// MinorSubsystemVersion
 	.long	0				// Win32VersionValue
 
-	.long	_edata - efi_head		// SizeOfImage
+	.long	_end - efi_head			// SizeOfImage
 
 	// Everything before the kernel image is considered part of the header
 	.long	stext - efi_head		// SizeOfHeaders
@@ -216,7 +216,7 @@ section_table:
 	.byte	0
 	.byte	0
 	.byte	0        		// end of 0 padding of section name
-	.long	_edata - stext		// VirtualSize
+	.long	_end - stext		// VirtualSize
 	.long	stext - efi_head	// VirtualAddress
 	.long	_edata - stext		// SizeOfRawData
 	.long	stext - efi_head	// PointerToRawData
@@ -372,10 +372,6 @@ ENTRY(__boot_cpu_mode)
 	.long	BOOT_CPU_MODE_EL2
 	.long	0
 	.popsection
-
-	.align	3
-2:	.quad	.
-	.quad	PAGE_OFFSET
 
 #ifdef CONFIG_SMP
 	.align	3

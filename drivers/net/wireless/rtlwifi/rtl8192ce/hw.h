@@ -30,7 +30,7 @@
 #ifndef __RTL92CE_HW_H__
 #define __RTL92CE_HW_H__
 
-static inline u8 _rtl92c_get_chnl_group(u8 chnl)
+static inline u8 rtl92c_get_chnl_group(u8 chnl)
 {
 	u8 group;
 

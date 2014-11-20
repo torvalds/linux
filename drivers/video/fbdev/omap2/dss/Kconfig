@@ -5,6 +5,7 @@ menuconfig OMAP2_DSS
         tristate "OMAP2+ Display Subsystem support"
 	select VIDEOMODE_HELPERS
 	select OMAP2_DSS_INIT
+	select HDMI
         help
 	  OMAP2+ Display Subsystem support.
 

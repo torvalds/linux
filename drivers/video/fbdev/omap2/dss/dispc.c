@@ -2879,19 +2879,24 @@ static bool _dispc_mgr_pclk_ok(enum omap_channel channel,
 bool dispc_mgr_timings_ok(enum omap_channel channel,
 		const struct omap_video_timings *timings)
 {
-	bool timings_ok;
+	if (!_dispc_mgr_size_ok(timings->x_res, timings->y_res))
+		return false;
 
-	timings_ok = _dispc_mgr_size_ok(timings->x_res, timings->y_res);
-
-	timings_ok &= _dispc_mgr_pclk_ok(channel, timings->pixelclock);
+	if (!_dispc_mgr_pclk_ok(channel, timings->pixelclock))
+		return false;
 
 	if (dss_mgr_is_lcd(channel)) {
-		timings_ok &= _dispc_lcd_timings_ok(timings->hsw, timings->hfp,
+		/* TODO: OMAP4+ supports interlace for LCD outputs */
+		if (timings->interlace)
+			return false;
+
+		if (!_dispc_lcd_timings_ok(timings->hsw, timings->hfp,
 				timings->hbp, timings->vsw, timings->vfp,
-				timings->vbp);
+				timings->vbp))
+			return false;
 	}
 
-	return timings_ok;
+	return true;
 }
 
 static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
@@ -3257,13 +3262,10 @@ static void dispc_dump_regs(struct seq_file *s)
 		if (i == OMAP_DSS_CHANNEL_DIGIT)
 			continue;
 
-		DUMPREG(i, DISPC_DEFAULT_COLOR);
-		DUMPREG(i, DISPC_TRANS_COLOR);
 		DUMPREG(i, DISPC_TIMING_H);
 		DUMPREG(i, DISPC_TIMING_V);
 		DUMPREG(i, DISPC_POL_FREQ);
 		DUMPREG(i, DISPC_DIVISORo);
-		DUMPREG(i, DISPC_SIZE_MGR);
 
 		DUMPREG(i, DISPC_DATA_CYCLE1);
 		DUMPREG(i, DISPC_DATA_CYCLE2);
@@ -3288,8 +3290,11 @@ static void dispc_dump_regs(struct seq_file *s)
 		DUMPREG(i, DISPC_OVL_FIFO_SIZE_STATUS);
 		DUMPREG(i, DISPC_OVL_ROW_INC);
 		DUMPREG(i, DISPC_OVL_PIXEL_INC);
+
 		if (dss_has_feature(FEAT_PRELOAD))
 			DUMPREG(i, DISPC_OVL_PRELOAD);
+		if (dss_has_feature(FEAT_MFLAG))
+			DUMPREG(i, DISPC_OVL_MFLAG_THRESHOLD);
 
 		if (i == OMAP_DSS_GFX) {
 			DUMPREG(i, DISPC_OVL_WINDOW_SKIP);
@@ -3310,10 +3315,6 @@ static void dispc_dump_regs(struct seq_file *s)
 		}
 		if (dss_has_feature(FEAT_ATTR2))
 			DUMPREG(i, DISPC_OVL_ATTRIBUTES2);
-		if (dss_has_feature(FEAT_PRELOAD))
-			DUMPREG(i, DISPC_OVL_PRELOAD);
-		if (dss_has_feature(FEAT_MFLAG))
-			DUMPREG(i, DISPC_OVL_MFLAG_THRESHOLD);
 	}
 
 #undef DISPC_REG
@@ -3841,6 +3842,7 @@ static struct platform_driver omap_dispchw_driver = {
 		.owner  = THIS_MODULE,
 		.pm	= &dispc_pm_ops,
 		.of_match_table = dispc_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

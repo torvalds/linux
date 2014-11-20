@@ -199,7 +199,6 @@ struct sync_fence *sync_fence_create(const char *name, struct sync_pt *pt)
 	fence->num_fences = 1;
 	atomic_set(&fence->status, 1);
 
-	fence_get(&pt->base);
 	fence->cbs[0].sync_pt = &pt->base;
 	fence->cbs[0].fence = fence;
 	if (fence_add_callback(&pt->base, &fence->cbs[0].cb,
@@ -387,9 +386,9 @@ int sync_fence_wait(struct sync_fence *fence, long timeout)
 					       timeout);
 	trace_sync_wait(fence, 0);
 
-	if (ret < 0)
+	if (ret < 0) {
 		return ret;
-	else if (ret == 0) {
+	} else if (ret == 0) {
 		if (timeout) {
 			pr_info("fence timeout on [%p] after %dms\n", fence,
 				jiffies_to_msecs(timeout));
@@ -705,6 +704,7 @@ static long sync_fence_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	struct sync_fence *fence = file->private_data;
+
 	switch (cmd) {
 	case SYNC_IOC_WAIT:
 		return sync_fence_ioctl_wait(fence, arg);

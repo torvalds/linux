@@ -55,7 +55,6 @@ int pci_add_dynid(struct pci_driver *drv,
 		  unsigned long driver_data)
 {
 	struct pci_dynid *dynid;
-	int retval;
 
 	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
 	if (!dynid)
@@ -73,9 +72,7 @@ int pci_add_dynid(struct pci_driver *drv,
 	list_add_tail(&dynid->node, &drv->dynids.list);
 	spin_unlock(&drv->dynids.lock);
 
-	retval = driver_attach(&drv->driver);
-
-	return retval;
+	return driver_attach(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(pci_add_dynid);
 

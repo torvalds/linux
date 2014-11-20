@@ -176,15 +176,9 @@ static int lp8788_bl_update_status(struct backlight_device *bl_dev)
 	return 0;
 }
 
-static int lp8788_bl_get_brightness(struct backlight_device *bl_dev)
-{
-	return bl_dev->props.brightness;
-}
-
 static const struct backlight_ops lp8788_bl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.update_status = lp8788_bl_update_status,
-	.get_brightness = lp8788_bl_get_brightness,
 };
 
 static int lp8788_backlight_register(struct lp8788_bl *bl)
@@ -321,7 +315,6 @@ static struct platform_driver lp8788_bl_driver = {
 	.remove = lp8788_backlight_remove,
 	.driver = {
 		.name = LP8788_DEV_BACKLIGHT,
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(lp8788_bl_driver);

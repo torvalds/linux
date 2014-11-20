@@ -4,7 +4,7 @@
  * Copyright (C) 2008 Panasas Inc.  All rights reserved.
  *
  * Authors:
- *   Boaz Harrosh <bharrosh@panasas.com>
+ *   Boaz Harrosh <ooo@electrozaur.com>
  *   Benny Halevy <bhalevy@panasas.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -496,7 +496,7 @@ struct osd_timestamp {
  */
 
 struct osd_key_identifier {
-	u8 id[7]; /* if you know why 7 please email bharrosh@panasas.com */
+	u8 id[7]; /* if you know why 7 please email ooo@electrozaur.com */
 } __packed;
 
 /* for osd_capability.format */

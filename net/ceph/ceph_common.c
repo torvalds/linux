@@ -293,17 +293,20 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name) {
 		key_err = PTR_ERR(ukey);
 		switch (key_err) {
 		case -ENOKEY:
-			pr_warning("ceph: Mount failed due to key not found: %s\n", name);
+			pr_warn("ceph: Mount failed due to key not found: %s\n",
+				name);
 			break;
 		case -EKEYEXPIRED:
-			pr_warning("ceph: Mount failed due to expired key: %s\n", name);
+			pr_warn("ceph: Mount failed due to expired key: %s\n",
+				name);
 			break;
 		case -EKEYREVOKED:
-			pr_warning("ceph: Mount failed due to revoked key: %s\n", name);
+			pr_warn("ceph: Mount failed due to revoked key: %s\n",
+				name);
 			break;
 		default:
-			pr_warning("ceph: Mount failed due to unknown key error"
-			       " %d: %s\n", key_err, name);
+			pr_warn("ceph: Mount failed due to unknown key error %d: %s\n",
+				key_err, name);
 		}
 		err = -EPERM;
 		goto out;
@@ -433,7 +436,7 @@ ceph_parse_options(char *options, const char *dev_name,
 
 			/* misc */
 		case Opt_osdtimeout:
-			pr_warning("ignoring deprecated osdtimeout option\n");
+			pr_warn("ignoring deprecated osdtimeout option\n");
 			break;
 		case Opt_osdkeepalivetimeout:
 			opt->osd_keepalive_timeout = intval;

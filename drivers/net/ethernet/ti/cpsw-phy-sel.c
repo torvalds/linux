@@ -211,7 +211,6 @@ static struct platform_driver cpsw_phy_sel_driver = {
 	.probe		= cpsw_phy_sel_probe,
 	.driver		= {
 		.name	= "cpsw-phy-sel",
-		.owner	= THIS_MODULE,
 		.of_match_table = cpsw_phy_sel_id_table,
 	},
 };

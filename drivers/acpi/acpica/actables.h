@@ -49,6 +49,8 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count);
 /*
  * tbxfroot - Root pointer utilities
  */
+u32 acpi_tb_get_rsdp_length(struct acpi_table_rsdp *rsdp);
+
 acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp);
 
 u8 *acpi_tb_scan_memory_for_rsdp(u8 *start_address, u32 length);

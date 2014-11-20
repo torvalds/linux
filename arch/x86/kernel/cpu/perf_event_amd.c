@@ -699,7 +699,7 @@ __init int amd_pmu_init(void)
 
 void amd_pmu_enable_virt(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	cpuc->perf_ctr_virt_mask = 0;
 
@@ -711,7 +711,7 @@ EXPORT_SYMBOL_GPL(amd_pmu_enable_virt);
 
 void amd_pmu_disable_virt(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	/*
 	 * We only mask out the Host-only bit so that host-only counting works

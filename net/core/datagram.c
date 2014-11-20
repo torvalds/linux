@@ -775,7 +775,7 @@ __sum16 __skb_checksum_complete(struct sk_buff *skb)
 EXPORT_SYMBOL(__skb_checksum_complete);
 
 /**
- *	skb_copy_and_csum_datagram_iovec - Copy and checkum skb to user iovec.
+ *	skb_copy_and_csum_datagram_iovec - Copy and checksum skb to user iovec.
  *	@skb: skbuff
  *	@hlen: hardware length
  *	@iov: io vector

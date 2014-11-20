@@ -15,8 +15,6 @@
  *  -Conditionally disable interrupts (if they are not enabled, don't disable)
 */
 
-#ifdef __KERNEL__
-
 #include <asm/arcregs.h>
 
 /* status32 Reg bits related to Interrupt Handling */
@@ -131,24 +129,6 @@ static inline int arch_irqs_disabled(void)
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
-static inline void arch_mask_irq(unsigned int irq)
-{
-	unsigned int ienb;
-
-	ienb = read_aux_reg(AUX_IENABLE);
-	ienb &= ~(1 << irq);
-	write_aux_reg(AUX_IENABLE, ienb);
-}
-
-static inline void arch_unmask_irq(unsigned int irq)
-{
-	unsigned int ienb;
-
-	ienb = read_aux_reg(AUX_IENABLE);
-	ienb |= (1 << irq);
-	write_aux_reg(AUX_IENABLE, ienb);
-}
-
 #else
 
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -186,7 +166,5 @@ static inline void arch_unmask_irq(unsigned int irq)
 .endm
 
 #endif	/* __ASSEMBLY__ */
-
-#endif	/* KERNEL */
 
 #endif

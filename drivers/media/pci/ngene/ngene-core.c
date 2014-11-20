@@ -57,15 +57,13 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define dprintk	if (debug) printk
 
-#define ngwriteb(dat, adr)         writeb((dat), (char *)(dev->iomem + (adr)))
-#define ngwritel(dat, adr)         writel((dat), (char *)(dev->iomem + (adr)))
-#define ngwriteb(dat, adr)         writeb((dat), (char *)(dev->iomem + (adr)))
+#define ngwriteb(dat, adr)         writeb((dat), dev->iomem + (adr))
+#define ngwritel(dat, adr)         writel((dat), dev->iomem + (adr))
+#define ngwriteb(dat, adr)         writeb((dat), dev->iomem + (adr))
 #define ngreadl(adr)               readl(dev->iomem + (adr))
 #define ngreadb(adr)               readb(dev->iomem + (adr))
-#define ngcpyto(adr, src, count)   memcpy_toio((char *) \
-				   (dev->iomem + (adr)), (src), (count))
-#define ngcpyfrom(dst, adr, count) memcpy_fromio((dst), (char *) \
-				   (dev->iomem + (adr)), (count))
+#define ngcpyto(adr, src, count)   memcpy_toio(dev->iomem + (adr), (src), (count))
+#define ngcpyfrom(dst, adr, count) memcpy_fromio((dst), dev->iomem + (adr), (count))
 
 /****************************************************************************/
 /* nGene interrupt handler **************************************************/
@@ -1075,12 +1073,11 @@ static int AllocCommonBuffers(struct ngene *dev)
 	dev->ngenetohost = dev->FWInterfaceBuffer + 256;
 	dev->EventBuffer = dev->FWInterfaceBuffer + 512;
 
-	dev->OverflowBuffer = pci_alloc_consistent(dev->pci_dev,
-						   OVERFLOW_BUFFER_SIZE,
-						   &dev->PAOverflowBuffer);
+	dev->OverflowBuffer = pci_zalloc_consistent(dev->pci_dev,
+						    OVERFLOW_BUFFER_SIZE,
+						    &dev->PAOverflowBuffer);
 	if (!dev->OverflowBuffer)
 		return -ENOMEM;
-	memset(dev->OverflowBuffer, 0, OVERFLOW_BUFFER_SIZE);
 
 	for (i = STREAM_VIDEOIN1; i < MAX_STREAM; i++) {
 		int type = dev->card_info->io_type[i];
@@ -1593,7 +1590,7 @@ static void cxd_detach(struct ngene *dev)
 
 	dvb_ca_en50221_release(ci->en);
 	kfree(ci->en);
-	ci->en = 0;
+	ci->en = NULL;
 }
 
 /***********************************/

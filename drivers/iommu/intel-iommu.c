@@ -3865,8 +3865,15 @@ static int device_notifier(struct notifier_block *nb,
 	if (iommu_dummy(dev))
 		return 0;
 
-	if (action != BUS_NOTIFY_UNBOUND_DRIVER &&
-	    action != BUS_NOTIFY_DEL_DEVICE)
+	if (action != BUS_NOTIFY_REMOVED_DEVICE)
+		return 0;
+
+	/*
+	 * If the device is still attached to a device driver we can't
+	 * tear down the domain yet as DMA mappings may still be in use.
+	 * Wait for the BUS_NOTIFY_UNBOUND_DRIVER event to do that.
+	 */
+	if (action == BUS_NOTIFY_DEL_DEVICE && dev->driver != NULL)
 		return 0;
 
 	domain = find_domain(dev);
@@ -4407,17 +4414,14 @@ static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
 	return phys;
 }
 
-static int intel_iommu_domain_has_cap(struct iommu_domain *domain,
-				      unsigned long cap)
+static bool intel_iommu_capable(enum iommu_cap cap)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
-
 	if (cap == IOMMU_CAP_CACHE_COHERENCY)
-		return dmar_domain->iommu_snooping;
+		return domain_update_iommu_snooping(NULL) == 1;
 	if (cap == IOMMU_CAP_INTR_REMAP)
-		return irq_remapping_enabled;
+		return irq_remapping_enabled == 1;
 
-	return 0;
+	return false;
 }
 
 static int intel_iommu_add_device(struct device *dev)
@@ -4456,6 +4460,7 @@ static void intel_iommu_remove_device(struct device *dev)
 }
 
 static const struct iommu_ops intel_iommu_ops = {
+	.capable	= intel_iommu_capable,
 	.domain_init	= intel_iommu_domain_init,
 	.domain_destroy = intel_iommu_domain_destroy,
 	.attach_dev	= intel_iommu_attach_device,
@@ -4463,7 +4468,6 @@ static const struct iommu_ops intel_iommu_ops = {
 	.map		= intel_iommu_map,
 	.unmap		= intel_iommu_unmap,
 	.iova_to_phys	= intel_iommu_iova_to_phys,
-	.domain_has_cap = intel_iommu_domain_has_cap,
 	.add_device	= intel_iommu_add_device,
 	.remove_device	= intel_iommu_remove_device,
 	.pgsize_bitmap	= INTEL_IOMMU_PGSIZES,

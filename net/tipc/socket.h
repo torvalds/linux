@@ -35,56 +35,17 @@
 #ifndef _TIPC_SOCK_H
 #define _TIPC_SOCK_H
 
-#include "port.h"
 #include <net/sock.h>
 
-#define TIPC_CONN_OK      0
-#define TIPC_CONN_PROBING 1
-
-/**
- * struct tipc_sock - TIPC socket structure
- * @sk: socket - interacts with 'port' and with user via the socket API
- * @port: port - interacts with 'sk' and with the rest of the TIPC stack
- * @peer_name: the peer of the connection, if any
- * @conn_timeout: the time we can wait for an unresponded setup request
- * @dupl_rcvcnt: number of bytes counted twice, in both backlog and rcv queue
- * @link_cong: non-zero if owner must sleep because of link congestion
- * @sent_unacked: # messages sent by socket, and not yet acked by peer
- * @rcv_unacked: # messages read by user, but not yet acked back to peer
- */
-
-struct tipc_sock {
-	struct sock sk;
-	struct tipc_port port;
-	unsigned int conn_timeout;
-	atomic_t dupl_rcvcnt;
-	int link_cong;
-	uint sent_unacked;
-	uint rcv_unacked;
-};
-
-static inline struct tipc_sock *tipc_sk(const struct sock *sk)
-{
-	return container_of(sk, struct tipc_sock, sk);
-}
-
-static inline struct tipc_sock *tipc_port_to_sock(const struct tipc_port *port)
-{
-	return container_of(port, struct tipc_sock, port);
-}
-
-static inline void tipc_sock_wakeup(struct tipc_sock *tsk)
-{
-	tsk->sk.sk_write_space(&tsk->sk);
-}
-
-static inline int tipc_sk_conn_cong(struct tipc_sock *tsk)
-{
-	return tsk->sent_unacked >= TIPC_FLOWCTRL_WIN;
-}
-
+#define TIPC_CONNACK_INTV         256
+#define TIPC_FLOWCTRL_WIN        (TIPC_CONNACK_INTV * 2)
+#define TIPC_CONN_OVERLOAD_LIMIT ((TIPC_FLOWCTRL_WIN * 2 + 1) * \
+				  SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
 int tipc_sk_rcv(struct sk_buff *buf);
-
+struct sk_buff *tipc_sk_socks_show(void);
 void tipc_sk_mcast_rcv(struct sk_buff *buf);
+void tipc_sk_reinit(void);
+int tipc_sk_ref_table_init(u32 requested_size, u32 start);
+void tipc_sk_ref_table_stop(void);
 
 #endif

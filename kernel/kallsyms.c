@@ -364,7 +364,7 @@ static int __sprint_symbol(char *buffer, unsigned long address,
 	address += symbol_offset;
 	name = kallsyms_lookup(address, &size, &offset, &modname, buffer);
 	if (!name)
-		return sprintf(buffer, "0x%lx", address);
+		return sprintf(buffer, "0x%lx", address - symbol_offset);
 
 	if (name != buffer)
 		strcpy(buffer, name);
@@ -565,19 +565,12 @@ static int kallsyms_open(struct inode *inode, struct file *file)
 	 * using get_symbol_offset for every symbol.
 	 */
 	struct kallsym_iter *iter;
-	int ret;
-
-	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+	iter = __seq_open_private(file, &kallsyms_op, sizeof(*iter));
 	if (!iter)
 		return -ENOMEM;
 	reset_iter(iter, 0);
 
-	ret = seq_open(file, &kallsyms_op);
-	if (ret == 0)
-		((struct seq_file *)file->private_data)->private = iter;
-	else
-		kfree(iter);
-	return ret;
+	return 0;
 }
 
 #ifdef	CONFIG_KGDB_KDB

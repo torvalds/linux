@@ -498,7 +498,7 @@ static int pxa_gpio_nums(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id pxa_gpio_dt_ids[] = {
+static const struct of_device_id pxa_gpio_dt_ids[] = {
 	{ .compatible = "intel,pxa25x-gpio",	.data = &pxa25x_id, },
 	{ .compatible = "intel,pxa26x-gpio",	.data = &pxa26x_id, },
 	{ .compatible = "intel,pxa27x-gpio",	.data = &pxa27x_id, },
@@ -649,6 +649,11 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 						 handle_edge_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
+	} else {
+		if (irq0 > 0)
+			irq_set_chained_handler(irq0, pxa_gpio_demux_handler);
+		if (irq1 > 0)
+			irq_set_chained_handler(irq1, pxa_gpio_demux_handler);
 	}
 
 	irq_set_chained_handler(irq_mux, pxa_gpio_demux_handler);

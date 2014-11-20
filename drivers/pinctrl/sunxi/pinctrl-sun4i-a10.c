@@ -1010,6 +1010,7 @@ static const struct sunxi_desc_pin sun4i_a10_pins[] = {
 static const struct sunxi_pinctrl_desc sun4i_a10_pinctrl_data = {
 	.pins = sun4i_a10_pins,
 	.npins = ARRAY_SIZE(sun4i_a10_pins),
+	.irq_banks = 1,
 };
 
 static int sun4i_a10_pinctrl_probe(struct platform_device *pdev)

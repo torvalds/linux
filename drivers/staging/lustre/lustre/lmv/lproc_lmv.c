@@ -37,7 +37,7 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <linux/seq_file.h>
-#include <asm/statfs.h>
+#include <linux/statfs.h>
 #include "../include/lprocfs_status.h"
 #include "../include/obd_class.h"
 
@@ -58,7 +58,7 @@ static const char *placement_name[] = {
 	[PLACEMENT_INVAL_POLICY]  = "INVAL"
 };
 
-static placement_policy_t placement_name2policy(char *name, int len)
+static enum placement_policy placement_name2policy(char *name, int len)
 {
 	int		     i;
 
@@ -69,7 +69,7 @@ static placement_policy_t placement_name2policy(char *name, int len)
 	return PLACEMENT_INVAL_POLICY;
 }
 
-static const char *placement_policy2name(placement_policy_t placement)
+static const char *placement_policy2name(enum placement_policy placement)
 {
 	LASSERT(placement < PLACEMENT_MAX_POLICY);
 	return placement_name[placement];
@@ -94,7 +94,7 @@ static ssize_t lmv_placement_seq_write(struct file *file,
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	char		     dummy[MAX_POLICY_STRING_SIZE + 1];
 	int		      len = count;
-	placement_policy_t       policy;
+	enum placement_policy       policy;
 	struct lmv_obd	  *lmv;
 
 	if (copy_from_user(dummy, buffer, MAX_POLICY_STRING_SIZE))

@@ -1127,10 +1127,7 @@ void gether_disconnect(struct gether *link)
 
 	DBG(dev, "%s\n", __func__);
 
-	netif_tx_lock(dev->net);
 	netif_stop_queue(dev->net);
-	netif_tx_unlock(dev->net);
-
 	netif_carrier_off(dev->net);
 
 	/* disable endpoints, forcing (synchronous) completion

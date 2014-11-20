@@ -2,9 +2,6 @@
 # Makefile for the linux kernel.
 #
 obj-y			:= core.o clock.o
-obj-m			:=
-obj-n			:=
-obj-			:=
 
 obj-$(CONFIG_EP93XX_DMA)	+= dma.o
 

@@ -540,7 +540,8 @@ static void psbfb_gamma_get(struct drm_crtc *crtc, u16 *red,
 static int psbfb_probe(struct drm_fb_helper *helper,
 				struct drm_fb_helper_surface_size *sizes)
 {
-	struct psb_fbdev *psb_fbdev = (struct psb_fbdev *)helper;
+	struct psb_fbdev *psb_fbdev =
+		container_of(helper, struct psb_fbdev, psb_fb_helper);
 	struct drm_device *dev = psb_fbdev->psb_fb_helper.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int bytespp;
@@ -561,7 +562,7 @@ static int psbfb_probe(struct drm_fb_helper *helper,
 	return psbfb_create(psb_fbdev, sizes);
 }
 
-static struct drm_fb_helper_funcs psb_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs psb_fb_helper_funcs = {
 	.gamma_set = psbfb_gamma_set,
 	.gamma_get = psbfb_gamma_get,
 	.fb_probe = psbfb_probe,
@@ -600,7 +601,8 @@ int psb_fbdev_init(struct drm_device *dev)
 	}
 
 	dev_priv->fbdev = fbdev;
-	fbdev->psb_fb_helper.funcs = &psb_fb_helper_funcs;
+
+	drm_fb_helper_prepare(dev, &fbdev->psb_fb_helper, &psb_fb_helper_funcs);
 
 	drm_fb_helper_init(dev, &fbdev->psb_fb_helper, dev_priv->ops->crtcs,
 							INTELFB_CONN_LIMIT);

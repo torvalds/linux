@@ -135,7 +135,7 @@ hash_dst(const struct xt_hashlimit_htable *ht, const struct dsthash_dst *dst)
 	 * give results between [0 and cfg.size-1] and same hash distribution,
 	 * but using a multiply, less expensive than a divide
 	 */
-	return ((u64)hash * ht->cfg.size) >> 32;
+	return reciprocal_scale(hash, ht->cfg.size);
 }
 
 static struct dsthash_ent *
@@ -943,7 +943,7 @@ static int __init hashlimit_mt_init(void)
 					    sizeof(struct dsthash_ent), 0, 0,
 					    NULL);
 	if (!hashlimit_cachep) {
-		pr_warning("unable to create slab cache\n");
+		pr_warn("unable to create slab cache\n");
 		goto err2;
 	}
 	return 0;

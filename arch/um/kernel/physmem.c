@@ -22,39 +22,19 @@ EXPORT_SYMBOL(high_physmem);
 
 extern unsigned long long physmem_size;
 
-int __init init_maps(unsigned long physmem, unsigned long iomem,
+void __init mem_total_pages(unsigned long physmem, unsigned long iomem,
 		     unsigned long highmem)
 {
-	struct page *p, *map;
-	unsigned long phys_len, phys_pages, highmem_len, highmem_pages;
-	unsigned long iomem_len, iomem_pages, total_len, total_pages;
-	int i;
+	unsigned long phys_pages, highmem_pages;
+	unsigned long iomem_pages, total_pages;
 
-	phys_pages = physmem >> PAGE_SHIFT;
-	phys_len = phys_pages * sizeof(struct page);
-
-	iomem_pages = iomem >> PAGE_SHIFT;
-	iomem_len = iomem_pages * sizeof(struct page);
-
+	phys_pages    = physmem >> PAGE_SHIFT;
+	iomem_pages   = iomem   >> PAGE_SHIFT;
 	highmem_pages = highmem >> PAGE_SHIFT;
-	highmem_len = highmem_pages * sizeof(struct page);
 
-	total_pages = phys_pages + iomem_pages + highmem_pages;
-	total_len = phys_len + iomem_len + highmem_len;
-
-	map = alloc_bootmem_low_pages(total_len);
-	if (map == NULL)
-		return -ENOMEM;
-
-	for (i = 0; i < total_pages; i++) {
-		p = &map[i];
-		memset(p, 0, sizeof(struct page));
-		SetPageReserved(p);
-		INIT_LIST_HEAD(&p->lru);
-	}
+	total_pages   = phys_pages + iomem_pages + highmem_pages;
 
 	max_mapnr = total_pages;
-	return 0;
 }
 
 void map_memory(unsigned long virt, unsigned long phys, unsigned long len,

@@ -1,7 +1,7 @@
 #ifndef __NVKM_MC_NV04_H__
 #define __NVKM_MC_NV04_H__
 
-#include <subdev/mc.h>
+#include "priv.h"
 
 struct nv04_mc_priv {
 	struct nouveau_mc base;

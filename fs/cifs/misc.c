@@ -226,6 +226,15 @@ cifs_small_buf_release(void *buf_to_free)
 	return;
 }
 
+void
+free_rsp_buf(int resp_buftype, void *rsp)
+{
+	if (resp_buftype == CIFS_SMALL_BUFFER)
+		cifs_small_buf_release(rsp);
+	else if (resp_buftype == CIFS_LARGE_BUFFER)
+		cifs_buf_release(rsp);
+}
+
 /* NB: MID can not be set if treeCon not passed in, in that
    case it is responsbility of caller to set the mid */
 void
@@ -414,7 +423,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 			return true;
 		}
 		if (pSMBr->hdr.Status.CifsError) {
-			cifs_dbg(FYI, "notify err 0x%d\n",
+			cifs_dbg(FYI, "notify err 0x%x\n",
 				 pSMBr->hdr.Status.CifsError);
 			return true;
 		}
@@ -441,7 +450,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	if (pSMB->hdr.WordCount != 8)
 		return false;
 
-	cifs_dbg(FYI, "oplock type 0x%d level 0x%d\n",
+	cifs_dbg(FYI, "oplock type 0x%x level 0x%x\n",
 		 pSMB->LockType, pSMB->OplockLevel);
 	if (!(pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE))
 		return false;
@@ -563,13 +572,6 @@ void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
 			 &cinode->vfs_inode);
 	} else
 		cinode->oplock = 0;
-}
-
-static int
-cifs_oplock_break_wait(void *unused)
-{
-	schedule();
-	return signal_pending(current) ? -ERESTARTSYS : 0;
 }
 
 /*

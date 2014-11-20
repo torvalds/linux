@@ -205,7 +205,6 @@ xprt_rdma_connect_worker(struct work_struct *work)
 	struct rpc_xprt *xprt = &r_xprt->xprt;
 	int rc = 0;
 
-	current->flags |= PF_FSTRANS;
 	xprt_clear_connected(xprt);
 
 	dprintk("RPC:       %s: %sconnect\n", __func__,
@@ -216,7 +215,6 @@ xprt_rdma_connect_worker(struct work_struct *work)
 
 	dprintk("RPC:       %s: exit\n", __func__);
 	xprt_clear_connecting(xprt);
-	current->flags &= ~PF_FSTRANS;
 }
 
 /*
@@ -296,7 +294,6 @@ xprt_setup_rdma(struct xprt_create *args)
 
 	xprt->resvport = 0;		/* privileged port not needed */
 	xprt->tsh_size = 0;		/* RPC-RDMA handles framing */
-	xprt->max_payload = RPCRDMA_MAX_DATA_SEGS * PAGE_SIZE;
 	xprt->ops = &xprt_rdma_procs;
 
 	/*
@@ -382,6 +379,9 @@ xprt_setup_rdma(struct xprt_create *args)
 	new_ep->rep_xprt = xprt;
 
 	xprt_rdma_format_addresses(xprt);
+	xprt->max_payload = rpcrdma_max_payload(new_xprt);
+	dprintk("RPC:       %s: transport data payload maximum: %zu bytes\n",
+		__func__, xprt->max_payload);
 
 	if (!try_module_get(THIS_MODULE))
 		goto out4;
@@ -412,7 +412,7 @@ xprt_rdma_close(struct rpc_xprt *xprt)
 	if (r_xprt->rx_ep.rep_connected > 0)
 		xprt->reestablish_timeout = 0;
 	xprt_disconnect_done(xprt);
-	(void) rpcrdma_ep_disconnect(&r_xprt->rx_ep, &r_xprt->rx_ia);
+	rpcrdma_ep_disconnect(&r_xprt->rx_ep, &r_xprt->rx_ia);
 }
 
 static void
@@ -595,13 +595,14 @@ xprt_rdma_send_request(struct rpc_task *task)
 	struct rpc_xprt *xprt = rqst->rq_xprt;
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
-	int rc;
+	int rc = 0;
 
-	if (req->rl_niovs == 0) {
+	if (req->rl_niovs == 0)
 		rc = rpcrdma_marshal_req(rqst);
-		if (rc < 0)
-			goto failed_marshal;
-	}
+	else if (r_xprt->rx_ia.ri_memreg_strategy == RPCRDMA_FRMR)
+		rc = rpcrdma_marshal_chunks(rqst, 0);
+	if (rc < 0)
+		goto failed_marshal;
 
 	if (req->rl_reply == NULL) 		/* e.g. reconnection */
 		rpcrdma_recv_buffer_get(req);

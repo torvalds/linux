@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +64,7 @@
  *****************************************************************************/
 #include <linux/firmware.h>
 #include "iwl-trans.h"
+#include "iwl-csr.h"
 #include "mvm.h"
 #include "iwl-eeprom-parse.h"
 #include "iwl-eeprom-read.h"
@@ -347,7 +350,7 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 	/* Maximal size depends on HW family and step */
 	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
 		max_section_size = IWL_MAX_NVM_SECTION_SIZE;
-	else if ((mvm->trans->hw_rev & 0xc) == 0) /* Family 8000 A-step */
+	else if (CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_A_STEP)
 		max_section_size = IWL_MAX_NVM_8000A_SECTION_SIZE;
 	else /* Family 8000 B-step */
 		max_section_size = IWL_MAX_NVM_8000B_SECTION_SIZE;

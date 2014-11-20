@@ -111,7 +111,7 @@ static int adf_chr_drv_create(void)
 	drv_device = device_create(adt_ctl_drv.drv_class, NULL,
 				   MKDEV(adt_ctl_drv.major, 0),
 				   NULL, DEVICE_NAME);
-	if (!drv_device) {
+	if (IS_ERR(drv_device)) {
 		pr_err("QAT: failed to create device\n");
 		goto err_cdev_del;
 	}

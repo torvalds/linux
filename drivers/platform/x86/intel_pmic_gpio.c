@@ -301,8 +301,7 @@ static int platform_pmic_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 fail_request_irq:
-	if (gpiochip_remove(&pg->chip))
-		pr_err("gpiochip_remove failed\n");
+	gpiochip_remove(&pg->chip);
 err:
 	iounmap(pg->gpiointr);
 err2:

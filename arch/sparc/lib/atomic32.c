@@ -27,18 +27,36 @@ static DEFINE_SPINLOCK(dummy);
 
 #endif /* SMP */
 
-int __atomic_add_return(int i, atomic_t *v)
+#define ATOMIC_OP(op, cop)						\
+int atomic_##op##_return(int i, atomic_t *v)				\
+{									\
+	int ret;							\
+	unsigned long flags;						\
+	spin_lock_irqsave(ATOMIC_HASH(v), flags);			\
+									\
+	ret = (v->counter cop i);					\
+									\
+	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);			\
+	return ret;							\
+}									\
+EXPORT_SYMBOL(atomic_##op##_return);
+
+ATOMIC_OP(add, +=)
+
+#undef ATOMIC_OP
+
+int atomic_xchg(atomic_t *v, int new)
 {
 	int ret;
 	unsigned long flags;
+
 	spin_lock_irqsave(ATOMIC_HASH(v), flags);
-
-	ret = (v->counter += i);
-
+	ret = v->counter;
+	v->counter = new;
 	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
 	return ret;
 }
-EXPORT_SYMBOL(__atomic_add_return);
+EXPORT_SYMBOL(atomic_xchg);
 
 int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
@@ -132,3 +150,17 @@ unsigned long __cmpxchg_u32(volatile u32 *ptr, u32 old, u32 new)
 	return (unsigned long)prev;
 }
 EXPORT_SYMBOL(__cmpxchg_u32);
+
+unsigned long __xchg_u32(volatile u32 *ptr, u32 new)
+{
+	unsigned long flags;
+	u32 prev;
+
+	spin_lock_irqsave(ATOMIC_HASH(ptr), flags);
+	prev = *ptr;
+	*ptr = new;
+	spin_unlock_irqrestore(ATOMIC_HASH(ptr), flags);
+
+	return (unsigned long)prev;
+}
+EXPORT_SYMBOL(__xchg_u32);

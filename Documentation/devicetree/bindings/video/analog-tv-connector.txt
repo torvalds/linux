@@ -2,7 +2,7 @@ Analog TV Connector
 ===================
 
 Required properties:
-- compatible: "composite-connector" or "svideo-connector"
+- compatible: "composite-video-connector" or "svideo-connector"
 
 Optional properties:
 - label: a symbolic name for the connector
@@ -14,7 +14,7 @@ Example
 -------
 
 tv: connector {
-	compatible = "composite-connector";
+	compatible = "composite-video-connector";
 	label = "tv";
 
 	port {

@@ -6741,11 +6741,11 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
 	ErrorCode = -ENOMEM;
 	if (DataTransferLength > 0)
 	  {
-	    DataTransferBuffer = pci_alloc_consistent(Controller->PCIDevice,
-				DataTransferLength, &DataTransferBufferDMA);
+	    DataTransferBuffer = pci_zalloc_consistent(Controller->PCIDevice,
+                                                       DataTransferLength,
+                                                       &DataTransferBufferDMA);
 	    if (DataTransferBuffer == NULL)
 	    	break;
-	    memset(DataTransferBuffer, 0, DataTransferLength);
 	  }
 	else if (DataTransferLength < 0)
 	  {
@@ -6877,11 +6877,11 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
     	ErrorCode = -ENOMEM;
 	if (DataTransferLength > 0)
 	  {
-	    DataTransferBuffer = pci_alloc_consistent(Controller->PCIDevice,
-				DataTransferLength, &DataTransferBufferDMA);
+	    DataTransferBuffer = pci_zalloc_consistent(Controller->PCIDevice,
+                                                       DataTransferLength,
+                                                       &DataTransferBufferDMA);
 	    if (DataTransferBuffer == NULL)
 	    	break;
-	    memset(DataTransferBuffer, 0, DataTransferLength);
 	  }
 	else if (DataTransferLength < 0)
 	  {
@@ -6899,14 +6899,14 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
 	RequestSenseLength = UserCommand.RequestSenseLength;
 	if (RequestSenseLength > 0)
 	  {
-	    RequestSenseBuffer = pci_alloc_consistent(Controller->PCIDevice,
-			RequestSenseLength, &RequestSenseBufferDMA);
+	    RequestSenseBuffer = pci_zalloc_consistent(Controller->PCIDevice,
+                                                       RequestSenseLength,
+                                                       &RequestSenseBufferDMA);
 	    if (RequestSenseBuffer == NULL)
 	      {
 		ErrorCode = -ENOMEM;
 		goto Failure2;
 	      }
-	    memset(RequestSenseBuffer, 0, RequestSenseLength);
 	  }
 	spin_lock_irqsave(&Controller->queue_lock, flags);
 	while ((Command = DAC960_AllocateCommand(Controller)) == NULL)

@@ -133,4 +133,5 @@ nvd7_graph_oclass = &(struct nvc0_graph_oclass) {
 	.mmio = nvd7_graph_pack_mmio,
 	.fecs.ucode = &nvd7_graph_fecs_ucode,
 	.gpccs.ucode = &nvd7_graph_gpccs_ucode,
+	.ppc_nr = 1,
 }.base;

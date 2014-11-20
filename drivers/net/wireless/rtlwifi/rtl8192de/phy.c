@@ -677,7 +677,7 @@ static void _rtl92d_store_pwrindex_diffrate_offset(struct ieee80211_hw *hw,
 
 	rtlphy->mcs_offset[rtlphy->pwrgroup_cnt][index] = data;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-		 "MCSTxPowerLevelOriginalOffset[%d][%d] = 0x%ulx\n",
+		 "MCSTxPowerLevelOriginalOffset[%d][%d] = 0x%x\n",
 		 rtlphy->pwrgroup_cnt, index,
 		 rtlphy->mcs_offset[rtlphy->pwrgroup_cnt][index]);
 	if (index == 13)
@@ -2531,7 +2531,7 @@ static void _rtl92d_phy_reload_lck_setting(struct ieee80211_hw *hw,
 	if (rtlpriv->rtlhal.current_bandtype == BAND_ON_5G) {/* Path-A for 5G */
 		u4tmp = curveindex_5g[channel-1];
 		RTPRINT(rtlpriv, FINIT, INIT_IQK,
-			"ver 1 set RF-A, 5G,	0x28 = 0x%ulx !!\n", u4tmp);
+			"ver 1 set RF-A, 5G,	0x28 = 0x%x !!\n", u4tmp);
 		if (rtlpriv->rtlhal.macphymode == DUALMAC_DUALPHY &&
 			rtlpriv->rtlhal.interfaceindex == 1) {
 			bneed_powerdown_radio =
@@ -2550,7 +2550,7 @@ static void _rtl92d_phy_reload_lck_setting(struct ieee80211_hw *hw,
 	} else if (rtlpriv->rtlhal.current_bandtype == BAND_ON_2_4G) {
 		u4tmp = curveindex_2g[channel-1];
 		RTPRINT(rtlpriv, FINIT, INIT_IQK,
-			"ver 3 set RF-B, 2G, 0x28 = 0x%ulx !!\n", u4tmp);
+			"ver 3 set RF-B, 2G, 0x28 = 0x%x !!\n", u4tmp);
 		if (rtlpriv->rtlhal.macphymode == DUALMAC_DUALPHY &&
 			rtlpriv->rtlhal.interfaceindex == 0) {
 			bneed_powerdown_radio =
@@ -2562,7 +2562,7 @@ static void _rtl92d_phy_reload_lck_setting(struct ieee80211_hw *hw,
 		}
 		rtl_set_rfreg(hw, erfpath, RF_SYN_G4, 0x3f800, u4tmp);
 		RTPRINT(rtlpriv, FINIT, INIT_IQK,
-			"ver 3 set RF-B, 2G, 0x28 = 0x%ulx !!\n",
+			"ver 3 set RF-B, 2G, 0x28 = 0x%x !!\n",
 			rtl_get_rfreg(hw,  erfpath, RF_SYN_G4, 0x3f800));
 		if (bneed_powerdown_radio)
 			_rtl92d_phy_restore_rf_env(hw, erfpath, &u4regvalue);

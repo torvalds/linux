@@ -27,6 +27,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 
+#include <asm/machdep.h>
 #include <asm/opal.h>
 #include <asm/cputable.h>
 
@@ -143,4 +144,4 @@ static int __init opal_mem_err_init(void)
 	}
 	return 0;
 }
-subsys_initcall(opal_mem_err_init);
+machine_subsys_initcall(powernv, opal_mem_err_init);

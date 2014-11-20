@@ -841,7 +841,7 @@ __acquires(ep->dev->lock)
 		&req->req, req->req.length, ep->ep.name, sts);
 
 	spin_unlock(&dev->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&dev->lock);
 	ep->halted = halted;
 }

@@ -257,9 +257,6 @@ static int br_afspec(struct net_bridge *br,
 			} else
 				err = br_vlan_add(br, vinfo->vid, vinfo->flags);
 
-			if (err)
-				break;
-
 			break;
 
 		case RTM_DELLINK:
@@ -276,7 +273,7 @@ static int br_afspec(struct net_bridge *br,
 	return err;
 }
 
-static const struct nla_policy ifla_brport_policy[IFLA_BRPORT_MAX + 1] = {
+static const struct nla_policy br_port_policy[IFLA_BRPORT_MAX + 1] = {
 	[IFLA_BRPORT_STATE]	= { .type = NLA_U8 },
 	[IFLA_BRPORT_COST]	= { .type = NLA_U32 },
 	[IFLA_BRPORT_PRIORITY]	= { .type = NLA_U16 },
@@ -304,7 +301,7 @@ static int br_set_port_state(struct net_bridge_port *p, u8 state)
 	    (!netif_oper_up(p->dev) && state != BR_STATE_DISABLED))
 		return -ENETDOWN;
 
-	p->state = state;
+	br_set_state(p, state);
 	br_log_state(p);
 	br_port_state_selection(p->br);
 	return 0;
@@ -382,7 +379,7 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 	if (p && protinfo) {
 		if (protinfo->nla_type & NLA_F_NESTED) {
 			err = nla_parse_nested(tb, IFLA_BRPORT_MAX,
-					       protinfo, ifla_brport_policy);
+					       protinfo, br_port_policy);
 			if (err)
 				return err;
 
@@ -461,6 +458,88 @@ static int br_dev_newlink(struct net *src_net, struct net_device *dev,
 	return register_netdevice(dev);
 }
 
+static int br_port_slave_changelink(struct net_device *brdev,
+				    struct net_device *dev,
+				    struct nlattr *tb[],
+				    struct nlattr *data[])
+{
+	if (!data)
+		return 0;
+	return br_setport(br_port_get_rtnl(dev), data);
+}
+
+static int br_port_fill_slave_info(struct sk_buff *skb,
+				   const struct net_device *brdev,
+				   const struct net_device *dev)
+{
+	return br_port_fill_attrs(skb, br_port_get_rtnl(dev));
+}
+
+static size_t br_port_get_slave_size(const struct net_device *brdev,
+				     const struct net_device *dev)
+{
+	return br_port_info_size();
+}
+
+static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
+	[IFLA_BR_FORWARD_DELAY]	= { .type = NLA_U32 },
+	[IFLA_BR_HELLO_TIME]	= { .type = NLA_U32 },
+	[IFLA_BR_MAX_AGE]	= { .type = NLA_U32 },
+};
+
+static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
+			 struct nlattr *data[])
+{
+	struct net_bridge *br = netdev_priv(brdev);
+	int err;
+
+	if (!data)
+		return 0;
+
+	if (data[IFLA_BR_FORWARD_DELAY]) {
+		err = br_set_forward_delay(br, nla_get_u32(data[IFLA_BR_FORWARD_DELAY]));
+		if (err)
+			return err;
+	}
+
+	if (data[IFLA_BR_HELLO_TIME]) {
+		err = br_set_hello_time(br, nla_get_u32(data[IFLA_BR_HELLO_TIME]));
+		if (err)
+			return err;
+	}
+
+	if (data[IFLA_BR_MAX_AGE]) {
+		err = br_set_max_age(br, nla_get_u32(data[IFLA_BR_MAX_AGE]));
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static size_t br_get_size(const struct net_device *brdev)
+{
+	return nla_total_size(sizeof(u32)) +	/* IFLA_BR_FORWARD_DELAY  */
+	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_HELLO_TIME */
+	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_MAX_AGE */
+	       0;
+}
+
+static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
+{
+	struct net_bridge *br = netdev_priv(brdev);
+	u32 forward_delay = jiffies_to_clock_t(br->forward_delay);
+	u32 hello_time = jiffies_to_clock_t(br->hello_time);
+	u32 age_time = jiffies_to_clock_t(br->max_age);
+
+	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
+	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
+	    nla_put_u32(skb, IFLA_BR_MAX_AGE, age_time))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 static size_t br_get_link_af_size(const struct net_device *dev)
 {
 	struct net_port_vlans *pv;
@@ -485,12 +564,23 @@ static struct rtnl_af_ops br_af_ops = {
 };
 
 struct rtnl_link_ops br_link_ops __read_mostly = {
-	.kind		= "bridge",
-	.priv_size	= sizeof(struct net_bridge),
-	.setup		= br_dev_setup,
-	.validate	= br_validate,
-	.newlink	= br_dev_newlink,
-	.dellink	= br_dev_delete,
+	.kind			= "bridge",
+	.priv_size		= sizeof(struct net_bridge),
+	.setup			= br_dev_setup,
+	.maxtype		= IFLA_BRPORT_MAX,
+	.policy			= br_policy,
+	.validate		= br_validate,
+	.newlink		= br_dev_newlink,
+	.changelink		= br_changelink,
+	.dellink		= br_dev_delete,
+	.get_size		= br_get_size,
+	.fill_info		= br_fill_info,
+
+	.slave_maxtype		= IFLA_BRPORT_MAX,
+	.slave_policy		= br_port_policy,
+	.slave_changelink	= br_port_slave_changelink,
+	.get_slave_size		= br_port_get_slave_size,
+	.fill_slave_info	= br_port_fill_slave_info,
 };
 
 int __init br_netlink_init(void)
@@ -512,7 +602,7 @@ out_af:
 	return err;
 }
 
-void __exit br_netlink_fini(void)
+void br_netlink_fini(void)
 {
 	br_mdb_uninit();
 	rtnl_af_unregister(&br_af_ops);

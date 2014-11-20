@@ -464,6 +464,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 		return -ENOMEM;
 
 	ah->dev = priv->dev;
+	ah->hw = priv->hw;
 	ah->hw_version.devid = devid;
 	ah->hw_version.usbdev = drv_info;
 	ah->ah_flags |= AH_USE_EEPROM;
@@ -591,6 +592,8 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN |
 			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+
+	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
 
 	hw->queues = 4;
 	hw->max_listen_interval = 1;

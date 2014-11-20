@@ -16,7 +16,7 @@
 #ifndef __VBUSDEVICEINFO_H__
 #define __VBUSDEVICEINFO_H__
 
-#include "commontypes.h"
+#include <linux/types.h>
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 
@@ -54,6 +54,7 @@ vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
 {
 	int chars = 0;
 	int nonprintable_streak = 0;
+
 	while (srcmax > 0) {
 		if ((*src >= ' ') && (*src < 0x7f)) {
 			if (nonprintable_streak) {

@@ -134,6 +134,7 @@ config TILEGX
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_ARCH_KGDB
+	select ARCH_SUPPORTS_ATOMIC_RMW
 
 config TILEPRO
 	def_bool !TILEGX

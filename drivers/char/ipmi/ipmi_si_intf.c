@@ -965,9 +965,9 @@ static inline int ipmi_si_is_busy(struct timespec *ts)
 	return ts->tv_nsec != -1;
 }
 
-static int ipmi_thread_busy_wait(enum si_sm_result smi_result,
-				 const struct smi_info *smi_info,
-				 struct timespec *busy_until)
+static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
+					const struct smi_info *smi_info,
+					struct timespec *busy_until)
 {
 	unsigned int max_busy_us = 0;
 
@@ -2658,6 +2658,9 @@ static int ipmi_probe(struct platform_device *dev)
 	if (!match)
 		return -EINVAL;
 
+	if (!of_device_is_available(np))
+		return -EINVAL;
+
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
 		dev_warn(&dev->dev, PFX "invalid address from OF\n");
@@ -3654,6 +3657,9 @@ static void cleanup_one_si(struct smi_info *to_clean)
 
 	if (!to_clean)
 		return;
+
+	if (to_clean->dev)
+		dev_set_drvdata(to_clean->dev, NULL);
 
 	list_del(&to_clean->link);
 

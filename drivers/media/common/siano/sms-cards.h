@@ -45,6 +45,7 @@
 #define SMS1XXX_BOARD_SIANO_RIO		18
 #define SMS1XXX_BOARD_SIANO_DENVER_1530	19
 #define SMS1XXX_BOARD_SIANO_DENVER_2160 20
+#define SMS1XXX_BOARD_PCTV_77E		21
 
 struct sms_board_gpio_cfg {
 	int lna_vhf_exist;

@@ -150,7 +150,26 @@ int tb_path_activate(struct tb_path *path)
 
 	/* Activate hops. */
 	for (i = path->path_length - 1; i >= 0; i--) {
-		struct tb_regs_hop hop;
+		struct tb_regs_hop hop = { 0 };
+
+		/*
+		 * We do (currently) not tear down paths setup by the firmeware.
+		 * If a firmware device is unplugged and plugged in again then
+		 * it can happen that we reuse some of the hops from the (now
+		 * defunct) firmeware path. This causes the hotplug operation to
+		 * fail (the pci device does not show up). Clearing the hop
+		 * before overwriting it fixes the problem.
+		 *
+		 * Should be removed once we discover and tear down firmeware
+		 * paths.
+		 */
+		res = tb_port_write(path->hops[i].in_port, &hop, TB_CFG_HOPS,
+				    2 * path->hops[i].in_hop_index, 2);
+		if (res) {
+			__tb_path_deactivate_hops(path, i);
+			__tb_path_deallocate_nfc(path, 0);
+			goto err;
+		}
 
 		/* dword 0 */
 		hop.next_hop = path->hops[i].next_hop_index;

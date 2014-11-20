@@ -419,7 +419,6 @@ static struct platform_driver hid_accel_3d_platform_driver = {
 	.id_table = hid_accel_3d_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= hid_accel_3d_probe,
 	.remove		= hid_accel_3d_remove,

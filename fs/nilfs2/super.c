@@ -310,6 +310,9 @@ int nilfs_commit_super(struct super_block *sb, int flag)
 					    nilfs->ns_sbsize));
 	}
 	clear_nilfs_sb_dirty(nilfs);
+	nilfs->ns_flushed_device = 1;
+	/* make sure store to ns_flushed_device cannot be reordered */
+	smp_wmb();
 	return nilfs_sync_super(sb, flag);
 }
 
@@ -513,6 +516,9 @@ static int nilfs_sync_fs(struct super_block *sb, int wait)
 		}
 	}
 	up_write(&nilfs->ns_sem);
+
+	if (!err)
+		err = nilfs_flush_device(nilfs);
 
 	return err;
 }
@@ -942,7 +948,7 @@ static int nilfs_get_root_dentry(struct super_block *sb,
 			iput(inode);
 		}
 	} else {
-		dentry = d_obtain_alias(inode);
+		dentry = d_obtain_root(inode);
 		if (IS_ERR(dentry)) {
 			ret = PTR_ERR(dentry);
 			goto failed_dentry;
@@ -1452,13 +1458,19 @@ static int __init init_nilfs_fs(void)
 	if (err)
 		goto fail;
 
-	err = register_filesystem(&nilfs_fs_type);
+	err = nilfs_sysfs_init();
 	if (err)
 		goto free_cachep;
+
+	err = register_filesystem(&nilfs_fs_type);
+	if (err)
+		goto deinit_sysfs_entry;
 
 	printk(KERN_INFO "NILFS version 2 loaded\n");
 	return 0;
 
+deinit_sysfs_entry:
+	nilfs_sysfs_exit();
 free_cachep:
 	nilfs_destroy_cachep();
 fail:
@@ -1468,6 +1480,7 @@ fail:
 static void __exit exit_nilfs_fs(void)
 {
 	nilfs_destroy_cachep();
+	nilfs_sysfs_exit();
 	unregister_filesystem(&nilfs_fs_type);
 }
 

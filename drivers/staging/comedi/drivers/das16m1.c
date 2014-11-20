@@ -218,12 +218,10 @@ static int das16m1_cmd_test(struct comedi_device *dev,
 
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* any count is allowed */
-	} else {
-		/* TRIG_NONE */
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-	}
 
 	if (err)
 		return 3;
@@ -608,7 +606,7 @@ static int das16m1_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[3];
 	/* 8255 */
-	ret = subdev_8255_init(dev, s, NULL, devpriv->extra_iobase);
+	ret = subdev_8255_init(dev, s, NULL, DAS16M1_82C55);
 	if (ret)
 		return ret;
 

@@ -120,7 +120,7 @@ static struct {
 	{ "Broadcom NetXtreme II BCM5716 1000Base-SX" },
 	};
 
-static DEFINE_PCI_DEVICE_TABLE(bnx2_pci_tbl) = {
+static const struct pci_device_id bnx2_pci_tbl[] = {
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_NX2_5706,
 	  PCI_VENDOR_ID_HP, 0x3101, 0, 0, NC370T },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_NX2_5706,
@@ -3236,8 +3236,9 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 
-		if ((len > (bp->dev->mtu + ETH_HLEN)) &&
-			(ntohs(skb->protocol) != 0x8100)) {
+		if (len > (bp->dev->mtu + ETH_HLEN) &&
+		    skb->protocol != htons(0x8100) &&
+		    skb->protocol != htons(ETH_P_8021AD)) {
 
 			dev_kfree_skb(skb);
 			goto next_rx;

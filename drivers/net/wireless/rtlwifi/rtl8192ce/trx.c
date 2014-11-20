@@ -125,7 +125,7 @@ static void _rtl92ce_query_rxphystatus(struct ieee80211_hw *hw,
 	u32 rssi, total_rssi = 0;
 	bool is_cck_rate;
 
-	is_cck_rate = RX_HAL_IS_CCK_RATE(pdesc);
+	is_cck_rate = RX_HAL_IS_CCK_RATE(pdesc->rxmcs);
 	pstats->packet_matchbssid = packet_match_bssid;
 	pstats->packet_toself = packet_toself;
 	pstats->is_cck = is_cck_rate;
@@ -361,7 +361,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	stats->rx_is40Mhzpacket = (bool) GET_RX_DESC_BW(pdesc);
 	stats->is_ht = (bool)GET_RX_DESC_RXHT(pdesc);
 
-	stats->is_cck = RX_HAL_IS_CCK_RATE(pdesc);
+	stats->is_cck = RX_HAL_IS_CCK_RATE(pdesc->rxmcs);
 
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
@@ -389,10 +389,6 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	 * to decrypt it
 	 */
 	if (stats->decrypted) {
-		if (!hdr) {
-			/* In testing, hdr was NULL here */
-			return false;
-		}
 		if ((_ieee80211_is_robust_mgmt_frame(hdr)) &&
 		    (ieee80211_has_protected(hdr->frame_control)))
 			rx_status->flag &= ~RX_FLAG_DECRYPTED;
@@ -731,6 +727,9 @@ u32 rtl92ce_get_desc(u8 *p_desc, bool istx, u8 desc_name)
 			break;
 		case HW_DESC_RXPKT_LEN:
 			ret = GET_RX_DESC_PKT_LEN(pdesc);
+			break;
+		case HW_DESC_RXBUFF_ADDR:
+			ret = GET_RX_STATUS_DESC_BUFF_ADDR(pdesc);
 			break;
 		default:
 			RT_ASSERT(false, "ERR rxdesc :%d not process\n",

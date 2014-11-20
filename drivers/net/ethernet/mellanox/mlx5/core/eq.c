@@ -198,7 +198,7 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 	int eqes_found = 0;
 	int set_ci = 0;
 	u32 cqn;
-	u32 srqn;
+	u32 rsn;
 	u8 port;
 
 	while ((eqe = next_eqe_sw(eq))) {
@@ -224,18 +224,18 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 		case MLX5_EVENT_TYPE_PATH_MIG_FAILED:
 		case MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR:
 		case MLX5_EVENT_TYPE_WQ_ACCESS_ERROR:
+			rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
 			mlx5_core_dbg(dev, "event %s(%d) arrived\n",
 				      eqe_type_str(eqe->type), eqe->type);
-			mlx5_qp_event(dev, be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff,
-				      eqe->type);
+			mlx5_rsc_event(dev, rsn, eqe->type);
 			break;
 
 		case MLX5_EVENT_TYPE_SRQ_RQ_LIMIT:
 		case MLX5_EVENT_TYPE_SRQ_CATAS_ERROR:
-			srqn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
+			rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
 			mlx5_core_dbg(dev, "SRQ event %s(%d): srqn 0x%x\n",
-				      eqe_type_str(eqe->type), eqe->type, srqn);
-			mlx5_srq_event(dev, srqn, eqe->type);
+				      eqe_type_str(eqe->type), eqe->type, rsn);
+			mlx5_srq_event(dev, rsn, eqe->type);
 			break;
 
 		case MLX5_EVENT_TYPE_CMD:
@@ -374,14 +374,13 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	snprintf(eq->name, MLX5_MAX_EQ_NAME, "%s@pci:%s",
 		 name, pci_name(dev->pdev));
 	eq->eqn = out.eq_number;
+	eq->irqn = vecidx;
+	eq->dev = dev;
+	eq->doorbell = uar->map + MLX5_EQ_DOORBEL_OFFSET;
 	err = request_irq(table->msix_arr[vecidx].vector, mlx5_msix_handler, 0,
 			  eq->name, eq);
 	if (err)
 		goto err_eq;
-
-	eq->irqn = vecidx;
-	eq->dev = dev;
-	eq->doorbell = uar->map + MLX5_EQ_DOORBEL_OFFSET;
 
 	err = mlx5_debug_eq_add(dev, eq);
 	if (err)
@@ -420,6 +419,7 @@ int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 	if (err)
 		mlx5_core_warn(dev, "failed to destroy a previously created eq: eqn %d\n",
 			       eq->eqn);
+	synchronize_irq(table->msix_arr[eq->irqn].vector);
 	mlx5_buf_free(dev, &eq->buf);
 
 	return err;
@@ -468,7 +468,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	err = mlx5_create_map_eq(dev, &table->pages_eq,
 				 MLX5_EQ_VEC_PAGES,
-				 dev->caps.max_vf + 1,
+				 dev->caps.gen.max_vf + 1,
 				 1 << MLX5_EVENT_TYPE_PAGE_REQUEST, "mlx5_pages_eq",
 				 &dev->priv.uuari.uars[0]);
 	if (err) {

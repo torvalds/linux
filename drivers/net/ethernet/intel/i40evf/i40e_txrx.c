@@ -163,11 +163,13 @@ static bool i40e_check_tx_hang(struct i40e_ring *tx_ring)
 	 * pending but without time to complete it yet.
 	 */
 	if ((tx_ring->tx_stats.tx_done_old == tx_ring->stats.packets) &&
-	    tx_pending) {
+	    (tx_pending >= I40E_MIN_DESC_PENDING)) {
 		/* make sure it is true for two checks in a row */
 		ret = test_and_set_bit(__I40E_HANG_CHECK_ARMED,
 				       &tx_ring->state);
-	} else {
+	} else if (!(tx_ring->tx_stats.tx_done_old == tx_ring->stats.packets) ||
+		   !(tx_pending < I40E_MIN_DESC_PENDING) ||
+		   !(tx_pending > 0)) {
 		/* update completed stats and disarm the hang check */
 		tx_ring->tx_stats.tx_done_old = tx_ring->stats.packets;
 		clear_bit(__I40E_HANG_CHECK_ARMED, &tx_ring->state);
@@ -744,7 +746,6 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	ipv6_tunnel = (rx_ptype > I40E_RX_PTYPE_GRENAT6_MAC_PAY3) &&
 		      (rx_ptype < I40E_RX_PTYPE_GRENAT6_MACVLAN_IPV6_ICMP_PAY4);
 
-	skb->encapsulation = ipv4_tunnel || ipv6_tunnel;
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Rx csum enabled and ip headers found? */
@@ -818,6 +819,7 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	}
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->csum_level = ipv4_tunnel || ipv6_tunnel;
 
 	return;
 
@@ -1597,7 +1599,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 		goto out_drop;
 
 	/* obtain protocol of skb */
-	protocol = skb->protocol;
+	protocol = vlan_get_protocol(skb);
 
 	/* record the location of the first descriptor for this packet */
 	first = &tx_ring->tx_bi[tx_ring->next_to_use];

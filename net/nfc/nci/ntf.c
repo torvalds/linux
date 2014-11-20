@@ -2,6 +2,7 @@
  *  The NFC Controller Interface is the communication protocol between an
  *  NFC Controller (NFCC) and a Device Host (DH).
  *
+ *  Copyright (C) 2014 Marvell International Ltd.
  *  Copyright (C) 2011 Texas Instruments, Inc.
  *
  *  Written by Ilan Elias <ilane@ti.com>
@@ -155,6 +156,24 @@ static __u8 *nci_extract_rf_params_nfcf_passive_poll(struct nci_dev *ndev,
 	return data;
 }
 
+static __u8 *nci_extract_rf_params_nfcv_passive_poll(struct nci_dev *ndev,
+			struct rf_tech_specific_params_nfcv_poll *nfcv_poll,
+						     __u8 *data)
+{
+	++data;
+	nfcv_poll->dsfid = *data++;
+	memcpy(nfcv_poll->uid, data, NFC_ISO15693_UID_MAXSIZE);
+	data += NFC_ISO15693_UID_MAXSIZE;
+	return data;
+}
+
+__u32 nci_get_prop_rf_protocol(struct nci_dev *ndev, __u8 rf_protocol)
+{
+	if (ndev->ops->get_rfprotocol)
+		return ndev->ops->get_rfprotocol(ndev, rf_protocol);
+	return 0;
+}
+
 static int nci_add_new_protocol(struct nci_dev *ndev,
 				struct nfc_target *target,
 				__u8 rf_protocol,
@@ -164,6 +183,7 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 	struct rf_tech_specific_params_nfca_poll *nfca_poll;
 	struct rf_tech_specific_params_nfcb_poll *nfcb_poll;
 	struct rf_tech_specific_params_nfcf_poll *nfcf_poll;
+	struct rf_tech_specific_params_nfcv_poll *nfcv_poll;
 	__u32 protocol;
 
 	if (rf_protocol == NCI_RF_PROTOCOL_T1T)
@@ -179,8 +199,10 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 		protocol = NFC_PROTO_FELICA_MASK;
 	else if (rf_protocol == NCI_RF_PROTOCOL_NFC_DEP)
 		protocol = NFC_PROTO_NFC_DEP_MASK;
+	else if (rf_protocol == NCI_RF_PROTOCOL_T5T)
+		protocol = NFC_PROTO_ISO15693_MASK;
 	else
-		protocol = 0;
+		protocol = nci_get_prop_rf_protocol(ndev, rf_protocol);
 
 	if (!(protocol & ndev->poll_prots)) {
 		pr_err("the target found does not have the desired protocol\n");
@@ -213,6 +235,12 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 			memcpy(target->sensf_res, nfcf_poll->sensf_res,
 			       target->sensf_res_len);
 		}
+	} else if (rf_tech_and_mode == NCI_NFC_V_PASSIVE_POLL_MODE) {
+		nfcv_poll = (struct rf_tech_specific_params_nfcv_poll *)params;
+
+		target->is_iso15693 = 1;
+		target->iso15693_dsfid = nfcv_poll->dsfid;
+		memcpy(target->iso15693_uid, nfcv_poll->uid, NFC_ISO15693_UID_MAXSIZE);
 	} else {
 		pr_err("unsupported rf_tech_and_mode 0x%x\n", rf_tech_and_mode);
 		return -EPROTO;
@@ -303,6 +331,11 @@ static void nci_rf_discover_ntf_packet(struct nci_dev *ndev,
 		case NCI_NFC_F_PASSIVE_POLL_MODE:
 			data = nci_extract_rf_params_nfcf_passive_poll(ndev,
 				&(ntf.rf_tech_specific_params.nfcf_poll), data);
+			break;
+
+		case NCI_NFC_V_PASSIVE_POLL_MODE:
+			data = nci_extract_rf_params_nfcv_passive_poll(ndev,
+				&(ntf.rf_tech_specific_params.nfcv_poll), data);
 			break;
 
 		default:
@@ -453,6 +486,11 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 		case NCI_NFC_F_PASSIVE_POLL_MODE:
 			data = nci_extract_rf_params_nfcf_passive_poll(ndev,
 				&(ntf.rf_tech_specific_params.nfcf_poll), data);
+			break;
+
+		case NCI_NFC_V_PASSIVE_POLL_MODE:
+			data = nci_extract_rf_params_nfcv_passive_poll(ndev,
+				&(ntf.rf_tech_specific_params.nfcv_poll), data);
 			break;
 
 		default:

@@ -756,8 +756,7 @@ void jffs2_clear_xattr_subsystem(struct jffs2_sb_info *c)
 	for (i=0; i < XATTRINDEX_HASHSIZE; i++) {
 		list_for_each_entry_safe(xd, _xd, &c->xattrindex[i], xindex) {
 			list_del(&xd->xindex);
-			if (xd->xname)
-				kfree(xd->xname);
+			kfree(xd->xname);
 			jffs2_free_xattr_datum(xd);
 		}
 	}

@@ -1723,11 +1723,13 @@ ascend_old_tree:
 		shortcut = assoc_array_ptr_to_shortcut(ptr);
 		slot = shortcut->parent_slot;
 		cursor = shortcut->back_pointer;
+		if (!cursor)
+			goto gc_complete;
 	} else {
 		slot = node->parent_slot;
 		cursor = ptr;
 	}
-	BUG_ON(!ptr);
+	BUG_ON(!cursor);
 	node = assoc_array_ptr_to_node(cursor);
 	slot++;
 	goto continue_node;
@@ -1735,7 +1737,7 @@ ascend_old_tree:
 gc_complete:
 	edit->set[0].to = new_root;
 	assoc_array_apply_edit(edit);
-	edit->array->nr_leaves_on_tree = nr_leaves_on_tree;
+	array->nr_leaves_on_tree = nr_leaves_on_tree;
 	return 0;
 
 enomem:

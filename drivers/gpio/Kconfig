@@ -136,7 +136,6 @@ config GPIO_DWAPB
 	tristate "Synopsys DesignWare APB GPIO driver"
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
-	depends on OF_GPIO
 	help
 	  Say Y or M here to build support for the Synopsys DesignWare APB
 	  GPIO block.
@@ -334,11 +333,27 @@ config GPIO_TZ1090_PDC
 	help
 	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
 
+config GPIO_XGENE
+	bool "APM X-Gene GPIO controller support"
+	depends on ARM64 && OF_GPIO
+	help
+	  This driver is to support the GPIO block within the APM X-Gene SoC
+	  platform's generic flash controller. The GPIO pins are muxed with
+	  the generic flash controller's address and data pins. Say yes
+	  here to enable the GFC GPIO functionality.
+
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
 	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
+
+config GPIO_ZYNQ
+	tristate "Xilinx Zynq GPIO support"
+	depends on ARCH_ZYNQ
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support Xilinx Zynq GPIO controller.
 
 config GPIO_XTENSA
 	bool "Xtensa GPIO32 support"
@@ -423,7 +438,7 @@ config GPIO_GE_FPGA
 config GPIO_LYNXPOINT
 	tristate "Intel Lynxpoint GPIO support"
 	depends on ACPI && X86
-	select IRQ_DOMAIN
+	select GPIOLIB_IRQCHIP
 	help
 	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
 	  Requires ACPI device enumeration code to set up a platform device.
@@ -449,6 +464,19 @@ config GPIO_ARIZONA
 	depends on MFD_ARIZONA
 	help
 	  Support for GPIOs on Wolfson Arizona class devices.
+
+config GPIO_CRYSTAL_COVE
+	tristate "GPIO support for Crystal Cove PMIC"
+	depends on INTEL_SOC_PMIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Support for GPIO pins on Crystal Cove PMIC.
+
+	  Say Yes if you have a Intel SoC based tablet with Crystal Cove PMIC
+	  inside.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-crystalcove.
 
 config GPIO_LP3943
 	tristate "TI/National Semiconductor LP3943 GPIO expander"
@@ -573,6 +601,7 @@ config GPIO_SX150X
 config GPIO_STMPE
 	bool "STMPE GPIOs"
 	depends on MFD_STMPE
+	select GPIOLIB_IRQCHIP
 	help
 	  This enables support for the GPIOs found on the STMPE I/O
 	  Expanders.
@@ -660,6 +689,7 @@ config GPIO_ADP5588_IRQ
 config GPIO_ADNP
 	tristate "Avionic Design N-bit GPIO expander"
 	depends on I2C && OF_GPIO
+	select GPIOLIB_IRQCHIP
 	help
 	  This option enables support for N GPIOs found on Avionic Design
 	  I2C GPIO expanders. The register space will be extended by powers
@@ -775,7 +805,6 @@ config GPIO_MAX7301
 
 config GPIO_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
-	depends on OF_GPIO
 	depends on (SPI_MASTER && !I2C) || I2C
 	help
 	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
@@ -859,7 +888,7 @@ config GPIO_MSIC
 
 config GPIO_BCM_KONA
 	bool "Broadcom Kona GPIO"
-	depends on OF_GPIO
+	depends on OF_GPIO && (ARCH_BCM_MOBILE || COMPILE_TEST)
 	help
 	  Turn on GPIO support for Broadcom "Kona" chips.
 

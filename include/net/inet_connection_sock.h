@@ -62,6 +62,7 @@ struct inet_connection_sock_af_ops {
 	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);
 	int	    (*bind_conflict)(const struct sock *sk,
 				     const struct inet_bind_bucket *tb, bool relax);
+	void	    (*mtu_reduced)(struct sock *sk);
 };
 
 /** inet_connection_sock - INET connection oriented sock
@@ -239,6 +240,15 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 		pr_debug("%s", inet_csk_timer_bug_msg);
 	}
 #endif
+}
+
+static inline unsigned long
+inet_csk_rto_backoff(const struct inet_connection_sock *icsk,
+		     unsigned long max_when)
+{
+        u64 when = (u64)icsk->icsk_rto << icsk->icsk_backoff;
+
+        return (unsigned long)min_t(u64, when, max_when);
 }
 
 struct sock *inet_csk_accept(struct sock *sk, int flags, int *err);

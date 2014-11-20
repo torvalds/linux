@@ -54,20 +54,6 @@ enum sst_drv_status {
 	SST_PLATFORM_DROPPED,
 };
 
-enum sst_controls {
-	SST_SND_ALLOC =			0x00,
-	SST_SND_PAUSE =			0x01,
-	SST_SND_RESUME =		0x02,
-	SST_SND_DROP =			0x03,
-	SST_SND_FREE =			0x04,
-	SST_SND_BUFFER_POINTER =	0x05,
-	SST_SND_STREAM_INIT =		0x06,
-	SST_SND_START	 =		0x07,
-	SST_SET_BYTE_STREAM =           0x100A,
-	SST_GET_BYTE_STREAM =           0x100B,
-	SST_MAX_CONTROLS = SST_GET_BYTE_STREAM,
-};
-
 enum sst_stream_ops {
 	STREAM_OPS_PLAYBACK = 0,
 	STREAM_OPS_CAPTURE,
@@ -113,24 +99,37 @@ struct sst_compress_cb {
 
 struct compress_sst_ops {
 	const char *name;
-	int (*open) (struct snd_sst_params *str_params,
-			struct sst_compress_cb *cb);
-	int (*control) (unsigned int cmd, unsigned int str_id);
-	int (*tstamp) (unsigned int str_id, struct snd_compr_tstamp *tstamp);
-	int (*ack) (unsigned int str_id, unsigned long bytes);
-	int (*close) (unsigned int str_id);
-	int (*get_caps) (struct snd_compr_caps *caps);
-	int (*get_codec_caps) (struct snd_compr_codec_caps *codec);
-	int (*set_metadata) (unsigned int str_id,
-			struct snd_compr_metadata *mdata);
+	int (*open)(struct device *dev,
+		struct snd_sst_params *str_params, struct sst_compress_cb *cb);
+	int (*stream_start)(struct device *dev, unsigned int str_id);
+	int (*stream_drop)(struct device *dev, unsigned int str_id);
+	int (*stream_drain)(struct device *dev, unsigned int str_id);
+	int (*stream_partial_drain)(struct device *dev,	unsigned int str_id);
+	int (*stream_pause)(struct device *dev, unsigned int str_id);
+	int (*stream_pause_release)(struct device *dev,	unsigned int str_id);
 
+	int (*tstamp)(struct device *dev, unsigned int str_id,
+			struct snd_compr_tstamp *tstamp);
+	int (*ack)(struct device *dev, unsigned int str_id,
+			unsigned long bytes);
+	int (*close)(struct device *dev, unsigned int str_id);
+	int (*get_caps)(struct snd_compr_caps *caps);
+	int (*get_codec_caps)(struct snd_compr_codec_caps *codec);
+	int (*set_metadata)(struct device *dev,	unsigned int str_id,
+			struct snd_compr_metadata *mdata);
 };
 
 struct sst_ops {
-	int (*open) (struct snd_sst_params *str_param);
-	int (*device_control) (int cmd, void *arg);
-	int (*set_generic_params)(enum sst_controls cmd, void *arg);
-	int (*close) (unsigned int str_id);
+	int (*open)(struct device *dev, struct snd_sst_params *str_param);
+	int (*stream_init)(struct device *dev, struct pcm_stream_info *str_info);
+	int (*stream_start)(struct device *dev, int str_id);
+	int (*stream_drop)(struct device *dev, int str_id);
+	int (*stream_pause)(struct device *dev, int str_id);
+	int (*stream_pause_release)(struct device *dev, int str_id);
+	int (*stream_read_tstamp)(struct device *dev, struct pcm_stream_info *str_info);
+	int (*send_byte_stream)(struct device *dev, struct snd_sst_bytes_v2 *bytes);
+	int (*close)(struct device *dev, unsigned int str_id);
+	int (*power)(struct device *dev, bool state);
 };
 
 struct sst_runtime_stream {
@@ -152,6 +151,8 @@ struct sst_device {
 };
 
 struct sst_data;
+
+int sst_dsp_init_v2_dpcm(struct snd_soc_platform *platform);
 void sst_set_stream_status(struct sst_runtime_stream *stream, int state);
 int sst_fill_stream_params(void *substream, const struct sst_data *ctx,
 			   struct snd_sst_params *str_params, bool is_compress);
@@ -166,6 +167,7 @@ struct sst_algo_int_control_v2 {
 struct sst_data {
 	struct platform_device *pdev;
 	struct sst_platform_data *pdata;
+	struct snd_sst_bytes_v2 *byte_stream;
 	struct mutex lock;
 };
 int sst_register_dsp(struct sst_device *sst);

@@ -158,16 +158,16 @@ out:
 
 /**
  * ufs_inode_getfrag() - allocate new fragment(s)
- * @inode - pointer to inode
- * @fragment - number of `fragment' which hold pointer
+ * @inode: pointer to inode
+ * @fragment: number of `fragment' which hold pointer
  *   to new allocated fragment(s)
- * @new_fragment - number of new allocated fragment(s)
- * @required - how many fragment(s) we require
- * @err - we set it if something wrong
- * @phys - pointer to where we save physical number of new allocated fragments,
+ * @new_fragment: number of new allocated fragment(s)
+ * @required: how many fragment(s) we require
+ * @err: we set it if something wrong
+ * @phys: pointer to where we save physical number of new allocated fragments,
  *   NULL if we allocate not data(indirect blocks for example).
- * @new - we set it if we allocate new block
- * @locked_page - for ufs_new_fragments()
+ * @new: we set it if we allocate new block
+ * @locked_page: for ufs_new_fragments()
  */
 static struct buffer_head *
 ufs_inode_getfrag(struct inode *inode, u64 fragment,
@@ -315,16 +315,16 @@ repeat2:
 
 /**
  * ufs_inode_getblock() - allocate new block
- * @inode - pointer to inode
- * @bh - pointer to block which hold "pointer" to new allocated block
- * @fragment - number of `fragment' which hold pointer
+ * @inode: pointer to inode
+ * @bh: pointer to block which hold "pointer" to new allocated block
+ * @fragment: number of `fragment' which hold pointer
  *   to new allocated block
- * @new_fragment - number of new allocated fragment
+ * @new_fragment: number of new allocated fragment
  *  (block will hold this fragment and also uspi->s_fpb-1)
- * @err - see ufs_inode_getfrag()
- * @phys - see ufs_inode_getfrag()
- * @new - see ufs_inode_getfrag()
- * @locked_page - see ufs_inode_getfrag()
+ * @err: see ufs_inode_getfrag()
+ * @phys: see ufs_inode_getfrag()
+ * @new: see ufs_inode_getfrag()
+ * @locked_page: see ufs_inode_getfrag()
  */
 static struct buffer_head *
 ufs_inode_getblock(struct inode *inode, struct buffer_head *bh,
@@ -902,9 +902,6 @@ void ufs_evict_inode(struct inode * inode)
 	invalidate_inode_buffers(inode);
 	clear_inode(inode);
 
-	if (want_delete) {
-		lock_ufs(inode->i_sb);
-		ufs_free_inode (inode);
-		unlock_ufs(inode->i_sb);
-	}
+	if (want_delete)
+		ufs_free_inode(inode);
 }

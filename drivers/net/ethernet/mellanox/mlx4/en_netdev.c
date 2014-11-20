@@ -474,39 +474,12 @@ static int mlx4_en_tunnel_steer_add(struct mlx4_en_priv *priv, unsigned char *ad
 				    int qpn, u64 *reg_id)
 {
 	int err;
-	struct mlx4_spec_list spec_eth_outer = { {NULL} };
-	struct mlx4_spec_list spec_vxlan     = { {NULL} };
-	struct mlx4_spec_list spec_eth_inner = { {NULL} };
-
-	struct mlx4_net_trans_rule rule = {
-		.queue_mode = MLX4_NET_TRANS_Q_FIFO,
-		.exclusive = 0,
-		.allow_loopback = 1,
-		.promisc_mode = MLX4_FS_REGULAR,
-		.priority = MLX4_DOMAIN_NIC,
-	};
-
-	__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
 	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
 		return 0; /* do nothing */
 
-	rule.port = priv->port;
-	rule.qpn = qpn;
-	INIT_LIST_HEAD(&rule.list);
-
-	spec_eth_outer.id = MLX4_NET_TRANS_RULE_ID_ETH;
-	memcpy(spec_eth_outer.eth.dst_mac, addr, ETH_ALEN);
-	memcpy(spec_eth_outer.eth.dst_mac_msk, &mac_mask, ETH_ALEN);
-
-	spec_vxlan.id = MLX4_NET_TRANS_RULE_ID_VXLAN;    /* any vxlan header */
-	spec_eth_inner.id = MLX4_NET_TRANS_RULE_ID_ETH;	 /* any inner eth header */
-
-	list_add_tail(&spec_eth_outer.list, &rule.list);
-	list_add_tail(&spec_vxlan.list,     &rule.list);
-	list_add_tail(&spec_eth_inner.list, &rule.list);
-
-	err = mlx4_flow_attach(priv->mdev->dev, &rule, reg_id);
+	err = mlx4_tunnel_steer_add(priv->mdev->dev, addr, priv->port, qpn,
+				    MLX4_DOMAIN_NIC, reg_id);
 	if (err) {
 		en_err(priv, "failed to add vxlan steering rule, err %d\n", err);
 		return err;
@@ -2308,8 +2281,16 @@ static void mlx4_en_add_vxlan_offloads(struct work_struct *work)
 	ret = mlx4_SET_PORT_VXLAN(priv->mdev->dev, priv->port,
 				  VXLAN_STEER_BY_OUTER_MAC, 1);
 out:
-	if (ret)
+	if (ret) {
 		en_err(priv, "failed setting L2 tunnel configuration ret %d\n", ret);
+		return;
+	}
+
+	/* set offloads */
+	priv->dev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
+				      NETIF_F_TSO | NETIF_F_GSO_UDP_TUNNEL;
+	priv->dev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+	priv->dev->features    |= NETIF_F_GSO_UDP_TUNNEL;
 }
 
 static void mlx4_en_del_vxlan_offloads(struct work_struct *work)
@@ -2317,6 +2298,11 @@ static void mlx4_en_del_vxlan_offloads(struct work_struct *work)
 	int ret;
 	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
 						 vxlan_del_task);
+	/* unset offloads */
+	priv->dev->hw_enc_features &= ~(NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
+				      NETIF_F_TSO | NETIF_F_GSO_UDP_TUNNEL);
+	priv->dev->hw_features &= ~NETIF_F_GSO_UDP_TUNNEL;
+	priv->dev->features    &= ~NETIF_F_GSO_UDP_TUNNEL;
 
 	ret = mlx4_SET_PORT_VXLAN(priv->mdev->dev, priv->port,
 				  VXLAN_STEER_BY_OUTER_MAC, 0);
@@ -2486,6 +2472,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 	priv->rx_ring_num = prof->rx_ring_num;
 	priv->cqe_factor = (mdev->dev->caps.cqe_size == 64) ? 1 : 0;
+	priv->cqe_size = mdev->dev->caps.cqe_size;
 	priv->mac_index = -1;
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
 	spin_lock_init(&priv->stats_lock);
@@ -2593,13 +2580,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	if (mdev->dev->caps.steering_mode != MLX4_STEERING_MODE_A0)
 		dev->priv_flags |= IFF_UNICAST_FLT;
-
-	if (mdev->dev->caps.tunnel_offload_mode == MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) {
-		dev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
-					NETIF_F_TSO | NETIF_F_GSO_UDP_TUNNEL;
-		dev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
-		dev->features    |= NETIF_F_GSO_UDP_TUNNEL;
-	}
 
 	mdev->pndev[port] = dev;
 

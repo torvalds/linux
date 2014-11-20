@@ -54,9 +54,7 @@ static void tcp_yeah_init(struct sock *sk)
 	/* Ensure the MD arithmetic works.  This is somewhat pedantic,
 	 * since I don't think we will see a cwnd this large. :) */
 	tp->snd_cwnd_clamp = min_t(u32, tp->snd_cwnd_clamp, 0xffffffff/128);
-
 }
-
 
 static void tcp_yeah_pkts_acked(struct sock *sk, u32 pkts_acked, s32 rtt_us)
 {
@@ -84,7 +82,7 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		/* Scalable */
 
 		tp->snd_cwnd_cnt += yeah->pkts_acked;
-		if (tp->snd_cwnd_cnt > min(tp->snd_cwnd, TCP_SCALABLE_AI_CNT)){
+		if (tp->snd_cwnd_cnt > min(tp->snd_cwnd, TCP_SCALABLE_AI_CNT)) {
 			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
 				tp->snd_cwnd++;
 			tp->snd_cwnd_cnt = 0;
@@ -120,7 +118,6 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	 */
 
 	if (after(ack, yeah->vegas.beg_snd_nxt)) {
-
 		/* We do the Vegas calculations only if we got enough RTT
 		 * samples that we can be reasonably sure that we got
 		 * at least one RTT sample that wasn't from a delayed ACK.
@@ -189,7 +186,6 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			}
 
 			yeah->lastQ = queue;
-
 		}
 
 		/* Save the extent of the current window so we can use this
@@ -205,7 +201,8 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	}
 }
 
-static u32 tcp_yeah_ssthresh(struct sock *sk) {
+static u32 tcp_yeah_ssthresh(struct sock *sk)
+{
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct yeah *yeah = inet_csk_ca(sk);
 	u32 reduction;

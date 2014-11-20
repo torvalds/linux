@@ -584,11 +584,7 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		if (insn.i_format.rs == bc_op) {
 			preempt_disable();
 			if (is_fpu_owner())
-				asm volatile(
-					".set push\n"
-					"\t.set mips1\n"
-					"\tcfc1\t%0,$31\n"
-					"\t.set pop" : "=r" (fcr31));
+			        fcr31 = read_32bit_cp1_register(CP1_STATUS);
 			else
 				fcr31 = current->thread.fpu.fcr31;
 			preempt_enable();
@@ -650,9 +646,9 @@ static inline int cop1_64bit(struct pt_regs *xcp)
 #define SIFROMREG(si, x)						\
 do {									\
 	if (cop1_64bit(xcp))						\
-		(si) = get_fpr32(&ctx->fpr[x], 0);			\
+		(si) = (int)get_fpr32(&ctx->fpr[x], 0);			\
 	else								\
-		(si) = get_fpr32(&ctx->fpr[(x) & ~1], (x) & 1);		\
+		(si) = (int)get_fpr32(&ctx->fpr[(x) & ~1], (x) & 1);	\
 } while (0)
 
 #define SITOREG(si, x)							\
@@ -667,7 +663,7 @@ do {									\
 	}								\
 } while (0)
 
-#define SIFROMHREG(si, x)	((si) = get_fpr32(&ctx->fpr[x], 1))
+#define SIFROMHREG(si, x)	((si) = (int)get_fpr32(&ctx->fpr[x], 1))
 
 #define SITOHREG(si, x)							\
 do {									\
@@ -1023,7 +1019,7 @@ emul:
 					goto emul;
 
 				case cop1x_op:
-					if (cpu_has_mips_4_5 || cpu_has_mips64)
+					if (cpu_has_mips_4_5 || cpu_has_mips64 || cpu_has_mips32r2)
 						/* its one of ours */
 						goto emul;
 
@@ -1068,7 +1064,7 @@ emul:
 		break;
 
 	case cop1x_op:
-		if (!cpu_has_mips_4_5 && !cpu_has_mips64)
+		if (!cpu_has_mips_4_5 && !cpu_has_mips64 && !cpu_has_mips32r2)
 			return SIGILL;
 
 		sig = fpux_emu(xcp, ctx, ir, fault_addr);
@@ -1827,7 +1823,7 @@ dcopuop:
 	case -1:
 
 		if (cpu_has_mips_4_5_r)
-			cbit = fpucondbit[MIPSInst_RT(ir) >> 2];
+			cbit = fpucondbit[MIPSInst_FD(ir) >> 2];
 		else
 			cbit = FPU_CSR_COND;
 		if (rv.w)

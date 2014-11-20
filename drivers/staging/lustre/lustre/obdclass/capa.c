@@ -213,12 +213,11 @@ struct obd_capa *capa_add(struct hlist_head *hash, struct lustre_capa *capa)
 			capa_delete_lru(list);
 		spin_unlock(&capa_lock);
 		return ocapa;
-	} else {
-		capa_get(old);
-		spin_unlock(&capa_lock);
-		capa_put(ocapa);
-		return old;
 	}
+	capa_get(old);
+	spin_unlock(&capa_lock);
+	capa_put(ocapa);
+	return old;
 }
 EXPORT_SYMBOL(capa_add);
 
@@ -312,13 +311,14 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 	min = ll_crypto_tfm_alg_min_keysize(tfm);
 	if (keylen < min) {
 		CERROR("keylen at least %d bits for aes\n", min * 8);
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
 	rc = crypto_blkcipher_setkey(tfm, key, min);
 	if (rc) {
 		CERROR("failed to setting key for aes\n");
-		GOTO(out, rc);
+		goto out;
 	}
 
 	sg_init_table(&sd, 1);
@@ -334,7 +334,7 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 	rc = crypto_blkcipher_encrypt(&desc, &sd, &ss, 16);
 	if (rc) {
 		CERROR("failed to encrypt for aes\n");
-		GOTO(out, rc);
+		goto out;
 	}
 
 out:
@@ -364,13 +364,14 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 	min = ll_crypto_tfm_alg_min_keysize(tfm);
 	if (keylen < min) {
 		CERROR("keylen at least %d bits for aes\n", min * 8);
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
 	rc = crypto_blkcipher_setkey(tfm, key, min);
 	if (rc) {
 		CERROR("failed to setting key for aes\n");
-		GOTO(out, rc);
+		goto out;
 	}
 
 	sg_init_table(&sd, 1);
@@ -387,7 +388,7 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 	rc = crypto_blkcipher_decrypt(&desc, &sd, &ss, 16);
 	if (rc) {
 		CERROR("failed to decrypt for aes\n");
-		GOTO(out, rc);
+		goto out;
 	}
 
 out:

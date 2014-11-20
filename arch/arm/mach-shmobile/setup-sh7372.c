@@ -29,19 +29,22 @@
 #include <linux/io.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
-#include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
 #include <linux/pm_domain.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/sh_ipmmu.h>
-#include <mach/dma-register.h>
-#include <mach/irqs.h>
-#include <mach/sh7372.h>
-#include <mach/common.h>
+
 #include <asm/mach/map.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+
+#include "common.h"
+#include "dma-register.h"
+#include "intc.h"
+#include "irqs.h"
+#include "pm-rmobile.h"
+#include "sh7372.h"
 
 static struct map_desc sh7372_io_desc[] __initdata = {
 	/* create a 1:1 entity map for 0xe6xxxxxx
@@ -925,7 +928,7 @@ static struct platform_device *sh7372_late_devices[] __initdata = {
 
 void __init sh7372_add_standard_devices(void)
 {
-	struct pm_domain_device domain_devices[] = {
+	static struct pm_domain_device domain_devices[] __initdata = {
 		{ "A3RV", &vpu_device, },
 		{ "A4MP", &spu0_device, },
 		{ "A4MP", &spu1_device, },
@@ -982,7 +985,7 @@ void __init sh7372_add_early_devices(void)
 
 void __init sh7372_add_early_devices_dt(void)
 {
-	shmobile_setup_delay(800, 1, 3); /* Cortex-A8 @ 800MHz */
+	shmobile_init_delay();
 
 	sh7372_add_early_devices();
 }
@@ -1006,7 +1009,6 @@ static const char *sh7372_boards_compat_dt[] __initdata = {
 DT_MACHINE_START(SH7372_DT, "Generic SH7372 (Flattened Device Tree)")
 	.map_io		= sh7372_map_io,
 	.init_early	= sh7372_add_early_devices_dt,
-	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= sh7372_add_standard_devices_dt,

@@ -832,15 +832,13 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 		    (befs_super_block *) ((void *) bh->b_data + x86_sb_off);
 	}
 
-	if (befs_load_sb(sb, disk_sb) != BEFS_OK)
+	if ((befs_load_sb(sb, disk_sb) != BEFS_OK) ||
+	    (befs_check_sb(sb) != BEFS_OK))
 		goto unacquire_bh;
 
 	befs_dump_super_block(sb, disk_sb);
 
 	brelse(bh);
-
-	if (befs_check_sb(sb) != BEFS_OK)
-		goto unacquire_priv_sbp;
 
 	if( befs_sb->num_blocks > ~((sector_t)0) ) {
 		befs_error(sb, "blocks count: %llu "

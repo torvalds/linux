@@ -145,7 +145,8 @@ int ibmphp_configure_card (struct pci_func *func, u8 slotno)
 				case PCI_HEADER_TYPE_NORMAL:
 					debug ("single device case.... vendor id = %x, hdr_type = %x, class = %x\n", vendor_id, hdr_type, class);
 					assign_alt_irq (cur_func, class_code);
-					if ((rc = configure_device (cur_func)) < 0) {
+					rc = configure_device(cur_func);
+					if (rc < 0) {
 						/* We need to do this in case some other BARs were properly inserted */
 						err ("was not able to configure devfunc %x on bus %x.\n",
 						     cur_func->device, cur_func->busno);
@@ -157,7 +158,8 @@ int ibmphp_configure_card (struct pci_func *func, u8 slotno)
 					break;
 				case PCI_HEADER_TYPE_MULTIDEVICE:
 					assign_alt_irq (cur_func, class_code);
-					if ((rc = configure_device (cur_func)) < 0) {
+					rc = configure_device(cur_func);
+					if (rc < 0) {
 						/* We need to do this in case some other BARs were properly inserted */
 						err ("was not able to configure devfunc %x on bus %x...bailing out\n",
 						     cur_func->device, cur_func->busno);

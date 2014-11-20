@@ -298,7 +298,7 @@ static void __init ep8248e_setup_arch(void)
 		ppc_md.progress("ep8248e_setup_arch(), finish", 0);
 }
 
-static  __initdata struct of_device_id of_bus_ids[] = {
+static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "fsl,ep8248e-bcsr", },
 	{},

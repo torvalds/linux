@@ -453,7 +453,7 @@ static const struct comedi_lrange range_ao_2 = {
 static inline uint16_t munge_bipolar_sample(const struct comedi_device *dev,
 					    uint16_t sample)
 {
-	const struct das1800_board *thisboard = comedi_board(dev);
+	const struct das1800_board *thisboard = dev->board_ptr;
 
 	sample += 1 << (thisboard->resolution - 1);
 	return sample;
@@ -731,15 +731,15 @@ static unsigned int burst_convert_arg(unsigned int convert_arg, int flags)
 		convert_arg = 64000;
 
 	/*  the conversion time must be an integral number of microseconds */
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		micro_sec = (convert_arg + 500) / 1000;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		micro_sec = convert_arg / 1000;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		micro_sec = (convert_arg - 1) / 1000 + 1;
 		break;
 	}
@@ -773,7 +773,7 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
 {
-	const struct das1800_board *thisboard = comedi_board(dev);
+	const struct das1800_board *thisboard = dev->board_ptr;
 	struct das1800_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
@@ -1088,14 +1088,14 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 	struct comedi_async *async = s->async;
 	const struct comedi_cmd *cmd = &async->cmd;
 
-	/* disable dma on TRIG_WAKE_EOS, or TRIG_RT
+	/* disable dma on CMDF_WAKE_EOS, or CMDF_PRIORITY
 	 * (because dma in handler is unsafe at hard real-time priority) */
-	if (cmd->flags & (TRIG_WAKE_EOS | TRIG_RT))
+	if (cmd->flags & (CMDF_WAKE_EOS | CMDF_PRIORITY))
 		devpriv->irq_dma_bits &= ~DMA_ENABLED;
 	else
 		devpriv->irq_dma_bits |= devpriv->dma_bits;
-	/*  interrupt on end of conversion for TRIG_WAKE_EOS */
-	if (cmd->flags & TRIG_WAKE_EOS) {
+	/*  interrupt on end of conversion for CMDF_WAKE_EOS */
+	if (cmd->flags & CMDF_WAKE_EOS) {
 		/*  interrupt fifo not empty */
 		devpriv->irq_dma_bits &= ~FIMD;
 	} else {
@@ -1136,7 +1136,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	const struct das1800_board *thisboard = comedi_board(dev);
+	const struct das1800_board *thisboard = dev->board_ptr;
 	int i, n;
 	int chan, range, aref, chan_range;
 	int timeout = 1000;
@@ -1200,7 +1200,7 @@ static int das1800_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	const struct das1800_board *thisboard = comedi_board(dev);
+	const struct das1800_board *thisboard = dev->board_ptr;
 	struct das1800_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 /* int range = CR_RANGE(insn->chanspec); */
@@ -1329,7 +1329,7 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 
 static int das1800_probe(struct comedi_device *dev)
 {
-	const struct das1800_board *board = comedi_board(dev);
+	const struct das1800_board *board = dev->board_ptr;
 	int index;
 	int id;
 
@@ -1412,7 +1412,7 @@ static int das1800_attach(struct comedi_device *dev,
 	}
 
 	dev->board_ptr = das1800_boards + board;
-	thisboard = comedi_board(dev);
+	thisboard = dev->board_ptr;
 	dev->board_name = thisboard->name;
 
 	/*  if it is an 'ao' board with fancy analog out then we need extra io ports */

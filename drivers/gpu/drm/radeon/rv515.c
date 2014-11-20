@@ -124,7 +124,7 @@ void rv515_ring_start(struct radeon_device *rdev, struct radeon_ring *ring)
 	radeon_ring_write(ring, GEOMETRY_ROUND_NEAREST | COLOR_ROUND_NEAREST);
 	radeon_ring_write(ring, PACKET0(0x20C8, 0));
 	radeon_ring_write(ring, 0);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 }
 
 int rv515_mc_wait_for_idle(struct radeon_device *rdev)
@@ -1276,6 +1276,9 @@ void rv515_bandwidth_update(struct radeon_device *rdev)
 	uint32_t tmp;
 	struct drm_display_mode *mode0 = NULL;
 	struct drm_display_mode *mode1 = NULL;
+
+	if (!rdev->mode_info.mode_config_initialized)
+		return;
 
 	radeon_update_display_priority(rdev);
 

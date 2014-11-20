@@ -72,7 +72,6 @@
 #define BM_SPI_CS			0x20
 #define BM_SD_POWER			0x40
 #define BM_SOFT_RESET			0x80
-#define BM_ONEBIT_MASK			0xFD
 
 /* SDMMC_BLKLEN bit fields */
 #define BLKL_CRCERR_ABORT		0x0800
@@ -120,6 +119,8 @@
 #define STS2_DATARSP_BUSY		0x20
 #define STS2_DIS_FORCECLK		0x80
 
+/* SDMMC_EXTCTRL bit fields */
+#define EXT_EIGHTBIT			0x04
 
 /* MMC/SD DMA Controller Registers */
 #define SDDMA_GCR			0x100
@@ -672,7 +673,7 @@ static void wmt_mci_request(struct mmc_host *mmc, struct mmc_request *req)
 static void wmt_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct wmt_mci_priv *priv;
-	u32 reg_tmp;
+	u32 busmode, extctrl;
 
 	priv = mmc_priv(mmc);
 
@@ -687,28 +688,26 @@ static void wmt_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->clock != 0)
 		clk_set_rate(priv->clk_sdmmc, ios->clock);
 
+	busmode = readb(priv->sdmmc_base + SDMMC_BUSMODE);
+	extctrl = readb(priv->sdmmc_base + SDMMC_EXTCTRL);
+
+	busmode &= ~(BM_EIGHTBIT_MODE | BM_FOURBIT_MODE);
+	extctrl &= ~EXT_EIGHTBIT;
+
 	switch (ios->bus_width) {
 	case MMC_BUS_WIDTH_8:
-		reg_tmp = readb(priv->sdmmc_base + SDMMC_EXTCTRL);
-		writeb(reg_tmp | 0x04, priv->sdmmc_base + SDMMC_EXTCTRL);
+		busmode |= BM_EIGHTBIT_MODE;
+		extctrl |= EXT_EIGHTBIT;
 		break;
 	case MMC_BUS_WIDTH_4:
-		reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-		writeb(reg_tmp | BM_FOURBIT_MODE, priv->sdmmc_base +
-		       SDMMC_BUSMODE);
-
-		reg_tmp = readb(priv->sdmmc_base + SDMMC_EXTCTRL);
-		writeb(reg_tmp & 0xFB, priv->sdmmc_base + SDMMC_EXTCTRL);
+		busmode |= BM_FOURBIT_MODE;
 		break;
 	case MMC_BUS_WIDTH_1:
-		reg_tmp = readb(priv->sdmmc_base + SDMMC_BUSMODE);
-		writeb(reg_tmp & BM_ONEBIT_MASK, priv->sdmmc_base +
-		       SDMMC_BUSMODE);
-
-		reg_tmp = readb(priv->sdmmc_base + SDMMC_EXTCTRL);
-		writeb(reg_tmp & 0xFB, priv->sdmmc_base + SDMMC_EXTCTRL);
 		break;
 	}
+
+	writeb(busmode, priv->sdmmc_base + SDMMC_BUSMODE);
+	writeb(extctrl, priv->sdmmc_base + SDMMC_EXTCTRL);
 }
 
 static int wmt_mci_get_ro(struct mmc_host *mmc)
@@ -830,7 +829,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 		goto fail3;
 	}
 
-	ret = request_irq(dma_irq, wmt_mci_dma_isr, 32, "sdmmc", priv);
+	ret = request_irq(dma_irq, wmt_mci_dma_isr, 0, "sdmmc", priv);
 	if (ret) {
 		dev_err(&pdev->dev, "Register DMA IRQ fail\n");
 		goto fail4;

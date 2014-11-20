@@ -16,7 +16,6 @@ struct netns_sysctl_lowpan {
 struct netns_ieee802154_lowpan {
 	struct netns_sysctl_lowpan sysctl;
 	struct netns_frags	frags;
-	int			max_dsize;
 };
 
 #endif

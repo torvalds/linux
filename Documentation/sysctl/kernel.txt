@@ -190,6 +190,8 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%%	output one '%'
 	%p	pid
 	%P	global pid (init PID namespace)
+	%i	tid
+	%I	global tid (init PID namespace)
 	%u	uid
 	%g	gid
 	%d	dump mode, matches PR_SET_DUMPABLE and
@@ -826,6 +828,7 @@ can be ORed together:
 4096 - An out-of-tree module has been loaded.
 8192 - An unsigned module has been loaded in a kernel supporting module
        signature.
+16384 - A soft lockup has previously occurred on the system.
 
 ==============================================================
 

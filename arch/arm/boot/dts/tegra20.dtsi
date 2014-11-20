@@ -190,6 +190,11 @@
 		#reset-cells = <1>;
 	};
 
+	flow-controller@60007000 {
+		compatible = "nvidia,tegra20-flowctrl";
+		reg = <0x60007000 0x1000>;
+	};
+
 	apbdma: dma@6000a000 {
 		compatible = "nvidia,tegra20-apbdma";
 		reg = <0x6000a000 0x1200>;
@@ -234,6 +239,12 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+	};
+
+	apbmisc@70000800 {
+		compatible = "nvidia,tegra20-apbmisc";
+		reg = <0x70000800 0x64   /* Chip revision */
+		       0x70000008 0x04>; /* Strapping options */
 	};
 
 	pinmux: pinmux@70000014 {
@@ -543,6 +554,15 @@
 		reg = <0x7000f400 0x200>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+	};
+
+	fuse@7000f800 {
+		compatible = "nvidia,tegra20-efuse";
+		reg = <0x7000F800 0x400>;
+		clocks = <&tegra_car TEGRA20_CLK_FUSE>;
+		clock-names = "fuse";
+		resets = <&tegra_car 39>;
+		reset-names = "fuse";
 	};
 
 	pcie-controller@80003000 {

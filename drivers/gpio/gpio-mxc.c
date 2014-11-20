@@ -485,7 +485,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 out_irqdesc_free:
 	irq_free_descs(irq_base, 32);
 out_gpiochip_remove:
-	WARN_ON(gpiochip_remove(&port->bgc.gc) < 0);
+	gpiochip_remove(&port->bgc.gc);
 out_bgpio_remove:
 	bgpio_remove(&port->bgc);
 out_bgio:

@@ -39,7 +39,7 @@ void scsi_show_command(struct rtsx_chip *chip)
 {
 	struct scsi_cmnd *srb = chip->srb;
 	char *what = NULL;
-	int i, unknown_cmd = 0;
+	int unknown_cmd = 0, len;
 
 	switch (srb->cmnd[0]) {
 	case TEST_UNIT_READY:
@@ -319,9 +319,8 @@ void scsi_show_command(struct rtsx_chip *chip)
 			what, srb->cmd_len);
 
 	if (unknown_cmd) {
-		for (i = 0; i < srb->cmd_len && i < 16; i++)
-			dev_dbg(rtsx_dev(chip), " %02x", srb->cmnd[i]);
-		dev_dbg(rtsx_dev(chip), "\n");
+		len = min_t(unsigned short, srb->cmd_len, 16);
+		dev_dbg(rtsx_dev(chip), "%*ph\n", len, srb->cmnd);
 	}
 }
 
@@ -441,6 +440,7 @@ static int test_unit_ready(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 #ifdef SUPPORT_SD_LOCK
 	if (get_lun_card(chip, SCSI_LUN(srb)) == SD_CARD) {
 		struct sd_info *sd_card = &(chip->sd_card);
+
 		if (sd_card->sd_lock_notify) {
 			sd_card->sd_lock_notify = 0;
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_CHANGE);
@@ -586,10 +586,9 @@ static int start_stop_unit(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	case LOAD_MEDIUM:
 		if (check_card_ready(chip, lun)) {
 			return TRANSPORT_GOOD;
-		} else {
-			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
-			TRACE_RET(chip, TRANSPORT_FAILED);
 		}
+		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
+		TRACE_RET(chip, TRANSPORT_FAILED);
 
 		break;
 	}
@@ -747,6 +746,7 @@ static void ms_mode_sense(struct rtsx_chip *chip, u8 cmd,
 	if (data_size > sys_info_offset) {
 		/* 96 Bytes Attribute Data */
 		int len = data_size - sys_info_offset;
+
 		len = (len < 96) ? len : 96;
 
 		memcpy(buf + sys_info_offset, ms_card->raw_sys_info, len);
@@ -1569,6 +1569,7 @@ static int get_variable(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		rtsx_stor_set_xfer_buf(&tmp, 1, srb);
 	} else if (srb->cmnd[3] == 2) {
 		u8 tmp = chip->blink_led;
+
 		rtsx_stor_set_xfer_buf(&tmp, 1, srb);
 	} else {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_INVALID_CMD_FIELD);

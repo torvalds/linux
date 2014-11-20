@@ -908,6 +908,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 */
 	if (pipe->input == NULL) {
 		unsigned long flags;
+
 		ret = omap4iss_pipeline_set_stream(pipe,
 					      ISS_PIPELINE_STREAM_CONTINUOUS);
 		if (ret < 0)

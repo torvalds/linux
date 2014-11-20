@@ -58,9 +58,11 @@ config USB_SERIAL_SIMPLE
 	  handles a wide range of very simple devices, all in one
 	  driver.  Specifically, it supports:
 		- Suunto ANT+ USB device.
+		- Medtronic CareLink USB device
 		- Fundamental Software dongle.
 		- HP4x calculators
 		- a number of Motorola phones
+		- Novatel Wireless GPS receivers
 		- Siemens USB/MPI adapter.
 		- ViVOtech ViVOpay USB device.
 		- Infineon Modem Flashloader USB interface
@@ -681,14 +683,6 @@ config USB_SERIAL_WISHBONE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called wishbone-serial.
-
-config USB_SERIAL_ZTE
-	tristate "ZTE USB serial driver"
-	help
-	  Say Y here if you want to use a ZTE USB to serial device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called zte.
 
 config USB_SERIAL_SSU100
 	tristate "USB Quatech SSU-100 Single Port Serial Driver"

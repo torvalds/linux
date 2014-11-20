@@ -291,29 +291,6 @@ static void radeon_atom_backlight_exit(struct radeon_encoder *encoder)
 bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 				struct drm_display_mode *mode);
 
-
-static inline bool radeon_encoder_is_digital(struct drm_encoder *encoder)
-{
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	switch (radeon_encoder->encoder_id) {
-	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
-	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
-	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-	case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
-	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
-	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
-	case ENCODER_OBJECT_ID_INTERNAL_DDI:
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
@@ -331,12 +308,10 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 	    && (mode->crtc_vsync_start < (mode->crtc_vdisplay + 2)))
 		adjusted_mode->crtc_vsync_start = adjusted_mode->crtc_vdisplay + 2;
 
-	/* get the native mode for LVDS */
-	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT))
+	/* get the native mode for scaling */
+	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
 		radeon_panel_mode_fixup(encoder, adjusted_mode);
-
-	/* get the native mode for TV */
-	if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
+	} else if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 		struct radeon_encoder_atom_dac *tv_dac = radeon_encoder->enc_priv;
 		if (tv_dac) {
 			if (tv_dac->tv_std == TV_STD_NTSC ||
@@ -346,6 +321,8 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 			else
 				radeon_atom_get_tv_timings(rdev, 1, adjusted_mode);
 		}
+	} else if (radeon_encoder->rmx_type != RMX_OFF) {
+		radeon_panel_mode_fixup(encoder, adjusted_mode);
 	}
 
 	if (ASIC_IS_DCE3(rdev) &&
@@ -716,7 +693,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 			if (radeon_connector->use_digital &&
 			    (radeon_connector->audio == RADEON_AUDIO_ENABLE))
 				return ATOM_ENCODER_MODE_HDMI;
-			else if (drm_detect_hdmi_monitor(radeon_connector->edid) &&
+			else if (drm_detect_hdmi_monitor(radeon_connector_edid(connector)) &&
 				 (radeon_connector->audio == RADEON_AUDIO_AUTO))
 				return ATOM_ENCODER_MODE_HDMI;
 			else if (radeon_connector->use_digital)
@@ -735,7 +712,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		if (radeon_audio != 0) {
 			if (radeon_connector->audio == RADEON_AUDIO_ENABLE)
 				return ATOM_ENCODER_MODE_HDMI;
-			else if (drm_detect_hdmi_monitor(radeon_connector->edid) &&
+			else if (drm_detect_hdmi_monitor(radeon_connector_edid(connector)) &&
 				 (radeon_connector->audio == RADEON_AUDIO_AUTO))
 				return ATOM_ENCODER_MODE_HDMI;
 			else
@@ -755,7 +732,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		} else if (radeon_audio != 0) {
 			if (radeon_connector->audio == RADEON_AUDIO_ENABLE)
 				return ATOM_ENCODER_MODE_HDMI;
-			else if (drm_detect_hdmi_monitor(radeon_connector->edid) &&
+			else if (drm_detect_hdmi_monitor(radeon_connector_edid(connector)) &&
 				 (radeon_connector->audio == RADEON_AUDIO_AUTO))
 				return ATOM_ENCODER_MODE_HDMI;
 			else

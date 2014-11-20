@@ -81,8 +81,6 @@ EXPORT_SYMBOL_GPL(boot_cpuid);
 
 unsigned long klimit = (unsigned long) _end;
 
-char cmd_line[COMMAND_LINE_SIZE];
-
 /*
  * This still seems to be needed... -- paulus
  */ 
@@ -94,6 +92,9 @@ struct screen_info screen_info = {
 	.orig_video_isVGA = 1,
 	.orig_video_points = 16
 };
+#if defined(CONFIG_FB_VGA16_MODULE)
+EXPORT_SYMBOL(screen_info);
+#endif
 
 /* Variables required to store legacy IO irq routing */
 int of_i8042_kbd_irq;
@@ -382,7 +383,7 @@ void __init check_for_initrd(void)
 		initrd_start = initrd_end = 0;
 
 	if (initrd_start)
-		printk("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
+		pr_info("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
 
 	DBG(" <- check_for_initrd()\n");
 #endif /* CONFIG_BLK_DEV_INITRD */
@@ -456,17 +457,19 @@ void __init smp_setup_cpu_maps(void)
 		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
 				&len);
 		if (intserv) {
-			nthreads = len / sizeof(int);
 			DBG("    ibm,ppc-interrupt-server#s -> %d threads\n",
 			    nthreads);
 		} else {
 			DBG("    no ibm,ppc-interrupt-server#s -> 1 thread\n");
-			intserv = of_get_property(dn, "reg", NULL);
+			intserv = of_get_property(dn, "reg", &len);
 			if (!intserv) {
 				cpu_be = cpu_to_be32(cpu);
 				intserv = &cpu_be;	/* assume logical == phys */
+				len = 4;
 			}
 		}
+
+		nthreads = len / sizeof(int);
 
 		for (j = 0; j < nthreads && cpu < nr_cpu_ids; j++) {
 			bool avail;

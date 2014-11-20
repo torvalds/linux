@@ -69,7 +69,7 @@ nv04_instobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_mm_head(&priv->heap, 1, args->size, args->size,
+	ret = nouveau_mm_head(&priv->heap, 0, 1, args->size, args->size,
 			      args->align, &node->mem);
 	if (ret)
 		return ret;

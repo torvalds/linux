@@ -42,9 +42,6 @@
 #include <rdma/ib_mad.h>
 #include <rdma/ib_smi.h>
 
-
-#define PFX "ib_mad: "
-
 #define IB_MAD_QPS_CORE		2 /* Always QP0 and QP1 as a minimum */
 
 /* QP and CQ parameters */

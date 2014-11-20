@@ -32,6 +32,7 @@
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
+#include <linux/workqueue.h>
 
 enum {
 	NFS_LSEG_VALID = 0,	/* cleared when lseg is recalled/returned */
@@ -46,6 +47,7 @@ struct pnfs_layout_segment {
 	atomic_t pls_refcount;
 	unsigned long pls_flags;
 	struct pnfs_layout_hdr *pls_layout;
+	struct work_struct pls_work;
 };
 
 enum pnfs_try_status {
@@ -63,12 +65,15 @@ enum {
 	NFS_LAYOUT_BULK_RECALL,		/* bulk recall affecting layout */
 	NFS_LAYOUT_ROC,			/* some lseg had roc bit set */
 	NFS_LAYOUT_RETURN,		/* Return this layout ASAP */
+	NFS_LAYOUT_INVALID_STID,	/* layout stateid id is invalid */
 };
 
 enum layoutdriver_policy_flags {
-	/* Should the pNFS client commit and return the layout upon a setattr */
+	/* Should the pNFS client commit and return the layout upon truncate to
+	 * a smaller size */
 	PNFS_LAYOUTRET_ON_SETATTR	= 1 << 0,
 	PNFS_LAYOUTRET_ON_ERROR		= 1 << 1,
+	PNFS_READ_WHOLE_PAGE		= 1 << 2,
 };
 
 struct nfs4_deviceid_node;
@@ -80,6 +85,7 @@ struct pnfs_layoutdriver_type {
 	const char *name;
 	struct module *owner;
 	unsigned flags;
+	unsigned max_deviceinfo_size;
 
 	int (*set_layoutdriver) (struct nfs_server *, const struct nfs_fh *);
 	int (*clear_layoutdriver) (struct nfs_server *);
@@ -89,6 +95,9 @@ struct pnfs_layoutdriver_type {
 
 	struct pnfs_layout_segment * (*alloc_lseg) (struct pnfs_layout_hdr *layoutid, struct nfs4_layoutget_res *lgr, gfp_t gfp_flags);
 	void (*free_lseg) (struct pnfs_layout_segment *lseg);
+
+	void (*return_range) (struct pnfs_layout_hdr *lo,
+			      struct pnfs_layout_range *range);
 
 	/* test for nfs page cache coalescing */
 	const struct nfs_pageio_ops *pg_read_ops;
@@ -104,6 +113,8 @@ struct pnfs_layoutdriver_type {
 				  int max);
 	void (*recover_commit_reqs) (struct list_head *list,
 				     struct nfs_commit_info *cinfo);
+	struct nfs_page * (*search_commit_reqs)(struct nfs_commit_info *cinfo,
+						struct page *page);
 	int (*commit_pagelist)(struct inode *inode,
 			       struct list_head *mds_pages,
 			       int how,
@@ -113,18 +124,21 @@ struct pnfs_layoutdriver_type {
 	 * Return PNFS_ATTEMPTED to indicate the layout code has attempted
 	 * I/O, else return PNFS_NOT_ATTEMPTED to fall back to normal NFS
 	 */
-	enum pnfs_try_status (*read_pagelist) (struct nfs_pgio_data *nfs_data);
-	enum pnfs_try_status (*write_pagelist) (struct nfs_pgio_data *nfs_data, int how);
+	enum pnfs_try_status (*read_pagelist)(struct nfs_pgio_header *);
+	enum pnfs_try_status (*write_pagelist)(struct nfs_pgio_header *, int);
 
 	void (*free_deviceid_node) (struct nfs4_deviceid_node *);
+	struct nfs4_deviceid_node * (*alloc_deviceid_node)
+			(struct nfs_server *server, struct pnfs_device *pdev,
+			gfp_t gfp_flags);
 
 	void (*encode_layoutreturn) (struct pnfs_layout_hdr *layoutid,
 				     struct xdr_stream *xdr,
 				     const struct nfs4_layoutreturn_args *args);
 
 	void (*cleanup_layoutcommit) (struct nfs4_layoutcommit_data *data);
-
-	void (*encode_layoutcommit) (struct pnfs_layout_hdr *layoutid,
+	int (*prepare_layoutcommit) (struct nfs4_layoutcommit_args *args);
+	void (*encode_layoutcommit) (struct pnfs_layout_hdr *lo,
 				     struct xdr_stream *xdr,
 				     const struct nfs4_layoutcommit_args *args);
 };
@@ -167,9 +181,6 @@ extern int pnfs_register_layoutdriver(struct pnfs_layoutdriver_type *);
 extern void pnfs_unregister_layoutdriver(struct pnfs_layoutdriver_type *);
 
 /* nfs4proc.c */
-extern int nfs4_proc_getdevicelist(struct nfs_server *server,
-				   const struct nfs_fh *fh,
-				   struct pnfs_devicelist *devlist);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 				   struct pnfs_device *dev,
 				   struct rpc_cred *cred);
@@ -179,6 +190,7 @@ extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 /* pnfs.c */
 void pnfs_get_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_put_lseg(struct pnfs_layout_segment *lseg);
+void pnfs_put_lseg_locked(struct pnfs_layout_segment *lseg);
 
 void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, u32);
 void unset_pnfs_layoutdriver(struct nfs_server *);
@@ -213,13 +225,14 @@ bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
 bool pnfs_roc_drain(struct inode *ino, u32 *barrier, struct rpc_task *task);
-void pnfs_set_layoutcommit(struct nfs_pgio_data *wdata);
+void pnfs_set_layoutcommit(struct nfs_pgio_header *);
+void pnfs_commit_set_layoutcommit(struct nfs_commit_data *data);
 void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 int _pnfs_return_layout(struct inode *);
 int pnfs_commit_and_return_layout(struct inode *);
-void pnfs_ld_write_done(struct nfs_pgio_data *);
-void pnfs_ld_read_done(struct nfs_pgio_data *);
+void pnfs_ld_write_done(struct nfs_pgio_header *);
+void pnfs_ld_read_done(struct nfs_pgio_header *);
 struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       struct nfs_open_context *ctx,
 					       loff_t pos,
@@ -228,12 +241,8 @@ struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       gfp_t gfp_flags);
 
 void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
-int pnfs_read_done_resend_to_mds(struct inode *inode, struct list_head *head,
-			const struct nfs_pgio_completion_ops *compl_ops,
-			struct nfs_direct_req *dreq);
-int pnfs_write_done_resend_to_mds(struct inode *inode, struct list_head *head,
-			const struct nfs_pgio_completion_ops *compl_ops,
-			struct nfs_direct_req *dreq);
+int pnfs_read_done_resend_to_mds(struct nfs_pgio_header *);
+int pnfs_write_done_resend_to_mds(struct nfs_pgio_header *);
 struct nfs4_threshold *pnfs_mdsthreshold_alloc(void);
 
 /* nfs4_deviceid_flags */
@@ -254,17 +263,24 @@ struct nfs4_deviceid_node {
 	atomic_t			ref;
 };
 
-struct nfs4_deviceid_node *nfs4_find_get_deviceid(const struct pnfs_layoutdriver_type *, const struct nfs_client *, const struct nfs4_deviceid *);
+struct nfs4_deviceid_node *
+nfs4_find_get_deviceid(struct nfs_server *server,
+		const struct nfs4_deviceid *id, struct rpc_cred *cred,
+		gfp_t gfp_mask);
 void nfs4_delete_deviceid(const struct pnfs_layoutdriver_type *, const struct nfs_client *, const struct nfs4_deviceid *);
-void nfs4_init_deviceid_node(struct nfs4_deviceid_node *,
-			     const struct pnfs_layoutdriver_type *,
-			     const struct nfs_client *,
+void nfs4_init_deviceid_node(struct nfs4_deviceid_node *, struct nfs_server *,
 			     const struct nfs4_deviceid *);
-struct nfs4_deviceid_node *nfs4_insert_deviceid_node(struct nfs4_deviceid_node *);
 bool nfs4_put_deviceid_node(struct nfs4_deviceid_node *);
 void nfs4_mark_deviceid_unavailable(struct nfs4_deviceid_node *node);
 bool nfs4_test_deviceid_unavailable(struct nfs4_deviceid_node *node);
 void nfs4_deviceid_purge_client(const struct nfs_client *);
+
+static inline struct nfs4_deviceid_node *
+nfs4_get_deviceid(struct nfs4_deviceid_node *d)
+{
+	atomic_inc(&d->ref);
+	return d;
+}
 
 static inline struct pnfs_layout_segment *
 pnfs_get_lseg(struct pnfs_layout_segment *lseg)
@@ -345,6 +361,17 @@ pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
 	NFS_SERVER(inode)->pnfs_curr_ld->recover_commit_reqs(list, cinfo);
 }
 
+static inline struct nfs_page *
+pnfs_search_commit_reqs(struct inode *inode, struct nfs_commit_info *cinfo,
+			struct page *page)
+{
+	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
+
+	if (ld == NULL || ld->search_commit_reqs == NULL)
+		return NULL;
+	return ld->search_commit_reqs(cinfo, page);
+}
+
 /* Should the pNFS client commit and return the layout upon a setattr */
 static inline bool
 pnfs_ld_layoutret_on_setattr(struct inode *inode)
@@ -353,6 +380,14 @@ pnfs_ld_layoutret_on_setattr(struct inode *inode)
 		return false;
 	return NFS_SERVER(inode)->pnfs_curr_ld->flags &
 		PNFS_LAYOUTRET_ON_SETATTR;
+}
+
+static inline bool
+pnfs_ld_read_whole_page(struct inode *inode)
+{
+	if (!pnfs_enabled_sb(NFS_SERVER(inode)))
+		return false;
+	return NFS_SERVER(inode)->pnfs_curr_ld->flags & PNFS_READ_WHOLE_PAGE;
 }
 
 static inline bool
@@ -427,6 +462,12 @@ pnfs_ld_layoutret_on_setattr(struct inode *inode)
 }
 
 static inline bool
+pnfs_ld_read_whole_page(struct inode *inode)
+{
+	return false;
+}
+
+static inline bool
 pnfs_roc(struct inode *ino)
 {
 	return false;
@@ -494,6 +535,13 @@ static inline void
 pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
 			 struct nfs_commit_info *cinfo)
 {
+}
+
+static inline struct nfs_page *
+pnfs_search_commit_reqs(struct inode *inode, struct nfs_commit_info *cinfo,
+			struct page *page)
+{
+	return NULL;
 }
 
 static inline int pnfs_layoutcommit_inode(struct inode *inode, bool sync)

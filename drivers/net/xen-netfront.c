@@ -628,16 +628,17 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	slots = DIV_ROUND_UP(offset + len, PAGE_SIZE) +
 		xennet_count_skb_frag_slots(skb);
 	if (unlikely(slots > MAX_SKB_FRAGS + 1)) {
-		net_alert_ratelimited(
-			"xennet: skb rides the rocket: %d slots\n", slots);
-		goto drop;
+		net_dbg_ratelimited("xennet: skb rides the rocket: %d slots, %d bytes\n",
+				    slots, skb->len);
+		if (skb_linearize(skb))
+			goto drop;
 	}
 
 	spin_lock_irqsave(&queue->tx_lock, flags);
 
 	if (unlikely(!netif_carrier_ok(dev) ||
 		     (slots > 1 && !xennet_can_sg(dev)) ||
-		     netif_needs_gso(skb, netif_skb_features(skb)))) {
+		     netif_needs_gso(dev, skb, netif_skb_features(skb)))) {
 		spin_unlock_irqrestore(&queue->tx_lock, flags);
 		goto drop;
 	}
@@ -2299,12 +2300,6 @@ static void xennet_sysfs_delif(struct net_device *netdev)
 
 #endif /* CONFIG_SYSFS */
 
-static const struct xenbus_device_id netfront_ids[] = {
-	{ "vif" },
-	{ "" }
-};
-
-
 static int xennet_remove(struct xenbus_device *dev)
 {
 	struct netfront_info *info = dev_get_drvdata(&dev->dev);
@@ -2337,12 +2332,18 @@ static int xennet_remove(struct xenbus_device *dev)
 	return 0;
 }
 
-static DEFINE_XENBUS_DRIVER(netfront, ,
+static const struct xenbus_device_id netfront_ids[] = {
+	{ "vif" },
+	{ "" }
+};
+
+static struct xenbus_driver netfront_driver = {
+	.ids = netfront_ids,
 	.probe = netfront_probe,
 	.remove = xennet_remove,
 	.resume = netfront_resume,
 	.otherend_changed = netback_changed,
-);
+};
 
 static int __init netif_init(void)
 {

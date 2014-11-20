@@ -436,12 +436,12 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 				size = ((((size / 2) - 1) |
 					 ~CFS_PAGE_MASK) + 1) &
 					CFS_PAGE_MASK;
-				CDEBUG(D_VFSTRACE,"DIO size now %lu\n",
+				CDEBUG(D_VFSTRACE, "DIO size now %lu\n",
 				       size);
 				continue;
 			}
 
-			GOTO(out, result);
+			goto out;
 		}
 		iov_iter_advance(iter, result);
 		tot_bytes += result;

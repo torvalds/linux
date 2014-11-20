@@ -319,12 +319,19 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
  */
 void xhci_ring_device(struct xhci_hcd *xhci, int slot_id)
 {
-	int i;
+	int i, s;
+	struct xhci_virt_ep *ep;
 
-	for (i = 0; i < LAST_EP_INDEX + 1; i++)
-		if (xhci->devs[slot_id]->eps[i].ring &&
-		    xhci->devs[slot_id]->eps[i].ring->dequeue)
+	for (i = 0; i < LAST_EP_INDEX + 1; i++) {
+		ep = &xhci->devs[slot_id]->eps[i];
+
+		if (ep->ep_state & EP_HAS_STREAMS) {
+			for (s = 1; s < ep->stream_info->num_streams; s++)
+				xhci_ring_ep_doorbell(xhci, slot_id, i, s);
+		} else if (ep->ring && ep->ring->dequeue) {
 			xhci_ring_ep_doorbell(xhci, slot_id, i, 0);
+		}
+	}
 
 	return;
 }
@@ -468,7 +475,8 @@ static void xhci_hub_report_usb2_link_state(u32 *status, u32 status_reg)
 }
 
 /* Updates Link Status for super Speed port */
-static void xhci_hub_report_usb3_link_state(u32 *status, u32 status_reg)
+static void xhci_hub_report_usb3_link_state(struct xhci_hcd *xhci,
+		u32 *status, u32 status_reg)
 {
 	u32 pls = status_reg & PORT_PLS_MASK;
 
@@ -507,7 +515,8 @@ static void xhci_hub_report_usb3_link_state(u32 *status, u32 status_reg)
 		 * in which sometimes the port enters compliance mode
 		 * caused by a delay on the host-device negotiation.
 		 */
-		if (pls == USB_SS_PORT_LS_COMP_MOD)
+		if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
+				(pls == USB_SS_PORT_LS_COMP_MOD))
 			pls |= USB_PORT_STAT_CONNECTION;
 	}
 
@@ -666,7 +675,7 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	}
 	/* Update Port Link State */
 	if (hcd->speed == HCD_USB3) {
-		xhci_hub_report_usb3_link_state(&status, raw_port_status);
+		xhci_hub_report_usb3_link_state(xhci, &status, raw_port_status);
 		/*
 		 * Verify if all USB3 Ports Have entered U0 already.
 		 * Delete Compliance Mode Timer if so.
@@ -890,7 +899,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			/*
 			 * Turn on ports, even if there isn't per-port switching.
 			 * HC will report connect events even before this is set.
-			 * However, khubd will ignore the roothub events until
+			 * However, hub_wq will ignore the roothub events until
 			 * the roothub is registered.
 			 */
 			writel(temp | PORT_POWER, port_array[wIndex]);

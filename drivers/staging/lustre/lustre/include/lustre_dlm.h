@@ -48,8 +48,6 @@
 #ifndef _LUSTRE_DLM_H__
 #define _LUSTRE_DLM_H__
 
-#include "linux/lustre_dlm.h"
-
 #include "lustre_lib.h"
 #include "lustre_net.h"
 #include "lustre_import.h"
@@ -1072,7 +1070,7 @@ extern char *ldlm_it2str(int it);
 	    ((libcfs_debug & (mask)) != 0 &&			    \
 	     (libcfs_subsystem_debug & DEBUG_SUBSYSTEM) != 0))	  \
 		_ldlm_lock_debug(lock, msgdata, fmt, ##a);	      \
-} while(0)
+} while (0)
 
 void _ldlm_lock_debug(struct ldlm_lock *lock,
 		      struct libcfs_debug_msg_data *data,

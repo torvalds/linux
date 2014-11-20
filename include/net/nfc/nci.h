@@ -2,6 +2,7 @@
  *  The NFC Controller Interface is the communication protocol between an
  *  NFC Controller (NFCC) and a Device Host (DH).
  *
+ *  Copyright (C) 2014 Marvell International Ltd.
  *  Copyright (C) 2011 Texas Instruments, Inc.
  *
  *  Written by Ilan Elias <ilane@ti.com>
@@ -65,19 +66,18 @@
 #define NCI_NFC_F_PASSIVE_POLL_MODE				0x02
 #define NCI_NFC_A_ACTIVE_POLL_MODE				0x03
 #define NCI_NFC_F_ACTIVE_POLL_MODE				0x05
-#define NCI_NFC_15693_PASSIVE_POLL_MODE				0x06
+#define NCI_NFC_V_PASSIVE_POLL_MODE				0x06
 #define NCI_NFC_A_PASSIVE_LISTEN_MODE				0x80
 #define NCI_NFC_B_PASSIVE_LISTEN_MODE				0x81
 #define NCI_NFC_F_PASSIVE_LISTEN_MODE				0x82
 #define NCI_NFC_A_ACTIVE_LISTEN_MODE				0x83
 #define NCI_NFC_F_ACTIVE_LISTEN_MODE				0x85
-#define NCI_NFC_15693_PASSIVE_LISTEN_MODE			0x86
 
 /* NCI RF Technologies */
 #define NCI_NFC_RF_TECHNOLOGY_A					0x00
 #define NCI_NFC_RF_TECHNOLOGY_B					0x01
 #define NCI_NFC_RF_TECHNOLOGY_F					0x02
-#define NCI_NFC_RF_TECHNOLOGY_15693				0x03
+#define NCI_NFC_RF_TECHNOLOGY_V					0x03
 
 /* NCI Bit Rates */
 #define NCI_NFC_BIT_RATE_106					0x00
@@ -87,6 +87,7 @@
 #define NCI_NFC_BIT_RATE_1695					0x04
 #define NCI_NFC_BIT_RATE_3390					0x05
 #define NCI_NFC_BIT_RATE_6780					0x06
+#define NCI_NFC_BIT_RATE_26					0x20
 
 /* NCI RF Protocols */
 #define NCI_RF_PROTOCOL_UNKNOWN					0x00
@@ -95,6 +96,7 @@
 #define NCI_RF_PROTOCOL_T3T					0x03
 #define NCI_RF_PROTOCOL_ISO_DEP					0x04
 #define NCI_RF_PROTOCOL_NFC_DEP					0x05
+#define NCI_RF_PROTOCOL_T5T					0x06
 
 /* NCI RF Interfaces */
 #define NCI_RF_INTERFACE_NFCEE_DIRECT				0x00
@@ -328,6 +330,12 @@ struct rf_tech_specific_params_nfcf_poll {
 	__u8	sensf_res[18];	/* 16 or 18 Bytes */
 } __packed;
 
+struct rf_tech_specific_params_nfcv_poll {
+	__u8	res_flags;
+	__u8	dsfid;
+	__u8	uid[8];	/* 8 Bytes */
+} __packed;
+
 struct nci_rf_discover_ntf {
 	__u8	rf_discovery_id;
 	__u8	rf_protocol;
@@ -338,6 +346,7 @@ struct nci_rf_discover_ntf {
 		struct rf_tech_specific_params_nfca_poll nfca_poll;
 		struct rf_tech_specific_params_nfcb_poll nfcb_poll;
 		struct rf_tech_specific_params_nfcf_poll nfcf_poll;
+		struct rf_tech_specific_params_nfcv_poll nfcv_poll;
 	} rf_tech_specific_params;
 
 	__u8	ntf_type;
@@ -372,6 +381,7 @@ struct nci_rf_intf_activated_ntf {
 		struct rf_tech_specific_params_nfca_poll nfca_poll;
 		struct rf_tech_specific_params_nfcb_poll nfcb_poll;
 		struct rf_tech_specific_params_nfcf_poll nfcf_poll;
+		struct rf_tech_specific_params_nfcv_poll nfcv_poll;
 	} rf_tech_specific_params;
 
 	__u8	data_exch_rf_tech_and_mode;

@@ -54,6 +54,7 @@ struct ci_hdrc_imx_data {
 
 static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 {
+	struct platform_device *misc_pdev;
 	struct device_node *np = dev->of_node;
 	struct of_phandle_args args;
 	struct imx_usbmisc_data *data;
@@ -79,7 +80,14 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	}
 
 	data->index = args.args[0];
+
+	misc_pdev = of_find_device_by_node(args.np);
 	of_node_put(args.np);
+
+	if (!misc_pdev)
+		return ERR_PTR(-EPROBE_DEFER);
+
+	data->dev = &misc_pdev->dev;
 
 	if (of_find_property(np, "disable-over-current", NULL))
 		data->disable_oc = 1;

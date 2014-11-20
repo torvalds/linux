@@ -30,9 +30,9 @@
  */
 
 #include <drm/drmP.h>
-#include <drm/drm_buffer.h>
 #include <drm/radeon_drm.h>
 #include "radeon_drv.h"
+#include "drm_buffer.h"
 
 /* ================================================================
  * Helper functions for client state checking and fixup

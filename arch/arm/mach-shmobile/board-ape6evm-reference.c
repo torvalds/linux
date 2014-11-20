@@ -24,10 +24,12 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
 #include <linux/sh_clk.h>
-#include <mach/common.h>
-#include <mach/r8a73a4.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
+#include "common.h"
+#include "r8a73a4.h"
 
 static void __init ape6evm_add_standard_devices(void)
 {
@@ -48,7 +50,6 @@ static void __init ape6evm_add_standard_devices(void)
 
 	r8a73a4_add_dt_devices();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-	platform_device_register_simple("cpufreq-cpu0", -1, NULL, 0);
 }
 
 static const char *ape6evm_boards_compat_dt[] __initdata = {
@@ -57,7 +58,8 @@ static const char *ape6evm_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(APE6EVM_DT, "ape6evm")
-	.init_early	= r8a73a4_init_early,
+	.init_early	= shmobile_init_delay,
 	.init_machine	= ape6evm_add_standard_devices,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= ape6evm_boards_compat_dt,
 MACHINE_END

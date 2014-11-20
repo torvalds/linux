@@ -168,7 +168,7 @@ static int apci3501_read_insn_timer(struct comedi_device *dev,
 
 	else if ((devpriv->b_TimerSelectMode != ADDIDATA_TIMER)
 		&& (devpriv->b_TimerSelectMode != ADDIDATA_WATCHDOG)) {
-		printk("\nIn ReadTimerCounterWatchdog :: Invalid Subdevice \n");
+		dev_err(dev->class_dev, "Invalid subdevice.\n");
 	}
 	return insn->n;
 }

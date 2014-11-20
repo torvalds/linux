@@ -105,6 +105,7 @@ void input_mt_report_slot_state(struct input_dev *dev,
 
 void input_mt_report_finger_count(struct input_dev *dev, int count);
 void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count);
+void input_mt_drop_unused(struct input_dev *dev);
 
 void input_mt_sync_frame(struct input_dev *dev);
 

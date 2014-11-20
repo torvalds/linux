@@ -217,11 +217,7 @@ gpiochip_add_err:
 static void __exit it8761e_gpio_exit(void)
 {
 	if (gpio_ba) {
-		int ret = gpiochip_remove(&it8761e_gpio_chip);
-
-		WARN(ret, "%s(): gpiochip_remove() failed, ret=%d\n",
-				__func__, ret);
-
+		gpiochip_remove(&it8761e_gpio_chip);
 		release_region(gpio_ba, GPIO_IOSIZE);
 		gpio_ba = 0;
 	}

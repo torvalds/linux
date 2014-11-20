@@ -43,6 +43,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
+	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
 	select SND_SOC_CS42L56 if I2C && INPUT
@@ -56,7 +57,10 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA7213 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
+	select SND_SOC_DMIC
 	select SND_SOC_BT_SCO
+	select SND_SOC_ES8328_SPI if SPI_MASTER
+	select SND_SOC_ES8328_I2C if I2C
 	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
 	select SND_SOC_LM4857 if I2C
@@ -90,6 +94,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_SSM2518 if I2C
 	select SND_SOC_SSM2602_SPI if SPI_MASTER
 	select SND_SOC_SSM2602_I2C if I2C
+	select SND_SOC_SSM4567 if I2C
 	select SND_SOC_STA32X if I2C
 	select SND_SOC_STA350 if I2C
 	select SND_SOC_STA529 if I2C
@@ -323,6 +328,10 @@ config SND_SOC_ALC5632
 config SND_SOC_CQ0093VC
 	tristate
 
+config SND_SOC_CS35L32
+	tristate "Cirrus Logic CS35L32 CODEC"
+	depends on I2C
+
 config SND_SOC_CS42L51
 	tristate
 
@@ -405,6 +414,17 @@ config SND_SOC_DMIC
 config SND_SOC_HDMI_CODEC
        tristate "HDMI stub CODEC"
 
+config SND_SOC_ES8328
+	tristate "Everest Semi ES8328 CODEC"
+
+config SND_SOC_ES8328_I2C
+	tristate
+	select SND_SOC_ES8328
+
+config SND_SOC_ES8328_SPI
+	tristate
+	select SND_SOC_ES8328
+
 config SND_SOC_ISABELLE
         tristate
 
@@ -464,6 +484,7 @@ config SND_SOC_RL6231
 
 config SND_SOC_RT286
 	tristate
+	depends on I2C
 
 config SND_SOC_RT5631
 	tristate
@@ -520,12 +541,20 @@ config SND_SOC_SSM2602
 	tristate
 
 config SND_SOC_SSM2602_SPI
+	tristate "Analog Devices SSM2602 CODEC - SPI"
+	depends on SPI_MASTER
 	select SND_SOC_SSM2602
-	tristate
+	select REGMAP_SPI
 
 config SND_SOC_SSM2602_I2C
+	tristate "Analog Devices SSM2602 CODEC - I2C"
+	depends on I2C
 	select SND_SOC_SSM2602
-	tristate
+	select REGMAP_I2C
+
+config SND_SOC_SSM4567
+	tristate "Analog Devices ssm4567 amplifier driver support"
+	depends on I2C
 
 config SND_SOC_STA32X
 	tristate
@@ -712,7 +741,8 @@ config SND_SOC_WM8974
 	tristate
 
 config SND_SOC_WM8978
-	tristate
+	tristate "Wolfson Microelectronics WM8978 codec"
+	depends on I2C
 
 config SND_SOC_WM8983
 	tristate

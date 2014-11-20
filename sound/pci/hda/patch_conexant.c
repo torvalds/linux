@@ -43,6 +43,7 @@ struct conexant_spec {
 	unsigned int num_eapds;
 	hda_nid_t eapds[4];
 	bool dynamic_eapd;
+	hda_nid_t mute_led_eapd;
 
 	unsigned int parse_flags; /* flag for snd_hda_parse_pin_defcfg() */
 
@@ -163,6 +164,17 @@ static void cx_auto_vmaster_hook(void *private_data, int enabled)
 	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, enabled);
 }
 
+/* turn on/off EAPD according to Master switch (inversely!) for mute LED */
+static void cx_auto_vmaster_hook_mute_led(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct conexant_spec *spec = codec->spec;
+
+	snd_hda_codec_write(codec, spec->mute_led_eapd, 0,
+			    AC_VERB_SET_EAPD_BTLENABLE,
+			    enabled ? 0x00 : 0x02);
+}
+
 static int cx_auto_build_controls(struct hda_codec *codec)
 {
 	int err;
@@ -216,12 +228,14 @@ enum {
 	CXT_FIXUP_HEADPHONE_MIC_PIN,
 	CXT_FIXUP_HEADPHONE_MIC,
 	CXT_FIXUP_GPIO1,
+	CXT_FIXUP_ASPIRE_DMIC,
 	CXT_FIXUP_THINKPAD_ACPI,
 	CXT_FIXUP_OLPC_XO,
 	CXT_FIXUP_CAP_MIX_AMP,
 	CXT_FIXUP_TOSHIBA_P105,
 	CXT_FIXUP_HP_530,
 	CXT_FIXUP_CAP_MIX_AMP_5047,
+	CXT_FIXUP_MUTE_LED_EAPD,
 };
 
 /* for hda_fixup_thinkpad_acpi() */
@@ -392,7 +406,8 @@ static void olpc_xo_update_mic_pins(struct hda_codec *codec)
 }
 
 /* mic_autoswitch hook */
-static void olpc_xo_automic(struct hda_codec *codec, struct hda_jack_tbl *jack)
+static void olpc_xo_automic(struct hda_codec *codec,
+			    struct hda_jack_callback *jack)
 {
 	struct conexant_spec *spec = codec->spec;
 	int saved_cached_write = codec->cached_write;
@@ -555,6 +570,18 @@ static void cxt_fixup_olpc_xo(struct hda_codec *codec,
 	}
 }
 
+static void cxt_fixup_mute_led_eapd(struct hda_codec *codec,
+				    const struct hda_fixup *fix, int action)
+{
+	struct conexant_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->mute_led_eapd = 0x1b;
+		spec->dynamic_eapd = 1;
+		spec->gen.vmaster_mute.hook = cx_auto_vmaster_hook_mute_led;
+	}
+}
+
 /*
  * Fix max input level on mixer widget to 0dB
  * (originally it has 0x2b steps with 0dB offset 0x14)
@@ -663,6 +690,12 @@ static const struct hda_fixup cxt_fixups[] = {
 			{ }
 		},
 	},
+	[CXT_FIXUP_ASPIRE_DMIC] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cxt_fixup_stereo_dmic,
+		.chained = true,
+		.chain_id = CXT_FIXUP_GPIO1,
+	},
 	[CXT_FIXUP_THINKPAD_ACPI] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = hda_fixup_thinkpad_acpi,
@@ -696,6 +729,10 @@ static const struct hda_fixup cxt_fixups[] = {
 	[CXT_FIXUP_CAP_MIX_AMP_5047] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cxt_fixup_cap_mix_amp_5047,
+	},
+	[CXT_FIXUP_MUTE_LED_EAPD] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cxt_fixup_mute_led_eapd,
 	},
 };
 
@@ -743,7 +780,8 @@ static const struct hda_model_fixup cxt5051_fixup_models[] = {
 
 static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x1025, 0x0543, "Acer Aspire One 522", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x1025, 0x054c, "Acer Aspire 3830TG", CXT_FIXUP_GPIO1),
+	SND_PCI_QUIRK(0x1025, 0x054c, "Acer Aspire 3830TG", CXT_FIXUP_ASPIRE_DMIC),
+	SND_PCI_QUIRK(0x1025, 0x054f, "Acer Aspire 4830T", CXT_FIXUP_ASPIRE_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x138d, "Asus", CXT_FIXUP_HEADPHONE_MIC_PIN),
 	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT_FIXUP_OLPC_XO),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400", CXT_PINCFG_LENOVO_TP410),
@@ -753,6 +791,7 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x21cf, "Lenovo T520", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x21da, "Lenovo X220", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x21db, "Lenovo X220-tablet", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo IdeaPad Z560", CXT_FIXUP_MUTE_LED_EAPD),
 	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3977, "Lenovo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
@@ -769,7 +808,9 @@ static const struct hda_model_fixup cxt5066_fixup_models[] = {
 	{ .id = CXT_PINCFG_LENOVO_TP410, .name = "tp410" },
 	{ .id = CXT_FIXUP_THINKPAD_ACPI, .name = "thinkpad" },
 	{ .id = CXT_PINCFG_LEMOTE_A1004, .name = "lemote-a1004" },
+	{ .id = CXT_PINCFG_LEMOTE_A1205, .name = "lemote-a1205" },
 	{ .id = CXT_FIXUP_OLPC_XO, .name = "olpc-xo" },
+	{ .id = CXT_FIXUP_MUTE_LED_EAPD, .name = "mute-led-eapd" },
 	{}
 };
 
@@ -778,6 +819,7 @@ static const struct hda_model_fixup cxt5066_fixup_models[] = {
  */
 static void add_cx5051_fake_mutes(struct hda_codec *codec)
 {
+	struct conexant_spec *spec = codec->spec;
 	static hda_nid_t out_nids[] = {
 		0x10, 0x11, 0
 	};
@@ -787,6 +829,7 @@ static void add_cx5051_fake_mutes(struct hda_codec *codec)
 		snd_hda_override_amp_caps(codec, *p, HDA_OUTPUT,
 					  AC_AMPCAP_MIN_MUTE |
 					  query_amp_caps(codec, *p, HDA_OUTPUT));
+	spec->gen.dac_min_mute = true;
 }
 
 static int patch_conexant_auto(struct hda_codec *codec)

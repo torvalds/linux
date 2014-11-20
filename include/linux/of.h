@@ -74,8 +74,6 @@ struct of_phandle_args {
 	uint32_t args[MAX_PHANDLE_ARGS];
 };
 
-extern int of_node_add(struct device_node *node);
-
 /* initialize a node */
 extern struct kobj_type of_node_ktype;
 static inline void of_node_init(struct device_node *node)
@@ -113,6 +111,7 @@ static inline void of_node_put(struct device_node *node) { }
 extern struct device_node *of_allnodes;
 extern struct device_node *of_chosen;
 extern struct device_node *of_aliases;
+extern struct device_node *of_stdout;
 extern raw_spinlock_t devtree_lock;
 
 static inline bool of_have_populated_dt(void)
@@ -204,6 +203,7 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 #define OF_DYNAMIC	1 /* node and properties were allocated via kmalloc */
 #define OF_DETACHED	2 /* node has been detached from the device tree */
 #define OF_POPULATED	3 /* device already created for the node */
+#define OF_POPULATED_BUS	4 /* of_platform_populate recursed to children of this node */
 
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
@@ -267,14 +267,12 @@ extern int of_property_read_u64(const struct device_node *np,
 extern int of_property_read_string(struct device_node *np,
 				   const char *propname,
 				   const char **out_string);
-extern int of_property_read_string_index(struct device_node *np,
-					 const char *propname,
-					 int index, const char **output);
 extern int of_property_match_string(struct device_node *np,
 				    const char *propname,
 				    const char *string);
-extern int of_property_count_strings(struct device_node *np,
-				     const char *propname);
+extern int of_property_read_string_helper(struct device_node *np,
+					      const char *propname,
+					      const char **out_strs, size_t sz, int index);
 extern int of_device_is_compatible(const struct device_node *device,
 				   const char *);
 extern int of_device_is_available(const struct device_node *device);
@@ -322,6 +320,7 @@ extern int of_update_property(struct device_node *np, struct property *newprop);
 struct of_prop_reconfig {
 	struct device_node	*dn;
 	struct property		*prop;
+	struct property		*old_prop;
 };
 
 extern int of_reconfig_notifier_register(struct notifier_block *);
@@ -352,7 +351,7 @@ const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
  */
 const char *of_prop_next_string(struct property *prop, const char *cur);
 
-int of_device_is_stdout_path(struct device_node *dn);
+bool of_console_check(struct device_node *dn, char *name, int index);
 
 #else /* CONFIG_OF */
 
@@ -485,15 +484,9 @@ static inline int of_property_read_string(struct device_node *np,
 	return -ENOSYS;
 }
 
-static inline int of_property_read_string_index(struct device_node *np,
-						const char *propname, int index,
-						const char **out_string)
-{
-	return -ENOSYS;
-}
-
-static inline int of_property_count_strings(struct device_node *np,
-					    const char *propname)
+static inline int of_property_read_string_helper(struct device_node *np,
+						 const char *propname,
+						 const char **out_strs, size_t sz, int index)
 {
 	return -ENOSYS;
 }
@@ -564,9 +557,9 @@ static inline int of_machine_is_compatible(const char *compat)
 	return 0;
 }
 
-static inline int of_device_is_stdout_path(struct device_node *dn)
+static inline bool of_console_check(const struct device_node *dn, const char *name, int index)
 {
-	return 0;
+	return false;
 }
 
 static inline const __be32 *of_prop_next_u32(struct property *prop,
@@ -664,6 +657,70 @@ static inline int of_property_count_u64_elems(const struct device_node *np,
 				const char *propname)
 {
 	return of_property_count_elems_of_size(np, propname, sizeof(u64));
+}
+
+/**
+ * of_property_read_string_array() - Read an array of strings from a multiple
+ * strings property.
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ * @out_strs:	output array of string pointers.
+ * @sz:		number of array elements to read.
+ *
+ * Search for a property in a device tree node and retrieve a list of
+ * terminated string values (pointer to data, not a copy) in that property.
+ *
+ * If @out_strs is NULL, the number of strings in the property is returned.
+ */
+static inline int of_property_read_string_array(struct device_node *np,
+						const char *propname, const char **out_strs,
+						size_t sz)
+{
+	return of_property_read_string_helper(np, propname, out_strs, sz, 0);
+}
+
+/**
+ * of_property_count_strings() - Find and return the number of strings from a
+ * multiple strings property.
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ *
+ * Search for a property in a device tree node and retrieve the number of null
+ * terminated string contain in it. Returns the number of strings on
+ * success, -EINVAL if the property does not exist, -ENODATA if property
+ * does not have a value, and -EILSEQ if the string is not null-terminated
+ * within the length of the property data.
+ */
+static inline int of_property_count_strings(struct device_node *np,
+					    const char *propname)
+{
+	return of_property_read_string_helper(np, propname, NULL, 0, 0);
+}
+
+/**
+ * of_property_read_string_index() - Find and read a string from a multiple
+ * strings property.
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ * @index:	index of the string in the list of strings
+ * @out_string:	pointer to null terminated return string, modified only if
+ *		return value is 0.
+ *
+ * Search for a property in a device tree node and retrieve a null
+ * terminated string value (pointer to data, not a copy) in the list of strings
+ * contained in that property.
+ * Returns 0 on success, -EINVAL if the property does not exist, -ENODATA if
+ * property does not have a value, and -EILSEQ if the string is not
+ * null-terminated within the length of the property data.
+ *
+ * The out_string pointer is modified only if a valid string can be decoded.
+ */
+static inline int of_property_read_string_index(struct device_node *np,
+						const char *propname,
+						int index, const char **output)
+{
+	int rc = of_property_read_string_helper(np, propname, output, 1, index);
+	return rc < 0 ? rc : 0;
 }
 
 /**
@@ -785,5 +842,84 @@ typedef void (*of_init_fn_1)(struct device_node *);
 		_OF_DECLARE(table, name, compat, fn, of_init_fn_1)
 #define OF_DECLARE_2(table, name, compat, fn) \
 		_OF_DECLARE(table, name, compat, fn, of_init_fn_2)
+
+/**
+ * struct of_changeset_entry	- Holds a changeset entry
+ *
+ * @node:	list_head for the log list
+ * @action:	notifier action
+ * @np:		pointer to the device node affected
+ * @prop:	pointer to the property affected
+ * @old_prop:	hold a pointer to the original property
+ *
+ * Every modification of the device tree during a changeset
+ * is held in a list of of_changeset_entry structures.
+ * That way we can recover from a partial application, or we can
+ * revert the changeset
+ */
+struct of_changeset_entry {
+	struct list_head node;
+	unsigned long action;
+	struct device_node *np;
+	struct property *prop;
+	struct property *old_prop;
+};
+
+/**
+ * struct of_changeset - changeset tracker structure
+ *
+ * @entries:	list_head for the changeset entries
+ *
+ * changesets are a convenient way to apply bulk changes to the
+ * live tree. In case of an error, changes are rolled-back.
+ * changesets live on after initial application, and if not
+ * destroyed after use, they can be reverted in one single call.
+ */
+struct of_changeset {
+	struct list_head entries;
+};
+
+#ifdef CONFIG_OF_DYNAMIC
+extern void of_changeset_init(struct of_changeset *ocs);
+extern void of_changeset_destroy(struct of_changeset *ocs);
+extern int of_changeset_apply(struct of_changeset *ocs);
+extern int of_changeset_revert(struct of_changeset *ocs);
+extern int of_changeset_action(struct of_changeset *ocs,
+		unsigned long action, struct device_node *np,
+		struct property *prop);
+
+static inline int of_changeset_attach_node(struct of_changeset *ocs,
+		struct device_node *np)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_ATTACH_NODE, np, NULL);
+}
+
+static inline int of_changeset_detach_node(struct of_changeset *ocs,
+		struct device_node *np)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_DETACH_NODE, np, NULL);
+}
+
+static inline int of_changeset_add_property(struct of_changeset *ocs,
+		struct device_node *np, struct property *prop)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_ADD_PROPERTY, np, prop);
+}
+
+static inline int of_changeset_remove_property(struct of_changeset *ocs,
+		struct device_node *np, struct property *prop)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_REMOVE_PROPERTY, np, prop);
+}
+
+static inline int of_changeset_update_property(struct of_changeset *ocs,
+		struct device_node *np, struct property *prop)
+{
+	return of_changeset_action(ocs, OF_RECONFIG_UPDATE_PROPERTY, np, prop);
+}
+#endif
+
+/* CONFIG_OF_RESOLVE api */
+extern int of_resolve_phandles(struct device_node *tree);
 
 #endif /* _LINUX_OF_H */

@@ -98,12 +98,12 @@ static inline void mei_me_unset_pm_domain(struct mei_device *dev) {}
 #endif /* CONFIG_PM_RUNTIME */
 
 /**
- * mei_quirk_probe - probe for devices that doesn't valid ME interface
+ * mei_me_quirk_probe - probe for devices that doesn't valid ME interface
  *
  * @pdev: PCI device structure
  * @cfg: per generation config
  *
- * returns true if ME Interface is valid, false otherwise
+ * Return: true if ME Interface is valid, false otherwise
  */
 static bool mei_me_quirk_probe(struct pci_dev *pdev,
 				const struct mei_cfg *cfg)
@@ -117,12 +117,12 @@ static bool mei_me_quirk_probe(struct pci_dev *pdev,
 }
 
 /**
- * mei_probe - Device Initialization Routine
+ * mei_me_probe - Device Initialization Routine
  *
  * @pdev: PCI device structure
  * @ent: entry in kcs_pci_tbl
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -249,7 +249,7 @@ end:
 }
 
 /**
- * mei_remove - Device Removal Routine
+ * mei_me_remove - Device Removal Routine
  *
  * @pdev: PCI device structure
  *
@@ -430,7 +430,7 @@ static int mei_me_pm_runtime_resume(struct device *device)
  */
 static inline void mei_me_set_pm_domain(struct mei_device *dev)
 {
-	struct pci_dev *pdev  = dev->pdev;
+	struct pci_dev *pdev  = to_pci_dev(dev->dev);
 
 	if (pdev->dev.bus && pdev->dev.bus->pm) {
 		dev->pg_domain.ops = *pdev->dev.bus->pm;
@@ -451,7 +451,7 @@ static inline void mei_me_set_pm_domain(struct mei_device *dev)
 static inline void mei_me_unset_pm_domain(struct mei_device *dev)
 {
 	/* stop using pm callbacks if any */
-	dev->pdev->dev.pm_domain = NULL;
+	dev->dev->pm_domain = NULL;
 }
 #endif /* CONFIG_PM_RUNTIME */
 

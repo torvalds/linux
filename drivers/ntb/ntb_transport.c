@@ -510,7 +510,7 @@ static void ntb_transport_setup_qp_mw(struct ntb_transport *nt,
 
 	WARN_ON(nt->mw[mw_num].virt_addr == NULL);
 
-	if (nt->max_qps % mw_max && mw_num < nt->max_qps % mw_max)
+	if (nt->max_qps % mw_max && mw_num + 1 < nt->max_qps / mw_max)
 		num_qps_mw = nt->max_qps / mw_max + 1;
 	else
 		num_qps_mw = nt->max_qps / mw_max;
@@ -573,6 +573,19 @@ static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
 		mw->size = 0;
 		dev_err(&pdev->dev, "Unable to allocate MW buffer of size %d\n",
 		       (int) mw->size);
+		return -ENOMEM;
+	}
+
+	/*
+	 * we must ensure that the memory address allocated is BAR size
+	 * aligned in order for the XLAT register to take the value. This
+	 * is a requirement of the hardware. It is recommended to setup CMA
+	 * for BAR sizes equal or greater than 4MB.
+	 */
+	if (!IS_ALIGNED(mw->dma_addr, mw->size)) {
+		dev_err(&pdev->dev, "DMA memory %pad not aligned to BAR size\n",
+			&mw->dma_addr);
+		ntb_free_mw(nt, num_mw);
 		return -ENOMEM;
 	}
 
@@ -856,7 +869,7 @@ static int ntb_transport_init_queue(struct ntb_transport *nt,
 	qp->client_ready = NTB_LINK_DOWN;
 	qp->event_handler = NULL;
 
-	if (nt->max_qps % mw_max && mw_num < nt->max_qps % mw_max)
+	if (nt->max_qps % mw_max && mw_num + 1 < nt->max_qps / mw_max)
 		num_qps_mw = nt->max_qps / mw_max + 1;
 	else
 		num_qps_mw = nt->max_qps / mw_max;

@@ -45,7 +45,7 @@ static int thumbee_notifier(struct notifier_block *self, unsigned long cmd, void
 
 	switch (cmd) {
 	case THREAD_NOTIFY_FLUSH:
-		thread->thumbee_state = 0;
+		teehbr_write(0);
 		break;
 	case THREAD_NOTIFY_SWITCH:
 		current_thread_info()->thumbee_state = teehbr_read();

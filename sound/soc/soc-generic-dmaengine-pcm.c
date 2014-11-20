@@ -336,10 +336,12 @@ static const struct snd_pcm_ops dmaengine_pcm_ops = {
 };
 
 static const struct snd_soc_platform_driver dmaengine_pcm_platform = {
+	.component_driver = {
+		.probe_order = SND_SOC_COMP_ORDER_LATE,
+	},
 	.ops		= &dmaengine_pcm_ops,
 	.pcm_new	= dmaengine_pcm_new,
 	.pcm_free	= dmaengine_pcm_free,
-	.probe_order	= SND_SOC_COMP_ORDER_LATE,
 };
 
 static const char * const dmaengine_pcm_dma_channel_names[] = {

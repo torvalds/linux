@@ -119,7 +119,7 @@ struct ll_rpc_opcode {
 	{ OBD_IDX_READ,	    "dt_index_read" },
 	{ LLOG_ORIGIN_HANDLE_CREATE,	 "llog_origin_handle_open" },
 	{ LLOG_ORIGIN_HANDLE_NEXT_BLOCK, "llog_origin_handle_next_block" },
-	{ LLOG_ORIGIN_HANDLE_READ_HEADER,"llog_origin_handle_read_header" },
+	{ LLOG_ORIGIN_HANDLE_READ_HEADER, "llog_origin_handle_read_header" },
 	{ LLOG_ORIGIN_HANDLE_WRITE_REC,  "llog_origin_handle_write_rec" },
 	{ LLOG_ORIGIN_HANDLE_CLOSE,      "llog_origin_handle_close" },
 	{ LLOG_ORIGIN_CONNECT,	   "llog_origin_connect" },
@@ -130,7 +130,7 @@ struct ll_rpc_opcode {
 	{ QUOTA_DQREL,      "quota_release" },
 	{ SEQ_QUERY,	"seq_query" },
 	{ SEC_CTX_INIT,     "sec_ctx_init" },
-	{ SEC_CTX_INIT_CONT,"sec_ctx_init_cont" },
+	{ SEC_CTX_INIT_CONT, "sec_ctx_init_cont" },
 	{ SEC_CTX_FINI,     "sec_ctx_fini" },
 	{ FLD_QUERY,	"fld_query" },
 	{ UPDATE_OBJ,	    "update_obj" },
@@ -194,7 +194,8 @@ void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 	LASSERT(*procroot_ret == NULL);
 	LASSERT(*stats_ret == NULL);
 
-	svc_stats = lprocfs_alloc_stats(EXTRA_MAX_OPCODES+LUSTRE_MAX_OPCODES,0);
+	svc_stats = lprocfs_alloc_stats(EXTRA_MAX_OPCODES+LUSTRE_MAX_OPCODES,
+					0);
 	if (svc_stats == NULL)
 		return;
 
@@ -499,8 +500,10 @@ static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 	spin_unlock(&nrs->nrs_lock);
 
 	OBD_ALLOC(infos, num_pols * sizeof(*infos));
-	if (infos == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (infos == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 again:
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
@@ -639,26 +642,34 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
 	char			       *token;
 	int				rc = 0;
 
-	if (count >= LPROCFS_NRS_WR_MAX_CMD)
-		GOTO(out, rc = -EINVAL);
+	if (count >= LPROCFS_NRS_WR_MAX_CMD) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	OBD_ALLOC(cmd, LPROCFS_NRS_WR_MAX_CMD);
-	if (cmd == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (cmd == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 	/**
 	 * strsep() modifies its argument, so keep a copy
 	 */
 	cmd_copy = cmd;
 
-	if (copy_from_user(cmd, buffer, count))
-		GOTO(out, rc = -EFAULT);
+	if (copy_from_user(cmd, buffer, count)) {
+		rc = -EFAULT;
+		goto out;
+	}
 
 	cmd[count] = '\0';
 
 	token = strsep(&cmd, " ");
 
-	if (strlen(token) > NRS_POL_NAME_MAX - 1)
-		GOTO(out, rc = -EINVAL);
+	if (strlen(token) > NRS_POL_NAME_MAX - 1) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	/**
 	 * No [reg|hp] token has been specified
@@ -673,13 +684,17 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
 		queue = PTLRPC_NRS_QUEUE_REG;
 	else if (strcmp(cmd, "hp") == 0)
 		queue = PTLRPC_NRS_QUEUE_HP;
-	else
-		GOTO(out, rc = -EINVAL);
+	else {
+		rc = -EINVAL;
+		goto out;
+	}
 
 default_queue:
 
-	if (queue == PTLRPC_NRS_QUEUE_HP && !nrs_svc_has_hp(svc))
-		GOTO(out, rc = -ENODEV);
+	if (queue == PTLRPC_NRS_QUEUE_HP && !nrs_svc_has_hp(svc)) {
+		rc = -ENODEV;
+		goto out;
+	}
 	else if (queue == PTLRPC_NRS_QUEUE_BOTH && !nrs_svc_has_hp(svc))
 		queue = PTLRPC_NRS_QUEUE_REG;
 
@@ -1257,14 +1272,18 @@ int lprocfs_wr_import(struct file *file, const char *buffer,
 	if (kbuf == NULL)
 		return -ENOMEM;
 
-	if (copy_from_user(kbuf, buffer, count))
-		GOTO(out, count = -EFAULT);
+	if (copy_from_user(kbuf, buffer, count)) {
+		count = -EFAULT;
+		goto out;
+	}
 
 	kbuf[count] = 0;
 
 	/* only support connection=uuid::instance now */
-	if (strncmp(prefix, kbuf, prefix_len) != 0)
-		GOTO(out, count = -EINVAL);
+	if (strncmp(prefix, kbuf, prefix_len) != 0) {
+		count = -EINVAL;
+		goto out;
+	}
 
 	uuid = kbuf + prefix_len;
 	ptr = strstr(uuid, "::");

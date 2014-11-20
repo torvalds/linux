@@ -8,19 +8,19 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
-#include <linux/spi/spi.h>
-#include <linux/platform_device.h>
+#include <linux/err.h>
 #include <linux/fsl_devices.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/interrupt.h>
-#include <linux/err.h>
+#include <linux/platform_device.h>
+#include <linux/spi/spi.h>
 #include <sysdev/fsl_soc.h>
 
 #include "spi-fsl-lib.h"
@@ -452,16 +452,16 @@ static int fsl_espi_setup(struct spi_device *spi)
 	int retval;
 	u32 hw_mode;
 	u32 loop_mode;
-	struct spi_mpc8xxx_cs *cs = spi->controller_state;
+	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;
 
 	if (!cs) {
-		cs = devm_kzalloc(&spi->dev, sizeof(*cs), GFP_KERNEL);
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
-		spi->controller_state = cs;
+		spi_set_ctldata(spi, cs);
 	}
 
 	mpc8xxx_spi = spi_master_get_devdata(spi->master);
@@ -494,6 +494,14 @@ static int fsl_espi_setup(struct spi_device *spi)
 		return retval;
 	}
 	return 0;
+}
+
+static void fsl_espi_cleanup(struct spi_device *spi)
+{
+	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
+
+	kfree(cs);
+	spi_set_ctldata(spi, NULL);
 }
 
 void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
@@ -605,6 +613,7 @@ static struct spi_master * fsl_espi_probe(struct device *dev,
 
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 	master->setup = fsl_espi_setup;
+	master->cleanup = fsl_espi_cleanup;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
 	mpc8xxx_spi->spi_do_one_msg = fsl_espi_do_one_msg;

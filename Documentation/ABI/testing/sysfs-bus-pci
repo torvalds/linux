@@ -65,6 +65,16 @@ Description:
 		force a rescan of all PCI buses in the system, and
 		re-discover previously removed devices.
 
+What:		/sys/bus/pci/devices/.../msi_bus
+Date:		September 2014
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		Writing a zero value to this attribute disallows MSI and
+		MSI-X for any future drivers of the device.  If the device
+		is a bridge, MSI and MSI-X will be disallowed for future
+		drivers of all child devices under the bridge.  Drivers
+		must be reloaded for the new setting to take effect.
+
 What:		/sys/bus/pci/devices/.../msi_irqs/
 Date:		September, 2011
 Contact:	Neil Horman <nhorman@tuxdriver.com>

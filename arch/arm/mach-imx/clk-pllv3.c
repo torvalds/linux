@@ -23,8 +23,6 @@
 #define PLL_DENOM_OFFSET	0x20
 
 #define BM_PLL_POWER		(0x1 << 12)
-#define BM_PLL_ENABLE		(0x1 << 13)
-#define BM_PLL_BYPASS		(0x1 << 16)
 #define BM_PLL_LOCK		(0x1 << 31)
 
 /**
@@ -84,10 +82,6 @@ static int clk_pllv3_prepare(struct clk_hw *hw)
 	if (ret)
 		return ret;
 
-	val = readl_relaxed(pll->base);
-	val &= ~BM_PLL_BYPASS;
-	writel_relaxed(val, pll->base);
-
 	return 0;
 }
 
@@ -97,33 +91,10 @@ static void clk_pllv3_unprepare(struct clk_hw *hw)
 	u32 val;
 
 	val = readl_relaxed(pll->base);
-	val |= BM_PLL_BYPASS;
 	if (pll->powerup_set)
 		val &= ~BM_PLL_POWER;
 	else
 		val |= BM_PLL_POWER;
-	writel_relaxed(val, pll->base);
-}
-
-static int clk_pllv3_enable(struct clk_hw *hw)
-{
-	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 val;
-
-	val = readl_relaxed(pll->base);
-	val |= BM_PLL_ENABLE;
-	writel_relaxed(val, pll->base);
-
-	return 0;
-}
-
-static void clk_pllv3_disable(struct clk_hw *hw)
-{
-	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 val;
-
-	val = readl_relaxed(pll->base);
-	val &= ~BM_PLL_ENABLE;
 	writel_relaxed(val, pll->base);
 }
 
@@ -169,8 +140,6 @@ static int clk_pllv3_set_rate(struct clk_hw *hw, unsigned long rate,
 static const struct clk_ops clk_pllv3_ops = {
 	.prepare	= clk_pllv3_prepare,
 	.unprepare	= clk_pllv3_unprepare,
-	.enable		= clk_pllv3_enable,
-	.disable	= clk_pllv3_disable,
 	.recalc_rate	= clk_pllv3_recalc_rate,
 	.round_rate	= clk_pllv3_round_rate,
 	.set_rate	= clk_pllv3_set_rate,
@@ -225,8 +194,6 @@ static int clk_pllv3_sys_set_rate(struct clk_hw *hw, unsigned long rate,
 static const struct clk_ops clk_pllv3_sys_ops = {
 	.prepare	= clk_pllv3_prepare,
 	.unprepare	= clk_pllv3_unprepare,
-	.enable		= clk_pllv3_enable,
-	.disable	= clk_pllv3_disable,
 	.recalc_rate	= clk_pllv3_sys_recalc_rate,
 	.round_rate	= clk_pllv3_sys_round_rate,
 	.set_rate	= clk_pllv3_sys_set_rate,
@@ -299,8 +266,6 @@ static int clk_pllv3_av_set_rate(struct clk_hw *hw, unsigned long rate,
 static const struct clk_ops clk_pllv3_av_ops = {
 	.prepare	= clk_pllv3_prepare,
 	.unprepare	= clk_pllv3_unprepare,
-	.enable		= clk_pllv3_enable,
-	.disable	= clk_pllv3_disable,
 	.recalc_rate	= clk_pllv3_av_recalc_rate,
 	.round_rate	= clk_pllv3_av_round_rate,
 	.set_rate	= clk_pllv3_av_set_rate,
@@ -315,8 +280,6 @@ static unsigned long clk_pllv3_enet_recalc_rate(struct clk_hw *hw,
 static const struct clk_ops clk_pllv3_enet_ops = {
 	.prepare	= clk_pllv3_prepare,
 	.unprepare	= clk_pllv3_unprepare,
-	.enable		= clk_pllv3_enable,
-	.disable	= clk_pllv3_disable,
 	.recalc_rate	= clk_pllv3_enet_recalc_rate,
 };
 

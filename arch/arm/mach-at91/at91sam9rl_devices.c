@@ -799,9 +799,7 @@ static void __init at91_add_device_watchdog(void) {}
  *  PWM
  * --------------------------------------------------------------------*/
 
-#if defined(CONFIG_ATMEL_PWM)
-static u32 pwm_mask;
-
+#if IS_ENABLED(CONFIG_PWM_ATMEL)
 static struct resource pwm_resources[] = {
 	[0] = {
 		.start	= AT91SAM9RL_BASE_PWMC,
@@ -816,11 +814,8 @@ static struct resource pwm_resources[] = {
 };
 
 static struct platform_device at91sam9rl_pwm0_device = {
-	.name	= "atmel_pwm",
+	.name	= "at91sam9rl-pwm",
 	.id	= -1,
-	.dev	= {
-		.platform_data		= &pwm_mask,
-	},
 	.resource	= pwm_resources,
 	.num_resources	= ARRAY_SIZE(pwm_resources),
 };
@@ -838,8 +833,6 @@ void __init at91_add_device_pwm(u32 mask)
 
 	if (mask & (1 << AT91_PWM3))
 		at91_set_B_periph(AT91_PIN_PD8, 1);	/* enable PWM3 */
-
-	pwm_mask = mask;
 
 	platform_device_register(&at91sam9rl_pwm0_device);
 }

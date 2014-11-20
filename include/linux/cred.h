@@ -259,6 +259,15 @@ static inline void put_cred(const struct cred *_cred)
 	rcu_dereference_protected(current->cred, 1)
 
 /**
+ * current_real_cred - Access the current task's objective credentials
+ *
+ * Access the objective credentials of the current task.  RCU-safe,
+ * since nobody else can modify it.
+ */
+#define current_real_cred() \
+	rcu_dereference_protected(current->real_cred, 1)
+
+/**
  * __task_cred - Access a task's objective credentials
  * @task: The task to query
  *

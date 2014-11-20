@@ -527,6 +527,7 @@ struct cpl_tx_pkt_lso_core {
 #define LSO_LAST_SLICE    (1 << 22)
 #define LSO_FIRST_SLICE   (1 << 23)
 #define LSO_OPCODE(x)     ((x) << 24)
+#define LSO_T5_XFER_SIZE(x) ((x) << 0)
 	__be16 ipid_ofst;
 	__be16 mss;
 	__be32 seqno_offset;

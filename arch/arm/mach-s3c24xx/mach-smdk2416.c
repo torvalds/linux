@@ -44,7 +44,6 @@
 #include <linux/platform_data/i2c-s3c2410.h>
 
 #include <plat/gpio-cfg.h>
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <linux/platform_data/mtd-nand-s3c2410.h>
@@ -263,5 +262,4 @@ MACHINE_START(SMDK2416, "SMDK2416")
 	.map_io		= smdk2416_map_io,
 	.init_machine	= smdk2416_machine_init,
 	.init_time	= smdk2416_init_time,
-	.restart	= s3c2416_restart,
 MACHINE_END

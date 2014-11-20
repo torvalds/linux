@@ -288,8 +288,8 @@ cfs_wi_scheduler (void *arg)
 		}
 
 		cfs_wi_sched_unlock(sched);
-		cfs_wait_event_interruptible_exclusive(sched->ws_waitq,
-				!cfs_wi_sched_cansleep(sched), rc);
+		rc = wait_event_interruptible_exclusive(sched->ws_waitq,
+						!cfs_wi_sched_cansleep(sched));
 		cfs_wi_sched_lock(sched);
 	}
 
@@ -365,6 +365,7 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 		return -ENOMEM;
 
 	strncpy(sched->ws_name, name, CFS_WS_NAME_LEN);
+	sched->ws_name[CFS_WS_NAME_LEN - 1] = '\0';
 	sched->ws_cptab = cptab;
 	sched->ws_cpt = cpt;
 

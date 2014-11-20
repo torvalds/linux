@@ -87,7 +87,7 @@
 /* RSPI on SH only */
 #define SPCR_TXMD		0x02	/* TX Only Mode (vs. Full Duplex) */
 #define SPCR_SPMS		0x01	/* 3-wire Mode (vs. 4-wire) */
-/* QSPI on R-Car M2 only */
+/* QSPI on R-Car Gen2 only */
 #define SPCR_WSWAP		0x02	/* Word Swap of read-data for DMAC */
 #define SPCR_BSWAP		0x01	/* Byte Swap of read-data for DMAC */
 
@@ -472,23 +472,50 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 	dma_cookie_t cookie;
 	int ret;
 
-	if (tx) {
-		desc_tx = dmaengine_prep_slave_sg(rspi->master->dma_tx,
-					tx->sgl, tx->nents, DMA_TO_DEVICE,
-					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (!desc_tx)
-			goto no_dma;
-
-		irq_mask |= SPCR_SPTIE;
-	}
+	/* First prepare and submit the DMA request(s), as this may fail */
 	if (rx) {
 		desc_rx = dmaengine_prep_slave_sg(rspi->master->dma_rx,
 					rx->sgl, rx->nents, DMA_FROM_DEVICE,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (!desc_rx)
-			goto no_dma;
+		if (!desc_rx) {
+			ret = -EAGAIN;
+			goto no_dma_rx;
+		}
+
+		desc_rx->callback = rspi_dma_complete;
+		desc_rx->callback_param = rspi;
+		cookie = dmaengine_submit(desc_rx);
+		if (dma_submit_error(cookie)) {
+			ret = cookie;
+			goto no_dma_rx;
+		}
 
 		irq_mask |= SPCR_SPRIE;
+	}
+
+	if (tx) {
+		desc_tx = dmaengine_prep_slave_sg(rspi->master->dma_tx,
+					tx->sgl, tx->nents, DMA_TO_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc_tx) {
+			ret = -EAGAIN;
+			goto no_dma_tx;
+		}
+
+		if (rx) {
+			/* No callback */
+			desc_tx->callback = NULL;
+		} else {
+			desc_tx->callback = rspi_dma_complete;
+			desc_tx->callback_param = rspi;
+		}
+		cookie = dmaengine_submit(desc_tx);
+		if (dma_submit_error(cookie)) {
+			ret = cookie;
+			goto no_dma_tx;
+		}
+
+		irq_mask |= SPCR_SPTIE;
 	}
 
 	/*
@@ -503,34 +530,24 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 	rspi_enable_irq(rspi, irq_mask);
 	rspi->dma_callbacked = 0;
 
-	if (rx) {
-		desc_rx->callback = rspi_dma_complete;
-		desc_rx->callback_param = rspi;
-		cookie = dmaengine_submit(desc_rx);
-		if (dma_submit_error(cookie))
-			return cookie;
+	/* Now start DMA */
+	if (rx)
 		dma_async_issue_pending(rspi->master->dma_rx);
-	}
-	if (tx) {
-		if (rx) {
-			/* No callback */
-			desc_tx->callback = NULL;
-		} else {
-			desc_tx->callback = rspi_dma_complete;
-			desc_tx->callback_param = rspi;
-		}
-		cookie = dmaengine_submit(desc_tx);
-		if (dma_submit_error(cookie))
-			return cookie;
+	if (tx)
 		dma_async_issue_pending(rspi->master->dma_tx);
-	}
 
 	ret = wait_event_interruptible_timeout(rspi->wait,
 					       rspi->dma_callbacked, HZ);
 	if (ret > 0 && rspi->dma_callbacked)
 		ret = 0;
-	else if (!ret)
+	else if (!ret) {
+		dev_err(&rspi->master->dev, "DMA timeout\n");
 		ret = -ETIMEDOUT;
+		if (tx)
+			dmaengine_terminate_all(rspi->master->dma_tx);
+		if (rx)
+			dmaengine_terminate_all(rspi->master->dma_rx);
+	}
 
 	rspi_disable_irq(rspi, irq_mask);
 
@@ -541,11 +558,16 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 
 	return ret;
 
-no_dma:
-	pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
-		     dev_driver_string(&rspi->master->dev),
-		     dev_name(&rspi->master->dev));
-	return -EAGAIN;
+no_dma_tx:
+	if (rx)
+		dmaengine_terminate_all(rspi->master->dma_rx);
+no_dma_rx:
+	if (ret == -EAGAIN) {
+		pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
+			     dev_driver_string(&rspi->master->dev),
+			     dev_name(&rspi->master->dev));
+	}
+	return ret;
 }
 
 static void rspi_receive_init(const struct rspi_data *rspi)
@@ -887,20 +909,24 @@ static struct dma_chan *rspi_request_dma_chan(struct device *dev,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	chan = dma_request_channel(mask, shdma_chan_filter,
-				   (void *)(unsigned long)id);
+	chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
+				(void *)(unsigned long)id, dev,
+				dir == DMA_MEM_TO_DEV ? "tx" : "rx");
 	if (!chan) {
-		dev_warn(dev, "dma_request_channel failed\n");
+		dev_warn(dev, "dma_request_slave_channel_compat failed\n");
 		return NULL;
 	}
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.slave_id = id;
 	cfg.direction = dir;
-	if (dir == DMA_MEM_TO_DEV)
+	if (dir == DMA_MEM_TO_DEV) {
 		cfg.dst_addr = port_addr;
-	else
+		cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	} else {
 		cfg.src_addr = port_addr;
+		cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	}
 
 	ret = dmaengine_slave_config(chan, &cfg);
 	if (ret) {
@@ -916,22 +942,30 @@ static int rspi_request_dma(struct device *dev, struct spi_master *master,
 			    const struct resource *res)
 {
 	const struct rspi_plat_data *rspi_pd = dev_get_platdata(dev);
+	unsigned int dma_tx_id, dma_rx_id;
 
-	if (!rspi_pd || !rspi_pd->dma_rx_id || !rspi_pd->dma_tx_id)
-		return 0;	/* The driver assumes no error. */
+	if (dev->of_node) {
+		/* In the OF case we will get the slave IDs from the DT */
+		dma_tx_id = 0;
+		dma_rx_id = 0;
+	} else if (rspi_pd && rspi_pd->dma_tx_id && rspi_pd->dma_rx_id) {
+		dma_tx_id = rspi_pd->dma_tx_id;
+		dma_rx_id = rspi_pd->dma_rx_id;
+	} else {
+		/* The driver assumes no error. */
+		return 0;
+	}
 
-	master->dma_rx = rspi_request_dma_chan(dev, DMA_DEV_TO_MEM,
-					       rspi_pd->dma_rx_id,
+	master->dma_tx = rspi_request_dma_chan(dev, DMA_MEM_TO_DEV, dma_tx_id,
 					       res->start + RSPI_SPDR);
-	if (!master->dma_rx)
+	if (!master->dma_tx)
 		return -ENODEV;
 
-	master->dma_tx = rspi_request_dma_chan(dev, DMA_MEM_TO_DEV,
-					       rspi_pd->dma_tx_id,
+	master->dma_rx = rspi_request_dma_chan(dev, DMA_DEV_TO_MEM, dma_rx_id,
 					       res->start + RSPI_SPDR);
-	if (!master->dma_tx) {
-		dma_release_channel(master->dma_rx);
-		master->dma_rx = NULL;
+	if (!master->dma_rx) {
+		dma_release_channel(master->dma_tx);
+		master->dma_tx = NULL;
 		return -ENODEV;
 	}
 
@@ -1024,12 +1058,11 @@ static int rspi_request_irq(struct device *dev, unsigned int irq,
 			    irq_handler_t handler, const char *suffix,
 			    void *dev_id)
 {
-	const char *base = dev_name(dev);
-	size_t len = strlen(base) + strlen(suffix) + 2;
-	char *name = devm_kzalloc(dev, len, GFP_KERNEL);
+	const char *name = devm_kasprintf(dev, GFP_KERNEL, "%s:%s",
+					  dev_name(dev), suffix);
 	if (!name)
 		return -ENOMEM;
-	snprintf(name, len, "%s:%s", base, suffix);
+
 	return devm_request_irq(dev, irq, handler, 0, name, dev_id);
 }
 
@@ -1062,7 +1095,7 @@ static int rspi_probe(struct platform_device *pdev)
 			master->num_chipselect = rspi_pd->num_chipselect;
 		else
 			master->num_chipselect = 2; /* default */
-	};
+	}
 
 	/* ops parameter check */
 	if (!ops->set_config_register) {

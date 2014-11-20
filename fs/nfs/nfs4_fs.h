@@ -54,7 +54,7 @@ struct nfs4_minor_version_ops {
 			const nfs4_stateid *);
 	int	(*find_root_sec)(struct nfs_server *, struct nfs_fh *,
 			struct nfs_fsinfo *);
-	int	(*free_lock_state)(struct nfs_server *,
+	void	(*free_lock_state)(struct nfs_server *,
 			struct nfs4_lock_state *);
 	const struct rpc_call_ops *call_sync_ops;
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
@@ -129,17 +129,6 @@ enum {
  * LOCK: one nfs4_state (LOCK) to hold the lock stateid nfs4_state(OPEN)
  */
 
-struct nfs4_lock_owner {
-	unsigned int lo_type;
-#define NFS4_ANY_LOCK_TYPE	(0U)
-#define NFS4_FLOCK_LOCK_TYPE	(1U << 0)
-#define NFS4_POSIX_LOCK_TYPE	(1U << 1)
-	union {
-		fl_owner_t posix_owner;
-		pid_t flock_owner;
-	} lo_u;
-};
-
 struct nfs4_lock_state {
 	struct list_head	ls_locks;	/* Other lock stateids */
 	struct nfs4_state *	ls_state;	/* Pointer to open state */
@@ -149,7 +138,7 @@ struct nfs4_lock_state {
 	struct nfs_seqid_counter	ls_seqid;
 	nfs4_stateid		ls_stateid;
 	atomic_t		ls_count;
-	struct nfs4_lock_owner	ls_owner;
+	fl_owner_t		ls_owner;
 };
 
 /* bits for nfs4_state->flags */
@@ -237,6 +226,9 @@ int nfs4_replace_transport(struct nfs_server *server,
 				const struct nfs4_fs_locations *locations);
 
 /* nfs4proc.c */
+extern int nfs4_call_sync(struct rpc_clnt *, struct nfs_server *,
+			  struct rpc_message *, struct nfs4_sequence_args *,
+			  struct nfs4_sequence_res *, int);
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, struct rpc_cred *, struct nfs4_setclientid_res *);
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct nfs4_setclientid_res *arg, struct rpc_cred *);
 extern int nfs4_proc_get_rootfh(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *, bool);
@@ -337,11 +329,11 @@ nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
  */
 static inline void
 nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
-			 struct rpc_message *msg, struct nfs_pgio_data *wdata)
+			 struct rpc_message *msg, struct nfs_pgio_header *hdr)
 {
 	if (_nfs4_state_protect(clp, NFS_SP4_MACH_CRED_WRITE, clntp, msg) &&
 	    !test_bit(NFS_SP4_MACH_CRED_COMMIT, &clp->cl_sp4_flags))
-		wdata->args.stable = NFS_FILE_SYNC;
+		hdr->args.stable = NFS_FILE_SYNC;
 }
 #else /* CONFIG_NFS_v4_1 */
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
@@ -369,7 +361,7 @@ nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_flags,
 
 static inline void
 nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
-			 struct rpc_message *msg, struct nfs_pgio_data *wdata)
+			 struct rpc_message *msg, struct nfs_pgio_header *hdr)
 {
 }
 #endif /* CONFIG_NFS_V4_1 */

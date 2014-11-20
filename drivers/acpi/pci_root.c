@@ -35,6 +35,7 @@
 #include <linux/pci-aspm.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
+#include <linux/dmi.h>
 #include <acpi/apei.h>	/* for acpi_hest_init() */
 
 #include "internal.h"
@@ -428,6 +429,19 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 	acpi_status status;
 	struct acpi_device *device = root->device;
 	acpi_handle handle = device->handle;
+
+	/*
+	 * Apple always return failure on _OSC calls when _OSI("Darwin") has
+	 * been called successfully. We know the feature set supported by the
+	 * platform, so avoid calling _OSC at all
+	 */
+
+	if (dmi_match(DMI_SYS_VENDOR, "Apple Inc.")) {
+		root->osc_control_set = ~OSC_PCI_EXPRESS_PME_CONTROL;
+		decode_osc_control(root, "OS assumes control of",
+				   root->osc_control_set);
+		return;
+	}
 
 	/*
 	 * All supported architectures that use ACPI have support for

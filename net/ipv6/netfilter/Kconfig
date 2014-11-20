@@ -40,9 +40,35 @@ config NFT_CHAIN_ROUTE_IPV6
 	  fields such as the source, destination, flowlabel, hop-limit and
 	  the packet mark.
 
+config NF_REJECT_IPV6
+	tristate "IPv6 packet rejection"
+	default m if NETFILTER_ADVANCED=n
+
+config NFT_REJECT_IPV6
+	depends on NF_TABLES_IPV6
+	select NF_REJECT_IPV6
+	default NFT_REJECT
+	tristate
+
+config NF_LOG_IPV6
+	tristate "IPv6 packet logging"
+	default m if NETFILTER_ADVANCED=n
+	select NF_LOG_COMMON
+
+config NF_NAT_IPV6
+	tristate "IPv6 NAT"
+	depends on NF_CONNTRACK_IPV6
+	depends on NETFILTER_ADVANCED
+	select NF_NAT
+	help
+	  The IPv6 NAT option allows masquerading, port forwarding and other
+	  forms of full Network Address Port Translation. This can be
+	  controlled by iptables or nft.
+
+if NF_NAT_IPV6
+
 config NFT_CHAIN_NAT_IPV6
 	depends on NF_TABLES_IPV6
-	depends on NF_NAT_IPV6 && NFT_NAT
 	tristate "IPv6 nf_tables nat chain support"
 	help
 	  This option enables the "nat" chain for IPv6 in nf_tables. This
@@ -50,15 +76,22 @@ config NFT_CHAIN_NAT_IPV6
 	  packet transformations such as the source, destination address and
 	  source and destination ports.
 
-config NFT_REJECT_IPV6
-	depends on NF_TABLES_IPV6
-	default NFT_REJECT
-	tristate
+config NF_NAT_MASQUERADE_IPV6
+	tristate "IPv6 masquerade support"
+	help
+	  This is the kernel functionality to provide NAT in the masquerade
+	  flavour (automatic source address selection) for IPv6.
 
-config NF_LOG_IPV6
-	tristate "IPv6 packet logging"
-	depends on NETFILTER_ADVANCED
-	select NF_LOG_COMMON
+config NFT_MASQ_IPV6
+	tristate "IPv6 masquerade support for nf_tables"
+	depends on NF_TABLES_IPV6
+	depends on NFT_MASQ
+	select NF_NAT_MASQUERADE_IPV6
+	help
+	  This is the expression that provides IPv4 masquerading support for
+	  nf_tables.
+
+endif # NF_NAT_IPV6
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"
@@ -180,6 +213,7 @@ config IP6_NF_FILTER
 config IP6_NF_TARGET_REJECT
 	tristate "REJECT target support"
 	depends on IP6_NF_FILTER
+	select NF_REJECT_IPV6
 	default m if NETFILTER_ADVANCED=n
 	help
 	  The REJECT target allows a filtering rule to specify that an ICMPv6
@@ -232,22 +266,25 @@ config IP6_NF_SECURITY
 
          If unsure, say N.
 
-config NF_NAT_IPV6
-	tristate "IPv6 NAT"
+config IP6_NF_NAT
+	tristate "ip6tables NAT support"
 	depends on NF_CONNTRACK_IPV6
 	depends on NETFILTER_ADVANCED
 	select NF_NAT
+	select NF_NAT_IPV6
+	select NETFILTER_XT_NAT
 	help
-	  The IPv6 NAT option allows masquerading, port forwarding and other
-	  forms of full Network Address Port Translation. It is controlled by
-	  the `nat' table in ip6tables, see the man page for ip6tables(8).
+	  This enables the `nat' table in ip6tables. This allows masquerading,
+	  port forwarding and other forms of full Network Address Port
+	  Translation.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-if NF_NAT_IPV6
+if IP6_NF_NAT
 
 config IP6_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
+	select NF_NAT_MASQUERADE_IPV6
 	help
 	  Masquerading is a special case of NAT: all outgoing connections are
 	  changed to seem to come from a particular interface's address, and
@@ -265,7 +302,7 @@ config IP6_NF_TARGET_NPT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-endif # NF_NAT_IPV6
+endif # IP6_NF_NAT
 
 endif # IP6_NF_IPTABLES
 

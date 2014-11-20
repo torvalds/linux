@@ -12,6 +12,10 @@ extern void fsnotify_flush_notify(struct fsnotify_group *group);
 /* protects reads of inode and vfsmount marks list */
 extern struct srcu_struct fsnotify_mark_srcu;
 
+/* compare two groups for sorting of marks lists */
+extern int fsnotify_compare_groups(struct fsnotify_group *a,
+				   struct fsnotify_group *b);
+
 extern void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *fsn_mark,
 						__u32 mask);
 /* add a mark to an inode */
@@ -22,9 +26,6 @@ extern int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 extern int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 				      struct fsnotify_group *group, struct vfsmount *mnt,
 				      int allow_dups);
-
-/* final kfree of a group */
-extern void fsnotify_final_destroy_group(struct fsnotify_group *group);
 
 /* vfsmount specific destruction of a mark */
 extern void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark);

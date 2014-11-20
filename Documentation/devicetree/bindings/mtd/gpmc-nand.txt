@@ -22,7 +22,7 @@ Optional properties:
 				width of 8 is assumed.
 
  - ti,nand-ecc-opt:		A string setting the ECC layout to use. One of:
-		"sw"		<deprecated> use "ham1" instead
+		"sw"		1-bit Hamming ecc code via software
 		"hw"		<deprecated> use "ham1" instead
 		"hw-romcode"	<deprecated> use "ham1" instead
 		"ham1"		1-bit Hamming ecc code

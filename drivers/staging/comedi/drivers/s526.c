@@ -111,7 +111,6 @@ union cmReg {
 };
 
 struct s526_private {
-	unsigned int ao_readback[2];
 	unsigned int gpct_config[4];
 	unsigned short ai_config;
 };
@@ -467,38 +466,26 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-static int s526_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
+static int s526_ao_insn_write(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct s526_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned short val;
+	unsigned int val = s->readback[chan];
 	int i;
 
-	val = chan << 1;
-	outw(val, dev->iobase + REG_DAC);
+	outw(chan << 1, dev->iobase + REG_DAC);
 
 	for (i = 0; i < insn->n; i++) {
-		outw(data[i], dev->iobase + REG_ADD);
-		devpriv->ao_readback[chan] = data[i];
+		val = data[i];
+		outw(val, dev->iobase + REG_ADD);
 		/* starts the D/A conversion */
-		outw(val + 1, dev->iobase + REG_DAC);
+		outw((chan << 1) | 1, dev->iobase + REG_DAC);
 	}
+	s->readback[chan] = val;
 
-	return i;
-}
-
-static int s526_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
-{
-	struct s526_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
+	return insn->n;
 }
 
 static int s526_dio_insn_bits(struct comedi_device *dev,
@@ -595,8 +582,12 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = 4;
 	s->maxdata = 0xffff;
 	s->range_table = &range_bipolar10;
-	s->insn_write = s526_ao_winsn;
-	s->insn_read = s526_ao_rinsn;
+	s->insn_write = s526_ao_insn_write;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[3];
 	/* digital i/o subdevice */

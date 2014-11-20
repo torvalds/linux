@@ -316,6 +316,45 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 		    acpi_ns_check_package_list(info, package, elements, count);
 		break;
 
+	case ACPI_PTYPE2_UUID_PAIR:
+
+		/* The package must contain pairs of (UUID + type) */
+
+		if (count & 1) {
+			expected_count = count + 1;
+			goto package_too_small;
+		}
+
+		while (count > 0) {
+			status = acpi_ns_check_object_type(info, elements,
+							   package->ret_info.
+							   object_type1, 0);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+
+			/* Validate length of the UUID buffer */
+
+			if ((*elements)->buffer.length != 16) {
+				ACPI_WARN_PREDEFINED((AE_INFO,
+						      info->full_pathname,
+						      info->node_flags,
+						      "Invalid length for UUID Buffer"));
+				return (AE_AML_OPERAND_VALUE);
+			}
+
+			status = acpi_ns_check_object_type(info, elements + 1,
+							   package->ret_info.
+							   object_type2, 0);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+
+			elements += 2;
+			count -= 2;
+		}
+		break;
+
 	default:
 
 		/* Should not get here if predefined info table is correct */

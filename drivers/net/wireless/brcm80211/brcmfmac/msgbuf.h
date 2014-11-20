@@ -15,6 +15,7 @@
 #ifndef BRCMFMAC_MSGBUF_H
 #define BRCMFMAC_MSGBUF_H
 
+#ifdef CONFIG_BRCMFMAC_PROTO_MSGBUF
 
 #define BRCMF_H2D_MSGRING_CONTROL_SUBMIT_MAX_ITEM	20
 #define BRCMF_H2D_MSGRING_RXPOST_SUBMIT_MAX_ITEM	256
@@ -32,9 +33,15 @@
 
 
 int brcmf_proto_msgbuf_rx_trigger(struct device *dev);
+void brcmf_msgbuf_delete_flowring(struct brcmf_pub *drvr, u8 flowid);
 int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr);
 void brcmf_proto_msgbuf_detach(struct brcmf_pub *drvr);
-void brcmf_msgbuf_delete_flowring(struct brcmf_pub *drvr, u8 flowid);
-
+#else
+static inline int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
+{
+	return 0;
+}
+static inline void brcmf_proto_msgbuf_detach(struct brcmf_pub *drvr) {}
+#endif
 
 #endif /* BRCMFMAC_MSGBUF_H */

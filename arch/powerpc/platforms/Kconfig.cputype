@@ -61,7 +61,7 @@ choice
 	help
 	  There are two families of 64 bit PowerPC chips supported.
 	  The most common ones are the desktop and server CPUs
-	  (POWER3, RS64, POWER4, POWER5, POWER5+, POWER6, ...)
+	  (POWER4, POWER5, 970, POWER5+, POWER6, POWER7, POWER8 ...)
 
 	  The other are the "embedded" processors compliant with the
 	  "Book 3E" variant of the architecture
@@ -116,6 +116,12 @@ config POWER6_CPU
 config POWER7_CPU
 	bool "POWER7"
 	depends on PPC_BOOK3S_64
+	select ARCH_HAS_FAST_MULTIPLIER
+
+config POWER8_CPU
+	bool "POWER8"
+	depends on PPC_BOOK3S_64
+	select ARCH_HAS_FAST_MULTIPLIER
 
 config E5500_CPU
 	bool "Freescale e5500"
@@ -139,14 +145,6 @@ config 6xx
 	def_bool y
 	depends on PPC32 && PPC_BOOK3S
 	select PPC_HAVE_PMU_SUPPORT
-
-config POWER3
-	depends on PPC64 && PPC_BOOK3S
-	def_bool y
-
-config POWER4
-	depends on PPC64 && PPC_BOOK3S
-	def_bool y
 
 config TUNE_CELL
 	bool "Optimize for Cell Broadband Engine"
@@ -244,7 +242,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on 6xx || POWER4 || (PPC_E500MC && PPC64)
+	depends on 6xx || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
@@ -260,7 +258,7 @@ config ALTIVEC
 
 config VSX
 	bool "VSX Support"
-	depends on POWER4 && ALTIVEC && PPC_FPU
+	depends on PPC_BOOK3S_64 && ALTIVEC && PPC_FPU
 	---help---
 
 	  This option enables kernel support for the Vector Scaler extensions
@@ -276,7 +274,7 @@ config VSX
 
 config PPC_ICSWX
 	bool "Support for PowerPC icswx coprocessor instruction"
-	depends on POWER4
+	depends on PPC_BOOK3S_64
 	default n
 	---help---
 
@@ -294,7 +292,7 @@ config PPC_ICSWX
 
 config PPC_ICSWX_PID
 	bool "icswx requires direct PID management"
-	depends on PPC_ICSWX && POWER4
+	depends on PPC_ICSWX
 	default y
 	---help---
 	  The PID register in server is used explicitly for ICSWX.  In
@@ -311,9 +309,13 @@ config PPC_ICSWX_USE_SIGILL
 
 	  If in doubt, say N here.
 
+config SPE_POSSIBLE
+	def_bool y
+	depends on E200 || (E500 && !PPC_E500MC)
+
 config SPE
 	bool "SPE Support"
-	depends on E200 || (E500 && !PPC_E500MC)
+	depends on SPE_POSSIBLE
 	default y
 	---help---
 	  This option enables kernel support for the Signal Processing

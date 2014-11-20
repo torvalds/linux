@@ -56,7 +56,89 @@ bool si_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 }
 
 /**
- * si_dma_vm_set_page - update the page tables using the DMA
+ * si_dma_vm_copy_pages - update PTEs by copying them from the GART
+ *
+ * @rdev: radeon_device pointer
+ * @ib: indirect buffer to fill with commands
+ * @pe: addr of the page entry
+ * @src: src addr where to copy from
+ * @count: number of page entries to update
+ *
+ * Update PTEs by copying them from the GART using the DMA (SI).
+ */
+void si_dma_vm_copy_pages(struct radeon_device *rdev,
+			  struct radeon_ib *ib,
+			  uint64_t pe, uint64_t src,
+			  unsigned count)
+{
+	while (count) {
+		unsigned bytes = count * 8;
+		if (bytes > 0xFFFF8)
+			bytes = 0xFFFF8;
+
+		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_COPY,
+						      1, 0, 0, bytes);
+		ib->ptr[ib->length_dw++] = lower_32_bits(pe);
+		ib->ptr[ib->length_dw++] = lower_32_bits(src);
+		ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+		ib->ptr[ib->length_dw++] = upper_32_bits(src) & 0xff;
+
+		pe += bytes;
+		src += bytes;
+		count -= bytes / 8;
+	}
+}
+
+/**
+ * si_dma_vm_write_pages - update PTEs by writing them manually
+ *
+ * @rdev: radeon_device pointer
+ * @ib: indirect buffer to fill with commands
+ * @pe: addr of the page entry
+ * @addr: dst addr to write into pe
+ * @count: number of page entries to update
+ * @incr: increase next addr by incr bytes
+ * @flags: access flags
+ *
+ * Update PTEs by writing them manually using the DMA (SI).
+ */
+void si_dma_vm_write_pages(struct radeon_device *rdev,
+			   struct radeon_ib *ib,
+			   uint64_t pe,
+			   uint64_t addr, unsigned count,
+			   uint32_t incr, uint32_t flags)
+{
+	uint64_t value;
+	unsigned ndw;
+
+	while (count) {
+		ndw = count * 2;
+		if (ndw > 0xFFFFE)
+			ndw = 0xFFFFE;
+
+		/* for non-physically contiguous pages (system) */
+		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 0, ndw);
+		ib->ptr[ib->length_dw++] = pe;
+		ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+		for (; ndw > 0; ndw -= 2, --count, pe += 8) {
+			if (flags & R600_PTE_SYSTEM) {
+				value = radeon_vm_map_gart(rdev, addr);
+				value &= 0xFFFFFFFFFFFFF000ULL;
+			} else if (flags & R600_PTE_VALID) {
+				value = addr;
+			} else {
+				value = 0;
+			}
+			addr += incr;
+			value |= flags;
+			ib->ptr[ib->length_dw++] = value;
+			ib->ptr[ib->length_dw++] = upper_32_bits(value);
+		}
+	}
+}
+
+/**
+ * si_dma_vm_set_pages - update the page tables using the DMA
  *
  * @rdev: radeon_device pointer
  * @ib: indirect buffer to fill with commands
@@ -68,81 +150,39 @@ bool si_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
  *
  * Update the page tables using the DMA (SI).
  */
-void si_dma_vm_set_page(struct radeon_device *rdev,
-			struct radeon_ib *ib,
-			uint64_t pe,
-			uint64_t addr, unsigned count,
-			uint32_t incr, uint32_t flags)
+void si_dma_vm_set_pages(struct radeon_device *rdev,
+			 struct radeon_ib *ib,
+			 uint64_t pe,
+			 uint64_t addr, unsigned count,
+			 uint32_t incr, uint32_t flags)
 {
 	uint64_t value;
 	unsigned ndw;
 
-	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
+	while (count) {
+		ndw = count * 2;
+		if (ndw > 0xFFFFE)
+			ndw = 0xFFFFE;
 
-	if (flags == R600_PTE_GART) {
-		uint64_t src = rdev->gart.table_addr + (addr >> 12) * 8;
-		while (count) {
-			unsigned bytes = count * 8;
-			if (bytes > 0xFFFF8)
-				bytes = 0xFFFF8;
+		if (flags & R600_PTE_VALID)
+			value = addr;
+		else
+			value = 0;
 
-			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_COPY,
-							      1, 0, 0, bytes);
-			ib->ptr[ib->length_dw++] = lower_32_bits(pe);
-			ib->ptr[ib->length_dw++] = lower_32_bits(src);
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-			ib->ptr[ib->length_dw++] = upper_32_bits(src) & 0xff;
-
-			pe += bytes;
-			src += bytes;
-			count -= bytes / 8;
-		}
-	} else if (flags & R600_PTE_SYSTEM) {
-		while (count) {
-			ndw = count * 2;
-			if (ndw > 0xFFFFE)
-				ndw = 0xFFFFE;
-
-			/* for non-physically contiguous pages (system) */
-			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 0, ndw);
-			ib->ptr[ib->length_dw++] = pe;
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-				value = radeon_vm_map_gart(rdev, addr);
-				value &= 0xFFFFFFFFFFFFF000ULL;
-				addr += incr;
-				value |= flags;
-				ib->ptr[ib->length_dw++] = value;
-				ib->ptr[ib->length_dw++] = upper_32_bits(value);
-			}
-		}
-	} else {
-		while (count) {
-			ndw = count * 2;
-			if (ndw > 0xFFFFE)
-				ndw = 0xFFFFE;
-
-			if (flags & R600_PTE_VALID)
-				value = addr;
-			else
-				value = 0;
-			/* for physically contiguous pages (vram) */
-			ib->ptr[ib->length_dw++] = DMA_PTE_PDE_PACKET(ndw);
-			ib->ptr[ib->length_dw++] = pe; /* dst addr */
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-			ib->ptr[ib->length_dw++] = flags; /* mask */
-			ib->ptr[ib->length_dw++] = 0;
-			ib->ptr[ib->length_dw++] = value; /* value */
-			ib->ptr[ib->length_dw++] = upper_32_bits(value);
-			ib->ptr[ib->length_dw++] = incr; /* increment size */
-			ib->ptr[ib->length_dw++] = 0;
-			pe += ndw * 4;
-			addr += (ndw / 2) * incr;
-			count -= ndw / 2;
-		}
+		/* for physically contiguous pages (vram) */
+		ib->ptr[ib->length_dw++] = DMA_PTE_PDE_PACKET(ndw);
+		ib->ptr[ib->length_dw++] = pe; /* dst addr */
+		ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+		ib->ptr[ib->length_dw++] = flags; /* mask */
+		ib->ptr[ib->length_dw++] = 0;
+		ib->ptr[ib->length_dw++] = value; /* value */
+		ib->ptr[ib->length_dw++] = upper_32_bits(value);
+		ib->ptr[ib->length_dw++] = incr; /* increment size */
+		ib->ptr[ib->length_dw++] = 0;
+		pe += ndw * 4;
+		addr += (ndw / 2) * incr;
+		count -= ndw / 2;
 	}
-	while (ib->length_dw & 0x7)
-		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0);
 }
 
 void si_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
@@ -178,18 +218,19 @@ void si_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
  * @src_offset: src GPU address
  * @dst_offset: dst GPU address
  * @num_gpu_pages: number of GPU pages to xfer
- * @fence: radeon fence object
+ * @resv: reservation object to sync to
  *
  * Copy GPU paging using the DMA engine (SI).
  * Used by the radeon ttm implementation to move pages if
  * registered as the asic copy callback.
  */
-int si_copy_dma(struct radeon_device *rdev,
-		uint64_t src_offset, uint64_t dst_offset,
-		unsigned num_gpu_pages,
-		struct radeon_fence **fence)
+struct radeon_fence *si_copy_dma(struct radeon_device *rdev,
+				 uint64_t src_offset, uint64_t dst_offset,
+				 unsigned num_gpu_pages,
+				 struct reservation_object *resv)
 {
 	struct radeon_semaphore *sem = NULL;
+	struct radeon_fence *fence;
 	int ring_index = rdev->asic->copy.dma_ring_index;
 	struct radeon_ring *ring = &rdev->ring[ring_index];
 	u32 size_in_bytes, cur_size_in_bytes;
@@ -199,7 +240,7 @@ int si_copy_dma(struct radeon_device *rdev,
 	r = radeon_semaphore_create(rdev, &sem);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		return r;
+		return ERR_PTR(r);
 	}
 
 	size_in_bytes = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT);
@@ -208,10 +249,10 @@ int si_copy_dma(struct radeon_device *rdev,
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
 		radeon_semaphore_free(rdev, &sem, NULL);
-		return r;
+		return ERR_PTR(r);
 	}
 
-	radeon_semaphore_sync_to(sem, *fence);
+	radeon_semaphore_sync_resv(rdev, sem, resv, false);
 	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	for (i = 0; i < num_loops; i++) {
@@ -228,16 +269,16 @@ int si_copy_dma(struct radeon_device *rdev,
 		dst_offset += cur_size_in_bytes;
 	}
 
-	r = radeon_fence_emit(rdev, fence, ring->idx);
+	r = radeon_fence_emit(rdev, &fence, ring->idx);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
 		radeon_semaphore_free(rdev, &sem, NULL);
-		return r;
+		return ERR_PTR(r);
 	}
 
-	radeon_ring_unlock_commit(rdev, ring);
-	radeon_semaphore_free(rdev, &sem, *fence);
+	radeon_ring_unlock_commit(rdev, ring, false);
+	radeon_semaphore_free(rdev, &sem, fence);
 
-	return r;
+	return fence;
 }
 

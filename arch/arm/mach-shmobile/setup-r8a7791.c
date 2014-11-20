@@ -26,11 +26,13 @@
 #include <linux/platform_data/irq-renesas-irqc.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
-#include <mach/r8a7791.h>
-#include <mach/rcar-gen2.h>
+
 #include <asm/mach/arch.h>
+
+#include "common.h"
+#include "irqs.h"
+#include "r8a7791.h"
+#include "rcar-gen2.h"
 
 static const struct resource pfc_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe6060000, 0x250),
@@ -180,11 +182,6 @@ static const struct resource thermal_resources[] __initconst = {
 					thermal_resources,		\
 					ARRAY_SIZE(thermal_resources))
 
-void __init r8a7791_add_dt_devices(void)
-{
-	r8a7791_register_cmt(0);
-}
-
 void __init r8a7791_add_standard_devices(void)
 {
 	r8a7791_register_scif(0);
@@ -202,7 +199,7 @@ void __init r8a7791_add_standard_devices(void)
 	r8a7791_register_scif(12);
 	r8a7791_register_scif(13);
 	r8a7791_register_scif(14);
-	r8a7791_add_dt_devices();
+	r8a7791_register_cmt(0);
 	r8a7791_register_irqc(0);
 	r8a7791_register_thermal();
 }
@@ -217,6 +214,8 @@ DT_MACHINE_START(R8A7791_DT, "Generic R8A7791 (Flattened Device Tree)")
 	.smp		= smp_ops(r8a7791_smp_ops),
 	.init_early	= shmobile_init_delay,
 	.init_time	= rcar_gen2_timer_init,
+	.init_late	= shmobile_init_late,
+	.reserve	= rcar_gen2_reserve,
 	.dt_compat	= r8a7791_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

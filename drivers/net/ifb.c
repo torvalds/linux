@@ -185,7 +185,8 @@ static void ifb_setup(struct net_device *dev)
 
 	dev->flags |= IFF_NOARP;
 	dev->flags &= ~IFF_MULTICAST;
-	dev->priv_flags &= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	netif_keep_dst(dev);
 	eth_hw_addr_random(dev);
 }
 

@@ -155,6 +155,7 @@ struct ti_tscadc_dev {
 	void __iomem *tscadc_base;
 	int irq;
 	int used_cells;	/* 1-2 */
+	int tsc_wires;
 	int tsc_cell;	/* -1 if not used */
 	int adc_cell;	/* -1 if not used */
 	struct mfd_cell cells[TSCADC_CELLS];

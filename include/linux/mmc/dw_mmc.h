@@ -26,6 +26,8 @@ enum dw_mci_state {
 	STATE_DATA_BUSY,
 	STATE_SENDING_STOP,
 	STATE_DATA_ERROR,
+	STATE_SENDING_CMD11,
+	STATE_WAITING_CMD11_DONE,
 };
 
 enum {
@@ -188,7 +190,7 @@ struct dw_mci {
 	/* Workaround flags */
 	u32			quirks;
 
-	struct regulator	*vmmc;	/* Power regulator */
+	bool			vqmmc_enabled;
 	unsigned long		irq_flags; /* IRQ flags */
 	int			irq;
 };
@@ -213,6 +215,8 @@ struct dw_mci_dma_ops {
 #define DW_MCI_QUIRK_HIGHSPEED			BIT(2)
 /* Unreliable card detection */
 #define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
+/* No write protect */
+#define DW_MCI_QUIRK_NO_WRITE_PROTECT		BIT(4)
 
 /* Slot level quirks */
 /* This slot has no write protect */

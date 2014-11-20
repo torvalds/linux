@@ -219,7 +219,7 @@ static void r420_cp_errata_init(struct radeon_device *rdev)
 	radeon_ring_write(ring, PACKET0(R300_CP_RESYNC_ADDR, 1));
 	radeon_ring_write(ring, rdev->config.r300.resync_scratch);
 	radeon_ring_write(ring, 0xDEADBEEF);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 }
 
 static void r420_cp_errata_fini(struct radeon_device *rdev)
@@ -232,7 +232,7 @@ static void r420_cp_errata_fini(struct radeon_device *rdev)
 	radeon_ring_lock(rdev, ring, 8);
 	radeon_ring_write(ring, PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
 	radeon_ring_write(ring, R300_RB3D_DC_FINISH);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 	radeon_scratch_free(rdev, rdev->config.r300.resync_scratch);
 }
 

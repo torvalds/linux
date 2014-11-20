@@ -1126,7 +1126,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 				chan->address = XADC_REG_VPVN;
 			} else {
 				chan->scan_index = 15 + reg;
-				chan->scan_index = XADC_REG_VAUX(reg - 1);
+				chan->address = XADC_REG_VAUX(reg - 1);
 			}
 			num_channels++;
 			chan++;
@@ -1201,12 +1201,16 @@ static int xadc_probe(struct platform_device *pdev)
 			goto err_device_free;
 
 		xadc->convst_trigger = xadc_alloc_trigger(indio_dev, "convst");
-		if (IS_ERR(xadc->convst_trigger))
+		if (IS_ERR(xadc->convst_trigger)) {
+			ret = PTR_ERR(xadc->convst_trigger);
 			goto err_triggered_buffer_cleanup;
+		}
 		xadc->samplerate_trigger = xadc_alloc_trigger(indio_dev,
 			"samplerate");
-		if (IS_ERR(xadc->samplerate_trigger))
+		if (IS_ERR(xadc->samplerate_trigger)) {
+			ret = PTR_ERR(xadc->samplerate_trigger);
 			goto err_free_convst_trigger;
+		}
 	}
 
 	xadc->clk = devm_clk_get(&pdev->dev, NULL);
@@ -1322,7 +1326,6 @@ static struct platform_driver xadc_driver = {
 	.remove = xadc_remove,
 	.driver = {
 		.name = "xadc",
-		.owner = THIS_MODULE,
 		.of_match_table = xadc_of_match_table,
 	},
 };

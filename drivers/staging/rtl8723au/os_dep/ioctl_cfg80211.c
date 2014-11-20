@@ -279,6 +279,7 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	}
 
 	bss = cfg80211_inform_bss(wiphy, notify_channel,
+				  CFG80211_BSS_FTYPE_UNKNOWN,
 				  pnetwork->network.MacAddress,
 				  pnetwork->network.tsf,
 				  pnetwork->network.capability,
@@ -1118,7 +1119,7 @@ exit:
 	return ret;
 }
 
-int cfg80211_infrastructure_mode(struct rtw_adapter* padapter,
+static int cfg80211_infrastructure_mode(struct rtw_adapter *padapter,
 				 enum nl80211_iftype ifmode)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -2379,7 +2380,7 @@ void rtw_cfg80211_indicate_sta_assoc(struct rtw_adapter *padapter,
 						      IEEE80211_BAND_5GHZ);
 
 	cfg80211_rx_mgmt(padapter->rtw_wdev, freq, 0, pmgmt_frame, frame_len,
-			 0, GFP_ATOMIC);
+			 0);
 #endif /* defined(RTW_USE_CFG80211_STA_EVENT) */
 }
 
@@ -2425,7 +2426,7 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 	frame_len = sizeof(struct ieee80211_hdr_3addr) + 2;
 
 	cfg80211_rx_mgmt(padapter->rtw_wdev, freq, 0, (u8 *)&mgmt, frame_len,
-			 0, GFP_ATOMIC);
+			 0);
 #endif /* defined(RTW_USE_CFG80211_STA_EVENT) */
 }
 
@@ -3168,13 +3169,13 @@ static void rtw_cfg80211_init_ht_capab(struct ieee80211_sta_ht_cap *ht_cap,
 		ht_cap->mcs.rx_mask[1] = 0x00;
 		ht_cap->mcs.rx_mask[4] = 0x01;
 
-		ht_cap->mcs.rx_highest = MAX_BIT_RATE_40MHZ_MCS7;
+		ht_cap->mcs.rx_highest = cpu_to_le16(MAX_BIT_RATE_40MHZ_MCS7);
 	} else if ((rf_type == RF_1T2R) || (rf_type == RF_2T2R)) {
 		ht_cap->mcs.rx_mask[0] = 0xFF;
 		ht_cap->mcs.rx_mask[1] = 0xFF;
 		ht_cap->mcs.rx_mask[4] = 0x01;
 
-		ht_cap->mcs.rx_highest = MAX_BIT_RATE_40MHZ_MCS15;
+		ht_cap->mcs.rx_highest = cpu_to_le16(MAX_BIT_RATE_40MHZ_MCS15);
 	} else {
 		DBG_8723A("%s, error rf_type =%d\n", __func__, rf_type);
 	}

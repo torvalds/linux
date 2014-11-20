@@ -523,7 +523,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 }
 
 /* Setup pointers to different channels and also setup buffer sizes. */
-static void setup_memory(struct nozomi *dc)
+static void nozomi_setup_memory(struct nozomi *dc)
 {
 	void __iomem *offset = dc->base_addr + dc->config_table.dl_start;
 	/* The length reported is including the length field of 4 bytes,
@@ -671,7 +671,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 		int i;
 		DBG1("Second phase, configuring card");
 
-		setup_memory(dc);
+		nozomi_setup_memory(dc);
 
 		dc->port[PORT_MDM].toggle_ul = dc->config_table.toggle.mdm_ul;
 		dc->port[PORT_MDM].toggle_dl = dc->config_table.toggle.mdm_dl;
@@ -705,7 +705,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 			 dc->config_table.version);
 
 		/* Here we should disable all I/O over F32. */
-		setup_memory(dc);
+		nozomi_setup_memory(dc);
 
 		/*
 		 * We should send ALL channel pair tokens back along

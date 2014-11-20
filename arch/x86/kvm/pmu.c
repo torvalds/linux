@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/kvm_host.h>
 #include <linux/perf_event.h>
+#include <asm/perf_event.h>
 #include "x86.h"
 #include "cpuid.h"
 #include "lapic.h"
@@ -463,7 +464,8 @@ void kvm_pmu_cpuid_update(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	struct kvm_cpuid_entry2 *entry;
-	unsigned bitmap_len;
+	union cpuid10_eax eax;
+	union cpuid10_edx edx;
 
 	pmu->nr_arch_gp_counters = 0;
 	pmu->nr_arch_fixed_counters = 0;
@@ -475,25 +477,27 @@ void kvm_pmu_cpuid_update(struct kvm_vcpu *vcpu)
 	entry = kvm_find_cpuid_entry(vcpu, 0xa, 0);
 	if (!entry)
 		return;
+	eax.full = entry->eax;
+	edx.full = entry->edx;
 
-	pmu->version = entry->eax & 0xff;
+	pmu->version = eax.split.version_id;
 	if (!pmu->version)
 		return;
 
-	pmu->nr_arch_gp_counters = min((int)(entry->eax >> 8) & 0xff,
-			INTEL_PMC_MAX_GENERIC);
-	pmu->counter_bitmask[KVM_PMC_GP] =
-		((u64)1 << ((entry->eax >> 16) & 0xff)) - 1;
-	bitmap_len = (entry->eax >> 24) & 0xff;
-	pmu->available_event_types = ~entry->ebx & ((1ull << bitmap_len) - 1);
+	pmu->nr_arch_gp_counters = min_t(int, eax.split.num_counters,
+					INTEL_PMC_MAX_GENERIC);
+	pmu->counter_bitmask[KVM_PMC_GP] = ((u64)1 << eax.split.bit_width) - 1;
+	pmu->available_event_types = ~entry->ebx &
+					((1ull << eax.split.mask_length) - 1);
 
 	if (pmu->version == 1) {
 		pmu->nr_arch_fixed_counters = 0;
 	} else {
-		pmu->nr_arch_fixed_counters = min((int)(entry->edx & 0x1f),
+		pmu->nr_arch_fixed_counters =
+			min_t(int, edx.split.num_counters_fixed,
 				INTEL_PMC_MAX_FIXED);
 		pmu->counter_bitmask[KVM_PMC_FIXED] =
-			((u64)1 << ((entry->edx >> 5) & 0xff)) - 1;
+			((u64)1 << edx.split.bit_width_fixed) - 1;
 	}
 
 	pmu->global_ctrl = ((1 << pmu->nr_arch_gp_counters) - 1) |

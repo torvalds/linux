@@ -346,7 +346,6 @@ static int write_orph_nodes(struct ubifs_info *c, int atomic)
 		int lnum;
 
 		/* Unmap any unused LEBs after consolidation */
-		lnum = c->ohead_lnum + 1;
 		for (lnum = c->ohead_lnum + 1; lnum <= c->orph_last; lnum++) {
 			err = ubifs_leb_unmap(c, lnum);
 			if (err)

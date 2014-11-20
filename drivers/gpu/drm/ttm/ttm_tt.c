@@ -55,9 +55,12 @@ static void ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 
 static void ttm_dma_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
 {
-	ttm->ttm.pages = drm_calloc_large(ttm->ttm.num_pages, sizeof(void*));
-	ttm->dma_address = drm_calloc_large(ttm->ttm.num_pages,
-					    sizeof(*ttm->dma_address));
+	ttm->ttm.pages = drm_calloc_large(ttm->ttm.num_pages,
+					  sizeof(*ttm->ttm.pages) +
+					  sizeof(*ttm->dma_address) +
+					  sizeof(*ttm->cpu_address));
+	ttm->cpu_address = (void *) (ttm->ttm.pages + ttm->ttm.num_pages);
+	ttm->dma_address = (void *) (ttm->cpu_address + ttm->ttm.num_pages);
 }
 
 #ifdef CONFIG_X86
@@ -228,7 +231,7 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
 
 	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	ttm_dma_tt_alloc_page_directory(ttm_dma);
-	if (!ttm->pages || !ttm_dma->dma_address) {
+	if (!ttm->pages) {
 		ttm_tt_destroy(ttm);
 		pr_err("Failed allocating page table\n");
 		return -ENOMEM;
@@ -243,7 +246,7 @@ void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma)
 
 	drm_free_large(ttm->pages);
 	ttm->pages = NULL;
-	drm_free_large(ttm_dma->dma_address);
+	ttm_dma->cpu_address = NULL;
 	ttm_dma->dma_address = NULL;
 }
 EXPORT_SYMBOL(ttm_dma_tt_fini);

@@ -13,8 +13,11 @@
 
 #ifndef ASM_KVM_HOST_H
 #define ASM_KVM_HOST_H
+
+#include <linux/types.h>
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
+#include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <asm/debug.h>
@@ -154,7 +157,9 @@ struct kvm_s390_sie_block {
 	__u8	armid;			/* 0x00e3 */
 	__u8	reservede4[4];		/* 0x00e4 */
 	__u64	tecmc;			/* 0x00e8 */
-	__u8	reservedf0[16];		/* 0x00f0 */
+	__u8	reservedf0[12];		/* 0x00f0 */
+#define CRYCB_FORMAT1 0x00000001
+	__u32	crycbd;			/* 0x00fc */
 	__u64	gcr[16];		/* 0x0100 */
 	__u64	gbea;			/* 0x0180 */
 	__u8	reserved188[24];	/* 0x0188 */
@@ -187,6 +192,7 @@ struct kvm_vcpu_stat {
 	u32 exit_stop_request;
 	u32 exit_validity;
 	u32 exit_instruction;
+	u32 halt_wakeup;
 	u32 instruction_lctl;
 	u32 instruction_lctlg;
 	u32 instruction_stctl;
@@ -407,6 +413,15 @@ struct s390_io_adapter {
 #define MAX_S390_IO_ADAPTERS ((MAX_ISC + 1) * 8)
 #define MAX_S390_ADAPTER_MAPS 256
 
+struct kvm_s390_crypto {
+	struct kvm_s390_crypto_cb *crycb;
+	__u32 crycbd;
+};
+
+struct kvm_s390_crypto_cb {
+	__u8    reserved00[128];                /* 0x0000 */
+};
+
 struct kvm_arch{
 	struct sca_block *sca;
 	debug_info_t *dbf;
@@ -420,6 +435,7 @@ struct kvm_arch{
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
 	spinlock_t start_stop_lock;
+	struct kvm_s390_crypto crypto;
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)
@@ -431,8 +447,6 @@ static inline bool kvm_is_error_hva(unsigned long addr)
 }
 
 #define ASYNC_PF_PER_VCPU	64
-struct kvm_vcpu;
-struct kvm_async_pf;
 struct kvm_arch_async_pf {
 	unsigned long pfault_token;
 };
@@ -450,4 +464,18 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 
 extern int sie64a(struct kvm_s390_sie_block *, u64 *);
 extern char sie_exit;
+
+static inline void kvm_arch_hardware_disable(void) {}
+static inline void kvm_arch_check_processor_compat(void *rtn) {}
+static inline void kvm_arch_exit(void) {}
+static inline void kvm_arch_sync_events(struct kvm *kvm) {}
+static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
+static inline void kvm_arch_free_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *free, struct kvm_memory_slot *dont) {}
+static inline void kvm_arch_memslots_updated(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *slot) {}
+
 #endif

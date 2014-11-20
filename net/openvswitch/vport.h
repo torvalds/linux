@@ -35,7 +35,6 @@ struct vport_parms;
 
 /* The following definitions are for users of the vport subsytem: */
 
-/* The following definitions are for users of the vport subsytem: */
 struct vport_net {
 	struct vport __rcu *gre_vport;
 };
@@ -62,10 +61,10 @@ int ovs_vport_send(struct vport *, struct sk_buff *);
 /* The following definitions are for implementers of vport devices: */
 
 struct vport_err_stats {
-	u64 rx_dropped;
-	u64 rx_errors;
-	u64 tx_dropped;
-	u64 tx_errors;
+	atomic_long_t rx_dropped;
+	atomic_long_t rx_errors;
+	atomic_long_t tx_dropped;
+	atomic_long_t tx_errors;
 };
 /**
  * struct vport_portids - array of netlink portids of a vport.
@@ -93,7 +92,6 @@ struct vport_portids {
  * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
  * @percpu_stats: Points to per-CPU statistics used and maintained by vport
- * @stats_lock: Protects @err_stats;
  * @err_stats: Points to error statistics used and maintained by vport
  */
 struct vport {
@@ -108,7 +106,6 @@ struct vport {
 
 	struct pcpu_sw_netstats __percpu *percpu_stats;
 
-	spinlock_t stats_lock;
 	struct vport_err_stats err_stats;
 };
 
@@ -210,7 +207,7 @@ static inline struct vport *vport_from_priv(void *priv)
 }
 
 void ovs_vport_receive(struct vport *, struct sk_buff *,
-		       struct ovs_key_ipv4_tunnel *);
+		       struct ovs_tunnel_info *);
 
 /* List of statically compiled vport implementations.  Don't forget to also
  * add yours to the list at the top of vport.c. */
@@ -218,6 +215,7 @@ extern const struct vport_ops ovs_netdev_vport_ops;
 extern const struct vport_ops ovs_internal_vport_ops;
 extern const struct vport_ops ovs_gre_vport_ops;
 extern const struct vport_ops ovs_vxlan_vport_ops;
+extern const struct vport_ops ovs_geneve_vport_ops;
 
 static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
 				      const void *start, unsigned int len)

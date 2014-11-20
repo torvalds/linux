@@ -32,14 +32,14 @@ static void ath10k_report_offchan_tx(struct ath10k *ar, struct sk_buff *skb)
 	 * offchan_tx_skb. */
 	spin_lock_bh(&ar->data_lock);
 	if (ar->offchan_tx_skb != skb) {
-		ath10k_warn("completed old offchannel frame\n");
+		ath10k_warn(ar, "completed old offchannel frame\n");
 		goto out;
 	}
 
 	complete(&ar->offchan_tx_completed);
 	ar->offchan_tx_skb = NULL; /* just for sanity */
 
-	ath10k_dbg(ATH10K_DBG_HTT, "completed offchannel skb %p\n", skb);
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "completed offchannel skb %p\n", skb);
 out:
 	spin_unlock_bh(&ar->data_lock);
 }
@@ -47,18 +47,19 @@ out:
 void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 			  const struct htt_tx_done *tx_done)
 {
-	struct device *dev = htt->ar->dev;
+	struct ath10k *ar = htt->ar;
+	struct device *dev = ar->dev;
 	struct ieee80211_tx_info *info;
 	struct ath10k_skb_cb *skb_cb;
 	struct sk_buff *msdu;
 
 	lockdep_assert_held(&htt->tx_lock);
 
-	ath10k_dbg(ATH10K_DBG_HTT, "htt tx completion msdu_id %u discard %d no_ack %d\n",
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx completion msdu_id %u discard %d no_ack %d\n",
 		   tx_done->msdu_id, !!tx_done->discard, !!tx_done->no_ack);
 
 	if (tx_done->msdu_id >= htt->max_num_pending_tx) {
-		ath10k_warn("warning: msdu_id %d too big, ignoring\n",
+		ath10k_warn(ar, "warning: msdu_id %d too big, ignoring\n",
 			    tx_done->msdu_id);
 		return;
 	}
@@ -177,12 +178,12 @@ void ath10k_peer_map_event(struct ath10k_htt *htt,
 			goto exit;
 
 		peer->vdev_id = ev->vdev_id;
-		memcpy(peer->addr, ev->addr, ETH_ALEN);
+		ether_addr_copy(peer->addr, ev->addr);
 		list_add(&peer->list, &ar->peers);
 		wake_up(&ar->peer_mapping_wq);
 	}
 
-	ath10k_dbg(ATH10K_DBG_HTT, "htt peer map vdev %d peer %pM id %d\n",
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt peer map vdev %d peer %pM id %d\n",
 		   ev->vdev_id, ev->addr, ev->peer_id);
 
 	set_bit(ev->peer_id, peer->peer_ids);
@@ -199,12 +200,12 @@ void ath10k_peer_unmap_event(struct ath10k_htt *htt,
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find_by_id(ar, ev->peer_id);
 	if (!peer) {
-		ath10k_warn("peer-unmap-event: unknown peer id %d\n",
+		ath10k_warn(ar, "peer-unmap-event: unknown peer id %d\n",
 			    ev->peer_id);
 		goto exit;
 	}
 
-	ath10k_dbg(ATH10K_DBG_HTT, "htt peer unmap vdev %d peer %pM id %d\n",
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt peer unmap vdev %d peer %pM id %d\n",
 		   peer->vdev_id, peer->addr, ev->peer_id);
 
 	clear_bit(ev->peer_id, peer->peer_ids);

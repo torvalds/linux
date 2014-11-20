@@ -64,10 +64,11 @@ enum nci_state {
 struct nci_dev;
 
 struct nci_ops {
-	int (*open)(struct nci_dev *ndev);
-	int (*close)(struct nci_dev *ndev);
-	int (*send)(struct nci_dev *ndev, struct sk_buff *skb);
-	int (*setup)(struct nci_dev *ndev);
+	int   (*open)(struct nci_dev *ndev);
+	int   (*close)(struct nci_dev *ndev);
+	int   (*send)(struct nci_dev *ndev, struct sk_buff *skb);
+	int   (*setup)(struct nci_dev *ndev);
+	__u32 (*get_rfprotocol)(struct nci_dev *ndev, __u8 rf_protocol);
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4

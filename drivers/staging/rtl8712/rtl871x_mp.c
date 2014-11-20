@@ -54,8 +54,8 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 	_init_queue(&pmp_priv->free_mp_xmitqueue);
 	pmp_priv->pallocated_mp_xmitframe_buf = NULL;
 	pmp_priv->pallocated_mp_xmitframe_buf = kmalloc(NR_MP_XMITFRAME *
-							sizeof(struct mp_xmit_frame) + 4,
-							GFP_ATOMIC);
+				sizeof(struct mp_xmit_frame) + 4,
+				GFP_ATOMIC);
 	if (pmp_priv->pallocated_mp_xmitframe_buf == NULL) {
 		res = _FAIL;
 		goto _exit_init_mp_priv;
@@ -146,6 +146,7 @@ u32 r8712_bb_reg_read(struct _adapter *pAdapter, u16 offset)
 	bb_val = fw_iocmd_read(pAdapter, iocmd);
 	if (shift != 0) {
 		u32 bb_val2 = 0;
+
 		bb_val >>= (shift * 8);
 		iocmd.value += 4;
 		bb_val2 = fw_iocmd_read(pAdapter, iocmd);
@@ -186,14 +187,12 @@ u8 r8712_bb_reg_write(struct _adapter *pAdapter, u16 offset, u32 value)
 u32 r8712_rf_reg_read(struct _adapter *pAdapter, u8 path, u8 offset)
 {
 	u16 rf_addr = (path << 8) | offset;
-	u32 rf_data;
 	struct IOCMD_STRUCT iocmd;
 
 	iocmd.cmdclass	= IOCMD_CLASS_BB_RF;
 	iocmd.value	= rf_addr;
 	iocmd.index	= IOCMD_RF_READ_IDX;
-	rf_data = fw_iocmd_read(pAdapter, iocmd);
-	return rf_data;
+	return fw_iocmd_read(pAdapter, iocmd);
 }
 
 u8 r8712_rf_reg_write(struct _adapter *pAdapter, u8 path, u8 offset, u32 value)
@@ -318,6 +317,7 @@ static void SetOFDMTxPower(struct _adapter *pAdapter, u8 TxPower)
 void r8712_SetTxPower(struct _adapter *pAdapter)
 {
 	u8 TxPower = pAdapter->mppriv.curr_txpoweridx;
+
 	SetCCKTxPower(pAdapter, TxPower);
 	SetOFDMTxPower(pAdapter, TxPower);
 }
@@ -504,11 +504,8 @@ static void TriggerRFThermalMeter(struct _adapter *pAdapter)
 
 static u32 ReadRFThermalMeter(struct _adapter *pAdapter)
 {
-	u32 ThermalValue = 0;
-
 	/* 0x24: RF Reg[4:0] */
-	ThermalValue = get_rf_reg(pAdapter, RF_PATH_A, RF_T_METER, 0x1F);
-	return ThermalValue;
+	return get_rf_reg(pAdapter, RF_PATH_A, RF_T_METER, 0x1F);
 }
 
 void r8712_GetThermalMeter(struct _adapter *pAdapter, u32 *value)
@@ -549,6 +546,7 @@ void r8712_SetSingleCarrierTx(struct _adapter *pAdapter, u8 bStart)
 void r8712_SetSingleToneTx(struct _adapter *pAdapter, u8 bStart)
 {
 	u8 rfPath = pAdapter->mppriv.curr_rfpath;
+
 	switch (pAdapter->mppriv.antenna_tx) {
 	case ANTENNA_B:
 		rfPath = RF_PATH_B;

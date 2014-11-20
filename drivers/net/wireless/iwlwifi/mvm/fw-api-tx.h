@@ -66,6 +66,7 @@
 /**
  * enum iwl_tx_flags - bitmasks for tx_flags in TX command
  * @TX_CMD_FLG_PROT_REQUIRE: use RTS or CTS-to-self to protect the frame
+ * @TX_CMD_FLG_WRITE_TX_POWER: update current tx power value in the mgmt frame
  * @TX_CMD_FLG_ACK: expect ACK from receiving station
  * @TX_CMD_FLG_STA_RATE: use RS table with initial index from the TX command.
  *	Otherwise, use rate_n_flags from the TX command
@@ -97,6 +98,7 @@
  */
 enum iwl_tx_flags {
 	TX_CMD_FLG_PROT_REQUIRE		= BIT(0),
+	TX_CMD_FLG_WRITE_TX_POWER	= BIT(1),
 	TX_CMD_FLG_ACK			= BIT(3),
 	TX_CMD_FLG_STA_RATE		= BIT(4),
 	TX_CMD_FLG_BAR			= BIT(6),

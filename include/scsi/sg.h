@@ -86,7 +86,9 @@ typedef struct sg_io_hdr
 #define SG_FLAG_MMAP_IO 4       /* request memory mapped IO */
 #define SG_FLAG_NO_DXFER 0x10000 /* no transfer of kernel buffers to/from */
 				/* user space (debug indirect IO) */
-#define SG_FLAG_Q_AT_TAIL 0x10  /* default is Q_AT_HEAD */
+/* defaults:: for sg driver: Q_AT_HEAD; for block layer: Q_AT_TAIL */
+#define SG_FLAG_Q_AT_TAIL 0x10
+#define SG_FLAG_Q_AT_HEAD 0x20
 
 /* following 'info' values are "or"-ed together */
 #define SG_INFO_OK_MASK 0x1

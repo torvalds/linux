@@ -89,7 +89,6 @@ struct key_type key_type_keyring = {
 	.preparse	= keyring_preparse,
 	.free_preparse	= keyring_free_preparse,
 	.instantiate	= keyring_instantiate,
-	.match		= user_match,
 	.revoke		= keyring_revoke,
 	.destroy	= keyring_destroy,
 	.describe	= keyring_describe,
@@ -512,6 +511,15 @@ struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 EXPORT_SYMBOL(keyring_alloc);
 
 /*
+ * By default, we keys found by getting an exact match on their descriptions.
+ */
+bool key_default_cmp(const struct key *key,
+		     const struct key_match_data *match_data)
+{
+	return strcmp(key->description, match_data->raw_data) == 0;
+}
+
+/*
  * Iteration function to consider each key found.
  */
 static int keyring_search_iterator(const void *object, void *iterator_data)
@@ -545,7 +553,7 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 	}
 
 	/* keys that don't match */
-	if (!ctx->match(key, ctx->match_data)) {
+	if (!ctx->match_data.cmp(key, &ctx->match_data)) {
 		kleave(" = 0 [!match]");
 		return 0;
 	}
@@ -585,8 +593,7 @@ skipped:
  */
 static int search_keyring(struct key *keyring, struct keyring_search_context *ctx)
 {
-	if ((ctx->flags & KEYRING_SEARCH_LOOKUP_TYPE) ==
-	    KEYRING_SEARCH_LOOKUP_DIRECT) {
+	if (ctx->match_data.lookup_type == KEYRING_SEARCH_LOOKUP_DIRECT) {
 		const void *object;
 
 		object = assoc_array_find(&keyring->keys,
@@ -627,7 +634,7 @@ static bool search_nested_keyrings(struct key *keyring,
 	/* Check to see if this top-level keyring is what we are looking for
 	 * and whether it is valid or not.
 	 */
-	if (ctx->flags & KEYRING_SEARCH_LOOKUP_ITERATE ||
+	if (ctx->match_data.lookup_type == KEYRING_SEARCH_LOOKUP_ITERATE ||
 	    keyring_compare_object(keyring, &ctx->index_key)) {
 		ctx->skipped_ret = 2;
 		ctx->flags |= KEYRING_SEARCH_DO_STATE_CHECK;
@@ -885,16 +892,25 @@ key_ref_t keyring_search(key_ref_t keyring,
 		.index_key.type		= type,
 		.index_key.description	= description,
 		.cred			= current_cred(),
-		.match			= type->match,
-		.match_data		= description,
-		.flags			= (type->def_lookup_type |
-					   KEYRING_SEARCH_DO_STATE_CHECK),
+		.match_data.cmp		= key_default_cmp,
+		.match_data.raw_data	= description,
+		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
+		.flags			= KEYRING_SEARCH_DO_STATE_CHECK,
 	};
+	key_ref_t key;
+	int ret;
 
-	if (!ctx.match)
-		return ERR_PTR(-ENOKEY);
+	if (type->match_preparse) {
+		ret = type->match_preparse(&ctx.match_data);
+		if (ret < 0)
+			return ERR_PTR(ret);
+	}
 
-	return keyring_search_aux(keyring, &ctx);
+	key = keyring_search_aux(keyring, &ctx);
+
+	if (type->match_free)
+		type->match_free(&ctx.match_data);
+	return key;
 }
 EXPORT_SYMBOL(keyring_search);
 
@@ -1014,7 +1030,7 @@ static int keyring_detect_cycle_iterator(const void *object,
 
 	/* We might get a keyring with matching index-key that is nonetheless a
 	 * different keyring. */
-	if (key != ctx->match_data)
+	if (key != ctx->match_data.raw_data)
 		return 0;
 
 	ctx->result = ERR_PTR(-EDEADLK);
@@ -1031,14 +1047,14 @@ static int keyring_detect_cycle_iterator(const void *object,
 static int keyring_detect_cycle(struct key *A, struct key *B)
 {
 	struct keyring_search_context ctx = {
-		.index_key	= A->index_key,
-		.match_data	= A,
-		.iterator	= keyring_detect_cycle_iterator,
-		.flags		= (KEYRING_SEARCH_LOOKUP_DIRECT |
-				   KEYRING_SEARCH_NO_STATE_CHECK |
-				   KEYRING_SEARCH_NO_UPDATE_TIME |
-				   KEYRING_SEARCH_NO_CHECK_PERM |
-				   KEYRING_SEARCH_DETECT_TOO_DEEP),
+		.index_key		= A->index_key,
+		.match_data.raw_data	= A,
+		.match_data.lookup_type = KEYRING_SEARCH_LOOKUP_DIRECT,
+		.iterator		= keyring_detect_cycle_iterator,
+		.flags			= (KEYRING_SEARCH_NO_STATE_CHECK |
+					   KEYRING_SEARCH_NO_UPDATE_TIME |
+					   KEYRING_SEARCH_NO_CHECK_PERM |
+					   KEYRING_SEARCH_DETECT_TOO_DEEP),
 	};
 
 	rcu_read_lock();

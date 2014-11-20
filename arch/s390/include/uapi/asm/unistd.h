@@ -283,7 +283,11 @@
 #define __NR_sched_setattr	345
 #define __NR_sched_getattr	346
 #define __NR_renameat2		347
-#define NR_syscalls 348
+#define __NR_seccomp		348
+#define __NR_getrandom		349
+#define __NR_memfd_create	350
+#define __NR_bpf		351
+#define NR_syscalls 352
 
 /* 
  * There are some system calls that are not present on 64 bit, some

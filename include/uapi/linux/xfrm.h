@@ -328,6 +328,8 @@ enum xfrm_spdattr_type_t {
 	XFRMA_SPD_UNSPEC,
 	XFRMA_SPD_INFO,
 	XFRMA_SPD_HINFO,
+	XFRMA_SPD_IPV4_HTHRESH,
+	XFRMA_SPD_IPV6_HTHRESH,
 	__XFRMA_SPD_MAX
 
 #define XFRMA_SPD_MAX (__XFRMA_SPD_MAX - 1)
@@ -345,6 +347,11 @@ struct xfrmu_spdinfo {
 struct xfrmu_spdhinfo {
 	__u32 spdhcnt;
 	__u32 spdhmcnt;
+};
+
+struct xfrmu_spdhthresh {
+	__u8 lbits;
+	__u8 rbits;
 };
 
 struct xfrm_usersa_info {

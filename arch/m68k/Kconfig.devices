@@ -95,7 +95,7 @@ config ATARI_DSP56K
 
 config AMIGA_BUILTIN_SERIAL
 	tristate "Amiga builtin serial support"
-	depends on AMIGA
+	depends on AMIGA && TTY
 	help
 	  If you want to use your Amiga's built-in serial port in Linux,
 	  answer Y.

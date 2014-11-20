@@ -4,6 +4,7 @@ if NLM_XLP_BOARD
 config DT_XLP_EVP
 	bool "Built-in device tree for XLP EVP boards"
 	default y
+	select BUILTIN_DTB
 	help
 	  Add an FDT blob for XLP EVP boards into the kernel.
 	  This DTB will be used if the firmware does not pass in a DTB
@@ -13,6 +14,7 @@ config DT_XLP_EVP
 config DT_XLP_SVP
 	bool "Built-in device tree for XLP SVP boards"
 	default y
+	select BUILTIN_DTB
 	help
 	  Add an FDT blob for XLP VP boards into the kernel.
 	  This DTB will be used if the firmware does not pass in a DTB
@@ -22,6 +24,7 @@ config DT_XLP_SVP
 config DT_XLP_FVP
 	bool "Built-in device tree for XLP FVP boards"
 	default y
+	select BUILTIN_DTB
 	help
 	  Add an FDT blob for XLP FVP board into the kernel.
 	  This DTB will be used if the firmware does not pass in a DTB
@@ -31,6 +34,7 @@ config DT_XLP_FVP
 config DT_XLP_GVP
 	bool "Built-in device tree for XLP GVP boards"
 	default y
+	select BUILTIN_DTB
 	help
 	  Add an FDT blob for XLP GVP board into the kernel.
 	  This DTB will be used if the firmware does not pass in a DTB

@@ -55,7 +55,6 @@ struct btrfs_transaction {
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
 	struct list_head pending_snapshots;
-	struct list_head ordered_operations;
 	struct list_head pending_chunks;
 	struct list_head switch_commits;
 	struct btrfs_delayed_ref_root delayed_refs;
@@ -80,7 +79,7 @@ struct btrfs_transaction {
 #define TRANS_EXTWRITERS	(__TRANS_USERSPACE | __TRANS_START |	\
 				 __TRANS_ATTACH)
 
-#define BTRFS_SEND_TRANS_STUB	1
+#define BTRFS_SEND_TRANS_STUB	((void *)1)
 
 struct btrfs_trans_handle {
 	u64 transid;

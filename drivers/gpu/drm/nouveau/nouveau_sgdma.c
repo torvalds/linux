@@ -1,8 +1,6 @@
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 
-#include <subdev/fb.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_ttm.h"
 
@@ -104,7 +102,7 @@ nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
 		return NULL;
 
 	nvbe->dev = drm->dev;
-	if (nv_device(drm->device)->card_type < NV_50)
+	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA)
 		nvbe->ttm.ttm.func = &nv04_sgdma_backend;
 	else
 		nvbe->ttm.ttm.func = &nv50_sgdma_backend;

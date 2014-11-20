@@ -115,7 +115,7 @@ static void micro_rx_msg(struct ipaq_micro *micro, u8 id, int len, u8 *data)
 		} else {
 			dev_err(micro->dev,
 				"out of band RX message 0x%02x\n", id);
-			if(!micro->msg)
+			if (!micro->msg)
 				dev_info(micro->dev, "no message queued\n");
 			else
 				dev_info(micro->dev, "expected message %02x\n",
@@ -126,13 +126,13 @@ static void micro_rx_msg(struct ipaq_micro *micro, u8 id, int len, u8 *data)
 		if (micro->key)
 			micro->key(micro->key_data, len, data);
 		else
-			dev_dbg(micro->dev, "key message ignored, no handle \n");
+			dev_dbg(micro->dev, "key message ignored, no handle\n");
 		break;
 	case MSG_TOUCHSCREEN:
 		if (micro->ts)
 			micro->ts(micro->ts_data, len, data);
 		else
-			dev_dbg(micro->dev, "touchscreen message ignored, no handle \n");
+			dev_dbg(micro->dev, "touchscreen message ignored, no handle\n");
 		break;
 	default:
 		dev_err(micro->dev,
@@ -154,7 +154,7 @@ static void micro_process_char(struct ipaq_micro *micro, u8 ch)
 			rx->state = STATE_ID; /* Next byte is the id and len */
 		break;
 	case STATE_ID: /* Looking for id and len byte */
-		rx->id = (ch & 0xf0) >> 4 ;
+		rx->id = (ch & 0xf0) >> 4;
 		rx->len = (ch & 0x0f);
 		rx->index = 0;
 		rx->chksum = ch;

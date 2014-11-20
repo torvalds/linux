@@ -21,6 +21,7 @@ struct sleep_save_sp {
 	phys_addr_t save_ptr_stash_phys;
 };
 
+extern int __cpu_suspend(unsigned long arg, int (*fn)(unsigned long));
 extern void cpu_resume(void);
 extern int cpu_suspend(unsigned long);
 

@@ -352,7 +352,7 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream)
 	} else {
 		for (i = 0; i < rtd->num_codecs; i++) {
 			codec_dai = rtd->codec_dais[i];
-			if (codec_dai->driver->playback.sig_bits == 0) {
+			if (codec_dai->driver->capture.sig_bits == 0) {
 				bits = 0;
 				break;
 			}
@@ -2352,7 +2352,11 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 	fe->dpcm[stream].runtime = fe_substream->runtime;
 
-	if (dpcm_path_get(fe, stream, &list) <= 0) {
+	ret = dpcm_path_get(fe, stream, &list);
+	if (ret < 0) {
+		mutex_unlock(&fe->card->mutex);
+		return ret;
+	} else if (ret == 0) {
 		dev_dbg(fe->dev, "ASoC: %s no valid %s route\n",
 			fe->dai_link->name, stream ? "capture" : "playback");
 	}

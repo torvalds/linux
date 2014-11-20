@@ -743,7 +743,7 @@ void copy_and_format_trace_data(struct fc_trace_hdr *tdata,
 
 	fmt = "%02d:%02d:%04ld %02d:%02d:%02d.%09lu ns%8x       %c%8x\t";
 	len += snprintf(fnic_dbgfs_prt->buffer + len,
-		(fnic_fc_trace_max_pages * PAGE_SIZE * 3) - len,
+		max_size - len,
 		fmt,
 		tm.tm_mon + 1, tm.tm_mday, tm.tm_year + 1900,
 		tm.tm_hour, tm.tm_min, tm.tm_sec,
@@ -767,8 +767,7 @@ void copy_and_format_trace_data(struct fc_trace_hdr *tdata,
 				j == ethhdr_len + fcoehdr_len + fchdr_len ||
 				(i > 3 && j%fchdr_len == 0)) {
 				len += snprintf(fnic_dbgfs_prt->buffer
-					+ len, (fnic_fc_trace_max_pages
-					* PAGE_SIZE * 3) - len,
+					+ len, max_size - len,
 					"\n\t\t\t\t\t\t\t\t");
 				i++;
 			}

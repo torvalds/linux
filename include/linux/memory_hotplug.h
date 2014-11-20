@@ -26,11 +26,12 @@ enum {
 	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
 };
 
-/* Types for control the zone type of onlined memory */
+/* Types for control the zone type of onlined and offlined memory */
 enum {
-	ONLINE_KEEP,
-	ONLINE_KERNEL,
-	ONLINE_MOVABLE,
+	MMOP_OFFLINE = -1,
+	MMOP_ONLINE_KEEP,
+	MMOP_ONLINE_KERNEL,
+	MMOP_ONLINE_MOVABLE,
 };
 
 /*
@@ -83,6 +84,7 @@ extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
 extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
 /* VM interface that may be used by firmware interface */
 extern int online_pages(unsigned long, unsigned long, int);
+extern int test_pages_in_a_zone(unsigned long, unsigned long);
 extern void __offline_isolated_pages(unsigned long, unsigned long);
 
 typedef void (*online_page_callback_t)(struct page *page);
@@ -258,6 +260,7 @@ static inline void remove_memory(int nid, u64 start, u64 size) {}
 extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
 		void *arg, int (*func)(struct memory_block *, void *));
 extern int add_memory(int nid, u64 start, u64 size);
+extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default);
 extern int arch_add_memory(int nid, u64 start, u64 size);
 extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
 extern bool is_memblock_offlined(struct memory_block *mem);

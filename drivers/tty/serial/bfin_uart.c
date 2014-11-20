@@ -108,22 +108,23 @@ static void bfin_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 static irqreturn_t bfin_serial_mctrl_cts_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
-	unsigned int status = bfin_serial_get_mctrl(&uart->port);
+	struct uart_port *uport = &uart->port;
+	unsigned int status = bfin_serial_get_mctrl(uport);
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
-	struct tty_struct *tty = uart->port.state->port.tty;
 
 	UART_CLEAR_SCTS(uart);
-	if (tty->hw_stopped) {
+	if (uport->hw_stopped) {
 		if (status) {
-			tty->hw_stopped = 0;
-			uart_write_wakeup(&uart->port);
+			uport->hw_stopped = 0;
+			uart_write_wakeup(uport);
 		}
 	} else {
 		if (!status)
-			tty->hw_stopped = 1;
+			uport->hw_stopped = 1;
 	}
+#else
+	uart_handle_cts_change(uport, status & TIOCM_CTS);
 #endif
-	uart_handle_cts_change(&uart->port, status & TIOCM_CTS);
 
 	return IRQ_HANDLED;
 }

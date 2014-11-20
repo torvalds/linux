@@ -19,10 +19,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  * ----------------------------------------------------------------------------
  *
  */
@@ -188,6 +184,7 @@ static struct  dw_pci_controller  dw_pci_controllers[] = {
 		.scl_sda_cfg = &hsw_config,
 	},
 };
+
 static struct i2c_algorithm i2c_dw_algo = {
 	.master_xfer	= i2c_dw_xfer,
 	.functionality	= i2c_dw_func,
@@ -350,6 +347,14 @@ static const struct pci_device_id i2_designware_pci_ids[] = {
 	/* Haswell */
 	{ PCI_VDEVICE(INTEL, 0x9c61), haswell },
 	{ PCI_VDEVICE(INTEL, 0x9c62), haswell },
+	/* Braswell / Cherrytrail */
+	{ PCI_VDEVICE(INTEL, 0x22C1), baytrail,},
+	{ PCI_VDEVICE(INTEL, 0x22C2), baytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C3), baytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C4), baytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C5), baytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C6), baytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C7), baytrail },
 	{ 0,}
 };
 MODULE_DEVICE_TABLE(pci, i2_designware_pci_ids);
