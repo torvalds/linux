@@ -262,6 +262,7 @@ struct dwc_otg_pcd {
 	/* otg check vbus work and connect work,used for power management */
 	struct delayed_work reconnect;
 	struct delayed_work check_vbus_work;
+	struct delayed_work check_id_work;
 	/** pervent device suspend while usb connected */
 	struct wake_lock wake_lock;
 

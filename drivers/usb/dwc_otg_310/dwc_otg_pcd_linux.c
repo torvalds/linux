@@ -1502,6 +1502,101 @@ static void dwc_phy_reconnect(struct work_struct *work)
 	}
 }
 
+void id_status_change(dwc_otg_core_if_t *p, bool current_id)
+{
+	dwc_otg_core_if_t *core_if = p;
+	uint32_t count = 0;
+	gotgctl_data_t gotgctl = {.d32 = 0 };
+	dwc_otg_pcd_t *pcd = core_if->otg_dev->pcd;
+
+	gotgctl.d32 = DWC_READ_REG32(&core_if->core_global_regs->gotgctl);
+	DWC_DEBUGPL(DBG_CIL, "gotgctl=%0x\n", gotgctl.d32);
+	DWC_DEBUGPL(DBG_CIL, "gotgctl.b.conidsts=%d\n", gotgctl.b.conidsts);
+
+	if( core_if->usb_mode != USB_MODE_NORMAL )
+		return;
+
+	/* B-Device connector (Device Mode) */
+	if (current_id) {
+		gotgctl_data_t gotgctl_local;
+		/* Wait for switch to device mode. */
+		while (!dwc_otg_is_device_mode(core_if)) {
+			gotgctl_local.d32 =
+			    DWC_READ_REG32(&core_if->core_global_regs->gotgctl);
+			DWC_DEBUGPL(DBG_ANY,
+				    "Waiting for Peripheral Mode, Mode=%s count = %d gotgctl=%08x\n",
+				    (dwc_otg_is_host_mode(core_if) ? "Host" :
+				     "Peripheral"), count, gotgctl_local.d32);
+			dwc_mdelay(1);
+			if (++count > 200)
+				break;
+		}
+		if (count >= 200) {
+			DWC_PRINTF("Connection id status change timed out");
+			return;
+		}
+		core_if->op_state = B_PERIPHERAL;
+		cil_hcd_stop(core_if);
+		/* pcd->phy_suspend = 1; */
+		pcd->vbus_status = 0;
+		dwc_otg_core_init(core_if);
+		cil_pcd_start(core_if);
+		dwc_otg_pcd_start_check_vbus_work(pcd);
+	} else {
+		/* A-Device connector (Host Mode) */
+		while (!dwc_otg_is_host_mode(core_if)) {
+			DWC_DEBUGPL(DBG_ANY, "Waiting for Host Mode, Mode=%s\n",
+				    (dwc_otg_is_host_mode(core_if) ? "Host" :
+				     "Peripheral"));
+			dwc_mdelay(1);	/* vahrama previously was 100 */
+			if (++count > 200)
+				break;
+		}
+		if (count >= 200) {
+			DWC_PRINTF("Connection id status change timed out");
+			return;
+		}
+
+		core_if->op_state = A_HOST;
+
+		cancel_delayed_work(&pcd->check_vbus_work);
+
+		/*
+		 * Initialize the Core for Host mode.
+		 */
+		dwc_otg_core_init(core_if);
+		cil_hcd_start(core_if);
+		dwc_otg_enable_global_interrupts(core_if);
+	}
+}
+
+
+static void check_id(struct work_struct *work)
+{
+	dwc_otg_pcd_t *_pcd =
+	    container_of(work, dwc_otg_pcd_t, check_id_work.work);
+	struct dwc_otg_device *otg_dev = _pcd->otg_dev;
+	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
+	static int last_id = -1;
+	int id = pldata->get_status(USB_STATUS_ID);
+
+	if((last_id != id)) {
+		printk("[otg id chg] last id %d current id %d \n", last_id, id);
+		if (!id) { /* Force Host */
+			if (pldata->phy_status == USB_PHY_SUSPEND) {
+				pldata->clock_enable(pldata, 1);
+				pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+	}
+			id_status_change(otg_dev->core_if, id);
+		} else { /* Force Device */
+			id_status_change(otg_dev->core_if, id);
+		}
+	}
+	last_id = id;
+	schedule_delayed_work(&_pcd->check_id_work, (HZ));
+	return;
+}
+
 static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 {
 	dwc_otg_pcd_t *_pcd =
@@ -1509,24 +1604,7 @@ static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 	struct dwc_otg_device *otg_dev = _pcd->otg_dev;
 	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
 
-	if (!pldata->get_status(USB_STATUS_ID)) {
-		/* id low, host mode */
-		if (pldata->dwc_otg_uart_mode != NULL) {
-			/* exit phy bypass to uart & enable usb phy */
-			pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
-		}
-		if (pldata->phy_status) {
-			pldata->clock_enable(pldata, 1);
-			pldata->phy_suspend(pldata, USB_PHY_ENABLED);
-		}
-		if (pldata->bc_detect_cb != NULL)
-			pldata->bc_detect_cb(_pcd->vbus_status =
-					     USB_BC_TYPE_DISCNT);
-		else
-			_pcd->vbus_status = USB_BC_TYPE_DISCNT;
-		dwc_otg_enable_global_interrupts(otg_dev->core_if);
-
-	} else if (pldata->get_status(USB_STATUS_BVABLID)) {
+	if (pldata->get_status(USB_STATUS_BVABLID)) {
 		/* if usb not connect before ,then start connect */
 		if (_pcd->vbus_status == USB_BC_TYPE_DISCNT) {
 			printk("***************vbus detect*****************\n");
@@ -1604,8 +1682,7 @@ connect:
 		dwc_otg_msc_lock(_pcd);
 
 	schedule_delayed_work(&_pcd->reconnect, 8);	/* delay 8 jiffies */
-	schedule_delayed_work(&_pcd->check_vbus_work, (HZ << 2));
-
+	schedule_delayed_work(&_pcd->check_vbus_work, (HZ));
 	return;
 }
 
@@ -1615,7 +1692,8 @@ void dwc_otg_pcd_start_check_vbus_work(dwc_otg_pcd_t *pcd)
 	 * when receive reset int,the vbus state may not be update,so
 	 * always start vbus work here.
 	 */
-	schedule_delayed_work(&pcd->check_vbus_work, (HZ * 2));
+	schedule_delayed_work(&pcd->check_vbus_work, HZ/2);
+
 }
 
 /*
@@ -1652,6 +1730,7 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
 
 	INIT_DELAYED_WORK(&pcd->reconnect, dwc_phy_reconnect);
 	INIT_DELAYED_WORK(&pcd->check_vbus_work, dwc_otg_pcd_check_vbus_work);
+	INIT_DELAYED_WORK(&pcd->check_id_work, check_id);
 
 	wake_lock_init(&pcd->wake_lock, WAKE_LOCK_SUSPEND, "usb_pcd");
 
@@ -1664,12 +1743,12 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
 			/* usb phy bypass to uart mode */
 			pldata->dwc_otg_uart_mode(pldata, PHY_UART_MODE);
 		}
-		schedule_delayed_work(&pcd->check_vbus_work, (HZ << 3));
 	}
-	else if (pldata->dwc_otg_uart_mode != NULL)
+	else if (pldata->dwc_otg_uart_mode != NULL) {
 		/* host mode,enter usb phy mode */
 		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
-
+	}
+	schedule_delayed_work(&pcd->check_id_work, msecs_to_jiffies(HZ));
 }
 
 #endif /* DWC_HOST_ONLY */

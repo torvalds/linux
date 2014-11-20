@@ -532,7 +532,7 @@ int otg20_hcd_init(struct platform_device *_dev)
 	    (otg_dev->core_if->usb_mode == USB_MODE_FORCE_HOST)) {
 		INIT_DELAYED_WORK(&dwc_otg_hcd->host_enable_work,
 				  otg20_hcd_connect_detect);
-		schedule_delayed_work(&dwc_otg_hcd->host_enable_work, HZ >> 2);
+		schedule_delayed_work(&dwc_otg_hcd->host_enable_work, 0);
 	}
 	return 0;
 
