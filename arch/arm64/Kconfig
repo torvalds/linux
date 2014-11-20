@@ -164,60 +164,6 @@ config ARCH_XGENE
 	help
 	  This enables support for AppliedMicro X-Gene SOC Family
 
-comment "Processor Features"
-
-menuconfig ARMV8_DEPRECATED
-	bool "Emulate deprecated/obsolete ARMv8 instructions"
-	depends on COMPAT
-	help
-	  Legacy software support may require certain instructions
-	  that have been deprecated or obsoleted in the architecture.
-
-	  Enable this config to enable selective emulation of these
-	  features.
-
-	  If unsure, say Y
-
-if ARMV8_DEPRECATED
-
-config SWP_EMULATION
-	bool "Emulate SWP/SWPB instructions"
-	help
-	  ARMv8 obsoletes the use of A32 SWP/SWPB instructions such that
-	  they are always undefined. Say Y here to enable software
-	  emulation of these instructions for userspace using LDXR/STXR.
-
-	  In some older versions of glibc [<=2.8] SWP is used during futex
-	  trylock() operations with the assumption that the code will not
-	  be preempted. This invalid assumption may be more likely to fail
-	  with SWP emulation enabled, leading to deadlock of the user
-	  application.
-
-	  NOTE: when accessing uncached shared regions, LDXR/STXR rely
-	  on an external transaction monitoring block called a global
-	  monitor to maintain update atomicity. If your system does not
-	  implement a global monitor, this option can cause programs that
-	  perform SWP operations to uncached memory to deadlock.
-
-	  If unsure, say Y
-
-config CP15_BARRIER_EMULATION
-	bool "Emulate CP15 Barrier instructions"
-	help
-	  The CP15 barrier instructions - CP15ISB, CP15DSB, and
-	  CP15DMB - are deprecated in ARMv8 (and ARMv7). It is
-	  strongly recommended to use the ISB, DSB, and DMB
-	  instructions instead.
-
-	  Say Y here to enable software emulation of these
-	  instructions for AArch32 userspace code. When this option is
-	  enabled, CP15 barrier usage is traced which can help
-	  identify software that needs updating.
-
-	  If unsure, say Y
-
-endif
-
 endmenu
 
 menu "Bus support"
@@ -416,6 +362,58 @@ config FORCE_MAX_ZONEORDER
 	int
 	default "14" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
 	default "11"
+
+menuconfig ARMV8_DEPRECATED
+	bool "Emulate deprecated/obsolete ARMv8 instructions"
+	depends on COMPAT
+	help
+	  Legacy software support may require certain instructions
+	  that have been deprecated or obsoleted in the architecture.
+
+	  Enable this config to enable selective emulation of these
+	  features.
+
+	  If unsure, say Y
+
+if ARMV8_DEPRECATED
+
+config SWP_EMULATION
+	bool "Emulate SWP/SWPB instructions"
+	help
+	  ARMv8 obsoletes the use of A32 SWP/SWPB instructions such that
+	  they are always undefined. Say Y here to enable software
+	  emulation of these instructions for userspace using LDXR/STXR.
+
+	  In some older versions of glibc [<=2.8] SWP is used during futex
+	  trylock() operations with the assumption that the code will not
+	  be preempted. This invalid assumption may be more likely to fail
+	  with SWP emulation enabled, leading to deadlock of the user
+	  application.
+
+	  NOTE: when accessing uncached shared regions, LDXR/STXR rely
+	  on an external transaction monitoring block called a global
+	  monitor to maintain update atomicity. If your system does not
+	  implement a global monitor, this option can cause programs that
+	  perform SWP operations to uncached memory to deadlock.
+
+	  If unsure, say Y
+
+config CP15_BARRIER_EMULATION
+	bool "Emulate CP15 Barrier instructions"
+	help
+	  The CP15 barrier instructions - CP15ISB, CP15DSB, and
+	  CP15DMB - are deprecated in ARMv8 (and ARMv7). It is
+	  strongly recommended to use the ISB, DSB, and DMB
+	  instructions instead.
+
+	  Say Y here to enable software emulation of these
+	  instructions for AArch32 userspace code. When this option is
+	  enabled, CP15 barrier usage is traced which can help
+	  identify software that needs updating.
+
+	  If unsure, say Y
+
+endif
 
 endmenu
 
