@@ -927,7 +927,7 @@ static void labpc_ao_write(struct comedi_device *dev,
 	devpriv->write_byte(dev, val & 0xff, DAC_LSB_REG(chan));
 	devpriv->write_byte(dev, (val >> 8) & 0xff, DAC_MSB_REG(chan));
 
-	devpriv->ao_value[chan] = val;
+	s->readback[chan] = val;
 }
 
 static int labpc_ao_insn_write(struct comedi_device *dev,
@@ -962,18 +962,6 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 	}
 	/* send data */
 	labpc_ao_write(dev, s, channel, data[0]);
-
-	return 1;
-}
-
-static int labpc_ao_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn,
-			      unsigned int *data)
-{
-	struct labpc_private *devpriv = dev->private;
-
-	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
 }
@@ -1301,8 +1289,11 @@ int labpc_common_attach(struct comedi_device *dev,
 		s->n_chan	= NUM_AO_CHAN;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &range_labpc_ao;
-		s->insn_read	= labpc_ao_insn_read;
 		s->insn_write	= labpc_ao_insn_write;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 
 		/* initialize analog outputs to a known value */
 		for (i = 0; i < s->n_chan; i++)
