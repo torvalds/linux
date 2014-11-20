@@ -424,14 +424,13 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 	hm.adapter_index = adapter.adapter->index;
 	hpi_send_recv_ex(&hm, &hr, HOWNER_KERNEL);
 
-	if (hr.error) {
-		HPI_DEBUG_LOG(ERROR,
-			"HPI_ADAPTER_GET_MODE failed, aborting\n");
-		goto err;
-	}
-
-	if (hr.u.ax.mode.adapter_mode == HPI_ADAPTER_MODE_LOW_LATENCY)
+	if (!hr.error
+		&& hr.u.ax.mode.adapter_mode == HPI_ADAPTER_MODE_LOW_LATENCY)
 		low_latency_mode = 1;
+	else
+		dev_info(&pci_dev->dev,
+			"Adapter at index %d is not in low latency mode\n",
+			adapter.adapter->index);
 
 	/* Check if IRQs are supported */
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
