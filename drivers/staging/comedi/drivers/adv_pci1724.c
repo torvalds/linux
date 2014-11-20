@@ -68,15 +68,12 @@ supported PCI devices are configured as comedi devices automatically.
 #define PCI1724_DAC_CTRL_MODE_NORMAL	(3 << 14)
 #define PCI1724_DAC_CTRL_MODE_MASK	(3 << 14)
 #define PCI1724_DAC_CTRL_DATA(x)	(((x) & 0x3fff) << 0)
-#define PCI1724_SYNC_OUTPUT_REG		0x04
+#define PCI1724_SYNC_CTRL_REG		0x04
+#define PCI1724_SYNC_CTRL_DACSTAT	(1 << 1)
+#define PCI1724_SYNC_CTRL_SYN		(1 << 0)
 #define PCI1724_EEPROM_CTRL_REG		0x08
 #define PCI1724_SYNC_OUTPUT_TRIG_REG	0x0c
 #define PCI1724_BOARD_ID_REG		0x10
-
-enum sync_output_contents {
-	SYNC_MODE = 0x1,
-	DAC_BUSY = 0x2, /* dac state machine is not ready */
-};
 
 enum sync_output_trigger_contents {
 	SYNC_TRIGGER_BITS = 0x0 /* any value works */
@@ -102,8 +99,8 @@ static int adv_pci1724_dac_idle(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inl(dev->iobase + PCI1724_SYNC_OUTPUT_REG);
-	if ((status & DAC_BUSY) == 0)
+	status = inl(dev->iobase + PCI1724_SYNC_CTRL_REG);
+	if ((status & PCI1724_SYNC_CTRL_DACSTAT) == 0)
 		return 0;
 	return -EBUSY;
 }
@@ -122,7 +119,7 @@ static int adv_pci1724_insn_write(struct comedi_device *dev,
 	ctrl = PCI1724_DAC_CTRL_GX(chan) | PCI1724_DAC_CTRL_CX(chan) | mode;
 
 	/* turn off synchronous mode */
-	outl(0, dev->iobase + PCI1724_SYNC_OUTPUT_REG);
+	outl(0, dev->iobase + PCI1724_SYNC_CTRL_REG);
 
 	for (i = 0; i < insn->n; ++i) {
 		unsigned int val = data[i];
