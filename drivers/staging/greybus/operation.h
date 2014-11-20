@@ -25,14 +25,12 @@ enum gb_operation_status {
 };
 
 struct gb_message {
-	void			*payload;
+	struct gb_operation_msg_hdr	*header;
+	void				*payload;
+	size_t				size;	/* header + payload */
+	struct gb_operation		*operation;
 
-	struct gb_operation	*operation;
-
-	void			*buffer;
-	size_t			buffer_size;
-
-	void			*cookie;
+	void				*cookie;
 };
 
 /*
