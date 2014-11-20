@@ -23,6 +23,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-direction.h>
 #include <linux/dma-mapping.h>
+#include <linux/reset.h>
 
 #define DRIVER_NAME "sirfsoc_spi"
 
@@ -646,6 +647,12 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	struct resource *mem_res;
 	int irq;
 	int i, ret;
+
+	ret = device_reset(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "SPI reset failed!\n");
+		return ret;
+	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*sspi));
 	if (!master) {
