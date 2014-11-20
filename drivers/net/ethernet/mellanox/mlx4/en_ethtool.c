@@ -756,7 +756,7 @@ static int mlx4_en_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	       speed, cmd->advertising, cmd->autoneg, cmd->duplex);
 
 	if (!(priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ETH_PROT_CTRL) ||
-	    (cmd->autoneg == AUTONEG_ENABLE) || (cmd->duplex == DUPLEX_HALF))
+	    (cmd->duplex == DUPLEX_HALF))
 		return -EINVAL;
 
 	memset(&ptys_reg, 0, sizeof(ptys_reg));
