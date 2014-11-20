@@ -797,6 +797,8 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 		if (copy_to_iter(&vnet_hdr, sizeof(vnet_hdr), iter) !=
 		    sizeof(vnet_hdr))
 			return -EFAULT;
+
+		iov_iter_advance(iter, vnet_hdr_len - sizeof(vnet_hdr));
 	}
 	total = vnet_hdr_len;
 	total += skb->len;
