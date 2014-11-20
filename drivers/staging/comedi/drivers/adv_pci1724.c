@@ -53,7 +53,6 @@ supported PCI devices are configured as comedi devices automatically.
 */
 
 #include <linux/module.h>
-#include <linux/delay.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -123,33 +122,23 @@ static const struct comedi_lrange ao_ranges_1724 = {
 	}
 };
 
-static int wait_for_dac_idle(struct comedi_device *dev)
+static int adv_pci1724_dac_idle(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned long context)
 {
-	static const int timeout = 10000;
-	int i;
+	unsigned int status;
 
-	for (i = 0; i < timeout; ++i) {
-		if ((inl(dev->iobase + SYNC_OUTPUT_REG) & DAC_BUSY) == 0)
-			break;
-		udelay(1);
-	}
-	if (i == timeout) {
-		dev_err(dev->class_dev,
-			"Timed out waiting for dac to become idle\n");
-		return -EIO;
-	}
-	return 0;
+	status = inl(dev->iobase + SYNC_OUTPUT_REG);
+	if ((status & DAC_BUSY) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static int set_dac(struct comedi_device *dev, unsigned mode, unsigned channel,
 		   unsigned data)
 {
-	int retval;
 	unsigned control_bits;
-
-	retval = wait_for_dac_idle(dev);
-	if (retval < 0)
-		return retval;
 
 	control_bits = mode;
 	control_bits |= dac_channel_and_group_select_bits(channel);
@@ -173,6 +162,10 @@ static int adv_pci1724_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; ++i) {
 		unsigned int val = data[i];
+
+		ret = comedi_timeout(dev, s, insn, adv_pci1724_dac_idle, 0);
+		if (ret)
+			return ret;
 
 		ret = set_dac(dev, mode, chan, val);
 		if (ret < 0)
