@@ -1,7 +1,7 @@
 /*
  * net/tipc/name_table.h: Include file for TIPC name table code
  *
- * Copyright (c) 2000-2006, Ericsson AB
+ * Copyright (c) 2000-2006, 2014, Ericsson AB
  * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -83,6 +83,8 @@ struct publication {
 
 
 extern rwlock_t tipc_nametbl_lock;
+
+int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space);
 u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *node);

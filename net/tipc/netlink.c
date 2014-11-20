@@ -37,6 +37,7 @@
 #include "core.h"
 #include "config.h"
 #include "socket.h"
+#include "name_table.h"
 #include "bearer.h"
 #include "link.h"
 #include "node.h"
@@ -81,7 +82,8 @@ static const struct nla_policy tipc_nl_policy[TIPC_NLA_MAX + 1] = {
 	[TIPC_NLA_LINK]		= { .type = NLA_NESTED, },
 	[TIPC_NLA_MEDIA]	= { .type = NLA_NESTED, },
 	[TIPC_NLA_NODE]		= { .type = NLA_NESTED, },
-	[TIPC_NLA_NET]		= { .type = NLA_NESTED, }
+	[TIPC_NLA_NET]		= { .type = NLA_NESTED, },
+	[TIPC_NLA_NAME_TABLE]	= { .type = NLA_NESTED, }
 };
 
 /* Legacy ASCII API */
@@ -184,6 +186,11 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_NET_SET,
 		.doit	= tipc_nl_net_set,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_NAME_TABLE_GET,
+		.dumpit	= tipc_nl_name_table_dump,
 		.policy = tipc_nl_policy,
 	}
 };
