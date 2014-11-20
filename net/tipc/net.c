@@ -197,3 +197,50 @@ out:
 
 	return skb->len;
 }
+
+int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	struct nlattr *attrs[TIPC_NLA_NET_MAX + 1];
+
+	if (!info->attrs[TIPC_NLA_NET])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, TIPC_NLA_NET_MAX,
+			       info->attrs[TIPC_NLA_NET],
+			       tipc_nl_net_policy);
+	if (err)
+		return err;
+
+	if (attrs[TIPC_NLA_NET_ID]) {
+		u32 val;
+
+		/* Can't change net id once TIPC has joined a network */
+		if (tipc_own_addr)
+			return -EPERM;
+
+		val = nla_get_u32(attrs[TIPC_NLA_NET_ID]);
+		if (val < 1 || val > 9999)
+			return -EINVAL;
+
+		tipc_net_id = val;
+	}
+
+	if (attrs[TIPC_NLA_NET_ADDR]) {
+		u32 addr;
+
+		/* Can't change net addr once TIPC has joined a network */
+		if (tipc_own_addr)
+			return -EPERM;
+
+		addr = nla_get_u32(attrs[TIPC_NLA_NET_ADDR]);
+		if (!tipc_addr_node_valid(addr))
+			return -EINVAL;
+
+		rtnl_lock();
+		tipc_net_start(addr);
+		rtnl_unlock();
+	}
+
+	return 0;
+}
