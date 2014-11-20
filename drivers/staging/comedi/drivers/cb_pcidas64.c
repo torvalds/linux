@@ -1105,8 +1105,6 @@ struct pcidas64_private {
 	uint8_t i2c_cal_range_bits;
 	/*  configure digital triggers to trigger on falling edge */
 	unsigned int ext_trig_falling;
-	/*  states of various devices stored to enable read-back */
-	unsigned int ad8402_state[2];
 	short ai_cmd_running;
 	unsigned int ai_fifo_segment_length;
 	struct ext_clock_info ext_clock;
@@ -3595,8 +3593,6 @@ static void ad8402_write(struct comedi_device *dev, unsigned int channel,
 	unsigned int bitstream = ((channel & 0x3) << 8) | (value & 0xff);
 	static const int ad8402_udelay = 1;
 
-	devpriv->ad8402_state[channel] = value;
-
 	register_bits = SELECT_8402_64XX_BIT;
 	udelay(ad8402_udelay);
 	writew(register_bits, devpriv->main_iobase + CALIBRATION_REG);
@@ -3622,29 +3618,16 @@ static int ad8402_write_insn(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct pcidas64_private *devpriv = dev->private;
 	int channel = CR_CHAN(insn->chanspec);
 
 	/* return immediately if setting hasn't changed, since
 	 * programming these things is slow */
-	if (devpriv->ad8402_state[channel] == data[0])
+	if (s->readback[channel] == data[0])
 		return 1;
 
-	devpriv->ad8402_state[channel] = data[0];
+	s->readback[channel] = data[0];
 
 	ad8402_write(dev, channel, data[0]);
-
-	return 1;
-}
-
-static int ad8402_read_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned int channel = CR_CHAN(insn->chanspec);
-
-	data[0] = devpriv->ad8402_state[channel];
 
 	return 1;
 }
@@ -3871,11 +3854,17 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = 2;
-		s->insn_read = ad8402_read_insn;
-		s->insn_write = ad8402_write_insn;
 		s->maxdata = 0xff;
-		for (i = 0; i < s->n_chan; i++)
+		s->insn_write = ad8402_write_insn;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < s->n_chan; i++) {
 			ad8402_write(dev, i, s->maxdata / 2);
+			s->readback[i] = s->maxdata / 2;
+		}
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
 
