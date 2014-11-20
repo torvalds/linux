@@ -722,7 +722,6 @@ static int __init vfp_init(void)
 {
 	unsigned int vfpsid;
 	unsigned int cpu_arch = cpu_architecture();
-	u32 mvfr0;
 
 	if (cpu_arch >= CPU_ARCH_ARMv6)
 		on_each_cpu(vfp_enable, NULL, 1);
@@ -752,30 +751,30 @@ static int __init vfp_init(void)
 		 * precision floating point operations. Only check
 		 * for NEON if the hardware has the MVFR registers.
 		 */
-#ifdef CONFIG_NEON
-		if ((fmrx(MVFR1) & 0x000fff00) == 0x00011100)
+		if (IS_ENABLED(CONFIG_NEON) &&
+		   (fmrx(MVFR1) & 0x000fff00) == 0x00011100)
 			elf_hwcap |= HWCAP_NEON;
-#endif
-#ifdef CONFIG_VFPv3
-		mvfr0 = fmrx(MVFR0);
-		if (((mvfr0 & MVFR0_DP_MASK) >> MVFR0_DP_BIT) == 0x2 ||
-		    ((mvfr0 & MVFR0_SP_MASK) >> MVFR0_SP_BIT) == 0x2) {
-			elf_hwcap |= HWCAP_VFPv3;
-			/*
-			 * Check for VFPv3 D16 and VFPv4 D16.  CPUs in
-			 * this configuration only have 16 x 64bit
-			 * registers.
-			 */
-			if ((mvfr0 & MVFR0_A_SIMD_MASK) == 1)
-				/* also v4-D16 */
-				elf_hwcap |= HWCAP_VFPv3D16;
-			else
-				elf_hwcap |= HWCAP_VFPD32;
-		}
 
-		if ((fmrx(MVFR1) & 0xf0000000) == 0x10000000)
-			elf_hwcap |= HWCAP_VFPv4;
-#endif
+		if (IS_ENABLED(CONFIG_VFPv3)) {
+			u32 mvfr0 = fmrx(MVFR0);
+			if (((mvfr0 & MVFR0_DP_MASK) >> MVFR0_DP_BIT) == 0x2 ||
+			    ((mvfr0 & MVFR0_SP_MASK) >> MVFR0_SP_BIT) == 0x2) {
+				elf_hwcap |= HWCAP_VFPv3;
+				/*
+				 * Check for VFPv3 D16 and VFPv4 D16.  CPUs in
+				 * this configuration only have 16 x 64bit
+				 * registers.
+				 */
+				if ((mvfr0 & MVFR0_A_SIMD_MASK) == 1)
+					/* also v4-D16 */
+					elf_hwcap |= HWCAP_VFPv3D16;
+				else
+					elf_hwcap |= HWCAP_VFPD32;
+			}
+
+			if ((fmrx(MVFR1) & 0xf0000000) == 0x10000000)
+				elf_hwcap |= HWCAP_VFPv4;
+		}
 	/* Extract the architecture version on pre-cpuid scheme */
 	} else {
 		if (vfpsid & FPSID_NODOUBLE) {
