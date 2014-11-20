@@ -2,7 +2,9 @@ Amlogic MesonX device tree bindings
 -------------------------------------------
 
 Boards with the Amlogic Meson6 SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson6"
 
-Required root node property:
-
-compatible = "amlogic,meson6";
+Boards with the Amlogic Meson8 SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson8";
