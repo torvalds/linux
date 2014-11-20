@@ -348,15 +348,15 @@ struct knav_range_info {
 	list_for_each_entry(region, &kdev->regions, list)
 
 #define first_region(kdev)					\
-	list_first_entry(&kdev->regions, \
-			struct knav_region, list)
+	list_first_entry_or_null(&kdev->regions, \
+				 struct knav_region, list)
 
 #define for_each_queue_range(kdev, range)			\
 	list_for_each_entry(range, &kdev->queue_ranges, list)
 
 #define first_queue_range(kdev)					\
-	list_first_entry(&kdev->queue_ranges, \
-			struct knav_range_info, list)
+	list_first_entry_or_null(&kdev->queue_ranges, \
+				 struct knav_range_info, list)
 
 #define for_each_pool(kdev, pool)				\
 	list_for_each_entry(pool, &kdev->pools, list)
