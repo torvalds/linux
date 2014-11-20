@@ -841,8 +841,7 @@ static int em28xx_ir_fini(struct em28xx *dev)
 	if (!ir)
 		goto ref_put;
 
-	if (ir->rc)
-		rc_unregister_device(ir->rc);
+	rc_unregister_device(ir->rc);
 
 	kfree(ir->i2c_client);
 

@@ -1974,8 +1974,7 @@ static int s2255_release_sys_buffers(struct s2255_vc *vc)
 {
 	unsigned long i;
 	for (i = 0; i < SYS_FRAMES; i++) {
-		if (vc->buffer.frame[i].lpvbits)
-			vfree(vc->buffer.frame[i].lpvbits);
+		vfree(vc->buffer.frame[i].lpvbits);
 		vc->buffer.frame[i].lpvbits = NULL;
 	}
 	return 0;
