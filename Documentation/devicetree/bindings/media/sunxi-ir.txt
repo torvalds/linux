@@ -1,7 +1,7 @@
 Device-Tree bindings for SUNXI IR controller found in sunXi SoC family
 
 Required properties:
-- compatible	    : should be "allwinner,sun4i-a10-ir";
+- compatible	    : "allwinner,sun4i-a10-ir" or "allwinner,sun5i-a13-ir"
 - clocks	    : list of clock specifiers, corresponding to
 		      entries in clock-names property;
 - clock-names	    : should contain "apb" and "ir" entries;
