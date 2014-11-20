@@ -526,15 +526,14 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	gb_pending_operation_remove(operation);
 
 	message = &operation->response;
-	if (size > message->buffer_size) {
-		operation->result = GB_OP_OVERFLOW;
+	if (size <= message->buffer_size) {
+		/* Transfer the operation result from the response header */
+		header = message->buffer;
+		operation->result = header->result;
+	} else {
 		gb_connection_err(connection, "recv buffer too small");
-		return;		/* XXX Should still complete operation */
+		operation->result = GB_OP_OVERFLOW;
 	}
-
-	/* The status in the response is the result of the operation */
-	header = message->buffer;
-	operation->result = header->result;
 
 	/* We must ignore the payload if a bad status is returned */
 	if (operation->result == GB_OP_SUCCESS)
