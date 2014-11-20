@@ -74,10 +74,7 @@ supported PCI devices are configured as comedi devices automatically.
 #define PCI1724_EEPROM_CTRL_REG		0x08
 #define PCI1724_SYNC_TRIG_REG		0x0c  /* any value works */
 #define PCI1724_BOARD_ID_REG		0x10
-
-enum board_id_contents {
-	BOARD_ID_MASK = 0xf
-};
+#define PCI1724_BOARD_ID_MASK		(0xf << 0)
 
 static const struct comedi_lrange ao_ranges_1724 = {
 	4, {
@@ -199,8 +196,9 @@ static int adv_pci1724_auto_attach(struct comedi_device *dev,
 		return retval;
 
 	dev->iobase = pci_resource_start(pcidev, 2);
-	board_id = inl(dev->iobase + PCI1724_BOARD_ID_REG) & BOARD_ID_MASK;
-	dev_info(dev->class_dev, "board id: %d\n", board_id);
+	board_id = inl(dev->iobase + PCI1724_BOARD_ID_REG);
+	dev_info(dev->class_dev, "board id: %d\n",
+		 board_id & PCI1724_BOARD_ID_MASK);
 
 	retval = setup_subdevices(dev);
 	if (retval < 0)
