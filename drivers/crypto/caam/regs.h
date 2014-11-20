@@ -240,6 +240,10 @@ struct sec_vid {
 	u8 min_rev;
 };
 
+#define SEC_VID_IPID_SHIFT      16
+#define SEC_VID_MAJ_SHIFT       8
+#define SEC_VID_MAJ_MASK        0xFF00
+
 struct caam_perfmon {
 	/* Performance Monitor Registers			f00-f9f */
 	u64 req_dequeued;	/* PC_REQ_DEQ - Dequeued Requests	     */
