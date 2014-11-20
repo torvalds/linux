@@ -721,38 +721,42 @@ static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
 	return 0;
 }
 
-static int cb_pcidas_trimpot_write(struct comedi_device *dev,
-				   unsigned int channel, unsigned int value)
+static void cb_pcidas_trimpot_write(struct comedi_device *dev,
+				    unsigned int chan, unsigned int val)
 {
 	const struct cb_pcidas_board *thisboard = dev->board_ptr;
-	struct cb_pcidas_private *devpriv = dev->private;
 
-	if (devpriv->trimpot_value[channel] == value)
-		return 1;
-
-	devpriv->trimpot_value[channel] = value;
 	switch (thisboard->trimpot) {
 	case AD7376:
-		trimpot_7376_write(dev, value);
+		trimpot_7376_write(dev, val);
 		break;
 	case AD8402:
-		trimpot_8402_write(dev, channel, value);
+		trimpot_8402_write(dev, chan, val);
 		break;
 	default:
 		dev_err(dev->class_dev, "driver bug?\n");
-		return -1;
+		break;
 	}
-
-	return 1;
 }
 
-static int trimpot_write_insn(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas_trimpot_insn_write(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
-	unsigned int channel = CR_CHAN(insn->chanspec);
+	struct cb_pcidas_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	return cb_pcidas_trimpot_write(dev, channel, data[0]);
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
+
+		if (devpriv->trimpot_value[chan] != val) {
+			cb_pcidas_trimpot_write(dev, chan, val);
+			devpriv->trimpot_value[chan] = val;
+		}
+	}
+
+	return insn->n;
 }
 
 static int trimpot_read_insn(struct comedi_device *dev,
@@ -1524,9 +1528,11 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		s->maxdata = 0xff;
 	}
 	s->insn_read = trimpot_read_insn;
-	s->insn_write = trimpot_write_insn;
-	for (i = 0; i < s->n_chan; i++)
+	s->insn_write = cb_pcidas_trimpot_insn_write;
+	for (i = 0; i < s->n_chan; i++) {
 		cb_pcidas_trimpot_write(dev, i, s->maxdata / 2);
+		devpriv->trimpot_value[i] = s->maxdata / 2;
+	}
 
 	/*  dac08 caldac */
 	s = &dev->subdevices[6];
