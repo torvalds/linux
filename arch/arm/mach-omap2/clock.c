@@ -771,4 +771,8 @@ void __init ti_clk_init_features(void)
 		ti_clk_features.cm_idlest_val = OMAP24XX_CM_IDLEST_VAL;
 	else if (cpu_is_omap34xx())
 		ti_clk_features.cm_idlest_val = OMAP34XX_CM_IDLEST_VAL;
+
+	/* On OMAP3430 ES1.0, DPLL4 can't be re-programmed */
+	if (omap_rev() == OMAP3430_REV_ES1_0)
+		ti_clk_features.flags |= TI_CLK_DPLL4_DENY_REPROGRAM;
 }
