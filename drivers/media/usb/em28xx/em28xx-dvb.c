@@ -1553,6 +1553,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			struct si2157_config si2157_config;
 
 			/* attach demod */
+			memset(&si2168_config, 0, sizeof(si2168_config));
 			si2168_config.i2c_adapter = &adapter;
 			si2168_config.fe = &dvb->fe[0];
 			si2168_config.ts_mode = SI2168_TS_PARALLEL;
