@@ -395,7 +395,6 @@ struct kvm {
 	 * Update side is protected by irq_lock.
 	 */
 	struct kvm_irq_routing_table __rcu *irq_routing;
-	struct hlist_head mask_notifier_list;
 #endif
 #ifdef CONFIG_HAVE_KVM_IRQFD
 	struct hlist_head irq_ack_notifier_list;
@@ -446,6 +445,14 @@ void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 
 int __must_check vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
+
+#ifdef __KVM_HAVE_IOAPIC
+void kvm_vcpu_request_scan_ioapic(struct kvm *kvm);
+#else
+static inline void kvm_vcpu_request_scan_ioapic(struct kvm *kvm)
+{
+}
+#endif
 
 #ifdef CONFIG_HAVE_KVM_IRQFD
 int kvm_irqfd_init(void);
@@ -735,19 +742,6 @@ struct kvm_assigned_dev_kernel {
 	char irq_name[32];
 	struct pci_saved_state *pci_saved_state;
 };
-
-struct kvm_irq_mask_notifier {
-	void (*func)(struct kvm_irq_mask_notifier *kimn, bool masked);
-	int irq;
-	struct hlist_node link;
-};
-
-void kvm_register_irq_mask_notifier(struct kvm *kvm, int irq,
-				    struct kvm_irq_mask_notifier *kimn);
-void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
-				      struct kvm_irq_mask_notifier *kimn);
-void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
-			     bool mask);
 
 int kvm_irq_map_gsi(struct kvm *kvm,
 		    struct kvm_kernel_irq_routing_entry *entries, int gsi);
