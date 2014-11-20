@@ -1099,9 +1099,6 @@ struct kvm_s390_ucas_mapping {
 #define KVM_X86_SETUP_MCE         _IOW(KVMIO,  0x9c, __u64)
 #define KVM_X86_GET_MCE_CAP_SUPPORTED _IOR(KVMIO,  0x9d, __u64)
 #define KVM_X86_SET_MCE           _IOW(KVMIO,  0x9e, struct kvm_x86_mce)
-/* IA64 stack access */
-#define KVM_IA64_VCPU_GET_STACK   _IOR(KVMIO,  0x9a, void *)
-#define KVM_IA64_VCPU_SET_STACK   _IOW(KVMIO,  0x9b, void *)
 /* Available with KVM_CAP_VCPU_EVENTS */
 #define KVM_GET_VCPU_EVENTS       _IOR(KVMIO,  0x9f, struct kvm_vcpu_events)
 #define KVM_SET_VCPU_EVENTS       _IOW(KVMIO,  0xa0, struct kvm_vcpu_events)
