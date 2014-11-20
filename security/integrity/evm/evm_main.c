@@ -387,17 +387,16 @@ void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
  * @xattr_name: pointer to the affected extended attribute name
  *
  * Update the HMAC stored in 'security.evm' to reflect removal of the xattr.
+ *
+ * No need to take the i_mutex lock here, as this function is called from
+ * vfs_removexattr() which takes the i_mutex.
  */
 void evm_inode_post_removexattr(struct dentry *dentry, const char *xattr_name)
 {
-	struct inode *inode = d_backing_inode(dentry);
-
 	if (!evm_initialized || !evm_protected_xattr(xattr_name))
 		return;
 
-	mutex_lock(&inode->i_mutex);
 	evm_update_evmxattr(dentry, xattr_name, NULL, 0);
-	mutex_unlock(&inode->i_mutex);
 }
 
 /**
