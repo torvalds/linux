@@ -1026,12 +1026,36 @@ chv_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace)
 	REG_WRITE_FOOTER; \
 }
 
+static const u32 gen9_shadowed_regs[] = {
+	RING_TAIL(RENDER_RING_BASE),
+	RING_TAIL(GEN6_BSD_RING_BASE),
+	RING_TAIL(VEBOX_RING_BASE),
+	RING_TAIL(BLT_RING_BASE),
+	FORCEWAKE_BLITTER_GEN9,
+	FORCEWAKE_RENDER_GEN9,
+	FORCEWAKE_MEDIA_GEN9,
+	GEN6_RPNSWREQ,
+	GEN6_RC_VIDEO_FREQ,
+	/* TODO: Other registers are not yet used */
+};
+
+static bool is_gen9_shadowed(struct drm_i915_private *dev_priv, u32 reg)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(gen9_shadowed_regs); i++)
+		if (reg == gen9_shadowed_regs[i])
+			return true;
+
+	return false;
+}
+
 #define __gen9_write(x) \
 static void \
 gen9_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, \
 		bool trace) { \
 	REG_WRITE_HEADER; \
-	if (!SKL_NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+	if (!SKL_NEEDS_FORCE_WAKE((dev_priv), (reg)) || \
+			is_gen9_shadowed(dev_priv, reg)) { \
 		__raw_i915_write##x(dev_priv, reg, val); \
 	} else { \
 		unsigned fwengine = 0; \
