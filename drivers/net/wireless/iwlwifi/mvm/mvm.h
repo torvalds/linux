@@ -685,6 +685,7 @@ struct iwl_mvm {
 	/* sched scan settings for net detect */
 	struct cfg80211_sched_scan_request *nd_config;
 	struct ieee80211_scan_ies nd_ies;
+	bool net_detect;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	u32 d3_wake_sysassert; /* must be u32 for debugfs_create_bool */
 	bool d3_test_active;

@@ -1048,6 +1048,8 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			mvm, wowlan, wowlan->nd_config ?: mvm->nd_config, vif);
 		if (ret)
 			goto out;
+
+		mvm->net_detect = true;
 	} else {
 		struct iwl_wowlan_config_cmd_v3 wowlan_config_cmd = {};
 
@@ -1067,6 +1069,8 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 					    vif, mvmvif, ap_sta);
 		if (ret)
 			goto out;
+
+		mvm->net_detect = false;
 	}
 
 	ret = iwl_mvm_power_update_device(mvm);
@@ -1621,6 +1625,32 @@ out_unlock:
 	return false;
 }
 
+static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif)
+{
+	struct cfg80211_wowlan_wakeup wakeup = {
+		.pattern_idx = -1,
+	};
+	struct cfg80211_wowlan_wakeup *wakeup_report = &wakeup;
+	struct iwl_wowlan_status *fw_status;
+	u32 reasons = 0;
+
+	fw_status = iwl_mvm_get_wakeup_status(mvm, vif);
+	if (!IS_ERR_OR_NULL(fw_status))
+		reasons = le32_to_cpu(fw_status->wakeup_reasons);
+
+	if (reasons & IWL_WOWLAN_WAKEUP_BY_RFKILL_DEASSERTED)
+		wakeup.rfkill_release = true;
+
+	if (reasons == IWL_WOWLAN_WAKEUP_BY_NON_WIRELESS) {
+		/* TODO: read and check if it was netdetect */
+		wakeup_report = NULL;
+	}
+
+	mutex_unlock(&mvm->mutex);
+	ieee80211_report_wowlan_wakeup(vif, wakeup_report, GFP_KERNEL);
+}
+
 static void iwl_mvm_read_d3_sram(struct iwl_mvm *mvm)
 {
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -1678,11 +1708,15 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	/* query SRAM first in case we want event logging */
 	iwl_mvm_read_d3_sram(mvm);
 
-	keep = iwl_mvm_query_wakeup_reasons(mvm, vif);
+	if (mvm->net_detect) {
+		iwl_mvm_query_netdetect_reasons(mvm, vif);
+	} else {
+		keep = iwl_mvm_query_wakeup_reasons(mvm, vif);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (keep)
-		mvm->keep_vif = vif;
+		if (keep)
+			mvm->keep_vif = vif;
 #endif
+	}
 	/* has unlocked the mutex, so skip that */
 	goto out;
 
