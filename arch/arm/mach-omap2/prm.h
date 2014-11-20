@@ -21,6 +21,7 @@ extern u16 prm_features;
 extern void omap2_set_globals_prm(void __iomem *prm);
 int omap_prcm_init(void);
 int omap2_prm_base_init(void);
+int omap2_prcm_base_init(void);
 # endif
 
 /*

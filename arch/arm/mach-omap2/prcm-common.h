@@ -524,12 +524,16 @@ struct omap_prcm_irq_setup {
  * @mem: IO mem pointer for this module
  * @offset: module base address offset from the IO base
  * @flags: PRCM module init flags
+ * @init: low level PRCM init function for this module
+ * @np: device node for this PRCM module
  */
 struct omap_prcm_init_data {
 	int index;
 	void __iomem *mem;
 	s16 offset;
 	u16 flags;
+	int (*init)(const struct omap_prcm_init_data *data);
+	struct device_node *np;
 };
 
 extern void omap_prcm_irq_cleanup(void);

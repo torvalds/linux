@@ -32,6 +32,7 @@
 #include "prm2xxx_3xxx.h"
 #include "prm2xxx.h"
 #include "prm3xxx.h"
+#include "prm33xx.h"
 #include "prm44xx.h"
 #include "common.h"
 #include "clock.h"
@@ -633,12 +634,17 @@ int prm_unregister(struct prm_ll_data *pld)
 	return 0;
 }
 
-static struct omap_prcm_init_data prm_data = {
+#ifdef CONFIG_ARCH_OMAP2
+static struct omap_prcm_init_data omap2_prm_data __initdata = {
 	.index = TI_CLKM_PRM,
+	.init = omap2xxx_prm_init,
 };
+#endif
 
-static struct omap_prcm_init_data omap3_prm_data = {
+#ifdef CONFIG_ARCH_OMAP3
+static struct omap_prcm_init_data omap3_prm_data __initdata = {
 	.index = TI_CLKM_PRM,
+	.init = omap3xxx_prm_init,
 
 	/*
 	 * IVA2 offset is a negative value, must offset the prm_base
@@ -646,23 +652,57 @@ static struct omap_prcm_init_data omap3_prm_data = {
 	 */
 	.offset = -OMAP3430_IVA2_MOD,
 };
+#endif
 
-static struct omap_prcm_init_data scrm_data = {
+#if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_TI81XX)
+static struct omap_prcm_init_data am3_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = am33xx_prm_init,
+};
+#endif
+
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
+	defined(CONFIG_SOC_DRA7XX) || defined(CONFIG_SOC_AM43XX)
+static struct omap_prcm_init_data omap4_prm_data __initdata = {
+	.index = TI_CLKM_PRM,
+	.init = omap44xx_prm_init,
+};
+#endif
+
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
+static struct omap_prcm_init_data scrm_data __initdata = {
 	.index = TI_CLKM_SCRM,
 };
+#endif
 
-static const struct of_device_id omap_prcm_dt_match_table[] = {
-	{ .compatible = "ti,am3-prcm", .data = &prm_data },
-	{ .compatible = "ti,am4-prcm", .data = &prm_data },
-	{ .compatible = "ti,dm814-prcm", .data = &prm_data },
-	{ .compatible = "ti,dm816-prcm", .data = &prm_data },
-	{ .compatible = "ti,omap2-prcm", .data = &prm_data },
+static const struct of_device_id omap_prcm_dt_match_table[] __initconst = {
+#ifdef CONFIG_SOC_AM33XX
+	{ .compatible = "ti,am3-prcm", .data = &am3_prm_data },
+#endif
+#ifdef CONFIG_SOC_AM43XX
+	{ .compatible = "ti,am4-prcm", .data = &omap4_prm_data },
+#endif
+#ifdef CONFIG_SOC_TI81XX
+	{ .compatible = "ti,dm814-prcm", .data = &am3_prm_data },
+	{ .compatible = "ti,dm816-prcm", .data = &am3_prm_data },
+#endif
+#ifdef CONFIG_ARCH_OMAP2
+	{ .compatible = "ti,omap2-prcm", .data = &omap2_prm_data },
+#endif
+#ifdef CONFIG_ARCH_OMAP3
 	{ .compatible = "ti,omap3-prm", .data = &omap3_prm_data },
-	{ .compatible = "ti,omap4-prm", .data = &prm_data },
+#endif
+#ifdef CONFIG_ARCH_OMAP4
+	{ .compatible = "ti,omap4-prm", .data = &omap4_prm_data },
 	{ .compatible = "ti,omap4-scrm", .data = &scrm_data },
-	{ .compatible = "ti,omap5-prm", .data = &prm_data },
+#endif
+#ifdef CONFIG_SOC_OMAP5
+	{ .compatible = "ti,omap5-prm", .data = &omap4_prm_data },
 	{ .compatible = "ti,omap5-scrm", .data = &scrm_data },
-	{ .compatible = "ti,dra7-prm", .data = &prm_data },
+#endif
+#ifdef CONFIG_SOC_DRA7XX
+	{ .compatible = "ti,dra7-prm", .data = &omap4_prm_data },
+#endif
 	{ }
 };
 
@@ -691,9 +731,19 @@ int __init omap2_prm_base_init(void)
 			prm_base = mem + data->offset;
 
 		data->mem = mem;
+
+		data->np = np;
+
+		if (data->init)
+			data->init(data);
 	}
 
 	return 0;
+}
+
+int __init omap2_prcm_base_init(void)
+{
+	return omap2_prm_base_init();
 }
 
 /**

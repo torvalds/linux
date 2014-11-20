@@ -220,9 +220,8 @@ static struct prm_ll_data omap2xxx_prm_ll_data = {
 	.clear_mod_irqs = &omap2xxx_prm_clear_mod_irqs,
 };
 
-int __init omap2xxx_prm_init(void)
+int __init omap2xxx_prm_init(const struct omap_prcm_init_data *data)
 {
-	omap2_prm_base_init();
 	return prm_register(&omap2xxx_prm_ll_data);
 }
 

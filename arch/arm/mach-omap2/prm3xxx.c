@@ -670,12 +670,10 @@ static struct prm_ll_data omap3xxx_prm_ll_data = {
 	.vp_clear_txdone = &omap3_prm_vp_clear_txdone,
 };
 
-int __init omap3xxx_prm_init(void)
+int __init omap3xxx_prm_init(const struct omap_prcm_init_data *data)
 {
 	omap2_clk_legacy_provider_init(TI_CLKM_PRM,
 				       prm_base + OMAP3430_IVA2_MOD);
-	omap2_prm_base_init();
-
 	if (omap3_has_io_wakeup())
 		prm_features |= PRM_HAS_IO_WAKEUP;
 
