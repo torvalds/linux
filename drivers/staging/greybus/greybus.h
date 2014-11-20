@@ -78,8 +78,6 @@ struct svc_msg;
 struct greybus_host_driver {
 	size_t	hd_priv_size;
 
-	void *(*buffer_alloc)(unsigned int size, gfp_t gfp_mask);
-	void (*buffer_free)(void *buffer);
 	void *(*buffer_send)(struct greybus_host_device *hd, u16 dest_cport_id,
 			void *buffer, size_t buffer_size, gfp_t gfp_mask);
 	void (*buffer_cancel)(void *cookie);
@@ -96,6 +94,10 @@ struct greybus_host_device {
 	struct list_head connections;
 	struct ida cport_id_map;
 	u8 device_id;
+
+	/* Host device buffer constraints */
+	size_t buffer_headroom;
+	size_t buffer_size_max;
 
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __aligned(sizeof(s64));

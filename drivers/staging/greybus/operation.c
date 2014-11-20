@@ -229,6 +229,27 @@ static void operation_timeout(struct work_struct *work)
 	gb_operation_complete(operation);
 }
 
+static void *
+gb_buffer_alloc(struct greybus_host_device *hd, size_t size, gfp_t gfp_flags)
+{
+	u8 *buffer;
+
+	buffer = kzalloc(hd->buffer_headroom + size, gfp_flags);
+	if (buffer)
+		buffer += hd->buffer_headroom;
+
+	return buffer;
+}
+
+static void
+gb_buffer_free(struct greybus_host_device *hd, void *buffer)
+{
+	u8 *allocated = buffer;
+
+	if (allocated)
+		kfree(allocated - hd->buffer_headroom);
+}
+
 /*
  * Allocate a buffer to be used for an operation request or response
  * message.  For outgoing messages, both types of message contain a
@@ -246,9 +267,9 @@ static int gb_operation_message_init(struct gb_operation *operation,
 	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
 
-	if (size > GB_OPERATION_MESSAGE_SIZE_MAX)
-		return -E2BIG;
 	size += sizeof(*header);
+	if (size > hd->buffer_size_max)
+		return -E2BIG;
 
 	if (request) {
 		message = &operation->request;
@@ -257,7 +278,7 @@ static int gb_operation_message_init(struct gb_operation *operation,
 		type |= GB_OPERATION_TYPE_RESPONSE;
 	}
 
-	message->buffer = hd->driver->buffer_alloc(size, gfp_flags);
+	message->buffer = gb_buffer_alloc(hd, size, gfp_flags);
 	if (!message->buffer)
 		return -ENOMEM;
 	message->buffer_size = size;
@@ -279,7 +300,7 @@ static void gb_operation_message_exit(struct gb_message *message)
 	struct greybus_host_device *hd;
 
 	hd = message->operation->connection->hd;
-	hd->driver->buffer_free(message->buffer);
+	gb_buffer_free(hd, message->buffer);
 
 	message->operation = NULL;
 	message->payload = NULL;

@@ -25,7 +25,7 @@
 
 /* Memory sizes for the buffers sent to/from the ES1 controller */
 #define ES1_SVC_MSG_SIZE	(sizeof(struct svc_msg) + SZ_64K)
-#define ES1_GBUF_MSG_SIZE	PAGE_SIZE
+#define ES1_GBUF_MSG_SIZE_MAX	PAGE_SIZE
 
 static const struct usb_device_id id_table[] = {
 	/* Made up numbers for the SVC USB Bridge in ES1 */
@@ -92,47 +92,41 @@ static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
 static void cport_out_callback(struct urb *urb);
 
 /*
- * Allocate a buffer to be sent via UniPro.
+ * Buffer constraints for the host driver.
+ *
+ * A "buffer" is used to hold data to be transferred for Greybus by
+ * the host driver.  A buffer is represented by a "buffer pointer",
+ * which defines a region of memory used by the host driver for
+ * transferring the data.  When Greybus allocates a buffer, it must
+ * do so subject to the constraints associated with the host driver.
+ * These constraints are specified by two parameters: the
+ * headroom; and the maximum buffer size.
+ *
+ *			+------------------+
+ *			|    Host driver   | \
+ *			|   reserved area  |  }- headroom
+ *			|      . . .       | /
+ *  buffer pointer ---> +------------------+
+ *			| Buffer space for | \
+ *			| transferred data |  }- buffer size
+ *			|      . . .       | /   (limited to size_max)
+ *			+------------------+
+ *
+ *  headroom:	Every buffer must have at least this much space
+ *		*before* the buffer pointer, reserved for use by the
+ *		host driver.  I.e., ((char *)buffer - headroom) must
+ *		point to valid memory, usable only by the host driver.
+ *  size_max:	The maximum size of a buffer (not including the
+ *  		headroom) must not exceed this.
  */
-static void *buffer_alloc(unsigned int size, gfp_t gfp_mask)
+static void hd_buffer_constraints(struct greybus_host_device *hd)
 {
-	u8 *buffer;
-
-	if (size > ES1_GBUF_MSG_SIZE) {
-		pr_err("guf was asked to be bigger than %ld!\n",
-		       ES1_GBUF_MSG_SIZE);
-	}
-
 	/*
-	 * For ES1 we need to insert a byte at the front of the data
-	 * to indicate the destination CPort id.  We only need one
-	 * extra byte, but we allocate four extra bytes to allow the
-	 * buffer returned to be aligned on a four-byte boundary.
-	 *
-	 * This is only needed for outbound data, but we handle
-	 * buffers for inbound data the same way for consistency.
-	 *
-	 * XXX Do we need to indicate the destination device id too?
+	 * Only one byte is required, but this produces a result
+	 * that's better aligned for the user.
 	 */
-	buffer = kzalloc(GB_BUFFER_ALIGN + size, gfp_mask);
-	if (buffer)
-		buffer += GB_BUFFER_ALIGN;
-
-	return buffer;
-}
-
-/* Free a previously-allocated buffer */
-static void buffer_free(void *buffer)
-{
-	u8 *allocated = buffer;
-
-	/* Can be called with a NULL buffer on some error paths */
-	if (!allocated)
-		return;
-
-	/* Account for the space set aside for the prepended cport id */
-	allocated -= GB_BUFFER_ALIGN;
-	kfree(allocated);
+	hd->buffer_headroom = sizeof(u32);	/* For cport id */
+	hd->buffer_size_max = ES1_GBUF_MSG_SIZE_MAX;
 }
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
@@ -265,8 +259,6 @@ static void buffer_cancel(void *cookie)
 
 static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
-	.buffer_alloc		= buffer_alloc,
-	.buffer_free		= buffer_free,
 	.buffer_send		= buffer_send,
 	.buffer_cancel		= buffer_cancel,
 	.submit_svc		= submit_svc,
@@ -493,6 +485,9 @@ static int ap_probe(struct usb_interface *interface,
 		return -ENOMEM;
 	}
 
+	/* Fill in the buffer allocation constraints */
+	hd_buffer_constraints(hd);
+
 	es1 = hd_to_es1(hd);
 	es1->hd = hd;
 	es1->usb_intf = interface;
@@ -557,14 +552,14 @@ static int ap_probe(struct usb_interface *interface,
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
 			goto error;
-		buffer = kmalloc(ES1_GBUF_MSG_SIZE, GFP_KERNEL);
+		buffer = kmalloc(ES1_GBUF_MSG_SIZE_MAX, GFP_KERNEL);
 		if (!buffer)
 			goto error;
 
 		usb_fill_bulk_urb(urb, udev,
 				  usb_rcvbulkpipe(udev, es1->cport_in_endpoint),
-				  buffer, ES1_GBUF_MSG_SIZE, cport_in_callback,
-				  hd);
+				  buffer, ES1_GBUF_MSG_SIZE_MAX,
+				  cport_in_callback, hd);
 		es1->cport_in_urb[i] = urb;
 		es1->cport_in_buffer[i] = buffer;
 		retval = usb_submit_urb(urb, GFP_KERNEL);

@@ -169,8 +169,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	 * Validate that the driver implements all of the callbacks
 	 * so that we don't have to every time we make them.
 	 */
-	if ((!driver->buffer_alloc) || (!driver->buffer_free) ||
-	    (!driver->buffer_send) || (!driver->buffer_cancel) ||
+	if ((!driver->buffer_send) || (!driver->buffer_cancel) ||
 	    (!driver->submit_svc)) {
 		pr_err("Must implement all greybus_host_driver callbacks!\n");
 		return NULL;
