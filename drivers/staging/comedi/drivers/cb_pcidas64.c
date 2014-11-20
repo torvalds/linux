@@ -3563,21 +3563,27 @@ static void caldac_write(struct comedi_device *dev, unsigned int channel,
 	}
 }
 
-static int calib_write_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas64_calib_insn_write(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
-	int channel = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	/* return immediately if setting hasn't changed, since
-	 * programming these things is slow */
-	if (s->readback[channel] == data[0])
-		return 1;
+	/*
+	 * Programming the calib device is slow. Only write the
+	 * last data value if the value has changed.
+	 */
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
 
-	caldac_write(dev, channel, data[0]);
-	s->readback[channel] = data[0];
+		if (s->readback[chan] != val) {
+			caldac_write(dev, chan, val);
+			s->readback[chan] = val;
+		}
+	}
 
-	return 1;
+	return insn->n;
 }
 
 static void ad8402_write(struct comedi_device *dev, unsigned int channel,
@@ -3848,7 +3854,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->maxdata = 0xfff;
 	else
 		s->maxdata = 0xff;
-	s->insn_write = calib_write_insn;
+	s->insn_write = cb_pcidas64_calib_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
