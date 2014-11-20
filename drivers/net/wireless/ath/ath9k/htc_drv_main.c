@@ -1691,7 +1691,9 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
+static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    const u8 *mac_addr)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
@@ -1705,7 +1707,8 @@ static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
 	mutex_unlock(&priv->mutex);
 }
 
-static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
+static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_common *common = ath9k_hw_common(priv->ah);

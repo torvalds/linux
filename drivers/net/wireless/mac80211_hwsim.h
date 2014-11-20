@@ -69,6 +69,8 @@ enum hwsim_tx_control_flags {
  *	returns the radio ID (>= 0) or negative on errors, if successful
  *	then multicast the result
  * @HWSIM_CMD_DEL_RADIO: destroy a radio, reply is multicasted
+ * @HWSIM_CMD_GET_RADIO: fetch information about existing radios, uses:
+ *	%HWSIM_ATTR_RADIO_ID
  * @__HWSIM_CMD_MAX: enum limit
  */
 enum {
@@ -78,6 +80,7 @@ enum {
 	HWSIM_CMD_TX_INFO_FRAME,
 	HWSIM_CMD_NEW_RADIO,
 	HWSIM_CMD_DEL_RADIO,
+	HWSIM_CMD_GET_RADIO,
 	__HWSIM_CMD_MAX,
 };
 #define HWSIM_CMD_MAX (_HWSIM_CMD_MAX - 1)

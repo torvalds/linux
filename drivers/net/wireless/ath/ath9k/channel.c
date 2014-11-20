@@ -963,7 +963,7 @@ static void ath_scan_send_probe(struct ath_softc *sc,
 	struct ieee80211_tx_info *info;
 	int band = sc->offchannel.chan.chandef.chan->band;
 
-	skb = ieee80211_probereq_get(sc->hw, vif,
+	skb = ieee80211_probereq_get(sc->hw, vif->addr,
 			ssid->ssid, ssid->ssid_len, req->ie_len);
 	if (!skb)
 		return;
