@@ -184,6 +184,9 @@ int tipc_nl_bearer_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info);
 
+int tipc_nl_media_dump(struct sk_buff *skb, struct netlink_callback *cb);
+int tipc_nl_media_get(struct sk_buff *skb, struct genl_info *info);
+
 int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);
 void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a);

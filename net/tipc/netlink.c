@@ -77,6 +77,7 @@ static const struct nla_policy tipc_nl_policy[TIPC_NLA_MAX + 1] = {
 	[TIPC_NLA_SOCK]		= { .type = NLA_NESTED, },
 	[TIPC_NLA_PUBL]		= { .type = NLA_NESTED, },
 	[TIPC_NLA_LINK]		= { .type = NLA_NESTED, },
+	[TIPC_NLA_MEDIA]	= { .type = NLA_NESTED, },
 };
 
 /* Legacy ASCII API */
@@ -153,6 +154,12 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_LINK_RESET_STATS,
 		.doit   = tipc_nl_link_reset_stats,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_MEDIA_GET,
+		.doit	= tipc_nl_media_get,
+		.dumpit	= tipc_nl_media_dump,
 		.policy = tipc_nl_policy,
 	}
 };
