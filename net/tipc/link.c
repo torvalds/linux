@@ -2441,6 +2441,79 @@ int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[])
 	return 0;
 }
 
+int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	int res = 0;
+	int bearer_id;
+	char *name;
+	struct tipc_link *link;
+	struct tipc_node *node;
+	struct nlattr *attrs[TIPC_NLA_LINK_MAX + 1];
+
+	if (!info->attrs[TIPC_NLA_LINK])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
+			       info->attrs[TIPC_NLA_LINK],
+			       tipc_nl_link_policy);
+	if (err)
+		return err;
+
+	if (!attrs[TIPC_NLA_LINK_NAME])
+		return -EINVAL;
+
+	name = nla_data(attrs[TIPC_NLA_LINK_NAME]);
+
+	node = tipc_link_find_owner(name, &bearer_id);
+	if (!node)
+		return -EINVAL;
+
+	tipc_node_lock(node);
+
+	link = node->links[bearer_id];
+	if (!link) {
+		res = -EINVAL;
+		goto out;
+	}
+
+	if (attrs[TIPC_NLA_LINK_PROP]) {
+		struct nlattr *props[TIPC_NLA_PROP_MAX + 1];
+
+		err = tipc_nl_parse_link_prop(attrs[TIPC_NLA_LINK_PROP],
+					      props);
+		if (err) {
+			res = err;
+			goto out;
+		}
+
+		if (props[TIPC_NLA_PROP_TOL]) {
+			u32 tol;
+
+			tol = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
+			link_set_supervision_props(link, tol);
+			tipc_link_proto_xmit(link, STATE_MSG, 0, 0, tol, 0, 0);
+		}
+		if (props[TIPC_NLA_PROP_PRIO]) {
+			u32 prio;
+
+			prio = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
+			link->priority = prio;
+			tipc_link_proto_xmit(link, STATE_MSG, 0, 0, 0, prio, 0);
+		}
+		if (props[TIPC_NLA_PROP_WIN]) {
+			u32 win;
+
+			win = nla_get_u32(props[TIPC_NLA_PROP_WIN]);
+			tipc_link_set_queue_limits(link, win);
+		}
+	}
+
+out:
+	tipc_node_unlock(node);
+
+	return res;
+}
 int __tipc_nl_add_stats(struct sk_buff *skb, struct tipc_stats *s)
 {
 	int i;
