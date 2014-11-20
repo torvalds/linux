@@ -1150,10 +1150,6 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 {
 	struct labpc_private *devpriv = dev->private;
 
-	if (value == devpriv->caldac[channel])
-		return;
-	devpriv->caldac[channel] = value;
-
 	/*  clear caldac load bit and make sure we don't write to eeprom */
 	devpriv->cmd5 &= ~(CMD5_CALDACLD | CMD5_EEPROMCS | CMD5_WRTPRT);
 	udelay(1);
@@ -1178,14 +1174,21 @@ static int labpc_calib_insn_write(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
+	struct labpc_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 
 	/*
 	 * Only write the last data value to the caldac. Preceding
 	 * data would be overwritten anyway.
 	 */
-	if (insn->n > 0)
-		write_caldac(dev, chan, data[insn->n - 1]);
+	if (insn->n > 0) {
+		unsigned int val = data[insn->n - 1];
+
+		if (devpriv->caldac[chan] != val) {
+			write_caldac(dev, chan, val);
+			devpriv->caldac[chan] = val;
+		}
+	}
 
 	return insn->n;
 }
@@ -1345,8 +1348,10 @@ int labpc_common_attach(struct comedi_device *dev,
 		s->insn_read	= labpc_calib_insn_read;
 		s->insn_write	= labpc_calib_insn_write;
 
-		for (i = 0; i < s->n_chan; i++)
+		for (i = 0; i < s->n_chan; i++) {
 			write_caldac(dev, i, s->maxdata / 2);
+			devpriv->caldac[i] = s->maxdata / 2;
+		}
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
