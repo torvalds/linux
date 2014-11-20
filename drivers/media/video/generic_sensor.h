@@ -517,6 +517,14 @@ static inline int sensor_v4l2ctrl_flash_cb(struct soc_camera_device *icd, struct
     //struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     int value = ext_ctrl->value;
 
+	
+	if(value == 0xfefe5a5a){	
+		if ((ctrl_info->cur_value == 2) || (ctrl_info->cur_value == 1)) {
+			generic_sensor_ioctrl(icd, Sensor_Flash, Flash_On);					
+		}
+		
+		return 0;
+	}
     if ((value < ctrl_info->qctrl->minimum) || (value > ctrl_info->qctrl->maximum)) {
         printk(KERN_ERR "%s(%d): value(0x%x) isn't between in (0x%x,0x%x)\n",__FUNCTION__,__LINE__,value,
             ctrl_info->qctrl->minimum,ctrl_info->qctrl->maximum);

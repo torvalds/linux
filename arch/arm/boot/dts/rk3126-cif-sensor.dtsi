@@ -48,7 +48,7 @@
 		};
 
 		
-		 gc0309{
+		 gc0329{
 			is_front = <0>;
 			//rockchip,power = <&gpio2 GPIO_B2 GPIO_ACTIVE_HIGH>;
 			//rockchip,power_pmu_name1 = "rk818_ldo4";
@@ -58,14 +58,16 @@
 			rockchip,powerdown = <&gpio3 GPIO_B3 GPIO_ACTIVE_HIGH>;
 			//rockchip,powerdown_pmu = "";
 			//rockchip,powerdown_pmu_voltage = <3000000>;
-			pwdn_active = <gc0309_PWRDN_ACTIVE>;
+			pwdn_active = <gc0329_PWRDN_ACTIVE>;
 			pwr_active = <PWR_ACTIVE_HIGH>;
 			mir = <0>;
-			flash_attach = <0>;
-			resolution = <gc0309_FULL_RESOLUTION>;
-			powerup_sequence = <gc0309_PWRSEQ>;
+			flash_attach = <1>;
+			//rockchip,flash = <>;
+			flash_active = <1>;
+			resolution = <gc0329_FULL_RESOLUTION>;
+			powerup_sequence = <gc0329_PWRSEQ>;
 			orientation = <0>;		
-			i2c_add = <gc0309_I2C_ADDR>;
+			i2c_add = <gc0329_I2C_ADDR>;
 			i2c_rata = <100000>;
 			i2c_chl = <1>;
 			cif_chl = <0>;

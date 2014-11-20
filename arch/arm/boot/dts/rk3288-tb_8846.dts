@@ -54,7 +54,7 @@
         BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
         BT,reset_gpio = <&gpio4 GPIO_D5 GPIO_ACTIVE_HIGH>;
         BT,wake_gpio = <&gpio4 GPIO_D2 GPIO_ACTIVE_HIGH>;
-        BT,wake_host_irq = <&gpio4 GPIO_D7 GPIO_ACTIVE_LOW>;
+        BT,wake_host_irq = <&gpio4 GPIO_D7 GPIO_ACTIVE_HIGH>;
 
         status = "okay";
     };
@@ -207,6 +207,7 @@
         clock_in_out = "input";
         tx_delay = <0x28>;
         rx_delay = <0x10>;
+	status = "disabled"; //if want to use gmac, please set "okay"
 };
 
 &pinctrl {
@@ -316,7 +317,7 @@
 };
 
 &spi0 {
-	status = "okay";
+	status = "disabled";
 	max-freq = <48000000>;	
 	/*
 	spi_test@00 {
@@ -345,7 +346,7 @@
 };
 
 &spi1 {
-	status = "okay";
+	status = "disabled";
 	max-freq = <48000000>;
 	/*
 	spi_test@10 {
@@ -363,7 +364,7 @@
 };
 
 &spi2 {
-	status = "okay";
+	status = "disabled";
 	max-freq = <48000000>;
 	/*
 	spi_test@20 {
@@ -604,6 +605,13 @@
 	rockchip,cabc_mode = <0>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
+		/*lcd_18:lcd18 {
+			rockchip,power_type = <REGULATOR>;
+			rockchip,regulator_name = "vcc_18";
+			rockchip,regulator_voltage = <1800000>;
+			rockchip,delay = <5>;
+		};*/
+
 		lcd_en:lcd_en {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio7 GPIO_A3 GPIO_ACTIVE_HIGH>;
@@ -727,6 +735,22 @@
 	//	1704000 1350000
 	//	1800000 1400000
 		>;
+        support-pvtm = <1>;
+        pvtm-operating-points = <
+                /* KHz    uV    margin(uV)*/
+                126000 900000   25000
+                216000 900000   25000
+                312000 900000   25000
+                408000 900000   25000
+                600000 900000   25000
+                696000 950000   25000
+                816000 1000000  25000
+                1008000 1050000 25000
+                1200000 1100000 25000
+                1416000 1200000 25000
+                1512000 1300000 25000
+                1608000 1350000 25000
+                >;
 	status="okay";
 };
 

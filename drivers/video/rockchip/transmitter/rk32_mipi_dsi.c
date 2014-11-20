@@ -147,7 +147,7 @@ static int rk32_dsi_set_bits(struct dsi *dsi, u32 data, u32 reg)
 	val |= (data & bits) << offset;
 	rk32_dsi_write_reg(dsi, reg_addr, &val);
 
-	if (data > bits) {
+	if(data > ((1 << (bits+1)) - 1)) {
 		MIPI_TRACE("%s error reg_addr:0x%04x, offset:%d, bits:0x%04x, value:0x%04x\n",
 				__func__, reg_addr, offset, bits, data);
 	}
@@ -877,10 +877,11 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	rk32_dsi_set_bits(dsi, 1000, lprx_to_cnt);
 	rk32_dsi_set_bits(dsi, 100, phy_stop_wait_time);
 
-	/*
-	rk32_dsi_set_bits(dsi, 0, outvact_lpcmd_time);
-	rk32_dsi_set_bits(dsi, 0, invact_lpcmd_time);
-	*/
+	/* enable send command in low power mode */
+	rk32_dsi_set_bits(dsi, 4, outvact_lpcmd_time);
+	rk32_dsi_set_bits(dsi, 4, invact_lpcmd_time);
+	rk32_dsi_set_bits(dsi, 1, lp_cmd_en);
+	
 	rk32_dsi_set_bits(dsi, 20, phy_hs2lp_time);
 	rk32_dsi_set_bits(dsi, 16, phy_lp2hs_time);
 	/*
@@ -899,6 +900,9 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	/* rk32_dsi_set_bits(dsi, 1, frame_bta_ack_en); */
 	rk32_dsi_set_bits(dsi, 1, phy_enableclk);
 	rk32_dsi_set_bits(dsi, 0, phy_tx_triggers);
+	
+	/* enable non-continued function */
+	rk32_dsi_set_bits(dsi, 1, auto_clklane_ctrl);
 	/*
 	rk32_dsi_set_bits(dsi, 1, phy_txexitulpslan);
 	rk32_dsi_set_bits(dsi, 1, phy_txexitulpsclk);
@@ -1120,8 +1124,20 @@ static int rk32_mipi_dsi_send_packet(void *arg, unsigned char cmds[], u32 length
 		data = (dsi->vid << 6) | type;
 		data |= (liTmp & 0xffff) << 8;
 		break;
-	case DTYPE_GEN_SWRITE_2P:
+	case DTYPE_GEN_SWRITE_2P: /* one command and one parameter */
 		rk32_dsi_set_bits(dsi, regs[0], gen_sw_2p_tx);
+		if (liTmp <= 2) {
+			/* It is used for normal Generic Short WRITE Packet with 2 parameters. */
+			data = type;
+			data |= regs[2] << 8;	/* dcs command */
+			data |= regs[3] << 16;	/* parameter of command */
+			break;	
+		}
+
+		/* The below is used for Generic Short WRITE Packet with 2 parameters
+		 * that more than 2 parameters. Though it is illegal dcs command, we can't
+		 * make sure the users do not send that command.
+		 */
 		for (i = 0; i < liTmp; i++) {
 			regs[i] = regs[i+2];
 		}
@@ -1141,16 +1157,14 @@ static int rk32_mipi_dsi_send_packet(void *arg, unsigned char cmds[], u32 length
 		data = type;
 		data |= (liTmp & 0xffff) << 8;
 		break;
-	case DTYPE_GEN_SWRITE_1P:
+	case DTYPE_GEN_SWRITE_1P: /* one command without parameter */
 		rk32_dsi_set_bits(dsi, regs[0], gen_sw_1p_tx);
 		data = type;
 		data |= regs[2] << 8;
-		data |= regs[3] << 16;
 		break;
-	case DTYPE_GEN_SWRITE_0P:
+	case DTYPE_GEN_SWRITE_0P: /* nop packet without command and parameter */
 		rk32_dsi_set_bits(dsi, regs[0], gen_sw_0p_tx);
 		data =  type;
-		data |= regs[2] << 8;
 		break;
 	default:
 		printk("0x%x:this type not suppport!\n", type);
@@ -1353,25 +1367,23 @@ reg_proc_write_exit:
 	return count;
 }
 
-int reg_proc_read(struct file *file, char __user *buff, size_t count,
-					loff_t *offp)
+int reg_proc_read(struct seq_file *s, void *v)
 {
 	int i = 0;
 	u32 val = 0;
-
+	struct dsi *dsi = s->private;
+	
 	for (i = VERSION; i < (VERSION + (0xdc << 16)); i += 4<<16) {
-		val = rk32_dsi_get_bits(dsi0, i);
-		MIPI_TRACE("%04x: %08x\n", i>>16, val);
-		msleep(1);
+		val = rk32_dsi_get_bits(dsi, i);
+		seq_printf(s, "%04x: %08x\n", i>>16, val);
 	}
-
-	MIPI_TRACE("\n");
-	return -1;
-}
-
-int reg_proc_open(struct inode *inode, struct file *file)
-{
 	return 0;
+}
+static int reg_proc_open(struct inode *inode, struct file *file)
+{
+	struct dsi *dsi = inode->i_private;
+
+	return single_open(file, reg_proc_read, dsi);
 }
 
 int reg_proc_close(struct inode *inode, struct file *file)
@@ -1384,7 +1396,7 @@ struct file_operations reg_proc_fops = {
 	.open = reg_proc_open,
 	.release = reg_proc_close,
 	.write = reg_proc_write,
-	.read = reg_proc_read,
+	.read = seq_read,
 };
 
 int reg_proc_write1(struct file *file, const char __user *buff, size_t count, loff_t *offp)
@@ -1484,27 +1496,6 @@ reg_proc_write_exit:
 	return count;
 }
 
-int reg_proc_read1(struct file *file, char __user *buff, size_t count,
-					loff_t *offp)
-{
-	int i = 0;
-	u32 val = 0;
-
-	for (i = VERSION; i < (VERSION + (0xdc<<16)); i += 4<<16) {
-		val = rk32_dsi_get_bits(dsi1, i);
-		MIPI_TRACE("%04x: %08x\n", i>>16, val);
-		msleep(1);
-	}
-
-	MIPI_TRACE("\n");
-	return -1;
-}
-
-int reg_proc_open1(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
 int reg_proc_close1(struct inode *inode, struct file *file)
 {
 	return 0;
@@ -1512,10 +1503,10 @@ int reg_proc_close1(struct inode *inode, struct file *file)
 
 struct file_operations reg_proc_fops1 = {
 	.owner = THIS_MODULE,
-	.open = reg_proc_open1,
+	.open = reg_proc_open,
 	.release = reg_proc_close1,
 	.write = reg_proc_write1,
-	.read = reg_proc_read1,
+	.read = seq_read,
 };
 #endif
 #if 0/* def CONFIG_MIPI_DSI_LINUX */

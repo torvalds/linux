@@ -29,6 +29,7 @@
 #include <linux/rk_fb.h>
 #include <linux/linux_logo.h>
 #include <linux/dma-mapping.h>
+#include <linux/regulator/consumer.h>
 
 #if defined(CONFIG_RK_HDMI)
 #include "hdmi/rk_hdmi.h"
@@ -74,6 +75,18 @@ static int uboot_logo_on;
 int support_uboot_display(void)
 {
 	return uboot_logo_on;
+}
+
+int rk_fb_get_display_policy(void)
+{
+	struct rk_fb *rk_fb;
+
+	if (fb_pdev) {
+		rk_fb = platform_get_drvdata(fb_pdev);
+		return rk_fb->disp_policy;
+	} else {
+		return DISPLAY_POLICY_SDK;
+	}
 }
 
 int rk_fb_trsm_ops_register(struct rk_fb_trsm_ops *ops, int type)
@@ -264,11 +277,22 @@ int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv)
 
 			} else {
 				pwr_ctr->pwr_ctr.type = REGULATOR;
-
+				pwr_ctr->pwr_ctr.rgl_name = NULL;
+				ret = of_property_read_string(child, "rockchip,regulator_name",
+							     &(pwr_ctr->pwr_ctr.rgl_name));
+				if (ret || IS_ERR_OR_NULL(pwr_ctr->pwr_ctr.rgl_name))
+					dev_err(dev_drv->dev, "get regulator name failed!\n");
+				if (!of_property_read_u32(child, "rockchip,regulator_voltage", &val))
+					pwr_ctr->pwr_ctr.volt = val;
+				else
+					pwr_ctr->pwr_ctr.volt = 0;
 			}
 		};
-		of_property_read_u32(child, "rockchip,delay", &val);
-		pwr_ctr->pwr_ctr.delay = val;
+
+		if (!of_property_read_u32(child, "rockchip,delay", &val))
+			pwr_ctr->pwr_ctr.delay = val;
+		else
+			pwr_ctr->pwr_ctr.delay = 0;
 		list_add_tail(&pwr_ctr->list, &dev_drv->pwrlist_head);
 	}
 
@@ -300,6 +324,9 @@ int rk_disp_pwr_enable(struct rk_lcdc_driver *dev_drv)
 	struct list_head *pos;
 	struct rk_disp_pwr_ctr_list *pwr_ctr_list;
 	struct pwr_ctr *pwr_ctr;
+	struct regulator *regulator_lcd = NULL;
+	int count = 10;
+
 	if (list_empty(&dev_drv->pwrlist_head))
 		return 0;
 	list_for_each(pos, &dev_drv->pwrlist_head) {
@@ -309,6 +336,27 @@ int rk_disp_pwr_enable(struct rk_lcdc_driver *dev_drv)
 		if (pwr_ctr->type == GPIO) {
 			gpio_direction_output(pwr_ctr->gpio, pwr_ctr->atv_val);
 			mdelay(pwr_ctr->delay);
+		} else if (pwr_ctr->type == REGULATOR) {
+			if (pwr_ctr->rgl_name)
+				regulator_lcd = regulator_get(NULL, pwr_ctr->rgl_name);
+			if (regulator_lcd == NULL) {
+				dev_err(dev_drv->dev,
+					"%s: regulator get failed,regulator name:%s\n",
+					__func__, pwr_ctr->rgl_name);
+				continue;
+			}
+			regulator_set_voltage(regulator_lcd, pwr_ctr->volt, pwr_ctr->volt);
+			while (!regulator_is_enabled(regulator_lcd)) {
+				if (regulator_enable(regulator_lcd) == 0 || count == 0)
+					break;
+				else
+					dev_err(dev_drv->dev,
+						"regulator_enable failed,count=%d\n",
+						count);
+				count--;
+			}
+			regulator_put(regulator_lcd);
+			msleep(pwr_ctr->delay);
 		}
 	}
 
@@ -320,14 +368,37 @@ int rk_disp_pwr_disable(struct rk_lcdc_driver *dev_drv)
 	struct list_head *pos;
 	struct rk_disp_pwr_ctr_list *pwr_ctr_list;
 	struct pwr_ctr *pwr_ctr;
+	struct regulator *regulator_lcd = NULL;
+	int count = 10;
+
 	if (list_empty(&dev_drv->pwrlist_head))
 		return 0;
 	list_for_each(pos, &dev_drv->pwrlist_head) {
 		pwr_ctr_list = list_entry(pos, struct rk_disp_pwr_ctr_list,
 					  list);
 		pwr_ctr = &pwr_ctr_list->pwr_ctr;
-		if (pwr_ctr->type == GPIO)
+		if (pwr_ctr->type == GPIO) {
 			gpio_set_value(pwr_ctr->gpio, !pwr_ctr->atv_val);
+		} else if (pwr_ctr->type == REGULATOR) {
+			if (pwr_ctr->rgl_name)
+				regulator_lcd = regulator_get(NULL, pwr_ctr->rgl_name);
+			if (regulator_lcd == NULL) {
+				dev_err(dev_drv->dev,
+					"%s: regulator get failed,regulator name:%s\n",
+					__func__, pwr_ctr->rgl_name);
+				continue;
+			}
+			while (regulator_is_enabled(regulator_lcd) > 0) {
+				if (regulator_disable(regulator_lcd) == 0 || count == 0)
+					break;
+				else
+					dev_err(dev_drv->dev,
+						"regulator_disable failed,count=%d\n",
+						count);
+				count--;
+			}
+			regulator_put(regulator_lcd);
+		}
 	}
 	return 0;
 }
@@ -1770,6 +1841,25 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
                                                 reg_win_data->reg_area_data[i].ysize *
                                                 cur_screen->mode.yres /
                                                 primary_screen.mode.yres;
+
+					/* recalc display size if set hdmi scaler when at ONE_DUAL mode */
+					if (inf->disp_mode == ONE_DUAL && hdmi_switch_complete) {
+						if (cur_screen->xsize > 0 &&
+						    cur_screen->xsize <= cur_screen->mode.xres) {
+							win->area[i].xpos =
+								((cur_screen->mode.xres - cur_screen->xsize) >> 1) +
+								cur_screen->xsize * win->area[i].xpos / cur_screen->mode.xres;
+							win->area[i].xsize =
+								win->area[i].xsize * cur_screen->xsize / cur_screen->mode.xres;
+						}
+						if (cur_screen->ysize > 0 && cur_screen->ysize <= cur_screen->mode.yres) {
+							win->area[i].ypos =
+								((cur_screen->mode.yres - cur_screen->ysize) >> 1) +
+								cur_screen->ysize * win->area[i].ypos / cur_screen->mode.yres;
+							win->area[i].ysize =
+								win->area[i].ysize * cur_screen->ysize / cur_screen->mode.yres;
+						}
+					}
                                 }
 				win->area[i].xact =
 				    reg_win_data->reg_area_data[i].xact;
@@ -1842,7 +1932,8 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		win_data = rk_fb_get_win_data(regs, i);
 		if (win_data) {
 			if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-			     win_data->data_format == YUV420)
+			    (win_data->data_format == YUV420 ||
+			     win_data->data_format == YUV420_A))
 				continue;
 			rk_fb_update_win(dev_drv, win, win_data);
 			win->state = 1;
@@ -1907,12 +1998,26 @@ ext_win_exit:
 		timeout = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
 				ktime_compare(dev_drv->vsync_info.timestamp, timestamp) > 0,
 				msecs_to_jiffies(25));
+		if ((rk_fb->disp_mode == DUAL) &&
+		    (hdmi_get_hotplug() == HDMI_HPD_ACTIVED) &&
+		    hdmi_switch_complete) {
+			/*
+			 * If dual output, we need make sure the extend display
+			 * cfg take effect before release fence.
+			 */
+			ext_dev_drv = rk_get_extend_lcdc_drv();
+			timeout = wait_event_interruptible_timeout(ext_dev_drv->vsync_info.wait,
+					ktime_compare(ext_dev_drv->vsync_info.timestamp, timestamp) > 0,
+					msecs_to_jiffies(25));
+		}
+
 		dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
 		wait_for_vsync = false;
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 			if (dev_drv->win[i]->state == 1) {
 				if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
 				    (dev_drv->win[i]->format == YUV420 ||
+				     dev_drv->win[i]->format == YUV420_A ||
 				     !strcmp(dev_drv->win[i]->name, "hwc"))) {
 					continue;
 				} else {
@@ -1921,8 +2026,10 @@ ext_win_exit:
 					    dev_drv->win[i]->area[0].y_offset;
 					u32 reg_start = dsp_addr[i];
 
-					if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-					    new_start==0x0)
+					if ((rk_fb->disp_policy ==
+					     DISPLAY_POLICY_BOX) &&
+					    (new_start == 0x0 ||
+					     dev_drv->suspend_flag))
 						continue;
 					if (unlikely(new_start != reg_start)) {
 						wait_for_vsync = true;
@@ -2243,6 +2350,12 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 			}
 		}
 	}
+
+	/* record buffer information for rk_fb_disp_scale to prevent fence timeout
+	 * because rk_fb_disp_scale will call function info->fbops->fb_set_par(info);
+	 */
+	info->var.yoffset = yoffset;
+	info->var.xoffset = xoffset;
 	return 0;
 }
 
@@ -3153,6 +3266,9 @@ static int rk_fb_set_par(struct fb_info *info)
 			 (win->format == ABGR888)) ? 1 : 0;
 	win->g_alpha_val = 0;
 
+	if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
+	    (win->format == YUV420 || win->format == YUV420_A))
+	    win->state = 1;
 	if (rk_fb->disp_mode == DUAL) {
 		if (extend_win->state && hdmi_switch_complete) {
 			if (info != extend_info) {

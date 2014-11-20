@@ -1306,7 +1306,6 @@
 						#clock-cells = <0>;
 						rockchip,clkops-idx =
 							<CLKOPS_RATE_MUX_DIV>;
-						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 
 					clk_cif_out: clk_cif_out_mux {

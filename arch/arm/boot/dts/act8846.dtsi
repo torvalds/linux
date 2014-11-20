@@ -82,6 +82,7 @@
 			reg = <10>;
 			regulator-compatible = "act_ldo7";
 			regulator-always-on;
+			/* regulator-always-on; */
 			regulator-boot-on;
 		};
 

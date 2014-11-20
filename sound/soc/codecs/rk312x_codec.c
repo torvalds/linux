@@ -1910,6 +1910,7 @@ static int rk312x_startup(struct snd_pcm_substream *substream,
 				rk312x_codec_power_up(RK312x_CODEC_PLAYBACK);
 				snd_soc_write(rk312x_priv->codec, 0xb4, rk312x_priv->spk_volume);
 				snd_soc_write(rk312x_priv->codec, 0xb8, rk312x_priv->spk_volume);
+				msleep(rk312x_priv->spk_mute_delay);
 				rk312x_codec_ctl_gpio(CODEC_SET_SPK, rk312x_priv->spk_active_level);
 			}
 	} else {
@@ -1995,7 +1996,8 @@ static void rk312x_shutdown(struct snd_pcm_substream *substream,
 			      SNDRV_PCM_RATE_32000 |	\
 			      SNDRV_PCM_RATE_44100 |	\
 			      SNDRV_PCM_RATE_48000 |	\
-			      SNDRV_PCM_RATE_96000)
+			      SNDRV_PCM_RATE_96000 |	\
+			      SNDRV_PCM_RATE_192000)
 
 #define RK312x_CAPTURE_RATES (SNDRV_PCM_RATE_8000 |\
 			      SNDRV_PCM_RATE_16000 |	\

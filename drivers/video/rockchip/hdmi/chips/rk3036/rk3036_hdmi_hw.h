@@ -124,6 +124,8 @@ enum {
 #define m_AVMUTE_ENABLE		(1 << 6)
 #define m_AUDIO_MUTE		(1 << 1)
 #define m_VIDEO_BLACK		(1 << 0)
+#define v_AVMUTE_CLEAR(n)	(n << 7)
+#define v_AVMUTE_ENABLE(n)	(n << 6)
 #define v_AUDIO_MUTE(n)		(n << 1)
 #define v_VIDEO_MUTE(n)		(n << 0)
 
@@ -230,6 +232,10 @@ enum {
 #define EDID_FIFO_OFFSET		0x4f
 #define EDID_FIFO_ADDR			0x50
 
+
+#define PACKET_SEND_MANUAL		0x9c
+#define PACKET_SEND_AUTO		0x9d
+	#define m_PACKET_GCP_EN		(1 << 7)
 /* CONTROL_PACKET_BUF_INDEX */
 #define CONTROL_PACKET_BUF_INDEX	0x9f
 enum {

@@ -285,7 +285,8 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 	struct list_head *pos;
 	struct property *prop;
 	enum of_gpio_flags flags;
-	u32 value, i, debug, gpio, ret, cmds[25], length;
+	u32 value, i, debug, gpio, ret, length;
+	u32 cmds[sizeof(dcs_cmd->dcs_cmd.cmds) / sizeof(u32)];
 
 	memset(screen, 0, sizeof(*screen));
 
@@ -426,6 +427,11 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 				return -EINVAL;
 			}
 
+			if (length > sizeof(dcs_cmd->dcs_cmd.cmds)) {
+				/* the length can not longer than the cmds arrary in struct dcs_cmds */
+				MIPI_SCREEN_DBG("error: the dcs cmd length is %d, but the max length supported is %d\n",
+						length / sizeof(u32), sizeof(dcs_cmd->dcs_cmd.cmds) / sizeof(32));
+			}
 			MIPI_SCREEN_DBG("\n childnode->name =%s:length=%d\n", childnode->name, (length / sizeof(u32)));
 
 			ret = of_property_read_u32_array(childnode,  "rockchip,cmd", cmds, (length / sizeof(u32)));
@@ -434,7 +440,8 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 				return ret;
 			} else {
 				dcs_cmd->dcs_cmd.cmd_len =  length / sizeof(u32);
-				for (i = 0; i < (length / sizeof(u32)); i++) {
+				for (i = 0; (i < (length / sizeof(u32))) && (i < (sizeof(dcs_cmd->dcs_cmd.cmds) / sizeof(u32))); i++) {
+					/* avoid the array out of range */
 					MIPI_SCREEN_DBG("cmd[%d]=%02x£¬", i+1, cmds[i]);
 					dcs_cmd->dcs_cmd.cmds[i] = cmds[i];
 				}

@@ -21,6 +21,7 @@ static u8 efuse_buf[32] = {};
 struct rockchip_efuse {
 	int (*get_leakage)(int ch);
 	int efuse_version;
+	int process_version;
 };
 
 static struct rockchip_efuse efuse;
@@ -67,6 +68,13 @@ static int __init rk3288_get_efuse_version(void)
 	return ret;
 }
 
+static int __init rk3288_get_process_version(void)
+{
+	int ret = efuse_buf[6]&0x0f;
+
+	return ret;
+}
+
 static int rk3288_get_leakage(int ch)
 {
 	if ((ch < 0) || (ch > 2))
@@ -89,9 +97,49 @@ static void __init rk3288_set_system_serial(void)
 	system_serial_high = crc32(system_serial_low, buf + 8, 8);
 }
 
+int rk312x_efuse_readregs(u32 addr, u32 length, u8 *buf)
+{
+	int ret = length;
+
+	if (!length)
+		return 0;
+
+	efuse_writel(EFUSE_LOAD, REG_EFUSE_CTRL);
+	udelay(2);
+	do {
+		efuse_writel(efuse_readl(REG_EFUSE_CTRL) &
+				(~(EFUSE_A_MASK << RK312X_EFUSE_A_SHIFT)),
+				REG_EFUSE_CTRL);
+		efuse_writel(efuse_readl(REG_EFUSE_CTRL) |
+				((addr & EFUSE_A_MASK) << RK312X_EFUSE_A_SHIFT),
+				REG_EFUSE_CTRL);
+		udelay(2);
+		efuse_writel(efuse_readl(REG_EFUSE_CTRL) |
+				EFUSE_STROBE, REG_EFUSE_CTRL);
+		udelay(2);
+		*buf = efuse_readl(REG_EFUSE_DOUT);
+		efuse_writel(efuse_readl(REG_EFUSE_CTRL) &
+				(~EFUSE_STROBE), REG_EFUSE_CTRL);
+		udelay(2);
+		buf++;
+		addr++;
+	} while (--length);
+	udelay(2);
+	efuse_writel(efuse_readl(REG_EFUSE_CTRL) &
+			(~EFUSE_LOAD) , REG_EFUSE_CTRL);
+	udelay(1);
+
+	return ret;
+}
+
 int rockchip_efuse_version(void)
 {
 	return efuse.efuse_version;
+}
+
+int rockchip_process_version(void)
+{
+	return efuse.process_version;
 }
 
 int rockchip_get_leakage(int ch)
@@ -110,10 +158,17 @@ void __init rockchip_efuse_init(void)
 		if (ret == 32) {
 			efuse.get_leakage = rk3288_get_leakage;
 			efuse.efuse_version = rk3288_get_efuse_version();
+			efuse.process_version = rk3288_get_process_version();
 			rockchip_set_cpu_version((efuse_buf[6] >> 4) & 3);
 			rk3288_set_system_serial();
 		} else {
 			pr_err("failed to read eFuse, return %d\n", ret);
 		}
+	} else if (cpu_is_rk312x()) {
+		ret = rk312x_efuse_readregs(0, 32, efuse_buf);
+		if (ret == 32)
+			efuse.get_leakage = rk3288_get_leakage;
+		else
+			pr_err("failed to read eFuse, return %d\n", ret);
 	}
 }

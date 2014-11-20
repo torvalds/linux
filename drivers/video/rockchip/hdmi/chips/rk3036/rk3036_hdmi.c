@@ -513,6 +513,8 @@ static void rk3036_hdmi_shutdown(struct platform_device *pdev)
 		if (hdmi_drv->irq)
 			disable_irq(hdmi_drv->irq);
 		mutex_unlock(&hdmi_drv->enable_mutex);
+		if (hdmi_drv->hotplug == HDMI_HPD_ACTIVED)
+			rk3036_hdmi_control_output(hdmi_drv, 0);
 	}
 	hdmi_dbg(hdmi_drv->dev, "rk3036 hdmi shut down.\n");
 }

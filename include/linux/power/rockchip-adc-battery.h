@@ -73,6 +73,8 @@ struct rk30_adc_battery_platform_data {
 
 	int is_dc_charge;
 	int is_usb_charge;
+	int auto_calibration;
 	struct iio_channel *chan;
+	struct iio_channel *ref_voltage_chan;
 };
 #endif

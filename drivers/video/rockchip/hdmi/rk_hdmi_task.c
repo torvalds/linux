@@ -97,7 +97,8 @@ void hdmi_sys_remove(struct hdmi *hdmi)
 	kobject_uevent_env(&hdmi->ddev->dev->kobj, KOBJ_REMOVE, envp);
 
 #ifdef CONFIG_SWITCH
-	if (audio_need)
+	if (audio_need ||
+	    rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
 		switch_set_state(&(hdmi->switch_hdmi), 0);
 #endif
 	rockchip_clear_system_status(SYS_STATUS_HDMI);
@@ -129,6 +130,7 @@ static int hdmi_process_command(struct hdmi *hdmi)
 			if (!hdmi->enable || hdmi->suspend) {
 				if (hdmi->hotplug != HDMI_HPD_REMOVED) {
 					hdmi->hotplug = HDMI_HPD_REMOVED;
+					hdmi->control_output(hdmi, HDMI_DISABLE);
 					hdmi_sys_remove(hdmi);
 				}
 				hdmi->state = HDMI_SLEEP;
@@ -157,6 +159,8 @@ static int hdmi_process_command(struct hdmi *hdmi)
 		default:
 			if (state > SYSTEM_CONFIG) {
 				state = SYSTEM_CONFIG;
+				hdmi->control_output(hdmi, HDMI_DISABLE);
+				msleep(2000);
 			} else {
 				if (hdmi->wait == 1) {
 					complete(&hdmi->complete);
@@ -221,7 +225,7 @@ void hdmi_work(struct work_struct *work)
 		hdmi->hotplug = hotplug;
 	} else if (hotplug == HDMI_HPD_REMOVED) {
 		hdmi_sys_sleep(hdmi);
-	}else if (hotplug == HDMI_HPD_ACTIVED) {
+	} else if (hotplug == HDMI_HPD_ACTIVED) {
 		if (hdmi->uboot_logo) {
 			if (hdmi->insert)
 				hdmi->insert(hdmi);
@@ -249,8 +253,10 @@ void hdmi_work(struct work_struct *work)
 					 hdmi->edid.base_audio_support,
 					 hdmi->edid.sink_hdmi);
 #ifdef CONFIG_SWITCH
-				if (hdmi->edid.base_audio_support == 1 &&
-				    hdmi->edid.sink_hdmi == 1)
+				if ((hdmi->edid.base_audio_support == 1 &&
+				     hdmi->edid.sink_hdmi == 1) ||
+				     (rk_fb_get_display_policy() ==
+				      DISPLAY_POLICY_BOX))
 					switch_set_state(&(hdmi->switch_hdmi),
 							 1);
 #endif

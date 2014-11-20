@@ -273,7 +273,7 @@ struct pwr_ctr {
 	int is_rst;
 	int gpio;
 	int atv_val;
-	char rgl_name[32];
+	const char *rgl_name;
 	int volt;
 	int delay;
 };
@@ -593,6 +593,7 @@ struct rk_lcdc_driver {
 	struct rk_lcdc_bcsh bcsh;
 	int *hwc_lut;
 	int uboot_logo;
+	int bcsh_init_status;
 };
 
 struct rk_fb_par {
@@ -665,4 +666,5 @@ extern int rk_get_real_fps(int time);
 extern struct device *rk_fb_get_sysmmu_device_by_compatible(const char *compt);
 extern void rk_fb_platform_set_sysmmu(struct device *sysmmu,
                                       struct device *dev);
+int rk_fb_get_display_policy(void);
 #endif

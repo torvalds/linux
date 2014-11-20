@@ -322,8 +322,14 @@ static int rk312x_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 
 		mask = m_WIN1_ALPHA_MODE |
 				m_ALPHA_MODE_SEL0 | m_ALPHA_MODE_SEL1;
-		val = v_WIN1_ALPHA_MODE(1) |
-				v_ALPHA_MODE_SEL0(1) | v_ALPHA_MODE_SEL1(0);
+		if (lcdc_dev->driver.overlay_mode == VOP_YUV_DOMAIN)
+			val = v_WIN0_ALPHA_MODE(1) |
+			      v_ALPHA_MODE_SEL0(0) |
+			      v_ALPHA_MODE_SEL1(0);
+		else
+			val = v_WIN1_ALPHA_MODE(1) |
+			      v_ALPHA_MODE_SEL0(1) |
+			      v_ALPHA_MODE_SEL1(0);
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, mask, val);
 		/*this vop bg layer not support yuv domain overlay,so bg val
 		have to set 0x800a80 equeal to 0x000000 at rgb domian,after
@@ -657,7 +663,8 @@ static int rk312x_lcdc_set_lut(struct rk_lcdc_driver *dev_drv)
 	return 0;
 }
 
-static int rk312x_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
+static int rk312x_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv,
+				    int reset_rate)
 {
 #ifdef CONFIG_RK_FPGA
 	return 0;
@@ -667,7 +674,8 @@ static int rk312x_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_screen *screen = dev_drv->cur_screen;
 
-	ret = clk_set_rate(lcdc_dev->dclk, screen->mode.pixclock);
+	if (reset_rate)
+		ret = clk_set_rate(lcdc_dev->dclk, screen->mode.pixclock);
 	if (ret)
 		dev_err(dev_drv->dev, "set lcdc%d dclk failed\n", lcdc_dev->id);
 	lcdc_dev->pixclock =
@@ -725,8 +733,12 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 		lcdc_cfg_done(lcdc_dev);
 		while(lcdc_readl(lcdc_dev, SYS_CTRL) & (m_WIN0_EN | m_WIN1_EN));
 	}*/
-	if ((dev_drv->ops->open_bcsh) && (dev_drv->output_color == COLOR_YCBCR))
-		dev_drv->ops->open_bcsh(dev_drv, 1);
+	if ((dev_drv->ops->open_bcsh) && (dev_drv->output_color == COLOR_YCBCR)) {
+		if (support_uboot_display())
+			dev_drv->bcsh_init_status = 1;
+		else
+			dev_drv->ops->open_bcsh(dev_drv, 1);
+	}
 	lcdc_dev->pre_init = true;
 
 	return 0;
@@ -1017,6 +1029,7 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 static void rk312x_lcdc_select_bcsh(struct rk_lcdc_driver *dev_drv,
 				    struct lcdc_device *lcdc_dev)
 {
+	u32 bcsh_ctrl;
 	if (dev_drv->overlay_mode == VOP_YUV_DOMAIN) {
 		if (dev_drv->output_color == COLOR_YCBCR)/* bypass */
 			lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
@@ -1030,11 +1043,18 @@ static void rk312x_lcdc_select_bcsh(struct rk_lcdc_driver *dev_drv,
 			     v_BCSH_Y2R_CSC_MODE(VOP_Y2R_CSC_MPEG) |
 			     v_BCSH_R2Y_EN(0));
 	} else {	/* overlay_mode=VOP_RGB_DOMAIN */
-		if (dev_drv->output_color == COLOR_RGB)	/* bypass */
-			lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
-				     m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
-				     v_BCSH_R2Y_EN(1) | v_BCSH_Y2R_EN(1));
-		else	/* RGB2YUV */
+		if (dev_drv->output_color == COLOR_RGB) {
+			/* bypass */
+			bcsh_ctrl = lcdc_readl(lcdc_dev, BCSH_CTRL);
+			if ((bcsh_ctrl&m_BCSH_EN) == 1)/*bcsh enabled*/
+				lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
+				     	m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
+				     	v_BCSH_R2Y_EN(1) | v_BCSH_Y2R_EN(1));
+			else/*bcsh disabled*/
+				lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
+				     	m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
+				     	v_BCSH_R2Y_EN(0) | v_BCSH_Y2R_EN(0));
+		} else	/* RGB2YUV */
 			lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
 				     m_BCSH_R2Y_EN |
 					m_BCSH_R2Y_CSC_MODE | m_BCSH_Y2R_EN,
@@ -1167,7 +1187,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			break;
 		}
 		if (lcdc_dev->soc_type == VOP_RK312X) {
-			switch (screen->face) {
+			switch (dev_drv->screen0->face) {
 			case OUT_P565:
 				face = OUT_P565;
 				mask = m_DITHER_DOWN_EN |
@@ -1335,7 +1355,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		}
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
-	rk312x_lcdc_set_dclk(dev_drv);
+	rk312x_lcdc_set_dclk(dev_drv, 1);
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY, v_LCDC_STANDBY(0));
 	lcdc_cfg_done(lcdc_dev);
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
@@ -1379,7 +1399,7 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		/*if (dev_drv->iommu_enabled)
 			rk312x_lcdc_mmu_en(dev_drv);*/
 		if ((support_uboot_display() && (lcdc_dev->prop == PRMRY))) {
-			/*rk312x_lcdc_set_dclk(dev_drv);*/
+			rk312x_lcdc_set_dclk(dev_drv, 0);
 			rk312x_lcdc_enable_irq(dev_drv);
 		} else {
 			rk312x_load_screen(dev_drv, 1);
@@ -1996,7 +2016,10 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	u32 mask, val;
-
+	if (dev_drv->bcsh_init_status && open) {
+		dev_drv->bcsh_init_status = 0;
+		return 0;
+	}
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
 		rk312x_lcdc_select_bcsh(dev_drv,  lcdc_dev);

@@ -510,6 +510,9 @@
 	clocks-enable {
 		compatible = "rockchip,clocks-enable";
 		clocks =
+				/*PLL*/
+				<&clk_dpll>, <&clk_gpll>,
+
 				/*PD_CORE*/
 				<&clk_gates0 2>, <&clk_core0>,
 				<&clk_core1>, <&clk_core2>,
@@ -522,7 +525,7 @@
 				/*PD_BUS*/
 				<&aclk_bus>, <&clk_gates0 3>,
 				<&hclk_bus>, <&pclk_bus>,
-				<&clk_gates13 8>, <&clk_crypto>,
+				<&clk_gates13 8>,
 				<&clk_gates0 7>,
 
 				/*TIMER*/
@@ -546,11 +549,8 @@
 				<&clk_gates10 12>,/*aclk_dma1*/
 				<&clk_gates10 13>,/*aclk_strc_sys*/
 				<&clk_gates10 4>,/*aclk_intmem*/
-				<&clk_gates11 6>,/*aclk_crypto*/
-				<&clk_gates11 8>,/*aclk_ccp*/
 
 				/*hclk_bus*/
-				<&clk_gates11 7>,/*hclk_crypto*/
 				<&clk_gates10 9>,/*hclk_rom*/
 
 				/*pclk_bus*/
@@ -585,21 +585,6 @@
 				<&clk_gates17 2>,/*pclk_pmu_niu*/
 				<&clk_gates17 3>,/*pclk_sgrf*/
 
-				/*hclk_vio*/
-				<&clk_gates15 9>,/*hclk_vio_ahb_arbi*/
-				<&clk_gates15 10>,/*hclk_vio_niu*/
-				<&clk_gates16 10>,/*hclk_vio2_h2p*/
-				<&clk_gates16 11>,/*pclk_vio2_h2p*/
-
-				/*aclk_vio0*/
-				<&clk_gates15 11>,/*aclk_vio0_niu*/
-
-				/*aclk_vio1*/
-				<&clk_gates15 12>,/*aclk_vio1_niu*/
-
-				/*HDMI*/
-				//<&clk_gates5 12>,/*hdmi_hdcp_clk*/
-
 				/*UART*/
 				<&clk_gates11 9>,/*pclk_uart2*/
 
@@ -632,7 +617,7 @@
 		pinctrl-0 = <&i2c1_sda &i2c1_scl>;
 		pinctrl-1 = <&i2c1_gpio>;
 		gpios = <&gpio8 GPIO_A4 GPIO_ACTIVE_LOW>, <&gpio8 GPIO_A5 GPIO_ACTIVE_LOW>;
-		clocks = <&clk_gates10 3>;
+		clocks = <&clk_gates6 13>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -647,7 +632,7 @@
 		pinctrl-0 = <&i2c2_sda &i2c2_scl>;
 		pinctrl-1 = <&i2c2_gpio>;
 		gpios = <&gpio6 GPIO_B1 GPIO_ACTIVE_LOW>, <&gpio6 GPIO_B2 GPIO_ACTIVE_LOW>;
-		clocks = <&clk_gates6 13>;
+		clocks = <&clk_gates10 3>;
 		rockchip,check-idle = <1>;
 		status = "disabled";
 	};
@@ -911,9 +896,9 @@
 						816000 1100000
 						1008000 1100000
 						>;
+					channel = <0>;
 					temp-limit-enable = <1>;
 					target-temp = <80>;
-					temp-channel = <1>;
 					normal-temp-limit = <
 					/*delta-temp    delta-freq*/
 						3	96000
@@ -947,6 +932,7 @@
 						300000 1200000
 						400000 1200000
 						>;
+					channel = <2>;
 					status = "disabled";
 				};
 			};
@@ -974,6 +960,7 @@
 						300000 1200000
 						400000 1200000
 						>;
+					channel = <1>;
 					status = "okay";
 					regu-mode-table = <
 						/*freq     mode*/

@@ -875,6 +875,14 @@
 						0          3
 					>;
 					regu-mode-en = <0>;
+					lkg_adjust_volt_en = <1>;
+					channel = <0>;
+					def_table_lkg = <35>;
+					min_adjust_freq = <1200000>;
+					lkg_adjust_volt_table = <
+						/*lkg(mA)  volt(uV)*/
+						60         25000
+						>;
 				};
 			};
 		};
