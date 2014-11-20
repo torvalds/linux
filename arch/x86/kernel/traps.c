@@ -108,6 +108,39 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 	preempt_count_dec();
 }
 
+enum ctx_state ist_enter(struct pt_regs *regs)
+{
+	/*
+	 * We are atomic because we're on the IST stack (or we're on x86_32,
+	 * in which case we still shouldn't schedule.
+	 */
+	preempt_count_add(HARDIRQ_OFFSET);
+
+	if (user_mode_vm(regs)) {
+		/* Other than that, we're just an exception. */
+		return exception_enter();
+	} else {
+		/*
+		 * We might have interrupted pretty much anything.  In
+		 * fact, if we're a machine check, we can even interrupt
+		 * NMI processing.  We don't want in_nmi() to return true,
+		 * but we need to notify RCU.
+		 */
+		rcu_nmi_enter();
+		return IN_KERNEL;  /* the value is irrelevant. */
+	}
+}
+
+void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
+{
+	preempt_count_sub(HARDIRQ_OFFSET);
+
+	if (user_mode_vm(regs))
+		return exception_exit(prev_state);
+	else
+		rcu_nmi_exit();
+}
+
 static nokprobe_inline int
 do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 		  struct pt_regs *regs,	long error_code)
@@ -251,6 +284,8 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	 * end up promoting it to a doublefault.  In that case, modify
 	 * the stack to make it look like we just entered the #GP
 	 * handler from user space, similar to bad_iret.
+	 *
+	 * No need for ist_enter here because we don't use RCU.
 	 */
 	if (((long)regs->sp >> PGDIR_SHIFT) == ESPFIX_PGD_ENTRY &&
 		regs->cs == __KERNEL_CS &&
@@ -263,12 +298,12 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 		normal_regs->orig_ax = 0;  /* Missing (lost) #GP error code */
 		regs->ip = (unsigned long)general_protection;
 		regs->sp = (unsigned long)&normal_regs->orig_ax;
+
 		return;
 	}
 #endif
 
-	exception_enter();
-	/* Return not checked because double check cannot be ignored */
+	ist_enter(regs);  /* Discard prev_state because we won't return. */
 	notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_DF, SIGSEGV);
 
 	tsk->thread.error_code = error_code;
@@ -434,7 +469,7 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	if (poke_int3_handler(regs))
 		return;
 
-	prev_state = exception_enter();
+	prev_state = ist_enter(regs);
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
 				SIGTRAP) == NOTIFY_STOP)
@@ -460,7 +495,7 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	preempt_conditional_cli(regs);
 	debug_stack_usage_dec();
 exit:
-	exception_exit(prev_state);
+	ist_exit(regs, prev_state);
 }
 NOKPROBE_SYMBOL(do_int3);
 
@@ -541,7 +576,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	unsigned long dr6;
 	int si_code;
 
-	prev_state = exception_enter();
+	prev_state = ist_enter(regs);
 
 	get_debugreg(dr6, 6);
 
@@ -616,7 +651,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_dec();
 
 exit:
-	exception_exit(prev_state);
+	ist_exit(regs, prev_state);
 }
 NOKPROBE_SYMBOL(do_debug);
 
