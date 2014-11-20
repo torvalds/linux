@@ -178,6 +178,15 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 			}
 			break;
 		}
+
+		/* check for L-shaped memory aka modified enhanced addressing */
+		if (IS_GEN4(dev)) {
+			uint32_t ddc2 = I915_READ(DCC2);
+
+			if (!(ddc2 & DCC2_MODIFIED_ENHANCED_DISABLE))
+				dev_priv->quirks |= QUIRK_PIN_SWIZZLED_PAGES;
+		}
+
 		if (dcc == 0xffffffff) {
 			DRM_ERROR("Couldn't read from MCHBAR.  "
 				  "Disabling tiling.\n");
@@ -380,6 +389,15 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			ret = i915_gem_object_ggtt_unbind(obj);
 
 		if (ret == 0) {
+			if (obj->pages &&
+			    obj->madv == I915_MADV_WILLNEED &&
+			    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
+				if (args->tiling_mode == I915_TILING_NONE)
+					i915_gem_object_unpin_pages(obj);
+				if (obj->tiling_mode == I915_TILING_NONE)
+					i915_gem_object_pin_pages(obj);
+			}
+
 			obj->fence_dirty =
 				obj->last_fenced_seqno ||
 				obj->fence_reg != I915_FENCE_REG_NONE;

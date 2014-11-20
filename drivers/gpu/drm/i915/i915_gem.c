@@ -2176,6 +2176,10 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj);
 
+	if (obj->tiling_mode != I915_TILING_NONE &&
+	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
+		i915_gem_object_pin_pages(obj);
+
 	return 0;
 
 err_pages:
@@ -4374,6 +4378,7 @@ int
 i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_madvise *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -4399,6 +4404,15 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	if (i915_gem_obj_is_pinned(obj)) {
 		ret = -EINVAL;
 		goto out;
+	}
+
+	if (obj->pages &&
+	    obj->tiling_mode != I915_TILING_NONE &&
+	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
+		if (obj->madv == I915_MADV_WILLNEED)
+			i915_gem_object_unpin_pages(obj);
+		if (args->madv == I915_MADV_WILLNEED)
+			i915_gem_object_pin_pages(obj);
 	}
 
 	if (obj->madv != __I915_MADV_PURGED)
@@ -4549,6 +4563,11 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		i915_gem_object_unpin_pages(obj);
 
 	WARN_ON(obj->frontbuffer_bits);
+
+	if (obj->pages && obj->madv == I915_MADV_WILLNEED &&
+	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES &&
+	    obj->tiling_mode != I915_TILING_NONE)
+		i915_gem_object_unpin_pages(obj);
 
 	if (WARN_ON(obj->pages_pin_count))
 		obj->pages_pin_count = 0;

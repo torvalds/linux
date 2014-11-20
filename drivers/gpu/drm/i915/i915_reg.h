@@ -2043,6 +2043,8 @@ enum punit_power_well {
 #define DCC_ADDRESSING_MODE_MASK			(3 << 0)
 #define DCC_CHANNEL_XOR_DISABLE				(1 << 10)
 #define DCC_CHANNEL_XOR_BIT_17				(1 << 9)
+#define DCC2			0x10204
+#define DCC2_MODIFIED_ENHANCED_DISABLE			(1 << 20)
 
 /* Pineview MCH register contains DDR3 setting */
 #define CSHRDDR3CTL            0x101a8

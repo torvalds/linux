@@ -1983,6 +1983,8 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	if (IS_GEN3(dev) || IS_GEN4(dev)) {
 		seq_printf(m, "DDC = 0x%08x\n",
 			   I915_READ(DCC));
+		seq_printf(m, "DDC2 = 0x%08x\n",
+			   I915_READ(DCC2));
 		seq_printf(m, "C0DRB3 = 0x%04x\n",
 			   I915_READ16(C0DRB3));
 		seq_printf(m, "C1DRB3 = 0x%04x\n",
@@ -2005,6 +2007,10 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 		seq_printf(m, "DISP_ARB_CTL = 0x%08x\n",
 			   I915_READ(DISP_ARB_CTL));
 	}
+
+	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
+		seq_puts(m, "L-shaped memory detected\n");
+
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 

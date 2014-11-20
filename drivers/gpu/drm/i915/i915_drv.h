@@ -764,6 +764,7 @@ enum intel_sbi_destination {
 #define QUIRK_INVERT_BRIGHTNESS (1<<2)
 #define QUIRK_BACKLIGHT_PRESENT (1<<3)
 #define QUIRK_PIPEB_FORCE (1<<4)
+#define QUIRK_PIN_SWIZZLED_PAGES (1<<5)
 
 struct intel_fbdev;
 struct intel_fbc_work;
