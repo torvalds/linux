@@ -271,6 +271,20 @@ struct xgbe_buffer_data {
 	unsigned int dma_len;
 };
 
+/* Tx-related ring data */
+struct xgbe_tx_ring_data {
+	unsigned int tso_header;	/* TSO header indicator */
+};
+
+/* Rx-related ring data */
+struct xgbe_rx_ring_data {
+	struct xgbe_buffer_data hdr;	/* Header locations */
+	struct xgbe_buffer_data buf;	/* Payload locations */
+
+	unsigned short hdr_len;		/* Length of received header */
+	unsigned short len;		/* Length of received packet */
+};
+
 /* Structure used to hold information related to the descriptor
  * and the packet associated with the descriptor (always use
  * use the XGBE_GET_DESC_DATA macro to access this data from the ring)
@@ -282,13 +296,9 @@ struct xgbe_ring_data {
 	struct sk_buff *skb;		/* Virtual address of SKB */
 	dma_addr_t skb_dma;		/* DMA address of SKB data */
 	unsigned int skb_dma_len;	/* Length of SKB DMA area */
-	unsigned int tso_header;        /* TSO header indicator */
 
-	struct xgbe_buffer_data rx_hdr;	/* Header locations */
-	struct xgbe_buffer_data rx_buf; /* Payload locations */
-
-	unsigned short hdr_len;		/* Length of received header */
-	unsigned short len;		/* Length of received Rx packet */
+	struct xgbe_tx_ring_data tx;	/* Tx-related data */
+	struct xgbe_rx_ring_data rx;	/* Rx-related data */
 
 	unsigned int interrupt;		/* Interrupt indicator */
 

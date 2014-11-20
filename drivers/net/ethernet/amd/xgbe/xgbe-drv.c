@@ -1747,14 +1747,14 @@ static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
 	u8 *packet;
 	unsigned int copy_len;
 
-	skb = netdev_alloc_skb_ip_align(netdev, rdata->rx_hdr.dma_len);
+	skb = netdev_alloc_skb_ip_align(netdev, rdata->rx.hdr.dma_len);
 	if (!skb)
 		return NULL;
 
-	packet = page_address(rdata->rx_hdr.pa.pages) +
-		 rdata->rx_hdr.pa.pages_offset;
-	copy_len = (rdata->hdr_len) ? rdata->hdr_len : *len;
-	copy_len = min(rdata->rx_hdr.dma_len, copy_len);
+	packet = page_address(rdata->rx.hdr.pa.pages) +
+		 rdata->rx.hdr.pa.pages_offset;
+	copy_len = (rdata->rx.hdr_len) ? rdata->rx.hdr_len : *len;
+	copy_len = min(rdata->rx.hdr.dma_len, copy_len);
 	skb_copy_to_linear_data(skb, packet, copy_len);
 	skb_put(skb, copy_len);
 
@@ -1900,13 +1900,13 @@ read_again:
 		}
 
 		if (!context) {
-			put_len = rdata->len - len;
+			put_len = rdata->rx.len - len;
 			len += put_len;
 
 			if (!skb) {
 				dma_sync_single_for_cpu(pdata->dev,
-							rdata->rx_hdr.dma,
-							rdata->rx_hdr.dma_len,
+							rdata->rx.hdr.dma,
+							rdata->rx.hdr.dma_len,
 							DMA_FROM_DEVICE);
 
 				skb = xgbe_create_skb(pdata, rdata, &put_len);
@@ -1918,15 +1918,15 @@ read_again:
 
 			if (put_len) {
 				dma_sync_single_for_cpu(pdata->dev,
-							rdata->rx_buf.dma,
-							rdata->rx_buf.dma_len,
+							rdata->rx.buf.dma,
+							rdata->rx.buf.dma_len,
 							DMA_FROM_DEVICE);
 
 				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-						rdata->rx_buf.pa.pages,
-						rdata->rx_buf.pa.pages_offset,
-						put_len, rdata->rx_buf.dma_len);
-				rdata->rx_buf.pa.pages = NULL;
+						rdata->rx.buf.pa.pages,
+						rdata->rx.buf.pa.pages_offset,
+						put_len, rdata->rx.buf.dma_len);
+				rdata->rx.buf.pa.pages = NULL;
 			}
 		}
 

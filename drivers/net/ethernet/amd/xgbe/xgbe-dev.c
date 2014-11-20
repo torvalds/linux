@@ -1085,10 +1085,10 @@ static void xgbe_rx_desc_reset(struct xgbe_ring_data *rdata)
 	 *   Set buffer 2 (hi) address to buffer dma address (hi) and
 	 *     set control bits OWN and INTE
 	 */
-	rdesc->desc0 = cpu_to_le32(lower_32_bits(rdata->rx_hdr.dma));
-	rdesc->desc1 = cpu_to_le32(upper_32_bits(rdata->rx_hdr.dma));
-	rdesc->desc2 = cpu_to_le32(lower_32_bits(rdata->rx_buf.dma));
-	rdesc->desc3 = cpu_to_le32(upper_32_bits(rdata->rx_buf.dma));
+	rdesc->desc0 = cpu_to_le32(lower_32_bits(rdata->rx.hdr.dma));
+	rdesc->desc1 = cpu_to_le32(upper_32_bits(rdata->rx.hdr.dma));
+	rdesc->desc2 = cpu_to_le32(lower_32_bits(rdata->rx.buf.dma));
+	rdesc->desc3 = cpu_to_le32(upper_32_bits(rdata->rx.buf.dma));
 
 	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE,
 			  rdata->interrupt ? 1 : 0);
@@ -1586,8 +1586,8 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 
 	/* Get the header length */
 	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, FD))
-		rdata->hdr_len = XGMAC_GET_BITS_LE(rdesc->desc2,
-						   RX_NORMAL_DESC2, HL);
+		rdata->rx.hdr_len = XGMAC_GET_BITS_LE(rdesc->desc2,
+						      RX_NORMAL_DESC2, HL);
 
 	/* Get the RSS hash */
 	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, RSV)) {
@@ -1610,7 +1610,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	}
 
 	/* Get the packet length */
-	rdata->len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
+	rdata->rx.len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
 
 	if (!XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, LD)) {
 		/* Not all the data has been transferred for this packet */

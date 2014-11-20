@@ -335,11 +335,11 @@ static int xgbe_map_rx_buffer(struct xgbe_prv_data *pdata,
 	}
 
 	/* Set up the header page info */
-	xgbe_set_buffer_data(&rdata->rx_hdr, &ring->rx_hdr_pa,
+	xgbe_set_buffer_data(&rdata->rx.hdr, &ring->rx_hdr_pa,
 			     XGBE_SKB_ALLOC_SIZE);
 
 	/* Set up the buffer page info */
-	xgbe_set_buffer_data(&rdata->rx_buf, &ring->rx_buf_pa,
+	xgbe_set_buffer_data(&rdata->rx.buf, &ring->rx_buf_pa,
 			     pdata->rx_buf_size);
 
 	return 0;
@@ -451,31 +451,29 @@ static void xgbe_unmap_rdata(struct xgbe_prv_data *pdata,
 		rdata->skb = NULL;
 	}
 
-	if (rdata->rx_hdr.pa.pages)
-		put_page(rdata->rx_hdr.pa.pages);
+	if (rdata->rx.hdr.pa.pages)
+		put_page(rdata->rx.hdr.pa.pages);
 
-	if (rdata->rx_hdr.pa_unmap.pages) {
-		dma_unmap_page(pdata->dev, rdata->rx_hdr.pa_unmap.pages_dma,
-			       rdata->rx_hdr.pa_unmap.pages_len,
+	if (rdata->rx.hdr.pa_unmap.pages) {
+		dma_unmap_page(pdata->dev, rdata->rx.hdr.pa_unmap.pages_dma,
+			       rdata->rx.hdr.pa_unmap.pages_len,
 			       DMA_FROM_DEVICE);
-		put_page(rdata->rx_hdr.pa_unmap.pages);
+		put_page(rdata->rx.hdr.pa_unmap.pages);
 	}
 
-	if (rdata->rx_buf.pa.pages)
-		put_page(rdata->rx_buf.pa.pages);
+	if (rdata->rx.buf.pa.pages)
+		put_page(rdata->rx.buf.pa.pages);
 
-	if (rdata->rx_buf.pa_unmap.pages) {
-		dma_unmap_page(pdata->dev, rdata->rx_buf.pa_unmap.pages_dma,
-			       rdata->rx_buf.pa_unmap.pages_len,
+	if (rdata->rx.buf.pa_unmap.pages) {
+		dma_unmap_page(pdata->dev, rdata->rx.buf.pa_unmap.pages_dma,
+			       rdata->rx.buf.pa_unmap.pages_len,
 			       DMA_FROM_DEVICE);
-		put_page(rdata->rx_buf.pa_unmap.pages);
+		put_page(rdata->rx.buf.pa_unmap.pages);
 	}
 
-	memset(&rdata->rx_hdr, 0, sizeof(rdata->rx_hdr));
-	memset(&rdata->rx_buf, 0, sizeof(rdata->rx_buf));
+	memset(&rdata->tx, 0, sizeof(rdata->tx));
+	memset(&rdata->rx, 0, sizeof(rdata->rx));
 
-	rdata->tso_header = 0;
-	rdata->len = 0;
 	rdata->interrupt = 0;
 	rdata->mapped_as_page = 0;
 
@@ -534,7 +532,7 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 		}
 		rdata->skb_dma = skb_dma;
 		rdata->skb_dma_len = packet->header_len;
-		rdata->tso_header = 1;
+		rdata->tx.tso_header = 1;
 
 		offset = packet->header_len;
 
