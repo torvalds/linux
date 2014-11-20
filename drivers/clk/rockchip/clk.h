@@ -92,6 +92,10 @@ struct rockchip_pll_rate_table {
  * @type: Type of PLL to be registered.
  * @pll_flags: hardware-specific flags
  * @rate_table: Table of usable pll rates
+ *
+ * Flags:
+ * ROCKCHIP_PLL_SYNC_RATE - check rate parameters to match against the
+ *	rate_table parameters and ajust them if necessary.
  */
 struct rockchip_pll_clock {
 	unsigned int		id;
@@ -107,6 +111,8 @@ struct rockchip_pll_clock {
 	u8			pll_flags;
 	struct rockchip_pll_rate_table *rate_table;
 };
+
+#define ROCKCHIP_PLL_SYNC_RATE		BIT(0)
 
 #define PLL(_type, _id, _name, _pnames, _flags, _con, _mode, _mshift,	\
 		_lshift, _pflags, _rtable)				\
