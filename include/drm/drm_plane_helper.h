@@ -53,6 +53,7 @@ extern int drm_crtc_init(struct drm_device *dev,
  * @cleanup_fb: cleanup a framebuffer when it's no longer used by the plane
  * @atomic_check: check that a given atomic state is valid and can be applied
  * @atomic_update: apply an atomic state to the plane (mandatory)
+ * @atomic_disable: disable the plane
  *
  * The helper operations are called by the mid-layer CRTC helper.
  */
@@ -66,6 +67,8 @@ struct drm_plane_helper_funcs {
 			    struct drm_plane_state *state);
 	void (*atomic_update)(struct drm_plane *plane,
 			      struct drm_plane_state *old_state);
+	void (*atomic_disable)(struct drm_plane *plane,
+			       struct drm_plane_state *old_state);
 };
 
 static inline void drm_plane_helper_add(struct drm_plane *plane,

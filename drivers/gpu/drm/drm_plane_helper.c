@@ -449,7 +449,15 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 			crtc_funcs[i]->atomic_begin(crtc[i]);
 	}
 
-	plane_funcs->atomic_update(plane, plane_state);
+	/*
+	 * Drivers may optionally implement the ->atomic_disable callback, so
+	 * special-case that here.
+	 */
+	if (drm_atomic_plane_disabling(plane, plane_state) &&
+	    plane_funcs->atomic_disable)
+		plane_funcs->atomic_disable(plane, plane_state);
+	else
+		plane_funcs->atomic_update(plane, plane_state);
 
 	for (i = 0; i < 2; i++) {
 		if (crtc_funcs[i] && crtc_funcs[i]->atomic_flush)

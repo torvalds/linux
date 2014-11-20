@@ -1113,7 +1113,14 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 
 		old_plane_state = old_state->plane_states[i];
 
-		funcs->atomic_update(plane, old_plane_state);
+		/*
+		 * Special-case disabling the plane if drivers support it.
+		 */
+		if (drm_atomic_plane_disabling(plane, old_plane_state) &&
+		    funcs->atomic_disable)
+			funcs->atomic_disable(plane, old_plane_state);
+		else
+			funcs->atomic_update(plane, old_plane_state);
 	}
 
 	for (i = 0; i < ncrtcs; i++) {
