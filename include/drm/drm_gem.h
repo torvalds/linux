@@ -119,6 +119,13 @@ struct drm_gem_object {
 	 * simply leave it as NULL.
 	 */
 	struct dma_buf_attachment *import_attach;
+
+	/**
+	 * dumb - created as dumb buffer
+	 * Whether the gem object was created using the dumb buffer interface
+	 * as such it may not be used for GPU rendering.
+	 */
+	bool dumb;
 };
 
 void drm_gem_object_release(struct drm_gem_object *obj);
