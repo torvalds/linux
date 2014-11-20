@@ -3614,22 +3614,27 @@ static void ad8402_write(struct comedi_device *dev, unsigned int channel,
 }
 
 /* for pci-das6402/16, channel 0 is analog input gain and channel 1 is offset */
-static int ad8402_write_insn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas64_ad8402_insn_write(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_insn *insn,
+					 unsigned int *data)
 {
-	int channel = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	/* return immediately if setting hasn't changed, since
-	 * programming these things is slow */
-	if (s->readback[channel] == data[0])
-		return 1;
+	/*
+	 * Programming the calib device is slow. Only write the
+	 * last data value if the value has changed.
+	 */
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
 
-	s->readback[channel] = data[0];
+		if (s->readback[chan] != val) {
+			ad8402_write(dev, chan, val);
+			s->readback[chan] = val;
+		}
+	}
 
-	ad8402_write(dev, channel, data[0]);
-
-	return 1;
+	return insn->n;
 }
 
 static uint16_t read_eeprom(struct comedi_device *dev, uint8_t address)
@@ -3855,7 +3860,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = 2;
 		s->maxdata = 0xff;
-		s->insn_write = ad8402_write_insn;
+		s->insn_write = cb_pcidas64_ad8402_insn_write;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
