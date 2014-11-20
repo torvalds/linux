@@ -125,11 +125,6 @@ static const struct comedi_lrange ao_ranges_1724 = {
 	}
 };
 
-/* this structure is for data unique to this hardware driver. */
-struct adv_pci1724_private {
-	int gain_value[NUM_AO_CHANNELS];
-};
-
 static int wait_for_dac_idle(struct comedi_device *dev)
 {
 	static const int timeout = 10000;
@@ -209,7 +204,6 @@ static int gain_write_insn(struct comedi_device *dev,
 			   struct comedi_subdevice *s,
 			   struct comedi_insn *insn, unsigned int *data)
 {
-	struct adv_pci1724_private *devpriv = dev->private;
 	int channel = CR_CHAN(insn->chanspec);
 	int retval;
 	int i;
@@ -221,27 +215,8 @@ static int gain_write_insn(struct comedi_device *dev,
 		retval = set_dac(dev, DAC_GAIN_MODE, channel, data[i]);
 		if (retval < 0)
 			return retval;
-		devpriv->gain_value[channel] = data[i];
+		s->readback[channel] = data[i];
 	}
-
-	return insn->n;
-}
-
-static int gain_read_insn(struct comedi_device *dev,
-			  struct comedi_subdevice *s, struct comedi_insn *insn,
-			  unsigned int *data)
-{
-	struct adv_pci1724_private *devpriv = dev->private;
-	unsigned int channel = CR_CHAN(insn->chanspec);
-	int i;
-
-	if (devpriv->gain_value[channel] < 0) {
-		dev_err(dev->class_dev,
-			"Cannot read back channels which have not yet been written to\n");
-		return -EIO;
-	}
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->gain_value[channel];
 
 	return insn->n;
 }
@@ -287,9 +262,12 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = NUM_AO_CHANNELS;
-	s->insn_read = gain_read_insn;
-	s->insn_write = gain_write_insn;
 	s->maxdata = 0x3fff;
+	s->insn_write = gain_write_insn;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -298,20 +276,8 @@ static int adv_pci1724_auto_attach(struct comedi_device *dev,
 				   unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct adv_pci1724_private *devpriv;
-	int i;
 	int retval;
 	unsigned int board_id;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
-
-	/* init software copies of output values to indicate we don't know
-	 * what the output value is since it has never been written. */
-	for (i = 0; i < NUM_AO_CHANNELS; ++i) {
-		devpriv->gain_value[i] = -1;
-	}
 
 	retval = comedi_pci_enable(dev);
 	if (retval)
