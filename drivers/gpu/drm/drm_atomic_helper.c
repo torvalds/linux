@@ -499,9 +499,12 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		if (!old_conn_state || !old_conn_state->crtc)
 			continue;
 
-		encoder = connector->state->best_encoder;
+		encoder = old_conn_state->best_encoder;
 
-		if (!encoder)
+		/* We shouldn't get this far if we didn't previously have
+		 * an encoder.. but WARN_ON() rather than explode.
+		 */
+		if (WARN_ON(!encoder))
 			continue;
 
 		funcs = encoder->helper_private;
