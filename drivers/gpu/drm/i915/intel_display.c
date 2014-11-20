@@ -10001,6 +10001,10 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		      pipe_config->dp_m2_n2.link_n,
 		      pipe_config->dp_m2_n2.tu);
 
+	DRM_DEBUG_KMS("audio: %i, infoframes: %i\n",
+		      pipe_config->has_audio,
+		      pipe_config->has_infoframe);
+
 	DRM_DEBUG_KMS("requested mode:\n");
 	drm_mode_debug_printmodeline(&pipe_config->requested_mode);
 	DRM_DEBUG_KMS("adjusted mode:\n");
