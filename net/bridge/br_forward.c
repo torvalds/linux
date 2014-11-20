@@ -112,6 +112,7 @@ void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 
 	kfree_skb(skb);
 }
+EXPORT_SYMBOL_GPL(br_deliver);
 
 /* called with rcu_read_lock */
 void br_forward(const struct net_bridge_port *to, struct sk_buff *skb, struct sk_buff *skb0)

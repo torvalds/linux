@@ -574,12 +574,14 @@ static inline int assign_eip_far(struct x86_emulate_ctxt *ctxt, ulong dst,
 	case 4:
 		ctxt->_eip = (u32)dst;
 		break;
+#ifdef CONFIG_X86_64
 	case 8:
 		if ((cs_l && is_noncanonical_address(dst)) ||
-		    (!cs_l && (dst & ~(u32)-1)))
+		    (!cs_l && (dst >> 32) != 0))
 			return emulate_gp(ctxt, 0);
 		ctxt->_eip = dst;
 		break;
+#endif
 	default:
 		WARN(1, "unsupported eip assignment size\n");
 	}
@@ -641,7 +643,8 @@ static bool insn_aligned(struct x86_emulate_ctxt *ctxt, unsigned size)
 
 static int __linearize(struct x86_emulate_ctxt *ctxt,
 		     struct segmented_address addr,
-		     unsigned size, bool write, bool fetch,
+		     unsigned *max_size, unsigned size,
+		     bool write, bool fetch,
 		     ulong *linear)
 {
 	struct desc_struct desc;
@@ -652,10 +655,15 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 	unsigned cpl;
 
 	la = seg_base(ctxt, addr.seg) + addr.ea;
+	*max_size = 0;
 	switch (ctxt->mode) {
 	case X86EMUL_MODE_PROT64:
 		if (((signed long)la << 16) >> 16 != la)
 			return emulate_gp(ctxt, 0);
+
+		*max_size = min_t(u64, ~0u, (1ull << 48) - la);
+		if (size > *max_size)
+			goto bad;
 		break;
 	default:
 		usable = ctxt->ops->get_segment(ctxt, &sel, &desc, NULL,
@@ -673,20 +681,25 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 		if ((ctxt->mode == X86EMUL_MODE_REAL) && !fetch &&
 		    (ctxt->d & NoBigReal)) {
 			/* la is between zero and 0xffff */
-			if (la > 0xffff || (u32)(la + size - 1) > 0xffff)
+			if (la > 0xffff)
 				goto bad;
+			*max_size = 0x10000 - la;
 		} else if ((desc.type & 8) || !(desc.type & 4)) {
 			/* expand-up segment */
-			if (addr.ea > lim || (u32)(addr.ea + size - 1) > lim)
+			if (addr.ea > lim)
 				goto bad;
+			*max_size = min_t(u64, ~0u, (u64)lim + 1 - addr.ea);
 		} else {
 			/* expand-down segment */
-			if (addr.ea <= lim || (u32)(addr.ea + size - 1) <= lim)
+			if (addr.ea <= lim)
 				goto bad;
 			lim = desc.d ? 0xffffffff : 0xffff;
-			if (addr.ea > lim || (u32)(addr.ea + size - 1) > lim)
+			if (addr.ea > lim)
 				goto bad;
+			*max_size = min_t(u64, ~0u, (u64)lim + 1 - addr.ea);
 		}
+		if (size > *max_size)
+			goto bad;
 		cpl = ctxt->ops->cpl(ctxt);
 		if (!(desc.type & 8)) {
 			/* data segment */
@@ -711,9 +724,9 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 	return X86EMUL_CONTINUE;
 bad:
 	if (addr.seg == VCPU_SREG_SS)
-		return emulate_ss(ctxt, sel);
+		return emulate_ss(ctxt, 0);
 	else
-		return emulate_gp(ctxt, sel);
+		return emulate_gp(ctxt, 0);
 }
 
 static int linearize(struct x86_emulate_ctxt *ctxt,
@@ -721,7 +734,8 @@ static int linearize(struct x86_emulate_ctxt *ctxt,
 		     unsigned size, bool write,
 		     ulong *linear)
 {
-	return __linearize(ctxt, addr, size, write, false, linear);
+	unsigned max_size;
+	return __linearize(ctxt, addr, &max_size, size, write, false, linear);
 }
 
 
@@ -746,17 +760,27 @@ static int segmented_read_std(struct x86_emulate_ctxt *ctxt,
 static int __do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt, int op_size)
 {
 	int rc;
-	unsigned size;
+	unsigned size, max_size;
 	unsigned long linear;
 	int cur_size = ctxt->fetch.end - ctxt->fetch.data;
 	struct segmented_address addr = { .seg = VCPU_SREG_CS,
 					   .ea = ctxt->eip + cur_size };
 
-	size = 15UL ^ cur_size;
-	rc = __linearize(ctxt, addr, size, false, true, &linear);
+	/*
+	 * We do not know exactly how many bytes will be needed, and
+	 * __linearize is expensive, so fetch as much as possible.  We
+	 * just have to avoid going beyond the 15 byte limit, the end
+	 * of the segment, or the end of the page.
+	 *
+	 * __linearize is called with size 0 so that it does not do any
+	 * boundary check itself.  Instead, we use max_size to check
+	 * against op_size.
+	 */
+	rc = __linearize(ctxt, addr, &max_size, 0, false, true, &linear);
 	if (unlikely(rc != X86EMUL_CONTINUE))
 		return rc;
 
+	size = min_t(unsigned, 15UL ^ cur_size, max_size);
 	size = min_t(unsigned, size, PAGE_SIZE - offset_in_page(linear));
 
 	/*
@@ -766,7 +790,8 @@ static int __do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt, int op_size)
 	 * still, we must have hit the 15-byte boundary.
 	 */
 	if (unlikely(size < op_size))
-		return X86EMUL_UNHANDLEABLE;
+		return emulate_gp(ctxt, 0);
+
 	rc = ctxt->ops->fetch(ctxt, linear, ctxt->fetch.end,
 			      size, &ctxt->exception);
 	if (unlikely(rc != X86EMUL_CONTINUE))
@@ -2012,7 +2037,7 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 
 	rc = assign_eip_far(ctxt, ctxt->src.val, new_desc.l);
 	if (rc != X86EMUL_CONTINUE) {
-		WARN_ON(!ctxt->mode != X86EMUL_MODE_PROT64);
+		WARN_ON(ctxt->mode != X86EMUL_MODE_PROT64);
 		/* assigning eip failed; restore the old cs */
 		ops->set_segment(ctxt, old_sel, &old_desc, 0, VCPU_SREG_CS);
 		return rc;
@@ -2109,7 +2134,7 @@ static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 		return rc;
 	rc = assign_eip_far(ctxt, eip, new_desc.l);
 	if (rc != X86EMUL_CONTINUE) {
-		WARN_ON(!ctxt->mode != X86EMUL_MODE_PROT64);
+		WARN_ON(ctxt->mode != X86EMUL_MODE_PROT64);
 		ops->set_segment(ctxt, old_cs, &old_desc, 0, VCPU_SREG_CS);
 	}
 	return rc;
@@ -4262,6 +4287,7 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		fetch_register_operand(op);
 		break;
 	case OpCL:
+		op->type = OP_IMM;
 		op->bytes = 1;
 		op->val = reg_read(ctxt, VCPU_REGS_RCX) & 0xff;
 		break;
@@ -4269,6 +4295,7 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		rc = decode_imm(ctxt, op, 1, true);
 		break;
 	case OpOne:
+		op->type = OP_IMM;
 		op->bytes = 1;
 		op->val = 1;
 		break;
@@ -4327,21 +4354,27 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		ctxt->memop.bytes = ctxt->op_bytes + 2;
 		goto mem_common;
 	case OpES:
+		op->type = OP_IMM;
 		op->val = VCPU_SREG_ES;
 		break;
 	case OpCS:
+		op->type = OP_IMM;
 		op->val = VCPU_SREG_CS;
 		break;
 	case OpSS:
+		op->type = OP_IMM;
 		op->val = VCPU_SREG_SS;
 		break;
 	case OpDS:
+		op->type = OP_IMM;
 		op->val = VCPU_SREG_DS;
 		break;
 	case OpFS:
+		op->type = OP_IMM;
 		op->val = VCPU_SREG_FS;
 		break;
 	case OpGS:
+		op->type = OP_IMM;
 		op->val = VCPU_SREG_GS;
 		break;
 	case OpImplicit:

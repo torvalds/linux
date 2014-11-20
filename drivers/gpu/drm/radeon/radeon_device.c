@@ -952,6 +952,7 @@ int radeon_atombios_init(struct radeon_device *rdev)
 	}
 
 	mutex_init(&rdev->mode_info.atom_context->mutex);
+	mutex_init(&rdev->mode_info.atom_context->scratch_mutex);
 	radeon_atom_initialize_bios_scratch_regs(rdev->ddev);
 	atom_allocate_fb_scratch(rdev->mode_info.atom_context);
 	return 0;

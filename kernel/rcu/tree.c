@@ -3299,11 +3299,16 @@ static void _rcu_barrier(struct rcu_state *rsp)
 			continue;
 		rdp = per_cpu_ptr(rsp->rda, cpu);
 		if (rcu_is_nocb_cpu(cpu)) {
-			_rcu_barrier_trace(rsp, "OnlineNoCB", cpu,
-					   rsp->n_barrier_done);
-			atomic_inc(&rsp->barrier_cpu_count);
-			__call_rcu(&rdp->barrier_head, rcu_barrier_callback,
-				   rsp, cpu, 0);
+			if (!rcu_nocb_cpu_needs_barrier(rsp, cpu)) {
+				_rcu_barrier_trace(rsp, "OfflineNoCB", cpu,
+						   rsp->n_barrier_done);
+			} else {
+				_rcu_barrier_trace(rsp, "OnlineNoCB", cpu,
+						   rsp->n_barrier_done);
+				atomic_inc(&rsp->barrier_cpu_count);
+				__call_rcu(&rdp->barrier_head,
+					   rcu_barrier_callback, rsp, cpu, 0);
+			}
 		} else if (ACCESS_ONCE(rdp->qlen)) {
 			_rcu_barrier_trace(rsp, "OnlineQ", cpu,
 					   rsp->n_barrier_done);

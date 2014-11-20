@@ -3129,12 +3129,51 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 		     HOSTPAGESIZEPF6(sge_hps) |
 		     HOSTPAGESIZEPF7(sge_hps));
 
-	t4_set_reg_field(adap, SGE_CONTROL,
-			 INGPADBOUNDARY_MASK |
-			 EGRSTATUSPAGESIZE_MASK,
-			 INGPADBOUNDARY(fl_align_log - 5) |
-			 EGRSTATUSPAGESIZE(stat_len != 64));
-
+	if (is_t4(adap->params.chip)) {
+		t4_set_reg_field(adap, SGE_CONTROL,
+				 INGPADBOUNDARY_MASK |
+				 EGRSTATUSPAGESIZE_MASK,
+				 INGPADBOUNDARY(fl_align_log - 5) |
+				 EGRSTATUSPAGESIZE(stat_len != 64));
+	} else {
+		/* T5 introduced the separation of the Free List Padding and
+		 * Packing Boundaries.  Thus, we can select a smaller Padding
+		 * Boundary to avoid uselessly chewing up PCIe Link and Memory
+		 * Bandwidth, and use a Packing Boundary which is large enough
+		 * to avoid false sharing between CPUs, etc.
+		 *
+		 * For the PCI Link, the smaller the Padding Boundary the
+		 * better.  For the Memory Controller, a smaller Padding
+		 * Boundary is better until we cross under the Memory Line
+		 * Size (the minimum unit of transfer to/from Memory).  If we
+		 * have a Padding Boundary which is smaller than the Memory
+		 * Line Size, that'll involve a Read-Modify-Write cycle on the
+		 * Memory Controller which is never good.  For T5 the smallest
+		 * Padding Boundary which we can select is 32 bytes which is
+		 * larger than any known Memory Controller Line Size so we'll
+		 * use that.
+		 *
+		 * T5 has a different interpretation of the "0" value for the
+		 * Packing Boundary.  This corresponds to 16 bytes instead of
+		 * the expected 32 bytes.  We never have a Packing Boundary
+		 * less than 32 bytes so we can't use that special value but
+		 * on the other hand, if we wanted 32 bytes, the best we can
+		 * really do is 64 bytes.
+		*/
+		if (fl_align <= 32) {
+			fl_align = 64;
+			fl_align_log = 6;
+		}
+		t4_set_reg_field(adap, SGE_CONTROL,
+				 INGPADBOUNDARY_MASK |
+				 EGRSTATUSPAGESIZE_MASK,
+				 INGPADBOUNDARY(INGPCIEBOUNDARY_32B_X) |
+				 EGRSTATUSPAGESIZE(stat_len != 64));
+		t4_set_reg_field(adap, SGE_CONTROL2_A,
+				 INGPACKBOUNDARY_V(INGPACKBOUNDARY_M),
+				 INGPACKBOUNDARY_V(fl_align_log -
+						 INGPACKBOUNDARY_SHIFT_X));
+	}
 	/*
 	 * Adjust various SGE Free List Host Buffer Sizes.
 	 *

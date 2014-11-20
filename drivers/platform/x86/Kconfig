@@ -202,6 +202,7 @@ config TC1100_WMI
 config HP_ACCEL
 	tristate "HP laptop accelerometer"
 	depends on INPUT && ACPI
+	depends on SERIO_I8042
 	select SENSORS_LIS3LV02D
 	select NEW_LEDS
 	select LEDS_CLASS

@@ -1264,7 +1264,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	i8042.noloop	[HW] Disable the AUX Loopback command while probing
 			     for the AUX port
 	i8042.nomux	[HW] Don't check presence of an active multiplexing
-			     controller. Default: true.
+			     controller
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
 	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
@@ -1306,6 +1306,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			.vlb_clock .pci_clock .noflush .nohpa .noprobe .nowerr
 			.cdrom .chs .ignore_cable are additional options
 			See Documentation/ide/ide.txt.
+
+	ide-generic.probe-mask= [HW] (E)IDE subsystem
+			Format: <int>
+			Probe mask for legacy ISA IDE ports.  Depending on
+			platform up to 6 ports are supported, enabled by
+			setting corresponding bits in the mask to 1.  The
+			default value is 0x0, which has a special meaning.
+			On systems that have PCI, it triggers scanning the
+			PCI bus for the first and the second port, which
+			are then probed.  On systems without PCI the value
+			of 0x0 enables probing the two first ports as if it
+			was 0x3.
 
 	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
 			Claim all unknown PCI IDE storage controllers.
@@ -1587,6 +1599,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	kmemleak=	[KNL] Boot-time kmemleak enable/disable
 			Valid arguments: on, off
 			Default: on
+			Built with CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF=y,
+			the default is off.
 
 	kmemcheck=	[X86] Boot-time kmemcheck enable/disable/one-shot mode
 			Valid arguments: 0, 1, 2
@@ -3607,7 +3621,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	usb-storage.delay_use=
 			[UMS] The delay in seconds before a new device is
-			scanned for Logical Units (default 5).
+			scanned for Logical Units (default 1).
 
 	usb-storage.quirks=
 			[UMS] A list of quirks entries to supplement or
