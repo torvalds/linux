@@ -134,3 +134,14 @@
 	bus-width = <4>;
 	cap-power-off-card;
 };
+
+&dss {
+	status = "ok";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&dss_dpi_pins_common
+		&dss_dpi_pins_cm_t35x
+	>;
+};
+

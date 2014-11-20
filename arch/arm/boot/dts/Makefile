@@ -309,7 +309,9 @@ dtb-$(CONFIG_ARCH_OMAP3) += am3517-craneboard.dtb \
 	omap3-ha.dtb \
 	omap3-ha-lcd.dtb \
 	omap3-igep0020.dtb \
+	omap3-igep0020-rev-f.dtb \
 	omap3-igep0030.dtb \
+	omap3-igep0030-rev-g.dtb \
 	omap3-ldp.dtb \
 	omap3-lilly-dbb056.dtb \
 	omap3-n900.dtb \
@@ -354,6 +356,7 @@ dtb-$(CONFIG_SOC_OMAP5) += omap5-cm-t54.dtb \
 	omap5-sbc-t54.dtb \
 	omap5-uevm.dtb
 dtb-$(CONFIG_SOC_DRA7XX) += dra7-evm.dtb \
+	am57xx-beagle-x15.dtb \
 	dra72-evm.dtb
 dtb-$(CONFIG_ARCH_ORION5X) += orion5x-lacie-d2-network.dtb \
 	orion5x-lacie-ethernet-disk-mini-v2.dtb \
