@@ -28,7 +28,6 @@
 #include "hpioctl.h"
 #include "hpicmn.h"
 
-
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
@@ -47,7 +46,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("AudioScience inc. <support@audioscience.com>");
-MODULE_DESCRIPTION("AudioScience ALSA ASI5000 ASI6000 ASI87xx ASI89xx "
+MODULE_DESCRIPTION("AudioScience ALSA ASI5xxx ASI6xxx ASI87xx ASI89xx "
 			HPI_VER_STRING);
 
 #if defined CONFIG_SND_DEBUG_VERBOSE
@@ -87,11 +86,11 @@ MODULE_PARM_DESC(enable_hpi_hwdep,
 #ifdef KERNEL_ALSA_BUILD
 static char *build_info = "Built using headers from kernel source";
 module_param(build_info, charp, S_IRUGO);
-MODULE_PARM_DESC(build_info, "built using headers from kernel source");
+MODULE_PARM_DESC(build_info, "Built using headers from kernel source");
 #else
 static char *build_info = "Built within ALSA source";
 module_param(build_info, charp, S_IRUGO);
-MODULE_PARM_DESC(build_info, "built within ALSA source");
+MODULE_PARM_DESC(build_info, "Built within ALSA source");
 #endif
 
 /* set to 1 to dump every control from adapter to log */
@@ -538,7 +537,7 @@ static void snd_card_asihpi_pcm_timer_start(struct snd_pcm_substream *
 	int expiry;
 
 	expiry = HZ / 200;
-	/*? (dpcm->period_bytes * HZ / dpcm->bytes_per_sec); */
+
 	expiry = max(expiry, 1); /* don't let it be zero! */
 	dpcm->timer.expires = jiffies + expiry;
 	dpcm->respawn_timer = 1;
@@ -2932,10 +2931,6 @@ static struct pci_driver driver = {
 	.id_table = asihpi_pci_tbl,
 	.probe = snd_asihpi_probe,
 	.remove = snd_asihpi_remove,
-#ifdef CONFIG_PM_SLEEP
-/*	.suspend = snd_asihpi_suspend,
-	.resume = snd_asihpi_resume, */
-#endif
 };
 
 static int __init snd_asihpi_init(void)
