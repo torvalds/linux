@@ -10,6 +10,8 @@
 #define __ASM_ARC_CMPXCHG_H
 
 #include <linux/types.h>
+
+#include <asm/barrier.h>
 #include <asm/smp.h>
 
 #ifdef CONFIG_ARC_HAS_LLSC
@@ -18,6 +20,12 @@ static inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 {
 	unsigned long prev;
+
+	/*
+	 * Explicit full memory barrier needed before/after as
+	 * LLOCK/SCOND thmeselves don't provide any such semantics
+	 */
+	smp_mb();
 
 	__asm__ __volatile__(
 	"1:	llock   %0, [%1]	\n"
@@ -31,6 +39,8 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 	  "r"(new)	/* can't be "ir". scond can't take LIMM for "b" */
 	: "cc", "memory"); /* so that gcc knows memory is being written here */
 
+	smp_mb();
+
 	return prev;
 }
 
@@ -43,6 +53,9 @@ __cmpxchg(volatile void *ptr, unsigned long expected, unsigned long new)
 	int prev;
 	volatile unsigned long *p = ptr;
 
+	/*
+	 * spin lock/unlock provide the needed smp_mb() before/after
+	 */
 	atomic_ops_lock(flags);
 	prev = *p;
 	if (prev == expected)
@@ -78,11 +91,15 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 
 	switch (size) {
 	case 4:
+		smp_mb();
+
 		__asm__ __volatile__(
 		"	ex  %0, [%1]	\n"
 		: "+r"(val)
 		: "r"(ptr)
 		: "memory");
+
+		smp_mb();
 
 		return val;
 	}

@@ -117,6 +117,12 @@ static inline int test_and_set_bit(unsigned long nr, volatile unsigned long *m)
 	if (__builtin_constant_p(nr))
 		nr &= 0x1f;
 
+	/*
+	 * Explicit full memory barrier needed before/after as
+	 * LLOCK/SCOND themselves don't provide any such semantics
+	 */
+	smp_mb();
+
 	__asm__ __volatile__(
 	"1:	llock   %0, [%2]	\n"
 	"	bset    %1, %0, %3	\n"
@@ -125,6 +131,8 @@ static inline int test_and_set_bit(unsigned long nr, volatile unsigned long *m)
 	: "=&r"(old), "=&r"(temp)
 	: "r"(m), "ir"(nr)
 	: "cc");
+
+	smp_mb();
 
 	return (old & (1 << nr)) != 0;
 }
@@ -139,6 +147,8 @@ test_and_clear_bit(unsigned long nr, volatile unsigned long *m)
 	if (__builtin_constant_p(nr))
 		nr &= 0x1f;
 
+	smp_mb();
+
 	__asm__ __volatile__(
 	"1:	llock   %0, [%2]	\n"
 	"	bclr    %1, %0, %3	\n"
@@ -147,6 +157,8 @@ test_and_clear_bit(unsigned long nr, volatile unsigned long *m)
 	: "=&r"(old), "=&r"(temp)
 	: "r"(m), "ir"(nr)
 	: "cc");
+
+	smp_mb();
 
 	return (old & (1 << nr)) != 0;
 }
@@ -161,6 +173,8 @@ test_and_change_bit(unsigned long nr, volatile unsigned long *m)
 	if (__builtin_constant_p(nr))
 		nr &= 0x1f;
 
+	smp_mb();
+
 	__asm__ __volatile__(
 	"1:	llock   %0, [%2]	\n"
 	"	bxor    %1, %0, %3	\n"
@@ -169,6 +183,8 @@ test_and_change_bit(unsigned long nr, volatile unsigned long *m)
 	: "=&r"(old), "=&r"(temp)
 	: "r"(m), "ir"(nr)
 	: "cc");
+
+	smp_mb();
 
 	return (old & (1 << nr)) != 0;
 }
@@ -249,6 +265,9 @@ static inline int test_and_set_bit(unsigned long nr, volatile unsigned long *m)
 	if (__builtin_constant_p(nr))
 		nr &= 0x1f;
 
+	/*
+	 * spin lock/unlock provide the needed smp_mb() before/after
+	 */
 	bitops_lock(flags);
 
 	old = *m;
