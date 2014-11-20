@@ -38,4 +38,10 @@
 
 extern struct genl_family tipc_genl_v2_family;
 
+struct tipc_nl_msg {
+	struct sk_buff *skb;
+	u32 portid;
+	u32 seq;
+};
+
 #endif

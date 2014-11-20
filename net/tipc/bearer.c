@@ -640,6 +640,131 @@ void tipc_bearer_stop(void)
 	}
 }
 
+/* Caller should hold rtnl_lock to protect the bearer */
+int __tipc_nl_add_bearer(struct tipc_nl_msg *msg, struct tipc_bearer *bearer)
+{
+	void *hdr;
+	struct nlattr *attrs;
+	struct nlattr *prop;
+
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+			  NLM_F_MULTI, TIPC_NL_BEARER_GET);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	attrs = nla_nest_start(msg->skb, TIPC_NLA_BEARER);
+	if (!attrs)
+		goto msg_full;
+
+	if (nla_put_string(msg->skb, TIPC_NLA_BEARER_NAME, bearer->name))
+		goto attr_msg_full;
+
+	prop = nla_nest_start(msg->skb, TIPC_NLA_BEARER_PROP);
+	if (!prop)
+		goto prop_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_PRIO, bearer->priority))
+		goto prop_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_TOL, bearer->tolerance))
+		goto prop_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_WIN, bearer->window))
+		goto prop_msg_full;
+
+	nla_nest_end(msg->skb, prop);
+	nla_nest_end(msg->skb, attrs);
+	genlmsg_end(msg->skb, hdr);
+
+	return 0;
+
+prop_msg_full:
+	nla_nest_cancel(msg->skb, prop);
+attr_msg_full:
+	nla_nest_cancel(msg->skb, attrs);
+msg_full:
+	genlmsg_cancel(msg->skb, hdr);
+
+	return -EMSGSIZE;
+}
+
+int tipc_nl_bearer_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	int err;
+	int i = cb->args[0];
+	struct tipc_bearer *bearer;
+	struct tipc_nl_msg msg;
+
+	if (i == MAX_BEARERS)
+		return 0;
+
+	msg.skb = skb;
+	msg.portid = NETLINK_CB(cb->skb).portid;
+	msg.seq = cb->nlh->nlmsg_seq;
+
+	rtnl_lock();
+	for (i = 0; i < MAX_BEARERS; i++) {
+		bearer = rtnl_dereference(bearer_list[i]);
+		if (!bearer)
+			continue;
+
+		err = __tipc_nl_add_bearer(&msg, bearer);
+		if (err)
+			break;
+	}
+	rtnl_unlock();
+
+	cb->args[0] = i;
+	return skb->len;
+}
+
+int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	char *name;
+	struct sk_buff *rep;
+	struct tipc_bearer *bearer;
+	struct tipc_nl_msg msg;
+	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
+
+	if (!info->attrs[TIPC_NLA_BEARER])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
+			       info->attrs[TIPC_NLA_BEARER],
+			       tipc_nl_bearer_policy);
+	if (err)
+		return err;
+
+	if (!attrs[TIPC_NLA_BEARER_NAME])
+		return -EINVAL;
+	name = nla_data(attrs[TIPC_NLA_BEARER_NAME]);
+
+	rep = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!rep)
+		return -ENOMEM;
+
+	msg.skb = rep;
+	msg.portid = info->snd_portid;
+	msg.seq = info->snd_seq;
+
+	rtnl_lock();
+	bearer = tipc_bearer_find(name);
+	if (!bearer) {
+		err = -EINVAL;
+		goto err_out;
+	}
+
+	err = __tipc_nl_add_bearer(&msg, bearer);
+	if (err)
+		goto err_out;
+	rtnl_unlock();
+
+	return genlmsg_reply(rep, info);
+err_out:
+	rtnl_unlock();
+	nlmsg_free(rep);
+
+	return err;
+}
+
 int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 {
 	int err;

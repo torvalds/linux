@@ -180,6 +180,8 @@ extern struct tipc_media ib_media_info;
 
 int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_bearer_dump(struct sk_buff *skb, struct netlink_callback *cb);
+int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info);
 
 int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);
