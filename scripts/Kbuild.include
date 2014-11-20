@@ -179,6 +179,12 @@ build := -f $(srctree)/scripts/Makefile.build obj
 # $(Q)$(MAKE) $(modbuiltin)=dir
 modbuiltin := -f $(srctree)/scripts/Makefile.modbuiltin obj
 
+###
+# Shorthand for $(Q)$(MAKE) -f scripts/Makefile.dtbinst obj=
+# Usage:
+# $(Q)$(MAKE) $(dtbinst)=dir
+dtbinst := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.dtbinst obj
+
 # Prefix -I with $(srctree) if it is not an absolute path.
 # skip if -I has no parameter
 addtree = $(if $(patsubst -I%,%,$(1)), \
