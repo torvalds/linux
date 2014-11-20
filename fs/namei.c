@@ -496,6 +496,7 @@ struct nameidata {
 	unsigned	seq, m_seq;
 	int		last_type;
 	unsigned	depth;
+	struct file	*base;
 	char *saved_names[MAX_NESTED_LINKS + 1];
 };
 
@@ -1845,13 +1846,14 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 }
 
 static int path_init(int dfd, const char *name, unsigned int flags,
-		     struct nameidata *nd, struct file **fp)
+		     struct nameidata *nd)
 {
 	int retval = 0;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags | LOOKUP_JUMPED;
 	nd->depth = 0;
+	nd->base = NULL;
 	if (flags & LOOKUP_ROOT) {
 		struct dentry *root = nd->root.dentry;
 		struct inode *inode = root->d_inode;
@@ -1921,7 +1923,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 		nd->path = f.file->f_path;
 		if (flags & LOOKUP_RCU) {
 			if (f.flags & FDPUT_FPUT)
-				*fp = f.file;
+				nd->base = f.file;
 			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
 			rcu_read_lock();
 		} else {
@@ -1954,7 +1956,6 @@ static inline int lookup_last(struct nameidata *nd, struct path *path)
 static int path_lookupat(int dfd, const char *name,
 				unsigned int flags, struct nameidata *nd)
 {
-	struct file *base = NULL;
 	struct path path;
 	int err;
 
@@ -1972,7 +1973,7 @@ static int path_lookupat(int dfd, const char *name,
 	 * be handled by restarting a traditional ref-walk (which will always
 	 * be able to complete).
 	 */
-	err = path_init(dfd, name, flags | LOOKUP_PARENT, nd, &base);
+	err = path_init(dfd, name, flags | LOOKUP_PARENT, nd);
 
 	if (unlikely(err))
 		goto out;
@@ -2008,8 +2009,8 @@ static int path_lookupat(int dfd, const char *name,
 	}
 
 out:
-	if (base)
-		fput(base);
+	if (nd->base)
+		fput(nd->base);
 
 	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
 		path_put(&nd->root);
@@ -2321,11 +2322,10 @@ out:
 static int
 path_mountpoint(int dfd, const char *name, struct path *path, unsigned int flags)
 {
-	struct file *base = NULL;
 	struct nameidata nd;
 	int err;
 
-	err = path_init(dfd, name, flags | LOOKUP_PARENT, &nd, &base);
+	err = path_init(dfd, name, flags | LOOKUP_PARENT, &nd);
 	if (unlikely(err))
 		goto out;
 
@@ -2349,8 +2349,8 @@ path_mountpoint(int dfd, const char *name, struct path *path, unsigned int flags
 		put_link(&nd, &link, cookie);
 	}
 out:
-	if (base)
-		fput(base);
+	if (nd.base)
+		fput(nd.base);
 
 	if (nd.root.mnt && !(nd.flags & LOOKUP_ROOT))
 		path_put(&nd.root);
@@ -3205,7 +3205,6 @@ out:
 static struct file *path_openat(int dfd, struct filename *pathname,
 		struct nameidata *nd, const struct open_flags *op, int flags)
 {
-	struct file *base = NULL;
 	struct file *file;
 	struct path path;
 	int opened = 0;
@@ -3222,7 +3221,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		goto out;
 	}
 
-	error = path_init(dfd, pathname->name, flags | LOOKUP_PARENT, nd, &base);
+	error = path_init(dfd, pathname->name, flags | LOOKUP_PARENT, nd);
 	if (unlikely(error))
 		goto out;
 
@@ -3255,8 +3254,8 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 out:
 	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT))
 		path_put(&nd->root);
-	if (base)
-		fput(base);
+	if (nd->base)
+		fput(nd->base);
 	if (!(opened & FILE_OPENED)) {
 		BUG_ON(!error);
 		put_filp(file);
