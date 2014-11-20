@@ -318,7 +318,7 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 	 */
 	if (index >= state->num_connector) {
 		DRM_DEBUG_KMS("Hot-added connector would overflow state array, restarting\n");
-		return -EAGAIN;
+		return ERR_PTR(-EAGAIN);
 	}
 
 	if (state->connector_states[index])
