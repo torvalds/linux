@@ -109,7 +109,7 @@ static int adapter_fs = DEFAULT_SAMPLERATE;
 struct clk_source {
 	int source;
 	int index;
-	char *name;
+	const char *name;
 };
 
 struct clk_cache {
@@ -1292,8 +1292,9 @@ static const char * const asihpi_tuner_band_names[] = {
 	"TV PAL I",
 	"TV PAL DK",
 	"TV SECAM",
+	"TV DAB",
 };
-
+/* Number of strings must match the enumerations for HPI_TUNER_BAND in hpi.h */
 compile_time_assert(
 	(ARRAY_SIZE(asihpi_tuner_band_names) ==
 		(HPI_TUNER_BAND_LAST+1)),
@@ -1313,9 +1314,11 @@ static const char * const asihpi_src_names[] = {
 	"Analog",
 	"Adapter",
 	"RTP",
-	"Internal"
+	"Internal",
+	"AVB",
+	"BLU-Link"
 };
-
+/* Number of strings must match the enumerations for HPI_SOURCENODES in hpi.h */
 compile_time_assert(
 	(ARRAY_SIZE(asihpi_src_names) ==
 		(HPI_SOURCENODE_LAST_INDEX-HPI_SOURCENODE_NONE+1)),
@@ -1331,8 +1334,11 @@ static const char * const asihpi_dst_names[] = {
 	"Net",
 	"Analog",
 	"RTP",
+	"AVB",
+	"Internal",
+	"BLU-Link"
 };
-
+/* Number of strings must match the enumerations for HPI_DESTNODES in hpi.h */
 compile_time_assert(
 	(ARRAY_SIZE(asihpi_dst_names) ==
 		(HPI_DESTNODE_LAST_INDEX-HPI_DESTNODE_NONE+1)),
@@ -2288,12 +2294,17 @@ static int snd_asihpi_cmode_add(struct snd_card_asihpi *asihpi,
 /*------------------------------------------------------------
    Sampleclock source  controls
  ------------------------------------------------------------*/
-static char *sampleclock_sources[MAX_CLOCKSOURCES] = {
+static const char const *sampleclock_sources[] = {
 	"N/A", "Local PLL", "Digital Sync", "Word External", "Word Header",
 	"SMPTE", "Digital1", "Auto", "Network", "Invalid",
-	"Prev Module",
+	"Prev Module", "BLU-Link",
 	"Digital2", "Digital3", "Digital4", "Digital5",
 	"Digital6", "Digital7", "Digital8"};
+
+	/* Number of strings must match expected enumerated values */
+	compile_time_assert(
+		(ARRAY_SIZE(sampleclock_sources) == MAX_CLOCKSOURCES),
+		assert_sampleclock_sources_size);
 
 static int snd_asihpi_clksrc_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
