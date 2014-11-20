@@ -1626,14 +1626,50 @@ out_unlock:
 	return false;
 }
 
+static u32 iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm)
+{
+	struct iwl_scan_offload_profiles_query *query;
+	struct iwl_host_cmd cmd = {
+		.id = SCAN_OFFLOAD_PROFILES_QUERY_CMD,
+		.flags = CMD_WANT_SKB,
+	};
+	int ret, len;
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret) {
+		IWL_ERR(mvm, "failed to query matched profiles (%d)\n", ret);
+		return 0;
+	}
+
+	/* RF-kill already asserted again... */
+	if (!cmd.resp_pkt)
+		goto out_free_resp;
+
+	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
+	if (len < sizeof(*query)) {
+		IWL_ERR(mvm, "Invalid scan offload profiles query response!\n");
+		goto out_free_resp;
+	}
+
+	query = (void *)cmd.resp_pkt->data;
+
+	ret = le32_to_cpu(query->matched_profiles);
+
+out_free_resp:
+	iwl_free_resp(&cmd);
+	return ret;
+}
+
 static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif)
 {
+	struct cfg80211_wowlan_nd_info net_detect = {};
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
 	struct cfg80211_wowlan_wakeup *wakeup_report = &wakeup;
 	struct iwl_wowlan_status *fw_status;
+	u32 matched_profiles;
 	u32 reasons = 0;
 
 	fw_status = iwl_mvm_get_wakeup_status(mvm, vif);
@@ -1643,11 +1679,17 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	if (reasons & IWL_WOWLAN_WAKEUP_BY_RFKILL_DEASSERTED)
 		wakeup.rfkill_release = true;
 
-	if (reasons == IWL_WOWLAN_WAKEUP_BY_NON_WIRELESS) {
-		/* TODO: read and check if it was netdetect */
+	if (reasons != IWL_WOWLAN_WAKEUP_BY_NON_WIRELESS)
+		goto out;
+
+	matched_profiles = iwl_mvm_netdetect_query_results(mvm);
+	if (!matched_profiles) {
 		wakeup_report = NULL;
+		goto out;
 	}
 
+	wakeup.net_detect = &net_detect;
+out:
 	mutex_unlock(&mvm->mutex);
 	ieee80211_report_wowlan_wakeup(vif, wakeup_report, GFP_KERNEL);
 }
