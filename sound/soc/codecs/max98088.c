@@ -875,7 +875,7 @@ static const struct snd_kcontrol_new max98088_right_ADC_mixer_controls[] = {
 static int max98088_mic_event(struct snd_soc_dapm_widget *w,
                             struct snd_kcontrol *kcontrol, int event)
 {
-       struct snd_soc_codec *codec = w->codec;
+       struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
 
        switch (event) {
@@ -905,7 +905,7 @@ static int max98088_mic_event(struct snd_soc_dapm_widget *w,
 static int max98088_line_pga(struct snd_soc_dapm_widget *w,
                             int event, int line, u8 channel)
 {
-       struct snd_soc_codec *codec = w->codec;
+       struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
        u8 *state;
 
