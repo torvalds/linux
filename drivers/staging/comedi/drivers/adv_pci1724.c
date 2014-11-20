@@ -57,14 +57,14 @@ supported PCI devices are configured as comedi devices automatically.
 
 #include "../comedidev.h"
 
-/* register offsets */
-enum board_registers {
-	DAC_CONTROL_REG = 0x0,
-	SYNC_OUTPUT_REG = 0x4,
-	EEPROM_CONTROL_REG = 0x8,
-	SYNC_OUTPUT_TRIGGER_REG = 0xc,
-	BOARD_ID_REG = 0x10
-};
+/*
+ * PCI bar 2 Register I/O map (dev->iobase)
+ */
+#define PCI1724_DAC_CTRL_REG		0x00
+#define PCI1724_SYNC_OUTPUT_REG		0x04
+#define PCI1724_EEPROM_CTRL_REG		0x08
+#define PCI1724_SYNC_OUTPUT_TRIG_REG	0x0c
+#define PCI1724_BOARD_ID_REG		0x10
 
 /* bit definitions for registers */
 enum dac_control_contents {
@@ -127,7 +127,7 @@ static int adv_pci1724_dac_idle(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inl(dev->iobase + SYNC_OUTPUT_REG);
+	status = inl(dev->iobase + PCI1724_SYNC_OUTPUT_REG);
 	if ((status & DAC_BUSY) == 0)
 		return 0;
 	return -EBUSY;
@@ -144,7 +144,7 @@ static int adv_pci1724_insn_write(struct comedi_device *dev,
 	int i;
 
 	/* turn off synchronous mode */
-	outl(0, dev->iobase + SYNC_OUTPUT_REG);
+	outl(0, dev->iobase + PCI1724_SYNC_OUTPUT_REG);
 
 	for (i = 0; i < insn->n; ++i) {
 		unsigned int val = data[i];
@@ -157,7 +157,7 @@ static int adv_pci1724_insn_write(struct comedi_device *dev,
 		ctrl = mode;
 		ctrl |= dac_channel_and_group_select_bits(chan);
 		ctrl |= dac_data_bits(val);
-		outl(ctrl, dev->iobase + DAC_CONTROL_REG);
+		outl(ctrl, dev->iobase + PCI1724_DAC_CTRL_REG);
 
 		s->readback[chan] = val;
 	}
@@ -231,7 +231,7 @@ static int adv_pci1724_auto_attach(struct comedi_device *dev,
 		return retval;
 
 	dev->iobase = pci_resource_start(pcidev, 2);
-	board_id = inl(dev->iobase + BOARD_ID_REG) & BOARD_ID_MASK;
+	board_id = inl(dev->iobase + PCI1724_BOARD_ID_REG) & BOARD_ID_MASK;
 	dev_info(dev->class_dev, "board id: %d\n", board_id);
 
 	retval = setup_subdevices(dev);
