@@ -1633,7 +1633,8 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	etlt = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, ETLT);
 	DBGPR("  err=%u, etlt=%#x\n", err, etlt);
 
-	if (!err || (err && !etlt)) {
+	if (!err || !etlt) {
+		/* No error if err is 0 or etlt is 0 */
 		if ((etlt == 0x09) &&
 		    (netdev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
