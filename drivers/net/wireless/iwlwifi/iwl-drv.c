@@ -1362,6 +1362,7 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
 	.wd_disable = true,
+	.d0i3_disable = true,
 #ifndef CONFIG_IWLWIFI_UAPSD
 	.uapsd_disable = true,
 #endif /* CONFIG_IWLWIFI_UAPSD */
@@ -1477,6 +1478,10 @@ MODULE_PARM_DESC(wd_disable,
 
 module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, S_IRUGO);
 MODULE_PARM_DESC(nvm_file, "NVM file name");
+
+module_param_named(d0i3_disable, iwlwifi_mod_params.d0i3_disable,
+		   bool, S_IRUGO);
+MODULE_PARM_DESC(d0i3_disable, "disable d0i3 functionality (default: Y)");
 
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
 		   bool, S_IRUGO);

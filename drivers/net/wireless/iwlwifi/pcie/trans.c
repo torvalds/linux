@@ -931,6 +931,7 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 				   const struct fw_img *fw, bool run_in_rfkill)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 	bool hw_rfkill;
 
@@ -959,6 +960,9 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 		IWL_ERR(trans, "Unable to init nic\n");
 		return ret;
 	}
+
+	/* init ref_count to 1 (should be cleared when ucode is loaded) */
+	trans_pcie->ref_count = 1;
 
 	/* make sure rfkill handshake bits are cleared */
 	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
@@ -1548,6 +1552,38 @@ static void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
 	spin_lock_irqsave(&trans_pcie->reg_lock, flags);
 	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, value);
 	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
+}
+
+void iwl_trans_pcie_ref(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	unsigned long flags;
+
+	if (iwlwifi_mod_params.d0i3_disable)
+		return;
+
+	spin_lock_irqsave(&trans_pcie->ref_lock, flags);
+	IWL_DEBUG_RPM(trans, "ref_counter: %d\n", trans_pcie->ref_count);
+	trans_pcie->ref_count++;
+	spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
+}
+
+void iwl_trans_pcie_unref(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	unsigned long flags;
+
+	if (iwlwifi_mod_params.d0i3_disable)
+		return;
+
+	spin_lock_irqsave(&trans_pcie->ref_lock, flags);
+	IWL_DEBUG_RPM(trans, "ref_counter: %d\n", trans_pcie->ref_count);
+	if (WARN_ON_ONCE(trans_pcie->ref_count == 0)) {
+		spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
+		return;
+	}
+	trans_pcie->ref_count--;
+	spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
 }
 
 static const char *get_csr_string(int cmd)
@@ -2273,6 +2309,9 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.grab_nic_access = iwl_trans_pcie_grab_nic_access,
 	.release_nic_access = iwl_trans_pcie_release_nic_access,
 	.set_bits_mask = iwl_trans_pcie_set_bits_mask,
+
+	.ref = iwl_trans_pcie_ref,
+	.unref = iwl_trans_pcie_unref,
 
 	.dump_data = iwl_trans_pcie_dump_data,
 };
