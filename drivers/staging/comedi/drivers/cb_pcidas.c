@@ -631,34 +631,35 @@ static int cb_pcidas_caldac_insn_write(struct comedi_device *dev,
 static void dac08_write(struct comedi_device *dev, unsigned int value)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	unsigned long cal_reg;
 
-	if (devpriv->dac08_value != value) {
-		devpriv->dac08_value = value;
+	value &= 0xff;
+	value |= cal_enable_bits(dev);
 
-		cal_reg = devpriv->control_status + CALIBRATION_REG;
-
-		value &= 0xff;
-		value |= cal_enable_bits(dev);
-
-		/* latch the new value into the caldac */
-		outw(value, cal_reg);
-		udelay(1);
-		outw(value | SELECT_DAC08_BIT, cal_reg);
-		udelay(1);
-		outw(value, cal_reg);
-		udelay(1);
-	}
+	/* latch the new value into the caldac */
+	outw(value, devpriv->control_status + CALIBRATION_REG);
+	udelay(1);
+	outw(value | SELECT_DAC08_BIT,
+	     devpriv->control_status + CALIBRATION_REG);
+	udelay(1);
+	outw(value, devpriv->control_status + CALIBRATION_REG);
+	udelay(1);
 }
 
-static int dac08_write_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas_dac08_insn_write(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_insn *insn,
+				      unsigned int *data)
 {
-	int i;
+	struct cb_pcidas_private *devpriv = dev->private;
 
-	for (i = 0; i < insn->n; i++)
-		dac08_write(dev, data[i]);
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
+
+		if (devpriv->dac08_value != val) {
+			dac08_write(dev, val);
+			devpriv->dac08_value = val;
+		}
+	}
 
 	return insn->n;
 }
@@ -1531,9 +1532,10 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = NUM_CHANNELS_DAC08;
 		s->insn_read = dac08_read_insn;
-		s->insn_write = dac08_write_insn;
+		s->insn_write = cb_pcidas_dac08_insn_write;
 		s->maxdata = 0xff;
 		dac08_write(dev, s->maxdata / 2);
+		devpriv->dac08_value = s->maxdata / 2;
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
 
