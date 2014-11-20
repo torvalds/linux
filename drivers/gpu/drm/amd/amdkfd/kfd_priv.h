@@ -279,7 +279,7 @@ struct queue_properties {
 	uint32_t queue_percent;
 	uint32_t *read_ptr;
 	uint32_t *write_ptr;
-	uint32_t *doorbell_ptr;
+	uint32_t __iomem *doorbell_ptr;
 	uint32_t doorbell_off;
 	bool is_interop;
 	bool is_active;
