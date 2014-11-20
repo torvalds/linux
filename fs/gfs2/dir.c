@@ -370,11 +370,12 @@ static __be64 *gfs2_dir_get_hash_table(struct gfs2_inode *ip)
 	}
 
 	spin_lock(&inode->i_lock);
-	if (ip->i_hash_cache)
-		kvfree(hc);
-	else
+	if (likely(!ip->i_hash_cache)) {
 		ip->i_hash_cache = hc;
+		hc = NULL;
+	}
 	spin_unlock(&inode->i_lock);
+	kvfree(hc);
 
 	return ip->i_hash_cache;
 }
