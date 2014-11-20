@@ -356,7 +356,6 @@ struct cb_pcidas_private {
 	/* divisors of master clock for analog output pacing */
 	unsigned int ao_divisor1;
 	unsigned int ao_divisor2;
-	unsigned int caldac_value[NUM_CHANNELS_8800];
 	unsigned int trimpot_value[NUM_CHANNELS_8402];
 	unsigned int dac08_value;
 	unsigned int calibration_source;
@@ -615,30 +614,18 @@ static int cb_pcidas_caldac_insn_write(struct comedi_device *dev,
 				       struct comedi_insn *insn,
 				       unsigned int *data)
 {
-	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 
 	if (insn->n) {
 		unsigned int val = data[insn->n - 1];
 
-		if (devpriv->caldac_value[chan] != val) {
+		if (s->readback[chan] != val) {
 			caldac_8800_write(dev, chan, val);
-			devpriv->caldac_value[chan] = val;
+			s->readback[chan] = val;
 		}
 	}
 
 	return insn->n;
-}
-
-static int caldac_read_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	struct cb_pcidas_private *devpriv = dev->private;
-
-	data[0] = devpriv->caldac_value[CR_CHAN(insn->chanspec)];
-
-	return 1;
 }
 
 /* 1602/16 pregain offset */
@@ -1514,11 +1501,15 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = NUM_CHANNELS_8800;
 	s->maxdata = 0xff;
-	s->insn_read = caldac_read_insn;
 	s->insn_write = cb_pcidas_caldac_insn_write;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < s->n_chan; i++) {
 		caldac_8800_write(dev, i, s->maxdata / 2);
-		devpriv->caldac_value[i] = s->maxdata / 2;
+		s->readback[i] = s->maxdata / 2;
 	}
 
 	/*  trim potentiometer */
