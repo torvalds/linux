@@ -229,27 +229,6 @@ static void operation_timeout(struct work_struct *work)
 	gb_operation_complete(operation);
 }
 
-static void *
-gb_buffer_alloc(struct greybus_host_device *hd, size_t size, gfp_t gfp_flags)
-{
-	u8 *buffer;
-
-	buffer = kzalloc(hd->buffer_headroom + size, gfp_flags);
-	if (buffer)
-		buffer += hd->buffer_headroom;
-
-	return buffer;
-}
-
-static void
-gb_buffer_free(struct greybus_host_device *hd, void *buffer)
-{
-	u8 *allocated = buffer;
-
-	if (allocated)
-		kfree(allocated - hd->buffer_headroom);
-}
-
 /*
  * Allocate a message to be used for an operation request or
  * response.  For outgoing messages, both types of message contain a
@@ -257,46 +236,47 @@ gb_buffer_free(struct greybus_host_device *hd, void *buffer)
  * responses also contain the same header, but there's no need to
  * initialize it here (it'll be overwritten by the incoming
  * message).
+ *
+ * Our message structure consists of:
+ *	message structure
+ *	headroom
+ *	message header  \_ these combined are
+ *	message payload /  the message size
  */
 static struct gb_message *
 gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
-				size_t size, gfp_t gfp_flags)
+				size_t payload_size, gfp_t gfp_flags)
 {
 	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
+	size_t message_size = payload_size + sizeof(*header);
+	size_t size;
+	u8 *buffer;
 
-	size += sizeof(*header);
-	if (size > hd->buffer_size_max)
+	if (message_size > hd->buffer_size_max)
 		return NULL;
 
-	message = kzalloc(sizeof(*message), gfp_flags);
+	size = sizeof(*message) + hd->buffer_headroom + message_size;
+	message = kzalloc(size, gfp_flags);
 	if (!message)
 		return NULL;
-
-	header = gb_buffer_alloc(hd, size, gfp_flags);
-	if (!header) {
-		kfree(message);
-		return NULL;
-	}
+	buffer = &message->buffer[0];
+	header = (struct gb_operation_msg_hdr *)(buffer + hd->buffer_headroom);
 
 	/* Fill in the header structure */
-	header->size = cpu_to_le16(size);
+	header->size = cpu_to_le16(message_size);
 	header->operation_id = 0;	/* Filled in when submitted */
 	header->type = type;
 
 	message->header = header;
 	message->payload = header + 1;
-	message->size = size;
+	message->size = message_size;
 
 	return message;
 }
 
 static void gb_operation_message_free(struct gb_message *message)
 {
-	struct greybus_host_device *hd;
-
-	hd = message->operation->connection->hd;
-	gb_buffer_free(hd, message->header);
 	kfree(message);
 }
 

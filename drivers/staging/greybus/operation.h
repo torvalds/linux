@@ -31,6 +31,8 @@ struct gb_message {
 	struct gb_operation		*operation;
 
 	void				*cookie;
+
+	u8				buffer[];
 };
 
 /*
