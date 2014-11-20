@@ -30,6 +30,11 @@
 #include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
 
+static void omap3xxx_prm_read_pending_irqs(unsigned long *events);
+static void omap3xxx_prm_ocp_barrier(void);
+static void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask);
+static void omap3xxx_prm_restore_irqen(u32 *saved_mask);
+
 static const struct omap_prcm_irq omap3_prcm_irqs[] = {
 	OMAP_PRCM_IRQ("wkup",	0,	0),
 	OMAP_PRCM_IRQ("io",	9,	1),
@@ -131,7 +136,7 @@ u32 omap3_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset)
  * recommended way to restart the SoC, considering Errata i520.  No
  * return value.
  */
-void omap3xxx_prm_dpll3_reset(void)
+static void omap3xxx_prm_dpll3_reset(void)
 {
 	omap2_prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, OMAP3430_GR_MOD,
 				   OMAP2_RM_RSTCTRL);
@@ -147,7 +152,7 @@ void omap3xxx_prm_dpll3_reset(void)
  * MPU IRQs, and store the result into the u32 pointed to by @events.
  * No return value.
  */
-void omap3xxx_prm_read_pending_irqs(unsigned long *events)
+static void omap3xxx_prm_read_pending_irqs(unsigned long *events)
 {
 	u32 mask, st;
 
@@ -166,7 +171,7 @@ void omap3xxx_prm_read_pending_irqs(unsigned long *events)
  * block, to avoid race conditions after acknowledging or clearing IRQ
  * bits.  No return value.
  */
-void omap3xxx_prm_ocp_barrier(void)
+static void omap3xxx_prm_ocp_barrier(void)
 {
 	omap2_prm_read_mod_reg(OCP_MOD, OMAP3_PRM_REVISION_OFFSET);
 }
@@ -182,7 +187,7 @@ void omap3xxx_prm_ocp_barrier(void)
  * returning; otherwise, spurious interrupts might occur.  No return
  * value.
  */
-void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask)
+static void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask)
 {
 	saved_mask[0] = omap2_prm_read_mod_reg(OCP_MOD,
 					       OMAP3_PRM_IRQENABLE_MPU_OFFSET);
@@ -202,7 +207,7 @@ void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask)
  * barrier should be needed here; any pending PRM interrupts will fire
  * once the writes reach the PRM.  No return value.
  */
-void omap3xxx_prm_restore_irqen(u32 *saved_mask)
+static void omap3xxx_prm_restore_irqen(u32 *saved_mask)
 {
 	omap2_prm_write_mod_reg(saved_mask[0], OCP_MOD,
 				OMAP3_PRM_IRQENABLE_MPU_OFFSET);
@@ -375,7 +380,7 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
  * The ST_IO_CHAIN bit does not exist in 3430 before es3.1. The only
  * thing we can do is toggle EN_IO bit for earlier omaps.
  */
-void omap3430_pre_es3_1_reconfigure_io_chain(void)
+static void omap3430_pre_es3_1_reconfigure_io_chain(void)
 {
 	omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
 				     PM_WKEN);
@@ -393,7 +398,7 @@ void omap3430_pre_es3_1_reconfigure_io_chain(void)
  * deasserting WUCLKIN and clearing the ST_IO_CHAIN WKST bit.  No
  * return value. These registers are only available in 3430 es3.1 and later.
  */
-void omap3_prm_reconfigure_io_chain(void)
+static void omap3_prm_reconfigure_io_chain(void)
 {
 	int i = 0;
 
@@ -413,15 +418,6 @@ void omap3_prm_reconfigure_io_chain(void)
 				   PM_WKST);
 
 	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST);
-}
-
-/**
- * omap3xxx_prm_reconfigure_io_chain - reconfigure I/O chain
- */
-void omap3xxx_prm_reconfigure_io_chain(void)
-{
-	if (omap3_prcm_irq_setup.reconfigure_io_chain)
-		omap3_prcm_irq_setup.reconfigure_io_chain();
 }
 
 /**
@@ -664,6 +660,10 @@ static int omap3xxx_prm_late_init(void);
 static struct prm_ll_data omap3xxx_prm_ll_data = {
 	.read_reset_sources = &omap3xxx_prm_read_reset_sources,
 	.late_init = &omap3xxx_prm_late_init,
+	.assert_hardreset = &omap2_prm_assert_hardreset,
+	.deassert_hardreset = &omap2_prm_deassert_hardreset,
+	.is_hardreset_asserted = &omap2_prm_is_hardreset_asserted,
+	.reset_system = &omap3xxx_prm_dpll3_reset,
 };
 
 int __init omap3xxx_prm_init(void)
