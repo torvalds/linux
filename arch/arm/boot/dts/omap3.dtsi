@@ -79,7 +79,7 @@
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "simple-bus";
+		compatible = "ti,omap3-l3-smx", "simple-bus";
 		reg = <0x68000000 0x10000>;
 		interrupts = <9 10>;
 		#address-cells = <1>;
