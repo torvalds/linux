@@ -356,7 +356,6 @@ struct cb_pcidas_private {
 	/* divisors of master clock for analog output pacing */
 	unsigned int ao_divisor1;
 	unsigned int ao_divisor2;
-	unsigned int dac08_value;
 	unsigned int calibration_source;
 };
 
@@ -650,29 +649,18 @@ static int cb_pcidas_dac08_insn_write(struct comedi_device *dev,
 				      struct comedi_insn *insn,
 				      unsigned int *data)
 {
-	struct cb_pcidas_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
 	if (insn->n) {
 		unsigned int val = data[insn->n - 1];
 
-		if (devpriv->dac08_value != val) {
+		if (s->readback[chan] != val) {
 			dac08_write(dev, val);
-			devpriv->dac08_value = val;
+			s->readback[chan] = val;
 		}
 	}
 
 	return insn->n;
-}
-
-static int dac08_read_insn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
-{
-	struct cb_pcidas_private *devpriv = dev->private;
-
-	data[0] = devpriv->dac08_value;
-
-	return 1;
 }
 
 static int trimpot_7376_write(struct comedi_device *dev, uint8_t value)
@@ -1531,11 +1519,17 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = NUM_CHANNELS_DAC08;
-		s->insn_read = dac08_read_insn;
-		s->insn_write = cb_pcidas_dac08_insn_write;
 		s->maxdata = 0xff;
-		dac08_write(dev, s->maxdata / 2);
-		devpriv->dac08_value = s->maxdata / 2;
+		s->insn_write = cb_pcidas_dac08_insn_write;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < s->n_chan; i++) {
+			dac08_write(dev, s->maxdata / 2);
+			s->readback[i] = s->maxdata / 2;
+		}
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
 
