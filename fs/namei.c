@@ -1943,6 +1943,16 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 	return -ECHILD;
 }
 
+static void path_cleanup(struct nameidata *nd)
+{
+	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
+		path_put(&nd->root);
+		nd->root.mnt = NULL;
+	}
+	if (unlikely(nd->base))
+		fput(nd->base);
+}
+
 static inline int lookup_last(struct nameidata *nd, struct path *path)
 {
 	if (nd->last_type == LAST_NORM && nd->last.name[nd->last.len])
@@ -2009,13 +2019,7 @@ static int path_lookupat(int dfd, const char *name,
 	}
 
 out:
-	if (nd->base)
-		fput(nd->base);
-
-	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
-		path_put(&nd->root);
-		nd->root.mnt = NULL;
-	}
+	path_cleanup(nd);
 	return err;
 }
 
@@ -2349,12 +2353,7 @@ path_mountpoint(int dfd, const char *name, struct path *path, unsigned int flags
 		put_link(&nd, &link, cookie);
 	}
 out:
-	if (nd.base)
-		fput(nd.base);
-
-	if (nd.root.mnt && !(nd.flags & LOOKUP_ROOT))
-		path_put(&nd.root);
-
+	path_cleanup(&nd);
 	return err;
 }
 
@@ -3252,10 +3251,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		put_link(nd, &link, cookie);
 	}
 out:
-	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT))
-		path_put(&nd->root);
-	if (nd->base)
-		fput(nd->base);
+	path_cleanup(nd);
 	if (!(opened & FILE_OPENED)) {
 		BUG_ON(!error);
 		put_filp(file);
