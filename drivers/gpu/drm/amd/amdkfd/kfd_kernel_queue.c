@@ -321,7 +321,7 @@ void kernel_queue_uninit(struct kernel_queue *kq)
 	kfree(kq);
 }
 
-void test_kq(struct kfd_dev *dev)
+static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 {
 	struct kernel_queue *kq;
 	uint32_t *buffer, i;
