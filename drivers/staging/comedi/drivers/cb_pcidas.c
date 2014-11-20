@@ -592,18 +592,13 @@ static void write_calibration_bitstream(struct comedi_device *dev,
 	}
 }
 
-static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
-			     uint8_t value)
+static void caldac_8800_write(struct comedi_device *dev,
+			      unsigned int chan, uint8_t val)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	static const int bitstream_length = 11;
-	unsigned int bitstream = ((address & 0x7) << 8) | value;
+	unsigned int bitstream = ((chan & 0x7) << 8) | val;
 	static const int caldac_8800_udelay = 1;
-
-	if (value == devpriv->caldac_value[address])
-		return 1;
-
-	devpriv->caldac_value[address] = value;
 
 	write_calibration_bitstream(dev, cal_enable_bits(dev), bitstream,
 				    bitstream_length);
@@ -613,17 +608,26 @@ static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 	     devpriv->control_status + CALIBRATION_REG);
 	udelay(caldac_8800_udelay);
 	outw(cal_enable_bits(dev), devpriv->control_status + CALIBRATION_REG);
-
-	return 1;
 }
 
-static int caldac_write_insn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas_caldac_insn_write(struct comedi_device *dev,
+				       struct comedi_subdevice *s,
+				       struct comedi_insn *insn,
+				       unsigned int *data)
 {
-	const unsigned int channel = CR_CHAN(insn->chanspec);
+	struct cb_pcidas_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	return caldac_8800_write(dev, channel, data[0]);
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
+
+		if (devpriv->caldac_value[chan] != val) {
+			caldac_8800_write(dev, chan, val);
+			devpriv->caldac_value[chan] = val;
+		}
+	}
+
+	return insn->n;
 }
 
 static int caldac_read_insn(struct comedi_device *dev,
@@ -1511,9 +1515,11 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	s->n_chan = NUM_CHANNELS_8800;
 	s->maxdata = 0xff;
 	s->insn_read = caldac_read_insn;
-	s->insn_write = caldac_write_insn;
-	for (i = 0; i < s->n_chan; i++)
+	s->insn_write = cb_pcidas_caldac_insn_write;
+	for (i = 0; i < s->n_chan; i++) {
 		caldac_8800_write(dev, i, s->maxdata / 2);
+		devpriv->caldac_value[i] = s->maxdata / 2;
+	}
 
 	/*  trim potentiometer */
 	s = &dev->subdevices[5];
