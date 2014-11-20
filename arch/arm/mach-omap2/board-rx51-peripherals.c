@@ -32,7 +32,6 @@
 
 #include "common.h"
 #include <linux/omap-dma.h>
-#include "gpmc-smc91x.h"
 
 #include "board-rx51.h"
 
@@ -1146,33 +1145,6 @@ static struct omap_onenand_platform_data board_onenand_data[] = {
 };
 #endif
 
-#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
-
-static struct omap_smc91x_platform_data board_smc91x_data = {
-	.cs		= 1,
-	.gpio_irq	= 54,
-	.gpio_pwrdwn	= 86,
-	.gpio_reset	= 164,
-	.flags		= GPMC_TIMINGS_SMC91C96 | IORESOURCE_IRQ_HIGHLEVEL,
-};
-
-static void __init board_smc91x_init(void)
-{
-	omap_mux_init_gpio(54, OMAP_PIN_INPUT_PULLDOWN);
-	omap_mux_init_gpio(86, OMAP_PIN_OUTPUT);
-	omap_mux_init_gpio(164, OMAP_PIN_OUTPUT);
-
-	gpmc_smc91x_init(&board_smc91x_data);
-}
-
-#else
-
-static inline void board_smc91x_init(void)
-{
-}
-
-#endif
-
 static struct gpio rx51_wl1251_gpios[] __initdata = {
 	{ RX51_WL1251_IRQ_GPIO,	  GPIOF_IN,		"wl1251 irq"	},
 };
@@ -1303,7 +1275,6 @@ void __init rx51_peripherals_init(void)
 	rx51_i2c_init();
 	regulator_has_full_constraints();
 	gpmc_onenand_init(board_onenand_data);
-	board_smc91x_init();
 	rx51_add_gpio_keys();
 	rx51_init_wl1251();
 	rx51_init_tsc2005();

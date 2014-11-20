@@ -38,7 +38,6 @@
 #include <video/omap-panel-data.h>
 
 #include "gpmc.h"
-#include "gpmc-smc91x.h"
 
 #include "soc.h"
 #include "board-flash.h"
@@ -407,32 +406,6 @@ static int __init omap3430_i2c_init(void)
 	return 0;
 }
 
-#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
-
-static struct omap_smc91x_platform_data board_smc91x_data = {
-	.cs		= 3,
-	.flags		= GPMC_MUX_ADD_DATA | GPMC_TIMINGS_SMC91C96 |
-				IORESOURCE_IRQ_LOWLEVEL,
-};
-
-static void __init board_smc91x_init(void)
-{
-	if (omap_rev() > OMAP3430_REV_ES1_0)
-		board_smc91x_data.gpio_irq = 6;
-	else
-		board_smc91x_data.gpio_irq = 29;
-
-	gpmc_smc91x_init(&board_smc91x_data);
-}
-
-#else
-
-static inline void board_smc91x_init(void)
-{
-}
-
-#endif
-
 static void enable_board_wakeup_source(void)
 {
 	/* T2 interrupt line (keypad) */
@@ -609,7 +582,6 @@ static void __init omap_3430sdp_init(void)
 	omap_sdrc_init(hyb18m512160af6_sdrc_params, NULL);
 	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
-	board_smc91x_init();
 	board_flash_init(sdp_flash_partitions, chip_sel_3430, 0);
 	sdp3430_display_init();
 	enable_board_wakeup_source();
