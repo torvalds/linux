@@ -191,8 +191,6 @@ static int adv_pci1724_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	dev_info(dev->class_dev, "%s (pci %s) attached, board id: %u\n",
-		 dev->board_name, pci_name(pcidev), board_id);
 	return 0;
 }
 
