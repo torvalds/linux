@@ -806,7 +806,7 @@ static const struct snd_kcontrol_new max98091_snd_controls[] = {
 static int max98090_micinput_event(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
 
 	unsigned int val = snd_soc_read(codec, w->reg);
