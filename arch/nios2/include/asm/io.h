@@ -12,7 +12,6 @@
 #define _ASM_NIOS2_IO_H
 
 #include <asm/pgtable-bits.h>
-#include <asm-generic/iomap.h>
 
 /* PCI is not supported in nios2, set this to 0. */
 #define IO_SPACE_LIMIT 0
