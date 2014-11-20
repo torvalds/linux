@@ -43,8 +43,8 @@ static int rt56xx_hwdep_ioctl_common(struct snd_hwdep *hw,
 		dev_err(codec->dev,"copy_from_user faild\n");
 		return -EFAULT;
 	}
-	dev_dbg(codec->dev, "%s(): rt56xx.number=%d, cmd=%d\n",
-			__func__, rt56xx.number, cmd);
+	dev_dbg(codec->dev, "%s(): rt56xx.number=%zu, cmd=%d\n",
+		__func__, rt56xx.number, cmd);
 	buf = kmalloc(sizeof(*buf) * rt56xx.number, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
