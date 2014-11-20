@@ -380,7 +380,7 @@ static void snd_card_asihpi_pcm_samplerates(struct snd_card_asihpi *asihpi,
 					  HPI_SOURCENODE_CLOCK_SOURCE, 0, 0, 0,
 					  HPI_CONTROL_SAMPLECLOCK, &h_control);
 		if (err) {
-			snd_printk(KERN_ERR
+			dev_err(&asihpi->pci->dev,
 				"No local sampleclock, err %d\n", err);
 		}
 
@@ -1438,7 +1438,7 @@ static inline int ctl_add(struct snd_card *card, struct snd_kcontrol_new *ctl,
 	if (err < 0)
 		return err;
 	else if (mixer_dump)
-		snd_printk(KERN_INFO "added %s(%d)\n", ctl->name, ctl->index);
+		dev_info(&asihpi->pci->dev, "added %s(%d)\n", ctl->name, ctl->index);
 
 	return 0;
 }
@@ -2652,7 +2652,7 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 		if (err) {
 			if (err == HPI_ERROR_CONTROL_DISABLED) {
 				if (mixer_dump)
-					snd_printk(KERN_INFO
+					dev_info(&asihpi->pci->dev,
 						   "Disabled HPI Control(%d)\n",
 						   idx);
 				continue;
@@ -2717,9 +2717,8 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 		case HPI_CONTROL_COMPANDER:
 		default:
 			if (mixer_dump)
-				snd_printk(KERN_INFO
-					"Untranslated HPI Control"
-					"(%d) %d %d %d %d %d\n",
+				dev_info(&asihpi->pci->dev,
+					"Untranslated HPI Control (%d) %d %d %d %d %d\n",
 					idx,
 					hpi_ctl.control_type,
 					hpi_ctl.src_node_type,
@@ -2734,7 +2733,7 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 	if (HPI_ERROR_INVALID_OBJ_INDEX != err)
 		hpi_handle_error(err);
 
-	snd_printk(KERN_INFO "%d mixer controls found\n", idx);
+	dev_info(&asihpi->pci->dev, "%d mixer controls found\n", idx);
 
 	return 0;
 }
@@ -2897,8 +2896,7 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 				   &card);
 		if (err < 0)
 			return err;
-		snd_printk(KERN_WARNING
-			"**** WARNING **** Adapter index %d->ALSA index %d\n",
+		dev_warn(&pci_dev->dev, "Adapter index %d->ALSA index %d\n",
 			adapter_index, card->number);
 	}
 
@@ -2907,9 +2905,6 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	asihpi->pci = pci_dev;
 	asihpi->hpi = hpi;
 	hpi->snd_card = card;
-
-	snd_printk(KERN_INFO "adapter ID=%4X index=%d\n",
-			asihpi->hpi->adapter->type, adapter_index);
 
 	err = hpi_adapter_get_property(adapter_index,
 		HPI_ADAPTER_PROPERTY_CAPS1,
@@ -2968,22 +2963,21 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 		asihpi->in_min_chans = 1;
 	}
 
-	snd_printk(KERN_INFO "update_interval_frames: %d",
-		asihpi->update_interval_frames);
-	snd_printk(KERN_INFO "Has dma:%d, grouping:%d, mrx:%d\n",
+	dev_info(&pci_dev->dev, "Has dma:%d, grouping:%d, mrx:%d, uif:%d\n",
 			asihpi->can_dma,
 			asihpi->support_grouping,
-			asihpi->support_mrx
+			asihpi->support_mrx,
+			asihpi->update_interval_frames
 	      );
 
 	err = snd_card_asihpi_pcm_new(asihpi, 0);
 	if (err < 0) {
-		snd_printk(KERN_ERR "pcm_new failed\n");
+		dev_err(&pci_dev->dev, "pcm_new failed\n");
 		goto __nodev;
 	}
 	err = snd_card_asihpi_mixer_new(asihpi);
 	if (err < 0) {
-		snd_printk(KERN_ERR "mixer_new failed\n");
+		dev_err(&pci_dev->dev, "mixer_new failed\n");
 		goto __nodev;
 	}
 
@@ -3015,7 +3009,7 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	}
 __nodev:
 	snd_card_free(card);
-	snd_printk(KERN_ERR "snd_asihpi_probe error %d\n", err);
+	dev_err(&pci_dev->dev, "snd_asihpi_probe error %d\n", err);
 	return err;
 
 }
