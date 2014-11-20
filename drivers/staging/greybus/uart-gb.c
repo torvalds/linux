@@ -159,6 +159,7 @@ static int get_version(struct gb_tty *tty)
 		gb_connection_err(tty->connection, "result %hhu",
 			operation->result);
 	} else {
+		response = operation->response.payload;
 		if (response->major > GB_UART_VERSION_MAJOR) {
 			pr_err("unsupported major version (%hhu > %hhu)\n",
 				response->major, GB_UART_VERSION_MAJOR);
