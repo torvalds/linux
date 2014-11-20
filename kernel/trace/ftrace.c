@@ -1119,7 +1119,7 @@ static struct ftrace_ops global_ops = {
 
 /*
  * This is used by __kernel_text_address() to return true if the
- * the address is on a dynamically allocated trampoline that would
+ * address is on a dynamically allocated trampoline that would
  * not return true for either core_kernel_text() or
  * is_module_text_address().
  */

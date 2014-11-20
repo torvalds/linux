@@ -261,14 +261,14 @@ static struct tracer function_trace __tracer_data =
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-static void update_traceon_count(void **data, int on)
+static void update_traceon_count(void **data, bool on)
 {
 	long *count = (long *)data;
 	long old_count = *count;
 
 	/*
 	 * Tracing gets disabled (or enabled) once per count.
-	 * This function can be called at the same time on mulitple CPUs.
+	 * This function can be called at the same time on multiple CPUs.
 	 * It is fine if both disable (or enable) tracing, as disabling
 	 * (or enabling) the second time doesn't do anything as the
 	 * state of the tracer is already disabled (or enabled).
@@ -288,7 +288,7 @@ static void update_traceon_count(void **data, int on)
 	 * the new state is visible before changing the counter by
 	 * one minus the old counter. This guarantees that another CPU
 	 * executing this code will see the new state before seeing
-	 * the new counter value, and would not do anthing if the new
+	 * the new counter value, and would not do anything if the new
 	 * counter is seen.
 	 *
 	 * Note, there is no synchronization between this and a user
