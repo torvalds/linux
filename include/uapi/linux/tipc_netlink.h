@@ -52,6 +52,7 @@ enum {
 	TIPC_NL_LINK_RESET_STATS,
 	TIPC_NL_MEDIA_GET,
 	TIPC_NL_MEDIA_SET,
+	TIPC_NL_NODE_GET,
 
 	__TIPC_NL_CMD_MAX,
 	TIPC_NL_CMD_MAX = __TIPC_NL_CMD_MAX - 1
@@ -65,6 +66,7 @@ enum {
 	TIPC_NLA_PUBL,			/* nest */
 	TIPC_NLA_LINK,			/* nest */
 	TIPC_NLA_MEDIA,			/* nest */
+	TIPC_NLA_NODE,			/* nest */
 
 	__TIPC_NLA_MAX,
 	TIPC_NLA_MAX = __TIPC_NLA_MAX - 1
@@ -119,6 +121,16 @@ enum {
 
 	__TIPC_NLA_MEDIA_MAX,
 	TIPC_NLA_MEDIA_MAX = __TIPC_NLA_MEDIA_MAX - 1
+};
+
+/* Node info */
+enum {
+	TIPC_NLA_NODE_UNSPEC,
+	TIPC_NLA_NODE_ADDR,		/* u32 */
+	TIPC_NLA_NODE_UP,		/* flag */
+
+	__TIPC_NLA_NODE_MAX,
+	TIPC_NLA_NODE_MAX = __TIPC_NLA_NODE_MAX - 1
 };
 
 /* Publication info */

@@ -39,6 +39,7 @@
 #include "socket.h"
 #include "bearer.h"
 #include "link.h"
+#include "node.h"
 #include <net/genetlink.h>
 
 static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
@@ -78,6 +79,7 @@ static const struct nla_policy tipc_nl_policy[TIPC_NLA_MAX + 1] = {
 	[TIPC_NLA_PUBL]		= { .type = NLA_NESTED, },
 	[TIPC_NLA_LINK]		= { .type = NLA_NESTED, },
 	[TIPC_NLA_MEDIA]	= { .type = NLA_NESTED, },
+	[TIPC_NLA_NODE]		= { .type = NLA_NESTED, }
 };
 
 /* Legacy ASCII API */
@@ -165,6 +167,11 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
 		.cmd	= TIPC_NL_MEDIA_SET,
 		.doit	= tipc_nl_media_set,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_NODE_GET,
+		.dumpit	= tipc_nl_node_dump,
 		.policy = tipc_nl_policy,
 	}
 };

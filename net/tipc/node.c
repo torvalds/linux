@@ -58,6 +58,12 @@ struct tipc_sock_conn {
 	struct list_head list;
 };
 
+static const struct nla_policy tipc_nl_node_policy[TIPC_NLA_NODE_MAX + 1] = {
+	[TIPC_NLA_NODE_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_NODE_ADDR]		= { .type = NLA_U32 },
+	[TIPC_NLA_NODE_UP]		= { .type = NLA_FLAG }
+};
+
 /*
  * A trivial power-of-two bitmask technique is used for speed, since this
  * operation is done for every incoming TIPC packet. The number of hash table
@@ -600,4 +606,94 @@ void tipc_node_unlock(struct tipc_node *node)
 	if (flags & TIPC_NOTIFY_LINK_DOWN)
 		tipc_nametbl_withdraw(TIPC_LINK_STATE, addr,
 				      link_id, addr);
+}
+
+/* Caller should hold node lock for the passed node */
+int __tipc_nl_add_node(struct tipc_nl_msg *msg, struct tipc_node *node)
+{
+	void *hdr;
+	struct nlattr *attrs;
+
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+			  NLM_F_MULTI, TIPC_NL_NODE_GET);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	attrs = nla_nest_start(msg->skb, TIPC_NLA_NODE);
+	if (!attrs)
+		goto msg_full;
+
+	if (nla_put_u32(msg->skb, TIPC_NLA_NODE_ADDR, node->addr))
+		goto attr_msg_full;
+	if (tipc_node_is_up(node))
+		if (nla_put_flag(msg->skb, TIPC_NLA_NODE_UP))
+			goto attr_msg_full;
+
+	nla_nest_end(msg->skb, attrs);
+	genlmsg_end(msg->skb, hdr);
+
+	return 0;
+
+attr_msg_full:
+	nla_nest_cancel(msg->skb, attrs);
+msg_full:
+	genlmsg_cancel(msg->skb, hdr);
+
+	return -EMSGSIZE;
+}
+
+int tipc_nl_node_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	int err;
+	int done = cb->args[0];
+	int last_addr = cb->args[1];
+	struct tipc_node *node;
+	struct tipc_nl_msg msg;
+
+	if (done)
+		return 0;
+
+	msg.skb = skb;
+	msg.portid = NETLINK_CB(cb->skb).portid;
+	msg.seq = cb->nlh->nlmsg_seq;
+
+	rcu_read_lock();
+
+	if (last_addr && !tipc_node_find(last_addr)) {
+		rcu_read_unlock();
+		/* We never set seq or call nl_dump_check_consistent() this
+		 * means that setting prev_seq here will cause the consistence
+		 * check to fail in the netlink callback handler. Resulting in
+		 * the NLMSG_DONE message having the NLM_F_DUMP_INTR flag set if
+		 * the node state changed while we released the lock.
+		 */
+		cb->prev_seq = 1;
+		return -EPIPE;
+	}
+
+	list_for_each_entry_rcu(node, &tipc_node_list, list) {
+		if (last_addr) {
+			if (node->addr == last_addr)
+				last_addr = 0;
+			else
+				continue;
+		}
+
+		tipc_node_lock(node);
+		err = __tipc_nl_add_node(&msg, node);
+		if (err) {
+			last_addr = node->addr;
+			tipc_node_unlock(node);
+			goto out;
+		}
+
+		tipc_node_unlock(node);
+	}
+	done = 1;
+out:
+	cb->args[0] = done;
+	cb->args[1] = last_addr;
+	rcu_read_unlock();
+
+	return skb->len;
 }
