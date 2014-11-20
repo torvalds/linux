@@ -2783,3 +2783,52 @@ err_out:
 
 	return err;
 }
+
+int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	char *link_name;
+	unsigned int bearer_id;
+	struct tipc_link *link;
+	struct tipc_node *node;
+	struct nlattr *attrs[TIPC_NLA_LINK_MAX + 1];
+
+	if (!info->attrs[TIPC_NLA_LINK])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
+			       info->attrs[TIPC_NLA_LINK],
+			       tipc_nl_link_policy);
+	if (err)
+		return err;
+
+	if (!attrs[TIPC_NLA_LINK_NAME])
+		return -EINVAL;
+
+	link_name = nla_data(attrs[TIPC_NLA_LINK_NAME]);
+
+	if (strcmp(link_name, tipc_bclink_name) == 0) {
+		err = tipc_bclink_reset_stats();
+		if (err)
+			return err;
+		return 0;
+	}
+
+	node = tipc_link_find_owner(link_name, &bearer_id);
+	if (!node)
+		return -EINVAL;
+
+	tipc_node_lock(node);
+
+	link = node->links[bearer_id];
+	if (!link) {
+		tipc_node_unlock(node);
+		return -EINVAL;
+	}
+
+	link_reset_statistics(link);
+
+	tipc_node_unlock(node);
+
+	return 0;
+}

@@ -243,6 +243,7 @@ void tipc_link_retransmit(struct tipc_link *l_ptr,
 int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[]);
 
 /*
