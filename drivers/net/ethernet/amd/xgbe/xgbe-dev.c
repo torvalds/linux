@@ -1325,6 +1325,29 @@ static void xgbe_config_dcb_pfc(struct xgbe_prv_data *pdata)
 	xgbe_config_flow_control(pdata);
 }
 
+static void xgbe_tx_start_xmit(struct xgbe_channel *channel,
+			       struct xgbe_ring *ring)
+{
+	struct xgbe_prv_data *pdata = channel->pdata;
+	struct xgbe_ring_data *rdata;
+
+	/* Issue a poll command to Tx DMA by writing address
+	 * of next immediate free descriptor */
+	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
+	XGMAC_DMA_IOWRITE(channel, DMA_CH_TDTR_LO,
+			  lower_32_bits(rdata->rdesc_dma));
+
+	/* Start the Tx coalescing timer */
+	if (pdata->tx_usecs && !channel->tx_timer_active) {
+		channel->tx_timer_active = 1;
+		hrtimer_start(&channel->tx_timer,
+			      ktime_set(0, pdata->tx_usecs * NSEC_PER_USEC),
+			      HRTIMER_MODE_REL);
+	}
+
+	ring->tx.xmit_more = 0;
+}
+
 static void xgbe_dev_xmit(struct xgbe_channel *channel)
 {
 	struct xgbe_prv_data *pdata = channel->pdata;
@@ -1528,20 +1551,13 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	/* Make sure ownership is written to the descriptor */
 	wmb();
 
-	/* Issue a poll command to Tx DMA by writing address
-	 * of next immediate free descriptor */
 	ring->cur++;
-	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
-	XGMAC_DMA_IOWRITE(channel, DMA_CH_TDTR_LO,
-			  lower_32_bits(rdata->rdesc_dma));
-
-	/* Start the Tx coalescing timer */
-	if (pdata->tx_usecs && !channel->tx_timer_active) {
-		channel->tx_timer_active = 1;
-		hrtimer_start(&channel->tx_timer,
-			      ktime_set(0, pdata->tx_usecs * NSEC_PER_USEC),
-			      HRTIMER_MODE_REL);
-	}
+	if (!packet->skb->xmit_more ||
+	    netif_xmit_stopped(netdev_get_tx_queue(pdata->netdev,
+						   channel->queue_index)))
+		xgbe_tx_start_xmit(channel, ring);
+	else
+		ring->tx.xmit_more = 1;
 
 	DBGPR("  %s: descriptors %u to %u written\n",
 	      channel->name, start_index & (ring->rdesc_count - 1),
@@ -2802,6 +2818,7 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->rx_desc_reset = xgbe_rx_desc_reset;
 	hw_if->is_last_desc = xgbe_is_last_desc;
 	hw_if->is_context_desc = xgbe_is_context_desc;
+	hw_if->tx_start_xmit = xgbe_tx_start_xmit;
 
 	/* For FLOW ctrl */
 	hw_if->config_tx_flow_control = xgbe_config_tx_flow_control;

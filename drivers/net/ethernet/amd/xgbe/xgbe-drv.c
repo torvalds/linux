@@ -225,6 +225,28 @@ static inline unsigned int xgbe_tx_avail_desc(struct xgbe_ring *ring)
 	return (ring->rdesc_count - (ring->cur - ring->dirty));
 }
 
+static int xgbe_maybe_stop_tx_queue(struct xgbe_channel *channel,
+				    struct xgbe_ring *ring, unsigned int count)
+{
+	struct xgbe_prv_data *pdata = channel->pdata;
+
+	if (count > xgbe_tx_avail_desc(ring)) {
+		DBGPR("  Tx queue stopped, not enough descriptors available\n");
+		netif_stop_subqueue(pdata->netdev, channel->queue_index);
+		ring->tx.queue_stopped = 1;
+
+		/* If we haven't notified the hardware because of xmit_more
+		 * support, tell it now
+		 */
+		if (ring->tx.xmit_more)
+			pdata->hw_if.tx_start_xmit(channel, ring);
+
+		return NETDEV_TX_BUSY;
+	}
+
+	return 0;
+}
+
 static int xgbe_calc_rx_buf_size(struct net_device *netdev, unsigned int mtu)
 {
 	unsigned int rx_buf_size;
@@ -1199,6 +1221,8 @@ static void xgbe_packet_info(struct xgbe_prv_data *pdata,
 	unsigned int len;
 	unsigned int i;
 
+	packet->skb = skb;
+
 	context_desc = 0;
 	packet->rdesc_count = 0;
 
@@ -1447,13 +1471,9 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	xgbe_packet_info(pdata, ring, skb, packet);
 
 	/* Check that there are enough descriptors available */
-	if (packet->rdesc_count > xgbe_tx_avail_desc(ring)) {
-		DBGPR("  Tx queue stopped, not enough descriptors available\n");
-		netif_stop_subqueue(netdev, channel->queue_index);
-		ring->tx.queue_stopped = 1;
-		ret = NETDEV_TX_BUSY;
+	ret = xgbe_maybe_stop_tx_queue(channel, ring, packet->rdesc_count);
+	if (ret)
 		goto tx_netdev_return;
-	}
 
 	ret = xgbe_prep_tso(skb, packet);
 	if (ret) {
@@ -1479,6 +1499,11 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 #ifdef XGMAC_ENABLE_TX_PKT_DUMP
 	xgbe_print_pkt(netdev, skb, true);
 #endif
+
+	/* Stop the queue in advance if there may not be enough descriptors */
+	xgbe_maybe_stop_tx_queue(channel, ring, XGBE_TX_MAX_DESCS);
+
+	ret = NETDEV_TX_OK;
 
 tx_netdev_return:
 	spin_unlock_irqrestore(&ring->lock, flags);

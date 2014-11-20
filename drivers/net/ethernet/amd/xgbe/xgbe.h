@@ -140,6 +140,17 @@
 
 #define XGBE_TX_MAX_BUF_SIZE	(0x3fff & ~(64 - 1))
 
+/* Descriptors required for maximum contigous TSO/GSO packet */
+#define XGBE_TX_MAX_SPLIT	((GSO_MAX_SIZE / XGBE_TX_MAX_BUF_SIZE) + 1)
+
+/* Maximum possible descriptors needed for an SKB:
+ * - Maximum number of SKB frags
+ * - Maximum descriptors for contiguous TSO/GSO packet
+ * - Possible context descriptor
+ * - Possible TSO header descriptor
+ */
+#define XGBE_TX_MAX_DESCS	(MAX_SKB_FRAGS + XGBE_TX_MAX_SPLIT + 2)
+
 #define XGBE_RX_MIN_BUF_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 #define XGBE_RX_BUF_ALIGN	64
 #define XGBE_SKB_ALLOC_SIZE	256
@@ -225,6 +236,8 @@
 struct xgbe_prv_data;
 
 struct xgbe_packet_data {
+	struct sk_buff *skb;
+
 	unsigned int attributes;
 
 	unsigned int errors;
@@ -360,6 +373,7 @@ struct xgbe_ring {
 	union {
 		struct {
 			unsigned int queue_stopped;
+			unsigned int xmit_more;
 			unsigned short cur_mss;
 			unsigned short cur_vlan_ctag;
 		} tx;
@@ -523,6 +537,7 @@ struct xgbe_hw_if {
 	void (*tx_desc_reset)(struct xgbe_ring_data *);
 	int (*is_last_desc)(struct xgbe_ring_desc *);
 	int (*is_context_desc)(struct xgbe_ring_desc *);
+	void (*tx_start_xmit)(struct xgbe_channel *, struct xgbe_ring *);
 
 	/* For FLOW ctrl */
 	int (*config_tx_flow_control)(struct xgbe_prv_data *);

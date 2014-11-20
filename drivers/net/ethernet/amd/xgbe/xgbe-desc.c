@@ -378,7 +378,7 @@ static void xgbe_wrapper_tx_descriptor_init(struct xgbe_prv_data *pdata)
 
 		ring->cur = 0;
 		ring->dirty = 0;
-		ring->tx.queue_stopped = 0;
+		memset(&ring->tx, 0, sizeof(ring->tx));
 
 		hw_if->tx_desc_init(channel);
 	}
@@ -422,8 +422,7 @@ static void xgbe_wrapper_rx_descriptor_init(struct xgbe_prv_data *pdata)
 
 		ring->cur = 0;
 		ring->dirty = 0;
-		ring->rx.realloc_index = 0;
-		ring->rx.realloc_threshold = 0;
+		memset(&ring->rx, 0, sizeof(ring->rx));
 
 		hw_if->rx_desc_init(channel);
 	}
