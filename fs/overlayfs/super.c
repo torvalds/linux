@@ -462,11 +462,34 @@ static const match_table_t ovl_tokens = {
 	{OPT_ERR,			NULL}
 };
 
+static char *ovl_next_opt(char **s)
+{
+	char *sbegin = *s;
+	char *p;
+
+	if (sbegin == NULL)
+		return NULL;
+
+	for (p = sbegin; *p; p++) {
+		if (*p == '\\') {
+			p++;
+			if (!*p)
+				break;
+		} else if (*p == ',') {
+			*p = '\0';
+			*s = p + 1;
+			return sbegin;
+		}
+	}
+	*s = NULL;
+	return sbegin;
+}
+
 static int ovl_parse_opt(char *opt, struct ovl_config *config)
 {
 	char *p;
 
-	while ((p = strsep(&opt, ",")) != NULL) {
+	while ((p = ovl_next_opt(&opt)) != NULL) {
 		int token;
 		substring_t args[MAX_OPT_ARGS];
 
@@ -554,15 +577,34 @@ out_dput:
 	goto out_unlock;
 }
 
+static void ovl_unescape(char *s)
+{
+	char *d = s;
+
+	for (;; s++, d++) {
+		if (*s == '\\')
+			s++;
+		*d = *s;
+		if (!*s)
+			break;
+	}
+}
+
 static int ovl_mount_dir(const char *name, struct path *path)
 {
 	int err;
+	char *tmp = kstrdup(name, GFP_KERNEL);
 
-	err = kern_path(name, LOOKUP_FOLLOW, path);
+	if (!tmp)
+		return -ENOMEM;
+
+	ovl_unescape(tmp);
+	err = kern_path(tmp, LOOKUP_FOLLOW, path);
 	if (err) {
-		pr_err("overlayfs: failed to resolve '%s': %i\n", name, err);
+		pr_err("overlayfs: failed to resolve '%s': %i\n", tmp, err);
 		err = -EINVAL;
 	}
+	kfree(tmp);
 	return err;
 }
 
