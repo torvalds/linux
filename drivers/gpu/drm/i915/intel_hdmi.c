@@ -170,9 +170,13 @@ static bool g4x_infoframe_enabled(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	u32 val = I915_READ(VIDEO_DIP_CTL);
 
-	return val & VIDEO_DIP_ENABLE;
+	if (VIDEO_DIP_PORT(intel_dig_port->port) == (val & VIDEO_DIP_PORT_MASK))
+		return val & VIDEO_DIP_ENABLE;
+
+	return false;
 }
 
 static void ibx_write_infoframe(struct drm_encoder *encoder,
