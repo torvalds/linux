@@ -147,6 +147,7 @@
 
 #define XGBE_MAX_DMA_CHANNELS	16
 #define XGBE_MAX_QUEUES		16
+#define XGBE_DMA_STOP_TIMEOUT	5
 
 /* DMA cache settings - Outer sharable, write-back, write-allocate */
 #define XGBE_DMA_OS_AXDOMAIN	0x2

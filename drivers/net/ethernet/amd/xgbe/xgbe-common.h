@@ -125,9 +125,6 @@
 #define DMA_AXIAWCR			0x3018
 #define DMA_DSR0			0x3020
 #define DMA_DSR1			0x3024
-#define DMA_DSR2			0x3028
-#define DMA_DSR3			0x302c
-#define DMA_DSR4			0x3030
 
 /* DMA register entry bit positions and sizes */
 #define DMA_AXIARCR_DRC_INDEX		0
@@ -158,10 +155,6 @@
 #define DMA_AXIAWCR_TDC_WIDTH		4
 #define DMA_AXIAWCR_TDD_INDEX		28
 #define DMA_AXIAWCR_TDD_WIDTH		2
-#define DMA_DSR0_RPS_INDEX		8
-#define DMA_DSR0_RPS_WIDTH		4
-#define DMA_DSR0_TPS_INDEX		12
-#define DMA_DSR0_TPS_WIDTH		4
 #define DMA_ISR_MACIS_INDEX		17
 #define DMA_ISR_MACIS_WIDTH		1
 #define DMA_ISR_MTLIS_INDEX		16
@@ -174,6 +167,20 @@
 #define DMA_SBMR_BLEN_256_WIDTH		1
 #define DMA_SBMR_UNDEF_INDEX		0
 #define DMA_SBMR_UNDEF_WIDTH		1
+
+/* DMA register values */
+#define DMA_DSR_RPS_WIDTH		4
+#define DMA_DSR_TPS_WIDTH		4
+#define DMA_DSR_Q_WIDTH			(DMA_DSR_RPS_WIDTH + DMA_DSR_TPS_WIDTH)
+#define DMA_DSR0_RPS_START		8
+#define DMA_DSR0_TPS_START		12
+#define DMA_DSRX_FIRST_QUEUE		3
+#define DMA_DSRX_INC			4
+#define DMA_DSRX_QPR			4
+#define DMA_DSRX_RPS_START		0
+#define DMA_DSRX_TPS_START		4
+#define DMA_TPS_STOPPED			0x00
+#define DMA_TPS_SUSPENDED		0x06
 
 /* DMA channel register offsets
  *   Multiple channels can be active.  The first channel has registers
