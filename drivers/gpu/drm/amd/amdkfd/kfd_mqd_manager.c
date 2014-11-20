@@ -179,9 +179,9 @@ static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 					pipe_id, queue_id);
 }
 
-bool is_occupied(struct mqd_manager *mm, void *mqd,
-		uint64_t queue_address,	uint32_t pipe_id,
-		uint32_t queue_id)
+static bool is_occupied(struct mqd_manager *mm, void *mqd,
+			uint64_t queue_address,	uint32_t pipe_id,
+			uint32_t queue_id)
 {
 
 	return kfd2kgd->hqd_is_occupies(mm->dev->kgd, queue_address,
