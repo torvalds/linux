@@ -175,17 +175,21 @@ DECLARE_EVENT_CLASS(dwc3_log_gadget_ep_cmd,
 	TP_STRUCT__entry(
 		__dynamic_array(char, name, DWC3_MSG_MAX)
 		__field(unsigned int, cmd)
-		__field(struct dwc3_gadget_ep_cmd_params *, params)
+		__field(u32, param0)
+		__field(u32, param1)
+		__field(u32, param2)
 	),
 	TP_fast_assign(
 		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", dep->name);
 		__entry->cmd = cmd;
-		__entry->params = params;
+		__entry->param0 = params->param0;
+		__entry->param1 = params->param1;
+		__entry->param2 = params->param2;
 	),
 	TP_printk("%s: cmd '%s' [%d] params %08x %08x %08x",
 		__get_str(name), dwc3_gadget_ep_cmd_string(__entry->cmd),
-		__entry->cmd, __entry->params->param0,
-		__entry->params->param1, __entry->params->param2
+		__entry->cmd, __entry->param0,
+		__entry->param1, __entry->param2
 	)
 );
 
