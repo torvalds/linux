@@ -1334,7 +1334,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	struct xgbe_packet_data *packet = &ring->packet_data;
 	unsigned int csum, tso, vlan;
 	unsigned int tso_context, vlan_context;
-	unsigned int tx_coalesce, tx_frames;
+	unsigned int tx_set_ic;
 	int start_index = ring->cur;
 	int i;
 
@@ -1357,10 +1357,26 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	else
 		vlan_context = 0;
 
-	tx_coalesce = (pdata->tx_usecs || pdata->tx_frames) ? 1 : 0;
-	tx_frames = pdata->tx_frames;
-	if (tx_coalesce && !channel->tx_timer_active)
-		ring->coalesce_count = 0;
+	/* Determine if an interrupt should be generated for this Tx:
+	 *   Interrupt:
+	 *     - Tx frame count exceeds the frame count setting
+	 *     - Addition of Tx frame count to the frame count since the
+	 *       last interrupt was set exceeds the frame count setting
+	 *   No interrupt:
+	 *     - No frame count setting specified (ethtool -C ethX tx-frames 0)
+	 *     - Addition of Tx frame count to the frame count since the
+	 *       last interrupt was set does not exceed the frame count setting
+	 */
+	ring->coalesce_count += packet->tx_packets;
+	if (!pdata->tx_frames)
+		tx_set_ic = 0;
+	else if (packet->tx_packets > pdata->tx_frames)
+		tx_set_ic = 1;
+	else if ((ring->coalesce_count % pdata->tx_frames) <
+		 packet->tx_packets)
+		tx_set_ic = 1;
+	else
+		tx_set_ic = 0;
 
 	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 	rdesc = rdata->rdesc;
@@ -1427,13 +1443,6 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	if (XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES, PTP))
 		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, TTSE, 1);
 
-	/* Set IC bit based on Tx coalescing settings */
-	XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, IC, 1);
-	if (tx_coalesce && (!tx_frames ||
-			    (++ring->coalesce_count % tx_frames)))
-		/* Clear IC bit */
-		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, IC, 0);
-
 	/* Mark it as First Descriptor */
 	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, FD, 1);
 
@@ -1478,13 +1487,6 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, HL_B1L,
 				  rdata->skb_dma_len);
 
-		/* Set IC bit based on Tx coalescing settings */
-		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, IC, 1);
-		if (tx_coalesce && (!tx_frames ||
-				    (++ring->coalesce_count % tx_frames)))
-			/* Clear IC bit */
-			XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, IC, 0);
-
 		/* Set OWN bit */
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, OWN, 1);
 
@@ -1499,6 +1501,10 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 
 	/* Set LAST bit for the last descriptor */
 	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, LD, 1);
+
+	/* Set IC bit based on Tx coalescing settings */
+	if (tx_set_ic)
+		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, IC, 1);
 
 	/* Save the Tx info to report back during cleanup */
 	rdata->tx.packets = packet->tx_packets;
@@ -1530,7 +1536,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 			  lower_32_bits(rdata->rdesc_dma));
 
 	/* Start the Tx coalescing timer */
-	if (tx_coalesce && !channel->tx_timer_active) {
+	if (pdata->tx_usecs && !channel->tx_timer_active) {
 		channel->tx_timer_active = 1;
 		hrtimer_start(&channel->tx_timer,
 			      ktime_set(0, pdata->tx_usecs * NSEC_PER_USEC),
