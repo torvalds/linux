@@ -1110,7 +1110,7 @@ config RTC_DRV_AT91RM9200
 
 config RTC_DRV_AT91SAM9
 	tristate "AT91SAM9 RTT as RTC"
-	depends on ARCH_AT91 && !(ARCH_AT91RM9200 || ARCH_AT91X40)
+	depends on ARCH_AT91 && !ARCH_AT91RM9200
 	select MFD_SYSCON
 	help
 	  Some AT91SAM9 SoCs provide an RTT (Real Time Timer) block which
