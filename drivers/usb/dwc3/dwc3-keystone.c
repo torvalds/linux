@@ -123,6 +123,7 @@ static int kdwc3_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "missing irq\n");
+		error = irq;
 		goto err_irq;
 	}
 
