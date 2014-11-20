@@ -407,8 +407,17 @@ static void cport_out_callback(struct urb *urb)
 	struct greybus_host_device *hd = urb->context;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	unsigned long flags;
-	/* int status = check_urb_status(urb); */
+	int status = check_urb_status(urb);
+	u8 *data = urb->transfer_buffer + 1;
 	int i;
+
+	/*
+	 * Tell the submitter that the buffer send (attempt) is
+	 * complete, and report the status.  The submitter's buffer
+	 * starts after the one-byte CPort id we inserted.
+	 */
+	data = urb->transfer_buffer + 1;
+	greybus_data_sent(hd, data, status);
 
 	/*
 	 * See if this was an urb in our pool, if so mark it "free", otherwise

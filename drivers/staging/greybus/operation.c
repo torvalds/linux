@@ -230,6 +230,24 @@ static void operation_timeout(struct work_struct *work)
 }
 
 /*
+ * Given a pointer to the header in a message sent on a given host
+ * device, return the associated message structure.  (This "header"
+ * is just the buffer pointer we supply to the host device for
+ * sending.)
+ */
+static struct gb_message *
+gb_hd_message_find(struct greybus_host_device *hd, void *header)
+{
+	struct gb_message *message;
+	u8 *result;
+
+	result = (u8 *)header - hd->buffer_headroom - sizeof(*message);
+	message = (struct gb_message *)result;
+
+	return message;
+}
+
+/*
  * Allocate a message to be used for an operation request or
  * response.  For outgoing messages, both types of message contain a
  * common header, which is filled in here.  Incoming requests or
@@ -472,6 +490,32 @@ int gb_operation_response_send(struct gb_operation *operation)
 
 	return 0;
 }
+
+/*
+ * This function is called when a buffer send request has completed.
+ * The "header" is the message header--the beginning of what we
+ * asked to have sent.
+ *
+ * XXX Mismatch between errno here and operation result code
+ */
+void
+greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
+{
+	struct gb_message *message;
+	struct gb_operation *operation;
+
+	/* If there's no error, there's really nothing to do */
+	if (!status)
+		return;	/* Mark it complete? */
+
+	/* XXX Right now we assume we're an outgoing request */
+	message = gb_hd_message_find(hd, header);
+	operation = message->operation;
+	gb_connection_err(operation->connection, "send error %d\n", status);
+	operation->result = status;	/* XXX */
+	gb_operation_complete(operation);
+}
+EXPORT_SYMBOL_GPL(greybus_data_sent);
 
 /*
  * We've received data on a connection, and it doesn't look like a

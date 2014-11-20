@@ -103,6 +103,9 @@ int gb_operation_wait(struct gb_operation *operation);
 
 int gb_operation_status_map(u8 status);
 
+void greybus_data_sent(struct greybus_host_device *hd,
+				void *header, int status);
+
 int gb_operation_init(void);
 void gb_operation_exit(void);
 
