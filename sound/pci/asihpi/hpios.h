@@ -151,6 +151,10 @@ struct hpi_adapter {
 	struct hpi_adapter_obj *adapter;
 	struct snd_card *snd_card;
 
+	int irq;
+	int interrupt_mode;
+	void (*interrupt_callback) (struct hpi_adapter *);
+
 	/* mutex prevents contention for one card
 	   between multiple user programs (via ioctl) */
 	struct mutex mutex;

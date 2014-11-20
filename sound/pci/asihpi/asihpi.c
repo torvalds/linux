@@ -1,6 +1,6 @@
 /*
  *  Asihpi soundcard
- *  Copyright (c) by AudioScience Inc <alsa@audioscience.com>
+ *  Copyright (c) by AudioScience Inc <support@audioscience.com>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of version 2 of the GNU General Public License as
@@ -123,6 +123,16 @@ struct snd_card_asihpi {
 	struct snd_card *card;
 	struct pci_dev *pci;
 	struct hpi_adapter *hpi;
+
+	/* In low latency mode there is only one stream, a pointer to its
+	 * private data is stored here on trigger and cleared on stop.
+	 * The interrupt handler uses it as a parameter when calling
+	 * snd_card_asihpi_timer_function().
+	 */
+	struct snd_card_asihpi_pcm *llmode_streampriv;
+	struct tasklet_struct t;
+	void (*pcm_start)(struct snd_pcm_substream *substream);
+	void (*pcm_stop)(struct snd_pcm_substream *substream);
 
 	u32 h_mixer;
 	struct clk_cache cc;
@@ -544,6 +554,48 @@ static void snd_card_asihpi_pcm_timer_stop(struct snd_pcm_substream *substream)
 	del_timer(&dpcm->timer);
 }
 
+static void snd_card_asihpi_pcm_int_start(struct snd_pcm_substream *substream)
+{
+	struct snd_card_asihpi_pcm *dpcm;
+	struct snd_card_asihpi *card;
+
+	BUG_ON(!substream);
+
+	dpcm = (struct snd_card_asihpi_pcm *)substream->runtime->private_data;
+	card = snd_pcm_substream_chip(substream);
+
+	BUG_ON(in_interrupt());
+	tasklet_disable(&card->t);
+	card->llmode_streampriv = dpcm;
+	tasklet_enable(&card->t);
+
+	hpi_handle_error(hpi_adapter_set_property(card->hpi->adapter->index,
+		HPI_ADAPTER_PROPERTY_IRQ_RATE,
+		card->update_interval_frames, 0));
+}
+
+static void snd_card_asihpi_pcm_int_stop(struct snd_pcm_substream *substream)
+{
+	struct snd_card_asihpi_pcm *dpcm;
+	struct snd_card_asihpi *card;
+
+	BUG_ON(!substream);
+
+	dpcm = (struct snd_card_asihpi_pcm *)substream->runtime->private_data;
+	card = snd_pcm_substream_chip(substream);
+
+	hpi_handle_error(hpi_adapter_set_property(card->hpi->adapter->index,
+		HPI_ADAPTER_PROPERTY_IRQ_RATE, 0, 0));
+
+	if (in_interrupt())
+		card->llmode_streampriv = NULL;
+	else {
+		tasklet_disable(&card->t);
+		card->llmode_streampriv = NULL;
+		tasklet_enable(&card->t);
+	}
+}
+
 static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
 					   int cmd)
 {
@@ -602,7 +654,7 @@ static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
 				break;
 		}
 		/* start the master stream */
-		snd_card_asihpi_pcm_timer_start(substream);
+		card->pcm_start(substream);
 		if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE) ||
 			!card->can_dma)
 			hpi_handle_error(hpi_stream_start(dpcm->h_stream));
@@ -610,7 +662,7 @@ static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
 
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_printdd("%s trigger stop\n", name);
-		snd_card_asihpi_pcm_timer_stop(substream);
+		card->pcm_stop(substream);
 		snd_pcm_group_for_each_entry(s, substream) {
 			if (snd_pcm_substream_chip(s) != card)
 				continue;
@@ -641,12 +693,12 @@ static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
 
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		snd_printdd("%s trigger pause release\n", name);
+		card->pcm_start(substream);
 		hpi_handle_error(hpi_stream_start(dpcm->h_stream));
-		snd_card_asihpi_pcm_timer_start(substream);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		snd_printdd("%s trigger pause push\n", name);
-		snd_card_asihpi_pcm_timer_stop(substream);
+		card->pcm_stop(substream);
 		hpi_handle_error(hpi_stream_stop(dpcm->h_stream));
 		break;
 	default:
@@ -718,8 +770,8 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 	u32 buffer_size, bytes_avail, samples_played, on_card_bytes;
 	char name[16];
 
-	snd_pcm_debug_name(substream, name, sizeof(name));
 
+	snd_pcm_debug_name(substream, name, sizeof(name));
 
 	/* find minimum newdata and buffer pos in group */
 	snd_pcm_group_for_each_entry(s, substream) {
@@ -779,7 +831,8 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 				newdata);
 		}
 
-		snd_printddd("timer1, %s, %d, S=%d, elap=%d, rw=%d, dsp=%d, left=%d, aux=%d, space=%d, hw_ptr=%ld, appl_ptr=%ld\n",
+		snd_printddd(
+			"timer1, %s, %d, S=%d, elap=%d, rw=%d, dsp=%d, left=%d, aux=%d, space=%d, hw_ptr=%ld, appl_ptr=%ld\n",
 			name, s->number, state,
 			ds->pcm_buf_elapsed_dma_ofs,
 			ds->pcm_buf_host_rw_ofs,
@@ -815,11 +868,13 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 
 	snd_pcm_group_for_each_entry(s, substream) {
 		struct snd_card_asihpi_pcm *ds = s->runtime->private_data;
+		runtime = s->runtime;
 
 		/* don't link Cap and Play */
 		if (substream->stream != s->stream)
 			continue;
 
+		/* Store dma offset for use by pointer callback */
 		ds->pcm_buf_dma_ofs = pcm_buf_dma_ofs;
 
 		if (xfercount &&
@@ -878,14 +933,36 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 							pd, xfer2));
 				}
 			}
+			/* ? host_rw_ofs always ahead of elapsed_dma_ofs by preload size? */
 			ds->pcm_buf_host_rw_ofs += xfercount;
 			ds->pcm_buf_elapsed_dma_ofs += xfercount;
 			snd_pcm_period_elapsed(s);
 		}
 	}
 
-	if (dpcm->respawn_timer)
+	if (!card->hpi->interrupt_mode && dpcm->respawn_timer)
 		add_timer(&dpcm->timer);
+}
+
+static void snd_card_asihpi_int_task(unsigned long data)
+{
+	struct hpi_adapter *a = (struct hpi_adapter *)data;
+	struct snd_card_asihpi *asihpi;
+
+	WARN_ON(!a || !a->snd_card || !a->snd_card->private_data);
+	asihpi = (struct snd_card_asihpi *)a->snd_card->private_data;
+	if (asihpi->llmode_streampriv)
+		snd_card_asihpi_timer_function(
+			(unsigned long)asihpi->llmode_streampriv);
+}
+
+static void snd_card_asihpi_isr(struct hpi_adapter *a)
+{
+	struct snd_card_asihpi *asihpi;
+
+	WARN_ON(!a || !a->snd_card || !a->snd_card->private_data);
+	asihpi = (struct snd_card_asihpi *)a->snd_card->private_data;
+	tasklet_schedule(&asihpi->t);
 }
 
 /***************************** PLAYBACK OPS ****************/
@@ -995,13 +1072,22 @@ static int snd_card_asihpi_playback_open(struct snd_pcm_substream *substream)
 	runtime->private_free = snd_card_asihpi_runtime_free;
 
 	memset(&snd_card_asihpi_playback, 0, sizeof(snd_card_asihpi_playback));
-	snd_card_asihpi_playback.buffer_bytes_max = BUFFER_BYTES_MAX;
-	snd_card_asihpi_playback.period_bytes_min = PERIOD_BYTES_MIN;
-	/*?snd_card_asihpi_playback.period_bytes_min =
-	card->out_max_chans * 4096; */
-	snd_card_asihpi_playback.period_bytes_max = BUFFER_BYTES_MAX / PERIODS_MIN;
-	snd_card_asihpi_playback.periods_min = PERIODS_MIN;
-	snd_card_asihpi_playback.periods_max = BUFFER_BYTES_MAX / PERIOD_BYTES_MIN;
+	if (!card->hpi->interrupt_mode) {
+		snd_card_asihpi_playback.buffer_bytes_max = BUFFER_BYTES_MAX;
+		snd_card_asihpi_playback.period_bytes_min = PERIOD_BYTES_MIN;
+		snd_card_asihpi_playback.period_bytes_max = BUFFER_BYTES_MAX / PERIODS_MIN;
+		snd_card_asihpi_playback.periods_min = PERIODS_MIN;
+		snd_card_asihpi_playback.periods_max = BUFFER_BYTES_MAX / PERIOD_BYTES_MIN;
+	} else {
+		size_t pbmin = card->update_interval_frames *
+			card->out_max_chans;
+		snd_card_asihpi_playback.buffer_bytes_max = BUFFER_BYTES_MAX;
+		snd_card_asihpi_playback.period_bytes_min = pbmin;
+		snd_card_asihpi_playback.period_bytes_max = BUFFER_BYTES_MAX / PERIODS_MIN;
+		snd_card_asihpi_playback.periods_min = PERIODS_MIN;
+		snd_card_asihpi_playback.periods_max = BUFFER_BYTES_MAX / pbmin;
+	}
+
 	/* snd_card_asihpi_playback.fifo_size = 0; */
 	snd_card_asihpi_playback.channels_max = card->out_max_chans;
 	snd_card_asihpi_playback.channels_min = card->out_min_chans;
@@ -1036,7 +1122,7 @@ static int snd_card_asihpi_playback_open(struct snd_pcm_substream *substream)
 		card->update_interval_frames);
 
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
-		card->update_interval_frames * 2, UINT_MAX);
+		card->update_interval_frames, UINT_MAX);
 
 	snd_printdd("playback open\n");
 
@@ -1101,8 +1187,6 @@ static int snd_card_asihpi_capture_prepare(struct snd_pcm_substream *substream)
 	snd_printdd("Capture Prepare %d\n", substream->number);
 	return 0;
 }
-
-
 
 static u64 snd_card_asihpi_capture_formats(struct snd_card_asihpi *asihpi,
 					u32 h_stream)
@@ -1170,11 +1254,21 @@ static int snd_card_asihpi_capture_open(struct snd_pcm_substream *substream)
 	runtime->private_free = snd_card_asihpi_runtime_free;
 
 	memset(&snd_card_asihpi_capture, 0, sizeof(snd_card_asihpi_capture));
-	snd_card_asihpi_capture.buffer_bytes_max = BUFFER_BYTES_MAX;
-	snd_card_asihpi_capture.period_bytes_min = PERIOD_BYTES_MIN;
-	snd_card_asihpi_capture.period_bytes_max = BUFFER_BYTES_MAX / PERIODS_MIN;
-	snd_card_asihpi_capture.periods_min = PERIODS_MIN;
-	snd_card_asihpi_capture.periods_max = BUFFER_BYTES_MAX / PERIOD_BYTES_MIN;
+	if (!card->hpi->interrupt_mode) {
+		snd_card_asihpi_capture.buffer_bytes_max = BUFFER_BYTES_MAX;
+		snd_card_asihpi_capture.period_bytes_min = PERIOD_BYTES_MIN;
+		snd_card_asihpi_capture.period_bytes_max = BUFFER_BYTES_MAX / PERIODS_MIN;
+		snd_card_asihpi_capture.periods_min = PERIODS_MIN;
+		snd_card_asihpi_capture.periods_max = BUFFER_BYTES_MAX / PERIOD_BYTES_MIN;
+	} else {
+		size_t pbmin = card->update_interval_frames *
+			card->out_max_chans;
+		snd_card_asihpi_capture.buffer_bytes_max = BUFFER_BYTES_MAX;
+		snd_card_asihpi_capture.period_bytes_min = pbmin;
+		snd_card_asihpi_capture.period_bytes_max = BUFFER_BYTES_MAX / PERIODS_MIN;
+		snd_card_asihpi_capture.periods_min = PERIODS_MIN;
+		snd_card_asihpi_capture.periods_max = BUFFER_BYTES_MAX / pbmin;
+	}
 	/* snd_card_asihpi_capture.fifo_size = 0; */
 	snd_card_asihpi_capture.channels_max = card->in_max_chans;
 	snd_card_asihpi_capture.channels_min = card->in_min_chans;
@@ -1199,7 +1293,7 @@ static int snd_card_asihpi_capture_open(struct snd_pcm_substream *substream)
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 		card->update_interval_frames);
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
-		card->update_interval_frames * 2, UINT_MAX);
+		card->update_interval_frames, UINT_MAX);
 
 	snd_pcm_set_sync(substream);
 
@@ -2444,15 +2538,19 @@ static int snd_asihpi_clkrate_get(struct snd_kcontrol *kcontrol,
 static int snd_asihpi_sampleclock_add(struct snd_card_asihpi *asihpi,
 				      struct hpi_control *hpi_ctl)
 {
-	struct snd_card *card = asihpi->card;
+	struct snd_card *card;
 	struct snd_kcontrol_new snd_control;
 
-	struct clk_cache *clkcache = &asihpi->cc;
+	struct clk_cache *clkcache;
 	u32 hSC =  hpi_ctl->h_control;
 	int has_aes_in = 0;
 	int i, j;
 	u16 source;
 
+	if (snd_BUG_ON(!asihpi))
+		return -EINVAL;
+	card = asihpi->card;
+	clkcache = &asihpi->cc;
 	snd_control.private_value = hpi_ctl->h_control;
 
 	clkcache->has_local = 0;
@@ -2808,6 +2906,7 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	asihpi->card = card;
 	asihpi->pci = pci_dev;
 	asihpi->hpi = hpi;
+	hpi->snd_card = card;
 
 	snd_printk(KERN_INFO "adapter ID=%4X index=%d\n",
 			asihpi->hpi->adapter->type, adapter_index);
@@ -2830,8 +2929,16 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	if (err)
 		asihpi->update_interval_frames = 512;
 
-	if (!asihpi->can_dma)
-		asihpi->update_interval_frames *= 2;
+	if (hpi->interrupt_mode) {
+		asihpi->pcm_start = snd_card_asihpi_pcm_int_start;
+		asihpi->pcm_stop = snd_card_asihpi_pcm_int_stop;
+		tasklet_init(&asihpi->t, snd_card_asihpi_int_task,
+			(unsigned long)hpi);
+		hpi->interrupt_callback = snd_card_asihpi_isr;
+	} else {
+		asihpi->pcm_start = snd_card_asihpi_pcm_timer_start;
+		asihpi->pcm_stop = snd_card_asihpi_pcm_timer_stop;
+	}
 
 	hpi_handle_error(hpi_instream_open(adapter_index,
 			     0, &h_stream));
@@ -2840,6 +2947,9 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	asihpi->can_dma = (!err);
 
 	hpi_handle_error(hpi_instream_close(h_stream));
+
+	if (!asihpi->can_dma)
+		asihpi->update_interval_frames *= 2;
 
 	err = hpi_adapter_get_property(adapter_index,
 		HPI_ADAPTER_PROPERTY_CURCHANNELS,
@@ -2900,7 +3010,6 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	err = snd_card_register(card);
 
 	if (!err) {
-		hpi->snd_card = card;
 		dev++;
 		return 0;
 	}
@@ -2914,6 +3023,16 @@ __nodev:
 static void snd_asihpi_remove(struct pci_dev *pci_dev)
 {
 	struct hpi_adapter *hpi = pci_get_drvdata(pci_dev);
+	struct snd_card_asihpi *asihpi = hpi->snd_card->private_data;
+
+	/* Stop interrupts */
+	if (hpi->interrupt_mode) {
+		hpi->interrupt_callback = NULL;
+		hpi_handle_error(hpi_adapter_set_property(hpi->adapter->index,
+			HPI_ADAPTER_PROPERTY_IRQ_RATE, 0, 0));
+		tasklet_kill(&asihpi->t);
+	}
+
 	snd_card_free(hpi->snd_card);
 	hpi->snd_card = NULL;
 	asihpi_adapter_remove(pci_dev);

@@ -686,8 +686,8 @@ union hpi_adapterx_msg {
 		u16 value;
 	} test_assert;
 	struct {
-		u32 yes;
-	} irq_query;
+		u32 message;
+	} irq;
 	u32 pad[3];
 };
 
