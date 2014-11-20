@@ -2027,6 +2027,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
+	struct intel_hdmi *intel_hdmi;
 	u32 temp, flags = 0;
 	struct drm_device *dev = dev_priv->dev;
 
@@ -2062,6 +2063,10 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	switch (temp & TRANS_DDI_MODE_SELECT_MASK) {
 	case TRANS_DDI_MODE_SELECT_HDMI:
 		pipe_config->has_hdmi_sink = true;
+		intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+
+		if (intel_hdmi->infoframe_enabled(&encoder->base))
+			pipe_config->has_infoframe = true;
 		break;
 	case TRANS_DDI_MODE_SELECT_DVI:
 	case TRANS_DDI_MODE_SELECT_FDI:
@@ -2073,14 +2078,6 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	default:
 		break;
-	}
-
-	if (encoder->type == INTEL_OUTPUT_HDMI) {
-		struct intel_hdmi *intel_hdmi =
-			enc_to_intel_hdmi(&encoder->base);
-
-		if (intel_hdmi->infoframe_enabled(&encoder->base))
-			pipe_config->has_infoframe = true;
 	}
 
 	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
