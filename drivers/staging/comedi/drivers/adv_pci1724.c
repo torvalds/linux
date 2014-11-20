@@ -135,18 +135,6 @@ static int adv_pci1724_dac_idle(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int set_dac(struct comedi_device *dev, unsigned mode, unsigned channel,
-		   unsigned data)
-{
-	unsigned control_bits;
-
-	control_bits = mode;
-	control_bits |= dac_channel_and_group_select_bits(channel);
-	control_bits |= dac_data_bits(data);
-	outl(control_bits, dev->iobase + DAC_CONTROL_REG);
-	return 0;
-}
-
 static int adv_pci1724_insn_write(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn,
@@ -162,14 +150,16 @@ static int adv_pci1724_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; ++i) {
 		unsigned int val = data[i];
+		unsigned int ctrl;
 
 		ret = comedi_timeout(dev, s, insn, adv_pci1724_dac_idle, 0);
 		if (ret)
 			return ret;
 
-		ret = set_dac(dev, mode, chan, val);
-		if (ret < 0)
-			return ret;
+		ctrl = mode;
+		ctrl |= dac_channel_and_group_select_bits(chan);
+		ctrl |= dac_data_bits(val);
+		outl(ctrl, dev->iobase + DAC_CONTROL_REG);
 
 		s->readback[chan] = val;
 	}
