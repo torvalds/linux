@@ -916,6 +916,20 @@ void read_mac_from_nand(struct net_device *ndev)
 
 }
 #endif
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+extern int aml_efuse_get_item(unsigned char* key_name, unsigned char* data);
+void read_mac_from_efuse(struct net_device *ndev)
+{
+    int ret;
+    ret = aml_efuse_get_item("mac", ndev->dev_addr);
+    if (ret < 0) {
+        printk(KERN_INFO "ERROR! failed to read hardware mac address\n");
+        random_ether_addr(ndev->dev_addr);
+    }
+}
+#endif
+
 static int aml_mac_init(struct net_device *ndev)
 {
 	struct am_net_private *np = netdev_priv(ndev);
@@ -923,6 +937,9 @@ static int aml_mac_init(struct net_device *ndev)
 
 	writel(1, (void*)(np->base_addr + ETH_DMA_0_Bus_Mode));
 	writel(0x00100800,(void*)(np->base_addr + ETH_DMA_0_Bus_Mode));
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	read_mac_from_efuse(ndev);
+#else
 	printk("--1--write mac add to:");
 
 	data_dump(ndev->dev_addr, 6);
@@ -931,6 +948,7 @@ static int aml_mac_init(struct net_device *ndev)
 #endif
 	printk("--2--write mac add to:");
 	data_dump(ndev->dev_addr, 6);
+#endif
 	write_mac_addr(ndev, ndev->dev_addr);
 
 	val = 0xc80c |		//8<<8 | 8<<17; //tx and rx all 8bit mode;

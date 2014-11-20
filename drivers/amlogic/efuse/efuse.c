@@ -239,6 +239,41 @@ static const struct file_operations efuse_fops = {
 	.unlocked_ioctl      = efuse_unlocked_ioctl,
 };
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+/* function: aml_efuse_get_item
+ * key_name: key name
+ * data: key data
+ * return : >=0 ok,  <0 error
+ * */
+int aml_efuse_get_item(unsigned char* key_name, unsigned char* data)
+{
+        char dec_mac[50] = {0};
+        efuseinfo_item_t info;
+        unsigned id=0;
+
+        if(strcmp(key_name,"mac")==0)           id = EFUSE_MAC_ID;
+        else if(strcmp(key_name,"mac_bt")==0)   id = EFUSE_MAC_BT_ID;
+        else if(strcmp(key_name,"mac_wifi")==0) id = EFUSE_MAC_WIFI_ID;
+        else if(strcmp(key_name,"usid")==0)     id = EFUSE_USID_ID;
+        else {
+                printk(KERN_INFO"%s : UNKNOWN key_name\n",__func__);
+                return -EFAULT;
+        }
+
+        if(efuse_getinfo_byID(id, &info) < 0){
+                printk(KERN_INFO"ID is not found\n");
+                return -EFAULT;
+        }
+        if (efuse_read_item(dec_mac, info.data_len, (loff_t*)&info.offset) < 0)
+                return -EFAULT;
+
+        memcpy(&data[0],dec_mac,info.data_len);
+
+        return 0;
+}
+EXPORT_SYMBOL(aml_efuse_get_item);
+#endif
+
 /* Sysfs Files */
 static ssize_t mac_show(struct class *cla, struct class_attribute *attr, char *buf)
 {
@@ -289,6 +324,23 @@ static ssize_t mac_bt_show(struct class *cla, struct class_attribute *attr, char
 	return sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n",
 			dec_mac[0],dec_mac[1],dec_mac[2],dec_mac[3],dec_mac[4],dec_mac[5]);
 }
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+static ssize_t usid_show(struct class *cla, struct class_attribute *attr, char *buf)
+{
+        char usid[50] = {0};
+        efuseinfo_item_t info;
+        if(efuse_getinfo_byID(EFUSE_USID_ID, &info) < 0){
+                printk(KERN_INFO"ID is not found\n");
+                return -EFAULT;
+        }
+
+        if (efuse_read_item(usid, info.data_len, (loff_t*)&info.offset) < 0)
+                return -EFAULT;
+
+        return sprintf(buf, "%s\n",usid);
+}
+#endif
 
 static int efuse_device_match(struct device *dev, const void *data)
 {
@@ -427,6 +479,8 @@ static struct class_attribute efuse_class_attrs[] = {
 	__ATTR_RO(mac_wifi),
 
 	__ATTR_RO(mac_bt),
+
+	__ATTR_RO(usid),
 
 	#ifndef EFUSE_READ_ONLY		/*make the efuse can not be write through sysfs */
 	__ATTR(userdata, S_IRWXU, userdata_show, userdata_write),
