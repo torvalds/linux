@@ -853,14 +853,14 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
 		goto err_2;
 	}
 	mr->umem = umem;
-	mlx5_vfree(in);
+	kvfree(in);
 
 	mlx5_ib_dbg(dev, "mkey = 0x%x\n", mr->mmr.key);
 
 	return mr;
 
 err_2:
-	mlx5_vfree(in);
+	kvfree(in);
 
 err_1:
 	kfree(mr);

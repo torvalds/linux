@@ -390,7 +390,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	 */
 	eq_update_ci(eq, 1);
 
-	mlx5_vfree(in);
+	kvfree(in);
 	return 0;
 
 err_irq:
@@ -400,7 +400,7 @@ err_eq:
 	mlx5_cmd_destroy_eq(dev, eq->eqn);
 
 err_in:
-	mlx5_vfree(in);
+	kvfree(in);
 
 err_buf:
 	mlx5_buf_free(dev, &eq->buf);

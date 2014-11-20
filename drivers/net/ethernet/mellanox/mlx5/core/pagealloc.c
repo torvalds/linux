@@ -349,7 +349,7 @@ out_4k:
 	for (i--; i >= 0; i--)
 		free_4k(dev, be64_to_cpu(in->pas[i]));
 out_free:
-	mlx5_vfree(in);
+	kvfree(in);
 	return err;
 }
 
@@ -400,7 +400,7 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 	}
 
 out_free:
-	mlx5_vfree(out);
+	kvfree(out);
 	return err;
 }
 
