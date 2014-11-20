@@ -70,7 +70,7 @@
 #define PCI1724_BOARD_ID_REG		0x10
 #define PCI1724_BOARD_ID_MASK		(0xf << 0)
 
-static const struct comedi_lrange ao_ranges_1724 = {
+static const struct comedi_lrange adv_pci1724_ao_ranges = {
 	4, {
 		BIP_RANGE(10),
 		RANGE_mA(0, 20),
@@ -151,7 +151,7 @@ static int adv_pci1724_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 	s->n_chan	= 32;
 	s->maxdata	= 0x3fff;
-	s->range_table	= &ao_ranges_1724;
+	s->range_table	= &adv_pci1724_ao_ranges;
 	s->insn_write	= adv_pci1724_insn_write;
 	s->private	= (void *)PCI1724_DAC_CTRL_MODE_NORMAL;
 
