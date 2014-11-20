@@ -3067,9 +3067,10 @@ void i915_queue_hangcheck(struct drm_device *dev)
 		return;
 
 	/* Don't continually defer the hangcheck, but make sure it is active */
-	if (!timer_pending(timer))
-		timer->expires = round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES);
-	mod_timer(timer, timer->expires);
+	if (timer_pending(timer))
+		return;
+	mod_timer(timer,
+		  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 }
 
 static void ibx_irq_reset(struct drm_device *dev)
