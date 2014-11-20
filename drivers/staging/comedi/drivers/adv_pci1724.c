@@ -1,56 +1,50 @@
 /*
-    comedi/drivers/adv_pci1724.c
-    This is a driver for the Advantech PCI-1724U card.
-
-    Author:  Frank Mori Hess <fmh6jj@gmail.com>
-    Copyright (C) 2013 GnuBIO Inc
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * adv_pci1724.c
+ * Comedi driver for the Advantech PCI-1724U card.
+ *
+ * Author:  Frank Mori Hess <fmh6jj@gmail.com>
+ * Copyright (C) 2013 GnuBIO Inc
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-
-Driver: adv_1724
-Description: Advantech PCI-1724U
-Author: Frank Mori Hess <fmh6jj@gmail.com>
-Status: works
-Updated: 2013-02-09
-Devices: [Advantech] PCI-1724U (adv_pci1724)
-
-Subdevice 0 is the analog output.
-Subdevice 1 is the offset calibration for the analog output.
-Subdevice 2 is the gain calibration for the analog output.
-
-The calibration offset and gains have quite a large effect
-on the analog output, so it is possible to adjust the analog output to
-have an output range significantly different from the board's
-nominal output ranges.  For a calibrated +/- 10V range, the analog
-output's offset will be set somewhere near mid-range (0x2000) and its
-gain will be near maximum (0x3fff).
-
-There is really no difference between the board's documented 0-20mA
-versus 4-20mA output ranges.  To pick one or the other is simply a matter
-of adjusting the offset and gain calibration until the board outputs in
-the desired range.
-
-Configuration options:
-   None
-
-Manual configuration of comedi devices is not supported by this driver;
-supported PCI devices are configured as comedi devices automatically.
-
-*/
+ * Driver: adv_pci1724
+ * Description: Advantech PCI-1724U
+ * Devices: (Advantech) PCI-1724U [adv_pci1724]
+ * Author: Frank Mori Hess <fmh6jj@gmail.com>
+ * Updated: 2013-02-09
+ * Status: works
+ *
+ * Configuration Options: not applicable, uses comedi PCI auto config
+ *
+ * Subdevice 0 is the analog output.
+ * Subdevice 1 is the offset calibration for the analog output.
+ * Subdevice 2 is the gain calibration for the analog output.
+ *
+ * The calibration offset and gains have quite a large effect on the
+ * analog output, so it is possible to adjust the analog output to
+ * have an output range significantly different from the board's
+ * nominal output ranges. For a calibrated +/-10V range, the analog
+ * output's offset will be set somewhere near mid-range (0x2000) and
+ * its gain will be near maximum (0x3fff).
+ *
+ * There is really no difference between the board's documented 0-20mA
+ * versus 4-20mA output ranges. To pick one or the other is simply a
+ * matter of adjusting the offset and gain calibration until the board
+ * outputs in the desired range.
+ */
 
 #include <linux/module.h>
 #include <linux/pci.h>
