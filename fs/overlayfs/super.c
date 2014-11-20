@@ -24,7 +24,7 @@ MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
 MODULE_DESCRIPTION("Overlay filesystem");
 MODULE_LICENSE("GPL");
 
-#define OVERLAYFS_SUPER_MAGIC 0x794c764f
+#define OVERLAYFS_SUPER_MAGIC 0x794c7630
 
 struct ovl_config {
 	char *lowerdir;
@@ -776,11 +776,11 @@ static struct dentry *ovl_mount(struct file_system_type *fs_type, int flags,
 
 static struct file_system_type ovl_fs_type = {
 	.owner		= THIS_MODULE,
-	.name		= "overlayfs",
+	.name		= "overlay",
 	.mount		= ovl_mount,
 	.kill_sb	= kill_anon_super,
 };
-MODULE_ALIAS_FS("overlayfs");
+MODULE_ALIAS_FS("overlay");
 
 static int __init ovl_init(void)
 {

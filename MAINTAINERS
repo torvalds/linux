@@ -6888,7 +6888,7 @@ F:	drivers/scsi/osd/
 F:	include/scsi/osd_*
 F:	fs/exofs/
 
-OVERLAYFS FILESYSTEM
+OVERLAY FILESYSTEM
 M:	Miklos Szeredi <miklos@szeredi.hu>
 L:	linux-fsdevel@vger.kernel.org
 S:	Supported
