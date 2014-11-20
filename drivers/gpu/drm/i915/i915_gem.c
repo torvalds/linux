@@ -4709,14 +4709,6 @@ int i915_gem_init_rings(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	/*
-	 * At least 830 can leave some of the unused rings
-	 * "active" (ie. head != tail) after resume which
-	 * will prevent c3 entry. Makes sure all unused rings
-	 * are totally idle.
-	 */
-	init_unused_rings(dev);
-
 	ret = intel_init_render_ring_buffer(dev);
 	if (ret)
 		return ret;
@@ -4795,6 +4787,14 @@ i915_gem_init_hw(struct drm_device *dev)
 	}
 
 	i915_gem_init_swizzling(dev);
+
+	/*
+	 * At least 830 can leave some of the unused rings
+	 * "active" (ie. head != tail) after resume which
+	 * will prevent c3 entry. Makes sure all unused rings
+	 * are totally idle.
+	 */
+	init_unused_rings(dev);
 
 	for_each_ring(ring, dev_priv, i) {
 		ret = ring->init_hw(ring);
