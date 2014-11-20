@@ -1558,6 +1558,9 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, OWN))
 		return 1;
 
+	/* Make sure descriptor fields are read after reading the OWN bit */
+	rmb();
+
 #ifdef XGMAC_ENABLE_RX_DESC_DUMP
 	xgbe_dump_rx_desc(ring, rdesc, ring->cur);
 #endif

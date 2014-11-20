@@ -1791,6 +1791,10 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 		if (!hw_if->tx_complete(rdesc))
 			break;
 
+		/* Make sure descriptor fields are read after reading the OWN
+		 * bit */
+		rmb();
+
 #ifdef XGMAC_ENABLE_TX_DESC_DUMP
 		xgbe_dump_tx_desc(ring, ring->dirty, 1, 0);
 #endif
