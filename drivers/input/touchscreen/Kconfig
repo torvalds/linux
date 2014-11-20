@@ -347,6 +347,18 @@ config TOUCHSCREEN_GUNZE
 	  To compile this driver as a module, choose M here: the
 	  module will be called gunze.
 
+config TOUCHSCREEN_ELAN
+	tristate "Elan eKTH I2C touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have an Elan eKTH I2C touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called elants_i2c.
+
 config TOUCHSCREEN_ELO
 	tristate "Elo serial touchscreens"
 	select SERIO
