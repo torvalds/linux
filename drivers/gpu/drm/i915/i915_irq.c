@@ -231,9 +231,6 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return;
-
 	new_val = dev_priv->pm_irq_mask;
 	new_val &= ~interrupt_mask;
 	new_val |= (~enabled_irq_mask & interrupt_mask);
@@ -247,12 +244,24 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
+		return;
+
 	snb_update_pm_irq(dev_priv, mask, mask);
+}
+
+static void __gen6_disable_pm_irq(struct drm_i915_private *dev_priv,
+				  uint32_t mask)
+{
+	snb_update_pm_irq(dev_priv, mask, 0);
 }
 
 void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
-	snb_update_pm_irq(dev_priv, mask, 0);
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
+		return;
+
+	__gen6_disable_pm_irq(dev_priv, mask);
 }
 
 void gen6_reset_rps_interrupts(struct drm_device *dev)
@@ -289,16 +298,20 @@ void gen6_disable_rps_interrupts(struct drm_device *dev)
 
 	cancel_work_sync(&dev_priv->rps.work);
 
+	spin_lock_irq(&dev_priv->irq_lock);
+
 	I915_WRITE(GEN6_PMINTRMSK, INTEL_INFO(dev_priv)->gen >= 8 ?
 		   ~GEN8_PMINTR_REDIRECT_TO_NON_DISP : ~0);
+
+	__gen6_disable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) &
 				~dev_priv->pm_rps_events);
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	dev_priv->rps.pm_iir = 0;
-	spin_unlock_irq(&dev_priv->irq_lock);
-
 	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
+	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
+
+	dev_priv->rps.pm_iir = 0;
+
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 /**
