@@ -150,6 +150,8 @@ static void mdp5_crtc_dpms(struct drm_crtc *crtc, int mode)
 			mdp5_enable(mdp5_kms);
 			mdp_irq_register(&mdp5_kms->base, &mdp5_crtc->err);
 		} else {
+			/* set STAGE_UNUSED for all layers */
+			mdp5_ctl_blend(mdp5_crtc->ctl, mdp5_crtc->lm, 0x00000000);
 			mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->err);
 			mdp5_disable(mdp5_kms);
 		}

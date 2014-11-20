@@ -132,6 +132,17 @@ static void mdp5_encoder_dpms(struct drm_encoder *encoder, int mode)
 		spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 0);
 		spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
+
+		/*
+		 * Wait for a vsync so we know the ENABLE=0 latched before
+		 * the (connector) source of the vsync's gets disabled,
+		 * otherwise we end up in a funny state if we re-enable
+		 * before the disable latches, which results that some of
+		 * the settings changes for the new modeset (like new
+		 * scanout buffer) don't latch properly..
+		 */
+		mdp_irq_wait(&mdp5_kms->base, intf2vblank(intf));
+
 		bs_set(mdp5_encoder, 0);
 	}
 
