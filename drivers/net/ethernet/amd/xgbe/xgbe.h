@@ -243,6 +243,9 @@ struct xgbe_packet_data {
 
 	u32 rss_hash;
 	enum pkt_hash_types rss_hash_type;
+
+	unsigned int tx_packets;
+	unsigned int tx_bytes;
 };
 
 /* Common Rx and Tx descriptor mapping */
@@ -274,6 +277,8 @@ struct xgbe_buffer_data {
 /* Tx-related ring data */
 struct xgbe_tx_ring_data {
 	unsigned int tso_header;	/* TSO header indicator */
+	unsigned int packets;		/* BQL packet count */
+	unsigned int bytes;		/* BQL byte count */
 };
 
 /* Rx-related ring data */

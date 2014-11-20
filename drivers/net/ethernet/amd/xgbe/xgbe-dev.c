@@ -1500,6 +1500,10 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	/* Set LAST bit for the last descriptor */
 	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, LD, 1);
 
+	/* Save the Tx info to report back during cleanup */
+	rdata->tx.packets = packet->tx_packets;
+	rdata->tx.bytes = packet->tx_bytes;
+
 	/* In case the Tx DMA engine is running, make sure everything
 	 * is written to the descriptor(s) before setting the OWN bit
 	 * for the first descriptor
