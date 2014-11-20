@@ -161,6 +161,11 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 		.doit	= tipc_nl_media_get,
 		.dumpit	= tipc_nl_media_dump,
 		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_MEDIA_SET,
+		.doit	= tipc_nl_media_set,
+		.policy = tipc_nl_policy,
 	}
 };
 

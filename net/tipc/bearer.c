@@ -1023,3 +1023,50 @@ err_out:
 
 	return err;
 }
+
+int tipc_nl_media_set(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	char *name;
+	struct tipc_media *m;
+	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
+
+	if (!info->attrs[TIPC_NLA_MEDIA])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, TIPC_NLA_MEDIA_MAX,
+			       info->attrs[TIPC_NLA_MEDIA],
+			       tipc_nl_media_policy);
+
+	if (!attrs[TIPC_NLA_MEDIA_NAME])
+		return -EINVAL;
+	name = nla_data(attrs[TIPC_NLA_MEDIA_NAME]);
+
+	rtnl_lock();
+	m = tipc_media_find(name);
+	if (!m) {
+		rtnl_unlock();
+		return -EINVAL;
+	}
+
+	if (attrs[TIPC_NLA_MEDIA_PROP]) {
+		struct nlattr *props[TIPC_NLA_PROP_MAX + 1];
+
+		err = tipc_nl_parse_link_prop(attrs[TIPC_NLA_MEDIA_PROP],
+					      props);
+		if (err) {
+			rtnl_unlock();
+			return err;
+		}
+
+		if (props[TIPC_NLA_PROP_TOL])
+			m->tolerance = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
+		if (props[TIPC_NLA_PROP_PRIO])
+			m->priority = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
+		if (props[TIPC_NLA_PROP_WIN])
+			m->window = nla_get_u32(props[TIPC_NLA_PROP_WIN]);
+	}
+	rtnl_unlock();
+
+	return 0;
+}
