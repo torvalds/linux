@@ -201,10 +201,7 @@ static int crypto_report(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 	if (!null_terminated(p->cru_name) || !null_terminated(p->cru_driver_name))
 		return -EINVAL;
 
-	if (!p->cru_driver_name[0])
-		return -EINVAL;
-
-	alg = crypto_alg_match(p, 1);
+	alg = crypto_alg_match(p, 0);
 	if (!alg)
 		return -ENOENT;
 
