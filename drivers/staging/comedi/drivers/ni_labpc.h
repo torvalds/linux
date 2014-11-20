@@ -72,8 +72,6 @@ struct labpc_private {
 	enum transfer_type current_transfer;
 	/* stores contents of board's eeprom */
 	unsigned int eeprom_data[EEPROM_SIZE];
-	/* stores settings of calibration dacs */
-	unsigned int caldac[16];
 	/*
 	 * function pointers so we can use inb/outb or readb/writeb as
 	 * appropriate
