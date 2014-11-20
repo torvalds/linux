@@ -127,7 +127,6 @@ static const struct comedi_lrange ao_ranges_1724 = {
 
 /* this structure is for data unique to this hardware driver. */
 struct adv_pci1724_private {
-	int ao_value[NUM_AO_CHANNELS];
 	int offset_value[NUM_AO_CHANNELS];
 	int gain_value[NUM_AO_CHANNELS];
 };
@@ -170,7 +169,6 @@ static int set_dac(struct comedi_device *dev, unsigned mode, unsigned channel,
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
-	struct adv_pci1724_private *devpriv = dev->private;
 	int channel = CR_CHAN(insn->chanspec);
 	int retval;
 	int i;
@@ -182,27 +180,8 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		retval = set_dac(dev, DAC_NORMAL_MODE, channel, data[i]);
 		if (retval < 0)
 			return retval;
-		devpriv->ao_value[channel] = data[i];
+		s->readback[channel] = data[i];
 	}
-	return insn->n;
-}
-
-static int ao_readback_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	struct adv_pci1724_private *devpriv = dev->private;
-	int channel = CR_CHAN(insn->chanspec);
-	int i;
-
-	if (devpriv->ao_value[channel] < 0) {
-		dev_err(dev->class_dev,
-			"Cannot read back channels which have not yet been written to\n");
-		return -EIO;
-	}
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_value[channel];
-
 	return insn->n;
 }
 
@@ -306,8 +285,11 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->n_chan = NUM_AO_CHANNELS;
 	s->maxdata = 0x3fff;
 	s->range_table = &ao_ranges_1724;
-	s->insn_read = ao_readback_insn;
 	s->insn_write = ao_winsn;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* offset calibration */
 	s = &dev->subdevices[1];
@@ -346,7 +328,6 @@ static int adv_pci1724_auto_attach(struct comedi_device *dev,
 	/* init software copies of output values to indicate we don't know
 	 * what the output value is since it has never been written. */
 	for (i = 0; i < NUM_AO_CHANNELS; ++i) {
-		devpriv->ao_value[i] = -1;
 		devpriv->offset_value[i] = -1;
 		devpriv->gain_value[i] = -1;
 	}
