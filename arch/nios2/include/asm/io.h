@@ -48,14 +48,14 @@ static inline void iounmap(void __iomem *addr)
 }
 
 /* Pages to physical address... */
-# define page_to_phys(page)	virt_to_phys(page_to_virt(page))
-# define page_to_bus(page)	page_to_virt(page)
+#define page_to_phys(page)	virt_to_phys(page_to_virt(page))
+#define page_to_bus(page)	page_to_virt(page)
 
 /* Macros used for converting between virtual and physical mappings. */
-# define phys_to_virt(vaddr)	\
+#define phys_to_virt(vaddr)	\
 	((void *)((unsigned long)(vaddr) | CONFIG_NIOS2_KERNEL_REGION_BASE))
 /* Clear top 3 bits */
-# define virt_to_phys(vaddr)	\
+#define virt_to_phys(vaddr)	\
 	((unsigned long)((unsigned long)(vaddr) & ~0xE0000000))
 
 #endif /* _ASM_NIOS2_IO_H */
