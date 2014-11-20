@@ -325,7 +325,8 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 	return 0;
 }
 
-struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
+static __attribute__((unused)) struct kernel_queue *pqm_get_kernel_queue(
+					struct process_queue_manager *pqm,
 					unsigned int qid)
 {
 	struct process_queue_node *pqn;
