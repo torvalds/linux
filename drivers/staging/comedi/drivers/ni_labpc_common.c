@@ -918,6 +918,18 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
+static void labpc_ao_write(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   unsigned int chan, unsigned int val)
+{
+	struct labpc_private *devpriv = dev->private;
+
+	devpriv->write_byte(dev, val & 0xff, DAC_LSB_REG(chan));
+	devpriv->write_byte(dev, (val >> 8) & 0xff, DAC_MSB_REG(chan));
+
+	devpriv->ao_value[chan] = val;
+}
+
 static int labpc_ao_insn_write(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
@@ -927,7 +939,6 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 	struct labpc_private *devpriv = dev->private;
 	int channel, range;
 	unsigned long flags;
-	int lsb, msb;
 
 	channel = CR_CHAN(insn->chanspec);
 
@@ -950,13 +961,7 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 		devpriv->write_byte(dev, devpriv->cmd6, CMD6_REG);
 	}
 	/* send data */
-	lsb = data[0] & 0xff;
-	msb = (data[0] >> 8) & 0xff;
-	devpriv->write_byte(dev, lsb, DAC_LSB_REG(channel));
-	devpriv->write_byte(dev, msb, DAC_MSB_REG(channel));
-
-	/* remember value for readback */
-	devpriv->ao_value[channel] = data[0];
+	labpc_ao_write(dev, s, channel, data[0]);
 
 	return 1;
 }
@@ -1300,15 +1305,8 @@ int labpc_common_attach(struct comedi_device *dev,
 		s->insn_write	= labpc_ao_insn_write;
 
 		/* initialize analog outputs to a known value */
-		for (i = 0; i < s->n_chan; i++) {
-			short lsb, msb;
-
-			devpriv->ao_value[i] = s->maxdata / 2;
-			lsb = devpriv->ao_value[i] & 0xff;
-			msb = (devpriv->ao_value[i] >> 8) & 0xff;
-			devpriv->write_byte(dev, lsb, DAC_LSB_REG(i));
-			devpriv->write_byte(dev, msb, DAC_MSB_REG(i));
-		}
+		for (i = 0; i < s->n_chan; i++)
+			labpc_ao_write(dev, s, i, s->maxdata / 2);
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
