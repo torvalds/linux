@@ -2,20 +2,16 @@
  *
  * Copyright(c) 2009-2012  Realtek Corporation.
  *
- * Tmis program is free software; you can redistribute it and/or modify it
+ * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * Tmis program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * tmis program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * Tme full GNU General Public License is included in this distribution in the
+ * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
  * Contact Information:
@@ -108,6 +104,7 @@
 #define COMP_USB			BIT(29)
 #define COMP_EASY_CONCURRENT	COMP_USB /* reuse of this bit is OK */
 #define COMP_BT_COEXIST			BIT(30)
+#define COMP_IQK			BIT(31)
 
 /*--------------------------------------------------------------
 		Define the rt_print components
@@ -115,11 +112,11 @@
 /* Define EEPROM and EFUSE  check module bit*/
 #define EEPROM_W			BIT(0)
 #define EFUSE_PG			BIT(1)
-#define EFUSE_READ_ALL		BIT(2)
+#define EFUSE_READ_ALL			BIT(2)
 
 /* Define init check for module bit*/
 #define	INIT_EEPROM			BIT(0)
-#define	INIT_TxPower		BIT(1)
+#define	INIT_TXPOWER			BIT(1)
 #define	INIT_IQK			BIT(2)
 #define	INIT_RF				BIT(3)
 
@@ -134,6 +131,15 @@
 #define	PHY_ALLW			BIT(7)
 #define	PHY_TXPWR			BIT(8)
 #define	PHY_PWRDIFF			BIT(9)
+
+/* Define Dynamic Mechanism check module bit --> FDM */
+#define WA_IOT				BIT(0)
+#define DM_PWDB				BIT(1)
+#define DM_MONITOR			BIT(2)
+#define DM_DIG				BIT(3)
+#define DM_EDCA_TURBO			BIT(4)
+
+#define DM_PWDB				BIT(1)
 
 enum dbgp_flag_e {
 	FQOS = 0,

@@ -6,34 +6,14 @@
  * Authors: Felipe Balbi <balbi@ti.com>,
  *	    Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
- *    to endorse or promote products derived from this software without
- *    specific prior written permission.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2  of
+ * the License as published by the Free Software Foundation.
  *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2, as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -59,7 +39,7 @@
 	.offset	= DWC3_ ##nm - DWC3_GLOBALS_REGS_START,	\
 }
 
-static struct debugfs_reg32 dwc3_regs[] = {
+static const struct debugfs_reg32 dwc3_regs[] = {
 	dump_register(GSBUSCFG0),
 	dump_register(GSBUSCFG1),
 	dump_register(GTXTHRCFG),
@@ -372,6 +352,7 @@ static struct debugfs_reg32 dwc3_regs[] = {
 
 	dump_register(OCFG),
 	dump_register(OCTL),
+	dump_register(OEVT),
 	dump_register(OEVTEN),
 	dump_register(OSTS),
 };
@@ -577,8 +558,14 @@ static int dwc3_link_state_show(struct seq_file *s, void *unused)
 	case DWC3_LINK_STATE_LPBK:
 		seq_printf(s, "Loopback\n");
 		break;
+	case DWC3_LINK_STATE_RESET:
+		seq_printf(s, "Reset\n");
+		break;
+	case DWC3_LINK_STATE_RESUME:
+		seq_printf(s, "Resume\n");
+		break;
 	default:
-		seq_printf(s, "UNKNOWN %d\n", reg);
+		seq_printf(s, "UNKNOWN %d\n", state);
 	}
 
 	return 0;
@@ -661,28 +648,31 @@ int dwc3_debugfs_init(struct dwc3 *dwc)
 		goto err1;
 	}
 
-#if IS_ENABLED(CONFIG_USB_DWC3_GADGET)
-	file = debugfs_create_file("mode", S_IRUGO | S_IWUSR, root,
-			dwc, &dwc3_mode_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
+	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE)) {
+		file = debugfs_create_file("mode", S_IRUGO | S_IWUSR, root,
+				dwc, &dwc3_mode_fops);
+		if (!file) {
+			ret = -ENOMEM;
+			goto err1;
+		}
 	}
 
-	file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root,
-			dwc, &dwc3_testmode_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
+	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE) ||
+			IS_ENABLED(CONFIG_USB_DWC3_GADGET)) {
+		file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root,
+				dwc, &dwc3_testmode_fops);
+		if (!file) {
+			ret = -ENOMEM;
+			goto err1;
+		}
 
-	file = debugfs_create_file("link_state", S_IRUGO | S_IWUSR, root,
-			dwc, &dwc3_link_state_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
+		file = debugfs_create_file("link_state", S_IRUGO | S_IWUSR, root,
+				dwc, &dwc3_link_state_fops);
+		if (!file) {
+			ret = -ENOMEM;
+			goto err1;
+		}
 	}
-#endif
 
 	return 0;
 

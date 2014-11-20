@@ -29,8 +29,20 @@ struct psci_operations {
 	int (*cpu_off)(struct psci_power_state state);
 	int (*cpu_on)(unsigned long cpuid, unsigned long entry_point);
 	int (*migrate)(unsigned long cpuid);
+	int (*affinity_info)(unsigned long target_affinity,
+			unsigned long lowest_affinity_level);
+	int (*migrate_info_type)(void);
 };
 
 extern struct psci_operations psci_ops;
+extern struct smp_operations psci_smp_ops;
+
+#ifdef CONFIG_ARM_PSCI
+int psci_init(void);
+bool psci_smp_available(void);
+#else
+static inline int psci_init(void) { return 0; }
+static inline bool psci_smp_available(void) { return false; }
+#endif
 
 #endif /* __ASM_ARM_PSCI_H */

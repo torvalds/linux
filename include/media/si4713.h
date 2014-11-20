@@ -23,6 +23,8 @@
  * Platform dependent definition
  */
 struct si4713_platform_data {
+	const char * const *supply_names;
+	unsigned supplies;
 	int gpio_reset; /* < 0 if not used */
 };
 

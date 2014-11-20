@@ -36,12 +36,12 @@
 #define WL127X_IFTYPE_SR_VER	3
 #define WL127X_MAJOR_SR_VER	10
 #define WL127X_SUBTYPE_SR_VER	WLCORE_FW_VER_IGNORE
-#define WL127X_MINOR_SR_VER	115
+#define WL127X_MINOR_SR_VER	133
 /* minimum multi-role FW version for wl127x */
 #define WL127X_IFTYPE_MR_VER	5
 #define WL127X_MAJOR_MR_VER	7
 #define WL127X_SUBTYPE_MR_VER	WLCORE_FW_VER_IGNORE
-#define WL127X_MINOR_MR_VER	115
+#define WL127X_MINOR_MR_VER	42
 
 /* FW chip version for wl128x */
 #define WL128X_CHIP_VER		7
@@ -49,7 +49,7 @@
 #define WL128X_IFTYPE_SR_VER	3
 #define WL128X_MAJOR_SR_VER	10
 #define WL128X_SUBTYPE_SR_VER	WLCORE_FW_VER_IGNORE
-#define WL128X_MINOR_SR_VER	115
+#define WL128X_MINOR_SR_VER	133
 /* minimum multi-role FW version for wl128x */
 #define WL128X_IFTYPE_MR_VER	5
 #define WL128X_MAJOR_MR_VER	7
@@ -62,6 +62,11 @@
 #define WL12XX_NUM_RX_DESCRIPTORS 8
 
 #define WL12XX_NUM_MAC_ADDRESSES 2
+
+#define WL12XX_RX_BA_MAX_SESSIONS 3
+
+#define WL12XX_MAX_AP_STATIONS 8
+#define WL12XX_MAX_LINKS 12
 
 struct wl127x_rx_mem_pool_addr {
 	u32 addr;
@@ -76,5 +81,55 @@ struct wl12xx_priv {
 
 	struct wl127x_rx_mem_pool_addr *rx_mem_addr;
 };
+
+struct wl12xx_fw_packet_counters {
+	/* Cumulative counter of released packets per AC */
+	u8 tx_released_pkts[NUM_TX_QUEUES];
+
+	/* Cumulative counter of freed packets per HLID */
+	u8 tx_lnk_free_pkts[WL12XX_MAX_LINKS];
+
+	/* Cumulative counter of released Voice memory blocks */
+	u8 tx_voice_released_blks;
+
+	/* Tx rate of the last transmitted packet */
+	u8 tx_last_rate;
+
+	u8 padding[2];
+} __packed;
+
+/* FW status registers */
+struct wl12xx_fw_status {
+	__le32 intr;
+	u8  fw_rx_counter;
+	u8  drv_rx_counter;
+	u8  reserved;
+	u8  tx_results_counter;
+	__le32 rx_pkt_descs[WL12XX_NUM_RX_DESCRIPTORS];
+
+	__le32 fw_localtime;
+
+	/*
+	 * A bitmap (where each bit represents a single HLID)
+	 * to indicate if the station is in PS mode.
+	 */
+	__le32 link_ps_bitmap;
+
+	/*
+	 * A bitmap (where each bit represents a single HLID) to indicate
+	 * if the station is in Fast mode
+	 */
+	__le32 link_fast_bitmap;
+
+	/* Cumulative counter of total released mem blocks since FW-reset */
+	__le32 total_released_blks;
+
+	/* Size (in Memory Blocks) of TX pool */
+	__le32 tx_total;
+
+	struct wl12xx_fw_packet_counters counters;
+
+	__le32 log_start_addr;
+} __packed;
 
 #endif /* __WL12XX_PRIV_H__ */

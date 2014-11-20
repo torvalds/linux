@@ -66,12 +66,14 @@ static inline u8 _irq_to_val(enum lp8788_int_id id, int enable)
 static void lp8788_irq_enable(struct irq_data *data)
 {
 	struct lp8788_irq_data *irqd = irq_data_get_irq_chip_data(data);
+
 	irqd->enabled[data->hwirq] = 1;
 }
 
 static void lp8788_irq_disable(struct irq_data *data)
 {
 	struct lp8788_irq_data *irqd = irq_data_get_irq_chip_data(data);
+
 	irqd->enabled[data->hwirq] = 0;
 }
 

@@ -54,8 +54,8 @@
 /*
  * Generic information about the driver.
  */
-#define DRV_VERSION "1.0.0"
-#define DRV_DESC "Chelsio T4 Virtual Function (VF) Network Driver"
+#define DRV_VERSION "2.0.0-ko"
+#define DRV_DESC "Chelsio T4/T5 Virtual Function (VF) Network Driver"
 
 /*
  * Module Parameters.
@@ -163,15 +163,19 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 		netif_carrier_on(dev);
 
 		switch (pi->link_cfg.speed) {
-		case SPEED_10000:
+		case 40000:
+			s = "40Gbps";
+			break;
+
+		case 10000:
 			s = "10Gbps";
 			break;
 
-		case SPEED_1000:
+		case 1000:
 			s = "1000Mbps";
 			break;
 
-		case SPEED_100:
+		case 100:
 			s = "100Mbps";
 			break;
 
@@ -407,6 +411,20 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		if (fw_msg->type == FW6_TYPE_CMD_RPL)
 			t4vf_handle_fw_rpl(adapter, fw_msg->data);
 		break;
+	}
+
+	case CPL_FW4_MSG: {
+		/* FW can send EGR_UPDATEs encapsulated in a CPL_FW4_MSG.
+		 */
+		const struct cpl_sge_egr_update *p = (void *)(rsp + 3);
+		opcode = G_CPL_OPCODE(ntohl(p->opcode_qid));
+		if (opcode != CPL_SGE_EGR_UPDATE) {
+			dev_err(adapter->pdev_dev, "unexpected FW4/CPL %#x on FW event queue\n"
+				, opcode);
+			break;
+		}
+		cpl = (void *)p;
+		/*FALLTHROUGH*/
 	}
 
 	case CPL_SGE_EGR_UPDATE: {
@@ -1050,7 +1068,7 @@ static inline unsigned int mk_adap_vers(const struct adapter *adapter)
 	/*
 	 * Chip version 4, revision 0x3f (cxgb4vf).
 	 */
-	return 4 | (0x3f << 10);
+	return CHELSIO_CHIP_VERSION(adapter->params.chip) | (0x3f << 10);
 }
 
 /*
@@ -1100,10 +1118,10 @@ static netdev_features_t cxgb4vf_fix_features(struct net_device *dev,
 	 * Since there is no support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -1114,9 +1132,9 @@ static int cxgb4vf_set_features(struct net_device *dev,
 	struct port_info *pi = netdev_priv(dev);
 	netdev_features_t changed = dev->features ^ features;
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		t4vf_set_rxmode(pi->adapter, pi->viid, -1, -1, -1, -1,
-				features & NETIF_F_HW_VLAN_TX, 0);
+				features & NETIF_F_HW_VLAN_CTAG_TX, 0);
 
 	return 0;
 }
@@ -1537,9 +1555,13 @@ static void cxgb4vf_get_regs(struct net_device *dev,
 	reg_block_dump(adapter, regbuf,
 		       T4VF_MPS_BASE_ADDR + T4VF_MOD_MAP_MPS_FIRST,
 		       T4VF_MPS_BASE_ADDR + T4VF_MOD_MAP_MPS_LAST);
+
+	/* T5 adds new registers in the PL Register map.
+	 */
 	reg_block_dump(adapter, regbuf,
 		       T4VF_PL_BASE_ADDR + T4VF_MOD_MAP_PL_FIRST,
-		       T4VF_PL_BASE_ADDR + T4VF_MOD_MAP_PL_LAST);
+		       T4VF_PL_BASE_ADDR + (is_t4(adapter->params.chip)
+		       ? A_PL_VF_WHOAMI : A_PL_VF_REVISION));
 	reg_block_dump(adapter, regbuf,
 		       T4VF_CIM_BASE_ADDR + T4VF_MOD_MAP_CIM_FIRST,
 		       T4VF_CIM_BASE_ADDR + T4VF_MOD_MAP_CIM_LAST);
@@ -2072,6 +2094,8 @@ static int adap_init0(struct adapter *adapter)
 	struct sge *s = &adapter->sge;
 	unsigned int ethqsets;
 	int err;
+	u32 param, val = 0;
+	unsigned int chipid;
 
 	/*
 	 * Wait for the device to become ready before proceeding ...
@@ -2097,6 +2121,17 @@ static int adap_init0(struct adapter *adapter)
 	if (err < 0) {
 		dev_err(adapter->pdev_dev, "FW reset failed: err=%d\n", err);
 		return err;
+	}
+
+	adapter->params.chip = 0;
+	switch (adapter->pdev->device >> 12) {
+	case CHELSIO_T4:
+		adapter->params.chip = CHELSIO_CHIP_CODE(CHELSIO_T4, 0);
+		break;
+	case CHELSIO_T5:
+		chipid = G_REV(t4_read_reg(adapter, A_PL_VF_REV));
+		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, chipid);
+		break;
 	}
 
 	/*
@@ -2143,6 +2178,16 @@ static int adap_init0(struct adapter *adapter)
 			" err=%d\n", err);
 		return err;
 	}
+
+	/* If we're running on newer firmware, let it know that we're
+	 * prepared to deal with encapsulated CPL messages.  Older
+	 * firmware won't understand this and we'll just get
+	 * unencapsulated messages ...
+	 */
+	param = FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) |
+		FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP);
+	val = 1;
+	(void) t4vf_set_params(adapter, 1, &param, &val);
 
 	/*
 	 * Retrieve our RX interrupt holdoff timer values and counter
@@ -2310,7 +2355,7 @@ static void cfg_queues(struct adapter *adapter)
 		struct port_info *pi = adap2pinfo(adapter, pidx);
 
 		pi->first_qset = qidx;
-		pi->nqsets = is_10g_port(&pi->link_cfg) ? q10g : 1;
+		pi->nqsets = is_x_10g_port(&pi->link_cfg) ? q10g : 1;
 		qidx += pi->nqsets;
 	}
 	s->ethqsets = qidx;
@@ -2403,7 +2448,7 @@ static void reduce_ethqs(struct adapter *adapter, int n)
  */
 static int enable_msix(struct adapter *adapter)
 {
-	int i, err, want, need;
+	int i, want, need, nqsets;
 	struct msix_entry entries[MSIX_ENTRIES];
 	struct sge *s = &adapter->sge;
 
@@ -2419,26 +2464,23 @@ static int enable_msix(struct adapter *adapter)
 	 */
 	want = s->max_ethqsets + MSIX_EXTRAS;
 	need = adapter->params.nports + MSIX_EXTRAS;
-	while ((err = pci_enable_msix(adapter->pdev, entries, want)) >= need)
-		want = err;
 
-	if (err == 0) {
-		int nqsets = want - MSIX_EXTRAS;
-		if (nqsets < s->max_ethqsets) {
-			dev_warn(adapter->pdev_dev, "only enough MSI-X vectors"
-				 " for %d Queue Sets\n", nqsets);
-			s->max_ethqsets = nqsets;
-			if (nqsets < s->ethqsets)
-				reduce_ethqs(adapter, nqsets);
-		}
-		for (i = 0; i < want; ++i)
-			adapter->msix_info[i].vec = entries[i].vector;
-	} else if (err > 0) {
-		pci_disable_msix(adapter->pdev);
-		dev_info(adapter->pdev_dev, "only %d MSI-X vectors left,"
-			 " not using MSI-X\n", err);
+	want = pci_enable_msix_range(adapter->pdev, entries, need, want);
+	if (want < 0)
+		return want;
+
+	nqsets = want - MSIX_EXTRAS;
+	if (nqsets < s->max_ethqsets) {
+		dev_warn(adapter->pdev_dev, "only enough MSI-X vectors"
+			 " for %d Queue Sets\n", nqsets);
+		s->max_ethqsets = nqsets;
+		if (nqsets < s->ethqsets)
+			reduce_ethqs(adapter, nqsets);
 	}
-	return err;
+	for (i = 0; i < want; ++i)
+		adapter->msix_info[i].vec = entries[i].vector;
+
+	return 0;
 }
 
 static const struct net_device_ops cxgb4vf_netdev_ops	= {
@@ -2614,18 +2656,19 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 
 		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			NETIF_F_HW_VLAN_RX | NETIF_F_RXCSUM;
+			NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXCSUM;
 		netdev->vlan_features = NETIF_F_SG | TSO_FLAGS |
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_HIGHDMA;
-		netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_TX;
+		netdev->features = netdev->hw_features |
+				   NETIF_F_HW_VLAN_CTAG_TX;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
-		SET_ETHTOOL_OPS(netdev, &cxgb4vf_ethtool_ops);
+		netdev->ethtool_ops = &cxgb4vf_ethtool_ops;
 
 		/*
 		 * Initialize the hardware/software state for the port.
@@ -2747,11 +2790,9 @@ err_unmap_bar:
 
 err_free_adapter:
 	kfree(adapter);
-	pci_set_drvdata(pdev, NULL);
 
 err_release_regions:
 	pci_release_regions(pdev);
-	pci_set_drvdata(pdev, NULL);
 	pci_clear_master(pdev);
 
 err_disable_device:
@@ -2816,7 +2857,6 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 		}
 		iounmap(adapter->regs);
 		kfree(adapter);
-		pci_set_drvdata(pdev, NULL);
 	}
 
 	/*
@@ -2840,24 +2880,24 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 	if (!adapter)
 		return;
 
-	/*
-	 * Disable all Virtual Interfaces.  This will shut down the
+	/* Disable all Virtual Interfaces.  This will shut down the
 	 * delivery of all ingress packets into the chip for these
 	 * Virtual Interfaces.
 	 */
-	for_each_port(adapter, pidx) {
-		struct net_device *netdev;
-		struct port_info *pi;
+	for_each_port(adapter, pidx)
+		if (test_bit(pidx, &adapter->registered_device_map))
+			unregister_netdev(adapter->port[pidx]);
 
-		if (!test_bit(pidx, &adapter->registered_device_map))
-			continue;
-
-		netdev = adapter->port[pidx];
-		if (!netdev)
-			continue;
-
-		pi = netdev_priv(netdev);
-		t4vf_enable_vi(adapter, pi->viid, false, false);
+	/* Free up all Queues which will prevent further DMA and
+	 * Interrupts allowing various internal pathways to drain.
+	 */
+	t4vf_sge_stop(adapter);
+	if (adapter->flags & USING_MSIX) {
+		pci_disable_msix(adapter->pdev);
+		adapter->flags &= ~USING_MSIX;
+	} else if (adapter->flags & USING_MSI) {
+		pci_disable_msi(adapter->pdev);
+		adapter->flags &= ~USING_MSI;
 	}
 
 	/*
@@ -2865,29 +2905,68 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 	 * Interrupts allowing various internal pathways to drain.
 	 */
 	t4vf_free_sge_resources(adapter);
+	pci_set_drvdata(pdev, NULL);
 }
 
 /*
  * PCI Device registration data structures.
  */
-#define CH_DEVICE(devid, idx) \
-	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, idx }
+#define CH_DEVICE(devid) \
+	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }
 
-static struct pci_device_id cxgb4vf_pci_tbl[] = {
-	CH_DEVICE(0xb000, 0),	/* PE10K FPGA */
-	CH_DEVICE(0x4800, 0),	/* T440-dbg */
-	CH_DEVICE(0x4801, 0),	/* T420-cr */
-	CH_DEVICE(0x4802, 0),	/* T422-cr */
-	CH_DEVICE(0x4803, 0),	/* T440-cr */
-	CH_DEVICE(0x4804, 0),	/* T420-bch */
-	CH_DEVICE(0x4805, 0),   /* T440-bch */
-	CH_DEVICE(0x4806, 0),	/* T460-ch */
-	CH_DEVICE(0x4807, 0),	/* T420-so */
-	CH_DEVICE(0x4808, 0),	/* T420-cx */
-	CH_DEVICE(0x4809, 0),	/* T420-bt */
-	CH_DEVICE(0x480a, 0),   /* T404-bt */
-	CH_DEVICE(0x480d, 0),   /* T480-cr */
-	CH_DEVICE(0x480e, 0),   /* T440-lp-cr */
+static const struct pci_device_id cxgb4vf_pci_tbl[] = {
+	CH_DEVICE(0xb000),	/* PE10K FPGA */
+	CH_DEVICE(0x4801),	/* T420-cr */
+	CH_DEVICE(0x4802),	/* T422-cr */
+	CH_DEVICE(0x4803),	/* T440-cr */
+	CH_DEVICE(0x4804),	/* T420-bch */
+	CH_DEVICE(0x4805),	/* T440-bch */
+	CH_DEVICE(0x4806),	/* T460-ch */
+	CH_DEVICE(0x4807),	/* T420-so */
+	CH_DEVICE(0x4808),	/* T420-cx */
+	CH_DEVICE(0x4809),	/* T420-bt */
+	CH_DEVICE(0x480a),	/* T404-bt */
+	CH_DEVICE(0x480d),	/* T480-cr */
+	CH_DEVICE(0x480e),	/* T440-lp-cr */
+	CH_DEVICE(0x4880),
+	CH_DEVICE(0x4881),
+	CH_DEVICE(0x4882),
+	CH_DEVICE(0x4883),
+	CH_DEVICE(0x4884),
+	CH_DEVICE(0x4885),
+	CH_DEVICE(0x4886),
+	CH_DEVICE(0x4887),
+	CH_DEVICE(0x4888),
+	CH_DEVICE(0x5801),	/* T520-cr */
+	CH_DEVICE(0x5802),	/* T522-cr */
+	CH_DEVICE(0x5803),	/* T540-cr */
+	CH_DEVICE(0x5804),	/* T520-bch */
+	CH_DEVICE(0x5805),	/* T540-bch */
+	CH_DEVICE(0x5806),	/* T540-ch */
+	CH_DEVICE(0x5807),	/* T520-so */
+	CH_DEVICE(0x5808),	/* T520-cx */
+	CH_DEVICE(0x5809),	/* T520-bt */
+	CH_DEVICE(0x580a),	/* T504-bt */
+	CH_DEVICE(0x580b),	/* T520-sr */
+	CH_DEVICE(0x580c),	/* T504-bt */
+	CH_DEVICE(0x580d),	/* T580-cr */
+	CH_DEVICE(0x580e),	/* T540-lp-cr */
+	CH_DEVICE(0x580f),	/* Amsterdam */
+	CH_DEVICE(0x5810),	/* T580-lp-cr */
+	CH_DEVICE(0x5811),	/* T520-lp-cr */
+	CH_DEVICE(0x5812),	/* T560-cr */
+	CH_DEVICE(0x5813),	/* T580-cr */
+	CH_DEVICE(0x5814),	/* T580-so-cr */
+	CH_DEVICE(0x5815),	/* T502-bt */
+	CH_DEVICE(0x5880),
+	CH_DEVICE(0x5881),
+	CH_DEVICE(0x5882),
+	CH_DEVICE(0x5883),
+	CH_DEVICE(0x5884),
+	CH_DEVICE(0x5885),
+	CH_DEVICE(0x5886),
+	CH_DEVICE(0x5887),
+	CH_DEVICE(0x5888),
 	{ 0, }
 };
 

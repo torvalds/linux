@@ -5,8 +5,6 @@
 #ifndef __LINUX_BLK_TYPES_H
 #define __LINUX_BLK_TYPES_H
 
-#ifdef CONFIG_BLOCK
-
 #include <linux/types.h>
 
 struct bio_set;
@@ -28,13 +26,24 @@ struct bio_vec {
 	unsigned int	bv_offset;
 };
 
+#ifdef CONFIG_BLOCK
+
+struct bvec_iter {
+	sector_t		bi_sector;	/* device address in 512 byte
+						   sectors */
+	unsigned int		bi_size;	/* residual I/O count */
+
+	unsigned int		bi_idx;		/* current index into bvl_vec */
+
+	unsigned int            bi_bvec_done;	/* number of bytes completed in
+						   current bvec */
+};
+
 /*
  * main unit of I/O for the block layer and lower layers (ie drivers and
  * stacking drivers)
  */
 struct bio {
-	sector_t		bi_sector;	/* device address in 512 byte
-						   sectors */
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
 	unsigned long		bi_flags;	/* status, command, etc */
@@ -42,15 +51,12 @@ struct bio {
 						 * top bits priority
 						 */
 
-	unsigned short		bi_vcnt;	/* how many bio_vec's */
-	unsigned short		bi_idx;		/* current index into bvl_vec */
+	struct bvec_iter	bi_iter;
 
 	/* Number of segments in this BIO after
 	 * physical address coalescing is performed.
 	 */
 	unsigned int		bi_phys_segments;
-
-	unsigned int		bi_size;	/* residual I/O count */
 
 	/*
 	 * To keep track of the max segment size, we account for the
@@ -58,6 +64,8 @@ struct bio {
 	 */
 	unsigned int		bi_seg_front_size;
 	unsigned int		bi_seg_back_size;
+
+	atomic_t		bi_remaining;
 
 	bio_end_io_t		*bi_end_io;
 
@@ -70,15 +78,19 @@ struct bio {
 	struct io_context	*bi_ioc;
 	struct cgroup_subsys_state *bi_css;
 #endif
+	union {
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
-	struct bio_integrity_payload *bi_integrity;  /* data integrity */
+		struct bio_integrity_payload *bi_integrity; /* data integrity */
 #endif
+	};
+
+	unsigned short		bi_vcnt;	/* how many bio_vec's */
 
 	/*
 	 * Everything starting with bi_max_vecs will be preserved by bio_reset()
 	 */
 
-	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
+	unsigned short		bi_max_vecs;	/* max bvl_vecs we can hold */
 
 	atomic_t		bi_cnt;		/* pin count */
 
@@ -108,15 +120,15 @@ struct bio {
 #define BIO_USER_MAPPED 6	/* contains user pages */
 #define BIO_EOPNOTSUPP	7	/* not supported */
 #define BIO_NULL_MAPPED 8	/* contains invalid user pages */
-#define BIO_FS_INTEGRITY 9	/* fs owns integrity data, not block layer */
-#define BIO_QUIET	10	/* Make BIO Quiet */
-#define BIO_MAPPED_INTEGRITY 11/* integrity metadata has been remapped */
+#define BIO_QUIET	9	/* Make BIO Quiet */
+#define BIO_SNAP_STABLE	10	/* bio data must be snapshotted during write */
 
 /*
  * Flags starting here get preserved by bio_reset() - this includes
  * BIO_POOL_IDX()
  */
-#define BIO_RESET_BITS	12
+#define BIO_RESET_BITS	13
+#define BIO_OWNS_VEC	13	/* bio_free() should free bvec */
 
 #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
 
@@ -150,6 +162,7 @@ enum rq_flag_bits {
 	__REQ_WRITE_SAME,	/* write same block many times */
 
 	__REQ_NOIDLE,		/* don't anticipate more IO after this one */
+	__REQ_INTEGRITY,	/* I/O includes block integrity payload */
 	__REQ_FUA,		/* forced unit access */
 	__REQ_FLUSH,		/* request for cache flush */
 
@@ -174,54 +187,61 @@ enum rq_flag_bits {
 	__REQ_FLUSH_SEQ,	/* request for flush sequence */
 	__REQ_IO_STAT,		/* account I/O stat */
 	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
-	__REQ_KERNEL, 		/* direct IO to kernel pages */
+	__REQ_PM,		/* runtime pm request */
+	__REQ_HASHED,		/* on IO scheduler merge hash */
+	__REQ_MQ_INFLIGHT,	/* track inflight for MQ */
 	__REQ_NR_BITS,		/* stops here */
 };
 
-#define REQ_WRITE		(1 << __REQ_WRITE)
-#define REQ_FAILFAST_DEV	(1 << __REQ_FAILFAST_DEV)
-#define REQ_FAILFAST_TRANSPORT	(1 << __REQ_FAILFAST_TRANSPORT)
-#define REQ_FAILFAST_DRIVER	(1 << __REQ_FAILFAST_DRIVER)
-#define REQ_SYNC		(1 << __REQ_SYNC)
-#define REQ_META		(1 << __REQ_META)
-#define REQ_PRIO		(1 << __REQ_PRIO)
-#define REQ_DISCARD		(1 << __REQ_DISCARD)
-#define REQ_WRITE_SAME		(1 << __REQ_WRITE_SAME)
-#define REQ_NOIDLE		(1 << __REQ_NOIDLE)
+#define REQ_WRITE		(1ULL << __REQ_WRITE)
+#define REQ_FAILFAST_DEV	(1ULL << __REQ_FAILFAST_DEV)
+#define REQ_FAILFAST_TRANSPORT	(1ULL << __REQ_FAILFAST_TRANSPORT)
+#define REQ_FAILFAST_DRIVER	(1ULL << __REQ_FAILFAST_DRIVER)
+#define REQ_SYNC		(1ULL << __REQ_SYNC)
+#define REQ_META		(1ULL << __REQ_META)
+#define REQ_PRIO		(1ULL << __REQ_PRIO)
+#define REQ_DISCARD		(1ULL << __REQ_DISCARD)
+#define REQ_WRITE_SAME		(1ULL << __REQ_WRITE_SAME)
+#define REQ_NOIDLE		(1ULL << __REQ_NOIDLE)
+#define REQ_INTEGRITY		(1ULL << __REQ_INTEGRITY)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
 #define REQ_COMMON_MASK \
 	(REQ_WRITE | REQ_FAILFAST_MASK | REQ_SYNC | REQ_META | REQ_PRIO | \
 	 REQ_DISCARD | REQ_WRITE_SAME | REQ_NOIDLE | REQ_FLUSH | REQ_FUA | \
-	 REQ_SECURE)
+	 REQ_SECURE | REQ_INTEGRITY)
 #define REQ_CLONE_MASK		REQ_COMMON_MASK
+
+#define BIO_NO_ADVANCE_ITER_MASK	(REQ_DISCARD|REQ_WRITE_SAME)
 
 /* This mask is used for both bio and request merge checking */
 #define REQ_NOMERGE_FLAGS \
 	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_FLUSH | REQ_FUA)
 
-#define REQ_RAHEAD		(1 << __REQ_RAHEAD)
-#define REQ_THROTTLED		(1 << __REQ_THROTTLED)
+#define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
+#define REQ_THROTTLED		(1ULL << __REQ_THROTTLED)
 
-#define REQ_SORTED		(1 << __REQ_SORTED)
-#define REQ_SOFTBARRIER		(1 << __REQ_SOFTBARRIER)
-#define REQ_FUA			(1 << __REQ_FUA)
-#define REQ_NOMERGE		(1 << __REQ_NOMERGE)
-#define REQ_STARTED		(1 << __REQ_STARTED)
-#define REQ_DONTPREP		(1 << __REQ_DONTPREP)
-#define REQ_QUEUED		(1 << __REQ_QUEUED)
-#define REQ_ELVPRIV		(1 << __REQ_ELVPRIV)
-#define REQ_FAILED		(1 << __REQ_FAILED)
-#define REQ_QUIET		(1 << __REQ_QUIET)
-#define REQ_PREEMPT		(1 << __REQ_PREEMPT)
-#define REQ_ALLOCED		(1 << __REQ_ALLOCED)
-#define REQ_COPY_USER		(1 << __REQ_COPY_USER)
-#define REQ_FLUSH		(1 << __REQ_FLUSH)
-#define REQ_FLUSH_SEQ		(1 << __REQ_FLUSH_SEQ)
-#define REQ_IO_STAT		(1 << __REQ_IO_STAT)
-#define REQ_MIXED_MERGE		(1 << __REQ_MIXED_MERGE)
-#define REQ_SECURE		(1 << __REQ_SECURE)
-#define REQ_KERNEL		(1 << __REQ_KERNEL)
+#define REQ_SORTED		(1ULL << __REQ_SORTED)
+#define REQ_SOFTBARRIER		(1ULL << __REQ_SOFTBARRIER)
+#define REQ_FUA			(1ULL << __REQ_FUA)
+#define REQ_NOMERGE		(1ULL << __REQ_NOMERGE)
+#define REQ_STARTED		(1ULL << __REQ_STARTED)
+#define REQ_DONTPREP		(1ULL << __REQ_DONTPREP)
+#define REQ_QUEUED		(1ULL << __REQ_QUEUED)
+#define REQ_ELVPRIV		(1ULL << __REQ_ELVPRIV)
+#define REQ_FAILED		(1ULL << __REQ_FAILED)
+#define REQ_QUIET		(1ULL << __REQ_QUIET)
+#define REQ_PREEMPT		(1ULL << __REQ_PREEMPT)
+#define REQ_ALLOCED		(1ULL << __REQ_ALLOCED)
+#define REQ_COPY_USER		(1ULL << __REQ_COPY_USER)
+#define REQ_FLUSH		(1ULL << __REQ_FLUSH)
+#define REQ_FLUSH_SEQ		(1ULL << __REQ_FLUSH_SEQ)
+#define REQ_IO_STAT		(1ULL << __REQ_IO_STAT)
+#define REQ_MIXED_MERGE		(1ULL << __REQ_MIXED_MERGE)
+#define REQ_SECURE		(1ULL << __REQ_SECURE)
+#define REQ_PM			(1ULL << __REQ_PM)
+#define REQ_HASHED		(1ULL << __REQ_HASHED)
+#define REQ_MQ_INFLIGHT		(1ULL << __REQ_MQ_INFLIGHT)
 
 #endif /* __LINUX_BLK_TYPES_H */

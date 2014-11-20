@@ -54,7 +54,7 @@ NESTED(handle_sys64, PT_SIZE, sp)
 
 	sd	a3, PT_R26(sp)		# save a3 for syscall restarting
 
-	li	t1, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
+	li	t1, _TIF_WORK_SYSCALL_ENTRY
 	LONG_L	t0, TI_FLAGS($28)	# syscall tracing enabled?
 	and	t0, t1, t0
 	bnez	t0, syscall_trace_entry
@@ -80,7 +80,10 @@ syscall_trace_entry:
 	SAVE_STATIC
 	move	s0, t2
 	move	a0, sp
+	daddiu	a1, v0, __NR_64_Linux
 	jal	syscall_trace_enter
+
+	bltz	v0, 2f			# seccomp failed? Skip syscall
 
 	move	t0, s0
 	RESTORE_STATIC
@@ -102,7 +105,7 @@ syscall_trace_entry:
 	sd	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sd	v0, PT_R2(sp)		# result
 
-	j	syscall_exit
+2:	j	syscall_exit
 
 illegal_syscall:
 	/* This also isn't a 64-bit syscall, throw an error.  */
@@ -114,7 +117,8 @@ illegal_syscall:
 	END(handle_sys64)
 
 	.align	3
-sys_call_table:
+	.type	sys_call_table, @object
+EXPORT(sys_call_table)
 	PTR	sys_read			/* 5000 */
 	PTR	sys_write
 	PTR	sys_open
@@ -343,8 +347,8 @@ sys_call_table:
 	PTR	sys_tgkill			/* 5225 */
 	PTR	sys_utimes
 	PTR	sys_mbind
-	PTR	sys_ni_syscall			/* sys_get_mempolicy */
-	PTR	sys_ni_syscall			/* sys_set_mempolicy */
+	PTR	sys_get_mempolicy
+	PTR	sys_set_mempolicy
 	PTR	sys_mq_open			/* 5230 */
 	PTR	sys_mq_unlink
 	PTR	sys_mq_timedsend
@@ -423,4 +427,12 @@ sys_call_table:
 	PTR	sys_process_vm_writev		/* 5305 */
 	PTR	sys_kcmp
 	PTR	sys_finit_module
+	PTR	sys_getdents64
+	PTR	sys_sched_setattr
+	PTR	sys_sched_getattr		/* 5310 */
+	PTR	sys_renameat2
+	PTR	sys_seccomp
+	PTR	sys_getrandom
+	PTR	sys_memfd_create
+	PTR	sys_bpf				/* 5315 */
 	.size	sys_call_table,.-sys_call_table

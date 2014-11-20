@@ -22,9 +22,13 @@
 #define ID_6095		0x0950
 #define ID_6131		0x1060
 
-static char *mv88e6131_probe(struct mii_bus *bus, int sw_addr)
+static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 {
+	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
 	int ret;
+
+	if (bus == NULL)
+		return NULL;
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
@@ -155,7 +159,7 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 
 static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 {
-	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int addr = REG_PORT(p);
 	u16 val;
 
@@ -274,7 +278,7 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 
 static int mv88e6131_setup(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int i;
 	int ret;
 
@@ -379,7 +383,7 @@ static int mv88e6131_get_sset_count(struct dsa_switch *ds)
 }
 
 struct dsa_switch_driver mv88e6131_switch_driver = {
-	.tag_protocol		= cpu_to_be16(ETH_P_DSA),
+	.tag_protocol		= DSA_TAG_PROTO_DSA,
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
 	.probe			= mv88e6131_probe,
 	.setup			= mv88e6131_setup,

@@ -7,6 +7,7 @@
  */
 
 #include <linux/string.h>
+#include <linux/ide.h>
 
 static struct ide_pio_info {
 	const char	*name;

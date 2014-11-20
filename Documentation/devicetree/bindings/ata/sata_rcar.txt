@@ -1,0 +1,20 @@
+* Renesas R-Car SATA
+
+Required properties:
+- compatible		: should contain one of the following:
+			  - "renesas,sata-r8a7779" for R-Car H1
+			  - "renesas,sata-r8a7790-es1" for R-Car H2 ES1
+			  - "renesas,sata-r8a7790" for R-Car H2 other than ES1
+			  - "renesas,sata-r8a7791" for R-Car M2-W
+			  - "renesas,sata-r8a7793" for R-Car M2-N
+- reg			: address and length of the SATA registers;
+- interrupts		: must consist of one interrupt specifier.
+
+Example:
+
+sata: sata@fc600000 {
+	compatible = "renesas,sata-r8a7779";
+	reg = <0xfc600000 0x2000>;
+	interrupt-parent = <&gic>;
+	interrupts = <0 100 IRQ_TYPE_LEVEL_HIGH>;
+};

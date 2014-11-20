@@ -122,7 +122,7 @@ static irqreturn_t ks8695_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction ks8695_timer_irq = {
 	.name		= "ks8695_tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_TIMER,
 	.handler	= ks8695_timer_interrupt,
 };
 
@@ -154,11 +154,11 @@ void __init ks8695_timer_init(void)
 	setup_irq(KS8695_IRQ_TIMER1, &ks8695_timer_irq);
 }
 
-void ks8695_restart(char mode, const char *cmd)
+void ks8695_restart(enum reboot_mode reboot_mode, const char *cmd)
 {
 	unsigned int reg;
 
-	if (mode == 's')
+	if (reboot_mode == REBOOT_SOFT)
 		soft_restart(0);
 
 	/* disable timer0 */

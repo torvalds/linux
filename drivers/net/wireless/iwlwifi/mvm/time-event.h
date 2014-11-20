@@ -5,7 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -22,7 +23,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -30,7 +31,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -123,17 +125,21 @@
  * @duration: the duration of the session in TU.
  * @min_duration: will start a new session if the current session will end
  *	in less than min_duration.
+ * @max_delay: maximum delay before starting the time event (in TU)
+ * @wait_for_notif: true if it is required that a time event notification be
+ *	waited for (that the time event has been scheduled before returning)
  *
  * This function can be used to start a session protection which means that the
  * fw will stay on the channel for %duration_ms milliseconds. This function
- * will block (sleep) until the session starts. This function can also be used
+ * can block (sleep) until the session starts. This function can also be used
  * to extend a currently running session.
  * This function is meant to be used for BSS association for example, where we
  * want to make sure that the fw stays on the channel during the association.
  */
 void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
-			     u32 duration, u32 min_duration);
+			     u32 duration, u32 min_duration,
+			     u32 max_delay, bool wait_for_notif);
 
 /**
  * iwl_mvm_stop_session_protection - cancel the session protection.
@@ -162,6 +168,7 @@ int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
  * that the vif type is NL80211_IFTYPE_P2P_DEVICE
  * @duration: the requested duration in millisecond for the fw to be on the
  * channel that is bound to the vif.
+ * @type: the remain on channel request type
  *
  * This function can be used to issue a remain on channel session,
  * which means that the fw will stay in the channel for the request %duration
@@ -172,7 +179,7 @@ int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
  * another notification to the driver.
  */
 int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			  int duration);
+			  int duration, enum ieee80211_roc_type type);
 
 /**
  * iwl_mvm_stop_p2p_roc - stop remain on channel for p2p device functionlity
@@ -210,5 +217,34 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 			   struct iwl_mvm_time_event_data *te_data);
 
 void iwl_mvm_roc_done_wk(struct work_struct *wk);
+
+/**
+ * iwl_mvm_schedule_csa_period - request channel switch absence period
+ * @mvm: the mvm component
+ * @vif: the virtual interface for which the channel switch is issued
+ * @duration: the duration of the NoA in TU.
+ * @apply_time: NoA start time in GP2.
+ *
+ * This function is used to schedule NoA time event and is used to perform
+ * the channel switch flow.
+ */
+int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
+				struct ieee80211_vif *vif,
+				u32 duration, u32 apply_time);
+
+/**
+ * iwl_mvm_te_scheduled - check if the fw received the TE cmd
+ * @te_data: the time event data that corresponds to that time event
+ *
+ * This function returns true iff this TE is added to the fw.
+ */
+static inline bool
+iwl_mvm_te_scheduled(struct iwl_mvm_time_event_data *te_data)
+{
+	if (!te_data)
+		return false;
+
+	return !!te_data->uid;
+}
 
 #endif /* __time_event_h__ */

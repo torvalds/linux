@@ -22,6 +22,7 @@
 #ifndef DS3000_H
 #define DS3000_H
 
+#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 struct ds3000_config {
@@ -34,8 +35,7 @@ struct ds3000_config {
 	void (*set_lock_led)(struct dvb_frontend *fe, int offon);
 };
 
-#if defined(CONFIG_DVB_DS3000) || \
-			(defined(CONFIG_DVB_DS3000_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_DS3000)
 extern struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 					struct i2c_adapter *i2c);
 #else

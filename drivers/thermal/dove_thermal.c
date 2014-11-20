@@ -107,12 +107,13 @@ static int dove_get_temp(struct thermal_zone_device *thermal,
 	}
 
 	/*
-	 * Calculate temperature. See Section 8.10.1 of 88AP510,
-	 * Documentation/arm/Marvell/README
+	 * Calculate temperature. According to Marvell internal
+	 * documentation the formula for this is:
+	 * Celsius = (322-reg)/1.3625
 	 */
 	reg = readl_relaxed(priv->sensor);
 	reg = (reg >> DOVE_THERMAL_TEMP_OFFSET) & DOVE_THERMAL_TEMP_MASK;
-	*temp = ((2281638UL - (7298*reg)) / 10);
+	*temp = ((3220000000UL - (10000000UL * reg)) / 13625);
 
 	return 0;
 }
@@ -133,25 +134,16 @@ static int dove_thermal_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get platform resource\n");
-		return -ENODEV;
-	}
-
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->sensor = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->sensor))
 		return PTR_ERR(priv->sensor);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get platform resource\n");
-		return -ENODEV;
-	}
 	priv->control = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->control))
 		return PTR_ERR(priv->control);
@@ -181,7 +173,6 @@ static int dove_thermal_exit(struct platform_device *pdev)
 		platform_get_drvdata(pdev);
 
 	thermal_zone_device_unregister(dove_thermal);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -194,7 +185,7 @@ static struct platform_driver dove_thermal_driver = {
 	.driver = {
 		.name = "dove_thermal",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(dove_thermal_id_table),
+		.of_match_table = dove_thermal_id_table,
 	},
 };
 

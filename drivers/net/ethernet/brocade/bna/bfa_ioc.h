@@ -215,6 +215,13 @@ struct bfa_ioc_hwif {
 	void		(*ioc_sync_ack)		(struct bfa_ioc *ioc);
 	bool		(*ioc_sync_complete)	(struct bfa_ioc *ioc);
 	bool		(*ioc_lpu_read_stat)	(struct bfa_ioc *ioc);
+	void		(*ioc_set_fwstate)	(struct bfa_ioc *ioc,
+					enum bfi_ioc_state fwstate);
+	enum bfi_ioc_state (*ioc_get_fwstate) (struct bfa_ioc *ioc);
+	void		(*ioc_set_alt_fwstate)	(struct bfa_ioc *ioc,
+					enum bfi_ioc_state fwstate);
+	enum bfi_ioc_state (*ioc_get_alt_fwstate) (struct bfa_ioc *ioc);
+
 };
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
@@ -222,6 +229,8 @@ struct bfa_ioc_hwif {
 #define bfa_ioc_bar0(__ioc)		((__ioc)->pcidev.pci_bar_kva)
 #define bfa_ioc_portid(__ioc)		((__ioc)->port_id)
 #define bfa_ioc_asic_gen(__ioc)		((__ioc)->asic_gen)
+#define bfa_ioc_is_default(__ioc)	\
+	(bfa_ioc_pcifn(__ioc) == bfa_ioc_portid(__ioc))
 #define bfa_ioc_fetch_stats(__ioc, __stats) \
 		(((__stats)->drv_stats) = (__ioc)->stats)
 #define bfa_ioc_clr_stats(__ioc)	\
@@ -289,6 +298,7 @@ void bfa_nw_ioc_error_isr(struct bfa_ioc *ioc);
 bool bfa_nw_ioc_is_disabled(struct bfa_ioc *ioc);
 bool bfa_nw_ioc_is_operational(struct bfa_ioc *ioc);
 void bfa_nw_ioc_get_attr(struct bfa_ioc *ioc, struct bfa_ioc_attr *ioc_attr);
+enum bfa_status bfa_nw_ioc_fwsig_invalidate(struct bfa_ioc *ioc);
 void bfa_nw_ioc_notify_register(struct bfa_ioc *ioc,
 	struct bfa_ioc_notify *notify);
 bool bfa_nw_ioc_sem_get(void __iomem *sem_reg);

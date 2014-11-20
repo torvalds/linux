@@ -6,8 +6,8 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
- * Written by: Vladislav Zolotarov <vladz@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
+ * Written by: Vladislav Zolotarov
  * Based on the original idea of John Wright <john.wright@hp.com>.
  */
 

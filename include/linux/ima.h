@@ -15,10 +15,11 @@ struct linux_binprm;
 
 #ifdef CONFIG_IMA
 extern int ima_bprm_check(struct linux_binprm *bprm);
-extern int ima_file_check(struct file *file, int mask);
+extern int ima_file_check(struct file *file, int mask, int opened);
 extern void ima_file_free(struct file *file);
 extern int ima_file_mmap(struct file *file, unsigned long prot);
 extern int ima_module_check(struct file *file);
+extern int ima_fw_from_file(struct file *file, char *buf, size_t size);
 
 #else
 static inline int ima_bprm_check(struct linux_binprm *bprm)
@@ -26,7 +27,7 @@ static inline int ima_bprm_check(struct linux_binprm *bprm)
 	return 0;
 }
 
-static inline int ima_file_check(struct file *file, int mask)
+static inline int ima_file_check(struct file *file, int mask, int opened)
 {
 	return 0;
 }
@@ -46,7 +47,12 @@ static inline int ima_module_check(struct file *file)
 	return 0;
 }
 
-#endif /* CONFIG_IMA_H */
+static inline int ima_fw_from_file(struct file *file, char *buf, size_t size)
+{
+	return 0;
+}
+
+#endif /* CONFIG_IMA */
 
 #ifdef CONFIG_IMA_APPRAISE
 extern void ima_inode_post_setattr(struct dentry *dentry);
@@ -72,5 +78,5 @@ static inline int ima_inode_removexattr(struct dentry *dentry,
 {
 	return 0;
 }
-#endif /* CONFIG_IMA_APPRAISE_H */
+#endif /* CONFIG_IMA_APPRAISE */
 #endif /* _LINUX_IMA_H */

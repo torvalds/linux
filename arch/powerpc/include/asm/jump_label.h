@@ -10,6 +10,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#ifndef __ASSEMBLY__
 #include <linux/types.h>
 
 #include <asm/feature-fixups.h>
@@ -19,7 +20,7 @@
 
 static __always_inline bool arch_static_branch(struct static_key *key)
 {
-	asm goto("1:\n\t"
+	asm_volatile_goto("1:\n\t"
 		 "nop\n\t"
 		 ".pushsection __jump_table,  \"aw\"\n\t"
 		 JUMP_ENTRY_TYPE "1b, %l[l_yes], %c0\n\t"
@@ -41,5 +42,13 @@ struct jump_entry {
 	jump_label_t target;
 	jump_label_t key;
 };
+
+#else
+#define ARCH_STATIC_BRANCH(LABEL, KEY)		\
+1098:	nop;					\
+	.pushsection __jump_table, "aw";	\
+	FTR_ENTRY_LONG 1098b, LABEL, KEY;	\
+	.popsection
+#endif
 
 #endif /* _ASM_POWERPC_JUMP_LABEL_H */

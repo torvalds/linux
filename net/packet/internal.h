@@ -29,6 +29,7 @@ struct tpacket_kbdq_core {
 	char		*pkblk_start;
 	char		*pkblk_end;
 	int		kblk_size;
+	unsigned int	max_frame_len;
 	unsigned int	knum_blocks;
 	uint64_t	knxt_seq_num;
 	char		*prev;
@@ -54,6 +55,7 @@ struct pgv {
 
 struct packet_ring_buffer {
 	struct pgv		*pg_vec;
+
 	unsigned int		head;
 	unsigned int		frames_per_block;
 	unsigned int		frame_size;
@@ -63,8 +65,9 @@ struct packet_ring_buffer {
 	unsigned int		pg_vec_pages;
 	unsigned int		pg_vec_len;
 
+	unsigned int __percpu	*pending_refcnt;
+
 	struct tpacket_kbdq_core	prb_bdqc;
-	atomic_t		pending;
 };
 
 extern struct mutex fanout_mutex;
@@ -77,10 +80,11 @@ struct packet_fanout {
 	unsigned int		num_members;
 	u16			id;
 	u8			type;
-	u8			defrag;
+	u8			flags;
 	atomic_t		rr_cur;
 	struct list_head	list;
 	struct sock		*arr[PACKET_FANOUT_MAX];
+	int			next[PACKET_FANOUT_MAX];
 	spinlock_t		lock;
 	atomic_t		sk_ref;
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
@@ -90,8 +94,7 @@ struct packet_sock {
 	/* struct sock has to be the first member of packet_sock */
 	struct sock		sk;
 	struct packet_fanout	*fanout;
-	struct tpacket_stats	stats;
-	union  tpacket_stats_u	stats_u;
+	union  tpacket_stats_u	stats;
 	struct packet_ring_buffer	rx_ring;
 	struct packet_ring_buffer	tx_ring;
 	int			copy_thresh;
@@ -111,6 +114,8 @@ struct packet_sock {
 	unsigned int		tp_loss:1;
 	unsigned int		tp_tx_has_off:1;
 	unsigned int		tp_tstamp;
+	struct net_device __rcu	*cached_dev;
+	int			(*xmit)(struct sk_buff *skb);
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
 };
 

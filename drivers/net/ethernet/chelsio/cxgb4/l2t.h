@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2010 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -98,7 +98,8 @@ int cxgb4_l2t_send(struct net_device *dev, struct sk_buff *skb,
 struct l2t_entry *cxgb4_l2t_get(struct l2t_data *d, struct neighbour *neigh,
 				const struct net_device *physdev,
 				unsigned int priority);
-
+u64 cxgb4_select_ntuple(struct net_device *dev,
+			const struct l2t_entry *l2t);
 void t4_l2t_update(struct adapter *adap, struct neighbour *neigh);
 struct l2t_entry *t4_l2t_alloc_switching(struct l2t_data *d);
 int t4_l2t_set_switching(struct adapter *adap, struct l2t_entry *e, u16 vlan,

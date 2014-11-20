@@ -8,6 +8,8 @@
 
 config ARC
 	def_bool y
+	select BUILDTIME_EXTABLE_SORT
+	select COMMON_CLK
 	select CLONE_BACKWARDS
 	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
 	select DEVTMPFS if !INITRAMFS_SOURCE=""
@@ -16,13 +18,10 @@ config ARC
 	select GENERIC_FIND_FIRST_BIT
 	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_SHOW
-	select GENERIC_KERNEL_EXECVE
-	select GENERIC_KERNEL_THREAD
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_GENERIC_HARDIRQS
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
@@ -36,6 +35,13 @@ config ARC
 	select OF
 	select OF_EARLY_FLATTREE
 	select PERF_USE_VMALLOC
+	select HAVE_DEBUG_STACKOVERFLOW
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -52,16 +58,13 @@ config ARCH_FLATMEM_ENABLE
 config MMU
 	def_bool y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
 config GENERIC_HWEIGHT
-	def_bool y
-
-config BINFMT_ELF
 	def_bool y
 
 config STACKTRACE_SUPPORT
@@ -71,9 +74,6 @@ config STACKTRACE_SUPPORT
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
-config NO_DMA
-	def_bool n
-
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
@@ -82,6 +82,7 @@ menu "ARC Architecture Configuration"
 menu "ARC Platform/SoC/Board"
 
 source "arch/arc/plat-arcfpga/Kconfig"
+source "arch/arc/plat-tb10x/Kconfig"
 #New platform adds here
 
 endmenu
@@ -123,21 +124,14 @@ config ARC_PLAT_NEEDS_CPU_TO_DMA
 config SMP
 	bool "Symmetric Multi-Processing (Incomplete)"
 	default n
-	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU. If you have
-	  a system with only one CPU, like most personal computers, say N. If
-	  you have a system with more than one CPU, say Y.
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.
 
 if SMP
 
 config ARC_HAS_COH_CACHES
-	def_bool n
-
-config ARC_HAS_COH_LLSC
-	def_bool n
-
-config ARC_HAS_COH_RTSC
 	def_bool n
 
 config ARC_HAS_REENTRANT_IRQ_LV2
@@ -146,8 +140,8 @@ config ARC_HAS_REENTRANT_IRQ_LV2
 endif
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-32)"
-	range 2 32
+	int "Maximum number of CPUs (2-4096)"
+	range 2 4096
 	depends on SMP
 	default "2"
 
@@ -188,6 +182,11 @@ config ARC_CACHE_PAGES
 	  TLB entries have a per-page Cache Enable Bit.
 	  Note that Global I/D ENABLE + Per Page DISABLE works but corollary
 	  Global DISABLE + Per Page ENABLE won't work
+
+config ARC_CACHE_VIPT_ALIASING
+	bool "Support VIPT Aliasing D$"
+	depends on ARC_HAS_DCACHE
+	default n
 
 endif	#ARC_CACHE
 
@@ -304,6 +303,9 @@ config ARC_FPU_SAVE_RESTORE
 	  based on actual usage of FPU by a task. Thus our implemn does
 	  this for all tasks in system.
 
+config ARC_CANT_LLSC
+	def_bool n
+
 menuconfig ARC_CPU_REL_4_10
 	bool "Enable support for Rel 4.10 features"
 	default n
@@ -314,9 +316,7 @@ menuconfig ARC_CPU_REL_4_10
 config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
-	depends on ARC_CPU_770
-	# if SMP, enable LLSC ONLY if ARC implementation has coherent atomics
-	depends on !SMP || ARC_HAS_COH_LLSC
+	depends on ARC_CPU_770 && !ARC_CANT_LLSC
 
 config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"
@@ -327,8 +327,7 @@ config ARC_HAS_RTSC
 	bool "Insn: RTSC (64-bit r/o cycle counter)"
 	default y
 	depends on ARC_CPU_REL_4_10
-	# if SMP, enable RTSC only if counter is coherent across cores
-	depends on !SMP || ARC_HAS_COH_RTSC
+	depends on !SMP
 
 endmenu   # "ARC CPU Configuration"
 
@@ -353,22 +352,14 @@ config ARC_CURR_IN_REG
 	  kernel mode. This saves memory access for each such access
 
 
-config ARC_MISALIGN_ACCESS
+config ARC_EMUL_UNALIGNED
 	bool "Emulate unaligned memory access (userspace only)"
-	default N
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	help
 	  This enables misaligned 16 & 32 bit memory access from user space.
 	  Use ONLY-IF-ABS-NECESSARY as it will be very slow and also can hide
 	  potential bugs in code
-
-config ARC_STACK_NONEXEC
-	bool "Make stack non-executable"
-	default n
-	help
-	  To disable the execute permissions of stack/heap of processes
-	  which are enabled by default.
 
 config HZ
 	int "Timer Frequency"
@@ -415,24 +406,6 @@ config ARC_DBG_TLB_MISS_COUNT
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
 
-config CMDLINE
-	string "Kernel command line to built-in"
-	default "print-fatal-signals=1"
-	help
-	  The default command line which will be appended to the optional
-	  u-boot provided command line (see below)
-
-config CMDLINE_UBOOT
-	bool "Support U-boot kernel command line passing"
-	default n
-	help
-	  If you are using U-boot (www.denx.de) and wish to pass the kernel
-	  command line from the U-boot environment to the Linux kernel then
-	  switch this option on.
-	  ARC U-boot will setup the cmdline in RAM/flash and set r2 to point
-	  to it. kernel startup code will copy the string into cmdline buffer
-	  and also append CONFIG_CMDLINE.
-
 config ARC_BUILTIN_DTB_NAME
 	string "Built in DTB"
 	help
@@ -440,6 +413,10 @@ config ARC_BUILTIN_DTB_NAME
 	  Leaving it blank selects the minimal "skeleton" dtb
 
 source "kernel/Kconfig.preempt"
+
+menu "Executable file formats"
+source "fs/Kconfig.binfmt"
+endmenu
 
 endmenu	 # "ARC Architecture Configuration"
 

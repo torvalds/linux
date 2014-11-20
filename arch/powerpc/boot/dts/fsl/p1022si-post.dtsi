@@ -40,7 +40,8 @@
 	 * pin muxing when the DIU is enabled.
 	 */
 	compatible = "fsl,p1022-elbc", "fsl,elbc";
-	interrupts = <19 2 0 0>;
+	interrupts = <19 2 0 0>,
+		     <16 2 0 0>;
 };
 
 /* controller at 0x9000 */

@@ -34,6 +34,7 @@
 
 crypto@30000 {
 	compatible = "fsl,sec-v4.4", "fsl,sec-v4.0";
+	fsl,sec-era = <3>;
 	#address-cells = <1>;
 	#size-cells = <1>;
 	ranges		 = <0x0 0x30000 0x10000>;

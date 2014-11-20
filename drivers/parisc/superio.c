@@ -395,7 +395,8 @@ static void __init superio_serial_init(void)
 	serial_port.iotype	= UPIO_PORT;
 	serial_port.type	= PORT_16550A;
 	serial_port.uartclk	= 115200*16;
-	serial_port.fifosize	= 16;
+	serial_port.flags	= UPF_FIXED_PORT | UPF_FIXED_TYPE |
+				  UPF_BOOT_AUTOCONF;
 
 	/* serial port #1 */
 	serial_port.iobase	= sio_dev.sp1_base;
@@ -494,15 +495,4 @@ static struct pci_driver superio_driver = {
 	.probe =        superio_probe,
 };
 
-static int __init superio_modinit(void)
-{
-	return pci_register_driver(&superio_driver);
-}
-
-static void __exit superio_exit(void)
-{
-	pci_unregister_driver(&superio_driver);
-}
-
-module_init(superio_modinit);
-module_exit(superio_exit);
+module_pci_driver(superio_driver);

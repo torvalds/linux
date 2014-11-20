@@ -203,7 +203,7 @@ static struct typhoon_card_info typhoon_card_info[] = {
  * bit 8 indicates if this is a (0) copper or (1) fiber card
  * bits 12-16 indicate card type: (0) client and (1) server
  */
-static DEFINE_PCI_DEVICE_TABLE(typhoon_pci_tbl) = {
+static const struct pci_device_id typhoon_pci_tbl[] = {
 	{ PCI_VENDOR_ID_3COM, PCI_DEVICE_ID_3COM_3CR990,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0,TYPHOON_TX },
 	{ PCI_VENDOR_ID_3COM, PCI_DEVICE_ID_3COM_3CR990_TX_95,
@@ -1690,7 +1690,7 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile __le32 * read
 			skb_checksum_none_assert(new_skb);
 
 		if (rx->rxStatus & TYPHOON_RX_VLAN)
-			__vlan_hwaccel_put_tag(new_skb,
+			__vlan_hwaccel_put_tag(new_skb, htons(ETH_P_8021Q),
 					       ntohl(rx->vlanTag) & 0xffff);
 		netif_receive_skb(new_skb);
 
@@ -2435,7 +2435,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netif_napi_add(dev, &tp->napi, typhoon_poll, 16);
 	dev->watchdog_timeo	= TX_TIMEOUT;
 
-	SET_ETHTOOL_OPS(dev, &typhoon_ethtool_ops);
+	dev->ethtool_ops = &typhoon_ethtool_ops;
 
 	/* We can handle scatter gather, up to 16 entries, and
 	 * we can do IP checksumming (only version 4, doh...)
@@ -2445,9 +2445,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * settings -- so we only allow the user to toggle the TX processing.
 	 */
 	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
-		NETIF_F_HW_VLAN_TX;
+		NETIF_F_HW_VLAN_CTAG_TX;
 	dev->features = dev->hw_features |
-		NETIF_F_HW_VLAN_RX | NETIF_F_RXCSUM;
+		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXCSUM;
 
 	if(register_netdev(dev) < 0) {
 		err_msg = "unable to register netdev";
@@ -2525,7 +2525,6 @@ typhoon_remove_one(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_clear_mwi(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 }
 

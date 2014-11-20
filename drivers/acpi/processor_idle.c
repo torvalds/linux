@@ -34,6 +34,8 @@
 #include <linux/sched.h>       /* need_resched() */
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
+#include <linux/syscore_ops.h>
+#include <acpi/processor.h>
 
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
@@ -44,9 +46,6 @@
 #ifdef CONFIG_X86
 #include <asm/apic.h>
 #endif
-
-#include <acpi/acpi_bus.h>
-#include <acpi/processor.h>
 
 #define PREFIX "ACPI: "
 
@@ -66,7 +65,8 @@ module_param(latency_factor, uint, 0644);
 
 static DEFINE_PER_CPU(struct cpuidle_device *, acpi_cpuidle_device);
 
-static struct acpi_processor_cx *acpi_cstate[CPUIDLE_STATE_MAX];
+static DEFINE_PER_CPU(struct acpi_processor_cx * [CPUIDLE_STATE_MAX],
+								acpi_cstate);
 
 static int disabled_by_idle_boot_param(void)
 {
@@ -94,9 +94,7 @@ static int set_max_cstate(const struct dmi_system_id *id)
 	return 0;
 }
 
-/* Actually this shouldn't be __cpuinitdata, would be better to fix the
-   callers to only run once -AK */
-static struct dmi_system_id __cpuinitdata processor_power_dmi_table[] = {
+static struct dmi_system_id processor_power_dmi_table[] = {
 	{ set_max_cstate, "Clevo 5600D", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"Phoenix Technologies LTD"),
 	  DMI_MATCH(DMI_BIOS_VERSION,"SHE845M0.86C.0013.D.0302131307")},
@@ -119,17 +117,10 @@ static struct dmi_system_id __cpuinitdata processor_power_dmi_table[] = {
  */
 static void acpi_safe_halt(void)
 {
-	current_thread_info()->status &= ~TS_POLLING;
-	/*
-	 * TS_POLLING-cleared state must be visible before we
-	 * test NEED_RESCHED:
-	 */
-	smp_mb();
-	if (!need_resched()) {
+	if (!tif_need_resched()) {
 		safe_halt();
 		local_irq_disable();
 	}
-	current_thread_info()->status |= TS_POLLING;
 }
 
 #ifdef ARCH_APICTIMER_STOPS_ON_C3
@@ -209,33 +200,41 @@ static void lapic_timer_state_broadcast(struct acpi_processor *pr,
 
 #endif
 
+#ifdef CONFIG_PM_SLEEP
 static u32 saved_bm_rld;
 
-static void acpi_idle_bm_rld_save(void)
+static int acpi_processor_suspend(void)
 {
 	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &saved_bm_rld);
+	return 0;
 }
-static void acpi_idle_bm_rld_restore(void)
+
+static void acpi_processor_resume(void)
 {
-	u32 resumed_bm_rld;
+	u32 resumed_bm_rld = 0;
 
 	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &resumed_bm_rld);
+	if (resumed_bm_rld == saved_bm_rld)
+		return;
 
-	if (resumed_bm_rld != saved_bm_rld)
-		acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, saved_bm_rld);
+	acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, saved_bm_rld);
 }
 
-int acpi_processor_suspend(struct device *dev)
+static struct syscore_ops acpi_processor_syscore_ops = {
+	.suspend = acpi_processor_suspend,
+	.resume = acpi_processor_resume,
+};
+
+void acpi_processor_syscore_init(void)
 {
-	acpi_idle_bm_rld_save();
-	return 0;
+	register_syscore_ops(&acpi_processor_syscore_ops);
 }
 
-int acpi_processor_resume(struct device *dev)
+void acpi_processor_syscore_exit(void)
 {
-	acpi_idle_bm_rld_restore();
-	return 0;
+	unregister_syscore_ops(&acpi_processor_syscore_ops);
 }
+#endif /* CONFIG_PM_SLEEP */
 
 #if defined(CONFIG_X86)
 static void tsc_check_state(int state)
@@ -263,9 +262,6 @@ static void tsc_check_state(int state) { return; }
 
 static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 {
-
-	if (!pr)
-		return -EINVAL;
 
 	if (!pr->pblk)
 		return -ENODEV;
@@ -600,7 +596,7 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 		case ACPI_STATE_C2:
 			if (!cx->address)
 				break;
-			cx->valid = 1; 
+			cx->valid = 1;
 			break;
 
 		case ACPI_STATE_C3:
@@ -722,7 +718,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	pr = __this_cpu_read(processors);
 
@@ -745,7 +741,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
  */
 static int acpi_idle_play_dead(struct cpuidle_device *dev, int index)
 {
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	ACPI_FLUSH_CPU_CACHE();
 
@@ -775,26 +771,19 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	pr = __this_cpu_read(processors);
 
 	if (unlikely(!pr))
 		return -EINVAL;
 
-	if (cx->entry_method != ACPI_CSTATE_FFH) {
-		current_thread_info()->status &= ~TS_POLLING;
-		/*
-		 * TS_POLLING-cleared state must be visible before we test
-		 * NEED_RESCHED:
-		 */
-		smp_mb();
-
-		if (unlikely(need_resched())) {
-			current_thread_info()->status |= TS_POLLING;
-			return -EINVAL;
-		}
-	}
+#ifdef CONFIG_HOTPLUG_CPU
+	if ((cx->type != ACPI_STATE_C1) && (num_online_cpus() > 1) &&
+	    !pr->flags.has_cst &&
+	    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
+		return acpi_idle_enter_c1(dev, drv, CPUIDLE_DRIVER_STATE_START);
+#endif
 
 	/*
 	 * Must be done before busmaster disable as we might need to
@@ -810,9 +799,6 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	acpi_idle_do_entry(cx);
 
 	sched_clock_idle_wakeup_event(0);
-
-	if (cx->entry_method != ACPI_CSTATE_FFH)
-		current_thread_info()->status |= TS_POLLING;
 
 	lapic_timer_state_broadcast(pr, cx, 0);
 	return index;
@@ -833,12 +819,19 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	pr = __this_cpu_read(processors);
 
 	if (unlikely(!pr))
 		return -EINVAL;
+
+#ifdef CONFIG_HOTPLUG_CPU
+	if ((cx->type != ACPI_STATE_C1) && (num_online_cpus() > 1) &&
+	    !pr->flags.has_cst &&
+	    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
+		return acpi_idle_enter_c1(dev, drv, CPUIDLE_DRIVER_STATE_START);
+#endif
 
 	if (!cx->bm_sts_skip && acpi_idle_bm_check()) {
 		if (drv->safe_state_index >= 0) {
@@ -847,20 +840,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		} else {
 			acpi_safe_halt();
 			return -EBUSY;
-		}
-	}
-
-	if (cx->entry_method != ACPI_CSTATE_FFH) {
-		current_thread_info()->status &= ~TS_POLLING;
-		/*
-		 * TS_POLLING-cleared state must be visible before we test
-		 * NEED_RESCHED:
-		 */
-		smp_mb();
-
-		if (unlikely(need_resched())) {
-			current_thread_info()->status |= TS_POLLING;
-			return -EINVAL;
 		}
 	}
 
@@ -907,9 +886,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 
 	sched_clock_idle_wakeup_event(0);
 
-	if (cx->entry_method != ACPI_CSTATE_FFH)
-		current_thread_info()->status |= TS_POLLING;
-
 	lapic_timer_state_broadcast(pr, cx, 0);
 	return index;
 }
@@ -917,7 +893,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 struct cpuidle_driver acpi_idle_driver = {
 	.name =		"acpi_idle",
 	.owner =	THIS_MODULE,
-	.en_core_tk_irqen = 1,
 };
 
 /**
@@ -954,20 +929,12 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 		if (!cx->valid)
 			continue;
 
-#ifdef CONFIG_HOTPLUG_CPU
-		if ((cx->type != ACPI_STATE_C1) && (num_online_cpus() > 1) &&
-		    !pr->flags.has_cst &&
-		    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
-			continue;
-#endif
-		acpi_cstate[count] = cx;
+		per_cpu(acpi_cstate[count], dev->cpu) = cx;
 
 		count++;
 		if (count == CPUIDLE_STATE_MAX)
 			break;
 	}
-
-	dev->state_count = count;
 
 	if (!count)
 		return -EINVAL;
@@ -1008,13 +975,6 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 
 		if (!cx->valid)
 			continue;
-
-#ifdef CONFIG_HOTPLUG_CPU
-		if ((cx->type != ACPI_STATE_C1) && (num_online_cpus() > 1) &&
-		    !pr->flags.has_cst &&
-		    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
-			continue;
-#endif
 
 		state = &drv->states[count];
 		snprintf(state->name, CPUIDLE_NAME_LEN, "C%d", i);
@@ -1069,12 +1029,8 @@ int acpi_processor_hotplug(struct acpi_processor *pr)
 	if (disabled_by_idle_boot_param())
 		return 0;
 
-	if (!pr)
-		return -EINVAL;
-
-	if (nocst) {
+	if (nocst)
 		return -ENODEV;
-	}
 
 	if (!pr->flags.power_setup_done)
 		return -ENODEV;
@@ -1101,9 +1057,6 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 	if (disabled_by_idle_boot_param())
 		return 0;
 
-	if (!pr)
-		return -EINVAL;
-
 	if (nocst)
 		return -ENODEV;
 
@@ -1118,9 +1071,9 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 
 	if (pr->id == 0 && cpuidle_get_driver() == &acpi_idle_driver) {
 
-		cpuidle_pause_and_lock();
 		/* Protect against cpu-hotplug */
 		get_online_cpus();
+		cpuidle_pause_and_lock();
 
 		/* Disable all cpuidle devices */
 		for_each_online_cpu(cpu) {
@@ -1147,8 +1100,8 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 				cpuidle_enable_device(dev);
 			}
 		}
-		put_online_cpus();
 		cpuidle_resume_and_unlock();
+		put_online_cpus();
 	}
 
 	return 0;
@@ -1156,7 +1109,7 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 
 static int acpi_processor_registered;
 
-int __cpuinit acpi_processor_power_init(struct acpi_processor *pr)
+int acpi_processor_power_init(struct acpi_processor *pr)
 {
 	acpi_status status = 0;
 	int retval;
@@ -1175,9 +1128,6 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr)
 			       max_cstate);
 		first_run++;
 	}
-
-	if (!pr)
-		return -EINVAL;
 
 	if (acpi_gbl_FADT.cst_control && !nocst) {
 		status =

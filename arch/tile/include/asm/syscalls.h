@@ -24,12 +24,6 @@
 #include <linux/types.h>
 #include <linux/compat.h>
 
-/* The array of function pointers for syscalls. */
-extern void *sys_call_table[];
-#ifdef CONFIG_COMPAT
-extern void *compat_sys_call_table[];
-#endif
-
 /*
  * Note that by convention, any syscall which requires the current
  * register set takes an additional "struct pt_regs *" pointer; a

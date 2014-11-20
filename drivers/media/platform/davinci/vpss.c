@@ -17,14 +17,12 @@
  *
  * common vpss system module platform driver for all video drivers.
  */
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/compiler.h>
 #include <linux/io.h>
+#include <linux/pm_runtime.h>
+#include <linux/err.h>
+
 #include <media/davinci/vpss.h>
 
 MODULE_LICENSE("GPL");
@@ -99,7 +97,7 @@ enum vpss_platform_type {
 
 /*
  * vpss operations. Depends on platform. Not all functions are available
- * on all platforms. The api, first check if a functio is available before
+ * on all platforms. The api, first check if a function is available before
  * invoking it. In the probe, the function ptrs are initialized based on
  * vpss name. vpss name can be "dm355_vpss", "dm644x_vpss" etc.
  */
@@ -114,7 +112,7 @@ struct vpss_hw_ops {
 	void (*set_sync_pol)(struct vpss_sync_pol);
 	/* set the PG_FRAME_SIZE register*/
 	void (*set_pg_frame_size)(struct vpss_pg_frame_size);
-	/* check and clear interrupt if occured */
+	/* check and clear interrupt if occurred */
 	int (*dma_complete_interrupt)(void);
 };
 
@@ -233,7 +231,7 @@ EXPORT_SYMBOL(vpss_clear_wbl_overflow);
 
 /*
  *  dm355_enable_clock - Enable VPSS Clock
- *  @clock_sel: CLock to be enabled/disabled
+ *  @clock_sel: Clock to be enabled/disabled
  *  @en: enable/disable flag
  *
  *  This is called to enable or disable a vpss clock
@@ -407,9 +405,8 @@ EXPORT_SYMBOL(dm365_vpss_set_pg_frame_size);
 
 static int vpss_probe(struct platform_device *pdev)
 {
-	struct resource		*r1, *r2;
+	struct resource *res;
 	char *platform_name;
-	int status;
 
 	if (!pdev->dev.platform_data) {
 		dev_err(&pdev->dev, "no platform data\n");
@@ -430,38 +427,19 @@ static int vpss_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "%s vpss probed\n", platform_name);
-	r1 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r1)
-		return -ENOENT;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	r1 = request_mem_region(r1->start, resource_size(r1), r1->name);
-	if (!r1)
-		return -EBUSY;
-
-	oper_cfg.vpss_regs_base0 = ioremap(r1->start, resource_size(r1));
-	if (!oper_cfg.vpss_regs_base0) {
-		status = -EBUSY;
-		goto fail1;
-	}
+	oper_cfg.vpss_regs_base0 = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(oper_cfg.vpss_regs_base0))
+		return PTR_ERR(oper_cfg.vpss_regs_base0);
 
 	if (oper_cfg.platform == DM355 || oper_cfg.platform == DM365) {
-		r2 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!r2) {
-			status = -ENOENT;
-			goto fail2;
-		}
-		r2 = request_mem_region(r2->start, resource_size(r2), r2->name);
-		if (!r2) {
-			status = -EBUSY;
-			goto fail2;
-		}
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 
-		oper_cfg.vpss_regs_base1 = ioremap(r2->start,
-						   resource_size(r2));
-		if (!oper_cfg.vpss_regs_base1) {
-			status = -EBUSY;
-			goto fail3;
-		}
+		oper_cfg.vpss_regs_base1 = devm_ioremap_resource(&pdev->dev,
+								 res);
+		if (IS_ERR(oper_cfg.vpss_regs_base1))
+			return PTR_ERR(oper_cfg.vpss_regs_base1);
 	}
 
 	if (oper_cfg.platform == DM355) {
@@ -490,38 +468,44 @@ static int vpss_probe(struct platform_device *pdev)
 	} else
 		oper_cfg.hw_ops.clear_wbl_overflow = dm644x_clear_wbl_overflow;
 
+	pm_runtime_enable(&pdev->dev);
+
+	pm_runtime_get(&pdev->dev);
+
 	spin_lock_init(&oper_cfg.vpss_lock);
 	dev_info(&pdev->dev, "%s vpss probe success\n", platform_name);
-	return 0;
 
-fail3:
-	release_mem_region(r2->start, resource_size(r2));
-fail2:
-	iounmap(oper_cfg.vpss_regs_base0);
-fail1:
-	release_mem_region(r1->start, resource_size(r1));
-	return status;
+	return 0;
 }
 
 static int vpss_remove(struct platform_device *pdev)
 {
-	struct resource		*res;
-
-	iounmap(oper_cfg.vpss_regs_base0);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-	if (oper_cfg.platform == DM355 || oper_cfg.platform == DM365) {
-		iounmap(oper_cfg.vpss_regs_base1);
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		release_mem_region(res->start, resource_size(res));
-	}
+	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
+
+static int vpss_suspend(struct device *dev)
+{
+	pm_runtime_put(dev);
+	return 0;
+}
+
+static int vpss_resume(struct device *dev)
+{
+	pm_runtime_get(dev);
+	return 0;
+}
+
+static const struct dev_pm_ops vpss_pm_ops = {
+	.suspend = vpss_suspend,
+	.resume = vpss_resume,
+};
 
 static struct platform_driver vpss_driver = {
 	.driver = {
 		.name	= "vpss",
 		.owner = THIS_MODULE,
+		.pm = &vpss_pm_ops,
 	},
 	.remove = vpss_remove,
 	.probe = vpss_probe,

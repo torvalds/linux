@@ -70,9 +70,10 @@ list, mail to linux-arcnet@tichy.ch.uj.edu.pl.
 There are archives of the mailing list at:
 	http://epistolary.org/mailman/listinfo.cgi/arcnet
 
-The people on linux-net@vger.kernel.org have also been known to be very
-helpful, especially when we're talking about ALPHA Linux kernels that may or
-may not work right in the first place.
+The people on linux-net@vger.kernel.org (now defunct, replaced by
+netdev@vger.kernel.org) have also been known to be very helpful, especially
+when we're talking about ALPHA Linux kernels that may or may not work right
+in the first place.
 
 
 Other Drivers and Info

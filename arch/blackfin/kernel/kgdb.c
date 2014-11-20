@@ -9,6 +9,7 @@
 #include <linux/ptrace.h>		/* for linux pt_regs struct */
 #include <linux/kgdb.h>
 #include <linux/uaccess.h>
+#include <asm/irq_regs.h>
 
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {

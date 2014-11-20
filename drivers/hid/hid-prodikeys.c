@@ -26,7 +26,6 @@
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/rawmidi.h>
-#include "usbhid/usbhid.h"
 #include "hid-ids.h"
 
 
@@ -306,7 +305,7 @@ static void pcmidi_submit_output_report(struct pcmidi_snd *pm, int state)
 	report->field[0]->value[0] = 0x01;
 	report->field[0]->value[1] = state;
 
-	usbhid_submit_report(hdev, report, USB_DIR_OUT);
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 }
 
 static int pcmidi_handle_report1(struct pcmidi_snd *pm, u8 *data)
@@ -625,7 +624,8 @@ static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 
 	/* Setup sound card */
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pm->pk->hdev->dev, index[dev], id[dev],
+			   THIS_MODULE, 0, &card);
 	if (err < 0) {
 		pk_error("failed to create pc-midi sound card\n");
 		err = -ENOMEM;
@@ -660,8 +660,6 @@ static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 
 	snd_rawmidi_set_ops(rwmidi, SNDRV_RAWMIDI_STREAM_INPUT,
 		&pcmidi_in_ops);
-
-	snd_card_set_dev(card, &pm->pk->hdev->dev);
 
 	/* create sysfs variables */
 	err = device_create_file(&pm->pk->hdev->dev,

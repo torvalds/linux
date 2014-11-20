@@ -66,7 +66,7 @@ extern struct group_info *groups_alloc(int);
 extern struct group_info init_groups;
 extern void groups_free(struct group_info *);
 extern int set_current_groups(struct group_info *);
-extern int set_groups(struct cred *, struct group_info *);
+extern void set_groups(struct cred *, struct group_info *);
 extern int groups_search(const struct group_info *, kgid_t);
 
 /* access the groups "array" with this macro */
@@ -257,6 +257,15 @@ static inline void put_cred(const struct cred *_cred)
  */
 #define current_cred() \
 	rcu_dereference_protected(current->cred, 1)
+
+/**
+ * current_real_cred - Access the current task's objective credentials
+ *
+ * Access the objective credentials of the current task.  RCU-safe,
+ * since nobody else can modify it.
+ */
+#define current_real_cred() \
+	rcu_dereference_protected(current->real_cred, 1)
 
 /**
  * __task_cred - Access a task's objective credentials

@@ -18,7 +18,7 @@ typedef struct {
 #endif
 
 	struct mutex lock;
-	void *vdso;
+	void __user *vdso;
 } mm_context_t;
 
 #ifdef CONFIG_SMP

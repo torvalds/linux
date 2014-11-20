@@ -9,18 +9,18 @@
  *  2 of the License, or (at your option) any later version.
  *
  */
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/serial_core.h>
-#include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/nwpserial.h>
 #include <linux/clk.h>
+
+#include "8250/8250.h"
 
 struct of_serial_info {
 	struct clk *clk;
@@ -97,6 +97,10 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	if (of_property_read_u32(np, "reg-shift", &prop) == 0)
 		port->regshift = prop;
 
+	/* Check for fifo size */
+	if (of_property_read_u32(np, "fifo-size", &prop) == 0)
+		port->fifosize = prop;
+
 	port->irq = irq_of_parse_and_map(np, 0);
 	port->iotype = UPIO_MEM;
 	if (of_property_read_u32(np, "reg-io-width", &prop) == 0) {
@@ -154,7 +158,7 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	if (of_find_property(ofdev->dev.of_node, "used-by-rtas", NULL))
 		return -EBUSY;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
 		return -ENOMEM;
 
@@ -167,11 +171,18 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 #ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
 	{
-		/* For now the of bindings don't support the extra
-		   8250 specific bits */
 		struct uart_8250_port port8250;
 		memset(&port8250, 0, sizeof(port8250));
+		port.type = port_type;
 		port8250.port = port;
+
+		if (port.fifosize)
+			port8250.capabilities = UART_CAP_FIFO;
+
+		if (of_property_read_bool(ofdev->dev.of_node,
+					  "auto-flow-control"))
+			port8250.capabilities |= UART_CAP_AFE;
+
 		ret = serial8250_register_8250_port(&port8250);
 		break;
 	}
@@ -193,7 +204,7 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 
 	info->type = port_type;
 	info->line = ret;
-	dev_set_drvdata(&ofdev->dev, info);
+	platform_set_drvdata(ofdev, info);
 	return 0;
 out:
 	kfree(info);
@@ -206,7 +217,7 @@ out:
  */
 static int of_platform_serial_remove(struct platform_device *ofdev)
 {
-	struct of_serial_info *info = dev_get_drvdata(&ofdev->dev);
+	struct of_serial_info *info = platform_get_drvdata(ofdev);
 	switch (info->type) {
 #ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
@@ -228,6 +239,32 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 	kfree(info);
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int of_serial_suspend(struct device *dev)
+{
+	struct of_serial_info *info = dev_get_drvdata(dev);
+
+	serial8250_suspend_port(info->line);
+	if (info->clk)
+		clk_disable_unprepare(info->clk);
+
+	return 0;
+}
+
+static int of_serial_resume(struct device *dev)
+{
+	struct of_serial_info *info = dev_get_drvdata(dev);
+
+	if (info->clk)
+		clk_prepare_enable(info->clk);
+
+	serial8250_resume_port(info->line);
+
+	return 0;
+}
+#endif
+static SIMPLE_DEV_PM_OPS(of_serial_pm_ops, of_serial_suspend, of_serial_resume);
 
 /*
  * A few common types, add more as needed.
@@ -260,6 +297,7 @@ static struct platform_driver of_platform_serial_driver = {
 		.name = "of_serial",
 		.owner = THIS_MODULE,
 		.of_match_table = of_platform_serial_table,
+		.pm = &of_serial_pm_ops,
 	},
 	.probe = of_platform_serial_probe,
 	.remove = of_platform_serial_remove,

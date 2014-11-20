@@ -581,36 +581,6 @@
 #define                  GU_TRANS  0xff00     /* Transparent Color - G/U Component */
 #define                  BV_TRANS  0xff0000   /* Transparent Color - B/V Component */
 
-/* Bit masks for HOST_CONTROL */
-
-#define                   HOST_EN  0x1        /* Host Enable */
-#define                  HOST_END  0x2        /* Host Endianess */
-#define                 DATA_SIZE  0x4        /* Data Size */
-#define                  HOST_RST  0x8        /* Host Reset */
-#define                  HRDY_OVR  0x20       /* Host Ready Override */
-#define                  INT_MODE  0x40       /* Interrupt Mode */
-#define                     BT_EN  0x80       /* Bus Timeout Enable */
-#define                       EHW  0x100      /* Enable Host Write */
-#define                       EHR  0x200      /* Enable Host Read */
-#define                       BDR  0x400      /* Burst DMA Requests */
-
-/* Bit masks for HOST_STATUS */
-
-#define                 DMA_READY  0x1        /* DMA Ready */
-#define                  FIFOFULL  0x2        /* FIFO Full */
-#define                 FIFOEMPTY  0x4        /* FIFO Empty */
-#define              DMA_COMPLETE  0x8        /* DMA Complete */
-#define                      HSHK  0x10       /* Host Handshake */
-#define                 HSTIMEOUT  0x20       /* Host Timeout */
-#define                      HIRQ  0x40       /* Host Interrupt Request */
-#define                ALLOW_CNFG  0x80       /* Allow New Configuration */
-#define                   DMA_DIR  0x100      /* DMA Direction */
-#define                       BTE  0x200      /* Bus Timeout Enabled */
-
-/* Bit masks for HOST_TIMEOUT */
-
-#define             COUNT_TIMEOUT  0x7ff      /* Host Timeout count */
-
 /* Bit masks for KPAD_CTL */
 
 #define                   KPAD_EN  0x1        /* Keypad Enable */

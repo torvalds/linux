@@ -102,8 +102,8 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 	struct snd_opl3 *opl3;
 	int err;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_sb8), &card);
+	err = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_sb8), &card);
 	if (err < 0)
 		return err;
 	acard = card->private_data;
@@ -192,8 +192,6 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 		chip->port,
 		irq[dev], dma8[dev]);
 
-	snd_card_set_dev(card, pdev);
-
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
 
@@ -208,7 +206,6 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 static int snd_sb8_remove(struct device *pdev, unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(pdev));
-	dev_set_drvdata(pdev, NULL);
 	return 0;
 }
 

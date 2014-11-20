@@ -39,11 +39,9 @@
 #include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-
-#define PREFIX "ACPI: "
+#include "internal.h"
 
 #define _COMPONENT			ACPI_PCI_COMPONENT
 ACPI_MODULE_NAME("pci_link");
@@ -354,6 +352,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 
 	}
 	resource->end.type = ACPI_RESOURCE_TYPE_END_TAG;
+	resource->end.length = sizeof(struct acpi_resource);
 
 	/* Attempt to set the resource */
 	status = acpi_set_current_resources(link->device->handle, &buffer);

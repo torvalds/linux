@@ -6,34 +6,30 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <asm/cacheflush.h>
+#include <asm/facility.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 
-void storage_key_init_range(unsigned long start, unsigned long end)
+#if PAGE_DEFAULT_KEY
+static inline unsigned long sske_frame(unsigned long addr, unsigned char skey)
 {
-	unsigned long boundary, function, size;
+	asm volatile(".insn rrf,0xb22b0000,%[skey],%[addr],9,0"
+		     : [addr] "+a" (addr) : [skey] "d" (skey));
+	return addr;
+}
+
+void __storage_key_init_range(unsigned long start, unsigned long end)
+{
+	unsigned long boundary, size;
 
 	while (start < end) {
-		if (MACHINE_HAS_EDAT2) {
-			/* set storage keys for a 2GB frame */
-			function = 0x22000 | PAGE_DEFAULT_KEY;
-			size = 1UL << 31;
-			boundary = (start + size) & ~(size - 1);
-			if (boundary <= end) {
-				do {
-					start = pfmf(function, start);
-				} while (start < boundary);
-				continue;
-			}
-		}
 		if (MACHINE_HAS_EDAT1) {
 			/* set storage keys for a 1MB frame */
-			function = 0x21000 | PAGE_DEFAULT_KEY;
 			size = 1UL << 20;
 			boundary = (start + size) & ~(size - 1);
 			if (boundary <= end) {
 				do {
-					start = pfmf(function, start);
+					start = sske_frame(start, PAGE_DEFAULT_KEY);
 				} while (start < boundary);
 				continue;
 			}
@@ -42,6 +38,7 @@ void storage_key_init_range(unsigned long start, unsigned long end)
 		start += PAGE_SIZE;
 	}
 }
+#endif
 
 static pte_t *walk_page_table(unsigned long addr)
 {
@@ -107,27 +104,50 @@ int set_memory_x(unsigned long addr, int numpages)
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
+
+static void ipte_range(pte_t *pte, unsigned long address, int nr)
+{
+	int i;
+
+	if (test_facility(13) && IS_ENABLED(CONFIG_64BIT)) {
+		__ptep_ipte_range(address, nr - 1, pte);
+		return;
+	}
+	for (i = 0; i < nr; i++) {
+		__ptep_ipte(address, pte);
+		address += PAGE_SIZE;
+		pte++;
+	}
+}
+
 void kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long address;
+	int nr, i, j;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
-	int i;
 
-	for (i = 0; i < numpages; i++) {
+	for (i = 0; i < numpages;) {
 		address = page_to_phys(page + i);
 		pgd = pgd_offset_k(address);
 		pud = pud_offset(pgd, address);
 		pmd = pmd_offset(pud, address);
 		pte = pte_offset_kernel(pmd, address);
-		if (!enable) {
-			__ptep_ipte(address, pte);
-			pte_val(*pte) = _PAGE_TYPE_EMPTY;
-			continue;
+		nr = (unsigned long)pte >> ilog2(sizeof(long));
+		nr = PTRS_PER_PTE - (nr & (PTRS_PER_PTE - 1));
+		nr = min(numpages - i, nr);
+		if (enable) {
+			for (j = 0; j < nr; j++) {
+				pte_val(*pte) = __pa(address);
+				address += PAGE_SIZE;
+				pte++;
+			}
+		} else {
+			ipte_range(pte, address, nr);
 		}
-		pte_val(*pte) = __pa(address);
+		i += nr;
 	}
 }
 

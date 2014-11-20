@@ -3,17 +3,21 @@ include scripts/Makefile.include
 help:
 	@echo 'Possible targets:'
 	@echo ''
+	@echo '  acpi       - ACPI tools'
 	@echo '  cgroup     - cgroup tools'
 	@echo '  cpupower   - a tool for all things x86 CPU power'
 	@echo '  firewire   - the userspace part of nosy, an IEEE-1394 traffic sniffer'
+	@echo '  hv         - tools used when in Hyper-V clients'
 	@echo '  lguest     - a minimal 32-bit x86 hypervisor'
 	@echo '  perf       - Linux performance measurement and analysis tool'
 	@echo '  selftests  - various kernel selftests'
 	@echo '  turbostat  - Intel CPU idle stats and freq reporting tool'
 	@echo '  usb        - USB testing tools'
 	@echo '  virtio     - vhost test module'
+	@echo '  net        - misc networking tools'
 	@echo '  vm         - misc vm tools'
 	@echo '  x86_energy_perf_policy - Intel energy policy tool'
+	@echo '  tmon       - thermal monitoring and tuning tool'
 	@echo ''
 	@echo 'You can do:'
 	@echo ' $$ make -C tools/ <tool>_install'
@@ -31,10 +35,22 @@ help:
 	@echo '    the respective build directory.'
 	@echo '  clean: a summary clean target to clean _all_ folders'
 
+acpi: FORCE
+	$(call descend,power/$@)
+
 cpupower: FORCE
 	$(call descend,power/$@)
 
-cgroup firewire lguest perf usb virtio vm: FORCE
+cgroup firewire hv guest usb virtio vm net: FORCE
+	$(call descend,$@)
+
+liblockdep: FORCE
+	$(call descend,lib/lockdep)
+
+libapikfs: FORCE
+	$(call descend,lib/api)
+
+perf: libapikfs FORCE
 	$(call descend,$@)
 
 selftests: FORCE
@@ -43,10 +59,16 @@ selftests: FORCE
 turbostat x86_energy_perf_policy: FORCE
 	$(call descend,power/x86/$@)
 
+tmon: FORCE
+	$(call descend,thermal/$@)
+
+acpi_install:
+	$(call descend,power/$(@:_install=),install)
+
 cpupower_install:
 	$(call descend,power/$(@:_install=),install)
 
-cgroup_install firewire_install lguest_install perf_install usb_install virtio_install vm_install:
+cgroup_install firewire_install hv_install lguest_install perf_install usb_install virtio_install vm_install net_install:
 	$(call descend,$(@:_install=),install)
 
 selftests_install:
@@ -55,14 +77,30 @@ selftests_install:
 turbostat_install x86_energy_perf_policy_install:
 	$(call descend,power/x86/$(@:_install=),install)
 
-install: cgroup_install cpupower_install firewire_install lguest_install \
+tmon_install:
+	$(call descend,thermal/$(@:_install=),install)
+
+install: acpi_install cgroup_install cpupower_install hv_install firewire_install lguest_install \
 		perf_install selftests_install turbostat_install usb_install \
-		virtio_install vm_install x86_energy_perf_policy_install
+		virtio_install vm_install net_install x86_energy_perf_policy_install \
+	tmon
+
+acpi_clean:
+	$(call descend,power/acpi,clean)
 
 cpupower_clean:
 	$(call descend,power/cpupower,clean)
 
-cgroup_clean firewire_clean lguest_clean perf_clean usb_clean virtio_clean vm_clean:
+cgroup_clean hv_clean firewire_clean lguest_clean usb_clean virtio_clean vm_clean net_clean:
+	$(call descend,$(@:_clean=),clean)
+
+liblockdep_clean:
+	$(call descend,lib/lockdep,clean)
+
+libapikfs_clean:
+	$(call descend,lib/api,clean)
+
+perf_clean: libapikfs_clean
 	$(call descend,$(@:_clean=),clean)
 
 selftests_clean:
@@ -71,8 +109,11 @@ selftests_clean:
 turbostat_clean x86_energy_perf_policy_clean:
 	$(call descend,power/x86/$(@:_clean=),clean)
 
-clean: cgroup_clean cpupower_clean firewire_clean lguest_clean perf_clean \
-		selftests_clean turbostat_clean usb_clean virtio_clean \
-		vm_clean x86_energy_perf_policy_clean
+tmon_clean:
+	$(call descend,thermal/tmon,clean)
+
+clean: acpi_clean cgroup_clean cpupower_clean hv_clean firewire_clean lguest_clean \
+		perf_clean selftests_clean turbostat_clean usb_clean virtio_clean \
+		vm_clean net_clean x86_energy_perf_policy_clean tmon_clean
 
 .PHONY: FORCE

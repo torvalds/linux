@@ -32,6 +32,7 @@
 #include <linux/poll.h>
 #include <asm/epapr_hcalls.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/cdev.h>
 #include <linux/console.h>
@@ -107,55 +108,23 @@ static void disable_tx_interrupt(struct ehv_bc_data *bc)
  *
  * The byte channel to be used for the console is specified via a "stdout"
  * property in the /chosen node.
- *
- * For compatible with legacy device trees, we also look for a "stdout" alias.
  */
 static int find_console_handle(void)
 {
-	struct device_node *np, *np2;
+	struct device_node *np = of_stdout;
 	const char *sprop = NULL;
 	const uint32_t *iprop;
 
-	np = of_find_node_by_path("/chosen");
-	if (np)
-		sprop = of_get_property(np, "stdout-path", NULL);
-
-	if (!np || !sprop) {
-		of_node_put(np);
-		np = of_find_node_by_name(NULL, "aliases");
-		if (np)
-			sprop = of_get_property(np, "stdout", NULL);
-	}
-
-	if (!sprop) {
-		of_node_put(np);
-		return 0;
-	}
-
 	/* We don't care what the aliased node is actually called.  We only
 	 * care if it's compatible with "epapr,hv-byte-channel", because that
-	 * indicates that it's a byte channel node.  We use a temporary
-	 * variable, 'np2', because we can't release 'np' until we're done with
-	 * 'sprop'.
+	 * indicates that it's a byte channel node.
 	 */
-	np2 = of_find_node_by_path(sprop);
-	of_node_put(np);
-	np = np2;
-	if (!np) {
-		pr_warning("ehv-bc: stdout node '%s' does not exist\n", sprop);
+	if (!np || !of_device_is_compatible(np, "epapr,hv-byte-channel"))
 		return 0;
-	}
-
-	/* Is it a byte channel? */
-	if (!of_device_is_compatible(np, "epapr,hv-byte-channel")) {
-		of_node_put(np);
-		return 0;
-	}
 
 	stdout_irq = irq_of_parse_and_map(np, 0);
 	if (stdout_irq == NO_IRQ) {
-		pr_err("ehv-bc: no 'interrupts' property in %s node\n", sprop);
-		of_node_put(np);
+		pr_err("ehv-bc: no 'interrupts' property in %s node\n", np->full_name);
 		return 0;
 	}
 
@@ -166,12 +135,9 @@ static int find_console_handle(void)
 	if (!iprop) {
 		pr_err("ehv-bc: no 'hv-handle' property in %s node\n",
 		       np->name);
-		of_node_put(np);
 		return 0;
 	}
 	stdout_bc = be32_to_cpu(*iprop);
-
-	of_node_put(np);
 	return 1;
 }
 
@@ -472,13 +438,9 @@ static void ehv_bc_tx_dequeue(struct ehv_bc_data *bc)
 static irqreturn_t ehv_bc_tty_tx_isr(int irq, void *data)
 {
 	struct ehv_bc_data *bc = data;
-	struct tty_struct *ttys = tty_port_tty_get(&bc->port);
 
 	ehv_bc_tx_dequeue(bc);
-	if (ttys) {
-		tty_wakeup(ttys);
-		tty_kref_put(ttys);
-	}
+	tty_port_tty_wakeup(&bc->port);
 
 	return IRQ_HANDLED;
 }
@@ -863,6 +825,7 @@ error:
  */
 static void __exit ehv_bc_exit(void)
 {
+	platform_driver_unregister(&ehv_bc_tty_driver);
 	tty_unregister_driver(ehv_bc_driver);
 	put_tty_driver(ehv_bc_driver);
 	kfree(bcs);

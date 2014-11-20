@@ -3,6 +3,8 @@
 #ifdef __KERNEL__
 
 #ifndef __ASSEMBLY__
+#include <linux/mmdebug.h>
+#include <linux/mmzone.h>
 #include <asm/processor.h>		/* For TASK_SIZE */
 #include <asm/mmu.h>
 #include <asm/page.h>
@@ -17,6 +19,12 @@ struct mm_struct;
 #  include <asm/pgtable-ppc32.h>
 #endif
 
+/*
+ * We save the slot number & secondary bit in the second half of the
+ * PTE page. We use the 8 bytes per each pte entry.
+ */
+#define PTE_PAGE_HIDX_OFFSET (PTRS_PER_PTE * 8)
+
 #ifndef __ASSEMBLY__
 
 #include <asm/tlbflush.h>
@@ -27,9 +35,67 @@ static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
-static inline int pte_present(pte_t pte)	{ return pte_val(pte) & _PAGE_PRESENT; }
 static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
 static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
+
+#ifdef CONFIG_NUMA_BALANCING
+static inline int pte_present(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_NUMA_MASK;
+}
+
+#define pte_present_nonuma pte_present_nonuma
+static inline int pte_present_nonuma(pte_t pte)
+{
+	return pte_val(pte) & (_PAGE_PRESENT);
+}
+
+#define ptep_set_numa ptep_set_numa
+static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
+				 pte_t *ptep)
+{
+	if ((pte_val(*ptep) & _PAGE_PRESENT) == 0)
+		VM_BUG_ON(1);
+
+	pte_update(mm, addr, ptep, _PAGE_PRESENT, _PAGE_NUMA, 0);
+	return;
+}
+
+#define pmdp_set_numa pmdp_set_numa
+static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
+				 pmd_t *pmdp)
+{
+	if ((pmd_val(*pmdp) & _PAGE_PRESENT) == 0)
+		VM_BUG_ON(1);
+
+	pmd_hugepage_update(mm, addr, pmdp, _PAGE_PRESENT, _PAGE_NUMA);
+	return;
+}
+
+/*
+ * Generic NUMA pte helpers expect pteval_t and pmdval_t types to exist
+ * which was inherited from x86. For the purposes of powerpc pte_basic_t and
+ * pmd_t are equivalent
+ */
+#define pteval_t pte_basic_t
+#define pmdval_t pmd_t
+static inline pteval_t ptenuma_flags(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_NUMA_MASK;
+}
+
+static inline pmdval_t pmdnuma_flags(pmd_t pmd)
+{
+	return pmd_val(pmd) & _PAGE_NUMA_MASK;
+}
+
+# else
+
+static inline int pte_present(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_PRESENT;
+}
+#endif /* CONFIG_NUMA_BALANCING */
 
 /* Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
@@ -183,6 +249,8 @@ extern unsigned long empty_zero_page[];
 
 extern pgd_t swapper_pg_dir[];
 
+void limit_zone_pfn(enum zone_type zone, unsigned long max_pfn);
+int dma_pfn_limit_to_zone(u64 pfn_limit);
 extern void paging_init(void);
 
 /*
@@ -191,9 +259,6 @@ extern void paging_init(void);
  * but most 64-bit archs actually perform a test.  What should we do here?
  */
 #define kern_addr_valid(addr)	(1)
-
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
 #include <asm-generic/pgtable.h>
 
@@ -212,6 +277,35 @@ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 extern int gup_hugepd(hugepd_t *hugepd, unsigned pdshift, unsigned long addr,
 		      unsigned long end, int write, struct page **pages, int *nr);
 
+extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
+		       unsigned long end, int write, struct page **pages, int *nr);
+#ifndef CONFIG_TRANSPARENT_HUGEPAGE
+#define pmd_large(pmd)		0
+#define has_transparent_hugepage() 0
+#endif
+pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+				 unsigned *shift);
+
+static inline pte_t *lookup_linux_ptep(pgd_t *pgdir, unsigned long hva,
+				     unsigned long *pte_sizep)
+{
+	pte_t *ptep;
+	unsigned long ps = *pte_sizep;
+	unsigned int shift;
+
+	ptep = find_linux_pte_or_hugepte(pgdir, hva, &shift);
+	if (!ptep)
+		return NULL;
+	if (shift)
+		*pte_sizep = 1ul << shift;
+	else
+		*pte_sizep = PAGE_SIZE;
+
+	if (ps > *pte_sizep)
+		return NULL;
+
+	return ptep;
+}
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

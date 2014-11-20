@@ -17,9 +17,9 @@
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-mediabus.h>
+#include <media/v4l2-image-sizes.h>
 #include <media/ov7670.h>
 
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
@@ -29,19 +29,6 @@ MODULE_LICENSE("GPL");
 static bool debug;
 module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
-
-/*
- * Basic window sizes.  These probably belong somewhere more globally
- * useful.
- */
-#define VGA_WIDTH	640
-#define VGA_HEIGHT	480
-#define QVGA_WIDTH	320
-#define QVGA_HEIGHT	240
-#define CIF_WIDTH	352
-#define CIF_HEIGHT	288
-#define QCIF_WIDTH	176
-#define	QCIF_HEIGHT	144
 
 /*
  * The 7670 sits on i2c with ID 0x42
@@ -1110,7 +1097,7 @@ static int ov7670_enum_framesizes(struct v4l2_subdev *sd,
 	 * windows that fall outside that.
 	 */
 	for (i = 0; i < n_win_sizes; i++) {
-		struct ov7670_win_size *win = &info->devtype->win_sizes[index];
+		struct ov7670_win_size *win = &info->devtype->win_sizes[i];
 		if (info->min_width && win->width < info->min_width)
 			continue;
 		if (info->min_height && win->height < info->min_height)
@@ -1462,39 +1449,20 @@ static const struct v4l2_ctrl_ops ov7670_ctrl_ops = {
 	.g_volatile_ctrl = ov7670_g_volatile_ctrl,
 };
 
-static int ov7670_g_chip_ident(struct v4l2_subdev *sd,
-		struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_OV7670, 0);
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ov7670_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	unsigned char val = 0;
 	int ret;
 
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	ret = ov7670_read(sd, reg->reg & 0xff, &val);
 	reg->val = val;
 	reg->size = 1;
 	return ret;
 }
 
-static int ov7670_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+static int ov7670_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	ov7670_write(sd, reg->reg & 0xff, reg->val & 0xff);
 	return 0;
 }
@@ -1503,7 +1471,6 @@ static int ov7670_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *r
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops ov7670_core_ops = {
-	.g_chip_ident = ov7670_g_chip_ident,
 	.reset = ov7670_reset,
 	.init = ov7670_init,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -1552,7 +1519,7 @@ static int ov7670_probe(struct i2c_client *client,
 	struct ov7670_info *info;
 	int ret;
 
-	info = kzalloc(sizeof(struct ov7670_info), GFP_KERNEL);
+	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
 		return -ENOMEM;
 	sd = &info->sd;
@@ -1590,7 +1557,6 @@ static int ov7670_probe(struct i2c_client *client,
 		v4l_dbg(1, debug, client,
 			"chip found @ 0x%x (%s) is not an ov7670 chip.\n",
 			client->addr << 1, client->adapter->name);
-		kfree(info);
 		return ret;
 	}
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
@@ -1635,7 +1601,6 @@ static int ov7670_probe(struct i2c_client *client,
 		int err = info->hdl.error;
 
 		v4l2_ctrl_handler_free(&info->hdl);
-		kfree(info);
 		return err;
 	}
 	/*
@@ -1659,7 +1624,6 @@ static int ov7670_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&info->hdl);
-	kfree(info);
 	return 0;
 }
 

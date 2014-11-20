@@ -10,101 +10,13 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/module.h>
 #include <linux/pci-aspm.h>
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
-
 #include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
 #include "pci.h"
-
-/**
- * pci_acpi_wake_bus - Wake-up notification handler for root buses.
- * @handle: ACPI handle of a device the notification is for.
- * @event: Type of the signaled event.
- * @context: PCI root bus to wake up devices on.
- */
-static void pci_acpi_wake_bus(acpi_handle handle, u32 event, void *context)
-{
-	struct pci_bus *pci_bus = context;
-
-	if (event == ACPI_NOTIFY_DEVICE_WAKE && pci_bus)
-		pci_pme_wakeup_bus(pci_bus);
-}
-
-/**
- * pci_acpi_wake_dev - Wake-up notification handler for PCI devices.
- * @handle: ACPI handle of a device the notification is for.
- * @event: Type of the signaled event.
- * @context: PCI device object to wake up.
- */
-static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
-{
-	struct pci_dev *pci_dev = context;
-
-	if (event != ACPI_NOTIFY_DEVICE_WAKE || !pci_dev)
-		return;
-
-	if (pci_dev->current_state == PCI_D3cold) {
-		pci_wakeup_event(pci_dev);
-		pm_runtime_resume(&pci_dev->dev);
-		return;
-	}
-
-	if (!pci_dev->pm_cap || !pci_dev->pme_support
-	     || pci_check_pme_status(pci_dev)) {
-		if (pci_dev->pme_poll)
-			pci_dev->pme_poll = false;
-
-		pci_wakeup_event(pci_dev);
-		pm_runtime_resume(&pci_dev->dev);
-	}
-
-	if (pci_dev->subordinate)
-		pci_pme_wakeup_bus(pci_dev->subordinate);
-}
-
-/**
- * pci_acpi_add_bus_pm_notifier - Register PM notifier for given PCI bus.
- * @dev: ACPI device to add the notifier for.
- * @pci_bus: PCI bus to walk checking for PME status if an event is signaled.
- */
-acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev,
-					 struct pci_bus *pci_bus)
-{
-	return acpi_add_pm_notifier(dev, pci_acpi_wake_bus, pci_bus);
-}
-
-/**
- * pci_acpi_remove_bus_pm_notifier - Unregister PCI bus PM notifier.
- * @dev: ACPI device to remove the notifier from.
- */
-acpi_status pci_acpi_remove_bus_pm_notifier(struct acpi_device *dev)
-{
-	return acpi_remove_pm_notifier(dev, pci_acpi_wake_bus);
-}
-
-/**
- * pci_acpi_add_pm_notifier - Register PM notifier for given PCI device.
- * @dev: ACPI device to add the notifier for.
- * @pci_dev: PCI device to check for the PME status if an event is signaled.
- */
-acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
-				     struct pci_dev *pci_dev)
-{
-	return acpi_add_pm_notifier(dev, pci_acpi_wake_dev, pci_dev);
-}
-
-/**
- * pci_acpi_remove_pm_notifier - Unregister PCI device PM notifier.
- * @dev: ACPI device to remove the notifier from.
- */
-acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
-{
-	return acpi_remove_pm_notifier(dev, pci_acpi_wake_dev);
-}
 
 phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
 {
@@ -118,6 +30,320 @@ phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
 		return 0;
 
 	return (phys_addr_t)mcfg_addr;
+}
+
+static acpi_status decode_type0_hpx_record(union acpi_object *record,
+					   struct hotplug_params *hpx)
+{
+	int i;
+	union acpi_object *fields = record->package.elements;
+	u32 revision = fields[1].integer.value;
+
+	switch (revision) {
+	case 1:
+		if (record->package.count != 6)
+			return AE_ERROR;
+		for (i = 2; i < 6; i++)
+			if (fields[i].type != ACPI_TYPE_INTEGER)
+				return AE_ERROR;
+		hpx->t0 = &hpx->type0_data;
+		hpx->t0->revision        = revision;
+		hpx->t0->cache_line_size = fields[2].integer.value;
+		hpx->t0->latency_timer   = fields[3].integer.value;
+		hpx->t0->enable_serr     = fields[4].integer.value;
+		hpx->t0->enable_perr     = fields[5].integer.value;
+		break;
+	default:
+		printk(KERN_WARNING
+		       "%s: Type 0 Revision %d record not supported\n",
+		       __func__, revision);
+		return AE_ERROR;
+	}
+	return AE_OK;
+}
+
+static acpi_status decode_type1_hpx_record(union acpi_object *record,
+					   struct hotplug_params *hpx)
+{
+	int i;
+	union acpi_object *fields = record->package.elements;
+	u32 revision = fields[1].integer.value;
+
+	switch (revision) {
+	case 1:
+		if (record->package.count != 5)
+			return AE_ERROR;
+		for (i = 2; i < 5; i++)
+			if (fields[i].type != ACPI_TYPE_INTEGER)
+				return AE_ERROR;
+		hpx->t1 = &hpx->type1_data;
+		hpx->t1->revision      = revision;
+		hpx->t1->max_mem_read  = fields[2].integer.value;
+		hpx->t1->avg_max_split = fields[3].integer.value;
+		hpx->t1->tot_max_split = fields[4].integer.value;
+		break;
+	default:
+		printk(KERN_WARNING
+		       "%s: Type 1 Revision %d record not supported\n",
+		       __func__, revision);
+		return AE_ERROR;
+	}
+	return AE_OK;
+}
+
+static acpi_status decode_type2_hpx_record(union acpi_object *record,
+					   struct hotplug_params *hpx)
+{
+	int i;
+	union acpi_object *fields = record->package.elements;
+	u32 revision = fields[1].integer.value;
+
+	switch (revision) {
+	case 1:
+		if (record->package.count != 18)
+			return AE_ERROR;
+		for (i = 2; i < 18; i++)
+			if (fields[i].type != ACPI_TYPE_INTEGER)
+				return AE_ERROR;
+		hpx->t2 = &hpx->type2_data;
+		hpx->t2->revision      = revision;
+		hpx->t2->unc_err_mask_and      = fields[2].integer.value;
+		hpx->t2->unc_err_mask_or       = fields[3].integer.value;
+		hpx->t2->unc_err_sever_and     = fields[4].integer.value;
+		hpx->t2->unc_err_sever_or      = fields[5].integer.value;
+		hpx->t2->cor_err_mask_and      = fields[6].integer.value;
+		hpx->t2->cor_err_mask_or       = fields[7].integer.value;
+		hpx->t2->adv_err_cap_and       = fields[8].integer.value;
+		hpx->t2->adv_err_cap_or        = fields[9].integer.value;
+		hpx->t2->pci_exp_devctl_and    = fields[10].integer.value;
+		hpx->t2->pci_exp_devctl_or     = fields[11].integer.value;
+		hpx->t2->pci_exp_lnkctl_and    = fields[12].integer.value;
+		hpx->t2->pci_exp_lnkctl_or     = fields[13].integer.value;
+		hpx->t2->sec_unc_err_sever_and = fields[14].integer.value;
+		hpx->t2->sec_unc_err_sever_or  = fields[15].integer.value;
+		hpx->t2->sec_unc_err_mask_and  = fields[16].integer.value;
+		hpx->t2->sec_unc_err_mask_or   = fields[17].integer.value;
+		break;
+	default:
+		printk(KERN_WARNING
+		       "%s: Type 2 Revision %d record not supported\n",
+		       __func__, revision);
+		return AE_ERROR;
+	}
+	return AE_OK;
+}
+
+static acpi_status acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
+{
+	acpi_status status;
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object *package, *record, *fields;
+	u32 type;
+	int i;
+
+	/* Clear the return buffer with zeros */
+	memset(hpx, 0, sizeof(struct hotplug_params));
+
+	status = acpi_evaluate_object(handle, "_HPX", NULL, &buffer);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	package = (union acpi_object *)buffer.pointer;
+	if (package->type != ACPI_TYPE_PACKAGE) {
+		status = AE_ERROR;
+		goto exit;
+	}
+
+	for (i = 0; i < package->package.count; i++) {
+		record = &package->package.elements[i];
+		if (record->type != ACPI_TYPE_PACKAGE) {
+			status = AE_ERROR;
+			goto exit;
+		}
+
+		fields = record->package.elements;
+		if (fields[0].type != ACPI_TYPE_INTEGER ||
+		    fields[1].type != ACPI_TYPE_INTEGER) {
+			status = AE_ERROR;
+			goto exit;
+		}
+
+		type = fields[0].integer.value;
+		switch (type) {
+		case 0:
+			status = decode_type0_hpx_record(record, hpx);
+			if (ACPI_FAILURE(status))
+				goto exit;
+			break;
+		case 1:
+			status = decode_type1_hpx_record(record, hpx);
+			if (ACPI_FAILURE(status))
+				goto exit;
+			break;
+		case 2:
+			status = decode_type2_hpx_record(record, hpx);
+			if (ACPI_FAILURE(status))
+				goto exit;
+			break;
+		default:
+			printk(KERN_ERR "%s: Type %d record not supported\n",
+			       __func__, type);
+			status = AE_ERROR;
+			goto exit;
+		}
+	}
+ exit:
+	kfree(buffer.pointer);
+	return status;
+}
+
+static acpi_status acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
+{
+	acpi_status status;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *package, *fields;
+	int i;
+
+	memset(hpp, 0, sizeof(struct hotplug_params));
+
+	status = acpi_evaluate_object(handle, "_HPP", NULL, &buffer);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	package = (union acpi_object *) buffer.pointer;
+	if (package->type != ACPI_TYPE_PACKAGE ||
+	    package->package.count != 4) {
+		status = AE_ERROR;
+		goto exit;
+	}
+
+	fields = package->package.elements;
+	for (i = 0; i < 4; i++) {
+		if (fields[i].type != ACPI_TYPE_INTEGER) {
+			status = AE_ERROR;
+			goto exit;
+		}
+	}
+
+	hpp->t0 = &hpp->type0_data;
+	hpp->t0->revision        = 1;
+	hpp->t0->cache_line_size = fields[0].integer.value;
+	hpp->t0->latency_timer   = fields[1].integer.value;
+	hpp->t0->enable_serr     = fields[2].integer.value;
+	hpp->t0->enable_perr     = fields[3].integer.value;
+
+exit:
+	kfree(buffer.pointer);
+	return status;
+}
+
+/* pci_get_hp_params
+ *
+ * @dev - the pci_dev for which we want parameters
+ * @hpp - allocated by the caller
+ */
+int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
+{
+	acpi_status status;
+	acpi_handle handle, phandle;
+	struct pci_bus *pbus;
+
+	handle = NULL;
+	for (pbus = dev->bus; pbus; pbus = pbus->parent) {
+		handle = acpi_pci_get_bridge_handle(pbus);
+		if (handle)
+			break;
+	}
+
+	/*
+	 * _HPP settings apply to all child buses, until another _HPP is
+	 * encountered. If we don't find an _HPP for the input pci dev,
+	 * look for it in the parent device scope since that would apply to
+	 * this pci dev.
+	 */
+	while (handle) {
+		status = acpi_run_hpx(handle, hpp);
+		if (ACPI_SUCCESS(status))
+			return 0;
+		status = acpi_run_hpp(handle, hpp);
+		if (ACPI_SUCCESS(status))
+			return 0;
+		if (acpi_is_root_bridge(handle))
+			break;
+		status = acpi_get_parent(handle, &phandle);
+		if (ACPI_FAILURE(status))
+			break;
+		handle = phandle;
+	}
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(pci_get_hp_params);
+
+/**
+ * pci_acpi_wake_bus - Root bus wakeup notification fork function.
+ * @work: Work item to handle.
+ */
+static void pci_acpi_wake_bus(struct work_struct *work)
+{
+	struct acpi_device *adev;
+	struct acpi_pci_root *root;
+
+	adev = container_of(work, struct acpi_device, wakeup.context.work);
+	root = acpi_driver_data(adev);
+	pci_pme_wakeup_bus(root->bus);
+}
+
+/**
+ * pci_acpi_wake_dev - PCI device wakeup notification work function.
+ * @handle: ACPI handle of a device the notification is for.
+ * @work: Work item to handle.
+ */
+static void pci_acpi_wake_dev(struct work_struct *work)
+{
+	struct acpi_device_wakeup_context *context;
+	struct pci_dev *pci_dev;
+
+	context = container_of(work, struct acpi_device_wakeup_context, work);
+	pci_dev = to_pci_dev(context->dev);
+
+	if (pci_dev->pme_poll)
+		pci_dev->pme_poll = false;
+
+	if (pci_dev->current_state == PCI_D3cold) {
+		pci_wakeup_event(pci_dev);
+		pm_runtime_resume(&pci_dev->dev);
+		return;
+	}
+
+	/* Clear PME Status if set. */
+	if (pci_dev->pme_support)
+		pci_check_pme_status(pci_dev);
+
+	pci_wakeup_event(pci_dev);
+	pm_runtime_resume(&pci_dev->dev);
+
+	if (pci_dev->subordinate)
+		pci_pme_wakeup_bus(pci_dev->subordinate);
+}
+
+/**
+ * pci_acpi_add_bus_pm_notifier - Register PM notifier for root PCI bus.
+ * @dev: PCI root bridge ACPI device.
+ */
+acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev)
+{
+	return acpi_add_pm_notifier(dev, NULL, pci_acpi_wake_bus);
+}
+
+/**
+ * pci_acpi_add_pm_notifier - Register PM notifier for given PCI device.
+ * @dev: ACPI device to add the notifier for.
+ * @pci_dev: PCI device to check for the PME status if an event is signaled.
+ */
+acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
+				     struct pci_dev *pci_dev)
+{
+	return acpi_add_pm_notifier(dev, &pci_dev->dev, pci_acpi_wake_dev);
 }
 
 /*
@@ -140,7 +366,7 @@ phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
  * if (_PRW at S-state x)
  *	choose from highest power _SxD to lowest power _SxW
  * else // no _PRW at S-state x
- * 	choose highest power _SxD or any lower power
+ *	choose highest power _SxD or any lower power
  */
 
 static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
@@ -172,26 +398,24 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 
 static bool acpi_pci_power_manageable(struct pci_dev *dev)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
-
-	return handle ? acpi_bus_power_manageable(handle) : false;
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
+	return adev ? acpi_device_power_manageable(adev) : false;
 }
 
 static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
-	acpi_handle tmp;
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
 	static const u8 state_conv[] = {
 		[PCI_D0] = ACPI_STATE_D0,
 		[PCI_D1] = ACPI_STATE_D1,
 		[PCI_D2] = ACPI_STATE_D2,
-		[PCI_D3hot] = ACPI_STATE_D3,
-		[PCI_D3cold] = ACPI_STATE_D3
+		[PCI_D3hot] = ACPI_STATE_D3_COLD,
+		[PCI_D3cold] = ACPI_STATE_D3_COLD,
 	};
 	int error = -EINVAL;
 
 	/* If the ACPI device has _EJ0, ignore the device */
-	if (!handle || ACPI_SUCCESS(acpi_get_handle(handle, "_EJ0", &tmp)))
+	if (!adev || acpi_has_method(adev->handle, "_EJ0"))
 		return -ENODEV;
 
 	switch (state) {
@@ -205,21 +429,20 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	case PCI_D1:
 	case PCI_D2:
 	case PCI_D3hot:
-		error = acpi_bus_set_power(handle, state_conv[state]);
+		error = acpi_device_set_power(adev, state_conv[state]);
 	}
 
 	if (!error)
-		dev_info(&dev->dev, "power state changed by ACPI to %s\n",
-			 pci_power_name(state));
+		dev_dbg(&dev->dev, "power state changed by ACPI to %s\n",
+			 acpi_power_state_string(state_conv[state]));
 
 	return error;
 }
 
 static bool acpi_pci_can_wakeup(struct pci_dev *dev)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
-
-	return handle ? acpi_bus_can_wakeup(handle) : false;
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
+	return adev ? acpi_device_can_wakeup(adev) : false;
 }
 
 static void acpi_pci_propagate_wakeup_enable(struct pci_bus *bus, bool enable)
@@ -287,59 +510,79 @@ static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.run_wake = acpi_pci_run_wake,
 };
 
-/* ACPI bus type */
-static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
+void acpi_pci_add_bus(struct pci_bus *bus)
 {
-	struct pci_dev * pci_dev;
-	u64	addr;
+	if (acpi_pci_disabled || !bus->bridge)
+		return;
 
-	pci_dev = to_pci_dev(dev);
+	acpi_pci_slot_enumerate(bus);
+	acpiphp_enumerate_slots(bus);
+}
+
+void acpi_pci_remove_bus(struct pci_bus *bus)
+{
+	if (acpi_pci_disabled || !bus->bridge)
+		return;
+
+	acpiphp_remove_slots(bus);
+	acpi_pci_slot_remove(bus);
+}
+
+/* ACPI bus type */
+static struct acpi_device *acpi_pci_find_companion(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	bool check_children;
+	u64 addr;
+
+	check_children = pci_is_bridge(pci_dev);
 	/* Please ref to ACPI spec for the syntax of _ADR */
 	addr = (PCI_SLOT(pci_dev->devfn) << 16) | PCI_FUNC(pci_dev->devfn);
-	*handle = acpi_get_child(DEVICE_ACPI_HANDLE(dev->parent), addr);
-	if (!*handle)
-		return -ENODEV;
-	return 0;
+	return acpi_find_child_device(ACPI_COMPANION(dev->parent), addr,
+				      check_children);
 }
 
 static void pci_acpi_setup(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	acpi_handle handle = ACPI_HANDLE(dev);
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 
-	if (acpi_bus_get_device(handle, &adev) || !adev->wakeup.flags.valid)
+	if (!adev)
+		return;
+
+	pci_acpi_add_pm_notifier(adev, pci_dev);
+	if (!adev->wakeup.flags.valid)
 		return;
 
 	device_set_wakeup_capable(dev, true);
 	acpi_pci_sleep_wake(pci_dev, false);
-
-	pci_acpi_add_pm_notifier(adev, pci_dev);
 	if (adev->wakeup.flags.run_wake)
 		device_set_run_wake(dev, true);
 }
 
 static void pci_acpi_cleanup(struct device *dev)
 {
-	acpi_handle handle = ACPI_HANDLE(dev);
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 
-	if (!acpi_bus_get_device(handle, &adev) && adev->wakeup.flags.valid) {
+	if (!adev)
+		return;
+
+	pci_acpi_remove_pm_notifier(adev);
+	if (adev->wakeup.flags.valid) {
 		device_set_wakeup_capable(dev, false);
 		device_set_run_wake(dev, false);
-		pci_acpi_remove_pm_notifier(adev);
 	}
 }
 
 static bool pci_acpi_bus_match(struct device *dev)
 {
-	return dev->bus == &pci_bus_type;
+	return dev_is_pci(dev);
 }
 
 static struct acpi_bus_type acpi_pci_bus = {
 	.name = "PCI",
 	.match = pci_acpi_bus_match,
-	.find_device = acpi_pci_find_device,
+	.find_companion = acpi_pci_find_companion,
 	.setup = pci_acpi_setup,
 	.cleanup = pci_acpi_cleanup,
 };
@@ -349,19 +592,23 @@ static int __init acpi_pci_init(void)
 	int ret;
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_MSI) {
-		printk(KERN_INFO"ACPI FADT declares the system doesn't support MSI, so disable it\n");
+		pr_info("ACPI FADT declares the system doesn't support MSI, so disable it\n");
 		pci_no_msi();
 	}
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
-		printk(KERN_INFO"ACPI FADT declares the system doesn't support PCIe ASPM, so disable it\n");
+		pr_info("ACPI FADT declares the system doesn't support PCIe ASPM, so disable it\n");
 		pcie_no_aspm();
 	}
 
 	ret = register_acpi_bus_type(&acpi_pci_bus);
 	if (ret)
 		return 0;
+
 	pci_set_platform_pm(&acpi_pci_platform_pm);
+	acpi_pci_slot_init();
+	acpiphp_init();
+
 	return 0;
 }
 arch_initcall(acpi_pci_init);

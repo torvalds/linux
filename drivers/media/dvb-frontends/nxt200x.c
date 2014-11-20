@@ -2,7 +2,7 @@
  *    Support for NXT2002 and NXT2004 - VSB/QAM
  *
  *    Copyright (C) 2005 Kirk Lapray <kirk.lapray@gmail.com>
- *    Copyright (C) 2006 Michael Krufky <mkrufky@m1k.net>
+ *    Copyright (C) 2006-2014 Michael Krufky <mkrufky@linuxtv.org>
  *    based on nxt2002 by Taylor Jacob <rtjacob@earthlink.net>
  *    and nxt2004 by Jean-Francois Thibert <jeanfrancois@sagetv.com>
  *
@@ -38,6 +38,9 @@
  * (depending on configuration of firmware hotplug).
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  256
 
 #define NXT2002_DEFAULT_FIRMWARE "dvb-fe-nxt2002.fw"
 #define NXT2004_DEFAULT_FIRMWARE "dvb-fe-nxt2004.fw"
@@ -95,9 +98,15 @@ static int i2c_readbytes(struct nxt200x_state *state, u8 addr, u8 *buf, u8 len)
 static int nxt200x_writebytes (struct nxt200x_state* state, u8 reg,
 			       const u8 *buf, u8 len)
 {
-	u8 buf2 [len+1];
+	u8 buf2[MAX_XFER_SIZE];
 	int err;
 	struct i2c_msg msg = { .addr = state->config->demod_address, .flags = 0, .buf = buf2, .len = len + 1 };
+
+	if (1 + len > sizeof(buf2)) {
+		pr_warn("%s: i2c wr reg=%04x: len=%d is too big!\n",
+			 __func__, reg, len);
+		return -EINVAL;
+	}
 
 	buf2[0] = reg;
 	memcpy(&buf2[1], buf, len);

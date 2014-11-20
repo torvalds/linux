@@ -39,22 +39,41 @@
 
 #include <linux/linkage.h>
 #include <asm/entry.h>
-#include <asm/tlb.h>
+#include <asm/mmu.h>
 #include <asm/pgtable.h>
 #include <asm/arcregs.h>
 #include <asm/cache.h>
 #include <asm/processor.h>
-#if (CONFIG_ARC_MMU_VER == 1)
 #include <asm/tlb-mmu1.h>
-#endif
 
-;--------------------------------------------------------------------------
-; scratch memory to save the registers (r0-r3) used to code TLB refill Handler
-; For details refer to comments before TLBMISS_FREEUP_REGS below
+;-----------------------------------------------------------------
+; ARC700 Exception Handling doesn't auto-switch stack and it only provides
+; ONE scratch AUX reg "ARC_REG_SCRATCH_DATA0"
+;
+; For Non-SMP, the scratch AUX reg is repurposed to cache task PGD, so a
+; "global" is used to free-up FIRST core reg to be able to code the rest of
+; exception prologue (IRQ auto-disabled on Exceptions, so it's IRQ-safe).
+; Since the Fast Path TLB Miss handler is coded with 4 regs, the remaining 3
+; need to be saved as well by extending the "global" to be 4 words. Hence
+;	".size   ex_saved_reg1, 16"
+; [All of this dance is to avoid stack switching for each TLB Miss, since we
+; only need to save only a handful of regs, as opposed to complete reg file]
+;
+; For ARC700 SMP, the "global" obviously can't be used for free up the FIRST
+; core reg as it will not be SMP safe.
+; Thus scratch AUX reg is used (and no longer used to cache task PGD).
+; To save the rest of 3 regs - per cpu, the global is made "per-cpu".
+; Epilogue thus has to locate the "per-cpu" storage for regs.
+; To avoid cache line bouncing the per-cpu global is aligned/sized per
+; L1_CACHE_SHIFT, despite fundamentally needing to be 12 bytes only. Hence
+;	".size   ex_saved_reg1, (CONFIG_NR_CPUS << L1_CACHE_SHIFT)"
+
+; As simple as that....
 ;--------------------------------------------------------------------------
 
+; scratch memory to save [r0-r3] used to code TLB refill Handler
 ARCFP_DATA ex_saved_reg1
-	.align 1 << L1_CACHE_SHIFT	; IMP: Must be Cache Line aligned
+	.align 1 << L1_CACHE_SHIFT
 	.type   ex_saved_reg1, @object
 #ifdef CONFIG_SMP
 	.size   ex_saved_reg1, (CONFIG_NR_CPUS << L1_CACHE_SHIFT)
@@ -66,6 +85,44 @@ ex_saved_reg1:
 	.zero 16
 #endif
 
+.macro TLBMISS_FREEUP_REGS
+#ifdef CONFIG_SMP
+	sr  r0, [ARC_REG_SCRATCH_DATA0]	; freeup r0 to code with
+	GET_CPU_ID  r0			; get to per cpu scratch mem,
+	lsl r0, r0, L1_CACHE_SHIFT	; cache line wide per cpu
+	add r0, @ex_saved_reg1, r0
+#else
+	st    r0, [@ex_saved_reg1]
+	mov_s r0, @ex_saved_reg1
+#endif
+	st_s  r1, [r0, 4]
+	st_s  r2, [r0, 8]
+	st_s  r3, [r0, 12]
+
+	; VERIFY if the ASID in MMU-PID Reg is same as
+	; one in Linux data structures
+
+	tlb_paranoid_check_asm
+.endm
+
+.macro TLBMISS_RESTORE_REGS
+#ifdef CONFIG_SMP
+	GET_CPU_ID  r0			; get to per cpu scratch mem
+	lsl r0, r0, L1_CACHE_SHIFT	; each is cache line wide
+	add r0, @ex_saved_reg1, r0
+	ld_s  r3, [r0,12]
+	ld_s  r2, [r0, 8]
+	ld_s  r1, [r0, 4]
+	lr    r0, [ARC_REG_SCRATCH_DATA0]
+#else
+	mov_s r0, @ex_saved_reg1
+	ld_s  r3, [r0,12]
+	ld_s  r2, [r0, 8]
+	ld_s  r1, [r0, 4]
+	ld_s  r0, [r0]
+#endif
+.endm
+
 ;============================================================================
 ;  Troubleshooting Stuff
 ;============================================================================
@@ -76,34 +133,35 @@ ex_saved_reg1:
 ; In bizzare scenrios SW and HW ASID can get out-of-sync which is trouble.
 ; So we try to detect this in TLB Mis shandler
 
-
-.macro DBG_ASID_MISMATCH
+.macro tlb_paranoid_check_asm
 
 #ifdef CONFIG_ARC_DBG_TLB_PARANOIA
-
-	; make sure h/w ASID is same as s/w ASID
 
 	GET_CURR_TASK_ON_CPU  r3
 	ld r0, [r3, TASK_ACT_MM]
 	ld r0, [r0, MM_CTXT+MM_CTXT_ASID]
+	breq r0, 0, 55f	; Error if no ASID allocated
 
 	lr r1, [ARC_REG_PID]
 	and r1, r1, 0xFF
-	breq r1, r0, 5f
 
+	and r2, r0, 0xFF	; MMU PID bits only for comparison
+	breq r1, r2, 5f
+
+55:
 	; Error if H/w and S/w ASID don't match, but NOT if in kernel mode
-	lr  r0, [erstatus]
-	bbit0 r0, STATUS_U_BIT, 5f
+	lr  r2, [erstatus]
+	bbit0 r2, STATUS_U_BIT, 5f
 
 	; We sure are in troubled waters, Flag the error, but to do so
 	; need to switch to kernel mode stack to call error routine
 	GET_TSK_STACK_BASE   r3, sp
 
 	; Call printk to shoutout aloud
-	mov r0, 1
+	mov r2, 1
 	j print_asid_mismatch
 
-5:   ; ASIDs match so proceed normally
+5:	; ASIDs match so proceed normally
 	nop
 
 #endif
@@ -147,9 +205,9 @@ ex_saved_reg1:
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	and.f 0, r0, _PAGE_PRESENT
 	bz   1f
-	ld   r2, [num_pte_not_present]
-	add  r2, r2, 1
-	st   r2, [num_pte_not_present]
+	ld   r3, [num_pte_not_present]
+	add  r3, r3, 1
+	st   r3, [num_pte_not_present]
 1:
 #endif
 
@@ -161,13 +219,17 @@ ex_saved_reg1:
 ; IN: r0 = PTE, r1 = ptr to PTE
 
 .macro CONV_PTE_TO_TLB
-	and r3, r0, PTE_BITS_IN_PD1 ; Extract permission flags+PFN from PTE
-	sr  r3, [ARC_REG_TLBPD1]    ; these go in PD1
+	and    r3, r0, PTE_BITS_RWX	;       r w x
+	lsl    r2, r3, 3		; r w x 0 0 0 (GLOBAL, kernel only)
+	and.f  0,  r0, _PAGE_GLOBAL
+	or.z   r2, r2, r3		; r w x r w x (!GLOBAL, user page)
+
+	and r3, r0, PTE_BITS_NON_RWX_IN_PD1 ; Extract PFN+cache bits from PTE
+	or  r3, r3, r2
+
+	sr  r3, [ARC_REG_TLBPD1]    	; these go in PD1
 
 	and r2, r0, PTE_BITS_IN_PD0 ; Extract other PTE flags: (V)alid, (G)lb
-#if (CONFIG_ARC_MMU_VER <= 2)   /* Neednot be done with v3 onwards */
-	lsr r2, r2                  ; shift PTE flags to match layout in PD0
-#endif
 
 	lr  r3,[ARC_REG_TLBPD0]     ; MMU prepares PD0 with vaddr and asid
 
@@ -191,68 +253,6 @@ ex_saved_reg1:
 #endif
 .endm
 
-;-----------------------------------------------------------------
-; ARC700 Exception Handling doesn't auto-switch stack and it only provides
-; ONE scratch AUX reg "ARC_REG_SCRATCH_DATA0"
-;
-; For Non-SMP, the scratch AUX reg is repurposed to cache task PGD, so a
-; "global" is used to free-up FIRST core reg to be able to code the rest of
-; exception prologue (IRQ auto-disabled on Exceptions, so it's IRQ-safe).
-; Since the Fast Path TLB Miss handler is coded with 4 regs, the remaining 3
-; need to be saved as well by extending the "global" to be 4 words. Hence
-;	".size   ex_saved_reg1, 16"
-; [All of this dance is to avoid stack switching for each TLB Miss, since we
-; only need to save only a handful of regs, as opposed to complete reg file]
-;
-; For ARC700 SMP, the "global" obviously can't be used for free up the FIRST
-; core reg as it will not be SMP safe.
-; Thus scratch AUX reg is used (and no longer used to cache task PGD).
-; To save the rest of 3 regs - per cpu, the global is made "per-cpu".
-; Epilogue thus has to locate the "per-cpu" storage for regs.
-; To avoid cache line bouncing the per-cpu global is aligned/sized per
-; L1_CACHE_SHIFT, despite fundamentally needing to be 12 bytes only. Hence
-;	".size   ex_saved_reg1, (CONFIG_NR_CPUS << L1_CACHE_SHIFT)"
-
-; As simple as that....
-
-.macro TLBMISS_FREEUP_REGS
-#ifdef CONFIG_SMP
-	sr  r0, [ARC_REG_SCRATCH_DATA0]	; freeup r0 to code with
-	GET_CPU_ID  r0			; get to per cpu scratch mem,
-	lsl r0, r0, L1_CACHE_SHIFT	; cache line wide per cpu
-	add r0, @ex_saved_reg1, r0
-#else
-	st    r0, [@ex_saved_reg1]
-	mov_s r0, @ex_saved_reg1
-#endif
-	st_s  r1, [r0, 4]
-	st_s  r2, [r0, 8]
-	st_s  r3, [r0, 12]
-
-	; VERIFY if the ASID in MMU-PID Reg is same as
-	; one in Linux data structures
-
-	DBG_ASID_MISMATCH
-.endm
-
-;-----------------------------------------------------------------
-.macro TLBMISS_RESTORE_REGS
-#ifdef CONFIG_SMP
-	GET_CPU_ID  r0			; get to per cpu scratch mem
-	lsl r0, r0, L1_CACHE_SHIFT	; each is cache line wide
-	add r0, @ex_saved_reg1, r0
-	ld_s  r3, [r0,12]
-	ld_s  r2, [r0, 8]
-	ld_s  r1, [r0, 4]
-	lr    r0, [ARC_REG_SCRATCH_DATA0]
-#else
-	mov_s r0, @ex_saved_reg1
-	ld_s  r3, [r0,12]
-	ld_s  r2, [r0, 8]
-	ld_s  r1, [r0, 4]
-	ld_s  r0, [r0]
-#endif
-.endm
 
 ARCFP_CODE	;Fast Path Code, candidate for ICCM
 
@@ -260,7 +260,7 @@ ARCFP_CODE	;Fast Path Code, candidate for ICCM
 ; I-TLB Miss Exception Handler
 ;-----------------------------------------------------------------------------
 
-ARC_ENTRY EV_TLBMissI
+ENTRY(EV_TLBMissI)
 
 	TLBMISS_FREEUP_REGS
 
@@ -271,35 +271,35 @@ ARC_ENTRY EV_TLBMissI
 #endif
 
 	;----------------------------------------------------------------
-	; Get the PTE corresponding to V-addr accessed
+	; Get the PTE corresponding to V-addr accessed, r2 is setup with EFA
 	LOAD_FAULT_PTE
 
 	;----------------------------------------------------------------
 	; VERIFY_PTE: Check if PTE permissions approp for executing code
 	cmp_s   r2, VMALLOC_START
-	mov.lo  r2, (_PAGE_PRESENT | _PAGE_READ | _PAGE_EXECUTE)
-	mov.hs  r2, (_PAGE_PRESENT | _PAGE_K_READ | _PAGE_K_EXECUTE)
+	mov_s   r2, (_PAGE_PRESENT | _PAGE_EXECUTE)
+	or.hs   r2, r2, _PAGE_GLOBAL
 
 	and     r3, r0, r2  ; Mask out NON Flag bits from PTE
 	xor.f   r3, r3, r2  ; check ( ( pte & flags_test ) == flags_test )
 	bnz     do_slow_path_pf
 
 	; Let Linux VM know that the page was accessed
-	or      r0, r0, (_PAGE_PRESENT | _PAGE_ACCESSED)  ; set Accessed Bit
-	st_s    r0, [r1]                                  ; Write back PTE
+	or      r0, r0, _PAGE_ACCESSED  ; set Accessed Bit
+	st_s    r0, [r1]                ; Write back PTE
 
 	CONV_PTE_TO_TLB
 	COMMIT_ENTRY_TO_MMU
 	TLBMISS_RESTORE_REGS
 	rtie
 
-ARC_EXIT EV_TLBMissI
+END(EV_TLBMissI)
 
 ;-----------------------------------------------------------------------------
 ; D-TLB Miss Exception Handler
 ;-----------------------------------------------------------------------------
 
-ARC_ENTRY EV_TLBMissD
+ENTRY(EV_TLBMissD)
 
 	TLBMISS_FREEUP_REGS
 
@@ -311,32 +311,27 @@ ARC_ENTRY EV_TLBMissD
 
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed
-	; If PTE exists, it will setup, r0 = PTE, r1 = Ptr to PTE
+	; If PTE exists, it will setup, r0 = PTE, r1 = Ptr to PTE, r2 = EFA
 	LOAD_FAULT_PTE
 
 	;----------------------------------------------------------------
 	; VERIFY_PTE: Chk if PTE permissions approp for data access (R/W/R+W)
 
-	mov_s   r2, 0
+	cmp_s	r2, VMALLOC_START
+	mov_s   r2, _PAGE_PRESENT	; common bit for K/U PTE
+	or.hs	r2, r2, _PAGE_GLOBAL	; kernel PTE only
+
+	; Linux PTE [RWX] bits are semantically overloaded:
+	; -If PAGE_GLOBAL set, they refer to kernel-only flags (vmalloc)
+	; -Otherwise they are user-mode permissions, and those are exactly
+	;  same for kernel mode as well (e.g. copy_(to|from)_user)
+
 	lr      r3, [ecr]
 	btst_s  r3, ECR_C_BIT_DTLB_LD_MISS	; Read Access
 	or.nz   r2, r2, _PAGE_READ      	; chk for Read flag in PTE
 	btst_s  r3, ECR_C_BIT_DTLB_ST_MISS	; Write Access
 	or.nz   r2, r2, _PAGE_WRITE     	; chk for Write flag in PTE
-	; Above laddering takes care of XCHG access
-	;   which is both Read and Write
-
-	; If kernel mode access, ; make _PAGE_xx flags as _PAGE_K_xx
-	; For copy_(to|from)_user, despite exception taken in kernel mode,
-	; this code is not hit, because EFA would still be the user mode
-	; address (EFA < 0x6000_0000).
-	; This code is for legit kernel mode faults, vmalloc specifically
-	; (EFA: 0x7000_0000 to 0x7FFF_FFFF)
-
-	lr      r3, [efa]
-	cmp     r3, VMALLOC_START - 1   ; If kernel mode access
-	asl.hi  r2, r2, 3               ; make _PAGE_xx flags as _PAGE_K_xx
-	or      r2, r2, _PAGE_PRESENT   ; Common flag for K/U mode
+	; Above laddering takes care of XCHG access (both R and W)
 
 	; By now, r2 setup with all the Flags we need to check in PTE
 	and     r3, r0, r2              ; Mask out NON Flag bits from PTE
@@ -345,7 +340,7 @@ ARC_ENTRY EV_TLBMissD
 	;----------------------------------------------------------------
 	; UPDATE_PTE: Let Linux VM know that page was accessed/dirty
 	lr      r3, [ecr]
-	or      r0, r0, (_PAGE_PRESENT | _PAGE_ACCESSED) ; Accessed bit always
+	or      r0, r0, _PAGE_ACCESSED        ; Accessed bit always
 	btst_s  r3,  ECR_C_BIT_DTLB_ST_MISS   ; See if it was a Write Access ?
 	or.nz   r0, r0, _PAGE_MODIFIED        ; if Write, set Dirty bit as well
 	st_s    r0, [r1]                      ; Write back PTE
@@ -371,28 +366,11 @@ do_slow_path_pf:
 
 	; Slow path TLB Miss handled as a regular ARC Exception
 	; (stack switching / save the complete reg-file).
-	; That requires freeing up r9
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	; ------- setup args for Linux Page fault Hanlder ---------
-	mov_s r0, sp
-	lr  r2, [efa]
-	lr  r3, [ecr]
-
-	; Both st and ex imply WRITE access of some sort, hence do_page_fault( )
-	; invoked with write=1 for DTLB-st/ex Miss and write=0 for ITLB miss or
-	; DTLB-ld Miss
-	; DTLB Miss Cause code is ld = 0x01 , st = 0x02, ex = 0x03
-	; Following code uses that fact that st/ex have one bit in common
-
-	btst_s r3,  ECR_C_BIT_DTLB_ST_MISS
-	mov.z  r1, 0
-	mov.nz r1, 1
+	mov_s r1, sp
+	lr    r0, [efa]
 
 	; We don't want exceptions to be disabled while the fault is handled.
 	; Now that we have saved the context we return from exception hence
@@ -403,6 +381,4 @@ do_slow_path_pf:
 	bl  do_page_fault
 	b   ret_from_exception
 
-ARC_EXIT EV_TLBMissD
-
-ARC_ENTRY EV_TLBMissB   ; Bogus entry to measure sz of DTLBMiss hdlr
+END(EV_TLBMissD)

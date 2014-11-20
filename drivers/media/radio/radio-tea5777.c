@@ -336,7 +336,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *v)
+					const struct v4l2_tuner *v)
 {
 	struct radio_tea5777 *tea = video_drvdata(file);
 	u32 orig_audmode = tea->audmode;
@@ -344,10 +344,9 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	if (v->index)
 		return -EINVAL;
 
-	if (v->audmode > V4L2_TUNER_MODE_STEREO)
-		v->audmode = V4L2_TUNER_MODE_STEREO;
-
 	tea->audmode = v->audmode;
+	if (tea->audmode > V4L2_TUNER_MODE_STEREO)
+		tea->audmode = V4L2_TUNER_MODE_STEREO;
 
 	if (tea->audmode != orig_audmode && tea->band == BAND_FM)
 		return radio_tea5777_set_freq(tea);
@@ -368,7 +367,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-					struct v4l2_frequency *f)
+					const struct v4l2_frequency *f)
 {
 	struct radio_tea5777 *tea = video_drvdata(file);
 
@@ -571,7 +570,6 @@ int radio_tea5777_init(struct radio_tea5777 *tea, struct module *owner)
 	tea->fops = tea575x_fops;
 	tea->fops.owner = owner;
 	tea->vd.fops = &tea->fops;
-	set_bit(V4L2_FL_USE_FH_PRIO, &tea->vd.flags);
 
 	tea->vd.ctrl_handler = &tea->ctrl_handler;
 	v4l2_ctrl_handler_init(&tea->ctrl_handler, 1);

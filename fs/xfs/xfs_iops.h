@@ -27,4 +27,13 @@ extern ssize_t xfs_vn_listxattr(struct dentry *, char *data, size_t size);
 
 extern void xfs_setup_inode(struct xfs_inode *);
 
+/*
+ * Internal setattr interfaces.
+ */
+#define XFS_ATTR_NOACL		0x01	/* Don't call posix_acl_chmod */
+
+extern int xfs_setattr_nonsize(struct xfs_inode *ip, struct iattr *vap,
+			       int flags);
+extern int xfs_setattr_size(struct xfs_inode *ip, struct iattr *vap);
+
 #endif /* __XFS_IOPS_H__ */

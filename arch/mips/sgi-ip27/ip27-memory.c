@@ -255,14 +255,14 @@ static void __init dump_topology(void)
 	}
 }
 
-static pfn_t __init slot_getbasepfn(cnodeid_t cnode, int slot)
+static unsigned long __init slot_getbasepfn(cnodeid_t cnode, int slot)
 {
 	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
 
-	return ((pfn_t)nasid << PFN_NASIDSHFT) | (slot << SLOT_PFNSHIFT);
+	return ((unsigned long)nasid << PFN_NASIDSHFT) | (slot << SLOT_PFNSHIFT);
 }
 
-static pfn_t __init slot_psize_compute(cnodeid_t node, int slot)
+static unsigned long __init slot_psize_compute(cnodeid_t node, int slot)
 {
 	nasid_t nasid;
 	lboard_t *brd;
@@ -353,11 +353,9 @@ static void __init mlreset(void)
 
 static void __init szmem(void)
 {
-	pfn_t slot_psize, slot0sz = 0, nodebytes;	/* Hack to detect problem configs */
+	unsigned long slot_psize, slot0sz = 0, nodebytes;	/* Hack to detect problem configs */
 	int slot;
 	cnodeid_t node;
-
-	num_physpages = 0;
 
 	for_each_online_node(node) {
 		nodebytes = 0;
@@ -381,7 +379,6 @@ static void __init szmem(void)
 				slot = MAX_MEM_SLOTS;
 				continue;
 			}
-			num_physpages += slot_psize;
 			memblock_add_node(PFN_PHYS(slot_getbasepfn(node, slot)),
 					  PFN_PHYS(slot_psize), node);
 		}
@@ -390,10 +387,10 @@ static void __init szmem(void)
 
 static void __init node_mem_init(cnodeid_t node)
 {
-	pfn_t slot_firstpfn = slot_getbasepfn(node, 0);
-	pfn_t slot_freepfn = node_getfirstfree(node);
+	unsigned long slot_firstpfn = slot_getbasepfn(node, 0);
+	unsigned long slot_freepfn = node_getfirstfree(node);
 	unsigned long bootmap_size;
-	pfn_t start_pfn, end_pfn;
+	unsigned long start_pfn, end_pfn;
 
 	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
 
@@ -457,7 +454,7 @@ void __init prom_free_prom_memory(void)
 	/* We got nothing to free here ...  */
 }
 
-extern unsigned long setup_zero_pages(void);
+extern void setup_zero_pages(void);
 
 void __init paging_init(void)
 {
@@ -467,7 +464,7 @@ void __init paging_init(void)
 	pagetable_init();
 
 	for_each_online_node(node) {
-		pfn_t start_pfn, end_pfn;
+		unsigned long start_pfn, end_pfn;
 
 		get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
 
@@ -480,32 +477,8 @@ void __init paging_init(void)
 
 void __init mem_init(void)
 {
-	unsigned long codesize, datasize, initsize, tmp;
-	unsigned node;
-
-	high_memory = (void *) __va(num_physpages << PAGE_SHIFT);
-
-	for_each_online_node(node) {
-		/*
-		 * This will free up the bootmem, ie, slot 0 memory.
-		 */
-		totalram_pages += free_all_bootmem_node(NODE_DATA(node));
-	}
-
-	totalram_pages -= setup_zero_pages();	/* This comes from node 0 */
-
-	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
-	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
-	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
-
-	tmp = nr_free_pages();
-	printk(KERN_INFO "Memory: %luk/%luk available (%ldk kernel code, "
-	       "%ldk reserved, %ldk data, %ldk init, %ldk highmem)\n",
-	       tmp << (PAGE_SHIFT-10),
-	       num_physpages << (PAGE_SHIFT-10),
-	       codesize >> 10,
-	       (num_physpages - tmp) << (PAGE_SHIFT-10),
-	       datasize >> 10,
-	       initsize >> 10,
-	       totalhigh_pages << (PAGE_SHIFT-10));
+	high_memory = (void *) __va(get_num_physpages() << PAGE_SHIFT);
+	free_all_bootmem();
+	setup_zero_pages();	/* This comes from node 0 */
+	mem_init_print_info(NULL);
 }

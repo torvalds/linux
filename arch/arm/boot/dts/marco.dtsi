@@ -36,7 +36,7 @@
 		ranges = <0x40000000 0x40000000 0xa0000000>;
 
 		l2-cache-controller@c0030000 {
-			compatible = "sirf,marco-pl310-cache", "arm,pl310-cache";
+			compatible = "arm,pl310-cache";
 			reg = <0xc0030000 0x1000>;
 			interrupts = <0 59 0>;
 			arm,tag-latency = <1 1 1>;
@@ -58,9 +58,10 @@
 			#size-cells = <1>;
 			ranges = <0xc2000000 0xc2000000 0x1000000>;
 
-			reset-controller@c2000000 {
+			rstc: reset-controller@c2000000 {
 				compatible = "sirf,marco-rstc";
 				reg = <0xc2000000 0x10000>;
+				#reset-cells = <1>;
 			};
 		};
 

@@ -23,8 +23,10 @@
 #include <linux/smp.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/timekeeper_internal.h>
 #include <asm/irq_regs.h>
 #include <asm/traps.h>
+#include <asm/vdso.h>
 #include <hv/hypervisor.h>
 #include <arch/interrupts.h>
 #include <arch/spr_def.h>
@@ -110,7 +112,6 @@ void __init time_init(void)
 	setup_tile_timer();
 }
 
-
 /*
  * Define the tile timer clock event device.  The timer is driven by
  * the TILE_TIMER_CONTROL register, which consists of a 31-bit down
@@ -159,9 +160,9 @@ static DEFINE_PER_CPU(struct clock_event_device, tile_timer) = {
 	.set_mode = tile_timer_set_mode,
 };
 
-void __cpuinit setup_tile_timer(void)
+void setup_tile_timer(void)
 {
-	struct clock_event_device *evt = &__get_cpu_var(tile_timer);
+	struct clock_event_device *evt = this_cpu_ptr(&tile_timer);
 
 	/* Fill in fields that are speed-specific. */
 	clockevents_calc_mult_shift(evt, cycles_per_sec, TILE_MINSEC);
@@ -181,7 +182,7 @@ void __cpuinit setup_tile_timer(void)
 void do_timer_interrupt(struct pt_regs *regs, int fault_num)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct clock_event_device *evt = &__get_cpu_var(tile_timer);
+	struct clock_event_device *evt = this_cpu_ptr(&tile_timer);
 
 	/*
 	 * Mask the timer interrupt here, since we are a oneshot timer
@@ -193,7 +194,7 @@ void do_timer_interrupt(struct pt_regs *regs, int fault_num)
 	irq_enter();
 
 	/* Track interrupt count. */
-	__get_cpu_var(irq_stat).irq_timer_count++;
+	__this_cpu_inc(irq_stat.irq_timer_count);
 
 	/* Call the generic timer handler */
 	evt->event_handler(evt);
@@ -230,6 +231,70 @@ int setup_profiling_timer(unsigned int multiplier)
  */
 cycles_t ns2cycles(unsigned long nsecs)
 {
-	struct clock_event_device *dev = &__get_cpu_var(tile_timer);
-	return ((u64)nsecs * dev->mult) >> dev->shift;
+	/*
+	 * We do not have to disable preemption here as each core has the same
+	 * clock frequency.
+	 */
+	struct clock_event_device *dev = raw_cpu_ptr(&tile_timer);
+
+	/*
+	 * as in clocksource.h and x86's timer.h, we split the calculation
+	 * into 2 parts to avoid unecessary overflow of the intermediate
+	 * value. This will not lead to any loss of precision.
+	 */
+	u64 quot = (u64)nsecs >> dev->shift;
+	u64 rem  = (u64)nsecs & ((1ULL << dev->shift) - 1);
+	return quot * dev->mult + ((rem * dev->mult) >> dev->shift);
+}
+
+void update_vsyscall_tz(void)
+{
+	write_seqcount_begin(&vdso_data->tz_seq);
+	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
+	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
+	write_seqcount_end(&vdso_data->tz_seq);
+}
+
+void update_vsyscall(struct timekeeper *tk)
+{
+	if (tk->tkr.clock != &cycle_counter_cs)
+		return;
+
+	write_seqcount_begin(&vdso_data->tb_seq);
+
+	vdso_data->cycle_last		= tk->tkr.cycle_last;
+	vdso_data->mask			= tk->tkr.mask;
+	vdso_data->mult			= tk->tkr.mult;
+	vdso_data->shift		= tk->tkr.shift;
+
+	vdso_data->wall_time_sec	= tk->xtime_sec;
+	vdso_data->wall_time_snsec	= tk->tkr.xtime_nsec;
+
+	vdso_data->monotonic_time_sec	= tk->xtime_sec
+					+ tk->wall_to_monotonic.tv_sec;
+	vdso_data->monotonic_time_snsec	= tk->tkr.xtime_nsec
+					+ ((u64)tk->wall_to_monotonic.tv_nsec
+						<< tk->tkr.shift);
+	while (vdso_data->monotonic_time_snsec >=
+					(((u64)NSEC_PER_SEC) << tk->tkr.shift)) {
+		vdso_data->monotonic_time_snsec -=
+					((u64)NSEC_PER_SEC) << tk->tkr.shift;
+		vdso_data->monotonic_time_sec++;
+	}
+
+	vdso_data->wall_time_coarse_sec	= tk->xtime_sec;
+	vdso_data->wall_time_coarse_nsec = (long)(tk->tkr.xtime_nsec >>
+						 tk->tkr.shift);
+
+	vdso_data->monotonic_time_coarse_sec =
+		vdso_data->wall_time_coarse_sec + tk->wall_to_monotonic.tv_sec;
+	vdso_data->monotonic_time_coarse_nsec =
+		vdso_data->wall_time_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
+
+	while (vdso_data->monotonic_time_coarse_nsec >= NSEC_PER_SEC) {
+		vdso_data->monotonic_time_coarse_nsec -= NSEC_PER_SEC;
+		vdso_data->monotonic_time_coarse_sec++;
+	}
+
+	write_seqcount_end(&vdso_data->tb_seq);
 }

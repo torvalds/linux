@@ -38,6 +38,8 @@
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_mdio.h>
+#include <linux/pinctrl/consumer.h>
 
 /*
  * This timeout definition is a worst-case ultra defensive measure against
@@ -81,7 +83,7 @@ struct davinci_mdio_regs {
 	}	user[0];
 };
 
-struct mdio_platform_data default_pdata = {
+static const struct mdio_platform_data default_pdata = {
 	.bus_freq = DEF_OUT_FREQ,
 };
 
@@ -94,6 +96,10 @@ struct davinci_mdio_data {
 	struct mii_bus	*bus;
 	bool		suspended;
 	unsigned long	access_time; /* jiffies */
+	/* Indicates that driver shouldn't modify phy_mask in case
+	 * if MDIO bus is registered from DT.
+	 */
+	bool		skip_scan;
 };
 
 static void __davinci_mdio_reset(struct davinci_mdio_data *data)
@@ -142,6 +148,9 @@ static int davinci_mdio_reset(struct mii_bus *bus)
 	ver = __raw_readl(&data->regs->version);
 	dev_info(data->dev, "davinci mdio revision %d.%d\n",
 		 (ver >> 8) & 0xff, ver & 0xff);
+
+	if (data->skip_scan)
+		return 0;
 
 	/* get phy mask from the alive register */
 	phy_mask = __raw_readl(&data->regs->alive);
@@ -291,6 +300,7 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_OF)
 static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 			 struct platform_device *pdev)
 {
@@ -301,33 +311,32 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 		return -EINVAL;
 
 	if (of_property_read_u32(node, "bus_freq", &prop)) {
-		pr_err("Missing bus_freq property in the DT.\n");
+		dev_err(&pdev->dev, "Missing bus_freq property in the DT.\n");
 		return -EINVAL;
 	}
 	data->bus_freq = prop;
 
 	return 0;
 }
-
+#endif
 
 static int davinci_mdio_probe(struct platform_device *pdev)
 {
-	struct mdio_platform_data *pdata = pdev->dev.platform_data;
+	struct mdio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct davinci_mdio_data *data;
 	struct resource *res;
 	struct phy_device *phy;
 	int ret, addr;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->bus = mdiobus_alloc();
+	data->bus = devm_mdiobus_alloc(dev);
 	if (!data->bus) {
 		dev_err(dev, "failed to alloc mii bus\n");
-		ret = -ENOMEM;
-		goto bail_out;
+		return -ENOMEM;
 	}
 
 	if (dev->of_node) {
@@ -349,7 +358,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
-	data->clk = clk_get(&pdev->dev, "fck");
+	data->clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(data->clk)) {
 		dev_err(dev, "failed to get device clock\n");
 		ret = PTR_ERR(data->clk);
@@ -362,29 +371,23 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	spin_lock_init(&data->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "could not find register map resource\n");
-		ret = -ENOENT;
+	data->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(data->regs)) {
+		ret = PTR_ERR(data->regs);
 		goto bail_out;
 	}
 
-	res = devm_request_mem_region(dev, res->start, resource_size(res),
-					    dev_name(dev));
-	if (!res) {
-		dev_err(dev, "could not allocate register map resource\n");
-		ret = -ENXIO;
-		goto bail_out;
+	/* register the mii bus
+	 * Create PHYs from DT only in case if PHY child nodes are explicitly
+	 * defined to support backward compatibility with DTs which assume that
+	 * Davinci MDIO will always scan the bus for PHYs detection.
+	 */
+	if (dev->of_node && of_get_child_count(dev->of_node)) {
+		data->skip_scan = true;
+		ret = of_mdiobus_register(data->bus, dev->of_node);
+	} else {
+		ret = mdiobus_register(data->bus);
 	}
-
-	data->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (!data->regs) {
-		dev_err(dev, "could not map mdio registers\n");
-		ret = -ENOMEM;
-		goto bail_out;
-	}
-
-	/* register the mii bus */
-	ret = mdiobus_register(data->bus);
 	if (ret)
 		goto bail_out;
 
@@ -401,37 +404,21 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	return 0;
 
 bail_out:
-	if (data->bus)
-		mdiobus_free(data->bus);
-
-	if (data->clk)
-		clk_put(data->clk);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	kfree(data);
 
 	return ret;
 }
 
 static int davinci_mdio_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct davinci_mdio_data *data = dev_get_drvdata(dev);
+	struct davinci_mdio_data *data = platform_get_drvdata(pdev);
 
-	if (data->bus) {
+	if (data->bus)
 		mdiobus_unregister(data->bus);
-		mdiobus_free(data->bus);
-	}
 
-	if (data->clk)
-		clk_put(data->clk);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	dev_set_drvdata(dev, NULL);
-
-	kfree(data);
 
 	return 0;
 }
@@ -449,10 +436,12 @@ static int davinci_mdio_suspend(struct device *dev)
 	__raw_writel(ctrl, &data->regs->control);
 	wait_for_idle(data);
 
-	pm_runtime_put_sync(data->dev);
-
 	data->suspended = true;
 	spin_unlock(&data->lock);
+	pm_runtime_put_sync(data->dev);
+
+	/* Select sleep pin state */
+	pinctrl_pm_select_sleep_state(dev);
 
 	return 0;
 }
@@ -460,15 +449,15 @@ static int davinci_mdio_suspend(struct device *dev)
 static int davinci_mdio_resume(struct device *dev)
 {
 	struct davinci_mdio_data *data = dev_get_drvdata(dev);
-	u32 ctrl;
 
-	spin_lock(&data->lock);
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(dev);
+
 	pm_runtime_get_sync(data->dev);
 
+	spin_lock(&data->lock);
 	/* restart the scan state machine */
-	ctrl = __raw_readl(&data->regs->control);
-	ctrl |= CONTROL_ENABLE;
-	__raw_writel(ctrl, &data->regs->control);
+	__davinci_mdio_reset(data);
 
 	data->suspended = false;
 	spin_unlock(&data->lock);
@@ -477,19 +466,21 @@ static int davinci_mdio_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops davinci_mdio_pm_ops = {
-	.suspend	= davinci_mdio_suspend,
-	.resume		= davinci_mdio_resume,
+	.suspend_late	= davinci_mdio_suspend,
+	.resume_early	= davinci_mdio_resume,
 };
 
+#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id davinci_mdio_of_mtable[] = {
 	{ .compatible = "ti,davinci_mdio", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, davinci_mdio_of_mtable);
+#endif
 
 static struct platform_driver davinci_mdio_driver = {
 	.driver = {
 		.name	 = "davinci_mdio",
-		.owner	 = THIS_MODULE,
 		.pm	 = &davinci_mdio_pm_ops,
 		.of_match_table = of_match_ptr(davinci_mdio_of_mtable),
 	},

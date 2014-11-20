@@ -7,6 +7,27 @@ menuconfig MEMORY
 
 if MEMORY
 
+config ATMEL_SDRAMC
+	bool "Atmel (Multi-port DDR-)SDRAM Controller"
+	default y
+	depends on ARCH_AT91 && OF
+	help
+	  This driver is for Atmel SDRAM Controller or Atmel Multi-port
+	  DDR-SDRAM Controller available on Atmel AT91SAM9 and SAMA5 SoCs.
+	  Starting with the at91sam9g45, this controller supports SDR, DDR and
+	  LP-DDR memories.
+
+config TI_AEMIF
+	tristate "Texas Instruments AEMIF driver"
+	depends on (ARCH_DAVINCI || ARCH_KEYSTONE) && OF
+	help
+	  This driver is for the AEMIF module available in Texas Instruments
+	  SoCs. AEMIF stands for Asynchronous External Memory Interface and
+	  is intended to provide a glue-less interface to a variety of
+	  asynchronuous memory devices like ASRAM, NOR and NAND memory. A total
+	  of 256M bytes of any of these memories can be accessed at a given
+	  time via four chip selects with 64M byte access per chip select.
+
 config TI_EMIF
 	tristate "Texas Instruments EMIF driver"
 	depends on ARCH_OMAP2PLUS
@@ -19,6 +40,16 @@ config TI_EMIF
 	  functions of the driver includes re-configuring AC timing
 	  parameters and other settings during frequency, voltage and
 	  temperature changes
+
+config MVEBU_DEVBUS
+	bool "Marvell EBU Device Bus Controller"
+	default y
+	depends on PLAT_ORION && OF
+	help
+	  This driver is for the Device Bus controller available in some
+	  Marvell EBU SoCs such as Discovery (mv78xx0), Orion (88f5xxx) and
+	  Armada 370 and Armada XP. This controller allows to handle flash
+	  devices such as NOR, NAND, SRAM, and FPGA.
 
 config TEGRA20_MC
 	bool "Tegra20 Memory Controller(MC) driver"
@@ -39,5 +70,19 @@ config TEGRA30_MC
 	  in Tegra30 SoCs, mainly for a address translation fault
 	  analysis, especially for IOMMU/SMMU(System Memory Management
 	  Unit) module.
+
+config FSL_CORENET_CF
+	tristate "Freescale CoreNet Error Reporting"
+	depends on FSL_SOC_BOOKE
+	help
+	  Say Y for reporting of errors from the Freescale CoreNet
+	  Coherency Fabric.  Errors reported include accesses to
+	  physical addresses that mapped by no local access window
+	  (LAW) or an invalid LAW, as well as bad cache state that
+	  represents a coherency violation.
+
+config FSL_IFC
+	bool
+	depends on FSL_SOC
 
 endif

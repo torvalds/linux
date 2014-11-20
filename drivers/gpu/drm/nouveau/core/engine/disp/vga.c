@@ -138,10 +138,15 @@ nv_wrvgai(void *obj, int head, u16 port, u8 index, u8 value)
 bool
 nv_lockvgac(void *obj, bool lock)
 {
+	struct nouveau_device *dev = nv_device(obj);
+
 	bool locked = !nv_rdvgac(obj, 0, 0x1f);
 	u8 data = lock ? 0x99 : 0x57;
-	nv_wrvgac(obj, 0, 0x1f, data);
-	if (nv_device(obj)->chipset == 0x11) {
+	if (dev->card_type < NV_50)
+		nv_wrvgac(obj, 0, 0x1f, data);
+	else
+		nv_wrvgac(obj, 0, 0x3f, data);
+	if (dev->chipset == 0x11) {
 		if (!(nv_rd32(obj, 0x001084) & 0x10000000))
 			nv_wrvgac(obj, 1, 0x1f, data);
 	}

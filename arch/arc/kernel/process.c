@@ -41,35 +41,10 @@ SYSCALL_DEFINE0(arc_gettls)
 	return task_thread_info(current)->thr_ptr;
 }
 
-static inline void arch_idle(void)
+void arch_cpu_idle(void)
 {
 	/* sleep, but enable all interrupts before committing */
 	__asm__("sleep 0x3");
-}
-
-void cpu_idle(void)
-{
-	/* Since we SLEEP in idle loop, TIF_POLLING_NRFLAG can't be set */
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-
-doze:
-		local_irq_disable();
-		if (!need_resched()) {
-			arch_idle();
-			goto doze;
-		} else {
-			local_irq_enable();
-		}
-
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-
-		schedule_preempt_disabled();
-	}
 }
 
 asmlinkage void ret_from_fork(void);
@@ -80,10 +55,8 @@ asmlinkage void ret_from_fork(void);
  * |     ...        |
  * |    unused      |
  * |                |
- * ------------------  <==== top of Stack (thread.ksp)
- * |   UNUSED 1 word|
  * ------------------
- * |     r25        |
+ * |     r25        |   <==== top of Stack (thread.ksp)
  * ~                ~
  * |    --to--      |   (CALLEE Regs of user mode)
  * |     r13        |
@@ -101,7 +74,10 @@ asmlinkage void ret_from_fork(void);
  * |    --to--      |   (scratch Regs of user mode)
  * |     r0         |
  * ------------------
- * |   UNUSED 1 word|
+ * |      SP        |
+ * |    orig_r0     |
+ * |    event/ECR   |
+ * |    user_r25    |
  * ------------------  <===== END of PAGE
  */
 int copy_thread(unsigned long clone_flags,
@@ -172,6 +148,29 @@ int copy_thread(unsigned long clone_flags,
 	}
 
 	return 0;
+}
+
+/*
+ * Do necessary setup to start up a new user task
+ */
+void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
+{
+	set_fs(USER_DS); /* user space */
+
+	regs->sp = usp;
+	regs->ret = pc;
+
+	/*
+	 * [U]ser Mode bit set
+	 * [L] ZOL loop inhibited to begin with - cleared by a LP insn
+	 * Interrupts enabled
+	 */
+	regs->status32 = STATUS_U_MASK | STATUS_L_MASK |
+			 STATUS_E1_MASK | STATUS_E2_MASK;
+
+	/* bogus seed values for debugging */
+	regs->lp_start = 0x10;
+	regs->lp_end = 0x80;
 }
 
 /*

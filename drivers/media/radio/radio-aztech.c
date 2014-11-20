@@ -26,6 +26,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include "radio-isa.h"
+#include "lm7000.h"
 
 MODULE_AUTHOR("Russell Kroll, Quay Lu, Donald Song, Jason Lewis, Scott McGrath, William McGrath");
 MODULE_DESCRIPTION("A driver for the Aztech radio card.");
@@ -54,18 +55,29 @@ struct aztech {
 	int curvol;
 };
 
-static void send_0_byte(struct aztech *az)
-{
-	udelay(radio_wait_time);
-	outb_p(2 + az->curvol, az->isa.io);
-	outb_p(64 + 2 + az->curvol, az->isa.io);
-}
+/* bit definitions for register read */
+#define AZTECH_BIT_NOT_TUNED	(1 << 0)
+#define AZTECH_BIT_MONO		(1 << 1)
+/* bit definitions for register write */
+#define AZTECH_BIT_TUN_CE	(1 << 1)
+#define AZTECH_BIT_TUN_CLK	(1 << 6)
+#define AZTECH_BIT_TUN_DATA	(1 << 7)
+/* bits 0 and 2 are volume control, bits 3..5 are not connected */
 
-static void send_1_byte(struct aztech *az)
+static void aztech_set_pins(void *handle, u8 pins)
 {
-	udelay(radio_wait_time);
-	outb_p(128 + 2 + az->curvol, az->isa.io);
-	outb_p(128 + 64 + 2 + az->curvol, az->isa.io);
+	struct radio_isa_card *isa = handle;
+	struct aztech *az = container_of(isa, struct aztech, isa);
+	u8 bits = az->curvol;
+
+	if (pins & LM7000_DATA)
+		bits |= AZTECH_BIT_TUN_DATA;
+	if (pins & LM7000_CLK)
+		bits |= AZTECH_BIT_TUN_CLK;
+	if (pins & LM7000_CE)
+		bits |= AZTECH_BIT_TUN_CE;
+
+	outb_p(bits, az->isa.io);
 }
 
 static struct radio_isa_card *aztech_alloc(void)
@@ -77,58 +89,21 @@ static struct radio_isa_card *aztech_alloc(void)
 
 static int aztech_s_frequency(struct radio_isa_card *isa, u32 freq)
 {
-	struct aztech *az = container_of(isa, struct aztech, isa);
-	int  i;
-
-	freq += 171200;			/* Add 10.7 MHz IF		*/
-	freq /= 800;			/* Convert to 50 kHz units	*/
-
-	send_0_byte(az);		/*  0: LSB of frequency       */
-
-	for (i = 0; i < 13; i++)	/*   : frequency bits (1-13)  */
-		if (freq & (1 << i))
-			send_1_byte(az);
-		else
-			send_0_byte(az);
-
-	send_0_byte(az);		/* 14: test bit - always 0    */
-	send_0_byte(az);		/* 15: test bit - always 0    */
-	send_0_byte(az);		/* 16: band data 0 - always 0 */
-	if (isa->stereo)		/* 17: stereo (1 to enable)   */
-		send_1_byte(az);
-	else
-		send_0_byte(az);
-
-	send_1_byte(az);		/* 18: band data 1 - unknown  */
-	send_0_byte(az);		/* 19: time base - always 0   */
-	send_0_byte(az);		/* 20: spacing (0 = 25 kHz)   */
-	send_1_byte(az);		/* 21: spacing (1 = 25 kHz)   */
-	send_0_byte(az);		/* 22: spacing (0 = 25 kHz)   */
-	send_1_byte(az);		/* 23: AM/FM (FM = 1, always) */
-
-	/* latch frequency */
-
-	udelay(radio_wait_time);
-	outb_p(128 + 64 + az->curvol, az->isa.io);
+	lm7000_set_freq(freq, isa, aztech_set_pins);
 
 	return 0;
 }
 
-/* thanks to Michael Dwyer for giving me a dose of clues in
- * the signal strength department..
- *
- * This card has a stereo bit - bit 0 set = mono, not set = stereo
- */
 static u32 aztech_g_rxsubchans(struct radio_isa_card *isa)
 {
-	if (inb(isa->io) & 1)
+	if (inb(isa->io) & AZTECH_BIT_MONO)
 		return V4L2_TUNER_SUB_MONO;
 	return V4L2_TUNER_SUB_STEREO;
 }
 
-static int aztech_s_stereo(struct radio_isa_card *isa, bool stereo)
+static u32 aztech_g_signal(struct radio_isa_card *isa)
 {
-	return aztech_s_frequency(isa, isa->freq);
+	return (inb(isa->io) & AZTECH_BIT_NOT_TUNED) ? 0 : 0xffff;
 }
 
 static int aztech_s_mute_volume(struct radio_isa_card *isa, bool mute, int vol)
@@ -146,8 +121,8 @@ static const struct radio_isa_ops aztech_ops = {
 	.alloc = aztech_alloc,
 	.s_mute_volume = aztech_s_mute_volume,
 	.s_frequency = aztech_s_frequency,
-	.s_stereo = aztech_s_stereo,
 	.g_rxsubchans = aztech_g_rxsubchans,
+	.g_signal = aztech_g_signal,
 };
 
 static const int aztech_ioports[] = { 0x350, 0x358 };
@@ -165,7 +140,7 @@ static struct radio_isa_driver aztech_driver = {
 	.radio_nr_params = radio_nr,
 	.io_ports = aztech_ioports,
 	.num_of_io_ports = ARRAY_SIZE(aztech_ioports),
-	.region_size = 2,
+	.region_size = 8,
 	.card = "Aztech Radio",
 	.ops = &aztech_ops,
 	.has_stereo = true,

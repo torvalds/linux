@@ -82,6 +82,10 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 
 	if (cmd->aborted)
 		return 0;
+
+	if (se_cmd->scsi_status == SAM_STAT_TASK_SET_FULL)
+		goto queue_status;
+
 	ep = fc_seq_exch(cmd->seq);
 	lport = ep->lp;
 	cmd->seq = lport->tt.seq_start_next(cmd->seq);
@@ -103,6 +107,13 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	use_sg = !(remaining % 4);
 
 	while (remaining) {
+		struct fc_seq *seq = cmd->seq;
+
+		if (!seq) {
+			pr_debug("%s: Command aborted, xid 0x%x\n",
+				 __func__, ep->xid);
+			break;
+		}
 		if (!mem_len) {
 			sg = sg_next(sg);
 			mem_len = min((size_t)sg->length, remaining);
@@ -169,16 +180,25 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 			f_ctl |= FC_FC_END_SEQ;
 		fc_fill_fc_hdr(fp, FC_RCTL_DD_SOL_DATA, ep->did, ep->sid,
 			       FC_TYPE_FCP, f_ctl, fh_off);
-		error = lport->tt.seq_send(lport, cmd->seq, fp);
+		error = lport->tt.seq_send(lport, seq, fp);
 		if (error) {
-			/* XXX For now, initiator will retry */
-			pr_err_ratelimited("%s: Failed to send frame %p, "
+			pr_info_ratelimited("%s: Failed to send frame %p, "
 						"xid <0x%x>, remaining %zu, "
 						"lso_max <0x%x>\n",
 						__func__, fp, ep->xid,
 						remaining, lport->lso_max);
+			/*
+			 * Go ahead and set TASK_SET_FULL status ignoring the
+			 * rest of the DataIN, and immediately attempt to
+			 * send the response via ft_queue_status() in order
+			 * to notify the initiator that it should reduce it's
+			 * per LUN queue_depth.
+			 */
+			se_cmd->scsi_status = SAM_STAT_TASK_SET_FULL;
+			break;
 		}
 	}
+queue_status:
 	return ft_queue_status(se_cmd);
 }
 

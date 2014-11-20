@@ -31,6 +31,7 @@
 #include <asm/mach/time.h>
 
 #include <mach/at91_st.h>
+#include <mach/hardware.h>
 
 static unsigned long last_crtr;
 static u32 irqmask;
@@ -93,7 +94,7 @@ static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction at91rm9200_timer_irq = {
 	.name		= "at91_tick",
-	.flags		= IRQF_SHARED | IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_SHARED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= at91rm9200_timer_interrupt,
 	.irq		= NR_IRQS_LEGACY + AT91_ID_SYS,
 };

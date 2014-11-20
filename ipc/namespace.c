@@ -12,7 +12,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/user_namespace.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 
 #include "util.h"
 
@@ -81,7 +81,7 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 	int next_id;
 	int total, in_use;
 
-	down_write(&ids->rw_mutex);
+	down_write(&ids->rwsem);
 
 	in_use = ids->in_use;
 
@@ -89,11 +89,12 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 		perm = idr_find(&ids->ipcs_idr, next_id);
 		if (perm == NULL)
 			continue;
-		ipc_lock_by_ptr(perm);
+		rcu_read_lock();
+		ipc_lock_object(perm);
 		free(ns, perm);
 		total++;
 	}
-	up_write(&ids->rw_mutex);
+	up_write(&ids->rwsem);
 }
 
 static void free_ipc_ns(struct ipc_namespace *ns)
@@ -153,11 +154,11 @@ static void *ipcns_get(struct task_struct *task)
 	struct ipc_namespace *ns = NULL;
 	struct nsproxy *nsproxy;
 
-	rcu_read_lock();
-	nsproxy = task_nsproxy(task);
+	task_lock(task);
+	nsproxy = task->nsproxy;
 	if (nsproxy)
 		ns = get_ipc_ns(nsproxy->ipc_ns);
-	rcu_read_unlock();
+	task_unlock(task);
 
 	return ns;
 }
@@ -171,7 +172,7 @@ static int ipcns_install(struct nsproxy *nsproxy, void *new)
 {
 	struct ipc_namespace *ns = new;
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
-	    !nsown_capable(CAP_SYS_ADMIN))
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/* Ditch state from the old ipc namespace */

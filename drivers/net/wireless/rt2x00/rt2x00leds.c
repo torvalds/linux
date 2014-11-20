@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -113,7 +111,7 @@ static int rt2x00leds_register_led(struct rt2x00_dev *rt2x00dev,
 
 	retval = led_classdev_register(device, &led->led_dev);
 	if (retval) {
-		ERROR(rt2x00dev, "Failed to register led handler.\n");
+		rt2x00_err(rt2x00dev, "Failed to register led handler\n");
 		return retval;
 	}
 

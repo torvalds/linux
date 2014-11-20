@@ -1114,13 +1114,13 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	/* Default values for STD and resolutions */
 	dev->width = 720;
 	dev->height = 480;
-	dev->norm = V4L2_STD_PAL_M;
+	dev->norm = V4L2_STD_NTSC_M;
 
 	/* Configure tuner */
 	tm6000_config_tuner(dev);
 
 	/* Set video standard */
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, dev->norm);
 
 	/* Set tuner frequency - also loads firmware on xc2028/xc3028 */
 	f.tuner = 0;

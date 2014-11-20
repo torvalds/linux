@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,31 @@
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utosi")
 
+/******************************************************************************
+ *
+ * ACPICA policy for new _OSI strings:
+ *
+ * It is the stated policy of ACPICA that new _OSI strings will be integrated
+ * into this module as soon as possible after they are defined. It is strongly
+ * recommended that all ACPICA hosts mirror this policy and integrate any
+ * changes to this module as soon as possible. There are several historical
+ * reasons behind this policy:
+ *
+ * 1) New BIOSs tend to test only the case where the host responds TRUE to
+ *    the latest version of Windows, which would respond to the latest/newest
+ *    _OSI string. Not responding TRUE to the latest version of Windows will
+ *    risk executing untested code paths throughout the DSDT and SSDTs.
+ *
+ * 2) If a new _OSI string is recognized only after a significant delay, this
+ *    has the potential to cause problems on existing working machines because
+ *    of the possibility that a new and different path through the ASL code
+ *    will be executed.
+ *
+ * 3) New _OSI strings are tending to come out about once per year. A delay
+ *    in recognizing a new string for a significant amount of time risks the
+ *    release of another string which only compounds the initial problem.
+ *
+ *****************************************************************************/
 /*
  * Strings supported by the _OSI predefined control method (which is
  * implemented internally within this module.)
@@ -74,24 +99,24 @@ static struct acpi_interface_info acpi_default_supported_interfaces[] = {
 	{"Windows 2006 SP2", NULL, 0, ACPI_OSI_WIN_VISTA_SP2},	/* Windows Vista SP2 - Added 09/2010 */
 	{"Windows 2009", NULL, 0, ACPI_OSI_WIN_7},	/* Windows 7 and Server 2008 R2 - Added 09/2009 */
 	{"Windows 2012", NULL, 0, ACPI_OSI_WIN_8},	/* Windows 8 and Server 2012 - Added 08/2012 */
+	{"Windows 2013", NULL, 0, ACPI_OSI_WIN_8},	/* Windows 8.1 and Server 2012 R2 - Added 01/2014 */
 
 	/* Feature Group Strings */
 
-	{"Extended Address Space Descriptor", NULL, 0, 0}
+	{"Extended Address Space Descriptor", NULL, ACPI_OSI_FEATURE, 0},
 
 	/*
 	 * All "optional" feature group strings (features that are implemented
-	 * by the host) should be dynamically added by the host via
-	 * acpi_install_interface and should not be manually added here.
-	 *
-	 * Examples of optional feature group strings:
-	 *
-	 * "Module Device"
-	 * "Processor Device"
-	 * "3.0 Thermal Model"
-	 * "3.0 _SCP Extensions"
-	 * "Processor Aggregator Device"
+	 * by the host) should be dynamically modified to VALID by the host via
+	 * acpi_install_interface or acpi_update_interfaces. Such optional feature
+	 * group strings are set as INVALID by default here.
 	 */
+
+	{"Module Device", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+	{"Processor Device", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+	{"3.0 Thermal Model", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+	{"3.0 _SCP Extensions", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+	{"Processor Aggregator Device", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0}
 };
 
 /*******************************************************************************
@@ -108,9 +133,14 @@ static struct acpi_interface_info acpi_default_supported_interfaces[] = {
 
 acpi_status acpi_ut_initialize_interfaces(void)
 {
+	acpi_status status;
 	u32 i;
 
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
 	acpi_gbl_supported_interfaces = acpi_default_supported_interfaces;
 
 	/* Link the static list of supported interfaces */
@@ -132,34 +162,48 @@ acpi_status acpi_ut_initialize_interfaces(void)
  *
  * PARAMETERS:  None
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Delete all interfaces in the global list. Sets
  *              acpi_gbl_supported_interfaces to NULL.
  *
  ******************************************************************************/
 
-void acpi_ut_interface_terminate(void)
+acpi_status acpi_ut_interface_terminate(void)
 {
+	acpi_status status;
 	struct acpi_interface_info *next_interface;
 
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
-	next_interface = acpi_gbl_supported_interfaces;
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
 
+	next_interface = acpi_gbl_supported_interfaces;
 	while (next_interface) {
 		acpi_gbl_supported_interfaces = next_interface->next;
 
-		/* Only interfaces added at runtime can be freed */
-
 		if (next_interface->flags & ACPI_OSI_DYNAMIC) {
+
+			/* Only interfaces added at runtime can be freed */
+
 			ACPI_FREE(next_interface->name);
 			ACPI_FREE(next_interface);
+		} else {
+			/* Interface is in static list. Reset it to invalid or valid. */
+
+			if (next_interface->flags & ACPI_OSI_DEFAULT_INVALID) {
+				next_interface->flags |= ACPI_OSI_INVALID;
+			} else {
+				next_interface->flags &= ~ACPI_OSI_INVALID;
+			}
 		}
 
 		next_interface = acpi_gbl_supported_interfaces;
 	}
 
 	acpi_os_release_mutex(acpi_gbl_osi_mutex);
+	return (AE_OK);
 }
 
 /*******************************************************************************
@@ -268,6 +312,49 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_update_interfaces
+ *
+ * PARAMETERS:  action              - Actions to be performed during the
+ *                                    update
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Update _OSI interface strings, disabling or enabling OS vendor
+ *              strings or/and feature group strings.
+ *              Caller MUST hold acpi_gbl_osi_mutex
+ *
+ ******************************************************************************/
+
+acpi_status acpi_ut_update_interfaces(u8 action)
+{
+	struct acpi_interface_info *next_interface;
+
+	next_interface = acpi_gbl_supported_interfaces;
+	while (next_interface) {
+		if (((next_interface->flags & ACPI_OSI_FEATURE) &&
+		     (action & ACPI_FEATURE_STRINGS)) ||
+		    (!(next_interface->flags & ACPI_OSI_FEATURE) &&
+		     (action & ACPI_VENDOR_STRINGS))) {
+			if (action & ACPI_DISABLE_INTERFACES) {
+
+				/* Mark the interfaces as invalid */
+
+				next_interface->flags |= ACPI_OSI_INVALID;
+			} else {
+				/* Mark the interfaces as valid */
+
+				next_interface->flags &= ~ACPI_OSI_INVALID;
+			}
+		}
+
+		next_interface = next_interface->next;
+	}
+
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_get_interface
  *
  * PARAMETERS:  interface_name      - The interface to find
@@ -315,6 +402,7 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
 	union acpi_operand_object *return_desc;
 	struct acpi_interface_info *interface_info;
 	acpi_interface_handler interface_handler;
+	acpi_status status;
 	u32 return_value;
 
 	ACPI_FUNCTION_TRACE(ut_osi_implementation);
@@ -336,7 +424,11 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
 	/* Default return value is 0, NOT SUPPORTED */
 
 	return_value = 0;
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		acpi_ut_remove_reference(return_desc);
+		return_ACPI_STATUS(status);
+	}
 
 	/* Lookup the interface in the global _OSI list */
 

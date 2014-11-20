@@ -1,7 +1,7 @@
 /*
  * Signal support for Hexagon processor
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -36,14 +36,10 @@ struct rt_sigframe {
 	struct ucontext uc;
 };
 
-static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 			  size_t frame_size)
 {
-	unsigned long sp = regs->r29;
-
-	/* Switch to signal stack if appropriate */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags(sp) == 0))
-		sp = current->sas_ss_sp + current->sas_ss_size;
+	unsigned long sp = sigsp(regs->r29, ksig);
 
 	return (void __user *)((sp - frame_size) & ~(sizeof(long long) - 1));
 }
@@ -66,7 +62,10 @@ static int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	err |= __put_user(regs->preds, &sc->sc_regs.p3_0);
 	err |= __put_user(regs->gp, &sc->sc_regs.gp);
 	err |= __put_user(regs->ugp, &sc->sc_regs.ugp);
-
+#if CONFIG_HEXAGON_ARCH_VERSION >= 4
+	err |= __put_user(regs->cs0, &sc->sc_regs.cs0);
+	err |= __put_user(regs->cs1, &sc->sc_regs.cs1);
+#endif
 	tmp = pt_elr(regs); err |= __put_user(tmp, &sc->sc_regs.pc);
 	tmp = pt_cause(regs); err |= __put_user(tmp, &sc->sc_regs.cause);
 	tmp = pt_badva(regs); err |= __put_user(tmp, &sc->sc_regs.badva);
@@ -93,7 +92,10 @@ static int restore_sigcontext(struct pt_regs *regs,
 	err |= __get_user(regs->preds, &sc->sc_regs.p3_0);
 	err |= __get_user(regs->gp, &sc->sc_regs.gp);
 	err |= __get_user(regs->ugp, &sc->sc_regs.ugp);
-
+#if CONFIG_HEXAGON_ARCH_VERSION >= 4
+	err |= __get_user(regs->cs0, &sc->sc_regs.cs0);
+	err |= __get_user(regs->cs1, &sc->sc_regs.cs1);
+#endif
 	err |= __get_user(tmp, &sc->sc_regs.pc); pt_set_elr(regs, tmp);
 
 	return err;
@@ -102,20 +104,20 @@ static int restore_sigcontext(struct pt_regs *regs,
 /*
  * Setup signal stack frame with siginfo structure
  */
-static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
-			  sigset_t *set,  struct pt_regs *regs)
+static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
+			  struct pt_regs *regs)
 {
 	int err = 0;
 	struct rt_sigframe __user *frame;
 	struct hexagon_vdso *vdso = current->mm->context.vdso;
 
-	frame = get_sigframe(ka, regs, sizeof(struct rt_sigframe));
+	frame = get_sigframe(ksig, regs, sizeof(struct rt_sigframe));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(struct rt_sigframe)))
-		goto	sigsegv;
+		return -EFAULT;
 
-	if (copy_siginfo_to_user(&frame->info, info))
-		goto	sigsegv;
+	if (copy_siginfo_to_user(&frame->info, &ksig->info))
+		return -EFAULT;
 
 	/* The on-stack signal trampoline is no longer executed;
 	 * however, the libgcc signal frame unwinding code checks for
@@ -127,29 +129,26 @@ static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	err |= __save_altstack(&frame->uc.uc_stack, user_stack_pointer(regs));
 	if (err)
-		goto sigsegv;
+		return -EFAULT;
 
 	/* Load r0/r1 pair with signumber/siginfo pointer... */
 	regs->r0100 = ((unsigned long long)((unsigned long)&frame->info) << 32)
-		| (unsigned long long)signr;
+		| (unsigned long long)ksig->sig;
 	regs->r02 = (unsigned long) &frame->uc;
 	regs->r31 = (unsigned long) vdso->rt_signal_trampoline;
 	pt_psp(regs) = (unsigned long) frame;
-	pt_set_elr(regs, (unsigned long)ka->sa.sa_handler);
+	pt_set_elr(regs, (unsigned long)ksig->ka.sa.sa_handler);
 
 	return 0;
-
-sigsegv:
-	force_sigsegv(signr, current);
-	return -EFAULT;
 }
 
 /*
  * Setup invocation of signal handler
  */
-static void handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
-			 struct pt_regs *regs)
+static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
+	int ret;
+
 	/*
 	 * If we're handling a signal that aborted a system call,
 	 * set up the error return value before adding the signal
@@ -163,7 +162,7 @@ static void handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 			regs->r00 = -EINTR;
 			break;
 		case -ERESTARTSYS:
-			if (!(ka->sa.sa_flags & SA_RESTART)) {
+			if (!(ksig->ka.sa.sa_flags & SA_RESTART)) {
 				regs->r00 = -EINTR;
 				break;
 			}
@@ -183,35 +182,30 @@ static void handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 	 * only set up the rt_frame flavor.
 	 */
 	/* If there was an error on setup, no signal was delivered. */
-	if (setup_rt_frame(sig, ka, info, sigmask_to_save(), regs) < 0)
-		return;
+	ret = setup_rt_frame(ksig, sigmask_to_save(), regs);
 
-	signal_delivered(sig, info, ka, regs,
-			test_thread_flag(TIF_SINGLESTEP));
+	signal_setup_done(ret, ksig, test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*
  * Called from return-from-event code.
  */
-static void do_signal(struct pt_regs *regs)
+void do_signal(struct pt_regs *regs)
 {
-	struct k_sigaction sigact;
-	siginfo_t info;
-	int signo;
+	struct ksignal ksig;
 
 	if (!user_mode(regs))
 		return;
 
-	signo = get_signal_to_deliver(&info, &sigact, regs, NULL);
-
-	if (signo > 0) {
-		handle_signal(signo, &info, &sigact, regs);
+	if (get_signal(&ksig)) {
+		handle_signal(&ksig, regs);
 		return;
 	}
 
 	/*
-	 * If we came from a system call, handle the restart.
+	 * No (more) signals; if we came from a system call, handle the restart.
 	 */
+
 	if (regs->syscall_nr >= 0) {
 		switch (regs->r00) {
 		case -ERESTARTNOHAND:
@@ -232,17 +226,6 @@ static void do_signal(struct pt_regs *regs)
 no_restart:
 	/* If there's no signal to deliver, put the saved sigmask back */
 	restore_saved_sigmask();
-}
-
-void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
-{
-	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs);
-
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-	}
 }
 
 /*
@@ -272,21 +255,12 @@ asmlinkage int sys_rt_sigreturn(void)
 	/* Restore the user's stack as well */
 	pt_psp(regs) = regs->r29;
 
-	/*
-	 * Leave a trace in the stack frame that this was a sigreturn.
-	 * If the system call is to replay, we've already restored the
-	 * number in the GPR slot and it will be regenerated on the
-	 * new system call trap entry. Note that if restore_sigcontext()
-	 * did something other than a bulk copy of the pt_regs struct,
-	 * we could avoid this assignment by simply not overwriting
-	 * regs->syscall_nr.
-	 */
-	regs->syscall_nr = __NR_rt_sigreturn;
+	regs->syscall_nr = -1;
 
 	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
-	return 0;
+	return regs->r00;
 
 badframe:
 	force_sig(SIGSEGV, current);

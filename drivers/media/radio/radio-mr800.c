@@ -32,7 +32,7 @@
  * achievements (specifications given).
  * Also, Faidon Liambotis <paravoid@debian.org> wrote nice driver for this radio
  * in 2007. He allowed to use his driver to improve current mr800 radio driver.
- * http://kerneltrap.org/mailarchive/linux-usb-devel/2007/10/11/342492
+ * http://www.spinics.net/lists/linux-usb-devel/msg10109.html
  *
  * Version 0.01:	First working version.
  * 			It's required to blacklist AverMedia USB Radio
@@ -203,9 +203,13 @@ static int amradio_set_mute(struct amradio_device *radio, bool mute)
 /* set a frequency, freq is defined by v4l's TUNER_LOW, i.e. 1/16th kHz */
 static int amradio_set_freq(struct amradio_device *radio, int freq)
 {
-	unsigned short freq_send = 0x10 + (freq >> 3) / 25;
+	unsigned short freq_send;
 	u8 buf[3];
 	int retval;
+
+	/* we need to be sure that frequency isn't out of range */
+	freq = clamp_t(unsigned, freq, FREQ_MIN * FREQ_MUL, FREQ_MAX * FREQ_MUL);
+	freq_send = 0x10 + (freq >> 3) / 25;
 
 	/* frequency is calculated from freq_send and placed in first 2 bytes */
 	buf[0] = (freq_send >> 8) & 0xff;
@@ -305,7 +309,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 
 /* vidioc_s_tuner - set tuner attributes */
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *v)
+				const struct v4l2_tuner *v)
 {
 	struct amradio_device *radio = video_drvdata(file);
 
@@ -323,14 +327,13 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 
 /* vidioc_s_frequency - set tuner radio frequency */
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct amradio_device *radio = video_drvdata(file);
 
 	if (f->tuner != 0)
 		return -EINVAL;
-	return amradio_set_freq(radio, clamp_t(unsigned, f->frequency,
-				FREQ_MIN * FREQ_MUL, FREQ_MAX * FREQ_MUL));
+	return amradio_set_freq(radio, f->frequency);
 }
 
 /* vidioc_g_frequency - get tuner radio frequency */
@@ -389,6 +392,7 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *priv,
 			continue;
 		amradio_send_cmd(radio, AMRADIO_GET_FREQ, 0, NULL, 0, true);
 		if (radio->buffer[1] || radio->buffer[2]) {
+			/* To check: sometimes radio->curfreq is set to out of range value */
 			radio->curfreq = (radio->buffer[1] << 8) | radio->buffer[2];
 			radio->curfreq = (radio->curfreq - 0x10) * 200;
 			amradio_send_cmd(radio, AMRADIO_STOP_SEARCH,
@@ -554,7 +558,6 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	radio->vdev.ioctl_ops = &usb_amradio_ioctl_ops;
 	radio->vdev.release = video_device_release_empty;
 	radio->vdev.lock = &radio->lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->vdev.flags);
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;

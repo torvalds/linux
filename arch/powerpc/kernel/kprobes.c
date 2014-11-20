@@ -32,15 +32,10 @@
 #include <linux/module.h>
 #include <linux/kdebug.h>
 #include <linux/slab.h>
+#include <asm/code-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
 #include <asm/uaccess.h>
-
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-#define MSR_SINGLESTEP	(MSR_DE)
-#else
-#define MSR_SINGLESTEP	(MSR_SE)
-#endif
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
@@ -104,19 +99,7 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 
 static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
-	/* We turn off async exceptions to ensure that the single step will
-	 * be for the instruction we have the kprobe on, if we dont its
-	 * possible we'd get the single step reported for an exception handler
-	 * like Decrementer or External Interrupt */
-	regs->msr &= ~MSR_EE;
-	regs->msr |= MSR_SINGLESTEP;
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-	regs->msr &= ~MSR_CE;
-	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
-#ifdef CONFIG_PPC_47x
-	isync();
-#endif
-#endif
+	enable_single_step(regs);
 
 	/*
 	 * On powerpc we should single step on the original
@@ -447,7 +430,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 	case KPROBE_HIT_SSDONE:
 		/*
 		 * We increment the nmissed count for accounting,
-		 * we can also use npre/npostfault count for accouting
+		 * we can also use npre/npostfault count for accounting
 		 * these specific fault cases.
 		 */
 		kprobes_inc_nmissed_count(cur);
@@ -509,12 +492,10 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	return ret;
 }
 
-#ifdef CONFIG_PPC64
 unsigned long arch_deref_entry_point(void *entry)
 {
-	return ((func_descr_t *)entry)->entry;
+	return ppc_global_function_entry(entry);
 }
-#endif
 
 int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
@@ -526,7 +507,11 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	/* setup return addr to the jprobe handler routine */
 	regs->nip = arch_deref_entry_point(jp->entry);
 #ifdef CONFIG_PPC64
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+	regs->gpr[12] = (unsigned long)jp->entry;
+#else
 	regs->gpr[2] = (unsigned long)(((func_descr_t *)jp->entry)->toc);
+#endif
 #endif
 
 	return 1;

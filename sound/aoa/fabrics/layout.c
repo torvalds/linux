@@ -113,6 +113,7 @@ MODULE_ALIAS("sound-layout-100");
 MODULE_ALIAS("aoa-device-id-14");
 MODULE_ALIAS("aoa-device-id-22");
 MODULE_ALIAS("aoa-device-id-35");
+MODULE_ALIAS("aoa-device-id-44");
 
 /* onyx with all but microphone connected */
 static struct codec_connection onyx_connections_nomic[] = {
@@ -359,6 +360,13 @@ static struct layout layouts[] = {
 	  .codecs[0] = {
 		.name = "tas",
 		.connections = tas_connections_nolineout,
+	  },
+	},
+	/* PowerBook6,5 */
+	{ .device_id = 44,
+	  .codecs[0] = {
+		.name = "tas",
+		.connections = tas_connections_all,
 	  },
 	},
 	/* PowerBook6,7 */
@@ -636,7 +644,7 @@ static int n##_control_put(struct snd_kcontrol *kcontrol,		\
 			   struct snd_ctl_elem_value *ucontrol)		\
 {									\
 	struct gpio_runtime *gpio = snd_kcontrol_chip(kcontrol);	\
-	if (gpio->methods && gpio->methods->get_##n)			\
+	if (gpio->methods && gpio->methods->set_##n)			\
 		gpio->methods->set_##n(gpio,				\
 			!!ucontrol->value.integer.value[0]);		\
 	return 1;							\
@@ -1127,7 +1135,7 @@ static int aoa_fabric_layout_resume(struct soundbus_dev *sdev)
 {
 	struct layout_dev *ldev = dev_get_drvdata(&sdev->ofdev.dev);
 
-	if (ldev->gpio.methods && ldev->gpio.methods->all_amps_off)
+	if (ldev->gpio.methods && ldev->gpio.methods->all_amps_restore)
 		ldev->gpio.methods->all_amps_restore(&ldev->gpio);
 
 	return 0;

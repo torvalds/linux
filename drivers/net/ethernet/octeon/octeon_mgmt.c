@@ -46,17 +46,25 @@
 union mgmt_port_ring_entry {
 	u64 d64;
 	struct {
-		u64    reserved_62_63:2;
-		/* Length of the buffer/packet in bytes */
-		u64    len:14;
-		/* For TX, signals that the packet should be timestamped */
-		u64    tstamp:1;
-		/* The RX error code */
-		u64    code:7;
 #define RING_ENTRY_CODE_DONE 0xf
 #define RING_ENTRY_CODE_MORE 0x10
+#ifdef __BIG_ENDIAN_BITFIELD
+		u64 reserved_62_63:2;
+		/* Length of the buffer/packet in bytes */
+		u64 len:14;
+		/* For TX, signals that the packet should be timestamped */
+		u64 tstamp:1;
+		/* The RX error code */
+		u64 code:7;
 		/* Physical address of the buffer */
-		u64    addr:40;
+		u64 addr:40;
+#else
+		u64 addr:40;
+		u64 code:7;
+		u64 tstamp:1;
+		u64 len:14;
+		u64 reserved_62_63:2;
+#endif
 	} s;
 };
 
@@ -239,28 +247,6 @@ static void octeon_mgmt_rx_fill_ring(struct net_device *netdev)
 	}
 }
 
-static ktime_t ptp_to_ktime(u64 ptptime)
-{
-	ktime_t ktimebase;
-	u64 ptpbase;
-	unsigned long flags;
-
-	local_irq_save(flags);
-	/* Fill the icache with the code */
-	ktime_get_real();
-	/* Flush all pending operations */
-	mb();
-	/* Read the time and PTP clock as close together as
-	 * possible. It is important that this sequence take the same
-	 * amount of time to reduce jitter
-	 */
-	ktimebase = ktime_get_real();
-	ptpbase = cvmx_read_csr(CVMX_MIO_PTP_CLOCK_HI);
-	local_irq_restore(flags);
-
-	return ktime_sub_ns(ktimebase, ptpbase - ptptime);
-}
-
 static void octeon_mgmt_clean_tx_buffers(struct octeon_mgmt *p)
 {
 	union cvmx_mixx_orcnt mix_orcnt;
@@ -304,12 +290,14 @@ static void octeon_mgmt_clean_tx_buffers(struct octeon_mgmt *p)
 		/* Read the hardware TX timestamp if one was recorded */
 		if (unlikely(re.s.tstamp)) {
 			struct skb_shared_hwtstamps ts;
+			u64 ns;
+
+			memset(&ts, 0, sizeof(ts));
 			/* Read the timestamp */
-			u64 ns = cvmx_read_csr(CVMX_MIXX_TSTAMP(p->port));
+			ns = cvmx_read_csr(CVMX_MIXX_TSTAMP(p->port));
 			/* Remove the timestamp from the FIFO */
 			cvmx_write_csr(CVMX_MIXX_TSCTL(p->port), 0);
 			/* Tell the kernel about the timestamp */
-			ts.syststamp = ptp_to_ktime(ns);
 			ts.hwtstamp = ns_to_ktime(ns);
 			skb_tstamp_tx(skb, &ts);
 		}
@@ -421,7 +409,6 @@ good:
 			struct skb_shared_hwtstamps *ts;
 			ts = skb_hwtstamps(skb);
 			ts->hwtstamp = ns_to_ktime(ns);
-			ts->syststamp = ptp_to_ktime(ns);
 			__skb_pull(skb, 8);
 		}
 		skb->protocol = eth_type_trans(skb, netdev);
@@ -1141,10 +1128,13 @@ static int octeon_mgmt_open(struct net_device *netdev)
 		/* For compensation state to lock. */
 		ndelay(1040 * NS_PER_PHY_CLK);
 
-		/* Some Ethernet switches cannot handle standard
-		 * Interframe Gap, increase to 16 bytes.
+		/* Default Interframe Gaps are too small.  Recommended
+		 * workaround is.
+		 *
+		 * AGL_GMX_TX_IFG[IFG1]=14
+		 * AGL_GMX_TX_IFG[IFG2]=10
 		 */
-		cvmx_write_csr(CVMX_AGL_GMX_TX_IFG, 0x88);
+		cvmx_write_csr(CVMX_AGL_GMX_TX_IFG, 0xae);
 	}
 
 	octeon_mgmt_rx_fill_ring(netdev);
@@ -1437,7 +1427,7 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
-	dev_set_drvdata(&pdev->dev, netdev);
+	platform_set_drvdata(pdev, netdev);
 	p = netdev_priv(netdev);
 	netif_napi_add(netdev, &p->napi, octeon_mgmt_napi_poll,
 		       OCTEON_MGMT_NAPI_WEIGHT);
@@ -1534,15 +1524,16 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	mac = of_get_mac_address(pdev->dev.of_node);
 
-	if (mac && is_valid_ether_addr(mac))
+	if (mac)
 		memcpy(netdev->dev_addr, mac, ETH_ALEN);
 	else
 		eth_hw_addr_random(netdev);
 
 	p->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
-	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	result = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (result)
+		goto err;
 
 	netif_carrier_off(netdev);
 	result = register_netdev(netdev);
@@ -1559,7 +1550,7 @@ err:
 
 static int octeon_mgmt_remove(struct platform_device *pdev)
 {
-	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
+	struct net_device *netdev = platform_get_drvdata(pdev);
 
 	unregister_netdev(netdev);
 	free_netdev(netdev);

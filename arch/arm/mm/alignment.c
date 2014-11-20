@@ -25,8 +25,10 @@
 #include <asm/cp15.h>
 #include <asm/system_info.h>
 #include <asm/unaligned.h>
+#include <asm/opcodes.h>
 
 #include "fault.h"
+#include "mm.h"
 
 /*
  * 32-bit misaligned trap handler (c) 1998 San Mehat (CCC) -July 1998
@@ -39,6 +41,7 @@
  * This code is not portable to processors with late data abort handling.
  */
 #define CODING_BITS(i)	(i & 0x0e000000)
+#define COND_BITS(i)	(i & 0xf0000000)
 
 #define LDST_I_BIT(i)	(i & (1 << 26))		/* Immediate constant	*/
 #define LDST_P_BIT(i)	(i & (1 << 24))		/* Preindex		*/
@@ -74,12 +77,14 @@
 
 static unsigned long ai_user;
 static unsigned long ai_sys;
+static void *ai_sys_last_pc;
 static unsigned long ai_skipped;
 static unsigned long ai_half;
 static unsigned long ai_word;
 static unsigned long ai_dword;
 static unsigned long ai_multi;
 static int ai_usermode;
+static unsigned long cr_no_alignment;
 
 core_param(alignment, ai_usermode, int, 0600);
 
@@ -90,7 +95,7 @@ core_param(alignment, ai_usermode, int, 0600);
 /* Return true if and only if the ARMv6 unaligned access model is in use. */
 static bool cpu_is_v6_unaligned(void)
 {
-	return cpu_architecture() >= CPU_ARCH_ARMv6 && (cr_alignment & CR_U);
+	return cpu_architecture() >= CPU_ARCH_ARMv6 && get_cr() & CR_U;
 }
 
 static int safe_usermode(int new_usermode, bool warn)
@@ -127,7 +132,7 @@ static const char *usermode_action[] = {
 static int alignment_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "User:\t\t%lu\n", ai_user);
-	seq_printf(m, "System:\t\t%lu\n", ai_sys);
+	seq_printf(m, "System:\t\t%lu (%pF)\n", ai_sys, ai_sys_last_pc);
 	seq_printf(m, "Skipped:\t%lu\n", ai_skipped);
 	seq_printf(m, "Half:\t\t%lu\n", ai_half);
 	seq_printf(m, "Word:\t\t%lu\n", ai_word);
@@ -762,21 +767,25 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	if (thumb_mode(regs)) {
 		u16 *ptr = (u16 *)(instrptr & ~1);
 		fault = probe_kernel_address(ptr, tinstr);
+		tinstr = __mem_to_opcode_thumb16(tinstr);
 		if (!fault) {
 			if (cpu_architecture() >= CPU_ARCH_ARMv7 &&
 			    IS_T32(tinstr)) {
 				/* Thumb-2 32-bit */
 				u16 tinst2 = 0;
 				fault = probe_kernel_address(ptr + 1, tinst2);
-				instr = (tinstr << 16) | tinst2;
+				tinst2 = __mem_to_opcode_thumb16(tinst2);
+				instr = __opcode_thumb32_compose(tinstr, tinst2);
 				thumb2_32b = 1;
 			} else {
 				isize = 2;
 				instr = thumb2arm(tinstr);
 			}
 		}
-	} else
+	} else {
 		fault = probe_kernel_address(instrptr, instr);
+		instr = __mem_to_opcode_arm(instr);
+	}
 
 	if (fault) {
 		type = TYPE_FAULT;
@@ -787,6 +796,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		goto user;
 
 	ai_sys += 1;
+	ai_sys_last_pc = (void *)instruction_pointer(regs);
 
  fixup:
 
@@ -812,6 +822,8 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		break;
 
 	case 0x04000000:	/* ldr or str immediate */
+		if (COND_BITS(instr) == 0xf0000000) /* NEON VLDn, VSTn */
+			goto bad;
 		offset.un = OFFSET_BITS(instr);
 		handler = do_alignment_ldrstr;
 		break;
@@ -944,6 +956,13 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	return 0;
 }
 
+static int __init noalign_setup(char *__unused)
+{
+	set_cr(__clear_cr(CR_A));
+	return 1;
+}
+__setup("noalign", noalign_setup);
+
 /*
  * This needs to be done after sysctl_init, otherwise sys/ will be
  * overwritten.  Actually, this shouldn't be in sys/ at all since
@@ -962,11 +981,11 @@ static int __init alignment_init(void)
 #endif
 
 	if (cpu_is_v6_unaligned()) {
-		cr_alignment &= ~CR_A;
-		cr_no_alignment &= ~CR_A;
-		set_cr(cr_alignment);
+		set_cr(__clear_cr(CR_A));
 		ai_usermode = safe_usermode(ai_usermode, false);
 	}
+
+	cr_no_alignment = get_cr() & ~CR_A;
 
 	hook_fault_code(FAULT_CODE_ALIGNMENT, do_alignment, SIGBUS, BUS_ADRALN,
 			"alignment exception");

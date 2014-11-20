@@ -14,13 +14,13 @@ InterfaceWRM(struct bcm_interface_adapter *psIntfAdapter,
 			INT len);
 
 
-int InterfaceFileDownload( PVOID psIntfAdapter,
-                        struct file *flp,
-                        unsigned int on_chip_loc);
+int InterfaceFileDownload(PVOID psIntfAdapter,
+			struct file *flp,
+			unsigned int on_chip_loc);
 
-int InterfaceFileReadbackFromChip( PVOID psIntfAdapter,
-                        struct file *flp,
-                        unsigned int on_chip_loc);
+int InterfaceFileReadbackFromChip(PVOID psIntfAdapter,
+			struct file *flp,
+			unsigned int on_chip_loc);
 
 
 int BcmRDM(PVOID arg,
@@ -39,4 +39,4 @@ VOID Bcm_kill_all_URBs(struct bcm_interface_adapter *psIntfAdapter);
 
 #define DISABLE_USB_ZERO_LEN_INT 0x0F011878
 
-#endif // __INTERFACE_MISC_H
+#endif /* __INTERFACE_MISC_H */

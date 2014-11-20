@@ -14,7 +14,6 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
@@ -122,12 +121,13 @@ static void bfin_flash_copy_to(struct map_info *map, unsigned long to, const voi
 	switch_back(state);
 }
 
-static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", NULL };
+static const char * const part_probe_types[] = {
+	"cmdlinepart", "RedBoot", NULL };
 
 static int bfin_flash_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct physmap_flash_data *pdata = pdev->dev.platform_data;
+	struct physmap_flash_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *memory = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct resource *flash_ambctl = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	struct async_state *state;

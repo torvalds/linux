@@ -31,15 +31,17 @@ temperature) and throttle appropriate devices.
 1. thermal sysfs driver interface functions
 
 1.1 thermal zone device interface
-1.1.1 struct thermal_zone_device *thermal_zone_device_register(char *name,
+1.1.1 struct thermal_zone_device *thermal_zone_device_register(char *type,
 		int trips, int mask, void *devdata,
-		struct thermal_zone_device_ops *ops)
+		struct thermal_zone_device_ops *ops,
+		const struct thermal_zone_params *tzp,
+		int passive_delay, int polling_delay))
 
     This interface function adds a new thermal zone device (sensor) to
     /sys/class/thermal folder as thermal_zone[0-*]. It tries to bind all the
     thermal cooling devices registered at the same time.
 
-    name: the thermal zone name.
+    type: the thermal zone type.
     trips: the total number of trip points this thermal zone supports.
     mask: Bit string: If 'n'th bit is set, then trip point 'n' is writeable.
     devdata: device private data
@@ -57,6 +59,12 @@ temperature) and throttle appropriate devices.
 			will be fired.
 	.set_emul_temp: set the emulation temperature which helps in debugging
 			different threshold temperature points.
+    tzp: thermal zone platform parameters.
+    passive_delay: number of milliseconds to wait between polls when
+	performing passive cooling.
+    polling_delay: number of milliseconds to wait between polls when checking
+	whether trip points have been crossed (0 for interrupt driven systems).
+
 
 1.1.2 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
@@ -126,6 +134,13 @@ temperature) and throttle appropriate devices.
                this thermal zone and cdev, for a particular trip point.
                If nth bit is set, then the cdev and thermal zone are bound
                for trip point n.
+    .limits: This is an array of cooling state limits. Must have exactly
+         2 * thermal_zone.number_of_trip_points. It is an array consisting
+         of tuples <lower-state upper-state> of state limits. Each trip
+         will be associated with one state limit tuple when binding.
+         A NULL pointer means <THERMAL_NO_LIMITS THERMAL_NO_LIMITS>
+         on all trips. These limits are used when binding a cdev to a
+         trip point.
     .match: This call back returns success(0) if the 'tz and cdev' need to
 	    be bound, as per platform data.
 1.4.2 struct thermal_zone_params
@@ -134,6 +149,11 @@ temperature) and throttle appropriate devices.
     This is an optional feature where some platforms can choose not to
     provide this data.
     .governor_name: Name of the thermal governor used for this zone
+    .no_hwmon: a boolean to indicate if the thermal to hwmon sysfs interface
+               is required. when no_hwmon == false, a hwmon sysfs interface
+               will be created. when no_hwmon == true, nothing will be done.
+               In case the thermal_zone_params is NULL, the hwmon interface
+               will be created (for backward compatibility).
     .num_tbps: Number of thermal_bind_params entries for this zone
     .tbp: thermal_bind_params entries
 
@@ -265,6 +285,10 @@ emul_temp
 	Unit: millidegree Celsius
 	WO, Optional
 
+	  WARNING: Be careful while enabling this option on production systems,
+	  because userland can easily disable the thermal policy by simply
+	  flooding this sysfs node with low temperature values.
+
 *****************************
 * Cooling device attributes *
 *****************************
@@ -363,7 +387,7 @@ This function returns the thermal_instance corresponding to a given
 {thermal_zone, cooling_device, trip_point} combination. Returns NULL
 if such an instance does not exist.
 
-5.3:notify_thermal_framework:
+5.3:thermal_notify_framework:
 This function handles the trip events from sensor drivers. It starts
 throttling the cooling devices according to the policy configured.
 For CRITICAL and HOT trip points, this notifies the respective drivers,
@@ -375,11 +399,3 @@ platform data is provided, this uses the step_wise throttling policy.
 This function serves as an arbitrator to set the state of a cooling
 device. It sets the cooling device to the deepest cooling state if
 possible.
-
-5.5:thermal_register_governor:
-This function lets the various thermal governors to register themselves
-with the Thermal framework. At run time, depending on a zone's platform
-data, a particular governor is used for throttling.
-
-5.6:thermal_unregister_governor:
-This function unregisters a governor from the thermal framework.

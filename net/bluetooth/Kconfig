@@ -39,6 +39,12 @@ menuconfig BT
 	  to Bluetooth kernel modules are provided in the BlueZ packages.  For
 	  more information, see <http://www.bluez.org/>.
 
+config BT_6LOWPAN
+	tristate "Bluetooth 6LoWPAN support"
+	depends on BT && 6LOWPAN
+	help
+	  IPv6 compression over Bluetooth Low Energy.
+
 source "net/bluetooth/rfcomm/Kconfig"
 
 source "net/bluetooth/bnep/Kconfig"

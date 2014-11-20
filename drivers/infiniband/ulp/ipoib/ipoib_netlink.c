@@ -31,6 +31,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <linux/if_arp.h>      /* For ARPHRD_xxx */
 #include <linux/module.h>
 #include <net/rtnetlink.h>
 #include "ipoib.h"
@@ -103,7 +104,7 @@ static int ipoib_new_child_link(struct net *src_net, struct net_device *dev,
 		return -EINVAL;
 
 	pdev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
-	if (!pdev)
+	if (!pdev || pdev->type != ARPHRD_INFINIBAND)
 		return -ENODEV;
 
 	ppriv = netdev_priv(pdev);
@@ -119,6 +120,15 @@ static int ipoib_new_child_link(struct net *src_net, struct net_device *dev,
 	} else
 		child_pkey  = nla_get_u16(data[IFLA_IPOIB_PKEY]);
 
+	if (child_pkey == 0 || child_pkey == 0x8000)
+		return -EINVAL;
+
+	/*
+	 * Set the full membership bit, so that we join the right
+	 * broadcast group, etc.
+	 */
+	child_pkey |= 0x8000;
+
 	err = __ipoib_vlan_add(ppriv, netdev_priv(dev), child_pkey, IPOIB_RTNL_CHILD);
 
 	if (!err && data)
@@ -133,10 +143,10 @@ static void ipoib_unregister_child_dev(struct net_device *dev, struct list_head 
 	priv = netdev_priv(dev);
 	ppriv = netdev_priv(priv->parent);
 
-	mutex_lock(&ppriv->vlan_mutex);
+	down_write(&ppriv->vlan_rwsem);
 	unregister_netdevice_queue(dev, head);
 	list_del(&priv->list);
-	mutex_unlock(&ppriv->vlan_mutex);
+	up_write(&ppriv->vlan_rwsem);
 }
 
 static size_t ipoib_get_size(const struct net_device *dev)

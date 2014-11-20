@@ -33,7 +33,7 @@ struct clk_icst {
 	struct clk_hw hw;
 	void __iomem *vcoreg;
 	void __iomem *lockreg;
-	const struct icst_params *params;
+	struct icst_params *params;
 	unsigned long rate;
 };
 
@@ -84,6 +84,8 @@ static unsigned long icst_recalc_rate(struct clk_hw *hw,
 	struct clk_icst *icst = to_icst(hw);
 	struct icst_vco vco;
 
+	if (parent_rate)
+		icst->params->ref = parent_rate;
 	vco = vco_get(icst->vcoreg);
 	icst->rate = icst_hz(icst->params, vco);
 	return icst->rate;
@@ -105,9 +107,11 @@ static int icst_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_icst *icst = to_icst(hw);
 	struct icst_vco vco;
 
+	if (parent_rate)
+		icst->params->ref = parent_rate;
 	vco = icst_hz_to_vco(icst->params, rate);
 	icst->rate = icst_hz(icst->params, vco);
-	vco_set(icst->vcoreg, icst->lockreg, vco);
+	vco_set(icst->lockreg, icst->vcoreg, vco);
 	return 0;
 }
 
@@ -119,24 +123,35 @@ static const struct clk_ops icst_ops = {
 
 struct clk *icst_clk_register(struct device *dev,
 			const struct clk_icst_desc *desc,
+			const char *name,
+			const char *parent_name,
 			void __iomem *base)
 {
 	struct clk *clk;
 	struct clk_icst *icst;
 	struct clk_init_data init;
+	struct icst_params *pclone;
 
 	icst = kzalloc(sizeof(struct clk_icst), GFP_KERNEL);
 	if (!icst) {
 		pr_err("could not allocate ICST clock!\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	init.name = "icst";
+
+	pclone = kmemdup(desc->params, sizeof(*pclone), GFP_KERNEL);
+	if (!pclone) {
+		kfree(icst);
+		pr_err("could not clone ICST params\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	init.name = name;
 	init.ops = &icst_ops;
 	init.flags = CLK_IS_ROOT;
-	init.parent_names = NULL;
-	init.num_parents = 0;
+	init.parent_names = (parent_name ? &parent_name : NULL);
+	init.num_parents = (parent_name ? 1 : 0);
 	icst->hw.init = &init;
-	icst->params = desc->params;
+	icst->params = pclone;
 	icst->vcoreg = base + desc->vco_offset;
 	icst->lockreg = base + desc->lock_offset;
 
@@ -146,3 +161,4 @@ struct clk *icst_clk_register(struct device *dev,
 
 	return clk;
 }
+EXPORT_SYMBOL_GPL(icst_clk_register);

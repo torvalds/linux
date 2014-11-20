@@ -674,7 +674,7 @@ receive_emsg(struct IsdnCardState *cs)
 					ptr--;
 					*ptr++ = '\n';
 					*ptr = 0;
-					HiSax_putstatus(cs, NULL, cs->dlog);
+					HiSax_putstatus(cs, NULL, "%s", cs->dlog);
 				} else
 					HiSax_putstatus(cs, "LogEcho: ", "warning Frame too big (%d)", skb->len);
 			}
@@ -1479,7 +1479,7 @@ int setup_hfcsx(struct IsdnCard *card)
 			release_region(cs->hw.hfcsx.base, 2);
 			return (0);
 		}
-		if (!(cs->hw.hfcsx.extra = (void *)
+		if (!(cs->hw.hfcsx.extra =
 		      kmalloc(sizeof(struct hfcsx_extra), GFP_ATOMIC))) {
 			release_region(cs->hw.hfcsx.base, 2);
 			printk(KERN_WARNING "HFC-SX: unable to allocate memory\n");

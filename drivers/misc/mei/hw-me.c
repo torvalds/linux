@@ -20,20 +20,20 @@
 #include <linux/interrupt.h>
 
 #include "mei_dev.h"
-#include "hw-me.h"
-
 #include "hbm.h"
 
+#include "hw-me.h"
+#include "hw-me-regs.h"
 
 /**
- * mei_reg_read - Reads 32bit data from the mei device
+ * mei_me_reg_read - Reads 32bit data from the mei device
  *
- * @dev: the device structure
+ * @hw: the me hardware structure
  * @offset: offset from which to read the data
  *
- * returns register value (u32)
+ * Return: register value (u32)
  */
-static inline u32 mei_reg_read(const struct mei_me_hw *hw,
+static inline u32 mei_me_reg_read(const struct mei_me_hw *hw,
 			       unsigned long offset)
 {
 	return ioread32(hw->mem_addr + offset);
@@ -41,80 +41,130 @@ static inline u32 mei_reg_read(const struct mei_me_hw *hw,
 
 
 /**
- * mei_reg_write - Writes 32bit data to the mei device
+ * mei_me_reg_write - Writes 32bit data to the mei device
  *
- * @dev: the device structure
+ * @hw: the me hardware structure
  * @offset: offset from which to write the data
  * @value: register value to write (u32)
  */
-static inline void mei_reg_write(const struct mei_me_hw *hw,
+static inline void mei_me_reg_write(const struct mei_me_hw *hw,
 				 unsigned long offset, u32 value)
 {
 	iowrite32(value, hw->mem_addr + offset);
 }
 
 /**
- * mei_mecbrw_read - Reads 32bit data from ME circular buffer
+ * mei_me_mecbrw_read - Reads 32bit data from ME circular buffer
  *  read window register
  *
  * @dev: the device structure
  *
- * returns ME_CB_RW register value (u32)
+ * Return: ME_CB_RW register value (u32)
  */
 static u32 mei_me_mecbrw_read(const struct mei_device *dev)
 {
-	return mei_reg_read(to_me_hw(dev), ME_CB_RW);
+	return mei_me_reg_read(to_me_hw(dev), ME_CB_RW);
 }
 /**
- * mei_mecsr_read - Reads 32bit data from the ME CSR
+ * mei_me_mecsr_read - Reads 32bit data from the ME CSR
  *
- * @dev: the device structure
+ * @hw: the me hardware structure
  *
- * returns ME_CSR_HA register value (u32)
+ * Return: ME_CSR_HA register value (u32)
  */
-static inline u32 mei_mecsr_read(const struct mei_me_hw *hw)
+static inline u32 mei_me_mecsr_read(const struct mei_me_hw *hw)
 {
-	return mei_reg_read(hw, ME_CSR_HA);
+	return mei_me_reg_read(hw, ME_CSR_HA);
 }
 
 /**
  * mei_hcsr_read - Reads 32bit data from the host CSR
  *
- * @dev: the device structure
+ * @hw: the me hardware structure
  *
- * returns H_CSR register value (u32)
+ * Return: H_CSR register value (u32)
  */
 static inline u32 mei_hcsr_read(const struct mei_me_hw *hw)
 {
-	return mei_reg_read(hw, H_CSR);
+	return mei_me_reg_read(hw, H_CSR);
 }
 
 /**
  * mei_hcsr_set - writes H_CSR register to the mei device,
  * and ignores the H_IS bit for it is write-one-to-zero.
  *
- * @dev: the device structure
+ * @hw: the me hardware structure
+ * @hcsr: new register value
  */
 static inline void mei_hcsr_set(struct mei_me_hw *hw, u32 hcsr)
 {
 	hcsr &= ~H_IS;
-	mei_reg_write(hw, H_CSR, hcsr);
+	mei_me_reg_write(hw, H_CSR, hcsr);
 }
 
+/**
+ * mei_me_fw_status - read fw status register from pci config space
+ *
+ * @dev: mei device
+ * @fw_status: fw status register values
+ *
+ * Return: 0 on success, error otherwise
+ */
+static int mei_me_fw_status(struct mei_device *dev,
+			    struct mei_fw_status *fw_status)
+{
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct mei_me_hw *hw = to_me_hw(dev);
+	const struct mei_fw_status *fw_src = &hw->cfg->fw_status;
+	int ret;
+	int i;
+
+	if (!fw_status)
+		return -EINVAL;
+
+	fw_status->count = fw_src->count;
+	for (i = 0; i < fw_src->count && i < MEI_FW_STATUS_MAX; i++) {
+		ret = pci_read_config_dword(pdev,
+			fw_src->status[i], &fw_status->status[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
 
 /**
- * me_hw_config - configure hw dependent settings
+ * mei_me_hw_config - configure hw dependent settings
  *
  * @dev: mei device
  */
 static void mei_me_hw_config(struct mei_device *dev)
 {
+	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(to_me_hw(dev));
 	/* Doesn't change in runtime */
 	dev->hbuf_depth = (hcsr & H_CBD) >> 24;
+
+	hw->pg_state = MEI_PG_OFF;
 }
+
 /**
- * mei_clear_interrupts - clear and stop interrupts
+ * mei_me_pg_state  - translate internal pg state
+ *   to the mei power gating state
+ *
+ * @dev:  mei device
+ *
+ * Return: MEI_PG_OFF if aliveness is on and MEI_PG_ON otherwise
+ */
+static inline enum mei_pg_state mei_me_pg_state(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+
+	return hw->pg_state;
+}
+
+/**
+ * mei_me_intr_clear - clear and stop interrupts
  *
  * @dev: the device structure
  */
@@ -122,8 +172,9 @@ static void mei_me_intr_clear(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(hw);
+
 	if ((hcsr & H_IS) == H_IS)
-		mei_reg_write(hw, H_CSR, hcsr);
+		mei_me_reg_write(hw, H_CSR, hcsr);
 }
 /**
  * mei_me_intr_enable - enables mei device interrupts
@@ -134,12 +185,13 @@ static void mei_me_intr_enable(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(hw);
+
 	hcsr |= H_IE;
 	mei_hcsr_set(hw, hcsr);
 }
 
 /**
- * mei_disable_interrupts - disables mei device interrupts
+ * mei_me_intr_disable - disables mei device interrupts
  *
  * @dev: the device structure
  */
@@ -147,6 +199,7 @@ static void mei_me_intr_disable(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(hw);
+
 	hcsr  &= ~H_IE;
 	mei_hcsr_set(hw, hcsr);
 }
@@ -164,57 +217,75 @@ static void mei_me_hw_reset_release(struct mei_device *dev)
 	hcsr |= H_IG;
 	hcsr &= ~H_RST;
 	mei_hcsr_set(hw, hcsr);
+
+	/* complete this write before we set host ready on another CPU */
+	mmiowb();
 }
 /**
  * mei_me_hw_reset - resets fw via mei csr register.
  *
  * @dev: the device structure
- * @interrupts_enabled: if interrupt should be enabled after reset.
+ * @intr_enable: if interrupt should be enabled after reset.
+ *
+ * Return: always 0
  */
-static void mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
+static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(hw);
 
-	dev_dbg(&dev->pdev->dev, "before reset HCSR = 0x%08x.\n", hcsr);
-
-	hcsr |= (H_RST | H_IG);
+	hcsr |= H_RST | H_IG | H_IS;
 
 	if (intr_enable)
 		hcsr |= H_IE;
 	else
-		hcsr |= ~H_IE;
+		hcsr &= ~H_IE;
 
-	mei_hcsr_set(hw, hcsr);
+	dev->recvd_hw_ready = false;
+	mei_me_reg_write(hw, H_CSR, hcsr);
 
-	if (dev->dev_state == MEI_DEV_POWER_DOWN)
+	/*
+	 * Host reads the H_CSR once to ensure that the
+	 * posted write to H_CSR completes.
+	 */
+	hcsr = mei_hcsr_read(hw);
+
+	if ((hcsr & H_RST) == 0)
+		dev_warn(dev->dev, "H_RST is not set = 0x%08X", hcsr);
+
+	if ((hcsr & H_RDY) == H_RDY)
+		dev_warn(dev->dev, "H_RDY is not cleared 0x%08X", hcsr);
+
+	if (intr_enable == false)
 		mei_me_hw_reset_release(dev);
 
-	dev_dbg(&dev->pdev->dev, "current HCSR = 0x%08x.\n", mei_hcsr_read(hw));
+	return 0;
 }
 
 /**
  * mei_me_host_set_ready - enable device
  *
- * @dev - mei device
- * returns bool
+ * @dev: mei device
  */
-
 static void mei_me_host_set_ready(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+
+	hw->host_hw_state = mei_hcsr_read(hw);
 	hw->host_hw_state |= H_IE | H_IG | H_RDY;
 	mei_hcsr_set(hw, hw->host_hw_state);
 }
+
 /**
  * mei_me_host_is_ready - check whether the host has turned ready
  *
- * @dev - mei device
- * returns bool
+ * @dev: mei device
+ * Return: bool
  */
 static bool mei_me_host_is_ready(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+
 	hw->host_hw_state = mei_hcsr_read(hw);
 	return (hw->host_hw_state & H_RDY) == H_RDY;
 }
@@ -222,22 +293,65 @@ static bool mei_me_host_is_ready(struct mei_device *dev)
 /**
  * mei_me_hw_is_ready - check whether the me(hw) has turned ready
  *
- * @dev - mei device
- * returns bool
+ * @dev: mei device
+ * Return: bool
  */
 static bool mei_me_hw_is_ready(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
-	hw->me_hw_state = mei_mecsr_read(hw);
+
+	hw->me_hw_state = mei_me_mecsr_read(hw);
 	return (hw->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA;
 }
+
+/**
+ * mei_me_hw_ready_wait - wait until the me(hw) has turned ready
+ *  or timeout is reached
+ *
+ * @dev: mei device
+ * Return: 0 on success, error otherwise
+ */
+static int mei_me_hw_ready_wait(struct mei_device *dev)
+{
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(dev->wait_hw_ready,
+			dev->recvd_hw_ready,
+			mei_secs_to_jiffies(MEI_HW_READY_TIMEOUT));
+	mutex_lock(&dev->device_lock);
+	if (!dev->recvd_hw_ready) {
+		dev_err(dev->dev, "wait hw ready failed\n");
+		return -ETIME;
+	}
+
+	dev->recvd_hw_ready = false;
+	return 0;
+}
+
+/**
+ * mei_me_hw_start - hw start routine
+ *
+ * @dev: mei device
+ * Return: 0 on success, error otherwise
+ */
+static int mei_me_hw_start(struct mei_device *dev)
+{
+	int ret = mei_me_hw_ready_wait(dev);
+
+	if (ret)
+		return ret;
+	dev_dbg(dev->dev, "hw is ready\n");
+
+	mei_me_host_set_ready(dev);
+	return ret;
+}
+
 
 /**
  * mei_hbuf_filled_slots - gets number of device filled buffer slots
  *
  * @dev: the device structure
  *
- * returns number of filled slots
+ * Return: number of filled slots
  */
 static unsigned char mei_hbuf_filled_slots(struct mei_device *dev)
 {
@@ -253,11 +367,11 @@ static unsigned char mei_hbuf_filled_slots(struct mei_device *dev)
 }
 
 /**
- * mei_hbuf_is_empty - checks if host buffer is empty.
+ * mei_me_hbuf_is_empty - checks if host buffer is empty.
  *
  * @dev: the device structure
  *
- * returns true if empty, false - otherwise.
+ * Return: true if empty, false - otherwise.
  */
 static bool mei_me_hbuf_is_empty(struct mei_device *dev)
 {
@@ -269,7 +383,7 @@ static bool mei_me_hbuf_is_empty(struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * returns -1(ESLOTS_OVERFLOW) if overflow, otherwise empty slots count
+ * Return: -EOVERFLOW if overflow, otherwise empty slots count
  */
 static int mei_me_hbuf_empty_slots(struct mei_device *dev)
 {
@@ -285,6 +399,13 @@ static int mei_me_hbuf_empty_slots(struct mei_device *dev)
 	return empty_slots;
 }
 
+/**
+ * mei_me_hbuf_max_len - returns size of hw buffer.
+ *
+ * @dev: the device structure
+ *
+ * Return: size of hw buffer in bytes
+ */
 static size_t mei_me_hbuf_max_len(const struct mei_device *dev)
 {
 	return dev->hbuf_depth * sizeof(u32) - sizeof(struct mei_msg_hdr);
@@ -292,45 +413,47 @@ static size_t mei_me_hbuf_max_len(const struct mei_device *dev)
 
 
 /**
- * mei_write_message - writes a message to mei device.
+ * mei_me_write_message - writes a message to mei device.
  *
  * @dev: the device structure
  * @header: mei HECI header of message
  * @buf: message payload will be written
  *
- * This function returns -EIO if write has failed
+ * Return: -EIO if write has failed
  */
 static int mei_me_write_message(struct mei_device *dev,
 			struct mei_msg_hdr *header,
 			unsigned char *buf)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
-	unsigned long rem, dw_cnt;
+	unsigned long rem;
 	unsigned long length = header->length;
 	u32 *reg_buf = (u32 *)buf;
 	u32 hcsr;
+	u32 dw_cnt;
 	int i;
 	int empty_slots;
 
-	dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
+	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM(header));
 
 	empty_slots = mei_hbuf_empty_slots(dev);
-	dev_dbg(&dev->pdev->dev, "empty slots = %hu.\n", empty_slots);
+	dev_dbg(dev->dev, "empty slots = %hu.\n", empty_slots);
 
 	dw_cnt = mei_data2slots(length);
 	if (empty_slots < 0 || dw_cnt > empty_slots)
-		return -EIO;
+		return -EMSGSIZE;
 
-	mei_reg_write(hw, H_CB_WW, *((u32 *) header));
+	mei_me_reg_write(hw, H_CB_WW, *((u32 *) header));
 
 	for (i = 0; i < length / 4; i++)
-		mei_reg_write(hw, H_CB_WW, reg_buf[i]);
+		mei_me_reg_write(hw, H_CB_WW, reg_buf[i]);
 
 	rem = length & 0x3;
 	if (rem > 0) {
 		u32 reg = 0;
+
 		memcpy(&reg, &buf[length - rem], rem);
-		mei_reg_write(hw, H_CB_WW, reg);
+		mei_me_reg_write(hw, H_CB_WW, reg);
 	}
 
 	hcsr = mei_hcsr_read(hw) | H_IG;
@@ -346,7 +469,7 @@ static int mei_me_write_message(struct mei_device *dev,
  *
  * @dev: the device structure
  *
- * returns -1(ESLOTS_OVERFLOW) if overflow, otherwise filled slots count
+ * Return: -EOVERFLOW if overflow, otherwise filled slots count
  */
 static int mei_me_count_full_read_slots(struct mei_device *dev)
 {
@@ -354,7 +477,7 @@ static int mei_me_count_full_read_slots(struct mei_device *dev)
 	char read_ptr, write_ptr;
 	unsigned char buffer_depth, filled_slots;
 
-	hw->me_hw_state = mei_mecsr_read(hw);
+	hw->me_hw_state = mei_me_mecsr_read(hw);
 	buffer_depth = (unsigned char)((hw->me_hw_state & ME_CBD_HRA) >> 24);
 	read_ptr = (char) ((hw->me_hw_state & ME_CBRP_HRA) >> 8);
 	write_ptr = (char) ((hw->me_hw_state & ME_CBWP_HRA) >> 16);
@@ -364,7 +487,7 @@ static int mei_me_count_full_read_slots(struct mei_device *dev)
 	if (filled_slots > buffer_depth)
 		return -EOVERFLOW;
 
-	dev_dbg(&dev->pdev->dev, "filled_slots =%08x\n", filled_slots);
+	dev_dbg(dev->dev, "filled_slots =%08x\n", filled_slots);
 	return (int)filled_slots;
 }
 
@@ -374,6 +497,8 @@ static int mei_me_count_full_read_slots(struct mei_device *dev)
  * @dev: the device structure
  * @buffer: message buffer will be written
  * @buffer_length: message size will be read
+ *
+ * Return: always 0
  */
 static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 		    unsigned long buffer_length)
@@ -387,6 +512,7 @@ static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 
 	if (buffer_length > 0) {
 		u32 reg = mei_me_mecbrw_read(dev);
+
 		memcpy(reg_buf, &reg, buffer_length);
 	}
 
@@ -396,12 +522,147 @@ static int mei_me_read_slots(struct mei_device *dev, unsigned char *buffer,
 }
 
 /**
+ * mei_me_pg_enter - write pg enter register
+ *
+ * @dev: the device structure
+ */
+static void mei_me_pg_enter(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 reg = mei_me_reg_read(hw, H_HPG_CSR);
+
+	reg |= H_HPG_CSR_PGI;
+	mei_me_reg_write(hw, H_HPG_CSR, reg);
+}
+
+/**
+ * mei_me_pg_exit - write pg exit register
+ *
+ * @dev: the device structure
+ */
+static void mei_me_pg_exit(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 reg = mei_me_reg_read(hw, H_HPG_CSR);
+
+	WARN(!(reg & H_HPG_CSR_PGI), "PGI is not set\n");
+
+	reg |= H_HPG_CSR_PGIHEXR;
+	mei_me_reg_write(hw, H_HPG_CSR, reg);
+}
+
+/**
+ * mei_me_pg_set_sync - perform pg entry procedure
+ *
+ * @dev: the device structure
+ *
+ * Return: 0 on success an error code otherwise
+ */
+int mei_me_pg_set_sync(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	unsigned long timeout = mei_secs_to_jiffies(MEI_PGI_TIMEOUT);
+	int ret;
+
+	dev->pg_event = MEI_PG_EVENT_WAIT;
+
+	ret = mei_hbm_pg(dev, MEI_PG_ISOLATION_ENTRY_REQ_CMD);
+	if (ret)
+		return ret;
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(dev->wait_pg,
+		dev->pg_event == MEI_PG_EVENT_RECEIVED, timeout);
+	mutex_lock(&dev->device_lock);
+
+	if (dev->pg_event == MEI_PG_EVENT_RECEIVED) {
+		mei_me_pg_enter(dev);
+		ret = 0;
+	} else {
+		ret = -ETIME;
+	}
+
+	dev->pg_event = MEI_PG_EVENT_IDLE;
+	hw->pg_state = MEI_PG_ON;
+
+	return ret;
+}
+
+/**
+ * mei_me_pg_unset_sync - perform pg exit procedure
+ *
+ * @dev: the device structure
+ *
+ * Return: 0 on success an error code otherwise
+ */
+int mei_me_pg_unset_sync(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	unsigned long timeout = mei_secs_to_jiffies(MEI_PGI_TIMEOUT);
+	int ret;
+
+	if (dev->pg_event == MEI_PG_EVENT_RECEIVED)
+		goto reply;
+
+	dev->pg_event = MEI_PG_EVENT_WAIT;
+
+	mei_me_pg_exit(dev);
+
+	mutex_unlock(&dev->device_lock);
+	wait_event_timeout(dev->wait_pg,
+		dev->pg_event == MEI_PG_EVENT_RECEIVED, timeout);
+	mutex_lock(&dev->device_lock);
+
+reply:
+	if (dev->pg_event == MEI_PG_EVENT_RECEIVED)
+		ret = mei_hbm_pg(dev, MEI_PG_ISOLATION_EXIT_RES_CMD);
+	else
+		ret = -ETIME;
+
+	dev->pg_event = MEI_PG_EVENT_IDLE;
+	hw->pg_state = MEI_PG_OFF;
+
+	return ret;
+}
+
+/**
+ * mei_me_pg_is_enabled - detect if PG is supported by HW
+ *
+ * @dev: the device structure
+ *
+ * Return: true is pg supported, false otherwise
+ */
+static bool mei_me_pg_is_enabled(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 reg = mei_me_reg_read(hw, ME_CSR_HA);
+
+	if ((reg & ME_PGIC_HRA) == 0)
+		goto notsupported;
+
+	if (!dev->hbm_f_pg_supported)
+		goto notsupported;
+
+	return true;
+
+notsupported:
+	dev_dbg(dev->dev, "pg: not supported: HGP = %d hbm version %d.%d ?= %d.%d\n",
+		!!(reg & ME_PGIC_HRA),
+		dev->version.major_version,
+		dev->version.minor_version,
+		HBM_MAJOR_VERSION_PGI,
+		HBM_MINOR_VERSION_PGI);
+
+	return false;
+}
+
+/**
  * mei_me_irq_quick_handler - The ISR of the MEI device
  *
  * @irq: The irq number
  * @dev_id: pointer to the device structure
  *
- * returns irqreturn_t
+ * Return: irqreturn_t
  */
 
 irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id)
@@ -414,7 +675,7 @@ irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	/* clear H_IS bit in H_CSR */
-	mei_reg_write(hw, H_CSR, csr_reg);
+	mei_me_reg_write(hw, H_CSR, csr_reg);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -426,117 +687,99 @@ irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id)
  * @irq: The irq number
  * @dev_id: pointer to the device structure
  *
- * returns irqreturn_t
+ * Return: irqreturn_t
  *
  */
 irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 {
 	struct mei_device *dev = (struct mei_device *) dev_id;
 	struct mei_cl_cb complete_list;
-	struct mei_cl_cb *cb_pos = NULL, *cb_next = NULL;
-	struct mei_cl *cl;
 	s32 slots;
-	int rets;
-	bool  bus_message_received;
+	int rets = 0;
 
-
-	dev_dbg(&dev->pdev->dev, "function called after ISR to handle the interrupt processing.\n");
+	dev_dbg(dev->dev, "function called after ISR to handle the interrupt processing.\n");
 	/* initialize our complete list */
 	mutex_lock(&dev->device_lock);
 	mei_io_list_init(&complete_list);
 
 	/* Ack the interrupt here
 	 * In case of MSI we don't go through the quick handler */
-	if (pci_dev_msi_enabled(dev->pdev))
+	if (pci_dev_msi_enabled(to_pci_dev(dev->dev)))
 		mei_clear_interrupts(dev);
 
 	/* check if ME wants a reset */
-	if (!mei_hw_is_ready(dev) &&
-	    dev->dev_state != MEI_DEV_RESETING &&
-	    dev->dev_state != MEI_DEV_INITIALIZING) {
-		dev_dbg(&dev->pdev->dev, "FW not ready.\n");
-		mei_reset(dev, 1);
-		mutex_unlock(&dev->device_lock);
-		return IRQ_HANDLED;
+	if (!mei_hw_is_ready(dev) && dev->dev_state != MEI_DEV_RESETTING) {
+		dev_warn(dev->dev, "FW not ready: resetting.\n");
+		schedule_work(&dev->reset_work);
+		goto end;
 	}
 
 	/*  check if we need to start the dev */
 	if (!mei_host_is_ready(dev)) {
 		if (mei_hw_is_ready(dev)) {
-			dev_dbg(&dev->pdev->dev, "we need to start the dev.\n");
-
-			mei_host_set_ready(dev);
-
-			dev_dbg(&dev->pdev->dev, "link is established start sending messages.\n");
-			/* link is established * start sending messages.  */
-
-			dev->dev_state = MEI_DEV_INIT_CLIENTS;
-
-			mei_hbm_start_req(dev);
-			mutex_unlock(&dev->device_lock);
-			return IRQ_HANDLED;
-		} else {
-			dev_dbg(&dev->pdev->dev, "Reset Completed.\n");
 			mei_me_hw_reset_release(dev);
-			mutex_unlock(&dev->device_lock);
-			return IRQ_HANDLED;
+			dev_dbg(dev->dev, "we need to start the dev.\n");
+
+			dev->recvd_hw_ready = true;
+			wake_up(&dev->wait_hw_ready);
+		} else {
+			dev_dbg(dev->dev, "Spurious Interrupt\n");
 		}
+		goto end;
 	}
 	/* check slots available for reading */
 	slots = mei_count_full_read_slots(dev);
 	while (slots > 0) {
-		/* we have urgent data to send so break the read */
-		if (dev->wr_ext_msg.hdr.length)
-			break;
-		dev_dbg(&dev->pdev->dev, "slots =%08x\n", slots);
-		dev_dbg(&dev->pdev->dev, "call mei_irq_read_handler.\n");
+		dev_dbg(dev->dev, "slots to read = %08x\n", slots);
 		rets = mei_irq_read_handler(dev, &complete_list, &slots);
-		if (rets)
+		/* There is a race between ME write and interrupt delivery:
+		 * Not all data is always available immediately after the
+		 * interrupt, so try to read again on the next interrupt.
+		 */
+		if (rets == -ENODATA)
+			break;
+
+		if (rets && dev->dev_state != MEI_DEV_RESETTING) {
+			dev_err(dev->dev, "mei_irq_read_handler ret = %d.\n",
+						rets);
+			schedule_work(&dev->reset_work);
 			goto end;
-	}
-	rets = mei_irq_write_handler(dev, &complete_list);
-end:
-	dev_dbg(&dev->pdev->dev, "end of bottom half function.\n");
-	dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
-
-	bus_message_received = false;
-	if (dev->recvd_msg && waitqueue_active(&dev->wait_recvd_msg)) {
-		dev_dbg(&dev->pdev->dev, "received waiting bus message\n");
-		bus_message_received = true;
-	}
-	mutex_unlock(&dev->device_lock);
-	if (bus_message_received) {
-		dev_dbg(&dev->pdev->dev, "wake up dev->wait_recvd_msg\n");
-		wake_up_interruptible(&dev->wait_recvd_msg);
-		bus_message_received = false;
-	}
-	if (list_empty(&complete_list.list))
-		return IRQ_HANDLED;
-
-
-	list_for_each_entry_safe(cb_pos, cb_next, &complete_list.list, list) {
-		cl = cb_pos->cl;
-		list_del(&cb_pos->list);
-		if (cl) {
-			if (cl != &dev->iamthif_cl) {
-				dev_dbg(&dev->pdev->dev, "completing call back.\n");
-				mei_irq_complete_handler(cl, cb_pos);
-				cb_pos = NULL;
-			} else if (cl == &dev->iamthif_cl) {
-				mei_amthif_complete(dev, cb_pos);
-			}
 		}
 	}
+
+	dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
+
+	/*
+	 * During PG handshake only allowed write is the replay to the
+	 * PG exit message, so block calling write function
+	 * if the pg state is not idle
+	 */
+	if (dev->pg_event == MEI_PG_EVENT_IDLE) {
+		rets = mei_irq_write_handler(dev, &complete_list);
+		dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
+	}
+
+	mei_irq_compl_handler(dev, &complete_list);
+
+end:
+	dev_dbg(dev->dev, "interrupt thread end ret = %d\n", rets);
+	mutex_unlock(&dev->device_lock);
 	return IRQ_HANDLED;
 }
+
 static const struct mei_hw_ops mei_me_hw_ops = {
 
-	.host_set_ready = mei_me_host_set_ready,
+	.fw_status = mei_me_fw_status,
+	.pg_state  = mei_me_pg_state,
+
 	.host_is_ready = mei_me_host_is_ready,
 
 	.hw_is_ready = mei_me_hw_is_ready,
 	.hw_reset = mei_me_hw_reset,
-	.hw_config  = mei_me_hw_config,
+	.hw_config = mei_me_hw_config,
+	.hw_start = mei_me_hw_start,
+
+	.pg_is_enabled = mei_me_pg_is_enabled,
 
 	.intr_clear = mei_me_intr_clear,
 	.intr_enable = mei_me_intr_enable,
@@ -553,35 +796,94 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 	.read = mei_me_read_slots
 };
 
+static bool mei_me_fw_type_nm(struct pci_dev *pdev)
+{
+	u32 reg;
+
+	pci_read_config_dword(pdev, PCI_CFG_HFS_2, &reg);
+	/* make sure that bit 9 (NM) is up and bit 10 (DM) is down */
+	return (reg & 0x600) == 0x200;
+}
+
+#define MEI_CFG_FW_NM                           \
+	.quirk_probe = mei_me_fw_type_nm
+
+static bool mei_me_fw_type_sps(struct pci_dev *pdev)
+{
+	u32 reg;
+	/* Read ME FW Status check for SPS Firmware */
+	pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
+	/* if bits [19:16] = 15, running SPS Firmware */
+	return (reg & 0xf0000) == 0xf0000;
+}
+
+#define MEI_CFG_FW_SPS                           \
+	.quirk_probe = mei_me_fw_type_sps
+
+
+#define MEI_CFG_LEGACY_HFS                      \
+	.fw_status.count = 0
+
+#define MEI_CFG_ICH_HFS                        \
+	.fw_status.count = 1,                   \
+	.fw_status.status[0] = PCI_CFG_HFS_1
+
+#define MEI_CFG_PCH_HFS                         \
+	.fw_status.count = 2,                   \
+	.fw_status.status[0] = PCI_CFG_HFS_1,   \
+	.fw_status.status[1] = PCI_CFG_HFS_2
+
+
+/* ICH Legacy devices */
+const struct mei_cfg mei_me_legacy_cfg = {
+	MEI_CFG_LEGACY_HFS,
+};
+
+/* ICH devices */
+const struct mei_cfg mei_me_ich_cfg = {
+	MEI_CFG_ICH_HFS,
+};
+
+/* PCH devices */
+const struct mei_cfg mei_me_pch_cfg = {
+	MEI_CFG_PCH_HFS,
+};
+
+
+/* PCH Cougar Point and Patsburg with quirk for Node Manager exclusion */
+const struct mei_cfg mei_me_pch_cpt_pbg_cfg = {
+	MEI_CFG_PCH_HFS,
+	MEI_CFG_FW_NM,
+};
+
+/* PCH Lynx Point with quirk for SPS Firmware exclusion */
+const struct mei_cfg mei_me_lpt_cfg = {
+	MEI_CFG_PCH_HFS,
+	MEI_CFG_FW_SPS,
+};
+
 /**
- * init_mei_device - allocates and initializes the mei device structure
+ * mei_me_dev_init - allocates and initializes the mei device structure
  *
  * @pdev: The pci device structure
+ * @cfg: per device generation config
  *
- * returns The mei_device_device pointer on success, NULL on failure.
+ * Return: The mei_device_device pointer on success, NULL on failure.
  */
-struct mei_device *mei_me_dev_init(struct pci_dev *pdev)
+struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
+				   const struct mei_cfg *cfg)
 {
 	struct mei_device *dev;
+	struct mei_me_hw *hw;
 
 	dev = kzalloc(sizeof(struct mei_device) +
 			 sizeof(struct mei_me_hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
+	hw = to_me_hw(dev);
 
-	mei_device_init(dev);
-
-	INIT_LIST_HEAD(&dev->wd_cl.link);
-	INIT_LIST_HEAD(&dev->iamthif_cl.link);
-	mei_io_list_init(&dev->amthif_cmd_list);
-	mei_io_list_init(&dev->amthif_rd_complete_list);
-
-	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
-	INIT_WORK(&dev->init_work, mei_host_client_init);
-
-	dev->ops = &mei_me_hw_ops;
-
-	dev->pdev = pdev;
+	mei_device_init(dev, &pdev->dev, &mei_me_hw_ops);
+	hw->cfg = cfg;
 	return dev;
 }
 

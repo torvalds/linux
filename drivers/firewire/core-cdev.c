@@ -54,6 +54,7 @@
 #define FW_CDEV_KERNEL_VERSION			5
 #define FW_CDEV_VERSION_EVENT_REQUEST2		4
 #define FW_CDEV_VERSION_ALLOCATE_REGION_END	4
+#define FW_CDEV_VERSION_AUTO_FLUSH_ISO_OVERFLOW	5
 
 struct client {
 	u32 version;
@@ -389,10 +390,8 @@ static void queue_bus_reset_event(struct client *client)
 	struct bus_reset_event *e;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
-	if (e == NULL) {
-		fw_notice(client->device->card, "out of memory when allocating event\n");
+	if (e == NULL)
 		return;
-	}
 
 	fill_bus_reset_event(&e->reset, client);
 
@@ -487,7 +486,7 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 static int add_client_resource(struct client *client,
 			       struct client_resource *resource, gfp_t gfp_mask)
 {
-	bool preload = gfp_mask & __GFP_WAIT;
+	bool preload = !!(gfp_mask & __GFP_WAIT);
 	unsigned long flags;
 	int ret;
 
@@ -693,10 +692,9 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 
 	r = kmalloc(sizeof(*r), GFP_ATOMIC);
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
-	if (r == NULL || e == NULL) {
-		fw_notice(card, "out of memory when allocating event\n");
+	if (r == NULL || e == NULL)
 		goto failed;
-	}
+
 	r->card    = card;
 	r->request = request;
 	r->data    = payload;
@@ -930,10 +928,9 @@ static void iso_callback(struct fw_iso_context *context, u32 cycle,
 	struct iso_interrupt_event *e;
 
 	e = kmalloc(sizeof(*e) + header_length, GFP_ATOMIC);
-	if (e == NULL) {
-		fw_notice(context->card, "out of memory when allocating event\n");
+	if (e == NULL)
 		return;
-	}
+
 	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
 	e->interrupt.closure   = client->iso_closure;
 	e->interrupt.cycle     = cycle;
@@ -950,10 +947,9 @@ static void iso_mc_callback(struct fw_iso_context *context,
 	struct iso_interrupt_mc_event *e;
 
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
-	if (e == NULL) {
-		fw_notice(context->card, "out of memory when allocating event\n");
+	if (e == NULL)
 		return;
-	}
+
 	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL;
 	e->interrupt.closure   = client->iso_closure;
 	e->interrupt.completed = fw_iso_buffer_lookup(&client->buffer,
@@ -1010,6 +1006,8 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 			a->channel, a->speed, a->header_size, cb, client);
 	if (IS_ERR(context))
 		return PTR_ERR(context);
+	if (client->version < FW_CDEV_VERSION_AUTO_FLUSH_ISO_OVERFLOW)
+		context->drop_overflow_headers = true;
 
 	/* We only support one context at this time. */
 	spin_lock_irq(&client->lock);
@@ -1216,9 +1214,9 @@ static int ioctl_get_cycle_timer2(struct client *client, union ioctl_arg *arg)
 	cycle_time = card->driver->read_csr(card, CSR_CYCLE_TIME);
 
 	switch (a->clk_id) {
-	case CLOCK_REALTIME:      getnstimeofday(&ts);                   break;
-	case CLOCK_MONOTONIC:     do_posix_clock_monotonic_gettime(&ts); break;
-	case CLOCK_MONOTONIC_RAW: getrawmonotonic(&ts);                  break;
+	case CLOCK_REALTIME:      getnstimeofday(&ts);	break;
+	case CLOCK_MONOTONIC:     ktime_get_ts(&ts);	break;
+	case CLOCK_MONOTONIC_RAW: getrawmonotonic(&ts);	break;
 	default:
 		ret = -EINVAL;
 	}
@@ -1366,8 +1364,7 @@ static int init_iso_resource(struct client *client,
 	int ret;
 
 	if ((request->channels == 0 && request->bandwidth == 0) ||
-	    request->bandwidth > BANDWIDTH_AVAILABLE_INITIAL ||
-	    request->bandwidth < 0)
+	    request->bandwidth > BANDWIDTH_AVAILABLE_INITIAL)
 		return -EINVAL;
 
 	r  = kmalloc(sizeof(*r), GFP_KERNEL);
@@ -1582,10 +1579,9 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
 
 	list_for_each_entry(client, &card->phy_receiver_list, phy_receiver_link) {
 		e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
-		if (e == NULL) {
-			fw_notice(card, "out of memory when allocating event\n");
+		if (e == NULL)
 			break;
-		}
+
 		e->phy_packet.closure	= client->phy_receiver_closure;
 		e->phy_packet.type	= FW_CDEV_EVENT_PHY_PACKET_RECEIVED;
 		e->phy_packet.rcode	= RCODE_COMPLETE;
@@ -1641,8 +1637,7 @@ static int dispatch_ioctl(struct client *client,
 	    _IOC_SIZE(cmd) > sizeof(buffer))
 		return -ENOTTY;
 
-	if (_IOC_DIR(cmd) == _IOC_READ)
-		memset(&buffer, 0, _IOC_SIZE(cmd));
+	memset(&buffer, 0, sizeof(buffer));
 
 	if (_IOC_DIR(cmd) & _IOC_WRITE)
 		if (copy_from_user(&buffer, arg, _IOC_SIZE(cmd)))

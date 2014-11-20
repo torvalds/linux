@@ -48,9 +48,9 @@ MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int core_debug;
-module_param(core_debug,int,0644);
-MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
+unsigned int cx88_core_debug;
+module_param_named(core_debug, cx88_core_debug, int, 0644);
+MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
 
 static unsigned int nicam;
 module_param(nicam,int,0644);
@@ -60,8 +60,10 @@ static unsigned int nocomb;
 module_param(nocomb,int,0644);
 MODULE_PARM_DESC(nocomb,"disable comb filter");
 
-#define dprintk(level,fmt, arg...)	if (core_debug >= level)	\
-	printk(KERN_DEBUG "%s: " fmt, core->name , ## arg)
+#define dprintk(level,fmt, arg...)	do {				\
+	if (cx88_core_debug >= level)					\
+		printk(KERN_DEBUG "%s: " fmt, core->name , ## arg);	\
+	} while(0)
 
 static unsigned int cx88_devcount;
 static LIST_HEAD(cx88_devlist);
@@ -1010,7 +1012,7 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	set_tvaudio(core);
 
 	// tell i2c chips
-	call_all(core, core, s_std, norm);
+	call_all(core, video, s_std, norm);
 
 	/* The chroma_agc control should be inaccessible if the video format is SECAM */
 	v4l2_ctrl_grab(core->chroma_agc, cxiformat == VideoFormatSECAM);
@@ -1032,11 +1034,17 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template_;
+	/*
+	 * The dev pointer of v4l2_device is NULL, instead we set the
+	 * video_device dev_parent pointer to the correct PCI bus device.
+	 * This driver is a rare example where there is one v4l2_device,
+	 * but the video nodes have different parent (PCI) devices.
+	 */
 	vfd->v4l2_dev = &core->v4l2_dev;
+	vfd->dev_parent = &pci->dev;
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 core->name, type, core->board.name);
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	return vfd;
 }
 

@@ -2,7 +2,7 @@
  * Regulators driver for Marvell 88PM8607
  *
  * Copyright (C) 2009 Marvell International Ltd.
- * 	Haojian Zhuang <haojian.zhuang@marvell.com>
+ *	Haojian Zhuang <haojian.zhuang@marvell.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -78,7 +78,7 @@ static const unsigned int BUCK2_suspend_table[] = {
 };
 
 static const unsigned int BUCK3_table[] = {
-              0,   25000,   50000,   75000,  100000,  125000,  150000,  175000,
+	      0,   25000,   50000,   75000,  100000,  125000,  150000,  175000,
 	 200000,  225000,  250000,  275000,  300000,  325000,  350000,  375000,
 	 400000,  425000,  450000,  475000,  500000,  525000,  550000,  575000,
 	 600000,  625000,  650000,  675000,  700000,  725000,  750000,  775000,
@@ -89,7 +89,7 @@ static const unsigned int BUCK3_table[] = {
 };
 
 static const unsigned int BUCK3_suspend_table[] = {
-              0,   25000,   50000,   75000,  100000,  125000,  150000,  175000,
+	      0,   25000,   50000,   75000,  100000,  125000,  150000,  175000,
 	 200000,  225000,  250000,  275000,  300000,  325000,  350000,  375000,
 	 400000,  425000,  450000,  475000,  500000,  525000,  550000,  575000,
 	 600000,  625000,  650000,  675000,  700000,  725000,  750000,  775000,
@@ -220,35 +220,6 @@ static int pm8607_list_voltage(struct regulator_dev *rdev, unsigned index)
 	return ret;
 }
 
-static int pm8606_preg_enable(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return pm860x_set_bits(info->i2c, rdev->desc->enable_reg,
-			       1 << rdev->desc->enable_mask, 0);
-}
-
-static int pm8606_preg_disable(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return pm860x_set_bits(info->i2c, rdev->desc->enable_reg,
-			       1 << rdev->desc->enable_mask,
-			       1 << rdev->desc->enable_mask);
-}
-
-static int pm8606_preg_is_enabled(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	int ret;
-
-	ret = pm860x_reg_read(info->i2c, rdev->desc->enable_reg);
-	if (ret < 0)
-		return ret;
-
-	return !((unsigned char)ret & (1 << rdev->desc->enable_mask));
-}
-
 static struct regulator_ops pm8607_regulator_ops = {
 	.list_voltage	= pm8607_list_voltage,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -259,9 +230,9 @@ static struct regulator_ops pm8607_regulator_ops = {
 };
 
 static struct regulator_ops pm8606_preg_ops = {
-	.enable		= pm8606_preg_enable,
-	.disable	= pm8606_preg_disable,
-	.is_enabled	= pm8606_preg_is_enabled,
+	.enable		= regulator_enable_regmap,
+	.disable	= regulator_disable_regmap,
+	.is_enabled	= regulator_is_enabled_regmap,
 };
 
 #define PM8606_PREG(ereg, ebit)						\
@@ -274,6 +245,7 @@ static struct regulator_ops pm8606_preg_ops = {
 		.owner	= THIS_MODULE,					\
 		.enable_reg = PM8606_##ereg,				\
 		.enable_mask = (ebit),					\
+		.enable_is_inverted = true,				\
 	},								\
 }
 
@@ -347,10 +319,10 @@ static int pm8607_regulator_dt_init(struct platform_device *pdev,
 				    struct regulator_config *config)
 {
 	struct device_node *nproot, *np;
-	nproot = of_node_get(pdev->dev.parent->of_node);
+	nproot = pdev->dev.parent->of_node;
 	if (!nproot)
 		return -ENODEV;
-	nproot = of_find_node_by_name(nproot, "regulators");
+	nproot = of_get_child_by_name(nproot, "regulators");
 	if (!nproot) {
 		dev_err(&pdev->dev, "failed to find regulators node\n");
 		return -ENODEV;
@@ -374,7 +346,7 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm8607_regulator_info *info = NULL;
-	struct regulator_init_data *pdata = pdev->dev.platform_data;
+	struct regulator_init_data *pdata = dev_get_platdata(&pdev->dev);
 	struct regulator_config config = { };
 	struct resource *res;
 	int i;
@@ -419,7 +391,8 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 	else
 		config.regmap = chip->regmap_companion;
 
-	info->regulator = regulator_register(&info->desc, &config);
+	info->regulator = devm_regulator_register(&pdev->dev, &info->desc,
+						  &config);
 	if (IS_ERR(info->regulator)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);
@@ -427,15 +400,6 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, info);
-	return 0;
-}
-
-static int pm8607_regulator_remove(struct platform_device *pdev)
-{
-	struct pm8607_regulator_info *info = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
-	regulator_unregister(info->regulator);
 	return 0;
 }
 
@@ -457,7 +421,6 @@ static struct platform_driver pm8607_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pm8607_regulator_probe,
-	.remove		= pm8607_regulator_remove,
 	.id_table	= pm8607_regulator_driver_ids,
 };
 

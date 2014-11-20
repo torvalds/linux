@@ -135,10 +135,8 @@ static int sunfire_led_generic_probe(struct platform_device *pdev,
 	}
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
-	if (!p) {
-		dev_err(&pdev->dev, "Could not allocate struct sunfire_drvdata\n");
+	if (!p)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < NUM_LEDS_PER_BOARD; i++) {
 		struct led_classdev *lp = &p->leds[i].led_cdev;
@@ -159,14 +157,14 @@ static int sunfire_led_generic_probe(struct platform_device *pdev,
 		}
 	}
 
-	dev_set_drvdata(&pdev->dev, p);
+	platform_set_drvdata(pdev, p);
 
 	return 0;
 }
 
 static int sunfire_led_generic_remove(struct platform_device *pdev)
 {
-	struct sunfire_drvdata *p = dev_get_drvdata(&pdev->dev);
+	struct sunfire_drvdata *p = platform_get_drvdata(pdev);
 	int i;
 
 	for (i = 0; i < NUM_LEDS_PER_BOARD; i++)

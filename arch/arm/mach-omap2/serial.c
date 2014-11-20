@@ -63,7 +63,6 @@ struct omap_uart_state {
 static LIST_HEAD(uart_list);
 static u8 num_uarts;
 static u8 console_uart_id = -1;
-static u8 no_console_suspend;
 static u8 uart_debug;
 
 #define DEFAULT_RXDMA_POLLRATE		1	/* RX DMA polling rate (us) */
@@ -95,38 +94,9 @@ static void omap_uart_enable_wakeup(struct device *dev, bool enable)
 		omap_hwmod_disable_wakeup(od->hwmods[0]);
 }
 
-/*
- * Errata i291: [UART]:Cannot Acknowledge Idle Requests
- * in Smartidle Mode When Configured for DMA Operations.
- * WA: configure uart in force idle mode.
- */
-static void omap_uart_set_noidle(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omap_device *od = to_omap_device(pdev);
-
-	omap_hwmod_set_slave_idlemode(od->hwmods[0], HWMOD_IDLEMODE_NO);
-}
-
-static void omap_uart_set_smartidle(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omap_device *od = to_omap_device(pdev);
-	u8 idlemode;
-
-	if (od->hwmods[0]->class->sysc->idlemodes & SIDLE_SMART_WKUP)
-		idlemode = HWMOD_IDLEMODE_SMART_WKUP;
-	else
-		idlemode = HWMOD_IDLEMODE_SMART;
-
-	omap_hwmod_set_slave_idlemode(od->hwmods[0], idlemode);
-}
-
 #else
 static void omap_uart_enable_wakeup(struct device *dev, bool enable)
 {}
-static void omap_uart_set_noidle(struct device *dev) {}
-static void omap_uart_set_smartidle(struct device *dev) {}
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_OMAP_MUX
@@ -205,6 +175,9 @@ static char *cmdline_find_option(char *str)
 
 static int __init omap_serial_early_init(void)
 {
+	if (of_have_populated_dt())
+		return -ENODEV;
+
 	do {
 		char oh_name[MAX_UART_HWMOD_NAME_LEN];
 		struct omap_hwmod *oh;
@@ -235,20 +208,6 @@ static int __init omap_serial_early_init(void)
 				pr_info("%s used as console in debug mode: uart%d clocks will not be gated",
 					uart_name, uart->num);
 			}
-
-			if (cmdline_find_option("no_console_suspend"))
-				no_console_suspend = true;
-
-			/*
-			 * omap-uart can be used for earlyprintk logs
-			 * So if omap-uart is used as console then prevent
-			 * uart reset and idle to get logs from omap-uart
-			 * until uart console driver is available to take
-			 * care for console messages.
-			 * Idling or resetting omap-uart while printing logs
-			 * early boot logs can stall the boot-up.
-			 */
-			oh->flags |= HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET;
 		}
 	} while (1);
 
@@ -299,8 +258,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 	omap_up.uartclk = OMAP24XX_BASE_BAUD * 16;
 	omap_up.flags = UPF_BOOT_AUTOCONF;
 	omap_up.get_context_loss_count = omap_pm_get_dev_context_loss_count;
-	omap_up.set_forceidle = omap_uart_set_smartidle;
-	omap_up.set_noidle = omap_uart_set_noidle;
 	omap_up.enable_wakeup = omap_uart_enable_wakeup;
 	omap_up.dma_rx_buf_size = info->dma_rx_buf_size;
 	omap_up.dma_rx_timeout = info->dma_rx_timeout;
@@ -322,9 +279,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 		     oh->name);
 		return;
 	}
-
-	if ((console_uart_id == bdata->id) && no_console_suspend)
-		omap_device_disable_idle_on_suspend(pdev);
 
 	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
 

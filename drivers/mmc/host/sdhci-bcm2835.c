@@ -119,23 +119,27 @@ static u8 bcm2835_sdhci_readb(struct sdhci_host *host, int reg)
 	return byte;
 }
 
-unsigned int bcm2835_sdhci_get_min_clock(struct sdhci_host *host)
+static unsigned int bcm2835_sdhci_get_min_clock(struct sdhci_host *host)
 {
 	return MIN_FREQ;
 }
 
-static struct sdhci_ops bcm2835_sdhci_ops = {
+static const struct sdhci_ops bcm2835_sdhci_ops = {
 	.write_l = bcm2835_sdhci_writel,
 	.write_w = bcm2835_sdhci_writew,
 	.write_b = bcm2835_sdhci_writeb,
 	.read_l = bcm2835_sdhci_readl,
 	.read_w = bcm2835_sdhci_readw,
 	.read_b = bcm2835_sdhci_readb,
+	.set_clock = sdhci_set_clock,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_min_clock = bcm2835_sdhci_get_min_clock,
+	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
-static struct sdhci_pltfm_data bcm2835_sdhci_pdata = {
+static const struct sdhci_pltfm_data bcm2835_sdhci_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK,
 	.ops = &bcm2835_sdhci_ops,
@@ -148,7 +152,7 @@ static int bcm2835_sdhci_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	int ret;
 
-	host = sdhci_pltfm_init(pdev, &bcm2835_sdhci_pdata);
+	host = sdhci_pltfm_init(pdev, &bcm2835_sdhci_pdata, 0);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
@@ -178,13 +182,7 @@ err:
 
 static int bcm2835_sdhci_remove(struct platform_device *pdev)
 {
-	struct sdhci_host *host = platform_get_drvdata(pdev);
-	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
-
-	sdhci_remove_host(host, dead);
-	sdhci_pltfm_free(pdev);
-
-	return 0;
+	return sdhci_pltfm_unregister(pdev);
 }
 
 static const struct of_device_id bcm2835_sdhci_of_match[] = {
@@ -196,7 +194,6 @@ MODULE_DEVICE_TABLE(of, bcm2835_sdhci_of_match);
 static struct platform_driver bcm2835_sdhci_driver = {
 	.driver = {
 		.name = "sdhci-bcm2835",
-		.owner = THIS_MODULE,
 		.of_match_table = bcm2835_sdhci_of_match,
 		.pm = SDHCI_PLTFM_PMOPS,
 	},

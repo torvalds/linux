@@ -26,109 +26,114 @@
 #include <linux/stop_machine.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
-#include <asm/cacheflush.h>
-#include <asm/sections.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/hardirq.h>
+#include <asm/cacheflush.h>
+#include <asm/sections.h>
+#include <asm/dis.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = { };
 
-static int __kprobes is_prohibited_opcode(kprobe_opcode_t *insn)
+DEFINE_INSN_CACHE_OPS(dmainsn);
+
+static void *alloc_dmainsn_page(void)
 {
-	switch (insn[0] >> 8) {
-	case 0x0c:	/* bassm */
-	case 0x0b:	/* bsm	 */
-	case 0x83:	/* diag  */
-	case 0x44:	/* ex	 */
-	case 0xac:	/* stnsm */
-	case 0xad:	/* stosm */
-		return -EINVAL;
-	}
-	switch (insn[0]) {
-	case 0x0101:	/* pr	 */
-	case 0xb25a:	/* bsa	 */
-	case 0xb240:	/* bakr  */
-	case 0xb258:	/* bsg	 */
-	case 0xb218:	/* pc	 */
-	case 0xb228:	/* pt	 */
-	case 0xb98d:	/* epsw	 */
-		return -EINVAL;
-	}
-	return 0;
+	return (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
 }
 
-static int __kprobes get_fixup_type(kprobe_opcode_t *insn)
+static void free_dmainsn_page(void *page)
 {
-	/* default fixup method */
-	int fixup = FIXUP_PSW_NORMAL;
+	free_page((unsigned long)page);
+}
 
-	switch (insn[0] >> 8) {
-	case 0x05:	/* balr	*/
-	case 0x0d:	/* basr */
-		fixup = FIXUP_RETURN_REGISTER;
-		/* if r2 = 0, no branch will be taken */
-		if ((insn[0] & 0x0f) == 0)
-			fixup |= FIXUP_BRANCH_NOT_TAKEN;
-		break;
-	case 0x06:	/* bctr	*/
-	case 0x07:	/* bcr	*/
-		fixup = FIXUP_BRANCH_NOT_TAKEN;
-		break;
-	case 0x45:	/* bal	*/
-	case 0x4d:	/* bas	*/
-		fixup = FIXUP_RETURN_REGISTER;
-		break;
-	case 0x47:	/* bc	*/
-	case 0x46:	/* bct	*/
-	case 0x86:	/* bxh	*/
-	case 0x87:	/* bxle	*/
-		fixup = FIXUP_BRANCH_NOT_TAKEN;
-		break;
-	case 0x82:	/* lpsw	*/
-		fixup = FIXUP_NOT_REQUIRED;
-		break;
-	case 0xb2:	/* lpswe */
-		if ((insn[0] & 0xff) == 0xb2)
-			fixup = FIXUP_NOT_REQUIRED;
-		break;
-	case 0xa7:	/* bras	*/
-		if ((insn[0] & 0x0f) == 0x05)
-			fixup |= FIXUP_RETURN_REGISTER;
-		break;
-	case 0xc0:
-		if ((insn[0] & 0x0f) == 0x00 ||	/* larl  */
-		    (insn[0] & 0x0f) == 0x05)	/* brasl */
-		fixup |= FIXUP_RETURN_REGISTER;
-		break;
-	case 0xeb:
-		if ((insn[2] & 0xff) == 0x44 ||	/* bxhg  */
-		    (insn[2] & 0xff) == 0x45)	/* bxleg */
-			fixup = FIXUP_BRANCH_NOT_TAKEN;
-		break;
-	case 0xe3:	/* bctg	*/
-		if ((insn[2] & 0xff) == 0x46)
-			fixup = FIXUP_BRANCH_NOT_TAKEN;
-		break;
-	}
-	return fixup;
+struct kprobe_insn_cache kprobe_dmainsn_slots = {
+	.mutex = __MUTEX_INITIALIZER(kprobe_dmainsn_slots.mutex),
+	.alloc = alloc_dmainsn_page,
+	.free = free_dmainsn_page,
+	.pages = LIST_HEAD_INIT(kprobe_dmainsn_slots.pages),
+	.insn_size = MAX_INSN_SIZE,
+};
+
+static void __kprobes copy_instruction(struct kprobe *p)
+{
+	s64 disp, new_disp;
+	u64 addr, new_addr;
+
+	memcpy(p->ainsn.insn, p->addr, insn_length(p->opcode >> 8));
+	if (!probe_is_insn_relative_long(p->ainsn.insn))
+		return;
+	/*
+	 * For pc-relative instructions in RIL-b or RIL-c format patch the
+	 * RI2 displacement field. We have already made sure that the insn
+	 * slot for the patched instruction is within the same 2GB area
+	 * as the original instruction (either kernel image or module area).
+	 * Therefore the new displacement will always fit.
+	 */
+	disp = *(s32 *)&p->ainsn.insn[1];
+	addr = (u64)(unsigned long)p->addr;
+	new_addr = (u64)(unsigned long)p->ainsn.insn;
+	new_disp = ((addr + (disp * 2)) - new_addr) / 2;
+	*(s32 *)&p->ainsn.insn[1] = new_disp;
+}
+
+static inline int is_kernel_addr(void *addr)
+{
+	return addr < (void *)_end;
+}
+
+static inline int is_module_addr(void *addr)
+{
+#ifdef CONFIG_64BIT
+	BUILD_BUG_ON(MODULES_LEN > (1UL << 31));
+	if (addr < (void *)MODULES_VADDR)
+		return 0;
+	if (addr > (void *)MODULES_END)
+		return 0;
+#endif
+	return 1;
+}
+
+static int __kprobes s390_get_insn_slot(struct kprobe *p)
+{
+	/*
+	 * Get an insn slot that is within the same 2GB area like the original
+	 * instruction. That way instructions with a 32bit signed displacement
+	 * field can be patched and executed within the insn slot.
+	 */
+	p->ainsn.insn = NULL;
+	if (is_kernel_addr(p->addr))
+		p->ainsn.insn = get_dmainsn_slot();
+	else if (is_module_addr(p->addr))
+		p->ainsn.insn = get_insn_slot();
+	return p->ainsn.insn ? 0 : -ENOMEM;
+}
+
+static void __kprobes s390_free_insn_slot(struct kprobe *p)
+{
+	if (!p->ainsn.insn)
+		return;
+	if (is_kernel_addr(p->addr))
+		free_dmainsn_slot(p->ainsn.insn, 0);
+	else
+		free_insn_slot(p->ainsn.insn, 0);
+	p->ainsn.insn = NULL;
 }
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	if ((unsigned long) p->addr & 0x01)
 		return -EINVAL;
-
 	/* Make sure the probe isn't going on a difficult instruction */
-	if (is_prohibited_opcode(p->addr))
+	if (probe_is_prohibited_opcode(p->addr))
 		return -EINVAL;
-
+	if (s390_get_insn_slot(p))
+		return -ENOMEM;
 	p->opcode = *p->addr;
-	memcpy(p->ainsn.insn, p->addr, ((p->opcode >> 14) + 3) & -2);
-
+	copy_instruction(p);
 	return 0;
 }
 
@@ -169,6 +174,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
+	s390_free_insn_slot(p);
 }
 
 static void __kprobes enable_singlestep(struct kprobe_ctlblk *kcb,
@@ -212,9 +218,9 @@ static void __kprobes disable_singlestep(struct kprobe_ctlblk *kcb,
  */
 static void __kprobes push_kprobe(struct kprobe_ctlblk *kcb, struct kprobe *p)
 {
-	kcb->prev_kprobe.kp = __get_cpu_var(current_kprobe);
+	kcb->prev_kprobe.kp = __this_cpu_read(current_kprobe);
 	kcb->prev_kprobe.status = kcb->kprobe_status;
-	__get_cpu_var(current_kprobe) = p;
+	__this_cpu_write(current_kprobe, p);
 }
 
 /*
@@ -224,7 +230,7 @@ static void __kprobes push_kprobe(struct kprobe_ctlblk *kcb, struct kprobe *p)
  */
 static void __kprobes pop_kprobe(struct kprobe_ctlblk *kcb)
 {
-	__get_cpu_var(current_kprobe) = kcb->prev_kprobe.kp;
+	__this_cpu_write(current_kprobe, kcb->prev_kprobe.kp);
 	kcb->kprobe_status = kcb->prev_kprobe.status;
 }
 
@@ -305,7 +311,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		enable_singlestep(kcb, regs, (unsigned long) p->ainsn.insn);
 		return 1;
 	} else if (kprobe_running()) {
-		p = __get_cpu_var(current_kprobe);
+		p = __this_cpu_read(current_kprobe);
 		if (p->break_handler && p->break_handler(p, regs)) {
 			/*
 			 * Continuation after the jprobe completed and
@@ -451,13 +457,13 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	unsigned long ip = regs->psw.addr & PSW_ADDR_INSN;
-	int fixup = get_fixup_type(p->ainsn.insn);
+	int fixup = probe_get_fixup_type(p->ainsn.insn);
 
 	if (fixup & FIXUP_PSW_NORMAL)
 		ip += (unsigned long) p->addr - (unsigned long) p->ainsn.insn;
 
 	if (fixup & FIXUP_BRANCH_NOT_TAKEN) {
-		int ilen = ((p->ainsn.insn[0] >> 14) + 3) & -2;
+		int ilen = insn_length(p->ainsn.insn[0] >> 8);
 		if (ip - (unsigned long) p->ainsn.insn == ilen)
 			ip = (unsigned long) p->addr + ilen;
 	}
@@ -526,7 +532,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 	case KPROBE_HIT_SSDONE:
 		/*
 		 * We increment the nmissed count for accounting,
-		 * we can also use npre/npostfault count for accouting
+		 * we can also use npre/npostfault count for accounting
 		 * these specific fault cases.
 		 */
 		kprobes_inc_nmissed_count(p);
@@ -633,11 +639,6 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 void __kprobes jprobe_return(void)
 {
 	asm volatile(".word 0x0002");
-}
-
-static void __used __kprobes jprobe_return_end(void)
-{
-	asm volatile("bcr 0,0");
 }
 
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)

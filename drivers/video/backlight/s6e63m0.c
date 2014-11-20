@@ -507,18 +507,18 @@ static int s6e63m0_power_on(struct s6e63m0 *lcd)
 	if (!pd->power_on) {
 		dev_err(lcd->dev, "power_on is NULL.\n");
 		return -EINVAL;
-	} else {
-		pd->power_on(lcd->ld, 1);
-		msleep(pd->power_on_delay);
 	}
+
+	pd->power_on(lcd->ld, 1);
+	msleep(pd->power_on_delay);
 
 	if (!pd->reset) {
 		dev_err(lcd->dev, "reset is NULL.\n");
 		return -EINVAL;
-	} else {
-		pd->reset(lcd->ld);
-		msleep(pd->reset_delay);
 	}
+
+	pd->reset(lcd->ld);
+	msleep(pd->reset_delay);
 
 	ret = s6e63m0_ldi_init(lcd);
 	if (ret) {
@@ -597,11 +597,6 @@ static int s6e63m0_get_power(struct lcd_device *ld)
 	return lcd->power;
 }
 
-static int s6e63m0_get_brightness(struct backlight_device *bd)
-{
-	return bd->props.brightness;
-}
-
 static int s6e63m0_set_brightness(struct backlight_device *bd)
 {
 	int ret = 0, brightness = bd->props.brightness;
@@ -629,7 +624,6 @@ static struct lcd_ops s6e63m0_lcd_ops = {
 };
 
 static const struct backlight_ops s6e63m0_backlight_ops  = {
-	.get_brightness = s6e63m0_get_brightness,
 	.update_status = s6e63m0_set_brightness,
 };
 
@@ -703,7 +697,7 @@ static ssize_t s6e63m0_sysfs_show_gamma_table(struct device *dev,
 	struct s6e63m0 *lcd = dev_get_drvdata(dev);
 	char temp[3];
 
-	sprintf(temp, "%d\n", lcd->gamma_table_count);
+	sprintf(temp, "%u\n", lcd->gamma_table_count);
 	strcpy(buf, temp);
 
 	return strlen(buf);
@@ -735,13 +729,14 @@ static int s6e63m0_probe(struct spi_device *spi)
 	lcd->spi = spi;
 	lcd->dev = &spi->dev;
 
-	lcd->lcd_pd = spi->dev.platform_data;
+	lcd->lcd_pd = dev_get_platdata(&spi->dev);
 	if (!lcd->lcd_pd) {
 		dev_err(&spi->dev, "platform data is NULL.\n");
 		return -EINVAL;
 	}
 
-	ld = lcd_device_register("s6e63m0", &spi->dev, lcd, &s6e63m0_lcd_ops);
+	ld = devm_lcd_device_register(&spi->dev, "s6e63m0", &spi->dev, lcd,
+				&s6e63m0_lcd_ops);
 	if (IS_ERR(ld))
 		return PTR_ERR(ld);
 
@@ -751,12 +746,11 @@ static int s6e63m0_probe(struct spi_device *spi)
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = MAX_BRIGHTNESS;
 
-	bd = backlight_device_register("s6e63m0bl-bl", &spi->dev, lcd,
-		&s6e63m0_backlight_ops, &props);
-	if (IS_ERR(bd)) {
-		ret =  PTR_ERR(bd);
-		goto out_lcd_unregister;
-	}
+	bd = devm_backlight_device_register(&spi->dev, "s6e63m0bl-bl",
+					&spi->dev, lcd, &s6e63m0_backlight_ops,
+					&props);
+	if (IS_ERR(bd))
+		return PTR_ERR(bd);
 
 	bd->props.brightness = MAX_BRIGHTNESS;
 	lcd->bd = bd;
@@ -798,10 +792,6 @@ static int s6e63m0_probe(struct spi_device *spi)
 	dev_info(&spi->dev, "s6e63m0 panel driver has been probed.\n");
 
 	return 0;
-
-out_lcd_unregister:
-	lcd_device_unregister(ld);
-	return ret;
 }
 
 static int s6e63m0_remove(struct spi_device *spi)
@@ -811,18 +801,16 @@ static int s6e63m0_remove(struct spi_device *spi)
 	s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
 	device_remove_file(&spi->dev, &dev_attr_gamma_table);
 	device_remove_file(&spi->dev, &dev_attr_gamma_mode);
-	backlight_device_unregister(lcd->bd);
-	lcd_device_unregister(lcd->ld);
 
 	return 0;
 }
 
-#if defined(CONFIG_PM)
-static int s6e63m0_suspend(struct spi_device *spi, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int s6e63m0_suspend(struct device *dev)
 {
-	struct s6e63m0 *lcd = spi_get_drvdata(spi);
+	struct s6e63m0 *lcd = dev_get_drvdata(dev);
 
-	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
+	dev_dbg(dev, "lcd->power = %d\n", lcd->power);
 
 	/*
 	 * when lcd panel is suspend, lcd panel becomes off
@@ -831,18 +819,17 @@ static int s6e63m0_suspend(struct spi_device *spi, pm_message_t mesg)
 	return s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
 }
 
-static int s6e63m0_resume(struct spi_device *spi)
+static int s6e63m0_resume(struct device *dev)
 {
-	struct s6e63m0 *lcd = spi_get_drvdata(spi);
+	struct s6e63m0 *lcd = dev_get_drvdata(dev);
 
 	lcd->power = FB_BLANK_POWERDOWN;
 
 	return s6e63m0_power(lcd, FB_BLANK_UNBLANK);
 }
-#else
-#define s6e63m0_suspend		NULL
-#define s6e63m0_resume		NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(s6e63m0_pm_ops, s6e63m0_suspend, s6e63m0_resume);
 
 /* Power down all displays on reboot, poweroff or halt. */
 static void s6e63m0_shutdown(struct spi_device *spi)
@@ -856,12 +843,11 @@ static struct spi_driver s6e63m0_driver = {
 	.driver = {
 		.name	= "s6e63m0",
 		.owner	= THIS_MODULE,
+		.pm	= &s6e63m0_pm_ops,
 	},
 	.probe		= s6e63m0_probe,
 	.remove		= s6e63m0_remove,
 	.shutdown	= s6e63m0_shutdown,
-	.suspend	= s6e63m0_suspend,
-	.resume		= s6e63m0_resume,
 };
 
 module_spi_driver(s6e63m0_driver);

@@ -5,6 +5,7 @@
 #include <linux/relay.h>
 #include <linux/compat.h>
 #include <uapi/linux/blktrace_api.h>
+#include <linux/list.h>
 
 #if defined(CONFIG_BLK_DEV_IO_TRACE)
 
@@ -12,7 +13,6 @@
 
 struct blk_trace {
 	int trace_state;
-	bool rq_based;
 	struct rchan *rchan;
 	unsigned long __percpu *sequence;
 	unsigned char __percpu *msg_data;
@@ -24,6 +24,7 @@ struct blk_trace {
 	struct dentry *dir;
 	struct dentry *dropped_file;
 	struct dentry *msg_file;
+	struct list_head running_list;
 	atomic_t dropped;
 };
 
@@ -88,7 +89,7 @@ static inline int blk_trace_init_sysfs(struct device *dev)
 #ifdef CONFIG_COMPAT
 
 struct compat_blk_user_trace_setup {
-	char name[32];
+	char name[BLKTRACE_BDEV_SIZE];
 	u16 act_mask;
 	u32 buf_size;
 	u32 buf_nr;

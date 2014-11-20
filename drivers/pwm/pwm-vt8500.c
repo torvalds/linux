@@ -211,10 +211,8 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 	}
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (chip == NULL)
 		return -ENOMEM;
-	}
 
 	chip->chip.dev = &pdev->dev;
 	chip->chip.ops = &vt8500_pwm_ops;
@@ -230,11 +228,6 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		return -ENODEV;
-	}
-
 	chip->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(chip->base))
 		return PTR_ERR(chip->base);

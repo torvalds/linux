@@ -15,7 +15,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
-#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
+#if IS_ENABLED(CONFIG_USB_ISP1362_HCD)
 #include <linux/usb/isp1362.h>
 #endif
 #include <asm/irq.h>
@@ -32,7 +32,7 @@ const char bfin_board_name[] = "IP04/IP08";
  *  Driver needs to know address, irq and flag pin.
  */
 #if defined(CONFIG_BFIN532_IP0X)
-#if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
+#if IS_ENABLED(CONFIG_DM9000)
 
 #include <linux/dm9000.h>
 
@@ -104,10 +104,10 @@ static struct platform_device dm9000_device2 = {
 #endif
 
 
-#if defined(CONFIG_SPI_BFIN5XX) || defined(CONFIG_SPI_BFIN5XX_MODULE)
+#if IS_ENABLED(CONFIG_SPI_BFIN5XX)
 /* all SPI peripherals info goes here */
 
-#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+#if IS_ENABLED(CONFIG_MMC_SPI)
 static struct bfin5xx_spi_chip mmc_spi_chip_info = {
 	.enable_dma = 0,		/* if 1 - block!!! */
 };
@@ -116,7 +116,7 @@ static struct bfin5xx_spi_chip mmc_spi_chip_info = {
 /* Notice: for blackfin, the speed_hz is the value of register
  * SPI_BAUD, not the real baudrate */
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
-#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+#if IS_ENABLED(CONFIG_MMC_SPI)
 	{
 		.modalias = "mmc_spi",
 		.max_speed_hz = 2,
@@ -142,7 +142,7 @@ static struct platform_device spi_bfin_master_device = {
 };
 #endif  /* spi master and devices */
 
-#if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_BFIN)
 #ifdef CONFIG_SERIAL_BFIN_UART0
 static struct resource bfin_uart0_resources[] = {
 	{
@@ -193,7 +193,7 @@ static struct platform_device bfin_uart0_device = {
 #endif
 #endif
 
-#if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
+#if IS_ENABLED(CONFIG_BFIN_SIR)
 #ifdef CONFIG_BFIN_SIR0
 static struct resource bfin_sir0_resources[] = {
 	{
@@ -222,7 +222,7 @@ static struct platform_device bfin_sir0_device = {
 #endif
 #endif
 
-#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
+#if IS_ENABLED(CONFIG_USB_ISP1362_HCD)
 static struct resource isp1362_hcd_resources[] = {
 	{
 		.start = 0x20300000,
@@ -264,29 +264,29 @@ static struct platform_device isp1362_hcd_device = {
 
 static struct platform_device *ip0x_devices[] __initdata = {
 #if defined(CONFIG_BFIN532_IP0X)
-#if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
+#if IS_ENABLED(CONFIG_DM9000)
 	&dm9000_device1,
 	&dm9000_device2,
 #endif
 #endif
 
-#if defined(CONFIG_SPI_BFIN5XX) || defined(CONFIG_SPI_BFIN5XX_MODULE)
+#if IS_ENABLED(CONFIG_SPI_BFIN5XX)
 	&spi_bfin_master_device,
 #endif
 
-#if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_BFIN)
 #ifdef CONFIG_SERIAL_BFIN_UART0
 	&bfin_uart0_device,
 #endif
 #endif
 
-#if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
+#if IS_ENABLED(CONFIG_BFIN_SIR)
 #ifdef CONFIG_BFIN_SIR0
 	&bfin_sir0_device,
 #endif
 #endif
 
-#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
+#if IS_ENABLED(CONFIG_USB_ISP1362_HCD)
 	&isp1362_hcd_device,
 #endif
 };

@@ -49,8 +49,11 @@ static unsigned long romfs_get_unmapped_area(struct file *file,
 		return (unsigned long) -EINVAL;
 
 	offset += ROMFS_I(inode)->i_dataoffset;
-	if (offset > mtd->size - len)
+	if (offset >= mtd->size)
 		return (unsigned long) -EINVAL;
+	/* the mapping mustn't extend beyond the EOF */
+	if ((offset + len) > mtd->size)
+		len = mtd->size - offset;
 
 	ret = mtd_get_unmapped_area(mtd, len, offset, flags);
 	if (ret == -EOPNOTSUPP)
@@ -69,8 +72,8 @@ static int romfs_mmap(struct file *file, struct vm_area_struct *vma)
 
 const struct file_operations romfs_ro_fops = {
 	.llseek			= generic_file_llseek,
-	.read			= do_sync_read,
-	.aio_read		= generic_file_aio_read,
+	.read			= new_sync_read,
+	.read_iter		= generic_file_read_iter,
 	.splice_read		= generic_file_splice_read,
 	.mmap			= romfs_mmap,
 	.get_unmapped_area	= romfs_get_unmapped_area,

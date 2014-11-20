@@ -35,8 +35,20 @@ struct virtio_scsi_cmd_req {
 	u8 lun[8];		/* Logical Unit Number */
 	u64 tag;		/* Command identifier */
 	u8 task_attr;		/* Task attribute */
-	u8 prio;
+	u8 prio;		/* SAM command priority field */
 	u8 crn;
+	u8 cdb[VIRTIO_SCSI_CDB_SIZE];
+} __packed;
+
+/* SCSI command request, followed by protection information */
+struct virtio_scsi_cmd_req_pi {
+	u8 lun[8];		/* Logical Unit Number */
+	u64 tag;		/* Command identifier */
+	u8 task_attr;		/* Task attribute */
+	u8 prio;		/* SAM command priority field */
+	u8 crn;
+	u32 pi_bytesout;	/* DataOUT PI Number of bytes */
+	u32 pi_bytesin;		/* DataIN PI Number of bytes */
 	u8 cdb[VIRTIO_SCSI_CDB_SIZE];
 } __packed;
 
@@ -97,6 +109,7 @@ struct virtio_scsi_config {
 #define VIRTIO_SCSI_F_INOUT                    0
 #define VIRTIO_SCSI_F_HOTPLUG                  1
 #define VIRTIO_SCSI_F_CHANGE                   2
+#define VIRTIO_SCSI_F_T10_PI                   3
 
 /* Response codes */
 #define VIRTIO_SCSI_S_OK                       0

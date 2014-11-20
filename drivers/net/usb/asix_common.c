@@ -16,8 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "asix.h"
@@ -100,6 +99,9 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
 				   rx->size);
 			kfree_skb(rx->ax_skb);
+			rx->ax_skb = NULL;
+			rx->size = 0U;
+
 			return 0;
 		}
 

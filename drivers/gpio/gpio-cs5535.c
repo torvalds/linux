@@ -201,7 +201,8 @@ EXPORT_SYMBOL_GPL(cs5535_gpio_setup_event);
 
 static int chip_gpio_request(struct gpio_chip *c, unsigned offset)
 {
-	struct cs5535_gpio_chip *chip = (struct cs5535_gpio_chip *) c;
+	struct cs5535_gpio_chip *chip =
+		container_of(c, struct cs5535_gpio_chip, chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->lock, flags);
@@ -241,7 +242,8 @@ static void chip_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 
 static int chip_direction_input(struct gpio_chip *c, unsigned offset)
 {
-	struct cs5535_gpio_chip *chip = (struct cs5535_gpio_chip *) c;
+	struct cs5535_gpio_chip *chip =
+		container_of(c, struct cs5535_gpio_chip, chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->lock, flags);
@@ -254,7 +256,8 @@ static int chip_direction_input(struct gpio_chip *c, unsigned offset)
 
 static int chip_direction_output(struct gpio_chip *c, unsigned offset, int val)
 {
-	struct cs5535_gpio_chip *chip = (struct cs5535_gpio_chip *) c;
+	struct cs5535_gpio_chip *chip =
+		container_of(c, struct cs5535_gpio_chip, chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->lock, flags);
@@ -358,14 +361,8 @@ done:
 static int cs5535_gpio_remove(struct platform_device *pdev)
 {
 	struct resource *r;
-	int err;
 
-	err = gpiochip_remove(&cs5535_gpio_chip.chip);
-	if (err) {
-		/* uhh? */
-		dev_err(&pdev->dev, "unable to remove gpio_chip?\n");
-		return err;
-	}
+	gpiochip_remove(&cs5535_gpio_chip.chip);
 
 	r = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	release_region(r->start, resource_size(r));

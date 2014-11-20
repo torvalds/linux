@@ -16,7 +16,6 @@
 #include <linux/device.h>
 #include <linux/mmc/host.h>
 #include <linux/module.h>
-#include <mach/cns3xxx.h>
 #include "sdhci-pltfm.h"
 
 static unsigned int sdhci_cns3xxx_get_max_clk(struct sdhci_host *host)
@@ -31,13 +30,12 @@ static void sdhci_cns3xxx_set_clock(struct sdhci_host *host, unsigned int clock)
 	u16 clk;
 	unsigned long timeout;
 
-	if (clock == host->clock)
-		return;
+	host->mmc->actual_clock = 0;
 
 	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
 
 	if (clock == 0)
-		goto out;
+		return;
 
 	while (host->max_clk / div > clock) {
 		/*
@@ -76,28 +74,28 @@ static void sdhci_cns3xxx_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	clk |= SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
-out:
-	host->clock = clock;
 }
 
-static struct sdhci_ops sdhci_cns3xxx_ops = {
+static const struct sdhci_ops sdhci_cns3xxx_ops = {
 	.get_max_clock	= sdhci_cns3xxx_get_max_clk,
 	.set_clock	= sdhci_cns3xxx_set_clock,
+	.set_bus_width	= sdhci_set_bus_width,
+	.reset          = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
-static struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
+static const struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
 	.ops = &sdhci_cns3xxx_ops,
 	.quirks = SDHCI_QUIRK_BROKEN_DMA |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
-		  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
-		  SDHCI_QUIRK_NONSTANDARD_CLOCK,
+		  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
 };
 
 static int sdhci_cns3xxx_probe(struct platform_device *pdev)
 {
-	return sdhci_pltfm_register(pdev, &sdhci_cns3xxx_pdata);
+	return sdhci_pltfm_register(pdev, &sdhci_cns3xxx_pdata, 0);
 }
 
 static int sdhci_cns3xxx_remove(struct platform_device *pdev)
@@ -108,7 +106,6 @@ static int sdhci_cns3xxx_remove(struct platform_device *pdev)
 static struct platform_driver sdhci_cns3xxx_driver = {
 	.driver		= {
 		.name	= "sdhci-cns3xxx",
-		.owner	= THIS_MODULE,
 		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.probe		= sdhci_cns3xxx_probe,

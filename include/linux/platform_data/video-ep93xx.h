@@ -1,9 +1,5 @@
-/*
- * arch/arm/mach-ep93xx/include/mach/fb.h
- */
-
-#ifndef __ASM_ARCH_EP93XXFB_H
-#define __ASM_ARCH_EP93XXFB_H
+#ifndef __VIDEO_EP93XX_H
+#define __VIDEO_EP93XX_H
 
 struct platform_device;
 struct fb_videomode;
@@ -53,4 +49,4 @@ struct ep93xxfb_mach_info {
 	void	(*blank)(int blank_mode, struct fb_info *info);
 };
 
-#endif /* __ASM_ARCH_EP93XXFB_H */
+#endif /* __VIDEO_EP93XX_H */

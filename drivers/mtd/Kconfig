@@ -150,30 +150,18 @@ config MTD_BCM63XX_PARTS
 
 config MTD_BCM47XX_PARTS
 	tristate "BCM47XX partitioning support"
-	depends on BCM47XX
+	depends on BCM47XX || ARCH_BCM_5301X
 	help
 	  This provides partitions parser for devices based on BCM47xx
 	  boards.
 
 comment "User Modules And Translation Layers"
 
-config MTD_CHAR
-	tristate "Direct char device access to MTD devices"
-	help
-	  This provides a character device for each MTD device present in
-	  the system, allowing the user to read and write directly to the
-	  memory chips, and also use ioctl() to obtain information about
-	  the device, or to erase parts of it.
-
-config HAVE_MTD_OTP
-	bool
-	help
-	  Enable access to OTP regions using MTD_CHAR.
-
+#
+# MTD block device support is select'ed if needed
+#
 config MTD_BLKDEVS
-	tristate "Common interface to block layer for MTD 'translation layers'"
-	depends on BLOCK
-	default n
+	tristate
 
 config MTD_BLOCK
 	tristate "Caching block device access to MTD devices"
@@ -332,6 +320,8 @@ source "drivers/mtd/nand/Kconfig"
 source "drivers/mtd/onenand/Kconfig"
 
 source "drivers/mtd/lpddr/Kconfig"
+
+source "drivers/mtd/spi-nor/Kconfig"
 
 source "drivers/mtd/ubi/Kconfig"
 

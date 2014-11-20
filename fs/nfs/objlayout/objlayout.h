@@ -6,7 +6,7 @@
  *  All rights reserved.
  *
  *  Benny Halevy <bhalevy@panasas.com>
- *  Boaz Harrosh <bharrosh@panasas.com>
+ *  Boaz Harrosh <ooo@electrozaur.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -114,13 +114,13 @@ extern int objio_alloc_lseg(struct pnfs_layout_segment **outp,
 	gfp_t gfp_flags);
 extern void objio_free_lseg(struct pnfs_layout_segment *lseg);
 
-/* objio_free_result will free these @oir structs recieved from
+/* objio_free_result will free these @oir structs received from
  * objlayout_{read,write}_done
  */
 extern void objio_free_result(struct objlayout_io_res *oir);
 
-extern int objio_read_pagelist(struct nfs_read_data *rdata);
-extern int objio_write_pagelist(struct nfs_write_data *wdata, int how);
+extern int objio_read_pagelist(struct nfs_pgio_header *rdata);
+extern int objio_write_pagelist(struct nfs_pgio_header *wdata, int how);
 
 /*
  * callback API
@@ -149,11 +149,6 @@ extern void objlayout_read_done(struct objlayout_io_res *oir,
 extern void objlayout_write_done(struct objlayout_io_res *oir,
 				 ssize_t status, bool sync);
 
-extern int objlayout_get_deviceinfo(struct pnfs_layout_hdr *pnfslay,
-	struct nfs4_deviceid *d_id, struct pnfs_osd_deviceaddr **deviceaddr,
-	gfp_t gfp_flags);
-extern void objlayout_put_deviceinfo(struct pnfs_osd_deviceaddr *deviceaddr);
-
 /*
  * exported generic objects function vectors
  */
@@ -168,10 +163,10 @@ extern struct pnfs_layout_segment *objlayout_alloc_lseg(
 extern void objlayout_free_lseg(struct pnfs_layout_segment *);
 
 extern enum pnfs_try_status objlayout_read_pagelist(
-	struct nfs_read_data *);
+	struct nfs_pgio_header *);
 
 extern enum pnfs_try_status objlayout_write_pagelist(
-	struct nfs_write_data *,
+	struct nfs_pgio_header *,
 	int how);
 
 extern void objlayout_encode_layoutcommit(

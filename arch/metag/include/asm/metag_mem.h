@@ -700,6 +700,9 @@
 #define     SYSC_xCPARTG_AND_S    8
 #define     SYSC_xCPARTL_OR_BITS  0x000F0000 /* Ors into top 4 bits */
 #define     SYSC_xCPARTL_OR_S     16
+#ifdef METAC_2_1
+#define     SYSC_DCPART_GCON_BIT  0x00100000 /* Coherent shared local */
+#endif /* METAC_2_1 */
 #define     SYSC_xCPARTG_OR_BITS  0x0F000000 /* Ors into top 4 bits */
 #define     SYSC_xCPARTG_OR_S     24
 #define     SYSC_CWRMODE_BIT      0x80000000 /* Write cache mode bit */

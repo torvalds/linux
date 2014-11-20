@@ -1,6 +1,0 @@
-TODO:
-	- change configuration interface from sysfs to configfs
-
-Please send patches to Greg Kroah-Hartmann <gregkh@linuxfoundation.org>,
-Andrzej Pietrasiewicz <andrzej.p@samsung.com>, and
-Cc: Mike Lockwood <lockwood@android.com>

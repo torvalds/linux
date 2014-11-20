@@ -12,6 +12,8 @@
 #include <linux/notifier.h>
 #include <linux/err.h>
 
+#include <dt-bindings/mfd/dbx500-prcmu.h> /* For clock identifiers */
+
 /* Offset for the firmware version within the TCPM */
 #define DB8500_PRCMU_FW_VERSION_OFFSET 0xA4
 #define DBX540_PRCMU_FW_VERSION_OFFSET 0xA8
@@ -93,62 +95,6 @@ enum prcmu_wakeup_index {
 #define PRCMU_CLKSRC_HSITXCLK		0x45
 #define PRCMU_CLKSRC_ARMCLKFIX		0x46
 #define PRCMU_CLKSRC_HDMICLK		0x47
-
-/*
- * Clock identifiers.
- */
-enum prcmu_clock {
-	PRCMU_SGACLK,
-	PRCMU_UARTCLK,
-	PRCMU_MSP02CLK,
-	PRCMU_MSP1CLK,
-	PRCMU_I2CCLK,
-	PRCMU_SDMMCCLK,
-	PRCMU_SPARE1CLK,
-	PRCMU_SLIMCLK,
-	PRCMU_PER1CLK,
-	PRCMU_PER2CLK,
-	PRCMU_PER3CLK,
-	PRCMU_PER5CLK,
-	PRCMU_PER6CLK,
-	PRCMU_PER7CLK,
-	PRCMU_LCDCLK,
-	PRCMU_BMLCLK,
-	PRCMU_HSITXCLK,
-	PRCMU_HSIRXCLK,
-	PRCMU_HDMICLK,
-	PRCMU_APEATCLK,
-	PRCMU_APETRACECLK,
-	PRCMU_MCDECLK,
-	PRCMU_IPI2CCLK,
-	PRCMU_DSIALTCLK,
-	PRCMU_DMACLK,
-	PRCMU_B2R2CLK,
-	PRCMU_TVCLK,
-	PRCMU_SSPCLK,
-	PRCMU_RNGCLK,
-	PRCMU_UICCCLK,
-	PRCMU_PWMCLK,
-	PRCMU_IRDACLK,
-	PRCMU_IRRCCLK,
-	PRCMU_SIACLK,
-	PRCMU_SVACLK,
-	PRCMU_ACLK,
-	PRCMU_NUM_REG_CLOCKS,
-	PRCMU_SYSCLK = PRCMU_NUM_REG_CLOCKS,
-	PRCMU_CDCLK,
-	PRCMU_TIMCLK,
-	PRCMU_PLLSOC0,
-	PRCMU_PLLSOC1,
-	PRCMU_ARMSS,
-	PRCMU_PLLDDR,
-	PRCMU_PLLDSI,
-	PRCMU_DSI0CLK,
-	PRCMU_DSI1CLK,
-	PRCMU_DSI0ESCCLK,
-	PRCMU_DSI1ESCCLK,
-	PRCMU_DSI2ESCCLK,
-};
 
 /**
  * enum prcmu_wdog_id - PRCMU watchdog IDs
@@ -276,9 +222,9 @@ struct prcmu_fw_version {
 
 #if defined(CONFIG_UX500_SOC_DB8500)
 
-static inline void __init prcmu_early_init(void)
+static inline void prcmu_early_init(u32 phy_base, u32 size)
 {
-	return db8500_prcmu_early_init();
+	return db8500_prcmu_early_init(phy_base, size);
 }
 
 static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
@@ -291,36 +237,6 @@ static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 static inline u8 prcmu_get_power_state_result(void)
 {
 	return db8500_prcmu_get_power_state_result();
-}
-
-static inline int prcmu_gic_decouple(void)
-{
-	return db8500_prcmu_gic_decouple();
-}
-
-static inline int prcmu_gic_recouple(void)
-{
-	return db8500_prcmu_gic_recouple();
-}
-
-static inline bool prcmu_gic_pending_irq(void)
-{
-	return db8500_prcmu_gic_pending_irq();
-}
-
-static inline bool prcmu_is_cpu_in_wfi(int cpu)
-{
-	return db8500_prcmu_is_cpu_in_wfi(cpu);
-}
-
-static inline int prcmu_copy_gic_settings(void)
-{
-	return db8500_prcmu_copy_gic_settings();
-}
-
-static inline bool prcmu_pending_irq(void)
-{
-	return db8500_prcmu_pending_irq();
 }
 
 static inline int prcmu_set_epod(u16 epod_id, u8 epod_state)
@@ -500,7 +416,7 @@ static inline int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 }
 #else
 
-static inline void __init prcmu_early_init(void) {}
+static inline void prcmu_early_init(u32 phy_base, u32 size) {}
 
 static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 	bool keep_ap_pll)

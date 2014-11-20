@@ -109,13 +109,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 
 	pkt.hdr.proto_version = sbi->version;
 	pkt.hdr.type = type;
-	mutex_lock(&sbi->wq_mutex);
 
-	/* Check if we have become catatonic */
-	if (sbi->catatonic) {
-		mutex_unlock(&sbi->wq_mutex);
-		return;
-	}
 	switch (type) {
 	/* Kernel protocol v4 missing and expire packets */
 	case autofs_ptype_missing:
@@ -353,9 +347,21 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 	struct qstr qstr;
 	char *name;
 	int status, ret, type;
+	pid_t pid;
+	pid_t tgid;
 
 	/* In catatonic mode, we don't wait for nobody */
 	if (sbi->catatonic)
+		return -ENOENT;
+
+	/*
+	 * Try translating pids to the namespace of the daemon.
+	 *
+	 * Zero means failure: we are in an unrelated pid namespace.
+	 */
+	pid = task_pid_nr_ns(current, ns_of_pid(sbi->oz_pgrp));
+	tgid = task_tgid_nr_ns(current, ns_of_pid(sbi->oz_pgrp));
+	if (pid == 0 || tgid == 0)
 		return -ENOENT;
 
 	if (!dentry->d_inode) {
@@ -423,11 +429,10 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		wq->ino = autofs4_get_ino(sbi);
 		wq->uid = current_uid();
 		wq->gid = current_gid();
-		wq->pid = current->pid;
-		wq->tgid = current->tgid;
+		wq->pid = pid;
+		wq->tgid = tgid;
 		wq->status = -EINTR; /* Status return if interrupted */
 		wq->wait_ctr = 2;
-		mutex_unlock(&sbi->wq_mutex);
 
 		if (sbi->version < 5) {
 			if (notify == NFY_MOUNT)
@@ -449,15 +454,15 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 			(unsigned long) wq->wait_queue_token, wq->name.len,
 			wq->name.name, notify);
 
-		/* autofs4_notify_daemon() may block */
+		/* autofs4_notify_daemon() may block; it will unlock ->wq_mutex */
 		autofs4_notify_daemon(sbi, wq, type);
 	} else {
 		wq->wait_ctr++;
-		mutex_unlock(&sbi->wq_mutex);
-		kfree(qstr.name);
 		DPRINTK("existing wait id = 0x%08lx, name = %.*s, nfy=%d",
 			(unsigned long) wq->wait_queue_token, wq->name.len,
 			wq->name.name, notify);
+		mutex_unlock(&sbi->wq_mutex);
+		kfree(qstr.name);
 	}
 
 	/*

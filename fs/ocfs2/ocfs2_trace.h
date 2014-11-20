@@ -2292,6 +2292,8 @@ TRACE_EVENT(ocfs2_rename,
 		  __entry->new_len, __get_str(new_name))
 );
 
+DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_rename_not_permitted);
+
 TRACE_EVENT(ocfs2_rename_target_exists,
 	TP_PROTO(int new_len, const char *new_name),
 	TP_ARGS(new_len, new_name),
@@ -2578,6 +2580,8 @@ DEFINE_OCFS2_ULL_UINT_EVENT(ocfs2_commit_cache_end);
 DEFINE_OCFS2_INT_INT_EVENT(ocfs2_extend_trans);
 
 DEFINE_OCFS2_INT_EVENT(ocfs2_extend_trans_restart);
+
+DEFINE_OCFS2_INT_INT_EVENT(ocfs2_allocate_extend_trans);
 
 DEFINE_OCFS2_ULL_ULL_UINT_UINT_EVENT(ocfs2_journal_access);
 

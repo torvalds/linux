@@ -11,14 +11,12 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/irqchip/arm-gic.h>
 #include <asm/page.h>
 #include <asm/mach/map.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
-#include <mach/map.h>
 
 #include "common.h"
 
@@ -46,15 +44,8 @@ void __init sirfsoc_map_scu(void)
 	scu_base = (void __iomem *)SIRFSOC_VA(base);
 }
 
-static void __cpuinit sirfsoc_secondary_init(unsigned int cpu)
+static void sirfsoc_secondary_init(unsigned int cpu)
 {
-	/*
-	 * if any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-
 	/*
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
@@ -74,7 +65,7 @@ static struct of_device_id rsc_ids[]  = {
 	{},
 };
 
-static int __cpuinit sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 	struct device_node *np;
@@ -115,8 +106,7 @@ static int __cpuinit sirfsoc_boot_secondary(unsigned int cpu, struct task_struct
 	 * "cpu" is Linux's internal ID.
 	 */
 	pen_release = cpu_logical_map(cpu);
-	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
-	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+	sync_cache_w(&pen_release);
 
 	/*
 	 * Send the secondary CPU SEV, thereby causing the boot monitor to read
@@ -148,9 +138,9 @@ static void __init sirfsoc_smp_prepare_cpus(unsigned int max_cpus)
 }
 
 struct smp_operations sirfsoc_smp_ops __initdata = {
-        .smp_prepare_cpus       = sirfsoc_smp_prepare_cpus,
-        .smp_secondary_init     = sirfsoc_secondary_init,
-        .smp_boot_secondary     = sirfsoc_boot_secondary,
+	.smp_prepare_cpus       = sirfsoc_smp_prepare_cpus,
+	.smp_secondary_init     = sirfsoc_secondary_init,
+	.smp_boot_secondary     = sirfsoc_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die                = sirfsoc_cpu_die,
 #endif

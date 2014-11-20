@@ -207,7 +207,7 @@ struct tulip_chip_table tulip_tbl[] = {
 };
 
 
-static DEFINE_PCI_DEVICE_TABLE(tulip_pci_tbl) = {
+static const struct pci_device_id tulip_pci_tbl[] = {
 	{ 0x1011, 0x0009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DC21140 },
 	{ 0x1011, 0x0019, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DC21143 },
 	{ 0x11AD, 0x0002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, LC82C168 },
@@ -1294,7 +1294,7 @@ static const struct net_device_ops tulip_netdev_ops = {
 #endif
 };
 
-DEFINE_PCI_DEVICE_TABLE(early_486_chipsets) = {
+const struct pci_device_id early_486_chipsets[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82424) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_496) },
 	{ },
@@ -1304,7 +1304,9 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct tulip_private *tp;
 	/* See note below on the multiport cards. */
-	static unsigned char last_phys_addr[6] = {0x00, 'L', 'i', 'n', 'u', 'x'};
+	static unsigned char last_phys_addr[ETH_ALEN] = {
+		0x00, 'L', 'i', 'n', 'u', 'x'
+	};
 	static int last_irq;
 	static int multiport_cnt;	/* For four-port boards w/one EEPROM */
 	int i, irq;
@@ -1408,12 +1410,6 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (i) {
 		pr_err("Cannot enable tulip board #%d, aborting\n", board_idx);
 		return i;
-	}
-
-	/* The chip will fail to enter a low-power state later unless
-	 * first explicitly commanded into D0 */
-	if (pci_set_power_state(pdev, PCI_D0)) {
-		pr_notice("Failed to set power state to D0\n");
 	}
 
 	irq = pdev->irq;
@@ -1633,8 +1629,8 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->dev_addr[i] = last_phys_addr[i] + 1;
 #if defined(CONFIG_SPARC)
 		addr = of_get_property(dp, "local-mac-address", &len);
-		if (addr && len == 6)
-			memcpy(dev->dev_addr, addr, 6);
+		if (addr && len == ETH_ALEN)
+			memcpy(dev->dev_addr, addr, ETH_ALEN);
 #endif
 #if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS bug. */
 		if (last_irq)
@@ -1707,7 +1703,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_TULIP_NAPI
 	netif_napi_add(dev, &tp->napi, tulip_poll, 16);
 #endif
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 
 	if (register_netdev(dev))
 		goto err_out_free_ring;
@@ -1943,7 +1939,7 @@ static void tulip_remove_one(struct pci_dev *pdev)
 	pci_iounmap(pdev, tp->base_addr);
 	free_netdev (dev);
 	pci_release_regions (pdev);
-	pci_set_drvdata (pdev, NULL);
+	pci_disable_device(pdev);
 
 	/* pci_power_off (pdev, -1); */
 }

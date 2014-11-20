@@ -14,13 +14,11 @@
 #include "affs.h"
 
 extern const struct inode_operations affs_symlink_inode_operations;
-extern struct timezone sys_tz;
 
 struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 {
 	struct affs_sb_info	*sbi = AFFS_SB(sb);
 	struct buffer_head	*bh;
-	struct affs_head	*head;
 	struct affs_tail	*tail;
 	struct inode		*inode;
 	u32			 block;
@@ -34,7 +32,7 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	if (!(inode->i_state & I_NEW))
 		return inode;
 
-	pr_debug("AFFS: affs_iget(%lu)\n", inode->i_ino);
+	pr_debug("affs_iget(%lu)\n", inode->i_ino);
 
 	block = inode->i_ino;
 	bh = affs_bread(sb, block);
@@ -49,7 +47,6 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 		goto bad_inode;
 	}
 
-	head = AFFS_HEAD(bh);
 	tail = AFFS_TAIL(sb, bh);
 	prot = be32_to_cpu(tail->protect);
 
@@ -175,7 +172,7 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	uid_t			 uid;
 	gid_t			 gid;
 
-	pr_debug("AFFS: write_inode(%lu)\n",inode->i_ino);
+	pr_debug("write_inode(%lu)\n", inode->i_ino);
 
 	if (!inode->i_nlink)
 		// possibly free block
@@ -220,7 +217,7 @@ affs_notify_change(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = dentry->d_inode;
 	int error;
 
-	pr_debug("AFFS: notify_change(%lu,0x%x)\n",inode->i_ino,attr->ia_valid);
+	pr_debug("notify_change(%lu,0x%x)\n", inode->i_ino, attr->ia_valid);
 
 	error = inode_change_ok(inode,attr);
 	if (error)
@@ -258,8 +255,9 @@ void
 affs_evict_inode(struct inode *inode)
 {
 	unsigned long cache_page;
-	pr_debug("AFFS: evict_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
-	truncate_inode_pages(&inode->i_data, 0);
+	pr_debug("evict_inode(ino=%lu, nlink=%u)\n",
+		 inode->i_ino, inode->i_nlink);
+	truncate_inode_pages_final(&inode->i_data);
 
 	if (!inode->i_nlink) {
 		inode->i_size = 0;
@@ -271,7 +269,7 @@ affs_evict_inode(struct inode *inode)
 	affs_free_prealloc(inode);
 	cache_page = (unsigned long)AFFS_I(inode)->i_lc;
 	if (cache_page) {
-		pr_debug("AFFS: freeing ext cache\n");
+		pr_debug("freeing ext cache\n");
 		AFFS_I(inode)->i_lc = NULL;
 		AFFS_I(inode)->i_ac = NULL;
 		free_page(cache_page);
@@ -350,7 +348,8 @@ affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s3
 	u32 block = 0;
 	int retval;
 
-	pr_debug("AFFS: add_entry(dir=%u, inode=%u, \"%*s\", type=%d)\n", (u32)dir->i_ino,
+	pr_debug("%s(dir=%u, inode=%u, \"%*s\", type=%d)\n",
+		 __func__, (u32)dir->i_ino,
 	         (u32)inode->i_ino, (int)dentry->d_name.len, dentry->d_name.name, type);
 
 	retval = -EIO;

@@ -22,7 +22,6 @@
 #include <linux/hw_random.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -144,6 +143,7 @@ static int exynos_rng_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
 static int exynos_rng_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -161,7 +161,7 @@ static int exynos_rng_runtime_resume(struct device *dev)
 
 	return clk_prepare_enable(exynos_rng->clk);
 }
-
+#endif
 
 static UNIVERSAL_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_runtime_suspend,
 					exynos_rng_runtime_resume, NULL);

@@ -2,7 +2,6 @@ menu "Android"
 
 config ANDROID
 	bool "Android Drivers"
-	default N
 	---help---
 	  Enable support for various drivers needed on the Android platform
 
@@ -10,6 +9,7 @@ if ANDROID
 
 config ANDROID_BINDER_IPC
 	bool "Android Binder IPC Driver"
+	depends on MMU
 	default n
 	---help---
 	  Binder is used in Android for both communication between processes,
@@ -19,10 +19,23 @@ config ANDROID_BINDER_IPC
 	  Android process, using Binder to identify, invoke and pass arguments
 	  between said processes.
 
+config ANDROID_BINDER_IPC_32BIT
+	bool
+	depends on !64BIT && ANDROID_BINDER_IPC
+	default y
+	---help---
+	  The Binder API has been changed to support both 32 and 64bit
+	  applications in a mixed environment.
+
+	  Enable this to support an old 32-bit Android user-space (v4.4 and
+	  earlier).
+
+	  Note that enabling this will break newer Android user-space.
+
 config ASHMEM
 	bool "Enable the Anonymous Shared Memory Subsystem"
 	default n
-	depends on SHMEM || TINY_SHMEM
+	depends on SHMEM
 	---help---
 	  The ashmem subsystem is a new shared memory allocator, similar to
 	  POSIX SHM but with different behavior and sporting a simpler
@@ -54,23 +67,52 @@ config ANDROID_TIMED_OUTPUT
 
 config ANDROID_TIMED_GPIO
 	tristate "Android timed gpio driver"
-	depends on GENERIC_GPIO && ANDROID_TIMED_OUTPUT
+	depends on GPIOLIB && ANDROID_TIMED_OUTPUT
 	default n
 
 config ANDROID_LOW_MEMORY_KILLER
 	bool "Android Low Memory Killer"
-	default N
 	---help---
 	  Registers processes to be killed when memory is low
 
 config ANDROID_INTF_ALARM_DEV
-	bool "Android alarm driver"
+	tristate "Android alarm driver"
 	depends on RTC_CLASS
 	default n
 	---help---
 	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
 	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
 	  Also exports the alarm interface to user-space.
+
+config SYNC
+	bool "Synchronization framework"
+	default n
+	select ANON_INODES
+	select DMA_SHARED_BUFFER
+	---help---
+	  This option enables the framework for synchronization between multiple
+	  drivers.  Sync implementations can take advantage of hardware
+	  synchronization built into devices like GPUs.
+
+config SW_SYNC
+	bool "Software synchronization objects"
+	default n
+	depends on SYNC
+	---help---
+	  A sync object driver that uses a 32bit counter to coordinate
+	  syncrhronization.  Useful when there is no hardware primitive backing
+	  the synchronization.
+
+config SW_SYNC_USER
+	bool "Userspace API for SW_SYNC"
+	default n
+	depends on SW_SYNC
+	---help---
+	  Provides a user space API to the sw sync object.
+	  *WARNING* improper use of this can result in deadlocking kernel
+	  drivers from userspace.
+
+source "drivers/staging/android/ion/Kconfig"
 
 endif # if ANDROID
 

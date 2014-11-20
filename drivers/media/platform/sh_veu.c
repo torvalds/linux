@@ -10,6 +10,7 @@
  * published by the Free Software Foundation
  */
 
+#include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -25,6 +26,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mem2mem.h>
+#include <media/v4l2-image-sizes.h>
 #include <media/videobuf2-dma-contig.h>
 
 #define VEU_STR 0x00 /* start register */
@@ -133,9 +135,6 @@ enum sh_veu_fmt_idx {
 	SH_VEU_FMT_RGB666,
 	SH_VEU_FMT_RGB24,
 };
-
-#define VGA_WIDTH	640
-#define VGA_HEIGHT	480
 
 #define DEFAULT_IN_WIDTH	VGA_WIDTH
 #define DEFAULT_IN_HEIGHT	VGA_HEIGHT
@@ -358,10 +357,7 @@ static int sh_veu_context_init(struct sh_veu_dev *veu)
 	veu->m2m_ctx = v4l2_m2m_ctx_init(veu->m2m_dev, veu,
 					 sh_veu_queue_init);
 
-	if (IS_ERR(veu->m2m_ctx))
-		return PTR_ERR(veu->m2m_ctx);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(veu->m2m_ctx);
 }
 
 static int sh_veu_querycap(struct file *file, void *priv,
@@ -427,7 +423,6 @@ static int sh_veu_g_fmt(struct sh_veu_file *veu_file, struct v4l2_format *f)
 	pix->bytesperline	= vfmt->bytesperline;
 	pix->sizeimage		= vfmt->bytesperline * pix->height *
 		vfmt->fmt->depth / vfmt->fmt->ydepth;
-	pix->priv		= 0;
 	dev_dbg(veu->dev, "%s(): type: %d, size %u @ %ux%u, fmt %x\n", __func__,
 		f->type, pix->sizeimage, pix->width, pix->height, pix->pixelformat);
 
@@ -475,7 +470,6 @@ static int sh_veu_try_fmt(struct v4l2_format *f, const struct sh_veu_format *fmt
 
 	pix->pixelformat	= fmt->fourcc;
 	pix->colorspace		= sh_veu_4cc2cspace(pix->pixelformat);
-	pix->priv		= 0;
 
 	pr_debug("%s(): type: %d, size %u\n", __func__, f->type, pix->sizeimage);
 
@@ -904,11 +898,11 @@ static int sh_veu_queue_setup(struct vb2_queue *vq,
 		if (ftmp.fmt.pix.width != pix->width ||
 		    ftmp.fmt.pix.height != pix->height)
 			return -EINVAL;
-		size = pix->bytesperline ? pix->bytesperline * pix->height :
-			pix->width * pix->height * fmt->depth >> 3;
+		size = pix->bytesperline ? pix->bytesperline * pix->height * fmt->depth / fmt->ydepth :
+			pix->width * pix->height * fmt->depth / fmt->ydepth;
 	} else {
 		vfmt = sh_veu_get_vfmt(veu, vq->type);
-		size = vfmt->bytesperline * vfmt->frame.height;
+		size = vfmt->bytesperline * vfmt->frame.height * vfmt->fmt->depth / vfmt->fmt->ydepth;
 	}
 
 	if (count < 2)
@@ -1032,8 +1026,6 @@ static int sh_veu_release(struct file *file)
 
 	dev_dbg(veu->dev, "Releasing instance %p\n", veu_file);
 
-	pm_runtime_put(veu->dev);
-
 	if (veu_file == veu->capture) {
 		veu->capture = NULL;
 		vb2_queue_release(v4l2_m2m_get_vq(veu->m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE));
@@ -1048,6 +1040,8 @@ static int sh_veu_release(struct file *file)
 		v4l2_m2m_ctx_release(veu->m2m_ctx);
 		veu->m2m_ctx = NULL;
 	}
+
+	pm_runtime_put(veu->dev);
 
 	kfree(veu_file);
 
@@ -1137,10 +1131,7 @@ static irqreturn_t sh_veu_isr(int irq, void *dev_id)
 
 	veu->xaction++;
 
-	if (!veu->aborting)
-		return IRQ_WAKE_THREAD;
-
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static int sh_veu_probe(struct platform_device *pdev)
@@ -1164,9 +1155,9 @@ static int sh_veu_probe(struct platform_device *pdev)
 
 	veu->is_2h = resource_size(reg_res) == 0x22c;
 
-	veu->base = devm_request_and_ioremap(&pdev->dev, reg_res);
-	if (!veu->base)
-		return -ENOMEM;
+	veu->base = devm_ioremap_resource(&pdev->dev, reg_res);
+	if (IS_ERR(veu->base))
+		return PTR_ERR(veu->base);
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, sh_veu_isr, sh_veu_bh,
 					0, "veu", veu);
@@ -1248,18 +1239,7 @@ static struct platform_driver __refdata sh_veu_pdrv = {
 	},
 };
 
-static int __init sh_veu_init(void)
-{
-	return platform_driver_probe(&sh_veu_pdrv, sh_veu_probe);
-}
-
-static void __exit sh_veu_exit(void)
-{
-	platform_driver_unregister(&sh_veu_pdrv);
-}
-
-module_init(sh_veu_init);
-module_exit(sh_veu_exit);
+module_platform_driver_probe(sh_veu_pdrv, sh_veu_probe);
 
 MODULE_DESCRIPTION("sh-mobile VEU mem2mem driver");
 MODULE_AUTHOR("Guennadi Liakhovetski, <g.liakhovetski@gmx.de>");

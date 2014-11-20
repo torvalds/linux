@@ -29,20 +29,24 @@
 
 struct idr_layer {
 	int			prefix;	/* the ID prefix of this idr_layer */
-	DECLARE_BITMAP(bitmap, IDR_SIZE); /* A zero bit means "space here" */
+	int			layer;	/* distance from leaf */
 	struct idr_layer __rcu	*ary[1<<IDR_BITS];
 	int			count;	/* When zero, we can release it */
-	int			layer;	/* distance from leaf */
-	struct rcu_head		rcu_head;
+	union {
+		/* A zero bit means "space here" */
+		DECLARE_BITMAP(bitmap, IDR_SIZE);
+		struct rcu_head		rcu_head;
+	};
 };
 
 struct idr {
 	struct idr_layer __rcu	*hint;	/* the last layer allocated from */
 	struct idr_layer __rcu	*top;
-	struct idr_layer	*id_free;
 	int			layers;	/* only valid w/o concurrent changes */
-	int			id_free_cnt;
+	int			cur;	/* current pos for cyclic allocation */
 	spinlock_t		lock;
+	int			id_free_cnt;
+	struct idr_layer	*id_free;
 };
 
 #define IDR_INIT(name)							\
@@ -75,14 +79,15 @@ struct idr {
 void *idr_find_slowpath(struct idr *idp, int id);
 void idr_preload(gfp_t gfp_mask);
 int idr_alloc(struct idr *idp, void *ptr, int start, int end, gfp_t gfp_mask);
+int idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask);
 int idr_for_each(struct idr *idp,
 		 int (*fn)(int id, void *p, void *data), void *data);
 void *idr_get_next(struct idr *idp, int *nextid);
 void *idr_replace(struct idr *idp, void *ptr, int id);
 void idr_remove(struct idr *idp, int id);
-void idr_free(struct idr *idp, int id);
 void idr_destroy(struct idr *idp);
 void idr_init(struct idr *idp);
+bool idr_is_empty(struct idr *idp);
 
 /**
  * idr_preload_end - end preload section started with idr_preload()
@@ -122,74 +127,13 @@ static inline void *idr_find(struct idr *idr, int id)
  * @idp:     idr handle
  * @entry:   the type * to use as cursor
  * @id:      id entry's key
- */
-#define idr_for_each_entry(idp, entry, id)				\
-	for (id = 0, entry = (typeof(entry))idr_get_next((idp), &(id)); \
-	     entry != NULL;                                             \
-	     ++id, entry = (typeof(entry))idr_get_next((idp), &(id)))
-
-/*
- * Don't use the following functions.  These exist only to suppress
- * deprecated warnings on EXPORT_SYMBOL()s.
- */
-int __idr_pre_get(struct idr *idp, gfp_t gfp_mask);
-int __idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
-void __idr_remove_all(struct idr *idp);
-
-/**
- * idr_pre_get - reserve resources for idr allocation
- * @idp:	idr handle
- * @gfp_mask:	memory allocation flags
  *
- * Part of old alloc interface.  This is going away.  Use
- * idr_preload[_end]() and idr_alloc() instead.
+ * @entry and @id do not need to be initialized before the loop, and
+ * after normal terminatinon @entry is left with the value NULL.  This
+ * is convenient for a "not found" value.
  */
-static inline int __deprecated idr_pre_get(struct idr *idp, gfp_t gfp_mask)
-{
-	return __idr_pre_get(idp, gfp_mask);
-}
-
-/**
- * idr_get_new_above - allocate new idr entry above or equal to a start id
- * @idp: idr handle
- * @ptr: pointer you want associated with the id
- * @starting_id: id to start search at
- * @id: pointer to the allocated handle
- *
- * Part of old alloc interface.  This is going away.  Use
- * idr_preload[_end]() and idr_alloc() instead.
- */
-static inline int __deprecated idr_get_new_above(struct idr *idp, void *ptr,
-						 int starting_id, int *id)
-{
-	return __idr_get_new_above(idp, ptr, starting_id, id);
-}
-
-/**
- * idr_get_new - allocate new idr entry
- * @idp: idr handle
- * @ptr: pointer you want associated with the id
- * @id: pointer to the allocated handle
- *
- * Part of old alloc interface.  This is going away.  Use
- * idr_preload[_end]() and idr_alloc() instead.
- */
-static inline int __deprecated idr_get_new(struct idr *idp, void *ptr, int *id)
-{
-	return __idr_get_new_above(idp, ptr, 0, id);
-}
-
-/**
- * idr_remove_all - remove all ids from the given idr tree
- * @idp: idr handle
- *
- * If you're trying to destroy @idp, calling idr_destroy() is enough.
- * This is going away.  Don't use.
- */
-static inline void __deprecated idr_remove_all(struct idr *idp)
-{
-	__idr_remove_all(idp);
-}
+#define idr_for_each_entry(idp, entry, id)			\
+	for (id = 0; ((entry) = idr_get_next(idp, &(id))) != NULL; ++id)
 
 /*
  * IDA - IDR based id allocator, use when translation from id to

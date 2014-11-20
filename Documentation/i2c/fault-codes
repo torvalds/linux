@@ -64,9 +64,6 @@ EINVAL
 	detected before any I/O operation was started.  Use a more
 	specific fault code when you can.
 
-	One example would be a driver trying an SMBus Block Write
-	with block size outside the range of 1-32 bytes.
-
 EIO
 	This rather vague error means something went wrong when
 	performing an I/O operation.  Use a more specific fault

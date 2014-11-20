@@ -15,10 +15,6 @@ This program is free software; you can redistribute it and/or modify it under th
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You should also find the complete GPL in the COPYING file accompanying this source code.
-
 @endverbatim
 */
 /*
@@ -50,8 +46,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   |          |           | - Append APCI-3300                             |
   +----------+-----------+------------------------------------------------+
 */
-
-/* #define PRINT_INFO */
 
 /* Card Specific information */
 /* #define APCI3200_ADDRESS_RANGE	264 */
@@ -459,12 +453,6 @@ static void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAd
 			BoardInformations->s_Module[w_ModulCounter].
 				w_GainValue[w_GainIndex] = w_GainValue;
 
-#             ifdef PRINT_INFO
-			printk("\n Gain value = %d",
-				BoardInformations->s_Module[w_ModulCounter].
-				w_GainValue[w_GainIndex]);
-#             endif
-
 	  /*************************************/
 	  /** Read gain factor for the module **/
 	  /*************************************/
@@ -476,12 +464,6 @@ static void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAd
 				ul_GainFactor[w_GainIndex] =
 				(w_GainFactorValue[1] << 16) +
 				w_GainFactorValue[0];
-
-#             ifdef PRINT_INFO
-			printk("\n w_GainFactorValue [%d] = %lu", w_GainIndex,
-				BoardInformations->s_Module[w_ModulCounter].
-				ul_GainFactor[w_GainIndex]);
-#             endif
 		}
 
       /***************************************************************/
@@ -503,12 +485,6 @@ static void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAd
 				ul_CurrentSource[w_Input] =
 				(w_CurrentSources[0] +
 				((w_CurrentSources[1] & 0xFFF) << 16));
-
-#             ifdef PRINT_INFO
-			printk("\n Current sources [%d] = %lu", w_Input,
-				BoardInformations->s_Module[w_ModulCounter].
-				ul_CurrentSource[w_Input]);
-#             endif
 		}
 
       /***************************************/
@@ -526,12 +502,6 @@ static void v_GetAPCI3200EepromCalibrationValue(unsigned int dw_PCIBoardEepromAd
 			ul_CurrentSourceCJC =
 			(w_CurrentSources[0] +
 			((w_CurrentSources[1] & 0xFFF) << 16));
-
-#          ifdef PRINT_INFO
-		printk("\n Current sources CJC = %lu",
-			BoardInformations->s_Module[w_ModulCounter].
-			ul_CurrentSourceCJC);
-#          endif
 	}
 }
 
@@ -543,10 +513,6 @@ static int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 {
 	int i_DiffChannel = 0;
 	int i_Module = 0;
-
-#ifdef PRINT_INFO
-	printk("\n Channel = %u", ui_Channel_num);
-#endif
 
 	/* Test if single or differential mode */
 	if (s_BoardInfos[dev->minor].i_ConnectionType == 1) {
@@ -584,16 +550,10 @@ static int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 	/* Test if thermocouple or RTD mode */
 	*CJCCurrentSource =
 		s_BoardInfos[dev->minor].s_Module[i_Module].ul_CurrentSourceCJC;
-#ifdef PRINT_INFO
-	printk("\n CJCCurrentSource = %lu", *CJCCurrentSource);
-#endif
 
 	*ChannelCurrentSource =
 		s_BoardInfos[dev->minor].s_Module[i_Module].
 		ul_CurrentSource[i_DiffChannel];
-#ifdef PRINT_INFO
-	printk("\n ChannelCurrentSource = %lu", *ChannelCurrentSource);
-#endif
 	/*       } */
 	/*    } */
 
@@ -601,9 +561,6 @@ static int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 	*ChannelGainFactor =
 		s_BoardInfos[dev->minor].s_Module[i_Module].
 		ul_GainFactor[s_BoardInfos[dev->minor].i_ADDIDATAGain];
-#ifdef PRINT_INFO
-	printk("\n ChannelGainFactor = %lu", *ChannelGainFactor);
-#endif
 	/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 
 	return 0;
@@ -627,16 +584,11 @@ static int apci3200_do_insn_bits(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 
 	s->state = inl(devpriv->i_IobaseAddon) & 0xf;
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outl(s->state, devpriv->i_IobaseAddon);
-	}
 
 	data[1] = s->state;
 
@@ -698,17 +650,11 @@ static int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
 
 	ui_CommandRegister = ui_ChannelNo | (ui_ChannelNo << 8) | 0x80000;
 
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /************************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/* Enable the interrupt */
-      /************************/
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-	}			/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
+	}
 
   /******************************/
 	/* Write the command register */
@@ -721,11 +667,8 @@ static int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
 
-  /*****************************/
 	/*Test if interrupt is enable */
-  /*****************************/
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 	  /*************************/
 			/*Read the EOC Status bit */
@@ -747,7 +690,7 @@ static int i_APCI3200_Read1AnalogInputChannel(struct comedi_device *dev,
 			s_BoardInfos[dev->minor].i_Offset + 28);
 		/* END JK 06.07.04: Management of sevrals boards */
 
-	}			/*  if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -809,20 +752,11 @@ static int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev,
 
 	ui_CommandRegister = 0;
 
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-
-      /**********************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/*Enable the interrupt */
-      /**********************/
-
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-
-	}			/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
+	}
 
   /**********************/
 	/*Start the conversion */
@@ -839,13 +773,8 @@ static int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev,
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
 
-  /*****************************/
 	/*Test if interrupt is enable */
-  /*****************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
-
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 	  /*******************/
 			/*Read the EOC flag */
@@ -865,7 +794,7 @@ static int i_APCI3200_ReadCalibrationOffsetValue(struct comedi_device *dev,
 		data[0] =
 			inl(devpriv->iobase +
 			s_BoardInfos[dev->minor].i_Offset + 28);
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -924,20 +853,11 @@ static int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev,
 
 	ui_CommandRegister = 0;
 
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-
-      /**********************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/*Enable the interrupt */
-      /**********************/
-
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-
-	}			/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
+	}
 
   /**********************/
 	/*Start the conversion */
@@ -954,13 +874,8 @@ static int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev,
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
 
-  /*****************************/
 	/*Test if interrupt is enable */
-  /*****************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
-
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 
 	  /*******************/
@@ -982,7 +897,7 @@ static int i_APCI3200_ReadCalibrationGainValue(struct comedi_device *dev,
 			inl(devpriv->iobase +
 			s_BoardInfos[dev->minor].i_Offset + 28);
 
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -1029,14 +944,9 @@ static int i_APCI3200_ReadCJCValue(struct comedi_device *dev,
 	/*Initialise dw_CommandRegister */
   /*******************************/
 	ui_CommandRegister = 0;
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /**********************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/*Enable the interrupt */
-      /**********************/
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
 	}
 
@@ -1056,12 +966,8 @@ static int i_APCI3200_ReadCJCValue(struct comedi_device *dev,
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
 
-  /*****************************/
 	/*Test if interrupt is enable */
-  /*****************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 
 	  /*******************/
@@ -1082,8 +988,7 @@ static int i_APCI3200_ReadCJCValue(struct comedi_device *dev,
 		data[0] =
 			inl(devpriv->iobase +
 			s_BoardInfos[dev->minor].i_Offset + 28);
-
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -1137,17 +1042,10 @@ static int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev,
 	/*Initialise ui_CommandRegister */
   /*******************************/
 	ui_CommandRegister = 0;
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /**********************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/*Enable the interrupt */
-      /**********************/
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
-
 	}
 
   /**********************/
@@ -1163,8 +1061,7 @@ static int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev,
 	/* outl(ui_CommandRegister,devpriv->iobase+i_Offset + 8); */
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 	  /*******************/
 			/*Read the EOC flag */
@@ -1181,7 +1078,7 @@ static int i_APCI3200_ReadCJCCalOffset(struct comedi_device *dev,
 		data[0] =
 			inl(devpriv->iobase +
 			s_BoardInfos[dev->minor].i_Offset + 28);
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
@@ -1233,14 +1130,9 @@ static int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev,
 	/*Initialise dw_CommandRegister */
   /*******************************/
 	ui_CommandRegister = 0;
-  /*********************************/
 	/*Test if the interrupt is enable */
-  /*********************************/
-	/* if (i_InterruptFlag == ADDIDATA_ENABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_ENABLE) {
-      /**********************/
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 1) {
 		/*Enable the interrupt */
-      /**********************/
 		ui_CommandRegister = ui_CommandRegister | 0x00100000;
 	}
   /**********************/
@@ -1256,8 +1148,7 @@ static int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev,
 	/* outl(ui_CommandRegister ,devpriv->iobase+i_Offset + 8); */
 	outl(ui_CommandRegister,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 8);
-	/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == ADDIDATA_DISABLE) {
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
 		do {
 	  /*******************/
 			/*Read the EOC flag */
@@ -1273,11 +1164,11 @@ static int i_APCI3200_ReadCJCCalGain(struct comedi_device *dev,
 		data[0] =
 			inl(devpriv->iobase +
 			s_BoardInfos[dev->minor].i_Offset + 28);
-	}			/* if (i_InterruptFlag == ADDIDATA_DISABLE) */
+	}
 	return 0;
 }
 
-static int i_APCI3200_Reset(struct comedi_device *dev)
+static int apci3200_reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
 	int i_Temp;
@@ -1331,10 +1222,10 @@ static int i_APCI3200_Reset(struct comedi_device *dev)
  * data[7] : Channel current source from eeprom
  * data[8] : Channle gain factor from eeprom
  */
-static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
-				      struct comedi_subdevice *s,
-				      struct comedi_insn *insn,
-				      unsigned int *data)
+static int apci3200_ai_read(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
 	unsigned int ui_DummyValue = 0;
 	int i_ConvertCJCCalibration;
@@ -1345,13 +1236,9 @@ static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
 	if (s_BoardInfos[dev->minor].i_Initialised == 0)
 		/* END JK 06.07.04: Management of sevrals boards */
 	{
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* if(i_Initialised==0); */
-
-#ifdef PRINT_INFO
-	printk("\n insn->unused[0] = %i", insn->unused[0]);
-#endif
 
 	switch (insn->unused[0]) {
 	case 0:
@@ -1377,15 +1264,6 @@ static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
 			&s_BoardInfos[dev->minor].
 			ui_InterruptChannelValue[s_BoardInfos[dev->minor].
 				i_Count + 8]);
-
-#ifdef PRINT_INFO
-		printk("\n s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count+6] = %lu", s_BoardInfos[dev->minor].ui_InterruptChannelValue[s_BoardInfos[dev->minor].i_Count + 6]);
-
-		printk("\n s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count+7] = %lu", s_BoardInfos[dev->minor].ui_InterruptChannelValue[s_BoardInfos[dev->minor].i_Count + 7]);
-
-		printk("\n s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count+8] = %lu", s_BoardInfos[dev->minor].ui_InterruptChannelValue[s_BoardInfos[dev->minor].i_Count + 8]);
-#endif
-
 		/* End JK 25.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 
 		/* BEGIN JK 06.07.04: Management of sevrals boards */
@@ -1541,9 +1419,6 @@ static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
 			   data[4]= ui_InterruptChannelValue[4];
 			   data[5]= ui_InterruptChannelValue[5];
 			 */
-#ifdef PRINT_INFO
-			printk("\n data[0]= s_BoardInfos [dev->minor].ui_InterruptChannelValue[0];");
-#endif
 			data[0] =
 				s_BoardInfos[dev->minor].
 				ui_InterruptChannelValue[0];
@@ -1564,7 +1439,6 @@ static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
 				ui_InterruptChannelValue[5];
 
 			/* Begin JK 22.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-			/* printk("\n 0 - i_APCI3200_GetChannelCalibrationValue data [6] = %lu, data [7] = %lu, data [8] = %lu", data [6], data [7], data [8]); */
 			i_APCI3200_GetChannelCalibrationValue(dev,
 				s_BoardInfos[dev->minor].ui_Channel_num,
 				&data[6], &data[7], &data[8]);
@@ -1595,7 +1469,7 @@ static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
 		break;
 	default:
 		printk("\nThe parameters passed are in error\n");
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* switch(insn->unused[0]) */
 
@@ -1635,23 +1509,16 @@ static int i_APCI3200_ReadAnalogInput(struct comedi_device *dev,
  *	    = 2  RTD 3 wire connection
  *	    = 3  RTD 4 wire connection
  */
-static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data)
+static int apci3200_ai_config(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Config = 0, ul_Temp = 0;
 	unsigned int ui_ChannelNo = 0;
 	unsigned int ui_Dummy = 0;
 	int i_err = 0;
-
-	/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-
-#ifdef PRINT_INFO
-	int i = 0, i2 = 0;
-#endif
-	/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 
 	/* BEGIN JK 06.07.04: Management of sevrals boards */
 	/*  Initialize the structure */
@@ -1678,29 +1545,6 @@ static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
 
 		v_GetAPCI3200EepromCalibrationValue(devpriv->i_IobaseAmcc,
 			&s_BoardInfos[dev->minor]);
-
-#ifdef PRINT_INFO
-		for (i = 0; i < MAX_MODULE; i++) {
-			printk("\n s_Module[%i].ul_CurrentSourceCJC = %lu", i,
-				s_BoardInfos[dev->minor].s_Module[i].
-				ul_CurrentSourceCJC);
-
-			for (i2 = 0; i2 < 5; i2++) {
-				printk("\n s_Module[%i].ul_CurrentSource [%i] = %lu", i, i2, s_BoardInfos[dev->minor].s_Module[i].ul_CurrentSource[i2]);
-			}
-
-			for (i2 = 0; i2 < 8; i2++) {
-				printk("\n s_Module[%i].ul_GainFactor [%i] = %lu", i, i2, s_BoardInfos[dev->minor].s_Module[i].ul_GainFactor[i2]);
-			}
-
-			for (i2 = 0; i2 < 8; i2++) {
-				printk("\n s_Module[%i].w_GainValue [%i] = %u",
-					i, i2,
-					s_BoardInfos[dev->minor].s_Module[i].
-					w_GainValue[i2]);
-			}
-		}
-#endif
 		/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 	}
 
@@ -1820,34 +1664,34 @@ static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
 	/* END JK 06.07.04: Management of sevrals boards */
 
 	if (data[5] == 0) {
-		if (ui_ChannelNo < 0 || ui_ChannelNo > 15) {
+		if (ui_ChannelNo > 15) {
 			printk("\nThe Selection of the channel is in error\n");
 			i_err++;
-		}		/*  if(ui_ChannelNo<0 || ui_ChannelNo>15) */
+		}		/*  if(ui_ChannelNo>15) */
 	}			/* if(data[5]==0) */
 	else {
 		if (data[14] == 2) {
-			if (ui_ChannelNo < 0 || ui_ChannelNo > 3) {
+			if (ui_ChannelNo > 3) {
 				printk("\nThe Selection of the channel is in error\n");
 				i_err++;
-			}	/*  if(ui_ChannelNo<0 || ui_ChannelNo>3) */
+			}	/*  if(ui_ChannelNo>3) */
 		}		/* if(data[14]==2) */
 		else {
-			if (ui_ChannelNo < 0 || ui_ChannelNo > 7) {
+			if (ui_ChannelNo > 7) {
 				printk("\nThe Selection of the channel is in error\n");
 				i_err++;
-			}	/*  if(ui_ChannelNo<0 || ui_ChannelNo>7) */
+			}	/*  if(ui_ChannelNo>7) */
 		}		/* elseif(data[14]==2) */
 	}			/* elseif(data[5]==0) */
 	if (data[12] == 0 || data[12] == 1) {
 		switch (data[5]) {
 		case 0:
-			if (ui_ChannelNo >= 0 && ui_ChannelNo <= 3) {
+			if (ui_ChannelNo <= 3) {
 				/* BEGIN JK 06.07.04: Management of sevrals boards */
 				/* i_Offset=0; */
 				s_BoardInfos[dev->minor].i_Offset = 0;
 				/* END JK 06.07.04: Management of sevrals boards */
-			}	/* if(ui_ChannelNo >=0 && ui_ChannelNo <=3) */
+			}	/* if(ui_ChannelNo <=3) */
 			if (ui_ChannelNo >= 4 && ui_ChannelNo <= 7) {
 				/* BEGIN JK 06.07.04: Management of sevrals boards */
 				/* i_Offset=64; */
@@ -1901,12 +1745,12 @@ static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
 				ui_ChannelNo = 0;
 				break;
 			}	/* if(data[14]==2) */
-			if (ui_ChannelNo >= 0 && ui_ChannelNo <= 1) {
+			if (ui_ChannelNo <= 1) {
 				/* BEGIN JK 06.07.04: Management of sevrals boards */
 				/* i_Offset=0; */
 				s_BoardInfos[dev->minor].i_Offset = 0;
 				/* END JK 06.07.04: Management of sevrals boards */
-			}	/* if(ui_ChannelNo >=0 && ui_ChannelNo <=1) */
+			}	/* if(ui_ChannelNo <=1) */
 			if (ui_ChannelNo >= 2 && ui_ChannelNo <= 3) {
 				/* BEGIN JK 06.07.04: Management of sevrals boards */
 				/* i_ChannelNo=i_ChannelNo-2; */
@@ -1979,7 +1823,7 @@ static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
 		}		/*  switch(data[11]) */
 	}			/*  elseif(data[12]==0 || data[12]==1) */
 	if (i_err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}
 	/* if(i_ScanType!=1) */
@@ -2088,7 +1932,7 @@ static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
 		/* END JK 06.07.04: Management of sevrals boards */
 
 		insn->unused[0] = 0;
-		i_APCI3200_ReadAnalogInput(dev, s, insn, &ui_Dummy);
+		apci3200_ai_read(dev, s, insn, &ui_Dummy);
 	}
 
 	return insn->n;
@@ -2104,10 +1948,10 @@ static int i_APCI3200_ConfigAnalogInput(struct comedi_device *dev,
  * data[1] : calibration offset
  * data[2] : calibration gain
  */
-static int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
-						struct comedi_subdevice *s,
-						struct comedi_insn *insn,
-						unsigned int *data)
+static int apci3200_ai_bits_test(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Configuration = 0;
@@ -2116,12 +1960,12 @@ static int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 	/* if(i_Initialised==0) */
 
 	if (s_BoardInfos[dev->minor].i_Initialised == 0) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* if(i_Initialised==0); */
 	if (data[0] != 0 && data[0] != 1) {
 		printk("\nError in selection of functionality\n");
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return -EINVAL;
 	}			/* if(data[0]!=0 && data[0]!=1) */
 
@@ -2145,8 +1989,7 @@ static int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 		   i_ADDIDATAConversionTimeUnit= 1; */
 		/* i_Temp= i_InterruptFlag ; */
 		i_Temp = s_BoardInfos[dev->minor].i_InterruptFlag;
-		/* i_InterruptFlag = ADDIDATA_DISABLE; */
-		s_BoardInfos[dev->minor].i_InterruptFlag = ADDIDATA_DISABLE;
+		s_BoardInfos[dev->minor].i_InterruptFlag = 0;
 		i_APCI3200_Read1AnalogInputChannel(dev, s, insn, data);
 		/* if(i_AutoCalibration == FALSE) */
 		if (s_BoardInfos[dev->minor].i_AutoCalibration == FALSE) {
@@ -2185,8 +2028,7 @@ static int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 		   i_ADDIDATAConversionTimeUnit= 1; */
 		/* i_Temp= i_InterruptFlag ; */
 		i_Temp = s_BoardInfos[dev->minor].i_InterruptFlag;
-		/* i_InterruptFlag = ADDIDATA_DISABLE; */
-		s_BoardInfos[dev->minor].i_InterruptFlag = ADDIDATA_DISABLE;
+		s_BoardInfos[dev->minor].i_InterruptFlag = 0;
 		i_APCI3200_Read1AnalogInputChannel(dev, s, insn, data);
 		/* if(i_AutoCalibration == FALSE) */
 		if (s_BoardInfos[dev->minor].i_AutoCalibration == FALSE) {
@@ -2207,22 +2049,21 @@ static int i_APCI3200_InsnBits_AnalogInput_Test(struct comedi_device *dev,
 	}
 	/* i_InterruptFlag=i_Temp ; */
 	s_BoardInfos[dev->minor].i_InterruptFlag = i_Temp;
-	/* printk("\ni_InterruptFlag=%d\n",i_InterruptFlag); */
 	return insn->n;
 }
 
-static int i_APCI3200_InsnWriteReleaseAnalogInput(struct comedi_device *dev,
-						  struct comedi_subdevice *s,
-						  struct comedi_insn *insn,
-						  unsigned int *data)
+static int apci3200_ai_write(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
-	i_APCI3200_Reset(dev);
+	apci3200_reset(dev);
 	return insn->n;
 }
 
-static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
-					     struct comedi_subdevice *s,
-					     struct comedi_cmd *cmd)
+static int apci3200_ai_cmdtest(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_cmd *cmd)
 {
 
 	int err = 0;
@@ -2230,12 +2071,11 @@ static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
 	unsigned int ui_ConvertTimeBase = 0;
 	unsigned int ui_DelayTime = 0;
 	unsigned int ui_DelayTimeBase = 0;
-	int i_Triggermode = 0;
-	int i_TriggerEdge = 0;
 	int i_NbrOfChannel = 0;
 	int i_Cpt = 0;
 	double d_ConversionTimeForAllChannels = 0.0;
 	double d_SCANTimeNewUnit = 0.0;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -2250,7 +2090,7 @@ static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
 		err |= -EINVAL;
 
 	if (err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return 1;
 	}
 
@@ -2262,23 +2102,37 @@ static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
 
 	/* Step 2b : and mutually compatible */
 
-	if (cmd->start_src == TRIG_EXT) {
-		i_TriggerEdge = cmd->start_arg & 0xFFFF;
-		i_Triggermode = cmd->start_arg >> 16;
-		if (i_TriggerEdge < 1 || i_TriggerEdge > 3) {
-			err++;
-			printk("\nThe trigger edge selection is in error\n");
-		}
-		if (i_Triggermode != 2) {
-			err++;
-			printk("\nThe trigger mode selection is in error\n");
-		}
-	}
-
 	if (err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return 2;
 	}
+
+	/* Step 3: check if arguments are trivially valid */
+
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		/* validate the trigger edge selection */
+		arg = cmd->start_arg & 0xffff;
+		if (arg < 1 || arg > 3) {
+			cmd->start_arg &= ~0xffff;
+			cmd->start_arg |= 1;
+			err |= -EINVAL;
+		}
+		/* validate the trigger mode selection */
+		arg = cmd->start_arg >> 16;
+		if (arg != 2) {
+			cmd->start_arg &= ~(0xffff << 16);
+			cmd->start_arg |= (2 << 16);
+			err |= -EINVAL;
+		}
+		break;
+	}
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
 	/* i_FirstChannel=cmd->chanlist[0]; */
 	s_BoardInfos[dev->minor].i_FirstChannel = cmd->chanlist[0];
 	/* i_LastChannel=cmd->chanlist[1]; */
@@ -2317,7 +2171,7 @@ static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
 			printk("\nThe Delay time value is in error\n");
 		}
 		if (err) {
-			i_APCI3200_Reset(dev);
+			apci3200_reset(dev);
 			return 3;
 		}
 		fpu_begin();
@@ -2375,15 +2229,15 @@ static int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev,
 	}			/* else if(cmd->scan_begin_src==TRIG_FOLLOW) */
 
 	if (err) {
-		i_APCI3200_Reset(dev);
+		apci3200_reset(dev);
 		return 4;
 	}
 
 	return 0;
 }
 
-static int i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev,
-					    struct comedi_subdevice *s)
+static int apci3200_cancel(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Configuration = 0;
@@ -2419,8 +2273,8 @@ static int i_APCI3200_StopCyclicAcquisition(struct comedi_device *dev,
  * Does asynchronous acquisition
  * Determines the mode 1 or 2.
  */
-static int i_APCI3200_CommandAnalogInput(struct comedi_device *dev,
-					 struct comedi_subdevice *s)
+static int apci3200_ai_cmd(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	struct addi_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -2466,8 +2320,6 @@ static int i_APCI3200_CommandAnalogInput(struct comedi_device *dev,
 		ui_DelayTimeBase = cmd->scan_begin_arg >> 16;
 		ui_DelayMode = 1;
 	}			/* else if(cmd->scan_begin_src==TRIG_FOLLOW) */
-	/*         printk("\nui_DelayTime=%u\n",ui_DelayTime); */
-	/*         printk("\nui_DelayTimeBase=%u\n",ui_DelayTimeBase); */
 	if (cmd->convert_src == TRIG_TIMER) {
 		ui_ConvertTime = cmd->convert_arg & 0xFFFF;
 		ui_ConvertTimeBase = cmd->convert_arg >> 16;
@@ -2495,13 +2347,6 @@ static int i_APCI3200_CommandAnalogInput(struct comedi_device *dev,
 		devpriv->iobase + s_BoardInfos[dev->minor].i_Offset + 12);
 	/*  } */
 	ui_Configuration = 0;
-	/*      printk("\nfirstchannel=%u\n",i_FirstChannel); */
-	/*      printk("\nlastchannel=%u\n",i_LastChannel); */
-	/*      printk("\nui_Trigger=%u\n",ui_Trigger); */
-	/*      printk("\nui_TriggerEdge=%u\n",ui_TriggerEdge); */
-	/*      printk("\nui_Triggermode=%u\n",ui_Triggermode); */
-	/*       printk("\nui_DelayMode=%u\n",ui_DelayMode); */
-	/*      printk("\nui_ScanMode=%u\n",ui_ScanMode); */
 
 	/* ui_Configuration = i_FirstChannel |(i_LastChannel << 8)| 0x00100000 | */
 	ui_Configuration =
@@ -2599,8 +2444,8 @@ static int i_APCI3200_CommandAnalogInput(struct comedi_device *dev,
 static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int ui_StatusRegister = 0;
-	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 	/* comedi_async *async = s->async; */
@@ -2628,7 +2473,6 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 		/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 		/* This value is not used */
 		/* ui_ChannelNumber = inl(devpriv->iobase+s_BoardInfos [dev->minor].i_Offset + 24); */
-		s->async->events = 0;
 		/* END JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 
       /*************************************/
@@ -2699,8 +2543,7 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 			s->async->events |= COMEDI_CB_EOS;
 
 			/*  Test if enougth memory is available and allocate it for 7 values */
-			/* n = comedi_buf_write_alloc(s->async, 7*sizeof(unsigned int)); */
-			n = comedi_buf_write_alloc(s->async,
+			n = comedi_buf_write_alloc(s,
 				(7 + 12) * sizeof(unsigned int));
 
 			/*  If not enough memory available, event is set to Comedi Buffer Error */
@@ -2709,12 +2552,12 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 				s->async->events |= COMEDI_CB_ERROR;
 			}
 			/*  Write all 7 scan values in the comedi buffer */
-			comedi_buf_memcpy_to(s->async, 0,
+			comedi_buf_memcpy_to(s, 0,
 				(unsigned int *) s_BoardInfos[dev->minor].
 				ui_ScanValueArray, (7 + 12) * sizeof(unsigned int));
 
 			/*  Update comedi buffer pinters indexes */
-			comedi_buf_write_free(s->async,
+			comedi_buf_write_free(s,
 				(7 + 12) * sizeof(unsigned int));
 
 			/*  Send events */
@@ -2739,7 +2582,7 @@ static int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 	return 0;
 }
 
-static void v_APCI3200_Interrupt(int irq, void *d)
+static void apci3200_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
@@ -2754,8 +2597,6 @@ static void v_APCI3200_Interrupt(int irq, void *d)
 	/* BEGIN JK TEST */
 	int i_ReturnValue = 0;
 	/* END JK TEST */
-
-	/* printk ("\n i_ScanType = %i i_ADDIDATAType = %i", s_BoardInfos [dev->minor].i_ScanType, s_BoardInfos [dev->minor].i_ADDIDATAType); */
 
 	/* switch(i_ScanType) */
 	switch (s_BoardInfos[dev->minor].i_ScanType) {
@@ -2807,7 +2648,6 @@ static void v_APCI3200_Interrupt(int irq, void *d)
 
 					/* Begin JK 22.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 					/*
-					   printk("\n 1 - i_APCI3200_GetChannelCalibrationValue (dev, s_BoardInfos %i", ui_ChannelNumber);
 					   i_APCI3200_GetChannelCalibrationValue (dev, s_BoardInfos [dev->minor].ui_Channel_num,
 					   &s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count + 6],
 					   &s_BoardInfos [dev->minor].ui_InterruptChannelValue[s_BoardInfos [dev->minor].i_Count + 7],

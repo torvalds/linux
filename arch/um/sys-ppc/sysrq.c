@@ -11,6 +11,8 @@
 void show_regs(struct pt_regs_subarch *regs)
 {
 	printk("\n");
+	show_regs_print_info(KERN_DEFAULT);
+
 	printk("show_regs(): insert regs here.\n");
 #if 0
         printk("\n");

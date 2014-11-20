@@ -62,6 +62,7 @@ enum parport_pc_pci_cards {
 	timedia_9079a,
 	timedia_9079b,
 	timedia_9079c,
+	wch_ch353_1s1p,
 	wch_ch353_2s1p,
 	sunix_2s1p,
 };
@@ -148,6 +149,7 @@ static struct parport_pc_pci cards[] = {
 	/* timedia_9079a */             { 1, { { 2, 3 }, } },
 	/* timedia_9079b */             { 1, { { 2, 3 }, } },
 	/* timedia_9079c */             { 1, { { 2, 3 }, } },
+	/* wch_ch353_1s1p*/             { 1, { { 1, -1}, } },
 	/* wch_ch353_2s1p*/             { 1, { { 2, -1}, } },
 	/* sunix_2s1p */                { 1, { { 3, -1 }, } },
 };
@@ -253,6 +255,7 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 	{ 0x1409, 0x7168, 0x1409, 0xd079, 0, 0, timedia_9079c },
 
 	/* WCH CARDS */
+	{ 0x4348, 0x5053, PCI_ANY_ID, PCI_ANY_ID, 0, 0, wch_ch353_1s1p},
 	{ 0x4348, 0x7053, 0x4348, 0x3253, 0, 0, wch_ch353_2s1p},
 
 	/*
@@ -479,6 +482,12 @@ static struct pciserial_board pci_parport_serial_boards[] = {
 		.base_baud	= 921600,
 		.uart_offset	= 8,
 	},
+	[wch_ch353_1s1p] = {
+		.flags          = FL_BASE0|FL_BASE_BARS,
+		.num_ports      = 1,
+		.base_baud      = 115200,
+		.uart_offset    = 8,
+	},
 	[wch_ch353_2s1p] = {
 		.flags          = FL_BASE0|FL_BASE_BARS,
 		.num_ports      = 2,
@@ -596,13 +605,11 @@ static int parport_serial_pci_probe(struct pci_dev *dev,
 
 	err = pci_enable_device (dev);
 	if (err) {
-		pci_set_drvdata (dev, NULL);
 		kfree (priv);
 		return err;
 	}
 
 	if (parport_register (dev, id)) {
-		pci_set_drvdata (dev, NULL);
 		kfree (priv);
 		return -ENODEV;
 	}
@@ -611,7 +618,6 @@ static int parport_serial_pci_probe(struct pci_dev *dev,
 		int i;
 		for (i = 0; i < priv->num_par; i++)
 			parport_pc_unregister_port (priv->port[i]);
-		pci_set_drvdata (dev, NULL);
 		kfree (priv);
 		return -ENODEV;
 	}
@@ -623,8 +629,6 @@ static void parport_serial_pci_remove(struct pci_dev *dev)
 {
 	struct parport_serial_private *priv = pci_get_drvdata (dev);
 	int i;
-
-	pci_set_drvdata(dev, NULL);
 
 	// Serial ports
 	if (priv->serial)

@@ -7,10 +7,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
 #include <linux/of_gpio.h>
-#include <linux/of_i2c.h>
 
+#include <drm/drm_panel.h>
 #include "drm.h"
 
 static int tegra_connector_get_modes(struct drm_connector *connector)
@@ -18,6 +17,16 @@ static int tegra_connector_get_modes(struct drm_connector *connector)
 	struct tegra_output *output = connector_to_output(connector);
 	struct edid *edid = NULL;
 	int err = 0;
+
+	/*
+	 * If the panel provides one or more modes, use them exclusively and
+	 * ignore any other means of obtaining a mode.
+	 */
+	if (output->panel) {
+		err = output->panel->funcs->get_modes(output->panel);
+		if (err > 0)
+			return err;
+	}
 
 	if (output->edid)
 		edid = kmemdup(output->edid, sizeof(*edid), GFP_KERNEL);
@@ -68,12 +77,20 @@ tegra_connector_detect(struct drm_connector *connector, bool force)
 	struct tegra_output *output = connector_to_output(connector);
 	enum drm_connector_status status = connector_status_unknown;
 
+	if (output->ops->detect)
+		return output->ops->detect(output);
+
 	if (gpio_is_valid(output->hpd_gpio)) {
 		if (gpio_get_value(output->hpd_gpio) == 0)
 			status = connector_status_disconnected;
 		else
 			status = connector_status_connected;
 	} else {
+		if (!output->panel)
+			status = connector_status_disconnected;
+		else
+			status = connector_status_connected;
+
 		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
 			status = connector_status_connected;
 	}
@@ -81,10 +98,16 @@ tegra_connector_detect(struct drm_connector *connector, bool force)
 	return status;
 }
 
+static void drm_connector_clear(struct drm_connector *connector)
+{
+	memset(connector, 0, sizeof(*connector));
+}
+
 static void tegra_connector_destroy(struct drm_connector *connector)
 {
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
+	drm_connector_clear(connector);
 }
 
 static const struct drm_connector_funcs connector_funcs = {
@@ -94,9 +117,15 @@ static const struct drm_connector_funcs connector_funcs = {
 	.destroy = tegra_connector_destroy,
 };
 
+static void drm_encoder_clear(struct drm_encoder *encoder)
+{
+	memset(encoder, 0, sizeof(*encoder));
+}
+
 static void tegra_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
+	drm_encoder_clear(encoder);
 }
 
 static const struct drm_encoder_funcs encoder_funcs = {
@@ -105,6 +134,18 @@ static const struct drm_encoder_funcs encoder_funcs = {
 
 static void tegra_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
+	struct tegra_output *output = encoder_to_output(encoder);
+	struct drm_panel *panel = output->panel;
+
+	if (mode != DRM_MODE_DPMS_ON) {
+		drm_panel_disable(panel);
+		tegra_output_disable(output);
+		drm_panel_unprepare(panel);
+	} else {
+		drm_panel_prepare(panel);
+		tegra_output_enable(output);
+		drm_panel_enable(panel);
+	}
 }
 
 static bool tegra_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -151,15 +192,23 @@ static irqreturn_t hpd_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int tegra_output_parse_dt(struct tegra_output *output)
+int tegra_output_probe(struct tegra_output *output)
 {
+	struct device_node *ddc, *panel;
 	enum of_gpio_flags flags;
-	struct device_node *ddc;
-	size_t size;
-	int err;
+	int err, size;
 
 	if (!output->of_node)
 		output->of_node = output->dev->of_node;
+
+	panel = of_parse_phandle(output->of_node, "nvidia,panel", 0);
+	if (panel) {
+		output->panel = of_drm_find_panel(panel);
+		if (!output->panel)
+			return -EPROBE_DEFER;
+
+		of_node_put(panel);
+	}
 
 	output->edid = of_get_property(output->of_node, "nvidia,edid", &size);
 
@@ -175,20 +224,9 @@ int tegra_output_parse_dt(struct tegra_output *output)
 		of_node_put(ddc);
 	}
 
-	if (!output->edid && !output->ddc)
-		return -ENODEV;
-
 	output->hpd_gpio = of_get_named_gpio_flags(output->of_node,
 						   "nvidia,hpd-gpio", 0,
 						   &flags);
-
-	return 0;
-}
-
-int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
-{
-	int connector, encoder, err;
-
 	if (gpio_is_valid(output->hpd_gpio)) {
 		unsigned long flags;
 
@@ -202,7 +240,8 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 		err = gpio_to_irq(output->hpd_gpio);
 		if (err < 0) {
 			dev_err(output->dev, "gpio_to_irq(): %d\n", err);
-			goto free_hpd;
+			gpio_free(output->hpd_gpio);
+			return err;
 		}
 
 		output->hpd_irq = err;
@@ -215,11 +254,32 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 		if (err < 0) {
 			dev_err(output->dev, "failed to request IRQ#%u: %d\n",
 				output->hpd_irq, err);
-			goto free_hpd;
+			gpio_free(output->hpd_gpio);
+			return err;
 		}
 
 		output->connector.polled = DRM_CONNECTOR_POLL_HPD;
 	}
+
+	return 0;
+}
+
+int tegra_output_remove(struct tegra_output *output)
+{
+	if (gpio_is_valid(output->hpd_gpio)) {
+		free_irq(output->hpd_irq, output);
+		gpio_free(output->hpd_gpio);
+	}
+
+	if (output->ddc)
+		put_device(&output->ddc->dev);
+
+	return 0;
+}
+
+int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
+{
+	int connector, encoder;
 
 	switch (output->type) {
 	case TEGRA_OUTPUT_RGB:
@@ -232,6 +292,16 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 		encoder = DRM_MODE_ENCODER_TMDS;
 		break;
 
+	case TEGRA_OUTPUT_DSI:
+		connector = DRM_MODE_CONNECTOR_DSI;
+		encoder = DRM_MODE_ENCODER_DSI;
+		break;
+
+	case TEGRA_OUTPUT_EDP:
+		connector = DRM_MODE_CONNECTOR_eDP;
+		encoder = DRM_MODE_ENCODER_TMDS;
+		break;
+
 	default:
 		connector = DRM_MODE_CONNECTOR_Unknown;
 		encoder = DRM_MODE_ENCODER_NONE;
@@ -241,32 +311,23 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 	drm_connector_init(drm, &output->connector, &connector_funcs,
 			   connector);
 	drm_connector_helper_add(&output->connector, &connector_helper_funcs);
+	output->connector.dpms = DRM_MODE_DPMS_OFF;
+
+	if (output->panel)
+		drm_panel_attach(output->panel, &output->connector);
 
 	drm_encoder_init(drm, &output->encoder, &encoder_funcs, encoder);
 	drm_encoder_helper_add(&output->encoder, &encoder_helper_funcs);
 
 	drm_mode_connector_attach_encoder(&output->connector, &output->encoder);
-	drm_sysfs_connector_add(&output->connector);
+	drm_connector_register(&output->connector);
 
 	output->encoder.possible_crtcs = 0x3;
 
 	return 0;
-
-free_hpd:
-	gpio_free(output->hpd_gpio);
-
-	return err;
 }
 
 int tegra_output_exit(struct tegra_output *output)
 {
-	if (gpio_is_valid(output->hpd_gpio)) {
-		free_irq(output->hpd_irq, output);
-		gpio_free(output->hpd_gpio);
-	}
-
-	if (output->ddc)
-		put_device(&output->ddc->dev);
-
 	return 0;
 }

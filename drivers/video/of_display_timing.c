@@ -23,7 +23,7 @@
  * Every display_timing can be specified with either just the typical value or
  * a range consisting of min/typ/max. This function helps handling this
  **/
-static int parse_timing_property(struct device_node *np, const char *name,
+static int parse_timing_property(const struct device_node *np, const char *name,
 			  struct timing_entry *result)
 {
 	struct property *prop;
@@ -53,21 +53,16 @@ static int parse_timing_property(struct device_node *np, const char *name,
 }
 
 /**
- * of_get_display_timing - parse display_timing entry from device_node
+ * of_parse_display_timing - parse display_timing entry from device_node
  * @np: device_node with the properties
  **/
-static struct display_timing *of_get_display_timing(struct device_node *np)
+static int of_parse_display_timing(const struct device_node *np,
+		struct display_timing *dt)
 {
-	struct display_timing *dt;
 	u32 val = 0;
 	int ret = 0;
 
-	dt = kzalloc(sizeof(*dt), GFP_KERNEL);
-	if (!dt) {
-		pr_err("%s: could not allocate display_timing struct\n",
-			of_node_full_name(np));
-		return NULL;
-	}
+	memset(dt, 0, sizeof(*dt));
 
 	ret |= parse_timing_property(np, "hback-porch", &dt->hback_porch);
 	ret |= parse_timing_property(np, "hfront-porch", &dt->hfront_porch);
@@ -79,35 +74,60 @@ static struct display_timing *of_get_display_timing(struct device_node *np)
 	ret |= parse_timing_property(np, "vsync-len", &dt->vsync_len);
 	ret |= parse_timing_property(np, "clock-frequency", &dt->pixelclock);
 
-	dt->dmt_flags = 0;
-	dt->data_flags = 0;
+	dt->flags = 0;
 	if (!of_property_read_u32(np, "vsync-active", &val))
-		dt->dmt_flags |= val ? VESA_DMT_VSYNC_HIGH :
-				VESA_DMT_VSYNC_LOW;
+		dt->flags |= val ? DISPLAY_FLAGS_VSYNC_HIGH :
+				DISPLAY_FLAGS_VSYNC_LOW;
 	if (!of_property_read_u32(np, "hsync-active", &val))
-		dt->dmt_flags |= val ? VESA_DMT_HSYNC_HIGH :
-				VESA_DMT_HSYNC_LOW;
+		dt->flags |= val ? DISPLAY_FLAGS_HSYNC_HIGH :
+				DISPLAY_FLAGS_HSYNC_LOW;
 	if (!of_property_read_u32(np, "de-active", &val))
-		dt->data_flags |= val ? DISPLAY_FLAGS_DE_HIGH :
+		dt->flags |= val ? DISPLAY_FLAGS_DE_HIGH :
 				DISPLAY_FLAGS_DE_LOW;
 	if (!of_property_read_u32(np, "pixelclk-active", &val))
-		dt->data_flags |= val ? DISPLAY_FLAGS_PIXDATA_POSEDGE :
+		dt->flags |= val ? DISPLAY_FLAGS_PIXDATA_POSEDGE :
 				DISPLAY_FLAGS_PIXDATA_NEGEDGE;
 
 	if (of_property_read_bool(np, "interlaced"))
-		dt->data_flags |= DISPLAY_FLAGS_INTERLACED;
+		dt->flags |= DISPLAY_FLAGS_INTERLACED;
 	if (of_property_read_bool(np, "doublescan"))
-		dt->data_flags |= DISPLAY_FLAGS_DOUBLESCAN;
+		dt->flags |= DISPLAY_FLAGS_DOUBLESCAN;
+	if (of_property_read_bool(np, "doubleclk"))
+		dt->flags |= DISPLAY_FLAGS_DOUBLECLK;
 
 	if (ret) {
 		pr_err("%s: error reading timing properties\n",
 			of_node_full_name(np));
-		kfree(dt);
-		return NULL;
+		return -EINVAL;
 	}
 
-	return dt;
+	return 0;
 }
+
+/**
+ * of_get_display_timing - parse a display_timing entry
+ * @np: device_node with the timing subnode
+ * @name: name of the timing node
+ * @dt: display_timing struct to fill
+ **/
+int of_get_display_timing(struct device_node *np, const char *name,
+		struct display_timing *dt)
+{
+	struct device_node *timing_np;
+
+	if (!np)
+		return -EINVAL;
+
+	timing_np = of_get_child_by_name(np, name);
+	if (!timing_np) {
+		pr_err("%s: could not find node '%s'\n",
+			of_node_full_name(np), name);
+		return -ENOENT;
+	}
+
+	return of_parse_display_timing(timing_np, dt);
+}
+EXPORT_SYMBOL_GPL(of_get_display_timing);
 
 /**
  * of_get_display_timings - parse all display_timing entries from a device_node
@@ -120,12 +140,10 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 	struct device_node *native_mode;
 	struct display_timings *disp;
 
-	if (!np) {
-		pr_err("%s: no devicenode given\n", of_node_full_name(np));
+	if (!np)
 		return NULL;
-	}
 
-	timings_np = of_find_node_by_name(np, "display-timings");
+	timings_np = of_get_child_by_name(np, "display-timings");
 	if (!timings_np) {
 		pr_err("%s: could not find display-timings node\n",
 			of_node_full_name(np));
@@ -142,7 +160,7 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 	entry = of_parse_phandle(timings_np, "native-mode", 0);
 	/* assume first child as native mode if none provided */
 	if (!entry)
-		entry = of_get_next_child(np, NULL);
+		entry = of_get_next_child(timings_np, NULL);
 	/* if there is no child, it is useless to go on */
 	if (!entry) {
 		pr_err("%s: no timing specifications given\n",
@@ -175,9 +193,17 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 
 	for_each_child_of_node(timings_np, entry) {
 		struct display_timing *dt;
+		int r;
 
-		dt = of_get_display_timing(entry);
+		dt = kzalloc(sizeof(*dt), GFP_KERNEL);
 		if (!dt) {
+			pr_err("%s: could not allocate display_timing struct\n",
+					of_node_full_name(np));
+			goto timingfail;
+		}
+
+		r = of_parse_display_timing(entry, dt);
+		if (r) {
 			/*
 			 * to not encourage wrong devicetrees, fail in case of
 			 * an error
@@ -207,9 +233,9 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 	return disp;
 
 timingfail:
-	if (native_mode)
-		of_node_put(native_mode);
+	of_node_put(native_mode);
 	display_timings_release(disp);
+	disp = NULL;
 entryfail:
 	kfree(disp);
 dispfail:

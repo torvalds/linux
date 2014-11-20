@@ -55,11 +55,8 @@ static irqreturn_t itg3200_trigger_handler(int irq, void *p)
 	if (ret < 0)
 		goto error_ret;
 
-	if (indio_dev->scan_timestamp)
-		memcpy(buf + indio_dev->scan_bytes - sizeof(s64),
-				&pf->timestamp, sizeof(pf->timestamp));
+	iio_push_to_buffers_with_timestamp(indio_dev, buf, pf->timestamp);
 
-	iio_push_to_buffers(indio_dev, (u8 *)buf);
 	iio_trigger_notify_done(indio_dev->trig);
 
 error_ret:
@@ -81,7 +78,7 @@ void itg3200_buffer_unconfigure(struct iio_dev *indio_dev)
 static int itg3200_data_rdy_trigger_set_state(struct iio_trigger *trig,
 		bool state)
 {
-	struct iio_dev *indio_dev = trig->private_data;
+	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	int ret;
 	u8 msc;
 
@@ -129,13 +126,13 @@ int itg3200_probe_trigger(struct iio_dev *indio_dev)
 
 	st->trig->dev.parent = &st->i2c->dev;
 	st->trig->ops = &itg3200_trigger_ops;
-	st->trig->private_data = indio_dev;
+	iio_trigger_set_drvdata(st->trig, indio_dev);
 	ret = iio_trigger_register(st->trig);
 	if (ret)
 		goto error_free_irq;
 
 	/* select default trigger */
-	indio_dev->trig = st->trig;
+	indio_dev->trig = iio_trigger_get(st->trig);
 
 	return 0;
 

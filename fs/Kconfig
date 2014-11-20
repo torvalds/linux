@@ -67,10 +67,7 @@ source "fs/quota/Kconfig"
 
 source "fs/autofs4/Kconfig"
 source "fs/fuse/Kconfig"
-
-config GENERIC_ACL
-	bool
-	select FS_POSIX_ACL
+source "fs/overlayfs/Kconfig"
 
 menu "Caches"
 
@@ -100,6 +97,7 @@ endif # BLOCK
 menu "Pseudo filesystems"
 
 source "fs/proc/Kconfig"
+source "fs/kernfs/Kconfig"
 source "fs/sysfs/Kconfig"
 
 config TMPFS
@@ -119,7 +117,7 @@ config TMPFS_POSIX_ACL
 	bool "Tmpfs POSIX Access Control Lists"
 	depends on TMPFS
 	select TMPFS_XATTR
-	select GENERIC_ACL
+	select FS_POSIX_ACL
 	help
 	  POSIX Access Control Lists (ACLs) support additional access rights
 	  for users and groups beyond the standard owner/group/world scheme,
@@ -211,6 +209,7 @@ source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
 source "fs/exofs/Kconfig"
 source "fs/f2fs/Kconfig"
+source "fs/efivarfs/Kconfig"
 
 endif # MISC_FILESYSTEMS
 
@@ -235,9 +234,13 @@ if NETWORK_FILESYSTEMS
 source "fs/nfs/Kconfig"
 source "fs/nfsd/Kconfig"
 
+config GRACE_PERIOD
+	tristate
+
 config LOCKD
 	tristate
 	depends on FILE_LOCKING
+	select GRACE_PERIOD
 
 config LOCKD_V4
 	bool
@@ -251,7 +254,7 @@ config NFS_ACL_SUPPORT
 
 config NFS_COMMON
 	bool
-	depends on NFSD || NFS_FS
+	depends on NFSD || NFS_FS || LOCKD
 	default y
 
 source "net/sunrpc/Kconfig"

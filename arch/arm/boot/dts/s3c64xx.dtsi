@@ -1,0 +1,203 @@
+/*
+ * Samsung's S3C64xx SoC series common device tree source
+ *
+ * Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
+ *
+ * Samsung's S3C64xx SoC series device nodes are listed in this file.
+ * Particular SoCs from S3C64xx series can include this file and provide
+ * values for SoCs specfic bindings.
+ *
+ * Note: This file does not include device nodes for all the controllers in
+ * S3C64xx SoCs. As device tree coverage for S3C64xx increases, additional
+ * nodes can be added to this file.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "skeleton.dtsi"
+#include <dt-bindings/clock/samsung,s3c64xx-clock.h>
+
+/ {
+	aliases {
+		i2c0 = &i2c0;
+		pinctrl0 = &pinctrl0;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,arm1176jzf-s", "arm,arm1176";
+			reg = <0x0>;
+		};
+	};
+
+	soc: soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		vic0: interrupt-controller@71200000 {
+			compatible = "arm,pl192-vic";
+			interrupt-controller;
+			reg = <0x71200000 0x1000>;
+			#interrupt-cells = <1>;
+		};
+
+		vic1: interrupt-controller@71300000 {
+			compatible = "arm,pl192-vic";
+			interrupt-controller;
+			reg = <0x71300000 0x1000>;
+			#interrupt-cells = <1>;
+		};
+
+		sdhci0: sdhci@7c200000 {
+			compatible = "samsung,s3c6410-sdhci";
+			reg = <0x7c200000 0x100>;
+			interrupt-parent = <&vic1>;
+			interrupts = <24>;
+			clock-names = "hsmmc", "mmc_busclk.0", "mmc_busclk.2";
+			clocks = <&clocks HCLK_HSMMC0>, <&clocks HCLK_HSMMC0>,
+					<&clocks SCLK_MMC0>;
+			status = "disabled";
+		};
+
+		sdhci1: sdhci@7c300000 {
+			compatible = "samsung,s3c6410-sdhci";
+			reg = <0x7c300000 0x100>;
+			interrupt-parent = <&vic1>;
+			interrupts = <25>;
+			clock-names = "hsmmc", "mmc_busclk.0", "mmc_busclk.2";
+			clocks = <&clocks HCLK_HSMMC1>, <&clocks HCLK_HSMMC1>,
+					<&clocks SCLK_MMC1>;
+			status = "disabled";
+		};
+
+		sdhci2: sdhci@7c400000 {
+			compatible = "samsung,s3c6410-sdhci";
+			reg = <0x7c400000 0x100>;
+			interrupt-parent = <&vic1>;
+			interrupts = <17>;
+			clock-names = "hsmmc", "mmc_busclk.0", "mmc_busclk.2";
+			clocks = <&clocks HCLK_HSMMC2>, <&clocks HCLK_HSMMC2>,
+					<&clocks SCLK_MMC2>;
+			status = "disabled";
+		};
+
+		watchdog: watchdog@7e004000 {
+			compatible = "samsung,s3c2410-wdt";
+			reg = <0x7e004000 0x1000>;
+			interrupt-parent = <&vic0>;
+			interrupts = <26>;
+			clock-names = "watchdog";
+			clocks = <&clocks PCLK_WDT>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@7f004000 {
+			compatible = "samsung,s3c2440-i2c";
+			reg = <0x7f004000 0x1000>;
+			interrupt-parent = <&vic1>;
+			interrupts = <18>;
+			clock-names = "i2c";
+			clocks = <&clocks PCLK_IIC0>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		uart0: serial@7f005000 {
+			compatible = "samsung,s3c6400-uart";
+			reg = <0x7f005000 0x100>;
+			interrupt-parent = <&vic1>;
+			interrupts = <5>;
+			clock-names = "uart", "clk_uart_baud2",
+					"clk_uart_baud3";
+			clocks = <&clocks PCLK_UART0>, <&clocks PCLK_UART0>,
+					<&clocks SCLK_UART>;
+			status = "disabled";
+		};
+
+		uart1: serial@7f005400 {
+			compatible = "samsung,s3c6400-uart";
+			reg = <0x7f005400 0x100>;
+			interrupt-parent = <&vic1>;
+			interrupts = <6>;
+			clock-names = "uart", "clk_uart_baud2",
+					"clk_uart_baud3";
+			clocks = <&clocks PCLK_UART1>, <&clocks PCLK_UART1>,
+					<&clocks SCLK_UART>;
+			status = "disabled";
+		};
+
+		uart2: serial@7f005800 {
+			compatible = "samsung,s3c6400-uart";
+			reg = <0x7f005800 0x100>;
+			interrupt-parent = <&vic1>;
+			interrupts = <7>;
+			clock-names = "uart", "clk_uart_baud2",
+					"clk_uart_baud3";
+			clocks = <&clocks PCLK_UART2>, <&clocks PCLK_UART2>,
+					<&clocks SCLK_UART>;
+			status = "disabled";
+		};
+
+		uart3: serial@7f005c00 {
+			compatible = "samsung,s3c6400-uart";
+			reg = <0x7f005c00 0x100>;
+			interrupt-parent = <&vic1>;
+			interrupts = <8>;
+			clock-names = "uart", "clk_uart_baud2",
+					"clk_uart_baud3";
+			clocks = <&clocks PCLK_UART3>, <&clocks PCLK_UART3>,
+					<&clocks SCLK_UART>;
+			status = "disabled";
+		};
+
+		pwm: pwm@7f006000 {
+			compatible = "samsung,s3c6400-pwm";
+			reg = <0x7f006000 0x1000>;
+			interrupt-parent = <&vic0>;
+			interrupts = <23>, <24>, <25>, <27>, <28>;
+			clock-names = "timers";
+			clocks = <&clocks PCLK_PWM>;
+			samsung,pwm-outputs = <0>, <1>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pinctrl0: pinctrl@7f008000 {
+			compatible = "samsung,s3c64xx-pinctrl";
+			reg = <0x7f008000 0x1000>;
+			interrupt-parent = <&vic1>;
+			interrupts = <21>;
+
+			pctrl_int_map: pinctrl-interrupt-map {
+				interrupt-map = <0 &vic0 0>,
+						<1 &vic0 1>,
+						<2 &vic1 0>,
+						<3 &vic1 1>;
+				#address-cells = <0>;
+				#size-cells = <0>;
+				#interrupt-cells = <1>;
+			};
+
+			wakeup-interrupt-controller {
+				compatible = "samsung,s3c64xx-wakeup-eint";
+				interrupts = <0>, <1>, <2>, <3>;
+				interrupt-parent = <&pctrl_int_map>;
+			};
+		};
+	};
+};
+
+#include "s3c64xx-pinctrl.dtsi"

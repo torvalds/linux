@@ -61,41 +61,41 @@ static struct var_t vars[] = {
  * These attributes will appear in /sys/accessibility/speakup/soft.
  */
 static struct kobj_attribute caps_start_attribute =
-	__ATTR(caps_start, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(caps_start, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute caps_stop_attribute =
-	__ATTR(caps_stop, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(caps_stop, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute freq_attribute =
-	__ATTR(freq, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(freq, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
-	__ATTR(pitch, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(pitch, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute punct_attribute =
-	__ATTR(punct, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(punct, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
-	__ATTR(rate, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(rate, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute tone_attribute =
-	__ATTR(tone, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(tone, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute voice_attribute =
-	__ATTR(voice, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(voice, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute vol_attribute =
-	__ATTR(vol, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(vol, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 
 /*
  * We should uncomment the following definition, when we agree on a
  * method of passing a language designation to the software synthesizer.
  * static struct kobj_attribute lang_attribute =
- *	__ATTR(lang, USER_RW, spk_var_show, spk_var_store);
+ *	__ATTR(lang, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
  */
 
 static struct kobj_attribute delay_time_attribute =
-	__ATTR(delay_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(delay_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute direct_attribute =
-	__ATTR(direct, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(direct, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute full_time_attribute =
-	__ATTR(full_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(full_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute jiffy_delta_attribute =
-	__ATTR(jiffy_delta, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(jiffy_delta, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute trigger_time_attribute =
-	__ATTR(trigger_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(trigger_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 
 /*
  * Create a group of attributes so that we can create and destroy them all
@@ -179,45 +179,46 @@ static int softsynth_open(struct inode *inode, struct file *fp)
 	unsigned long flags;
 	/*if ((fp->f_flags & O_ACCMODE) != O_RDONLY) */
 	/*	return -EPERM; */
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (synth_soft.alive) {
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		return -EBUSY;
 	}
 	synth_soft.alive = 1;
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return 0;
 }
 
 static int softsynth_close(struct inode *inode, struct file *fp)
 {
 	unsigned long flags;
-	spk_lock(flags);
+
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	synth_soft.alive = 0;
 	init_pos = 0;
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	/* Make sure we let applications go before leaving */
 	speakup_start_ttys();
 	return 0;
 }
 
-static ssize_t softsynth_read(struct file *fp, char *buf, size_t count,
+static ssize_t softsynth_read(struct file *fp, char __user *buf, size_t count,
 			      loff_t *pos)
 {
 	int chars_sent = 0;
-	char *cp;
+	char __user *cp;
 	char *init;
 	char ch;
 	int empty;
 	unsigned long flags;
 	DEFINE_WAIT(wait);
 
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	while (1) {
 		prepare_to_wait(&speakup_event, &wait, TASK_INTERRUPTIBLE);
 		if (!synth_buffer_empty() || speakup_info.flushing)
 			break;
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (fp->f_flags & O_NONBLOCK) {
 			finish_wait(&speakup_event, &wait);
 			return -EAGAIN;
@@ -227,7 +228,7 @@ static ssize_t softsynth_read(struct file *fp, char *buf, size_t count,
 			return -ERESTARTSYS;
 		}
 		schedule();
-		spk_lock(flags);
+		spin_lock_irqsave(&speakup_info.spinlock, flags);
 	}
 	finish_wait(&speakup_event, &wait);
 
@@ -244,16 +245,16 @@ static ssize_t softsynth_read(struct file *fp, char *buf, size_t count,
 		} else {
 			ch = synth_buffer_getc();
 		}
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (copy_to_user(cp, &ch, 1))
 			return -EFAULT;
-		spk_lock(flags);
+		spin_lock_irqsave(&speakup_info.spinlock, flags);
 		chars_sent++;
 		cp++;
 	}
 	*pos += chars_sent;
 	empty = synth_buffer_empty();
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	if (empty) {
 		speakup_start_ttys();
 		*pos = 0;
@@ -263,8 +264,8 @@ static ssize_t softsynth_read(struct file *fp, char *buf, size_t count,
 
 static int last_index;
 
-static ssize_t softsynth_write(struct file *fp, const char *buf, size_t count,
-			       loff_t *pos)
+static ssize_t softsynth_write(struct file *fp, const char __user *buf,
+			       size_t count, loff_t *pos)
 {
 	unsigned long supplied_index = 0;
 	int converted;
@@ -283,18 +284,20 @@ static unsigned int softsynth_poll(struct file *fp,
 {
 	unsigned long flags;
 	int ret = 0;
+
 	poll_wait(fp, &speakup_event, wait);
 
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (!synth_buffer_empty() || speakup_info.flushing)
 		ret = POLLIN | POLLRDNORM;
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return ret;
 }
 
 static unsigned char get_index(void)
 {
 	int rv;
+
 	rv = last_index;
 	last_index = 0;
 	return rv;

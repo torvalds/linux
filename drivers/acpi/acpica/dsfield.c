@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,7 +105,7 @@ acpi_ds_create_external_region(acpi_status lookup_status,
 	 * operation_region not found. Generate an External for it, and
 	 * insert the name into the namespace.
 	 */
-	acpi_dm_add_to_external_list(op, path, ACPI_TYPE_REGION, 0);
+	acpi_dm_add_op_to_external_list(op, path, ACPI_TYPE_REGION, 0, 0);
 	status = acpi_ns_lookup(walk_state->scope_info, path, ACPI_TYPE_REGION,
 				ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT,
 				walk_state, node);
@@ -259,7 +259,7 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 		goto cleanup;
 	}
 
-      cleanup:
+cleanup:
 
 	/* Remove local reference to the object */
 
@@ -360,6 +360,7 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 			 */
 			info->resource_buffer = NULL;
 			info->connection_node = NULL;
+			info->pin_number_index = 0;
 
 			/*
 			 * A Connection() is either an actual resource descriptor (buffer)
@@ -437,6 +438,7 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 			}
 
 			info->field_bit_position += info->field_bit_length;
+			info->pin_number_index++;	/* Index relative to previous Connection() */
 			break;
 
 		default:
@@ -563,21 +565,25 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 	 */
 	switch (walk_state->opcode) {
 	case AML_FIELD_OP:
+
 		arg = acpi_ps_get_arg(op, 2);
 		type = ACPI_TYPE_LOCAL_REGION_FIELD;
 		break;
 
 	case AML_BANK_FIELD_OP:
+
 		arg = acpi_ps_get_arg(op, 4);
 		type = ACPI_TYPE_LOCAL_BANK_FIELD;
 		break;
 
 	case AML_INDEX_FIELD_OP:
+
 		arg = acpi_ps_get_arg(op, 3);
 		type = ACPI_TYPE_LOCAL_INDEX_FIELD;
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 

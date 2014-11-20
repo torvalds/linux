@@ -33,7 +33,7 @@ and two USB cables, connected like this:
  ...
 
 ( If your system does not list a debug port capability then you probably
-  wont be able to use the USB debug key. )
+  won't be able to use the USB debug key. )
 
  b.) You also need a Netchip USB debug cable/key:
 

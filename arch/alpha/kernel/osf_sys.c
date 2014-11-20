@@ -96,6 +96,7 @@ struct osf_dirent {
 };
 
 struct osf_dirent_callback {
+	struct dir_context ctx;
 	struct osf_dirent __user *dirent;
 	long __user *basep;
 	unsigned int count;
@@ -146,17 +147,17 @@ SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
 {
 	int error;
 	struct fd arg = fdget(fd);
-	struct osf_dirent_callback buf;
+	struct osf_dirent_callback buf = {
+		.ctx.actor = osf_filldir,
+		.dirent = dirent,
+		.basep = basep,
+		.count = count
+	};
 
 	if (!arg.file)
 		return -EBADF;
 
-	buf.dirent = dirent;
-	buf.basep = basep;
-	buf.count = count;
-	buf.error = 0;
-
-	error = vfs_readdir(arg.file, osf_filldir, &buf);
+	error = iterate_dir(arg.file, &buf.ctx);
 	if (error >= 0)
 		error = buf.error;
 	if (count != buf.count)
@@ -445,7 +446,8 @@ struct procfs_args {
  * unhappy with OSF UFS. [CHECKME]
  */
 static int
-osf_ufs_mount(const char *dirname, struct ufs_args __user *args, int flags)
+osf_ufs_mount(const char __user *dirname,
+	      struct ufs_args __user *args, int flags)
 {
 	int retval;
 	struct cdfs_args tmp;
@@ -465,7 +467,8 @@ osf_ufs_mount(const char *dirname, struct ufs_args __user *args, int flags)
 }
 
 static int
-osf_cdfs_mount(const char *dirname, struct cdfs_args __user *args, int flags)
+osf_cdfs_mount(const char __user *dirname,
+	       struct cdfs_args __user *args, int flags)
 {
 	int retval;
 	struct cdfs_args tmp;
@@ -485,7 +488,8 @@ osf_cdfs_mount(const char *dirname, struct cdfs_args __user *args, int flags)
 }
 
 static int
-osf_procfs_mount(const char *dirname, struct procfs_args __user *args, int flags)
+osf_procfs_mount(const char __user *dirname,
+		 struct procfs_args __user *args, int flags)
 {
 	struct procfs_args tmp;
 
@@ -499,28 +503,22 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 		int, flag, void __user *, data)
 {
 	int retval;
-	struct filename *name;
 
-	name = getname(path);
-	retval = PTR_ERR(name);
-	if (IS_ERR(name))
-		goto out;
 	switch (typenr) {
 	case 1:
-		retval = osf_ufs_mount(name->name, data, flag);
+		retval = osf_ufs_mount(path, data, flag);
 		break;
 	case 6:
-		retval = osf_cdfs_mount(name->name, data, flag);
+		retval = osf_cdfs_mount(path, data, flag);
 		break;
 	case 9:
-		retval = osf_procfs_mount(name->name, data, flag);
+		retval = osf_procfs_mount(path, data, flag);
 		break;
 	default:
 		retval = -EINVAL;
 		printk("osf_mount(%ld, %x)\n", typenr, flag);
 	}
-	putname(name);
- out:
+
 	return retval;
 }
 

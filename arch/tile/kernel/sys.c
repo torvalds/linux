@@ -38,8 +38,10 @@
 SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, len,
 		unsigned long, flags)
 {
+	/* DCACHE is not particularly effective if not bound to one cpu. */
 	if (flags & DCACHE)
-		homecache_evict(cpumask_of(smp_processor_id()));
+		homecache_evict(cpumask_of(raw_smp_processor_id()));
+
 	if (flags & ICACHE)
 		flush_remote(0, HV_FLUSH_EVICT_L1I, mm_cpumask(current->mm),
 			     0, 0, 0, NULL, NULL, 0);

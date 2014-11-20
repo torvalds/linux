@@ -37,6 +37,7 @@
 #define TX_HW_ATTR_TX_CMPLT_REQ          BIT(12)
 #define TX_HW_ATTR_TX_DUMMY_REQ          BIT(13)
 #define TX_HW_ATTR_HOST_ENCRYPT          BIT(14)
+#define TX_HW_ATTR_EAPOL_FRAME           BIT(15)
 
 #define TX_HW_ATTR_OFST_SAVE_RETRIES     0
 #define TX_HW_ATTR_OFST_HEADER_PAD       1
@@ -55,6 +56,9 @@
 
 /* Used for management frames and dummy packets */
 #define WL1271_TID_MGMT 7
+
+/* stop a ROC for pending authentication reply after this time (ms) */
+#define WLCORE_PEND_AUTH_ROC_TIMEOUT     1000
 
 struct wl127x_tx_mem {
 	/*

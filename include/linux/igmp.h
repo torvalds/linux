@@ -39,6 +39,7 @@ static inline struct igmpv3_query *
 
 extern int sysctl_igmp_max_memberships;
 extern int sysctl_igmp_max_msf;
+extern int sysctl_igmp_qrv;
 
 struct ip_sf_socklist {
 	unsigned int		sl_max;
@@ -84,6 +85,7 @@ struct ip_mc_list {
 		struct ip_mc_list *next;
 		struct ip_mc_list __rcu *next_rcu;
 	};
+	struct ip_mc_list __rcu *next_hash;
 	struct timer_list	timer;
 	int			users;
 	atomic_t		refcnt;
@@ -128,6 +130,5 @@ extern void ip_mc_unmap(struct in_device *);
 extern void ip_mc_remap(struct in_device *);
 extern void ip_mc_dec_group(struct in_device *in_dev, __be32 addr);
 extern void ip_mc_inc_group(struct in_device *in_dev, __be32 addr);
-extern void ip_mc_rejoin_groups(struct in_device *in_dev);
 
 #endif

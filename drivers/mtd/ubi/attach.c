@@ -900,10 +900,9 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		 * number.
 		 */
 		image_seq = be32_to_cpu(ech->image_seq);
-		if (!ubi->image_seq && image_seq)
+		if (!ubi->image_seq)
 			ubi->image_seq = image_seq;
-		if (ubi->image_seq && image_seq &&
-		    ubi->image_seq != image_seq) {
+		if (image_seq && ubi->image_seq != image_seq) {
 			ubi_err("bad image sequence number %d in PEB %d, expected %d",
 				image_seq, pnum, ubi->image_seq);
 			ubi_dump_ec_hdr(ech);
@@ -1417,9 +1416,11 @@ int ubi_attach(struct ubi_device *ubi, int force_scan)
 				ai = alloc_ai("ubi_aeb_slab_cache2");
 				if (!ai)
 					return -ENOMEM;
-			}
 
-			err = scan_all(ubi, ai, UBI_FM_MAX_START);
+				err = scan_all(ubi, ai, 0);
+			} else {
+				err = scan_all(ubi, ai, UBI_FM_MAX_START);
+			}
 		}
 	}
 #else
@@ -1452,8 +1453,10 @@ int ubi_attach(struct ubi_device *ubi, int force_scan)
 		struct ubi_attach_info *scan_ai;
 
 		scan_ai = alloc_ai("ubi_ckh_aeb_slab_cache");
-		if (!scan_ai)
+		if (!scan_ai) {
+			err = -ENOMEM;
 			goto out_wl;
+		}
 
 		err = scan_all(ubi, scan_ai, 0);
 		if (err) {

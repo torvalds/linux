@@ -920,10 +920,10 @@ static int ad9523_setup(struct iio_dev *indio_dev)
 			st->ad9523_channels[i].channel = chan->channel_num;
 			st->ad9523_channels[i].extend_name =
 				chan->extended_name;
-			st->ad9523_channels[i].info_mask =
-				IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-				IIO_CHAN_INFO_PHASE_SEPARATE_BIT |
-				IIO_CHAN_INFO_FREQUENCY_SEPARATE_BIT;
+			st->ad9523_channels[i].info_mask_separate =
+				BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_PHASE) |
+				BIT(IIO_CHAN_INFO_FREQUENCY);
 		}
 	}
 
@@ -961,17 +961,17 @@ static int ad9523_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
-	st->reg = regulator_get(&spi->dev, "vcc");
+	st->reg = devm_regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 	}
 
 	spi_set_drvdata(spi, indio_dev);
@@ -1001,11 +1001,6 @@ static int ad9523_probe(struct spi_device *spi)
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-error_put_reg:
-	if (!IS_ERR(st->reg))
-		regulator_put(st->reg);
-
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -1017,12 +1012,8 @@ static int ad9523_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 
-	if (!IS_ERR(st->reg)) {
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }

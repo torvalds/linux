@@ -1,0 +1,34 @@
+Platform DesignWare HS OTG USB 2.0 controller
+-----------------------------------------------------
+
+Required properties:
+- compatible : One of:
+  - brcm,bcm2835-usb: The DWC2 USB controller instance in the BCM2835 SoC.
+  - rockchip,rk3066-usb: The DWC2 USB controller instance in the rk3066 Soc;
+  - "rockchip,rk3188-usb", "rockchip,rk3066-usb", "snps,dwc2": for rk3188 Soc;
+  - "rockchip,rk3288-usb", "rockchip,rk3066-usb", "snps,dwc2": for rk3288 Soc;
+  - snps,dwc2: A generic DWC2 USB controller with default parameters.
+- reg : Should contain 1 register range (address and length)
+- interrupts : Should contain 1 interrupt
+- clocks: clock provider specifier
+- clock-names: shall be "otg"
+Refer to clk/clock-bindings.txt for generic clock consumer properties
+
+Optional properties:
+- phys: phy provider specifier
+- phy-names: shall be "usb2-phy"
+Refer to phy/phy-bindings.txt for generic phy consumer properties
+- dr_mode: shall be one of "host", "peripheral" and "otg"
+  Refer to usb/generic.txt
+
+Example:
+
+        usb@101c0000 {
+                compatible = "ralink,rt3050-usb, snps,dwc2";
+                reg = <0x101c0000 40000>;
+                interrupts = <18>;
+		clocks = <&usb_otg_ahb_clk>;
+		clock-names = "otg";
+		phys = <&usbphy>;
+		phy-names = "usb2-phy";
+        };

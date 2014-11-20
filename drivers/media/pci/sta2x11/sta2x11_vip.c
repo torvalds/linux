@@ -152,7 +152,7 @@ struct sta2x11_vip {
 	int tcount, bcount;
 	int overflow;
 
-	void *iomem;	/* I/O Memory */
+	void __iomem *iomem;	/* I/O Memory */
 	struct vip_config *config;
 };
 
@@ -327,7 +327,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	}
 	spin_unlock(&vip->lock);
 }
-static int buffer_finish(struct vb2_buffer *vb)
+static void buffer_finish(struct vb2_buffer *vb)
 {
 	struct sta2x11_vip *vip = vb2_get_drv_priv(vb->vb2_queue);
 	struct vip_buffer *vip_buf = to_vip_buffer(vb);
@@ -337,9 +337,8 @@ static int buffer_finish(struct vb2_buffer *vb)
 	list_del_init(&vip_buf->list);
 	spin_unlock(&vip->lock);
 
-	vip_active_buf_next(vip);
-
-	return 0;
+	if (vb2_is_streaming(vb->vb2_queue))
+		vip_active_buf_next(vip);
 }
 
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -358,7 +357,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 }
 
 /* abort streaming and wait for last buffer */
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct sta2x11_vip *vip = vb2_get_drv_priv(vq);
 	struct vip_buffer *vip_buf, *node;
@@ -375,7 +374,6 @@ static int stop_streaming(struct vb2_queue *vq)
 		list_del(&vip_buf->list);
 	}
 	spin_unlock(&vip->lock);
-	return 0;
 }
 
 static struct vb2_ops vip_video_qops = {
@@ -439,22 +437,22 @@ static int vidioc_querycap(struct file *file, void *priv,
  *
  * other, returned from video DAC.
  */
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct sta2x11_vip *vip = video_drvdata(file);
 	v4l2_std_id oldstd = vip->std, newstd;
 	int status;
 
-	if (V4L2_STD_ALL == *std) {
-		v4l2_subdev_call(vip->decoder, core, s_std, *std);
+	if (V4L2_STD_ALL == std) {
+		v4l2_subdev_call(vip->decoder, video, s_std, std);
 		ssleep(2);
 		v4l2_subdev_call(vip->decoder, video, querystd, &newstd);
 		v4l2_subdev_call(vip->decoder, video, g_input_status, &status);
 		if (status & V4L2_IN_ST_NO_SIGNAL)
 			return -EIO;
-		*std = vip->std = newstd;
-		if (oldstd != *std) {
-			if (V4L2_STD_525_60 & (*std))
+		std = vip->std = newstd;
+		if (oldstd != std) {
+			if (V4L2_STD_525_60 & std)
 				vip->format = formats_60[0];
 			else
 				vip->format = formats_50[0];
@@ -462,14 +460,14 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 		return 0;
 	}
 
-	if (oldstd != *std) {
-		if (V4L2_STD_525_60 & (*std))
+	if (oldstd != std) {
+		if (V4L2_STD_525_60 & std)
 			vip->format = formats_60[0];
 		else
 			vip->format = formats_50[0];
 	}
 
-	return v4l2_subdev_call(vip->decoder, core, s_std, *std);
+	return v4l2_subdev_call(vip->decoder, video, s_std, std);
 }
 
 /**
@@ -642,7 +640,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = f->fmt.pix.width * 2;
 	f->fmt.pix.sizeimage = f->fmt.pix.width * 2 * f->fmt.pix.height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.priv = 0;
 	return 0;
 }
 
@@ -1047,7 +1044,8 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 	ret = sta2x11_vip_init_controls(vip);
 	if (ret)
 		goto free_mem;
-	if (v4l2_device_register(&pdev->dev, &vip->v4l2_dev))
+	ret = v4l2_device_register(&pdev->dev, &vip->v4l2_dev);
+	if (ret)
 		goto free_mem;
 
 	dev_dbg(&pdev->dev, "BAR #0 at 0x%lx 0x%lx irq %d\n",
@@ -1094,7 +1092,6 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 	vip->video_dev = &video_dev_template;
 	vip->video_dev->v4l2_dev = &vip->v4l2_dev;
 	vip->video_dev->queue = &vip->vb_vidq;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vip->video_dev->flags);
 	video_set_drvdata(vip->video_dev, vip);
 
 	ret = video_register_device(vip->video_dev, VFL_TYPE_GRABBER, -1);
@@ -1302,7 +1299,7 @@ static int sta2x11_vip_resume(struct pci_dev *pdev)
 
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(sta2x11_vip_pci_tbl) = {
+static const struct pci_device_id sta2x11_vip_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_STMICRO, PCI_DEVICE_ID_STMICRO_VIP)},
 	{0,}
 };

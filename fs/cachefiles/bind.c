@@ -50,18 +50,18 @@ int cachefiles_daemon_bind(struct cachefiles_cache *cache, char *args)
 	       cache->brun_percent  < 100);
 
 	if (*args) {
-		kerror("'bind' command doesn't take an argument");
+		pr_err("'bind' command doesn't take an argument\n");
 		return -EINVAL;
 	}
 
 	if (!cache->rootdirname) {
-		kerror("No cache directory specified");
+		pr_err("No cache directory specified\n");
 		return -EINVAL;
 	}
 
 	/* don't permit already bound caches to be re-bound */
 	if (test_bit(CACHEFILES_READY, &cache->flags)) {
-		kerror("Cache already bound");
+		pr_err("Cache already bound\n");
 		return -EBUSY;
 	}
 
@@ -124,7 +124,6 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 	/* check parameters */
 	ret = -EOPNOTSUPP;
 	if (!root->d_inode ||
-	    !root->d_inode->i_op ||
 	    !root->d_inode->i_op->lookup ||
 	    !root->d_inode->i_op->mkdir ||
 	    !root->d_inode->i_op->setxattr ||
@@ -229,9 +228,7 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 	set_bit(CACHEFILES_READY, &cache->flags);
 	dput(root);
 
-	printk(KERN_INFO "CacheFiles:"
-	       " File cache on %s registered\n",
-	       cache->cache.identifier);
+	pr_info("File cache on %s registered\n", cache->cache.identifier);
 
 	/* check how much space the cache has */
 	cachefiles_has_space(cache, 0, 0);
@@ -251,7 +248,7 @@ error_open_root:
 	kmem_cache_free(cachefiles_object_jar, fsdef);
 error_root_object:
 	cachefiles_end_secure(cache, saved_cred);
-	kerror("Failed to register: %d", ret);
+	pr_err("Failed to register: %d\n", ret);
 	return ret;
 }
 
@@ -263,9 +260,8 @@ void cachefiles_daemon_unbind(struct cachefiles_cache *cache)
 	_enter("");
 
 	if (test_bit(CACHEFILES_READY, &cache->flags)) {
-		printk(KERN_INFO "CacheFiles:"
-		       " File cache on %s unregistering\n",
-		       cache->cache.identifier);
+		pr_info("File cache on %s unregistering\n",
+			cache->cache.identifier);
 
 		fscache_withdraw_cache(&cache->cache);
 	}

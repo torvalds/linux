@@ -52,16 +52,23 @@
  * memory allocation code).  The vmalloc code puts in an internal
  * guard page between each allocation.
  */
-#define _VMALLOC_END	HUGE_VMAP_BASE
+#define _VMALLOC_END	MEM_SV_START
 #define VMALLOC_END	_VMALLOC_END
 #define VMALLOC_START	_VMALLOC_START
-
-#define HUGE_VMAP_END	(HUGE_VMAP_BASE + PGDIR_SIZE)
 
 #ifndef __ASSEMBLY__
 
 /* We have no pud since we are a three-level page table. */
 #include <asm-generic/pgtable-nopud.h>
+
+/*
+ * pmds are the same as pgds and ptes, so converting is a no-op.
+ */
+#define pmd_pte(pmd) (pmd)
+#define pmdp_ptep(pmdp) (pmdp)
+#define pte_pmd(pte) (pte)
+
+#define pud_pte(pud) ((pud).pgd)
 
 static inline int pud_none(pud_t pud)
 {
@@ -71,6 +78,11 @@ static inline int pud_none(pud_t pud)
 static inline int pud_present(pud_t pud)
 {
 	return pud_val(pud) & _PAGE_PRESENT;
+}
+
+static inline int pud_huge_page(pud_t pud)
+{
+	return pud_val(pud) & _PAGE_HUGE_PAGE;
 }
 
 #define pmd_ERROR(e) \
@@ -88,6 +100,9 @@ static inline int pud_bad(pud_t pud)
 
 /* Return the page-table frame number (ptfn) that a pud_t points at. */
 #define pud_ptfn(pud) hv_pte_get_ptfn((pud).pgd)
+
+/* Return the page frame number (pfn) that a pud_t points at. */
+#define pud_pfn(pud) pte_pfn(pud_pte(pud))
 
 /*
  * A given kernel pud_t maps to a kernel pmd_t table at a specific
@@ -123,8 +138,7 @@ static inline unsigned long pgd_addr_normalize(unsigned long addr)
 /* We don't define any pgds for these addresses. */
 static inline int pgd_addr_invalid(unsigned long addr)
 {
-	return addr >= MEM_HV_START ||
-		(addr > MEM_LOW_END && addr < MEM_HIGH_START);
+	return addr >= KERNEL_HIGH_VADDR || addr != pgd_addr_normalize(addr);
 }
 
 /*
@@ -151,13 +165,6 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 {
 	return hv_pte(__insn_exch(&ptep->val, 0UL));
 }
-
-/*
- * pmds are the same as pgds and ptes, so converting is a no-op.
- */
-#define pmd_pte(pmd) (pmd)
-#define pmdp_ptep(pmdp) (pmdp)
-#define pte_pmd(pte) (pte)
 
 #endif /* __ASSEMBLY__ */
 

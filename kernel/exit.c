@@ -59,7 +59,7 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
-static void exit_mm(struct task_struct * tsk);
+static void exit_mm(struct task_struct *tsk);
 
 static void __unhash_process(struct task_struct *p, bool group_dead)
 {
@@ -74,6 +74,7 @@ static void __unhash_process(struct task_struct *p, bool group_dead)
 		__this_cpu_dec(process_counts);
 	}
 	list_del_rcu(&p->thread_group);
+	list_del_rcu(&p->thread_node);
 }
 
 /*
@@ -114,32 +115,33 @@ static void __exit_signal(struct task_struct *tsk)
 
 		if (tsk == sig->curr_target)
 			sig->curr_target = next_thread(tsk);
-		/*
-		 * Accumulate here the counters for all threads but the
-		 * group leader as they die, so they can be added into
-		 * the process-wide totals when those are taken.
-		 * The group leader stays around as a zombie as long
-		 * as there are other threads.  When it gets reaped,
-		 * the exit.c code will add its counts into these totals.
-		 * We won't ever get here for the group leader, since it
-		 * will have been the last reference on the signal_struct.
-		 */
-		task_cputime(tsk, &utime, &stime);
-		sig->utime += utime;
-		sig->stime += stime;
-		sig->gtime += task_gtime(tsk);
-		sig->min_flt += tsk->min_flt;
-		sig->maj_flt += tsk->maj_flt;
-		sig->nvcsw += tsk->nvcsw;
-		sig->nivcsw += tsk->nivcsw;
-		sig->inblock += task_io_get_inblock(tsk);
-		sig->oublock += task_io_get_oublock(tsk);
-		task_io_accounting_add(&sig->ioac, &tsk->ioac);
-		sig->sum_sched_runtime += tsk->se.sum_exec_runtime;
 	}
 
+	/*
+	 * Accumulate here the counters for all threads but the group leader
+	 * as they die, so they can be added into the process-wide totals
+	 * when those are taken.  The group leader stays around as a zombie as
+	 * long as there are other threads.  When it gets reaped, the exit.c
+	 * code will add its counts into these totals.  We won't ever get here
+	 * for the group leader, since it will have been the last reference on
+	 * the signal_struct.
+	 */
+	task_cputime(tsk, &utime, &stime);
+	write_seqlock(&sig->stats_lock);
+	sig->utime += utime;
+	sig->stime += stime;
+	sig->gtime += task_gtime(tsk);
+	sig->min_flt += tsk->min_flt;
+	sig->maj_flt += tsk->maj_flt;
+	sig->nvcsw += tsk->nvcsw;
+	sig->nivcsw += tsk->nivcsw;
+	sig->inblock += task_io_get_inblock(tsk);
+	sig->oublock += task_io_get_oublock(tsk);
+	task_io_accounting_add(&sig->ioac, &tsk->ioac);
+	sig->sum_sched_runtime += tsk->se.sum_exec_runtime;
 	sig->nr_threads--;
 	__unhash_process(tsk, group_dead);
+	write_sequnlock(&sig->stats_lock);
 
 	/*
 	 * Do this under ->siglock, we can race with another thread
@@ -150,7 +152,7 @@ static void __exit_signal(struct task_struct *tsk)
 	spin_unlock(&sighand->siglock);
 
 	__cleanup_sighand(sighand);
-	clear_tsk_thread_flag(tsk,TIF_SIGPENDING);
+	clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
 	if (group_dead) {
 		flush_sigqueue(&sig->shared_pending);
 		tty_kref_put(tty);
@@ -167,7 +169,7 @@ static void delayed_put_task_struct(struct rcu_head *rhp)
 }
 
 
-void release_task(struct task_struct * p)
+void release_task(struct task_struct *p)
 {
 	struct task_struct *leader;
 	int zap_leader;
@@ -191,7 +193,8 @@ repeat:
 	 */
 	zap_leader = 0;
 	leader = p->group_leader;
-	if (leader != p && thread_group_empty(leader) && leader->exit_state == EXIT_ZOMBIE) {
+	if (leader != p && thread_group_empty(leader)
+			&& leader->exit_state == EXIT_ZOMBIE) {
 		/*
 		 * If we were the last child thread and the leader has
 		 * exited already, and the leader's parent ignores SIGCHLD,
@@ -240,7 +243,8 @@ struct pid *session_of_pgrp(struct pid *pgrp)
  *
  * "I ask you, have you ever known what it is to be an orphan?"
  */
-static int will_become_orphaned_pgrp(struct pid *pgrp, struct task_struct *ignored_task)
+static int will_become_orphaned_pgrp(struct pid *pgrp,
+					struct task_struct *ignored_task)
 {
 	struct task_struct *p;
 
@@ -293,9 +297,9 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
 	struct task_struct *ignored_task = tsk;
 
 	if (!parent)
-		 /* exit: our father is in a different pgrp than
-		  * we are and we were the only connection outside.
-		  */
+		/* exit: our father is in a different pgrp than
+		 * we are and we were the only connection outside.
+		 */
 		parent = tsk->real_parent;
 	else
 		/* reparent: our child is in a different pgrp than
@@ -312,57 +316,7 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
 	}
 }
 
-void __set_special_pids(struct pid *pid)
-{
-	struct task_struct *curr = current->group_leader;
-
-	if (task_session(curr) != pid)
-		change_pid(curr, PIDTYPE_SID, pid);
-
-	if (task_pgrp(curr) != pid)
-		change_pid(curr, PIDTYPE_PGID, pid);
-}
-
-/*
- * Let kernel threads use this to say that they allow a certain signal.
- * Must not be used if kthread was cloned with CLONE_SIGHAND.
- */
-int allow_signal(int sig)
-{
-	if (!valid_signal(sig) || sig < 1)
-		return -EINVAL;
-
-	spin_lock_irq(&current->sighand->siglock);
-	/* This is only needed for daemonize()'ed kthreads */
-	sigdelset(&current->blocked, sig);
-	/*
-	 * Kernel threads handle their own signals. Let the signal code
-	 * know it'll be handled, so that they don't get converted to
-	 * SIGKILL or just silently dropped.
-	 */
-	current->sighand->action[(sig)-1].sa.sa_handler = (void __user *)2;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	return 0;
-}
-
-EXPORT_SYMBOL(allow_signal);
-
-int disallow_signal(int sig)
-{
-	if (!valid_signal(sig) || sig < 1)
-		return -EINVAL;
-
-	spin_lock_irq(&current->sighand->siglock);
-	current->sighand->action[(sig)-1].sa.sa_handler = SIG_IGN;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	return 0;
-}
-
-EXPORT_SYMBOL(disallow_signal);
-
-#ifdef CONFIG_MM_OWNER
+#ifdef CONFIG_MEMCG
 /*
  * A task is exiting.   If it owned this mm, find a new owner for the mm.
  */
@@ -405,14 +359,18 @@ retry:
 	}
 
 	/*
-	 * Search through everything else. We should not get
-	 * here often
+	 * Search through everything else, we should not get here often.
 	 */
-	do_each_thread(g, c) {
-		if (c->mm == mm)
-			goto assign_new_owner;
-	} while_each_thread(g, c);
-
+	for_each_process(g) {
+		if (g->flags & PF_KTHREAD)
+			continue;
+		for_each_thread(g, c) {
+			if (c->mm == mm)
+				goto assign_new_owner;
+			if (c->mm)
+				break;
+		}
+	}
 	read_unlock(&tasklist_lock);
 	/*
 	 * We found no owner yet mm_users > 1: this implies that we are
@@ -444,13 +402,13 @@ assign_new_owner:
 	task_unlock(c);
 	put_task_struct(c);
 }
-#endif /* CONFIG_MM_OWNER */
+#endif /* CONFIG_MEMCG */
 
 /*
  * Turn us into a lazy TLB process if we
  * aren't already..
  */
-static void exit_mm(struct task_struct * tsk)
+static void exit_mm(struct task_struct *tsk)
 {
 	struct mm_struct *mm = tsk->mm;
 	struct core_state *core_state;
@@ -470,6 +428,7 @@ static void exit_mm(struct task_struct * tsk)
 	core_state = mm->core_state;
 	if (core_state) {
 		struct core_thread self;
+
 		up_read(&mm->mmap_sem);
 
 		self.task = tsk;
@@ -500,6 +459,7 @@ static void exit_mm(struct task_struct * tsk)
 	task_unlock(tsk);
 	mm_update_next_owner(mm);
 	mmput(mm);
+	clear_thread_flag(TIF_MEMDIE);
 }
 
 /*
@@ -580,7 +540,7 @@ static void reparent_leader(struct task_struct *father, struct task_struct *p,
 	if (same_thread_group(p->real_parent, father))
 		return;
 
-	/* We don't want people slaying init.  */
+	/* We don't want people slaying init. */
 	p->exit_signal = SIGCHLD;
 
 	/* If it has exited notify the new parent about this child's death. */
@@ -610,6 +570,7 @@ static void forget_original_parent(struct task_struct *father)
 
 	list_for_each_entry_safe(p, n, &father->children, sibling) {
 		struct task_struct *t = p;
+
 		do {
 			t->real_parent = reaper;
 			if (t->parent == father) {
@@ -643,13 +604,12 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	/*
 	 * This does two things:
 	 *
-  	 * A.  Make init inherit all the child processes
+	 * A.  Make init inherit all the child processes
 	 * B.  Check to see if any process groups have become orphaned
 	 *	as a result of our exiting, and if they have any stopped
 	 *	jobs, send them a SIGHUP and then a SIGCONT.  (POSIX 3.2.2.2)
 	 */
 	forget_original_parent(tsk);
-	exit_task_namespaces(tsk);
 
 	write_lock_irq(&tasklist_lock);
 	if (group_dead)
@@ -694,9 +654,8 @@ static void check_stack_usage(void)
 
 	spin_lock(&low_water_lock);
 	if (free < lowest_to_date) {
-		printk(KERN_WARNING "%s (%d) used greatest stack depth: "
-				"%lu bytes left\n",
-				current->comm, task_pid_nr(current), free);
+		pr_warn("%s (%d) used greatest stack depth: %lu bytes left\n",
+			current->comm, task_pid_nr(current), free);
 		lowest_to_date = free;
 	}
 	spin_unlock(&low_water_lock);
@@ -709,6 +668,7 @@ void do_exit(long code)
 {
 	struct task_struct *tsk = current;
 	int group_dead;
+	TASKS_RCU(int tasks_rcu_i);
 
 	profile_task_exit(tsk);
 
@@ -737,8 +697,7 @@ void do_exit(long code)
 	 * leave this task alone and wait for reboot.
 	 */
 	if (unlikely(tsk->flags & PF_EXITING)) {
-		printk(KERN_ALERT
-			"Fixing recursive fault but reboot is needed!\n");
+		pr_alert("Fixing recursive fault but reboot is needed!\n");
 		/*
 		 * We can do this unlocked here. The futex code uses
 		 * this flag just to verify whether the pi state
@@ -762,9 +721,9 @@ void do_exit(long code)
 	raw_spin_unlock_wait(&tsk->pi_lock);
 
 	if (unlikely(in_atomic()))
-		printk(KERN_INFO "note: %s[%d] exited with preempt_count %d\n",
-				current->comm, task_pid_nr(current),
-				preempt_count());
+		pr_info("note: %s[%d] exited with preempt_count %d\n",
+			current->comm, task_pid_nr(current),
+			preempt_count());
 
 	acct_update_integrals(tsk);
 	/* sync mm's RSS info before statistics gathering */
@@ -795,8 +754,10 @@ void do_exit(long code)
 	exit_shm(tsk);
 	exit_files(tsk);
 	exit_fs(tsk);
+	if (group_dead)
+		disassociate_ctty(1);
+	exit_task_namespaces(tsk);
 	exit_task_work(tsk);
-	check_stack_usage();
 	exit_thread();
 
 	/*
@@ -807,21 +768,18 @@ void do_exit(long code)
 	 */
 	perf_event_exit_task(tsk);
 
-	cgroup_exit(tsk, 1);
-
-	if (group_dead)
-		disassociate_ctty(1);
+	cgroup_exit(tsk);
 
 	module_put(task_thread_info(tsk)->exec_domain->module);
-
-	proc_exit_connector(tsk);
 
 	/*
 	 * FIXME: do that only when needed, using sched_exit tracepoint
 	 */
-	ptrace_put_breakpoints(tsk);
+	flush_ptrace_hw_breakpoint(tsk);
 
+	TASKS_RCU(tasks_rcu_i = __srcu_read_lock(&tasks_rcu_exit_srcu));
 	exit_notify(tsk, group_dead);
+	proc_exit_connector(tsk);
 #ifdef CONFIG_NUMA
 	task_lock(tsk);
 	mpol_put(tsk->mempolicy);
@@ -847,17 +805,19 @@ void do_exit(long code)
 		exit_io_context(tsk);
 
 	if (tsk->splice_pipe)
-		__free_pipe_info(tsk->splice_pipe);
+		free_pipe_info(tsk->splice_pipe);
 
 	if (tsk->task_frag.page)
 		put_page(tsk->task_frag.page);
 
 	validate_creds_for_do_exit(tsk);
 
+	check_stack_usage();
 	preempt_disable();
 	if (tsk->nr_dirtied)
 		__this_cpu_add(dirty_throttle_leaks, tsk->nr_dirtied);
 	exit_rcu();
+	TASKS_RCU(__srcu_read_unlock(&tasks_rcu_exit_srcu, tasks_rcu_i));
 
 	/*
 	 * The setting of TASK_RUNNING by try_to_wake_up() may be delayed
@@ -883,7 +843,6 @@ void do_exit(long code)
 	for (;;)
 		cpu_relax();	/* For when BUG is null */
 }
-
 EXPORT_SYMBOL_GPL(do_exit);
 
 void complete_and_exit(struct completion *comp, long code)
@@ -893,7 +852,6 @@ void complete_and_exit(struct completion *comp, long code)
 
 	do_exit(code);
 }
-
 EXPORT_SYMBOL(complete_and_exit);
 
 SYSCALL_DEFINE1(exit, int, error_code)
@@ -916,6 +874,7 @@ do_group_exit(int exit_code)
 		exit_code = sig->group_exit_code;
 	else if (!thread_group_empty(current)) {
 		struct sighand_struct *const sighand = current->sighand;
+
 		spin_lock_irq(&sighand->siglock);
 		if (signal_group_exit(sig))
 			/* Another thread got here before we took the lock.  */
@@ -1048,17 +1007,13 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		return wait_noreap_copyout(wo, p, pid, uid, why, status);
 	}
 
-	/*
-	 * Try to move the task's state to DEAD
-	 * only one thread is allowed to do this:
-	 */
-	state = xchg(&p->exit_state, EXIT_DEAD);
-	if (state != EXIT_ZOMBIE) {
-		BUG_ON(state != EXIT_DEAD);
-		return 0;
-	}
-
 	traced = ptrace_reparented(p);
+	/*
+	 * Move the task's state to DEAD/TRACE, only one thread can do this.
+	 */
+	state = traced && thread_group_leader(p) ? EXIT_TRACE : EXIT_DEAD;
+	if (cmpxchg(&p->exit_state, EXIT_ZOMBIE, state) != EXIT_ZOMBIE)
+		return 0;
 	/*
 	 * It can be ptraced but not reparented, check
 	 * thread_group_leader() to filter out sub-threads.
@@ -1084,14 +1039,15 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		 * as other threads in the parent group can be right
 		 * here reaping other children at the same time.
 		 *
-		 * We use thread_group_cputime_adjusted() to get times for the thread
-		 * group, which consolidates times for all threads in the
-		 * group including the group leader.
+		 * We use thread_group_cputime_adjusted() to get times for
+		 * the thread group, which consolidates times for all threads
+		 * in the group including the group leader.
 		 */
 		thread_group_cputime_adjusted(p, &tgutime, &tgstime);
 		spin_lock_irq(&p->real_parent->sighand->siglock);
 		psig = p->real_parent->signal;
 		sig = p->signal;
+		write_seqlock(&psig->stats_lock);
 		psig->cutime += tgutime + sig->cutime;
 		psig->cstime += tgstime + sig->cstime;
 		psig->cgtime += task_gtime(p) + sig->gtime + sig->cgtime;
@@ -1114,12 +1070,13 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 			psig->cmaxrss = maxrss;
 		task_io_accounting_add(&psig->ioac, &p->ioac);
 		task_io_accounting_add(&psig->ioac, &sig->ioac);
+		write_sequnlock(&psig->stats_lock);
 		spin_unlock_irq(&p->real_parent->sighand->siglock);
 	}
 
 	/*
 	 * Now we are sure this task is interesting, and no other
-	 * thread can reap it because we set its state to EXIT_DEAD.
+	 * thread can reap it because we its state == DEAD/TRACE.
 	 */
 	read_unlock(&tasklist_lock);
 
@@ -1156,22 +1113,19 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 	if (!retval)
 		retval = pid;
 
-	if (traced) {
+	if (state == EXIT_TRACE) {
 		write_lock_irq(&tasklist_lock);
 		/* We dropped tasklist, ptracer could die and untrace */
 		ptrace_unlink(p);
-		/*
-		 * If this is not a sub-thread, notify the parent.
-		 * If parent wants a zombie, don't release it now.
-		 */
-		if (thread_group_leader(p) &&
-		    !do_notify_parent(p, p->exit_signal)) {
-			p->exit_state = EXIT_ZOMBIE;
-			p = NULL;
-		}
+
+		/* If parent wants a zombie, don't release it now */
+		state = EXIT_ZOMBIE;
+		if (do_notify_parent(p, p->exit_signal))
+			state = EXIT_DEAD;
+		p->exit_state = state;
 		write_unlock_irq(&tasklist_lock);
 	}
-	if (p != NULL)
+	if (state == EXIT_DEAD)
 		release_task(p);
 
 	return retval;
@@ -1348,7 +1302,12 @@ static int wait_task_continued(struct wait_opts *wo, struct task_struct *p)
 static int wait_consider_task(struct wait_opts *wo, int ptrace,
 				struct task_struct *p)
 {
-	int ret = eligible_child(wo, p);
+	int ret;
+
+	if (unlikely(p->exit_state == EXIT_DEAD))
+		return 0;
+
+	ret = eligible_child(wo, p);
 	if (!ret)
 		return ret;
 
@@ -1366,33 +1325,44 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 		return 0;
 	}
 
-	/* dead body doesn't have much to contribute */
-	if (unlikely(p->exit_state == EXIT_DEAD)) {
+	if (unlikely(p->exit_state == EXIT_TRACE)) {
 		/*
-		 * But do not ignore this task until the tracer does
-		 * wait_task_zombie()->do_notify_parent().
+		 * ptrace == 0 means we are the natural parent. In this case
+		 * we should clear notask_error, debugger will notify us.
 		 */
-		if (likely(!ptrace) && unlikely(ptrace_reparented(p)))
+		if (likely(!ptrace))
 			wo->notask_error = 0;
 		return 0;
 	}
 
+	if (likely(!ptrace) && unlikely(p->ptrace)) {
+		/*
+		 * If it is traced by its real parent's group, just pretend
+		 * the caller is ptrace_do_wait() and reap this child if it
+		 * is zombie.
+		 *
+		 * This also hides group stop state from real parent; otherwise
+		 * a single stop can be reported twice as group and ptrace stop.
+		 * If a ptracer wants to distinguish these two events for its
+		 * own children it should create a separate process which takes
+		 * the role of real parent.
+		 */
+		if (!ptrace_reparented(p))
+			ptrace = 1;
+	}
+
 	/* slay zombie? */
 	if (p->exit_state == EXIT_ZOMBIE) {
-		/*
-		 * A zombie ptracee is only visible to its ptracer.
-		 * Notification and reaping will be cascaded to the real
-		 * parent when the ptracer detaches.
-		 */
-		if (likely(!ptrace) && unlikely(p->ptrace)) {
-			/* it will become visible, clear notask_error */
-			wo->notask_error = 0;
-			return 0;
-		}
-
 		/* we don't reap group leaders with subthreads */
-		if (!delay_group_leader(p))
-			return wait_task_zombie(wo, p);
+		if (!delay_group_leader(p)) {
+			/*
+			 * A zombie ptracee is only visible to its ptracer.
+			 * Notification and reaping will be cascaded to the
+			 * real parent when the ptracer detaches.
+			 */
+			if (unlikely(ptrace) || likely(!p->ptrace))
+				return wait_task_zombie(wo, p);
+		}
 
 		/*
 		 * Allow access to stopped/continued state via zombie by
@@ -1417,19 +1387,6 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 		if (likely(!ptrace) || (wo->wo_flags & (WCONTINUED | WEXITED)))
 			wo->notask_error = 0;
 	} else {
-		/*
-		 * If @p is ptraced by a task in its real parent's group,
-		 * hide group stop/continued state when looking at @p as
-		 * the real parent; otherwise, a single stop can be
-		 * reported twice as group and ptrace stops.
-		 *
-		 * If a ptracer wants to distinguish the two events for its
-		 * own children, it should create a separate process which
-		 * takes the role of real parent.
-		 */
-		if (likely(!ptrace) && p->ptrace && !ptrace_reparented(p))
-			return 0;
-
 		/*
 		 * @p is alive and it's gonna stop, continue or exit, so
 		 * there always is something to wait for.
@@ -1468,6 +1425,7 @@ static int do_wait_thread(struct wait_opts *wo, struct task_struct *tsk)
 
 	list_for_each_entry(p, &tsk->children, sibling) {
 		int ret = wait_consider_task(wo, 0, p);
+
 		if (ret)
 			return ret;
 	}
@@ -1481,6 +1439,7 @@ static int ptrace_do_wait(struct wait_opts *wo, struct task_struct *tsk)
 
 	list_for_each_entry(p, &tsk->ptraced, ptrace_entry) {
 		int ret = wait_consider_task(wo, 1, p);
+
 		if (ret)
 			return ret;
 	}
@@ -1629,9 +1588,6 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 	}
 
 	put_pid(pid);
-
-	/* avoid REGPARM breakage on x86: */
-	asmlinkage_protect(5, ret, which, upid, infop, options, ru);
 	return ret;
 }
 
@@ -1669,8 +1625,6 @@ SYSCALL_DEFINE4(wait4, pid_t, upid, int __user *, stat_addr,
 	ret = do_wait(&wo);
 	put_pid(pid);
 
-	/* avoid REGPARM breakage on x86: */
-	asmlinkage_protect(4, ret, upid, stat_addr, options, ru);
 	return ret;
 }
 

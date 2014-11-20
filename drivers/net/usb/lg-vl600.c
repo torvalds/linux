@@ -15,8 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -211,7 +210,7 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			 * (0x86dd) so Linux can understand it.
 			 */
 			if ((buf->data[sizeof(*ethhdr)] & 0xf0) == 0x60)
-				ethhdr->h_proto = __constant_htons(ETH_P_IPV6);
+				ethhdr->h_proto = htons(ETH_P_IPV6);
 		}
 
 		if (count) {

@@ -18,9 +18,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include "soc.h"
-#include "iomap.h"
-#include "common.h"
 #include "prm2xxx.h"
 #include "cm.h"
 #include "cm2xxx.h"
@@ -327,6 +324,73 @@ struct clkdm_ops omap2_clkdm_operations = {
 	.clkdm_clk_disable	= omap2xxx_clkdm_clk_disable,
 };
 
+int omap2xxx_cm_fclks_active(void)
+{
+	u32 f1, f2;
+
+	f1 = omap2_cm_read_mod_reg(CORE_MOD, CM_FCLKEN1);
+	f2 = omap2_cm_read_mod_reg(CORE_MOD, OMAP24XX_CM_FCLKEN2);
+
+	return (f1 | f2) ? 1 : 0;
+}
+
+int omap2xxx_cm_mpu_retention_allowed(void)
+{
+	u32 l;
+
+	/* Check for MMC, UART2, UART1, McSPI2, McSPI1 and DSS1. */
+	l = omap2_cm_read_mod_reg(CORE_MOD, CM_FCLKEN1);
+	if (l & (OMAP2420_EN_MMC_MASK | OMAP24XX_EN_UART2_MASK |
+		 OMAP24XX_EN_UART1_MASK | OMAP24XX_EN_MCSPI2_MASK |
+		 OMAP24XX_EN_MCSPI1_MASK | OMAP24XX_EN_DSS1_MASK))
+		return 0;
+	/* Check for UART3. */
+	l = omap2_cm_read_mod_reg(CORE_MOD, OMAP24XX_CM_FCLKEN2);
+	if (l & OMAP24XX_EN_UART3_MASK)
+		return 0;
+
+	return 1;
+}
+
+u32 omap2xxx_cm_get_core_clk_src(void)
+{
+	u32 v;
+
+	v = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
+	v &= OMAP24XX_CORE_CLK_SRC_MASK;
+
+	return v;
+}
+
+u32 omap2xxx_cm_get_core_pll_config(void)
+{
+	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
+}
+
+u32 omap2xxx_cm_get_pll_config(void)
+{
+	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL1);
+}
+
+u32 omap2xxx_cm_get_pll_status(void)
+{
+	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+}
+
+void omap2xxx_cm_set_mod_dividers(u32 mpu, u32 dsp, u32 gfx, u32 core, u32 mdm)
+{
+	u32 tmp;
+
+	omap2_cm_write_mod_reg(mpu, MPU_MOD, CM_CLKSEL);
+	omap2_cm_write_mod_reg(dsp, OMAP24XX_DSP_MOD, CM_CLKSEL);
+	omap2_cm_write_mod_reg(gfx, GFX_MOD, CM_CLKSEL);
+	tmp = omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL1) &
+		OMAP24XX_CLKSEL_DSS2_MASK;
+	omap2_cm_write_mod_reg(core | tmp, CORE_MOD, CM_CLKSEL1);
+	if (mdm)
+		omap2_cm_write_mod_reg(mdm, OMAP2430_MDM_MOD, CM_CLKSEL);
+}
+
 /*
  *
  */
@@ -338,19 +402,11 @@ static struct cm_ll_data omap2xxx_cm_ll_data = {
 
 int __init omap2xxx_cm_init(void)
 {
-	if (!cpu_is_omap24xx())
-		return 0;
-
 	return cm_register(&omap2xxx_cm_ll_data);
 }
 
 static void __exit omap2xxx_cm_exit(void)
 {
-	if (!cpu_is_omap24xx())
-		return;
-
-	/* Should never happen */
-	WARN(cm_unregister(&omap2xxx_cm_ll_data),
-	     "%s: cm_ll_data function pointer mismatch\n", __func__);
+	cm_unregister(&omap2xxx_cm_ll_data);
 }
 __exitcall(omap2xxx_cm_exit);

@@ -12,7 +12,6 @@
  * the Free Software Foundation; either version 2 of the License.
  */
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pnp.h>
 #include <linux/string.h>
@@ -429,7 +428,6 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
 	struct uart_8250_port uart;
 	int ret, line, flags = dev_id->driver_data;
-	struct resource *res = NULL;
 
 	if (flags & UNKNOWN_DEV) {
 		ret = serial_pnp_guess_board(dev);
@@ -440,12 +438,11 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	memset(&uart, 0, sizeof(uart));
 	if (pnp_irq_valid(dev, 0))
 		uart.port.irq = pnp_irq(dev, 0);
-	if ((flags & CIR_PORT) && pnp_port_valid(dev, 2))
-		res = pnp_get_resource(dev, IORESOURCE_IO, 2);
-	else if (pnp_port_valid(dev, 0))
-		res = pnp_get_resource(dev, IORESOURCE_IO, 0);
-	if (pnp_resource_enabled(res)) {
-		uart.port.iobase = res->start;
+	if ((flags & CIR_PORT) && pnp_port_valid(dev, 2)) {
+		uart.port.iobase = pnp_port_start(dev, 2);
+		uart.port.iotype = UPIO_PORT;
+	} else if (pnp_port_valid(dev, 0)) {
+		uart.port.iobase = pnp_port_start(dev, 0);
 		uart.port.iotype = UPIO_PORT;
 	} else if (pnp_mem_valid(dev, 0)) {
 		uart.port.mapbase = pnp_mem_start(dev, 0);

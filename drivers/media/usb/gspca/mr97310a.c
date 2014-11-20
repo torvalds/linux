@@ -289,7 +289,7 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 			return err_code;
 	}
 	if (status != 0x0a)
-		PDEBUG(D_ERR, "status is %02x", status);
+		PERR("status is %02x", status);
 
 	tries = 0;
 	while (tries < 4) {
@@ -330,7 +330,7 @@ static void stream_stop(struct gspca_dev *gspca_dev)
 	gspca_dev->usb_buf[0] = 0x01;
 	gspca_dev->usb_buf[1] = 0x00;
 	if (mr_write(gspca_dev, 2) < 0)
-		PDEBUG(D_ERR, "Stream Stop failed");
+		PERR("Stream Stop failed");
 }
 
 static void lcd_stop(struct gspca_dev *gspca_dev)
@@ -338,7 +338,7 @@ static void lcd_stop(struct gspca_dev *gspca_dev)
 	gspca_dev->usb_buf[0] = 0x19;
 	gspca_dev->usb_buf[1] = 0x54;
 	if (mr_write(gspca_dev, 2) < 0)
-		PDEBUG(D_ERR, "LCD Stop failed");
+		PERR("LCD Stop failed");
 }
 
 static int isoc_enable(struct gspca_dev *gspca_dev)
@@ -521,7 +521,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 	if (sd->sensor_type)
 		data[5] = 0xbb;
 
-	switch (gspca_dev->width) {
+	switch (gspca_dev->pixfmt.width) {
 	case 160:
 		data[9] |= 0x04;  /* reg 8, 2:1 scale down from 320 */
 		/* fall thru */
@@ -618,7 +618,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		data[10] = 0x18;
 	}
 
-	switch (gspca_dev->width) {
+	switch (gspca_dev->pixfmt.width) {
 	case 160:
 		data[9] |= 0x0c;  /* reg 8, 4:1 scale down */
 		/* fall thru */
@@ -847,7 +847,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 expo, s32 min_clockdiv)
 		u8 clockdiv = (60 * expo + 7999) / 8000;
 
 		/* Limit framerate to not exceed usb bandwidth */
-		if (clockdiv < min_clockdiv && gspca_dev->width >= 320)
+		if (clockdiv < min_clockdiv && gspca_dev->pixfmt.width >= 320)
 			clockdiv = min_clockdiv;
 		else if (clockdiv < 2)
 			clockdiv = 2;
@@ -1026,7 +1026,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
 
-	sof = pac_find_sof(&sd->sof_read, data, len);
+	sof = pac_find_sof(gspca_dev, &sd->sof_read, data, len);
 	if (sof) {
 		int n;
 

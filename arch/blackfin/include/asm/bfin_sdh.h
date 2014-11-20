@@ -24,18 +24,27 @@ struct bfin_sd_host {
 #define CMD_INT_E          (1 << 8)    /* Command Interrupt */
 #define CMD_PEND_E         (1 << 9)    /* Command Pending */
 #define CMD_E              (1 << 10)   /* Command Enable */
+#ifdef RSI_BLKSZ
+#define CMD_CRC_CHECK_D    (1 << 11)   /* CRC Check is disabled */
+#define CMD_DATA0_BUSY     (1 << 12)   /* Check for Busy State on the DATA0 pin */
+#endif
 
 /* SDH_PWR_CTL bitmasks */
+#ifndef RSI_BLKSZ
 #define PWR_ON             0x3         /* Power On */
 #define SD_CMD_OD          (1 << 6)    /* Open Drain Output */
 #define ROD_CTL            (1 << 7)    /* Rod Control */
+#endif
 
 /* SDH_CLK_CTL bitmasks */
 #define CLKDIV             0xff        /* MC_CLK Divisor */
 #define CLK_E              (1 << 8)    /* MC_CLK Bus Clock Enable */
 #define PWR_SV_E           (1 << 9)    /* Power Save Enable */
 #define CLKDIV_BYPASS      (1 << 10)   /* Bypass Divisor */
-#define WIDE_BUS           (1 << 11)   /* Wide Bus Mode Enable */
+#define BUS_MODE_MASK      0x1800      /* Bus Mode Mask */
+#define STD_BUS_1          0x000       /* Standard Bus 1 bit mode */
+#define WIDE_BUS_4         0x800       /* Wide Bus 4 bit mode */
+#define BYTE_BUS_8         0x1000      /* Byte Bus 8 bit mode */
 
 /* SDH_RESP_CMD bitmasks */
 #define RESP_CMD           0x3f        /* Response Command */
@@ -45,7 +54,13 @@ struct bfin_sd_host {
 #define DTX_DIR            (1 << 1)    /* Data Transfer Direction */
 #define DTX_MODE           (1 << 2)    /* Data Transfer Mode */
 #define DTX_DMA_E          (1 << 3)    /* Data Transfer DMA Enable */
+#ifndef RSI_BLKSZ
 #define DTX_BLK_LGTH       (0xf << 4)  /* Data Transfer Block Length */
+#else
+
+/* Bit masks for SDH_BLK_SIZE */
+#define DTX_BLK_LGTH       0x1fff      /* Data Transfer Block Length */
+#endif
 
 /* SDH_STATUS bitmasks */
 #define CMD_CRC_FAIL       (1 << 0)    /* CMD CRC Fail */
@@ -114,10 +129,14 @@ struct bfin_sd_host {
 /* SDH_E_STATUS bitmasks */
 #define SDIO_INT_DET       (1 << 1)    /* SDIO Int Detected */
 #define SD_CARD_DET        (1 << 4)    /* SD Card Detect */
+#define SD_CARD_BUSYMODE   (1 << 31)   /* Card is in Busy mode */
+#define SD_CARD_SLPMODE    (1 << 30)   /* Card in Sleep Mode */
+#define SD_CARD_READY      (1 << 17)   /* Card Ready */
 
 /* SDH_E_MASK bitmasks */
 #define SDIO_MSK           (1 << 1)    /* Mask SDIO Int Detected */
-#define SCD_MSK            (1 << 6)    /* Mask Card Detect */
+#define SCD_MSK            (1 << 4)    /* Mask Card Detect */
+#define CARD_READY_MSK     (1 << 16)   /* Mask Card Ready */
 
 /* SDH_CFG bitmasks */
 #define CLKS_EN            (1 << 0)    /* Clocks Enable */
@@ -126,7 +145,15 @@ struct bfin_sd_host {
 #define SD_RST             (1 << 4)    /* SDMMC Reset */
 #define PUP_SDDAT          (1 << 5)    /* Pull-up SD_DAT */
 #define PUP_SDDAT3         (1 << 6)    /* Pull-up SD_DAT3 */
+#ifndef RSI_BLKSZ
 #define PD_SDDAT3          (1 << 7)    /* Pull-down SD_DAT3 */
+#else
+#define PWR_ON             0x600       /* Power On */
+#define SD_CMD_OD          (1 << 11)   /* Open Drain Output */
+#define BOOT_EN            (1 << 12)   /* Boot Enable */
+#define BOOT_MODE          (1 << 13)   /* Alternate Boot Mode */
+#define BOOT_ACK_EN        (1 << 14)   /* Boot ACK is expected */
+#endif
 
 /* SDH_RD_WAIT_EN bitmasks */
 #define RWR                (1 << 0)    /* Read Wait Request */

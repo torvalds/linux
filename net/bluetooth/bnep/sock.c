@@ -234,7 +234,7 @@ int __init bnep_sock_init(void)
 		goto error;
 	}
 
-	err = bt_procfs_init(THIS_MODULE, &init_net, "bnep", &bnep_sk_list, NULL);
+	err = bt_procfs_init(&init_net, "bnep", &bnep_sk_list, NULL);
 	if (err < 0) {
 		BT_ERR("Failed to create BNEP proc file");
 		bt_sock_unregister(BTPROTO_BNEP);
@@ -253,8 +253,6 @@ error:
 void __exit bnep_sock_cleanup(void)
 {
 	bt_procfs_cleanup(&init_net, "bnep");
-	if (bt_sock_unregister(BTPROTO_BNEP) < 0)
-		BT_ERR("Can't unregister BNEP socket");
-
+	bt_sock_unregister(BTPROTO_BNEP);
 	proto_unregister(&bnep_proto);
 }

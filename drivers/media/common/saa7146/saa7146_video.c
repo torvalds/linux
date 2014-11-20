@@ -1,7 +1,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <media/saa7146_vv.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ctrls.h>
 #include <linux/module.h>
@@ -832,7 +831,7 @@ static int vidioc_g_std(struct file *file, void *fh, v4l2_std_id *norm)
 	}
 	*/
 
-static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id id)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct saa7146_vv *vv = dev->vv_data;
@@ -856,7 +855,7 @@ static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *id)
 	}
 
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
-		if (*id & dev->ext_vv_data->stds[i].id)
+		if (id & dev->ext_vv_data->stds[i].id)
 			break;
 	if (i != dev->ext_vv_data->num_stds) {
 		vv->standard = &dev->ext_vv_data->stds[i];
@@ -988,26 +987,6 @@ static int vidioc_streamoff(struct file *file, void *__fh, enum v4l2_buf_type ty
 	return err;
 }
 
-static int vidioc_g_chip_ident(struct file *file, void *__fh,
-		struct v4l2_dbg_chip_ident *chip)
-{
-	struct saa7146_fh *fh = __fh;
-	struct saa7146_dev *dev = fh->dev;
-
-	chip->ident = V4L2_IDENT_NONE;
-	chip->revision = 0;
-	if (chip->match.type == V4L2_CHIP_MATCH_HOST) {
-		if (v4l2_chip_match_host(&chip->match))
-			chip->ident = V4L2_IDENT_SAA7146;
-		return 0;
-	}
-	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
-	    chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-	return v4l2_device_call_until_err(&dev->v4l2_dev, 0,
-			core, g_chip_ident, chip);
-}
-
 const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_querycap             = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap     = vidioc_enum_fmt_vid_cap,
@@ -1018,7 +997,6 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_g_fmt_vid_overlay    = vidioc_g_fmt_vid_overlay,
 	.vidioc_try_fmt_vid_overlay  = vidioc_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_overlay    = vidioc_s_fmt_vid_overlay,
-	.vidioc_g_chip_ident         = vidioc_g_chip_ident,
 
 	.vidioc_overlay 	     = vidioc_overlay,
 	.vidioc_g_fbuf  	     = vidioc_g_fbuf,
@@ -1039,7 +1017,6 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 const struct v4l2_ioctl_ops saa7146_vbi_ioctl_ops = {
 	.vidioc_querycap             = vidioc_querycap,
 	.vidioc_g_fmt_vbi_cap        = vidioc_g_fmt_vbi_cap,
-	.vidioc_g_chip_ident         = vidioc_g_chip_ident,
 
 	.vidioc_reqbufs              = vidioc_reqbufs,
 	.vidioc_querybuf             = vidioc_querybuf,

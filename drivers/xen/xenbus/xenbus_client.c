@@ -45,6 +45,7 @@
 #include <xen/grant_table.h>
 #include <xen/xenbus.h>
 #include <xen/xen.h>
+#include <xen/features.h>
 
 #include "xenbus_probe.h"
 
@@ -258,7 +259,6 @@ static char *error_path(struct xenbus_device *dev)
 static void xenbus_va_dev_error(struct xenbus_device *dev, int err,
 				const char *fmt, va_list ap)
 {
-	int ret;
 	unsigned int len;
 	char *printf_buffer = NULL;
 	char *path_buffer = NULL;
@@ -269,9 +269,7 @@ static void xenbus_va_dev_error(struct xenbus_device *dev, int err,
 		goto fail;
 
 	len = sprintf(printf_buffer, "%i ", -err);
-	ret = vsnprintf(printf_buffer+len, PRINTF_BUFFER_SIZE-len, fmt, ap);
-
-	BUG_ON(len + ret > PRINTF_BUFFER_SIZE-1);
+	vsnprintf(printf_buffer+len, PRINTF_BUFFER_SIZE-len, fmt, ap);
 
 	dev_err(&dev->dev, "%s\n", printf_buffer);
 
@@ -360,8 +358,8 @@ static void xenbus_switch_fatal(struct xenbus_device *dev, int depth, int err,
  * @ring_mfn: mfn of ring to grant
 
  * Grant access to the given @ring_mfn to the peer of the given device.  Return
- * 0 on success, or -errno on error.  On error, the device will switch to
- * XenbusStateClosing, and the error will be saved in the store.
+ * a grant reference on success, or -errno on error. On error, the device will
+ * switch to XenbusStateClosing, and the error will be saved in the store.
  */
 int xenbus_grant_ring(struct xenbus_device *dev, unsigned long ring_mfn)
 {
@@ -397,33 +395,6 @@ int xenbus_alloc_evtchn(struct xenbus_device *dev, int *port)
 	return err;
 }
 EXPORT_SYMBOL_GPL(xenbus_alloc_evtchn);
-
-
-/**
- * Bind to an existing interdomain event channel in another domain. Returns 0
- * on success and stores the local port in *port. On error, returns -errno,
- * switches the device to XenbusStateClosing, and saves the error in XenStore.
- */
-int xenbus_bind_evtchn(struct xenbus_device *dev, int remote_port, int *port)
-{
-	struct evtchn_bind_interdomain bind_interdomain;
-	int err;
-
-	bind_interdomain.remote_dom = dev->otherend_id;
-	bind_interdomain.remote_port = remote_port;
-
-	err = HYPERVISOR_event_channel_op(EVTCHNOP_bind_interdomain,
-					  &bind_interdomain);
-	if (err)
-		xenbus_dev_fatal(dev, err,
-				 "binding to event channel %d from domain %d",
-				 remote_port, dev->otherend_id);
-	else
-		*port = bind_interdomain.local_port;
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(xenbus_bind_evtchn);
 
 
 /**
@@ -534,7 +505,7 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 
 	err = xenbus_map_ring(dev, gnt_ref, &node->handle, addr);
 	if (err)
-		goto out_err;
+		goto out_err_free_ballooned_pages;
 
 	spin_lock(&xenbus_valloc_lock);
 	list_add(&node->next, &xenbus_valloc_pages);
@@ -543,8 +514,9 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 	*vaddr = addr;
 	return 0;
 
- out_err:
+ out_err_free_ballooned_pages:
 	free_xenballooned_pages(1, &node->page);
+ out_err:
 	kfree(node);
 	return err;
 }
@@ -742,7 +714,7 @@ static const struct xenbus_ring_ops ring_ops_hvm = {
 
 void __init xenbus_ring_ops_init(void)
 {
-	if (xen_pv_domain())
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
 		ring_ops = &ring_ops_pv;
 	else
 		ring_ops = &ring_ops_hvm;

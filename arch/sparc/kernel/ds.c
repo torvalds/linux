@@ -528,10 +528,8 @@ static void dr_cpu_mark(struct ds_data *resp, int cpu, int ncpus,
 	}
 }
 
-static int __cpuinit dr_cpu_configure(struct ds_info *dp,
-				      struct ds_cap_state *cp,
-				      u64 req_num,
-				      cpumask_t *mask)
+static int dr_cpu_configure(struct ds_info *dp, struct ds_cap_state *cp,
+			    u64 req_num, cpumask_t *mask)
 {
 	struct ds_data *resp;
 	int resp_len, ncpus, cpu;
@@ -627,9 +625,8 @@ static int dr_cpu_unconfigure(struct ds_info *dp,
 	return 0;
 }
 
-static void __cpuinit dr_cpu_data(struct ds_info *dp,
-				  struct ds_cap_state *cp,
-				  void *buf, int len)
+static void dr_cpu_data(struct ds_info *dp, struct ds_cap_state *cp, void *buf,
+			int len)
 {
 	struct ds_data *data = buf;
 	struct dr_cpu_tag *tag = (struct dr_cpu_tag *) (data + 1);
@@ -783,6 +780,16 @@ void ldom_set_var(const char *var, const char *value)
 		char  *base, *p;
 		int msg_len, loops;
 
+		if (strlen(var) + strlen(value) + 2 >
+		    sizeof(pkt) - sizeof(pkt.header)) {
+			printk(KERN_ERR PFX
+				"contents length: %zu, which more than max: %lu,"
+				"so could not set (%s) variable to (%s).\n",
+				strlen(var) + strlen(value) + 2,
+				sizeof(pkt) - sizeof(pkt.header), var, value);
+			return;
+		}
+
 		memset(&pkt, 0, sizeof(pkt));
 		pkt.header.data.tag.type = DS_DATA;
 		pkt.header.data.handle = cp->handle;
@@ -842,8 +849,8 @@ void ldom_reboot(const char *boot_command)
 	if (boot_command && strlen(boot_command)) {
 		unsigned long len;
 
-		strcpy(full_boot_str, "boot ");
-		strcpy(full_boot_str + strlen("boot "), boot_command);
+		snprintf(full_boot_str, sizeof(full_boot_str), "boot %s",
+			 boot_command);
 		len = strlen(full_boot_str);
 
 		if (reboot_data_supported) {
@@ -1193,14 +1200,14 @@ static int ds_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	ds_cfg.tx_irq = vdev->tx_irq;
 	ds_cfg.rx_irq = vdev->rx_irq;
 
-	lp = ldc_alloc(vdev->channel_id, &ds_cfg, dp);
+	lp = ldc_alloc(vdev->channel_id, &ds_cfg, dp, "DS");
 	if (IS_ERR(lp)) {
 		err = PTR_ERR(lp);
 		goto out_free_ds_states;
 	}
 	dp->lp = lp;
 
-	err = ldc_bind(lp, "DS");
+	err = ldc_bind(lp);
 	if (err)
 		goto out_free_ldc;
 

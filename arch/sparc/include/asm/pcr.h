@@ -12,8 +12,8 @@ struct pcr_ops {
 };
 extern const struct pcr_ops *pcr_ops;
 
-extern void deferred_pcr_work_irq(int irq, struct pt_regs *regs);
-extern void schedule_deferred_pcr_work(void);
+void deferred_pcr_work_irq(int irq, struct pt_regs *regs);
+void schedule_deferred_pcr_work(void);
 
 #define PCR_PIC_PRIV		0x00000001 /* PIC access is privileged */
 #define PCR_STRACE		0x00000002 /* Trace supervisor events  */
@@ -45,6 +45,6 @@ extern void schedule_deferred_pcr_work(void);
 #define PCR_N4_PICNHT		0x00020000 /* PIC non-hypervisor trap  */
 #define PCR_N4_NTC		0x00040000 /* Next-To-Commit wrap      */
 
-extern int pcr_arch_init(void);
+int pcr_arch_init(void);
 
 #endif /* __PCR_H */

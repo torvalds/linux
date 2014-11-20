@@ -167,7 +167,7 @@ do {						\
  * Global list of active external journals
  */
 static LIST_HEAD(jfs_external_logs);
-static struct jfs_log *dummy_log = NULL;
+static struct jfs_log *dummy_log;
 static DEFINE_MUTEX(jfs_log_mutex);
 
 /*
@@ -1058,7 +1058,8 @@ static int lmLogSync(struct jfs_log * log, int hard_sync)
  */
 void jfs_syncpt(struct jfs_log *log, int hard_sync)
 {	LOG_LOCK(log);
-	lmLogSync(log, hard_sync);
+	if (!test_bit(log_QUIESCE, &log->flag))
+		lmLogSync(log, hard_sync);
 	LOG_UNLOCK(log);
 }
 
@@ -1584,7 +1585,6 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		LOGGC_UNLOCK(log);
 		schedule();
-		__set_current_state(TASK_RUNNING);
 		LOGGC_LOCK(log);
 		remove_wait_queue(&target->gcwait, &__wait);
 	}
@@ -1997,19 +1997,24 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
 
 	bio = bio_alloc(GFP_NOFS, 1);
 
-	bio->bi_sector = bp->l_blkno << (log->l2bsize - 9);
+	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
 	bio->bi_bdev = log->bdev;
 	bio->bi_io_vec[0].bv_page = bp->l_page;
 	bio->bi_io_vec[0].bv_len = LOGPSIZE;
 	bio->bi_io_vec[0].bv_offset = bp->l_offset;
 
 	bio->bi_vcnt = 1;
-	bio->bi_idx = 0;
-	bio->bi_size = LOGPSIZE;
+	bio->bi_iter.bi_size = LOGPSIZE;
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;
-	submit_bio(READ_SYNC, bio);
+	/*check if journaling to disk has been disabled*/
+	if (log->no_integrity) {
+		bio->bi_iter.bi_size = 0;
+		lbmIODone(bio, 0);
+	} else {
+		submit_bio(READ_SYNC, bio);
+	}
 
 	wait_event(bp->l_ioevent, (bp->l_flag != lbmREAD));
 
@@ -2138,22 +2143,21 @@ static void lbmStartIO(struct lbuf * bp)
 	jfs_info("lbmStartIO\n");
 
 	bio = bio_alloc(GFP_NOFS, 1);
-	bio->bi_sector = bp->l_blkno << (log->l2bsize - 9);
+	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
 	bio->bi_bdev = log->bdev;
 	bio->bi_io_vec[0].bv_page = bp->l_page;
 	bio->bi_io_vec[0].bv_len = LOGPSIZE;
 	bio->bi_io_vec[0].bv_offset = bp->l_offset;
 
 	bio->bi_vcnt = 1;
-	bio->bi_idx = 0;
-	bio->bi_size = LOGPSIZE;
+	bio->bi_iter.bi_size = LOGPSIZE;
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;
 
 	/* check if journaling to disk has been disabled */
 	if (log->no_integrity) {
-		bio->bi_size = 0;
+		bio->bi_iter.bi_size = 0;
 		lbmIODone(bio, 0);
 	} else {
 		submit_bio(WRITE_SYNC, bio);
@@ -2354,7 +2358,6 @@ int jfsIOWait(void *arg)
 			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_irq(&log_redrive_lock);
 			schedule();
-			__set_current_state(TASK_RUNNING);
 		}
 	} while (!kthread_should_stop());
 

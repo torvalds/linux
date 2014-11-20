@@ -5,7 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -22,7 +23,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -30,7 +31,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,13 +64,28 @@
 
 #ifndef __iwl_drv_h__
 #define __iwl_drv_h__
+#include <linux/export.h>
 
 /* for all modules */
 #define DRV_NAME        "iwlwifi"
 #define IWLWIFI_VERSION "in-tree:"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2013 Intel Corporation"
+#define DRV_COPYRIGHT	"Copyright(c) 2003- 2014 Intel Corporation"
 #define DRV_AUTHOR     "<ilw@linux.intel.com>"
 
+/* radio config bits (actual values from NVM definition) */
+#define NVM_RF_CFG_DASH_MSK(x)   (x & 0x3)         /* bits 0-1   */
+#define NVM_RF_CFG_STEP_MSK(x)   ((x >> 2)  & 0x3) /* bits 2-3   */
+#define NVM_RF_CFG_TYPE_MSK(x)   ((x >> 4)  & 0x3) /* bits 4-5   */
+#define NVM_RF_CFG_PNUM_MSK(x)   ((x >> 6)  & 0x3) /* bits 6-7   */
+#define NVM_RF_CFG_TX_ANT_MSK(x) ((x >> 8)  & 0xF) /* bits 8-11  */
+#define NVM_RF_CFG_RX_ANT_MSK(x) ((x >> 12) & 0xF) /* bits 12-15 */
+
+#define NVM_RF_CFG_FLAVOR_MSK_FAMILY_8000(x)   (x & 0xF)
+#define NVM_RF_CFG_DASH_MSK_FAMILY_8000(x)   ((x >> 4) & 0xF)
+#define NVM_RF_CFG_STEP_MSK_FAMILY_8000(x)   ((x >> 8) & 0xF)
+#define NVM_RF_CFG_TYPE_MSK_FAMILY_8000(x)   ((x >> 12) & 0xFFF)
+#define NVM_RF_CFG_TX_ANT_MSK_FAMILY_8000(x) ((x >> 24) & 0xF)
+#define NVM_RF_CFG_RX_ANT_MSK_FAMILY_8000(x) ((x >> 28) & 0xF)
 
 /**
  * DOC: Driver system flows - drv component
@@ -122,5 +139,18 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
  * call this function and then do the bus related operations only.
  */
 void iwl_drv_stop(struct iwl_drv *drv);
+
+/*
+ * exported symbol management
+ *
+ * The driver can be split into multiple modules, in which case some symbols
+ * must be exported for the sub-modules. However, if it's not split and
+ * everything is built-in, then we can avoid that.
+ */
+#ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
+#define IWL_EXPORT_SYMBOL(sym)	EXPORT_SYMBOL_GPL(sym)
+#else
+#define IWL_EXPORT_SYMBOL(sym)
+#endif
 
 #endif /* __iwl_drv_h__ */

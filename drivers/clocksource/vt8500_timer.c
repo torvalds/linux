@@ -124,39 +124,25 @@ static irqreturn_t vt8500_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction irq = {
 	.name    = "vt8500_timer",
-	.flags   = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags   = IRQF_TIMER | IRQF_IRQPOLL,
 	.handler = vt8500_timer_interrupt,
 	.dev_id  = &clockevent,
 };
 
-static struct of_device_id vt8500_timer_ids[] = {
-	{ .compatible = "via,vt8500-timer" },
-	{ }
-};
-
-static void __init vt8500_timer_init(void)
+static void __init vt8500_timer_init(struct device_node *np)
 {
-	struct device_node *np;
 	int timer_irq;
 
-	np = of_find_matching_node(NULL, vt8500_timer_ids);
-	if (!np) {
-		pr_err("%s: Timer description missing from Device Tree\n",
-								__func__);
-		return;
-	}
 	regbase = of_iomap(np, 0);
 	if (!regbase) {
 		pr_err("%s: Missing iobase description in Device Tree\n",
 								__func__);
-		of_node_put(np);
 		return;
 	}
 	timer_irq = irq_of_parse_and_map(np, 0);
 	if (!timer_irq) {
 		pr_err("%s: Missing irq description in Device Tree\n",
 								__func__);
-		of_node_put(np);
 		return;
 	}
 
@@ -177,4 +163,4 @@ static void __init vt8500_timer_init(void)
 					4, 0xf0000000);
 }
 
-CLOCKSOURCE_OF_DECLARE(vt8500, "via,vt8500-timer", vt8500_timer_init)
+CLOCKSOURCE_OF_DECLARE(vt8500, "via,vt8500-timer", vt8500_timer_init);

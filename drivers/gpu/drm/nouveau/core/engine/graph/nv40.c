@@ -24,7 +24,6 @@
 
 #include <core/client.h>
 #include <core/os.h>
-#include <core/class.h>
 #include <core/handle.h>
 #include <core/engctx.h>
 
@@ -45,6 +44,14 @@ struct nv40_graph_priv {
 struct nv40_graph_chan {
 	struct nouveau_graph_chan base;
 };
+
+static u64
+nv40_graph_units(struct nouveau_graph *graph)
+{
+	struct nv40_graph_priv *priv = (void *)graph;
+
+	return nv_rd32(priv, 0x1540);
+}
 
 /*******************************************************************************
  * Graphics object classes
@@ -359,6 +366,8 @@ nv40_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	else
 		nv_engine(priv)->sclass = nv40_graph_sclass;
 	nv_engine(priv)->tile_prog = nv40_graph_tile_prog;
+
+	priv->base.units = nv40_graph_units;
 	return 0;
 }
 
@@ -474,7 +483,7 @@ nv40_graph_init(struct nouveau_object *object)
 		engine->tile_prog(engine, i);
 
 	/* begin RAM config */
-	vramsz = pci_resource_len(nv_device(priv)->pdev, 0) - 1;
+	vramsz = nv_device_resource_len(nv_device(priv), 0) - 1;
 	switch (nv_device(priv)->chipset) {
 	case 0x40:
 		nv_wr32(priv, 0x4009A4, nv_rd32(priv, 0x100200));

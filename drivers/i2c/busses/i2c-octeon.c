@@ -15,11 +15,9 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_i2c.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -183,7 +181,7 @@ static irqreturn_t octeon_i2c_isr(int irq, void *dev_id)
 	struct octeon_i2c *i2c = dev_id;
 
 	octeon_i2c_int_disable(i2c);
-	wake_up_interruptible(&i2c->queue);
+	wake_up(&i2c->queue);
 
 	return IRQ_HANDLED;
 }
@@ -206,9 +204,9 @@ static int octeon_i2c_wait(struct octeon_i2c *i2c)
 
 	octeon_i2c_int_enable(i2c);
 
-	result = wait_event_interruptible_timeout(i2c->queue,
-						  octeon_i2c_test_iflg(i2c),
-						  i2c->adap.timeout);
+	result = wait_event_timeout(i2c->queue,
+					octeon_i2c_test_iflg(i2c),
+					i2c->adap.timeout);
 
 	octeon_i2c_int_disable(i2c);
 
@@ -440,7 +438,7 @@ static struct i2c_adapter octeon_i2c_ops = {
 	.owner = THIS_MODULE,
 	.name = "OCTEON adapter",
 	.algo = &octeon_i2c_algo,
-	.timeout = 2,
+	.timeout = HZ / 50,
 };
 
 /**
@@ -598,8 +596,6 @@ static int octeon_i2c_probe(struct platform_device *pdev)
 		goto out;
 	}
 	dev_info(i2c->dev, "version %s\n", DRV_VERSION);
-
-	of_i2c_register_devices(&i2c->adap);
 
 	return 0;
 

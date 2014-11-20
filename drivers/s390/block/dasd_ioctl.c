@@ -141,24 +141,79 @@ static int dasd_ioctl_resume(struct dasd_block *block)
 }
 
 /*
+ * Abort all failfast I/O on a device.
+ */
+static int dasd_ioctl_abortio(struct dasd_block *block)
+{
+	unsigned long flags;
+	struct dasd_device *base;
+	struct dasd_ccw_req *cqr, *n;
+
+	base = block->base;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	if (test_and_set_bit(DASD_FLAG_ABORTALL, &base->flags))
+		return 0;
+	DBF_DEV_EVENT(DBF_NOTICE, base, "%s", "abortall flag set");
+
+	spin_lock_irqsave(&block->request_queue_lock, flags);
+	spin_lock(&block->queue_lock);
+	list_for_each_entry_safe(cqr, n, &block->ccw_queue, blocklist) {
+		if (test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags) &&
+		    cqr->callback_data &&
+		    cqr->callback_data != DASD_SLEEPON_START_TAG &&
+		    cqr->callback_data != DASD_SLEEPON_END_TAG) {
+			spin_unlock(&block->queue_lock);
+			blk_abort_request(cqr->callback_data);
+			spin_lock(&block->queue_lock);
+		}
+	}
+	spin_unlock(&block->queue_lock);
+	spin_unlock_irqrestore(&block->request_queue_lock, flags);
+
+	dasd_schedule_block_bh(block);
+	return 0;
+}
+
+/*
+ * Allow I/O on a device
+ */
+static int dasd_ioctl_allowio(struct dasd_block *block)
+{
+	struct dasd_device *base;
+
+	base = block->base;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	if (test_and_clear_bit(DASD_FLAG_ABORTALL, &base->flags))
+		DBF_DEV_EVENT(DBF_NOTICE, base, "%s", "abortall flag unset");
+
+	return 0;
+}
+
+/*
  * performs formatting of _device_ according to _fdata_
  * Note: The discipline's format_function is assumed to deliver formatting
- * commands to format a single unit of the device. In terms of the ECKD
- * devices this means CCWs are generated to format a single track.
+ * commands to format multiple units of the device. In terms of the ECKD
+ * devices this means CCWs are generated to format multiple tracks.
  */
-static int dasd_format(struct dasd_block *block, struct format_data_t *fdata)
+static int
+dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 {
-	struct dasd_ccw_req *cqr;
 	struct dasd_device *base;
-	int rc;
+	int enable_pav = 1;
+	int rc, retries;
+	int start, stop;
 
 	base = block->base;
 	if (base->discipline->format_device == NULL)
 		return -EPERM;
 
 	if (base->state != DASD_STATE_BASIC) {
-		pr_warning("%s: The DASD cannot be formatted while it is "
-			   "enabled\n",  dev_name(&base->cdev->dev));
+		pr_warn("%s: The DASD cannot be formatted while it is enabled\n",
+			dev_name(&base->cdev->dev));
 		return -EBUSY;
 	}
 
@@ -178,22 +233,30 @@ static int dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 		bdput(bdev);
 	}
 
-	while (fdata->start_unit <= fdata->stop_unit) {
-		cqr = base->discipline->format_device(base, fdata);
-		if (IS_ERR(cqr))
-			return PTR_ERR(cqr);
-		rc = dasd_sleep_on_interruptible(cqr);
-		dasd_sfree_request(cqr, cqr->memdev);
+	retries = 255;
+	/* backup start- and endtrack for retries */
+	start = fdata->start_unit;
+	stop = fdata->stop_unit;
+	do {
+		rc = base->discipline->format_device(base, fdata, enable_pav);
 		if (rc) {
-			if (rc != -ERESTARTSYS)
-				pr_err("%s: Formatting unit %d failed with "
-				       "rc=%d\n", dev_name(&base->cdev->dev),
-				       fdata->start_unit, rc);
-			return rc;
-		}
-		fdata->start_unit++;
-	}
-	return 0;
+			if (rc == -EAGAIN) {
+				retries--;
+				/* disable PAV in case of errors */
+				enable_pav = 0;
+				fdata->start_unit = start;
+				fdata->stop_unit = stop;
+			} else
+				return rc;
+		} else
+			/* success */
+			break;
+	} while (retries);
+
+	if (!retries)
+		return -EIO;
+	else
+		return 0;
 }
 
 /*
@@ -468,6 +531,12 @@ int dasd_ioctl(struct block_device *bdev, fmode_t mode,
 		break;
 	case BIODASDRESUME:
 		rc = dasd_ioctl_resume(block);
+		break;
+	case BIODASDABORTIO:
+		rc = dasd_ioctl_abortio(block);
+		break;
+	case BIODASDALLOWIO:
+		rc = dasd_ioctl_allowio(block);
 		break;
 	case BIODASDFMT:
 		rc = dasd_ioctl_format(bdev, argp);

@@ -50,29 +50,41 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	struct dma_map_ops *dma_ops = get_dma_ops(dev);
 
+	debug_dma_mapping_error(dev, dma_addr);
 	if (dma_ops->mapping_error)
 		return dma_ops->mapping_error(dev, dma_addr);
-	return (dma_addr == 0UL);
+	return dma_addr == DMA_ERROR_CODE;
 }
 
-static inline void *dma_alloc_coherent(struct device *dev, size_t size,
-				       dma_addr_t *dma_handle, gfp_t flag)
+#define dma_alloc_coherent(d, s, h, f) dma_alloc_attrs(d, s, h, f, NULL)
+
+static inline void *dma_alloc_attrs(struct device *dev, size_t size,
+				    dma_addr_t *dma_handle, gfp_t flags,
+				    struct dma_attrs *attrs)
 {
 	struct dma_map_ops *ops = get_dma_ops(dev);
-	void *ret;
+	void *cpu_addr;
 
-	ret = ops->alloc(dev, size, dma_handle, flag, NULL);
-	debug_dma_alloc_coherent(dev, size, *dma_handle, ret);
-	return ret;
+	BUG_ON(!ops);
+
+	cpu_addr = ops->alloc(dev, size, dma_handle, flags, attrs);
+	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
+
+	return cpu_addr;
 }
 
-static inline void dma_free_coherent(struct device *dev, size_t size,
-				     void *cpu_addr, dma_addr_t dma_handle)
-{
-	struct dma_map_ops *dma_ops = get_dma_ops(dev);
+#define dma_free_coherent(d, s, c, h) dma_free_attrs(d, s, c, h, NULL)
 
-	dma_ops->free(dev, size, cpu_addr, dma_handle, NULL);
+static inline void dma_free_attrs(struct device *dev, size_t size,
+				  void *cpu_addr, dma_addr_t dma_handle,
+				  struct dma_attrs *attrs)
+{
+	struct dma_map_ops *ops = get_dma_ops(dev);
+
+	BUG_ON(!ops);
+
 	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
+	ops->free(dev, size, cpu_addr, dma_handle, attrs);
 }
 
 #endif /* _ASM_S390_DMA_MAPPING_H */

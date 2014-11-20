@@ -15,8 +15,8 @@
    Suite 330, Boston, MA 02111-1307, USA.
   --------------------------------------------------------------------------
 
-   Description:  This module will handshake with the DSP bootloader to
-                 download the DSP runtime image.
+   Description: This module will handshake with the DSP bootloader to
+		download the DSP runtime image.
 
 ---------------------------------------------------------------------------*/
 
@@ -30,18 +30,12 @@
 #include <linux/netdevice.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
 #include "ft1000.h"
 #include "boot.h"
-
-#ifdef FT_DEBUG
-#define DEBUG(n, args...) printk(KERN_DEBUG args);
-#else
-#define DEBUG(n, args...)
-#endif
 
 #define  MAX_DSP_WAIT_LOOPS      100
 #define  DSP_WAIT_SLEEP_TIME     1	/* 1 millisecond */
@@ -127,21 +121,21 @@ void card_bootload(struct net_device *dev)
 	u32 i;
 	u32 templong;
 
-	DEBUG(0, "card_bootload is called\n");
+	netdev_dbg(dev, "card_bootload is called\n");
 
 	pdata = (u32 *) bootimage;
 	size = sizeof(bootimage);
 
-	// check for odd word
-	if (size & 0x0003) {
+	/* check for odd word */
+	if (size & 0x0003)
 		size += 4;
-	}
-	// Provide mutual exclusive access while reading ASIC registers.
+
+	/* Provide mutual exclusive access while reading ASIC registers. */
 	spin_lock_irqsave(&info->dpram_lock, flags);
 
-	// need to set i/o base address initially and hardware will autoincrement
+	/* need to set i/o base address initially and hardware will autoincrement */
 	ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR, FT1000_DPRAM_BASE);
-	// write bytes
+	/* write bytes */
 	for (i = 0; i < (size >> 2); i++) {
 		templong = *pdata++;
 		outl(templong, dev->base_addr + FT1000_REG_MAG_DPDATA);
@@ -174,10 +168,9 @@ u16 get_handshake(struct net_device *dev, u16 expected_value)
 		if ((handshake == expected_value)
 			|| (handshake == HANDSHAKE_RESET_VALUE)) {
 			return handshake;
-		} else {
-			loopcnt++;
-			mdelay(DSP_WAIT_SLEEP_TIME);
 		}
+		loopcnt++;
+		mdelay(DSP_WAIT_SLEEP_TIME);
 
 	}
 
@@ -304,7 +297,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 	struct dsp_file_hdr *pFileHdr5;
 	struct dsp_image_info *pDspImageInfoV6 = NULL;
 	long requested_version;
-	bool bGoodVersion = 0;
+	bool bGoodVersion = false;
 	struct drv_msg *pMailBoxData;
 	u16 *pUsData = NULL;
 	u16 *pUsFile = NULL;
@@ -345,11 +338,10 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 
 			handshake = get_handshake(dev, HANDSHAKE_DSP_BL_READY);
 
-			if (handshake == HANDSHAKE_DSP_BL_READY) {
+			if (handshake == HANDSHAKE_DSP_BL_READY)
 				put_handshake(dev, HANDSHAKE_DRIVER_READY);
-			} else {
+			else
 				Status = FAILURE;
-			}
 
 			uiState = STATE_BOOT_DWNLD;
 
@@ -391,7 +383,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 						Status = FAILURE;
 						break;
 					}
-					// Provide mutual exclusive access while reading ASIC registers.
+					/* Provide mutual exclusive access while reading ASIC registers. */
 					spin_lock_irqsave(&info->dpram_lock,
 							  flags);
 					/*
@@ -437,7 +429,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 				request = get_request_type(dev);
 				switch (request) {
 				case REQUEST_FILE_CHECKSUM:
-					DEBUG(0,
+					netdev_dbg(dev,
 						  "ft1000_dnld: REQUEST_FOR_CHECKSUM\n");
 					put_request_value(dev, image_chksum);
 					break;
@@ -505,15 +497,15 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 					break;
 
 				case REQUEST_MAILBOX_DATA:
-					// Convert length from byte count to word count. Make sure we round up.
+					/* Convert length from byte count to word count. Make sure we round up. */
 					word_length =
 						(long)(info->DSPInfoBlklen + 1) / 2;
 					put_request_value(dev, word_length);
 					pMailBoxData =
-						(struct drv_msg *) & info->DSPInfoBlk[0];
+						(struct drv_msg *) &info->DSPInfoBlk[0];
 					pUsData =
-						(u16 *) & pMailBoxData->data[0];
-					// Provide mutual exclusive access while reading ASIC registers.
+						(u16 *) &pMailBoxData->data[0];
+					/* Provide mutual exclusive access while reading ASIC registers. */
 					spin_lock_irqsave(&info->dpram_lock,
 							  flags);
 					if (file_version == 5) {
@@ -538,9 +530,9 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 						outw(DWNLD_MAG_PS_HDR_LOC,
 							 dev->base_addr +
 							 FT1000_REG_DPRAM_ADDR);
-						if (word_length & 0x01) {
+						if (word_length & 0x01)
 							word_length++;
-						}
+
 						word_length = word_length / 2;
 
 						for (; word_length > 0; word_length--) {	/* In words */
@@ -565,7 +557,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 						(u16 *) ((long)pFileStart +
 							pFileHdr5->
 							version_data_offset);
-					// Provide mutual exclusive access while reading ASIC registers.
+					/* Provide mutual exclusive access while reading ASIC registers. */
 					spin_lock_irqsave(&info->dpram_lock,
 							  flags);
 					/*
@@ -652,7 +644,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 								(u32)
 								pDspImageInfoV6->
 								checksum;
-							DEBUG(0,
+							netdev_dbg(dev,
 								  "ft1000_dnld: image_chksum = 0x%8x\n",
 								  (unsigned
 								   int)
@@ -692,14 +684,14 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 
 			if (pHdr->portdest == 0x80	/* DspOAM */
 				&& (pHdr->portsrc == 0x00	/* Driver */
-				|| pHdr->portsrc == 0x10 /* FMM */ )) {
+				|| pHdr->portsrc == 0x10 /* FMM */)) {
 				uiState = STATE_SECTION_PROV;
 			} else {
-				DEBUG(1,
+				netdev_dbg(dev,
 					  "FT1000:download:Download error: Bad Port IDs in Pseudo Record\n");
-				DEBUG(1, "\t Port Source = 0x%2.2x\n",
+				netdev_dbg(dev, "\t Port Source = 0x%2.2x\n",
 					  pHdr->portsrc);
-				DEBUG(1, "\t Port Destination = 0x%2.2x\n",
+				netdev_dbg(dev, "\t Port Destination = 0x%2.2x\n",
 					  pHdr->portdest);
 				Status = FAILURE;
 			}
@@ -711,13 +703,13 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 			pHdr = (struct pseudo_hdr *) pUcFile;
 
 			if (pHdr->checksum == hdr_checksum(pHdr)) {
-				if (pHdr->portdest != 0x80 /* Dsp OAM */ ) {
+				if (pHdr->portdest != 0x80 /* Dsp OAM */) {
 					uiState = STATE_DONE_PROV;
 					break;
 				}
 				usHdrLength = ntohs(pHdr->length);	/* Byte length for PROV records */
 
-				// Get buffer for provisioning data
+				/* Get buffer for provisioning data */
 				pbuffer =
 					kmalloc((usHdrLength + sizeof(struct pseudo_hdr)),
 						GFP_ATOMIC);
@@ -725,7 +717,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 					memcpy(pbuffer, (void *)pUcFile,
 						   (u32) (usHdrLength +
 							   sizeof(struct pseudo_hdr)));
-					// link provisioning data
+					/* link provisioning data */
 					pprov_record =
 						kmalloc(sizeof(struct prov_record),
 							GFP_ATOMIC);
@@ -735,7 +727,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 						list_add_tail(&pprov_record->
 								  list,
 								  &info->prov_list);
-						// Move to next entry if available
+						/* Move to next entry if available */
 						pUcFile =
 							(u8 *) ((unsigned long) pUcFile +
 								   (unsigned long) ((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(struct pseudo_hdr));

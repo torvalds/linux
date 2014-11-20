@@ -215,14 +215,14 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 }
 #endif
 
-static inline void pcibios_penalize_isa_irq(int irq, int active)
-{
-	/* We don't need to penalize isa irq's */
-}
-
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
 	return channel ? 15 : 14;
 }
+
+#define HAVE_PCI_MMAP
+
+extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
+	enum pci_mmap_state mmap_state, int write_combine);
 
 #endif /* __ASM_PARISC_PCI_H */

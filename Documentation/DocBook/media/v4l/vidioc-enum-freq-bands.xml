@@ -100,7 +100,7 @@ See <xref linkend="v4l2-tuner-type" /></entry>
 	    <entry><structfield>capability</structfield></entry>
 	    <entry spanname="hspan">The tuner/modulator capability flags for
 this frequency band, see <xref linkend="tuner-capability" />. The <constant>V4L2_TUNER_CAP_LOW</constant>
-capability must be the same for all frequency bands of the selected tuner/modulator.
+or <constant>V4L2_TUNER_CAP_1HZ</constant> capability must be the same for all frequency bands of the selected tuner/modulator.
 So either all bands have that capability set, or none of them have that capability.</entry>
 	  </row>
 	  <row>
@@ -109,7 +109,8 @@ So either all bands have that capability set, or none of them have that capabili
 	    <entry spanname="hspan">The lowest tunable frequency in
 units of 62.5 kHz, or if the <structfield>capability</structfield>
 flag <constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
-Hz, for this frequency band.</entry>
+Hz, for this frequency band. A 1 Hz unit is used when the <structfield>capability</structfield> flag
+<constant>V4L2_TUNER_CAP_1HZ</constant> is set.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -117,7 +118,8 @@ Hz, for this frequency band.</entry>
 	    <entry spanname="hspan">The highest tunable frequency in
 units of 62.5 kHz, or if the <structfield>capability</structfield>
 flag <constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
-Hz, for this frequency band.</entry>
+Hz, for this frequency band. A 1 Hz unit is used when the <structfield>capability</structfield> flag
+<constant>V4L2_TUNER_CAP_1HZ</constant> is set.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

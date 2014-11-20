@@ -79,6 +79,8 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 	}
 	if (flags & INPUT_MT_DIRECT)
 		__set_bit(INPUT_PROP_DIRECT, dev->propbit);
+	if (flags & INPUT_MT_SEMI_MT)
+		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
 	if (flags & INPUT_MT_TRACK) {
 		unsigned int n2 = num_slots * num_slots;
 		mt->red = kcalloc(n2, sizeof(*mt->red), GFP_KERNEL);
@@ -234,6 +236,35 @@ void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count)
 }
 EXPORT_SYMBOL(input_mt_report_pointer_emulation);
 
+static void __input_mt_drop_unused(struct input_dev *dev, struct input_mt *mt)
+{
+	int i;
+
+	for (i = 0; i < mt->num_slots; i++) {
+		if (!input_mt_is_used(mt, &mt->slots[i])) {
+			input_mt_slot(dev, i);
+			input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
+		}
+	}
+}
+
+/**
+ * input_mt_drop_unused() - Inactivate slots not seen in this frame
+ * @dev: input device with allocated MT slots
+ *
+ * Lift all slots not seen since the last call to this function.
+ */
+void input_mt_drop_unused(struct input_dev *dev)
+{
+	struct input_mt *mt = dev->mt;
+
+	if (mt) {
+		__input_mt_drop_unused(dev, mt);
+		mt->frame++;
+	}
+}
+EXPORT_SYMBOL(input_mt_drop_unused);
+
 /**
  * input_mt_sync_frame() - synchronize mt frame
  * @dev: input device with allocated MT slots
@@ -245,21 +276,18 @@ EXPORT_SYMBOL(input_mt_report_pointer_emulation);
 void input_mt_sync_frame(struct input_dev *dev)
 {
 	struct input_mt *mt = dev->mt;
-	struct input_mt_slot *s;
+	bool use_count = false;
 
 	if (!mt)
 		return;
 
-	if (mt->flags & INPUT_MT_DROP_UNUSED) {
-		for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
-			if (input_mt_is_used(mt, s))
-				continue;
-			input_mt_slot(dev, s - mt->slots);
-			input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
-		}
-	}
+	if (mt->flags & INPUT_MT_DROP_UNUSED)
+		__input_mt_drop_unused(dev, mt);
 
-	input_mt_report_pointer_emulation(dev, (mt->flags & INPUT_MT_POINTER));
+	if ((mt->flags & INPUT_MT_POINTER) && !(mt->flags & INPUT_MT_SEMI_MT))
+		use_count = true;
+
+	input_mt_report_pointer_emulation(dev, use_count);
 
 	mt->frame++;
 }

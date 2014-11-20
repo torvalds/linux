@@ -31,10 +31,15 @@ typedef int (snd_kcontrol_info_t) (struct snd_kcontrol * kcontrol, struct snd_ct
 typedef int (snd_kcontrol_get_t) (struct snd_kcontrol * kcontrol, struct snd_ctl_elem_value * ucontrol);
 typedef int (snd_kcontrol_put_t) (struct snd_kcontrol * kcontrol, struct snd_ctl_elem_value * ucontrol);
 typedef int (snd_kcontrol_tlv_rw_t)(struct snd_kcontrol *kcontrol,
-				    int op_flag, /* 0=read,1=write,-1=command */
+				    int op_flag, /* SNDRV_CTL_TLV_OP_XXX */
 				    unsigned int size,
 				    unsigned int __user *tlv);
 
+enum {
+	SNDRV_CTL_TLV_OP_READ = 0,
+	SNDRV_CTL_TLV_OP_WRITE = 1,
+	SNDRV_CTL_TLV_OP_CMD = -1,
+};
 
 struct snd_kcontrol_new {
 	snd_ctl_elem_iface_t iface;	/* interface identifier */
@@ -189,7 +194,6 @@ int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
  *
  * Add a virtual slave control to the given master element created via
  * snd_ctl_create_virtual_master() beforehand.
- * Returns zero if successful or a negative error code.
  *
  * All slaves must be the same type (returning the same information
  * via info callback).  The function doesn't check it, so it's your
@@ -199,6 +203,8 @@ int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
  * at most two channels,
  * logarithmic volume control (dB level) thus no linear volume,
  * master can only attenuate the volume without gain
+ *
+ * Return: Zero if successful or a negative error code.
  */
 static inline int
 snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
@@ -219,6 +225,8 @@ snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
  * When the control peeks the hardware values directly and the value
  * can be changed by other means than the put callback of the element,
  * this function should be used to keep the value always up-to-date.
+ *
+ * Return: Zero if successful or a negative error code.
  */
 static inline int
 snd_ctl_add_slave_uncached(struct snd_kcontrol *master,
@@ -230,7 +238,8 @@ snd_ctl_add_slave_uncached(struct snd_kcontrol *master,
 int snd_ctl_add_vmaster_hook(struct snd_kcontrol *kctl,
 			     void (*hook)(void *private_data, int),
 			     void *private_data);
-void snd_ctl_sync_vmaster_hook(struct snd_kcontrol *kctl);
+void snd_ctl_sync_vmaster(struct snd_kcontrol *kctl, bool hook_only);
+#define snd_ctl_sync_vmaster_hook(kctl)	snd_ctl_sync_vmaster(kctl, true)
 
 /*
  * Helper functions for jack-detection controls

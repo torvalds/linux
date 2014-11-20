@@ -30,7 +30,7 @@
 #ifndef __RTL92CE_HW_H__
 #define __RTL92CE_HW_H__
 
-static inline u8 _rtl92c_get_chnl_group(u8 chnl)
+static inline u8 rtl92c_get_chnl_group(u8 chnl)
 {
 	u8 group;
 
@@ -59,6 +59,8 @@ void rtl92ce_set_beacon_interval(struct ieee80211_hw *hw);
 void rtl92ce_update_interrupt_mask(struct ieee80211_hw *hw,
 				   u32 add_msr, u32 rm_msr);
 void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val);
+void rtl92ce_update_hal_rate_tbl(struct ieee80211_hw *hw,
+				 struct ieee80211_sta *sta, u8 rssi_level);
 void rtl92ce_update_hal_rate_tbl(struct ieee80211_hw *hw,
 				 struct ieee80211_sta *sta, u8 rssi_level);
 void rtl92ce_update_channel_access_setting(struct ieee80211_hw *hw);

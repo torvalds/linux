@@ -1,6 +1,6 @@
 #
 # Makefile - Intel Management Engine Interface (Intel MEI) Linux driver
-# Copyright (c) 2010-2011, Intel Corporation.
+# Copyright (c) 2010-2014, Intel Corporation.
 #
 obj-$(CONFIG_INTEL_MEI) += mei.o
 mei-objs := init.o
@@ -10,5 +10,14 @@ mei-objs += client.o
 mei-objs += main.o
 mei-objs += amthif.o
 mei-objs += wd.o
-mei-$(CONFIG_INTEL_MEI_ME) += pci-me.o
-mei-$(CONFIG_INTEL_MEI_ME) += hw-me.o
+mei-objs += bus.o
+mei-objs += nfc.o
+mei-$(CONFIG_DEBUG_FS) += debugfs.o
+
+obj-$(CONFIG_INTEL_MEI_ME) += mei-me.o
+mei-me-objs := pci-me.o
+mei-me-objs += hw-me.o
+
+obj-$(CONFIG_INTEL_MEI_TXE) += mei-txe.o
+mei-txe-objs := pci-txe.o
+mei-txe-objs += hw-txe.o

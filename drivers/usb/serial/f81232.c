@@ -12,7 +12,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -55,6 +54,13 @@ static void f81232_update_line_status(struct usb_serial_port *port,
 				      unsigned char *data,
 				      unsigned int actual_length)
 {
+	/*
+	 * FIXME: Update port->icount, and call
+	 *
+	 *		wake_up_interruptible(&port->port.delta_msr_wait);
+	 *
+	 *	  on MSR changes.
+	 */
 }
 
 static void f81232_read_int_callback(struct urb *urb)
@@ -110,7 +116,6 @@ static void f81232_process_read_urb(struct urb *urb)
 	line_status = priv->line_status;
 	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	wake_up_interruptible(&port->delta_msr_wait);
 
 	if (!urb->actual_length)
 		return;
@@ -165,11 +170,12 @@ static void f81232_set_termios(struct tty_struct *tty,
 	/* FIXME - Stubbed out for now */
 
 	/* Don't change anything if nothing has changed */
-	if (!tty_termios_hw_change(&tty->termios, old_termios))
+	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
 		return;
 
 	/* Do the real work here... */
-	tty_termios_copy_hw(&tty->termios, old_termios);
+	if (old_termios)
+		tty_termios_copy_hw(&tty->termios, old_termios);
 }
 
 static int f81232_tiocmget(struct tty_struct *tty)
@@ -187,12 +193,11 @@ static int f81232_tiocmset(struct tty_struct *tty,
 
 static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	struct ktermios tmp_termios;
 	int result;
 
 	/* Setup termios */
 	if (tty)
-		f81232_set_termios(tty, port, &tmp_termios);
+		f81232_set_termios(tty, port, NULL);
 
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result) {
@@ -207,7 +212,6 @@ static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return result;
 	}
 
-	port->port.drain_delay = 256;
 	return 0;
 }
 
@@ -242,74 +246,25 @@ static int f81232_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
-{
-	struct f81232_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	unsigned int prevstatus;
-	unsigned int status;
-	unsigned int changed;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	prevstatus = priv->line_status;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	while (1) {
-		interruptible_sleep_on(&port->delta_msr_wait);
-		/* see if a signal did it */
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		if (port->serial->disconnected)
-			return -EIO;
-
-		spin_lock_irqsave(&priv->lock, flags);
-		status = priv->line_status;
-		spin_unlock_irqrestore(&priv->lock, flags);
-
-		changed = prevstatus ^ status;
-
-		if (((arg & TIOCM_RNG) && (changed & UART_RING)) ||
-		    ((arg & TIOCM_DSR) && (changed & UART_DSR)) ||
-		    ((arg & TIOCM_CD)  && (changed & UART_DCD)) ||
-		    ((arg & TIOCM_CTS) && (changed & UART_CTS))) {
-			return 0;
-		}
-		prevstatus = status;
-	}
-	/* NOTREACHED */
-	return 0;
-}
-
 static int f81232_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	struct serial_struct ser;
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(&port->dev, "%s (%d) cmd = 0x%04x\n", __func__,
-		port->number, cmd);
-
 	switch (cmd) {
 	case TIOCGSERIAL:
 		memset(&ser, 0, sizeof ser);
 		ser.type = PORT_16654;
-		ser.line = port->serial->minor;
-		ser.port = port->number;
+		ser.line = port->minor;
+		ser.port = port->port_number;
 		ser.baud_base = 460800;
 
 		if (copy_to_user((void __user *)arg, &ser, sizeof ser))
 			return -EFAULT;
 
 		return 0;
-
-	case TIOCMIWAIT:
-		dev_dbg(&port->dev, "%s (%d) TIOCMIWAIT\n", __func__,
-			port->number);
-		return wait_modem_info(port, arg);
 	default:
-		dev_dbg(&port->dev, "%s not supported = 0x%04x\n",
-			__func__, cmd);
 		break;
 	}
 	return -ENOIOCTLCMD;
@@ -326,6 +281,8 @@ static int f81232_port_probe(struct usb_serial_port *port)
 	spin_lock_init(&priv->lock);
 
 	usb_set_serial_port_data(port, priv);
+
+	port->port.drain_delay = 256;
 
 	return 0;
 }
@@ -358,6 +315,7 @@ static struct usb_serial_driver f81232_device = {
 	.set_termios =		f81232_set_termios,
 	.tiocmget =		f81232_tiocmget,
 	.tiocmset =		f81232_tiocmset,
+	.tiocmiwait =		usb_serial_generic_tiocmiwait,
 	.process_read_urb =	f81232_process_read_urb,
 	.read_int_callback =	f81232_read_int_callback,
 	.port_probe =		f81232_port_probe,

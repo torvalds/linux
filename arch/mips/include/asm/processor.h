@@ -28,7 +28,6 @@
 /*
  * System setup and hardware flags..
  */
-extern void (*cpu_wait)(void);
 
 extern unsigned int vced_count, vcei_count;
 
@@ -44,11 +43,16 @@ extern unsigned int vced_count, vcei_count;
 #define SPECIAL_PAGES_SIZE PAGE_SIZE
 
 #ifdef CONFIG_32BIT
+#ifdef CONFIG_KVM_GUEST
+/* User space process size is limited to 1GB in KVM Guest Mode */
+#define TASK_SIZE	0x3fff8000UL
+#else
 /*
  * User space process size: 2GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
  */
 #define TASK_SIZE	0x7fff8000UL
+#endif
 
 #ifdef __KERNEL__
 #define STACK_TOP_MAX	TASK_SIZE
@@ -93,18 +97,48 @@ extern unsigned int vced_count, vcei_count;
 
 #define NUM_FPU_REGS	32
 
-typedef __u64 fpureg_t;
+#ifdef CONFIG_CPU_HAS_MSA
+# define FPU_REG_WIDTH	128
+#else
+# define FPU_REG_WIDTH	64
+#endif
+
+union fpureg {
+	__u32	val32[FPU_REG_WIDTH / 32];
+	__u64	val64[FPU_REG_WIDTH / 64];
+};
+
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+# define FPR_IDX(width, idx)	(idx)
+#else
+# define FPR_IDX(width, idx)	((FPU_REG_WIDTH / (width)) - 1 - (idx))
+#endif
+
+#define BUILD_FPR_ACCESS(width) \
+static inline u##width get_fpr##width(union fpureg *fpr, unsigned idx)	\
+{									\
+	return fpr->val##width[FPR_IDX(width, idx)];			\
+}									\
+									\
+static inline void set_fpr##width(union fpureg *fpr, unsigned idx,	\
+				  u##width val)				\
+{									\
+	fpr->val##width[FPR_IDX(width, idx)] = val;			\
+}
+
+BUILD_FPR_ACCESS(32)
+BUILD_FPR_ACCESS(64)
 
 /*
- * It would be nice to add some more fields for emulator statistics, but there
- * are a number of fixed offsets in offset.h and elsewhere that would have to
- * be recalculated by hand.  So the additional information will be private to
- * the FPU emulator for now.  See asm-mips/fpu_emulator.h.
+ * It would be nice to add some more fields for emulator statistics,
+ * the additional information is private to the FPU emulator for now.
+ * See arch/mips/include/asm/fpu_emulator.h.
  */
 
 struct mips_fpu_struct {
-	fpureg_t	fpr[NUM_FPU_REGS];
+	union fpureg	fpr[NUM_FPU_REGS];
 	unsigned int	fcr31;
+	unsigned int	msacsr;
 };
 
 #define NUM_DSP_REGS   6
@@ -133,7 +167,7 @@ union mips_watch_reg_state {
 	struct mips3264_watch_reg_state mips3264;
 };
 
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
+#if defined(CONFIG_CPU_CAVIUM_OCTEON)
 
 struct octeon_cop2_state {
 	/* DMFC2 rt, 0x0201 */
@@ -178,20 +212,39 @@ struct octeon_cop2_state {
 	/* DMFC2 rt, 0x025A; DMFC2 rt, 0x025B - Pass2 */
 	unsigned long	cop2_gfm_result[2];
 };
-#define INIT_OCTEON_COP2 {0,}
+#define COP2_INIT						\
+	.cp2			= {0,},
 
 struct octeon_cvmseg_state {
 	unsigned long cvmseg[CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE]
 			    [cpu_dcache_line_size() / sizeof(unsigned long)];
 };
 
+#elif defined(CONFIG_CPU_XLP)
+struct nlm_cop2_state {
+	u64	rx[4];
+	u64	tx[4];
+	u32	tx_msg_status;
+	u32	rx_msg_status;
+};
+
+#define COP2_INIT						\
+	.cp2			= {{0}, {0}, 0, 0},
+#else
+#define COP2_INIT
 #endif
 
 typedef struct {
 	unsigned long seg;
 } mm_segment_t;
 
-#define ARCH_MIN_TASKALIGN	8
+#ifdef CONFIG_CPU_HAS_MSA
+# define ARCH_MIN_TASKALIGN	16
+# define FPU_ALIGN		__aligned(16)
+#else
+# define ARCH_MIN_TASKALIGN	8
+# define FPU_ALIGN
+#endif
 
 struct mips_abi;
 
@@ -208,7 +261,7 @@ struct thread_struct {
 	unsigned long cp0_status;
 
 	/* Saved fpu/fpu emulator stuff. */
-	struct mips_fpu_struct fpu;
+	struct mips_fpu_struct fpu FPU_ALIGN;
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* Emulated instruction count */
 	unsigned long emulated_fp;
@@ -227,8 +280,11 @@ struct thread_struct {
 	unsigned long cp0_baduaddr;	/* Last kernel fault accessing USEG */
 	unsigned long error_code;
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
-    struct octeon_cop2_state cp2 __attribute__ ((__aligned__(128)));
-    struct octeon_cvmseg_state cvmseg __attribute__ ((__aligned__(128)));
+	struct octeon_cop2_state cp2 __attribute__ ((__aligned__(128)));
+	struct octeon_cvmseg_state cvmseg __attribute__ ((__aligned__(128)));
+#endif
+#ifdef CONFIG_CPU_XLP
+	struct nlm_cop2_state cp2;
 #endif
 	struct mips_abi *abi;
 };
@@ -240,13 +296,6 @@ struct thread_struct {
 #else
 #define FPAFF_INIT
 #endif /* CONFIG_MIPS_MT_FPAFF */
-
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-#define OCTEON_INIT						\
-	.cp2			= INIT_OCTEON_COP2,
-#else
-#define OCTEON_INIT
-#endif /* CONFIG_CPU_CAVIUM_OCTEON */
 
 #define INIT_THREAD  {						\
 	/*							\
@@ -271,8 +320,9 @@ struct thread_struct {
 	 * Saved FPU/FPU emulator stuff				\
 	 */							\
 	.fpu			= {				\
-		.fpr		= {0,},				\
+		.fpr		= {{{0,},},},			\
 		.fcr31		= 0,				\
+		.msacsr		= 0,				\
 	},							\
 	/*							\
 	 * FPU affinity state (null if not FPAFF)		\
@@ -296,9 +346,9 @@ struct thread_struct {
 	.cp0_baduaddr		= 0,				\
 	.error_code		= 0,				\
 	/*							\
-	 * Cavium Octeon specifics (null if not Octeon)		\
+	 * Platform specific cop2 registers(null if no COP2)	\
 	 */							\
-	OCTEON_INIT						\
+	COP2_INIT						\
 }
 
 struct task_struct;
@@ -323,6 +373,7 @@ unsigned long get_wchan(struct task_struct *p);
 #define KSTK_STATUS(tsk) (task_pt_regs(tsk)->cp0_status)
 
 #define cpu_relax()	barrier()
+#define cpu_relax_lowlatency() cpu_relax()
 
 /*
  * Return_address is a replacement for __builtin_return_address(count)
@@ -345,12 +396,6 @@ unsigned long get_wchan(struct task_struct *p);
 
 #define ARCH_HAS_PREFETCHW
 #define prefetchw(x) __builtin_prefetch((x), 1, 1)
-
-/*
- * See Documentation/scheduler/sched-arch.txt; prevents deadlock on SMP
- * systems.
- */
-#define __ARCH_WANT_UNLOCKED_CTXSW
 
 #endif
 

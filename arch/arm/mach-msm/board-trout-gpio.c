@@ -89,12 +89,12 @@ static int trout_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 			.base		  = base_gpio,			\
 			.ngpio		  = 8,				\
 		},							\
-		.reg = (void *) reg_num + TROUT_CPLD_BASE,		\
+		.reg = reg_num + TROUT_CPLD_BASE,			\
 		.shadow = shadow_val,					\
 	}
 
 static struct msm_gpio_chip msm_gpio_banks[] = {
-#if defined(CONFIG_MSM_DEBUG_UART1)
+#if defined(CONFIG_DEBUG_MSM_UART) && (CONFIG_DEBUG_UART_PHYS == 0xa9a00000)
 	/* H2W pins <-> UART1 */
 	TROUT_GPIO_BANK("MISC2", 0x00,   TROUT_GPIO_MISC2_BASE, 0x40),
 #else

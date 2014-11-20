@@ -103,6 +103,17 @@ Valid values for pin and group names are:
     drive_gma, drive_gmb, drive_gmc, drive_gmd, drive_gme, drive_owr,
     drive_uda.
 
+Valid values for nvidia,functions are:
+
+  ahb_clk, apb_clk, audio_sync, crt, dap1, dap2, dap3, dap4, dap5,
+  displaya, displayb, emc_test0_dll, emc_test1_dll, gmi, gmi_int,
+  hdmi, i2cp, i2c1, i2c2, i2c3, ide, irda, kbc, mio, mipi_hs, nand,
+  osc, owr, pcie, plla_out, pllc_out1, pllm_out1, pllp_out2, pllp_out3,
+  pllp_out4, pwm, pwr_intr, pwr_on, rsvd1, rsvd2, rsvd3, rsvd4, rtck,
+  sdio1, sdio2, sdio3, sdio4, sflash, spdif, spi1, spi2, spi2_alt,
+  spi3, spi4, trace, twc, uarta, uartb, uartc, uartd, uarte, ulpi,
+  vi, vi_sensor_clk, xio
+
 Example:
 
 	pinctrl@70000000 {

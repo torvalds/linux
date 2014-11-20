@@ -162,6 +162,10 @@ pcibios_align_resource(void *data, const struct resource *res,
 			return start;
 		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
+	} else if (res->flags & IORESOURCE_MEM) {
+		/* The low 1MB range is reserved for ISA cards */
+		if (start < BIOS_END)
+			start = BIOS_END;
 	}
 	return start;
 }
@@ -209,6 +213,8 @@ static void pcibios_allocate_bridge_resources(struct pci_dev *dev)
 	for (idx = PCI_BRIDGE_RESOURCES; idx < PCI_NUM_RESOURCES; idx++) {
 		r = &dev->resource[idx];
 		if (!r->flags)
+			continue;
+		if (r->parent)	/* Already allocated */
 			continue;
 		if (!r->start || pci_claim_resource(dev, idx) < 0) {
 			/*
@@ -269,11 +275,16 @@ static void pcibios_allocate_dev_resources(struct pci_dev *dev, int pass)
 					"BAR %d: reserving %pr (d=%d, p=%d)\n",
 					idx, r, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
-					/* We'll assign a new address later */
-					pcibios_save_fw_addr(dev,
-							idx, r->start);
-					r->end -= r->start;
-					r->start = 0;
+					if (r->flags & IORESOURCE_PCI_FIXED) {
+						dev_info(&dev->dev, "BAR %d %pR is immovable\n",
+							 idx, r);
+					} else {
+						/* We'll assign a new address later */
+						pcibios_save_fw_addr(dev,
+								idx, r->start);
+						r->end -= r->start;
+						r->start = 0;
+					}
 				}
 			}
 		}
@@ -318,6 +329,8 @@ static void pcibios_allocate_dev_rom_resource(struct pci_dev *dev)
 	r = &dev->resource[PCI_ROM_RESOURCE];
 	if (!r->flags || !r->start)
 		return;
+	if (r->parent) /* Already allocated */
+		return;
 
 	if (pci_claim_resource(dev, PCI_ROM_RESOURCE) < 0) {
 		r->end -= r->start;
@@ -351,6 +364,12 @@ static int __init pcibios_assign_resources(void)
 
 	return 0;
 }
+
+/**
+ * called in fs_initcall (one below subsys_initcall),
+ * give a chance for motherboard reserve resources
+ */
+fs_initcall(pcibios_assign_resources);
 
 void pcibios_resource_survey_bus(struct pci_bus *bus)
 {
@@ -388,12 +407,6 @@ void __init pcibios_resource_survey(void)
 	ioapic_insert_resources();
 }
 
-/**
- * called in fs_initcall (one below subsys_initcall),
- * give a chance for motherboard reserve resources
- */
-fs_initcall(pcibios_assign_resources);
-
 static const struct vm_operations_struct pci_mmap_ops = {
 	.access = generic_access_phys,
 };
@@ -428,8 +441,6 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		 * as well.
 		 */
 		prot |= _PAGE_CACHE_UC_MINUS;
-
-	prot |= _PAGE_IOMAP;	/* creating a mapping for IO */
 
 	vma->vm_page_prot = __pgprot(prot);
 

@@ -24,6 +24,12 @@ config AMD_PHY
 	---help---
 	  Currently supports the am79c874
 
+config AMD_XGBE_PHY
+	tristate "Driver for the AMD 10GbE (amd-xgbe) PHYs"
+	depends on OF
+	---help---
+	  Currently supports the AMD 10GbE PHY
+
 config MARVELL_PHY
 	tristate "Drivers for Marvell PHYs"
 	---help---
@@ -70,6 +76,12 @@ config BCM63XX_PHY
 	depends on BCM63XX
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
+
+config BCM7XXX_PHY
+	tristate "Drivers for Broadcom 7xxx SOCs internal PHYs"
+	---help---
+	  Currently supports the BCM7366, BCM7439, BCM7445, and
+	  40nm and 65nm generation of BCM7xxx Set Top Box SoCs.
 
 config BCM87XX_PHY
 	tristate "Driver for Broadcom BCM8706 and BCM8727 PHYs"
@@ -126,7 +138,7 @@ config MDIO_BITBANG
 
 config MDIO_GPIO
 	tristate "Support for GPIO lib-based bitbanged MDIO buses"
-	depends on MDIO_BITBANG && GENERIC_GPIO
+	depends on MDIO_BITBANG && GPIOLIB
 	---help---
 	  Supports GPIO lib-based MDIO busses.
 
@@ -135,7 +147,7 @@ config MDIO_GPIO
 
 config MDIO_OCTEON
 	tristate "Support for MDIO buses on Octeon SOCs"
-	depends on  CPU_CAVIUM_OCTEON
+	depends on CAVIUM_OCTEON_SOC
 	default y
 	help
 
@@ -143,6 +155,21 @@ config MDIO_OCTEON
 	  It is required by the Octeon Ethernet device drivers.
 
 	  If in doubt, say Y.
+
+config MDIO_SUN4I
+	tristate "Allwinner sun4i MDIO interface support"
+	depends on ARCH_SUNXI
+	help
+	  This driver supports the MDIO interface found in the network
+	  interface units of the Allwinner SoC that have an EMAC (A10,
+	  A12, A10s, etc.)
+
+config MDIO_MOXART
+        tristate "MOXA ART MDIO interface support"
+        depends on ARCH_MOXART
+        help
+          This driver supports the MDIO interface found in the network
+          interface units of the MOXA ART SoC
 
 config MDIO_BUS_MUX
 	tristate
@@ -175,6 +202,15 @@ config MDIO_BUS_MUX_MMIOREG
 	  the FPGA's registers.
 
 	  Currently, only 8-bit registers are supported.
+
+config MDIO_BCM_UNIMAC
+	tristate "Broadcom UniMAC MDIO bus controller"
+	depends on HAS_IOMEM
+	help
+	  This module provides a driver for the Broadcom UniMAC MDIO busses.
+	  This hardware can be found in the Broadcom GENET Ethernet MAC
+	  controllers as well as some Broadcom Ethernet switches such as the
+	  Starfighter 2 switches.
 
 endif # PHYLIB
 

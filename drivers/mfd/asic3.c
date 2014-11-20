@@ -605,7 +605,8 @@ static int asic3_gpio_remove(struct platform_device *pdev)
 {
 	struct asic3 *asic = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&asic->gpio);
+	gpiochip_remove(&asic->gpio);
+	return 0;
 }
 
 static void asic3_clk_enable(struct asic3 *asic, struct asic3_clk *clk)
@@ -695,7 +696,7 @@ static int ds1wm_disable(struct platform_device *pdev)
 	return 0;
 }
 
-static struct mfd_cell asic3_cell_ds1wm = {
+static const struct mfd_cell asic3_cell_ds1wm = {
 	.name          = "ds1wm",
 	.enable        = ds1wm_enable,
 	.disable       = ds1wm_disable,
@@ -797,7 +798,7 @@ static int asic3_mmc_disable(struct platform_device *pdev)
 	return 0;
 }
 
-static struct mfd_cell asic3_cell_mmc = {
+static const struct mfd_cell asic3_cell_mmc = {
 	.name          = "tmio-mmc",
 	.enable        = asic3_mmc_enable,
 	.disable       = asic3_mmc_disable,
@@ -899,13 +900,15 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 	ds1wm_resources[0].end   >>= asic->bus_shift;
 
 	/* MMC */
-	asic->tmio_cnf = ioremap((ASIC3_SD_CONFIG_BASE >> asic->bus_shift) +
+	if (mem_sdio) {
+		asic->tmio_cnf = ioremap((ASIC3_SD_CONFIG_BASE >> asic->bus_shift) +
 				 mem_sdio->start,
 				 ASIC3_SD_CONFIG_SIZE >> asic->bus_shift);
-	if (!asic->tmio_cnf) {
-		ret = -ENOMEM;
-		dev_dbg(asic->dev, "Couldn't ioremap SD_CONFIG\n");
-		goto out;
+		if (!asic->tmio_cnf) {
+			ret = -ENOMEM;
+			dev_dbg(asic->dev, "Couldn't ioremap SD_CONFIG\n");
+			goto out;
+		}
 	}
 	asic3_mmc_resources[0].start >>= asic->bus_shift;
 	asic3_mmc_resources[0].end   >>= asic->bus_shift;
@@ -952,13 +955,14 @@ static void asic3_mfd_remove(struct platform_device *pdev)
 /* Core */
 static int __init asic3_probe(struct platform_device *pdev)
 {
-	struct asic3_platform_data *pdata = pdev->dev.platform_data;
+	struct asic3_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct asic3 *asic;
 	struct resource *mem;
 	unsigned long clksel;
 	int ret = 0;
 
-	asic = kzalloc(sizeof(struct asic3), GFP_KERNEL);
+	asic = devm_kzalloc(&pdev->dev,
+			    sizeof(struct asic3), GFP_KERNEL);
 	if (asic == NULL) {
 		printk(KERN_ERR "kzalloc failed\n");
 		return -ENOMEM;
@@ -970,16 +974,14 @@ static int __init asic3_probe(struct platform_device *pdev)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
-		ret = -ENOMEM;
 		dev_err(asic->dev, "no MEM resource\n");
-		goto out_free;
+		return -ENOMEM;
 	}
 
 	asic->mapping = ioremap(mem->start, resource_size(mem));
 	if (!asic->mapping) {
-		ret = -ENOMEM;
 		dev_err(asic->dev, "Couldn't ioremap\n");
-		goto out_free;
+		return -ENOMEM;
 	}
 
 	asic->irq_base = pdata->irq_base;
@@ -1033,9 +1035,6 @@ static int __init asic3_probe(struct platform_device *pdev)
  out_unmap:
 	iounmap(asic->mapping);
 
- out_free:
-	kfree(asic);
-
 	return ret;
 }
 
@@ -1057,8 +1056,6 @@ static int asic3_remove(struct platform_device *pdev)
 	asic3_write_register(asic, ASIC3_OFFSET(CLOCK, SEL), 0);
 
 	iounmap(asic->mapping);
-
-	kfree(asic);
 
 	return 0;
 }

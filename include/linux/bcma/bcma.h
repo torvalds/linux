@@ -6,6 +6,7 @@
 
 #include <linux/bcma/bcma_driver_chipcommon.h>
 #include <linux/bcma/bcma_driver_pci.h>
+#include <linux/bcma/bcma_driver_pcie2.h>
 #include <linux/bcma/bcma_driver_mips.h>
 #include <linux/bcma/bcma_driver_gmac_cmn.h>
 #include <linux/ssb/ssb.h> /* SPROM sharing */
@@ -72,7 +73,19 @@ struct bcma_host_ops {
 /* Core-ID values. */
 #define BCMA_CORE_OOB_ROUTER		0x367	/* Out of band */
 #define BCMA_CORE_4706_CHIPCOMMON	0x500
+#define BCMA_CORE_NS_PCIEG2		0x501
+#define BCMA_CORE_NS_DMA		0x502
+#define BCMA_CORE_NS_SDIO3		0x503
+#define BCMA_CORE_NS_USB20		0x504
+#define BCMA_CORE_NS_USB30		0x505
+#define BCMA_CORE_NS_A9JTAG		0x506
+#define BCMA_CORE_NS_DDR23		0x507
+#define BCMA_CORE_NS_ROM		0x508
+#define BCMA_CORE_NS_NAND		0x509
+#define BCMA_CORE_NS_QSPI		0x50A
+#define BCMA_CORE_NS_CHIPCOMMON_B	0x50B
 #define BCMA_CORE_4706_SOC_RAM		0x50E
+#define BCMA_CORE_ARMCA9		0x510
 #define BCMA_CORE_4706_MAC_GBIT		0x52D
 #define BCMA_CORE_AMEMC			0x52E	/* DDR1/2 memory controller core */
 #define BCMA_CORE_ALTA			0x534	/* I2S core */
@@ -134,12 +147,20 @@ struct bcma_host_ops {
 #define BCMA_CORE_I2S			0x834
 #define BCMA_CORE_SDR_DDR1_MEM_CTL	0x835	/* SDR/DDR1 memory controller core */
 #define BCMA_CORE_SHIM			0x837	/* SHIM component in ubus/6362 */
+#define BCMA_CORE_PHY_AC		0x83B
+#define BCMA_CORE_PCIE2			0x83C	/* PCI Express Gen2 */
+#define BCMA_CORE_USB30_DEV		0x83D
+#define BCMA_CORE_ARM_CR4		0x83E
 #define BCMA_CORE_DEFAULT		0xFFF
 
 #define BCMA_MAX_NR_CORES		16
 
 /* Chip IDs of PCIe devices */
 #define BCMA_CHIP_ID_BCM4313	0x4313
+#define BCMA_CHIP_ID_BCM43142	43142
+#define BCMA_CHIP_ID_BCM43131	43131
+#define BCMA_CHIP_ID_BCM43217	43217
+#define BCMA_CHIP_ID_BCM43222	43222
 #define BCMA_CHIP_ID_BCM43224	43224
 #define  BCMA_PKG_ID_BCM43224_FAB_CSM	0x8
 #define  BCMA_PKG_ID_BCM43224_FAB_SMIC	0xa
@@ -172,6 +193,65 @@ struct bcma_host_ops {
 #define  BCMA_PKG_ID_BCM5357	11
 #define BCMA_CHIP_ID_BCM53572	53572
 #define  BCMA_PKG_ID_BCM47188	9
+#define BCMA_CHIP_ID_BCM4707	53010
+#define  BCMA_PKG_ID_BCM4707	1
+#define  BCMA_PKG_ID_BCM4708	2
+#define  BCMA_PKG_ID_BCM4709	0
+#define BCMA_CHIP_ID_BCM53018	53018
+
+/* Board types (on PCI usually equals to the subsystem dev id) */
+/* BCM4313 */
+#define BCMA_BOARD_TYPE_BCM94313BU	0X050F
+#define BCMA_BOARD_TYPE_BCM94313HM	0X0510
+#define BCMA_BOARD_TYPE_BCM94313EPA	0X0511
+#define BCMA_BOARD_TYPE_BCM94313HMG	0X051C
+/* BCM4716 */
+#define BCMA_BOARD_TYPE_BCM94716NR2	0X04CD
+/* BCM43224 */
+#define BCMA_BOARD_TYPE_BCM943224X21	0X056E
+#define BCMA_BOARD_TYPE_BCM943224X21_FCC	0X00D1
+#define BCMA_BOARD_TYPE_BCM943224X21B	0X00E9
+#define BCMA_BOARD_TYPE_BCM943224M93	0X008B
+#define BCMA_BOARD_TYPE_BCM943224M93A	0X0090
+#define BCMA_BOARD_TYPE_BCM943224X16	0X0093
+#define BCMA_BOARD_TYPE_BCM94322X9	0X008D
+#define BCMA_BOARD_TYPE_BCM94322M35E	0X008E
+/* BCM43228 */
+#define BCMA_BOARD_TYPE_BCM943228BU8	0X0540
+#define BCMA_BOARD_TYPE_BCM943228BU9	0X0541
+#define BCMA_BOARD_TYPE_BCM943228BU	0X0542
+#define BCMA_BOARD_TYPE_BCM943227HM4L	0X0543
+#define BCMA_BOARD_TYPE_BCM943227HMB	0X0544
+#define BCMA_BOARD_TYPE_BCM943228HM4L	0X0545
+#define BCMA_BOARD_TYPE_BCM943228SD	0X0573
+/* BCM4331 */
+#define BCMA_BOARD_TYPE_BCM94331X19	0X00D6
+#define BCMA_BOARD_TYPE_BCM94331X28	0X00E4
+#define BCMA_BOARD_TYPE_BCM94331X28B	0X010E
+#define BCMA_BOARD_TYPE_BCM94331PCIEBT3AX	0X00E4
+#define BCMA_BOARD_TYPE_BCM94331X12_2G	0X00EC
+#define BCMA_BOARD_TYPE_BCM94331X12_5G	0X00ED
+#define BCMA_BOARD_TYPE_BCM94331X29B	0X00EF
+#define BCMA_BOARD_TYPE_BCM94331CSAX	0X00EF
+#define BCMA_BOARD_TYPE_BCM94331X19C	0X00F5
+#define BCMA_BOARD_TYPE_BCM94331X33	0X00F4
+#define BCMA_BOARD_TYPE_BCM94331BU	0X0523
+#define BCMA_BOARD_TYPE_BCM94331S9BU	0X0524
+#define BCMA_BOARD_TYPE_BCM94331MC	0X0525
+#define BCMA_BOARD_TYPE_BCM94331MCI	0X0526
+#define BCMA_BOARD_TYPE_BCM94331PCIEBT4	0X0527
+#define BCMA_BOARD_TYPE_BCM94331HM	0X0574
+#define BCMA_BOARD_TYPE_BCM94331PCIEDUAL	0X059B
+#define BCMA_BOARD_TYPE_BCM94331MCH5	0X05A9
+#define BCMA_BOARD_TYPE_BCM94331CS	0X05C6
+#define BCMA_BOARD_TYPE_BCM94331CD	0X05DA
+/* BCM53572 */
+#define BCMA_BOARD_TYPE_BCM953572BU	0X058D
+#define BCMA_BOARD_TYPE_BCM953572NR2	0X058E
+#define BCMA_BOARD_TYPE_BCM947188NR2	0X058F
+#define BCMA_BOARD_TYPE_BCM953572SDRNR2	0X0590
+/* BCM43142 */
+#define BCMA_BOARD_TYPE_BCM943142HM	0X05E0
 
 struct bcma_device {
 	struct bcma_bus *bus;
@@ -187,7 +267,7 @@ struct bcma_device {
 	u8 core_unit;
 
 	u32 addr;
-	u32 addr1;
+	u32 addr_s[8];
 	u32 wrap;
 
 	void __iomem *io_addr;
@@ -243,6 +323,8 @@ struct bcma_bus {
 		struct pci_dev *host_pci;
 		/* Pointer to the SDIO device (only for BCMA_HOSTTYPE_SDIO) */
 		struct sdio_func *host_sdio;
+		/* Pointer to platform device (only for BCMA_HOSTTYPE_SOC) */
+		struct platform_device *host_pdev;
 	};
 
 	struct bcma_chipinfo chipinfo;
@@ -252,11 +334,12 @@ struct bcma_bus {
 	struct bcma_device *mapped_core;
 	struct list_head cores;
 	u8 nr_cores;
-	u8 init_done:1;
 	u8 num;
 
 	struct bcma_drv_cc drv_cc;
+	struct bcma_drv_cc_b drv_cc_b;
 	struct bcma_drv_pci drv_pci[2];
+	struct bcma_drv_pcie2 drv_pcie2;
 	struct bcma_drv_mips drv_mips;
 	struct bcma_drv_gmac_cmn drv_gmac_cmn;
 
@@ -342,7 +425,14 @@ static inline void bcma_maskset16(struct bcma_device *cc,
 	bcma_write16(cc, offset, (bcma_read16(cc, offset) & mask) | set);
 }
 
-extern struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid);
+extern struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
+					       u8 unit);
+static inline struct bcma_device *bcma_find_core(struct bcma_bus *bus,
+						 u16 coreid)
+{
+	return bcma_find_core_unit(bus, coreid, 0);
+}
+
 extern bool bcma_core_is_enabled(struct bcma_device *core);
 extern void bcma_core_disable(struct bcma_device *core, u32 flags);
 extern int bcma_core_enable(struct bcma_device *core, u32 flags);

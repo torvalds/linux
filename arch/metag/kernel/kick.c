@@ -26,6 +26,8 @@
  * pass it as an argument.
  */
 #include <linux/export.h>
+#include <linux/hardirq.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/types.h>
@@ -66,6 +68,7 @@ EXPORT_SYMBOL(kick_unregister_func);
 TBIRES
 kick_handler(TBIRES State, int SigNum, int Triggers, int Inst, PTBI pTBI)
 {
+	struct pt_regs *old_regs;
 	struct kick_irq_handler *kh;
 	struct list_head *lh;
 	int handled = 0;
@@ -78,6 +81,9 @@ kick_handler(TBIRES State, int SigNum, int Triggers, int Inst, PTBI pTBI)
 		restart_critical_section(State);
 
 	trace_hardirqs_off();
+
+	old_regs = set_irq_regs((struct pt_regs *)State.Sig.pCtx);
+	irq_enter();
 
 	/*
 	 * There is no need to disable interrupts here because we
@@ -96,6 +102,9 @@ kick_handler(TBIRES State, int SigNum, int Triggers, int Inst, PTBI pTBI)
 	spin_unlock(&kick_handlers_lock);
 
 	WARN_ON(!handled);
+
+	irq_exit();
+	set_irq_regs(old_regs);
 
 	return tail_end(ret);
 }

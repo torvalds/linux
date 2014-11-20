@@ -31,7 +31,7 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/irqchip/versatile-fpga.h>
+#include <linux/irqchip.h>
 #include <linux/mtd/physmap.h>
 #include <linux/clk.h>
 #include <linux/platform_data/clk-integrator.h>
@@ -41,29 +41,30 @@
 #include <linux/stat.h>
 #include <linux/sys_soc.h>
 #include <linux/termios.h>
-#include <video/vga.h>
+#include <linux/sched_clock.h>
+#include <linux/clk-provider.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/setup.h>
 #include <asm/param.h>		/* HZ */
 #include <asm/mach-types.h>
-#include <asm/sched_clock.h>
-
-#include <mach/lm.h>
-#include <mach/irqs.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-#include <asm/mach/pci.h>
 #include <asm/mach/time.h>
 
+#include "hardware.h"
+#include "cm.h"
 #include "common.h"
+#include "pci_v3.h"
+#include "lm.h"
 
 /* Base address to the AP system controller */
 void __iomem *ap_syscon_base;
+/* Base address to the external bus interface */
+static void __iomem *ebi_base;
+
 
 /*
  * All IO addresses are mapped onto VA 0xFFFx.xxxx, where x.xxxx
@@ -73,19 +74,11 @@ void __iomem *ap_syscon_base;
  * just for now).
  */
 #define VA_IC_BASE	__io_address(INTEGRATOR_IC_BASE)
-#define VA_EBI_BASE	__io_address(INTEGRATOR_EBI_BASE)
-#define VA_CMIC_BASE	__io_address(INTEGRATOR_HDR_IC)
 
 /*
  * Logical      Physical
- * e8000000	40000000	PCI memory		PHYS_PCI_MEM_BASE	(max 512M)
- * ec000000	61000000	PCI config space	PHYS_PCI_CONFIG_BASE	(max 16M)
- * ed000000	62000000	PCI V3 regs		PHYS_PCI_V3_BASE	(max 64k)
- * fee00000	60000000	PCI IO			PHYS_PCI_IO_BASE	(max 16M)
  * ef000000			Cache flush
- * f1000000	10000000	Core module registers
  * f1100000	11000000	System controller registers
- * f1200000	12000000	EBI registers
  * f1300000	13000000	Counter/Timer
  * f1400000	14000000	Interrupt controller
  * f1600000	16000000	UART 0
@@ -96,16 +89,6 @@ void __iomem *ap_syscon_base;
 
 static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 	{
-		.virtual	= IO_ADDRESS(INTEGRATOR_HDR_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_HDR_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_EBI_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_EBI_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_CT_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_CT_BASE),
 		.length		= SZ_4K,
@@ -130,29 +113,13 @@ static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 		.pfn		= __phys_to_pfn(INTEGRATOR_AP_GPIO_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
-	}, {
-		.virtual	= (unsigned long)PCI_MEMORY_VADDR,
-		.pfn		= __phys_to_pfn(PHYS_PCI_MEM_BASE),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= (unsigned long)PCI_CONFIG_VADDR,
-		.pfn		= __phys_to_pfn(PHYS_PCI_CONFIG_BASE),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= (unsigned long)PCI_V3_VADDR,
-		.pfn		= __phys_to_pfn(PHYS_PCI_V3_BASE),
-		.length		= SZ_64K,
-		.type		= MT_DEVICE
 	}
 };
 
 static void __init ap_map_io(void)
 {
 	iotable_init(ap_io_desc, ARRAY_SIZE(ap_io_desc));
-	vga_base = (unsigned long)PCI_MEMORY_VADDR;
-	pci_map_io_early(__phys_to_pfn(PHYS_PCI_IO_BASE));
+	pci_v3_early_init();
 }
 
 #ifdef CONFIG_PM
@@ -167,7 +134,7 @@ static int irq_suspend(void)
 static void irq_resume(void)
 {
 	/* disable all irq sources */
-	writel(-1, VA_CMIC_BASE + IRQ_ENABLE_CLEAR);
+	cm_clear_irqs();
 	writel(-1, VA_IC_BASE + IRQ_ENABLE_CLEAR);
 	writel(-1, VA_IC_BASE + FIQ_ENABLE_CLEAR);
 
@@ -195,9 +162,6 @@ device_initcall(irq_syscore_init);
 /*
  * Flash handling.
  */
-#define EBI_CSR1 (VA_EBI_BASE + INTEGRATOR_EBI_CSR1_OFFSET)
-#define EBI_LOCK (VA_EBI_BASE + INTEGRATOR_EBI_LOCK_OFFSET)
-
 static int ap_flash_init(struct platform_device *dev)
 {
 	u32 tmp;
@@ -205,13 +169,15 @@ static int ap_flash_init(struct platform_device *dev)
 	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP,
 	       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
 
-	tmp = readl(EBI_CSR1) | INTEGRATOR_EBI_WRITE_ENABLE;
-	writel(tmp, EBI_CSR1);
+	tmp = readl(ebi_base + INTEGRATOR_EBI_CSR1_OFFSET) |
+		INTEGRATOR_EBI_WRITE_ENABLE;
+	writel(tmp, ebi_base + INTEGRATOR_EBI_CSR1_OFFSET);
 
-	if (!(readl(EBI_CSR1) & INTEGRATOR_EBI_WRITE_ENABLE)) {
-		writel(0xa05f, EBI_LOCK);
-		writel(tmp, EBI_CSR1);
-		writel(0, EBI_LOCK);
+	if (!(readl(ebi_base + INTEGRATOR_EBI_CSR1_OFFSET)
+	      & INTEGRATOR_EBI_WRITE_ENABLE)) {
+		writel(0xa05f, ebi_base + INTEGRATOR_EBI_LOCK_OFFSET);
+		writel(tmp, ebi_base + INTEGRATOR_EBI_CSR1_OFFSET);
+		writel(0, ebi_base + INTEGRATOR_EBI_LOCK_OFFSET);
 	}
 	return 0;
 }
@@ -223,13 +189,15 @@ static void ap_flash_exit(struct platform_device *dev)
 	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP,
 	       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
 
-	tmp = readl(EBI_CSR1) & ~INTEGRATOR_EBI_WRITE_ENABLE;
-	writel(tmp, EBI_CSR1);
+	tmp = readl(ebi_base + INTEGRATOR_EBI_CSR1_OFFSET) &
+		~INTEGRATOR_EBI_WRITE_ENABLE;
+	writel(tmp, ebi_base + INTEGRATOR_EBI_CSR1_OFFSET);
 
-	if (readl(EBI_CSR1) & INTEGRATOR_EBI_WRITE_ENABLE) {
-		writel(0xa05f, EBI_LOCK);
-		writel(tmp, EBI_CSR1);
-		writel(0, EBI_LOCK);
+	if (readl(ebi_base + INTEGRATOR_EBI_CSR1_OFFSET) &
+	    INTEGRATOR_EBI_WRITE_ENABLE) {
+		writel(0xa05f, ebi_base + INTEGRATOR_EBI_LOCK_OFFSET);
+		writel(tmp, ebi_base + INTEGRATOR_EBI_CSR1_OFFSET);
+		writel(0, ebi_base + INTEGRATOR_EBI_LOCK_OFFSET);
 	}
 }
 
@@ -298,7 +266,7 @@ struct amba_pl010_data ap_uart_data = {
 
 static unsigned long timer_reload;
 
-static u32 notrace integrator_read_sched_clock(void)
+static u64 notrace integrator_read_sched_clock(void)
 {
 	return -readl((void __iomem *) TIMER2_VA_BASE + TIMER_VALUE);
 }
@@ -319,7 +287,7 @@ static void integrator_clocksource_init(unsigned long inrate,
 
 	clocksource_mmio_init(base + TIMER_VALUE, "timer2",
 			rate, 200, 16, clocksource_mmio_readl_down);
-	setup_sched_clock(integrator_read_sched_clock, 16, rate);
+	sched_clock_register(integrator_read_sched_clock, 16, rate);
 }
 
 static void __iomem * clkevt_base;
@@ -389,7 +357,7 @@ static struct clock_event_device integrator_clockevent = {
 
 static struct irqaction integrator_timer_irq = {
 	.name		= "timer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= integrator_timer_interrupt,
 	.dev_id		= &integrator_clockevent,
 };
@@ -423,8 +391,6 @@ void __init ap_init_early(void)
 {
 }
 
-#ifdef CONFIG_OF
-
 static void __init ap_of_timer_init(void)
 {
 	struct device_node *node;
@@ -435,10 +401,7 @@ static void __init ap_of_timer_init(void)
 	struct clk *clk;
 	unsigned long rate;
 
-	clk = clk_get_sys("ap_timer", NULL);
-	BUG_ON(IS_ERR(clk));
-	clk_prepare_enable(clk);
-	rate = clk_get_rate(clk);
+	of_clk_init(NULL);
 
 	err = of_property_read_string(of_aliases,
 				"arm,timer-primary", &path);
@@ -448,6 +411,12 @@ static void __init ap_of_timer_init(void)
 	base = of_iomap(node, 0);
 	if (WARN_ON(!base))
 		return;
+
+	clk = of_clk_get(node, 0);
+	BUG_ON(IS_ERR(clk));
+	clk_prepare_enable(clk);
+	rate = clk_get_rate(clk);
+
 	writel(0, base + TIMER_CTRL);
 	integrator_clocksource_init(rate, base);
 
@@ -460,21 +429,20 @@ static void __init ap_of_timer_init(void)
 	if (WARN_ON(!base))
 		return;
 	irq = irq_of_parse_and_map(node, 0);
+
+	clk = of_clk_get(node, 0);
+	BUG_ON(IS_ERR(clk));
+	clk_prepare_enable(clk);
+	rate = clk_get_rate(clk);
+
 	writel(0, base + TIMER_CTRL);
 	integrator_clockevent_init(rate, base, irq);
 }
 
-static const struct of_device_id fpga_irq_of_match[] __initconst = {
-	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
-	{ /* Sentinel */ }
-};
-
 static void __init ap_init_irq_of(void)
 {
-	/* disable core module IRQs */
-	writel(0xffffffffU, VA_CMIC_BASE + IRQ_ENABLE_CLEAR);
-	of_irq_init(fpga_irq_of_match);
-	integrator_clk_init(false);
+	cm_init();
+	irqchip_init();
 }
 
 /* For the Device Tree, add in the UART callbacks as AUXDATA */
@@ -494,29 +462,43 @@ static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
 	{ /* sentinel */ },
 };
 
+static const struct of_device_id ap_syscon_match[] = {
+	{ .compatible = "arm,integrator-ap-syscon"},
+	{ },
+};
+
+static const struct of_device_id ebi_match[] = {
+	{ .compatible = "arm,external-bus-interface"},
+	{ },
+};
+
 static void __init ap_init_of(void)
 {
 	unsigned long sc_dec;
-	struct device_node *root;
 	struct device_node *syscon;
+	struct device_node *ebi;
 	struct device *parent;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
 	u32 ap_sc_id;
-	int err;
 	int i;
 
-	/* Here we create an SoC device for the root node */
-	root = of_find_node_by_path("/");
-	if (!root)
-		return;
-	syscon = of_find_node_by_path("/syscon");
+	syscon = of_find_matching_node(NULL, ap_syscon_match);
 	if (!syscon)
+		return;
+	ebi = of_find_matching_node(NULL, ebi_match);
+	if (!ebi)
 		return;
 
 	ap_syscon_base = of_iomap(syscon, 0);
 	if (!ap_syscon_base)
 		return;
+	ebi_base = of_iomap(ebi, 0);
+	if (!ebi_base)
+		return;
+
+	of_platform_populate(NULL, of_default_bus_match_table,
+			ap_auxdata_lookup, NULL);
 
 	ap_sc_id = readl(ap_syscon_base);
 
@@ -524,31 +506,21 @@ static void __init ap_init_of(void)
 	if (!soc_dev_attr)
 		return;
 
-	err = of_property_read_string(root, "compatible",
-				      &soc_dev_attr->soc_id);
-	if (err)
-		return;
-	err = of_property_read_string(root, "model", &soc_dev_attr->machine);
-	if (err)
-		return;
+	soc_dev_attr->soc_id = "XVC";
+	soc_dev_attr->machine = "Integrator/AP";
 	soc_dev_attr->family = "Integrator";
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
 					   'A' + (ap_sc_id & 0x0f));
 
 	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR_OR_NULL(soc_dev)) {
+	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr->revision);
 		kfree(soc_dev_attr);
 		return;
 	}
 
 	parent = soc_device_to_device(soc_dev);
-
-	if (!IS_ERR_OR_NULL(parent))
-		integrator_init_sysfs(parent, ap_sc_id);
-
-	of_platform_populate(root, of_default_bus_match_table,
-			ap_auxdata_lookup, parent);
+	integrator_init_sysfs(parent, ap_sc_id);
 
 	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
@@ -564,7 +536,7 @@ static void __init ap_init_of(void)
 		lmdev->resource.start = 0xc0000000 + 0x10000000 * i;
 		lmdev->resource.end = lmdev->resource.start + 0x0fffffff;
 		lmdev->resource.flags = IORESOURCE_MEM;
-		lmdev->irq = IRQ_AP_EXPINT0 + i;
+		lmdev->irq = irq_of_parse_and_map(syscon, i);
 		lmdev->id = i;
 
 		lm_device_register(lmdev);
@@ -581,136 +553,8 @@ DT_MACHINE_START(INTEGRATOR_AP_DT, "ARM Integrator/AP (Device Tree)")
 	.map_io		= ap_map_io,
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq_of,
-	.handle_irq	= fpga_handle_irq,
 	.init_time	= ap_of_timer_init,
 	.init_machine	= ap_init_of,
 	.restart	= integrator_restart,
 	.dt_compat      = ap_dt_board_compat,
 MACHINE_END
-
-#endif
-
-#ifdef CONFIG_ATAGS
-
-/*
- * For the ATAG boot some static mappings are needed. This will
- * go away with the ATAG support down the road.
- */
-
-static struct map_desc ap_io_desc_atag[] __initdata = {
-	{
-		.virtual	= IO_ADDRESS(INTEGRATOR_SC_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_SC_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	},
-};
-
-static void __init ap_map_io_atag(void)
-{
-	iotable_init(ap_io_desc_atag, ARRAY_SIZE(ap_io_desc_atag));
-	ap_map_io();
-}
-
-/*
- * This is where non-devicetree initialization code is collected and stashed
- * for eventual deletion.
- */
-
-static struct resource cfi_flash_resource = {
-	.start		= INTEGRATOR_FLASH_BASE,
-	.end		= INTEGRATOR_FLASH_BASE + INTEGRATOR_FLASH_SIZE - 1,
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device cfi_flash_device = {
-	.name		= "physmap-flash",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &ap_flash_data,
-	},
-	.num_resources	= 1,
-	.resource	= &cfi_flash_resource,
-};
-
-static void __init ap_timer_init(void)
-{
-	struct clk *clk;
-	unsigned long rate;
-
-	clk = clk_get_sys("ap_timer", NULL);
-	BUG_ON(IS_ERR(clk));
-	clk_prepare_enable(clk);
-	rate = clk_get_rate(clk);
-
-	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
-	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
-	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
-
-	integrator_clocksource_init(rate, (void __iomem *)TIMER2_VA_BASE);
-	integrator_clockevent_init(rate, (void __iomem *)TIMER1_VA_BASE,
-				IRQ_TIMERINT1);
-}
-
-#define INTEGRATOR_SC_VALID_INT	0x003fffff
-
-static void __init ap_init_irq(void)
-{
-	/* Disable all interrupts initially. */
-	/* Do the core module ones */
-	writel(-1, VA_CMIC_BASE + IRQ_ENABLE_CLEAR);
-
-	/* do the header card stuff next */
-	writel(-1, VA_IC_BASE + IRQ_ENABLE_CLEAR);
-	writel(-1, VA_IC_BASE + FIQ_ENABLE_CLEAR);
-
-	fpga_irq_init(VA_IC_BASE, "SC", IRQ_PIC_START,
-		-1, INTEGRATOR_SC_VALID_INT, NULL);
-	integrator_clk_init(false);
-}
-
-static void __init ap_init(void)
-{
-	unsigned long sc_dec;
-	int i;
-
-	platform_device_register(&cfi_flash_device);
-
-	ap_syscon_base = __io_address(INTEGRATOR_SC_BASE);
-	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
-	for (i = 0; i < 4; i++) {
-		struct lm_device *lmdev;
-
-		if ((sc_dec & (16 << i)) == 0)
-			continue;
-
-		lmdev = kzalloc(sizeof(struct lm_device), GFP_KERNEL);
-		if (!lmdev)
-			continue;
-
-		lmdev->resource.start = 0xc0000000 + 0x10000000 * i;
-		lmdev->resource.end = lmdev->resource.start + 0x0fffffff;
-		lmdev->resource.flags = IORESOURCE_MEM;
-		lmdev->irq = IRQ_AP_EXPINT0 + i;
-		lmdev->id = i;
-
-		lm_device_register(lmdev);
-	}
-
-	integrator_init(false);
-}
-
-MACHINE_START(INTEGRATOR, "ARM-Integrator")
-	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.atag_offset	= 0x100,
-	.reserve	= integrator_reserve,
-	.map_io		= ap_map_io_atag,
-	.init_early	= ap_init_early,
-	.init_irq	= ap_init_irq,
-	.handle_irq	= fpga_handle_irq,
-	.init_time	= ap_timer_init,
-	.init_machine	= ap_init,
-	.restart	= integrator_restart,
-MACHINE_END
-
-#endif

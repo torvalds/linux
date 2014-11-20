@@ -7,6 +7,9 @@
  *
  * For licencing details see kernel-base/COPYING
  */
+
+#define pr_fmt(fmt) "ODEBUG: " fmt
+
 #include <linux/debugobjects.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
@@ -196,7 +199,7 @@ static void free_object(struct debug_obj *obj)
 	 * initialized:
 	 */
 	if (obj_pool_free > ODEBUG_POOL_SIZE && obj_cache)
-		sched = keventd_up() && !work_pending(&debug_obj_work);
+		sched = keventd_up();
 	hlist_add_head(&obj->node, &obj_pool);
 	obj_pool_free++;
 	obj_pool_used--;
@@ -218,7 +221,7 @@ static void debug_objects_oom(void)
 	unsigned long flags;
 	int i;
 
-	printk(KERN_WARNING "ODEBUG: Out of memory. ODEBUG disabled\n");
+	pr_warn("Out of memory. ODEBUG disabled\n");
 
 	for (i = 0; i < ODEBUG_HASH_SIZE; i++, db++) {
 		raw_spin_lock_irqsave(&db->lock, flags);
@@ -292,11 +295,9 @@ static void debug_object_is_on_stack(void *addr, int onstack)
 
 	limit++;
 	if (is_on_stack)
-		printk(KERN_WARNING
-		       "ODEBUG: object is on stack, but not annotated\n");
+		pr_warn("object is on stack, but not annotated\n");
 	else
-		printk(KERN_WARNING
-		       "ODEBUG: object is not on stack, but annotated\n");
+		pr_warn("object is not on stack, but annotated\n");
 	WARN_ON(1);
 }
 
@@ -381,19 +382,21 @@ void debug_object_init_on_stack(void *addr, struct debug_obj_descr *descr)
  * debug_object_activate - debug checks when an object is activated
  * @addr:	address of the object
  * @descr:	pointer to an object specific debug description structure
+ * Returns 0 for success, -EINVAL for check failed.
  */
-void debug_object_activate(void *addr, struct debug_obj_descr *descr)
+int debug_object_activate(void *addr, struct debug_obj_descr *descr)
 {
 	enum debug_obj_state state;
 	struct debug_bucket *db;
 	struct debug_obj *obj;
 	unsigned long flags;
+	int ret;
 	struct debug_obj o = { .object = addr,
 			       .state = ODEBUG_STATE_NOTAVAILABLE,
 			       .descr = descr };
 
 	if (!debug_objects_enabled)
-		return;
+		return 0;
 
 	db = get_bucket((unsigned long) addr);
 
@@ -405,23 +408,26 @@ void debug_object_activate(void *addr, struct debug_obj_descr *descr)
 		case ODEBUG_STATE_INIT:
 		case ODEBUG_STATE_INACTIVE:
 			obj->state = ODEBUG_STATE_ACTIVE;
+			ret = 0;
 			break;
 
 		case ODEBUG_STATE_ACTIVE:
 			debug_print_object(obj, "activate");
 			state = obj->state;
 			raw_spin_unlock_irqrestore(&db->lock, flags);
-			debug_object_fixup(descr->fixup_activate, addr, state);
-			return;
+			ret = debug_object_fixup(descr->fixup_activate, addr, state);
+			return ret ? -EINVAL : 0;
 
 		case ODEBUG_STATE_DESTROYED:
 			debug_print_object(obj, "activate");
+			ret = -EINVAL;
 			break;
 		default:
+			ret = 0;
 			break;
 		}
 		raw_spin_unlock_irqrestore(&db->lock, flags);
-		return;
+		return ret;
 	}
 
 	raw_spin_unlock_irqrestore(&db->lock, flags);
@@ -431,8 +437,11 @@ void debug_object_activate(void *addr, struct debug_obj_descr *descr)
 	 * true or not.
 	 */
 	if (debug_object_fixup(descr->fixup_activate, addr,
-			   ODEBUG_STATE_NOTAVAILABLE))
+			   ODEBUG_STATE_NOTAVAILABLE)) {
 		debug_print_object(&o, "activate");
+		return -EINVAL;
+	}
+	return 0;
 }
 
 /**
@@ -977,7 +986,7 @@ static void __init debug_objects_selftest(void)
 	if (check_results(&obj, ODEBUG_STATE_NONE, ++fixups, ++warnings))
 		goto out;
 #endif
-	printk(KERN_INFO "ODEBUG: selftest passed\n");
+	pr_info("selftest passed\n");
 
 out:
 	debug_objects_fixups = oldfixups;
@@ -1052,8 +1061,8 @@ static int __init debug_objects_replace_static_objects(void)
 	}
 	local_irq_enable();
 
-	printk(KERN_DEBUG "ODEBUG: %d of %d active objects replaced\n", cnt,
-	       obj_pool_used);
+	pr_debug("%d of %d active objects replaced\n",
+		 cnt, obj_pool_used);
 	return 0;
 free:
 	hlist_for_each_entry_safe(obj, tmp, &objects, node) {
@@ -1082,7 +1091,7 @@ void __init debug_objects_mem_init(void)
 		debug_objects_enabled = 0;
 		if (obj_cache)
 			kmem_cache_destroy(obj_cache);
-		printk(KERN_WARNING "ODEBUG: out of memory.\n");
+		pr_warn("out of memory.\n");
 	} else
 		debug_objects_selftest();
 }

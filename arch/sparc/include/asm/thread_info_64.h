@@ -63,7 +63,8 @@ struct thread_info {
 	struct pt_regs		*kern_una_regs;
 	unsigned int		kern_una_insn;
 
-	unsigned long		fpregs[0] __attribute__ ((aligned(64)));
+	unsigned long		fpregs[(7 * 256) / sizeof(unsigned long)]
+		__attribute__ ((aligned(64)));
 };
 
 #endif /* !(__ASSEMBLY__) */
@@ -102,6 +103,7 @@ struct thread_info {
 #define FAULT_CODE_ITLB		0x04	/* Miss happened in I-TLB	   */
 #define FAULT_CODE_WINFIXUP	0x08	/* Miss happened during spill/fill */
 #define FAULT_CODE_BLKCOMMIT	0x10	/* Use blk-commit ASI in copy_page */
+#define	FAULT_CODE_BAD_RA	0x20	/* Bad RA for sun4v		   */
 
 #if PAGE_SHIFT == 13
 #define THREAD_SIZE (2*PAGE_SIZE)
@@ -110,8 +112,6 @@ struct thread_info {
 #define THREAD_SIZE PAGE_SIZE
 #define THREAD_SHIFT PAGE_SHIFT
 #endif /* PAGE_SHIFT == 13 */
-
-#define PREEMPT_ACTIVE		0x10000000
 
 /*
  * macros/functions for gaining access to the thread information structure
@@ -192,7 +192,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TIF_UNALIGNED		5	/* allowed to do unaligned accesses */
 /* flag bit 6 is available */
 #define TIF_32BIT		7	/* 32-bit binary */
-/* flag bit 8 is available */
+#define TIF_NOHZ		8	/* in adaptive nohz mode */
 #define TIF_SECCOMP		9	/* secure computing */
 #define TIF_SYSCALL_AUDIT	10	/* syscall auditing active */
 #define TIF_SYSCALL_TRACEPOINT	11	/* syscall tracepoint instrumentation */
@@ -210,6 +210,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_UNALIGNED		(1<<TIF_UNALIGNED)
 #define _TIF_32BIT		(1<<TIF_32BIT)
+#define _TIF_NOHZ		(1<<TIF_NOHZ)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
@@ -219,6 +220,8 @@ register struct thread_info *current_thread_info_reg asm("g6");
 				 _TIF_DO_NOTIFY_RESUME_MASK | \
 				 _TIF_NEED_RESCHED)
 #define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING)
+
+#define is_32bit_task()	(test_thread_flag(TIF_32BIT))
 
 /*
  * Thread-synchronous status.
@@ -255,8 +258,6 @@ static inline bool test_and_clear_restore_sigmask(void)
 	ti->status &= ~TS_RESTORE_SIGMASK;
 	return true;
 }
-
-#define tsk_is_polling(t) test_tsk_thread_flag(t, TIF_POLLING_NRFLAG)
 
 #define thread32_stack_is_64bit(__SP) (((__SP) & 0x1) != 0)
 #define test_thread_64bit_stack(__SP) \

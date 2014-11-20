@@ -211,7 +211,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		qc->tf.nsect = 0;
 	}
 
-	ata_tf_to_fis(&qc->tf, 1, 0, (u8*)&task->ata_task.fis);
+	ata_tf_to_fis(&qc->tf, qc->dev->link->pmp, 1, (u8 *)&task->ata_task.fis);
 	task->uldd_task = qc;
 	if (ata_is_atapi(qc->tf.protocol)) {
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
@@ -285,14 +285,14 @@ int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
 	if (phy->attached_tproto & SAS_PROTOCOL_STP)
 		dev->tproto = phy->attached_tproto;
 	if (phy->attached_sata_dev)
-		dev->tproto |= SATA_DEV;
+		dev->tproto |= SAS_SATA_DEV;
 
-	if (phy->attached_dev_type == SATA_PENDING)
-		dev->dev_type = SATA_PENDING;
+	if (phy->attached_dev_type == SAS_SATA_PENDING)
+		dev->dev_type = SAS_SATA_PENDING;
 	else {
 		int res;
 
-		dev->dev_type = SATA_DEV;
+		dev->dev_type = SAS_SATA_DEV;
 		res = sas_get_report_phy_sata(dev->parent, phy->phy_id,
 					      &dev->sata_dev.rps_resp);
 		if (res) {
@@ -314,7 +314,7 @@ static int sas_ata_clear_pending(struct domain_device *dev, struct ex_phy *phy)
 	int res;
 
 	/* we weren't pending, so successfully end the reset sequence now */
-	if (dev->dev_type != SATA_PENDING)
+	if (dev->dev_type != SAS_SATA_PENDING)
 		return 1;
 
 	/* hmmm, if this succeeds do we need to repost the domain_device to the
@@ -348,9 +348,9 @@ static int smp_ata_check_ready(struct ata_link *link)
 		return 0;
 
 	switch (ex_phy->attached_dev_type) {
-	case SATA_PENDING:
+	case SAS_SATA_PENDING:
 		return 0;
-	case SAS_END_DEV:
+	case SAS_END_DEVICE:
 		if (ex_phy->attached_sata_dev)
 			return sas_ata_clear_pending(dev, ex_phy);
 	default:
@@ -631,7 +631,7 @@ static void sas_get_ata_command_set(struct domain_device *dev)
 	struct dev_to_host_fis *fis =
 		(struct dev_to_host_fis *) dev->frame_rcvd;
 
-	if (dev->dev_type == SATA_PENDING)
+	if (dev->dev_type == SAS_SATA_PENDING)
 		return;
 
 	if ((fis->sector_count == 1 && /* ATA */
@@ -700,46 +700,26 @@ void sas_probe_sata(struct asd_sas_port *port)
 
 }
 
-static bool sas_ata_flush_pm_eh(struct asd_sas_port *port, const char *func)
+static void sas_ata_flush_pm_eh(struct asd_sas_port *port, const char *func)
 {
 	struct domain_device *dev, *n;
-	bool retry = false;
 
 	list_for_each_entry_safe(dev, n, &port->dev_list, dev_list_node) {
-		int rc;
-
 		if (!dev_is_sata(dev))
 			continue;
 
 		sas_ata_wait_eh(dev);
-		rc = dev->sata_dev.pm_result;
-		if (rc == -EAGAIN)
-			retry = true;
-		else if (rc) {
-			/* since we don't have a
-			 * ->port_{suspend|resume} routine in our
-			 *  ata_port ops, and no entanglements with
-			 *  acpi, suspend should just be mechanical trip
-			 *  through eh, catch cases where these
-			 *  assumptions are invalidated
-			 */
-			WARN_ONCE(1, "failed %s %s error: %d\n", func,
-				 dev_name(&dev->rphy->dev), rc);
-		}
 
 		/* if libata failed to power manage the device, tear it down */
 		if (ata_dev_disabled(sas_to_ata_dev(dev)))
 			sas_fail_probe(dev, func, -ENODEV);
 	}
-
-	return retry;
 }
 
 void sas_suspend_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev;
 
- retry:
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 		struct sata_device *sata;
@@ -751,20 +731,17 @@ void sas_suspend_sata(struct asd_sas_port *port)
 		if (sata->ap->pm_mesg.event == PM_EVENT_SUSPEND)
 			continue;
 
-		sata->pm_result = -EIO;
-		ata_sas_port_async_suspend(sata->ap, &sata->pm_result);
+		ata_sas_port_suspend(sata->ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
 
-	if (sas_ata_flush_pm_eh(port, __func__))
-		goto retry;
+	sas_ata_flush_pm_eh(port, __func__);
 }
 
 void sas_resume_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev;
 
- retry:
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 		struct sata_device *sata;
@@ -776,13 +753,11 @@ void sas_resume_sata(struct asd_sas_port *port)
 		if (sata->ap->pm_mesg.event == PM_EVENT_ON)
 			continue;
 
-		sata->pm_result = -EIO;
-		ata_sas_port_async_resume(sata->ap, &sata->pm_result);
+		ata_sas_port_resume(sata->ap);
 	}
 	mutex_unlock(&port->ha->disco_mutex);
 
-	if (sas_ata_flush_pm_eh(port, __func__))
-		goto retry;
+	sas_ata_flush_pm_eh(port, __func__);
 }
 
 /**
@@ -797,7 +772,7 @@ int sas_discover_sata(struct domain_device *dev)
 {
 	int res;
 
-	if (dev->dev_type == SATA_PM)
+	if (dev->dev_type == SAS_SATA_PM)
 		return -ENODEV;
 
 	sas_get_ata_command_set(dev);

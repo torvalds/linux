@@ -15,24 +15,229 @@
 #include <errno.h>
 #include <math.h>
 
+#include "asm/bug.h"
+
+#include "hist.h"
 #include "util.h"
+#include "sort.h"
+#include "machine.h"
 #include "callchain.h"
 
 __thread struct callchain_cursor callchain_cursor;
 
-bool ip_callchain__valid(struct ip_callchain *chain,
-			 const union perf_event *event)
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+static int get_stack_size(const char *str, unsigned long *_size)
 {
-	unsigned int chain_size = event->header.size;
-	chain_size -= (unsigned long)&event->ip.__more_data - (unsigned long)event;
-	return chain->nr * sizeof(u64) <= chain_size;
+	char *endptr;
+	unsigned long size;
+	unsigned long max_size = round_down(USHRT_MAX, sizeof(u64));
+
+	size = strtoul(str, &endptr, 0);
+
+	do {
+		if (*endptr)
+			break;
+
+		size = round_up(size, sizeof(u64));
+		if (!size || size > max_size)
+			break;
+
+		*_size = size;
+		return 0;
+
+	} while (0);
+
+	pr_err("callchain: Incorrect stack dump size (max %ld): %s\n",
+	       max_size, str);
+	return -1;
+}
+#endif /* HAVE_DWARF_UNWIND_SUPPORT */
+
+int parse_callchain_record_opt(const char *arg)
+{
+	char *tok, *name, *saveptr = NULL;
+	char *buf;
+	int ret = -1;
+
+	/* We need buffer that we know we can write to. */
+	buf = malloc(strlen(arg) + 1);
+	if (!buf)
+		return -ENOMEM;
+
+	strcpy(buf, arg);
+
+	tok = strtok_r((char *)buf, ",", &saveptr);
+	name = tok ? : (char *)buf;
+
+	do {
+		/* Framepointer style */
+		if (!strncmp(name, "fp", sizeof("fp"))) {
+			if (!strtok_r(NULL, ",", &saveptr)) {
+				callchain_param.record_mode = CALLCHAIN_FP;
+				ret = 0;
+			} else
+				pr_err("callchain: No more arguments "
+				       "needed for -g fp\n");
+			break;
+
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+		/* Dwarf style */
+		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
+			const unsigned long default_stack_dump_size = 8192;
+
+			ret = 0;
+			callchain_param.record_mode = CALLCHAIN_DWARF;
+			callchain_param.dump_size = default_stack_dump_size;
+
+			tok = strtok_r(NULL, ",", &saveptr);
+			if (tok) {
+				unsigned long size = 0;
+
+				ret = get_stack_size(tok, &size);
+				callchain_param.dump_size = size;
+			}
+#endif /* HAVE_DWARF_UNWIND_SUPPORT */
+		} else {
+			pr_err("callchain: Unknown --call-graph option "
+			       "value: %s\n", arg);
+			break;
+		}
+
+	} while (0);
+
+	free(buf);
+	return ret;
 }
 
-#define chain_for_each_child(child, parent)	\
-	list_for_each_entry(child, &parent->children, siblings)
+static int parse_callchain_mode(const char *value)
+{
+	if (!strncmp(value, "graph", strlen(value))) {
+		callchain_param.mode = CHAIN_GRAPH_ABS;
+		return 0;
+	}
+	if (!strncmp(value, "flat", strlen(value))) {
+		callchain_param.mode = CHAIN_FLAT;
+		return 0;
+	}
+	if (!strncmp(value, "fractal", strlen(value))) {
+		callchain_param.mode = CHAIN_GRAPH_REL;
+		return 0;
+	}
+	return -1;
+}
 
-#define chain_for_each_child_safe(child, next, parent)	\
-	list_for_each_entry_safe(child, next, &parent->children, siblings)
+static int parse_callchain_order(const char *value)
+{
+	if (!strncmp(value, "caller", strlen(value))) {
+		callchain_param.order = ORDER_CALLER;
+		return 0;
+	}
+	if (!strncmp(value, "callee", strlen(value))) {
+		callchain_param.order = ORDER_CALLEE;
+		return 0;
+	}
+	return -1;
+}
+
+static int parse_callchain_sort_key(const char *value)
+{
+	if (!strncmp(value, "function", strlen(value))) {
+		callchain_param.key = CCKEY_FUNCTION;
+		return 0;
+	}
+	if (!strncmp(value, "address", strlen(value))) {
+		callchain_param.key = CCKEY_ADDRESS;
+		return 0;
+	}
+	return -1;
+}
+
+int
+parse_callchain_report_opt(const char *arg)
+{
+	char *tok;
+	char *endptr;
+	bool minpcnt_set = false;
+
+	symbol_conf.use_callchain = true;
+
+	if (!arg)
+		return 0;
+
+	while ((tok = strtok((char *)arg, ",")) != NULL) {
+		if (!strncmp(tok, "none", strlen(tok))) {
+			callchain_param.mode = CHAIN_NONE;
+			symbol_conf.use_callchain = false;
+			return 0;
+		}
+
+		if (!parse_callchain_mode(tok) ||
+		    !parse_callchain_order(tok) ||
+		    !parse_callchain_sort_key(tok)) {
+			/* parsing ok - move on to the next */
+		} else if (!minpcnt_set) {
+			/* try to get the min percent */
+			callchain_param.min_percent = strtod(tok, &endptr);
+			if (tok == endptr)
+				return -1;
+			minpcnt_set = true;
+		} else {
+			/* try print limit at last */
+			callchain_param.print_limit = strtoul(tok, &endptr, 0);
+			if (tok == endptr)
+				return -1;
+		}
+
+		arg = NULL;
+	}
+
+	if (callchain_register_param(&callchain_param) < 0) {
+		pr_err("Can't register callchain params\n");
+		return -1;
+	}
+	return 0;
+}
+
+int perf_callchain_config(const char *var, const char *value)
+{
+	char *endptr;
+
+	if (prefixcmp(var, "call-graph."))
+		return 0;
+	var += sizeof("call-graph.") - 1;
+
+	if (!strcmp(var, "record-mode"))
+		return parse_callchain_record_opt(value);
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+	if (!strcmp(var, "dump-size")) {
+		unsigned long size = 0;
+		int ret;
+
+		ret = get_stack_size(value, &size);
+		callchain_param.dump_size = size;
+
+		return ret;
+	}
+#endif
+	if (!strcmp(var, "print-type"))
+		return parse_callchain_mode(value);
+	if (!strcmp(var, "order"))
+		return parse_callchain_order(value);
+	if (!strcmp(var, "sort-key"))
+		return parse_callchain_sort_key(value);
+	if (!strcmp(var, "threshold")) {
+		callchain_param.min_percent = strtod(value, &endptr);
+		if (value == endptr)
+			return -1;
+	}
+	if (!strcmp(var, "print-limit")) {
+		callchain_param.print_limit = strtod(value, &endptr);
+		if (value == endptr)
+			return -1;
+	}
+
+	return 0;
+}
 
 static void
 rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
@@ -78,10 +283,16 @@ static void
 __sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
 		  u64 min_hit)
 {
+	struct rb_node *n;
 	struct callchain_node *child;
 
-	chain_for_each_child(child, node)
+	n = rb_first(&node->rb_root_in);
+	while (n) {
+		child = rb_entry(n, struct callchain_node, rb_node_in);
+		n = rb_next(n);
+
 		__sort_chain_flat(rb_root, child, min_hit);
+	}
 
 	if (node->hit && node->hit >= min_hit)
 		rb_insert_callchain(rb_root, node, CHAIN_FLAT);
@@ -101,11 +312,16 @@ sort_chain_flat(struct rb_root *rb_root, struct callchain_root *root,
 static void __sort_chain_graph_abs(struct callchain_node *node,
 				   u64 min_hit)
 {
+	struct rb_node *n;
 	struct callchain_node *child;
 
 	node->rb_root = RB_ROOT;
+	n = rb_first(&node->rb_root_in);
 
-	chain_for_each_child(child, node) {
+	while (n) {
+		child = rb_entry(n, struct callchain_node, rb_node_in);
+		n = rb_next(n);
+
 		__sort_chain_graph_abs(child, min_hit);
 		if (callchain_cumul_hits(child) >= min_hit)
 			rb_insert_callchain(&node->rb_root, child,
@@ -124,13 +340,18 @@ sort_chain_graph_abs(struct rb_root *rb_root, struct callchain_root *chain_root,
 static void __sort_chain_graph_rel(struct callchain_node *node,
 				   double min_percent)
 {
+	struct rb_node *n;
 	struct callchain_node *child;
 	u64 min_hit;
 
 	node->rb_root = RB_ROOT;
 	min_hit = ceil(node->children_hit * min_percent);
 
-	chain_for_each_child(child, node) {
+	n = rb_first(&node->rb_root_in);
+	while (n) {
+		child = rb_entry(n, struct callchain_node, rb_node_in);
+		n = rb_next(n);
+
 		__sort_chain_graph_rel(child, min_percent);
 		if (callchain_cumul_hits(child) >= min_hit)
 			rb_insert_callchain(&node->rb_root, child,
@@ -180,19 +401,26 @@ create_child(struct callchain_node *parent, bool inherit_children)
 		return NULL;
 	}
 	new->parent = parent;
-	INIT_LIST_HEAD(&new->children);
 	INIT_LIST_HEAD(&new->val);
 
 	if (inherit_children) {
-		struct callchain_node *next;
+		struct rb_node *n;
+		struct callchain_node *child;
 
-		list_splice(&parent->children, &new->children);
-		INIT_LIST_HEAD(&parent->children);
+		new->rb_root_in = parent->rb_root_in;
+		parent->rb_root_in = RB_ROOT;
 
-		chain_for_each_child(next, new)
-			next->parent = new;
+		n = rb_first(&new->rb_root_in);
+		while (n) {
+			child = rb_entry(n, struct callchain_node, rb_node_in);
+			child->parent = new;
+			n = rb_next(n);
+		}
+
+		/* make it the first child */
+		rb_link_node(&new->rb_node_in, NULL, &parent->rb_root_in.rb_node);
+		rb_insert_color(&new->rb_node_in, &parent->rb_root_in);
 	}
-	list_add_tail(&new->siblings, &parent->children);
 
 	return new;
 }
@@ -230,7 +458,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 	}
 }
 
-static void
+static struct callchain_node *
 add_child(struct callchain_node *parent,
 	  struct callchain_cursor *cursor,
 	  u64 period)
@@ -242,6 +470,19 @@ add_child(struct callchain_node *parent,
 
 	new->children_hit = 0;
 	new->hit = period;
+	return new;
+}
+
+static s64 match_chain(struct callchain_cursor_node *node,
+		      struct callchain_list *cnode)
+{
+	struct symbol *sym = node->sym;
+
+	if (cnode->ms.sym && sym &&
+	    callchain_param.key == CCKEY_FUNCTION)
+		return cnode->ms.sym->start - sym->start;
+	else
+		return cnode->ip - node->ip;
 }
 
 /*
@@ -279,9 +520,33 @@ split_add_child(struct callchain_node *parent,
 
 	/* create a new child for the new branch if any */
 	if (idx_total < cursor->nr) {
+		struct callchain_node *first;
+		struct callchain_list *cnode;
+		struct callchain_cursor_node *node;
+		struct rb_node *p, **pp;
+
 		parent->hit = 0;
-		add_child(parent, cursor, period);
 		parent->children_hit += period;
+
+		node = callchain_cursor_current(cursor);
+		new = add_child(parent, cursor, period);
+
+		/*
+		 * This is second child since we moved parent's children
+		 * to new (first) child above.
+		 */
+		p = parent->rb_root_in.rb_node;
+		first = rb_entry(p, struct callchain_node, rb_node_in);
+		cnode = list_first_entry(&first->val, struct callchain_list,
+					 list);
+
+		if (match_chain(node, cnode) < 0)
+			pp = &p->rb_left;
+		else
+			pp = &p->rb_right;
+
+		rb_link_node(&new->rb_node_in, p, pp);
+		rb_insert_color(&new->rb_node_in, &parent->rb_root_in);
 	} else {
 		parent->hit = period;
 	}
@@ -298,16 +563,35 @@ append_chain_children(struct callchain_node *root,
 		      u64 period)
 {
 	struct callchain_node *rnode;
+	struct callchain_cursor_node *node;
+	struct rb_node **p = &root->rb_root_in.rb_node;
+	struct rb_node *parent = NULL;
+
+	node = callchain_cursor_current(cursor);
+	if (!node)
+		return;
 
 	/* lookup in childrens */
-	chain_for_each_child(rnode, root) {
-		unsigned int ret = append_chain(rnode, cursor, period);
+	while (*p) {
+		s64 ret;
 
-		if (!ret)
+		parent = *p;
+		rnode = rb_entry(parent, struct callchain_node, rb_node_in);
+
+		/* If at least first entry matches, rely to children */
+		ret = append_chain(rnode, cursor, period);
+		if (ret == 0)
 			goto inc_children_hit;
+
+		if (ret < 0)
+			p = &parent->rb_left;
+		else
+			p = &parent->rb_right;
 	}
 	/* nothing in children, add to the current node */
-	add_child(root, cursor, period);
+	rnode = add_child(root, cursor, period);
+	rb_link_node(&rnode->rb_node_in, parent, p);
+	rb_insert_color(&rnode->rb_node_in, &root->rb_root_in);
 
 inc_children_hit:
 	root->children_hit += period;
@@ -318,44 +602,38 @@ append_chain(struct callchain_node *root,
 	     struct callchain_cursor *cursor,
 	     u64 period)
 {
-	struct callchain_cursor_node *curr_snap = cursor->curr;
 	struct callchain_list *cnode;
 	u64 start = cursor->pos;
 	bool found = false;
 	u64 matches;
+	int cmp = 0;
 
 	/*
 	 * Lookup in the current node
 	 * If we have a symbol, then compare the start to match
-	 * anywhere inside a function.
+	 * anywhere inside a function, unless function
+	 * mode is disabled.
 	 */
 	list_for_each_entry(cnode, &root->val, list) {
 		struct callchain_cursor_node *node;
-		struct symbol *sym;
 
 		node = callchain_cursor_current(cursor);
 		if (!node)
 			break;
 
-		sym = node->sym;
-
-		if (cnode->ms.sym && sym) {
-			if (cnode->ms.sym->start != sym->start)
-				break;
-		} else if (cnode->ip != node->ip)
+		cmp = match_chain(node, cnode);
+		if (cmp)
 			break;
 
-		if (!found)
-			found = true;
+		found = true;
 
 		callchain_cursor_advance(cursor);
 	}
 
-	/* matches not, relay on the parent */
+	/* matches not, relay no the parent */
 	if (!found) {
-		cursor->curr = curr_snap;
-		cursor->pos = start;
-		return -1;
+		WARN_ONCE(!cmp, "Chain comparison error\n");
+		return cmp;
 	}
 
 	matches = cursor->pos - start;
@@ -400,8 +678,9 @@ merge_chain_branch(struct callchain_cursor *cursor,
 		   struct callchain_node *dst, struct callchain_node *src)
 {
 	struct callchain_cursor_node **old_last = cursor->last;
-	struct callchain_node *child, *next_child;
+	struct callchain_node *child;
 	struct callchain_list *list, *next_list;
+	struct rb_node *n;
 	int old_pos = cursor->nr;
 	int err = 0;
 
@@ -417,12 +696,16 @@ merge_chain_branch(struct callchain_cursor *cursor,
 		append_chain_children(dst, cursor, src->hit);
 	}
 
-	chain_for_each_child_safe(child, next_child, src) {
+	n = rb_first(&src->rb_root_in);
+	while (n) {
+		child = container_of(n, struct callchain_node, rb_node_in);
+		n = rb_next(n);
+		rb_erase(&child->rb_node_in, &src->rb_root_in);
+
 		err = merge_chain_branch(cursor, dst, child);
 		if (err)
 			break;
 
-		list_del(&child->siblings);
 		free(child);
 	}
 
@@ -460,4 +743,68 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	cursor->last = &node->next;
 
 	return 0;
+}
+
+int sample__resolve_callchain(struct perf_sample *sample, struct symbol **parent,
+			      struct perf_evsel *evsel, struct addr_location *al,
+			      int max_stack)
+{
+	if (sample->callchain == NULL)
+		return 0;
+
+	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain ||
+	    sort__has_parent) {
+		return machine__resolve_callchain(al->machine, evsel, al->thread,
+						  sample, parent, al, max_stack);
+	}
+	return 0;
+}
+
+int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample)
+{
+	if (!symbol_conf.use_callchain || sample->callchain == NULL)
+		return 0;
+	return callchain_append(he->callchain, &callchain_cursor, sample->period);
+}
+
+int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,
+			bool hide_unresolved)
+{
+	al->map = node->map;
+	al->sym = node->sym;
+	if (node->map)
+		al->addr = node->map->map_ip(node->map, node->ip);
+	else
+		al->addr = node->ip;
+
+	if (al->sym == NULL) {
+		if (hide_unresolved)
+			return 0;
+		if (al->map == NULL)
+			goto out;
+	}
+
+	if (al->map->groups == &al->machine->kmaps) {
+		if (machine__is_host(al->machine)) {
+			al->cpumode = PERF_RECORD_MISC_KERNEL;
+			al->level = 'k';
+		} else {
+			al->cpumode = PERF_RECORD_MISC_GUEST_KERNEL;
+			al->level = 'g';
+		}
+	} else {
+		if (machine__is_host(al->machine)) {
+			al->cpumode = PERF_RECORD_MISC_USER;
+			al->level = '.';
+		} else if (perf_guest) {
+			al->cpumode = PERF_RECORD_MISC_GUEST_USER;
+			al->level = 'u';
+		} else {
+			al->cpumode = PERF_RECORD_MISC_HYPERVISOR;
+			al->level = 'H';
+		}
+	}
+
+out:
+	return 1;
 }

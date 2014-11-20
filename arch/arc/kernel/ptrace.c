@@ -40,7 +40,15 @@ static int genregs_get(struct task_struct *target,
 			offsetof(struct user_regs_struct, LOC), \
 			offsetof(struct user_regs_struct, LOC) + 4);
 
+#define REG_O_ZERO(LOC)		\
+	if (!ret)		\
+		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf, \
+			offsetof(struct user_regs_struct, LOC), \
+			offsetof(struct user_regs_struct, LOC) + 4);
+
+	REG_O_ZERO(pad);
 	REG_O_CHUNK(scratch, callee, ptregs);
+	REG_O_ZERO(pad2);
 	REG_O_CHUNK(callee, efa, cregs);
 	REG_O_CHUNK(efa, stop_pc, &target->thread.fault_address);
 
@@ -88,11 +96,13 @@ static int genregs_set(struct task_struct *target,
 			offsetof(struct user_regs_struct, LOC), \
 			offsetof(struct user_regs_struct, LOC) + 4);
 
-	/* TBD: disallow updates to STATUS32, orig_r8 etc*/
-	REG_IN_CHUNK(scratch, callee, ptregs);	/* pt_regs[bta..orig_r8] */
+	REG_IGNORE_ONE(pad);
+	/* TBD: disallow updates to STATUS32 etc*/
+	REG_IN_CHUNK(scratch, pad2, ptregs);	/* pt_regs[bta..sp] */
+	REG_IGNORE_ONE(pad2);
 	REG_IN_CHUNK(callee, efa, cregs);	/* callee_regs[r25..r13] */
 	REG_IGNORE_ONE(efa);			/* efa update invalid */
-	REG_IN_ONE(stop_pc, &ptregs->ret);	/* stop_pc: PC update */
+	REG_IGNORE_ONE(stop_pc);			/* PC updated via @ret */
 
 	return ret;
 }
@@ -136,6 +146,10 @@ long arch_ptrace(struct task_struct *child, long request,
 	pr_debug("REQ=%ld: ADDR =0x%lx, DATA=0x%lx)\n", request, addr, data);
 
 	switch (request) {
+	case PTRACE_GET_THREAD_AREA:
+		ret = put_user(task_thread_info(child)->thr_ptr,
+			       (unsigned long __user *)data);
+		break;
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;

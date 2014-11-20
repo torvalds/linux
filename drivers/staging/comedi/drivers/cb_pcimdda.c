@@ -15,11 +15,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: cb_pcimdda
@@ -79,6 +74,7 @@ Configuration Options: not applicable, uses PCI auto config
     -Calin Culianu <calin@ajvar.org>
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -94,21 +90,14 @@ Configuration Options: not applicable, uses PCI auto config
 #define PCIMDDA_DA_CHAN(x)		(0x00 + (x) * 2)
 #define PCIMDDA_8255_BASE_REG		0x0c
 
-#define MAX_AO_READBACK_CHANNELS	6
-
-struct cb_pcimdda_private {
-	unsigned int ao_readback[MAX_AO_READBACK_CHANNELS];
-};
-
-static int cb_pcimdda_ao_winsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
+static int cb_pcimdda_ao_insn_write(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
-	struct cb_pcimdda_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned long offset = dev->iobase + PCIMDDA_DA_CHAN(chan);
-	unsigned int val = 0;
+	unsigned int val = s->readback[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
@@ -126,49 +115,32 @@ static int cb_pcimdda_ao_winsn(struct comedi_device *dev,
 		outb(val & 0x00ff, offset);
 		outb((val >> 8) & 0x00ff, offset + 1);
 	}
-
-	/* Cache the last value for readback */
-	devpriv->ao_readback[chan] = val;
+	s->readback[chan] = val;
 
 	return insn->n;
 }
 
-static int cb_pcimdda_ao_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
+static int cb_pcimdda_ao_insn_read(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
-	struct cb_pcimdda_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	unsigned long offset = dev->iobase + PCIMDDA_DA_CHAN(chan);
-	int i;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	for (i = 0; i < insn->n; i++) {
-		/* Initiate the simultaneous transfer */
-		inw(offset);
+	/* Initiate the simultaneous transfer */
+	inw(dev->iobase + PCIMDDA_DA_CHAN(chan));
 
-		data[i] = devpriv->ao_readback[chan];
-	}
-
-	return insn->n;
+	return comedi_readback_insn_read(dev, s, insn, data);
 }
 
 static int cb_pcimdda_auto_attach(struct comedi_device *dev,
 					    unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct cb_pcimdda_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 3);
@@ -184,47 +156,37 @@ static int cb_pcimdda_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 6;
 	s->maxdata	= 0xffff;
 	s->range_table	= &range_bipolar5;
-	s->insn_write	= cb_pcimdda_ao_winsn;
-	s->insn_read	= cb_pcimdda_ao_rinsn;
+	s->insn_write	= cb_pcimdda_ao_insn_write;
+	s->insn_read	= cb_pcimdda_ao_insn_read;
 
-	s = &dev->subdevices[1];
-	/* digital i/o subdevice */
-	ret = subdev_8255_init(dev, s, NULL,
-			dev->iobase + PCIMDDA_8255_BASE_REG);
+	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
 		return ret;
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
+	s = &dev->subdevices[1];
+	/* digital i/o subdevice */
+	ret = subdev_8255_init(dev, s, NULL, PCIMDDA_8255_BASE_REG);
+	if (ret)
+		return ret;
 
-	return 1;
-}
-
-static void cb_pcimdda_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[1]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	return 0;
 }
 
 static struct comedi_driver cb_pcimdda_driver = {
 	.driver_name	= "cb_pcimdda",
 	.module		= THIS_MODULE,
 	.auto_attach	= cb_pcimdda_auto_attach,
-	.detach		= cb_pcimdda_detach,
+	.detach		= comedi_pci_detach,
 };
 
 static int cb_pcimdda_pci_probe(struct pci_dev *dev,
-					  const struct pci_device_id *ent)
+				const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &cb_pcimdda_driver);
+	return comedi_pci_auto_config(dev, &cb_pcimdda_driver,
+				      id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(cb_pcimdda_pci_table) = {
+static const struct pci_device_id cb_pcimdda_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_ID_PCIM_DDA06_16) },
 	{ 0 }
 };

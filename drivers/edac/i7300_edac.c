@@ -5,7 +5,7 @@
  * GNU General Public License version 2 only.
  *
  * Copyright (c) 2010 by:
- *	 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *	 Mauro Carvalho Chehab
  *
  * Red Hat Inc. http://www.redhat.com
  *
@@ -750,15 +750,23 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	struct i7300_dimm_info *dinfo;
 	int rc = -ENODEV;
 	int mtr;
-	int ch, branch, slot, channel;
+	int ch, branch, slot, channel, max_channel, max_branch;
 	struct dimm_info *dimm;
 
 	pvt = mci->pvt_info;
 
 	edac_dbg(2, "Memory Technology Registers:\n");
 
+	if (IS_SINGLE_MODE(pvt->mc_settings_a)) {
+		max_branch = 1;
+		max_channel = 1;
+	} else {
+		max_branch = MAX_BRANCHES;
+		max_channel = MAX_CH_PER_BRANCH;
+	}
+
 	/* Get the AMB present registers for the four channels */
-	for (branch = 0; branch < MAX_BRANCHES; branch++) {
+	for (branch = 0; branch < max_branch; branch++) {
 		/* Read and dump branch 0's MTRs */
 		channel = to_channel(0, branch);
 		pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
@@ -766,6 +774,9 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 				&pvt->ambpresent[channel]);
 		edac_dbg(2, "\t\tAMB-present CH%d = 0x%x:\n",
 			 channel, pvt->ambpresent[channel]);
+
+		if (max_channel == 1)
+			continue;
 
 		channel = to_channel(1, branch);
 		pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
@@ -778,11 +789,11 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	/* Get the set of MTR[0-7] regs by each branch */
 	for (slot = 0; slot < MAX_SLOTS; slot++) {
 		int where = mtr_regs[slot];
-		for (branch = 0; branch < MAX_BRANCHES; branch++) {
+		for (branch = 0; branch < max_branch; branch++) {
 			pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
 					where,
 					&pvt->mtr[slot][branch]);
-			for (ch = 0; ch < MAX_CH_PER_BRANCH; ch++) {
+			for (ch = 0; ch < max_channel; ch++) {
 				int channel = to_channel(ch, branch);
 
 				dimm = EDAC_DIMM_PTR(mci->layers, mci->dimms,
@@ -932,31 +943,33 @@ static int i7300_get_devices(struct mem_ctl_info *mci)
 
 	/* Attempt to 'get' the MCH register we want */
 	pdev = NULL;
-	while (!pvt->pci_dev_16_1_fsb_addr_map ||
-	       !pvt->pci_dev_16_2_fsb_err_regs) {
-		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-				      PCI_DEVICE_ID_INTEL_I7300_MCH_ERR, pdev);
-		if (!pdev) {
-			/* End of list, leave */
-			i7300_printk(KERN_ERR,
-				"'system address,Process Bus' "
-				"device not found:"
-				"vendor 0x%x device 0x%x ERR funcs "
-				"(broken BIOS?)\n",
-				PCI_VENDOR_ID_INTEL,
-				PCI_DEVICE_ID_INTEL_I7300_MCH_ERR);
-			goto error;
-		}
-
+	while ((pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+				      PCI_DEVICE_ID_INTEL_I7300_MCH_ERR,
+				      pdev))) {
 		/* Store device 16 funcs 1 and 2 */
 		switch (PCI_FUNC(pdev->devfn)) {
 		case 1:
-			pvt->pci_dev_16_1_fsb_addr_map = pdev;
+			if (!pvt->pci_dev_16_1_fsb_addr_map)
+				pvt->pci_dev_16_1_fsb_addr_map =
+							pci_dev_get(pdev);
 			break;
 		case 2:
-			pvt->pci_dev_16_2_fsb_err_regs = pdev;
+			if (!pvt->pci_dev_16_2_fsb_err_regs)
+				pvt->pci_dev_16_2_fsb_err_regs =
+							pci_dev_get(pdev);
 			break;
 		}
+	}
+
+	if (!pvt->pci_dev_16_1_fsb_addr_map ||
+	    !pvt->pci_dev_16_2_fsb_err_regs) {
+		/* At least one device was not found */
+		i7300_printk(KERN_ERR,
+			"'system address,Process Bus' device not found:"
+			"vendor 0x%x device 0x%x ERR funcs (broken BIOS?)\n",
+			PCI_VENDOR_ID_INTEL,
+			PCI_DEVICE_ID_INTEL_I7300_MCH_ERR);
+		goto error;
 	}
 
 	edac_dbg(1, "System Address, processor bus- PCI Bus ID: %s  %x:%x\n",
@@ -1149,7 +1162,7 @@ static void i7300_remove_one(struct pci_dev *pdev)
  *
  * Has only 8086:360c PCI ID
  */
-static DEFINE_PCI_DEVICE_TABLE(i7300_pci_tbl) = {
+static const struct pci_device_id i7300_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_I7300_MCH_ERR)},
 	{0,}			/* 0 terminated list. */
 };
@@ -1196,7 +1209,7 @@ module_init(i7300_init);
 module_exit(i7300_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
 MODULE_DESCRIPTION("MC Driver for Intel I7300 memory controllers - "
 		   I7300_REVISION);

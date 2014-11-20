@@ -12,9 +12,8 @@ config SERIAL_8250
 	  here are those that are setting up dedicated Ethernet WWW/FTP
 	  servers, or users that have one of the various bus mice instead of a
 	  serial mouse and don't intend to use their machine's standard serial
-	  port for anything.  (Note that the Cyclades and Stallion multi
-	  serial port drivers do not need this driver built in for them to
-	  work.)
+	  port for anything.  (Note that the Cyclades multi serial port driver
+	  does not need this driver built in for it to work.)
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called 8250.
@@ -42,7 +41,7 @@ config SERIAL_8250_DEPRECATED_OPTIONS
 	  accept kernel parameters in both forms like 8250_core.nr_uarts=4 and
 	  8250.nr_uarts=4. We now renamed the module back to 8250, but if
 	  anybody noticed in 3.7 and changed their userspace we still have to
-	  keep the 8350_core.* options around until they revert the changes
+	  keep the 8250_core.* options around until they revert the changes
 	  they already did.
 
 	  If 8250 is built as a module, this adds 8250_core alias instead. 
@@ -62,6 +61,7 @@ config SERIAL_8250_CONSOLE
 	bool "Console on 8250/16550 and compatible serial port"
 	depends on SERIAL_8250=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	---help---
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
@@ -91,11 +91,6 @@ config SERIAL_8250_CONSOLE
 
 	  If unsure, say N.
 
-config FIX_EARLYCON_MEM
-	bool
-	depends on X86
-	default y
-
 config SERIAL_8250_GSC
 	tristate
 	depends on SERIAL_8250 && GSC
@@ -117,6 +112,8 @@ config SERIAL_8250_PCI
 	  This builds standard PCI serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
 	  Saves about 9K.
+	  Note that serial ports on NetMos 9835 Multi-I/O cards are handled
+	  by the parport_serial driver, enabled with CONFIG_PARPORT_SERIAL.
 
 config SERIAL_8250_HP300
 	tristate
@@ -301,3 +298,18 @@ config SERIAL_8250_RT288X
 	  If you have a Ralink RT288x/RT305x SoC based board and want to use the
 	  serial port, say Y to this option. The driver can handle up to 2 serial
 	  ports. If unsure, say N.
+
+config SERIAL_8250_FINTEK
+	tristate "Support for Fintek F81216A LPC to 4 UART"
+	depends on SERIAL_8250 && PNP
+	help
+	  Selecting this option will add support for the Fintek F81216A
+	  LPC to 4 UART. This device has some RS485 functionality not available
+	  through the PNP driver. If unsure, say N.
+
+config SERIAL_8250_MT6577
+	bool "Mediatek serial port support"
+	depends on SERIAL_8250 && ARCH_MEDIATEK
+	help
+	  If you have a Mediatek based board and want to use the
+	  serial port, say Y to this option. If unsure, say N.

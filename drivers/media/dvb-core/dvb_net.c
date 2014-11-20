@@ -179,13 +179,13 @@ static __be16 dvb_net_eth_type_trans(struct sk_buff *skb,
 	eth = eth_hdr(skb);
 
 	if (*eth->h_dest & 1) {
-		if(memcmp(eth->h_dest,dev->broadcast, ETH_ALEN)==0)
+		if(ether_addr_equal(eth->h_dest,dev->broadcast))
 			skb->pkt_type=PACKET_BROADCAST;
 		else
 			skb->pkt_type=PACKET_MULTICAST;
 	}
 
-	if (ntohs(eth->h_proto) >= 1536)
+	if (ntohs(eth->h_proto) >= ETH_P_802_3_MIN)
 		return eth->h_proto;
 
 	rawp = skb->data;
@@ -228,9 +228,9 @@ static int ule_test_sndu( struct dvb_net_priv *p )
 static int ule_bridged_sndu( struct dvb_net_priv *p )
 {
 	struct ethhdr *hdr = (struct ethhdr*) p->ule_next_hdr;
-	if(ntohs(hdr->h_proto) < 1536) {
+	if(ntohs(hdr->h_proto) < ETH_P_802_3_MIN) {
 		int framelen = p->ule_sndu_len - ((p->ule_next_hdr+sizeof(struct ethhdr)) - p->ule_skb->data);
-		/* A frame Type < 1536 for a bridged frame, introduces a LLC Length field. */
+		/* A frame Type < ETH_P_802_3_MIN for a bridged frame, introduces a LLC Length field. */
 		if(framelen != ntohs(hdr->h_proto)) {
 			return -1;
 		}
@@ -320,7 +320,7 @@ static int handle_ule_extensions( struct dvb_net_priv *p )
 			(int) p->ule_sndu_type, l, total_ext_len);
 #endif
 
-	} while (p->ule_sndu_type < 1536);
+	} while (p->ule_sndu_type < ETH_P_802_3_MIN);
 
 	return total_ext_len;
 }
@@ -674,11 +674,13 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 					if (priv->rx_mode != RX_MODE_PROMISC) {
 						if (priv->ule_skb->data[0] & 0x01) {
 							/* multicast or broadcast */
-							if (memcmp(priv->ule_skb->data, bc_addr, ETH_ALEN)) {
+							if (!ether_addr_equal(priv->ule_skb->data, bc_addr)) {
 								/* multicast */
 								if (priv->rx_mode == RX_MODE_MULTI) {
 									int i;
-									for(i = 0; i < priv->multi_num && memcmp(priv->ule_skb->data, priv->multi_macs[i], ETH_ALEN); i++)
+									for(i = 0; i < priv->multi_num &&
+									    !ether_addr_equal(priv->ule_skb->data,
+											      priv->multi_macs[i]); i++)
 										;
 									if (i == priv->multi_num)
 										drop = 1;
@@ -688,7 +690,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 							}
 							/* else: broadcast */
 						}
-						else if (memcmp(priv->ule_skb->data, dev->dev_addr, ETH_ALEN))
+						else if (!ether_addr_equal(priv->ule_skb->data, dev->dev_addr))
 							drop = 1;
 						/* else: destination address matches the MAC address of our receiver device */
 					}
@@ -712,7 +714,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 				}
 
 				/* Handle ULE Extension Headers. */
-				if (priv->ule_sndu_type < 1536) {
+				if (priv->ule_sndu_type < ETH_P_802_3_MIN) {
 					/* There is an extension header.  Handle it accordingly. */
 					int l = handle_ule_extensions(priv);
 					if (l < 0) {
@@ -1044,7 +1046,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 		ret = priv->tsfeed->set(priv->tsfeed,
 					priv->pid, /* pid */
 					TS_PACKET, /* type */
-					DMX_TS_PES_OTHER, /* pes type */
+					DMX_PES_OTHER, /* pes type */
 					32768,     /* circular buffer size */
 					timeout    /* timeout */
 					);
@@ -1274,7 +1276,8 @@ static int dvb_net_add_if(struct dvb_net *dvbnet, u16 pid, u8 feedtype)
 	if ((if_num = get_if(dvbnet)) < 0)
 		return -EINVAL;
 
-	net = alloc_netdev(sizeof(struct dvb_net_priv), "dvb", dvb_net_setup);
+	net = alloc_netdev(sizeof(struct dvb_net_priv), "dvb",
+			   NET_NAME_UNKNOWN, dvb_net_setup);
 	if (!net)
 		return -ENOMEM;
 
@@ -1479,11 +1482,8 @@ static int dvb_net_close(struct inode *inode, struct file *file)
 
 	dvb_generic_release(inode, file);
 
-	if(dvbdev->users == 1 && dvbnet->exit == 1) {
-		fops_put(file->f_op);
-		file->f_op = NULL;
+	if(dvbdev->users == 1 && dvbnet->exit == 1)
 		wake_up(&dvbdev->wait_queue);
-	}
 	return 0;
 }
 

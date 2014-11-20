@@ -1,17 +1,14 @@
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	chosen {
 		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
-			pinctrl-0 = < &pmx_spi &pmx_twsi0 &pmx_uart0
-					&pmx_ns2_sata0 &pmx_ns2_sata1>;
-			pinctrl-names = "default";
-
+		pinctrl: pin-controller@10000 {
 			pmx_ns2_sata0: pmx-ns2-sata0 {
 				marvell,pins = "mpp21";
 				marvell,function = "sata0";
@@ -32,7 +29,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "mx25l4005a";
+				compatible = "mxicy,mx25l4005a";
 				reg = <0>;
 				spi-max-frequency = <20000000>;
 				mode = <0>;
@@ -48,7 +45,7 @@
 			status = "okay";
 
 			eeprom@50 {
-				compatible = "at,24c04";
+				compatible = "atmel,24c04";
 				pagesize = <16>;
 				reg = <0x50>;
 			};
@@ -62,8 +59,8 @@
 
 		button@1 {
 			label = "Power push button";
-			linux,code = <116>;
-			gpios = <&gpio1 0 0>;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -72,13 +69,28 @@
 
 		red-fail {
 			label = "ns2:red:fail";
-			gpios = <&gpio0 12 0>;
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	gpio_poweroff {
 		compatible = "gpio-poweroff";
-		gpios = <&gpio0 31 0>;
+		gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
 	};
 
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy {
+                /* overwrite reg property in board file */
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
 };

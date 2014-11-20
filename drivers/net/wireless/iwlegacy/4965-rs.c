@@ -24,7 +24,6 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <net/mac80211.h>
@@ -2152,7 +2151,7 @@ il4965_rs_initialize_lq(struct il_priv *il, struct ieee80211_conf *conf,
 	int rate_idx;
 	int i;
 	u32 rate;
-	u8 use_green = il4965_rs_use_green(il, sta);
+	u8 use_green;
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
 	struct il_station_priv *sta_priv;
@@ -2160,6 +2159,7 @@ il4965_rs_initialize_lq(struct il_priv *il, struct ieee80211_conf *conf,
 	if (!sta || !lq_sta)
 		return;
 
+	use_green = il4965_rs_use_green(il, sta);
 	sta_priv = (void *)sta->drv_priv;
 
 	i = lq_sta->last_txrate_idx;
@@ -2267,7 +2267,7 @@ il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 		info->control.rates[0].flags = 0;
 	}
 	info->control.rates[0].idx = rate_idx;
-
+	info->control.rates[0].count = 1;
 }
 
 static void *
@@ -2299,7 +2299,7 @@ il4965_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 
 	sta_priv = (struct il_station_priv *)sta->drv_priv;
 	lq_sta = &sta_priv->lq_sta;
-	sband = hw->wiphy->bands[conf->channel->band];
+	sband = hw->wiphy->bands[conf->chandef.chan->band];
 
 	lq_sta->lq.sta_id = sta_id;
 
@@ -2802,12 +2802,12 @@ il4965_rs_remove_debugfs(void *il, void *il_sta)
  */
 static void
 il4965_rs_rate_init_stub(void *il_r, struct ieee80211_supported_band *sband,
+			 struct cfg80211_chan_def *chandef,
 			 struct ieee80211_sta *sta, void *il_sta)
 {
 }
 
-static struct rate_control_ops rs_4965_ops = {
-	.module = NULL,
+static const struct rate_control_ops rs_4965_ops = {
 	.name = IL4965_RS_NAME,
 	.tx_status = il4965_rs_tx_status,
 	.get_rate = il4965_rs_get_rate,

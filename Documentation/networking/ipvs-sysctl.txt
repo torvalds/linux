@@ -181,6 +181,19 @@ snat_reroute - BOOLEAN
 	always be the same as the original route so it is an optimisation
 	to disable snat_reroute and avoid the recalculation.
 
+sync_persist_mode - INTEGER
+	default 0
+
+	Controls the synchronisation of connections when using persistence
+
+	0: All types of connections are synchronised
+	1: Attempt to reduce the synchronisation traffic depending on
+	the connection type. For persistent services avoid synchronisation
+	for normal connections, do it only for persistence templates.
+	In such case, for TCP and SCTP it may need enabling sloppy_tcp and
+	sloppy_sctp flags on backup servers. For non-persistent services
+	such optimization is not applied, mode 0 is assumed.
+
 sync_version - INTEGER
 	default 1
 

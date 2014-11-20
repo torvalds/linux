@@ -63,11 +63,11 @@ static struct wpan_phy *fake_get_phy(const struct net_device *dev)
  *
  * Return the ID of the PAN from the PIB.
  */
-static u16 fake_get_pan_id(const struct net_device *dev)
+static __le16 fake_get_pan_id(const struct net_device *dev)
 {
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	return 0xeba1;
+	return cpu_to_le16(0xeba1);
 }
 
 /**
@@ -78,11 +78,11 @@ static u16 fake_get_pan_id(const struct net_device *dev)
  * device. If the device has not yet had a short address assigned
  * then this should return 0xFFFF to indicate a lack of association.
  */
-static u16 fake_get_short_addr(const struct net_device *dev)
+static __le16 fake_get_short_addr(const struct net_device *dev)
 {
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	return 0x1;
+	return cpu_to_le16(0x1);
 }
 
 /**
@@ -103,26 +103,6 @@ static u8 fake_get_dsn(const struct net_device *dev)
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
 	return 0x00; /* DSN are implemented in HW, so return just 0 */
-}
-
-/**
- * fake_get_bsn - Retrieve the BSN of the device.
- * @dev: The network device to retrieve the BSN for.
- *
- * Returns the IEEE 802.15.4 BSN for the network device.
- * The BSN is the sequence number which will be added to each
- * beacon frame sent by the MAC.
- *
- * BSN means 'Beacon Sequence Number'.
- *
- * Note: This is in section 7.2.1.2 of the IEEE 802.15.4-2006
- *       document.
- */
-static u8 fake_get_bsn(const struct net_device *dev)
-{
-	BUG_ON(dev->type != ARPHRD_IEEE802154);
-
-	return 0x00; /* BSN are implemented in HW, so return just 0 */
 }
 
 /**
@@ -169,7 +149,7 @@ static int fake_assoc_req(struct net_device *dev,
  *       802.15.4-2006 document.
  */
 static int fake_assoc_resp(struct net_device *dev,
-		struct ieee802154_addr *addr, u16 short_addr, u8 status)
+		struct ieee802154_addr *addr, __le16 short_addr, u8 status)
 {
 	return 0;
 }
@@ -211,10 +191,10 @@ static int fake_disassoc_req(struct net_device *dev,
  * Note: This is in section 7.5.2.3 of the IEEE 802.15.4-2006
  * document, with 7.3.8 describing coordinator realignment.
  */
-static int fake_start_req(struct net_device *dev, struct ieee802154_addr *addr,
-				u8 channel, u8 page,
-				u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx,
-				u8 coord_realign)
+static int fake_start_req(struct net_device *dev,
+			  struct ieee802154_addr *addr, u8 channel, u8 page,
+			  u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx,
+			  u8 coord_realign)
 {
 	struct wpan_phy *phy = fake_to_phy(dev);
 
@@ -264,7 +244,6 @@ static struct ieee802154_mlme_ops fake_mlme = {
 	.get_pan_id = fake_get_pan_id,
 	.get_short_addr = fake_get_short_addr,
 	.get_dsn = fake_get_dsn,
-	.get_bsn = fake_get_bsn,
 };
 
 static int ieee802154_fake_open(struct net_device *dev)
@@ -302,8 +281,8 @@ static int ieee802154_fake_ioctl(struct net_device *dev, struct ifreq *ifr,
 	switch (cmd) {
 	case SIOCGIFADDR:
 		/* FIXME: fixed here, get from device IRL */
-		pan_id = fake_get_pan_id(dev);
-		short_addr = fake_get_short_addr(dev);
+		pan_id = le16_to_cpu(fake_get_pan_id(dev));
+		short_addr = le16_to_cpu(fake_get_short_addr(dev));
 		if (pan_id == IEEE802154_PANID_BROADCAST ||
 		    short_addr == IEEE802154_ADDR_BROADCAST)
 			return -EADDRNOTAVAIL;
@@ -364,7 +343,8 @@ static int ieee802154fake_probe(struct platform_device *pdev)
 	if (!phy)
 		return -ENOMEM;
 
-	dev = alloc_netdev(sizeof(struct fakehard_priv), "hardwpan%d", ieee802154_fake_setup);
+	dev = alloc_netdev(sizeof(struct fakehard_priv), "hardwpan%d",
+			   NET_NAME_UNKNOWN, ieee802154_fake_setup);
 	if (!dev) {
 		wpan_phy_free(phy);
 		return -ENOMEM;

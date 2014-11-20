@@ -55,21 +55,21 @@ static inline u32 tfrc_ewma(const u32 avg, const u32 newval, const u8 weight)
 	return avg ? (weight * avg + (10 - weight) * newval) / 10 : newval;
 }
 
-extern u32  tfrc_calc_x(u16 s, u32 R, u32 p);
-extern u32  tfrc_calc_x_reverse_lookup(u32 fvalue);
-extern u32  tfrc_invert_loss_event_rate(u32 loss_event_rate);
+u32 tfrc_calc_x(u16 s, u32 R, u32 p);
+u32 tfrc_calc_x_reverse_lookup(u32 fvalue);
+u32 tfrc_invert_loss_event_rate(u32 loss_event_rate);
 
-extern int  tfrc_tx_packet_history_init(void);
-extern void tfrc_tx_packet_history_exit(void);
-extern int  tfrc_rx_packet_history_init(void);
-extern void tfrc_rx_packet_history_exit(void);
+int tfrc_tx_packet_history_init(void);
+void tfrc_tx_packet_history_exit(void);
+int tfrc_rx_packet_history_init(void);
+void tfrc_rx_packet_history_exit(void);
 
-extern int  tfrc_li_init(void);
-extern void tfrc_li_exit(void);
+int tfrc_li_init(void);
+void tfrc_li_exit(void);
 
 #ifdef CONFIG_IP_DCCP_TFRC_LIB
-extern int  tfrc_lib_init(void);
-extern void tfrc_lib_exit(void);
+int tfrc_lib_init(void);
+void tfrc_lib_exit(void);
 #else
 #define tfrc_lib_init() (0)
 #define tfrc_lib_exit()

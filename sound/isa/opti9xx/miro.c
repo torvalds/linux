@@ -1411,8 +1411,8 @@ static int snd_miro_isa_probe(struct device *devptr, unsigned int n)
 	struct snd_miro *miro;
 	struct snd_card *card;
 
-	error = snd_card_create(index, id, THIS_MODULE,
-				sizeof(struct snd_miro), &card);
+	error = snd_card_new(devptr, index, id, THIS_MODULE,
+			     sizeof(struct snd_miro), &card);
 	if (error < 0)
 		return error;
 
@@ -1479,8 +1479,6 @@ static int snd_miro_isa_probe(struct device *devptr, unsigned int n)
 		}
 	}
 
-	snd_card_set_dev(card, devptr);
-
 	error = snd_miro_probe(card);
 	if (error < 0) {
 		snd_card_free(card);
@@ -1495,7 +1493,6 @@ static int snd_miro_isa_remove(struct device *devptr,
 			       unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
@@ -1585,8 +1582,8 @@ static int snd_miro_pnp_probe(struct pnp_card_link *pcard,
 		return -EBUSY;
 	if (!isapnp)
 		return -ENODEV;
-	err = snd_card_create(index, id, THIS_MODULE,
-				sizeof(struct snd_miro), &card);
+	err = snd_card_new(&pcard->card->dev, index, id, THIS_MODULE,
+			   sizeof(struct snd_miro), &card);
 	if (err < 0)
 		return err;
 
@@ -1613,7 +1610,6 @@ static int snd_miro_pnp_probe(struct pnp_card_link *pcard,
 		return err;
 	}
 
-	snd_card_set_dev(card, &pcard->card->dev);
 	err = snd_miro_probe(card);
 	if (err < 0) {
 		snd_card_free(card);

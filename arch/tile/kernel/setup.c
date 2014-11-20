@@ -58,8 +58,8 @@ struct pglist_data node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 
 /* Information on the NUMA nodes that we compute early */
-unsigned long __cpuinitdata node_start_pfn[MAX_NUMNODES];
-unsigned long __cpuinitdata node_end_pfn[MAX_NUMNODES];
+unsigned long node_start_pfn[MAX_NUMNODES];
+unsigned long node_end_pfn[MAX_NUMNODES];
 unsigned long __initdata node_memmap_pfn[MAX_NUMNODES];
 unsigned long __initdata node_percpu_pfn[MAX_NUMNODES];
 unsigned long __initdata node_free_pfn[MAX_NUMNODES];
@@ -84,7 +84,7 @@ unsigned long __initdata boot_pc = (unsigned long)start_kernel;
 
 #ifdef CONFIG_HIGHMEM
 /* Page frame index of end of lowmem on each controller. */
-unsigned long __cpuinitdata node_lowmem_end_pfn[MAX_NUMNODES];
+unsigned long node_lowmem_end_pfn[MAX_NUMNODES];
 
 /* Number of pages that can be mapped into lowmem. */
 static unsigned long __initdata mappable_physpages;
@@ -154,6 +154,65 @@ static int __init setup_maxnodemem(char *str)
 }
 early_param("maxnodemem", setup_maxnodemem);
 
+struct memmap_entry {
+	u64 addr;	/* start of memory segment */
+	u64 size;	/* size of memory segment */
+};
+static struct memmap_entry memmap_map[64];
+static int memmap_nr;
+
+static void add_memmap_region(u64 addr, u64 size)
+{
+	if (memmap_nr >= ARRAY_SIZE(memmap_map)) {
+		pr_err("Ooops! Too many entries in the memory map!\n");
+		return;
+	}
+	memmap_map[memmap_nr].addr = addr;
+	memmap_map[memmap_nr].size = size;
+	memmap_nr++;
+}
+
+static int __init setup_memmap(char *p)
+{
+	char *oldp;
+	u64 start_at, mem_size;
+
+	if (!p)
+		return -EINVAL;
+
+	if (!strncmp(p, "exactmap", 8)) {
+		pr_err("\"memmap=exactmap\" not valid on tile\n");
+		return 0;
+	}
+
+	oldp = p;
+	mem_size = memparse(p, &p);
+	if (p == oldp)
+		return -EINVAL;
+
+	if (*p == '@') {
+		pr_err("\"memmap=nn@ss\" (force RAM) invalid on tile\n");
+	} else if (*p == '#') {
+		pr_err("\"memmap=nn#ss\" (force ACPI data) invalid on tile\n");
+	} else if (*p == '$') {
+		start_at = memparse(p+1, &p);
+		add_memmap_region(start_at, mem_size);
+	} else {
+		if (mem_size == 0)
+			return -EINVAL;
+		maxmem_pfn = (mem_size >> HPAGE_SHIFT) <<
+			(HPAGE_SHIFT - PAGE_SHIFT);
+	}
+	return *p == '\0' ? 0 : -EINVAL;
+}
+early_param("memmap", setup_memmap);
+
+static int __init setup_mem(char *str)
+{
+	return setup_maxmem(str);
+}
+early_param("mem", setup_mem);  /* compatibility with x86 */
+
 static int __init setup_isolnodes(char *str)
 {
 	char buf[MAX_NUMNODES * 5];
@@ -169,13 +228,10 @@ early_param("isolnodes", setup_isolnodes);
 #if defined(CONFIG_PCI) && !defined(__tilegx__)
 static int __init setup_pci_reserve(char* str)
 {
-	unsigned long mb;
-
-	if (str == NULL || strict_strtoul(str, 0, &mb) != 0 ||
-	    mb > 3 * 1024)
+	if (str == NULL || kstrtouint(str, 0, &pci_reserve_mb) != 0 ||
+	    pci_reserve_mb > 3 * 1024)
 		return -EINVAL;
 
-	pci_reserve_mb = mb;
 	pr_info("Reserving %dMB for PCIE root complex mappings\n",
 		pci_reserve_mb);
 	return 0;
@@ -209,7 +265,7 @@ early_param("vmalloc", parse_vmalloc);
 /*
  * Determine for each controller where its lowmem is mapped and how much of
  * it is mapped there.  On controller zero, the first few megabytes are
- * already mapped in as code at MEM_SV_INTRPT, so in principle we could
+ * already mapped in as code at MEM_SV_START, so in principle we could
  * start our data mappings higher up, but for now we don't bother, to avoid
  * additional confusion.
  *
@@ -290,7 +346,7 @@ static void *__init setup_pa_va_mapping(void)
  * This is up to 4 mappings for lowmem, one mapping per memory
  * controller, plus one for our text segment.
  */
-static void __cpuinit store_permanent_mappings(void)
+static void store_permanent_mappings(void)
 {
 	int i;
 
@@ -307,8 +363,8 @@ static void __cpuinit store_permanent_mappings(void)
 		hv_store_mapping(addr, pages << PAGE_SHIFT, pa);
 	}
 
-	hv_store_mapping((HV_VirtAddr)_stext,
-			 (uint32_t)(_einittext - _stext), 0);
+	hv_store_mapping((HV_VirtAddr)_text,
+			 (uint32_t)(_einittext - _text), 0);
 }
 
 /*
@@ -329,6 +385,7 @@ static void __init setup_memory(void)
 #if defined(CONFIG_HIGHMEM) || defined(__tilegx__)
 	long lowmem_pages;
 #endif
+	unsigned long physpages = 0;
 
 	/* We are using a char to hold the cpu_2_node[] mapping */
 	BUILD_BUG_ON(MAX_NUMNODES > 127);
@@ -388,8 +445,8 @@ static void __init setup_memory(void)
 				continue;
 			}
 		}
-		if (num_physpages + PFN_DOWN(range.size) > maxmem_pfn) {
-			int max_size = maxmem_pfn - num_physpages;
+		if (physpages + PFN_DOWN(range.size) > maxmem_pfn) {
+			int max_size = maxmem_pfn - physpages;
 			if (max_size > 0) {
 				pr_err("Maxmem reduced node %d to %d pages\n",
 				       i, max_size);
@@ -446,7 +503,7 @@ static void __init setup_memory(void)
 		node_start_pfn[i] = start;
 		node_end_pfn[i] = end;
 		node_controller[i] = range.controller;
-		num_physpages += size;
+		physpages += size;
 		max_pfn = end;
 
 		/* Mark node as online */
@@ -465,7 +522,7 @@ static void __init setup_memory(void)
 	 * we're willing to use at 8 million pages (32GB of 4KB pages).
 	 */
 	cap = 8 * 1024 * 1024;  /* 8 million pages */
-	if (num_physpages > cap) {
+	if (physpages > cap) {
 		int num_nodes = num_online_nodes();
 		int cap_each = cap / num_nodes;
 		unsigned long dropped_pages = 0;
@@ -476,10 +533,10 @@ static void __init setup_memory(void)
 				node_end_pfn[i] = node_start_pfn[i] + cap_each;
 			}
 		}
-		num_physpages -= dropped_pages;
+		physpages -= dropped_pages;
 		pr_warning("Only using %ldMB memory;"
 		       " ignoring %ldMB.\n",
-		       num_physpages >> (20 - PAGE_SHIFT),
+		       physpages >> (20 - PAGE_SHIFT),
 		       dropped_pages >> (20 - PAGE_SHIFT));
 		pr_warning("Consider using a larger page size.\n");
 	}
@@ -497,7 +554,7 @@ static void __init setup_memory(void)
 
 	lowmem_pages = (mappable_physpages > MAXMEM_PFN) ?
 		MAXMEM_PFN : mappable_physpages;
-	highmem_pages = (long) (num_physpages - lowmem_pages);
+	highmem_pages = (long) (physpages - lowmem_pages);
 
 	pr_notice("%ldMB HIGHMEM available.\n",
 	       pages_to_mb(highmem_pages > 0 ? highmem_pages : 0));
@@ -514,7 +571,6 @@ static void __init setup_memory(void)
 		pr_warning("Use a HIGHMEM enabled kernel.\n");
 		max_low_pfn = MAXMEM_PFN;
 		max_pfn = MAXMEM_PFN;
-		num_physpages = MAXMEM_PFN;
 		node_end_pfn[0] = MAXMEM_PFN;
 	} else {
 		pr_notice("%ldMB memory available.\n",
@@ -614,11 +670,12 @@ static void __init setup_bootmem_allocator_node(int i)
 	/*
 	 * Throw away any memory aliased by the PCI region.
 	 */
-	if (pci_reserve_start_pfn < end && pci_reserve_end_pfn > start)
-		reserve_bootmem(PFN_PHYS(pci_reserve_start_pfn),
-				PFN_PHYS(pci_reserve_end_pfn -
-					 pci_reserve_start_pfn),
+	if (pci_reserve_start_pfn < end && pci_reserve_end_pfn > start) {
+		start = max(pci_reserve_start_pfn, start);
+		end = min(pci_reserve_end_pfn, end);
+		reserve_bootmem(PFN_PHYS(start), PFN_PHYS(end - start),
 				BOOTMEM_EXCLUSIVE);
+	}
 #endif
 }
 
@@ -628,9 +685,35 @@ static void __init setup_bootmem_allocator(void)
 	for (i = 0; i < MAX_NUMNODES; ++i)
 		setup_bootmem_allocator_node(i);
 
+	/* Reserve any memory excluded by "memmap" arguments. */
+	for (i = 0; i < memmap_nr; ++i) {
+		struct memmap_entry *m = &memmap_map[i];
+		reserve_bootmem(m->addr, m->size, BOOTMEM_DEFAULT);
+	}
+
+#ifdef CONFIG_BLK_DEV_INITRD
+	if (initrd_start) {
+		/* Make sure the initrd memory region is not modified. */
+		if (reserve_bootmem(initrd_start, initrd_end - initrd_start,
+				    BOOTMEM_EXCLUSIVE)) {
+			pr_crit("The initrd memory region has been polluted. Disabling it.\n");
+			initrd_start = 0;
+			initrd_end = 0;
+		} else {
+			/*
+			 * Translate initrd_start & initrd_end from PA to VA for
+			 * future access.
+			 */
+			initrd_start += PAGE_OFFSET;
+			initrd_end += PAGE_OFFSET;
+		}
+	}
+#endif
+
 #ifdef CONFIG_KEXEC
 	if (crashk_res.start != crashk_res.end)
-		reserve_bootmem(crashk_res.start, resource_size(&crashk_res), 0);
+		reserve_bootmem(crashk_res.start, resource_size(&crashk_res),
+				BOOTMEM_DEFAULT);
 #endif
 }
 
@@ -935,7 +1018,7 @@ subsys_initcall(topology_init);
  * So the values we set up here in the hypervisor may be overridden on
  * the boot cpu as arguments are parsed.
  */
-static __cpuinit void init_super_pages(void)
+static void init_super_pages(void)
 {
 #ifdef CONFIG_HUGETLB_SUPER_PAGES
 	int i;
@@ -950,7 +1033,7 @@ static __cpuinit void init_super_pages(void)
  *
  * Called from setup_arch() on the boot cpu, or online_secondary().
  */
-void __cpuinit setup_cpu(int boot)
+void setup_cpu(int boot)
 {
 	/* The boot cpu sets up its permanent mappings much earlier. */
 	if (!boot)
@@ -960,9 +1043,6 @@ void __cpuinit setup_cpu(int boot)
 #if CHIP_HAS_TILE_DMA()
 	arch_local_irq_unmask(INT_DMATLB_MISS);
 	arch_local_irq_unmask(INT_DMATLB_ACCESS);
-#endif
-#if CHIP_HAS_SN_PROC()
-	arch_local_irq_unmask(INT_SNITLB_MISS);
 #endif
 #ifdef __tilegx__
 	arch_local_irq_unmask(INT_SINGLE_STEP_K);
@@ -977,10 +1057,6 @@ void __cpuinit setup_cpu(int boot)
 #if CHIP_HAS_SN()
 	/* Static network is not restricted. */
 	__insn_mtspr(SPR_MPL_SN_ACCESS_SET_0, 1);
-#endif
-#if CHIP_HAS_SN_PROC()
-	__insn_mtspr(SPR_MPL_SN_NOTIFY_SET_0, 1);
-	__insn_mtspr(SPR_MPL_SN_CPL_SET_0, 1);
 #endif
 
 	/*
@@ -1004,15 +1080,8 @@ void __cpuinit setup_cpu(int boot)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 
-/*
- * Note that the kernel can potentially support other compression
- * techniques than gz, though we don't do so by default.  If we ever
- * decide to do so we can either look for other filename extensions,
- * or just allow a file with this name to be compressed with an
- * arbitrary compressor (somewhat counterintuitively).
- */
 static int __initdata set_initramfs_file;
-static char __initdata initramfs_file[128] = "initramfs.cpio.gz";
+static char __initdata initramfs_file[128] = "initramfs";
 
 static int __init setup_initramfs_file(char *str)
 {
@@ -1026,9 +1095,9 @@ static int __init setup_initramfs_file(char *str)
 early_param("initramfs_file", setup_initramfs_file);
 
 /*
- * We look for an "initramfs.cpio.gz" file in the hvfs.
- * If there is one, we allocate some memory for it and it will be
- * unpacked to the initramfs.
+ * We look for a file called "initramfs" in the hvfs.  If there is one, we
+ * allocate some memory for it and it will be unpacked to the initramfs.
+ * If it's compressed, the initd code will uncompress it first.
  */
 static void __init load_hv_initrd(void)
 {
@@ -1036,12 +1105,22 @@ static void __init load_hv_initrd(void)
 	int fd, rc;
 	void *initrd;
 
+	/* If initrd has already been set, skip initramfs file in hvfs. */
+	if (initrd_start)
+		return;
+
 	fd = hv_fs_findfile((HV_VirtAddr) initramfs_file);
 	if (fd == HV_ENOENT) {
-		if (set_initramfs_file)
+		if (set_initramfs_file) {
 			pr_warning("No such hvfs initramfs file '%s'\n",
 				   initramfs_file);
-		return;
+			return;
+		} else {
+			/* Try old backwards-compatible name. */
+			fd = hv_fs_findfile((HV_VirtAddr)"initramfs.cpio.gz");
+			if (fd == HV_ENOENT)
+				return;
+		}
 	}
 	BUG_ON(fd < 0);
 	stat = hv_fs_fstat(fd);
@@ -1067,6 +1146,25 @@ void __init free_initrd_mem(unsigned long begin, unsigned long end)
 {
 	free_bootmem(__pa(begin), end - begin);
 }
+
+static int __init setup_initrd(char *str)
+{
+	char *endp;
+	unsigned long initrd_size;
+
+	initrd_size = str ? simple_strtoul(str, &endp, 0) : 0;
+	if (initrd_size == 0 || *endp != '@')
+		return -EINVAL;
+
+	initrd_start = simple_strtoul(endp+1, &endp, 0);
+	if (initrd_start == 0)
+		return -EINVAL;
+
+	initrd_end = initrd_start + initrd_size;
+
+	return 0;
+}
+early_param("initrd", setup_initrd);
 
 #else
 static inline void load_hv_initrd(void) {}
@@ -1120,7 +1218,8 @@ static void __init validate_hv(void)
 	 * various asid variables to their appropriate initial states.
 	 */
 	asid_range = hv_inquire_asid(0);
-	__get_cpu_var(current_asid) = min_asid = asid_range.start;
+	min_asid = asid_range.start;
+	__this_cpu_write(current_asid, min_asid);
 	max_asid = asid_range.start + asid_range.size - 1;
 
 	if (hv_confstr(HV_CONFSTR_CHIP_MODEL, (HV_VirtAddr)chip_model,
@@ -1135,7 +1234,7 @@ static void __init validate_va(void)
 #ifndef __tilegx__   /* FIXME: GX: probably some validation relevant here */
 	/*
 	 * Similarly, make sure we're only using allowed VAs.
-	 * We assume we can contiguously use MEM_USER_INTRPT .. MEM_HV_INTRPT,
+	 * We assume we can contiguously use MEM_USER_INTRPT .. MEM_HV_START,
 	 * and 0 .. KERNEL_HIGH_VADDR.
 	 * In addition, make sure we CAN'T use the end of memory, since
 	 * we use the last chunk of each pgd for the pgd_list.
@@ -1150,7 +1249,7 @@ static void __init validate_va(void)
 		if (range.size == 0)
 			break;
 		if (range.start <= MEM_USER_INTRPT &&
-		    range.start + range.size >= MEM_HV_INTRPT)
+		    range.start + range.size >= MEM_HV_START)
 			user_kernel_ok = 1;
 		if (range.start == 0)
 			max_va = range.size;
@@ -1168,8 +1267,7 @@ static void __init validate_va(void)
 	if ((long)VMALLOC_START >= 0)
 		early_panic(
 			"Linux VMALLOC region below the 2GB line (%#lx)!\n"
-			"Reconfigure the kernel with fewer NR_HUGE_VMAPS\n"
-			"or smaller VMALLOC_RESERVE.\n",
+			"Reconfigure the kernel with smaller VMALLOC_RESERVE.\n",
 			VMALLOC_START);
 #endif
 }
@@ -1184,7 +1282,6 @@ static void __init validate_va(void)
 struct cpumask __write_once cpu_lotar_map;
 EXPORT_SYMBOL(cpu_lotar_map);
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 /*
  * hash_for_home_map lists all the tiles that hash-for-home data
  * will be cached on.  Note that this may includes tiles that are not
@@ -1194,7 +1291,6 @@ EXPORT_SYMBOL(cpu_lotar_map);
  */
 struct cpumask hash_for_home_map;
 EXPORT_SYMBOL(hash_for_home_map);
-#endif
 
 /*
  * cpu_cacheable_map lists all the cpus whose caches the hypervisor can
@@ -1287,7 +1383,6 @@ static void __init setup_cpu_maps(void)
 		cpu_lotar_map = *cpu_possible_mask;
 	}
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 	/* Retrieve set of CPUs used for hash-for-home caching */
 	rc = hv_inquire_tiles(HV_INQ_TILES_HFH_CACHE,
 			      (HV_VirtAddr) hash_for_home_map.bits,
@@ -1295,9 +1390,6 @@ static void __init setup_cpu_maps(void)
 	if (rc < 0)
 		early_panic("hv_inquire_tiles(HFH_CACHE) failed: rc %d\n", rc);
 	cpumask_or(&cpu_cacheable_map, cpu_possible_mask, &hash_for_home_map);
-#else
-	cpu_cacheable_map = *cpu_possible_mask;
-#endif
 }
 
 
@@ -1493,7 +1585,7 @@ void __init setup_per_cpu_areas(void)
 
 			/* Update the vmalloc mapping and page home. */
 			unsigned long addr = (unsigned long)ptr + i;
-			pte_t *ptep = virt_to_pte(NULL, addr);
+			pte_t *ptep = virt_to_kpte(addr);
 			pte_t pte = *ptep;
 			BUG_ON(pfn != pte_pfn(pte));
 			pte = hv_pte_set_mode(pte, HV_PTE_MODE_CACHE_TILE_L3);
@@ -1502,12 +1594,12 @@ void __init setup_per_cpu_areas(void)
 
 			/* Update the lowmem mapping for consistency. */
 			lowmem_va = (unsigned long)pfn_to_kaddr(pfn);
-			ptep = virt_to_pte(NULL, lowmem_va);
+			ptep = virt_to_kpte(lowmem_va);
 			if (pte_huge(*ptep)) {
 				printk(KERN_DEBUG "early shatter of huge page"
 				       " at %#lx\n", lowmem_va);
 				shatter_pmd((pmd_t *)ptep);
-				ptep = virt_to_pte(NULL, lowmem_va);
+				ptep = virt_to_kpte(lowmem_va);
 				BUG_ON(pte_huge(*ptep));
 			}
 			BUG_ON(pfn != pte_pfn(*ptep));
@@ -1549,6 +1641,8 @@ insert_non_bus_resource(void)
 {
 	struct resource *res =
 		kzalloc(sizeof(struct resource), GFP_ATOMIC);
+	if (!res)
+		return NULL;
 	res->name = "Non-Bus Physical Address Space";
 	res->start = (1ULL << 32);
 	res->end = -1LL;
@@ -1562,11 +1656,13 @@ insert_non_bus_resource(void)
 #endif
 
 static struct resource* __init
-insert_ram_resource(u64 start_pfn, u64 end_pfn)
+insert_ram_resource(u64 start_pfn, u64 end_pfn, bool reserved)
 {
 	struct resource *res =
 		kzalloc(sizeof(struct resource), GFP_ATOMIC);
-	res->name = "System RAM";
+	if (!res)
+		return NULL;
+	res->name = reserved ? "Reserved" : "System RAM";
 	res->start = start_pfn << PAGE_SHIFT;
 	res->end = (end_pfn << PAGE_SHIFT) - 1;
 	res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
@@ -1586,7 +1682,7 @@ insert_ram_resource(u64 start_pfn, u64 end_pfn)
 static int __init request_standard_resources(void)
 {
 	int i;
-	enum { CODE_DELTA = MEM_SV_INTRPT - PAGE_OFFSET };
+	enum { CODE_DELTA = MEM_SV_START - PAGE_OFFSET };
 
 #if defined(CONFIG_PCI) && !defined(__tilegx__)
 	insert_non_bus_resource();
@@ -1601,11 +1697,11 @@ static int __init request_standard_resources(void)
 		    end_pfn > pci_reserve_start_pfn) {
 			if (end_pfn > pci_reserve_end_pfn)
 				insert_ram_resource(pci_reserve_end_pfn,
-						     end_pfn);
+						    end_pfn, 0);
 			end_pfn = pci_reserve_start_pfn;
 		}
 #endif
-		insert_ram_resource(start_pfn, end_pfn);
+		insert_ram_resource(start_pfn, end_pfn, 0);
 	}
 
 	code_resource.start = __pa(_text - CODE_DELTA);
@@ -1615,6 +1711,13 @@ static int __init request_standard_resources(void)
 
 	insert_resource(&iomem_resource, &code_resource);
 	insert_resource(&iomem_resource, &data_resource);
+
+	/* Mark any "memmap" regions busy for the resource manager. */
+	for (i = 0; i < memmap_nr; ++i) {
+		struct memmap_entry *m = &memmap_map[i];
+		insert_ram_resource(PFN_DOWN(m->addr),
+				    PFN_UP(m->addr + m->size - 1), 1);
+	}
 
 #ifdef CONFIG_KEXEC
 	insert_resource(&iomem_resource, &crashk_res);

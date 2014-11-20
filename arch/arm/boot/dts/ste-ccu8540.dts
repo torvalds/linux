@@ -1,0 +1,87 @@
+/*
+ * Copyright 2013 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "ste-dbx5x0.dtsi"
+#include "ste-ccu8540-pinctrl.dtsi"
+
+/ {
+	model = "ST-Ericsson U8540 platform with Device Tree";
+	compatible = "st-ericsson,ccu8540", "st-ericsson,u8540";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x20000000 0x1f000000>, <0xc0000000 0x3f000000>;
+	};
+
+	soc {
+		pinctrl {
+			compatible = "stericsson,db8540-pinctrl";
+		};
+
+		prcmu@80157000 {
+			reg = <0x80157000 0x2000>, <0x801b0000 0x8000>, <0x801b8000 0x3000>;
+			reg-names = "prcmu", "prcmu-tcpm", "prcmu-tcdm";
+		};
+
+		uart@80120000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart0_default_mux>, <&uart0_default_mode>;
+			pinctrl-1 = <&uart0_sleep_mode>;
+			status = "okay";
+		};
+
+		uart@80121000 {
+			status = "okay";
+		};
+
+		uart@80007000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart2_default_mode>;
+			pinctrl-1 = <&uart2_sleep_mode>;
+			status = "okay";
+		};
+
+		i2c0: i2c@80004000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c0_default_mux>, <&i2c0_default_mode>;
+			pinctrl-1 = <&i2c0_sleep_mode>;
+		};
+
+		i2c1: i2c@80122000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c1_default_mux>, <&i2c1_default_mode>;
+			pinctrl-1 = <&i2c1_sleep_mode>;
+		};
+
+		i2c2: i2c@80128000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c2_default_mux>, <&i2c2_default_mode>;
+			pinctrl-1 = <&i2c2_sleep_mode>;
+		};
+
+		i2c3: i2c@80110000 {
+			status = "disabled";
+		};
+
+		i2c4: i2c@8012a000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c4_default_mux>, <&i2c4_default_mode>;
+			pinctrl-1 = <&i2c4_sleep_mode>;
+		};
+
+		i2c5: i2c@80001000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c5_default_mux>, <&i2c5_default_mode>;
+			pinctrl-1 = <&i2c5_sleep_mode>;
+		};
+	};
+};

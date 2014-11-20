@@ -22,12 +22,17 @@ struct vdso_data {
 	__u64 xtime_tod_stamp;		/* TOD clock for xtime		0x08 */
 	__u64 xtime_clock_sec;		/* Kernel time			0x10 */
 	__u64 xtime_clock_nsec;		/*				0x18 */
-	__u64 wtom_clock_sec;		/* Wall to monotonic clock	0x20 */
-	__u64 wtom_clock_nsec;		/*				0x28 */
-	__u32 tz_minuteswest;		/* Minutes west of Greenwich	0x30 */
-	__u32 tz_dsttime;		/* Type of dst correction	0x34 */
-	__u32 ectg_available;
-	__u32 ntp_mult;			/* NTP adjusted multiplier	0x3C */
+	__u64 xtime_coarse_sec;		/* Coarse kernel time		0x20 */
+	__u64 xtime_coarse_nsec;	/*				0x28 */
+	__u64 wtom_clock_sec;		/* Wall to monotonic clock	0x30 */
+	__u64 wtom_clock_nsec;		/*				0x38 */
+	__u64 wtom_coarse_sec;		/* Coarse wall to monotonic	0x40 */
+	__u64 wtom_coarse_nsec;		/*				0x48 */
+	__u32 tz_minuteswest;		/* Minutes west of Greenwich	0x50 */
+	__u32 tz_dsttime;		/* Type of dst correction	0x54 */
+	__u32 ectg_available;		/* ECTG instruction present	0x58 */
+	__u32 tk_mult;			/* Mult. used for xtime_nsec	0x5c */
+	__u32 tk_shift;			/* Shift used for xtime_nsec	0x60 */
 };
 
 struct vdso_per_cpu_data {

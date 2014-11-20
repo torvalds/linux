@@ -9,16 +9,27 @@
 #define PFX	"ssb: "
 
 #ifdef CONFIG_SSB_SILENT
-# define ssb_printk(fmt, x...)	do { /* nothing */ } while (0)
+# define ssb_printk(fmt, ...)					\
+	do { if (0) printk(fmt, ##__VA_ARGS__); } while (0)
 #else
-# define ssb_printk		printk
+# define ssb_printk(fmt, ...)					\
+	printk(fmt, ##__VA_ARGS__)
 #endif /* CONFIG_SSB_SILENT */
+
+#define ssb_emerg(fmt, ...)	ssb_printk(KERN_EMERG PFX fmt, ##__VA_ARGS__)
+#define ssb_err(fmt, ...)	ssb_printk(KERN_ERR PFX fmt, ##__VA_ARGS__)
+#define ssb_warn(fmt, ...)	ssb_printk(KERN_WARNING PFX fmt, ##__VA_ARGS__)
+#define ssb_notice(fmt, ...)	ssb_printk(KERN_NOTICE PFX fmt, ##__VA_ARGS__)
+#define ssb_info(fmt, ...)	ssb_printk(KERN_INFO PFX fmt, ##__VA_ARGS__)
+#define ssb_cont(fmt, ...)	ssb_printk(KERN_CONT fmt, ##__VA_ARGS__)
 
 /* dprintk: Debugging printk; vanishes for non-debug compilation */
 #ifdef CONFIG_SSB_DEBUG
-# define ssb_dprintk(fmt, x...)	ssb_printk(fmt , ##x)
+# define ssb_dbg(fmt, ...)					\
+	ssb_printk(KERN_DEBUG PFX fmt, ##__VA_ARGS__)
 #else
-# define ssb_dprintk(fmt, x...)	do { /* nothing */ } while (0)
+# define ssb_dbg(fmt, ...)					\
+	do { if (0) printk(KERN_DEBUG PFX fmt, ##__VA_ARGS__); } while (0)
 #endif
 
 #ifdef CONFIG_SSB_DEBUG
@@ -230,6 +241,10 @@ static inline int ssb_sflash_init(struct ssb_chipcommon *cc)
 
 #ifdef CONFIG_SSB_DRIVER_MIPS
 extern struct platform_device ssb_pflash_dev;
+#endif
+
+#ifdef CONFIG_SSB_SFLASH
+extern struct platform_device ssb_sflash_dev;
 #endif
 
 #ifdef CONFIG_SSB_DRIVER_EXTIF

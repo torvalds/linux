@@ -7,7 +7,7 @@
 
 #define DMA_ERROR_CODE	(~(dma_addr_t)0x0)
 
-extern int dma_supported(struct device *dev, u64 mask);
+int dma_supported(struct device *dev, u64 mask);
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
@@ -20,10 +20,12 @@ extern struct bus_type pci_bus_type;
 
 static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
-#if defined(CONFIG_SPARC32) && defined(CONFIG_PCI)
+#ifdef CONFIG_SPARC_LEON
 	if (sparc_cpu_model == sparc_leon)
 		return leon_dma_ops;
-	else if (dev->bus == &pci_bus_type)
+#endif
+#if defined(CONFIG_SPARC32) && defined(CONFIG_PCI)
+	if (dev->bus == &pci_bus_type)
 		return &pci32_dma_ops;
 #endif
 	return dma_ops;

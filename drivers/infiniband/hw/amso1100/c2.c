@@ -604,15 +604,13 @@ static int c2_up(struct net_device *netdev)
 	tx_size = c2_port->tx_ring.count * sizeof(struct c2_tx_desc);
 
 	c2_port->mem_size = tx_size + rx_size;
-	c2_port->mem = pci_alloc_consistent(c2dev->pcidev, c2_port->mem_size,
-					    &c2_port->dma);
+	c2_port->mem = pci_zalloc_consistent(c2dev->pcidev, c2_port->mem_size,
+					     &c2_port->dma);
 	if (c2_port->mem == NULL) {
 		pr_debug("Unable to allocate memory for "
 			"host descriptor rings\n");
 		return -ENOMEM;
 	}
-
-	memset(c2_port->mem, 0, c2_port->mem_size);
 
 	/* Create the Rx host descriptor ring */
 	if ((ret =
@@ -1082,6 +1080,7 @@ static int c2_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	/* Initialize network device */
 	if ((netdev = c2_devinit(c2dev, mmio_regs)) == NULL) {
+		ret = -ENOMEM;
 		iounmap(mmio_regs);
 		goto bail4;
 	}
@@ -1151,7 +1150,8 @@ static int c2_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		goto bail10;
 	}
 
-	if (c2_register_device(c2dev))
+	ret = c2_register_device(c2dev);
+	if (ret)
 		goto bail10;
 
 	return 0;

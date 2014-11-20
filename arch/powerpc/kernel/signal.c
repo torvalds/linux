@@ -13,10 +13,12 @@
 #include <linux/signal.h>
 #include <linux/uprobes.h>
 #include <linux/key.h>
+#include <linux/context_tracking.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/debug.h>
+#include <asm/tm.h>
 
 #include "signal.h"
 
@@ -24,25 +26,19 @@
  * through debug.exception-trace sysctl.
  */
 
-int show_unhandled_signals = 0;
+int show_unhandled_signals = 1;
 
 /*
  * Allocate space for the signal frame
  */
-void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+void __user *get_sigframe(struct ksignal *ksig, unsigned long sp,
 			   size_t frame_size, int is_32)
 {
         unsigned long oldsp, newsp;
 
         /* Default to using normal stack */
-        oldsp = get_clean_sp(regs, is_32);
-
-	/* Check for alt stack */
-	if ((ka->sa.sa_flags & SA_ONSTACK) &&
-	    current->sas_ss_size && !on_sig_stack(oldsp))
-		oldsp = (current->sas_ss_sp + current->sas_ss_size);
-
-	/* Get aligned frame */
+        oldsp = get_clean_sp(sp, is_32);
+	oldsp = sigsp(oldsp, ksig);
 	newsp = (oldsp - frame_size) & ~0xFUL;
 
 	/* Check access */
@@ -103,25 +99,23 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 	}
 }
 
-static int do_signal(struct pt_regs *regs)
+static void do_signal(struct pt_regs *regs)
 {
 	sigset_t *oldset = sigmask_to_save();
-	siginfo_t info;
-	int signr;
-	struct k_sigaction ka;
+	struct ksignal ksig;
 	int ret;
 	int is32 = is_32bit_task();
 
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
+	get_signal(&ksig);
 
 	/* Is there any syscall restart business here ? */
-	check_syscall_restart(regs, &ka, signr > 0);
+	check_syscall_restart(regs, &ksig.ka, ksig.sig > 0);
 
-	if (signr <= 0) {
+	if (ksig.sig <= 0) {
 		/* No signal to deliver -- put the saved sigmask back */
 		restore_saved_sigmask();
 		regs->trap = 0;
-		return 0;               /* no signals delivered */
+		return;               /* no signals delivered */
 	}
 
 #ifndef CONFIG_PPC_ADV_DEBUG_REGS
@@ -132,33 +126,28 @@ static int do_signal(struct pt_regs *regs)
 	 */
 	if (current->thread.hw_brk.address &&
 		current->thread.hw_brk.type)
-		set_breakpoint(&current->thread.hw_brk);
+		__set_breakpoint(&current->thread.hw_brk);
 #endif
 	/* Re-enable the breakpoints for the signal stack */
 	thread_change_pc(current, regs);
 
 	if (is32) {
-        	if (ka.sa.sa_flags & SA_SIGINFO)
-			ret = handle_rt_signal32(signr, &ka, &info, oldset,
-					regs);
+        	if (ksig.ka.sa.sa_flags & SA_SIGINFO)
+			ret = handle_rt_signal32(&ksig, oldset, regs);
 		else
-			ret = handle_signal32(signr, &ka, &info, oldset,
-					regs);
+			ret = handle_signal32(&ksig, oldset, regs);
 	} else {
-		ret = handle_rt_signal64(signr, &ka, &info, oldset, regs);
+		ret = handle_rt_signal64(&ksig, oldset, regs);
 	}
 
 	regs->trap = 0;
-	if (ret) {
-		signal_delivered(signr, &info, &ka, regs,
-					 test_thread_flag(TIF_SINGLESTEP));
-	}
-
-	return ret;
+	signal_setup_done(ret, &ksig, test_thread_flag(TIF_SINGLESTEP));
 }
 
 void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 {
+	user_exit();
+
 	if (thread_info_flags & _TIF_UPROBE)
 		uprobe_notify_resume(regs);
 
@@ -169,4 +158,40 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
 	}
+
+	user_enter();
+}
+
+unsigned long get_tm_stackpointer(struct pt_regs *regs)
+{
+	/* When in an active transaction that takes a signal, we need to be
+	 * careful with the stack.  It's possible that the stack has moved back
+	 * up after the tbegin.  The obvious case here is when the tbegin is
+	 * called inside a function that returns before a tend.  In this case,
+	 * the stack is part of the checkpointed transactional memory state.
+	 * If we write over this non transactionally or in suspend, we are in
+	 * trouble because if we get a tm abort, the program counter and stack
+	 * pointer will be back at the tbegin but our in memory stack won't be
+	 * valid anymore.
+	 *
+	 * To avoid this, when taking a signal in an active transaction, we
+	 * need to use the stack pointer from the checkpointed state, rather
+	 * than the speculated state.  This ensures that the signal context
+	 * (written tm suspended) will be written below the stack required for
+	 * the rollback.  The transaction is aborted becuase of the treclaim,
+	 * so any memory written between the tbegin and the signal will be
+	 * rolled back anyway.
+	 *
+	 * For signals taken in non-TM or suspended mode, we use the
+	 * normal/non-checkpointed stack pointer.
+	 */
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (MSR_TM_ACTIVE(regs->msr)) {
+		tm_reclaim_current(TM_CAUSE_SIGNAL);
+		if (MSR_TM_TRANSACTIONAL(regs->msr))
+			return current->thread.ckpt_regs.gpr[1];
+	}
+#endif
+	return regs->gpr[1];
 }

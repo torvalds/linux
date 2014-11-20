@@ -541,13 +541,11 @@ static void ucbus_write(struct gspca_dev *gspca_dev,
 	if (gspca_dev->usb_err < 0)
 		return;
 
-#ifdef GSPCA_DEBUG
 	if ((batchsize - 1) * 3 > USB_BUF_SZ) {
-		pr_err("Bug: usb_buf overflow\n");
+		PERR("Bug: usb_buf overflow\n");
 		gspca_dev->usb_err = -ENOMEM;
 		return;
 	}
-#endif
 
 	for (;;) {
 		len = ncmds;
@@ -908,7 +906,8 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 	gspca_dev->cam.bulk_nurbs = 1;	/* there must be one URB only */
 	sd->do_ctrl = 0;
-	gspca_dev->cam.bulk_size = gspca_dev->width * gspca_dev->height + 8;
+	gspca_dev->cam.bulk_size = gspca_dev->pixfmt.width *
+			gspca_dev->pixfmt.height + 8;
 	return 0;
 }
 

@@ -37,7 +37,6 @@
 #include <mach/flash.h>
 #include <mach/mux.h>
 #include <linux/omap-dma.h>
-#include <mach/irda.h>
 #include <mach/tc.h>
 #include <mach/board-sx1.h>
 
@@ -45,7 +44,6 @@
 #include <mach/usb.h>
 
 #include "common.h"
-#include "dma.h"
 
 /* Write to I2C device */
 int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)
@@ -228,39 +226,6 @@ static struct platform_device sx1_kp_device = {
 	.resource	= sx1_kp_resources,
 };
 
-/*----------- IRDA -------------------------*/
-
-static struct omap_irda_config sx1_irda_data = {
-	.transceiver_cap	= IR_SIRMODE,
-	.rx_channel		= OMAP_DMA_UART3_RX,
-	.tx_channel		= OMAP_DMA_UART3_TX,
-	.dest_start		= UART3_THR,
-	.src_start		= UART3_RHR,
-	.tx_trigger		= 0,
-	.rx_trigger		= 0,
-};
-
-static struct resource sx1_irda_resources[] = {
-	[0] = {
-		.start	= INT_UART3,
-		.end	= INT_UART3,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static u64 irda_dmamask = 0xffffffff;
-
-static struct platform_device sx1_irda_device = {
-	.name		= "omapirda",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &sx1_irda_data,
-		.dma_mask	= &irda_dmamask,
-	},
-	.num_resources	= ARRAY_SIZE(sx1_irda_resources),
-	.resource	= sx1_irda_resources,
-};
-
 /*----------- MTD -------------------------*/
 
 static struct mtd_partition sx1_partitions[] = {
@@ -301,31 +266,6 @@ static struct physmap_flash_data sx1_flash_data = {
 	.nr_parts	= ARRAY_SIZE(sx1_partitions),
 };
 
-#ifdef CONFIG_SX1_OLD_FLASH
-/* MTD Intel StrataFlash - old flashes */
-static struct resource sx1_old_flash_resource[] = {
-	[0] = {
-		.start	= OMAP_CS0_PHYS,	/* Physical */
-		.end	= OMAP_CS0_PHYS + SZ_16M - 1,,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= OMAP_CS1_PHYS,
-		.end	= OMAP_CS1_PHYS + SZ_8M - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device sx1_flash_device = {
-	.name		= "physmap-flash",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &sx1_flash_data,
-	},
-	.num_resources	= 2,
-	.resource	= &sx1_old_flash_resource,
-};
-#else
 /* MTD Intel 4000 flash - new flashes */
 static struct resource sx1_new_flash_resource = {
 	.start		= OMAP_CS0_PHYS,
@@ -342,7 +282,6 @@ static struct platform_device sx1_flash_device = {
 	.num_resources	= 1,
 	.resource	= &sx1_new_flash_resource,
 };
-#endif
 
 /*----------- USB -------------------------*/
 
@@ -366,7 +305,6 @@ static struct omap_lcd_config sx1_lcd_config __initdata = {
 static struct platform_device *sx1_devices[] __initdata = {
 	&sx1_flash_device,
 	&sx1_kp_device,
-	&sx1_irda_device,
 };
 
 /*-----------------------------------------*/

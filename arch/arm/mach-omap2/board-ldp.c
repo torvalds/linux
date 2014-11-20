@@ -36,12 +36,11 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include "board-zoom.h"
 #include "gpmc.h"
 #include "gpmc-smsc911x.h"
 
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-data.h>
 
 #include "board-flash.h"
 #include "mux.h"
@@ -181,52 +180,46 @@ static inline void __init ldp_init_smsc911x(void)
 
 /* LCD */
 
-static int ldp_backlight_gpio;
-static int ldp_lcd_enable_gpio;
-
 #define LCD_PANEL_RESET_GPIO		55
 #define LCD_PANEL_QVGA_GPIO		56
 
-static int ldp_panel_enable_lcd(struct omap_dss_device *dssdev)
-{
-	if (gpio_is_valid(ldp_lcd_enable_gpio))
-		gpio_direction_output(ldp_lcd_enable_gpio, 1);
-	if (gpio_is_valid(ldp_backlight_gpio))
-		gpio_direction_output(ldp_backlight_gpio, 1);
+static const struct display_timing ldp_lcd_videomode = {
+	.pixelclock	= { 0, 5400000, 0 },
 
-	return 0;
-}
+	.hactive = { 0, 240, 0 },
+	.hfront_porch = { 0, 3, 0 },
+	.hback_porch = { 0, 39, 0 },
+	.hsync_len = { 0, 3, 0 },
 
-static void ldp_panel_disable_lcd(struct omap_dss_device *dssdev)
-{
-	if (gpio_is_valid(ldp_lcd_enable_gpio))
-		gpio_direction_output(ldp_lcd_enable_gpio, 0);
-	if (gpio_is_valid(ldp_backlight_gpio))
-		gpio_direction_output(ldp_backlight_gpio, 0);
-}
+	.vactive = { 0, 320, 0 },
+	.vfront_porch = { 0, 2, 0 },
+	.vback_porch = { 0, 7, 0 },
+	.vsync_len = { 0, 1, 0 },
 
-static struct panel_generic_dpi_data ldp_panel_data = {
-	.name			= "nec_nl2432dr22-11b",
-	.platform_enable	= ldp_panel_enable_lcd,
-	.platform_disable	= ldp_panel_disable_lcd,
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE,
 };
 
-static struct omap_dss_device ldp_lcd_device = {
-	.name			= "lcd",
-	.driver_name		= "generic_dpi_panel",
-	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 18,
-	.data			= &ldp_panel_data,
+static struct panel_dpi_platform_data ldp_lcd_pdata = {
+	.name                   = "lcd",
+	.source                 = "dpi.0",
+
+	.data_lines		= 18,
+
+	.display_timing		= &ldp_lcd_videomode,
+
+	.enable_gpio		= -1,	/* filled in code */
+	.backlight_gpio		= -1,	/* filled in code */
 };
 
-static struct omap_dss_device *ldp_dss_devices[] = {
-	&ldp_lcd_device,
+static struct platform_device ldp_lcd_device = {
+	.name                   = "panel-dpi",
+	.id                     = 0,
+	.dev.platform_data      = &ldp_lcd_pdata,
 };
 
 static struct omap_dss_board_info ldp_dss_data = {
-	.num_devices	= ARRAY_SIZE(ldp_dss_devices),
-	.devices	= ldp_dss_devices,
-	.default_device	= &ldp_lcd_device,
+	.default_display_name = "lcd",
 };
 
 static void __init ldp_display_init(void)
@@ -249,23 +242,17 @@ static void __init ldp_display_init(void)
 
 static int ldp_twl_gpio_setup(struct device *dev, unsigned gpio, unsigned ngpio)
 {
-	int r;
+	int res;
 
-	struct gpio gpios[] = {
-		{gpio + 7 , GPIOF_OUT_INIT_LOW, "LCD ENABLE"},
-		{gpio + 15, GPIOF_OUT_INIT_LOW, "LCD BACKLIGHT"},
-	};
+	/* LCD enable GPIO */
+	ldp_lcd_pdata.enable_gpio = gpio + 7;
 
-	r = gpio_request_array(gpios, ARRAY_SIZE(gpios));
-	if (r) {
-		pr_err("Cannot request LCD GPIOs, error %d\n", r);
-		ldp_backlight_gpio = -EINVAL;
-		ldp_lcd_enable_gpio = -EINVAL;
-		return r;
-	}
+	/* Backlight enable GPIO */
+	ldp_lcd_pdata.backlight_gpio = gpio + 15;
 
-	ldp_backlight_gpio = gpio + 15;
-	ldp_lcd_enable_gpio = gpio + 7;
+	res = platform_device_register(&ldp_lcd_device);
+	if (res)
+		pr_err("Unable to register LCD: %d\n", res);
 
 	return 0;
 }
@@ -315,7 +302,8 @@ static struct regulator_init_data ldp_vaux1 = {
 
 static struct regulator_consumer_supply ldp_vpll2_supplies[] = {
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dpi.0"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi.0"),
 };
 
 static struct regulator_init_data ldp_vpll2 = {
@@ -422,7 +410,7 @@ static void __init omap_ldp_init(void)
 	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	board_nand_init(ldp_nand_partitions, ARRAY_SIZE(ldp_nand_partitions),
-			ZOOM_NAND_CS, 0, nand_default_timings);
+			0, 0, nand_default_timings);
 
 	omap_hsmmc_init(mmc);
 	ldp_display_init();
@@ -434,7 +422,6 @@ MACHINE_START(OMAP_LDP, "OMAP LDP board")
 	.map_io		= omap3_map_io,
 	.init_early	= omap3430_init_early,
 	.init_irq	= omap3_init_irq,
-	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_ldp_init,
 	.init_late	= omap3430_init_late,
 	.init_time	= omap3_sync32k_timer_init,

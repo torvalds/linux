@@ -23,16 +23,6 @@ config COMMON_CLK
 menu "Common Clock Framework"
 	depends on COMMON_CLK
 
-config COMMON_CLK_DEBUG
-	bool "DebugFS representation of clock tree"
-	select DEBUG_FS
-	---help---
-	  Creates a directory hierchy in debugfs for visualizing the clk
-	  tree structure.  Each directory contains read-only members
-	  that export information specific to that clk node: clk_rate,
-	  clk_flags, clk_prepare_count, clk_enable_count &
-	  clk_notifier_count.
-
 config COMMON_CLK_WM831X
 	tristate "Clock driver for WM831x/2x PMICs"
 	depends on MFD_WM831X
@@ -40,20 +30,60 @@ config COMMON_CLK_WM831X
           Supports the clocking subsystem of the WM831x/2x series of
 	  PMICs from Wolfson Microlectronics.
 
-config COMMON_CLK_VERSATILE
-	bool "Clock driver for ARM Reference designs"
-	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || ARCH_VEXPRESS
-	---help---
-          Supports clocking on ARM Reference designs:
-	  - Integrator/AP and Integrator/CP
-	  - RealView PB1176, EB, PB11MP and PBX
-	  - Versatile Express
+source "drivers/clk/versatile/Kconfig"
+
+config COMMON_CLK_MAX_GEN
+        bool
 
 config COMMON_CLK_MAX77686
 	tristate "Clock driver for Maxim 77686 MFD"
 	depends on MFD_MAX77686
+	select COMMON_CLK_MAX_GEN
 	---help---
 	  This driver supports Maxim 77686 crystal oscillator clock. 
+
+config COMMON_CLK_MAX77802
+	tristate "Clock driver for Maxim 77802 PMIC"
+	depends on MFD_MAX77686
+	select COMMON_CLK_MAX_GEN
+	---help---
+	  This driver supports Maxim 77802 crystal oscillator clock.
+
+config COMMON_CLK_RK808
+	tristate "Clock driver for RK808"
+	depends on MFD_RK808
+	---help---
+	  This driver supports RK808 crystal oscillator clock. These
+	  multi-function devices have two fixed-rate oscillators,
+	  clocked at 32KHz each. Clkout1 is always on, Clkout2 can off
+	  by control register.
+
+config COMMON_CLK_SI5351
+	tristate "Clock driver for SiLabs 5351A/B/C"
+	depends on I2C
+	select REGMAP_I2C
+	select RATIONAL
+	---help---
+	  This driver supports Silicon Labs 5351A/B/C programmable clock
+	  generators.
+
+config COMMON_CLK_SI570
+	tristate "Clock driver for SiLabs 570 and compatible devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports Silicon Labs 570/571/598/599 programmable
+	  clock generators.
+
+config COMMON_CLK_S2MPS11
+	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
+	depends on MFD_SEC_CORE
+	---help---
+	  This driver supports S2MPS11/S2MPS14/S5M8767 crystal oscillator
+	  clock. These multi-function devices have two (S2MPS14) or three
+	  (S2MPS11, S5M8767) fixed-rate oscillators, clocked at 32KHz each.
 
 config CLK_TWL6040
 	tristate "External McPDM functional clock from twl6040"
@@ -63,6 +93,52 @@ config CLK_TWL6040
 	  McPDM. McPDM module is using the external bit clock on the McPDM bus
 	  as functional clock.
 
+config COMMON_CLK_AXI_CLKGEN
+	tristate "AXI clkgen driver"
+	depends on ARCH_ZYNQ || MICROBLAZE
+	help
+	---help---
+	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
+	  FPGAs. It is commonly used in Analog Devices' reference designs.
+
+config CLK_PPC_CORENET
+	bool "Clock driver for PowerPC corenet platforms"
+	depends on PPC_E500MC && OF
+	---help---
+	  This adds the clock driver support for Freescale PowerPC corenet
+	  platforms using common clock framework.
+
+config COMMON_CLK_XGENE
+	bool "Clock driver for APM XGene SoC"
+	default y
+	depends on ARM64
+	---help---
+	  Sypport for the APM X-Gene SoC reference, PLL, and device clocks.
+
+config COMMON_CLK_KEYSTONE
+	tristate "Clock drivers for Keystone based SOCs"
+	depends on ARCH_KEYSTONE && OF
+	---help---
+          Supports clock drivers for Keystone based SOCs. These SOCs have local
+	  a power sleep control module that gate the clock to the IPs and PLLs.
+
+config COMMON_CLK_PALMAS
+	tristate "Clock driver for TI Palmas devices"
+	depends on MFD_PALMAS
+	---help---
+	  This driver supports TI Palmas devices 32KHz output KG and KG_AUDIO
+	  using common clock framework.
+
+config COMMON_CLK_PXA
+	def_bool COMMON_CLK && ARCH_PXA
+	---help---
+	  Sypport for the Marvell PXA SoC.
+
+source "drivers/clk/qcom/Kconfig"
+
 endmenu
 
+source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
+
+source "drivers/clk/samsung/Kconfig"

@@ -25,7 +25,7 @@ static void atm_push_raw(struct atm_vcc *vcc, struct sk_buff *skb)
 		struct sock *sk = sk_atm(vcc);
 
 		skb_queue_tail(&sk->sk_receive_queue, skb);
-		sk->sk_data_ready(sk, skb->len);
+		sk->sk_data_ready(sk);
 	}
 }
 

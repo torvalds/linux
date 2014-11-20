@@ -44,7 +44,7 @@ struct ocfs2_inode_info
 	struct rw_semaphore		ip_xattr_sem;
 
 	/* Number of outstanding AIO's which are not page aligned */
-	atomic_t			ip_unaligned_aio;
+	struct mutex			ip_unaligned_aio;
 
 	/* These fields are protected by ip_lock */
 	spinlock_t			ip_lock;
@@ -73,6 +73,13 @@ struct ocfs2_inode_info
 	u32				ip_dir_lock_gen;
 
 	struct ocfs2_alloc_reservation	ip_la_data_resv;
+
+	/*
+	 * Transactions that contain inode's metadata needed to complete
+	 * fsync and fdatasync, respectively.
+	 */
+	tid_t i_sync_tid;
+	tid_t i_datasync_tid;
 };
 
 /*
@@ -84,8 +91,6 @@ struct ocfs2_inode_info
 #define OCFS2_INODE_BITMAP		0x00000004
 /* This inode has been wiped from disk */
 #define OCFS2_INODE_DELETED		0x00000008
-/* Another node is deleting, so our delete is a nop */
-#define OCFS2_INODE_SKIP_DELETE		0x00000010
 /* Has the inode been orphaned on another node?
  *
  * This hints to ocfs2_drop_inode that it should clear i_nlink before
@@ -100,11 +105,11 @@ struct ocfs2_inode_info
  * rely on ocfs2_delete_inode to sort things out under the proper
  * cluster locks.
  */
-#define OCFS2_INODE_MAYBE_ORPHANED	0x00000020
+#define OCFS2_INODE_MAYBE_ORPHANED	0x00000010
 /* Does someone have the file open O_DIRECT */
-#define OCFS2_INODE_OPEN_DIRECT		0x00000040
+#define OCFS2_INODE_OPEN_DIRECT		0x00000020
 /* Tell the inode wipe code it's not in orphan dir */
-#define OCFS2_INODE_SKIP_ORPHAN_DIR     0x00000080
+#define OCFS2_INODE_SKIP_ORPHAN_DIR     0x00000040
 
 static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 {
@@ -147,8 +152,6 @@ void ocfs2_refresh_inode(struct inode *inode,
 int ocfs2_mark_inode_dirty(handle_t *handle,
 			   struct inode *inode,
 			   struct buffer_head *bh);
-int ocfs2_aio_read(struct file *file, struct kiocb *req, struct iocb *iocb);
-int ocfs2_aio_write(struct file *file, struct kiocb *req, struct iocb *iocb);
 struct buffer_head *ocfs2_bread(struct inode *inode,
 				int block, int *err, int reada);
 
@@ -159,7 +162,7 @@ static inline blkcnt_t ocfs2_inode_sector_count(struct inode *inode)
 {
 	int c_to_s_bits = OCFS2_SB(inode->i_sb)->s_clustersize_bits - 9;
 
-	return (blkcnt_t)(OCFS2_I(inode)->ip_clusters << c_to_s_bits);
+	return (blkcnt_t)OCFS2_I(inode)->ip_clusters << c_to_s_bits;
 }
 
 /* Validate that a bh contains a valid inode */

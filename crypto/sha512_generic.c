@@ -20,6 +20,7 @@
 #include <crypto/sha.h>
 #include <linux/percpu.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 static inline u64 Ch(u64 x, u64 y, u64 z)
 {
@@ -68,7 +69,7 @@ static const u64 sha512_K[80] = {
 
 static inline void LOAD_OP(int I, u64 *W, const u8 *input)
 {
-	W[I] = __be64_to_cpu( ((__be64*)(input))[I] );
+	W[I] = get_unaligned_be64((__u64 *)input + I);
 }
 
 static inline void BLEND_OP(int I, u64 *W)
@@ -163,8 +164,8 @@ sha384_init(struct shash_desc *desc)
 	return 0;
 }
 
-static int
-sha512_update(struct shash_desc *desc, const u8 *data, unsigned int len)
+int crypto_sha512_update(struct shash_desc *desc, const u8 *data,
+			unsigned int len)
 {
 	struct sha512_state *sctx = shash_desc_ctx(desc);
 
@@ -197,6 +198,7 @@ sha512_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 
 	return 0;
 }
+EXPORT_SYMBOL(crypto_sha512_update);
 
 static int
 sha512_final(struct shash_desc *desc, u8 *hash)
@@ -215,10 +217,10 @@ sha512_final(struct shash_desc *desc, u8 *hash)
 	/* Pad out to 112 mod 128. */
 	index = sctx->count[0] & 0x7f;
 	pad_len = (index < 112) ? (112 - index) : ((128+112) - index);
-	sha512_update(desc, padding, pad_len);
+	crypto_sha512_update(desc, padding, pad_len);
 
 	/* Append length (before padding) */
-	sha512_update(desc, (const u8 *)bits, sizeof(bits));
+	crypto_sha512_update(desc, (const u8 *)bits, sizeof(bits));
 
 	/* Store state in digest */
 	for (i = 0; i < 8; i++)
@@ -237,7 +239,7 @@ static int sha384_final(struct shash_desc *desc, u8 *hash)
 	sha512_final(desc, D);
 
 	memcpy(hash, D, 48);
-	memset(D, 0, 64);
+	memzero_explicit(D, 64);
 
 	return 0;
 }
@@ -245,11 +247,12 @@ static int sha384_final(struct shash_desc *desc, u8 *hash)
 static struct shash_alg sha512_algs[2] = { {
 	.digestsize	=	SHA512_DIGEST_SIZE,
 	.init		=	sha512_init,
-	.update		=	sha512_update,
+	.update		=	crypto_sha512_update,
 	.final		=	sha512_final,
 	.descsize	=	sizeof(struct sha512_state),
 	.base		=	{
 		.cra_name	=	"sha512",
+		.cra_driver_name =	"sha512-generic",
 		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA512_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
@@ -257,11 +260,12 @@ static struct shash_alg sha512_algs[2] = { {
 }, {
 	.digestsize	=	SHA384_DIGEST_SIZE,
 	.init		=	sha384_init,
-	.update		=	sha512_update,
+	.update		=	crypto_sha512_update,
 	.final		=	sha384_final,
 	.descsize	=	sizeof(struct sha512_state),
 	.base		=	{
 		.cra_name	=	"sha384",
+		.cra_driver_name =	"sha384-generic",
 		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA384_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,

@@ -1,0 +1,51 @@
+/*
+ * Copyright (C) 2014 Antoine Ténart <antoine.tenart@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2. This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "berlin2q.dtsi"
+
+/ {
+	model = "Marvell BG2-Q DMP";
+	compatible = "marvell,berlin2q-dmp", "marvell,berlin2q", "marvell,berlin";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x80000000>;
+	};
+
+	choosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+};
+
+&sdhci1 {
+	broken-cd;
+	sdhci,wp-inverted;
+	status = "okay";
+};
+
+&sdhci2 {
+	non-removable;
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&eth0 {
+	status = "okay";
+};

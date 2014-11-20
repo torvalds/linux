@@ -23,13 +23,13 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_data/leds-kirkwood-ns2.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 
 /*
@@ -185,6 +185,12 @@ static ssize_t ns2_led_sata_show(struct device *dev,
 
 static DEVICE_ATTR(sata, 0644, ns2_led_sata_show, ns2_led_sata_store);
 
+static struct attribute *ns2_led_attrs[] = {
+	&dev_attr_sata.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(ns2_led);
+
 static int
 create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	       const struct ns2_led *template)
@@ -193,7 +199,8 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	enum ns2_led_modes mode;
 
 	ret = devm_gpio_request_one(&pdev->dev, template->cmd,
-			GPIOF_DIR_OUT | gpio_get_value(template->cmd),
+			gpio_get_value(template->cmd) ?
+			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
 			template->name);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to setup command GPIO\n",
@@ -202,7 +209,8 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	}
 
 	ret = devm_gpio_request_one(&pdev->dev, template->slow,
-			GPIOF_DIR_OUT | gpio_get_value(template->slow),
+			gpio_get_value(template->slow) ?
+			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
 			template->name);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to setup slow GPIO\n",
@@ -217,6 +225,7 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	led_dat->cdev.blink_set = NULL;
 	led_dat->cdev.brightness_set = ns2_led_set;
 	led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
+	led_dat->cdev.groups = ns2_led_groups;
 	led_dat->cmd = template->cmd;
 	led_dat->slow = template->slow;
 
@@ -233,20 +242,11 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	if (ret < 0)
 		return ret;
 
-	ret = device_create_file(led_dat->cdev.dev, &dev_attr_sata);
-	if (ret < 0)
-		goto err_free_cdev;
-
 	return 0;
-
-err_free_cdev:
-	led_classdev_unregister(&led_dat->cdev);
-	return ret;
 }
 
 static void delete_ns2_led(struct ns2_led_data *led_dat)
 {
-	device_remove_file(led_dat->cdev.dev, &dev_attr_sata);
 	led_classdev_unregister(&led_dat->cdev);
 }
 
@@ -306,10 +306,21 @@ static const struct of_device_id of_ns2_leds_match[] = {
 };
 #endif /* CONFIG_OF_GPIO */
 
+struct ns2_led_priv {
+	int num_leds;
+	struct ns2_led_data leds_data[];
+};
+
+static inline int sizeof_ns2_led_priv(int num_leds)
+{
+	return sizeof(struct ns2_led_priv) +
+		      (sizeof(struct ns2_led_data) * num_leds);
+}
+
 static int ns2_led_probe(struct platform_device *pdev)
 {
-	struct ns2_led_platform_data *pdata = pdev->dev.platform_data;
-	struct ns2_led_data *leds_data;
+	struct ns2_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct ns2_led_priv *priv;
 	int i;
 	int ret;
 
@@ -330,21 +341,23 @@ static int ns2_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 #endif /* CONFIG_OF_GPIO */
 
-	leds_data = devm_kzalloc(&pdev->dev, sizeof(struct ns2_led_data) *
-				 pdata->num_leds, GFP_KERNEL);
-	if (!leds_data)
+	priv = devm_kzalloc(&pdev->dev,
+			    sizeof_ns2_led_priv(pdata->num_leds), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
+	priv->num_leds = pdata->num_leds;
 
-	for (i = 0; i < pdata->num_leds; i++) {
-		ret = create_ns2_led(pdev, &leds_data[i], &pdata->leds[i]);
+	for (i = 0; i < priv->num_leds; i++) {
+		ret = create_ns2_led(pdev, &priv->leds_data[i],
+				     &pdata->leds[i]);
 		if (ret < 0) {
 			for (i = i - 1; i >= 0; i--)
-				delete_ns2_led(&leds_data[i]);
+				delete_ns2_led(&priv->leds_data[i]);
 			return ret;
 		}
 	}
 
-	platform_set_drvdata(pdev, leds_data);
+	platform_set_drvdata(pdev, priv);
 
 	return 0;
 }
@@ -352,15 +365,12 @@ static int ns2_led_probe(struct platform_device *pdev)
 static int ns2_led_remove(struct platform_device *pdev)
 {
 	int i;
-	struct ns2_led_platform_data *pdata = pdev->dev.platform_data;
-	struct ns2_led_data *leds_data;
+	struct ns2_led_priv *priv;
 
-	leds_data = platform_get_drvdata(pdev);
+	priv = platform_get_drvdata(pdev);
 
-	for (i = 0; i < pdata->num_leds; i++)
-		delete_ns2_led(&leds_data[i]);
-
-	platform_set_drvdata(pdev, NULL);
+	for (i = 0; i < priv->num_leds; i++)
+		delete_ns2_led(&priv->leds_data[i]);
 
 	return 0;
 }

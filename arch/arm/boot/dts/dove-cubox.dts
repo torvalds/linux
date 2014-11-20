@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "dove.dtsi"
+#include "dove.dtsi"
 
 / {
 	model = "SolidRun CuBox";
@@ -23,7 +23,7 @@
 		power {
 			label = "Power";
 			gpios = <&gpio0 18 1>;
-			linux,default-trigger = "default-on";
+			default-state = "keep";
 		};
 	};
 
@@ -42,18 +42,75 @@
 			regulator-always-on;
 			regulator-boot-on;
 			gpio = <&gpio0 1 0>;
+			pinctrl-0 = <&pmx_gpio_1>;
+			pinctrl-names = "default";
 		};
+	};
+
+	clocks {
+		/* 25MHz reference crystal */
+		ref25: oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
+	};
+
+	ir_recv: ir-receiver {
+		compatible = "gpio-ir-receiver";
+		gpios = <&gpio0 19 1>;
+		pinctrl-0 = <&pmx_gpio_19>;
+		pinctrl-names = "default";
 	};
 };
 
 &uart0 { status = "okay"; };
 &sata0 { status = "okay"; };
-&i2c0 { status = "okay"; };
+&mdio { status = "okay"; };
+&eth { status = "okay"; };
+
+&ethphy {
+	compatible = "marvell,88e1310";
+	reg = <1>;
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	si5351: clock-generator {
+		compatible = "silabs,si5351a-msop";
+		reg = <0x60>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#clock-cells = <1>;
+
+		/* connect xtal input to 25MHz reference */
+		clocks = <&ref25>;
+
+		/* connect xtal input as source of pll0 and pll1 */
+		silabs,pll-source = <0 0>, <1 0>;
+
+		clkout0 {
+			reg = <0>;
+			silabs,drive-strength = <8>;
+			silabs,multisynth-source = <0>;
+			silabs,clock-source = <0>;
+			silabs,pll-master;
+		};
+
+		clkout2 {
+			reg = <2>;
+			silabs,drive-strength = <8>;
+			silabs,multisynth-source = <1>;
+			silabs,clock-source = <0>;
+			silabs,pll-master;
+		};
+	};
+};
 
 &sdio0 {
 	status = "okay";
-	/* sdio0 card detect is connected to wrong pin on CuBox */
-	cd-gpios = <&gpio0 12 1>;
 };
 
 &spi0 {
@@ -67,22 +124,10 @@
 	};
 };
 
-&pinctrl {
-	pinctrl-0 = <&pmx_gpio_1 &pmx_gpio_12>;
+&audio1 {
+	status = "okay";
+	clocks = <&gate_clk 13>, <&si5351 2>;
+	clock-names = "internal", "extclk";
+	pinctrl-0 = <&pmx_audio1_i2s1_spdifo &pmx_audio1_extclk>;
 	pinctrl-names = "default";
-
-	pmx_gpio_1: pmx-gpio-1 {
-		marvell,pins = "mpp1";
-		marvell,function = "gpio";
-	};
-
-	pmx_gpio_12: pmx-gpio-12 {
-		marvell,pins = "mpp12";
-		marvell,function = "gpio";
-	};
-
-	pmx_gpio_18: pmx-gpio-18 {
-		marvell,pins = "mpp18";
-		marvell,function = "gpio";
-	};
 };

@@ -1,12 +1,28 @@
 /*
  * Copyright (C) 2012 Avionic Design GmbH
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sub license,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
 
 #include <linux/bitops.h>
+#include <linux/bug.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/hdmi.h>
@@ -37,7 +53,7 @@ int hdmi_avi_infoframe_init(struct hdmi_avi_infoframe *frame)
 
 	frame->type = HDMI_INFOFRAME_TYPE_AVI;
 	frame->version = 2;
-	frame->length = 13;
+	frame->length = HDMI_AVI_INFOFRAME_SIZE;
 
 	return 0;
 }
@@ -68,7 +84,7 @@ ssize_t hdmi_avi_infoframe_pack(struct hdmi_avi_infoframe *frame, void *buffer,
 	if (size < length)
 		return -ENOSPC;
 
-	memset(buffer, 0, length);
+	memset(buffer, 0, size);
 
 	ptr[0] = frame->type;
 	ptr[1] = frame->version;
@@ -80,13 +96,18 @@ ssize_t hdmi_avi_infoframe_pack(struct hdmi_avi_infoframe *frame, void *buffer,
 
 	ptr[0] = ((frame->colorspace & 0x3) << 5) | (frame->scan_mode & 0x3);
 
-	if (frame->active_info_valid)
+	/*
+	 * Data byte 1, bit 4 has to be set if we provide the active format
+	 * aspect ratio
+	 */
+	if (frame->active_aspect & 0xf)
 		ptr[0] |= BIT(4);
 
-	if (frame->horizontal_bar_valid)
+	/* Bit 3 and 2 indicate if we transmit horizontal/vertical bar data */
+	if (frame->top_bar || frame->bottom_bar)
 		ptr[0] |= BIT(3);
 
-	if (frame->vertical_bar_valid)
+	if (frame->left_bar || frame->right_bar)
 		ptr[0] |= BIT(2);
 
 	ptr[1] = ((frame->colorimetry & 0x3) << 6) |
@@ -136,7 +157,7 @@ int hdmi_spd_infoframe_init(struct hdmi_spd_infoframe *frame,
 
 	frame->type = HDMI_INFOFRAME_TYPE_SPD;
 	frame->version = 1;
-	frame->length = 25;
+	frame->length = HDMI_SPD_INFOFRAME_SIZE;
 
 	strncpy(frame->vendor, vendor, sizeof(frame->vendor));
 	strncpy(frame->product, product, sizeof(frame->product));
@@ -170,7 +191,7 @@ ssize_t hdmi_spd_infoframe_pack(struct hdmi_spd_infoframe *frame, void *buffer,
 	if (size < length)
 		return -ENOSPC;
 
-	memset(buffer, 0, length);
+	memset(buffer, 0, size);
 
 	ptr[0] = frame->type;
 	ptr[1] = frame->version;
@@ -203,7 +224,7 @@ int hdmi_audio_infoframe_init(struct hdmi_audio_infoframe *frame)
 
 	frame->type = HDMI_INFOFRAME_TYPE_AUDIO;
 	frame->version = 1;
-	frame->length = 10;
+	frame->length = HDMI_AUDIO_INFOFRAME_SIZE;
 
 	return 0;
 }
@@ -235,7 +256,7 @@ ssize_t hdmi_audio_infoframe_pack(struct hdmi_audio_infoframe *frame,
 	if (size < length)
 		return -ENOSPC;
 
-	memset(buffer, 0, length);
+	memset(buffer, 0, size);
 
 	if (frame->channels >= 2)
 		channels = frame->channels - 1;
@@ -267,9 +288,33 @@ ssize_t hdmi_audio_infoframe_pack(struct hdmi_audio_infoframe *frame,
 EXPORT_SYMBOL(hdmi_audio_infoframe_pack);
 
 /**
- * hdmi_vendor_infoframe_pack() - write a HDMI vendor infoframe to binary
- *                                buffer
+ * hdmi_vendor_infoframe_init() - initialize an HDMI vendor infoframe
  * @frame: HDMI vendor infoframe
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int hdmi_vendor_infoframe_init(struct hdmi_vendor_infoframe *frame)
+{
+	memset(frame, 0, sizeof(*frame));
+
+	frame->type = HDMI_INFOFRAME_TYPE_VENDOR;
+	frame->version = 1;
+
+	frame->oui = HDMI_IEEE_OUI;
+
+	/*
+	 * 0 is a valid value for s3d_struct, so we use a special "not set"
+	 * value
+	 */
+	frame->s3d_struct = HDMI_3D_STRUCTURE_INVALID;
+
+	return 0;
+}
+EXPORT_SYMBOL(hdmi_vendor_infoframe_init);
+
+/**
+ * hdmi_vendor_infoframe_pack() - write a HDMI vendor infoframe to binary buffer
+ * @frame: HDMI infoframe
  * @buffer: destination buffer
  * @size: size of buffer
  *
@@ -282,27 +327,110 @@ EXPORT_SYMBOL(hdmi_audio_infoframe_pack);
  * error code on failure.
  */
 ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
-				   void *buffer, size_t size)
+				 void *buffer, size_t size)
 {
 	u8 *ptr = buffer;
 	size_t length;
+
+	/* empty info frame */
+	if (frame->vic == 0 && frame->s3d_struct == HDMI_3D_STRUCTURE_INVALID)
+		return -EINVAL;
+
+	/* only one of those can be supplied */
+	if (frame->vic != 0 && frame->s3d_struct != HDMI_3D_STRUCTURE_INVALID)
+		return -EINVAL;
+
+	/* for side by side (half) we also need to provide 3D_Ext_Data */
+	if (frame->s3d_struct >= HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF)
+		frame->length = 6;
+	else
+		frame->length = 5;
 
 	length = HDMI_INFOFRAME_HEADER_SIZE + frame->length;
 
 	if (size < length)
 		return -ENOSPC;
 
-	memset(buffer, 0, length);
+	memset(buffer, 0, size);
 
 	ptr[0] = frame->type;
 	ptr[1] = frame->version;
 	ptr[2] = frame->length;
 	ptr[3] = 0; /* checksum */
 
-	memcpy(&ptr[HDMI_INFOFRAME_HEADER_SIZE], frame->data, frame->length);
+	/* HDMI OUI */
+	ptr[4] = 0x03;
+	ptr[5] = 0x0c;
+	ptr[6] = 0x00;
+
+	if (frame->vic) {
+		ptr[7] = 0x1 << 5;	/* video format */
+		ptr[8] = frame->vic;
+	} else {
+		ptr[7] = 0x2 << 5;	/* video format */
+		ptr[8] = (frame->s3d_struct & 0xf) << 4;
+		if (frame->s3d_struct >= HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF)
+			ptr[9] = (frame->s3d_ext_data & 0xf) << 4;
+	}
 
 	hdmi_infoframe_checksum(buffer, length);
 
 	return length;
 }
 EXPORT_SYMBOL(hdmi_vendor_infoframe_pack);
+
+/*
+ * hdmi_vendor_any_infoframe_pack() - write a vendor infoframe to binary buffer
+ */
+static ssize_t
+hdmi_vendor_any_infoframe_pack(union hdmi_vendor_any_infoframe *frame,
+			   void *buffer, size_t size)
+{
+	/* we only know about HDMI vendor infoframes */
+	if (frame->any.oui != HDMI_IEEE_OUI)
+		return -EINVAL;
+
+	return hdmi_vendor_infoframe_pack(&frame->hdmi, buffer, size);
+}
+
+/**
+ * hdmi_infoframe_pack() - write a HDMI infoframe to binary buffer
+ * @frame: HDMI infoframe
+ * @buffer: destination buffer
+ * @size: size of buffer
+ *
+ * Packs the information contained in the @frame structure into a binary
+ * representation that can be written into the corresponding controller
+ * registers. Also computes the checksum as required by section 5.3.5 of
+ * the HDMI 1.4 specification.
+ *
+ * Returns the number of bytes packed into the binary buffer or a negative
+ * error code on failure.
+ */
+ssize_t
+hdmi_infoframe_pack(union hdmi_infoframe *frame, void *buffer, size_t size)
+{
+	ssize_t length;
+
+	switch (frame->any.type) {
+	case HDMI_INFOFRAME_TYPE_AVI:
+		length = hdmi_avi_infoframe_pack(&frame->avi, buffer, size);
+		break;
+	case HDMI_INFOFRAME_TYPE_SPD:
+		length = hdmi_spd_infoframe_pack(&frame->spd, buffer, size);
+		break;
+	case HDMI_INFOFRAME_TYPE_AUDIO:
+		length = hdmi_audio_infoframe_pack(&frame->audio, buffer, size);
+		break;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		length = hdmi_vendor_any_infoframe_pack(&frame->vendor,
+							buffer, size);
+		break;
+	default:
+		WARN(1, "Bad infoframe type %d\n", frame->any.type);
+		length = -EINVAL;
+	}
+
+	return length;
+}
+EXPORT_SYMBOL(hdmi_infoframe_pack);

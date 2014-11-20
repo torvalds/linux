@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -253,30 +253,35 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 
 	case AML_FIELD_ACCESS_BYTE:
 	case AML_FIELD_ACCESS_BUFFER:	/* ACPI 2.0 (SMBus Buffer) */
+
 		byte_alignment = 1;
 		bit_length = 8;
 		break;
 
 	case AML_FIELD_ACCESS_WORD:
+
 		byte_alignment = 2;
 		bit_length = 16;
 		break;
 
 	case AML_FIELD_ACCESS_DWORD:
+
 		byte_alignment = 4;
 		bit_length = 32;
 		break;
 
 	case AML_FIELD_ACCESS_QWORD:	/* ACPI 2.0 */
+
 		byte_alignment = 8;
 		bit_length = 64;
 		break;
 
 	default:
+
 		/* Invalid field access type */
 
 		ACPI_ERROR((AE_INFO, "Unknown field access type 0x%X", access));
-		return_VALUE(0);
+		return_UINT32(0);
 	}
 
 	if (obj_desc->common.type == ACPI_TYPE_BUFFER_FIELD) {
@@ -289,7 +294,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 	}
 
 	*return_byte_alignment = byte_alignment;
-	return_VALUE(bit_length);
+	return_UINT32(bit_length);
 }
 
 /*******************************************************************************
@@ -479,6 +484,8 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 			obj_desc->field.resource_length = info->resource_length;
 		}
 
+		obj_desc->field.pin_number_index = info->pin_number_index;
+
 		/* Allow full data read from EC address space */
 
 		if ((obj_desc->field.region_obj->region.space_id ==
@@ -598,7 +605,9 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		break;
 
 	default:
+
 		/* No other types should get here */
+
 		break;
 	}
 

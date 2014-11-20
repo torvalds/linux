@@ -41,14 +41,14 @@ const char bfin_board_name[] = "DNP/5370";
 #define FLASH_MAC               0x202f0000
 #define CONFIG_MTD_PHYSMAP_LEN  0x300000
 
-#if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_RTC_DRV_BFIN)
 static struct platform_device rtc_device = {
 	.name = "rtc-bfin",
 	.id   = -1,
 };
 #endif
 
-#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+#if IS_ENABLED(CONFIG_BFIN_MAC)
 #include <linux/bfin_mac.h>
 static const unsigned short bfin_mac_peripherals[] = P_RMII0;
 
@@ -81,7 +81,7 @@ static struct platform_device bfin_mac_device = {
 };
 #endif
 
-#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+#if IS_ENABLED(CONFIG_MTD_PHYSMAP)
 static struct mtd_partition asmb_flash_partitions[] = {
 	{
 		.name       = "bootloader(nor)",
@@ -125,9 +125,9 @@ static struct platform_device asmb_flash_device = {
 };
 #endif
 
-#if defined(CONFIG_SPI_BFIN5XX) || defined(CONFIG_SPI_BFIN5XX_MODULE)
+#if IS_ENABLED(CONFIG_SPI_BFIN5XX)
 
-#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+#if IS_ENABLED(CONFIG_MMC_SPI)
 
 static struct bfin5xx_spi_chip mmc_spi_chip_info = {
 	.enable_dma    = 0,	 /* use no dma transfer with this chip*/
@@ -135,7 +135,7 @@ static struct bfin5xx_spi_chip mmc_spi_chip_info = {
 
 #endif
 
-#if defined(CONFIG_MTD_DATAFLASH) || defined(CONFIG_MTD_DATAFLASH_MODULE)
+#if IS_ENABLED(CONFIG_MTD_DATAFLASH)
 /* This mapping is for at45db642 it has 1056 page size,
  * partition size and offset should be page aligned
  */
@@ -166,7 +166,7 @@ static struct bfin5xx_spi_chip spi_dataflash_chip_info = {
 
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
 /* SD/MMC card reader at SPI bus */
-#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+#if IS_ENABLED(CONFIG_MMC_SPI)
 	{
 		.modalias	 = "mmc_spi",
 		.max_speed_hz    = 20000000,
@@ -178,7 +178,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #endif
 
 /* 8 Megabyte Atmel NOR flash chip at SPI bus */
-#if defined(CONFIG_MTD_DATAFLASH) || defined(CONFIG_MTD_DATAFLASH_MODULE)
+#if IS_ENABLED(CONFIG_MTD_DATAFLASH)
 	{
 	.modalias        = "mtd_dataflash",
 	.max_speed_hz    = 16700000,
@@ -228,7 +228,7 @@ static struct platform_device spi_bfin_master_device = {
 };
 #endif
 
-#if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_BFIN)
 #ifdef CONFIG_SERIAL_BFIN_UART0
 static struct resource bfin_uart0_resources[] = {
 	{
@@ -328,7 +328,7 @@ static struct platform_device bfin_uart1_device = {
 #endif
 #endif
 
-#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if IS_ENABLED(CONFIG_I2C_BLACKFIN_TWI)
 static const u16 bfin_twi0_pins[] = {P_TWI0_SCL, P_TWI0_SDA, 0};
 
 static struct resource bfin_twi0_resource[] = {
@@ -357,7 +357,7 @@ static struct platform_device i2c_bfin_twi_device = {
 
 static struct platform_device *dnp5370_devices[] __initdata = {
 
-#if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_BFIN)
 #ifdef CONFIG_SERIAL_BFIN_UART0
 	&bfin_uart0_device,
 #endif
@@ -366,24 +366,24 @@ static struct platform_device *dnp5370_devices[] __initdata = {
 #endif
 #endif
 
-#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+#if IS_ENABLED(CONFIG_MTD_PHYSMAP)
 	&asmb_flash_device,
 #endif
 
-#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+#if IS_ENABLED(CONFIG_BFIN_MAC)
 	&bfin_mii_bus,
 	&bfin_mac_device,
 #endif
 
-#if defined(CONFIG_SPI_BFIN5XX) || defined(CONFIG_SPI_BFIN5XX_MODULE)
+#if IS_ENABLED(CONFIG_SPI_BFIN5XX)
 	&spi_bfin_master_device,
 #endif
 
-#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if IS_ENABLED(CONFIG_I2C_BLACKFIN_TWI)
 	&i2c_bfin_twi_device,
 #endif
 
-#if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_RTC_DRV_BFIN)
 	&rtc_device,
 #endif
 

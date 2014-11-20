@@ -109,7 +109,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	hose = pci_bus_to_host(bus);
 
 	/* Check if we have IOs allocated */
-	if (hose->io_base_alloc == 0)
+	if (hose->io_base_alloc == NULL)
 		return 0;
 
 	pr_debug("IO unmapping for PHB %s\n", hose->dn->full_name);
@@ -208,8 +208,7 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 			  unsigned long in_devfn)
 {
 	struct pci_controller* hose;
-	struct list_head *ln;
-	struct pci_bus *bus = NULL;
+	struct pci_bus *tmp_bus, *bus = NULL;
 	struct device_node *hose_node;
 
 	/* Argh ! Please forgive me for that hack, but that's the
@@ -230,11 +229,12 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 	 * used on pre-domains setup. We return the first match
 	 */
 
-	for (ln = pci_root_buses.next; ln != &pci_root_buses; ln = ln->next) {
-		bus = pci_bus_b(ln);
-		if (in_bus >= bus->number && in_bus <= bus->busn_res.end)
+	list_for_each_entry(tmp_bus, &pci_root_buses, node) {
+		if (in_bus >= tmp_bus->number &&
+		    in_bus <= tmp_bus->busn_res.end) {
+			bus = tmp_bus;
 			break;
-		bus = NULL;
+		}
 	}
 	if (bus == NULL || bus->dev.of_node == NULL)
 		return -ENODEV;
@@ -246,7 +246,7 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 	case IOBASE_BRIDGE_NUMBER:
 		return (long)hose->first_busno;
 	case IOBASE_MEMORY:
-		return (long)hose->pci_mem_offset;
+		return (long)hose->mem_offset[0];
 	case IOBASE_IO:
 		return (long)hose->io_base_phys;
 	case IOBASE_ISA_IO:
@@ -266,3 +266,13 @@ int pcibus_to_node(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pcibus_to_node);
 #endif
+
+static void quirk_radeon_32bit_msi(struct pci_dev *dev)
+{
+	struct pci_dn *pdn = pci_get_pdn(dev);
+
+	if (pdn)
+		pdn->force_32bit_msi = true;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x68f2, quirk_radeon_32bit_msi);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0xaa68, quirk_radeon_32bit_msi);

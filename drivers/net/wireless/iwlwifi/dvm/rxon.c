@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -78,8 +78,9 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 		ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 #endif
 
-	ctx->staging.channel = cpu_to_le16(priv->hw->conf.channel->hw_value);
-	priv->band = priv->hw->conf.channel->band;
+	ctx->staging.channel =
+		cpu_to_le16(priv->hw->conf.chandef.chan->hw_value);
+	priv->band = priv->hw->conf.chandef.chan->band;
 
 	iwl_set_flags_for_band(priv, ctx, priv->band, ctx->vif);
 
@@ -103,7 +104,7 @@ static int iwlagn_disable_bss(struct iwl_priv *priv,
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd,
-				CMD_SYNC, sizeof(*send), send);
+				0, sizeof(*send), send);
 
 	send->filter_flags = old_filter;
 
@@ -133,7 +134,7 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	send->dev_type = RXON_DEV_TYPE_P2P;
 	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd,
-				CMD_SYNC, sizeof(*send), send);
+				0, sizeof(*send), send);
 
 	send->filter_flags = old_filter;
 	send->dev_type = old_dev_type;
@@ -159,7 +160,7 @@ static int iwlagn_disconn_pan(struct iwl_priv *priv,
 	int ret;
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd, 0,
 				sizeof(*send), send);
 
 	send->filter_flags = old_filter;
@@ -188,7 +189,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 		      ctx->qos_data.qos_active,
 		      ctx->qos_data.def_qos_parm.qos_flags);
 
-	ret = iwl_dvm_send_cmd_pdu(priv, ctx->qos_cmd, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, ctx->qos_cmd, 0,
 			       sizeof(struct iwl_qosparam_cmd),
 			       &ctx->qos_data.def_qos_parm);
 	if (ret)
@@ -352,7 +353,7 @@ static int iwl_send_rxon_timing(struct iwl_priv *priv,
 			le16_to_cpu(ctx->timing.atim_window));
 
 	return iwl_dvm_send_cmd_pdu(priv, ctx->rxon_timing_cmd,
-				CMD_SYNC, sizeof(ctx->timing), &ctx->timing);
+				0, sizeof(ctx->timing), &ctx->timing);
 }
 
 static int iwlagn_rxon_disconn(struct iwl_priv *priv,
@@ -494,7 +495,7 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	 * Associated RXON doesn't clear the station table in uCode,
 	 * so we don't need to restore stations etc. after this.
 	 */
-	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_cmd, 0,
 		      sizeof(struct iwl_rxon_cmd), &ctx->staging);
 	if (ret) {
 		IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
@@ -563,11 +564,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	cmd.slots[0].type = 0; /* BSS */
 	cmd.slots[1].type = 1; /* PAN */
 
-	if (priv->hw_roc_setup) {
-		/* both contexts must be used for this to happen */
-		slot1 = IWL_MIN_SLOT_TIME;
-		slot0 = 3000;
-	} else if (ctx_bss->vif && ctx_pan->vif) {
+	if (ctx_bss->vif && ctx_pan->vif) {
 		int bcnint = ctx_pan->beacon_int;
 		int dtim = ctx_pan->vif->bss_conf.dtim_period ?: 1;
 
@@ -613,7 +610,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	cmd.slots[0].width = cpu_to_le16(slot0);
 	cmd.slots[1].width = cpu_to_le16(slot1);
 
-	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_WIPAN_PARAMS, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_WIPAN_PARAMS, 0,
 			sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(priv, "Error setting PAN parameters (%d)\n", ret);
@@ -826,7 +823,7 @@ static int iwl_check_rxon_cmd(struct iwl_priv *priv,
 
 	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK))
 			== (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK)) {
-		IWL_WARN(priv, "CCK and auto detect");
+		IWL_WARN(priv, "CCK and auto detect\n");
 		errors |= BIT(8);
 	}
 
@@ -951,7 +948,7 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 		unsigned long basic = ctx->vif->bss_conf.basic_rates;
 		int i;
 
-		sband = priv->hw->wiphy->bands[priv->hw->conf.channel->band];
+		sband = priv->hw->wiphy->bands[priv->hw->conf.chandef.chan->band];
 
 		for_each_set_bit(i, &basic, BITS_PER_LONG) {
 			int hw = sband->bitrates[i].hw_value;
@@ -1159,7 +1156,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 }
 
 void iwlagn_config_ht40(struct ieee80211_conf *conf,
-	struct iwl_rxon_context *ctx)
+			struct iwl_rxon_context *ctx)
 {
 	if (conf_is_ht40_minus(conf)) {
 		ctx->ht.extension_chan_offset =
@@ -1181,7 +1178,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_rxon_context *ctx;
 	struct ieee80211_conf *conf = &hw->conf;
-	struct ieee80211_channel *channel = conf->channel;
+	struct ieee80211_channel *channel = conf->chandef.chan;
 	int ret = 0;
 
 	IWL_DEBUG_MAC80211(priv, "enter: changed %#x\n", changed);
@@ -1377,7 +1374,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 	int ret;
 
-	if (!(priv->calib_disabled & IWL_CHAIN_NOISE_CALIB_DISABLED))
+	if (priv->calib_disabled & IWL_CHAIN_NOISE_CALIB_DISABLED)
 		return;
 
 	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
@@ -1398,7 +1395,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 			priv->phy_calib_chain_noise_reset_cmd);
 		ret = iwl_dvm_send_cmd_pdu(priv,
 					REPLY_PHY_CALIBRATION_CMD,
-					CMD_SYNC, sizeof(cmd), &cmd);
+					0, sizeof(cmd), &cmd);
 		if (ret)
 			IWL_ERR(priv,
 				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
@@ -1418,6 +1415,14 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 	bool force = false;
 
 	mutex_lock(&priv->mutex);
+
+	if (changes & BSS_CHANGED_IDLE && bss_conf->idle) {
+		/*
+		 * If we go idle, then clearly no "passive-no-rx"
+		 * workaround is needed any more, this is a reset.
+		 */
+		iwlagn_lift_passive_no_rx(priv);
+	}
 
 	if (unlikely(!iwl_is_ready(priv))) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
@@ -1450,16 +1455,6 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			priv->timestamp = bss_conf->sync_tsf;
 			ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		} else {
-			/*
-			 * If we disassociate while there are pending
-			 * frames, just wake up the queues and let the
-			 * frames "escape" ... This shouldn't really
-			 * be happening to start with, but we should
-			 * not get stuck in this case either since it
-			 * can happen if userspace gets confused.
-			 */
-			iwlagn_lift_passive_no_rx(priv);
-
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
 			if (ctx->ctxid == IWL_RXON_CTX_BSS)

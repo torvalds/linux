@@ -21,9 +21,10 @@
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -37,8 +38,8 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
-#include <linux/pinctrl/consumer.h>
 
+#include <linux/platform_data/dma-imx.h>
 #include <linux/platform_data/spi-imx.h>
 
 #define DRIVER_NAME "spi_imx"
@@ -53,6 +54,9 @@
 #define MXC_INT_RR	(1 << 0) /* Receive data ready interrupt */
 #define MXC_INT_TE	(1 << 1) /* Transmit FIFO empty interrupt */
 
+/* The maximum  bytes that a sdma BD can transfer.*/
+#define MAX_SDMA_BD_BYTES  (1 << 15)
+#define IMX_DMA_TIMEOUT (msecs_to_jiffies(3000))
 struct spi_imx_config {
 	unsigned int speed_hz;
 	unsigned int bpw;
@@ -96,6 +100,16 @@ struct spi_imx_data {
 	void *rx_buf;
 	const void *tx_buf;
 	unsigned int txfifo; /* number of words pushed in tx FIFO */
+
+	/* DMA */
+	unsigned int dma_is_inited;
+	unsigned int dma_finished;
+	bool usedma;
+	u32 rx_wml;
+	u32 tx_wml;
+	u32 rxt_wml;
+	struct completion dma_rx_completion;
+	struct completion dma_tx_completion;
 
 	const struct spi_imx_devtype_data *devtype_data;
 	int chipselect[0];
@@ -183,9 +197,21 @@ static unsigned int spi_imx_clkdiv_2(unsigned int fin,
 	return 7;
 }
 
+static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
+			 struct spi_transfer *transfer)
+{
+	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
+
+	if (spi_imx->dma_is_inited && (transfer->len > spi_imx->rx_wml)
+	    && (transfer->len > spi_imx->tx_wml))
+		return true;
+	return false;
+}
+
 #define MX51_ECSPI_CTRL		0x08
 #define MX51_ECSPI_CTRL_ENABLE		(1 <<  0)
 #define MX51_ECSPI_CTRL_XCH		(1 <<  2)
+#define MX51_ECSPI_CTRL_SMC		(1 << 3)
 #define MX51_ECSPI_CTRL_MODE_MASK	(0xf << 4)
 #define MX51_ECSPI_CTRL_POSTDIV_OFFSET	8
 #define MX51_ECSPI_CTRL_PREDIV_OFFSET	12
@@ -203,11 +229,24 @@ static unsigned int spi_imx_clkdiv_2(unsigned int fin,
 #define MX51_ECSPI_INT_TEEN		(1 <<  0)
 #define MX51_ECSPI_INT_RREN		(1 <<  3)
 
+#define MX51_ECSPI_DMA      0x14
+#define MX51_ECSPI_DMA_TX_WML_OFFSET	0
+#define MX51_ECSPI_DMA_TX_WML_MASK	0x3F
+#define MX51_ECSPI_DMA_RX_WML_OFFSET	16
+#define MX51_ECSPI_DMA_RX_WML_MASK	(0x3F << 16)
+#define MX51_ECSPI_DMA_RXT_WML_OFFSET	24
+#define MX51_ECSPI_DMA_RXT_WML_MASK	(0x3F << 24)
+
+#define MX51_ECSPI_DMA_TEDEN_OFFSET	7
+#define MX51_ECSPI_DMA_RXDEN_OFFSET	23
+#define MX51_ECSPI_DMA_RXTDEN_OFFSET	31
+
 #define MX51_ECSPI_STAT		0x18
 #define MX51_ECSPI_STAT_RR		(1 <<  3)
 
 /* MX51 eCSPI */
-static unsigned int mx51_ecspi_clkdiv(unsigned int fin, unsigned int fspi)
+static unsigned int mx51_ecspi_clkdiv(unsigned int fin, unsigned int fspi,
+				      unsigned int *fres)
 {
 	/*
 	 * there are two 4-bit dividers, the pre-divider divides by
@@ -235,6 +274,10 @@ static unsigned int mx51_ecspi_clkdiv(unsigned int fin, unsigned int fspi)
 
 	pr_debug("%s: fin: %u, fspi: %u, post: %u, pre: %u\n",
 			__func__, fin, fspi, post, pre);
+
+	/* Resulting frequency for the SCLK line. */
+	*fres = (fin / (pre + 1)) >> post;
+
 	return (pre << MX51_ECSPI_CTRL_PREDIV_OFFSET) |
 		(post << MX51_ECSPI_CTRL_POSTDIV_OFFSET);
 }
@@ -254,17 +297,23 @@ static void __maybe_unused mx51_ecspi_intctrl(struct spi_imx_data *spi_imx, int 
 
 static void __maybe_unused mx51_ecspi_trigger(struct spi_imx_data *spi_imx)
 {
-	u32 reg;
+	u32 reg = readl(spi_imx->base + MX51_ECSPI_CTRL);
 
-	reg = readl(spi_imx->base + MX51_ECSPI_CTRL);
-	reg |= MX51_ECSPI_CTRL_XCH;
+	if (!spi_imx->usedma)
+		reg |= MX51_ECSPI_CTRL_XCH;
+	else if (!spi_imx->dma_finished)
+		reg |= MX51_ECSPI_CTRL_SMC;
+	else
+		reg &= ~MX51_ECSPI_CTRL_SMC;
 	writel(reg, spi_imx->base + MX51_ECSPI_CTRL);
 }
 
 static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 		struct spi_imx_config *config)
 {
-	u32 ctrl = MX51_ECSPI_CTRL_ENABLE, cfg = 0;
+	u32 ctrl = MX51_ECSPI_CTRL_ENABLE, cfg = 0, dma = 0;
+	u32 tx_wml_cfg, rx_wml_cfg, rxt_wml_cfg;
+	u32 clk = config->speed_hz, delay;
 
 	/*
 	 * The hardware seems to have a race condition when changing modes. The
@@ -276,7 +325,7 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 	ctrl |= MX51_ECSPI_CTRL_MODE_MASK;
 
 	/* set clock speed */
-	ctrl |= mx51_ecspi_clkdiv(spi_imx->spi_clk, config->speed_hz);
+	ctrl |= mx51_ecspi_clkdiv(spi_imx->spi_clk, config->speed_hz, &clk);
 
 	/* set chip select to use */
 	ctrl |= MX51_ECSPI_CTRL_CS(config->cs);
@@ -297,6 +346,47 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 
 	writel(ctrl, spi_imx->base + MX51_ECSPI_CTRL);
 	writel(cfg, spi_imx->base + MX51_ECSPI_CONFIG);
+
+	/*
+	 * Wait until the changes in the configuration register CONFIGREG
+	 * propagate into the hardware. It takes exactly one tick of the
+	 * SCLK clock, but we will wait two SCLK clock just to be sure. The
+	 * effect of the delay it takes for the hardware to apply changes
+	 * is noticable if the SCLK clock run very slow. In such a case, if
+	 * the polarity of SCLK should be inverted, the GPIO ChipSelect might
+	 * be asserted before the SCLK polarity changes, which would disrupt
+	 * the SPI communication as the device on the other end would consider
+	 * the change of SCLK polarity as a clock tick already.
+	 */
+	delay = (2 * 1000000) / clk;
+	if (likely(delay < 10))	/* SCLK is faster than 100 kHz */
+		udelay(delay);
+	else			/* SCLK is _very_ slow */
+		usleep_range(delay, delay + 10);
+
+	/*
+	 * Configure the DMA register: setup the watermark
+	 * and enable DMA request.
+	 */
+	if (spi_imx->dma_is_inited) {
+		dma = readl(spi_imx->base + MX51_ECSPI_DMA);
+
+		spi_imx->tx_wml = spi_imx_get_fifosize(spi_imx) / 2;
+		spi_imx->rx_wml = spi_imx_get_fifosize(spi_imx) / 2;
+		spi_imx->rxt_wml = spi_imx_get_fifosize(spi_imx) / 2;
+		rx_wml_cfg = spi_imx->rx_wml << MX51_ECSPI_DMA_RX_WML_OFFSET;
+		tx_wml_cfg = spi_imx->tx_wml << MX51_ECSPI_DMA_TX_WML_OFFSET;
+		rxt_wml_cfg = spi_imx->rxt_wml << MX51_ECSPI_DMA_RXT_WML_OFFSET;
+		dma = (dma & ~MX51_ECSPI_DMA_TX_WML_MASK
+			   & ~MX51_ECSPI_DMA_RX_WML_MASK
+			   & ~MX51_ECSPI_DMA_RXT_WML_MASK)
+			   | rx_wml_cfg | tx_wml_cfg | rxt_wml_cfg
+			   |(1 << MX51_ECSPI_DMA_TEDEN_OFFSET)
+			   |(1 << MX51_ECSPI_DMA_RXDEN_OFFSET)
+			   |(1 << MX51_ECSPI_DMA_RXTDEN_OFFSET);
+
+		writel(dma, spi_imx->base + MX51_ECSPI_DMA);
+	}
 
 	return 0;
 }
@@ -620,6 +710,7 @@ static const struct of_device_id spi_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx51-ecspi", .data = &imx51_ecspi_devtype_data, },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, spi_imx_dt_ids);
 
 static void spi_imx_chipselect(struct spi_device *spi, int is_active)
 {
@@ -698,18 +789,196 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	} else if (config.bpw <= 16) {
 		spi_imx->rx = spi_imx_buf_rx_u16;
 		spi_imx->tx = spi_imx_buf_tx_u16;
-	} else if (config.bpw <= 32) {
+	} else {
 		spi_imx->rx = spi_imx_buf_rx_u32;
 		spi_imx->tx = spi_imx_buf_tx_u32;
-	} else
-		BUG();
+	}
 
 	spi_imx->devtype_data->config(spi_imx, &config);
 
 	return 0;
 }
 
-static int spi_imx_transfer(struct spi_device *spi,
+static void spi_imx_sdma_exit(struct spi_imx_data *spi_imx)
+{
+	struct spi_master *master = spi_imx->bitbang.master;
+
+	if (master->dma_rx) {
+		dma_release_channel(master->dma_rx);
+		master->dma_rx = NULL;
+	}
+
+	if (master->dma_tx) {
+		dma_release_channel(master->dma_tx);
+		master->dma_tx = NULL;
+	}
+
+	spi_imx->dma_is_inited = 0;
+}
+
+static int spi_imx_sdma_init(struct device *dev, struct spi_imx_data *spi_imx,
+			     struct spi_master *master,
+			     const struct resource *res)
+{
+	struct dma_slave_config slave_config = {};
+	int ret;
+
+	/* Prepare for TX DMA: */
+	master->dma_tx = dma_request_slave_channel(dev, "tx");
+	if (!master->dma_tx) {
+		dev_err(dev, "cannot get the TX DMA channel!\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	slave_config.direction = DMA_MEM_TO_DEV;
+	slave_config.dst_addr = res->start + MXC_CSPITXDATA;
+	slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	slave_config.dst_maxburst = spi_imx_get_fifosize(spi_imx) / 2;
+	ret = dmaengine_slave_config(master->dma_tx, &slave_config);
+	if (ret) {
+		dev_err(dev, "error in TX dma configuration.\n");
+		goto err;
+	}
+
+	/* Prepare for RX : */
+	master->dma_rx = dma_request_slave_channel(dev, "rx");
+	if (!master->dma_rx) {
+		dev_dbg(dev, "cannot get the DMA channel.\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	slave_config.direction = DMA_DEV_TO_MEM;
+	slave_config.src_addr = res->start + MXC_CSPIRXDATA;
+	slave_config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	slave_config.src_maxburst = spi_imx_get_fifosize(spi_imx) / 2;
+	ret = dmaengine_slave_config(master->dma_rx, &slave_config);
+	if (ret) {
+		dev_err(dev, "error in RX dma configuration.\n");
+		goto err;
+	}
+
+	init_completion(&spi_imx->dma_rx_completion);
+	init_completion(&spi_imx->dma_tx_completion);
+	master->can_dma = spi_imx_can_dma;
+	master->max_dma_len = MAX_SDMA_BD_BYTES;
+	spi_imx->bitbang.master->flags = SPI_MASTER_MUST_RX |
+					 SPI_MASTER_MUST_TX;
+	spi_imx->dma_is_inited = 1;
+
+	return 0;
+err:
+	spi_imx_sdma_exit(spi_imx);
+	return ret;
+}
+
+static void spi_imx_dma_rx_callback(void *cookie)
+{
+	struct spi_imx_data *spi_imx = (struct spi_imx_data *)cookie;
+
+	complete(&spi_imx->dma_rx_completion);
+}
+
+static void spi_imx_dma_tx_callback(void *cookie)
+{
+	struct spi_imx_data *spi_imx = (struct spi_imx_data *)cookie;
+
+	complete(&spi_imx->dma_tx_completion);
+}
+
+static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
+				struct spi_transfer *transfer)
+{
+	struct dma_async_tx_descriptor *desc_tx = NULL, *desc_rx = NULL;
+	int ret;
+	u32 dma;
+	int left;
+	struct spi_master *master = spi_imx->bitbang.master;
+	struct sg_table *tx = &transfer->tx_sg, *rx = &transfer->rx_sg;
+
+	if (tx) {
+		desc_tx = dmaengine_prep_slave_sg(master->dma_tx,
+					tx->sgl, tx->nents, DMA_TO_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc_tx)
+			goto no_dma;
+
+		desc_tx->callback = spi_imx_dma_tx_callback;
+		desc_tx->callback_param = (void *)spi_imx;
+		dmaengine_submit(desc_tx);
+	}
+
+	if (rx) {
+		desc_rx = dmaengine_prep_slave_sg(master->dma_rx,
+					rx->sgl, rx->nents, DMA_FROM_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc_rx)
+			goto no_dma;
+
+		desc_rx->callback = spi_imx_dma_rx_callback;
+		desc_rx->callback_param = (void *)spi_imx;
+		dmaengine_submit(desc_rx);
+	}
+
+	reinit_completion(&spi_imx->dma_rx_completion);
+	reinit_completion(&spi_imx->dma_tx_completion);
+
+	/* Trigger the cspi module. */
+	spi_imx->dma_finished = 0;
+
+	dma = readl(spi_imx->base + MX51_ECSPI_DMA);
+	dma = dma & (~MX51_ECSPI_DMA_RXT_WML_MASK);
+	/* Change RX_DMA_LENGTH trigger dma fetch tail data */
+	left = transfer->len % spi_imx->rxt_wml;
+	if (left)
+		writel(dma | (left << MX51_ECSPI_DMA_RXT_WML_OFFSET),
+				spi_imx->base + MX51_ECSPI_DMA);
+	spi_imx->devtype_data->trigger(spi_imx);
+
+	dma_async_issue_pending(master->dma_tx);
+	dma_async_issue_pending(master->dma_rx);
+	/* Wait SDMA to finish the data transfer.*/
+	ret = wait_for_completion_timeout(&spi_imx->dma_tx_completion,
+						IMX_DMA_TIMEOUT);
+	if (!ret) {
+		pr_warn("%s %s: I/O Error in DMA TX\n",
+			dev_driver_string(&master->dev),
+			dev_name(&master->dev));
+		dmaengine_terminate_all(master->dma_tx);
+	} else {
+		ret = wait_for_completion_timeout(&spi_imx->dma_rx_completion,
+				IMX_DMA_TIMEOUT);
+		if (!ret) {
+			pr_warn("%s %s: I/O Error in DMA RX\n",
+				dev_driver_string(&master->dev),
+				dev_name(&master->dev));
+			spi_imx->devtype_data->reset(spi_imx);
+			dmaengine_terminate_all(master->dma_rx);
+		}
+		writel(dma |
+		       spi_imx->rxt_wml << MX51_ECSPI_DMA_RXT_WML_OFFSET,
+		       spi_imx->base + MX51_ECSPI_DMA);
+	}
+
+	spi_imx->dma_finished = 1;
+	spi_imx->devtype_data->trigger(spi_imx);
+
+	if (!ret)
+		ret = -ETIMEDOUT;
+	else if (ret > 0)
+		ret = transfer->len;
+
+	return ret;
+
+no_dma:
+	pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
+		     dev_driver_string(&master->dev),
+		     dev_name(&master->dev));
+	return -EAGAIN;
+}
+
+static int spi_imx_pio_transfer(struct spi_device *spi,
 				struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
@@ -719,7 +988,7 @@ static int spi_imx_transfer(struct spi_device *spi,
 	spi_imx->count = transfer->len;
 	spi_imx->txfifo = 0;
 
-	init_completion(&spi_imx->xfer_done);
+	reinit_completion(&spi_imx->xfer_done);
 
 	spi_imx_push(spi_imx);
 
@@ -728,6 +997,24 @@ static int spi_imx_transfer(struct spi_device *spi,
 	wait_for_completion(&spi_imx->xfer_done);
 
 	return transfer->len;
+}
+
+static int spi_imx_transfer(struct spi_device *spi,
+				struct spi_transfer *transfer)
+{
+	int ret;
+	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
+
+	if (spi_imx->bitbang.master->can_dma &&
+	    spi_imx_can_dma(spi_imx->bitbang.master, spi, transfer)) {
+		spi_imx->usedma = true;
+		ret = spi_imx_dma_transfer(spi_imx, transfer);
+		if (ret != -EAGAIN)
+			return ret;
+	}
+	spi_imx->usedma = false;
+
+	return spi_imx_pio_transfer(spi, transfer);
 }
 
 static int spi_imx_setup(struct spi_device *spi)
@@ -750,6 +1037,35 @@ static void spi_imx_cleanup(struct spi_device *spi)
 {
 }
 
+static int
+spi_imx_prepare_message(struct spi_master *master, struct spi_message *msg)
+{
+	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
+	int ret;
+
+	ret = clk_enable(spi_imx->clk_per);
+	if (ret)
+		return ret;
+
+	ret = clk_enable(spi_imx->clk_ipg);
+	if (ret) {
+		clk_disable(spi_imx->clk_per);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int
+spi_imx_unprepare_message(struct spi_master *master, struct spi_message *msg)
+{
+	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
+
+	clk_disable(spi_imx->clk_ipg);
+	clk_disable(spi_imx->clk_per);
+	return 0;
+}
+
 static int spi_imx_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -760,7 +1076,6 @@ static int spi_imx_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct spi_imx_data *spi_imx;
 	struct resource *res;
-	struct pinctrl *pinctrl;
 	int i, ret, num_cs;
 
 	if (!np && !mxc_platform_info) {
@@ -783,11 +1098,12 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, master);
 
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->bus_num = pdev->id;
 	master->num_chipselect = num_cs;
 
 	spi_imx = spi_master_get_devdata(master);
-	spi_imx->bitbang.master = spi_master_get(master);
+	spi_imx->bitbang.master = master;
 
 	for (i = 0; i < master->num_chipselect; i++) {
 		int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
@@ -798,10 +1114,11 @@ static int spi_imx_probe(struct platform_device *pdev)
 		if (!gpio_is_valid(cs_gpio))
 			continue;
 
-		ret = gpio_request(spi_imx->chipselect[i], DRIVER_NAME);
+		ret = devm_gpio_request(&pdev->dev, spi_imx->chipselect[i],
+					DRIVER_NAME);
 		if (ret) {
 			dev_err(&pdev->dev, "can't get cs gpios\n");
-			goto out_gpio_free;
+			goto out_master_put;
 		}
 	}
 
@@ -810,6 +1127,8 @@ static int spi_imx_probe(struct platform_device *pdev)
 	spi_imx->bitbang.txrx_bufs = spi_imx_transfer;
 	spi_imx->bitbang.master->setup = spi_imx_setup;
 	spi_imx->bitbang.master->cleanup = spi_imx_cleanup;
+	spi_imx->bitbang.master->prepare_message = spi_imx_prepare_message;
+	spi_imx->bitbang.master->unprepare_message = spi_imx_unprepare_message;
 	spi_imx->bitbang.master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
 	init_completion(&spi_imx->xfer_done);
@@ -818,58 +1137,53 @@ static int spi_imx_probe(struct platform_device *pdev)
 		(struct spi_imx_devtype_data *) pdev->id_entry->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "can't get platform resource\n");
-		ret = -ENOMEM;
-		goto out_gpio_free;
-	}
-
-	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		ret = -EBUSY;
-		goto out_gpio_free;
-	}
-
-	spi_imx->base = ioremap(res->start, resource_size(res));
-	if (!spi_imx->base) {
-		ret = -EINVAL;
-		goto out_release_mem;
+	spi_imx->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(spi_imx->base)) {
+		ret = PTR_ERR(spi_imx->base);
+		goto out_master_put;
 	}
 
 	spi_imx->irq = platform_get_irq(pdev, 0);
 	if (spi_imx->irq < 0) {
-		ret = -EINVAL;
-		goto out_iounmap;
+		ret = spi_imx->irq;
+		goto out_master_put;
 	}
 
-	ret = request_irq(spi_imx->irq, spi_imx_isr, 0, DRIVER_NAME, spi_imx);
+	ret = devm_request_irq(&pdev->dev, spi_imx->irq, spi_imx_isr, 0,
+			       dev_name(&pdev->dev), spi_imx);
 	if (ret) {
 		dev_err(&pdev->dev, "can't get irq%d: %d\n", spi_imx->irq, ret);
-		goto out_iounmap;
-	}
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		goto out_free_irq;
+		goto out_master_put;
 	}
 
 	spi_imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(spi_imx->clk_ipg)) {
 		ret = PTR_ERR(spi_imx->clk_ipg);
-		goto out_free_irq;
+		goto out_master_put;
 	}
 
 	spi_imx->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(spi_imx->clk_per)) {
 		ret = PTR_ERR(spi_imx->clk_per);
-		goto out_free_irq;
+		goto out_master_put;
 	}
 
-	clk_prepare_enable(spi_imx->clk_per);
-	clk_prepare_enable(spi_imx->clk_ipg);
+	ret = clk_prepare_enable(spi_imx->clk_per);
+	if (ret)
+		goto out_master_put;
+
+	ret = clk_prepare_enable(spi_imx->clk_ipg);
+	if (ret)
+		goto out_put_per;
 
 	spi_imx->spi_clk = clk_get_rate(spi_imx->clk_per);
+	/*
+	 * Only validated on i.mx6 now, can remove the constrain if validated on
+	 * other chips.
+	 */
+	if (spi_imx->devtype_data == &imx51_ecspi_devtype_data
+	    && spi_imx_sdma_init(&pdev->dev, spi_imx, master, res))
+		dev_err(&pdev->dev, "dma setup error,use pio instead\n");
 
 	spi_imx->devtype_data->reset(spi_imx);
 
@@ -884,52 +1198,32 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "probed\n");
 
+	clk_disable(spi_imx->clk_ipg);
+	clk_disable(spi_imx->clk_per);
 	return ret;
 
 out_clk_put:
-	clk_disable_unprepare(spi_imx->clk_per);
 	clk_disable_unprepare(spi_imx->clk_ipg);
-out_free_irq:
-	free_irq(spi_imx->irq, spi_imx);
-out_iounmap:
-	iounmap(spi_imx->base);
-out_release_mem:
-	release_mem_region(res->start, resource_size(res));
-out_gpio_free:
-	while (--i >= 0) {
-		if (gpio_is_valid(spi_imx->chipselect[i]))
-			gpio_free(spi_imx->chipselect[i]);
-	}
+out_put_per:
+	clk_disable_unprepare(spi_imx->clk_per);
+out_master_put:
 	spi_master_put(master);
-	kfree(master);
-	platform_set_drvdata(pdev, NULL);
+
 	return ret;
 }
 
 static int spi_imx_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-	int i;
 
 	spi_bitbang_stop(&spi_imx->bitbang);
 
 	writel(0, spi_imx->base + MXC_CSPICTRL);
-	clk_disable_unprepare(spi_imx->clk_per);
-	clk_disable_unprepare(spi_imx->clk_ipg);
-	free_irq(spi_imx->irq, spi_imx);
-	iounmap(spi_imx->base);
-
-	for (i = 0; i < master->num_chipselect; i++)
-		if (gpio_is_valid(spi_imx->chipselect[i]))
-			gpio_free(spi_imx->chipselect[i]);
-
+	clk_unprepare(spi_imx->clk_ipg);
+	clk_unprepare(spi_imx->clk_per);
+	spi_imx_sdma_exit(spi_imx);
 	spi_master_put(master);
-
-	release_mem_region(res->start, resource_size(res));
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

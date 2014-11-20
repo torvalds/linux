@@ -12,6 +12,10 @@ Required properties:
 
 Optional properties:
 
+- reg-io-width : Specify the size (in bytes) of the IO accesses that
+	should be performed on the device.  Valid value is 1, 2 or 4.
+	Default to 1 (8 bits).
+
 - nxp,external-clock-frequency : Frequency of the external oscillator
 	clock in Hz. Note that the internal clock frequency used by the
 	SJA1000 is half of that value. If not specified, a default value
@@ -37,7 +41,7 @@ Optional properties:
 	If not specified or if the specified value is 0, the CLKOUT pin
 	will be disabled.
 
-- nxp,no-comparator-bypass : Allows to disable the CAN input comperator.
+- nxp,no-comparator-bypass : Allows to disable the CAN input comparator.
 
 For further information, please have a look to the SJA1000 data sheet.
 

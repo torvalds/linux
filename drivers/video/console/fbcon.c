@@ -404,7 +404,7 @@ static void cursor_timer_handler(unsigned long dev_addr)
 	struct fb_info *info = (struct fb_info *) dev_addr;
 	struct fbcon_ops *ops = info->fbcon_par;
 
-	schedule_work(&info->queue);
+	queue_work(system_power_efficient_wq, &info->queue);
 	mod_timer(&ops->cursor_timer, jiffies + HZ/5);
 }
 
@@ -448,8 +448,10 @@ static int __init fb_console_setup(char *this_opt)
 		return 1;
 
 	while ((options = strsep(&this_opt, ",")) != NULL) {
-		if (!strncmp(options, "font:", 5))
+		if (!strncmp(options, "font:", 5)) {
 			strlcpy(fontname, options + 5, sizeof(fontname));
+			continue;
+		}
 		
 		if (!strncmp(options, "scrollback:", 11)) {
 			options += 11;
@@ -457,13 +459,9 @@ static int __init fb_console_setup(char *this_opt)
 				fbcon_softback_size = simple_strtoul(options, &options, 0);
 				if (*options == 'k' || *options == 'K') {
 					fbcon_softback_size *= 1024;
-					options++;
 				}
-				if (*options != ',')
-					return 1;
-				options++;
-			} else
-				return 1;
+			}
+			continue;
 		}
 		
 		if (!strncmp(options, "map:", 4)) {
@@ -478,8 +476,7 @@ static int __init fb_console_setup(char *this_opt)
 
 				fbcon_map_override();
 			}
-
-			return 1;
+			continue;
 		}
 
 		if (!strncmp(options, "vc:", 3)) {
@@ -491,7 +488,8 @@ static int __init fb_console_setup(char *this_opt)
 			if (*options++ == '-')
 				last_fb_vc = simple_strtoul(options, &options, 10) - 1;
 			fbcon_is_default = 0; 
-		}	
+			continue;
+		}
 
 		if (!strncmp(options, "rotate:", 7)) {
 			options += 7;
@@ -499,6 +497,7 @@ static int __init fb_console_setup(char *this_opt)
 				initial_rotation = simple_strtoul(options, &options, 0);
 			if (initial_rotation > 3)
 				initial_rotation = 0;
+			continue;
 		}
 	}
 	return 1;
@@ -548,34 +547,6 @@ static int do_fbcon_takeover(int show_logo)
 	if (err) {
 		for (i = first_fb_vc; i <= last_fb_vc; i++)
 			con2fb_map[i] = -1;
-		info_idx = -1;
-	} else {
-		fbcon_has_console_bind = 1;
-	}
-
-	return err;
-}
-
-static int fbcon_takeover(int show_logo)
-{
-	int err, i;
-
-	if (!num_registered_fb)
-		return -ENODEV;
-
-	if (!show_logo)
-		logo_shown = FBCON_LOGO_DONTSHOW;
-
-	for (i = first_fb_vc; i <= last_fb_vc; i++)
-		con2fb_map[i] = info_idx;
-
-	err = take_over_console(&fb_con, first_fb_vc, last_fb_vc,
-				fbcon_is_default);
-
-	if (err) {
-		for (i = first_fb_vc; i <= last_fb_vc; i++) {
-			con2fb_map[i] = -1;
-		}
 		info_idx = -1;
 	} else {
 		fbcon_has_console_bind = 1;
@@ -776,6 +747,7 @@ static int con2fb_release_oldinfo(struct vc_data *vc, struct fb_info *oldinfo,
 		fbcon_del_cursor_timer(oldinfo);
 		kfree(ops->cursor_state.mask);
 		kfree(ops->cursor_data);
+		kfree(ops->cursor_src);
 		kfree(ops->fontbuffer);
 		kfree(oldinfo->fbcon_par);
 		oldinfo->fbcon_par = NULL;
@@ -787,7 +759,7 @@ static int con2fb_release_oldinfo(struct vc_data *vc, struct fb_info *oldinfo,
 		  newinfo in an undefined state. Thus, a call to
 		  fb_set_par() may be needed for the newinfo.
 		*/
-		if (newinfo->fbops->fb_set_par) {
+		if (newinfo && newinfo->fbops->fb_set_par) {
 			ret = newinfo->fbops->fb_set_par(newinfo);
 
 			if (ret)
@@ -901,7 +873,7 @@ static int set_con2fb_map(int unit, int newidx, int user)
 /*
  *  Low Level Operations
  */
-/* NOTE: fbcon cannot be __init: it may be called from take_over_console later */
+/* NOTE: fbcon cannot be __init: it may be called from do_take_over_console later */
 static int var_to_display(struct display *disp,
 			  struct fb_var_screeninfo *var,
 			  struct fb_info *info)
@@ -1228,6 +1200,8 @@ static void fbcon_deinit(struct vc_data *vc)
 finished:
 
 	fbcon_free_font(p, free_font);
+	if (free_font)
+		vc->vc_font.data = NULL;
 
 	if (!con_is_bound(&fb_con))
 		fbcon_exit();
@@ -3054,8 +3028,31 @@ static int fbcon_fb_unbind(int idx)
 			if (con2fb_map[i] == idx)
 				set_con2fb_map(i, new_idx, 0);
 		}
-	} else
+	} else {
+		struct fb_info *info = registered_fb[idx];
+
+		/* This is sort of like set_con2fb_map, except it maps
+		 * the consoles to no device and then releases the
+		 * oldinfo to free memory and cancel the cursor blink
+		 * timer. I can imagine this just becoming part of
+		 * set_con2fb_map where new_idx is -1
+		 */
+		for (i = first_fb_vc; i <= last_fb_vc; i++) {
+			if (con2fb_map[i] == idx) {
+				con2fb_map[i] = -1;
+				if (!search_fb_in_map(idx)) {
+					ret = con2fb_release_oldinfo(vc_cons[i].d,
+								     info, NULL, i,
+								     idx, 0);
+					if (ret) {
+						con2fb_map[i] = idx;
+						return ret;
+					}
+				}
+			}
+		}
 		ret = fbcon_unbind();
+	}
 
 	return ret;
 }
@@ -3541,8 +3538,9 @@ static void fbcon_start(void)
 			}
 		}
 
+		do_fbcon_takeover(0);
 		console_unlock();
-		fbcon_takeover(0);
+
 	}
 }
 
@@ -3572,8 +3570,10 @@ static void fbcon_exit(void)
 			"no"));
 
 		for (j = first_fb_vc; j <= last_fb_vc; j++) {
-			if (con2fb_map[j] == i)
+			if (con2fb_map[j] == i) {
 				mapped = 1;
+				break;
+			}
 		}
 
 		if (mapped) {
@@ -3586,6 +3586,7 @@ static void fbcon_exit(void)
 
 				fbcon_del_cursor_timer(info);
 				kfree(ops->cursor_src);
+				kfree(ops->cursor_state.mask);
 				kfree(info->fbcon_par);
 				info->fbcon_par = NULL;
 			}
@@ -3646,8 +3647,8 @@ static void __exit fb_console_exit(void)
 	fbcon_deinit_device();
 	device_destroy(fb_class, MKDEV(0, 0));
 	fbcon_exit();
+	do_unregister_con_driver(&fb_con);
 	console_unlock();
-	unregister_con_driver(&fb_con);
 }	
 
 module_exit(fb_console_exit);

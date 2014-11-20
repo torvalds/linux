@@ -29,7 +29,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -59,6 +58,10 @@
 		dev_err(oxu_to_hcd(oxu)->self.controller , fmt , ## args)
 #define oxu_info(oxu, fmt, args...) \
 		dev_info(oxu_to_hcd(oxu)->self.controller , fmt , ## args)
+
+#ifdef CONFIG_DYNAMIC_DEBUG
+#define DEBUG
+#endif
 
 static inline struct usb_hcd *oxu_to_hcd(struct oxu_hcd *oxu)
 {
@@ -2043,7 +2046,7 @@ static void intr_deschedule(struct oxu_hcd *oxu, struct ehci_qh *qh)
 
 	/* simple/paranoid:  always delay, expecting the HC needs to read
 	 * qh->hw_next or finish a writeback after SPLIT/CSPLIT ... and
-	 * expect khubd to clean up after any CSPLITs we won't issue.
+	 * expect hub_wq to clean up after any CSPLITs we won't issue.
 	 * active high speed queues may need bigger delays...
 	 */
 	if (list_empty(&qh->qtd_list)
@@ -2498,7 +2501,7 @@ static irqreturn_t oxu210_hcd_irq(struct usb_hcd *hcd)
 				continue;
 
 			/* start 20 msec resume signaling from this port,
-			 * and make khubd collect PORT_STAT_C_SUSPEND to
+			 * and make hub_wq collect PORT_STAT_C_SUSPEND to
 			 * stop that signaling.
 			 */
 			oxu->reset_done[i] = jiffies + msecs_to_jiffies(20);
@@ -3084,7 +3087,7 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int ports, i, retval = 1;
 	unsigned long flags;
 
-	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
+	/* if !PM_RUNTIME, root hub timers won't get shut down ... */
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 
@@ -3116,7 +3119,7 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 		/*
 		 * Return status information even for ports with OWNER set.
-		 * Otherwise khubd wouldn't see the disconnect event when a
+		 * Otherwise hub_wq wouldn't see the disconnect event when a
 		 * high-speed device is switched over to the companion
 		 * controller by the user.
 		 */
@@ -3191,7 +3194,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 
 		/*
 		 * Even if OWNER is set, so the port is owned by the
-		 * companion controller, khubd needs to be able to clear
+		 * companion controller, hub_wq needs to be able to clear
 		 * the port-change status bits (especially
 		 * USB_PORT_STAT_C_CONNECTION).
 		 */
@@ -3333,7 +3336,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		}
 
 		/*
-		 * Even if OWNER is set, there's no harm letting khubd
+		 * Even if OWNER is set, there's no harm letting hub_wq
 		 * see the wPortStatus values (they should all be 0 except
 		 * for PORT_POWER anyway).
 		 */
@@ -3747,6 +3750,7 @@ static struct usb_hcd *oxu_create(struct platform_device *pdev,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
+	device_wakeup_enable(hcd->self.controller);
 	return hcd;
 }
 
@@ -3822,49 +3826,36 @@ static int oxu_drv_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "IRQ resource %d\n", irq);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no registers address! Check %s setup!\n",
-			dev_name(&pdev->dev));
-		return -ENODEV;
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
+		goto error;
 	}
 	memstart = res->start;
 	memlen = resource_size(res);
-	dev_dbg(&pdev->dev, "MEM resource %lx-%lx\n", memstart, memlen);
-	if (!request_mem_region(memstart, memlen,
-				oxu_hc_driver.description)) {
-		dev_dbg(&pdev->dev, "memory area already in use\n");
-		return -EBUSY;
-	}
 
 	ret = irq_set_irq_type(irq, IRQF_TRIGGER_FALLING);
 	if (ret) {
 		dev_err(&pdev->dev, "error setting irq type\n");
 		ret = -EFAULT;
-		goto error_set_irq_type;
-	}
-
-	base = ioremap(memstart, memlen);
-	if (!base) {
-		dev_dbg(&pdev->dev, "error mapping memory\n");
-		ret = -EFAULT;
-		goto error_ioremap;
+		goto error;
 	}
 
 	/* Allocate a driver data struct to hold useful info for both
 	 * SPH & OTG devices
 	 */
-	info = kzalloc(sizeof(struct oxu_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct oxu_info), GFP_KERNEL);
 	if (!info) {
 		dev_dbg(&pdev->dev, "error allocating memory\n");
 		ret = -EFAULT;
-		goto error_alloc;
+		goto error;
 	}
 	platform_set_drvdata(pdev, info);
 
 	ret = oxu_init(pdev, memstart, memlen, base, irq);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "cannot init USB devices\n");
-		goto error_init;
+		goto error;
 	}
 
 	dev_info(&pdev->dev, "devices enabled and running\n");
@@ -3872,17 +3863,7 @@ static int oxu_drv_probe(struct platform_device *pdev)
 
 	return 0;
 
-error_init:
-	kfree(info);
-	platform_set_drvdata(pdev, NULL);
-
-error_alloc:
-	iounmap(base);
-
-error_set_irq_type:
-error_ioremap:
-	release_mem_region(memstart, memlen);
-
+error:
 	dev_err(&pdev->dev, "init %s fail, %d\n", dev_name(&pdev->dev), ret);
 	return ret;
 }
@@ -3896,18 +3877,9 @@ static void oxu_remove(struct platform_device *pdev, struct usb_hcd *hcd)
 static int oxu_drv_remove(struct platform_device *pdev)
 {
 	struct oxu_info *info = platform_get_drvdata(pdev);
-	unsigned long memstart = info->hcd[0]->rsrc_start,
-			memlen = info->hcd[0]->rsrc_len;
-	void *base = info->hcd[0]->regs;
 
 	oxu_remove(pdev, info->hcd[0]);
 	oxu_remove(pdev, info->hcd[1]);
-
-	iounmap(base);
-	release_mem_region(memstart, memlen);
-
-	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

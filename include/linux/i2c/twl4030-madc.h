@@ -39,15 +39,17 @@ struct twl4030_madc_conversion_method {
  * @do_avgP:	sample the input channel for 4 consecutive cycles
  * @method:	RT, SW1, SW2
  * @type:	Polling or interrupt based method
+ * @raw:	Return raw value, do not convert it
  */
 
 struct twl4030_madc_request {
 	unsigned long channels;
-	u16 do_avg;
+	bool do_avg;
 	u16 method;
 	u16 type;
 	bool active;
 	bool result_pending;
+	bool raw;
 	int rbuf[TWL4030_MADC_MAX_CHANNELS];
 	void (*func_cb)(int len, int channels, int *buf);
 };

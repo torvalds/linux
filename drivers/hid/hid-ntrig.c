@@ -115,11 +115,12 @@ static inline int ntrig_get_mode(struct hid_device *hdev)
 	struct hid_report *report = hdev->report_enum[HID_FEATURE_REPORT].
 				    report_id_hash[0x0d];
 
-	if (!report)
+	if (!report || report->maxfield < 1 ||
+	    report->field[0]->report_count < 1)
 		return -EINVAL;
 
-	usbhid_submit_report(hdev, report, USB_DIR_IN);
-	usbhid_wait_io(hdev);
+	hid_hw_request(hdev, report, HID_REQ_GET_REPORT);
+	hid_hw_wait(hdev);
 	return (int)report->field[0]->value[0];
 }
 
@@ -137,7 +138,7 @@ static inline void ntrig_set_mode(struct hid_device *hdev, const int mode)
 	if (!report)
 		return;
 
-	usbhid_submit_report(hdev, report, USB_DIR_IN);
+	hid_hw_request(hdev, report, HID_REQ_GET_REPORT);
 }
 
 static void ntrig_report_version(struct hid_device *hdev)
@@ -237,7 +238,7 @@ static ssize_t set_min_width(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_width)
@@ -272,7 +273,7 @@ static ssize_t set_min_height(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_height)
@@ -306,7 +307,7 @@ static ssize_t set_activate_slack(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > 0x7f)
@@ -341,7 +342,7 @@ static ssize_t set_activation_width(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_width)
@@ -377,7 +378,7 @@ static ssize_t set_activation_height(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	if (val > nd->sensor_physical_height)
@@ -411,7 +412,7 @@ static ssize_t set_deactivate_slack(struct device *dev,
 
 	unsigned long val;
 
-	if (strict_strtoul(buf, 0, &val))
+	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
 	/*
@@ -937,8 +938,8 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (report) {
 		/* Let the device settle to ensure the wakeup message gets
 		 * through */
-		usbhid_wait_io(hdev);
-		usbhid_submit_report(hdev, report, USB_DIR_IN);
+		hid_hw_wait(hdev);
+		hid_hw_request(hdev, report, HID_REQ_GET_REPORT);
 
 		/*
 		 * Sanity check: if the current mode is invalid reset it to

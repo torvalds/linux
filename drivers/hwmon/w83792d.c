@@ -2,7 +2,7 @@
  * w83792d.c - Part of lm_sensors, Linux kernel modules for hardware
  *	       monitoring
  * Copyright (C) 2004, 2005 Winbond Electronics Corp.
- *			    Chunhao Huang <DZShen@Winbond.com.tw>,
+ *			    Shane Huang,
  *			    Rudolf Marek <r.marek@assembler.cz>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -54,8 +54,8 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
-MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
-			"{bus, clientaddr, subclientaddr1, subclientaddr2}");
+MODULE_PARM_DESC(force_subclients,
+		 "List of subclient addresses: {bus, clientaddr, subclientaddr1, subclientaddr2}");
 
 static bool init;
 module_param(init, bool, 0);
@@ -579,7 +579,7 @@ static ssize_t store_temp23(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-/* get reatime status of all sensors items: voltage, temp, fan */
+/* get realtime status of all sensors items: voltage, temp, fan */
 static ssize_t
 show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -951,8 +951,8 @@ w83792d_detect_subclients(struct i2c_client *new_client)
 		for (i = 2; i <= 3; i++) {
 			if (force_subclients[i] < 0x48 ||
 			    force_subclients[i] > 0x4f) {
-				dev_err(&new_client->dev, "invalid subclient "
-					"address %d; must be 0x48-0x4f\n",
+				dev_err(&new_client->dev,
+					"invalid subclient address %d; must be 0x48-0x4f\n",
 					force_subclients[i]);
 				err = -ENODEV;
 				goto ERROR_SC_0;
@@ -969,8 +969,9 @@ w83792d_detect_subclients(struct i2c_client *new_client)
 	if (!(val & 0x80)) {
 		if ((data->lm75[0] != NULL) &&
 			((val & 0x7) == ((val >> 4) & 0x7))) {
-			dev_err(&new_client->dev, "duplicate addresses 0x%x, "
-				"use force_subclient\n", data->lm75[0]->addr);
+			dev_err(&new_client->dev,
+				"duplicate addresses 0x%x, use force_subclient\n",
+				data->lm75[0]->addr);
 			err = -ENODEV;
 			goto ERROR_SC_1;
 		}
@@ -1375,7 +1376,6 @@ w83792d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	err = w83792d_detect_subclients(client);
@@ -1664,6 +1664,6 @@ static void w83792d_print_debug(struct w83792d_data *data, struct device *dev)
 
 module_i2c_driver(w83792d_driver);
 
-MODULE_AUTHOR("Chunhao Huang @ Winbond <DZShen@Winbond.com.tw>");
+MODULE_AUTHOR("Shane Huang (Winbond)");
 MODULE_DESCRIPTION("W83792AD/D driver for linux-2.6");
 MODULE_LICENSE("GPL");

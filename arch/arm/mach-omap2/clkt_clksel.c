@@ -97,12 +97,12 @@ static void _write_clksel_reg(struct clk_hw_omap *clk, u32 field_val)
 {
 	u32 v;
 
-	v = __raw_readl(clk->clksel_reg);
+	v = omap2_clk_readl(clk, clk->clksel_reg);
 	v &= ~clk->clksel_mask;
 	v |= field_val << __ffs(clk->clksel_mask);
-	__raw_writel(v, clk->clksel_reg);
+	omap2_clk_writel(v, clk, clk->clksel_reg);
 
-	v = __raw_readl(clk->clksel_reg); /* OCP barrier */
+	v = omap2_clk_readl(clk, clk->clksel_reg); /* OCP barrier */
 }
 
 /**
@@ -204,7 +204,7 @@ static u32 _read_divisor(struct clk_hw_omap *clk)
 	if (!clk->clksel || !clk->clksel_mask)
 		return 0;
 
-	v = __raw_readl(clk->clksel_reg);
+	v = omap2_clk_readl(clk, clk->clksel_reg);
 	v &= clk->clksel_mask;
 	v >>= __ffs(clk->clksel_mask);
 
@@ -320,7 +320,7 @@ u8 omap2_clksel_find_parent_index(struct clk_hw *hw)
 	WARN((!clk->clksel || !clk->clksel_mask),
 	     "clock: %s: attempt to call on a non-clksel clock", clk_name);
 
-	r = __raw_readl(clk->clksel_reg) & clk->clksel_mask;
+	r = omap2_clk_readl(clk, clk->clksel_reg) & clk->clksel_mask;
 	r >>= __ffs(clk->clksel_mask);
 
 	for (clks = clk->clksel; clks->parent && !found; clks++) {

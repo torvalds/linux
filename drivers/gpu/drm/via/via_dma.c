@@ -60,7 +60,7 @@
 	dev_priv->dma_low += 8;					\
 }
 
-#define via_flush_write_combine() DRM_MEMORYBARRIER()
+#define via_flush_write_combine() mb()
 
 #define VIA_OUT_RING_QW(w1, w2)	do {		\
 	*vb++ = (w1);				\
@@ -161,7 +161,7 @@ int via_dma_cleanup(struct drm_device *dev)
 		if (dev_priv->ring.virtual_start) {
 			via_cmdbuf_reset(dev_priv);
 
-			drm_core_ioremapfree(&dev_priv->ring.map, dev);
+			drm_legacy_ioremapfree(&dev_priv->ring.map, dev);
 			dev_priv->ring.virtual_start = NULL;
 		}
 
@@ -200,7 +200,7 @@ static int via_initialize(struct drm_device *dev,
 	dev_priv->ring.map.flags = 0;
 	dev_priv->ring.map.mtrr = 0;
 
-	drm_core_ioremap(&dev_priv->ring.map, dev);
+	drm_legacy_ioremap(&dev_priv->ring.map, dev);
 
 	if (dev_priv->ring.map.handle == NULL) {
 		via_dma_cleanup(dev);
@@ -234,13 +234,13 @@ static int via_dma_init(struct drm_device *dev, void *data, struct drm_file *fil
 
 	switch (init->func) {
 	case VIA_INIT_DMA:
-		if (!DRM_SUSER(DRM_CURPROC))
+		if (!capable(CAP_SYS_ADMIN))
 			retcode = -EPERM;
 		else
 			retcode = via_initialize(dev, dev_priv, init);
 		break;
 	case VIA_CLEANUP_DMA:
-		if (!DRM_SUSER(DRM_CURPROC))
+		if (!capable(CAP_SYS_ADMIN))
 			retcode = -EPERM;
 		else
 			retcode = via_dma_cleanup(dev);
@@ -273,7 +273,7 @@ static int via_dispatch_cmdbuffer(struct drm_device *dev, drm_via_cmdbuffer_t *c
 	if (cmd->size > VIA_PCI_BUF_SIZE)
 		return -ENOMEM;
 
-	if (DRM_COPY_FROM_USER(dev_priv->pci_buf, cmd->buf, cmd->size))
+	if (copy_from_user(dev_priv->pci_buf, cmd->buf, cmd->size))
 		return -EFAULT;
 
 	/*
@@ -346,7 +346,7 @@ static int via_dispatch_pci_cmdbuffer(struct drm_device *dev,
 
 	if (cmd->size > VIA_PCI_BUF_SIZE)
 		return -ENOMEM;
-	if (DRM_COPY_FROM_USER(dev_priv->pci_buf, cmd->buf, cmd->size))
+	if (copy_from_user(dev_priv->pci_buf, cmd->buf, cmd->size))
 		return -EFAULT;
 
 	if ((ret =
@@ -543,7 +543,7 @@ static void via_cmdbuf_start(drm_via_private_t *dev_priv)
 
 	VIA_WRITE(VIA_REG_TRANSPACE, pause_addr_hi);
 	VIA_WRITE(VIA_REG_TRANSPACE, pause_addr_lo);
-	DRM_WRITEMEMORYBARRIER();
+	wmb();
 	VIA_WRITE(VIA_REG_TRANSPACE, command | HC_HAGPCMNT_MASK);
 	VIA_READ(VIA_REG_TRANSPACE);
 
@@ -720,7 +720,7 @@ static int via_cmdbuf_size(struct drm_device *dev, void *data, struct drm_file *
 	return ret;
 }
 
-struct drm_ioctl_desc via_ioctls[] = {
+const struct drm_ioctl_desc via_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VIA_ALLOCMEM, via_mem_alloc, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(VIA_FREEMEM, via_mem_free, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(VIA_AGP_INIT, via_agp_init, DRM_AUTH|DRM_MASTER),
@@ -737,4 +737,4 @@ struct drm_ioctl_desc via_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VIA_BLIT_SYNC, via_dma_blit_sync, DRM_AUTH)
 };
 
-int via_max_ioctl = DRM_ARRAY_SIZE(via_ioctls);
+int via_max_ioctl = ARRAY_SIZE(via_ioctls);

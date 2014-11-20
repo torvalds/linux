@@ -53,11 +53,10 @@ static inline void __udelay(unsigned long usecs)
 {
 	unsigned long loops;
 
-	/* (long long) cast ensures 64 bit MPY - real or emulated
+	/* (u64) cast ensures 64 bit MPY - real or emulated
 	 * HZ * 4295 is pre-evaluated by gcc - hence only 2 mpy ops
 	 */
-	loops = ((long long)(usecs * 4295 * HZ) *
-		 (long long)(loops_per_jiffy)) >> 32;
+	loops = ((u64) usecs * 4295 * HZ * loops_per_jiffy) >> 32;
 
 	__delay(loops);
 }

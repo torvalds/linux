@@ -28,10 +28,10 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
-#include <mach/board.h>
 #include <mach/irqs.h>
 #include <mach/sirc.h>
 #include <mach/vreg.h>
+#include <mach/clk.h>
 #include <linux/platform_data/mmc-msm_sdcc.h>
 
 #include "devices.h"
@@ -82,13 +82,49 @@ static int hsusb_phy_init_seq[] = {
 	-1
 };
 
+static int hsusb_link_clk_reset(struct clk *link_clk, bool assert)
+{
+	int ret;
+
+	if (assert) {
+		ret = clk_reset(link_clk, CLK_RESET_ASSERT);
+		if (ret)
+			pr_err("usb hs_clk assert failed\n");
+	} else {
+		ret = clk_reset(link_clk, CLK_RESET_DEASSERT);
+		if (ret)
+			pr_err("usb hs_clk deassert failed\n");
+	}
+	return ret;
+}
+
+static int hsusb_phy_clk_reset(struct clk *phy_clk)
+{
+	int ret;
+
+	ret = clk_reset(phy_clk, CLK_RESET_ASSERT);
+	if (ret) {
+		pr_err("usb phy clk assert failed\n");
+		return ret;
+	}
+	usleep_range(10000, 12000);
+	ret = clk_reset(phy_clk, CLK_RESET_DEASSERT);
+	if (ret)
+		pr_err("usb phy clk deassert failed\n");
+	return ret;
+}
+
 static struct msm_otg_platform_data msm_otg_pdata = {
 	.phy_init_seq		= hsusb_phy_init_seq,
-	.mode                   = USB_PERIPHERAL,
+	.mode                   = USB_DR_MODE_PERIPHERAL,
 	.otg_control		= OTG_PHY_CONTROL,
+	.link_clk_reset		= hsusb_link_clk_reset,
+	.phy_clk_reset		= hsusb_phy_clk_reset,
 };
 
 static struct platform_device *devices[] __initdata = {
+	&msm_clock_8x50,
+	&msm_device_gpio_8x50,
 	&msm_device_uart3,
 	&msm_device_smd,
 	&msm_device_otg,
@@ -171,7 +207,6 @@ static void __init qsd8x50_init_mmc(void)
 static void __init qsd8x50_map_io(void)
 {
 	msm_map_qsd8x50_io();
-	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
 }
 
 static void __init qsd8x50_init_irq(void)

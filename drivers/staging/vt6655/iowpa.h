@@ -29,20 +29,9 @@
 #ifndef __IOWPA_H__
 #define __IOWPA_H__
 
-/*---------------------  Export Definitions -------------------------*/
-
-
 #define WPA_IE_LEN 64
 
-
 //WPA related
-/*
-typedef enum { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP } wpa_alg;
-typedef enum { CIPHER_NONE, CIPHER_WEP40, CIPHER_TKIP, CIPHER_CCMP,
-	       CIPHER_WEP104 } wpa_cipher;
-typedef enum { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE,
-	       KEY_MGMT_802_1X_NO_WPA, KEY_MGMT_WPA_NONE } wpa_key_mgmt;
-*/
 
 enum {
 	VIAWGET_SET_WPA = 1,
@@ -54,9 +43,8 @@ enum {
 	VIAWGET_SET_DROP_UNENCRYPT = 7,
 	VIAWGET_SET_DEAUTHENTICATE = 8,
 	VIAWGET_SET_ASSOCIATE = 9,
-	VIAWGET_SET_DISASSOCIATE= 10
+	VIAWGET_SET_DISASSOCIATE = 10
 };
-
 
 enum {
 	VIAWGET_ASSOC_MSG = 1,
@@ -67,16 +55,12 @@ enum {
 	VIAWGET_DEVICECLOSE_MSG = 6
 };
 
-
-
 #pragma pack(1)
 typedef struct viawget_wpa_header {
 	u8 type;
 	u16 req_ie_len;
 	u16 resp_ie_len;
 } viawget_wpa_header;
-
-
 
 struct viawget_wpa_param {
 	u32 cmd;
@@ -88,27 +72,27 @@ struct viawget_wpa_param {
 		} generic_elem;
 
 		struct {
-        	u8 bssid[6];
+			u8 bssid[6];
 			u8 ssid[32];
 			u8 ssid_len;
-        	u8 *wpa_ie;
-        	u16 wpa_ie_len;
-        	int pairwise_suite;
-        	int group_suite;
-        	int key_mgmt_suite;
-        	int auth_alg;
-        	int mode;
+			u8 __user *wpa_ie;
+			u16 wpa_ie_len;
+			int pairwise_suite;
+			int group_suite;
+			int key_mgmt_suite;
+			int auth_alg;
+			int mode;
 
 		} wpa_associate;
 
 		struct {
-	        int alg_name;
-	        u16 key_index;
-	        u16 set_tx;
-	        u8 *seq;
-	        u16 seq_len;
-	        u8 *key;
-	        u16 key_len;
+			int alg_name;
+			u16 key_index;
+			u16 set_tx;
+			u8 *seq;
+			u16 seq_len;
+			u8 *key;
+			u16 key_len;
 		} wpa_key;
 
 		struct {
@@ -118,11 +102,10 @@ struct viawget_wpa_param {
 
 		struct {
 			u16 scan_count;
-			u8 *buf;
+			u8 __user *buf;
 		} scan_results;
 
 	} u;
-
 };
 
 #pragma pack(1)
@@ -142,18 +125,6 @@ struct viawget_scan_result {
 	int maxrate;
 };
 
-//2006-1116-01,<Add> by NomadZhao
 #pragma pack()
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-
-/*---------------------  Export Types  ------------------------------*/
-
-
-/*---------------------  Export Functions  --------------------------*/
-
-
 
 #endif //__IOWPA_H__

@@ -209,8 +209,6 @@ struct arasan_cf_dev {
 	struct dma_chan *dma_chan;
 	/* Mask for DMA transfers */
 	dma_cap_mask_t mask;
-	/* dma channel private data */
-	void *dma_priv;
 	/* DMA transfer work */
 	struct work_struct work;
 	/* DMA delayed finish work */
@@ -308,6 +306,7 @@ static void cf_card_detect(struct arasan_cf_dev *acdev, bool hotplugged)
 static int cf_init(struct arasan_cf_dev *acdev)
 {
 	struct arasan_cf_pdata *pdata = dev_get_platdata(acdev->host->dev);
+	unsigned int if_clk;
 	unsigned long flags;
 	int ret = 0;
 
@@ -320,13 +319,18 @@ static int cf_init(struct arasan_cf_dev *acdev)
 	ret = clk_set_rate(acdev->clk, 166000000);
 	if (ret) {
 		dev_warn(acdev->host->dev, "clock set rate failed");
+		clk_disable_unprepare(acdev->clk);
 		return ret;
 	}
 
 	spin_lock_irqsave(&acdev->host->lock, flags);
 	/* configure CF interface clock */
-	writel((pdata->cf_if_clk <= CF_IF_CLK_200M) ? pdata->cf_if_clk :
-			CF_IF_CLK_166M, acdev->vbase + CLK_CFG);
+	/* TODO: read from device tree */
+	if_clk = CF_IF_CLK_166M;
+	if (pdata && pdata->cf_if_clk <= CF_IF_CLK_200M)
+		if_clk = pdata->cf_if_clk;
+
+	writel(if_clk, acdev->vbase + CLK_CFG);
 
 	writel(TRUE_IDE_MODE | CFHOST_ENB, acdev->vbase + OP_MODE);
 	cf_interrupt_enable(acdev, CARD_DETECT_IRQ, 1);
@@ -352,15 +356,9 @@ static void cf_exit(struct arasan_cf_dev *acdev)
 
 static void dma_callback(void *dev)
 {
-	struct arasan_cf_dev *acdev = (struct arasan_cf_dev *) dev;
+	struct arasan_cf_dev *acdev = dev;
 
 	complete(&acdev->dma_completion);
-}
-
-static bool filter(struct dma_chan *chan, void *slave)
-{
-	chan->private = slave;
-	return true;
 }
 
 static inline void dma_complete(struct arasan_cf_dev *acdev)
@@ -399,8 +397,7 @@ dma_xfer(struct arasan_cf_dev *acdev, dma_addr_t src, dma_addr_t dest, u32 len)
 	struct dma_async_tx_descriptor *tx;
 	struct dma_chan *chan = acdev->dma_chan;
 	dma_cookie_t cookie;
-	unsigned long flags = DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP |
-		DMA_COMPL_SKIP_DEST_UNMAP;
+	unsigned long flags = DMA_PREP_INTERRUPT;
 	int ret = 0;
 
 	tx = chan->device->device_prep_dma_memcpy(chan, dest, src, len, flags);
@@ -423,7 +420,7 @@ dma_xfer(struct arasan_cf_dev *acdev, dma_addr_t src, dma_addr_t dest, u32 len)
 
 	/* Wait for DMA to complete */
 	if (!wait_for_completion_timeout(&acdev->dma_completion, TIMEOUT)) {
-		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(chan);
 		dev_err(acdev->host->dev, "wait_for_completion_timeout\n");
 		return -ETIMEDOUT;
 	}
@@ -530,8 +527,7 @@ static void data_xfer(struct work_struct *work)
 
 	/* request dma channels */
 	/* dma_request_channel may sleep, so calling from process context */
-	acdev->dma_chan = dma_request_channel(acdev->mask, filter,
-			acdev->dma_priv);
+	acdev->dma_chan = dma_request_slave_channel(acdev->host->dev, "data");
 	if (!acdev->dma_chan) {
 		dev_err(acdev->host->dev, "Unable to get dma_chan\n");
 		goto chan_request_fail;
@@ -658,7 +654,7 @@ static void arasan_cf_freeze(struct ata_port *ap)
 	ata_sff_freeze(ap);
 }
 
-void arasan_cf_error_handler(struct ata_port *ap)
+static void arasan_cf_error_handler(struct ata_port *ap)
 {
 	struct arasan_cf_dev *acdev = ap->host->private_data;
 
@@ -687,7 +683,7 @@ static void arasan_cf_dma_start(struct arasan_cf_dev *acdev)
 	ata_sff_queue_work(&acdev->work);
 }
 
-unsigned int arasan_cf_qc_issue(struct ata_queued_cmd *qc)
+static unsigned int arasan_cf_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct arasan_cf_dev *acdev = ap->host->private_data;
@@ -798,6 +794,7 @@ static int arasan_cf_probe(struct platform_device *pdev)
 	struct ata_host *host;
 	struct ata_port *ap;
 	struct resource *res;
+	u32 quirk;
 	irq_handler_t irq_handler = NULL;
 	int ret = 0;
 
@@ -817,12 +814,17 @@ static int arasan_cf_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	if (pdata)
+		quirk = pdata->quirk;
+	else
+		quirk = CF_BROKEN_UDMA; /* as it is on spear1340 */
+
 	/* if irq is 0, support only PIO */
 	acdev->irq = platform_get_irq(pdev, 0);
 	if (acdev->irq)
 		irq_handler = arasan_cf_interrupt;
 	else
-		pdata->quirk |= CF_BROKEN_MWDMA | CF_BROKEN_UDMA;
+		quirk |= CF_BROKEN_MWDMA | CF_BROKEN_UDMA;
 
 	acdev->pbase = res->start;
 	acdev->vbase = devm_ioremap_nocache(&pdev->dev, res->start,
@@ -859,17 +861,16 @@ static int arasan_cf_probe(struct platform_device *pdev)
 	INIT_WORK(&acdev->work, data_xfer);
 	INIT_DELAYED_WORK(&acdev->dwork, delayed_finish);
 	dma_cap_set(DMA_MEMCPY, acdev->mask);
-	acdev->dma_priv = pdata->dma_priv;
 
 	/* Handle platform specific quirks */
-	if (pdata->quirk) {
-		if (pdata->quirk & CF_BROKEN_PIO) {
+	if (quirk) {
+		if (quirk & CF_BROKEN_PIO) {
 			ap->ops->set_piomode = NULL;
 			ap->pio_mask = 0;
 		}
-		if (pdata->quirk & CF_BROKEN_MWDMA)
+		if (quirk & CF_BROKEN_MWDMA)
 			ap->mwdma_mask = 0;
-		if (pdata->quirk & CF_BROKEN_UDMA)
+		if (quirk & CF_BROKEN_UDMA)
 			ap->udma_mask = 0;
 	}
 	ap->flags |= ATA_FLAG_PIO_POLLING | ATA_FLAG_NO_ATAPI;
@@ -897,9 +898,12 @@ static int arasan_cf_probe(struct platform_device *pdev)
 
 	cf_card_detect(acdev, 0);
 
-	return ata_host_activate(host, acdev->irq, irq_handler, 0,
-			&arasan_cf_sht);
+	ret = ata_host_activate(host, acdev->irq, irq_handler, 0,
+				&arasan_cf_sht);
+	if (!ret)
+		return 0;
 
+	cf_exit(acdev);
 free_clk:
 	clk_put(acdev->clk);
 	return ret;
@@ -907,7 +911,7 @@ free_clk:
 
 static int arasan_cf_remove(struct platform_device *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = platform_get_drvdata(pdev);
 	struct arasan_cf_dev *acdev = host->ports[0]->private_data;
 
 	ata_host_detach(host);
@@ -924,8 +928,7 @@ static int arasan_cf_suspend(struct device *dev)
 	struct arasan_cf_dev *acdev = host->ports[0]->private_data;
 
 	if (acdev->dma_chan)
-		acdev->dma_chan->device->device_control(acdev->dma_chan,
-				DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(acdev->dma_chan);
 
 	cf_exit(acdev);
 	return ata_host_suspend(host, PMSG_SUSPEND);

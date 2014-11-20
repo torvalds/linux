@@ -10,7 +10,6 @@ obj-$(CONFIG_HYDRA) += hydra.o 8390.o
 obj-$(CONFIG_MCF8390) += mcf8390.o 8390.o
 obj-$(CONFIG_NE2000) += ne.o 8390p.o
 obj-$(CONFIG_NE2K_PCI) += ne2k-pci.o 8390.o
-obj-$(CONFIG_NE_H8300) += ne-h8300.o 8390.o
 obj-$(CONFIG_PCMCIA_AXNET) += axnet_cs.o 8390.o
 obj-$(CONFIG_PCMCIA_PCNET) += pcnet_cs.o 8390.o
 obj-$(CONFIG_STNIC) += stnic.o 8390.o

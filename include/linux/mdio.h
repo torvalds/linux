@@ -70,9 +70,6 @@ extern int mdio45_nway_restart(const struct mdio_if_info *mdio);
 extern void mdio45_ethtool_gset_npage(const struct mdio_if_info *mdio,
 				      struct ethtool_cmd *ecmd,
 				      u32 npage_adv, u32 npage_lpa);
-extern void
-mdio45_ethtool_spauseparam_an(const struct mdio_if_info *mdio,
-			      const struct ethtool_pauseparam *ecmd);
 
 /**
  * mdio45_ethtool_gset - get settings for ETHTOOL_GSET

@@ -327,6 +327,8 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
 		v |= SUPPORTED_1000baseT_Full;
 	if (word & FW_PORT_CAP_SPEED_10G)
 		v |= SUPPORTED_10000baseT_Full;
+	if (word & FW_PORT_CAP_SPEED_40G)
+		v |= SUPPORTED_40000baseSR4_Full;
 	if (word & FW_PORT_CAP_ANEG)
 		v |= SUPPORTED_Autoneg;
 	init_link_config(&pi->link_cfg, v);
@@ -363,8 +365,8 @@ int t4vf_fw_reset(struct adapter *adapter)
  *	Reads the values of firmware or device parameters.  Up to 7 parameters
  *	can be queried at once.
  */
-int t4vf_query_params(struct adapter *adapter, unsigned int nparams,
-		      const u32 *params, u32 *vals)
+static int t4vf_query_params(struct adapter *adapter, unsigned int nparams,
+			     const u32 *params, u32 *vals)
 {
 	int i, ret;
 	struct fw_params_cmd cmd, rpl;
@@ -466,12 +468,38 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	sge_params->sge_timer_value_2_and_3 = vals[5];
 	sge_params->sge_timer_value_4_and_5 = vals[6];
 
+	/* T4 uses a single control field to specify both the PCIe Padding and
+	 * Packing Boundary.  T5 introduced the ability to specify these
+	 * separately with the Padding Boundary in SGE_CONTROL and and Packing
+	 * Boundary in SGE_CONTROL2.  So for T5 and later we need to grab
+	 * SGE_CONTROL in order to determine how ingress packet data will be
+	 * laid out in Packed Buffer Mode.  Unfortunately, older versions of
+	 * the firmware won't let us retrieve SGE_CONTROL2 so if we get a
+	 * failure grabbing it we throw an error since we can't figure out the
+	 * right value.
+	 */
+	if (!is_t4(adapter->params.chip)) {
+		params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
+			     FW_PARAMS_PARAM_XYZ(SGE_CONTROL2_A));
+		v = t4vf_query_params(adapter, 1, params, vals);
+		if (v != FW_SUCCESS) {
+			dev_err(adapter->pdev_dev,
+				"Unable to get SGE Control2; "
+				"probably old firmware.\n");
+			return v;
+		}
+		sge_params->sge_control2 = vals[0];
+	}
+
 	params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
 		     FW_PARAMS_PARAM_XYZ(SGE_INGRESS_RX_THRESHOLD));
-	v = t4vf_query_params(adapter, 1, params, vals);
+	params[1] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ(SGE_CONM_CTRL));
+	v = t4vf_query_params(adapter, 2, params, vals);
 	if (v)
 		return v;
 	sge_params->sge_ingress_rx_threshold = vals[0];
+	sge_params->sge_congestion_control = vals[1];
 
 	return 0;
 }
@@ -1027,8 +1055,11 @@ int t4vf_alloc_mac_filt(struct adapter *adapter, unsigned int viid, bool free,
 	unsigned nfilters = 0;
 	unsigned int rem = naddr;
 	struct fw_vi_mac_cmd cmd, rpl;
+	unsigned int max_naddr = is_t4(adapter->params.chip) ?
+				 NUM_MPS_CLS_SRAM_L_INSTANCES :
+				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 
-	if (naddr > FW_CLS_TCAM_NUM_ENTRIES)
+	if (naddr > max_naddr)
 		return -EINVAL;
 
 	for (offset = 0; offset < naddr; /**/) {
@@ -1069,10 +1100,10 @@ int t4vf_alloc_mac_filt(struct adapter *adapter, unsigned int viid, bool free,
 
 			if (idx)
 				idx[offset+i] =
-					(index >= FW_CLS_TCAM_NUM_ENTRIES
+					(index >= max_naddr
 					 ? 0xffff
 					 : index);
-			if (index < FW_CLS_TCAM_NUM_ENTRIES)
+			if (index < max_naddr)
 				nfilters++;
 			else if (hash)
 				*hash |= (1ULL << hash_mac_addr(addr[offset+i]));
@@ -1118,6 +1149,9 @@ int t4vf_change_mac(struct adapter *adapter, unsigned int viid,
 	struct fw_vi_mac_exact *p = &cmd.u.exact[0];
 	size_t len16 = DIV_ROUND_UP(offsetof(struct fw_vi_mac_cmd,
 					     u.exact[1]), 16);
+	unsigned int max_naddr = is_t4(adapter->params.chip) ?
+				 NUM_MPS_CLS_SRAM_L_INSTANCES :
+				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 
 	/*
 	 * If this is a new allocation, determine whether it should be
@@ -1140,7 +1174,7 @@ int t4vf_change_mac(struct adapter *adapter, unsigned int viid,
 	if (ret == 0) {
 		p = &rpl.u.exact[0];
 		ret = FW_VI_MAC_CMD_IDX_GET(be16_to_cpu(p->valid_to_idx));
-		if (ret >= FW_CLS_TCAM_NUM_ENTRIES)
+		if (ret >= max_naddr)
 			ret = -ENOMEM;
 	}
 	return ret;
@@ -1346,11 +1380,13 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 		if (word & FW_PORT_CMD_TXPAUSE)
 			fc |= PAUSE_TX;
 		if (word & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100M))
-			speed = SPEED_100;
+			speed = 100;
 		else if (word & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_1G))
-			speed = SPEED_1000;
+			speed = 1000;
 		else if (word & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
-			speed = SPEED_10000;
+			speed = 10000;
+		else if (word & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
+			speed = 40000;
 
 		/*
 		 * Scan all of our "ports" (Virtual Interfaces) looking for

@@ -2,7 +2,7 @@
 /*
  * Radio tuning for Philips SA2400 on RTL8180
  *
- * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
  *
  * Code from the BSD driver and the rtl8181 project have been
  * very useful to understand certain things
@@ -19,7 +19,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <net/mac80211.h>
@@ -105,7 +104,8 @@ static void sa2400_rf_set_channel(struct ieee80211_hw *dev,
 				  struct ieee80211_conf *conf)
 {
 	struct rtl8180_priv *priv = dev->priv;
-	int channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
+	int channel =
+		ieee80211_frequency_to_channel(conf->chandef.chan->center_freq);
 	u32 txpw = priv->channels[channel - 1].hw_value & 0xFF;
 	u32 chan = sa2400_chan[channel - 1];
 

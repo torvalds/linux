@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -46,10 +46,15 @@ struct lpfc_sli2_slim;
 #define LPFC_DEFAULT_MENLO_SG_SEG_CNT 128	/* sg element count per scsi
 		cmnd for menlo needs nearly twice as for firmware
 		downloads using bsg */
-#define LPFC_DEFAULT_PROT_SG_SEG_CNT 4096 /* sg protection elements count */
+
+#define LPFC_MIN_SG_SLI4_BUF_SZ	0x800	/* based on LPFC_DEFAULT_SG_SEG_CNT */
+#define LPFC_MAX_SG_SLI4_SEG_CNT_DIF 128 /* sg element count per scsi cmnd */
+#define LPFC_MAX_SG_SEG_CNT_DIF 512	/* sg element count per scsi cmnd  */
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
+#define LPFC_MAX_SGL_SEG_CNT	512	/* SGL element count per scsi cmnd */
+#define LPFC_MAX_BPL_SEG_CNT	4096	/* BPL element count per scsi cmnd */
+
 #define LPFC_MAX_SGE_SIZE       0x80000000 /* Maximum data allowed in a SGE */
-#define LPFC_MAX_PROT_SG_SEG_CNT 4096	/* prot sg element count per scsi cmd*/
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
 #define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
 #define LPFC_VNAME_LEN		100	/* vport symbolic name length */
@@ -66,8 +71,8 @@ struct lpfc_sli2_slim;
  * queue depths when there are driver resource error or Firmware
  * resource error.
  */
-#define QUEUE_RAMP_DOWN_INTERVAL	(1 * HZ)   /* 1 Second */
-#define QUEUE_RAMP_UP_INTERVAL		(300 * HZ) /* 5 minutes */
+/* 1 Second */
+#define QUEUE_RAMP_DOWN_INTERVAL	(msecs_to_jiffies(1000 * 1))
 
 /* Number of exchanges reserved for discovery to complete */
 #define LPFC_DISC_IOCB_BUFF_COUNT 20
@@ -414,6 +419,7 @@ struct lpfc_vport {
 	uint32_t cfg_enable_da_id;
 	uint32_t cfg_max_scsicmpl_time;
 	uint32_t cfg_tgt_queue_depth;
+	uint32_t cfg_first_burst_size;
 
 	uint32_t dev_loss_tmo_changed;
 
@@ -634,6 +640,7 @@ struct lpfc_hba {
 #define HBA_DEVLOSS_TMO         0x2000 /* HBA in devloss timeout */
 #define HBA_RRQ_ACTIVE		0x4000 /* process the rrq active list */
 #define HBA_FCP_IOQ_FLUSH	0x8000 /* FCP I/O queues being flushed */
+#define HBA_FW_DUMP_OP		0x10000 /* Skips fn reset before FW dump */
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;
 
@@ -671,6 +678,7 @@ struct lpfc_hba {
 	uint32_t lmt;
 
 	uint32_t fc_topology;	/* link topology, from LINK INIT */
+	uint32_t fc_topology_changed;	/* link topology, from LINK INIT */
 
 	struct lpfc_stats fc_stat;
 
@@ -699,11 +707,12 @@ struct lpfc_hba {
 	uint32_t cfg_multi_ring_type;
 	uint32_t cfg_poll;
 	uint32_t cfg_poll_tmo;
+	uint32_t cfg_task_mgmt_tmo;
 	uint32_t cfg_use_msi;
 	uint32_t cfg_fcp_imax;
-	uint32_t cfg_fcp_wq_count;
-	uint32_t cfg_fcp_eq_count;
+	uint32_t cfg_fcp_cpu_map;
 	uint32_t cfg_fcp_io_channel;
+	uint32_t cfg_total_seg_cnt;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_prot_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
@@ -712,6 +721,20 @@ struct lpfc_hba {
 	uint32_t cfg_hba_queue_depth;
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
+	uint32_t cfg_fof;
+	uint32_t cfg_EnableXLane;
+	uint8_t cfg_oas_tgt_wwpn[8];
+	uint8_t cfg_oas_vpt_wwpn[8];
+	uint32_t cfg_oas_lun_state;
+#define OAS_LUN_ENABLE	1
+#define OAS_LUN_DISABLE	0
+	uint32_t cfg_oas_lun_status;
+#define OAS_LUN_STATUS_EXISTS	0x01
+	uint32_t cfg_oas_flags;
+#define OAS_FIND_ANY_VPORT	0x01
+#define OAS_FIND_ANY_TARGET	0x02
+#define OAS_LUN_VALID	0x04
+	uint32_t cfg_XLanePriority;
 	uint32_t cfg_enable_bg;
 	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
@@ -720,6 +743,7 @@ struct lpfc_hba {
 	uint32_t cfg_request_firmware_upgrade;
 	uint32_t cfg_iocb_cnt;
 	uint32_t cfg_suppress_link_up;
+	uint32_t cfg_rrq_xri_bitmap_sz;
 #define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
 #define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
 #define LPFC_DELAY_INIT_LINK_INDEFINITELY 2	/* wait, manual intervention */
@@ -804,8 +828,10 @@ struct lpfc_hba {
 	uint64_t bg_reftag_err_cnt;
 
 	/* fastpath list. */
-	spinlock_t scsi_buf_list_lock;
-	struct list_head lpfc_scsi_buf_list;
+	spinlock_t scsi_buf_list_get_lock;  /* SCSI buf alloc list lock */
+	spinlock_t scsi_buf_list_put_lock;  /* SCSI buf free list lock */
+	struct list_head lpfc_scsi_buf_list_get;
+	struct list_head lpfc_scsi_buf_list_put;
 	uint32_t total_scsi_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;
@@ -823,6 +849,7 @@ struct lpfc_hba {
 	mempool_t *mbox_mem_pool;
 	mempool_t *nlp_mem_pool;
 	mempool_t *rrq_pool;
+	mempool_t *active_rrq_pool;
 
 	struct fc_host_statistics link_stats;
 	enum intr_type_t intr_type;
@@ -857,7 +884,6 @@ struct lpfc_hba {
 	atomic_t num_cmd_success;
 	unsigned long last_rsrc_error_time;
 	unsigned long last_ramp_down_time;
-	unsigned long last_ramp_up_time;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
@@ -959,6 +985,9 @@ struct lpfc_hba {
 	atomic_t sdev_cnt;
 	uint8_t fips_spec_rev;
 	uint8_t fips_level;
+	spinlock_t devicelock;	/* lock for luns list */
+	mempool_t *device_data_mem_pool;
+	struct list_head luns;
 };
 
 static inline struct Scsi_Host *

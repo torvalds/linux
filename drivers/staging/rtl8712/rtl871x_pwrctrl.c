@@ -83,7 +83,7 @@ void r8712_set_ps_mode(struct _adapter *padapter, uint ps_mode, uint smart_ps)
 			pwrpriv->bSleep = false;
 		pwrpriv->pwr_mode = ps_mode;
 		pwrpriv->smart_ps = smart_ps;
-		_set_workitem(&(pwrpriv->SetPSModeWorkItem));
+		schedule_work(&pwrpriv->SetPSModeWorkItem);
 	}
 }
 
@@ -133,7 +133,7 @@ static void _rpwm_check_handler (struct _adapter *padapter)
 	    padapter->bSurpriseRemoved == true)
 		return;
 	if (pwrpriv->cpwm != pwrpriv->rpwm)
-		_set_workitem(&(pwrpriv->rpwm_workitem));
+		schedule_work(&pwrpriv->rpwm_workitem);
 }
 
 static void SetPSModeWorkItemCallback(struct work_struct *work)
@@ -157,6 +157,7 @@ static void rpwm_workitem_callback(struct work_struct *work)
 	struct _adapter *padapter = container_of(pwrpriv,
 				    struct _adapter, pwrctrlpriv);
 	u8 cpwm = pwrpriv->cpwm;
+
 	if (pwrpriv->cpwm != pwrpriv->rpwm) {
 		_enter_pwrlock(&pwrpriv->lock);
 		cpwm = r8712_read8(padapter, SDIO_HCPWM);
@@ -169,6 +170,7 @@ static void rpwm_workitem_callback(struct work_struct *work)
 static void rpwm_check_handler (void *FunctionContext)
 {
 	struct _adapter *adapter = (struct _adapter *)FunctionContext;
+
 	_rpwm_check_handler(adapter);
 }
 
@@ -184,10 +186,8 @@ void r8712_init_pwrctrl_priv(struct _adapter *padapter)
 	pwrctrlpriv->tog = 0x80;
 /* clear RPWM to ensure driver and fw back to initial state. */
 	r8712_write8(padapter, 0x1025FE58, 0);
-	_init_workitem(&(pwrctrlpriv->SetPSModeWorkItem),
-		       SetPSModeWorkItemCallback, padapter);
-	_init_workitem(&(pwrctrlpriv->rpwm_workitem),
-		       rpwm_workitem_callback, padapter);
+	INIT_WORK(&pwrctrlpriv->SetPSModeWorkItem, SetPSModeWorkItemCallback);
+	INIT_WORK(&pwrctrlpriv->rpwm_workitem, rpwm_workitem_callback);
 	_init_timer(&(pwrctrlpriv->rpwm_check_timer),
 		    padapter->pnetdev, rpwm_check_handler, (u8 *)padapter);
 }

@@ -34,17 +34,20 @@ config KVM_BOOK3S_64_HANDLER
 	bool
 	select KVM_BOOK3S_HANDLER
 
-config KVM_BOOK3S_PR
+config KVM_BOOK3S_PR_POSSIBLE
 	bool
 	select KVM_MMIO
 	select MMU_NOTIFIER
+
+config KVM_BOOK3S_HV_POSSIBLE
+	bool
 
 config KVM_BOOK3S_32
 	tristate "KVM support for PowerPC book3s_32 processors"
 	depends on PPC_BOOK3S_32 && !SMP && !PTE_64BIT
 	select KVM
 	select KVM_BOOK3S_32_HANDLER
-	select KVM_BOOK3S_PR
+	select KVM_BOOK3S_PR_POSSIBLE
 	---help---
 	  Support running unmodified book3s_32 guest kernels
 	  in virtual machines on book3s_32 host processors.
@@ -59,6 +62,7 @@ config KVM_BOOK3S_64
 	depends on PPC_BOOK3S_64
 	select KVM_BOOK3S_64_HANDLER
 	select KVM
+	select KVM_BOOK3S_PR_POSSIBLE if !KVM_BOOK3S_HV_POSSIBLE
 	---help---
 	  Support running unmodified book3s_64 and book3s_32 guest kernels
 	  in virtual machines on book3s_64 host processors.
@@ -69,9 +73,11 @@ config KVM_BOOK3S_64
 	  If unsure, say N.
 
 config KVM_BOOK3S_64_HV
-	bool "KVM support for POWER7 and PPC970 using hypervisor mode in host"
+	tristate "KVM support for POWER7 and PPC970 using hypervisor mode in host"
 	depends on KVM_BOOK3S_64
+	select KVM_BOOK3S_HV_POSSIBLE
 	select MMU_NOTIFIER
+	select CMA
 	---help---
 	  Support running unmodified book3s_64 guest kernels in
 	  virtual machines on POWER7 and PPC970 processors that have
@@ -88,30 +94,27 @@ config KVM_BOOK3S_64_HV
 	  If unsure, say N.
 
 config KVM_BOOK3S_64_PR
-	def_bool y
-	depends on KVM_BOOK3S_64 && !KVM_BOOK3S_64_HV
-	select KVM_BOOK3S_PR
+	tristate "KVM support without using hypervisor mode in host"
+	depends on KVM_BOOK3S_64
+	select KVM_BOOK3S_PR_POSSIBLE
+	---help---
+	  Support running guest kernels in virtual machines on processors
+	  without using hypervisor mode in the host, by running the
+	  guest in user mode (problem state) and emulating all
+	  privileged instructions and registers.
+
+	  This is not as fast as using hypervisor mode, but works on
+	  machines where hypervisor mode is not available or not usable,
+	  and can emulate processors that are different from the host
+	  processor, including emulating 32-bit processors on a 64-bit
+	  host.
 
 config KVM_BOOKE_HV
 	bool
 
-config KVM_440
-	bool "KVM support for PowerPC 440 processors"
-	depends on 44x
-	select KVM
-	select KVM_MMIO
-	---help---
-	  Support running unmodified 440 guest kernels in virtual machines on
-	  440 host processors.
-
-	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
-
-	  If unsure, say N.
-
 config KVM_EXIT_TIMING
 	bool "Detailed exit timing"
-	depends on KVM_440 || KVM_E500V2 || KVM_E500MC
+	depends on KVM_E500V2 || KVM_E500MC
 	---help---
 	  Calculate elapsed time for every exit/enter cycle. A per-vcpu
 	  report is available in debugfs kvm/vm#_vcpu#_timing.
@@ -136,20 +139,43 @@ config KVM_E500V2
 	  If unsure, say N.
 
 config KVM_E500MC
-	bool "KVM support for PowerPC E500MC/E5500 processors"
+	bool "KVM support for PowerPC E500MC/E5500/E6500 processors"
 	depends on PPC_E500MC
 	select KVM
 	select KVM_MMIO
 	select KVM_BOOKE_HV
 	select MMU_NOTIFIER
 	---help---
-	  Support running unmodified E500MC/E5500 (32-bit) guest kernels in
-	  virtual machines on E500MC/E5500 host processors.
+	  Support running unmodified E500MC/E5500/E6500 guest kernels in
+	  virtual machines on E500MC/E5500/E6500 host processors.
 
 	  This module provides access to the hardware capabilities through
 	  a character device node named /dev/kvm.
 
 	  If unsure, say N.
+
+config KVM_MPIC
+	bool "KVM in-kernel MPIC emulation"
+	depends on KVM && E500
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQFD
+	select HAVE_KVM_IRQ_ROUTING
+	select HAVE_KVM_MSI
+	help
+	  Enable support for emulating MPIC devices inside the
+          host kernel, rather than relying on userspace to emulate.
+          Currently, support is limited to certain versions of
+          Freescale's MPIC implementation.
+
+config KVM_XICS
+	bool "KVM in-kernel XICS emulation"
+	depends on KVM_BOOK3S_64 && !KVM_MPIC
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQFD
+	---help---
+	  Include support for the XICS (eXternal Interrupt Controller
+	  Specification) interrupt controller architecture used on
+	  IBM POWER (pSeries) servers.
 
 source drivers/vhost/Kconfig
 

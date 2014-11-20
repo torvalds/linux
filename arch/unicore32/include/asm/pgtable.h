@@ -87,16 +87,16 @@ extern pgprot_t pgprot_kernel;
 
 #define PAGE_NONE		pgprot_user
 #define PAGE_SHARED		__pgprot(pgprot_val(pgprot_user | PTE_READ \
-								| PTE_WRITE)
+								| PTE_WRITE))
 #define PAGE_SHARED_EXEC	__pgprot(pgprot_val(pgprot_user | PTE_READ \
 								| PTE_WRITE \
-								| PTE_EXEC)
+								| PTE_EXEC))
 #define PAGE_COPY		__pgprot(pgprot_val(pgprot_user | PTE_READ)
 #define PAGE_COPY_EXEC		__pgprot(pgprot_val(pgprot_user | PTE_READ \
-								| PTE_EXEC)
-#define PAGE_READONLY		__pgprot(pgprot_val(pgprot_user | PTE_READ)
+								| PTE_EXEC))
+#define PAGE_READONLY		__pgprot(pgprot_val(pgprot_user | PTE_READ))
 #define PAGE_READONLY_EXEC	__pgprot(pgprot_val(pgprot_user | PTE_READ \
-								| PTE_EXEC)
+								| PTE_EXEC))
 #define PAGE_KERNEL		pgprot_kernel
 #define PAGE_KERNEL_EXEC	__pgprot(pgprot_val(pgprot_kernel | PTE_EXEC))
 
@@ -302,13 +302,6 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define kern_addr_valid(addr)	(1)
 
 #include <asm-generic/pgtable.h>
-
-/*
- * remap a physical page `pfn' of size `size' with page protection `prot'
- * into virtual address `from'
- */
-#define io_remap_pfn_range(vma, from, pfn, size, prot)	\
-		remap_pfn_range(vma, from, pfn, size, prot)
 
 #define pgtable_cache_init() do { } while (0)
 

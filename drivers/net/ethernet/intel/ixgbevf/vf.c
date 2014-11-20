@@ -109,7 +109,12 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK))
+	/* New versions of the PF may NACK the reset return message
+	 * to indicate that no MAC address has yet been assigned for
+	 * the VF.
+	 */
+	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK) &&
+	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_NACK))
 		return IXGBE_ERR_INVALID_MAC_ADDR;
 
 	memcpy(hw->mac.perm_addr, addr, ETH_ALEN);
@@ -237,7 +242,7 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	msgbuf[0] |= index << IXGBE_VT_MSGINFO_SHIFT;
 	msgbuf[0] |= IXGBE_VF_SET_MACVLAN;
 	if (addr)
-		memcpy(msg_addr, addr, 6);
+		memcpy(msg_addr, addr, ETH_ALEN);
 	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
 	if (!ret_val)
@@ -270,7 +275,7 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 
 	memset(msgbuf, 0, sizeof(msgbuf));
 	msgbuf[0] = IXGBE_VF_SET_MAC_ADDR;
-	memcpy(msg_addr, addr, 6);
+	memcpy(msg_addr, addr, ETH_ALEN);
 	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
 	if (!ret_val)
@@ -428,6 +433,21 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 	links_reg = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
 	if (!(links_reg & IXGBE_LINKS_UP))
 		goto out;
+
+	/* for SFP+ modules and DA cables on 82599 it can take up to 500usecs
+	 * before the link status is correct
+	 */
+	if (mac->type == ixgbe_mac_82599_vf) {
+		int i;
+
+		for (i = 0; i < 5; i++) {
+			udelay(100);
+			links_reg = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
+
+			if (!(links_reg & IXGBE_LINKS_UP))
+				goto out;
+		}
+	}
 
 	switch (links_reg & IXGBE_LINKS_SPEED_82599) {
 	case IXGBE_LINKS_SPEED_10G_82599:

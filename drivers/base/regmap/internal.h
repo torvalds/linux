@@ -38,19 +38,22 @@ struct regmap_format {
 			     unsigned int reg, unsigned int val);
 	void (*format_reg)(void *buf, unsigned int reg, unsigned int shift);
 	void (*format_val)(void *buf, unsigned int val, unsigned int shift);
-	unsigned int (*parse_val)(void *buf);
+	unsigned int (*parse_val)(const void *buf);
+	void (*parse_inplace)(void *buf);
 };
 
 struct regmap_async {
 	struct list_head list;
-	struct work_struct cleanup;
 	struct regmap *map;
 	void *work_buf;
 };
 
 struct regmap {
-	struct mutex mutex;
-	spinlock_t spinlock;
+	union {
+		struct mutex mutex;
+		spinlock_t spinlock;
+	};
+	unsigned long spinlock_flags;
 	regmap_lock lock;
 	regmap_unlock unlock;
 	void *lock_arg; /* This is passed to lock/unlock functions */
@@ -62,9 +65,11 @@ struct regmap {
 	void *bus_context;
 	const char *name;
 
+	bool async;
 	spinlock_t async_lock;
 	wait_queue_head_t async_waitq;
 	struct list_head async_list;
+	struct list_head async_free;
 	int async_ret;
 
 #ifdef CONFIG_DEBUG_FS
@@ -76,6 +81,7 @@ struct regmap {
 	unsigned int debugfs_tot_len;
 
 	struct list_head debugfs_off_cache;
+	struct mutex cache_lock;
 #endif
 
 	unsigned int max_register;
@@ -130,6 +136,8 @@ struct regmap {
 
 	/* if set, converts bulk rw to single rw */
 	bool use_single_rw;
+	/* if set, the device supports multi write mode */
+	bool can_multi_write;
 
 	struct rb_root range_tree;
 	void *selector_work_buf;	/* Scratch buffer used for selector */
@@ -140,9 +148,13 @@ struct regcache_ops {
 	enum regcache_type type;
 	int (*init)(struct regmap *map);
 	int (*exit)(struct regmap *map);
+#ifdef CONFIG_DEBUG_FS
+	void (*debugfs_init)(struct regmap *map);
+#endif
 	int (*read)(struct regmap *map, unsigned int reg, unsigned int *value);
 	int (*write)(struct regmap *map, unsigned int reg, unsigned int value);
 	int (*sync)(struct regmap *map, unsigned int min, unsigned int max);
+	int (*drop)(struct regmap *map, unsigned int min, unsigned int max);
 };
 
 bool regmap_writeable(struct regmap *map, unsigned int reg);
@@ -169,6 +181,17 @@ struct regmap_range_node {
 	unsigned int window_len;
 };
 
+struct regmap_field {
+	struct regmap *regmap;
+	unsigned int mask;
+	/* lsb */
+	unsigned int shift;
+	unsigned int reg;
+
+	unsigned int id_size;
+	unsigned int id_offset;
+};
+
 #ifdef CONFIG_DEBUG_FS
 extern void regmap_debugfs_initcall(void);
 extern void regmap_debugfs_init(struct regmap *map, const char *name);
@@ -187,12 +210,26 @@ int regcache_read(struct regmap *map,
 int regcache_write(struct regmap *map,
 			unsigned int reg, unsigned int value);
 int regcache_sync(struct regmap *map);
+int regcache_sync_block(struct regmap *map, void *block,
+			unsigned long *cache_present,
+			unsigned int block_base, unsigned int start,
+			unsigned int end);
 
-unsigned int regcache_get_val(const void *base, unsigned int idx,
-			      unsigned int word_size);
-bool regcache_set_val(void *base, unsigned int idx,
-		      unsigned int val, unsigned int word_size);
+static inline const void *regcache_get_val_addr(struct regmap *map,
+						const void *base,
+						unsigned int idx)
+{
+	return base + (map->cache_word_size * idx);
+}
+
+unsigned int regcache_get_val(struct regmap *map, const void *base,
+			      unsigned int idx);
+bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
+		      unsigned int val);
 int regcache_lookup_reg(struct regmap *map, unsigned int reg);
+
+int _regmap_raw_write(struct regmap *map, unsigned int reg,
+		      const void *val, size_t val_len);
 
 void regmap_async_complete_cb(struct regmap_async *async, int ret);
 

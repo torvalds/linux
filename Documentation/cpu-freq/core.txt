@@ -20,6 +20,7 @@ Contents:
 ---------
 1.  CPUFreq core and interfaces
 2.  CPUFreq notifiers
+3.  CPUFreq Table Generation with Operating Performance Point (OPP)
 
 1. General Information
 =======================
@@ -93,6 +94,30 @@ cpu	- number of the affected CPU
 old	- old frequency
 new	- new frequency
 
-If the cpufreq core detects the frequency has changed while the system
-was suspended, these notifiers are called with CPUFREQ_RESUMECHANGE as
-second argument.
+3. CPUFreq Table Generation with Operating Performance Point (OPP)
+==================================================================
+For details about OPP, see Documentation/power/opp.txt
+
+dev_pm_opp_init_cpufreq_table - cpufreq framework typically is initialized with
+	cpufreq_frequency_table_cpuinfo which is provided with the list of
+	frequencies that are available for operation. This function provides
+	a ready to use conversion routine to translate the OPP layer's internal
+	information about the available frequencies into a format readily
+	providable to cpufreq.
+
+	WARNING: Do not use this function in interrupt context.
+
+	Example:
+	 soc_pm_init()
+	 {
+		/* Do things */
+		r = dev_pm_opp_init_cpufreq_table(dev, &freq_table);
+		if (!r)
+			cpufreq_frequency_table_cpuinfo(policy, freq_table);
+		/* Do other things */
+	 }
+
+	NOTE: This function is available only if CONFIG_CPU_FREQ is enabled in
+	addition to CONFIG_PM_OPP.
+
+dev_pm_opp_free_cpufreq_table - Free up the table allocated by dev_pm_opp_init_cpufreq_table

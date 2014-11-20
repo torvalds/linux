@@ -67,7 +67,7 @@
 
 void switch_cop(struct mm_struct *next)
 {
-#ifdef CONFIG_ICSWX_PID
+#ifdef CONFIG_PPC_ICSWX_PID
 	mtspr(SPRN_PID, next->context.cop_pid);
 #endif
 	mtspr(SPRN_ACOP, next->context.acop);

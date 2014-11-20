@@ -73,10 +73,6 @@ struct thread_info {
 
 #endif  /* __ASSEMBLY__  */
 
-/*  looks like "linux/hardirq.h" uses this.  */
-
-#define PREEMPT_ACTIVE		0x10000000
-
 #ifndef __ASSEMBLY__
 
 #define INIT_THREAD_INFO(tsk)                   \

@@ -57,9 +57,6 @@ struct virtio_pci_device
 	/* Vectors allocated, excluding per-vq vectors if any */
 	unsigned msix_used_vectors;
 
-	/* Status saved during hibernate/restore */
-	u8 saved_status;
-
 	/* Whether we have vector per vq */
 	bool per_vq_vectors;
 };
@@ -91,7 +88,7 @@ struct virtio_pci_vq_info
 };
 
 /* Qumranet donated their vendor ID for devices 0x1000 thru 0x10FF. */
-static DEFINE_PCI_DEVICE_TABLE(virtio_pci_id_table) = {
+static const struct pci_device_id virtio_pci_id_table[] = {
 	{ PCI_DEVICE(0x1af4, PCI_ANY_ID) },
 	{ 0 }
 };
@@ -197,25 +194,22 @@ static void vp_reset(struct virtio_device *vdev)
 }
 
 /* the notify function used when creating a virt queue */
-static void vp_notify(struct virtqueue *vq)
+static bool vp_notify(struct virtqueue *vq)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
 
 	/* we write the queue's selector into the notification register to
 	 * signal the other end */
 	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NOTIFY);
+	return true;
 }
 
 /* Handle a configuration change: Tell driver if it wants to know. */
 static irqreturn_t vp_config_changed(int irq, void *opaque)
 {
 	struct virtio_pci_device *vp_dev = opaque;
-	struct virtio_driver *drv;
-	drv = container_of(vp_dev->vdev.dev.driver,
-			   struct virtio_driver, driver);
 
-	if (drv && drv->config_changed)
-		drv->config_changed(&vp_dev->vdev);
+	virtio_config_changed(&vp_dev->vdev);
 	return IRQ_HANDLED;
 }
 
@@ -289,9 +283,9 @@ static void vp_free_vectors(struct virtio_device *vdev)
 
 		pci_disable_msix(vp_dev->pci_dev);
 		vp_dev->msix_enabled = 0;
-		vp_dev->msix_vectors = 0;
 	}
 
+	vp_dev->msix_vectors = 0;
 	vp_dev->msix_used_vectors = 0;
 	kfree(vp_dev->msix_names);
 	vp_dev->msix_names = NULL;
@@ -308,6 +302,8 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 	const char *name = dev_name(&vp_dev->vdev.dev);
 	unsigned i, v;
 	int err = -ENOMEM;
+
+	vp_dev->msix_vectors = nvectors;
 
 	vp_dev->msix_entries = kmalloc(nvectors * sizeof *vp_dev->msix_entries,
 				       GFP_KERNEL);
@@ -330,13 +326,10 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 	for (i = 0; i < nvectors; ++i)
 		vp_dev->msix_entries[i].entry = i;
 
-	/* pci_enable_msix returns positive if we can't get this many. */
-	err = pci_enable_msix(vp_dev->pci_dev, vp_dev->msix_entries, nvectors);
-	if (err > 0)
-		err = -ENOSPC;
+	err = pci_enable_msix_exact(vp_dev->pci_dev,
+				    vp_dev->msix_entries, nvectors);
 	if (err)
 		goto error;
-	vp_dev->msix_vectors = nvectors;
 	vp_dev->msix_enabled = 1;
 
 	/* Set the vector used for configuration */
@@ -740,7 +733,6 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
 out_set_drvdata:
-	pci_set_drvdata(pci_dev, NULL);
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
 out_req_regions:
 	pci_release_regions(pci_dev);
@@ -758,28 +750,20 @@ static void virtio_pci_remove(struct pci_dev *pci_dev)
 	unregister_virtio_device(&vp_dev->vdev);
 
 	vp_del_vqs(&vp_dev->vdev);
-	pci_set_drvdata(pci_dev, NULL);
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
 	kfree(vp_dev);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int virtio_pci_freeze(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
-	struct virtio_driver *drv;
 	int ret;
 
-	drv = container_of(vp_dev->vdev.dev.driver,
-			   struct virtio_driver, driver);
-
-	ret = 0;
-	vp_dev->saved_status = vp_get_status(&vp_dev->vdev);
-	if (drv && drv->freeze)
-		ret = drv->freeze(&vp_dev->vdev);
+	ret = virtio_device_freeze(&vp_dev->vdev);
 
 	if (!ret)
 		pci_disable_device(pci_dev);
@@ -790,27 +774,14 @@ static int virtio_pci_restore(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
-	struct virtio_driver *drv;
 	int ret;
-
-	drv = container_of(vp_dev->vdev.dev.driver,
-			   struct virtio_driver, driver);
 
 	ret = pci_enable_device(pci_dev);
 	if (ret)
 		return ret;
 
 	pci_set_master(pci_dev);
-	vp_finalize_features(&vp_dev->vdev);
-
-	if (drv && drv->restore)
-		ret = drv->restore(&vp_dev->vdev);
-
-	/* Finally, tell the device we're all set */
-	if (!ret)
-		vp_set_status(&vp_dev->vdev, vp_dev->saved_status);
-
-	return ret;
+	return virtio_device_restore(&vp_dev->vdev);
 }
 
 static const struct dev_pm_ops virtio_pci_pm_ops = {
@@ -823,7 +794,7 @@ static struct pci_driver virtio_pci_driver = {
 	.id_table	= virtio_pci_id_table,
 	.probe		= virtio_pci_probe,
 	.remove		= virtio_pci_remove,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.driver.pm	= &virtio_pci_pm_ops,
 #endif
 };

@@ -90,13 +90,13 @@ static void smd_tty_notify(void *priv, unsigned event)
 
 static int smd_tty_port_activate(struct tty_port *tport, struct tty_struct *tty)
 {
+	struct smd_tty_info *info = container_of(tport, struct smd_tty_info,
+			port);
 	int i, res = 0;
-	int n = tty->index;
 	const char *name = NULL;
-	struct smd_tty_info *info = smd_tty + n;
 
 	for (i = 0; i < smd_tty_channels_len; i++) {
-		if (smd_tty_channels[i].id == n) {
+		if (smd_tty_channels[i].id == tty->index) {
 			name = smd_tty_channels[i].name;
 			break;
 		}
@@ -117,17 +117,13 @@ static int smd_tty_port_activate(struct tty_port *tport, struct tty_struct *tty)
 
 static void smd_tty_port_shutdown(struct tty_port *tport)
 {
-	struct smd_tty_info *info;
-	struct tty_struct *tty = tty_port_tty_get(tport);
+	struct smd_tty_info *info = container_of(tport, struct smd_tty_info,
+			port);
 
-	info = tty->driver_data;
 	if (info->ch) {
 		smd_close(info->ch);
 		info->ch = 0;
 	}
-
-	tty->driver_data = 0;
-	tty_kref_put(tty);
 }
 
 static int smd_tty_open(struct tty_struct *tty, struct file *f)

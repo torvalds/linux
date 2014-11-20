@@ -2,6 +2,7 @@
  * H.323 extension for NAT alteration.
  *
  * Copyright (c) 2006 Jing Min Zhao <zhaojingmin@users.sourceforge.net>
+ * Copyright (c) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * This source code is licensed under General Public License version 2.
  *
@@ -228,7 +229,10 @@ static int nat_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 			ret = nf_ct_expect_related(rtcp_exp);
 			if (ret == 0)
 				break;
-			else if (ret != -EBUSY) {
+			else if (ret == -EBUSY) {
+				nf_ct_unexpect_related(rtp_exp);
+				continue;
+			} else if (ret < 0) {
 				nf_ct_unexpect_related(rtp_exp);
 				nated_port = 0;
 				break;

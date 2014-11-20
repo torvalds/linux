@@ -253,11 +253,10 @@ static int lib80211_wep_get_key(void *key, int len, u8 * seq, void *priv)
 	return wep->key_len;
 }
 
-static char *lib80211_wep_print_stats(char *p, void *priv)
+static void lib80211_wep_print_stats(struct seq_file *m, void *priv)
 {
 	struct lib80211_wep_data *wep = priv;
-	p += sprintf(p, "key[%d] alg=WEP len=%d\n", wep->key_idx, wep->key_len);
-	return p;
+	seq_printf(m, "key[%d] alg=WEP len=%d\n", wep->key_idx, wep->key_len);
 }
 
 static struct lib80211_crypto_ops lib80211_crypt_wep = {

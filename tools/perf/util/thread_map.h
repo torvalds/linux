@@ -9,6 +9,7 @@ struct thread_map {
 	pid_t map[];
 };
 
+struct thread_map *thread_map__new_dummy(void);
 struct thread_map *thread_map__new_by_pid(pid_t pid);
 struct thread_map *thread_map__new_by_tid(pid_t tid);
 struct thread_map *thread_map__new_by_uid(uid_t uid);
@@ -20,5 +21,10 @@ struct thread_map *thread_map__new_str(const char *pid,
 void thread_map__delete(struct thread_map *threads);
 
 size_t thread_map__fprintf(struct thread_map *threads, FILE *fp);
+
+static inline int thread_map__nr(struct thread_map *threads)
+{
+	return threads ? threads->nr : 1;
+}
 
 #endif	/* __PERF_THREAD_MAP_H */

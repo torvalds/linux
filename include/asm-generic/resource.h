@@ -12,7 +12,7 @@
 	[RLIMIT_CPU]		= {  RLIM_INFINITY,  RLIM_INFINITY },	\
 	[RLIMIT_FSIZE]		= {  RLIM_INFINITY,  RLIM_INFINITY },	\
 	[RLIMIT_DATA]		= {  RLIM_INFINITY,  RLIM_INFINITY },	\
-	[RLIMIT_STACK]		= {       _STK_LIM,   _STK_LIM_MAX },	\
+	[RLIMIT_STACK]		= {       _STK_LIM,  RLIM_INFINITY },	\
 	[RLIMIT_CORE]		= {              0,  RLIM_INFINITY },	\
 	[RLIMIT_RSS]		= {  RLIM_INFINITY,  RLIM_INFINITY },	\
 	[RLIMIT_NPROC]		= {              0,              0 },	\

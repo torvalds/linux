@@ -12,8 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/reboot.h>
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
+#include <linux/reboot.h>
 
 #include <asm/ce4100.h>
 #include <asm/prom.h>
@@ -133,14 +135,10 @@ static void __init sdv_arch_setup(void)
 	sdv_serial_fixup();
 }
 
-#ifdef CONFIG_X86_IO_APIC
-static void __cpuinit sdv_pci_init(void)
+static void sdv_pci_init(void)
 {
 	x86_of_pci_init();
-	/* We can't set this earlier, because we need to calibrate the timer */
-	legacy_pic = &null_legacy_pic;
 }
-#endif
 
 /*
  * CE4100 specific x86_init function overrides and early setup
@@ -153,7 +151,9 @@ void __init x86_ce4100_early_setup(void)
 	x86_init.resources.probe_roms = x86_init_noop;
 	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
 	x86_init.mpparse.find_smp_config = x86_init_noop;
+	x86_init.mpparse.setup_ioapic_ids = setup_ioapic_ids_from_mpc_nocheck;
 	x86_init.pci.init = ce4100_pci_init;
+	x86_init.pci.init_irq = sdv_pci_init;
 
 	/*
 	 * By default, the reboot method is ACPI which is supported by the
@@ -163,11 +163,6 @@ void __init x86_ce4100_early_setup(void)
 	 * expected.
 	 */
 	reboot_type = BOOT_KBD;
-
-#ifdef CONFIG_X86_IO_APIC
-	x86_init.pci.init_irq = sdv_pci_init;
-	x86_init.mpparse.setup_ioapic_ids = setup_ioapic_ids_from_mpc_nocheck;
-#endif
 
 	pm_power_off = ce4100_power_off;
 }

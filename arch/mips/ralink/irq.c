@@ -31,6 +31,7 @@
 #define INTC_INT_GLOBAL		BIT(31)
 
 #define RALINK_CPU_IRQ_INTC	(MIPS_CPU_IRQ_BASE + 2)
+#define RALINK_CPU_IRQ_PCI	(MIPS_CPU_IRQ_BASE + 4)
 #define RALINK_CPU_IRQ_FE	(MIPS_CPU_IRQ_BASE + 5)
 #define RALINK_CPU_IRQ_WIFI	(MIPS_CPU_IRQ_BASE + 6)
 #define RALINK_CPU_IRQ_COUNTER	(MIPS_CPU_IRQ_BASE + 7)
@@ -72,7 +73,7 @@ static struct irq_chip ralink_intc_irq_chip = {
 	.irq_mask_ack	= ralink_intc_irq_mask,
 };
 
-unsigned int __cpuinit get_c0_compare_int(void)
+unsigned int get_c0_compare_int(void)
 {
 	return CP0_LEGACY_COMPARE_IRQ;
 }
@@ -103,6 +104,9 @@ asmlinkage void plat_irq_dispatch(void)
 
 	else if (pending & STATUSF_IP6)
 		do_IRQ(RALINK_CPU_IRQ_WIFI);
+
+	else if (pending & STATUSF_IP4)
+		do_IRQ(RALINK_CPU_IRQ_PCI);
 
 	else if (pending & STATUSF_IP2)
 		do_IRQ(RALINK_CPU_IRQ_INTC);
@@ -162,6 +166,7 @@ static int __init intc_of_init(struct device_node *node,
 	irq_set_chained_handler(irq, ralink_intc_irq_handler);
 	irq_set_handler_data(irq, domain);
 
+	/* tell the kernel which irq is used for performance monitoring */
 	cp0_perfcount_irq = irq_create_mapping(domain, 9);
 
 	return 0;

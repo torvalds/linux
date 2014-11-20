@@ -22,6 +22,9 @@ config GENERIC_STRNCPY_FROM_USER
 config GENERIC_STRNLEN_USER
 	bool
 
+config GENERIC_NET_UTILS
+	bool
+
 config GENERIC_FIND_FIRST_BIT
 	bool
 
@@ -45,6 +48,12 @@ config STMP_DEVICE
 config PERCPU_RWSEM
 	boolean
 
+config ARCH_USE_CMPXCHG_LOCKREF
+	bool
+
+config ARCH_HAS_FAST_MULTIPLIER
+	bool
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -63,6 +72,8 @@ config CRC16
 
 config CRC_T10DIF
 	tristate "CRC calculation for the T10 Data Integrity Field"
+	select CRYPTO
+	select CRYPTO_CRCT10DIF
 	help
 	  This option is only needed if a module that's not in the
 	  kernel tree needs to calculate CRC checks for use with the
@@ -174,6 +185,22 @@ config AUDIT_GENERIC
 	depends on AUDIT && !AUDIT_ARCH
 	default y
 
+config AUDIT_ARCH_COMPAT_GENERIC
+	bool
+	default n
+
+config AUDIT_COMPAT_GENERIC
+	bool
+	depends on AUDIT_GENERIC && AUDIT_ARCH_COMPAT_GENERIC && COMPAT
+	default y
+
+config RANDOM32_SELFTEST
+	bool "PRNG perform self test on init"
+	default n
+	help
+	  This option enables the 32 bit PRNG library functions to perform a
+	  self test on initialization.
+
 #
 # compression support is select'ed if needed
 #
@@ -187,6 +214,15 @@ config LZO_COMPRESS
 	tristate
 
 config LZO_DECOMPRESS
+	tristate
+
+config LZ4_COMPRESS
+	tristate
+
+config LZ4HC_COMPRESS
+	tristate
+
+config LZ4_DECOMPRESS
 	tristate
 
 source "lib/xz/Kconfig"
@@ -211,6 +247,10 @@ config DECOMPRESS_XZ
 
 config DECOMPRESS_LZO
 	select LZO_DECOMPRESS
+	tristate
+
+config DECOMPRESS_LZ4
+	select LZ4_DECOMPRESS
 	tristate
 
 #
@@ -294,15 +334,43 @@ config TEXTSEARCH_FSM
 config BTREE
 	boolean
 
+config INTERVAL_TREE
+	boolean
+	help
+	  Simple, embeddable, interval-tree. Can find the start of an
+	  overlapping range in log(n) time and then iterate over all
+	  overlapping nodes. The algorithm is implemented as an
+	  augmented rbtree.
+
+	  See:
+
+		Documentation/rbtree.txt
+
+	  for more information.
+
+config ASSOCIATIVE_ARRAY
+	bool
+	help
+	  Generic associative array.  Can be searched and iterated over whilst
+	  it is being modified.  It is also reasonably quick to search and
+	  modify.  The algorithms are non-recursive, and the trees are highly
+	  capacious.
+
+	  See:
+
+		Documentation/assoc_array.txt
+
+	  for more information.
+
 config HAS_IOMEM
 	boolean
 	depends on !NO_IOMEM
 	select GENERIC_IO
 	default y
 
-config HAS_IOPORT
+config HAS_IOPORT_MAP
 	boolean
-	depends on HAS_IOMEM && !NO_IOPORT
+	depends on HAS_IOMEM && !NO_IOPORT_MAP
 	default y
 
 config HAS_DMA
@@ -330,6 +398,39 @@ config CPU_RMAP
 
 config DQL
 	bool
+
+config GLOB
+	bool
+#	This actually supports modular compilation, but the module overhead
+#	is ridiculous for the amount of code involved.	Until an out-of-tree
+#	driver asks for it, we'll just link it directly it into the kernel
+#	when required.  Since we're ignoring out-of-tree users,	there's also
+#	no need bother prompting for a manual decision:
+#	prompt "glob_match() function"
+	help
+	  This option provides a glob_match function for performing
+	  simple text pattern matching.  It originated in the ATA code
+	  to blacklist particular drive models, but other device drivers
+	  may need similar functionality.
+
+	  All drivers in the Linux kernel tree that require this function
+	  should automatically select this option.  Say N unless you
+	  are compiling an out-of tree driver which tells you that it
+	  depends on this.
+
+config GLOB_SELFTEST
+	bool "glob self-test on init"
+	default n
+	depends on GLOB
+	help
+	  This option enables a simple self-test of the glob_match
+	  function on startup.	It is primarily useful for people
+	  working on the code to ensure they haven't introduced any
+	  regressions.
+
+	  It only adds a little bit of code and slows kernel boot (or
+	  module load) by a small amount, so you're welcome to play with
+	  it, but you probably don't need it.
 
 #
 # Netlink attribute parsing support is select'ed if needed
@@ -386,7 +487,8 @@ config MPILIB
 
 config SIGNATURE
 	tristate
-	depends on KEYS && CRYPTO
+	depends on KEYS
+	select CRYPTO
 	select CRYPTO_SHA1
 	select MPILIB
 	help
@@ -403,5 +505,17 @@ config OID_REGISTRY
 	tristate
 	help
 	  Enable fast lookup object identifier registry.
+
+config UCS2_STRING
+        tristate
+
+source "lib/fonts/Kconfig"
+
+#
+# sg chaining option
+#
+
+config ARCH_HAS_SG_CHAIN
+	def_bool n
 
 endmenu

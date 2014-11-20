@@ -21,6 +21,7 @@
 
 extern struct platform_device jz4740_usb_ohci_device;
 extern struct platform_device jz4740_udc_device;
+extern struct platform_device jz4740_udc_xceiv_device;
 extern struct platform_device jz4740_mmc_device;
 extern struct platform_device jz4740_rtc_device;
 extern struct platform_device jz4740_i2c_device;
@@ -32,6 +33,7 @@ extern struct platform_device jz4740_codec_device;
 extern struct platform_device jz4740_adc_device;
 extern struct platform_device jz4740_wdt_device;
 extern struct platform_device jz4740_pwm_device;
+extern struct platform_device jz4740_dma_device;
 
 void jz4740_serial_device_register(void);
 

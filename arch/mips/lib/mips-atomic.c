@@ -13,8 +13,9 @@
 #include <linux/compiler.h>
 #include <linux/preempt.h>
 #include <linux/export.h>
+#include <linux/stringify.h>
 
-#if !defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_MIPS_MT_SMTC)
+#ifndef CONFIG_CPU_MIPSR2
 
 /*
  * For cli() we have to insert nops to make sure that the new value
@@ -34,16 +35,14 @@
  *
  * Workaround: mask EXL bit of the result or place a nop before mfc0.
  */
-__asm__(
-	"	.macro	arch_local_irq_disable\n"
+notrace void arch_local_irq_disable(void)
+{
+	preempt_disable();
+
+	__asm__ __volatile__(
 	"	.set	push						\n"
 	"	.set	noat						\n"
-#ifdef CONFIG_MIPS_MT_SMTC
-	"	mfc0	$1, $2, 1					\n"
-	"	ori	$1, 0x400					\n"
-	"	.set	noreorder					\n"
-	"	mtc0	$1, $2, 1					\n"
-#elif defined(CONFIG_CPU_MIPSR2)
+#if   defined(CONFIG_CPU_MIPSR2)
 	/* see irqflags.h for inline function */
 #else
 	"	mfc0	$1,$12						\n"
@@ -52,108 +51,76 @@ __asm__(
 	"	.set	noreorder					\n"
 	"	mtc0	$1,$12						\n"
 #endif
-	"	irq_disable_hazard					\n"
+	"	" __stringify(__irq_disable_hazard) "			\n"
 	"	.set	pop						\n"
-	"	.endm							\n");
+	: /* no outputs */
+	: /* no inputs */
+	: "memory");
 
-notrace void arch_local_irq_disable(void)
-{
-	preempt_disable();
-	__asm__ __volatile__(
-		"arch_local_irq_disable"
-		: /* no outputs */
-		: /* no inputs */
-		: "memory");
 	preempt_enable();
 }
 EXPORT_SYMBOL(arch_local_irq_disable);
 
 
-__asm__(
-	"	.macro	arch_local_irq_save result			\n"
+notrace unsigned long arch_local_irq_save(void)
+{
+	unsigned long flags;
+
+	preempt_disable();
+
+	__asm__ __volatile__(
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
-#ifdef CONFIG_MIPS_MT_SMTC
-	"	mfc0	\\result, $2, 1					\n"
-	"	ori	$1, \\result, 0x400				\n"
-	"	.set	noreorder					\n"
-	"	mtc0	$1, $2, 1					\n"
-	"	andi	\\result, \\result, 0x400			\n"
-#elif defined(CONFIG_CPU_MIPSR2)
+#if   defined(CONFIG_CPU_MIPSR2)
 	/* see irqflags.h for inline function */
 #else
-	"	mfc0	\\result, $12					\n"
-	"	ori	$1, \\result, 0x1f				\n"
+	"	mfc0	%[flags], $12					\n"
+	"	ori	$1, %[flags], 0x1f				\n"
 	"	xori	$1, 0x1f					\n"
 	"	.set	noreorder					\n"
 	"	mtc0	$1, $12						\n"
 #endif
-	"	irq_disable_hazard					\n"
+	"	" __stringify(__irq_disable_hazard) "			\n"
 	"	.set	pop						\n"
-	"	.endm							\n");
+	: [flags] "=r" (flags)
+	: /* no inputs */
+	: "memory");
 
-notrace unsigned long arch_local_irq_save(void)
-{
-	unsigned long flags;
-	preempt_disable();
-	asm volatile("arch_local_irq_save\t%0"
-		     : "=r" (flags)
-		     : /* no inputs */
-		     : "memory");
 	preempt_enable();
+
 	return flags;
 }
 EXPORT_SYMBOL(arch_local_irq_save);
-
-
-__asm__(
-	"	.macro	arch_local_irq_restore flags			\n"
-	"	.set	push						\n"
-	"	.set	noreorder					\n"
-	"	.set	noat						\n"
-#ifdef CONFIG_MIPS_MT_SMTC
-	"mfc0	$1, $2, 1						\n"
-	"andi	\\flags, 0x400						\n"
-	"ori	$1, 0x400						\n"
-	"xori	$1, 0x400						\n"
-	"or	\\flags, $1						\n"
-	"mtc0	\\flags, $2, 1						\n"
-#elif defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
-	/* see irqflags.h for inline function */
-#elif defined(CONFIG_CPU_MIPSR2)
-	/* see irqflags.h for inline function */
-#else
-	"	mfc0	$1, $12						\n"
-	"	andi	\\flags, 1					\n"
-	"	ori	$1, 0x1f					\n"
-	"	xori	$1, 0x1f					\n"
-	"	or	\\flags, $1					\n"
-	"	mtc0	\\flags, $12					\n"
-#endif
-	"	irq_disable_hazard					\n"
-	"	.set	pop						\n"
-	"	.endm							\n");
 
 notrace void arch_local_irq_restore(unsigned long flags)
 {
 	unsigned long __tmp1;
 
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * SMTC kernel needs to do a software replay of queued
-	 * IPIs, at the cost of branch and call overhead on each
-	 * local_irq_restore()
-	 */
-	if (unlikely(!(flags & 0x0400)))
-		smtc_ipi_replay();
-#endif
 	preempt_disable();
+
 	__asm__ __volatile__(
-		"arch_local_irq_restore\t%0"
-		: "=r" (__tmp1)
-		: "0" (flags)
-		: "memory");
+	"	.set	push						\n"
+	"	.set	noreorder					\n"
+	"	.set	noat						\n"
+#if   defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
+	/* see irqflags.h for inline function */
+#elif defined(CONFIG_CPU_MIPSR2)
+	/* see irqflags.h for inline function */
+#else
+	"	mfc0	$1, $12						\n"
+	"	andi	%[flags], 1					\n"
+	"	ori	$1, 0x1f					\n"
+	"	xori	$1, 0x1f					\n"
+	"	or	%[flags], $1					\n"
+	"	mtc0	%[flags], $12					\n"
+#endif
+	"	" __stringify(__irq_disable_hazard) "			\n"
+	"	.set	pop						\n"
+	: [flags] "=r" (__tmp1)
+	: "0" (flags)
+	: "memory");
+
 	preempt_enable();
 }
 EXPORT_SYMBOL(arch_local_irq_restore);
@@ -164,13 +131,31 @@ notrace void __arch_local_irq_restore(unsigned long flags)
 	unsigned long __tmp1;
 
 	preempt_disable();
+
 	__asm__ __volatile__(
-		"arch_local_irq_restore\t%0"
-		: "=r" (__tmp1)
-		: "0" (flags)
-		: "memory");
+	"	.set	push						\n"
+	"	.set	noreorder					\n"
+	"	.set	noat						\n"
+#if   defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
+	/* see irqflags.h for inline function */
+#elif defined(CONFIG_CPU_MIPSR2)
+	/* see irqflags.h for inline function */
+#else
+	"	mfc0	$1, $12						\n"
+	"	andi	%[flags], 1					\n"
+	"	ori	$1, 0x1f					\n"
+	"	xori	$1, 0x1f					\n"
+	"	or	%[flags], $1					\n"
+	"	mtc0	%[flags], $12					\n"
+#endif
+	"	" __stringify(__irq_disable_hazard) "			\n"
+	"	.set	pop						\n"
+	: [flags] "=r" (__tmp1)
+	: "0" (flags)
+	: "memory");
+
 	preempt_enable();
 }
 EXPORT_SYMBOL(__arch_local_irq_restore);
 
-#endif /* !defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_MIPS_MT_SMTC) */
+#endif /* !CONFIG_CPU_MIPSR2 */

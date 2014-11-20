@@ -12,9 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __NET_HCI_H
@@ -24,17 +22,12 @@
 
 #include <net/nfc/nfc.h>
 
-struct nfc_phy_ops {
-	int (*write)(void *dev_id, struct sk_buff *skb);
-	int (*enable)(void *dev_id);
-	void (*disable)(void *dev_id);
-};
-
 struct nfc_hci_dev;
 
 struct nfc_hci_ops {
 	int (*open) (struct nfc_hci_dev *hdev);
 	void (*close) (struct nfc_hci_dev *hdev);
+	int (*load_session) (struct nfc_hci_dev *hdev);
 	int (*hci_ready) (struct nfc_hci_dev *hdev);
 	/*
 	 * xmit must always send the complete buffer before
@@ -44,6 +37,7 @@ struct nfc_hci_ops {
 	int (*xmit) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*start_poll) (struct nfc_hci_dev *hdev,
 			   u32 im_protocols, u32 tm_protocols);
+	void (*stop_poll) (struct nfc_hci_dev *hdev);
 	int (*dep_link_up)(struct nfc_hci_dev *hdev, struct nfc_target *target,
 			   u8 comm_mode, u8 *gb, size_t gb_len);
 	int (*dep_link_down)(struct nfc_hci_dev *hdev);
@@ -59,8 +53,10 @@ struct nfc_hci_ops {
 			      struct nfc_target *target);
 	int (*event_received)(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 			      struct sk_buff *skb);
-	int (*enable_se)(struct nfc_dev *dev, u32 secure_element);
-	int (*disable_se)(struct nfc_dev *dev, u32 secure_element);
+	int (*fw_download)(struct nfc_hci_dev *hdev, const char *firmware_name);
+	int (*discover_se)(struct nfc_hci_dev *dev);
+	int (*enable_se)(struct nfc_hci_dev *dev, u32 se_idx);
+	int (*disable_se)(struct nfc_hci_dev *dev, u32 se_idx);
 };
 
 /* Pipes */
@@ -152,7 +148,6 @@ struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
 					    unsigned long quirks,
 					    u32 protocols,
-					    u32 supported_se,
 					    const char *llc_name,
 					    int tx_headroom,
 					    int tx_tailroom,

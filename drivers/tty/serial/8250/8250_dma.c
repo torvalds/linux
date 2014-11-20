@@ -20,11 +20,14 @@ static void __dma_tx_complete(void *param)
 	struct uart_8250_port	*p = param;
 	struct uart_8250_dma	*dma = p->dma;
 	struct circ_buf		*xmit = &p->port.state->xmit;
-
-	dma->tx_running = 0;
+	unsigned long	flags;
 
 	dma_sync_single_for_cpu(dma->txchan->device->dev, dma->tx_addr,
 				UART_XMIT_SIZE, DMA_TO_DEVICE);
+
+	spin_lock_irqsave(&p->port.lock, flags);
+
+	dma->tx_running = 0;
 
 	xmit->tail += dma->tx_size;
 	xmit->tail &= UART_XMIT_SIZE - 1;
@@ -33,10 +36,10 @@ static void __dma_tx_complete(void *param)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&p->port);
 
-	if (!uart_circ_empty(xmit) && !uart_tx_stopped(&p->port)) {
+	if (!uart_circ_empty(xmit) && !uart_tx_stopped(&p->port))
 		serial8250_tx_dma(p);
-		uart_write_wakeup(&p->port);
-	}
+
+	spin_unlock_irqrestore(&p->port.lock, flags);
 }
 
 static void __dma_rx_complete(void *param)
@@ -67,12 +70,11 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 	struct circ_buf			*xmit = &p->port.state->xmit;
 	struct dma_async_tx_descriptor	*desc;
 
-	if (dma->tx_running)
-		return -EBUSY;
+	if (uart_tx_stopped(&p->port) || dma->tx_running ||
+	    uart_circ_empty(xmit))
+		return 0;
 
 	dma->tx_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
-	if (!dma->tx_size)
-		return -EINVAL;
 
 	desc = dmaengine_prep_slave_single(dma->txchan,
 					   dma->tx_addr + xmit->tail,
@@ -104,19 +106,28 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 	struct dma_tx_state		state;
 	int				dma_status;
 
-	/*
-	 * If RCVR FIFO trigger level was not reached, complete the transfer and
-	 * let 8250.c copy the remaining data.
-	 */
-	if ((iir & 0x3f) == UART_IIR_RX_TIMEOUT) {
-		dma_status = dmaengine_tx_status(dma->rxchan, dma->rx_cookie,
-						&state);
+	dma_status = dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state);
+
+	switch (iir & 0x3f) {
+	case UART_IIR_RLSI:
+		/* 8250_core handles errors and break interrupts */
+		return -EIO;
+	case UART_IIR_RX_TIMEOUT:
+		/*
+		 * If RCVR FIFO trigger level was not reached, complete the
+		 * transfer and let 8250_core copy the remaining data.
+		 */
 		if (dma_status == DMA_IN_PROGRESS) {
 			dmaengine_pause(dma->rxchan);
 			__dma_rx_complete(p);
 		}
 		return -ETIMEDOUT;
+	default:
+		break;
 	}
+
+	if (dma_status)
+		return 0;
 
 	desc = dmaengine_prep_slave_single(dma->rxchan, dma->rx_addr,
 					   dma->rx_size, DMA_DEV_TO_MEM,
@@ -143,21 +154,31 @@ int serial8250_request_dma(struct uart_8250_port *p)
 	struct uart_8250_dma	*dma = p->dma;
 	dma_cap_mask_t		mask;
 
-	dma->rxconf.src_addr = p->port.mapbase + UART_RX;
-	dma->txconf.dst_addr = p->port.mapbase + UART_TX;
+	/* Default slave configuration parameters */
+	dma->rxconf.direction		= DMA_DEV_TO_MEM;
+	dma->rxconf.src_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
+	dma->rxconf.src_addr		= p->port.mapbase + UART_RX;
+
+	dma->txconf.direction		= DMA_MEM_TO_DEV;
+	dma->txconf.dst_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
+	dma->txconf.dst_addr		= p->port.mapbase + UART_TX;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/* Get a channel for RX */
-	dma->rxchan = dma_request_channel(mask, dma->fn, dma->rx_param);
+	dma->rxchan = dma_request_slave_channel_compat(mask,
+						       dma->fn, dma->rx_param,
+						       p->port.dev, "rx");
 	if (!dma->rxchan)
 		return -ENODEV;
 
 	dmaengine_slave_config(dma->rxchan, &dma->rxconf);
 
 	/* Get a channel for TX */
-	dma->txchan = dma_request_channel(mask, dma->fn, dma->tx_param);
+	dma->txchan = dma_request_slave_channel_compat(mask,
+						       dma->fn, dma->tx_param,
+						       p->port.dev, "tx");
 	if (!dma->txchan) {
 		dma_release_channel(dma->rxchan);
 		return -ENODEV;
@@ -171,21 +192,28 @@ int serial8250_request_dma(struct uart_8250_port *p)
 
 	dma->rx_buf = dma_alloc_coherent(dma->rxchan->device->dev, dma->rx_size,
 					&dma->rx_addr, GFP_KERNEL);
-	if (!dma->rx_buf) {
-		dma_release_channel(dma->rxchan);
-		dma_release_channel(dma->txchan);
-		return -ENOMEM;
-	}
+	if (!dma->rx_buf)
+		goto err;
 
 	/* TX buffer */
 	dma->tx_addr = dma_map_single(dma->txchan->device->dev,
 					p->port.state->xmit.buf,
 					UART_XMIT_SIZE,
 					DMA_TO_DEVICE);
+	if (dma_mapping_error(dma->txchan->device->dev, dma->tx_addr)) {
+		dma_free_coherent(dma->rxchan->device->dev, dma->rx_size,
+				  dma->rx_buf, dma->rx_addr);
+		goto err;
+	}
 
 	dev_dbg_ratelimited(p->port.dev, "got both dma channels\n");
 
 	return 0;
+err:
+	dma_release_channel(dma->rxchan);
+	dma_release_channel(dma->txchan);
+
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(serial8250_request_dma);
 

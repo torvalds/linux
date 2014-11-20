@@ -343,7 +343,7 @@ HYPERVISOR_memory_op(unsigned int cmd, void *arg)
 }
 
 static inline int
-HYPERVISOR_multicall(void *call_list, int nr_calls)
+HYPERVISOR_multicall(void *call_list, uint32_t nr_calls)
 {
 	return _hypercall2(int, multicall, call_list, nr_calls);
 }

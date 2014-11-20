@@ -19,7 +19,7 @@
 #include <net/ip.h>
 #include <net/pkt_cls.h>
 
-static int em_ipset_change(struct tcf_proto *tp, void *data, int data_len,
+static int em_ipset_change(struct net *net, void *data, int data_len,
 			   struct tcf_ematch *em)
 {
 	struct xt_set_info *set = data;
@@ -28,7 +28,7 @@ static int em_ipset_change(struct tcf_proto *tp, void *data, int data_len,
 	if (data_len != sizeof(*set))
 		return -EINVAL;
 
-	index = ip_set_nfnl_get_byindex(set->index);
+	index = ip_set_nfnl_get_byindex(net, set->index);
 	if (index == IPSET_INVALID_ID)
 		return -ENOENT;
 
@@ -37,15 +37,15 @@ static int em_ipset_change(struct tcf_proto *tp, void *data, int data_len,
 	if (em->data)
 		return 0;
 
-	ip_set_nfnl_put(index);
+	ip_set_nfnl_put(net, index);
 	return -ENOMEM;
 }
 
-static void em_ipset_destroy(struct tcf_proto *p, struct tcf_ematch *em)
+static void em_ipset_destroy(struct tcf_ematch *em)
 {
 	const struct xt_set_info *set = (const void *) em->data;
 	if (set) {
-		ip_set_nfnl_put(set->index);
+		ip_set_nfnl_put(em->net, set->index);
 		kfree((void *) em->data);
 	}
 }
@@ -83,7 +83,7 @@ static int em_ipset_match(struct sk_buff *skb, struct tcf_ematch *em,
 	opt.dim = set->dim;
 	opt.flags = set->flags;
 	opt.cmdflags = 0;
-	opt.timeout = ~0u;
+	opt.ext.timeout = ~0u;
 
 	network_offset = skb_network_offset(skb);
 	skb_pull(skb, network_offset);

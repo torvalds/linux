@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,13 @@
 #define MAC_INDEX_MIN_DRIVER	0
 #define NUM_MAC_INDEX_DRIVER	MAC_INDEX_AUX
 
-#define AC_NUM	4 /* Number of access categories */
+enum iwl_ac {
+	AC_BK,
+	AC_BE,
+	AC_VI,
+	AC_VO,
+	AC_NUM,
+};
 
 /**
  * enum iwl_mac_protection_flags - MAC context flags
@@ -164,12 +170,14 @@ struct iwl_mac_data_ap {
  * @beacon_tsf: beacon transmit time in TSF
  * @bi: beacon interval in TU
  * @bi_reciprocal: 2^32 / bi
+ * @beacon_template: beacon template ID
  */
 struct iwl_mac_data_ibss {
 	__le32 beacon_time;
 	__le64 beacon_tsf;
 	__le32 bi;
 	__le32 bi_reciprocal;
+	__le32 beacon_template;
 } __packed; /* IBSS_MAC_DATA_API_S_VER_1 */
 
 /**
@@ -365,5 +373,14 @@ static inline u32 iwl_mvm_reciprocal(u32 v)
 		return 0;
 	return 0xFFFFFFFF / v;
 }
+
+#define IWL_NONQOS_SEQ_GET	0x1
+#define IWL_NONQOS_SEQ_SET	0x2
+struct iwl_nonqos_seq_query_cmd {
+	__le32 get_set_flag;
+	__le32 mac_id_n_color;
+	__le16 value;
+	__le16 reserved;
+} __packed; /* NON_QOS_TX_COUNTER_GET_SET_API_S_VER_1 */
 
 #endif /* __fw_api_mac_h__ */

@@ -20,17 +20,12 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * You should also find the complete GPL in the COPYING file accompanying
- * this source code.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #include "../comedidev.h"
 #include "addi_watchdog.h"
@@ -62,16 +57,10 @@ static int apci2032_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
 	s->state = inl(dev->iobase + APCI2032_DO_REG);
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outl(s->state, dev->iobase + APCI2032_DO_REG);
-	}
 
 	data[1] = s->state;
 
@@ -95,30 +84,6 @@ static void apci2032_int_stop(struct comedi_device *dev,
 	subpriv->active = false;
 	subpriv->enabled_isns = 0;
 	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
-}
-
-static bool apci2032_int_start(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       unsigned char enabled_isns)
-{
-	struct apci2032_int_private *subpriv = s->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-	bool do_event;
-
-	subpriv->enabled_isns = enabled_isns;
-	subpriv->stop_count = cmd->stop_arg;
-	if (cmd->stop_src == TRIG_COUNT && subpriv->stop_count == 0) {
-		/* An empty acquisition! */
-		s->async->events |= COMEDI_CB_EOA;
-		subpriv->active = false;
-		do_event = true;
-	} else {
-		subpriv->active = true;
-		outl(enabled_isns, dev->iobase + APCI2032_INT_CTRL_REG);
-		do_event = false;
-	}
-
-	return do_event;
 }
 
 static int apci2032_int_cmdtest(struct comedi_device *dev,
@@ -152,16 +117,17 @@ static int apci2032_int_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	if (cmd->stop_src == TRIG_NONE)
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
 
-	/* step 4: ignored */
+	/* Step 4: fix up any arguments */
 
-	if (err)
-		return 4;
+	/* Step 5: check channel list if it exists */
 
 	return 0;
 }
@@ -174,18 +140,19 @@ static int apci2032_int_cmd(struct comedi_device *dev,
 	unsigned char enabled_isns;
 	unsigned int n;
 	unsigned long flags;
-	bool do_event;
 
 	enabled_isns = 0;
 	for (n = 0; n < cmd->chanlist_len; n++)
 		enabled_isns |= 1 << CR_CHAN(cmd->chanlist[n]);
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	do_event = apci2032_int_start(dev, s, enabled_isns);
-	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
-	if (do_event)
-		comedi_event(dev, s);
+	subpriv->enabled_isns = enabled_isns;
+	subpriv->stop_count = cmd->stop_arg;
+	subpriv->active = true;
+	outl(enabled_isns, dev->iobase + APCI2032_INT_CTRL_REG);
+
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 0;
 }
@@ -208,6 +175,7 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	struct apci2032_int_private *subpriv;
 	unsigned int val;
 	bool do_event = false;
@@ -233,21 +201,20 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 	 */
 
 	if (subpriv->active && (val & subpriv->enabled_isns) != 0) {
-		unsigned short bits;
-		unsigned int n, len;
-		unsigned int *chanlist;
+		unsigned short bits = 0;
+		int i;
 
 		/* Bits in scan data correspond to indices in channel list. */
-		bits = 0;
-		len = s->async->cmd.chanlist_len;
-		chanlist = &s->async->cmd.chanlist[0];
-		for (n = 0; n < len; n++)
-			if ((val & (1U << CR_CHAN(chanlist[n]))) != 0)
-				bits |= 1U << n;
+		for (i = 0; i < cmd->chanlist_len; i++) {
+			unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 
-		if (comedi_buf_put(s->async, bits)) {
+			if (val & (1 << chan))
+				bits |= (1 << i);
+		}
+
+		if (comedi_buf_put(s, bits)) {
 			s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-			if (s->async->cmd.stop_src == TRIG_COUNT &&
+			if (cmd->stop_src == TRIG_COUNT &&
 			    subpriv->stop_count > 0) {
 				subpriv->stop_count--;
 				if (subpriv->stop_count == 0) {
@@ -287,9 +254,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 1);
@@ -350,20 +315,11 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 
 static void apci2032_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
 	if (dev->iobase)
 		apci2032_reset(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
+	comedi_pci_detach(dev);
 	if (dev->read_subdev)
 		kfree(dev->read_subdev->private);
-	if (dev->subdevices)
-		addi_watchdog_cleanup(&dev->subdevices[1]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
 }
 
 static struct comedi_driver apci2032_driver = {
@@ -374,12 +330,12 @@ static struct comedi_driver apci2032_driver = {
 };
 
 static int apci2032_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci2032_driver);
+	return comedi_pci_auto_config(dev, &apci2032_driver, id->driver_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(apci2032_pci_table) = {
+static const struct pci_device_id apci2032_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1004) },
 	{ 0 }
 };
@@ -394,5 +350,5 @@ static struct pci_driver apci2032_pci_driver = {
 module_comedi_pci_driver(apci2032_driver, apci2032_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("ADDI-DATA APCI-2032, 32 channel DO boards");
 MODULE_LICENSE("GPL");

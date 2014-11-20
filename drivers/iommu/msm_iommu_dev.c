@@ -27,9 +27,8 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#include <mach/iommu_hw-8xxx.h>
-#include <mach/iommu.h>
-#include <mach/clk.h>
+#include "msm_iommu_hw-8xxx.h"
+#include "msm_iommu.h"
 
 struct iommu_ctx_iter_data {
 	/* input */
@@ -128,13 +127,12 @@ static void msm_iommu_reset(void __iomem *base, int ncb)
 
 static int msm_iommu_probe(struct platform_device *pdev)
 {
-	struct resource *r, *r2;
+	struct resource *r;
 	struct clk *iommu_clk;
 	struct clk *iommu_pclk;
 	struct msm_iommu_drvdata *drvdata;
 	struct msm_iommu_dev *iommu_dev = pdev->dev.platform_data;
 	void __iomem *regs_base;
-	resource_size_t	len;
 	int ret, irq, par;
 
 	if (pdev->id == -1) {
@@ -160,7 +158,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	ret = clk_enable(iommu_pclk);
+	ret = clk_prepare_enable(iommu_pclk);
 	if (ret)
 		goto fail_enable;
 
@@ -168,9 +166,9 @@ static int msm_iommu_probe(struct platform_device *pdev)
 
 	if (!IS_ERR(iommu_clk))	{
 		if (clk_get_rate(iommu_clk) == 0)
-			clk_set_min_rate(iommu_clk, 1);
+			clk_set_rate(iommu_clk, 1);
 
-		ret = clk_enable(iommu_clk);
+		ret = clk_prepare_enable(iommu_clk);
 		if (ret) {
 			clk_put(iommu_clk);
 			goto fail_pclk;
@@ -179,35 +177,16 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		iommu_clk = NULL;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "physbase");
-
-	if (!r) {
-		ret = -ENODEV;
+	regs_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(regs_base)) {
+		ret = PTR_ERR(regs_base);
 		goto fail_clk;
-	}
-
-	len = resource_size(r);
-
-	r2 = request_mem_region(r->start, len, r->name);
-	if (!r2) {
-		pr_err("Could not request memory region: start=%p, len=%d\n",
-							(void *) r->start, len);
-		ret = -EBUSY;
-		goto fail_clk;
-	}
-
-	regs_base = ioremap(r2->start, len);
-
-	if (!regs_base) {
-		pr_err("Could not ioremap: start=%p, len=%d\n",
-			 (void *) r2->start, len);
-		ret = -EBUSY;
-		goto fail_mem;
 	}
 
 	irq = platform_get_irq_byname(pdev, "secure_irq");
 	if (irq < 0) {
 		ret = -ENODEV;
-		goto fail_io;
+		goto fail_clk;
 	}
 
 	msm_iommu_reset(regs_base, iommu_dev->ncb);
@@ -223,14 +202,14 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	if (!par) {
 		pr_err("%s: Invalid PAR value detected\n", iommu_dev->name);
 		ret = -ENODEV;
-		goto fail_io;
+		goto fail_clk;
 	}
 
 	ret = request_irq(irq, msm_iommu_fault_handler, 0,
 			"msm_iommu_secure_irpt_handler", drvdata);
 	if (ret) {
 		pr_err("Request IRQ %d failed with ret=%d\n", irq, ret);
-		goto fail_io;
+		goto fail_clk;
 	}
 
 
@@ -251,17 +230,13 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	clk_disable(iommu_pclk);
 
 	return 0;
-fail_io:
-	iounmap(regs_base);
-fail_mem:
-	release_mem_region(r->start, len);
 fail_clk:
 	if (iommu_clk) {
 		clk_disable(iommu_clk);
 		clk_put(iommu_clk);
 	}
 fail_pclk:
-	clk_disable(iommu_pclk);
+	clk_disable_unprepare(iommu_pclk);
 fail_enable:
 	clk_put(iommu_pclk);
 fail:
@@ -275,12 +250,14 @@ static int msm_iommu_remove(struct platform_device *pdev)
 
 	drv = platform_get_drvdata(pdev);
 	if (drv) {
-		if (drv->clk)
+		if (drv->clk) {
+			clk_unprepare(drv->clk);
 			clk_put(drv->clk);
+		}
+		clk_unprepare(drv->pclk);
 		clk_put(drv->pclk);
 		memset(drv, 0, sizeof(*drv));
 		kfree(drv);
-		platform_set_drvdata(pdev, NULL);
 	}
 	return 0;
 }
@@ -289,39 +266,34 @@ static int msm_iommu_ctx_probe(struct platform_device *pdev)
 {
 	struct msm_iommu_ctx_dev *c = pdev->dev.platform_data;
 	struct msm_iommu_drvdata *drvdata;
-	struct msm_iommu_ctx_drvdata *ctx_drvdata = NULL;
+	struct msm_iommu_ctx_drvdata *ctx_drvdata;
 	int i, ret;
-	if (!c || !pdev->dev.parent) {
-		ret = -EINVAL;
-		goto fail;
-	}
+
+	if (!c || !pdev->dev.parent)
+		return -EINVAL;
 
 	drvdata = dev_get_drvdata(pdev->dev.parent);
-
-	if (!drvdata) {
-		ret = -ENODEV;
-		goto fail;
-	}
+	if (!drvdata)
+		return -ENODEV;
 
 	ctx_drvdata = kzalloc(sizeof(*ctx_drvdata), GFP_KERNEL);
-	if (!ctx_drvdata) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!ctx_drvdata)
+		return -ENOMEM;
+
 	ctx_drvdata->num = c->num;
 	ctx_drvdata->pdev = pdev;
 
 	INIT_LIST_HEAD(&ctx_drvdata->attached_elm);
 	platform_set_drvdata(pdev, ctx_drvdata);
 
-	ret = clk_enable(drvdata->pclk);
+	ret = clk_prepare_enable(drvdata->pclk);
 	if (ret)
 		goto fail;
 
 	if (drvdata->clk) {
-		ret = clk_enable(drvdata->clk);
+		ret = clk_prepare_enable(drvdata->clk);
 		if (ret) {
-			clk_disable(drvdata->pclk);
+			clk_disable_unprepare(drvdata->pclk);
 			goto fail;
 		}
 	}
@@ -369,7 +341,6 @@ static int msm_iommu_ctx_remove(struct platform_device *pdev)
 	if (drv) {
 		memset(drv, 0, sizeof(struct msm_iommu_ctx_drvdata));
 		kfree(drv);
-		platform_set_drvdata(pdev, NULL);
 	}
 	return 0;
 }
@@ -401,6 +372,7 @@ static int __init msm_iommu_driver_init(void)
 
 	ret = platform_driver_register(&msm_iommu_ctx_driver);
 	if (ret != 0) {
+		platform_driver_unregister(&msm_iommu_driver);
 		pr_err("Failed to register IOMMU context driver\n");
 		goto error;
 	}

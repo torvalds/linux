@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,8 @@
 
 #define _COMPONENT          ACPI_RESOURCES
 ACPI_MODULE_NAME("rsdump")
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DISASSEMBLER) || defined(ACPI_DEBUGGER)
 /* Local prototypes */
 static void acpi_rs_out_string(char *title, char *value);
 
@@ -120,17 +121,20 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			/* Strings */
 
 		case ACPI_RSD_LITERAL:
+
 			acpi_rs_out_string(name,
 					   ACPI_CAST_PTR(char, table->pointer));
 			break;
 
 		case ACPI_RSD_STRING:
+
 			acpi_rs_out_string(name, ACPI_CAST_PTR(char, target));
 			break;
 
 			/* Data items, 8/16/32/64 bit */
 
 		case ACPI_RSD_UINT8:
+
 			if (table->pointer) {
 				acpi_rs_out_string(name, ACPI_CAST_PTR(char,
 								       table->
@@ -142,20 +146,24 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			break;
 
 		case ACPI_RSD_UINT16:
+
 			acpi_rs_out_integer16(name, ACPI_GET16(target));
 			break;
 
 		case ACPI_RSD_UINT32:
+
 			acpi_rs_out_integer32(name, ACPI_GET32(target));
 			break;
 
 		case ACPI_RSD_UINT64:
+
 			acpi_rs_out_integer64(name, ACPI_GET64(target));
 			break;
 
 			/* Flags: 1-bit and 2-bit flags supported */
 
 		case ACPI_RSD_1BITFLAG:
+
 			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
 							       table->
 							       pointer[*target &
@@ -163,6 +171,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			break;
 
 		case ACPI_RSD_2BITFLAG:
+
 			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
 							       table->
 							       pointer[*target &
@@ -170,6 +179,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			break;
 
 		case ACPI_RSD_3BITFLAG:
+
 			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
 							       table->
 							       pointer[*target &
@@ -258,6 +268,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			break;
 
 		default:
+
 			acpi_os_printf("**** Invalid table opcode [%X] ****\n",
 				       table->opcode);
 			return;
@@ -382,6 +393,14 @@ void acpi_rs_dump_resource_list(struct acpi_resource *resource_list)
 			acpi_os_printf
 			    ("Invalid descriptor type (%X) in resource list\n",
 			     resource_list->type);
+			return;
+		}
+
+		/* Sanity check the length. It must not be zero, or we loop forever */
+
+		if (!resource_list->length) {
+			acpi_os_printf
+			    ("Invalid zero length descriptor in resource list\n");
 			return;
 		}
 

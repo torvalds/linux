@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -140,11 +140,12 @@ acpi_hw_derive_pci_id(struct acpi_pci_id *pci_id,
 		/* Walk the list, updating the PCI device/function/bus numbers */
 
 		status = acpi_hw_process_pci_list(pci_id, list_head);
+
+		/* Delete the list */
+
+		acpi_hw_delete_pci_list(list_head);
 	}
 
-	/* Always delete the list */
-
-	acpi_hw_delete_pci_list(list_head);
 	return_ACPI_STATUS(status);
 }
 
@@ -187,6 +188,10 @@ acpi_hw_build_pci_list(acpi_handle root_pci_device,
 	while (1) {
 		status = acpi_get_parent(current_device, &parent_device);
 		if (ACPI_FAILURE(status)) {
+
+			/* Must delete the list before exit */
+
+			acpi_hw_delete_pci_list(*return_list_head);
 			return (status);
 		}
 
@@ -199,6 +204,10 @@ acpi_hw_build_pci_list(acpi_handle root_pci_device,
 
 		list_element = ACPI_ALLOCATE(sizeof(struct acpi_pci_device));
 		if (!list_element) {
+
+			/* Must delete the list before exit */
+
+			acpi_hw_delete_pci_list(*return_list_head);
 			return (AE_NO_MEMORY);
 		}
 

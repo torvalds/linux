@@ -27,6 +27,7 @@
 #include <linux/seq_file.h>
 #include <linux/log2.h>
 #include <linux/cleancache.h>
+#include <linux/namei.h>
 
 #include <asm/uaccess.h>
 
@@ -174,6 +175,11 @@ static void ext3_handle_error(struct super_block *sb)
 	if (test_opt (sb, ERRORS_RO)) {
 		ext3_msg(sb, KERN_CRIT,
 			"error: remounting filesystem read-only");
+		/*
+		 * Make sure updated value of ->s_mount_state will be visible
+		 * before ->s_flags update.
+		 */
+		smp_wmb();
 		sb->s_flags |= MS_RDONLY;
 	}
 	ext3_commit_super(sb, es, 1);
@@ -291,8 +297,14 @@ void ext3_abort(struct super_block *sb, const char *function,
 	ext3_msg(sb, KERN_CRIT,
 		"error: remounting filesystem read-only");
 	EXT3_SB(sb)->s_mount_state |= EXT3_ERROR_FS;
-	sb->s_flags |= MS_RDONLY;
 	set_opt(EXT3_SB(sb)->s_mount_opt, ABORT);
+	/*
+	 * Make sure updated value of ->s_mount_state will be visible
+	 * before ->s_flags update.
+	 */
+	smp_wmb();
+	sb->s_flags |= MS_RDONLY;
+
 	if (EXT3_SB(sb)->s_journal)
 		journal_abort(EXT3_SB(sb)->s_journal, -EIO);
 }
@@ -362,22 +374,19 @@ fail:
 /*
  * Release the journal device
  */
-static int ext3_blkdev_put(struct block_device *bdev)
+static void ext3_blkdev_put(struct block_device *bdev)
 {
-	return blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
+	blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 }
 
-static int ext3_blkdev_remove(struct ext3_sb_info *sbi)
+static void ext3_blkdev_remove(struct ext3_sb_info *sbi)
 {
 	struct block_device *bdev;
-	int ret = -ENODEV;
-
 	bdev = sbi->journal_bdev;
 	if (bdev) {
-		ret = ext3_blkdev_put(bdev);
+		ext3_blkdev_put(bdev);
 		sbi->journal_bdev = NULL;
 	}
-	return ret;
 }
 
 static inline struct inode *orphan_list_entry(struct list_head *l)
@@ -432,7 +441,7 @@ static void ext3_put_super (struct super_block * sb)
 	percpu_counter_destroy(&sbi->s_dirs_counter);
 	brelse(sbi->s_sbh);
 #ifdef CONFIG_QUOTA
-	for (i = 0; i < MAXQUOTAS; i++)
+	for (i = 0; i < EXT3_MAXQUOTAS; i++)
 		kfree(sbi->s_qf_names[i]);
 #endif
 
@@ -518,7 +527,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-static int init_inodecache(void)
+static int __init init_inodecache(void)
 {
 	ext3_inode_cachep = kmem_cache_create("ext3_inode_cache",
 					     sizeof(struct ext3_inode_info),
@@ -811,6 +820,7 @@ enum {
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
 	Opt_reservation, Opt_noreservation, Opt_noload, Opt_nobh, Opt_bh,
 	Opt_commit, Opt_journal_update, Opt_journal_inum, Opt_journal_dev,
+	Opt_journal_path,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
 	Opt_data_err_abort, Opt_data_err_ignore,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
@@ -852,6 +862,7 @@ static const match_table_t tokens = {
 	{Opt_journal_update, "journal=update"},
 	{Opt_journal_inum, "journal=%u"},
 	{Opt_journal_dev, "journal_dev=%u"},
+	{Opt_journal_path, "journal_path=%s"},
 	{Opt_abort, "abort"},
 	{Opt_data_journal, "data=journal"},
 	{Opt_data_ordered, "data=ordered"},
@@ -967,6 +978,11 @@ static int parse_options (char *options, struct super_block *sb,
 	int option;
 	kuid_t uid;
 	kgid_t gid;
+	char *journal_path;
+	struct inode *journal_inode;
+	struct path path;
+	int error;
+
 #ifdef CONFIG_QUOTA
 	int qfmt;
 #endif
@@ -1120,6 +1136,41 @@ static int parse_options (char *options, struct super_block *sb,
 			if (match_int(&args[0], &option))
 				return 0;
 			*journal_devnum = option;
+			break;
+		case Opt_journal_path:
+			if (is_remount) {
+				ext3_msg(sb, KERN_ERR, "error: cannot specify "
+				       "journal on remount");
+				return 0;
+			}
+
+			journal_path = match_strdup(&args[0]);
+			if (!journal_path) {
+				ext3_msg(sb, KERN_ERR, "error: could not dup "
+					"journal device string");
+				return 0;
+			}
+
+			error = kern_path(journal_path, LOOKUP_FOLLOW, &path);
+			if (error) {
+				ext3_msg(sb, KERN_ERR, "error: could not find "
+					"journal device path: error %d", error);
+				kfree(journal_path);
+				return 0;
+			}
+
+			journal_inode = path.dentry->d_inode;
+			if (!S_ISBLK(journal_inode->i_mode)) {
+				ext3_msg(sb, KERN_ERR, "error: journal path %s "
+					"is not a block device", journal_path);
+				path_put(&path);
+				kfree(journal_path);
+				return 0;
+			}
+
+			*journal_devnum = new_encode_dev(journal_inode->i_rdev);
+			path_put(&path);
+			kfree(journal_path);
 			break;
 		case Opt_noload:
 			set_opt (sbi->s_mount_opt, NOLOAD);
@@ -1301,13 +1352,6 @@ set_qf_format:
 		if (!sbi->s_jquota_fmt) {
 			ext3_msg(sb, KERN_ERR, "error: journaled quota format "
 					"not specified.");
-			return 0;
-		}
-	} else {
-		if (sbi->s_jquota_fmt) {
-			ext3_msg(sb, KERN_ERR, "error: journaled quota format "
-					"specified with no journaling "
-					"enabled.");
 			return 0;
 		}
 	}
@@ -1504,7 +1548,7 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 	/* Needed for iput() to work correctly and not trash data */
 	sb->s_flags |= MS_ACTIVE;
 	/* Turn on quotas so that they are updated correctly */
-	for (i = 0; i < MAXQUOTAS; i++) {
+	for (i = 0; i < EXT3_MAXQUOTAS; i++) {
 		if (EXT3_SB(sb)->s_qf_names[i]) {
 			int ret = ext3_quota_on_mount(sb, i);
 			if (ret < 0)
@@ -1555,7 +1599,7 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 		       PLURAL(nr_truncates));
 #ifdef CONFIG_QUOTA
 	/* Turn quotas off */
-	for (i = 0; i < MAXQUOTAS; i++) {
+	for (i = 0; i < EXT3_MAXQUOTAS; i++) {
 		if (sb_dqopt(sb)->files[i])
 			dquot_quota_off(sb, i);
 	}
@@ -1988,14 +2032,14 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		goto failed_mount2;
 	}
 	err = percpu_counter_init(&sbi->s_freeblocks_counter,
-			ext3_count_free_blocks(sb));
+			ext3_count_free_blocks(sb), GFP_KERNEL);
 	if (!err) {
 		err = percpu_counter_init(&sbi->s_freeinodes_counter,
-				ext3_count_free_inodes(sb));
+				ext3_count_free_inodes(sb), GFP_KERNEL);
 	}
 	if (!err) {
 		err = percpu_counter_init(&sbi->s_dirs_counter,
-				ext3_count_dirs(sb));
+				ext3_count_dirs(sb), GFP_KERNEL);
 	}
 	if (err) {
 		ext3_msg(sb, KERN_ERR, "error: insufficient memory");
@@ -2067,7 +2111,6 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		test_opt(sb,DATA_FLAGS) == EXT3_MOUNT_JOURNAL_DATA ? "journal":
 		test_opt(sb,DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA ? "ordered":
 		"writeback");
-	sb->s_flags |= MS_SNAP_STABLE;
 
 	return 0;
 
@@ -2089,7 +2132,7 @@ failed_mount2:
 	kfree(sbi->s_group_desc);
 failed_mount:
 #ifdef CONFIG_QUOTA
-	for (i = 0; i < MAXQUOTAS; i++)
+	for (i = 0; i < EXT3_MAXQUOTAS; i++)
 		kfree(sbi->s_qf_names[i]);
 #endif
 	ext3_blkdev_remove(sbi);
@@ -2599,6 +2642,8 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 	int i;
 #endif
 
+	sync_filesystem(sb);
+
 	/* Store the original options */
 	old_sb_flags = sb->s_flags;
 	old_opts.s_mount_opt = sbi->s_mount_opt;
@@ -2607,7 +2652,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 	old_opts.s_commit_interval = sbi->s_commit_interval;
 #ifdef CONFIG_QUOTA
 	old_opts.s_jquota_fmt = sbi->s_jquota_fmt;
-	for (i = 0; i < MAXQUOTAS; i++)
+	for (i = 0; i < EXT3_MAXQUOTAS; i++)
 		if (sbi->s_qf_names[i]) {
 			old_opts.s_qf_names[i] = kstrdup(sbi->s_qf_names[i],
 							 GFP_KERNEL);
@@ -2711,7 +2756,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 	}
 #ifdef CONFIG_QUOTA
 	/* Release old quota file names */
-	for (i = 0; i < MAXQUOTAS; i++)
+	for (i = 0; i < EXT3_MAXQUOTAS; i++)
 		kfree(old_opts.s_qf_names[i]);
 #endif
 	if (enable_quota)
@@ -2725,7 +2770,7 @@ restore_opts:
 	sbi->s_commit_interval = old_opts.s_commit_interval;
 #ifdef CONFIG_QUOTA
 	sbi->s_jquota_fmt = old_opts.s_jquota_fmt;
-	for (i = 0; i < MAXQUOTAS; i++) {
+	for (i = 0; i < EXT3_MAXQUOTAS; i++) {
 		kfree(sbi->s_qf_names[i]);
 		sbi->s_qf_names[i] = old_opts.s_qf_names[i];
 	}
@@ -2775,6 +2820,11 @@ static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf)
 		 * bitmap, and an inode table.
 		 */
 		overhead += ngroups * (2 + sbi->s_itb_per_group);
+
+		/* Add the internal journal blocks as well */
+		if (sbi->s_journal && !sbi->journal_bdev)
+			overhead += sbi->s_journal->j_maxlen;
+
 		sbi->s_overhead_last = overhead;
 		smp_wmb();
 		sbi->s_blocks_last = le32_to_cpu(es->s_blocks_count);

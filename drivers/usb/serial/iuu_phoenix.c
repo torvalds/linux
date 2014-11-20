@@ -17,7 +17,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -55,7 +54,6 @@ static void read_rxcmd_callback(struct urb *urb);
 
 struct iuu_private {
 	spinlock_t lock;	/* store irq state */
-	wait_queue_head_t delta_msr_wait;
 	u8 line_status;
 	int tiostatus;		/* store IUART SIGNAL for tiocmget call */
 	u8 reset;		/* if 1 reset is needed */
@@ -94,7 +92,6 @@ static int iuu_port_probe(struct usb_serial_port *port)
 
 	priv->vcc = vcc_default;
 	spin_lock_init(&priv->lock);
-	init_waitqueue_head(&priv->delta_msr_wait);
 
 	usb_set_serial_port_data(port, priv);
 
@@ -289,7 +286,7 @@ static int bulk_immediate(struct usb_serial_port *port, u8 *buf, u8 count)
 	    usb_bulk_msg(serial->dev,
 			 usb_sndbulkpipe(serial->dev,
 					 port->bulk_out_endpointAddress), buf,
-			 count, &actual, HZ * 1);
+			 count, &actual, 1000);
 
 	if (status != IUU_OPERATION_OK)
 		dev_dbg(&port->dev, "%s - error = %2x\n", __func__, status);
@@ -309,7 +306,7 @@ static int read_immediate(struct usb_serial_port *port, u8 *buf, u8 count)
 	    usb_bulk_msg(serial->dev,
 			 usb_rcvbulkpipe(serial->dev,
 					 port->bulk_in_endpointAddress), buf,
-			 count, &actual, HZ * 1);
+			 count, &actual, 1000);
 
 	if (status != IUU_OPERATION_OK)
 		dev_dbg(&port->dev, "%s - error = %2x\n", __func__, status);
@@ -772,7 +769,7 @@ uart_enable_failed:
 	return status;
 }
 
-/*  Diables the IUU UART (a.k.a. the Phoenix voiderface) */
+/*  Disables the IUU UART (a.k.a. the Phoenix voiderface) */
 static int iuu_uart_off(struct usb_serial_port *port)
 {
 	int status;
@@ -944,22 +941,13 @@ static void iuu_set_termios(struct tty_struct *tty,
 static void iuu_close(struct usb_serial_port *port)
 {
 	/* iuu_led (port,255,0,0,0); */
-	struct usb_serial *serial;
-
-	serial = port->serial;
-	if (!serial)
-		return;
 
 	iuu_uart_off(port);
-	if (serial->dev) {
-		/* free writebuf */
-		/* shutdown our urbs */
-		dev_dbg(&port->dev, "%s - shutting down urbs\n", __func__);
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->read_urb);
-		usb_kill_urb(port->interrupt_in_urb);
-		iuu_led(port, 0, 0, 0xF000, 0xFF);
-	}
+
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->read_urb);
+
+	iuu_led(port, 0, 0, 0xF000, 0xFF);
 }
 
 static void iuu_init_termios(struct tty_struct *tty)
@@ -1141,7 +1129,7 @@ static int iuu_vcc_set(struct usb_serial_port *port, unsigned int vcc)
  * Sysfs Attributes
  */
 
-static ssize_t show_vcc_mode(struct device *dev,
+static ssize_t vcc_mode_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
@@ -1150,7 +1138,7 @@ static ssize_t show_vcc_mode(struct device *dev,
 	return sprintf(buf, "%d\n", priv->vcc);
 }
 
-static ssize_t store_vcc_mode(struct device *dev,
+static ssize_t vcc_mode_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
@@ -1163,7 +1151,7 @@ static ssize_t store_vcc_mode(struct device *dev,
 		goto fail_store_vcc_mode;
 	}
 
-	dev_dbg(dev, "%s: setting vcc_mode = %ld", __func__, v);
+	dev_dbg(dev, "%s: setting vcc_mode = %ld\n", __func__, v);
 
 	if ((v != 3) && (v != 5)) {
 		dev_err(dev, "%s - vcc_mode %ld is invalid\n", __func__, v);
@@ -1174,9 +1162,7 @@ static ssize_t store_vcc_mode(struct device *dev,
 fail_store_vcc_mode:
 	return count;
 }
-
-static DEVICE_ATTR(vcc_mode, S_IRUSR | S_IWUSR, show_vcc_mode,
-	store_vcc_mode);
+static DEVICE_ATTR_RW(vcc_mode);
 
 static int iuu_create_sysfs_attrs(struct usb_serial_port *port)
 {

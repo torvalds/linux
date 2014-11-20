@@ -20,14 +20,9 @@
 #include "prm-regbits-24xx.h"
 #include "wd_timer.h"
 
-struct omap_hwmod_irq_info omap2xxx_timer12_mpu_irqs[] = {
-	{ .irq = 48 + OMAP_INTC_START, },
-	{ .irq = -1 },
-};
-
 struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[] = {
 	{ .name = "dispc", .dma_req = 5 },
-	{ .dma_req = -1 }
+	{ .dma_req = -1, },
 };
 
 /*
@@ -219,14 +214,8 @@ struct omap_hwmod omap2xxx_l4_wkup_hwmod = {
 };
 
 /* MPU */
-static struct omap_hwmod_irq_info omap2xxx_mpu_irqs[] = {
-	{ .name = "pmu", .irq = 3 + OMAP_INTC_START },
-	{ .irq = -1 }
-};
-
 struct omap_hwmod omap2xxx_mpu_hwmod = {
 	.name		= "mpu",
-	.mpu_irqs	= omap2xxx_mpu_irqs,
 	.class		= &mpu_hwmod_class,
 	.main_clk	= "mpu_ck",
 };
@@ -256,7 +245,6 @@ static struct omap_timer_capability_dev_attr capability_dsp_dev_attr = {
 
 struct omap_hwmod omap2xxx_timer1_hwmod = {
 	.name		= "timer1",
-	.mpu_irqs	= omap2_timer1_mpu_irqs,
 	.main_clk	= "gpt1_fck",
 	.prcm		= {
 		.omap2 = {
@@ -276,7 +264,6 @@ struct omap_hwmod omap2xxx_timer1_hwmod = {
 
 struct omap_hwmod omap2xxx_timer2_hwmod = {
 	.name		= "timer2",
-	.mpu_irqs	= omap2_timer2_mpu_irqs,
 	.main_clk	= "gpt2_fck",
 	.prcm		= {
 		.omap2 = {
@@ -295,7 +282,6 @@ struct omap_hwmod omap2xxx_timer2_hwmod = {
 
 struct omap_hwmod omap2xxx_timer3_hwmod = {
 	.name		= "timer3",
-	.mpu_irqs	= omap2_timer3_mpu_irqs,
 	.main_clk	= "gpt3_fck",
 	.prcm		= {
 		.omap2 = {
@@ -314,7 +300,6 @@ struct omap_hwmod omap2xxx_timer3_hwmod = {
 
 struct omap_hwmod omap2xxx_timer4_hwmod = {
 	.name		= "timer4",
-	.mpu_irqs	= omap2_timer4_mpu_irqs,
 	.main_clk	= "gpt4_fck",
 	.prcm		= {
 		.omap2 = {
@@ -333,7 +318,6 @@ struct omap_hwmod omap2xxx_timer4_hwmod = {
 
 struct omap_hwmod omap2xxx_timer5_hwmod = {
 	.name		= "timer5",
-	.mpu_irqs	= omap2_timer5_mpu_irqs,
 	.main_clk	= "gpt5_fck",
 	.prcm		= {
 		.omap2 = {
@@ -353,7 +337,6 @@ struct omap_hwmod omap2xxx_timer5_hwmod = {
 
 struct omap_hwmod omap2xxx_timer6_hwmod = {
 	.name		= "timer6",
-	.mpu_irqs	= omap2_timer6_mpu_irqs,
 	.main_clk	= "gpt6_fck",
 	.prcm		= {
 		.omap2 = {
@@ -373,7 +356,6 @@ struct omap_hwmod omap2xxx_timer6_hwmod = {
 
 struct omap_hwmod omap2xxx_timer7_hwmod = {
 	.name		= "timer7",
-	.mpu_irqs	= omap2_timer7_mpu_irqs,
 	.main_clk	= "gpt7_fck",
 	.prcm		= {
 		.omap2 = {
@@ -393,7 +375,6 @@ struct omap_hwmod omap2xxx_timer7_hwmod = {
 
 struct omap_hwmod omap2xxx_timer8_hwmod = {
 	.name		= "timer8",
-	.mpu_irqs	= omap2_timer8_mpu_irqs,
 	.main_clk	= "gpt8_fck",
 	.prcm		= {
 		.omap2 = {
@@ -413,7 +394,6 @@ struct omap_hwmod omap2xxx_timer8_hwmod = {
 
 struct omap_hwmod omap2xxx_timer9_hwmod = {
 	.name		= "timer9",
-	.mpu_irqs	= omap2_timer9_mpu_irqs,
 	.main_clk	= "gpt9_fck",
 	.prcm		= {
 		.omap2 = {
@@ -433,7 +413,6 @@ struct omap_hwmod omap2xxx_timer9_hwmod = {
 
 struct omap_hwmod omap2xxx_timer10_hwmod = {
 	.name		= "timer10",
-	.mpu_irqs	= omap2_timer10_mpu_irqs,
 	.main_clk	= "gpt10_fck",
 	.prcm		= {
 		.omap2 = {
@@ -453,7 +432,6 @@ struct omap_hwmod omap2xxx_timer10_hwmod = {
 
 struct omap_hwmod omap2xxx_timer11_hwmod = {
 	.name		= "timer11",
-	.mpu_irqs	= omap2_timer11_mpu_irqs,
 	.main_clk	= "gpt11_fck",
 	.prcm		= {
 		.omap2 = {
@@ -473,7 +451,6 @@ struct omap_hwmod omap2xxx_timer11_hwmod = {
 
 struct omap_hwmod omap2xxx_timer12_hwmod = {
 	.name		= "timer12",
-	.mpu_irqs	= omap2xxx_timer12_mpu_irqs,
 	.main_clk	= "gpt12_fck",
 	.prcm		= {
 		.omap2 = {
@@ -509,9 +486,8 @@ struct omap_hwmod omap2xxx_wd_timer2_hwmod = {
 
 struct omap_hwmod omap2xxx_uart1_hwmod = {
 	.name		= "uart1",
-	.mpu_irqs	= omap2_uart1_mpu_irqs,
-	.sdma_reqs	= omap2_uart1_sdma_reqs,
 	.main_clk	= "uart1_fck",
+	.flags		= DEBUG_OMAP2UART1_FLAGS | HWMOD_SWSUP_SIDLE_ACT,
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
@@ -528,9 +504,8 @@ struct omap_hwmod omap2xxx_uart1_hwmod = {
 
 struct omap_hwmod omap2xxx_uart2_hwmod = {
 	.name		= "uart2",
-	.mpu_irqs	= omap2_uart2_mpu_irqs,
-	.sdma_reqs	= omap2_uart2_sdma_reqs,
 	.main_clk	= "uart2_fck",
+	.flags		= DEBUG_OMAP2UART2_FLAGS | HWMOD_SWSUP_SIDLE_ACT,
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
@@ -547,9 +522,8 @@ struct omap_hwmod omap2xxx_uart2_hwmod = {
 
 struct omap_hwmod omap2xxx_uart3_hwmod = {
 	.name		= "uart3",
-	.mpu_irqs	= omap2_uart3_mpu_irqs,
-	.sdma_reqs	= omap2_uart3_sdma_reqs,
 	.main_clk	= "uart3_fck",
+	.flags		= DEBUG_OMAP2UART3_FLAGS | HWMOD_SWSUP_SIDLE_ACT,
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
@@ -607,7 +581,7 @@ struct omap_hwmod omap2xxx_dss_dispc_hwmod = {
 		},
 	},
 	.flags		= HWMOD_NO_IDLEST,
-	.dev_attr	= &omap2_3_dss_dispc_dev_attr
+	.dev_attr	= &omap2_3_dss_dispc_dev_attr,
 };
 
 static struct omap_hwmod_opt_clk dss_rfbi_opt_clks[] = {
@@ -654,7 +628,6 @@ struct omap_gpio_dev_attr omap2xxx_gpio_dev_attr = {
 struct omap_hwmod omap2xxx_gpio1_hwmod = {
 	.name		= "gpio1",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
-	.mpu_irqs	= omap2_gpio1_irqs,
 	.main_clk	= "gpios_fck",
 	.prcm		= {
 		.omap2 = {
@@ -673,7 +646,6 @@ struct omap_hwmod omap2xxx_gpio1_hwmod = {
 struct omap_hwmod omap2xxx_gpio2_hwmod = {
 	.name		= "gpio2",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
-	.mpu_irqs	= omap2_gpio2_irqs,
 	.main_clk	= "gpios_fck",
 	.prcm		= {
 		.omap2 = {
@@ -692,7 +664,6 @@ struct omap_hwmod omap2xxx_gpio2_hwmod = {
 struct omap_hwmod omap2xxx_gpio3_hwmod = {
 	.name		= "gpio3",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
-	.mpu_irqs	= omap2_gpio3_irqs,
 	.main_clk	= "gpios_fck",
 	.prcm		= {
 		.omap2 = {
@@ -711,7 +682,6 @@ struct omap_hwmod omap2xxx_gpio3_hwmod = {
 struct omap_hwmod omap2xxx_gpio4_hwmod = {
 	.name		= "gpio4",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
-	.mpu_irqs	= omap2_gpio4_irqs,
 	.main_clk	= "gpios_fck",
 	.prcm		= {
 		.omap2 = {
@@ -733,8 +703,6 @@ static struct omap2_mcspi_dev_attr omap_mcspi1_dev_attr = {
 
 struct omap_hwmod omap2xxx_mcspi1_hwmod = {
 	.name		= "mcspi1",
-	.mpu_irqs	= omap2_mcspi1_mpu_irqs,
-	.sdma_reqs	= omap2_mcspi1_sdma_reqs,
 	.main_clk	= "mcspi1_fck",
 	.prcm		= {
 		.omap2 = {
@@ -756,8 +724,6 @@ static struct omap2_mcspi_dev_attr omap_mcspi2_dev_attr = {
 
 struct omap_hwmod omap2xxx_mcspi2_hwmod = {
 	.name		= "mcspi2",
-	.mpu_irqs	= omap2_mcspi2_mpu_irqs,
-	.sdma_reqs	= omap2_mcspi2_sdma_reqs,
 	.main_clk	= "mcspi2_fck",
 	.prcm		= {
 		.omap2 = {
@@ -792,15 +758,9 @@ struct omap_hwmod omap2xxx_counter_32k_hwmod = {
 };
 
 /* gpmc */
-static struct omap_hwmod_irq_info omap2xxx_gpmc_irqs[] = {
-	{ .irq = 20 },
-	{ .irq = -1 }
-};
-
 struct omap_hwmod omap2xxx_gpmc_hwmod = {
 	.name		= "gpmc",
 	.class		= &omap2xxx_gpmc_hwmod_class,
-	.mpu_irqs	= omap2xxx_gpmc_irqs,
 	.main_clk	= "gpmc_fck",
 	/*
 	 * XXX HWMOD_INIT_NO_RESET should not be needed for this IP
@@ -837,14 +797,8 @@ static struct omap_hwmod_class omap2_rng_hwmod_class = {
 	.sysc		= &omap2_rng_sysc,
 };
 
-static struct omap_hwmod_irq_info omap2_rng_mpu_irqs[] = {
-	{ .irq = 52 },
-	{ .irq = -1 }
-};
-
 struct omap_hwmod omap2xxx_rng_hwmod = {
 	.name		= "rng",
-	.mpu_irqs	= omap2_rng_mpu_irqs,
 	.main_clk	= "l4_ck",
 	.prcm		= {
 		.omap2 = {
@@ -863,4 +817,66 @@ struct omap_hwmod omap2xxx_rng_hwmod = {
 	 */
 	.flags		= HWMOD_INIT_NO_RESET,
 	.class		= &omap2_rng_hwmod_class,
+};
+
+/* SHAM */
+
+static struct omap_hwmod_class_sysconfig omap2_sham_sysc = {
+	.rev_offs	= 0x5c,
+	.sysc_offs	= 0x60,
+	.syss_offs	= 0x64,
+	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSS_HAS_RESET_STATUS),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap2xxx_sham_class = {
+	.name	= "sham",
+	.sysc	= &omap2_sham_sysc,
+};
+
+struct omap_hwmod omap2xxx_sham_hwmod = {
+	.name		= "sham",
+	.main_clk	= "l4_ck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 4,
+			.module_bit = OMAP24XX_EN_SHA_SHIFT,
+			.idlest_reg_id = 4,
+			.idlest_idle_bit = OMAP24XX_ST_SHA_SHIFT,
+		},
+	},
+	.class		= &omap2xxx_sham_class,
+};
+
+/* AES */
+
+static struct omap_hwmod_class_sysconfig omap2_aes_sysc = {
+	.rev_offs	= 0x44,
+	.sysc_offs	= 0x48,
+	.syss_offs	= 0x4c,
+	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSS_HAS_RESET_STATUS),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap2xxx_aes_class = {
+	.name	= "aes",
+	.sysc	= &omap2_aes_sysc,
+};
+
+struct omap_hwmod omap2xxx_aes_hwmod = {
+	.name		= "aes",
+	.main_clk	= "l4_ck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 4,
+			.module_bit = OMAP24XX_EN_AES_SHIFT,
+			.idlest_reg_id = 4,
+			.idlest_idle_bit = OMAP24XX_ST_AES_SHIFT,
+		},
+	},
+	.class		= &omap2xxx_aes_class,
 };

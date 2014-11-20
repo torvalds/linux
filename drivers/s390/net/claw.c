@@ -481,7 +481,6 @@ claw_open(struct net_device *dev)
                 spin_unlock_irqrestore(
 			get_ccwdev_lock(privptr->channel[i].cdev), saveflags);
                 schedule();
-		set_current_state(TASK_RUNNING);
                 remove_wait_queue(&privptr->channel[i].wait, &wait);
                 if(rc != 0)
                         ccw_check_return_code(privptr->channel[i].cdev, rc);
@@ -828,7 +827,6 @@ claw_release(struct net_device *dev)
 	        spin_unlock_irqrestore(
 			get_ccwdev_lock(privptr->channel[i].cdev), saveflags);
 	        schedule();
-		set_current_state(TASK_RUNNING);
 	        remove_wait_queue(&privptr->channel[i].wait, &wait);
 	        if (rc != 0) {
                         ccw_check_return_code(privptr->channel[i].cdev, rc);
@@ -2915,7 +2913,7 @@ claw_new_device(struct ccwgroup_device *cgdev)
 			"failed with error code %d\n", ret);
 		goto out;
 	}
-	dev = alloc_netdev(0,"claw%d",claw_init_netdevice);
+	dev = alloc_netdev(0, "claw%d", NET_NAME_UNKNOWN, claw_init_netdevice);
 	if (!dev) {
 		dev_warn(&cgdev->dev,
 			"Activating the CLAW device failed\n");
@@ -3348,7 +3346,7 @@ static int __init claw_init(void)
 	}
 	CLAW_DBF_TEXT(2, setup, "init_mod");
 	claw_root_dev = root_device_register("claw");
-	ret = IS_ERR(claw_root_dev) ? PTR_ERR(claw_root_dev) : 0;
+	ret = PTR_ERR_OR_ZERO(claw_root_dev);
 	if (ret)
 		goto register_err;
 	ret = ccw_driver_register(&claw_ccw_driver);

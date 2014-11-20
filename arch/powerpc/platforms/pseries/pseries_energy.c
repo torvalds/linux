@@ -108,8 +108,8 @@ err:
  * energy consumption.
  */
 
-#define FLAGS_MODE1	0x004E200000080E01
-#define FLAGS_MODE2	0x004E200000080401
+#define FLAGS_MODE1	0x004E200000080E01UL
+#define FLAGS_MODE2	0x004E200000080401UL
 #define FLAGS_ACTIVATE  0x100
 
 static ssize_t get_best_energy_list(char *page, int activate)

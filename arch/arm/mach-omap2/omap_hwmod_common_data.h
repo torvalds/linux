@@ -18,9 +18,6 @@
 #include "common.h"
 #include "display.h"
 
-/* Common address space across OMAP2xxx */
-extern struct omap_hwmod_addr_space omap2xxx_mcbsp2_addrs[];
-
 /* Common address space across OMAP2xxx/3xxx */
 extern struct omap_hwmod_addr_space omap2_i2c1_addr_space[];
 extern struct omap_hwmod_addr_space omap2_i2c2_addr_space[];
@@ -36,13 +33,10 @@ extern struct omap_hwmod_addr_space omap2_mcspi1_addr_space[];
 extern struct omap_hwmod_addr_space omap2_mcspi2_addr_space[];
 extern struct omap_hwmod_addr_space omap2430_mcspi3_addr_space[];
 extern struct omap_hwmod_addr_space omap2_dma_system_addrs[];
-extern struct omap_hwmod_addr_space omap2_mailbox_addrs[];
 extern struct omap_hwmod_addr_space omap2_mcbsp1_addrs[];
 extern struct omap_hwmod_addr_space omap2_hdq1w_addr_space[];
 
 /* Common IP block data across OMAP2xxx */
-extern struct omap_hwmod_irq_info omap2xxx_timer12_mpu_irqs[];
-extern struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[];
 extern struct omap_gpio_dev_attr omap2xxx_gpio_dev_attr;
 extern struct omap_hwmod omap2xxx_l3_main_hwmod;
 extern struct omap_hwmod omap2xxx_l4_core_hwmod;
@@ -78,6 +72,8 @@ extern struct omap_hwmod omap2xxx_mcspi2_hwmod;
 extern struct omap_hwmod omap2xxx_counter_32k_hwmod;
 extern struct omap_hwmod omap2xxx_gpmc_hwmod;
 extern struct omap_hwmod omap2xxx_rng_hwmod;
+extern struct omap_hwmod omap2xxx_sham_hwmod;
+extern struct omap_hwmod omap2xxx_aes_hwmod;
 
 /* Common interface data across OMAP2xxx */
 extern struct omap_hwmod_ocp_if omap2xxx_l3_main__l4_core;
@@ -105,6 +101,8 @@ extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_dispc;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_rfbi;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__dss_venc;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__rng;
+extern struct omap_hwmod_ocp_if omap2xxx_l4_core__sham;
+extern struct omap_hwmod_ocp_if omap2xxx_l4_core__aes;
 
 /* Common IP block data */
 extern struct omap_hwmod_dma_info omap2_uart1_sdma_reqs[];

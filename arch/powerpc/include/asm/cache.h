@@ -3,6 +3,7 @@
 
 #ifdef __KERNEL__
 
+#include <asm/reg.h>
 
 /* bytes per L1 cache line */
 #if defined(CONFIG_8xx) || defined(CONFIG_403GCX)
@@ -39,10 +40,28 @@ struct ppc64_caches {
 };
 
 extern struct ppc64_caches ppc64_caches;
+
+static inline void logmpp(u64 x)
+{
+	asm volatile(PPC_LOGMPP(R1) : : "r" (x));
+}
+
 #endif /* __powerpc64__ && ! __ASSEMBLY__ */
 
-#if !defined(__ASSEMBLY__)
+#if defined(__ASSEMBLY__)
+/*
+ * For a snooping icache, we still need a dummy icbi to purge all the
+ * prefetched instructions from the ifetch buffers. We also need a sync
+ * before the icbi to order the the actual stores to memory that might
+ * have modified instructions with the icbi.
+ */
+#define PURGE_PREFETCHED_INS	\
+	sync;			\
+	icbi	0,r3;		\
+	sync;			\
+	isync
 
+#else
 #define __read_mostly __attribute__((__section__(".data..read_mostly")))
 
 #ifdef CONFIG_6xx

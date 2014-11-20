@@ -25,7 +25,7 @@ void request_event_sources_irqs(struct device_node *np,
 				const char *name)
 {
 	int i, index, count = 0;
-	struct of_irq oirq;
+	struct of_phandle_args oirq;
 	const u32 *opicprop;
 	unsigned int opicplen;
 	unsigned int virqs[16];
@@ -55,13 +55,11 @@ void request_event_sources_irqs(struct device_node *np,
 	/* Else use normal interrupt tree parsing */
 	else {
 		/* First try to do a proper OF tree parsing */
-		for (index = 0; of_irq_map_one(np, index, &oirq) == 0;
+		for (index = 0; of_irq_parse_one(np, index, &oirq) == 0;
 		     index++) {
 			if (count > 15)
 				break;
-			virqs[count] = irq_create_of_mapping(oirq.controller,
-							    oirq.specifier,
-							    oirq.size);
+			virqs[count] = irq_create_of_mapping(&oirq);
 			if (virqs[count] == NO_IRQ) {
 				pr_err("event-sources: Unable to allocate "
 				       "interrupt number for %s\n",

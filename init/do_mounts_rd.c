@@ -13,7 +13,7 @@
 #include <linux/minix_fs.h>
 #include <linux/ext2_fs.h>
 #include <linux/romfs_fs.h>
-#include <linux/cramfs_fs.h>
+#include <uapi/linux/cramfs_fs.h>
 #include <linux/initrd.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -57,6 +57,11 @@ static int __init crd_load(int in_fd, int out_fd, decompress_fn deco);
  *	cramfs
  *	squashfs
  *	gzip
+ *	bzip2
+ *	lzma
+ *	xz
+ *	lzo
+ *	lz4
  */
 static int __init
 identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
@@ -306,9 +311,9 @@ static int exit_code;
 static int decompress_error;
 static int crd_infd, crd_outfd;
 
-static int __init compr_fill(void *buf, unsigned int len)
+static long __init compr_fill(void *buf, unsigned long len)
 {
-	int r = sys_read(crd_infd, buf, len);
+	long r = sys_read(crd_infd, buf, len);
 	if (r < 0)
 		printk(KERN_ERR "RAMDISK: error while reading compressed data");
 	else if (r == 0)
@@ -316,13 +321,13 @@ static int __init compr_fill(void *buf, unsigned int len)
 	return r;
 }
 
-static int __init compr_flush(void *window, unsigned int outcnt)
+static long __init compr_flush(void *window, unsigned long outcnt)
 {
-	int written = sys_write(crd_outfd, window, outcnt);
+	long written = sys_write(crd_outfd, window, outcnt);
 	if (written != outcnt) {
 		if (decompress_error == 0)
 			printk(KERN_ERR
-			       "RAMDISK: incomplete write (%d != %d)\n",
+			       "RAMDISK: incomplete write (%ld != %ld)\n",
 			       written, outcnt);
 		decompress_error = 1;
 		return -1;
@@ -342,6 +347,13 @@ static int __init crd_load(int in_fd, int out_fd, decompress_fn deco)
 	int result;
 	crd_infd = in_fd;
 	crd_outfd = out_fd;
+
+	if (!deco) {
+		pr_emerg("Invalid ramdisk decompression routine.  "
+			 "Select appropriate config option.\n");
+		panic("Could not decompress initial ramdisk image.");
+	}
+
 	result = deco(NULL, 0, compr_fill, compr_flush, NULL, NULL, error);
 	if (decompress_error)
 		result = 1;

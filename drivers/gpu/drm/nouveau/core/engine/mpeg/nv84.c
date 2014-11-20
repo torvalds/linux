@@ -23,7 +23,6 @@
  */
 
 #include <core/os.h>
-#include <core/class.h>
 #include <core/engctx.h>
 
 #include <subdev/vm.h>
@@ -88,7 +87,6 @@ nv84_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->intr = nv50_mpeg_intr;
 	nv_engine(priv)->cclass = &nv84_mpeg_cclass;
 	nv_engine(priv)->sclass = nv84_mpeg_sclass;
-	nv_engine(priv)->tlb_flush = nv50_mpeg_tlb_flush;
 	return 0;
 }
 

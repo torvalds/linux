@@ -130,6 +130,10 @@ static struct pcmcia_driver b43_pcmcia_driver = {
 	.resume		= b43_pcmcia_resume,
 };
 
+/*
+ * These are not module init/exit functions!
+ * The module_pcmcia_driver() helper cannot be used here.
+ */
 int b43_pcmcia_init(void)
 {
 	return pcmcia_register_driver(&b43_pcmcia_driver);

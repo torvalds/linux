@@ -26,7 +26,6 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/types.h>

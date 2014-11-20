@@ -46,6 +46,7 @@ struct media_file_operations {
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*ioctl) (struct file *, unsigned int, unsigned long);
+	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*open) (struct file *);
 	int (*release) (struct file *);
 };
@@ -81,7 +82,8 @@ struct media_devnode {
 /* dev to media_devnode */
 #define to_media_devnode(cd) container_of(cd, struct media_devnode, dev)
 
-int __must_check media_devnode_register(struct media_devnode *mdev);
+int __must_check media_devnode_register(struct media_devnode *mdev,
+					struct module *owner);
 void media_devnode_unregister(struct media_devnode *mdev);
 
 static inline struct media_devnode *media_devnode_data(struct file *filp)

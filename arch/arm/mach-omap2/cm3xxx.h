@@ -29,9 +29,8 @@
  * These registers appear once per CM module.
  */
 
-#define OMAP3430_CM_REVISION		OMAP34XX_CM_REGADDR(OCP_MOD, 0x0000)
-#define OMAP3430_CM_SYSCONFIG		OMAP34XX_CM_REGADDR(OCP_MOD, 0x0010)
-#define OMAP3430_CM_POLCTRL		OMAP34XX_CM_REGADDR(OCP_MOD, 0x009c)
+#define OMAP3430_CM_SYSCONFIG		0x0010
+#define OMAP3430_CM_POLCTRL		0x009c
 
 #define OMAP3_CM_CLKOUT_CTRL_OFFSET	0x0070
 #define OMAP3430_CM_CLKOUT_CTRL		OMAP_CM_REGADDR(OMAP3430_CCR_MOD, 0x0070)
@@ -83,6 +82,7 @@ extern int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
 
 extern void omap3_cm_save_context(void);
 extern void omap3_cm_restore_context(void);
+extern void omap3_cm_save_scratchpad_contents(u32 *ptr);
 
 extern int __init omap3xxx_cm_init(void);
 

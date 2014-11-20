@@ -18,7 +18,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/gfp.h>
 #include <scsi/scsi_host.h>
@@ -315,7 +314,7 @@ static struct ata_port_operations pata_at91_port_ops = {
 
 static int pata_at91_probe(struct platform_device *pdev)
 {
-	struct at91_cf_data *board = pdev->dev.platform_data;
+	struct at91_cf_data *board = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct at91_ide_info *info;
 	struct resource *mem_res;
@@ -408,12 +407,13 @@ static int pata_at91_probe(struct platform_device *pdev)
 
 	host->private_data = info;
 
-	return ata_host_activate(host, gpio_is_valid(irq) ? gpio_to_irq(irq) : 0,
-			gpio_is_valid(irq) ? ata_sff_interrupt : NULL,
-			irq_flags, &pata_at91_sht);
+	ret = ata_host_activate(host, gpio_is_valid(irq) ? gpio_to_irq(irq) : 0,
+				gpio_is_valid(irq) ? ata_sff_interrupt : NULL,
+				irq_flags, &pata_at91_sht);
+	if (ret)
+		goto err_put;
 
-	if (!ret)
-		return 0;
+	return 0;
 
 err_put:
 	clk_put(info->mck);
@@ -422,7 +422,7 @@ err_put:
 
 static int pata_at91_remove(struct platform_device *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = platform_get_drvdata(pdev);
 	struct at91_ide_info *info;
 
 	if (!host)

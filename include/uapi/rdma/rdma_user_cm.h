@@ -34,6 +34,7 @@
 #define RDMA_USER_CM_H
 
 #include <linux/types.h>
+#include <linux/socket.h>
 #include <linux/in6.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_user_sa.h>
@@ -45,8 +46,8 @@
 enum {
 	RDMA_USER_CM_CMD_CREATE_ID,
 	RDMA_USER_CM_CMD_DESTROY_ID,
-	RDMA_USER_CM_CMD_BIND_ADDR,
-	RDMA_USER_CM_CMD_RESOLVE_ADDR,
+	RDMA_USER_CM_CMD_BIND_IP,
+	RDMA_USER_CM_CMD_RESOLVE_IP,
 	RDMA_USER_CM_CMD_RESOLVE_ROUTE,
 	RDMA_USER_CM_CMD_QUERY_ROUTE,
 	RDMA_USER_CM_CMD_CONNECT,
@@ -59,9 +60,13 @@ enum {
 	RDMA_USER_CM_CMD_GET_OPTION,
 	RDMA_USER_CM_CMD_SET_OPTION,
 	RDMA_USER_CM_CMD_NOTIFY,
-	RDMA_USER_CM_CMD_JOIN_MCAST,
+	RDMA_USER_CM_CMD_JOIN_IP_MCAST,
 	RDMA_USER_CM_CMD_LEAVE_MCAST,
-	RDMA_USER_CM_CMD_MIGRATE_ID
+	RDMA_USER_CM_CMD_MIGRATE_ID,
+	RDMA_USER_CM_CMD_QUERY,
+	RDMA_USER_CM_CMD_BIND,
+	RDMA_USER_CM_CMD_RESOLVE_ADDR,
+	RDMA_USER_CM_CMD_JOIN_MCAST
 };
 
 /*
@@ -95,17 +100,34 @@ struct rdma_ucm_destroy_id_resp {
 	__u32 events_reported;
 };
 
-struct rdma_ucm_bind_addr {
+struct rdma_ucm_bind_ip {
 	__u64 response;
 	struct sockaddr_in6 addr;
 	__u32 id;
 };
 
-struct rdma_ucm_resolve_addr {
+struct rdma_ucm_bind {
+	__u32 id;
+	__u16 addr_size;
+	__u16 reserved;
+	struct sockaddr_storage addr;
+};
+
+struct rdma_ucm_resolve_ip {
 	struct sockaddr_in6 src_addr;
 	struct sockaddr_in6 dst_addr;
 	__u32 id;
 	__u32 timeout_ms;
+};
+
+struct rdma_ucm_resolve_addr {
+	__u32 id;
+	__u32 timeout_ms;
+	__u16 src_size;
+	__u16 dst_size;
+	__u32 reserved;
+	struct sockaddr_storage src_addr;
+	struct sockaddr_storage dst_addr;
 };
 
 struct rdma_ucm_resolve_route {
@@ -113,10 +135,16 @@ struct rdma_ucm_resolve_route {
 	__u32 timeout_ms;
 };
 
-struct rdma_ucm_query_route {
+enum {
+	RDMA_USER_CM_QUERY_ADDR,
+	RDMA_USER_CM_QUERY_PATH,
+	RDMA_USER_CM_QUERY_GID
+};
+
+struct rdma_ucm_query {
 	__u64 response;
 	__u32 id;
-	__u32 reserved;
+	__u32 option;
 };
 
 struct rdma_ucm_query_route_resp {
@@ -129,9 +157,26 @@ struct rdma_ucm_query_route_resp {
 	__u8 reserved[3];
 };
 
+struct rdma_ucm_query_addr_resp {
+	__u64 node_guid;
+	__u8  port_num;
+	__u8  reserved;
+	__u16 pkey;
+	__u16 src_size;
+	__u16 dst_size;
+	struct sockaddr_storage src_addr;
+	struct sockaddr_storage dst_addr;
+};
+
+struct rdma_ucm_query_path_resp {
+	__u32 num_paths;
+	__u32 reserved;
+	struct ib_path_rec_data path_data[0];
+};
+
 struct rdma_ucm_conn_param {
 	__u32 qp_num;
-	__u32 reserved;
+	__u32 qkey;
 	__u8  private_data[RDMA_MAX_PRIVATE_DATA];
 	__u8  private_data_len;
 	__u8  srq;
@@ -192,11 +237,20 @@ struct rdma_ucm_notify {
 	__u32 event;
 };
 
-struct rdma_ucm_join_mcast {
+struct rdma_ucm_join_ip_mcast {
 	__u64 response;		/* rdma_ucm_create_id_resp */
 	__u64 uid;
 	struct sockaddr_in6 addr;
 	__u32 id;
+};
+
+struct rdma_ucm_join_mcast {
+	__u64 response;		/* rdma_ucma_create_id_resp */
+	__u64 uid;
+	__u32 id;
+	__u16 addr_size;
+	__u16 reserved;
+	struct sockaddr_storage addr;
 };
 
 struct rdma_ucm_get_event {

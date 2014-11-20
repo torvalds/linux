@@ -180,12 +180,10 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	struct pnp_dev *dev = data;
 	struct acpi_resource_dma *dma;
 	struct acpi_resource_vendor_typed *vendor_typed;
-	struct resource r;
+	struct resource r = {0};
 	int i, flags;
 
-	if (acpi_dev_resource_memory(res, &r)
-	    || acpi_dev_resource_io(res, &r)
-	    || acpi_dev_resource_address_space(res, &r)
+	if (acpi_dev_resource_address_space(res, &r)
 	    || acpi_dev_resource_ext_address_space(res, &r)) {
 		pnp_add_resource(dev, &r);
 		return AE_OK;
@@ -217,6 +215,17 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	}
 
 	switch (res->type) {
+	case ACPI_RESOURCE_TYPE_MEMORY24:
+	case ACPI_RESOURCE_TYPE_MEMORY32:
+	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
+		if (acpi_dev_resource_memory(res, &r))
+			pnp_add_resource(dev, &r);
+		break;
+	case ACPI_RESOURCE_TYPE_IO:
+	case ACPI_RESOURCE_TYPE_FIXED_IO:
+		if (acpi_dev_resource_io(res, &r))
+			pnp_add_resource(dev, &r);
+		break;
 	case ACPI_RESOURCE_TYPE_DMA:
 		dma = &res->data.dma;
 		if (dma->channel_count > 0 && dma->channels[0] != (u8) -1)
@@ -634,6 +643,7 @@ int pnpacpi_build_resource_template(struct pnp_dev *dev,
 	}
 	/* resource will pointer the end resource now */
 	resource->type = ACPI_RESOURCE_TYPE_END_TAG;
+	resource->length = sizeof(struct acpi_resource);
 
 	return 0;
 }

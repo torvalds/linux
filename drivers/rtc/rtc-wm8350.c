@@ -339,7 +339,7 @@ static const struct rtc_class_ops wm8350_rtc_ops = {
 	.alarm_irq_enable = wm8350_rtc_alarm_irq_enable,
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int wm8350_rtc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -375,10 +375,6 @@ static int wm8350_rtc_resume(struct device *dev)
 
 	return 0;
 }
-
-#else
-#define wm8350_rtc_suspend NULL
-#define wm8350_rtc_resume NULL
 #endif
 
 static int wm8350_rtc_probe(struct platform_device *pdev)
@@ -439,8 +435,8 @@ static int wm8350_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	wm_rtc->rtc = rtc_device_register("wm8350", &pdev->dev,
-					  &wm8350_rtc_ops, THIS_MODULE);
+	wm_rtc->rtc = devm_rtc_device_register(&pdev->dev, "wm8350",
+					&wm8350_rtc_ops, THIS_MODULE);
 	if (IS_ERR(wm_rtc->rtc)) {
 		ret = PTR_ERR(wm_rtc->rtc);
 		dev_err(&pdev->dev, "failed to register RTC: %d\n", ret);
@@ -462,20 +458,15 @@ static int wm8350_rtc_probe(struct platform_device *pdev)
 static int wm8350_rtc_remove(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
-	struct wm8350_rtc *wm_rtc = &wm8350->rtc;
 
 	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_SEC, wm8350);
 	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_ALM, wm8350);
 
-	rtc_device_unregister(wm_rtc->rtc);
-
 	return 0;
 }
 
-static struct dev_pm_ops wm8350_rtc_pm_ops = {
-	.suspend = wm8350_rtc_suspend,
-	.resume = wm8350_rtc_resume,
-};
+static SIMPLE_DEV_PM_OPS(wm8350_rtc_pm_ops, wm8350_rtc_suspend,
+			wm8350_rtc_resume);
 
 static struct platform_driver wm8350_rtc_driver = {
 	.probe = wm8350_rtc_probe,

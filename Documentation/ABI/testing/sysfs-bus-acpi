@@ -1,0 +1,58 @@
+What:		/sys/bus/acpi/devices/.../path
+Date:		December 2006
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		This attribute indicates the full path of ACPI namespace
+		object associated with the device object.  For example,
+		\_SB_.PCI0.
+		This file is not present for device objects representing
+		fixed ACPI hardware features (like power and sleep
+		buttons).
+
+What:		/sys/bus/acpi/devices/.../modalias
+Date:		July 2007
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		This attribute indicates the PNP IDs of the device object.
+		That is acpi:HHHHHHHH:[CCCCCCC:].  Where each HHHHHHHH or
+		CCCCCCCC contains device object's PNPID (_HID or _CID).
+
+What:		/sys/bus/acpi/devices/.../hid
+Date:		April 2005
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		This attribute indicates the hardware ID (_HID) of the
+		device object.  For example, PNP0103.
+		This file is present for device objects having the _HID
+		control method.
+
+What:		/sys/bus/acpi/devices/.../description
+Date:		October 2012
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		This attribute contains the output of the device object's
+		_STR control method, if present.
+
+What:		/sys/bus/acpi/devices/.../adr
+Date:		October 2012
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		This attribute contains the output of the device object's
+		_ADR control method, which is present for ACPI device
+		objects representing devices having standard enumeration
+		algorithms, such as PCI.
+
+What:		/sys/bus/acpi/devices/.../uid
+Date:		October 2012
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		This attribute contains the output of the device object's
+		_UID control method, if present.
+
+What:		/sys/bus/acpi/devices/.../eject
+Date:		December 2006
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		Writing 1 to this attribute will trigger hot removal of
+		this device object.  This file exists for every device
+		object that has _EJ0 method.

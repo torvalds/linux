@@ -1,15 +1,17 @@
-/* bnx2i.h: Broadcom NetXtreme II iSCSI driver.
+/* bnx2i.h: QLogic NetXtreme II iSCSI driver.
  *
- * Copyright (c) 2006 - 2012 Broadcom Corporation
+ * Copyright (c) 2006 - 2013 Broadcom Corporation
  * Copyright (c) 2007, 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2007, 2008 Mike Christie
+ * Copyright (c) 2014, QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
  * Written by: Anil Veerabhadrappa (anilgv@broadcom.com)
- * Maintained by: Eddie Wai (eddie.wai@broadcom.com)
+ * Previously Maintained by: Eddie Wai (eddie.wai@broadcom.com)
+ * Maintained by: QLogic-Storage-Upstream@qlogic.com
  */
 
 #ifndef _BNX2I_H_
@@ -64,7 +66,7 @@
 #define MAX_PAGES_PER_CTRL_STRUCT_POOL	8
 #define BNX2I_RESERVED_SLOW_PATH_CMD_SLOTS	4
 
-#define BNX2I_5771X_DBELL_PAGE_SIZE	128
+#define BNX2X_DB_SHIFT			3
 
 /* 5706/08 hardware has limit on maximum buffer size per BD it can handle */
 #define MAX_BD_LENGTH			65535
@@ -580,8 +582,8 @@ struct bnx2i_5771x_dbell {
  * @sq_mem_size:        SQ size
  * @sq_prod_qe:         SQ producer entry pointer
  * @sq_cons_qe:         SQ consumer entry pointer
- * @sq_first_qe:        virtaul address of first entry in SQ
- * @sq_last_qe:         virtaul address of last entry in SQ
+ * @sq_first_qe:        virtual address of first entry in SQ
+ * @sq_last_qe:         virtual address of last entry in SQ
  * @sq_prod_idx:        SQ producer index
  * @sq_cons_idx:        SQ consumer index
  * @sqe_left:           number sq entry left
@@ -593,8 +595,8 @@ struct bnx2i_5771x_dbell {
  * @cq_mem_size:        CQ size
  * @cq_prod_qe:         CQ producer entry pointer
  * @cq_cons_qe:         CQ consumer entry pointer
- * @cq_first_qe:        virtaul address of first entry in CQ
- * @cq_last_qe:         virtaul address of last entry in CQ
+ * @cq_first_qe:        virtual address of first entry in CQ
+ * @cq_last_qe:         virtual address of last entry in CQ
  * @cq_prod_idx:        CQ producer index
  * @cq_cons_idx:        CQ consumer index
  * @cqe_left:           number cq entry left
@@ -608,8 +610,8 @@ struct bnx2i_5771x_dbell {
  * @rq_mem_size:        RQ size
  * @rq_prod_qe:         RQ producer entry pointer
  * @rq_cons_qe:         RQ consumer entry pointer
- * @rq_first_qe:        virtaul address of first entry in RQ
- * @rq_last_qe:         virtaul address of last entry in RQ
+ * @rq_first_qe:        virtual address of first entry in RQ
+ * @rq_last_qe:         virtual address of last entry in RQ
  * @rq_prod_idx:        RQ producer index
  * @rq_cons_idx:        RQ consumer index
  * @rqe_left:           number rq entry left

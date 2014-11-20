@@ -31,6 +31,8 @@
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
 
+#define __ARCH_WANT_KPROBES_INSN_SLOT
+
 struct pt_regs;
 struct kprobe;
 
@@ -57,7 +59,7 @@ typedef u16 kprobe_opcode_t;
 /* Architecture specific copy of original instruction */
 struct arch_specific_insn {
 	/* copy of original instruction */
-	kprobe_opcode_t insn[MAX_INSN_SIZE];
+	kprobe_opcode_t *insn;
 };
 
 struct prev_kprobe {
@@ -81,6 +83,10 @@ void kretprobe_trampoline(void);
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 int kprobe_exceptions_notify(struct notifier_block *self,
 	unsigned long val, void *data);
+
+int probe_is_prohibited_opcode(u16 *insn);
+int probe_get_fixup_type(u16 *insn);
+int probe_is_insn_relative_long(u16 *insn);
 
 #define flush_insn_slot(p)	do { } while (0)
 

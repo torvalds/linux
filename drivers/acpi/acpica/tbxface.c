@@ -1,11 +1,11 @@
 /******************************************************************************
  *
- * Module Name: tbxface - ACPI table oriented external interfaces
+ * Module Name: tbxface - ACPI table-oriented external interfaces
  *
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/export.h>
+#define EXPORT_ACPI_INTERFACES
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "actables.h"
@@ -80,7 +81,7 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count)
  *                                    array is dynamically allocated.
  *              initial_table_count - Size of initial_table_array, in number of
  *                                    struct acpi_table_desc structures
- *              allow_realloc       - Flag to tell Table Manager if resize of
+ *              allow_resize        - Flag to tell Table Manager if resize of
  *                                    pre-allocated array is allowed. Ignored
  *                                    if initial_table_array is NULL.
  *
@@ -107,8 +108,8 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
 	ACPI_FUNCTION_TRACE(acpi_initialize_tables);
 
 	/*
-	 * Set up the Root Table Array
-	 * Allocate the table array if requested
+	 * Setup the Root Table Array and allocate the table array
+	 * if requested
 	 */
 	if (!initial_table_array) {
 		status = acpi_allocate_root_table(initial_table_count);
@@ -147,6 +148,8 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_tables)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_reallocate_root_table
@@ -161,7 +164,7 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
  *              kernel.
  *
  ******************************************************************************/
-acpi_status acpi_reallocate_root_table(void)
+acpi_status __init acpi_reallocate_root_table(void)
 {
 	acpi_status status;
 
@@ -180,6 +183,8 @@ acpi_status acpi_reallocate_root_table(void)
 	status = acpi_tb_resize_root_table_list();
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_reallocate_root_table)
 
 /*******************************************************************************
  *
@@ -201,8 +206,8 @@ acpi_status
 acpi_get_table_header(char *signature,
 		      u32 instance, struct acpi_table_header *out_table_header)
 {
-       u32 i;
-       u32 j;
+	u32 i;
+	u32 j;
 	struct acpi_table_header *header;
 
 	/* Parameter validation */
@@ -228,7 +233,7 @@ acpi_get_table_header(char *signature,
 		if (!acpi_gbl_root_table_list.tables[i].pointer) {
 			if ((acpi_gbl_root_table_list.tables[i].flags &
 			     ACPI_TABLE_ORIGIN_MASK) ==
-			    ACPI_TABLE_ORIGIN_MAPPED) {
+			    ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL) {
 				header =
 				    acpi_os_map_memory(acpi_gbl_root_table_list.
 						       tables[i].address,
@@ -305,9 +310,10 @@ ACPI_EXPORT_SYMBOL(acpi_unload_table_id)
  *              instance            - Which instance (for SSDTs)
  *              out_table           - Where the pointer to the table is returned
  *
- * RETURN:      Status and pointer to table
+ * RETURN:      Status and pointer to the requested table
  *
- * DESCRIPTION: Finds and verifies an ACPI table.
+ * DESCRIPTION: Finds and verifies an ACPI table. Table must be in the
+ *              RSDT/XSDT.
  *
  ******************************************************************************/
 acpi_status
@@ -315,8 +321,8 @@ acpi_get_table_with_size(char *signature,
 	       u32 instance, struct acpi_table_header **out_table,
 	       acpi_size *tbl_size)
 {
-       u32 i;
-       u32 j;
+	u32 i;
+	u32 j;
 	acpi_status status;
 
 	/* Parameter validation */
@@ -340,7 +346,7 @@ acpi_get_table_with_size(char *signature,
 		}
 
 		status =
-		    acpi_tb_verify_table(&acpi_gbl_root_table_list.tables[i]);
+		    acpi_tb_validate_table(&acpi_gbl_root_table_list.tables[i]);
 		if (ACPI_SUCCESS(status)) {
 			*out_table = acpi_gbl_root_table_list.tables[i].pointer;
 			*tbl_size = acpi_gbl_root_table_list.tables[i].length;
@@ -355,6 +361,7 @@ acpi_get_table_with_size(char *signature,
 
 	return (AE_NOT_FOUND);
 }
+
 ACPI_EXPORT_SYMBOL(acpi_get_table_with_size)
 
 acpi_status
@@ -366,6 +373,7 @@ acpi_get_table(char *signature,
 	return acpi_get_table_with_size(signature,
 		       instance, out_table, &tbl_size);
 }
+
 ACPI_EXPORT_SYMBOL(acpi_get_table)
 
 /*******************************************************************************
@@ -375,13 +383,14 @@ ACPI_EXPORT_SYMBOL(acpi_get_table)
  * PARAMETERS:  table_index         - Table index
  *              table               - Where the pointer to the table is returned
  *
- * RETURN:      Status and pointer to the table
+ * RETURN:      Status and pointer to the requested table
  *
- * DESCRIPTION: Obtain a table by an index into the global table list.
+ * DESCRIPTION: Obtain a table by an index into the global table list. Used
+ *              internally also.
  *
  ******************************************************************************/
 acpi_status
-acpi_get_table_by_index(u32 table_index, struct acpi_table_header **table)
+acpi_get_table_by_index(u32 table_index, struct acpi_table_header ** table)
 {
 	acpi_status status;
 
@@ -407,8 +416,8 @@ acpi_get_table_by_index(u32 table_index, struct acpi_table_header **table)
 		/* Table is not mapped, map it */
 
 		status =
-		    acpi_tb_verify_table(&acpi_gbl_root_table_list.
-					 tables[table_index]);
+		    acpi_tb_validate_table(&acpi_gbl_root_table_list.
+					   tables[table_index]);
 		if (ACPI_FAILURE(status)) {
 			(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 			return_ACPI_STATUS(status);
@@ -422,7 +431,6 @@ acpi_get_table_by_index(u32 table_index, struct acpi_table_header **table)
 
 ACPI_EXPORT_SYMBOL(acpi_get_table_by_index)
 
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_install_table_handler
@@ -432,7 +440,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_table_by_index)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Install table event handler
+ * DESCRIPTION: Install a global table event handler.
  *
  ******************************************************************************/
 acpi_status
@@ -463,7 +471,7 @@ acpi_install_table_handler(acpi_table_handler handler, void *context)
 	acpi_gbl_table_handler = handler;
 	acpi_gbl_table_handler_context = context;
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
@@ -479,7 +487,7 @@ ACPI_EXPORT_SYMBOL(acpi_install_table_handler)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Remove table event handler
+ * DESCRIPTION: Remove a table event handler
  *
  ******************************************************************************/
 acpi_status acpi_remove_table_handler(acpi_table_handler handler)
@@ -504,7 +512,7 @@ acpi_status acpi_remove_table_handler(acpi_table_handler handler)
 
 	acpi_gbl_table_handler = NULL;
 
-      cleanup:
+cleanup:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }

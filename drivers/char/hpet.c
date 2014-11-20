@@ -34,14 +34,11 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-
+#include <linux/acpi.h>
+#include <linux/hpet.h>
 #include <asm/current.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
-
-#include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <linux/hpet.h>
 
 /*
  * The High Precision Event Timer driver.
@@ -367,14 +364,28 @@ static unsigned int hpet_poll(struct file *file, poll_table * wait)
 	return 0;
 }
 
+#ifdef CONFIG_HPET_MMAP
+#ifdef CONFIG_HPET_MMAP_DEFAULT
+static int hpet_mmap_enabled = 1;
+#else
+static int hpet_mmap_enabled = 0;
+#endif
+
+static __init int hpet_mmap_enable(char *str)
+{
+	get_option(&str, &hpet_mmap_enabled);
+	pr_info("HPET mmap %s\n", hpet_mmap_enabled ? "enabled" : "disabled");
+	return 1;
+}
+__setup("hpet_mmap", hpet_mmap_enable);
+
 static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
 {
-#ifdef	CONFIG_HPET_MMAP
 	struct hpet_dev *devp;
 	unsigned long addr;
 
-	if (((vma->vm_end - vma->vm_start) != PAGE_SIZE) || vma->vm_pgoff)
-		return -EINVAL;
+	if (!hpet_mmap_enabled)
+		return -EACCES;
 
 	devp = file->private_data;
 	addr = devp->hd_hpets->hp_hpet_phys;
@@ -382,21 +393,15 @@ static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
 	if (addr & (PAGE_SIZE - 1))
 		return -ENOSYS;
 
-	vma->vm_flags |= VM_IO;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
-					PAGE_SIZE, vma->vm_page_prot)) {
-		printk(KERN_ERR "%s: io_remap_pfn_range failed\n",
-			__func__);
-		return -EAGAIN;
-	}
-
-	return 0;
-#else
-	return -ENOSYS;
-#endif
+	return vm_iomap_memory(vma, addr, PAGE_SIZE);
 }
+#else
+static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	return -ENOSYS;
+}
+#endif
 
 static int hpet_fasync(int fd, struct file *file, int on)
 {
@@ -498,8 +503,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 		}
 
 		sprintf(devp->hd_name, "hpet%d", (int)(devp - hpetp->hp_dev));
-		irq_flags = devp->hd_flags & HPET_SHARED_IRQ
-						? IRQF_SHARED : IRQF_DISABLED;
+		irq_flags = devp->hd_flags & HPET_SHARED_IRQ ? IRQF_SHARED : 0;
 		if (request_irq(irq, hpet_interrupt, irq_flags,
 				devp->hd_name, (void *)devp)) {
 			printk(KERN_ERR "hpet: IRQ %d is not free\n", irq);
@@ -737,7 +741,7 @@ static int hpet_is_known(struct hpet_data *hdp)
 	return 0;
 }
 
-static ctl_table hpet_table[] = {
+static struct ctl_table hpet_table[] = {
 	{
 	 .procname = "max-user-freq",
 	 .data = &hpet_max_freq,
@@ -748,7 +752,7 @@ static ctl_table hpet_table[] = {
 	{}
 };
 
-static ctl_table hpet_root[] = {
+static struct ctl_table hpet_root[] = {
 	{
 	 .procname = "hpet",
 	 .maxlen = 0,
@@ -758,7 +762,7 @@ static ctl_table hpet_root[] = {
 	{}
 };
 
-static ctl_table dev_root[] = {
+static struct ctl_table dev_root[] = {
 	{
 	 .procname = "dev",
 	 .maxlen = 0,
@@ -983,8 +987,6 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		struct acpi_resource_fixed_memory32 *fixmem32;
 
 		fixmem32 = &res->data.fixed_memory32;
-		if (!fixmem32)
-			return AE_NO_MEMORY;
 
 		hdp->hd_phys_address = fixmem32->address;
 		hdp->hd_address = ioremap(fixmem32->address,

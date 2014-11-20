@@ -1,6 +1,7 @@
 #ifndef __ASM_SH_SYSCALL_32_H
 #define __ASM_SH_SYSCALL_32_H
 
+#include <uapi/linux/audit.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/err.h>
@@ -93,4 +94,13 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	}
 }
 
+static inline int syscall_get_arch(void)
+{
+	int arch = AUDIT_ARCH_SH;
+
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+	arch |= __AUDIT_ARCH_LE;
+#endif
+	return arch;
+}
 #endif /* __ASM_SH_SYSCALL_32_H */

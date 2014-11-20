@@ -7,6 +7,7 @@
 #ifdef CONFIG_BLOCK
 
 struct io_cq;
+struct elevator_type;
 
 typedef int (elevator_merge_fn) (struct request_queue *, struct request **,
 				 struct bio *);
@@ -35,7 +36,8 @@ typedef void (elevator_put_req_fn) (struct request *);
 typedef void (elevator_activate_req_fn) (struct request_queue *, struct request *);
 typedef void (elevator_deactivate_req_fn) (struct request_queue *, struct request *);
 
-typedef int (elevator_init_fn) (struct request_queue *);
+typedef int (elevator_init_fn) (struct request_queue *,
+				struct elevator_type *e);
 typedef void (elevator_exit_fn) (struct elevator_queue *);
 
 struct elevator_ops
@@ -131,7 +133,6 @@ extern struct request *elv_latter_request(struct request_queue *, struct request
 extern int elv_register_queue(struct request_queue *q);
 extern void elv_unregister_queue(struct request_queue *q);
 extern int elv_may_queue(struct request_queue *, int);
-extern void elv_abort_queue(struct request_queue *);
 extern void elv_completed_request(struct request_queue *, struct request *);
 extern int elv_set_request(struct request_queue *q, struct request *rq,
 			   struct bio *bio, gfp_t gfp_mask);
@@ -155,6 +156,8 @@ extern int elevator_init(struct request_queue *, char *);
 extern void elevator_exit(struct elevator_queue *);
 extern int elevator_change(struct request_queue *, const char *);
 extern bool elv_rq_merge_ok(struct request *, struct bio *);
+extern struct elevator_queue *elevator_alloc(struct request_queue *,
+					struct elevator_type *);
 
 /*
  * Helper functions.
@@ -198,17 +201,8 @@ enum {
 #define rq_end_sector(rq)	(blk_rq_pos(rq) + blk_rq_sectors(rq))
 #define rb_entry_rq(node)	rb_entry((node), struct request, rb_node)
 
-/*
- * Hack to reuse the csd.list list_head as the fifo time holder while
- * the request is in the io scheduler. Saves an unsigned long in rq.
- */
-#define rq_fifo_time(rq)	((unsigned long) (rq)->csd.list.next)
-#define rq_set_fifo_time(rq,exp)	((rq)->csd.list.next = (void *) (exp))
 #define rq_entry_fifo(ptr)	list_entry((ptr), struct request, queuelist)
-#define rq_fifo_clear(rq)	do {		\
-	list_del_init(&(rq)->queuelist);	\
-	INIT_LIST_HEAD(&(rq)->csd.list);	\
-	} while (0)
+#define rq_fifo_clear(rq)	list_del_init(&(rq)->queuelist)
 
 #else /* CONFIG_BLOCK */
 

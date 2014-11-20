@@ -16,4 +16,8 @@ obj- := $(platform-)
 
 obj-y += kernel/
 obj-y += mm/
-obj-y += math-emu/
+obj-y += net/
+
+ifdef CONFIG_KVM
+obj-y += kvm/
+endif

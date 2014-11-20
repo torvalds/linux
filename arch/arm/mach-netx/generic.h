@@ -17,8 +17,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/reboot.h>
+
 extern void __init netx_map_io(void);
 extern void __init netx_init_irq(void);
-extern void netx_restart(char, const char *);
+extern void netx_restart(enum reboot_mode, const char *);
 
 extern void netx_timer_init(void);

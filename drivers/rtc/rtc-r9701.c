@@ -154,21 +154,18 @@ static int r9701_probe(struct spi_device *spi)
 		}
 	}
 
-	rtc = rtc_device_register("r9701",
-				&spi->dev, &r9701_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&spi->dev, "r9701",
+				&r9701_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	dev_set_drvdata(&spi->dev, rtc);
+	spi_set_drvdata(spi, rtc);
 
 	return 0;
 }
 
 static int r9701_remove(struct spi_device *spi)
 {
-	struct rtc_device *rtc = dev_get_drvdata(&spi->dev);
-
-	rtc_device_unregister(rtc);
 	return 0;
 }
 

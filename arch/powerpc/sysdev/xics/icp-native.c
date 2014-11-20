@@ -26,6 +26,7 @@
 #include <asm/errno.h>
 #include <asm/xics.h>
 #include <asm/kvm_ppc.h>
+#include <asm/dbell.h>
 
 struct icp_ipl {
 	union {
@@ -51,6 +52,12 @@ static struct icp_ipl __iomem *icp_native_regs[NR_CPUS];
 static inline unsigned int icp_native_get_xirr(void)
 {
 	int cpu = smp_processor_id();
+	unsigned int xirr;
+
+	/* Handled an interrupt latched by KVM */
+	xirr = kvmppc_get_xics_latch();
+	if (xirr)
+		return xirr;
 
 	return in_be32(&icp_native_regs[cpu]->xirr.word);
 }
@@ -81,7 +88,7 @@ static void icp_native_set_cpu_priority(unsigned char cppr)
 	iosync();
 }
 
-static void icp_native_eoi(struct irq_data *d)
+void icp_native_eoi(struct irq_data *d)
 {
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 
@@ -138,7 +145,39 @@ static unsigned int icp_native_get_irq(void)
 
 static void icp_native_cause_ipi(int cpu, unsigned long data)
 {
-	icp_native_set_qirr(cpu, IPI_PRIORITY);
+	kvmppc_set_host_ipi(cpu, 1);
+#ifdef CONFIG_PPC_DOORBELL
+	if (cpu_has_feature(CPU_FTR_DBELL) &&
+	    (cpumask_test_cpu(cpu, cpu_sibling_mask(smp_processor_id()))))
+		doorbell_cause_ipi(cpu, data);
+	else
+#endif
+		icp_native_set_qirr(cpu, IPI_PRIORITY);
+}
+
+/*
+ * Called when an interrupt is received on an off-line CPU to
+ * clear the interrupt, so that the CPU can go back to nap mode.
+ */
+void icp_native_flush_interrupt(void)
+{
+	unsigned int xirr = icp_native_get_xirr();
+	unsigned int vec = xirr & 0x00ffffff;
+
+	if (vec == XICS_IRQ_SPURIOUS)
+		return;
+	if (vec == XICS_IPI) {
+		/* Clear pending IPI */
+		int cpu = smp_processor_id();
+		kvmppc_set_host_ipi(cpu, 0);
+		icp_native_set_qirr(cpu, 0xff);
+	} else {
+		pr_err("XICS: hw interrupt 0x%x to offline cpu, disabling\n",
+		       vec);
+		xics_mask_unknown_vec(vec);
+	}
+	/* EOI the interrupt */
+	icp_native_set_xirr(xirr);
 }
 
 void xics_wake_cpu(int cpu)
@@ -151,6 +190,7 @@ static irqreturn_t icp_native_ipi_action(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
 
+	kvmppc_set_host_ipi(cpu, 0);
 	icp_native_set_qirr(cpu, 0xff);
 
 	return smp_ipi_demux();
@@ -208,7 +248,7 @@ static int __init icp_native_init_one_node(struct device_node *np,
 					   unsigned int *indx)
 {
 	unsigned int ilen;
-	const u32 *ireg;
+	const __be32 *ireg;
 	int i;
 	int reg_tuple_size;
 	int num_servers = 0;

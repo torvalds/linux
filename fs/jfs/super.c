@@ -44,19 +44,20 @@
 #include "jfs_imap.h"
 #include "jfs_acl.h"
 #include "jfs_debug.h"
+#include "jfs_xattr.h"
 
 MODULE_DESCRIPTION("The Journaled Filesystem (JFS)");
 MODULE_AUTHOR("Steve Best/Dave Kleikamp/Barry Arndt, IBM");
 MODULE_LICENSE("GPL");
 
-static struct kmem_cache * jfs_inode_cachep;
+static struct kmem_cache *jfs_inode_cachep;
 
 static const struct super_operations jfs_super_operations;
 static const struct export_operations jfs_export_operations;
 static struct file_system_type jfs_fs_type;
 
 #define MAX_COMMIT_THREADS 64
-static int commit_threads = 0;
+static int commit_threads;
 module_param(commit_threads, int, 0);
 MODULE_PARM_DESC(commit_threads, "Number of commit threads");
 
@@ -83,8 +84,7 @@ static void jfs_handle_error(struct super_block *sb)
 		panic("JFS (device %s): panic forced after error\n",
 			sb->s_id);
 	else if (sbi->flag & JFS_ERR_REMOUNT_RO) {
-		jfs_err("ERROR: (device %s): remounting filesystem "
-			"as read-only\n",
+		jfs_err("ERROR: (device %s): remounting filesystem as read-only\n",
 			sb->s_id);
 		sb->s_flags |= MS_RDONLY;
 	}
@@ -92,16 +92,20 @@ static void jfs_handle_error(struct super_block *sb)
 	/* nothing is done for continue beyond marking the superblock dirty */
 }
 
-void jfs_error(struct super_block *sb, const char * function, ...)
+void jfs_error(struct super_block *sb, const char *fmt, ...)
 {
-	static char error_buf[256];
+	struct va_format vaf;
 	va_list args;
 
-	va_start(args, function);
-	vsnprintf(error_buf, sizeof(error_buf), function, args);
-	va_end(args);
+	va_start(args, fmt);
 
-	pr_err("ERROR: (device %s): %s\n", sb->s_id, error_buf);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	pr_err("ERROR: (device %s): %pf: %pV\n",
+	       sb->s_id, __builtin_return_address(0), &vaf);
+
+	va_end(args);
 
 	jfs_handle_error(sb);
 }
@@ -268,7 +272,10 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		case Opt_resize:
 		{
 			char *resize = args[0].from;
-			*newLVSize = simple_strtoull(resize, &resize, 0);
+			int rc = kstrtoll(resize, 0, newLVSize);
+
+			if (rc)
+				goto cleanup;
 			break;
 		}
 		case Opt_resize_nosize:
@@ -322,7 +329,11 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		case Opt_uid:
 		{
 			char *uid = args[0].from;
-			uid_t val = simple_strtoul(uid, &uid, 0);
+			uid_t val;
+			int rc = kstrtouint(uid, 0, &val);
+
+			if (rc)
+				goto cleanup;
 			sbi->uid = make_kuid(current_user_ns(), val);
 			if (!uid_valid(sbi->uid))
 				goto cleanup;
@@ -332,7 +343,11 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		case Opt_gid:
 		{
 			char *gid = args[0].from;
-			gid_t val = simple_strtoul(gid, &gid, 0);
+			gid_t val;
+			int rc = kstrtouint(gid, 0, &val);
+
+			if (rc)
+				goto cleanup;
 			sbi->gid = make_kgid(current_user_ns(), val);
 			if (!gid_valid(sbi->gid))
 				goto cleanup;
@@ -342,7 +357,10 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		case Opt_umask:
 		{
 			char *umask = args[0].from;
-			sbi->umask = simple_strtoul(umask, &umask, 8);
+			int rc = kstrtouint(umask, 8, &sbi->umask);
+
+			if (rc)
+				goto cleanup;
 			if (sbi->umask & ~0777) {
 				pr_err("JFS: Invalid value of umask\n");
 				goto cleanup;
@@ -358,12 +376,10 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 			 * -> user has more control over the online trimming
 			 */
 			sbi->minblks_trim = 64;
-			if (blk_queue_discard(q)) {
+			if (blk_queue_discard(q))
 				*flag |= JFS_DISCARD;
-			} else {
-				pr_err("JFS: discard option " \
-					"not supported on device\n");
-			}
+			else
+				pr_err("JFS: discard option not supported on device\n");
 			break;
 		}
 
@@ -375,20 +391,21 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		{
 			struct request_queue *q = bdev_get_queue(sb->s_bdev);
 			char *minblks_trim = args[0].from;
+			int rc;
 			if (blk_queue_discard(q)) {
 				*flag |= JFS_DISCARD;
-				sbi->minblks_trim = simple_strtoull(
-					minblks_trim, &minblks_trim, 0);
-			} else {
-				pr_err("JFS: discard option " \
-					"not supported on device\n");
-			}
+				rc = kstrtouint(minblks_trim, 0,
+						&sbi->minblks_trim);
+				if (rc)
+					goto cleanup;
+			} else
+				pr_err("JFS: discard option not supported on device\n");
 			break;
 		}
 
 		default:
-			printk("jfs: Unrecognized mount option \"%s\" "
-					" or missing value\n", p);
+			printk("jfs: Unrecognized mount option \"%s\" or missing value\n",
+			       p);
 			goto cleanup;
 		}
 	}
@@ -413,14 +430,13 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 	int flag = JFS_SBI(sb)->flag;
 	int ret;
 
-	if (!parse_options(data, sb, &newLVSize, &flag)) {
+	sync_filesystem(sb);
+	if (!parse_options(data, sb, &newLVSize, &flag))
 		return -EINVAL;
-	}
 
 	if (newLVSize) {
 		if (sb->s_flags & MS_RDONLY) {
-			pr_err("JFS: resize requires volume" \
-				" to be mounted read-write\n");
+			pr_err("JFS: resize requires volume to be mounted read-write\n");
 			return -EROFS;
 		}
 		rc = jfs_extendfs(sb, newLVSize, 0);
@@ -446,9 +462,8 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 	}
 	if ((!(sb->s_flags & MS_RDONLY)) && (*flags & MS_RDONLY)) {
 		rc = dquot_suspend(sb, -1);
-		if (rc < 0) {
+		if (rc < 0)
 			return rc;
-		}
 		rc = jfs_umount_rw(sb);
 		JFS_SBI(sb)->flag = flag;
 		return rc;
@@ -481,7 +496,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!new_valid_dev(sb->s_bdev->bd_dev))
 		return -EOVERFLOW;
 
-	sbi = kzalloc(sizeof (struct jfs_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct jfs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 
@@ -518,6 +533,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	sb->s_op = &jfs_super_operations;
 	sb->s_export_op = &jfs_export_operations;
+	sb->s_xattr = jfs_xattr_handlers;
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &dquot_operations;
 	sb->s_qcop = &dquot_quotactl_ops;
@@ -534,16 +550,15 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	inode->i_ino = 0;
 	inode->i_size = sb->s_bdev->bd_inode->i_size;
 	inode->i_mapping->a_ops = &jfs_metapage_aops;
-	insert_inode_hash(inode);
+	hlist_add_fake(&inode->i_hash);
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
 
 	sbi->direct_inode = inode;
 
 	rc = jfs_mount(sb);
 	if (rc) {
-		if (!silent) {
+		if (!silent)
 			jfs_err("jfs_mount failed w/return code = %d", rc);
-		}
 		goto out_mount_failed;
 	}
 	if (sb->s_flags & MS_RDONLY)
@@ -580,7 +595,8 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	 * Page cache is indexed by long.
 	 * I would use MAX_LFS_FILESIZE, but it's only half as big
 	 */
-	sb->s_maxbytes = min(((u64) PAGE_CACHE_SIZE << 32) - 1, (u64)sb->s_maxbytes);
+	sb->s_maxbytes = min(((u64) PAGE_CACHE_SIZE << 32) - 1,
+			     (u64)sb->s_maxbytes);
 #endif
 	sb->s_time_gran = 1;
 	return 0;
@@ -590,9 +606,8 @@ out_no_root:
 
 out_no_rw:
 	rc = jfs_umount(sb);
-	if (rc) {
+	if (rc)
 		jfs_err("jfs_umount failed with return code %d", rc);
-	}
 out_mount_failed:
 	filemap_write_and_wait(sbi->direct_inode->i_mapping);
 	truncate_inode_pages(sbi->direct_inode->i_mapping, 0);
@@ -611,11 +626,28 @@ static int jfs_freeze(struct super_block *sb)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(sb);
 	struct jfs_log *log = sbi->log;
+	int rc = 0;
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		txQuiesce(sb);
-		lmLogShutdown(log);
-		updateSuper(sb, FM_CLEAN);
+		rc = lmLogShutdown(log);
+		if (rc) {
+			jfs_error(sb, "lmLogShutdown failed\n");
+
+			/* let operations fail rather than hang */
+			txResume(sb);
+
+			return rc;
+		}
+		rc = updateSuper(sb, FM_CLEAN);
+		if (rc) {
+			jfs_err("jfs_freeze: updateSuper failed\n");
+			/*
+			 * Don't fail here. Everything succeeded except
+			 * marking the superblock clean, so there's really
+			 * no harm in leaving it frozen for now.
+			 */
+		}
 	}
 	return 0;
 }
@@ -627,13 +659,18 @@ static int jfs_unfreeze(struct super_block *sb)
 	int rc = 0;
 
 	if (!(sb->s_flags & MS_RDONLY)) {
-		updateSuper(sb, FM_MOUNT);
-		if ((rc = lmLogInit(log)))
-			jfs_err("jfs_unlock failed with return code %d", rc);
-		else
-			txResume(sb);
+		rc = updateSuper(sb, FM_MOUNT);
+		if (rc) {
+			jfs_error(sb, "updateSuper failed\n");
+			goto out;
+		}
+		rc = lmLogInit(log);
+		if (rc)
+			jfs_error(sb, "lmLogInit failed\n");
+out:
+		txResume(sb);
 	}
-	return 0;
+	return rc;
 }
 
 static struct dentry *jfs_do_mount(struct file_system_type *fs_type,
@@ -895,7 +932,8 @@ static int __init init_jfs_fs(void)
 		commit_threads = MAX_COMMIT_THREADS;
 
 	for (i = 0; i < commit_threads; i++) {
-		jfsCommitThread[i] = kthread_run(jfs_lazycommit, NULL, "jfsCommit");
+		jfsCommitThread[i] = kthread_run(jfs_lazycommit, NULL,
+						 "jfsCommit");
 		if (IS_ERR(jfsCommitThread[i])) {
 			rc = PTR_ERR(jfsCommitThread[i]);
 			jfs_err("init_jfs_fs: fork failed w/rc = %d", rc);

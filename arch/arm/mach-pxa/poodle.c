@@ -29,6 +29,7 @@
 #include <linux/spi/ads7846.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
+#include <linux/memblock.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -258,7 +259,7 @@ err_free_2:
 	return err;
 }
 
-static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
+static int poodle_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
@@ -270,6 +271,8 @@ static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
 		gpio_set_value(POODLE_GPIO_SD_PWR1, 0);
 		gpio_set_value(POODLE_GPIO_SD_PWR, 0);
 	}
+
+	return 0;
 }
 
 static void poodle_mci_exit(struct device *dev, void *data)
@@ -422,7 +425,7 @@ static struct i2c_board_info __initdata poodle_i2c_devices[] = {
 
 static void poodle_poweroff(void)
 {
-	pxa_restart('h', NULL);
+	pxa_restart(REBOOT_HARD, NULL);
 }
 
 static void __init poodle_init(void)
@@ -454,13 +457,10 @@ static void __init poodle_init(void)
 	poodle_init_spi();
 }
 
-static void __init fixup_poodle(struct tag *tags, char **cmdline,
-				struct meminfo *mi)
+static void __init fixup_poodle(struct tag *tags, char **cmdline)
 {
 	sharpsl_save_param();
-	mi->nr_banks=1;
-	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].size = (32*1024*1024);
+	memblock_add(0xa0000000, SZ_32M);
 }
 
 MACHINE_START(POODLE, "SHARP Poodle")

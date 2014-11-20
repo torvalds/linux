@@ -23,11 +23,11 @@ static int vmic_probe(struct pci_dev *, const struct pci_device_id *);
 static void vmic_remove(struct pci_dev *);
 
 /** Base address to access FPGA register */
-static void *vmic_base;
+static void __iomem *vmic_base;
 
 static const char driver_name[] = "vmivme_7805";
 
-static DEFINE_PCI_DEVICE_TABLE(vmic_ids) = {
+static const struct pci_device_id vmic_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VMIC, PCI_DEVICE_ID_VTIMR) },
 	{ },
 };

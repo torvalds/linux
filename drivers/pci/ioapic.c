@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <acpi/acpi_bus.h>
 
 struct ioapic {
 	acpi_handle	handle;
@@ -37,7 +36,7 @@ static int ioapic_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	char *type;
 	struct resource *res;
 
-	handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	handle = ACPI_HANDLE(&dev->dev);
 	if (!handle)
 		return -EINVAL;
 
@@ -99,7 +98,7 @@ static void ioapic_remove(struct pci_dev *dev)
 }
 
 
-static DEFINE_PCI_DEVICE_TABLE(ioapic_devices) = {
+static const struct pci_device_id ioapic_devices[] = {
 	{ PCI_DEVICE_CLASS(PCI_CLASS_SYSTEM_PIC_IOAPIC, ~0) },
 	{ PCI_DEVICE_CLASS(PCI_CLASS_SYSTEM_PIC_IOXAPIC, ~0) },
 	{ }
@@ -117,13 +116,6 @@ static int __init ioapic_init(void)
 {
 	return pci_register_driver(&ioapic_driver);
 }
-
-static void __exit ioapic_exit(void)
-{
-	pci_unregister_driver(&ioapic_driver);
-}
-
 module_init(ioapic_init);
-module_exit(ioapic_exit);
 
 MODULE_LICENSE("GPL");

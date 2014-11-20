@@ -211,7 +211,6 @@ union octeon_cvmemctl {
 
 extern void octeon_write_lcd(const char *s);
 extern void octeon_check_cpu_bist(void);
-extern int octeon_get_boot_debug_flag(void);
 extern int octeon_get_boot_uart(void);
 
 struct uart_port;
@@ -250,5 +249,7 @@ extern void (*octeon_irq_setup_secondary)(void);
 
 typedef void (*octeon_irq_ip4_handler_t)(void);
 void octeon_irq_set_ip4_handler(octeon_irq_ip4_handler_t);
+
+extern void octeon_fixup_irqs(void);
 
 #endif /* __ASM_OCTEON_OCTEON_H */

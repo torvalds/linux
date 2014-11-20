@@ -815,7 +815,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 }
 
 static int vidioc_s_frequency (struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct cx8802_fh  *fh   = priv;
 	struct cx8802_dev *dev  = fh->dev;
@@ -918,7 +918,7 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner (struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
 
@@ -939,12 +939,12 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvnorm)
 	return 0;
 }
 
-static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
 
 	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core,*id);
+	cx88_set_tvnorm(core, id);
 	mutex_unlock(&core->lock);
 	return 0;
 }

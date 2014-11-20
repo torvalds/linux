@@ -563,6 +563,15 @@ ENDPROC(copy_page_asm)
  *          %r23 physical page (shifted for tlb insert) of "from" translation
  */
 
+        /* Drop prot bits and convert to page addr for iitlbt and idtlbt */
+        #define PAGE_ADD_SHIFT  (PAGE_SHIFT-12)
+        .macro          convert_phys_for_tlb_insert20  phys
+        extrd,u         \phys, 56-PAGE_ADD_SHIFT, 32-PAGE_ADD_SHIFT, \phys
+#if _PAGE_SIZE_ENCODING_DEFAULT
+        depdi           _PAGE_SIZE_ENCODING_DEFAULT, 63, (63-58), \phys
+#endif
+	.endm
+
 	/*
 	 * We can't do this since copy_user_page is used to bring in
 	 * file data that might have instructions. Since the data would
@@ -589,22 +598,21 @@ ENTRY(copy_user_page_asm)
 	sub		%r25, %r1, %r23
 
 	ldil		L%(TMPALIAS_MAP_START), %r28
-	/* FIXME for different page sizes != 4k */
 #ifdef CONFIG_64BIT
 #if (TMPALIAS_MAP_START >= 0x80000000)
 	depdi		0, 31,32, %r28		/* clear any sign extension */
 #endif
-	extrd,u		%r26,56,32, %r26	/* convert phys addr to tlb insert format */
-	extrd,u		%r23,56,32, %r23	/* convert phys addr to tlb insert format */
+	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
+	convert_phys_for_tlb_insert20 %r23	/* convert phys addr to tlb insert format */
 	depd		%r24,63,22, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,12, %r28		/* Clear any offset bits */
+	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
 	copy		%r28, %r29
 	depdi		1, 41,1, %r29		/* Form aliased virtual address 'from' */
 #else
 	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
 	extrw,u		%r23, 24,25, %r23	/* convert phys addr to tlb insert format */
 	depw		%r24, 31,22, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,12, %r28		/* Clear any offset bits */
+	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
 	copy		%r28, %r29
 	depwi		1, 9,1, %r29		/* Form aliased virtual address 'from' */
 #endif
@@ -747,15 +755,14 @@ ENTRY(clear_user_page_asm)
 #ifdef CONFIG_64BIT
 #if (TMPALIAS_MAP_START >= 0x80000000)
 	depdi		0, 31,32, %r28		/* clear any sign extension */
-	/* FIXME: page size dependend */
 #endif
-	extrd,u		%r26, 56,32, %r26	/* convert phys addr to tlb insert format */
+	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
 	depd		%r25, 63,22, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,12, %r28		/* Clear any offset bits */
+	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #else
 	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
 	depw		%r25, 31,22, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,12, %r28		/* Clear any offset bits */
+	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #endif
 
 	/* Purge any old translation */
@@ -832,15 +839,14 @@ ENTRY(flush_dcache_page_asm)
 #ifdef CONFIG_64BIT
 #if (TMPALIAS_MAP_START >= 0x80000000)
 	depdi		0, 31,32, %r28		/* clear any sign extension */
-	/* FIXME: page size dependend */
 #endif
-	extrd,u		%r26, 56,32, %r26	/* convert phys addr to tlb insert format */
+	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
 	depd		%r25, 63,22, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,12, %r28		/* Clear any offset bits */
+	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #else
 	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
 	depw		%r25, 31,22, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,12, %r28		/* Clear any offset bits */
+	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #endif
 
 	/* Purge any old translation */
@@ -854,7 +860,7 @@ ENTRY(flush_dcache_page_asm)
 #endif
 
 	ldil		L%dcache_stride, %r1
-	ldw		R%dcache_stride(%r1), %r1
+	ldw		R%dcache_stride(%r1), r31
 
 #ifdef CONFIG_64BIT
 	depdi,z		1, 63-PAGE_SHIFT,1, %r25
@@ -862,26 +868,26 @@ ENTRY(flush_dcache_page_asm)
 	depwi,z		1, 31-PAGE_SHIFT,1, %r25
 #endif
 	add		%r28, %r25, %r25
-	sub		%r25, %r1, %r25
+	sub		%r25, r31, %r25
 
 
-1:      fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
-	fdc,m		%r1(%r28)
+1:      fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
+	fdc,m		r31(%r28)
 	cmpb,COND(<<)		%r28, %r25,1b
-	fdc,m		%r1(%r28)
+	fdc,m		r31(%r28)
 
 	sync
 
@@ -909,15 +915,14 @@ ENTRY(flush_icache_page_asm)
 #ifdef CONFIG_64BIT
 #if (TMPALIAS_MAP_START >= 0x80000000)
 	depdi		0, 31,32, %r28		/* clear any sign extension */
-	/* FIXME: page size dependend */
 #endif
-	extrd,u		%r26, 56,32, %r26	/* convert phys addr to tlb insert format */
+	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
 	depd		%r25, 63,22, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,12, %r28		/* Clear any offset bits */
+	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #else
 	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
 	depw		%r25, 31,22, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,12, %r28		/* Clear any offset bits */
+	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #endif
 
 	/* Purge any old translation */
@@ -931,7 +936,7 @@ ENTRY(flush_icache_page_asm)
 #endif
 
 	ldil		L%icache_stride, %r1
-	ldw		R%icache_stride(%r1), %r1
+	ldw		R%icache_stride(%r1), %r31
 
 #ifdef CONFIG_64BIT
 	depdi,z		1, 63-PAGE_SHIFT,1, %r25
@@ -939,28 +944,28 @@ ENTRY(flush_icache_page_asm)
 	depwi,z		1, 31-PAGE_SHIFT,1, %r25
 #endif
 	add		%r28, %r25, %r25
-	sub		%r25, %r1, %r25
+	sub		%r25, %r31, %r25
 
 
 	/* fic only has the type 26 form on PA1.1, requiring an
 	 * explicit space specification, so use %sr4 */
-1:      fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	fic,m		%r1(%sr4,%r28)
-	cmpb,COND(<<)		%r28, %r25,1b
-	fic,m		%r1(%sr4,%r28)
+1:      fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	fic,m		%r31(%sr4,%r28)
+	cmpb,COND(<<)	%r28, %r25,1b
+	fic,m		%r31(%sr4,%r28)
 
 	sync
 

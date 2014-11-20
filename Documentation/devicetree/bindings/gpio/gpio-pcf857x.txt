@@ -1,0 +1,71 @@
+* PCF857x-compatible I/O expanders
+
+The PCF857x-compatible chips have "quasi-bidirectional" I/O lines that can be
+driven high by a pull-up current source or driven low to ground. This combines
+the direction and output level into a single bit per line, which can't be read
+back. We can't actually know at initialization time whether a line is configured
+(a) as output and driving the signal low/high, or (b) as input and reporting a
+low/high value, without knowing the last value written since the chip came out
+of reset (if any). The only reliable solution for setting up line direction is
+thus to do it explicitly.
+
+Required Properties:
+
+  - compatible: should be one of the following.
+    - "maxim,max7328": For the Maxim MAX7378
+    - "maxim,max7329": For the Maxim MAX7329
+    - "nxp,pca8574": For the NXP PCA8574
+    - "nxp,pca8575": For the NXP PCA8575
+    - "nxp,pca9670": For the NXP PCA9670
+    - "nxp,pca9671": For the NXP PCA9671
+    - "nxp,pca9672": For the NXP PCA9672
+    - "nxp,pca9673": For the NXP PCA9673
+    - "nxp,pca9674": For the NXP PCA9674
+    - "nxp,pca9675": For the NXP PCA9675
+    - "nxp,pcf8574": For the NXP PCF8574
+    - "nxp,pcf8574a": For the NXP PCF8574A
+    - "nxp,pcf8575": For the NXP PCF8575
+    - "ti,tca9554": For the TI TCA9554
+
+  - reg: I2C slave address.
+
+  - gpio-controller: Marks the device node as a gpio controller.
+  - #gpio-cells: Should be 2. The first cell is the GPIO number and the second
+    cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>. Only the
+    GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
+
+Optional Properties:
+
+  - lines-initial-states: Bitmask that specifies the initial state of each
+  line. When a bit is set to zero, the corresponding line will be initialized to
+  the input (pulled-up) state. When the  bit is set to one, the line will be
+  initialized the the low-level output state. If the property is not specified
+  all lines will be initialized to the input state.
+
+  The I/O expander can detect input state changes, and thus optionally act as
+  an interrupt controller. When the expander interrupt line is connected all the
+  following properties must be set. For more information please see the
+  interrupt controller device tree bindings documentation available at
+  Documentation/devicetree/bindings/interrupt-controller/interrupts.txt.
+
+  - interrupt-controller: Identifies the node as an interrupt controller.
+  - #interrupt-cells: Number of cells to encode an interrupt source, shall be 2.
+  - interrupt-parent: phandle of the parent interrupt controller.
+  - interrupts: Interrupt specifier for the controllers interrupt.
+
+
+Please refer to gpio.txt in this directory for details of the common GPIO
+bindings used by client devices.
+
+Example: PCF8575 I/O expander node
+
+	pcf8575: gpio@20 {
+		compatible = "nxp,pcf8575";
+		reg = <0x20>;
+		interrupt-parent = <&irqpin2>;
+		interrupts = <3 0>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};

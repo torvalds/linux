@@ -49,6 +49,7 @@ extern void tsc_init(void);
 extern void mark_tsc_unstable(char *reason);
 extern int unsynchronized_tsc(void);
 extern int check_tsc_unstable(void);
+extern int check_tsc_disabled(void);
 extern unsigned long native_calibrate_tsc(void);
 
 extern int tsc_clocksource_reliable;
@@ -63,5 +64,8 @@ extern void check_tsc_sync_target(void);
 extern int notsc_setup(char *);
 extern void tsc_save_sched_clock_state(void);
 extern void tsc_restore_sched_clock_state(void);
+
+/* MSR based TSC calibration for Intel Atom SoC platforms */
+unsigned long try_msr_calibrate_tsc(void);
 
 #endif /* _ASM_X86_TSC_H */

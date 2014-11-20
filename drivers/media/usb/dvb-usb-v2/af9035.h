@@ -30,6 +30,9 @@
 #include "mxl5007t.h"
 #include "tda18218.h"
 #include "fc2580.h"
+#include "it913x.h"
+#include "si2168.h"
+#include "si2157.h"
 
 struct reg_val {
 	u32 reg;
@@ -52,12 +55,23 @@ struct usb_req {
 };
 
 struct state {
+#define BUF_LEN 64
+	u8 buf[BUF_LEN];
 	u8 seq; /* packet sequence number */
-	bool dual_mode;
+	u8 prechip_version;
+	u8 chip_version;
+	u16 chip_type;
+	u8 dual_mode:1;
+	u16 eeprom_addr;
+	u8 af9033_i2c_addr[2];
 	struct af9033_config af9033_config[2];
+	struct af9033_ops ops;
+	#define AF9035_I2C_CLIENT_MAX 4
+	struct i2c_client *i2c_client[AF9035_I2C_CLIENT_MAX];
+	struct i2c_adapter *i2c_adapter_demod;
 };
 
-u32 clock_lut[] = {
+static const u32 clock_lut_af9035[] = {
 	20480000, /*      FPGA */
 	16384000, /* 16.38 MHz */
 	20480000, /* 20.48 MHz */
@@ -72,7 +86,7 @@ u32 clock_lut[] = {
 	12000000, /* 12.00 MHz */
 };
 
-u32 clock_lut_it9135[] = {
+static const u32 clock_lut_it9135[] = {
 	12000000, /* 12.00 MHz */
 	20480000, /* 20.48 MHz */
 	36000000, /* 36.00 MHz */
@@ -86,19 +100,37 @@ u32 clock_lut_it9135[] = {
 };
 
 #define AF9035_FIRMWARE_AF9035 "dvb-usb-af9035-02.fw"
-#define AF9035_FIRMWARE_IT9135 "dvb-usb-it9135-01.fw"
+#define AF9035_FIRMWARE_IT9135_V1 "dvb-usb-it9135-01.fw"
+#define AF9035_FIRMWARE_IT9135_V2 "dvb-usb-it9135-02.fw"
+#define AF9035_FIRMWARE_IT9303 "dvb-usb-it9303-01.fw"
 
-/* EEPROM locations */
-#define EEPROM_IR_MODE            0x430d
-#define EEPROM_DUAL_MODE          0x4326
-#define EEPROM_2ND_DEMOD_ADDR     0x4327
-#define EEPROM_IR_TYPE            0x4329
-#define EEPROM_1_IFFREQ_L         0x432d
-#define EEPROM_1_IFFREQ_H         0x432e
-#define EEPROM_1_TUNER_ID         0x4331
-#define EEPROM_2_IFFREQ_L         0x433d
-#define EEPROM_2_IFFREQ_H         0x433e
-#define EEPROM_2_TUNER_ID         0x4341
+/*
+ * eeprom is memory mapped as read only. Writing that memory mapped address
+ * will not corrupt eeprom.
+ *
+ * TS mode:
+ * 0  TS
+ * 1  DCA + PIP
+ * 3  PIP
+ * n  DCA
+ *
+ * Values 0 and 3 are seen to this day. 0 for single TS and 3 for dual TS.
+ */
+
+#define EEPROM_BASE_AF9035        0x42fd
+#define EEPROM_BASE_IT9135        0x499c
+#define EEPROM_SHIFT                0x10
+
+#define EEPROM_IR_MODE              0x10
+#define EEPROM_TS_MODE              0x29
+#define EEPROM_2ND_DEMOD_ADDR       0x2a
+#define EEPROM_IR_TYPE              0x2c
+#define EEPROM_1_IF_L               0x30
+#define EEPROM_1_IF_H               0x31
+#define EEPROM_1_TUNER_ID           0x34
+#define EEPROM_2_IF_L               0x40
+#define EEPROM_2_IF_H               0x41
+#define EEPROM_2_TUNER_ID           0x44
 
 /* USB commands */
 #define CMD_MEM_RD                  0x00
@@ -112,5 +144,7 @@ u32 clock_lut_it9135[] = {
 #define CMD_FW_DL_BEGIN             0x24
 #define CMD_FW_DL_END               0x25
 #define CMD_FW_SCATTER_WR           0x29
+#define CMD_GENERIC_I2C_RD          0x2a
+#define CMD_GENERIC_I2C_WR          0x2b
 
 #endif

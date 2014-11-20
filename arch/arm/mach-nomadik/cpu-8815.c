@@ -25,20 +25,12 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
-#include <linux/irqchip.h>
-#include <linux/platform_data/clk-nomadik.h>
-#include <linux/platform_data/pinctrl-nomadik.h>
-#include <linux/pinctrl/machine.h>
-#include <linux/platform_data/clocksource-nomadik-mtu.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/mtd/fsmc.h>
 #include <linux/gpio.h>
-#include <linux/amba/mmci.h>
 
-#include <mach/irqs.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -92,48 +84,6 @@
 #define NOMADIK_L2CC_BASE	0x10210000	/* L2 Cache controller */
 #define NOMADIK_UART1_VBASE	0xF01FB000
 
-static unsigned long out_low[] = { PIN_OUTPUT_LOW };
-static unsigned long out_high[] = { PIN_OUTPUT_HIGH };
-static unsigned long in_nopull[] = { PIN_INPUT_NOPULL };
-static unsigned long in_pullup[] = { PIN_INPUT_PULLUP };
-
-static struct pinctrl_map __initdata nhk8815_pinmap[] = {
-	PIN_MAP_MUX_GROUP_DEFAULT("uart0", "pinctrl-stn8815", "u0_a_1", "u0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("uart1", "pinctrl-stn8815", "u1_a_1", "u1"),
-	/* Hog in MMC/SD card mux */
-	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-stn8815", "mmcsd_a_1", "mmcsd"),
-	/* MCCLK */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO8_B10", out_low),
-	/* MCCMD */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO9_A10", in_pullup),
-	/* MCCMDDIR */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO10_C11", out_high),
-	/* MCDAT3-0 */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO11_B11", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO12_A11", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO13_C12", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO14_B12", in_pullup),
-	/* MCDAT0DIR */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO15_A12", out_high),
-	/* MCDAT31DIR */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO16_C13", out_high),
-	/* MCMSFBCLK */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO24_C15", in_pullup),
-	/* CD input GPIO */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO111_H21", in_nopull),
-	/* CD bias drive */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO112_J21", out_low),
-	/* I2C0 */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO62_D3", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO63_D2", in_pullup),
-	/* I2C1 */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO53_L4", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO54_L3", in_pullup),
-	/* I2C2 */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO73_C21", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO74_C20", in_pullup),
-};
-
 /* This is needed for LL-debug/earlyprintk/debug-macro.S */
 static struct map_desc cpu8815_io_desc[] __initdata = {
 	{
@@ -149,7 +99,7 @@ static void __init cpu8815_map_io(void)
 	iotable_init(cpu8815_io_desc, ARRAY_SIZE(cpu8815_io_desc));
 }
 
-static void cpu8815_restart(char mode, const char *cmd)
+static void cpu8815_restart(enum reboot_mode mode, const char *cmd)
 {
 	void __iomem *srcbase = ioremap(NOMADIK_SRC_BASE, SZ_4K);
 
@@ -158,91 +108,6 @@ static void cpu8815_restart(char mode, const char *cmd)
 	/* Write anything to Reset status register */
 	writel(1, srcbase + 0x18);
 }
-
-/* Initial value for SRC control register: all timers use MXTAL/8 source */
-#define SRC_CR_INIT_MASK	0x00007fff
-#define SRC_CR_INIT_VAL		0x2aaa8000
-
-static void __init cpu8815_timer_init_of(void)
-{
-	struct device_node *mtu;
-	void __iomem *base;
-	int irq;
-	u32 src_cr;
-
-	/* We need this to be up now */
-	nomadik_clk_init();
-
-	mtu = of_find_node_by_path("/mtu0");
-	if (!mtu)
-		return;
-	base = of_iomap(mtu, 0);
-	if (WARN_ON(!base))
-		return;
-	irq = irq_of_parse_and_map(mtu, 0);
-
-	pr_info("Remapped MTU @ %p, irq: %d\n", base, irq);
-
-	/* Configure timer sources in "system reset controller" ctrl reg */
-	src_cr = readl(base);
-	src_cr &= SRC_CR_INIT_MASK;
-	src_cr |= SRC_CR_INIT_VAL;
-	writel(src_cr, base);
-
-	nmdk_timer_init(base, irq);
-}
-
-static struct fsmc_nand_timings cpu8815_nand_timings = {
-	.thiz	= 0,
-	.thold	= 0x10,
-	.twait	= 0x0A,
-	.tset	= 0,
-};
-
-static struct fsmc_nand_platform_data cpu8815_nand_data = {
-	.nand_timings = &cpu8815_nand_timings,
-};
-
-/*
- * The SMSC911x IRQ is connected to a GPIO pin, but the driver expects
- * to simply request an IRQ passed as a resource. So the GPIO pin needs
- * to be requested by this hog and set as input.
- */
-static int __init cpu8815_eth_init(void)
-{
-	struct device_node *eth;
-	int gpio, irq, err;
-
-	eth = of_find_node_by_path("/usb-s8815/ethernet-gpio");
-	if (!eth) {
-		pr_info("could not find any ethernet GPIO\n");
-		return 0;
-	}
-	gpio = of_get_gpio(eth, 0);
-	err = gpio_request(gpio, "eth_irq");
-	if (err) {
-		pr_info("failed to request ethernet GPIO\n");
-		return -ENODEV;
-	}
-	err = gpio_direction_input(gpio);
-	if (err) {
-		pr_info("failed to set ethernet GPIO as input\n");
-		return -ENODEV;
-	}
-	irq = gpio_to_irq(gpio);
-	pr_info("enabled USB-S8815 ethernet GPIO %d, IRQ %d\n", gpio, irq);
-	return 0;
-}
-device_initcall(cpu8815_eth_init);
-
-/*
- * TODO:
- * cannot be set from device tree, convert to a proper DT
- * binding.
- */
-static struct mmci_platform_data mmcsd_plat_data = {
-	.ocr_mask = MMC_VDD_29_30,
-};
 
 /*
  * This GPIO pin turns on a line that is used to detect card insertion
@@ -278,55 +143,16 @@ static int __init cpu8815_mmcsd_init(void)
 }
 device_initcall(cpu8815_mmcsd_init);
 
-
-/* These are mostly to get the right device names for the clock lookups */
-static struct of_dev_auxdata cpu8815_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO0_BASE,
-		"gpio.0", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO1_BASE,
-		"gpio.1", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO2_BASE,
-		"gpio.2", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO3_BASE,
-		"gpio.3", NULL),
-	OF_DEV_AUXDATA("stericsson,nmk-pinctrl-stn8815", 0,
-		"pinctrl-stn8815", NULL),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_UART0_BASE,
-		"uart0", NULL),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_UART1_BASE,
-		"uart1", NULL),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_RNG_BASE,
-		"rng", NULL),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_RTC_BASE,
-		"rtc-pl031", NULL),
-	OF_DEV_AUXDATA("stericsson,fsmc-nand", NOMADIK_FSMC_BASE,
-		"fsmc-nand", &cpu8815_nand_data),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_SDI_BASE,
-		"mmci", &mmcsd_plat_data),
-	{ /* sentinel */ },
-};
-
-static void __init cpu8815_init_of(void)
-{
-#ifdef CONFIG_CACHE_L2X0
-	/* At full speed latency must be >=2, so 0x249 in low bits */
-	l2x0_of_init(0x00730249, 0xfe000fff);
-#endif
-	pinctrl_register_mappings(nhk8815_pinmap, ARRAY_SIZE(nhk8815_pinmap));
-	of_platform_populate(NULL, of_default_bus_match_table,
-			cpu8815_auxdata_lookup, NULL);
-}
-
 static const char * cpu8815_board_compat[] = {
 	"calaosystems,usb-s8815",
 	NULL,
 };
 
 DT_MACHINE_START(NOMADIK_DT, "Nomadik STn8815")
+	/* At full speed latency must be >=2, so 0x249 in low bits */
+	.l2c_aux_val	= 0x00700249,
+	.l2c_aux_mask	= 0xfe0fefff,
 	.map_io		= cpu8815_map_io,
-	.init_irq	= irqchip_init,
-	.init_time	= cpu8815_timer_init_of,
-	.init_machine	= cpu8815_init_of,
 	.restart	= cpu8815_restart,
 	.dt_compat      = cpu8815_board_compat,
 MACHINE_END

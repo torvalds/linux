@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -106,6 +106,7 @@ void lpfc_cleanup_discovery_resources(struct lpfc_vport *);
 void lpfc_cleanup(struct lpfc_vport *);
 void lpfc_disc_timeout(unsigned long);
 
+int lpfc_unregister_fcf_prep(struct lpfc_hba *);
 struct lpfc_nodelist *__lpfc_findnode_rpi(struct lpfc_vport *, uint16_t);
 struct lpfc_nodelist *lpfc_findnode_rpi(struct lpfc_vport *, uint16_t);
 void lpfc_worker_wake_up(struct lpfc_hba *);
@@ -186,6 +187,11 @@ void lpfc_offline_prep(struct lpfc_hba *, int);
 void lpfc_offline(struct lpfc_hba *);
 void lpfc_reset_hba(struct lpfc_hba *);
 
+int lpfc_fof_queue_create(struct lpfc_hba *);
+int lpfc_fof_queue_setup(struct lpfc_hba *);
+int lpfc_fof_queue_destroy(struct lpfc_hba *);
+irqreturn_t lpfc_sli4_fof_intr_handler(int, void *);
+
 int lpfc_sli_setup(struct lpfc_hba *);
 int lpfc_sli_queue_setup(struct lpfc_hba *);
 
@@ -241,6 +247,7 @@ int lpfc_sli4_fcf_rr_next_proc(struct lpfc_vport *, uint16_t);
 void lpfc_sli4_clear_fcf_rr_bmask(struct lpfc_hba *);
 
 int lpfc_mem_alloc(struct lpfc_hba *, int align);
+int lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *);
 void lpfc_mem_free(struct lpfc_hba *);
 void lpfc_mem_free_all(struct lpfc_hba *);
 void lpfc_stop_vport_timers(struct lpfc_vport *);
@@ -282,6 +289,7 @@ int lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
 void lpfc_sli_pcimem_bcopy(void *, void *, uint32_t);
 void lpfc_sli_bemem_bcopy(void *, void *, uint32_t);
 void lpfc_sli_abort_iocb_ring(struct lpfc_hba *, struct lpfc_sli_ring *);
+void lpfc_sli_abort_fcp_rings(struct lpfc_hba *phba);
 void lpfc_sli_hba_iocb_abort(struct lpfc_hba *);
 void lpfc_sli_flush_fcp_rings(struct lpfc_hba *);
 int lpfc_sli_ringpostbuf_put(struct lpfc_hba *, struct lpfc_sli_ring *,
@@ -303,6 +311,9 @@ int lpfc_sli_issue_abort_iotag(struct lpfc_hba *, struct lpfc_sli_ring *,
 int lpfc_sli_sum_iocb(struct lpfc_vport *, uint16_t, uint64_t, lpfc_ctx_cmd);
 int lpfc_sli_abort_iocb(struct lpfc_vport *, struct lpfc_sli_ring *, uint16_t,
 			uint64_t, lpfc_ctx_cmd);
+int
+lpfc_sli_abort_taskmgmt(struct lpfc_vport *, struct lpfc_sli_ring *,
+			uint16_t, uint64_t, lpfc_ctx_cmd);
 
 void lpfc_mbox_timeout(unsigned long);
 void lpfc_mbox_timeout_handler(struct lpfc_hba *);
@@ -398,7 +409,6 @@ void lpfc_fabric_block_timeout(unsigned long);
 void lpfc_unblock_fabric_iocbs(struct lpfc_hba *);
 void lpfc_rampdown_queue_depth(struct lpfc_hba *);
 void lpfc_ramp_down_queue_handler(struct lpfc_hba *);
-void lpfc_ramp_up_queue_handler(struct lpfc_hba *);
 void lpfc_scsi_dev_block(struct lpfc_hba *);
 
 void
@@ -441,7 +451,6 @@ int lpfc_send_rrq(struct lpfc_hba *, struct lpfc_node_rrq *);
 int lpfc_set_rrq_active(struct lpfc_hba *, struct lpfc_nodelist *,
 	uint16_t, uint16_t, uint16_t);
 uint16_t lpfc_sli4_xri_inrange(struct lpfc_hba *, uint16_t);
-void lpfc_cleanup_wt_rrqs(struct lpfc_hba *);
 void lpfc_cleanup_vports_rrqs(struct lpfc_vport *, struct lpfc_nodelist *);
 struct lpfc_node_rrq *lpfc_get_active_rrq(struct lpfc_vport *, uint16_t,
 	uint32_t);
@@ -469,3 +478,21 @@ int lpfc_sli4_xri_sgl_update(struct lpfc_hba *);
 void lpfc_free_sgl_list(struct lpfc_hba *, struct list_head *);
 uint32_t lpfc_sli_port_speed_get(struct lpfc_hba *);
 int lpfc_sli4_request_firmware_update(struct lpfc_hba *, uint8_t);
+void lpfc_sli4_offline_eratt(struct lpfc_hba *);
+
+struct lpfc_device_data *lpfc_create_device_data(struct lpfc_hba *,
+						struct lpfc_name *,
+						struct lpfc_name *,
+						uint64_t, bool);
+void lpfc_delete_device_data(struct lpfc_hba *, struct lpfc_device_data*);
+struct lpfc_device_data *__lpfc_get_device_data(struct lpfc_hba *,
+					struct list_head *list,
+					struct lpfc_name *,
+					struct lpfc_name *, uint64_t);
+bool lpfc_enable_oas_lun(struct lpfc_hba *, struct lpfc_name *,
+			 struct lpfc_name *, uint64_t);
+bool lpfc_disable_oas_lun(struct lpfc_hba *, struct lpfc_name *,
+			  struct lpfc_name *, uint64_t);
+bool lpfc_find_next_oas_lun(struct lpfc_hba *, struct lpfc_name *,
+			    struct lpfc_name *, uint64_t *, struct lpfc_name *,
+			    struct lpfc_name *, uint64_t *, uint32_t *);

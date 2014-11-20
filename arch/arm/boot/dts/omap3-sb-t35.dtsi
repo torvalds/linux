@@ -1,0 +1,48 @@
+/*
+ * Common support for CompuLab SB-T35 used on SBC-T3530, SBC-T3517 and SBC-T3730
+ */
+
+&omap3_pmx_core {
+	smsc2_pins: pinmux_smsc2_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20b6, PIN_OUTPUT | MUX_MODE0)	/* gpmc_ncs4.gpmc_ncs4 */
+			OMAP3_CORE1_IOPAD(0x20d2, PIN_INPUT_PULLUP | MUX_MODE4)	/* gpmc_wait3.gpio_65 */
+		>;
+	};
+};
+
+&gpmc {
+	ranges = <4 0 0x2d000000 0x01000000>;
+
+	smsc2: ethernet@4,0 {
+		compatible = "smsc,lan9221", "smsc,lan9115";
+		pinctrl-names = "default";
+		pinctrl-0 = <&smsc2_pins>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		reg = <4 0 0xff>;
+		bank-width = <2>;
+		gpmc,mux-add-data;
+		gpmc,cs-on-ns = <1>;
+		gpmc,cs-rd-off-ns = <180>;
+		gpmc,cs-wr-off-ns = <180>;
+		gpmc,adv-rd-off-ns = <18>;
+		gpmc,adv-wr-off-ns = <48>;
+		gpmc,oe-on-ns = <54>;
+		gpmc,oe-off-ns = <168>;
+		gpmc,we-on-ns = <54>;
+		gpmc,we-off-ns = <168>;
+		gpmc,rd-cycle-ns = <186>;
+		gpmc,wr-cycle-ns = <186>;
+		gpmc,access-ns = <144>;
+		gpmc,page-burst-access-ns = <24>;
+		gpmc,bus-turnaround-ns = <90>;
+		gpmc,cycle2cycle-delay-ns = <90>;
+		gpmc,cycle2cycle-samecsen;
+		gpmc,cycle2cycle-diffcsen;
+		vddvario-supply = <&vddvario>;
+		vdd33a-supply = <&vdd33a>;
+		reg-io-width = <4>;
+		smsc,save-mac-address;
+	};
+};

@@ -13,64 +13,35 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/rculist.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_dma.h>
 
 static LIST_HEAD(of_dma_list);
-static DEFINE_SPINLOCK(of_dma_lock);
+static DEFINE_MUTEX(of_dma_lock);
 
 /**
- * of_dma_get_controller - Get a DMA controller in DT DMA helpers list
+ * of_dma_find_controller - Get a DMA controller in DT DMA helpers list
  * @dma_spec:	pointer to DMA specifier as found in the device tree
  *
  * Finds a DMA controller with matching device node and number for dma cells
- * in a list of registered DMA controllers. If a match is found the use_count
- * variable is increased and a valid pointer to the DMA data stored is retuned.
- * A NULL pointer is returned if no match is found.
+ * in a list of registered DMA controllers. If a match is found a valid pointer
+ * to the DMA data stored is retuned. A NULL pointer is returned if no match is
+ * found.
  */
-static struct of_dma *of_dma_get_controller(struct of_phandle_args *dma_spec)
+static struct of_dma *of_dma_find_controller(struct of_phandle_args *dma_spec)
 {
 	struct of_dma *ofdma;
 
-	spin_lock(&of_dma_lock);
-
-	if (list_empty(&of_dma_list)) {
-		spin_unlock(&of_dma_lock);
-		return NULL;
-	}
-
 	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers)
-		if ((ofdma->of_node == dma_spec->np) &&
-		    (ofdma->of_dma_nbcells == dma_spec->args_count)) {
-			ofdma->use_count++;
-			spin_unlock(&of_dma_lock);
+		if (ofdma->of_node == dma_spec->np)
 			return ofdma;
-		}
-
-	spin_unlock(&of_dma_lock);
 
 	pr_debug("%s: can't find DMA controller %s\n", __func__,
 		 dma_spec->np->full_name);
 
 	return NULL;
-}
-
-/**
- * of_dma_put_controller - Decrement use count for a registered DMA controller
- * @of_dma:	pointer to DMA controller data
- *
- * Decrements the use_count variable in the DMA data structure. This function
- * should be called only when a valid pointer is returned from
- * of_dma_get_controller() and no further accesses to data referenced by that
- * pointer are needed.
- */
-static void of_dma_put_controller(struct of_dma *ofdma)
-{
-	spin_lock(&of_dma_lock);
-	ofdma->use_count--;
-	spin_unlock(&of_dma_lock);
 }
 
 /**
@@ -92,7 +63,6 @@ int of_dma_controller_register(struct device_node *np,
 				void *data)
 {
 	struct of_dma	*ofdma;
-	int		nbcells;
 
 	if (!np || !of_dma_xlate) {
 		pr_err("%s: not enough information provided\n", __func__);
@@ -103,24 +73,14 @@ int of_dma_controller_register(struct device_node *np,
 	if (!ofdma)
 		return -ENOMEM;
 
-	nbcells = be32_to_cpup(of_get_property(np, "#dma-cells", NULL));
-	if (!nbcells) {
-		pr_err("%s: #dma-cells property is missing or invalid\n",
-		       __func__);
-		kfree(ofdma);
-		return -EINVAL;
-	}
-
 	ofdma->of_node = np;
-	ofdma->of_dma_nbcells = nbcells;
 	ofdma->of_dma_xlate = of_dma_xlate;
 	ofdma->of_dma_data = data;
-	ofdma->use_count = 0;
 
 	/* Now queue of_dma controller structure in list */
-	spin_lock(&of_dma_lock);
+	mutex_lock(&of_dma_lock);
 	list_add_tail(&ofdma->of_dma_controllers, &of_dma_list);
-	spin_unlock(&of_dma_lock);
+	mutex_unlock(&of_dma_lock);
 
 	return 0;
 }
@@ -132,32 +92,20 @@ EXPORT_SYMBOL_GPL(of_dma_controller_register);
  *
  * Memory allocated by of_dma_controller_register() is freed here.
  */
-int of_dma_controller_free(struct device_node *np)
+void of_dma_controller_free(struct device_node *np)
 {
 	struct of_dma *ofdma;
 
-	spin_lock(&of_dma_lock);
-
-	if (list_empty(&of_dma_list)) {
-		spin_unlock(&of_dma_lock);
-		return -ENODEV;
-	}
+	mutex_lock(&of_dma_lock);
 
 	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers)
 		if (ofdma->of_node == np) {
-			if (ofdma->use_count) {
-				spin_unlock(&of_dma_lock);
-				return -EBUSY;
-			}
-
 			list_del(&ofdma->of_dma_controllers);
-			spin_unlock(&of_dma_lock);
 			kfree(ofdma);
-			return 0;
+			break;
 		}
 
-	spin_unlock(&of_dma_lock);
-	return -ENODEV;
+	mutex_unlock(&of_dma_lock);
 }
 EXPORT_SYMBOL_GPL(of_dma_controller_free);
 
@@ -172,8 +120,8 @@ EXPORT_SYMBOL_GPL(of_dma_controller_free);
  * specifiers, matches the name provided. Returns 0 if the name matches and
  * a valid pointer to the DMA specifier is found. Otherwise returns -ENODEV.
  */
-static int of_dma_match_channel(struct device_node *np, char *name, int index,
-				struct of_phandle_args *dma_spec)
+static int of_dma_match_channel(struct device_node *np, const char *name,
+				int index, struct of_phandle_args *dma_spec)
 {
 	const char *s;
 
@@ -195,39 +143,44 @@ static int of_dma_match_channel(struct device_node *np, char *name, int index,
  * @np:		device node to get DMA request from
  * @name:	name of desired channel
  *
- * Returns pointer to appropriate dma channel on success or NULL on error.
+ * Returns pointer to appropriate DMA channel on success or an error pointer.
  */
 struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
-					      char *name)
+					      const char *name)
 {
 	struct of_phandle_args	dma_spec;
 	struct of_dma		*ofdma;
 	struct dma_chan		*chan;
 	int			count, i;
+	int			ret_no_channel = -ENODEV;
 
 	if (!np || !name) {
 		pr_err("%s: not enough information provided\n", __func__);
-		return NULL;
+		return ERR_PTR(-ENODEV);
 	}
 
 	count = of_property_count_strings(np, "dma-names");
 	if (count < 0) {
-		pr_err("%s: dma-names property missing or empty\n", __func__);
-		return NULL;
+		pr_err("%s: dma-names property of node '%s' missing or empty\n",
+			__func__, np->full_name);
+		return ERR_PTR(-ENODEV);
 	}
 
 	for (i = 0; i < count; i++) {
 		if (of_dma_match_channel(np, name, i, &dma_spec))
 			continue;
 
-		ofdma = of_dma_get_controller(&dma_spec);
+		mutex_lock(&of_dma_lock);
+		ofdma = of_dma_find_controller(&dma_spec);
 
-		if (!ofdma)
-			continue;
+		if (ofdma) {
+			chan = ofdma->of_dma_xlate(&dma_spec, ofdma);
+		} else {
+			ret_no_channel = -EPROBE_DEFER;
+			chan = NULL;
+		}
 
-		chan = ofdma->of_dma_xlate(&dma_spec, ofdma);
-
-		of_dma_put_controller(ofdma);
+		mutex_unlock(&of_dma_lock);
 
 		of_node_put(dma_spec.np);
 
@@ -235,7 +188,7 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 			return chan;
 	}
 
-	return NULL;
+	return ERR_PTR(ret_no_channel);
 }
 
 /**
@@ -265,3 +218,38 @@ struct dma_chan *of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 			&dma_spec->args[0]);
 }
 EXPORT_SYMBOL_GPL(of_dma_simple_xlate);
+
+/**
+ * of_dma_xlate_by_chan_id - Translate dt property to DMA channel by channel id
+ * @dma_spec:	pointer to DMA specifier as found in the device tree
+ * @of_dma:	pointer to DMA controller data
+ *
+ * This function can be used as the of xlate callback for DMA driver which wants
+ * to match the channel based on the channel id. When using this xlate function
+ * the #dma-cells propety of the DMA controller dt node needs to be set to 1.
+ * The data parameter of of_dma_controller_register must be a pointer to the
+ * dma_device struct the function should match upon.
+ *
+ * Returns pointer to appropriate dma channel on success or NULL on error.
+ */
+struct dma_chan *of_dma_xlate_by_chan_id(struct of_phandle_args *dma_spec,
+					 struct of_dma *ofdma)
+{
+	struct dma_device *dev = ofdma->of_dma_data;
+	struct dma_chan *chan, *candidate = NULL;
+
+	if (!dev || dma_spec->args_count != 1)
+		return NULL;
+
+	list_for_each_entry(chan, &dev->channels, device_node)
+		if (chan->chan_id == dma_spec->args[0]) {
+			candidate = chan;
+			break;
+		}
+
+	if (!candidate)
+		return NULL;
+
+	return dma_get_slave_channel(candidate);
+}
+EXPORT_SYMBOL_GPL(of_dma_xlate_by_chan_id);

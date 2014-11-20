@@ -67,7 +67,7 @@ static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		u8 hlid;
 		struct wl1271_link *lnk;
 		for_each_set_bit(hlid, wlvif->ap.sta_hlid_map,
-				 WL12XX_MAX_LINKS) {
+				 wl->num_links) {
 			lnk = &wl->links[hlid];
 			if (!lnk->ba_bitmap)
 				continue;
@@ -158,6 +158,11 @@ EXPORT_SYMBOL_GPL(wlcore_event_channel_switch);
 
 void wlcore_event_dummy_packet(struct wl1271 *wl)
 {
+	if (wl->plt) {
+		wl1271_info("Got DUMMY_PACKET event in PLT mode.  FW bug, ignoring.");
+		return;
+	}
+
 	wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
 	wl1271_tx_dummy_packet(wl);
 }
@@ -172,7 +177,7 @@ static void wlcore_disconnect_sta(struct wl1271 *wl, unsigned long sta_bitmap)
 	const u8 *addr;
 	int h;
 
-	for_each_set_bit(h, &sta_bitmap, WL12XX_MAX_LINKS) {
+	for_each_set_bit(h, &sta_bitmap, wl->num_links) {
 		bool found = false;
 		/* find the ap vif connected to this sta */
 		wl12xx_for_each_wlvif_ap(wl, wlvif) {
@@ -237,6 +242,14 @@ void wlcore_event_beacon_loss(struct wl1271 *wl, unsigned long roles_bitmap)
 		    !test_bit(wlvif->role_id , &roles_bitmap))
 			continue;
 
+		vif = wl12xx_wlvif_to_vif(wlvif);
+
+		/* don't attempt roaming in case of p2p */
+		if (wlvif->p2p) {
+			ieee80211_connection_loss(vif);
+			continue;
+		}
+
 		/*
 		 * if the work is already queued, it should take place.
 		 * We don't want to delay the connection loss
@@ -246,7 +259,6 @@ void wlcore_event_beacon_loss(struct wl1271 *wl, unsigned long roles_bitmap)
 					     &wlvif->connection_loss_work,
 					     msecs_to_jiffies(delay));
 
-		vif = wl12xx_wlvif_to_vif(wlvif);
 		ieee80211_cqm_rssi_notify(
 				vif,
 				NL80211_CQM_RSSI_BEACON_LOSS_EVENT,
@@ -259,6 +271,7 @@ int wl1271_event_unmask(struct wl1271 *wl)
 {
 	int ret;
 
+	wl1271_debug(DEBUG_EVENT, "unmasking event_mask 0x%x", wl->event_mask);
 	ret = wl1271_acx_event_mbox_mask(wl, ~(wl->event_mask));
 	if (ret < 0)
 		return ret;

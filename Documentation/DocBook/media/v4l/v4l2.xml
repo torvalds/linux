@@ -70,7 +70,7 @@ MPEG stream embedded, sliced VBI data format in this specification.
 Remote Controller chapter.</contrib>
 	<affiliation>
 	  <address>
-	    <email>mchehab@redhat.com</email>
+	    <email>m.chehab@samsung.com</email>
 	  </address>
 	</affiliation>
       </author>
@@ -107,6 +107,16 @@ Remote Controller chapter.</contrib>
 	  </address>
 	</affiliation>
       </author>
+      <author>
+	<firstname>Antti</firstname>
+	<surname>Palosaari</surname>
+	<contrib>SDR API.</contrib>
+	<affiliation>
+	  <address>
+	    <email>crope@iki.fi</email>
+	  </address>
+	</affiliation>
+      </author>
     </authorgroup>
 
     <copyright>
@@ -124,6 +134,8 @@ Remote Controller chapter.</contrib>
       <year>2010</year>
       <year>2011</year>
       <year>2012</year>
+      <year>2013</year>
+      <year>2014</year>
       <holder>Bill Dirks, Michael H. Schimek, Hans Verkuil, Martin
 Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab,
 	Pawel Osciak</holder>
@@ -140,12 +152,57 @@ structs, ioctls) must be noted in more detail in the history chapter
 applications. -->
 
       <revision>
+	<revnumber>3.17</revnumber>
+	<date>2014-08-04</date>
+	<authorinitials>lp, hv</authorinitials>
+	<revremark>Extended &v4l2-pix-format;. Added format flags. Added compound control types
+and VIDIOC_QUERY_EXT_CTRL.
+	</revremark>
+      </revision>
+
+      <revision>
+	<revnumber>3.15</revnumber>
+	<date>2014-02-03</date>
+	<authorinitials>hv, ap</authorinitials>
+	<revremark>Update several sections of "Common API Elements": "Opening and Closing Devices"
+"Querying Capabilities", "Application Priority", "Video Inputs and Outputs", "Audio Inputs and Outputs"
+"Tuners and Modulators", "Video Standards" and "Digital Video (DV) Timings". Added SDR API.
+	</revremark>
+      </revision>
+
+      <revision>
+	<revnumber>3.14</revnumber>
+	<date>2013-11-25</date>
+	<authorinitials>rr</authorinitials>
+	<revremark>Set width and height as unsigned on v4l2_rect.
+	</revremark>
+      </revision>
+
+      <revision>
+	<revnumber>3.11</revnumber>
+	<date>2013-05-26</date>
+	<authorinitials>hv</authorinitials>
+	<revremark>Remove obsolete VIDIOC_DBG_G_CHIP_IDENT ioctl.
+	</revremark>
+      </revision>
+
+      <revision>
+	<revnumber>3.10</revnumber>
+	<date>2013-03-25</date>
+	<authorinitials>hv</authorinitials>
+	<revremark>Remove obsolete and unused DV_PRESET ioctls:
+	VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET, VIDIOC_QUERY_DV_PRESET and
+	VIDIOC_ENUM_DV_PRESET. Remove the related v4l2_input/output capability
+	flags V4L2_IN_CAP_PRESETS and V4L2_OUT_CAP_PRESETS. Added VIDIOC_DBG_G_CHIP_INFO.
+	</revremark>
+      </revision>
+
+      <revision>
 	<revnumber>3.9</revnumber>
 	<date>2012-12-03</date>
 	<authorinitials>sa, sn</authorinitials>
 	<revremark>Added timestamp types to v4l2_buffer.
-	Added <constant>V4L2_EVENT_CTRL_CH_RANGE</constant> control
-	event changes flag, see <xref linkend="changes-flags"/>.
+	Added V4L2_EVENT_CTRL_CH_RANGE control event changes flag.
 	</revremark>
       </revision>
 
@@ -482,7 +539,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.9</subtitle>
+ <subtitle>Revision 3.17</subtitle>
 
   <chapter id="common">
     &sub-common;
@@ -510,6 +567,7 @@ and discussions on the V4L mailing list.</revremark>
     <section id="ttx"> &sub-dev-teletext; </section>
     <section id="radio"> &sub-dev-radio; </section>
     <section id="rds"> &sub-dev-rds; </section>
+    <section id="sdr"> &sub-dev-sdr; </section>
     <section id="event"> &sub-dev-event; </section>
     <section id="subdev"> &sub-dev-subdev; </section>
   </chapter>
@@ -536,7 +594,7 @@ and discussions on the V4L mailing list.</revremark>
     <!-- All ioctls go here. -->
     &sub-create-bufs;
     &sub-cropcap;
-    &sub-dbg-g-chip-ident;
+    &sub-dbg-g-chip-info;
     &sub-dbg-g-register;
     &sub-decoder-cmd;
     &sub-dqevent;
@@ -544,7 +602,6 @@ and discussions on the V4L mailing list.</revremark>
     &sub-encoder-cmd;
     &sub-enumaudio;
     &sub-enumaudioout;
-    &sub-enum-dv-presets;
     &sub-enum-dv-timings;
     &sub-enum-fmt;
     &sub-enum-framesizes;
@@ -558,8 +615,8 @@ and discussions on the V4L mailing list.</revremark>
     &sub-g-audioout;
     &sub-g-crop;
     &sub-g-ctrl;
-    &sub-g-dv-preset;
     &sub-g-dv-timings;
+    &sub-g-edid;
     &sub-g-enc-index;
     &sub-g-ext-ctrls;
     &sub-g-fbuf;
@@ -582,7 +639,6 @@ and discussions on the V4L mailing list.</revremark>
     &sub-querybuf;
     &sub-querycap;
     &sub-queryctrl;
-    &sub-query-dv-preset;
     &sub-query-dv-timings;
     &sub-querystd;
     &sub-reqbufs;
@@ -592,7 +648,6 @@ and discussions on the V4L mailing list.</revremark>
     &sub-subdev-enum-frame-size;
     &sub-subdev-enum-mbus-code;
     &sub-subdev-g-crop;
-    &sub-subdev-g-edid;
     &sub-subdev-g-fmt;
     &sub-subdev-g-frame-interval;
     &sub-subdev-g-selection;

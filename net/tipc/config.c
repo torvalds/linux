@@ -2,7 +2,7 @@
  * net/tipc/config.c: TIPC configuration management code
  *
  * Copyright (c) 2002-2006, Ericsson AB
- * Copyright (c) 2004-2007, 2010-2012, Wind River Systems
+ * Copyright (c) 2004-2007, 2010-2013, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,20 +35,16 @@
  */
 
 #include "core.h"
-#include "port.h"
+#include "socket.h"
 #include "name_table.h"
 #include "config.h"
+#include "server.h"
 
 #define REPLY_TRUNCATED "<truncated>\n"
-
-static u32 config_port_ref;
-
-static DEFINE_SPINLOCK(config_lock);
 
 static const void *req_tlv_area;	/* request message TLV area */
 static int req_tlv_space;		/* request message TLV area size */
 static int rep_headroom;		/* reply message headroom to use */
-
 
 struct sk_buff *tipc_cfg_reply_alloc(int payload_size)
 {
@@ -181,31 +177,10 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
+	if (!tipc_net_start(addr))
+		return tipc_cfg_reply_none();
 
-	/*
-	 * Must temporarily release configuration spinlock while switching into
-	 * networking mode as it calls tipc_eth_media_start(), which may sleep.
-	 * Releasing the lock is harmless as other locally-issued configuration
-	 * commands won't occur until this one completes, and remotely-issued
-	 * configuration commands can't be received until a local configuration
-	 * command to enable the first bearer is received and processed.
-	 */
-	spin_unlock_bh(&config_lock);
-	tipc_core_start_net(addr);
-	spin_lock_bh(&config_lock);
-	return tipc_cfg_reply_none();
-}
-
-static struct sk_buff *cfg_set_remote_mng(void)
-{
-	u32 value;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-
-	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	tipc_remote_management = (value != 0);
-	return tipc_cfg_reply_none();
+	return tipc_cfg_reply_error_string("cannot change to network mode");
 }
 
 static struct sk_buff *cfg_set_max_ports(void)
@@ -248,7 +223,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 {
 	struct sk_buff *rep_tlv_buf;
 
-	spin_lock_bh(&config_lock);
+	rtnl_lock();
 
 	/* Save request and reply details in a well-known location */
 	req_tlv_area = request_area;
@@ -258,21 +233,10 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	/* Check command authorization */
 	if (likely(in_own_node(orig_node))) {
 		/* command is permitted */
-	} else if (cmd >= 0x8000) {
+	} else {
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 							  " (cannot be done remotely)");
 		goto exit;
-	} else if (!tipc_remote_management) {
-		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NO_REMOTE);
-		goto exit;
-	} else if (cmd >= 0x4000) {
-		u32 domain = 0;
-
-		if ((tipc_nametbl_translate(TIPC_ZM_SRV, 0, &domain) == 0) ||
-		    (domain != orig_node)) {
-			rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_ZONE_MSTR);
-			goto exit;
-		}
 	}
 
 	/* Call appropriate processing routine */
@@ -302,7 +266,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 		rep_tlv_buf = tipc_media_get_names();
 		break;
 	case TIPC_CMD_SHOW_PORTS:
-		rep_tlv_buf = tipc_port_get_ports();
+		rep_tlv_buf = tipc_sk_socks_show();
 		break;
 	case TIPC_CMD_SHOW_STATS:
 		rep_tlv_buf = tipc_show_stats();
@@ -321,17 +285,11 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_SET_NODE_ADDR:
 		rep_tlv_buf = cfg_set_own_addr();
 		break;
-	case TIPC_CMD_SET_REMOTE_MNG:
-		rep_tlv_buf = cfg_set_remote_mng();
-		break;
 	case TIPC_CMD_SET_MAX_PORTS:
 		rep_tlv_buf = cfg_set_max_ports();
 		break;
 	case TIPC_CMD_SET_NETID:
 		rep_tlv_buf = cfg_set_netid();
-		break;
-	case TIPC_CMD_GET_REMOTE_MNG:
-		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_remote_management);
 		break;
 	case TIPC_CMD_GET_MAX_PORTS:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_ports);
@@ -356,6 +314,8 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_SET_MAX_PUBL:
 	case TIPC_CMD_GET_MAX_PUBL:
 	case TIPC_CMD_SET_LOG_SIZE:
+	case TIPC_CMD_SET_REMOTE_MNG:
+	case TIPC_CMD_GET_REMOTE_MNG:
 	case TIPC_CMD_DUMP_LOG:
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 							  " (obsolete command)");
@@ -377,95 +337,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 
 	/* Return reply buffer */
 exit:
-	spin_unlock_bh(&config_lock);
+	rtnl_unlock();
 	return rep_tlv_buf;
-}
-
-static void cfg_named_msg_event(void *userdata,
-				u32 port_ref,
-				struct sk_buff **buf,
-				const unchar *msg,
-				u32 size,
-				u32 importance,
-				struct tipc_portid const *orig,
-				struct tipc_name_seq const *dest)
-{
-	struct tipc_cfg_msg_hdr *req_hdr;
-	struct tipc_cfg_msg_hdr *rep_hdr;
-	struct sk_buff *rep_buf;
-
-	/* Validate configuration message header (ignore invalid message) */
-	req_hdr = (struct tipc_cfg_msg_hdr *)msg;
-	if ((size < sizeof(*req_hdr)) ||
-	    (size != TCM_ALIGN(ntohl(req_hdr->tcm_len))) ||
-	    (ntohs(req_hdr->tcm_flags) != TCM_F_REQUEST)) {
-		pr_warn("Invalid configuration message discarded\n");
-		return;
-	}
-
-	/* Generate reply for request (if can't, return request) */
-	rep_buf = tipc_cfg_do_cmd(orig->node,
-				  ntohs(req_hdr->tcm_type),
-				  msg + sizeof(*req_hdr),
-				  size - sizeof(*req_hdr),
-				  BUF_HEADROOM + MAX_H_SIZE + sizeof(*rep_hdr));
-	if (rep_buf) {
-		skb_push(rep_buf, sizeof(*rep_hdr));
-		rep_hdr = (struct tipc_cfg_msg_hdr *)rep_buf->data;
-		memcpy(rep_hdr, req_hdr, sizeof(*rep_hdr));
-		rep_hdr->tcm_len = htonl(rep_buf->len);
-		rep_hdr->tcm_flags &= htons(~TCM_F_REQUEST);
-	} else {
-		rep_buf = *buf;
-		*buf = NULL;
-	}
-
-	/* NEED TO ADD CODE TO HANDLE FAILED SEND (SUCH AS CONGESTION) */
-	tipc_send_buf2port(port_ref, orig, rep_buf, rep_buf->len);
-}
-
-int tipc_cfg_init(void)
-{
-	struct tipc_name_seq seq;
-	int res;
-
-	res = tipc_createport(NULL, TIPC_CRITICAL_IMPORTANCE,
-			      NULL, NULL, NULL,
-			      NULL, cfg_named_msg_event, NULL,
-			      NULL, &config_port_ref);
-	if (res)
-		goto failed;
-
-	seq.type = TIPC_CFG_SRV;
-	seq.lower = seq.upper = tipc_own_addr;
-	res = tipc_publish(config_port_ref, TIPC_ZONE_SCOPE, &seq);
-	if (res)
-		goto failed;
-
-	return 0;
-
-failed:
-	pr_err("Unable to create configuration service\n");
-	return res;
-}
-
-void tipc_cfg_reinit(void)
-{
-	struct tipc_name_seq seq;
-	int res;
-
-	seq.type = TIPC_CFG_SRV;
-	seq.lower = seq.upper = 0;
-	tipc_withdraw(config_port_ref, TIPC_ZONE_SCOPE, &seq);
-
-	seq.lower = seq.upper = tipc_own_addr;
-	res = tipc_publish(config_port_ref, TIPC_ZONE_SCOPE, &seq);
-	if (res)
-		pr_err("Unable to reinitialize configuration service\n");
-}
-
-void tipc_cfg_stop(void)
-{
-	tipc_deleteport(config_port_ref);
-	config_port_ref = 0;
 }

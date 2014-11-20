@@ -18,7 +18,7 @@ Abstract media device model
 
 Discovering a device internal topology, and configuring it at runtime, is one
 of the goals of the media framework. To achieve this, hardware devices are
-modeled as an oriented graph of building blocks called entities connected
+modelled as an oriented graph of building blocks called entities connected
 through pads.
 
 An entity is a basic media hardware building block. It can correspond to
@@ -265,7 +265,7 @@ connected to another pad through an enabled link
 	media_entity_find_link(struct media_pad *source,
 			       struct media_pad *sink);
 
-	media_entity_remote_source(struct media_pad *pad);
+	media_entity_remote_pad(struct media_pad *pad);
 
 Refer to the kerneldoc documentation for more information.
 

@@ -13,8 +13,8 @@
 #define __LINUX_LEDS_H_INCLUDED
 
 #include <linux/list.h>
-#include <linux/spinlock.h>
 #include <linux/rwsem.h>
+#include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 
@@ -31,8 +31,8 @@ enum led_brightness {
 
 struct led_classdev {
 	const char		*name;
-	int			 brightness;
-	int			 max_brightness;
+	enum led_brightness	 brightness;
+	enum led_brightness	 max_brightness;
 	int			 flags;
 
 	/* Lower 16 bits reflect status */
@@ -63,6 +63,8 @@ struct led_classdev {
 				     unsigned long *delay_off);
 
 	struct device		*dev;
+	const struct attribute_group	**groups;
+
 	struct list_head	 node;			/* LED Device list */
 	const char		*default_trigger;	/* Trigger to use */
 
@@ -138,10 +140,24 @@ extern void led_blink_set_oneshot(struct led_classdev *led_cdev,
  */
 extern void led_set_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness);
+/**
+ * led_update_brightness - update LED brightness
+ * @led_cdev: the LED to query
+ *
+ * Get an LED's current brightness and update led_cdev->brightness
+ * member with the obtained value.
+ *
+ * Returns: 0 on success or negative error value on failure
+ */
+extern int led_update_brightness(struct led_classdev *led_cdev);
 
 /*
  * LED Triggers
  */
+/* Registration functions for simple triggers */
+#define DEFINE_LED_TRIGGER(x)		static struct led_trigger *x;
+#define DEFINE_LED_TRIGGER_GLOBAL(x)	struct led_trigger *x;
+
 #ifdef CONFIG_LEDS_TRIGGERS
 
 #define TRIG_NAME_MAX 50
@@ -164,9 +180,6 @@ struct led_trigger {
 extern int led_trigger_register(struct led_trigger *trigger);
 extern void led_trigger_unregister(struct led_trigger *trigger);
 
-/* Registration functions for simple triggers */
-#define DEFINE_LED_TRIGGER(x)		static struct led_trigger *x;
-#define DEFINE_LED_TRIGGER_GLOBAL(x)	struct led_trigger *x;
 extern void led_trigger_register_simple(const char *name,
 				struct led_trigger **trigger);
 extern void led_trigger_unregister_simple(struct led_trigger *trigger);
@@ -199,20 +212,30 @@ extern void led_trigger_rename_static(const char *name,
 
 #else
 
-/* Triggers aren't active - null macros */
-#define DEFINE_LED_TRIGGER(x)
-#define DEFINE_LED_TRIGGER_GLOBAL(x)
-#define led_trigger_register_simple(x, y) do {} while(0)
-#define led_trigger_unregister_simple(x) do {} while(0)
-#define led_trigger_event(x, y) do {} while(0)
+/* Trigger has no members */
+struct led_trigger {};
 
-#endif
+/* Trigger inline empty functions */
+static inline void led_trigger_register_simple(const char *name,
+					struct led_trigger **trigger) {}
+static inline void led_trigger_unregister_simple(struct led_trigger *trigger) {}
+static inline void led_trigger_event(struct led_trigger *trigger,
+				enum led_brightness event) {}
+#endif /* CONFIG_LEDS_TRIGGERS */
 
 /* Trigger specific functions */
 #ifdef CONFIG_LEDS_TRIGGER_IDE_DISK
 extern void ledtrig_ide_activity(void);
 #else
-#define ledtrig_ide_activity() do {} while(0)
+static inline void ledtrig_ide_activity(void) {}
+#endif
+
+#if defined(CONFIG_LEDS_TRIGGER_CAMERA) || defined(CONFIG_LEDS_TRIGGER_CAMERA_MODULE)
+extern void ledtrig_flash_ctrl(bool on);
+extern void ledtrig_torch_ctrl(bool on);
+#else
+static inline void ledtrig_flash_ctrl(bool on) {}
+static inline void ledtrig_torch_ctrl(bool on) {}
 #endif
 
 /*

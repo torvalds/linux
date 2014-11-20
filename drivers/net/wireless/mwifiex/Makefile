@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2011, Marvell International Ltd.
+# Copyright (C) 2011-2014, Marvell International Ltd.
 #
 # This software file (the "File") is distributed by Marvell International
 # Ltd. under the terms of the GNU General Public License Version 2, June 1991
@@ -39,6 +39,9 @@ mwifiex-y += sta_tx.o
 mwifiex-y += sta_rx.o
 mwifiex-y += uap_txrx.o
 mwifiex-y += cfg80211.o
+mwifiex-y += ethtool.o
+mwifiex-y += 11h.o
+mwifiex-y += tdls.o
 mwifiex-$(CONFIG_DEBUG_FS) += debugfs.o
 obj-$(CONFIG_MWIFIEX) += mwifiex.o
 

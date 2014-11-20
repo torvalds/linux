@@ -4,12 +4,6 @@
 
 # Common support
 obj-y := clock.o generic.o irq.o time.o #nmi-oopser.o
-obj-m :=
-obj-n :=
-obj-  :=
-
-obj-$(CONFIG_CPU_FREQ_SA1100)		+= cpu-sa1100.o
-obj-$(CONFIG_CPU_FREQ_SA1110)		+= cpu-sa1110.o
 
 # Specific board support
 obj-$(CONFIG_SA1100_ASSABET)		+= assabet.o

@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "Globalscale Technologies Dreamplug";
@@ -14,16 +14,11 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_spi
-				      &pmx_led_bluetooth &pmx_led_wifi
-				      &pmx_led_wifi_ap >;
-			pinctrl-names = "default";
-
+		pinctrl: pin-controller@10000 {
 			pmx_led_bluetooth: pmx-led-bluetooth {
 				marvell,pins = "mpp47";
 				marvell,function = "gpio";
@@ -47,7 +42,7 @@
 			m25p40@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "mx25l1606e";
+				compatible = "mxicy,mx25l1606e";
 				reg = <0>;
 				spi-max-frequency = <50000000>;
 				mode = <0>;
@@ -79,23 +74,53 @@
 			pinctrl-names = "default";
 			status = "okay";
 			/* No CD or WP GPIOs */
+			broken-cd;
 		};
 	};
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_bluetooth &pmx_led_wifi
+			     &pmx_led_wifi_ap >;
+		pinctrl-names = "default";
 
 		bluetooth {
 			label = "dreamplug:blue:bluetooth";
-			gpios = <&gpio1 15 1>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
 		wifi {
 			label = "dreamplug:green:wifi";
-			gpios = <&gpio1 16 1>;
+			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};
 		wifi-ap {
 			label = "dreamplug:green:wifi_ap";
-			gpios = <&gpio1 17 1>;
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	ethernet1-port@0 {
+		phy-handle = <&ethphy1>;
 	};
 };

@@ -105,6 +105,9 @@ struct bfa_fw_ioim_stats_s {
 					 *  an error condition*/
 	u32	wait_for_si;		/*  FW wait for SI */
 	u32	rec_rsp_inval;		/*  REC rsp invalid */
+	u32     rec_rsp_xchg_comp;	/*  REC rsp xchg complete */
+	u32     rec_rsp_rd_si_ownd;	/*  REC rsp read si owned */
+
 	u32	seqr_io_abort;		/*  target does not know cmd so abort */
 	u32	seqr_io_retry;		/*  SEQR failed so retry IO */
 
@@ -257,8 +260,6 @@ struct bfa_fw_port_lksm_stats_s {
 	u32    nos_tx;             /*  No. of times NOS tx started         */
 	u32    hwsm_lrr_rx;        /*  No. of times LRR rx-ed by HWSM      */
 	u32    hwsm_lr_rx;         /*  No. of times LR rx-ed by HWSM       */
-	u32    bbsc_lr;		   /* LKSM LR tx for credit recovery       */
-	u32	rsvd;
 };
 
 struct bfa_fw_port_snsm_stats_s {
@@ -409,7 +410,7 @@ struct bfa_fw_trunk_stats_s {
 	u32 rsvd;		/*  padding for 64 bit alignment */
 };
 
-struct bfa_fw_advsm_stats_s {
+struct bfa_fw_aport_stats_s {
 	u32 flogi_sent;		/*  Flogi sent			*/
 	u32 flogi_acc_recvd;	/*  Flogi Acc received		*/
 	u32 flogi_rjt_recvd;	/*  Flogi rejects received	*/
@@ -419,6 +420,12 @@ struct bfa_fw_advsm_stats_s {
 	u32 elp_accepted;	/*  ELP Accepted		*/
 	u32 elp_rejected;	/*  ELP rejected		*/
 	u32 elp_dropped;	/*  ELP dropped			*/
+
+	u32 bbcr_lr_count;	/*!< BBCR Link Resets		*/
+	u32 frame_lost_intrs;	/*!< BBCR Frame loss intrs	*/
+	u32 rrdy_lost_intrs;	/*!< BBCR Rrdy loss intrs	*/
+
+	u32 rsvd;
 };
 
 /*
@@ -479,6 +486,14 @@ struct bfa_fw_ct_mod_stats_s {
 };
 
 /*
+ * RDS mod stats
+ */
+struct bfa_fw_rds_stats_s {
+	u32	no_fid_drop_err; /* RDS no fid drop error */
+	u32	rsvd;		 /* 64bit align */
+};
+
+/*
  * IOC firmware stats
  */
 struct bfa_fw_stats_s {
@@ -489,10 +504,11 @@ struct bfa_fw_stats_s {
 	struct bfa_fw_fcxchg_stats_s	fcxchg_stats;
 	struct bfa_fw_lps_stats_s	lps_stats;
 	struct bfa_fw_trunk_stats_s	trunk_stats;
-	struct bfa_fw_advsm_stats_s	advsm_stats;
+	struct bfa_fw_aport_stats_s	aport_stats;
 	struct bfa_fw_mac_mod_stats_s	macmod_stats;
 	struct bfa_fw_ct_mod_stats_s	ctmod_stats;
 	struct bfa_fw_eth_sndrcv_stats_s	ethsndrcv_stats;
+	struct bfa_fw_rds_stats_s	rds_stats;
 };
 
 #define BFA_IOCFC_PATHTOV_MAX	60
@@ -543,6 +559,27 @@ struct bfa_qos_attr_s {
 	u32	total_bb_cr;	/*  Total BB Credits */
 	struct bfa_qos_bw_s qos_bw;	/* QOS bw cfg */
 	struct bfa_qos_bw_s qos_bw_op;	/* QOS bw operational */
+};
+
+enum bfa_bbcr_state {
+	BFA_BBCR_DISABLED,	/*!< BBCR is disable */
+	BFA_BBCR_ONLINE,	/*!< BBCR is online  */
+	BFA_BBCR_OFFLINE,	/*!< BBCR is offline */
+};
+
+enum bfa_bbcr_err_reason {
+	BFA_BBCR_ERR_REASON_NONE, /*!< Unknown */
+	BFA_BBCR_ERR_REASON_SPEED_UNSUP, /*!< Port speed < max sup_speed */
+	BFA_BBCR_ERR_REASON_PEER_UNSUP,	/*!< BBCR is disable on peer port */
+	BFA_BBCR_ERR_REASON_NON_BRCD_SW, /*!< Connected to non BRCD switch */
+	BFA_BBCR_ERR_REASON_FLOGI_RJT, /*!< Login rejected by the switch */
+};
+
+struct bfa_bbcr_attr_s {
+	u8	state;
+	u8	peer_bb_scn;
+	u8	reason;
+	u8	rsvd;
 };
 
 /*
@@ -736,6 +773,7 @@ enum bfa_port_states {
 	BFA_PORT_ST_TOGGLING_QWAIT	= 14,
 	BFA_PORT_ST_FAA_MISCONFIG	= 15,
 	BFA_PORT_ST_DPORT		= 16,
+	BFA_PORT_ST_DDPORT		= 17,
 	BFA_PORT_ST_MAX_STATE,
 };
 
@@ -857,6 +895,15 @@ enum bfa_lunmask_state_s {
 	BFA_LUNMASK_UNINITIALIZED = 0xff,
 };
 
+/**
+ * FEC states
+ */
+enum bfa_fec_state_s {
+	BFA_FEC_ONLINE = 1,		/*!< FEC is online */
+	BFA_FEC_OFFLINE = 2,		/*!< FEC is offline */
+	BFA_FEC_OFFLINE_NOT_16G = 3,	/*!< FEC is offline (speed not 16Gig) */
+};
+
 #pragma pack(1)
 /*
  * LUN mask configuration
@@ -892,6 +939,9 @@ struct bfa_defs_fcpim_throttle_s {
 	u16	rsvd;
 };
 
+#define BFA_BB_SCN_DEF 3
+#define BFA_BB_SCN_MAX 0x0F
+
 /*
  *      Physical port configuration
  */
@@ -907,8 +957,8 @@ struct bfa_port_cfg_s {
 	u8	 tx_bbcredit;	/*  transmit buffer credits	*/
 	u8	 ratelimit;	/*  ratelimit enabled or not	*/
 	u8	 trl_def_speed;	/*  ratelimit default speed	*/
-	u8	 bb_scn;	/*  BB_SCN value from FLOGI Exchg */
-	u8	 bb_scn_state;	/*  Config state of BB_SCN */
+	u8	 bb_cr_enabled; /*!< Config state of BB_SCN	*/
+	u8	 bb_scn;	/*!< BB_SCN value for FLOGI Exchg */
 	u8	 faa_state;	/*  FAA enabled/disabled        */
 	u8	 rsvd1;
 	u16	 path_tov;	/*  device path timeout	*/
@@ -950,6 +1000,7 @@ struct bfa_port_attr_s {
 	bfa_boolean_t		link_e2e_beacon; /* link beacon is on */
 	bfa_boolean_t		bbsc_op_status;	/* fc credit recovery oper
 						 * state */
+	enum bfa_fec_state_s	fec_state;	/*!< current FEC state */
 
 	/*
 	 * Dynamic field - info from FCS
@@ -961,7 +1012,7 @@ struct bfa_port_attr_s {
 
 	/* FCoE specific  */
 	u16			fcoe_vlan;
-	u8			rsvd1[6];
+	u8			rsvd1[2];
 };
 
 /*
@@ -1048,10 +1099,12 @@ struct bfa_port_link_s {
 	u8	 speed;		/*  Link speed (1/2/4/8 G) */
 	u32	 linkstate_opt; /*  Linkstate optional data (debug) */
 	u8	 trunked;	/*  Trunked or not (1 or 0) */
-	u8	 resvd[7];
+	u8	 fec_state;	/*!< State of FEC */
+	u8	 resvd[6];
 	struct bfa_qos_attr_s  qos_attr;   /* QoS Attributes */
 	union {
 		struct bfa_fcport_loop_info_s loop_info;
+		struct bfa_bbcr_attr_s bbcr_attr;
 		union {
 			struct bfa_qos_vc_attr_s qos_vc_attr;
 					/*  VC info from ELP */
@@ -1215,9 +1268,11 @@ struct bfa_port_fc_stats_s {
 	u64     bad_os_count;   /*  Invalid ordered sets        */
 	u64     err_enc_out;    /*  Encoding err nonframe_8b10b */
 	u64     err_enc;        /*  Encoding err frame_8b10b    */
-	u64	bbsc_frames_lost; /* Credit Recovery-Frames Lost  */
-	u64	bbsc_credits_lost; /* Credit Recovery-Credits Lost */
-	u64	bbsc_link_resets; /* Credit Recovery-Link Resets   */
+	u64	bbcr_frames_lost; /*!< BBCR Frames Lost */
+	u64	bbcr_rrdys_lost; /*!< BBCR RRDYs Lost */
+	u64	bbcr_link_resets; /*!< BBCR Link Resets */
+	u64	bbcr_frame_lost_intrs; /*!< BBCR Frame loss intrs */
+	u64	bbcr_rrdy_lost_intrs; /*!< BBCR Rrdy loss intrs */
 	u64	loop_timeouts;	/*  Loop timeouts		*/
 };
 

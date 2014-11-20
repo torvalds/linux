@@ -9,6 +9,8 @@
 #ifndef _UAPI_ASM_PTRACE_H
 #define _UAPI_ASM_PTRACE_H
 
+#include <linux/types.h>
+
 /* 0 - 31 are integer registers, 32 - 63 are fp registers.  */
 #define FPR_BASE	32
 #define PC		64
@@ -23,35 +25,25 @@
 #define ACX		78
 
 /*
- * This struct defines the way the registers are stored on the stack during a
- * system call/exception. As usual the registers k0/k1 aren't being saved.
+ * This struct defines the registers as used by PTRACE_{GET,SET}REGS. The
+ * format is the same for both 32- and 64-bit processes. Registers for 32-bit
+ * processes are sign extended.
  */
+#ifdef __KERNEL__
+struct user_pt_regs {
+#else
 struct pt_regs {
-#ifdef CONFIG_32BIT
-	/* Pad bytes for argument save space on the stack. */
-	unsigned long pad0[6];
 #endif
-
 	/* Saved main processor registers. */
-	unsigned long regs[32];
+	__u64 regs[32];
 
 	/* Saved special registers. */
-	unsigned long cp0_status;
-	unsigned long hi;
-	unsigned long lo;
-#ifdef CONFIG_CPU_HAS_SMARTMIPS
-	unsigned long acx;
-#endif
-	unsigned long cp0_badvaddr;
-	unsigned long cp0_cause;
-	unsigned long cp0_epc;
-#ifdef CONFIG_MIPS_MT_SMTC
-	unsigned long cp0_tcstatus;
-#endif /* CONFIG_MIPS_MT_SMTC */
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-	unsigned long long mpl[3];	  /* MTM{0,1,2} */
-	unsigned long long mtp[3];	  /* MTP{0,1,2} */
-#endif
+	__u64 lo;
+	__u64 hi;
+	__u64 cp0_epc;
+	__u64 cp0_badvaddr;
+	__u64 cp0_status;
+	__u64 cp0_cause;
 } __attribute__ ((aligned (8)));
 
 /* Arbitrarily choose the same ptrace numbers as used by the Sparc code. */

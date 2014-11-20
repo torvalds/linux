@@ -159,10 +159,9 @@ static __init int uv_rtc_allocate_timers(void)
 {
 	int cpu;
 
-	blade_info = kmalloc(uv_possible_blades * sizeof(void *), GFP_KERNEL);
+	blade_info = kzalloc(uv_possible_blades * sizeof(void *), GFP_KERNEL);
 	if (!blade_info)
 		return -ENOMEM;
-	memset(blade_info, 0, uv_possible_blades * sizeof(void *));
 
 	for_each_present_cpu(cpu) {
 		int nid = cpu_to_node(cpu);
@@ -366,7 +365,7 @@ __setup("uvrtcevt", uv_enable_evt_rtc);
 
 static __init void uv_rtc_register_clockevents(struct work_struct *dummy)
 {
-	struct clock_event_device *ced = &__get_cpu_var(cpu_ced);
+	struct clock_event_device *ced = this_cpu_ptr(&cpu_ced);
 
 	*ced = clock_event_device_uv;
 	ced->cpumask = cpumask_of(smp_processor_id());

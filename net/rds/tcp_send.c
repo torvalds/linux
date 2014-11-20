@@ -93,7 +93,7 @@ int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 		rm->m_ack_seq = tc->t_last_sent_nxt +
 				sizeof(struct rds_header) +
 				be32_to_cpu(rm->m_inc.i_hdr.h_len) - 1;
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		set_bit(RDS_MSG_HAS_ACK_SEQ, &rm->m_flags);
 		tc->t_last_expected_una = rm->m_ack_seq + 1;
 

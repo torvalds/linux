@@ -29,10 +29,6 @@
 struct i2c_board_info;
 struct isp_device;
 
-#define ISP_XCLK_NONE			0
-#define ISP_XCLK_A			1
-#define ISP_XCLK_B			2
-
 enum isp_interface_type {
 	ISP_INTERFACE_PARALLEL,
 	ISP_INTERFACE_CSI2A_PHY2,
@@ -61,6 +57,8 @@ enum {
  *		0 - Active high, 1 - Active low
  * @vs_pol: Vertical synchronization polarity
  *		0 - Active high, 1 - Active low
+ * @fld_pol: Field signal polarity
+ *		0 - Positive, 1 - Negative
  * @data_pol: Data polarity
  *		0 - Normal, 1 - One's complement
  */
@@ -69,6 +67,7 @@ struct isp_parallel_platform_data {
 	unsigned int clk_pol:1;
 	unsigned int hs_pol:1;
 	unsigned int vs_pol:1;
+	unsigned int fld_pol:1;
 	unsigned int data_pol:1;
 };
 
@@ -153,7 +152,13 @@ struct isp_v4l2_subdevs_group {
 	} bus; /* gcc < 4.6.0 chokes on anonymous union initializers */
 };
 
+struct isp_platform_xclk {
+	const char *dev_id;
+	const char *con_id;
+};
+
 struct isp_platform_data {
+	struct isp_platform_xclk xclks[2];
 	struct isp_v4l2_subdevs_group *subdevs;
 	void (*set_constraints)(struct isp_device *isp, bool enable);
 };

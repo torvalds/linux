@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -23,7 +23,7 @@ void qla4xxx_process_aen(struct scsi_qla_host *ha, uint8_t process_aen);
 int qla4xxx_get_dhcp_ip_address(struct scsi_qla_host *ha);
 int qla4xxx_abort_task(struct scsi_qla_host *ha, struct srb *srb);
 int qla4xxx_reset_lun(struct scsi_qla_host *ha, struct ddb_entry *ddb_entry,
-		      int lun);
+		      uint64_t lun);
 int qla4xxx_reset_target(struct scsi_qla_host *ha,
 			 struct ddb_entry *ddb_entry);
 int qla4xxx_get_flash(struct scsi_qla_host *ha, dma_addr_t dma_addr,
@@ -76,13 +76,15 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		uint32_t state, uint32_t conn_error);
 void qla4xxx_dump_buffer(void *b, uint32_t size);
 int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
-	struct ddb_entry *ddb_entry, int lun, uint16_t mrkr_mod);
+	struct ddb_entry *ddb_entry, uint64_t lun, uint16_t mrkr_mod);
 int qla4xxx_set_flash(struct scsi_qla_host *ha, dma_addr_t dma_addr,
 		      uint32_t offset, uint32_t length, uint32_t options);
 int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		uint8_t outCount, uint32_t *mbx_cmd, uint32_t *mbx_sts);
 int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
 			   char *password, int bidi, uint16_t *chap_index);
+int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username, char *password,
+		     uint16_t idx, int bidi);
 
 void qla4xxx_queue_iocb(struct scsi_qla_host *ha);
 void qla4xxx_complete_iocb(struct scsi_qla_host *ha);
@@ -191,6 +193,9 @@ int qla4xxx_ping_iocb(struct scsi_qla_host *ha, uint32_t options,
 int qla4xxx_post_ping_evt_work(struct scsi_qla_host *ha,
 			       uint32_t status, uint32_t pid,
 			       uint32_t data_size, uint8_t *data);
+int qla4xxx_flashdb_by_index(struct scsi_qla_host *ha,
+			     struct dev_db_entry *fw_ddb_entry,
+			     dma_addr_t fw_ddb_entry_dma, uint16_t ddb_index);
 
 /* BSG Functions */
 int qla4xxx_bsg_request(struct bsg_job *bsg_job);
@@ -224,8 +229,6 @@ void qla4_83xx_interrupt_service_routine(struct scsi_qla_host *ha,
 int qla4_83xx_isp_reset(struct scsi_qla_host *ha);
 void qla4_83xx_queue_iocb(struct scsi_qla_host *ha);
 void qla4_83xx_complete_iocb(struct scsi_qla_host *ha);
-uint16_t qla4_83xx_rd_shdw_req_q_out(struct scsi_qla_host *ha);
-uint16_t qla4_83xx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha);
 uint32_t qla4_83xx_rd_reg(struct scsi_qla_host *ha, ulong addr);
 void qla4_83xx_wr_reg(struct scsi_qla_host *ha, ulong addr, uint32_t val);
 int qla4_83xx_rd_reg_indirect(struct scsi_qla_host *ha, uint32_t addr,
@@ -261,6 +264,24 @@ int qla4_83xx_post_idc_ack(struct scsi_qla_host *ha);
 void qla4_83xx_disable_pause(struct scsi_qla_host *ha);
 void qla4_83xx_enable_mbox_intrs(struct scsi_qla_host *ha);
 int qla4_83xx_can_perform_reset(struct scsi_qla_host *ha);
+int qla4xxx_get_default_ddb(struct scsi_qla_host *ha, uint32_t options,
+			    dma_addr_t dma_addr);
+int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
+				  char *password, uint16_t chap_index);
+int qla4xxx_disable_acb(struct scsi_qla_host *ha);
+int qla4xxx_set_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
+		    uint32_t *mbox_sts, dma_addr_t acb_dma);
+int qla4xxx_get_acb(struct scsi_qla_host *ha, dma_addr_t acb_dma,
+		    uint32_t acb_type, uint32_t len);
+int qla4_84xx_config_acb(struct scsi_qla_host *ha, int acb_config);
+int qla4_8xxx_ms_mem_write_128b(struct scsi_qla_host *ha,
+				uint64_t addr, uint32_t *data, uint32_t count);
+uint8_t qla4xxx_set_ipaddr_state(uint8_t fw_ipaddr_state);
+int qla4_83xx_get_port_config(struct scsi_qla_host *ha, uint32_t *config);
+int qla4_83xx_set_port_config(struct scsi_qla_host *ha, uint32_t *config);
+int qla4_8xxx_check_init_adapter_retry(struct scsi_qla_host *ha);
+int qla4_83xx_is_detached(struct scsi_qla_host *ha);
+int qla4xxx_sysfs_ddb_export(struct scsi_qla_host *ha);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;

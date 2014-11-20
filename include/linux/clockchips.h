@@ -8,24 +8,6 @@
 #ifndef _LINUX_CLOCKCHIPS_H
 #define _LINUX_CLOCKCHIPS_H
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS_BUILD
-
-#include <linux/clocksource.h>
-#include <linux/cpumask.h>
-#include <linux/ktime.h>
-#include <linux/notifier.h>
-
-struct clock_event_device;
-
-/* Clock event mode commands */
-enum clock_event_mode {
-	CLOCK_EVT_MODE_UNUSED = 0,
-	CLOCK_EVT_MODE_SHUTDOWN,
-	CLOCK_EVT_MODE_PERIODIC,
-	CLOCK_EVT_MODE_ONESHOT,
-	CLOCK_EVT_MODE_RESUME,
-};
-
 /* Clock event notification values */
 enum clock_event_nofitiers {
 	CLOCK_EVT_NOTIFY_ADD,
@@ -38,6 +20,25 @@ enum clock_event_nofitiers {
 	CLOCK_EVT_NOTIFY_RESUME,
 	CLOCK_EVT_NOTIFY_CPU_DYING,
 	CLOCK_EVT_NOTIFY_CPU_DEAD,
+};
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BUILD
+
+#include <linux/clocksource.h>
+#include <linux/cpumask.h>
+#include <linux/ktime.h>
+#include <linux/notifier.h>
+
+struct clock_event_device;
+struct module;
+
+/* Clock event mode commands */
+enum clock_event_mode {
+	CLOCK_EVT_MODE_UNUSED = 0,
+	CLOCK_EVT_MODE_SHUTDOWN,
+	CLOCK_EVT_MODE_PERIODIC,
+	CLOCK_EVT_MODE_ONESHOT,
+	CLOCK_EVT_MODE_RESUME,
 };
 
 /*
@@ -54,6 +55,17 @@ enum clock_event_nofitiers {
  */
 #define CLOCK_EVT_FEAT_C3STOP		0x000008
 #define CLOCK_EVT_FEAT_DUMMY		0x000010
+
+/*
+ * Core shall set the interrupt affinity dynamically in broadcast mode
+ */
+#define CLOCK_EVT_FEAT_DYNIRQ		0x000020
+#define CLOCK_EVT_FEAT_PERCPU		0x000040
+
+/*
+ * Clockevent device is based on a hrtimer for broadcast
+ */
+#define CLOCK_EVT_FEAT_HRTIMER		0x000080
 
 /**
  * struct clock_event_device - clock event device descriptor
@@ -76,8 +88,10 @@ enum clock_event_nofitiers {
  * @name:		ptr to clock event name
  * @rating:		variable to rate clock event devices
  * @irq:		IRQ number (only for non CPU local devices)
+ * @bound_on:		Bound on CPU
  * @cpumask:		cpumask to indicate for which CPUs this device works
  * @list:		list head for the management code
+ * @owner:		module reference
  */
 struct clock_event_device {
 	void			(*event_handler)(struct clock_event_device *);
@@ -105,8 +119,10 @@ struct clock_event_device {
 	const char		*name;
 	int			rating;
 	int			irq;
+	int			bound_on;
 	const struct cpumask	*cpumask;
 	struct list_head	list;
+	struct module		*owner;
 } ____cacheline_aligned;
 
 /*
@@ -133,6 +149,7 @@ static inline unsigned long div_sc(unsigned long ticks, unsigned long nsec,
 extern u64 clockevent_delta2ns(unsigned long latch,
 			       struct clock_event_device *evt);
 extern void clockevents_register_device(struct clock_event_device *dev);
+extern int clockevents_unbind_device(struct clock_event_device *ced, int cpu);
 
 extern void clockevents_config(struct clock_event_device *dev, u32 freq);
 extern void clockevents_config_and_register(struct clock_event_device *dev,
@@ -145,7 +162,6 @@ extern void clockevents_exchange_device(struct clock_event_device *old,
 					struct clock_event_device *new);
 extern void clockevents_set_mode(struct clock_event_device *dev,
 				 enum clock_event_mode mode);
-extern int clockevents_register_notifier(struct notifier_block *nb);
 extern int clockevents_program_event(struct clock_event_device *dev,
 				     ktime_t expires, bool force);
 
@@ -170,10 +186,18 @@ extern void tick_broadcast(const struct cpumask *mask);
 extern int tick_receive_broadcast(void);
 #endif
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
-extern void clockevents_notify(unsigned long reason, void *arg);
+#if defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST) && defined(CONFIG_TICK_ONESHOT)
+extern void tick_setup_hrtimer_broadcast(void);
+extern int tick_check_broadcast_expired(void);
 #else
-# define clockevents_notify(reason, arg) do { } while (0)
+static inline int tick_check_broadcast_expired(void) { return 0; }
+static inline void tick_setup_hrtimer_broadcast(void) {};
+#endif
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS
+extern int clockevents_notify(unsigned long reason, void *arg);
+#else
+static inline int clockevents_notify(unsigned long reason, void *arg) { return 0; }
 #endif
 
 #else /* CONFIG_GENERIC_CLOCKEVENTS_BUILD */
@@ -181,7 +205,9 @@ extern void clockevents_notify(unsigned long reason, void *arg);
 static inline void clockevents_suspend(void) {}
 static inline void clockevents_resume(void) {}
 
-#define clockevents_notify(reason, arg) do { } while (0)
+static inline int clockevents_notify(unsigned long reason, void *arg) { return 0; }
+static inline int tick_check_broadcast_expired(void) { return 0; }
+static inline void tick_setup_hrtimer_broadcast(void) {};
 
 #endif
 

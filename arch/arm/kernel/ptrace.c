@@ -849,7 +849,7 @@ long arch_ptrace(struct task_struct *child, long request,
 #endif
 
 		case PTRACE_GET_THREAD_AREA:
-			ret = put_user(task_thread_info(child)->tp_value,
+			ret = put_user(task_thread_info(child)->tp_value[0],
 				       datap);
 			break;
 
@@ -886,20 +886,12 @@ long arch_ptrace(struct task_struct *child, long request,
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		case PTRACE_GETHBPREGS:
-			if (ptrace_get_breakpoints(child) < 0)
-				return -ESRCH;
-
 			ret = ptrace_gethbpregs(child, addr,
 						(unsigned long __user *)data);
-			ptrace_put_breakpoints(child);
 			break;
 		case PTRACE_SETHBPREGS:
-			if (ptrace_get_breakpoints(child) < 0)
-				return -ESRCH;
-
 			ret = ptrace_sethbpregs(child, addr,
 						(unsigned long __user *)data);
-			ptrace_put_breakpoints(child);
 			break;
 #endif
 
@@ -916,7 +908,7 @@ enum ptrace_syscall_dir {
 	PTRACE_SYSCALL_EXIT,
 };
 
-static int tracehook_report_syscall(struct pt_regs *regs,
+static void tracehook_report_syscall(struct pt_regs *regs,
 				    enum ptrace_syscall_dir dir)
 {
 	unsigned long ip;
@@ -934,7 +926,6 @@ static int tracehook_report_syscall(struct pt_regs *regs,
 		current_thread_info()->syscall = -1;
 
 	regs->ARM_ip = ip;
-	return current_thread_info()->syscall;
 }
 
 asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
@@ -942,17 +933,24 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 	current_thread_info()->syscall = scno;
 
 	/* Do the secure computing check first; failures should be fast. */
-	if (secure_computing(scno) == -1)
+#ifdef CONFIG_HAVE_ARCH_SECCOMP_FILTER
+	if (secure_computing() == -1)
 		return -1;
+#else
+	/* XXX: remove this once OABI gets fixed */
+	secure_computing_strict(scno);
+#endif
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		scno = tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
+		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
+
+	scno = current_thread_info()->syscall;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_enter(regs, scno);
 
-	audit_syscall_entry(AUDIT_ARCH_ARM, scno, regs->ARM_r0, regs->ARM_r1,
-			    regs->ARM_r2, regs->ARM_r3);
+	audit_syscall_entry(scno, regs->ARM_r0, regs->ARM_r1, regs->ARM_r2,
+			    regs->ARM_r3);
 
 	return scno;
 }

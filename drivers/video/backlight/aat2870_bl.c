@@ -67,11 +67,6 @@ static inline int aat2870_bl_disable(struct aat2870_bl_driver_data *aat2870_bl)
 	return aat2870->write(aat2870, AAT2870_BL_CH_EN, 0x0);
 }
 
-static int aat2870_bl_get_brightness(struct backlight_device *bd)
-{
-	return bd->props.brightness;
-}
-
 static int aat2870_bl_update_status(struct backlight_device *bd)
 {
 	struct aat2870_bl_driver_data *aat2870_bl = bl_get_data(bd);
@@ -120,14 +115,13 @@ static int aat2870_bl_check_fb(struct backlight_device *bd, struct fb_info *fi)
 
 static const struct backlight_ops aat2870_bl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
-	.get_brightness = aat2870_bl_get_brightness,
 	.update_status = aat2870_bl_update_status,
 	.check_fb = aat2870_bl_check_fb,
 };
 
 static int aat2870_bl_probe(struct platform_device *pdev)
 {
-	struct aat2870_bl_platform_data *pdata = pdev->dev.platform_data;
+	struct aat2870_bl_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct aat2870_bl_driver_data *aat2870_bl;
 	struct backlight_device *bd;
 	struct backlight_properties props;
@@ -149,8 +143,6 @@ static int aat2870_bl_probe(struct platform_device *pdev)
 				  sizeof(struct aat2870_bl_driver_data),
 				  GFP_KERNEL);
 	if (!aat2870_bl) {
-		dev_err(&pdev->dev,
-			"Failed to allocate memory for aat2870 backlight\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -158,8 +150,9 @@ static int aat2870_bl_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 
 	props.type = BACKLIGHT_RAW;
-	bd = backlight_device_register("aat2870-backlight", &pdev->dev,
-				       aat2870_bl, &aat2870_bl_ops, &props);
+	bd = devm_backlight_device_register(&pdev->dev, "aat2870-backlight",
+					&pdev->dev, aat2870_bl, &aat2870_bl_ops,
+					&props);
 	if (IS_ERR(bd)) {
 		dev_err(&pdev->dev,
 			"Failed allocate memory for backlight device\n");
@@ -194,13 +187,11 @@ static int aat2870_bl_probe(struct platform_device *pdev)
 	ret = aat2870_bl_update_status(bd);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to initialize\n");
-		goto out_bl_dev_unregister;
+		return ret;
 	}
 
 	return 0;
 
-out_bl_dev_unregister:
-	backlight_device_unregister(bd);
 out:
 	return ret;
 }
@@ -214,15 +205,12 @@ static int aat2870_bl_remove(struct platform_device *pdev)
 	bd->props.brightness = 0;
 	backlight_update_status(bd);
 
-	backlight_device_unregister(bd);
-
 	return 0;
 }
 
 static struct platform_driver aat2870_bl_driver = {
 	.driver = {
 		.name	= "aat2870-backlight",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= aat2870_bl_probe,
 	.remove		= aat2870_bl_remove,

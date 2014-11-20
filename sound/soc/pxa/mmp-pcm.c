@@ -17,6 +17,7 @@
 #include <linux/dmaengine.h>
 #include <linux/platform_data/dma-mmp_tdma.h>
 #include <linux/platform_data/mmp_audio.h>
+
 #include <sound/pxa2xx-lib.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -33,16 +34,12 @@ struct mmp_dma_data {
 		SNDRV_PCM_INFO_MMAP_VALID |	\
 		SNDRV_PCM_INFO_INTERLEAVED |	\
 		SNDRV_PCM_INFO_PAUSE |		\
-		SNDRV_PCM_INFO_RESUME)
-
-#define MMP_PCM_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
-			 SNDRV_PCM_FMTBIT_S24_LE | \
-			 SNDRV_PCM_FMTBIT_S32_LE)
+		SNDRV_PCM_INFO_RESUME |		\
+		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP)
 
 static struct snd_pcm_hardware mmp_pcm_hardware[] = {
 	{
 		.info			= MMP_PCM_INFO,
-		.formats		= MMP_PCM_FORMATS,
 		.period_bytes_min	= 1024,
 		.period_bytes_max	= 2048,
 		.periods_min		= 2,
@@ -52,7 +49,6 @@ static struct snd_pcm_hardware mmp_pcm_hardware[] = {
 	},
 	{
 		.info			= MMP_PCM_INFO,
-		.formats		= MMP_PCM_FORMATS,
 		.period_bytes_min	= 1024,
 		.period_bytes_max	= 2048,
 		.periods_min		= 2,
@@ -66,26 +62,14 @@ static int mmp_pcm_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct pxa2xx_pcm_dma_params *dma_params;
 	struct dma_slave_config slave_config;
 	int ret;
 
-	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-	if (!dma_params)
-		return 0;
-
-	ret = snd_hwparams_to_dma_slave_config(substream, params, &slave_config);
+	ret =
+	    snd_dmaengine_pcm_prepare_slave_config(substream, params,
+						   &slave_config);
 	if (ret)
 		return ret;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		slave_config.dst_addr     = dma_params->dev_addr;
-		slave_config.dst_maxburst = 4;
-	} else {
-		slave_config.src_addr	  = dma_params->dev_addr;
-		slave_config.src_maxburst = 4;
-	}
 
 	ret = dmaengine_slave_config(chan, &slave_config);
 	if (ret)
@@ -118,9 +102,8 @@ static int mmp_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct platform_device *pdev = to_platform_device(rtd->platform->dev);
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct mmp_dma_data *dma_data;
+	struct mmp_dma_data dma_data;
 	struct resource *r;
-	int ret;
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, substream->stream);
 	if (!r)
@@ -128,33 +111,12 @@ static int mmp_pcm_open(struct snd_pcm_substream *substream)
 
 	snd_soc_set_runtime_hwparams(substream,
 				&mmp_pcm_hardware[substream->stream]);
-	dma_data = devm_kzalloc(&pdev->dev,
-			sizeof(struct mmp_dma_data), GFP_KERNEL);
-	if (dma_data == NULL)
-		return -ENOMEM;
 
-	dma_data->dma_res = r;
-	dma_data->ssp_id = cpu_dai->id;
+	dma_data.dma_res = r;
+	dma_data.ssp_id = cpu_dai->id;
 
-	ret = snd_dmaengine_pcm_open(substream, filter, dma_data);
-	if (ret) {
-		devm_kfree(&pdev->dev, dma_data);
-		return ret;
-	}
-
-	snd_dmaengine_pcm_set_data(substream, dma_data);
-	return 0;
-}
-
-static int mmp_pcm_close(struct snd_pcm_substream *substream)
-{
-	struct mmp_dma_data *dma_data = snd_dmaengine_pcm_get_data(substream);
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct platform_device *pdev = to_platform_device(rtd->platform->dev);
-
-	snd_dmaengine_pcm_close(substream);
-	devm_kfree(&pdev->dev, dma_data);
-	return 0;
+	return snd_dmaengine_pcm_open_request_chan(substream, filter,
+		    &dma_data);
 }
 
 static int mmp_pcm_mmap(struct snd_pcm_substream *substream,
@@ -169,9 +131,9 @@ static int mmp_pcm_mmap(struct snd_pcm_substream *substream,
 		vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
-struct snd_pcm_ops mmp_pcm_ops = {
+static struct snd_pcm_ops mmp_pcm_ops = {
 	.open		= mmp_pcm_open,
-	.close		= mmp_pcm_close,
+	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= mmp_pcm_hw_params,
 	.trigger	= snd_dmaengine_pcm_trigger,
@@ -222,15 +184,14 @@ static int mmp_pcm_preallocate_dma_buffer(struct snd_pcm_substream *substream,
 	if (!gpool)
 		return -ENOMEM;
 
-	buf->area = (unsigned char *)gen_pool_alloc(gpool, size);
+	buf->area = gen_pool_dma_alloc(gpool, size, &buf->addr);
 	if (!buf->area)
 		return -ENOMEM;
-	buf->addr = gen_pool_virt_to_phys(gpool, (unsigned long)buf->area);
 	buf->bytes = size;
 	return 0;
 }
 
-int mmp_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int mmp_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm_substream *substream;
 	struct snd_pcm *pcm = rtd->pcm;
@@ -251,7 +212,7 @@ err:
 	return ret;
 }
 
-struct snd_soc_platform_driver mmp_soc_platform = {
+static struct snd_soc_platform_driver mmp_soc_platform = {
 	.ops		= &mmp_pcm_ops,
 	.pcm_new	= mmp_pcm_new,
 	.pcm_free	= mmp_pcm_free_dma_buffers,

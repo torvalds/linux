@@ -73,7 +73,6 @@ earlier 3Com products.
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -1165,16 +1164,4 @@ static struct pcmcia_driver tc574_driver = {
 	.suspend	= tc574_suspend,
 	.resume		= tc574_resume,
 };
-
-static int __init init_tc574(void)
-{
-	return pcmcia_register_driver(&tc574_driver);
-}
-
-static void __exit exit_tc574(void)
-{
-	pcmcia_unregister_driver(&tc574_driver);
-}
-
-module_init(init_tc574);
-module_exit(exit_tc574);
+module_pcmcia_driver(tc574_driver);

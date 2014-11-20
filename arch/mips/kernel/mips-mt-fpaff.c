@@ -1,5 +1,5 @@
 /*
- * General MIPS MT support routines, usable in AP/SP, SMVP, or SMTC kernels
+ * General MIPS MT support routines, usable in AP/SP and SMVP.
  * Copyright (C) 2005 Mips Technologies, Inc
  */
 #include <linux/cpu.h>
@@ -27,12 +27,12 @@ unsigned long mt_fpemul_threshold;
  * FPU affinity with the user's requested processor affinity.
  * This code is 98% identical with the sys_sched_setaffinity()
  * and sys_sched_getaffinity() system calls, and should be
- * updated when kernel/sched.c changes.
+ * updated when kernel/sched/core.c changes.
  */
 
 /*
  * find_process_by_pid - find a process with a matching PID value.
- * used in sys_sched_set/getaffinity() in kernel/sched.c, so
+ * used in sys_sched_set/getaffinity() in kernel/sched/core.c, so
  * cloned here.
  */
 static inline struct task_struct *find_process_by_pid(pid_t pid)

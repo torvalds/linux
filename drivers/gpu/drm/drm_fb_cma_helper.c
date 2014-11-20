@@ -92,7 +92,7 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 
 	ret = drm_framebuffer_init(dev, &fb_cma->fb, &drm_fb_cma_funcs);
 	if (ret) {
-		dev_err(dev->dev, "Failed to initalize framebuffer: %d\n", ret);
+		dev_err(dev->dev, "Failed to initialize framebuffer: %d\n", ret);
 		kfree(fb_cma);
 		return ERR_PTR(ret);
 	}
@@ -181,11 +181,11 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
 
 #ifdef CONFIG_DEBUG_FS
-/**
+/*
  * drm_fb_cma_describe() - Helper to dump information about a single
  * CMA framebuffer object
  */
-void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
+static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
 	int i, n = drm_format_num_planes(fb->pixel_format);
@@ -199,7 +199,6 @@ void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 		drm_gem_cma_describe(fb_cma->obj[i], m);
 	}
 }
-EXPORT_SYMBOL_GPL(drm_fb_cma_describe);
 
 /**
  * drm_fb_cma_debugfs_show() - Helper to list CMA framebuffer objects
@@ -328,7 +327,7 @@ err_drm_gem_cma_free_object:
 	return ret;
 }
 
-static struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
+static const struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
 	.fb_probe = drm_fbdev_cma_create,
 };
 
@@ -355,8 +354,9 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	fbdev_cma->fb_helper.funcs = &drm_fb_cma_helper_funcs;
 	helper = &fbdev_cma->fb_helper;
+
+	drm_fb_helper_prepare(dev, helper, &drm_fb_cma_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper, num_crtc, max_conn_count);
 	if (ret < 0) {
@@ -376,7 +376,7 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 
 	ret = drm_fb_helper_initial_config(helper, preferred_bpp);
 	if (ret < 0) {
-		dev_err(dev->dev, "Failed to set inital hw configuration.\n");
+		dev_err(dev->dev, "Failed to set initial hw configuration.\n");
 		goto err_drm_fb_helper_fini;
 	}
 
@@ -430,13 +430,8 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_fini);
  */
 void drm_fbdev_cma_restore_mode(struct drm_fbdev_cma *fbdev_cma)
 {
-	if (fbdev_cma) {
-		struct drm_device *dev = fbdev_cma->fb_helper.dev;
-
-		drm_modeset_lock_all(dev);
-		drm_fb_helper_restore_fbdev_mode(&fbdev_cma->fb_helper);
-		drm_modeset_unlock_all(dev);
-	}
+	if (fbdev_cma)
+		drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev_cma->fb_helper);
 }
 EXPORT_SYMBOL_GPL(drm_fbdev_cma_restore_mode);
 

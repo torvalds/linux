@@ -13,6 +13,7 @@
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
+#include <linux/suspend.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
@@ -24,6 +25,7 @@
 #include <asm/elf.h>
 #include <asm/asm-offsets.h>
 #include <asm/os_info.h>
+#include <asm/switch_to.h>
 
 typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long);
 
@@ -42,18 +44,21 @@ static void add_elf_notes(int cpu)
 
 	memcpy((void *) (4608UL + sa->pref_reg), sa, sizeof(*sa));
 	ptr = (u64 *) per_cpu_ptr(crash_notes, cpu);
-	ptr = fill_cpu_elf_notes(ptr, sa);
+	ptr = fill_cpu_elf_notes(ptr, sa, NULL);
 	memset(ptr, 0, sizeof(struct elf_note));
 }
 
 /*
  * Initialize CPU ELF notes
  */
-void setup_regs(void)
+static void setup_regs(void)
 {
 	unsigned long sa = S390_lowcore.prefixreg_save_area + SAVE_AREA_BASE;
+	struct _lowcore *lc;
 	int cpu, this_cpu;
 
+	/* Get lowcore pointer from store status of this CPU (absolute zero) */
+	lc = (struct _lowcore *)(unsigned long)S390_lowcore.prefixreg_save_area;
 	this_cpu = smp_find_processor_id(stap());
 	add_elf_notes(this_cpu);
 	for_each_online_cpu(cpu) {
@@ -63,10 +68,41 @@ void setup_regs(void)
 			continue;
 		add_elf_notes(cpu);
 	}
+	if (MACHINE_HAS_VX)
+		save_vx_regs_safe((void *) lc->vector_save_area_addr);
 	/* Copy dump CPU store status info to absolute zero */
 	memcpy((void *) SAVE_AREA_BASE, (void *) sa, sizeof(struct save_area));
 }
 
+/*
+ * PM notifier callback for kdump
+ */
+static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
+			       void *ptr)
+{
+	switch (action) {
+	case PM_SUSPEND_PREPARE:
+	case PM_HIBERNATION_PREPARE:
+		if (crashk_res.start)
+			crash_map_reserved_pages();
+		break;
+	case PM_POST_SUSPEND:
+	case PM_POST_HIBERNATION:
+		if (crashk_res.start)
+			crash_unmap_reserved_pages();
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+	return NOTIFY_OK;
+}
+
+static int __init machine_kdump_pm_init(void)
+{
+	pm_notifier(machine_kdump_pm_cb, 0);
+	return 0;
+}
+arch_initcall(machine_kdump_pm_init);
 #endif
 
 /*

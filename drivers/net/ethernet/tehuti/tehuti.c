@@ -66,7 +66,7 @@
 
 #include "tehuti.h"
 
-static DEFINE_PCI_DEVICE_TABLE(bdx_pci_tbl) = {
+static const struct pci_device_id bdx_pci_tbl[] = {
 	{ PCI_VDEVICE(TEHUTI, 0x3009), },
 	{ PCI_VDEVICE(TEHUTI, 0x3010), },
 	{ PCI_VDEVICE(TEHUTI, 0x3014), },
@@ -733,7 +733,7 @@ static void __bdx_vlan_rx_vid(struct net_device *ndev, uint16_t vid, int enable)
  * @ndev: network device
  * @vid:  VLAN vid to add
  */
-static int bdx_vlan_rx_add_vid(struct net_device *ndev, uint16_t vid)
+static int bdx_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
 {
 	__bdx_vlan_rx_vid(ndev, vid, 1);
 	return 0;
@@ -744,7 +744,7 @@ static int bdx_vlan_rx_add_vid(struct net_device *ndev, uint16_t vid)
  * @ndev: network device
  * @vid:  VLAN vid to kill
  */
-static int bdx_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid)
+static int bdx_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
 {
 	__bdx_vlan_rx_vid(ndev, vid, 0);
 	return 0;
@@ -1102,10 +1102,9 @@ static void bdx_rx_alloc_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 	dno = bdx_rxdb_available(db) - 1;
 	while (dno > 0) {
 		skb = netdev_alloc_skb(priv->ndev, f->m.pktsz + NET_IP_ALIGN);
-		if (!skb) {
-			pr_err("NO MEM: netdev_alloc_skb failed\n");
+		if (!skb)
 			break;
-		}
+
 		skb_reserve(skb, NET_IP_ALIGN);
 
 		idx = bdx_rxdb_alloc_elem(db);
@@ -1149,7 +1148,7 @@ NETIF_RX_MUX(struct bdx_priv *priv, u32 rxd_val1, u16 rxd_vlan,
 		    priv->ndev->name,
 		    GET_RXD_VLAN_ID(rxd_vlan),
 		    GET_RXD_VTAG(rxd_val1));
-		__vlan_hwaccel_put_tag(skb, GET_RXD_VLAN_TCI(rxd_vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), GET_RXD_VLAN_TCI(rxd_vlan));
 	}
 	netif_receive_skb(skb);
 }
@@ -1765,7 +1764,7 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 	WRITE_REG(priv, f->m.reg_RPTR, f->m.rptr & TXF_WPTR_WR_PTR);
 
 	/* We reclaimed resources, so in case the Q is stopped by xmit callback,
-	 * we resume the transmition and use tx_lock to synchronize with xmit.*/
+	 * we resume the transmission and use tx_lock to synchronize with xmit.*/
 	spin_lock(&priv->tx_lock);
 	priv->tx_level += tx_level;
 	BDX_ASSERT(priv->tx_level <= 0 || priv->tx_level > BDX_MAX_TX_LEVEL);
@@ -2018,12 +2017,11 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 * so we can have them same for all ports of the board */
 		ndev->if_port = port;
 		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO
-		    | NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-		    NETIF_F_HW_VLAN_FILTER | NETIF_F_RXCSUM
-		    /*| NETIF_F_FRAGLIST */
+		    | NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+		    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM
 		    ;
 		ndev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
-			NETIF_F_TSO | NETIF_F_HW_VLAN_TX;
+			NETIF_F_TSO | NETIF_F_HW_VLAN_CTAG_TX;
 
 		if (pci_using_dac)
 			ndev->features |= NETIF_F_HIGHDMA;
@@ -2415,7 +2413,7 @@ static void bdx_set_ethtool_ops(struct net_device *netdev)
 		.get_ethtool_stats = bdx_get_ethtool_stats,
 	};
 
-	SET_ETHTOOL_OPS(netdev, &bdx_ethtool_ops);
+	netdev->ethtool_ops = &bdx_ethtool_ops;
 }
 
 /**
@@ -2448,7 +2446,6 @@ static void bdx_remove(struct pci_dev *pdev)
 	iounmap(nic->regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	vfree(nic);
 
 	RET();

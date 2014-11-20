@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #ifndef _8255_H
@@ -26,14 +21,28 @@
 
 #include "../comedidev.h"
 
-int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
-		     int (*io) (int, int, int, unsigned long),
-		     unsigned long iobase);
-int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int (*io) (int, int, int, unsigned long),
-			 unsigned long iobase);
-void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice *s);
-void subdev_8255_interrupt(struct comedi_device *dev,
-			   struct comedi_subdevice *s);
+#define I8255_SIZE		0x04
+
+#define I8255_DATA_A_REG	0x00
+#define I8255_DATA_B_REG	0x01
+#define I8255_DATA_C_REG	0x02
+#define I8255_CTRL_REG		0x03
+#define I8255_CTRL_C_LO_IO	(1 << 0)
+#define I8255_CTRL_B_IO		(1 << 1)
+#define I8255_CTRL_B_MODE	(1 << 2)
+#define I8255_CTRL_C_HI_IO	(1 << 3)
+#define I8255_CTRL_A_IO		(1 << 4)
+#define I8255_CTRL_A_MODE(x)	((x) << 5)
+#define I8255_CTRL_CW		(1 << 7)
+
+int subdev_8255_init(struct comedi_device *, struct comedi_subdevice *,
+		     int (*io)(struct comedi_device *,
+			       int, int, int, unsigned long),
+		     unsigned long regbase);
+
+int subdev_8255_mm_init(struct comedi_device *, struct comedi_subdevice *,
+			int (*io)(struct comedi_device *,
+				  int, int, int, unsigned long),
+			unsigned long regbase);
 
 #endif

@@ -222,7 +222,7 @@ static void spi_lm70llp_attach(struct parport *p)
 	/*
 	 * SPI and bitbang hookup.
 	 */
-	pp->bitbang.master = spi_master_get(master);
+	pp->bitbang.master = master;
 	pp->bitbang.chipselect = lm70_chipselect;
 	pp->bitbang.txrx_word[SPI_MODE_0] = lm70_txrx;
 	pp->bitbang.flags = SPI_3WIRE;

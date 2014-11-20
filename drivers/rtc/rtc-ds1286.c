@@ -25,8 +25,6 @@
 struct ds1286_priv {
 	struct rtc_device *rtc;
 	u32 __iomem *rtcregs;
-	size_t size;
-	unsigned long baseaddr;
 	spinlock_t lock;
 };
 
@@ -270,7 +268,6 @@ static int ds1286_set_time(struct device *dev, struct rtc_time *tm)
 static int ds1286_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
 	struct ds1286_priv *priv = dev_get_drvdata(dev);
-	unsigned char cmd;
 	unsigned long flags;
 
 	/*
@@ -281,7 +278,7 @@ static int ds1286_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	alm->time.tm_min = ds1286_rtc_read(priv, RTC_MINUTES_ALARM) & 0x7f;
 	alm->time.tm_hour = ds1286_rtc_read(priv, RTC_HOURS_ALARM)  & 0x1f;
 	alm->time.tm_wday = ds1286_rtc_read(priv, RTC_DAY_ALARM)    & 0x07;
-	cmd = ds1286_rtc_read(priv, RTC_CMD);
+	ds1286_rtc_read(priv, RTC_CMD);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	alm->time.tm_min = bcd2bin(alm->time.tm_min);
@@ -334,56 +331,25 @@ static int ds1286_probe(struct platform_device *pdev)
 	struct rtc_device *rtc;
 	struct resource *res;
 	struct ds1286_priv *priv;
-	int ret = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
-	priv = kzalloc(sizeof(struct ds1286_priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct ds1286_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->size = resource_size(res);
-	if (!request_mem_region(res->start, priv->size, pdev->name)) {
-		ret = -EBUSY;
-		goto out;
-	}
-	priv->baseaddr = res->start;
-	priv->rtcregs = ioremap(priv->baseaddr, priv->size);
-	if (!priv->rtcregs) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	priv->rtcregs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->rtcregs))
+		return PTR_ERR(priv->rtcregs);
+
 	spin_lock_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
-	rtc = rtc_device_register("ds1286", &pdev->dev,
-				  &ds1286_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
-		goto out;
-	}
+	rtc = devm_rtc_device_register(&pdev->dev, "ds1286", &ds1286_ops,
+					THIS_MODULE);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
 	priv->rtc = rtc;
-	return 0;
-
-out:
-	if (priv->rtc)
-		rtc_device_unregister(priv->rtc);
-	if (priv->rtcregs)
-		iounmap(priv->rtcregs);
-	if (priv->baseaddr)
-		release_mem_region(priv->baseaddr, priv->size);
-	kfree(priv);
-	return ret;
-}
-
-static int ds1286_remove(struct platform_device *pdev)
-{
-	struct ds1286_priv *priv = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(priv->rtc);
-	iounmap(priv->rtcregs);
-	release_mem_region(priv->baseaddr, priv->size);
-	kfree(priv);
 	return 0;
 }
 
@@ -393,7 +359,6 @@ static struct platform_driver ds1286_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1286_probe,
-	.remove		= ds1286_remove,
 };
 
 module_platform_driver(ds1286_platform_driver);

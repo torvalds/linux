@@ -37,30 +37,58 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0>;
+			cci-control-port = <&cci_control1>;
+			cpu-idle-states = <&CLUSTER_SLEEP_BIG>;
 		};
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <1>;
+			cci-control-port = <&cci_control1>;
+			cpu-idle-states = <&CLUSTER_SLEEP_BIG>;
 		};
 
 		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x100>;
+			cci-control-port = <&cci_control2>;
+			cpu-idle-states = <&CLUSTER_SLEEP_LITTLE>;
 		};
 
 		cpu3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x101>;
+			cci-control-port = <&cci_control2>;
+			cpu-idle-states = <&CLUSTER_SLEEP_LITTLE>;
 		};
 
 		cpu4: cpu@4 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x102>;
+			cci-control-port = <&cci_control2>;
+			cpu-idle-states = <&CLUSTER_SLEEP_LITTLE>;
+		};
+
+		idle-states {
+			CLUSTER_SLEEP_BIG: cluster-sleep-big {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				entry-latency-us = <1000>;
+				exit-latency-us = <700>;
+				min-residency-us = <2000>;
+			};
+
+			CLUSTER_SLEEP_LITTLE: cluster-sleep-little {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				entry-latency-us = <1000>;
+				exit-latency-us = <500>;
+				min-residency-us = <2500>;
+			};
 		};
 	};
 
@@ -104,6 +132,26 @@
 		interrupts = <1 9 0xf04>;
 	};
 
+	cci@2c090000 {
+		compatible = "arm,cci-400";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0 0x2c090000 0 0x1000>;
+		ranges = <0x0 0x0 0x2c090000 0x10000>;
+
+		cci_control1: slave-if@4000 {
+			compatible = "arm,cci-400-ctrl-if";
+			interface-type = "ace";
+			reg = <0x4000 0x1000>;
+		};
+
+		cci_control2: slave-if@5000 {
+			compatible = "arm,cci-400-ctrl-if";
+			interface-type = "ace";
+			reg = <0x5000 0x1000>;
+		};
+	};
+
 	memory-controller@7ffd0000 {
 		compatible = "arm,pl354", "arm,primecell";
 		reg = <0 0x7ffd0000 0 0x1000>;
@@ -125,6 +173,12 @@
 		clock-names = "apb_pclk";
 	};
 
+        scc@7fff0000 {
+		compatible = "arm,vexpress-scc,v2p-ca15_a7", "arm,vexpress-scc";
+		reg = <0 0x7fff0000 0 0x1000>;
+		interrupts = <0 95 4>;
+        };
+
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <1 13 0xf08>,
@@ -134,7 +188,7 @@
 	};
 
 	pmu {
-		compatible = "arm,cortex-a15-pmu", "arm,cortex-a9-pmu";
+		compatible = "arm,cortex-a15-pmu";
 		interrupts = <0 68 4>,
 			     <0 69 4>;
 	};
@@ -281,6 +335,7 @@
 			arm,vexpress-sysreg,func = <12 0>;
 			label = "A15 Pcore";
 		};
+
 		power@1 {
 			/* Total power for the three A7 cores */
 			compatible = "arm,vexpress-power";
@@ -291,14 +346,14 @@
 		energy@0 {
 			/* Total energy for the two A15 cores */
 			compatible = "arm,vexpress-energy";
-			arm,vexpress-sysreg,func = <13 0>;
+			arm,vexpress-sysreg,func = <13 0>, <13 1>;
 			label = "A15 Jcore";
 		};
 
 		energy@2 {
 			/* Total energy for the three A7 cores */
 			compatible = "arm,vexpress-energy";
-			arm,vexpress-sysreg,func = <13 2>;
+			arm,vexpress-sysreg,func = <13 2>, <13 3>;
 			label = "A7 Jcore";
 		};
 	};

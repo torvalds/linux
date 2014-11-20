@@ -17,26 +17,29 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_shared.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_alloc.h"
-#include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_rtalloc.h"
+#include "xfs_bmap_util.h"
+#include "xfs_alloc.h"
+#include "xfs_quota.h"
 #include "xfs_error.h"
-#include "xfs_itable.h"
-#include "xfs_attr.h"
+#include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_space.h"
 #include "xfs_trans_priv.h"
 #include "xfs_qm.h"
+#include "xfs_cksum.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
+#include "xfs_bmap_btree.h"
 
 /*
  * Lock order:
@@ -61,7 +64,8 @@ int xfs_dqerror_mod = 33;
 struct kmem_zone		*xfs_qm_dqtrxzone;
 static struct kmem_zone		*xfs_qm_dqzone;
 
-static struct lock_class_key xfs_dquot_other_class;
+static struct lock_class_key xfs_dquot_group_class;
+static struct lock_class_key xfs_dquot_project_class;
 
 /*
  * This is called to free all the memory associated with a dquot
@@ -85,17 +89,23 @@ xfs_qm_dqdestroy(
  */
 void
 xfs_qm_adjust_dqlimits(
-	xfs_mount_t		*mp,
-	xfs_disk_dquot_t	*d)
+	struct xfs_mount	*mp,
+	struct xfs_dquot	*dq)
 {
-	xfs_quotainfo_t		*q = mp->m_quotainfo;
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
+	struct xfs_disk_dquot	*d = &dq->q_core;
+	int			prealloc = 0;
 
 	ASSERT(d->d_id);
 
-	if (q->qi_bsoftlimit && !d->d_blk_softlimit)
+	if (q->qi_bsoftlimit && !d->d_blk_softlimit) {
 		d->d_blk_softlimit = cpu_to_be64(q->qi_bsoftlimit);
-	if (q->qi_bhardlimit && !d->d_blk_hardlimit)
+		prealloc = 1;
+	}
+	if (q->qi_bhardlimit && !d->d_blk_hardlimit) {
 		d->d_blk_hardlimit = cpu_to_be64(q->qi_bhardlimit);
+		prealloc = 1;
+	}
 	if (q->qi_isoftlimit && !d->d_ino_softlimit)
 		d->d_ino_softlimit = cpu_to_be64(q->qi_isoftlimit);
 	if (q->qi_ihardlimit && !d->d_ino_hardlimit)
@@ -104,6 +114,9 @@ xfs_qm_adjust_dqlimits(
 		d->d_rtb_softlimit = cpu_to_be64(q->qi_rtbsoftlimit);
 	if (q->qi_rtbhardlimit && !d->d_rtb_hardlimit)
 		d->d_rtb_hardlimit = cpu_to_be64(q->qi_rtbhardlimit);
+
+	if (prealloc)
+		xfs_dquot_set_prealloc_limits(dq);
 }
 
 /*
@@ -239,6 +252,11 @@ xfs_qm_init_dquot_blk(
 		d->dd_diskdq.d_version = XFS_DQUOT_VERSION;
 		d->dd_diskdq.d_id = cpu_to_be32(curid);
 		d->dd_diskdq.d_flags = type;
+		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+			uuid_copy(&d->dd_uuid, &mp->m_sb.sb_uuid);
+			xfs_update_cksum((char *)d, sizeof(struct xfs_dqblk),
+					 XFS_DQUOT_CRC_OFF);
+		}
 	}
 
 	xfs_trans_dquot_buf(tp, bp,
@@ -248,59 +266,31 @@ xfs_qm_init_dquot_blk(
 	xfs_trans_log_buf(tp, bp, 0, BBTOB(q->qi_dqchunklen) - 1);
 }
 
-static void
-xfs_dquot_buf_verify(
-	struct xfs_buf		*bp)
-{
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
-	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
-	struct xfs_disk_dquot	*ddq;
-	xfs_dqid_t		id = 0;
-	int			i;
-
-	/*
-	 * On the first read of the buffer, verify that each dquot is valid.
-	 * We don't know what the id of the dquot is supposed to be, just that
-	 * they should be increasing monotonically within the buffer. If the
-	 * first id is corrupt, then it will fail on the second dquot in the
-	 * buffer so corruptions could point to the wrong dquot in this case.
-	 */
-	for (i = 0; i < mp->m_quotainfo->qi_dqperchunk; i++) {
-		int	error;
-
-		ddq = &d[i].dd_diskdq;
-
-		if (i == 0)
-			id = be32_to_cpu(ddq->d_id);
-
-		error = xfs_qm_dqcheck(mp, ddq, id + i, 0, XFS_QMOPT_DOWARN,
-					"xfs_dquot_read_verify");
-		if (error) {
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, d);
-			xfs_buf_ioerror(bp, EFSCORRUPTED);
-			break;
-		}
-	}
-}
-
-static void
-xfs_dquot_buf_read_verify(
-	struct xfs_buf	*bp)
-{
-	xfs_dquot_buf_verify(bp);
-}
-
+/*
+ * Initialize the dynamic speculative preallocation thresholds. The lo/hi
+ * watermarks correspond to the soft and hard limits by default. If a soft limit
+ * is not specified, we use 95% of the hard limit.
+ */
 void
-xfs_dquot_buf_write_verify(
-	struct xfs_buf	*bp)
+xfs_dquot_set_prealloc_limits(struct xfs_dquot *dqp)
 {
-	xfs_dquot_buf_verify(bp);
-}
+	__uint64_t space;
 
-const struct xfs_buf_ops xfs_dquot_buf_ops = {
-	.verify_read = xfs_dquot_buf_read_verify,
-	.verify_write = xfs_dquot_buf_write_verify,
-};
+	dqp->q_prealloc_hi_wmark = be64_to_cpu(dqp->q_core.d_blk_hardlimit);
+	dqp->q_prealloc_lo_wmark = be64_to_cpu(dqp->q_core.d_blk_softlimit);
+	if (!dqp->q_prealloc_lo_wmark) {
+		dqp->q_prealloc_lo_wmark = dqp->q_prealloc_hi_wmark;
+		do_div(dqp->q_prealloc_lo_wmark, 100);
+		dqp->q_prealloc_lo_wmark *= 95;
+	}
+
+	space = dqp->q_prealloc_hi_wmark;
+
+	do_div(space, 100);
+	dqp->q_low_space[XFS_QLOWSP_1_PCNT] = space;
+	dqp->q_low_space[XFS_QLOWSP_3_PCNT] = space * 3;
+	dqp->q_low_space[XFS_QLOWSP_5_PCNT] = space * 5;
+}
 
 /*
  * Allocate a block and fill it with dquots.
@@ -337,7 +327,7 @@ xfs_qm_dqalloc(
 	 */
 	if (!xfs_this_quota_on(dqp->q_mount, dqp->dq_flags)) {
 		xfs_iunlock(quotip, XFS_ILOCK_EXCL);
-		return (ESRCH);
+		return -ESRCH;
 	}
 
 	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
@@ -363,10 +353,10 @@ xfs_qm_dqalloc(
 			       dqp->q_blkno,
 			       mp->m_quotainfo->qi_dqchunklen,
 			       0);
-
-	error = xfs_buf_geterror(bp);
-	if (error)
+	if (!bp) {
+		error = -ENOMEM;
 		goto error1;
+	}
 	bp->b_ops = &xfs_dquot_buf_ops;
 
 	/*
@@ -410,8 +400,9 @@ xfs_qm_dqalloc(
       error0:
 	xfs_iunlock(quotip, XFS_ILOCK_EXCL);
 
-	return (error);
+	return error;
 }
+
 STATIC int
 xfs_qm_dqrepair(
 	struct xfs_mount	*mp,
@@ -435,7 +426,7 @@ xfs_qm_dqrepair(
 
 	if (error) {
 		ASSERT(*bpp == NULL);
-		return XFS_ERROR(error);
+		return error;
 	}
 	(*bpp)->b_ops = &xfs_dquot_buf_ops;
 
@@ -445,13 +436,13 @@ xfs_qm_dqrepair(
 	/* Do the actual repair of dquots in this buffer */
 	for (i = 0; i < mp->m_quotainfo->qi_dqperchunk; i++) {
 		ddq = &d[i].dd_diskdq;
-		error = xfs_qm_dqcheck(mp, ddq, firstid + i,
+		error = xfs_dqcheck(mp, ddq, firstid + i,
 				       dqp->dq_flags & XFS_DQ_ALLTYPES,
 				       XFS_QMOPT_DQREPAIR, "xfs_qm_dqrepair");
 		if (error) {
 			/* repair failed, we're screwed */
 			xfs_trans_brelse(tp, *bpp);
-			return XFS_ERROR(EIO);
+			return -EIO;
 		}
 	}
 
@@ -471,24 +462,25 @@ xfs_qm_dqtobp(
 	xfs_buf_t		**O_bpp,
 	uint			flags)
 {
-	xfs_bmbt_irec_t map;
-	int		nmaps = 1, error;
-	xfs_buf_t	*bp;
-	xfs_inode_t	*quotip = XFS_DQ_TO_QIP(dqp);
-	xfs_mount_t	*mp = dqp->q_mount;
-	xfs_dqid_t	id = be32_to_cpu(dqp->q_core.d_id);
-	xfs_trans_t	*tp = (tpp ? *tpp : NULL);
+	struct xfs_bmbt_irec	map;
+	int			nmaps = 1, error;
+	struct xfs_buf		*bp;
+	struct xfs_inode	*quotip = xfs_dq_to_quota_inode(dqp);
+	struct xfs_mount	*mp = dqp->q_mount;
+	xfs_dqid_t		id = be32_to_cpu(dqp->q_core.d_id);
+	struct xfs_trans	*tp = (tpp ? *tpp : NULL);
+	uint			lock_mode;
 
 	dqp->q_fileoffset = (xfs_fileoff_t)id / mp->m_quotainfo->qi_dqperchunk;
 
-	xfs_ilock(quotip, XFS_ILOCK_SHARED);
+	lock_mode = xfs_ilock_data_map_shared(quotip);
 	if (!xfs_this_quota_on(dqp->q_mount, dqp->dq_flags)) {
 		/*
 		 * Return if this type of quotas is turned off while we
 		 * didn't have the quota inode lock.
 		 */
-		xfs_iunlock(quotip, XFS_ILOCK_SHARED);
-		return ESRCH;
+		xfs_iunlock(quotip, lock_mode);
+		return -ESRCH;
 	}
 
 	/*
@@ -497,7 +489,7 @@ xfs_qm_dqtobp(
 	error = xfs_bmapi_read(quotip, dqp->q_fileoffset,
 			       XFS_DQUOT_CLUSTER_SIZE_FSB, &map, &nmaps, 0);
 
-	xfs_iunlock(quotip, XFS_ILOCK_SHARED);
+	xfs_iunlock(quotip, lock_mode);
 	if (error)
 		return error;
 
@@ -516,7 +508,7 @@ xfs_qm_dqtobp(
 		 * We don't allocate unless we're asked to
 		 */
 		if (!(flags & XFS_QMOPT_DQALLOC))
-			return ENOENT;
+			return -ENOENT;
 
 		ASSERT(tp);
 		error = xfs_qm_dqalloc(tpp, mp, dqp, quotip,
@@ -538,7 +530,7 @@ xfs_qm_dqtobp(
 					   mp->m_quotainfo->qi_dqchunklen,
 					   0, &bp, &xfs_dquot_buf_ops);
 
-		if (error == EFSCORRUPTED && (flags & XFS_QMOPT_DQREPAIR)) {
+		if (error == -EFSCORRUPTED && (flags & XFS_QMOPT_DQREPAIR)) {
 			xfs_dqid_t firstid = (xfs_dqid_t)map.br_startoff *
 						mp->m_quotainfo->qi_dqperchunk;
 			ASSERT(bp == NULL);
@@ -547,7 +539,7 @@ xfs_qm_dqtobp(
 
 		if (error) {
 			ASSERT(bp == NULL);
-			return XFS_ERROR(error);
+			return error;
 		}
 	}
 
@@ -555,7 +547,7 @@ xfs_qm_dqtobp(
 	*O_bpp = bp;
 	*O_ddpp = bp->b_addr + dqp->q_bufoffset;
 
-	return (0);
+	return 0;
 }
 
 
@@ -602,8 +594,20 @@ xfs_qm_dqread(
 	 * Make sure group quotas have a different lock class than user
 	 * quotas.
 	 */
-	if (!(type & XFS_DQ_USER))
-		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_other_class);
+	switch (type) {
+	case XFS_DQ_USER:
+		/* uses the default lock class */
+		break;
+	case XFS_DQ_GROUP:
+		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_group_class);
+		break;
+	case XFS_DQ_PROJ:
+		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_project_class);
+		break;
+	default:
+		ASSERT(0);
+		break;
+	}
 
 	XFS_STATS_INC(xs_qm_dquot);
 
@@ -611,10 +615,8 @@ xfs_qm_dqread(
 
 	if (flags & XFS_QMOPT_DQALLOC) {
 		tp = xfs_trans_alloc(mp, XFS_TRANS_QM_DQALLOC);
-		error = xfs_trans_reserve(tp, XFS_QM_DQALLOC_SPACE_RES(mp),
-					  XFS_QM_DQALLOC_LOG_RES(mp), 0,
-					  XFS_TRANS_PERM_LOG_RES,
-					  XFS_WRITE_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_dqalloc,
+					  XFS_QM_DQALLOC_SPACE_RES(mp), 0);
 		if (error)
 			goto error1;
 		cancelflags = XFS_TRANS_RELEASE_LOG_RES;
@@ -647,6 +649,9 @@ xfs_qm_dqread(
 	dqp->q_res_bcount = be64_to_cpu(ddqp->d_bcount);
 	dqp->q_res_icount = be64_to_cpu(ddqp->d_icount);
 	dqp->q_res_rtbcount = be64_to_cpu(ddqp->d_rtbcount);
+
+	/* initialize the dquot speculative prealloc thresholds */
+	xfs_dquot_set_prealloc_limits(dqp);
 
 	/* Mark the buf so that this will stay incore a little longer */
 	xfs_buf_set_ref(bp, XFS_DQUOT_REF);
@@ -702,7 +707,7 @@ xfs_qm_dqget(
 	xfs_dquot_t	**O_dqpp) /* OUT : locked incore dquot */
 {
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct radix_tree_root *tree = XFS_DQUOT_TREE(qi, type);
+	struct radix_tree_root *tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 	int			error;
 
@@ -710,7 +715,7 @@ xfs_qm_dqget(
 	if ((! XFS_IS_UQUOTA_ON(mp) && type == XFS_DQ_USER) ||
 	    (! XFS_IS_PQUOTA_ON(mp) && type == XFS_DQ_PROJ) ||
 	    (! XFS_IS_GQUOTA_ON(mp) && type == XFS_DQ_GROUP)) {
-		return (ESRCH);
+		return -ESRCH;
 	}
 
 #ifdef DEBUG
@@ -718,7 +723,7 @@ xfs_qm_dqget(
 		if ((xfs_dqerror_target == mp->m_ddev_targp) &&
 		    (xfs_dqreq_num++ % xfs_dqerror_mod) == 0) {
 			xfs_debug(mp, "Returning error in dqget");
-			return (EIO);
+			return -EIO;
 		}
 	}
 
@@ -791,14 +796,14 @@ restart:
 		} else {
 			/* inode stays locked on return */
 			xfs_qm_dqdestroy(dqp);
-			return XFS_ERROR(ESRCH);
+			return -ESRCH;
 		}
 	}
 
 	mutex_lock(&qi->qi_tree_lock);
-	error = -radix_tree_insert(tree, id, dqp);
+	error = radix_tree_insert(tree, id, dqp);
 	if (unlikely(error)) {
-		WARN_ON(error != EEXIST);
+		WARN_ON(error != -EEXIST);
 
 		/*
 		 * Duplicate found. Just throw away the new dquot and start
@@ -824,44 +829,7 @@ restart:
 	ASSERT((ip == NULL) || xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	trace_xfs_dqget_miss(dqp);
 	*O_dqpp = dqp;
-	return (0);
-}
-
-
-STATIC void
-xfs_qm_dqput_final(
-	struct xfs_dquot	*dqp)
-{
-	struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
-	struct xfs_dquot	*gdqp;
-
-	trace_xfs_dqput_free(dqp);
-
-	mutex_lock(&qi->qi_lru_lock);
-	if (list_empty(&dqp->q_lru)) {
-		list_add_tail(&dqp->q_lru, &qi->qi_lru_list);
-		qi->qi_lru_count++;
-		XFS_STATS_INC(xs_qm_dquot_unused);
-	}
-	mutex_unlock(&qi->qi_lru_lock);
-
-	/*
-	 * If we just added a udquot to the freelist, then we want to release
-	 * the gdquot reference that it (probably) has. Otherwise it'll keep
-	 * the gdquot from getting reclaimed.
-	 */
-	gdqp = dqp->q_gdquot;
-	if (gdqp) {
-		xfs_dqlock(gdqp);
-		dqp->q_gdquot = NULL;
-	}
-	xfs_dqunlock(dqp);
-
-	/*
-	 * If we had a group quota hint, release it now.
-	 */
-	if (gdqp)
-		xfs_qm_dqput(gdqp);
+	return 0;
 }
 
 /*
@@ -879,10 +847,14 @@ xfs_qm_dqput(
 
 	trace_xfs_dqput(dqp);
 
-	if (--dqp->q_nrefs > 0)
-		xfs_dqunlock(dqp);
-	else
-		xfs_qm_dqput_final(dqp);
+	if (--dqp->q_nrefs == 0) {
+		struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
+		trace_xfs_dqput_free(dqp);
+
+		if (list_lru_add(&qi->qi_lru, &dqp->q_lru))
+			XFS_STATS_INC(xs_qm_dquot_unused);
+	}
+	xfs_dqunlock(dqp);
 }
 
 /*
@@ -994,7 +966,7 @@ xfs_qm_dqflush(
 					     SHUTDOWN_CORRUPT_INCORE);
 		else
 			spin_unlock(&mp->m_ail->xa_lock);
-		error = XFS_ERROR(EIO);
+		error = -EIO;
 		goto out_unlock;
 	}
 
@@ -1002,7 +974,8 @@ xfs_qm_dqflush(
 	 * Get the buffer containing the on-disk dquot
 	 */
 	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dqp->q_blkno,
-				   mp->m_quotainfo->qi_dqchunklen, 0, &bp, NULL);
+				   mp->m_quotainfo->qi_dqchunklen, 0, &bp,
+				   &xfs_dquot_buf_ops);
 	if (error)
 		goto out_unlock;
 
@@ -1014,13 +987,13 @@ xfs_qm_dqflush(
 	/*
 	 * A simple sanity check in case we got a corrupted dquot..
 	 */
-	error = xfs_qm_dqcheck(mp, &dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
+	error = xfs_dqcheck(mp, &dqp->q_core, be32_to_cpu(ddqp->d_id), 0,
 			   XFS_QMOPT_DOWARN, "dqflush (incore copy)");
 	if (error) {
 		xfs_buf_relse(bp);
 		xfs_dqfunlock(dqp);
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-		return XFS_ERROR(EIO);
+		return -EIO;
 	}
 
 	/* This is the only portion of data that needs to persist */
@@ -1033,6 +1006,23 @@ xfs_qm_dqflush(
 
 	xfs_trans_ail_copy_lsn(mp->m_ail, &dqp->q_logitem.qli_flush_lsn,
 					&dqp->q_logitem.qli_item.li_lsn);
+
+	/*
+	 * copy the lsn into the on-disk dquot now while we have the in memory
+	 * dquot here. This can't be done later in the write verifier as we
+	 * can't get access to the log item at that point in time.
+	 *
+	 * We also calculate the CRC here so that the on-disk dquot in the
+	 * buffer always has a valid CRC. This ensures there is no possibility
+	 * of a dquot without an up-to-date CRC getting to disk.
+	 */
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		struct xfs_dqblk *dqb = (struct xfs_dqblk *)ddqp;
+
+		dqb->dd_lsn = cpu_to_be64(dqp->q_logitem.qli_item.li_lsn);
+		xfs_update_cksum((char *)dqb, sizeof(struct xfs_dqblk),
+				 XFS_DQUOT_CRC_OFF);
+	}
 
 	/*
 	 * Attach an iodone routine so that we can remove this dquot from the
@@ -1056,7 +1046,7 @@ xfs_qm_dqflush(
 
 out_unlock:
 	xfs_dqfunlock(dqp);
-	return XFS_ERROR(EIO);
+	return -EIO;
 }
 
 /*

@@ -813,7 +813,7 @@ static int as3645a_probe(struct i2c_client *client,
 	if (client->dev.platform_data == NULL)
 		return -ENODEV;
 
-	flash = kzalloc(sizeof(*flash), GFP_KERNEL);
+	flash = devm_kzalloc(&client->dev, sizeof(*flash), GFP_KERNEL);
 	if (flash == NULL)
 		return -ENOMEM;
 
@@ -838,10 +838,8 @@ static int as3645a_probe(struct i2c_client *client,
 	flash->led_mode = V4L2_FLASH_LED_MODE_NONE;
 
 done:
-	if (ret < 0) {
+	if (ret < 0)
 		v4l2_ctrl_handler_free(&flash->ctrls);
-		kfree(flash);
-	}
 
 	return ret;
 }
@@ -855,7 +853,6 @@ static int as3645a_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&flash->ctrls);
 	media_entity_cleanup(&flash->subdev.entity);
 	mutex_destroy(&flash->power_lock);
-	kfree(flash);
 
 	return 0;
 }

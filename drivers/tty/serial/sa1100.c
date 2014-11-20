@@ -232,7 +232,10 @@ sa1100_rx_chars(struct sa1100_port *sport)
 		status = UTSR1_TO_SM(UART_GET_UTSR1(sport)) |
 			 UTSR0_TO_SM(UART_GET_UTSR0(sport));
 	}
+
+	spin_unlock(&sport->port.lock);
 	tty_flip_buffer_push(&sport->port.state->port);
+	spin_lock(&sport->port.lock);
 }
 
 static void sa1100_tx_chars(struct sa1100_port *sport)
@@ -644,7 +647,10 @@ void sa1100_register_uart_fns(struct sa1100_port_fns *fns)
 		sa1100_pops.set_mctrl = fns->set_mctrl;
 
 	sa1100_pops.pm       = fns->pm;
-	sa1100_pops.set_wake = fns->set_wake;
+	/*
+	 * FIXME: fns->set_wake is unused - this should be called from
+	 * the suspend() callback if device_may_wakeup(dev)) is set.
+	 */
 }
 
 void __init sa1100_register_uart(int idx, int port)
@@ -863,8 +869,6 @@ static int sa1100_serial_probe(struct platform_device *dev)
 static int sa1100_serial_remove(struct platform_device *pdev)
 {
 	struct sa1100_port *sport = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	if (sport)
 		uart_remove_one_port(&sa1100_reg, &sport->port);

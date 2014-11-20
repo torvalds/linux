@@ -166,7 +166,7 @@ int __max730x_probe(struct max7301 *ts)
 	struct max7301_platform_data *pdata;
 	int i, ret;
 
-	pdata = dev->platform_data;
+	pdata = dev_get_platdata(dev);
 
 	mutex_init(&ts->lock);
 	dev_set_drvdata(dev, ts);
@@ -188,7 +188,7 @@ int __max730x_probe(struct max7301 *ts)
 	ts->chip.set = max7301_set;
 
 	ts->chip.ngpio = PIN_NUMBER;
-	ts->chip.can_sleep = 1;
+	ts->chip.can_sleep = true;
 	ts->chip.dev = dev;
 	ts->chip.owner = THIS_MODULE;
 
@@ -220,7 +220,6 @@ int __max730x_probe(struct max7301 *ts)
 	return ret;
 
 exit_destroy:
-	dev_set_drvdata(dev, NULL);
 	mutex_destroy(&ts->lock);
 	return ret;
 }
@@ -229,24 +228,16 @@ EXPORT_SYMBOL_GPL(__max730x_probe);
 int __max730x_remove(struct device *dev)
 {
 	struct max7301 *ts = dev_get_drvdata(dev);
-	int ret;
 
 	if (ts == NULL)
 		return -ENODEV;
 
-	dev_set_drvdata(dev, NULL);
-
 	/* Power down the chip and disable IRQ output */
 	ts->write(dev, 0x04, 0x00);
-
-	ret = gpiochip_remove(&ts->chip);
-	if (!ret) {
-		mutex_destroy(&ts->lock);
-		kfree(ts);
-	} else
-		dev_err(dev, "Failed to remove GPIO controller: %d\n", ret);
-
-	return ret;
+	gpiochip_remove(&ts->chip);
+	mutex_destroy(&ts->lock);
+	kfree(ts);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(__max730x_remove);
 

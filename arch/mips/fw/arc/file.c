@@ -8,7 +8,6 @@
  * Copyright (C) 1994, 1995, 1996, 1999 Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
  */
-#include <linux/init.h>
 
 #include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>

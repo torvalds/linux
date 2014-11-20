@@ -1,10 +1,10 @@
-#ifndef INFLATE_H
-#define INFLATE_H
+#ifndef LINUX_DECOMPRESS_INFLATE_H
+#define LINUX_DECOMPRESS_INFLATE_H
 
-int gunzip(unsigned char *inbuf, int len,
-	   int(*fill)(void*, unsigned int),
-	   int(*flush)(void*, unsigned int),
+int gunzip(unsigned char *inbuf, long len,
+	   long (*fill)(void*, unsigned long),
+	   long (*flush)(void*, unsigned long),
 	   unsigned char *output,
-	   int *pos,
+	   long *pos,
 	   void(*error_fn)(char *x));
 #endif

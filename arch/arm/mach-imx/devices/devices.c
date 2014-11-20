@@ -24,12 +24,10 @@
 
 struct device mxc_aips_bus = {
 	.init_name	= "mxc_aips",
-	.parent		= &platform_bus,
 };
 
 struct device mxc_ahb_bus = {
 	.init_name	= "mxc_ahb",
-	.parent		= &platform_bus,
 };
 
 int __init mxc_device_init(void)
@@ -37,7 +35,7 @@ int __init mxc_device_init(void)
 	int ret;
 
 	ret = device_register(&mxc_aips_bus);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto done;
 
 	ret = device_register(&mxc_ahb_bus);

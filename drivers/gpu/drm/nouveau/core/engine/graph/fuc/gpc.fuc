@@ -1,0 +1,378 @@
+/* fuc microcode for nvc0 PGRAPH/GPC
+ *
+ * Copyright 2011 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs
+ */
+
+/* TODO
+ * - bracket certain functions with scratch writes, useful for debugging
+ * - watchdog timer around ctx operations
+ */
+
+#ifdef INCLUDE_DATA
+gpc_mmio_list_head:	.b32 #mmio_list_base
+gpc_mmio_list_tail:
+tpc_mmio_list_head:	.b32 #mmio_list_base
+tpc_mmio_list_tail:
+unk_mmio_list_head:	.b32 #mmio_list_base
+unk_mmio_list_tail:	.b32 #mmio_list_base
+
+gpc_id:			.b32 0
+
+tpc_count:		.b32 0
+tpc_mask:		.b32 0
+
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
+unk_count:		.b32 0
+unk_mask:		.b32 0
+#endif
+
+cmd_queue:		queue_init
+
+mmio_list_base:
+#endif
+
+#ifdef INCLUDE_CODE
+// reports an exception to the host
+//
+// In: $r15 error code (see os.h)
+//
+error:
+	push $r14
+	nv_wr32(NV_PGRAPH_FECS_CC_SCRATCH_VAL(5), $r15)
+	mov $r15 1
+	nv_wr32(NV_PGRAPH_FECS_INTR_UP_SET, $r15)
+	pop $r14
+	ret
+
+// GPC fuc initialisation, executed by triggering ucode start, will
+// fall through to main loop after completion.
+//
+// Input:
+//   CC_SCRATCH[1]: context base
+//
+// Output:
+//   CC_SCRATCH[0]:
+//	     31:31: set to signal completion
+//   CC_SCRATCH[1]:
+//	      31:0: GPC context size
+//
+init:
+	clear b32 $r0
+
+	// setup stack
+	nv_iord($r1, NV_PGRAPH_GPCX_GPCCS_CAPS, 0)
+	extr $r1 $r1 9:17
+	shl b32 $r1 8
+	mov $sp $r1
+
+	// enable fifo access
+	mov $r2 NV_PGRAPH_GPCX_GPCCS_ACCESS_FIFO
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_ACCESS, 0, $r2)
+
+	// setup i0 handler, and route all interrupts to it
+	mov $r1 #ih
+	mov $iv0 $r1
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_INTR_ROUTE, 0, $r0)
+
+	// enable fifo interrupt
+	mov $r2 NV_PGRAPH_GPCX_GPCCS_INTR_EN_SET_FIFO
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_INTR_EN_SET, 0, $r2)
+
+	// enable interrupts
+	bset $flags ie0
+
+	// figure out which GPC we are, and how many TPCs we have
+	nv_iord($r2, NV_PGRAPH_GPCX_GPCCS_UNITS, 0)
+	mov $r3 1
+	and $r2 0x1f
+	shl b32 $r3 $r2
+	sub b32 $r3 1
+	st b32 D[$r0 + #tpc_count] $r2
+	st b32 D[$r0 + #tpc_mask] $r3
+	nv_iord($r2, NV_PGRAPH_GPCX_GPCCS_MYINDEX, 0)
+	st b32 D[$r0 + #gpc_id] $r2
+
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
+	// figure out which, and how many, UNKs are actually present
+	imm32($r14, 0x500c30)
+	clear b32 $r2
+	clear b32 $r3
+	clear b32 $r4
+	init_unk_loop:
+		call(nv_rd32)
+		cmp b32 $r15 0
+		bra z #init_unk_next
+			mov $r15 1
+			shl b32 $r15 $r2
+			or $r4 $r15
+			add b32 $r3 1
+		init_unk_next:
+		add b32 $r2 1
+		add b32 $r14 4
+		cmp b32 $r2 NV_PGRAPH_GPCX_UNK__SIZE
+		bra ne #init_unk_loop
+	init_unk_done:
+	st b32 D[$r0 + #unk_count] $r3
+	st b32 D[$r0 + #unk_mask] $r4
+#endif
+
+	// initialise context base, and size tracking
+	nv_iord($r2, NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(1), 0)
+	clear b32 $r3		// track GPC context size here
+
+	// set mmctx base addresses now so we don't have to do it later,
+	// they don't currently ever change
+	shr b32 $r5 $r2 8
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_MMCTX_SAVE_SWBASE, 0, $r5)
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_MMCTX_LOAD_SWBASE, 0, $r5)
+
+	// calculate GPC mmio context size
+	ld b32 $r14 D[$r0 + #gpc_mmio_list_head]
+	ld b32 $r15 D[$r0 + #gpc_mmio_list_tail]
+	call(mmctx_size)
+	add b32 $r2 $r15
+	add b32 $r3 $r15
+
+	// calculate per-TPC mmio context size
+	ld b32 $r14 D[$r0 + #tpc_mmio_list_head]
+	ld b32 $r15 D[$r0 + #tpc_mmio_list_tail]
+	call(mmctx_size)
+	ld b32 $r14 D[$r0 + #tpc_count]
+	mulu $r14 $r15
+	add b32 $r2 $r14
+	add b32 $r3 $r14
+
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
+	// calculate per-UNK mmio context size
+	ld b32 $r14 D[$r0 + #unk_mmio_list_head]
+	ld b32 $r15 D[$r0 + #unk_mmio_list_tail]
+	call(mmctx_size)
+	ld b32 $r14 D[$r0 + #unk_count]
+	mulu $r14 $r15
+	add b32 $r2 $r14
+	add b32 $r3 $r14
+#endif
+
+	// round up base/size to 256 byte boundary (for strand SWBASE)
+	shr b32 $r3 2
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_MMCTX_LOAD_COUNT, 0, $r3) // wtf for?!
+	shr b32 $r2 8
+	shr b32 $r3 6
+	add b32 $r2 1
+	add b32 $r3 1
+	shl b32 $r2 8
+	shl b32 $r3 8
+
+	// calculate size of strand context data
+	mov b32 $r15 $r2
+	call(strand_ctx_init)
+	add b32 $r3 $r15
+
+	// save context size, and tell HUB we're done
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(1), 0, $r3)
+	clear b32 $r2
+	bset $r2 31
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_SET(0), 0, $r2)
+
+// Main program loop, very simple, sleeps until woken up by the interrupt
+// handler, pulls a command from the queue and executes its handler
+//
+main:
+	bset $flags $p0
+	sleep $p0
+	mov $r13 #cmd_queue
+	call(queue_get)
+	bra $p1 #main
+
+	// 0x0000-0x0003 are all context transfers
+	cmpu b32 $r14 0x04
+	bra nc #main_not_ctx_xfer
+		// fetch $flags and mask off $p1/$p2
+		mov $r1 $flags
+		mov $r2 0x0006
+		not b32 $r2
+		and $r1 $r2
+		// set $p1/$p2 according to transfer type
+		shl b32 $r14 1
+		or $r1 $r14
+		mov $flags $r1
+		// transfer context data
+		call(ctx_xfer)
+		bra #main
+
+	main_not_ctx_xfer:
+	shl b32 $r15 $r14 16
+	or $r15 E_BAD_COMMAND
+	call(error)
+	bra #main
+
+// interrupt handler
+ih:
+	push $r8
+	mov $r8 $flags
+	push $r8
+	push $r9
+	push $r10
+	push $r11
+	push $r13
+	push $r14
+	push $r15
+	clear b32 $r0
+
+	// incoming fifo command?
+	nv_iord($r10, NV_PGRAPH_GPCX_GPCCS_INTR, 0)
+	and $r11 $r10 NV_PGRAPH_GPCX_GPCCS_INTR_FIFO
+	bra e #ih_no_fifo
+		// queue incoming fifo command for later processing
+		mov $r13 #cmd_queue
+		nv_iord($r14, NV_PGRAPH_GPCX_GPCCS_FIFO_CMD, 0)
+		nv_iord($r15, NV_PGRAPH_GPCX_GPCCS_FIFO_DATA, 0)
+		call(queue_put)
+		mov $r14 1
+		nv_iowr(NV_PGRAPH_GPCX_GPCCS_FIFO_ACK, 0, $r14)
+
+	// ack, and wake up main()
+	ih_no_fifo:
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_INTR_ACK, 0, $r10)
+
+	pop $r15
+	pop $r14
+	pop $r13
+	pop $r11
+	pop $r10
+	pop $r9
+	pop $r8
+	mov $flags $r8
+	pop $r8
+	bclr $flags $p0
+	iret
+
+// Set this GPC's bit in HUB_BAR, used to signal completion of various
+// activities to the HUB fuc
+//
+hub_barrier_done:
+	mov $r15 1
+	ld b32 $r14 D[$r0 + #gpc_id]
+	shl b32 $r15 $r14
+	nv_wr32(0x409418, $r15)	// 0x409418 - HUB_BAR_SET
+	ret
+
+// Disables various things, waits a bit, and re-enables them..
+//
+// Not sure how exactly this helps, perhaps "ENABLE" is not such a
+// good description for the bits we turn off?  Anyways, without this,
+// funny things happen.
+//
+ctx_redswitch:
+	mov $r15 NV_PGRAPH_GPCX_GPCCS_RED_SWITCH_POWER
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_RED_SWITCH, 0, $r15)
+	mov $r14 8
+	ctx_redswitch_delay:
+		sub b32 $r14 1
+		bra ne #ctx_redswitch_delay
+	or $r15 NV_PGRAPH_GPCX_GPCCS_RED_SWITCH_UNK11
+	or $r15 NV_PGRAPH_GPCX_GPCCS_RED_SWITCH_ENABLE
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_RED_SWITCH, 0, $r15)
+	ret
+
+// Transfer GPC context data between GPU and storage area
+//
+// In: $r15 context base address
+//     $p1 clear on save, set on load
+//     $p2 set if opposite direction done/will be done, so:
+//		on save it means: "a load will follow this save"
+//		on load it means: "a save preceeded this load"
+//
+ctx_xfer:
+	// set context base address
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_MEM_BASE, 0, $r15)
+	bra not $p1 #ctx_xfer_not_load
+		call(ctx_redswitch)
+	ctx_xfer_not_load:
+
+	// strands
+	call(strand_pre)
+	clear b32 $r2
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_STRAND_SELECT, 0x3f, $r2)
+	xbit $r2 $flags $p1	// SAVE/LOAD
+	add b32 $r2 NV_PGRAPH_GPCX_GPCCS_STRAND_CMD_SAVE
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_STRAND_CMD, 0x3f, $r2)
+
+	// mmio context
+	xbit $r10 $flags $p1	// direction
+	or $r10 2		// first
+	imm32($r11,0x500000)
+	ld b32 $r12 D[$r0 + #gpc_id]
+	shl b32 $r12 15
+	add b32 $r11 $r12	// base = NV_PGRAPH_GPCn
+	ld b32 $r12 D[$r0 + #gpc_mmio_list_head]
+	ld b32 $r13 D[$r0 + #gpc_mmio_list_tail]
+	mov $r14 0		// not multi
+	call(mmctx_xfer)
+
+	// per-TPC mmio context
+	xbit $r10 $flags $p1	// direction
+#if !NV_PGRAPH_GPCX_UNK__SIZE
+	or $r10 4		// last
+#endif
+	imm32($r11, 0x504000)
+	ld b32 $r12 D[$r0 + #gpc_id]
+	shl b32 $r12 15
+	add b32 $r11 $r12	// base = NV_PGRAPH_GPCn_TPC0
+	ld b32 $r12 D[$r0 + #tpc_mmio_list_head]
+	ld b32 $r13 D[$r0 + #tpc_mmio_list_tail]
+	ld b32 $r15 D[$r0 + #tpc_mask]
+	mov $r14 0x800		// stride = 0x800
+	call(mmctx_xfer)
+
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
+	// per-UNK mmio context
+	xbit $r10 $flags $p1	// direction
+	or $r10 4		// last
+	imm32($r11, 0x503000)
+	ld b32 $r12 D[$r0 + #gpc_id]
+	shl b32 $r12 15
+	add b32 $r11 $r12	// base = NV_PGRAPH_GPCn_UNK0
+	ld b32 $r12 D[$r0 + #unk_mmio_list_head]
+	ld b32 $r13 D[$r0 + #unk_mmio_list_tail]
+	ld b32 $r15 D[$r0 + #unk_mask]
+	mov $r14 0x200		// stride = 0x200
+	call(mmctx_xfer)
+#endif
+
+	// wait for strands to finish
+	call(strand_wait)
+
+	// if load, or a save without a load following, do some
+	// unknown stuff that's done after finishing a block of
+	// strand commands
+	bra $p1 #ctx_xfer_post
+	bra not $p2 #ctx_xfer_done
+	ctx_xfer_post:
+		call(strand_post)
+
+	// mark completion in HUB's barrier
+	ctx_xfer_done:
+	call(hub_barrier_done)
+	ret
+#endif

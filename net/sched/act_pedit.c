@@ -24,15 +24,6 @@
 #include <net/tc_act/tc_pedit.h>
 
 #define PEDIT_TAB_MASK	15
-static struct tcf_common *tcf_pedit_ht[PEDIT_TAB_MASK + 1];
-static u32 pedit_idx_gen;
-static DEFINE_RWLOCK(pedit_lock);
-
-static struct tcf_hashinfo pedit_hash_info = {
-	.htab	=	tcf_pedit_ht,
-	.hmask	=	PEDIT_TAB_MASK,
-	.lock	=	&pedit_lock,
-};
 
 static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {
 	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tc_pedit) },
@@ -46,7 +37,6 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	struct tc_pedit *parm;
 	int ret = 0, err;
 	struct tcf_pedit *p;
-	struct tcf_common *pc;
 	struct tc_pedit_key *keys = NULL;
 	int ksize;
 
@@ -64,30 +54,27 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (nla_len(tb[TCA_PEDIT_PARMS]) < sizeof(*parm) + ksize)
 		return -EINVAL;
 
-	pc = tcf_hash_check(parm->index, a, bind, &pedit_hash_info);
-	if (!pc) {
+	if (!tcf_hash_check(parm->index, a, bind)) {
 		if (!parm->nkeys)
 			return -EINVAL;
-		pc = tcf_hash_create(parm->index, est, a, sizeof(*p), bind,
-				     &pedit_idx_gen, &pedit_hash_info);
-		if (IS_ERR(pc))
-			return PTR_ERR(pc);
-		p = to_pedit(pc);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
+		if (ret)
+			return ret;
+		p = to_pedit(a);
 		keys = kmalloc(ksize, GFP_KERNEL);
 		if (keys == NULL) {
-			if (est)
-				gen_kill_estimator(&pc->tcfc_bstats,
-						   &pc->tcfc_rate_est);
-			kfree_rcu(pc, tcfc_rcu);
+			tcf_hash_cleanup(a, est);
 			return -ENOMEM;
 		}
 		ret = ACT_P_CREATED;
 	} else {
-		p = to_pedit(pc);
-		if (!ovr) {
-			tcf_hash_release(pc, bind, &pedit_hash_info);
+		p = to_pedit(a);
+		tcf_hash_release(a, bind);
+		if (bind)
+			return 0;
+		if (!ovr)
 			return -EEXIST;
-		}
+
 		if (p->tcfp_nkeys && p->tcfp_nkeys != parm->nkeys) {
 			keys = kmalloc(ksize, GFP_KERNEL);
 			if (keys == NULL)
@@ -106,22 +93,15 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	memcpy(p->tcfp_keys, parm->keys, ksize);
 	spin_unlock_bh(&p->tcf_lock);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(pc, &pedit_hash_info);
+		tcf_hash_insert(a);
 	return ret;
 }
 
-static int tcf_pedit_cleanup(struct tc_action *a, int bind)
+static void tcf_pedit_cleanup(struct tc_action *a, int bind)
 {
 	struct tcf_pedit *p = a->priv;
-
-	if (p) {
-		struct tc_pedit_key *keys = p->tcfp_keys;
-		if (tcf_hash_release(&p->common, bind, &pedit_hash_info)) {
-			kfree(keys);
-			return 1;
-		}
-	}
-	return 0;
+	struct tc_pedit_key *keys = p->tcfp_keys;
+	kfree(keys);
 }
 
 static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
@@ -236,16 +216,12 @@ nla_put_failure:
 
 static struct tc_action_ops act_pedit_ops = {
 	.kind		=	"pedit",
-	.hinfo		=	&pedit_hash_info,
 	.type		=	TCA_ACT_PEDIT,
-	.capab		=	TCA_CAP_NONE,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_pedit,
 	.dump		=	tcf_pedit_dump,
 	.cleanup	=	tcf_pedit_cleanup,
-	.lookup		=	tcf_hash_search,
 	.init		=	tcf_pedit_init,
-	.walk		=	tcf_generic_walker
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002-4)");
@@ -254,7 +230,7 @@ MODULE_LICENSE("GPL");
 
 static int __init pedit_init_module(void)
 {
-	return tcf_register_action(&act_pedit_ops);
+	return tcf_register_action(&act_pedit_ops, PEDIT_TAB_MASK);
 }
 
 static void __exit pedit_cleanup_module(void)

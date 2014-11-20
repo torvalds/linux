@@ -1,0 +1,21 @@
+* Dialog Semiconductor DA9210 Voltage Regulator
+
+Required properties:
+
+- compatible:	must be "dlg,da9210"
+- reg:		the i2c slave address of the regulator. It should be 0x68.
+
+Any standard regulator properties can be used to configure the single da9210
+DCDC.
+
+Example:
+
+	da9210@68 {
+		compatible = "dlg,da9210";
+		reg = <0x68>;
+
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};

@@ -17,7 +17,7 @@ struct idset {
 
 static inline unsigned long bitmap_size(int num_ssid, int num_id)
 {
-	return __BITOPS_WORDS(num_ssid * num_id) * sizeof(unsigned long);
+	return BITS_TO_LONGS(num_ssid * num_id) * sizeof(unsigned long);
 }
 
 static struct idset *idset_new(int num_ssid, int num_id)

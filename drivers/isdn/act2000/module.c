@@ -796,7 +796,7 @@ static void __exit act2000_exit(void)
 	act2000_card *last;
 	while (card) {
 		unregister_card(card);
-		del_timer(&card->ptimer);
+		del_timer_sync(&card->ptimer);
 		card = card->next;
 	}
 	card = cards;

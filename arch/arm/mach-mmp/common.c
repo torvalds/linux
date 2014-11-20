@@ -47,7 +47,7 @@ void __init mmp_map_io(void)
 	mmp_chip_id = __raw_readl(MMP_CHIPID);
 }
 
-void mmp_restart(char mode, const char *cmd)
+void mmp_restart(enum reboot_mode mode, const char *cmd)
 {
 	soft_restart(0);
 }

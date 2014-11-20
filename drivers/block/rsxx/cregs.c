@@ -58,13 +58,16 @@ static struct kmem_cache *creg_cmd_pool;
 #error Unknown endianess!!! Aborting...
 #endif
 
-static void copy_to_creg_data(struct rsxx_cardinfo *card,
+static int copy_to_creg_data(struct rsxx_cardinfo *card,
 			      int cnt8,
 			      void *buf,
 			      unsigned int stream)
 {
 	int i = 0;
 	u32 *data = buf;
+
+	if (unlikely(card->eeh_state))
+		return -EIO;
 
 	for (i = 0; cnt8 > 0; i++, cnt8 -= 4) {
 		/*
@@ -76,16 +79,21 @@ static void copy_to_creg_data(struct rsxx_cardinfo *card,
 		else
 			iowrite32(data[i], card->regmap + CREG_DATA(i));
 	}
+
+	return 0;
 }
 
 
-static void copy_from_creg_data(struct rsxx_cardinfo *card,
+static int copy_from_creg_data(struct rsxx_cardinfo *card,
 				int cnt8,
 				void *buf,
 				unsigned int stream)
 {
 	int i = 0;
 	u32 *data = buf;
+
+	if (unlikely(card->eeh_state))
+		return -EIO;
 
 	for (i = 0; cnt8 > 0; i++, cnt8 -= 4) {
 		/*
@@ -97,41 +105,31 @@ static void copy_from_creg_data(struct rsxx_cardinfo *card,
 		else
 			data[i] = ioread32(card->regmap + CREG_DATA(i));
 	}
-}
 
-static struct creg_cmd *pop_active_cmd(struct rsxx_cardinfo *card)
-{
-	struct creg_cmd *cmd;
-
-	/*
-	 * Spin lock is needed because this can be called in atomic/interrupt
-	 * context.
-	 */
-	spin_lock_bh(&card->creg_ctrl.lock);
-	cmd = card->creg_ctrl.active_cmd;
-	card->creg_ctrl.active_cmd = NULL;
-	spin_unlock_bh(&card->creg_ctrl.lock);
-
-	return cmd;
+	return 0;
 }
 
 static void creg_issue_cmd(struct rsxx_cardinfo *card, struct creg_cmd *cmd)
 {
+	int st;
+
+	if (unlikely(card->eeh_state))
+		return;
+
 	iowrite32(cmd->addr, card->regmap + CREG_ADD);
 	iowrite32(cmd->cnt8, card->regmap + CREG_CNT);
 
 	if (cmd->op == CREG_OP_WRITE) {
-		if (cmd->buf)
-			copy_to_creg_data(card, cmd->cnt8,
-					  cmd->buf, cmd->stream);
+		if (cmd->buf) {
+			st = copy_to_creg_data(card, cmd->cnt8,
+					       cmd->buf, cmd->stream);
+			if (st)
+				return;
+		}
 	}
 
-	/*
-	 * Data copy must complete before initiating the command. This is
-	 * needed for weakly ordered processors (i.e. PowerPC), so that all
-	 * neccessary registers are written before we kick the hardware.
-	 */
-	wmb();
+	if (unlikely(card->eeh_state))
+		return;
 
 	/* Setting the valid bit will kick off the command. */
 	iowrite32(cmd->op, card->regmap + CREG_CMD);
@@ -196,11 +194,11 @@ static int creg_queue_cmd(struct rsxx_cardinfo *card,
 	cmd->cb_private = cb_private;
 	cmd->status	= 0;
 
-	spin_lock(&card->creg_ctrl.lock);
+	spin_lock_bh(&card->creg_ctrl.lock);
 	list_add_tail(&cmd->list, &card->creg_ctrl.queue);
 	card->creg_ctrl.q_depth++;
 	creg_kick_queue(card);
-	spin_unlock(&card->creg_ctrl.lock);
+	spin_unlock_bh(&card->creg_ctrl.lock);
 
 	return 0;
 }
@@ -210,7 +208,11 @@ static void creg_cmd_timed_out(unsigned long data)
 	struct rsxx_cardinfo *card = (struct rsxx_cardinfo *) data;
 	struct creg_cmd *cmd;
 
-	cmd = pop_active_cmd(card);
+	spin_lock(&card->creg_ctrl.lock);
+	cmd = card->creg_ctrl.active_cmd;
+	card->creg_ctrl.active_cmd = NULL;
+	spin_unlock(&card->creg_ctrl.lock);
+
 	if (cmd == NULL) {
 		card->creg_ctrl.creg_stats.creg_timeout++;
 		dev_warn(CARD_TO_DEV(card),
@@ -247,7 +249,11 @@ static void creg_cmd_done(struct work_struct *work)
 	if (del_timer_sync(&card->creg_ctrl.cmd_timer) == 0)
 		card->creg_ctrl.creg_stats.failed_cancel_timer++;
 
-	cmd = pop_active_cmd(card);
+	spin_lock_bh(&card->creg_ctrl.lock);
+	cmd = card->creg_ctrl.active_cmd;
+	card->creg_ctrl.active_cmd = NULL;
+	spin_unlock_bh(&card->creg_ctrl.lock);
+
 	if (cmd == NULL) {
 		dev_err(CARD_TO_DEV(card),
 			"Spurious creg interrupt!\n");
@@ -287,7 +293,7 @@ static void creg_cmd_done(struct work_struct *work)
 			goto creg_done;
 		}
 
-		copy_from_creg_data(card, cnt8, cmd->buf, cmd->stream);
+		st = copy_from_creg_data(card, cnt8, cmd->buf, cmd->stream);
 	}
 
 creg_done:
@@ -296,10 +302,10 @@ creg_done:
 
 	kmem_cache_free(creg_cmd_pool, cmd);
 
-	spin_lock(&card->creg_ctrl.lock);
+	spin_lock_bh(&card->creg_ctrl.lock);
 	card->creg_ctrl.active = 0;
 	creg_kick_queue(card);
-	spin_unlock(&card->creg_ctrl.lock);
+	spin_unlock_bh(&card->creg_ctrl.lock);
 }
 
 static void creg_reset(struct rsxx_cardinfo *card)
@@ -324,7 +330,7 @@ static void creg_reset(struct rsxx_cardinfo *card)
 		"Resetting creg interface for recovery\n");
 
 	/* Cancel outstanding commands */
-	spin_lock(&card->creg_ctrl.lock);
+	spin_lock_bh(&card->creg_ctrl.lock);
 	list_for_each_entry_safe(cmd, tmp, &card->creg_ctrl.queue, list) {
 		list_del(&cmd->list);
 		card->creg_ctrl.q_depth--;
@@ -345,7 +351,7 @@ static void creg_reset(struct rsxx_cardinfo *card)
 
 		card->creg_ctrl.active = 0;
 	}
-	spin_unlock(&card->creg_ctrl.lock);
+	spin_unlock_bh(&card->creg_ctrl.lock);
 
 	card->creg_ctrl.reset = 0;
 	spin_lock_irqsave(&card->irq_lock, flags);
@@ -399,12 +405,12 @@ static int __issue_creg_rw(struct rsxx_cardinfo *card,
 		return st;
 
 	/*
-	 * This timeout is neccessary for unresponsive hardware. The additional
+	 * This timeout is necessary for unresponsive hardware. The additional
 	 * 20 seconds to used to guarantee that each cregs requests has time to
 	 * complete.
 	 */
-	timeout = msecs_to_jiffies((CREG_TIMEOUT_MSEC *
-				card->creg_ctrl.q_depth) + 20000);
+	timeout = msecs_to_jiffies(CREG_TIMEOUT_MSEC *
+				   card->creg_ctrl.q_depth + 20000);
 
 	/*
 	 * The creg interface is guaranteed to complete. It has a timeout
@@ -425,6 +431,15 @@ static int __issue_creg_rw(struct rsxx_cardinfo *card,
 	*hw_stat = completion.creg_status;
 
 	if (completion.st) {
+		/*
+		* This read is needed to verify that there has not been any
+		* extreme errors that might have occurred, i.e. EEH. The
+		* function iowrite32 will not detect EEH errors, so it is
+		* necessary that we recover if such an error is the reason
+		* for the timeout. This is a dummy read.
+		*/
+		ioread32(card->regmap + SCRATCH);
+
 		dev_warn(CARD_TO_DEV(card),
 			"creg command failed(%d x%08x)\n",
 			completion.st, addr);
@@ -690,10 +705,41 @@ int rsxx_reg_access(struct rsxx_cardinfo *card,
 	return 0;
 }
 
+void rsxx_eeh_save_issued_creg(struct rsxx_cardinfo *card)
+{
+	struct creg_cmd *cmd = NULL;
+
+	cmd = card->creg_ctrl.active_cmd;
+	card->creg_ctrl.active_cmd = NULL;
+
+	if (cmd) {
+		del_timer_sync(&card->creg_ctrl.cmd_timer);
+
+		spin_lock_bh(&card->creg_ctrl.lock);
+		list_add(&cmd->list, &card->creg_ctrl.queue);
+		card->creg_ctrl.q_depth++;
+		card->creg_ctrl.active = 0;
+		spin_unlock_bh(&card->creg_ctrl.lock);
+	}
+}
+
+void rsxx_kick_creg_queue(struct rsxx_cardinfo *card)
+{
+	spin_lock_bh(&card->creg_ctrl.lock);
+	if (!list_empty(&card->creg_ctrl.queue))
+		creg_kick_queue(card);
+	spin_unlock_bh(&card->creg_ctrl.lock);
+}
+
 /*------------ Initialization & Setup --------------*/
 int rsxx_creg_setup(struct rsxx_cardinfo *card)
 {
 	card->creg_ctrl.active_cmd = NULL;
+
+	card->creg_ctrl.creg_wq =
+			create_singlethread_workqueue(DRIVER_NAME"_creg");
+	if (!card->creg_ctrl.creg_wq)
+		return -ENOMEM;
 
 	INIT_WORK(&card->creg_ctrl.done_work, creg_cmd_done);
 	mutex_init(&card->creg_ctrl.reset_lock);
@@ -712,7 +758,7 @@ void rsxx_creg_destroy(struct rsxx_cardinfo *card)
 	int cnt = 0;
 
 	/* Cancel outstanding commands */
-	spin_lock(&card->creg_ctrl.lock);
+	spin_lock_bh(&card->creg_ctrl.lock);
 	list_for_each_entry_safe(cmd, tmp, &card->creg_ctrl.queue, list) {
 		list_del(&cmd->list);
 		if (cmd->cb)
@@ -737,7 +783,7 @@ void rsxx_creg_destroy(struct rsxx_cardinfo *card)
 			"Canceled active creg command\n");
 		kmem_cache_free(creg_cmd_pool, cmd);
 	}
-	spin_unlock(&card->creg_ctrl.lock);
+	spin_unlock_bh(&card->creg_ctrl.lock);
 
 	cancel_work_sync(&card->creg_ctrl.done_work);
 }

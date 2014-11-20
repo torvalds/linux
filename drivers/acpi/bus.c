@@ -33,12 +33,11 @@
 #include <linux/proc_fs.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
+#include <linux/regulator/machine.h>
 #ifdef CONFIG_X86
 #include <asm/mpspec.h>
 #endif
 #include <linux/pci.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 #include <acpi/apei.h>
 #include <linux/dmi.h>
 #include <linux/suspend.h>
@@ -52,10 +51,13 @@ struct acpi_device *acpi_root;
 struct proc_dir_entry *acpi_root_dir;
 EXPORT_SYMBOL(acpi_root_dir);
 
-#define STRUCT_TO_INT(s)	(*((int*)&s))
-
-
 #ifdef CONFIG_X86
+#ifdef CONFIG_ACPI_CUSTOM_DSDT
+static inline int set_copy_dsdt(const struct dmi_system_id *id)
+{
+	return 0;
+}
+#else
 static int set_copy_dsdt(const struct dmi_system_id *id)
 {
 	printk(KERN_NOTICE "%s detected - "
@@ -63,6 +65,7 @@ static int set_copy_dsdt(const struct dmi_system_id *id)
 	acpi_gbl_copy_dsdt_locally = 1;
 	return 0;
 }
+#endif
 
 static struct dmi_system_id dsdt_dmi_table[] __initdata = {
 	/*
@@ -88,28 +91,6 @@ static struct dmi_system_id dsdt_dmi_table[] __initdata = {
 /* --------------------------------------------------------------------------
                                 Device Management
    -------------------------------------------------------------------------- */
-
-int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
-{
-	acpi_status status = AE_OK;
-
-
-	if (!device)
-		return -EINVAL;
-
-	/* TBD: Support fixed-feature devices */
-
-	status = acpi_get_data(handle, acpi_bus_data_handler, (void **)device);
-	if (ACPI_FAILURE(status) || !*device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
-				  handle));
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-EXPORT_SYMBOL(acpi_bus_get_device);
 
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta)
@@ -137,18 +118,16 @@ int acpi_bus_get_status(struct acpi_device *device)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	STRUCT_TO_INT(device->status) = (int) sta;
+	acpi_set_device_status(device, sta);
 
 	if (device->status.functional && !device->status.present) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]: "
 		       "functional but not present;\n",
-			device->pnp.bus_id,
-			(u32) STRUCT_TO_INT(device->status)));
+			device->pnp.bus_id, (u32)sta));
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]\n",
-			  device->pnp.bus_id,
-			  (u32) STRUCT_TO_INT(device->status)));
+			  device->pnp.bus_id, (u32)sta));
 	return 0;
 }
 EXPORT_SYMBOL(acpi_bus_get_status);
@@ -160,23 +139,43 @@ void acpi_bus_private_data_handler(acpi_handle handle,
 }
 EXPORT_SYMBOL(acpi_bus_private_data_handler);
 
-int acpi_bus_get_private_data(acpi_handle handle, void **data)
+int acpi_bus_attach_private_data(acpi_handle handle, void *data)
 {
-	acpi_status status = AE_OK;
+	acpi_status status;
 
-	if (!*data)
-		return -EINVAL;
-
-	status = acpi_get_data(handle, acpi_bus_private_data_handler, data);
-	if (ACPI_FAILURE(status) || !*data) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
-				handle));
+	status = acpi_attach_data(handle,
+			acpi_bus_private_data_handler, data);
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_debug(handle, "Error attaching device data\n");
 		return -ENODEV;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL(acpi_bus_get_private_data);
+EXPORT_SYMBOL_GPL(acpi_bus_attach_private_data);
+
+int acpi_bus_get_private_data(acpi_handle handle, void **data)
+{
+	acpi_status status;
+
+	if (!*data)
+		return -EINVAL;
+
+	status = acpi_get_data(handle, acpi_bus_private_data_handler, data);
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_debug(handle, "No context for object\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_bus_get_private_data);
+
+void acpi_bus_detach_private_data(acpi_handle handle)
+{
+	acpi_detach_data(handle, acpi_bus_private_data_handler);
+}
+EXPORT_SYMBOL_GPL(acpi_bus_detach_private_data);
 
 static void acpi_print_osc_error(acpi_handle handle,
 	struct acpi_osc_context *context, char *error)
@@ -196,7 +195,7 @@ static void acpi_print_osc_error(acpi_handle handle,
 	printk("\n");
 }
 
-static acpi_status acpi_str_to_uuid(char *str, u8 *uuid)
+acpi_status acpi_str_to_uuid(char *str, u8 *uuid)
 {
 	int i;
 	static int opc_map_to_uuid[16] = {6, 4, 2, 0, 11, 9, 16, 14, 19, 21,
@@ -217,6 +216,7 @@ static acpi_status acpi_str_to_uuid(char *str, u8 *uuid)
 	}
 	return AE_OK;
 }
+EXPORT_SYMBOL_GPL(acpi_str_to_uuid);
 
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 {
@@ -277,7 +277,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 			acpi_print_osc_error(handle, context,
 				"_OSC invalid revision");
 		if (errors & OSC_CAPABILITIES_MASK_ERROR) {
-			if (((u32 *)context->cap.pointer)[OSC_QUERY_TYPE]
+			if (((u32 *)context->cap.pointer)[OSC_QUERY_DWORD]
 			    & OSC_QUERY_ENABLE)
 				goto out_success;
 			status = AE_SUPPORT;
@@ -288,13 +288,12 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 	}
 out_success:
 	context->ret.length = out_obj->buffer.length;
-	context->ret.pointer = kmalloc(context->ret.length, GFP_KERNEL);
+	context->ret.pointer = kmemdup(out_obj->buffer.pointer,
+				       context->ret.length, GFP_KERNEL);
 	if (!context->ret.pointer) {
 		status =  AE_NO_MEMORY;
 		goto out_kfree;
 	}
-	memcpy(context->ret.pointer, out_obj->buffer.pointer,
-		context->ret.length);
 	status =  AE_OK;
 
 out_kfree:
@@ -318,201 +317,36 @@ static void acpi_bus_osc_support(void)
 	};
 	acpi_handle handle;
 
-	capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	capbuf[OSC_SUPPORT_TYPE] = OSC_SB_PR3_SUPPORT; /* _PR3 is in use */
+	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
+	capbuf[OSC_SUPPORT_DWORD] = OSC_SB_PR3_SUPPORT; /* _PR3 is in use */
 #if defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR) ||\
 			defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR_MODULE)
-	capbuf[OSC_SUPPORT_TYPE] |= OSC_SB_PAD_SUPPORT;
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PAD_SUPPORT;
 #endif
 
 #if defined(CONFIG_ACPI_PROCESSOR) || defined(CONFIG_ACPI_PROCESSOR_MODULE)
-	capbuf[OSC_SUPPORT_TYPE] |= OSC_SB_PPC_OST_SUPPORT;
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PPC_OST_SUPPORT;
 #endif
 
-#ifdef ACPI_HOTPLUG_OST
-	capbuf[OSC_SUPPORT_TYPE] |= OSC_SB_HOTPLUG_OST_SUPPORT;
-#endif
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_HOTPLUG_OST_SUPPORT;
 
 	if (!ghes_disable)
-		capbuf[OSC_SUPPORT_TYPE] |= OSC_SB_APEI_SUPPORT;
+		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_APEI_SUPPORT;
 	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &handle)))
 		return;
 	if (ACPI_SUCCESS(acpi_run_osc(handle, &context))) {
 		u32 *capbuf_ret = context.ret.pointer;
-		if (context.ret.length > OSC_SUPPORT_TYPE)
+		if (context.ret.length > OSC_SUPPORT_DWORD)
 			osc_sb_apei_support_acked =
-				capbuf_ret[OSC_SUPPORT_TYPE] & OSC_SB_APEI_SUPPORT;
+				capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_APEI_SUPPORT;
 		kfree(context.ret.pointer);
 	}
 	/* do we need to check other returned cap? Sounds no */
 }
 
 /* --------------------------------------------------------------------------
-                                Event Management
-   -------------------------------------------------------------------------- */
-
-#ifdef CONFIG_ACPI_PROC_EVENT
-static DEFINE_SPINLOCK(acpi_bus_event_lock);
-
-LIST_HEAD(acpi_bus_event_list);
-DECLARE_WAIT_QUEUE_HEAD(acpi_bus_event_queue);
-
-extern int event_is_open;
-
-int acpi_bus_generate_proc_event4(const char *device_class, const char *bus_id, u8 type, int data)
-{
-	struct acpi_bus_event *event;
-	unsigned long flags = 0;
-
-	/* drop event on the floor if no one's listening */
-	if (!event_is_open)
-		return 0;
-
-	event = kzalloc(sizeof(struct acpi_bus_event), GFP_ATOMIC);
-	if (!event)
-		return -ENOMEM;
-
-	strcpy(event->device_class, device_class);
-	strcpy(event->bus_id, bus_id);
-	event->type = type;
-	event->data = data;
-
-	spin_lock_irqsave(&acpi_bus_event_lock, flags);
-	list_add_tail(&event->node, &acpi_bus_event_list);
-	spin_unlock_irqrestore(&acpi_bus_event_lock, flags);
-
-	wake_up_interruptible(&acpi_bus_event_queue);
-
-	return 0;
-
-}
-
-EXPORT_SYMBOL_GPL(acpi_bus_generate_proc_event4);
-
-int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data)
-{
-	if (!device)
-		return -EINVAL;
-	return acpi_bus_generate_proc_event4(device->pnp.device_class,
-					     device->pnp.bus_id, type, data);
-}
-
-EXPORT_SYMBOL(acpi_bus_generate_proc_event);
-
-int acpi_bus_receive_event(struct acpi_bus_event *event)
-{
-	unsigned long flags = 0;
-	struct acpi_bus_event *entry = NULL;
-
-	DECLARE_WAITQUEUE(wait, current);
-
-
-	if (!event)
-		return -EINVAL;
-
-	if (list_empty(&acpi_bus_event_list)) {
-
-		set_current_state(TASK_INTERRUPTIBLE);
-		add_wait_queue(&acpi_bus_event_queue, &wait);
-
-		if (list_empty(&acpi_bus_event_list))
-			schedule();
-
-		remove_wait_queue(&acpi_bus_event_queue, &wait);
-		set_current_state(TASK_RUNNING);
-
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-	}
-
-	spin_lock_irqsave(&acpi_bus_event_lock, flags);
-	if (!list_empty(&acpi_bus_event_list)) {
-		entry = list_entry(acpi_bus_event_list.next,
-				   struct acpi_bus_event, node);
-		list_del(&entry->node);
-	}
-	spin_unlock_irqrestore(&acpi_bus_event_lock, flags);
-
-	if (!entry)
-		return -ENODEV;
-
-	memcpy(event, entry, sizeof(struct acpi_bus_event));
-
-	kfree(entry);
-
-	return 0;
-}
-
-#endif	/* CONFIG_ACPI_PROC_EVENT */
-
-/* --------------------------------------------------------------------------
                              Notification Handling
    -------------------------------------------------------------------------- */
-
-static void acpi_bus_check_device(acpi_handle handle)
-{
-	struct acpi_device *device;
-	acpi_status status;
-	struct acpi_device_status old_status;
-
-	if (acpi_bus_get_device(handle, &device))
-		return;
-	if (!device)
-		return;
-
-	old_status = device->status;
-
-	/*
-	 * Make sure this device's parent is present before we go about
-	 * messing with the device.
-	 */
-	if (device->parent && !device->parent->status.present) {
-		device->status = device->parent->status;
-		return;
-	}
-
-	status = acpi_bus_get_status(device);
-	if (ACPI_FAILURE(status))
-		return;
-
-	if (STRUCT_TO_INT(old_status) == STRUCT_TO_INT(device->status))
-		return;
-
-	/*
-	 * Device Insertion/Removal
-	 */
-	if ((device->status.present) && !(old_status.present)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device insertion detected\n"));
-		/* TBD: Handle device insertion */
-	} else if (!(device->status.present) && (old_status.present)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device removal detected\n"));
-		/* TBD: Handle device removal */
-	}
-}
-
-static void acpi_bus_check_scope(acpi_handle handle)
-{
-	/* Status Change? */
-	acpi_bus_check_device(handle);
-
-	/*
-	 * TBD: Enumerate child devices within this device's scope and
-	 *       run acpi_bus_check_device()'s on them.
-	 */
-}
-
-static BLOCKING_NOTIFIER_HEAD(acpi_bus_notify_list);
-int register_acpi_bus_notifier(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&acpi_bus_notify_list, nb);
-}
-EXPORT_SYMBOL_GPL(register_acpi_bus_notifier);
-
-void unregister_acpi_bus_notifier(struct notifier_block *nb)
-{
-	blocking_notifier_chain_unregister(&acpi_bus_notify_list, nb);
-}
-EXPORT_SYMBOL_GPL(unregister_acpi_bus_notifier);
 
 /**
  * acpi_bus_notify
@@ -521,71 +355,72 @@ EXPORT_SYMBOL_GPL(unregister_acpi_bus_notifier);
  */
 static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 {
-	struct acpi_device *device = NULL;
+	struct acpi_device *adev;
 	struct acpi_driver *driver;
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Notification %#02x to handle %p\n",
-			  type, handle));
-
-	blocking_notifier_call_chain(&acpi_bus_notify_list,
-		type, (void *)handle);
+	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
+	bool hotplug_event = false;
 
 	switch (type) {
-
 	case ACPI_NOTIFY_BUS_CHECK:
-		acpi_bus_check_scope(handle);
-		/*
-		 * TBD: We'll need to outsource certain events to non-ACPI
-		 *      drivers via the device manager (device.c).
-		 */
+		acpi_handle_debug(handle, "ACPI_NOTIFY_BUS_CHECK event\n");
+		hotplug_event = true;
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		acpi_bus_check_device(handle);
-		/*
-		 * TBD: We'll need to outsource certain events to non-ACPI
-		 *      drivers via the device manager (device.c).
-		 */
+		acpi_handle_debug(handle, "ACPI_NOTIFY_DEVICE_CHECK event\n");
+		hotplug_event = true;
 		break;
 
 	case ACPI_NOTIFY_DEVICE_WAKE:
-		/* TBD */
+		acpi_handle_debug(handle, "ACPI_NOTIFY_DEVICE_WAKE event\n");
 		break;
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
-		/* TBD */
+		acpi_handle_debug(handle, "ACPI_NOTIFY_EJECT_REQUEST event\n");
+		hotplug_event = true;
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK_LIGHT:
+		acpi_handle_debug(handle, "ACPI_NOTIFY_DEVICE_CHECK_LIGHT event\n");
 		/* TBD: Exactly what does 'light' mean? */
 		break;
 
 	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
-		/* TBD */
+		acpi_handle_err(handle, "Device cannot be configured due "
+				"to a frequency mismatch\n");
 		break;
 
 	case ACPI_NOTIFY_BUS_MODE_MISMATCH:
-		/* TBD */
+		acpi_handle_err(handle, "Device cannot be configured due "
+				"to a bus mode mismatch\n");
 		break;
 
 	case ACPI_NOTIFY_POWER_FAULT:
-		/* TBD */
+		acpi_handle_err(handle, "Device has suffered a power fault\n");
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received unknown/unsupported notification [%08x]\n",
-				  type));
+		acpi_handle_debug(handle, "Unknown event type 0x%x\n", type);
 		break;
 	}
 
-	acpi_bus_get_device(handle, &device);
-	if (device) {
-		driver = device->driver;
-		if (driver && driver->ops.notify &&
-		    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
-			driver->ops.notify(device, type);
-	}
+	adev = acpi_bus_get_acpi_device(handle);
+	if (!adev)
+		goto err;
+
+	driver = adev->driver;
+	if (driver && driver->ops.notify &&
+	    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
+		driver->ops.notify(adev, type);
+
+	if (hotplug_event && ACPI_SUCCESS(acpi_hotplug_schedule(adev, type)))
+		return;
+
+	acpi_bus_put_acpi_device(adev);
+	return;
+
+ err:
+	acpi_evaluate_ost(handle, type, ost_code, NULL);
 }
 
 /* --------------------------------------------------------------------------
@@ -594,9 +429,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 
 static int __init acpi_bus_init_irq(void)
 {
-	acpi_status status = AE_OK;
-	union acpi_object arg = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg };
+	acpi_status status;
 	char *message = NULL;
 
 
@@ -625,9 +458,7 @@ static int __init acpi_bus_init_irq(void)
 
 	printk(KERN_INFO PREFIX "Using %s for interrupt routing\n", message);
 
-	arg.integer.value = acpi_irq_model;
-
-	status = acpi_evaluate_object(NULL, "\\_PIC", &arg_list, NULL);
+	status = acpi_execute_simple_method(NULL, "\\_PIC", acpi_irq_model);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PIC"));
 		return -ENODEV;
@@ -636,17 +467,17 @@ static int __init acpi_bus_init_irq(void)
 	return 0;
 }
 
-u8 acpi_gbl_permanent_mmap;
-
-
 void __init acpi_early_init(void)
 {
-	acpi_status status = AE_OK;
+	acpi_status status;
 
 	if (acpi_disabled)
 		return;
 
 	printk(KERN_INFO PREFIX "Core revision %08x\n", ACPI_CA_VERSION);
+
+	/* It's safe to verify table checksums during late stage */
+	acpi_gbl_verify_table_checksum = TRUE;
 
 	/* enable workarounds, unless strict ACPI spec. compliance */
 	if (!acpi_strict)
@@ -706,6 +537,14 @@ void __init acpi_early_init(void)
 		goto error0;
 	}
 
+	/*
+	 * If the system is using ACPI then we can be reasonably
+	 * confident that any regulators are managed by the firmware
+	 * so tell the regulator core it has everything it needs to
+	 * know.
+	 */
+	regulator_has_full_constraints();
+
 	return;
 
       error0:
@@ -715,9 +554,8 @@ void __init acpi_early_init(void)
 
 static int __init acpi_bus_init(void)
 {
-	int result = 0;
-	acpi_status status = AE_OK;
-	extern acpi_status acpi_os_initialize1(void);
+	int result;
+	acpi_status status;
 
 	acpi_os_initialize1();
 

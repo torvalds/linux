@@ -32,6 +32,8 @@
 #ifndef _I810_DRV_H_
 #define _I810_DRV_H_
 
+#include <drm/drm_legacy.h>
+
 /* General customization:
  */
 
@@ -125,7 +127,7 @@ extern void i810_driver_preclose(struct drm_device *dev,
 extern int i810_driver_device_is_agp(struct drm_device *dev);
 
 extern long i810_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-extern struct drm_ioctl_desc i810_ioctls[];
+extern const struct drm_ioctl_desc i810_ioctls[];
 extern int i810_max_ioctl;
 
 #define I810_BASE(reg)		((unsigned long) \

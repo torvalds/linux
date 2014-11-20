@@ -26,8 +26,9 @@
  * at 0 on boot (but people really shouldn't rely on that).
  *
  * cpu_clock(i)       -- can be used from any context, including NMI.
- * sched_clock_cpu(i) -- must be used with local IRQs disabled (implied by NMI)
  * local_clock()      -- is cpu_clock() on the current cpu.
+ *
+ * sched_clock_cpu(i)
  *
  * How:
  *
@@ -50,15 +51,6 @@
  * Furthermore, explicit sleep and wakeup hooks allow us to account for time
  * that is otherwise invisible (TSC gets stopped).
  *
- *
- * Notes:
- *
- * The !IRQ-safetly of sched_clock() and sched_clock_cpu() comes from things
- * like cpufreq interrupts that can change the base clock (TSC) multiplier
- * and cause funny jumps in time -- although the filtering provided by
- * sched_clock_cpu() should mitigate serious artifacts we cannot rely on it
- * in general since for !CONFIG_HAVE_UNSTABLE_SCHED_CLOCK we fully rely on
- * sched_clock().
  */
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
@@ -66,13 +58,16 @@
 #include <linux/percpu.h>
 #include <linux/ktime.h>
 #include <linux/sched.h>
+#include <linux/static_key.h>
+#include <linux/workqueue.h>
+#include <linux/compiler.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
  * This is default implementation.
  * Architectures and sub-architectures can override this.
  */
-unsigned long long __attribute__((weak)) sched_clock(void)
+unsigned long long __weak sched_clock(void)
 {
 	return (unsigned long long)(jiffies - INITIAL_JIFFIES)
 					* (NSEC_PER_SEC / HZ);
@@ -82,7 +77,52 @@ EXPORT_SYMBOL_GPL(sched_clock);
 __read_mostly int sched_clock_running;
 
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-__read_mostly int sched_clock_stable;
+static struct static_key __sched_clock_stable = STATIC_KEY_INIT;
+static int __sched_clock_stable_early;
+
+int sched_clock_stable(void)
+{
+	return static_key_false(&__sched_clock_stable);
+}
+
+static void __set_sched_clock_stable(void)
+{
+	if (!sched_clock_stable())
+		static_key_slow_inc(&__sched_clock_stable);
+}
+
+void set_sched_clock_stable(void)
+{
+	__sched_clock_stable_early = 1;
+
+	smp_mb(); /* matches sched_clock_init() */
+
+	if (!sched_clock_running)
+		return;
+
+	__set_sched_clock_stable();
+}
+
+static void __clear_sched_clock_stable(struct work_struct *work)
+{
+	/* XXX worry about clock continuity */
+	if (sched_clock_stable())
+		static_key_slow_dec(&__sched_clock_stable);
+}
+
+static DECLARE_WORK(sched_clock_work, __clear_sched_clock_stable);
+
+void clear_sched_clock_stable(void)
+{
+	__sched_clock_stable_early = 0;
+
+	smp_mb(); /* matches sched_clock_init() */
+
+	if (!sched_clock_running)
+		return;
+
+	schedule_work(&sched_clock_work);
+}
 
 struct sched_clock_data {
 	u64			tick_raw;
@@ -94,7 +134,7 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct sched_clock_data, sched_clock_data);
 
 static inline struct sched_clock_data *this_scd(void)
 {
-	return &__get_cpu_var(sched_clock_data);
+	return this_cpu_ptr(&sched_clock_data);
 }
 
 static inline struct sched_clock_data *cpu_sdc(int cpu)
@@ -116,6 +156,20 @@ void sched_clock_init(void)
 	}
 
 	sched_clock_running = 1;
+
+	/*
+	 * Ensure that it is impossible to not do a static_key update.
+	 *
+	 * Either {set,clear}_sched_clock_stable() must see sched_clock_running
+	 * and do the update, or we must see their __sched_clock_stable_early
+	 * and do the update, or both.
+	 */
+	smp_mb(); /* matches {set,clear}_sched_clock_stable() */
+
+	if (__sched_clock_stable_early)
+		__set_sched_clock_stable();
+	else
+		__clear_sched_clock_stable(NULL);
 }
 
 /*
@@ -176,10 +230,36 @@ static u64 sched_clock_remote(struct sched_clock_data *scd)
 	u64 this_clock, remote_clock;
 	u64 *ptr, old_val, val;
 
+#if BITS_PER_LONG != 64
+again:
+	/*
+	 * Careful here: The local and the remote clock values need to
+	 * be read out atomic as we need to compare the values and
+	 * then update either the local or the remote side. So the
+	 * cmpxchg64 below only protects one readout.
+	 *
+	 * We must reread via sched_clock_local() in the retry case on
+	 * 32bit as an NMI could use sched_clock_local() via the
+	 * tracer and hit between the readout of
+	 * the low32bit and the high 32bit portion.
+	 */
+	this_clock = sched_clock_local(my_scd);
+	/*
+	 * We must enforce atomic readout on 32bit, otherwise the
+	 * update on the remote cpu can hit inbetween the readout of
+	 * the low32bit and the high 32bit portion.
+	 */
+	remote_clock = cmpxchg64(&scd->clock, 0, 0);
+#else
+	/*
+	 * On 64bit the read of [my]scd->clock is atomic versus the
+	 * update, so we can avoid the above 32bit dance.
+	 */
 	sched_clock_local(my_scd);
 again:
 	this_clock = my_scd->clock;
 	remote_clock = scd->clock;
+#endif
 
 	/*
 	 * Use the opportunity that we have both locks
@@ -216,20 +296,20 @@ u64 sched_clock_cpu(int cpu)
 	struct sched_clock_data *scd;
 	u64 clock;
 
-	WARN_ON_ONCE(!irqs_disabled());
-
-	if (sched_clock_stable)
+	if (sched_clock_stable())
 		return sched_clock();
 
 	if (unlikely(!sched_clock_running))
 		return 0ull;
 
+	preempt_disable_notrace();
 	scd = cpu_sdc(cpu);
 
 	if (cpu != smp_processor_id())
 		clock = sched_clock_remote(scd);
 	else
 		clock = sched_clock_local(scd);
+	preempt_enable_notrace();
 
 	return clock;
 }
@@ -239,7 +319,7 @@ void sched_clock_tick(void)
 	struct sched_clock_data *scd;
 	u64 now, now_gtod;
 
-	if (sched_clock_stable)
+	if (sched_clock_stable())
 		return;
 
 	if (unlikely(!sched_clock_running))
@@ -290,14 +370,10 @@ EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
  */
 u64 cpu_clock(int cpu)
 {
-	u64 clock;
-	unsigned long flags;
+	if (!sched_clock_stable())
+		return sched_clock_cpu(cpu);
 
-	local_irq_save(flags);
-	clock = sched_clock_cpu(cpu);
-	local_irq_restore(flags);
-
-	return clock;
+	return sched_clock();
 }
 
 /*
@@ -309,14 +385,10 @@ u64 cpu_clock(int cpu)
  */
 u64 local_clock(void)
 {
-	u64 clock;
-	unsigned long flags;
+	if (!sched_clock_stable())
+		return sched_clock_cpu(raw_smp_processor_id());
 
-	local_irq_save(flags);
-	clock = sched_clock_cpu(smp_processor_id());
-	local_irq_restore(flags);
-
-	return clock;
+	return sched_clock();
 }
 
 #else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
@@ -336,12 +408,12 @@ u64 sched_clock_cpu(int cpu)
 
 u64 cpu_clock(int cpu)
 {
-	return sched_clock_cpu(cpu);
+	return sched_clock();
 }
 
 u64 local_clock(void)
 {
-	return sched_clock_cpu(0);
+	return sched_clock();
 }
 
 #endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */

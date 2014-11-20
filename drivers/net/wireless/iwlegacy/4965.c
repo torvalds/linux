@@ -26,7 +26,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -1493,7 +1492,7 @@ il4965_hw_channel_switch(struct il_priv *il,
 
 	cmd.band = band;
 	cmd.expect_beacon = 0;
-	ch = ch_switch->channel->hw_value;
+	ch = ch_switch->chandef.chan->hw_value;
 	cmd.channel = cpu_to_le16(ch);
 	cmd.rxon_flags = il->staging.flags;
 	cmd.rxon_filter_flags = il->staging.filter_flags;

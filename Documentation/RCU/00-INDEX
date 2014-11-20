@@ -8,8 +8,12 @@ listRCU.txt
 	- Using RCU to Protect Read-Mostly Linked Lists
 lockdep.txt
 	- RCU and lockdep checking
+lockdep-splat.txt
+	- RCU Lockdep splats explained.
 NMI-RCU.txt
 	- Using RCU to Protect Dynamic NMI Handlers
+rcu_dereference.txt
+	- Proper care and feeding of return values from rcu_dereference()
 rcubarrier.txt
 	- RCU and Unloadable Modules
 rculist_nulls.txt

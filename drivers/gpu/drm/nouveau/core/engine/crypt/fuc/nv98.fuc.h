@@ -1,4 +1,4 @@
-static uint32_t nv98_pcrypt_data[] = {
+uint32_t nv98_pcrypt_data[] = {
 /* 0x0000: ctx_dma */
 /* 0x0000: ctx_dma_query */
 	0x00000000,
@@ -150,7 +150,7 @@ static uint32_t nv98_pcrypt_data[] = {
 	0x00000000,
 };
 
-static uint32_t nv98_pcrypt_code[] = {
+uint32_t nv98_pcrypt_code[] = {
 	0x17f004bd,
 	0x0010fe35,
 	0xf10004fe,

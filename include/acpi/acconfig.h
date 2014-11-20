@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,9 @@
  * Should the subsystem abort the loading of an ACPI table if the
  * table checksum is incorrect?
  */
+#ifndef ACPI_CHECKSUM_ABORT
 #define ACPI_CHECKSUM_ABORT             FALSE
+#endif
 
 /*
  * Generate a version of ACPICA that only supports "reduced hardware"
@@ -100,7 +102,9 @@
  *      ACPI PM timer
  *      FACS table (Waking vectors and Global Lock)
  */
+#ifndef ACPI_REDUCED_HARDWARE
 #define ACPI_REDUCED_HARDWARE           FALSE
+#endif
 
 /******************************************************************************
  *
@@ -215,12 +219,30 @@
 
 /******************************************************************************
  *
+ * Miscellaneous constants
+ *
+ *****************************************************************************/
+
+/* UUID constants */
+
+#define UUID_BUFFER_LENGTH          16	/* Length of UUID in memory */
+#define UUID_STRING_LENGTH          36	/* Total length of a UUID string */
+
+/* Positions for required hyphens (dashes) in UUID strings */
+
+#define UUID_HYPHEN1_OFFSET         8
+#define UUID_HYPHEN2_OFFSET         13
+#define UUID_HYPHEN3_OFFSET         18
+#define UUID_HYPHEN4_OFFSET         23
+
+/******************************************************************************
+ *
  * ACPI AML Debugger
  *
  *****************************************************************************/
 
-#define ACPI_DEBUGGER_MAX_ARGS          8	/* Must be max method args + 1 */
-#define ACPI_DB_LINE_BUFFER_SIZE	512
+#define ACPI_DEBUGGER_MAX_ARGS          ACPI_METHOD_NUM_ARGS + 4	/* Max command line arguments */
+#define ACPI_DB_LINE_BUFFER_SIZE        512
 
 #define ACPI_DEBUGGER_COMMAND_PROMPT    '-'
 #define ACPI_DEBUGGER_EXECUTE_PROMPT    '%'

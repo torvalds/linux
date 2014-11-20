@@ -153,7 +153,7 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 bool atl1c_read_eeprom(struct atl1c_hw *hw, u32 offset, u32 *p_value)
 {
 	int i;
-	int ret = false;
+	bool ret = false;
 	u32 otp_ctrl_data;
 	u32 control;
 	u32 data;
@@ -639,7 +639,6 @@ int atl1c_phy_init(struct atl1c_hw *hw)
 			dev_err(&pdev->dev, "Wrong Media type %d\n",
 				hw->media_type);
 		return -1;
-		break;
 	}
 
 	ret_val = atl1c_write_phy_reg(hw, MII_BMCR, mii_bmcr_data);
@@ -682,7 +681,6 @@ int atl1c_get_speed_and_duplex(struct atl1c_hw *hw, u16 *speed, u16 *duplex)
 		break;
 	default:
 		return -1;
-		break;
 	}
 
 	if (phy_data & GIGA_PSSR_DPLX)
@@ -810,7 +808,7 @@ int atl1c_power_saving(struct atl1c_hw *hw, u32 wufc)
 	if (wufc & AT_WUFC_LNKC) {
 		wol_ctrl |= WOL_LINK_CHG_EN | WOL_LINK_CHG_PME_EN;
 		if (atl1c_write_phy_reg(hw, MII_IER, IER_LINK_UP) != 0) {
-			dev_dbg(&pdev->dev, "%s: write phy MII_IER faild.\n",
+			dev_dbg(&pdev->dev, "%s: write phy MII_IER failed.\n",
 				atl1c_driver_name);
 		}
 	}

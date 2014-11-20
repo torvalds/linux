@@ -26,7 +26,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 
 #include "pwm-tipwmss.h"
 
@@ -208,17 +207,10 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct ecap_pwm_chip *pc;
 	u16 status;
-	struct pinctrl *pinctrl;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev, "unable to select pin group\n");
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!pc)
 		return -ENOMEM;
-	}
 
 	clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(clk)) {
@@ -240,11 +232,6 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 	pc->chip.npwm = 1;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		return -ENODEV;
-	}
-
 	pc->mmio_base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(pc->mmio_base))
 		return PTR_ERR(pc->mmio_base);
@@ -290,12 +277,12 @@ static int ecap_pwm_remove(struct platform_device *pdev)
 	pwmss_submodule_state_change(pdev->dev.parent, PWMSS_ECAPCLK_STOP_REQ);
 	pm_runtime_put_sync(&pdev->dev);
 
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return pwmchip_remove(&pc->chip);
 }
 
-void ecap_pwm_save_context(struct ecap_pwm_chip *pc)
+#ifdef CONFIG_PM_SLEEP
+static void ecap_pwm_save_context(struct ecap_pwm_chip *pc)
 {
 	pm_runtime_get_sync(pc->chip.dev);
 	pc->ctx.ecctl2 = readw(pc->mmio_base + ECCTL2);
@@ -304,7 +291,7 @@ void ecap_pwm_save_context(struct ecap_pwm_chip *pc)
 	pm_runtime_put_sync(pc->chip.dev);
 }
 
-void ecap_pwm_restore_context(struct ecap_pwm_chip *pc)
+static void ecap_pwm_restore_context(struct ecap_pwm_chip *pc)
 {
 	writel(pc->ctx.cap3, pc->mmio_base + CAP3);
 	writel(pc->ctx.cap4, pc->mmio_base + CAP4);
@@ -337,6 +324,7 @@ static int ecap_pwm_resume(struct device *dev)
 	ecap_pwm_restore_context(pc);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ecap_pwm_pm_ops, ecap_pwm_suspend, ecap_pwm_resume);
 

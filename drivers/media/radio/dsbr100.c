@@ -208,13 +208,13 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *v)
+				const struct v4l2_tuner *v)
 {
 	return v->index ? -EINVAL : 0;
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct dsbr100_device *radio = video_drvdata(file);
 
@@ -390,7 +390,6 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	radio->videodev.release = video_device_release_empty;
 	radio->videodev.lock = &radio->v4l2_lock;
 	radio->videodev.ctrl_handler = &radio->hdl;
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->videodev.flags);
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = FREQ_MIN * FREQ_MUL;

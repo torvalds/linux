@@ -1,0 +1,24 @@
+Micrel PHY properties.
+
+These properties cover the base properties Micrel PHYs.
+
+Optional properties:
+
+ - micrel,led-mode : LED mode value to set for PHYs with configurable LEDs.
+
+              Configure the LED mode with single value. The list of PHYs and
+	      the bits that are currently supported:
+
+	      KSZ8001: register 0x1e, bits 15..14
+	      KSZ8041: register 0x1e, bits 15..14
+	      KSZ8021: register 0x1f, bits 5..4
+	      KSZ8031: register 0x1f, bits 5..4
+	      KSZ8051: register 0x1f, bits 5..4
+
+              See the respective PHY datasheet for the mode values.
+
+ - clocks, clock-names: contains clocks according to the common clock bindings.
+
+              supported clocks:
+	      - KSZ8021, KSZ8031: "rmii-ref": The RMII refence input clock. Used
+		to determine the XI input clock.

@@ -198,7 +198,7 @@
 	ENTRY_SAME(madvise)
 	ENTRY_SAME(clone_wrapper)	/* 120 */
 	ENTRY_SAME(setdomainname)
-	ENTRY_DIFF(sendfile)
+	ENTRY_COMP(sendfile)
 	/* struct sockaddr... */
 	ENTRY_SAME(recvfrom)
 	/* struct timex contains longs */
@@ -282,15 +282,15 @@
 	ENTRY_COMP(recvmsg)
 	ENTRY_SAME(semop)		/* 185 */
 	ENTRY_SAME(semget)
-	ENTRY_DIFF(semctl)
+	ENTRY_COMP(semctl)
 	ENTRY_COMP(msgsnd)
 	ENTRY_COMP(msgrcv)
 	ENTRY_SAME(msgget)		/* 190 */
-	ENTRY_SAME(msgctl)
-	ENTRY_SAME(shmat)
+	ENTRY_COMP(msgctl)
+	ENTRY_COMP(shmat)
 	ENTRY_SAME(shmdt)
 	ENTRY_SAME(shmget)
-	ENTRY_SAME(shmctl)		/* 195 */
+	ENTRY_COMP(shmctl)		/* 195 */
 	ENTRY_SAME(ni_syscall)		/* streams1 */
 	ENTRY_SAME(ni_syscall)		/* streams2 */
 	ENTRY_SAME(lstat64)
@@ -304,7 +304,7 @@
 	ENTRY_SAME(gettid)
 	ENTRY_OURS(readahead)
 	ENTRY_SAME(tkill)
-	ENTRY_DIFF(sendfile64)
+	ENTRY_COMP(sendfile64)
 	ENTRY_COMP(futex)		/* 210 */
 	ENTRY_COMP(sched_setaffinity)
 	ENTRY_COMP(sched_getaffinity)
@@ -318,12 +318,12 @@
 	ENTRY_SAME(alloc_hugepages)	/* 220 */
 	ENTRY_SAME(free_hugepages)
 	ENTRY_SAME(exit_group)
-	ENTRY_DIFF(lookup_dcookie)
+	ENTRY_COMP(lookup_dcookie)
 	ENTRY_SAME(epoll_create)
 	ENTRY_SAME(epoll_ctl)		/* 225 */
 	ENTRY_SAME(epoll_wait)
  	ENTRY_SAME(remap_file_pages)
-	ENTRY_SAME(semtimedop)
+	ENTRY_COMP(semtimedop)
 	ENTRY_COMP(mq_open)
 	ENTRY_SAME(mq_unlink)		/* 230 */
 	ENTRY_COMP(mq_timedsend)
@@ -392,7 +392,7 @@
 	ENTRY_COMP(vmsplice)
 	ENTRY_COMP(move_pages)		/* 295 */
 	ENTRY_SAME(getcpu)
-	ENTRY_SAME(epoll_pwait)
+	ENTRY_COMP(epoll_pwait)
 	ENTRY_COMP(statfs64)
 	ENTRY_COMP(fstatfs64)
 	ENTRY_COMP(kexec_load)		/* 300 */
@@ -418,7 +418,7 @@
 	ENTRY_SAME(accept4)		/* 320 */
 	ENTRY_SAME(prlimit64)
 	ENTRY_SAME(fanotify_init)
-	ENTRY_COMP(fanotify_mark)
+	ENTRY_DIFF(fanotify_mark)
 	ENTRY_COMP(clock_adjtime)
 	ENTRY_SAME(name_to_handle_at)	/* 325 */
 	ENTRY_COMP(open_by_handle_at)
@@ -429,6 +429,14 @@
 	ENTRY_COMP(process_vm_writev)
 	ENTRY_SAME(kcmp)
 	ENTRY_SAME(finit_module)
+	ENTRY_SAME(sched_setattr)
+	ENTRY_SAME(sched_getattr)	/* 335 */
+	ENTRY_COMP(utimes)
+	ENTRY_SAME(renameat2)
+	ENTRY_SAME(seccomp)
+	ENTRY_SAME(getrandom)
+	ENTRY_SAME(memfd_create)	/* 340 */
+	ENTRY_SAME(bpf)
 
 	/* Nothing yet */
 

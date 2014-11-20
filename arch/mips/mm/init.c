@@ -29,6 +29,7 @@
 #include <linux/pfn.h>
 #include <linux/hardirq.h>
 #include <linux/gfp.h>
+#include <linux/kcore.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/bootinfo.h>
@@ -43,27 +44,6 @@
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
 
-/* Atomicity and interruptability */
-#ifdef CONFIG_MIPS_MT_SMTC
-
-#include <asm/mipsmtregs.h>
-
-#define ENTER_CRITICAL(flags) \
-	{ \
-	unsigned int mvpflags; \
-	local_irq_save(flags);\
-	mvpflags = dvpe()
-#define EXIT_CRITICAL(flags) \
-	evpe(mvpflags); \
-	local_irq_restore(flags); \
-	}
-#else
-
-#define ENTER_CRITICAL(flags) local_irq_save(flags)
-#define EXIT_CRITICAL(flags) local_irq_restore(flags)
-
-#endif /* CONFIG_MIPS_MT_SMTC */
-
 /*
  * We have up to 8 empty zeroed pages so we can map one of the right colour
  * when needed.	 This is necessary only on R4000 / R4400 SC and MC versions
@@ -73,14 +53,14 @@
  */
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL_GPL(empty_zero_page);
+EXPORT_SYMBOL(zero_page_mask);
 
 /*
  * Not static inline because used by IP27 special magic initialization code
  */
-unsigned long setup_zero_pages(void)
+void setup_zero_pages(void)
 {
-	unsigned int order;
-	unsigned long size;
+	unsigned int order, i;
 	struct page *page;
 
 	if (cpu_has_vce)
@@ -94,32 +74,13 @@ unsigned long setup_zero_pages(void)
 
 	page = virt_to_page((void *)empty_zero_page);
 	split_page(page, order);
-	while (page < virt_to_page((void *)(empty_zero_page + (PAGE_SIZE << order)))) {
-		SetPageReserved(page);
-		page++;
-	}
+	for (i = 0; i < (1 << order); i++, page++)
+		mark_page_reserved(page);
 
-	size = PAGE_SIZE << order;
-	zero_page_mask = (size - 1) & PAGE_MASK;
-
-	return 1UL << order;
+	zero_page_mask = ((PAGE_SIZE << order) - 1) & PAGE_MASK;
 }
 
-#ifdef CONFIG_MIPS_MT_SMTC
-static pte_t *kmap_coherent_pte;
-static void __init kmap_coherent_init(void)
-{
-	unsigned long vaddr;
-
-	/* cache the first coherent kmap pte */
-	vaddr = __fix_to_virt(FIX_CMAP_BEGIN);
-	kmap_coherent_pte = kmap_get_fixmap_pte(vaddr);
-}
-#else
-static inline void kmap_coherent_init(void) {}
-#endif
-
-void *kmap_coherent(struct page *page, unsigned long addr)
+static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 {
 	enum fixed_addresses idx;
 	unsigned long vaddr, flags, entrylo;
@@ -129,62 +90,50 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 
 	BUG_ON(Page_dcache_dirty(page));
 
-	inc_preempt_count();
+	pagefault_disable();
 	idx = (addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1);
-#ifdef CONFIG_MIPS_MT_SMTC
-	idx += FIX_N_COLOURS * smp_processor_id() +
-		(in_interrupt() ? (FIX_N_COLOURS * NR_CPUS) : 0);
-#else
 	idx += in_interrupt() ? FIX_N_COLOURS : 0;
-#endif
 	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
-	pte = mk_pte(page, PAGE_KERNEL);
+	pte = mk_pte(page, prot);
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 	entrylo = pte.pte_high;
 #else
 	entrylo = pte_to_entrylo(pte_val(pte));
 #endif
 
-	ENTER_CRITICAL(flags);
+	local_irq_save(flags);
 	old_ctx = read_c0_entryhi();
 	write_c0_entryhi(vaddr & (PAGE_MASK << 1));
 	write_c0_entrylo0(entrylo);
 	write_c0_entrylo1(entrylo);
-#ifdef CONFIG_MIPS_MT_SMTC
-	set_pte(kmap_coherent_pte - (FIX_CMAP_END - idx), pte);
-	/* preload TLB instead of local_flush_tlb_one() */
-	mtc0_tlbw_hazard();
-	tlb_probe();
-	tlb_probe_hazard();
-	tlbidx = read_c0_index();
-	mtc0_tlbw_hazard();
-	if (tlbidx < 0)
-		tlb_write_random();
-	else
-		tlb_write_indexed();
-#else
 	tlbidx = read_c0_wired();
 	write_c0_wired(tlbidx + 1);
 	write_c0_index(tlbidx);
 	mtc0_tlbw_hazard();
 	tlb_write_indexed();
-#endif
 	tlbw_use_hazard();
 	write_c0_entryhi(old_ctx);
-	EXIT_CRITICAL(flags);
+	local_irq_restore(flags);
 
 	return (void*) vaddr;
 }
 
-#define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
+void *kmap_coherent(struct page *page, unsigned long addr)
+{
+	return __kmap_pgprot(page, addr, PAGE_KERNEL);
+}
+
+void *kmap_noncoherent(struct page *page, unsigned long addr)
+{
+	return __kmap_pgprot(page, addr, PAGE_KERNEL_NC);
+}
 
 void kunmap_coherent(void)
 {
-#ifndef CONFIG_MIPS_MT_SMTC
 	unsigned int wired;
 	unsigned long flags, old_ctx;
 
-	ENTER_CRITICAL(flags);
+	local_irq_save(flags);
 	old_ctx = read_c0_entryhi();
 	wired = read_c0_wired() - 1;
 	write_c0_wired(wired);
@@ -196,10 +145,8 @@ void kunmap_coherent(void)
 	tlb_write_indexed();
 	tlbw_use_hazard();
 	write_c0_entryhi(old_ctx);
-	EXIT_CRITICAL(flags);
-#endif
-	dec_preempt_count();
-	preempt_check_resched();
+	local_irq_restore(flags);
+	pagefault_enable();
 }
 
 void copy_user_highpage(struct page *to, struct page *from,
@@ -259,11 +206,12 @@ void copy_from_user_page(struct vm_area_struct *vma,
 			SetPageDcacheDirty(page);
 	}
 }
+EXPORT_SYMBOL_GPL(copy_from_user_page);
 
 void __init fixrange_init(unsigned long start, unsigned long end,
 	pgd_t *pgd_base)
 {
-#if defined(CONFIG_HIGHMEM) || defined(CONFIG_MIPS_MT_SMTC)
+#ifdef CONFIG_HIGHMEM
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -334,8 +282,6 @@ void __init paging_init(void)
 #ifdef CONFIG_HIGHMEM
 	kmap_init();
 #endif
-	kmap_coherent_init();
-
 #ifdef CONFIG_ZONE_DMA
 	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
 #endif
@@ -364,11 +310,56 @@ void __init paging_init(void)
 static struct kcore_list kcore_kseg0;
 #endif
 
+static inline void mem_init_free_highmem(void)
+{
+#ifdef CONFIG_HIGHMEM
+	unsigned long tmp;
+
+	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
+		struct page *page = pfn_to_page(tmp);
+
+		if (!page_is_ram(tmp))
+			SetPageReserved(page);
+		else
+			free_highmem_page(page);
+	}
+#endif
+}
+
+unsigned __weak platform_maar_init(unsigned num_maars)
+{
+	return 0;
+}
+
+static void maar_init(void)
+{
+	unsigned num_maars, used, i;
+
+	if (!cpu_has_maar)
+		return;
+
+	/* Detect the number of MAARs */
+	write_c0_maari(~0);
+	back_to_back_c0_hazard();
+	num_maars = read_c0_maari() + 1;
+
+	/* MAARs should be in pairs */
+	WARN_ON(num_maars % 2);
+
+	/* Configure the required MAARs */
+	used = platform_maar_init(num_maars / 2);
+
+	/* Disable any further MAARs */
+	for (i = (used * 2); i < num_maars; i++) {
+		write_c0_maari(i);
+		back_to_back_c0_hazard();
+		write_c0_maar(0);
+		back_to_back_c0_hazard();
+	}
+}
+
 void __init mem_init(void)
 {
-	unsigned long codesize, reservedpages, datasize, initsize;
-	unsigned long tmp, ram;
-
 #ifdef CONFIG_HIGHMEM
 #ifdef CONFIG_DISCONTIGMEM
 #error "CONFIG_HIGHMEM and CONFIG_DISCONTIGMEM dont work together yet"
@@ -379,38 +370,11 @@ void __init mem_init(void)
 #endif
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 
-	totalram_pages += free_all_bootmem();
-	totalram_pages -= setup_zero_pages();	/* Setup zeroed pages.	*/
-
-	reservedpages = ram = 0;
-	for (tmp = 0; tmp < max_low_pfn; tmp++)
-		if (page_is_ram(tmp) && pfn_valid(tmp)) {
-			ram++;
-			if (PageReserved(pfn_to_page(tmp)))
-				reservedpages++;
-		}
-	num_physpages = ram;
-
-#ifdef CONFIG_HIGHMEM
-	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
-		struct page *page = pfn_to_page(tmp);
-
-		if (!page_is_ram(tmp)) {
-			SetPageReserved(page);
-			continue;
-		}
-		ClearPageReserved(page);
-		init_page_count(page);
-		__free_page(page);
-		totalhigh_pages++;
-	}
-	totalram_pages += totalhigh_pages;
-	num_physpages += totalhigh_pages;
-#endif
-
-	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
-	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
-	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
+	maar_init();
+	free_all_bootmem();
+	setup_zero_pages();	/* Setup zeroed pages.  */
+	mem_init_free_highmem();
+	mem_init_print_info(NULL);
 
 #ifdef CONFIG_64BIT
 	if ((unsigned long) &_text > (unsigned long) CKSEG0)
@@ -419,16 +383,6 @@ void __init mem_init(void)
 		kclist_add(&kcore_kseg0, (void *) CKSEG0,
 				0x80000000 - 4, KCORE_TEXT);
 #endif
-
-	printk(KERN_INFO "Memory: %luk/%luk available (%ldk kernel code, "
-	       "%ldk reserved, %ldk data, %ldk init, %ldk highmem)\n",
-	       nr_free_pages() << (PAGE_SHIFT-10),
-	       ram << (PAGE_SHIFT-10),
-	       codesize >> 10,
-	       reservedpages << (PAGE_SHIFT-10),
-	       datasize >> 10,
-	       initsize >> 10,
-	       totalhigh_pages << (PAGE_SHIFT-10));
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
@@ -440,11 +394,8 @@ void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 		struct page *page = pfn_to_page(pfn);
 		void *addr = phys_to_virt(PFN_PHYS(pfn));
 
-		ClearPageReserved(page);
-		init_page_count(page);
 		memset(addr, POISON_FREE_INITMEM, PAGE_SIZE);
-		__free_page(page);
-		totalram_pages++;
+		free_reserved_page(page);
 	}
 	printk(KERN_INFO "Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
 }
@@ -452,18 +403,25 @@ void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	free_init_pages("initrd memory",
-			virt_to_phys((void *)start),
-			virt_to_phys((void *)end));
+	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
+			   "initrd");
 }
 #endif
+
+void (*free_init_pages_eva)(void *begin, void *end) = NULL;
 
 void __init_refok free_initmem(void)
 {
 	prom_free_prom_memory();
-	free_init_pages("unused kernel memory",
-			__pa_symbol(&__init_begin),
-			__pa_symbol(&__init_end));
+	/*
+	 * Let the platform define a specific function to free the
+	 * init section since EVA may have used any possible mapping
+	 * between virtual and physical addresses.
+	 */
+	if (free_init_pages_eva)
+		free_init_pages_eva((void *)&__init_begin, (void *)&__init_end);
+	else
+		free_initmem_default(POISON_FREE_INITMEM);
 }
 
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT

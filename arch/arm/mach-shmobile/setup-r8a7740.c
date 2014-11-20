@@ -22,21 +22,27 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/irqchip.h>
+#include <linux/irqchip/arm-gic.h>
+#include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
 #include <linux/platform_data/sh_ipmmu.h>
-#include <mach/dma-register.h>
-#include <mach/r8a7740.h>
-#include <mach/pm-rmobile.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include <asm/hardware/cache-l2x0.h>
+
+#include "common.h"
+#include "dma-register.h"
+#include "irqs.h"
+#include "pm-rmobile.h"
+#include "r8a7740.h"
 
 static struct map_desc r8a7740_io_desc[] __initdata = {
 	 /*
@@ -69,314 +75,210 @@ void __init r8a7740_map_io(void)
 }
 
 /* PFC */
-static struct resource r8a7740_pfc_resources[] = {
-	[0] = {
-		.start	= 0xe6050000,
-		.end	= 0xe6057fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 0xe605800c,
-		.end	= 0xe605802b,
-		.flags	= IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device r8a7740_pfc_device = {
-	.name		= "pfc-r8a7740",
-	.id		= -1,
-	.resource	= r8a7740_pfc_resources,
-	.num_resources	= ARRAY_SIZE(r8a7740_pfc_resources),
+static const struct resource pfc_resources[] = {
+	DEFINE_RES_MEM(0xe6050000, 0x8000),
+	DEFINE_RES_MEM(0xe605800c, 0x0020),
 };
 
 void __init r8a7740_pinmux_init(void)
 {
-	platform_device_register(&r8a7740_pfc_device);
+	platform_device_register_simple("pfc-r8a7740", -1, pfc_resources,
+					ARRAY_SIZE(pfc_resources));
 }
 
-/* SCIFA0 */
-static struct plat_sci_port scif0_platform_data = {
-	.mapbase	= 0xe6c40000,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE,
-	.scbrr_algo_id	= SCBRR_ALGO_4,
-	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c00)),
+static struct renesas_intc_irqpin_config irqpin0_platform_data = {
+	.irq_base = irq_pin(0), /* IRQ0 -> IRQ7 */
 };
 
-static struct platform_device scif0_device = {
-	.name		= "sh-sci",
+static struct resource irqpin0_resources[] = {
+	DEFINE_RES_MEM(0xe6900000, 4), /* ICR1A */
+	DEFINE_RES_MEM(0xe6900010, 4), /* INTPRI00A */
+	DEFINE_RES_MEM(0xe6900020, 1), /* INTREQ00A */
+	DEFINE_RES_MEM(0xe6900040, 1), /* INTMSK00A */
+	DEFINE_RES_MEM(0xe6900060, 1), /* INTMSKCLR00A */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ0 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ1 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ2 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ3 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ4 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ5 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ6 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ7 */
+};
+
+static struct platform_device irqpin0_device = {
+	.name		= "renesas_intc_irqpin",
 	.id		= 0,
+	.resource	= irqpin0_resources,
+	.num_resources	= ARRAY_SIZE(irqpin0_resources),
 	.dev		= {
-		.platform_data	= &scif0_platform_data,
+		.platform_data  = &irqpin0_platform_data,
 	},
 };
 
-/* SCIFA1 */
-static struct plat_sci_port scif1_platform_data = {
-	.mapbase	= 0xe6c50000,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE,
-	.scbrr_algo_id	= SCBRR_ALGO_4,
-	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c20)),
+static struct renesas_intc_irqpin_config irqpin1_platform_data = {
+	.irq_base = irq_pin(8), /* IRQ8 -> IRQ15 */
 };
 
-static struct platform_device scif1_device = {
-	.name		= "sh-sci",
+static struct resource irqpin1_resources[] = {
+	DEFINE_RES_MEM(0xe6900004, 4), /* ICR2A */
+	DEFINE_RES_MEM(0xe6900014, 4), /* INTPRI10A */
+	DEFINE_RES_MEM(0xe6900024, 1), /* INTREQ10A */
+	DEFINE_RES_MEM(0xe6900044, 1), /* INTMSK10A */
+	DEFINE_RES_MEM(0xe6900064, 1), /* INTMSKCLR10A */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ8 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ9 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ10 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ11 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ12 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ13 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ14 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ15 */
+};
+
+static struct platform_device irqpin1_device = {
+	.name		= "renesas_intc_irqpin",
 	.id		= 1,
+	.resource	= irqpin1_resources,
+	.num_resources	= ARRAY_SIZE(irqpin1_resources),
 	.dev		= {
-		.platform_data	= &scif1_platform_data,
+		.platform_data  = &irqpin1_platform_data,
 	},
 };
 
-/* SCIFA2 */
-static struct plat_sci_port scif2_platform_data = {
-	.mapbase	= 0xe6c60000,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE,
-	.scbrr_algo_id	= SCBRR_ALGO_4,
-	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c40)),
+static struct renesas_intc_irqpin_config irqpin2_platform_data = {
+	.irq_base = irq_pin(16), /* IRQ16 -> IRQ23 */
 };
 
-static struct platform_device scif2_device = {
-	.name		= "sh-sci",
+static struct resource irqpin2_resources[] = {
+	DEFINE_RES_MEM(0xe6900008, 4), /* ICR3A */
+	DEFINE_RES_MEM(0xe6900018, 4), /* INTPRI30A */
+	DEFINE_RES_MEM(0xe6900028, 1), /* INTREQ30A */
+	DEFINE_RES_MEM(0xe6900048, 1), /* INTMSK30A */
+	DEFINE_RES_MEM(0xe6900068, 1), /* INTMSKCLR30A */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ16 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ17 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ18 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ19 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ20 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ21 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ22 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ23 */
+};
+
+static struct platform_device irqpin2_device = {
+	.name		= "renesas_intc_irqpin",
 	.id		= 2,
+	.resource	= irqpin2_resources,
+	.num_resources	= ARRAY_SIZE(irqpin2_resources),
 	.dev		= {
-		.platform_data	= &scif2_platform_data,
+		.platform_data  = &irqpin2_platform_data,
 	},
 };
 
-/* SCIFA3 */
-static struct plat_sci_port scif3_platform_data = {
-	.mapbase	= 0xe6c70000,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE,
-	.scbrr_algo_id	= SCBRR_ALGO_4,
-	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0c60)),
+static struct renesas_intc_irqpin_config irqpin3_platform_data = {
+	.irq_base = irq_pin(24), /* IRQ24 -> IRQ31 */
 };
 
-static struct platform_device scif3_device = {
-	.name		= "sh-sci",
+static struct resource irqpin3_resources[] = {
+	DEFINE_RES_MEM(0xe690000c, 4), /* ICR3A */
+	DEFINE_RES_MEM(0xe690001c, 4), /* INTPRI30A */
+	DEFINE_RES_MEM(0xe690002c, 1), /* INTREQ30A */
+	DEFINE_RES_MEM(0xe690004c, 1), /* INTMSK30A */
+	DEFINE_RES_MEM(0xe690006c, 1), /* INTMSKCLR30A */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ24 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ25 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ26 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ27 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ28 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ29 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ30 */
+	DEFINE_RES_IRQ(gic_spi(149)), /* IRQ31 */
+};
+
+static struct platform_device irqpin3_device = {
+	.name		= "renesas_intc_irqpin",
 	.id		= 3,
+	.resource	= irqpin3_resources,
+	.num_resources	= ARRAY_SIZE(irqpin3_resources),
 	.dev		= {
-		.platform_data	= &scif3_platform_data,
+		.platform_data  = &irqpin3_platform_data,
 	},
 };
 
-/* SCIFA4 */
-static struct plat_sci_port scif4_platform_data = {
-	.mapbase	= 0xe6c80000,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE,
-	.scbrr_algo_id	= SCBRR_ALGO_4,
-	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0d20)),
-};
+/* SCIF */
+#define R8A7740_SCIF(scif_type, index, baseaddr, irq)		\
+static struct plat_sci_port scif##index##_platform_data = {	\
+	.type		= scif_type,				\
+	.flags		= UPF_BOOT_AUTOCONF,			\
+	.scscr		= SCSCR_RE | SCSCR_TE,			\
+};								\
+								\
+static struct resource scif##index##_resources[] = {		\
+	DEFINE_RES_MEM(baseaddr, 0x100),			\
+	DEFINE_RES_IRQ(irq),					\
+};								\
+								\
+static struct platform_device scif##index##_device = {		\
+	.name		= "sh-sci",				\
+	.id		= index,				\
+	.resource	= scif##index##_resources,		\
+	.num_resources	= ARRAY_SIZE(scif##index##_resources),	\
+	.dev		= {					\
+		.platform_data	= &scif##index##_platform_data,	\
+	},							\
+}
 
-static struct platform_device scif4_device = {
-	.name		= "sh-sci",
-	.id		= 4,
-	.dev		= {
-		.platform_data	= &scif4_platform_data,
-	},
-};
-
-/* SCIFA5 */
-static struct plat_sci_port scif5_platform_data = {
-	.mapbase	= 0xe6cb0000,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE,
-	.scbrr_algo_id	= SCBRR_ALGO_4,
-	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0d40)),
-};
-
-static struct platform_device scif5_device = {
-	.name		= "sh-sci",
-	.id		= 5,
-	.dev		= {
-		.platform_data	= &scif5_platform_data,
-	},
-};
-
-/* SCIFA6 */
-static struct plat_sci_port scif6_platform_data = {
-	.mapbase	= 0xe6cc0000,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE,
-	.scbrr_algo_id	= SCBRR_ALGO_4,
-	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x04c0)),
-};
-
-static struct platform_device scif6_device = {
-	.name		= "sh-sci",
-	.id		= 6,
-	.dev		= {
-		.platform_data	= &scif6_platform_data,
-	},
-};
-
-/* SCIFA7 */
-static struct plat_sci_port scif7_platform_data = {
-	.mapbase	= 0xe6cd0000,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE,
-	.scbrr_algo_id	= SCBRR_ALGO_4,
-	.type		= PORT_SCIFA,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x04e0)),
-};
-
-static struct platform_device scif7_device = {
-	.name		= "sh-sci",
-	.id		= 7,
-	.dev		= {
-		.platform_data	= &scif7_platform_data,
-	},
-};
-
-/* SCIFB */
-static struct plat_sci_port scifb_platform_data = {
-	.mapbase	= 0xe6c30000,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE,
-	.scbrr_algo_id	= SCBRR_ALGO_4,
-	.type		= PORT_SCIFB,
-	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x0d60)),
-};
-
-static struct platform_device scifb_device = {
-	.name		= "sh-sci",
-	.id		= 8,
-	.dev		= {
-		.platform_data	= &scifb_platform_data,
-	},
-};
+R8A7740_SCIF(PORT_SCIFA, 0, 0xe6c40000, gic_spi(100));
+R8A7740_SCIF(PORT_SCIFA, 1, 0xe6c50000, gic_spi(101));
+R8A7740_SCIF(PORT_SCIFA, 2, 0xe6c60000, gic_spi(102));
+R8A7740_SCIF(PORT_SCIFA, 3, 0xe6c70000, gic_spi(103));
+R8A7740_SCIF(PORT_SCIFA, 4, 0xe6c80000, gic_spi(104));
+R8A7740_SCIF(PORT_SCIFA, 5, 0xe6cb0000, gic_spi(105));
+R8A7740_SCIF(PORT_SCIFA, 6, 0xe6cc0000, gic_spi(106));
+R8A7740_SCIF(PORT_SCIFA, 7, 0xe6cd0000, gic_spi(107));
+R8A7740_SCIF(PORT_SCIFB, 8, 0xe6c30000, gic_spi(108));
 
 /* CMT */
-static struct sh_timer_config cmt10_platform_data = {
-	.name = "CMT10",
-	.channel_offset = 0x10,
-	.timer_bit = 0,
-	.clockevent_rating = 125,
-	.clocksource_rating = 125,
+static struct sh_timer_config cmt1_platform_data = {
+	.channels_mask = 0x3f,
 };
 
-static struct resource cmt10_resources[] = {
-	[0] = {
-		.name	= "CMT10",
-		.start	= 0xe6138010,
-		.end	= 0xe613801b,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x0b00),
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct resource cmt1_resources[] = {
+	DEFINE_RES_MEM(0xe6138000, 0x170),
+	DEFINE_RES_IRQ(gic_spi(58)),
 };
 
-static struct platform_device cmt10_device = {
-	.name		= "sh_cmt",
-	.id		= 10,
+static struct platform_device cmt1_device = {
+	.name		= "sh-cmt-48",
+	.id		= 1,
 	.dev = {
-		.platform_data	= &cmt10_platform_data,
+		.platform_data	= &cmt1_platform_data,
 	},
-	.resource	= cmt10_resources,
-	.num_resources	= ARRAY_SIZE(cmt10_resources),
+	.resource	= cmt1_resources,
+	.num_resources	= ARRAY_SIZE(cmt1_resources),
 };
 
 /* TMU */
-static struct sh_timer_config tmu00_platform_data = {
-	.name = "TMU00",
-	.channel_offset = 0x4,
-	.timer_bit = 0,
-	.clockevent_rating = 200,
+static struct sh_timer_config tmu0_platform_data = {
+	.channels_mask = 7,
 };
 
-static struct resource tmu00_resources[] = {
-	[0] = {
-		.name	= "TMU00",
-		.start	= 0xfff80008,
-		.end	= 0xfff80014 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= intcs_evt2irq(0xe80),
-		.flags	= IORESOURCE_IRQ,
-	},
+static struct resource tmu0_resources[] = {
+	DEFINE_RES_MEM(0xfff80000, 0x2c),
+	DEFINE_RES_IRQ(gic_spi(198)),
+	DEFINE_RES_IRQ(gic_spi(199)),
+	DEFINE_RES_IRQ(gic_spi(200)),
 };
 
-static struct platform_device tmu00_device = {
-	.name		= "sh_tmu",
+static struct platform_device tmu0_device = {
+	.name		= "sh-tmu",
 	.id		= 0,
 	.dev = {
-		.platform_data	= &tmu00_platform_data,
+		.platform_data	= &tmu0_platform_data,
 	},
-	.resource	= tmu00_resources,
-	.num_resources	= ARRAY_SIZE(tmu00_resources),
-};
-
-static struct sh_timer_config tmu01_platform_data = {
-	.name = "TMU01",
-	.channel_offset = 0x10,
-	.timer_bit = 1,
-	.clocksource_rating = 200,
-};
-
-static struct resource tmu01_resources[] = {
-	[0] = {
-		.name	= "TMU01",
-		.start	= 0xfff80014,
-		.end	= 0xfff80020 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= intcs_evt2irq(0xea0),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu01_device = {
-	.name		= "sh_tmu",
-	.id		= 1,
-	.dev = {
-		.platform_data	= &tmu01_platform_data,
-	},
-	.resource	= tmu01_resources,
-	.num_resources	= ARRAY_SIZE(tmu01_resources),
-};
-
-static struct sh_timer_config tmu02_platform_data = {
-	.name = "TMU02",
-	.channel_offset = 0x1C,
-	.timer_bit = 2,
-	.clocksource_rating = 200,
-};
-
-static struct resource tmu02_resources[] = {
-	[0] = {
-		.name	= "TMU02",
-		.start	= 0xfff80020,
-		.end	= 0xfff8002C - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= intcs_evt2irq(0xec0),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu02_device = {
-	.name		= "sh_tmu",
-	.id		= 2,
-	.dev = {
-		.platform_data	= &tmu02_platform_data,
-	},
-	.resource	= tmu02_resources,
-	.num_resources	= ARRAY_SIZE(tmu02_resources),
+	.resource	= tmu0_resources,
+	.num_resources	= ARRAY_SIZE(tmu0_resources),
 };
 
 /* IPMMUI (an IPMMU module for ICB/LMB) */
@@ -419,12 +321,14 @@ static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&scif5_device,
 	&scif6_device,
 	&scif7_device,
-	&scifb_device,
-	&cmt10_device,
-	&tmu00_device,
-	&tmu01_device,
-	&tmu02_device,
+	&scif8_device,
+	&irqpin0_device,
+	&irqpin1_device,
+	&irqpin2_device,
+	&irqpin3_device,
+	&tmu0_device,
 	&ipmmu_device,
+	&cmt1_device,
 };
 
 /* DMA */
@@ -474,6 +378,16 @@ static const struct sh_dmae_slave_config r8a7740_dmae_slaves[] = {
 		.addr		= 0xfe1f0064,
 		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
 		.mid_rid	= 0xb5,
+	}, {
+		.slave_id	= SHDMA_SLAVE_MMCIF_TX,
+		.addr		= 0xe6bd0034,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd1,
+	}, {
+		.slave_id	= SHDMA_SLAVE_MMCIF_RX,
+		.addr		= 0xe6bd0034,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd2,
 	},
 };
 
@@ -525,14 +439,14 @@ static struct resource r8a7740_dmae0_resources[] = {
 	},
 	{
 		.name	= "error_irq",
-		.start	= evt2irq(0x20c0),
-		.end	= evt2irq(0x20c0),
+		.start	= gic_spi(34),
+		.end	= gic_spi(34),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 0-5 */
-		.start	= evt2irq(0x2000),
-		.end	= evt2irq(0x20a0),
+		.start	= gic_spi(28),
+		.end	= gic_spi(33),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -553,14 +467,14 @@ static struct resource r8a7740_dmae1_resources[] = {
 	},
 	{
 		.name	= "error_irq",
-		.start	= evt2irq(0x21c0),
-		.end	= evt2irq(0x21c0),
+		.start	= gic_spi(41),
+		.end	= gic_spi(41),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 0-5 */
-		.start	= evt2irq(0x2100),
-		.end	= evt2irq(0x21a0),
+		.start	= gic_spi(35),
+		.end	= gic_spi(40),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -581,14 +495,14 @@ static struct resource r8a7740_dmae2_resources[] = {
 	},
 	{
 		.name	= "error_irq",
-		.start	= evt2irq(0x22c0),
-		.end	= evt2irq(0x22c0),
+		.start	= gic_spi(48),
+		.end	= gic_spi(48),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		/* IRQ for channels 0-5 */
-		.start	= evt2irq(0x2200),
-		.end	= evt2irq(0x22a0),
+		.start	= gic_spi(42),
+		.end	= gic_spi(47),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -677,8 +591,8 @@ static struct resource r8a7740_usb_dma_resources[] = {
 	},
 	{
 		/* IRQ for channels */
-		.start	= evt2irq(0x0a00),
-		.end	= evt2irq(0x0a00),
+		.start	= gic_spi(49),
+		.end	= gic_spi(49),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -702,8 +616,8 @@ static struct resource i2c0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= intcs_evt2irq(0xe00),
-		.end	= intcs_evt2irq(0xe60),
+		.start	= gic_spi(201),
+		.end	= gic_spi(204),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -716,8 +630,8 @@ static struct resource i2c1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = evt2irq(0x780), /* IIC1_ALI1 */
-		.end    = evt2irq(0x7e0), /* IIC1_DTEI1 */
+		.start  = gic_spi(70), /* IIC1_ALI1 */
+		.end    = gic_spi(73), /* IIC1_DTEI1 */
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -738,8 +652,8 @@ static struct platform_device i2c1_device = {
 
 static struct resource pmu_resources[] = {
 	[0] = {
-		.start	= evt2irq(0x19a0),
-		.end	= evt2irq(0x19a0),
+		.start	= gic_spi(83),
+		.end	= gic_spi(83),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -768,7 +682,7 @@ static struct platform_device *r8a7740_late_devices[] __initdata = {
  *	"Media RAM (MERAM)" on r8a7740 documentation
  */
 #define MEBUFCNTR	0xFE950098
-void r8a7740_meram_workaround(void)
+void __init r8a7740_meram_workaround(void)
 {
 	void __iomem *reg;
 
@@ -831,6 +745,19 @@ static void r8a7740_i2c_workaround(struct platform_device *pdev)
 
 void __init r8a7740_add_standard_devices(void)
 {
+	static struct pm_domain_device domain_devices[] __initdata = {
+		{ "A3SP", &scif0_device },
+		{ "A3SP", &scif1_device },
+		{ "A3SP", &scif2_device },
+		{ "A3SP", &scif3_device },
+		{ "A3SP", &scif4_device },
+		{ "A3SP", &scif5_device },
+		{ "A3SP", &scif6_device },
+		{ "A3SP", &scif7_device },
+		{ "A3SP", &scif8_device },
+		{ "A3SP", &i2c1_device },
+	};
+
 	/* I2C work-around */
 	r8a7740_i2c_workaround(&i2c0_device);
 	r8a7740_i2c_workaround(&i2c1_device);
@@ -844,17 +771,8 @@ void __init r8a7740_add_standard_devices(void)
 			     ARRAY_SIZE(r8a7740_late_devices));
 
 	/* add devices to PM domain  */
-
-	rmobile_add_device_to_domain("A3SP",	&scif0_device);
-	rmobile_add_device_to_domain("A3SP",	&scif1_device);
-	rmobile_add_device_to_domain("A3SP",	&scif2_device);
-	rmobile_add_device_to_domain("A3SP",	&scif3_device);
-	rmobile_add_device_to_domain("A3SP",	&scif4_device);
-	rmobile_add_device_to_domain("A3SP",	&scif5_device);
-	rmobile_add_device_to_domain("A3SP",	&scif6_device);
-	rmobile_add_device_to_domain("A3SP",	&scif7_device);
-	rmobile_add_device_to_domain("A3SP",	&scifb_device);
-	rmobile_add_device_to_domain("A3SP",	&i2c1_device);
+	rmobile_add_devices_to_domains(domain_devices,
+				       ARRAY_SIZE(domain_devices));
 }
 
 void __init r8a7740_add_early_devices(void)
@@ -868,31 +786,52 @@ void __init r8a7740_add_early_devices(void)
 
 #ifdef CONFIG_USE_OF
 
-void __init r8a7740_add_early_devices_dt(void)
+void __init r8a7740_init_irq_of(void)
 {
-	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
+	void __iomem *intc_prio_base = ioremap_nocache(0xe6900010, 0x10);
+	void __iomem *intc_msk_base = ioremap_nocache(0xe6900040, 0x10);
+	void __iomem *pfc_inta_ctrl = ioremap_nocache(0xe605807c, 0x4);
 
-	early_platform_add_devices(r8a7740_early_devices,
-				   ARRAY_SIZE(r8a7740_early_devices));
+	irqchip_init();
 
-	/* setup early console here as well */
-	shmobile_setup_console();
+	/* route signals to GIC */
+	iowrite32(0x0, pfc_inta_ctrl);
+
+	/*
+	 * To mask the shared interrupt to SPI 149 we must ensure to set
+	 * PRIO *and* MASK. Else we run into IRQ floods when registering
+	 * the intc_irqpin devices
+	 */
+	iowrite32(0x0, intc_prio_base + 0x0);
+	iowrite32(0x0, intc_prio_base + 0x4);
+	iowrite32(0x0, intc_prio_base + 0x8);
+	iowrite32(0x0, intc_prio_base + 0xc);
+	iowrite8(0xff, intc_msk_base + 0x0);
+	iowrite8(0xff, intc_msk_base + 0x4);
+	iowrite8(0xff, intc_msk_base + 0x8);
+	iowrite8(0xff, intc_msk_base + 0xc);
+
+	iounmap(intc_prio_base);
+	iounmap(intc_msk_base);
+	iounmap(pfc_inta_ctrl);
 }
 
-static const struct of_dev_auxdata r8a7740_auxdata_lookup[] __initconst = {
-	{ }
-};
-
-void __init r8a7740_add_standard_devices_dt(void)
+static void __init r8a7740_generic_init(void)
 {
-	/* clocks are setup late during boot in the case of DT */
-	r8a7740_clock_init(0);
+	r8a7740_meram_workaround();
 
-	platform_add_devices(r8a7740_early_devices,
-			    ARRAY_SIZE(r8a7740_early_devices));
+#ifdef CONFIG_CACHE_L2X0
+	/* Shared attribute override enable, 32K*8way */
+	l2x0_init(IOMEM(0xf0002000), 0x00400000, 0xc20f0fff);
+#endif
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+}
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     r8a7740_auxdata_lookup, NULL);
+#define RESCNT2 IOMEM(0xe6188020)
+static void r8a7740_restart(enum reboot_mode mode, const char *cmd)
+{
+	/* Do soft power on reset */
+	writel(1 << 31, RESCNT2);
 }
 
 static const char *r8a7740_boards_compat_dt[] __initdata = {
@@ -902,12 +841,12 @@ static const char *r8a7740_boards_compat_dt[] __initdata = {
 
 DT_MACHINE_START(R8A7740_DT, "Generic R8A7740 (Flattened Device Tree)")
 	.map_io		= r8a7740_map_io,
-	.init_early	= r8a7740_add_early_devices_dt,
-	.init_irq	= r8a7740_init_irq,
-	.handle_irq	= shmobile_handle_irq_intc,
-	.init_machine	= r8a7740_add_standard_devices_dt,
-	.init_time	= shmobile_timer_init,
+	.init_early	= shmobile_init_delay,
+	.init_irq	= r8a7740_init_irq_of,
+	.init_machine	= r8a7740_generic_init,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7740_boards_compat_dt,
+	.restart	= r8a7740_restart,
 MACHINE_END
 
 #endif /* CONFIG_USE_OF */

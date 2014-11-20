@@ -3,7 +3,6 @@ menu "Xen driver support"
 
 config XEN_BALLOON
 	bool "Xen memory balloon driver"
-	depends on !ARM
 	default y
 	help
 	  The balloon driver allows the Xen domain to request more memory from
@@ -19,11 +18,10 @@ config XEN_SELFBALLOONING
 	  by the current usage of anonymous memory ("committed AS") and
 	  controlled by various sysfs-settable parameters.  Configuring
 	  FRONTSWAP is highly recommended; if it is not configured, self-
-	  ballooning is disabled by default but can be enabled with the
-	  'selfballooning' kernel boot parameter.  If FRONTSWAP is configured,
+	  ballooning is disabled by default. If FRONTSWAP is configured,
 	  frontswap-selfshrinking is enabled by default but can be disabled
-	  with the 'noselfshrink' kernel boot parameter; and self-ballooning
-	  is enabled by default but can be disabled with the 'noselfballooning'
+	  with the 'tmem.selfshrink=0' kernel boot parameter; and self-ballooning
+	  is enabled by default but can be disabled with the 'tmem.selfballooning=0'
 	  kernel boot parameter.  Note that systems without a sufficiently
 	  large swap device should not enable self-ballooning.
 
@@ -141,13 +139,12 @@ config XEN_GRANT_DEV_ALLOC
 
 config SWIOTLB_XEN
 	def_bool y
-	depends on PCI
 	select SWIOTLB
 
 config XEN_TMEM
-	bool
-	depends on !ARM
-	default y if (CLEANCACHE || FRONTSWAP)
+	tristate
+	depends on !ARM && !ARM64
+	default m if (CLEANCACHE || FRONTSWAP)
 	help
 	  Shim to interface in-kernel Transcendent Memory hooks
 	  (e.g. cleancache and frontswap) to Xen tmem hypercalls.
@@ -174,6 +171,15 @@ config XEN_PCIDEV_BACKEND
 	  xen-pciback.hide=(03:00.0)(04:00.0)
 
 	  If in doubt, say m.
+
+config XEN_SCSI_BACKEND
+	tristate "XEN SCSI backend driver"
+	depends on XEN && XEN_BACKEND && TARGET_CORE
+	help
+	  The SCSI backend driver allows the kernel to export its SCSI Devices
+	  to other guests via a high-performance shared-memory interface.
+	  Only needed for systems running as XEN driver domains (e.g. Dom0) and
+	  if guests need generic access to SCSI devices.
 
 config XEN_PRIVCMD
 	tristate
@@ -224,7 +230,7 @@ config XEN_ACPI_PROCESSOR
 
 	  To do that the driver parses the Power Management data and uploads
 	  said information to the Xen hypervisor. Then the Xen hypervisor can
-	  select the proper Cx and Pxx states. It also registers itslef as the
+	  select the proper Cx and Pxx states. It also registers itself as the
 	  SMM so that other drivers (such as ACPI cpufreq scaling driver) will
 	  not load.
 
@@ -242,5 +248,9 @@ config XEN_MCE_LOG
 
 config XEN_HAVE_PVMMU
        bool
+
+config XEN_EFI
+	def_bool y
+	depends on X86_64 && EFI
 
 endmenu

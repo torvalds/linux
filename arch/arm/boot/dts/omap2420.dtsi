@@ -8,12 +8,38 @@
  * kind, whether express or implied.
  */
 
-/include/ "omap2.dtsi"
+#include "omap2.dtsi"
 
 / {
 	compatible = "ti,omap2420", "ti,omap2";
 
 	ocp {
+		prcm: prcm@48008000 {
+			compatible = "ti,omap2-prcm";
+			reg = <0x48008000 0x1000>;
+
+			prcm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			prcm_clockdomains: clockdomains {
+			};
+		};
+
+		scrm: scrm@48000000 {
+			compatible = "ti,omap2-scrm";
+			reg = <0x48000000 0x1000>;
+
+			scrm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			scrm_clockdomains: clockdomains {
+			};
+		};
+
 		counter32k: counter@48004000 {
 			compatible = "ti,omap-counter32k";
 			reg = <0x48004000 0x20>;
@@ -29,6 +55,65 @@
 			pinctrl-single,function-mask = <0x3f>;
 		};
 
+		gpio1: gpio@48018000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x48018000 0x200>;
+			interrupts = <29>;
+			ti,hwmods = "gpio1";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio2: gpio@4801a000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x4801a000 0x200>;
+			interrupts = <30>;
+			ti,hwmods = "gpio2";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio3: gpio@4801c000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x4801c000 0x200>;
+			interrupts = <31>;
+			ti,hwmods = "gpio3";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpio4: gpio@4801e000 {
+			compatible = "ti,omap2-gpio";
+			reg = <0x4801e000 0x200>;
+			interrupts = <32>;
+			ti,hwmods = "gpio4";
+			ti,gpio-always-on;
+			#gpio-cells = <2>;
+			gpio-controller;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+		};
+
+		gpmc: gpmc@6800a000 {
+			compatible = "ti,omap2420-gpmc";
+			reg = <0x6800a000 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			interrupts = <20>;
+			gpmc,num-cs = <8>;
+			gpmc,num-waitpins = <4>;
+			ti,hwmods = "gpmc";
+		};
+
 		mcbsp1: mcbsp@48074000 {
 			compatible = "ti,omap2420-mcbsp";
 			reg = <0x48074000 0xff>;
@@ -37,6 +122,10 @@
 				     <60>; /* RX interrupt */
 			interrupt-names = "tx", "rx";
 			ti,hwmods = "mcbsp1";
+			dmas = <&sdma 31>,
+			       <&sdma 32>;
+			dma-names = "tx", "rx";
+			status = "disabled";
 		};
 
 		mcbsp2: mcbsp@48076000 {
@@ -47,14 +136,62 @@
 				     <63>; /* RX interrupt */
 			interrupt-names = "tx", "rx";
 			ti,hwmods = "mcbsp2";
+			dmas = <&sdma 33>,
+			       <&sdma 34>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		msdi1: mmc@4809c000 {
+			compatible = "ti,omap2420-mmc";
+			ti,hwmods = "msdi1";
+			reg = <0x4809c000 0x80>;
+			interrupts = <83>;
+			dmas = <&sdma 61 &sdma 62>;
+			dma-names = "tx", "rx";
+		};
+
+		mailbox: mailbox@48094000 {
+			compatible = "ti,omap2-mailbox";
+			reg = <0x48094000 0x200>;
+			interrupts = <26>, <34>;
+			interrupt-names = "dsp", "iva";
+			ti,hwmods = "mailbox";
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <6>;
+			mbox_dsp: dsp {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <1 0 0>;
+			};
+			mbox_iva: iva {
+				ti,mbox-tx = <2 1 3>;
+				ti,mbox-rx = <3 1 3>;
+			};
 		};
 
 		timer1: timer@48028000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap2420-timer";
 			reg = <0x48028000 0x400>;
 			interrupts = <37>;
 			ti,hwmods = "timer1";
 			ti,timer-alwon;
 		};
+
+		wd_timer2: wdt@48022000 {
+			compatible = "ti,omap2-wdt";
+			ti,hwmods = "wd_timer2";
+			reg = <0x48022000 0x80>;
+		};
 	};
 };
+
+&i2c1 {
+	compatible = "ti,omap2420-i2c";
+};
+
+&i2c2 {
+	compatible = "ti,omap2420-i2c";
+};
+
+/include/ "omap24xx-clocks.dtsi"
+/include/ "omap2420-clocks.dtsi"

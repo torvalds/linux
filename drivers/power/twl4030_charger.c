@@ -28,9 +28,12 @@
 #define TWL4030_BCIICHG		0x08
 #define TWL4030_BCIVAC		0x0a
 #define TWL4030_BCIVBUS		0x0c
+#define TWL4030_BCIMFSTS3	0x0F
 #define TWL4030_BCIMFSTS4	0x10
 #define TWL4030_BCICTL1		0x23
 #define TWL4030_BB_CFG		0x12
+
+#define TWL4030_BCIMFSTS1	0x01
 
 #define TWL4030_BCIAUTOWEN	BIT(5)
 #define TWL4030_CONFIG_DONE	BIT(4)
@@ -51,6 +54,9 @@
 #define TWL4030_BBISEL_150uA	0x01
 #define TWL4030_BBISEL_500uA	0x02
 #define TWL4030_BBISEL_1000uA	0x03
+
+#define TWL4030_BATSTSPCHG	BIT(2)
+#define TWL4030_BATSTSMCHG	BIT(6)
 
 /* BCI interrupts */
 #define TWL4030_WOVF		BIT(0) /* Watchdog overflow */
@@ -145,6 +151,35 @@ static int twl4030bci_read_adc_val(u8 reg)
 }
 
 /*
+ * Check if Battery Pack was present
+ */
+static int twl4030_is_battery_present(struct twl4030_bci *bci)
+{
+	int ret;
+	u8 val = 0;
+
+	/* Battery presence in Main charge? */
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE, &val, TWL4030_BCIMFSTS3);
+	if (ret)
+		return ret;
+	if (val & TWL4030_BATSTSMCHG)
+		return 0;
+
+	/*
+	 * OK, It could be that bootloader did not enable main charger,
+	 * pre-charge is h/w auto. So, Battery presence in Pre-charge?
+	 */
+	ret = twl_i2c_read_u8(TWL4030_MODULE_PRECHARGE, &val,
+			      TWL4030_BCIMFSTS1);
+	if (ret)
+		return ret;
+	if (val & TWL4030_BATSTSPCHG)
+		return 0;
+
+	return -ENODEV;
+}
+
+/*
  * Check if VBUS power is present
  */
 static int twl4030_bci_have_vbus(struct twl4030_bci *bci)
@@ -189,7 +224,12 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 
 		/* Need to keep regulator on */
 		if (!bci->usb_enabled) {
-			regulator_enable(bci->usb_reg);
+			ret = regulator_enable(bci->usb_reg);
+			if (ret) {
+				dev_err(bci->dev,
+					"Failed to enable regulator\n");
+				return ret;
+			}
 			bci->usb_enabled = 1;
 		}
 
@@ -490,10 +530,38 @@ static enum power_supply_property twl4030_charger_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
+#ifdef CONFIG_OF
+static const struct twl4030_bci_platform_data *
+twl4030_bci_parse_dt(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct twl4030_bci_platform_data *pdata;
+	u32 num;
+
+	if (!np)
+		return NULL;
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return pdata;
+
+	if (of_property_read_u32(np, "ti,bb-uvolt", &num) == 0)
+		pdata->bb_uvolt = num;
+	if (of_property_read_u32(np, "ti,bb-uamp", &num) == 0)
+		pdata->bb_uamp = num;
+	return pdata;
+}
+#else
+static inline const struct twl4030_bci_platform_data *
+twl4030_bci_parse_dt(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static int __init twl4030_bci_probe(struct platform_device *pdev)
 {
 	struct twl4030_bci *bci;
-	struct twl4030_bci_platform_data *pdata = pdev->dev.platform_data;
+	const struct twl4030_bci_platform_data *pdata = pdev->dev.platform_data;
 	int ret;
 	u32 reg;
 
@@ -501,12 +569,21 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	if (bci == NULL)
 		return -ENOMEM;
 
+	if (!pdata)
+		pdata = twl4030_bci_parse_dt(&pdev->dev);
+
 	bci->dev = &pdev->dev;
 	bci->irq_chg = platform_get_irq(pdev, 0);
 	bci->irq_bci = platform_get_irq(pdev, 1);
 
-	platform_set_drvdata(pdev, bci);
+	/* Only proceed further *IF* battery is physically present */
+	ret = twl4030_is_battery_present(bci);
+	if  (ret) {
+		dev_crit(&pdev->dev, "Battery was not detected:%d\n", ret);
+		goto fail_no_battery;
+	}
 
+	platform_set_drvdata(pdev, bci);
 	bci->ac.name = "twl4030_ac";
 	bci->ac.type = POWER_SUPPLY_TYPE_MAINS;
 	bci->ac.properties = twl4030_charger_props;
@@ -576,8 +653,11 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 	twl4030_charger_enable_ac(true);
 	twl4030_charger_enable_usb(bci, true);
-	twl4030_charger_enable_backup(pdata->bb_uvolt,
-				      pdata->bb_uamp);
+	if (pdata)
+		twl4030_charger_enable_backup(pdata->bb_uvolt,
+					      pdata->bb_uamp);
+	else
+		twl4030_charger_enable_backup(0, 0);
 
 	return 0;
 
@@ -594,7 +674,7 @@ fail_chg_irq:
 fail_register_usb:
 	power_supply_unregister(&bci->ac);
 fail_register_ac:
-	platform_set_drvdata(pdev, NULL);
+fail_no_battery:
 	kfree(bci);
 
 	return ret;
@@ -622,31 +702,27 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 	free_irq(bci->irq_chg, bci);
 	power_supply_unregister(&bci->usb);
 	power_supply_unregister(&bci->ac);
-	platform_set_drvdata(pdev, NULL);
 	kfree(bci);
 
 	return 0;
 }
 
+static const struct of_device_id twl_bci_of_match[] = {
+	{.compatible = "ti,twl4030-bci", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, twl_bci_of_match);
+
 static struct platform_driver twl4030_bci_driver = {
 	.driver	= {
 		.name	= "twl4030_bci",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(twl_bci_of_match),
 	},
 	.remove	= __exit_p(twl4030_bci_remove),
 };
 
-static int __init twl4030_bci_init(void)
-{
-	return platform_driver_probe(&twl4030_bci_driver, twl4030_bci_probe);
-}
-module_init(twl4030_bci_init);
-
-static void __exit twl4030_bci_exit(void)
-{
-	platform_driver_unregister(&twl4030_bci_driver);
-}
-module_exit(twl4030_bci_exit);
+module_platform_driver_probe(twl4030_bci_driver, twl4030_bci_probe);
 
 MODULE_AUTHOR("Gražvydas Ignotas");
 MODULE_DESCRIPTION("TWL4030 Battery Charger Interface driver");

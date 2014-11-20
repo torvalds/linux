@@ -285,15 +285,13 @@ If a caller requires memory barrier semantics around an atomic_t
 operation which does not return a value, a set of interfaces are
 defined which accomplish this:
 
-	void smp_mb__before_atomic_dec(void);
-	void smp_mb__after_atomic_dec(void);
-	void smp_mb__before_atomic_inc(void);
-	void smp_mb__after_atomic_inc(void);
+	void smp_mb__before_atomic(void);
+	void smp_mb__after_atomic(void);
 
-For example, smp_mb__before_atomic_dec() can be used like so:
+For example, smp_mb__before_atomic() can be used like so:
 
 	obj->dead = 1;
-	smp_mb__before_atomic_dec();
+	smp_mb__before_atomic();
 	atomic_dec(&obj->ref_count);
 
 It makes sure that all memory operations preceding the atomic_dec()
@@ -302,14 +300,9 @@ operation.  In the above example, it guarantees that the assignment of
 "1" to obj->dead will be globally visible to other cpus before the
 atomic counter decrement.
 
-Without the explicit smp_mb__before_atomic_dec() call, the
+Without the explicit smp_mb__before_atomic() call, the
 implementation could legally allow the atomic counter update visible
 to other cpus before the "obj->dead = 1;" assignment.
-
-The other three interfaces listed are used to provide explicit
-ordering with respect to memory operations after an atomic_dec() call
-(smp_mb__after_atomic_dec()) and around atomic_inc() calls
-(smp_mb__{before,after}_atomic_inc()).
 
 A missing memory barrier in the cases where they are required by the
 atomic_t implementation above can have disastrous results.  Here is
@@ -487,12 +480,12 @@ Finally there is the basic operation:
 Which returns a boolean indicating if bit "nr" is set in the bitmask
 pointed to by "addr".
 
-If explicit memory barriers are required around clear_bit() (which
-does not return a value, and thus does not need to provide memory
-barrier semantics), two interfaces are provided:
+If explicit memory barriers are required around {set,clear}_bit() (which do
+not return a value, and thus does not need to provide memory barrier
+semantics), two interfaces are provided:
 
-	void smp_mb__before_clear_bit(void);
-	void smp_mb__after_clear_bit(void);
+	void smp_mb__before_atomic(void);
+	void smp_mb__after_atomic(void);
 
 They are used as follows, and are akin to their atomic_t operation
 brothers:
@@ -500,13 +493,13 @@ brothers:
 	/* All memory operations before this call will
 	 * be globally visible before the clear_bit().
 	 */
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit( ... );
 
 	/* The clear_bit() will be visible before all
 	 * subsequent memory operations.
 	 */
-	 smp_mb__after_clear_bit();
+	 smp_mb__after_atomic();
 
 There are two special bitops with lock barrier semantics (acquire/release,
 same as spinlocks). These operate in the same way as their non-_lock/unlock

@@ -23,11 +23,9 @@
 
 #include <linux/hid.h>
 #include <linux/input.h>
-#include <linux/usb.h>
 #include <linux/module.h>
 
 #include "hid-ids.h"
-#include "usbhid/usbhid.h"
 
 struct emsff_device {
 	struct hid_report *report;
@@ -52,7 +50,7 @@ static int emsff_play(struct input_dev *dev, void *data,
 	emsff->report->field[0]->value[2] = strong;
 
 	dbg_hid("running with 0x%02x 0x%02x\n", strong, weak);
-	usbhid_submit_report(hid, emsff->report, USB_DIR_OUT);
+	hid_hw_request(hid, emsff->report, HID_REQ_SET_REPORT);
 
 	return 0;
 }
@@ -104,7 +102,7 @@ static int emsff_init(struct hid_device *hid)
 	emsff->report->field[0]->value[4] = 0x00;
 	emsff->report->field[0]->value[5] = 0x00;
 	emsff->report->field[0]->value[6] = 0x00;
-	usbhid_submit_report(hid, emsff->report, USB_DIR_OUT);
+	hid_hw_request(hid, emsff->report, HID_REQ_SET_REPORT);
 
 	hid_info(hid, "force feedback for EMS based devices by Ignaz Forster <ignaz.forster@gmx.de>\n");
 

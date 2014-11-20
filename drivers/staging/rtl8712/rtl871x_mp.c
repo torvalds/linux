@@ -53,8 +53,9 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 	_init_mp_priv_(pmp_priv);
 	_init_queue(&pmp_priv->free_mp_xmitqueue);
 	pmp_priv->pallocated_mp_xmitframe_buf = NULL;
-	pmp_priv->pallocated_mp_xmitframe_buf = _malloc(NR_MP_XMITFRAME *
-					 sizeof(struct mp_xmit_frame) + 4);
+	pmp_priv->pallocated_mp_xmitframe_buf = kmalloc(NR_MP_XMITFRAME *
+				sizeof(struct mp_xmit_frame) + 4,
+				GFP_ATOMIC);
 	if (pmp_priv->pallocated_mp_xmitframe_buf == NULL) {
 		res = _FAIL;
 		goto _exit_init_mp_priv;
@@ -64,8 +65,8 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 			 ((addr_t)(pmp_priv->pallocated_mp_xmitframe_buf) & 3);
 	pmp_xmitframe = (struct mp_xmit_frame *)pmp_priv->pmp_xmtframe_buf;
 	for (i = 0; i < NR_MP_XMITFRAME; i++) {
-		_init_listhead(&(pmp_xmitframe->list));
-		list_insert_tail(&(pmp_xmitframe->list),
+		INIT_LIST_HEAD(&(pmp_xmitframe->list));
+		list_add_tail(&(pmp_xmitframe->list),
 				 &(pmp_priv->free_mp_xmitqueue.queue));
 		pmp_xmitframe->pkt = NULL;
 		pmp_xmitframe->frame_tag = MP_FRAMETAG;
@@ -80,9 +81,8 @@ _exit_init_mp_priv:
 
 static int free_mp_priv(struct mp_priv *pmp_priv)
 {
-	int res = 0;
 	kfree(pmp_priv->pallocated_mp_xmitframe_buf);
-	return res;
+	return 0;
 }
 
 void mp871xinit(struct _adapter *padapter)
@@ -110,7 +110,7 @@ static u32 fw_iocmd_read(struct _adapter *pAdapter, struct IOCMD_STRUCT iocmd)
 	u16 iocmd_value	= iocmd.value;
 	u8 iocmd_idx	= iocmd.index;
 
-	cmd32 = (iocmd_class << 24) | (iocmd_value << 8) | iocmd_idx ;
+	cmd32 = (iocmd_class << 24) | (iocmd_value << 8) | iocmd_idx;
 	if (r8712_fw_cmd(pAdapter, cmd32))
 		r8712_fw_cmd_data(pAdapter, &val32, 1);
 	else
@@ -128,7 +128,7 @@ static u8 fw_iocmd_write(struct _adapter *pAdapter,
 
 	r8712_fw_cmd_data(pAdapter, &value, 0);
 	msleep(100);
-	cmd32 = (iocmd_class << 24) | (iocmd_value << 8) | iocmd_idx ;
+	cmd32 = (iocmd_class << 24) | (iocmd_value << 8) | iocmd_idx;
 	return r8712_fw_cmd(pAdapter, cmd32);
 }
 
@@ -146,6 +146,7 @@ u32 r8712_bb_reg_read(struct _adapter *pAdapter, u16 offset)
 	bb_val = fw_iocmd_read(pAdapter, iocmd);
 	if (shift != 0) {
 		u32 bb_val2 = 0;
+
 		bb_val >>= (shift * 8);
 		iocmd.value += 4;
 		bb_val2 = fw_iocmd_read(pAdapter, iocmd);
@@ -186,14 +187,12 @@ u8 r8712_bb_reg_write(struct _adapter *pAdapter, u16 offset, u32 value)
 u32 r8712_rf_reg_read(struct _adapter *pAdapter, u8 path, u8 offset)
 {
 	u16 rf_addr = (path << 8) | offset;
-	u32 rf_data;
 	struct IOCMD_STRUCT iocmd;
 
-	iocmd.cmdclass	= IOCMD_CLASS_BB_RF ;
-	iocmd.value	= rf_addr ;
+	iocmd.cmdclass	= IOCMD_CLASS_BB_RF;
+	iocmd.value	= rf_addr;
 	iocmd.index	= IOCMD_RF_READ_IDX;
-	rf_data = fw_iocmd_read(pAdapter, iocmd);
-	return rf_data;
+	return fw_iocmd_read(pAdapter, iocmd);
 }
 
 u8 r8712_rf_reg_write(struct _adapter *pAdapter, u8 path, u8 offset, u32 value)
@@ -281,11 +280,10 @@ void r8712_SetChannel(struct _adapter *pAdapter)
 	struct SetChannel_parm *pparm = NULL;
 	u16 code = GEN_CMD_CODE(_SetChannel);
 
-	pcmd = (struct cmd_obj *)_malloc(sizeof(struct cmd_obj));
+	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return;
-	pparm = (struct SetChannel_parm *)_malloc(sizeof(struct
-					 SetChannel_parm));
+	pparm = kmalloc(sizeof(*pparm), GFP_ATOMIC);
 	if (pparm == NULL) {
 		kfree(pcmd);
 		return;
@@ -319,6 +317,7 @@ static void SetOFDMTxPower(struct _adapter *pAdapter, u8 TxPower)
 void r8712_SetTxPower(struct _adapter *pAdapter)
 {
 	u8 TxPower = pAdapter->mppriv.curr_txpoweridx;
+
 	SetCCKTxPower(pAdapter, TxPower);
 	SetOFDMTxPower(pAdapter, TxPower);
 }
@@ -505,11 +504,8 @@ static void TriggerRFThermalMeter(struct _adapter *pAdapter)
 
 static u32 ReadRFThermalMeter(struct _adapter *pAdapter)
 {
-	u32 ThermalValue = 0;
-
 	/* 0x24: RF Reg[4:0] */
-	ThermalValue = get_rf_reg(pAdapter, RF_PATH_A, RF_T_METER, 0x1F);
-	return ThermalValue;
+	return get_rf_reg(pAdapter, RF_PATH_A, RF_T_METER, 0x1F);
 }
 
 void r8712_GetThermalMeter(struct _adapter *pAdapter, u32 *value)
@@ -550,6 +546,7 @@ void r8712_SetSingleCarrierTx(struct _adapter *pAdapter, u8 bStart)
 void r8712_SetSingleToneTx(struct _adapter *pAdapter, u8 bStart)
 {
 	u8 rfPath = pAdapter->mppriv.curr_rfpath;
+
 	switch (pAdapter->mppriv.antenna_tx) {
 	case ANTENNA_B:
 		rfPath = RF_PATH_B;

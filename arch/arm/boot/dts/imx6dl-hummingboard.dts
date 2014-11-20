@@ -1,0 +1,13 @@
+/*
+ * Copyright (C) 2014 Rabeeh Khoury (rabeeh@solid-run.com)
+ * Based on dt work by Russell King
+ */
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-hummingboard.dtsi"
+
+/ {
+	model = "SolidRun HummingBoard Solo/DualLite";
+	compatible = "solidrun,hummingboard/dl", "fsl,imx6dl";
+};

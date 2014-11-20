@@ -5,10 +5,22 @@
 
 #include "phy_ht.h"
 
-#define R2059_SYN			0x000
-#define R2059_TXRX0			0x400
-#define R2059_RXRX1			0x800
+#define R2059_C1			0x000
+#define R2059_C2			0x400
+#define R2059_C3			0x800
 #define R2059_ALL			0xC00
+
+#define R2059_RCAL_CONFIG			0x004
+#define R2059_RFPLL_MASTER			0x011
+#define R2059_RFPLL_MISC_EN			0x02b
+#define R2059_RFPLL_MISC_CAL_RESETN		0x02e
+#define R2059_XTAL_CONFIG2			0x0c0
+#define R2059_RCCAL_START_R1_Q1_P1		0x13c
+#define R2059_RCCAL_X1				0x13d
+#define R2059_RCCAL_TRC0			0x13e
+#define R2059_RCCAL_DONE_OSCCAP			0x140
+#define R2059_RCAL_STATUS			0x145
+#define R2059_RCCAL_MASTER			0x17f
 
 /* Values for various registers uploaded on channel switching */
 struct b43_phy_ht_channeltab_e_radio2059 {
@@ -28,14 +40,6 @@ struct b43_phy_ht_channeltab_e_radio2059 {
 	u8 radio_syn41;
 	u8 radio_syn43;
 	u8 radio_syn47;
-	u8 radio_syn4a;
-	u8 radio_syn58;
-	u8 radio_syn5a;
-	u8 radio_syn6a;
-	u8 radio_syn6d;
-	u8 radio_syn6e;
-	u8 radio_syn92;
-	u8 radio_syn98;
 	u8 radio_rxtx4a;
 	u8 radio_rxtx58;
 	u8 radio_rxtx5a;
@@ -47,6 +51,8 @@ struct b43_phy_ht_channeltab_e_radio2059 {
 	/* Values for PHY registers */
 	struct b43_phy_ht_channeltab_e_phy phy_regs;
 };
+
+void r2059_upload_inittabs(struct b43_wldev *dev);
 
 const struct b43_phy_ht_channeltab_e_radio2059
 *b43_phy_ht_get_channeltab_e_r2059(struct b43_wldev *dev, u16 freq);

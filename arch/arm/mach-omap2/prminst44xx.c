@@ -20,12 +20,18 @@
 #include "common.h"
 #include "prcm-common.h"
 #include "prm44xx.h"
+#include "prm54xx.h"
+#include "prm7xx.h"
 #include "prminst44xx.h"
 #include "prm-regbits-44xx.h"
 #include "prcm44xx.h"
+#include "prcm43xx.h"
 #include "prcm_mpu44xx.h"
+#include "soc.h"
 
 static void __iomem *_prm_bases[OMAP4_MAX_PRCM_PARTITIONS];
+
+static s32 prm_dev_inst = PRM_INSTANCE_UNKNOWN;
 
 /**
  * omap_prm_base_init - Populates the prm partitions
@@ -39,13 +45,31 @@ void omap_prm_base_init(void)
 	_prm_bases[OMAP4430_PRCM_MPU_PARTITION] = prcm_mpu_base;
 }
 
+s32 omap4_prmst_get_prm_dev_inst(void)
+{
+	if (prm_dev_inst != PRM_INSTANCE_UNKNOWN)
+		return prm_dev_inst;
+
+	/* This cannot be done way early at boot.. as things are not setup */
+	if (cpu_is_omap44xx())
+		prm_dev_inst = OMAP4430_PRM_DEVICE_INST;
+	else if (soc_is_omap54xx())
+		prm_dev_inst = OMAP54XX_PRM_DEVICE_INST;
+	else if (soc_is_dra7xx())
+		prm_dev_inst = DRA7XX_PRM_DEVICE_INST;
+	else if (soc_is_am43xx())
+		prm_dev_inst = AM43XX_PRM_DEVICE_INST;
+
+	return prm_dev_inst;
+}
+
 /* Read a register in a PRM instance */
 u32 omap4_prminst_read_inst_reg(u8 part, s16 inst, u16 idx)
 {
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_prm_bases[part]);
-	return __raw_readl(_prm_bases[part] + inst + idx);
+	return readl_relaxed(_prm_bases[part] + inst + idx);
 }
 
 /* Write into a register in a PRM instance */
@@ -54,7 +78,7 @@ void omap4_prminst_write_inst_reg(u32 val, u8 part, s16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_prm_bases[part]);
-	__raw_writel(val, _prm_bases[part] + inst + idx);
+	writel_relaxed(val, _prm_bases[part] + inst + idx);
 }
 
 /* Read-modify-write a register in PRM. Caller must lock */
@@ -165,17 +189,18 @@ int omap4_prminst_deassert_hardreset(u8 shift, u8 part, s16 inst,
 void omap4_prminst_global_warm_sw_reset(void)
 {
 	u32 v;
+	s32 inst = omap4_prmst_get_prm_dev_inst();
 
-	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
-				    OMAP4430_PRM_DEVICE_INST,
-				    OMAP4_PRM_RSTCTRL_OFFSET);
+	if (inst == PRM_INSTANCE_UNKNOWN)
+		return;
+
+	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION, inst,
+					OMAP4_PRM_RSTCTRL_OFFSET);
 	v |= OMAP4430_RST_GLOBAL_WARM_SW_MASK;
 	omap4_prminst_write_inst_reg(v, OMAP4430_PRM_PARTITION,
-				 OMAP4430_PRM_DEVICE_INST,
-				 OMAP4_PRM_RSTCTRL_OFFSET);
+				 inst, OMAP4_PRM_RSTCTRL_OFFSET);
 
 	/* OCP barrier */
 	v = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
-				    OMAP4430_PRM_DEVICE_INST,
-				    OMAP4_PRM_RSTCTRL_OFFSET);
+				    inst, OMAP4_PRM_RSTCTRL_OFFSET);
 }

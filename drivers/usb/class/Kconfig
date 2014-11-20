@@ -2,11 +2,10 @@
 # USB Class driver configuration
 #
 comment "USB Device Class drivers"
-	depends on USB
 
 config USB_ACM
 	tristate "USB Modem (CDC ACM) support"
-	depends on USB && TTY
+	depends on TTY
 	---help---
 	  This driver supports USB modems and ISDN adapters which support the
 	  Communication Device Class Abstract Control Model interface.
@@ -21,7 +20,6 @@ config USB_ACM
 
 config USB_PRINTER
 	tristate "USB Printer support"
-	depends on USB
 	help
 	  Say Y here if you want to connect a USB printer to your computer's
 	  USB port.
@@ -31,7 +29,6 @@ config USB_PRINTER
 
 config USB_WDM
 	tristate "USB Wireless Device Management support"
-	depends on USB
 	---help---
 	  This driver supports the WMC Device Management functionality
 	  of cell phones compliant to the CDC WMC specification. You can use
@@ -42,7 +39,6 @@ config USB_WDM
 
 config USB_TMC
 	tristate "USB Test and Measurement Class support"
-	depends on USB
 	help
 	  Say Y here if you want to connect a USB device that follows
 	  the USB.org specification for USB Test and Measurement devices

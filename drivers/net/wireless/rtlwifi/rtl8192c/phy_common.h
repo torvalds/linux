@@ -39,9 +39,7 @@
 #define RT_CANNOT_IO(hw)		false
 #define HIGHPOWER_RADIOA_ARRAYLEN	22
 
-#define IQK_ADDA_REG_NUM		16
 #define MAX_TOLERANCE			5
-#define	IQK_DELAY_TIME			1
 
 #define	APK_BB_REG_NUM			5
 #define	APK_AFE_REG_NUM			16
@@ -205,8 +203,6 @@ void rtl92c_phy_get_txpower_level(struct ieee80211_hw *hw,
 void rtl92c_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel);
 bool rtl92c_phy_update_txpower_dbm(struct ieee80211_hw *hw,
 					  long power_indbm);
-void rtl92c_phy_scan_operation_backup(struct ieee80211_hw *hw,
-					     u8 operation);
 void rtl92c_phy_set_bw_mode(struct ieee80211_hw *hw,
 				   enum nl80211_channel_type ch_type);
 void rtl92c_phy_sw_chnl_callback(struct ieee80211_hw *hw);
@@ -230,7 +226,7 @@ u32 _rtl92c_phy_calculate_bit_shift(u32 bitmask);
 long _rtl92c_phy_txpwr_idx_to_dbm(struct ieee80211_hw *hw,
 				  enum wireless_mode wirelessmode,
 				  u8 txpwridx);
-u8 _rtl92c_phy_dbm_to_txpwr_Idx(struct ieee80211_hw *hw,
+u8 _rtl92c_phy_dbm_to_txpwr_idx(struct ieee80211_hw *hw,
 				enum wireless_mode wirelessmode,
 				long power_indbm);
 void _rtl92c_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw);

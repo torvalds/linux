@@ -1,0 +1,10 @@
+Rockchip platforms device tree bindings
+---------------------------------------
+
+- bq Curie 2 tablet:
+    Required root node properties:
+      - compatible = "mundoreader,bq-curie2", "rockchip,rk3066a";
+
+- Radxa Rock board:
+    Required root node properties:
+      - compatible = "radxa,rock", "rockchip,rk3188";

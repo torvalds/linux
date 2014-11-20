@@ -144,6 +144,17 @@ config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
 
+config INPUT_MAX77693_HAPTIC
+	tristate "MAXIM MAX77693 haptic controller support"
+	depends on MFD_MAX77693 && PWM
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables support for the haptic controller on
+	  MAXIM MAX77693 chip.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called max77693-haptic.
+
 config INPUT_MAX8925_ONKEY
 	tristate "MAX8925 ONKEY support"
 	depends on MFD_MAX8925
@@ -156,7 +167,7 @@ config INPUT_MAX8925_ONKEY
 
 config INPUT_MAX8997_HAPTIC
 	tristate "MAXIM MAX8997 haptic controller support"
-	depends on HAVE_PWM && MFD_MAX8997
+	depends on PWM && MFD_MAX8997
 	select INPUT_FF_MEMLESS
 	help
 	  This option enables device driver support for the haptic controller
@@ -168,7 +179,7 @@ config INPUT_MAX8997_HAPTIC
 
 config INPUT_MC13783_PWRBUTTON
 	tristate "MC13783 ON buttons"
-	depends on MFD_MC13783
+	depends on MFD_MC13XXX
 	help
 	  Support the ON buttons of MC13783 PMIC as an input device
 	  reporting power button status.
@@ -214,7 +225,7 @@ config INPUT_APANEL
 config INPUT_GP2A
 	tristate "Sharp GP2AP002A00F I2C Proximity/Opto sensor driver"
 	depends on I2C
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  Say Y here if you have a Sharp GP2AP002A00F proximity/als combo-chip
 	  hooked to an I2C bus.
@@ -222,9 +233,18 @@ config INPUT_GP2A
 	  To compile this driver as a module, choose M here: the
 	  module will be called gp2ap002a00f.
 
+config INPUT_GPIO_BEEPER
+	tristate "Generic GPIO Beeper support"
+	depends on GPIOLIB
+	help
+	  Say Y here if you have a beeper connected to a GPIO pin.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gpio-beeper.
+
 config INPUT_GPIO_TILT_POLLED
 	tristate "Polled GPIO tilt switch"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select INPUT_POLLDEV
 	help
 	  This driver implements support for tilt switches connected
@@ -260,7 +280,7 @@ config INPUT_COBALT_BTNS
 
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
-	depends on X86 && !X86_64
+	depends on X86_32
 	select INPUT_POLLDEV
 	select INPUT_SPARSEKMAP
 	select NEW_LEDS
@@ -442,6 +462,16 @@ config HP_SDC_RTC
 	  Say Y here if you want to support the built-in real time clock
 	  of the HP SDC controller.
 
+config INPUT_PALMAS_PWRBUTTON
+	tristate "Palmas Power button Driver"
+	depends on MFD_PALMAS
+	help
+	  Say Y here if you want to enable power key reporting via the
+	  Palmas family of PMICs.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called palmas_pwrbutton.
+
 config INPUT_PCF50633_PMU
 	tristate "PCF50633 PMU events"
 	depends on MFD_PCF50633
@@ -461,7 +491,7 @@ config INPUT_PCF8574
 
 config INPUT_PWM_BEEPER
 	tristate "PWM beeper support"
-	depends on HAVE_PWM || PWM
+	depends on PWM
 	help
 	  Say Y here to get support for PWM based beeper devices.
 
@@ -472,7 +502,7 @@ config INPUT_PWM_BEEPER
 
 config INPUT_GPIO_ROTARY_ENCODER
 	tristate "Rotary encoders connected to GPIO pins"
-	depends on GPIOLIB && GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  Say Y here to add support for rotary encoders connected to GPIO lines.
 	  Check file:Documentation/input/rotary-encoder.txt for more
@@ -484,7 +514,7 @@ config INPUT_GPIO_ROTARY_ENCODER
 config INPUT_RB532_BUTTON
 	tristate "Mikrotik Routerboard 532 button interface"
 	depends on MIKROTIK_RB532
-	depends on GPIOLIB && GENERIC_GPIO
+	depends on GPIOLIB
 	select INPUT_POLLDEV
 	help
 	  Say Y here if you want support for the S1 button built into
@@ -590,6 +620,16 @@ config INPUT_ADXL34X_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called adxl34x-spi.
 
+config INPUT_IMS_PCU
+	tristate "IMS Passenger Control Unit driver"
+	depends on USB
+	depends on LEDS_CLASS
+	help
+	  Say Y here if you have system with IMS Rave Passenger Control Unit.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ims_pcu.
+
 config INPUT_CMA3000
 	tristate "VTI CMA3000 Tri-axis accelerometer"
 	help
@@ -626,5 +666,57 @@ config INPUT_XEN_KBDDEV_FRONTEND
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called xen-kbdfront.
+
+config INPUT_SIRFSOC_ONKEY
+	bool "CSR SiRFSoC power on/off/suspend key support"
+	depends on ARCH_SIRF && OF
+	default y
+	help
+	  Say Y here if you want to support for the SiRFSoC power on/off/suspend key
+	  in Linux, after you press the onkey, system will suspend.
+
+	  If unsure, say N.
+
+config INPUT_IDEAPAD_SLIDEBAR
+	tristate "IdeaPad Laptop Slidebar"
+	depends on INPUT
+	depends on SERIO_I8042
+	help
+	  Say Y here if you have an IdeaPad laptop with a slidebar.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ideapad_slidebar.
+
+config INPUT_SOC_BUTTON_ARRAY
+	tristate "Windows-compatible SoC Button Array"
+	depends on KEYBOARD_GPIO
+	help
+	  Say Y here if you have a SoC-based tablet that originally
+	  runs Windows 8.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called soc_button_array.
+
+config INPUT_DRV260X_HAPTICS
+	tristate "TI DRV260X haptics support"
+	depends on INPUT && I2C && GPIOLIB
+	select INPUT_FF_MEMLESS
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI DRV260X haptics driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called drv260x-haptics.
+
+config INPUT_DRV2667_HAPTICS
+	tristate "TI DRV2667 haptics support"
+	depends on INPUT && I2C
+	select INPUT_FF_MEMLESS
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI DRV2667 haptics driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called drv260x-haptics.
 
 endif

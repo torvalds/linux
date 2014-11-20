@@ -1,6 +1,5 @@
 #include "../libslang.h"
 #include <elf.h>
-#include <newt.h>
 #include <inttypes.h>
 #include <sys/ttydefaults.h>
 #include <string.h>
@@ -10,40 +9,8 @@
 #include "../../util/symbol.h"
 #include "../browser.h"
 #include "../helpline.h"
+#include "../keysyms.h"
 #include "map.h"
-
-static int ui_entry__read(const char *title, char *bf, size_t size, int width)
-{
-	struct newtExitStruct es;
-	newtComponent form, entry;
-	const char *result;
-	int err = -1;
-
-	newtCenteredWindow(width, 1, title);
-	form = newtForm(NULL, NULL, 0);
-	if (form == NULL)
-		return -1;
-
-	entry = newtEntry(0, 0, "0x", width, &result, NEWT_FLAG_SCROLL);
-	if (entry == NULL)
-		goto out_free_form;
-
-	newtFormAddComponent(form, entry);
-	newtFormAddHotKey(form, NEWT_KEY_ENTER);
-	newtFormAddHotKey(form, NEWT_KEY_ESCAPE);
-	newtFormAddHotKey(form, NEWT_KEY_LEFT);
-	newtFormAddHotKey(form, CTRL('c'));
-	newtFormRun(form, &es);
-
-	if (result != NULL) {
-		strncpy(bf, result, size);
-		err = 0;
-	}
-out_free_form:
-	newtPopWindow();
-	newtFormDestroy(form);
-	return err;
-}
 
 struct map_browser {
 	struct ui_browser b;
@@ -51,87 +18,96 @@ struct map_browser {
 	u8		  addrlen;
 };
 
-static void map_browser__write(struct ui_browser *self, void *nd, int row)
+static void map_browser__write(struct ui_browser *browser, void *nd, int row)
 {
 	struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
-	struct map_browser *mb = container_of(self, struct map_browser, b);
-	bool current_entry = ui_browser__is_current_entry(self, row);
+	struct map_browser *mb = container_of(browser, struct map_browser, b);
+	bool current_entry = ui_browser__is_current_entry(browser, row);
 	int width;
 
-	ui_browser__set_percent_color(self, 0, current_entry);
+	ui_browser__set_percent_color(browser, 0, current_entry);
 	slsmg_printf("%*" PRIx64 " %*" PRIx64 " %c ",
 		     mb->addrlen, sym->start, mb->addrlen, sym->end,
 		     sym->binding == STB_GLOBAL ? 'g' :
 		     sym->binding == STB_LOCAL  ? 'l' : 'w');
-	width = self->width - ((mb->addrlen * 2) + 4);
+	width = browser->width - ((mb->addrlen * 2) + 4);
 	if (width > 0)
 		slsmg_write_nstring(sym->name, width);
 }
 
 /* FIXME uber-kludgy, see comment on cmd_report... */
-static u32 *symbol__browser_index(struct symbol *self)
+static u32 *symbol__browser_index(struct symbol *browser)
 {
-	return ((void *)self) - sizeof(struct rb_node) - sizeof(u32);
+	return ((void *)browser) - sizeof(struct rb_node) - sizeof(u32);
 }
 
-static int map_browser__search(struct map_browser *self)
+static int map_browser__search(struct map_browser *browser)
 {
 	char target[512];
 	struct symbol *sym;
-	int err = ui_entry__read("Search by name/addr", target, sizeof(target), 40);
-
-	if (err)
-		return err;
+	int err = ui_browser__input_window("Search by name/addr",
+					   "Prefix with 0x to search by address",
+					   target, "ENTER: OK, ESC: Cancel", 0);
+	if (err != K_ENTER)
+		return -1;
 
 	if (target[0] == '0' && tolower(target[1]) == 'x') {
 		u64 addr = strtoull(target, NULL, 16);
-		sym = map__find_symbol(self->map, addr, NULL);
+		sym = map__find_symbol(browser->map, addr, NULL);
 	} else
-		sym = map__find_symbol_by_name(self->map, target, NULL);
+		sym = map__find_symbol_by_name(browser->map, target, NULL);
 
 	if (sym != NULL) {
 		u32 *idx = symbol__browser_index(sym);
 
-		self->b.top = &sym->rb_node;
-		self->b.index = self->b.top_idx = *idx;
+		browser->b.top = &sym->rb_node;
+		browser->b.index = browser->b.top_idx = *idx;
 	} else
 		ui_helpline__fpush("%s not found!", target);
 
 	return 0;
 }
 
-static int map_browser__run(struct map_browser *self)
+static int map_browser__run(struct map_browser *browser)
 {
 	int key;
 
-	if (ui_browser__show(&self->b, self->map->dso->long_name,
+	if (ui_browser__show(&browser->b, browser->map->dso->long_name,
 			     "Press <- or ESC to exit, %s / to search",
 			     verbose ? "" : "restart with -v to use") < 0)
 		return -1;
 
 	while (1) {
-		key = ui_browser__run(&self->b, 0);
+		key = ui_browser__run(&browser->b, 0);
 
-		if (verbose && key == '/')
-			map_browser__search(self);
-		else
+		switch (key) {
+		case '/':
+			if (verbose)
+				map_browser__search(browser);
+		default:
 			break;
+                case K_LEFT:
+                case K_ESC:
+                case 'q':
+                case CTRL('c'):
+                        goto out;
+		}
 	}
-
-	ui_browser__hide(&self->b);
+out:
+	ui_browser__hide(&browser->b);
 	return key;
 }
 
-int map__browse(struct map *self)
+int map__browse(struct map *map)
 {
 	struct map_browser mb = {
 		.b = {
-			.entries = &self->dso->symbols[self->type],
+			.entries = &map->dso->symbols[map->type],
 			.refresh = ui_browser__rb_tree_refresh,
 			.seek	 = ui_browser__rb_tree_seek,
 			.write	 = map_browser__write,
 		},
-		.map = self,
+		.map = map,
 	};
 	struct rb_node *nd;
 	char tmp[BITS_PER_LONG / 4];

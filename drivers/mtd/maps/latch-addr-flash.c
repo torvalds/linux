@@ -10,7 +10,6 @@
  * kind, whether express or implied.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
@@ -102,9 +101,8 @@ static int latch_addr_flash_remove(struct platform_device *dev)
 	info = platform_get_drvdata(dev);
 	if (info == NULL)
 		return 0;
-	platform_set_drvdata(dev, NULL);
 
-	latch_addr_data = dev->dev.platform_data;
+	latch_addr_data = dev_get_platdata(&dev->dev);
 
 	if (info->mtd != NULL) {
 		mtd_device_unregister(info->mtd);
@@ -135,7 +133,7 @@ static int latch_addr_flash_probe(struct platform_device *dev)
 	int chipsel;
 	int err;
 
-	latch_addr_data = dev->dev.platform_data;
+	latch_addr_data = dev_get_platdata(&dev->dev);
 	if (latch_addr_data == NULL)
 		return -ENODEV;
 

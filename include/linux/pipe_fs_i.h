@@ -27,6 +27,7 @@ struct pipe_buffer {
 
 /**
  *	struct pipe_inode_info - a linux kernel pipe
+ *	@mutex: mutex protecting the whole thing
  *	@wait: reader/writer wait point in case of empty/full pipe
  *	@nrbufs: the number of non-empty pipe buffers in this pipe
  *	@buffers: total number of buffers (should be a power of 2)
@@ -34,26 +35,27 @@ struct pipe_buffer {
  *	@tmp_page: cached released page
  *	@readers: number of current readers of this pipe
  *	@writers: number of current writers of this pipe
+ *	@files: number of struct file referring this pipe (protected by ->i_lock)
  *	@waiting_writers: number of writers blocked waiting for room
  *	@r_counter: reader counter
  *	@w_counter: writer counter
  *	@fasync_readers: reader side fasync
  *	@fasync_writers: writer side fasync
- *	@inode: inode this pipe is attached to
  *	@bufs: the circular array of pipe buffers
  **/
 struct pipe_inode_info {
+	struct mutex mutex;
 	wait_queue_head_t wait;
 	unsigned int nrbufs, curbuf, buffers;
 	unsigned int readers;
 	unsigned int writers;
+	unsigned int files;
 	unsigned int waiting_writers;
 	unsigned int r_counter;
 	unsigned int w_counter;
 	struct page *tmp_page;
 	struct fasync_struct *fasync_readers;
 	struct fasync_struct *fasync_writers;
-	struct inode *inode;
 	struct pipe_buffer *bufs;
 };
 
@@ -79,23 +81,6 @@ struct pipe_buf_operations {
 	 * page segment is always used for new data.
 	 */
 	int can_merge;
-
-	/*
-	 * ->map() returns a virtual address mapping of the pipe buffer.
-	 * The last integer flag reflects whether this should be an atomic
-	 * mapping or not. The atomic map is faster, however you can't take
-	 * page faults before calling ->unmap() again. So if you need to eg
-	 * access user data through copy_to/from_user(), then you must get
-	 * a non-atomic map. ->map() uses the kmap_atomic slot for
-	 * atomic maps, you have to be careful if mapping another page as
-	 * source or destination for a copy.
-	 */
-	void * (*map)(struct pipe_inode_info *, struct pipe_buffer *, int);
-
-	/*
-	 * Undoes ->map(), finishes the virtual mapping of the pipe buffer.
-	 */
-	void (*unmap)(struct pipe_inode_info *, struct pipe_buffer *, void *);
 
 	/*
 	 * ->confirm() verifies that the data in the pipe buffer is there
@@ -144,17 +129,16 @@ int pipe_proc_fn(struct ctl_table *, int, void __user *, size_t *, loff_t *);
 /* Drop the inode semaphore and wait for a pipe event, atomically */
 void pipe_wait(struct pipe_inode_info *pipe);
 
-struct pipe_inode_info * alloc_pipe_info(struct inode * inode);
-void free_pipe_info(struct inode * inode);
-void __free_pipe_info(struct pipe_inode_info *);
+struct pipe_inode_info *alloc_pipe_info(void);
+void free_pipe_info(struct pipe_inode_info *);
 
 /* Generic pipe buffer ops functions */
-void *generic_pipe_buf_map(struct pipe_inode_info *, struct pipe_buffer *, int);
-void generic_pipe_buf_unmap(struct pipe_inode_info *, struct pipe_buffer *, void *);
 void generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_confirm(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
 void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
+
+extern const struct pipe_buf_operations nosteal_pipe_buf_ops;
 
 /* for F_SETPIPE_SZ and F_GETPIPE_SZ */
 long pipe_fcntl(struct file *, unsigned int, unsigned long arg);

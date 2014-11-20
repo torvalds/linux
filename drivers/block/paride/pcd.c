@@ -69,8 +69,8 @@
             nice        This parameter controls the driver's use of
                         idle CPU time, at the expense of some speed.
  
-	If this driver is built into the kernel, you can use kernel
-        the following command line parameters, with the same values
+	If this driver is built into the kernel, you can use the
+        following kernel command line parameters, with the same values
         as the corresponding module parameters listed above:
 
 	    pcd.drive0
@@ -236,13 +236,12 @@ static int pcd_block_open(struct block_device *bdev, fmode_t mode)
 	return ret;
 }
 
-static int pcd_block_release(struct gendisk *disk, fmode_t mode)
+static void pcd_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct pcd_unit *cd = disk->private_data;
 	mutex_lock(&pcd_mutex);
 	cdrom_release(&cd->info, mode);
 	mutex_unlock(&pcd_mutex);
-	return 0;
 }
 
 static int pcd_block_ioctl(struct block_device *bdev, fmode_t mode,
@@ -748,7 +747,7 @@ static void do_pcd_request(struct request_queue * q)
 			pcd_current = cd;
 			pcd_sector = blk_rq_pos(pcd_req);
 			pcd_count = blk_rq_cur_sectors(pcd_req);
-			pcd_buf = pcd_req->buffer;
+			pcd_buf = bio_data(pcd_req->bio);
 			pcd_busy = 1;
 			ps_set_intr(do_pcd_read, NULL, 0, nice);
 			return;

@@ -29,6 +29,7 @@ struct ceph_x_authorizer {
 	struct ceph_buffer *buf;
 	unsigned int service;
 	u64 nonce;
+	u64 secret_id;
 	char reply_buf[128];  /* big enough for encrypted blob */
 };
 
@@ -44,7 +45,7 @@ struct ceph_x_info {
 	struct ceph_x_authorizer auth_authorizer;
 };
 
-extern int ceph_x_init(struct ceph_auth_client *ac);
+int ceph_x_init(struct ceph_auth_client *ac);
 
 #endif
 

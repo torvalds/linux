@@ -139,6 +139,7 @@ extern bool dump_sensor;
 
 int ov9650_probe(struct sd *sd);
 int ov9650_init(struct sd *sd);
+int ov9650_init_controls(struct sd *sd);
 int ov9650_start(struct sd *sd);
 int ov9650_stop(struct sd *sd);
 void ov9650_disconnect(struct sd *sd);
@@ -149,6 +150,7 @@ static const struct m5602_sensor ov9650 = {
 	.i2c_regW = 1,
 	.probe = ov9650_probe,
 	.init = ov9650_init,
+	.init_controls = ov9650_init_controls,
 	.start = ov9650_start,
 	.stop = ov9650_stop,
 	.disconnect = ov9650_disconnect,

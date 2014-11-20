@@ -23,16 +23,12 @@
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, write to
- * the Free Software Foundation, 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
+ * along with GNU CC; see the file COPYING.  If not, see
+ * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    La Monte H.P. Yarroll <piggy@acm.org>
@@ -40,9 +36,6 @@
  *    Jon Grimm <jgrimm@austin.ibm.com>
  *    Daisy Chang <daisyc@us.ibm.com>
  *    Dajiang Zhang <dajiang.zhang@nokia.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/types.h>
@@ -75,7 +68,8 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	if (!ep->digest)
 		return NULL;
 
-	if (net->sctp.auth_enable) {
+	ep->auth_enable = net->sctp.auth_enable;
+	if (ep->auth_enable) {
 		/* Allocate space for HMACS and CHUNKS authentication
 		 * variables.  There are arrays that we encode directly
 		 * into parameters to make the rest of the operations easier.
@@ -121,8 +115,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	/* Initialize the basic object fields. */
 	atomic_set(&ep->base.refcnt, 1);
-	ep->base.dead = 0;
-	ep->base.malloced = 1;
+	ep->base.dead = false;
 
 	/* Create an input queue.  */
 	sctp_inq_init(&ep->base.inqueue);
@@ -193,12 +186,13 @@ struct sctp_endpoint *sctp_endpoint_new(struct sock *sk, gfp_t gfp)
 	struct sctp_endpoint *ep;
 
 	/* Build a local endpoint. */
-	ep = t_new(struct sctp_endpoint, gfp);
+	ep = kzalloc(sizeof(*ep), gfp);
 	if (!ep)
 		goto fail;
+
 	if (!sctp_endpoint_init(ep, sk, gfp))
 		goto fail_init;
-	ep->base.malloced = 1;
+
 	SCTP_DBG_OBJCNT_INC(ep);
 	return ep;
 
@@ -234,7 +228,7 @@ void sctp_endpoint_add_asoc(struct sctp_endpoint *ep,
  */
 void sctp_endpoint_free(struct sctp_endpoint *ep)
 {
-	ep->base.dead = 1;
+	ep->base.dead = true;
 
 	ep->base.sk->sk_state = SCTP_SS_CLOSED;
 
@@ -247,10 +241,12 @@ void sctp_endpoint_free(struct sctp_endpoint *ep)
 /* Final destructor for endpoint.  */
 static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 {
-	SCTP_ASSERT(ep->base.dead, "Endpoint is not dead", return);
+	struct sock *sk;
 
-	/* Free up the HMAC transform. */
-	crypto_free_hash(sctp_sk(ep->base.sk)->hmac);
+	if (unlikely(!ep->base.dead)) {
+		WARN(1, "Attempt to destroy undead endpoint %p!\n", ep);
+		return;
+	}
 
 	/* Free the digest buffer */
 	kfree(ep->digest);
@@ -271,19 +267,18 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 
 	memset(ep->secret_key, 0, sizeof(ep->secret_key));
 
-	/* Remove and free the port */
-	if (sctp_sk(ep->base.sk)->bind_hash)
-		sctp_put_port(ep->base.sk);
-
 	/* Give up our hold on the sock. */
-	if (ep->base.sk)
-		sock_put(ep->base.sk);
+	sk = ep->base.sk;
+	if (sk != NULL) {
+		/* Remove and free the port */
+		if (sctp_sk(sk)->bind_hash)
+			sctp_put_port(sk);
 
-	/* Finally, free up our memory. */
-	if (ep->base.malloced) {
-		kfree(ep);
-		SCTP_DBG_OBJCNT_DEC(ep);
+		sock_put(sk);
 	}
+
+	kfree(ep);
+	SCTP_DBG_OBJCNT_DEC(ep);
 }
 
 /* Hold a reference to an endpoint. */
@@ -374,9 +369,9 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 {
 	struct sctp_association *asoc;
 
-	sctp_local_bh_disable();
+	local_bh_disable();
 	asoc = __sctp_endpoint_lookup_assoc(ep, paddr, transport);
-	sctp_local_bh_enable();
+	local_bh_enable();
 
 	return asoc;
 }
@@ -486,7 +481,7 @@ normal:
 		}
 
 		if (chunk->transport)
-			chunk->transport->last_time_heard = jiffies;
+			chunk->transport->last_time_heard = ktime_get();
 
 		error = sctp_do_sm(net, SCTP_EVENT_T_CHUNK, subtype, state,
 				   ep, asoc, chunk, GFP_ATOMIC);

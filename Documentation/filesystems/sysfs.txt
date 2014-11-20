@@ -108,12 +108,12 @@ static DEVICE_ATTR(foo, S_IWUSR | S_IRUGO, show_foo, store_foo);
 is equivalent to doing:
 
 static struct device_attribute dev_attr_foo = {
-       .attr	= {
+	.attr = {
 		.name = "foo",
 		.mode = S_IWUSR | S_IRUGO,
-		.show = show_foo,
-		.store = store_foo,
 	},
+	.show = show_foo,
+	.store = store_foo,
 };
 
 

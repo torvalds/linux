@@ -26,7 +26,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
@@ -153,6 +152,7 @@ static int write_pccard(struct cxd *ci, u16 address, u8 *data, u8 n)
 	status = i2c_write(ci->i2c, ci->cfg.adr, addr, 3);
 	if (!status) {
 		u8 buf[256] = {3};
+
 		memcpy(buf+1, data, n);
 		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n+1);
 	}
@@ -202,6 +202,7 @@ static int write_io_data(struct cxd *ci, u8 *data, u8 n)
 	status = i2c_write(ci->i2c, ci->cfg.adr, addr, 3);
 	if (!status) {
 		u8 buf[256] = {3};
+
 		memcpy(buf+1, data, n);
 		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n + 1);
 	}
@@ -330,11 +331,14 @@ static int init(struct cxd *ci)
 			break;
 
 #if 0
-		status = write_reg(ci, 0x09, 0x4D); /* Input Mode C, BYPass Serial, TIVAL = low, MSB */
+		/* Input Mode C, BYPass Serial, TIVAL = low, MSB */
+		status = write_reg(ci, 0x09, 0x4D);
 		if (status < 0)
 			break;
 #endif
-		status = write_reg(ci, 0x0A, 0xA7); /* TOSTRT = 8, Mode B (gated clock), falling Edge, Serial, POL=HIGH, MSB */
+		/* TOSTRT = 8, Mode B (gated clock), falling Edge,
+		 * Serial, POL=HIGH, MSB */
+		status = write_reg(ci, 0x0A, 0xA7);
 		if (status < 0)
 			break;
 
@@ -446,6 +450,7 @@ static int read_attribute_mem(struct dvb_ca_en50221 *ca,
 	return ci->amem[address];
 #else
 	u8 val;
+
 	mutex_lock(&ci->lock);
 	set_mode(ci, 1);
 	read_pccard(ci, address, &val, 1);
@@ -590,7 +595,7 @@ static int campoll(struct cxd *ci)
 		read_reg(ci, 0x01, &slotstat);
 		if (!(2&slotstat)) {
 			if (!ci->slot_stat) {
-				ci->slot_stat |= DVB_CA_EN50221_POLL_CAM_PRESENT;
+				ci->slot_stat = DVB_CA_EN50221_POLL_CAM_PRESENT;
 				write_regm(ci, 0x03, 0x08, 0x08);
 			}
 
@@ -602,7 +607,8 @@ static int campoll(struct cxd *ci)
 				ci->ready = 0;
 			}
 		}
-		if (istat&8 && ci->slot_stat == DVB_CA_EN50221_POLL_CAM_PRESENT) {
+		if (istat&8 &&
+		    ci->slot_stat == DVB_CA_EN50221_POLL_CAM_PRESENT) {
 			ci->ready = 1;
 			ci->slot_stat |= DVB_CA_EN50221_POLL_CAM_READY;
 		}

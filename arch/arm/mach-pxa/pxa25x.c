@@ -208,7 +208,11 @@ static struct clk_lookup pxa25x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa25x_gpio11, NULL, "GPIO11_CLK"),
 	INIT_CLKREG(&clk_pxa25x_gpio12, NULL, "GPIO12_CLK"),
 	INIT_CLKREG(&clk_pxa25x_mem, "pxa2xx-pcmcia", NULL),
-	INIT_CLKREG(&clk_dummy, "pxa-gpio", NULL),
+#ifdef CONFIG_CPU_PXA26x
+	INIT_CLKREG(&clk_dummy, "pxa26x-gpio", NULL),
+#else
+	INIT_CLKREG(&clk_dummy, "pxa25x-gpio", NULL),
+#endif
 	INIT_CLKREG(&clk_dummy, "sa1100-rtc", NULL),
 };
 
@@ -327,7 +331,12 @@ static struct map_desc pxa25x_io_desc[] __initdata = {
 	{	/* Mem Ctl */
 		.virtual	= (unsigned long)SMEMC_VIRT,
 		.pfn		= __phys_to_pfn(PXA2XX_SMEMC_BASE),
-		.length		= 0x00200000,
+		.length		= SMEMC_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* UNCACHED_PHYS_0 */
+		.virtual	= UNCACHED_PHYS_0,
+		.pfn		= __phys_to_pfn(0x00000000),
+		.length		= UNCACHED_PHYS_0_SIZE,
 		.type		= MT_DEVICE
 	},
 };
@@ -340,7 +349,8 @@ void __init pxa25x_map_io(void)
 }
 
 static struct pxa_gpio_platform_data pxa25x_gpio_info __initdata = {
-	.gpio_set_wake = gpio_set_wake,
+	.irq_base	= PXA_GPIO_TO_IRQ(0),
+	.gpio_set_wake	= gpio_set_wake,
 };
 
 static struct platform_device *pxa25x_devices[] __initdata = {
@@ -375,7 +385,7 @@ static int __init pxa25x_init(void)
 		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
 		register_syscore_ops(&pxa2xx_clock_syscore_ops);
 
-		pxa_register_device(&pxa_device_gpio, &pxa25x_gpio_info);
+		pxa_register_device(&pxa25x_device_gpio, &pxa25x_gpio_info);
 		ret = platform_add_devices(pxa25x_devices,
 					   ARRAY_SIZE(pxa25x_devices));
 		if (ret)

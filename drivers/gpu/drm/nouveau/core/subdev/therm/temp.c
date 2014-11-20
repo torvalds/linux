@@ -192,11 +192,11 @@ alarm_timer_callback(struct nouveau_alarm *alarm)
 	nouveau_therm_threshold_hyst_polling(therm, &sensor->thrs_shutdown,
 					     NOUVEAU_THERM_THRS_SHUTDOWN);
 
+	spin_unlock_irqrestore(&priv->sensor.alarm_program_lock, flags);
+
 	/* schedule the next poll in one second */
 	if (therm->temp_get(therm) >= 0 && list_empty(&alarm->head))
-		ptimer->alarm(ptimer, 1000 * 1000 * 1000, alarm);
-
-	spin_unlock_irqrestore(&priv->sensor.alarm_program_lock, flags);
+		ptimer->alarm(ptimer, 1000000000ULL, alarm);
 }
 
 void
@@ -205,15 +205,34 @@ nouveau_therm_program_alarms_polling(struct nouveau_therm *therm)
 	struct nouveau_therm_priv *priv = (void *)therm;
 	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
 
-	nv_info(therm,
-		"programmed thresholds [ %d(%d), %d(%d), %d(%d), %d(%d) ]\n",
-		sensor->thrs_fan_boost.temp, sensor->thrs_fan_boost.hysteresis,
-		sensor->thrs_down_clock.temp,
-		sensor->thrs_down_clock.hysteresis,
-		sensor->thrs_critical.temp, sensor->thrs_critical.hysteresis,
-		sensor->thrs_shutdown.temp, sensor->thrs_shutdown.hysteresis);
+	nv_debug(therm,
+		 "programmed thresholds [ %d(%d), %d(%d), %d(%d), %d(%d) ]\n",
+		 sensor->thrs_fan_boost.temp, sensor->thrs_fan_boost.hysteresis,
+		 sensor->thrs_down_clock.temp,
+		 sensor->thrs_down_clock.hysteresis,
+		 sensor->thrs_critical.temp, sensor->thrs_critical.hysteresis,
+		 sensor->thrs_shutdown.temp, sensor->thrs_shutdown.hysteresis);
 
 	alarm_timer_callback(&priv->sensor.therm_poll_alarm);
+}
+
+int
+nouveau_therm_sensor_init(struct nouveau_therm *therm)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	priv->sensor.program_alarms(therm);
+	return 0;
+}
+
+int
+nouveau_therm_sensor_fini(struct nouveau_therm *therm, bool suspend)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nouveau_timer *ptimer = nouveau_timer(therm);
+
+	if (suspend)
+		ptimer->alarm_cancel(ptimer, &priv->sensor.therm_poll_alarm);
+	return 0;
 }
 
 void

@@ -146,7 +146,6 @@ config MTD_CFI_I8
 config MTD_OTP
 	bool "Protection Registers aka one-time programmable (OTP) bits"
 	depends on MTD_CFI_ADV_OPTIONS
-	select HAVE_MTD_OTP
 	default n
 	help
 	  This enables support for reading, writing and locking so called
@@ -170,33 +169,33 @@ config MTD_OTP
 	  in the programming of OTP bits will waste them.
 
 config MTD_CFI_INTELEXT
-	tristate "Support for Intel/Sharp flash chips"
+	tristate "Support for CFI command set 0001 (Intel/Sharp chips)"
 	depends on MTD_GEN_PROBE
 	select MTD_CFI_UTIL
 	help
 	  The Common Flash Interface defines a number of different command
 	  sets which a CFI-compliant chip may claim to implement. This code
-	  provides support for one of those command sets, used on Intel
-	  StrataFlash and other parts.
+	  provides support for command set 0001, used on Intel StrataFlash
+	  and other parts.
 
 config MTD_CFI_AMDSTD
-	tristate "Support for AMD/Fujitsu/Spansion flash chips"
+	tristate "Support for CFI command set 0002 (AMD/Fujitsu/Spansion chips)"
 	depends on MTD_GEN_PROBE
 	select MTD_CFI_UTIL
 	help
 	  The Common Flash Interface defines a number of different command
 	  sets which a CFI-compliant chip may claim to implement. This code
-	  provides support for one of those command sets, used on chips
-	  including the AMD Am29LV320.
+	  provides support for command set 0002, used on chips including
+	  the AMD Am29LV320.
 
 config MTD_CFI_STAA
-	tristate "Support for ST (Advanced Architecture) flash chips"
+	tristate "Support for CFI command set 0020 (ST (Advanced Architecture) chips)"
 	depends on MTD_GEN_PROBE
 	select MTD_CFI_UTIL
 	help
 	  The Common Flash Interface defines a number of different command
 	  sets which a CFI-compliant chip may claim to implement. This code
-	  provides support for one of those command sets.
+	  provides support for command set 0020.
 
 config MTD_CFI_UTIL
 	tristate

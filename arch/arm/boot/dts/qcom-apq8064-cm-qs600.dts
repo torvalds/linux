@@ -1,0 +1,59 @@
+#include "qcom-apq8064-v2.0.dtsi"
+
+/ {
+	model = "CompuLab CM-QS600";
+	compatible = "qcom,apq8064-cm-qs600", "qcom,apq8064";
+
+	soc {
+		pinctrl@800000 {
+			i2c1_pins: i2c1 {
+				mux {
+					pins = "gpio20", "gpio21";
+					function = "gsbi1";
+				};
+			};
+		};
+
+		gsbi@12440000 {
+			status = "okay";
+			qcom,mode = <GSBI_PROT_I2C>;
+
+			i2c@12460000 {
+				status = "okay";
+				clock-frequency = <200000>;
+				pinctrl-0 = <&i2c1_pins>;
+				pinctrl-names = "default";
+
+				eeprom: eeprom@50 {
+					compatible = "24c02";
+					reg = <0x50>;
+					pagesize = <32>;
+				};
+			};
+		};
+
+		gsbi@16600000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+			serial@16640000 {
+				status = "ok";
+			};
+		};
+
+		amba {
+			/* eMMC */
+			sdcc1: sdcc@12400000 {
+				status = "okay";
+			};
+
+			/* External micro SD card */
+			sdcc3: sdcc@12180000 {
+				status = "okay";
+			};
+			/* WLAN */
+			sdcc4: sdcc@121c0000 {
+				status = "okay";
+			};
+		};
+	};
+};

@@ -51,32 +51,8 @@
 
 #define AVIC_NUM_IRQS 64
 
-void __iomem *avic_base;
+static void __iomem *avic_base;
 static struct irq_domain *domain;
-
-static u32 avic_saved_mask_reg[2];
-
-#ifdef CONFIG_MXC_IRQ_PRIOR
-static int avic_irq_set_priority(unsigned char irq, unsigned char prio)
-{
-	struct irq_data *d = irq_get_irq_data(irq);
-	unsigned int temp;
-	unsigned int mask = 0x0F << irq % 8 * 4;
-
-	irq = d->hwirq;
-
-	if (irq >= AVIC_NUM_IRQS)
-		return -EINVAL;
-
-	temp = __raw_readl(avic_base + AVIC_NIPRIORITY(irq / 8));
-	temp &= ~mask;
-	temp |= prio & mask;
-
-	__raw_writel(temp, avic_base + AVIC_NIPRIORITY(irq / 8));
-
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_FIQ
 static int avic_set_irq_fiq(unsigned int irq, unsigned int type)
@@ -104,15 +80,14 @@ static int avic_set_irq_fiq(unsigned int irq, unsigned int type)
 
 
 static struct mxc_extra_irq avic_extra_irq = {
-#ifdef CONFIG_MXC_IRQ_PRIOR
-	.set_priority = avic_irq_set_priority,
-#endif
 #ifdef CONFIG_FIQ
 	.set_irq_fiq = avic_set_irq_fiq,
 #endif
 };
 
 #ifdef CONFIG_PM
+static u32 avic_saved_mask_reg[2];
+
 static void avic_irq_suspend(struct irq_data *d)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
@@ -160,7 +135,7 @@ static __init void avic_init_gc(int idx, unsigned int irq_start)
 	irq_setup_generic_chip(gc, IRQ_MSK(32), 0, IRQ_NOREQUEST, 0);
 }
 
-asmlinkage void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
 {
 	u32 nivector;
 
@@ -169,7 +144,7 @@ asmlinkage void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
 		if (nivector == 0xffff)
 			break;
 
-		handle_IRQ(irq_find_mapping(domain, nivector), regs);
+		handle_domain_irq(domain, nivector, regs);
 	} while (1);
 }
 
@@ -214,6 +189,8 @@ void __init mxc_init_irq(void __iomem *irqbase)
 	/* Set default priority value (0) for all IRQ's */
 	for (i = 0; i < 8; i++)
 		__raw_writel(0, avic_base + AVIC_NIPRIORITY(i));
+
+	set_handle_irq(avic_handle_irq);
 
 #ifdef CONFIG_FIQ
 	/* Initialize FIQ */

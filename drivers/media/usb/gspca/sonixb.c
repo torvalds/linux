@@ -513,10 +513,7 @@ static void i2c_w(struct gspca_dev *gspca_dev, const u8 *buf)
 		if (gspca_dev->usb_buf[0] & 0x04) {
 			if (gspca_dev->usb_buf[0] & 0x08) {
 				dev_err(gspca_dev->v4l2_dev.dev,
-					"i2c error writing %02x %02x %02x %02x"
-					" %02x %02x %02x %02x\n",
-					buf[0], buf[1], buf[2], buf[3],
-					buf[4], buf[5], buf[6], buf[7]);
+					"i2c error writing %8ph\n", buf);
 				gspca_dev->usb_err = -EIO;
 			}
 			return;
@@ -753,7 +750,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		/* In 640x480, if the reg11 has less than 4, the image is
 		   unstable (the bridge goes into a higher compression mode
 		   which we have not reverse engineered yet). */
-		if (gspca_dev->width == 640 && reg11 < 4)
+		if (gspca_dev->pixfmt.width == 640 && reg11 < 4)
 			reg11 = 4;
 
 		/* frame exposure time in ms = 1000 * reg11 / 30    ->
@@ -916,7 +913,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 				desired_avg_lum, deadzone))
 			sd->autogain_ignore_frames = AUTOGAIN_IGNORE_FRAMES;
 	} else {
-		int gain_knee = gspca_dev->gain->maximum * 9 / 10;
+		int gain_knee = (s32)gspca_dev->gain->maximum * 9 / 10;
 		if (gspca_expo_autogain(gspca_dev, avg_lum, desired_avg_lum,
 				deadzone, gain_knee, sd->exposure_knee))
 			sd->autogain_ignore_frames = AUTOGAIN_IGNORE_FRAMES;
@@ -1159,6 +1156,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			regs[0x01] = 0x44; /* Select 24 Mhz clock */
 			regs[0x12] = 0x02; /* Set hstart to 2 */
 		}
+		break;
+	case SENSOR_PAS202:
+		/* For some unknown reason we need to increase hstart by 1 on
+		   the sn9c103, otherwise we get wrong colors (bayer shift). */
+		if (sd->bridge == BRIDGE_103)
+			regs[0x12] += 1;
+		break;
 	}
 	/* Disable compression when the raw bayer format has been selected */
 	if (cam->cam_mode[gspca_dev->curr_mode].priv & MODE_RAW)
@@ -1379,27 +1383,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 }
 
-static int sd_querymenu(struct gspca_dev *gspca_dev,
-			struct v4l2_querymenu *menu)
-{
-	switch (menu->id) {
-	case V4L2_CID_POWER_LINE_FREQUENCY:
-		switch (menu->index) {
-		case 0:		/* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
-			strcpy((char *) menu->name, "NoFliker");
-			return 0;
-		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
-			strcpy((char *) menu->name, "50 Hz");
-			return 0;
-		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
-			strcpy((char *) menu->name, "60 Hz");
-			return 0;
-		}
-		break;
-	}
-	return -EINVAL;
-}
-
 #if IS_ENABLED(CONFIG_INPUT)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
@@ -1428,7 +1411,6 @@ static const struct sd_desc sd_desc = {
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
-	.querymenu = sd_querymenu,
 	.dq_callback = do_autogain,
 #if IS_ENABLED(CONFIG_INPUT)
 	.int_pkt_scan = sd_int_pkt_scan,
@@ -1448,10 +1430,8 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x600d), SB(PAS106, 101)},
 	{USB_DEVICE(0x0c45, 0x6011), SB(OV6650, 101)},
 	{USB_DEVICE(0x0c45, 0x6019), SB(OV7630, 101)},
-#if !IS_ENABLED(CONFIG_USB_SN9C102)
 	{USB_DEVICE(0x0c45, 0x6024), SB(TAS5130CXX, 102)},
 	{USB_DEVICE(0x0c45, 0x6025), SB(TAS5130CXX, 102)},
-#endif
 	{USB_DEVICE(0x0c45, 0x6027), SB(OV7630, 101)}, /* Genius Eye 310 */
 	{USB_DEVICE(0x0c45, 0x6028), SB(PAS202, 102)},
 	{USB_DEVICE(0x0c45, 0x6029), SB(PAS106, 102)},

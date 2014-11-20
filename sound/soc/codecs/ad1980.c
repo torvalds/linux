@@ -57,8 +57,8 @@ static const u16 ad1980_reg[] = {
 static const char *ad1980_rec_sel[] = {"Mic", "CD", "NC", "AUX", "Line",
 		"Stereo Mix", "Mono Mix", "Phone"};
 
-static const struct soc_enum ad1980_cap_src =
-	SOC_ENUM_DOUBLE(AC97_REC_SEL, 8, 0, 7, ad1980_rec_sel);
+static SOC_ENUM_DOUBLE_DECL(ad1980_cap_src,
+			    AC97_REC_SEL, 8, 0, ad1980_rec_sel);
 
 static const struct snd_kcontrol_new ad1980_snd_ac97_controls[] = {
 SOC_DOUBLE("Master Playback Volume", AC97_MASTER, 8, 0, 31, 1),
@@ -96,6 +96,44 @@ SOC_ENUM("Capture Source", ad1980_cap_src),
 SOC_SINGLE("Mic Boost Switch", AC97_MIC, 6, 1, 0),
 };
 
+static const struct snd_soc_dapm_widget ad1980_dapm_widgets[] = {
+SND_SOC_DAPM_INPUT("MIC1"),
+SND_SOC_DAPM_INPUT("MIC2"),
+SND_SOC_DAPM_INPUT("CD_L"),
+SND_SOC_DAPM_INPUT("CD_R"),
+SND_SOC_DAPM_INPUT("AUX_L"),
+SND_SOC_DAPM_INPUT("AUX_R"),
+SND_SOC_DAPM_INPUT("LINE_IN_L"),
+SND_SOC_DAPM_INPUT("LINE_IN_R"),
+
+SND_SOC_DAPM_OUTPUT("LFE_OUT"),
+SND_SOC_DAPM_OUTPUT("CENTER_OUT"),
+SND_SOC_DAPM_OUTPUT("LINE_OUT_L"),
+SND_SOC_DAPM_OUTPUT("LINE_OUT_R"),
+SND_SOC_DAPM_OUTPUT("MONO_OUT"),
+SND_SOC_DAPM_OUTPUT("HP_OUT_L"),
+SND_SOC_DAPM_OUTPUT("HP_OUT_R"),
+};
+
+static const struct snd_soc_dapm_route ad1980_dapm_routes[] = {
+	{ "Capture", NULL, "MIC1" },
+	{ "Capture", NULL, "MIC2" },
+	{ "Capture", NULL, "CD_L" },
+	{ "Capture", NULL, "CD_R" },
+	{ "Capture", NULL, "AUX_L" },
+	{ "Capture", NULL, "AUX_R" },
+	{ "Capture", NULL, "LINE_IN_L" },
+	{ "Capture", NULL, "LINE_IN_R" },
+
+	{ "LFE_OUT", NULL, "Playback" },
+	{ "CENTER_OUT", NULL, "Playback" },
+	{ "LINE_OUT_L", NULL, "Playback" },
+	{ "LINE_OUT_R", NULL, "Playback" },
+	{ "MONO_OUT", NULL, "Playback" },
+	{ "HP_OUT_L", NULL, "Playback" },
+	{ "HP_OUT_R", NULL, "Playback" },
+};
+
 static unsigned int ac97_read(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
@@ -108,7 +146,7 @@ static unsigned int ac97_read(struct snd_soc_codec *codec,
 	case AC97_EXTENDED_STATUS:
 	case AC97_VENDOR_ID1:
 	case AC97_VENDOR_ID2:
-		return soc_ac97_ops.read(codec->ac97, reg);
+		return soc_ac97_ops->read(codec->ac97, reg);
 	default:
 		reg = reg >> 1;
 
@@ -124,7 +162,7 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 {
 	u16 *cache = codec->reg_cache;
 
-	soc_ac97_ops.write(codec->ac97, reg, val);
+	soc_ac97_ops->write(codec->ac97, reg, val);
 	reg = reg >> 1;
 	if (reg < ARRAY_SIZE(ad1980_reg))
 		cache[reg] = val;
@@ -151,28 +189,27 @@ static struct snd_soc_dai_driver ad1980_dai = {
 
 static int ad1980_reset(struct snd_soc_codec *codec, int try_warm)
 {
-	u16 retry_cnt = 0;
+	unsigned int retry_cnt = 0;
 
-retry:
-	if (try_warm && soc_ac97_ops.warm_reset) {
-		soc_ac97_ops.warm_reset(codec->ac97);
-		if (ac97_read(codec, AC97_RESET) == 0x0090)
-			return 1;
-	}
+	do {
+		if (try_warm && soc_ac97_ops->warm_reset) {
+			soc_ac97_ops->warm_reset(codec->ac97);
+			if (ac97_read(codec, AC97_RESET) == 0x0090)
+				return 1;
+		}
 
-	soc_ac97_ops.reset(codec->ac97);
-	/* Set bit 16slot in register 74h, then every slot will has only 16
-	 * bits. This command is sent out in 20bit mode, in which case the
-	 * first nibble of data is eaten by the addr. (Tag is always 16 bit)*/
-	ac97_write(codec, AC97_AD_SERIAL_CFG, 0x9900);
+		soc_ac97_ops->reset(codec->ac97);
+		/*
+		 * Set bit 16slot in register 74h, then every slot will has only
+		 * 16 bits. This command is sent out in 20bit mode, in which
+		 * case the first nibble of data is eaten by the addr. (Tag is
+		 * always 16 bit)
+		 */
+		ac97_write(codec, AC97_AD_SERIAL_CFG, 0x9900);
 
-	if (ac97_read(codec, AC97_RESET)  != 0x0090)
-		goto err;
-	return 0;
-
-err:
-	while (retry_cnt++ < 10)
-		goto retry;
+		if (ac97_read(codec, AC97_RESET)  == 0x0090)
+			return 0;
+	} while (retry_cnt++ < 10);
 
 	printk(KERN_ERR "AD1980 AC97 reset failed\n");
 	return -EIO;
@@ -186,7 +223,7 @@ static int ad1980_soc_probe(struct snd_soc_codec *codec)
 
 	printk(KERN_INFO "AD1980 SoC Audio Codec\n");
 
-	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
+	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0) {
 		printk(KERN_ERR "ad1980: failed to register AC97 codec\n");
 		return ret;
@@ -253,6 +290,11 @@ static struct snd_soc_codec_driver soc_codec_dev_ad1980 = {
 	.reg_cache_step = 2,
 	.write = ac97_write,
 	.read = ac97_read,
+
+	.dapm_widgets = ad1980_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(ad1980_dapm_widgets),
+	.dapm_routes = ad1980_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(ad1980_dapm_routes),
 };
 
 static int ad1980_probe(struct platform_device *pdev)

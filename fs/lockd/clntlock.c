@@ -64,12 +64,17 @@ struct nlm_host *nlmclnt_init(const struct nlmclnt_initdata *nlm_init)
 				   nlm_init->protocol, nlm_version,
 				   nlm_init->hostname, nlm_init->noresvport,
 				   nlm_init->net);
-	if (host == NULL) {
-		lockd_down(nlm_init->net);
-		return ERR_PTR(-ENOLCK);
-	}
+	if (host == NULL)
+		goto out_nohost;
+	if (host->h_rpcclnt == NULL && nlm_bind_host(host) == NULL)
+		goto out_nobind;
 
 	return host;
+out_nobind:
+	nlmclnt_release_host(host);
+out_nohost:
+	lockd_down(nlm_init->net);
+	return ERR_PTR(-ENOLCK);
 }
 EXPORT_SYMBOL_GPL(nlmclnt_init);
 
@@ -144,6 +149,9 @@ int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 			timeout);
 	if (ret < 0)
 		return -ERESTARTSYS;
+	/* Reset the lock status after a server reboot so we resend */
+	if (block->b_status == nlm_lck_denied_grace_period)
+		block->b_status = nlm_lck_blocked;
 	req->a_res.status = block->b_status;
 	return 0;
 }

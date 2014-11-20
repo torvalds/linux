@@ -143,8 +143,6 @@ __be32 ic_servaddr = NONE;	/* Boot server IP address */
 __be32 root_server_addr = NONE;	/* Address of NFS server */
 u8 root_server_path[256] = { 0, };	/* Path to mount as root */
 
-__be32 ic_dev_xid;		/* Device under configuration */
-
 /* vendor class identifier */
 static char vendor_class_identifier[253] __initdata;
 
@@ -206,7 +204,7 @@ static int __init ic_open_devs(void)
 	struct ic_device *d, **last;
 	struct net_device *dev;
 	unsigned short oflags;
-	unsigned long start;
+	unsigned long start, next_msg;
 
 	last = &ic_first_dev;
 	rtnl_lock();
@@ -263,12 +261,24 @@ static int __init ic_open_devs(void)
 
 	/* wait for a carrier on at least one device */
 	start = jiffies;
-	while (jiffies - start < msecs_to_jiffies(CONF_CARRIER_TIMEOUT)) {
+	next_msg = start + msecs_to_jiffies(CONF_CARRIER_TIMEOUT/12);
+	while (time_before(jiffies, start +
+			   msecs_to_jiffies(CONF_CARRIER_TIMEOUT))) {
+		int wait, elapsed;
+
 		for_each_netdev(&init_net, dev)
 			if (ic_is_init_dev(dev) && netif_carrier_ok(dev))
 				goto have_carrier;
 
 		msleep(1);
+
+		if (time_before(jiffies, next_msg))
+			continue;
+
+		elapsed = jiffies_to_msecs(jiffies - start);
+		wait = (CONF_CARRIER_TIMEOUT - elapsed + 500)/1000;
+		pr_info("Waiting up to %d more seconds for network.\n", wait);
+		next_msg = jiffies + msecs_to_jiffies(CONF_CARRIER_TIMEOUT/12);
 	}
 have_carrier:
 	rtnl_unlock();
@@ -643,6 +653,7 @@ static struct packet_type bootp_packet_type __initdata = {
 	.func =	ic_bootp_recv,
 };
 
+static __be32 ic_dev_xid;		/* Device under configuration */
 
 /*
  *  Initialize DHCP/BOOTP extension fields in the request.
@@ -1207,10 +1218,10 @@ static int __init ic_dynamic(void)
 	get_random_bytes(&timeout, sizeof(timeout));
 	timeout = CONF_BASE_TIMEOUT + (timeout % (unsigned int) CONF_TIMEOUT_RANDOM);
 	for (;;) {
+#ifdef IPCONFIG_BOOTP
 		/* Track the device we are configuring */
 		ic_dev_xid = d->xid;
 
-#ifdef IPCONFIG_BOOTP
 		if (do_bootp && (d->able & IC_BOOTP))
 			ic_bootp_send_if(d, jiffies - start_jiffies);
 #endif

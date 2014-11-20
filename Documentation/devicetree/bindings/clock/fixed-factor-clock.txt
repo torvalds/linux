@@ -1,0 +1,24 @@
+Binding for simple fixed factor rate clock sources.
+
+This binding uses the common clock binding[1].
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Required properties:
+- compatible : shall be "fixed-factor-clock".
+- #clock-cells : from common clock binding; shall be set to 0.
+- clock-div: fixed divider.
+- clock-mult: fixed multiplier.
+- clocks: parent clock.
+
+Optional properties:
+- clock-output-names : From common clock binding.
+
+Example:
+	clock {
+		compatible = "fixed-factor-clock";
+		clocks = <&parentclk>;
+		#clock-cells = <0>;
+		clock-div = <2>;
+		clock-mult = <1>;
+	};

@@ -22,7 +22,6 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/tps65910.h>
 
@@ -259,11 +258,13 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	platform_set_drvdata(pdev, tps_rtc);
+
 	irq  = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_warn(&pdev->dev, "Wake up is not possible as irq = %d\n",
 			irq);
-		return ret;
+		return -ENXIO;
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
@@ -276,15 +277,13 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	tps_rtc->irq = irq;
 	device_set_wakeup_capable(&pdev->dev, 1);
 
-	tps_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	tps_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 		&tps65910_rtc_ops, THIS_MODULE);
 	if (IS_ERR(tps_rtc->rtc)) {
 		ret = PTR_ERR(tps_rtc->rtc);
 		dev_err(&pdev->dev, "RTC device register: err %d\n", ret);
 		return ret;
 	}
-
-	platform_set_drvdata(pdev, tps_rtc);
 
 	return 0;
 }
@@ -295,12 +294,8 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
  */
 static int tps65910_rtc_remove(struct platform_device *pdev)
 {
-	/* leave rtc running, but disable irqs */
-	struct tps65910_rtc *tps_rtc = platform_get_drvdata(pdev);
-
 	tps65910_rtc_alarm_irq_enable(&pdev->dev, 0);
 
-	rtc_device_unregister(tps_rtc->rtc);
 	return 0;
 }
 
@@ -324,9 +319,8 @@ static int tps65910_rtc_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops tps65910_rtc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tps65910_rtc_suspend, tps65910_rtc_resume)
-};
+static SIMPLE_DEV_PM_OPS(tps65910_rtc_pm_ops, tps65910_rtc_suspend,
+			tps65910_rtc_resume);
 
 static struct platform_driver tps65910_rtc_driver = {
 	.probe		= tps65910_rtc_probe,

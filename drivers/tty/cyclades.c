@@ -1124,14 +1124,8 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 					readl(&info->u.cyz.ch_ctrl->rs_status);
 				if (dcd & C_RS_DCD)
 					wake_up_interruptible(&info->port.open_wait);
-				else {
-					struct tty_struct *tty;
-					tty = tty_port_tty_get(&info->port);
-					if (tty) {
-						tty_hangup(tty);
-						tty_kref_put(tty);
-					}
-				}
+				else
+					tty_port_tty_hangup(&info->port, false);
 			}
 			break;
 		case C_CM_MCTS:
@@ -1585,7 +1579,7 @@ static int cy_open(struct tty_struct *tty, struct file *filp)
 	/*
 	 * If the port is the middle of closing, bail out now
 	 */
-	if (tty_hung_up_p(filp) || (info->port.flags & ASYNC_CLOSING)) {
+	if (info->port.flags & ASYNC_CLOSING) {
 		wait_event_interruptible_tty(tty, info->port.close_wait,
 				!(info->port.flags & ASYNC_CLOSING));
 		return (info->port.flags & ASYNC_HUP_NOTIFY) ? -EAGAIN: -ERESTARTSYS;
@@ -2715,6 +2709,8 @@ cy_ioctl(struct tty_struct *tty,
 		break;
 #ifndef CONFIG_CYZ_INTR
 	case CYZSETPOLLCYCLE:
+		if (arg > LONG_MAX / HZ)
+			return -ENODEV;
 		cyz_polling_cycle = (arg * HZ) / 1000;
 		break;
 	case CYZGETPOLLCYCLE:

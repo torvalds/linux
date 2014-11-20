@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat Inc.
+ * Copyright 2013-2014 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,87 +20,81 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <core/os.h>
+#include <core/object.h>
 #include <core/event.h>
 
-static void
-nouveau_event_put_locked(struct nouveau_event *event, int index,
-			 struct nouveau_eventh *handler)
-{
-	if (!--event->index[index].refs)
-		event->disable(event, index);
-	list_del(&handler->head);
-}
-
 void
-nouveau_event_put(struct nouveau_event *event, int index,
-		  struct nouveau_eventh *handler)
+nvkm_event_put(struct nvkm_event *event, u32 types, int index)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&event->lock, flags);
-	if (index < event->index_nr)
-		nouveau_event_put_locked(event, index, handler);
-	spin_unlock_irqrestore(&event->lock, flags);
-}
-
-void
-nouveau_event_get(struct nouveau_event *event, int index,
-		  struct nouveau_eventh *handler)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&event->lock, flags);
-	if (index < event->index_nr) {
-		list_add(&handler->head, &event->index[index].list);
-		if (!event->index[index].refs++)
-			event->enable(event, index);
-	}
-	spin_unlock_irqrestore(&event->lock, flags);
-}
-
-void
-nouveau_event_trigger(struct nouveau_event *event, int index)
-{
-	struct nouveau_eventh *handler, *temp;
-	unsigned long flags;
-
-	if (index >= event->index_nr)
-		return;
-
-	spin_lock_irqsave(&event->lock, flags);
-	list_for_each_entry_safe(handler, temp, &event->index[index].list, head) {
-		if (handler->func(handler, index) == NVKM_EVENT_DROP) {
-			nouveau_event_put_locked(event, index, handler);
+	BUG_ON(!spin_is_locked(&event->refs_lock));
+	while (types) {
+		int type = __ffs(types); types &= ~(1 << type);
+		if (--event->refs[index * event->types_nr + type] == 0) {
+			if (event->func->fini)
+				event->func->fini(event, 1 << type, index);
 		}
 	}
-	spin_unlock_irqrestore(&event->lock, flags);
 }
 
 void
-nouveau_event_destroy(struct nouveau_event **pevent)
+nvkm_event_get(struct nvkm_event *event, u32 types, int index)
 {
-	struct nouveau_event *event = *pevent;
-	if (event) {
-		kfree(event);
-		*pevent = NULL;
+	BUG_ON(!spin_is_locked(&event->refs_lock));
+	while (types) {
+		int type = __ffs(types); types &= ~(1 << type);
+		if (++event->refs[index * event->types_nr + type] == 1) {
+			if (event->func->init)
+				event->func->init(event, 1 << type, index);
+		}
+	}
+}
+
+void
+nvkm_event_send(struct nvkm_event *event, u32 types, int index,
+		void *data, u32 size)
+{
+	struct nvkm_notify *notify;
+	unsigned long flags;
+
+	if (!event->refs || WARN_ON(index >= event->index_nr))
+		return;
+
+	spin_lock_irqsave(&event->list_lock, flags);
+	list_for_each_entry(notify, &event->list, head) {
+		if (notify->index == index && (notify->types & types)) {
+			if (event->func->send) {
+				event->func->send(data, size, notify);
+				continue;
+			}
+			nvkm_notify_send(notify, data, size);
+		}
+	}
+	spin_unlock_irqrestore(&event->list_lock, flags);
+}
+
+void
+nvkm_event_fini(struct nvkm_event *event)
+{
+	if (event->refs) {
+		kfree(event->refs);
+		event->refs = NULL;
 	}
 }
 
 int
-nouveau_event_create(int index_nr, struct nouveau_event **pevent)
+nvkm_event_init(const struct nvkm_event_func *func, int types_nr, int index_nr,
+		struct nvkm_event *event)
 {
-	struct nouveau_event *event;
-	int i;
-
-	event = *pevent = kzalloc(sizeof(*event) + index_nr *
-				  sizeof(event->index[0]), GFP_KERNEL);
-	if (!event)
+	event->refs = kzalloc(sizeof(*event->refs) * index_nr * types_nr,
+			      GFP_KERNEL);
+	if (!event->refs)
 		return -ENOMEM;
 
-	spin_lock_init(&event->lock);
-	for (i = 0; i < index_nr; i++)
-		INIT_LIST_HEAD(&event->index[i].list);
+	event->func = func;
+	event->types_nr = types_nr;
 	event->index_nr = index_nr;
+	spin_lock_init(&event->refs_lock);
+	spin_lock_init(&event->list_lock);
+	INIT_LIST_HEAD(&event->list);
 	return 0;
 }

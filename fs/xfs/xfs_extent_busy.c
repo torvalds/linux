@@ -19,17 +19,18 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_shared.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
 #include "xfs_alloc.h"
-#include "xfs_inode.h"
 #include "xfs_extent_busy.h"
 #include "xfs_trace.h"
+#include "xfs_trans.h"
+#include "xfs_log.h"
 
 void
 xfs_extent_busy_insert(
@@ -147,7 +148,7 @@ xfs_extent_busy_search(
  * extent.  If the overlap covers the beginning, the end, or all of the busy
  * extent, the overlapping portion can be made unbusy and used for the
  * allocation.  We can't split a busy extent because we can't modify a
- * transaction/CIL context busy list, but we can update an entries block
+ * transaction/CIL context busy list, but we can update an entry's block
  * number or length.
  *
  * Returns true if the extent can safely be reused, or false if the search
@@ -160,7 +161,8 @@ xfs_extent_busy_update_extent(
 	struct xfs_extent_busy	*busyp,
 	xfs_agblock_t		fbno,
 	xfs_extlen_t		flen,
-	bool			userdata)
+	bool			userdata) __releases(&pag->pagb_lock)
+					  __acquires(&pag->pagb_lock)
 {
 	xfs_agblock_t		fend = fbno + flen;
 	xfs_agblock_t		bbno = busyp->bno;

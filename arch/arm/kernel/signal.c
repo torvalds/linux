@@ -8,42 +8,23 @@
  * published by the Free Software Foundation.
  */
 #include <linux/errno.h>
+#include <linux/random.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/uaccess.h>
 #include <linux/tracehook.h>
+#include <linux/uprobes.h>
 
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
+#include <asm/traps.h>
 #include <asm/ucontext.h>
 #include <asm/unistd.h>
 #include <asm/vfp.h>
 
-#include "signal.h"
+extern const unsigned long sigreturn_codes[7];
 
-/*
- * For ARM syscalls, we encode the syscall number into the instruction.
- */
-#define SWI_SYS_SIGRETURN	(0xef000000|(__NR_sigreturn)|(__NR_OABI_SYSCALL_BASE))
-#define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn)|(__NR_OABI_SYSCALL_BASE))
-
-/*
- * With EABI, the syscall number has to be loaded into r7.
- */
-#define MOV_R7_NR_SIGRETURN	(0xe3a07000 | (__NR_sigreturn - __NR_SYSCALL_BASE))
-#define MOV_R7_NR_RT_SIGRETURN	(0xe3a07000 | (__NR_rt_sigreturn - __NR_SYSCALL_BASE))
-
-/*
- * For Thumb syscalls, we pass the syscall number via r7.  We therefore
- * need two 16-bit instructions.
- */
-#define SWI_THUMB_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_sigreturn - __NR_SYSCALL_BASE))
-#define SWI_THUMB_RT_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_rt_sigreturn - __NR_SYSCALL_BASE))
-
-const unsigned long sigreturn_codes[7] = {
-	MOV_R7_NR_SIGRETURN,    SWI_SYS_SIGRETURN,    SWI_THUMB_SIGRETURN,
-	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
-};
+static unsigned long signal_return_offset;
 
 #ifdef CONFIG_CRUNCH
 static int preserve_crunch_context(struct crunch_sigframe __user *frame)
@@ -373,12 +354,18 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		 */
 		thumb = handler & 1;
 
+#if __LINUX_ARM_ARCH__ >= 7
+		/*
+		 * Clear the If-Then Thumb-2 execution state
+		 * ARM spec requires this to be all 000s in ARM mode
+		 * Snapdragon S4/Krait misbehaves on a Thumb=>ARM
+		 * signal transition without this.
+		 */
+		cpsr &= ~PSR_IT_MASK;
+#endif
+
 		if (thumb) {
 			cpsr |= PSR_T_BIT;
-#if __LINUX_ARM_ARCH__ >= 7
-			/* clear the If-Then Thumb-2 execution state */
-			cpsr &= ~PSR_IT_MASK;
-#endif
 		} else
 			cpsr &= ~PSR_T_BIT;
 	}
@@ -392,17 +379,28 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		if (ksig->ka.sa.sa_flags & SA_SIGINFO)
 			idx += 3;
 
+		/*
+		 * Put the sigreturn code on the stack no matter which return
+		 * mechanism we use in order to remain ABI compliant
+		 */
 		if (__put_user(sigreturn_codes[idx],   rc) ||
 		    __put_user(sigreturn_codes[idx+1], rc+1))
 			return 1;
 
+#ifdef CONFIG_MMU
 		if (cpsr & MODE32_BIT) {
+			struct mm_struct *mm = current->mm;
+
 			/*
-			 * 32-bit code can use the new high-page
-			 * signal return code support.
+			 * 32-bit code can use the signal return page
+			 * except when the MPU has protected the vectors
+			 * page from PL0
 			 */
-			retcode = KERN_SIGRETURN_CODE + (idx << 2) + thumb;
-		} else {
+			retcode = mm->context.sigpage + signal_return_offset +
+				  (idx << 2) + thumb;
+		} else
+#endif
+		{
 			/*
 			 * Ensure that the instruction cache sees
 			 * the return code written onto the stack.
@@ -593,6 +591,9 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 					return restart;
 				}
 				syscall = 0;
+			} else if (thread_flags & _TIF_UPROBE) {
+				clear_thread_flag(TIF_UPROBE);
+				uprobe_notify_resume(regs);
 			} else {
 				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);
@@ -602,4 +603,34 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 		thread_flags = current_thread_info()->flags;
 	} while (thread_flags & _TIF_WORK_MASK);
 	return 0;
+}
+
+struct page *get_signal_page(void)
+{
+	unsigned long ptr;
+	unsigned offset;
+	struct page *page;
+	void *addr;
+
+	page = alloc_pages(GFP_KERNEL, 0);
+
+	if (!page)
+		return NULL;
+
+	addr = page_address(page);
+
+	/* Give the signal return code some randomness */
+	offset = 0x200 + (get_random_int() & 0x7fc);
+	signal_return_offset = offset;
+
+	/*
+	 * Copy signal return handlers into the vector page, and
+	 * set sigreturn to be a pointer to these.
+	 */
+	memcpy(addr + offset, sigreturn_codes, sizeof(sigreturn_codes));
+
+	ptr = (unsigned long)addr + offset;
+	flush_icache_range(ptr, ptr + sizeof(sigreturn_codes));
+
+	return page;
 }

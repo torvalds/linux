@@ -92,8 +92,7 @@ void clock_comparator_work(void)
 	struct clock_event_device *cd;
 
 	S390_lowcore.clock_comparator = -1ULL;
-	set_clock_comparator(S390_lowcore.clock_comparator);
-	cd = &__get_cpu_var(comparators);
+	cd = this_cpu_ptr(&comparators);
 	cd->event_handler(cd);
 }
 
@@ -109,20 +108,10 @@ static void fixup_clock_comparator(unsigned long long delta)
 	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
-static int s390_next_ktime(ktime_t expires,
+static int s390_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
-	struct timespec ts;
-	u64 nsecs;
-
-	ts.tv_sec = ts.tv_nsec = 0;
-	monotonic_to_bootbased(&ts);
-	nsecs = ktime_to_ns(ktime_add(timespec_to_ktime(ts), expires));
-	do_div(nsecs, 125);
-	S390_lowcore.clock_comparator = sched_clock_base_cc + (nsecs << 9);
-	/* Program the maximum value if we have an overflow (== year 2042) */
-	if (unlikely(S390_lowcore.clock_comparator < sched_clock_base_cc))
-		S390_lowcore.clock_comparator = -1ULL;
+	S390_lowcore.clock_comparator = get_tod_clock() + delta;
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	return 0;
 }
@@ -147,15 +136,14 @@ void init_cpu_timer(void)
 	cpu = smp_processor_id();
 	cd = &per_cpu(comparators, cpu);
 	cd->name		= "comparator";
-	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
-				  CLOCK_EVT_FEAT_KTIME;
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
 	cd->mult		= 16777;
 	cd->shift		= 12;
 	cd->min_delta_ns	= 1;
 	cd->max_delta_ns	= LONG_MAX;
 	cd->rating		= 400;
 	cd->cpumask		= cpumask_of(cpu);
-	cd->set_next_ktime	= s390_next_ktime;
+	cd->set_next_event	= s390_next_event;
 	cd->set_mode		= s390_set_mode;
 
 	clockevents_register_device(cd);
@@ -222,21 +210,43 @@ struct clocksource * __init clocksource_default_clock(void)
 	return &clocksource_tod;
 }
 
-void update_vsyscall_old(struct timespec *wall_time, struct timespec *wtm,
-			struct clocksource *clock, u32 mult)
+void update_vsyscall(struct timekeeper *tk)
 {
-	if (clock != &clocksource_tod)
+	u64 nsecps;
+
+	if (tk->tkr.clock != &clocksource_tod)
 		return;
 
 	/* Make userspace gettimeofday spin until we're done. */
 	++vdso_data->tb_update_count;
 	smp_wmb();
-	vdso_data->xtime_tod_stamp = clock->cycle_last;
-	vdso_data->xtime_clock_sec = wall_time->tv_sec;
-	vdso_data->xtime_clock_nsec = wall_time->tv_nsec;
-	vdso_data->wtom_clock_sec = wtm->tv_sec;
-	vdso_data->wtom_clock_nsec = wtm->tv_nsec;
-	vdso_data->ntp_mult = mult;
+	vdso_data->xtime_tod_stamp = tk->tkr.cycle_last;
+	vdso_data->xtime_clock_sec = tk->xtime_sec;
+	vdso_data->xtime_clock_nsec = tk->tkr.xtime_nsec;
+	vdso_data->wtom_clock_sec =
+		tk->xtime_sec + tk->wall_to_monotonic.tv_sec;
+	vdso_data->wtom_clock_nsec = tk->tkr.xtime_nsec +
+		+ ((u64) tk->wall_to_monotonic.tv_nsec << tk->tkr.shift);
+	nsecps = (u64) NSEC_PER_SEC << tk->tkr.shift;
+	while (vdso_data->wtom_clock_nsec >= nsecps) {
+		vdso_data->wtom_clock_nsec -= nsecps;
+		vdso_data->wtom_clock_sec++;
+	}
+
+	vdso_data->xtime_coarse_sec = tk->xtime_sec;
+	vdso_data->xtime_coarse_nsec =
+		(long)(tk->tkr.xtime_nsec >> tk->tkr.shift);
+	vdso_data->wtom_coarse_sec =
+		vdso_data->xtime_coarse_sec + tk->wall_to_monotonic.tv_sec;
+	vdso_data->wtom_coarse_nsec =
+		vdso_data->xtime_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
+	while (vdso_data->wtom_coarse_nsec >= NSEC_PER_SEC) {
+		vdso_data->wtom_coarse_nsec -= NSEC_PER_SEC;
+		vdso_data->wtom_coarse_sec++;
+	}
+
+	vdso_data->tk_mult = tk->tkr.mult;
+	vdso_data->tk_shift = tk->tkr.shift;
 	smp_wmb();
 	++vdso_data->tb_update_count;
 }
@@ -265,11 +275,11 @@ void __init time_init(void)
 	stp_reset();
 
 	/* request the clock comparator external interrupt */
-	if (register_external_interrupt(0x1004, clock_comparator_interrupt))
-                panic("Couldn't request external interrupt 0x1004");
+	if (register_external_irq(EXT_IRQ_CLK_COMP, clock_comparator_interrupt))
+		panic("Couldn't request external interrupt 0x1004");
 
 	/* request the timing alert external interrupt */
-	if (register_external_interrupt(0x1406, timing_alert_interrupt))
+	if (register_external_irq(EXT_IRQ_TIMING_ALERT, timing_alert_interrupt))
 		panic("Couldn't request external interrupt 0x1406");
 
 	if (clocksource_register(&clocksource_tod) != 0)
@@ -363,7 +373,7 @@ EXPORT_SYMBOL(get_sync_clock);
  */
 static void disable_sync_clock(void *dummy)
 {
-	atomic_t *sw_ptr = &__get_cpu_var(clock_sync_word);
+	atomic_t *sw_ptr = this_cpu_ptr(&clock_sync_word);
 	/*
 	 * Clear the in-sync bit 2^31. All get_sync_clock calls will
 	 * fail until the sync bit is turned back on. In addition
@@ -380,7 +390,7 @@ static void disable_sync_clock(void *dummy)
  */
 static void enable_sync_clock(void)
 {
-	atomic_t *sw_ptr = &__get_cpu_var(clock_sync_word);
+	atomic_t *sw_ptr = this_cpu_ptr(&clock_sync_word);
 	atomic_set_mask(0x80000000, sw_ptr);
 }
 

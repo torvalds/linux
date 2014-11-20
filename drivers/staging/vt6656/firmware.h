@@ -30,19 +30,10 @@
 #ifndef __FIRMWARE_H__
 #define __FIRMWARE_H__
 
-#include "ttype.h"
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
-int FIRMWAREbDownload(struct vnt_private *);
-int FIRMWAREbBrach2Sram(struct vnt_private *);
-int FIRMWAREbCheckVersion(struct vnt_private *);
+int vnt_download_firmware(struct vnt_private *);
+int vnt_firmware_branch_to_sram(struct vnt_private *);
+int vnt_check_firmware_version(struct vnt_private *);
 
 #endif /* __FIRMWARE_H__ */

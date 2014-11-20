@@ -24,7 +24,6 @@
 
 struct mxc_extra_irq
 {
-	int (*set_priority)(unsigned char irq, unsigned char prio);
 	int (*set_irq_fiq)(unsigned int irq, unsigned int type);
 };
 

@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 #include "tda18271-priv.h"
+#include "tda8290.h"
 
 int tda18271_debug;
 module_param_named(debug, tda18271_debug, int, 0644);
@@ -867,12 +868,12 @@ static int tda18271_agc(struct dvb_frontend *fe)
 	int ret = 0;
 
 	switch (priv->config) {
-	case 0:
+	case TDA8290_LNA_OFF:
 		/* no external agc configuration required */
 		if (tda18271_debug & DBG_ADV)
 			tda_dbg("no agc configuration provided\n");
 		break;
-	case 3:
+	case TDA8290_LNA_ON_BRIDGE:
 		/* switch with GPIO of saa713x */
 		tda_dbg("invoking callback\n");
 		if (fe->callback)
@@ -881,8 +882,8 @@ static int tda18271_agc(struct dvb_frontend *fe)
 					   TDA18271_CALLBACK_CMD_AGC_ENABLE,
 					   priv->mode);
 		break;
-	case 1:
-	case 2:
+	case TDA8290_LNA_GP0_HIGH_ON:
+	case TDA8290_LNA_GP0_HIGH_OFF:
 	default:
 		/* n/a - currently not supported */
 		tda_err("unsupported configuration: %d\n", priv->config);

@@ -1,4 +1,5 @@
-* FSMC NAND
+ST Microelectronics Flexible Static Memory Controller (FSMC)
+NAND Interface
 
 Required properties:
 - compatible : "st,spear600-fsmc-nand", "stericsson,fsmc-nand"
@@ -9,6 +10,26 @@ Optional properties:
 - bank-width : Width (in bytes) of the device.  If not present, the width
   defaults to 1 byte
 - nand-skip-bbtscan: Indicates the the BBT scanning should be skipped
+- timings: array of 6 bytes for NAND timings. The meanings of these bytes
+  are:
+  byte 0 TCLR  : CLE to RE delay in number of AHB clock cycles, only 4 bits
+                 are valid. Zero means one clockcycle, 15 means 16 clock
+                 cycles.
+  byte 1 TAR   : ALE to RE delay, 4 bits are valid. Same format as TCLR.
+  byte 2 THIZ  : number of HCLK clock cycles during which the data bus is
+                 kept in Hi-Z (tristate) after the start of a write access.
+                 Only valid for write transactions. Zero means zero cycles,
+                 255 means 255 cycles.
+  byte 3 THOLD : number of HCLK clock cycles to hold the address (and data
+                 when writing) after the command deassertation. Zero means
+                 one cycle, 255 means 256 cycles.
+  byte 4 TWAIT : number of HCLK clock cycles to assert the command to the
+                 NAND flash in response to SMWAITn. Zero means 1 cycle,
+                 255 means 256 cycles.
+  byte 5 TSET  : number of HCLK clock cycles to assert the address before the
+                 command is asserted. Zero means one cycle, 255 means 256
+                 cycles.
+- bank: default NAND bank to use (0-3 are valid, 0 is the default).
 
 Example:
 
@@ -24,6 +45,8 @@ Example:
 
 		bank-width = <1>;
 		nand-skip-bbtscan;
+		timings = /bits/ 8 <0 0 0 2 3 0>;
+		bank = <1>;
 
 		partition@0 {
 			...

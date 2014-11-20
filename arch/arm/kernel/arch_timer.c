@@ -13,16 +13,10 @@
 #include <linux/errno.h>
 
 #include <asm/delay.h>
-#include <asm/sched_clock.h>
 
 #include <clocksource/arm_arch_timer.h>
 
 static unsigned long arch_timer_read_counter_long(void)
-{
-	return arch_timer_read_counter();
-}
-
-static u32 arch_timer_read_counter_u32(void)
 {
 	return arch_timer_read_counter();
 }
@@ -37,25 +31,14 @@ static void __init arch_timer_delay_timer_register(void)
 	register_current_timer_delay(&arch_delay_timer);
 }
 
-int __init arch_timer_of_register(void)
+int __init arch_timer_arch_init(void)
 {
-	int ret;
+        u32 arch_timer_rate = arch_timer_get_rate();
 
-	ret = arch_timer_init();
-	if (ret)
-		return ret;
+	if (arch_timer_rate == 0)
+		return -ENXIO;
 
 	arch_timer_delay_timer_register();
 
-	return 0;
-}
-
-int __init arch_timer_sched_clock_init(void)
-{
-	if (arch_timer_get_rate() == 0)
-		return -ENXIO;
-
-	setup_sched_clock(arch_timer_read_counter_u32,
-			  32, arch_timer_get_rate());
 	return 0;
 }

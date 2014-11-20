@@ -86,7 +86,7 @@ static int mc33880_probe(struct spi_device *spi)
 	struct mc33880_platform_data *pdata;
 	int ret;
 
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	if (!pdata || !pdata->base) {
 		dev_dbg(&spi->dev, "incorrect or missing platform data\n");
 		return -EINVAL;
@@ -101,13 +101,13 @@ static int mc33880_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	mc = kzalloc(sizeof(struct mc33880), GFP_KERNEL);
+	mc = devm_kzalloc(&spi->dev, sizeof(struct mc33880), GFP_KERNEL);
 	if (!mc)
 		return -ENOMEM;
 
 	mutex_init(&mc->lock);
 
-	dev_set_drvdata(&spi->dev, mc);
+	spi_set_drvdata(spi, mc);
 
 	mc->spi = spi;
 
@@ -115,7 +115,7 @@ static int mc33880_probe(struct spi_device *spi)
 	mc->chip.set = mc33880_set;
 	mc->chip.base = pdata->base;
 	mc->chip.ngpio = PIN_NUMBER;
-	mc->chip.can_sleep = 1;
+	mc->chip.can_sleep = true;
 	mc->chip.dev = &spi->dev;
 	mc->chip.owner = THIS_MODULE;
 
@@ -130,7 +130,8 @@ static int mc33880_probe(struct spi_device *spi)
 		ret = mc33880_write_config(mc);
 
 	if (ret) {
-		printk(KERN_ERR "Failed writing to " DRIVER_NAME ": %d\n", ret);
+		dev_err(&spi->dev, "Failed writing to " DRIVER_NAME ": %d\n",
+			ret);
 		goto exit_destroy;
 	}
 
@@ -141,32 +142,22 @@ static int mc33880_probe(struct spi_device *spi)
 	return ret;
 
 exit_destroy:
-	dev_set_drvdata(&spi->dev, NULL);
 	mutex_destroy(&mc->lock);
-	kfree(mc);
 	return ret;
 }
 
 static int mc33880_remove(struct spi_device *spi)
 {
 	struct mc33880 *mc;
-	int ret;
 
-	mc = dev_get_drvdata(&spi->dev);
+	mc = spi_get_drvdata(spi);
 	if (mc == NULL)
 		return -ENODEV;
 
-	dev_set_drvdata(&spi->dev, NULL);
+	gpiochip_remove(&mc->chip);
+	mutex_destroy(&mc->lock);
 
-	ret = gpiochip_remove(&mc->chip);
-	if (!ret) {
-		mutex_destroy(&mc->lock);
-		kfree(mc);
-	} else
-		dev_err(&spi->dev, "Failed to remove the GPIO controller: %d\n",
-			ret);
-
-	return ret;
+	return 0;
 }
 
 static struct spi_driver mc33880_driver = {

@@ -65,7 +65,7 @@ retry:
 			   the wrong file was sometimes loaded. So we check filesizes to
 			   see if at least the right-sized file was loaded. If not, then we
 			   retry. */
-			IVTV_INFO("Retry: file loaded was not %s (expected size %ld, got %zd)\n", fn, size, fw->size);
+			IVTV_INFO("Retry: file loaded was not %s (expected size %ld, got %zu)\n", fn, size, fw->size);
 			release_firmware(fw);
 			retries--;
 			goto retry;
@@ -76,7 +76,7 @@ retry:
 			dst++;
 			src++;
 		}
-		IVTV_INFO("Loaded %s firmware (%zd bytes)\n", fn, fw->size);
+		IVTV_INFO("Loaded %s firmware (%zu bytes)\n", fn, fw->size);
 		release_firmware(fw);
 		return size;
 	}
@@ -302,7 +302,7 @@ static int ivtv_firmware_restart(struct ivtv *itv)
 	/* Restore encoder video standard */
 	std = itv->std;
 	itv->std = 0;
-	ivtv_s_std_enc(itv, &std);
+	ivtv_s_std_enc(itv, std);
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		ivtv_init_mpeg_decoder(itv);
@@ -310,7 +310,7 @@ static int ivtv_firmware_restart(struct ivtv *itv)
 		/* Restore decoder video standard */
 		std = itv->std_out;
 		itv->std_out = 0;
-		ivtv_s_std_dec(itv, &std);
+		ivtv_s_std_dec(itv, std);
 
 		/* Restore framebuffer if active */
 		if (itv->ivtvfb_restore)

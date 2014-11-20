@@ -14,6 +14,8 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
 #include <asm/machdep.h>
@@ -119,9 +121,9 @@ static int __init pdm360ng_probe(void)
 define_machine(pdm360ng) {
 	.name			= "PDM360NG",
 	.probe			= pdm360ng_probe,
-	.setup_arch		= mpc512x_setup_diu,
+	.setup_arch		= mpc512x_setup_arch,
 	.init			= pdm360ng_init,
-	.init_early		= mpc512x_init_diu,
+	.init_early		= mpc512x_init_early,
 	.init_IRQ		= mpc512x_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,

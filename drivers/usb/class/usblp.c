@@ -52,7 +52,6 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/poll.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/lp.h>
 #include <linux/mutex.h>

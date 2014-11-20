@@ -1,6 +1,6 @@
 all:
-	gcc -O2 -lrt mq_open_tests.c -o mq_open_tests
-	gcc -O2 -lrt -lpthread -lpopt -o mq_perf_tests mq_perf_tests.c
+	gcc -O2 mq_open_tests.c -o mq_open_tests -lrt
+	gcc -O2 -o mq_perf_tests mq_perf_tests.c -lrt -lpthread -lpopt
 
 run_tests:
 	@./mq_open_tests /test1 || echo "mq_open_tests: [FAIL]"

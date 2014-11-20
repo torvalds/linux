@@ -15,6 +15,10 @@
 #include <linux/list.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
+#include <linux/completion.h>
+#include <linux/kobject.h>
+
+#include "dm-stats.h"
 
 /*
  * Suspend feature flags
@@ -40,7 +44,7 @@
 struct dm_dev_internal {
 	struct list_head list;
 	atomic_t count;
-	struct dm_dev dm_dev;
+	struct dm_dev *dm_dev;
 };
 
 struct dm_table;
@@ -68,8 +72,6 @@ int dm_table_any_busy_target(struct dm_table *t);
 unsigned dm_table_get_type(struct dm_table *t);
 struct target_type *dm_table_get_immutable_target_type(struct dm_table *t);
 bool dm_table_request_based(struct dm_table *t);
-bool dm_table_supports_discards(struct dm_table *t);
-int dm_table_alloc_md_mempools(struct dm_table *t);
 void dm_table_free_md_mempools(struct dm_table *t);
 struct dm_md_mempools *dm_table_get_md_mempools(struct dm_table *t);
 
@@ -89,9 +91,20 @@ int dm_setup_md_queue(struct mapped_device *md);
 #define dm_target_is_valid(t) ((t)->table)
 
 /*
+ * To check whether the target type is bio-based or not (request-based).
+ */
+#define dm_target_bio_based(t) ((t)->type->map != NULL)
+
+/*
  * To check whether the target type is request-based or not (bio-based).
  */
 #define dm_target_request_based(t) ((t)->type->map_rq != NULL)
+
+/*
+ * To check whether the target type is a hybrid (capable of being
+ * either request-based or bio-based).
+ */
+#define dm_target_hybrid(t) (dm_target_bio_based(t) && dm_target_request_based(t))
 
 /*-----------------------------------------------------------------
  * A registry of target types.
@@ -116,6 +129,16 @@ int dm_deleting_md(struct mapped_device *md);
 int dm_suspended_md(struct mapped_device *md);
 
 /*
+ * Test if the device is scheduled for deferred remove.
+ */
+int dm_test_deferred_remove_flag(struct mapped_device *md);
+
+/*
+ * Try to remove devices marked for deferred removal.
+ */
+void dm_deferred_remove(void);
+
+/*
  * The device-mapper can be driven through one of two interfaces;
  * ioctl or filesystem, depending which patch you have applied.
  */
@@ -125,10 +148,25 @@ void dm_interface_exit(void);
 /*
  * sysfs interface
  */
+struct dm_kobject_holder {
+	struct kobject kobj;
+	struct completion completion;
+};
+
+static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)
+{
+	return &container_of(kobj, struct dm_kobject_holder, kobj)->completion;
+}
+
 int dm_sysfs_init(struct mapped_device *md);
 void dm_sysfs_exit(struct mapped_device *md);
 struct kobject *dm_kobject(struct mapped_device *md);
 struct mapped_device *dm_get_from_kobject(struct kobject *kobj);
+
+/*
+ * The kobject helper
+ */
+void dm_kobject_release(struct kobject *kobj);
 
 /*
  * Targets for linear and striped mappings
@@ -145,10 +183,21 @@ void dm_stripe_exit(void);
 void dm_destroy(struct mapped_device *md);
 void dm_destroy_immediate(struct mapped_device *md);
 int dm_open_count(struct mapped_device *md);
-int dm_lock_for_deletion(struct mapped_device *md);
+int dm_lock_for_deletion(struct mapped_device *md, bool mark_deferred, bool only_deferred);
+int dm_cancel_deferred_remove(struct mapped_device *md);
+int dm_request_based(struct mapped_device *md);
+sector_t dm_get_size(struct mapped_device *md);
+struct request_queue *dm_get_md_queue(struct mapped_device *md);
+int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
+			struct dm_dev **result);
+void dm_put_table_device(struct mapped_device *md, struct dm_dev *d);
+struct dm_stats *dm_get_stats(struct mapped_device *md);
 
 int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
 		      unsigned cookie);
+
+void dm_internal_suspend(struct mapped_device *md);
+void dm_internal_resume(struct mapped_device *md);
 
 int dm_io_init(void);
 void dm_io_exit(void);
@@ -161,5 +210,16 @@ void dm_kcopyd_exit(void);
  */
 struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity, unsigned per_bio_data_size);
 void dm_free_md_mempools(struct dm_md_mempools *pools);
+
+/*
+ * Helpers that are used by DM core
+ */
+unsigned dm_get_reserved_bio_based_ios(void);
+unsigned dm_get_reserved_rq_based_ios(void);
+
+static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen)
+{
+	return !maxlen || strlen(result) + 1 >= maxlen;
+}
 
 #endif

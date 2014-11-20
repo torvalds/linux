@@ -523,7 +523,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 }
 
 /* Setup pointers to different channels and also setup buffer sizes. */
-static void setup_memory(struct nozomi *dc)
+static void nozomi_setup_memory(struct nozomi *dc)
 {
 	void __iomem *offset = dc->base_addr + dc->config_table.dl_start;
 	/* The length reported is including the length field of 4 bytes,
@@ -671,7 +671,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 		int i;
 		DBG1("Second phase, configuring card");
 
-		setup_memory(dc);
+		nozomi_setup_memory(dc);
 
 		dc->port[PORT_MDM].toggle_ul = dc->config_table.toggle.mdm_ul;
 		dc->port[PORT_MDM].toggle_dl = dc->config_table.toggle.mdm_dl;
@@ -705,7 +705,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 			 dc->config_table.version);
 
 		/* Here we should disable all I/O over F32. */
-		setup_memory(dc);
+		nozomi_setup_memory(dc);
 
 		/*
 		 * We should send ALL channel pair tokens back along
@@ -791,7 +791,6 @@ static int send_data(enum port_type index, struct nozomi *dc)
 	const u8 toggle = port->toggle_ul;
 	void __iomem *addr = port->ul_addr[toggle];
 	const u32 ul_size = port->ul_size[toggle];
-	struct tty_struct *tty = tty_port_tty_get(&port->port);
 
 	/* Get data from tty and place in buf for now */
 	size = kfifo_out(&port->fifo_ul, dc->send_buf,
@@ -799,7 +798,6 @@ static int send_data(enum port_type index, struct nozomi *dc)
 
 	if (size == 0) {
 		DBG4("No more data to send, disable link:");
-		tty_kref_put(tty);
 		return 0;
 	}
 
@@ -809,10 +807,8 @@ static int send_data(enum port_type index, struct nozomi *dc)
 	write_mem32(addr, (u32 *) &size, 4);
 	write_mem32(addr + 4, (u32 *) dc->send_buf, size);
 
-	if (tty)
-		tty_wakeup(tty);
+	tty_port_tty_wakeup(&port->port);
 
-	tty_kref_put(tty);
 	return 1;
 }
 
@@ -963,7 +959,7 @@ static int receive_flow_control(struct nozomi *dc)
 		dev_err(&dc->pdev->dev,
 			"ERROR: flow control received for non-existing port\n");
 		return 0;
-	};
+	}
 
 	DBG1("0x%04X->0x%04X", *((u16 *)&dc->port[port].ctrl_dl),
 	   *((u16 *)&ctrl_dl));
@@ -1029,7 +1025,7 @@ static enum ctrl_port_type port2ctrl(enum port_type port,
 		dev_err(&dc->pdev->dev,
 			"ERROR: send flow control " \
 			"received for non-existing port\n");
-	};
+	}
 	return CTRL_ERROR;
 }
 
@@ -1505,12 +1501,9 @@ static void tty_exit(struct nozomi *dc)
 
 	DBG1(" ");
 
-	for (i = 0; i < MAX_PORT; ++i) {
-		struct tty_struct *tty = tty_port_tty_get(&dc->port[i].port);
-		if (tty && list_empty(&tty->hangup_work.entry))
-			tty_hangup(tty);
-		tty_kref_put(tty);
-	}
+	for (i = 0; i < MAX_PORT; ++i)
+		tty_port_tty_hangup(&dc->port[i].port, false);
+
 	/* Racy below - surely should wait for scheduled work to be done or
 	   complete off a hangup method ? */
 	while (dc->open_ttys)
@@ -1812,7 +1805,7 @@ static int ntty_ioctl(struct tty_struct *tty,
 	default:
 		DBG1("ERR: 0x%08X, %d", cmd, cmd);
 		break;
-	};
+	}
 
 	return rval;
 }

@@ -5,11 +5,12 @@
 #include <core/ramht.h>
 #include <core/mm.h>
 
-#include <subdev/instmem.h>
+#include "priv.h"
+
+extern struct nouveau_instobj_impl nv04_instobj_oclass;
 
 struct nv04_instmem_priv {
 	struct nouveau_instmem base;
-	bool created;
 
 	void __iomem *iomem;
 	struct nouveau_mm heap;

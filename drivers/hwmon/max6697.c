@@ -77,7 +77,7 @@ struct max6697_chip_data {
 };
 
 struct max6697_data {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
 
 	enum chips type;
 	const struct max6697_chip_data *chip;
@@ -181,8 +181,8 @@ static const struct max6697_chip_data max6697_chip_data[] = {
 
 static struct max6697_data *max6697_update_device(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct max6697_data *data = i2c_get_clientdata(client);
+	struct max6697_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	struct max6697_data *ret = data;
 	int val;
 	int i;
@@ -303,8 +303,7 @@ static ssize_t set_temp(struct device *dev,
 {
 	int nr = to_sensor_dev_attr_2(devattr)->nr;
 	int index = to_sensor_dev_attr_2(devattr)->index;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct max6697_data *data = i2c_get_clientdata(client);
+	struct max6697_data *data = dev_get_drvdata(dev);
 	long temp;
 	int ret;
 
@@ -316,7 +315,7 @@ static ssize_t set_temp(struct device *dev,
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + data->temp_offset;
 	temp = clamp_val(temp, 0, data->type == max6581 ? 255 : 127);
 	data->temp[nr][index] = temp;
-	ret = i2c_smbus_write_byte_data(client,
+	ret = i2c_smbus_write_byte_data(data->client,
 					index == 2 ? MAX6697_REG_MAX[nr]
 						   : MAX6697_REG_CRIT[nr],
 					temp);
@@ -399,83 +398,96 @@ static SENSOR_DEVICE_ATTR(temp6_fault, S_IRUGO, show_alarm, NULL, 5);
 static SENSOR_DEVICE_ATTR(temp7_fault, S_IRUGO, show_alarm, NULL, 6);
 static SENSOR_DEVICE_ATTR(temp8_fault, S_IRUGO, show_alarm, NULL, 7);
 
-static struct attribute *max6697_attributes[8][7] = {
-	{
-		&sensor_dev_attr_temp1_input.dev_attr.attr,
-		&sensor_dev_attr_temp1_max.dev_attr.attr,
-		&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp1_crit.dev_attr.attr,
-		&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
-		NULL
-	}, {
-		&sensor_dev_attr_temp2_input.dev_attr.attr,
-		&sensor_dev_attr_temp2_max.dev_attr.attr,
-		&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp2_crit.dev_attr.attr,
-		&sensor_dev_attr_temp2_crit_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp2_fault.dev_attr.attr,
-		NULL
-	}, {
-		&sensor_dev_attr_temp3_input.dev_attr.attr,
-		&sensor_dev_attr_temp3_max.dev_attr.attr,
-		&sensor_dev_attr_temp3_max_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp3_crit.dev_attr.attr,
-		&sensor_dev_attr_temp3_crit_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp3_fault.dev_attr.attr,
-		NULL
-	}, {
-		&sensor_dev_attr_temp4_input.dev_attr.attr,
-		&sensor_dev_attr_temp4_max.dev_attr.attr,
-		&sensor_dev_attr_temp4_max_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp4_crit.dev_attr.attr,
-		&sensor_dev_attr_temp4_crit_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp4_fault.dev_attr.attr,
-		NULL
-	}, {
-		&sensor_dev_attr_temp5_input.dev_attr.attr,
-		&sensor_dev_attr_temp5_max.dev_attr.attr,
-		&sensor_dev_attr_temp5_max_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp5_crit.dev_attr.attr,
-		&sensor_dev_attr_temp5_crit_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp5_fault.dev_attr.attr,
-		NULL
-	}, {
-		&sensor_dev_attr_temp6_input.dev_attr.attr,
-		&sensor_dev_attr_temp6_max.dev_attr.attr,
-		&sensor_dev_attr_temp6_max_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp6_crit.dev_attr.attr,
-		&sensor_dev_attr_temp6_crit_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp6_fault.dev_attr.attr,
-		NULL
-	}, {
-		&sensor_dev_attr_temp7_input.dev_attr.attr,
-		&sensor_dev_attr_temp7_max.dev_attr.attr,
-		&sensor_dev_attr_temp7_max_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp7_crit.dev_attr.attr,
-		&sensor_dev_attr_temp7_crit_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp7_fault.dev_attr.attr,
-		NULL
-	}, {
-		&sensor_dev_attr_temp8_input.dev_attr.attr,
-		&sensor_dev_attr_temp8_max.dev_attr.attr,
-		&sensor_dev_attr_temp8_max_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp8_crit.dev_attr.attr,
-		&sensor_dev_attr_temp8_crit_alarm.dev_attr.attr,
-		&sensor_dev_attr_temp8_fault.dev_attr.attr,
-		NULL
-	}
+static DEVICE_ATTR(dummy, 0, NULL, NULL);
+
+static umode_t max6697_is_visible(struct kobject *kobj, struct attribute *attr,
+				  int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct max6697_data *data = dev_get_drvdata(dev);
+	const struct max6697_chip_data *chip = data->chip;
+	int channel = index / 6;	/* channel number */
+	int nr = index % 6;		/* attribute index within channel */
+
+	if (channel >= chip->channels)
+		return 0;
+
+	if ((nr == 3 || nr == 4) && !(chip->have_crit & (1 << channel)))
+		return 0;
+	if (nr == 5 && !(chip->have_fault & (1 << channel)))
+		return 0;
+
+	return attr->mode;
+}
+
+/*
+ * max6697_is_visible uses the index into the following array to determine
+ * if attributes should be created or not. Any change in order or content
+ * must be matched in max6697_is_visible.
+ */
+static struct attribute *max6697_attributes[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
+	&dev_attr_dummy.attr,
+
+	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_max.dev_attr.attr,
+	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_crit.dev_attr.attr,
+	&sensor_dev_attr_temp2_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_fault.dev_attr.attr,
+
+	&sensor_dev_attr_temp3_input.dev_attr.attr,
+	&sensor_dev_attr_temp3_max.dev_attr.attr,
+	&sensor_dev_attr_temp3_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp3_crit.dev_attr.attr,
+	&sensor_dev_attr_temp3_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp3_fault.dev_attr.attr,
+
+	&sensor_dev_attr_temp4_input.dev_attr.attr,
+	&sensor_dev_attr_temp4_max.dev_attr.attr,
+	&sensor_dev_attr_temp4_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp4_crit.dev_attr.attr,
+	&sensor_dev_attr_temp4_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp4_fault.dev_attr.attr,
+
+	&sensor_dev_attr_temp5_input.dev_attr.attr,
+	&sensor_dev_attr_temp5_max.dev_attr.attr,
+	&sensor_dev_attr_temp5_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp5_crit.dev_attr.attr,
+	&sensor_dev_attr_temp5_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp5_fault.dev_attr.attr,
+
+	&sensor_dev_attr_temp6_input.dev_attr.attr,
+	&sensor_dev_attr_temp6_max.dev_attr.attr,
+	&sensor_dev_attr_temp6_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp6_crit.dev_attr.attr,
+	&sensor_dev_attr_temp6_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp6_fault.dev_attr.attr,
+
+	&sensor_dev_attr_temp7_input.dev_attr.attr,
+	&sensor_dev_attr_temp7_max.dev_attr.attr,
+	&sensor_dev_attr_temp7_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp7_crit.dev_attr.attr,
+	&sensor_dev_attr_temp7_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp7_fault.dev_attr.attr,
+
+	&sensor_dev_attr_temp8_input.dev_attr.attr,
+	&sensor_dev_attr_temp8_max.dev_attr.attr,
+	&sensor_dev_attr_temp8_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp8_crit.dev_attr.attr,
+	&sensor_dev_attr_temp8_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp8_fault.dev_attr.attr,
+	NULL
 };
 
-static const struct attribute_group max6697_group[8] = {
-	{ .attrs = max6697_attributes[0] },
-	{ .attrs = max6697_attributes[1] },
-	{ .attrs = max6697_attributes[2] },
-	{ .attrs = max6697_attributes[3] },
-	{ .attrs = max6697_attributes[4] },
-	{ .attrs = max6697_attributes[5] },
-	{ .attrs = max6697_attributes[6] },
-	{ .attrs = max6697_attributes[7] },
+static const struct attribute_group max6697_group = {
+	.attrs = max6697_attributes, .is_visible = max6697_is_visible,
 };
+__ATTRIBUTE_GROUPS(max6697);
 
 static void max6697_get_config_of(struct device_node *node,
 				  struct max6697_platform_data *pdata)
@@ -483,15 +495,13 @@ static void max6697_get_config_of(struct device_node *node,
 	int len;
 	const __be32 *prop;
 
-	prop = of_get_property(node, "smbus-timeout-disable", &len);
-	if (prop)
-		pdata->smbus_timeout_disable = true;
-	prop = of_get_property(node, "extended-range-enable", &len);
-	if (prop)
-		pdata->extended_range_enable = true;
-	prop = of_get_property(node, "beta-compensation-enable", &len);
-	if (prop)
-		pdata->beta_compensation = true;
+	pdata->smbus_timeout_disable =
+		of_property_read_bool(node, "smbus-timeout-disable");
+	pdata->extended_range_enable =
+		of_property_read_bool(node, "extended-range-enable");
+	pdata->beta_compensation =
+		of_property_read_bool(node, "beta-compensation-enable");
+
 	prop = of_get_property(node, "alert-mask", &len);
 	if (prop && len == sizeof(u32))
 		pdata->alert_mask = be32_to_cpu(prop[0]);
@@ -512,9 +522,9 @@ static void max6697_get_config_of(struct device_node *node,
 	}
 }
 
-static int max6697_init_chip(struct i2c_client *client)
+static int max6697_init_chip(struct max6697_data *data,
+			     struct i2c_client *client)
 {
-	struct max6697_data *data = i2c_get_clientdata(client);
 	struct max6697_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct max6697_platform_data p;
 	const struct max6697_chip_data *chip = data->chip;
@@ -592,12 +602,12 @@ static int max6697_init_chip(struct i2c_client *client)
 		if (ret < 0)
 			return ret;
 		ret = i2c_smbus_write_byte_data(client, MAX6581_REG_IDEALITY,
-						pdata->ideality_mask >> 1);
+						pdata->ideality_value);
 		if (ret < 0)
 			return ret;
 		ret = i2c_smbus_write_byte_data(client,
 						MAX6581_REG_IDEALITY_SELECT,
-						pdata->ideality_value);
+						pdata->ideality_mask >> 1);
 		if (ret < 0)
 			return ret;
 	}
@@ -606,21 +616,14 @@ done:
 	return 0;
 }
 
-static void max6697_remove_files(struct i2c_client *client)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(max6697_group); i++)
-		sysfs_remove_group(&client->dev.kobj, &max6697_group[i]);
-}
-
 static int max6697_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
 	struct max6697_data *data;
-	int i, err;
+	struct device *hwmon_dev;
+	int err;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
@@ -631,67 +634,17 @@ static int max6697_probe(struct i2c_client *client,
 
 	data->type = id->driver_data;
 	data->chip = &max6697_chip_data[data->type];
-
-	i2c_set_clientdata(client, data);
+	data->client = client;
 	mutex_init(&data->update_lock);
 
-	err = max6697_init_chip(client);
+	err = max6697_init_chip(data, client);
 	if (err)
 		return err;
 
-	for (i = 0; i < data->chip->channels; i++) {
-		err = sysfs_create_file(&dev->kobj,
-					max6697_attributes[i][0]);
-		if (err)
-			goto error;
-		err = sysfs_create_file(&dev->kobj,
-					max6697_attributes[i][1]);
-		if (err)
-			goto error;
-		err = sysfs_create_file(&dev->kobj,
-					max6697_attributes[i][2]);
-		if (err)
-			goto error;
-
-		if (data->chip->have_crit & (1 << i)) {
-			err = sysfs_create_file(&dev->kobj,
-						max6697_attributes[i][3]);
-			if (err)
-				goto error;
-			err = sysfs_create_file(&dev->kobj,
-						max6697_attributes[i][4]);
-			if (err)
-				goto error;
-		}
-		if (data->chip->have_fault & (1 << i)) {
-			err = sysfs_create_file(&dev->kobj,
-						max6697_attributes[i][5]);
-			if (err)
-				goto error;
-		}
-	}
-
-	data->hwmon_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto error;
-	}
-
-	return 0;
-
-error:
-	max6697_remove_files(client);
-	return err;
-}
-
-static int max6697_remove(struct i2c_client *client)
-{
-	struct max6697_data *data = i2c_get_clientdata(client);
-
-	hwmon_device_unregister(data->hwmon_dev);
-	max6697_remove_files(client);
-
-	return 0;
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
+							   data,
+							   max6697_groups);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 static const struct i2c_device_id max6697_id[] = {
@@ -715,7 +668,6 @@ static struct i2c_driver max6697_driver = {
 		.name	= "max6697",
 	},
 	.probe = max6697_probe,
-	.remove	= max6697_remove,
 	.id_table = max6697_id,
 };
 

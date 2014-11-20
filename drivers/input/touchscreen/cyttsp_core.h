@@ -67,8 +67,8 @@ struct cyttsp_xydata {
 /* TTSP System Information interface definition */
 struct cyttsp_sysinfo_data {
 	u8 hst_mode;
-	u8 mfg_cmd;
 	u8 mfg_stat;
+	u8 mfg_cmd;
 	u8 cid[3];
 	u8 tt_undef1;
 	u8 uid[8];
@@ -112,9 +112,10 @@ struct cyttsp;
 
 struct cyttsp_bus_ops {
 	u16 bustype;
-	int (*write)(struct cyttsp *ts,
-		     u8 addr, u8 length, const void *values);
-	int (*read)(struct cyttsp *ts, u8 addr, u8 length, void *values);
+	int (*write)(struct device *dev, u8 *xfer_buf, u16 addr, u8 length,
+			const void *values);
+	int (*read)(struct device *dev, u8 *xfer_buf, u16 addr, u8 length,
+			void *values);
 };
 
 enum cyttsp_state {
@@ -144,6 +145,10 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 			    struct device *dev, int irq, size_t xfer_buf_size);
 void cyttsp_remove(struct cyttsp *ts);
 
+int cyttsp_i2c_write_block_data(struct device *dev, u8 *xfer_buf, u16 addr,
+		u8 length, const void *values);
+int cyttsp_i2c_read_block_data(struct device *dev, u8 *xfer_buf, u16 addr,
+		u8 length, void *values);
 extern const struct dev_pm_ops cyttsp_pm_ops;
 
 #endif /* __CYTTSP_CORE_H__ */

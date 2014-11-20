@@ -397,7 +397,7 @@ linkend="control" />.</para>
 
       <para>The <structfield>depth</structfield> (average number of
 bits per pixel) of a video image is implied by the selected image
-format. V4L2 does not explicitely provide such information assuming
+format. V4L2 does not explicitly provide such information assuming
 applications recognizing the format are aware of the image depth and
 others need not know. The <structfield>palette</structfield> field
 moved into the &v4l2-pix-format;:<informaltable>
@@ -2254,7 +2254,7 @@ video encoding.</para>
       <orderedlist>
 	<listitem>
 	  <para>The <constant>VIDIOC_G_CHIP_IDENT</constant> ioctl was renamed
-to <constant>VIDIOC_G_CHIP_IDENT_OLD</constant> and &VIDIOC-DBG-G-CHIP-IDENT;
+to <constant>VIDIOC_G_CHIP_IDENT_OLD</constant> and <constant>VIDIOC_DBG_G_CHIP_IDENT</constant>
 was introduced in its place. The old struct <structname>v4l2_chip_ident</structname>
 was renamed to <structname id="v4l2-chip-ident-old">v4l2_chip_ident_old</structname>.</para>
 	</listitem>
@@ -2309,6 +2309,9 @@ more information.</para>
 	</listitem>
 	<listitem>
 	  <para>Added FM Modulator (FM TX) Extended Control Class: <constant>V4L2_CTRL_CLASS_FM_TX</constant> and their Control IDs.</para>
+	</listitem>
+<listitem>
+	  <para>Added FM Receiver (FM RX) Extended Control Class: <constant>V4L2_CTRL_CLASS_FM_RX</constant> and their Control IDs.</para>
 	</listitem>
 	<listitem>
 	  <para>Added Remote Controller chapter, describing the default Remote Controller mapping for media devices.</para>
@@ -2493,6 +2496,89 @@ that used it. It was originally scheduled for removal in 2.6.35.
       </orderedlist>
     </section>
 
+    <section>
+      <title>V4L2 in Linux 3.10</title>
+      <orderedlist>
+        <listitem>
+	  <para>Removed obsolete and unused DV_PRESET ioctls
+	  VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET, VIDIOC_QUERY_DV_PRESET and
+	  VIDIOC_ENUM_DV_PRESET. Remove the related v4l2_input/output capability
+	  flags V4L2_IN_CAP_PRESETS and V4L2_OUT_CAP_PRESETS.
+	  </para>
+        </listitem>
+        <listitem>
+	  <para>Added new debugging ioctl &VIDIOC-DBG-G-CHIP-INFO;.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.11</title>
+      <orderedlist>
+        <listitem>
+	  <para>Remove obsolete <constant>VIDIOC_DBG_G_CHIP_IDENT</constant> ioctl.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.14</title>
+      <orderedlist>
+        <listitem>
+		<para> In struct <structname>v4l2_rect</structname>, the type
+of <structfield>width</structfield> and <structfield>height</structfield>
+fields changed from _s32 to _u32.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.15</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added Software Defined Radio (SDR) Interface.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.16</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added event V4L2_EVENT_SOURCE_CHANGE.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.17</title>
+      <orderedlist>
+        <listitem>
+	  <para>Extended &v4l2-pix-format;. Added format flags.
+	  </para>
+        </listitem>
+        <listitem>
+	  <para>Added compound control types and &VIDIOC-QUERY-EXT-CTRL;.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.18</title>
+      <orderedlist>
+	<listitem>
+	  <para>Added <constant>V4L2_CID_PAN_SPEED</constant> and
+ <constant>V4L2_CID_TILT_SPEED</constant> camera controls.</para>
+	</listitem>
+      </orderedlist>
+    </section>
+
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
 
@@ -2576,7 +2662,7 @@ and may change in the future.</para>
 ioctls.</para>
         </listitem>
         <listitem>
-	  <para>&VIDIOC-DBG-G-CHIP-IDENT; ioctl.</para>
+	  <para>&VIDIOC-DBG-G-CHIP-INFO; ioctl.</para>
         </listitem>
         <listitem>
 	  <para>&VIDIOC-ENUM-DV-TIMINGS;, &VIDIOC-QUERY-DV-TIMINGS; and
@@ -2609,6 +2695,9 @@ ioctls.</para>
         <listitem>
 	  <para>Exporting DMABUF files using &VIDIOC-EXPBUF; ioctl.</para>
         </listitem>
+        <listitem>
+	  <para>Software Defined Radio (SDR) Interface, <xref linkend="sdr" />.</para>
+        </listitem>
       </itemizedlist>
     </section>
 
@@ -2625,8 +2714,8 @@ interfaces and should not be implemented in new drivers.</para>
 <xref linkend="extended-controls" />.</para>
         </listitem>
         <listitem>
-	  <para>&VIDIOC-G-DV-PRESET;, &VIDIOC-S-DV-PRESET;, &VIDIOC-ENUM-DV-PRESETS; and
-	  &VIDIOC-QUERY-DV-PRESET; ioctls. Use the DV Timings API (<xref linkend="dv-timings" />).</para>
+	  <para>VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET, VIDIOC_ENUM_DV_PRESETS and
+	  VIDIOC_QUERY_DV_PRESET ioctls. Use the DV Timings API (<xref linkend="dv-timings" />).</para>
         </listitem>
         <listitem>
 	  <para><constant>VIDIOC_SUBDEV_G_CROP</constant> and

@@ -422,7 +422,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	if (sk) {
 		if (!sock_flag(sk, SOCK_DEAD))
-			sk->sk_data_ready(sk, skb->len);
+			sk->sk_data_ready(sk);
 		sock_put(sk);
 	} else {
 free:

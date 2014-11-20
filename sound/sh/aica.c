@@ -598,7 +598,6 @@ static int snd_aica_remove(struct platform_device *devptr)
 		return -ENODEV;
 	snd_card_free(dreamcastcard->card);
 	kfree(dreamcastcard);
-	platform_set_drvdata(devptr, NULL);
 	return 0;
 }
 
@@ -609,8 +608,8 @@ static int snd_aica_probe(struct platform_device *devptr)
 	dreamcastcard = kmalloc(sizeof(struct snd_card_aica), GFP_KERNEL);
 	if (unlikely(!dreamcastcard))
 		return -ENOMEM;
-	err = snd_card_create(index, SND_AICA_DRIVER, THIS_MODULE, 0,
-			      &dreamcastcard->card);
+	err = snd_card_new(&devptr->dev, index, SND_AICA_DRIVER,
+			   THIS_MODULE, 0, &dreamcastcard->card);
 	if (unlikely(err < 0)) {
 		kfree(dreamcastcard);
 		return err;
@@ -625,7 +624,6 @@ static int snd_aica_probe(struct platform_device *devptr)
 	err = snd_aicapcmchip(dreamcastcard, 0);
 	if (unlikely(err < 0))
 		goto freedreamcast;
-	snd_card_set_dev(dreamcastcard->card, &devptr->dev);
 	dreamcastcard->timer.data = 0;
 	dreamcastcard->channel = NULL;
 	/* Add basic controls */

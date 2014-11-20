@@ -38,6 +38,7 @@
 #include <linux/device.h>
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/aio.h>
 #include <linux/kdev_t.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
@@ -92,8 +93,11 @@ static ssize_t cuse_read(struct file *file, char __user *buf, size_t count,
 {
 	loff_t pos = 0;
 	struct iovec iov = { .iov_base = buf, .iov_len = count };
+	struct fuse_io_priv io = { .async = 0, .file = file };
+	struct iov_iter ii;
+	iov_iter_init(&ii, READ, &iov, 1, count);
 
-	return fuse_direct_io(file, &iov, 1, count, &pos, 0);
+	return fuse_direct_io(&io, &ii, &pos, FUSE_DIO_CUSE);
 }
 
 static ssize_t cuse_write(struct file *file, const char __user *buf,
@@ -101,12 +105,16 @@ static ssize_t cuse_write(struct file *file, const char __user *buf,
 {
 	loff_t pos = 0;
 	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
+	struct fuse_io_priv io = { .async = 0, .file = file };
+	struct iov_iter ii;
+	iov_iter_init(&ii, WRITE, &iov, 1, count);
 
 	/*
 	 * No locking or generic_write_checks(), the server is
 	 * responsible for locking and sanity checks.
 	 */
-	return fuse_direct_io(file, &iov, 1, count, &pos, 1);
+	return fuse_direct_io(&io, &ii, &pos,
+			      FUSE_DIO_WRITE | FUSE_DIO_CUSE);
 }
 
 static int cuse_open(struct inode *inode, struct file *file)
@@ -422,7 +430,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 
 	BUILD_BUG_ON(CUSE_INIT_INFO_MAX > PAGE_SIZE);
 
-	req = fuse_get_req(fc, 1);
+	req = fuse_get_req_for_background(fc, 1);
 	if (IS_ERR(req)) {
 		rc = PTR_ERR(req);
 		goto err;
@@ -470,7 +478,7 @@ err:
 static void cuse_fc_release(struct fuse_conn *fc)
 {
 	struct cuse_conn *cc = fc_to_cc(fc);
-	kfree(cc);
+	kfree_rcu(cc, fc.rcu);
 }
 
 /**
@@ -504,7 +512,7 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	cc->fc.release = cuse_fc_release;
 
 	cc->fc.connected = 1;
-	cc->fc.blocked = 0;
+	cc->fc.initialized = 1;
 	rc = cuse_send_init(cc);
 	if (rc) {
 		fuse_conn_put(&cc->fc);
@@ -565,6 +573,7 @@ static ssize_t cuse_class_waiting_show(struct device *dev,
 
 	return sprintf(buf, "%d\n", atomic_read(&cc->fc.num_waiting));
 }
+static DEVICE_ATTR(waiting, 0400, cuse_class_waiting_show, NULL);
 
 static ssize_t cuse_class_abort_store(struct device *dev,
 				      struct device_attribute *attr,
@@ -575,18 +584,23 @@ static ssize_t cuse_class_abort_store(struct device *dev,
 	fuse_abort_conn(&cc->fc);
 	return count;
 }
+static DEVICE_ATTR(abort, 0200, NULL, cuse_class_abort_store);
 
-static struct device_attribute cuse_class_dev_attrs[] = {
-	__ATTR(waiting, S_IFREG | 0400, cuse_class_waiting_show, NULL),
-	__ATTR(abort, S_IFREG | 0200, NULL, cuse_class_abort_store),
-	{ }
+static struct attribute *cuse_class_dev_attrs[] = {
+	&dev_attr_waiting.attr,
+	&dev_attr_abort.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(cuse_class_dev);
 
 static struct miscdevice cuse_miscdev = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.minor		= CUSE_MINOR,
 	.name		= "cuse",
 	.fops		= &cuse_channel_fops,
 };
+
+MODULE_ALIAS_MISCDEV(CUSE_MINOR);
+MODULE_ALIAS("devname:cuse");
 
 static int __init cuse_init(void)
 {
@@ -606,7 +620,7 @@ static int __init cuse_init(void)
 	if (IS_ERR(cuse_class))
 		return PTR_ERR(cuse_class);
 
-	cuse_class->dev_attrs = cuse_class_dev_attrs;
+	cuse_class->dev_groups = cuse_class_dev_groups;
 
 	rc = misc_register(&cuse_miscdev);
 	if (rc) {

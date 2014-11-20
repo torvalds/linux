@@ -26,6 +26,8 @@
 #include <linux/io.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
@@ -358,12 +360,12 @@ static int fhci_start(struct usb_hcd *hcd)
 	hcd->state = HC_STATE_RUNNING;
 
 	/*
-	 * From here on, khubd concurrently accesses the root
+	 * From here on, hub_wq concurrently accesses the root
 	 * hub; drivers will be talking to enumerated devices.
-	 * (On restart paths, khubd already knows about the root
+	 * (On restart paths, hub_wq already knows about the root
 	 * hub and could find work as soon as we wrote FLAG_CF.)
 	 *
-	 * Before this point the HC was idle/ready.  After, khubd
+	 * Before this point the HC was idle/ready.  After, hub_wq
 	 * and device drivers may start it running.
 	 */
 	fhci_usb_enable(fhci);
@@ -751,6 +753,8 @@ static int of_fhci_probe(struct platform_device *ofdev)
 	ret = usb_add_hcd(hcd, usb_irq, 0);
 	if (ret < 0)
 		goto err_add_hcd;
+
+	device_wakeup_enable(hcd->self.controller);
 
 	fhci_dfs_create(fhci);
 

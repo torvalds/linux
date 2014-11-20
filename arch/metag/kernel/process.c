@@ -22,6 +22,7 @@
 #include <linux/pm.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
+#include <linux/smp.h>
 #include <asm/core_reg.h>
 #include <asm/user_gateway.h>
 #include <asm/tcm.h>
@@ -31,7 +32,7 @@
 /*
  * Wait for the next interrupt and enable local interrupts
  */
-static inline void arch_idle(void)
+void arch_cpu_idle(void)
 {
 	int tmp;
 
@@ -59,36 +60,12 @@ static inline void arch_idle(void)
 		      : "r" (get_trigger_mask()));
 }
 
-void cpu_idle(void)
-{
-	set_thread_flag(TIF_POLLING_NRFLAG);
-
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-
-		while (!need_resched()) {
-			/*
-			 * We need to disable interrupts here to ensure we don't
-			 * miss a wakeup call.
-			 */
-			local_irq_disable();
-			if (!need_resched()) {
 #ifdef CONFIG_HOTPLUG_CPU
-				if (cpu_is_offline(smp_processor_id()))
-					cpu_die();
-#endif
-				arch_idle();
-			} else {
-				local_irq_enable();
-			}
-		}
-
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-		schedule_preempt_disabled();
-	 }
+void arch_cpu_idle_dead(void)
+{
+	cpu_die();
 }
+#endif
 
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
@@ -151,6 +128,8 @@ void show_regs(struct pt_regs *regs)
 		"D1.6 ",
 		"D1.7 "
 	};
+
+	show_regs_print_info(KERN_INFO);
 
 	pr_info(" pt_regs @ %p\n", regs);
 	pr_info(" SaveMask = 0x%04hx\n", regs->ctx.SaveMask);

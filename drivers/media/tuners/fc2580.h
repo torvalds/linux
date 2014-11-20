@@ -21,6 +21,7 @@
 #ifndef FC2580_H
 #define FC2580_H
 
+#include <linux/kconfig.h>
 #include "dvb_frontend.h"
 
 struct fc2580_config {
@@ -36,8 +37,7 @@ struct fc2580_config {
 	u32 clock;
 };
 
-#if defined(CONFIG_MEDIA_TUNER_FC2580) || \
-	(defined(CONFIG_MEDIA_TUNER_FC2580_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_FC2580)
 extern struct dvb_frontend *fc2580_attach(struct dvb_frontend *fe,
 	struct i2c_adapter *i2c, const struct fc2580_config *cfg);
 #else

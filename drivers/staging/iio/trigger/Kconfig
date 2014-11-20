@@ -12,23 +12,6 @@ config IIO_PERIODIC_RTC_TRIGGER
 	  Provides support for using periodic capable real time
 	  clocks as IIO triggers.
 
-config IIO_GPIO_TRIGGER
-	tristate "GPIO trigger"
-	depends on GENERIC_GPIO
-	help
-	  Provides support for using GPIO pins as IIO triggers.
-
-config IIO_SYSFS_TRIGGER
-	tristate "SYSFS trigger"
-	depends on SYSFS
-	select IRQ_WORK
-	help
-	  Provides support for using SYSFS entry as IIO triggers.
-	  If unsure, say N (but it's safe to say "Y").
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called iio-trig-sysfs.
-
 config IIO_BFIN_TMR_TRIGGER
 	tristate "Blackfin TIMER trigger"
 	depends on BLACKFIN

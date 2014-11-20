@@ -95,14 +95,14 @@ static int twl6040_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(clkdata->clk))
 		return PTR_ERR(clkdata->clk);
 
-	dev_set_drvdata(&pdev->dev, clkdata);
+	platform_set_drvdata(pdev, clkdata);
 
 	return 0;
 }
 
 static int twl6040_clk_remove(struct platform_device *pdev)
 {
-	struct twl6040_clk *clkdata = dev_get_drvdata(&pdev->dev);
+	struct twl6040_clk *clkdata = platform_get_drvdata(pdev);
 
 	clk_unregister(clkdata->clk);
 
@@ -112,7 +112,6 @@ static int twl6040_clk_remove(struct platform_device *pdev)
 static struct platform_driver twl6040_clk_driver = {
 	.driver = {
 		.name = "twl6040-clk",
-		.owner = THIS_MODULE,
 	},
 	.probe = twl6040_clk_probe,
 	.remove = twl6040_clk_remove,

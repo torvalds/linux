@@ -1,7 +1,3 @@
-config SYMBOL_PREFIX
-	string
-	default "_"
-
 config MMU
 	def_bool n
 
@@ -22,7 +18,6 @@ config BLACKFIN
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
-	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_IDE
 	select HAVE_KERNEL_GZIP if RAMKERNEL
 	select HAVE_KERNEL_BZIP2 if RAMKERNEL
@@ -31,19 +26,20 @@ config BLACKFIN
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select ARCH_HAVE_CUSTOM_GPIO_H
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_UID16
+	select HAVE_UNDERSCORE_SYMBOL_PREFIX
 	select VIRT_TO_BUS
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_PROBE
-	select USE_GENERIC_SMP_HELPERS if SMP
+	select GENERIC_IRQ_SHOW
 	select HAVE_NMI_WATCHDOG if NMI_WATCHDOG
 	select GENERIC_SMP_IDLE_THREAD
 	select ARCH_USES_GETTIMEOFFSET if !GENERIC_CLOCKEVENTS
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
+	select HAVE_DEBUG_STACKOVERFLOW
 
 config GENERIC_CSUM
 	def_bool y
@@ -53,9 +49,6 @@ config GENERIC_BUG
 	depends on BUG
 
 config ZONE_DMA
-	def_bool y
-
-config GENERIC_GPIO
 	def_bool y
 
 config FORCE_MAX_ZONEORDER
@@ -259,7 +252,7 @@ config NR_CPUS
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
-	depends on SMP && HOTPLUG
+	depends on SMP
 	default y
 
 config BF_REV_MIN
@@ -288,7 +281,7 @@ config BF_REV_0_0
 
 config BF_REV_0_1
 	bool "0.1"
-	depends on (BF51x || BF52x || (BF54x && !BF54xM))
+	depends on (BF51x || BF52x || (BF54x && !BF54xM) || BF60x)
 
 config BF_REV_0_2
 	bool "0.2"
@@ -322,6 +315,14 @@ config BF53x
 	bool
 	depends on (BF531 || BF532 || BF533 || BF534 || BF536 || BF537)
 	default y
+
+config GPIO_ADI
+	def_bool y
+	depends on (BF51x || BF52x || BF53x || BF538 || BF539 || BF561)
+
+config PINCTRL
+	def_bool y
+	depends on BF54x || BF60x
 
 config MEM_MT48LC64M4A2FB_7E
 	bool
@@ -670,7 +671,7 @@ config TICKSOURCE_CORETMR
 	default y
 endmenu
 
-menu "Clock souce"
+menu "Clock source"
 	depends on GENERIC_CLOCKEVENTS
 config CYCLES_CLOCKSOURCE
 	bool "CYCLES"
@@ -864,14 +865,6 @@ config SYS_BFIN_SPINLOCK_L1
 	depends on !SMP
 	help
 	  If enabled, sys_bfin_spinlock function is linked
-	  into L1 instruction memory. (less latency)
-
-config IP_CHECKSUM_L1
-	bool "Locate IP Checksum function in L1 Memory"
-	default n
-	depends on !SMP
-	help
-	  If enabled, the IP Checksum function is linked
 	  into L1 instruction memory. (less latency)
 
 config CACHELINE_ALIGNED_L1
@@ -1435,7 +1428,6 @@ source "drivers/cpufreq/Kconfig"
 config BFIN_CPU_FREQ
 	bool
 	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
 	default y
 
 config CPU_VOLTAGE

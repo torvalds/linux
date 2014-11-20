@@ -20,6 +20,7 @@
 #ifndef M88RS2000_H
 #define M88RS2000_H
 
+#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
@@ -40,8 +41,7 @@ enum {
 	CALL_IS_READ,
 };
 
-#if defined(CONFIG_DVB_M88RS2000) || (defined(CONFIG_DVB_M88RS2000_MODULE) && \
-							defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_M88RS2000)
 extern struct dvb_frontend *m88rs2000_attach(
 	const struct m88rs2000_config *config, struct i2c_adapter *i2c);
 #else
@@ -52,6 +52,8 @@ static inline struct dvb_frontend *m88rs2000_attach(
 	return NULL;
 }
 #endif /* CONFIG_DVB_M88RS2000 */
+
+#define RS2000_FE_CRYSTAL_KHZ 27000
 
 enum {
 	DEMOD_WRITE = 0x1,

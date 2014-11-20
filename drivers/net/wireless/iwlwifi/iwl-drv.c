@@ -5,7 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -22,7 +23,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -30,7 +31,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,6 +69,7 @@
 #include <linux/vmalloc.h>
 
 #include "iwl-drv.h"
+#include "iwl-csr.h"
 #include "iwl-debug.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
@@ -128,7 +131,7 @@ struct iwl_drv {
 	const struct iwl_cfg *cfg;
 
 	int fw_index;                   /* firmware we're trying to load */
-	char firmware_name[25];         /* name of firmware file to load */
+	char firmware_name[32];         /* name of firmware file to load */
 
 	struct completion request_firmware_complete;
 
@@ -154,6 +157,8 @@ static struct iwlwifi_opmode_table {
 	[DVM_OP_MODE] = { .name = "iwldvm", .ops = NULL },
 	[MVM_OP_MODE] = { .name = "iwlmvm", .ops = NULL },
 };
+
+#define IWL_DEFAULT_SCAN_CHANNELS 40
 
 /*
  * struct fw_sec: Just for the image parsing proccess.
@@ -237,7 +242,25 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -ENOENT;
 	}
 
-	sprintf(drv->firmware_name, "%s%s%s", name_pre, tag, ".ucode");
+	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
+		 name_pre, tag);
+
+	/*
+	 * Starting 8000B - FW name format has changed. This overwrites the
+	 * previous name and uses the new format.
+	 */
+	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
+		char rev_step[2] = {
+			'A' + CSR_HW_REV_STEP(drv->trans->hw_rev), 0
+		};
+
+		/* A-step doesn't have an indication */
+		if (CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_A_STEP)
+			rev_step[0] = 0;
+
+		snprintf(drv->firmware_name, sizeof(drv->firmware_name),
+			 "%s%s-%s.ucode", name_pre, rev_step, tag);
+	}
 
 	IWL_DEBUG_INFO(drv, "attempting to load firmware %s'%s'\n",
 		       (drv->fw_index == UCODE_EXPERIMENTAL_INDEX)
@@ -322,6 +345,41 @@ static void set_sec_offset(struct iwl_firmware_pieces *pieces,
 	pieces->img[type].sec[sec].offset = offset;
 }
 
+static int iwl_store_cscheme(struct iwl_fw *fw, const u8 *data, const u32 len)
+{
+	int i, j;
+	struct iwl_fw_cscheme_list *l = (struct iwl_fw_cscheme_list *)data;
+	struct iwl_fw_cipher_scheme *fwcs;
+	struct ieee80211_cipher_scheme *cs;
+	u32 cipher;
+
+	if (len < sizeof(*l) ||
+	    len < sizeof(l->size) + l->size * sizeof(l->cs[0]))
+		return -EINVAL;
+
+	for (i = 0, j = 0; i < IWL_UCODE_MAX_CS && i < l->size; i++) {
+		fwcs = &l->cs[j];
+		cipher = le32_to_cpu(fwcs->cipher);
+
+		/* we skip schemes with zero cipher suite selector */
+		if (!cipher)
+			continue;
+
+		cs = &fw->cs[j++];
+		cs->cipher = cipher;
+		cs->iftype = BIT(NL80211_IFTYPE_STATION);
+		cs->hdr_len = fwcs->hdr_len;
+		cs->pn_len = fwcs->pn_len;
+		cs->pn_off = fwcs->pn_off;
+		cs->key_idx_off = fwcs->key_idx_off;
+		cs->key_idx_mask = fwcs->key_idx_mask;
+		cs->key_idx_shift = fwcs->key_idx_shift;
+		cs->mic_len = fwcs->mic_len;
+	}
+
+	return 0;
+}
+
 /*
  * Gets uCode section from tlv.
  */
@@ -364,6 +422,38 @@ static int iwl_set_default_calib(struct iwl_drv *drv, const u8 *data)
 		def_calib->calib.flow_trigger;
 	drv->fw.default_calib[ucode_type].event_trigger =
 		def_calib->calib.event_trigger;
+
+	return 0;
+}
+
+static int iwl_set_ucode_api_flags(struct iwl_drv *drv, const u8 *data,
+				   struct iwl_ucode_capabilities *capa)
+{
+	const struct iwl_ucode_api *ucode_api = (void *)data;
+	u32 api_index = le32_to_cpu(ucode_api->api_index);
+
+	if (api_index >= IWL_API_ARRAY_SIZE) {
+		IWL_ERR(drv, "api_index larger than supported by driver\n");
+		return -EINVAL;
+	}
+
+	capa->api[api_index] = le32_to_cpu(ucode_api->api_flags);
+
+	return 0;
+}
+
+static int iwl_set_ucode_capabilities(struct iwl_drv *drv, const u8 *data,
+				      struct iwl_ucode_capabilities *capa)
+{
+	const struct iwl_ucode_capa *ucode_capa = (void *)data;
+	u32 api_index = le32_to_cpu(ucode_capa->api_index);
+
+	if (api_index >= IWL_CAPABILITIES_ARRAY_SIZE) {
+		IWL_ERR(drv, "api_index larger than supported by driver\n");
+		return -EINVAL;
+	}
+
+	capa->capa[api_index] = le32_to_cpu(ucode_capa->api_capa);
 
 	return 0;
 }
@@ -483,6 +573,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	const u8 *tlv_data;
 	char buildstr[25];
 	u32 build;
+	int num_of_cpus;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(drv, "uCode has invalid length: %zd\n", len);
@@ -496,6 +587,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	}
 
 	drv->fw.ucode_ver = le32_to_cpu(ucode->ver);
+	memcpy(drv->fw.human_readable, ucode->human_readable,
+	       sizeof(drv->fw.human_readable));
 	build = le32_to_cpu(ucode->build);
 
 	if (build)
@@ -601,6 +694,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			 */
 			capa->flags = le32_to_cpup((__le32 *)tlv_data);
 			break;
+		case IWL_UCODE_TLV_API_CHANGES_SET:
+			if (tlv_len != sizeof(struct iwl_ucode_api))
+				goto invalid_tlv_len;
+			if (iwl_set_ucode_api_flags(drv, tlv_data, capa))
+				goto tlv_error;
+			break;
+		case IWL_UCODE_TLV_ENABLED_CAPABILITIES:
+			if (tlv_len != sizeof(struct iwl_ucode_capa))
+				goto invalid_tlv_len;
+			if (iwl_set_ucode_capabilities(drv, tlv_data, capa))
+				goto tlv_error;
+			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_PTR:
 			if (tlv_len != sizeof(u32))
 				goto invalid_tlv_len;
@@ -691,6 +796,58 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (tlv_len != sizeof(u32))
 				goto invalid_tlv_len;
 			drv->fw.phy_config = le32_to_cpup((__le32 *)tlv_data);
+			drv->fw.valid_tx_ant = (drv->fw.phy_config &
+						FW_PHY_CFG_TX_CHAIN) >>
+						FW_PHY_CFG_TX_CHAIN_POS;
+			drv->fw.valid_rx_ant = (drv->fw.phy_config &
+						FW_PHY_CFG_RX_CHAIN) >>
+						FW_PHY_CFG_RX_CHAIN_POS;
+			break;
+		 case IWL_UCODE_TLV_SECURE_SEC_RT:
+			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
+					    tlv_len);
+			drv->fw.mvm_fw = true;
+			drv->fw.img[IWL_UCODE_REGULAR].is_secure = true;
+			break;
+		case IWL_UCODE_TLV_SECURE_SEC_INIT:
+			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_INIT,
+					    tlv_len);
+			drv->fw.mvm_fw = true;
+			drv->fw.img[IWL_UCODE_INIT].is_secure = true;
+			break;
+		case IWL_UCODE_TLV_SECURE_SEC_WOWLAN:
+			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_WOWLAN,
+					    tlv_len);
+			drv->fw.mvm_fw = true;
+			drv->fw.img[IWL_UCODE_WOWLAN].is_secure = true;
+			break;
+		case IWL_UCODE_TLV_NUM_OF_CPU:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			num_of_cpus =
+				le32_to_cpup((__le32 *)tlv_data);
+
+			if (num_of_cpus == 2) {
+				drv->fw.img[IWL_UCODE_REGULAR].is_dual_cpus =
+					true;
+				drv->fw.img[IWL_UCODE_INIT].is_dual_cpus =
+					true;
+				drv->fw.img[IWL_UCODE_WOWLAN].is_dual_cpus =
+					true;
+			} else if ((num_of_cpus > 2) || (num_of_cpus < 1)) {
+				IWL_ERR(drv, "Driver support upto 2 CPUs\n");
+				return -EINVAL;
+			}
+			break;
+		case IWL_UCODE_TLV_CSCHEME:
+			if (iwl_store_cscheme(&drv->fw, tlv_data, tlv_len))
+				goto invalid_tlv_len;
+			break;
+		case IWL_UCODE_TLV_N_SCAN_CHANNELS:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->n_scan_channels =
+				le32_to_cpup((__le32 *)tlv_data);
 			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
@@ -843,9 +1000,10 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	int i;
 	bool load_module = false;
 
-	fw->ucode_capa.max_probe_length = 200;
+	fw->ucode_capa.max_probe_length = IWL_DEFAULT_MAX_PROBE_LENGTH;
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
+	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
 
 	if (!api_ok)
 		api_ok = api_max;
@@ -912,8 +1070,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		}
 	}
 
-	IWL_INFO(drv, "loaded firmware version %s", drv->fw.fw_version);
-
 	/*
 	 * In mvm uCode there is no difference between data and instructions
 	 * sections.
@@ -970,6 +1126,9 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	else
 		op = &iwlwifi_opmode_table[DVM_OP_MODE];
 
+	IWL_INFO(drv, "loaded firmware version %s op_mode %s\n",
+		 drv->fw.fw_version, op->name);
+
 	/* add this device to the list of devices using this op_mode */
 	list_add_tail(&drv->list, &op->drv);
 
@@ -997,8 +1156,15 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * else from proceeding if the module fails to load
 	 * or hangs loading.
 	 */
-	if (load_module)
-		request_module("%s", op->name);
+	if (load_module) {
+		err = request_module("%s", op->name);
+#ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
+		if (err)
+			IWL_ERR(drv,
+				"failed to load module %s (error %d), is dynamic loading enabled?\n",
+				op->name, err);
+#endif
+	}
 	return;
 
  try_again:
@@ -1024,8 +1190,10 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
 	int ret;
 
 	drv = kzalloc(sizeof(*drv), GFP_KERNEL);
-	if (!drv)
-		return NULL;
+	if (!drv) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	drv->trans = trans;
 	drv->dev = trans->dev;
@@ -1070,7 +1238,7 @@ err_free_dbgfs:
 err_free_drv:
 #endif
 	kfree(drv);
-
+err:
 	return ERR_PTR(ret);
 }
 
@@ -1102,16 +1270,16 @@ void iwl_drv_stop(struct iwl_drv *drv)
 
 /* shared module parameters */
 struct iwl_mod_params iwlwifi_mod_params = {
-	.restart_fw = 1,
-	.plcp_check = true,
+	.restart_fw = true,
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
-	.bt_ch_announce = true,
-	.auto_agg = true,
 	.wd_disable = true,
+#ifndef CONFIG_IWLWIFI_UAPSD
+	.uapsd_disable = true,
+#endif /* CONFIG_IWLWIFI_UAPSD */
 	/* the rest are 0 by default */
 };
-EXPORT_SYMBOL_GPL(iwlwifi_mod_params);
+IWL_EXPORT_SYMBOL(iwlwifi_mod_params);
 
 int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops)
 {
@@ -1135,7 +1303,7 @@ int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops)
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 	return -EIO;
 }
-EXPORT_SYMBOL_GPL(iwl_opmode_register);
+IWL_EXPORT_SYMBOL(iwl_opmode_register);
 
 void iwl_opmode_deregister(const char *name)
 {
@@ -1157,7 +1325,7 @@ void iwl_opmode_deregister(const char *name)
 	}
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 }
-EXPORT_SYMBOL_GPL(iwl_opmode_deregister);
+IWL_EXPORT_SYMBOL(iwl_opmode_deregister);
 
 static int __init iwl_drv_init(void)
 {
@@ -1203,30 +1371,32 @@ module_param_named(swcrypto, iwlwifi_mod_params.sw_crypto, int, S_IRUGO);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(11n_disable, iwlwifi_mod_params.disable_11n, uint, S_IRUGO);
 MODULE_PARM_DESC(11n_disable,
-	"disable 11n functionality, bitmap: 1: full, 2: agg TX, 4: agg RX");
+	"disable 11n functionality, bitmap: 1: full, 2: disable agg TX, 4: disable agg RX, 8 enable agg TX");
 module_param_named(amsdu_size_8K, iwlwifi_mod_params.amsdu_size_8K,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size (default 0)");
-module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, int, S_IRUGO);
-MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
+module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, bool, S_IRUGO);
+MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 
 module_param_named(antenna_coupling, iwlwifi_mod_params.ant_coupling,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(antenna_coupling,
-		 "specify antenna coupling in dB (defualt: 0 dB)");
-
-module_param_named(bt_ch_inhibition, iwlwifi_mod_params.bt_ch_announce,
-		   bool, S_IRUGO);
-MODULE_PARM_DESC(bt_ch_inhibition,
-		 "Enable BT channel inhibition (default: enable)");
-
-module_param_named(plcp_check, iwlwifi_mod_params.plcp_check, bool, S_IRUGO);
-MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
+		 "specify antenna coupling in dB (default: 0 dB)");
 
 module_param_named(wd_disable, iwlwifi_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
-		"Disable stuck queue watchdog timer 0=system default, "
-		"1=disable, 2=enable (default: 0)");
+		"Disable stuck queue watchdog timer 0=system default, 1=disable (default: 1)");
+
+module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, S_IRUGO);
+MODULE_PARM_DESC(nvm_file, "NVM file name");
+
+module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
+		   bool, S_IRUGO);
+#ifdef CONFIG_IWLWIFI_UAPSD
+MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: N)");
+#else
+MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: Y)");
+#endif
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer
@@ -1262,11 +1432,6 @@ module_param_named(power_level, iwlwifi_mod_params.power_level,
 MODULE_PARM_DESC(power_level,
 		 "default power save level (range from 1 - 5, default: 1)");
 
-module_param_named(auto_agg, iwlwifi_mod_params.auto_agg,
-		bool, S_IRUGO);
-MODULE_PARM_DESC(auto_agg,
-		 "enable agg w/o check traffic load (default: enable)");
-
-module_param_named(5ghz_disable, iwlwifi_mod_params.disable_5ghz,
-		bool, S_IRUGO);
-MODULE_PARM_DESC(5ghz_disable, "disable 5GHz band (default: 0 [enabled])");
+module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, S_IRUGO);
+MODULE_PARM_DESC(fw_monitor,
+		 "firmware monitor - to debug FW (default: false - needs lots of memory)");

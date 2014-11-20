@@ -38,7 +38,7 @@ static inline void stmpe_dump_bytes(const char *str, const void *buf,
  *		enable and altfunc callbacks
  */
 struct stmpe_variant_block {
-	struct mfd_cell		*cell;
+	const struct mfd_cell	*cell;
 	int			irq;
 	enum stmpe_block	block;
 };
@@ -97,7 +97,7 @@ struct stmpe_client_info {
 	void (*init)(struct stmpe *stmpe);
 };
 
-int stmpe_probe(struct stmpe_client_info *ci, int partnum);
+int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum);
 int stmpe_remove(struct stmpe *stmpe);
 
 #define STMPE_ICR_LSB_HIGH	(1 << 2)
@@ -192,11 +192,60 @@ int stmpe_remove(struct stmpe *stmpe);
 
 #define STMPE1601_SYS_CTRL_ENABLE_GPIO		(1 << 3)
 #define STMPE1601_SYS_CTRL_ENABLE_KPC		(1 << 1)
-#define STMPE1601_SYSCON_ENABLE_SPWM		(1 << 0)
+#define STMPE1601_SYS_CTRL_ENABLE_SPWM		(1 << 0)
 
 /* The 1601/2403 share the same masks */
 #define STMPE1601_AUTOSLEEP_TIMEOUT_MASK	(0x7)
 #define STPME1601_AUTOSLEEP_ENABLE		(1 << 3)
+
+/*
+ * STMPE1801
+ */
+#define STMPE1801_ID			0xc110
+#define STMPE1801_NR_INTERNAL_IRQS	5
+#define STMPE1801_IRQ_KEYPAD_COMBI	4
+#define STMPE1801_IRQ_GPIOC		3
+#define STMPE1801_IRQ_KEYPAD_OVER	2
+#define STMPE1801_IRQ_KEYPAD		1
+#define STMPE1801_IRQ_WAKEUP		0
+
+#define STMPE1801_REG_CHIP_ID			0x00
+#define STMPE1801_REG_SYS_CTRL			0x02
+#define STMPE1801_REG_INT_CTRL_LOW		0x04
+#define STMPE1801_REG_INT_EN_MASK_LOW		0x06
+#define STMPE1801_REG_INT_STA_LOW		0x08
+#define STMPE1801_REG_INT_EN_GPIO_MASK_LOW	0x0A
+#define STMPE1801_REG_INT_EN_GPIO_MASK_MID	0x0B
+#define STMPE1801_REG_INT_EN_GPIO_MASK_HIGH	0x0C
+#define STMPE1801_REG_INT_STA_GPIO_LOW		0x0D
+#define STMPE1801_REG_INT_STA_GPIO_MID		0x0E
+#define STMPE1801_REG_INT_STA_GPIO_HIGH		0x0F
+#define STMPE1801_REG_GPIO_SET_LOW		0x10
+#define STMPE1801_REG_GPIO_SET_MID		0x11
+#define STMPE1801_REG_GPIO_SET_HIGH		0x12
+#define STMPE1801_REG_GPIO_CLR_LOW		0x13
+#define STMPE1801_REG_GPIO_CLR_MID		0x14
+#define STMPE1801_REG_GPIO_CLR_HIGH		0x15
+#define STMPE1801_REG_GPIO_MP_LOW		0x16
+#define STMPE1801_REG_GPIO_MP_MID		0x17
+#define STMPE1801_REG_GPIO_MP_HIGH		0x18
+#define STMPE1801_REG_GPIO_SET_DIR_LOW		0x19
+#define STMPE1801_REG_GPIO_SET_DIR_MID		0x1A
+#define STMPE1801_REG_GPIO_SET_DIR_HIGH		0x1B
+#define STMPE1801_REG_GPIO_RE_LOW		0x1C
+#define STMPE1801_REG_GPIO_RE_MID		0x1D
+#define STMPE1801_REG_GPIO_RE_HIGH		0x1E
+#define STMPE1801_REG_GPIO_FE_LOW		0x1F
+#define STMPE1801_REG_GPIO_FE_MID		0x20
+#define STMPE1801_REG_GPIO_FE_HIGH		0x21
+#define STMPE1801_REG_GPIO_PULL_UP_LOW		0x22
+#define STMPE1801_REG_GPIO_PULL_UP_MID		0x23
+#define STMPE1801_REG_GPIO_PULL_UP_HIGH		0x24
+
+#define STMPE1801_MSK_SYS_CTRL_RESET		(1 << 7)
+
+#define STMPE1801_MSK_INT_EN_KPC		(1 << 1)
+#define STMPE1801_MSK_INT_EN_GPIO		(1 << 3)
 
 /*
  * STMPE24xx
@@ -220,7 +269,7 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE24XX_REG_CHIP_ID		0x80
 #define STMPE24XX_REG_IEGPIOR_LSB	0x18
 #define STMPE24XX_REG_ISGPIOR_MSB	0x19
-#define STMPE24XX_REG_GPMR_LSB		0xA5
+#define STMPE24XX_REG_GPMR_LSB		0xA4
 #define STMPE24XX_REG_GPSR_LSB		0x85
 #define STMPE24XX_REG_GPCR_LSB		0x88
 #define STMPE24XX_REG_GPDR_LSB		0x8B

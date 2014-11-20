@@ -1,0 +1,20 @@
+/*
+ * Copyright (C) 2013,2014 Russell King
+ */
+
+&iomuxc {
+	microsom {
+		pinctrl_microsom_uart1: microsom-uart1 {
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT10__UART1_TX_DATA	0x1b0b1
+				MX6QDL_PAD_CSI0_DAT11__UART1_RX_DATA	0x1b0b1
+			>;
+		};
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_microsom_uart1>;
+	status = "okay";
+};

@@ -102,6 +102,7 @@
 #define HWCAP_S390_ETF3EH	256
 #define HWCAP_S390_HIGH_GPRS	512
 #define HWCAP_S390_TE		1024
+#define HWCAP_S390_VXRS		2048
 
 /*
  * These are used to set parameters in the core dumps.
@@ -119,6 +120,8 @@
  */
 
 #include <asm/ptrace.h>
+#include <asm/compat.h>
+#include <asm/syscall.h>
 #include <asm/user.h>
 
 typedef s390_fp_regs elf_fpregset_t;
@@ -180,18 +183,31 @@ extern unsigned long elf_hwcap;
 extern char elf_platform[];
 #define ELF_PLATFORM (elf_platform)
 
-#ifdef CONFIG_64BIT
+#ifndef CONFIG_COMPAT
+#define SET_PERSONALITY(ex) \
+do {								\
+	set_personality(PER_LINUX |				\
+		(current->personality & (~PER_MASK)));		\
+	current_thread_info()->sys_call_table = 		\
+		(unsigned long) &sys_call_table;		\
+} while (0)
+#else /* CONFIG_COMPAT */
 #define SET_PERSONALITY(ex)					\
 do {								\
 	if (personality(current->personality) != PER_LINUX32)	\
 		set_personality(PER_LINUX |			\
 			(current->personality & ~PER_MASK));	\
-	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)		\
+	if ((ex).e_ident[EI_CLASS] == ELFCLASS32) {		\
 		set_thread_flag(TIF_31BIT);			\
-	else							\
+		current_thread_info()->sys_call_table =		\
+			(unsigned long)	&sys_call_table_emu;	\
+	} else {						\
 		clear_thread_flag(TIF_31BIT);			\
+		current_thread_info()->sys_call_table =		\
+			(unsigned long) &sys_call_table;	\
+	}							\
 } while (0)
-#endif /* CONFIG_64BIT */
+#endif /* CONFIG_COMPAT */
 
 #define STACK_RND_MASK	0x7ffUL
 
@@ -210,6 +226,6 @@ int arch_setup_additional_pages(struct linux_binprm *, int);
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk
 
-void *fill_cpu_elf_notes(void *ptr, struct save_area *sa);
+void *fill_cpu_elf_notes(void *ptr, struct save_area *sa, __vector128 *vxrs);
 
 #endif

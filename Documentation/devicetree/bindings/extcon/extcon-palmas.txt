@@ -1,0 +1,19 @@
+EXTCON FOR PALMAS/TWL CHIPS
+
+PALMAS USB COMPARATOR
+Required Properties:
+ - compatible: should contain one of:
+   * "ti,palmas-usb-vid".
+   * "ti,twl6035-usb-vid".
+   * "ti,palmas-usb" (DEPRECATED - use "ti,palmas-usb-vid").
+   * "ti,twl6035-usb" (DEPRECATED - use "ti,twl6035-usb-vid").
+
+Optional Properties:
+ - ti,wakeup : To enable the wakeup comparator in probe
+ - ti,enable-id-detection: Perform ID detection.
+ - ti,enable-vbus-detection: Perform VBUS detection.
+
+palmas-usb {
+       compatible = "ti,twl6035-usb", "ti,palmas-usb";
+       ti,wakeup;
+};

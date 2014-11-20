@@ -21,15 +21,29 @@
 #ifndef _MACH_TEGRA_PM_H_
 #define _MACH_TEGRA_PM_H_
 
-extern unsigned long l2x0_saved_regs_addr;
+struct tegra_lp1_iram {
+	void	*start_addr;
+	void	*end_addr;
+};
 
-void save_cpu_arch_register(void);
-void restore_cpu_arch_register(void);
+extern struct tegra_lp1_iram tegra_lp1_iram;
+extern void (*tegra_sleep_core_finish)(unsigned long v2p);
 
-void tegra_clear_cpu_in_lp2(int phy_cpu_id);
-bool tegra_set_cpu_in_lp2(int phy_cpu_id);
+void tegra20_lp1_iram_hook(void);
+void tegra20_sleep_core_init(void);
+void tegra30_lp1_iram_hook(void);
+void tegra30_sleep_core_init(void);
 
-void tegra_idle_lp2_last(u32 cpu_on_time, u32 cpu_off_time);
+void tegra_clear_cpu_in_lp2(void);
+bool tegra_set_cpu_in_lp2(void);
+
+void tegra_idle_lp2_last(void);
 extern void (*tegra_tear_down_cpu)(void);
+
+#ifdef CONFIG_PM_SLEEP
+void tegra_init_suspend(void);
+#else
+static inline void tegra_init_suspend(void) {}
+#endif
 
 #endif /* _MACH_TEGRA_PM_H_ */

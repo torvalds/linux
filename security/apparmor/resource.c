@@ -15,6 +15,7 @@
 #include <linux/audit.h>
 
 #include "include/audit.h"
+#include "include/context.h"
 #include "include/resource.h"
 #include "include/policy.h"
 
@@ -90,16 +91,24 @@ int aa_map_resource(int resource)
 int aa_task_setrlimit(struct aa_profile *profile, struct task_struct *task,
 		      unsigned int resource, struct rlimit *new_rlim)
 {
+	struct aa_profile *task_profile;
 	int error = 0;
 
+	rcu_read_lock();
+	task_profile = aa_get_profile(aa_cred_profile(__task_cred(task)));
+	rcu_read_unlock();
+
 	/* TODO: extend resource control to handle other (non current)
-	 * processes.  AppArmor rules currently have the implicit assumption
-	 * that the task is setting the resource of the current process
+	 * profiles.  AppArmor rules currently have the implicit assumption
+	 * that the task is setting the resource of a task confined with
+	 * the same profile.
 	 */
-	if ((task != current->group_leader) ||
+	if (profile != task_profile ||
 	    (profile->rlimits.mask & (1 << resource) &&
 	     new_rlim->rlim_max > profile->rlimits.limits[resource].rlim_max))
 		error = -EACCES;
+
+	aa_put_profile(task_profile);
 
 	return audit_resource(profile, resource, new_rlim->rlim_max, error);
 }

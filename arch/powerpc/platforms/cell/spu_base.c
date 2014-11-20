@@ -76,10 +76,6 @@ static LIST_HEAD(spu_full_list);
 static DEFINE_SPINLOCK(spu_full_list_lock);
 static DEFINE_MUTEX(spu_full_list_mutex);
 
-struct spu_slb {
-	u64 esid, vsid;
-};
-
 void spu_invalidate_slbs(struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
@@ -149,7 +145,7 @@ static void spu_restart_dma(struct spu *spu)
 	}
 }
 
-static inline void spu_load_slb(struct spu *spu, int slbe, struct spu_slb *slb)
+static inline void spu_load_slb(struct spu *spu, int slbe, struct copro_slb *slb)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 
@@ -167,45 +163,12 @@ static inline void spu_load_slb(struct spu *spu, int slbe, struct spu_slb *slb)
 
 static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 {
-	struct mm_struct *mm = spu->mm;
-	struct spu_slb slb;
-	int psize;
+	struct copro_slb slb;
+	int ret;
 
-	pr_debug("%s\n", __func__);
-
-	slb.esid = (ea & ESID_MASK) | SLB_ESID_V;
-
-	switch(REGION_ID(ea)) {
-	case USER_REGION_ID:
-#ifdef CONFIG_PPC_MM_SLICES
-		psize = get_slice_psize(mm, ea);
-#else
-		psize = mm->context.user_psize;
-#endif
-		slb.vsid = (get_vsid(mm->context.id, ea, MMU_SEGSIZE_256M)
-				<< SLB_VSID_SHIFT) | SLB_VSID_USER;
-		break;
-	case VMALLOC_REGION_ID:
-		if (ea < VMALLOC_END)
-			psize = mmu_vmalloc_psize;
-		else
-			psize = mmu_io_psize;
-		slb.vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M)
-				<< SLB_VSID_SHIFT) | SLB_VSID_KERNEL;
-		break;
-	case KERNEL_REGION_ID:
-		psize = mmu_linear_psize;
-		slb.vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M)
-				<< SLB_VSID_SHIFT) | SLB_VSID_KERNEL;
-		break;
-	default:
-		/* Future: support kernel segments so that drivers
-		 * can use SPUs.
-		 */
-		pr_debug("invalid region access at %016lx\n", ea);
-		return 1;
-	}
-	slb.vsid |= mmu_psize_defs[psize].sllp;
+	ret = copro_calculate_slb(spu->mm, ea, &slb);
+	if (ret)
+		return ret;
 
 	spu_load_slb(spu, spu->slb_replace, &slb);
 
@@ -253,7 +216,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	return 0;
 }
 
-static void __spu_kernel_slb(void *addr, struct spu_slb *slb)
+static void __spu_kernel_slb(void *addr, struct copro_slb *slb)
 {
 	unsigned long ea = (unsigned long)addr;
 	u64 llp;
@@ -272,7 +235,7 @@ static void __spu_kernel_slb(void *addr, struct spu_slb *slb)
  * Given an array of @nr_slbs SLB entries, @slbs, return non-zero if the
  * address @new_addr is present.
  */
-static inline int __slb_present(struct spu_slb *slbs, int nr_slbs,
+static inline int __slb_present(struct copro_slb *slbs, int nr_slbs,
 		void *new_addr)
 {
 	unsigned long ea = (unsigned long)new_addr;
@@ -297,7 +260,7 @@ static inline int __slb_present(struct spu_slb *slbs, int nr_slbs,
 void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa,
 		void *code, int code_size)
 {
-	struct spu_slb slbs[4];
+	struct copro_slb slbs[4];
 	int i, nr_slbs = 0;
 	/* start and end addresses of both mappings */
 	void *addrs[] = {
@@ -611,7 +574,6 @@ static int __init create_spu(void *data)
 	int ret;
 	static int number;
 	unsigned long flags;
-	struct timespec ts;
 
 	ret = -ENOMEM;
 	spu = kzalloc(sizeof (*spu), GFP_KERNEL);
@@ -652,8 +614,7 @@ static int __init create_spu(void *data)
 	mutex_unlock(&spu_full_list_mutex);
 
 	spu->stats.util_state = SPU_UTIL_IDLE_LOADED;
-	ktime_get_ts(&ts);
-	spu->stats.tstamp = timespec_to_ns(&ts);
+	spu->stats.tstamp = ktime_get_ns();
 
 	INIT_LIST_HEAD(&spu->aff_list);
 
@@ -676,7 +637,6 @@ static const char *spu_state_names[] = {
 static unsigned long long spu_acct_time(struct spu *spu,
 		enum spu_utilization_state state)
 {
-	struct timespec ts;
 	unsigned long long time = spu->stats.times[state];
 
 	/*
@@ -684,10 +644,8 @@ static unsigned long long spu_acct_time(struct spu *spu,
 	 * statistics are not updated.  Apply the time delta from the
 	 * last recorded state of the spu.
 	 */
-	if (spu->stats.util_state == state) {
-		ktime_get_ts(&ts);
-		time += timespec_to_ns(&ts) - spu->stats.tstamp;
-	}
+	if (spu->stats.util_state == state)
+		time += ktime_get_ns() - spu->stats.tstamp;
 
 	return time / NSEC_PER_MSEC;
 }
@@ -715,7 +673,7 @@ static ssize_t spu_stat_show(struct device *dev,
 		spu->stats.libassist);
 }
 
-static DEVICE_ATTR(stat, 0644, spu_stat_show, NULL);
+static DEVICE_ATTR(stat, 0444, spu_stat_show, NULL);
 
 #ifdef CONFIG_KEXEC
 

@@ -3,6 +3,7 @@
 
 #include <linux/io.h>
 #include <linux/scatterlist.h>
+#include <linux/gpio.h>
 
 /* Register offsets */
 #define DW_SPI_CTRL0			0x00
@@ -73,6 +74,10 @@
 #define SPI_INT_RXFI			(1 << 4)
 #define SPI_INT_MSTI			(1 << 5)
 
+/* Bit fields in DMACR */
+#define SPI_DMA_RDMAE			(1 << 0)
+#define SPI_DMA_TDMAE			(1 << 1)
+
 /* TX RX interrupt level threshold, max can be 256 */
 #define SPI_INT_THRESHOLD		32
 
@@ -92,27 +97,17 @@ struct dw_spi_dma_ops {
 struct dw_spi {
 	struct spi_master	*master;
 	struct spi_device	*cur_dev;
-	struct device		*parent_dev;
 	enum dw_ssi_type	type;
 	char			name[16];
 
 	void __iomem		*regs;
 	unsigned long		paddr;
-	u32			iolen;
 	int			irq;
 	u32			fifo_len;	/* depth of the FIFO buffer */
 	u32			max_freq;	/* max bus freq supported */
 
 	u16			bus_num;
 	u16			num_cs;		/* supported slave numbers */
-
-	/* Driver message queue */
-	struct workqueue_struct	*workqueue;
-	struct work_struct	pump_messages;
-	spinlock_t		lock;
-	struct list_head	queue;
-	int			busy;
-	int			run;
 
 	/* Message Transfer pump */
 	struct tasklet_struct	pump_transfers;
@@ -135,7 +130,6 @@ struct dw_spi {
 	u8			n_bytes;	/* current is a 1/2 bytes op */
 	u8			max_bits_per_word;	/* maxim is 16b */
 	u32			dma_width;
-	int			cs_change;
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 	void			(*cs_control)(u32 command);
 
@@ -150,7 +144,6 @@ struct dw_spi {
 	dma_addr_t		dma_addr; /* phy address of the Data register */
 	struct dw_spi_dma_ops	*dma_ops;
 	void			*dma_priv; /* platform relate info */
-	struct pci_dev		*dmac;
 
 	/* Bus interface info */
 	void			*priv;
@@ -189,15 +182,20 @@ static inline void spi_set_clk(struct dw_spi *dws, u16 div)
 	dw_writel(dws, DW_SPI_BAUDR, div);
 }
 
-static inline void spi_chip_sel(struct dw_spi *dws, u16 cs)
+static inline void spi_chip_sel(struct dw_spi *dws, struct spi_device *spi,
+		int active)
 {
-	if (cs > dws->num_cs)
-		return;
+	u16 cs = spi->chip_select;
+	int gpio_val = active ? (spi->mode & SPI_CS_HIGH) :
+		!(spi->mode & SPI_CS_HIGH);
 
 	if (dws->cs_control)
-		dws->cs_control(1);
+		dws->cs_control(active);
+	if (gpio_is_valid(spi->cs_gpio))
+		gpio_set_value(spi->cs_gpio, gpio_val);
 
-	dw_writel(dws, DW_SPI_SER, 1 << cs);
+	if (active)
+		dw_writel(dws, DW_SPI_SER, 1 << cs);
 }
 
 /* Disable IRQ bits */
@@ -222,16 +220,16 @@ static inline void spi_umask_intr(struct dw_spi *dws, u32 mask)
  * Each SPI slave device to work with dw_api controller should
  * has such a structure claiming its working mode (PIO/DMA etc),
  * which can be save in the "controller_data" member of the
- * struct spi_device
+ * struct spi_device.
  */
 struct dw_spi_chip {
-	u8 poll_mode;	/* 0 for contoller polling mode */
-	u8 type;	/* SPI/SSP/Micrwire */
+	u8 poll_mode;	/* 1 for controller polling mode */
+	u8 type;	/* SPI/SSP/MicroWire */
 	u8 enable_dma;
 	void (*cs_control)(u32 command);
 };
 
-extern int dw_spi_add_host(struct dw_spi *dws);
+extern int dw_spi_add_host(struct device *dev, struct dw_spi *dws);
 extern void dw_spi_remove_host(struct dw_spi *dws);
 extern int dw_spi_suspend_host(struct dw_spi *dws);
 extern int dw_spi_resume_host(struct dw_spi *dws);

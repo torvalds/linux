@@ -357,7 +357,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	tea6420_route(mxb, 6);
 
 	/* select video mode in saa7111a */
-	saa7111a_call(mxb, core, s_std, std);
+	saa7111a_call(mxb, video, s_std, std);
 
 	/* select tuner-output on saa7111a */
 	i = 0;
@@ -379,8 +379,8 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	/* These two gpio calls set the GPIO pins that control the tda9820 */
 	saa7146_write(dev, GPIO_CTRL, 0x00404050);
 	saa7111a_call(mxb, core, s_gpio, 1);
-	saa7111a_call(mxb, core, s_std, std);
-	tuner_call(mxb, core, s_std, std);
+	saa7111a_call(mxb, video, s_std, std);
+	tuner_call(mxb, video, s_std, std);
 
 	/* switch to tuner-channel on tea6415c */
 	tea6415c_call(mxb, video, s_routing, 3, 17, 0);
@@ -560,7 +560,7 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 	return call_all(dev, tuner, g_tuner, t);
 }
 
-static int vidioc_s_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
+static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *t)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
@@ -595,7 +595,7 @@ static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency
 	return 0;
 }
 
-static int vidioc_s_frequency(struct file *file, void *fh, struct v4l2_frequency *f)
+static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *f)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
@@ -612,8 +612,8 @@ static int vidioc_s_frequency(struct file *file, void *fh, struct v4l2_frequency
 	/* tune in desired frequency */
 	tuner_call(mxb, tuner, s_frequency, f);
 	/* let the tuner subdev clamp the frequency to the tuner range */
-	tuner_call(mxb, tuner, g_frequency, f);
 	mxb->cur_freq = *f;
+	tuner_call(mxb, tuner, g_frequency, &mxb->cur_freq);
 	if (mxb->cur_audinput == 0)
 		mxb_update_audmode(mxb);
 
@@ -669,29 +669,21 @@ static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_regist
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	if (v4l2_chip_match_host(&reg->match)) {
-		reg->val = saa7146_read(dev, reg->reg);
-		reg->size = 4;
-		return 0;
-	}
-	call_all(dev, core, g_register, reg);
+	if (reg->reg > pci_resource_len(dev->pci, 0) - 4)
+		return -EINVAL;
+	reg->val = saa7146_read(dev, reg->reg);
+	reg->size = 4;
 	return 0;
 }
 
-static int vidioc_s_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
+static int vidioc_s_register(struct file *file, void *fh, const struct v4l2_dbg_register *reg)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	if (v4l2_chip_match_host(&reg->match)) {
-		saa7146_write(dev, reg->reg, reg->val);
-		reg->size = 4;
-		return 0;
-	}
-	return call_all(dev, core, s_register, reg);
+	if (reg->reg > pci_resource_len(dev->pci, 0) - 4)
+		return -EINVAL;
+	saa7146_write(dev, reg->reg, reg->val);
+	return 0;
 }
 #endif
 
@@ -779,9 +771,9 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 		/* These two gpio calls set the GPIO pins that control the tda9820 */
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
 		saa7111a_call(mxb, core, s_gpio, 0);
-		saa7111a_call(mxb, core, s_std, std);
+		saa7111a_call(mxb, video, s_std, std);
 		if (mxb->cur_input == 0)
-			tuner_call(mxb, core, s_std, std);
+			tuner_call(mxb, video, s_std, std);
 	} else {
 		v4l2_std_id std = V4L2_STD_PAL_BG;
 
@@ -791,9 +783,9 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 		/* These two gpio calls set the GPIO pins that control the tda9820 */
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
 		saa7111a_call(mxb, core, s_gpio, 1);
-		saa7111a_call(mxb, core, s_std, std);
+		saa7111a_call(mxb, video, s_std, std);
 		if (mxb->cur_input == 0)
-			tuner_call(mxb, core, s_std, std);
+			tuner_call(mxb, video, s_std, std);
 	}
 	return 0;
 }

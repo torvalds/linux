@@ -232,7 +232,6 @@ static int __exit amiga_parallel_remove(struct platform_device *pdev)
 	if (port->irq != PARPORT_IRQ_NONE)
 		free_irq(IRQ_AMIGA_CIAA_FLG, port);
 	parport_put_port(port);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -244,20 +243,7 @@ static struct platform_driver amiga_parallel_driver = {
 	},
 };
 
-static int __init amiga_parallel_init(void)
-{
-	return platform_driver_probe(&amiga_parallel_driver,
-				     amiga_parallel_probe);
-}
-
-module_init(amiga_parallel_init);
-
-static void __exit amiga_parallel_exit(void)
-{
-	platform_driver_unregister(&amiga_parallel_driver);
-}
-
-module_exit(amiga_parallel_exit);
+module_platform_driver_probe(amiga_parallel_driver, amiga_parallel_probe);
 
 MODULE_AUTHOR("Joerg Dorchain <joerg@dorchain.net>");
 MODULE_DESCRIPTION("Parport Driver for Amiga builtin Port");

@@ -4,7 +4,14 @@ This file documents differences between the core properties in mmc.txt
 and the properties used by the sdhci-pxav2 and sdhci-pxav3 drivers.
 
 Required properties:
-- compatible: Should be "mrvl,pxav2-mmc" or "mrvl,pxav3-mmc".
+- compatible: Should be "mrvl,pxav2-mmc", "mrvl,pxav3-mmc" or
+  "marvell,armada-380-sdhci".
+- reg:
+  * for "mrvl,pxav2-mmc" and "mrvl,pxav3-mmc", one register area for
+    the SDHCI registers.
+  * for "marvell,armada-380-sdhci", two register areas. The first one
+    for the SDHCI registers themselves, and the second one for the
+    AXI/Mbus bridge registers of the SDHCI unit.
 
 Optional properties:
 - mrvl,clk-delay-cycles: Specify a number of cycles to delay for tuning.
@@ -18,4 +25,12 @@ sdhci@d4280800 {
 	interrupts = <27>;
 	non-removable;
 	mrvl,clk-delay-cycles = <31>;
+};
+
+sdhci@d8000 {
+	compatible = "marvell,armada-380-sdhci";
+	reg = <0xd8000 0x1000>, <0xdc000 0x100>;
+	interrupts = <0 25 0x4>;
+	clocks = <&gateclk 17>;
+	mrvl,clk-delay-cycles = <0x1F>;
 };

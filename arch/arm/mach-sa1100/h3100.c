@@ -28,15 +28,35 @@
 /*
  * helper for sa1100fb
  */
+static struct gpio h3100_lcd_gpio[] = {
+	{ H3100_GPIO_LCD_3V_ON, GPIOF_OUT_INIT_LOW, "LCD 3V" },
+	{ H3XXX_EGPIO_LCD_ON, GPIOF_OUT_INIT_LOW, "LCD ON" },
+};
+
+static bool h3100_lcd_request(void)
+{
+	static bool h3100_lcd_ok;
+	int rc;
+
+	if (h3100_lcd_ok)
+		return true;
+
+	rc = gpio_request_array(h3100_lcd_gpio, ARRAY_SIZE(h3100_lcd_gpio));
+	if (rc)
+		pr_err("%s: can't request GPIOs\n", __func__);
+	else
+		h3100_lcd_ok = true;
+
+	return h3100_lcd_ok;
+}
+
 static void h3100_lcd_power(int enable)
 {
-	if (!gpio_request(H3XXX_EGPIO_LCD_ON, "LCD ON")) {
-		gpio_set_value(H3100_GPIO_LCD_3V_ON, enable);
-		gpio_direction_output(H3XXX_EGPIO_LCD_ON, enable);
-		gpio_free(H3XXX_EGPIO_LCD_ON);
-	} else {
-		pr_err("%s: can't request H3XXX_EGPIO_LCD_ON\n", __func__);
-	}
+	if (!h3100_lcd_request())
+		return;
+
+	gpio_set_value(H3100_GPIO_LCD_3V_ON, enable);
+	gpio_set_value(H3XXX_EGPIO_LCD_ON, enable);
 }
 
 static struct sa1100fb_mach_info h3100_lcd_info = {
@@ -69,6 +89,11 @@ static void __init h3100_map_io(void)
 /*
  * This turns the IRDA power on or off on the Compaq H3100
  */
+static struct gpio h3100_irda_gpio[] = {
+	{ H3100_GPIO_IR_ON,	GPIOF_OUT_INIT_LOW, "IrDA power" },
+	{ H3100_GPIO_IR_FSEL,	GPIOF_OUT_INIT_LOW, "IrDA fsel" },
+};
+
 static int h3100_irda_set_power(struct device *dev, unsigned int state)
 {
 	gpio_set_value(H3100_GPIO_IR_ON, state);
@@ -80,23 +105,25 @@ static void h3100_irda_set_speed(struct device *dev, unsigned int speed)
 	gpio_set_value(H3100_GPIO_IR_FSEL, !(speed < 4000000));
 }
 
+static int h3100_irda_startup(struct device *dev)
+{
+	return gpio_request_array(h3100_irda_gpio, sizeof(h3100_irda_gpio));
+}
+
+static void h3100_irda_shutdown(struct device *dev)
+{
+	return gpio_free_array(h3100_irda_gpio, sizeof(h3100_irda_gpio));
+}
+
 static struct irda_platform_data h3100_irda_data = {
 	.set_power	= h3100_irda_set_power,
 	.set_speed	= h3100_irda_set_speed,
-};
-
-static struct gpio_default_state h3100_default_gpio[] = {
-	{ H3100_GPIO_IR_ON,	GPIO_MODE_OUT0, "IrDA power" },
-	{ H3100_GPIO_IR_FSEL,	GPIO_MODE_OUT0, "IrDA fsel" },
-	{ H3XXX_GPIO_COM_DCD,	GPIO_MODE_IN,	"COM DCD" },
-	{ H3XXX_GPIO_COM_CTS,	GPIO_MODE_IN,	"COM CTS" },
-	{ H3XXX_GPIO_COM_RTS,	GPIO_MODE_OUT0,	"COM RTS" },
-	{ H3100_GPIO_LCD_3V_ON,	GPIO_MODE_OUT0,	"LCD 3v" },
+	.startup	= h3100_irda_startup,
+	.shutdown	= h3100_irda_shutdown,
 };
 
 static void __init h3100_mach_init(void)
 {
-	h3xxx_init_gpio(h3100_default_gpio, ARRAY_SIZE(h3100_default_gpio));
 	h3xxx_mach_init();
 
 	sa11x0_register_lcd(&h3100_lcd_info);

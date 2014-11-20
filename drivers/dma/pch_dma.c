@@ -21,6 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pch_dma.h>
@@ -476,7 +477,7 @@ static struct pch_dma_desc *pdc_desc_get(struct pch_dma_chan *pd_chan)
 	dev_dbg(chan2dev(&pd_chan->chan), "scanned %d descriptors\n", i);
 
 	if (!ret) {
-		ret = pdc_alloc_desc(&pd_chan->chan, GFP_NOIO);
+		ret = pdc_alloc_desc(&pd_chan->chan, GFP_ATOMIC);
 		if (ret) {
 			spin_lock(&pd_chan->lock);
 			pd_chan->descs_allocated++;
@@ -564,14 +565,7 @@ static void pd_free_chan_resources(struct dma_chan *chan)
 static enum dma_status pd_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 				    struct dma_tx_state *txstate)
 {
-	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
-	enum dma_status ret;
-
-	spin_lock_irq(&pd_chan->lock);
-	ret = dma_cookie_status(chan, cookie, txstate);
-	spin_unlock_irq(&pd_chan->lock);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static void pd_issue_pending(struct dma_chan *chan)
@@ -867,6 +861,7 @@ static int pch_dma_probe(struct pci_dev *pdev,
 
 	if (!(pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "Cannot find proper base address\n");
+		err = -ENODEV;
 		goto err_disable_pdev;
 	}
 
@@ -970,16 +965,16 @@ static void pch_dma_remove(struct pci_dev *pdev)
 	if (pd) {
 		dma_async_device_unregister(&pd->dma);
 
+		free_irq(pdev->irq, pd);
+
 		list_for_each_entry_safe(chan, _c, &pd->dma.channels,
 					 device_node) {
 			pd_chan = to_pd_chan(chan);
 
-			tasklet_disable(&pd_chan->tasklet);
 			tasklet_kill(&pd_chan->tasklet);
 		}
 
 		pci_pool_destroy(pd->pool);
-		free_irq(pdev->irq, pd);
 		pci_iounmap(pdev, pd->membase);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
@@ -1002,7 +997,7 @@ static void pch_dma_remove(struct pci_dev *pdev)
 #define PCI_DEVICE_ID_ML7831_DMA1_8CH	0x8810
 #define PCI_DEVICE_ID_ML7831_DMA2_4CH	0x8815
 
-DEFINE_PCI_DEVICE_TABLE(pch_dma_id_table) = {
+const struct pci_device_id pch_dma_id_table[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_8CH), 8 },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_4CH), 4 },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_DMA1_8CH), 8}, /* UART Video */
@@ -1035,3 +1030,4 @@ MODULE_DESCRIPTION("Intel EG20T PCH / LAPIS Semicon ML7213/ML7223/ML7831 IOH "
 		   "DMA controller driver");
 MODULE_AUTHOR("Yong Wang <yong.y.wang@intel.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(pci, pch_dma_id_table);

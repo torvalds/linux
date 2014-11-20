@@ -191,9 +191,9 @@ static ssize_t set_usblim(struct device *dev,
 	unsigned long ma;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &ma);
+	ret = kstrtoul(buf, 10, &ma);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	pcf50633_mbc_usb_curlim_set(mbc->pcf, ma);
 
@@ -228,9 +228,9 @@ static ssize_t set_chglim(struct device *dev,
 	if (!mbc->pcf->pdata->charger_reference_current_ma)
 		return -ENODEV;
 
-	ret = strict_strtoul(buf, 10, &ma);
+	ret = kstrtoul(buf, 10, &ma);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	mbcc5 = (ma << 8) / mbc->pcf->pdata->charger_reference_current_ma;
 	if (mbcc5 > 255)
@@ -373,7 +373,7 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	int i;
 	u8 mbcs1;
 
-	mbc = kzalloc(sizeof(*mbc), GFP_KERNEL);
+	mbc = devm_kzalloc(&pdev->dev, sizeof(*mbc), GFP_KERNEL);
 	if (!mbc)
 		return -ENOMEM;
 
@@ -413,7 +413,6 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	ret = power_supply_register(&pdev->dev, &mbc->adapter);
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register adapter\n");
-		kfree(mbc);
 		return ret;
 	}
 
@@ -421,7 +420,6 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register usb\n");
 		power_supply_unregister(&mbc->adapter);
-		kfree(mbc);
 		return ret;
 	}
 
@@ -430,7 +428,6 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 		dev_err(mbc->pcf->dev, "failed to register ac\n");
 		power_supply_unregister(&mbc->adapter);
 		power_supply_unregister(&mbc->usb);
-		kfree(mbc);
 		return ret;
 	}
 
@@ -460,8 +457,6 @@ static int pcf50633_mbc_remove(struct platform_device *pdev)
 	power_supply_unregister(&mbc->usb);
 	power_supply_unregister(&mbc->adapter);
 	power_supply_unregister(&mbc->ac);
-
-	kfree(mbc);
 
 	return 0;
 }

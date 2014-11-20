@@ -5,18 +5,14 @@
  */
 
 #include <linux/slab.h>
-#include <linux/export.h>
 #include "ulist.h"
+#include "ctree.h"
 
 /*
  * ulist is a generic data structure to hold a collection of unique u64
  * values. The only operations it supports is adding to the list and
  * enumerating it.
  * It is possible to store an auxiliary value along with the key.
- *
- * The implementation is preliminary and can probably be sped up
- * significantly. A first step would be to store the values in an rbtree
- * as soon as ULIST_SIZE is exceeded.
  *
  * A sample usage for ulists is the enumeration of directed graphs without
  * visiting a node twice. The pseudo-code could look like this:
@@ -50,11 +46,10 @@
  */
 void ulist_init(struct ulist *ulist)
 {
+	INIT_LIST_HEAD(&ulist->nodes);
+	ulist->root = RB_ROOT;
 	ulist->nnodes = 0;
-	ulist->nodes = ulist->int_nodes;
-	ulist->nodes_alloced = ULIST_SIZE;
 }
-EXPORT_SYMBOL(ulist_init);
 
 /**
  * ulist_fini - free up additionally allocated memory for the ulist
@@ -63,17 +58,17 @@ EXPORT_SYMBOL(ulist_init);
  * This is useful in cases where the base 'struct ulist' has been statically
  * allocated.
  */
-void ulist_fini(struct ulist *ulist)
+static void ulist_fini(struct ulist *ulist)
 {
-	/*
-	 * The first ULIST_SIZE elements are stored inline in struct ulist.
-	 * Only if more elements are alocated they need to be freed.
-	 */
-	if (ulist->nodes_alloced > ULIST_SIZE)
-		kfree(ulist->nodes);
-	ulist->nodes_alloced = 0;	/* in case ulist_fini is called twice */
+	struct ulist_node *node;
+	struct ulist_node *next;
+
+	list_for_each_entry_safe(node, next, &ulist->nodes, list) {
+		kfree(node);
+	}
+	ulist->root = RB_ROOT;
+	INIT_LIST_HEAD(&ulist->nodes);
 }
-EXPORT_SYMBOL(ulist_fini);
 
 /**
  * ulist_reinit - prepare a ulist for reuse
@@ -87,7 +82,6 @@ void ulist_reinit(struct ulist *ulist)
 	ulist_fini(ulist);
 	ulist_init(ulist);
 }
-EXPORT_SYMBOL(ulist_reinit);
 
 /**
  * ulist_alloc - dynamically allocate a ulist
@@ -106,7 +100,6 @@ struct ulist *ulist_alloc(gfp_t gfp_mask)
 
 	return ulist;
 }
-EXPORT_SYMBOL(ulist_alloc);
 
 /**
  * ulist_free - free dynamically allocated ulist
@@ -121,7 +114,45 @@ void ulist_free(struct ulist *ulist)
 	ulist_fini(ulist);
 	kfree(ulist);
 }
-EXPORT_SYMBOL(ulist_free);
+
+static struct ulist_node *ulist_rbtree_search(struct ulist *ulist, u64 val)
+{
+	struct rb_node *n = ulist->root.rb_node;
+	struct ulist_node *u = NULL;
+
+	while (n) {
+		u = rb_entry(n, struct ulist_node, rb_node);
+		if (u->val < val)
+			n = n->rb_right;
+		else if (u->val > val)
+			n = n->rb_left;
+		else
+			return u;
+	}
+	return NULL;
+}
+
+static int ulist_rbtree_insert(struct ulist *ulist, struct ulist_node *ins)
+{
+	struct rb_node **p = &ulist->root.rb_node;
+	struct rb_node *parent = NULL;
+	struct ulist_node *cur = NULL;
+
+	while (*p) {
+		parent = *p;
+		cur = rb_entry(parent, struct ulist_node, rb_node);
+
+		if (cur->val < ins->val)
+			p = &(*p)->rb_right;
+		else if (cur->val > ins->val)
+			p = &(*p)->rb_left;
+		else
+			return -EEXIST;
+	}
+	rb_link_node(&ins->rb_node, parent, p);
+	rb_insert_color(&ins->rb_node, &ulist->root);
+	return 0;
+}
 
 /**
  * ulist_add - add an element to the ulist
@@ -151,47 +182,32 @@ int ulist_add(struct ulist *ulist, u64 val, u64 aux, gfp_t gfp_mask)
 int ulist_add_merge(struct ulist *ulist, u64 val, u64 aux,
 		    u64 *old_aux, gfp_t gfp_mask)
 {
-	int i;
+	int ret;
+	struct ulist_node *node;
 
-	for (i = 0; i < ulist->nnodes; ++i) {
-		if (ulist->nodes[i].val == val) {
-			if (old_aux)
-				*old_aux = ulist->nodes[i].aux;
-			return 0;
-		}
+	node = ulist_rbtree_search(ulist, val);
+	if (node) {
+		if (old_aux)
+			*old_aux = node->aux;
+		return 0;
 	}
+	node = kmalloc(sizeof(*node), gfp_mask);
+	if (!node)
+		return -ENOMEM;
 
-	if (ulist->nnodes >= ulist->nodes_alloced) {
-		u64 new_alloced = ulist->nodes_alloced + 128;
-		struct ulist_node *new_nodes;
-		void *old = NULL;
+	node->val = val;
+	node->aux = aux;
+#ifdef CONFIG_BTRFS_DEBUG
+	node->seqnum = ulist->nnodes;
+#endif
 
-		/*
-		 * if nodes_alloced == ULIST_SIZE no memory has been allocated
-		 * yet, so pass NULL to krealloc
-		 */
-		if (ulist->nodes_alloced > ULIST_SIZE)
-			old = ulist->nodes;
-
-		new_nodes = krealloc(old, sizeof(*new_nodes) * new_alloced,
-				     gfp_mask);
-		if (!new_nodes)
-			return -ENOMEM;
-
-		if (!old)
-			memcpy(new_nodes, ulist->int_nodes,
-			       sizeof(ulist->int_nodes));
-
-		ulist->nodes = new_nodes;
-		ulist->nodes_alloced = new_alloced;
-	}
-	ulist->nodes[ulist->nnodes].val = val;
-	ulist->nodes[ulist->nnodes].aux = aux;
-	++ulist->nnodes;
+	ret = ulist_rbtree_insert(ulist, node);
+	ASSERT(!ret);
+	list_add_tail(&node->list, &ulist->nodes);
+	ulist->nnodes++;
 
 	return 1;
 }
-EXPORT_SYMBOL(ulist_add);
 
 /**
  * ulist_next - iterate ulist
@@ -211,11 +227,25 @@ EXPORT_SYMBOL(ulist_add);
  */
 struct ulist_node *ulist_next(struct ulist *ulist, struct ulist_iterator *uiter)
 {
-	if (ulist->nnodes == 0)
-		return NULL;
-	if (uiter->i < 0 || uiter->i >= ulist->nnodes)
-		return NULL;
+	struct ulist_node *node;
 
-	return &ulist->nodes[uiter->i++];
+	if (list_empty(&ulist->nodes))
+		return NULL;
+	if (uiter->cur_list && uiter->cur_list->next == &ulist->nodes)
+		return NULL;
+	if (uiter->cur_list) {
+		uiter->cur_list = uiter->cur_list->next;
+	} else {
+		uiter->cur_list = ulist->nodes.next;
+#ifdef CONFIG_BTRFS_DEBUG
+		uiter->i = 0;
+#endif
+	}
+	node = list_entry(uiter->cur_list, struct ulist_node, list);
+#ifdef CONFIG_BTRFS_DEBUG
+	ASSERT(node->seqnum == uiter->i);
+	ASSERT(uiter->i >= 0 && uiter->i < ulist->nnodes);
+	uiter->i++;
+#endif
+	return node;
 }
-EXPORT_SYMBOL(ulist_next);

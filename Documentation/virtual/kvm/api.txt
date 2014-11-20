@@ -53,7 +53,7 @@ incompatible change are allowed.  However, there is an extension
 facility that allows backward-compatible extensions to the API to be
 queried and used.
 
-The extension mechanism is not based on on the Linux version number.
+The extension mechanism is not based on the Linux version number.
 Instead, kvm defines extension identifiers and a facility to query
 whether a particular extension identifier is available.  If it is, a
 set of ioctls is available for application use.
@@ -148,9 +148,9 @@ of banks, as set via the KVM_X86_SETUP_MCE ioctl.
 
 4.4 KVM_CHECK_EXTENSION
 
-Capability: basic
+Capability: basic, KVM_CAP_CHECK_EXTENSION_VM for vm ioctl
 Architectures: all
-Type: system ioctl
+Type: system ioctl, vm ioctl
 Parameters: extension identifier (KVM_CAP_*)
 Returns: 0 if unsupported; 1 (or some other positive integer) if supported
 
@@ -160,6 +160,9 @@ receives an integer that describes the extension availability.
 Generally 0 means no and 1 means yes, but some extensions may report
 additional information in the integer return value.
 
+Based on their initialization different VMs may have different capabilities.
+It is thus encouraged to use the vm ioctl to query for capabilities (available
+with KVM_CAP_CHECK_EXTENSION_VM on the vm fd)
 
 4.5 KVM_GET_VCPU_MMAP_SIZE
 
@@ -280,7 +283,7 @@ kvm_run' (see below).
 4.11 KVM_GET_REGS
 
 Capability: basic
-Architectures: all except ARM
+Architectures: all except ARM, arm64
 Type: vcpu ioctl
 Parameters: struct kvm_regs (out)
 Returns: 0 on success, -1 on error
@@ -297,11 +300,20 @@ struct kvm_regs {
 	__u64 rip, rflags;
 };
 
+/* mips */
+struct kvm_regs {
+	/* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
+	__u64 gpr[32];
+	__u64 hi;
+	__u64 lo;
+	__u64 pc;
+};
+
 
 4.12 KVM_SET_REGS
 
 Capability: basic
-Architectures: all except ARM
+Architectures: all except ARM, arm64
 Type: vcpu ioctl
 Parameters: struct kvm_regs (in)
 Returns: 0 on success, -1 on error
@@ -378,7 +390,7 @@ struct kvm_translation {
 4.16 KVM_INTERRUPT
 
 Capability: basic
-Architectures: x86, ppc
+Architectures: x86, ppc, mips
 Type: vcpu ioctl
 Parameters: struct kvm_interrupt (in)
 Returns: 0 on success, -1 on error
@@ -422,6 +434,11 @@ c) KVM_INTERRUPT_SET_LEVEL
 
 Note that any value for 'irq' other than the ones stated above is invalid
 and incurs unexpected behavior.
+
+MIPS:
+
+Queues an external interrupt to be injected into the virtual CPU. A negative
+interrupt number dequeues the interrupt.
 
 
 4.17 KVM_DEBUG_GUEST
@@ -512,7 +529,7 @@ struct kvm_cpuid {
 4.21 KVM_SET_SIGNAL_MASK
 
 Capability: basic
-Architectures: x86
+Architectures: all
 Type: vcpu ioctl
 Parameters: struct kvm_signal_mask (in)
 Returns: 0 on success, -1 on error
@@ -586,8 +603,8 @@ struct kvm_fpu {
 
 4.24 KVM_CREATE_IRQCHIP
 
-Capability: KVM_CAP_IRQCHIP
-Architectures: x86, ia64, ARM
+Capability: KVM_CAP_IRQCHIP, KVM_CAP_S390_IRQCHIP (s390)
+Architectures: x86, ia64, ARM, arm64, s390
 Type: vm ioctl
 Parameters: none
 Returns: 0 on success, -1 on error
@@ -595,14 +612,17 @@ Returns: 0 on success, -1 on error
 Creates an interrupt controller model in the kernel.  On x86, creates a virtual
 ioapic, a virtual PIC (two PICs, nested), and sets up future vcpus to have a
 local APIC.  IRQ routing for GSIs 0-15 is set to both PIC and IOAPIC; GSI 16-23
-only go to the IOAPIC.  On ia64, a IOSAPIC is created. On ARM, a GIC is
-created.
+only go to the IOAPIC.  On ia64, a IOSAPIC is created. On ARM/arm64, a GIC is
+created. On s390, a dummy irq routing table is created.
+
+Note that on s390 the KVM_CAP_S390_IRQCHIP vm capability needs to be enabled
+before KVM_CREATE_IRQCHIP can be used.
 
 
 4.25 KVM_IRQ_LINE
 
 Capability: KVM_CAP_IRQCHIP
-Architectures: x86, ia64, arm
+Architectures: x86, ia64, arm, arm64
 Type: vm ioctl
 Parameters: struct kvm_irq_level
 Returns: 0 on success, -1 on error
@@ -612,9 +632,24 @@ On some architectures it is required that an interrupt controller model has
 been previously created with KVM_CREATE_IRQCHIP.  Note that edge-triggered
 interrupts require the level to be set to 1 and then back to 0.
 
-ARM can signal an interrupt either at the CPU level, or at the in-kernel irqchip
-(GIC), and for in-kernel irqchip can tell the GIC to use PPIs designated for
-specific cpus.  The irq field is interpreted like this:
+On real hardware, interrupt pins can be active-low or active-high.  This
+does not matter for the level field of struct kvm_irq_level: 1 always
+means active (asserted), 0 means inactive (deasserted).
+
+x86 allows the operating system to program the interrupt polarity
+(active-low/active-high) for level-triggered interrupts, and KVM used
+to consider the polarity.  However, due to bitrot in the handling of
+active-low interrupts, the above convention is now valid on x86 too.
+This is signaled by KVM_CAP_X86_IOAPIC_POLARITY_IGNORED.  Userspace
+should not present interrupts to the guest as active-low unless this
+capability is present (or unless it is not using the in-kernel irqchip,
+of course).
+
+
+ARM/arm64 can signal an interrupt either at the CPU level, or at the
+in-kernel irqchip (GIC), and for in-kernel irqchip can tell the GIC to
+use PPIs designated for specific cpus.  The irq field is interpreted
+like this:
 
   bits:  | 31 ... 24 | 23  ... 16 | 15    ...    0 |
   field: | irq_type  | vcpu_index |     irq_id     |
@@ -627,7 +662,7 @@ The irq_type field has the following values:
 
 (The irq_id field thus corresponds nicely to the IRQ ID in the ARM GIC specs)
 
-In both cases, level is used to raise/lower the line.
+In both cases, level is used to assert/deassert the line.
 
 struct kvm_irq_level {
 	union {
@@ -917,9 +952,9 @@ documentation when it pops into existence).
 
 4.37 KVM_ENABLE_CAP
 
-Capability: KVM_CAP_ENABLE_CAP
+Capability: KVM_CAP_ENABLE_CAP, KVM_CAP_ENABLE_CAP_VM
 Architectures: ppc, s390
-Type: vcpu ioctl
+Type: vcpu ioctl, vm ioctl (with KVM_CAP_ENABLE_CAP_VM)
 Parameters: struct kvm_enable_cap (in)
 Returns: 0 on success; -1 on error
 
@@ -950,11 +985,13 @@ function properly, this is the place to put them.
        __u8  pad[64];
 };
 
+The vcpu ioctl should be used for vcpu-specific capabilities, the vm ioctl
+for vm-wide capabilities.
 
 4.38 KVM_GET_MP_STATE
 
 Capability: KVM_CAP_MP_STATE
-Architectures: x86, ia64
+Architectures: x86, ia64, s390
 Type: vcpu ioctl
 Parameters: struct kvm_mp_state (out)
 Returns: 0 on success; -1 on error
@@ -968,24 +1005,32 @@ uniprocessor guests).
 
 Possible values are:
 
- - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running
+ - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running [x86, ia64]
  - KVM_MP_STATE_UNINITIALIZED:   the vcpu is an application processor (AP)
-                                 which has not yet received an INIT signal
+                                 which has not yet received an INIT signal [x86,
+                                 ia64]
  - KVM_MP_STATE_INIT_RECEIVED:   the vcpu has received an INIT signal, and is
-                                 now ready for a SIPI
+                                 now ready for a SIPI [x86, ia64]
  - KVM_MP_STATE_HALTED:          the vcpu has executed a HLT instruction and
-                                 is waiting for an interrupt
+                                 is waiting for an interrupt [x86, ia64]
  - KVM_MP_STATE_SIPI_RECEIVED:   the vcpu has just received a SIPI (vector
-                                 accessible via KVM_GET_VCPU_EVENTS)
+                                 accessible via KVM_GET_VCPU_EVENTS) [x86, ia64]
+ - KVM_MP_STATE_STOPPED:         the vcpu is stopped [s390]
+ - KVM_MP_STATE_CHECK_STOP:      the vcpu is in a special error state [s390]
+ - KVM_MP_STATE_OPERATING:       the vcpu is operating (running or halted)
+                                 [s390]
+ - KVM_MP_STATE_LOAD:            the vcpu is in a special load/startup state
+                                 [s390]
 
-This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
-irqchip, the multiprocessing state must be maintained by userspace.
+On x86 and ia64, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
+in-kernel irqchip, the multiprocessing state must be maintained by userspace on
+these architectures.
 
 
 4.39 KVM_SET_MP_STATE
 
 Capability: KVM_CAP_MP_STATE
-Architectures: x86, ia64
+Architectures: x86, ia64, s390
 Type: vcpu ioctl
 Parameters: struct kvm_mp_state (in)
 Returns: 0 on success; -1 on error
@@ -993,8 +1038,9 @@ Returns: 0 on success; -1 on error
 Sets the vcpu's current "multiprocessing state"; see KVM_GET_MP_STATE for
 arguments.
 
-This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
-irqchip, the multiprocessing state must be maintained by userspace.
+On x86 and ia64, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
+in-kernel irqchip, the multiprocessing state must be maintained by userspace on
+these architectures.
 
 
 4.40 KVM_SET_IDENTITY_MAP_ADDR
@@ -1121,9 +1167,9 @@ struct kvm_cpuid2 {
 	struct kvm_cpuid_entry2 entries[0];
 };
 
-#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX 1
-#define KVM_CPUID_FLAG_STATEFUL_FUNC    2
-#define KVM_CPUID_FLAG_STATE_READ_NEXT  4
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
+#define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
+#define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
 
 struct kvm_cpuid_entry2 {
 	__u32 function;
@@ -1319,7 +1365,7 @@ KVM_ASSIGN_DEV_IRQ. Partial deassignment of host or guest IRQ is allowed.
 4.52 KVM_SET_GSI_ROUTING
 
 Capability: KVM_CAP_IRQ_ROUTING
-Architectures: x86 ia64
+Architectures: x86 ia64 s390
 Type: vm ioctl
 Parameters: struct kvm_irq_routing (in)
 Returns: 0 on success, -1 on error
@@ -1342,6 +1388,7 @@ struct kvm_irq_routing_entry {
 	union {
 		struct kvm_irq_routing_irqchip irqchip;
 		struct kvm_irq_routing_msi msi;
+		struct kvm_irq_routing_s390_adapter adapter;
 		__u32 pad[8];
 	} u;
 };
@@ -1349,6 +1396,7 @@ struct kvm_irq_routing_entry {
 /* gsi routing entry types */
 #define KVM_IRQ_ROUTING_IRQCHIP 1
 #define KVM_IRQ_ROUTING_MSI 2
+#define KVM_IRQ_ROUTING_S390_ADAPTER 3
 
 No flags are specified so far, the corresponding field must be set to zero.
 
@@ -1362,6 +1410,14 @@ struct kvm_irq_routing_msi {
 	__u32 address_hi;
 	__u32 data;
 	__u32 pad;
+};
+
+struct kvm_irq_routing_s390_adapter {
+	__u64 ind_addr;
+	__u64 summary_addr;
+	__u64 ind_offset;
+	__u32 summary_offset;
+	__u32 adapter_id;
 };
 
 
@@ -1461,7 +1517,7 @@ struct kvm_lapic_state {
 	char regs[KVM_APIC_REG_SIZE];
 };
 
-Copies the input argument into the the Local APIC registers.  The data format
+Copies the input argument into the Local APIC registers.  The data format
 and layout are the same as documented in the architecture manual.
 
 
@@ -1486,14 +1542,22 @@ struct kvm_ioeventfd {
 	__u8  pad[36];
 };
 
+For the special case of virtio-ccw devices on s390, the ioevent is matched
+to a subchannel/virtqueue tuple instead.
+
 The following flags are defined:
 
 #define KVM_IOEVENTFD_FLAG_DATAMATCH (1 << kvm_ioeventfd_flag_nr_datamatch)
 #define KVM_IOEVENTFD_FLAG_PIO       (1 << kvm_ioeventfd_flag_nr_pio)
 #define KVM_IOEVENTFD_FLAG_DEASSIGN  (1 << kvm_ioeventfd_flag_nr_deassign)
+#define KVM_IOEVENTFD_FLAG_VIRTIO_CCW_NOTIFY \
+	(1 << kvm_ioeventfd_flag_nr_virtio_ccw_notify)
 
 If datamatch flag is set, the event will be signaled only if the written value
 to the registered address is equal to datamatch in struct kvm_ioeventfd.
+
+For virtio-ccw devices, addr contains the subchannel id and datamatch the
+virtqueue index.
 
 
 4.60 KVM_DIRTY_TLB
@@ -1675,7 +1739,7 @@ The parameter is defined like this:
 
 This ioctl maps the memory at "user_addr" with the length "length" to
 the vcpu's address space starting at "vcpu_addr". All parameters need to
-be alligned by 1 megabyte.
+be aligned by 1 megabyte.
 
 
 4.66 KVM_S390_UCAS_UNMAP
@@ -1695,7 +1759,7 @@ The parameter is defined like this:
 
 This ioctl unmaps the memory in the vcpu's address space starting at
 "vcpu_addr" with the length "length". The field "user_addr" is ignored.
-All parameters need to be alligned by 1 megabyte.
+All parameters need to be aligned by 1 megabyte.
 
 
 4.67 KVM_S390_VCPU_FAULT
@@ -1736,71 +1800,207 @@ and architecture specific registers. Each have their own range of operation
 and their own constants and width. To keep track of the implemented
 registers, find a list below:
 
-  Arch  |       Register        | Width (bits)
-        |                       |
-  PPC   | KVM_REG_PPC_HIOR      | 64
-  PPC   | KVM_REG_PPC_IAC1      | 64
-  PPC   | KVM_REG_PPC_IAC2      | 64
-  PPC   | KVM_REG_PPC_IAC3      | 64
-  PPC   | KVM_REG_PPC_IAC4      | 64
-  PPC   | KVM_REG_PPC_DAC1      | 64
-  PPC   | KVM_REG_PPC_DAC2      | 64
-  PPC   | KVM_REG_PPC_DABR      | 64
-  PPC   | KVM_REG_PPC_DSCR      | 64
-  PPC   | KVM_REG_PPC_PURR      | 64
-  PPC   | KVM_REG_PPC_SPURR     | 64
-  PPC   | KVM_REG_PPC_DAR       | 64
-  PPC   | KVM_REG_PPC_DSISR     | 32
-  PPC   | KVM_REG_PPC_AMR       | 64
-  PPC   | KVM_REG_PPC_UAMOR     | 64
-  PPC   | KVM_REG_PPC_MMCR0     | 64
-  PPC   | KVM_REG_PPC_MMCR1     | 64
-  PPC   | KVM_REG_PPC_MMCRA     | 64
-  PPC   | KVM_REG_PPC_PMC1      | 32
-  PPC   | KVM_REG_PPC_PMC2      | 32
-  PPC   | KVM_REG_PPC_PMC3      | 32
-  PPC   | KVM_REG_PPC_PMC4      | 32
-  PPC   | KVM_REG_PPC_PMC5      | 32
-  PPC   | KVM_REG_PPC_PMC6      | 32
-  PPC   | KVM_REG_PPC_PMC7      | 32
-  PPC   | KVM_REG_PPC_PMC8      | 32
-  PPC   | KVM_REG_PPC_FPR0      | 64
+  Arch  |           Register            | Width (bits)
+        |                               |
+  PPC   | KVM_REG_PPC_HIOR              | 64
+  PPC   | KVM_REG_PPC_IAC1              | 64
+  PPC   | KVM_REG_PPC_IAC2              | 64
+  PPC   | KVM_REG_PPC_IAC3              | 64
+  PPC   | KVM_REG_PPC_IAC4              | 64
+  PPC   | KVM_REG_PPC_DAC1              | 64
+  PPC   | KVM_REG_PPC_DAC2              | 64
+  PPC   | KVM_REG_PPC_DABR              | 64
+  PPC   | KVM_REG_PPC_DSCR              | 64
+  PPC   | KVM_REG_PPC_PURR              | 64
+  PPC   | KVM_REG_PPC_SPURR             | 64
+  PPC   | KVM_REG_PPC_DAR               | 64
+  PPC   | KVM_REG_PPC_DSISR             | 32
+  PPC   | KVM_REG_PPC_AMR               | 64
+  PPC   | KVM_REG_PPC_UAMOR             | 64
+  PPC   | KVM_REG_PPC_MMCR0             | 64
+  PPC   | KVM_REG_PPC_MMCR1             | 64
+  PPC   | KVM_REG_PPC_MMCRA             | 64
+  PPC   | KVM_REG_PPC_MMCR2             | 64
+  PPC   | KVM_REG_PPC_MMCRS             | 64
+  PPC   | KVM_REG_PPC_SIAR              | 64
+  PPC   | KVM_REG_PPC_SDAR              | 64
+  PPC   | KVM_REG_PPC_SIER              | 64
+  PPC   | KVM_REG_PPC_PMC1              | 32
+  PPC   | KVM_REG_PPC_PMC2              | 32
+  PPC   | KVM_REG_PPC_PMC3              | 32
+  PPC   | KVM_REG_PPC_PMC4              | 32
+  PPC   | KVM_REG_PPC_PMC5              | 32
+  PPC   | KVM_REG_PPC_PMC6              | 32
+  PPC   | KVM_REG_PPC_PMC7              | 32
+  PPC   | KVM_REG_PPC_PMC8              | 32
+  PPC   | KVM_REG_PPC_FPR0              | 64
           ...
-  PPC   | KVM_REG_PPC_FPR31     | 64
-  PPC   | KVM_REG_PPC_VR0       | 128
+  PPC   | KVM_REG_PPC_FPR31             | 64
+  PPC   | KVM_REG_PPC_VR0               | 128
           ...
-  PPC   | KVM_REG_PPC_VR31      | 128
-  PPC   | KVM_REG_PPC_VSR0      | 128
+  PPC   | KVM_REG_PPC_VR31              | 128
+  PPC   | KVM_REG_PPC_VSR0              | 128
           ...
-  PPC   | KVM_REG_PPC_VSR31     | 128
-  PPC   | KVM_REG_PPC_FPSCR     | 64
-  PPC   | KVM_REG_PPC_VSCR      | 32
-  PPC   | KVM_REG_PPC_VPA_ADDR  | 64
-  PPC   | KVM_REG_PPC_VPA_SLB   | 128
-  PPC   | KVM_REG_PPC_VPA_DTL   | 128
-  PPC   | KVM_REG_PPC_EPCR	| 32
-  PPC   | KVM_REG_PPC_EPR	| 32
+  PPC   | KVM_REG_PPC_VSR31             | 128
+  PPC   | KVM_REG_PPC_FPSCR             | 64
+  PPC   | KVM_REG_PPC_VSCR              | 32
+  PPC   | KVM_REG_PPC_VPA_ADDR          | 64
+  PPC   | KVM_REG_PPC_VPA_SLB           | 128
+  PPC   | KVM_REG_PPC_VPA_DTL           | 128
+  PPC   | KVM_REG_PPC_EPCR              | 32
+  PPC   | KVM_REG_PPC_EPR               | 32
+  PPC   | KVM_REG_PPC_TCR               | 32
+  PPC   | KVM_REG_PPC_TSR               | 32
+  PPC   | KVM_REG_PPC_OR_TSR            | 32
+  PPC   | KVM_REG_PPC_CLEAR_TSR         | 32
+  PPC   | KVM_REG_PPC_MAS0              | 32
+  PPC   | KVM_REG_PPC_MAS1              | 32
+  PPC   | KVM_REG_PPC_MAS2              | 64
+  PPC   | KVM_REG_PPC_MAS7_3            | 64
+  PPC   | KVM_REG_PPC_MAS4              | 32
+  PPC   | KVM_REG_PPC_MAS6              | 32
+  PPC   | KVM_REG_PPC_MMUCFG            | 32
+  PPC   | KVM_REG_PPC_TLB0CFG           | 32
+  PPC   | KVM_REG_PPC_TLB1CFG           | 32
+  PPC   | KVM_REG_PPC_TLB2CFG           | 32
+  PPC   | KVM_REG_PPC_TLB3CFG           | 32
+  PPC   | KVM_REG_PPC_TLB0PS            | 32
+  PPC   | KVM_REG_PPC_TLB1PS            | 32
+  PPC   | KVM_REG_PPC_TLB2PS            | 32
+  PPC   | KVM_REG_PPC_TLB3PS            | 32
+  PPC   | KVM_REG_PPC_EPTCFG            | 32
+  PPC   | KVM_REG_PPC_ICP_STATE         | 64
+  PPC   | KVM_REG_PPC_TB_OFFSET         | 64
+  PPC   | KVM_REG_PPC_SPMC1             | 32
+  PPC   | KVM_REG_PPC_SPMC2             | 32
+  PPC   | KVM_REG_PPC_IAMR              | 64
+  PPC   | KVM_REG_PPC_TFHAR             | 64
+  PPC   | KVM_REG_PPC_TFIAR             | 64
+  PPC   | KVM_REG_PPC_TEXASR            | 64
+  PPC   | KVM_REG_PPC_FSCR              | 64
+  PPC   | KVM_REG_PPC_PSPB              | 32
+  PPC   | KVM_REG_PPC_EBBHR             | 64
+  PPC   | KVM_REG_PPC_EBBRR             | 64
+  PPC   | KVM_REG_PPC_BESCR             | 64
+  PPC   | KVM_REG_PPC_TAR               | 64
+  PPC   | KVM_REG_PPC_DPDES             | 64
+  PPC   | KVM_REG_PPC_DAWR              | 64
+  PPC   | KVM_REG_PPC_DAWRX             | 64
+  PPC   | KVM_REG_PPC_CIABR             | 64
+  PPC   | KVM_REG_PPC_IC                | 64
+  PPC   | KVM_REG_PPC_VTB               | 64
+  PPC   | KVM_REG_PPC_CSIGR             | 64
+  PPC   | KVM_REG_PPC_TACR              | 64
+  PPC   | KVM_REG_PPC_TCSCR             | 64
+  PPC   | KVM_REG_PPC_PID               | 64
+  PPC   | KVM_REG_PPC_ACOP              | 64
+  PPC   | KVM_REG_PPC_VRSAVE            | 32
+  PPC   | KVM_REG_PPC_LPCR              | 32
+  PPC   | KVM_REG_PPC_LPCR_64           | 64
+  PPC   | KVM_REG_PPC_PPR               | 64
+  PPC   | KVM_REG_PPC_ARCH_COMPAT       | 32
+  PPC   | KVM_REG_PPC_DABRX             | 32
+  PPC   | KVM_REG_PPC_WORT              | 64
+  PPC	| KVM_REG_PPC_SPRG9             | 64
+  PPC	| KVM_REG_PPC_DBSR              | 32
+  PPC   | KVM_REG_PPC_TM_GPR0           | 64
+          ...
+  PPC   | KVM_REG_PPC_TM_GPR31          | 64
+  PPC   | KVM_REG_PPC_TM_VSR0           | 128
+          ...
+  PPC   | KVM_REG_PPC_TM_VSR63          | 128
+  PPC   | KVM_REG_PPC_TM_CR             | 64
+  PPC   | KVM_REG_PPC_TM_LR             | 64
+  PPC   | KVM_REG_PPC_TM_CTR            | 64
+  PPC   | KVM_REG_PPC_TM_FPSCR          | 64
+  PPC   | KVM_REG_PPC_TM_AMR            | 64
+  PPC   | KVM_REG_PPC_TM_PPR            | 64
+  PPC   | KVM_REG_PPC_TM_VRSAVE         | 64
+  PPC   | KVM_REG_PPC_TM_VSCR           | 32
+  PPC   | KVM_REG_PPC_TM_DSCR           | 64
+  PPC   | KVM_REG_PPC_TM_TAR            | 64
+        |                               |
+  MIPS  | KVM_REG_MIPS_R0               | 64
+          ...
+  MIPS  | KVM_REG_MIPS_R31              | 64
+  MIPS  | KVM_REG_MIPS_HI               | 64
+  MIPS  | KVM_REG_MIPS_LO               | 64
+  MIPS  | KVM_REG_MIPS_PC               | 64
+  MIPS  | KVM_REG_MIPS_CP0_INDEX        | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONTEXT      | 64
+  MIPS  | KVM_REG_MIPS_CP0_USERLOCAL    | 64
+  MIPS  | KVM_REG_MIPS_CP0_PAGEMASK     | 32
+  MIPS  | KVM_REG_MIPS_CP0_WIRED        | 32
+  MIPS  | KVM_REG_MIPS_CP0_HWRENA       | 32
+  MIPS  | KVM_REG_MIPS_CP0_BADVADDR     | 64
+  MIPS  | KVM_REG_MIPS_CP0_COUNT        | 32
+  MIPS  | KVM_REG_MIPS_CP0_ENTRYHI      | 64
+  MIPS  | KVM_REG_MIPS_CP0_COMPARE      | 32
+  MIPS  | KVM_REG_MIPS_CP0_STATUS       | 32
+  MIPS  | KVM_REG_MIPS_CP0_CAUSE        | 32
+  MIPS  | KVM_REG_MIPS_CP0_EPC          | 64
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG       | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG1      | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG2      | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG3      | 32
+  MIPS  | KVM_REG_MIPS_CP0_CONFIG7      | 32
+  MIPS  | KVM_REG_MIPS_CP0_ERROREPC     | 64
+  MIPS  | KVM_REG_MIPS_COUNT_CTL        | 64
+  MIPS  | KVM_REG_MIPS_COUNT_RESUME     | 64
+  MIPS  | KVM_REG_MIPS_COUNT_HZ         | 64
 
 ARM registers are mapped using the lower 32 bits.  The upper 16 of that
 is the register group type, or coprocessor number:
 
 ARM core registers have the following id bit patterns:
-  0x4002 0000 0010 <index into the kvm_regs struct:16>
+  0x4020 0000 0010 <index into the kvm_regs struct:16>
 
 ARM 32-bit CP15 registers have the following id bit patterns:
-  0x4002 0000 000F <zero:1> <crn:4> <crm:4> <opc1:4> <opc2:3>
+  0x4020 0000 000F <zero:1> <crn:4> <crm:4> <opc1:4> <opc2:3>
 
 ARM 64-bit CP15 registers have the following id bit patterns:
-  0x4003 0000 000F <zero:1> <zero:4> <crm:4> <opc1:4> <zero:3>
+  0x4030 0000 000F <zero:1> <zero:4> <crm:4> <opc1:4> <zero:3>
 
 ARM CCSIDR registers are demultiplexed by CSSELR value:
-  0x4002 0000 0011 00 <csselr:8>
+  0x4020 0000 0011 00 <csselr:8>
 
 ARM 32-bit VFP control registers have the following id bit patterns:
-  0x4002 0000 0012 1 <regno:12>
+  0x4020 0000 0012 1 <regno:12>
 
 ARM 64-bit FP registers have the following id bit patterns:
-  0x4002 0000 0012 0 <regno:12>
+  0x4030 0000 0012 0 <regno:12>
+
+
+arm64 registers are mapped using the lower 32 bits. The upper 16 of
+that is the register group type, or coprocessor number:
+
+arm64 core/FP-SIMD registers have the following id bit patterns. Note
+that the size of the access is variable, as the kvm_regs structure
+contains elements ranging from 32 to 128 bits. The index is a 32bit
+value in the kvm_regs structure seen as a 32bit array.
+  0x60x0 0000 0010 <index into the kvm_regs struct:16>
+
+arm64 CCSIDR registers are demultiplexed by CSSELR value:
+  0x6020 0000 0011 00 <csselr:8>
+
+arm64 system registers have the following id bit patterns:
+  0x6030 0000 0013 <op0:2> <op1:3> <crn:4> <crm:4> <op2:3>
+
+
+MIPS registers are mapped using the lower 32 bits.  The upper 16 of that is
+the register group type:
+
+MIPS core registers (see above) have the following id bit patterns:
+  0x7030 0000 0000 <reg:16>
+
+MIPS CP0 registers (see KVM_REG_MIPS_CP0_* above) have the following id bit
+patterns depending on whether they're 32-bit or 64-bit registers:
+  0x7020 0000 0001 00 <reg:5> <sel:3>   (32-bit)
+  0x7030 0000 0001 00 <reg:5> <sel:3>   (64-bit)
+
+MIPS KVM control registers (see above) have the following id bit patterns:
+  0x7030 0000 0002 <reg:16>
+
 
 4.69 KVM_GET_ONE_REG
 
@@ -1943,10 +2143,10 @@ Returns: 0 on success, -1 on error
 
 This populates and returns a structure describing the features of
 the "Server" class MMU emulation supported by KVM.
-This can in turn be used by userspace to generate the appropariate
+This can in turn be used by userspace to generate the appropriate
 device-tree properties for the guest operating system.
 
-The structure contains some global informations, followed by an
+The structure contains some global information, followed by an
 array of supported segment page sizes:
 
       struct kvm_ppc_smmu_info {
@@ -1990,7 +2190,7 @@ be OR'ed into the "vsid" argument of the slbmte instruction.
 The "enc" array is a list which for each of those segment base page
 size provides the list of supported actual page sizes (which can be
 only larger or equal to the base page size), along with the
-corresponding encoding in the hash PTE. Similarily, the array is
+corresponding encoding in the hash PTE. Similarly, the array is
 8 entries sorted by increasing sizes and an entry with a "0" shift
 is an empty entry and a terminator:
 
@@ -2006,7 +2206,7 @@ into the hash PTE second double word).
 4.75 KVM_IRQFD
 
 Capability: KVM_CAP_IRQFD
-Architectures: x86
+Architectures: x86 s390
 Type: vm ioctl
 Parameters: struct kvm_irqfd (in)
 Returns: 0 on success, -1 on error
@@ -2014,7 +2214,7 @@ Returns: 0 on success, -1 on error
 Allows setting an eventfd to directly trigger a guest interrupt.
 kvm_irqfd.fd specifies the file descriptor to use as the eventfd and
 kvm_irqfd.gsi specifies the irqchip pin toggled by this event.  When
-an event is tiggered on the eventfd, an interrupt is injected into
+an event is triggered on the eventfd, an interrupt is injected into
 the guest using the specified gsi pin.  The irqfd is removed using
 the KVM_IRQFD_FLAG_DEASSIGN flag, specifying both kvm_irqfd.fd
 and kvm_irqfd.gsi.
@@ -2025,7 +2225,7 @@ interrupts.  When KVM_IRQFD_FLAG_RESAMPLE is set the user must pass an
 additional eventfd in the kvm_irqfd.resamplefd field.  When operating
 in resample mode, posting of an interrupt through kvm_irq.fd asserts
 the specified gsi in the irqchip.  When the irqchip is resampled, such
-as from an EOI, the gsi is de-asserted and the user is notifed via
+as from an EOI, the gsi is de-asserted and the user is notified via
 kvm_irqfd.resamplefd.  It is the user's responsibility to re-queue
 the interrupt if the device making use of it still requires service.
 Note that closing the resamplefd is not sufficient to disable the
@@ -2091,6 +2291,8 @@ KVM_S390_SIGP_STOP (vcpu) - sigp restart
 KVM_S390_PROGRAM_INT (vcpu) - program check; code in parm
 KVM_S390_SIGP_SET_PREFIX (vcpu) - sigp set prefix; prefix address in parm
 KVM_S390_RESTART (vcpu) - restart
+KVM_S390_INT_CLOCK_COMP (vcpu) - clock comparator interrupt
+KVM_S390_INT_CPU_TIMER (vcpu) - CPU timer interrupt
 KVM_S390_INT_VIRTIO (vm) - virtio external interrupt; external interrupt
 			   parameters in parm and parm64
 KVM_S390_INT_SERVICE (vm) - sclp external interrupt; sclp parameter in parm
@@ -2161,13 +2363,83 @@ header; first `n_valid' valid entries with contents from the data
 written, then `n_invalid' invalid entries, invalidating any previously
 valid entries found.
 
+4.79 KVM_CREATE_DEVICE
 
-4.77 KVM_ARM_VCPU_INIT
+Capability: KVM_CAP_DEVICE_CTRL
+Type: vm ioctl
+Parameters: struct kvm_create_device (in/out)
+Returns: 0 on success, -1 on error
+Errors:
+  ENODEV: The device type is unknown or unsupported
+  EEXIST: Device already created, and this type of device may not
+          be instantiated multiple times
+
+  Other error conditions may be defined by individual device types or
+  have their standard meanings.
+
+Creates an emulated device in the kernel.  The file descriptor returned
+in fd can be used with KVM_SET/GET/HAS_DEVICE_ATTR.
+
+If the KVM_CREATE_DEVICE_TEST flag is set, only test whether the
+device type is supported (not necessarily whether it can be created
+in the current vm).
+
+Individual devices should not define flags.  Attributes should be used
+for specifying any behavior that is not implied by the device type
+number.
+
+struct kvm_create_device {
+	__u32	type;	/* in: KVM_DEV_TYPE_xxx */
+	__u32	fd;	/* out: device handle */
+	__u32	flags;	/* in: KVM_CREATE_DEVICE_xxx */
+};
+
+4.80 KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR
+
+Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device
+Type: device ioctl, vm ioctl
+Parameters: struct kvm_device_attr
+Returns: 0 on success, -1 on error
+Errors:
+  ENXIO:  The group or attribute is unknown/unsupported for this device
+  EPERM:  The attribute cannot (currently) be accessed this way
+          (e.g. read-only attribute, or attribute that only makes
+          sense when the device is in a different state)
+
+  Other error conditions may be defined by individual device types.
+
+Gets/sets a specified piece of device configuration and/or state.  The
+semantics are device-specific.  See individual device documentation in
+the "devices" directory.  As with ONE_REG, the size of the data
+transferred is defined by the particular attribute.
+
+struct kvm_device_attr {
+	__u32	flags;		/* no flags currently defined */
+	__u32	group;		/* device-defined */
+	__u64	attr;		/* group-defined */
+	__u64	addr;		/* userspace address of attr data */
+};
+
+4.81 KVM_HAS_DEVICE_ATTR
+
+Capability: KVM_CAP_DEVICE_CTRL, KVM_CAP_VM_ATTRIBUTES for vm device
+Type: device ioctl, vm ioctl
+Parameters: struct kvm_device_attr
+Returns: 0 on success, -1 on error
+Errors:
+  ENXIO:  The group or attribute is unknown/unsupported for this device
+
+Tests whether a device supports a particular attribute.  A successful
+return indicates the attribute is implemented.  It does not necessarily
+indicate that the attribute can be read or written in the device's
+current state.  "addr" is ignored.
+
+4.82 KVM_ARM_VCPU_INIT
 
 Capability: basic
-Architectures: arm
+Architectures: arm, arm64
 Type: vcpu ioctl
-Parameters: struct struct kvm_vcpu_init (in)
+Parameters: struct kvm_vcpu_init (in)
 Returns: 0 on success; -1 on error
 Errors:
   EINVAL:    the target is unknown, or the combination of features is invalid.
@@ -2184,12 +2456,40 @@ should be created before this ioctl is invoked.
 Possible features:
 	- KVM_ARM_VCPU_POWER_OFF: Starts the CPU in a power-off state.
 	  Depends on KVM_CAP_ARM_PSCI.
+	- KVM_ARM_VCPU_EL1_32BIT: Starts the CPU in a 32bit mode.
+	  Depends on KVM_CAP_ARM_EL1_32BIT (arm64 only).
+	- KVM_ARM_VCPU_PSCI_0_2: Emulate PSCI v0.2 for the CPU.
+	  Depends on KVM_CAP_ARM_PSCI_0_2.
 
 
-4.78 KVM_GET_REG_LIST
+4.83 KVM_ARM_PREFERRED_TARGET
 
 Capability: basic
-Architectures: arm
+Architectures: arm, arm64
+Type: vm ioctl
+Parameters: struct struct kvm_vcpu_init (out)
+Returns: 0 on success; -1 on error
+Errors:
+  ENODEV:    no preferred target available for the host
+
+This queries KVM for preferred CPU target type which can be emulated
+by KVM on underlying host.
+
+The ioctl returns struct kvm_vcpu_init instance containing information
+about preferred CPU target type and recommended features for it.  The
+kvm_vcpu_init->features bitmap returned will have feature bits set if
+the preferred target recommends setting these features, but this is
+not mandatory.
+
+The information returned by this ioctl can be used to prepare an instance
+of struct kvm_vcpu_init for KVM_ARM_VCPU_INIT ioctl which will result in
+in VCPU matching underlying host.
+
+
+4.84 KVM_GET_REG_LIST
+
+Capability: basic
+Architectures: arm, arm64, mips
 Type: vcpu ioctl
 Parameters: struct kvm_reg_list (in/out)
 Returns: 0 on success; -1 on error
@@ -2206,10 +2506,10 @@ This ioctl returns the guest registers that are supported for the
 KVM_GET_ONE_REG/KVM_SET_ONE_REG calls.
 
 
-4.80 KVM_ARM_SET_DEVICE_ADDR
+4.85 KVM_ARM_SET_DEVICE_ADDR (deprecated)
 
 Capability: KVM_CAP_ARM_SET_DEVICE_ADDR
-Architectures: arm
+Architectures: arm, arm64
 Type: vm ioctl
 Parameters: struct kvm_arm_device_address (in)
 Returns: 0 on success, -1 on error
@@ -2230,19 +2530,157 @@ can access emulated or directly exposed devices, which the host kernel needs
 to know about. The id field is an architecture specific identifier for a
 specific device.
 
-ARM divides the id field into two parts, a device id and an address type id
-specific to the individual device.
+ARM/arm64 divides the id field into two parts, a device id and an
+address type id specific to the individual device.
 
   bits:  | 63        ...       32 | 31    ...    16 | 15    ...    0 |
   field: |        0x00000000      |     device id   |  addr type id  |
 
-ARM currently only require this when using the in-kernel GIC support for the
-hardware VGIC features, using KVM_ARM_DEVICE_VGIC_V2 as the device id.  When
-setting the base address for the guest's mapping of the VGIC virtual CPU
-and distributor interface, the ioctl must be called after calling
-KVM_CREATE_IRQCHIP, but before calling KVM_RUN on any of the VCPUs.  Calling
-this ioctl twice for any of the base addresses will return -EEXIST.
+ARM/arm64 currently only require this when using the in-kernel GIC
+support for the hardware VGIC features, using KVM_ARM_DEVICE_VGIC_V2
+as the device id.  When setting the base address for the guest's
+mapping of the VGIC virtual CPU and distributor interface, the ioctl
+must be called after calling KVM_CREATE_IRQCHIP, but before calling
+KVM_RUN on any of the VCPUs.  Calling this ioctl twice for any of the
+base addresses will return -EEXIST.
 
+Note, this IOCTL is deprecated and the more flexible SET/GET_DEVICE_ATTR API
+should be used instead.
+
+
+4.86 KVM_PPC_RTAS_DEFINE_TOKEN
+
+Capability: KVM_CAP_PPC_RTAS
+Architectures: ppc
+Type: vm ioctl
+Parameters: struct kvm_rtas_token_args
+Returns: 0 on success, -1 on error
+
+Defines a token value for a RTAS (Run Time Abstraction Services)
+service in order to allow it to be handled in the kernel.  The
+argument struct gives the name of the service, which must be the name
+of a service that has a kernel-side implementation.  If the token
+value is non-zero, it will be associated with that service, and
+subsequent RTAS calls by the guest specifying that token will be
+handled by the kernel.  If the token value is 0, then any token
+associated with the service will be forgotten, and subsequent RTAS
+calls by the guest for that service will be passed to userspace to be
+handled.
+
+4.87 KVM_SET_GUEST_DEBUG
+
+Capability: KVM_CAP_SET_GUEST_DEBUG
+Architectures: x86, s390, ppc
+Type: vcpu ioctl
+Parameters: struct kvm_guest_debug (in)
+Returns: 0 on success; -1 on error
+
+struct kvm_guest_debug {
+       __u32 control;
+       __u32 pad;
+       struct kvm_guest_debug_arch arch;
+};
+
+Set up the processor specific debug registers and configure vcpu for
+handling guest debug events. There are two parts to the structure, the
+first a control bitfield indicates the type of debug events to handle
+when running. Common control bits are:
+
+  - KVM_GUESTDBG_ENABLE:        guest debugging is enabled
+  - KVM_GUESTDBG_SINGLESTEP:    the next run should single-step
+
+The top 16 bits of the control field are architecture specific control
+flags which can include the following:
+
+  - KVM_GUESTDBG_USE_SW_BP:     using software breakpoints [x86]
+  - KVM_GUESTDBG_USE_HW_BP:     using hardware breakpoints [x86, s390]
+  - KVM_GUESTDBG_INJECT_DB:     inject DB type exception [x86]
+  - KVM_GUESTDBG_INJECT_BP:     inject BP type exception [x86]
+  - KVM_GUESTDBG_EXIT_PENDING:  trigger an immediate guest exit [s390]
+
+For example KVM_GUESTDBG_USE_SW_BP indicates that software breakpoints
+are enabled in memory so we need to ensure breakpoint exceptions are
+correctly trapped and the KVM run loop exits at the breakpoint and not
+running off into the normal guest vector. For KVM_GUESTDBG_USE_HW_BP
+we need to ensure the guest vCPUs architecture specific registers are
+updated to the correct (supplied) values.
+
+The second part of the structure is architecture specific and
+typically contains a set of debug registers.
+
+When debug events exit the main run loop with the reason
+KVM_EXIT_DEBUG with the kvm_debug_exit_arch part of the kvm_run
+structure containing architecture specific debug information.
+
+4.88 KVM_GET_EMULATED_CPUID
+
+Capability: KVM_CAP_EXT_EMUL_CPUID
+Architectures: x86
+Type: system ioctl
+Parameters: struct kvm_cpuid2 (in/out)
+Returns: 0 on success, -1 on error
+
+struct kvm_cpuid2 {
+	__u32 nent;
+	__u32 flags;
+	struct kvm_cpuid_entry2 entries[0];
+};
+
+The member 'flags' is used for passing flags from userspace.
+
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
+#define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
+#define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
+
+struct kvm_cpuid_entry2 {
+	__u32 function;
+	__u32 index;
+	__u32 flags;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding[3];
+};
+
+This ioctl returns x86 cpuid features which are emulated by
+kvm.Userspace can use the information returned by this ioctl to query
+which features are emulated by kvm instead of being present natively.
+
+Userspace invokes KVM_GET_EMULATED_CPUID by passing a kvm_cpuid2
+structure with the 'nent' field indicating the number of entries in
+the variable-size array 'entries'. If the number of entries is too low
+to describe the cpu capabilities, an error (E2BIG) is returned. If the
+number is too high, the 'nent' field is adjusted and an error (ENOMEM)
+is returned. If the number is just right, the 'nent' field is adjusted
+to the number of valid entries in the 'entries' array, which is then
+filled.
+
+The entries returned are the set CPUID bits of the respective features
+which kvm emulates, as returned by the CPUID instruction, with unknown
+or unsupported feature bits cleared.
+
+Features like x2apic, for example, may not be present in the host cpu
+but are exposed by kvm in KVM_GET_SUPPORTED_CPUID because they can be
+emulated efficiently and thus not included here.
+
+The fields in each entry are defined as follows:
+
+  function: the eax value used to obtain the entry
+  index: the ecx value used to obtain the entry (for entries that are
+         affected by ecx)
+  flags: an OR of zero or more of the following:
+        KVM_CPUID_FLAG_SIGNIFCANT_INDEX:
+           if the index field is valid
+        KVM_CPUID_FLAG_STATEFUL_FUNC:
+           if cpuid for this function returns different values for successive
+           invocations; there will be several entries with the same function,
+           all with this flag set
+        KVM_CPUID_FLAG_STATE_READ_NEXT:
+           for KVM_CPUID_FLAG_STATEFUL_FUNC entries, set if this entry is
+           the first entry to be read by a cpu
+   eax, ebx, ecx, edx: the values returned by the cpuid instruction for
+         this function/index combination
 
 5. The kvm_run structure
 ------------------------
@@ -2355,8 +2793,12 @@ executed a memory-mapped I/O instruction which could not be satisfied
 by kvm.  The 'data' member contains the written data if 'is_write' is
 true, and should be filled by application code otherwise.
 
-NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_DCR,
-      KVM_EXIT_PAPR and KVM_EXIT_EPR the corresponding
+The 'data' member contains, in its first 'len' bytes, the value as it would
+appear if the VCPU performed a load or store of the appropriate width directly
+to the byte array.
+
+NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_PAPR and
+      KVM_EXIT_EPR the corresponding
 operations are complete (and guest state is consistent) only after userspace
 has re-entered the kernel with KVM_RUN.  The kernel side will first finish
 incomplete operations and then check for pending signals.  Userspace
@@ -2427,7 +2869,7 @@ Principles of Operation Book in the Chapter for Dynamic Address Translation
 			__u8  is_write;
 		} dcr;
 
-powerpc specific.
+Deprecated - was used for 440 KVM.
 
 		/* KVM_EXIT_OSI */
 		struct {
@@ -2494,6 +2936,21 @@ It gets triggered whenever both KVM_CAP_PPC_EPR are enabled and an
 external interrupt has just been delivered into the guest. User space
 should put the acknowledged interrupt vector into the 'epr' field.
 
+		/* KVM_EXIT_SYSTEM_EVENT */
+		struct {
+#define KVM_SYSTEM_EVENT_SHUTDOWN       1
+#define KVM_SYSTEM_EVENT_RESET          2
+			__u32 type;
+			__u64 flags;
+		} system_event;
+
+If exit_reason is KVM_EXIT_SYSTEM_EVENT then the vcpu has triggered
+a system-level event using some architecture specific mechanism (hypercall
+or some special instruction). In case of ARM/ARM64, this is triggered using
+HVC instruction based PSCI call from the vcpu. The 'type' field describes
+the system-level event type. The 'flags' field describes architecture
+specific flags for the system-level event.
+
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -2520,20 +2977,28 @@ kvm_valid_regs for specific bits. These bits are architecture specific
 and usually define the validity of a groups of registers. (e.g. one bit
  for general purpose registers)
 
+Please note that the kernel is allowed to use the kvm_run structure as the
+primary storage for certain register types. Therefore, the kernel may use the
+values in kvm_run even if the corresponding bit in kvm_dirty_regs is not set.
+
 };
 
 
-6. Capabilities that can be enabled
------------------------------------
 
-There are certain capabilities that change the behavior of the virtual CPU when
-enabled. To enable them, please see section 4.37. Below you can find a list of
-capabilities and what their effect on the vCPU is when enabling them.
+6. Capabilities that can be enabled on vCPUs
+--------------------------------------------
+
+There are certain capabilities that change the behavior of the virtual CPU or
+the virtual machine when enabled. To enable them, please see section 4.37.
+Below you can find a list of capabilities and what their effect on the vCPU or
+the virtual machine is when enabling them.
 
 The following information is provided along with the description:
 
   Architectures: which instruction set architectures provide this ioctl.
       x86 includes both i386 and x86_64.
+
+  Target: whether this is a per-vcpu or per-vm capability.
 
   Parameters: what parameters are accepted by the capability.
 
@@ -2544,6 +3009,7 @@ The following information is provided along with the description:
 6.1 KVM_CAP_PPC_OSI
 
 Architectures: ppc
+Target: vcpu
 Parameters: none
 Returns: 0 on success; -1 on error
 
@@ -2558,6 +3024,7 @@ When this capability is enabled, KVM_EXIT_OSI can occur.
 6.2 KVM_CAP_PPC_PAPR
 
 Architectures: ppc
+Target: vcpu
 Parameters: none
 Returns: 0 on success; -1 on error
 
@@ -2577,6 +3044,7 @@ When this capability is enabled, KVM_EXIT_PAPR_HCALL can occur.
 6.3 KVM_CAP_SW_TLB
 
 Architectures: ppc
+Target: vcpu
 Parameters: args[0] is the address of a struct kvm_config_tlb
 Returns: 0 on success; -1 on error
 
@@ -2619,6 +3087,7 @@ For mmu types KVM_MMU_FSL_BOOKE_NOHV and KVM_MMU_FSL_BOOKE_HV:
 6.4 KVM_CAP_S390_CSS_SUPPORT
 
 Architectures: s390
+Target: vcpu
 Parameters: none
 Returns: 0 on success; -1 on error
 
@@ -2630,9 +3099,13 @@ handled in-kernel, while the other I/O instructions are passed to userspace.
 When this capability is enabled, KVM_EXIT_S390_TSCH will occur on TEST
 SUBCHANNEL intercepts.
 
+Note that even though this capability is enabled per-vcpu, the complete
+virtual machine is affected.
+
 6.5 KVM_CAP_PPC_EPR
 
 Architectures: ppc
+Target: vcpu
 Parameters: args[0] defines whether the proxy facility is active
 Returns: 0 on success; -1 on error
 
@@ -2646,3 +3119,69 @@ to receive the topmost interrupt vector.
 When disabled (args[0] == 0), behavior is as if this facility is unsupported.
 
 When this capability is enabled, KVM_EXIT_EPR can occur.
+
+6.6 KVM_CAP_IRQ_MPIC
+
+Architectures: ppc
+Parameters: args[0] is the MPIC device fd
+            args[1] is the MPIC CPU number for this vcpu
+
+This capability connects the vcpu to an in-kernel MPIC device.
+
+6.7 KVM_CAP_IRQ_XICS
+
+Architectures: ppc
+Target: vcpu
+Parameters: args[0] is the XICS device fd
+            args[1] is the XICS CPU number (server ID) for this vcpu
+
+This capability connects the vcpu to an in-kernel XICS device.
+
+6.8 KVM_CAP_S390_IRQCHIP
+
+Architectures: s390
+Target: vm
+Parameters: none
+
+This capability enables the in-kernel irqchip for s390. Please refer to
+"4.24 KVM_CREATE_IRQCHIP" for details.
+
+7. Capabilities that can be enabled on VMs
+------------------------------------------
+
+There are certain capabilities that change the behavior of the virtual
+machine when enabled. To enable them, please see section 4.37. Below
+you can find a list of capabilities and what their effect on the VM
+is when enabling them.
+
+The following information is provided along with the description:
+
+  Architectures: which instruction set architectures provide this ioctl.
+      x86 includes both i386 and x86_64.
+
+  Parameters: what parameters are accepted by the capability.
+
+  Returns: the return value.  General error numbers (EBADF, ENOMEM, EINVAL)
+      are not detailed, but errors with specific meanings are.
+
+
+7.1 KVM_CAP_PPC_ENABLE_HCALL
+
+Architectures: ppc
+Parameters: args[0] is the sPAPR hcall number
+	    args[1] is 0 to disable, 1 to enable in-kernel handling
+
+This capability controls whether individual sPAPR hypercalls (hcalls)
+get handled by the kernel or not.  Enabling or disabling in-kernel
+handling of an hcall is effective across the VM.  On creation, an
+initial set of hcalls are enabled for in-kernel handling, which
+consists of those hcalls for which in-kernel handlers were implemented
+before this capability was implemented.  If disabled, the kernel will
+not to attempt to handle the hcall, but will always exit to userspace
+to handle it.  Note that it may not make sense to enable some and
+disable others of a group of related hcalls, but KVM does not prevent
+userspace from doing that.
+
+If the hcall number specified is not one that has an in-kernel
+implementation, the KVM_ENABLE_CAP ioctl will fail with an EINVAL
+error.

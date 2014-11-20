@@ -30,7 +30,6 @@
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/cx2341x.h>
 #include <media/videobuf-dvb.h>
 #include <media/ir-kbd-i2c.h>
@@ -259,6 +258,11 @@ struct cx88_input {
 	unsigned int    audioroute:4;
 };
 
+enum cx88_audio_chip {
+	CX88_AUDIO_WM8775 = 1,
+	CX88_AUDIO_TVAUDIO,
+};
+
 struct cx88_board {
 	const char              *name;
 	unsigned int            tuner_type;
@@ -269,7 +273,7 @@ struct cx88_board {
 	struct cx88_input       input[MAX_CX88_INPUT];
 	struct cx88_input       radio;
 	enum cx88_board_type    mpeg;
-	unsigned int            audio_chip;
+	enum cx88_audio_chip	audio_chip;
 	int			num_frontends;
 
 	/* Used for I2S devices */
@@ -334,6 +338,7 @@ struct cx88_core {
 	/* board name */
 	int                        nr;
 	char                       name[32];
+	u32			   model;
 
 	/* pci stuff */
 	int                        pci_bus;
@@ -617,6 +622,8 @@ struct cx8802_dev {
 /* ----------------------------------------------------------- */
 /* cx88-core.c                                                 */
 
+extern unsigned int cx88_core_debug;
+
 extern void cx88_print_irqbits(const char *name, const char *tag, const char *strings[],
 			       int len, u32 bits, u32 mask);
 
@@ -740,7 +747,7 @@ void cx8802_cancel_buffers(struct cx8802_dev *dev);
 /* ----------------------------------------------------------- */
 /* cx88-video.c*/
 int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i);
-int cx88_set_freq (struct cx88_core  *core,struct v4l2_frequency *f);
+int cx88_set_freq(struct cx88_core  *core, const struct v4l2_frequency *f);
 int cx88_video_mux(struct cx88_core *core, unsigned int input);
 void cx88_querycap(struct file *file, struct cx88_core *core,
 		struct v4l2_capability *cap);

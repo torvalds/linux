@@ -86,13 +86,13 @@ static int bbc_spkr_event(struct input_dev *dev, unsigned int type, unsigned int
 	spin_lock_irqsave(&state->lock, flags);
 
 	if (count) {
-		outb(0x01,                 info->regs + 0);
-		outb(0x00,                 info->regs + 2);
-		outb((count >> 16) & 0xff, info->regs + 3);
-		outb((count >>  8) & 0xff, info->regs + 4);
-		outb(0x00,                 info->regs + 5);
+		sbus_writeb(0x01,                 info->regs + 0);
+		sbus_writeb(0x00,                 info->regs + 2);
+		sbus_writeb((count >> 16) & 0xff, info->regs + 3);
+		sbus_writeb((count >>  8) & 0xff, info->regs + 4);
+		sbus_writeb(0x00,                 info->regs + 5);
 	} else {
-		outb(0x00,                 info->regs + 0);
+		sbus_writeb(0x00,                 info->regs + 0);
 	}
 
 	spin_unlock_irqrestore(&state->lock, flags);
@@ -123,15 +123,15 @@ static int grover_spkr_event(struct input_dev *dev, unsigned int type, unsigned 
 
 	if (count) {
 		/* enable counter 2 */
-		outb(inb(info->enable_reg) | 3, info->enable_reg);
+		sbus_writeb(sbus_readb(info->enable_reg) | 3, info->enable_reg);
 		/* set command for counter 2, 2 byte write */
-		outb(0xB6, info->freq_regs + 1);
+		sbus_writeb(0xB6, info->freq_regs + 1);
 		/* select desired HZ */
-		outb(count & 0xff, info->freq_regs + 0);
-		outb((count >> 8) & 0xff, info->freq_regs + 0);
+		sbus_writeb(count & 0xff, info->freq_regs + 0);
+		sbus_writeb((count >> 8) & 0xff, info->freq_regs + 0);
 	} else {
 		/* disable counter 2 */
-		outb(inb_p(info->enable_reg) & 0xFC, info->enable_reg);
+		sbus_writeb(sbus_readb(info->enable_reg) & 0xFC, info->enable_reg);
 	}
 
 	spin_unlock_irqrestore(&state->lock, flags);
@@ -175,7 +175,7 @@ static int sparcspkr_probe(struct device *dev)
 
 static void sparcspkr_shutdown(struct platform_device *dev)
 {
-	struct sparcspkr_state *state = dev_get_drvdata(&dev->dev);
+	struct sparcspkr_state *state = platform_get_drvdata(dev);
 	struct input_dev *input_dev = state->input_dev;
 
 	/* turn off the speaker */
@@ -211,7 +211,7 @@ static int bbc_beep_probe(struct platform_device *op)
 	if (!info->regs)
 		goto out_free;
 
-	dev_set_drvdata(&op->dev, state);
+	platform_set_drvdata(op, state);
 
 	err = sparcspkr_probe(&op->dev);
 	if (err)
@@ -220,7 +220,6 @@ static int bbc_beep_probe(struct platform_device *op)
 	return 0;
 
 out_clear_drvdata:
-	dev_set_drvdata(&op->dev, NULL);
 	of_iounmap(&op->resource[0], info->regs, 6);
 
 out_free:
@@ -231,7 +230,7 @@ out_err:
 
 static int bbc_remove(struct platform_device *op)
 {
-	struct sparcspkr_state *state = dev_get_drvdata(&op->dev);
+	struct sparcspkr_state *state = platform_get_drvdata(op);
 	struct input_dev *input_dev = state->input_dev;
 	struct bbc_beep_info *info = &state->u.bbc;
 
@@ -242,7 +241,6 @@ static int bbc_remove(struct platform_device *op)
 
 	of_iounmap(&op->resource[0], info->regs, 6);
 
-	dev_set_drvdata(&op->dev, NULL);
 	kfree(state);
 
 	return 0;
@@ -290,7 +288,7 @@ static int grover_beep_probe(struct platform_device *op)
 	if (!info->enable_reg)
 		goto out_unmap_freq_regs;
 
-	dev_set_drvdata(&op->dev, state);
+	platform_set_drvdata(op, state);
 
 	err = sparcspkr_probe(&op->dev);
 	if (err)
@@ -299,7 +297,6 @@ static int grover_beep_probe(struct platform_device *op)
 	return 0;
 
 out_clear_drvdata:
-	dev_set_drvdata(&op->dev, NULL);
 	of_iounmap(&op->resource[3], info->enable_reg, 1);
 
 out_unmap_freq_regs:
@@ -312,7 +309,7 @@ out_err:
 
 static int grover_remove(struct platform_device *op)
 {
-	struct sparcspkr_state *state = dev_get_drvdata(&op->dev);
+	struct sparcspkr_state *state = platform_get_drvdata(op);
 	struct grover_beep_info *info = &state->u.grover;
 	struct input_dev *input_dev = state->input_dev;
 
@@ -324,7 +321,6 @@ static int grover_remove(struct platform_device *op)
 	of_iounmap(&op->resource[3], info->enable_reg, 1);
 	of_iounmap(&op->resource[2], info->freq_regs, 2);
 
-	dev_set_drvdata(&op->dev, NULL);
 	kfree(state);
 
 	return 0;

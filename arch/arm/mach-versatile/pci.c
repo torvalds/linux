@@ -43,9 +43,9 @@
 #define PCI_IMAP0		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x0)
 #define PCI_IMAP1		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x4)
 #define PCI_IMAP2		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x8)
-#define PCI_SMAP0		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x10)
-#define PCI_SMAP1		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x14)
-#define PCI_SMAP2		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x18)
+#define PCI_SMAP0		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x14)
+#define PCI_SMAP1		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x18)
+#define PCI_SMAP2		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0x1c)
 #define PCI_SELFID		__IO_ADDRESS(VERSATILE_PCI_CORE_BASE+0xc)
 
 #define DEVICE_ID_OFFSET		0x00
@@ -170,8 +170,8 @@ static struct pci_ops pci_versatile_ops = {
 	.write	= versatile_write_config,
 };
 
-static struct resource io_mem = {
-	.name	= "PCI I/O space",
+static struct resource unused_mem = {
+	.name	= "PCI unused",
 	.start	= VERSATILE_PCI_MEM_BASE0,
 	.end	= VERSATILE_PCI_MEM_BASE0+VERSATILE_PCI_MEM_BASE0_SIZE-1,
 	.flags	= IORESOURCE_MEM,
@@ -195,9 +195,9 @@ static int __init pci_versatile_setup_resources(struct pci_sys_data *sys)
 {
 	int ret = 0;
 
-	ret = request_resource(&iomem_resource, &io_mem);
+	ret = request_resource(&iomem_resource, &unused_mem);
 	if (ret) {
-		printk(KERN_ERR "PCI: unable to allocate I/O "
+		printk(KERN_ERR "PCI: unable to allocate unused "
 		       "memory region (%d)\n", ret);
 		goto out;
 	}
@@ -205,7 +205,7 @@ static int __init pci_versatile_setup_resources(struct pci_sys_data *sys)
 	if (ret) {
 		printk(KERN_ERR "PCI: unable to allocate non-prefetchable "
 		       "memory region (%d)\n", ret);
-		goto release_io_mem;
+		goto release_unused_mem;
 	}
 	ret = request_resource(&iomem_resource, &pre_mem);
 	if (ret) {
@@ -225,8 +225,8 @@ static int __init pci_versatile_setup_resources(struct pci_sys_data *sys)
 
  release_non_mem:
 	release_resource(&non_mem);
- release_io_mem:
-	release_resource(&io_mem);
+ release_unused_mem:
+	release_resource(&unused_mem);
  out:
 	return ret;
 }
@@ -246,7 +246,7 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 		goto out;
 	}
 
-	ret = pci_ioremap_io(0, VERSATILE_PCI_MEM_BASE0);
+	ret = pci_ioremap_io(0, VERSATILE_PCI_IO_BASE);
 	if (ret)
 		goto out;
 
@@ -295,6 +295,19 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 	__raw_writel(PHYS_OFFSET, local_pci_cfg_base + PCI_BASE_ADDRESS_2);
 
 	/*
+	 * For many years the kernel and QEMU were symbiotically buggy
+	 * in that they both assumed the same broken IRQ mapping.
+	 * QEMU therefore attempts to auto-detect old broken kernels
+	 * so that they still work on newer QEMU as they did on old
+	 * QEMU. Since we now use the correct (ie matching-hardware)
+	 * IRQ mapping we write a definitely different value to a
+	 * PCI_INTERRUPT_LINE register to tell QEMU that we expect
+	 * real hardware behaviour and it need not be backwards
+	 * compatible for us. This write is harmless on real hardware.
+	 */
+	__raw_writel(0, VERSATILE_PCI_VIRT_BASE+PCI_INTERRUPT_LINE);
+
+	/*
 	 * Do not to map Versatile FPGA PCI device into memory space
 	 */
 	pci_slot_ignore |= (1 << myslot);
@@ -327,13 +340,13 @@ static int __init versatile_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
-	/* slot,  pin,	irq
-	 *  24     1     IRQ_SIC_PCI0
-	 *  25     1     IRQ_SIC_PCI1
-	 *  26     1     IRQ_SIC_PCI2
-	 *  27     1     IRQ_SIC_PCI3
+	/*
+	 * Slot	INTA	INTB	INTC	INTD
+	 * 31	PCI1	PCI2	PCI3	PCI0
+	 * 30	PCI0	PCI1	PCI2	PCI3
+	 * 29	PCI3	PCI0	PCI1	PCI2
 	 */
-	irq = IRQ_SIC_PCI0 + ((slot - 24 + pin - 1) & 3);
+	irq = IRQ_SIC_PCI0 + ((slot + 2 + pin - 1) & 3);
 
 	return irq;
 }

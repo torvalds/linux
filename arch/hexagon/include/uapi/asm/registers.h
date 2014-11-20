@@ -6,8 +6,6 @@
 #ifndef _ASM_REGISTERS_H
 #define _ASM_REGISTERS_H
 
-#define SP r29
-
 #ifndef __ASSEMBLY__
 
 /*  See kernel/entry.S for further documentation.  */
@@ -57,10 +55,17 @@ struct pt_regs {
 	};
 	union {
 		struct {
-			unsigned long gp;
 			unsigned long ugp;
+			unsigned long gp;
 		};
-		long long int ugpgp;
+		long long int gpugp;
+	};
+	union {
+		struct {
+			unsigned long cs0;
+			unsigned long cs1;
+		};
+		long long int cs1cs0;
 	};
 	/*
 	* Be extremely careful with rearranging these, if at all.  Some code
@@ -204,9 +209,11 @@ struct pt_regs {
 #define pt_psp(regs) ((regs)->hvmer.vmpsp)
 #define pt_badva(regs) ((regs)->hvmer.vmbadva)
 
+#define pt_set_singlestep(regs) ((regs)->hvmer.vmest |= (1<<HVM_VMEST_SS_SFT))
+#define pt_clr_singlestep(regs) ((regs)->hvmer.vmest &= ~(1<<HVM_VMEST_SS_SFT))
+
 #define pt_set_rte_sp(regs, sp) do {\
-	pt_psp(regs) = (sp);\
-	(regs)->SP = (unsigned long) &((regs)->hvmer);\
+	pt_psp(regs) = (regs)->r29 = (sp);\
 	} while (0)
 
 #define pt_set_kmode(regs) \

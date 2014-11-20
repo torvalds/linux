@@ -10,15 +10,15 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
+#include "imx53-pinfunc.h"
+#include <dt-bindings/clock/imx5-clock.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	aliases {
-		serial0 = &uart1;
-		serial1 = &uart2;
-		serial2 = &uart3;
-		serial3 = &uart4;
-		serial4 = &uart5;
+		ethernet0 = &fec;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
@@ -26,6 +26,36 @@
 		gpio4 = &gpio5;
 		gpio5 = &gpio6;
 		gpio6 = &gpio7;
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
+		i2c2 = &i2c3;
+		mmc0 = &esdhc1;
+		mmc1 = &esdhc2;
+		mmc2 = &esdhc3;
+		mmc3 = &esdhc4;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+		spi0 = &ecspi1;
+		spi1 = &ecspi2;
+		spi2 = &cspi;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a8";
+			reg = <0x0>;
+		};
+	};
+
+	display-subsystem {
+		compatible = "fsl,imx-display-subsystem";
+		ports = <&ipu_di0>, <&ipu_di1>;
 	};
 
 	tzic: tz-interrupt-controller@0fffc000 {
@@ -41,21 +71,25 @@
 
 		ckil {
 			compatible = "fsl,imx-ckil", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
 
 		ckih1 {
 			compatible = "fsl,imx-ckih1", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <22579200>;
 		};
 
 		ckih2 {
 			compatible = "fsl,imx-ckih2", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <0>;
 		};
 
 		osc {
 			compatible = "fsl,imx-osc", "fixed-clock";
+			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
 	};
@@ -67,11 +101,63 @@
 		interrupt-parent = <&tzic>;
 		ranges;
 
+		sata: sata@10000000 {
+			compatible = "fsl,imx53-ahci";
+			reg = <0x10000000 0x1000>;
+			interrupts = <28>;
+			clocks = <&clks IMX5_CLK_SATA_GATE>,
+				 <&clks IMX5_CLK_SATA_REF>,
+				 <&clks IMX5_CLK_AHB>;
+			clock-names = "sata", "sata_ref", "ahb";
+			status = "disabled";
+		};
+
 		ipu: ipu@18000000 {
-			#crtc-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			compatible = "fsl,imx53-ipu";
-			reg = <0x18000000 0x080000000>;
+			reg = <0x18000000 0x08000000>;
 			interrupts = <11 10>;
+			clocks = <&clks IMX5_CLK_IPU_GATE>,
+			         <&clks IMX5_CLK_IPU_DI0_GATE>,
+			         <&clks IMX5_CLK_IPU_DI1_GATE>;
+			clock-names = "bus", "di0", "di1";
+			resets = <&src 2>;
+
+			ipu_di0: port@2 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <2>;
+
+				ipu_di0_disp0: endpoint@0 {
+					reg = <0>;
+				};
+
+				ipu_di0_lvds0: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&lvds0_in>;
+				};
+			};
+
+			ipu_di1: port@3 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <3>;
+
+				ipu_di1_disp1: endpoint@0 {
+					reg = <0>;
+				};
+
+				ipu_di1_lvds1: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&lvds1_in>;
+				};
+
+				ipu_di1_tve: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&tve_in>;
+				};
+			};
 		};
 
 		aips@50000000 { /* AIPS1 */
@@ -92,7 +178,9 @@
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50004000 0x4000>;
 					interrupts = <1>;
-					clocks = <&clks 44>, <&clks 0>, <&clks 71>;
+					clocks = <&clks IMX5_CLK_ESDHC1_IPG_GATE>,
+					         <&clks IMX5_CLK_DUMMY>,
+					         <&clks IMX5_CLK_ESDHC1_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
@@ -102,7 +190,9 @@
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50008000 0x4000>;
 					interrupts = <2>;
-					clocks = <&clks 45>, <&clks 0>, <&clks 72>;
+					clocks = <&clks IMX5_CLK_ESDHC2_IPG_GATE>,
+					         <&clks IMX5_CLK_DUMMY>,
+					         <&clks IMX5_CLK_ESDHC2_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
@@ -112,7 +202,8 @@
 					compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 					reg = <0x5000c000 0x4000>;
 					interrupts = <33>;
-					clocks = <&clks 32>, <&clks 33>;
+					clocks = <&clks IMX5_CLK_UART3_IPG_GATE>,
+					         <&clks IMX5_CLK_UART3_PER_GATE>;
 					clock-names = "ipg", "per";
 					status = "disabled";
 				};
@@ -123,18 +214,24 @@
 					compatible = "fsl,imx53-ecspi", "fsl,imx51-ecspi";
 					reg = <0x50010000 0x4000>;
 					interrupts = <36>;
-					clocks = <&clks 51>, <&clks 52>;
+					clocks = <&clks IMX5_CLK_ECSPI1_IPG_GATE>,
+					         <&clks IMX5_CLK_ECSPI1_PER_GATE>;
 					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
 				ssi2: ssi@50014000 {
-					compatible = "fsl,imx53-ssi", "fsl,imx21-ssi";
+					#sound-dai-cells = <0>;
+					compatible = "fsl,imx53-ssi",
+							"fsl,imx51-ssi",
+							"fsl,imx21-ssi";
 					reg = <0x50014000 0x4000>;
 					interrupts = <30>;
-					clocks = <&clks 49>;
+					clocks = <&clks IMX5_CLK_SSI2_IPG_GATE>;
+					dmas = <&sdma 24 1 0>,
+					       <&sdma 25 1 0>;
+					dma-names = "rx", "tx";
 					fsl,fifo-depth = <15>;
-					fsl,ssi-dma-events = <25 24 23 22>; /* TX0 RX0 TX1 RX1 */
 					status = "disabled";
 				};
 
@@ -142,7 +239,9 @@
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50020000 0x4000>;
 					interrupts = <3>;
-					clocks = <&clks 46>, <&clks 0>, <&clks 73>;
+					clocks = <&clks IMX5_CLK_ESDHC3_IPG_GATE>,
+					         <&clks IMX5_CLK_DUMMY>,
+					         <&clks IMX5_CLK_ESDHC3_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
@@ -152,17 +251,41 @@
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50024000 0x4000>;
 					interrupts = <4>;
-					clocks = <&clks 47>, <&clks 0>, <&clks 74>;
+					clocks = <&clks IMX5_CLK_ESDHC4_IPG_GATE>,
+					         <&clks IMX5_CLK_DUMMY>,
+					         <&clks IMX5_CLK_ESDHC4_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
 				};
 			};
 
+			aipstz1: bridge@53f00000 {
+				compatible = "fsl,imx53-aipstz";
+				reg = <0x53f00000 0x60>;
+			};
+
+			usbphy0: usbphy@0 {
+				compatible = "usb-nop-xceiv";
+				clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
+				clock-names = "main_clk";
+				status = "okay";
+			};
+
+			usbphy1: usbphy@1 {
+				compatible = "usb-nop-xceiv";
+				clocks = <&clks IMX5_CLK_USB_PHY2_GATE>;
+				clock-names = "main_clk";
+				status = "okay";
+			};
+
 			usbotg: usb@53f80000 {
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80000 0x0200>;
 				interrupts = <18>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				fsl,usbmisc = <&usbmisc 0>;
+				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
 			};
 
@@ -170,6 +293,9 @@
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80200 0x0200>;
 				interrupts = <14>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				fsl,usbmisc = <&usbmisc 1>;
+				fsl,usbphy = <&usbphy1>;
 				status = "disabled";
 			};
 
@@ -177,6 +303,8 @@
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80400 0x0200>;
 				interrupts = <16>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				fsl,usbmisc = <&usbmisc 2>;
 				status = "disabled";
 			};
 
@@ -184,7 +312,16 @@
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80600 0x0200>;
 				interrupts = <17>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				fsl,usbmisc = <&usbmisc 3>;
 				status = "disabled";
+			};
+
+			usbmisc: usbmisc@53f80800 {
+				#index-cells = <1>;
+				compatible = "fsl,imx53-usbmisc";
+				reg = <0x53f80800 0x200>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
 			};
 
 			gpio1: gpio@53f84000 {
@@ -227,288 +364,102 @@
 				#interrupt-cells = <2>;
 			};
 
+			kpp: kpp@53f94000 {
+				compatible = "fsl,imx53-kpp", "fsl,imx21-kpp";
+				reg = <0x53f94000 0x4000>;
+				interrupts = <60>;
+				clocks = <&clks IMX5_CLK_DUMMY>;
+				status = "disabled";
+			};
+
 			wdog1: wdog@53f98000 {
 				compatible = "fsl,imx53-wdt", "fsl,imx21-wdt";
 				reg = <0x53f98000 0x4000>;
 				interrupts = <58>;
-				clocks = <&clks 0>;
+				clocks = <&clks IMX5_CLK_DUMMY>;
 			};
 
 			wdog2: wdog@53f9c000 {
 				compatible = "fsl,imx53-wdt", "fsl,imx21-wdt";
 				reg = <0x53f9c000 0x4000>;
 				interrupts = <59>;
-				clocks = <&clks 0>;
+				clocks = <&clks IMX5_CLK_DUMMY>;
 				status = "disabled";
+			};
+
+			gpt: timer@53fa0000 {
+				compatible = "fsl,imx53-gpt", "fsl,imx31-gpt";
+				reg = <0x53fa0000 0x4000>;
+				interrupts = <39>;
+				clocks = <&clks IMX5_CLK_GPT_IPG_GATE>,
+				         <&clks IMX5_CLK_GPT_HF_GATE>;
+				clock-names = "ipg", "per";
 			};
 
 			iomuxc: iomuxc@53fa8000 {
 				compatible = "fsl,imx53-iomuxc";
 				reg = <0x53fa8000 0x4000>;
+			};
 
-				audmux {
-					pinctrl_audmux_1: audmuxgrp-1 {
-						fsl,pins = <
-							10 0x80000000	/* MX53_PAD_KEY_COL0__AUDMUX_AUD5_TXC */
-							17 0x80000000	/* MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD */
-							23 0x80000000	/* MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS */
-							30 0x80000000	/* MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD */
-						>;
+			gpr: iomuxc-gpr@53fa8000 {
+				compatible = "fsl,imx53-iomuxc-gpr", "syscon";
+				reg = <0x53fa8000 0xc>;
+			};
+
+			ldb: ldb@53fa8008 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx53-ldb";
+				reg = <0x53fa8008 0x4>;
+				gpr = <&gpr>;
+				clocks = <&clks IMX5_CLK_LDB_DI0_SEL>,
+				         <&clks IMX5_CLK_LDB_DI1_SEL>,
+				         <&clks IMX5_CLK_IPU_DI0_SEL>,
+				         <&clks IMX5_CLK_IPU_DI1_SEL>,
+				         <&clks IMX5_CLK_LDB_DI0_GATE>,
+				         <&clks IMX5_CLK_LDB_DI1_GATE>;
+				clock-names = "di0_pll", "di1_pll",
+					      "di0_sel", "di1_sel",
+					      "di0", "di1";
+				status = "disabled";
+
+				lvds-channel@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+					status = "disabled";
+
+					port@0 {
+						reg = <0>;
+
+						lvds0_in: endpoint {
+							remote-endpoint = <&ipu_di0_lvds0>;
+						};
 					};
 				};
 
-				fec {
-					pinctrl_fec_1: fecgrp-1 {
-						fsl,pins = <
-							820 0x80000000	/* MX53_PAD_FEC_MDC__FEC_MDC */
-							779 0x80000000	/* MX53_PAD_FEC_MDIO__FEC_MDIO */
-							786 0x80000000	/* MX53_PAD_FEC_REF_CLK__FEC_TX_CLK */
-							791 0x80000000	/* MX53_PAD_FEC_RX_ER__FEC_RX_ER */
-							796 0x80000000	/* MX53_PAD_FEC_CRS_DV__FEC_RX_DV */
-							799 0x80000000	/* MX53_PAD_FEC_RXD1__FEC_RDATA_1 */
-							804 0x80000000	/* MX53_PAD_FEC_RXD0__FEC_RDATA_0 */
-							808 0x80000000	/* MX53_PAD_FEC_TX_EN__FEC_TX_EN */
-							811 0x80000000	/* MX53_PAD_FEC_TXD1__FEC_TDATA_1 */
-							816 0x80000000	/* MX53_PAD_FEC_TXD0__FEC_TDATA_0 */
-						>;
+				lvds-channel@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					status = "disabled";
+
+					port@1 {
+						reg = <1>;
+
+						lvds1_in: endpoint {
+							remote-endpoint = <&ipu_di1_lvds1>;
+						};
 					};
 				};
-
-				csi {
-					pinctrl_csi_1: csigrp-1 {
-						fsl,pins = <
-							286 0x1d5	/* MX53_PAD_CSI0_DATA_EN__IPU_CSI0_DATA_EN */
-							291 0x1d5	/* MX53_PAD_CSI0_VSYNC__IPU_CSI0_VSYNC */
-							280 0x1d5	/* MX53_PAD_CSI0_MCLK__IPU_CSI0_HSYNC */
-							276 0x1d5	/* MX53_PAD_CSI0_PIXCLK__IPU_CSI0_PIXCLK */
-							409 0x1d5	/* MX53_PAD_CSI0_DAT19__IPU_CSI0_D_19 */
-							402 0x1d5	/* MX53_PAD_CSI0_DAT18__IPU_CSI0_D_18 */
-							395 0x1d5	/* MX53_PAD_CSI0_DAT17__IPU_CSI0_D_17 */
-							388 0x1d5	/* MX53_PAD_CSI0_DAT16__IPU_CSI0_D_16 */
-							381 0x1d5	/* MX53_PAD_CSI0_DAT15__IPU_CSI0_D_15 */
-							374 0x1d5	/* MX53_PAD_CSI0_DAT14__IPU_CSI0_D_14 */
-							367 0x1d5	/* MX53_PAD_CSI0_DAT13__IPU_CSI0_D_13 */
-							360 0x1d5	/* MX53_PAD_CSI0_DAT12__IPU_CSI0_D_12 */
-							352 0x1d5	/* MX53_PAD_CSI0_DAT11__IPU_CSI0_D_11 */
-							344 0x1d5	/* MX53_PAD_CSI0_DAT10__IPU_CSI0_D_10 */
-							336 0x1d5	/* MX53_PAD_CSI0_DAT9__IPU_CSI0_D_9 */
-							328 0x1d5	/* MX53_PAD_CSI0_DAT8__IPU_CSI0_D_8 */
-							320 0x1d5	/* MX53_PAD_CSI0_DAT7__IPU_CSI0_D_7 */
-							312 0x1d5	/* MX53_PAD_CSI0_DAT6__IPU_CSI0_D_6 */
-							304 0x1d5	/* MX53_PAD_CSI0_DAT5__IPU_CSI0_D_5 */
-							296 0x1d5	/* MX53_PAD_CSI0_DAT4__IPU_CSI0_D_4 */
-							276 0x1d5	/* MX53_PAD_CSI0_PIXCLK__IPU_CSI0_PIXCLK */
-						>;
-					};
-				};
-
-				cspi {
-					pinctrl_cspi_1: cspigrp-1 {
-						fsl,pins = <
-							998  0x1d5	/* MX53_PAD_SD1_DATA0__CSPI_MISO */
-							1008 0x1d5	/* MX53_PAD_SD1_CMD__CSPI_MOSI */
-							1022 0x1d5	/* MX53_PAD_SD1_CLK__CSPI_SCLK */
-						>;
-					};
-				};
-
-				ecspi1 {
-					pinctrl_ecspi1_1: ecspi1grp-1 {
-						fsl,pins = <
-							433 0x80000000	/* MX53_PAD_EIM_D16__ECSPI1_SCLK */
-							439 0x80000000	/* MX53_PAD_EIM_D17__ECSPI1_MISO */
-							445 0x80000000	/* MX53_PAD_EIM_D18__ECSPI1_MOSI */
-						>;
-					};
-				};
-
-				esdhc1 {
-					pinctrl_esdhc1_1: esdhc1grp-1 {
-						fsl,pins = <
-							995  0x1d5	/* MX53_PAD_SD1_DATA0__ESDHC1_DAT0 */
-							1000 0x1d5	/* MX53_PAD_SD1_DATA1__ESDHC1_DAT1 */
-							1010 0x1d5	/* MX53_PAD_SD1_DATA2__ESDHC1_DAT2 */
-							1024 0x1d5	/* MX53_PAD_SD1_DATA3__ESDHC1_DAT3 */
-							1005 0x1d5	/* MX53_PAD_SD1_CMD__ESDHC1_CMD */
-							1018 0x1d5	/* MX53_PAD_SD1_CLK__ESDHC1_CLK */
-						>;
-					};
-
-					pinctrl_esdhc1_2: esdhc1grp-2 {
-						fsl,pins = <
-							995  0x1d5	/* MX53_PAD_SD1_DATA0__ESDHC1_DAT0 */
-							1000 0x1d5	/* MX53_PAD_SD1_DATA1__ESDHC1_DAT1 */
-							1010 0x1d5	/* MX53_PAD_SD1_DATA2__ESDHC1_DAT2 */
-							1024 0x1d5	/* MX53_PAD_SD1_DATA3__ESDHC1_DAT3 */
-							941  0x1d5	/* MX53_PAD_PATA_DATA8__ESDHC1_DAT4 */
-							948  0x1d5	/* MX53_PAD_PATA_DATA9__ESDHC1_DAT5 */
-							955  0x1d5	/* MX53_PAD_PATA_DATA10__ESDHC1_DAT6 */
-							962  0x1d5	/* MX53_PAD_PATA_DATA11__ESDHC1_DAT7 */
-							1005 0x1d5	/* MX53_PAD_SD1_CMD__ESDHC1_CMD */
-							1018 0x1d5	/* MX53_PAD_SD1_CLK__ESDHC1_CLK */
-						>;
-					};
-				};
-
-				esdhc2 {
-					pinctrl_esdhc2_1: esdhc2grp-1 {
-						fsl,pins = <
-							1038 0x1d5	/* MX53_PAD_SD2_CMD__ESDHC2_CMD */
-							1032 0x1d5	/* MX53_PAD_SD2_CLK__ESDHC2_CLK */
-							1062 0x1d5	/* MX53_PAD_SD2_DATA0__ESDHC2_DAT0 */
-							1056 0x1d5	/* MX53_PAD_SD2_DATA1__ESDHC2_DAT1 */
-							1050 0x1d5	/* MX53_PAD_SD2_DATA2__ESDHC2_DAT2 */
-							1044 0x1d5	/* MX53_PAD_SD2_DATA3__ESDHC2_DAT3 */
-						>;
-					};
-				};
-
-				esdhc3 {
-					pinctrl_esdhc3_1: esdhc3grp-1 {
-						fsl,pins = <
-							943 0x1d5	/* MX53_PAD_PATA_DATA8__ESDHC3_DAT0 */
-							950 0x1d5	/* MX53_PAD_PATA_DATA9__ESDHC3_DAT1 */
-							957 0x1d5	/* MX53_PAD_PATA_DATA10__ESDHC3_DAT2 */
-							964 0x1d5	/* MX53_PAD_PATA_DATA11__ESDHC3_DAT3 */
-							893 0x1d5	/* MX53_PAD_PATA_DATA0__ESDHC3_DAT4 */
-							900 0x1d5	/* MX53_PAD_PATA_DATA1__ESDHC3_DAT5 */
-							906 0x1d5	/* MX53_PAD_PATA_DATA2__ESDHC3_DAT6 */
-							912 0x1d5	/* MX53_PAD_PATA_DATA3__ESDHC3_DAT7 */
-							857 0x1d5	/* MX53_PAD_PATA_RESET_B__ESDHC3_CMD */
-							863 0x1d5	/* MX53_PAD_PATA_IORDY__ESDHC3_CLK */
-						>;
-					};
-				};
-
-				can1 {
-					pinctrl_can1_1: can1grp-1 {
-						fsl,pins = <
-							847 0x80000000  /* MX53_PAD_PATA_INTRQ__CAN1_TXCAN */
-							853 0x80000000  /* MX53_PAD_PATA_DIOR__CAN1_RXCAN */
-						>;
-					};
-
-					pinctrl_can1_2: can1grp-2 {
-						fsl,pins = <
-							37  0x80000000  /* MX53_PAD_KEY_COL2__CAN1_TXCAN */
-							44  0x80000000  /* MX53_PAD_KEY_ROW2__CAN1_RXCAN */
-						>;
-					};
-				};
-
-				can2 {
-					pinctrl_can2_1: can2grp-1 {
-						fsl,pins = <
-							67  0x80000000  /* MX53_PAD_KEY_COL4__CAN2_TXCAN */
-							74  0x80000000  /* MX53_PAD_KEY_ROW4__CAN2_RXCAN */
-						>;
-					};
-				};
-
-				i2c1 {
-					pinctrl_i2c1_1: i2c1grp-1 {
-						fsl,pins = <
-							333 0xc0000000	/* MX53_PAD_CSI0_DAT8__I2C1_SDA */
-							341 0xc0000000	/* MX53_PAD_CSI0_DAT9__I2C1_SCL */
-						>;
-					};
-				};
-
-				i2c2 {
-					pinctrl_i2c2_1: i2c2grp-1 {
-						fsl,pins = <
-							61 0xc0000000	/* MX53_PAD_KEY_ROW3__I2C2_SDA */
-							53 0xc0000000	/* MX53_PAD_KEY_COL3__I2C2_SCL */
-						>;
-					};
-				};
-
-				i2c3 {
-					pinctrl_i2c3_1: i2c3grp-1 {
-						fsl,pins = <
-							1102 0xc0000000	/* MX53_PAD_GPIO_6__I2C3_SDA */
-							1130 0xc0000000	/* MX53_PAD_GPIO_5__I2C3_SCL */
-						>;
-					};
-				};
-
-				owire {
-					pinctrl_owire_1: owiregrp-1 {
-						fsl,pins = <
-								1166 0x80000000 /* MX53_PAD_GPIO_18__OWIRE_LINE */
-						>;
-					};
-				};
-
-				uart1 {
-					pinctrl_uart1_1: uart1grp-1 {
-						fsl,pins = <
-							346 0x1c5	/* MX53_PAD_CSI0_DAT10__UART1_TXD_MUX */
-							354 0x1c5	/* MX53_PAD_CSI0_DAT11__UART1_RXD_MUX */
-						>;
-					};
-
-					pinctrl_uart1_2: uart1grp-2 {
-						fsl,pins = <
-							828 0x1c5	/* MX53_PAD_PATA_DIOW__UART1_TXD_MUX */
-							832 0x1c5	/* MX53_PAD_PATA_DMACK__UART1_RXD_MUX */
-						>;
-					};
-				};
-
-				uart2 {
-					pinctrl_uart2_1: uart2grp-1 {
-						fsl,pins = <
-							841 0x1c5	/* MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX */
-							836 0x1c5	/* MX53_PAD_PATA_DMARQ__UART2_TXD_MUX */
-						>;
-					};
-				};
-
-				uart3 {
-					pinctrl_uart3_1: uart3grp-1 {
-						fsl,pins = <
-							884 0x1c5	/* MX53_PAD_PATA_CS_0__UART3_TXD_MUX */
-							888 0x1c5	/* MX53_PAD_PATA_CS_1__UART3_RXD_MUX */
-							875 0x1c5	/* MX53_PAD_PATA_DA_1__UART3_CTS */
-							880 0x1c5	/* MX53_PAD_PATA_DA_2__UART3_RTS */
-						>;
-					};
-
-					pinctrl_uart3_2: uart3grp-2 {
-						fsl,pins = <
-							884 0x1c5	/* MX53_PAD_PATA_CS_0__UART3_TXD_MUX */
-							888 0x1c5	/* MX53_PAD_PATA_CS_1__UART3_RXD_MUX */
-						>;
-					};
-
-				};
-
-				uart4 {
-					pinctrl_uart4_1: uart4grp-1 {
-						fsl,pins = <
-							11 0x1c5	/* MX53_PAD_KEY_COL0__UART4_TXD_MUX */
-							18 0x1c5	/* MX53_PAD_KEY_ROW0__UART4_RXD_MUX */
-						>;
-					};
-				};
-
-				uart5 {
-					pinctrl_uart5_1: uart5grp-1 {
-						fsl,pins = <
-							24 0x1c5	/* MX53_PAD_KEY_COL1__UART5_TXD_MUX */
-							31 0x1c5	/* MX53_PAD_KEY_ROW1__UART5_RXD_MUX */
-						>;
-					};
-				};
-
 			};
 
 			pwm1: pwm@53fb4000 {
 				#pwm-cells = <2>;
 				compatible = "fsl,imx53-pwm", "fsl,imx27-pwm";
 				reg = <0x53fb4000 0x4000>;
-				clocks = <&clks 37>, <&clks 38>;
+				clocks = <&clks IMX5_CLK_PWM1_IPG_GATE>,
+				         <&clks IMX5_CLK_PWM1_HF_GATE>;
 				clock-names = "ipg", "per";
 				interrupts = <61>;
 			};
@@ -517,7 +468,8 @@
 				#pwm-cells = <2>;
 				compatible = "fsl,imx53-pwm", "fsl,imx27-pwm";
 				reg = <0x53fb8000 0x4000>;
-				clocks = <&clks 39>, <&clks 40>;
+				clocks = <&clks IMX5_CLK_PWM2_IPG_GATE>,
+				         <&clks IMX5_CLK_PWM2_HF_GATE>;
 				clock-names = "ipg", "per";
 				interrupts = <94>;
 			};
@@ -526,7 +478,8 @@
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x53fbc000 0x4000>;
 				interrupts = <31>;
-				clocks = <&clks 28>, <&clks 29>;
+				clocks = <&clks IMX5_CLK_UART1_IPG_GATE>,
+				         <&clks IMX5_CLK_UART1_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -535,7 +488,8 @@
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x53fc0000 0x4000>;
 				interrupts = <32>;
-				clocks = <&clks 30>, <&clks 31>;
+				clocks = <&clks IMX5_CLK_UART2_IPG_GATE>,
+				         <&clks IMX5_CLK_UART2_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -544,7 +498,8 @@
 				compatible = "fsl,imx53-flexcan", "fsl,p1010-flexcan";
 				reg = <0x53fc8000 0x4000>;
 				interrupts = <82>;
-				clocks = <&clks 158>, <&clks 157>;
+				clocks = <&clks IMX5_CLK_CAN1_IPG_GATE>,
+				         <&clks IMX5_CLK_CAN1_SERIAL_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -553,9 +508,16 @@
 				compatible = "fsl,imx53-flexcan", "fsl,p1010-flexcan";
 				reg = <0x53fcc000 0x4000>;
 				interrupts = <83>;
-				clocks = <&clks 87>, <&clks 86>;
+				clocks = <&clks IMX5_CLK_CAN2_IPG_GATE>,
+				         <&clks IMX5_CLK_CAN2_SERIAL_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
+			};
+
+			src: src@53fd0000 {
+				compatible = "fsl,imx53-src", "fsl,imx51-src";
+				reg = <0x53fd0000 0x4000>;
+				#reset-cells = <1>;
 			};
 
 			clks: ccm@53fd4000{
@@ -601,7 +563,7 @@
 				compatible = "fsl,imx53-i2c", "fsl,imx21-i2c";
 				reg = <0x53fec000 0x4000>;
 				interrupts = <64>;
-				clocks = <&clks 88>;
+				clocks = <&clks IMX5_CLK_I2C3_GATE>;
 				status = "disabled";
 			};
 
@@ -609,7 +571,8 @@
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x53ff0000 0x4000>;
 				interrupts = <13>;
-				clocks = <&clks 65>, <&clks 66>;
+				clocks = <&clks IMX5_CLK_UART4_IPG_GATE>,
+				         <&clks IMX5_CLK_UART4_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -622,11 +585,24 @@
 			reg = <0x60000000 0x10000000>;
 			ranges;
 
+			aipstz2: bridge@63f00000 {
+				compatible = "fsl,imx53-aipstz";
+				reg = <0x63f00000 0x60>;
+			};
+
+			iim: iim@63f98000 {
+				compatible = "fsl,imx53-iim", "fsl,imx27-iim";
+				reg = <0x63f98000 0x4000>;
+				interrupts = <69>;
+				clocks = <&clks IMX5_CLK_IIM_GATE>;
+			};
+
 			uart5: serial@63f90000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x63f90000 0x4000>;
 				interrupts = <86>;
-				clocks = <&clks 67>, <&clks 68>;
+				clocks = <&clks IMX5_CLK_UART5_IPG_GATE>,
+				         <&clks IMX5_CLK_UART5_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -634,7 +610,7 @@
 			owire: owire@63fa4000 {
 				compatible = "fsl,imx53-owire", "fsl,imx21-owire";
 				reg = <0x63fa4000 0x4000>;
-				clocks = <&clks 159>;
+				clocks = <&clks IMX5_CLK_OWIRE_GATE>;
 				status = "disabled";
 			};
 
@@ -644,7 +620,8 @@
 				compatible = "fsl,imx53-ecspi", "fsl,imx51-ecspi";
 				reg = <0x63fac000 0x4000>;
 				interrupts = <37>;
-				clocks = <&clks 53>, <&clks 54>;
+				clocks = <&clks IMX5_CLK_ECSPI2_IPG_GATE>,
+				         <&clks IMX5_CLK_ECSPI2_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -653,8 +630,10 @@
 				compatible = "fsl,imx53-sdma", "fsl,imx35-sdma";
 				reg = <0x63fb0000 0x4000>;
 				interrupts = <6>;
-				clocks = <&clks 56>, <&clks 56>;
+				clocks = <&clks IMX5_CLK_SDMA_GATE>,
+				         <&clks IMX5_CLK_SDMA_GATE>;
 				clock-names = "ipg", "ahb";
+				#dma-cells = <3>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";
 			};
 
@@ -664,7 +643,8 @@
 				compatible = "fsl,imx53-cspi", "fsl,imx35-cspi";
 				reg = <0x63fc0000 0x4000>;
 				interrupts = <38>;
-				clocks = <&clks 55>, <&clks 0>;
+				clocks = <&clks IMX5_CLK_CSPI_IPG_GATE>,
+				         <&clks IMX5_CLK_CSPI_IPG_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -675,7 +655,7 @@
 				compatible = "fsl,imx53-i2c", "fsl,imx21-i2c";
 				reg = <0x63fc4000 0x4000>;
 				interrupts = <63>;
-				clocks = <&clks 35>;
+				clocks = <&clks IMX5_CLK_I2C2_GATE>;
 				status = "disabled";
 			};
 
@@ -685,17 +665,21 @@
 				compatible = "fsl,imx53-i2c", "fsl,imx21-i2c";
 				reg = <0x63fc8000 0x4000>;
 				interrupts = <62>;
-				clocks = <&clks 34>;
+				clocks = <&clks IMX5_CLK_I2C1_GATE>;
 				status = "disabled";
 			};
 
 			ssi1: ssi@63fcc000 {
-				compatible = "fsl,imx53-ssi", "fsl,imx21-ssi";
+				#sound-dai-cells = <0>;
+				compatible = "fsl,imx53-ssi", "fsl,imx51-ssi",
+						"fsl,imx21-ssi";
 				reg = <0x63fcc000 0x4000>;
 				interrupts = <29>;
-				clocks = <&clks 48>;
+				clocks = <&clks IMX5_CLK_SSI1_IPG_GATE>;
+				dmas = <&sdma 28 0 0>,
+				       <&sdma 29 0 0>;
+				dma-names = "rx", "tx";
 				fsl,fifo-depth = <15>;
-				fsl,ssi-dma-events = <29 28 27 26>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
 			};
 
@@ -709,17 +693,21 @@
 				compatible = "fsl,imx53-nand";
 				reg = <0x63fdb000 0x1000 0xf7ff0000 0x10000>;
 				interrupts = <8>;
-				clocks = <&clks 60>;
+				clocks = <&clks IMX5_CLK_NFC_GATE>;
 				status = "disabled";
 			};
 
 			ssi3: ssi@63fe8000 {
-				compatible = "fsl,imx53-ssi", "fsl,imx21-ssi";
+				#sound-dai-cells = <0>;
+				compatible = "fsl,imx53-ssi", "fsl,imx51-ssi",
+						"fsl,imx21-ssi";
 				reg = <0x63fe8000 0x4000>;
 				interrupts = <96>;
-				clocks = <&clks 50>;
+				clocks = <&clks IMX5_CLK_SSI3_IPG_GATE>;
+				dmas = <&sdma 46 0 0>,
+				       <&sdma 47 0 0>;
+				dma-names = "rx", "tx";
 				fsl,fifo-depth = <15>;
-				fsl,ssi-dma-events = <47 46 45 44>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
 			};
 
@@ -727,10 +715,50 @@
 				compatible = "fsl,imx53-fec", "fsl,imx25-fec";
 				reg = <0x63fec000 0x4000>;
 				interrupts = <87>;
-				clocks = <&clks 42>, <&clks 42>, <&clks 42>;
+				clocks = <&clks IMX5_CLK_FEC_GATE>,
+				         <&clks IMX5_CLK_FEC_GATE>,
+				         <&clks IMX5_CLK_FEC_GATE>;
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};
+
+			tve: tve@63ff0000 {
+				compatible = "fsl,imx53-tve";
+				reg = <0x63ff0000 0x1000>;
+				interrupts = <92>;
+				clocks = <&clks IMX5_CLK_TVE_GATE>,
+				         <&clks IMX5_CLK_IPU_DI1_SEL>;
+				clock-names = "tve", "di_sel";
+				status = "disabled";
+
+				port {
+					tve_in: endpoint {
+						remote-endpoint = <&ipu_di1_tve>;
+					};
+				};
+			};
+
+			vpu: vpu@63ff4000 {
+				compatible = "fsl,imx53-vpu";
+				reg = <0x63ff4000 0x1000>;
+				interrupts = <9>;
+				clocks = <&clks IMX5_CLK_VPU_REFERENCE_GATE>,
+				         <&clks IMX5_CLK_VPU_GATE>;
+				clock-names = "per", "ahb";
+				resets = <&src 1>;
+				iram = <&ocram>;
+			};
+		};
+
+		ocram: sram@f8000000 {
+			compatible = "mmio-sram";
+			reg = <0xf8000000 0x20000>;
+			clocks = <&clks IMX5_CLK_OCRAM>;
+		};
+
+		pmu {
+			compatible = "arm,cortex-a8-pmu";
+			interrupts = <77>;
 		};
 	};
 };

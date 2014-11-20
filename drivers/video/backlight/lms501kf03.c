@@ -232,18 +232,18 @@ static int lms501kf03_power_on(struct lms501kf03 *lcd)
 	if (!pd->power_on) {
 		dev_err(lcd->dev, "power_on is NULL.\n");
 		return -EINVAL;
-	} else {
-		pd->power_on(lcd->ld, 1);
-		msleep(pd->power_on_delay);
 	}
+
+	pd->power_on(lcd->ld, 1);
+	msleep(pd->power_on_delay);
 
 	if (!pd->reset) {
 		dev_err(lcd->dev, "reset is NULL.\n");
 		return -EINVAL;
-	} else {
-		pd->reset(lcd->ld);
-		msleep(pd->reset_delay);
 	}
+
+	pd->reset(lcd->ld);
+	msleep(pd->reset_delay);
 
 	ret = lms501kf03_ldi_init(lcd);
 	if (ret) {
@@ -344,14 +344,14 @@ static int lms501kf03_probe(struct spi_device *spi)
 	lcd->spi = spi;
 	lcd->dev = &spi->dev;
 
-	lcd->lcd_pd = spi->dev.platform_data;
+	lcd->lcd_pd = dev_get_platdata(&spi->dev);
 	if (!lcd->lcd_pd) {
 		dev_err(&spi->dev, "platform data is NULL\n");
 		return -EINVAL;
 	}
 
-	ld = lcd_device_register("lms501kf03", &spi->dev, lcd,
-				&lms501kf03_lcd_ops);
+	ld = devm_lcd_device_register(&spi->dev, "lms501kf03", &spi->dev, lcd,
+					&lms501kf03_lcd_ops);
 	if (IS_ERR(ld))
 		return PTR_ERR(ld);
 
@@ -382,18 +382,15 @@ static int lms501kf03_remove(struct spi_device *spi)
 	struct lms501kf03 *lcd = spi_get_drvdata(spi);
 
 	lms501kf03_power(lcd, FB_BLANK_POWERDOWN);
-	lcd_device_unregister(lcd->ld);
-
 	return 0;
 }
 
-#if defined(CONFIG_PM)
-
-static int lms501kf03_suspend(struct spi_device *spi, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int lms501kf03_suspend(struct device *dev)
 {
-	struct lms501kf03 *lcd = spi_get_drvdata(spi);
+	struct lms501kf03 *lcd = dev_get_drvdata(dev);
 
-	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
+	dev_dbg(dev, "lcd->power = %d\n", lcd->power);
 
 	/*
 	 * when lcd panel is suspend, lcd panel becomes off
@@ -402,18 +399,18 @@ static int lms501kf03_suspend(struct spi_device *spi, pm_message_t mesg)
 	return lms501kf03_power(lcd, FB_BLANK_POWERDOWN);
 }
 
-static int lms501kf03_resume(struct spi_device *spi)
+static int lms501kf03_resume(struct device *dev)
 {
-	struct lms501kf03 *lcd = spi_get_drvdata(spi);
+	struct lms501kf03 *lcd = dev_get_drvdata(dev);
 
 	lcd->power = FB_BLANK_POWERDOWN;
 
 	return lms501kf03_power(lcd, FB_BLANK_UNBLANK);
 }
-#else
-#define lms501kf03_suspend	NULL
-#define lms501kf03_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(lms501kf03_pm_ops, lms501kf03_suspend,
+			lms501kf03_resume);
 
 static void lms501kf03_shutdown(struct spi_device *spi)
 {
@@ -426,12 +423,11 @@ static struct spi_driver lms501kf03_driver = {
 	.driver = {
 		.name	= "lms501kf03",
 		.owner	= THIS_MODULE,
+		.pm	= &lms501kf03_pm_ops,
 	},
 	.probe		= lms501kf03_probe,
 	.remove		= lms501kf03_remove,
 	.shutdown	= lms501kf03_shutdown,
-	.suspend	= lms501kf03_suspend,
-	.resume		= lms501kf03_resume,
 };
 
 module_spi_driver(lms501kf03_driver);

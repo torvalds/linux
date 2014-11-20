@@ -67,12 +67,12 @@ static const char *wm9705_mic[] = {"Mic 1", "Mic 2"};
 static const char *wm9705_rec_sel[] = {"Mic", "CD", "NC", "NC",
 	"Line", "Stereo Mix", "Mono Mix", "Phone"};
 
-static const struct soc_enum wm9705_enum_mic =
-	SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 8, 2, wm9705_mic);
-static const struct soc_enum wm9705_enum_rec_l =
-	SOC_ENUM_SINGLE(AC97_REC_SEL, 8, 8, wm9705_rec_sel);
-static const struct soc_enum wm9705_enum_rec_r =
-	SOC_ENUM_SINGLE(AC97_REC_SEL, 0, 8, wm9705_rec_sel);
+static SOC_ENUM_SINGLE_DECL(wm9705_enum_mic,
+			    AC97_GENERAL_PURPOSE, 8, wm9705_mic);
+static SOC_ENUM_SINGLE_DECL(wm9705_enum_rec_l,
+			    AC97_REC_SEL, 8, wm9705_rec_sel);
+static SOC_ENUM_SINGLE_DECL(wm9705_enum_rec_r,
+			    AC97_REC_SEL, 0, wm9705_rec_sel);
 
 /* Headphone Mixer */
 static const struct snd_kcontrol_new wm9705_hp_mixer_controls[] = {
@@ -209,7 +209,7 @@ static unsigned int ac97_read(struct snd_soc_codec *codec, unsigned int reg)
 	case AC97_RESET:
 	case AC97_VENDOR_ID1:
 	case AC97_VENDOR_ID2:
-		return soc_ac97_ops.read(codec->ac97, reg);
+		return soc_ac97_ops->read(codec->ac97, reg);
 	default:
 		reg = reg >> 1;
 
@@ -225,7 +225,7 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 {
 	u16 *cache = codec->reg_cache;
 
-	soc_ac97_ops.write(codec->ac97, reg, val);
+	soc_ac97_ops->write(codec->ac97, reg, val);
 	reg = reg >> 1;
 	if (reg < (ARRAY_SIZE(wm9705_reg)))
 		cache[reg] = val;
@@ -294,8 +294,8 @@ static struct snd_soc_dai_driver wm9705_dai[] = {
 
 static int wm9705_reset(struct snd_soc_codec *codec)
 {
-	if (soc_ac97_ops.reset) {
-		soc_ac97_ops.reset(codec->ac97);
+	if (soc_ac97_ops->reset) {
+		soc_ac97_ops->reset(codec->ac97);
 		if (ac97_read(codec, 0) == wm9705_reg[0])
 			return 0; /* Success */
 	}
@@ -306,7 +306,7 @@ static int wm9705_reset(struct snd_soc_codec *codec)
 #ifdef CONFIG_PM
 static int wm9705_soc_suspend(struct snd_soc_codec *codec)
 {
-	soc_ac97_ops.write(codec->ac97, AC97_POWERDOWN, 0xffff);
+	soc_ac97_ops->write(codec->ac97, AC97_POWERDOWN, 0xffff);
 
 	return 0;
 }
@@ -323,7 +323,7 @@ static int wm9705_soc_resume(struct snd_soc_codec *codec)
 	}
 
 	for (i = 2; i < ARRAY_SIZE(wm9705_reg) << 1; i += 2) {
-		soc_ac97_ops.write(codec->ac97, i, cache[i>>1]);
+		soc_ac97_ops->write(codec->ac97, i, cache[i>>1]);
 	}
 
 	return 0;
@@ -337,9 +337,7 @@ static int wm9705_soc_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0;
 
-	printk(KERN_INFO "WM9705 SoC Audio Codec\n");
-
-	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
+	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0) {
 		printk(KERN_ERR "wm9705: failed to register AC97 codec\n");
 		return ret;

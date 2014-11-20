@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -161,7 +161,6 @@ union acpi_generic_state *acpi_ut_create_generic_state(void)
 	if (state) {
 
 		/* Initialize */
-		memset(state, 0, sizeof(union acpi_generic_state));
 		state->common.descriptor_type = ACPI_DESC_TYPE_STATE;
 	}
 

@@ -702,7 +702,7 @@ static int b1ctl_proc_show(struct seq_file *m, void *v)
 
 static int b1ctl_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, b1ctl_proc_show, PDE(inode)->data);
+	return single_open(file, b1ctl_proc_show, PDE_DATA(inode));
 }
 
 const struct file_operations b1ctl_proc_fops = {

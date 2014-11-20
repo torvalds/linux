@@ -16,11 +16,6 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CONTROL_H
 #define __ARCH_ARM_MACH_OMAP2_CONTROL_H
 
-#include "ctrl_module_core_44xx.h"
-#include "ctrl_module_wkup_44xx.h"
-#include "ctrl_module_pad_core_44xx.h"
-#include "ctrl_module_pad_wkup_44xx.h"
-
 #include "am33xx.h"
 
 #ifndef __ASSEMBLY__
@@ -254,6 +249,39 @@
 /* TI81XX CONTROL_DEVCONF register offsets */
 #define TI81XX_CONTROL_DEVICE_ID	(TI81XX_CONTROL_DEVCONF + 0x000)
 
+/* OMAP4 CONTROL MODULE */
+#define OMAP4_CTRL_MODULE_PAD_WKUP			0x4a31e000
+#define OMAP4_CTRL_MODULE_PAD_WKUP_CONTROL_I2C_2	0x0604
+#define OMAP4_CTRL_MODULE_CORE_STATUS			0x02c4
+#define OMAP4_CTRL_MODULE_CORE_STD_FUSE_PROD_ID_1	0x0218
+#define OMAP4_CTRL_MODULE_CORE_DSP_BOOTADDR		0x0304
+#define OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_DSIPHY	0x0618
+#define OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX	0x0608
+
+/* OMAP4 CONTROL_DSIPHY */
+#define OMAP4_DSI2_LANEENABLE_SHIFT			29
+#define OMAP4_DSI2_LANEENABLE_MASK			(0x7 << 29)
+#define OMAP4_DSI1_LANEENABLE_SHIFT			24
+#define OMAP4_DSI1_LANEENABLE_MASK			(0x1f << 24)
+#define OMAP4_DSI1_PIPD_SHIFT				19
+#define OMAP4_DSI1_PIPD_MASK				(0x1f << 19)
+#define OMAP4_DSI2_PIPD_SHIFT				14
+#define OMAP4_DSI2_PIPD_MASK				(0x1f << 14)
+
+/* OMAP4 CONTROL_CAMERA_RX */
+#define OMAP4_CAMERARX_CSI21_LANEENABLE_SHIFT		24
+#define OMAP4_CAMERARX_CSI21_LANEENABLE_MASK		(0x1f << 24)
+#define OMAP4_CAMERARX_CSI22_LANEENABLE_SHIFT		29
+#define OMAP4_CAMERARX_CSI22_LANEENABLE_MASK		(0x3 << 29)
+#define OMAP4_CAMERARX_CSI22_CTRLCLKEN_SHIFT		21
+#define OMAP4_CAMERARX_CSI22_CTRLCLKEN_MASK		(1 << 21)
+#define OMAP4_CAMERARX_CSI22_CAMMODE_SHIFT		19
+#define OMAP4_CAMERARX_CSI22_CAMMODE_MASK		(0x3 << 19)
+#define OMAP4_CAMERARX_CSI21_CTRLCLKEN_SHIFT		18
+#define OMAP4_CAMERARX_CSI21_CTRLCLKEN_MASK		(1 << 18)
+#define OMAP4_CAMERARX_CSI21_CAMMODE_SHIFT		16
+#define OMAP4_CAMERARX_CSI21_CAMMODE_MASK		(0x3 << 16)
+
 /* OMAP54XX CONTROL STATUS register */
 #define OMAP5XXX_CONTROL_STATUS                0x134
 #define OMAP5_DEVICETYPE_MASK          (0x7 << 6)
@@ -358,6 +386,18 @@
 #define AM33XX_CONTROL_STATUS_SYSBOOT1_WIDTH		0x2
 #define AM33XX_CONTROL_STATUS_SYSBOOT1_MASK		(0x3 << 22)
 
+/* AM33XX PWMSS Control register */
+#define AM33XX_PWMSS_TBCLK_CLKCTRL			0x664
+
+/* AM33XX  PWMSS Control bitfields */
+#define AM33XX_PWMSS0_TBCLKEN_SHIFT			0
+#define AM33XX_PWMSS1_TBCLKEN_SHIFT			1
+#define AM33XX_PWMSS2_TBCLKEN_SHIFT			2
+
+/* DEV Feature register to identify AM33XX features */
+#define AM33XX_DEV_FEATURE		0x604
+#define AM33XX_SGX_MASK			BIT(29)
+
 /* CONTROL OMAP STATUS register to identify OMAP3 features */
 #define OMAP3_CONTROL_OMAP_STATUS	0x044c
 
@@ -415,6 +455,7 @@ extern void omap_ctrl_write_dsp_boot_addr(u32 bootaddr);
 extern void omap_ctrl_write_dsp_boot_mode(u8 bootmode);
 extern void omap3630_ctrl_disable_rta(void);
 extern int omap3_ctrl_save_padconf(void);
+void omap3_ctrl_init(void);
 extern void omap2_set_globals_control(void __iomem *ctrl,
 				      void __iomem *ctrl_pad);
 #else

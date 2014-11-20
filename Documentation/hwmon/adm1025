@@ -18,7 +18,7 @@ The NE1619 presents some differences with the original ADM1025:
 
 Authors:
         Chen-Yuan Wu <gwu@esoft.com>,
-        Jean Delvare <khali@linux-fr.org>
+        Jean Delvare <jdelvare@suse.de>
 
 Description
 -----------

@@ -408,6 +408,7 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 	}
 
 	ctlr = fcoe_ctlr_device_priv(ctlr_dev);
+	ctlr->cdev = ctlr_dev;
 	fcoe = fcoe_ctlr_priv(ctlr);
 
 	dev_hold(netdev);
@@ -490,7 +491,6 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 {
 	struct net_device *netdev = fcoe->netdev;
 	struct fcoe_ctlr *fip = fcoe_to_ctlr(fcoe);
-	struct fcoe_ctlr_device *ctlr_dev = fcoe_ctlr_to_ctlr_dev(fip);
 
 	rtnl_lock();
 	if (!fcoe->removed)
@@ -501,7 +501,6 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	/* tear-down the FCoE controller */
 	fcoe_ctlr_destroy(fip);
 	scsi_host_put(fip->lp->host);
-	fcoe_ctlr_device_delete(ctlr_dev);
 	dev_put(netdev);
 	module_put(THIS_MODULE);
 }
@@ -776,7 +775,6 @@ static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
 	struct fcoe_port *port;
 	struct net_device *realdev;
 	int rc;
-	struct netdev_fcoe_hbainfo fdmi;
 
 	port = lport_priv(lport);
 	fcoe = port->priv;
@@ -790,9 +788,13 @@ static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
 		return;
 
 	if (realdev->netdev_ops->ndo_fcoe_get_hbainfo) {
-		memset(&fdmi, 0, sizeof(fdmi));
+		struct netdev_fcoe_hbainfo *fdmi;
+		fdmi = kzalloc(sizeof(*fdmi), GFP_KERNEL);
+		if (!fdmi)
+			return;
+
 		rc = realdev->netdev_ops->ndo_fcoe_get_hbainfo(realdev,
-							       &fdmi);
+							       fdmi);
 		if (rc) {
 			printk(KERN_INFO "fcoe: Failed to retrieve FDMI "
 					"information from netdev.\n");
@@ -802,38 +804,39 @@ static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
 		snprintf(fc_host_serial_number(lport->host),
 			 FC_SERIAL_NUMBER_SIZE,
 			 "%s",
-			 fdmi.serial_number);
+			 fdmi->serial_number);
 		snprintf(fc_host_manufacturer(lport->host),
 			 FC_SERIAL_NUMBER_SIZE,
 			 "%s",
-			 fdmi.manufacturer);
+			 fdmi->manufacturer);
 		snprintf(fc_host_model(lport->host),
 			 FC_SYMBOLIC_NAME_SIZE,
 			 "%s",
-			 fdmi.model);
+			 fdmi->model);
 		snprintf(fc_host_model_description(lport->host),
 			 FC_SYMBOLIC_NAME_SIZE,
 			 "%s",
-			 fdmi.model_description);
+			 fdmi->model_description);
 		snprintf(fc_host_hardware_version(lport->host),
 			 FC_VERSION_STRING_SIZE,
 			 "%s",
-			 fdmi.hardware_version);
+			 fdmi->hardware_version);
 		snprintf(fc_host_driver_version(lport->host),
 			 FC_VERSION_STRING_SIZE,
 			 "%s",
-			 fdmi.driver_version);
+			 fdmi->driver_version);
 		snprintf(fc_host_optionrom_version(lport->host),
 			 FC_VERSION_STRING_SIZE,
 			 "%s",
-			 fdmi.optionrom_version);
+			 fdmi->optionrom_version);
 		snprintf(fc_host_firmware_version(lport->host),
 			 FC_VERSION_STRING_SIZE,
 			 "%s",
-			 fdmi.firmware_version);
+			 fdmi->firmware_version);
 
 		/* Enable FDMI lport states */
 		lport->fdmi_enabled = 1;
+		kfree(fdmi);
 	} else {
 		lport->fdmi_enabled = 0;
 		printk(KERN_INFO "fcoe: No FDMI support.\n");
@@ -1438,22 +1441,28 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	ctlr = fcoe_to_ctlr(fcoe);
 	lport = ctlr->lp;
 	if (unlikely(!lport)) {
-		FCOE_NETDEV_DBG(netdev, "Cannot find hba structure");
+		FCOE_NETDEV_DBG(netdev, "Cannot find hba structure\n");
 		goto err2;
 	}
 	if (!lport->link_up)
 		goto err2;
 
-	FCOE_NETDEV_DBG(netdev, "skb_info: len:%d data_len:%d head:%p "
-			"data:%p tail:%p end:%p sum:%d dev:%s",
+	FCOE_NETDEV_DBG(netdev,
+			"skb_info: len:%d data_len:%d head:%p data:%p tail:%p end:%p sum:%d dev:%s\n",
 			skb->len, skb->data_len, skb->head, skb->data,
 			skb_tail_pointer(skb), skb_end_pointer(skb),
 			skb->csum, skb->dev ? skb->dev->name : "<NULL>");
 
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+
+	if (skb == NULL)
+		return NET_RX_DROP;
+
 	eh = eth_hdr(skb);
 
 	if (is_fip_mode(ctlr) &&
-	    compare_ether_addr(eh->h_source, ctlr->dest_addr)) {
+	    !ether_addr_equal(eh->h_source, ctlr->dest_addr)) {
 		FCOE_NETDEV_DBG(netdev, "wrong source mac address:%pM\n",
 				eh->h_source);
 		goto err;
@@ -1538,13 +1547,13 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 		wake_up_process(fps->thread);
 	spin_unlock(&fps->fcoe_rx_list.lock);
 
-	return 0;
+	return NET_RX_SUCCESS;
 err:
 	per_cpu_ptr(lport->stats, get_cpu())->ErrorFrames++;
 	put_cpu();
 err2:
 	kfree_skb(skb);
-	return -1;
+	return NET_RX_DROP;
 }
 
 /**
@@ -1657,10 +1666,13 @@ static int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	skb->priority = fcoe->priority;
 
 	if (fcoe->netdev->priv_flags & IFF_802_1Q_VLAN &&
-	    fcoe->realdev->features & NETIF_F_HW_VLAN_TX) {
-		skb->vlan_tci = VLAN_TAG_PRESENT |
-				vlan_dev_vlan_id(fcoe->netdev);
+	    fcoe->realdev->features & NETIF_F_HW_VLAN_CTAG_TX) {
+		/* must set skb->dev before calling vlan_put_tag */
 		skb->dev = fcoe->realdev;
+		skb = __vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					     vlan_dev_vlan_id(fcoe->netdev));
+		if (!skb)
+			return -ENOMEM;
 	} else
 		skb->dev = fcoe->netdev;
 
@@ -1783,13 +1795,13 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 	lport = fr->fr_dev;
 	if (unlikely(!lport)) {
 		if (skb->destructor != fcoe_percpu_flush_done)
-			FCOE_NETDEV_DBG(skb->dev, "NULL lport in skb");
+			FCOE_NETDEV_DBG(skb->dev, "NULL lport in skb\n");
 		kfree_skb(skb);
 		return;
 	}
 
-	FCOE_NETDEV_DBG(skb->dev, "skb_info: len:%d data_len:%d "
-			"head:%p data:%p tail:%p end:%p sum:%d dev:%s",
+	FCOE_NETDEV_DBG(skb->dev,
+			"skb_info: len:%d data_len:%d head:%p data:%p tail:%p end:%p sum:%d dev:%s\n",
 			skb->len, skb->data_len,
 			skb->head, skb->data, skb_tail_pointer(skb),
 			skb_end_pointer(skb), skb->csum,
@@ -1860,7 +1872,7 @@ static int fcoe_percpu_receive_thread(void *arg)
 
 	skb_queue_head_init(&tmp);
 
-	set_user_nice(current, -20);
+	set_user_nice(current, MIN_NICE);
 
 retry:
 	while (!kthread_should_stop()) {
@@ -1872,7 +1884,6 @@ retry:
 			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_bh(&p->fcoe_rx_list.lock);
 			schedule();
-			set_current_state(TASK_RUNNING);
 			goto retry;
 		}
 
@@ -1977,7 +1988,7 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 {
 	struct fcoe_ctlr_device *cdev;
 	struct fc_lport *lport = NULL;
-	struct net_device *netdev = ptr;
+	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 	struct fcoe_ctlr *ctlr;
 	struct fcoe_interface *fcoe;
 	struct fcoe_port *port;
@@ -2194,6 +2205,8 @@ out_nodev:
  */
 static void fcoe_destroy_work(struct work_struct *work)
 {
+	struct fcoe_ctlr_device *cdev;
+	struct fcoe_ctlr *ctlr;
 	struct fcoe_port *port;
 	struct fcoe_interface *fcoe;
 	struct Scsi_Host *shost;
@@ -2224,10 +2237,15 @@ static void fcoe_destroy_work(struct work_struct *work)
 	mutex_lock(&fcoe_config_mutex);
 
 	fcoe = port->priv;
+	ctlr = fcoe_to_ctlr(fcoe);
+	cdev = fcoe_ctlr_to_ctlr_dev(ctlr);
+
 	fcoe_if_destroy(port->lport);
 	fcoe_interface_cleanup(fcoe);
 
 	mutex_unlock(&fcoe_config_mutex);
+
+	fcoe_ctlr_device_delete(cdev);
 }
 
 /**
@@ -2335,7 +2353,9 @@ static int _fcoe_create(struct net_device *netdev, enum fip_state fip_mode,
 		rc = -EIO;
 		rtnl_unlock();
 		fcoe_interface_cleanup(fcoe);
-		goto out_nortnl;
+		mutex_unlock(&fcoe_config_mutex);
+		fcoe_ctlr_device_delete(ctlr_dev);
+		goto out;
 	}
 
 	/* Make this the "master" N_Port */
@@ -2375,8 +2395,8 @@ static int _fcoe_create(struct net_device *netdev, enum fip_state fip_mode,
 
 out_nodev:
 	rtnl_unlock();
-out_nortnl:
 	mutex_unlock(&fcoe_config_mutex);
+out:
 	return rc;
 }
 
@@ -2612,13 +2632,17 @@ static int __init fcoe_init(void)
 		skb_queue_head_init(&p->fcoe_rx_list);
 	}
 
+	cpu_notifier_register_begin();
+
 	for_each_online_cpu(cpu)
 		fcoe_percpu_thread_create(cpu);
 
 	/* Initialize per CPU interrupt thread */
-	rc = register_hotcpu_notifier(&fcoe_cpu_notifier);
+	rc = __register_hotcpu_notifier(&fcoe_cpu_notifier);
 	if (rc)
 		goto out_free;
+
+	cpu_notifier_register_done();
 
 	/* Setup link change notification */
 	fcoe_dev_setup();
@@ -2634,6 +2658,9 @@ out_free:
 	for_each_online_cpu(cpu) {
 		fcoe_percpu_thread_destroy(cpu);
 	}
+
+	cpu_notifier_register_done();
+
 	mutex_unlock(&fcoe_config_mutex);
 	destroy_workqueue(fcoe_wq);
 	return rc;
@@ -2666,10 +2693,14 @@ static void __exit fcoe_exit(void)
 	}
 	rtnl_unlock();
 
-	unregister_hotcpu_notifier(&fcoe_cpu_notifier);
+	cpu_notifier_register_begin();
 
 	for_each_online_cpu(cpu)
 		fcoe_percpu_thread_destroy(cpu);
+
+	__unregister_hotcpu_notifier(&fcoe_cpu_notifier);
+
+	cpu_notifier_register_done();
 
 	mutex_unlock(&fcoe_config_mutex);
 

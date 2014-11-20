@@ -165,6 +165,8 @@ static const struct hid_usage_entry hid_usage_table[] = {
     {0, 0x53, "DeviceIndex"},
     {0, 0x54, "ContactCount"},
     {0, 0x55, "ContactMaximumNumber"},
+    {0, 0x5A, "SecondaryBarrelSwitch"},
+    {0, 0x5B, "TransducerSerialNumber"},
   { 15, 0, "PhysicalInterfaceDevice" },
     {0, 0x00, "Undefined"},
     {0, 0x01, "Physical_Interface_Device"},
@@ -272,6 +274,85 @@ static const struct hid_usage_entry hid_usage_table[] = {
     {0, 0xAA, "Shared_Parameter_Blocks"},
     {0, 0xAB, "Create_New_Effect_Report"},
     {0, 0xAC, "RAM_Pool_Available"},
+  {  0x20, 0, "Sensor" },
+    { 0x20, 0x01, "Sensor" },
+    { 0x20, 0x10, "Biometric" },
+      { 0x20, 0x11, "BiometricHumanPresence" },
+      { 0x20, 0x12, "BiometricHumanProximity" },
+      { 0x20, 0x13, "BiometricHumanTouch" },
+    { 0x20, 0x20, "Electrical" },
+      { 0x20, 0x21, "ElectricalCapacitance" },
+      { 0x20, 0x22, "ElectricalCurrent" },
+      { 0x20, 0x23, "ElectricalPower" },
+      { 0x20, 0x24, "ElectricalInductance" },
+      { 0x20, 0x25, "ElectricalResistance" },
+      { 0x20, 0x26, "ElectricalVoltage" },
+      { 0x20, 0x27, "ElectricalPoteniometer" },
+      { 0x20, 0x28, "ElectricalFrequency" },
+      { 0x20, 0x29, "ElectricalPeriod" },
+    { 0x20, 0x30, "Environmental" },
+      { 0x20, 0x31, "EnvironmentalAtmosphericPressure" },
+      { 0x20, 0x32, "EnvironmentalHumidity" },
+      { 0x20, 0x33, "EnvironmentalTemperature" },
+      { 0x20, 0x34, "EnvironmentalWindDirection" },
+      { 0x20, 0x35, "EnvironmentalWindSpeed" },
+    { 0x20, 0x40, "Light" },
+      { 0x20, 0x41, "LightAmbientLight" },
+      { 0x20, 0x42, "LightConsumerInfrared" },
+    { 0x20, 0x50, "Location" },
+      { 0x20, 0x51, "LocationBroadcast" },
+      { 0x20, 0x52, "LocationDeadReckoning" },
+      { 0x20, 0x53, "LocationGPS" },
+      { 0x20, 0x54, "LocationLookup" },
+      { 0x20, 0x55, "LocationOther" },
+      { 0x20, 0x56, "LocationStatic" },
+      { 0x20, 0x57, "LocationTriangulation" },
+    { 0x20, 0x60, "Mechanical" },
+      { 0x20, 0x61, "MechanicalBooleanSwitch" },
+      { 0x20, 0x62, "MechanicalBooleanSwitchArray" },
+      { 0x20, 0x63, "MechanicalMultivalueSwitch" },
+      { 0x20, 0x64, "MechanicalForce" },
+      { 0x20, 0x65, "MechanicalPressure" },
+      { 0x20, 0x66, "MechanicalStrain" },
+      { 0x20, 0x67, "MechanicalWeight" },
+      { 0x20, 0x68, "MechanicalHapticVibrator" },
+      { 0x20, 0x69, "MechanicalHallEffectSwitch" },
+    { 0x20, 0x70, "Motion" },
+      { 0x20, 0x71, "MotionAccelerometer1D" },
+      { 0x20, 0x72, "MotionAccelerometer2D" },
+      { 0x20, 0x73, "MotionAccelerometer3D" },
+      { 0x20, 0x74, "MotionGyrometer1D" },
+      { 0x20, 0x75, "MotionGyrometer2D" },
+      { 0x20, 0x76, "MotionGyrometer3D" },
+      { 0x20, 0x77, "MotionMotionDetector" },
+      { 0x20, 0x78, "MotionSpeedometer" },
+      { 0x20, 0x79, "MotionAccelerometer" },
+      { 0x20, 0x7A, "MotionGyrometer" },
+    { 0x20, 0x80, "Orientation" },
+      { 0x20, 0x81, "OrientationCompass1D" },
+      { 0x20, 0x82, "OrientationCompass2D" },
+      { 0x20, 0x83, "OrientationCompass3D" },
+      { 0x20, 0x84, "OrientationInclinometer1D" },
+      { 0x20, 0x85, "OrientationInclinometer2D" },
+      { 0x20, 0x86, "OrientationInclinometer3D" },
+      { 0x20, 0x87, "OrientationDistance1D" },
+      { 0x20, 0x88, "OrientationDistance2D" },
+      { 0x20, 0x89, "OrientationDistance3D" },
+      { 0x20, 0x8A, "OrientationDeviceOrientation" },
+      { 0x20, 0x8B, "OrientationCompass" },
+      { 0x20, 0x8C, "OrientationInclinometer" },
+      { 0x20, 0x8D, "OrientationDistance" },
+    { 0x20, 0x90, "Scanner" },
+      { 0x20, 0x91, "ScannerBarcode" },
+      { 0x20, 0x91, "ScannerRFID" },
+      { 0x20, 0x91, "ScannerNFC" },
+    { 0x20, 0xA0, "Time" },
+      { 0x20, 0xA1, "TimeAlarmTimer" },
+      { 0x20, 0xA2, "TimeRealTimeClock" },
+    { 0x20, 0xE0, "Other" },
+      { 0x20, 0xE1, "OtherCustom" },
+      { 0x20, 0xE2, "OtherGeneric" },
+      { 0x20, 0xE3, "OtherGenericEnumerator" },
   { 0x84, 0, "Power Device" },
     { 0x84, 0x02, "PresentStatus" },
     { 0x84, 0x03, "ChangeStatus" },
@@ -579,17 +660,50 @@ void hid_debug_event(struct hid_device *hdev, char *buf)
 {
 	int i;
 	struct hid_debug_list *list;
+	unsigned long flags;
 
+	spin_lock_irqsave(&hdev->debug_list_lock, flags);
 	list_for_each_entry(list, &hdev->debug_list, node) {
 		for (i = 0; i < strlen(buf); i++)
 			list->hid_debug_buf[(list->tail + i) % HID_DEBUG_BUFSIZE] =
 				buf[i];
 		list->tail = (list->tail + i) % HID_DEBUG_BUFSIZE;
         }
+	spin_unlock_irqrestore(&hdev->debug_list_lock, flags);
 
 	wake_up_interruptible(&hdev->debug_wait);
 }
 EXPORT_SYMBOL_GPL(hid_debug_event);
+
+void hid_dump_report(struct hid_device *hid, int type, u8 *data,
+		int size)
+{
+	struct hid_report_enum *report_enum;
+	char *buf;
+	unsigned int i;
+
+	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
+
+	if (!buf)
+		return;
+
+	report_enum = hid->report_enum + type;
+
+	/* dump the report */
+	snprintf(buf, HID_DEBUG_BUFSIZE - 1,
+			"\nreport (size %u) (%snumbered) = ", size,
+			report_enum->numbered ? "" : "un");
+	hid_debug_event(hid, buf);
+
+	for (i = 0; i < size; i++) {
+		snprintf(buf, HID_DEBUG_BUFSIZE - 1,
+				" %02x", data[i]);
+		hid_debug_event(hid, buf);
+	}
+	hid_debug_event(hid, "\n");
+	kfree(buf);
+}
+EXPORT_SYMBOL_GPL(hid_dump_report);
 
 void hid_dump_input(struct hid_device *hdev, struct hid_usage *usage, __s32 value)
 {
@@ -735,6 +849,8 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_ALTERASE] = "AlternateErase",	[KEY_CANCEL] = "Cancel",
 	[KEY_BRIGHTNESSDOWN] = "BrightnessDown", [KEY_BRIGHTNESSUP] = "BrightnessUp",
 	[KEY_MEDIA] = "Media",			[KEY_UNKNOWN] = "Unknown",
+	[BTN_DPAD_UP] = "BtnDPadUp",		[BTN_DPAD_DOWN] = "BtnDPadDown",
+	[BTN_DPAD_LEFT] = "BtnDPadLeft",	[BTN_DPAD_RIGHT] = "BtnDPadRight",
 	[BTN_0] = "Btn0",			[BTN_1] = "Btn1",
 	[BTN_2] = "Btn2",			[BTN_3] = "Btn3",
 	[BTN_4] = "Btn4",			[BTN_5] = "Btn5",
@@ -764,7 +880,8 @@ static const char *keys[KEY_MAX + 1] = {
 	[BTN_TOOL_MOUSE] = "ToolMouse",		[BTN_TOOL_LENS] = "ToolLens",
 	[BTN_TOUCH] = "Touch",			[BTN_STYLUS] = "Stylus",
 	[BTN_STYLUS2] = "Stylus2",		[BTN_TOOL_DOUBLETAP] = "ToolDoubleTap",
-	[BTN_TOOL_TRIPLETAP] = "ToolTripleTap", [BTN_GEAR_DOWN] = "WheelBtn",
+	[BTN_TOOL_TRIPLETAP] = "ToolTripleTap",	[BTN_TOOL_QUADTAP] = "ToolQuadrupleTap",
+	[BTN_GEAR_DOWN] = "WheelBtn",
 	[BTN_GEAR_UP] = "Gear up",		[KEY_OK] = "Ok",
 	[KEY_SELECT] = "Select",		[KEY_GOTO] = "Goto",
 	[KEY_CLEAR] = "Clear",			[KEY_POWER2] = "Power2",
@@ -819,6 +936,22 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_KBDILLUMDOWN] = "KbdIlluminationDown",
 	[KEY_KBDILLUMUP] = "KbdIlluminationUp",
 	[KEY_SWITCHVIDEOMODE] = "SwitchVideoMode",
+	[KEY_BUTTONCONFIG] = "ButtonConfig",
+	[KEY_TASKMANAGER] = "TaskManager",
+	[KEY_JOURNAL] = "Journal",
+	[KEY_CONTROLPANEL] = "ControlPanel",
+	[KEY_APPSELECT] = "AppSelect",
+	[KEY_SCREENSAVER] = "ScreenSaver",
+	[KEY_VOICECOMMAND] = "VoiceCommand",
+	[KEY_BRIGHTNESS_MIN] = "BrightnessMin",
+	[KEY_BRIGHTNESS_MAX] = "BrightnessMax",
+	[KEY_BRIGHTNESS_AUTO] = "BrightnessAuto",
+	[KEY_KBDINPUTASSIST_PREV] = "KbdInputAssistPrev",
+	[KEY_KBDINPUTASSIST_NEXT] = "KbdInputAssistNext",
+	[KEY_KBDINPUTASSIST_PREVGROUP] = "KbdInputAssistPrevGroup",
+	[KEY_KBDINPUTASSIST_NEXTGROUP] = "KbdInputAssistNextGroup",
+	[KEY_KBDINPUTASSIST_ACCEPT] = "KbdInputAssistAccept",
+	[KEY_KBDINPUTASSIST_CANCEL] = "KbdInputAssistCancel",
 };
 
 static const char *relatives[REL_MAX + 1] = {
@@ -945,6 +1078,7 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 {
 	int err = 0;
 	struct hid_debug_list *list;
+	unsigned long flags;
 
 	if (!(list = kzalloc(sizeof(struct hid_debug_list), GFP_KERNEL))) {
 		err = -ENOMEM;
@@ -960,7 +1094,9 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 	file->private_data = list;
 	mutex_init(&list->read_mutex);
 
+	spin_lock_irqsave(&list->hdev->debug_list_lock, flags);
 	list_add_tail(&list->node, &list->hdev->debug_list);
+	spin_unlock_irqrestore(&list->hdev->debug_list_lock, flags);
 
 out:
 	return err;
@@ -1054,8 +1190,11 @@ static unsigned int hid_debug_events_poll(struct file *file, poll_table *wait)
 static int hid_debug_events_release(struct inode *inode, struct file *file)
 {
 	struct hid_debug_list *list = file->private_data;
+	unsigned long flags;
 
+	spin_lock_irqsave(&list->hdev->debug_list_lock, flags);
 	list_del(&list->node);
+	spin_unlock_irqrestore(&list->hdev->debug_list_lock, flags);
 	kfree(list->hid_debug_buf);
 	kfree(list);
 

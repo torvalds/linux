@@ -280,8 +280,8 @@ static int camif_prepare_addr(struct camif_vp *vp, struct vb2_buffer *vb,
 		return -EINVAL;
 	}
 
-	pr_debug("DMA address: y: %#x  cb: %#x cr: %#x\n",
-		 paddr->y, paddr->cb, paddr->cr);
+	pr_debug("DMA address: y: %pad  cb: %pad cr: %pad\n",
+		 &paddr->y, &paddr->cb, &paddr->cr);
 
 	return 0;
 }
@@ -435,10 +435,10 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 }
 
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct camif_vp *vp = vb2_get_drv_priv(vq);
-	return camif_stop_capture(vp);
+	camif_stop_capture(vp);
 }
 
 static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
@@ -845,7 +845,7 @@ static int camif_pipeline_validate(struct camif_dev *camif)
 	int ret;
 
 	/* Retrieve format at the sensor subdev source pad */
-	pad = media_entity_remote_source(&camif->pads[0]);
+	pad = media_entity_remote_pad(&camif->pads[0]);
 	if (!pad || media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 		return -EPIPE;
 
@@ -934,11 +934,18 @@ static int s3c_camif_reqbufs(struct file *file, void *priv,
 		vp->owner = NULL;
 
 	ret = vb2_reqbufs(&vp->vb_queue, rb);
-	if (!ret) {
-		vp->reqbufs_count = rb->count;
-		if (vp->owner == NULL && rb->count > 0)
-			vp->owner = priv;
+	if (ret < 0)
+		return ret;
+
+	if (rb->count && rb->count < CAMIF_REQ_BUFS_MIN) {
+		rb->count = 0;
+		vb2_reqbufs(&vp->vb_queue, rb);
+		ret = -ENOMEM;
 	}
+
+	vp->reqbufs_count = rb->count;
+	if (vp->owner == NULL && rb->count > 0)
+		vp->owner = priv;
 
 	return ret;
 }
@@ -1153,6 +1160,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct camif_buffer);
 	q->drv_priv = vp;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	ret = vb2_queue_init(q);
 	if (ret)
@@ -1164,7 +1172,6 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 		goto err_vd_rel;
 
 	video_set_drvdata(vfd, vp);
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 
 	v4l2_ctrl_handler_init(&vp->ctrl_handler, 1);
 	ctrl = v4l2_ctrl_new_std(&vp->ctrl_handler, &s3c_camif_video_ctrl_ops,
@@ -1263,6 +1270,7 @@ static int s3c_camif_subdev_get_fmt(struct v4l2_subdev *sd,
 	}
 
 	mutex_unlock(&camif->lock);
+	mf->field = V4L2_FIELD_NONE;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 	return 0;
 }
@@ -1311,6 +1319,7 @@ static int s3c_camif_subdev_set_fmt(struct v4l2_subdev *sd,
 	v4l2_dbg(1, debug, sd, "pad%d: code: 0x%x, %ux%u\n",
 		 fmt->pad, mf->code, mf->width, mf->height);
 
+	mf->field = V4L2_FIELD_NONE;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 	mutex_lock(&camif->lock);
 
@@ -1584,26 +1593,27 @@ int s3c_camif_create_subdev(struct camif_dev *camif)
 			ARRAY_SIZE(s3c_camif_test_pattern_menu) - 1, 0, 0,
 			s3c_camif_test_pattern_menu);
 
-	camif->ctrl_colorfx = v4l2_ctrl_new_std_menu(handler,
+	if (camif->variant->has_img_effect) {
+		camif->ctrl_colorfx = v4l2_ctrl_new_std_menu(handler,
 				&s3c_camif_subdev_ctrl_ops,
 				V4L2_CID_COLORFX, V4L2_COLORFX_SET_CBCR,
 				~0x981f, V4L2_COLORFX_NONE);
 
-	camif->ctrl_colorfx_cbcr = v4l2_ctrl_new_std(handler,
+		camif->ctrl_colorfx_cbcr = v4l2_ctrl_new_std(handler,
 				&s3c_camif_subdev_ctrl_ops,
 				V4L2_CID_COLORFX_CBCR, 0, 0xffff, 1, 0);
+	}
+
 	if (handler->error) {
 		v4l2_ctrl_handler_free(handler);
 		media_entity_cleanup(&sd->entity);
 		return handler->error;
 	}
 
-	v4l2_ctrl_auto_cluster(2, &camif->ctrl_colorfx,
+	if (camif->variant->has_img_effect)
+		v4l2_ctrl_auto_cluster(2, &camif->ctrl_colorfx,
 			       V4L2_COLORFX_SET_CBCR, false);
-	if (!camif->variant->has_img_effect) {
-		camif->ctrl_colorfx->flags |= V4L2_CTRL_FLAG_DISABLED;
-		camif->ctrl_colorfx_cbcr->flags |= V4L2_CTRL_FLAG_DISABLED;
-	}
+
 	sd->ctrl_handler = handler;
 	v4l2_set_subdevdata(sd, camif);
 

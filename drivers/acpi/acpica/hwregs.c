@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -278,8 +278,9 @@ acpi_status acpi_hw_clear_acpi_status(void)
 
 	acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
 
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
 		goto exit;
+	}
 
 	/* Clear the GPE Bits in all GPE registers in all GPE blocks */
 
@@ -419,6 +420,7 @@ acpi_status acpi_hw_register_read(u32 register_id, u32 *return_value)
 		break;
 
 	default:
+
 		ACPI_ERROR((AE_INFO, "Unknown Register ID: 0x%X", register_id));
 		status = AE_BAD_PARAMETER;
 		break;
@@ -491,7 +493,6 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 		break;
 
 	case ACPI_REGISTER_PM1_CONTROL:	/* PM1 A/B: 16-bit access each */
-
 		/*
 		 * Perform a read first to preserve certain bits (per ACPI spec)
 		 * Note: This includes SCI_EN, we never want to change this bit
@@ -520,7 +521,6 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 		break;
 
 	case ACPI_REGISTER_PM2_CONTROL:	/* 8-bit access */
-
 		/*
 		 * For control registers, all reserved bits must be preserved,
 		 * as per the ACPI spec.
@@ -555,12 +555,13 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 		break;
 
 	default:
+
 		ACPI_ERROR((AE_INFO, "Unknown Register ID: 0x%X", register_id));
 		status = AE_BAD_PARAMETER;
 		break;
 	}
 
-      exit:
+exit:
 	return_ACPI_STATUS(status);
 }
 

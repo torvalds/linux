@@ -31,10 +31,10 @@
 #include <sound/atmel-ac97c.h>
 #include <sound/memalloc.h>
 
-#include <linux/dw_dmac.h>
+#include <linux/platform_data/dma-dw.h>
+#include <linux/dma/dw.h>
 
 #include <mach/cpu.h>
-#include <mach/gpio.h>
 
 #ifdef CONFIG_ARCH_AT91
 #include <mach/hardware.h>
@@ -182,7 +182,7 @@ static int atmel_ac97c_playback_open(struct snd_pcm_substream *substream)
 		runtime->hw.rate_max = chip->cur_rate;
 	}
 	if (chip->cur_format)
-		runtime->hw.formats = (1ULL << chip->cur_format);
+		runtime->hw.formats = pcm_format_to_bits(chip->cur_format);
 	mutex_unlock(&opened_mutex);
 	chip->playback_substream = substream;
 	return 0;
@@ -201,7 +201,7 @@ static int atmel_ac97c_capture_open(struct snd_pcm_substream *substream)
 		runtime->hw.rate_max = chip->cur_rate;
 	}
 	if (chip->cur_format)
-		runtime->hw.formats = (1ULL << chip->cur_format);
+		runtime->hw.formats = pcm_format_to_bits(chip->cur_format);
 	mutex_unlock(&opened_mutex);
 	chip->capture_substream = substream;
 	return 0;
@@ -946,8 +946,9 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 	}
 	clk_enable(pclk);
 
-	retval = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			THIS_MODULE, sizeof(struct atmel_ac97c), &card);
+	retval = snd_card_new(&pdev->dev, SNDRV_DEFAULT_IDX1,
+			      SNDRV_DEFAULT_STR1, THIS_MODULE,
+			      sizeof(struct atmel_ac97c), &card);
 	if (retval) {
 		dev_dbg(&pdev->dev, "could not create sound card device\n");
 		goto err_snd_card_new;
@@ -990,8 +991,6 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 	} else {
 		chip->reset_pin = -EINVAL;
 	}
-
-	snd_card_set_dev(card, &pdev->dev);
 
 	atmel_ac97c_reset(chip);
 
@@ -1114,8 +1113,6 @@ err_dma:
 		chip->dma.tx_chan = NULL;
 	}
 err_ac97_bus:
-	snd_card_set_dev(card, NULL);
-
 	if (gpio_is_valid(chip->reset_pin))
 		gpio_free(chip->reset_pin);
 
@@ -1196,15 +1193,13 @@ static int atmel_ac97c_remove(struct platform_device *pdev)
 		chip->dma.tx_chan = NULL;
 	}
 
-	snd_card_set_dev(card, NULL);
 	snd_card_free(card);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
 static struct platform_driver atmel_ac97c_driver = {
+	.probe		= atmel_ac97c_probe,
 	.remove		= atmel_ac97c_remove,
 	.driver		= {
 		.name	= "atmel_ac97c",
@@ -1212,19 +1207,7 @@ static struct platform_driver atmel_ac97c_driver = {
 		.pm	= ATMEL_AC97C_PM_OPS,
 	},
 };
-
-static int __init atmel_ac97c_init(void)
-{
-	return platform_driver_probe(&atmel_ac97c_driver,
-			atmel_ac97c_probe);
-}
-module_init(atmel_ac97c_init);
-
-static void __exit atmel_ac97c_exit(void)
-{
-	platform_driver_unregister(&atmel_ac97c_driver);
-}
-module_exit(atmel_ac97c_exit);
+module_platform_driver(atmel_ac97c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for Atmel AC97 controller");

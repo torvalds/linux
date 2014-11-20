@@ -258,7 +258,7 @@ static void chrp_init_early(void)
 	struct device_node *node;
 	const char *property;
 
-	if (strstr(cmd_line, "console="))
+	if (strstr(boot_command_line, "console="))
 		return;
 	/* find the boot console from /chosen/stdout */
 	if (!of_chosen)
@@ -574,8 +574,8 @@ chrp_init2(void)
 
 static int __init chrp_probe(void)
 {
- 	char *dtype = of_get_flat_dt_prop(of_get_flat_dt_root(),
- 					  "device_type", NULL);
+	const char *dtype = of_get_flat_dt_prop(of_get_flat_dt_root(),
+						"device_type", NULL);
  	if (dtype == NULL)
  		return 0;
  	if (strcmp(dtype, "chrp"))

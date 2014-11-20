@@ -303,7 +303,7 @@ static int bfin_cf_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_cf_driver = {
 	.driver = {
-		   .name = (char *)driver_name,
+		   .name = driver_name,
 		   .owner = THIS_MODULE,
 		   },
 	.probe = bfin_cf_probe,

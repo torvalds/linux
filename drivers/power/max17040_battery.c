@@ -148,7 +148,7 @@ static void max17040_get_online(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
-	if (chip->pdata->battery_online)
+	if (chip->pdata && chip->pdata->battery_online)
 		chip->online = chip->pdata->battery_online();
 	else
 		chip->online = 1;
@@ -158,7 +158,8 @@ static void max17040_get_status(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
-	if (!chip->pdata->charger_online || !chip->pdata->charger_enable) {
+	if (!chip->pdata || !chip->pdata->charger_online
+			|| !chip->pdata->charger_enable) {
 		chip->status = POWER_SUPPLY_STATUS_UNKNOWN;
 		return;
 	}
@@ -246,34 +247,38 @@ static int max17040_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
-static int max17040_suspend(struct i2c_client *client,
-		pm_message_t state)
+static int max17040_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
 	cancel_delayed_work(&chip->work);
 	return 0;
 }
 
-static int max17040_resume(struct i2c_client *client)
+static int max17040_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
 	schedule_delayed_work(&chip->work, MAX17040_DELAY);
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(max17040_pm_ops, max17040_suspend, max17040_resume);
+#define MAX17040_PM_OPS (&max17040_pm_ops)
+
 #else
 
-#define max17040_suspend NULL
-#define max17040_resume NULL
+#define MAX17040_PM_OPS NULL
 
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct i2c_device_id max17040_id[] = {
-	{ "max17040", 0 },
+	{ "max17040" },
+	{ "max77836-battery" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max17040_id);
@@ -281,11 +286,10 @@ MODULE_DEVICE_TABLE(i2c, max17040_id);
 static struct i2c_driver max17040_i2c_driver = {
 	.driver	= {
 		.name	= "max17040",
+		.pm	= MAX17040_PM_OPS,
 	},
 	.probe		= max17040_probe,
 	.remove		= max17040_remove,
-	.suspend	= max17040_suspend,
-	.resume		= max17040_resume,
 	.id_table	= max17040_id,
 };
 module_i2c_driver(max17040_i2c_driver);

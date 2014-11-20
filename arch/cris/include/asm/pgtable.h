@@ -258,9 +258,6 @@ static inline pgd_t * pgd_offset(const struct mm_struct *mm, unsigned long addre
 #define pgd_ERROR(e) \
         printk("%s:%d: bad pgd %p(%08lx).\n", __FILE__, __LINE__, &(e), pgd_val(e))
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)         \
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD]; /* defined in head.S */
 

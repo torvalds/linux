@@ -53,6 +53,29 @@ struct ceph_file_layout {
 	__le32 fl_pg_pool;      /* namespace, crush ruleset, rep level */
 } __attribute__ ((packed));
 
+#define ceph_file_layout_su(l) ((__s32)le32_to_cpu((l).fl_stripe_unit))
+#define ceph_file_layout_stripe_count(l) \
+	((__s32)le32_to_cpu((l).fl_stripe_count))
+#define ceph_file_layout_object_size(l) ((__s32)le32_to_cpu((l).fl_object_size))
+#define ceph_file_layout_cas_hash(l) ((__s32)le32_to_cpu((l).fl_cas_hash))
+#define ceph_file_layout_object_su(l) \
+	((__s32)le32_to_cpu((l).fl_object_stripe_unit))
+#define ceph_file_layout_pg_pool(l) \
+	((__s32)le32_to_cpu((l).fl_pg_pool))
+
+static inline unsigned ceph_file_layout_stripe_width(struct ceph_file_layout *l)
+{
+	return le32_to_cpu(l->fl_stripe_unit) *
+		le32_to_cpu(l->fl_stripe_count);
+}
+
+/* "period" == bytes before i start on a new set of objects */
+static inline unsigned ceph_file_layout_period(struct ceph_file_layout *l)
+{
+	return le32_to_cpu(l->fl_object_size) *
+		le32_to_cpu(l->fl_stripe_count);
+}
+
 #define CEPH_MIN_STRIPE_UNIT 65536
 
 int ceph_file_layout_is_valid(const struct ceph_file_layout *layout);
@@ -282,6 +305,8 @@ enum {
 	CEPH_SESSION_RENEWCAPS,
 	CEPH_SESSION_STALE,
 	CEPH_SESSION_RECALL_STATE,
+	CEPH_SESSION_FLUSHMSG,
+	CEPH_SESSION_FLUSHMSG_ACK,
 };
 
 extern const char *ceph_session_op_name(int op);
@@ -307,6 +332,7 @@ enum {
 	CEPH_MDS_OP_LOOKUPHASH = 0x00102,
 	CEPH_MDS_OP_LOOKUPPARENT = 0x00103,
 	CEPH_MDS_OP_LOOKUPINO  = 0x00104,
+	CEPH_MDS_OP_LOOKUPNAME = 0x00105,
 
 	CEPH_MDS_OP_SETXATTR   = 0x01105,
 	CEPH_MDS_OP_RMXATTR    = 0x01106,
@@ -348,8 +374,9 @@ extern const char *ceph_mds_op_name(int op);
 /*
  * Ceph setxattr request flags.
  */
-#define CEPH_XATTR_CREATE  1
-#define CEPH_XATTR_REPLACE 2
+#define CEPH_XATTR_CREATE  (1 << 0)
+#define CEPH_XATTR_REPLACE (1 << 1)
+#define CEPH_XATTR_REMOVE  (1 << 31)
 
 union ceph_mds_request_args {
 	struct {
@@ -394,8 +421,8 @@ union ceph_mds_request_args {
 	struct {
 		__u8 rule; /* currently fcntl or flock */
 		__u8 type; /* shared, exclusive, remove*/
+		__le64 owner; /* owner of the lock */
 		__le64 pid; /* process id requesting the lock */
-		__le64 pid_namespace;
 		__le64 start; /* initial location to lock */
 		__le64 length; /* num bytes to lock from start */
 		__u8 wait; /* will caller wait for lock to become available? */
@@ -457,7 +484,8 @@ struct ceph_mds_reply_cap {
 	__u8 flags;                    /* CEPH_CAP_FLAG_* */
 } __attribute__ ((packed));
 
-#define CEPH_CAP_FLAG_AUTH  1          /* cap is issued by auth mds */
+#define CEPH_CAP_FLAG_AUTH	(1 << 0)  /* cap is issued by auth mds */
+#define CEPH_CAP_FLAG_RELEASE	(1 << 1)  /* release the cap */
 
 /* inode record, for bundling with mds reply */
 struct ceph_mds_reply_inode {
@@ -505,8 +533,8 @@ struct ceph_filelock {
 	__le64 start;/* file offset to start lock at */
 	__le64 length; /* num bytes to lock; 0 for all following start */
 	__le64 client; /* which client holds the lock */
+	__le64 owner; /* owner the lock */
 	__le64 pid; /* process id holding the lock on the client */
-	__le64 pid_namespace;
 	__u8 type; /* shared lock, exclusive lock, or unlock */
 } __attribute__ ((packed));
 
@@ -597,6 +625,8 @@ int ceph_flags_to_mode(int flags);
 			   CEPH_CAP_LINK_EXCL |		\
 			   CEPH_CAP_XATTR_EXCL |	\
 			   CEPH_CAP_FILE_EXCL)
+#define CEPH_CAP_ANY_FILE_RD (CEPH_CAP_FILE_RD | CEPH_CAP_FILE_CACHE | \
+			      CEPH_CAP_FILE_SHARED)
 #define CEPH_CAP_ANY_FILE_WR (CEPH_CAP_FILE_WR | CEPH_CAP_FILE_BUFFER |	\
 			      CEPH_CAP_FILE_EXCL)
 #define CEPH_CAP_ANY_WR   (CEPH_CAP_ANY_EXCL | CEPH_CAP_ANY_FILE_WR)
@@ -656,6 +686,14 @@ struct ceph_mds_caps {
 	struct ceph_timespec mtime, atime, ctime;
 	struct ceph_file_layout layout;
 	__le32 time_warp_seq;
+} __attribute__ ((packed));
+
+struct ceph_mds_cap_peer {
+	__le64 cap_id;
+	__le32 seq;
+	__le32 mseq;
+	__le32 mds;
+	__u8   flags;
 } __attribute__ ((packed));
 
 /* cap release msg head */

@@ -141,7 +141,7 @@ static const char *to_qp_state_str(int state)
 		return "C2_QP_STATE_ERROR";
 	default:
 		return "<invalid QP state>";
-	};
+	}
 }
 
 void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
@@ -155,6 +155,8 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 	enum c2_event_id event_id;
 	unsigned long flags;
 	int status;
+	struct sockaddr_in *laddr = (struct sockaddr_in *)&cm_event.local_addr;
+	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_event.remote_addr;
 
 	/*
 	 * retrieve the message
@@ -206,10 +208,10 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 		case CCAE_ACTIVE_CONNECT_RESULTS:
 			res = &wr->ae.ae_active_connect_results;
 			cm_event.event = IW_CM_EVENT_CONNECT_REPLY;
-			cm_event.local_addr.sin_addr.s_addr = res->laddr;
-			cm_event.remote_addr.sin_addr.s_addr = res->raddr;
-			cm_event.local_addr.sin_port = res->lport;
-			cm_event.remote_addr.sin_port =	res->rport;
+			laddr->sin_addr.s_addr = res->laddr;
+			raddr->sin_addr.s_addr = res->raddr;
+			laddr->sin_port = res->lport;
+			raddr->sin_port = res->rport;
 			if (status == 0) {
 				cm_event.private_data_len =
 					be32_to_cpu(res->private_data_length);
@@ -281,10 +283,10 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 		}
 		cm_event.event = IW_CM_EVENT_CONNECT_REQUEST;
 		cm_event.provider_data = (void*)(unsigned long)req->cr_handle;
-		cm_event.local_addr.sin_addr.s_addr = req->laddr;
-		cm_event.remote_addr.sin_addr.s_addr = req->raddr;
-		cm_event.local_addr.sin_port = req->lport;
-		cm_event.remote_addr.sin_port = req->rport;
+		laddr->sin_addr.s_addr = req->laddr;
+		raddr->sin_addr.s_addr = req->raddr;
+		laddr->sin_port = req->lport;
+		raddr->sin_port = req->rport;
 		cm_event.private_data_len =
 			be32_to_cpu(req->private_data_length);
 		cm_event.private_data = req->private_data;

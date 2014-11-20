@@ -101,23 +101,6 @@ static char version[] __initdata =
  * them to system IRQ numbers. This mapping is card specific and is set to
  * the configuration of the Cirrus Eval board for this chip.
  */
-#if defined(CONFIG_MACH_IXDP2351)
-#define CS89x0_NONISA_IRQ
-static unsigned int netcard_portlist[] __used __initdata = {
-	IXDP2351_VIRT_CS8900_BASE, 0
-};
-static unsigned int cs8900_irq_map[] = {
-	IRQ_IXDP2351_CS8900, 0, 0, 0
-};
-#elif defined(CONFIG_ARCH_IXDP2X01)
-#define CS89x0_NONISA_IRQ
-static unsigned int netcard_portlist[] __used __initdata = {
-	IXDP2X01_CS8900_VIRT_BASE, 0
-};
-static unsigned int cs8900_irq_map[] = {
-	IRQ_IXDP2X01_CS8900, 0, 0, 0
-};
-#else
 #ifndef CONFIG_CS89x0_PLATFORM
 static unsigned int netcard_portlist[] __used __initdata = {
 	0x300, 0x320, 0x340, 0x360, 0x200, 0x220, 0x240,
@@ -126,7 +109,6 @@ static unsigned int netcard_portlist[] __used __initdata = {
 static unsigned int cs8900_irq_map[] = {
 	10, 11, 12, 5
 };
-#endif
 #endif
 
 #if DEBUGGING
@@ -163,7 +145,6 @@ struct net_local {
 	int force;		/* force various values; see FORCE* above. */
 	spinlock_t lock;
 	void __iomem *virt_addr;/* CS89x0 virtual address. */
-	unsigned long size;	/* Length of CS89x0 memory region. */
 #if ALLOW_DMA
 	int use_dma;		/* Flag: we're using dma */
 	int dma;		/* DMA channel */
@@ -208,32 +189,6 @@ static int __init media_fn(char *str)
 }
 
 __setup("cs89x0_media=", media_fn);
-#endif
-
-#if defined(CONFIG_MACH_IXDP2351)
-static u16
-readword(unsigned long base_addr, int portno)
-{
-	return __raw_readw(base_addr + (portno << 1));
-}
-
-static void
-writeword(unsigned long base_addr, int portno, u16 value)
-{
-	__raw_writew(value, base_addr + (portno << 1));
-}
-#elif defined(CONFIG_ARCH_IXDP2X01)
-static u16
-readword(unsigned long base_addr, int portno)
-{
-	return __raw_readl(base_addr + (portno << 1));
-}
-
-static void
-writeword(unsigned long base_addr, int portno, u16 value)
-{
-	__raw_writel(value, base_addr + (portno << 1));
-}
 #endif
 
 static void readwords(struct net_local *lp, int portno, void *buf, int length)
@@ -478,9 +433,6 @@ dma_rx(struct net_device *dev)
 	/* Malloc up new buffer. */
 	skb = netdev_alloc_skb(dev, length + 2);
 	if (skb == NULL) {
-		/* I don't think we want to do this to a stressed system */
-		cs89_dbg(0, err, "%s: Memory squeeze, dropping packet\n",
-			 dev->name);
 		dev->stats.rx_dropped++;
 
 		/* AKPM: advance bp to the next frame */
@@ -731,9 +683,6 @@ net_rx(struct net_device *dev)
 	/* Malloc up new buffer. */
 	skb = netdev_alloc_skb(dev, length + 2);
 	if (skb == NULL) {
-#if 0		/* Again, this seems a cruel thing to do */
-		pr_warn("%s: Memory squeeze, dropping packet\n", dev->name);
-#endif
 		dev->stats.rx_dropped++;
 		return;
 	}
@@ -908,7 +857,7 @@ net_open(struct net_device *dev)
 			goto bad_out;
 		}
 	} else {
-#if !defined(CS89x0_NONISA_IRQ) && !defined(CONFIG_CS89x0_PLATFORM)
+#if !defined(CONFIG_CS89x0_PLATFORM)
 		if (((1 << dev->irq) & lp->irq_map) == 0) {
 			pr_err("%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
 			       dev->name, dev->irq, lp->irq_map);
@@ -1224,7 +1173,7 @@ static netdev_tx_t net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	writewords(lp, TX_FRAME_PORT, skb->data, (skb->len + 1) >> 1);
 	spin_unlock_irqrestore(&lp->lock, flags);
 	dev->stats.tx_bytes += skb->len;
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 
 	/* We DO NOT call netif_wake_queue() here.
 	 * We also DO NOT call netif_start_queue().
@@ -1321,9 +1270,7 @@ static const struct net_device_ops net_ops = {
 static void __init reset_chip(struct net_device *dev)
 {
 #if !defined(CONFIG_MACH_MX31ADS)
-#if !defined(CS89x0_NONISA_IRQ)
 	struct net_local *lp = netdev_priv(dev);
-#endif /* CS89x0_NONISA_IRQ */
 	int reset_start_time;
 
 	writereg(dev, PP_SelfCTL, readreg(dev, PP_SelfCTL) | POWER_ON_RESET);
@@ -1331,7 +1278,6 @@ static void __init reset_chip(struct net_device *dev)
 	/* wait 30 ms */
 	msleep(30);
 
-#if !defined(CS89x0_NONISA_IRQ)
 	if (lp->chip_type != CS8900) {
 		/* Hardware problem requires PNP registers to be reconfigured after a reset */
 		iowrite16(PP_CS8920_ISAINT, lp->virt_addr + ADD_PORT);
@@ -1344,7 +1290,6 @@ static void __init reset_chip(struct net_device *dev)
 		iowrite8((dev->mem_start >> 8) & 0xff,
 			 lp->virt_addr + DATA_PORT + 1);
 	}
-#endif /* CS89x0_NONISA_IRQ */
 
 	/* Wait until the chip is reset */
 	reset_start_time = jiffies;
@@ -1579,9 +1524,6 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		i = lp->isa_config & INT_NO_MASK;
 #ifndef CONFIG_CS89x0_PLATFORM
 		if (lp->chip_type == CS8900) {
-#ifdef CS89x0_NONISA_IRQ
-			i = cs8900_irq_map[0];
-#else
 			/* Translate the IRQ using the IRQ mapping table. */
 			if (i >= ARRAY_SIZE(cs8900_irq_map))
 				pr_err("invalid ISA interrupt number %d\n", i);
@@ -1599,7 +1541,6 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 					lp->irq_map = ((irq_map_buff[0] >> 8) |
 						       (irq_map_buff[1] << 8));
 			}
-#endif
 		}
 #endif
 		if (!dev->irq)
@@ -1912,41 +1853,29 @@ static int __init cs89x0_platform_probe(struct platform_device *pdev)
 
 	lp = netdev_priv(dev);
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->irq = platform_get_irq(pdev, 0);
-	if (mem_res == NULL || dev->irq <= 0) {
-		dev_warn(&dev->dev, "memory/interrupt resource missing\n");
+	if (dev->irq <= 0) {
+		dev_warn(&dev->dev, "interrupt resource missing\n");
 		err = -ENXIO;
 		goto free;
 	}
 
-	lp->size = resource_size(mem_res);
-	if (!request_mem_region(mem_res->start, lp->size, DRV_NAME)) {
-		dev_warn(&dev->dev, "request_mem_region() failed\n");
-		err = -EBUSY;
+	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	virt_addr = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(virt_addr)) {
+		err = PTR_ERR(virt_addr);
 		goto free;
-	}
-
-	virt_addr = ioremap(mem_res->start, lp->size);
-	if (!virt_addr) {
-		dev_warn(&dev->dev, "ioremap() failed\n");
-		err = -ENOMEM;
-		goto release;
 	}
 
 	err = cs89x0_probe1(dev, virt_addr, 0);
 	if (err) {
 		dev_warn(&dev->dev, "no cs8900 or cs8920 detected\n");
-		goto unmap;
+		goto free;
 	}
 
 	platform_set_drvdata(pdev, dev);
 	return 0;
 
-unmap:
-	iounmap(virt_addr);
-release:
-	release_mem_region(mem_res->start, lp->size);
 free:
 	free_netdev(dev);
 	return err;
@@ -1955,17 +1884,12 @@ free:
 static int cs89x0_platform_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
-	struct net_local *lp = netdev_priv(dev);
-	struct resource *mem_res;
 
 	/* This platform_get_resource() call will not return NULL, because
 	 * the same call in cs89x0_platform_probe() has returned a non NULL
 	 * value.
 	 */
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	unregister_netdev(dev);
-	iounmap(lp->virt_addr);
-	release_mem_region(mem_res->start, lp->size);
 	free_netdev(dev);
 	return 0;
 }
@@ -1978,18 +1902,6 @@ static struct platform_driver cs89x0_driver = {
 	.remove	= cs89x0_platform_remove,
 };
 
-static int __init cs89x0_init(void)
-{
-	return platform_driver_probe(&cs89x0_driver, cs89x0_platform_probe);
-}
-
-module_init(cs89x0_init);
-
-static void __exit cs89x0_cleanup(void)
-{
-	platform_driver_unregister(&cs89x0_driver);
-}
-
-module_exit(cs89x0_cleanup);
+module_platform_driver_probe(cs89x0_driver, cs89x0_platform_probe);
 
 #endif /* CONFIG_CS89x0_PLATFORM */

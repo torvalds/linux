@@ -1,0 +1,46 @@
+<refentry id="V4L2-SDR-FMT-CU16LE">
+  <refmeta>
+    <refentrytitle>V4L2_SDR_FMT_CU16LE ('CU16')</refentrytitle>
+    &manvol;
+  </refmeta>
+    <refnamediv>
+      <refname>
+        <constant>V4L2_SDR_FMT_CU16LE</constant>
+      </refname>
+      <refpurpose>Complex unsigned 16-bit little endian IQ sample</refpurpose>
+    </refnamediv>
+    <refsect1>
+      <title>Description</title>
+      <para>
+This format contains sequence of complex number samples. Each complex number
+consist two parts, called In-phase and Quadrature (IQ). Both I and Q are
+represented as a 16 bit unsigned little endian number. I value comes first
+and Q value after that.
+      </para>
+    <example>
+      <title><constant>V4L2_SDR_FMT_CU16LE</constant> 1 sample</title>
+      <formalpara>
+        <title>Byte Order.</title>
+        <para>Each cell is one byte.
+          <informaltable frame="none">
+            <tgroup cols="3" align="center">
+              <colspec align="left" colwidth="2*" />
+              <tbody valign="top">
+                <row>
+                  <entry>start&nbsp;+&nbsp;0:</entry>
+                  <entry>I'<subscript>0[7:0]</subscript></entry>
+                  <entry>I'<subscript>0[15:8]</subscript></entry>
+                </row>
+                <row>
+                  <entry>start&nbsp;+&nbsp;2:</entry>
+                  <entry>Q'<subscript>0[7:0]</subscript></entry>
+                  <entry>Q'<subscript>0[15:8]</subscript></entry>
+                </row>
+              </tbody>
+            </tgroup>
+          </informaltable>
+        </para>
+      </formalpara>
+    </example>
+  </refsect1>
+</refentry>

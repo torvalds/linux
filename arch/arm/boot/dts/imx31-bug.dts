@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx31.dtsi"
+#include "imx31.dtsi"
 
 / {
 	model = "Buglabs i.MX31 Bug 1.x";

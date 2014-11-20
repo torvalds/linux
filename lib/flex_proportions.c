@@ -34,13 +34,13 @@
  */
 #include <linux/flex_proportions.h>
 
-int fprop_global_init(struct fprop_global *p)
+int fprop_global_init(struct fprop_global *p, gfp_t gfp)
 {
 	int err;
 
 	p->period = 0;
 	/* Use 1 to avoid dealing with periods with 0 events... */
-	err = percpu_counter_init(&p->events, 1);
+	err = percpu_counter_init(&p->events, 1, gfp);
 	if (err)
 		return err;
 	seqcount_init(&p->sequence);
@@ -168,11 +168,11 @@ void fprop_fraction_single(struct fprop_global *p,
  */
 #define PROP_BATCH (8*(1+ilog2(nr_cpu_ids)))
 
-int fprop_local_init_percpu(struct fprop_local_percpu *pl)
+int fprop_local_init_percpu(struct fprop_local_percpu *pl, gfp_t gfp)
 {
 	int err;
 
-	err = percpu_counter_init(&pl->events, 0);
+	err = percpu_counter_init(&pl->events, 0, gfp);
 	if (err)
 		return err;
 	pl->period = 0;

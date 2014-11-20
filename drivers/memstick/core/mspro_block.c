@@ -204,7 +204,7 @@ static int mspro_block_bd_open(struct block_device *bdev, fmode_t mode)
 }
 
 
-static int mspro_block_disk_release(struct gendisk *disk)
+static void mspro_block_disk_release(struct gendisk *disk)
 {
 	struct mspro_block_data *msb = disk->private_data;
 	int disk_id = MINOR(disk_devt(disk)) >> MSPRO_BLOCK_PART_SHIFT;
@@ -224,13 +224,11 @@ static int mspro_block_disk_release(struct gendisk *disk)
 	}
 
 	mutex_unlock(&mspro_block_disk_lock);
-
-	return 0;
 }
 
-static int mspro_block_bd_release(struct gendisk *disk, fmode_t mode)
+static void mspro_block_bd_release(struct gendisk *disk, fmode_t mode)
 {
-	return mspro_block_disk_release(disk);
+	mspro_block_disk_release(disk);
 }
 
 static int mspro_block_bd_getgeo(struct block_device *bdev,
@@ -1025,8 +1023,8 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 	} else
 		attr_count = attr->count;
 
-	msb->attr_group.attrs = kzalloc((attr_count + 1)
-					* sizeof(struct attribute),
+	msb->attr_group.attrs = kcalloc(attr_count + 1,
+					sizeof(*msb->attr_group.attrs),
 					GFP_KERNEL);
 	if (!msb->attr_group.attrs) {
 		rc = -ENOMEM;

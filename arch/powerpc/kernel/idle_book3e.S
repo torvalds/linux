@@ -16,11 +16,13 @@
 #include <asm/ppc-opcode.h>
 #include <asm/processor.h>
 #include <asm/thread_info.h>
+#include <asm/epapr_hcalls.h>
 
 /* 64-bit version only for now */
 #ifdef CONFIG_PPC64
 
-_GLOBAL(book3e_idle)
+.macro BOOK3E_IDLE name loop
+_GLOBAL(\name)
 	/* Save LR for later */
 	mflr	r0
 	std	r0,16(r1)
@@ -41,7 +43,7 @@ _GLOBAL(book3e_idle)
 	 */
 #ifdef CONFIG_TRACE_IRQFLAGS
 	stdu    r1,-128(r1)
-	bl	.trace_hardirqs_on
+	bl	trace_hardirqs_on
 	addi    r1,r1,128
 #endif
 	li	r0,1
@@ -67,7 +69,33 @@ _GLOBAL(book3e_idle)
 
 	/* We can now re-enable hard interrupts and go to sleep */
 	wrteei	1
-1:	PPC_WAIT(0)
+	\loop
+
+.endm
+
+.macro BOOK3E_IDLE_LOOP
+1:
+	PPC_WAIT(0)
 	b	1b
+.endm
+
+/* epapr_ev_idle_start below is patched with the proper hcall
+   opcodes during kernel initialization */
+.macro EPAPR_EV_IDLE_LOOP
+idle_loop:
+	LOAD_REG_IMMEDIATE(r11, EV_HCALL_TOKEN(EV_IDLE))
+
+.global epapr_ev_idle_start
+epapr_ev_idle_start:
+	li      r3, -1
+	nop
+	nop
+	nop
+	b       idle_loop
+.endm
+
+BOOK3E_IDLE epapr_ev_idle EPAPR_EV_IDLE_LOOP
+
+BOOK3E_IDLE book3e_idle BOOK3E_IDLE_LOOP
 
 #endif /* CONFIG_PPC64 */

@@ -114,12 +114,9 @@ static void __meminit release_firmware_map_entry(struct kobject *kobj)
 		 * map_entries_bootmem here, and deleted from &map_entries in
 		 * firmware_map_remove_entry().
 		 */
-		if (firmware_map_find_entry(entry->start, entry->end,
-		    entry->type)) {
-			spin_lock(&map_entries_bootmem_lock);
-			list_add(&entry->list, &map_entries_bootmem);
-			spin_unlock(&map_entries_bootmem_lock);
-		}
+		spin_lock(&map_entries_bootmem_lock);
+		list_add(&entry->list, &map_entries_bootmem);
+		spin_unlock(&map_entries_bootmem_lock);
 
 		return;
 	}
@@ -186,6 +183,9 @@ static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry)
 {
 	static int map_entries_nr;
 	static struct kset *mmap_kset;
+
+	if (entry->kobj.state_in_sysfs)
+		return -EEXIST;
 
 	if (!mmap_kset) {
 		mmap_kset = kset_create_and_add("memmap", NULL, firmware_kobj);
@@ -289,7 +289,11 @@ int __meminit firmware_map_add_hotplug(u64 start, u64 end, const char *type)
 {
 	struct firmware_map_entry *entry;
 
-	entry = firmware_map_find_entry_bootmem(start, end, type);
+	entry = firmware_map_find_entry(start, end - 1, type);
+	if (entry)
+		return 0;
+
+	entry = firmware_map_find_entry_bootmem(start, end - 1, type);
 	if (!entry) {
 		entry = kzalloc(sizeof(struct firmware_map_entry), GFP_ATOMIC);
 		if (!entry)
@@ -327,7 +331,7 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
 {
 	struct firmware_map_entry *entry;
 
-	entry = alloc_bootmem(sizeof(struct firmware_map_entry));
+	entry = memblock_virt_alloc(sizeof(struct firmware_map_entry), 0);
 	if (WARN_ON(!entry))
 		return -ENOMEM;
 

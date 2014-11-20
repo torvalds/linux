@@ -30,6 +30,13 @@
 #define COMPAT_HWCAP_IDIVA	(1 << 17)
 #define COMPAT_HWCAP_IDIVT	(1 << 18)
 #define COMPAT_HWCAP_IDIV	(COMPAT_HWCAP_IDIVA|COMPAT_HWCAP_IDIVT)
+#define COMPAT_HWCAP_EVTSTRM	(1 << 21)
+
+#define COMPAT_HWCAP2_AES	(1 << 0)
+#define COMPAT_HWCAP2_PMULL	(1 << 1)
+#define COMPAT_HWCAP2_SHA1	(1 << 2)
+#define COMPAT_HWCAP2_SHA2	(1 << 3)
+#define COMPAT_HWCAP2_CRC32	(1 << 4)
 
 #ifndef __ASSEMBLY__
 /*
@@ -37,12 +44,13 @@
  * instruction set this cpu supports.
  */
 #define ELF_HWCAP		(elf_hwcap)
-#define COMPAT_ELF_HWCAP	(COMPAT_HWCAP_HALF|COMPAT_HWCAP_THUMB|\
-				 COMPAT_HWCAP_FAST_MULT|COMPAT_HWCAP_EDSP|\
-				 COMPAT_HWCAP_TLS|COMPAT_HWCAP_VFP|\
-				 COMPAT_HWCAP_VFPv3|COMPAT_HWCAP_VFPv4|\
-				 COMPAT_HWCAP_NEON|COMPAT_HWCAP_IDIV)
 
-extern unsigned int elf_hwcap;
+#ifdef CONFIG_COMPAT
+#define COMPAT_ELF_HWCAP	(compat_elf_hwcap)
+#define COMPAT_ELF_HWCAP2	(compat_elf_hwcap2)
+extern unsigned int compat_elf_hwcap, compat_elf_hwcap2;
+#endif
+
+extern unsigned long elf_hwcap;
 #endif
 #endif

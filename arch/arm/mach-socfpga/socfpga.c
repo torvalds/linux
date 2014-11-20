@@ -14,11 +14,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <linux/dw_apb_timer.h>
 #include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/reboot.h>
 
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
@@ -29,7 +29,7 @@
 void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
 void __iomem *sys_manager_base_addr;
 void __iomem *rst_manager_base_addr;
-unsigned long cpu1start_addr;
+unsigned long socfpga_cpu1start_addr;
 
 static struct map_desc scu_io_desc __initdata = {
 	.virtual	= SOCFPGA_SCU_VIRT_BASE,
@@ -70,7 +70,7 @@ void __init socfpga_sysmgr_init(void)
 	np = of_find_compatible_node(NULL, NULL, "altr,sys-mgr");
 
 	if (of_property_read_u32(np, "cpu1-start-addr",
-			(u32 *) &cpu1start_addr))
+			(u32 *) &socfpga_cpu1start_addr))
 		pr_err("SMP: Need cpu1-start-addr in device tree.\n");
 
 	sys_manager_base_addr = of_iomap(np, 0);
@@ -85,16 +85,17 @@ static void __init socfpga_init_irq(void)
 	socfpga_sysmgr_init();
 }
 
-static void socfpga_cyclone5_restart(char mode, const char *cmd)
+static void socfpga_cyclone5_restart(enum reboot_mode mode, const char *cmd)
 {
-	/* TODO: */
-}
+	u32 temp;
 
-static void __init socfpga_cyclone5_init(void)
-{
-	l2x0_of_init(0, ~0UL);
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-	socfpga_init_clocks();
+	temp = readl(rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
+
+	if (mode == REBOOT_HARD)
+		temp |= RSTMGR_CTRL_SWCOLDRSTREQ;
+	else
+		temp |= RSTMGR_CTRL_SWWARMRSTREQ;
+	writel(temp, rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
 }
 
 static const char *altera_dt_match[] = {
@@ -103,11 +104,11 @@ static const char *altera_dt_match[] = {
 };
 
 DT_MACHINE_START(SOCFPGA, "Altera SOCFPGA")
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.smp		= smp_ops(socfpga_smp_ops),
 	.map_io		= socfpga_map_io,
 	.init_irq	= socfpga_init_irq,
-	.init_time	= dw_apb_timer_init,
-	.init_machine	= socfpga_cyclone5_init,
 	.restart	= socfpga_cyclone5_restart,
 	.dt_compat	= altera_dt_match,
 MACHINE_END

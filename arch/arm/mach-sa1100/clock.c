@@ -33,6 +33,13 @@ struct clk clk_##_name = {				\
 
 static DEFINE_SPINLOCK(clocks_lock);
 
+/* Dummy clk routine to build generic kernel parts that may be using them */
+unsigned long clk_get_rate(struct clk *clk)
+{
+	return 0;
+}
+EXPORT_SYMBOL(clk_get_rate);
+
 static void clk_gpio27_enable(struct clk *clk)
 {
 	/*

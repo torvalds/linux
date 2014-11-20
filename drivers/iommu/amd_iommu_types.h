@@ -24,6 +24,8 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/pci.h>
+#include <linux/irqreturn.h>
 
 /*
  * Maximum number of IOMMUs supported
@@ -36,9 +38,6 @@
 #define DEV_TABLE_ENTRY_SIZE		32
 #define ALIAS_TABLE_ENTRY_SIZE		2
 #define RLOOKUP_TABLE_ENTRY_SIZE	(sizeof(void *))
-
-/* Length of the MMIO region for the AMD IOMMU */
-#define MMIO_REGION_LENGTH       0x4000
 
 /* Capability offsets used by the driver */
 #define MMIO_CAP_HDR_OFFSET	0x00
@@ -77,6 +76,10 @@
 #define MMIO_STATUS_OFFSET	0x2020
 #define MMIO_PPR_HEAD_OFFSET	0x2030
 #define MMIO_PPR_TAIL_OFFSET	0x2038
+#define MMIO_CNTR_CONF_OFFSET	0x4000
+#define MMIO_CNTR_REG_OFFSET	0x40000
+#define MMIO_REG_END_OFFSET	0x80000
+
 
 
 /* Extended Feature Bits */
@@ -96,9 +99,15 @@
 #define FEATURE_GLXVAL_SHIFT	14
 #define FEATURE_GLXVAL_MASK	(0x03ULL << FEATURE_GLXVAL_SHIFT)
 
-#define PASID_MASK		0x000fffff
+/* Note:
+ * The current driver only support 16-bit PASID.
+ * Currently, hardware only implement upto 16-bit PASID
+ * even though the spec says it could have upto 20 bits.
+ */
+#define PASID_MASK		0x0000ffff
 
 /* MMIO status bits */
+#define MMIO_STATUS_EVT_INT_MASK	(1 << 1)
 #define MMIO_STATUS_COM_WAIT_INT_MASK	(1 << 2)
 #define MMIO_STATUS_PPR_INT_MASK	(1 << 6)
 
@@ -315,9 +324,6 @@
 
 #define MAX_DOMAIN_ID 65536
 
-/* FIXME: move this macro to <linux/pci.h> */
-#define PCI_BUS(x) (((x) >> 8) & 0xff)
-
 /* Protection domain flags */
 #define PD_DMA_OPS_MASK		(1UL << 0) /* domain used for dma_ops */
 #define PD_DEFAULT_MASK		(1UL << 1) /* domain is a default dma_ops
@@ -384,12 +390,6 @@ struct amd_iommu_fault {
 
 };
 
-#define PPR_FAULT_EXEC	(1 << 1)
-#define PPR_FAULT_READ  (1 << 2)
-#define PPR_FAULT_WRITE (1 << 5)
-#define PPR_FAULT_USER  (1 << 6)
-#define PPR_FAULT_RSVD  (1 << 7)
-#define PPR_FAULT_GN    (1 << 8)
 
 struct iommu_domain;
 
@@ -415,28 +415,6 @@ struct protection_domain {
 	struct iommu_domain *iommu_domain; /* Pointer to generic
 					      domain structure */
 
-};
-
-/*
- * This struct contains device specific data for the IOMMU
- */
-struct iommu_dev_data {
-	struct list_head list;		  /* For domain->dev_list */
-	struct list_head dev_data_list;	  /* For global dev_data_list */
-	struct iommu_dev_data *alias_data;/* The alias dev_data */
-	struct protection_domain *domain; /* Domain the device is bound to */
-	atomic_t bind;			  /* Domain attach reference count */
-	struct iommu_group *group;	  /* IOMMU group for virtual aliases */
-	u16 devid;			  /* PCI Device ID */
-	bool iommu_v2;			  /* Device can make use of IOMMUv2 */
-	bool passthrough;		  /* Default for device is pt_domain */
-	struct {
-		bool enabled;
-		int qdep;
-	} ats;				  /* ATS state */
-	bool pri_tlp;			  /* PASID TLB required for
-					     PPR completions */
-	u32 errata;			  /* Bitmap for errata to apply */
 };
 
 /*
@@ -508,6 +486,10 @@ struct amd_iommu {
 
 	/* physical address of MMIO space */
 	u64 mmio_phys;
+
+	/* physical end address of MMIO space */
+	u64 mmio_phys_end;
+
 	/* virtual address of MMIO space */
 	u8 __iomem *mmio_base;
 
@@ -568,6 +550,9 @@ struct amd_iommu {
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;
 
+	/* IOMMU sysfs device */
+	struct device *iommu_dev;
+
 	/*
 	 * We can't rely on the BIOS to restore all values on reinit, so we
 	 * need to stash them
@@ -585,12 +570,17 @@ struct amd_iommu {
 
 	/* The l2 indirect registers */
 	u32 stored_l2[0x83];
+
+	/* The maximum PC banks and counters/bank (PCSup=1) */
+	u8 max_banks;
+	u8 max_counters;
 };
 
 struct devid_map {
 	struct list_head list;
 	u8 id;
 	u16 devid;
+	bool cmd_line;
 };
 
 /* Map HPET and IOAPIC ids to the devid used by the IOMMU */
@@ -687,8 +677,8 @@ extern unsigned long *amd_iommu_pd_alloc_bitmap;
  */
 extern u32 amd_iommu_unmap_flush;
 
-/* Smallest number of PASIDs supported by any IOMMU in the system */
-extern u32 amd_iommu_max_pasids;
+/* Smallest max PASID supported by any IOMMU in the system */
+extern u32 amd_iommu_max_pasid;
 
 extern bool amd_iommu_v2_present;
 
@@ -702,13 +692,6 @@ extern int amd_iommu_max_glx_val;
  * the IOMMU used by this driver.
  */
 extern void iommu_flush_all_caches(struct amd_iommu *iommu);
-
-/* takes bus and device/function and returns the device id
- * FIXME: should that be in generic PCI code? */
-static inline u16 calc_devid(u8 bus, u8 devfn)
-{
-	return (((u16)bus) << 8) | devfn;
-}
 
 static inline int get_ioapic_devid(int id)
 {

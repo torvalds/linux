@@ -108,7 +108,6 @@ static inline int dlm_is_recovery_lock(const char *lock_name, int name_len)
 struct dlm_recovery_ctxt
 {
 	struct list_head resources;
-	struct list_head received;
 	struct list_head node_data;
 	u8  new_master;
 	u8  dead_node;
@@ -332,6 +331,7 @@ struct dlm_lock_resource
 	u16 state;
 	char lvb[DLM_LVB_LEN];
 	unsigned int inflight_locks;
+	unsigned int inflight_assert_workers;
 	unsigned long refmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
 };
 
@@ -911,6 +911,9 @@ void dlm_lockres_drop_inflight_ref(struct dlm_ctxt *dlm,
 void dlm_lockres_grab_inflight_ref(struct dlm_ctxt *dlm,
 				   struct dlm_lock_resource *res);
 
+void __dlm_lockres_grab_inflight_worker(struct dlm_ctxt *dlm,
+		struct dlm_lock_resource *res);
+
 void dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock);
 void dlm_queue_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock);
 void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock);
@@ -1079,11 +1082,9 @@ static inline int dlm_lock_compatible(int existing, int request)
 static inline int dlm_lock_on_list(struct list_head *head,
 				   struct dlm_lock *lock)
 {
-	struct list_head *iter;
 	struct dlm_lock *tmplock;
 
-	list_for_each(iter, head) {
-		tmplock = list_entry(iter, struct dlm_lock, list);
+	list_for_each_entry(tmplock, head, list) {
 		if (tmplock == lock)
 			return 1;
 	}

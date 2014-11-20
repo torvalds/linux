@@ -17,16 +17,13 @@ static int ia64_set_msi_irq_affinity(struct irq_data *idata,
 {
 	struct msi_msg msg;
 	u32 addr, data;
-	int cpu = first_cpu(*cpu_mask);
+	int cpu = cpumask_first_and(cpu_mask, cpu_online_mask);
 	unsigned int irq = idata->irq;
-
-	if (!cpu_online(cpu))
-		return -1;
 
 	if (irq_prepare_move(irq, cpu))
 		return -1;
 
-	get_cached_msi_msg(irq, &msg);
+	__get_cached_msi_msg(idata->msi_desc, &msg);
 
 	addr = msg.address_lo;
 	addr &= MSI_ADDR_DEST_ID_MASK;
@@ -139,10 +136,7 @@ static int dmar_msi_set_affinity(struct irq_data *data,
 	unsigned int irq = data->irq;
 	struct irq_cfg *cfg = irq_cfg + irq;
 	struct msi_msg msg;
-	int cpu = cpumask_first(mask);
-
-	if (!cpu_online(cpu))
-		return -1;
+	int cpu = cpumask_first_and(mask, cpu_online_mask);
 
 	if (irq_prepare_move(irq, cpu))
 		return -1;

@@ -6,9 +6,8 @@
 
 #include <linux/list.h>
 #include <stdbool.h>
-#include "types.h"
+#include <linux/types.h>
 #include <linux/perf_event.h>
-#include "types.h"
 
 struct list_head;
 struct perf_evsel;
@@ -23,6 +22,7 @@ struct tracepoint_path {
 };
 
 extern struct tracepoint_path *tracepoint_id_to_path(u64 config);
+extern struct tracepoint_path *tracepoint_name_to_path(const char *name);
 extern bool have_tracepoints(struct list_head *evlist);
 
 const char *event_type(int type);
@@ -34,6 +34,18 @@ extern int parse_events_terms(struct list_head *terms, const char *str);
 extern int parse_filter(const struct option *opt, const char *str, int unset);
 
 #define EVENTS_HELP_MAX (128*1024)
+
+enum perf_pmu_event_symbol_type {
+	PMU_EVENT_SYMBOL_ERR,		/* not a PMU EVENT */
+	PMU_EVENT_SYMBOL,		/* normal style PMU event */
+	PMU_EVENT_SYMBOL_PREFIX,	/* prefix of pre-suf style event */
+	PMU_EVENT_SYMBOL_SUFFIX,	/* suffix of pre-suf style event */
+};
+
+struct perf_pmu_event_symbol {
+	char	*symbol;
+	enum perf_pmu_event_symbol_type	type;
+};
 
 enum {
 	PARSE_EVENTS__TERM_TYPE_NUM,
@@ -84,17 +96,19 @@ void parse_events__free_terms(struct list_head *terms);
 int parse_events__modifier_event(struct list_head *list, char *str, bool add);
 int parse_events__modifier_group(struct list_head *list, char *event_mod);
 int parse_events_name(struct list_head *list, char *name);
-int parse_events_add_tracepoint(struct list_head **list, int *idx,
+int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				char *sys, char *event);
-int parse_events_add_numeric(struct list_head **list, int *idx,
+int parse_events_add_numeric(struct list_head *list, int *idx,
 			     u32 type, u64 config,
 			     struct list_head *head_config);
-int parse_events_add_cache(struct list_head **list, int *idx,
+int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2);
-int parse_events_add_breakpoint(struct list_head **list, int *idx,
+int parse_events_add_breakpoint(struct list_head *list, int *idx,
 				void *ptr, char *type);
-int parse_events_add_pmu(struct list_head **list, int *idx,
+int parse_events_add_pmu(struct list_head *list, int *idx,
 			 char *pmu , struct list_head *head_config);
+enum perf_pmu_event_symbol_type
+perf_pmu__parse_check(const char *name);
 void parse_events__set_leader(char *name, struct list_head *list);
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all);

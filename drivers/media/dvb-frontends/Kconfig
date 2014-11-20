@@ -35,6 +35,13 @@ config DVB_STV6110x
 	help
 	  A Silicon tuner that supports DVB-S and DVB-S2 modes
 
+config DVB_M88DS3103
+	tristate "Montage M88DS3103"
+	depends on DVB_CORE && I2C && I2C_MUX
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
+
 comment "Multistandard (cable + terrestrial) frontends"
 	depends on DVB_CORE
 
@@ -55,6 +62,15 @@ config DVB_TDA18271C2DD
 	  NXP TDA18271 silicon tuner.
 
 	  Say Y when you want to support this tuner.
+
+config DVB_SI2165
+	tristate "Silicon Labs si2165 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A DVB-C/T demodulator.
+
+	  Say Y when you want to support this frontend.
 
 comment "DVB-S (satellite) frontends"
 	depends on DVB_CORE
@@ -200,6 +216,13 @@ config DVB_CX24116
 	help
 	  A DVB-S/S2 tuner module. Say Y when you want to support this frontend.
 
+config DVB_CX24117
+	tristate "Conexant CX24117 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A Dual DVB-S/S2 tuner module. Say Y when you want to support this frontend.
+
 config DVB_SI21XX
 	tristate "Silicon Labs SI21XX based"
 	depends on DVB_CORE && I2C
@@ -210,7 +233,7 @@ config DVB_SI21XX
 config DVB_TS2020
 	tristate "Montage Tehnology TS2020 based tuners"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S/S2 silicon tuner. Say Y when you want to support this tuner.
 
@@ -427,10 +450,31 @@ config DVB_RTL2830
 
 config DVB_RTL2832
 	tristate "Realtek RTL2832 DVB-T"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && I2C_MUX
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
+
+config DVB_RTL2832_SDR
+	tristate "Realtek RTL2832 SDR"
+	depends on DVB_CORE && I2C && I2C_MUX && VIDEO_V4L2 && MEDIA_SDR_SUPPORT && USB
+	select DVB_RTL2832
+	select VIDEOBUF2_VMALLOC
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this SDR module.
+
+config DVB_SI2168
+	tristate "Silicon Labs Si2168"
+	depends on DVB_CORE && I2C && I2C_MUX
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
+
+config DVB_AS102_FE
+	tristate
+	depends on DVB_CORE
+	default DVB_AS102
 
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
@@ -604,6 +648,14 @@ config DVB_MB86A20S
 	  A driver for Fujitsu mb86a20s ISDB-T/ISDB-Tsb demodulator.
 	  Say Y when you want to support this frontend.
 
+config DVB_TC90522
+	tristate "Toshiba TC90522"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A Toshiba TC90522 2xISDB-T + 2xISDB-S demodulator.
+	  Say Y when you want to support this frontend.
+
 comment "Digital terrestrial only tuners/PLL"
 	depends on DVB_CORE
 
@@ -635,6 +687,8 @@ config DVB_TUNER_DIB0090
 
 comment "SEC control devices for DVB-S"
 	depends on DVB_CORE
+
+source "drivers/media/dvb-frontends/drx39xyj/Kconfig"
 
 config DVB_LNBP21
 	tristate "LNBP21/LNBH24 SEC controllers"
@@ -679,6 +733,13 @@ config DVB_A8293
 	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 
+config DVB_SP2
+	tristate "CIMaX SP2"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  CIMaX SP2/SP2HF Common Interface module.
+
 config DVB_LGS8GL5
 	tristate "Silicon Legend LGS-8GL5 demodulator (OFDM)"
 	depends on DVB_CORE && I2C
@@ -718,14 +779,6 @@ config DVB_IX2505V
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
-
-config DVB_IT913X_FE
-	tristate "it913x frontend and it9137 tuner"
-	depends on DVB_CORE && I2C
-	default m if !MEDIA_SUBDRV_AUTOSELECT
-	help
-	  A DVB-T tuner module.
-	  Say Y when you want to support this frontend.
 
 config DVB_M88RS2000
 	tristate "M88RS2000 DVB-S demodulator and tuner"

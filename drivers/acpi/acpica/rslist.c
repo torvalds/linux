@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -176,6 +176,14 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 				    "Invalid descriptor type (0x%X) in resource list",
 				    resource->type));
 			return_ACPI_STATUS(AE_BAD_DATA);
+		}
+
+		/* Sanity check the length. It must not be zero, or we loop forever */
+
+		if (!resource->length) {
+			ACPI_ERROR((AE_INFO,
+				    "Invalid zero length descriptor in resource list\n"));
+			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
 		}
 
 		/* Perform the conversion */

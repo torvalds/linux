@@ -28,8 +28,6 @@
 
 #include "stac9766.h"
 
-#define STAC9766_VERSION "0.10"
-
 /*
  * STAC9766 register cache
  */
@@ -64,25 +62,25 @@ static const char *stac9766_boost1[] = {"0dB", "10dB"};
 static const char *stac9766_boost2[] = {"0dB", "20dB"};
 static const char *stac9766_stereo_mic[] = {"Off", "On"};
 
-static const struct soc_enum stac9766_record_enum =
-	SOC_ENUM_DOUBLE(AC97_REC_SEL, 8, 0, 8, stac9766_record_mux);
-static const struct soc_enum stac9766_mono_enum =
-	SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 9, 2, stac9766_mono_mux);
-static const struct soc_enum stac9766_mic_enum =
-	SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 8, 2, stac9766_mic_mux);
-static const struct soc_enum stac9766_SPDIF_enum =
-	SOC_ENUM_SINGLE(AC97_STAC_DA_CONTROL, 1, 2, stac9766_SPDIF_mux);
-static const struct soc_enum stac9766_popbypass_enum =
-	SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 15, 2, stac9766_popbypass_mux);
-static const struct soc_enum stac9766_record_all_enum =
-	SOC_ENUM_SINGLE(AC97_STAC_ANALOG_SPECIAL, 12, 2,
-			stac9766_record_all_mux);
-static const struct soc_enum stac9766_boost1_enum =
-	SOC_ENUM_SINGLE(AC97_MIC, 6, 2, stac9766_boost1); /* 0/10dB */
-static const struct soc_enum stac9766_boost2_enum =
-	SOC_ENUM_SINGLE(AC97_STAC_ANALOG_SPECIAL, 2, 2, stac9766_boost2); /* 0/20dB */
-static const struct soc_enum stac9766_stereo_mic_enum =
-	SOC_ENUM_SINGLE(AC97_STAC_STEREO_MIC, 2, 1, stac9766_stereo_mic);
+static SOC_ENUM_DOUBLE_DECL(stac9766_record_enum,
+			    AC97_REC_SEL, 8, 0, stac9766_record_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_mono_enum,
+			    AC97_GENERAL_PURPOSE, 9, stac9766_mono_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_mic_enum,
+			    AC97_GENERAL_PURPOSE, 8, stac9766_mic_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_SPDIF_enum,
+			    AC97_STAC_DA_CONTROL, 1, stac9766_SPDIF_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_popbypass_enum,
+			    AC97_GENERAL_PURPOSE, 15, stac9766_popbypass_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_record_all_enum,
+			    AC97_STAC_ANALOG_SPECIAL, 12,
+			    stac9766_record_all_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_boost1_enum,
+			    AC97_MIC, 6, stac9766_boost1); /* 0/10dB */
+static SOC_ENUM_SINGLE_DECL(stac9766_boost2_enum,
+			    AC97_STAC_ANALOG_SPECIAL, 2, stac9766_boost2); /* 0/20dB */
+static SOC_ENUM_SINGLE_DECL(stac9766_stereo_mic_enum,
+			    AC97_STAC_STEREO_MIC, 2, stac9766_stereo_mic);
 
 static const DECLARE_TLV_DB_LINEAR(master_tlv, -4600, 0);
 static const DECLARE_TLV_DB_LINEAR(record_tlv, 0, 2250);
@@ -145,14 +143,14 @@ static int stac9766_ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	if (reg > AC97_STAC_PAGE0) {
 		stac9766_ac97_write(codec, AC97_INT_PAGING, 0);
-		soc_ac97_ops.write(codec->ac97, reg, val);
+		soc_ac97_ops->write(codec->ac97, reg, val);
 		stac9766_ac97_write(codec, AC97_INT_PAGING, 1);
 		return 0;
 	}
 	if (reg / 2 >= ARRAY_SIZE(stac9766_reg))
 		return -EIO;
 
-	soc_ac97_ops.write(codec->ac97, reg, val);
+	soc_ac97_ops->write(codec->ac97, reg, val);
 	cache[reg / 2] = val;
 	return 0;
 }
@@ -164,7 +162,7 @@ static unsigned int stac9766_ac97_read(struct snd_soc_codec *codec,
 
 	if (reg > AC97_STAC_PAGE0) {
 		stac9766_ac97_write(codec, AC97_INT_PAGING, 0);
-		val = soc_ac97_ops.read(codec->ac97, reg - AC97_STAC_PAGE0);
+		val = soc_ac97_ops->read(codec->ac97, reg - AC97_STAC_PAGE0);
 		stac9766_ac97_write(codec, AC97_INT_PAGING, 1);
 		return val;
 	}
@@ -175,7 +173,7 @@ static unsigned int stac9766_ac97_read(struct snd_soc_codec *codec,
 		reg == AC97_INT_PAGING || reg == AC97_VENDOR_ID1 ||
 		reg == AC97_VENDOR_ID2) {
 
-		val = soc_ac97_ops.read(codec->ac97, reg);
+		val = soc_ac97_ops->read(codec->ac97, reg);
 		return val;
 	}
 	return cache[reg / 2];
@@ -242,15 +240,15 @@ static int stac9766_set_bias_level(struct snd_soc_codec *codec,
 
 static int stac9766_reset(struct snd_soc_codec *codec, int try_warm)
 {
-	if (try_warm && soc_ac97_ops.warm_reset) {
-		soc_ac97_ops.warm_reset(codec->ac97);
+	if (try_warm && soc_ac97_ops->warm_reset) {
+		soc_ac97_ops->warm_reset(codec->ac97);
 		if (stac9766_ac97_read(codec, 0) == stac9766_reg[0])
 			return 1;
 	}
 
-	soc_ac97_ops.reset(codec->ac97);
-	if (soc_ac97_ops.warm_reset)
-		soc_ac97_ops.warm_reset(codec->ac97);
+	soc_ac97_ops->reset(codec->ac97);
+	if (soc_ac97_ops->warm_reset)
+		soc_ac97_ops->warm_reset(codec->ac97);
 	if (stac9766_ac97_read(codec, 0) != stac9766_reg[0])
 		return -EIO;
 	return 0;
@@ -274,7 +272,7 @@ reset:
 		return -EIO;
 	}
 	codec->ac97->bus->ops->warm_reset(codec->ac97);
-	id = soc_ac97_ops.read(codec->ac97, AC97_VENDOR_ID2);
+	id = soc_ac97_ops->read(codec->ac97, AC97_VENDOR_ID2);
 	if (id != 0x4c13) {
 		stac9766_reset(codec, 0);
 		reset++;
@@ -338,9 +336,7 @@ static int stac9766_codec_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0;
 
-	printk(KERN_INFO "STAC9766 SoC Audio Codec %s\n", STAC9766_VERSION);
-
-	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
+	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0)
 		goto codec_err;
 

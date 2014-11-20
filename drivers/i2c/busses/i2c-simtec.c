@@ -12,15 +12,10 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -78,10 +73,8 @@ static int simtec_i2c_probe(struct platform_device *dev)
 	int ret;
 
 	pd = kzalloc(sizeof(struct simtec_i2c_data), GFP_KERNEL);
-	if (pd == NULL) {
-		dev_err(&dev->dev, "cannot allocate private data\n");
+	if (pd == NULL)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(dev, pd);
 

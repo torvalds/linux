@@ -36,7 +36,7 @@ nva3_therm_fan_sense(struct nouveau_therm *therm)
 	u32 tach = nv_rd32(therm, 0x00e728) & 0x0000ffff;
 	u32 ctrl = nv_rd32(therm, 0x00e720);
 	if (ctrl & 0x00000001)
-		return tach * 60;
+		return tach * 60 / 2;
 	return -ENODEV;
 }
 
@@ -50,6 +50,8 @@ nva3_therm_init(struct nouveau_object *object)
 	ret = nouveau_therm_init(&priv->base.base);
 	if (ret)
 		return ret;
+
+	nv84_sensor_setup(&priv->base.base);
 
 	/* enable fan tach, count revolutions per-second */
 	nv_mask(priv, 0x00e720, 0x00000003, 0x00000002);
@@ -81,7 +83,7 @@ nva3_therm_ctor(struct nouveau_object *parent,
 	priv->base.base.pwm_get = nv50_fan_pwm_get;
 	priv->base.base.pwm_set = nv50_fan_pwm_set;
 	priv->base.base.pwm_clock = nv50_fan_pwm_clock;
-	priv->base.base.temp_get = nv50_temp_get;
+	priv->base.base.temp_get = nv84_temp_get;
 	priv->base.base.fan_sense = nva3_therm_fan_sense;
 	priv->base.sensor.program_alarms = nouveau_therm_program_alarms_polling;
 	return nouveau_therm_preinit(&priv->base.base);
@@ -94,6 +96,6 @@ nva3_therm_oclass = {
 		.ctor = nva3_therm_ctor,
 		.dtor = _nouveau_therm_dtor,
 		.init = nva3_therm_init,
-		.fini = _nouveau_therm_fini,
+		.fini = nv84_therm_fini,
 	},
 };

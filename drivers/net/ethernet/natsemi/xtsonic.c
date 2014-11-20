@@ -95,8 +95,7 @@ static int xtsonic_open(struct net_device *dev)
 {
 	int retval;
 
-	retval = request_irq(dev->irq, sonic_interrupt, IRQF_DISABLED,
-				"sonic", dev);
+	retval = request_irq(dev->irq, sonic_interrupt, 0, "sonic", dev);
 	if (retval) {
 		printk(KERN_ERR "%s: unable to get IRQ %d.\n",
 		       dev->name, dev->irq);
@@ -197,14 +196,12 @@ static int __init sonic_probe1(struct net_device *dev)
 	 *  We also allocate extra space for a pointer to allow freeing
 	 *  this structure later on (in xtsonic_cleanup_module()).
 	 */
-	lp->descriptors =
-		dma_alloc_coherent(lp->device,
-			SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
-			&lp->descriptors_laddr, GFP_KERNEL);
-
+	lp->descriptors = dma_alloc_coherent(lp->device,
+					     SIZEOF_SONIC_DESC *
+					     SONIC_BUS_SCALE(lp->dma_bitmode),
+					     &lp->descriptors_laddr,
+					     GFP_KERNEL);
 	if (lp->descriptors == NULL) {
-		printk(KERN_ERR "%s: couldn't alloc DMA memory for "
-				" descriptors.\n", dev_name(lp->device));
 		err = -ENOMEM;
 		goto out;
 	}
@@ -267,6 +264,7 @@ int xtsonic_probe(struct platform_device *pdev)
 
 	lp = netdev_priv(dev);
 	lp->device = &pdev->dev;
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	netdev_boot_setup_check(dev);
 

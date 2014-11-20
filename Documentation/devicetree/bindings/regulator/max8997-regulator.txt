@@ -1,6 +1,6 @@
 * Maxim MAX8997 Voltage and Current Regulator
 
-The Maxim MAX8997 is a multi-function device which includes volatage and
+The Maxim MAX8997 is a multi-function device which includes voltage and
 current regulators, rtc, charger controller and other sub-blocks. It is
 interfaced to the host controller using a i2c interface. Each sub-block is
 addressed by the host system using different i2c slave address. This document
@@ -28,7 +28,7 @@ Required properties:
     safe operating voltage).
 
     If either of the 'max8997,pmic-buck[1/2/5]-uses-gpio-dvs' optional
-    property is specified, then all the eigth voltage values for the
+    property is specified, then all the eight voltage values for the
     'max8997,pmic-buck[1/2/5]-dvs-voltage' should be specified.
 
 Optional properties:

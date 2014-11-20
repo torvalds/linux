@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -30,21 +31,22 @@
 
 /* DCB register definitions */
 #define IXGBE_RTTDCS_TDPAC      0x00000001 /* 0 Round Robin,
-                                            * 1 WSP - Weighted Strict Priority
-                                            */
+					    * 1 WSP - Weighted Strict Priority
+					    */
 #define IXGBE_RTTDCS_VMPAC      0x00000002 /* 0 Round Robin,
-                                            * 1 WRR - Weighted Round Robin
-                                            */
+					    * 1 WRR - Weighted Round Robin
+					    */
 #define IXGBE_RTTDCS_TDRM       0x00000010 /* Transmit Recycle Mode */
 #define IXGBE_RTTDCS_ARBDIS     0x00000040 /* DCB arbiter disable */
 #define IXGBE_RTTDCS_BDPM       0x00400000 /* Bypass Data Pipe - must clear! */
 #define IXGBE_RTTDCS_BPBFSM     0x00800000 /* Bypass PB Free Space - must
-                                             * clear!
-                                             */
+					     * clear!
+					     */
 #define IXGBE_RTTDCS_SPEED_CHG  0x80000000 /* Link speed change */
 
 /* Receive UP2TC mapping */
 #define IXGBE_RTRUP2TC_UP_SHIFT 3
+#define IXGBE_RTRUP2TC_UP_MASK	7
 /* Transmit UP2TC mapping */
 #define IXGBE_RTTUP2TC_UP_SHIFT 3
 
@@ -54,11 +56,11 @@
 #define IXGBE_RTRPT4C_LSP       0x80000000 /* LSP enable bit */
 
 #define IXGBE_RDRXCTL_MPBEN     0x00000010 /* DMA config for multiple packet
-                                            * buffers enable
-                                            */
+					    * buffers enable
+					    */
 #define IXGBE_RDRXCTL_MCEN      0x00000040 /* DMA config for multiple cores
-                                            * (RSS) enable
-                                            */
+					    * (RSS) enable
+					    */
 
 /* RTRPCS Bit Masks */
 #define IXGBE_RTRPCS_RRM        0x00000002 /* Receive Recycle Mode enable */
@@ -79,8 +81,8 @@
 
 /* RTTPCS Bit Masks */
 #define IXGBE_RTTPCS_TPPAC      0x00000020 /* 0 Round Robin,
-                                            * 1 SP - Strict Priority
-                                            */
+					    * 1 SP - Strict Priority
+					    */
 #define IXGBE_RTTPCS_ARBDIS     0x00000040 /* Arbiter disable */
 #define IXGBE_RTTPCS_TPRM       0x00000100 /* Transmit Recycle Mode enable */
 #define IXGBE_RTTPCS_ARBD_SHIFT 22

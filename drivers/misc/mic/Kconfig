@@ -1,0 +1,54 @@
+comment "Intel MIC Bus Driver"
+
+config INTEL_MIC_BUS
+	tristate "Intel MIC Bus Driver"
+	depends on 64BIT && PCI && X86 && X86_DEV_DMA_OPS
+	help
+	  This option is selected by any driver which registers a
+	  device or driver on the MIC Bus, such as CONFIG_INTEL_MIC_HOST,
+	  CONFIG_INTEL_MIC_CARD, CONFIG_INTEL_MIC_X100_DMA etc.
+
+	  If you are building a host/card kernel with an Intel MIC device
+	  then say M (recommended) or Y, else say N. If unsure say N.
+
+	  More information about the Intel MIC family as well as the Linux
+	  OS and tools for MIC to use with this driver are available from
+	  <http://software.intel.com/en-us/mic-developer>.
+
+comment "Intel MIC Host Driver"
+
+config INTEL_MIC_HOST
+	tristate "Intel MIC Host Driver"
+	depends on 64BIT && PCI && X86 && INTEL_MIC_BUS
+	select VHOST_RING
+	help
+	  This enables Host Driver support for the Intel Many Integrated
+	  Core (MIC) family of PCIe form factor coprocessor devices that
+	  run a 64 bit Linux OS. The driver manages card OS state and
+	  enables communication between host and card. Intel MIC X100
+	  devices are currently supported.
+
+	  If you are building a host kernel with an Intel MIC device then
+	  say M (recommended) or Y, else say N. If unsure say N.
+
+	  More information about the Intel MIC family as well as the Linux
+	  OS and tools for MIC to use with this driver are available from
+	  <http://software.intel.com/en-us/mic-developer>.
+
+comment "Intel MIC Card Driver"
+
+config INTEL_MIC_CARD
+	tristate "Intel MIC Card Driver"
+	depends on 64BIT && X86 && INTEL_MIC_BUS
+	select VIRTIO
+	help
+	  This enables card driver support for the Intel Many Integrated
+	  Core (MIC) device family. The card driver communicates shutdown/
+	  crash events to the host and allows registration/configuration of
+	  virtio devices. Intel MIC X100 devices are currently supported.
+
+	  If you are building a card kernel for an Intel MIC device then
+	  say M (recommended) or Y, else say N. If unsure say N.
+
+	  For more information see
+	  <http://software.intel.com/en-us/mic-developer>.

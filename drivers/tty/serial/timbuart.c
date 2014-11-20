@@ -162,7 +162,7 @@ static void timbuart_handle_tx_port(struct uart_port *port, u32 isr, u32 *ier)
 	dev_dbg(port->dev, "%s - leaving\n", __func__);
 }
 
-void timbuart_handle_rx_port(struct uart_port *port, u32 isr, u32 *ier)
+static void timbuart_handle_rx_port(struct uart_port *port, u32 isr, u32 *ier)
 {
 	if (isr & RXFLAGS) {
 		/* Some RX status is set */
@@ -184,7 +184,7 @@ void timbuart_handle_rx_port(struct uart_port *port, u32 isr, u32 *ier)
 	dev_dbg(port->dev, "%s - leaving\n", __func__);
 }
 
-void timbuart_tasklet(unsigned long arg)
+static void timbuart_tasklet(unsigned long arg)
 {
 	struct timbuart_port *uart = (struct timbuart_port *)arg;
 	u32 isr, ier = 0;
@@ -242,11 +242,6 @@ static void timbuart_mctrl_check(struct uart_port *port, u32 isr, u32 *ier)
 	}
 
 	*ier |= CTS_DELTA;
-}
-
-static void timbuart_enable_ms(struct uart_port *port)
-{
-	/* N/A */
 }
 
 static void timbuart_break_ctl(struct uart_port *port, int ctl)
@@ -405,7 +400,6 @@ static struct uart_ops timbuart_ops = {
 	.start_tx = timbuart_start_tx,
 	.flush_buffer = timbuart_flush_buffer,
 	.stop_rx = timbuart_stop_rx,
-	.enable_ms = timbuart_enable_ms,
 	.break_ctl = timbuart_break_ctl,
 	.startup = timbuart_startup,
 	.shutdown = timbuart_shutdown,

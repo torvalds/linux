@@ -14,7 +14,7 @@
  * Copyright (c) 2004, Intel Corporation
  *
  * Modified for Realtek's wi-fi cards by Andrea Merello
- * <andreamrl@tiscali.it>
+ * <andrea.merello@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -354,12 +354,10 @@ enum	_ReasonCode{
 #define ieee80211_wx_get_scan		ieee80211_wx_get_scan_rsl
 #define ieee80211_wx_set_encode		ieee80211_wx_set_encode_rsl
 #define ieee80211_wx_get_encode		ieee80211_wx_get_encode_rsl
-#if WIRELESS_EXT >= 18
 #define ieee80211_wx_set_mlme		ieee80211_wx_set_mlme_rsl
 #define ieee80211_wx_set_auth		ieee80211_wx_set_auth_rsl
 #define ieee80211_wx_set_encode_ext	ieee80211_wx_set_encode_ext_rsl
 #define ieee80211_wx_get_encode_ext	ieee80211_wx_get_encode_ext_rsl
-#endif
 
 
 typedef struct ieee_param {
@@ -390,16 +388,6 @@ typedef struct ieee_param {
 		} crypt;
 	} u;
 }ieee_param;
-
-
-#if WIRELESS_EXT < 17
-#define IW_QUAL_QUAL_INVALID   0x10
-#define IW_QUAL_LEVEL_INVALID  0x20
-#define IW_QUAL_NOISE_INVALID  0x40
-#define IW_QUAL_QUAL_UPDATED   0x1
-#define IW_QUAL_LEVEL_UPDATED  0x2
-#define IW_QUAL_NOISE_UPDATED  0x4
-#endif
 
 
 // linux under 2.6.9 release may not support it, so modify it for common use
@@ -493,8 +481,8 @@ typedef struct ieee_param {
 #define IsDataFrame(pdu)			( ((pdu[0] & 0x0C)==0x08) ? true : false )
 #define	IsLegacyDataFrame(pdu)	(IsDataFrame(pdu) && (!(pdu[0]&FC_QOS_BIT)) )
 //added by wb. Is this right?
-#define IsQoSDataFrame(pframe)  ((*(u16*)pframe&(IEEE80211_STYPE_QOS_DATA|IEEE80211_FTYPE_DATA)) == (IEEE80211_STYPE_QOS_DATA|IEEE80211_FTYPE_DATA))
-#define Frame_Order(pframe)     (*(u16*)pframe&IEEE80211_FCTL_ORDER)
+#define IsQoSDataFrame(pframe)  ((*(u16 *)pframe&(IEEE80211_STYPE_QOS_DATA|IEEE80211_FTYPE_DATA)) == (IEEE80211_STYPE_QOS_DATA|IEEE80211_FTYPE_DATA))
+#define Frame_Order(pframe)     (*(u16 *)pframe&IEEE80211_FCTL_ORDER)
 #define SN_LESS(a, b)		(((a-b)&0x800)!=0)
 #define SN_EQUAL(a, b)	(a == b)
 #define MAX_DEV_ADDR_SIZE 8
@@ -538,8 +526,8 @@ do { if (ieee80211_debug_level & (level)) \
 	do{ if ((ieee80211_debug_level & (level)) == (level))	\
 		{	\
 			int i;					\
-			u8* pdata = (u8*) data;			\
-			printk(KERN_DEBUG "ieee80211: %s()\n", __FUNCTION__);	\
+			u8 *pdata = (u8 *) data;			\
+			printk(KERN_DEBUG "ieee80211: %s()\n", __func__);	\
 			for(i=0; i<(int)(datalen); i++)			\
 			{						\
 				printk("%2x ", pdata[i]);		\
@@ -914,7 +902,7 @@ struct ieee80211_rx_stats {
 	bool      bIsCCK;
 	bool      bPacketToSelf;
 	//added by amy
-	u8*       virtual_address;
+	u8        *virtual_address;
 	u16          packetlength;              // Total packet length: Must equal to sum of all FragLength
 	u16          fraglength;                        // FragLength should equal to PacketLength in non-fragment case
 	u16          fragoffset;                        // Data offset for this fragment
@@ -1152,7 +1140,7 @@ struct ieee80211_probe_request {
 
 struct ieee80211_probe_response {
 	struct ieee80211_hdr_3addr header;
-	u32 time_stamp[2];
+	__le32 time_stamp[2];
 	__le16 beacon_interval;
 	__le16 capability;
 	/* SSID, supported rates, FH params, DS params,
@@ -1223,7 +1211,7 @@ typedef union _frameqos {
 		u16 reserved:1;
 		u16 txop:8;
 	}field;
-}frameqos,*pframeqos;
+} frameqos, *pframeqos;
 
 /* SWEEP TABLE ENTRIES NUMBER*/
 #define MAX_SWEEP_TAB_ENTRIES		  42
@@ -1366,13 +1354,13 @@ static inline const char *eap_get_type(int type)
 	return ((u32)type >= ARRAY_SIZE(eap_types)) ? "Unknown" : eap_types[type];
 }
 //added by amy for reorder
-static inline u8 Frame_QoSTID(u8* buf)
+static inline u8 Frame_QoSTID(u8 *buf)
 {
 	struct ieee80211_hdr_3addr *hdr;
 	u16 fc;
 	hdr = (struct ieee80211_hdr_3addr *)buf;
 	fc = le16_to_cpu(hdr->frame_ctl);
-	return (u8)((frameqos*)(buf + (((fc & IEEE80211_FCTL_TODS)&&(fc & IEEE80211_FCTL_FROMDS))? 30 : 24)))->field.tid;
+	return (u8)((frameqos *)(buf + (((fc & IEEE80211_FCTL_TODS)&&(fc & IEEE80211_FCTL_FROMDS))? 30 : 24)))->field.tid;
 }
 
 //added by amy for reorder
@@ -1660,7 +1648,7 @@ typedef struct _bandwidth_autoswitch {
 	long	threshold_40Mhzto20Mhz;
 	bool bforced_tx20Mhz;
 	bool bautoswitch_enable;
-}bandwidth_autoswitch,*pbandwidth_autoswitch;
+} bandwidth_autoswitch, *pbandwidth_autoswitch;
 
 
 //added by amy for order
@@ -1670,7 +1658,7 @@ typedef struct _bandwidth_autoswitch {
 typedef struct _RX_REORDER_ENTRY {
 	struct list_head	List;
 	u16			SeqNum;
-	struct ieee80211_rxb* prxb;
+	struct ieee80211_rxb *prxb;
 } RX_REORDER_ENTRY, *PRX_REORDER_ENTRY;
 //added by amy for order
 typedef enum _Fsync_State{
@@ -1757,7 +1745,7 @@ typedef struct _RT_POWER_SAVE_CONTROL {
 	//
 	bool				bLeisurePs;
 
-}RT_POWER_SAVE_CONTROL,*PRT_POWER_SAVE_CONTROL;
+} RT_POWER_SAVE_CONTROL, *PRT_POWER_SAVE_CONTROL;
 
 typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_SW BIT31
@@ -1965,7 +1953,7 @@ struct ieee80211_device {
 
 	/* map of allowed channels. 0 is dummy */
 	// FIXME: remember to default to a basic channel plan depending of the PHY type
-	void* pDot11dInfo;
+	void *pDot11dInfo;
 	bool bGlobalDomain;
 	int rate;       /* current rate */
 	int basic_rate;
@@ -2107,10 +2095,10 @@ struct ieee80211_device {
 			       struct net_device *dev);
 
 	int (*reset_port)(struct net_device *dev);
-	int (*is_queue_full) (struct net_device * dev, int pri);
+	int (*is_queue_full) (struct net_device *dev, int pri);
 
-	int (*handle_management) (struct net_device * dev,
-				  struct ieee80211_network * network, u16 type);
+	int (*handle_management) (struct net_device *dev,
+				  struct ieee80211_network *network, u16 type);
 	int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
 
 	/* Softmac-generated frames (management) are TXed via this
@@ -2130,7 +2118,7 @@ struct ieee80211_device {
 	 * This function can't sleep.
 	 */
 	void (*softmac_data_hard_start_xmit)(struct sk_buff *skb,
-			       struct net_device *dev,int rate);
+			       struct net_device *dev, int rate);
 
 	/* stops the HW queue for DATA frames. Useful to avoid
 	 * waste time to TX data frame when we are reassociating
@@ -2145,7 +2133,7 @@ struct ieee80211_device {
 	 * This function can sleep. the driver should ensure
 	 * the radio has been swithced before return.
 	 */
-	void (*set_chan)(struct net_device *dev,short ch);
+	void (*set_chan)(struct net_device *dev, short ch);
 
 	/* These are not used if the ieee stack takes care of
 	 * scanning (IEEE_SOFTMAC_SCAN feature set).
@@ -2187,8 +2175,8 @@ struct ieee80211_device {
 	void (*ps_request_tx_ack) (struct net_device *dev);
 	void (*enter_sleep_state) (struct net_device *dev, u32 th, u32 tl);
 	short (*ps_is_queue_empty) (struct net_device *dev);
-	int (*handle_beacon) (struct net_device * dev, struct ieee80211_beacon * beacon, struct ieee80211_network * network);
-	int (*handle_assoc_response) (struct net_device * dev, struct ieee80211_assoc_response_frame * resp, struct ieee80211_network * network);
+	int (*handle_beacon) (struct net_device *dev, struct ieee80211_beacon *beacon, struct ieee80211_network *network);
+	int (*handle_assoc_response) (struct net_device *dev, struct ieee80211_assoc_response_frame *resp, struct ieee80211_network *network);
 
 
 	/* check whether Tx hw resource available */
@@ -2197,9 +2185,9 @@ struct ieee80211_device {
 //	void (*SwChnlByTimerHandler)(struct net_device *dev, int channel);
 	void (*SetBWModeHandler)(struct net_device *dev, HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET Offset);
 //	void (*UpdateHalRATRTableHandler)(struct net_device* dev, u8* pMcsRate);
-	bool (*GetNmodeSupportBySecCfg)(struct net_device* dev);
-	void (*SetWirelessMode)(struct net_device* dev, u8 wireless_mode);
-	bool (*GetHalfNmodeSupportByAPsHandler)(struct net_device* dev);
+	bool (*GetNmodeSupportBySecCfg)(struct net_device *dev);
+	void (*SetWirelessMode)(struct net_device *dev, u8 wireless_mode);
+	bool (*GetHalfNmodeSupportByAPsHandler)(struct net_device *dev);
 	void (*InitialGainHandler)(struct net_device *dev, u8 Operation);
 
 	/* This must be the last item so that it points to the data
@@ -2250,7 +2238,7 @@ static inline void *ieee80211_priv(struct net_device *dev)
 	return ((struct ieee80211_device *)netdev_priv(dev))->priv;
 }
 
-extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
+static inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
 {
 	/* Single white space is for Linksys APs */
 	if (essid_len == 1 && essid[0] == ' ')
@@ -2266,7 +2254,7 @@ extern inline int ieee80211_is_empty_essid(const char *essid, int essid_len)
 	return 1;
 }
 
-extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mode)
+static inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mode)
 {
 	/*
 	 * It is possible for both access points and our device to support
@@ -2292,7 +2280,7 @@ extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mod
 	return 0;
 }
 
-extern inline int ieee80211_get_hdrlen(u16 fc)
+static inline int ieee80211_get_hdrlen(u16 fc)
 {
 	int hdrlen = IEEE80211_3ADDR_LEN;
 
@@ -2398,20 +2386,18 @@ extern int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 extern int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
-#if WIRELESS_EXT >= 18
 extern int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
 			    struct iw_request_info *info,
-			    union iwreq_data* wrqu, char *extra);
+			    union iwreq_data *wrqu, char *extra);
 extern int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 			    struct iw_request_info *info,
-			    union iwreq_data* wrqu, char *extra);
+			    union iwreq_data *wrqu, char *extra);
 extern int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
 			       struct iw_param *data, char *extra);
 extern int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra);
-#endif
 extern int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len);
 
 /* ieee80211_softmac.c */
@@ -2422,7 +2408,7 @@ extern int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_b
 			u16 stype);
 extern void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee80211_network *net);
 
-void SendDisassociation(struct ieee80211_device *ieee, u8* asSta, u8 asRsn);
+void SendDisassociation(struct ieee80211_device *ieee, u8 *asSta, u8 asRsn);
 extern void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *ieee);
 
 extern void ieee80211_stop_send_beacons(struct ieee80211_device *ieee);
@@ -2458,6 +2444,15 @@ extern void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 extern void ieee80211_tkip_null(void);
 extern void ieee80211_wep_null(void);
 extern void ieee80211_ccmp_null(void);
+
+int ieee80211_crypto_init(void);
+void ieee80211_crypto_deinit(void);
+int ieee80211_crypto_tkip_init(void);
+void ieee80211_crypto_tkip_exit(void);
+int ieee80211_crypto_ccmp_init(void);
+void ieee80211_crypto_ccmp_exit(void);
+int ieee80211_crypto_wep_init(void);
+void ieee80211_crypto_wep_exit(void);
 
 /* ieee80211_softmac_wx.c */
 
@@ -2499,6 +2494,10 @@ extern int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_reques
 extern int ieee80211_wx_get_freq(struct ieee80211_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b);
 
+/* ieee80211_module.c */
+extern int ieee80211_debug_init(void);
+extern void ieee80211_debug_exit(void);
+
 //extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
 extern void ieee80211_wx_sync_scan_wq(struct work_struct *work);
 
@@ -2528,87 +2527,79 @@ extern int ieee80211_wx_get_rts(struct ieee80211_device *ieee,
 			     union iwreq_data *wrqu, char *extra);
 //HT
 #define MAX_RECEIVE_BUFFER_SIZE 9100  //
-extern void HTDebugHTCapability(u8* CapIE, u8* TitleString );
-extern void HTDebugHTInfo(u8*  InfoIE, u8* TitleString);
+extern void HTDebugHTCapability(u8 *CapIE, u8 *TitleString );
+extern void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString);
 
-void HTSetConnectBwMode(struct ieee80211_device* ieee, HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET    Offset);
-extern void HTUpdateDefaultSetting(struct ieee80211_device* ieee);
-extern void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u8* len, u8 isEncrypt);
-extern void HTConstructInfoElement(struct ieee80211_device* ieee, u8* posHTInfo, u8* len, u8 isEncrypt);
-extern void HTConstructRT2RTAggElement(struct ieee80211_device* ieee, u8* posRT2RTAgg, u8* len);
+void HTSetConnectBwMode(struct ieee80211_device *ieee, HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET    Offset);
+extern void HTUpdateDefaultSetting(struct ieee80211_device *ieee);
+extern void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u8 *len, u8 isEncrypt);
+extern void HTConstructInfoElement(struct ieee80211_device *ieee, u8 *posHTInfo, u8 *len, u8 isEncrypt);
+extern void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, u8 *len);
 extern void HTOnAssocRsp(struct ieee80211_device *ieee);
-extern void HTInitializeHTInfo(struct ieee80211_device* ieee);
+extern void HTInitializeHTInfo(struct ieee80211_device *ieee);
 extern void HTInitializeBssDesc(PBSS_HT pBssHT);
-extern void HTResetSelfAndSavePeerSetting(struct ieee80211_device* ieee, struct ieee80211_network * pNetwork);
-extern void HTUpdateSelfAndPeerSetting(struct ieee80211_device* ieee,   struct ieee80211_network * pNetwork);
-extern u8 HTGetHighestMCSRate(struct ieee80211_device* ieee, u8* pMCSRateSet, u8* pMCSFilter);
+extern void HTResetSelfAndSavePeerSetting(struct ieee80211_device *ieee, struct ieee80211_network *pNetwork);
+extern void HTUpdateSelfAndPeerSetting(struct ieee80211_device *ieee,   struct ieee80211_network *pNetwork);
+extern u8 HTGetHighestMCSRate(struct ieee80211_device *ieee, u8 *pMCSRateSet, u8 *pMCSFilter);
 extern u8 MCS_FILTER_ALL[];
 extern u16 MCS_DATA_RATE[2][2][77] ;
-extern u8 HTCCheck(struct ieee80211_device* ieee, u8*   pFrame);
+extern u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame);
 //extern void HTSetConnectBwModeCallback(unsigned long data);
 extern void HTResetIOTSetting(PRT_HIGH_THROUGHPUT  pHTInfo);
-extern bool IsHTHalfNmodeAPs(struct ieee80211_device* ieee);
-extern u16 HTHalfMcsToDataRate(struct ieee80211_device* ieee,  u8      nMcsRate);
-extern u16 HTMcsToDataRate( struct ieee80211_device* ieee, u8 nMcsRate);
-extern u16  TxCountToDataRate( struct ieee80211_device* ieee, u8 nDataRate);
+extern bool IsHTHalfNmodeAPs(struct ieee80211_device *ieee);
+extern u16 HTHalfMcsToDataRate(struct ieee80211_device *ieee,  u8      nMcsRate);
+extern u16 HTMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate);
+extern u16  TxCountToDataRate(struct ieee80211_device *ieee, u8 nDataRate);
 //function in BAPROC.c
-extern int ieee80211_rx_ADDBAReq( struct ieee80211_device* ieee, struct sk_buff *skb);
-extern int ieee80211_rx_ADDBARsp( struct ieee80211_device* ieee, struct sk_buff *skb);
-extern int ieee80211_rx_DELBA(struct ieee80211_device* ieee,struct sk_buff *skb);
-extern void TsInitAddBA( struct ieee80211_device* ieee, PTX_TS_RECORD   pTS, u8 Policy, u8 bOverwritePending);
-extern void TsInitDelBA( struct ieee80211_device* ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELECT TxRxSelect);
+extern int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee,
+				 struct sk_buff *skb);
+extern int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee,
+				 struct sk_buff *skb);
+extern int ieee80211_rx_DELBA(struct ieee80211_device *ieee,struct sk_buff *skb);
+extern void TsInitAddBA(struct ieee80211_device *ieee, PTX_TS_RECORD pTS,
+			u8 Policy, u8 bOverwritePending);
+extern void TsInitDelBA(struct ieee80211_device *ieee,
+			PTS_COMMON_INFO pTsCommonInfo, TR_SELECT TxRxSelect);
 extern void BaSetupTimeOut(unsigned long data);
 extern void TxBaInactTimeout(unsigned long data);
 extern void RxBaInactTimeout(unsigned long data);
-extern void ResetBaEntry( PBA_RECORD pBA);
+extern void ResetBaEntry(PBA_RECORD pBA);
 //function in TS.c
 extern bool GetTs(
-	struct ieee80211_device*        ieee,
+	struct ieee80211_device		*ieee,
 	PTS_COMMON_INFO                 *ppTS,
-	u8*                             Addr,
+	u8                              *Addr,
 	u8                              TID,
 	TR_SELECT                       TxRxSelect,  //Rx:1, Tx:0
 	bool                            bAddNewTs
 	);
 extern void TSInitialize(struct ieee80211_device *ieee);
-extern  void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD   pTxTS);
-extern void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr);
-extern void RemoveAllTS(struct ieee80211_device* ieee);
+extern  void TsStartAddBaProcess(struct ieee80211_device *ieee, PTX_TS_RECORD   pTxTS);
+extern void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr);
+extern void RemoveAllTS(struct ieee80211_device *ieee);
 void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee);
 
 extern const long ieee80211_wlan_frequencies[];
 
-extern inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
+static inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
 {
 	ieee->scans++;
 }
 
-extern inline int ieee80211_get_scans(struct ieee80211_device *ieee)
+static inline int ieee80211_get_scans(struct ieee80211_device *ieee)
 {
 	return ieee->scans;
 }
 
 static inline const char *escape_essid(const char *essid, u8 essid_len) {
 	static char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
-	const char *s = essid;
-	char *d = escaped;
 
 	if (ieee80211_is_empty_essid(essid, essid_len)) {
 		memcpy(escaped, "<hidden>", sizeof("<hidden>"));
 		return escaped;
 	}
 
-	essid_len = min(essid_len, (u8)IW_ESSID_MAX_SIZE);
-	while (essid_len--) {
-		if (*s == '\0') {
-			*d++ = '\\';
-			*d++ = '0';
-			s++;
-		} else {
-			*d++ = *s++;
-		}
-	}
-	*d = '\0';
+	snprintf(escaped, sizeof(escaped), "%*pEn", essid_len, essid);
 	return escaped;
 }
 
@@ -2623,6 +2614,6 @@ extern int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 		struct ieee80211_network *network,
 		struct ieee80211_rx_stats *stats);
 
-void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_rxb** prxbIndicateArray,u8  index);
+void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_rxb **prxbIndicateArray,u8  index);
 #define RT_ASOC_RETRY_LIMIT	5
 #endif /* IEEE80211_H */

@@ -110,7 +110,7 @@ ath5k_hw_radio_revision(struct ath5k_hw *ah, enum ieee80211_band band)
 		ath5k_hw_reg_write(ah, 0x00010000, AR5K_PHY(0x20));
 
 	if (ah->ah_version == AR5K_AR5210) {
-		srev = ath5k_hw_reg_read(ah, AR5K_PHY(256) >> 28) & 0xf;
+		srev = (ath5k_hw_reg_read(ah, AR5K_PHY(256)) >> 28) & 0xf;
 		ret = (u16)ath5k_hw_bitswap(srev, 4) + 1;
 	} else {
 		srev = (ath5k_hw_reg_read(ah, AR5K_PHY(0x100)) >> 24) & 0xff;
@@ -1612,11 +1612,7 @@ ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 
 	ah->ah_cal_mask |= AR5K_CALIBRATION_NF;
 
-	ee_mode = ath5k_eeprom_mode_from_channel(ah->ah_current_channel);
-	if (WARN_ON(ee_mode < 0)) {
-		ah->ah_cal_mask &= ~AR5K_CALIBRATION_NF;
-		return;
-	}
+	ee_mode = ath5k_eeprom_mode_from_channel(ah, ah->ah_current_channel);
 
 	/* completed NF calibration, test threshold */
 	nf = ath5k_hw_read_measured_noise_floor(ah);
@@ -2317,12 +2313,7 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 
 	def_ant = ah->ah_def_ant;
 
-	ee_mode = ath5k_eeprom_mode_from_channel(channel);
-	if (ee_mode < 0) {
-		ATH5K_ERR(ah,
-			"invalid channel: %d\n", channel->center_freq);
-		return;
-	}
+	ee_mode = ath5k_eeprom_mode_from_channel(ah, channel);
 
 	switch (ant_mode) {
 	case AR5K_ANTMODE_DEFAULT:
@@ -3622,12 +3613,7 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		return -EINVAL;
 	}
 
-	ee_mode = ath5k_eeprom_mode_from_channel(channel);
-	if (ee_mode < 0) {
-		ATH5K_ERR(ah,
-			"invalid channel: %d\n", channel->center_freq);
-		return -EINVAL;
-	}
+	ee_mode = ath5k_eeprom_mode_from_channel(ah, channel);
 
 	/* Initialize TX power table */
 	switch (ah->ah_radio) {
@@ -3723,8 +3709,8 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 			AR5K_REG_MS(AR5K_TUNE_MAX_TXPOWER, AR5K_TPC_CHIRP),
 			AR5K_TPC);
 	} else {
-		ath5k_hw_reg_write(ah, AR5K_PHY_TXPOWER_RATE_MAX |
-			AR5K_TUNE_MAX_TXPOWER, AR5K_PHY_TXPOWER_RATE_MAX);
+		ath5k_hw_reg_write(ah, AR5K_TUNE_MAX_TXPOWER,
+			AR5K_PHY_TXPOWER_RATE_MAX);
 	}
 
 	return 0;

@@ -26,6 +26,7 @@
 #define KVM_USER_MEM_SLOTS 32
 
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#define KVM_IRQCHIP_NUM_PINS  KVM_IOAPIC_NUM_PINS
 
 /* define exit reasons from vmm to kvm*/
 #define EXIT_REASON_VM_PANIC		0
@@ -232,13 +233,6 @@ struct kvm_vm_data {
  */
 #define KVM_REQ_PTC_G		32
 #define KVM_REQ_RESUME		33
-
-#define KVM_HPAGE_GFN_SHIFT(x)	0
-#define KVM_NR_PAGE_SIZES	1
-#define KVM_PAGES_PER_HPAGE(x)	1
-
-struct kvm;
-struct kvm_vcpu;
 
 struct kvm_mmio_req {
 	uint64_t addr;          /*  physical address		*/
@@ -479,7 +473,7 @@ struct kvm_arch {
 
 	struct list_head assigned_dev_head;
 	struct iommu_domain *iommu_domain;
-	int iommu_flags;
+	bool iommu_noncoherent;
 
 	unsigned long irq_sources_bitmap;
 	unsigned long irq_states[KVM_IOAPIC_NUM_PINS];
@@ -597,6 +591,18 @@ void kvm_sal_emul(struct kvm_vcpu *vcpu);
 #define __KVM_HAVE_ARCH_VM_ALLOC 1
 struct kvm *kvm_arch_alloc_vm(void);
 void kvm_arch_free_vm(struct kvm *kvm);
+
+static inline void kvm_arch_sync_events(struct kvm *kvm) {}
+static inline void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_free_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *free, struct kvm_memory_slot *dont) {}
+static inline void kvm_arch_memslots_updated(struct kvm *kvm) {}
+static inline void kvm_arch_commit_memory_region(struct kvm *kvm,
+		struct kvm_userspace_memory_region *mem,
+		const struct kvm_memory_slot *old,
+		enum kvm_mr_change change) {}
+static inline void kvm_arch_hardware_unsetup(void) {}
 
 #endif /* __ASSEMBLY__*/
 

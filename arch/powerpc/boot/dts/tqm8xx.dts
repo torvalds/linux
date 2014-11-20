@@ -107,7 +107,6 @@
 			#size-cells = <0>;
 			PHY: ethernet-phy@f {
 				reg = <0xf>;
-				device_type = "ethernet-phy";
 			};
 		};
 

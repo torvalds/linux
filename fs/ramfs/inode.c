@@ -43,6 +43,13 @@
 static const struct super_operations ramfs_ops;
 static const struct inode_operations ramfs_dir_inode_operations;
 
+static const struct address_space_operations ramfs_aops = {
+	.readpage	= simple_readpage,
+	.write_begin	= simple_write_begin,
+	.write_end	= simple_write_end,
+	.set_page_dirty	= __set_page_dirty_no_writeback,
+};
+
 static struct backing_dev_info ramfs_backing_dev_info = {
 	.name		= "ramfs",
 	.ra_pages	= 0,	/* No readahead */
@@ -244,12 +251,6 @@ struct dentry *ramfs_mount(struct file_system_type *fs_type,
 	return mount_nodev(fs_type, flags, data, ramfs_fill_super);
 }
 
-static struct dentry *rootfs_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
-{
-	return mount_nodev(fs_type, flags|MS_NOUSER, data, ramfs_fill_super);
-}
-
 static void ramfs_kill_sb(struct super_block *sb)
 {
 	kfree(sb->s_fs_info);
@@ -262,29 +263,23 @@ static struct file_system_type ramfs_fs_type = {
 	.kill_sb	= ramfs_kill_sb,
 	.fs_flags	= FS_USERNS_MOUNT,
 };
-static struct file_system_type rootfs_fs_type = {
-	.name		= "rootfs",
-	.mount		= rootfs_mount,
-	.kill_sb	= kill_litter_super,
-};
 
-static int __init init_ramfs_fs(void)
+int __init init_ramfs_fs(void)
 {
-	return register_filesystem(&ramfs_fs_type);
-}
-module_init(init_ramfs_fs)
-
-int __init init_rootfs(void)
-{
+	static unsigned long once;
 	int err;
+
+	if (test_and_set_bit(0, &once))
+		return 0;
 
 	err = bdi_init(&ramfs_backing_dev_info);
 	if (err)
 		return err;
 
-	err = register_filesystem(&rootfs_fs_type);
+	err = register_filesystem(&ramfs_fs_type);
 	if (err)
 		bdi_destroy(&ramfs_backing_dev_info);
 
 	return err;
 }
+fs_initcall(init_ramfs_fs);

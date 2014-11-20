@@ -1,6 +1,8 @@
 /*
  * adv7180.c Analog Devices ADV7180 video decoder driver
  * Copyright (c) 2009 Intel Corporation
+ * Copyright (C) 2013 Cogent Embedded, Inc.
+ * Copyright (C) 2013 Renesas Solutions Corp.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,7 +29,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-chip-ident.h>
 #include <linux/mutex.h>
 
 #define ADV7180_INPUT_CONTROL_REG			0x00
@@ -122,11 +123,11 @@
 struct adv7180_state {
 	struct v4l2_ctrl_handler ctrl_hdl;
 	struct v4l2_subdev	sd;
-	struct work_struct	work;
 	struct mutex		mutex; /* mutual excl. when accessing chip */
 	int			irq;
 	v4l2_std_id		curr_norm;
 	bool			autodetect;
+	bool			powered;
 	u8			input;
 };
 #define to_adv7180_sd(_ctrl) (&container_of(_ctrl->handler,		\
@@ -135,6 +136,10 @@ struct adv7180_state {
 
 static v4l2_std_id adv7180_std_to_v4l2(u8 status1)
 {
+	/* in case V4L2_IN_ST_NO_SIGNAL */
+	if (!(status1 & ADV7180_STATUS1_IN_LOCK))
+		return V4L2_STD_UNKNOWN;
+
 	switch (status1 & ADV7180_STATUS1_AUTOD_MASK) {
 	case ADV7180_STATUS1_AUTOD_NTSM_M_J:
 		return V4L2_STD_NTSC;
@@ -268,14 +273,6 @@ static int adv7180_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return ret;
 }
 
-static int adv7180_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_ADV7180, 0);
-}
-
 static int adv7180_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct adv7180_state *state = to_state(sd);
@@ -311,6 +308,37 @@ static int adv7180_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	}
 	ret = 0;
 out:
+	mutex_unlock(&state->mutex);
+	return ret;
+}
+
+static int adv7180_set_power(struct adv7180_state *state,
+	struct i2c_client *client, bool on)
+{
+	u8 val;
+
+	if (on)
+		val = ADV7180_PWR_MAN_ON;
+	else
+		val = ADV7180_PWR_MAN_OFF;
+
+	return i2c_smbus_write_byte_data(client, ADV7180_PWR_MAN_REG, val);
+}
+
+static int adv7180_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct adv7180_state *state = to_state(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret;
+
+	ret = mutex_lock_interruptible(&state->mutex);
+	if (ret)
+		return ret;
+
+	ret = adv7180_set_power(state, client, on);
+	if (ret == 0)
+		state->powered = on;
+
 	mutex_unlock(&state->mutex);
 	return ret;
 }
@@ -393,15 +421,59 @@ static void adv7180_exit_controls(struct adv7180_state *state)
 	v4l2_ctrl_handler_free(&state->ctrl_hdl);
 }
 
+static int adv7180_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
+				 enum v4l2_mbus_pixelcode *code)
+{
+	if (index > 0)
+		return -EINVAL;
+
+	*code = V4L2_MBUS_FMT_YUYV8_2X8;
+
+	return 0;
+}
+
+static int adv7180_mbus_fmt(struct v4l2_subdev *sd,
+			    struct v4l2_mbus_framefmt *fmt)
+{
+	struct adv7180_state *state = to_state(sd);
+
+	fmt->code = V4L2_MBUS_FMT_YUYV8_2X8;
+	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	fmt->field = V4L2_FIELD_INTERLACED;
+	fmt->width = 720;
+	fmt->height = state->curr_norm & V4L2_STD_525_60 ? 480 : 576;
+
+	return 0;
+}
+
+static int adv7180_g_mbus_config(struct v4l2_subdev *sd,
+				 struct v4l2_mbus_config *cfg)
+{
+	/*
+	 * The ADV7180 sensor supports BT.601/656 output modes.
+	 * The BT.656 is default and not yet configurable by s/w.
+	 */
+	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING |
+		     V4L2_MBUS_DATA_ACTIVE_HIGH;
+	cfg->type = V4L2_MBUS_BT656;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_video_ops adv7180_video_ops = {
+	.s_std = adv7180_s_std,
 	.querystd = adv7180_querystd,
 	.g_input_status = adv7180_g_input_status,
 	.s_routing = adv7180_s_routing,
+	.enum_mbus_fmt = adv7180_enum_mbus_fmt,
+	.try_mbus_fmt = adv7180_mbus_fmt,
+	.g_mbus_fmt = adv7180_mbus_fmt,
+	.s_mbus_fmt = adv7180_mbus_fmt,
+	.g_mbus_config = adv7180_g_mbus_config,
 };
 
 static const struct v4l2_subdev_core_ops adv7180_core_ops = {
-	.g_chip_ident = adv7180_g_chip_ident,
-	.s_std = adv7180_s_std,
+	.s_power = adv7180_s_power,
 };
 
 static const struct v4l2_subdev_ops adv7180_ops = {
@@ -409,10 +481,9 @@ static const struct v4l2_subdev_ops adv7180_ops = {
 	.video = &adv7180_video_ops,
 };
 
-static void adv7180_work(struct work_struct *work)
+static irqreturn_t adv7180_irq(int irq, void *devid)
 {
-	struct adv7180_state *state = container_of(work, struct adv7180_state,
-						   work);
+	struct adv7180_state *state = devid;
 	struct i2c_client *client = v4l2_get_subdevdata(&state->sd);
 	u8 isr3;
 
@@ -427,17 +498,6 @@ static void adv7180_work(struct work_struct *work)
 	if (isr3 & ADV7180_IRQ3_AD_CHANGE && state->autodetect)
 		__adv7180_status(client, NULL, &state->curr_norm);
 	mutex_unlock(&state->mutex);
-
-	enable_irq(state->irq);
-}
-
-static irqreturn_t adv7180_irq(int irq, void *devid)
-{
-	struct adv7180_state *state = devid;
-
-	schedule_work(&state->work);
-
-	disable_irq_nosync(state->irq);
 
 	return IRQ_HANDLED;
 }
@@ -493,48 +553,52 @@ static int init_device(struct i2c_client *client, struct adv7180_state *state)
 
 	/* register for interrupts */
 	if (state->irq > 0) {
-		ret = request_irq(state->irq, adv7180_irq, 0, KBUILD_MODNAME,
-				  state);
+		ret = request_threaded_irq(state->irq, NULL, adv7180_irq,
+					   IRQF_ONESHOT, KBUILD_MODNAME, state);
 		if (ret)
 			return ret;
 
 		ret = i2c_smbus_write_byte_data(client, ADV7180_ADI_CTRL_REG,
 						ADV7180_ADI_CTRL_IRQ_SPACE);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		/* config the Interrupt pin to be active low */
 		ret = i2c_smbus_write_byte_data(client, ADV7180_ICONF1_ADI,
 						ADV7180_ICONF1_ACTIVE_LOW |
 						ADV7180_ICONF1_PSYNC_ONLY);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		ret = i2c_smbus_write_byte_data(client, ADV7180_IMR1_ADI, 0);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		ret = i2c_smbus_write_byte_data(client, ADV7180_IMR2_ADI, 0);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		/* enable AD change interrupts interrupts */
 		ret = i2c_smbus_write_byte_data(client, ADV7180_IMR3_ADI,
 						ADV7180_IRQ3_AD_CHANGE);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		ret = i2c_smbus_write_byte_data(client, ADV7180_IMR4_ADI, 0);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		ret = i2c_smbus_write_byte_data(client, ADV7180_ADI_CTRL_REG,
 						0);
 		if (ret < 0)
-			return ret;
+			goto err;
 	}
 
 	return 0;
+
+err:
+	free_irq(state->irq, state);
+	return ret;
 }
 
 static int adv7180_probe(struct i2c_client *client,
@@ -551,16 +615,16 @@ static int adv7180_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 		 client->addr, client->adapter->name);
 
-	state = kzalloc(sizeof(struct adv7180_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
 	state->irq = client->irq;
-	INIT_WORK(&state->work, adv7180_work);
 	mutex_init(&state->mutex);
 	state->autodetect = true;
+	state->powered = true;
 	state->input = 0;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7180_ops);
@@ -571,16 +635,21 @@ static int adv7180_probe(struct i2c_client *client,
 	ret = init_device(client, state);
 	if (ret)
 		goto err_free_ctrl;
+
+	ret = v4l2_async_register_subdev(sd);
+	if (ret)
+		goto err_free_irq;
+
 	return 0;
 
+err_free_irq:
+	if (state->irq > 0)
+		free_irq(client->irq, state);
 err_free_ctrl:
 	adv7180_exit_controls(state);
 err_unreg_subdev:
 	mutex_destroy(&state->mutex);
-	v4l2_device_unregister_subdev(sd);
-	kfree(state);
 err:
-	printk(KERN_ERR KBUILD_MODNAME ": Failed to probe: %d\n", ret);
 	return ret;
 }
 
@@ -589,21 +658,13 @@ static int adv7180_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7180_state *state = to_state(sd);
 
-	if (state->irq > 0) {
-		free_irq(client->irq, state);
-		if (cancel_work_sync(&state->work)) {
-			/*
-			 * Work was pending, therefore we need to enable
-			 * IRQ here to balance the disable_irq() done in the
-			 * interrupt handler.
-			 */
-			enable_irq(state->irq);
-		}
-	}
+	v4l2_async_unregister_subdev(sd);
 
+	if (state->irq > 0)
+		free_irq(client->irq, state);
+
+	adv7180_exit_controls(state);
 	mutex_destroy(&state->mutex);
-	v4l2_device_unregister_subdev(sd);
-	kfree(to_state(sd));
 	return 0;
 }
 
@@ -612,33 +673,39 @@ static const struct i2c_device_id adv7180_id[] = {
 	{},
 };
 
-#ifdef CONFIG_PM
-static int adv7180_suspend(struct i2c_client *client, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int adv7180_suspend(struct device *dev)
 {
-	int ret;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct adv7180_state *state = to_state(sd);
 
-	ret = i2c_smbus_write_byte_data(client, ADV7180_PWR_MAN_REG,
-					ADV7180_PWR_MAN_OFF);
-	if (ret < 0)
-		return ret;
-	return 0;
+	return adv7180_set_power(state, client, false);
 }
 
-static int adv7180_resume(struct i2c_client *client)
+static int adv7180_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7180_state *state = to_state(sd);
 	int ret;
 
-	ret = i2c_smbus_write_byte_data(client, ADV7180_PWR_MAN_REG,
-					ADV7180_PWR_MAN_ON);
-	if (ret < 0)
-		return ret;
+	if (state->powered) {
+		ret = adv7180_set_power(state, client, true);
+		if (ret)
+			return ret;
+	}
 	ret = init_device(client, state);
 	if (ret < 0)
 		return ret;
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(adv7180_pm_ops, adv7180_suspend, adv7180_resume);
+#define ADV7180_PM_OPS (&adv7180_pm_ops)
+
+#else
+#define ADV7180_PM_OPS NULL
 #endif
 
 MODULE_DEVICE_TABLE(i2c, adv7180_id);
@@ -647,13 +714,10 @@ static struct i2c_driver adv7180_driver = {
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = KBUILD_MODNAME,
+		   .pm = ADV7180_PM_OPS,
 		   },
 	.probe = adv7180_probe,
 	.remove = adv7180_remove,
-#ifdef CONFIG_PM
-	.suspend = adv7180_suspend,
-	.resume = adv7180_resume,
-#endif
 	.id_table = adv7180_id,
 };
 

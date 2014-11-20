@@ -495,45 +495,29 @@ static int spacc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 {
 	struct spacc_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct spacc_alg *alg = to_spacc_alg(tfm->base.__crt_alg);
-	struct rtattr *rta = (void *)key;
-	struct crypto_authenc_key_param *param;
-	unsigned int authkeylen, enckeylen;
+	struct crypto_authenc_keys keys;
 	int err = -EINVAL;
 
-	if (!RTA_OK(rta, keylen))
+	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
-	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
+	if (keys.enckeylen > AES_MAX_KEY_SIZE)
 		goto badkey;
 
-	if (RTA_PAYLOAD(rta) < sizeof(*param))
-		goto badkey;
-
-	param = RTA_DATA(rta);
-	enckeylen = be32_to_cpu(param->enckeylen);
-
-	key += RTA_ALIGN(rta->rta_len);
-	keylen -= RTA_ALIGN(rta->rta_len);
-
-	if (keylen < enckeylen)
-		goto badkey;
-
-	authkeylen = keylen - enckeylen;
-
-	if (enckeylen > AES_MAX_KEY_SIZE)
+	if (keys.authkeylen > sizeof(ctx->hash_ctx))
 		goto badkey;
 
 	if ((alg->ctrl_default & SPACC_CRYPTO_ALG_MASK) ==
 	    SPA_CTRL_CIPH_ALG_AES)
-		err = spacc_aead_aes_setkey(tfm, key + authkeylen, enckeylen);
+		err = spacc_aead_aes_setkey(tfm, keys.enckey, keys.enckeylen);
 	else
-		err = spacc_aead_des_setkey(tfm, key + authkeylen, enckeylen);
+		err = spacc_aead_des_setkey(tfm, keys.enckey, keys.enckeylen);
 
 	if (err)
 		goto badkey;
 
-	memcpy(ctx->hash_ctx, key, authkeylen);
-	ctx->hash_key_len = authkeylen;
+	memcpy(ctx->hash_ctx, keys.authkey, keys.authkeylen);
+	ctx->hash_key_len = keys.authkeylen;
 
 	return 0;
 
@@ -1298,7 +1282,7 @@ static ssize_t spacc_stat_irq_thresh_store(struct device *dev,
 	struct spacc_engine *engine = spacc_dev_to_engine(dev);
 	unsigned long thresh;
 
-	if (strict_strtoul(buf, 0, &thresh))
+	if (kstrtoul(buf, 0, &thresh))
 		return -EINVAL;
 
 	thresh = clamp(thresh, 1UL, engine->fifo_sz - 1);
@@ -1688,8 +1672,6 @@ static const struct of_device_id spacc_of_id_table[] = {
 	{ .compatible = "picochip,spacc-l2" },
 	{}
 };
-#else /* CONFIG_OF */
-#define spacc_of_id_table NULL
 #endif /* CONFIG_OF */
 
 static bool spacc_is_compatible(struct platform_device *pdev,
@@ -1738,20 +1720,14 @@ static int spacc_probe(struct platform_device *pdev)
 	engine->name = dev_name(&pdev->dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	engine->regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(engine->regs))
+		return PTR_ERR(engine->regs);
+
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!mem || !irq) {
+	if (!irq) {
 		dev_err(&pdev->dev, "no memory/irq resource for engine\n");
 		return -ENXIO;
-	}
-
-	if (!devm_request_mem_region(&pdev->dev, mem->start, resource_size(mem),
-				     engine->name))
-		return -ENOMEM;
-
-	engine->regs = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
-	if (!engine->regs) {
-		dev_err(&pdev->dev, "memory map failed\n");
-		return -ENOMEM;
 	}
 
 	if (devm_request_irq(&pdev->dev, irq->start, spacc_spacc_irq, 0,
@@ -1874,7 +1850,7 @@ static struct platform_driver spacc_driver = {
 #ifdef CONFIG_PM
 		.pm	= &spacc_pm_ops,
 #endif /* CONFIG_PM */
-		.of_match_table	= spacc_of_id_table,
+		.of_match_table	= of_match_ptr(spacc_of_id_table),
 	},
 	.id_table	= spacc_id_table,
 };

@@ -1,6 +1,5 @@
 #include <core/client.h>
 #include <core/os.h>
-#include <core/class.h>
 #include <core/engctx.h>
 #include <core/handle.h>
 #include <core/enum.h>
@@ -254,7 +253,7 @@ nv20_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 32 * 4, 16,
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 32 * 4, 16,
 				 NVOBJ_FLAG_ZERO_ALLOC, &priv->ctxtab);
 	if (ret)
 		return ret;
@@ -349,7 +348,7 @@ nv20_graph_init(struct nouveau_object *object)
 	nv_wr32(priv, NV10_PGRAPH_SURFACE, tmp);
 
 	/* begin RAM config */
-	vramsz = pci_resource_len(nv_device(priv)->pdev, 0) - 1;
+	vramsz = nv_device_resource_len(nv_device(priv), 0) - 1;
 	nv_wr32(priv, 0x4009A4, nv_rd32(priv, 0x100200));
 	nv_wr32(priv, 0x4009A8, nv_rd32(priv, 0x100204));
 	nv_wr32(priv, NV10_PGRAPH_RDI_INDEX, 0x00EA0000);

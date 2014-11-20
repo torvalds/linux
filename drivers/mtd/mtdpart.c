@@ -150,11 +150,12 @@ static int part_read_user_prot_reg(struct mtd_info *mtd, loff_t from,
 						 retlen, buf);
 }
 
-static int part_get_user_prot_info(struct mtd_info *mtd,
-		struct otp_info *buf, size_t len)
+static int part_get_user_prot_info(struct mtd_info *mtd, size_t len,
+				   size_t *retlen, struct otp_info *buf)
 {
 	struct mtd_part *part = PART(mtd);
-	return part->master->_get_user_prot_info(part->master, buf, len);
+	return part->master->_get_user_prot_info(part->master, len, retlen,
+						 buf);
 }
 
 static int part_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
@@ -165,11 +166,12 @@ static int part_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
 						 retlen, buf);
 }
 
-static int part_get_fact_prot_info(struct mtd_info *mtd, struct otp_info *buf,
-		size_t len)
+static int part_get_fact_prot_info(struct mtd_info *mtd, size_t len,
+				   size_t *retlen, struct otp_info *buf)
 {
 	struct mtd_part *part = PART(mtd);
-	return part->master->_get_fact_prot_info(part->master, buf, len);
+	return part->master->_get_fact_prot_info(part->master, len, retlen,
+						 buf);
 }
 
 static int part_write(struct mtd_info *mtd, loff_t to, size_t len,
@@ -286,6 +288,13 @@ static void part_resume(struct mtd_info *mtd)
 {
 	struct mtd_part *part = PART(mtd);
 	part->master->_resume(part->master);
+}
+
+static int part_block_isreserved(struct mtd_info *mtd, loff_t ofs)
+{
+	struct mtd_part *part = PART(mtd);
+	ofs += part->offset;
+	return part->master->_block_isreserved(part->master, ofs);
 }
 
 static int part_block_isbad(struct mtd_info *mtd, loff_t ofs)
@@ -420,6 +429,8 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 		slave->mtd._unlock = part_unlock;
 	if (master->_is_locked)
 		slave->mtd._is_locked = part_is_locked;
+	if (master->_block_isreserved)
+		slave->mtd._block_isreserved = part_block_isreserved;
 	if (master->_block_isbad)
 		slave->mtd._block_isbad = part_block_isbad;
 	if (master->_block_markbad)
@@ -516,6 +527,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 	}
 
 	slave->mtd.ecclayout = master->ecclayout;
+	slave->mtd.ecc_step_size = master->ecc_step_size;
 	slave->mtd.ecc_strength = master->ecc_strength;
 	slave->mtd.bitflip_threshold = master->bitflip_threshold;
 
@@ -523,7 +535,9 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 		uint64_t offs = 0;
 
 		while (offs < slave->mtd.size) {
-			if (mtd_block_isbad(master, offs + slave->offset))
+			if (mtd_block_isreserved(master, offs + slave->offset))
+				slave->mtd.ecc_stats.bbtblocks++;
+			else if (mtd_block_isbad(master, offs + slave->offset))
 				slave->mtd.ecc_stats.badblocks++;
 			offs += slave->mtd.erasesize;
 		}
@@ -533,7 +547,7 @@ out_register:
 	return slave;
 }
 
-int mtd_add_partition(struct mtd_info *master, char *name,
+int mtd_add_partition(struct mtd_info *master, const char *name,
 		      long long offset, long long length)
 {
 	struct mtd_partition part;
@@ -671,22 +685,19 @@ static struct mtd_part_parser *get_partition_parser(const char *name)
 
 #define put_partition_parser(p) do { module_put((p)->owner); } while (0)
 
-int register_mtd_parser(struct mtd_part_parser *p)
+void register_mtd_parser(struct mtd_part_parser *p)
 {
 	spin_lock(&part_parser_lock);
 	list_add(&p->list, &part_parsers);
 	spin_unlock(&part_parser_lock);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(register_mtd_parser);
 
-int deregister_mtd_parser(struct mtd_part_parser *p)
+void deregister_mtd_parser(struct mtd_part_parser *p)
 {
 	spin_lock(&part_parser_lock);
 	list_del(&p->list);
 	spin_unlock(&part_parser_lock);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(deregister_mtd_parser);
 
@@ -694,7 +705,7 @@ EXPORT_SYMBOL_GPL(deregister_mtd_parser);
  * Do not forget to update 'parse_mtd_partitions()' kerneldoc comment if you
  * are changing this array!
  */
-static const char *default_mtd_part_types[] = {
+static const char * const default_mtd_part_types[] = {
 	"cmdlinepart",
 	"ofpart",
 	NULL
@@ -720,7 +731,7 @@ static const char *default_mtd_part_types[] = {
  * o a positive number of found partitions, in which case on exit @pparts will
  *   point to an array containing this number of &struct mtd_info objects.
  */
-int parse_mtd_partitions(struct mtd_info *master, const char **types,
+int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 			 struct mtd_partition **pparts,
 			 struct mtd_part_parser_data *data)
 {

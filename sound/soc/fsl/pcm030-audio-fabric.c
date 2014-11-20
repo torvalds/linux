@@ -51,7 +51,7 @@ static struct snd_soc_card pcm030_card = {
 	.num_links = ARRAY_SIZE(pcm030_fabric_dai),
 };
 
-static int __init pcm030_fabric_probe(struct platform_device *op)
+static int pcm030_fabric_probe(struct platform_device *op)
 {
 	struct device_node *np = op->dev.of_node;
 	struct device_node *platform_np;
@@ -69,7 +69,6 @@ static int __init pcm030_fabric_probe(struct platform_device *op)
 		return -ENOMEM;
 
 	card->dev = &op->dev;
-	platform_set_drvdata(op, pdata);
 
 	pdata->card = card;
 
@@ -97,6 +96,8 @@ static int __init pcm030_fabric_probe(struct platform_device *op)
 	ret = snd_soc_register_card(card);
 	if (ret)
 		dev_err(&op->dev, "snd_soc_register_card() failed: %d\n", ret);
+
+	platform_set_drvdata(op, pdata);
 
 	return ret;
 }

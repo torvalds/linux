@@ -27,6 +27,11 @@
 
 #define S5C73M3_SPI_DRV_NAME "S5C73M3-SPI"
 
+static const struct of_device_id s5c73m3_spi_ids[] = {
+	{ .compatible = "samsung,s5c73m3" },
+	{ }
+};
+
 enum spi_direction {
 	SPI_DIR_RX,
 	SPI_DIR_TX
@@ -73,7 +78,7 @@ int s5c73m3_spi_write(struct s5c73m3 *state, const void *addr,
 
 	memset(padding, 0, sizeof(padding));
 
-	for (i = 0; i < count ; i++) {
+	for (i = 0; i < count; i++) {
 		r = spi_xmit(spi_dev, (void *)addr + j, tx_size, SPI_DIR_TX);
 		if (r < 0)
 			return r;
@@ -98,7 +103,7 @@ int s5c73m3_spi_read(struct s5c73m3 *state, void *addr,
 	unsigned int i, j = 0;
 	int r = 0;
 
-	for (i = 0; i < count ; i++) {
+	for (i = 0; i < count; i++) {
 		r = spi_xmit(spi_dev, addr + j, tx_size, SPI_DIR_RX);
 		if (r < 0)
 			return r;
@@ -146,6 +151,7 @@ int s5c73m3_register_spi_driver(struct s5c73m3 *state)
 	spidrv->driver.name = S5C73M3_SPI_DRV_NAME;
 	spidrv->driver.bus = &spi_bus_type;
 	spidrv->driver.owner = THIS_MODULE;
+	spidrv->driver.of_match_table = s5c73m3_spi_ids;
 
 	return spi_register_driver(spidrv);
 }

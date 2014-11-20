@@ -41,6 +41,15 @@ void brcmf_debugfs_exit(void)
 	root_folder = NULL;
 }
 
+static int brcmf_debugfs_chipinfo_read(struct seq_file *seq, void *data)
+{
+	struct brcmf_bus *bus = dev_get_drvdata(seq->private);
+
+	seq_printf(seq, "chip: %x(%u) rev %u\n",
+		   bus->chip, bus->chip, bus->chiprev);
+	return 0;
+}
+
 int brcmf_debugfs_attach(struct brcmf_pub *drvr)
 {
 	struct device *dev = drvr->bus_if->dev;
@@ -49,7 +58,9 @@ int brcmf_debugfs_attach(struct brcmf_pub *drvr)
 		return -ENODEV;
 
 	drvr->dbgfs_dir = debugfs_create_dir(dev_name(dev), root_folder);
-	return PTR_RET(drvr->dbgfs_dir);
+	brcmf_debugfs_add_entry(drvr, "chipinfo", brcmf_debugfs_chipinfo_read);
+
+	return PTR_ERR_OR_ZERO(drvr->dbgfs_dir);
 }
 
 void brcmf_debugfs_detach(struct brcmf_pub *drvr)
@@ -63,63 +74,44 @@ struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr)
 	return drvr->dbgfs_dir;
 }
 
-static
-ssize_t brcmf_debugfs_sdio_counter_read(struct file *f, char __user *data,
-					size_t count, loff_t *ppos)
-{
-	struct brcmf_sdio_count *sdcnt = f->private_data;
-	char buf[750];
-	int res;
-
-	/* only allow read from start */
-	if (*ppos > 0)
-		return 0;
-
-	res = scnprintf(buf, sizeof(buf),
-			"intrcount:    %u\nlastintrs:    %u\n"
-			"pollcnt:      %u\nregfails:     %u\n"
-			"tx_sderrs:    %u\nfcqueued:     %u\n"
-			"rxrtx:        %u\nrx_toolong:   %u\n"
-			"rxc_errors:   %u\nrx_hdrfail:   %u\n"
-			"rx_badhdr:    %u\nrx_badseq:    %u\n"
-			"fc_rcvd:      %u\nfc_xoff:      %u\n"
-			"fc_xon:       %u\nrxglomfail:   %u\n"
-			"rxglomframes: %u\nrxglompkts:   %u\n"
-			"f2rxhdrs:     %u\nf2rxdata:     %u\n"
-			"f2txdata:     %u\nf1regdata:    %u\n"
-			"tickcnt:      %u\ntx_ctlerrs:   %lu\n"
-			"tx_ctlpkts:   %lu\nrx_ctlerrs:   %lu\n"
-			"rx_ctlpkts:   %lu\nrx_readahead: %lu\n",
-			sdcnt->intrcount, sdcnt->lastintrs,
-			sdcnt->pollcnt, sdcnt->regfails,
-			sdcnt->tx_sderrs, sdcnt->fcqueued,
-			sdcnt->rxrtx, sdcnt->rx_toolong,
-			sdcnt->rxc_errors, sdcnt->rx_hdrfail,
-			sdcnt->rx_badhdr, sdcnt->rx_badseq,
-			sdcnt->fc_rcvd, sdcnt->fc_xoff,
-			sdcnt->fc_xon, sdcnt->rxglomfail,
-			sdcnt->rxglomframes, sdcnt->rxglompkts,
-			sdcnt->f2rxhdrs, sdcnt->f2rxdata,
-			sdcnt->f2txdata, sdcnt->f1regdata,
-			sdcnt->tickcnt, sdcnt->tx_ctlerrs,
-			sdcnt->tx_ctlpkts, sdcnt->rx_ctlerrs,
-			sdcnt->rx_ctlpkts, sdcnt->rx_readahead_cnt);
-
-	return simple_read_from_buffer(data, count, ppos, buf, res);
-}
-
-static const struct file_operations brcmf_debugfs_sdio_counter_ops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = brcmf_debugfs_sdio_counter_read
+struct brcmf_debugfs_entry {
+	int (*read)(struct seq_file *seq, void *data);
+	struct brcmf_pub *drvr;
 };
 
-void brcmf_debugfs_create_sdio_count(struct brcmf_pub *drvr,
-				     struct brcmf_sdio_count *sdcnt)
+static int brcmf_debugfs_entry_open(struct inode *inode, struct file *f)
 {
-	struct dentry *dentry = drvr->dbgfs_dir;
+	struct brcmf_debugfs_entry *entry = inode->i_private;
 
-	if (!IS_ERR_OR_NULL(dentry))
-		debugfs_create_file("counters", S_IRUGO, dentry,
-				    sdcnt, &brcmf_debugfs_sdio_counter_ops);
+	return single_open(f, entry->read, entry->drvr->bus_if->dev);
+}
+
+static const struct file_operations brcmf_debugfs_def_ops = {
+	.owner = THIS_MODULE,
+	.open = brcmf_debugfs_entry_open,
+	.release = single_release,
+	.read = seq_read,
+	.llseek = seq_lseek
+};
+
+int brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
+			    int (*read_fn)(struct seq_file *seq, void *data))
+{
+	struct dentry *dentry =  drvr->dbgfs_dir;
+	struct brcmf_debugfs_entry *entry;
+
+	if (IS_ERR_OR_NULL(dentry))
+		return -ENOENT;
+
+	entry = devm_kzalloc(drvr->bus_if->dev, sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	entry->read = read_fn;
+	entry->drvr = drvr;
+
+	dentry = debugfs_create_file(fn, S_IRUGO, dentry, entry,
+				     &brcmf_debugfs_def_ops);
+
+	return PTR_ERR_OR_ZERO(dentry);
 }

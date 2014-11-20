@@ -2,7 +2,7 @@
  *  w83795.c - Linux kernel driver for hardware monitoring
  *  Copyright (C) 2008 Nuvoton Technology Corp.
  *                Wei Song
- *  Copyright (C) 2010 Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2010 Jean Delvare <jdelvare@suse.de>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -2120,11 +2120,12 @@ static void w83795_check_dynamic_in_limits(struct i2c_client *client)
 					   &w83795_in[i][3].dev_attr.attr,
 					   S_IRUGO);
 		if (err_max || err_min)
-			dev_warn(&client->dev, "Failed to set in%d limits "
-				 "read-only (%d, %d)\n", i, err_max, err_min);
+			dev_warn(&client->dev,
+				 "Failed to set in%d limits read-only (%d, %d)\n",
+				 i, err_max, err_min);
 		else
-			dev_info(&client->dev, "in%d limits set dynamically "
-				 "from VID\n", i);
+			dev_info(&client->dev,
+				 "in%d limits set dynamically from VID\n", i);
 	}
 }
 
@@ -2281,6 +2282,6 @@ static struct i2c_driver w83795_driver = {
 
 module_i2c_driver(w83795_driver);
 
-MODULE_AUTHOR("Wei Song, Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Wei Song, Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("W83795G/ADG hardware monitoring driver");
 MODULE_LICENSE("GPL");

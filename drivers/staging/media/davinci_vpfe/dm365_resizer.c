@@ -219,7 +219,7 @@ configure_resizer_out_params(struct vpfe_resizer_device *resizer, int index,
  * @resizer: Pointer to VPFE resizer subdevice.
  * @index: index RSZ_A-resizer-A RSZ_B-resizer-B.
  */
-void
+static void
 resizer_calculate_resize_ratios(struct vpfe_resizer_device *resizer, int index)
 {
 	struct resizer_params *param = &resizer->config;
@@ -310,7 +310,7 @@ resizer_calculate_sdram_offsets(struct vpfe_resizer_device *resizer, int index)
 	return 0;
 }
 
-int resizer_configure_output_win(struct vpfe_resizer_device *resizer)
+static int resizer_configure_output_win(struct vpfe_resizer_device *resizer)
 {
 	struct resizer_params *param = &resizer->config;
 	struct vpfe_rsz_output_spec output_specs;
@@ -1777,14 +1777,14 @@ void vpfe_resizer_unregister_entities(struct vpfe_resizer_device *vpfe_rsz)
 	vpfe_video_unregister(&vpfe_rsz->resizer_a.video_out);
 	vpfe_video_unregister(&vpfe_rsz->resizer_b.video_out);
 
-	/* cleanup entity */
-	media_entity_cleanup(&vpfe_rsz->crop_resizer.subdev.entity);
-	media_entity_cleanup(&vpfe_rsz->resizer_a.subdev.entity);
-	media_entity_cleanup(&vpfe_rsz->resizer_b.subdev.entity);
 	/* unregister subdev */
 	v4l2_device_unregister_subdev(&vpfe_rsz->crop_resizer.subdev);
 	v4l2_device_unregister_subdev(&vpfe_rsz->resizer_a.subdev);
 	v4l2_device_unregister_subdev(&vpfe_rsz->resizer_b.subdev);
+	/* cleanup entity */
+	media_entity_cleanup(&vpfe_rsz->crop_resizer.subdev.entity);
+	media_entity_cleanup(&vpfe_rsz->resizer_a.subdev.entity);
+	media_entity_cleanup(&vpfe_rsz->resizer_b.subdev.entity);
 }
 
 /*
@@ -1865,12 +1865,12 @@ out_create_link:
 	vpfe_video_unregister(&resizer->resizer_b.video_out);
 out_video_out2_register:
 	vpfe_video_unregister(&resizer->resizer_a.video_out);
-	media_entity_cleanup(&resizer->crop_resizer.subdev.entity);
-	media_entity_cleanup(&resizer->resizer_a.subdev.entity);
-	media_entity_cleanup(&resizer->resizer_b.subdev.entity);
 	v4l2_device_unregister_subdev(&resizer->crop_resizer.subdev);
 	v4l2_device_unregister_subdev(&resizer->resizer_a.subdev);
 	v4l2_device_unregister_subdev(&resizer->resizer_b.subdev);
+	media_entity_cleanup(&resizer->crop_resizer.subdev.entity);
+	media_entity_cleanup(&resizer->resizer_a.subdev.entity);
+	media_entity_cleanup(&resizer->resizer_b.subdev.entity);
 	return ret;
 }
 
@@ -1995,5 +1995,5 @@ vpfe_resizer_cleanup(struct vpfe_resizer_device *vpfe_rsz,
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 5);
 	if (res)
 		release_mem_region(res->start,
-					res->end - res->start + 1);
+					resource_size(res));
 }

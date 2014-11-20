@@ -3,8 +3,6 @@
 #define PSEUDO_DMA
 #define DONT_USE_INTR
 #define UNSAFE			/* Leave interrupts enabled during pseudo-dma I/O */
-#define xNDEBUG (NDEBUG_INTR+NDEBUG_RESELECTION+\
-		 NDEBUG_SELECTION+NDEBUG_ARBITRATION)
 #define DMA_WORKS_RIGHT
 
 
@@ -216,7 +214,8 @@ static int __init dtc_detect(struct scsi_host_template * tpnt)
 	int sig, count;
 
 	tpnt->proc_name = "dtc3x80";
-	tpnt->proc_info = &dtc_proc_info;
+	tpnt->show_info = dtc_show_info;
+	tpnt->write_info = dtc_write_info;
 
 	for (count = 0; current_override < NO_OVERRIDES; ++current_override) {
 		addr = 0;
@@ -276,7 +275,7 @@ found:
 		/* With interrupts enabled, it will sometimes hang when doing heavy
 		 * reads. So better not enable them until I finger it out. */
 		if (instance->irq != SCSI_IRQ_NONE)
-			if (request_irq(instance->irq, dtc_intr, IRQF_DISABLED,
+			if (request_irq(instance->irq, dtc_intr, 0,
 					"dtc", instance)) {
 				printk(KERN_ERR "scsi%d : IRQ%d not free, interrupts disabled\n", instance->host_no, instance->irq);
 				instance->irq = SCSI_IRQ_NONE;

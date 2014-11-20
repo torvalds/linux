@@ -9,7 +9,6 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clk/mvebu.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/of.h>
@@ -27,6 +26,22 @@
 #include <plat/irq.h>
 #include <plat/time.h>
 #include "common.h"
+
+/* These can go away once Dove uses the mvebu-mbus DT binding */
+#define DOVE_MBUS_PCIE0_MEM_TARGET    0x4
+#define DOVE_MBUS_PCIE0_MEM_ATTR      0xe8
+#define DOVE_MBUS_PCIE0_IO_TARGET     0x4
+#define DOVE_MBUS_PCIE0_IO_ATTR       0xe0
+#define DOVE_MBUS_PCIE1_MEM_TARGET    0x8
+#define DOVE_MBUS_PCIE1_MEM_ATTR      0xe8
+#define DOVE_MBUS_PCIE1_IO_TARGET     0x8
+#define DOVE_MBUS_PCIE1_IO_ATTR       0xe0
+#define DOVE_MBUS_CESA_TARGET         0x3
+#define DOVE_MBUS_CESA_ATTR           0x1
+#define DOVE_MBUS_BOOTROM_TARGET      0x1
+#define DOVE_MBUS_BOOTROM_ATTR        0xfd
+#define DOVE_MBUS_SCRATCHPAD_TARGET   0xd
+#define DOVE_MBUS_SCRATCHPAD_ATTR     0x0
 
 /*****************************************************************************
  * I/O Address Mapping
@@ -109,8 +124,8 @@ static void __init dove_clk_init(void)
 	orion_clkdev_add(NULL, "sdhci-dove.1", sdio1);
 	orion_clkdev_add(NULL, "orion_nand", nand);
 	orion_clkdev_add(NULL, "cafe1000-ccic.0", camera);
-	orion_clkdev_add(NULL, "kirkwood-i2s.0", i2s0);
-	orion_clkdev_add(NULL, "kirkwood-i2s.1", i2s1);
+	orion_clkdev_add(NULL, "mvebu-audio.0", i2s0);
+	orion_clkdev_add(NULL, "mvebu-audio.1", i2s1);
 	orion_clkdev_add(NULL, "mv_crypto", crypto);
 	orion_clkdev_add(NULL, "dove-ac97", ac97);
 	orion_clkdev_add(NULL, "dove-pdma", pdma);
@@ -147,7 +162,7 @@ void __init dove_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 /*****************************************************************************
  * SoC RTC
  ****************************************************************************/
-void __init dove_rtc_init(void)
+static void __init dove_rtc_init(void)
 {
 	orion_rtc_init(DOVE_RTC_PHYS_BASE, IRQ_DOVE_RTC);
 }
@@ -224,6 +239,9 @@ void __init dove_i2c_init(void)
 void __init dove_init_early(void)
 {
 	orion_time_set_base(TIMER_VIRT_BASE);
+	mvebu_mbus_init("marvell,dove-mbus",
+			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
+			DOVE_MC_WINS_BASE, DOVE_MC_WINS_SZ);
 }
 
 static int __init dove_find_tclk(void)
@@ -239,18 +257,9 @@ void __init dove_timer_init(void)
 }
 
 /*****************************************************************************
- * Cryptographic Engines and Security Accelerator (CESA)
- ****************************************************************************/
-void __init dove_crypto_init(void)
-{
-	orion_crypto_init(DOVE_CRYPT_PHYS_BASE, DOVE_CESA_PHYS_BASE,
-			  DOVE_CESA_SIZE, IRQ_DOVE_CRYPTO);
-}
-
-/*****************************************************************************
  * XOR 0
  ****************************************************************************/
-void __init dove_xor0_init(void)
+static void __init dove_xor0_init(void)
 {
 	orion_xor0_init(DOVE_XOR0_PHYS_BASE, DOVE_XOR0_HIGH_PHYS_BASE,
 			IRQ_DOVE_XOR_00, IRQ_DOVE_XOR_01);
@@ -259,7 +268,7 @@ void __init dove_xor0_init(void)
 /*****************************************************************************
  * XOR 1
  ****************************************************************************/
-void __init dove_xor1_init(void)
+static void __init dove_xor1_init(void)
 {
 	orion_xor1_init(DOVE_XOR1_PHYS_BASE, DOVE_XOR1_HIGH_PHYS_BASE,
 			IRQ_DOVE_XOR_10, IRQ_DOVE_XOR_11);
@@ -326,6 +335,46 @@ void __init dove_sdio1_init(void)
 	platform_device_register(&dove_sdio1);
 }
 
+void __init dove_setup_cpu_wins(void)
+{
+	/*
+	 * The PCIe windows will no longer be statically allocated
+	 * here once Dove is migrated to the pci-mvebu driver. The
+	 * non-PCIe windows will no longer be created here once Dove
+	 * fully moves to DT.
+	 */
+	mvebu_mbus_add_window_remap_by_id(DOVE_MBUS_PCIE0_IO_TARGET,
+					  DOVE_MBUS_PCIE0_IO_ATTR,
+					  DOVE_PCIE0_IO_PHYS_BASE,
+					  DOVE_PCIE0_IO_SIZE,
+					  DOVE_PCIE0_IO_BUS_BASE);
+	mvebu_mbus_add_window_remap_by_id(DOVE_MBUS_PCIE1_IO_TARGET,
+					  DOVE_MBUS_PCIE1_IO_ATTR,
+					  DOVE_PCIE1_IO_PHYS_BASE,
+					  DOVE_PCIE1_IO_SIZE,
+					  DOVE_PCIE1_IO_BUS_BASE);
+	mvebu_mbus_add_window_by_id(DOVE_MBUS_PCIE0_MEM_TARGET,
+				    DOVE_MBUS_PCIE0_MEM_ATTR,
+				    DOVE_PCIE0_MEM_PHYS_BASE,
+				    DOVE_PCIE0_MEM_SIZE);
+	mvebu_mbus_add_window_by_id(DOVE_MBUS_PCIE1_MEM_TARGET,
+				    DOVE_MBUS_PCIE1_MEM_ATTR,
+				    DOVE_PCIE1_MEM_PHYS_BASE,
+				    DOVE_PCIE1_MEM_SIZE);
+	mvebu_mbus_add_window_by_id(DOVE_MBUS_CESA_TARGET,
+				    DOVE_MBUS_CESA_ATTR,
+				    DOVE_CESA_PHYS_BASE,
+				    DOVE_CESA_SIZE);
+	mvebu_mbus_add_window_by_id(DOVE_MBUS_BOOTROM_TARGET,
+				    DOVE_MBUS_BOOTROM_ATTR,
+				    DOVE_BOOTROM_PHYS_BASE,
+				    DOVE_BOOTROM_SIZE);
+	mvebu_mbus_add_window_by_id(DOVE_MBUS_SCRATCHPAD_TARGET,
+				    DOVE_MBUS_SCRATCHPAD_ATTR,
+				    DOVE_SCRATCHPAD_PHYS_BASE,
+				    DOVE_SCRATCHPAD_SIZE);
+}
+
 void __init dove_init(void)
 {
 	pr_info("Dove 88AP510 SoC, TCLK = %d MHz.\n",
@@ -334,7 +383,7 @@ void __init dove_init(void)
 #ifdef CONFIG_CACHE_TAUROS2
 	tauros2_init(0);
 #endif
-	dove_setup_cpu_mbus();
+	dove_setup_cpu_wins();
 
 	/* Setup root of clk tree */
 	dove_clk_init();
@@ -345,7 +394,7 @@ void __init dove_init(void)
 	dove_xor1_init();
 }
 
-void dove_restart(char mode, const char *cmd)
+void dove_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Enable soft reset to assert RSTOUTn.

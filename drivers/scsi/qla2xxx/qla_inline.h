@@ -1,9 +1,32 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
+
+#include "qla_target.h"
+/**
+ * qla24xx_calc_iocbs() - Determine number of Command Type 3 and
+ * Continuation Type 1 IOCBs to allocate.
+ *
+ * @dsds: number of data segment decriptors needed
+ *
+ * Returns the number of IOCB entries needed to store @dsds.
+ */
+static inline uint16_t
+qla24xx_calc_iocbs(scsi_qla_host_t *vha, uint16_t dsds)
+{
+	uint16_t iocbs;
+
+	iocbs = 1;
+	if (dsds > 1) {
+		iocbs += (dsds - 1) / 5;
+		if ((dsds - 1) % 5)
+			iocbs++;
+	}
+	return iocbs;
+}
 
 /*
  * qla2x00_debounce_register
@@ -37,7 +60,7 @@ qla2x00_poll(struct rsp_que *rsp)
 	unsigned long flags;
 	struct qla_hw_data *ha = rsp->hw;
 	local_irq_save(flags);
-	if (IS_QLA82XX(ha))
+	if (IS_P3P_TYPE(ha))
 		qla82xx_poll(0, rsp);
 	else
 		ha->isp_ops->intr_handler(0, rsp);
@@ -55,6 +78,17 @@ host_to_fcp_swap(uint8_t *fcp, uint32_t bsize)
                *ofcp++ = swab32(*ifcp++);
 
        return fcp;
+}
+
+static inline void
+host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
+{
+	uint32_t *isrc = (uint32_t *) src;
+	__le32 *odest = (__le32 *) dst;
+	uint32_t iter = bsize >> 2;
+
+	for (; iter ; iter--)
+		*odest++ = cpu_to_le32(*isrc++);
 }
 
 static inline void
@@ -95,12 +129,20 @@ qla2x00_clear_loop_id(fc_port_t *fcport) {
 }
 
 static inline void
-qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp)
+qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp,
+	struct qla_tgt_cmd *tc)
 {
 	struct dsd_dma *dsd_ptr, *tdsd_ptr;
 	struct crc_context *ctx;
 
-	ctx = (struct crc_context *)GET_CMD_CTX_SP(sp);
+	if (sp)
+		ctx = (struct crc_context *)GET_CMD_CTX_SP(sp);
+	else if (tc)
+		ctx = (struct crc_context *)tc->ctx;
+	else {
+		BUG();
+		return;
+	}
 
 	/* clean up allocated prev pool */
 	list_for_each_entry_safe(dsd_ptr, tdsd_ptr,
@@ -213,29 +255,35 @@ qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 	sp->u.iocb_cmd.timer.function = qla2x00_sp_timeout;
 	add_timer(&sp->u.iocb_cmd.timer);
 	sp->free = qla2x00_sp_free;
+	if ((IS_QLAFX00(sp->fcport->vha->hw)) &&
+	    (sp->type == SRB_FXIOCB_DCMD))
+		init_completion(&sp->u.iocb_cmd.u.fxiocb.fxiocb_comp);
 }
 
 static inline int
 qla2x00_gid_list_size(struct qla_hw_data *ha)
 {
-	return sizeof(struct gid_list_info) * ha->max_fibre_devices;
+	if (IS_QLAFX00(ha))
+		return sizeof(uint32_t) * 32;
+	else
+		return sizeof(struct gid_list_info) * ha->max_fibre_devices;
 }
 
 static inline void
-qla2x00_do_host_ramp_up(scsi_qla_host_t *vha)
+qla2x00_handle_mbx_completion(struct qla_hw_data *ha, int status)
 {
-	if (vha->hw->cfg_lun_q_depth >= ql2xmaxqdepth)
-		return;
+	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
+	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
+		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+		clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
+		complete(&ha->mbx_intr_comp);
+	}
+}
 
-	/* Wait at least HOST_QUEUE_RAMPDOWN_INTERVAL before ramping up */
-	if (time_before(jiffies, (vha->hw->host_last_rampdown_time +
-	    HOST_QUEUE_RAMPDOWN_INTERVAL)))
-		return;
-
-	/* Wait at least HOST_QUEUE_RAMPUP_INTERVAL between each ramp up */
-	if (time_before(jiffies, (vha->hw->host_last_rampup_time +
-	    HOST_QUEUE_RAMPUP_INTERVAL)))
-		return;
-
-	set_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags);
+static inline void
+qla2x00_set_retry_delay_timestamp(fc_port_t *fcport, uint16_t retry_delay)
+{
+	if (retry_delay)
+		fcport->retry_delay_timestamp = jiffies +
+		    (retry_delay * HZ / 10);
 }

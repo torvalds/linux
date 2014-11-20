@@ -70,7 +70,7 @@ Running Lguest:
 
 - Run an lguest as root:
 
-      Documentation/virtual/lguest/lguest 64 vmlinux --tunnet=192.168.19.1 \
+      tools/lguest/lguest 64 vmlinux --tunnet=192.168.19.1 \
         --block=rootfile root=/dev/vda
 
    Explanation:

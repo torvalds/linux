@@ -53,12 +53,14 @@ static struct nvec_ps2 ps2_dev;
 static int ps2_startstreaming(struct serio *ser_dev)
 {
 	unsigned char buf[] = { NVEC_PS2, AUTO_RECEIVE_N, PACKET_SIZE };
+
 	return nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
 }
 
 static void ps2_stopstreaming(struct serio *ser_dev)
 {
 	unsigned char buf[] = { NVEC_PS2, CANCEL_AUTO_RECEIVE };
+
 	nvec_write_async(ps2_dev.nvec, buf, sizeof(buf));
 }
 
@@ -133,6 +135,11 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 
 static int nvec_mouse_remove(struct platform_device *pdev)
 {
+	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
+
+	ps2_sendcommand(ps2_dev.ser_dev, DISABLE_MOUSE);
+	ps2_stopstreaming(ps2_dev.ser_dev);
+	nvec_unregister_notifier(nvec, &ps2_dev.notifier);
 	serio_unregister_port(ps2_dev.ser_dev);
 
 	return 0;
@@ -179,4 +186,5 @@ module_platform_driver(nvec_mouse_driver);
 
 MODULE_DESCRIPTION("NVEC mouse driver");
 MODULE_AUTHOR("Marc Dietrich <marvin24@gmx.de>");
+MODULE_ALIAS("platform:nvec-mouse");
 MODULE_LICENSE("GPL");

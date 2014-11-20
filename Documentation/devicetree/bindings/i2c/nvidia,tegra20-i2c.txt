@@ -1,0 +1,75 @@
+NVIDIA Tegra20/Tegra30/Tegra114 I2C controller driver.
+
+Required properties:
+- compatible : should be:
+	"nvidia,tegra114-i2c"
+	"nvidia,tegra30-i2c"
+	"nvidia,tegra20-i2c"
+	"nvidia,tegra20-i2c-dvc"
+  Details of compatible are as follows:
+  nvidia,tegra20-i2c-dvc: Tegra20 has specific I2C controller called as DVC I2C
+	controller. This only support master mode of I2C communication. Register
+	interface/offset and interrupts handling are different than generic I2C
+	controller. Driver of DVC I2C controller is only compatible with
+	"nvidia,tegra20-i2c-dvc".
+  nvidia,tegra20-i2c: Tegra20 has 4 generic I2C controller. This can support
+	master and slave mode of I2C communication. The i2c-tegra driver only
+	support master mode of I2C communication. Driver of I2C controller is
+	only compatible with "nvidia,tegra20-i2c".
+  nvidia,tegra30-i2c: Tegra30 has 5 generic I2C controller. This controller is
+	very much similar to Tegra20 I2C controller with additional feature:
+	Continue Transfer Support. This feature helps to implement M_NO_START
+	as per I2C core API transfer flags. Driver of I2C controller is
+	compatible with "nvidia,tegra30-i2c" to enable the continue transfer
+	support. This is also compatible with "nvidia,tegra20-i2c" without
+	continue transfer support.
+  nvidia,tegra114-i2c: Tegra114 has 5 generic I2C controller. This controller is
+	very much similar to Tegra30 I2C controller with some hardware
+	modification:
+	 - Tegra30/Tegra20 I2C controller has 2 clock source called div-clk and
+	   fast-clk. Tegra114 has only one clock source called as div-clk and
+	   hence clock mechanism is changed in I2C controller.
+	 - Tegra30/Tegra20 I2C controller has enabled per packet transfer by
+	   default and there is no way to disable it. Tegra114 has this
+	   interrupt disable by default and SW need to enable explicitly.
+	Due to above changes, Tegra114 I2C driver makes incompatible with
+	previous hardware driver. Hence, tegra114 I2C controller is compatible
+	with "nvidia,tegra114-i2c".
+- reg: Should contain I2C controller registers physical address and length.
+- interrupts: Should contain I2C controller interrupts.
+- address-cells: Address cells for I2C device address.
+- size-cells: Size of the I2C device address.
+- clocks: Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names: Must include the following entries:
+  Tegra20/Tegra30:
+  - div-clk
+  - fast-clk
+  Tegra114:
+  - div-clk
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must include the following entries:
+  - i2c
+- dmas: Must contain an entry for each entry in clock-names.
+  See ../dma/dma.txt for details.
+- dma-names: Must include the following entries:
+  - rx
+  - tx
+
+Example:
+
+	i2c@7000c000 {
+		compatible = "nvidia,tegra20-i2c";
+		reg = <0x7000c000 0x100>;
+		interrupts = <0 38 0x04>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&tegra_car 12>, <&tegra_car 124>;
+		clock-names = "div-clk", "fast-clk";
+		resets = <&tegra_car 12>;
+		reset-names = "i2c";
+		dmas = <&apbdma 16>, <&apbdma 16>;
+		dma-names = "rx", "tx";
+		status = "disabled";
+	};

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -24,7 +24,6 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <net/mac80211.h>
@@ -177,46 +176,46 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
  * (2.4 GHz) band.
  */
 
-static s32 expected_tpt_legacy[IWL_RATE_COUNT] = {
+static const u16 expected_tpt_legacy[IWL_RATE_COUNT] = {
 	7, 13, 35, 58, 40, 57, 72, 98, 121, 154, 177, 186, 0
 };
 
-static s32 expected_tpt_siso20MHz[4][IWL_RATE_COUNT] = {
+static const u16 expected_tpt_siso20MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0, 42, 0,  76, 102, 124, 159, 183, 193, 202}, /* Norm */
 	{0, 0, 0, 0, 46, 0,  82, 110, 132, 168, 192, 202, 210}, /* SGI */
 	{0, 0, 0, 0, 47, 0,  91, 133, 171, 242, 305, 334, 362}, /* AGG */
 	{0, 0, 0, 0, 52, 0, 101, 145, 187, 264, 330, 361, 390}, /* AGG+SGI */
 };
 
-static s32 expected_tpt_siso40MHz[4][IWL_RATE_COUNT] = {
+static const u16 expected_tpt_siso40MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0,  77, 0, 127, 160, 184, 220, 242, 250, 257}, /* Norm */
 	{0, 0, 0, 0,  83, 0, 135, 169, 193, 229, 250, 257, 264}, /* SGI */
 	{0, 0, 0, 0,  94, 0, 177, 249, 313, 423, 512, 550, 586}, /* AGG */
 	{0, 0, 0, 0, 104, 0, 193, 270, 338, 454, 545, 584, 620}, /* AGG+SGI */
 };
 
-static s32 expected_tpt_mimo2_20MHz[4][IWL_RATE_COUNT] = {
+static const u16 expected_tpt_mimo2_20MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0,  74, 0, 123, 155, 179, 214, 236, 244, 251}, /* Norm */
 	{0, 0, 0, 0,  81, 0, 131, 164, 188, 223, 243, 251, 257}, /* SGI */
 	{0, 0, 0, 0,  89, 0, 167, 235, 296, 402, 488, 526, 560}, /* AGG */
 	{0, 0, 0, 0,  97, 0, 182, 255, 320, 431, 520, 558, 593}, /* AGG+SGI*/
 };
 
-static s32 expected_tpt_mimo2_40MHz[4][IWL_RATE_COUNT] = {
+static const u16 expected_tpt_mimo2_40MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0, 123, 0, 182, 214, 235, 264, 279, 285, 289}, /* Norm */
 	{0, 0, 0, 0, 131, 0, 191, 222, 242, 270, 284, 289, 293}, /* SGI */
 	{0, 0, 0, 0, 171, 0, 305, 410, 496, 634, 731, 771, 805}, /* AGG */
 	{0, 0, 0, 0, 186, 0, 329, 439, 527, 667, 764, 803, 838}, /* AGG+SGI */
 };
 
-static s32 expected_tpt_mimo3_20MHz[4][IWL_RATE_COUNT] = {
+static const u16 expected_tpt_mimo3_20MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0,  99, 0, 153, 186, 208, 239, 256, 263, 268}, /* Norm */
 	{0, 0, 0, 0, 106, 0, 162, 194, 215, 246, 262, 268, 273}, /* SGI */
 	{0, 0, 0, 0, 134, 0, 249, 346, 431, 574, 685, 732, 775}, /* AGG */
 	{0, 0, 0, 0, 148, 0, 272, 376, 465, 614, 727, 775, 818}, /* AGG+SGI */
 };
 
-static s32 expected_tpt_mimo3_40MHz[4][IWL_RATE_COUNT] = {
+static const u16 expected_tpt_mimo3_40MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0, 152, 0, 211, 239, 255, 279,  290,  294,  297}, /* Norm */
 	{0, 0, 0, 0, 160, 0, 219, 245, 261, 284,  294,  297,  300}, /* SGI */
 	{0, 0, 0, 0, 254, 0, 443, 584, 695, 868,  984, 1030, 1070}, /* AGG */
@@ -351,12 +350,6 @@ static void rs_program_fix_rate(struct iwl_priv *priv,
 	lq_sta->active_mimo2_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 	lq_sta->active_mimo3_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
 
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	/* testmode has higher priority to overwirte the fixed rate */
-	if (priv->tm_fixed_rate)
-		lq_sta->dbg_fixed_rate = priv->tm_fixed_rate;
-#endif
-
 	IWL_DEBUG_RATE(priv, "sta_id %d rate 0x%X\n",
 		lq_sta->lq.sta_id, lq_sta->dbg_fixed_rate);
 
@@ -419,23 +412,18 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 
 	load = rs_tl_get_load(lq_data, tid);
 
-	if ((iwlwifi_mod_params.auto_agg) || (load > IWL_AGG_LOAD_THRESHOLD)) {
-		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
-				sta->addr, tid);
-		ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
-		if (ret == -EAGAIN) {
-			/*
-			 * driver and mac80211 is out of sync
-			 * this might be cause by reloading firmware
-			 * stop the tx ba session here
-			 */
-			IWL_ERR(priv, "Fail start Tx agg on tid: %d\n",
-				tid);
-			ieee80211_stop_tx_ba_session(sta, tid);
-		}
-	} else {
-		IWL_DEBUG_HT(priv, "Aggregation not enabled for tid %d "
-			"because load = %u\n", tid, load);
+	IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
+			sta->addr, tid);
+	ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
+	if (ret == -EAGAIN) {
+		/*
+		 * driver and mac80211 is out of sync
+		 * this might be cause by reloading firmware
+		 * stop the tx ba session here
+		 */
+		IWL_ERR(priv, "Fail start Tx agg on tid: %d\n",
+			tid);
+		ieee80211_stop_tx_ba_session(sta, tid);
 	}
 	return ret;
 }
@@ -1083,12 +1071,7 @@ done:
 	if (sta && sta->supp_rates[sband->band])
 		rs_rate_scale_perform(priv, skb, sta, lq_sta);
 
-#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_IWLWIFI_DEVICE_TESTMODE)
-	if ((priv->tm_fixed_rate) &&
-	    (priv->tm_fixed_rate != lq_sta->dbg_fixed_rate))
-		rs_program_fix_rate(priv, lq_sta);
-#endif
-	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist)
+	if (priv->lib->bt_params && priv->lib->bt_params->advanced_bt_coexist)
 		rs_bt_update_lq(priv, ctx, lq_sta);
 }
 
@@ -1128,7 +1111,7 @@ static void rs_set_expected_tpt_table(struct iwl_lq_sta *lq_sta,
 				      struct iwl_scale_tbl_info *tbl)
 {
 	/* Used to choose among HT tables */
-	s32 (*ht_tbl_pointer)[IWL_RATE_COUNT];
+	const u16 (*ht_tbl_pointer)[IWL_RATE_COUNT];
 
 	/* Check for invalid LQ type */
 	if (WARN_ON_ONCE(!is_legacy(tbl->lq_type) && !is_Ht(tbl->lq_type))) {
@@ -1190,9 +1173,8 @@ static s32 rs_get_best_rate(struct iwl_priv *priv,
 	    &(lq_sta->lq_info[lq_sta->active_tbl]);
 	s32 active_sr = active_tbl->win[index].success_ratio;
 	s32 active_tpt = active_tbl->expected_tpt[index];
-
 	/* expected "search" throughput */
-	s32 *tpt_tbl = tbl->expected_tpt;
+	const u16 *tpt_tbl = tbl->expected_tpt;
 
 	s32 new_rate, high, low, start_hi;
 	u16 high_low;
@@ -1471,7 +1453,7 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 			tbl->action = IWL_LEGACY_SWITCH_SISO;
 		break;
 	default:
-		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		IWL_ERR(priv, "Invalid BT load %d\n", priv->bt_traffic_load);
 		break;
 	}
 
@@ -1646,7 +1628,7 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 			tbl->action = IWL_SISO_SWITCH_ANTENNA1;
 		break;
 	default:
-		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		IWL_ERR(priv, "Invalid BT load %d\n", priv->bt_traffic_load);
 		break;
 	}
 
@@ -1817,7 +1799,7 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 			tbl->action = IWL_MIMO2_SWITCH_SISO_A;
 		break;
 	default:
-		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		IWL_ERR(priv, "Invalid BT load %d\n", priv->bt_traffic_load);
 		break;
 	}
 
@@ -1987,7 +1969,7 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 			tbl->action = IWL_MIMO3_SWITCH_SISO_A;
 		break;
 	default:
-		IWL_ERR(priv, "Invalid BT load %d", priv->bt_traffic_load);
+		IWL_ERR(priv, "Invalid BT load %d\n", priv->bt_traffic_load);
 		break;
 	}
 
@@ -2727,7 +2709,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	rs_set_expected_tpt_table(lq_sta, tbl);
 	rs_fill_link_cmd(NULL, lq_sta, rate);
 	priv->stations[lq_sta->lq.sta_id].lq = &lq_sta->lq;
-	iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, CMD_SYNC, true);
+	iwl_send_lq_cmd(priv, ctx, &lq_sta->lq, 0, true);
 }
 
 static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
@@ -2799,7 +2781,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 		info->control.rates[0].flags = 0;
 	}
 	info->control.rates[0].idx = rate_idx;
-
+	info->control.rates[0].count = 1;
 }
 
 static void *rs_alloc_sta(void *priv_rate, struct ieee80211_sta *sta,
@@ -2831,7 +2813,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 
 	sta_priv = (struct iwl_station_priv *) sta->drv_priv;
 	lq_sta = &sta_priv->lq_sta;
-	sband = hw->wiphy->bands[conf->channel->band];
+	sband = hw->wiphy->bands[conf->chandef.chan->band];
 
 
 	lq_sta->lq.sta_id = sta_id;
@@ -2842,9 +2824,6 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 
 	lq_sta->flush_timer = 0;
 	lq_sta->supp_rates = sta->supp_rates[sband->band];
-	for (j = 0; j < LQ_SIZE; j++)
-		for (i = 0; i < IWL_RATE_COUNT; i++)
-			rs_rate_scale_clear_window(&lq_sta->lq_info[j].win[i]);
 
 	IWL_DEBUG_RATE(priv, "LQ: *** rate scale station global init for station %d ***\n",
 		       sta_id);
@@ -2913,9 +2892,6 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	if (sband->band == IEEE80211_BAND_5GHZ)
 		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 	lq_sta->is_agg = 0;
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	priv->tm_fixed_rate = 0;
-#endif
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->dbg_fixed_rate = 0;
 #endif
@@ -3064,11 +3040,11 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 	 * overwrite if needed, pass aggregation time limit
 	 * to uCode in uSec
 	 */
-	if (priv && priv->cfg->bt_params &&
-	    priv->cfg->bt_params->agg_time_limit &&
+	if (priv && priv->lib->bt_params &&
+	    priv->lib->bt_params->agg_time_limit &&
 	    priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)
 		lq_cmd->agg_params.agg_time_limit =
-			cpu_to_le16(priv->cfg->bt_params->agg_time_limit);
+			cpu_to_le16(priv->lib->bt_params->agg_time_limit);
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
@@ -3338,11 +3314,12 @@ static void rs_remove_debugfs(void *priv, void *priv_sta)
  * station is added we ignore it.
  */
 static void rs_rate_init_stub(void *priv_r, struct ieee80211_supported_band *sband,
-			 struct ieee80211_sta *sta, void *priv_sta)
+			      struct cfg80211_chan_def *chandef,
+			      struct ieee80211_sta *sta, void *priv_sta)
 {
 }
-static struct rate_control_ops rs_ops = {
-	.module = NULL,
+
+static const struct rate_control_ops rs_ops = {
 	.name = RS_NAME,
 	.tx_status = rs_tx_status,
 	.get_rate = rs_get_rate,

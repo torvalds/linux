@@ -907,7 +907,6 @@ static void msm_hs_dmov_rx_callback(struct msm_dmov_cmd *cmd_ptr,
 	unsigned int error_f = 0;
 	unsigned long flags;
 	unsigned int flush;
-	struct tty_struct *tty;
 	struct tty_port *port;
 	struct uart_port *uport;
 	struct msm_hs_port *msm_uport;
@@ -919,7 +918,6 @@ static void msm_hs_dmov_rx_callback(struct msm_dmov_cmd *cmd_ptr,
 	clk_enable(msm_uport->clk);
 
 	port = &uport->state->port;
-	tty = port->tty;
 
 	msm_hs_write(uport, UARTDM_CR_ADDR, STALE_EVENT_DISABLE);
 
@@ -1620,7 +1618,7 @@ static int msm_hs_probe(struct platform_device *pdev)
 	struct msm_hs_port *msm_uport;
 	struct resource *resource;
 	const struct msm_serial_hs_platform_data *pdata =
-						pdev->dev.platform_data;
+						dev_get_platdata(&pdev->dev);
 
 	if (pdev->id < 0 || pdev->id >= UARTDM_NR) {
 		printk(KERN_ERR "Invalid plaform device ID = %d\n", pdev->id);

@@ -19,6 +19,7 @@
 #define INPUT_MT_DIRECT		0x0002	/* direct device, e.g. touchscreen */
 #define INPUT_MT_DROP_UNUSED	0x0004	/* drop contacts not seen in frame */
 #define INPUT_MT_TRACK		0x0008	/* use in-kernel tracking */
+#define INPUT_MT_SEMI_MT	0x0010	/* semi-mt device, finger count handled manually */
 
 /**
  * struct input_mt_slot - represents the state of an input MT slot
@@ -104,6 +105,7 @@ void input_mt_report_slot_state(struct input_dev *dev,
 
 void input_mt_report_finger_count(struct input_dev *dev, int count);
 void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count);
+void input_mt_drop_unused(struct input_dev *dev);
 
 void input_mt_sync_frame(struct input_dev *dev);
 

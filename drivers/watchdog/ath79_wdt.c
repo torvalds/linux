@@ -20,9 +20,9 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
@@ -91,6 +91,15 @@ static inline void ath79_wdt_keepalive(void)
 static inline void ath79_wdt_enable(void)
 {
 	ath79_wdt_keepalive();
+
+	/*
+	 * Updating the TIMER register requires a few microseconds
+	 * on the AR934x SoCs at least. Use a small delay to ensure
+	 * that the TIMER register is updated within the hardware
+	 * before enabling the watchdog.
+	 */
+	udelay(2);
+
 	ath79_wdt_wr(WDOG_REG_CTRL, WDOG_CTRL_ACTION_FCR);
 	/* flush write */
 	ath79_wdt_rr(WDOG_REG_CTRL);
@@ -248,22 +257,15 @@ static int ath79_wdt_probe(struct platform_device *pdev)
 		return -EBUSY;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no memory resource found\n");
-		return -EINVAL;
-	}
-
-	wdt_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!wdt_base) {
-		dev_err(&pdev->dev, "unable to remap memory region\n");
-		return -ENOMEM;
-	}
+	wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(wdt_base))
+		return PTR_ERR(wdt_base);
 
 	wdt_clk = devm_clk_get(&pdev->dev, "wdt");
 	if (IS_ERR(wdt_clk))
 		return PTR_ERR(wdt_clk);
 
-	err = clk_enable(wdt_clk);
+	err = clk_prepare_enable(wdt_clk);
 	if (err)
 		return err;
 
@@ -294,14 +296,14 @@ static int ath79_wdt_probe(struct platform_device *pdev)
 	return 0;
 
 err_clk_disable:
-	clk_disable(wdt_clk);
+	clk_disable_unprepare(wdt_clk);
 	return err;
 }
 
 static int ath79_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ath79_wdt_miscdev);
-	clk_disable(wdt_clk);
+	clk_disable_unprepare(wdt_clk);
 	return 0;
 }
 
@@ -336,4 +338,3 @@ MODULE_AUTHOR("Gabor Juhos <juhosg@openwrt.org");
 MODULE_AUTHOR("Imre Kaloz <kaloz@openwrt.org");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRIVER_NAME);
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

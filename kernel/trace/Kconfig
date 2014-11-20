@@ -29,11 +29,6 @@ config HAVE_FUNCTION_GRAPH_FP_TEST
 	help
 	  See Documentation/trace/ftrace-design.txt
 
-config HAVE_FUNCTION_TRACE_MCOUNT_TEST
-	bool
-	help
-	  See Documentation/trace/ftrace-design.txt
-
 config HAVE_DYNAMIC_FTRACE
 	bool
 	help
@@ -71,6 +66,7 @@ config TRACE_CLOCK
 config RING_BUFFER
 	bool
 	select TRACE_CLOCK
+	select IRQ_WORK
 
 config FTRACE_NMI_ENTER
        bool
@@ -107,7 +103,6 @@ config TRACING
 	select BINARY_PRINTF
 	select EVENT_TRACING
 	select TRACE_CLOCK
-	select IRQ_WORK
 
 config GENERIC_TRACER
 	bool
@@ -176,6 +171,8 @@ config IRQSOFF_TRACER
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
 	select RING_BUFFER_ALLOW_SWAP
+	select TRACER_SNAPSHOT
+	select TRACER_SNAPSHOT_PER_CPU_SWAP
 	help
 	  This option measures the time spent in irqs-off critical
 	  sections, with microsecond accuracy.
@@ -198,6 +195,8 @@ config PREEMPT_TRACER
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
 	select RING_BUFFER_ALLOW_SWAP
+	select TRACER_SNAPSHOT
+	select TRACER_SNAPSHOT_PER_CPU_SWAP
 	help
 	  This option measures the time spent in preemption-off critical
 	  sections, with microsecond accuracy.
@@ -217,6 +216,7 @@ config SCHED_TRACER
 	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
 	select TRACER_MAX_TRACE
+	select TRACER_SNAPSHOT
 	help
 	  This tracer tracks the latency of the highest priority task
 	  to be scheduled in, starting from the point it has woken up.
@@ -247,6 +247,27 @@ config TRACER_SNAPSHOT
 
 	      echo 1 > /sys/kernel/debug/tracing/snapshot
 	      cat snapshot
+
+config TRACER_SNAPSHOT_PER_CPU_SWAP
+        bool "Allow snapshot to swap per CPU"
+	depends on TRACER_SNAPSHOT
+	select RING_BUFFER_ALLOW_SWAP
+	help
+	  Allow doing a snapshot of a single CPU buffer instead of a
+	  full swap (all buffers). If this is set, then the following is
+	  allowed:
+
+	      echo 1 > /sys/kernel/debug/tracing/per_cpu/cpu2/snapshot
+
+	  After which, only the tracing buffer for CPU 2 was swapped with
+	  the main tracing buffer, and the other CPU buffers remain the same.
+
+	  When this is enabled, this adds a little more overhead to the
+	  trace recording, as it needs to add some checks to synchronize
+	  recording with swaps. But this does not affect the performance
+	  of the overall system. This is enabled by default when the preempt
+	  or irq latency tracers are enabled, as those need to swap as well
+	  and already adds the overhead (plus a lot more).
 
 config TRACE_BRANCH_PROFILING
 	bool
@@ -398,6 +419,7 @@ config UPROBE_EVENT
 	bool "Enable uprobes-based dynamic events"
 	depends on ARCH_SUPPORTS_UPROBES
 	depends on MMU
+	depends on PERF_EVENTS
 	select UPROBES
 	select PROBE_EVENTS
 	select TRACING
@@ -508,6 +530,36 @@ config MMIOTRACE_TEST
 
 	  Say N, unless you absolutely know what you are doing.
 
+config TRACEPOINT_BENCHMARK
+        bool "Add tracepoint that benchmarks tracepoints"
+	help
+	 This option creates the tracepoint "benchmark:benchmark_event".
+	 When the tracepoint is enabled, it kicks off a kernel thread that
+	 goes into an infinite loop (calling cond_sched() to let other tasks
+	 run), and calls the tracepoint. Each iteration will record the time
+	 it took to write to the tracepoint and the next iteration that
+	 data will be passed to the tracepoint itself. That is, the tracepoint
+	 will report the time it took to do the previous tracepoint.
+	 The string written to the tracepoint is a static string of 128 bytes
+	 to keep the time the same. The initial string is simply a write of
+	 "START". The second string records the cold cache time of the first
+	 write which is not added to the rest of the calculations.
+
+	 As it is a tight loop, it benchmarks as hot cache. That's fine because
+	 we care most about hot paths that are probably in cache already.
+
+	 An example of the output:
+
+	      START
+	      first=3672 [COLD CACHED]
+	      last=632 first=3672 max=632 min=632 avg=316 std=446 std^2=199712
+	      last=278 first=3672 max=632 min=278 avg=303 std=316 std^2=100337
+	      last=277 first=3672 max=632 min=277 avg=296 std=258 std^2=67064
+	      last=273 first=3672 max=632 min=273 avg=292 std=224 std^2=50411
+	      last=273 first=3672 max=632 min=273 avg=288 std=200 std^2=40389
+	      last=281 first=3672 max=632 min=273 avg=287 std=183 std^2=33666
+
+
 config RING_BUFFER_BENCHMARK
 	tristate "Ring buffer benchmark stress tester"
 	depends on RING_BUFFER
@@ -523,6 +575,29 @@ config RING_BUFFER_BENCHMARK
 	  affected by processes that are running.
 
 	  If unsure, say N.
+
+config RING_BUFFER_STARTUP_TEST
+       bool "Ring buffer startup self test"
+       depends on RING_BUFFER
+       help
+         Run a simple self test on the ring buffer on boot up. Late in the
+	 kernel boot sequence, the test will start that kicks off
+	 a thread per cpu. Each thread will write various size events
+	 into the ring buffer. Another thread is created to send IPIs
+	 to each of the threads, where the IPI handler will also write
+	 to the ring buffer, to test/stress the nesting ability.
+	 If any anomalies are discovered, a warning will be displayed
+	 and all ring buffers will be disabled.
+
+	 The test runs for 10 seconds. This will slow your boot time
+	 by at least 10 more seconds.
+
+	 At the end of the test, statics and more checks are done.
+	 It will output the stats of each per cpu buffer. What
+	 was written, the sizes, what was read, what was lost, and
+	 other similar details.
+
+	 If unsure, say N
 
 endif # FTRACE
 

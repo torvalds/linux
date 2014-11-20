@@ -4,6 +4,7 @@ config MAC80211
 	select CRYPTO
 	select CRYPTO_ARC4
 	select CRYPTO_AES
+	select CRYPTO_CCM
 	select CRC32
 	select AVERAGE
 	---help---
@@ -17,14 +18,6 @@ if MAC80211 != n
 
 config MAC80211_HAS_RC
 	bool
-
-config MAC80211_RC_PID
-	bool "PID controller based rate control algorithm" if EXPERT
-	select MAC80211_HAS_RC
-	---help---
-	  This option enables a TX rate control algorithm for
-	  mac80211 that uses a PID controller to select the TX
-	  rate.
 
 config MAC80211_RC_MINSTREL
 	bool "Minstrel" if EXPERT
@@ -50,14 +43,6 @@ choice
 	  overridden through the ieee80211_default_rc_algo module
 	  parameter if different algorithms are available.
 
-config MAC80211_RC_DEFAULT_PID
-	bool "PID controller based rate control algorithm"
-	depends on MAC80211_RC_PID
-	---help---
-	  Select the PID controller based rate control as the
-	  default rate control algorithm. You should choose
-	  this unless you know what you are doing.
-
 config MAC80211_RC_DEFAULT_MINSTREL
 	bool "Minstrel"
 	depends on MAC80211_RC_MINSTREL
@@ -71,7 +56,6 @@ config MAC80211_RC_DEFAULT
 	string
 	default "minstrel_ht" if MAC80211_RC_DEFAULT_MINSTREL && MAC80211_RC_MINSTREL_HT
 	default "minstrel" if MAC80211_RC_DEFAULT_MINSTREL
-	default "pid" if MAC80211_RC_DEFAULT_PID
 	default ""
 
 endif
@@ -254,6 +238,17 @@ config MAC80211_MESH_SYNC_DEBUG
 	---help---
 	  Selecting this option causes mac80211 to print out very verbose mesh
 	  synchronization debugging messages (when mac80211 is taking part in a
+	  mesh network).
+
+	  Do not select this option.
+
+config MAC80211_MESH_CSA_DEBUG
+	bool "Verbose mesh channel switch debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very verbose mesh
+	  channel switch debugging messages (when mac80211 is taking part in a
 	  mesh network).
 
 	  Do not select this option.

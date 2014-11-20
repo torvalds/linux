@@ -13,12 +13,18 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
+#include <linux/regulator/consumer.h>
+#include <linux/of.h>
 #include <asm/unaligned.h>
-
 #include <linux/iio/common/st_sensors.h>
 
 
 #define ST_SENSORS_WAI_ADDRESS		0x0f
+
+static inline u32 st_sensors_get_unaligned_le24(const u8 *p)
+{
+	return (s32)((p[0] | p[1] << 8 | p[2] << 16) << 8) >> 8;
+}
 
 static int st_sensors_write_data_with_mask(struct iio_dev *indio_dev,
 						u8 reg_addr, u8 mask, u8 data)
@@ -112,7 +118,8 @@ st_sensors_match_odr_error:
 	return ret;
 }
 
-static int st_sensors_set_fullscale(struct iio_dev *indio_dev, unsigned int fs)
+static int st_sensors_set_fullscale(struct iio_dev *indio_dev,
+								unsigned int fs)
 {
 	int err, i = 0;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
@@ -192,35 +199,143 @@ int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable)
 }
 EXPORT_SYMBOL(st_sensors_set_axis_enable);
 
-int st_sensors_init_sensor(struct iio_dev *indio_dev)
+void st_sensors_power_enable(struct iio_dev *indio_dev)
 {
+	struct st_sensor_data *pdata = iio_priv(indio_dev);
 	int err;
+
+	/* Regulators not mandatory, but if requested we should enable them. */
+	pdata->vdd = devm_regulator_get_optional(indio_dev->dev.parent, "vdd");
+	if (!IS_ERR(pdata->vdd)) {
+		err = regulator_enable(pdata->vdd);
+		if (err != 0)
+			dev_warn(&indio_dev->dev,
+				 "Failed to enable specified Vdd supply\n");
+	}
+
+	pdata->vdd_io = devm_regulator_get_optional(indio_dev->dev.parent, "vddio");
+	if (!IS_ERR(pdata->vdd_io)) {
+		err = regulator_enable(pdata->vdd_io);
+		if (err != 0)
+			dev_warn(&indio_dev->dev,
+				 "Failed to enable specified Vdd_IO supply\n");
+	}
+}
+EXPORT_SYMBOL(st_sensors_power_enable);
+
+void st_sensors_power_disable(struct iio_dev *indio_dev)
+{
+	struct st_sensor_data *pdata = iio_priv(indio_dev);
+
+	if (!IS_ERR(pdata->vdd))
+		regulator_disable(pdata->vdd);
+
+	if (!IS_ERR(pdata->vdd_io))
+		regulator_disable(pdata->vdd_io);
+}
+EXPORT_SYMBOL(st_sensors_power_disable);
+
+static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
+				       struct st_sensors_platform_data *pdata)
+{
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+
+	switch (pdata->drdy_int_pin) {
+	case 1:
+		if (sdata->sensor->drdy_irq.mask_int1 == 0) {
+			dev_err(&indio_dev->dev,
+					"DRDY on INT1 not available.\n");
+			return -EINVAL;
+		}
+		sdata->drdy_int_pin = 1;
+		break;
+	case 2:
+		if (sdata->sensor->drdy_irq.mask_int2 == 0) {
+			dev_err(&indio_dev->dev,
+					"DRDY on INT2 not available.\n");
+			return -EINVAL;
+		}
+		sdata->drdy_int_pin = 2;
+		break;
+	default:
+		dev_err(&indio_dev->dev, "DRDY on pdata not valid.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+#ifdef CONFIG_OF
+static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
+		struct st_sensors_platform_data *defdata)
+{
+	struct st_sensors_platform_data *pdata;
+	struct device_node *np = dev->of_node;
+	u32 val;
+
+	if (!np)
+		return NULL;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!of_property_read_u32(np, "st,drdy-int-pin", &val) && (val <= 2))
+		pdata->drdy_int_pin = (u8) val;
+	else
+		pdata->drdy_int_pin = defdata ? defdata->drdy_int_pin : 1;
+
+	return pdata;
+}
+#else
+static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
+		struct st_sensors_platform_data *defdata)
+{
+	return NULL;
+}
+#endif
+
+int st_sensors_init_sensor(struct iio_dev *indio_dev,
+					struct st_sensors_platform_data *pdata)
+{
+	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	struct st_sensors_platform_data *of_pdata;
+	int err = 0;
 
 	mutex_init(&sdata->tb.buf_lock);
 
+	/* If OF/DT pdata exists, it will take precedence of anything else */
+	of_pdata = st_sensors_of_probe(indio_dev->dev.parent, pdata);
+	if (of_pdata)
+		pdata = of_pdata;
+
+	if (pdata) {
+		err = st_sensors_set_drdy_int_pin(indio_dev, pdata);
+		if (err < 0)
+			return err;
+	}
+
 	err = st_sensors_set_enable(indio_dev, false);
 	if (err < 0)
-		goto init_error;
+		return err;
 
-	err = st_sensors_set_fullscale(indio_dev,
-						sdata->current_fullscale->num);
-	if (err < 0)
-		goto init_error;
+	if (sdata->current_fullscale) {
+		err = st_sensors_set_fullscale(indio_dev,
+					       sdata->current_fullscale->num);
+		if (err < 0)
+			return err;
+	} else
+		dev_info(&indio_dev->dev, "Full-scale not possible\n");
 
 	err = st_sensors_set_odr(indio_dev, sdata->odr);
 	if (err < 0)
-		goto init_error;
+		return err;
 
 	/* set BDU */
 	err = st_sensors_write_data_with_mask(indio_dev,
 			sdata->sensor->bdu.addr, sdata->sensor->bdu.mask, true);
 	if (err < 0)
-		goto init_error;
+		return err;
 
 	err = st_sensors_set_axis_enable(indio_dev, ST_SENSORS_ENABLE_ALL_AXIS);
 
-init_error:
 	return err;
 }
 EXPORT_SYMBOL(st_sensors_init_sensor);
@@ -228,7 +343,11 @@ EXPORT_SYMBOL(st_sensors_init_sensor);
 int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 {
 	int err;
+	u8 drdy_mask;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+
+	if (!sdata->sensor->drdy_irq.addr)
+		return 0;
 
 	/* Enable/Disable the interrupt generator 1. */
 	if (sdata->sensor->drdy_irq.ig1.en_addr > 0) {
@@ -239,10 +358,14 @@ int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 			goto st_accel_set_dataready_irq_error;
 	}
 
+	if (sdata->drdy_int_pin == 1)
+		drdy_mask = sdata->sensor->drdy_irq.mask_int1;
+	else
+		drdy_mask = sdata->sensor->drdy_irq.mask_int2;
+
 	/* Enable/Disable the interrupt generator for data ready. */
 	err = st_sensors_write_data_with_mask(indio_dev,
-			sdata->sensor->drdy_irq.addr,
-			sdata->sensor->drdy_irq.mask, (int)enable);
+			sdata->sensor->drdy_irq.addr, drdy_mask, (int)enable);
 
 st_accel_set_dataready_irq_error:
 	return err;
@@ -273,21 +396,31 @@ st_sensors_match_scale_error:
 EXPORT_SYMBOL(st_sensors_set_fullscale_by_gain);
 
 static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
-							u8 ch_addr, int *data)
+				struct iio_chan_spec const *ch, int *data)
 {
 	int err;
-	u8 outdata[ST_SENSORS_BYTE_FOR_CHANNEL];
+	u8 *outdata;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	unsigned int byte_for_channel = ch->scan_type.storagebits >> 3;
+
+	outdata = kmalloc(byte_for_channel, GFP_KERNEL);
+	if (!outdata)
+		return -ENOMEM;
 
 	err = sdata->tf->read_multiple_byte(&sdata->tb, sdata->dev,
-				ch_addr, ST_SENSORS_BYTE_FOR_CHANNEL,
+				ch->address, byte_for_channel,
 				outdata, sdata->multiread_bit);
 	if (err < 0)
-		goto read_error;
+		goto st_sensors_free_memory;
 
-	*data = (s16)get_unaligned_le16(outdata);
+	if (byte_for_channel == 2)
+		*data = (s16)get_unaligned_le16(outdata);
+	else if (byte_for_channel == 3)
+		*data = (s32)st_sensors_get_unaligned_le24(outdata);
 
-read_error:
+st_sensors_free_memory:
+	kfree(outdata);
+
 	return err;
 }
 
@@ -300,25 +433,24 @@ int st_sensors_read_info_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
 		err = -EBUSY;
-		goto read_error;
+		goto out;
 	} else {
 		err = st_sensors_set_enable(indio_dev, true);
 		if (err < 0)
-			goto read_error;
+			goto out;
 
 		msleep((sdata->sensor->bootime * 1000) / sdata->odr);
-		err = st_sensors_read_axis_data(indio_dev, ch->address, val);
+		err = st_sensors_read_axis_data(indio_dev, ch, val);
 		if (err < 0)
-			goto read_error;
+			goto out;
 
 		*val = *val >> ch->scan_type.shift;
+
+		err = st_sensors_set_enable(indio_dev, false);
 	}
+out:
 	mutex_unlock(&indio_dev->mlock);
 
-	return err;
-
-read_error:
-	mutex_unlock(&indio_dev->mlock);
 	return err;
 }
 EXPORT_SYMBOL(st_sensors_read_info_raw);
@@ -366,35 +498,6 @@ read_wai_error:
 	return err;
 }
 EXPORT_SYMBOL(st_sensors_check_device_support);
-
-ssize_t st_sensors_sysfs_get_sampling_frequency(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct st_sensor_data *adata = iio_priv(dev_get_drvdata(dev));
-
-	return sprintf(buf, "%d\n", adata->odr);
-}
-EXPORT_SYMBOL(st_sensors_sysfs_get_sampling_frequency);
-
-ssize_t st_sensors_sysfs_set_sampling_frequency(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-	int err;
-	unsigned int odr;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	err = kstrtoint(buf, 10, &odr);
-	if (err < 0)
-		goto conversion_error;
-
-	mutex_lock(&indio_dev->mlock);
-	err = st_sensors_set_odr(indio_dev, odr);
-	mutex_unlock(&indio_dev->mlock);
-
-conversion_error:
-	return err < 0 ? err : size;
-}
-EXPORT_SYMBOL(st_sensors_sysfs_set_sampling_frequency);
 
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)

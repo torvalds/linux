@@ -769,7 +769,10 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 						s->number);
 				ds->drained_count++;
 				if (ds->drained_count > 20) {
+					unsigned long flags;
+					snd_pcm_stream_lock_irqsave(s, flags);
 					snd_pcm_stop(s, SNDRV_PCM_STATE_XRUN);
+					snd_pcm_stream_unlock_irqrestore(s, flags);
 					continue;
 				}
 			} else {
@@ -966,7 +969,7 @@ static u64 snd_card_asihpi_playback_formats(struct snd_card_asihpi *asihpi,
 		if (!err)
 			err = hpi_outstream_query_format(h_stream, &hpi_format);
 		if (!err && (hpi_to_alsa_formats[format] != -1))
-			formats |= (1ULL << hpi_to_alsa_formats[format]);
+			formats |= pcm_format_to_bits(hpi_to_alsa_formats[format]);
 	}
 	return formats;
 }
@@ -1141,8 +1144,8 @@ static u64 snd_card_asihpi_capture_formats(struct snd_card_asihpi *asihpi,
 					format, sample_rate, 128000, 0);
 		if (!err)
 			err = hpi_instream_query_format(h_stream, &hpi_format);
-		if (!err)
-			formats |= (1ULL << hpi_to_alsa_formats[format]);
+		if (!err && (hpi_to_alsa_formats[format] != -1))
+			formats |= pcm_format_to_bits(hpi_to_alsa_formats[format]);
 	}
 	return formats;
 }
@@ -1250,11 +1253,12 @@ static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 			num_outstreams,	num_instreams, &pcm);
 	if (err < 0)
 		return err;
+
 	/* pointer to ops struct is stored, dont change ops afterwards! */
-		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-				&snd_card_asihpi_playback_mmap_ops);
-		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
-				&snd_card_asihpi_capture_mmap_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+			&snd_card_asihpi_playback_mmap_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
+			&snd_card_asihpi_capture_mmap_ops);
 
 	pcm->private_data = asihpi;
 	pcm->info_flags = 0;
@@ -1278,7 +1282,7 @@ struct hpi_control {
 	u16 dst_node_type;
 	u16 dst_node_index;
 	u16 band;
-	char name[44]; /* copied to snd_ctl_elem_id.name[44]; */
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN]; /* copied to snd_ctl_elem_id.name[44]; */
 };
 
 static const char * const asihpi_tuner_band_names[] = {
@@ -1910,6 +1914,7 @@ static int snd_asihpi_tuner_band_put(struct snd_kcontrol *kcontrol,
 	struct snd_card_asihpi *asihpi = snd_kcontrol_chip(kcontrol);
 	*/
 	u32 h_control = kcontrol->private_value;
+	unsigned int idx;
 	u16 band;
 	u16 tuner_bands[HPI_TUNER_BAND_LAST];
 	u32 num_bands = 0;
@@ -1917,7 +1922,10 @@ static int snd_asihpi_tuner_band_put(struct snd_kcontrol *kcontrol,
 	num_bands = asihpi_tuner_band_query(kcontrol, tuner_bands,
 			HPI_TUNER_BAND_LAST);
 
-	band = tuner_bands[ucontrol->value.enumerated.item[0]];
+	idx = ucontrol->value.enumerated.item[0];
+	if (idx >= ARRAY_SIZE(tuner_bands))
+		idx = ARRAY_SIZE(tuner_bands) - 1;
+	band = tuner_bands[idx];
 	hpi_handle_error(hpi_tuner_set_band(h_control, band));
 
 	return 1;
@@ -2380,7 +2388,8 @@ static int snd_asihpi_clksrc_put(struct snd_kcontrol *kcontrol,
 	struct snd_card_asihpi *asihpi =
 			(struct snd_card_asihpi *)(kcontrol->private_data);
 	struct clk_cache *clkcache = &asihpi->cc;
-	int change, item;
+	unsigned int item;
+	int change;
 	u32 h_control = kcontrol->private_value;
 
 	change = 1;
@@ -2819,25 +2828,19 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	hpi = pci_get_drvdata(pci_dev);
 	adapter_index = hpi->adapter->index;
 	/* first try to give the card the same index as its hardware index */
-	err = snd_card_create(adapter_index,
-			      id[adapter_index], THIS_MODULE,
-			      sizeof(struct snd_card_asihpi),
-			      &card);
+	err = snd_card_new(&pci_dev->dev, adapter_index, id[adapter_index],
+			   THIS_MODULE, sizeof(struct snd_card_asihpi), &card);
 	if (err < 0) {
 		/* if that fails, try the default index==next available */
-		err =
-		    snd_card_create(index[dev], id[dev],
-				    THIS_MODULE,
-				    sizeof(struct snd_card_asihpi),
-				    &card);
+		err = snd_card_new(&pci_dev->dev, index[dev], id[dev],
+				   THIS_MODULE, sizeof(struct snd_card_asihpi),
+				   &card);
 		if (err < 0)
 			return err;
 		snd_printk(KERN_WARNING
 			"**** WARNING **** Adapter index %d->ALSA index %d\n",
 			adapter_index, card->number);
 	}
-
-	snd_card_set_dev(card, &pci_dev->dev);
 
 	asihpi = card->private_data;
 	asihpi->card = card;
@@ -2952,7 +2955,7 @@ static void snd_asihpi_remove(struct pci_dev *pci_dev)
 	asihpi_adapter_remove(pci_dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(asihpi_pci_tbl) = {
+static const struct pci_device_id asihpi_pci_tbl[] = {
 	{HPI_PCI_VENDOR_ID_TI, HPI_PCI_DEV_ID_DSP6205,
 		HPI_PCI_VENDOR_ID_AUDIOSCIENCE, PCI_ANY_ID, 0, 0,
 		(kernel_ulong_t)HPI_6205},

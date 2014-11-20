@@ -116,7 +116,34 @@ int cvm_oct_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return phy_mii_ioctl(priv->phydev, rq, cmd);
 }
 
-static void cvm_oct_adjust_link(struct net_device *dev)
+static void cvm_oct_note_carrier(struct octeon_ethernet *priv,
+				 cvmx_helper_link_info_t li)
+{
+	if (li.s.link_up) {
+		pr_notice_ratelimited("%s: %u Mbps %s duplex, port %d\n",
+				      netdev_name(priv->netdev), li.s.speed,
+				      (li.s.full_duplex) ? "Full" : "Half",
+				      priv->port);
+	} else {
+		pr_notice_ratelimited("%s: Link down\n",
+				      netdev_name(priv->netdev));
+	}
+}
+
+void cvm_oct_set_carrier(struct octeon_ethernet *priv,
+			 cvmx_helper_link_info_t link_info)
+{
+	cvm_oct_note_carrier(priv, link_info);
+	if (link_info.s.link_up) {
+		if (!netif_carrier_ok(priv->netdev))
+			netif_carrier_on(priv->netdev);
+	} else {
+		if (netif_carrier_ok(priv->netdev))
+			netif_carrier_off(priv->netdev);
+	}
+}
+
+void cvm_oct_adjust_link(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	cvmx_helper_link_info_t link_info;
@@ -127,30 +154,32 @@ static void cvm_oct_adjust_link(struct net_device *dev)
 		link_info.s.link_up = priv->last_link ? 1 : 0;
 		link_info.s.full_duplex = priv->phydev->duplex ? 1 : 0;
 		link_info.s.speed = priv->phydev->speed;
-		cvmx_helper_link_set( priv->port, link_info);
-		if (priv->last_link) {
-			netif_carrier_on(dev);
-			if (priv->queue != -1)
-				printk_ratelimited("%s: %u Mbps %s duplex, "
-						   "port %2d, queue %2d\n",
-						   dev->name, priv->phydev->speed,
-						   priv->phydev->duplex ?
-						   "Full" : "Half",
-						   priv->port, priv->queue);
-			else
-				printk_ratelimited("%s: %u Mbps %s duplex, "
-						   "port %2d, POW\n",
-						   dev->name, priv->phydev->speed,
-						   priv->phydev->duplex ?
-						   "Full" : "Half",
-						   priv->port);
-		} else {
-			netif_carrier_off(dev);
-			printk_ratelimited("%s: Link down\n", dev->name);
-		}
+
+		cvmx_helper_link_set(priv->port, link_info);
+		cvm_oct_note_carrier(priv, link_info);
 	}
 }
 
+int cvm_oct_common_stop(struct net_device *dev)
+{
+	struct octeon_ethernet *priv = netdev_priv(dev);
+	cvmx_helper_link_info_t link_info;
+
+	priv->poll = NULL;
+
+	if (priv->phydev)
+		phy_disconnect(priv->phydev);
+	priv->phydev = NULL;
+
+	if (priv->last_link) {
+		link_info.u64 = 0;
+		priv->last_link = 0;
+
+		cvmx_helper_link_set(priv->port, link_info);
+		cvm_oct_note_carrier(priv, link_info);
+	}
+	return 0;
+}
 
 /**
  * cvm_oct_phy_setup_device - setup the PHY
@@ -165,11 +194,11 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 	struct device_node *phy_node;
 
 	if (!priv->of_node)
-		return 0;
+		goto no_phy;
 
 	phy_node = of_parse_phandle(priv->of_node, "phy-handle", 0);
 	if (!phy_node)
-		return 0;
+		goto no_phy;
 
 	priv->phydev = of_phy_connect(dev, phy_node, cvm_oct_adjust_link, 0,
 				      PHY_INTERFACE_MODE_GMII);
@@ -180,5 +209,11 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 	priv->last_link = 0;
 	phy_start_aneg(priv->phydev);
 
+	return 0;
+no_phy:
+	/* If there is no phy, assume a direct MAC connection and that
+	 * the link is up.
+	 */
+	netif_carrier_on(dev);
 	return 0;
 }

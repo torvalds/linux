@@ -11,8 +11,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
+ * this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Lucy Liu <lucy.liu@intel.com>
  */
@@ -82,8 +81,8 @@ struct dcbnl_rtnl_ops {
 	void (*setbcncfg)(struct net_device *, int, u32);
 	void (*getbcnrp)(struct net_device *, int, u8 *);
 	void (*setbcnrp)(struct net_device *, int, u8);
-	u8   (*setapp)(struct net_device *, u8, u16, u8);
-	u8   (*getapp)(struct net_device *, u8, u16);
+	int  (*setapp)(struct net_device *, u8, u16, u8);
+	int  (*getapp)(struct net_device *, u8, u16);
 	u8   (*getfeatcfg)(struct net_device *, int, u8 *);
 	u8   (*setfeatcfg)(struct net_device *, int, u8);
 

@@ -22,10 +22,8 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/module.h>
 #include <linux/thermal.h>
+#include <trace/events/thermal.h>
 
 #include "thermal_core.h"
 
@@ -37,6 +35,7 @@ static int get_trip_level(struct thermal_zone_device *tz)
 {
 	int count = 0;
 	unsigned long trip_temp;
+	enum thermal_trip_type trip_type;
 
 	if (tz->trips == 0 || !tz->ops->get_trip_temp)
 		return 0;
@@ -46,6 +45,16 @@ static int get_trip_level(struct thermal_zone_device *tz)
 		if (tz->temperature < trip_temp)
 			break;
 	}
+
+	/*
+	 * count > 0 only if temperature is greater than first trip
+	 * point, in which case, trip_point = count - 1
+	 */
+	if (count > 0) {
+		tz->ops->get_trip_type(tz, count - 1, &trip_type);
+		trace_thermal_zone_trip(tz, count - 1, trip_type);
+	}
+
 	return count;
 }
 
@@ -111,23 +120,15 @@ static int fair_share_throttle(struct thermal_zone_device *tz, int trip)
 static struct thermal_governor thermal_gov_fair_share = {
 	.name		= "fair_share",
 	.throttle	= fair_share_throttle,
-	.owner		= THIS_MODULE,
 };
 
-static int __init thermal_gov_fair_share_init(void)
+int thermal_gov_fair_share_register(void)
 {
 	return thermal_register_governor(&thermal_gov_fair_share);
 }
 
-static void __exit thermal_gov_fair_share_exit(void)
+void thermal_gov_fair_share_unregister(void)
 {
 	thermal_unregister_governor(&thermal_gov_fair_share);
 }
 
-/* This should load after thermal framework */
-fs_initcall(thermal_gov_fair_share_init);
-module_exit(thermal_gov_fair_share_exit);
-
-MODULE_AUTHOR("Durgadoss R");
-MODULE_DESCRIPTION("A simple weight based thermal throttling governor");
-MODULE_LICENSE("GPL");

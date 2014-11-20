@@ -69,7 +69,7 @@ static int __ocfs2_move_extent(handle_t *handle,
 	u64 ino = ocfs2_metadata_cache_owner(context->et.et_ci);
 	u64 old_blkno = ocfs2_clusters_to_blocks(inode->i_sb, p_cpos);
 
-	ret = ocfs2_duplicate_clusters_by_page(handle, context->file, cpos,
+	ret = ocfs2_duplicate_clusters_by_page(handle, inode, cpos,
 					       p_cpos, new_p_cpos, len);
 	if (ret) {
 		mlog_errno(ret);
@@ -98,7 +98,7 @@ static int __ocfs2_move_extent(handle_t *handle,
 	el = path_leaf_el(path);
 
 	index = ocfs2_search_extent_list(el, cpos);
-	if (index == -1 || index >= le16_to_cpu(el->l_next_free_rec)) {
+	if (index == -1) {
 		ocfs2_error(inode->i_sb,
 			    "Inode %llu has an extent at cpos %u which can no "
 			    "longer be found.\n",
@@ -151,7 +151,9 @@ static int __ocfs2_move_extent(handle_t *handle,
 							old_blkno, len);
 	}
 
+	ocfs2_update_inode_fsync_trans(handle, inode, 0);
 out:
+	ocfs2_free_path(path);
 	return ret;
 }
 
@@ -200,8 +202,7 @@ static int ocfs2_lock_allocators_move_extents(struct inode *inode,
 		}
 	}
 
-	*credits += ocfs2_calc_extend_credits(osb->sb, et->et_root_el,
-					      clusters_to_move + 2);
+	*credits += ocfs2_calc_extend_credits(osb->sb, et->et_root_el);
 
 	mlog(0, "reserve metadata_blocks: %d, data_clusters: %u, credits: %d\n",
 	     extra_blocks, clusters_to_move, *credits);
@@ -403,7 +404,7 @@ static int ocfs2_find_victim_alloc_group(struct inode *inode,
 	 * 'vict_blkno' was out of the valid range.
 	 */
 	if ((vict_blkno < le64_to_cpu(rec->c_blkno)) ||
-	    (vict_blkno >= (le32_to_cpu(ac_dinode->id1.bitmap1.i_total) <<
+	    (vict_blkno >= ((u64)le32_to_cpu(ac_dinode->id1.bitmap1.i_total) <<
 				bits_per_unit))) {
 		ret = -EINVAL;
 		goto out;
@@ -471,7 +472,7 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 	int ret, goal_bit = 0;
 
 	struct buffer_head *gd_bh = NULL;
-	struct ocfs2_group_desc *bg = NULL;
+	struct ocfs2_group_desc *bg;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int c_to_b = 1 << (osb->s_clustersize_bits -
 					inode->i_sb->s_blocksize_bits);
@@ -481,13 +482,6 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 	 */
 	range->me_goal = ocfs2_block_to_cluster_start(inode->i_sb,
 						      range->me_goal);
-	/*
-	 * moving goal is not allowd to start with a group desc blok(#0 blk)
-	 * let's compromise to the latter cluster.
-	 */
-	if (range->me_goal == le64_to_cpu(bg->bg_blkno))
-		range->me_goal += c_to_b;
-
 	/*
 	 * validate goal sits within global_bitmap, and return the victim
 	 * group desc
@@ -500,6 +494,13 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 		goto out;
 
 	bg = (struct ocfs2_group_desc *)gd_bh->b_data;
+
+	/*
+	 * moving goal is not allowd to start with a group desc blok(#0 blk)
+	 * let's compromise to the latter cluster.
+	 */
+	if (range->me_goal == le64_to_cpu(bg->bg_blkno))
+		range->me_goal += c_to_b;
 
 	/*
 	 * movement is not gonna cross two groups.
@@ -559,83 +560,6 @@ static void ocfs2_probe_alloc_group(struct inode *inode, struct buffer_head *bh,
 	}
 
 	mlog(0, "found phys_cpos: %u to fit the wanted moving.\n", *phys_cpos);
-}
-
-static int ocfs2_alloc_dinode_update_counts(struct inode *inode,
-				       handle_t *handle,
-				       struct buffer_head *di_bh,
-				       u32 num_bits,
-				       u16 chain)
-{
-	int ret;
-	u32 tmp_used;
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *) di_bh->b_data;
-	struct ocfs2_chain_list *cl =
-				(struct ocfs2_chain_list *) &di->id2.i_chain;
-
-	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out;
-	}
-
-	tmp_used = le32_to_cpu(di->id1.bitmap1.i_used);
-	di->id1.bitmap1.i_used = cpu_to_le32(num_bits + tmp_used);
-	le32_add_cpu(&cl->cl_recs[chain].c_free, -num_bits);
-	ocfs2_journal_dirty(handle, di_bh);
-
-out:
-	return ret;
-}
-
-static inline int ocfs2_block_group_set_bits(handle_t *handle,
-					     struct inode *alloc_inode,
-					     struct ocfs2_group_desc *bg,
-					     struct buffer_head *group_bh,
-					     unsigned int bit_off,
-					     unsigned int num_bits)
-{
-	int status;
-	void *bitmap = bg->bg_bitmap;
-	int journal_type = OCFS2_JOURNAL_ACCESS_WRITE;
-
-	/* All callers get the descriptor via
-	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
-	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
-	BUG_ON(le16_to_cpu(bg->bg_free_bits_count) < num_bits);
-
-	mlog(0, "block_group_set_bits: off = %u, num = %u\n", bit_off,
-	     num_bits);
-
-	if (ocfs2_is_cluster_bitmap(alloc_inode))
-		journal_type = OCFS2_JOURNAL_ACCESS_UNDO;
-
-	status = ocfs2_journal_access_gd(handle,
-					 INODE_CACHE(alloc_inode),
-					 group_bh,
-					 journal_type);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-
-	le16_add_cpu(&bg->bg_free_bits_count, -num_bits);
-	if (le16_to_cpu(bg->bg_free_bits_count) > le16_to_cpu(bg->bg_bits)) {
-		ocfs2_error(alloc_inode->i_sb, "Group descriptor # %llu has bit"
-			    " count %u but claims %u are freed. num_bits %d",
-			    (unsigned long long)le64_to_cpu(bg->bg_blkno),
-			    le16_to_cpu(bg->bg_bits),
-			    le16_to_cpu(bg->bg_free_bits_count), num_bits);
-		return -EROFS;
-	}
-	while (num_bits--)
-		ocfs2_set_bit(bit_off++, bitmap);
-
-	ocfs2_journal_dirty(handle, group_bh);
-
-bail:
-	return status;
 }
 
 static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
@@ -767,8 +691,11 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 
 	ret = ocfs2_block_group_set_bits(handle, gb_inode, gd, gd_bh,
 					 goal_bit, len);
-	if (ret)
+	if (ret) {
+		ocfs2_rollback_alloc_dinode_counts(gb_inode, gb_bh, len,
+					       le16_to_cpu(gd->bg_chain));
 		mlog_errno(ret);
+	}
 
 	/*
 	 * Here we should write the new page out first if we are
@@ -845,7 +772,7 @@ static int __ocfs2_move_extents_range(struct buffer_head *di_bh,
 	struct ocfs2_move_extents *range = context->range;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	if ((inode->i_size == 0) || (range->me_len == 0))
+	if ((i_size_read(inode) == 0) || (range->me_len == 0))
 		return 0;
 
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
@@ -1034,6 +961,7 @@ static int ocfs2_move_extents(struct ocfs2_move_extents_context *context)
 	inode->i_ctime = CURRENT_TIME;
 	di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
 	di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
+	ocfs2_update_inode_fsync_trans(handle, inode, 0);
 
 	ocfs2_journal_dirty(handle, di_bh);
 
@@ -1057,42 +985,44 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 
 	struct inode *inode = file_inode(filp);
 	struct ocfs2_move_extents range;
-	struct ocfs2_move_extents_context *context = NULL;
+	struct ocfs2_move_extents_context *context;
+
+	if (!argp)
+		return -EINVAL;
 
 	status = mnt_want_write_file(filp);
 	if (status)
 		return status;
 
-	if ((!S_ISREG(inode->i_mode)) || !(filp->f_mode & FMODE_WRITE))
-		goto out;
+	if ((!S_ISREG(inode->i_mode)) || !(filp->f_mode & FMODE_WRITE)) {
+		status = -EPERM;
+		goto out_drop;
+	}
 
 	if (inode->i_flags & (S_IMMUTABLE|S_APPEND)) {
 		status = -EPERM;
-		goto out;
+		goto out_drop;
 	}
 
 	context = kzalloc(sizeof(struct ocfs2_move_extents_context), GFP_NOFS);
 	if (!context) {
 		status = -ENOMEM;
 		mlog_errno(status);
-		goto out;
+		goto out_drop;
 	}
 
 	context->inode = inode;
 	context->file = filp;
 
-	if (argp) {
-		if (copy_from_user(&range, argp, sizeof(range))) {
-			status = -EFAULT;
-			goto out;
-		}
-	} else {
-		status = -EINVAL;
-		goto out;
+	if (copy_from_user(&range, argp, sizeof(range))) {
+		status = -EFAULT;
+		goto out_free;
 	}
 
-	if (range.me_start > i_size_read(inode))
-		goto out;
+	if (range.me_start > i_size_read(inode)) {
+		status = -EINVAL;
+		goto out_free;
+	}
 
 	if (range.me_start + range.me_len > i_size_read(inode))
 			range.me_len = i_size_read(inode) - range.me_start;
@@ -1124,25 +1054,24 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 
 		status = ocfs2_validate_and_adjust_move_goal(inode, &range);
 		if (status)
-			goto out;
+			goto out_copy;
 	}
 
 	status = ocfs2_move_extents(context);
 	if (status)
 		mlog_errno(status);
-out:
+out_copy:
 	/*
 	 * movement/defragmentation may end up being partially completed,
 	 * that's the reason why we need to return userspace the finished
 	 * length and new_offset even if failure happens somewhere.
 	 */
-	if (argp) {
-		if (copy_to_user(argp, &range, sizeof(range)))
-			status = -EFAULT;
-	}
+	if (copy_to_user(argp, &range, sizeof(range)))
+		status = -EFAULT;
 
+out_free:
 	kfree(context);
-
+out_drop:
 	mnt_drop_write_file(filp);
 
 	return status;

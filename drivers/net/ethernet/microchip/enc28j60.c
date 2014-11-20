@@ -1566,7 +1566,7 @@ static int enc28j60_probe(struct spi_device *spi)
 	INIT_WORK(&priv->setrx_work, enc28j60_setrx_work_handler);
 	INIT_WORK(&priv->irq_work, enc28j60_irq_work_handler);
 	INIT_WORK(&priv->restart_work, enc28j60_restart_work_handler);
-	dev_set_drvdata(&spi->dev, priv);	/* spi to priv reference */
+	spi_set_drvdata(spi, priv);	/* spi to priv reference */
 	SET_NETDEV_DEV(dev, &spi->dev);
 
 	if (!enc28j60_chipset_init(dev)) {
@@ -1593,7 +1593,7 @@ static int enc28j60_probe(struct spi_device *spi)
 	dev->irq = spi->irq;
 	dev->netdev_ops = &enc28j60_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	SET_ETHTOOL_OPS(dev, &enc28j60_ethtool_ops);
+	dev->ethtool_ops = &enc28j60_ethtool_ops;
 
 	enc28j60_lowpower(priv, true);
 
@@ -1618,7 +1618,7 @@ error_alloc:
 
 static int enc28j60_remove(struct spi_device *spi)
 {
-	struct enc28j60_net *priv = dev_get_drvdata(&spi->dev);
+	struct enc28j60_net *priv = spi_get_drvdata(spi);
 
 	if (netif_msg_drv(priv))
 		printk(KERN_DEBUG DRV_NAME ": remove\n");

@@ -36,7 +36,6 @@
 #include <linux/errno.h>
 #include <linux/random.h>
 #include <linux/poll.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/usb.h>

@@ -20,7 +20,7 @@ checkflags-$(CONFIG_METAG_META12)	+= -DMETAC_1_2
 checkflags-$(CONFIG_METAG_META21)	+= -DMETAC_2_1
 CHECKFLAGS				+= -D__metag__ $(checkflags-y)
 
-KBUILD_DEFCONFIG			:= meta2_defconfig
+KBUILD_DEFCONFIG			:= tz1090_defconfig
 
 sflags-$(CONFIG_METAG_META12)		+= -mmetac=1.2
 ifeq ($(CONFIG_METAG_META12),y)
@@ -48,6 +48,8 @@ core-y					+= arch/metag/mm/
 
 libs-y					+= arch/metag/lib/
 libs-y					+= arch/metag/tbx/
+
+drivers-$(CONFIG_OPROFILE)		+= arch/metag/oprofile/
 
 boot					:= arch/metag/boot
 

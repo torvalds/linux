@@ -29,6 +29,7 @@
 #define WL1271_WAKEUP_TIMEOUT 500
 
 #define ELP_ENTRY_DELAY  30
+#define ELP_ENTRY_DELAY_FORCE_PS  5
 
 void wl1271_elp_work(struct work_struct *work)
 {
@@ -82,6 +83,10 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 	struct wl12xx_vif *wlvif;
 	u32 timeout;
 
+	/* We do not enter elp sleep in PLT mode */
+	if (wl->plt)
+		return;
+
 	if (wl->sleep_auth != WL1271_PSM_ELP)
 		return;
 
@@ -98,7 +103,8 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 			return;
 	}
 
-	timeout = ELP_ENTRY_DELAY;
+	timeout = wl->conf.conn.forced_ps ?
+			ELP_ENTRY_DELAY_FORCE_PS : ELP_ENTRY_DELAY;
 	ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
 				     msecs_to_jiffies(timeout));
 }
@@ -108,7 +114,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 	DECLARE_COMPLETION_ONSTACK(compl);
 	unsigned long flags;
 	int ret;
-	u32 start_time = jiffies;
+	unsigned long start_time = jiffies;
 	bool pending = false;
 
 	/*
@@ -274,7 +280,11 @@ void wl12xx_ps_link_start(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
-	if (test_bit(hlid, &wl->ap_ps_map))
+	if (WARN_ON_ONCE(wlvif->bss_type != BSS_TYPE_AP_BSS))
+		return;
+
+	if (!test_bit(hlid, wlvif->ap.sta_hlid_map) ||
+	    test_bit(hlid, &wl->ap_ps_map))
 		return;
 
 	wl1271_debug(DEBUG_PSM, "start mac80211 PSM on hlid %d pkts %d "

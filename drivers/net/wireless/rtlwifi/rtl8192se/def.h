@@ -36,9 +36,6 @@
 #define SHORT_SLOT_TIME				9
 #define NON_SHORT_SLOT_TIME			20
 
-/* Rx smooth factor */
-#define	RX_SMOOTH_FACTOR			20
-
 /* Queue Select Value in TxDesc */
 #define QSLT_BK					0x2
 #define QSLT_BE					0x0
@@ -48,10 +45,6 @@
 #define QSLT_HIGH				0x11
 #define QSLT_MGNT				0x12
 #define QSLT_CMD				0x13
-
-#define	PHY_RSSI_SLID_WIN_MAX			100
-#define	PHY_LINKQUALITY_SLID_WIN_MAX		20
-#define	PHY_BEACON_RSSI_SLID_WIN_MAX		10
 
 /* Tx Desc */
 #define TX_DESC_SIZE_RTL8192S			(16 * 4)
@@ -453,6 +446,8 @@
 /* DWORD 6 */
 #define SET_RX_STATUS__DESC_BUFF_ADDR(__pdesc, __val)	\
 	SET_BITS_OFFSET_LE(__pdesc + 24, 0, 32, __val)
+#define GET_RX_STATUS_DESC_BUFF_ADDR(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc + 24, 0, 32)
 
 #define SE_RX_HAL_IS_CCK_RATE(_pdesc)\
 	(GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE1M ||	\

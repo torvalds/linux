@@ -21,6 +21,7 @@
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  *
+ * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  */
 
 #include <linux/module.h>
@@ -65,7 +66,7 @@ static inline struct netns_proto_gre *gre_pernet(struct net *net)
 	return net_generic(net, proto_gre_net_id);
 }
 
-void nf_ct_gre_keymap_flush(struct net *net)
+static void nf_ct_gre_keymap_flush(struct net *net)
 {
 	struct netns_proto_gre *net_gre = gre_pernet(net);
 	struct nf_ct_gre_keymap *km, *tmp;
@@ -77,7 +78,6 @@ void nf_ct_gre_keymap_flush(struct net *net)
 	}
 	write_unlock_bh(&net_gre->keymap_lock);
 }
-EXPORT_SYMBOL(nf_ct_gre_keymap_flush);
 
 static inline int gre_key_cmpfn(const struct nf_ct_gre_keymap *km,
 				const struct nf_conntrack_tuple *t)

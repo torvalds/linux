@@ -14121,7 +14121,7 @@ static u8 ant_sw_ctrl_tbl_rev8_2057v7_core1[] = {
 
 bool wlc_phy_bist_check_phy(struct brcms_phy_pub *pih)
 {
-	struct brcms_phy *pi = (struct brcms_phy *) pih;
+	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
 	u32 phybist0, phybist1, phybist2, phybist3, phybist4;
 
 	if (NREV_GE(pi->pubpi.phy_rev, 16))
@@ -19321,14 +19321,13 @@ void wlc_phy_init_nphy(struct brcms_phy *pi)
 	     (pi->sh->chippkg == BCMA_PKG_ID_BCM4718))) {
 		if ((pi->sh->boardflags & BFL_EXTLNA) &&
 		    (CHSPEC_IS2G(pi->radio_chanspec)))
-			ai_cc_reg(pi->sh->sih,
-				  offsetof(struct chipcregs, chipcontrol),
-				  0x40, 0x40);
+			bcma_cc_set32(&pi->d11core->bus->drv_cc,
+				      BCMA_CC_CHIPCTL, 0x40);
 	}
 
 	if ((!PHY_IPA(pi)) && (pi->sh->chip == BCMA_CHIP_ID_BCM5357))
-		si_pmu_chipcontrol(pi->sh->sih, 1, CCTRL5357_EXTPA,
-				   CCTRL5357_EXTPA);
+		bcma_chipco_chipctl_maskset(&pi->d11core->bus->drv_cc, 1,
+					    ~CCTRL5357_EXTPA, CCTRL5357_EXTPA);
 
 	if ((pi->nphy_gband_spurwar2_en) && CHSPEC_IS2G(pi->radio_chanspec) &&
 	    CHSPEC_IS40(pi->radio_chanspec)) {
@@ -19735,7 +19734,7 @@ void wlc_phy_rxcore_setstate_nphy(struct brcms_phy_pub *pih, u8 rxcore_bitmask)
 	u16 regval;
 	u16 tbl_buf[16];
 	uint i;
-	struct brcms_phy *pi = (struct brcms_phy *) pih;
+	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
 	u16 tbl_opcode;
 	bool suspend;
 
@@ -19813,7 +19812,7 @@ void wlc_phy_rxcore_setstate_nphy(struct brcms_phy_pub *pih, u8 rxcore_bitmask)
 u8 wlc_phy_rxcore_getstate_nphy(struct brcms_phy_pub *pih)
 {
 	u16 regval, rxen_bits;
-	struct brcms_phy *pi = (struct brcms_phy *) pih;
+	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
 
 	regval = read_phy_reg(pi, 0xa2);
 	rxen_bits = (regval >> 4) & 0xf;
@@ -21133,7 +21132,6 @@ wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, u16 chanspec,
 			    const struct nphy_sfo_cfg *ci)
 {
 	u16 val;
-	struct si_info *sii = container_of(pi->sh->sih, struct si_info, pub);
 
 	val = read_phy_reg(pi, 0x09) & NPHY_BandControl_currentBand;
 	if (CHSPEC_IS5G(chanspec) && !val) {
@@ -21221,11 +21219,11 @@ wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, u16 chanspec,
 
 		if ((pi->sh->chip == BCMA_CHIP_ID_BCM4716) ||
 		    (pi->sh->chip == BCMA_CHIP_ID_BCM43225)) {
-			bcma_pmu_spuravoid_pllupdate(&sii->icbus->drv_cc,
+			bcma_pmu_spuravoid_pllupdate(&pi->d11core->bus->drv_cc,
 						     spuravoid);
 		} else {
 			wlapi_bmac_core_phypll_ctl(pi->sh->physhim, false);
-			bcma_pmu_spuravoid_pllupdate(&sii->icbus->drv_cc,
+			bcma_pmu_spuravoid_pllupdate(&pi->d11core->bus->drv_cc,
 						     spuravoid);
 			wlapi_bmac_core_phypll_ctl(pi->sh->physhim, true);
 		}
@@ -21344,7 +21342,7 @@ void wlc_phy_chanspec_set_nphy(struct brcms_phy *pi, u16 chanspec)
 
 void wlc_phy_antsel_init(struct brcms_phy_pub *ppi, bool lut_init)
 {
-	struct brcms_phy *pi = (struct brcms_phy *) ppi;
+	struct brcms_phy *pi = container_of(ppi, struct brcms_phy, pubpi_ro);
 	u16 mask = 0xfc00;
 	u32 mc = 0;
 
@@ -22918,7 +22916,6 @@ static void wlc_phy_rssi_cal_nphy_rev2(struct brcms_phy *pi, u8 rssi_type)
 		break;
 	default:
 		return;
-		break;
 	}
 
 	classif_state = wlc_phy_classifier_nphy(pi, 0, 0);

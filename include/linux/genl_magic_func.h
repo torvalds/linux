@@ -178,12 +178,12 @@ static int s_name ## _from_attrs_for_change(struct s_name *s,		\
 #define __assign(attr_nr, attr_flag, name, nla_type, type, assignment...)	\
 		nla = ntb[attr_nr];						\
 		if (nla) {						\
-			if (exclude_invariants && ((attr_flag) & DRBD_F_INVARIANT)) {		\
+			if (exclude_invariants && !!((attr_flag) & DRBD_F_INVARIANT)) {		\
 				pr_info("<< must not change invariant attr: %s\n", #name);	\
 				return -EEXIST;				\
 			}						\
 			assignment;					\
-		} else if (exclude_invariants && ((attr_flag) & DRBD_F_INVARIANT)) {		\
+		} else if (exclude_invariants && !!((attr_flag) & DRBD_F_INVARIANT)) {		\
 			/* attribute missing from payload, */		\
 			/* which was expected */			\
 		} else if ((attr_flag) & DRBD_F_REQUIRED) {		\
@@ -273,49 +273,40 @@ static struct genl_family ZZZ_genl_family __read_mostly = {
  * Magic: define multicast groups
  * Magic: define multicast group registration helper
  */
+#define ZZZ_genl_mcgrps		CONCAT_(GENL_MAGIC_FAMILY, _genl_mcgrps)
+static const struct genl_multicast_group ZZZ_genl_mcgrps[] = {
+#undef GENL_mc_group
+#define GENL_mc_group(group) { .name = #group, },
+#include GENL_MAGIC_INCLUDE_FILE
+};
+
+enum CONCAT_(GENL_MAGIC_FAMILY, group_ids) {
+#undef GENL_mc_group
+#define GENL_mc_group(group) CONCAT_(GENL_MAGIC_FAMILY, _group_ ## group),
+#include GENL_MAGIC_INCLUDE_FILE
+};
+
 #undef GENL_mc_group
 #define GENL_mc_group(group)						\
-static struct genl_multicast_group					\
-CONCAT_(GENL_MAGIC_FAMILY, _mcg_ ## group) __read_mostly = {		\
-	.name = #group,							\
-};									\
 static int CONCAT_(GENL_MAGIC_FAMILY, _genl_multicast_ ## group)(	\
 	struct sk_buff *skb, gfp_t flags)				\
 {									\
 	unsigned int group_id =						\
-		CONCAT_(GENL_MAGIC_FAMILY, _mcg_ ## group).id;	\
-	if (!group_id)							\
-		return -EINVAL;						\
-	return genlmsg_multicast(skb, 0, group_id, flags);		\
+		CONCAT_(GENL_MAGIC_FAMILY, _group_ ## group);		\
+	return genlmsg_multicast(&ZZZ_genl_family, skb, 0,		\
+				 group_id, flags);			\
 }
-
-#include GENL_MAGIC_INCLUDE_FILE
-
-int CONCAT_(GENL_MAGIC_FAMILY, _genl_register)(void)
-{
-	int err = genl_register_family_with_ops(&ZZZ_genl_family,
-		ZZZ_genl_ops, ARRAY_SIZE(ZZZ_genl_ops));
-	if (err)
-		return err;
-#undef GENL_mc_group
-#define GENL_mc_group(group)						\
-	err = genl_register_mc_group(&ZZZ_genl_family,			\
-		&CONCAT_(GENL_MAGIC_FAMILY, _mcg_ ## group));		\
-	if (err)							\
-		goto fail;						\
-	else								\
-		pr_info("%s: mcg %s: %u\n", #group,			\
-			__stringify(GENL_MAGIC_FAMILY),			\
-			CONCAT_(GENL_MAGIC_FAMILY, _mcg_ ## group).id);
 
 #include GENL_MAGIC_INCLUDE_FILE
 
 #undef GENL_mc_group
 #define GENL_mc_group(group)
-	return 0;
-fail:
-	genl_unregister_family(&ZZZ_genl_family);
-	return err;
+
+int CONCAT_(GENL_MAGIC_FAMILY, _genl_register)(void)
+{
+	return genl_register_family_with_ops_groups(&ZZZ_genl_family,	\
+						    ZZZ_genl_ops,	\
+						    ZZZ_genl_mcgrps);
 }
 
 void CONCAT_(GENL_MAGIC_FAMILY, _genl_unregister)(void)

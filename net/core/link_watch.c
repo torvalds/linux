@@ -92,6 +92,9 @@ static bool linkwatch_urgent_event(struct net_device *dev)
 	if (dev->ifindex != dev->iflink)
 		return true;
 
+	if (dev->priv_flags & IFF_TEAM_PORT)
+		return true;
+
 	return netif_carrier_ok(dev) &&	qdisc_tx_changing(dev);
 }
 
@@ -144,7 +147,7 @@ static void linkwatch_do_dev(struct net_device *dev)
 	 * Make sure the above read is complete since it can be
 	 * rewritten as soon as we clear the bit below.
 	 */
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 
 	/* We are about to handle this device,
 	 * so new events can be accepted

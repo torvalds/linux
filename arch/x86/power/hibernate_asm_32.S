@@ -75,6 +75,10 @@ done:
 	pushl saved_context_eflags
 	popfl
 
+	/* Saved in save_processor_state. */
+	movl $saved_context, %eax
+	lgdt saved_context_gdt_desc(%eax)
+
 	xorl	%eax, %eax
 
 	ret

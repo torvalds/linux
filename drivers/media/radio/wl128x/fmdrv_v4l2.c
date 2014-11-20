@@ -331,7 +331,7 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
  * Should we set other tuner attributes, too?
  */
 static int fm_v4l2_vidioc_s_tuner(struct file *file, void *priv,
-		struct v4l2_tuner *tuner)
+		const struct v4l2_tuner *tuner)
 {
 	struct fmdev *fmdev = video_drvdata(file);
 	u16 aud_mode;
@@ -388,7 +388,7 @@ static int fm_v4l2_vidioc_g_freq(struct file *file, void *priv,
 
 /* Set tuner or modulator radio frequency */
 static int fm_v4l2_vidioc_s_freq(struct file *file, void *priv,
-		struct v4l2_frequency *freq)
+		const struct v4l2_frequency *freq)
 {
 	struct fmdev *fmdev = video_drvdata(file);
 
@@ -396,9 +396,7 @@ static int fm_v4l2_vidioc_s_freq(struct file *file, void *priv,
 	 * As V4L2_TUNER_CAP_LOW is set 1 user sends the frequency
 	 * in units of 62.5 Hz.
 	 */
-	freq->frequency = (u32)(freq->frequency / 16);
-
-	return fmc_set_freq(fmdev, freq->frequency);
+	return fmc_set_freq(fmdev, freq->frequency / 16);
 }
 
 /* Set hardware frequency seek. If current mode is NOT RX, set it RX. */
@@ -535,6 +533,11 @@ int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
 	struct v4l2_ctrl *ctrl;
 	int ret;
 
+	strlcpy(fmdev->v4l2_dev.name, FM_DRV_NAME, sizeof(fmdev->v4l2_dev.name));
+	ret = v4l2_device_register(NULL, &fmdev->v4l2_dev);
+	if (ret < 0)
+		return ret;
+
 	/* Init mutex for core locking */
 	mutex_init(&fmdev->mutex);
 
@@ -551,6 +554,7 @@ int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
 	video_set_drvdata(gradio_dev, fmdev);
 
 	gradio_dev->lock = &fmdev->mutex;
+	gradio_dev->v4l2_dev = &fmdev->v4l2_dev;
 
 	/* Register with V4L2 subsystem as RADIO device */
 	if (video_register_device(gradio_dev, VFL_TYPE_RADIO, radio_nr)) {
@@ -612,6 +616,8 @@ void *fm_v4l2_deinit_video_device(void)
 
 	/* Unregister RADIO device from V4L2 subsystem */
 	video_unregister_device(gradio_dev);
+
+	v4l2_device_unregister(&fmdev->v4l2_dev);
 
 	return fmdev;
 }

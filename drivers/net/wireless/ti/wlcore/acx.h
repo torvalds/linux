@@ -728,8 +728,6 @@ struct wl1271_acx_ht_information {
 	u8 padding[2];
 } __packed;
 
-#define RX_BA_MAX_SESSIONS 3
-
 struct wl1271_acx_ba_initiator_policy {
 	struct acx_header header;
 
@@ -826,7 +824,8 @@ struct wl1271_acx_inconnection_sta {
 	struct acx_header header;
 
 	u8 addr[ETH_ALEN];
-	u8 padding1[2];
+	u8 role_id;
+	u8 padding;
 } __packed;
 
 /*
@@ -953,6 +952,18 @@ struct acx_rx_filter_cfg {
 
 	u8 num_fields;
 	u8 fields[0];
+} __packed;
+
+struct acx_roaming_stats {
+	struct acx_header header;
+
+	u8	role_id;
+	u8	pad[3];
+	u32	missed_beacons;
+	u8	snr_data;
+	u8	snr_bacon;
+	s8	rssi_data;
+	s8	rssi_beacon;
 } __packed;
 
 enum {
@@ -1108,10 +1119,13 @@ int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			       bool enable);
 int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl12xx_acx_config_ps(struct wl1271 *wl, struct wl12xx_vif *wlvif);
-int wl1271_acx_set_inconnection_sta(struct wl1271 *wl, u8 *addr);
+int wl1271_acx_set_inconnection_sta(struct wl1271 *wl,
+				    struct wl12xx_vif *wlvif, u8 *addr);
 int wl1271_acx_fm_coex(struct wl1271 *wl);
 int wl12xx_acx_set_rate_mgmt_params(struct wl1271 *wl);
 int wl12xx_acx_config_hangover(struct wl1271 *wl);
+int wlcore_acx_average_rssi(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			    s8 *avg_rssi);
 
 #ifdef CONFIG_PM
 int wl1271_acx_default_rx_filter_enable(struct wl1271 *wl, bool enable,

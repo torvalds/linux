@@ -55,7 +55,7 @@ const struct hc_driver ehci_sead3_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * basic lifecycle operations
@@ -126,6 +126,7 @@ static int ehci_hcd_sead3_drv_probe(struct platform_device *pdev)
 			  IRQF_SHARED);
 	if (ret == 0) {
 		platform_set_drvdata(pdev, hcd);
+		device_wakeup_enable(hcd->self.controller);
 		return ret;
 	}
 
@@ -140,7 +141,6 @@ static int ehci_hcd_sead3_drv_remove(struct platform_device *pdev)
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

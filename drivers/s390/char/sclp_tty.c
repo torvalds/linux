@@ -107,7 +107,6 @@ sclp_tty_write_room (struct tty_struct *tty)
 static void
 sclp_ttybuf_callback(struct sclp_buffer *buffer, int rc)
 {
-	struct tty_struct *tty;
 	unsigned long flags;
 	void *page;
 
@@ -125,12 +124,8 @@ sclp_ttybuf_callback(struct sclp_buffer *buffer, int rc)
 					    struct sclp_buffer, list);
 		spin_unlock_irqrestore(&sclp_tty_lock, flags);
 	} while (buffer && sclp_emit_buffer(buffer, sclp_ttybuf_callback));
-	/* check if the tty needs a wake up call */
-	tty = tty_port_tty_get(&sclp_port);
-	if (tty != NULL) {
-		tty_wakeup(tty);
-		tty_kref_put(tty);
-	}
+
+	tty_port_tty_wakeup(&sclp_port);
 }
 
 static inline void
@@ -564,7 +559,7 @@ sclp_tty_init(void)
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;
 	driver->init_termios.c_iflag = IGNBRK | IGNPAR;
-	driver->init_termios.c_oflag = ONLCR | XTABS;
+	driver->init_termios.c_oflag = ONLCR;
 	driver->init_termios.c_lflag = ISIG | ECHO;
 	driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(driver, &sclp_ops);

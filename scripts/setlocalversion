@@ -43,7 +43,8 @@ scm_version()
 	fi
 
 	# Check for git and a git repo.
-	if test -d .git && head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
+	if test -z "$(git rev-parse --show-cdup 2>/dev/null)" &&
+	   head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
 
 		# If we are at a tagged commit (like "v2.6.30-rc6"), we ignore
 		# it, because this version is defined in the top level Makefile.
@@ -70,9 +71,6 @@ scm_version()
 		if git config --get svn-remote.svn.url >/dev/null; then
 			printf -- '-svn%s' "`git svn find-rev $head`"
 		fi
-
-		# Update index only on r/w media
-		[ -w . ] && git update-index --refresh --unmerged > /dev/null
 
 		# Check for uncommitted changes
 		if git diff-index --name-only HEAD | grep -qv "^scripts/package"; then

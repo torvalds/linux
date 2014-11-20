@@ -246,7 +246,8 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 		goto out;
 	}
 
-	dev = alloc_netdev(sizeof(*priv), name, l2tp_eth_dev_setup);
+	dev = alloc_netdev(sizeof(*priv), name, NET_NAME_UNKNOWN,
+			   l2tp_eth_dev_setup);
 	if (!dev) {
 		rc = -ENOMEM;
 		goto out_del_session;

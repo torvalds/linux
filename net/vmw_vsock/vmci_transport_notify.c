@@ -315,7 +315,7 @@ vmci_transport_handle_wrote(struct sock *sk,
 	struct vsock_sock *vsk = vsock_sk(sk);
 	PKT_FIELD(vsk, sent_waiting_read) = false;
 #endif
-	sk->sk_data_ready(sk, 0);
+	sk->sk_data_ready(sk);
 }
 
 static void vmci_transport_notify_pkt_socket_init(struct sock *sk)

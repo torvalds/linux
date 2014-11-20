@@ -39,8 +39,9 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	newext.ee_block = cpu_to_le32(lb->first_block);
 	newext.ee_len   = cpu_to_le16(lb->last_block - lb->first_block + 1);
 	ext4_ext_store_pblock(&newext, lb->first_pblock);
-	path = ext4_ext_find_extent(inode, lb->first_block, NULL);
-
+	/* Locking only for convinience since we are operating on temp inode */
+	down_write(&EXT4_I(inode)->i_data_sem);
+	path = ext4_find_extent(inode, lb->first_block, NULL, 0);
 	if (IS_ERR(path)) {
 		retval = PTR_ERR(path);
 		path = NULL;
@@ -61,7 +62,9 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	 */
 	if (needed && ext4_handle_has_enough_credits(handle,
 						EXT4_RESERVE_TRANS_BLOCKS)) {
+		up_write((&EXT4_I(inode)->i_data_sem));
 		retval = ext4_journal_restart(handle, needed);
+		down_write((&EXT4_I(inode)->i_data_sem));
 		if (retval)
 			goto err_out;
 	} else if (needed) {
@@ -70,17 +73,18 @@ static int finish_range(handle_t *handle, struct inode *inode,
 			/*
 			 * IF not able to extend the journal restart the journal
 			 */
+			up_write((&EXT4_I(inode)->i_data_sem));
 			retval = ext4_journal_restart(handle, needed);
+			down_write((&EXT4_I(inode)->i_data_sem));
 			if (retval)
 				goto err_out;
 		}
 	}
-	retval = ext4_ext_insert_extent(handle, inode, path, &newext, 0);
+	retval = ext4_ext_insert_extent(handle, inode, &path, &newext, 0);
 err_out:
-	if (path) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
-	}
+	up_write((&EXT4_I(inode)->i_data_sem));
+	ext4_ext_drop_refs(path);
+	kfree(path);
 	lb->first_pblock = 0;
 	return retval;
 }
@@ -426,7 +430,6 @@ static int free_ext_block(handle_t *handle, struct inode *inode)
 			return retval;
 	}
 	return retval;
-
 }
 
 int ext4_ext_migrate(struct inode *inode)
@@ -495,7 +498,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 * superblock modification.
 	 *
 	 * For the tmp_inode we already have committed the
-	 * trascation that created the inode. Later as and
+	 * transaction that created the inode. Later as and
 	 * when we add extents we extent the journal
 	 */
 	/*
@@ -506,7 +509,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 * with i_data_sem held to prevent racing with block
 	 * allocation.
 	 */
-	down_read((&EXT4_I(inode)->i_data_sem));
+	down_read(&EXT4_I(inode)->i_data_sem);
 	ext4_set_inode_state(inode, EXT4_STATE_EXT_MIGRATE);
 	up_read((&EXT4_I(inode)->i_data_sem));
 
@@ -605,4 +608,65 @@ out:
 	iput(tmp_inode);
 
 	return retval;
+}
+
+/*
+ * Migrate a simple extent-based inode to use the i_blocks[] array
+ */
+int ext4_ind_migrate(struct inode *inode)
+{
+	struct ext4_extent_header	*eh;
+	struct ext4_super_block		*es = EXT4_SB(inode->i_sb)->s_es;
+	struct ext4_inode_info		*ei = EXT4_I(inode);
+	struct ext4_extent		*ex;
+	unsigned int			i, len;
+	ext4_fsblk_t			blk;
+	handle_t			*handle;
+	int				ret;
+
+	if (!EXT4_HAS_INCOMPAT_FEATURE(inode->i_sb,
+				       EXT4_FEATURE_INCOMPAT_EXTENTS) ||
+	    (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
+		return -EINVAL;
+
+	if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
+				       EXT4_FEATURE_RO_COMPAT_BIGALLOC))
+		return -EOPNOTSUPP;
+
+	handle = ext4_journal_start(inode, EXT4_HT_MIGRATE, 1);
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
+
+	down_write(&EXT4_I(inode)->i_data_sem);
+	ret = ext4_ext_check_inode(inode);
+	if (ret)
+		goto errout;
+
+	eh = ext_inode_hdr(inode);
+	ex  = EXT_FIRST_EXTENT(eh);
+	if (ext4_blocks_count(es) > EXT4_MAX_BLOCK_FILE_PHYS ||
+	    eh->eh_depth != 0 || le16_to_cpu(eh->eh_entries) > 1) {
+		ret = -EOPNOTSUPP;
+		goto errout;
+	}
+	if (eh->eh_entries == 0)
+		blk = len = 0;
+	else {
+		len = le16_to_cpu(ex->ee_len);
+		blk = ext4_ext_pblock(ex);
+		if (len > EXT4_NDIR_BLOCKS) {
+			ret = -EOPNOTSUPP;
+			goto errout;
+		}
+	}
+
+	ext4_clear_inode_flag(inode, EXT4_INODE_EXTENTS);
+	memset(ei->i_data, 0, sizeof(ei->i_data));
+	for (i=0; i < len; i++)
+		ei->i_data[i] = cpu_to_le32(blk++);
+	ext4_mark_inode_dirty(handle, inode);
+errout:
+	ext4_journal_stop(handle);
+	up_write(&EXT4_I(inode)->i_data_sem);
+	return ret;
 }

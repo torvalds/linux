@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -194,7 +194,6 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			break;
 
 		case ACPI_RSC_COUNT_GPIO_RES:
-
 			/*
 			 * Vendor data is optional (length/offset may both be zero)
 			 * Examine vendor data length field first
@@ -410,12 +409,14 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			 */
 			switch (info->resource_offset) {
 			case ACPI_RSC_COMPARE_AML_LENGTH:
+
 				if (aml_resource_length != info->value) {
 					goto exit;
 				}
 				break;
 
 			case ACPI_RSC_COMPARE_VALUE:
+
 				if (ACPI_GET8(source) != info->value) {
 					goto exit;
 				}
@@ -439,7 +440,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 		info++;
 	}
 
-      exit:
+exit:
 	if (!flags_mode) {
 
 		/* Round the resource struct length up to the next boundary (32 or 64) */
@@ -782,7 +783,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 		info++;
 	}
 
-      exit:
+exit:
 	return_ACPI_STATUS(AE_OK);
 }
 

@@ -396,14 +396,14 @@ o	Each element of the form "3/3 ..>. 0:7 ^0" represents one rcu_node
 
 The output of "cat rcu/rcu_sched/rcu_pending" looks as follows:
 
-  0!np=26111 qsp=29 rpq=5386 cbr=1 cng=570 gpc=3674 gps=577 nn=15903
-  1!np=28913 qsp=35 rpq=6097 cbr=1 cng=448 gpc=3700 gps=554 nn=18113
-  2!np=32740 qsp=37 rpq=6202 cbr=0 cng=476 gpc=4627 gps=546 nn=20889
-  3 np=23679 qsp=22 rpq=5044 cbr=1 cng=415 gpc=3403 gps=347 nn=14469
-  4!np=30714 qsp=4 rpq=5574 cbr=0 cng=528 gpc=3931 gps=639 nn=20042
-  5 np=28910 qsp=2 rpq=5246 cbr=0 cng=428 gpc=4105 gps=709 nn=18422
-  6!np=38648 qsp=5 rpq=7076 cbr=0 cng=840 gpc=4072 gps=961 nn=25699
-  7 np=37275 qsp=2 rpq=6873 cbr=0 cng=868 gpc=3416 gps=971 nn=25147
+  0!np=26111 qsp=29 rpq=5386 cbr=1 cng=570 gpc=3674 gps=577 nn=15903 ndw=0
+  1!np=28913 qsp=35 rpq=6097 cbr=1 cng=448 gpc=3700 gps=554 nn=18113 ndw=0
+  2!np=32740 qsp=37 rpq=6202 cbr=0 cng=476 gpc=4627 gps=546 nn=20889 ndw=0
+  3 np=23679 qsp=22 rpq=5044 cbr=1 cng=415 gpc=3403 gps=347 nn=14469 ndw=0
+  4!np=30714 qsp=4 rpq=5574 cbr=0 cng=528 gpc=3931 gps=639 nn=20042 ndw=0
+  5 np=28910 qsp=2 rpq=5246 cbr=0 cng=428 gpc=4105 gps=709 nn=18422 ndw=0
+  6!np=38648 qsp=5 rpq=7076 cbr=0 cng=840 gpc=4072 gps=961 nn=25699 ndw=0
+  7 np=37275 qsp=2 rpq=6873 cbr=0 cng=868 gpc=3416 gps=971 nn=25147 ndw=0
 
 The fields are as follows:
 
@@ -432,6 +432,10 @@ o	"gpc" is the number of times that an old grace period had
 o	"gps" is the number of times that a new grace period had started,
 	but this CPU was not yet aware of it.
 
+o	"ndw" is the number of times that a wakeup of an rcuo
+	callback-offload kthread had to be deferred in order to avoid
+	deadlock.
+
 o	"nn" is the number of times that this CPU needed nothing.
 
 
@@ -443,7 +447,7 @@ The output of "cat rcu/rcuboost" looks as follows:
     balk: nt=0 egt=6541 bt=0 nb=0 ny=126 nos=0
 
 This information is output only for rcu_preempt.  Each two-line entry
-corresponds to a leaf rcu_node strcuture.  The fields are as follows:
+corresponds to a leaf rcu_node structure.  The fields are as follows:
 
 o	"n:m" is the CPU-number range for the corresponding two-line
 	entry.  In the sample output above, the first entry covers
@@ -530,113 +534,21 @@ o	"nos" counts the number of times we balked for other
 	reasons, e.g., the grace period ended first.
 
 
-CONFIG_TINY_RCU and CONFIG_TINY_PREEMPT_RCU debugfs Files and Formats
+CONFIG_TINY_RCU debugfs Files and Formats
 
 These implementations of RCU provides a single debugfs file under the
 top-level directory RCU, namely rcu/rcudata, which displays fields in
-rcu_bh_ctrlblk, rcu_sched_ctrlblk and, for CONFIG_TINY_PREEMPT_RCU,
-rcu_preempt_ctrlblk.
+rcu_bh_ctrlblk and rcu_sched_ctrlblk.
 
 The output of "cat rcu/rcudata" is as follows:
 
-rcu_preempt: qlen=24 gp=1097669 g197/p197/c197 tasks=...
-             ttb=. btg=no ntb=184 neb=0 nnb=183 j=01f7 bt=0274
-             normal balk: nt=1097669 gt=0 bt=371 b=0 ny=25073378 nos=0
-             exp balk: bt=0 nos=0
 rcu_sched: qlen: 0
 rcu_bh: qlen: 0
 
-This is split into rcu_preempt, rcu_sched, and rcu_bh sections, with the
-rcu_preempt section appearing only in CONFIG_TINY_PREEMPT_RCU builds.
-The last three lines of the rcu_preempt section appear only in
-CONFIG_RCU_BOOST kernel builds.  The fields are as follows:
+This is split into rcu_sched and rcu_bh sections.  The field is as
+follows:
 
 o	"qlen" is the number of RCU callbacks currently waiting either
 	for an RCU grace period or waiting to be invoked.  This is the
 	only field present for rcu_sched and rcu_bh, due to the
 	short-circuiting of grace period in those two cases.
-
-o	"gp" is the number of grace periods that have completed.
-
-o	"g197/p197/c197" displays the grace-period state, with the
-	"g" number being the number of grace periods that have started
-	(mod 256), the "p" number being the number of grace periods
-	that the CPU has responded to (also mod 256), and the "c"
-	number being the number of grace periods that have completed
-	(once again mode 256).
-
-	Why have both "gp" and "g"?  Because the data flowing into
-	"gp" is only present in a CONFIG_RCU_TRACE kernel.
-
-o	"tasks" is a set of bits.  The first bit is "T" if there are
-	currently tasks that have recently blocked within an RCU
-	read-side critical section, the second bit is "N" if any of the
-	aforementioned tasks are blocking the current RCU grace period,
-	and the third bit is "E" if any of the aforementioned tasks are
-	blocking the current expedited grace period.  Each bit is "."
-	if the corresponding condition does not hold.
-
-o	"ttb" is a single bit.  It is "B" if any of the blocked tasks
-	need to be priority boosted and "." otherwise.
-
-o	"btg" indicates whether boosting has been carried out during
-	the current grace period, with "exp" indicating that boosting
-	is in progress for an expedited grace period, "no" indicating
-	that boosting has not yet started for a normal grace period,
-	"begun" indicating that boosting has bebug for a normal grace
-	period, and "done" indicating that boosting has completed for
-	a normal grace period.
-
-o	"ntb" is the total number of tasks subjected to RCU priority boosting
-	periods since boot.
-
-o	"neb" is the number of expedited grace periods that have had
-	to resort to RCU priority boosting since boot.
-
-o	"nnb" is the number of normal grace periods that have had
-	to resort to RCU priority boosting since boot.
-
-o	"j" is the low-order 16 bits of the jiffies counter in hexadecimal.
-
-o	"bt" is the low-order 16 bits of the value that the jiffies counter
-	will have at the next time that boosting is scheduled to begin.
-
-o	In the line beginning with "normal balk", the fields are as follows:
-
-	o	"nt" is the number of times that the system balked from
-		boosting because there were no blocked tasks to boost.
-		Note that the system will balk from boosting even if the
-		grace period is overdue when the currently running task
-		is looping within an RCU read-side critical section.
-		There is no point in boosting in this case, because
-		boosting a running task won't make it run any faster.
-
-	o	"gt" is the number of times that the system balked
-		from boosting because, although there were blocked tasks,
-		none of them were preventing the current grace period
-		from completing.
-
-	o	"bt" is the number of times that the system balked
-		from boosting because boosting was already in progress.
-
-	o	"b" is the number of times that the system balked from
-		boosting because boosting had already completed for
-		the grace period in question.
-
-	o	"ny" is the number of times that the system balked from
-		boosting because it was not yet time to start boosting
-		the grace period in question.
-
-	o	"nos" is the number of times that the system balked from
-		boosting for inexplicable ("not otherwise specified")
-		reasons.  This can actually happen due to races involving
-		increments of the jiffies counter.
-
-o	In the line beginning with "exp balk", the fields are as follows:
-
-	o	"bt" is the number of times that the system balked from
-		boosting because there were no blocked tasks to boost.
-
-	o	"nos" is the number of times that the system balked from
-		 boosting for inexplicable ("not otherwise specified")
-		 reasons.

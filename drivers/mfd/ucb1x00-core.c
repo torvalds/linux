@@ -393,22 +393,24 @@ static struct irq_chip ucb1x00_irqchip = {
 static int ucb1x00_add_dev(struct ucb1x00 *ucb, struct ucb1x00_driver *drv)
 {
 	struct ucb1x00_dev *dev;
-	int ret = -ENOMEM;
+	int ret;
 
 	dev = kmalloc(sizeof(struct ucb1x00_dev), GFP_KERNEL);
-	if (dev) {
-		dev->ucb = ucb;
-		dev->drv = drv;
+	if (!dev)
+		return -ENOMEM;
 
-		ret = drv->add(dev);
+	dev->ucb = ucb;
+	dev->drv = drv;
 
-		if (ret == 0) {
-			list_add_tail(&dev->dev_node, &ucb->devs);
-			list_add_tail(&dev->drv_node, &drv->devs);
-		} else {
-			kfree(dev);
-		}
+	ret = drv->add(dev);
+	if (ret) {
+		kfree(dev);
+		return ret;
 	}
+
+	list_add_tail(&dev->dev_node, &ucb->devs);
+	list_add_tail(&dev->drv_node, &drv->devs);
+
 	return ret;
 }
 
@@ -551,6 +553,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	if (ucb->irq_base < 0) {
 		dev_err(&ucb->dev, "unable to allocate 16 irqs: %d\n",
 			ucb->irq_base);
+		ret = ucb->irq_base;
 		goto err_irq_alloc;
 	}
 
@@ -618,7 +621,6 @@ static void ucb1x00_remove(struct mcp *mcp)
 	struct ucb1x00_plat_data *pdata = mcp->attached_device.platform_data;
 	struct ucb1x00 *ucb = mcp_get_drvdata(mcp);
 	struct list_head *l, *n;
-	int ret;
 
 	mutex_lock(&ucb1x00_mutex);
 	list_del(&ucb->node);
@@ -628,11 +630,8 @@ static void ucb1x00_remove(struct mcp *mcp)
 	}
 	mutex_unlock(&ucb1x00_mutex);
 
-	if (ucb->gpio.base != -1) {
-		ret = gpiochip_remove(&ucb->gpio);
-		if (ret)
-			dev_err(&ucb->dev, "Can't remove gpio chip: %d\n", ret);
-	}
+	if (ucb->gpio.base != -1)
+		gpiochip_remove(&ucb->gpio);
 
 	irq_set_chained_handler(ucb->irq, NULL);
 	irq_free_descs(ucb->irq_base, 16);
@@ -669,9 +668,10 @@ void ucb1x00_unregister_driver(struct ucb1x00_driver *drv)
 	mutex_unlock(&ucb1x00_mutex);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ucb1x00_suspend(struct device *dev)
 {
-	struct ucb1x00_plat_data *pdata = dev->platform_data;
+	struct ucb1x00_plat_data *pdata = dev_get_platdata(dev);
 	struct ucb1x00 *ucb = dev_get_drvdata(dev);
 	struct ucb1x00_dev *udev;
 
@@ -703,7 +703,7 @@ static int ucb1x00_suspend(struct device *dev)
 
 static int ucb1x00_resume(struct device *dev)
 {
-	struct ucb1x00_plat_data *pdata = dev->platform_data;
+	struct ucb1x00_plat_data *pdata = dev_get_platdata(dev);
 	struct ucb1x00 *ucb = dev_get_drvdata(dev);
 	struct ucb1x00_dev *udev;
 
@@ -736,10 +736,9 @@ static int ucb1x00_resume(struct device *dev)
 	mutex_unlock(&ucb1x00_mutex);
 	return 0;
 }
+#endif
 
-static const struct dev_pm_ops ucb1x00_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ucb1x00_suspend, ucb1x00_resume)
-};
+static SIMPLE_DEV_PM_OPS(ucb1x00_pm_ops, ucb1x00_suspend, ucb1x00_resume);
 
 static struct mcp_driver ucb1x00_driver = {
 	.drv		= {

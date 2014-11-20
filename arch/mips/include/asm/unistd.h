@@ -14,16 +14,21 @@
 
 #include <uapi/asm/unistd.h>
 
+#ifdef CONFIG_MIPS32_N32
+#define NR_syscalls  (__NR_N32_Linux + __NR_N32_Linux_syscalls)
+#elif defined(CONFIG_64BIT)
+#define NR_syscalls  (__NR_64_Linux + __NR_64_Linux_syscalls)
+#else
+#define NR_syscalls  (__NR_O32_Linux + __NR_O32_Linux_syscalls)
+#endif
 
 #ifndef __ASSEMBLY__
 
-#define __ARCH_OMIT_COMPAT_SYS_GETDENTS64
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_GETHOSTNAME
 #define __ARCH_WANT_SYS_IPC
 #define __ARCH_WANT_SYS_PAUSE
-#define __ARCH_WANT_SYS_SGETMASK
 #define __ARCH_WANT_SYS_UTIME
 #define __ARCH_WANT_SYS_WAITPID
 #define __ARCH_WANT_SYS_SOCKETCALL
@@ -62,13 +67,5 @@
 #endif
 
 #endif /* !__ASSEMBLY__ */
-
-/*
- * "Conditional" syscalls
- *
- * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
- * but it doesn't work on all toolchains, so we just do it by hand
- */
-#define cond_syscall(x) asm(".weak\t" #x "\n" #x "\t=\tsys_ni_syscall")
 
 #endif /* _ASM_UNISTD_H */

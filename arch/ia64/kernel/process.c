@@ -96,21 +96,13 @@ show_stack (struct task_struct *task, unsigned long *sp)
 }
 
 void
-dump_stack (void)
-{
-	show_stack(NULL, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
-void
 show_regs (struct pt_regs *regs)
 {
 	unsigned long ip = regs->cr_iip + ia64_psr(regs)->ri;
 
 	print_modules();
-	printk("\nPid: %d, CPU %d, comm: %20s\n", task_pid_nr(current),
-			smp_processor_id(), current->comm);
+	printk("\n");
+	show_regs_print_info(KERN_DEFAULT);
 	printk("psr : %016lx ifs : %016lx ip  : [<%016lx>]    %s (%s)\n",
 	       regs->cr_ipsr, regs->cr_ifs, ip, print_tainted(),
 	       init_utsname()->release);
@@ -209,40 +201,12 @@ do_notify_resume_user(sigset_t *unused, struct sigscratch *scr, long in_syscall)
 	local_irq_disable();	/* force interrupt disable */
 }
 
-static int pal_halt        = 1;
-static int can_do_pal_halt = 1;
-
 static int __init nohalt_setup(char * str)
 {
-	pal_halt = can_do_pal_halt = 0;
+	cpu_idle_poll_ctrl(true);
 	return 1;
 }
 __setup("nohalt", nohalt_setup);
-
-void
-update_pal_halt_status(int status)
-{
-	can_do_pal_halt = pal_halt && status;
-}
-
-/*
- * We use this if we don't have any better idle routine..
- */
-void
-default_idle (void)
-{
-	local_irq_enable();
-	while (!need_resched()) {
-		if (can_do_pal_halt) {
-			local_irq_disable();
-			if (!need_resched()) {
-				safe_halt();
-			}
-			local_irq_enable();
-		} else
-			cpu_relax();
-	}
-}
 
 #ifdef CONFIG_HOTPLUG_CPU
 /* We don't actually take CPU down, just spin without interrupts. */
@@ -251,7 +215,7 @@ static inline void play_dead(void)
 	unsigned int this_cpu = smp_processor_id();
 
 	/* Ack it */
-	__get_cpu_var(cpu_state) = CPU_DEAD;
+	__this_cpu_write(cpu_state, CPU_DEAD);
 
 	max_xtp();
 	local_irq_disable();
@@ -270,50 +234,29 @@ static inline void play_dead(void)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-void __attribute__((noreturn))
-cpu_idle (void)
+void arch_cpu_idle_dead(void)
+{
+	play_dead();
+}
+
+void arch_cpu_idle(void)
 {
 	void (*mark_idle)(int) = ia64_mark_idle;
-  	int cpu = smp_processor_id();
 
-	/* endless idle loop with no priority at all */
-	while (1) {
-		rcu_idle_enter();
-		if (can_do_pal_halt) {
-			current_thread_info()->status &= ~TS_POLLING;
-			/*
-			 * TS_POLLING-cleared state must be visible before we
-			 * test NEED_RESCHED:
-			 */
-			smp_mb();
-		} else {
-			current_thread_info()->status |= TS_POLLING;
-		}
-
-		if (!need_resched()) {
-			void (*idle)(void);
 #ifdef CONFIG_SMP
-			min_xtp();
+	min_xtp();
 #endif
-			rmb();
-			if (mark_idle)
-				(*mark_idle)(1);
+	rmb();
+	if (mark_idle)
+		(*mark_idle)(1);
 
-			if (!idle)
-				idle = default_idle;
-			(*idle)();
-			if (mark_idle)
-				(*mark_idle)(0);
+	safe_halt();
+
+	if (mark_idle)
+		(*mark_idle)(0);
 #ifdef CONFIG_SMP
-			normal_xtp();
+	normal_xtp();
 #endif
-		}
-		rcu_idle_exit();
-		schedule_preempt_disabled();
-		check_pgt_cache();
-		if (cpu_is_offline(cpu))
-			play_dead();
-	}
 }
 
 void
@@ -330,7 +273,7 @@ ia64_save_extra (struct task_struct *task)
 	if ((task->thread.flags & IA64_THREAD_PM_VALID) != 0)
 		pfm_save_regs(task);
 
-	info = __get_cpu_var(pfm_syst_info);
+	info = __this_cpu_read(pfm_syst_info);
 	if (info & PFM_CPUINFO_SYST_WIDE)
 		pfm_syst_wide_update_task(task, info, 0);
 #endif
@@ -350,7 +293,7 @@ ia64_load_extra (struct task_struct *task)
 	if ((task->thread.flags & IA64_THREAD_PM_VALID) != 0)
 		pfm_load_regs(task);
 
-	info = __get_cpu_var(pfm_syst_info);
+	info = __this_cpu_read(pfm_syst_info);
 	if (info & PFM_CPUINFO_SYST_WIDE) 
 		pfm_syst_wide_update_task(task, info, 1);
 #endif
@@ -719,7 +662,7 @@ void
 machine_restart (char *restart_cmd)
 {
 	(void) notify_die(DIE_MACHINE_RESTART, restart_cmd, NULL, 0, 0, 0);
-	(*efi.reset_system)(EFI_RESET_WARM, 0, 0, NULL);
+	efi_reboot(REBOOT_WARM, NULL);
 }
 
 void

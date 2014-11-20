@@ -44,6 +44,9 @@
 #include "bcm3510.h"
 #include "bcm3510_priv.h"
 
+/* Max transfer size done by bcm3510_do_hab_cmd() function */
+#define MAX_XFER_SIZE	128
+
 struct bcm3510_state {
 
 	struct i2c_adapter* i2c;
@@ -201,8 +204,18 @@ static int bcm3510_hab_send_request(struct bcm3510_state *st, u8 *buf, int len)
 
 static int bcm3510_do_hab_cmd(struct bcm3510_state *st, u8 cmd, u8 msgid, u8 *obuf, u8 olen, u8 *ibuf, u8 ilen)
 {
-	u8 ob[olen+2],ib[ilen+2];
+	u8 ob[MAX_XFER_SIZE], ib[MAX_XFER_SIZE];
 	int ret = 0;
+
+	if (ilen + 2 > sizeof(ib)) {
+		deb_hab("do_hab_cmd: ilen=%d is too big!\n", ilen);
+		return -EINVAL;
+	}
+
+	if (olen + 2 > sizeof(ob)) {
+		deb_hab("do_hab_cmd: olen=%d is too big!\n", olen);
+		return -EINVAL;
+	}
 
 	ob[0] = cmd;
 	ob[1] = msgid;
@@ -626,12 +639,12 @@ static int bcm3510_download_firmware(struct dvb_frontend* fe)
 		err("could not load firmware (%s): %d",BCM3510_DEFAULT_FIRMWARE,ret);
 		return ret;
 	}
-	deb_info("got firmware: %zd\n",fw->size);
+	deb_info("got firmware: %zu\n", fw->size);
 
 	b = fw->data;
 	for (i = 0; i < fw->size;) {
-		addr = le16_to_cpu( *( (u16 *)&b[i] ) );
-		len  = le16_to_cpu( *( (u16 *)&b[i+2] ) );
+		addr = le16_to_cpu(*((__le16 *)&b[i]));
+		len  = le16_to_cpu(*((__le16 *)&b[i+2]));
 		deb_info("firmware chunk, addr: 0x%04x, len: 0x%04x, total length: 0x%04zx\n",addr,len,fw->size);
 		if ((ret = bcm3510_write_ram(st,addr,&b[i+4],len)) < 0) {
 			err("firmware download failed: %d\n",ret);

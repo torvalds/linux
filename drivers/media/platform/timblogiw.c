@@ -78,7 +78,7 @@ struct timblogiw_buffer {
 	struct timblogiw_fh	*fh;
 };
 
-const struct timblogiw_tvnorm timblogiw_tvnorms[] = {
+static const struct timblogiw_tvnorm timblogiw_tvnorms[] = {
 	{
 		.std			= V4L2_STD_PAL,
 		.width			= 720,
@@ -239,13 +239,12 @@ static int timblogiw_querycap(struct file *file, void  *priv,
 	struct video_device *vdev = video_devdata(file);
 
 	dev_dbg(&vdev->dev, "%s: Entry\n",  __func__);
-	memset(cap, 0, sizeof(*cap));
 	strncpy(cap->card, TIMBLOGIWIN_NAME, sizeof(cap->card)-1);
 	strncpy(cap->driver, DRIVER_NAME, sizeof(cap->driver) - 1);
-	strlcpy(cap->bus_info, vdev->name, sizeof(cap->bus_info));
-	cap->version = TIMBLOGIW_VERSION_CODE;
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s", vdev->name);
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 		V4L2_CAP_READWRITE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
@@ -336,7 +335,7 @@ static int timblogiw_g_std(struct file *file, void  *priv, v4l2_std_id *std)
 	return 0;
 }
 
-static int timblogiw_s_std(struct file *file, void  *priv, v4l2_std_id *std)
+static int timblogiw_s_std(struct file *file, void  *priv, v4l2_std_id std)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct timblogiw *lw = video_get_drvdata(vdev);
@@ -348,10 +347,10 @@ static int timblogiw_s_std(struct file *file, void  *priv, v4l2_std_id *std)
 	mutex_lock(&lw->lock);
 
 	if (TIMBLOGIW_HAS_DECODER(lw))
-		err = v4l2_subdev_call(lw->sd_enc, core, s_std, *std);
+		err = v4l2_subdev_call(lw->sd_enc, video, s_std, std);
 
 	if (!err)
-		fh->cur_norm = timblogiw_get_norm(*std);
+		fh->cur_norm = timblogiw_get_norm(std);
 
 	mutex_unlock(&lw->lock);
 
@@ -404,7 +403,7 @@ static int timblogiw_s_input(struct file *file, void  *priv, unsigned int input)
 	return 0;
 }
 
-static int timblogiw_streamon(struct file *file, void  *priv, unsigned int type)
+static int timblogiw_streamon(struct file *file, void  *priv, enum v4l2_buf_type type)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct timblogiw_fh *fh = priv;
@@ -421,7 +420,7 @@ static int timblogiw_streamon(struct file *file, void  *priv, unsigned int type)
 }
 
 static int timblogiw_streamoff(struct file *file, void  *priv,
-	unsigned int type)
+	enum v4l2_buf_type type)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct timblogiw_fh *fh = priv;
@@ -566,7 +565,7 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 
 	desc = dmaengine_prep_slave_sg(fh->chan,
 		buf->sg, sg_elems, DMA_DEV_TO_MEM,
-		DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP);
+		DMA_PREP_INTERRUPT);
 	if (!desc) {
 		spin_lock_irq(&fh->queue_lock);
 		list_del_init(&vb->queue);
@@ -801,7 +800,7 @@ static int timblogiw_probe(struct platform_device *pdev)
 	if (!pdata->encoder.module_name)
 		dev_info(&pdev->dev, "Running without decoder\n");
 
-	lw = kzalloc(sizeof(*lw), GFP_KERNEL);
+	lw = devm_kzalloc(&pdev->dev, sizeof(*lw), GFP_KERNEL);
 	if (!lw) {
 		err = -ENOMEM;
 		goto err;
@@ -821,7 +820,7 @@ static int timblogiw_probe(struct platform_device *pdev)
 	strlcpy(lw->v4l2_dev.name, DRIVER_NAME, sizeof(lw->v4l2_dev.name));
 	err = v4l2_device_register(NULL, &lw->v4l2_dev);
 	if (err)
-		goto err_register;
+		goto err;
 
 	lw->video_dev.v4l2_dev = &lw->v4l2_dev;
 
@@ -834,14 +833,10 @@ static int timblogiw_probe(struct platform_device *pdev)
 		goto err_request;
 	}
 
-
 	return 0;
 
 err_request:
-	platform_set_drvdata(pdev, NULL);
 	v4l2_device_unregister(&lw->v4l2_dev);
-err_register:
-	kfree(lw);
 err:
 	dev_err(&pdev->dev, "Failed to register: %d\n", err);
 
@@ -855,10 +850,6 @@ static int timblogiw_remove(struct platform_device *pdev)
 	video_unregister_device(&lw->video_dev);
 
 	v4l2_device_unregister(&lw->v4l2_dev);
-
-	kfree(lw);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

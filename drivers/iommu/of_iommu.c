@@ -20,6 +20,7 @@
 #include <linux/export.h>
 #include <linux/limits.h>
 #include <linux/of.h>
+#include <linux/of_iommu.h>
 
 /**
  * of_get_dma_window - Parse *dma-window property and returns 0 if found.

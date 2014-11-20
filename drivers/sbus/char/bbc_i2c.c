@@ -11,7 +11,6 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -282,7 +281,7 @@ static irqreturn_t bbc_i2c_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void __init reset_one_i2c(struct bbc_i2c_bus *bp)
+static void reset_one_i2c(struct bbc_i2c_bus *bp)
 {
 	writeb(I2C_PCF_PIN, bp->i2c_control_regs + 0x0);
 	writeb(bp->own, bp->i2c_control_regs + 0x1);
@@ -291,7 +290,7 @@ static void __init reset_one_i2c(struct bbc_i2c_bus *bp)
 	writeb(I2C_PCF_IDLE, bp->i2c_control_regs + 0x0);
 }
 
-static struct bbc_i2c_bus * __init attach_one_i2c(struct platform_device *op, int index)
+static struct bbc_i2c_bus * attach_one_i2c(struct platform_device *op, int index)
 {
 	struct bbc_i2c_bus *bp;
 	struct device_node *dp;
@@ -301,13 +300,18 @@ static struct bbc_i2c_bus * __init attach_one_i2c(struct platform_device *op, in
 	if (!bp)
 		return NULL;
 
+	INIT_LIST_HEAD(&bp->temps);
+	INIT_LIST_HEAD(&bp->fans);
+
 	bp->i2c_control_regs = of_ioremap(&op->resource[0], 0, 0x2, "bbc_i2c_regs");
 	if (!bp->i2c_control_regs)
 		goto fail;
 
-	bp->i2c_bussel_reg = of_ioremap(&op->resource[1], 0, 0x1, "bbc_i2c_bussel");
-	if (!bp->i2c_bussel_reg)
-		goto fail;
+	if (op->num_resources == 2) {
+		bp->i2c_bussel_reg = of_ioremap(&op->resource[1], 0, 0x1, "bbc_i2c_bussel");
+		if (!bp->i2c_bussel_reg)
+			goto fail;
+	}
 
 	bp->waiting = 0;
 	init_waitqueue_head(&bp->wq);

@@ -135,8 +135,14 @@ static int mmc_ios_show(struct seq_file *s, void *data)
 	case MMC_TIMING_UHS_DDR50:
 		str = "sd uhs DDR50";
 		break;
+	case MMC_TIMING_MMC_DDR52:
+		str = "mmc DDR52";
+		break;
 	case MMC_TIMING_MMC_HS200:
-		str = "mmc high-speed SDR200";
+		str = "mmc HS200";
+		break;
+	case MMC_TIMING_MMC_HS400:
+		str = "mmc HS400";
 		break;
 	default:
 		str = "invalid";
@@ -258,13 +264,13 @@ static int mmc_dbg_card_status_get(void *data, u64 *val)
 	u32		status;
 	int		ret;
 
-	mmc_claim_host(card->host);
+	mmc_get_card(card);
 
 	ret = mmc_send_status(data, &status);
 	if (!ret)
 		*val = status;
 
-	mmc_release_host(card->host);
+	mmc_put_card(card);
 
 	return ret;
 }
@@ -291,9 +297,9 @@ static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
 		goto out_free;
 	}
 
-	mmc_claim_host(card->host);
+	mmc_get_card(card);
 	err = mmc_send_ext_csd(card, ext_csd);
-	mmc_release_host(card->host);
+	mmc_put_card(card);
 	if (err)
 		goto out_free;
 

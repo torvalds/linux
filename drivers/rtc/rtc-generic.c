@@ -38,21 +38,12 @@ static int __init generic_rtc_probe(struct platform_device *dev)
 {
 	struct rtc_device *rtc;
 
-	rtc = rtc_device_register("rtc-generic", &dev->dev, &generic_rtc_ops,
-				  THIS_MODULE);
+	rtc = devm_rtc_device_register(&dev->dev, "rtc-generic",
+					&generic_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
 	platform_set_drvdata(dev, rtc);
-
-	return 0;
-}
-
-static int __exit generic_rtc_remove(struct platform_device *dev)
-{
-	struct rtc_device *rtc = platform_get_drvdata(dev);
-
-	rtc_device_unregister(rtc);
 
 	return 0;
 }
@@ -62,21 +53,9 @@ static struct platform_driver generic_rtc_driver = {
 		.name = "rtc-generic",
 		.owner = THIS_MODULE,
 	},
-	.remove = __exit_p(generic_rtc_remove),
 };
 
-static int __init generic_rtc_init(void)
-{
-	return platform_driver_probe(&generic_rtc_driver, generic_rtc_probe);
-}
-
-static void __exit generic_rtc_fini(void)
-{
-	platform_driver_unregister(&generic_rtc_driver);
-}
-
-module_init(generic_rtc_init);
-module_exit(generic_rtc_fini);
+module_platform_driver_probe(generic_rtc_driver, generic_rtc_probe);
 
 MODULE_AUTHOR("Kyle McMartin <kyle@mcmartin.ca>");
 MODULE_LICENSE("GPL");

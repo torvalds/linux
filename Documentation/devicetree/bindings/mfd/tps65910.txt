@@ -11,7 +11,7 @@ Required properties:
 - #interrupt-cells: the number of cells to describe an IRQ, this should be 2.
   The first cell is the IRQ number.
   The second cell is the flags, encoded as the trigger masks from
-  Documentation/devicetree/bindings/interrupts.txt
+  Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 - regulators: This is the list of child nodes that specify the regulator
   initialization data for defined regulators. Not all regulators for the given
   device need to be present. The definition for each of these nodes is defined
@@ -21,7 +21,7 @@ Required properties:
 
   The valid regulator-compatible values are:
   tps65910: vrtc, vio, vdd1, vdd2, vdd3, vdig1, vdig2, vpll, vdac, vaux1,
-            vaux2, vaux33, vmmc
+            vaux2, vaux33, vmmc, vbb
   tps65911: vrtc, vio, vdd1, vdd3, vddctrl, ldo1, ldo2, ldo3, ldo4, ldo5,
             ldo6, ldo7, ldo8
 
@@ -38,7 +38,7 @@ Required properties:
 	vcc4-supply: VAUX1 and VAUX2 input.
 	vcc5-supply: VPLL and VDAC input.
 	vcc6-supply: VDIG1 and VDIG2 input.
-	vcc7-supply: VRTC input.
+	vcc7-supply: VRTC and VBB input.
 	vccio-supply: VIO input.
   tps65911:
 	vcc1-supply: VDD1 input.

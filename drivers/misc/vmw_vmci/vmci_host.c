@@ -243,11 +243,7 @@ static int vmci_host_setup_notify(struct vmci_ctx *context,
 	/*
 	 * Lock physical page backing a given user VA.
 	 */
-	down_read(&current->mm->mmap_sem);
-	retval = get_user_pages(current, current->mm,
-				PAGE_ALIGN(uva),
-				1, 1, 0, &page, NULL);
-	up_read(&current->mm->mmap_sem);
+	retval = get_user_pages_fast(PAGE_ALIGN(uva), 1, 1, &page);
 	if (retval != 1)
 		return VMCI_ERROR_GENERIC;
 

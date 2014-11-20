@@ -125,7 +125,7 @@ static int gp2a_initialize(struct gp2a_data *dt)
 static int gp2a_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
-	const struct gp2a_platform_data *pdata = client->dev.platform_data;
+	const struct gp2a_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct gp2a_data *dt;
 	int error;
 

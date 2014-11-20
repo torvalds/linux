@@ -41,24 +41,6 @@ void machine_halt(void) {}
 /* If or when software machine-power-off is implemented, add code here. */
 void machine_power_off(void) {}
 
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void __noreturn cpu_idle(void)
-{
-	/* endless idle loop with no priority at all */
-	while (1) {
-		rcu_idle_enter();
-		while (!need_resched())
-			barrier();
-		rcu_idle_exit();
-		schedule_preempt_disabled();
-	}
-}
-
 void ret_from_fork(void);
 void ret_from_kernel_thread(void);
 
@@ -96,8 +78,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.reg0 = (unsigned long) childregs;
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
-		p->thread->reg12 = usp;
-		p->thread->reg13 = arg;
+		p->thread.reg12 = usp;
+		p->thread.reg13 = arg;
 		p->thread.reg3 = (unsigned long) ret_from_kernel_thread;
 	} else {
 		*childregs = *current_pt_regs();

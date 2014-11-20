@@ -486,6 +486,8 @@ mimd_to_kioc(mimd_t __user *umimd, mraid_mmadp_t *adp, uioc_t *kioc)
 
 	pthru32->dataxferaddr	= kioc->buf_paddr;
 	if (kioc->data_dir & UIOC_WR) {
+		if (pthru32->dataxferlen > kioc->xferlen)
+			return -EINVAL;
 		if (copy_from_user(kioc->buf_vaddr, kioc->user_data,
 						pthru32->dataxferlen)) {
 			return (-EFAULT);
@@ -896,7 +898,7 @@ hinfo_to_cinfo(mraid_hba_info_t *hinfo, mcontroller_t *cinfo)
 
 /**
  * mraid_mm_register_adp - Registration routine for low level drivers
- * @lld_adp	: Adapter objejct
+ * @lld_adp	: Adapter object
  */
 int
 mraid_mm_register_adp(mraid_mmadp_t *lld_adp)

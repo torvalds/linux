@@ -48,30 +48,39 @@ struct vmbus_channel_message_table_entry {
  * @negop is of type &struct icmsg_negotiate.
  * Set up and fill in default negotiate response message.
  *
- * The max_fw_version specifies the maximum framework version that
- * we can support and max _srv_version specifies the maximum service
- * version we can support. A special value MAX_SRV_VER can be
- * specified to indicate that we can handle the maximum version
- * exposed by the host.
+ * The fw_version specifies the  framework version that
+ * we can support and srv_version specifies the service
+ * version we can support.
  *
  * Mainly used by Hyper-V drivers.
  */
-void vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
+bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
 				struct icmsg_negotiate *negop, u8 *buf,
-				int max_fw_version, int max_srv_version)
+				int fw_version, int srv_version)
 {
-	int icframe_vercnt;
-	int icmsg_vercnt;
+	int icframe_major, icframe_minor;
+	int icmsg_major, icmsg_minor;
+	int fw_major, fw_minor;
+	int srv_major, srv_minor;
 	int i;
+	bool found_match = false;
 
 	icmsghdrp->icmsgsize = 0x10;
+	fw_major = (fw_version >> 16);
+	fw_minor = (fw_version & 0xFFFF);
+
+	srv_major = (srv_version >> 16);
+	srv_minor = (srv_version & 0xFFFF);
 
 	negop = (struct icmsg_negotiate *)&buf[
 		sizeof(struct vmbuspipe_hdr) +
 		sizeof(struct icmsg_hdr)];
 
-	icframe_vercnt = negop->icframe_vercnt;
-	icmsg_vercnt = negop->icmsg_vercnt;
+	icframe_major = negop->icframe_vercnt;
+	icframe_minor = 0;
+
+	icmsg_major = negop->icmsg_vercnt;
+	icmsg_minor = 0;
 
 	/*
 	 * Select the framework version number we will
@@ -79,26 +88,48 @@ void vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
 	 */
 
 	for (i = 0; i < negop->icframe_vercnt; i++) {
-		if (negop->icversion_data[i].major <= max_fw_version)
-			icframe_vercnt = negop->icversion_data[i].major;
+		if ((negop->icversion_data[i].major == fw_major) &&
+		   (negop->icversion_data[i].minor == fw_minor)) {
+			icframe_major = negop->icversion_data[i].major;
+			icframe_minor = negop->icversion_data[i].minor;
+			found_match = true;
+		}
 	}
+
+	if (!found_match)
+		goto fw_error;
+
+	found_match = false;
 
 	for (i = negop->icframe_vercnt;
 		 (i < negop->icframe_vercnt + negop->icmsg_vercnt); i++) {
-		if (negop->icversion_data[i].major <= max_srv_version)
-			icmsg_vercnt = negop->icversion_data[i].major;
+		if ((negop->icversion_data[i].major == srv_major) &&
+		   (negop->icversion_data[i].minor == srv_minor)) {
+			icmsg_major = negop->icversion_data[i].major;
+			icmsg_minor = negop->icversion_data[i].minor;
+			found_match = true;
+		}
 	}
 
 	/*
-	 * Respond with the maximum framework and service
+	 * Respond with the framework and service
 	 * version numbers we can support.
 	 */
-	negop->icframe_vercnt = 1;
-	negop->icmsg_vercnt = 1;
-	negop->icversion_data[0].major = icframe_vercnt;
-	negop->icversion_data[0].minor = 0;
-	negop->icversion_data[1].major = icmsg_vercnt;
-	negop->icversion_data[1].minor = 0;
+
+fw_error:
+	if (!found_match) {
+		negop->icframe_vercnt = 0;
+		negop->icmsg_vercnt = 0;
+	} else {
+		negop->icframe_vercnt = 1;
+		negop->icmsg_vercnt = 1;
+	}
+
+	negop->icversion_data[0].major = icframe_major;
+	negop->icversion_data[0].minor = icframe_minor;
+	negop->icversion_data[1].major = icmsg_major;
+	negop->icversion_data[1].minor = icmsg_minor;
+	return found_match;
 }
 
 EXPORT_SYMBOL_GPL(vmbus_prep_negotiate_resp);
@@ -115,6 +146,10 @@ static struct vmbus_channel *alloc_channel(void)
 		return NULL;
 
 	spin_lock_init(&channel->inbound_lock);
+	spin_lock_init(&channel->sc_lock);
+
+	INIT_LIST_HEAD(&channel->sc_list);
+	INIT_LIST_HEAD(&channel->percpu_list);
 
 	channel->controlwq = create_workqueue("hv_vmbus_ctl");
 	if (!channel->controlwq) {
@@ -154,7 +189,20 @@ static void free_channel(struct vmbus_channel *channel)
 	queue_work(vmbus_connection.work_queue, &channel->work);
 }
 
+static void percpu_channel_enq(void *arg)
+{
+	struct vmbus_channel *channel = arg;
+	int cpu = smp_processor_id();
 
+	list_add_tail(&channel->percpu_list, &hv_context.percpu_list[cpu]);
+}
+
+static void percpu_channel_deq(void *arg)
+{
+	struct vmbus_channel *channel = arg;
+
+	list_del(&channel->percpu_list);
+}
 
 /*
  * vmbus_process_rescind_offer -
@@ -165,8 +213,37 @@ static void vmbus_process_rescind_offer(struct work_struct *work)
 	struct vmbus_channel *channel = container_of(work,
 						     struct vmbus_channel,
 						     work);
+	unsigned long flags;
+	struct vmbus_channel *primary_channel;
+	struct vmbus_channel_relid_released msg;
 
-	vmbus_device_unregister(channel->device_obj);
+	if (channel->device_obj)
+		vmbus_device_unregister(channel->device_obj);
+	memset(&msg, 0, sizeof(struct vmbus_channel_relid_released));
+	msg.child_relid = channel->offermsg.child_relid;
+	msg.header.msgtype = CHANNELMSG_RELID_RELEASED;
+	vmbus_post_msg(&msg, sizeof(struct vmbus_channel_relid_released));
+
+	if (channel->target_cpu != get_cpu()) {
+		put_cpu();
+		smp_call_function_single(channel->target_cpu,
+					 percpu_channel_deq, channel, true);
+	} else {
+		percpu_channel_deq(channel);
+		put_cpu();
+	}
+
+	if (channel->primary_channel == NULL) {
+		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
+		list_del(&channel->listentry);
+		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+	} else {
+		primary_channel = channel->primary_channel;
+		spin_lock_irqsave(&primary_channel->sc_lock, flags);
+		list_del(&channel->sc_list);
+		spin_unlock_irqrestore(&primary_channel->sc_lock, flags);
+	}
+	free_channel(channel);
 }
 
 void vmbus_free_channels(void)
@@ -191,6 +268,7 @@ static void vmbus_process_offer(struct work_struct *work)
 							work);
 	struct vmbus_channel *channel;
 	bool fnew = true;
+	bool enq = false;
 	int ret;
 	unsigned long flags;
 
@@ -210,16 +288,65 @@ static void vmbus_process_offer(struct work_struct *work)
 		}
 	}
 
-	if (fnew)
+	if (fnew) {
 		list_add_tail(&newchannel->listentry,
 			      &vmbus_connection.chn_list);
+		enq = true;
+	}
 
 	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
+	if (enq) {
+		if (newchannel->target_cpu != get_cpu()) {
+			put_cpu();
+			smp_call_function_single(newchannel->target_cpu,
+						 percpu_channel_enq,
+						 newchannel, true);
+		} else {
+			percpu_channel_enq(newchannel);
+			put_cpu();
+		}
+	}
 	if (!fnew) {
+		/*
+		 * Check to see if this is a sub-channel.
+		 */
+		if (newchannel->offermsg.offer.sub_channel_index != 0) {
+			/*
+			 * Process the sub-channel.
+			 */
+			newchannel->primary_channel = channel;
+			spin_lock_irqsave(&channel->sc_lock, flags);
+			list_add_tail(&newchannel->sc_list, &channel->sc_list);
+			spin_unlock_irqrestore(&channel->sc_lock, flags);
+
+			if (newchannel->target_cpu != get_cpu()) {
+				put_cpu();
+				smp_call_function_single(newchannel->target_cpu,
+							 percpu_channel_enq,
+							 newchannel, true);
+			} else {
+				percpu_channel_enq(newchannel);
+				put_cpu();
+			}
+
+			newchannel->state = CHANNEL_OPEN_STATE;
+			if (channel->sc_creation_callback != NULL)
+				channel->sc_creation_callback(newchannel);
+
+			return;
+		}
+
 		free_channel(newchannel);
 		return;
 	}
+
+	/*
+	 * This state is used to indicate a successful open
+	 * so that when we do close the channel normally, we
+	 * can cleanup properly
+	 */
+	newchannel->state = CHANNEL_OPEN_STATE;
 
 	/*
 	 * Start the process of binding this offer to the driver
@@ -247,13 +374,6 @@ static void vmbus_process_offer(struct work_struct *work)
 		kfree(newchannel->device_obj);
 
 		free_channel(newchannel);
-	} else {
-		/*
-		 * This state is used to indicate a successful open
-		 * so that when we do close the channel normally, we
-		 * can cleanup properly
-		 */
-		newchannel->state = CHANNEL_OPEN_STATE;
 	}
 }
 
@@ -293,7 +413,7 @@ static u32  next_vp;
  * performance critical channels (IDE, SCSI and Network) will be uniformly
  * distributed across all available CPUs.
  */
-static u32 get_vp_index(uuid_le *type_guid)
+static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_guid)
 {
 	u32 cur_cpu;
 	int i;
@@ -315,10 +435,13 @@ static u32 get_vp_index(uuid_le *type_guid)
 		 * Also if the channel is not a performance critical
 		 * channel, bind it to cpu 0.
 		 */
-		return 0;
+		channel->target_cpu = 0;
+		channel->target_vp = 0;
+		return;
 	}
 	cur_cpu = (++next_vp % max_cpus);
-	return cur_cpu;
+	channel->target_cpu = cur_cpu;
+	channel->target_vp = hv_context.vp_index[cur_cpu];
 }
 
 /*
@@ -366,7 +489,7 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 				offer->connection_id;
 	}
 
-	newchannel->target_vp = get_vp_index(&offer->offer.if_type);
+	init_vp_index(newchannel, &offer->offer.if_type);
 
 	memcpy(&newchannel->offermsg, offer,
 	       sizeof(struct vmbus_channel_offer_channel));
@@ -674,4 +797,86 @@ cleanup:
 	return ret;
 }
 
-/* eof */
+/*
+ * Retrieve the (sub) channel on which to send an outgoing request.
+ * When a primary channel has multiple sub-channels, we choose a
+ * channel whose VCPU binding is closest to the VCPU on which
+ * this call is being made.
+ */
+struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
+{
+	struct list_head *cur, *tmp;
+	int cur_cpu = hv_context.vp_index[smp_processor_id()];
+	struct vmbus_channel *cur_channel;
+	struct vmbus_channel *outgoing_channel = primary;
+	int cpu_distance, new_cpu_distance;
+
+	if (list_empty(&primary->sc_list))
+		return outgoing_channel;
+
+	list_for_each_safe(cur, tmp, &primary->sc_list) {
+		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
+		if (cur_channel->state != CHANNEL_OPENED_STATE)
+			continue;
+
+		if (cur_channel->target_vp == cur_cpu)
+			return cur_channel;
+
+		cpu_distance = ((outgoing_channel->target_vp > cur_cpu) ?
+				(outgoing_channel->target_vp - cur_cpu) :
+				(cur_cpu - outgoing_channel->target_vp));
+
+		new_cpu_distance = ((cur_channel->target_vp > cur_cpu) ?
+				(cur_channel->target_vp - cur_cpu) :
+				(cur_cpu - cur_channel->target_vp));
+
+		if (cpu_distance < new_cpu_distance)
+			continue;
+
+		outgoing_channel = cur_channel;
+	}
+
+	return outgoing_channel;
+}
+EXPORT_SYMBOL_GPL(vmbus_get_outgoing_channel);
+
+static void invoke_sc_cb(struct vmbus_channel *primary_channel)
+{
+	struct list_head *cur, *tmp;
+	struct vmbus_channel *cur_channel;
+
+	if (primary_channel->sc_creation_callback == NULL)
+		return;
+
+	list_for_each_safe(cur, tmp, &primary_channel->sc_list) {
+		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
+
+		primary_channel->sc_creation_callback(cur_channel);
+	}
+}
+
+void vmbus_set_sc_create_callback(struct vmbus_channel *primary_channel,
+				void (*sc_cr_cb)(struct vmbus_channel *new_sc))
+{
+	primary_channel->sc_creation_callback = sc_cr_cb;
+}
+EXPORT_SYMBOL_GPL(vmbus_set_sc_create_callback);
+
+bool vmbus_are_subchannels_present(struct vmbus_channel *primary)
+{
+	bool ret;
+
+	ret = !list_empty(&primary->sc_list);
+
+	if (ret) {
+		/*
+		 * Invoke the callback on sub-channel creation.
+		 * This will present a uniform interface to the
+		 * clients.
+		 */
+		invoke_sc_cb(primary);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vmbus_are_subchannels_present);

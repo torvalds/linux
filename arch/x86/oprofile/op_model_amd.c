@@ -454,16 +454,16 @@ static void init_ibs(void)
 	printk(KERN_INFO "oprofile: AMD IBS detected (0x%08x)\n", ibs_caps);
 }
 
-static int (*create_arch_files)(struct super_block *sb, struct dentry *root);
+static int (*create_arch_files)(struct dentry *root);
 
-static int setup_ibs_files(struct super_block *sb, struct dentry *root)
+static int setup_ibs_files(struct dentry *root)
 {
 	struct dentry *dir;
 	int ret = 0;
 
 	/* architecture specific files */
 	if (create_arch_files)
-		ret = create_arch_files(sb, root);
+		ret = create_arch_files(root);
 
 	if (ret)
 		return ret;
@@ -479,26 +479,26 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 	ibs_config.max_cnt_op = 250000;
 
 	if (ibs_caps & IBS_CAPS_FETCHSAM) {
-		dir = oprofilefs_mkdir(sb, root, "ibs_fetch");
-		oprofilefs_create_ulong(sb, dir, "enable",
+		dir = oprofilefs_mkdir(root, "ibs_fetch");
+		oprofilefs_create_ulong(dir, "enable",
 					&ibs_config.fetch_enabled);
-		oprofilefs_create_ulong(sb, dir, "max_count",
+		oprofilefs_create_ulong(dir, "max_count",
 					&ibs_config.max_cnt_fetch);
-		oprofilefs_create_ulong(sb, dir, "rand_enable",
+		oprofilefs_create_ulong(dir, "rand_enable",
 					&ibs_config.rand_en);
 	}
 
 	if (ibs_caps & IBS_CAPS_OPSAM) {
-		dir = oprofilefs_mkdir(sb, root, "ibs_op");
-		oprofilefs_create_ulong(sb, dir, "enable",
+		dir = oprofilefs_mkdir(root, "ibs_op");
+		oprofilefs_create_ulong(dir, "enable",
 					&ibs_config.op_enabled);
-		oprofilefs_create_ulong(sb, dir, "max_count",
+		oprofilefs_create_ulong(dir, "max_count",
 					&ibs_config.max_cnt_op);
 		if (ibs_caps & IBS_CAPS_OPCNT)
-			oprofilefs_create_ulong(sb, dir, "dispatched_ops",
+			oprofilefs_create_ulong(dir, "dispatched_ops",
 						&ibs_config.dispatched_ops);
 		if (ibs_caps & IBS_CAPS_BRNTRGT)
-			oprofilefs_create_ulong(sb, dir, "branch_target",
+			oprofilefs_create_ulong(dir, "branch_target",
 						&ibs_config.branch_target);
 	}
 

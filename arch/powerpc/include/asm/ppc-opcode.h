@@ -81,7 +81,56 @@
 #define	__REGA0_R30	30
 #define	__REGA0_R31	31
 
+/* opcode and xopcode for instructions */
+#define OP_TRAP 3
+#define OP_TRAP_64 2
+
+#define OP_31_XOP_TRAP      4
+#define OP_31_XOP_LWZX      23
+#define OP_31_XOP_DCBST     54
+#define OP_31_XOP_LWZUX     55
+#define OP_31_XOP_TRAP_64   68
+#define OP_31_XOP_DCBF      86
+#define OP_31_XOP_LBZX      87
+#define OP_31_XOP_STWX      151
+#define OP_31_XOP_STBX      215
+#define OP_31_XOP_LBZUX     119
+#define OP_31_XOP_STBUX     247
+#define OP_31_XOP_LHZX      279
+#define OP_31_XOP_LHZUX     311
+#define OP_31_XOP_MFSPR     339
+#define OP_31_XOP_LHAX      343
+#define OP_31_XOP_LHAUX     375
+#define OP_31_XOP_STHX      407
+#define OP_31_XOP_STHUX     439
+#define OP_31_XOP_MTSPR     467
+#define OP_31_XOP_DCBI      470
+#define OP_31_XOP_LWBRX     534
+#define OP_31_XOP_TLBSYNC   566
+#define OP_31_XOP_STWBRX    662
+#define OP_31_XOP_LHBRX     790
+#define OP_31_XOP_STHBRX    918
+
+#define OP_LWZ  32
+#define OP_LD   58
+#define OP_LWZU 33
+#define OP_LBZ  34
+#define OP_LBZU 35
+#define OP_STW  36
+#define OP_STWU 37
+#define OP_STD  62
+#define OP_STB  38
+#define OP_STBU 39
+#define OP_LHZ  40
+#define OP_LHZU 41
+#define OP_LHA  42
+#define OP_LHAU 43
+#define OP_STH  44
+#define OP_STHU 45
+
 /* sorted alphabetically */
+#define PPC_INST_BHRBE			0x7c00025c
+#define PPC_INST_CLRBHRB		0x7c00035c
 #define PPC_INST_DCBA			0x7c0005ec
 #define PPC_INST_DCBA_MASK		0xfc0007fe
 #define PPC_INST_DCBAL			0x7c2005ec
@@ -90,17 +139,22 @@
 #define PPC_INST_ISEL			0x7c00001e
 #define PPC_INST_ISEL_MASK		0xfc00003e
 #define PPC_INST_LDARX			0x7c0000a8
+#define PPC_INST_LOGMPP			0x7c0007e4
 #define PPC_INST_LSWI			0x7c0004aa
 #define PPC_INST_LSWX			0x7c00042a
 #define PPC_INST_LWARX			0x7c000028
 #define PPC_INST_LWSYNC			0x7c2004ac
+#define PPC_INST_SYNC			0x7c0004ac
+#define PPC_INST_SYNC_MASK		0xfc0007fe
 #define PPC_INST_LXVD2X			0x7c000698
 #define PPC_INST_MCRXR			0x7c000400
 #define PPC_INST_MCRXR_MASK		0xfc0007fe
 #define PPC_INST_MFSPR_PVR		0x7c1f42a6
 #define PPC_INST_MFSPR_PVR_MASK		0xfc1fffff
+#define PPC_INST_MFTMR			0x7c0002dc
 #define PPC_INST_MSGSND			0x7c00019c
 #define PPC_INST_MSGSNDP		0x7c00011c
+#define PPC_INST_MTTMR			0x7c0003dc
 #define PPC_INST_NOP			0x60000000
 #define PPC_INST_POPCNTB		0x7c0000f4
 #define PPC_INST_POPCNTB_MASK		0xfc0007fe
@@ -113,6 +167,10 @@
 #define PPC_INST_MFSPR_DSCR_MASK	0xfc1fffff
 #define PPC_INST_MTSPR_DSCR		0x7c1103a6
 #define PPC_INST_MTSPR_DSCR_MASK	0xfc1fffff
+#define PPC_INST_MFSPR_DSCR_USER	0x7c0302a6
+#define PPC_INST_MFSPR_DSCR_USER_MASK	0xfc1fffff
+#define PPC_INST_MTSPR_DSCR_USER	0x7c0303a6
+#define PPC_INST_MTSPR_DSCR_USER_MASK	0xfc1fffff
 #define PPC_INST_SLBFEE			0x7c0007a7
 
 #define PPC_INST_STRING			0x7c00042a
@@ -128,6 +186,7 @@
 #define PPC_INST_TLBIVAX		0x7c000624
 #define PPC_INST_TLBSRX_DOT		0x7c0006a5
 #define PPC_INST_XXLOR			0xf0000510
+#define PPC_INST_XXSWAPD		0xf0000250
 #define PPC_INST_XVCPSGNDP		0xf0000780
 #define PPC_INST_TRECHKPT		0x7c0007dd
 #define PPC_INST_TRECLAIM		0x7c00075d
@@ -147,6 +206,7 @@
 /* Misc instructions for BPF compiler */
 #define PPC_INST_LD			0xe8000000
 #define PPC_INST_LHZ			0xa0000000
+#define PPC_INST_LHBRX			0x7c00062c
 #define PPC_INST_LWZ			0x80000000
 #define PPC_INST_STD			0xf8000000
 #define PPC_INST_STDU			0xf8000001
@@ -165,7 +225,7 @@
 #define PPC_INST_MULLW			0x7c0001d6
 #define PPC_INST_MULHWU			0x7c000016
 #define PPC_INST_MULLI			0x1c000000
-#define PPC_INST_DIVWU			0x7c0003d6
+#define PPC_INST_DIVWU			0x7c000396
 #define PPC_INST_RLWINM			0x54000000
 #define PPC_INST_RLDICR			0x78000004
 #define PPC_INST_SLW			0x7c000030
@@ -218,6 +278,20 @@
 #define __PPC_EH(eh)	0
 #endif
 
+/* POWER8 Micro Partition Prefetch (MPP) parameters */
+/* Address mask is common for LOGMPP instruction and MPPR SPR */
+#define PPC_MPPE_ADDRESS_MASK 0xffffffffc000
+
+/* Bits 60 and 61 of MPP SPR should be set to one of the following */
+/* Aborting the fetch is indeed setting 00 in the table size bits */
+#define PPC_MPPR_FETCH_ABORT (0x0ULL << 60)
+#define PPC_MPPR_FETCH_WHOLE_TABLE (0x2ULL << 60)
+
+/* Bits 54 and 55 of register for LOGMPP instruction should be set to: */
+#define PPC_LOGMPP_LOG_L2 (0x02ULL << 54)
+#define PPC_LOGMPP_LOG_L2L3 (0x01ULL << 54)
+#define PPC_LOGMPP_LOG_ABORT (0x03ULL << 54)
+
 /* Deal with instructions that older assemblers aren't aware of */
 #define	PPC_DCBAL(a, b)		stringify_in_c(.long PPC_INST_DCBAL | \
 					__PPC_RA(a) | __PPC_RB(b))
@@ -226,6 +300,8 @@
 #define PPC_LDARX(t, a, b, eh)	stringify_in_c(.long PPC_INST_LDARX | \
 					___PPC_RT(t) | ___PPC_RA(a) | \
 					___PPC_RB(b) | __PPC_EH(eh))
+#define PPC_LOGMPP(b)		stringify_in_c(.long PPC_INST_LOGMPP | \
+					__PPC_RB(b))
 #define PPC_LWARX(t, a, b, eh)	stringify_in_c(.long PPC_INST_LWARX | \
 					___PPC_RT(t) | ___PPC_RA(a) | \
 					___PPC_RB(b) | __PPC_EH(eh))
@@ -291,11 +367,19 @@
 					       VSX_XX1((s), a, b))
 #define XXLOR(t, a, b)		stringify_in_c(.long PPC_INST_XXLOR | \
 					       VSX_XX3((t), a, b))
+#define XXSWAPD(t, a)		stringify_in_c(.long PPC_INST_XXSWAPD | \
+					       VSX_XX3((t), a, a))
 #define XVCPSGNDP(t, a, b)	stringify_in_c(.long (PPC_INST_XVCPSGNDP | \
 					       VSX_XX3((t), (a), (b))))
 
 #define PPC_NAP			stringify_in_c(.long PPC_INST_NAP)
 #define PPC_SLEEP		stringify_in_c(.long PPC_INST_SLEEP)
+
+/* BHRB instructions */
+#define PPC_CLRBHRB		stringify_in_c(.long PPC_INST_CLRBHRB)
+#define PPC_MFBHRBE(r, n)	stringify_in_c(.long PPC_INST_BHRBE | \
+						__PPC_RT(r) | \
+							(((n) & 0x3ff) << 11))
 
 /* Transactional memory instructions */
 #define TRECHKPT		stringify_in_c(.long PPC_INST_TRECHKPT)
@@ -303,5 +387,12 @@
 					       | __PPC_RA(r))
 #define TABORT(r)		stringify_in_c(.long PPC_INST_TABORT \
 					       | __PPC_RA(r))
+
+/* book3e thread control instructions */
+#define TMRN(x)			((((x) & 0x1f) << 16) | (((x) & 0x3e0) << 6))
+#define MTTMR(tmr, r)		stringify_in_c(.long PPC_INST_MTTMR | \
+					       TMRN(tmr) | ___PPC_RS(r))
+#define MFTMR(tmr, r)		stringify_in_c(.long PPC_INST_MFTMR | \
+					       TMRN(tmr) | ___PPC_RT(r))
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

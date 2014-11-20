@@ -49,70 +49,7 @@
 #include <asm/mmu_context.h>
 #include <asm/compat_signal.h>
 
-#ifdef CONFIG_SYSVIPC                                                        
-asmlinkage long compat_sys_ipc(u32 call, u32 first, u32 second, u32 third, compat_uptr_t ptr, u32 fifth)
-{
-	int version;
-
-	version = call >> 16; /* hack for backward compatibility */
-	call &= 0xffff;
-
-	switch (call) {
-	case SEMTIMEDOP:
-		if (fifth)
-			/* sign extend semid */
-			return compat_sys_semtimedop((int)first,
-						     compat_ptr(ptr), second,
-						     compat_ptr(fifth));
-		/* else fall through for normal semop() */
-	case SEMOP:
-		/* struct sembuf is the same on 32 and 64bit :)) */
-		/* sign extend semid */
-		return sys_semtimedop((int)first, compat_ptr(ptr), second,
-				      NULL);
-	case SEMGET:
-		/* sign extend key, nsems */
-		return sys_semget((int)first, (int)second, third);
-	case SEMCTL:
-		/* sign extend semid, semnum */
-		return compat_sys_semctl((int)first, (int)second, third,
-					 compat_ptr(ptr));
-
-	case MSGSND:
-		/* sign extend msqid */
-		return compat_sys_msgsnd((int)first, (int)second, third,
-					 compat_ptr(ptr));
-	case MSGRCV:
-		/* sign extend msqid, msgtyp */
-		return compat_sys_msgrcv((int)first, second, (int)fifth,
-					 third, version, compat_ptr(ptr));
-	case MSGGET:
-		/* sign extend key */
-		return sys_msgget((int)first, second);
-	case MSGCTL:
-		/* sign extend msqid */
-		return compat_sys_msgctl((int)first, second, compat_ptr(ptr));
-
-	case SHMAT:
-		/* sign extend shmid */
-		return compat_sys_shmat((int)first, second, third, version,
-					compat_ptr(ptr));
-	case SHMDT:
-		return sys_shmdt(compat_ptr(ptr));
-	case SHMGET:
-		/* sign extend key_t */
-		return sys_shmget((int)first, second, third);
-	case SHMCTL:
-		/* sign extend shmid */
-		return compat_sys_shmctl((int)first, second, compat_ptr(ptr));
-
-	default:
-		return -ENOSYS;
-	}
-
-	return -ENOSYS;
-}
-#endif
+#include "systbls.h"
 
 asmlinkage long sys32_truncate64(const char __user * path, unsigned long high, unsigned long low)
 {
@@ -234,10 +171,10 @@ COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,
 		new_ka.ka_restorer = restorer;
 		ret = get_user(u_handler, &act->sa_handler);
 		new_ka.sa.sa_handler =  compat_ptr(u_handler);
-		ret |= __copy_from_user(&set32, &act->sa_mask, sizeof(compat_sigset_t));
+		ret |= copy_from_user(&set32, &act->sa_mask, sizeof(compat_sigset_t));
 		sigset_from_compat(&new_ka.sa.sa_mask, &set32);
-		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		ret |= __get_user(u_restorer, &act->sa_restorer);
+		ret |= get_user(new_ka.sa.sa_flags, &act->sa_flags);
+		ret |= get_user(u_restorer, &act->sa_restorer);
 		new_ka.sa.sa_restorer = compat_ptr(u_restorer);
                 if (ret)
                 	return -EFAULT;
@@ -248,9 +185,9 @@ COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,
 	if (!ret && oact) {
 		sigset_to_compat(&set32, &old_ka.sa.sa_mask);
 		ret = put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler);
-		ret |= __copy_to_user(&oact->sa_mask, &set32, sizeof(compat_sigset_t));
-		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		ret |= __put_user(ptr_to_compat(old_ka.sa.sa_restorer), &oact->sa_restorer);
+		ret |= copy_to_user(&oact->sa_mask, &set32, sizeof(compat_sigset_t));
+		ret |= put_user(old_ka.sa.sa_flags, &oact->sa_flags);
+		ret |= put_user(ptr_to_compat(old_ka.sa.sa_restorer), &oact->sa_restorer);
 		if (ret)
 			ret = -EFAULT;
         }
@@ -303,15 +240,7 @@ long compat_sys_fadvise64_64(int fd,
 				advice);
 }
 
-long sys32_lookup_dcookie(unsigned long cookie_high,
-			  unsigned long cookie_low,
-			  char __user *buf, size_t len)
-{
-	return sys_lookup_dcookie((cookie_high << 32) | cookie_low,
-				  buf, len);
-}
-
-long compat_sync_file_range(int fd, unsigned long off_high, unsigned long off_low, unsigned long nb_high, unsigned long nb_low, int flags)
+long sys32_sync_file_range(unsigned int fd, unsigned long off_high, unsigned long off_low, unsigned long nb_high, unsigned long nb_low, unsigned int flags)
 {
 	return sys_sync_file_range(fd,
 				   (off_high << 32) | off_low,

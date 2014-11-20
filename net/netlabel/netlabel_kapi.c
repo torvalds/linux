@@ -23,8 +23,7 @@
  * the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program;  if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * along with this program;  if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -122,7 +121,7 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 	}
 
 	if (addr == NULL && mask == NULL)
-		entry->type = NETLBL_NLTYPE_UNLABELED;
+		entry->def.type = NETLBL_NLTYPE_UNLABELED;
 	else if (addr != NULL && mask != NULL) {
 		addrmap = kzalloc(sizeof(*addrmap), GFP_ATOMIC);
 		if (addrmap == NULL)
@@ -137,7 +136,7 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 			map4 = kzalloc(sizeof(*map4), GFP_ATOMIC);
 			if (map4 == NULL)
 				goto cfg_unlbl_map_add_failure;
-			map4->type = NETLBL_NLTYPE_UNLABELED;
+			map4->def.type = NETLBL_NLTYPE_UNLABELED;
 			map4->list.addr = addr4->s_addr & mask4->s_addr;
 			map4->list.mask = mask4->s_addr;
 			map4->list.valid = 1;
@@ -154,7 +153,7 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 			map6 = kzalloc(sizeof(*map6), GFP_ATOMIC);
 			if (map6 == NULL)
 				goto cfg_unlbl_map_add_failure;
-			map6->type = NETLBL_NLTYPE_UNLABELED;
+			map6->def.type = NETLBL_NLTYPE_UNLABELED;
 			map6->list.addr = *addr6;
 			map6->list.addr.s6_addr32[0] &= mask6->s6_addr32[0];
 			map6->list.addr.s6_addr32[1] &= mask6->s6_addr32[1];
@@ -171,11 +170,10 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 #endif /* IPv6 */
 		default:
 			goto cfg_unlbl_map_add_failure;
-			break;
 		}
 
-		entry->type_def.addrsel = addrmap;
-		entry->type = NETLBL_NLTYPE_ADDRSELECT;
+		entry->def.addrsel = addrmap;
+		entry->def.type = NETLBL_NLTYPE_ADDRSELECT;
 	} else {
 		ret_val = -EINVAL;
 		goto cfg_unlbl_map_add_failure;
@@ -248,7 +246,6 @@ int netlbl_cfg_unlbl_static_add(struct net *net,
  * @addr: IP address in network byte order (struct in[6]_addr)
  * @mask: address mask in network byte order (struct in[6]_addr)
  * @family: address family
- * @secid: LSM secid value for the entry
  * @audit_info: NetLabel audit information
  *
  * Description:
@@ -355,8 +352,8 @@ int netlbl_cfg_cipsov4_map_add(u32 doi,
 	}
 
 	if (addr == NULL && mask == NULL) {
-		entry->type_def.cipsov4 = doi_def;
-		entry->type = NETLBL_NLTYPE_CIPSOV4;
+		entry->def.cipso = doi_def;
+		entry->def.type = NETLBL_NLTYPE_CIPSOV4;
 	} else if (addr != NULL && mask != NULL) {
 		addrmap = kzalloc(sizeof(*addrmap), GFP_ATOMIC);
 		if (addrmap == NULL)
@@ -367,8 +364,8 @@ int netlbl_cfg_cipsov4_map_add(u32 doi,
 		addrinfo = kzalloc(sizeof(*addrinfo), GFP_ATOMIC);
 		if (addrinfo == NULL)
 			goto out_addrinfo;
-		addrinfo->type_def.cipsov4 = doi_def;
-		addrinfo->type = NETLBL_NLTYPE_CIPSOV4;
+		addrinfo->def.cipso = doi_def;
+		addrinfo->def.type = NETLBL_NLTYPE_CIPSOV4;
 		addrinfo->list.addr = addr->s_addr & mask->s_addr;
 		addrinfo->list.mask = mask->s_addr;
 		addrinfo->list.valid = 1;
@@ -376,8 +373,8 @@ int netlbl_cfg_cipsov4_map_add(u32 doi,
 		if (ret_val != 0)
 			goto cfg_cipsov4_map_add_failure;
 
-		entry->type_def.addrsel = addrmap;
-		entry->type = NETLBL_NLTYPE_ADDRSELECT;
+		entry->def.addrsel = addrmap;
+		entry->def.type = NETLBL_NLTYPE_ADDRSELECT;
 	} else {
 		ret_val = -EINVAL;
 		goto out_addrmap;
@@ -406,8 +403,72 @@ out_entry:
  * Security Attribute Functions
  */
 
+#define _CM_F_NONE	0x00000000
+#define _CM_F_ALLOC	0x00000001
+#define _CM_F_WALK	0x00000002
+
 /**
- * netlbl_secattr_catmap_walk - Walk a LSM secattr catmap looking for a bit
+ * _netlbl_catmap_getnode - Get a individual node from a catmap
+ * @catmap: pointer to the category bitmap
+ * @offset: the requested offset
+ * @cm_flags: catmap flags, see _CM_F_*
+ * @gfp_flags: memory allocation flags
+ *
+ * Description:
+ * Iterate through the catmap looking for the node associated with @offset.
+ * If the _CM_F_ALLOC flag is set in @cm_flags and there is no associated node,
+ * one will be created and inserted into the catmap.  If the _CM_F_WALK flag is
+ * set in @cm_flags and there is no associated node, the next highest node will
+ * be returned.  Returns a pointer to the node on success, NULL on failure.
+ *
+ */
+static struct netlbl_lsm_catmap *_netlbl_catmap_getnode(
+					     struct netlbl_lsm_catmap **catmap,
+					     u32 offset,
+					     unsigned int cm_flags,
+					     gfp_t gfp_flags)
+{
+	struct netlbl_lsm_catmap *iter = *catmap;
+	struct netlbl_lsm_catmap *prev = NULL;
+
+	if (iter == NULL)
+		goto catmap_getnode_alloc;
+	if (offset < iter->startbit)
+		goto catmap_getnode_walk;
+	while (iter && offset >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
+		prev = iter;
+		iter = iter->next;
+	}
+	if (iter == NULL || offset < iter->startbit)
+		goto catmap_getnode_walk;
+
+	return iter;
+
+catmap_getnode_walk:
+	if (cm_flags & _CM_F_WALK)
+		return iter;
+catmap_getnode_alloc:
+	if (!(cm_flags & _CM_F_ALLOC))
+		return NULL;
+
+	iter = netlbl_catmap_alloc(gfp_flags);
+	if (iter == NULL)
+		return NULL;
+	iter->startbit = offset & ~(NETLBL_CATMAP_SIZE - 1);
+
+	if (prev == NULL) {
+		iter->next = *catmap;
+		*catmap = iter;
+	} else {
+		iter->next = prev->next;
+		prev->next = iter;
+	}
+
+	return iter;
+}
+
+/**
+ * netlbl_catmap_walk - Walk a LSM secattr catmap looking for a bit
  * @catmap: the category bitmap
  * @offset: the offset to start searching at, in bits
  *
@@ -416,54 +477,51 @@ out_entry:
  * returns the spot of the first set bit or -ENOENT if no bits are set.
  *
  */
-int netlbl_secattr_catmap_walk(struct netlbl_lsm_secattr_catmap *catmap,
-			       u32 offset)
+int netlbl_catmap_walk(struct netlbl_lsm_catmap *catmap, u32 offset)
 {
-	struct netlbl_lsm_secattr_catmap *iter = catmap;
-	u32 node_idx;
-	u32 node_bit;
+	struct netlbl_lsm_catmap *iter = catmap;
+	u32 idx;
+	u32 bit;
 	NETLBL_CATMAP_MAPTYPE bitmap;
 
+	iter = _netlbl_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
+	if (iter == NULL)
+		return -ENOENT;
 	if (offset > iter->startbit) {
-		while (offset >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
-			iter = iter->next;
-			if (iter == NULL)
-				return -ENOENT;
-		}
-		node_idx = (offset - iter->startbit) / NETLBL_CATMAP_MAPSIZE;
-		node_bit = offset - iter->startbit -
-			   (NETLBL_CATMAP_MAPSIZE * node_idx);
+		offset -= iter->startbit;
+		idx = offset / NETLBL_CATMAP_MAPSIZE;
+		bit = offset % NETLBL_CATMAP_MAPSIZE;
 	} else {
-		node_idx = 0;
-		node_bit = 0;
+		idx = 0;
+		bit = 0;
 	}
-	bitmap = iter->bitmap[node_idx] >> node_bit;
+	bitmap = iter->bitmap[idx] >> bit;
 
 	for (;;) {
 		if (bitmap != 0) {
 			while ((bitmap & NETLBL_CATMAP_BIT) == 0) {
 				bitmap >>= 1;
-				node_bit++;
+				bit++;
 			}
 			return iter->startbit +
-				(NETLBL_CATMAP_MAPSIZE * node_idx) + node_bit;
+			       (NETLBL_CATMAP_MAPSIZE * idx) + bit;
 		}
-		if (++node_idx >= NETLBL_CATMAP_MAPCNT) {
+		if (++idx >= NETLBL_CATMAP_MAPCNT) {
 			if (iter->next != NULL) {
 				iter = iter->next;
-				node_idx = 0;
+				idx = 0;
 			} else
 				return -ENOENT;
 		}
-		bitmap = iter->bitmap[node_idx];
-		node_bit = 0;
+		bitmap = iter->bitmap[idx];
+		bit = 0;
 	}
 
 	return -ENOENT;
 }
 
 /**
- * netlbl_secattr_catmap_walk_rng - Find the end of a string of set bits
+ * netlbl_catmap_walkrng - Find the end of a string of set bits
  * @catmap: the category bitmap
  * @offset: the offset to start searching at, in bits
  *
@@ -473,57 +531,105 @@ int netlbl_secattr_catmap_walk(struct netlbl_lsm_secattr_catmap *catmap,
  * the end of the bitmap.
  *
  */
-int netlbl_secattr_catmap_walk_rng(struct netlbl_lsm_secattr_catmap *catmap,
-				   u32 offset)
+int netlbl_catmap_walkrng(struct netlbl_lsm_catmap *catmap, u32 offset)
 {
-	struct netlbl_lsm_secattr_catmap *iter = catmap;
-	u32 node_idx;
-	u32 node_bit;
+	struct netlbl_lsm_catmap *iter;
+	struct netlbl_lsm_catmap *prev = NULL;
+	u32 idx;
+	u32 bit;
 	NETLBL_CATMAP_MAPTYPE bitmask;
 	NETLBL_CATMAP_MAPTYPE bitmap;
 
+	iter = _netlbl_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
+	if (iter == NULL)
+		return -ENOENT;
 	if (offset > iter->startbit) {
-		while (offset >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
-			iter = iter->next;
-			if (iter == NULL)
-				return -ENOENT;
-		}
-		node_idx = (offset - iter->startbit) / NETLBL_CATMAP_MAPSIZE;
-		node_bit = offset - iter->startbit -
-			   (NETLBL_CATMAP_MAPSIZE * node_idx);
+		offset -= iter->startbit;
+		idx = offset / NETLBL_CATMAP_MAPSIZE;
+		bit = offset % NETLBL_CATMAP_MAPSIZE;
 	} else {
-		node_idx = 0;
-		node_bit = 0;
+		idx = 0;
+		bit = 0;
 	}
-	bitmask = NETLBL_CATMAP_BIT << node_bit;
+	bitmask = NETLBL_CATMAP_BIT << bit;
 
 	for (;;) {
-		bitmap = iter->bitmap[node_idx];
+		bitmap = iter->bitmap[idx];
 		while (bitmask != 0 && (bitmap & bitmask) != 0) {
 			bitmask <<= 1;
-			node_bit++;
+			bit++;
 		}
 
-		if (bitmask != 0)
+		if (prev && idx == 0 && bit == 0)
+			return prev->startbit + NETLBL_CATMAP_SIZE - 1;
+		else if (bitmask != 0)
 			return iter->startbit +
-				(NETLBL_CATMAP_MAPSIZE * node_idx) +
-				node_bit - 1;
-		else if (++node_idx >= NETLBL_CATMAP_MAPCNT) {
+				(NETLBL_CATMAP_MAPSIZE * idx) + bit - 1;
+		else if (++idx >= NETLBL_CATMAP_MAPCNT) {
 			if (iter->next == NULL)
-				return iter->startbit +	NETLBL_CATMAP_SIZE - 1;
+				return iter->startbit + NETLBL_CATMAP_SIZE - 1;
+			prev = iter;
 			iter = iter->next;
-			node_idx = 0;
+			idx = 0;
 		}
 		bitmask = NETLBL_CATMAP_BIT;
-		node_bit = 0;
+		bit = 0;
 	}
 
 	return -ENOENT;
 }
 
 /**
- * netlbl_secattr_catmap_setbit - Set a bit in a LSM secattr catmap
- * @catmap: the category bitmap
+ * netlbl_catmap_getlong - Export an unsigned long bitmap
+ * @catmap: pointer to the category bitmap
+ * @offset: pointer to the requested offset
+ * @bitmap: the exported bitmap
+ *
+ * Description:
+ * Export a bitmap with an offset greater than or equal to @offset and return
+ * it in @bitmap.  The @offset must be aligned to an unsigned long and will be
+ * updated on return if different from what was requested; if the catmap is
+ * empty at the requested offset and beyond, the @offset is set to (u32)-1.
+ * Returns zero on sucess, negative values on failure.
+ *
+ */
+int netlbl_catmap_getlong(struct netlbl_lsm_catmap *catmap,
+			  u32 *offset,
+			  unsigned long *bitmap)
+{
+	struct netlbl_lsm_catmap *iter;
+	u32 off = *offset;
+	u32 idx;
+
+	/* only allow aligned offsets */
+	if ((off & (BITS_PER_LONG - 1)) != 0)
+		return -EINVAL;
+
+	if (off < catmap->startbit) {
+		off = catmap->startbit;
+		*offset = off;
+	}
+	iter = _netlbl_catmap_getnode(&catmap, off, _CM_F_NONE, 0);
+	if (iter == NULL) {
+		*offset = (u32)-1;
+		return 0;
+	}
+
+	if (off < iter->startbit) {
+		off = iter->startbit;
+		*offset = off;
+	} else
+		off -= iter->startbit;
+
+	idx = off / NETLBL_CATMAP_MAPSIZE;
+	*bitmap = iter->bitmap[idx] >> (off % NETLBL_CATMAP_SIZE);
+
+	return 0;
+}
+
+/**
+ * netlbl_catmap_setbit - Set a bit in a LSM secattr catmap
+ * @catmap: pointer to the category bitmap
  * @bit: the bit to set
  * @flags: memory allocation flags
  *
@@ -532,36 +638,27 @@ int netlbl_secattr_catmap_walk_rng(struct netlbl_lsm_secattr_catmap *catmap,
  * negative values on failure.
  *
  */
-int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap *catmap,
-				 u32 bit,
-				 gfp_t flags)
+int netlbl_catmap_setbit(struct netlbl_lsm_catmap **catmap,
+			 u32 bit,
+			 gfp_t flags)
 {
-	struct netlbl_lsm_secattr_catmap *iter = catmap;
-	u32 node_bit;
-	u32 node_idx;
+	struct netlbl_lsm_catmap *iter;
+	u32 idx;
 
-	while (iter->next != NULL &&
-	       bit >= (iter->startbit + NETLBL_CATMAP_SIZE))
-		iter = iter->next;
-	if (bit >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
-		iter->next = netlbl_secattr_catmap_alloc(flags);
-		if (iter->next == NULL)
-			return -ENOMEM;
-		iter = iter->next;
-		iter->startbit = bit & ~(NETLBL_CATMAP_SIZE - 1);
-	}
+	iter = _netlbl_catmap_getnode(catmap, bit, _CM_F_ALLOC, flags);
+	if (iter == NULL)
+		return -ENOMEM;
 
-	/* gcc always rounds to zero when doing integer division */
-	node_idx = (bit - iter->startbit) / NETLBL_CATMAP_MAPSIZE;
-	node_bit = bit - iter->startbit - (NETLBL_CATMAP_MAPSIZE * node_idx);
-	iter->bitmap[node_idx] |= NETLBL_CATMAP_BIT << node_bit;
+	bit -= iter->startbit;
+	idx = bit / NETLBL_CATMAP_MAPSIZE;
+	iter->bitmap[idx] |= NETLBL_CATMAP_BIT << (bit % NETLBL_CATMAP_MAPSIZE);
 
 	return 0;
 }
 
 /**
- * netlbl_secattr_catmap_setrng - Set a range of bits in a LSM secattr catmap
- * @catmap: the category bitmap
+ * netlbl_catmap_setrng - Set a range of bits in a LSM secattr catmap
+ * @catmap: pointer to the category bitmap
  * @start: the starting bit
  * @end: the last bit in the string
  * @flags: memory allocation flags
@@ -571,36 +668,63 @@ int netlbl_secattr_catmap_setbit(struct netlbl_lsm_secattr_catmap *catmap,
  * on success, negative values on failure.
  *
  */
-int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
-				 u32 start,
-				 u32 end,
-				 gfp_t flags)
+int netlbl_catmap_setrng(struct netlbl_lsm_catmap **catmap,
+			 u32 start,
+			 u32 end,
+			 gfp_t flags)
 {
-	int ret_val = 0;
-	struct netlbl_lsm_secattr_catmap *iter = catmap;
-	u32 iter_max_spot;
-	u32 spot;
+	int rc = 0;
+	u32 spot = start;
 
-	/* XXX - This could probably be made a bit faster by combining writes
-	 * to the catmap instead of setting a single bit each time, but for
-	 * right now skipping to the start of the range in the catmap should
-	 * be a nice improvement over calling the individual setbit function
-	 * repeatedly from a loop. */
-
-	while (iter->next != NULL &&
-	       start >= (iter->startbit + NETLBL_CATMAP_SIZE))
-		iter = iter->next;
-	iter_max_spot = iter->startbit + NETLBL_CATMAP_SIZE;
-
-	for (spot = start; spot <= end && ret_val == 0; spot++) {
-		if (spot >= iter_max_spot && iter->next != NULL) {
-			iter = iter->next;
-			iter_max_spot = iter->startbit + NETLBL_CATMAP_SIZE;
-		}
-		ret_val = netlbl_secattr_catmap_setbit(iter, spot, flags);
+	while (rc == 0 && spot <= end) {
+		if (((spot & (BITS_PER_LONG - 1)) != 0) &&
+		    ((end - spot) > BITS_PER_LONG)) {
+			rc = netlbl_catmap_setlong(catmap,
+						   spot,
+						   (unsigned long)-1,
+						   flags);
+			spot += BITS_PER_LONG;
+		} else
+			rc = netlbl_catmap_setbit(catmap, spot++, flags);
 	}
 
-	return ret_val;
+	return rc;
+}
+
+/**
+ * netlbl_catmap_setlong - Import an unsigned long bitmap
+ * @catmap: pointer to the category bitmap
+ * @offset: offset to the start of the imported bitmap
+ * @bitmap: the bitmap to import
+ * @flags: memory allocation flags
+ *
+ * Description:
+ * Import the bitmap specified in @bitmap into @catmap, using the offset
+ * in @offset.  The offset must be aligned to an unsigned long.  Returns zero
+ * on success, negative values on failure.
+ *
+ */
+int netlbl_catmap_setlong(struct netlbl_lsm_catmap **catmap,
+			  u32 offset,
+			  unsigned long bitmap,
+			  gfp_t flags)
+{
+	struct netlbl_lsm_catmap *iter;
+	u32 idx;
+
+	/* only allow aligned offsets */
+	if ((offset & (BITS_PER_LONG - 1)) != 0)
+		return -EINVAL;
+
+	iter = _netlbl_catmap_getnode(catmap, offset, _CM_F_ALLOC, flags);
+	if (iter == NULL)
+		return -ENOMEM;
+
+	offset -= iter->startbit;
+	idx = offset / NETLBL_CATMAP_MAPSIZE;
+	iter->bitmap[idx] |= bitmap << (offset % NETLBL_CATMAP_MAPSIZE);
+
+	return 0;
 }
 
 /*
@@ -657,14 +781,14 @@ int netlbl_sock_setattr(struct sock *sk,
 	}
 	switch (family) {
 	case AF_INET:
-		switch (dom_entry->type) {
+		switch (dom_entry->def.type) {
 		case NETLBL_NLTYPE_ADDRSELECT:
 			ret_val = -EDESTADDRREQ;
 			break;
 		case NETLBL_NLTYPE_CIPSOV4:
 			ret_val = cipso_v4_sock_setattr(sk,
-						    dom_entry->type_def.cipsov4,
-						    secattr);
+							dom_entry->def.cipso,
+							secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
 			ret_val = 0;
@@ -754,23 +878,22 @@ int netlbl_conn_setattr(struct sock *sk,
 {
 	int ret_val;
 	struct sockaddr_in *addr4;
-	struct netlbl_domaddr4_map *af4_entry;
+	struct netlbl_dommap_def *entry;
 
 	rcu_read_lock();
 	switch (addr->sa_family) {
 	case AF_INET:
 		addr4 = (struct sockaddr_in *)addr;
-		af4_entry = netlbl_domhsh_getentry_af4(secattr->domain,
-						       addr4->sin_addr.s_addr);
-		if (af4_entry == NULL) {
+		entry = netlbl_domhsh_getentry_af4(secattr->domain,
+						   addr4->sin_addr.s_addr);
+		if (entry == NULL) {
 			ret_val = -ENOENT;
 			goto conn_setattr_return;
 		}
-		switch (af4_entry->type) {
+		switch (entry->type) {
 		case NETLBL_NLTYPE_CIPSOV4:
 			ret_val = cipso_v4_sock_setattr(sk,
-						   af4_entry->type_def.cipsov4,
-						   secattr);
+							entry->cipso, secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
 			/* just delete the protocols we support for right now
@@ -812,36 +935,21 @@ int netlbl_req_setattr(struct request_sock *req,
 		       const struct netlbl_lsm_secattr *secattr)
 {
 	int ret_val;
-	struct netlbl_dom_map *dom_entry;
-	struct netlbl_domaddr4_map *af4_entry;
-	u32 proto_type;
-	struct cipso_v4_doi *proto_cv4;
+	struct netlbl_dommap_def *entry;
 
 	rcu_read_lock();
-	dom_entry = netlbl_domhsh_getentry(secattr->domain);
-	if (dom_entry == NULL) {
-		ret_val = -ENOENT;
-		goto req_setattr_return;
-	}
 	switch (req->rsk_ops->family) {
 	case AF_INET:
-		if (dom_entry->type == NETLBL_NLTYPE_ADDRSELECT) {
-			struct inet_request_sock *req_inet = inet_rsk(req);
-			af4_entry = netlbl_domhsh_getentry_af4(secattr->domain,
-							    req_inet->rmt_addr);
-			if (af4_entry == NULL) {
-				ret_val = -ENOENT;
-				goto req_setattr_return;
-			}
-			proto_type = af4_entry->type;
-			proto_cv4 = af4_entry->type_def.cipsov4;
-		} else {
-			proto_type = dom_entry->type;
-			proto_cv4 = dom_entry->type_def.cipsov4;
+		entry = netlbl_domhsh_getentry_af4(secattr->domain,
+						   inet_rsk(req)->ir_rmt_addr);
+		if (entry == NULL) {
+			ret_val = -ENOENT;
+			goto req_setattr_return;
 		}
-		switch (proto_type) {
+		switch (entry->type) {
 		case NETLBL_NLTYPE_CIPSOV4:
-			ret_val = cipso_v4_req_setattr(req, proto_cv4, secattr);
+			ret_val = cipso_v4_req_setattr(req,
+						       entry->cipso, secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
 			/* just delete the protocols we support for right now
@@ -899,23 +1007,21 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 {
 	int ret_val;
 	struct iphdr *hdr4;
-	struct netlbl_domaddr4_map *af4_entry;
+	struct netlbl_dommap_def *entry;
 
 	rcu_read_lock();
 	switch (family) {
 	case AF_INET:
 		hdr4 = ip_hdr(skb);
-		af4_entry = netlbl_domhsh_getentry_af4(secattr->domain,
-						       hdr4->daddr);
-		if (af4_entry == NULL) {
+		entry = netlbl_domhsh_getentry_af4(secattr->domain,hdr4->daddr);
+		if (entry == NULL) {
 			ret_val = -ENOENT;
 			goto skbuff_setattr_return;
 		}
-		switch (af4_entry->type) {
+		switch (entry->type) {
 		case NETLBL_NLTYPE_CIPSOV4:
-			ret_val = cipso_v4_skbuff_setattr(skb,
-						   af4_entry->type_def.cipsov4,
-						   secattr);
+			ret_val = cipso_v4_skbuff_setattr(skb, entry->cipso,
+							  secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
 			/* just delete the protocols we support for right now

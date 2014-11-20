@@ -43,7 +43,7 @@
 #define HOST_DIAG_WRITE_ENABLE			    0x80
 #define HOST_DIAG_RESET_ADAPTER			    0x4
 #define MEGASAS_FUSION_MAX_RESET_TRIES		    3
-#define MAX_MSIX_QUEUES_FUSION			    16
+#define MAX_MSIX_QUEUES_FUSION			    128
 
 /* Invader defines */
 #define MPI2_TYPE_CUDA				    0x2
@@ -61,6 +61,9 @@
 #define MEGASAS_SCSI_ADDL_CDB_LEN                   0x18
 #define MEGASAS_RD_WR_PROTECT_CHECK_ALL		    0x20
 #define MEGASAS_RD_WR_PROTECT_CHECK_NONE	    0x60
+
+#define MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET   (0x0000030C)
+#define MPI2_REPLY_POST_HOST_INDEX_OFFSET	(0x0000006C)
 
 /*
  * Raid context flags
@@ -83,15 +86,21 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 
 #define MEGASAS_FP_CMD_LEN	16
 #define MEGASAS_FUSION_IN_RESET 0
+#define THRESHOLD_REPLY_COUNT 50
 
 /*
- * Raid Context structure which describes MegaRAID specific IO Paramenters
+ * Raid Context structure which describes MegaRAID specific IO Parameters
  * This resides at offset 0x60 where the SGL normally starts in MPT IO Frames
  */
 
 struct RAID_CONTEXT {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+	u8	nseg:4;
+	u8	Type:4;
+#else
 	u8	Type:4;
 	u8	nseg:4;
+#endif
 	u8	resvd0;
 	u16     timeoutValue;
 	u8      regLockFlags;
@@ -295,8 +304,13 @@ struct MPI2_RAID_SCSI_IO_REQUEST {
  * MPT RAID MFA IO Descriptor.
  */
 struct MEGASAS_RAID_MFA_IO_REQUEST_DESCRIPTOR {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+	u32     MessageAddress1:24; /* bits 31:8*/
+	u32     RequestFlags:8;
+#else
 	u32     RequestFlags:8;
 	u32     MessageAddress1:24; /* bits 31:8*/
+#endif
 	u32     MessageAddress2;      /* bits 61:32 */
 };
 
@@ -460,17 +474,24 @@ struct MPI2_IOC_INIT_REQUEST {
 /* mrpriv defines */
 #define MR_PD_INVALID 0xFFFF
 #define MAX_SPAN_DEPTH 8
+#define MAX_QUAD_DEPTH	MAX_SPAN_DEPTH
 #define MAX_RAIDMAP_SPAN_DEPTH (MAX_SPAN_DEPTH)
 #define MAX_ROW_SIZE 32
 #define MAX_RAIDMAP_ROW_SIZE (MAX_ROW_SIZE)
 #define MAX_LOGICAL_DRIVES 64
+#define MAX_LOGICAL_DRIVES_EXT 256
 #define MAX_RAIDMAP_LOGICAL_DRIVES (MAX_LOGICAL_DRIVES)
 #define MAX_RAIDMAP_VIEWS (MAX_LOGICAL_DRIVES)
 #define MAX_ARRAYS 128
 #define MAX_RAIDMAP_ARRAYS (MAX_ARRAYS)
+#define MAX_ARRAYS_EXT	256
+#define MAX_API_ARRAYS_EXT (MAX_ARRAYS_EXT)
 #define MAX_PHYSICAL_DEVICES 256
 #define MAX_RAIDMAP_PHYSICAL_DEVICES (MAX_PHYSICAL_DEVICES)
 #define MR_DCMD_LD_MAP_GET_INFO             0x0300e101
+#define MR_DCMD_CTRL_SHARED_HOST_MEM_ALLOC  0x010e8485   /* SR-IOV HB alloc*/
+#define MR_DCMD_LD_VF_MAP_GET_ALL_LDS_111   0x03200200
+#define MR_DCMD_LD_VF_MAP_GET_ALL_LDS       0x03150200
 
 struct MR_DEV_HANDLE_INFO {
 	u16     curDevHdl;
@@ -501,7 +522,9 @@ struct MR_LD_SPAN {
 	u64      startBlk;
 	u64      numBlks;
 	u16      arrayRef;
-	u8       reserved[6];
+	u8       spanRowSize;
+	u8       spanRowDataSize;
+	u8       reserved[4];
 };
 
 struct MR_SPAN_BLOCK_INFO {
@@ -512,6 +535,19 @@ struct MR_SPAN_BLOCK_INFO {
 
 struct MR_LD_RAID {
 	struct {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved4:7;
+		u32	fpNonRWCapable:1;
+		u32     fpReadAcrossStripe:1;
+		u32     fpWriteAcrossStripe:1;
+		u32     fpReadCapable:1;
+		u32     fpWriteCapable:1;
+		u32     encryptionType:8;
+		u32     pdPiMode:4;
+		u32     ldPiMode:4;
+		u32     reserved5:3;
+		u32     fpCapable:1;
+#else
 		u32     fpCapable:1;
 		u32     reserved5:3;
 		u32     ldPiMode:4;
@@ -521,7 +557,9 @@ struct MR_LD_RAID {
 		u32     fpReadCapable:1;
 		u32     fpWriteAcrossStripe:1;
 		u32     fpReadAcrossStripe:1;
-		u32     reserved4:8;
+		u32	fpNonRWCapable:1;
+		u32     reserved4:7;
+#endif
 	} capability;
 	u32     reserved6;
 	u64     size;
@@ -545,7 +583,9 @@ struct MR_LD_RAID {
 		u32 reserved:31;
 	} flags;
 
-	u8      reserved3[0x5C];
+	u8	LUN[8]; /* 0x24 8 byte LUN field used for SCSI IO's */
+	u8	fpIoTimeoutForLd;/*0x2C timeout value used by driver in FP IO*/
+	u8      reserved3[0x80-0x2D]; /* 0x2D */
 };
 
 struct MR_LD_SPAN_MAP {
@@ -565,7 +605,6 @@ struct MR_FW_RAID_MAP {
 			u32         maxArrays;
 		} validationInfo;
 		u32             version[5];
-		u32             reserved1[5];
 	};
 
 	u32                 ldCount;
@@ -587,6 +626,12 @@ struct IO_REQUEST_INFO {
 	u16 devHandle;
 	u64 pdBlock;
 	u8 fpOkForIo;
+	u8 IoforUnevenSpan;
+	u8 start_span;
+	u8 reserved;
+	u64 start_row;
+	u8  span_arm;	/* span[7:5], arm[4:0] */
+	u8  pd_after_lb;
 };
 
 struct MR_LD_TARGET_SYNC {
@@ -638,26 +683,121 @@ struct megasas_cmd_fusion {
 	u32 sync_cmd_idx;
 	u32 index;
 	u8 flags;
+	u8 pd_r1_lb;
 };
 
 struct LD_LOAD_BALANCE_INFO {
 	u8	loadBalanceFlag;
 	u8	reserved1;
-	u16     raid1DevHandle[2];
-	atomic_t     scsi_pending_cmds[2];
-	u64     last_accessed_block[2];
+	atomic_t     scsi_pending_cmds[MAX_PHYSICAL_DEVICES];
+	u64     last_accessed_block[MAX_PHYSICAL_DEVICES];
 };
+
+/* SPAN_SET is info caclulated from span info from Raid map per LD */
+typedef struct _LD_SPAN_SET {
+	u64  log_start_lba;
+	u64  log_end_lba;
+	u64  span_row_start;
+	u64  span_row_end;
+	u64  data_strip_start;
+	u64  data_strip_end;
+	u64  data_row_start;
+	u64  data_row_end;
+	u8   strip_offset[MAX_SPAN_DEPTH];
+	u32    span_row_data_width;
+	u32    diff;
+	u32    reserved[2];
+} LD_SPAN_SET, *PLD_SPAN_SET;
+
+typedef struct LOG_BLOCK_SPAN_INFO {
+	LD_SPAN_SET  span_set[MAX_SPAN_DEPTH];
+} LD_SPAN_INFO, *PLD_SPAN_INFO;
 
 struct MR_FW_RAID_MAP_ALL {
 	struct MR_FW_RAID_MAP raidMap;
 	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES - 1];
 } __attribute__ ((packed));
 
+struct MR_DRV_RAID_MAP {
+	/* total size of this structure, including this field.
+	 * This feild will be manupulated by driver for ext raid map,
+	 * else pick the value from firmware raid map.
+	 */
+	u32                 totalSize;
+
+	union {
+	struct {
+		u32         maxLd;
+		u32         maxSpanDepth;
+		u32         maxRowSize;
+		u32         maxPdCount;
+		u32         maxArrays;
+	} validationInfo;
+	u32             version[5];
+	};
+
+	/* timeout value used by driver in FP IOs*/
+	u8                  fpPdIoTimeoutSec;
+	u8                  reserved2[7];
+
+	u16                 ldCount;
+	u16                 arCount;
+	u16                 spanCount;
+	u16                 reserve3;
+
+	struct MR_DEV_HANDLE_INFO  devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
+	u8                  ldTgtIdToLd[MAX_LOGICAL_DRIVES_EXT];
+	struct MR_ARRAY_INFO       arMapInfo[MAX_API_ARRAYS_EXT];
+	struct MR_LD_SPAN_MAP      ldSpanMap[1];
+
+};
+
+/* Driver raid map size is same as raid map ext
+ * MR_DRV_RAID_MAP_ALL is created to sync with old raid.
+ * And it is mainly for code re-use purpose.
+ */
+struct MR_DRV_RAID_MAP_ALL {
+
+	struct MR_DRV_RAID_MAP raidMap;
+	struct MR_LD_SPAN_MAP      ldSpanMap[MAX_LOGICAL_DRIVES_EXT - 1];
+} __packed;
+
+
+
+struct MR_FW_RAID_MAP_EXT {
+	/* Not usred in new map */
+	u32                 reserved;
+
+	union {
+	struct {
+		u32         maxLd;
+		u32         maxSpanDepth;
+		u32         maxRowSize;
+		u32         maxPdCount;
+		u32         maxArrays;
+	} validationInfo;
+	u32             version[5];
+	};
+
+	u8                  fpPdIoTimeoutSec;
+	u8                  reserved2[7];
+
+	u16                 ldCount;
+	u16                 arCount;
+	u16                 spanCount;
+	u16                 reserve3;
+
+	struct MR_DEV_HANDLE_INFO  devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
+	u8                  ldTgtIdToLd[MAX_LOGICAL_DRIVES_EXT];
+	struct MR_ARRAY_INFO       arMapInfo[MAX_API_ARRAYS_EXT];
+	struct MR_LD_SPAN_MAP      ldSpanMap[MAX_LOGICAL_DRIVES_EXT];
+};
+
 struct fusion_context {
 	struct megasas_cmd_fusion **cmd_list;
 	struct list_head cmd_pool;
 
-	spinlock_t cmd_pool_lock;
+	spinlock_t mpt_pool_lock;
 
 	dma_addr_t req_frames_desc_phys;
 	u8 *req_frames_desc;
@@ -689,9 +829,18 @@ struct fusion_context {
 	struct MR_FW_RAID_MAP_ALL *ld_map[2];
 	dma_addr_t ld_map_phys[2];
 
-	u32 map_sz;
+	/*Non dma-able memory. Driver local copy.*/
+	struct MR_DRV_RAID_MAP_ALL *ld_drv_map[2];
+
+	u32 max_map_sz;
+	u32 current_map_sz;
+	u32 old_map_sz;
+	u32 new_map_sz;
+	u32 drv_map_sz;
+	u32 drv_map_pages;
 	u8 fast_path_io;
-	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES];
+	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
+	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
 };
 
 union desc_value {
@@ -701,5 +850,6 @@ union desc_value {
 		u32 high;
 	} u;
 };
+
 
 #endif /* _MEGARAID_SAS_FUSION_H_ */

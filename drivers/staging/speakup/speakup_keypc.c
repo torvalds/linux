@@ -59,24 +59,24 @@ static struct var_t vars[] = {
  * These attributes will appear in /sys/accessibility/speakup/keypc.
  */
 static struct kobj_attribute caps_start_attribute =
-	__ATTR(caps_start, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(caps_start, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute caps_stop_attribute =
-	__ATTR(caps_stop, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(caps_stop, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
-	__ATTR(pitch, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(pitch, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
-	__ATTR(rate, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(rate, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 
 static struct kobj_attribute delay_time_attribute =
-	__ATTR(delay_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(delay_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute direct_attribute =
-	__ATTR(direct, USER_RW, spk_var_show, spk_var_store);
+	__ATTR(direct, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute full_time_attribute =
-	__ATTR(full_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(full_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute jiffy_delta_attribute =
-	__ATTR(jiffy_delta, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(jiffy_delta, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute trigger_time_attribute =
-	__ATTR(trigger_time, ROOT_W, spk_var_show, spk_var_store);
+	__ATTR(trigger_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 
 /*
  * Create a group of attributes so that we can create and destroy them all
@@ -143,6 +143,7 @@ static inline bool synth_full(void)
 static char *oops(void)
 {
 	int s1, s2, s3, s4;
+
 	s1 = inb_p(synth_port);
 	s2 = inb_p(synth_port+1);
 	s3 = inb_p(synth_port+2);
@@ -155,6 +156,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 {
 	u_char ch;
 	int timeout;
+
 	while ((ch = *buf)) {
 		if (ch == '\n')
 			ch = PROCSPEECH;
@@ -168,7 +170,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 		udelay(70);
 		buf++;
 	}
-	return 0;
+	return NULL;
 }
 
 static void do_catch_up(struct spk_synth *synth)
@@ -187,26 +189,26 @@ static void do_catch_up(struct spk_synth *synth)
 	jiffy_delta = spk_get_var(JIFFY);
 	delay_time = spk_get_var(DELAY);
 	full_time = spk_get_var(FULL);
-spk_lock(flags);
+spin_lock_irqsave(&speakup_info.spinlock, flags);
 	jiffy_delta_val = jiffy_delta->u.n.value;
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 
 	jiff_max = jiffies + jiffy_delta_val;
 	while (!kthread_should_stop()) {
-		spk_lock(flags);
+		spin_lock_irqsave(&speakup_info.spinlock, flags);
 		if (speakup_info.flushing) {
 			speakup_info.flushing = 0;
-			spk_unlock(flags);
+			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			synth->flush(synth);
 			continue;
 		}
 		if (synth_buffer_empty()) {
-			spk_unlock(flags);
+			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		full_time_val = full_time->u.n.value;
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (synth_full()) {
 			schedule_timeout(msecs_to_jiffies(full_time_val));
 			continue;
@@ -220,9 +222,9 @@ spk_lock(flags);
 			oops();
 			break;
 		}
-		spk_lock(flags);
+		spin_lock_irqsave(&speakup_info.spinlock, flags);
 		ch = synth_buffer_getc();
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (ch == '\n')
 			ch = PROCSPEECH;
 		outb_p(ch, synth_port);
@@ -237,10 +239,10 @@ spk_lock(flags);
 				break;
 			}
 			outb_p(PROCSPEECH, synth_port);
-			spk_lock(flags);
+			spin_lock_irqsave(&speakup_info.spinlock, flags);
 			jiffy_delta_val = jiffy_delta->u.n.value;
 			delay_time_val = delay_time->u.n.value;
-			spk_unlock(flags);
+			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			schedule_timeout(msecs_to_jiffies(delay_time_val));
 			jiff_max = jiffies+jiffy_delta_val;
 		}
@@ -264,6 +266,7 @@ static int synth_probe(struct spk_synth *synth)
 {
 	unsigned int port_val = 0;
 	int i = 0;
+
 	pr_info("Probing for %s.\n", synth->long_name);
 	if (port_forced) {
 		synth_port = port_forced;

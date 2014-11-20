@@ -66,7 +66,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		return;
 	}
 
-	ath5k_tx_queue(hw, skb, &ah->txqs[qnum]);
+	ath5k_tx_queue(hw, skb, &ah->txqs[qnum], control);
 }
 
 
@@ -202,7 +202,7 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&ah->lock);
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ret = ath5k_chan_set(ah, conf->channel);
+		ret = ath5k_chan_set(ah, &conf->chandef);
 		if (ret < 0)
 			goto unlock;
 	}
@@ -325,7 +325,7 @@ ath5k_prepare_multicast(struct ieee80211_hw *hw,
 	struct netdev_hw_addr *ha;
 
 	mfilt[0] = 0;
-	mfilt[1] = 1;
+	mfilt[1] = 0;
 
 	netdev_hw_addr_list_for_each(ha, mc_list) {
 		/* calculate XOR of eight 6-bit values */
@@ -473,6 +473,8 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	/* Set the cached hw filter flags, this will later actually
 	 * be set in HW */
 	ah->filter_flags = rfilt;
+	/* Store current FIF filter flags */
+	ah->fif_filter_flags = *new_flags;
 
 	mutex_unlock(&ah->lock);
 }
@@ -678,9 +680,10 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
 
 	memcpy(survey, &ah->survey, sizeof(*survey));
 
-	survey->channel = conf->channel;
+	survey->channel = conf->chandef.chan;
 	survey->noise = ah->ah_noise_floor;
 	survey->filled = SURVEY_INFO_NOISE_DBM |
+			SURVEY_INFO_IN_USE |
 			SURVEY_INFO_CHANNEL_TIME |
 			SURVEY_INFO_CHANNEL_TIME_BUSY |
 			SURVEY_INFO_CHANNEL_TIME_RX |
@@ -701,7 +704,7 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
  * reset.
  */
 static void
-ath5k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
+ath5k_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 {
 	struct ath5k_hw *ah = hw->priv;
 

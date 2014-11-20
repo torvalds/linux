@@ -27,11 +27,9 @@
 
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/jiffies.h>
-#include <linux/module.h>
 
+#include <asm/dma-coherence.h>
 #include <asm/mipsregs.h>
-#include <asm/time.h>
 
 #include <au1000.h>
 
@@ -40,24 +38,27 @@ extern void set_cpuspec(void);
 
 void __init plat_mem_setup(void)
 {
-	unsigned long est_freq;
-
-	/* determine core clock */
-	est_freq = au1xxx_calc_clock();
-	est_freq += 5000;    /* round */
-	est_freq -= est_freq % 10000;
-	printk(KERN_INFO "(PRId %08x) @ %lu.%02lu MHz\n", read_c0_prid(),
-	       est_freq / 1000000, ((est_freq % 1000000) * 100) / 1000000);
-
-	/* this is faster than wasting cycles trying to approximate it */
-	preset_lpj = (est_freq >> 1) / HZ;
-
 	if (au1xxx_cpu_needs_config_od())
 		/* Various early Au1xx0 errata corrected by this */
 		set_c0_config(1 << 19); /* Set Config[OD] */
 	else
 		/* Clear to obtain best system bus performance */
 		clear_c0_config(1 << 19); /* Clear Config[OD] */
+
+	hw_coherentio = 0;
+	coherentio = 1;
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1000:
+	case ALCHEMY_CPU_AU1500:
+	case ALCHEMY_CPU_AU1100:
+		coherentio = 0;
+		break;
+	case ALCHEMY_CPU_AU1200:
+		/* Au1200 AB USB does not support coherent memory */
+		if (0 == (read_c0_prid() & PRID_REV_MASK))
+			coherentio = 0;
+		break;
+	}
 
 	board_setup();	/* board specific setup */
 

@@ -22,6 +22,7 @@
 #define FC2580_PRIV_H
 
 #include "fc2580.h"
+#include <linux/math64.h>
 
 struct fc2580_reg_val {
 	u8 reg;

@@ -9,6 +9,50 @@
 #ifndef __RC_MINSTREL_H
 #define __RC_MINSTREL_H
 
+#define EWMA_LEVEL	96	/* ewma weighting factor [/EWMA_DIV] */
+#define EWMA_DIV	128
+#define SAMPLE_COLUMNS	10	/* number of columns in sample table */
+
+
+/* scaled fraction values */
+#define MINSTREL_SCALE  16
+#define MINSTREL_FRAC(val, div) (((val) << MINSTREL_SCALE) / div)
+#define MINSTREL_TRUNC(val) ((val) >> MINSTREL_SCALE)
+
+/* number of highest throughput rates to consider*/
+#define MAX_THR_RATES 4
+
+/*
+ * Perform EWMA (Exponentially Weighted Moving Average) calculation
+  */
+static inline int
+minstrel_ewma(int old, int new, int weight)
+{
+	return (new * (EWMA_DIV - weight) + old * weight) / EWMA_DIV;
+}
+
+struct minstrel_rate_stats {
+	/* current / last sampling period attempts/success counters */
+	unsigned int attempts, last_attempts;
+	unsigned int success, last_success;
+
+	/* total attempts/success counters */
+	u64 att_hist, succ_hist;
+
+	/* current throughput */
+	unsigned int cur_tp;
+
+	/* packet delivery probabilities */
+	unsigned int cur_prob, probability;
+
+	/* maximum retry counts */
+	unsigned int retry_count;
+	unsigned int retry_count_rtscts;
+
+	u8 sample_skipped;
+	bool retry_updated;
+};
+
 struct minstrel_rate {
 	int bitrate;
 	int rix;
@@ -17,42 +61,28 @@ struct minstrel_rate {
 	unsigned int ack_time;
 
 	int sample_limit;
-	unsigned int retry_count;
 	unsigned int retry_count_cts;
-	unsigned int retry_count_rtscts;
 	unsigned int adjusted_retry_count;
 
-	u32 success;
-	u32 attempts;
-	u32 last_attempts;
-	u32 last_success;
-
-	/* parts per thousand */
-	u32 cur_prob;
-	u32 probability;
-
-	/* per-rate throughput */
-	u32 cur_tp;
-
-	u64 succ_hist;
-	u64 att_hist;
+	struct minstrel_rate_stats stats;
 };
 
 struct minstrel_sta_info {
+	struct ieee80211_sta *sta;
+
 	unsigned long stats_update;
 	unsigned int sp_ack_dur;
 	unsigned int rate_avg;
 
 	unsigned int lowest_rix;
 
-	unsigned int max_tp_rate;
-	unsigned int max_tp_rate2;
-	unsigned int max_prob_rate;
-	unsigned int packet_count;
-	unsigned int sample_count;
+	u8 max_tp_rate[MAX_THR_RATES];
+	u8 max_prob_rate;
+	unsigned int total_packets;
+	unsigned int sample_packets;
 	int sample_deferred;
 
-	unsigned int sample_idx;
+	unsigned int sample_row;
 	unsigned int sample_column;
 
 	int n_rates;
@@ -73,7 +103,6 @@ struct minstrel_priv {
 	unsigned int cw_min;
 	unsigned int cw_max;
 	unsigned int max_retry;
-	unsigned int ewma_level;
 	unsigned int segment_size;
 	unsigned int update_interval;
 	unsigned int lookaround_rate;
@@ -99,7 +128,7 @@ struct minstrel_debugfs_info {
 	char buf[];
 };
 
-extern struct rate_control_ops mac80211_minstrel;
+extern const struct rate_control_ops mac80211_minstrel;
 void minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
 void minstrel_remove_sta_debugfs(void *priv, void *priv_sta);
 

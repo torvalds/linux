@@ -71,9 +71,9 @@ static int mdsc_show(struct seq_file *s, void *p)
 		seq_printf(s, "%s", ceph_mds_op_name(req->r_op));
 
 		if (req->r_got_unsafe)
-			seq_printf(s, "\t(unsafe)");
+			seq_puts(s, "\t(unsafe)");
 		else
-			seq_printf(s, "\t");
+			seq_puts(s, "\t");
 
 		if (req->r_inode) {
 			seq_printf(s, " #%llx", ceph_ino(req->r_inode));
@@ -93,6 +93,8 @@ static int mdsc_show(struct seq_file *s, void *p)
 		} else if (req->r_path1) {
 			seq_printf(s, " #%llx/%s", req->r_ino1.ino,
 				   req->r_path1);
+		} else {
+			seq_printf(s, " #%llx", req->r_ino1.ino);
 		}
 
 		if (req->r_old_dentry) {
@@ -102,7 +104,8 @@ static int mdsc_show(struct seq_file *s, void *p)
 				path = NULL;
 			spin_lock(&req->r_old_dentry->d_lock);
 			seq_printf(s, " #%llx/%.*s (%s)",
-			   ceph_ino(req->r_old_dentry_dir),
+				   req->r_old_dentry_dir ?
+				   ceph_ino(req->r_old_dentry_dir) : 0,
 				   req->r_old_dentry->d_name.len,
 				   req->r_old_dentry->d_name.name,
 				   path ? path : "");
@@ -116,7 +119,7 @@ static int mdsc_show(struct seq_file *s, void *p)
 				seq_printf(s, " %s", req->r_path2);
 		}
 
-		seq_printf(s, "\n");
+		seq_puts(s, "\n");
 	}
 	mutex_unlock(&mdsc->mutex);
 
@@ -155,10 +158,47 @@ static int dentry_lru_show(struct seq_file *s, void *ptr)
 	return 0;
 }
 
+static int mds_sessions_show(struct seq_file *s, void *ptr)
+{
+	struct ceph_fs_client *fsc = s->private;
+	struct ceph_mds_client *mdsc = fsc->mdsc;
+	struct ceph_auth_client *ac = fsc->client->monc.auth;
+	struct ceph_options *opt = fsc->client->options;
+	int mds = -1;
+
+	mutex_lock(&mdsc->mutex);
+
+	/* The 'num' portion of an 'entity name' */
+	seq_printf(s, "global_id %llu\n", ac->global_id);
+
+	/* The -o name mount argument */
+	seq_printf(s, "name \"%s\"\n", opt->name ? opt->name : "");
+
+	/* The list of MDS session rank+state */
+	for (mds = 0; mds < mdsc->max_sessions; mds++) {
+		struct ceph_mds_session *session =
+			__ceph_lookup_mds_session(mdsc, mds);
+		if (!session) {
+			continue;
+		}
+		mutex_unlock(&mdsc->mutex);
+		seq_printf(s, "mds.%d %s\n",
+				session->s_mds,
+				ceph_session_state_name(session->s_state));
+
+		ceph_put_mds_session(session);
+		mutex_lock(&mdsc->mutex);
+	}
+	mutex_unlock(&mdsc->mutex);
+
+	return 0;
+}
+
 CEPH_DEFINE_SHOW_FUNC(mdsmap_show)
 CEPH_DEFINE_SHOW_FUNC(mdsc_show)
 CEPH_DEFINE_SHOW_FUNC(caps_show)
 CEPH_DEFINE_SHOW_FUNC(dentry_lru_show)
+CEPH_DEFINE_SHOW_FUNC(mds_sessions_show)
 
 
 /*
@@ -190,6 +230,7 @@ void ceph_fs_debugfs_cleanup(struct ceph_fs_client *fsc)
 	debugfs_remove(fsc->debugfs_bdi);
 	debugfs_remove(fsc->debugfs_congestion_kb);
 	debugfs_remove(fsc->debugfs_mdsmap);
+	debugfs_remove(fsc->debugfs_mds_sessions);
 	debugfs_remove(fsc->debugfs_caps);
 	debugfs_remove(fsc->debugfs_mdsc);
 	debugfs_remove(fsc->debugfs_dentry_lru);
@@ -226,6 +267,14 @@ int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
 					fsc,
 					&mdsmap_show_fops);
 	if (!fsc->debugfs_mdsmap)
+		goto out;
+
+	fsc->debugfs_mds_sessions = debugfs_create_file("mds_sessions",
+					0600,
+					fsc->client->debugfs_dir,
+					fsc,
+					&mds_sessions_show_fops);
+	if (!fsc->debugfs_mds_sessions)
 		goto out;
 
 	fsc->debugfs_mdsc = debugfs_create_file("mdsc",

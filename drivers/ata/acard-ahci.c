@@ -2,7 +2,7 @@
 /*
  *  acard-ahci.c - ACard AHCI SATA support
  *
- *  Maintained by:  Jeff Garzik <jgarzik@pobox.com>
+ *  Maintained by:  Tejun Heo <tj@kernel.org>
  *		    Please ALWAYS copy linux-ide@vger.kernel.org
  *		    on emails.
  *
@@ -36,7 +36,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -78,7 +77,7 @@ static bool acard_ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
 static int acard_ahci_port_start(struct ata_port *ap);
 static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int acard_ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 static int acard_ahci_pci_device_resume(struct pci_dev *pdev);
 #endif
@@ -119,16 +118,16 @@ static struct pci_driver acard_ahci_pci_driver = {
 	.id_table		= acard_ahci_pci_tbl,
 	.probe			= acard_ahci_init_one,
 	.remove			= ata_pci_remove_one,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend		= acard_ahci_pci_device_suspend,
 	.resume			= acard_ahci_pci_device_resume,
 #endif
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int acard_ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	struct ahci_host_priv *hpriv = host->private_data;
 	void __iomem *mmio = hpriv->mmio;
 	u32 ctl;
@@ -156,7 +155,7 @@ static int acard_ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg
 
 static int acard_ahci_pci_device_resume(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	int rc;
 
 	rc = ata_pci_device_do_resume(pdev);
@@ -442,7 +441,7 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 	hpriv->mmio = pcim_iomap_table(pdev)[AHCI_PCI_BAR];
 
 	/* save initial config */
-	ahci_save_initial_config(&pdev->dev, hpriv, 0, 0);
+	ahci_save_initial_config(&pdev->dev, hpriv);
 
 	/* prepare host */
 	if (hpriv->cap & HOST_CAP_NCQ)
@@ -499,8 +498,7 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 	acard_ahci_pci_print_info(host);
 
 	pci_set_master(pdev);
-	return ata_host_activate(host, pdev->irq, ahci_interrupt, IRQF_SHARED,
-				 &acard_ahci_sht);
+	return ahci_host_activate(host, pdev->irq, &acard_ahci_sht);
 }
 
 module_pci_driver(acard_ahci_pci_driver);

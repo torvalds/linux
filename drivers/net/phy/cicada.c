@@ -30,9 +30,9 @@
 #include <linux/ethtool.h>
 #include <linux/phy.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Cicada Extended Control Register 1 */
 #define MII_CIS8201_EXT_CON1           0x17
@@ -92,8 +92,8 @@ static int cis820x_config_intr(struct phy_device *phydev)
 {
 	int err;
 
-	if(phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		err = phy_write(phydev, MII_CIS8201_IMASK, 
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		err = phy_write(phydev, MII_CIS8201_IMASK,
 				MII_CIS8201_IMASK_MASK);
 	else
 		err = phy_write(phydev, MII_CIS8201_IMASK, 0);

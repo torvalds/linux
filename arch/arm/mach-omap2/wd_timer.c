@@ -49,12 +49,12 @@ int omap2_wd_timer_disable(struct omap_hwmod *oh)
 	}
 
 	/* sequence required to disable watchdog */
-	__raw_writel(0xAAAA, base + OMAP_WDT_SPR);
-	while (__raw_readl(base + OMAP_WDT_WPS) & 0x10)
+	writel_relaxed(0xAAAA, base + OMAP_WDT_SPR);
+	while (readl_relaxed(base + OMAP_WDT_WPS) & 0x10)
 		cpu_relax();
 
-	__raw_writel(0x5555, base + OMAP_WDT_SPR);
-	while (__raw_readl(base + OMAP_WDT_WPS) & 0x10)
+	writel_relaxed(0x5555, base + OMAP_WDT_SPR);
+	while (readl_relaxed(base + OMAP_WDT_WPS) & 0x10)
 		cpu_relax();
 
 	return 0;
@@ -93,8 +93,8 @@ int omap2_wd_timer_reset(struct omap_hwmod *oh)
 		udelay(oh->class->sysc->srst_udelay);
 
 	if (c == MAX_MODULE_SOFTRESET_WAIT)
-		pr_warning("%s: %s: softreset failed (waited %d usec)\n",
-			   __func__, oh->name, MAX_MODULE_SOFTRESET_WAIT);
+		pr_warn("%s: %s: softreset failed (waited %d usec)\n",
+			__func__, oh->name, MAX_MODULE_SOFTRESET_WAIT);
 	else
 		pr_debug("%s: %s: softreset in %d usec\n", __func__,
 			 oh->name, c);

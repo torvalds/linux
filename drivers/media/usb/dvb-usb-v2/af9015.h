@@ -115,7 +115,9 @@ enum af9015_ir_mode {
 	AF9015_IR_MODE_POLLING, /* just guess */
 };
 
+#define BUF_LEN 63
 struct af9015_state {
+	u8 buf[BUF_LEN]; /* bulk USB control message */
 	u8 ir_mode;
 	u8 rc_repeat;
 	u32 rc_keycode;

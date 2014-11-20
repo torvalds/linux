@@ -23,19 +23,27 @@
 #ifndef _ASM_FPU_EMULATOR_H
 #define _ASM_FPU_EMULATOR_H
 
+#include <linux/sched.h>
 #include <asm/break.h>
+#include <asm/thread_info.h>
 #include <asm/inst.h>
 #include <asm/local.h>
+#include <asm/processor.h>
 
 #ifdef CONFIG_DEBUG_FS
 
 struct mips_fpu_emulator_stats {
-	local_t emulated;
-	local_t loads;
-	local_t stores;
-	local_t cp1ops;
-	local_t cp1xops;
-	local_t errors;
+	unsigned long emulated;
+	unsigned long loads;
+	unsigned long stores;
+	unsigned long cp1ops;
+	unsigned long cp1xops;
+	unsigned long errors;
+	unsigned long ieee754_inexact;
+	unsigned long ieee754_underflow;
+	unsigned long ieee754_overflow;
+	unsigned long ieee754_zerodiv;
+	unsigned long ieee754_invalidop;
 };
 
 DECLARE_PER_CPU(struct mips_fpu_emulator_stats, fpuemustats);
@@ -43,7 +51,7 @@ DECLARE_PER_CPU(struct mips_fpu_emulator_stats, fpuemustats);
 #define MIPS_FPU_EMU_INC_STATS(M)					\
 do {									\
 	preempt_disable();						\
-	__local_inc(&__get_cpu_var(fpuemustats).M);			\
+	__this_cpu_inc(fpuemustats.M);					\
 	preempt_enable();						\
 } while (0)
 
@@ -54,6 +62,12 @@ do {									\
 extern int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 	unsigned long cpc);
 extern int do_dsemulret(struct pt_regs *xcp);
+extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
+				    struct mips_fpu_struct *ctx, int has_fpu,
+				    void *__user *fault_addr);
+int process_fpemu_return(int sig, void __user *fault_addr);
+int mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
+		     unsigned long *contpc);
 
 /*
  * Instruction inserted following the badinst to further tag the sequence
@@ -64,5 +78,18 @@ extern int do_dsemulret(struct pt_regs *xcp);
  * Break instruction with special math emu break code set
  */
 #define BREAK_MATH (0x0000000d | (BRK_MEMU << 16))
+
+#define SIGNALLING_NAN 0x7ff800007ff80000LL
+
+static inline void fpu_emulator_init_fpu(void)
+{
+	struct task_struct *t = current;
+	int i;
+
+	t->thread.fpu.fcr31 = 0;
+
+	for (i = 0; i < 32; i++)
+		set_fpr64(&t->thread.fpu.fpr[i], 0, SIGNALLING_NAN);
+}
 
 #endif /* _ASM_FPU_EMULATOR_H */

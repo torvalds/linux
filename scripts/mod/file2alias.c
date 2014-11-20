@@ -42,7 +42,7 @@ typedef unsigned char	__u8;
 
 /* This array collects all instances that use the generic do_table */
 struct devtable {
-	const char *device_id; /* name of table, __mod_<name>_device_table. */
+	const char *device_id; /* name of table, __mod_<name>__*_device_table. */
 	unsigned long id_size;
 	void *function;
 };
@@ -79,10 +79,12 @@ struct devtable **__start___devtable, **__stop___devtable;
 extern struct devtable *__start___devtable[], *__stop___devtable[];
 #endif /* __MACH__ */
 
-#if __GNUC__ == 3 && __GNUC_MINOR__ < 3
-# define __used			__attribute__((__unused__))
-#else
-# define __used			__attribute__((__used__))
+#if !defined(__used)
+# if __GNUC__ == 3 && __GNUC_MINOR__ < 3
+#  define __used			__attribute__((__unused__))
+# else
+#  define __used			__attribute__((__used__))
+# endif
 #endif
 
 /* Define a variable f that holds the value of field f of struct devid
@@ -144,7 +146,8 @@ static void device_id_check(const char *modname, const char *device_id,
 
 	if (size % id_size || size < id_size) {
 		fatal("%s: sizeof(struct %s_device_id)=%lu is not a modulo "
-		      "of the size of section __mod_%s_device_table=%lu.\n"
+		      "of the size of "
+		      "section __mod_%s__<identifier>_device_table=%lu.\n"
 		      "Fix definition of struct %s_device_id "
 		      "in mod_devicetable.h\n",
 		      modname, device_id, id_size, device_id, size, device_id);
@@ -208,8 +211,8 @@ static void do_usb_entry(void *symval,
 				range_lo < 0x9 ? "[%X-9" : "[%X",
 				range_lo);
 			sprintf(alias + strlen(alias),
-				range_hi > 0xA ? "a-%X]" : "%X]",
-				range_lo);
+				range_hi > 0xA ? "A-%X]" : "%X]",
+				range_hi);
 		}
 	}
 	if (bcdDevice_initial_digits < (sizeof(bcdDevice_lo) * 2 - 1))
@@ -641,28 +644,26 @@ ADD_TO_DEVTABLE("pcmcia", pcmcia_device_id, do_pcmcia_entry);
 
 static int do_of_entry (const char *filename, void *symval, char *alias)
 {
-    int len;
-    char *tmp;
-    DEF_FIELD_ADDR(symval, of_device_id, name);
-    DEF_FIELD_ADDR(symval, of_device_id, type);
-    DEF_FIELD_ADDR(symval, of_device_id, compatible);
+	int len;
+	char *tmp;
+	DEF_FIELD_ADDR(symval, of_device_id, name);
+	DEF_FIELD_ADDR(symval, of_device_id, type);
+	DEF_FIELD_ADDR(symval, of_device_id, compatible);
 
-    len = sprintf (alias, "of:N%sT%s",
-                    (*name)[0] ? *name : "*",
-                    (*type)[0] ? *type : "*");
+	len = sprintf(alias, "of:N%sT%s", (*name)[0] ? *name : "*",
+		      (*type)[0] ? *type : "*");
 
-    if (compatible[0])
-        sprintf (&alias[len], "%sC%s",
-                     (*type)[0] ? "*" : "",
-                     *compatible);
+	if (compatible[0])
+		sprintf(&alias[len], "%sC%s", (*type)[0] ? "*" : "",
+			*compatible);
 
-    /* Replace all whitespace with underscores */
-    for (tmp = alias; tmp && *tmp; tmp++)
-        if (isspace (*tmp))
-            *tmp = '_';
+	/* Replace all whitespace with underscores */
+	for (tmp = alias; tmp && *tmp; tmp++)
+		if (isspace (*tmp))
+			*tmp = '_';
 
-    add_wildcard(alias);
-    return 1;
+	add_wildcard(alias);
+	return 1;
 }
 ADD_TO_DEVTABLE("of", of_device_id, do_of_entry);
 
@@ -1108,7 +1109,7 @@ static int do_amba_entry(const char *filename,
 }
 ADD_TO_DEVTABLE("amba", amba_id, do_amba_entry);
 
-/* LOOKS like x86cpu:vendor:VVVV:family:FFFF:model:MMMM:feature:*,FEAT,*
+/* LOOKS like cpu:type:x86,venVVVVfamFFFFmodMMMM:feature:*,FEAT,*
  * All fields are numbers. It would be nicer to use strings for vendor
  * and feature, but getting those out of the build system here is too
  * complicated.
@@ -1122,16 +1123,58 @@ static int do_x86cpu_entry(const char *filename, void *symval,
 	DEF_FIELD(symval, x86_cpu_id, model);
 	DEF_FIELD(symval, x86_cpu_id, vendor);
 
-	strcpy(alias, "x86cpu:");
-	ADD(alias, "vendor:",  vendor != X86_VENDOR_ANY, vendor);
-	ADD(alias, ":family:", family != X86_FAMILY_ANY, family);
-	ADD(alias, ":model:",  model  != X86_MODEL_ANY,  model);
+	strcpy(alias, "cpu:type:x86,");
+	ADD(alias, "ven", vendor != X86_VENDOR_ANY, vendor);
+	ADD(alias, "fam", family != X86_FAMILY_ANY, family);
+	ADD(alias, "mod", model  != X86_MODEL_ANY,  model);
 	strcat(alias, ":feature:*");
 	if (feature != X86_FEATURE_ANY)
 		sprintf(alias + strlen(alias), "%04X*", feature);
 	return 1;
 }
 ADD_TO_DEVTABLE("x86cpu", x86_cpu_id, do_x86cpu_entry);
+
+/* LOOKS like cpu:type:*:feature:*FEAT* */
+static int do_cpu_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, cpu_feature, feature);
+
+	sprintf(alias, "cpu:type:*:feature:*%04X*", feature);
+	return 1;
+}
+ADD_TO_DEVTABLE("cpu", cpu_feature, do_cpu_entry);
+
+/* Looks like: mei:S */
+static int do_mei_entry(const char *filename, void *symval,
+			char *alias)
+{
+	DEF_FIELD_ADDR(symval, mei_cl_device_id, name);
+
+	sprintf(alias, MEI_CL_MODULE_PREFIX "%s", *name);
+
+	return 1;
+}
+ADD_TO_DEVTABLE("mei", mei_cl_device_id, do_mei_entry);
+
+/* Looks like: rapidio:vNdNavNadN */
+static int do_rio_entry(const char *filename,
+			void *symval, char *alias)
+{
+	DEF_FIELD(symval, rio_device_id, did);
+	DEF_FIELD(symval, rio_device_id, vid);
+	DEF_FIELD(symval, rio_device_id, asm_did);
+	DEF_FIELD(symval, rio_device_id, asm_vid);
+
+	strcpy(alias, "rapidio:");
+	ADD(alias, "v", vid != RIO_ANY_ID, vid);
+	ADD(alias, "d", did != RIO_ANY_ID, did);
+	ADD(alias, "av", asm_vid != RIO_ANY_ID, asm_vid);
+	ADD(alias, "ad", asm_did != RIO_ANY_ID, asm_did);
+
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("rapidio", rio_device_id, do_rio_entry);
 
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)
@@ -1172,7 +1215,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 {
 	void *symval;
 	char *zeros = NULL;
-	const char *name;
+	const char *name, *identifier;
 	unsigned int namelen;
 
 	/* We're looking for a section relative symbol */
@@ -1183,7 +1226,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT)
 		return;
 
-	/* All our symbols are of form <prefix>__mod_XXX_device_table. */
+	/* All our symbols are of form <prefix>__mod_<name>__<identifier>_device_table. */
 	name = strstr(symname, "__mod_");
 	if (!name)
 		return;
@@ -1193,7 +1236,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		return;
 	if (strcmp(name + namelen - strlen("_device_table"), "_device_table"))
 		return;
-	namelen -= strlen("_device_table");
+	identifier = strstr(name, "__");
+	if (!identifier)
+		return;
+	namelen = identifier - name;
 
 	/* Handle all-NULL symbols allocated into .bss */
 	if (info->sechdrs[get_secindex(info, sym)].sh_type & SHT_NOBITS) {

@@ -373,19 +373,6 @@ static inline void list_splice_tail_init(struct list_head *list,
 		pos = pos->next)
 
 /**
- * __list_for_each	-	iterate over a list
- * @pos:	the &struct list_head to use as a loop cursor.
- * @head:	the head for your list.
- *
- * This variant differs from list_for_each() in that it's the
- * simplest possible list iteration code, no prefetching is done.
- * Use this for code that knows the list to be very short (empty
- * or 1 entry) most of the time.
- */
-#define __list_for_each(pos, head) \
-	for (pos = (head)->next; pos != (head); pos = pos->next)
-
-/**
  * list_for_each_prev	-	iterate over a list backwards
  * @pos:	the &struct list_head to use as a loop cursor.
  * @head:	the head for your list.
@@ -668,7 +655,7 @@ static int parser_auth(struct table *t, const char *filename)
 
 	/* first line will contain the last register
 	 * and gpu name */
-	sscanf(buf, "%s %s", gpu_name, last_reg_s);
+	sscanf(buf, "%9s %9s", gpu_name, last_reg_s);
 	t->gpu_prefix = gpu_name;
 	last_reg = strtol(last_reg_s, NULL, 16);
 

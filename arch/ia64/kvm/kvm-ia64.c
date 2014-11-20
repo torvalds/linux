@@ -125,7 +125,7 @@ long ia64_pal_vp_create(u64 *vpd, u64 *host_iva, u64 *opt_handler)
 
 static  DEFINE_SPINLOCK(vp_lock);
 
-int kvm_arch_hardware_enable(void *garbage)
+int kvm_arch_hardware_enable(void)
 {
 	long  status;
 	long  tmp_base;
@@ -160,7 +160,7 @@ int kvm_arch_hardware_enable(void *garbage)
 	return 0;
 }
 
-void kvm_arch_hardware_disable(void *garbage)
+void kvm_arch_hardware_disable(void)
 {
 
 	long status;
@@ -190,7 +190,7 @@ void kvm_arch_check_processor_compat(void *rtn)
 	*(int *)rtn = 0;
 }
 
-int kvm_dev_ioctl_check_extension(long ext)
+int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 
 	int r;
@@ -199,14 +199,17 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_IRQCHIP:
 	case KVM_CAP_MP_STATE:
 	case KVM_CAP_IRQ_INJECT_STATUS:
+	case KVM_CAP_IOAPIC_POLARITY_IGNORED:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
+#ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
 	case KVM_CAP_IOMMU:
 		r = iommu_present(&pci_bus_type);
 		break;
+#endif
 	default:
 		r = 0;
 	}
@@ -700,7 +703,7 @@ again:
 out:
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 	if (r > 0) {
-		kvm_resched(vcpu);
+		cond_resched();
 		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		goto again;
 	}
@@ -924,13 +927,15 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	return 0;
 }
 
-int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_event)
+int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_event,
+		bool line_status)
 {
 	if (!irqchip_in_kernel(kvm))
 		return -ENXIO;
 
 	irq_event->status = kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID,
-					irq_event->irq, irq_event->level);
+					irq_event->irq, irq_event->level,
+					line_status);
 	return 0;
 }
 
@@ -942,24 +947,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	int r = -ENOTTY;
 
 	switch (ioctl) {
-	case KVM_SET_MEMORY_REGION: {
-		struct kvm_memory_region kvm_mem;
-		struct kvm_userspace_memory_region kvm_userspace_mem;
-
-		r = -EFAULT;
-		if (copy_from_user(&kvm_mem, argp, sizeof kvm_mem))
-			goto out;
-		kvm_userspace_mem.slot = kvm_mem.slot;
-		kvm_userspace_mem.flags = kvm_mem.flags;
-		kvm_userspace_mem.guest_phys_addr =
-					kvm_mem.guest_phys_addr;
-		kvm_userspace_mem.memory_size = kvm_mem.memory_size;
-		r = kvm_vm_ioctl_set_memory_region(kvm,
-					&kvm_userspace_mem, false);
-		if (r)
-			goto out;
-		break;
-		}
 	case KVM_CREATE_IRQCHIP:
 		r = -EFAULT;
 		r = kvm_ioapic_init(kvm);
@@ -1377,22 +1364,12 @@ static void kvm_release_vm_pages(struct kvm *kvm)
 	}
 }
 
-void kvm_arch_sync_events(struct kvm *kvm)
-{
-}
-
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_iommu_unmap_guest(kvm);
-#ifdef  KVM_CAP_DEVICE_ASSIGNMENT
 	kvm_free_all_assigned_devices(kvm);
-#endif
 	kfree(kvm->arch.vioapic);
 	kvm_release_vm_pages(kvm);
-}
-
-void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
-{
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -1483,7 +1460,6 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 	kfree(vcpu->arch.apic);
 }
 
-
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -1566,21 +1542,16 @@ int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
-void kvm_arch_free_memslot(struct kvm_memory_slot *free,
-			   struct kvm_memory_slot *dont)
-{
-}
-
-int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
+int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
+			    unsigned long npages)
 {
 	return 0;
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		struct kvm_memory_slot *memslot,
-		struct kvm_memory_slot old,
 		struct kvm_userspace_memory_region *mem,
-		bool user_alloc)
+		enum kvm_mr_change change)
 {
 	unsigned long i;
 	unsigned long pfn;
@@ -1606,14 +1577,6 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	}
 
 	return 0;
-}
-
-void kvm_arch_commit_memory_region(struct kvm *kvm,
-		struct kvm_userspace_memory_region *mem,
-		struct kvm_memory_slot old,
-		bool user_alloc)
-{
-	return;
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
@@ -1862,10 +1825,6 @@ out:
 int kvm_arch_hardware_setup(void)
 {
 	return 0;
-}
-
-void kvm_arch_hardware_unsetup(void)
-{
 }
 
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq)

@@ -78,7 +78,7 @@ to NULL.  Drivers should use the following idiom:
 The most common usage of these functions will probably be to specify
 the maximum time from when an interrupt occurs, to when the device
 becomes accessible.  To accomplish this, driver writers should use the
-set_max_mpu_wakeup_lat() function to to constrain the MPU wakeup
+set_max_mpu_wakeup_lat() function to constrain the MPU wakeup
 latency, and the set_max_dev_wakeup_lat() function to constrain the
 device wakeup latency (from clk_enable() to accessibility).  For
 example,

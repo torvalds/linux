@@ -452,7 +452,7 @@ static int power5p_marked_instr_event(u64 event)
 }
 
 static int power5p_compute_mmcr(u64 event[], int n_ev,
-				unsigned int hwc[], unsigned long mmcr[])
+				unsigned int hwc[], unsigned long mmcr[], struct perf_event *pevents[])
 {
 	unsigned long mmcr1 = 0;
 	unsigned long mmcra = 0;
@@ -671,7 +671,7 @@ static struct power_pmu power5p_pmu = {
 	.get_alternatives	= power5p_get_alternatives,
 	.disable_pmc		= power5p_disable_pmc,
 	.limited_pmc_event	= power5p_limited_pmc_event,
-	.flags			= PPMU_LIMITED_PMC5_6,
+	.flags			= PPMU_LIMITED_PMC5_6 | PPMU_HAS_SSLOT,
 	.n_generic		= ARRAY_SIZE(power5p_generic_events),
 	.generic_events		= power5p_generic_events,
 	.cache_events		= &power5p_cache_events,

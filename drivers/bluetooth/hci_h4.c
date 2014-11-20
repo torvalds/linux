@@ -55,13 +55,6 @@ struct h4_struct {
 	struct sk_buff_head txq;
 };
 
-/* H4 receiver States */
-#define H4_W4_PACKET_TYPE	0
-#define H4_W4_EVENT_HDR		1
-#define H4_W4_ACL_HDR		2
-#define H4_W4_SCO_HDR		3
-#define H4_W4_DATA		4
-
 /* Initialize protocol */
 static int h4_open(struct hci_uart *hu)
 {
@@ -124,34 +117,13 @@ static int h4_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	return 0;
 }
 
-static inline int h4_check_data_len(struct h4_struct *h4, int len)
-{
-	int room = skb_tailroom(h4->rx_skb);
-
-	BT_DBG("len %d room %d", len, room);
-
-	if (!len) {
-		hci_recv_frame(h4->rx_skb);
-	} else if (len > room) {
-		BT_ERR("Data length is too large");
-		kfree_skb(h4->rx_skb);
-	} else {
-		h4->rx_state = H4_W4_DATA;
-		h4->rx_count = len;
-		return len;
-	}
-
-	h4->rx_state = H4_W4_PACKET_TYPE;
-	h4->rx_skb   = NULL;
-	h4->rx_count = 0;
-
-	return 0;
-}
-
 /* Recv data */
 static int h4_recv(struct hci_uart *hu, void *data, int count)
 {
 	int ret;
+
+	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
+		return -EUNATCH;
 
 	ret = hci_recv_stream_fragment(hu->hdev, data, count);
 	if (ret < 0) {

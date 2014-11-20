@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/ctype.h>
 #include <linux/audit.h>
+#include <linux/magic.h>
 #include "smack.h"
 
 /*
@@ -50,14 +51,17 @@ enum smk_inos {
 	SMK_ACCESS2	= 16,	/* make an access check with long labels */
 	SMK_CIPSO2	= 17,	/* load long label -> CIPSO mapping */
 	SMK_REVOKE_SUBJ	= 18,	/* set rules with subject label to '-' */
+	SMK_CHANGE_RULE	= 19,	/* change or add rules (long labels) */
+	SMK_SYSLOG	= 20,	/* change syslog label) */
+	SMK_PTRACE	= 21,	/* set ptrace rule */
 };
 
 /*
  * List locks
  */
-static DEFINE_MUTEX(smack_list_lock);
 static DEFINE_MUTEX(smack_cipso_lock);
 static DEFINE_MUTEX(smack_ambient_lock);
+static DEFINE_MUTEX(smack_syslog_lock);
 static DEFINE_MUTEX(smk_netlbladdr_lock);
 
 /*
@@ -65,7 +69,7 @@ static DEFINE_MUTEX(smk_netlbladdr_lock);
  * If it isn't somehow marked, use this.
  * It can be reset via smackfs/ambient
  */
-char *smack_net_ambient;
+struct smack_known *smack_net_ambient;
 
 /*
  * This is the level in a CIPSO header that indicates a
@@ -89,7 +93,22 @@ int smack_cipso_mapped = SMACK_CIPSO_MAPPED_DEFAULT;
  * everyone. It is expected that the hat (^) label
  * will be used if any label is used.
  */
-char *smack_onlycap;
+struct smack_known *smack_onlycap;
+
+/*
+ * If this value is set restrict syslog use to the label specified.
+ * It can be reset via smackfs/syslog
+ */
+struct smack_known *smack_syslog_label;
+
+/*
+ * Ptrace current rule
+ * SMACK_PTRACE_DEFAULT    regular smack ptrace rules (/proc based)
+ * SMACK_PTRACE_EXACT      labels must match, but can be overriden with
+ *			   CAP_SYS_PTRACE
+ * SMACK_PTRACE_DRACONIAN  lables must match, CAP_SYS_PTRACE has no effect
+ */
+int smack_ptrace_rule = SMACK_PTRACE_DEFAULT;
 
 /*
  * Certain IP addresses may be designated as single label hosts.
@@ -110,9 +129,19 @@ struct smack_master_list {
 
 LIST_HEAD(smack_rule_list);
 
+struct smack_parsed_rule {
+	struct smack_known	*smk_subject;
+	struct smack_known	*smk_object;
+	int			smk_access1;
+	int			smk_access2;
+};
+
 static int smk_cipso_doi_value = SMACK_CIPSO_DOI_DEFAULT;
 
-const char *smack_cipso_option = SMACK_CIPSO_OPTION;
+struct smack_known smack_cipso_option = {
+	.smk_known	= SMACK_CIPSO_OPTION,
+	.smk_secid	= 0,
+};
 
 /*
  * Values for parsing cipso rules
@@ -131,7 +160,7 @@ const char *smack_cipso_option = SMACK_CIPSO_OPTION;
  * SMK_LOADLEN: Smack rule length
  */
 #define SMK_OACCESS	"rwxa"
-#define SMK_ACCESS	"rwxat"
+#define SMK_ACCESS	"rwxatl"
 #define SMK_OACCESSLEN	(sizeof(SMK_OACCESS) - 1)
 #define SMK_ACCESSLEN	(sizeof(SMK_ACCESS) - 1)
 #define SMK_OLOADLEN	(SMK_LABELLEN + SMK_LABELLEN + SMK_OACCESSLEN)
@@ -155,9 +184,11 @@ static inline void smack_catset_bit(unsigned int cat, char *catsetp)
  */
 static void smk_netlabel_audit_set(struct netlbl_audit *nap)
 {
+	struct smack_known *skp = smk_of_current();
+
 	nap->loginuid = audit_get_loginuid(current);
 	nap->sessionid = audit_get_sessionid(current);
-	nap->secid = smack_to_secid(smk_of_current());
+	nap->secid = skp->smk_secid;
 }
 
 /*
@@ -167,25 +198,28 @@ static void smk_netlabel_audit_set(struct netlbl_audit *nap)
 #define SMK_NETLBLADDRMIN	9
 
 /**
- * smk_set_access - add a rule to the rule list
- * @srp: the new rule to add
+ * smk_set_access - add a rule to the rule list or replace an old rule
+ * @srp: the rule to add or replace
  * @rule_list: the list of rules
  * @rule_lock: the rule list lock
+ * @global: if non-zero, indicates a global rule
  *
  * Looks through the current subject/object/access list for
  * the subject/object pair and replaces the access that was
  * there. If the pair isn't found add it with the specified
  * access.
  *
- * Returns 1 if a rule was found to exist already, 0 if it is new
  * Returns 0 if nothing goes wrong or -ENOMEM if it fails
  * during the allocation of the new pair to add.
  */
-static int smk_set_access(struct smack_rule *srp, struct list_head *rule_list,
-				struct mutex *rule_lock)
+static int smk_set_access(struct smack_parsed_rule *srp,
+				struct list_head *rule_list,
+				struct mutex *rule_lock, int global)
 {
 	struct smack_rule *sp;
+	struct smack_master_list *smlp;
 	int found = 0;
+	int rc = 0;
 
 	mutex_lock(rule_lock);
 
@@ -197,94 +231,145 @@ static int smk_set_access(struct smack_rule *srp, struct list_head *rule_list,
 		if (sp->smk_object == srp->smk_object &&
 		    sp->smk_subject == srp->smk_subject) {
 			found = 1;
-			sp->smk_access = srp->smk_access;
+			sp->smk_access |= srp->smk_access1;
+			sp->smk_access &= ~srp->smk_access2;
 			break;
 		}
 	}
-	if (found == 0)
-		list_add_rcu(&srp->list, rule_list);
 
+	if (found == 0) {
+		sp = kzalloc(sizeof(*sp), GFP_KERNEL);
+		if (sp == NULL) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		sp->smk_subject = srp->smk_subject;
+		sp->smk_object = srp->smk_object;
+		sp->smk_access = srp->smk_access1 & ~srp->smk_access2;
+
+		list_add_rcu(&sp->list, rule_list);
+		/*
+		 * If this is a global as opposed to self and a new rule
+		 * it needs to get added for reporting.
+		 */
+		if (global) {
+			smlp = kzalloc(sizeof(*smlp), GFP_KERNEL);
+			if (smlp != NULL) {
+				smlp->smk_rule = sp;
+				list_add_rcu(&smlp->list, &smack_rule_list);
+			} else
+				rc = -ENOMEM;
+		}
+	}
+
+out:
 	mutex_unlock(rule_lock);
+	return rc;
+}
 
-	return found;
+/**
+ * smk_perm_from_str - parse smack accesses from a text string
+ * @string: a text string that contains a Smack accesses code
+ *
+ * Returns an integer with respective bits set for specified accesses.
+ */
+static int smk_perm_from_str(const char *string)
+{
+	int perm = 0;
+	const char *cp;
+
+	for (cp = string; ; cp++)
+		switch (*cp) {
+		case '-':
+			break;
+		case 'r':
+		case 'R':
+			perm |= MAY_READ;
+			break;
+		case 'w':
+		case 'W':
+			perm |= MAY_WRITE;
+			break;
+		case 'x':
+		case 'X':
+			perm |= MAY_EXEC;
+			break;
+		case 'a':
+		case 'A':
+			perm |= MAY_APPEND;
+			break;
+		case 't':
+		case 'T':
+			perm |= MAY_TRANSMUTE;
+			break;
+		case 'l':
+		case 'L':
+			perm |= MAY_LOCK;
+			break;
+		case 'b':
+		case 'B':
+			perm |= MAY_BRINGUP;
+			break;
+		default:
+			return perm;
+		}
 }
 
 /**
  * smk_fill_rule - Fill Smack rule from strings
  * @subject: subject label string
  * @object: object label string
- * @access: access string
+ * @access1: access string
+ * @access2: string with permissions to be removed
  * @rule: Smack rule
  * @import: if non-zero, import labels
  * @len: label length limit
  *
- * Returns 0 on success, -1 on failure
+ * Returns 0 on success, -EINVAL on failure and -ENOENT when either subject
+ * or object is missing.
  */
 static int smk_fill_rule(const char *subject, const char *object,
-				const char *access, struct smack_rule *rule,
-				int import, int len)
+				const char *access1, const char *access2,
+				struct smack_parsed_rule *rule, int import,
+				int len)
 {
 	const char *cp;
 	struct smack_known *skp;
 
 	if (import) {
-		rule->smk_subject = smk_import(subject, len);
+		rule->smk_subject = smk_import_entry(subject, len);
 		if (rule->smk_subject == NULL)
-			return -1;
+			return -EINVAL;
 
-		rule->smk_object = smk_import(object, len);
+		rule->smk_object = smk_import_entry(object, len);
 		if (rule->smk_object == NULL)
-			return -1;
+			return -EINVAL;
 	} else {
 		cp = smk_parse_smack(subject, len);
 		if (cp == NULL)
-			return -1;
+			return -EINVAL;
 		skp = smk_find_entry(cp);
 		kfree(cp);
 		if (skp == NULL)
-			return -1;
-		rule->smk_subject = skp->smk_known;
+			return -ENOENT;
+		rule->smk_subject = skp;
 
 		cp = smk_parse_smack(object, len);
 		if (cp == NULL)
-			return -1;
+			return -EINVAL;
 		skp = smk_find_entry(cp);
 		kfree(cp);
 		if (skp == NULL)
-			return -1;
-		rule->smk_object = skp->smk_known;
+			return -ENOENT;
+		rule->smk_object = skp;
 	}
 
-	rule->smk_access = 0;
-
-	for (cp = access; *cp != '\0'; cp++) {
-		switch (*cp) {
-		case '-':
-			break;
-		case 'r':
-		case 'R':
-			rule->smk_access |= MAY_READ;
-			break;
-		case 'w':
-		case 'W':
-			rule->smk_access |= MAY_WRITE;
-			break;
-		case 'x':
-		case 'X':
-			rule->smk_access |= MAY_EXEC;
-			break;
-		case 'a':
-		case 'A':
-			rule->smk_access |= MAY_APPEND;
-			break;
-		case 't':
-		case 'T':
-			rule->smk_access |= MAY_TRANSMUTE;
-			break;
-		default:
-			return 0;
-		}
-	}
+	rule->smk_access1 = smk_perm_from_str(access1);
+	if (access2)
+		rule->smk_access2 = smk_perm_from_str(access2);
+	else
+		rule->smk_access2 = ~rule->smk_access1;
 
 	return 0;
 }
@@ -297,60 +382,63 @@ static int smk_fill_rule(const char *subject, const char *object,
  *
  * Returns 0 on success, -1 on errors.
  */
-static int smk_parse_rule(const char *data, struct smack_rule *rule, int import)
+static int smk_parse_rule(const char *data, struct smack_parsed_rule *rule,
+				int import)
 {
 	int rc;
 
 	rc = smk_fill_rule(data, data + SMK_LABELLEN,
-			   data + SMK_LABELLEN + SMK_LABELLEN, rule, import,
-			   SMK_LABELLEN);
+			   data + SMK_LABELLEN + SMK_LABELLEN, NULL, rule,
+			   import, SMK_LABELLEN);
 	return rc;
 }
 
 /**
  * smk_parse_long_rule - parse Smack rule from rule string
  * @data: string to be parsed, null terminated
- * @rule: Smack rule
+ * @rule: Will be filled with Smack parsed rule
  * @import: if non-zero, import labels
+ * @tokens: numer of substrings expected in data
  *
- * Returns 0 on success, -1 on failure
+ * Returns number of processed bytes on success, -1 on failure.
  */
-static int smk_parse_long_rule(const char *data, struct smack_rule *rule,
-				int import)
+static ssize_t smk_parse_long_rule(char *data, struct smack_parsed_rule *rule,
+				int import, int tokens)
 {
-	char *subject;
-	char *object;
-	char *access;
-	int datalen;
-	int rc = -1;
+	ssize_t cnt = 0;
+	char *tok[4];
+	int rc;
+	int i;
 
-	/* This is inefficient */
-	datalen = strlen(data);
+	/*
+	 * Parsing the rule in-place, filling all white-spaces with '\0'
+	 */
+	for (i = 0; i < tokens; ++i) {
+		while (isspace(data[cnt]))
+			data[cnt++] = '\0';
 
-	/* Our first element can be 64 + \0 with no spaces */
-	subject = kzalloc(datalen + 1, GFP_KERNEL);
-	if (subject == NULL)
-		return -1;
-	object = kzalloc(datalen, GFP_KERNEL);
-	if (object == NULL)
-		goto free_out_s;
-	access = kzalloc(datalen, GFP_KERNEL);
-	if (access == NULL)
-		goto free_out_o;
+		if (data[cnt] == '\0')
+			/* Unexpected end of data */
+			return -1;
 
-	if (sscanf(data, "%s %s %s", subject, object, access) == 3)
-		rc = smk_fill_rule(subject, object, access, rule, import, 0);
+		tok[i] = data + cnt;
 
-	kfree(access);
-free_out_o:
-	kfree(object);
-free_out_s:
-	kfree(subject);
-	return rc;
+		while (data[cnt] && !isspace(data[cnt]))
+			++cnt;
+	}
+	while (isspace(data[cnt]))
+		data[cnt++] = '\0';
+
+	while (i < 4)
+		tok[i++] = NULL;
+
+	rc = smk_fill_rule(tok[0], tok[1], tok[2], tok[3], rule, import, 0);
+	return rc == 0 ? cnt : rc;
 }
 
 #define SMK_FIXED24_FMT	0	/* Fixed 24byte label format */
 #define SMK_LONG_FMT	1	/* Variable long label format */
+#define SMK_CHANGE_FMT	2	/* Rule modification format */
 /**
  * smk_write_rules_list - write() for any /smack rule file
  * @file: file pointer, not actually used
@@ -359,26 +447,28 @@ free_out_s:
  * @ppos: where to start - must be 0
  * @rule_list: the list of rules to write to
  * @rule_lock: lock for the rule list
- * @format: /smack/load or /smack/load2 format.
+ * @format: /smack/load or /smack/load2 or /smack/change-rule format.
  *
  * Get one smack access rule from above.
  * The format for SMK_LONG_FMT is:
  *	"subject<whitespace>object<whitespace>access[<whitespace>...]"
  * The format for SMK_FIXED24_FMT is exactly:
  *	"subject                 object                  rwxat"
+ * The format for SMK_CHANGE_FMT is:
+ *	"subject<whitespace>object<whitespace>
+ *	 acc_enable<whitespace>acc_disable[<whitespace>...]"
  */
 static ssize_t smk_write_rules_list(struct file *file, const char __user *buf,
 					size_t count, loff_t *ppos,
 					struct list_head *rule_list,
 					struct mutex *rule_lock, int format)
 {
-	struct smack_master_list *smlp;
-	struct smack_known *skp;
-	struct smack_rule *rule;
+	struct smack_parsed_rule rule;
 	char *data;
-	int datalen;
-	int rc = -EINVAL;
-	int load = 0;
+	int rc;
+	int trunc = 0;
+	int tokens;
+	ssize_t cnt = 0;
 
 	/*
 	 * No partial writes.
@@ -391,13 +481,16 @@ static ssize_t smk_write_rules_list(struct file *file, const char __user *buf,
 		/*
 		 * Minor hack for backward compatibility
 		 */
-		if (count != SMK_OLOADLEN && count != SMK_LOADLEN)
+		if (count < SMK_OLOADLEN || count > SMK_LOADLEN)
 			return -EINVAL;
-		datalen = SMK_LOADLEN;
-	} else
-		datalen = count + 1;
+	} else {
+		if (count >= PAGE_SIZE) {
+			count = PAGE_SIZE - 1;
+			trunc = 1;
+		}
+	}
 
-	data = kzalloc(datalen, GFP_KERNEL);
+	data = kmalloc(count + 1, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -406,58 +499,49 @@ static ssize_t smk_write_rules_list(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
-	if (rule == NULL) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	if (format == SMK_LONG_FMT) {
-		/*
-		 * Be sure the data string is terminated.
-		 */
-		data[count] = '\0';
-		if (smk_parse_long_rule(data, rule, 1))
-			goto out_free_rule;
-	} else {
-		/*
-		 * More on the minor hack for backward compatibility
-		 */
-		if (count == (SMK_OLOADLEN))
-			data[SMK_OLOADLEN] = '-';
-		if (smk_parse_rule(data, rule, 1))
-			goto out_free_rule;
-	}
-
-
-	if (rule_list == NULL) {
-		load = 1;
-		skp = smk_find_entry(rule->smk_subject);
-		rule_list = &skp->smk_rules;
-		rule_lock = &skp->smk_rules_lock;
-	}
-
-	rc = count;
 	/*
-	 * If this is a global as opposed to self and a new rule
-	 * it needs to get added for reporting.
-	 * smk_set_access returns true if there was already a rule
-	 * for the subject/object pair, and false if it was new.
+	 * In case of parsing only part of user buf,
+	 * avoid having partial rule at the data buffer
 	 */
-	if (!smk_set_access(rule, rule_list, rule_lock)) {
-		if (load) {
-			smlp = kzalloc(sizeof(*smlp), GFP_KERNEL);
-			if (smlp != NULL) {
-				smlp->smk_rule = rule;
-				list_add_rcu(&smlp->list, &smack_rule_list);
-			} else
-				rc = -ENOMEM;
+	if (trunc) {
+		while (count > 0 && (data[count - 1] != '\n'))
+			--count;
+		if (count == 0) {
+			rc = -EINVAL;
+			goto out;
 		}
-		goto out;
 	}
 
-out_free_rule:
-	kfree(rule);
+	data[count] = '\0';
+	tokens = (format == SMK_CHANGE_FMT ? 4 : 3);
+	while (cnt < count) {
+		if (format == SMK_FIXED24_FMT) {
+			rc = smk_parse_rule(data, &rule, 1);
+			if (rc != 0) {
+				rc = -EINVAL;
+				goto out;
+			}
+			cnt = count;
+		} else {
+			rc = smk_parse_long_rule(data + cnt, &rule, 1, tokens);
+			if (rc <= 0) {
+				rc = -EINVAL;
+				goto out;
+			}
+			cnt += rc;
+		}
+
+		if (rule_list == NULL)
+			rc = smk_set_access(&rule, &rule.smk_subject->smk_rules,
+				&rule.smk_subject->smk_rules_lock, 1);
+		else
+			rc = smk_set_access(&rule, rule_list, rule_lock, 0);
+
+		if (rc)
+			goto out;
+	}
+
+	rc = cnt;
 out:
 	kfree(data);
 	return rc;
@@ -516,13 +600,16 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 	 * because you should expect to be able to write
 	 * anything you read back.
 	 */
-	if (strlen(srp->smk_subject) >= max || strlen(srp->smk_object) >= max)
+	if (strlen(srp->smk_subject->smk_known) >= max ||
+	    strlen(srp->smk_object->smk_known) >= max)
 		return;
 
 	if (srp->smk_access == 0)
 		return;
 
-	seq_printf(s, "%s %s", srp->smk_subject, srp->smk_object);
+	seq_printf(s, "%s %s",
+		   srp->smk_subject->smk_known,
+		   srp->smk_object->smk_known);
 
 	seq_putc(s, ' ');
 
@@ -536,6 +623,10 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 		seq_putc(s, 'a');
 	if (srp->smk_access & MAY_TRANSMUTE)
 		seq_putc(s, 't');
+	if (srp->smk_access & MAY_LOCK)
+		seq_putc(s, 'l');
+	if (srp->smk_access & MAY_BRINGUP)
+		seq_putc(s, 'b');
 
 	seq_putc(s, '\n');
 }
@@ -675,9 +766,9 @@ static void smk_unlbl_ambient(char *oldambient)
 			       __func__, __LINE__, rc);
 	}
 	if (smack_net_ambient == NULL)
-		smack_net_ambient = smack_known_floor.smk_known;
+		smack_net_ambient = &smack_known_floor;
 
-	rc = netlbl_cfg_unlbl_map_add(smack_net_ambient, PF_INET,
+	rc = netlbl_cfg_unlbl_map_add(smack_net_ambient->smk_known, PF_INET,
 				      NULL, NULL, &nai);
 	if (rc != 0)
 		printk(KERN_WARNING "%s:%d add rc = %d\n",
@@ -707,7 +798,7 @@ static int cipso_seq_show(struct seq_file *s, void *v)
 	struct list_head  *list = v;
 	struct smack_known *skp =
 		 list_entry(list, struct smack_known, list);
-	struct netlbl_lsm_secattr_catmap *cmp = skp->smk_netlabel.attr.mls.cat;
+	struct netlbl_lsm_catmap *cmp = skp->smk_netlabel.attr.mls.cat;
 	char sep = '/';
 	int i;
 
@@ -724,8 +815,8 @@ static int cipso_seq_show(struct seq_file *s, void *v)
 
 	seq_printf(s, "%s %3d", skp->smk_known, skp->smk_netlabel.attr.mls.lvl);
 
-	for (i = netlbl_secattr_catmap_walk(cmp, 0); i >= 0;
-	     i = netlbl_secattr_catmap_walk(cmp, i + 1)) {
+	for (i = netlbl_catmap_walk(cmp, 0); i >= 0;
+	     i = netlbl_catmap_walk(cmp, i + 1)) {
 		seq_printf(s, "%c%d", sep, i);
 		sep = ',';
 	}
@@ -818,7 +909,7 @@ static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 	if (format == SMK_FIXED24_FMT)
 		rule += SMK_LABELLEN;
 	else
-		rule += strlen(skp->smk_known);
+		rule += strlen(skp->smk_known) + 1;
 
 	ret = sscanf(rule, "%d", &maplevel);
 	if (ret != 1 || maplevel > SMACK_CIPSO_MAXLEVEL)
@@ -838,7 +929,7 @@ static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 	for (i = 0; i < catlen; i++) {
 		rule += SMK_DIGITLEN;
 		ret = sscanf(rule, "%u", &cat);
-		if (ret != 1 || cat > SMACK_CIPSO_MAXCATVAL)
+		if (ret != 1 || cat > SMACK_CIPSO_MAXCATNUM)
 			goto out;
 
 		smack_catset_bit(cat, mapcatset);
@@ -846,7 +937,7 @@ static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 
 	rc = smk_netlbl_mls(maplevel, mapcatset, &ncats, SMK_CIPSOLEN);
 	if (rc >= 0) {
-		netlbl_secattr_catmap_free(skp->smk_netlabel.attr.mls.cat);
+		netlbl_catmap_free(skp->smk_netlabel.attr.mls.cat);
 		skp->smk_netlabel.attr.mls.cat = ncats.attr.mls.cat;
 		skp->smk_netlabel.attr.mls.lvl = ncats.attr.mls.lvl;
 		rc = count;
@@ -896,14 +987,14 @@ static int cipso2_seq_show(struct seq_file *s, void *v)
 	struct list_head  *list = v;
 	struct smack_known *skp =
 		 list_entry(list, struct smack_known, list);
-	struct netlbl_lsm_secattr_catmap *cmp = skp->smk_netlabel.attr.mls.cat;
+	struct netlbl_lsm_catmap *cmp = skp->smk_netlabel.attr.mls.cat;
 	char sep = '/';
 	int i;
 
 	seq_printf(s, "%s %3d", skp->smk_known, skp->smk_netlabel.attr.mls.lvl);
 
-	for (i = netlbl_secattr_catmap_walk(cmp, 0); i >= 0;
-	     i = netlbl_secattr_catmap_walk(cmp, i + 1)) {
+	for (i = netlbl_catmap_walk(cmp, 0); i >= 0;
+	     i = netlbl_catmap_walk(cmp, i + 1)) {
 		seq_printf(s, "%c%d", sep, i);
 		sep = ',';
 	}
@@ -987,7 +1078,7 @@ static int netlbladdr_seq_show(struct seq_file *s, void *v)
 	for (maskn = 0; temp_mask; temp_mask <<= 1, maskn++);
 
 	seq_printf(s, "%u.%u.%u.%u/%d %s\n",
-		hp[0], hp[1], hp[2], hp[3], maskn, skp->smk_label);
+		hp[0], hp[1], hp[2], hp[3], maskn, skp->smk_label->smk_known);
 
 	return 0;
 }
@@ -1067,10 +1158,10 @@ static void smk_netlbladdr_insert(struct smk_netlbladdr *new)
 static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct smk_netlbladdr *skp;
+	struct smk_netlbladdr *snp;
 	struct sockaddr_in newname;
 	char *smack;
-	char *sp;
+	struct smack_known *skp;
 	char *data;
 	char *host = (char *)&newname.sin_addr.s_addr;
 	int rc;
@@ -1113,7 +1204,7 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 
 	data[count] = '\0';
 
-	rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd/%d %s",
+	rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd/%u %s",
 		&host[0], &host[1], &host[2], &host[3], &m, smack);
 	if (rc != 6) {
 		rc = sscanf(data, "%hhd.%hhd.%hhd.%hhd %s",
@@ -1133,15 +1224,15 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	 * If smack begins with '-', it is an option, don't import it
 	 */
 	if (smack[0] != '-') {
-		sp = smk_import(smack, 0);
-		if (sp == NULL) {
+		skp = smk_import_entry(smack, 0);
+		if (skp == NULL) {
 			rc = -EINVAL;
 			goto free_out;
 		}
 	} else {
 		/* check known options */
-		if (strcmp(smack, smack_cipso_option) == 0)
-			sp = (char *)smack_cipso_option;
+		if (strcmp(smack, smack_cipso_option.smk_known) == 0)
+			skp = &smack_cipso_option;
 		else {
 			rc = -EINVAL;
 			goto free_out;
@@ -1164,9 +1255,9 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	nsa = newname.sin_addr.s_addr;
 	/* try to find if the prefix is already in the list */
 	found = 0;
-	list_for_each_entry_rcu(skp, &smk_netlbladdr_list, list) {
-		if (skp->smk_host.sin_addr.s_addr == nsa &&
-		    skp->smk_mask.s_addr == mask.s_addr) {
+	list_for_each_entry_rcu(snp, &smk_netlbladdr_list, list) {
+		if (snp->smk_host.sin_addr.s_addr == nsa &&
+		    snp->smk_mask.s_addr == mask.s_addr) {
 			found = 1;
 			break;
 		}
@@ -1174,26 +1265,26 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	smk_netlabel_audit_set(&audit_info);
 
 	if (found == 0) {
-		skp = kzalloc(sizeof(*skp), GFP_KERNEL);
-		if (skp == NULL)
+		snp = kzalloc(sizeof(*snp), GFP_KERNEL);
+		if (snp == NULL)
 			rc = -ENOMEM;
 		else {
 			rc = 0;
-			skp->smk_host.sin_addr.s_addr = newname.sin_addr.s_addr;
-			skp->smk_mask.s_addr = mask.s_addr;
-			skp->smk_label = sp;
-			smk_netlbladdr_insert(skp);
+			snp->smk_host.sin_addr.s_addr = newname.sin_addr.s_addr;
+			snp->smk_mask.s_addr = mask.s_addr;
+			snp->smk_label = skp;
+			smk_netlbladdr_insert(snp);
 		}
 	} else {
 		/* we delete the unlabeled entry, only if the previous label
 		 * wasn't the special CIPSO option */
-		if (skp->smk_label != smack_cipso_option)
+		if (snp->smk_label != &smack_cipso_option)
 			rc = netlbl_cfg_unlbl_static_del(&init_net, NULL,
-					&skp->smk_host.sin_addr, &skp->smk_mask,
+					&snp->smk_host.sin_addr, &snp->smk_mask,
 					PF_INET, &audit_info);
 		else
 			rc = 0;
-		skp->smk_label = sp;
+		snp->smk_label = skp;
 	}
 
 	/*
@@ -1201,10 +1292,10 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	 * this host so that incoming packets get labeled.
 	 * but only if we didn't get the special CIPSO option
 	 */
-	if (rc == 0 && sp != smack_cipso_option)
+	if (rc == 0 && skp != &smack_cipso_option)
 		rc = netlbl_cfg_unlbl_static_add(&init_net, NULL,
-			&skp->smk_host.sin_addr, &skp->smk_mask, PF_INET,
-			smack_to_secid(skp->smk_label), &audit_info);
+			&snp->smk_host.sin_addr, &snp->smk_mask, PF_INET,
+			snp->smk_label->smk_secid, &audit_info);
 
 	if (rc == 0)
 		rc = count;
@@ -1472,11 +1563,12 @@ static ssize_t smk_read_ambient(struct file *filp, char __user *buf,
 	 */
 	mutex_lock(&smack_ambient_lock);
 
-	asize = strlen(smack_net_ambient) + 1;
+	asize = strlen(smack_net_ambient->smk_known) + 1;
 
 	if (cn >= asize)
 		rc = simple_read_from_buffer(buf, cn, ppos,
-					     smack_net_ambient, asize);
+					     smack_net_ambient->smk_known,
+					     asize);
 	else
 		rc = -EINVAL;
 
@@ -1497,8 +1589,8 @@ static ssize_t smk_read_ambient(struct file *filp, char __user *buf,
 static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
+	struct smack_known *skp;
 	char *oldambient;
-	char *smack = NULL;
 	char *data;
 	int rc = count;
 
@@ -1514,16 +1606,16 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	smack = smk_import(data, count);
-	if (smack == NULL) {
+	skp = smk_import_entry(data, count);
+	if (skp == NULL) {
 		rc = -EINVAL;
 		goto out;
 	}
 
 	mutex_lock(&smack_ambient_lock);
 
-	oldambient = smack_net_ambient;
-	smack_net_ambient = smack;
+	oldambient = smack_net_ambient->smk_known;
+	smack_net_ambient = skp;
 	smk_unlbl_ambient(oldambient);
 
 	mutex_unlock(&smack_ambient_lock);
@@ -1540,7 +1632,7 @@ static const struct file_operations smk_ambient_ops = {
 };
 
 /**
- * smk_read_onlycap - read() for /smack/onlycap
+ * smk_read_onlycap - read() for smackfs/onlycap
  * @filp: file pointer, not actually used
  * @buf: where to put the result
  * @cn: maximum to send along
@@ -1559,7 +1651,7 @@ static ssize_t smk_read_onlycap(struct file *filp, char __user *buf,
 		return 0;
 
 	if (smack_onlycap != NULL)
-		smack = smack_onlycap;
+		smack = smack_onlycap->smk_known;
 
 	asize = strlen(smack) + 1;
 
@@ -1570,7 +1662,7 @@ static ssize_t smk_read_onlycap(struct file *filp, char __user *buf,
 }
 
 /**
- * smk_write_onlycap - write() for /smack/onlycap
+ * smk_write_onlycap - write() for smackfs/onlycap
  * @file: file pointer, not actually used
  * @buf: where to get the data from
  * @count: bytes sent
@@ -1582,7 +1674,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	char *data;
-	char *sp = smk_of_task(current->cred->security);
+	struct smack_known *skp = smk_of_task(current->cred->security);
 	int rc = count;
 
 	if (!smack_privileged(CAP_MAC_ADMIN))
@@ -1593,10 +1685,10 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 	 * explicitly for clarity. The smk_access() implementation
 	 * would use smk_access(smack_onlycap, MAY_WRITE)
 	 */
-	if (smack_onlycap != NULL && smack_onlycap != sp)
+	if (smack_onlycap != NULL && smack_onlycap != skp)
 		return -EPERM;
 
-	data = kzalloc(count, GFP_KERNEL);
+	data = kzalloc(count + 1, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -1613,7 +1705,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 	if (copy_from_user(data, buf, count) != 0)
 		rc = -EFAULT;
 	else
-		smack_onlycap = smk_import(data, count);
+		smack_onlycap = smk_import_entry(data, count);
 
 	kfree(data);
 	return rc;
@@ -1774,9 +1866,8 @@ static const struct file_operations smk_load_self_ops = {
 static ssize_t smk_user_access(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos, int format)
 {
-	struct smack_rule rule;
+	struct smack_parsed_rule rule;
 	char *data;
-	char *cod;
 	int res;
 
 	data = simple_transaction_get(file, buf, count);
@@ -1789,23 +1880,21 @@ static ssize_t smk_user_access(struct file *file, const char __user *buf,
 		res = smk_parse_rule(data, &rule, 0);
 	} else {
 		/*
-		 * Copy the data to make sure the string is terminated.
+		 * simple_transaction_get() returns null-terminated data
 		 */
-		cod = kzalloc(count + 1, GFP_KERNEL);
-		if (cod == NULL)
-			return -ENOMEM;
-		memcpy(cod, data, count);
-		cod[count] = '\0';
-		res = smk_parse_long_rule(cod, &rule, 0);
-		kfree(cod);
+		res = smk_parse_long_rule(data, &rule, 0, 3);
 	}
 
-	if (res)
+	if (res >= 0)
+		res = smk_access(rule.smk_subject, rule.smk_object,
+				 rule.smk_access1, NULL);
+	else if (res != -ENOENT)
 		return -EINVAL;
 
-	res = smk_access(rule.smk_subject, rule.smk_object, rule.smk_access,
-			  NULL);
-	data[0] = res == 0 ? '1' : '0';
+	/*
+	 * smk_access() can return a value > 0 in the "bringup" case.
+	 */
+	data[0] = res >= 0 ? '1' : '0';
 	data[1] = '\0';
 
 	simple_transaction_set(file, 2);
@@ -2035,10 +2124,8 @@ static ssize_t smk_write_revoke_subj(struct file *file, const char __user *buf,
 	}
 
 	skp = smk_find_entry(cp);
-	if (skp == NULL) {
-		rc = -EINVAL;
+	if (skp == NULL)
 		goto free_out;
-	}
 
 	rule_list = &skp->smk_rules;
 	rule_lock = &skp->smk_rules_lock;
@@ -2077,12 +2164,178 @@ static int smk_init_sysfs(void)
 }
 
 /**
- * smk_fill_super - fill the /smackfs superblock
+ * smk_write_change_rule - write() for /smack/change-rule
+ * @file: file pointer
+ * @buf: data from user space
+ * @count: bytes sent
+ * @ppos: where to start - must be 0
+ */
+static ssize_t smk_write_change_rule(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	/*
+	 * Must have privilege.
+	 */
+	if (!smack_privileged(CAP_MAC_ADMIN))
+		return -EPERM;
+
+	return smk_write_rules_list(file, buf, count, ppos, NULL, NULL,
+				    SMK_CHANGE_FMT);
+}
+
+static const struct file_operations smk_change_rule_ops = {
+	.write		= smk_write_change_rule,
+	.read		= simple_transaction_read,
+	.release	= simple_transaction_release,
+	.llseek		= generic_file_llseek,
+};
+
+/**
+ * smk_read_syslog - read() for smackfs/syslog
+ * @filp: file pointer, not actually used
+ * @buf: where to put the result
+ * @cn: maximum to send along
+ * @ppos: where to start
+ *
+ * Returns number of bytes read or error code, as appropriate
+ */
+static ssize_t smk_read_syslog(struct file *filp, char __user *buf,
+				size_t cn, loff_t *ppos)
+{
+	struct smack_known *skp;
+	ssize_t rc = -EINVAL;
+	int asize;
+
+	if (*ppos != 0)
+		return 0;
+
+	if (smack_syslog_label == NULL)
+		skp = &smack_known_star;
+	else
+		skp = smack_syslog_label;
+
+	asize = strlen(skp->smk_known) + 1;
+
+	if (cn >= asize)
+		rc = simple_read_from_buffer(buf, cn, ppos, skp->smk_known,
+						asize);
+
+	return rc;
+}
+
+/**
+ * smk_write_syslog - write() for smackfs/syslog
+ * @file: file pointer, not actually used
+ * @buf: where to get the data from
+ * @count: bytes sent
+ * @ppos: where to start
+ *
+ * Returns number of bytes written or error code, as appropriate
+ */
+static ssize_t smk_write_syslog(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	char *data;
+	struct smack_known *skp;
+	int rc = count;
+
+	if (!smack_privileged(CAP_MAC_ADMIN))
+		return -EPERM;
+
+	data = kzalloc(count + 1, GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(data, buf, count) != 0)
+		rc = -EFAULT;
+	else {
+		skp = smk_import_entry(data, count);
+		if (skp == NULL)
+			rc = -EINVAL;
+		else
+			smack_syslog_label = smk_import_entry(data, count);
+	}
+
+	kfree(data);
+	return rc;
+}
+
+static const struct file_operations smk_syslog_ops = {
+	.read		= smk_read_syslog,
+	.write		= smk_write_syslog,
+	.llseek		= default_llseek,
+};
+
+
+/**
+ * smk_read_ptrace - read() for /smack/ptrace
+ * @filp: file pointer, not actually used
+ * @buf: where to put the result
+ * @count: maximum to send along
+ * @ppos: where to start
+ *
+ * Returns number of bytes read or error code, as appropriate
+ */
+static ssize_t smk_read_ptrace(struct file *filp, char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	char temp[32];
+	ssize_t rc;
+
+	if (*ppos != 0)
+		return 0;
+
+	sprintf(temp, "%d\n", smack_ptrace_rule);
+	rc = simple_read_from_buffer(buf, count, ppos, temp, strlen(temp));
+	return rc;
+}
+
+/**
+ * smk_write_ptrace - write() for /smack/ptrace
+ * @file: file pointer
+ * @buf: data from user space
+ * @count: bytes sent
+ * @ppos: where to start - must be 0
+ */
+static ssize_t smk_write_ptrace(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	char temp[32];
+	int i;
+
+	if (!smack_privileged(CAP_MAC_ADMIN))
+		return -EPERM;
+
+	if (*ppos != 0 || count >= sizeof(temp) || count == 0)
+		return -EINVAL;
+
+	if (copy_from_user(temp, buf, count) != 0)
+		return -EFAULT;
+
+	temp[count] = '\0';
+
+	if (sscanf(temp, "%d", &i) != 1)
+		return -EINVAL;
+	if (i < SMACK_PTRACE_DEFAULT || i > SMACK_PTRACE_MAX)
+		return -EINVAL;
+	smack_ptrace_rule = i;
+
+	return count;
+}
+
+static const struct file_operations smk_ptrace_ops = {
+	.write		= smk_write_ptrace,
+	.read		= smk_read_ptrace,
+	.llseek		= default_llseek,
+};
+
+/**
+ * smk_fill_super - fill the smackfs superblock
  * @sb: the empty superblock
  * @data: unused
  * @silent: unused
  *
- * Fill in the well known entries for /smack
+ * Fill in the well known entries for the smack filesystem
  *
  * Returns 0 on success, an error code on failure
  */
@@ -2125,6 +2378,12 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 		[SMK_REVOKE_SUBJ] = {
 			"revoke-subject", &smk_revoke_subj_ops,
 			S_IRUGO|S_IWUSR},
+		[SMK_CHANGE_RULE] = {
+			"change-rule", &smk_change_rule_ops, S_IRUGO|S_IWUSR},
+		[SMK_SYSLOG] = {
+			"syslog", &smk_syslog_ops, S_IRUGO|S_IWUSR},
+		[SMK_PTRACE] = {
+			"ptrace", &smk_ptrace_ops, S_IRUGO|S_IWUSR},
 		/* last one */
 			{""}
 	};

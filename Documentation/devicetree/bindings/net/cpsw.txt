@@ -15,17 +15,26 @@ Required properties:
 - mac_control		: Specifies Default MAC control register content
 			  for the specific platform
 - slaves		: Specifies number for slaves
-- cpts_active_slave	: Specifies the slave to use for time stamping
+- active_slave		: Specifies the slave to use for time stamping,
+			  ethtool and SIOCGMIIPHY
 - cpts_clock_mult	: Numerator to convert input clock ticks into nanoseconds
 - cpts_clock_shift	: Denominator to convert input clock ticks into nanoseconds
-- phy_id		: Specifies slave phy id
-- mac-address		: Specifies slave MAC address
 
 Optional properties:
 - ti,hwmods		: Must be "cpgmac0"
 - no_bd_ram		: Must be 0 or 1
 - dual_emac		: Specifies Switch to act as Dual EMAC
+- syscon		: Phandle to the system control device node, which is
+			  the control module device of the am33x
+
+Slave Properties:
+Required properties:
+- phy_id		: Specifies slave phy id
+- phy-mode		: See ethernet.txt file in the same directory
+
+Optional properties:
 - dual_emac_res_vlan	: Specifies VID to be used to segregate the ports
+- mac-address		: See ethernet.txt file in the same directory
 
 Note: "ti,hwmods" field is used to fetch the base address and irq
 resources from TI, omap hwmod data base during device registration.
@@ -47,16 +56,19 @@ Examples:
 		rx_descs = <64>;
 		mac_control = <0x20>;
 		slaves = <2>;
-		cpts_active_slave = <0>;
+		active_slave = <0>;
 		cpts_clock_mult = <0x80000000>;
 		cpts_clock_shift = <29>;
+		syscon = <&cm>;
 		cpsw_emac0: slave@0 {
 			phy_id = <&davinci_mdio>, <0>;
+			phy-mode = "rgmii-txid";
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
 		};
 		cpsw_emac1: slave@1 {
 			phy_id = <&davinci_mdio>, <1>;
+			phy-mode = "rgmii-txid";
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
 		};
@@ -73,16 +85,19 @@ Examples:
 		rx_descs = <64>;
 		mac_control = <0x20>;
 		slaves = <2>;
-		cpts_active_slave = <0>;
+		active_slave = <0>;
 		cpts_clock_mult = <0x80000000>;
 		cpts_clock_shift = <29>;
+		syscon = <&cm>;
 		cpsw_emac0: slave@0 {
 			phy_id = <&davinci_mdio>, <0>;
+			phy-mode = "rgmii-txid";
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
 		};
 		cpsw_emac1: slave@1 {
 			phy_id = <&davinci_mdio>, <1>;
+			phy-mode = "rgmii-txid";
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
 		};

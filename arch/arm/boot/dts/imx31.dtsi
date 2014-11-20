@@ -9,7 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	aliases {
@@ -18,6 +18,16 @@
 		serial2 = &uart3;
 		serial3 = &uart4;
 		serial4 = &uart5;
+	};
+
+	cpus {
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			compatible = "arm,arm1136";
+			device_type = "cpu";
+		};
 	};
 
 	avic: avic-interrupt-controller@60000000 {
@@ -94,11 +104,34 @@
 				status = "disabled";
 			};
 
+			iim: iim@5001c000 {
+				compatible = "fsl,imx31-iim", "fsl,imx27-iim";
+				reg = <0x5001c000 0x1000>;
+				interrupts = <19>;
+				clocks = <&clks 25>;
+			};
+
 			clks: ccm@53f80000{
 				compatible = "fsl,imx31-ccm";
 				reg = <0x53f80000 0x4000>;
 				interrupts = <0 31 0x04 0 53 0x04>;
 				#clock-cells = <1>;
+			};
+		};
+
+		aips@53f00000 { /* AIPS2 */
+			compatible = "fsl,aips-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x53f00000 0x100000>;
+			ranges;
+
+			gpt: timer@53f90000 {
+				compatible = "fsl,imx31-gpt";
+				reg = <0x53f90000 0x4000>;
+				interrupts = <29>;
+				clocks = <&clks 10>, <&clks 22>;
+				clock-names = "ipg", "per";
 			};
 		};
 	};

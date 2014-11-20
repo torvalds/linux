@@ -267,7 +267,7 @@ static __init void leon_patch(void)
 }
 
 struct tt_entry *sparc_ttable;
-struct pt_regs fake_swapper_regs;
+static struct pt_regs fake_swapper_regs;
 
 /* Called from head_32.S - before we have setup anything
  * in the kernel. Be very careful with what you do here.
@@ -304,7 +304,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();
-	strcpy(boot_command_line, *cmdline_p);
+	strlcpy(boot_command_line, *cmdline_p, COMMAND_LINE_SIZE);
 	parse_early_param();
 
 	boot_flags_init(*cmdline_p);
@@ -365,7 +365,7 @@ void __init setup_arch(char **cmdline_p)
 
 	prom_setsync(prom_sync_me);
 
-	if((boot_flags&BOOTME_DEBUG) && (linux_dbvec!=0) && 
+	if((boot_flags & BOOTME_DEBUG) && (linux_dbvec != NULL) &&
 	   ((*(short *)linux_dbvec) != -1)) {
 		printk("Booted under KADB. Syncing trap table.\n");
 		(*(linux_dbvec->teach_debugger))();

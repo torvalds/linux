@@ -30,10 +30,9 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
-#define MAX_PWMS 1024
+#include <dt-bindings/pwm/pwm.h>
 
-/* flags in the third cell of the DT PWM specifier */
-#define PWM_SPEC_POLARITY	(1 << 0)
+#define MAX_PWMS 1024
 
 static DEFINE_MUTEX(pwm_lookup_lock);
 static LIST_HEAD(pwm_lookup_list);
@@ -149,7 +148,7 @@ of_pwm_xlate_with_flags(struct pwm_chip *pc, const struct of_phandle_args *args)
 
 	pwm_set_period(pwm, args->args[1]);
 
-	if (args->args[2] & PWM_SPEC_POLARITY)
+	if (args->args[2] & PWM_POLARITY_INVERTED)
 		pwm_set_polarity(pwm, PWM_POLARITY_INVERSED);
 	else
 		pwm_set_polarity(pwm, PWM_POLARITY_NORMAL);
@@ -237,7 +236,7 @@ int pwmchip_add(struct pwm_chip *chip)
 	int ret;
 
 	if (!chip || !chip->dev || !chip->ops || !chip->ops->config ||
-	    !chip->ops->enable || !chip->ops->disable)
+	    !chip->ops->enable || !chip->ops->disable || !chip->npwm)
 		return -EINVAL;
 
 	mutex_lock(&pwm_lock);
@@ -274,6 +273,8 @@ int pwmchip_add(struct pwm_chip *chip)
 	if (IS_ENABLED(CONFIG_OF))
 		of_pwmchip_add(chip);
 
+	pwmchip_sysfs_export(chip);
+
 out:
 	mutex_unlock(&pwm_lock);
 	return ret;
@@ -309,6 +310,8 @@ int pwmchip_remove(struct pwm_chip *chip)
 		of_pwmchip_remove(chip);
 
 	free_pwms(chip);
+
+	pwmchip_sysfs_unexport(chip);
 
 out:
 	mutex_unlock(&pwm_lock);
@@ -402,10 +405,19 @@ EXPORT_SYMBOL_GPL(pwm_free);
  */
 int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 {
+	int err;
+
 	if (!pwm || duty_ns < 0 || period_ns <= 0 || duty_ns > period_ns)
 		return -EINVAL;
 
-	return pwm->chip->ops->config(pwm->chip, pwm, duty_ns, period_ns);
+	err = pwm->chip->ops->config(pwm->chip, pwm, duty_ns, period_ns);
+	if (err)
+		return err;
+
+	pwm->duty_cycle = duty_ns;
+	pwm->period = period_ns;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(pwm_config);
 
@@ -418,6 +430,8 @@ EXPORT_SYMBOL_GPL(pwm_config);
  */
 int pwm_set_polarity(struct pwm_device *pwm, enum pwm_polarity polarity)
 {
+	int err;
+
 	if (!pwm || !pwm->chip->ops)
 		return -EINVAL;
 
@@ -427,7 +441,13 @@ int pwm_set_polarity(struct pwm_device *pwm, enum pwm_polarity polarity)
 	if (test_bit(PWMF_ENABLED, &pwm->flags))
 		return -EBUSY;
 
-	return pwm->chip->ops->set_polarity(pwm->chip, pwm, polarity);
+	err = pwm->chip->ops->set_polarity(pwm->chip, pwm, polarity);
+	if (err)
+		return err;
+
+	pwm->polarity = polarity;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(pwm_set_polarity);
 
@@ -582,9 +602,8 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	struct pwm_device *pwm = ERR_PTR(-EPROBE_DEFER);
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct pwm_chip *chip = NULL;
-	unsigned int index = 0;
 	unsigned int best = 0;
-	struct pwm_lookup *p;
+	struct pwm_lookup *p, *chosen = NULL;
 	unsigned int match;
 
 	/* look up via DT first */
@@ -631,8 +650,7 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		}
 
 		if (match > best) {
-			chip = pwmchip_find_by_name(p->provider);
-			index = p->index;
+			chosen = p;
 
 			if (match != 3)
 				best = match;
@@ -641,11 +659,22 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		}
 	}
 
-	if (chip)
-		pwm = pwm_request_from_chip(chip, index, con_id ?: dev_id);
+	if (!chosen)
+		goto out;
 
+	chip = pwmchip_find_by_name(chosen->provider);
+	if (!chip)
+		goto out;
+
+	pwm = pwm_request_from_chip(chip, chosen->index, con_id ?: dev_id);
+	if (IS_ERR(pwm))
+		goto out;
+
+	pwm_set_period(pwm, chosen->period);
+	pwm_set_polarity(pwm, chosen->polarity);
+
+out:
 	mutex_unlock(&pwm_lookup_lock);
-
 	return pwm;
 }
 EXPORT_SYMBOL_GPL(pwm_get);
@@ -694,7 +723,7 @@ struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id)
 {
 	struct pwm_device **ptr, *pwm;
 
-	ptr = devres_alloc(devm_pwm_release, sizeof(**ptr), GFP_KERNEL);
+	ptr = devres_alloc(devm_pwm_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
@@ -724,7 +753,7 @@ struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
 {
 	struct pwm_device **ptr, *pwm;
 
-	ptr = devres_alloc(devm_pwm_release, sizeof(**ptr), GFP_KERNEL);
+	ptr = devres_alloc(devm_pwm_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
@@ -788,12 +817,12 @@ static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 		seq_printf(s, " pwm-%-3d (%-20.20s):", i, pwm->label);
 
 		if (test_bit(PWMF_REQUESTED, &pwm->flags))
-			seq_printf(s, " requested");
+			seq_puts(s, " requested");
 
 		if (test_bit(PWMF_ENABLED, &pwm->flags))
-			seq_printf(s, " enabled");
+			seq_puts(s, " enabled");
 
-		seq_printf(s, "\n");
+		seq_puts(s, "\n");
 	}
 }
 

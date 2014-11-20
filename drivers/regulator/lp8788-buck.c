@@ -346,6 +346,7 @@ static unsigned int lp8788_buck_get_mode(struct regulator_dev *rdev)
 
 static struct regulator_ops lp8788_buck12_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = lp8788_buck12_set_voltage_sel,
 	.get_voltage_sel = lp8788_buck12_get_voltage_sel,
 	.enable = regulator_enable_regmap,
@@ -358,6 +359,7 @@ static struct regulator_ops lp8788_buck12_ops = {
 
 static struct regulator_ops lp8788_buck34_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.enable = regulator_enable_regmap,
@@ -513,7 +515,7 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 	cfg.driver_data = buck;
 	cfg.regmap = lp->regmap;
 
-	rdev = regulator_register(&lp8788_buck_desc[id], &cfg);
+	rdev = devm_regulator_register(&pdev->dev, &lp8788_buck_desc[id], &cfg);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
 		dev_err(&pdev->dev, "BUCK%d regulator register err = %d\n",
@@ -527,19 +529,8 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int lp8788_buck_remove(struct platform_device *pdev)
-{
-	struct lp8788_buck *buck = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
-	regulator_unregister(buck->regulator);
-
-	return 0;
-}
-
 static struct platform_driver lp8788_buck_driver = {
 	.probe = lp8788_buck_probe,
-	.remove = lp8788_buck_remove,
 	.driver = {
 		.name = LP8788_DEV_BUCK,
 		.owner = THIS_MODULE,

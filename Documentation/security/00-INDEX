@@ -22,3 +22,5 @@ keys.txt
 	- description of the kernel key retention service.
 tomoyo.txt
 	- documentation on the TOMOYO Linux Security Module.
+IMA-templates.txt
+	- documentation on the template management mechanism for IMA.

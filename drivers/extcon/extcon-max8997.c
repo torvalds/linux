@@ -196,7 +196,7 @@ static int max8997_muic_set_debounce_time(struct max8997_muic_info *info,
 					  CONTROL3_ADCDBSET_MASK);
 		if (ret) {
 			dev_err(info->dev, "failed to set ADC debounce time\n");
-			return -EAGAIN;
+			return ret;
 		}
 		break;
 	default:
@@ -232,7 +232,7 @@ static int max8997_muic_set_path(struct max8997_muic_info *info,
 			MAX8997_MUIC_REG_CONTROL1, ctrl1, COMP_SW_MASK);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
-		return -EAGAIN;
+		return ret;
 	}
 
 	if (attached)
@@ -245,7 +245,7 @@ static int max8997_muic_set_path(struct max8997_muic_info *info,
 			CONTROL2_LOWPWR_MASK | CONTROL2_CPEN_MASK);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
-		return -EAGAIN;
+		return ret;
 	}
 
 	dev_info(info->dev,
@@ -397,7 +397,7 @@ static int max8997_muic_handle_jig_uart(struct max8997_muic_info *info,
 	ret = max8997_muic_set_path(info, info->path_uart, attached);
 	if (ret) {
 		dev_err(info->dev, "failed to update muic register\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	extcon_set_cable_state(info->edev, "JIG", attached);
@@ -426,7 +426,8 @@ static int max8997_muic_adc_handler(struct max8997_muic_info *info)
 		break;
 	case MAX8997_MUIC_ADC_FACTORY_MODE_USB_OFF:
 	case MAX8997_MUIC_ADC_FACTORY_MODE_USB_ON:
-		ret = max8997_muic_handle_usb(info, MAX8997_USB_DEVICE, attached);
+		ret = max8997_muic_handle_usb(info,
+					     MAX8997_USB_DEVICE, attached);
 		if (ret < 0)
 			return ret;
 		break;
@@ -504,7 +505,8 @@ static int max8997_muic_chg_handler(struct max8997_muic_info *info)
 		}
 		break;
 	case MAX8997_CHARGER_TYPE_DOWNSTREAM_PORT:
-		extcon_set_cable_state(info->edev, "Charge-downstream", attached);
+		extcon_set_cable_state(info->edev,
+				      "Charge-downstream", attached);
 		break;
 	case MAX8997_CHARGER_TYPE_DEDICATED_CHG:
 		extcon_set_cable_state(info->edev, "TA", attached);
@@ -537,7 +539,7 @@ static void max8997_muic_irq_work(struct work_struct *work)
 
 	mutex_lock(&info->mutex);
 
-	for (i = 0 ; i < ARRAY_SIZE(muic_irqs) ; i++)
+	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++)
 		if (info->irq == muic_irqs[i].virq)
 			irq_type = muic_irqs[i].irq;
 
@@ -608,7 +610,7 @@ static int max8997_muic_detect_dev(struct max8997_muic_info *info)
 	if (ret) {
 		dev_err(info->dev, "failed to read MUIC register\n");
 		mutex_unlock(&info->mutex);
-		return -EINVAL;
+		return ret;
 	}
 
 	adc = max8997_muic_get_cable_type(info, MAX8997_CABLE_GROUP_ADC,
@@ -646,7 +648,7 @@ static void max8997_muic_detect_cable_wq(struct work_struct *work)
 
 	ret = max8997_muic_detect_dev(info);
 	if (ret < 0)
-		pr_err("failed to detect cable type\n");
+		dev_err(info->dev, "failed to detect cable type\n");
 }
 
 static int max8997_muic_probe(struct platform_device *pdev)
@@ -659,10 +661,8 @@ static int max8997_muic_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max8997_muic_info),
 			    GFP_KERNEL);
-	if (!info) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	info->dev = &pdev->dev;
 	info->muic = max8997->muic;
@@ -697,22 +697,21 @@ static int max8997_muic_probe(struct platform_device *pdev)
 	}
 
 	/* External connector */
-	info->edev = devm_kzalloc(&pdev->dev, sizeof(struct extcon_dev),
-				  GFP_KERNEL);
-	if (!info->edev) {
+	info->edev = devm_extcon_dev_allocate(&pdev->dev, max8997_extcon_cable);
+	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
 		ret = -ENOMEM;
 		goto err_irq;
 	}
 	info->edev->name = DEV_NAME;
-	info->edev->supported_cable = max8997_extcon_cable;
-	ret = extcon_dev_register(info->edev, NULL);
+
+	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		goto err_irq;
 	}
 
-	if (pdata->muic_pdata) {
+	if (pdata && pdata->muic_pdata) {
 		struct max8997_muic_platform_data *muic_pdata
 			= pdata->muic_pdata;
 
@@ -767,7 +766,8 @@ static int max8997_muic_probe(struct platform_device *pdev)
 	 * driver should notify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, max8997_muic_detect_cable_wq);
-	schedule_delayed_work(&info->wq_detcable, delay_jiffies);
+	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,
+			delay_jiffies);
 
 	return 0;
 
@@ -785,8 +785,6 @@ static int max8997_muic_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++)
 		free_irq(muic_irqs[i].virq, info);
 	cancel_work_sync(&info->irq_work);
-
-	extcon_dev_unregister(info->edev);
 
 	return 0;
 }

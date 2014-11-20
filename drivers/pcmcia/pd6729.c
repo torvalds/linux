@@ -644,6 +644,7 @@ static int pd6729_pci_probe(struct pci_dev *dev,
 	if (!pci_resource_start(dev, 0)) {
 		dev_warn(&dev->dev, "refusing to load the driver as the "
 			"io_base is NULL.\n");
+		ret = -ENOMEM;
 		goto err_out_disable;
 	}
 
@@ -673,6 +674,7 @@ static int pd6729_pci_probe(struct pci_dev *dev,
 	mask = pd6729_isa_scan();
 	if (irq_mode == 0 && mask == 0) {
 		dev_warn(&dev->dev, "no ISA interrupt is available.\n");
+		ret = -ENODEV;
 		goto err_out_free_res;
 	}
 
@@ -762,7 +764,7 @@ static void pd6729_pci_remove(struct pci_dev *dev)
 	kfree(socket);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pd6729_pci_ids) = {
+static const struct pci_device_id pd6729_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_6729) },
 	{ }
 };
@@ -775,15 +777,4 @@ static struct pci_driver pd6729_pci_driver = {
 	.remove		= pd6729_pci_remove,
 };
 
-static int pd6729_module_init(void)
-{
-	return pci_register_driver(&pd6729_pci_driver);
-}
-
-static void pd6729_module_exit(void)
-{
-	pci_unregister_driver(&pd6729_pci_driver);
-}
-
-module_init(pd6729_module_init);
-module_exit(pd6729_module_exit);
+module_pci_driver(pd6729_pci_driver);

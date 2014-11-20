@@ -27,7 +27,7 @@
 
 #include <linux/i2c/pxa-i2c.h>
 #include <linux/i2c/pcf857x.h>
-#include <linux/i2c/at24.h>
+#include <linux/platform_data/at24.h>
 #include <linux/smc91x.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
@@ -734,9 +734,10 @@ static int stargate2_mci_init(struct device *dev,
  *
  * Very simple control. Either it is on or off and is controlled by
  * a gpio pin */
-static void stargate2_mci_setpower(struct device *dev, unsigned int vdd)
+static int stargate2_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	gpio_set_value(SG2_SD_POWER_ENABLE, !!vdd);
+	return 0;
 }
 
 static void stargate2_mci_exit(struct device *dev, void *data)

@@ -41,6 +41,37 @@
 #include "vfs.h"
 #include "current_stateid.h"
 #include "netns.h"
+#include "acl.h"
+
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+#include <linux/security.h>
+
+static inline void
+nfsd4_security_inode_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u32 *bmval)
+{
+	struct inode *inode = resfh->fh_dentry->d_inode;
+	int status;
+
+	mutex_lock(&inode->i_mutex);
+	status = security_inode_setsecctx(resfh->fh_dentry,
+		label->data, label->len);
+	mutex_unlock(&inode->i_mutex);
+
+	if (status)
+		/*
+		 * XXX: We should really fail the whole open, but we may
+		 * already have created a new file, so it may be too
+		 * late.  For now this seems the least of evils:
+		 */
+		bmval[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
+
+	return;
+}
+#else
+static inline void
+nfsd4_security_inode_setsecctx(struct svc_fh *resfh, struct xdr_netobj *label, u32 *bmval)
+{ }
+#endif
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 
@@ -146,7 +177,7 @@ fh_dup2(struct svc_fh *dst, struct svc_fh *src)
 	fh_put(dst);
 	dget(src->fh_dentry);
 	if (src->fh_export)
-		cache_get(&src->fh_export->h);
+		exp_get(src->fh_export);
 	*dst = *src;
 }
 
@@ -191,17 +222,25 @@ static __be32 nfsd_check_obj_isreg(struct svc_fh *fh)
 	return nfserr_symlink;
 }
 
-static __be32
-do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open *open)
+static void nfsd4_set_open_owner_reply_cache(struct nfsd4_compound_state *cstate, struct nfsd4_open *open, struct svc_fh *resfh)
 {
-	struct svc_fh *resfh;
+	if (nfsd4_has_session(cstate))
+		return;
+	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
+			&resfh->fh_handle);
+}
+
+static __be32
+do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_open *open, struct svc_fh **resfh)
+{
+	struct svc_fh *current_fh = &cstate->current_fh;
 	int accmode;
 	__be32 status;
 
-	resfh = kmalloc(sizeof(struct svc_fh), GFP_KERNEL);
-	if (!resfh)
+	*resfh = kmalloc(sizeof(struct svc_fh), GFP_KERNEL);
+	if (!*resfh)
 		return nfserr_jukebox;
-	fh_init(resfh, NFS4_FHSIZE);
+	fh_init(*resfh, NFS4_FHSIZE);
 	open->op_truncate = 0;
 
 	if (open->op_create) {
@@ -226,9 +265,12 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 		 */
 		status = do_nfsd_create(rqstp, current_fh, open->op_fname.data,
 					open->op_fname.len, &open->op_iattr,
-					resfh, open->op_createmode,
+					*resfh, open->op_createmode,
 					(u32 *)open->op_verf.data,
 					&open->op_truncate, &open->op_created);
+
+		if (!status && open->op_label.len)
+			nfsd4_security_inode_setsecctx(*resfh, &open->op_label, open->op_bmval);
 
 		/*
 		 * Following rfc 3530 14.2.16, use the returned bitmask
@@ -238,39 +280,41 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 		if (open->op_createmode == NFS4_CREATE_EXCLUSIVE && status == 0)
 			open->op_bmval[1] = (FATTR4_WORD1_TIME_ACCESS |
 							FATTR4_WORD1_TIME_MODIFY);
-	} else {
+	} else
+		/*
+		 * Note this may exit with the parent still locked.
+		 * We will hold the lock until nfsd4_open's final
+		 * lookup, to prevent renames or unlinks until we've had
+		 * a chance to an acquire a delegation if appropriate.
+		 */
 		status = nfsd_lookup(rqstp, current_fh,
-				     open->op_fname.data, open->op_fname.len, resfh);
-		fh_unlock(current_fh);
-	}
+				     open->op_fname.data, open->op_fname.len, *resfh);
 	if (status)
 		goto out;
-	status = nfsd_check_obj_isreg(resfh);
+	status = nfsd_check_obj_isreg(*resfh);
 	if (status)
 		goto out;
 
 	if (is_create_with_attrs(open) && open->op_acl != NULL)
-		do_set_nfs4_acl(rqstp, resfh, open->op_acl, open->op_bmval);
+		do_set_nfs4_acl(rqstp, *resfh, open->op_acl, open->op_bmval);
 
-	/* set reply cache */
-	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
-			&resfh->fh_handle);
+	nfsd4_set_open_owner_reply_cache(cstate, open, *resfh);
 	accmode = NFSD_MAY_NOP;
-	if (open->op_created)
+	if (open->op_created ||
+			open->op_claim_type == NFS4_OPEN_CLAIM_DELEGATE_CUR)
 		accmode |= NFSD_MAY_OWNER_OVERRIDE;
-	status = do_open_permission(rqstp, resfh, open, accmode);
+	status = do_open_permission(rqstp, *resfh, open, accmode);
 	set_change_info(&open->op_cinfo, current_fh);
-	fh_dup2(current_fh, resfh);
 out:
-	fh_put(resfh);
-	kfree(resfh);
 	return status;
 }
 
 static __be32
-do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open *open)
+do_open_fhandle(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_open *open)
 {
+	struct svc_fh *current_fh = &cstate->current_fh;
 	__be32 status;
+	int accmode = 0;
 
 	/* We don't know the target directory, and therefore can not
 	* set the change info
@@ -278,15 +322,23 @@ do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_
 
 	memset(&open->op_cinfo, 0, sizeof(struct nfsd4_change_info));
 
-	/* set replay cache */
-	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
-			&current_fh->fh_handle);
+	nfsd4_set_open_owner_reply_cache(cstate, open, current_fh);
 
 	open->op_truncate = (open->op_iattr.ia_valid & ATTR_SIZE) &&
 		(open->op_iattr.ia_size == 0);
+	/*
+	 * In the delegation case, the client is telling us about an
+	 * open that it *already* performed locally, some time ago.  We
+	 * should let it succeed now if possible.
+	 *
+	 * In the case of a CLAIM_FH open, on the other hand, the client
+	 * may be counting on us to enforce permissions (the Linux 4.1
+	 * client uses this for normal opens, for example).
+	 */
+	if (open->op_claim_type == NFS4_OPEN_CLAIM_DELEG_CUR_FH)
+		accmode = NFSD_MAY_OWNER_OVERRIDE;
 
-	status = do_open_permission(rqstp, current_fh, open,
-				    NFSD_MAY_OWNER_OVERRIDE);
+	status = do_open_permission(rqstp, current_fh, open, accmode);
 
 	return status;
 }
@@ -306,6 +358,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	   struct nfsd4_open *open)
 {
 	__be32 status;
+	struct svc_fh *resfh = NULL;
 	struct nfsd4_compoundres *resp;
 	struct net *net = SVC_NET(rqstp);
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
@@ -332,8 +385,6 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (nfsd4_has_session(cstate))
 		copy_clientid(&open->op_clientid, cstate->session);
 
-	nfs4_lock_state();
-
 	/* check seqid for replay. set nfs4_owner */
 	resp = rqstp->rq_resp;
 	status = nfsd4_process_open1(&resp->cstate, open, nn);
@@ -351,6 +402,10 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 	if (status)
 		goto out;
+	if (open->op_xdr_error) {
+		status = open->op_xdr_error;
+		goto out;
+	}
 
 	status = nfsd4_check_open_attributes(rqstp, cstate, open);
 	if (status)
@@ -368,28 +423,25 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	switch (open->op_claim_type) {
 		case NFS4_OPEN_CLAIM_DELEGATE_CUR:
 		case NFS4_OPEN_CLAIM_NULL:
-			status = do_open_lookup(rqstp, &cstate->current_fh,
-						open);
+			status = do_open_lookup(rqstp, cstate, open, &resfh);
 			if (status)
 				goto out;
 			break;
 		case NFS4_OPEN_CLAIM_PREVIOUS:
-			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 			status = nfs4_check_open_reclaim(&open->op_clientid,
-							 cstate->minorversion,
-							 nn);
+							 cstate, nn);
 			if (status)
 				goto out;
+			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 		case NFS4_OPEN_CLAIM_FH:
 		case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
-			status = do_open_fhandle(rqstp, &cstate->current_fh,
-						 open);
+			status = do_open_fhandle(rqstp, cstate, open);
 			if (status)
 				goto out;
+			resfh = &cstate->current_fh;
 			break;
 		case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
              	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
-			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
 			dprintk("NFSD: unsupported OPEN claim type %d\n",
 				open->op_claim_type);
 			status = nfserr_notsupp;
@@ -405,15 +457,37 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * successful, it (1) truncates the file if open->op_truncate was
 	 * set, (2) sets open->op_stateid, (3) sets open->op_delegation.
 	 */
-	status = nfsd4_process_open2(rqstp, &cstate->current_fh, open);
-	WARN_ON(status && open->op_created);
+	status = nfsd4_process_open2(rqstp, resfh, open);
+	WARN(status && open->op_created,
+	     "nfsd4_process_open2 failed to open newly-created file! status=%u\n",
+	     be32_to_cpu(status));
 out:
-	nfsd4_cleanup_open_state(open, status);
-	if (open->op_openowner)
-		cstate->replay_owner = &open->op_openowner->oo_owner;
-	else
-		nfs4_unlock_state();
+	if (resfh && resfh != &cstate->current_fh) {
+		fh_dup2(&cstate->current_fh, resfh);
+		fh_put(resfh);
+		kfree(resfh);
+	}
+	nfsd4_cleanup_open_state(cstate, open, status);
+	nfsd4_bump_seqid(cstate, status);
 	return status;
+}
+
+/*
+ * OPEN is the only seqid-mutating operation whose decoding can fail
+ * with a seqid-mutating error (specifically, decoding of user names in
+ * the attributes).  Therefore we have to do some processing to look up
+ * the stateowner so that we can bump the seqid.
+ */
+static __be32 nfsd4_open_omfg(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_op *op)
+{
+	struct nfsd4_open *open = (struct nfsd4_open *)&op->u;
+
+	if (!seqid_mutating_err(ntohl(op->status)))
+		return op->status;
+	if (nfsd4_has_session(cstate))
+		return op->status;
+	open->op_xdr_error = op->status;
+	return nfsd4_open(rqstp, cstate, open);
 }
 
 /*
@@ -502,8 +576,12 @@ static void gen_boot_verifier(nfs4_verifier *verifier, struct net *net)
 	__be32 verf[2];
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	verf[0] = (__be32)nn->nfssvc_boot.tv_sec;
-	verf[1] = (__be32)nn->nfssvc_boot.tv_usec;
+	/*
+	 * This is opaque to client, so no need to byte-swap. Use
+	 * __force to keep sparse happy
+	 */
+	verf[0] = (__force __be32)nn->nfssvc_boot.tv_sec;
+	verf[1] = (__force __be32)nn->nfssvc_boot.tv_usec;
 	memcpy(verifier->data, verf, sizeof(verifier->data));
 }
 
@@ -538,19 +616,9 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	switch (create->cr_type) {
 	case NF4LNK:
-		/* ugh! we have to null-terminate the linktext, or
-		 * vfs_symlink() will choke.  it is always safe to
-		 * null-terminate by brute force, since at worst we
-		 * will overwrite the first byte of the create namelen
-		 * in the XDR buffer, which has already been extracted
-		 * during XDR decode.
-		 */
-		create->cr_linkname[create->cr_linklen] = 0;
-
 		status = nfsd_symlink(rqstp, &cstate->current_fh,
 				      create->cr_name, create->cr_namelen,
-				      create->cr_linkname, create->cr_linklen,
-				      &resfh, &create->cr_iattr);
+				      create->cr_data, &resfh);
 		break;
 
 	case NF4BLK:
@@ -598,6 +666,9 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	if (status)
 		goto out;
+
+	if (create->cr_label.len)
+		nfsd4_security_inode_setsecctx(&resfh, &create->cr_label, create->cr_bmval);
 
 	if (create->cr_acl != NULL)
 		do_set_nfs4_acl(rqstp, &resfh, create->cr_acl,
@@ -703,7 +774,6 @@ nfsd4_read(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (!nfsd4_last_compound_op(rqstp))
 		rqstp->rq_splice_ok = false;
 
-	nfs4_lock_state();
 	/* check stateid */
 	if ((status = nfs4_preprocess_stateid_op(SVC_NET(rqstp),
 						 cstate, &read->rd_stateid,
@@ -711,11 +781,8 @@ nfsd4_read(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		dprintk("NFSD: nfsd4_read: couldn't process stateid!\n");
 		goto out;
 	}
-	if (read->rd_filp)
-		get_file(read->rd_filp);
 	status = nfs_ok;
 out:
-	nfs4_unlock_state();
 	read->rd_rqstp = rqstp;
 	read->rd_fhp = &cstate->current_fh;
 	return status;
@@ -786,21 +853,11 @@ nfsd4_rename(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	status = nfsd_rename(rqstp, &cstate->save_fh, rename->rn_sname,
 			     rename->rn_snamelen, &cstate->current_fh,
 			     rename->rn_tname, rename->rn_tnamelen);
-
-	/* the underlying filesystem returns different error's than required
-	 * by NFSv4. both save_fh and current_fh have been verified.. */
-	if (status == nfserr_isdir)
-		status = nfserr_exist;
-	else if ((status == nfserr_notdir) &&
-                  (S_ISDIR(cstate->save_fh.fh_dentry->d_inode->i_mode) &&
-                   S_ISDIR(cstate->current_fh.fh_dentry->d_inode->i_mode)))
-		status = nfserr_exist;
-
-	if (!status) {
-		set_change_info(&rename->rn_sinfo, &cstate->current_fh);
-		set_change_info(&rename->rn_tinfo, &cstate->save_fh);
-	}
-	return status;
+	if (status)
+		return status;
+	set_change_info(&rename->rn_sinfo, &cstate->current_fh);
+	set_change_info(&rename->rn_tinfo, &cstate->save_fh);
+	return nfs_ok;
 }
 
 static __be32
@@ -850,8 +907,8 @@ nfsd4_secinfo_no_name(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstat
 	default:
 		return nfserr_inval;
 	}
-	exp_get(cstate->current_fh.fh_export);
-	sin->sin_exp = cstate->current_fh.fh_export;
+
+	sin->sin_exp = exp_get(cstate->current_fh.fh_export);
 	fh_put(&cstate->current_fh);
 	return nfs_ok;
 }
@@ -864,10 +921,8 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	int err;
 
 	if (setattr->sa_iattr.ia_valid & ATTR_SIZE) {
-		nfs4_lock_state();
 		status = nfs4_preprocess_stateid_op(SVC_NET(rqstp), cstate,
 			&setattr->sa_stateid, WR_STATE, NULL);
-		nfs4_unlock_state();
 		if (status) {
 			dprintk("NFSD: nfsd4_setattr: couldn't process stateid!\n");
 			return status;
@@ -886,6 +941,11 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (setattr->sa_acl != NULL)
 		status = nfsd4_set_nfs4_acl(rqstp, &cstate->current_fh,
 					    setattr->sa_acl);
+	if (status)
+		goto out;
+	if (setattr->sa_label.len)
+		status = nfsd4_set_nfs4_label(rqstp, &cstate->current_fh,
+				&setattr->sa_label);
 	if (status)
 		goto out;
 	status = nfsd_setattr(rqstp, &cstate->current_fh, &setattr->sa_iattr,
@@ -928,13 +988,8 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (write->wr_offset >= OFFSET_MAX)
 		return nfserr_inval;
 
-	nfs4_lock_state();
 	status = nfs4_preprocess_stateid_op(SVC_NET(rqstp),
 					cstate, stateid, WR_STATE, &filp);
-	if (filp)
-		get_file(filp);
-	nfs4_unlock_state();
-
 	if (status) {
 		dprintk("NFSD: nfsd4_write: couldn't process stateid!\n");
 		return status;
@@ -955,6 +1010,49 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	write->wr_bytes_written = cnt;
 
+	return status;
+}
+
+static __be32
+nfsd4_seek(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+		struct nfsd4_seek *seek)
+{
+	int whence;
+	__be32 status;
+	struct file *file;
+
+	status = nfs4_preprocess_stateid_op(SVC_NET(rqstp), cstate,
+					    &seek->seek_stateid,
+					    RD_STATE, &file);
+	if (status) {
+		dprintk("NFSD: nfsd4_seek: couldn't process stateid!\n");
+		return status;
+	}
+
+	switch (seek->seek_whence) {
+	case NFS4_CONTENT_DATA:
+		whence = SEEK_DATA;
+		break;
+	case NFS4_CONTENT_HOLE:
+		whence = SEEK_HOLE;
+		break;
+	default:
+		status = nfserr_union_notsupp;
+		goto out;
+	}
+
+	/*
+	 * Note:  This call does change file->f_pos, but nothing in NFSD
+	 *        should ever file->f_pos.
+	 */
+	seek->seek_pos = vfs_llseek(file, seek->seek_offset, whence);
+	if (seek->seek_pos < 0)
+		status = nfserrno(seek->seek_pos);
+	else if (seek->seek_pos >= i_size_read(file_inode(file)))
+		seek->seek_eof = true;
+
+out:
+	fput(file);
 	return status;
 }
 
@@ -994,13 +1092,15 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserr_jukebox;
 
 	p = buf;
-	status = nfsd4_encode_fattr(&cstate->current_fh,
+	status = nfsd4_encode_fattr_to_buf(&p, count, &cstate->current_fh,
 				    cstate->current_fh.fh_export,
-				    cstate->current_fh.fh_dentry, &p,
-				    count, verify->ve_bmval,
+				    cstate->current_fh.fh_dentry,
+				    verify->ve_bmval,
 				    rqstp, 0);
-
-	/* this means that nfsd4_encode_fattr() ran out of space */
+	/*
+	 * If nfsd4_encode_fattr() ran out of space, assume that's because
+	 * the attributes are longer (hence different) than those given:
+	 */
 	if (status == nfserr_resource)
 		status = nfserr_not_same;
 	if (status)
@@ -1102,9 +1202,7 @@ struct nfsd4_operation {
 
 static struct nfsd4_operation nfsd4_ops[];
 
-#ifdef NFSD_DEBUG
 static const char *nfsd4_op_name(unsigned opnum);
-#endif
 
 /*
  * Enforce NFSv4.1 COMPOUND ordering rules:
@@ -1146,6 +1244,8 @@ static inline struct nfsd4_operation *OPDESC(struct nfsd4_op *op)
 
 bool nfsd4_cache_this_op(struct nfsd4_op *op)
 {
+	if (op->opnum == OP_ILLEGAL)
+		return false;
 	return OPDESC(op)->op_flags & OP_CACHEME;
 }
 
@@ -1172,7 +1272,8 @@ static bool need_wrongsec_check(struct svc_rqst *rqstp)
 	 */
 	if (argp->opcnt == resp->opcnt)
 		return false;
-
+	if (next->opnum == OP_ILLEGAL)
+		return false;
 	nextd = OPDESC(next);
 	/*
 	 * Rest of 2.6.3.1.1: certain operations will return WRONGSEC
@@ -1180,6 +1281,25 @@ static bool need_wrongsec_check(struct svc_rqst *rqstp)
 	 * now:
 	 */
 	return !(nextd->op_flags & OP_HANDLES_WRONGSEC);
+}
+
+static void svcxdr_init_encode(struct svc_rqst *rqstp,
+			       struct nfsd4_compoundres *resp)
+{
+	struct xdr_stream *xdr = &resp->xdr;
+	struct xdr_buf *buf = &rqstp->rq_res;
+	struct kvec *head = buf->head;
+
+	xdr->buf = buf;
+	xdr->iov = head;
+	xdr->p   = head->iov_base + head->iov_len;
+	xdr->end = head->iov_base + PAGE_SIZE - rqstp->rq_auth_slack;
+	/* Tail and page_len should be zero at this point: */
+	buf->len = buf->head[0].iov_len;
+	xdr->scratch.iov_len = 0;
+	xdr->page_ptr = buf->pages - 1;
+	buf->buflen = PAGE_SIZE * (1 + rqstp->rq_page_end - buf->pages)
+		- rqstp->rq_auth_slack;
 }
 
 /*
@@ -1193,37 +1313,31 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	struct nfsd4_op	*op;
 	struct nfsd4_operation *opdesc;
 	struct nfsd4_compound_state *cstate = &resp->cstate;
-	int		slack_bytes;
-	u32		plen = 0;
+	struct svc_fh *current_fh = &cstate->current_fh;
+	struct svc_fh *save_fh = &cstate->save_fh;
 	__be32		status;
 
-	resp->xbuf = &rqstp->rq_res;
-	resp->p = rqstp->rq_res.head[0].iov_base +
-						rqstp->rq_res.head[0].iov_len;
-	resp->tagp = resp->p;
+	svcxdr_init_encode(rqstp, resp);
+	resp->tagp = resp->xdr.p;
 	/* reserve space for: taglen, tag, and opcnt */
-	resp->p += 2 + XDR_QUADLEN(args->taglen);
-	resp->end = rqstp->rq_res.head[0].iov_base + PAGE_SIZE;
+	xdr_reserve_space(&resp->xdr, 8 + args->taglen);
 	resp->taglen = args->taglen;
 	resp->tag = args->tag;
-	resp->opcnt = 0;
 	resp->rqstp = rqstp;
-	resp->cstate.minorversion = args->minorversion;
-	resp->cstate.replay_owner = NULL;
-	resp->cstate.session = NULL;
-	fh_init(&resp->cstate.current_fh, NFS4_FHSIZE);
-	fh_init(&resp->cstate.save_fh, NFS4_FHSIZE);
+	cstate->minorversion = args->minorversion;
+	fh_init(current_fh, NFS4_FHSIZE);
+	fh_init(save_fh, NFS4_FHSIZE);
 	/*
 	 * Don't use the deferral mechanism for NFSv4; compounds make it
 	 * too hard to avoid non-idempotency problems.
 	 */
-	rqstp->rq_usedeferral = 0;
+	rqstp->rq_usedeferral = false;
 
 	/*
 	 * According to RFC3010, this takes precedence over all other errors.
 	 */
 	status = nfserr_minor_vers_mismatch;
-	if (args->minorversion > nfsd_supported_minorversion)
+	if (nfsd_minorversion(args->minorversion, NFSD_TEST) <= 0)
 		goto out;
 
 	status = nfs41_check_op_ordering(args);
@@ -1244,50 +1358,49 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		 * for example, if there is a miscellaneous XDR error
 		 * it will be set to nfserr_bad_xdr.
 		 */
-		if (op->status)
-			goto encode_op;
-
-		/* We must be able to encode a successful response to
-		 * this operation, with enough room left over to encode a
-		 * failed response to the next operation.  If we don't
-		 * have enough room, fail with ERR_RESOURCE.
-		 */
-		slack_bytes = (char *)resp->end - (char *)resp->p;
-		if (slack_bytes < COMPOUND_SLACK_SPACE
-				+ COMPOUND_ERR_SLACK_SPACE) {
-			BUG_ON(slack_bytes < COMPOUND_ERR_SLACK_SPACE);
-			op->status = nfserr_resource;
+		if (op->status) {
+			if (op->opnum == OP_OPEN)
+				op->status = nfsd4_open_omfg(rqstp, cstate, op);
 			goto encode_op;
 		}
 
 		opdesc = OPDESC(op);
 
-		if (!cstate->current_fh.fh_dentry) {
+		if (!current_fh->fh_dentry) {
 			if (!(opdesc->op_flags & ALLOWED_WITHOUT_FH)) {
 				op->status = nfserr_nofilehandle;
 				goto encode_op;
 			}
-		} else if (cstate->current_fh.fh_export->ex_fslocs.migrated &&
+		} else if (current_fh->fh_export->ex_fslocs.migrated &&
 			  !(opdesc->op_flags & ALLOWED_ON_ABSENT_FS)) {
 			op->status = nfserr_moved;
 			goto encode_op;
 		}
 
+		fh_clear_wcc(current_fh);
+
 		/* If op is non-idempotent */
 		if (opdesc->op_flags & OP_MODIFIES_SOMETHING) {
-			plen = opdesc->op_rsize_bop(rqstp, op);
+			/*
+			 * Don't execute this op if we couldn't encode a
+			 * succesful reply:
+			 */
+			u32 plen = opdesc->op_rsize_bop(rqstp, op);
+			/*
+			 * Plus if there's another operation, make sure
+			 * we'll have space to at least encode an error:
+			 */
+			if (resp->opcnt < args->opcnt)
+				plen += COMPOUND_ERR_SLACK_SPACE;
 			op->status = nfsd4_check_resp_size(resp, plen);
 		}
 
 		if (op->status)
 			goto encode_op;
 
-		if (opdesc->op_func) {
-			if (opdesc->op_get_currentstateid)
-				opdesc->op_get_currentstateid(cstate, &op->u);
-			op->status = opdesc->op_func(rqstp, cstate, &op->u);
-		} else
-			BUG_ON(op->status == nfs_ok);
+		if (opdesc->op_get_currentstateid)
+			opdesc->op_get_currentstateid(cstate, &op->u);
+		op->status = opdesc->op_func(rqstp, cstate, &op->u);
 
 		if (!op->status) {
 			if (opdesc->op_set_currentstateid)
@@ -1297,19 +1410,19 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 				clear_current_stateid(cstate);
 
 			if (need_wrongsec_check(rqstp))
-				op->status = check_nfsd_access(cstate->current_fh.fh_export, rqstp);
+				op->status = check_nfsd_access(current_fh->fh_export, rqstp);
 		}
 
 encode_op:
 		/* Only from SEQUENCE */
-		if (resp->cstate.status == nfserr_replay_cache) {
+		if (cstate->status == nfserr_replay_cache) {
 			dprintk("%s NFS4.1 replay from cache\n", __func__);
 			status = op->status;
 			goto out;
 		}
 		if (op->status == nfserr_replay_me) {
 			op->replay = &cstate->replay_owner->so_replay;
-			nfsd4_encode_replay(resp, op);
+			nfsd4_encode_replay(&resp->xdr, op);
 			status = op->status = op->replay->rp_status;
 		} else {
 			nfsd4_encode_operation(resp, op);
@@ -1320,10 +1433,7 @@ encode_op:
 			args->ops, args->opcnt, resp->opcnt, op->opnum,
 			be32_to_cpu(status));
 
-		if (cstate->replay_owner) {
-			nfs4_unlock_state();
-			cstate->replay_owner = NULL;
-		}
+		nfsd4_cstate_clear_replay(cstate);
 		/* XXX Ugh, we need to get rid of this kind of special case: */
 		if (op->opnum == OP_READ && op->u.read.rd_filp)
 			fput(op->u.read.rd_filp);
@@ -1331,13 +1441,13 @@ encode_op:
 		nfsd4_increment_op_stats(op->opnum);
 	}
 
-	resp->cstate.status = status;
-	fh_put(&resp->cstate.current_fh);
-	fh_put(&resp->cstate.save_fh);
-	BUG_ON(resp->cstate.replay_owner);
+	cstate->status = status;
+	fh_put(current_fh);
+	fh_put(save_fh);
+	BUG_ON(cstate->replay_owner);
 out:
 	/* Reset deferral mechanism for RPC deferrals */
-	rqstp->rq_usedeferral = 1;
+	rqstp->rq_usedeferral = true;
 	dprintk("nfsv4 compound returned %d\n", ntohl(status));
 	return status;
 }
@@ -1348,7 +1458,8 @@ out:
 #define op_encode_change_info_maxsz	(5)
 #define nfs4_fattr_bitmap_maxsz		(4)
 
-#define op_encode_lockowner_maxsz	(1 + XDR_QUADLEN(IDMAP_NAMESZ))
+/* We'll fall back on returning no lockowner if run out of space: */
+#define op_encode_lockowner_maxsz	(0)
 #define op_encode_lock_denied_maxsz	(8 + op_encode_lockowner_maxsz)
 
 #define nfs4_owner_maxsz		(1 + XDR_QUADLEN(IDMAP_NAMESZ))
@@ -1380,6 +1491,49 @@ static inline u32 nfsd4_create_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op
 		+ nfs4_fattr_bitmap_maxsz) * sizeof(__be32);
 }
 
+/*
+ * Note since this is an idempotent operation we won't insist on failing
+ * the op prematurely if the estimate is too large.  We may turn off splice
+ * reads unnecessarily.
+ */
+static inline u32 nfsd4_getattr_rsize(struct svc_rqst *rqstp,
+				      struct nfsd4_op *op)
+{
+	u32 *bmap = op->u.getattr.ga_bmval;
+	u32 bmap0 = bmap[0], bmap1 = bmap[1], bmap2 = bmap[2];
+	u32 ret = 0;
+
+	if (bmap0 & FATTR4_WORD0_ACL)
+		return svc_max_payload(rqstp);
+	if (bmap0 & FATTR4_WORD0_FS_LOCATIONS)
+		return svc_max_payload(rqstp);
+
+	if (bmap1 & FATTR4_WORD1_OWNER) {
+		ret += IDMAP_NAMESZ + 4;
+		bmap1 &= ~FATTR4_WORD1_OWNER;
+	}
+	if (bmap1 & FATTR4_WORD1_OWNER_GROUP) {
+		ret += IDMAP_NAMESZ + 4;
+		bmap1 &= ~FATTR4_WORD1_OWNER_GROUP;
+	}
+	if (bmap0 & FATTR4_WORD0_FILEHANDLE) {
+		ret += NFS4_FHSIZE + 4;
+		bmap0 &= ~FATTR4_WORD0_FILEHANDLE;
+	}
+	if (bmap2 & FATTR4_WORD2_SECURITY_LABEL) {
+		ret += NFSD4_MAX_SEC_LABEL_LEN + 12;
+		bmap2 &= ~FATTR4_WORD2_SECURITY_LABEL;
+	}
+	/*
+	 * Largest of remaining attributes are 16 bytes (e.g.,
+	 * supported_attributes)
+	 */
+	ret += 16 * (hweight32(bmap0) + hweight32(bmap1) + hweight32(bmap2));
+	/* bitmask, length */
+	ret += 20;
+	return ret;
+}
+
 static inline u32 nfsd4_link_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
 	return (op_encode_hdr_size + op_encode_change_info_maxsz)
@@ -1405,23 +1559,20 @@ static inline u32 nfsd4_read_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 	u32 maxcount = 0, rlen = 0;
 
 	maxcount = svc_max_payload(rqstp);
-	rlen = op->u.read.rd_length;
+	rlen = min(op->u.read.rd_length, maxcount);
 
-	if (rlen > maxcount)
-		rlen = maxcount;
-
-	return (op_encode_hdr_size + 2) * sizeof(__be32) + rlen;
+	return (op_encode_hdr_size + 2 + XDR_QUADLEN(rlen)) * sizeof(__be32);
 }
 
 static inline u32 nfsd4_readdir_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
-	u32 rlen = op->u.readdir.rd_maxcount;
+	u32 maxcount = 0, rlen = 0;
 
-	if (rlen > PAGE_SIZE)
-		rlen = PAGE_SIZE;
+	maxcount = svc_max_payload(rqstp);
+	rlen = min(op->u.readdir.rd_maxcount, maxcount);
 
-	return (op_encode_hdr_size + op_encode_verifier_maxsz)
-		 * sizeof(__be32) + rlen;
+	return (op_encode_hdr_size + op_encode_verifier_maxsz +
+		XDR_QUADLEN(rlen)) * sizeof(__be32);
 }
 
 static inline u32 nfsd4_remove_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
@@ -1436,6 +1587,13 @@ static inline u32 nfsd4_rename_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op
 		+ op_encode_change_info_maxsz) * sizeof(__be32);
 }
 
+static inline u32 nfsd4_sequence_rsize(struct svc_rqst *rqstp,
+				       struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size
+		+ XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + 5) * sizeof(__be32);
+}
+
 static inline u32 nfsd4_setattr_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
 	return (op_encode_hdr_size + nfs4_fattr_bitmap_maxsz) * sizeof(__be32);
@@ -1443,18 +1601,20 @@ static inline u32 nfsd4_setattr_rsize(struct svc_rqst *rqstp, struct nfsd4_op *o
 
 static inline u32 nfsd4_setclientid_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
-	return (op_encode_hdr_size + 2 + 1024) * sizeof(__be32);
+	return (op_encode_hdr_size + 2 + XDR_QUADLEN(NFS4_VERIFIER_SIZE)) *
+								sizeof(__be32);
 }
 
 static inline u32 nfsd4_write_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
-	return (op_encode_hdr_size + op_encode_verifier_maxsz) * sizeof(__be32);
+	return (op_encode_hdr_size + 2 + op_encode_verifier_maxsz) * sizeof(__be32);
 }
 
 static inline u32 nfsd4_exchange_id_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
 	return (op_encode_hdr_size + 2 + 1 + /* eir_clientid, eir_sequenceid */\
-		1 + 1 + 0 + /* eir_flags, spr_how, SP4_NONE (for now) */\
+		1 + 1 + /* eir_flags, spr_how */\
+		4 + /* spo_must_enforce & _allow with bitmap */\
 		2 + /*eir_server_owner.so_minor_id */\
 		/* eir_server_owner.so_major_id<> */\
 		XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 +\
@@ -1515,6 +1675,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	[OP_GETATTR] = {
 		.op_func = (nfsd4op_func)nfsd4_getattr,
 		.op_flags = ALLOWED_ON_ABSENT_FS,
+		.op_rsize_bop = nfsd4_getattr_rsize,
 		.op_name = "OP_GETATTR",
 	},
 	[OP_GETFH] = {
@@ -1584,37 +1745,32 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	[OP_PUTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putfh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
-				| OP_IS_PUTFH_LIKE | OP_MODIFIES_SOMETHING
-				| OP_CLEAR_STATEID,
+				| OP_IS_PUTFH_LIKE | OP_CLEAR_STATEID,
 		.op_name = "OP_PUTFH",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_PUTPUBFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putrootfh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
-				| OP_IS_PUTFH_LIKE | OP_MODIFIES_SOMETHING
-				| OP_CLEAR_STATEID,
+				| OP_IS_PUTFH_LIKE | OP_CLEAR_STATEID,
 		.op_name = "OP_PUTPUBFH",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_PUTROOTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putrootfh,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
-				| OP_IS_PUTFH_LIKE | OP_MODIFIES_SOMETHING
-				| OP_CLEAR_STATEID,
+				| OP_IS_PUTFH_LIKE | OP_CLEAR_STATEID,
 		.op_name = "OP_PUTROOTFH",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
 	[OP_READ] = {
 		.op_func = (nfsd4op_func)nfsd4_read,
-		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_READ",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_read_rsize,
 		.op_get_currentstateid = (stateid_getter)nfsd4_get_readstateid,
 	},
 	[OP_READDIR] = {
 		.op_func = (nfsd4op_func)nfsd4_readdir,
-		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_READDIR",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_readdir_rsize,
 	},
@@ -1739,6 +1895,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_sequence,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
 		.op_name = "OP_SEQUENCE",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_sequence_rsize,
 	},
 	[OP_DESTROY_CLIENTID] = {
 		.op_func = (nfsd4op_func)nfsd4_destroy_clientid,
@@ -1770,16 +1927,41 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_get_currentstateid = (stateid_getter)nfsd4_get_freestateid,
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
 	},
+
+	/* NFSv4.2 operations */
+	[OP_SEEK] = {
+		.op_func = (nfsd4op_func)nfsd4_seek,
+		.op_name = "OP_SEEK",
+	},
 };
 
-#ifdef NFSD_DEBUG
+int nfsd4_max_reply(struct svc_rqst *rqstp, struct nfsd4_op *op)
+{
+	struct nfsd4_operation *opdesc;
+	nfsd4op_rsize estimator;
+
+	if (op->opnum == OP_ILLEGAL)
+		return op_encode_hdr_size * sizeof(__be32);
+	opdesc = OPDESC(op);
+	estimator = opdesc->op_rsize_bop;
+	return estimator ? estimator(rqstp, op) : PAGE_SIZE;
+}
+
+void warn_on_nonidempotent_op(struct nfsd4_op *op)
+{
+	if (OPDESC(op)->op_flags & OP_MODIFIES_SOMETHING) {
+		pr_err("unable to encode reply to nonidempotent op %d (%s)\n",
+			op->opnum, nfsd4_op_name(op->opnum));
+		WARN_ON_ONCE(1);
+	}
+}
+
 static const char *nfsd4_op_name(unsigned opnum)
 {
 	if (opnum < ARRAY_SIZE(nfsd4_ops))
 		return nfsd4_ops[opnum].op_name;
 	return "unknown_operation";
 }
-#endif
 
 #define nfsd4_voidres			nfsd4_voidargs
 struct nfsd4_voidargs { int dummy; };
@@ -1811,6 +1993,7 @@ struct svc_version	nfsd_version4 = {
 		.vs_proc	= nfsd_procedures4,
 		.vs_dispatch	= nfsd_dispatch,
 		.vs_xdrsize	= NFS4_SVC_XDRSIZE,
+		.vs_rpcb_optnl	= 1,
 };
 
 /*

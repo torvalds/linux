@@ -78,8 +78,6 @@ obj-$(CONFIG_BLK_DEV_CMD640)		+= cmd640.o
 
 obj-$(CONFIG_BLK_DEV_IDE_PMAC)		+= pmac.o
 
-obj-$(CONFIG_IDE_H8300)			+= ide-h8300.o
-
 obj-$(CONFIG_IDE_GENERIC)		+= ide-generic.o
 obj-$(CONFIG_BLK_DEV_IDEPNP)		+= ide-pnp.o
 

@@ -1166,7 +1166,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *fh,
 	f->fmt.pix.sizeimage = f->fmt.pix.height *
 			       f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -1232,7 +1231,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *fh,
 	f->fmt.pix.sizeimage = f->fmt.pix.height *
 			       f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -1410,7 +1408,7 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 }
 
 static long vidioc_default(struct file *file, void *fh, bool valid_prio,
-						int cmd, void *arg)
+			   unsigned int cmd, void *arg)
 {
 	switch (cmd) {
 	case MEYEIOC_G_PARAMS:
@@ -1698,7 +1696,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	meye.mchip_irq = pcidev->irq;
 	if (request_irq(meye.mchip_irq, meye_irq,
-			IRQF_DISABLED | IRQF_SHARED, "meye", meye_irq)) {
+			IRQF_SHARED, "meye", meye_irq)) {
 		v4l2_err(v4l2_dev, "request_irq failed\n");
 		goto outreqirq;
 	}
@@ -1749,7 +1747,6 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	v4l2_ctrl_handler_setup(&meye.hdl);
 	meye.vdev->ctrl_handler = &meye.hdl;
-	set_bit(V4L2_FL_USE_FH_PRIO, &meye.vdev->flags);
 
 	if (video_register_device(meye.vdev, VFL_TYPE_GRABBER,
 				  video_nr) < 0) {

@@ -32,6 +32,7 @@
 
 #include "powerdomain.h"
 #include "clockdomain.h"
+#include "voltage.h"
 
 #include "soc.h"
 #include "pm.h"
@@ -52,7 +53,6 @@ enum {
 #define ALREADYACTIVE_SWITCH		0
 #define FORCEWAKEUP_SWITCH		1
 #define LOWPOWERSTATE_SWITCH		2
-#define ERROR_SWITCH			3
 
 /* pwrdm_list contains all registered struct powerdomains */
 static LIST_HEAD(pwrdm_list);
@@ -103,6 +103,10 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	if (_pwrdm_lookup(pwrdm->name))
 		return -EEXIST;
 
+	if (arch_pwrdm && arch_pwrdm->pwrdm_has_voltdm)
+		if (!arch_pwrdm->pwrdm_has_voltdm())
+			goto skip_voltdm;
+
 	voltdm = voltdm_lookup(pwrdm->voltdm.name);
 	if (!voltdm) {
 		pr_err("powerdomain: %s: voltagedomain %s does not exist\n",
@@ -112,6 +116,7 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	pwrdm->voltdm.ptr = voltdm;
 	INIT_LIST_HEAD(&pwrdm->voltdm_node);
 	voltdm_add_pwrdm(voltdm, pwrdm);
+skip_voltdm:
 	spin_lock_init(&pwrdm->_lock);
 
 	list_add(&pwrdm->node, &pwrdm_list);
@@ -124,7 +129,8 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	for (i = 0; i < pwrdm->banks; i++)
 		pwrdm->ret_mem_off_counter[i] = 0;
 
-	arch_pwrdm->pwrdm_wait_transition(pwrdm);
+	if (arch_pwrdm && arch_pwrdm->pwrdm_wait_transition)
+		arch_pwrdm->pwrdm_wait_transition(pwrdm);
 	pwrdm->state = pwrdm_read_pwrst(pwrdm);
 	pwrdm->state_counter[pwrdm->state] = 1;
 
@@ -233,10 +239,7 @@ static u8 _pwrdm_save_clkdm_state_and_activate(struct powerdomain *pwrdm,
 {
 	u8 sleep_switch;
 
-	if (curr_pwrst < 0) {
-		WARN_ON(1);
-		sleep_switch = ERROR_SWITCH;
-	} else if (curr_pwrst < PWRDM_POWER_ON) {
+	if (curr_pwrst < PWRDM_POWER_ON) {
 		if (curr_pwrst > pwrst &&
 		    pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE &&
 		    arch_pwrdm->pwrdm_set_lowpwrstchange) {
@@ -543,7 +546,8 @@ int pwrdm_for_each_clkdm(struct powerdomain *pwrdm,
 		return -EINVAL;
 
 	for (i = 0; i < PWRDM_MAX_CLKDMS && !ret; i++)
-		ret = (*fn)(pwrdm, pwrdm->pwrdm_clkdms[i]);
+		if (pwrdm->pwrdm_clkdms[i])
+			ret = (*fn)(pwrdm, pwrdm->pwrdm_clkdms[i]);
 
 	return ret;
 }
@@ -1077,6 +1081,82 @@ int pwrdm_post_transition(struct powerdomain *pwrdm)
 }
 
 /**
+ * pwrdm_get_valid_lp_state() - Find best match deep power state
+ * @pwrdm:	power domain for which we want to find best match
+ * @is_logic_state: Are we looking for logic state match here? Should
+ *		    be one of PWRDM_xxx macro values
+ * @req_state:	requested power state
+ *
+ * Returns: closest match for requested power state. default fallback
+ * is RET for logic state and ON for power state.
+ *
+ * This does a search from the power domain data looking for the
+ * closest valid power domain state that the hardware can achieve.
+ * PRCM definitions for PWRSTCTRL allows us to program whatever
+ * configuration we'd like, and PRCM will actually attempt such
+ * a transition, however if the powerdomain does not actually support it,
+ * we endup with a hung system. The valid power domain states are already
+ * available in our powerdomain data files. So this function tries to do
+ * the following:
+ * a) find if we have an exact match to the request - no issues.
+ * b) else find if a deeper power state is possible.
+ * c) failing which, it tries to find closest higher power state for the
+ * request.
+ */
+u8 pwrdm_get_valid_lp_state(struct powerdomain *pwrdm,
+			    bool is_logic_state, u8 req_state)
+{
+	u8 pwrdm_states = is_logic_state ? pwrdm->pwrsts_logic_ret :
+			pwrdm->pwrsts;
+	/* For logic, ret is highest and others, ON is highest */
+	u8 default_pwrst = is_logic_state ? PWRDM_POWER_RET : PWRDM_POWER_ON;
+	u8 new_pwrst;
+	bool found;
+
+	/* If it is already supported, nothing to search */
+	if (pwrdm_states & BIT(req_state))
+		return req_state;
+
+	if (!req_state)
+		goto up_search;
+
+	/*
+	 * So, we dont have a exact match
+	 * Can we get a deeper power state match?
+	 */
+	new_pwrst = req_state - 1;
+	found = true;
+	while (!(pwrdm_states & BIT(new_pwrst))) {
+		/* No match even at OFF? Not available */
+		if (new_pwrst == PWRDM_POWER_OFF) {
+			found = false;
+			break;
+		}
+		new_pwrst--;
+	}
+
+	if (found)
+		goto done;
+
+up_search:
+	/* OK, no deeper ones, can we get a higher match? */
+	new_pwrst = req_state + 1;
+	while (!(pwrdm_states & BIT(new_pwrst))) {
+		if (new_pwrst > PWRDM_POWER_ON) {
+			WARN(1, "powerdomain: %s: Fix max powerstate to ON\n",
+			     pwrdm->name);
+			return PWRDM_POWER_ON;
+		}
+
+		if (new_pwrst == default_pwrst)
+			break;
+		new_pwrst++;
+	}
+done:
+	return new_pwrst;
+}
+
+/**
  * omap_set_pwrdm_state - change a powerdomain's current power state
  * @pwrdm: struct powerdomain * to change the power state of
  * @pwrst: power state to change to
@@ -1091,7 +1171,8 @@ int pwrdm_post_transition(struct powerdomain *pwrdm)
  */
 int omap_set_pwrdm_state(struct powerdomain *pwrdm, u8 pwrst)
 {
-	u8 curr_pwrst, next_pwrst, sleep_switch;
+	u8 next_pwrst, sleep_switch;
+	int curr_pwrst;
 	int ret = 0;
 	bool hwsup = false;
 
@@ -1107,16 +1188,17 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u8 pwrst)
 	pwrdm_lock(pwrdm);
 
 	curr_pwrst = pwrdm_read_pwrst(pwrdm);
+	if (curr_pwrst < 0) {
+		ret = -EINVAL;
+		goto osps_out;
+	}
+
 	next_pwrst = pwrdm_read_next_pwrst(pwrdm);
 	if (curr_pwrst == pwrst && next_pwrst == pwrst)
 		goto osps_out;
 
 	sleep_switch = _pwrdm_save_clkdm_state_and_activate(pwrdm, curr_pwrst,
 							    pwrst, &hwsup);
-	if (sleep_switch == ERROR_SWITCH) {
-		ret = -EINVAL;
-		goto osps_out;
-	}
 
 	ret = pwrdm_set_next_pwrst(pwrdm, pwrst);
 	if (ret)
@@ -1182,7 +1264,7 @@ bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm)
 {
 	int i;
 
-	if (IS_ERR_OR_NULL(pwrdm)) {
+	if (!pwrdm) {
 		pr_debug("powerdomain: %s: invalid powerdomain pointer\n",
 			 __func__);
 		return 1;

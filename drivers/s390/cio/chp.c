@@ -257,11 +257,11 @@ static ssize_t chp_status_write(struct device *dev,
 	if (!num_args)
 		return count;
 
-	if (!strnicmp(cmd, "on", 2) || !strcmp(cmd, "1")) {
+	if (!strncasecmp(cmd, "on", 2) || !strcmp(cmd, "1")) {
 		mutex_lock(&cp->lock);
 		error = s390_vary_chpid(cp->chpid, 1);
 		mutex_unlock(&cp->lock);
-	} else if (!strnicmp(cmd, "off", 3) || !strcmp(cmd, "0")) {
+	} else if (!strncasecmp(cmd, "off", 3) || !strcmp(cmd, "0")) {
 		mutex_lock(&cp->lock);
 		error = s390_vary_chpid(cp->chpid, 0);
 		mutex_unlock(&cp->lock);
@@ -352,12 +352,48 @@ static ssize_t chp_shared_show(struct device *dev,
 
 static DEVICE_ATTR(shared, 0444, chp_shared_show, NULL);
 
+static ssize_t chp_chid_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct channel_path *chp = to_channelpath(dev);
+	ssize_t rc;
+
+	mutex_lock(&chp->lock);
+	if (chp->desc_fmt1.flags & 0x10)
+		rc = sprintf(buf, "%04x\n", chp->desc_fmt1.chid);
+	else
+		rc = 0;
+	mutex_unlock(&chp->lock);
+
+	return rc;
+}
+static DEVICE_ATTR(chid, 0444, chp_chid_show, NULL);
+
+static ssize_t chp_chid_external_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct channel_path *chp = to_channelpath(dev);
+	ssize_t rc;
+
+	mutex_lock(&chp->lock);
+	if (chp->desc_fmt1.flags & 0x10)
+		rc = sprintf(buf, "%x\n", chp->desc_fmt1.flags & 0x8 ? 1 : 0);
+	else
+		rc = 0;
+	mutex_unlock(&chp->lock);
+
+	return rc;
+}
+static DEVICE_ATTR(chid_external, 0444, chp_chid_external_show, NULL);
+
 static struct attribute *chp_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_configure.attr,
 	&dev_attr_type.attr,
 	&dev_attr_cmg.attr,
 	&dev_attr_shared.attr,
+	&dev_attr_chid.attr,
+	&dev_attr_chid_external.attr,
 	NULL,
 };
 static struct attribute_group chp_attr_group = {
@@ -374,6 +410,26 @@ static void chp_release(struct device *dev)
 
 	cp = to_channelpath(dev);
 	kfree(cp);
+}
+
+/**
+ * chp_update_desc - update channel-path description
+ * @chp - channel-path
+ *
+ * Update the channel-path description of the specified channel-path.
+ * Return zero on success, non-zero otherwise.
+ */
+int chp_update_desc(struct channel_path *chp)
+{
+	int rc;
+
+	rc = chsc_determine_base_channel_path_desc(chp->chpid, &chp->desc);
+	if (rc)
+		return rc;
+
+	rc = chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
+
+	return rc;
 }
 
 /**
@@ -403,7 +459,7 @@ int chp_new(struct chp_id chpid)
 	mutex_init(&chp->lock);
 
 	/* Obtain channel path description and fill it in. */
-	ret = chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+	ret = chp_update_desc(chp);
 	if (ret)
 		goto out_free;
 	if ((chp->desc.flags & 0x80) == 0) {
@@ -453,7 +509,7 @@ out:
  * On success return a newly allocated copy of the channel-path description
  * data associated with the given channel-path ID. Return %NULL on error.
  */
-void *chp_get_chp_desc(struct chp_id chpid)
+struct channel_path_desc *chp_get_chp_desc(struct chp_id chpid)
 {
 	struct channel_path *chp;
 	struct channel_path_desc *desc;

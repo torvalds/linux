@@ -30,7 +30,7 @@
 #include <asm/memory.h>
 #include <asm/setup.h>
 
-#include <mach/board.h>
+#include <mach/clk.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
 
@@ -40,8 +40,7 @@
 #include "proc_comm.h"
 #include "common.h"
 
-static void __init msm7x30_fixup(struct tag *tag, char **cmdline,
-		struct meminfo *mi)
+static void __init msm7x30_fixup(struct tag *tag, char **cmdline)
 {
 	for (; tag->hdr.size; tag = tag_next(tag))
 		if (tag->hdr.tag == ATAG_MEM && tag->u.mem.start == 0x200000) {
@@ -61,10 +60,44 @@ static int hsusb_phy_init_seq[] = {
 	-1
 };
 
+static int hsusb_link_clk_reset(struct clk *link_clk, bool assert)
+{
+	int ret;
+
+	if (assert) {
+		ret = clk_reset(link_clk, CLK_RESET_ASSERT);
+		if (ret)
+			pr_err("usb hs_clk assert failed\n");
+	} else {
+		ret = clk_reset(link_clk, CLK_RESET_DEASSERT);
+		if (ret)
+			pr_err("usb hs_clk deassert failed\n");
+	}
+	return ret;
+}
+
+static int hsusb_phy_clk_reset(struct clk *phy_clk)
+{
+	int ret;
+
+	ret = clk_reset(phy_clk, CLK_RESET_ASSERT);
+	if (ret) {
+		pr_err("usb phy clk assert failed\n");
+		return ret;
+	}
+	usleep_range(10000, 12000);
+	ret = clk_reset(phy_clk, CLK_RESET_DEASSERT);
+	if (ret)
+		pr_err("usb phy clk deassert failed\n");
+	return ret;
+}
+
 static struct msm_otg_platform_data msm_otg_pdata = {
 	.phy_init_seq		= hsusb_phy_init_seq,
-	.mode                   = USB_PERIPHERAL,
+	.mode                   = USB_DR_MODE_PERIPHERAL,
 	.otg_control		= OTG_PHY_CONTROL,
+	.link_clk_reset		= hsusb_link_clk_reset,
+	.phy_clk_reset		= hsusb_phy_clk_reset,
 };
 
 struct msm_gpiomux_config msm_gpiomux_configs[GPIOMUX_NGPIOS] = {
@@ -89,7 +122,9 @@ struct msm_gpiomux_config msm_gpiomux_configs[GPIOMUX_NGPIOS] = {
 };
 
 static struct platform_device *devices[] __initdata = {
-#if defined(CONFIG_SERIAL_MSM) || defined(CONFIG_MSM_SERIAL_DEBUGGER)
+	&msm_clock_7x30,
+	&msm_device_gpio_7x30,
+#if defined(CONFIG_SERIAL_MSM)
         &msm_device_uart2,
 #endif
 	&msm_device_smd,
@@ -115,7 +150,6 @@ static void __init msm7x30_init(void)
 static void __init msm7x30_map_io(void)
 {
 	msm_map_msm7x30_io();
-	msm_clock_init(msm_clocks_7x30, msm_num_clocks_7x30);
 }
 
 static void __init msm7x30_init_late(void)

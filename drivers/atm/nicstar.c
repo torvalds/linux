@@ -52,6 +52,7 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/atomic.h>
+#include <linux/etherdevice.h>
 #include "nicstar.h"
 #ifdef CONFIG_ATM_NICSTAR_USE_SUNI
 #include "suni.h"
@@ -153,7 +154,6 @@ static int ns_ioctl(struct atm_dev *dev, unsigned int cmd, void __user * arg);
 static void which_list(ns_dev * card, struct sk_buff *skb);
 #endif
 static void ns_poll(unsigned long arg);
-static int ns_parse_mac(char *mac, unsigned char *esi);
 static void ns_phy_put(struct atm_dev *dev, unsigned char value,
 		       unsigned long addr);
 static unsigned char ns_phy_get(struct atm_dev *dev, unsigned long addr);
@@ -639,9 +639,9 @@ static int ns_init_card(int i, struct pci_dev *pcidev)
 	card->hbnr.init = NUM_HB;
 	card->hbnr.max = MAX_HB;
 
-	card->sm_handle = 0x00000000;
+	card->sm_handle = NULL;
 	card->sm_addr = 0x00000000;
-	card->lg_handle = 0x00000000;
+	card->lg_handle = NULL;
 	card->lg_addr = 0x00000000;
 
 	card->efbie = 1;	/* To prevent push_rxbufs from enabling the interrupt */
@@ -779,11 +779,10 @@ static int ns_init_card(int i, struct pci_dev *pcidev)
 		return error;
 	}
 
-	if (ns_parse_mac(mac[i], card->atmdev->esi)) {
+	if (mac[i] == NULL || !mac_pton(mac[i], card->atmdev->esi)) {
 		nicstar_read_eprom(card->membase, NICSTAR_EPROM_MAC_ADDR_OFFSET,
 				   card->atmdev->esi, 6);
-		if (memcmp(card->atmdev->esi, "\x00\x00\x00\x00\x00\x00", 6) ==
-		    0) {
+		if (ether_addr_equal(card->atmdev->esi, "\x00\x00\x00\x00\x00\x00")) {
 			nicstar_read_eprom(card->membase,
 					   NICSTAR_EPROM_MAC_ADDR_OFFSET_ALT,
 					   card->atmdev->esi, 6);
@@ -980,7 +979,7 @@ static void push_rxbufs(ns_dev * card, struct sk_buff *skb)
 				addr2 = card->sm_addr;
 				handle2 = card->sm_handle;
 				card->sm_addr = 0x00000000;
-				card->sm_handle = 0x00000000;
+				card->sm_handle = NULL;
 			} else {	/* (!sm_addr) */
 
 				card->sm_addr = addr1;
@@ -994,7 +993,7 @@ static void push_rxbufs(ns_dev * card, struct sk_buff *skb)
 				addr2 = card->lg_addr;
 				handle2 = card->lg_handle;
 				card->lg_addr = 0x00000000;
-				card->lg_handle = 0x00000000;
+				card->lg_handle = NULL;
 			} else {	/* (!lg_addr) */
 
 				card->lg_addr = addr1;
@@ -1740,10 +1739,10 @@ static int push_scqe(ns_dev * card, vc_map * vc, scq_info * scq, ns_scqe * tbd,
 		}
 
 		scq->full = 1;
-		spin_unlock_irqrestore(&scq->lock, flags);
-		interruptible_sleep_on_timeout(&scq->scqfull_waitq,
-					       SCQFULL_TIMEOUT);
-		spin_lock_irqsave(&scq->lock, flags);
+		wait_event_interruptible_lock_irq_timeout(scq->scqfull_waitq,
+							  scq->tail != scq->next,
+							  scq->lock,
+							  SCQFULL_TIMEOUT);
 
 		if (scq->full) {
 			spin_unlock_irqrestore(&scq->lock, flags);
@@ -1790,10 +1789,10 @@ static int push_scqe(ns_dev * card, vc_map * vc, scq_info * scq, ns_scqe * tbd,
 			scq->full = 1;
 			if (has_run++)
 				break;
-			spin_unlock_irqrestore(&scq->lock, flags);
-			interruptible_sleep_on_timeout(&scq->scqfull_waitq,
-						       SCQFULL_TIMEOUT);
-			spin_lock_irqsave(&scq->lock, flags);
+			wait_event_interruptible_lock_irq_timeout(scq->scqfull_waitq,
+								  scq->tail != scq->next,
+								  scq->lock,
+								  SCQFULL_TIMEOUT);
 		}
 
 		if (!scq->full) {
@@ -2801,29 +2800,6 @@ static void ns_poll(unsigned long arg)
 	mod_timer(&ns_timer, jiffies + NS_POLL_PERIOD);
 	PRINTK("nicstar: Leaving ns_poll().\n");
 }
-
-static int ns_parse_mac(char *mac, unsigned char *esi)
-{
-	int i, j;
-	short byte1, byte0;
-
-	if (mac == NULL || esi == NULL)
-		return -1;
-	j = 0;
-	for (i = 0; i < 6; i++) {
-		if ((byte1 = hex_to_bin(mac[j++])) < 0)
-			return -1;
-		if ((byte0 = hex_to_bin(mac[j++])) < 0)
-			return -1;
-		esi[i] = (unsigned char)(byte1 * 16 + byte0);
-		if (i < 5) {
-			if (mac[j++] != ':')
-				return -1;
-		}
-	}
-	return 0;
-}
-
 
 static void ns_phy_put(struct atm_dev *dev, unsigned char value,
 		       unsigned long addr)

@@ -226,6 +226,7 @@ static int nvec_power_get_property(struct power_supply *psy,
 				   union power_supply_propval *val)
 {
 	struct nvec_power *power = dev_get_drvdata(psy->dev->parent);
+
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = power->on;
@@ -414,6 +415,7 @@ static int nvec_power_remove(struct platform_device *pdev)
 	struct nvec_power *power = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&power->poller);
+	nvec_unregister_notifier(power->nvec, &power->notifier);
 	switch (pdev->id) {
 	case AC:
 		power_supply_unregister(&nvec_psy);

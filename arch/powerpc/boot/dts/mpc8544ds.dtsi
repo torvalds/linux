@@ -82,12 +82,10 @@
 		phy0: ethernet-phy@0 {
 			interrupts = <10 1 0 0>;
 			reg = <0x0>;
-			device_type = "ethernet-phy";
 		};
 		phy1: ethernet-phy@1 {
 			interrupts = <10 1 0 0>;
 			reg = <0x1>;
-			device_type = "ethernet-phy";
 		};
 
 		sgmii_phy0: sgmii-phy@0 {

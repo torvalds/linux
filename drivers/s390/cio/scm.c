@@ -15,8 +15,6 @@
 #include "chsc.h"
 
 static struct device *scm_root;
-static struct eadm_ops *eadm_ops;
-static DEFINE_MUTEX(eadm_ops_mutex);
 
 #define to_scm_dev(n) container_of(n, struct scm_device, dev)
 #define	to_scm_drv(d) container_of(d, struct scm_driver, drv)
@@ -72,49 +70,6 @@ void scm_driver_unregister(struct scm_driver *scmdrv)
 	driver_unregister(&scmdrv->drv);
 }
 EXPORT_SYMBOL_GPL(scm_driver_unregister);
-
-int scm_get_ref(void)
-{
-	int ret = 0;
-
-	mutex_lock(&eadm_ops_mutex);
-	if (!eadm_ops || !try_module_get(eadm_ops->owner))
-		ret = -ENOENT;
-	mutex_unlock(&eadm_ops_mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(scm_get_ref);
-
-void scm_put_ref(void)
-{
-	mutex_lock(&eadm_ops_mutex);
-	module_put(eadm_ops->owner);
-	mutex_unlock(&eadm_ops_mutex);
-}
-EXPORT_SYMBOL_GPL(scm_put_ref);
-
-void register_eadm_ops(struct eadm_ops *ops)
-{
-	mutex_lock(&eadm_ops_mutex);
-	eadm_ops = ops;
-	mutex_unlock(&eadm_ops_mutex);
-}
-EXPORT_SYMBOL_GPL(register_eadm_ops);
-
-void unregister_eadm_ops(struct eadm_ops *ops)
-{
-	mutex_lock(&eadm_ops_mutex);
-	eadm_ops = NULL;
-	mutex_unlock(&eadm_ops_mutex);
-}
-EXPORT_SYMBOL_GPL(unregister_eadm_ops);
-
-int scm_start_aob(struct aob *aob)
-{
-	return eadm_ops->eadm_start(aob);
-}
-EXPORT_SYMBOL_GPL(scm_start_aob);
 
 void scm_irq_handler(struct aob *aob, int error)
 {

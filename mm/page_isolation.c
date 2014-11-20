@@ -6,6 +6,7 @@
 #include <linux/page-isolation.h>
 #include <linux/pageblock-flags.h>
 #include <linux/memory.h>
+#include <linux/hugetlb.h>
 #include "internal.h"
 
 int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
@@ -59,6 +60,7 @@ out:
 		int migratetype = get_pageblock_migratetype(page);
 
 		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+		zone->nr_isolate_pageblock++;
 		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
 
 		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
@@ -74,16 +76,54 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
 {
 	struct zone *zone;
 	unsigned long flags, nr_pages;
+	struct page *isolated_page = NULL;
+	unsigned int order;
+	unsigned long page_idx, buddy_idx;
+	struct page *buddy;
 
 	zone = page_zone(page);
 	spin_lock_irqsave(&zone->lock, flags);
 	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
 		goto out;
-	nr_pages = move_freepages_block(zone, page, migratetype);
-	__mod_zone_freepage_state(zone, nr_pages, migratetype);
+
+	/*
+	 * Because freepage with more than pageblock_order on isolated
+	 * pageblock is restricted to merge due to freepage counting problem,
+	 * it is possible that there is free buddy page.
+	 * move_freepages_block() doesn't care of merge so we need other
+	 * approach in order to merge them. Isolation and free will make
+	 * these pages to be merged.
+	 */
+	if (PageBuddy(page)) {
+		order = page_order(page);
+		if (order >= pageblock_order) {
+			page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
+			buddy_idx = __find_buddy_index(page_idx, order);
+			buddy = page + (buddy_idx - page_idx);
+
+			if (!is_migrate_isolate_page(buddy)) {
+				__isolate_free_page(page, order);
+				set_page_refcounted(page);
+				isolated_page = page;
+			}
+		}
+	}
+
+	/*
+	 * If we isolate freepage with more than pageblock_order, there
+	 * should be no freepage in the range, so we could avoid costly
+	 * pageblock scanning for freepage moving.
+	 */
+	if (!isolated_page) {
+		nr_pages = move_freepages_block(zone, page, migratetype);
+		__mod_zone_freepage_state(zone, nr_pages, migratetype);
+	}
 	set_pageblock_migratetype(page, migratetype);
+	zone->nr_isolate_pageblock--;
 out:
 	spin_unlock_irqrestore(&zone->lock, flags);
+	if (isolated_page)
+		__free_pages(isolated_page, order);
 }
 
 static inline struct page *
@@ -226,9 +266,9 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 	int ret;
 
 	/*
-	 * Note: pageblock_nr_page != MAX_ORDER. Then, chunks of free page
-	 * is not aligned to pageblock_nr_pages.
-	 * Then we just check pagetype fist.
+	 * Note: pageblock_nr_pages != MAX_ORDER. Then, chunks of free pages
+	 * are not aligned to pageblock_nr_pages.
+	 * Then we just check migratetype first.
 	 */
 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
 		page = __first_valid_page(pfn, pageblock_nr_pages);
@@ -238,7 +278,7 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 	page = __first_valid_page(start_pfn, end_pfn - start_pfn);
 	if ((pfn < end_pfn) || !page)
 		return -EBUSY;
-	/* Check all pages are free or Marked as ISOLATED */
+	/* Check all pages are free or marked as ISOLATED */
 	zone = page_zone(page);
 	spin_lock_irqsave(&zone->lock, flags);
 	ret = __test_page_isolated_in_pageblock(start_pfn, end_pfn,
@@ -251,6 +291,19 @@ struct page *alloc_migrate_target(struct page *page, unsigned long private,
 				  int **resultp)
 {
 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
+
+	/*
+	 * TODO: allocate a destination hugepage from a nearest neighbor node,
+	 * accordance with memory policy of the user process if possible. For
+	 * now as a simple work-around, we use the next node for destination.
+	 */
+	if (PageHuge(page)) {
+		nodemask_t src = nodemask_of_node(page_to_nid(page));
+		nodemask_t dst;
+		nodes_complement(dst, src);
+		return alloc_huge_page_node(page_hstate(compound_head(page)),
+					    next_node(page_to_nid(page), dst));
+	}
 
 	if (PageHighMem(page))
 		gfp_mask |= __GFP_HIGHMEM;

@@ -28,13 +28,6 @@ config PRINT_STACK_DEPTH
 	  too small and stack traces cause important information to
 	  scroll off the screen.
 
-config DEBUG_STACKOVERFLOW
-	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL
-	help
-	  This option will cause messages to be printed if free stack space
-	  drops below a certain limit.
-
 config HCALL_STATS
 	bool "Hypervisor call instrumentation"
 	depends on PPC_PSERIES && DEBUG_FS && TRACEPOINTS
@@ -147,6 +140,13 @@ choice
 	  enable debugging for the wrong type of machine your kernel
 	  _will not boot_.
 
+config PPC_EARLY_DEBUG_BOOTX
+	bool "BootX or OpenFirmware"
+	depends on BOOTX_TEXT
+	help
+	  Select this to enable early debugging for a machine using BootX
+	  or OpenFirmware.
+
 config PPC_EARLY_DEBUG_LPAR
 	bool "LPAR HV Console"
 	depends on PPC_PSERIES
@@ -202,9 +202,7 @@ config PPC_EARLY_DEBUG_BEAT
 
 config PPC_EARLY_DEBUG_44x
 	bool "Early serial debugging for IBM/AMCC 44x CPUs"
-	# PPC_EARLY_DEBUG on 440 leaves AS=1 mappings above the TLB high water
-	# mark, which doesn't work with current 440 KVM.
-	depends on 44x && !KVM
+	depends on 44x
 	help
 	  Select this to enable early debugging for IBM 44x chips via the
 	  inbuilt serial port.  If you enable this, ensure you set
@@ -235,11 +233,6 @@ config PPC_EARLY_DEBUG_USBGECKO
 	  Select this to enable early debugging for Nintendo GameCube/Wii
 	  consoles via an external USB Gecko adapter.
 
-config PPC_EARLY_DEBUG_WSP
-	bool "Early debugging via WSP's internal UART"
-	depends on PPC_WSP
-	select PPC_UDBG_16550
-
 config PPC_EARLY_DEBUG_PS3GELIC
 	bool "Early debugging through the PS3 Ethernet port"
 	depends on PPC_PS3
@@ -262,7 +255,30 @@ config PPC_EARLY_DEBUG_OPAL_HVSI
 	  Select this to enable early debugging for the PowerNV platform
 	  using an "hvsi" console
 
+config PPC_EARLY_DEBUG_MEMCONS
+	bool "In memory console"
+	help
+	  Select this to enable early debugging using an in memory console.
+	  This console provides input and output buffers stored within the
+	  kernel BSS and should be safe to select on any system. A debugger
+	  can then be used to read kernel output or send input to the console.
 endchoice
+
+config PPC_MEMCONS_OUTPUT_SIZE
+	int "In memory console output buffer size"
+	depends on PPC_EARLY_DEBUG_MEMCONS
+	default 4096
+	help
+	  Selects the size of the output buffer (in bytes) of the in memory
+	  console.
+
+config PPC_MEMCONS_INPUT_SIZE
+	int "In memory console input buffer size"
+	depends on PPC_EARLY_DEBUG_MEMCONS
+	default 128
+	help
+	  Selects the size of the input buffer (in bytes) of the in memory
+	  console.
 
 config PPC_EARLY_DEBUG_OPAL
 	def_bool y
@@ -285,7 +301,6 @@ config PPC_EARLY_DEBUG_OPAL_VTERMNO
 	  This correspond to which /dev/hvcN you want to use for early
 	  debug.
 
-	  On OPAL v1 (takeover) this should always be 0
 	  On OPAL v2, this will be 0 for network console and 1 or 2 for
 	  the machine built-in serial ports.
 

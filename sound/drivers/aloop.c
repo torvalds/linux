@@ -325,7 +325,7 @@ static void params_change(struct snd_pcm_substream *substream)
 	struct loopback_pcm *dpcm = runtime->private_data;
 	struct loopback_cable *cable = dpcm->cable;
 
-	cable->hw.formats = (1ULL << runtime->format);
+	cable->hw.formats = pcm_format_to_bits(runtime->format);
 	cable->hw.rate_min = runtime->rate;
 	cable->hw.rate_max = runtime->rate;
 	cable->hw.channels_min = runtime->channels;
@@ -1142,8 +1142,8 @@ static int loopback_probe(struct platform_device *devptr)
 	int dev = devptr->id;
 	int err;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct loopback), &card);
+	err = snd_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct loopback), &card);
 	if (err < 0)
 		return err;
 	loopback = card->private_data;
@@ -1183,7 +1183,6 @@ static int loopback_probe(struct platform_device *devptr)
 static int loopback_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
 	return 0;
 }
 

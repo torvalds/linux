@@ -1,7 +1,8 @@
 I2C for OMAP platforms
 
 Required properties :
-- compatible : Must be "ti,omap3-i2c" or "ti,omap4-i2c"
+- compatible : Must be "ti,omap2420-i2c", "ti,omap2430-i2c", "ti,omap3-i2c"
+  or "ti,omap4-i2c"
 - ti,hwmods : Must be "i2c<n>", n being the instance number (1-based)
 - #address-cells = <1>;
 - #size-cells = <0>;

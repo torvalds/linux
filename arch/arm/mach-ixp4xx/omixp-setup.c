@@ -17,15 +17,15 @@
 #include <linux/serial_8250.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#ifdef CONFIG_LEDS_CLASS
 #include <linux/leds.h>
-#endif
 
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
+
+#include <mach/hardware.h>
 
 static struct resource omixp_flash_resources[] = {
 	{

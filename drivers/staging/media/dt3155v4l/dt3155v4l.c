@@ -26,11 +26,11 @@
 #include <linux/slab.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-common.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "dt3155v4l.h"
 
-#define DT3155_VENDOR_ID 0x8086
 #define DT3155_DEVICE_ID 0x1223
 
 /* DT3155_CHUNK_SIZE is 4M (2^22) 8 full size buffers */
@@ -262,7 +262,7 @@ dt3155_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int
+static void
 dt3155_stop_streaming(struct vb2_queue *q)
 {
 	struct dt3155_priv *pd = vb2_get_drv_priv(q);
@@ -276,7 +276,6 @@ dt3155_stop_streaming(struct vb2_queue *q)
 	}
 	spin_unlock_irq(&pd->lock);
 	msleep(45); /* irq hendler will stop the hardware */
-	return 0;
 }
 
 static void
@@ -298,7 +297,7 @@ dt3155_buf_queue(struct vb2_buffer *vb)
  *	end driver-specific callbacks
  */
 
-const struct vb2_ops q_ops = {
+static const struct vb2_ops q_ops = {
 	.queue_setup = dt3155_queue_setup,
 	.wait_prepare = dt3155_wait_prepare,
 	.wait_finish = dt3155_wait_finish,
@@ -341,7 +340,7 @@ dt3155_irq_handler_even(int irq, void *dev_id)
 
 	spin_lock(&ipd->lock);
 	if (ipd->curr_buf) {
-		do_gettimeofday(&ipd->curr_buf->v4l2_buf.timestamp);
+		v4l2_get_timestamp(&ipd->curr_buf->v4l2_buf.timestamp);
 		ipd->curr_buf->v4l2_buf.sequence = (ipd->field_count) >> 1;
 		vb2_buffer_done(ipd->curr_buf, VB2_BUF_STATE_DONE);
 	}
@@ -390,6 +389,7 @@ dt3155_open(struct file *filp)
 			goto err_alloc_queue;
 		}
 		pd->q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		pd->q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		pd->q->io_modes = VB2_READ | VB2_MMAP;
 		pd->q->ops = &q_ops;
 		pd->q->mem_ops = &vb2_dma_contig_memops;
@@ -398,7 +398,7 @@ dt3155_open(struct file *filp)
 		pd->field_count = 0;
 		ret = vb2_queue_init(pd->q);
 		if (ret < 0)
-			return ret;
+			goto err_request_irq;
 		INIT_LIST_HEAD(&pd->dmaq);
 		spin_lock_init(&pd->lock);
 		/* disable all irqs, clear all irq flags */
@@ -410,6 +410,7 @@ dt3155_open(struct file *filp)
 			goto err_request_irq;
 	}
 	pd->users++;
+	mutex_unlock(&pd->mux);
 	return 0; /* success */
 err_request_irq:
 	kfree(pd->q);
@@ -612,9 +613,9 @@ dt3155_ioc_g_std(struct file *filp, void *p, v4l2_std_id *norm)
 }
 
 static int
-dt3155_ioc_s_std(struct file *filp, void *p, v4l2_std_id *norm)
+dt3155_ioc_s_std(struct file *filp, void *p, v4l2_std_id norm)
 {
-	if (*norm & DT3155_CURRENT_NORM)
+	if (norm & DT3155_CURRENT_NORM)
 		return 0;
 	return -EINVAL;
 }
@@ -826,7 +827,6 @@ static struct video_device dt3155_vdev = {
 	.minor = -1,
 	.release = video_device_release,
 	.tvnorms = DT3155_CURRENT_NORM,
-	.current_norm = DT3155_CURRENT_NORM,
 };
 
 /* same as in drivers/base/dma-coherent.c */
@@ -899,18 +899,17 @@ dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int err;
 	struct dt3155_priv *pd;
 
-	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-	if (err)
-		return -ENODEV;
-	err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err)
 		return -ENODEV;
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
 	pd->vdev = video_device_alloc();
-	if (!pd->vdev)
+	if (!pd->vdev) {
+		err = -ENOMEM;
 		goto err_video_device_alloc;
+	}
 	*pd->vdev = dt3155_vdev;
 	pci_set_drvdata(pdev, pd);    /* for use in dt3155_remove() */
 	video_set_drvdata(pd->vdev, pd);  /* for use in video_fops */
@@ -975,8 +974,8 @@ dt3155_remove(struct pci_dev *pdev)
 	kfree(pd);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pci_ids) = {
-	{ PCI_DEVICE(DT3155_VENDOR_ID, DT3155_DEVICE_ID) },
+static const struct pci_device_id pci_ids[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, DT3155_DEVICE_ID) },
 	{ 0, /* zero marks the end */ },
 };
 MODULE_DEVICE_TABLE(pci, pci_ids);

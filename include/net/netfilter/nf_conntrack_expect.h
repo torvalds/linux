@@ -88,7 +88,7 @@ nf_ct_find_expectation(struct net *net, u16 zone,
 		       const struct nf_conntrack_tuple *tuple);
 
 void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
-				u32 pid, int report);
+				u32 portid, int report);
 static inline void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 {
 	nf_ct_unlink_expect_report(exp, 0, 0);
@@ -106,7 +106,7 @@ void nf_ct_expect_init(struct nf_conntrack_expect *, unsigned int, u_int8_t,
 		       u_int8_t, const __be16 *, const __be16 *);
 void nf_ct_expect_put(struct nf_conntrack_expect *exp);
 int nf_ct_expect_related_report(struct nf_conntrack_expect *expect, 
-				u32 pid, int report);
+				u32 portid, int report);
 static inline int nf_ct_expect_related(struct nf_conntrack_expect *expect)
 {
 	return nf_ct_expect_related_report(expect, 0, 0);

@@ -32,9 +32,6 @@ static const struct snd_pcm_hardware nuc900_pcm_hardware = {
 					SNDRV_PCM_INFO_MMAP_VALID |
 					SNDRV_PCM_INFO_PAUSE |
 					SNDRV_PCM_INFO_RESUME,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
-	.channels_min		= 1,
-	.channels_max		= 2,
 	.buffer_bytes_max	= 4*1024,
 	.period_bytes_min	= 1*1024,
 	.period_bytes_max	= 4*1024,
@@ -314,16 +311,15 @@ static void nuc900_dma_free_dma_buffers(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
-static u64 nuc900_pcm_dmamask = DMA_BIT_MASK(32);
 static int nuc900_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm *pcm = rtd->pcm;
+	int ret;
 
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &nuc900_pcm_dmamask;
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 		card->dev, 4 * 1024, (4 * 1024) - 1);

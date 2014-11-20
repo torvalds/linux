@@ -12,12 +12,6 @@
 #ifndef __SOUND_HDA_GENERIC_H
 #define __SOUND_HDA_GENERIC_H
 
-/* unsol event tags */
-enum {
-	HDA_GEN_HP_EVENT = 1, HDA_GEN_FRONT_EVENT, HDA_GEN_MIC_EVENT,
-	HDA_GEN_LAST_EVENT = HDA_GEN_MIC_EVENT
-};
-
 /* table entry for multi-io paths */
 struct hda_multi_io {
 	hda_nid_t pin;		/* multi-io widget pin NID */
@@ -75,6 +69,19 @@ enum {
 	HDA_GEN_PCM_ACT_CLEANUP,
 	HDA_GEN_PCM_ACT_CLOSE,
 };
+
+/* DAC assignment badness table */
+struct badness_table {
+	int no_primary_dac;	/* no primary DAC */
+	int no_dac;		/* no secondary DACs */
+	int shared_primary;	/* primary DAC is shared with main output */
+	int shared_surr;	/* secondary DAC shared with main or primary */
+	int shared_clfe;	/* third DAC shared with main or primary */
+	int shared_surr_main;	/* secondary DAC sahred with main/DAC0 */
+};
+
+extern const struct badness_table hda_main_out_badness;
+extern const struct badness_table hda_extra_out_badness;
 
 struct hda_gen_spec {
 	char stream_name_analog[32];	/* analog PCM stream */
@@ -145,7 +152,10 @@ struct hda_gen_spec {
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 	hda_nid_t imux_pins[HDA_MAX_NUM_INPUTS];
 	unsigned int dyn_adc_idx[HDA_MAX_NUM_INPUTS];
+	/* shared hp/mic */
 	hda_nid_t shared_mic_vref_pin;
+	hda_nid_t hp_mic_pin;
+	int hp_mic_mux_idx;
 
 	/* DAC/ADC lists */
 	int num_all_dacs;
@@ -193,6 +203,7 @@ struct hda_gen_spec {
 	unsigned int master_mute:1;	/* master mute over all */
 	unsigned int keep_vref_in_automute:1; /* Don't clear VREF in automute */
 	unsigned int line_in_auto_switch:1; /* allow line-in auto switch */
+	unsigned int auto_mute_via_amp:1; /* auto-mute via amp instead of pinctl */
 
 	/* parser behavior flags; set before snd_hda_gen_parse_auto_config() */
 	unsigned int suppress_auto_mute:1; /* suppress input jack auto mute */
@@ -200,27 +211,47 @@ struct hda_gen_spec {
 
 	/* other parse behavior flags */
 	unsigned int need_dac_fix:1; /* need to limit DACs for multi channels */
-	unsigned int shared_mic_hp:1; /* HP/Mic-in sharing */
+	unsigned int hp_mic:1; /* Allow HP as a mic-in */
+	unsigned int suppress_hp_mic_detect:1; /* Don't detect HP/mic */
 	unsigned int no_primary_hp:1; /* Don't prefer HP pins to speaker pins */
+	unsigned int no_multi_io:1; /* Don't try multi I/O config */
 	unsigned int multi_cap_vol:1; /* allow multiple capture xxx volumes */
 	unsigned int inv_dmic_split:1; /* inverted dmic w/a for conexant */
 	unsigned int own_eapd_ctl:1; /* set EAPD by own function */
+	unsigned int keep_eapd_on:1; /* don't turn off EAPD automatically */
 	unsigned int vmaster_mute_enum:1; /* add vmaster mute mode enum */
 	unsigned int indep_hp:1; /* independent HP supported */
 	unsigned int prefer_hp_amp:1; /* enable HP amp for speaker if any */
 	unsigned int add_stereo_mix_input:1; /* add aamix as a capture src */
-	unsigned int add_out_jack_modes:1; /* add output jack mode enum ctls */
-	unsigned int add_in_jack_modes:1; /* add input jack mode enum ctls */
+	unsigned int add_jack_modes:1; /* add i/o jack mode enum ctls */
 	unsigned int power_down_unused:1; /* power down unused widgets */
+	unsigned int dac_min_mute:1; /* minimal = mute for DACs */
 
 	/* other internal flags */
 	unsigned int no_analog:1; /* digital I/O only */
 	unsigned int dyn_adc_switch:1; /* switch ADCs (for ALC275) */
 	unsigned int indep_hp_enabled:1; /* independent HP enabled */
 	unsigned int have_aamix_ctl:1;
+	unsigned int hp_mic_jack_modes:1;
+
+	/* additional mute flags (only effective with auto_mute_via_amp=1) */
+	u64 mute_bits;
+
+	/* bitmask for skipping volume controls */
+	u64 out_vol_mask;
+
+	/* badness tables for output path evaluations */
+	const struct badness_table *main_out_badness;
+	const struct badness_table *extra_out_badness;
+
+	/* preferred pin/DAC pairs; an array of paired NIDs */
+	const hda_nid_t *preferred_dacs;
 
 	/* loopback mixing mode */
 	bool aamix_mode;
+
+	/* digital beep */
+	hda_nid_t beep_nid;
 
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
@@ -238,6 +269,7 @@ struct hda_gen_spec {
 	void (*init_hook)(struct hda_codec *codec);
 	void (*automute_hook)(struct hda_codec *codec);
 	void (*cap_sync_hook)(struct hda_codec *codec,
+			      struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol);
 
 	/* PCM hooks */
@@ -252,15 +284,14 @@ struct hda_gen_spec {
 
 	/* automute / autoswitch hooks */
 	void (*hp_automute_hook)(struct hda_codec *codec,
-				 struct hda_jack_tbl *tbl);
+				 struct hda_jack_callback *cb);
 	void (*line_automute_hook)(struct hda_codec *codec,
-				   struct hda_jack_tbl *tbl);
+				   struct hda_jack_callback *cb);
 	void (*mic_autoswitch_hook)(struct hda_codec *codec,
-				    struct hda_jack_tbl *tbl);
+				    struct hda_jack_callback *cb);
 };
 
 int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
-void snd_hda_gen_spec_free(struct hda_gen_spec *spec);
 
 int snd_hda_gen_init(struct hda_codec *codec);
 void snd_hda_gen_free(struct hda_codec *codec);
@@ -289,15 +320,18 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec);
 
 /* standard jack event callbacks */
 void snd_hda_gen_hp_automute(struct hda_codec *codec,
-			     struct hda_jack_tbl *jack);
+			     struct hda_jack_callback *jack);
 void snd_hda_gen_line_automute(struct hda_codec *codec,
-			       struct hda_jack_tbl *jack);
+			       struct hda_jack_callback *jack);
 void snd_hda_gen_mic_autoswitch(struct hda_codec *codec,
-				struct hda_jack_tbl *jack);
+				struct hda_jack_callback *jack);
 void snd_hda_gen_update_outputs(struct hda_codec *codec);
 
 #ifdef CONFIG_PM
 int snd_hda_gen_check_power_status(struct hda_codec *codec, hda_nid_t nid);
 #endif
+unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
+					   hda_nid_t nid,
+					   unsigned int power_state);
 
 #endif /* __SOUND_HDA_GENERIC_H */

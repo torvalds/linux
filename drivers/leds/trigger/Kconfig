@@ -1,0 +1,111 @@
+menuconfig LEDS_TRIGGERS
+	bool "LED Trigger support"
+	depends on LEDS_CLASS
+	help
+	  This option enables trigger support for the leds class.
+	  These triggers allow kernel events to drive the LEDs and can
+	  be configured via sysfs. If unsure, say Y.
+
+if LEDS_TRIGGERS
+
+config LEDS_TRIGGER_TIMER
+	tristate "LED Timer Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be controlled by a programmable timer
+	  via sysfs. Some LED hardware can be programmed to start
+	  blinking the LED without any further software interaction.
+	  For more details read Documentation/leds/leds-class.txt.
+
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_ONESHOT
+	tristate "LED One-shot Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to blink in one-shot pulses with parameters
+	  controlled via sysfs.  It's useful to notify the user on
+	  sporadic events, when there are no clear begin and end trap points,
+	  or on dense events, where this blinks the LED at constant rate if
+	  rearmed continuously.
+
+	  It also shows how to use the led_blink_set_oneshot() function.
+
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_IDE_DISK
+	bool "LED IDE Disk Trigger"
+	depends on IDE_GD_ATA
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be controlled by IDE disk activity.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_HEARTBEAT
+	tristate "LED Heartbeat Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be controlled by a CPU load average.
+	  The flash frequency is a hyperbolic function of the 1-minute
+	  load average.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_BACKLIGHT
+	tristate "LED backlight Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be controlled as a backlight device: they
+	  turn off and on when the display is blanked and unblanked.
+
+	  If unsure, say N.
+
+config LEDS_TRIGGER_CPU
+	bool "LED CPU Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be controlled by active CPUs. This shows
+	  the active CPUs across an array of LEDs so you can see which
+	  CPUs are active on the system at any given moment.
+
+	  If unsure, say N.
+
+config LEDS_TRIGGER_GPIO
+	tristate "LED GPIO Trigger"
+	depends on LEDS_TRIGGERS
+	depends on GPIOLIB
+	help
+	  This allows LEDs to be controlled by gpio events. It's good
+	  when using gpios as switches and triggering the needed LEDs
+	  from there. One use case is n810's keypad LEDs that could
+	  be triggered by this trigger when user slides up to show
+	  keypad.
+
+	  If unsure, say N.
+
+config LEDS_TRIGGER_DEFAULT_ON
+	tristate "LED Default ON Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be initialised in the ON state.
+	  If unsure, say Y.
+
+comment "iptables trigger is under Netfilter config (LED target)"
+	depends on LEDS_TRIGGERS
+
+config LEDS_TRIGGER_TRANSIENT
+	tristate "LED Transient Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows one time activation of a transient state on
+	  GPIO/PWM based hardware.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_CAMERA
+	tristate "LED Camera Flash/Torch Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be controlled as a camera flash/torch device.
+	  This enables direct flash/torch on/off by the driver, kernel space.
+	  If unsure, say Y.
+
+endif # LEDS_TRIGGERS

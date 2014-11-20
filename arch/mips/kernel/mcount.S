@@ -46,10 +46,9 @@
 	PTR_L	a5, PT_R9(sp)
 	PTR_L	a6, PT_R10(sp)
 	PTR_L	a7, PT_R11(sp)
-#else
-	PTR_ADDIU	sp, PT_SIZE
 #endif
-.endm
+	PTR_ADDIU	sp, PT_SIZE
+	.endm
 
 	.macro RETURN_BACK
 	jr ra
@@ -68,19 +67,32 @@ NESTED(ftrace_caller, PT_SIZE, ra)
 	.globl _mcount
 _mcount:
 	b	ftrace_stub
-	addiu sp,sp,8
+#ifdef CONFIG_32BIT
+	 addiu sp,sp,8
+#else
+	 nop
+#endif
 
 	/* When tracing is activated, it calls ftrace_caller+8 (aka here) */
-	lw	t1, function_trace_stop
-	bnez	t1, ftrace_stub
-	 nop
-
 	MCOUNT_SAVE_REGS
 #ifdef KBUILD_MCOUNT_RA_ADDRESS
 	PTR_S	MCOUNT_RA_ADDRESS_REG, PT_R12(sp)
 #endif
 
-	move	a0, ra		/* arg1: self return address */
+	PTR_SUBU a0, ra, 8	/* arg1: self address */
+	PTR_LA   t1, _stext
+	sltu     t2, a0, t1	/* t2 = (a0 < _stext) */
+	PTR_LA   t1, _etext
+	sltu     t3, t1, a0	/* t3 = (a0 > _etext) */
+	or       t1, t2, t3
+	beqz     t1, ftrace_call
+	 nop
+#if defined(KBUILD_MCOUNT_RA_ADDRESS) && defined(CONFIG_32BIT)
+	PTR_SUBU a0, a0, 16	/* arg1: adjust to module's recorded callsite */
+#else
+	PTR_SUBU a0, a0, 12
+#endif
+
 	.globl ftrace_call
 ftrace_call:
 	nop	/* a placeholder for the call to a real tracing function */
@@ -102,9 +114,6 @@ ftrace_stub:
 #else	/* ! CONFIG_DYNAMIC_FTRACE */
 
 NESTED(_mcount, PT_SIZE, ra)
-	lw	t1, function_trace_stop
-	bnez	t1, ftrace_stub
-	 nop
 	PTR_LA	t1, ftrace_stub
 	PTR_L	t2, ftrace_trace_function /* Prepare t2 for (1) */
 	bne	t1, t2, static_trace
@@ -120,7 +129,11 @@ NESTED(_mcount, PT_SIZE, ra)
 	 nop
 #endif
 	b	ftrace_stub
+#ifdef CONFIG_32BIT
+	 addiu sp, sp, 8
+#else
 	 nop
+#endif
 
 static_trace:
 	MCOUNT_SAVE_REGS
@@ -130,6 +143,9 @@ static_trace:
 	 move	a1, AT		/* arg2: parent's return address */
 
 	MCOUNT_RESTORE_REGS
+#ifdef CONFIG_32BIT
+	addiu sp, sp, 8
+#endif
 	.globl ftrace_stub
 ftrace_stub:
 	RETURN_BACK
@@ -165,19 +181,20 @@ NESTED(ftrace_graph_caller, PT_SIZE, ra)
 #endif
 
 	/* arg3: Get frame pointer of current stack */
-#ifdef CONFIG_FRAME_POINTER
-	move	a2, fp
-#else /* ! CONFIG_FRAME_POINTER */
 #ifdef CONFIG_64BIT
 	PTR_LA	a2, PT_SIZE(sp)
 #else
 	PTR_LA	a2, (PT_SIZE+8)(sp)
 #endif
-#endif
 
 	jal	prepare_ftrace_return
 	 nop
 	MCOUNT_RESTORE_REGS
+#ifndef CONFIG_DYNAMIC_FTRACE
+#ifdef CONFIG_32BIT
+	addiu sp, sp, 8
+#endif
+#endif
 	RETURN_BACK
 	END(ftrace_graph_caller)
 

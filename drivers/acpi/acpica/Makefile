@@ -2,7 +2,7 @@
 # Makefile for ACPICA Core interpreter
 #
 
-ccflags-y			:= -Os
+ccflags-y			:= -Os -DBUILDING_ACPICA
 ccflags-$(CONFIG_ACPI_DEBUG)	+= -DACPI_DEBUG_OUTPUT
 
 # use acpi.o to put all files here into acpi.o modparam namespace
@@ -83,6 +83,8 @@ acpi-$(ACPI_FUTURE_USAGE) += hwtimer.o
 acpi-y +=		\
 	nsaccess.o	\
 	nsalloc.o	\
+	nsarguments.o	\
+	nsconvert.o	\
 	nsdump.o	\
 	nseval.o	\
 	nsinit.o	\
@@ -120,6 +122,8 @@ acpi-y +=		\
 	rsaddr.o	\
 	rscalc.o	\
 	rscreate.o	\
+	rsdump.o	\
+	rsdumpinfo.o	\
 	rsinfo.o	\
 	rsio.o		\
 	rsirq.o		\
@@ -130,12 +134,12 @@ acpi-y +=		\
 	rsutils.o	\
 	rsxface.o
 
-acpi-$(ACPI_FUTURE_USAGE) += rsdump.o rsdumpinfo.o
-
 acpi-y +=		\
+	tbdata.o	\
 	tbfadt.o	\
 	tbfind.o	\
 	tbinstal.o	\
+	tbprint.o	\
 	tbutils.o	\
 	tbxface.o	\
 	tbxfload.o	\
@@ -144,13 +148,16 @@ acpi-y +=		\
 acpi-y +=		\
 	utaddress.o	\
 	utalloc.o	\
+	utbuffer.o	\
 	utcopy.o	\
 	utexcep.o	\
 	utdebug.o	\
 	utdecode.o	\
 	utdelete.o	\
+	uterror.o	\
 	uteval.o	\
 	utglobal.o	\
+	uthex.o		\
 	utids.o		\
 	utinit.o	\
 	utlock.o	\
@@ -160,6 +167,7 @@ acpi-y +=		\
 	utobject.o	\
 	utosi.o		\
 	utownerid.o	\
+	utpredef.o	\
 	utresrc.o	\
 	utstate.o	\
 	utstring.o	\
@@ -168,5 +176,10 @@ acpi-y +=		\
 	utxferror.o	\
 	utxfmutex.o
 
-acpi-$(ACPI_FUTURE_USAGE) += uttrack.o utcache.o
+acpi-$(ACPI_FUTURE_USAGE) +=	\
+	utcache.o		\
+	utfileio.o		\
+	utprint.o		\
+	uttrack.o		\
+	utuuid.o
 

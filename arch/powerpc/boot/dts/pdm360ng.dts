@@ -13,11 +13,11 @@
  * option) any later version.
  */
 
-/include/ "mpc5121.dtsi"
+#include <mpc5121.dtsi>
 
 / {
 	model = "pdm360ng";
-	compatible = "ifm,pdm360ng";
+	compatible = "ifm,pdm360ng", "fsl,mpc5121";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&ipic>;

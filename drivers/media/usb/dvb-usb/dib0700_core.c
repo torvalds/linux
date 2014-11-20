@@ -658,13 +658,8 @@ out:
 struct dib0700_rc_response {
 	u8 report_id;
 	u8 data_state;
-	union {
-		u16 system16;
-		struct {
-			u8 not_system;
-			u8 system;
-		};
-	};
+	u8 system;
+	u8 not_system;
 	u8 data;
 	u8 not_data;
 };
@@ -674,6 +669,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 {
 	struct dvb_usb_device *d = purb->context;
 	struct dib0700_rc_response *poll_reply;
+	enum rc_type protocol;
 	u32 uninitialized_var(keycode);
 	u8 toggle;
 
@@ -707,44 +703,55 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 
 	switch (d->props.rc.core.protocol) {
 	case RC_BIT_NEC:
+		protocol = RC_TYPE_NEC;
 		toggle = 0;
 
 		/* NEC protocol sends repeat code as 0 0 0 FF */
-		if ((poll_reply->system == 0x00) && (poll_reply->data == 0x00)
-		    && (poll_reply->not_data == 0xff)) {
+		if (poll_reply->system     == 0x00 &&
+		    poll_reply->not_system == 0x00 &&
+		    poll_reply->data       == 0x00 &&
+		    poll_reply->not_data   == 0xff) {
 			poll_reply->data_state = 2;
 			break;
 		}
 
-		if ((poll_reply->system ^ poll_reply->not_system) != 0xff) {
+		if ((poll_reply->data ^ poll_reply->not_data) != 0xff) {
+			deb_data("NEC32 protocol\n");
+			keycode = RC_SCANCODE_NEC32(poll_reply->system     << 24 |
+						     poll_reply->not_system << 16 |
+						     poll_reply->data       << 8  |
+						     poll_reply->not_data);
+		} else if ((poll_reply->system ^ poll_reply->not_system) != 0xff) {
 			deb_data("NEC extended protocol\n");
-			/* NEC extended code - 24 bits */
-			keycode = be16_to_cpu(poll_reply->system16) << 8 | poll_reply->data;
+			keycode = RC_SCANCODE_NECX(poll_reply->system << 8 |
+						    poll_reply->not_system,
+						    poll_reply->data);
+
 		} else {
 			deb_data("NEC normal protocol\n");
-			/* normal NEC code - 16 bits */
-			keycode = poll_reply->system << 8 | poll_reply->data;
+			keycode = RC_SCANCODE_NEC(poll_reply->system,
+						   poll_reply->data);
 		}
 
 		break;
 	default:
 		deb_data("RC5 protocol\n");
-		/* RC5 Protocol */
+		protocol = RC_TYPE_RC5;
 		toggle = poll_reply->report_id;
-		keycode = poll_reply->system << 8 | poll_reply->data;
+		keycode = RC_SCANCODE_RC5(poll_reply->system, poll_reply->data);
 
 		break;
 	}
 
 	if ((poll_reply->data + poll_reply->not_data) != 0xff) {
 		/* Key failed integrity check */
-		err("key failed integrity check: %04x %02x %02x",
-		    poll_reply->system,
+		err("key failed integrity check: %02x %02x %02x %02x",
+		    poll_reply->system,  poll_reply->not_system,
 		    poll_reply->data, poll_reply->not_data);
 		goto resubmit;
 	}
 
-	rc_keydown(d->rc_dev, keycode, toggle);
+	rc_keydown(d->rc_dev, protocol, keycode, toggle);
 
 resubmit:
 	/* Clean the buffer before we requeue */
@@ -754,17 +761,20 @@ resubmit:
 	usb_submit_urb(purb, GFP_ATOMIC);
 }
 
-int dib0700_rc_setup(struct dvb_usb_device *d)
+int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf)
 {
 	struct dib0700_state *st = d->priv;
 	struct urb *purb;
-	int ret;
+	const struct usb_endpoint_descriptor *e;
+	int ret, rc_ep = 1;
+	unsigned int pipe = 0;
 
 	/* Poll-based. Don't initialize bulk mode */
-	if (st->fw_version < 0x10200)
+	if (st->fw_version < 0x10200 || !intf)
 		return 0;
 
 	/* Starting in firmware 1.20, the RC info is provided on a bulk pipe */
+
 	purb = usb_alloc_urb(0, GFP_KERNEL);
 	if (purb == NULL) {
 		err("rc usb alloc urb failed");
@@ -779,9 +789,35 @@ int dib0700_rc_setup(struct dvb_usb_device *d)
 	}
 
 	purb->status = -EINPROGRESS;
-	usb_fill_bulk_urb(purb, d->udev, usb_rcvbulkpipe(d->udev, 1),
-			  purb->transfer_buffer, RC_MSG_SIZE_V1_20,
-			  dib0700_rc_urb_completion, d);
+
+	/*
+	 * Some devices like the Hauppauge NovaTD model 52009 use an interrupt
+	 * endpoint, while others use a bulk one.
+	 */
+	e = &intf->altsetting[0].endpoint[rc_ep].desc;
+	if (usb_endpoint_dir_in(e)) {
+		if (usb_endpoint_xfer_bulk(e)) {
+			pipe = usb_rcvbulkpipe(d->udev, rc_ep);
+			usb_fill_bulk_urb(purb, d->udev, pipe,
+					  purb->transfer_buffer,
+					  RC_MSG_SIZE_V1_20,
+					  dib0700_rc_urb_completion, d);
+
+		} else if (usb_endpoint_xfer_int(e)) {
+			pipe = usb_rcvintpipe(d->udev, rc_ep);
+			usb_fill_int_urb(purb, d->udev, pipe,
+					  purb->transfer_buffer,
+					  RC_MSG_SIZE_V1_20,
+					  dib0700_rc_urb_completion, d, 1);
+		}
+	}
+
+	if (!pipe) {
+		err("There's no endpoint for remote controller");
+		kfree(purb->transfer_buffer);
+		usb_free_urb(purb);
+		return 0;
+	}
 
 	ret = usb_submit_urb(purb, GFP_ATOMIC);
 	if (ret) {
@@ -820,7 +856,7 @@ static int dib0700_probe(struct usb_interface *intf,
 			else
 				dev->props.rc.core.bulk_mode = false;
 
-			dib0700_rc_setup(dev);
+			dib0700_rc_setup(dev, intf);
 
 			return 0;
 		}

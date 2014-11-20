@@ -12,18 +12,22 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
-#include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/of_graph.h>
 #include <linux/pm.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
 #include <media/mt9p031.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
@@ -74,6 +78,9 @@
 #define	MT9P031_PLL_CONFIG_1				0x11
 #define	MT9P031_PLL_CONFIG_2				0x12
 #define MT9P031_PIXEL_CLOCK_CONTROL			0x0a
+#define		MT9P031_PIXEL_CLOCK_INVERT		(1 << 15)
+#define		MT9P031_PIXEL_CLOCK_SHIFT(n)		((n) << 8)
+#define		MT9P031_PIXEL_CLOCK_DIVIDE(n)		((n) << 0)
 #define MT9P031_FRAME_RESTART				0x0b
 #define MT9P031_SHUTTER_DELAY				0x0c
 #define MT9P031_RST					0x0d
@@ -121,8 +128,13 @@ struct mt9p031 {
 	struct mutex power_lock; /* lock to protect power_count */
 	int power_count;
 
+	struct clk *clk;
+	struct regulator_bulk_data regulators[3];
+
 	enum mt9p031_model model;
 	struct aptina_pll pll;
+	unsigned int clk_div;
+	bool use_pll;
 	int reset;
 
 	struct v4l2_ctrl_handler ctrls;
@@ -191,11 +203,16 @@ static int mt9p031_reset(struct mt9p031 *mt9p031)
 	if (ret < 0)
 		return ret;
 
+	ret = mt9p031_write(client, MT9P031_PIXEL_CLOCK_CONTROL,
+			    MT9P031_PIXEL_CLOCK_DIVIDE(mt9p031->clk_div));
+	if (ret < 0)
+		return ret;
+
 	return mt9p031_set_output_control(mt9p031, MT9P031_OUTPUT_CONTROL_CEN,
 					  0);
 }
 
-static int mt9p031_pll_setup(struct mt9p031 *mt9p031)
+static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 {
 	static const struct aptina_pll_limits limits = {
 		.ext_clock_min = 6000000,
@@ -215,9 +232,34 @@ static int mt9p031_pll_setup(struct mt9p031 *mt9p031)
 
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	struct mt9p031_platform_data *pdata = mt9p031->pdata;
+	int ret;
+
+	mt9p031->clk = devm_clk_get(&client->dev, NULL);
+	if (IS_ERR(mt9p031->clk))
+		return PTR_ERR(mt9p031->clk);
+
+	ret = clk_set_rate(mt9p031->clk, pdata->ext_freq);
+	if (ret < 0)
+		return ret;
+
+	/* If the external clock frequency is out of bounds for the PLL use the
+	 * pixel clock divider only and disable the PLL.
+	 */
+	if (pdata->ext_freq > limits.ext_clock_max) {
+		unsigned int div;
+
+		div = DIV_ROUND_UP(pdata->ext_freq, pdata->target_freq);
+		div = roundup_pow_of_two(div) / 2;
+
+		mt9p031->clk_div = max_t(unsigned int, div, 64);
+		mt9p031->use_pll = false;
+
+		return 0;
+	}
 
 	mt9p031->pll.ext_clock = pdata->ext_freq;
 	mt9p031->pll.pix_clock = pdata->target_freq;
+	mt9p031->use_pll = true;
 
 	return aptina_pll_calculate(&client->dev, &limits, &mt9p031->pll);
 }
@@ -226,6 +268,9 @@ static int mt9p031_pll_enable(struct mt9p031 *mt9p031)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	int ret;
+
+	if (!mt9p031->use_pll)
+		return 0;
 
 	ret = mt9p031_write(client, MT9P031_PLL_CONTROL,
 			    MT9P031_PLL_CONTROL_PWRON);
@@ -252,25 +297,41 @@ static inline int mt9p031_pll_disable(struct mt9p031 *mt9p031)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 
+	if (!mt9p031->use_pll)
+		return 0;
+
 	return mt9p031_write(client, MT9P031_PLL_CONTROL,
 			     MT9P031_PLL_CONTROL_PWROFF);
 }
 
 static int mt9p031_power_on(struct mt9p031 *mt9p031)
 {
+	int ret;
+
 	/* Ensure RESET_BAR is low */
-	if (mt9p031->reset != -1) {
+	if (gpio_is_valid(mt9p031->reset)) {
 		gpio_set_value(mt9p031->reset, 0);
 		usleep_range(1000, 2000);
 	}
 
-	/* Emable clock */
-	if (mt9p031->pdata->set_xclk)
-		mt9p031->pdata->set_xclk(&mt9p031->subdev,
-					 mt9p031->pdata->ext_freq);
+	/* Bring up the supplies */
+	ret = regulator_bulk_enable(ARRAY_SIZE(mt9p031->regulators),
+				   mt9p031->regulators);
+	if (ret < 0)
+		return ret;
+
+	/* Enable clock */
+	if (mt9p031->clk) {
+		ret = clk_prepare_enable(mt9p031->clk);
+		if (ret) {
+			regulator_bulk_disable(ARRAY_SIZE(mt9p031->regulators),
+					       mt9p031->regulators);
+			return ret;
+		}
+	}
 
 	/* Now RESET_BAR must be high */
-	if (mt9p031->reset != -1) {
+	if (gpio_is_valid(mt9p031->reset)) {
 		gpio_set_value(mt9p031->reset, 1);
 		usleep_range(1000, 2000);
 	}
@@ -280,13 +341,16 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 
 static void mt9p031_power_off(struct mt9p031 *mt9p031)
 {
-	if (mt9p031->reset != -1) {
+	if (gpio_is_valid(mt9p031->reset)) {
 		gpio_set_value(mt9p031->reset, 0);
 		usleep_range(1000, 2000);
 	}
 
-	if (mt9p031->pdata->set_xclk)
-		mt9p031->pdata->set_xclk(&mt9p031->subdev, 0);
+	regulator_bulk_disable(ARRAY_SIZE(mt9p031->regulators),
+			       mt9p031->regulators);
+
+	if (mt9p031->clk)
+		clk_disable_unprepare(mt9p031->clk);
 }
 
 static int __mt9p031_set_power(struct mt9p031 *mt9p031, bool on)
@@ -496,11 +560,13 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 
 	/* Clamp the width and height to avoid dividing by zero. */
 	width = clamp_t(unsigned int, ALIGN(format->format.width, 2),
-			max(__crop->width / 7, MT9P031_WINDOW_WIDTH_MIN),
+			max_t(unsigned int, __crop->width / 7,
+			      MT9P031_WINDOW_WIDTH_MIN),
 			__crop->width);
 	height = clamp_t(unsigned int, ALIGN(format->format.height, 2),
-			max(__crop->height / 8, MT9P031_WINDOW_HEIGHT_MIN),
-			__crop->height);
+			 max_t(unsigned int, __crop->height / 8,
+			       MT9P031_WINDOW_HEIGHT_MIN),
+			 __crop->height);
 
 	hratio = DIV_ROUND_CLOSEST(__crop->width, width);
 	vratio = DIV_ROUND_CLOSEST(__crop->height, height);
@@ -542,15 +608,17 @@ static int mt9p031_set_crop(struct v4l2_subdev *subdev,
 			  MT9P031_COLUMN_START_MAX);
 	rect.top = clamp(ALIGN(crop->rect.top, 2), MT9P031_ROW_START_MIN,
 			 MT9P031_ROW_START_MAX);
-	rect.width = clamp(ALIGN(crop->rect.width, 2),
-			   MT9P031_WINDOW_WIDTH_MIN,
-			   MT9P031_WINDOW_WIDTH_MAX);
-	rect.height = clamp(ALIGN(crop->rect.height, 2),
-			    MT9P031_WINDOW_HEIGHT_MIN,
-			    MT9P031_WINDOW_HEIGHT_MAX);
+	rect.width = clamp_t(unsigned int, ALIGN(crop->rect.width, 2),
+			     MT9P031_WINDOW_WIDTH_MIN,
+			     MT9P031_WINDOW_WIDTH_MAX);
+	rect.height = clamp_t(unsigned int, ALIGN(crop->rect.height, 2),
+			      MT9P031_WINDOW_HEIGHT_MIN,
+			      MT9P031_WINDOW_HEIGHT_MAX);
 
-	rect.width = min(rect.width, MT9P031_PIXEL_ARRAY_WIDTH - rect.left);
-	rect.height = min(rect.height, MT9P031_PIXEL_ARRAY_HEIGHT - rect.top);
+	rect.width = min_t(unsigned int, rect.width,
+			   MT9P031_PIXEL_ARRAY_WIDTH - rect.left);
+	rect.height = min_t(unsigned int, rect.height,
+			    MT9P031_PIXEL_ARRAY_HEIGHT - rect.top);
 
 	__crop = __mt9p031_get_pad_crop(mt9p031, fh, crop->pad, crop->which);
 
@@ -579,6 +647,28 @@ static int mt9p031_set_crop(struct v4l2_subdev *subdev,
 #define V4L2_CID_BLC_ANALOG_OFFSET	(V4L2_CID_USER_BASE | 0x1004)
 #define V4L2_CID_BLC_DIGITAL_OFFSET	(V4L2_CID_USER_BASE | 0x1005)
 
+static int mt9p031_restore_blc(struct mt9p031 *mt9p031)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
+	int ret;
+
+	if (mt9p031->blc_auto->cur.val != 0) {
+		ret = mt9p031_set_mode2(mt9p031, 0,
+					MT9P031_READ_MODE_2_ROW_BLC);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (mt9p031->blc_offset->cur.val != 0) {
+		ret = mt9p031_write(client, MT9P031_ROW_BLACK_TARGET,
+				    mt9p031->blc_offset->cur.val);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct mt9p031 *mt9p031 =
@@ -586,6 +676,9 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	u16 data;
 	int ret;
+
+	if (ctrl->flags & V4L2_CTRL_FLAG_INACTIVE)
+		return 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
@@ -641,18 +734,20 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 					MT9P031_READ_MODE_2_ROW_MIR, 0);
 
 	case V4L2_CID_TEST_PATTERN:
+		/* The digital side of the Black Level Calibration function must
+		 * be disabled when generating a test pattern to avoid artifacts
+		 * in the image. Activate (deactivate) the BLC-related controls
+		 * when the test pattern is enabled (disabled).
+		 */
+		v4l2_ctrl_activate(mt9p031->blc_auto, ctrl->val == 0);
+		v4l2_ctrl_activate(mt9p031->blc_offset, ctrl->val == 0);
+
 		if (!ctrl->val) {
-			/* Restore the black level compensation settings. */
-			if (mt9p031->blc_auto->cur.val != 0) {
-				ret = mt9p031_s_ctrl(mt9p031->blc_auto);
-				if (ret < 0)
-					return ret;
-			}
-			if (mt9p031->blc_offset->cur.val != 0) {
-				ret = mt9p031_s_ctrl(mt9p031->blc_offset);
-				if (ret < 0)
-					return ret;
-			}
+			/* Restore the BLC settings. */
+			ret = mt9p031_restore_blc(mt9p031);
+			if (ret < 0)
+				return ret;
+
 			return mt9p031_write(client, MT9P031_TEST_PATTERN,
 					     MT9P031_TEST_PATTERN_DISABLE);
 		}
@@ -667,9 +762,7 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ret < 0)
 			return ret;
 
-		/* Disable digital black level compensation when using a test
-		 * pattern.
-		 */
+		/* Disable digital BLC when generating a test pattern. */
 		ret = mt9p031_set_mode2(mt9p031, MT9P031_READ_MODE_2_ROW_BLC,
 					0);
 		if (ret < 0)
@@ -828,18 +921,18 @@ static int mt9p031_registered(struct v4l2_subdev *subdev)
 
 	/* Read out the chip version register */
 	data = mt9p031_read(client, MT9P031_CHIP_VERSION);
+	mt9p031_power_off(mt9p031);
+
 	if (data != MT9P031_CHIP_VERSION_VALUE) {
 		dev_err(&client->dev, "MT9P031 not detected, wrong version "
 			"0x%04x\n", data);
 		return -ENODEV;
 	}
 
-	mt9p031_power_off(mt9p031);
-
 	dev_info(&client->dev, "MT9P031 detected at address 0x%02x\n",
 		 client->addr);
 
-	return ret;
+	return 0;
 }
 
 static int mt9p031_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
@@ -907,10 +1000,36 @@ static const struct v4l2_subdev_internal_ops mt9p031_subdev_internal_ops = {
  * Driver initialization and probing
  */
 
+static struct mt9p031_platform_data *
+mt9p031_get_pdata(struct i2c_client *client)
+{
+	struct mt9p031_platform_data *pdata;
+	struct device_node *np;
+
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+		return client->dev.platform_data;
+
+	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	if (!np)
+		return NULL;
+
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		goto done;
+
+	pdata->reset = of_get_named_gpio(client->dev.of_node, "reset-gpios", 0);
+	of_property_read_u32(np, "input-clock-frequency", &pdata->ext_freq);
+	of_property_read_u32(np, "pixel-clock-frequency", &pdata->target_freq);
+
+done:
+	of_node_put(np);
+	return pdata;
+}
+
 static int mt9p031_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
-	struct mt9p031_platform_data *pdata = client->dev.platform_data;
+	struct mt9p031_platform_data *pdata = mt9p031_get_pdata(client);
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct mt9p031 *mt9p031;
 	unsigned int i;
@@ -927,7 +1046,7 @@ static int mt9p031_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	mt9p031 = kzalloc(sizeof(*mt9p031), GFP_KERNEL);
+	mt9p031 = devm_kzalloc(&client->dev, sizeof(*mt9p031), GFP_KERNEL);
 	if (mt9p031 == NULL)
 		return -ENOMEM;
 
@@ -936,6 +1055,16 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->mode2 = MT9P031_READ_MODE_2_ROW_BLC;
 	mt9p031->model = did->driver_data;
 	mt9p031->reset = -1;
+
+	mt9p031->regulators[0].supply = "vdd";
+	mt9p031->regulators[1].supply = "vdd_io";
+	mt9p031->regulators[2].supply = "vaa";
+
+	ret = devm_regulator_bulk_get(&client->dev, 3, mt9p031->regulators);
+	if (ret < 0) {
+		dev_err(&client->dev, "Unable to get regulators\n");
+		return ret;
+	}
 
 	v4l2_ctrl_handler_init(&mt9p031->ctrls, ARRAY_SIZE(mt9p031_ctrls) + 6);
 
@@ -1000,25 +1129,21 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->format.field = V4L2_FIELD_NONE;
 	mt9p031->format.colorspace = V4L2_COLORSPACE_SRGB;
 
-	if (pdata->reset != -1) {
-		ret = gpio_request_one(pdata->reset, GPIOF_OUT_INIT_LOW,
-				       "mt9p031_rst");
+	if (gpio_is_valid(pdata->reset)) {
+		ret = devm_gpio_request_one(&client->dev, pdata->reset,
+					    GPIOF_OUT_INIT_LOW, "mt9p031_rst");
 		if (ret < 0)
 			goto done;
 
 		mt9p031->reset = pdata->reset;
 	}
 
-	ret = mt9p031_pll_setup(mt9p031);
+	ret = mt9p031_clk_setup(mt9p031);
 
 done:
 	if (ret < 0) {
-		if (mt9p031->reset != -1)
-			gpio_free(mt9p031->reset);
-
 		v4l2_ctrl_handler_free(&mt9p031->ctrls);
 		media_entity_cleanup(&mt9p031->subdev.entity);
-		kfree(mt9p031);
 	}
 
 	return ret;
@@ -1032,9 +1157,6 @@ static int mt9p031_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&mt9p031->ctrls);
 	v4l2_device_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
-	if (mt9p031->reset != -1)
-		gpio_free(mt9p031->reset);
-	kfree(mt9p031);
 
 	return 0;
 }
@@ -1046,8 +1168,18 @@ static const struct i2c_device_id mt9p031_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mt9p031_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id mt9p031_of_match[] = {
+	{ .compatible = "aptina,mt9p031", },
+	{ .compatible = "aptina,mt9p031m", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, mt9p031_of_match);
+#endif
+
 static struct i2c_driver mt9p031_i2c_driver = {
 	.driver = {
+		.of_match_table = of_match_ptr(mt9p031_of_match),
 		.name = "mt9p031",
 	},
 	.probe          = mt9p031_probe,

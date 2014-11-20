@@ -21,12 +21,12 @@
    02110-1301, USA.
  */
 
+#include "au0828.h"
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-
-#include "au0828.h"
 
 static unsigned int vbibufs = 5;
 module_param(vbibufs, int, 0644);

@@ -142,7 +142,7 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
 		default: /* Other TLV code so scan list */
 			if (optlen > len)
 				goto bad;
-			for (curr=procs; curr->type >= 0; curr++) {
+			for (curr = procs; curr->type >= 0; curr++) {
 				if (curr->type == nh[off]) {
 					/* type specific length/alignment
 					   checks will be performed in the
@@ -162,12 +162,6 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
 		off += optlen;
 		len -= optlen;
 	}
-	/* This case will not be caught by above check since its padding
-	 * length is smaller than 7:
-	 * 1 byte NH + 1 byte Length + 6 bytes Padding
-	 */
-	if ((padlen == 6) && ((off - skb_network_header_len(skb)) == 8))
-		goto bad;
 
 	if (len == 0)
 		return true;

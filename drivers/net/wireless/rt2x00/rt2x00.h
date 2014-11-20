@@ -15,9 +15,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -39,6 +37,7 @@
 #include <linux/input-polldev.h>
 #include <linux/kfifo.h>
 #include <linux/hrtimer.h>
+#include <linux/average.h>
 
 #include <net/mac80211.h>
 
@@ -54,47 +53,36 @@
 #define DRV_VERSION	"2.3.0"
 #define DRV_PROJECT	"http://rt2x00.serialmonkey.com"
 
-/*
- * Debug definitions.
+/* Debug definitions.
  * Debug output has to be enabled during compile time.
  */
-#define DEBUG_PRINTK_MSG(__dev, __kernlvl, __lvl, __msg, __args...)	\
-	printk(__kernlvl "%s -> %s: %s - " __msg,			\
-	       wiphy_name((__dev)->hw->wiphy), __func__, __lvl, ##__args)
-
-#define DEBUG_PRINTK_PROBE(__kernlvl, __lvl, __msg, __args...)	\
-	printk(__kernlvl "%s -> %s: %s - " __msg,		\
-	       KBUILD_MODNAME, __func__, __lvl, ##__args)
-
 #ifdef CONFIG_RT2X00_DEBUG
-#define DEBUG_PRINTK(__dev, __kernlvl, __lvl, __msg, __args...)	\
-	DEBUG_PRINTK_MSG(__dev, __kernlvl, __lvl, __msg, ##__args)
-#else
-#define DEBUG_PRINTK(__dev, __kernlvl, __lvl, __msg, __args...)	\
-	do { } while (0)
+#define DEBUG
 #endif /* CONFIG_RT2X00_DEBUG */
 
-/*
- * Various debug levels.
- * The debug levels PANIC and ERROR both indicate serious problems,
- * for this reason they should never be ignored.
- * The special ERROR_PROBE message is for messages that are generated
- * when the rt2x00_dev is not yet initialized.
+/* Utility printing macros
+ * rt2x00_probe_err is for messages when rt2x00_dev is uninitialized
  */
-#define PANIC(__dev, __msg, __args...) \
-	DEBUG_PRINTK_MSG(__dev, KERN_CRIT, "Panic", __msg, ##__args)
-#define ERROR(__dev, __msg, __args...)	\
-	DEBUG_PRINTK_MSG(__dev, KERN_ERR, "Error", __msg, ##__args)
-#define ERROR_PROBE(__msg, __args...) \
-	DEBUG_PRINTK_PROBE(KERN_ERR, "Error", __msg, ##__args)
-#define WARNING(__dev, __msg, __args...) \
-	DEBUG_PRINTK_MSG(__dev, KERN_WARNING, "Warning", __msg, ##__args)
-#define INFO(__dev, __msg, __args...) \
-	DEBUG_PRINTK_MSG(__dev, KERN_INFO, "Info", __msg, ##__args)
-#define DEBUG(__dev, __msg, __args...) \
-	DEBUG_PRINTK(__dev, KERN_DEBUG, "Debug", __msg, ##__args)
-#define EEPROM(__dev, __msg, __args...) \
-	DEBUG_PRINTK(__dev, KERN_DEBUG, "EEPROM recovery", __msg, ##__args)
+#define rt2x00_probe_err(fmt, ...)					\
+	printk(KERN_ERR KBUILD_MODNAME ": %s: Error - " fmt,		\
+	       __func__, ##__VA_ARGS__)
+#define rt2x00_err(dev, fmt, ...)					\
+	wiphy_err((dev)->hw->wiphy, "%s: Error - " fmt,			\
+		  __func__, ##__VA_ARGS__)
+#define rt2x00_warn(dev, fmt, ...)					\
+	wiphy_warn((dev)->hw->wiphy, "%s: Warning - " fmt,		\
+		   __func__, ##__VA_ARGS__)
+#define rt2x00_info(dev, fmt, ...)					\
+	wiphy_info((dev)->hw->wiphy, "%s: Info - " fmt,			\
+		   __func__, ##__VA_ARGS__)
+
+/* Various debug levels */
+#define rt2x00_dbg(dev, fmt, ...)					\
+	wiphy_dbg((dev)->hw->wiphy, "%s: Debug - " fmt,			\
+		  __func__, ##__VA_ARGS__)
+#define rt2x00_eeprom_dbg(dev, fmt, ...)				\
+	wiphy_dbg((dev)->hw->wiphy, "%s: EEPROM recovery - " fmt,	\
+		  __func__, ##__VA_ARGS__)
 
 /*
  * Duration calculations
@@ -149,17 +137,6 @@
 #define SHORT_EIFS		( SIFS + SHORT_DIFS + \
 				  GET_DURATION(IEEE80211_HEADER + ACK_SIZE, 10) )
 
-/*
- * Structure for average calculation
- * The avg field contains the actual average value,
- * but avg_weight is internally used during calculations
- * to prevent rounding errors.
- */
-struct avg_val {
-	int avg;
-	int avg_weight;
-};
-
 enum rt2x00_chip_intf {
 	RT2X00_CHIP_INTF_PCI,
 	RT2X00_CHIP_INTF_PCIE,
@@ -193,6 +170,7 @@ struct rt2x00_chip {
 #define RT3883		0x3883	/* WSOC */
 #define RT5390		0x5390  /* 2.4GHz */
 #define RT5392		0x5392  /* 2.4GHz */
+#define RT5592		0x5592
 
 	u16 rf;
 	u16 rev;
@@ -221,6 +199,7 @@ struct channel_info {
 	short max_power;
 	short default_power1;
 	short default_power2;
+	short default_power3;
 };
 
 /*
@@ -306,7 +285,7 @@ struct link_ant {
 	 * Similar to the avg_rssi in the link_qual structure
 	 * this value is updated by using the walking average.
 	 */
-	struct avg_val rssi_ant;
+	struct ewma rssi_ant;
 };
 
 /*
@@ -335,7 +314,7 @@ struct link {
 	/*
 	 * Currently active average RSSI value
 	 */
-	struct avg_val avg_rssi;
+	struct ewma avg_rssi;
 
 	/*
 	 * Work structure for scheduling periodic link tuning.
@@ -658,11 +637,7 @@ struct rt2x00_ops {
 	const unsigned int eeprom_size;
 	const unsigned int rf_size;
 	const unsigned int tx_queues;
-	const unsigned int extra_tx_headroom;
-	const struct data_queue_desc *rx;
-	const struct data_queue_desc *tx;
-	const struct data_queue_desc *bcn;
-	const struct data_queue_desc *atim;
+	void (*queue_init)(struct data_queue *queue);
 	const struct rt2x00lib_ops *lib;
 	const void *drv;
 	const struct ieee80211_ops *hw;
@@ -718,6 +693,7 @@ enum rt2x00_capability_flags {
 	REQUIRE_SW_SEQNO,
 	REQUIRE_HT_TX_DESC,
 	REQUIRE_PS_AUTOWAKE,
+	REQUIRE_DELAYED_RFKILL,
 
 	/*
 	 * Capabilities
@@ -1020,6 +996,9 @@ struct rt2x00_dev {
 	 */
 	struct list_head bar_list;
 	spinlock_t bar_list_lock;
+
+	/* Extra TX headroom required for alignment purposes. */
+	unsigned int extra_tx_headroom;
 };
 
 struct rt2x00_bar_list_entry {
@@ -1064,8 +1043,7 @@ static inline void rt2x00_rf_write(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
- *  Generic EEPROM access.
- * The EEPROM is being accessed by word index.
+ * Generic EEPROM access. The EEPROM is being accessed by word or byte index.
  */
 static inline void *rt2x00_eeprom_addr(struct rt2x00_dev *rt2x00dev,
 				       const unsigned int word)
@@ -1085,6 +1063,12 @@ static inline void rt2x00_eeprom_write(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->eeprom[word] = cpu_to_le16(data);
 }
 
+static inline u8 rt2x00_eeprom_byte(struct rt2x00_dev *rt2x00dev,
+				    const unsigned int byte)
+{
+	return *(((u8 *)rt2x00dev->eeprom) + byte);
+}
+
 /*
  * Chipset handlers
  */
@@ -1095,9 +1079,27 @@ static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->chip.rf = rf;
 	rt2x00dev->chip.rev = rev;
 
-	INFO(rt2x00dev,
-	     "Chipset detected - rt: %04x, rf: %04x, rev: %04x.\n",
-	     rt2x00dev->chip.rt, rt2x00dev->chip.rf, rt2x00dev->chip.rev);
+	rt2x00_info(rt2x00dev, "Chipset detected - rt: %04x, rf: %04x, rev: %04x\n",
+		    rt2x00dev->chip.rt, rt2x00dev->chip.rf,
+		    rt2x00dev->chip.rev);
+}
+
+static inline void rt2x00_set_rt(struct rt2x00_dev *rt2x00dev,
+				 const u16 rt, const u16 rev)
+{
+	rt2x00dev->chip.rt = rt;
+	rt2x00dev->chip.rev = rev;
+
+	rt2x00_info(rt2x00dev, "RT chipset %04x, rev %04x detected\n",
+		    rt2x00dev->chip.rt, rt2x00dev->chip.rev);
+}
+
+static inline void rt2x00_set_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
+{
+	rt2x00dev->chip.rf = rf;
+
+	rt2x00_info(rt2x00dev, "RF chipset %04x detected\n",
+		    rt2x00dev->chip.rf);
 }
 
 static inline bool rt2x00_rt(struct rt2x00_dev *rt2x00dev, const u16 rt)
@@ -1164,6 +1166,93 @@ static inline bool rt2x00_is_usb(struct rt2x00_dev *rt2x00dev)
 static inline bool rt2x00_is_soc(struct rt2x00_dev *rt2x00dev)
 {
 	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_SOC);
+}
+
+/* Helpers for capability flags */
+
+static inline bool
+rt2x00_has_cap_flag(struct rt2x00_dev *rt2x00dev,
+		    enum rt2x00_capability_flags cap_flag)
+{
+	return test_bit(cap_flag, &rt2x00dev->cap_flags);
+}
+
+static inline bool
+rt2x00_has_cap_hw_crypto(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_HW_CRYPTO);
+}
+
+static inline bool
+rt2x00_has_cap_power_limit(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_POWER_LIMIT);
+}
+
+static inline bool
+rt2x00_has_cap_control_filters(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_CONTROL_FILTERS);
+}
+
+static inline bool
+rt2x00_has_cap_control_filter_pspoll(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_CONTROL_FILTER_PSPOLL);
+}
+
+static inline bool
+rt2x00_has_cap_pre_tbtt_interrupt(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_PRE_TBTT_INTERRUPT);
+}
+
+static inline bool
+rt2x00_has_cap_link_tuning(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_LINK_TUNING);
+}
+
+static inline bool
+rt2x00_has_cap_frame_type(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_FRAME_TYPE);
+}
+
+static inline bool
+rt2x00_has_cap_rf_sequence(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_RF_SEQUENCE);
+}
+
+static inline bool
+rt2x00_has_cap_external_lna_a(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_EXTERNAL_LNA_A);
+}
+
+static inline bool
+rt2x00_has_cap_external_lna_bg(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_EXTERNAL_LNA_BG);
+}
+
+static inline bool
+rt2x00_has_cap_double_antenna(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_DOUBLE_ANTENNA);
+}
+
+static inline bool
+rt2x00_has_cap_bt_coexist(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_BT_COEXIST);
+}
+
+static inline bool
+rt2x00_has_cap_vco_recalibration(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_VCO_RECALIBRATION);
 }
 
 /**
@@ -1360,7 +1449,8 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw,
 		      struct ieee80211_vif *vif, u16 queue,
 		      const struct ieee80211_tx_queue_params *params);
 void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw);
-void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop);
+void rt2x00mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		     u32 queues, bool drop);
 int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
 int rt2x00mac_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
 void rt2x00mac_get_ringparam(struct ieee80211_hw *hw,

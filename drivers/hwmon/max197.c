@@ -261,7 +261,7 @@ static int max197_probe(struct platform_device *pdev)
 {
 	int ch, ret;
 	struct max197_data *data;
-	struct max197_platform_data *pdata = pdev->dev.platform_data;
+	struct max197_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	enum max197_chips chip = platform_get_device_id(pdev)->driver_data;
 
 	if (pdata == NULL) {
@@ -275,10 +275,8 @@ static int max197_probe(struct platform_device *pdev)
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct max197_data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "devm_kzalloc failed\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->pdata = pdata;
 	mutex_init(&data->lock);

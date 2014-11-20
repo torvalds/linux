@@ -377,15 +377,12 @@ static void ir_set_termios(struct tty_struct *tty,
 	 * send the baud change out on an "empty" data packet
 	 */
 	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb) {
-		dev_err(&port->dev, "%s - no more urbs\n", __func__);
+	if (!urb)
 		return;
-	}
+
 	transfer_buffer = kmalloc(1, GFP_KERNEL);
-	if (!transfer_buffer) {
-		dev_err(&port->dev, "%s - out of memory\n", __func__);
+	if (!transfer_buffer)
 		goto err_buf;
-	}
 
 	*transfer_buffer = ir_xbof | ir_baud;
 

@@ -19,6 +19,8 @@
 #include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/mfd/core.h>
+#include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 #include "stmpe.h"
 
 static int __stmpe_enable(struct stmpe *stmpe, unsigned int blocks)
@@ -247,7 +249,7 @@ int stmpe_set_altfunc(struct stmpe *stmpe, u32 pins, enum stmpe_block block)
 	int af_bits = variant->af_bits;
 	int numregs = DIV_ROUND_UP(stmpe->num_gpios * af_bits, 8);
 	int mask = (1 << af_bits) - 1;
-	u8 regs[numregs];
+	u8 regs[8];
 	int af, afperreg, ret;
 
 	if (!variant->get_altfunc)
@@ -296,14 +298,14 @@ static struct resource stmpe_gpio_resources[] = {
 	},
 };
 
-static struct mfd_cell stmpe_gpio_cell = {
+static const struct mfd_cell stmpe_gpio_cell = {
 	.name		= "stmpe-gpio",
 	.of_compatible	= "st,stmpe-gpio",
 	.resources	= stmpe_gpio_resources,
 	.num_resources	= ARRAY_SIZE(stmpe_gpio_resources),
 };
 
-static struct mfd_cell stmpe_gpio_cell_noirq = {
+static const struct mfd_cell stmpe_gpio_cell_noirq = {
 	.name		= "stmpe-gpio",
 	.of_compatible	= "st,stmpe-gpio",
 	/* gpio cell resources consist of an irq only so no resources here */
@@ -324,7 +326,7 @@ static struct resource stmpe_keypad_resources[] = {
 	},
 };
 
-static struct mfd_cell stmpe_keypad_cell = {
+static const struct mfd_cell stmpe_keypad_cell = {
 	.name		= "stmpe-keypad",
 	.of_compatible  = "st,stmpe-keypad",
 	.resources	= stmpe_keypad_resources,
@@ -408,7 +410,7 @@ static struct resource stmpe_ts_resources[] = {
 	},
 };
 
-static struct mfd_cell stmpe_ts_cell = {
+static const struct mfd_cell stmpe_ts_cell = {
 	.name		= "stmpe-ts",
 	.of_compatible	= "st,stmpe-ts",
 	.resources	= stmpe_ts_resources,
@@ -604,9 +606,18 @@ static int stmpe1601_enable(struct stmpe *stmpe, unsigned int blocks,
 
 	if (blocks & STMPE_BLOCK_GPIO)
 		mask |= STMPE1601_SYS_CTRL_ENABLE_GPIO;
+	else
+		mask &= ~STMPE1601_SYS_CTRL_ENABLE_GPIO;
 
 	if (blocks & STMPE_BLOCK_KEYPAD)
 		mask |= STMPE1601_SYS_CTRL_ENABLE_KPC;
+	else
+		mask &= ~STMPE1601_SYS_CTRL_ENABLE_KPC;
+
+	if (blocks & STMPE_BLOCK_PWM)
+		mask |= STMPE1601_SYS_CTRL_ENABLE_SPWM;
+	else
+		mask &= ~STMPE1601_SYS_CTRL_ENABLE_SPWM;
 
 	return __stmpe_set_bits(stmpe, STMPE1601_REG_SYS_CTRL, mask,
 				enable ? mask : 0);
@@ -640,6 +651,88 @@ static struct stmpe_variant_info stmpe1601 = {
 	.enable		= stmpe1601_enable,
 	.get_altfunc	= stmpe1601_get_altfunc,
 	.enable_autosleep	= stmpe1601_autosleep,
+};
+
+/*
+ * STMPE1801
+ */
+static const u8 stmpe1801_regs[] = {
+	[STMPE_IDX_CHIP_ID]	= STMPE1801_REG_CHIP_ID,
+	[STMPE_IDX_ICR_LSB]	= STMPE1801_REG_INT_CTRL_LOW,
+	[STMPE_IDX_IER_LSB]	= STMPE1801_REG_INT_EN_MASK_LOW,
+	[STMPE_IDX_ISR_LSB]	= STMPE1801_REG_INT_STA_LOW,
+	[STMPE_IDX_GPMR_LSB]	= STMPE1801_REG_GPIO_MP_LOW,
+	[STMPE_IDX_GPSR_LSB]	= STMPE1801_REG_GPIO_SET_LOW,
+	[STMPE_IDX_GPCR_LSB]	= STMPE1801_REG_GPIO_CLR_LOW,
+	[STMPE_IDX_GPDR_LSB]	= STMPE1801_REG_GPIO_SET_DIR_LOW,
+	[STMPE_IDX_GPRER_LSB]	= STMPE1801_REG_GPIO_RE_LOW,
+	[STMPE_IDX_GPFER_LSB]	= STMPE1801_REG_GPIO_FE_LOW,
+	[STMPE_IDX_IEGPIOR_LSB]	= STMPE1801_REG_INT_EN_GPIO_MASK_LOW,
+	[STMPE_IDX_ISGPIOR_LSB]	= STMPE1801_REG_INT_STA_GPIO_LOW,
+};
+
+static struct stmpe_variant_block stmpe1801_blocks[] = {
+	{
+		.cell	= &stmpe_gpio_cell,
+		.irq	= STMPE1801_IRQ_GPIOC,
+		.block	= STMPE_BLOCK_GPIO,
+	},
+	{
+		.cell	= &stmpe_keypad_cell,
+		.irq	= STMPE1801_IRQ_KEYPAD,
+		.block	= STMPE_BLOCK_KEYPAD,
+	},
+};
+
+static int stmpe1801_enable(struct stmpe *stmpe, unsigned int blocks,
+			    bool enable)
+{
+	unsigned int mask = 0;
+	if (blocks & STMPE_BLOCK_GPIO)
+		mask |= STMPE1801_MSK_INT_EN_GPIO;
+
+	if (blocks & STMPE_BLOCK_KEYPAD)
+		mask |= STMPE1801_MSK_INT_EN_KPC;
+
+	return __stmpe_set_bits(stmpe, STMPE1801_REG_INT_EN_MASK_LOW, mask,
+				enable ? mask : 0);
+}
+
+static int stmpe1801_reset(struct stmpe *stmpe)
+{
+	unsigned long timeout;
+	int ret = 0;
+
+	ret = __stmpe_set_bits(stmpe, STMPE1801_REG_SYS_CTRL,
+		STMPE1801_MSK_SYS_CTRL_RESET, STMPE1801_MSK_SYS_CTRL_RESET);
+	if (ret < 0)
+		return ret;
+
+	timeout = jiffies + msecs_to_jiffies(100);
+	while (time_before(jiffies, timeout)) {
+		ret = __stmpe_reg_read(stmpe, STMPE1801_REG_SYS_CTRL);
+		if (ret < 0)
+			return ret;
+		if (!(ret & STMPE1801_MSK_SYS_CTRL_RESET))
+			return 0;
+		usleep_range(100, 200);
+	}
+	return -EIO;
+}
+
+static struct stmpe_variant_info stmpe1801 = {
+	.name		= "stmpe1801",
+	.id_val		= STMPE1801_ID,
+	.id_mask	= 0xfff0,
+	.num_gpios	= 18,
+	.af_bits	= 0,
+	.regs		= stmpe1801_regs,
+	.blocks		= stmpe1801_blocks,
+	.num_blocks	= ARRAY_SIZE(stmpe1801_blocks),
+	.num_irqs	= STMPE1801_NR_INTERNAL_IRQS,
+	.enable		= stmpe1801_enable,
+	/* stmpe1801 do not have any gpio alternate function */
+	.get_altfunc	= NULL,
 };
 
 /*
@@ -740,6 +833,7 @@ static struct stmpe_variant_info *stmpe_variant_info[STMPE_NBR_PARTS] = {
 	[STMPE801]	= &stmpe801,
 	[STMPE811]	= &stmpe811,
 	[STMPE1601]	= &stmpe1601,
+	[STMPE1801]	= &stmpe1801,
 	[STMPE2401]	= &stmpe2401,
 	[STMPE2403]	= &stmpe2403,
 };
@@ -759,8 +853,8 @@ static irqreturn_t stmpe_irq(int irq, void *data)
 	struct stmpe *stmpe = data;
 	struct stmpe_variant_info *variant = stmpe->variant;
 	int num = DIV_ROUND_UP(variant->num_irqs, 8);
-	u8 israddr = stmpe->regs[STMPE_IDX_ISR_MSB];
-	u8 isr[num];
+	u8 israddr;
+	u8 isr[3];
 	int ret;
 	int i;
 
@@ -770,6 +864,11 @@ static irqreturn_t stmpe_irq(int irq, void *data)
 		handle_nested_irq(base);
 		return IRQ_HANDLED;
 	}
+
+	if (variant->id_val == STMPE1801_ID)
+		israddr = stmpe->regs[STMPE_IDX_ISR_LSB];
+	else
+		israddr = stmpe->regs[STMPE_IDX_ISR_MSB];
 
 	ret = stmpe_block_read(stmpe, israddr, num, isr);
 	if (ret < 0)
@@ -897,9 +996,6 @@ static int stmpe_irq_init(struct stmpe *stmpe, struct device_node *np)
 	int base = 0;
 	int num_irqs = stmpe->variant->num_irqs;
 
-	if (!np)
-		base = stmpe->irq_base;
-
 	stmpe->domain = irq_domain_add_simple(np, num_irqs, base,
 					      &stmpe_irq_ops, stmpe);
 	if (!stmpe->domain) {
@@ -938,6 +1034,12 @@ static int stmpe_chip_init(struct stmpe *stmpe)
 	if (ret)
 		return ret;
 
+	if (id == STMPE1801_ID)	{
+		ret =  stmpe1801_reset(stmpe);
+		if (ret < 0)
+			return ret;
+	}
+
 	if (stmpe->irq >= 0) {
 		if (id == STMPE801_ID)
 			icr = STMPE801_REG_SYS_CTRL_INT_EN;
@@ -969,10 +1071,10 @@ static int stmpe_chip_init(struct stmpe *stmpe)
 	return stmpe_reg_write(stmpe, stmpe->regs[STMPE_IDX_ICR_LSB], icr);
 }
 
-static int stmpe_add_device(struct stmpe *stmpe, struct mfd_cell *cell)
+static int stmpe_add_device(struct stmpe *stmpe, const struct mfd_cell *cell)
 {
 	return mfd_add_devices(stmpe->dev, stmpe->pdata->id, cell, 1,
-			       NULL, stmpe->irq_base, stmpe->domain);
+			       NULL, 0, stmpe->domain);
 }
 
 static int stmpe_devices_init(struct stmpe *stmpe)
@@ -1011,12 +1113,21 @@ static int stmpe_devices_init(struct stmpe *stmpe)
 	return ret;
 }
 
-void stmpe_of_probe(struct stmpe_platform_data *pdata, struct device_node *np)
+static void stmpe_of_probe(struct stmpe_platform_data *pdata,
+			   struct device_node *np)
 {
 	struct device_node *child;
 
-	pdata->id = -1;
-	pdata->irq_trigger = IRQF_TRIGGER_NONE;
+	pdata->id = of_alias_get_id(np, "stmpe-i2c");
+	if (pdata->id < 0)
+		pdata->id = -1;
+
+	pdata->irq_gpio = of_get_named_gpio_flags(np, "irq-gpio", 0,
+				&pdata->irq_trigger);
+	if (gpio_is_valid(pdata->irq_gpio))
+		pdata->irq_over_gpio = 1;
+	else
+		pdata->irq_trigger = IRQF_TRIGGER_NONE;
 
 	of_property_read_u32(np, "st,autosleep-timeout",
 			&pdata->autosleep_timeout);
@@ -1041,7 +1152,7 @@ void stmpe_of_probe(struct stmpe_platform_data *pdata, struct device_node *np)
 }
 
 /* Called from client specific probe routines */
-int stmpe_probe(struct stmpe_client_info *ci, int partnum)
+int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 {
 	struct stmpe_platform_data *pdata = dev_get_platdata(ci->dev);
 	struct device_node *np = ci->dev->of_node;
@@ -1057,6 +1168,9 @@ int stmpe_probe(struct stmpe_client_info *ci, int partnum)
 			return -ENOMEM;
 
 		stmpe_of_probe(pdata, np);
+
+		if (of_find_property(np, "interrupts", NULL) == NULL)
+			ci->irq = -1;
 	}
 
 	stmpe = devm_kzalloc(ci->dev, sizeof(struct stmpe), GFP_KERNEL);
@@ -1069,12 +1183,23 @@ int stmpe_probe(struct stmpe_client_info *ci, int partnum)
 	stmpe->dev = ci->dev;
 	stmpe->client = ci->client;
 	stmpe->pdata = pdata;
-	stmpe->irq_base = pdata->irq_base;
 	stmpe->ci = ci;
 	stmpe->partnum = partnum;
 	stmpe->variant = stmpe_variant_info[partnum];
 	stmpe->regs = stmpe->variant->regs;
 	stmpe->num_gpios = stmpe->variant->num_gpios;
+	stmpe->vcc = devm_regulator_get_optional(ci->dev, "vcc");
+	if (!IS_ERR(stmpe->vcc)) {
+		ret = regulator_enable(stmpe->vcc);
+		if (ret)
+			dev_warn(ci->dev, "failed to enable VCC supply\n");
+	}
+	stmpe->vio = devm_regulator_get_optional(ci->dev, "vio");
+	if (!IS_ERR(stmpe->vio)) {
+		ret = regulator_enable(stmpe->vio);
+		if (ret)
+			dev_warn(ci->dev, "failed to enable VIO supply\n");
+	}
 	dev_set_drvdata(stmpe->dev, stmpe);
 
 	if (ci->init)
@@ -1107,8 +1232,7 @@ int stmpe_probe(struct stmpe_client_info *ci, int partnum)
 		}
 		stmpe->variant = stmpe_noirq_variant_info[stmpe->partnum];
 	} else if (pdata->irq_trigger == IRQF_TRIGGER_NONE) {
-		pdata->irq_trigger =
-			irqd_get_trigger_type(irq_get_irq_data(stmpe->irq));
+		pdata->irq_trigger = irq_get_trigger_type(stmpe->irq);
 	}
 
 	ret = stmpe_chip_init(stmpe);
@@ -1142,6 +1266,11 @@ int stmpe_probe(struct stmpe_client_info *ci, int partnum)
 
 int stmpe_remove(struct stmpe *stmpe)
 {
+	if (!IS_ERR(stmpe->vio))
+		regulator_disable(stmpe->vio);
+	if (!IS_ERR(stmpe->vcc))
+		regulator_disable(stmpe->vcc);
+
 	mfd_remove_devices(stmpe->dev);
 
 	return 0;

@@ -32,6 +32,7 @@
 #define ARIZONA_CLK_SRC_AIF2BCLK 0x9
 #define ARIZONA_CLK_SRC_AIF3BCLK 0xa
 
+#define ARIZONA_FLL_SRC_NONE      -1
 #define ARIZONA_FLL_SRC_MCLK1      0
 #define ARIZONA_FLL_SRC_MCLK2      1
 #define ARIZONA_FLL_SRC_SLIMCLK    3
@@ -48,7 +49,15 @@
 #define ARIZONA_MIXER_VOL_SHIFT                 1
 #define ARIZONA_MIXER_VOL_WIDTH                 7
 
-#define ARIZONA_MAX_DAI  4
+#define ARIZONA_CLK_6MHZ   0
+#define ARIZONA_CLK_12MHZ  1
+#define ARIZONA_CLK_24MHZ  2
+#define ARIZONA_CLK_49MHZ  3
+#define ARIZONA_CLK_73MHZ  4
+#define ARIZONA_CLK_98MHZ  5
+#define ARIZONA_CLK_147MHZ 6
+
+#define ARIZONA_MAX_DAI  6
 #define ARIZONA_MAX_ADSP 4
 
 struct arizona;
@@ -64,9 +73,15 @@ struct arizona_priv {
 	int sysclk;
 	int asyncclk;
 	struct arizona_dai_priv dai[ARIZONA_MAX_DAI];
+
+	int num_inputs;
+	unsigned int in_pending;
+
+	unsigned int spk_ena:2;
+	unsigned int spk_ena_pending:1;
 };
 
-#define ARIZONA_NUM_MIXER_INPUTS 99
+#define ARIZONA_NUM_MIXER_INPUTS 103
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
@@ -92,7 +107,7 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 
 #define ARIZONA_MUX_CTL_DECL(name) \
 	const struct snd_kcontrol_new name##_mux =	\
-		SOC_DAPM_VALUE_ENUM("Route", name##_enum)
+		SOC_DAPM_ENUM("Route", name##_enum)
 
 #define ARIZONA_MUX_ENUMS(name, base_reg) \
 	static ARIZONA_MUX_ENUM_DECL(name##_enum, base_reg);      \
@@ -113,7 +128,7 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MUX_ENUMS(name##_aux6, base_reg + 40)
 
 #define ARIZONA_MUX(name, ctrl) \
-	SND_SOC_DAPM_VALUE_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
 
 #define ARIZONA_MUX_WIDGETS(name, name_str) \
 	ARIZONA_MUX(name_str " Input", &name##_mux)
@@ -135,7 +150,8 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MUX(name_str " Aux 5", &name##_aux5_mux), \
 	ARIZONA_MUX(name_str " Aux 6", &name##_aux6_mux)
 
-#define ARIZONA_MUX_ROUTES(name) \
+#define ARIZONA_MUX_ROUTES(widget, name) \
+	{ widget, NULL, name " Input" }, \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Input")
 
 #define ARIZONA_MIXER_ROUTES(widget, name) \
@@ -150,20 +166,29 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MIXER_INPUT_ROUTES(name " Input 4")
 
 #define ARIZONA_DSP_ROUTES(name) \
-	{ name, NULL, name " Aux 1" }, \
-	{ name, NULL, name " Aux 2" }, \
-	{ name, NULL, name " Aux 3" }, \
-	{ name, NULL, name " Aux 4" }, \
-	{ name, NULL, name " Aux 5" }, \
-	{ name, NULL, name " Aux 6" }, \
+	{ name, NULL, name " Preloader"}, \
+	{ name " Preloader", NULL, name " Aux 1" }, \
+	{ name " Preloader", NULL, name " Aux 2" }, \
+	{ name " Preloader", NULL, name " Aux 3" }, \
+	{ name " Preloader", NULL, name " Aux 4" }, \
+	{ name " Preloader", NULL, name " Aux 5" }, \
+	{ name " Preloader", NULL, name " Aux 6" }, \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 1"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 2"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 3"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 4"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 5"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 6"), \
-	ARIZONA_MIXER_ROUTES(name, name "L"), \
-	ARIZONA_MIXER_ROUTES(name, name "R")
+	ARIZONA_MIXER_ROUTES(name " Preloader", name "L"), \
+	ARIZONA_MIXER_ROUTES(name " Preloader", name "R")
+
+#define ARIZONA_RATE_ENUM_SIZE 4
+extern const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];
+extern const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE];
+
+extern const struct soc_enum arizona_isrc_fsl[];
+extern const struct soc_enum arizona_isrc_fsh[];
+extern const struct soc_enum arizona_asrc_rate1;
 
 extern const struct soc_enum arizona_in_vi_ramp;
 extern const struct soc_enum arizona_in_vd_ramp;
@@ -177,6 +202,8 @@ extern const struct soc_enum arizona_lhpf3_mode;
 extern const struct soc_enum arizona_lhpf4_mode;
 
 extern const struct soc_enum arizona_ng_hold;
+extern const struct soc_enum arizona_in_hpf_cut_enum;
+extern const struct soc_enum arizona_in_dmic_osr[];
 
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
@@ -184,11 +211,15 @@ extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 extern int arizona_out_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol,
 			  int event);
+extern int arizona_hp_ev(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol,
+			 int event);
 
 extern int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			      int source, unsigned int freq, int dir);
 
 extern const struct snd_soc_dai_ops arizona_dai_ops;
+extern const struct snd_soc_dai_ops arizona_simple_dai_ops;
 
 #define ARIZONA_FLL_NAME_LEN 20
 
@@ -198,8 +229,12 @@ struct arizona_fll {
 	unsigned int base;
 	unsigned int vco_mult;
 	struct completion ok;
-	unsigned int fref;
+
 	unsigned int fout;
+	int sync_src;
+	unsigned int sync_freq;
+	int ref_src;
+	unsigned int ref_freq;
 
 	char lock_name[ARIZONA_FLL_NAME_LEN];
 	char clock_ok_name[ARIZONA_FLL_NAME_LEN];
@@ -207,8 +242,14 @@ struct arizona_fll {
 
 extern int arizona_init_fll(struct arizona *arizona, int id, int base,
 			    int lock_irq, int ok_irq, struct arizona_fll *fll);
+extern int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
+				  unsigned int Fref, unsigned int Fout);
 extern int arizona_set_fll(struct arizona_fll *fll, int source,
 			   unsigned int Fref, unsigned int Fout);
+
+extern int arizona_init_spk(struct snd_soc_codec *codec);
+extern int arizona_init_gpio(struct snd_soc_codec *codec);
+extern int arizona_init_mono(struct snd_soc_codec *codec);
 
 extern int arizona_init_dai(struct arizona_priv *priv, int dai);
 

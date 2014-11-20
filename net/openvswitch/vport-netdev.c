@@ -25,6 +25,7 @@
 #include <linux/llc.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
+#include <linux/openvswitch.h>
 
 #include <net/llc.h>
 
@@ -49,7 +50,9 @@ static void netdev_port_receive(struct vport *vport, struct sk_buff *skb)
 		return;
 
 	skb_push(skb, ETH_HLEN);
-	ovs_vport_receive(vport, skb);
+	ovs_skb_postpush_rcsum(skb, skb->data, ETH_HLEN);
+
+	ovs_vport_receive(vport, skb, NULL);
 	return;
 
 error:
@@ -70,6 +73,15 @@ static rx_handler_result_t netdev_frame_hook(struct sk_buff **pskb)
 	netdev_port_receive(vport, skb);
 
 	return RX_HANDLER_CONSUMED;
+}
+
+static struct net_device *get_dpdev(struct datapath *dp)
+{
+	struct vport *local;
+
+	local = ovs_vport_ovsl(dp, OVSP_LOCAL);
+	BUG_ON(!local);
+	return netdev_vport_priv(local)->dev;
 }
 
 static struct vport *netdev_create(const struct vport_parms *parms)
@@ -100,16 +112,27 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 		goto error_put;
 	}
 
+	rtnl_lock();
+	err = netdev_master_upper_dev_link(netdev_vport->dev,
+					   get_dpdev(vport->dp));
+	if (err)
+		goto error_unlock;
+
 	err = netdev_rx_handler_register(netdev_vport->dev, netdev_frame_hook,
 					 vport);
 	if (err)
-		goto error_put;
+		goto error_master_upper_dev_unlink;
 
 	dev_set_promiscuity(netdev_vport->dev, 1);
 	netdev_vport->dev->priv_flags |= IFF_OVS_DATAPATH;
+	rtnl_unlock();
 
 	return vport;
 
+error_master_upper_dev_unlink:
+	netdev_upper_dev_unlink(netdev_vport->dev, get_dpdev(vport->dp));
+error_unlock:
+	rtnl_unlock();
 error_put:
 	dev_put(netdev_vport->dev);
 error_free_vport:
@@ -127,13 +150,26 @@ static void free_port_rcu(struct rcu_head *rcu)
 	ovs_vport_free(vport_from_priv(netdev_vport));
 }
 
+void ovs_netdev_detach_dev(struct vport *vport)
+{
+	struct netdev_vport *netdev_vport = netdev_vport_priv(vport);
+
+	ASSERT_RTNL();
+	netdev_vport->dev->priv_flags &= ~IFF_OVS_DATAPATH;
+	netdev_rx_handler_unregister(netdev_vport->dev);
+	netdev_upper_dev_unlink(netdev_vport->dev,
+				netdev_master_upper_dev_get(netdev_vport->dev));
+	dev_set_promiscuity(netdev_vport->dev, -1);
+}
+
 static void netdev_destroy(struct vport *vport)
 {
 	struct netdev_vport *netdev_vport = netdev_vport_priv(vport);
 
-	netdev_vport->dev->priv_flags &= ~IFF_OVS_DATAPATH;
-	netdev_rx_handler_unregister(netdev_vport->dev);
-	dev_set_promiscuity(netdev_vport->dev, -1);
+	rtnl_lock();
+	if (netdev_vport->dev->priv_flags & IFF_OVS_DATAPATH)
+		ovs_netdev_detach_dev(vport);
+	rtnl_unlock();
 
 	call_rcu(&netdev_vport->rcu, free_port_rcu);
 }
@@ -142,12 +178,6 @@ const char *ovs_netdev_get_name(const struct vport *vport)
 {
 	const struct netdev_vport *netdev_vport = netdev_vport_priv(vport);
 	return netdev_vport->dev->name;
-}
-
-int ovs_netdev_get_ifindex(const struct vport *vport)
-{
-	const struct netdev_vport *netdev_vport = netdev_vport_priv(vport);
-	return netdev_vport->dev->ifindex;
 }
 
 static unsigned int packet_length(const struct sk_buff *skb)
@@ -170,7 +200,7 @@ static int netdev_send(struct vport *vport, struct sk_buff *skb)
 		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
 				     netdev_vport->dev->name,
 				     packet_length(skb), mtu);
-		goto error;
+		goto drop;
 	}
 
 	skb->dev = netdev_vport->dev;
@@ -179,9 +209,8 @@ static int netdev_send(struct vport *vport, struct sk_buff *skb)
 
 	return len;
 
-error:
+drop:
 	kfree_skb(skb);
-	ovs_vport_record_error(vport, VPORT_E_TX_DROPPED);
 	return 0;
 }
 
@@ -200,6 +229,5 @@ const struct vport_ops ovs_netdev_vport_ops = {
 	.create		= netdev_create,
 	.destroy	= netdev_destroy,
 	.get_name	= ovs_netdev_get_name,
-	.get_ifindex	= ovs_netdev_get_ifindex,
 	.send		= netdev_send,
 };

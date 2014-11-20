@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,7 +19,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -29,7 +29,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ieee80211.h>
 #include "iwl-io.h"
@@ -83,11 +82,11 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 	else if (ieee80211_is_back_req(fc))
 		tx_flags |= TX_CMD_FLG_ACK_MSK | TX_CMD_FLG_IMM_BA_RSP_MASK;
 	else if (info->band == IEEE80211_BAND_2GHZ &&
-		 priv->cfg->bt_params &&
-		 priv->cfg->bt_params->advanced_bt_coexist &&
+		 priv->lib->bt_params &&
+		 priv->lib->bt_params->advanced_bt_coexist &&
 		 (ieee80211_is_auth(fc) || ieee80211_is_assoc_req(fc) ||
 		 ieee80211_is_reassoc_req(fc) ||
-		 skb->protocol == cpu_to_be16(ETH_P_PAE)))
+		 info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		tx_flags |= TX_CMD_FLG_IGNORE_BT;
 
 
@@ -162,18 +161,6 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	if (ieee80211_is_data(fc)) {
 		tx_cmd->initial_rate_index = 0;
 		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-		if (priv->tm_fixed_rate) {
-			/*
-			 * rate overwrite by testmode
-			 * we not only send lq command to change rate
-			 * we also re-enforce per data pkt base.
-			 */
-			tx_cmd->tx_flags &= ~TX_CMD_FLG_STA_RATE_MSK;
-			memcpy(&tx_cmd->rate_n_flags, &priv->tm_fixed_rate,
-			       sizeof(tx_cmd->rate_n_flags));
-		}
-#endif
 		return;
 	} else if (ieee80211_is_back_req(fc))
 		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
@@ -202,8 +189,8 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 		rate_flags |= RATE_MCS_CCK_MSK;
 
 	/* Set up antennas */
-	 if (priv->cfg->bt_params &&
-	     priv->cfg->bt_params->advanced_bt_coexist &&
+	 if (priv->lib->bt_params &&
+	     priv->lib->bt_params->advanced_bt_coexist &&
 	     priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
@@ -380,6 +367,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		goto drop_unlock_priv;
 
 	memset(dev_cmd, 0, sizeof(*dev_cmd));
+	dev_cmd->hdr.cmd = REPLY_TX;
 	tx_cmd = (struct iwl_tx_cmd *) dev_cmd->payload;
 
 	/* Total # bytes to be transmitted */
@@ -414,11 +402,12 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU &&
 		    tid_data->agg.state != IWL_AGG_ON) {
-			IWL_ERR(priv, "TX_CTL_AMPDU while not in AGG:"
-				" Tx flags = 0x%08x, agg.state = %d",
+			IWL_ERR(priv,
+				"TX_CTL_AMPDU while not in AGG: Tx flags = 0x%08x, agg.state = %d\n",
 				info->flags, tid_data->agg.state);
-			IWL_ERR(priv, "sta_id = %d, tid = %d seq_num = %d",
-				sta_id, tid, SEQ_TO_SN(tid_data->seq_number));
+			IWL_ERR(priv, "sta_id = %d, tid = %d seq_num = %d\n",
+				sta_id, tid,
+				IEEE80211_SEQ_TO_SN(tid_data->seq_number));
 			goto drop_unlock_sta;
 		}
 
@@ -427,7 +416,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		 */
 		if (WARN_ONCE(tid_data->agg.state != IWL_AGG_ON &&
 			      tid_data->agg.state != IWL_AGG_OFF,
-		    "Tx while agg.state = %d", tid_data->agg.state))
+			      "Tx while agg.state = %d\n", tid_data->agg.state))
 			goto drop_unlock_sta;
 
 		seq_number = tid_data->seq_number;
@@ -444,27 +433,19 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdr_len);
 
+	txq_id = info->hw_queue;
+
 	if (is_agg)
 		txq_id = priv->tid_data[sta_id][tid].agg.txq_id;
 	else if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
-		/*
-		 * Send this frame after DTIM -- there's a special queue
-		 * reserved for this for contexts that support AP mode.
-		 */
-		txq_id = ctx->mcast_queue;
-
 		/*
 		 * The microcode will clear the more data
 		 * bit in the last frame it transmits.
 		 */
 		hdr->frame_control |=
 			cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-	} else if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
-		txq_id = IWL_AUX_QUEUE;
-	else
-		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
+	}
 
-	WARN_ON_ONCE(!is_agg && txq_id != info->hw_queue);
 	WARN_ON_ONCE(is_agg &&
 		     priv->queue_to_mac80211[txq_id] != info->hw_queue);
 
@@ -488,9 +469,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 	 */
 	if (sta_priv && sta_priv->client && !is_agg)
 		atomic_inc(&sta_priv->pending_frames);
-
-	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
-		iwl_scan_offchannel_skb(priv);
 
 	return 0;
 
@@ -569,7 +547,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return 0;
 	}
 
-	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
+	tid_data->agg.ssn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 
 	/* There are still packets for this RA / TID in the HW */
 	if (!test_bit(txq_id, priv->agg_q_alloc)) {
@@ -602,7 +580,7 @@ turn_off:
 		 * time, or we hadn't time to drain the AC queues.
 		 */
 		if (agg_state == IWL_AGG_ON)
-			iwl_trans_txq_disable(priv->trans, txq_id);
+			iwl_trans_txq_disable(priv->trans, txq_id, true);
 		else
 			IWL_DEBUG_TX_QUEUES(priv, "Don't disable tx agg: %d\n",
 					    agg_state);
@@ -651,7 +629,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	spin_lock_bh(&priv->sta_lock);
 	tid_data = &priv->tid_data[sta_id][tid];
-	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
+	tid_data->agg.ssn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 	tid_data->agg.txq_id = txq_id;
 
 	*ssn = tid_data->agg.ssn;
@@ -671,6 +649,51 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	spin_unlock_bh(&priv->sta_lock);
 
 	return ret;
+}
+
+int iwlagn_tx_agg_flush(struct iwl_priv *priv, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta, u16 tid)
+{
+	struct iwl_tid_data *tid_data;
+	enum iwl_agg_state agg_state;
+	int sta_id, txq_id;
+	sta_id = iwl_sta_id(sta);
+
+	/*
+	 * First set the agg state to OFF to avoid calling
+	 * ieee80211_stop_tx_ba_cb in iwlagn_check_ratid_empty.
+	 */
+	spin_lock_bh(&priv->sta_lock);
+
+	tid_data = &priv->tid_data[sta_id][tid];
+	txq_id = tid_data->agg.txq_id;
+	agg_state = tid_data->agg.state;
+	IWL_DEBUG_TX_QUEUES(priv, "Flush AGG: sta %d tid %d q %d state %d\n",
+			    sta_id, tid, txq_id, tid_data->agg.state);
+
+	tid_data->agg.state = IWL_AGG_OFF;
+
+	spin_unlock_bh(&priv->sta_lock);
+
+	if (iwlagn_txfifo_flush(priv, BIT(txq_id)))
+		IWL_ERR(priv, "Couldn't flush the AGG queue\n");
+
+	if (test_bit(txq_id, priv->agg_q_alloc)) {
+		/*
+		 * If the transport didn't know that we wanted to start
+		 * agreggation, don't tell it that we want to stop them.
+		 * This can happen when we don't get the addBA response on
+		 * time, or we hadn't time to drain the AC queues.
+		 */
+		if (agg_state == IWL_AGG_ON)
+			iwl_trans_txq_disable(priv->trans, txq_id, true);
+		else
+			IWL_DEBUG_TX_QUEUES(priv, "Don't disable tx agg: %d\n",
+					    agg_state);
+		iwlagn_dealloc_agg_txq(priv, txq_id);
+	}
+
+	return 0;
 }
 
 int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
@@ -755,10 +778,10 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 		/* There are no packets for this RA / TID in the HW any more */
 		if (tid_data->agg.ssn == tid_data->next_reclaimed) {
 			IWL_DEBUG_TX_QUEUES(priv,
-				"Can continue DELBA flow ssn = next_recl ="
-				" %d", tid_data->next_reclaimed);
+				"Can continue DELBA flow ssn = next_recl = %d\n",
+				tid_data->next_reclaimed);
 			iwl_trans_txq_disable(priv->trans,
-					      tid_data->agg.txq_id);
+					      tid_data->agg.txq_id, true);
 			iwlagn_dealloc_agg_txq(priv, tid_data->agg.txq_id);
 			tid_data->agg.state = IWL_AGG_OFF;
 			ieee80211_stop_tx_ba_cb_irqsafe(vif, addr, tid);
@@ -768,8 +791,8 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 		/* There are no packets for this RA / TID in the HW any more */
 		if (tid_data->agg.ssn == tid_data->next_reclaimed) {
 			IWL_DEBUG_TX_QUEUES(priv,
-				"Can continue ADDBA flow ssn = next_recl ="
-				" %d", tid_data->next_reclaimed);
+				"Can continue ADDBA flow ssn = next_recl = %d\n",
+				tid_data->next_reclaimed);
 			tid_data->agg.state = IWL_AGG_STARTING;
 			ieee80211_start_tx_ba_cb_irqsafe(vif, addr, tid);
 		}
@@ -911,7 +934,7 @@ static void iwlagn_count_agg_tx_err_status(struct iwl_priv *priv, u16 status)
 static inline u32 iwlagn_get_scd_ssn(struct iwlagn_tx_resp *tx_resp)
 {
 	return le32_to_cpup((__le32 *)&tx_resp->status +
-			    tx_resp->frame_count) & MAX_SN;
+			    tx_resp->frame_count) & IEEE80211_MAX_SN;
 }
 
 static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
@@ -940,8 +963,8 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 	 * notification again.
 	 */
 	if (tx_resp->bt_kill_count && tx_resp->frame_count == 1 &&
-	    priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	    priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist) {
 		IWL_DEBUG_COEX(priv, "receive reply tx w/ bt_kill\n");
 	}
 
@@ -1124,7 +1147,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 	struct sk_buff *skb;
 	struct iwl_rxon_context *ctx;
 	bool is_agg = (txq_id >= IWLAGN_FIRST_AMPDU_QUEUE);
-	bool is_offchannel_skb;
 
 	tid = (tx_resp->ra_tid & IWLAGN_TX_RES_TID_MSK) >>
 		IWLAGN_TX_RES_TID_POS;
@@ -1144,11 +1166,9 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 
 	__skb_queue_head_init(&skbs);
 
-	is_offchannel_skb = false;
-
 	if (tx_resp->frame_count == 1) {
 		u16 next_reclaimed = le16_to_cpu(tx_resp->seq_ctl);
-		next_reclaimed = SEQ_TO_SN(next_reclaimed + 0x10);
+		next_reclaimed = IEEE80211_SEQ_TO_SN(next_reclaimed + 0x10);
 
 		if (is_agg) {
 			/* If this is an aggregation queue, we can rely on the
@@ -1192,12 +1212,12 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			memset(&info->status, 0, sizeof(info->status));
 
 			if (status == TX_STATUS_FAIL_PASSIVE_NO_RX &&
-			    iwl_is_associated_ctx(ctx) && ctx->vif &&
+			    ctx->vif &&
 			    ctx->vif->type == NL80211_IFTYPE_STATION) {
 				/* block and stop all queues */
 				priv->passive_no_rx = true;
-				IWL_DEBUG_TX_QUEUES(priv, "stop all queues: "
-						    "passive channel");
+				IWL_DEBUG_TX_QUEUES(priv,
+					"stop all queues: passive channel\n");
 				ieee80211_stop_queues(priv->hw);
 
 				IWL_DEBUG_TX_REPLY(priv,
@@ -1222,8 +1242,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			if (!is_agg)
 				iwlagn_non_agg_tx_status(priv, ctx, hdr->addr1);
 
-			is_offchannel_skb =
-				(info->flags & IEEE80211_TX_CTL_TX_OFFCHAN);
 			freed++;
 		}
 
@@ -1236,14 +1254,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 
 		if (!is_agg && freed != 1)
 			IWL_ERR(priv, "Q: %d, freed %d\n", txq_id, freed);
-
-		/*
-		 * An offchannel frame can be send only on the AUX queue, where
-		 * there is no aggregation (and reordering) so it only is single
-		 * skb is expected to be processed.
-		 */
-		if (is_offchannel_skb && freed != 1)
-			IWL_ERR(priv, "OFFCHANNEL SKB freed %d\n", freed);
 
 		IWL_DEBUG_TX_REPLY(priv, "TXQ %d status %s (0x%08x)\n", txq_id,
 				   iwl_get_tx_fail_reason(status), status);
@@ -1261,11 +1271,8 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 
 	while (!skb_queue_empty(&skbs)) {
 		skb = __skb_dequeue(&skbs);
-		ieee80211_tx_status_ni(priv->hw, skb);
+		ieee80211_tx_status(priv->hw, skb);
 	}
-
-	if (is_offchannel_skb)
-		iwl_scan_offchannel_skb_status(priv);
 
 	return 0;
 }
@@ -1284,8 +1291,6 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	struct iwl_compressed_ba_resp *ba_resp = (void *)pkt->data;
 	struct iwl_ht_agg *agg;
 	struct sk_buff_head reclaimed_skbs;
-	struct ieee80211_tx_info *info;
-	struct ieee80211_hdr *hdr;
 	struct sk_buff *skb;
 	int sta_id;
 	int tid;
@@ -1372,22 +1377,28 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	freed = 0;
 
 	skb_queue_walk(&reclaimed_skbs, skb) {
-		hdr = (struct ieee80211_hdr *)skb->data;
+		struct ieee80211_hdr *hdr = (void *)skb->data;
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 		if (ieee80211_is_data_qos(hdr->frame_control))
 			freed++;
 		else
 			WARN_ON_ONCE(1);
 
-		info = IEEE80211_SKB_CB(skb);
 		iwl_trans_free_tx_cmd(priv->trans, info->driver_data[1]);
+
+		memset(&info->status, 0, sizeof(info->status));
+		/* Packet was transmitted successfully, failures come as single
+		 * frames because before failing a frame the firmware transmits
+		 * it without aggregation at least once.
+		 */
+		info->flags |= IEEE80211_TX_STAT_ACK;
 
 		if (freed == 1) {
 			/* this is the first skb we deliver in this batch */
 			/* put the rate scaling data there */
 			info = IEEE80211_SKB_CB(skb);
 			memset(&info->status, 0, sizeof(info->status));
-			info->flags |= IEEE80211_TX_STAT_ACK;
 			info->flags |= IEEE80211_TX_STAT_AMPDU;
 			info->status.ampdu_ack_len = ba_resp->txed_2_done;
 			info->status.ampdu_len = ba_resp->txed;
@@ -1400,7 +1411,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 	while (!skb_queue_empty(&reclaimed_skbs)) {
 		skb = __skb_dequeue(&reclaimed_skbs);
-		ieee80211_tx_status_ni(priv->hw, skb);
+		ieee80211_tx_status(priv->hw, skb);
 	}
 
 	return 0;

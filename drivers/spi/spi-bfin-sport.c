@@ -8,7 +8,6 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -417,7 +416,7 @@ bfin_sport_spi_pump_transfers(unsigned long data)
 
 	/* Bits per word setup */
 	bits_per_word = transfer->bits_per_word;
-	if (bits_per_word % 16 == 0)
+	if (bits_per_word == 16)
 		drv_data->ops = &bfin_sport_transfer_ops_u16;
 	else
 		drv_data->ops = &bfin_sport_transfer_ops_u8;
@@ -592,19 +591,12 @@ bfin_sport_spi_setup(struct spi_device *spi)
 			 */
 			if (chip_info->ctl_reg || chip_info->enable_dma) {
 				ret = -EINVAL;
-				dev_err(&spi->dev, "don't set ctl_reg/enable_dma fields");
+				dev_err(&spi->dev, "don't set ctl_reg/enable_dma fields\n");
 				goto error;
 			}
 			chip->cs_chg_udelay = chip_info->cs_chg_udelay;
 			chip->idle_tx_val = chip_info->idle_tx_val;
 		}
-	}
-
-	if (spi->bits_per_word % 8) {
-		dev_err(&spi->dev, "%d bits_per_word is not supported\n",
-				spi->bits_per_word);
-		ret = -EINVAL;
-		goto error;
 	}
 
 	/* translate common spi framework into our register
@@ -763,7 +755,7 @@ static int bfin_sport_spi_probe(struct platform_device *pdev)
 	struct bfin_sport_spi_master_data *drv_data;
 	int status;
 
-	platform_info = dev->platform_data;
+	platform_info = dev_get_platdata(dev);
 
 	/* Allocate master with space for drv_data */
 	master = spi_alloc_master(dev, sizeof(*master) + 16);
@@ -778,6 +770,7 @@ static int bfin_sport_spi_probe(struct platform_device *pdev)
 	drv_data->pin_req = platform_info->pin_req;
 
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
+	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->bus_num = pdev->id;
 	master->num_chipselect = platform_info->num_chipselect;
 	master->cleanup = bfin_sport_spi_cleanup;
@@ -882,17 +875,13 @@ static int bfin_sport_spi_remove(struct platform_device *pdev)
 
 	peripheral_free_list(drv_data->pin_req);
 
-	/* Prevent double remove */
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int
-bfin_sport_spi_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int bfin_sport_spi_suspend(struct device *dev)
 {
-	struct bfin_sport_spi_master_data *drv_data = platform_get_drvdata(pdev);
+	struct bfin_sport_spi_master_data *drv_data = dev_get_drvdata(dev);
 	int status;
 
 	status = bfin_sport_spi_stop_queue(drv_data);
@@ -905,10 +894,9 @@ bfin_sport_spi_suspend(struct platform_device *pdev, pm_message_t state)
 	return status;
 }
 
-static int
-bfin_sport_spi_resume(struct platform_device *pdev)
+static int bfin_sport_spi_resume(struct device *dev)
 {
-	struct bfin_sport_spi_master_data *drv_data = platform_get_drvdata(pdev);
+	struct bfin_sport_spi_master_data *drv_data = dev_get_drvdata(dev);
 	int status;
 
 	/* Enable the SPI interface */
@@ -921,19 +909,22 @@ bfin_sport_spi_resume(struct platform_device *pdev)
 
 	return status;
 }
+
+static SIMPLE_DEV_PM_OPS(bfin_sport_spi_pm_ops, bfin_sport_spi_suspend,
+			bfin_sport_spi_resume);
+
+#define BFIN_SPORT_SPI_PM_OPS		(&bfin_sport_spi_pm_ops)
 #else
-# define bfin_sport_spi_suspend NULL
-# define bfin_sport_spi_resume  NULL
+#define BFIN_SPORT_SPI_PM_OPS		NULL
 #endif
 
 static struct platform_driver bfin_sport_spi_driver = {
 	.driver	= {
-		.name = DRV_NAME,
-		.owner = THIS_MODULE,
+		.name	= DRV_NAME,
+		.owner	= THIS_MODULE,
+		.pm	= BFIN_SPORT_SPI_PM_OPS,
 	},
 	.probe   = bfin_sport_spi_probe,
 	.remove  = bfin_sport_spi_remove,
-	.suspend = bfin_sport_spi_suspend,
-	.resume  = bfin_sport_spi_resume,
 };
 module_platform_driver(bfin_sport_spi_driver);

@@ -3,7 +3,6 @@
 #include "../fs/xfs/xfs_sysctl.h"
 #include <linux/sunrpc/debug.h>
 #include <linux/string.h>
-#include <net/ip_vs.h>
 #include <linux/syscalls.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
@@ -15,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/compat.h>
 
 #ifdef CONFIG_SYSCTL_SYSCALL
 
@@ -390,7 +390,6 @@ static const struct bin_table bin_net_ipv4_table[] = {
 	{ CTL_INT,	NET_TCP_MTU_PROBING,			"tcp_mtu_probing" },
 	{ CTL_INT,	NET_TCP_BASE_MSS,			"tcp_base_mss" },
 	{ CTL_INT,	NET_IPV4_TCP_WORKAROUND_SIGNED_WINDOWS,	"tcp_workaround_signed_windows" },
-	{ CTL_INT,	NET_TCP_DMA_COPYBREAK,			"tcp_dma_copybreak" },
 	{ CTL_INT,	NET_TCP_SLOW_START_AFTER_IDLE,		"tcp_slow_start_after_idle" },
 	{ CTL_INT,	NET_CIPSOV4_CACHE_ENABLE,		"cipso_cache_enable" },
 	{ CTL_INT,	NET_CIPSOV4_CACHE_BUCKET_SIZE,		"cipso_cache_bucket_size" },
@@ -522,6 +521,7 @@ static const struct bin_table bin_net_ipv6_conf_var_table[] = {
 	{ CTL_INT,	NET_IPV6_ACCEPT_RA_RT_INFO_MAX_PLEN,	"accept_ra_rt_info_max_plen" },
 	{ CTL_INT,	NET_IPV6_PROXY_NDP,			"proxy_ndp" },
 	{ CTL_INT,	NET_IPV6_ACCEPT_SOURCE_ROUTE,		"accept_source_route" },
+	{ CTL_INT,	NET_IPV6_ACCEPT_RA_FROM_LOCAL,		"accept_ra_from_local" },
 	{}
 };
 
@@ -1024,7 +1024,7 @@ static ssize_t bin_intvec(struct file *file,
 			if (get_user(value, vec + i))
 				goto out_kfree;
 
-			str += snprintf(str, end - str, "%lu\t", value);
+			str += scnprintf(str, end - str, "%lu\t", value);
 		}
 
 		result = kernel_write(file, buffer, str - buffer, 0);
@@ -1095,7 +1095,7 @@ static ssize_t bin_ulongvec(struct file *file,
 			if (get_user(value, vec + i))
 				goto out_kfree;
 
-			str += snprintf(str, end - str, "%lu\t", value);
+			str += scnprintf(str, end - str, "%lu\t", value);
 		}
 
 		result = kernel_write(file, buffer, str - buffer, 0);
@@ -1205,7 +1205,7 @@ static ssize_t bin_dn_node_address(struct file *file,
 		if (get_user(dnaddr, (__le16 __user *)newval))
 			goto out;
 
-		len = snprintf(buf, sizeof(buf), "%hu.%hu",
+		len = scnprintf(buf, sizeof(buf), "%hu.%hu",
 				le16_to_cpu(dnaddr) >> 10,
 				le16_to_cpu(dnaddr) & 0x3ff);
 
@@ -1447,7 +1447,6 @@ SYSCALL_DEFINE1(sysctl, struct __sysctl_args __user *, args)
 
 
 #ifdef CONFIG_COMPAT
-#include <asm/compat.h>
 
 struct compat_sysctl_args {
 	compat_uptr_t	name;
@@ -1459,7 +1458,7 @@ struct compat_sysctl_args {
 	compat_ulong_t	__unused[4];
 };
 
-asmlinkage long compat_sys_sysctl(struct compat_sysctl_args __user *args)
+COMPAT_SYSCALL_DEFINE1(sysctl, struct compat_sysctl_args __user *, args)
 {
 	struct compat_sysctl_args tmp;
 	compat_size_t __user *compat_oldlenp;

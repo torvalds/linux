@@ -21,17 +21,18 @@
 
 #include "dvb_usb_common.h"
 
-int dvb_usbv2_disable_rc_polling;
+static int dvb_usbv2_disable_rc_polling;
 module_param_named(disable_rc_polling, dvb_usbv2_disable_rc_polling, int, 0644);
 MODULE_PARM_DESC(disable_rc_polling,
 		"disable remote control polling (default: 0)");
 static int dvb_usb_force_pid_filter_usage;
 module_param_named(force_pid_filter_usage, dvb_usb_force_pid_filter_usage,
 		int, 0444);
-MODULE_PARM_DESC(force_pid_filter_usage, "force all DVB USB devices to use a " \
-		"PID filter, if any (default: 0)");
+MODULE_PARM_DESC(force_pid_filter_usage,
+		"force all DVB USB devices to use a PID filter, if any (default: 0)");
 
-static int dvb_usbv2_download_firmware(struct dvb_usb_device *d, const char *name)
+static int dvb_usbv2_download_firmware(struct dvb_usb_device *d,
+		const char *name)
 {
 	int ret;
 	const struct firmware *fw;
@@ -44,10 +45,9 @@ static int dvb_usbv2_download_firmware(struct dvb_usb_device *d, const char *nam
 
 	ret = request_firmware(&fw, name, &d->udev->dev);
 	if (ret < 0) {
-		dev_err(&d->udev->dev, "%s: Did not find the firmware file "\
-				"'%s'. Please see linux/Documentation/dvb/ " \
-				"for more details on firmware-problems. " \
-				"Status %d\n", KBUILD_MODNAME, name, ret);
+		dev_err(&d->udev->dev,
+				"%s: Did not find the firmware file '%s'. Please see linux/Documentation/dvb/ for more details on firmware-problems. Status %d\n",
+				KBUILD_MODNAME, name, ret);
 		goto err;
 	}
 
@@ -164,7 +164,7 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	dev->driver_name = (char *) d->props->driver_name;
 	dev->map_name = d->rc.map_name;
 	dev->driver_type = d->rc.driver_type;
-	dev->allowed_protos = d->rc.allowed_protos;
+	dev->allowed_protocols = d->rc.allowed_protos;
 	dev->change_protocol = d->rc.change_protocol;
 	dev->priv = d;
 
@@ -181,9 +181,9 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 		/* initialize a work queue for handling polling */
 		INIT_DELAYED_WORK(&d->rc_query_work,
 				dvb_usb_read_remote_control);
-		dev_info(&d->udev->dev, "%s: schedule remote query interval " \
-				"to %d msecs\n", KBUILD_MODNAME,
-				d->rc.interval);
+		dev_info(&d->udev->dev,
+				"%s: schedule remote query interval to %d msecs\n",
+				KBUILD_MODNAME, d->rc.interval);
 		schedule_delayed_work(&d->rc_query_work,
 				msecs_to_jiffies(d->rc.interval));
 		d->rc_polling_active = true;
@@ -253,128 +253,151 @@ static int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
 	return usb_urb_exitv2(&adap->stream);
 }
 
-static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
-		int count)
+static int dvb_usb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_usb_adapter *adap = dvbdmxfeed->demux->priv;
 	struct dvb_usb_device *d = adap_to_d(adap);
-	int ret;
-	dev_dbg(&d->udev->dev, "%s: adap=%d active_fe=%d feed_type=%d " \
-			"setting pid [%s]: %04x (%04d) at index %d '%s'\n",
+	int ret = 0;
+	struct usb_data_stream_properties stream_props;
+	dev_dbg(&d->udev->dev,
+			"%s: adap=%d active_fe=%d feed_type=%d setting pid [%s]: %04x (%04d) at index %d\n",
 			__func__, adap->id, adap->active_fe, dvbdmxfeed->type,
 			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
-			dvbdmxfeed->pid, dvbdmxfeed->index,
-			(count == 1) ? "on" : "off");
+			dvbdmxfeed->pid, dvbdmxfeed->index);
+
+	/* wait init is done */
+	wait_on_bit(&adap->state_bits, ADAP_INIT, TASK_UNINTERRUPTIBLE);
 
 	if (adap->active_fe == -1)
 		return -EINVAL;
 
-	adap->feed_count += count;
+	/* skip feed setup if we are already feeding */
+	if (adap->feed_count++ > 0)
+		goto skip_feed_start;
 
-	/* stop feeding if it is last pid */
-	if (adap->feed_count == 0) {
-		dev_dbg(&d->udev->dev, "%s: stop feeding\n", __func__);
+	/* set 'streaming' status bit */
+	set_bit(ADAP_STREAMING, &adap->state_bits);
 
-		if (d->props->streaming_ctrl) {
-			ret = d->props->streaming_ctrl(
-					adap->fe[adap->active_fe], 0);
-			if (ret < 0) {
-				dev_err(&d->udev->dev, "%s: streaming_ctrl() " \
-						"failed=%d\n", KBUILD_MODNAME,
-						ret);
-				usb_urb_killv2(&adap->stream);
-				goto err_mutex_unlock;
-			}
-		}
-		usb_urb_killv2(&adap->stream);
-		mutex_unlock(&adap->sync_mutex);
+	/* resolve input and output streaming parameters */
+	if (d->props->get_stream_config) {
+		memcpy(&stream_props, &adap->props->stream,
+				sizeof(struct usb_data_stream_properties));
+		ret = d->props->get_stream_config(adap->fe[adap->active_fe],
+				&adap->ts_type, &stream_props);
+		if (ret)
+			dev_err(&d->udev->dev,
+					"%s: get_stream_config() failed=%d\n",
+					KBUILD_MODNAME, ret);
+	} else {
+		stream_props = adap->props->stream;
 	}
 
-	/* activate the pid on the device pid filter */
-	if (adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER &&
-			adap->pid_filtering && adap->props->pid_filter) {
+	switch (adap->ts_type) {
+	case DVB_USB_FE_TS_TYPE_204:
+		adap->stream.complete = dvb_usb_data_complete_204;
+		break;
+	case DVB_USB_FE_TS_TYPE_RAW:
+		adap->stream.complete = dvb_usb_data_complete_raw;
+		break;
+	case DVB_USB_FE_TS_TYPE_188:
+	default:
+		adap->stream.complete = dvb_usb_data_complete;
+		break;
+	}
+
+	/* submit USB streaming packets */
+	usb_urb_submitv2(&adap->stream, &stream_props);
+
+	/* enable HW PID filter */
+	if (adap->pid_filtering && adap->props->pid_filter_ctrl) {
+		ret = adap->props->pid_filter_ctrl(adap, 1);
+		if (ret)
+			dev_err(&d->udev->dev,
+					"%s: pid_filter_ctrl() failed=%d\n",
+					KBUILD_MODNAME, ret);
+	}
+
+	/* ask device to start streaming */
+	if (d->props->streaming_ctrl) {
+		ret = d->props->streaming_ctrl(adap->fe[adap->active_fe], 1);
+		if (ret)
+			dev_err(&d->udev->dev,
+					"%s: streaming_ctrl() failed=%d\n",
+					KBUILD_MODNAME, ret);
+	}
+skip_feed_start:
+
+	/* add PID to device HW PID filter */
+	if (adap->pid_filtering && adap->props->pid_filter) {
 		ret = adap->props->pid_filter(adap, dvbdmxfeed->index,
-				dvbdmxfeed->pid, (count == 1) ? 1 : 0);
-		if (ret < 0)
+				dvbdmxfeed->pid, 1);
+		if (ret)
 			dev_err(&d->udev->dev, "%s: pid_filter() failed=%d\n",
 					KBUILD_MODNAME, ret);
 	}
 
-	/* start feeding if it is first pid */
-	if (adap->feed_count == 1 && count == 1) {
-		struct usb_data_stream_properties stream_props;
-		mutex_lock(&adap->sync_mutex);
-		dev_dbg(&d->udev->dev, "%s: start feeding\n", __func__);
-
-		/* resolve input and output streaming paramters */
-		if (d->props->get_stream_config) {
-			memcpy(&stream_props, &adap->props->stream,
-				sizeof(struct usb_data_stream_properties));
-			ret = d->props->get_stream_config(
-					adap->fe[adap->active_fe],
-					&adap->ts_type, &stream_props);
-			if (ret < 0)
-				goto err_mutex_unlock;
-		} else {
-			stream_props = adap->props->stream;
-		}
-
-		switch (adap->ts_type) {
-		case DVB_USB_FE_TS_TYPE_204:
-			adap->stream.complete = dvb_usb_data_complete_204;
-			break;
-		case DVB_USB_FE_TS_TYPE_RAW:
-			adap->stream.complete = dvb_usb_data_complete_raw;
-			break;
-		case DVB_USB_FE_TS_TYPE_188:
-		default:
-			adap->stream.complete = dvb_usb_data_complete;
-			break;
-		}
-
-		usb_urb_submitv2(&adap->stream, &stream_props);
-
-		if (adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER &&
-				adap->props->caps &
-				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF &&
-				adap->props->pid_filter_ctrl) {
-			ret = adap->props->pid_filter_ctrl(adap,
-					adap->pid_filtering);
-			if (ret < 0) {
-				dev_err(&d->udev->dev, "%s: " \
-						"pid_filter_ctrl() failed=%d\n",
-						KBUILD_MODNAME, ret);
-				goto err_mutex_unlock;
-			}
-		}
-
-		if (d->props->streaming_ctrl) {
-			ret = d->props->streaming_ctrl(
-					adap->fe[adap->active_fe], 1);
-			if (ret < 0) {
-				dev_err(&d->udev->dev, "%s: streaming_ctrl() " \
-						"failed=%d\n", KBUILD_MODNAME,
-						ret);
-				goto err_mutex_unlock;
-			}
-		}
-	}
-
-	return 0;
-err_mutex_unlock:
-	mutex_unlock(&adap->sync_mutex);
-	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
+	if (ret)
+		dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
-}
-
-static int dvb_usb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
-{
-	return dvb_usb_ctrl_feed(dvbdmxfeed, 1);
 }
 
 static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-	return dvb_usb_ctrl_feed(dvbdmxfeed, -1);
+	struct dvb_usb_adapter *adap = dvbdmxfeed->demux->priv;
+	struct dvb_usb_device *d = adap_to_d(adap);
+	int ret = 0;
+	dev_dbg(&d->udev->dev,
+			"%s: adap=%d active_fe=%d feed_type=%d setting pid [%s]: %04x (%04d) at index %d\n",
+			__func__, adap->id, adap->active_fe, dvbdmxfeed->type,
+			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
+			dvbdmxfeed->pid, dvbdmxfeed->index);
+
+	if (adap->active_fe == -1)
+		return -EINVAL;
+
+	/* remove PID from device HW PID filter */
+	if (adap->pid_filtering && adap->props->pid_filter) {
+		ret = adap->props->pid_filter(adap, dvbdmxfeed->index,
+				dvbdmxfeed->pid, 0);
+		if (ret)
+			dev_err(&d->udev->dev, "%s: pid_filter() failed=%d\n",
+					KBUILD_MODNAME, ret);
+	}
+
+	/* we cannot stop streaming until last PID is removed */
+	if (--adap->feed_count > 0)
+		goto skip_feed_stop;
+
+	/* ask device to stop streaming */
+	if (d->props->streaming_ctrl) {
+		ret = d->props->streaming_ctrl(adap->fe[adap->active_fe], 0);
+		if (ret)
+			dev_err(&d->udev->dev,
+					"%s: streaming_ctrl() failed=%d\n",
+					KBUILD_MODNAME, ret);
+	}
+
+	/* disable HW PID filter */
+	if (adap->pid_filtering && adap->props->pid_filter_ctrl) {
+		ret = adap->props->pid_filter_ctrl(adap, 0);
+		if (ret)
+			dev_err(&d->udev->dev,
+					"%s: pid_filter_ctrl() failed=%d\n",
+					KBUILD_MODNAME, ret);
+	}
+
+	/* kill USB streaming packets */
+	usb_urb_killv2(&adap->stream);
+
+	/* clear 'streaming' status bit */
+	clear_bit(ADAP_STREAMING, &adap->state_bits);
+	smp_mb__after_atomic();
+	wake_up_bit(&adap->state_bits, ADAP_STREAMING);
+skip_feed_stop:
+
+	if (ret)
+		dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
+	return ret;
 }
 
 static int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
@@ -434,8 +457,6 @@ static int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 				KBUILD_MODNAME, ret);
 		goto err_dvb_net_init;
 	}
-
-	mutex_init(&adap->sync_mutex);
 
 	return 0;
 err_dvb_net_init:
@@ -500,7 +521,7 @@ static int dvb_usb_fe_init(struct dvb_frontend *fe)
 
 	if (!adap->suspend_resume_active) {
 		adap->active_fe = fe->id;
-		mutex_lock(&adap->sync_mutex);
+		set_bit(ADAP_INIT, &adap->state_bits);
 	}
 
 	ret = dvb_usbv2_device_power_ctrl(d, 1);
@@ -519,8 +540,11 @@ static int dvb_usb_fe_init(struct dvb_frontend *fe)
 			goto err;
 	}
 err:
-	if (!adap->suspend_resume_active)
-		mutex_unlock(&adap->sync_mutex);
+	if (!adap->suspend_resume_active) {
+		clear_bit(ADAP_INIT, &adap->state_bits);
+		smp_mb__after_atomic();
+		wake_up_bit(&adap->state_bits, ADAP_INIT);
+	}
 
 	dev_dbg(&d->udev->dev, "%s: ret=%d\n", __func__, ret);
 	return ret;
@@ -534,8 +558,11 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 	dev_dbg(&d->udev->dev, "%s: adap=%d fe=%d\n", __func__, adap->id,
 			fe->id);
 
-	if (!adap->suspend_resume_active)
-		mutex_lock(&adap->sync_mutex);
+	if (!adap->suspend_resume_active) {
+		set_bit(ADAP_SLEEP, &adap->state_bits);
+		wait_on_bit(&adap->state_bits, ADAP_STREAMING,
+				TASK_UNINTERRUPTIBLE);
+	}
 
 	if (adap->fe_sleep[fe->id]) {
 		ret = adap->fe_sleep[fe->id](fe);
@@ -555,7 +582,9 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 err:
 	if (!adap->suspend_resume_active) {
 		adap->active_fe = -1;
-		mutex_unlock(&adap->sync_mutex);
+		clear_bit(ADAP_SLEEP, &adap->state_bits);
+		smp_mb__after_atomic();
+		wake_up_bit(&adap->state_bits, ADAP_SLEEP);
 	}
 
 	dev_dbg(&d->udev->dev, "%s: ret=%d\n", __func__, ret);
@@ -574,8 +603,9 @@ static int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 	if (d->props->frontend_attach) {
 		ret = d->props->frontend_attach(adap);
 		if (ret < 0) {
-			dev_dbg(&d->udev->dev, "%s: frontend_attach() " \
-					"failed=%d\n", __func__, ret);
+			dev_dbg(&d->udev->dev,
+					"%s: frontend_attach() failed=%d\n",
+					__func__, ret);
 			goto err_dvb_frontend_detach;
 		}
 	} else {
@@ -595,8 +625,9 @@ static int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 
 		ret = dvb_register_frontend(&adap->dvb_adap, adap->fe[i]);
 		if (ret < 0) {
-			dev_err(&d->udev->dev, "%s: frontend%d registration " \
-					"failed\n", KBUILD_MODNAME, i);
+			dev_err(&d->udev->dev,
+					"%s: frontend%d registration failed\n",
+					KBUILD_MODNAME, i);
 			goto err_dvb_unregister_frontend;
 		}
 
@@ -633,14 +664,32 @@ err:
 
 static int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 {
-	int i;
-	dev_dbg(&adap_to_d(adap)->udev->dev, "%s: adap=%d\n", __func__,
-			adap->id);
+	int ret, i;
+	struct dvb_usb_device *d = adap_to_d(adap);
+
+	dev_dbg(&d->udev->dev, "%s: adap=%d\n", __func__, adap->id);
 
 	for (i = MAX_NO_OF_FE_PER_ADAP - 1; i >= 0; i--) {
 		if (adap->fe[i]) {
 			dvb_unregister_frontend(adap->fe[i]);
 			dvb_frontend_detach(adap->fe[i]);
+		}
+	}
+
+	if (d->props->tuner_detach) {
+		ret = d->props->tuner_detach(adap);
+		if (ret < 0) {
+			dev_dbg(&d->udev->dev, "%s: tuner_detach() failed=%d\n",
+					__func__, ret);
+		}
+	}
+
+	if (d->props->frontend_detach) {
+		ret = d->props->frontend_detach(adap);
+		if (ret < 0) {
+			dev_dbg(&d->udev->dev,
+					"%s: frontend_detach() failed=%d\n",
+					__func__, ret);
 		}
 	}
 
@@ -670,33 +719,33 @@ static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 		/* speed - when running at FULL speed we need a HW PID filter */
 		if (d->udev->speed == USB_SPEED_FULL &&
 				!(adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER)) {
-			dev_err(&d->udev->dev, "%s: this USB2.0 device " \
-					"cannot be run on a USB1.1 port (it " \
-					"lacks a hardware PID filter)\n",
+			dev_err(&d->udev->dev,
+					"%s: this USB2.0 device cannot be run on a USB1.1 port (it lacks a hardware PID filter)\n",
 					KBUILD_MODNAME);
 			ret = -ENODEV;
 			goto err;
 		} else if ((d->udev->speed == USB_SPEED_FULL &&
 				adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER) ||
 				(adap->props->caps & DVB_USB_ADAP_NEED_PID_FILTERING)) {
-			dev_info(&d->udev->dev, "%s: will use the device's " \
-					"hardware PID filter " \
-					"(table count: %d)\n", KBUILD_MODNAME,
+			dev_info(&d->udev->dev,
+					"%s: will use the device's hardware PID filter (table count: %d)\n",
+					KBUILD_MODNAME,
 					adap->props->pid_filter_count);
 			adap->pid_filtering  = 1;
 			adap->max_feed_count = adap->props->pid_filter_count;
 		} else {
-			dev_info(&d->udev->dev, "%s: will pass the complete " \
-					"MPEG2 transport stream to the " \
-					"software demuxer\n", KBUILD_MODNAME);
+			dev_info(&d->udev->dev,
+					"%s: will pass the complete MPEG2 transport stream to the software demuxer\n",
+					KBUILD_MODNAME);
 			adap->pid_filtering  = 0;
 			adap->max_feed_count = 255;
 		}
 
 		if (!adap->pid_filtering && dvb_usb_force_pid_filter_usage &&
 				adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER) {
-			dev_info(&d->udev->dev, "%s: PID filter enabled by " \
-					"module option\n", KBUILD_MODNAME);
+			dev_info(&d->udev->dev,
+					"%s: PID filter enabled by module option\n",
+					KBUILD_MODNAME);
 			adap->pid_filtering  = 1;
 			adap->max_feed_count = adap->props->pid_filter_count;
 		}
@@ -731,9 +780,9 @@ static int dvb_usbv2_adapter_exit(struct dvb_usb_device *d)
 
 	for (i = MAX_NO_OF_ADAPTER_PER_DEVICE - 1; i >= 0; i--) {
 		if (d->adapter[i].props) {
-			dvb_usbv2_adapter_frontend_exit(&d->adapter[i]);
 			dvb_usbv2_adapter_dvb_exit(&d->adapter[i]);
 			dvb_usbv2_adapter_stream_exit(&d->adapter[i]);
+			dvb_usbv2_adapter_frontend_exit(&d->adapter[i]);
 		}
 	}
 
@@ -794,93 +843,6 @@ err:
 	return ret;
 }
 
-/*
- * udev, which is used for the firmware downloading, requires we cannot
- * block during module_init(). module_init() calls USB probe() which
- * is this routine. Due to that we delay actual operation using workqueue
- * and return always success here.
- */
-static void dvb_usbv2_init_work(struct work_struct *work)
-{
-	int ret;
-	struct dvb_usb_device *d =
-			container_of(work, struct dvb_usb_device, probe_work);
-
-	d->work_pid = current->pid;
-	dev_dbg(&d->udev->dev, "%s: work_pid=%d\n", __func__, d->work_pid);
-
-	if (d->props->size_of_priv) {
-		d->priv = kzalloc(d->props->size_of_priv, GFP_KERNEL);
-		if (!d->priv) {
-			dev_err(&d->udev->dev, "%s: kzalloc() failed\n",
-					KBUILD_MODNAME);
-			ret = -ENOMEM;
-			goto err_usb_driver_release_interface;
-		}
-	}
-
-	if (d->props->identify_state) {
-		const char *name = NULL;
-		ret = d->props->identify_state(d, &name);
-		if (ret == 0) {
-			;
-		} else if (ret == COLD) {
-			dev_info(&d->udev->dev, "%s: found a '%s' in cold " \
-					"state\n", KBUILD_MODNAME, d->name);
-
-			if (!name)
-				name = d->props->firmware;
-
-			ret = dvb_usbv2_download_firmware(d, name);
-			if (ret == 0) {
-				/* device is warm, continue initialization */
-				;
-			} else if (ret == RECONNECTS_USB) {
-				/*
-				 * USB core will call disconnect() and then
-				 * probe() as device reconnects itself from the
-				 * USB bus. disconnect() will release all driver
-				 * resources and probe() is called for 'new'
-				 * device. As 'new' device is warm we should
-				 * never go here again.
-				 */
-				return;
-			} else {
-				/*
-				 * Unexpected error. We must unregister driver
-				 * manually from the device, because device is
-				 * already register by returning from probe()
-				 * with success. usb_driver_release_interface()
-				 * finally calls disconnect() in order to free
-				 * resources.
-				 */
-				goto err_usb_driver_release_interface;
-			}
-		} else {
-			goto err_usb_driver_release_interface;
-		}
-	}
-
-	dev_info(&d->udev->dev, "%s: found a '%s' in warm state\n",
-			KBUILD_MODNAME, d->name);
-
-	ret = dvb_usbv2_init(d);
-	if (ret < 0)
-		goto err_usb_driver_release_interface;
-
-	dev_info(&d->udev->dev, "%s: '%s' successfully initialized and " \
-			"connected\n", KBUILD_MODNAME, d->name);
-
-	return;
-err_usb_driver_release_interface:
-	dev_info(&d->udev->dev, "%s: '%s' error while loading driver (%d)\n",
-			KBUILD_MODNAME, d->name, ret);
-	usb_driver_release_interface(to_usb_driver(d->intf->dev.driver),
-			d->intf);
-	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
-	return;
-}
-
 int dvb_usbv2_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
@@ -909,29 +871,78 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 	d->name = driver_info->name;
 	d->rc_map = driver_info->rc_map;
 	d->udev = udev;
-	d->intf = intf;
 	d->props = driver_info->props;
 
-	if (d->intf->cur_altsetting->desc.bInterfaceNumber !=
+	if (intf->cur_altsetting->desc.bInterfaceNumber !=
 			d->props->bInterfaceNumber) {
 		ret = -ENODEV;
-		goto err_kfree;
+		goto err_free_all;
 	}
 
 	mutex_init(&d->usb_mutex);
 	mutex_init(&d->i2c_mutex);
-	INIT_WORK(&d->probe_work, dvb_usbv2_init_work);
-	usb_set_intfdata(intf, d);
-	ret = schedule_work(&d->probe_work);
-	if (ret < 0) {
-		dev_err(&d->udev->dev, "%s: schedule_work() failed\n",
-				KBUILD_MODNAME);
-		goto err_kfree;
+
+	if (d->props->size_of_priv) {
+		d->priv = kzalloc(d->props->size_of_priv, GFP_KERNEL);
+		if (!d->priv) {
+			dev_err(&d->udev->dev, "%s: kzalloc() failed\n",
+					KBUILD_MODNAME);
+			ret = -ENOMEM;
+			goto err_free_all;
+		}
 	}
 
+	if (d->props->identify_state) {
+		const char *name = NULL;
+		ret = d->props->identify_state(d, &name);
+		if (ret == 0) {
+			;
+		} else if (ret == COLD) {
+			dev_info(&d->udev->dev,
+					"%s: found a '%s' in cold state\n",
+					KBUILD_MODNAME, d->name);
+
+			if (!name)
+				name = d->props->firmware;
+
+			ret = dvb_usbv2_download_firmware(d, name);
+			if (ret == 0) {
+				/* device is warm, continue initialization */
+				;
+			} else if (ret == RECONNECTS_USB) {
+				/*
+				 * USB core will call disconnect() and then
+				 * probe() as device reconnects itself from the
+				 * USB bus. disconnect() will release all driver
+				 * resources and probe() is called for 'new'
+				 * device. As 'new' device is warm we should
+				 * never go here again.
+				 */
+				goto exit;
+			} else {
+				goto err_free_all;
+			}
+		} else {
+			goto err_free_all;
+		}
+	}
+
+	dev_info(&d->udev->dev, "%s: found a '%s' in warm state\n",
+			KBUILD_MODNAME, d->name);
+
+	ret = dvb_usbv2_init(d);
+	if (ret < 0)
+		goto err_free_all;
+
+	dev_info(&d->udev->dev,
+			"%s: '%s' successfully initialized and connected\n",
+			KBUILD_MODNAME, d->name);
+exit:
+	usb_set_intfdata(intf, d);
+
 	return 0;
-err_kfree:
-	kfree(d);
+err_free_all:
+	dvb_usbv2_exit(d);
 err:
 	dev_dbg(&udev->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
@@ -943,12 +954,8 @@ void dvb_usbv2_disconnect(struct usb_interface *intf)
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
 	const char *name = d->name;
 	struct device dev = d->udev->dev;
-	dev_dbg(&d->udev->dev, "%s: pid=%d work_pid=%d\n", __func__,
-			current->pid, d->work_pid);
-
-	/* ensure initialization work is finished until release resources */
-	if (d->work_pid != current->pid)
-		cancel_work_sync(&d->probe_work);
+	dev_dbg(&d->udev->dev, "%s: bInterfaceNumber=%d\n", __func__,
+			intf->cur_altsetting->desc.bInterfaceNumber);
 
 	if (d->props->exit)
 		d->props->exit(d);

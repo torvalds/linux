@@ -21,7 +21,6 @@ struct mc13xxx_regulator {
 	int vsel_reg;
 	int vsel_shift;
 	int vsel_mask;
-	int hi_bit;
 };
 
 struct mc13xxx_regulator_priv {
@@ -39,7 +38,7 @@ extern int mc13xxx_fixed_regulator_set_voltage(struct regulator_dev *rdev,
 extern int mc13xxx_get_num_regulators_dt(struct platform_device *pdev);
 extern struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 	struct platform_device *pdev, struct mc13xxx_regulator *regulators,
-	int num_regulators, int *num_parsed);
+	int num_regulators);
 #else
 static inline int mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 {
@@ -48,7 +47,7 @@ static inline int mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 
 static inline struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 	struct platform_device *pdev, struct mc13xxx_regulator *regulators,
-	int num_regulators, int *num_parsed)
+	int num_regulators)
 {
 	return NULL;
 }

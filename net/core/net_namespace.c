@@ -10,7 +10,8 @@
 #include <linux/idr.h>
 #include <linux/rculist.h>
 #include <linux/nsproxy.h>
-#include <linux/proc_fs.h>
+#include <linux/fs.h>
+#include <linux/proc_ns.h>
 #include <linux/file.h>
 #include <linux/export.h>
 #include <linux/user_namespace.h>
@@ -23,7 +24,7 @@
 
 static LIST_HEAD(pernet_list);
 static struct list_head *first_device = &pernet_list;
-static DEFINE_MUTEX(net_mutex);
+DEFINE_MUTEX(net_mutex);
 
 LIST_HEAD(net_namespace_list);
 EXPORT_SYMBOL_GPL(net_namespace_list);
@@ -223,7 +224,7 @@ static void net_free(struct net *net)
 		return;
 	}
 #endif
-	kfree(net->gen);
+	kfree(rcu_access_pointer(net->gen));
 	kmem_cache_free(net_cachep, net);
 }
 
@@ -272,7 +273,7 @@ static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
 	struct net *net, *tmp;
-	LIST_HEAD(net_kill_list);
+	struct list_head net_kill_list;
 	LIST_HEAD(net_exit_list);
 
 	/* Atomically snapshot the list of namespaces to cleanup */
@@ -336,7 +337,7 @@ EXPORT_SYMBOL_GPL(__put_net);
 
 struct net *get_net_ns_by_fd(int fd)
 {
-	struct proc_inode *ei;
+	struct proc_ns *ei;
 	struct file *file;
 	struct net *net;
 
@@ -344,7 +345,7 @@ struct net *get_net_ns_by_fd(int fd)
 	if (IS_ERR(file))
 		return ERR_CAST(file);
 
-	ei = PROC_I(file_inode(file));
+	ei = get_proc_ns(file_inode(file));
 	if (ei->ns_ops == &netns_operations)
 		net = get_net(ei->ns);
 	else
@@ -372,9 +373,11 @@ struct net *get_net_ns_by_pid(pid_t pid)
 	tsk = find_task_by_vpid(pid);
 	if (tsk) {
 		struct nsproxy *nsproxy;
-		nsproxy = task_nsproxy(tsk);
+		task_lock(tsk);
+		nsproxy = tsk->nsproxy;
 		if (nsproxy)
 			net = get_net(nsproxy->net_ns);
+		task_unlock(tsk);
 	}
 	rcu_read_unlock();
 	return net;
@@ -631,11 +634,11 @@ static void *netns_get(struct task_struct *task)
 	struct net *net = NULL;
 	struct nsproxy *nsproxy;
 
-	rcu_read_lock();
-	nsproxy = task_nsproxy(task);
+	task_lock(task);
+	nsproxy = task->nsproxy;
 	if (nsproxy)
 		net = get_net(nsproxy->net_ns);
-	rcu_read_unlock();
+	task_unlock(task);
 
 	return net;
 }
@@ -650,7 +653,7 @@ static int netns_install(struct nsproxy *nsproxy, void *ns)
 	struct net *net = ns;
 
 	if (!ns_capable(net->user_ns, CAP_SYS_ADMIN) ||
-	    !nsown_capable(CAP_SYS_ADMIN))
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
 	put_net(nsproxy->net_ns);

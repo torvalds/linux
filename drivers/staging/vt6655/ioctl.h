@@ -31,27 +31,6 @@
 
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
-
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
-int private_ioctl(PSDevice pDevice, struct ifreq *rq);
-
-/*
-void vConfigWEPKey (
-    PSDevice pDevice,
-    unsigned long dwKeyIndex,
-    unsigned char *pbyKey,
-    unsigned long uKeyLength
-    );
-*/
+int private_ioctl(struct vnt_private *, struct ifreq *rq);
 
 #endif // __IOCTL_H__
-
-
-

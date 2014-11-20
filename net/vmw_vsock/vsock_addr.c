@@ -17,8 +17,7 @@
 #include <linux/socket.h>
 #include <linux/stddef.h>
 #include <net/sock.h>
-
-#include "vsock_addr.h"
+#include <net/vsock_addr.h>
 
 void vsock_addr_init(struct sockaddr_vm *addr, u32 cid, u32 port)
 {
@@ -63,16 +62,6 @@ bool vsock_addr_equals_addr(const struct sockaddr_vm *addr,
 		addr->svm_port == other->svm_port;
 }
 EXPORT_SYMBOL_GPL(vsock_addr_equals_addr);
-
-bool vsock_addr_equals_addr_any(const struct sockaddr_vm *addr,
-				const struct sockaddr_vm *other)
-{
-	return (addr->svm_cid == VMADDR_CID_ANY ||
-		other->svm_cid == VMADDR_CID_ANY ||
-		addr->svm_cid == other->svm_cid) &&
-	       addr->svm_port == other->svm_port;
-}
-EXPORT_SYMBOL_GPL(vsock_addr_equals_addr_any);
 
 int vsock_addr_cast(const struct sockaddr *addr,
 		    size_t len, struct sockaddr_vm **out_addr)

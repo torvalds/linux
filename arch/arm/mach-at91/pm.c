@@ -19,89 +19,22 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/clk/at91_pmc.h>
 
 #include <asm/irq.h>
 #include <linux/atomic.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include <mach/at91_pmc.h>
 #include <mach/cpu.h>
+#include <mach/hardware.h>
 
 #include "at91_aic.h"
 #include "generic.h"
 #include "pm.h"
+#include "gpio.h"
 
-/*
- * Show the reason for the previous system reset.
- */
-
-#include "at91_rstc.h"
-#include "at91_shdwc.h"
-
-static void __init show_reset_status(void)
-{
-	static char reset[] __initdata = "reset";
-
-	static char general[] __initdata = "general";
-	static char wakeup[] __initdata = "wakeup";
-	static char watchdog[] __initdata = "watchdog";
-	static char software[] __initdata = "software";
-	static char user[] __initdata = "user";
-	static char unknown[] __initdata = "unknown";
-
-	static char signal[] __initdata = "signal";
-	static char rtc[] __initdata = "rtc";
-	static char rtt[] __initdata = "rtt";
-	static char restore[] __initdata = "power-restored";
-
-	char *reason, *r2 = reset;
-	u32 reset_type, wake_type;
-
-	if (!at91_shdwc_base || !at91_rstc_base)
-		return;
-
-	reset_type = at91_rstc_read(AT91_RSTC_SR) & AT91_RSTC_RSTTYP;
-	wake_type = at91_shdwc_read(AT91_SHDW_SR);
-
-	switch (reset_type) {
-	case AT91_RSTC_RSTTYP_GENERAL:
-		reason = general;
-		break;
-	case AT91_RSTC_RSTTYP_WAKEUP:
-		/* board-specific code enabled the wakeup sources */
-		reason = wakeup;
-
-		/* "wakeup signal" */
-		if (wake_type & AT91_SHDW_WAKEUP0)
-			r2 = signal;
-		else {
-			r2 = reason;
-			if (wake_type & AT91_SHDW_RTTWK)	/* rtt wakeup */
-				reason = rtt;
-			else if (wake_type & AT91_SHDW_RTCWK)	/* rtc wakeup */
-				reason = rtc;
-			else if (wake_type == 0)	/* power-restored wakeup */
-				reason = restore;
-			else				/* unknown wakeup */
-				reason = unknown;
-		}
-		break;
-	case AT91_RSTC_RSTTYP_WATCHDOG:
-		reason = watchdog;
-		break;
-	case AT91_RSTC_RSTTYP_SOFTWARE:
-		reason = software;
-		break;
-	case AT91_RSTC_RSTTYP_USER:
-		reason = user;
-		break;
-	default:
-		reason = unknown;
-		break;
-	}
-	pr_info("AT91: Starting after %s %s\n", reason, r2);
-}
+static void (*at91_pm_standby)(void);
 
 static int at91_pm_valid_state(suspend_state_t state)
 {
@@ -153,9 +86,6 @@ static int at91_pm_verify_clocks(void)
 		}
 	}
 
-	if (!IS_ENABLED(CONFIG_AT91_PROGRAMMABLE_CLOCKS))
-		return 1;
-
 	/* PCK0..PCK3 must be disabled, or configured to use clk32k */
 	for (i = 0; i < 4; i++) {
 		u32 css;
@@ -205,16 +135,19 @@ static int at91_pm_enter(suspend_state_t state)
 		at91_pinctrl_gpio_suspend();
 	else
 		at91_gpio_suspend();
-	at91_irq_suspend();
 
-	pr_debug("AT91: PM - wake mask %08x, pm state %d\n",
-			/* remember all the always-wake irqs */
-			(at91_pmc_read(AT91_PMC_PCSR)
-					| (1 << AT91_ID_FIQ)
-					| (1 << AT91_ID_SYS)
-					| (at91_extern_irq))
-				& at91_aic_read(AT91_AIC_IMR),
-			state);
+	if (IS_ENABLED(CONFIG_OLD_IRQ_AT91) && at91_aic_base) {
+		at91_irq_suspend();
+
+		pr_debug("AT91: PM - wake mask %08x, pm state %d\n",
+				/* remember all the always-wake irqs */
+				(at91_pmc_read(AT91_PMC_PCSR)
+						| (1 << AT91_ID_FIQ)
+						| (1 << AT91_ID_SYS)
+						| (at91_get_extern_irq()))
+					& at91_aic_read(AT91_AIC_IMR),
+				state);
+	}
 
 	switch (state) {
 		/*
@@ -266,12 +199,8 @@ static int at91_pm_enter(suspend_state_t state)
 			 * For ARM 926 based chips, this requirement is weaker
 			 * as at91sam9 can access a RAM in self-refresh mode.
 			 */
-			if (cpu_is_at91rm9200())
-				at91rm9200_standby();
-			else if (cpu_is_at91sam9g45())
-				at91sam9g45_standby();
-			else
-				at91sam9_standby();
+			if (at91_pm_standby)
+				at91_pm_standby();
 			break;
 
 		case PM_SUSPEND_ON:
@@ -283,12 +212,17 @@ static int at91_pm_enter(suspend_state_t state)
 			goto error;
 	}
 
-	pr_debug("AT91: PM - wakeup %08x\n",
-			at91_aic_read(AT91_AIC_IPR) & at91_aic_read(AT91_AIC_IMR));
+	if (IS_ENABLED(CONFIG_OLD_IRQ_AT91) && at91_aic_base)
+		pr_debug("AT91: PM - wakeup %08x\n",
+			 at91_aic_read(AT91_AIC_IPR) &
+			 at91_aic_read(AT91_AIC_IMR));
 
 error:
 	target_state = PM_SUSPEND_ON;
-	at91_irq_resume();
+
+	if (IS_ENABLED(CONFIG_OLD_IRQ_AT91) && at91_aic_base)
+		at91_irq_resume();
+
 	if (of_have_populated_dt())
 		at91_pinctrl_gpio_resume();
 	else
@@ -312,6 +246,18 @@ static const struct platform_suspend_ops at91_pm_ops = {
 	.end	= at91_pm_end,
 };
 
+static struct platform_device at91_cpuidle_device = {
+	.name = "cpuidle-at91",
+};
+
+void at91_pm_set_standby(void (*at91_standby)(void))
+{
+	if (at91_standby) {
+		at91_cpuidle_device.dev.platform_data = at91_standby;
+		at91_pm_standby = at91_standby;
+	}
+}
+
 static int __init at91_pm_init(void)
 {
 #ifdef CONFIG_AT91_SLOW_CLOCK
@@ -323,10 +269,12 @@ static int __init at91_pm_init(void)
 	/* AT91RM9200 SDRAM low-power mode cannot be used with self-refresh. */
 	if (cpu_is_at91rm9200())
 		at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
+	
+	if (at91_cpuidle_device.dev.platform_data)
+		platform_device_register(&at91_cpuidle_device);
 
 	suspend_set_ops(&at91_pm_ops);
 
-	show_reset_status();
 	return 0;
 }
 arch_initcall(at91_pm_init);

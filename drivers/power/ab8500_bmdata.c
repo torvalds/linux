@@ -11,7 +11,7 @@
  * Note that the res_to_temp table must be strictly sorted by falling resistance
  * values to work.
  */
-static struct abx500_res_to_temp temp_tbl_A_thermistor[] = {
+const struct abx500_res_to_temp ab8500_temp_tbl_a_thermistor[] = {
 	{-5, 53407},
 	{ 0, 48594},
 	{ 5, 43804},
@@ -28,8 +28,12 @@ static struct abx500_res_to_temp temp_tbl_A_thermistor[] = {
 	{60, 13437},
 	{65, 12500},
 };
+EXPORT_SYMBOL(ab8500_temp_tbl_a_thermistor);
 
-static struct abx500_res_to_temp temp_tbl_B_thermistor[] = {
+const int ab8500_temp_tbl_a_size = ARRAY_SIZE(ab8500_temp_tbl_a_thermistor);
+EXPORT_SYMBOL(ab8500_temp_tbl_a_size);
+
+const struct abx500_res_to_temp ab8500_temp_tbl_b_thermistor[] = {
 	{-5, 200000},
 	{ 0, 159024},
 	{ 5, 151921},
@@ -46,8 +50,12 @@ static struct abx500_res_to_temp temp_tbl_B_thermistor[] = {
 	{60,  85461},
 	{65,  82869},
 };
+EXPORT_SYMBOL(ab8500_temp_tbl_b_thermistor);
 
-static struct abx500_v_to_cap cap_tbl_A_thermistor[] = {
+const int ab8500_temp_tbl_b_size = ARRAY_SIZE(ab8500_temp_tbl_b_thermistor);
+EXPORT_SYMBOL(ab8500_temp_tbl_b_size);
+
+static const struct abx500_v_to_cap cap_tbl_a_thermistor[] = {
 	{4171,	100},
 	{4114,	 95},
 	{4009,	 83},
@@ -70,7 +78,7 @@ static struct abx500_v_to_cap cap_tbl_A_thermistor[] = {
 	{3247,	  0},
 };
 
-static struct abx500_v_to_cap cap_tbl_B_thermistor[] = {
+static const struct abx500_v_to_cap cap_tbl_b_thermistor[] = {
 	{4161,	100},
 	{4124,	 98},
 	{4044,	 90},
@@ -93,7 +101,7 @@ static struct abx500_v_to_cap cap_tbl_B_thermistor[] = {
 	{3250,	  0},
 };
 
-static struct abx500_v_to_cap cap_tbl[] = {
+static const struct abx500_v_to_cap cap_tbl[] = {
 	{4186,	100},
 	{4163,	 99},
 	{4114,	 95},
@@ -124,7 +132,7 @@ static struct abx500_v_to_cap cap_tbl[] = {
  * Note that the res_to_temp table must be strictly sorted by falling
  * resistance values to work.
  */
-static struct abx500_res_to_temp temp_tbl[] = {
+static const struct abx500_res_to_temp temp_tbl[] = {
 	{-5, 214834},
 	{ 0, 162943},
 	{ 5, 124820},
@@ -146,7 +154,7 @@ static struct abx500_res_to_temp temp_tbl[] = {
  * Note that the batres_vs_temp table must be strictly sorted by falling
  * temperature values to work.
  */
-static struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
+static const struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
 	{ 40, 120},
 	{ 30, 135},
 	{ 20, 165},
@@ -160,7 +168,7 @@ static struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
  * Note that the batres_vs_temp table must be strictly sorted by falling
  * temperature values to work.
  */
-static struct batres_vs_temp temp_to_batres_tbl_ext_thermistor[] = {
+static const struct batres_vs_temp temp_to_batres_tbl_ext_thermistor[] = {
 	{ 60, 300},
 	{ 30, 300},
 	{ 20, 300},
@@ -171,7 +179,7 @@ static struct batres_vs_temp temp_to_batres_tbl_ext_thermistor[] = {
 };
 
 /* battery resistance table for LI ION 9100 battery */
-static struct batres_vs_temp temp_to_batres_tbl_9100[] = {
+static const struct batres_vs_temp temp_to_batres_tbl_9100[] = {
 	{ 60, 180},
 	{ 30, 180},
 	{ 20, 180},
@@ -230,10 +238,10 @@ static struct abx500_battery_type bat_type_thermistor[] = {
 		.maint_b_chg_timer_h = 200,
 		.low_high_cur_lvl = 300,
 		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl_A_thermistor),
-		.r_to_t_tbl = temp_tbl_A_thermistor,
-		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_A_thermistor),
-		.v_to_cap_tbl = cap_tbl_A_thermistor,
+		.n_temp_tbl_elements = ARRAY_SIZE(ab8500_temp_tbl_a_thermistor),
+		.r_to_t_tbl = ab8500_temp_tbl_a_thermistor,
+		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_a_thermistor),
+		.v_to_cap_tbl = cap_tbl_a_thermistor,
 		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
 		.batres_tbl = temp_to_batres_tbl_thermistor,
 
@@ -258,10 +266,10 @@ static struct abx500_battery_type bat_type_thermistor[] = {
 		.maint_b_chg_timer_h = 200,
 		.low_high_cur_lvl = 300,
 		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl_B_thermistor),
-		.r_to_t_tbl = temp_tbl_B_thermistor,
-		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_B_thermistor),
-		.v_to_cap_tbl = cap_tbl_B_thermistor,
+		.n_temp_tbl_elements = ARRAY_SIZE(ab8500_temp_tbl_b_thermistor),
+		.r_to_t_tbl = ab8500_temp_tbl_b_thermistor,
+		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_b_thermistor),
+		.v_to_cap_tbl = cap_tbl_b_thermistor,
 		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
 		.batres_tbl = temp_to_batres_tbl_thermistor,
 	},
@@ -407,13 +415,25 @@ static const struct abx500_fg_parameters fg = {
 	.battok_raising_th_sel1 = 2860,
 	.maint_thres = 95,
 	.user_cap_limit = 15,
+	.pcut_enable = 1,
+	.pcut_max_time = 127,
+	.pcut_flag_time = 112,
+	.pcut_max_restart = 15,
+	.pcut_debounce_time = 2,
 };
 
-static const struct abx500_maxim_parameters maxi_params = {
+static const struct abx500_maxim_parameters ab8500_maxi_params = {
 	.ena_maxi = true,
 	.chg_curr = 910,
 	.wait_cycles = 10,
 	.charger_curr_step = 100,
+};
+
+static const struct abx500_maxim_parameters abx540_maxi_params = {
+        .ena_maxi = true,
+        .chg_curr = 3000,
+        .wait_cycles = 10,
+        .charger_curr_step = 200,
 };
 
 static const struct abx500_bm_charger_parameters chg = {
@@ -421,6 +441,46 @@ static const struct abx500_bm_charger_parameters chg = {
 	.usb_curr_max		= 1500,
 	.ac_volt_max		= 7500,
 	.ac_curr_max		= 1500,
+};
+
+/*
+ * This array maps the raw hex value to charger output current used by the
+ * AB8500 values
+ */
+static int ab8500_charge_output_curr_map[] = {
+        100,    200,    300,    400,    500,    600,    700,    800,
+        900,    1000,   1100,   1200,   1300,   1400,   1500,   1500,
+};
+
+static int ab8540_charge_output_curr_map[] = {
+        0,      0,      0,      75,     100,    125,    150,    175,
+        200,    225,    250,    275,    300,    325,    350,    375,
+        400,    425,    450,    475,    500,    525,    550,    575,
+        600,    625,    650,    675,    700,    725,    750,    775,
+        800,    825,    850,    875,    900,    925,    950,    975,
+        1000,   1025,   1050,   1075,   1100,   1125,   1150,   1175,
+        1200,   1225,   1250,   1275,   1300,   1325,   1350,   1375,
+        1400,   1425,   1450,   1500,   1600,   1700,   1900,   2000,
+};
+
+/*
+ * This array maps the raw hex value to charger input current used by the
+ * AB8500 values
+ */
+static int ab8500_charge_input_curr_map[] = {
+        50,     98,     193,    290,    380,    450,    500,    600,
+        700,    800,    900,    1000,   1100,   1300,   1400,   1500,
+};
+
+static int ab8540_charge_input_curr_map[] = {
+        25,     50,     75,     100,    125,    150,    175,    200,
+        225,    250,    275,    300,    325,    350,    375,    400,
+        425,    450,    475,    500,    525,    550,    575,    600,
+        625,    650,    675,    700,    725,    750,    775,    800,
+        825,    850,    875,    900,    925,    950,    975,    1000,
+        1025,   1050,   1075,   1100,   1125,   1150,   1175,   1200,
+        1225,   1250,   1275,   1300,   1325,   1350,   1375,   1400,
+        1425,   1450,   1475,   1500,   1500,   1500,   1500,   1500,
 };
 
 struct abx500_bm_data ab8500_bm_data = {
@@ -442,22 +502,60 @@ struct abx500_bm_data ab8500_bm_data = {
 	.fg_res                 = 100,
 	.cap_levels             = &cap_levels,
 	.bat_type               = bat_type_thermistor,
-	.n_btypes               = 3,
+	.n_btypes               = ARRAY_SIZE(bat_type_thermistor),
 	.batt_id                = 0,
 	.interval_charging      = 5,
 	.interval_not_charging  = 120,
 	.temp_hysteresis        = 3,
 	.gnd_lift_resistance    = 34,
-	.maxi                   = &maxi_params,
+	.chg_output_curr        = ab8500_charge_output_curr_map,
+	.n_chg_out_curr         = ARRAY_SIZE(ab8500_charge_output_curr_map),
+	.maxi                   = &ab8500_maxi_params,
 	.chg_params             = &chg,
 	.fg_params              = &fg,
+        .chg_input_curr         = ab8500_charge_input_curr_map,
+        .n_chg_in_curr          = ARRAY_SIZE(ab8500_charge_input_curr_map),
+};
+
+struct abx500_bm_data ab8540_bm_data = {
+        .temp_under             = 3,
+        .temp_low               = 8,
+        .temp_high              = 43,
+        .temp_over              = 48,
+        .main_safety_tmr_h      = 4,
+        .temp_interval_chg      = 20,
+        .temp_interval_nochg    = 120,
+        .usb_safety_tmr_h       = 4,
+        .bkup_bat_v             = BUP_VCH_SEL_2P6V,
+        .bkup_bat_i             = BUP_ICH_SEL_150UA,
+        .no_maintenance         = false,
+        .capacity_scaling       = false,
+        .adc_therm              = ABx500_ADC_THERM_BATCTRL,
+        .chg_unknown_bat        = false,
+        .enable_overshoot       = false,
+        .fg_res                 = 100,
+        .cap_levels             = &cap_levels,
+        .bat_type               = bat_type_thermistor,
+        .n_btypes               = ARRAY_SIZE(bat_type_thermistor),
+        .batt_id                = 0,
+        .interval_charging      = 5,
+        .interval_not_charging  = 120,
+        .temp_hysteresis        = 3,
+        .gnd_lift_resistance    = 0,
+        .maxi                   = &abx540_maxi_params,
+        .chg_params             = &chg,
+        .fg_params              = &fg,
+        .chg_output_curr        = ab8540_charge_output_curr_map,
+        .n_chg_out_curr         = ARRAY_SIZE(ab8540_charge_output_curr_map),
+        .chg_input_curr         = ab8540_charge_input_curr_map,
+        .n_chg_in_curr          = ARRAY_SIZE(ab8540_charge_input_curr_map),
 };
 
 int ab8500_bm_of_probe(struct device *dev,
 		       struct device_node *np,
 		       struct abx500_bm_data *bm)
 {
-	struct batres_vs_temp *tmp_batres_tbl;
+	const struct batres_vs_temp *tmp_batres_tbl;
 	struct device_node *battery_node;
 	const char *btech;
 	int i;

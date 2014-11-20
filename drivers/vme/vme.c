@@ -959,6 +959,8 @@ int vme_dma_free(struct vme_resource *resource)
 
 	mutex_unlock(&ctrlr->mtx);
 
+	kfree(resource);
+
 	return 0;
 }
 EXPORT_SYMBOL(vme_dma_free);
@@ -1272,7 +1274,7 @@ void vme_lm_free(struct vme_resource *resource)
 }
 EXPORT_SYMBOL(vme_lm_free);
 
-int vme_slot_get(struct vme_dev *vdev)
+int vme_slot_num(struct vme_dev *vdev)
 {
 	struct vme_bridge *bridge;
 
@@ -1283,14 +1285,27 @@ int vme_slot_get(struct vme_dev *vdev)
 	}
 
 	if (bridge->slot_get == NULL) {
-		printk(KERN_WARNING "vme_slot_get not supported\n");
+		printk(KERN_WARNING "vme_slot_num not supported\n");
 		return -EINVAL;
 	}
 
 	return bridge->slot_get(bridge);
 }
-EXPORT_SYMBOL(vme_slot_get);
+EXPORT_SYMBOL(vme_slot_num);
 
+int vme_bus_num(struct vme_dev *vdev)
+{
+	struct vme_bridge *bridge;
+
+	bridge = vdev->bridge;
+	if (bridge == NULL) {
+		pr_err("Can't find VME bus\n");
+		return -EINVAL;
+	}
+
+	return bridge->num;
+}
+EXPORT_SYMBOL(vme_bus_num);
 
 /* - Bridge Registration --------------------------------------------------- */
 
@@ -1510,9 +1525,5 @@ static void __exit vme_exit(void)
 	bus_unregister(&vme_bus_type);
 }
 
-MODULE_DESCRIPTION("VME bridge driver framework");
-MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com");
-MODULE_LICENSE("GPL");
-
-module_init(vme_init);
+subsys_initcall(vme_init);
 module_exit(vme_exit);

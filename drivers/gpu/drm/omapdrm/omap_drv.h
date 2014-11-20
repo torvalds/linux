@@ -26,6 +26,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/omap_drm.h>
+#include <drm/drm_gem.h>
 #include <linux/platform_data/omap_drm.h>
 
 
@@ -119,13 +120,6 @@ struct omap_drm_private {
 	struct omap_drm_irq error_handler;
 };
 
-/* this should probably be in drm-core to standardize amongst drivers */
-#define DRM_ROTATE_0	0
-#define DRM_ROTATE_90	1
-#define DRM_ROTATE_180	2
-#define DRM_ROTATE_270	3
-#define DRM_REFLECT_X	4
-#define DRM_REFLECT_Y	5
 
 #ifdef CONFIG_DEBUG_FS
 int omap_debugfs_init(struct drm_minor *minor);
@@ -139,12 +133,14 @@ void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 int omap_gem_resume(struct device *dev);
 #endif
 
-int omap_irq_enable_vblank(struct drm_device *dev, int crtc);
-void omap_irq_disable_vblank(struct drm_device *dev, int crtc);
-irqreturn_t omap_irq_handler(DRM_IRQ_ARGS);
+int omap_irq_enable_vblank(struct drm_device *dev, int crtc_id);
+void omap_irq_disable_vblank(struct drm_device *dev, int crtc_id);
+irqreturn_t omap_irq_handler(int irq, void *arg);
 void omap_irq_preinstall(struct drm_device *dev);
 int omap_irq_postinstall(struct drm_device *dev);
 void omap_irq_uninstall(struct drm_device *dev);
+void __omap_irq_register(struct drm_device *dev, struct omap_drm_irq *irq);
+void __omap_irq_unregister(struct drm_device *dev, struct omap_drm_irq *irq);
 void omap_irq_register(struct drm_device *dev, struct omap_drm_irq *irq);
 void omap_irq_unregister(struct drm_device *dev, struct omap_drm_irq *irq);
 int omap_drm_irq_uninstall(struct drm_device *dev);
@@ -157,8 +153,11 @@ const struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
 int omap_crtc_apply(struct drm_crtc *crtc,
 		struct omap_drm_apply *apply);
+void omap_crtc_pre_init(void);
+void omap_crtc_pre_uninit(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, enum omap_channel channel, int id);
+void omap_crtc_flush(struct drm_crtc *crtc);
 
 struct drm_plane *omap_plane_init(struct drm_device *dev,
 		int plane_id, bool private_plane);
@@ -189,6 +188,7 @@ struct drm_encoder *omap_connector_attached_encoder(
 		struct drm_connector *connector);
 void omap_connector_flush(struct drm_connector *connector,
 		int x, int y, int w, int h);
+bool omap_connector_get_hdmi_mode(struct drm_connector *connector);
 
 void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 		struct omap_video_timings *timings);
@@ -202,9 +202,8 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p);
-int omap_framebuffer_replace(struct drm_framebuffer *a,
-		struct drm_framebuffer *b, void *arg,
-		void (*unpin)(void *arg, struct drm_gem_object *bo));
+int omap_framebuffer_pin(struct drm_framebuffer *fb);
+int omap_framebuffer_unpin(struct drm_framebuffer *fb);
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		struct omap_drm_window *win, struct omap_overlay_info *info);
 struct drm_connector *omap_framebuffer_get_next_connector(
@@ -220,12 +219,9 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		union omap_gem_size gsize, uint32_t flags, uint32_t *handle);
 void omap_gem_free_object(struct drm_gem_object *obj);
-int omap_gem_init_object(struct drm_gem_object *obj);
 void *omap_gem_vaddr(struct drm_gem_object *obj);
 int omap_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 		uint32_t handle, uint64_t *offset);
-int omap_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-		uint32_t handle);
 int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 		struct drm_mode_create_dumb *args);
 int omap_gem_mmap(struct file *filp, struct vm_area_struct *vma);
@@ -271,39 +267,9 @@ static inline int align_pitch(int pitch, int width, int bpp)
 	return ALIGN(pitch, 8 * bytespp);
 }
 
-static inline enum omap_channel pipe2chan(int pipe)
-{
-	int num_mgrs = dss_feat_get_num_mgrs();
-
-	/*
-	 * We usually don't want to create a CRTC for each manager,
-	 * at least not until we have a way to expose private planes
-	 * to userspace.  Otherwise there would not be enough video
-	 * pipes left for drm planes.  The higher #'d managers tend
-	 * to have more features so start in reverse order.
-	 */
-	return num_mgrs - pipe - 1;
-}
-
 /* map crtc to vblank mask */
-static inline uint32_t pipe2vbl(int crtc)
-{
-	enum omap_channel channel = pipe2chan(crtc);
-	return dispc_mgr_get_vsync_irq(channel);
-}
-
-static inline int crtc2pipe(struct drm_device *dev, struct drm_crtc *crtc)
-{
-	struct omap_drm_private *priv = dev->dev_private;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(priv->crtcs); i++)
-		if (priv->crtcs[i] == crtc)
-			return i;
-
-	BUG();  /* bogus CRTC ptr */
-	return -1;
-}
+uint32_t pipe2vbl(struct drm_crtc *crtc);
+struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder);
 
 /* should these be made into common util helpers?
  */

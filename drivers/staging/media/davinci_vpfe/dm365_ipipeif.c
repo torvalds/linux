@@ -196,6 +196,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	int data_shift;
 	int pack_mode;
 	int source1;
+	int tmp;
 
 	ipipeif_base_addr = ipipeif->ipipeif_base_addr;
 
@@ -206,8 +207,8 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	outformat = &ipipeif->formats[IPIPEIF_PAD_SOURCE];
 
 	/* Combine all the fields to make CFG1 register of IPIPEIF */
-	val = get_oneshot_mode(ipipeif->input);
-	if (val < 0) {
+	tmp = val = get_oneshot_mode(ipipeif->input);
+	if (tmp < 0) {
 		pr_err("ipipeif: links setup required");
 		return -EINVAL;
 	}
@@ -947,10 +948,10 @@ void vpfe_ipipeif_unregister_entities(struct vpfe_ipipeif_device *ipipeif)
 	/* unregister video device */
 	vpfe_video_unregister(&ipipeif->video_in);
 
-	/* cleanup entity */
-	media_entity_cleanup(&ipipeif->subdev.entity);
 	/* unregister subdev */
 	v4l2_device_unregister_subdev(&ipipeif->subdev);
+	/* cleanup entity */
+	media_entity_cleanup(&ipipeif->subdev.entity);
 }
 
 int
@@ -1065,7 +1066,6 @@ vpfe_ipipeif_cleanup(struct vpfe_ipipeif_device *ipipeif,
 	iounmap(ipipeif->ipipeif_base_addr);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	if (res)
-		release_mem_region(res->start,
-					res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 
 }

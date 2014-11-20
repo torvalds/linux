@@ -92,7 +92,7 @@ static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations kvm_spapr_tce_fops = {
+static const struct file_operations kvm_spapr_tce_fops = {
 	.mmap           = kvm_spapr_tce_mmap,
 	.release	= kvm_spapr_tce_release,
 };
@@ -136,7 +136,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	mutex_unlock(&kvm->lock);
 
 	return anon_inode_getfd("kvm-spapr-tce", &kvm_spapr_tce_fops,
-				stt, O_RDWR);
+				stt, O_RDWR | O_CLOEXEC);
 
 fail:
 	if (stt) {

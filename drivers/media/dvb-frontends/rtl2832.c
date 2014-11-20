@@ -22,10 +22,8 @@
 #include "dvb_math.h"
 #include <linux/bitops.h>
 
-int rtl2832_debug;
-module_param_named(debug, rtl2832_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
-
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
 #define REG_MASK(b) (BIT(b + 1) - 1)
 
 static const struct rtl2832_reg_entry registers[] = {
@@ -162,25 +160,33 @@ static const struct rtl2832_reg_entry registers[] = {
 static int rtl2832_wr(struct rtl2832_priv *priv, u8 reg, u8 *val, int len)
 {
 	int ret;
-	u8 buf[1+len];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg.i2c_addr,
 			.flags = 0,
-			.len = 1+len,
+			.len = 1 + len,
 			.buf = buf,
 		}
 	};
 
+	if (1 + len > sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,
+			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
+			 KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
+
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
 
-	ret = i2c_transfer(priv->i2c, msg, 1);
+	ret = i2c_transfer(priv->i2c_adapter, msg, 1);
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		dev_warn(&priv->i2c->dev, "%s: i2c wr failed=%d reg=%02x " \
-				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
+		dev_warn(&priv->i2c->dev,
+				"%s: i2c wr failed=%d reg=%02x len=%d\n",
+				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 	return ret;
@@ -204,12 +210,13 @@ static int rtl2832_rd(struct rtl2832_priv *priv, u8 reg, u8 *val, int len)
 		}
 	};
 
-	ret = i2c_transfer(priv->i2c, msg, 2);
+	ret = i2c_transfer(priv->i2c_adapter, msg, 2);
 	if (ret == 2) {
 		ret = 0;
 	} else {
-		dev_warn(&priv->i2c->dev, "%s: i2c rd failed=%d reg=%02x " \
-				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
+		dev_warn(&priv->i2c->dev,
+				"%s: i2c rd failed=%d reg=%02x len=%d\n",
+				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 	return ret;
@@ -380,13 +387,41 @@ err:
 	return ret;
 }
 
+
+static int rtl2832_set_if(struct dvb_frontend *fe, u32 if_freq)
+{
+	struct rtl2832_priv *priv = fe->demodulator_priv;
+	int ret;
+	u64 pset_iffreq;
+	u8 en_bbin = (if_freq == 0 ? 0x1 : 0x0);
+
+	/*
+	* PSET_IFFREQ = - floor((IfFreqHz % CrystalFreqHz) * pow(2, 22)
+	*		/ CrystalFreqHz)
+	*/
+
+	pset_iffreq = if_freq % priv->cfg.xtal;
+	pset_iffreq *= 0x400000;
+	pset_iffreq = div_u64(pset_iffreq, priv->cfg.xtal);
+	pset_iffreq = -pset_iffreq;
+	pset_iffreq = pset_iffreq & 0x3fffff;
+	dev_dbg(&priv->i2c->dev, "%s: if_frequency=%d pset_iffreq=%08x\n",
+			__func__, if_freq, (unsigned)pset_iffreq);
+
+	ret = rtl2832_wr_demod_reg(priv, DVBT_EN_BBIN, en_bbin);
+	if (ret)
+		return ret;
+
+	ret = rtl2832_wr_demod_reg(priv, DVBT_PSET_IFFREQ, pset_iffreq);
+
+	return ret;
+}
+
 static int rtl2832_init(struct dvb_frontend *fe)
 {
 	struct rtl2832_priv *priv = fe->demodulator_priv;
-	int i, ret, len;
-	u8 en_bbin;
-	u64 pset_iffreq;
 	const struct rtl2832_reg_value *init;
+	int i, ret, len;
 
 	/* initialization values for the demodulator registers */
 	struct rtl2832_reg_value rtl2832_initial_regs[] = {
@@ -432,21 +467,9 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		{DVBT_TR_THD_SET2,		0x6},
 		{DVBT_TRK_KC_I2,		0x5},
 		{DVBT_CR_THD_SET2,		0x1},
-		{DVBT_SPEC_INV,			0x0},
 	};
 
 	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
-
-	en_bbin = (priv->cfg.if_dvbt == 0 ? 0x1 : 0x0);
-
-	/*
-	* PSET_IFFREQ = - floor((IfFreqHz % CrystalFreqHz) * pow(2, 22)
-	*		/ CrystalFreqHz)
-	*/
-	pset_iffreq = priv->cfg.if_dvbt % priv->cfg.xtal;
-	pset_iffreq *= 0x400000;
-	pset_iffreq = div_u64(pset_iffreq, priv->cfg.xtal);
-	pset_iffreq = pset_iffreq & 0x3fffff;
 
 	for (i = 0; i < ARRAY_SIZE(rtl2832_initial_regs); i++) {
 		ret = rtl2832_wr_demod_reg(priv, rtl2832_initial_regs[i].reg,
@@ -472,6 +495,11 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		len = ARRAY_SIZE(rtl2832_tuner_init_e4000);
 		init = rtl2832_tuner_init_e4000;
 		break;
+	case RTL2832_TUNER_R820T:
+	case RTL2832_TUNER_R828D:
+		len = ARRAY_SIZE(rtl2832_tuner_init_r820t);
+		init = rtl2832_tuner_init_r820t;
+		break;
 	default:
 		ret = -EINVAL;
 		goto err;
@@ -483,14 +511,21 @@ static int rtl2832_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	/* if frequency settings */
-	ret = rtl2832_wr_demod_reg(priv, DVBT_EN_BBIN, en_bbin);
-		if (ret)
-			goto err;
+	/*
+	 * r820t NIM code does a software reset here at the demod -
+	 * may not be needed, as there's already a software reset at
+	 * set_params()
+	 */
+#if 1
+	/* soft reset */
+	ret = rtl2832_wr_demod_reg(priv, DVBT_SOFT_RST, 0x1);
+	if (ret)
+		goto err;
 
-	ret = rtl2832_wr_demod_reg(priv, DVBT_PSET_IFFREQ, pset_iffreq);
-		if (ret)
-			goto err;
+	ret = rtl2832_wr_demod_reg(priv, DVBT_SOFT_RST, 0x0);
+	if (ret)
+		goto err;
+#endif
 
 	priv->sleeping = false;
 
@@ -556,13 +591,26 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	};
 
 
-	dev_dbg(&priv->i2c->dev, "%s: frequency=%d bandwidth_hz=%d " \
-			"inversion=%d\n", __func__, c->frequency,
-			c->bandwidth_hz, c->inversion);
+	dev_dbg(&priv->i2c->dev,
+			"%s: frequency=%d bandwidth_hz=%d inversion=%d\n",
+			__func__, c->frequency, c->bandwidth_hz, c->inversion);
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe);
+
+	/* If the frontend has get_if_frequency(), use it */
+	if (fe->ops.tuner_ops.get_if_frequency) {
+		u32 if_freq;
+
+		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_freq);
+		if (ret)
+			goto err;
+
+		ret = rtl2832_set_if(fe, if_freq);
+		if (ret)
+			goto err;
+	}
 
 	switch (c->bandwidth_hz) {
 	case 6000000:
@@ -843,8 +891,148 @@ static void rtl2832_release(struct dvb_frontend *fe)
 	struct rtl2832_priv *priv = fe->demodulator_priv;
 
 	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
+	cancel_delayed_work_sync(&priv->i2c_gate_work);
+	i2c_del_mux_adapter(priv->i2c_adapter_tuner);
+	i2c_del_mux_adapter(priv->i2c_adapter);
 	kfree(priv);
 }
+
+/*
+ * Delay mechanism to avoid unneeded I2C gate open / close. Gate close is
+ * delayed here a little bit in order to see if there is sequence of I2C
+ * messages sent to same I2C bus.
+ * We must use unlocked version of __i2c_transfer() in order to avoid deadlock
+ * as lock is already taken by calling muxed i2c_transfer().
+ */
+static void rtl2832_i2c_gate_work(struct work_struct *work)
+{
+	struct rtl2832_priv *priv = container_of(work,
+			struct rtl2832_priv, i2c_gate_work.work);
+	struct i2c_adapter *adap = priv->i2c;
+	int ret;
+	u8 buf[2];
+	struct i2c_msg msg[1] = {
+		{
+			.addr = priv->cfg.i2c_addr,
+			.flags = 0,
+			.len = sizeof(buf),
+			.buf = buf,
+		}
+	};
+
+	/* select reg bank 1 */
+	buf[0] = 0x00;
+	buf[1] = 0x01;
+	ret = __i2c_transfer(adap, msg, 1);
+	if (ret != 1)
+		goto err;
+
+	priv->page = 1;
+
+	/* close I2C repeater gate */
+	buf[0] = 0x01;
+	buf[1] = 0x10;
+	ret = __i2c_transfer(adap, msg, 1);
+	if (ret != 1)
+		goto err;
+
+	priv->i2c_gate_state = false;
+
+	return;
+err:
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+
+	return;
+}
+
+static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
+{
+	struct rtl2832_priv *priv = mux_priv;
+	int ret;
+	u8 buf[2], val;
+	struct i2c_msg msg[1] = {
+		{
+			.addr = priv->cfg.i2c_addr,
+			.flags = 0,
+			.len = sizeof(buf),
+			.buf = buf,
+		}
+	};
+	struct i2c_msg msg_rd[2] = {
+		{
+			.addr = priv->cfg.i2c_addr,
+			.flags = 0,
+			.len = 1,
+			.buf = "\x01",
+		}, {
+			.addr = priv->cfg.i2c_addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = &val,
+		}
+	};
+
+	/* terminate possible gate closing */
+	cancel_delayed_work_sync(&priv->i2c_gate_work);
+
+	if (priv->i2c_gate_state == chan_id)
+		return 0;
+
+	/* select reg bank 1 */
+	buf[0] = 0x00;
+	buf[1] = 0x01;
+	ret = __i2c_transfer(adap, msg, 1);
+	if (ret != 1)
+		goto err;
+
+	priv->page = 1;
+
+	/* we must read that register, otherwise there will be errors */
+	ret = __i2c_transfer(adap, msg_rd, 2);
+	if (ret != 2)
+		goto err;
+
+	/* open or close I2C repeater gate */
+	buf[0] = 0x01;
+	if (chan_id == 1)
+		buf[1] = 0x18; /* open */
+	else
+		buf[1] = 0x10; /* close */
+
+	ret = __i2c_transfer(adap, msg, 1);
+	if (ret != 1)
+		goto err;
+
+	priv->i2c_gate_state = chan_id;
+
+	return 0;
+err:
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+
+	return -EREMOTEIO;
+}
+
+static int rtl2832_deselect(struct i2c_adapter *adap, void *mux_priv,
+		u32 chan_id)
+{
+	struct rtl2832_priv *priv = mux_priv;
+	schedule_delayed_work(&priv->i2c_gate_work, usecs_to_jiffies(100));
+	return 0;
+}
+
+struct i2c_adapter *rtl2832_get_i2c_adapter(struct dvb_frontend *fe)
+{
+	struct rtl2832_priv *priv = fe->demodulator_priv;
+	return priv->i2c_adapter_tuner;
+}
+EXPORT_SYMBOL(rtl2832_get_i2c_adapter);
+
+struct i2c_adapter *rtl2832_get_private_i2c_adapter(struct dvb_frontend *fe)
+{
+	struct rtl2832_priv *priv = fe->demodulator_priv;
+	return priv->i2c_adapter;
+}
+EXPORT_SYMBOL(rtl2832_get_private_i2c_adapter);
 
 struct dvb_frontend *rtl2832_attach(const struct rtl2832_config *cfg,
 	struct i2c_adapter *i2c)
@@ -864,10 +1052,23 @@ struct dvb_frontend *rtl2832_attach(const struct rtl2832_config *cfg,
 	priv->i2c = i2c;
 	priv->tuner = cfg->tuner;
 	memcpy(&priv->cfg, cfg, sizeof(struct rtl2832_config));
+	INIT_DELAYED_WORK(&priv->i2c_gate_work, rtl2832_i2c_gate_work);
+
+	/* create muxed i2c adapter for demod itself */
+	priv->i2c_adapter = i2c_add_mux_adapter(i2c, &i2c->dev, priv, 0, 0, 0,
+			rtl2832_select, NULL);
+	if (priv->i2c_adapter == NULL)
+		goto err;
 
 	/* check if the demod is there */
 	ret = rtl2832_rd_reg(priv, 0x00, 0x0, &tmp);
 	if (ret)
+		goto err;
+
+	/* create muxed i2c adapter for demod tuner bus */
+	priv->i2c_adapter_tuner = i2c_add_mux_adapter(i2c, &i2c->dev, priv,
+			0, 1, 0, rtl2832_select, rtl2832_deselect);
+	if (priv->i2c_adapter_tuner == NULL)
 		goto err;
 
 	/* create dvb_frontend */
@@ -880,6 +1081,8 @@ struct dvb_frontend *rtl2832_attach(const struct rtl2832_config *cfg,
 	return &priv->fe;
 err:
 	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
+	if (priv && priv->i2c_adapter)
+		i2c_del_mux_adapter(priv->i2c_adapter);
 	kfree(priv);
 	return NULL;
 }

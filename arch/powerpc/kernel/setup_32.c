@@ -38,15 +38,12 @@
 #include <asm/serial.h>
 #include <asm/udbg.h>
 #include <asm/mmu_context.h>
-
-#include "setup.h"
+#include <asm/epapr_hcalls.h>
 
 #define DBG(fmt...)
 
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
-int boot_cpuid = -1;
-EXPORT_SYMBOL_GPL(boot_cpuid);
 int boot_cpuid_phys;
 EXPORT_SYMBOL_GPL(boot_cpuid_phys);
 
@@ -127,6 +124,8 @@ notrace void __init machine_init(u64 dt_ptr)
 
 	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(__va(dt_ptr));
+
+	epapr_paravirt_early_init();
 
 	early_init_mmu();
 
@@ -246,7 +245,12 @@ static void __init exc_lvl_early_init(void)
 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
 	 * as the memblock is limited to lowmem by MEMBLOCK_REAL_LIMIT */
 	for_each_possible_cpu(i) {
+#ifdef CONFIG_SMP
 		hw_cpu = get_hard_smp_processor_id(i);
+#else
+		hw_cpu = 0;
+#endif
+
 		critirq_ctx[hw_cpu] = (struct thread_info *)
 			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
 #ifdef CONFIG_BOOKE
@@ -264,7 +268,7 @@ static void __init exc_lvl_early_init(void)
 /* Warning, IO base is not yet inited */
 void __init setup_arch(char **cmdline_p)
 {
-	*cmdline_p = cmd_line;
+	*cmdline_p = boot_command_line;
 
 	/* so udelay does something sensible, assume <= 1000 bogomips */
 	loops_per_jiffy = 500000000 / HZ;
@@ -295,9 +299,6 @@ void __init setup_arch(char **cmdline_p)
 	if (cpu_has_feature(CPU_FTR_UNIFIED_ID_CACHE))
 		ucache_bsize = icache_bsize = dcache_bsize;
 
-	/* reboot on panic */
-	panic_timeout = 180;
-
 	if (ppc_md.panic)
 		setup_panic();
 
@@ -326,5 +327,4 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Initialize the MMU context management stuff */
 	mmu_context_init();
-
 }

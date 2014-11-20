@@ -25,11 +25,10 @@ kvmap_itlb:
 	 */
 kvmap_itlb_4v:
 
-kvmap_itlb_nonlinear:
 	/* Catch kernel NULL pointer calls.  */
 	sethi		%hi(PAGE_SIZE), %g5
 	cmp		%g4, %g5
-	bleu,pn		%xcc, kvmap_dtlb_longpath
+	blu,pn		%xcc, kvmap_itlb_longpath
 	 nop
 
 	KERN_TSB_LOOKUP_TL1(%g4, %g6, %g5, %g1, %g2, %g3, kvmap_itlb_load)
@@ -48,14 +47,6 @@ kvmap_itlb_vmalloc_addr:
 	KERN_PGTABLE_WALK(%g4, %g5, %g2, kvmap_itlb_longpath)
 
 	TSB_LOCK_TAG(%g1, %g2, %g7)
-
-	/* Load and check PTE.  */
-	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
-	mov		1, %g7
-	sllx		%g7, TSB_TAG_INVALID_BIT, %g7
-	brgez,a,pn	%g5, kvmap_itlb_longpath
-	 TSB_STORE(%g1, %g7)
-
 	TSB_WRITE(%g1, %g5, %g6)
 
 	/* fallthrough to TLB load */
@@ -119,6 +110,12 @@ kvmap_dtlb_obp:
 	ba,pt		%xcc, kvmap_dtlb_load
 	 nop
 
+kvmap_linear_early:
+	sethi		%hi(kern_linear_pte_xor), %g7
+	ldx		[%g7 + %lo(kern_linear_pte_xor)], %g2
+	ba,pt		%xcc, kvmap_dtlb_tsb4m_load
+	 xor		%g2, %g4, %g5
+
 	.align		32
 kvmap_dtlb_tsb4m_load:
 	TSB_LOCK_TAG(%g1, %g2, %g7)
@@ -147,85 +144,17 @@ kvmap_dtlb_4v:
 	/* Correct TAG_TARGET is already in %g6, check 4mb TSB.  */
 	KERN_TSB4M_LOOKUP_TL1(%g6, %g5, %g1, %g2, %g3, kvmap_dtlb_load)
 #endif
-	/* TSB entry address left in %g1, lookup linear PTE.
-	 * Must preserve %g1 and %g6 (TAG).
+	/* Linear mapping TSB lookup failed.  Fallthrough to kernel
+	 * page table based lookup.
 	 */
-kvmap_dtlb_tsb4m_miss:
-	/* Clear the PAGE_OFFSET top virtual bits, shift
-	 * down to get PFN, and make sure PFN is in range.
-	 */
-	sllx		%g4, 21, %g5
-
-	/* Check to see if we know about valid memory at the 4MB
-	 * chunk this physical address will reside within.
-	 */
-	srlx		%g5, 21 + 41, %g2
-	brnz,pn		%g2, kvmap_dtlb_longpath
-	 nop
-
-	/* This unconditional branch and delay-slot nop gets patched
-	 * by the sethi sequence once the bitmap is properly setup.
-	 */
-	.globl		valid_addr_bitmap_insn
-valid_addr_bitmap_insn:
-	ba,pt		%xcc, 2f
-	 nop
-	.subsection	2
-	.globl		valid_addr_bitmap_patch
-valid_addr_bitmap_patch:
-	sethi		%hi(sparc64_valid_addr_bitmap), %g7
-	or		%g7, %lo(sparc64_valid_addr_bitmap), %g7
-	.previous
-
-	srlx		%g5, 21 + 22, %g2
-	srlx		%g2, 6, %g5
-	and		%g2, 63, %g2
-	sllx		%g5, 3, %g5
-	ldx		[%g7 + %g5], %g5
-	mov		1, %g7
-	sllx		%g7, %g2, %g7
-	andcc		%g5, %g7, %g0
-	be,pn		%xcc, kvmap_dtlb_longpath
-
-2:	 sethi		%hi(kpte_linear_bitmap), %g2
-
-	/* Get the 256MB physical address index. */
-	sllx		%g4, 21, %g5
-	or		%g2, %lo(kpte_linear_bitmap), %g2
-	srlx		%g5, 21 + 28, %g5
-	and		%g5, (32 - 1), %g7
-
-	/* Divide by 32 to get the offset into the bitmask.  */
-	srlx		%g5, 5, %g5
-	add		%g7, %g7, %g7
-	sllx		%g5, 3, %g5
-
-	/* kern_linear_pte_xor[(mask >> shift) & 3)] */
-	ldx		[%g2 + %g5], %g2
-	srlx		%g2, %g7, %g7
-	sethi		%hi(kern_linear_pte_xor), %g5
-	and		%g7, 3, %g7
-	or		%g5, %lo(kern_linear_pte_xor), %g5
-	sllx		%g7, 3, %g7
-	ldx		[%g5 + %g7], %g2
-
 	.globl		kvmap_linear_patch
 kvmap_linear_patch:
-	ba,pt		%xcc, kvmap_dtlb_tsb4m_load
-	 xor		%g2, %g4, %g5
+	ba,a,pt		%xcc, kvmap_linear_early
 
 kvmap_dtlb_vmalloc_addr:
 	KERN_PGTABLE_WALK(%g4, %g5, %g2, kvmap_dtlb_longpath)
 
 	TSB_LOCK_TAG(%g1, %g2, %g7)
-
-	/* Load and check PTE.  */
-	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
-	mov		1, %g7
-	sllx		%g7, TSB_TAG_INVALID_BIT, %g7
-	brgez,a,pn	%g5, kvmap_dtlb_longpath
-	 TSB_STORE(%g1, %g7)
-
 	TSB_WRITE(%g1, %g5, %g6)
 
 	/* fallthrough to TLB load */
@@ -257,13 +186,8 @@ kvmap_dtlb_load:
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 kvmap_vmemmap:
-	sub		%g4, %g5, %g5
-	srlx		%g5, 22, %g5
-	sethi		%hi(vmemmap_table), %g1
-	sllx		%g5, 3, %g5
-	or		%g1, %lo(vmemmap_table), %g1
-	ba,pt		%xcc, kvmap_dtlb_load
-	 ldx		[%g1 + %g5], %g5
+	KERN_PGTABLE_WALK(%g4, %g5, %g2, kvmap_dtlb_longpath)
+	ba,a,pt		%xcc, kvmap_dtlb_load
 #endif
 
 kvmap_dtlb_nonlinear:
@@ -275,8 +199,8 @@ kvmap_dtlb_nonlinear:
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	/* Do not use the TSB for vmemmap.  */
-	mov		(VMEMMAP_BASE >> 40), %g5
-	sllx		%g5, 40, %g5
+	sethi		%hi(VMEMMAP_BASE), %g5
+	ldx		[%g5 + %lo(VMEMMAP_BASE)], %g5
 	cmp		%g4,%g5
 	bgeu,pn		%xcc, kvmap_vmemmap
 	 nop
@@ -288,8 +212,8 @@ kvmap_dtlb_tsbmiss:
 	sethi		%hi(MODULES_VADDR), %g5
 	cmp		%g4, %g5
 	blu,pn		%xcc, kvmap_dtlb_longpath
-	 mov		(VMALLOC_END >> 40), %g5
-	sllx		%g5, 40, %g5
+	 sethi		%hi(VMALLOC_END), %g5
+	ldx		[%g5 + %lo(VMALLOC_END)], %g5
 	cmp		%g4, %g5
 	bgeu,pn		%xcc, kvmap_dtlb_longpath
 	 nop

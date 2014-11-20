@@ -25,5 +25,4 @@ kernel configuration and platform will be selected by cpuidle.
 
 Interfaces:
 extern int cpuidle_register_governor(struct cpuidle_governor *gov);
-extern void cpuidle_unregister_governor(struct cpuidle_governor *gov);
 struct cpuidle_governor

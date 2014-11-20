@@ -21,13 +21,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <linux/backlight.h>
 #include <linux/input.h>
 #include <linux/rfkill.h>
 
 MODULE_LICENSE("GPL");
-
 
 struct cmpc_accel {
 	int sensitivity;
@@ -590,7 +589,7 @@ static ssize_t cmpc_accel_sensitivity_store(struct device *dev,
 	inputdev = dev_get_drvdata(&acpi->dev);
 	accel = dev_get_drvdata(&inputdev->dev);
 
-	r = strict_strtoul(buf, 0, &sensitivity);
+	r = kstrtoul(buf, 0, &sensitivity);
 	if (r)
 		return r;
 

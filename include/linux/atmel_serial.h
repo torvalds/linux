@@ -124,4 +124,7 @@
 #define ATMEL_US_NER		0x44			/* Number of Errors Register */
 #define ATMEL_US_IF		0x4c			/* IrDA Filter Register */
 
+#define ATMEL_US_NAME		0xf0			/* Ip Name */
+#define ATMEL_US_VERSION	0xfc			/* Ip Version */
+
 #endif

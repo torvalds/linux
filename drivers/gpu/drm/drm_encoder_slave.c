@@ -54,16 +54,12 @@ int drm_i2c_encoder_init(struct drm_device *dev,
 			 struct i2c_adapter *adap,
 			 const struct i2c_board_info *info)
 {
-	char modalias[sizeof(I2C_MODULE_PREFIX)
-		      + I2C_NAME_SIZE];
 	struct module *module = NULL;
 	struct i2c_client *client;
 	struct drm_i2c_encoder_driver *encoder_drv;
 	int err = 0;
 
-	snprintf(modalias, sizeof(modalias),
-		 "%s%s", I2C_MODULE_PREFIX, info->type);
-	request_module(modalias);
+	request_module("%s%s", I2C_MODULE_PREFIX, info->type);
 
 	client = i2c_new_device(adap, info);
 	if (!client) {
@@ -71,12 +67,12 @@ int drm_i2c_encoder_init(struct drm_device *dev,
 		goto fail;
 	}
 
-	if (!client->driver) {
+	if (!client->dev.driver) {
 		err = -ENODEV;
 		goto fail_unregister;
 	}
 
-	module = client->driver->driver.owner;
+	module = client->dev.driver->owner;
 	if (!try_module_get(module)) {
 		err = -ENODEV;
 		goto fail_unregister;
@@ -84,7 +80,7 @@ int drm_i2c_encoder_init(struct drm_device *dev,
 
 	encoder->bus_priv = client;
 
-	encoder_drv = to_drm_i2c_encoder_driver(client->driver);
+	encoder_drv = to_drm_i2c_encoder_driver(to_i2c_driver(client->dev.driver));
 
 	err = encoder_drv->encoder_init(client, dev, encoder);
 	if (err)
@@ -115,7 +111,7 @@ void drm_i2c_encoder_destroy(struct drm_encoder *drm_encoder)
 {
 	struct drm_encoder_slave *encoder = to_encoder_slave(drm_encoder);
 	struct i2c_client *client = drm_i2c_encoder_get_client(drm_encoder);
-	struct module *module = client->driver->driver.owner;
+	struct module *module = client->dev.driver->owner;
 
 	i2c_unregister_device(client);
 	encoder->bus_priv = NULL;

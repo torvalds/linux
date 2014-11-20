@@ -72,6 +72,8 @@ Code  Seq#(hex)	Include File		Comments
 0x06	all	linux/lp.h
 0x09	all	linux/raid/md_u.h
 0x10	00-0F	drivers/char/s390/vmcp.h
+0x10	10-1F	arch/s390/include/uapi/sclp_ctl.h
+0x10	20-2F	arch/s390/include/uapi/asm/hypfs.h
 0x12	all	linux/fs.h
 		linux/blkpg.h
 0x1b	all	InfiniBand Subsystem	<http://infiniband.sourceforge.net/>
@@ -131,11 +133,13 @@ Code  Seq#(hex)	Include File		Comments
 'H'	40-4F	sound/hdspm.h		conflict!
 'H'	40-4F	sound/hdsp.h		conflict!
 'H'	90	sound/usb/usx2y/usb_stream.h
+'H'	A0	uapi/linux/usb/cdc-wdm.h
 'H'	C0-F0	net/bluetooth/hci.h	conflict!
 'H'	C0-DF	net/bluetooth/hidp/hidp.h	conflict!
 'H'	C0-DF	net/bluetooth/cmtp/cmtp.h	conflict!
 'H'	C0-DF	net/bluetooth/bnep/bnep.h	conflict!
 'H'	F1	linux/hid-roccat.h	<mailto:erazor_de@users.sourceforge.net>
+'H'	F8-FA	sound/firewire.h
 'I'	all	linux/isdn.h		conflict!
 'I'	00-0F	drivers/isdn/divert/isdn_divert.h	conflict!
 'I'	40-4F	linux/mISDNif.h		conflict!
@@ -193,6 +197,7 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:gregkh@linuxfoundation.org>
 'a'	all	linux/atm*.h, linux/sonet.h	ATM on linux
 					<http://lrcwww.epfl.ch/>
+'a'	00-0F	drivers/crypto/qat/qat_common/adf_cfg_common.h	conflict! qat driver
 'b'	00-FF				conflict! bit3 vme host bridge
 					<mailto:natalia@nikhefk.nikhef.nl>
 'c'	all	linux/cm4000_cs.h	conflict!
@@ -308,6 +313,7 @@ Code  Seq#(hex)	Include File		Comments
 0xB1	00-1F	PPPoX			<mailto:mostrows@styx.uwaterloo.ca>
 0xB3	00	linux/mmc/ioctl.h
 0xC0	00-0F	linux/usb/iowarrior.h
+0xCA	00-0F	uapi/misc/cxl.h
 0xCB	00-1F	CBM serial IEC bus	in development:
 					<mailto:michael.klein@puffin.lb.shuttle.de>
 0xCD	01	linux/reiserfs_fs.h

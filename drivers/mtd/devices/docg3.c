@@ -123,7 +123,7 @@ static inline void doc_flash_address(struct docg3 *docg3, u8 addr)
 	doc_writeb(docg3, addr, DOC_FLASHADDRESS);
 }
 
-static char const *part_probes[] = { "cmdlinepart", "saftlpart", NULL };
+static char const * const part_probes[] = { "cmdlinepart", "saftlpart", NULL };
 
 static int doc_register_readb(struct docg3 *docg3, int reg)
 {
@@ -1608,8 +1608,8 @@ static ssize_t dps1_insert_key(struct device *dev,
 #define FLOOR_SYSFS(id) { \
 	__ATTR(f##id##_dps0_is_keylocked, S_IRUGO, dps0_is_key_locked, NULL), \
 	__ATTR(f##id##_dps1_is_keylocked, S_IRUGO, dps1_is_key_locked, NULL), \
-	__ATTR(f##id##_dps0_protection_key, S_IWUGO, NULL, dps0_insert_key), \
-	__ATTR(f##id##_dps1_protection_key, S_IWUGO, NULL, dps1_insert_key), \
+	__ATTR(f##id##_dps0_protection_key, S_IWUSR|S_IWGRP, NULL, dps0_insert_key), \
+	__ATTR(f##id##_dps1_protection_key, S_IWUSR|S_IWGRP, NULL, dps1_insert_key), \
 }
 
 static struct device_attribute doc_sys_attrs[DOC_MAX_NBFLOORS][4] = {
@@ -1697,16 +1697,16 @@ static int dbg_asicmode_show(struct seq_file *s, void *p)
 
 	switch (mode) {
 	case DOC_ASICMODE_RESET:
-		pos += seq_printf(s, "reset");
+		pos += seq_puts(s, "reset");
 		break;
 	case DOC_ASICMODE_NORMAL:
-		pos += seq_printf(s, "normal");
+		pos += seq_puts(s, "normal");
 		break;
 	case DOC_ASICMODE_POWERDOWN:
-		pos += seq_printf(s, "powerdown");
+		pos += seq_puts(s, "powerdown");
 		break;
 	}
-	pos += seq_printf(s, ")\n");
+	pos += seq_puts(s, ")\n");
 	return pos;
 }
 DEBUGFS_RO_ATTR(asic_mode, dbg_asicmode_show);
@@ -1745,22 +1745,22 @@ static int dbg_protection_show(struct seq_file *s, void *p)
 	pos += seq_printf(s, "Protection = 0x%02x (",
 			 protect);
 	if (protect & DOC_PROTECT_FOUNDRY_OTP_LOCK)
-		pos += seq_printf(s, "FOUNDRY_OTP_LOCK,");
+		pos += seq_puts(s, "FOUNDRY_OTP_LOCK,");
 	if (protect & DOC_PROTECT_CUSTOMER_OTP_LOCK)
-		pos += seq_printf(s, "CUSTOMER_OTP_LOCK,");
+		pos += seq_puts(s, "CUSTOMER_OTP_LOCK,");
 	if (protect & DOC_PROTECT_LOCK_INPUT)
-		pos += seq_printf(s, "LOCK_INPUT,");
+		pos += seq_puts(s, "LOCK_INPUT,");
 	if (protect & DOC_PROTECT_STICKY_LOCK)
-		pos += seq_printf(s, "STICKY_LOCK,");
+		pos += seq_puts(s, "STICKY_LOCK,");
 	if (protect & DOC_PROTECT_PROTECTION_ENABLED)
-		pos += seq_printf(s, "PROTECTION ON,");
+		pos += seq_puts(s, "PROTECTION ON,");
 	if (protect & DOC_PROTECT_IPL_DOWNLOAD_LOCK)
-		pos += seq_printf(s, "IPL_DOWNLOAD_LOCK,");
+		pos += seq_puts(s, "IPL_DOWNLOAD_LOCK,");
 	if (protect & DOC_PROTECT_PROTECTION_ERROR)
-		pos += seq_printf(s, "PROTECT_ERR,");
+		pos += seq_puts(s, "PROTECT_ERR,");
 	else
-		pos += seq_printf(s, "NO_PROTECT_ERR");
-	pos += seq_printf(s, ")\n");
+		pos += seq_puts(s, "NO_PROTECT_ERR");
+	pos += seq_puts(s, ")\n");
 
 	pos += seq_printf(s, "DPS0 = 0x%02x : "
 			 "Protected area [0x%x - 0x%x] : OTP=%d, READ=%d, "
@@ -2047,21 +2047,21 @@ static int __init docg3_probe(struct platform_device *pdev)
 	ress = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!ress) {
 		dev_err(dev, "No I/O memory resource defined\n");
-		goto noress;
+		return ret;
 	}
-	base = ioremap(ress->start, DOC_IOSPACE_SIZE);
+	base = devm_ioremap(dev, ress->start, DOC_IOSPACE_SIZE);
 
 	ret = -ENOMEM;
-	cascade = kzalloc(sizeof(*cascade) * DOC_MAX_NBFLOORS,
-			  GFP_KERNEL);
+	cascade = devm_kzalloc(dev, sizeof(*cascade) * DOC_MAX_NBFLOORS,
+			       GFP_KERNEL);
 	if (!cascade)
-		goto nomem1;
+		return ret;
 	cascade->base = base;
 	mutex_init(&cascade->lock);
 	cascade->bch = init_bch(DOC_ECC_BCH_M, DOC_ECC_BCH_T,
 			     DOC_ECC_BCH_PRIMPOLY);
 	if (!cascade->bch)
-		goto nomem2;
+		return ret;
 
 	for (floor = 0; floor < DOC_MAX_NBFLOORS; floor++) {
 		mtd = doc_probe_device(cascade, floor, dev);
@@ -2097,15 +2097,10 @@ notfound:
 	ret = -ENODEV;
 	dev_info(dev, "No supported DiskOnChip found\n");
 err_probe:
-	kfree(cascade->bch);
+	free_bch(cascade->bch);
 	for (floor = 0; floor < DOC_MAX_NBFLOORS; floor++)
 		if (cascade->floors[floor])
 			doc_release_device(cascade->floors[floor]);
-nomem2:
-	kfree(cascade);
-nomem1:
-	iounmap(base);
-noress:
 	return ret;
 }
 
@@ -2119,7 +2114,6 @@ static int __exit docg3_release(struct platform_device *pdev)
 {
 	struct docg3_cascade *cascade = platform_get_drvdata(pdev);
 	struct docg3 *docg3 = cascade->floors[0]->priv;
-	void __iomem *base = cascade->base;
 	int floor;
 
 	doc_unregister_sysfs(pdev, cascade);
@@ -2129,8 +2123,6 @@ static int __exit docg3_release(struct platform_device *pdev)
 			doc_release_device(cascade->floors[floor]);
 
 	free_bch(docg3->cascade->bch);
-	kfree(cascade);
-	iounmap(base);
 	return 0;
 }
 
@@ -2144,18 +2136,7 @@ static struct platform_driver g3_driver = {
 	.remove		= __exit_p(docg3_release),
 };
 
-static int __init docg3_init(void)
-{
-	return platform_driver_probe(&g3_driver, docg3_probe);
-}
-module_init(docg3_init);
-
-
-static void __exit docg3_exit(void)
-{
-	platform_driver_unregister(&g3_driver);
-}
-module_exit(docg3_exit);
+module_platform_driver_probe(g3_driver, docg3_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Robert Jarzmik <robert.jarzmik@free.fr>");

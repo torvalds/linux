@@ -211,7 +211,7 @@
 /* VIA VT8500 SoC */
 #define PORT_VT8500	97
 
-/* Xilinx PSS UART */
+/* Cadence (Xilinx Zynq) UART */
 #define PORT_XUARTPS	98
 
 /* Atheros AR933X SoC */
@@ -225,5 +225,26 @@
 
 /* Rocketport EXPRESS/INFINITY */
 #define PORT_RP2	102
+
+/* Freescale lpuart */
+#define PORT_LPUART	103
+
+/* SH-SCI */
+#define PORT_HSCIF	104
+
+/* ST ASC type numbers */
+#define PORT_ASC       105
+
+/* Tilera TILE-Gx UART */
+#define PORT_TILEGX	106
+
+/* MEN 16z135 UART */
+#define PORT_MEN_Z135	107
+
+/* SC16IS74xx */
+#define PORT_SC16IS7XX   108
+
+/* MESON */
+#define PORT_MESON	109
 
 #endif /* _UAPILINUX_SERIAL_CORE_H */

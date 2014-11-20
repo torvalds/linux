@@ -21,7 +21,7 @@ static int affs_symlink_readpage(struct file *file, struct page *page)
 	char			 c;
 	char			 lc;
 
-	pr_debug("AFFS: follow_link(ino=%lu)\n",inode->i_ino);
+	pr_debug("follow_link(ino=%lu)\n", inode->i_ino);
 
 	err = -EIO;
 	bh = affs_bread(inode->i_sb, inode->i_ino);

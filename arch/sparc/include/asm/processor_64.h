@@ -18,9 +18,6 @@
 #include <asm/ptrace.h>
 #include <asm/page.h>
 
-/* Don't hold the runqueue lock over context switch */
-#define __ARCH_WANT_UNLOCKED_CTXSW
-
 /* The sparc has no problems with write protection */
 #define wp_works_ok 1
 #define wp_works_ok__is_a_macro /* for versions in ksyms.c */
@@ -98,7 +95,7 @@ struct thread_struct {
 
 /* Return saved PC of a blocked thread. */
 struct task_struct;
-extern unsigned long thread_saved_pc(struct task_struct *);
+unsigned long thread_saved_pc(struct task_struct *);
 
 /* On Uniprocessor, even in RMO processes see TSO semantics */
 #ifdef CONFIG_SMP
@@ -197,7 +194,7 @@ do { \
 /* Free all resources held by a thread. */
 #define release_thread(tsk)		do { } while (0)
 
-extern unsigned long get_wchan(struct task_struct *task);
+unsigned long get_wchan(struct task_struct *task);
 
 #define task_pt_regs(tsk) (task_thread_info(tsk)->kregs)
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->tpc)
@@ -219,6 +216,7 @@ extern unsigned long get_wchan(struct task_struct *task);
 				     "nop\n\t"				\
 				     ".previous"			\
 				     ::: "memory")
+#define cpu_relax_lowlatency() cpu_relax()
 
 /* Prefetch support.  This is tuned for UltraSPARC-III and later.
  * UltraSPARC-I will treat these as nops, and UltraSPARC-II has
@@ -255,6 +253,8 @@ static inline void prefetchw(const void *x)
 #define spin_lock_prefetch(x)	prefetchw(x)
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
+
+int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap);
 
 #endif /* !(__ASSEMBLY__) */
 

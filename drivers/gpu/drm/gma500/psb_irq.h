@@ -21,8 +21,8 @@
  *
  **************************************************************************/
 
-#ifndef _SYSIRQ_H_
-#define _SYSIRQ_H_
+#ifndef _PSB_IRQ_H_
+#define _PSB_IRQ_H_
 
 #include <drm/drmP.h>
 
@@ -32,7 +32,7 @@ void sysirq_uninit(struct drm_device *dev);
 void psb_irq_preinstall(struct drm_device *dev);
 int  psb_irq_postinstall(struct drm_device *dev);
 void psb_irq_uninstall(struct drm_device *dev);
-irqreturn_t psb_irq_handler(DRM_IRQ_ARGS);
+irqreturn_t psb_irq_handler(int irq, void *arg);
 
 int psb_irq_enable_dpst(struct drm_device *dev);
 int psb_irq_disable_dpst(struct drm_device *dev);
@@ -44,4 +44,4 @@ u32  psb_get_vblank_counter(struct drm_device *dev, int pipe);
 
 int mdfld_enable_te(struct drm_device *dev, int pipe);
 void mdfld_disable_te(struct drm_device *dev, int pipe);
-#endif /* _SYSIRQ_H_ */
+#endif /* _PSB_IRQ_H_ */

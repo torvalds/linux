@@ -1,0 +1,51 @@
+/*
+ * Suppport for CompuLab CM-T54 on SB-T54 baseboard
+ */
+
+#include "omap5-cm-t54.dts"
+
+/ {
+	model = "CompuLab CM-T54 on SB-T54";
+	compatible = "compulab,omap5-sbc-t54", "compulab,omap5-cm-t54", "ti,omap5";
+};
+
+&omap5_pmx_core {
+	i2c4_pins: pinmux_i2c4_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x00f8, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c4_scl */
+			OMAP5_IOPAD(0x00fa, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c4_sda */
+		>;
+	};
+
+	mmc1_aux_pins: pinmux_mmc1_aux_pins {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x0174, PIN_INPUT_PULLUP | MUX_MODE6) /* timer5_pwm_evt.gpio8_228 */
+			OMAP5_IOPAD(0x0176, PIN_INPUT_PULLUP | MUX_MODE6) /* timer6_pwm_evt.gpio8_229 */
+		>;
+	};
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&mmc1_pins
+		&mmc1_aux_pins
+	>;
+	cd-inverted;
+	wp-inverted;
+	cd-gpios = <&gpio8 4 GPIO_ACTIVE_LOW>; /* gpio8_228 */
+	wp-gpios = <&gpio8 5 GPIO_ACTIVE_LOW>; /* gpio8_229 */
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_pins>;
+
+	clock-frequency = <400000>;
+
+	at24@50 {
+		compatible = "at24,24c02";
+		pagesize = <16>;
+		reg = <0x50>;
+	};
+};

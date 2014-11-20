@@ -32,7 +32,7 @@ void __spin_yield(arch_spinlock_t *lock)
 		return;
 	holder_cpu = lock_value & 0xffff;
 	BUG_ON(holder_cpu >= NR_CPUS);
-	yield_count = lppaca_of(holder_cpu).yield_count;
+	yield_count = be32_to_cpu(lppaca_of(holder_cpu).yield_count);
 	if ((yield_count & 1) == 0)
 		return;		/* virtual cpu is currently running */
 	rmb();
@@ -57,7 +57,7 @@ void __rw_yield(arch_rwlock_t *rw)
 		return;		/* no write lock at present */
 	holder_cpu = lock_value & 0xffff;
 	BUG_ON(holder_cpu >= NR_CPUS);
-	yield_count = lppaca_of(holder_cpu).yield_count;
+	yield_count = be32_to_cpu(lppaca_of(holder_cpu).yield_count);
 	if ((yield_count & 1) == 0)
 		return;		/* virtual cpu is currently running */
 	rmb();
@@ -70,12 +70,16 @@ void __rw_yield(arch_rwlock_t *rw)
 
 void arch_spin_unlock_wait(arch_spinlock_t *lock)
 {
+	smp_mb();
+
 	while (lock->slock) {
 		HMT_low();
 		if (SHARED_PROCESSOR)
 			__spin_yield(lock);
 	}
 	HMT_medium();
+
+	smp_mb();
 }
 
 EXPORT_SYMBOL(arch_spin_unlock_wait);

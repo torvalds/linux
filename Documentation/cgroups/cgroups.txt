@@ -24,7 +24,6 @@ CONTENTS:
   2.1 Basic Usage
   2.2 Attaching processes
   2.3 Mounting hierarchies by name
-  2.4 Notification API
 3. Kernel API
   3.1 Overview
   3.2 Synchronization
@@ -442,7 +441,7 @@ You can attach the current shell task by echoing 0:
 You can use the cgroup.procs file instead of the tasks file to move all
 threads in a threadgroup at once. Echoing the PID of any task in a
 threadgroup to cgroup.procs causes all tasks in that threadgroup to be
-be attached to the cgroup. Writing 0 to cgroup.procs moves all tasks
+attached to the cgroup. Writing 0 to cgroup.procs moves all tasks
 in the writing task's threadgroup.
 
 Note: Since every task is always a member of exactly one cgroup in each
@@ -472,25 +471,6 @@ you give a subsystem a name.
 The name of the subsystem appears as part of the hierarchy description
 in /proc/mounts and /proc/<pid>/cgroups.
 
-2.4 Notification API
---------------------
-
-There is mechanism which allows to get notifications about changing
-status of a cgroup.
-
-To register a new notification handler you need to:
- - create a file descriptor for event notification using eventfd(2);
- - open a control file to be monitored (e.g. memory.usage_in_bytes);
- - write "<event_fd> <control_fd> <args>" to cgroup.event_control.
-   Interpretation of args is defined by control file implementation;
-
-eventfd will be woken up by control file implementation or when the
-cgroup is removed.
-
-To unregister a notification handler just close eventfd.
-
-NOTE: Support of notifications should be implemented for the control
-file. See documentation for the subsystem.
 
 3. Kernel API
 =============
@@ -580,6 +560,7 @@ propagation along the hierarchy. See the comment on
 cgroup_for_each_descendant_pre() for details.
 
 void css_offline(struct cgroup *cgrp);
+(cgroup_mutex held by caller)
 
 This is the counterpart of css_online() and called iff css_online()
 has succeeded on @cgrp. This signifies the beginning of the end of
@@ -617,6 +598,20 @@ cgroup_taskset_for_each() iterator. Note that this isn't called on a
 fork. If this method returns 0 (success) then this should remain valid
 while the caller holds cgroup_mutex and it is ensured that either
 attach() or cancel_attach() will be called in future.
+
+void css_reset(struct cgroup_subsys_state *css)
+(cgroup_mutex held by caller)
+
+An optional operation which should restore @css's configuration to the
+initial state.  This is currently only used on the unified hierarchy
+when a subsystem is disabled on a cgroup through
+"cgroup.subtree_control" but should remain enabled because other
+subsystems depend on it.  cgroup core makes such a css invisible by
+removing the associated interface files and invokes this callback so
+that the hidden subsystem can return to the initial neutral state.
+This prevents unexpected resource control from a hidden css and
+ensures that the configuration is in the initial state when it is made
+visible again later.
 
 void cancel_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 (cgroup_mutex held by caller)

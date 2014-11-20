@@ -5,8 +5,8 @@
  *
  * Copyright (C) 1994 - 2000, 2001, 2003 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
  * Copyright (C) 2002, 2007  Maciej W. Rozycki
+ * Copyright (C) 2001, 2012 MIPS Technologies, Inc.  All rights reserved.
  */
 #include <linux/init.h>
 
@@ -21,26 +21,7 @@
 #include <asm/war.h>
 #include <asm/thread_info.h>
 
-#define PANIC_PIC(msg)					\
-		.set push;				\
-		.set	reorder;			\
-		PTR_LA	a0,8f;				\
-		.set	noat;				\
-		PTR_LA	AT, panic;			\
-		jr	AT;				\
-9:		b	9b;				\
-		.set	pop;				\
-		TEXT(msg)
-
 	__INIT
-
-NESTED(except_vec0_generic, 0, sp)
-	PANIC_PIC("Exception vector 0 called")
-	END(except_vec0_generic)
-
-NESTED(except_vec1_generic, 0, sp)
-	PANIC_PIC("Exception vector 1 called")
-	END(except_vec1_generic)
 
 /*
  * General exception vector for all other CPUs.
@@ -72,7 +53,7 @@ NESTED(except_vec3_generic, 0, sp)
  */
 NESTED(except_vec3_r4000, 0, sp)
 	.set	push
-	.set	mips3
+	.set	arch=r4000
 	.set	noat
 	mfc0	k1, CP0_CAUSE
 	li	k0, 31<<2
@@ -127,7 +108,7 @@ handle_vcei:
 	__FINIT
 
 	.align	5	/* 32 byte rollback region */
-LEAF(r4k_wait)
+LEAF(__r4k_wait)
 	.set	push
 	.set	noreorder
 	/* start of rollback region */
@@ -138,20 +119,27 @@ LEAF(r4k_wait)
 	 nop
 	nop
 	nop
-	.set	mips3
+#ifdef CONFIG_CPU_MICROMIPS
+	nop
+	nop
+	nop
+	nop
+#endif
+	.set	arch=r4000
 	wait
 	/* end of rollback region (the region size must be power of two) */
-	.set	pop
 1:
 	jr	ra
-	END(r4k_wait)
+	nop
+	.set	pop
+	END(__r4k_wait)
 
 	.macro	BUILD_ROLLBACK_PROLOGUE handler
 	FEXPORT(rollback_\handler)
 	.set	push
 	.set	noat
 	MFC0	k0, CP0_EPC
-	PTR_LA	k1, r4k_wait
+	PTR_LA	k1, __r4k_wait
 	ori	k0, 0x1f	/* 32 byte rollback region */
 	xori	k0, 0x1f
 	bne	k0, k1, 9f
@@ -201,7 +189,11 @@ NESTED(handle_int, PT_SIZE, sp)
 	LONG_L	s0, TI_REGS($28)
 	LONG_S	sp, TI_REGS($28)
 	PTR_LA	ra, ret_from_irq
-	j	plat_irq_dispatch
+	PTR_LA  v0, plat_irq_dispatch
+	jr	v0
+#ifdef CONFIG_CPU_MICROMIPS
+	nop
+#endif
 	END(handle_int)
 
 	__INIT
@@ -222,11 +214,14 @@ NESTED(except_vec4, 0, sp)
 /*
  * EJTAG debug exception handler.
  * The EJTAG debug exception entry point is 0xbfc00480, which
- * normally is in the boot PROM, so the boot PROM must do a
+ * normally is in the boot PROM, so the boot PROM must do an
  * unconditional jump to this vector.
  */
 NESTED(except_vec_ejtag_debug, 0, sp)
 	j	ejtag_debug_handler
+#ifdef CONFIG_CPU_MICROMIPS
+	 nop
+#endif
 	END(except_vec_ejtag_debug)
 
 	__FINIT
@@ -242,18 +237,10 @@ NESTED(except_vec_vi, 0, sp)
 	SAVE_AT
 	.set	push
 	.set	noreorder
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * To keep from blindly blocking *all* interrupts
-	 * during service by SMTC kernel, we also want to
-	 * pass the IM value to be cleared.
-	 */
-FEXPORT(except_vec_vi_mori)
-	ori	a0, $0, 0
-#endif /* CONFIG_MIPS_MT_SMTC */
+	PTR_LA	v1, except_vec_vi_handler
 FEXPORT(except_vec_vi_lui)
 	lui	v0, 0		/* Patched */
-	j	except_vec_vi_handler
+	jr	v1
 FEXPORT(except_vec_vi_ori)
 	 ori	v0, 0		/* Patched */
 	.set	pop
@@ -267,37 +254,10 @@ EXPORT(except_vec_vi_end)
 NESTED(except_vec_vi_handler, 0, sp)
 	SAVE_TEMP
 	SAVE_STATIC
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * SMTC has an interesting problem that interrupts are level-triggered,
-	 * and the CLI macro will clear EXL, potentially causing a duplicate
-	 * interrupt service invocation. So we need to clear the associated
-	 * IM bit of Status prior to doing CLI, and restore it after the
-	 * service routine has been invoked - we must assume that the
-	 * service routine will have cleared the state, and any active
-	 * level represents a new or otherwised unserviced event...
-	 */
-	mfc0	t1, CP0_STATUS
-	and	t0, a0, t1
-#ifdef CONFIG_MIPS_MT_SMTC_IM_BACKSTOP
-	mfc0	t2, CP0_TCCONTEXT
-	or	t2, t0, t2
-	mtc0	t2, CP0_TCCONTEXT
-#endif /* CONFIG_MIPS_MT_SMTC_IM_BACKSTOP */
-	xor	t1, t1, t0
-	mtc0	t1, CP0_STATUS
-	_ehb
-#endif /* CONFIG_MIPS_MT_SMTC */
 	CLI
 #ifdef CONFIG_TRACE_IRQFLAGS
 	move	s0, v0
-#ifdef CONFIG_MIPS_MT_SMTC
-	move	s1, a0
-#endif
 	TRACE_IRQS_OFF
-#ifdef CONFIG_MIPS_MT_SMTC
-	move	a0, s1
-#endif
 	move	v0, s0
 #endif
 
@@ -354,6 +314,9 @@ EXPORT(ejtag_debug_buffer)
  */
 NESTED(except_vec_nmi, 0, sp)
 	j	nmi_handler
+#ifdef CONFIG_CPU_MICROMIPS
+	 nop
+#endif
 	END(except_vec_nmi)
 
 	__FINIT
@@ -361,12 +324,20 @@ NESTED(except_vec_nmi, 0, sp)
 NESTED(nmi_handler, PT_SIZE, sp)
 	.set	push
 	.set	noat
+	/*
+	 * Clear ERL - restore segment mapping
+	 * Clear BEV - required for page fault exception handler to work
+	 */
+	mfc0	k0, CP0_STATUS
+	ori     k0, k0, ST0_EXL
+	li	k1, ~(ST0_BEV | ST0_ERL)
+	and     k0, k0, k1
+	mtc0    k0, CP0_STATUS
+	_ehb
 	SAVE_ALL
 	move	a0, sp
 	jal	nmi_exception_handler
-	RESTORE_ALL
-	.set	mips3
-	eret
+	/* nmi_exception_handler never returns */
 	.set	pop
 	END(nmi_handler)
 
@@ -387,6 +358,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.set	push
 	/* gas fails to assemble cfc1 for some archs (octeon).*/ \
 	.set	mips1
+	SET_HARDFLOAT
 	cfc1	a1, fcr31
 	li	a2, ~(0x3f << 12)
 	and	a2, a1
@@ -454,7 +426,10 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER cpu cpu sti silent		/* #11 */
 	BUILD_HANDLER ov ov sti silent			/* #12 */
 	BUILD_HANDLER tr tr sti silent			/* #13 */
+	BUILD_HANDLER msa_fpe msa_fpe sti silent	/* #14 */
 	BUILD_HANDLER fpe fpe fpe silent		/* #15 */
+	BUILD_HANDLER ftlb ftlb none silent		/* #16 */
+	BUILD_HANDLER msa msa sti silent		/* #21 */
 	BUILD_HANDLER mdmx mdmx sti silent		/* #22 */
 #ifdef	CONFIG_HARDWARE_WATCHPOINTS
 	/*
@@ -472,9 +447,6 @@ NESTED(nmi_handler, PT_SIZE, sp)
 
 	.align	5
 	LEAF(handle_ri_rdhwr_vivt)
-#ifdef CONFIG_MIPS_MT_SMTC
-	PANIC_PIC("handle_ri_rdhwr_vivt called")
-#else
 	.set	push
 	.set	noat
 	.set	noreorder
@@ -493,20 +465,41 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.set	pop
 	bltz	k1, handle_ri	/* slow path */
 	/* fall thru */
-#endif
 	END(handle_ri_rdhwr_vivt)
 
 	LEAF(handle_ri_rdhwr)
 	.set	push
 	.set	noat
 	.set	noreorder
-	/* 0x7c03e83b: rdhwr v1,$29 */
+	/* MIPS32:    0x7c03e83b: rdhwr v1,$29 */
+	/* microMIPS: 0x007d6b3c: rdhwr v1,$29 */
 	MFC0	k1, CP0_EPC
-	lui	k0, 0x7c03
-	lw	k1, (k1)
-	ori	k0, 0xe83b
-	.set	reorder
+#if defined(CONFIG_CPU_MICROMIPS) || defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS64_R2)
+	and     k0, k1, 1
+	beqz    k0, 1f
+	xor     k1, k0
+	lhu     k0, (k1)
+	lhu     k1, 2(k1)
+	ins     k1, k0, 16, 16
+	lui     k0, 0x007d
+	b       docheck
+	ori     k0, 0x6b3c
+1:
+	lui     k0, 0x7c03
+	lw      k1, (k1)
+	ori     k0, 0xe83b
+#else
+	andi    k0, k1, 1
+	bnez    k0, handle_ri
+	lui     k0, 0x7c03
+	lw      k1, (k1)
+	ori     k0, 0xe83b
+#endif
+	.set    reorder
+docheck:
 	bne	k0, k1, handle_ri	/* if not ours */
+
+isrdhwr:
 	/* The insn is rdhwr.  No need to check CAUSE.BD here. */
 	get_saved_sp	/* k1 := current_thread_info */
 	.set	noreorder
@@ -531,7 +524,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	ori	k1, _THREAD_MASK
 	xori	k1, _THREAD_MASK
 	LONG_L	v1, TI_TP_VALUE(k1)
-	.set	mips3
+	.set	arch=r4000
 	eret
 	.set	mips0
 #endif

@@ -96,8 +96,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <net/sock.h>
-
-#include "af_vsock.h"
+#include <net/af_vsock.h>
 
 static int __vsock_bind(struct sock *sk, struct sockaddr_vm *addr);
 static void vsock_sk_destruct(struct sock *sk);
@@ -144,18 +143,18 @@ EXPORT_SYMBOL_GPL(vm_sockets_get_local_cid);
  * VSOCK_HASH_SIZE + 1 so that vsock_bind_table[0] through
  * vsock_bind_table[VSOCK_HASH_SIZE - 1] are for bound sockets and
  * vsock_bind_table[VSOCK_HASH_SIZE] is for unbound sockets.  The hash function
- * mods with VSOCK_HASH_SIZE - 1 to ensure this.
+ * mods with VSOCK_HASH_SIZE to ensure this.
  */
 #define VSOCK_HASH_SIZE         251
 #define MAX_PORT_RETRIES        24
 
-#define VSOCK_HASH(addr)        ((addr)->svm_port % (VSOCK_HASH_SIZE - 1))
+#define VSOCK_HASH(addr)        ((addr)->svm_port % VSOCK_HASH_SIZE)
 #define vsock_bound_sockets(addr) (&vsock_bind_table[VSOCK_HASH(addr)])
 #define vsock_unbound_sockets     (&vsock_bind_table[VSOCK_HASH_SIZE])
 
 /* XXX This can probably be implemented in a better way. */
 #define VSOCK_CONN_HASH(src, dst)				\
-	(((src)->svm_cid ^ (dst)->svm_port) % (VSOCK_HASH_SIZE - 1))
+	(((src)->svm_cid ^ (dst)->svm_port) % VSOCK_HASH_SIZE)
 #define vsock_connected_sockets(src, dst)		\
 	(&vsock_connected_table[VSOCK_CONN_HASH(src, dst)])
 #define vsock_connected_sockets_vsk(vsk)				\
@@ -165,7 +164,19 @@ static struct list_head vsock_bind_table[VSOCK_HASH_SIZE + 1];
 static struct list_head vsock_connected_table[VSOCK_HASH_SIZE];
 static DEFINE_SPINLOCK(vsock_table_lock);
 
-static __init void vsock_init_tables(void)
+/* Autobind this socket to the local address if necessary. */
+static int vsock_auto_bind(struct vsock_sock *vsk)
+{
+	struct sock *sk = sk_vsock(vsk);
+	struct sockaddr_vm local_addr;
+
+	if (vsock_addr_bound(&vsk->local_addr))
+		return 0;
+	vsock_addr_init(&local_addr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
+	return __vsock_bind(sk, &local_addr);
+}
+
+static void vsock_init_tables(void)
 {
 	int i;
 
@@ -207,7 +218,7 @@ static struct sock *__vsock_find_bound_socket(struct sockaddr_vm *addr)
 	struct vsock_sock *vsk;
 
 	list_for_each_entry(vsk, vsock_bound_sockets(addr), bound_table)
-		if (vsock_addr_equals_addr_any(addr, &vsk->local_addr))
+		if (addr->svm_port == vsk->local_addr.svm_port)
 			return sk_vsock(vsk);
 
 	return NULL;
@@ -220,8 +231,8 @@ static struct sock *__vsock_find_connected_socket(struct sockaddr_vm *src,
 
 	list_for_each_entry(vsk, vsock_connected_sockets(src, dst),
 			    connected_table) {
-		if (vsock_addr_equals_addr(src, &vsk->remote_addr)
-		    && vsock_addr_equals_addr(dst, &vsk->local_addr)) {
+		if (vsock_addr_equals_addr(src, &vsk->remote_addr) &&
+		    dst->svm_port == vsk->local_addr.svm_port) {
 			return sk_vsock(vsk);
 		}
 	}
@@ -335,7 +346,7 @@ void vsock_for_each_connected_socket(void (*fn)(struct sock *sk))
 	for (i = 0; i < ARRAY_SIZE(vsock_connected_table); i++) {
 		struct vsock_sock *vsk;
 		list_for_each_entry(vsk, &vsock_connected_table[i],
-				    connected_table);
+				    connected_table)
 			fn(sk_vsock(vsk));
 	}
 
@@ -956,15 +967,10 @@ static int vsock_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	lock_sock(sk);
 
-	if (!vsock_addr_bound(&vsk->local_addr)) {
-		struct sockaddr_vm local_addr;
+	err = vsock_auto_bind(vsk);
+	if (err)
+		goto out;
 
-		vsock_addr_init(&local_addr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
-		err = __vsock_bind(sk, &local_addr);
-		if (err != 0)
-			goto out;
-
-	}
 
 	/* If the provided message contains an address, use that.  Otherwise
 	 * fall back on the socket's remote handle (if it has been connected).
@@ -1038,15 +1044,9 @@ static int vsock_dgram_connect(struct socket *sock,
 
 	lock_sock(sk);
 
-	if (!vsock_addr_bound(&vsk->local_addr)) {
-		struct sockaddr_vm local_addr;
-
-		vsock_addr_init(&local_addr, VMADDR_CID_ANY, VMADDR_PORT_ANY);
-		err = __vsock_bind(sk, &local_addr);
-		if (err != 0)
-			goto out;
-
-	}
+	err = vsock_auto_bind(vsk);
+	if (err)
+		goto out;
 
 	if (!transport->dgram_allow(remote_addr->svm_cid,
 				    remote_addr->svm_port)) {
@@ -1163,17 +1163,9 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 		memcpy(&vsk->remote_addr, remote_addr,
 		       sizeof(vsk->remote_addr));
 
-		/* Autobind this socket to the local address if necessary. */
-		if (!vsock_addr_bound(&vsk->local_addr)) {
-			struct sockaddr_vm local_addr;
-
-			vsock_addr_init(&local_addr, VMADDR_CID_ANY,
-					VMADDR_PORT_ANY);
-			err = __vsock_bind(sk, &local_addr);
-			if (err != 0)
-				goto out;
-
-		}
+		err = vsock_auto_bind(vsk);
+		if (err)
+			goto out;
 
 		sk->sk_state = SS_CONNECTING;
 
@@ -1930,16 +1922,30 @@ static const struct file_operations vsock_device_ops = {
 
 static struct miscdevice vsock_device = {
 	.name		= "vsock",
-	.minor		= MISC_DYNAMIC_MINOR,
 	.fops		= &vsock_device_ops,
 };
 
-static int __vsock_core_init(void)
+int __vsock_core_init(const struct vsock_transport *t, struct module *owner)
 {
-	int err;
+	int err = mutex_lock_interruptible(&vsock_register_mutex);
+
+	if (err)
+		return err;
+
+	if (transport) {
+		err = -EBUSY;
+		goto err_busy;
+	}
+
+	/* Transport must be the owner of the protocol so that it can't
+	 * unload while there are open sockets.
+	 */
+	vsock_proto.owner = owner;
+	transport = t;
 
 	vsock_init_tables();
 
+	vsock_device.minor = MISC_DYNAMIC_MINOR;
 	err = misc_register(&vsock_device);
 	if (err) {
 		pr_err("Failed to register misc device\n");
@@ -1959,36 +1965,19 @@ static int __vsock_core_init(void)
 		goto err_unregister_proto;
 	}
 
+	mutex_unlock(&vsock_register_mutex);
 	return 0;
 
 err_unregister_proto:
 	proto_unregister(&vsock_proto);
 err_misc_deregister:
 	misc_deregister(&vsock_device);
+	transport = NULL;
+err_busy:
+	mutex_unlock(&vsock_register_mutex);
 	return err;
 }
-
-int vsock_core_init(const struct vsock_transport *t)
-{
-	int retval = mutex_lock_interruptible(&vsock_register_mutex);
-	if (retval)
-		return retval;
-
-	if (transport) {
-		retval = -EBUSY;
-		goto out;
-	}
-
-	transport = t;
-	retval = __vsock_core_init();
-	if (retval)
-		transport = NULL;
-
-out:
-	mutex_unlock(&vsock_register_mutex);
-	return retval;
-}
-EXPORT_SYMBOL_GPL(vsock_core_init);
+EXPORT_SYMBOL_GPL(__vsock_core_init);
 
 void vsock_core_exit(void)
 {
@@ -2008,5 +1997,5 @@ EXPORT_SYMBOL_GPL(vsock_core_exit);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Socket Family");
-MODULE_VERSION("1.0.0.0-k");
+MODULE_VERSION("1.0.1.0-k");
 MODULE_LICENSE("GPL v2");

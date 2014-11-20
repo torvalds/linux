@@ -299,4 +299,53 @@ struct mpc512x_psc_fifo {
 #define rxdata_32 rxdata.rxdata_32
 };
 
+struct mpc5125_psc {
+	u8		mr1;			/* PSC + 0x00 */
+	u8		reserved0[3];
+	u8		mr2;			/* PSC + 0x04 */
+	u8		reserved1[3];
+	struct {
+		u16		status;		/* PSC + 0x08 */
+		u8		reserved2[2];
+		u8		clock_select;	/* PSC + 0x0c */
+		u8		reserved3[3];
+	} sr_csr;
+	u8		command;		/* PSC + 0x10 */
+	u8		reserved4[3];
+	union {					/* PSC + 0x14 */
+		u8		buffer_8;
+		u16		buffer_16;
+		u32		buffer_32;
+	} buffer;
+	struct {
+		u8		ipcr;		/* PSC + 0x18 */
+		u8		reserved5[3];
+		u8		acr;		/* PSC + 0x1c */
+		u8		reserved6[3];
+	} ipcr_acr;
+	struct {
+		u16		isr;		/* PSC + 0x20 */
+		u8		reserved7[2];
+		u16		imr;		/* PSC + 0x24 */
+		u8		reserved8[2];
+	} isr_imr;
+	u8		ctur;			/* PSC + 0x28 */
+	u8		reserved9[3];
+	u8		ctlr;			/* PSC + 0x2c */
+	u8		reserved10[3];
+	u32		ccr;			/* PSC + 0x30 */
+	u32		ac97slots;		/* PSC + 0x34 */
+	u32		ac97cmd;		/* PSC + 0x38 */
+	u32		ac97data;		/* PSC + 0x3c */
+	u8		reserved11[4];
+	u8		ip;			/* PSC + 0x44 */
+	u8		reserved12[3];
+	u8		op1;			/* PSC + 0x48 */
+	u8		reserved13[3];
+	u8		op0;			/* PSC + 0x4c */
+	u8		reserved14[3];
+	u32		sicr;			/* PSC + 0x50 */
+	u8		reserved15[4];	/* make eq. sizeof(mpc52xx_psc) */
+};
+
 #endif  /* __ASM_MPC52xx_PSC_H__ */

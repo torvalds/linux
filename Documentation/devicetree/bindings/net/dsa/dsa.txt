@@ -1,0 +1,108 @@
+Marvell Distributed Switch Architecture Device Tree Bindings
+------------------------------------------------------------
+
+Required properties:
+- compatible		: Should be "marvell,dsa"
+- #address-cells	: Must be 2, first cell is the address on the MDIO bus
+			  and second cell is the address in the switch tree.
+			  Second cell is used only when cascading/chaining.
+- #size-cells		: Must be 0
+- dsa,ethernet		: Should be a phandle to a valid Ethernet device node
+- dsa,mii-bus		: Should be a phandle to a valid MDIO bus device node
+
+Optionnal properties:
+- interrupts		: property with a value describing the switch
+			  interrupt number (not supported by the driver)
+
+A DSA node can contain multiple switch chips which are therefore child nodes of
+the parent DSA node. The maximum number of allowed child nodes is 4
+(DSA_MAX_SWITCHES).
+Each of these switch child nodes should have the following required properties:
+
+- reg			: Describes the switch address on the MII bus
+- #address-cells	: Must be 1
+- #size-cells		: Must be 0
+
+A switch may have multiple "port" children nodes
+
+Each port children node must have the following mandatory properties:
+- reg			: Describes the port address in the switch
+- label			: Describes the label associated with this port, special
+			  labels are "cpu" to indicate a CPU port and "dsa" to
+			  indicate an uplink/downlink port.
+
+Note that a port labelled "dsa" will imply checking for the uplink phandle
+described below.
+
+Optionnal property:
+- link			: Should be a phandle to another switch's DSA port.
+			  This property is only used when switches are being
+			  chained/cascaded together.
+
+- phy-handle		: Phandle to a PHY on an external MDIO bus, not the
+			  switch internal one. See
+			  Documentation/devicetree/bindings/net/ethernet.txt
+			  for details.
+
+- phy-mode		: String representing the connection to the designated
+			  PHY node specified by the 'phy-handle' property. See
+			  Documentation/devicetree/bindings/net/ethernet.txt
+			  for details.
+
+Optional subnodes:
+- fixed-link		: Fixed-link subnode describing a link to a non-MDIO
+			  managed entity. See
+			  Documentation/devicetree/bindings/net/fixed-link.txt
+			  for details.
+
+Example:
+
+	dsa@0 {
+		compatible = "marvell,dsa";
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		interrupts = <10>;
+		dsa,ethernet = <&ethernet0>;
+		dsa,mii-bus = <&mii_bus0>;
+
+		switch@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <16 0>;	/* MDIO address 16, switch 0 in tree */
+
+			port@0 {
+				reg = <0>;
+				label = "lan1";
+				phy-handle = <&phy0>;
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "lan2";
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+			};
+
+			switch0uplink: port@6 {
+				reg = <6>;
+				label = "dsa";
+				link = <&switch1uplink>;
+			};
+		};
+
+		switch@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <17 1>;	/* MDIO address 17, switch 1 in tree */
+
+			switch1uplink: port@0 {
+				reg = <0>;
+				label = "dsa";
+				link = <&switch0uplink>;
+			};
+		};
+	};

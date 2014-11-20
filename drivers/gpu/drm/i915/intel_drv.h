@@ -25,20 +25,34 @@
 #ifndef __INTEL_DRV_H__
 #define __INTEL_DRV_H__
 
+#include <linux/async.h>
 #include <linux/i2c.h>
+#include <linux/hdmi.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/drm_dp_mst_helper.h>
 
+#define DIV_ROUND_CLOSEST_ULL(ll, d)	\
+({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
+
+/**
+ * _wait_for - magic (register) wait macro
+ *
+ * Does the right thing for modeset paths when run under kdgb or similar atomic
+ * contexts. Note that it's important that we check the condition again after
+ * having timed out, since the timeout could be due to preemption or similar and
+ * we've never had a chance to check the condition before the timeout.
+ */
 #define _wait_for(COND, MS, W) ({ \
-	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
+	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS) + 1;	\
 	int ret__ = 0;							\
 	while (!(COND)) {						\
 		if (time_after(jiffies, timeout__)) {			\
-			ret__ = -ETIMEDOUT;				\
+			if (!(COND))					\
+				ret__ = -ETIMEDOUT;			\
 			break;						\
 		}							\
 		if (W && drm_can_sleep())  {				\
@@ -50,24 +64,13 @@
 	ret__;								\
 })
 
-#define wait_for_atomic_us(COND, US) ({ \
-	unsigned long timeout__ = jiffies + usecs_to_jiffies(US);	\
-	int ret__ = 0;							\
-	while (!(COND)) {						\
-		if (time_after(jiffies, timeout__)) {			\
-			ret__ = -ETIMEDOUT;				\
-			break;						\
-		}							\
-		cpu_relax();						\
-	}								\
-	ret__;								\
-})
-
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
 #define wait_for_atomic(COND, MS) _wait_for(COND, MS, 0)
+#define wait_for_atomic_us(COND, US) _wait_for((COND), \
+					       DIV_ROUND_UP((US), 1000), 0)
 
-#define KHz(x) (1000*x)
-#define MHz(x) KHz(1000*x)
+#define KHz(x) (1000 * (x))
+#define MHz(x) KHz(1000 * (x))
 
 /*
  * Display related stuff
@@ -78,7 +81,12 @@
 /* the i915, i945 have a single sDVO i2c bus - which is different */
 #define MAX_OUTPUTS 6
 /* maximum connectors per crtcs in the mode set */
-#define INTELFB_CONN_LIMIT 4
+
+/* Maximum cursor sizes */
+#define GEN2_CURSOR_WIDTH 64
+#define GEN2_CURSOR_HEIGHT 64
+#define MAX_CURSOR_WIDTH 256
+#define MAX_CURSOR_HEIGHT 256
 
 #define INTEL_I2C_BUS_DVO 1
 #define INTEL_I2C_BUS_SDVO 2
@@ -94,40 +102,17 @@
 #define INTEL_OUTPUT_HDMI 6
 #define INTEL_OUTPUT_DISPLAYPORT 7
 #define INTEL_OUTPUT_EDP 8
-#define INTEL_OUTPUT_UNKNOWN 9
+#define INTEL_OUTPUT_DSI 9
+#define INTEL_OUTPUT_UNKNOWN 10
+#define INTEL_OUTPUT_DP_MST 11
 
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
 #define INTEL_DVO_CHIP_TMDS 2
 #define INTEL_DVO_CHIP_TVOUT 4
 
-/* drm_display_mode->private_flags */
-#define INTEL_MODE_PIXEL_MULTIPLIER_SHIFT (0x0)
-#define INTEL_MODE_PIXEL_MULTIPLIER_MASK (0xf << INTEL_MODE_PIXEL_MULTIPLIER_SHIFT)
-#define INTEL_MODE_DP_FORCE_6BPC (0x10)
-/* This flag must be set by the encoder's mode_fixup if it changes the crtc
- * timings in the mode to prevent the crtc fixup from overwriting them.
- * Currently only lvds needs that. */
-#define INTEL_MODE_CRTC_TIMINGS_SET (0x20)
-/*
- * Set when limited 16-235 (as opposed to full 0-255) RGB color range is
- * to be used.
- */
-#define INTEL_MODE_LIMITED_COLOR_RANGE (0x40)
-
-static inline void
-intel_mode_set_pixel_multiplier(struct drm_display_mode *mode,
-				int multiplier)
-{
-	mode->clock *= multiplier;
-	mode->private_flags |= multiplier;
-}
-
-static inline int
-intel_mode_get_pixel_multiplier(const struct drm_display_mode *mode)
-{
-	return (mode->private_flags & INTEL_MODE_PIXEL_MULTIPLIER_MASK) >> INTEL_MODE_PIXEL_MULTIPLIER_SHIFT;
-}
+#define INTEL_DSI_VIDEO_MODE	0
+#define INTEL_DSI_COMMAND_MODE	1
 
 struct intel_framebuffer {
 	struct drm_framebuffer base;
@@ -136,9 +121,10 @@ struct intel_framebuffer {
 
 struct intel_fbdev {
 	struct drm_fb_helper helper;
-	struct intel_framebuffer ifb;
+	struct intel_framebuffer *fb;
 	struct list_head fbdev_list;
 	struct drm_display_mode *our_mode;
+	int preferred_bpp;
 };
 
 struct intel_encoder {
@@ -150,29 +136,55 @@ struct intel_encoder {
 	struct intel_crtc *new_crtc;
 
 	int type;
-	bool needs_tv_clock;
-	/*
-	 * Intel hw has only one MUX where encoders could be clone, hence a
-	 * simple flag is enough to compute the possible_clones mask.
-	 */
-	bool cloneable;
+	unsigned int cloneable;
 	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);
+	bool (*compute_config)(struct intel_encoder *,
+			       struct intel_crtc_config *);
 	void (*pre_pll_enable)(struct intel_encoder *);
 	void (*pre_enable)(struct intel_encoder *);
 	void (*enable)(struct intel_encoder *);
+	void (*mode_set)(struct intel_encoder *intel_encoder);
 	void (*disable)(struct intel_encoder *);
 	void (*post_disable)(struct intel_encoder *);
 	/* Read out the current hw state of this connector, returning true if
 	 * the encoder is active. If the encoder is enabled it also set the pipe
 	 * it is connected to in the pipe parameter. */
 	bool (*get_hw_state)(struct intel_encoder *, enum pipe *pipe);
+	/* Reconstructs the equivalent mode flags for the current hardware
+	 * state. This must be called _after_ display->get_pipe_config has
+	 * pre-filled the pipe config. Note that intel_encoder->base.crtc must
+	 * be set correctly before calling this function. */
+	void (*get_config)(struct intel_encoder *,
+			   struct intel_crtc_config *pipe_config);
+	/*
+	 * Called during system suspend after all pending requests for the
+	 * encoder are flushed (for example for DP AUX transactions) and
+	 * device interrupts are disabled.
+	 */
+	void (*suspend)(struct intel_encoder *);
 	int crtc_mask;
+	enum hpd_pin hpd_pin;
 };
 
 struct intel_panel {
 	struct drm_display_mode *fixed_mode;
+	struct drm_display_mode *downclock_mode;
 	int fitting_mode;
+
+	/* backlight */
+	struct {
+		bool present;
+		u32 level;
+		u32 min;
+		u32 max;
+		bool enabled;
+		bool combination_mode;	/* gen 2/4 only */
+		bool active_low_pwm;
+		struct backlight_device *device;
+	} backlight;
+
+	void (*backlight_power)(struct intel_connector *, bool enable);
 };
 
 struct intel_connector {
@@ -192,18 +204,196 @@ struct intel_connector {
 	 * and active (i.e. dpms ON state). */
 	bool (*get_hw_state)(struct intel_connector *);
 
+	/*
+	 * Removes all interfaces through which the connector is accessible
+	 * - like sysfs, debugfs entries -, so that no new operations can be
+	 * started on the connector. Also makes sure all currently pending
+	 * operations finish before returing.
+	 */
+	void (*unregister)(struct intel_connector *);
+
 	/* Panel info for eDP and LVDS */
 	struct intel_panel panel;
 
 	/* Cached EDID for eDP and LVDS. May hold ERR_PTR for invalid EDID. */
 	struct edid *edid;
+	struct edid *detect_edid;
+
+	/* since POLL and HPD connectors may use the same HPD line keep the native
+	   state of connector->polled in case hotplug storm detection changes it */
+	u8 polled;
+
+	void *port; /* store this opaque as its illegal to dereference it */
+
+	struct intel_dp *mst_port;
+};
+
+typedef struct dpll {
+	/* given values */
+	int n;
+	int m1, m2;
+	int p1, p2;
+	/* derived values */
+	int	dot;
+	int	vco;
+	int	m;
+	int	p;
+} intel_clock_t;
+
+struct intel_plane_config {
+	bool tiled;
+	int size;
+	u32 base;
+};
+
+struct intel_crtc_config {
+	/**
+	 * quirks - bitfield with hw state readout quirks
+	 *
+	 * For various reasons the hw state readout code might not be able to
+	 * completely faithfully read out the current state. These cases are
+	 * tracked with quirk flags so that fastboot and state checker can act
+	 * accordingly.
+	 */
+#define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
+#define PIPE_CONFIG_QUIRK_INHERITED_MODE	(1<<1) /* mode inherited from firmware */
+	unsigned long quirks;
+
+	/* User requested mode, only valid as a starting point to
+	 * compute adjusted_mode, except in the case of (S)DVO where
+	 * it's also for the output timings of the (S)DVO chip.
+	 * adjusted_mode will then correspond to the S(DVO) chip's
+	 * preferred input timings. */
+	struct drm_display_mode requested_mode;
+	/* Actual pipe timings ie. what we program into the pipe timing
+	 * registers. adjusted_mode.crtc_clock is the pipe pixel clock. */
+	struct drm_display_mode adjusted_mode;
+
+	/* Pipe source size (ie. panel fitter input size)
+	 * All planes will be positioned inside this space,
+	 * and get clipped at the edges. */
+	int pipe_src_w, pipe_src_h;
+
+	/* Whether to set up the PCH/FDI. Note that we never allow sharing
+	 * between pch encoders and cpu encoders. */
+	bool has_pch_encoder;
+
+	/* CPU Transcoder for the pipe. Currently this can only differ from the
+	 * pipe on Haswell (where we have a special eDP transcoder). */
+	enum transcoder cpu_transcoder;
+
+	/*
+	 * Use reduced/limited/broadcast rbg range, compressing from the full
+	 * range fed into the crtcs.
+	 */
+	bool limited_color_range;
+
+	/* DP has a bunch of special case unfortunately, so mark the pipe
+	 * accordingly. */
+	bool has_dp_encoder;
+
+	/* Whether we should send NULL infoframes. Required for audio. */
+	bool has_hdmi_sink;
+
+	/* Audio enabled on this pipe. Only valid if either has_hdmi_sink or
+	 * has_dp_encoder is set. */
+	bool has_audio;
+
+	/*
+	 * Enable dithering, used when the selected pipe bpp doesn't match the
+	 * plane bpp.
+	 */
+	bool dither;
+
+	/* Controls for the clock computation, to override various stages. */
+	bool clock_set;
+
+	/* SDVO TV has a bunch of special case. To make multifunction encoders
+	 * work correctly, we need to track this at runtime.*/
+	bool sdvo_tv_clock;
+
+	/*
+	 * crtc bandwidth limit, don't increase pipe bpp or clock if not really
+	 * required. This is set in the 2nd loop of calling encoder's
+	 * ->compute_config if the first pick doesn't work out.
+	 */
+	bool bw_constrained;
+
+	/* Settings for the intel dpll used on pretty much everything but
+	 * haswell. */
+	struct dpll dpll;
+
+	/* Selected dpll when shared or DPLL_ID_PRIVATE. */
+	enum intel_dpll_id shared_dpll;
+
+	/* PORT_CLK_SEL for DDI ports. */
+	uint32_t ddi_pll_sel;
+
+	/* Actual register state of the dpll, for shared dpll cross-checking. */
+	struct intel_dpll_hw_state dpll_hw_state;
+
+	int pipe_bpp;
+	struct intel_link_m_n dp_m_n;
+
+	/* m2_n2 for eDP downclock */
+	struct intel_link_m_n dp_m2_n2;
+	bool has_drrs;
+
+	/*
+	 * Frequence the dpll for the port should run at. Differs from the
+	 * adjusted dotclock e.g. for DP or 12bpc hdmi mode. This is also
+	 * already multiplied by pixel_multiplier.
+	 */
+	int port_clock;
+
+	/* Used by SDVO (and if we ever fix it, HDMI). */
+	unsigned pixel_multiplier;
+
+	/* Panel fitter controls for gen2-gen4 + VLV */
+	struct {
+		u32 control;
+		u32 pgm_ratios;
+		u32 lvds_border_bits;
+	} gmch_pfit;
+
+	/* Panel fitter placement and size for Ironlake+ */
+	struct {
+		u32 pos;
+		u32 size;
+		bool enabled;
+		bool force_thru;
+	} pch_pfit;
+
+	/* FDI configuration, only valid if has_pch_encoder is set. */
+	int fdi_lanes;
+	struct intel_link_m_n fdi_m_n;
+
+	bool ips_enabled;
+
+	bool double_wide;
+
+	bool dp_encoder_is_mst;
+	int pbn;
+};
+
+struct intel_pipe_wm {
+	struct intel_wm_level wm[5];
+	uint32_t linetime;
+	bool fbc_wm_enabled;
+	bool pipe_enabled;
+	bool sprites_enabled;
+	bool sprites_scaled;
+};
+
+struct intel_mmio_flip {
+	u32 seqno;
+	u32 ring_id;
 };
 
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
 	enum plane plane;
-	enum transcoder cpu_transcoder;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	/*
 	 * Whether the crtc and the connected output pipeline is active. Implies
@@ -211,12 +401,11 @@ struct intel_crtc {
 	 * some outputs connected to this crtc.
 	 */
 	bool active;
-	bool eld_vld;
-	bool primary_disabled; /* is the crtc obscured by a plane? */
+	unsigned long enabled_power_domains;
+	bool primary_enabled; /* is the primary plane (partially) visible? */
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
 	struct intel_unpin_work *unpin_work;
-	int fdi_lanes;
 
 	atomic_t unpin_work_count;
 
@@ -227,34 +416,71 @@ struct intel_crtc {
 
 	struct drm_i915_gem_object *cursor_bo;
 	uint32_t cursor_addr;
-	int16_t cursor_x, cursor_y;
 	int16_t cursor_width, cursor_height;
-	bool cursor_visible;
-	unsigned int bpp;
+	uint32_t cursor_cntl;
+	uint32_t cursor_size;
+	uint32_t cursor_base;
 
-	/* We can share PLLs across outputs if the timings match */
-	struct intel_pch_pll *pch_pll;
-	uint32_t ddi_pll_sel;
+	struct intel_plane_config plane_config;
+	struct intel_crtc_config config;
+	struct intel_crtc_config *new_config;
+	bool new_enabled;
 
 	/* reset counter value when the last flip was submitted */
 	unsigned int reset_counter;
+
+	/* Access to these should be protected by dev_priv->irq_lock. */
+	bool cpu_fifo_underrun_disabled;
+	bool pch_fifo_underrun_disabled;
+
+	/* per-pipe watermark state */
+	struct {
+		/* watermarks currently being used  */
+		struct intel_pipe_wm active;
+	} wm;
+
+	int scanline_offset;
+	struct intel_mmio_flip mmio_flip;
+};
+
+struct intel_plane_wm_parameters {
+	uint32_t horiz_pixels;
+	uint32_t vert_pixels;
+	uint8_t bytes_per_pixel;
+	bool enabled;
+	bool scaled;
 };
 
 struct intel_plane {
 	struct drm_plane base;
+	int plane;
 	enum pipe pipe;
 	struct drm_i915_gem_object *obj;
 	bool can_scale;
 	int max_downscale;
-	u32 lut_r[1024], lut_g[1024], lut_b[1024];
+	int crtc_x, crtc_y;
+	unsigned int crtc_w, crtc_h;
+	uint32_t src_x, src_y;
+	uint32_t src_w, src_h;
+	unsigned int rotation;
+
+	/* Since we need to change the watermarks before/after
+	 * enabling/disabling the planes, we need to store the parameters here
+	 * as the other pieces of the struct may not reflect the values we want
+	 * for the watermark calculations. Currently only Haswell uses this.
+	 */
+	struct intel_plane_wm_parameters wm;
+
 	void (*update_plane)(struct drm_plane *plane,
+			     struct drm_crtc *crtc,
 			     struct drm_framebuffer *fb,
 			     struct drm_i915_gem_object *obj,
 			     int crtc_x, int crtc_y,
 			     unsigned int crtc_w, unsigned int crtc_h,
 			     uint32_t x, uint32_t y,
 			     uint32_t src_w, uint32_t src_h);
-	void (*disable_plane)(struct drm_plane *plane);
+	void (*disable_plane)(struct drm_plane *plane,
+			      struct drm_crtc *crtc);
 	int (*update_colorkey)(struct drm_plane *plane,
 			       struct drm_intel_sprite_colorkey *key);
 	void (*get_colorkey)(struct drm_plane *plane,
@@ -285,69 +511,10 @@ struct cxsr_latency {
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 #define to_intel_plane(x) container_of(x, struct intel_plane, base)
-
-#define DIP_HEADER_SIZE	5
-
-#define DIP_TYPE_AVI    0x82
-#define DIP_VERSION_AVI 0x2
-#define DIP_LEN_AVI     13
-#define DIP_AVI_PR_1    0
-#define DIP_AVI_PR_2    1
-#define DIP_AVI_RGB_QUANT_RANGE_DEFAULT	(0 << 2)
-#define DIP_AVI_RGB_QUANT_RANGE_LIMITED	(1 << 2)
-#define DIP_AVI_RGB_QUANT_RANGE_FULL	(2 << 2)
-
-#define DIP_TYPE_SPD	0x83
-#define DIP_VERSION_SPD	0x1
-#define DIP_LEN_SPD	25
-#define DIP_SPD_UNKNOWN	0
-#define DIP_SPD_DSTB	0x1
-#define DIP_SPD_DVDP	0x2
-#define DIP_SPD_DVHS	0x3
-#define DIP_SPD_HDDVR	0x4
-#define DIP_SPD_DVC	0x5
-#define DIP_SPD_DSC	0x6
-#define DIP_SPD_VCD	0x7
-#define DIP_SPD_GAME	0x8
-#define DIP_SPD_PC	0x9
-#define DIP_SPD_BD	0xa
-#define DIP_SPD_SCD	0xb
-
-struct dip_infoframe {
-	uint8_t type;		/* HB0 */
-	uint8_t ver;		/* HB1 */
-	uint8_t len;		/* HB2 - body len, not including checksum */
-	uint8_t ecc;		/* Header ECC */
-	uint8_t checksum;	/* PB0 */
-	union {
-		struct {
-			/* PB1 - Y 6:5, A 4:4, B 3:2, S 1:0 */
-			uint8_t Y_A_B_S;
-			/* PB2 - C 7:6, M 5:4, R 3:0 */
-			uint8_t C_M_R;
-			/* PB3 - ITC 7:7, EC 6:4, Q 3:2, SC 1:0 */
-			uint8_t ITC_EC_Q_SC;
-			/* PB4 - VIC 6:0 */
-			uint8_t VIC;
-			/* PB5 - YQ 7:6, CN 5:4, PR 3:0 */
-			uint8_t YQ_CN_PR;
-			/* PB6 to PB13 */
-			uint16_t top_bar_end;
-			uint16_t bottom_bar_start;
-			uint16_t left_bar_end;
-			uint16_t right_bar_start;
-		} __attribute__ ((packed)) avi;
-		struct {
-			uint8_t vn[8];
-			uint8_t pd[16];
-			uint8_t sdi;
-		} __attribute__ ((packed)) spd;
-		uint8_t payload[27];
-	} __attribute__ ((packed)) body;
-} __attribute__((packed));
+#define intel_fb_obj(x) (x ? to_intel_framebuffer(x)->obj : NULL)
 
 struct intel_hdmi {
-	u32 sdvox_reg;
+	u32 hdmi_reg;
 	int ddc_bus;
 	uint32_t color_range;
 	bool color_range_auto;
@@ -355,19 +522,33 @@ struct intel_hdmi {
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
 	bool rgb_quant_range_selectable;
+	enum hdmi_picture_aspect aspect_ratio;
 	void (*write_infoframe)(struct drm_encoder *encoder,
-				struct dip_infoframe *frame);
+				enum hdmi_infoframe_type type,
+				const void *frame, ssize_t len);
 	void (*set_infoframes)(struct drm_encoder *encoder,
+			       bool enable,
 			       struct drm_display_mode *adjusted_mode);
 };
 
+struct intel_dp_mst_encoder;
 #define DP_MAX_DOWNSTREAM_PORTS		0x10
-#define DP_LINK_CONFIGURATION_SIZE	9
+
+/**
+ * HIGH_RR is the highest eDP panel refresh rate read from EDID
+ * LOW_RR is the lowest eDP panel refresh rate found from EDID
+ * parsing for same resolution.
+ */
+enum edp_drrs_refresh_rate_type {
+	DRRS_HIGH_RR,
+	DRRS_LOW_RR,
+	DRRS_MAX_RR, /* RR count */
+};
 
 struct intel_dp {
 	uint32_t output_reg;
+	uint32_t aux_ch_ctl_reg;
 	uint32_t DP;
-	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
 	uint32_t color_range;
@@ -375,10 +556,9 @@ struct intel_dp {
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
+	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
-	struct i2c_adapter adapter;
-	struct i2c_algo_dp_aux_data algo;
-	bool is_pch_edp;
+	struct drm_dp_aux aux;
 	uint8_t train_set[4];
 	int panel_power_up_delay;
 	int panel_power_down_delay;
@@ -387,16 +567,89 @@ struct intel_dp {
 	int backlight_off_delay;
 	struct delayed_work panel_vdd_work;
 	bool want_panel_vdd;
+	unsigned long last_power_cycle;
+	unsigned long last_power_on;
+	unsigned long last_backlight_off;
+
+	struct notifier_block edp_notifier;
+
+	/*
+	 * Pipe whose power sequencer is currently locked into
+	 * this port. Only relevant on VLV/CHV.
+	 */
+	enum pipe pps_pipe;
+
+	bool use_tps3;
+	bool can_mst; /* this port supports mst */
+	bool is_mst;
+	int active_mst_links;
+	/* connector directly attached - won't be use for modeset in mst world */
 	struct intel_connector *attached_connector;
+
+	/* mst connector list */
+	struct intel_dp_mst_encoder *mst_encoders[I915_MAX_PIPES];
+	struct drm_dp_mst_topology_mgr mst_mgr;
+
+	uint32_t (*get_aux_clock_divider)(struct intel_dp *dp, int index);
+	/*
+	 * This function returns the value we have to program the AUX_CTL
+	 * register with to kick off an AUX transaction.
+	 */
+	uint32_t (*get_aux_send_ctl)(struct intel_dp *dp,
+				     bool has_aux_irq,
+				     int send_bytes,
+				     uint32_t aux_clock_divider);
+	struct {
+		enum drrs_support_type type;
+		enum edp_drrs_refresh_rate_type refresh_rate_type;
+		struct mutex mutex;
+	} drrs_state;
+
 };
 
 struct intel_digital_port {
 	struct intel_encoder base;
 	enum port port;
-	u32 port_reversal;
+	u32 saved_port_bits;
 	struct intel_dp dp;
 	struct intel_hdmi hdmi;
+	bool (*hpd_pulse)(struct intel_digital_port *, bool);
 };
+
+struct intel_dp_mst_encoder {
+	struct intel_encoder base;
+	enum pipe pipe;
+	struct intel_digital_port *primary;
+	void *port; /* store this opaque as its illegal to dereference it */
+};
+
+static inline int
+vlv_dport_to_channel(struct intel_digital_port *dport)
+{
+	switch (dport->port) {
+	case PORT_B:
+	case PORT_D:
+		return DPIO_CH0;
+	case PORT_C:
+		return DPIO_CH1;
+	default:
+		BUG();
+	}
+}
+
+static inline int
+vlv_pipe_to_channel(enum pipe pipe)
+{
+	switch (pipe) {
+	case PIPE_A:
+	case PIPE_C:
+		return DPIO_CH0;
+	case PIPE_B:
+		return DPIO_CH1;
+	default:
+		BUG();
+	}
+}
 
 static inline struct drm_crtc *
 intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
@@ -422,133 +675,51 @@ struct intel_unpin_work {
 #define INTEL_FLIP_INACTIVE	0
 #define INTEL_FLIP_PENDING	1
 #define INTEL_FLIP_COMPLETE	2
+	u32 flip_count;
+	u32 gtt_offset;
+	struct intel_engine_cs *flip_queued_ring;
+	u32 flip_queued_seqno;
+	int flip_queued_vblank;
+	int flip_ready_vblank;
 	bool enable_stall_check;
 };
-
-struct intel_fbc_work {
-	struct delayed_work work;
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb;
-	int interval;
-};
-
-int intel_pch_rawclk(struct drm_device *dev);
-
-int intel_connector_update_modes(struct drm_connector *connector,
-				struct edid *edid);
-int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
-
-extern void intel_attach_force_audio_property(struct drm_connector *connector);
-extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
-
-extern void intel_crt_init(struct drm_device *dev);
-extern void intel_hdmi_init(struct drm_device *dev,
-			    int sdvox_reg, enum port port);
-extern void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
-				      struct intel_connector *intel_connector);
-extern struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
-extern bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode);
-extern void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
-extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
-			    bool is_sdvob);
-extern void intel_dvo_init(struct drm_device *dev);
-extern void intel_tv_init(struct drm_device *dev);
-extern void intel_mark_busy(struct drm_device *dev);
-extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj);
-extern void intel_mark_idle(struct drm_device *dev);
-extern bool intel_lvds_init(struct drm_device *dev);
-extern bool intel_is_dual_link_lvds(struct drm_device *dev);
-extern void intel_dp_init(struct drm_device *dev, int output_reg,
-			  enum port port);
-extern void intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
-				    struct intel_connector *intel_connector);
-void
-intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
-		 struct drm_display_mode *adjusted_mode);
-extern void intel_dp_init_link_config(struct intel_dp *intel_dp);
-extern void intel_dp_start_link_train(struct intel_dp *intel_dp);
-extern void intel_dp_complete_link_train(struct intel_dp *intel_dp);
-extern void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
-extern void intel_dp_encoder_destroy(struct drm_encoder *encoder);
-extern void intel_dp_check_link_status(struct intel_dp *intel_dp);
-extern bool intel_dp_mode_fixup(struct drm_encoder *encoder,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode);
-extern bool intel_dpd_is_edp(struct drm_device *dev);
-extern void ironlake_edp_backlight_on(struct intel_dp *intel_dp);
-extern void ironlake_edp_backlight_off(struct intel_dp *intel_dp);
-extern void ironlake_edp_panel_on(struct intel_dp *intel_dp);
-extern void ironlake_edp_panel_off(struct intel_dp *intel_dp);
-extern void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp);
-extern void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
-extern void intel_edp_link_config(struct intel_encoder *, int *, int *);
-extern int intel_edp_target_clock(struct intel_encoder *,
-				  struct drm_display_mode *mode);
-extern bool intel_encoder_is_pch_edp(struct drm_encoder *encoder);
-extern int intel_plane_init(struct drm_device *dev, enum pipe pipe);
-extern void intel_flush_display_plane(struct drm_i915_private *dev_priv,
-				      enum plane plane);
-
-/* intel_panel.c */
-extern int intel_panel_init(struct intel_panel *panel,
-			    struct drm_display_mode *fixed_mode);
-extern void intel_panel_fini(struct intel_panel *panel);
-
-extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
-				   struct drm_display_mode *adjusted_mode);
-extern void intel_pch_panel_fitting(struct drm_device *dev,
-				    int fitting_mode,
-				    const struct drm_display_mode *mode,
-				    struct drm_display_mode *adjusted_mode);
-extern u32 intel_panel_get_max_backlight(struct drm_device *dev);
-extern void intel_panel_set_backlight(struct drm_device *dev, u32 level);
-extern int intel_panel_setup_backlight(struct drm_connector *connector);
-extern void intel_panel_enable_backlight(struct drm_device *dev,
-					 enum pipe pipe);
-extern void intel_panel_disable_backlight(struct drm_device *dev);
-extern void intel_panel_destroy_backlight(struct drm_device *dev);
-extern enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 
 struct intel_set_config {
 	struct drm_encoder **save_connector_encoders;
 	struct drm_crtc **save_encoder_crtcs;
+	bool *save_crtc_enabled;
 
 	bool fb_changed;
 	bool mode_changed;
 };
 
-extern int intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			  int x, int y, struct drm_framebuffer *old_fb);
-extern void intel_modeset_disable(struct drm_device *dev);
-extern void intel_crtc_restore_mode(struct drm_crtc *crtc);
-extern void intel_crtc_load_lut(struct drm_crtc *crtc);
-extern void intel_crtc_update_dpms(struct drm_crtc *crtc);
-extern void intel_encoder_destroy(struct drm_encoder *encoder);
-extern void intel_encoder_dpms(struct intel_encoder *encoder, int mode);
-extern bool intel_encoder_check_is_cloned(struct intel_encoder *encoder);
-extern void intel_connector_dpms(struct drm_connector *, int mode);
-extern bool intel_connector_get_hw_state(struct intel_connector *connector);
-extern void intel_modeset_check_state(struct drm_device *dev);
+struct intel_load_detect_pipe {
+	struct drm_framebuffer *release_fb;
+	bool load_detect_temp;
+	int dpms_mode;
+};
 
-
-static inline struct intel_encoder *intel_attached_encoder(struct drm_connector *connector)
+static inline struct intel_encoder *
+intel_attached_encoder(struct drm_connector *connector)
 {
 	return to_intel_connector(connector)->encoder;
-}
-
-static inline struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
-{
-	struct intel_digital_port *intel_dig_port =
-		container_of(encoder, struct intel_digital_port, base.base);
-	return &intel_dig_port->dp;
 }
 
 static inline struct intel_digital_port *
 enc_to_dig_port(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct intel_digital_port, base.base);
+}
+
+static inline struct intel_dp_mst_encoder *
+enc_to_mst(struct drm_encoder *encoder)
+{
+	return container_of(encoder, struct intel_dp_mst_encoder, base.base);
+}
+
+static inline struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
+{
+	return &enc_to_dig_port(encoder)->dp;
 }
 
 static inline struct intel_digital_port *
@@ -563,136 +734,395 @@ hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 	return container_of(intel_hdmi, struct intel_digital_port, hdmi);
 }
 
+
+/* i915_irq.c */
+bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+					   enum pipe pipe, bool enable);
+bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
+					   enum transcoder pch_transcoder,
+					   bool enable);
+void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen8_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void gen8_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+void intel_runtime_pm_disable_interrupts(struct drm_device *dev);
+void intel_runtime_pm_restore_interrupts(struct drm_device *dev);
+static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * We only use drm_irq_uninstall() at unload and VT switch, so
+	 * this is the only thing we need to check.
+	 */
+	return !dev_priv->pm._irqs_disabled;
+}
+
+int intel_get_crtc_scanline(struct intel_crtc *crtc);
+void i9xx_check_fifo_underruns(struct drm_device *dev);
+void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv);
+
+/* intel_crt.c */
+void intel_crt_init(struct drm_device *dev);
+
+
+/* intel_ddi.c */
+void intel_prepare_ddi(struct drm_device *dev);
+void hsw_fdi_link_train(struct drm_crtc *crtc);
+void intel_ddi_init(struct drm_device *dev, enum port port);
+enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder);
+bool intel_ddi_get_hw_state(struct intel_encoder *encoder, enum pipe *pipe);
+int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv);
+void intel_ddi_pll_init(struct drm_device *dev);
+void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc);
+void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
+				       enum transcoder cpu_transcoder);
+void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc);
+void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc);
+bool intel_ddi_pll_select(struct intel_crtc *crtc);
+void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
+void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);
+bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
+void intel_ddi_fdi_disable(struct drm_crtc *crtc);
+void intel_ddi_get_config(struct intel_encoder *encoder,
+			  struct intel_crtc_config *pipe_config);
+
+void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder);
+void intel_ddi_clock_get(struct intel_encoder *encoder,
+			 struct intel_crtc_config *pipe_config);
+void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state);
+
+/* intel_display.c */
+const char *intel_output_name(int output);
+bool intel_has_pending_fb_unpin(struct drm_device *dev);
+int intel_pch_rawclk(struct drm_device *dev);
+void intel_mark_busy(struct drm_device *dev);
+void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
+			     struct intel_engine_cs *ring);
+void intel_frontbuffer_flip_prepare(struct drm_device *dev,
+				    unsigned frontbuffer_bits);
+void intel_frontbuffer_flip_complete(struct drm_device *dev,
+				     unsigned frontbuffer_bits);
+void intel_frontbuffer_flush(struct drm_device *dev,
+			     unsigned frontbuffer_bits);
+/**
+ * intel_frontbuffer_flip - prepare frontbuffer flip
+ * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * This function gets called after scheduling a flip on @obj. This is for
+ * synchronous plane updates which will happen on the next vblank and which will
+ * not get delayed by pending gpu rendering.
+ *
+ * Can be called without any locks held.
+ */
+static inline
+void intel_frontbuffer_flip(struct drm_device *dev,
+			    unsigned frontbuffer_bits)
+{
+	intel_frontbuffer_flush(dev, frontbuffer_bits);
+}
+
+void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
+void intel_mark_idle(struct drm_device *dev);
+void intel_crtc_restore_mode(struct drm_crtc *crtc);
+void intel_crtc_control(struct drm_crtc *crtc, bool enable);
+void intel_crtc_update_dpms(struct drm_crtc *crtc);
+void intel_encoder_destroy(struct drm_encoder *encoder);
+void intel_connector_dpms(struct drm_connector *, int mode);
+bool intel_connector_get_hw_state(struct intel_connector *connector);
+void intel_modeset_check_state(struct drm_device *dev);
 bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 				struct intel_digital_port *port);
-
-extern void intel_connector_attach_encoder(struct intel_connector *connector,
-					   struct intel_encoder *encoder);
-extern struct drm_encoder *intel_best_encoder(struct drm_connector *connector);
-
-extern struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
-						    struct drm_crtc *crtc);
+void intel_connector_attach_encoder(struct intel_connector *connector,
+				    struct intel_encoder *encoder);
+struct drm_encoder *intel_best_encoder(struct drm_connector *connector);
+struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
+					     struct drm_crtc *crtc);
+enum pipe intel_get_pipe_from_connector(struct intel_connector *connector);
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
-extern enum transcoder
-intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
-			     enum pipe pipe);
-extern void intel_wait_for_vblank(struct drm_device *dev, int pipe);
-extern void intel_wait_for_pipe_off(struct drm_device *dev, int pipe);
-extern int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
+enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
+					     enum pipe pipe);
+void intel_wait_for_vblank(struct drm_device *dev, int pipe);
+int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
+void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
+			 struct intel_digital_port *dport);
+bool intel_get_load_detect_pipe(struct drm_connector *connector,
+				struct drm_display_mode *mode,
+				struct intel_load_detect_pipe *old,
+				struct drm_modeset_acquire_ctx *ctx);
+void intel_release_load_detect_pipe(struct drm_connector *connector,
+				    struct intel_load_detect_pipe *old);
+int intel_pin_and_fence_fb_obj(struct drm_device *dev,
+			       struct drm_i915_gem_object *obj,
+			       struct intel_engine_cs *pipelined);
+void intel_unpin_fb_obj(struct drm_i915_gem_object *obj);
+struct drm_framebuffer *
+__intel_framebuffer_create(struct drm_device *dev,
+			   struct drm_mode_fb_cmd2 *mode_cmd,
+			   struct drm_i915_gem_object *obj);
+void intel_prepare_page_flip(struct drm_device *dev, int plane);
+void intel_finish_page_flip(struct drm_device *dev, int pipe);
+void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
+void intel_check_page_flip(struct drm_device *dev, int pipe);
 
-struct intel_load_detect_pipe {
-	struct drm_framebuffer *release_fb;
-	bool load_detect_temp;
-	int dpms_mode;
-};
-extern bool intel_get_load_detect_pipe(struct drm_connector *connector,
-				       struct drm_display_mode *mode,
-				       struct intel_load_detect_pipe *old);
-extern void intel_release_load_detect_pipe(struct drm_connector *connector,
-					   struct intel_load_detect_pipe *old);
-
-extern void intelfb_restore(void);
-extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-				    u16 blue, int regno);
-extern void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-				    u16 *blue, int regno);
-extern void intel_enable_clock_gating(struct drm_device *dev);
-
-extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
-				      struct drm_i915_gem_object *obj,
-				      struct intel_ring_buffer *pipelined);
-extern void intel_unpin_fb_obj(struct drm_i915_gem_object *obj);
-
-extern int intel_framebuffer_init(struct drm_device *dev,
-				  struct intel_framebuffer *ifb,
-				  struct drm_mode_fb_cmd2 *mode_cmd,
-				  struct drm_i915_gem_object *obj);
-extern int intel_fbdev_init(struct drm_device *dev);
-extern void intel_fbdev_initial_config(struct drm_device *dev);
-extern void intel_fbdev_fini(struct drm_device *dev);
-extern void intel_fbdev_set_suspend(struct drm_device *dev, int state);
-extern void intel_prepare_page_flip(struct drm_device *dev, int plane);
-extern void intel_finish_page_flip(struct drm_device *dev, int pipe);
-extern void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
-
-extern void intel_setup_overlay(struct drm_device *dev);
-extern void intel_cleanup_overlay(struct drm_device *dev);
-extern int intel_overlay_switch_off(struct intel_overlay *overlay);
-extern int intel_overlay_put_image(struct drm_device *dev, void *data,
-				   struct drm_file *file_priv);
-extern int intel_overlay_attrs(struct drm_device *dev, void *data,
-			       struct drm_file *file_priv);
-
-extern void intel_fb_output_poll_changed(struct drm_device *dev);
-extern void intel_fb_restore_mode(struct drm_device *dev);
-
-extern void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
+/* shared dpll functions */
+struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);
+void assert_shared_dpll(struct drm_i915_private *dev_priv,
+			struct intel_shared_dpll *pll,
 			bool state);
+#define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
+#define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
+struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc);
+void intel_put_shared_dpll(struct intel_crtc *crtc);
+
+/* modesetting asserts */
+void assert_pll(struct drm_i915_private *dev_priv,
+		enum pipe pipe, bool state);
+#define assert_pll_enabled(d, p) assert_pll(d, p, true)
+#define assert_pll_disabled(d, p) assert_pll(d, p, false)
+void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
+		       enum pipe pipe, bool state);
+#define assert_fdi_rx_pll_enabled(d, p) assert_fdi_rx_pll(d, p, true)
+#define assert_fdi_rx_pll_disabled(d, p) assert_fdi_rx_pll(d, p, false)
+void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
+void intel_write_eld(struct drm_encoder *encoder,
+		     struct drm_display_mode *mode);
+unsigned long intel_gen4_compute_page_offset(int *x, int *y,
+					     unsigned int tiling_mode,
+					     unsigned int bpp,
+					     unsigned int pitch);
+void intel_display_handle_reset(struct drm_device *dev);
+void hsw_enable_pc8(struct drm_i915_private *dev_priv);
+void hsw_disable_pc8(struct drm_i915_private *dev_priv);
+void intel_dp_get_m_n(struct intel_crtc *crtc,
+		      struct intel_crtc_config *pipe_config);
+void intel_dp_set_m_n(struct intel_crtc *crtc);
+int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
+void
+ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
+				int dotclock);
+bool intel_crtc_active(struct drm_crtc *crtc);
+void hsw_enable_ips(struct intel_crtc *crtc);
+void hsw_disable_ips(struct intel_crtc *crtc);
+void intel_display_set_init_power(struct drm_i915_private *dev, bool enable);
+enum intel_display_power_domain
+intel_display_port_power_domain(struct intel_encoder *intel_encoder);
+void intel_mode_from_pipe_config(struct drm_display_mode *mode,
+				 struct intel_crtc_config *pipe_config);
+int intel_format_to_fourcc(int format);
+void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc);
+void intel_modeset_preclose(struct drm_device *dev, struct drm_file *file);
 
-extern void intel_init_clock_gating(struct drm_device *dev);
-extern void intel_write_eld(struct drm_encoder *encoder,
-			    struct drm_display_mode *mode);
-extern void intel_cpt_verify_modeset(struct drm_device *dev, int pipe);
-extern void intel_prepare_ddi(struct drm_device *dev);
-extern void hsw_fdi_link_train(struct drm_crtc *crtc);
-extern void intel_ddi_init(struct drm_device *dev, enum port port);
+/* intel_dp.c */
+void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);
+bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
+			     struct intel_connector *intel_connector);
+void intel_dp_start_link_train(struct intel_dp *intel_dp);
+void intel_dp_complete_link_train(struct intel_dp *intel_dp);
+void intel_dp_stop_link_train(struct intel_dp *intel_dp);
+void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
+void intel_dp_encoder_destroy(struct drm_encoder *encoder);
+void intel_dp_check_link_status(struct intel_dp *intel_dp);
+int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc);
+bool intel_dp_compute_config(struct intel_encoder *encoder,
+			     struct intel_crtc_config *pipe_config);
+bool intel_dp_is_edp(struct drm_device *dev, enum port port);
+bool intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port,
+			bool long_hpd);
+void intel_edp_backlight_on(struct intel_dp *intel_dp);
+void intel_edp_backlight_off(struct intel_dp *intel_dp);
+void intel_edp_panel_vdd_on(struct intel_dp *intel_dp);
+void intel_edp_panel_vdd_sanitize(struct intel_encoder *intel_encoder);
+void intel_edp_panel_on(struct intel_dp *intel_dp);
+void intel_edp_panel_off(struct intel_dp *intel_dp);
+void intel_edp_psr_enable(struct intel_dp *intel_dp);
+void intel_edp_psr_disable(struct intel_dp *intel_dp);
+void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate);
+void intel_edp_psr_invalidate(struct drm_device *dev,
+			      unsigned frontbuffer_bits);
+void intel_edp_psr_flush(struct drm_device *dev,
+			 unsigned frontbuffer_bits);
+void intel_edp_psr_init(struct drm_device *dev);
 
-/* For use by IVB LP watermark workaround in intel_sprite.c */
-extern void intel_update_watermarks(struct drm_device *dev);
-extern void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
-					   uint32_t sprite_width,
-					   int pixel_size);
-extern void intel_update_linetime_watermarks(struct drm_device *dev, int pipe,
-			 struct drm_display_mode *mode);
+int intel_dp_handle_hpd_irq(struct intel_digital_port *digport, bool long_hpd);
+void intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector);
+void intel_dp_mst_suspend(struct drm_device *dev);
+void intel_dp_mst_resume(struct drm_device *dev);
+int intel_dp_max_link_bw(struct intel_dp *intel_dp);
+void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
+void vlv_power_sequencer_reset(struct drm_i915_private *dev_priv);
+/* intel_dp_mst.c */
+int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
+void intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port);
+/* intel_dsi.c */
+void intel_dsi_init(struct drm_device *dev);
 
-extern unsigned long intel_gen4_compute_page_offset(int *x, int *y,
-						    unsigned int tiling_mode,
-						    unsigned int bpp,
-						    unsigned int pitch);
 
-extern int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
-				     struct drm_file *file_priv);
-extern int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
-				     struct drm_file *file_priv);
+/* intel_dvo.c */
+void intel_dvo_init(struct drm_device *dev);
 
-extern u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg);
 
-/* Power-related functions, located in intel_pm.c */
-extern void intel_init_pm(struct drm_device *dev);
-/* FBC */
-extern bool intel_fbc_enabled(struct drm_device *dev);
-extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
-extern void intel_update_fbc(struct drm_device *dev);
-/* IPS */
-extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
-extern void intel_gpu_ips_teardown(void);
+/* legacy fbdev emulation in intel_fbdev.c */
+#ifdef CONFIG_DRM_I915_FBDEV
+extern int intel_fbdev_init(struct drm_device *dev);
+extern void intel_fbdev_initial_config(void *data, async_cookie_t cookie);
+extern void intel_fbdev_fini(struct drm_device *dev);
+extern void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous);
+extern void intel_fbdev_output_poll_changed(struct drm_device *dev);
+extern void intel_fbdev_restore_mode(struct drm_device *dev);
+#else
+static inline int intel_fbdev_init(struct drm_device *dev)
+{
+	return 0;
+}
 
-extern void intel_init_power_well(struct drm_device *dev);
-extern void intel_set_power_well(struct drm_device *dev, bool enable);
-extern void intel_enable_gt_powersave(struct drm_device *dev);
-extern void intel_disable_gt_powersave(struct drm_device *dev);
-extern void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv);
-extern void ironlake_teardown_rc6(struct drm_device *dev);
+static inline void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
+{
+}
 
-extern bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
-				   enum pipe *pipe);
-extern int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv);
-extern void intel_ddi_pll_init(struct drm_device *dev);
-extern void intel_ddi_enable_pipe_func(struct drm_crtc *crtc);
-extern void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
-					      enum transcoder cpu_transcoder);
-extern void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc);
-extern void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc);
-extern void intel_ddi_setup_hw_pll_state(struct drm_device *dev);
-extern bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock);
-extern void intel_ddi_put_crtc_pll(struct drm_crtc *crtc);
-extern void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
-extern void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);
-extern bool
-intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
-extern void intel_ddi_fdi_disable(struct drm_crtc *crtc);
+static inline void intel_fbdev_fini(struct drm_device *dev)
+{
+}
+
+static inline void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
+{
+}
+
+static inline void intel_fbdev_restore_mode(struct drm_device *dev)
+{
+}
+#endif
+
+/* intel_hdmi.c */
+void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port);
+void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
+			       struct intel_connector *intel_connector);
+struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
+bool intel_hdmi_compute_config(struct intel_encoder *encoder,
+			       struct intel_crtc_config *pipe_config);
+
+
+/* intel_lvds.c */
+void intel_lvds_init(struct drm_device *dev);
+bool intel_is_dual_link_lvds(struct drm_device *dev);
+
+
+/* intel_modes.c */
+int intel_connector_update_modes(struct drm_connector *connector,
+				 struct edid *edid);
+int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
+void intel_attach_force_audio_property(struct drm_connector *connector);
+void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
+
+
+/* intel_overlay.c */
+void intel_setup_overlay(struct drm_device *dev);
+void intel_cleanup_overlay(struct drm_device *dev);
+int intel_overlay_switch_off(struct intel_overlay *overlay);
+int intel_overlay_put_image(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv);
+int intel_overlay_attrs(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+
+
+/* intel_panel.c */
+int intel_panel_init(struct intel_panel *panel,
+		     struct drm_display_mode *fixed_mode,
+		     struct drm_display_mode *downclock_mode);
+void intel_panel_fini(struct intel_panel *panel);
+void intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
+			    struct drm_display_mode *adjusted_mode);
+void intel_pch_panel_fitting(struct intel_crtc *crtc,
+			     struct intel_crtc_config *pipe_config,
+			     int fitting_mode);
+void intel_gmch_panel_fitting(struct intel_crtc *crtc,
+			      struct intel_crtc_config *pipe_config,
+			      int fitting_mode);
+void intel_panel_set_backlight_acpi(struct intel_connector *connector,
+				    u32 level, u32 max);
+int intel_panel_setup_backlight(struct drm_connector *connector);
+void intel_panel_enable_backlight(struct intel_connector *connector);
+void intel_panel_disable_backlight(struct intel_connector *connector);
+void intel_panel_destroy_backlight(struct drm_connector *connector);
+void intel_panel_init_backlight_funcs(struct drm_device *dev);
+enum drm_connector_status intel_panel_detect(struct drm_device *dev);
+extern struct drm_display_mode *intel_find_panel_downclock(
+				struct drm_device *dev,
+				struct drm_display_mode *fixed_mode,
+				struct drm_connector *connector);
+
+/* intel_pm.c */
+void intel_init_clock_gating(struct drm_device *dev);
+void intel_suspend_hw(struct drm_device *dev);
+int ilk_wm_max_level(const struct drm_device *dev);
+void intel_update_watermarks(struct drm_crtc *crtc);
+void intel_update_sprite_watermarks(struct drm_plane *plane,
+				    struct drm_crtc *crtc,
+				    uint32_t sprite_width,
+				    uint32_t sprite_height,
+				    int pixel_size,
+				    bool enabled, bool scaled);
+void intel_init_pm(struct drm_device *dev);
+void intel_pm_setup(struct drm_device *dev);
+bool intel_fbc_enabled(struct drm_device *dev);
+void intel_update_fbc(struct drm_device *dev);
+void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
+void intel_gpu_ips_teardown(void);
+int intel_power_domains_init(struct drm_i915_private *);
+void intel_power_domains_remove(struct drm_i915_private *);
+bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
+				 enum intel_display_power_domain domain);
+bool intel_display_power_enabled_unlocked(struct drm_i915_private *dev_priv,
+					  enum intel_display_power_domain domain);
+void intel_display_power_get(struct drm_i915_private *dev_priv,
+			     enum intel_display_power_domain domain);
+void intel_display_power_put(struct drm_i915_private *dev_priv,
+			     enum intel_display_power_domain domain);
+void intel_power_domains_init_hw(struct drm_i915_private *dev_priv);
+void intel_init_gt_powersave(struct drm_device *dev);
+void intel_cleanup_gt_powersave(struct drm_device *dev);
+void intel_enable_gt_powersave(struct drm_device *dev);
+void intel_disable_gt_powersave(struct drm_device *dev);
+void intel_suspend_gt_powersave(struct drm_device *dev);
+void intel_reset_gt_powersave(struct drm_device *dev);
+void ironlake_teardown_rc6(struct drm_device *dev);
+void gen6_update_ring_freq(struct drm_device *dev);
+void gen6_rps_idle(struct drm_i915_private *dev_priv);
+void gen6_rps_boost(struct drm_i915_private *dev_priv);
+void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
+void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
+void intel_init_runtime_pm(struct drm_i915_private *dev_priv);
+void intel_fini_runtime_pm(struct drm_i915_private *dev_priv);
+void ilk_wm_get_hw_state(struct drm_device *dev);
+
+
+/* intel_sdvo.c */
+bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob);
+
+
+/* intel_sprite.c */
+int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
+void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
+			       enum plane plane);
+int intel_plane_set_property(struct drm_plane *plane,
+			     struct drm_property *prop,
+			     uint64_t val);
+int intel_plane_restore(struct drm_plane *plane);
+void intel_plane_disable(struct drm_plane *plane);
+int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+
+
+/* intel_tv.c */
+void intel_tv_init(struct drm_device *dev);
 
 #endif /* __INTEL_DRV_H__ */

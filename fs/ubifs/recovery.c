@@ -596,7 +596,6 @@ static void drop_last_group(struct ubifs_scan_leb *sleb, int *offs)
  * drop_last_node - drop the last node.
  * @sleb: scanned LEB information
  * @offs: offset of dropped nodes is returned here
- * @grouped: non-zero if whole group of nodes have to be dropped
  *
  * This is a helper function for 'ubifs_recover_leb()' which drops the last
  * node of the scanned LEB.
@@ -629,8 +628,8 @@ static void drop_last_node(struct ubifs_scan_leb *sleb, int *offs)
  *
  * This function does a scan of a LEB, but caters for errors that might have
  * been caused by the unclean unmount from which we are attempting to recover.
- * Returns %0 in case of success, %-EUCLEAN if an unrecoverable corruption is
- * found, and a negative error code in case of failure.
+ * Returns the scanned information on success and a negative error code on
+ * failure.
  */
 struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 					 int offs, void *sbuf, int jhead)
@@ -1335,29 +1334,14 @@ static void remove_ino(struct ubifs_info *c, ino_t inum)
  */
 void ubifs_destroy_size_tree(struct ubifs_info *c)
 {
-	struct rb_node *this = c->size_tree.rb_node;
-	struct size_entry *e;
+	struct size_entry *e, *n;
 
-	while (this) {
-		if (this->rb_left) {
-			this = this->rb_left;
-			continue;
-		} else if (this->rb_right) {
-			this = this->rb_right;
-			continue;
-		}
-		e = rb_entry(this, struct size_entry, rb);
+	rbtree_postorder_for_each_entry_safe(e, n, &c->size_tree, rb) {
 		if (e->inode)
 			iput(e->inode);
-		this = rb_parent(this);
-		if (this) {
-			if (this->rb_left == &e->rb)
-				this->rb_left = NULL;
-			else
-				this->rb_right = NULL;
-		}
 		kfree(e);
 	}
+
 	c->size_tree = RB_ROOT;
 }
 

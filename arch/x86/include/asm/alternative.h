@@ -5,6 +5,7 @@
 #include <linux/stddef.h>
 #include <linux/stringify.h>
 #include <asm/asm.h>
+#include <asm/ptrace.h>
 
 /*
  * Alternative inline assembly for SMP.
@@ -160,6 +161,20 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	asm volatile (ALTERNATIVE(oldinstr, newinstr, feature)		\
 		: : "i" (0), ## input)
 
+/*
+ * This is similar to alternative_input. But it has two features and
+ * respective instructions.
+ *
+ * If CPU has feature2, newinstr2 is used.
+ * Otherwise, if CPU has feature1, newinstr1 is used.
+ * Otherwise, oldinstr is used.
+ */
+#define alternative_input_2(oldinstr, newinstr1, feature1, newinstr2,	     \
+			   feature2, input...)				     \
+	asm volatile(ALTERNATIVE_2(oldinstr, newinstr1, feature1,	     \
+		newinstr2, feature2)					     \
+		: : "i" (0), ## input)
+
 /* Like alternative_input, but with a single output argument */
 #define alternative_io(oldinstr, newinstr, feature, output, input...)	\
 	asm volatile (ALTERNATIVE(oldinstr, newinstr, feature)		\
@@ -220,20 +235,11 @@ extern void *text_poke_early(void *addr, const void *opcode, size_t len);
  * no thread can be preempted in the instructions being modified (no iret to an
  * invalid instruction possible) or if the instructions are changed from a
  * consistent state to another consistent state atomically.
- * More care must be taken when modifying code in the SMP case because of
- * Intel's errata. text_poke_smp() takes care that errata, but still
- * doesn't support NMI/MCE handler code modifying.
  * On the local CPU you need to be protected again NMI or MCE handlers seeing an
  * inconsistent instruction while you patch.
  */
-struct text_poke_param {
-	void *addr;
-	const void *opcode;
-	size_t len;
-};
-
 extern void *text_poke(void *addr, const void *opcode, size_t len);
-extern void *text_poke_smp(void *addr, const void *opcode, size_t len);
-extern void text_poke_smp_batch(struct text_poke_param *params, int n);
+extern int poke_int3_handler(struct pt_regs *regs);
+extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
 
 #endif /* _ASM_X86_ALTERNATIVE_H */

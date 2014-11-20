@@ -98,7 +98,7 @@ int snd_ak4113_create(struct snd_card *card, ak4113_read_t *read,
 			AK4113_CINT | AK4113_STC);
 	chip->rcs1 = reg_read(chip, AK4113_REG_RCS1);
 	chip->rcs2 = reg_read(chip, AK4113_REG_RCS2);
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	err = snd_device_new(card, SNDRV_DEV_CODEC, chip, &ops);
 	if (err < 0)
 		goto __fail;
 

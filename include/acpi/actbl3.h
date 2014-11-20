@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -174,7 +174,7 @@ struct acpi_fpdt_header {
 
 enum acpi_fpdt_type {
 	ACPI_FPDT_TYPE_BOOT = 0,
-	ACPI_FPDT_TYPE_S3PERF = 1,
+	ACPI_FPDT_TYPE_S3PERF = 1
 };
 
 /*
@@ -223,7 +223,7 @@ struct acpi_s3pt_header {
 
 enum acpi_s3pt_type {
 	ACPI_S3PT_TYPE_RESUME = 0,
-	ACPI_S3PT_TYPE_SUSPEND = 1,
+	ACPI_S3PT_TYPE_SUSPEND = 1
 };
 
 struct acpi_s3pt_resume {
@@ -241,33 +241,101 @@ struct acpi_s3pt_suspend {
 
 /*******************************************************************************
  *
- * GTDT - Generic Timer Description Table (ACPI 5.0)
- *        Version 1
+ * GTDT - Generic Timer Description Table (ACPI 5.1)
+ *        Version 2
  *
  ******************************************************************************/
 
 struct acpi_table_gtdt {
 	struct acpi_table_header header;	/* Common ACPI table header */
-	u64 address;
-	u32 flags;
-	u32 secure_pl1_interrupt;
-	u32 secure_pl1_flags;
-	u32 non_secure_pl1_interrupt;
-	u32 non_secure_pl1_flags;
+	u64 counter_block_addresss;
+	u32 reserved;
+	u32 secure_el1_interrupt;
+	u32 secure_el1_flags;
+	u32 non_secure_el1_interrupt;
+	u32 non_secure_el1_flags;
 	u32 virtual_timer_interrupt;
 	u32 virtual_timer_flags;
-	u32 non_secure_pl2_interrupt;
-	u32 non_secure_pl2_flags;
+	u32 non_secure_el2_interrupt;
+	u32 non_secure_el2_flags;
+	u64 counter_read_block_address;
+	u32 platform_timer_count;
+	u32 platform_timer_offset;
 };
 
-/* Values for Flags field above */
+/* Flag Definitions: Timer Block Physical Timers and Virtual timers */
 
-#define ACPI_GTDT_MAPPED_BLOCK_PRESENT      1
+#define ACPI_GTDT_INTERRUPT_MODE        (1)
+#define ACPI_GTDT_INTERRUPT_POLARITY    (1<<1)
+#define ACPI_GTDT_ALWAYS_ON             (1<<2)
 
-/* Values for all "TimerFlags" fields above */
+/* Common GTDT subtable header */
 
-#define ACPI_GTDT_INTERRUPT_MODE            1
-#define ACPI_GTDT_INTERRUPT_POLARITY        2
+struct acpi_gtdt_header {
+	u8 type;
+	u16 length;
+};
+
+/* Values for GTDT subtable type above */
+
+enum acpi_gtdt_type {
+	ACPI_GTDT_TYPE_TIMER_BLOCK = 0,
+	ACPI_GTDT_TYPE_WATCHDOG = 1,
+	ACPI_GTDT_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+};
+
+/* GTDT Subtables, correspond to Type in struct acpi_gtdt_header */
+
+/* 0: Generic Timer Block */
+
+struct acpi_gtdt_timer_block {
+	struct acpi_gtdt_header header;
+	u8 reserved;
+	u64 block_address;
+	u32 timer_count;
+	u32 timer_offset;
+};
+
+/* Timer Sub-Structure, one per timer */
+
+struct acpi_gtdt_timer_entry {
+	u8 frame_number;
+	u8 reserved[3];
+	u64 base_address;
+	u64 el0_base_address;
+	u32 timer_interrupt;
+	u32 timer_flags;
+	u32 virtual_timer_interrupt;
+	u32 virtual_timer_flags;
+	u32 common_flags;
+};
+
+/* Flag Definitions: timer_flags and virtual_timer_flags above */
+
+#define ACPI_GTDT_GT_IRQ_MODE               (1)
+#define ACPI_GTDT_GT_IRQ_POLARITY           (1<<1)
+
+/* Flag Definitions: common_flags above */
+
+#define ACPI_GTDT_GT_IS_SECURE_TIMER        (1)
+#define ACPI_GTDT_GT_ALWAYS_ON              (1<<1)
+
+/* 1: SBSA Generic Watchdog Structure */
+
+struct acpi_gtdt_watchdog {
+	struct acpi_gtdt_header header;
+	u8 reserved;
+	u64 refresh_frame_address;
+	u64 control_frame_address;
+	u32 timer_interrupt;
+	u32 timer_flags;
+};
+
+/* Flag Definitions: timer_flags above */
+
+#define ACPI_GTDT_WATCHDOG_IRQ_MODE         (1)
+#define ACPI_GTDT_WATCHDOG_IRQ_POLARITY     (1<<1)
+#define ACPI_GTDT_WATCHDOG_SECURE           (1<<2)
 
 /*******************************************************************************
  *
@@ -374,16 +442,23 @@ struct acpi_mpst_shared {
 struct acpi_table_pcct {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u32 flags;
-	u32 latency;
-	u32 reserved;
+	u64 reserved;
 };
 
 /* Values for Flags field above */
 
 #define ACPI_PCCT_DOORBELL              1
 
+/* Values for subtable type in struct acpi_subtable_header */
+
+enum acpi_pcct_type {
+	ACPI_PCCT_TYPE_GENERIC_SUBSPACE = 0,
+	ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE = 1,
+	ACPI_PCCT_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+};
+
 /*
- * PCCT subtables
+ * PCCT Subtables, correspond to Type in struct acpi_subtable_header
  */
 
 /* 0: Generic Communications Subspace */
@@ -396,7 +471,32 @@ struct acpi_pcct_subspace {
 	struct acpi_generic_address doorbell_register;
 	u64 preserve_mask;
 	u64 write_mask;
+	u32 latency;
+	u32 max_access_rate;
+	u16 min_turnaround_time;
 };
+
+/* 1: HW-reduced Communications Subspace (ACPI 5.1) */
+
+struct acpi_pcct_hw_reduced {
+	struct acpi_subtable_header header;
+	u32 doorbell_interrupt;
+	u8 flags;
+	u8 reserved;
+	u64 base_address;
+	u64 length;
+	struct acpi_generic_address doorbell_register;
+	u64 preserve_mask;
+	u64 write_mask;
+	u32 latency;
+	u32 max_access_rate;
+	u16 min_turnaround_time;
+};
+
+/* Values for doorbell flags above */
+
+#define ACPI_PCCT_INTERRUPT_POLARITY    (1)
+#define ACPI_PCCT_INTERRUPT_MODE        (1<<1)
 
 /*
  * PCC memory structures (not part of the ACPI table)
@@ -505,26 +605,59 @@ struct acpi_rasf_shared_memory {
 	u32 signature;
 	u16 command;
 	u16 status;
-	u64 requested_address;
-	u64 requested_length;
-	u64 actual_address;
-	u64 actual_length;
+	u16 version;
+	u8 capabilities[16];
+	u8 set_capabilities[16];
+	u16 num_parameter_blocks;
+	u32 set_capabilities_status;
+};
+
+/* RASF Parameter Block Structure Header */
+
+struct acpi_rasf_parameter_block {
+	u16 type;
+	u16 version;
+	u16 length;
+};
+
+/* RASF Parameter Block Structure for PATROL_SCRUB */
+
+struct acpi_rasf_patrol_scrub_parameter {
+	struct acpi_rasf_parameter_block header;
+	u16 patrol_scrub_command;
+	u64 requested_address_range[2];
+	u64 actual_address_range[2];
 	u16 flags;
-	u8 speed;
+	u8 requested_speed;
 };
 
 /* Masks for Flags and Speed fields above */
 
 #define ACPI_RASF_SCRUBBER_RUNNING      1
 #define ACPI_RASF_SPEED                 (7<<1)
+#define ACPI_RASF_SPEED_SLOW            (0<<1)
+#define ACPI_RASF_SPEED_MEDIUM          (4<<1)
+#define ACPI_RASF_SPEED_FAST            (7<<1)
 
 /* Channel Commands */
 
 enum acpi_rasf_commands {
-	ACPI_RASF_GET_RAS_CAPABILITIES = 1,
-	ACPI_RASF_GET_PATROL_PARAMETERS = 2,
-	ACPI_RASF_START_PATROL_SCRUBBER = 3,
-	ACPI_RASF_STOP_PATROL_SCRUBBER = 4
+	ACPI_RASF_EXECUTE_RASF_COMMAND = 1
+};
+
+/* Platform RAS Capabilities */
+
+enum acpi_rasf_capabiliities {
+	ACPI_HW_PATROL_SCRUB_SUPPORTED = 0,
+	ACPI_SW_PATROL_SCRUB_EXPOSED = 1
+};
+
+/* Patrol Scrub Commands */
+
+enum acpi_rasf_patrol_scrub_commands {
+	ACPI_RASF_GET_PATROL_PARAMETERS = 1,
+	ACPI_RASF_START_PATROL_SCRUBBER = 2,
+	ACPI_RASF_STOP_PATROL_SCRUBBER = 3
 };
 
 /* Channel Command flags */

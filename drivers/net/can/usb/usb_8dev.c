@@ -23,7 +23,6 @@
  * who were very cooperative and answered my questions.
  */
 
-#include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -698,8 +697,8 @@ static netdev_tx_t usb_8dev_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 nofreecontext:
-	usb_unanchor_urb(urb);
 	usb_free_coherent(priv->udev, size, buf, urb->transfer_dma);
+	usb_free_urb(urb);
 
 	netdev_warn(netdev, "couldn't find free context");
 
@@ -779,6 +778,7 @@ static int usb_8dev_start(struct usb_8dev_priv *priv)
 			usb_unanchor_urb(urb);
 			usb_free_coherent(priv->udev, RX_BUFFER_SIZE, buf,
 					  urb->transfer_dma);
+			usb_free_urb(urb);
 			break;
 		}
 
@@ -887,6 +887,7 @@ static const struct net_device_ops usb_8dev_netdev_ops = {
 	.ndo_open = usb_8dev_open,
 	.ndo_stop = usb_8dev_close,
 	.ndo_start_xmit = usb_8dev_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct can_bittiming_const usb_8dev_bittiming_const = {
@@ -977,7 +978,7 @@ static int usb_8dev_probe(struct usb_interface *intf,
 	err = usb_8dev_cmd_version(priv, &version);
 	if (err) {
 		netdev_err(netdev, "can't get firmware version\n");
-		goto cleanup_cmd_msg_buffer;
+		goto cleanup_unregister_candev;
 	} else {
 		netdev_info(netdev,
 			 "firmware: %d.%d, hardware: %d.%d\n",
@@ -988,6 +989,9 @@ static int usb_8dev_probe(struct usb_interface *intf,
 	devm_can_led_init(netdev);
 
 	return 0;
+
+cleanup_unregister_candev:
+	unregister_netdev(priv->netdev);
 
 cleanup_cmd_msg_buffer:
 	kfree(priv->cmd_msg_buffer);

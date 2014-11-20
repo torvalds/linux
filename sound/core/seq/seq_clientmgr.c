@@ -123,7 +123,7 @@ static inline int snd_seq_write_pool_allocated(struct snd_seq_client *client)
 static struct snd_seq_client *clientptr(int clientid)
 {
 	if (clientid < 0 || clientid >= SNDRV_SEQ_MAX_CLIENTS) {
-		snd_printd("Seq: oops. Trying to get pointer to client %d\n",
+		pr_debug("ALSA: seq: oops. Trying to get pointer to client %d\n",
 			   clientid);
 		return NULL;
 	}
@@ -136,7 +136,7 @@ struct snd_seq_client *snd_seq_client_use_ptr(int clientid)
 	struct snd_seq_client *client;
 
 	if (clientid < 0 || clientid >= SNDRV_SEQ_MAX_CLIENTS) {
-		snd_printd("Seq: oops. Trying to get pointer to client %d\n",
+		pr_debug("ALSA: seq: oops. Trying to get pointer to client %d\n",
 			   clientid);
 		return NULL;
 	}
@@ -291,8 +291,8 @@ static void seq_free_client(struct snd_seq_client * client)
 	mutex_lock(&register_mutex);
 	switch (client->type) {
 	case NO_CLIENT:
-		snd_printk(KERN_WARNING "Seq: Trying to free unused client %d\n",
-			   client->number);
+		pr_warn("ALSA: seq: Trying to free unused client %d\n",
+			client->number);
 		break;
 	case USER_CLIENT:
 	case KERNEL_CLIENT:
@@ -301,7 +301,7 @@ static void seq_free_client(struct snd_seq_client * client)
 		break;
 
 	default:
-		snd_printk(KERN_ERR "Seq: Trying to free client %d with undefined type = %d\n",
+		pr_err("ALSA: seq: Trying to free client %d with undefined type = %d\n",
 			   client->number, client->type);
 	}
 	mutex_unlock(&register_mutex);
@@ -660,7 +660,7 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
 				  int atomic, int hop)
 {
 	struct snd_seq_subscribers *subs;
-	int err = 0, num_ev = 0;
+	int err, result = 0, num_ev = 0;
 	struct snd_seq_event event_saved;
 	struct snd_seq_client_port *src_port;
 	struct snd_seq_port_subs_info *grp;
@@ -685,8 +685,12 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
 						  subs->info.flags & SNDRV_SEQ_PORT_SUBS_TIME_REAL);
 		err = snd_seq_deliver_single_event(client, event,
 						   0, atomic, hop);
-		if (err < 0)
-			break;
+		if (err < 0) {
+			/* save first error that occurs and continue */
+			if (!result)
+				result = err;
+			continue;
+		}
 		num_ev++;
 		/* restore original event record */
 		*event = event_saved;
@@ -697,7 +701,7 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
 		up_read(&grp->list_mutex);
 	*event = event_saved; /* restore */
 	snd_seq_port_unlock(src_port);
-	return (err < 0) ? err : num_ev;
+	return (result < 0) ? result : num_ev;
 }
 
 
@@ -709,7 +713,7 @@ static int port_broadcast_event(struct snd_seq_client *client,
 				struct snd_seq_event *event,
 				int atomic, int hop)
 {
-	int num_ev = 0, err = 0;
+	int num_ev = 0, err, result = 0;
 	struct snd_seq_client *dest_client;
 	struct snd_seq_client_port *port;
 
@@ -724,14 +728,18 @@ static int port_broadcast_event(struct snd_seq_client *client,
 		err = snd_seq_deliver_single_event(NULL, event,
 						   SNDRV_SEQ_FILTER_BROADCAST,
 						   atomic, hop);
-		if (err < 0)
-			break;
+		if (err < 0) {
+			/* save first error that occurs and continue */
+			if (!result)
+				result = err;
+			continue;
+		}
 		num_ev++;
 	}
 	read_unlock(&dest_client->ports_lock);
 	snd_seq_client_unlock(dest_client);
 	event->dest.port = SNDRV_SEQ_ADDRESS_BROADCAST; /* restore */
-	return (err < 0) ? err : num_ev;
+	return (result < 0) ? result : num_ev;
 }
 
 /*
@@ -741,7 +749,7 @@ static int port_broadcast_event(struct snd_seq_client *client,
 static int broadcast_event(struct snd_seq_client *client,
 			   struct snd_seq_event *event, int atomic, int hop)
 {
-	int err = 0, num_ev = 0;
+	int err, result = 0, num_ev = 0;
 	int dest;
 	struct snd_seq_addr addr;
 
@@ -760,12 +768,16 @@ static int broadcast_event(struct snd_seq_client *client,
 			err = snd_seq_deliver_single_event(NULL, event,
 							   SNDRV_SEQ_FILTER_BROADCAST,
 							   atomic, hop);
-		if (err < 0)
-			break;
+		if (err < 0) {
+			/* save first error that occurs and continue */
+			if (!result)
+				result = err;
+			continue;
+		}
 		num_ev += err;
 	}
 	event->dest = addr; /* restore */
-	return (err < 0) ? err : num_ev;
+	return (result < 0) ? result : num_ev;
 }
 
 
@@ -773,7 +785,7 @@ static int broadcast_event(struct snd_seq_client *client,
 static int multicast_event(struct snd_seq_client *client, struct snd_seq_event *event,
 			   int atomic, int hop)
 {
-	snd_printd("seq: multicast not supported yet.\n");
+	pr_debug("ALSA: seq: multicast not supported yet.\n");
 	return 0; /* ignored */
 }
 #endif /* SUPPORT_BROADCAST */
@@ -794,7 +806,7 @@ static int snd_seq_deliver_event(struct snd_seq_client *client, struct snd_seq_e
 
 	hop++;
 	if (hop >= SNDRV_SEQ_MAX_HOPS) {
-		snd_printd("too long delivery path (%d:%d->%d:%d)\n",
+		pr_debug("ALSA: seq: too long delivery path (%d:%d->%d:%d)\n",
 			   event->source.client, event->source.port,
 			   event->dest.client, event->dest.port);
 		return -EMLINK;
@@ -2196,7 +2208,7 @@ static int snd_seq_do_ioctl(struct snd_seq_client *client, unsigned int cmd,
 		if (p->cmd == cmd)
 			return p->func(client, arg);
 	}
-	snd_printd("seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
+	pr_debug("ALSA: seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
 		   cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
 	return -ENOTTY;
 }

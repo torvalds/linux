@@ -942,7 +942,8 @@ static int snd_serial_probe(struct platform_device *devptr)
 		return -ENODEV;
 	}
 
-	err  = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err  = snd_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
+			    0, &card);
 	if (err < 0)
 		return err;
 
@@ -969,8 +970,6 @@ static int snd_serial_probe(struct platform_device *devptr)
 		uart->base,
 		uart->irq);
 
-	snd_card_set_dev(card, &devptr->dev);
-
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
 
@@ -985,7 +984,6 @@ static int snd_serial_probe(struct platform_device *devptr)
 static int snd_serial_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
 	return 0;
 }
 

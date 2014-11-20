@@ -13,11 +13,23 @@
 #define KEXEC_PRESERVE_CONTEXT	0x00000002
 #define KEXEC_ARCH_MASK		0xffff0000
 
+/*
+ * Kexec file load interface flags.
+ * KEXEC_FILE_UNLOAD : Unload already loaded kexec/kdump image.
+ * KEXEC_FILE_ON_CRASH : Load/unload operation belongs to kdump image.
+ * KEXEC_FILE_NO_INITRAMFS : No initramfs is being loaded. Ignore the initrd
+ *                           fd field.
+ */
+#define KEXEC_FILE_UNLOAD	0x00000001
+#define KEXEC_FILE_ON_CRASH	0x00000002
+#define KEXEC_FILE_NO_INITRAMFS	0x00000004
+
 /* These values match the ELF architecture values.
  * Unless there is a good reason that should continue to be the case.
  */
 #define KEXEC_ARCH_DEFAULT ( 0 << 16)
 #define KEXEC_ARCH_386     ( 3 << 16)
+#define KEXEC_ARCH_68K     ( 4 << 16)
 #define KEXEC_ARCH_X86_64  (62 << 16)
 #define KEXEC_ARCH_PPC     (20 << 16)
 #define KEXEC_ARCH_PPC64   (21 << 16)

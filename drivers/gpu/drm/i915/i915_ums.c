@@ -41,7 +41,7 @@ static bool i915_pipe_enabled(struct drm_device *dev, enum pipe pipe)
 		return false;
 
 	if (HAS_PCH_SPLIT(dev))
-		dpll_reg = _PCH_DPLL(pipe);
+		dpll_reg = PCH_DPLL(pipe);
 	else
 		dpll_reg = (pipe == PIPE_A) ? _DPLL_A : _DPLL_B;
 
@@ -148,13 +148,13 @@ void i915_save_display_reg(struct drm_device *dev)
 		dev_priv->regfile.savePFA_WIN_SZ = I915_READ(_PFA_WIN_SZ);
 		dev_priv->regfile.savePFA_WIN_POS = I915_READ(_PFA_WIN_POS);
 
-		dev_priv->regfile.saveTRANSACONF = I915_READ(_TRANSACONF);
-		dev_priv->regfile.saveTRANS_HTOTAL_A = I915_READ(_TRANS_HTOTAL_A);
-		dev_priv->regfile.saveTRANS_HBLANK_A = I915_READ(_TRANS_HBLANK_A);
-		dev_priv->regfile.saveTRANS_HSYNC_A = I915_READ(_TRANS_HSYNC_A);
-		dev_priv->regfile.saveTRANS_VTOTAL_A = I915_READ(_TRANS_VTOTAL_A);
-		dev_priv->regfile.saveTRANS_VBLANK_A = I915_READ(_TRANS_VBLANK_A);
-		dev_priv->regfile.saveTRANS_VSYNC_A = I915_READ(_TRANS_VSYNC_A);
+		dev_priv->regfile.saveTRANSACONF = I915_READ(_PCH_TRANSACONF);
+		dev_priv->regfile.saveTRANS_HTOTAL_A = I915_READ(_PCH_TRANS_HTOTAL_A);
+		dev_priv->regfile.saveTRANS_HBLANK_A = I915_READ(_PCH_TRANS_HBLANK_A);
+		dev_priv->regfile.saveTRANS_HSYNC_A = I915_READ(_PCH_TRANS_HSYNC_A);
+		dev_priv->regfile.saveTRANS_VTOTAL_A = I915_READ(_PCH_TRANS_VTOTAL_A);
+		dev_priv->regfile.saveTRANS_VBLANK_A = I915_READ(_PCH_TRANS_VBLANK_A);
+		dev_priv->regfile.saveTRANS_VSYNC_A = I915_READ(_PCH_TRANS_VSYNC_A);
 	}
 
 	dev_priv->regfile.saveDSPACNTR = I915_READ(_DSPACNTR);
@@ -205,13 +205,13 @@ void i915_save_display_reg(struct drm_device *dev)
 		dev_priv->regfile.savePFB_WIN_SZ = I915_READ(_PFB_WIN_SZ);
 		dev_priv->regfile.savePFB_WIN_POS = I915_READ(_PFB_WIN_POS);
 
-		dev_priv->regfile.saveTRANSBCONF = I915_READ(_TRANSBCONF);
-		dev_priv->regfile.saveTRANS_HTOTAL_B = I915_READ(_TRANS_HTOTAL_B);
-		dev_priv->regfile.saveTRANS_HBLANK_B = I915_READ(_TRANS_HBLANK_B);
-		dev_priv->regfile.saveTRANS_HSYNC_B = I915_READ(_TRANS_HSYNC_B);
-		dev_priv->regfile.saveTRANS_VTOTAL_B = I915_READ(_TRANS_VTOTAL_B);
-		dev_priv->regfile.saveTRANS_VBLANK_B = I915_READ(_TRANS_VBLANK_B);
-		dev_priv->regfile.saveTRANS_VSYNC_B = I915_READ(_TRANS_VSYNC_B);
+		dev_priv->regfile.saveTRANSBCONF = I915_READ(_PCH_TRANSBCONF);
+		dev_priv->regfile.saveTRANS_HTOTAL_B = I915_READ(_PCH_TRANS_HTOTAL_B);
+		dev_priv->regfile.saveTRANS_HBLANK_B = I915_READ(_PCH_TRANS_HBLANK_B);
+		dev_priv->regfile.saveTRANS_HSYNC_B = I915_READ(_PCH_TRANS_HSYNC_B);
+		dev_priv->regfile.saveTRANS_VTOTAL_B = I915_READ(_PCH_TRANS_VTOTAL_B);
+		dev_priv->regfile.saveTRANS_VBLANK_B = I915_READ(_PCH_TRANS_VBLANK_B);
+		dev_priv->regfile.saveTRANS_VSYNC_B = I915_READ(_PCH_TRANS_VSYNC_B);
 	}
 
 	dev_priv->regfile.saveDSPBCNTR = I915_READ(_DSPBCNTR);
@@ -259,16 +259,32 @@ void i915_save_display_reg(struct drm_device *dev)
 		dev_priv->regfile.saveDP_B = I915_READ(DP_B);
 		dev_priv->regfile.saveDP_C = I915_READ(DP_C);
 		dev_priv->regfile.saveDP_D = I915_READ(DP_D);
-		dev_priv->regfile.savePIPEA_GMCH_DATA_M = I915_READ(_PIPEA_GMCH_DATA_M);
-		dev_priv->regfile.savePIPEB_GMCH_DATA_M = I915_READ(_PIPEB_GMCH_DATA_M);
-		dev_priv->regfile.savePIPEA_GMCH_DATA_N = I915_READ(_PIPEA_GMCH_DATA_N);
-		dev_priv->regfile.savePIPEB_GMCH_DATA_N = I915_READ(_PIPEB_GMCH_DATA_N);
-		dev_priv->regfile.savePIPEA_DP_LINK_M = I915_READ(_PIPEA_DP_LINK_M);
-		dev_priv->regfile.savePIPEB_DP_LINK_M = I915_READ(_PIPEB_DP_LINK_M);
-		dev_priv->regfile.savePIPEA_DP_LINK_N = I915_READ(_PIPEA_DP_LINK_N);
-		dev_priv->regfile.savePIPEB_DP_LINK_N = I915_READ(_PIPEB_DP_LINK_N);
+		dev_priv->regfile.savePIPEA_GMCH_DATA_M = I915_READ(_PIPEA_DATA_M_G4X);
+		dev_priv->regfile.savePIPEB_GMCH_DATA_M = I915_READ(_PIPEB_DATA_M_G4X);
+		dev_priv->regfile.savePIPEA_GMCH_DATA_N = I915_READ(_PIPEA_DATA_N_G4X);
+		dev_priv->regfile.savePIPEB_GMCH_DATA_N = I915_READ(_PIPEB_DATA_N_G4X);
+		dev_priv->regfile.savePIPEA_DP_LINK_M = I915_READ(_PIPEA_LINK_M_G4X);
+		dev_priv->regfile.savePIPEB_DP_LINK_M = I915_READ(_PIPEB_LINK_M_G4X);
+		dev_priv->regfile.savePIPEA_DP_LINK_N = I915_READ(_PIPEA_LINK_N_G4X);
+		dev_priv->regfile.savePIPEB_DP_LINK_N = I915_READ(_PIPEB_LINK_N_G4X);
 	}
 	/* FIXME: regfile.save TV & SDVO state */
+
+	/* Backlight */
+	if (INTEL_INFO(dev)->gen <= 4)
+		pci_read_config_byte(dev->pdev, PCI_LBPC,
+				     &dev_priv->regfile.saveLBB);
+
+	if (HAS_PCH_SPLIT(dev)) {
+		dev_priv->regfile.saveBLC_PWM_CTL = I915_READ(BLC_PWM_PCH_CTL1);
+		dev_priv->regfile.saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_PCH_CTL2);
+		dev_priv->regfile.saveBLC_CPU_PWM_CTL = I915_READ(BLC_PWM_CPU_CTL);
+		dev_priv->regfile.saveBLC_CPU_PWM_CTL2 = I915_READ(BLC_PWM_CPU_CTL2);
+	} else {
+		dev_priv->regfile.saveBLC_PWM_CTL = I915_READ(BLC_PWM_CTL);
+		if (INTEL_INFO(dev)->gen >= 4)
+			dev_priv->regfile.saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_CTL2);
+	}
 
 	return;
 }
@@ -280,16 +296,35 @@ void i915_restore_display_reg(struct drm_device *dev)
 	int dpll_b_reg, fpb0_reg, fpb1_reg;
 	int i;
 
+	/* Backlight */
+	if (INTEL_INFO(dev)->gen <= 4)
+		pci_write_config_byte(dev->pdev, PCI_LBPC,
+				      dev_priv->regfile.saveLBB);
+
+	if (HAS_PCH_SPLIT(dev)) {
+		I915_WRITE(BLC_PWM_PCH_CTL1, dev_priv->regfile.saveBLC_PWM_CTL);
+		I915_WRITE(BLC_PWM_PCH_CTL2, dev_priv->regfile.saveBLC_PWM_CTL2);
+		/* NOTE: BLC_PWM_CPU_CTL must be written after BLC_PWM_CPU_CTL2;
+		 * otherwise we get blank eDP screen after S3 on some machines
+		 */
+		I915_WRITE(BLC_PWM_CPU_CTL2, dev_priv->regfile.saveBLC_CPU_PWM_CTL2);
+		I915_WRITE(BLC_PWM_CPU_CTL, dev_priv->regfile.saveBLC_CPU_PWM_CTL);
+	} else {
+		if (INTEL_INFO(dev)->gen >= 4)
+			I915_WRITE(BLC_PWM_CTL2, dev_priv->regfile.saveBLC_PWM_CTL2);
+		I915_WRITE(BLC_PWM_CTL, dev_priv->regfile.saveBLC_PWM_CTL);
+	}
+
 	/* Display port ratios (must be done before clock is set) */
 	if (SUPPORTS_INTEGRATED_DP(dev)) {
-		I915_WRITE(_PIPEA_GMCH_DATA_M, dev_priv->regfile.savePIPEA_GMCH_DATA_M);
-		I915_WRITE(_PIPEB_GMCH_DATA_M, dev_priv->regfile.savePIPEB_GMCH_DATA_M);
-		I915_WRITE(_PIPEA_GMCH_DATA_N, dev_priv->regfile.savePIPEA_GMCH_DATA_N);
-		I915_WRITE(_PIPEB_GMCH_DATA_N, dev_priv->regfile.savePIPEB_GMCH_DATA_N);
-		I915_WRITE(_PIPEA_DP_LINK_M, dev_priv->regfile.savePIPEA_DP_LINK_M);
-		I915_WRITE(_PIPEB_DP_LINK_M, dev_priv->regfile.savePIPEB_DP_LINK_M);
-		I915_WRITE(_PIPEA_DP_LINK_N, dev_priv->regfile.savePIPEA_DP_LINK_N);
-		I915_WRITE(_PIPEB_DP_LINK_N, dev_priv->regfile.savePIPEB_DP_LINK_N);
+		I915_WRITE(_PIPEA_DATA_M_G4X, dev_priv->regfile.savePIPEA_GMCH_DATA_M);
+		I915_WRITE(_PIPEB_DATA_M_G4X, dev_priv->regfile.savePIPEB_GMCH_DATA_M);
+		I915_WRITE(_PIPEA_DATA_N_G4X, dev_priv->regfile.savePIPEA_GMCH_DATA_N);
+		I915_WRITE(_PIPEB_DATA_N_G4X, dev_priv->regfile.savePIPEB_GMCH_DATA_N);
+		I915_WRITE(_PIPEA_LINK_M_G4X, dev_priv->regfile.savePIPEA_DP_LINK_M);
+		I915_WRITE(_PIPEB_LINK_M_G4X, dev_priv->regfile.savePIPEB_DP_LINK_M);
+		I915_WRITE(_PIPEA_LINK_N_G4X, dev_priv->regfile.savePIPEA_DP_LINK_N);
+		I915_WRITE(_PIPEB_LINK_N_G4X, dev_priv->regfile.savePIPEB_DP_LINK_N);
 	}
 
 	/* Fences */
@@ -379,13 +414,13 @@ void i915_restore_display_reg(struct drm_device *dev)
 		I915_WRITE(_PFA_WIN_SZ, dev_priv->regfile.savePFA_WIN_SZ);
 		I915_WRITE(_PFA_WIN_POS, dev_priv->regfile.savePFA_WIN_POS);
 
-		I915_WRITE(_TRANSACONF, dev_priv->regfile.saveTRANSACONF);
-		I915_WRITE(_TRANS_HTOTAL_A, dev_priv->regfile.saveTRANS_HTOTAL_A);
-		I915_WRITE(_TRANS_HBLANK_A, dev_priv->regfile.saveTRANS_HBLANK_A);
-		I915_WRITE(_TRANS_HSYNC_A, dev_priv->regfile.saveTRANS_HSYNC_A);
-		I915_WRITE(_TRANS_VTOTAL_A, dev_priv->regfile.saveTRANS_VTOTAL_A);
-		I915_WRITE(_TRANS_VBLANK_A, dev_priv->regfile.saveTRANS_VBLANK_A);
-		I915_WRITE(_TRANS_VSYNC_A, dev_priv->regfile.saveTRANS_VSYNC_A);
+		I915_WRITE(_PCH_TRANSACONF, dev_priv->regfile.saveTRANSACONF);
+		I915_WRITE(_PCH_TRANS_HTOTAL_A, dev_priv->regfile.saveTRANS_HTOTAL_A);
+		I915_WRITE(_PCH_TRANS_HBLANK_A, dev_priv->regfile.saveTRANS_HBLANK_A);
+		I915_WRITE(_PCH_TRANS_HSYNC_A, dev_priv->regfile.saveTRANS_HSYNC_A);
+		I915_WRITE(_PCH_TRANS_VTOTAL_A, dev_priv->regfile.saveTRANS_VTOTAL_A);
+		I915_WRITE(_PCH_TRANS_VBLANK_A, dev_priv->regfile.saveTRANS_VBLANK_A);
+		I915_WRITE(_PCH_TRANS_VSYNC_A, dev_priv->regfile.saveTRANS_VSYNC_A);
 	}
 
 	/* Restore plane info */
@@ -448,13 +483,13 @@ void i915_restore_display_reg(struct drm_device *dev)
 		I915_WRITE(_PFB_WIN_SZ, dev_priv->regfile.savePFB_WIN_SZ);
 		I915_WRITE(_PFB_WIN_POS, dev_priv->regfile.savePFB_WIN_POS);
 
-		I915_WRITE(_TRANSBCONF, dev_priv->regfile.saveTRANSBCONF);
-		I915_WRITE(_TRANS_HTOTAL_B, dev_priv->regfile.saveTRANS_HTOTAL_B);
-		I915_WRITE(_TRANS_HBLANK_B, dev_priv->regfile.saveTRANS_HBLANK_B);
-		I915_WRITE(_TRANS_HSYNC_B, dev_priv->regfile.saveTRANS_HSYNC_B);
-		I915_WRITE(_TRANS_VTOTAL_B, dev_priv->regfile.saveTRANS_VTOTAL_B);
-		I915_WRITE(_TRANS_VBLANK_B, dev_priv->regfile.saveTRANS_VBLANK_B);
-		I915_WRITE(_TRANS_VSYNC_B, dev_priv->regfile.saveTRANS_VSYNC_B);
+		I915_WRITE(_PCH_TRANSBCONF, dev_priv->regfile.saveTRANSBCONF);
+		I915_WRITE(_PCH_TRANS_HTOTAL_B, dev_priv->regfile.saveTRANS_HTOTAL_B);
+		I915_WRITE(_PCH_TRANS_HBLANK_B, dev_priv->regfile.saveTRANS_HBLANK_B);
+		I915_WRITE(_PCH_TRANS_HSYNC_B, dev_priv->regfile.saveTRANS_HSYNC_B);
+		I915_WRITE(_PCH_TRANS_VTOTAL_B, dev_priv->regfile.saveTRANS_VTOTAL_B);
+		I915_WRITE(_PCH_TRANS_VBLANK_B, dev_priv->regfile.saveTRANS_VBLANK_B);
+		I915_WRITE(_PCH_TRANS_VSYNC_B, dev_priv->regfile.saveTRANS_VSYNC_B);
 	}
 
 	/* Restore plane info */

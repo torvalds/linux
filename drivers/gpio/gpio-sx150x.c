@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/i2c/sx150x.h>
 
 #define NO_UPDATE_PENDING	-1
@@ -436,7 +435,7 @@ static void sx150x_init_chip(struct sx150x_chip *chip,
 	chip->gpio_chip.set              = sx150x_gpio_set;
 	chip->gpio_chip.to_irq           = sx150x_gpio_to_irq;
 	chip->gpio_chip.base             = pdata->gpio_base;
-	chip->gpio_chip.can_sleep        = 1;
+	chip->gpio_chip.can_sleep        = true;
 	chip->gpio_chip.ngpio            = chip->dev_cfg->ngpios;
 	if (pdata->oscio_is_gpo)
 		++chip->gpio_chip.ngpio;
@@ -548,7 +547,8 @@ static int sx150x_install_irq_chip(struct sx150x_chip *chip,
 #endif
 	}
 
-	err = request_threaded_irq(irq_summary,
+	err = devm_request_threaded_irq(&chip->client->dev,
+				irq_summary,
 				NULL,
 				sx150x_irq_thread_fn,
 				IRQF_SHARED | IRQF_TRIGGER_FALLING,
@@ -567,8 +567,6 @@ static void sx150x_remove_irq_chip(struct sx150x_chip *chip)
 	unsigned n;
 	unsigned irq;
 
-	free_irq(chip->irq_summary, chip);
-
 	for (n = 0; n < chip->dev_cfg->ngpios; ++n) {
 		irq = chip->irq_base + n;
 		irq_set_chip_and_handler(irq, NULL, NULL);
@@ -584,25 +582,26 @@ static int sx150x_probe(struct i2c_client *client,
 	struct sx150x_chip *chip;
 	int rc;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (!pdata)
 		return -EINVAL;
 
 	if (!i2c_check_functionality(client->adapter, i2c_funcs))
 		return -ENOSYS;
 
-	chip = kzalloc(sizeof(struct sx150x_chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev,
+		sizeof(struct sx150x_chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
 	sx150x_init_chip(chip, client, id->driver_data, pdata);
 	rc = sx150x_init_hw(chip, pdata);
 	if (rc < 0)
-		goto probe_fail_pre_gpiochip_add;
+		return rc;
 
 	rc = gpiochip_add(&chip->gpio_chip);
-	if (rc < 0)
-		goto probe_fail_pre_gpiochip_add;
+	if (rc)
+		return rc;
 
 	if (pdata->irq_summary >= 0) {
 		rc = sx150x_install_irq_chip(chip,
@@ -616,26 +615,19 @@ static int sx150x_probe(struct i2c_client *client,
 
 	return 0;
 probe_fail_post_gpiochip_add:
-	WARN_ON(gpiochip_remove(&chip->gpio_chip) < 0);
-probe_fail_pre_gpiochip_add:
-	kfree(chip);
+	gpiochip_remove(&chip->gpio_chip);
 	return rc;
 }
 
 static int sx150x_remove(struct i2c_client *client)
 {
 	struct sx150x_chip *chip;
-	int rc;
 
 	chip = i2c_get_clientdata(client);
-	rc = gpiochip_remove(&chip->gpio_chip);
-	if (rc < 0)
-		return rc;
+	gpiochip_remove(&chip->gpio_chip);
 
 	if (chip->irq_summary >= 0)
 		sx150x_remove_irq_chip(chip);
-
-	kfree(chip);
 
 	return 0;
 }

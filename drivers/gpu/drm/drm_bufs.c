@@ -1,17 +1,12 @@
-/**
- * \file drm_bufs.c
- * Generic buffer template
- *
- * \author Rickard E. (Rik) Faith <faith@valinux.com>
- * \author Gareth Hughes <gareth@valinux.com>
- */
-
 /*
- * Created: Thu Nov 23 03:10:50 2000 by gareth@valinux.com
+ * Legacy: Generic DRM Buffer Management
  *
  * Copyright 1999, 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
+ *
+ * Author: Rickard E. (Rik) Faith <faith@valinux.com>
+ * Author: Gareth Hughes <gareth@valinux.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -39,6 +34,7 @@
 #include <linux/export.h>
 #include <asm/shmparam.h>
 #include <drm/drmP.h>
+#include "drm_legacy.h"
 
 static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 						  struct drm_local_map *map)
@@ -207,15 +203,17 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 			return 0;
 		}
 
-		if (drm_core_has_MTRR(dev)) {
-			if (map->type == _DRM_FRAME_BUFFER ||
-			    (map->flags & _DRM_WRITE_COMBINING)) {
-				map->mtrr = mtrr_add(map->offset, map->size,
-						     MTRR_TYPE_WRCOMB, 1);
-			}
+		if (map->type == _DRM_FRAME_BUFFER ||
+		    (map->flags & _DRM_WRITE_COMBINING)) {
+			map->mtrr =
+				arch_phys_wc_add(map->offset, map->size);
 		}
 		if (map->type == _DRM_REGISTERS) {
-			map->handle = ioremap(map->offset, map->size);
+			if (map->flags & _DRM_WRITE_COMBINING)
+				map->handle = ioremap_wc(map->offset,
+							 map->size);
+			else
+				map->handle = ioremap(map->offset, map->size);
 			if (!map->handle) {
 				kfree(map);
 				return -ENOMEM;
@@ -239,7 +237,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		}
 		map->handle = vmalloc_user(map->size);
 		DRM_DEBUG("%lu %d %p\n",
-			  map->size, drm_order(map->size), map->handle);
+			  map->size, order_base_2(map->size), map->handle);
 		if (!map->handle) {
 			kfree(map);
 			return -ENOMEM;
@@ -259,7 +257,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		struct drm_agp_mem *entry;
 		int valid = 0;
 
-		if (!drm_core_has_AGP(dev)) {
+		if (!dev->agp) {
 			kfree(map);
 			return -EINVAL;
 		}
@@ -301,9 +299,6 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 
 		break;
 	}
-	case _DRM_GEM:
-		DRM_ERROR("tried to addmap GEM object\n");
-		break;
 	case _DRM_SCATTER_GATHER:
 		if (!dev->sg) {
 			kfree(map);
@@ -364,11 +359,11 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		list->master = dev->primary->master;
 	*maplist = list;
 	return 0;
-	}
+}
 
-int drm_addmap(struct drm_device * dev, resource_size_t offset,
-	       unsigned int size, enum drm_map_type type,
-	       enum drm_map_flags flags, struct drm_local_map ** map_ptr)
+int drm_legacy_addmap(struct drm_device * dev, resource_size_t offset,
+		      unsigned int size, enum drm_map_type type,
+		      enum drm_map_flags flags, struct drm_local_map **map_ptr)
 {
 	struct drm_map_list *list;
 	int rc;
@@ -378,8 +373,7 @@ int drm_addmap(struct drm_device * dev, resource_size_t offset,
 		*map_ptr = list->map;
 	return rc;
 }
-
-EXPORT_SYMBOL(drm_addmap);
+EXPORT_SYMBOL(drm_legacy_addmap);
 
 /**
  * Ioctl to specify a range of memory that is available for mapping by a
@@ -392,8 +386,8 @@ EXPORT_SYMBOL(drm_addmap);
  * \return zero on success or a negative value on error.
  *
  */
-int drm_addmap_ioctl(struct drm_device *dev, void *data,
-		     struct drm_file *file_priv)
+int drm_legacy_addmap_ioctl(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv)
 {
 	struct drm_map *map = data;
 	struct drm_map_list *maplist;
@@ -410,6 +404,15 @@ int drm_addmap_ioctl(struct drm_device *dev, void *data,
 
 	/* avoid a warning on 64-bit, this casting isn't very nice, but the API is set so too late */
 	map->handle = (void *)(unsigned long)maplist->user_token;
+
+	/*
+	 * It appears that there are no users of this value whatsoever --
+	 * drmAddMap just discards it.  Let's not encourage its use.
+	 * (Keeping drm_addmap_core's returned mtrr value would be wrong --
+	 *  it's not a real mtrr index anymore.)
+	 */
+	map->mtrr = -1;
+
 	return 0;
 }
 
@@ -421,9 +424,9 @@ int drm_addmap_ioctl(struct drm_device *dev, void *data,
  * its being used, and free any associate resource (such as MTRR's) if it's not
  * being on use.
  *
- * \sa drm_addmap
+ * \sa drm_legacy_addmap
  */
-int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
+int drm_legacy_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 {
 	struct drm_map_list *r_list = NULL, *list_t;
 	drm_dma_handle_t dmah;
@@ -451,11 +454,7 @@ int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 		iounmap(map->handle);
 		/* FALLTHROUGH */
 	case _DRM_FRAME_BUFFER:
-		if (drm_core_has_MTRR(dev) && map->mtrr >= 0) {
-			int retcode;
-			retcode = mtrr_del(map->mtrr, map->offset, map->size);
-			DRM_DEBUG("mtrr_del=%d\n", retcode);
-		}
+		arch_phys_wc_del(map->mtrr);
 		break;
 	case _DRM_SHM:
 		vfree(map->handle);
@@ -474,29 +473,26 @@ int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 		dmah.vaddr = map->handle;
 		dmah.busaddr = map->offset;
 		dmah.size = map->size;
-		__drm_pci_free(dev, &dmah);
-		break;
-	case _DRM_GEM:
-		DRM_ERROR("tried to rmmap GEM object\n");
+		__drm_legacy_pci_free(dev, &dmah);
 		break;
 	}
 	kfree(map);
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_rmmap_locked);
+EXPORT_SYMBOL(drm_legacy_rmmap_locked);
 
-int drm_rmmap(struct drm_device *dev, struct drm_local_map *map)
+int drm_legacy_rmmap(struct drm_device *dev, struct drm_local_map *map)
 {
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = drm_rmmap_locked(dev, map);
+	ret = drm_legacy_rmmap_locked(dev, map);
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
-EXPORT_SYMBOL(drm_rmmap);
+EXPORT_SYMBOL(drm_legacy_rmmap);
 
 /* The rmmap ioctl appears to be unnecessary.  All mappings are torn down on
  * the last close of the device, and this is necessary for cleanup when things
@@ -513,8 +509,8 @@ EXPORT_SYMBOL(drm_rmmap);
  * \param arg pointer to a struct drm_map structure.
  * \return zero on success or a negative value on error.
  */
-int drm_rmmap_ioctl(struct drm_device *dev, void *data,
-		    struct drm_file *file_priv)
+int drm_legacy_rmmap_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv)
 {
 	struct drm_map *request = data;
 	struct drm_local_map *map = NULL;
@@ -545,7 +541,7 @@ int drm_rmmap_ioctl(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	ret = drm_rmmap_locked(dev, map);
+	ret = drm_legacy_rmmap_locked(dev, map);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -598,7 +594,8 @@ static void drm_cleanup_buf_error(struct drm_device * dev,
  * reallocates the buffer list of the same size order to accommodate the new
  * buffers.
  */
-int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
+int drm_legacy_addbufs_agp(struct drm_device *dev,
+			   struct drm_buf_desc *request)
 {
 	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf_entry *entry;
@@ -620,7 +617,7 @@ int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
 		return -EINVAL;
 
 	count = request->count;
-	order = drm_order(request->size);
+	order = order_base_2(request->size);
 	size = 1 << order;
 
 	alignment = (request->flags & _DRM_PAGE_ALIGN)
@@ -655,13 +652,13 @@ int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
 		DRM_DEBUG("zone invalid\n");
 		return -EINVAL;
 	}
-	spin_lock(&dev->count_lock);
+	spin_lock(&dev->buf_lock);
 	if (dev->buf_use) {
-		spin_unlock(&dev->count_lock);
+		spin_unlock(&dev->buf_lock);
 		return -EBUSY;
 	}
 	atomic_inc(&dev->buf_alloc);
-	spin_unlock(&dev->count_lock);
+	spin_unlock(&dev->buf_lock);
 
 	mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
@@ -758,10 +755,11 @@ int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
 	atomic_dec(&dev->buf_alloc);
 	return 0;
 }
-EXPORT_SYMBOL(drm_addbufs_agp);
+EXPORT_SYMBOL(drm_legacy_addbufs_agp);
 #endif				/* __OS_HAS_AGP */
 
-int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
+int drm_legacy_addbufs_pci(struct drm_device *dev,
+			   struct drm_buf_desc *request)
 {
 	struct drm_device_dma *dma = dev->dma;
 	int count;
@@ -790,7 +788,7 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 		return -EPERM;
 
 	count = request->count;
-	order = drm_order(request->size);
+	order = order_base_2(request->size);
 	size = 1 << order;
 
 	DRM_DEBUG("count=%d, size=%d (%d), order=%d\n",
@@ -804,13 +802,13 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 	page_order = order - PAGE_SHIFT > 0 ? order - PAGE_SHIFT : 0;
 	total = PAGE_SIZE << page_order;
 
-	spin_lock(&dev->count_lock);
+	spin_lock(&dev->buf_lock);
 	if (dev->buf_use) {
-		spin_unlock(&dev->count_lock);
+		spin_unlock(&dev->buf_lock);
 		return -EBUSY;
 	}
 	atomic_inc(&dev->buf_alloc);
-	spin_unlock(&dev->count_lock);
+	spin_unlock(&dev->buf_lock);
 
 	mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
@@ -963,9 +961,10 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 	return 0;
 
 }
-EXPORT_SYMBOL(drm_addbufs_pci);
+EXPORT_SYMBOL(drm_legacy_addbufs_pci);
 
-static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request)
+static int drm_legacy_addbufs_sg(struct drm_device *dev,
+				 struct drm_buf_desc *request)
 {
 	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf_entry *entry;
@@ -992,7 +991,7 @@ static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request
 		return -EPERM;
 
 	count = request->count;
-	order = drm_order(request->size);
+	order = order_base_2(request->size);
 	size = 1 << order;
 
 	alignment = (request->flags & _DRM_PAGE_ALIGN)
@@ -1014,13 +1013,13 @@ static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request
 	if (order < DRM_MIN_ORDER || order > DRM_MAX_ORDER)
 		return -EINVAL;
 
-	spin_lock(&dev->count_lock);
+	spin_lock(&dev->buf_lock);
 	if (dev->buf_use) {
-		spin_unlock(&dev->count_lock);
+		spin_unlock(&dev->buf_lock);
 		return -EBUSY;
 	}
 	atomic_inc(&dev->buf_alloc);
-	spin_unlock(&dev->count_lock);
+	spin_unlock(&dev->buf_lock);
 
 	mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
@@ -1120,161 +1119,6 @@ static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request
 	return 0;
 }
 
-static int drm_addbufs_fb(struct drm_device * dev, struct drm_buf_desc * request)
-{
-	struct drm_device_dma *dma = dev->dma;
-	struct drm_buf_entry *entry;
-	struct drm_buf *buf;
-	unsigned long offset;
-	unsigned long agp_offset;
-	int count;
-	int order;
-	int size;
-	int alignment;
-	int page_order;
-	int total;
-	int byte_count;
-	int i;
-	struct drm_buf **temp_buflist;
-
-	if (!drm_core_check_feature(dev, DRIVER_FB_DMA))
-		return -EINVAL;
-
-	if (!dma)
-		return -EINVAL;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	count = request->count;
-	order = drm_order(request->size);
-	size = 1 << order;
-
-	alignment = (request->flags & _DRM_PAGE_ALIGN)
-	    ? PAGE_ALIGN(size) : size;
-	page_order = order - PAGE_SHIFT > 0 ? order - PAGE_SHIFT : 0;
-	total = PAGE_SIZE << page_order;
-
-	byte_count = 0;
-	agp_offset = request->agp_start;
-
-	DRM_DEBUG("count:      %d\n", count);
-	DRM_DEBUG("order:      %d\n", order);
-	DRM_DEBUG("size:       %d\n", size);
-	DRM_DEBUG("agp_offset: %lu\n", agp_offset);
-	DRM_DEBUG("alignment:  %d\n", alignment);
-	DRM_DEBUG("page_order: %d\n", page_order);
-	DRM_DEBUG("total:      %d\n", total);
-
-	if (order < DRM_MIN_ORDER || order > DRM_MAX_ORDER)
-		return -EINVAL;
-
-	spin_lock(&dev->count_lock);
-	if (dev->buf_use) {
-		spin_unlock(&dev->count_lock);
-		return -EBUSY;
-	}
-	atomic_inc(&dev->buf_alloc);
-	spin_unlock(&dev->count_lock);
-
-	mutex_lock(&dev->struct_mutex);
-	entry = &dma->bufs[order];
-	if (entry->buf_count) {
-		mutex_unlock(&dev->struct_mutex);
-		atomic_dec(&dev->buf_alloc);
-		return -ENOMEM;	/* May only call once for each order */
-	}
-
-	if (count < 0 || count > 4096) {
-		mutex_unlock(&dev->struct_mutex);
-		atomic_dec(&dev->buf_alloc);
-		return -EINVAL;
-	}
-
-	entry->buflist = kzalloc(count * sizeof(*entry->buflist),
-				GFP_KERNEL);
-	if (!entry->buflist) {
-		mutex_unlock(&dev->struct_mutex);
-		atomic_dec(&dev->buf_alloc);
-		return -ENOMEM;
-	}
-
-	entry->buf_size = size;
-	entry->page_order = page_order;
-
-	offset = 0;
-
-	while (entry->buf_count < count) {
-		buf = &entry->buflist[entry->buf_count];
-		buf->idx = dma->buf_count + entry->buf_count;
-		buf->total = alignment;
-		buf->order = order;
-		buf->used = 0;
-
-		buf->offset = (dma->byte_count + offset);
-		buf->bus_address = agp_offset + offset;
-		buf->address = (void *)(agp_offset + offset);
-		buf->next = NULL;
-		buf->waiting = 0;
-		buf->pending = 0;
-		buf->file_priv = NULL;
-
-		buf->dev_priv_size = dev->driver->dev_priv_size;
-		buf->dev_private = kzalloc(buf->dev_priv_size, GFP_KERNEL);
-		if (!buf->dev_private) {
-			/* Set count correctly so we free the proper amount. */
-			entry->buf_count = count;
-			drm_cleanup_buf_error(dev, entry);
-			mutex_unlock(&dev->struct_mutex);
-			atomic_dec(&dev->buf_alloc);
-			return -ENOMEM;
-		}
-
-		DRM_DEBUG("buffer %d @ %p\n", entry->buf_count, buf->address);
-
-		offset += alignment;
-		entry->buf_count++;
-		byte_count += PAGE_SIZE << page_order;
-	}
-
-	DRM_DEBUG("byte_count: %d\n", byte_count);
-
-	temp_buflist = krealloc(dma->buflist,
-				(dma->buf_count + entry->buf_count) *
-				sizeof(*dma->buflist), GFP_KERNEL);
-	if (!temp_buflist) {
-		/* Free the entry because it isn't valid */
-		drm_cleanup_buf_error(dev, entry);
-		mutex_unlock(&dev->struct_mutex);
-		atomic_dec(&dev->buf_alloc);
-		return -ENOMEM;
-	}
-	dma->buflist = temp_buflist;
-
-	for (i = 0; i < entry->buf_count; i++) {
-		dma->buflist[i + dma->buf_count] = &entry->buflist[i];
-	}
-
-	dma->buf_count += entry->buf_count;
-	dma->seg_count += entry->seg_count;
-	dma->page_count += byte_count >> PAGE_SHIFT;
-	dma->byte_count += byte_count;
-
-	DRM_DEBUG("dma->buf_count : %d\n", dma->buf_count);
-	DRM_DEBUG("entry->buf_count : %d\n", entry->buf_count);
-
-	mutex_unlock(&dev->struct_mutex);
-
-	request->count = entry->buf_count;
-	request->size = size;
-
-	dma->flags = _DRM_DMA_USE_FB;
-
-	atomic_dec(&dev->buf_alloc);
-	return 0;
-}
-
-
 /**
  * Add buffers for DMA transfers (ioctl).
  *
@@ -1289,26 +1133,29 @@ static int drm_addbufs_fb(struct drm_device * dev, struct drm_buf_desc * request
  * addbufs_sg() or addbufs_pci() for AGP, scatter-gather or consistent
  * PCI memory respectively.
  */
-int drm_addbufs(struct drm_device *dev, void *data,
-		struct drm_file *file_priv)
+int drm_legacy_addbufs(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
 {
 	struct drm_buf_desc *request = data;
 	int ret;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
 		return -EINVAL;
 
 #if __OS_HAS_AGP
 	if (request->flags & _DRM_AGP_BUFFER)
-		ret = drm_addbufs_agp(dev, request);
+		ret = drm_legacy_addbufs_agp(dev, request);
 	else
 #endif
 	if (request->flags & _DRM_SG_BUFFER)
-		ret = drm_addbufs_sg(dev, request);
+		ret = drm_legacy_addbufs_sg(dev, request);
 	else if (request->flags & _DRM_FB_BUFFER)
-		ret = drm_addbufs_fb(dev, request);
+		ret = -EINVAL;
 	else
-		ret = drm_addbufs_pci(dev, request);
+		ret = drm_legacy_addbufs_pci(dev, request);
 
 	return ret;
 }
@@ -1326,17 +1173,20 @@ int drm_addbufs(struct drm_device *dev, void *data,
  * \param arg pointer to a drm_buf_info structure.
  * \return zero on success or a negative number on failure.
  *
- * Increments drm_device::buf_use while holding the drm_device::count_lock
+ * Increments drm_device::buf_use while holding the drm_device::buf_lock
  * lock, preventing of allocating more buffers after this call. Information
  * about each requested buffer is then copied into user space.
  */
-int drm_infobufs(struct drm_device *dev, void *data,
-		 struct drm_file *file_priv)
+int drm_legacy_infobufs(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf_info *request = data;
 	int i;
 	int count;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
 		return -EINVAL;
@@ -1344,13 +1194,13 @@ int drm_infobufs(struct drm_device *dev, void *data,
 	if (!dma)
 		return -EINVAL;
 
-	spin_lock(&dev->count_lock);
+	spin_lock(&dev->buf_lock);
 	if (atomic_read(&dev->buf_alloc)) {
-		spin_unlock(&dev->count_lock);
+		spin_unlock(&dev->buf_lock);
 		return -EBUSY;
 	}
 	++dev->buf_use;		/* Can't allocate more after this call */
-	spin_unlock(&dev->count_lock);
+	spin_unlock(&dev->buf_lock);
 
 	for (i = 0, count = 0; i < DRM_MAX_ORDER + 1; i++) {
 		if (dma->bufs[i].buf_count)
@@ -1365,7 +1215,6 @@ int drm_infobufs(struct drm_device *dev, void *data,
 				struct drm_buf_desc __user *to =
 				    &request->list[count];
 				struct drm_buf_entry *from = &dma->bufs[i];
-				struct drm_freelist *list = &dma->bufs[i].freelist;
 				if (copy_to_user(&to->count,
 						 &from->buf_count,
 						 sizeof(from->buf_count)) ||
@@ -1373,19 +1222,19 @@ int drm_infobufs(struct drm_device *dev, void *data,
 						 &from->buf_size,
 						 sizeof(from->buf_size)) ||
 				    copy_to_user(&to->low_mark,
-						 &list->low_mark,
-						 sizeof(list->low_mark)) ||
+						 &from->low_mark,
+						 sizeof(from->low_mark)) ||
 				    copy_to_user(&to->high_mark,
-						 &list->high_mark,
-						 sizeof(list->high_mark)))
+						 &from->high_mark,
+						 sizeof(from->high_mark)))
 					return -EFAULT;
 
 				DRM_DEBUG("%d %d %d %d %d\n",
 					  i,
 					  dma->bufs[i].buf_count,
 					  dma->bufs[i].buf_size,
-					  dma->bufs[i].freelist.low_mark,
-					  dma->bufs[i].freelist.high_mark);
+					  dma->bufs[i].low_mark,
+					  dma->bufs[i].high_mark);
 				++count;
 			}
 		}
@@ -1409,13 +1258,16 @@ int drm_infobufs(struct drm_device *dev, void *data,
  *
  * \note This ioctl is deprecated and mostly never used.
  */
-int drm_markbufs(struct drm_device *dev, void *data,
-		 struct drm_file *file_priv)
+int drm_legacy_markbufs(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf_desc *request = data;
 	int order;
 	struct drm_buf_entry *entry;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
 		return -EINVAL;
@@ -1425,7 +1277,7 @@ int drm_markbufs(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("%d, %d, %d\n",
 		  request->size, request->low_mark, request->high_mark);
-	order = drm_order(request->size);
+	order = order_base_2(request->size);
 	if (order < DRM_MIN_ORDER || order > DRM_MAX_ORDER)
 		return -EINVAL;
 	entry = &dma->bufs[order];
@@ -1435,8 +1287,8 @@ int drm_markbufs(struct drm_device *dev, void *data,
 	if (request->high_mark < 0 || request->high_mark > entry->buf_count)
 		return -EINVAL;
 
-	entry->freelist.low_mark = request->low_mark;
-	entry->freelist.high_mark = request->high_mark;
+	entry->low_mark = request->low_mark;
+	entry->high_mark = request->high_mark;
 
 	return 0;
 }
@@ -1453,14 +1305,17 @@ int drm_markbufs(struct drm_device *dev, void *data,
  * Calls free_buffer() for each used buffer.
  * This function is primarily used for debugging.
  */
-int drm_freebufs(struct drm_device *dev, void *data,
-		 struct drm_file *file_priv)
+int drm_legacy_freebufs(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf_free *request = data;
 	int i;
 	int idx;
 	struct drm_buf *buf;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
 		return -EINVAL;
@@ -1483,7 +1338,7 @@ int drm_freebufs(struct drm_device *dev, void *data,
 				  task_pid_nr(current));
 			return -EINVAL;
 		}
-		drm_free_buffer(dev, buf);
+		drm_legacy_free_buffer(dev, buf);
 	}
 
 	return 0;
@@ -1503,8 +1358,8 @@ int drm_freebufs(struct drm_device *dev, void *data,
  * offset equal to 0, which drm_mmap() interpretes as PCI buffers and calls
  * drm_mmap_dma().
  */
-int drm_mapbufs(struct drm_device *dev, void *data,
-	        struct drm_file *file_priv)
+int drm_legacy_mapbufs(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	int retcode = 0;
@@ -1514,26 +1369,27 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 	struct drm_buf_map *request = data;
 	int i;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA))
 		return -EINVAL;
 
 	if (!dma)
 		return -EINVAL;
 
-	spin_lock(&dev->count_lock);
+	spin_lock(&dev->buf_lock);
 	if (atomic_read(&dev->buf_alloc)) {
-		spin_unlock(&dev->count_lock);
+		spin_unlock(&dev->buf_lock);
 		return -EBUSY;
 	}
 	dev->buf_use++;		/* Can't allocate more after this call */
-	spin_unlock(&dev->count_lock);
+	spin_unlock(&dev->buf_lock);
 
 	if (request->count >= dma->buf_count) {
-		if ((drm_core_has_AGP(dev) && (dma->flags & _DRM_DMA_USE_AGP))
+		if ((dev->agp && (dma->flags & _DRM_DMA_USE_AGP))
 		    || (drm_core_check_feature(dev, DRIVER_SG)
-			&& (dma->flags & _DRM_DMA_USE_SG))
-		    || (drm_core_check_feature(dev, DRIVER_FB_DMA)
-			&& (dma->flags & _DRM_DMA_USE_FB))) {
+			&& (dma->flags & _DRM_DMA_USE_SG))) {
 			struct drm_local_map *map = dev->agp_buffer_map;
 			unsigned long token = dev->agp_buffer_token;
 
@@ -1590,25 +1446,28 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 	return retcode;
 }
 
-/**
- * Compute size order.  Returns the exponent of the smaller power of two which
- * is greater or equal to given number.
- *
- * \param size size.
- * \return order.
- *
- * \todo Can be made faster.
- */
-int drm_order(unsigned long size)
+int drm_legacy_dma_ioctl(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
 {
-	int order;
-	unsigned long tmp;
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
-	for (order = 0, tmp = size >> 1; tmp; tmp >>= 1, order++) ;
-
-	if (size & (size - 1))
-		++order;
-
-	return order;
+	if (dev->driver->dma_ioctl)
+		return dev->driver->dma_ioctl(dev, data, file_priv);
+	else
+		return -EINVAL;
 }
-EXPORT_SYMBOL(drm_order);
+
+struct drm_local_map *drm_legacy_getsarea(struct drm_device *dev)
+{
+	struct drm_map_list *entry;
+
+	list_for_each_entry(entry, &dev->maplist, head) {
+		if (entry->map && entry->map->type == _DRM_SHM &&
+		    (entry->map->flags & _DRM_CONTAINS_LOCK)) {
+			return entry->map;
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(drm_legacy_getsarea);

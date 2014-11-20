@@ -74,26 +74,28 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		range_size = ntohs(range->max_proto.all) - min + 1;
 	}
 
-	if (range->flags & NF_NAT_RANGE_PROTO_RANDOM)
+	if (range->flags & NF_NAT_RANGE_PROTO_RANDOM) {
 		off = l3proto->secure_port(tuple, maniptype == NF_NAT_MANIP_SRC
 						  ? tuple->dst.u.all
 						  : tuple->src.u.all);
-	else
+	} else if (range->flags & NF_NAT_RANGE_PROTO_RANDOM_FULLY) {
+		off = prandom_u32();
+	} else {
 		off = *rover;
+	}
 
 	for (i = 0; ; ++off) {
 		*portptr = htons(min + off % range_size);
 		if (++i != range_size && nf_nat_used_tuple(tuple, ct))
 			continue;
-		if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM))
+		if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL))
 			*rover = off;
 		return;
 	}
-	return;
 }
 EXPORT_SYMBOL_GPL(nf_nat_l4proto_unique_tuple);
 
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 int nf_nat_l4proto_nlattr_to_range(struct nlattr *tb[],
 				   struct nf_nat_range *range)
 {

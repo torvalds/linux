@@ -35,6 +35,8 @@
 #define ATC_REG_ATC_INT_STS_CLR					 0x1101c0
 /* [RW 5] Parity mask register #0 read/write */
 #define ATC_REG_ATC_PRTY_MASK					 0x1101d8
+/* [R 5] Parity register #0 read */
+#define ATC_REG_ATC_PRTY_STS					 0x1101cc
 /* [RC 5] Parity register #0 read clear */
 #define ATC_REG_ATC_PRTY_STS_CLR				 0x1101d0
 /* [RW 19] Interrupt mask register #0 read/write */
@@ -1491,10 +1493,6 @@
 /* [R 4] This field indicates the type of the device. '0' - 2 Ports; '1' - 1
    Port. */
 #define MISC_REG_BOND_ID					 0xa400
-/* [R 8] These bits indicate the metal revision of the chip. This value
-   starts at 0x00 for each all-layer tape-out and increments by one for each
-   tape-out. */
-#define MISC_REG_CHIP_METAL					 0xa404
 /* [R 16] These bits indicate the part number for the chip. */
 #define MISC_REG_CHIP_NUM					 0xa408
 /* [R 4] These bits indicate the base revision of the chip. This value
@@ -2184,6 +2182,45 @@
 #define NIG_REG_P0_HWPFC_ENABLE				 0x18078
 #define NIG_REG_P0_LLH_FUNC_MEM2				 0x18480
 #define NIG_REG_P0_LLH_FUNC_MEM2_ENABLE			 0x18440
+/* [RW 17] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * the host. Bits [15:0] return the sequence ID of the packet. Bit 16
+ * indicates the validity of the data in the buffer. Writing a 1 to bit 16
+ * will clear the buffer.
+ */
+#define NIG_REG_P0_LLH_PTP_HOST_BUF_SEQID			 0x1875c
+/* [R 32] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * the host. This location returns the lower 32 bits of timestamp value.
+ */
+#define NIG_REG_P0_LLH_PTP_HOST_BUF_TS_LSB			 0x18754
+/* [R 32] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * the host. This location returns the upper 32 bits of timestamp value.
+ */
+#define NIG_REG_P0_LLH_PTP_HOST_BUF_TS_MSB			 0x18758
+/* [RW 11] Mask register for the various parameters used in determining PTP
+ * packet presence. Set each bit to 1 to mask out the particular parameter.
+ * 0-IPv4 DA 0 of 224.0.1.129. 1-IPv4 DA 1 of 224.0.0.107. 2-IPv6 DA 0 of
+ * 0xFF0*:0:0:0:0:0:0:181. 3-IPv6 DA 1 of 0xFF02:0:0:0:0:0:0:6B. 4-UDP
+ * destination port 0 of 319. 5-UDP destination port 1 of 320. 6-MAC
+ * Ethertype 0 of 0x88F7. 7-configurable MAC Ethertype 1. 8-MAC DA 0 of
+ * 0x01-1B-19-00-00-00. 9-MAC DA 1 of 0x01-80-C2-00-00-0E. 10-configurable
+ * MAC DA 2. The reset default is set to mask out all parameters.
+ */
+#define NIG_REG_P0_LLH_PTP_PARAM_MASK				 0x187a0
+/* [RW 14] Mask regiser for the rules used in detecting PTP packets. Set
+ * each bit to 1 to mask out that particular rule. 0-{IPv4 DA 0; UDP DP 0} .
+ * 1-{IPv4 DA 0; UDP DP 1} . 2-{IPv4 DA 1; UDP DP 0} . 3-{IPv4 DA 1; UDP DP
+ * 1} . 4-{IPv6 DA 0; UDP DP 0} . 5-{IPv6 DA 0; UDP DP 1} . 6-{IPv6 DA 1;
+ * UDP DP 0} . 7-{IPv6 DA 1; UDP DP 1} . 8-{MAC DA 0; Ethertype 0} . 9-{MAC
+ * DA 1; Ethertype 0} . 10-{MAC DA 0; Ethertype 1} . 11-{MAC DA 1; Ethertype
+ * 1} . 12-{MAC DA 2; Ethertype 0} . 13-{MAC DA 2; Ethertype 1} . The reset
+ * default is to mask out all of the rules. Note that rules 0-3 are for IPv4
+ * packets only and require that the packet is IPv4 for the rules to match.
+ * Note that rules 4-7 are for IPv6 packets only and require that the packet
+ * is IPv6 for the rules to match.
+ */
+#define NIG_REG_P0_LLH_PTP_RULE_MASK				 0x187a4
+/* [RW 1] Set to 1 to enable PTP packets to be forwarded to the host. */
+#define NIG_REG_P0_LLH_PTP_TO_HOST				 0x187ac
 /* [RW 1] Input enable for RX MAC interface. */
 #define NIG_REG_P0_MAC_IN_EN					 0x185ac
 /* [RW 1] Output enable for TX MAC interface */
@@ -2196,6 +2233,17 @@
  * priority field is extracted from the outer-most VLAN in receive packet.
  * Only COS 0 and COS 1 are supported in E2. */
 #define NIG_REG_P0_PKT_PRIORITY_TO_COS				 0x18054
+/* [RW 6] Enable for TimeSync feature. Bits [2:0] are for RX side. Bits
+ * [5:3] are for TX side. Bit 0 enables TimeSync on RX side. Bit 1 enables
+ * V1 frame format in timesync event detection on RX side. Bit 2 enables V2
+ * frame format in timesync event detection on RX side. Bit 3 enables
+ * TimeSync on TX side. Bit 4 enables V1 frame format in timesync event
+ * detection on TX side. Bit 5 enables V2 frame format in timesync event
+ * detection on TX side. Note that for HW to detect PTP packet and extract
+ * data from the packet, at least one of the version bits of that traffic
+ * direction has to be enabled.
+ */
+#define NIG_REG_P0_PTP_EN					 0x18788
 /* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 0. A
  * priority is mapped to COS 0 when the corresponding mask bit is 1. More
  * than one bit may be set; allowing multiple priorities to be mapped to one
@@ -2302,7 +2350,46 @@
  * Ethernet header. */
 #define NIG_REG_P1_HDRS_AFTER_BASIC				 0x1818c
 #define NIG_REG_P1_LLH_FUNC_MEM2				 0x184c0
-#define NIG_REG_P1_LLH_FUNC_MEM2_ENABLE			 0x18460
+#define NIG_REG_P1_LLH_FUNC_MEM2_ENABLE			 0x18460a
+/* [RW 17] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * the host. Bits [15:0] return the sequence ID of the packet. Bit 16
+ * indicates the validity of the data in the buffer. Writing a 1 to bit 16
+ * will clear the buffer.
+ */
+#define NIG_REG_P1_LLH_PTP_HOST_BUF_SEQID			 0x18774
+/* [R 32] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * the host. This location returns the lower 32 bits of timestamp value.
+ */
+#define NIG_REG_P1_LLH_PTP_HOST_BUF_TS_LSB			 0x1876c
+/* [R 32] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * the host. This location returns the upper 32 bits of timestamp value.
+ */
+#define NIG_REG_P1_LLH_PTP_HOST_BUF_TS_MSB			 0x18770
+/* [RW 11] Mask register for the various parameters used in determining PTP
+ * packet presence. Set each bit to 1 to mask out the particular parameter.
+ * 0-IPv4 DA 0 of 224.0.1.129. 1-IPv4 DA 1 of 224.0.0.107. 2-IPv6 DA 0 of
+ * 0xFF0*:0:0:0:0:0:0:181. 3-IPv6 DA 1 of 0xFF02:0:0:0:0:0:0:6B. 4-UDP
+ * destination port 0 of 319. 5-UDP destination port 1 of 320. 6-MAC
+ * Ethertype 0 of 0x88F7. 7-configurable MAC Ethertype 1. 8-MAC DA 0 of
+ * 0x01-1B-19-00-00-00. 9-MAC DA 1 of 0x01-80-C2-00-00-0E. 10-configurable
+ * MAC DA 2. The reset default is set to mask out all parameters.
+ */
+#define NIG_REG_P1_LLH_PTP_PARAM_MASK				 0x187c8
+/* [RW 14] Mask regiser for the rules used in detecting PTP packets. Set
+ * each bit to 1 to mask out that particular rule. 0-{IPv4 DA 0; UDP DP 0} .
+ * 1-{IPv4 DA 0; UDP DP 1} . 2-{IPv4 DA 1; UDP DP 0} . 3-{IPv4 DA 1; UDP DP
+ * 1} . 4-{IPv6 DA 0; UDP DP 0} . 5-{IPv6 DA 0; UDP DP 1} . 6-{IPv6 DA 1;
+ * UDP DP 0} . 7-{IPv6 DA 1; UDP DP 1} . 8-{MAC DA 0; Ethertype 0} . 9-{MAC
+ * DA 1; Ethertype 0} . 10-{MAC DA 0; Ethertype 1} . 11-{MAC DA 1; Ethertype
+ * 1} . 12-{MAC DA 2; Ethertype 0} . 13-{MAC DA 2; Ethertype 1} . The reset
+ * default is to mask out all of the rules. Note that rules 0-3 are for IPv4
+ * packets only and require that the packet is IPv4 for the rules to match.
+ * Note that rules 4-7 are for IPv6 packets only and require that the packet
+ * is IPv6 for the rules to match.
+ */
+#define NIG_REG_P1_LLH_PTP_RULE_MASK				 0x187cc
+/* [RW 1] Set to 1 to enable PTP packets to be forwarded to the host. */
+#define NIG_REG_P1_LLH_PTP_TO_HOST				 0x187d4
 /* [RW 32] Specify the client number to be assigned to each priority of the
  * strict priority arbiter. This register specifies bits 31:0 of the 36-bit
  * value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
@@ -2344,6 +2431,17 @@
  * priority field is extracted from the outer-most VLAN in receive packet.
  * Only COS 0 and COS 1 are supported in E2. */
 #define NIG_REG_P1_PKT_PRIORITY_TO_COS				 0x181a8
+/* [RW 6] Enable for TimeSync feature. Bits [2:0] are for RX side. Bits
+ * [5:3] are for TX side. Bit 0 enables TimeSync on RX side. Bit 1 enables
+ * V1 frame format in timesync event detection on RX side. Bit 2 enables V2
+ * frame format in timesync event detection on RX side. Bit 3 enables
+ * TimeSync on TX side. Bit 4 enables V1 frame format in timesync event
+ * detection on TX side. Bit 5 enables V2 frame format in timesync event
+ * detection on TX side. Note that for HW to detect PTP packet and extract
+ * data from the packet, at least one of the version bits of that traffic
+ * direction has to be enabled.
+ */
+#define NIG_REG_P1_PTP_EN					 0x187b0
 /* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 0. A
  * priority is mapped to COS 0 when the corresponding mask bit is 1. More
  * than one bit may be set; allowing multiple priorities to be mapped to one
@@ -2363,6 +2461,78 @@
 #define NIG_REG_P1_RX_MACFIFO_EMPTY				 0x1858c
 /* [R 1] TLLH FIFO is empty. */
 #define NIG_REG_P1_TLLH_FIFO_EMPTY				 0x18338
+/* [RW 19] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * TX side. Bits [15:0] reflect the sequence ID of the packet. Bit 16
+ * indicates the validity of the data in the buffer. Bit 17 indicates that
+ * the sequence ID is valid and it is waiting for the TX timestamp value.
+ * Bit 18 indicates whether the timestamp is from a SW request (value of 1)
+ * or HW request (value of 0). Writing a 1 to bit 16 will clear the buffer.
+ */
+#define NIG_REG_P0_TLLH_PTP_BUF_SEQID				 0x187e0
+/* [R 32] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * MCP. This location returns the lower 32 bits of timestamp value.
+ */
+#define NIG_REG_P0_TLLH_PTP_BUF_TS_LSB				 0x187d8
+/* [R 32] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * MCP. This location returns the upper 32 bits of timestamp value.
+ */
+#define NIG_REG_P0_TLLH_PTP_BUF_TS_MSB				 0x187dc
+/* [RW 11] Mask register for the various parameters used in determining PTP
+ * packet presence. Set each bit to 1 to mask out the particular parameter.
+ * 0-IPv4 DA 0 of 224.0.1.129. 1-IPv4 DA 1 of 224.0.0.107. 2-IPv6 DA 0 of
+ * 0xFF0*:0:0:0:0:0:0:181. 3-IPv6 DA 1 of 0xFF02:0:0:0:0:0:0:6B. 4-UDP
+ * destination port 0 of 319. 5-UDP destination port 1 of 320. 6-MAC
+ * Ethertype 0 of 0x88F7. 7-configurable MAC Ethertype 1. 8-MAC DA 0 of
+ * 0x01-1B-19-00-00-00. 9-MAC DA 1 of 0x01-80-C2-00-00-0E. 10-configurable
+ * MAC DA 2. The reset default is set to mask out all parameters.
+ */
+#define NIG_REG_P0_TLLH_PTP_PARAM_MASK				 0x187f0
+/* [RW 14] Mask regiser for the rules used in detecting PTP packets. Set
+ * each bit to 1 to mask out that particular rule. 0-{IPv4 DA 0; UDP DP 0} .
+ * 1-{IPv4 DA 0; UDP DP 1} . 2-{IPv4 DA 1; UDP DP 0} . 3-{IPv4 DA 1; UDP DP
+ * 1} . 4-{IPv6 DA 0; UDP DP 0} . 5-{IPv6 DA 0; UDP DP 1} . 6-{IPv6 DA 1;
+ * UDP DP 0} . 7-{IPv6 DA 1; UDP DP 1} . 8-{MAC DA 0; Ethertype 0} . 9-{MAC
+ * DA 1; Ethertype 0} . 10-{MAC DA 0; Ethertype 1} . 11-{MAC DA 1; Ethertype
+ * 1} . 12-{MAC DA 2; Ethertype 0} . 13-{MAC DA 2; Ethertype 1} . The reset
+ * default is to mask out all of the rules.
+ */
+#define NIG_REG_P0_TLLH_PTP_RULE_MASK				 0x187f4
+/* [RW 19] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * TX side. Bits [15:0] reflect the sequence ID of the packet. Bit 16
+ * indicates the validity of the data in the buffer. Bit 17 indicates that
+ * the sequence ID is valid and it is waiting for the TX timestamp value.
+ * Bit 18 indicates whether the timestamp is from a SW request (value of 1)
+ * or HW request (value of 0). Writing a 1 to bit 16 will clear the buffer.
+ */
+#define NIG_REG_P1_TLLH_PTP_BUF_SEQID				 0x187ec
+/* [R 32] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * MCP. This location returns the lower 32 bits of timestamp value.
+ */
+#define NIG_REG_P1_TLLH_PTP_BUF_TS_LSB				 0x187e4
+/* [R 32] Packet TimeSync information that is buffered in 1-deep FIFOs for
+ * MCP. This location returns the upper 32 bits of timestamp value.
+ */
+#define NIG_REG_P1_TLLH_PTP_BUF_TS_MSB				 0x187e8
+/* [RW 11] Mask register for the various parameters used in determining PTP
+ * packet presence. Set each bit to 1 to mask out the particular parameter.
+ * 0-IPv4 DA 0 of 224.0.1.129. 1-IPv4 DA 1 of 224.0.0.107. 2-IPv6 DA 0 of
+ * 0xFF0*:0:0:0:0:0:0:181. 3-IPv6 DA 1 of 0xFF02:0:0:0:0:0:0:6B. 4-UDP
+ * destination port 0 of 319. 5-UDP destination port 1 of 320. 6-MAC
+ * Ethertype 0 of 0x88F7. 7-configurable MAC Ethertype 1. 8-MAC DA 0 of
+ * 0x01-1B-19-00-00-00. 9-MAC DA 1 of 0x01-80-C2-00-00-0E. 10-configurable
+ * MAC DA 2. The reset default is set to mask out all parameters.
+ */
+#define NIG_REG_P1_TLLH_PTP_PARAM_MASK				 0x187f8
+/* [RW 14] Mask regiser for the rules used in detecting PTP packets. Set
+ * each bit to 1 to mask out that particular rule. 0-{IPv4 DA 0; UDP DP 0} .
+ * 1-{IPv4 DA 0; UDP DP 1} . 2-{IPv4 DA 1; UDP DP 0} . 3-{IPv4 DA 1; UDP DP
+ * 1} . 4-{IPv6 DA 0; UDP DP 0} . 5-{IPv6 DA 0; UDP DP 1} . 6-{IPv6 DA 1;
+ * UDP DP 0} . 7-{IPv6 DA 1; UDP DP 1} . 8-{MAC DA 0; Ethertype 0} . 9-{MAC
+ * DA 1; Ethertype 0} . 10-{MAC DA 0; Ethertype 1} . 11-{MAC DA 1; Ethertype
+ * 1} . 12-{MAC DA 2; Ethertype 0} . 13-{MAC DA 2; Ethertype 1} . The reset
+ * default is to mask out all of the rules.
+ */
+#define NIG_REG_P1_TLLH_PTP_RULE_MASK				 0x187fc
 /* [RW 32] Specify which of the credit registers the client is to be mapped
  * to. This register specifies bits 31:0 of the 36-bit value. Bits[3:0] are
  * for client 0; bits [35:32] are for client 8. For clients that are not
@@ -2515,6 +2685,10 @@
    swap is equal to SPIO pin that inputs from ifmux_serdes_swap. If 1 then
    ort swap is equal to ~nig_registers_port_swap.port_swap */
 #define NIG_REG_STRAP_OVERRIDE					 0x10398
+/* [WB 64] Addresses for TimeSync related registers in the timesync
+ * generator sub-module.
+ */
+#define NIG_REG_TIMESYNC_GEN_REG				 0x18800
 /* [RW 1] output enable for RX_XCM0 IF */
 #define NIG_REG_XCM0_OUT_EN					 0x100f0
 /* [RW 1] output enable for RX_XCM1 IF */
@@ -2754,6 +2928,8 @@
 #define PBF_REG_PBF_INT_STS					 0x1401c8
 /* [RW 20] Parity mask register #0 read/write */
 #define PBF_REG_PBF_PRTY_MASK					 0x1401e4
+/* [R 28] Parity register #0 read */
+#define PBF_REG_PBF_PRTY_STS					 0x1401d8
 /* [RC 20] Parity register #0 read clear */
 #define PBF_REG_PBF_PRTY_STS_CLR				 0x1401dc
 /* [RW 16] The Ethernet type value for L2 tag 0 */
@@ -2864,6 +3040,17 @@
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ		 0x9430
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_WRITE		 0x9434
 #define PGLUE_B_REG_INTERNAL_VFID_ENABLE			 0x9438
+/* [W 7] Writing 1 to each bit in this register clears a corresponding error
+ * details register and enables logging new error details. Bit 0 - clears
+ * INCORRECT_RCV_DETAILS; Bit 1 - clears RX_ERR_DETAILS; Bit 2 - clears
+ * TX_ERR_WR_ADD_31_0 TX_ERR_WR_ADD_63_32 TX_ERR_WR_DETAILS
+ * TX_ERR_WR_DETAILS2 TX_ERR_RD_ADD_31_0 TX_ERR_RD_ADD_63_32
+ * TX_ERR_RD_DETAILS TX_ERR_RD_DETAILS2 TX_ERR_WR_DETAILS_ICPL; Bit 3 -
+ * clears VF_LENGTH_VIOLATION_DETAILS. Bit 4 - clears
+ * VF_GRC_SPACE_VIOLATION_DETAILS. Bit 5 - clears RX_TCPL_ERR_DETAILS. Bit 6
+ * - clears TCPL_IN_TWO_RCBS_DETAILS. */
+#define PGLUE_B_REG_LATCHED_ERRORS_CLR				 0x943c
+
 /* [R 9] Interrupt register #0 read */
 #define PGLUE_B_REG_PGLUE_B_INT_STS				 0x9298
 /* [RC 9] Interrupt register #0 read clear */
@@ -4521,6 +4708,8 @@
 #define TM_REG_TM_INT_STS					 0x1640f0
 /* [RW 7] Parity mask register #0 read/write */
 #define TM_REG_TM_PRTY_MASK					 0x16410c
+/* [R 7] Parity register #0 read */
+#define TM_REG_TM_PRTY_STS					 0x164100
 /* [RC 7] Parity register #0 read clear */
 #define TM_REG_TM_PRTY_STS_CLR					 0x164104
 /* [RW 8] The event id for aggregated interrupt 0 */
@@ -5919,6 +6108,7 @@
 #define MISC_REGISTERS_RESET_REG_1_RST_NIG			 (0x1<<7)
 #define MISC_REGISTERS_RESET_REG_1_RST_PXP			 (0x1<<26)
 #define MISC_REGISTERS_RESET_REG_1_RST_PXPV			 (0x1<<27)
+#define MISC_REGISTERS_RESET_REG_1_RST_XSEM			 (0x1<<22)
 #define MISC_REGISTERS_RESET_REG_1_SET				 0x584
 #define MISC_REGISTERS_RESET_REG_2_CLEAR			 0x598
 #define MISC_REGISTERS_RESET_REG_2_MSTAT0			 (0x1<<24)
@@ -6331,6 +6521,9 @@
 #define PCI_PM_DATA_B					0x414
 #define PCI_ID_VAL1					0x434
 #define PCI_ID_VAL2					0x438
+#define PCI_ID_VAL3					0x43c
+
+#define GRC_CONFIG_REG_VF_MSIX_CONTROL		    0x61C
 #define GRC_CONFIG_REG_PF_INIT_VF		0x624
 #define GRC_CR_PF_INIT_VF_PF_FIRST_VF_NUM_MASK	0xf
 /* First VF_NUM for PF is encoded in this register.
@@ -7163,6 +7356,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_RX1_PCI_CTRL			0x80ca
 #define MDIO_WC_REG_RX2_PCI_CTRL			0x80da
 #define MDIO_WC_REG_RX3_PCI_CTRL			0x80ea
+#define MDIO_WC_REG_RXB_ANA_RX_CONTROL_PCI		0x80fa
 #define MDIO_WC_REG_XGXSBLK2_UNICORE_MODE_10G		0x8104
 #define MDIO_WC_REG_XGXS_STATUS3			0x8129
 #define MDIO_WC_REG_PAR_DET_10G_STATUS			0x8130

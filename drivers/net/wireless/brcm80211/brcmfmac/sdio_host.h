@@ -18,6 +18,8 @@
 #define	_BRCM_SDH_H_
 
 #include <linux/skbuff.h>
+#include <linux/firmware.h>
+#include "firmware.h"
 
 #define SDIO_FUNC_0		0
 #define SDIO_FUNC_1		1
@@ -48,7 +50,13 @@
 #define SBSDIO_NUM_FUNCTION		3
 
 /* function 0 vendor specific CCCR registers */
-#define SDIO_CCCR_BRCM_SEPINT		0xf2
+#define SDIO_CCCR_BRCM_CARDCAP			0xf0
+#define SDIO_CCCR_BRCM_CARDCAP_CMD14_SUPPORT	0x02
+#define SDIO_CCCR_BRCM_CARDCAP_CMD14_EXT	0x04
+#define SDIO_CCCR_BRCM_CARDCAP_CMD_NODEC	0x08
+#define SDIO_CCCR_BRCM_CARDCTRL		0xf1
+#define SDIO_CCCR_BRCM_CARDCTRL_WLANRESET	0x02
+#define SDIO_CCCR_BRCM_SEPINT			0xf2
 
 #define  SDIO_SEPINT_MASK		0x01
 #define  SDIO_SEPINT_OE			0x02
@@ -66,12 +74,12 @@
 #define SBSDIO_SPROM_DATA_HIGH		0x10003
 /* sprom indirect access addr byte 0 */
 #define SBSDIO_SPROM_ADDR_LOW		0x10004
-/* sprom indirect access addr byte 0 */
-#define SBSDIO_SPROM_ADDR_HIGH		0x10005
-/* xtal_pu (gpio) output */
-#define SBSDIO_CHIP_CTRL_DATA		0x10006
-/* xtal_pu (gpio) enable */
-#define SBSDIO_CHIP_CTRL_EN		0x10007
+/* gpio select */
+#define SBSDIO_GPIO_SELECT		0x10005
+/* gpio output */
+#define SBSDIO_GPIO_OUT			0x10006
+/* gpio enable */
+#define SBSDIO_GPIO_EN			0x10007
 /* rev < 7, watermark for sdio device */
 #define SBSDIO_WATERMARK		0x10008
 /* control busy signal generation */
@@ -97,9 +105,23 @@
 #define SBSDIO_FUNC1_RFRAMEBCLO		0x1001B
 /* Read Frame Byte Count High */
 #define SBSDIO_FUNC1_RFRAMEBCHI		0x1001C
+/* MesBusyCtl (rev 11) */
+#define SBSDIO_FUNC1_MESBUSYCTRL	0x1001D
+/* Sdio Core Rev 12 */
+#define SBSDIO_FUNC1_WAKEUPCTRL		0x1001E
+#define SBSDIO_FUNC1_WCTRL_ALPWAIT_MASK		0x1
+#define SBSDIO_FUNC1_WCTRL_ALPWAIT_SHIFT	0
+#define SBSDIO_FUNC1_WCTRL_HTWAIT_MASK		0x2
+#define SBSDIO_FUNC1_WCTRL_HTWAIT_SHIFT		1
+#define SBSDIO_FUNC1_SLEEPCSR		0x1001F
+#define SBSDIO_FUNC1_SLEEPCSR_KSO_MASK		0x1
+#define SBSDIO_FUNC1_SLEEPCSR_KSO_SHIFT		0
+#define SBSDIO_FUNC1_SLEEPCSR_KSO_EN		1
+#define SBSDIO_FUNC1_SLEEPCSR_DEVON_MASK	0x2
+#define SBSDIO_FUNC1_SLEEPCSR_DEVON_SHIFT	1
 
 #define SBSDIO_FUNC1_MISC_REG_START	0x10000	/* f1 misc register start */
-#define SBSDIO_FUNC1_MISC_REG_LIMIT	0x1001C	/* f1 misc register end */
+#define SBSDIO_FUNC1_MISC_REG_LIMIT	0x1001F	/* f1 misc register end */
 
 /* function 1 OCP space */
 
@@ -144,42 +166,131 @@ struct brcmf_sdio;
 struct brcmf_sdio_dev {
 	struct sdio_func *func[SDIO_MAX_FUNCS];
 	u8 num_funcs;			/* Supported funcs on client */
-	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
 	u32 sbwad;			/* Save backplane window address */
-	void *bus;
+	struct brcmf_sdio *bus;
 	atomic_t suspend;		/* suspend flag */
-	wait_queue_head_t request_byte_wait;
 	wait_queue_head_t request_word_wait;
-	wait_queue_head_t request_chain_wait;
 	wait_queue_head_t request_buffer_wait;
 	struct device *dev;
 	struct brcmf_bus *bus_if;
-#ifdef CONFIG_BRCMFMAC_SDIO_OOB
-	unsigned int irq;		/* oob interrupt number */
-	unsigned long irq_flags;	/* board specific oob flags */
+	struct brcmfmac_sdio_platform_data *pdata;
+	bool oob_irq_requested;
 	bool irq_en;			/* irq enable flags */
 	spinlock_t irq_en_lock;
 	bool irq_wake;			/* irq wake enable flags */
-#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
+	bool sg_support;
+	uint max_request_size;
+	ushort max_segment_count;
+	uint max_segment_size;
+	uint txglomsz;
+	struct sg_table sgtable;
+	char fw_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
+	char nvram_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
+};
+
+/* sdio core registers */
+struct sdpcmd_regs {
+	u32 corecontrol;		/* 0x00, rev8 */
+	u32 corestatus;			/* rev8 */
+	u32 PAD[1];
+	u32 biststatus;			/* rev8 */
+
+	/* PCMCIA access */
+	u16 pcmciamesportaladdr;	/* 0x010, rev8 */
+	u16 PAD[1];
+	u16 pcmciamesportalmask;	/* rev8 */
+	u16 PAD[1];
+	u16 pcmciawrframebc;		/* rev8 */
+	u16 PAD[1];
+	u16 pcmciaunderflowtimer;	/* rev8 */
+	u16 PAD[1];
+
+	/* interrupt */
+	u32 intstatus;			/* 0x020, rev8 */
+	u32 hostintmask;		/* rev8 */
+	u32 intmask;			/* rev8 */
+	u32 sbintstatus;		/* rev8 */
+	u32 sbintmask;			/* rev8 */
+	u32 funcintmask;		/* rev4 */
+	u32 PAD[2];
+	u32 tosbmailbox;		/* 0x040, rev8 */
+	u32 tohostmailbox;		/* rev8 */
+	u32 tosbmailboxdata;		/* rev8 */
+	u32 tohostmailboxdata;		/* rev8 */
+
+	/* synchronized access to registers in SDIO clock domain */
+	u32 sdioaccess;			/* 0x050, rev8 */
+	u32 PAD[3];
+
+	/* PCMCIA frame control */
+	u8 pcmciaframectrl;		/* 0x060, rev8 */
+	u8 PAD[3];
+	u8 pcmciawatermark;		/* rev8 */
+	u8 PAD[155];
+
+	/* interrupt batching control */
+	u32 intrcvlazy;			/* 0x100, rev8 */
+	u32 PAD[3];
+
+	/* counters */
+	u32 cmd52rd;			/* 0x110, rev8 */
+	u32 cmd52wr;			/* rev8 */
+	u32 cmd53rd;			/* rev8 */
+	u32 cmd53wr;			/* rev8 */
+	u32 abort;			/* rev8 */
+	u32 datacrcerror;		/* rev8 */
+	u32 rdoutofsync;		/* rev8 */
+	u32 wroutofsync;		/* rev8 */
+	u32 writebusy;			/* rev8 */
+	u32 readwait;			/* rev8 */
+	u32 readterm;			/* rev8 */
+	u32 writeterm;			/* rev8 */
+	u32 PAD[40];
+	u32 clockctlstatus;		/* rev8 */
+	u32 PAD[7];
+
+	u32 PAD[128];			/* DMA engines */
+
+	/* SDIO/PCMCIA CIS region */
+	char cis[512];			/* 0x400-0x5ff, rev6 */
+
+	/* PCMCIA function control registers */
+	char pcmciafcr[256];		/* 0x600-6ff, rev6 */
+	u16 PAD[55];
+
+	/* PCMCIA backplane access */
+	u16 backplanecsr;		/* 0x76E, rev6 */
+	u16 backplaneaddr0;		/* rev6 */
+	u16 backplaneaddr1;		/* rev6 */
+	u16 backplaneaddr2;		/* rev6 */
+	u16 backplaneaddr3;		/* rev6 */
+	u16 backplanedata0;		/* rev6 */
+	u16 backplanedata1;		/* rev6 */
+	u16 backplanedata2;		/* rev6 */
+	u16 backplanedata3;		/* rev6 */
+	u16 PAD[31];
+
+	/* sprom "size" & "blank" info */
+	u16 spromstatus;		/* 0x7BE, rev2 */
+	u32 PAD[464];
+
+	u16 PAD[0x80];
 };
 
 /* Register/deregister interrupt handler. */
-extern int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev);
-extern int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev);
+int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev);
+int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
 /* sdio device register access interface */
-extern u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
-extern u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
-extern void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
-			     u8 data, int *ret);
-extern void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
-			     u32 data, int *ret);
-extern int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
-				   void *data, bool write);
+u8 brcmf_sdiod_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+u32 brcmf_sdiod_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+void brcmf_sdiod_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr, u8 data,
+		       int *ret);
+void brcmf_sdiod_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
+		       int *ret);
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number
- *   addr:     backplane address (i.e. >= regsva from attach)
  *   flags:    backplane width, address increment, sync/async
  *   buf:      pointer to memory data buffer
  *   nbytes:   number of bytes to transfer to/from buf
@@ -189,22 +300,14 @@ extern int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
  * Returns 0 or error code.
  * NOTE: Async operation is not currently supported.
  */
-extern int
-brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, struct sk_buff *pkt);
-extern int
-brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes);
+int brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev,
+			 struct sk_buff_head *pktq);
+int brcmf_sdiod_send_buf(struct brcmf_sdio_dev *sdiodev, u8 *buf, uint nbytes);
 
-extern int
-brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, struct sk_buff *pkt);
-extern int
-brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes);
-extern int
-brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-			uint flags, struct sk_buff_head *pktq);
+int brcmf_sdiod_recv_pkt(struct brcmf_sdio_dev *sdiodev, struct sk_buff *pkt);
+int brcmf_sdiod_recv_buf(struct brcmf_sdio_dev *sdiodev, u8 *buf, uint nbytes);
+int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
+			   struct sk_buff_head *pktq, uint totlen);
 
 /* Flags bits */
 
@@ -212,8 +315,6 @@ brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 #define SDIO_REQ_4BYTE	0x1
 /* Fixed address (FIFO) (vs. incrementing address) */
 #define SDIO_REQ_FIXED	0x2
-/* Async request (vs. sync request) */
-#define SDIO_REQ_ASYNC	0x4
 
 /* Read/write to memory block (F1, no FIFO) via CMD53 (sync only).
  *   rw:       read or write (0/1)
@@ -222,53 +323,16 @@ brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
  *   nbytes:   number of bytes to transfer to/from buf
  * Returns 0 or error code.
  */
-extern int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw,
-			       u32 addr, u8 *buf, uint nbytes);
+int brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
+		      u8 *data, uint size);
 
 /* Issue an abort to the specified function */
-extern int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
+int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 
-/* platform specific/high level functions */
-extern int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
-extern int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
+struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdio_remove(struct brcmf_sdio *bus);
+void brcmf_sdio_isr(struct brcmf_sdio *bus);
 
-extern int brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev,
-					  u32 address);
+void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 
-/* attach, return handler on success, NULL if failed.
- *  The handler shall be provided by all subsequent calls. No local cache
- *  cfghdl points to the starting address of pci device mapped memory
- */
-extern int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev);
-extern void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev);
-
-/* read or write one byte using cmd52 */
-extern int brcmf_sdioh_request_byte(struct brcmf_sdio_dev *sdiodev, uint rw,
-				    uint fnc, uint addr, u8 *byte);
-
-/* read or write 2/4 bytes using cmd53 */
-extern int
-brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
-			 uint rw, uint fnc, uint addr,
-			 u32 *word, uint nbyte);
-
-/* read or write any buffer using cmd53 */
-extern int
-brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
-			   uint fix_inc, uint rw, uint fnc_num, u32 addr,
-			   struct sk_buff *pkt);
-extern int
-brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
-			  uint write, uint func, uint addr,
-			  struct sk_buff_head *pktq);
-
-/* Watchdog timer interface for pm ops */
-extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,
-				    bool enable);
-
-extern void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev);
-extern void brcmf_sdbrcm_disconnect(void *ptr);
-extern void brcmf_sdbrcm_isr(void *arg);
-
-extern void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 #endif				/* _BRCM_SDH_H_ */

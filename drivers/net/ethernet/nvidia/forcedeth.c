@@ -26,8 +26,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -59,7 +58,6 @@
 #include <linux/skbuff.h>
 #include <linux/mii.h>
 #include <linux/random.h>
-#include <linux/init.h>
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -408,7 +406,7 @@ union ring_type {
 
 #define NV_RX_DESCRIPTORVALID	(1<<16)
 #define NV_RX_MISSEDFRAME	(1<<17)
-#define NV_RX_SUBSTRACT1	(1<<18)
+#define NV_RX_SUBTRACT1		(1<<18)
 #define NV_RX_ERROR1		(1<<23)
 #define NV_RX_ERROR2		(1<<24)
 #define NV_RX_ERROR3		(1<<25)
@@ -425,7 +423,7 @@ union ring_type {
 #define NV_RX2_CHECKSUM_IP_TCP	(0x14000000)
 #define NV_RX2_CHECKSUM_IP_UDP	(0x18000000)
 #define NV_RX2_DESCRIPTORVALID	(1<<29)
-#define NV_RX2_SUBSTRACT1	(1<<25)
+#define NV_RX2_SUBTRACT1	(1<<25)
 #define NV_RX2_ERROR1		(1<<18)
 #define NV_RX2_ERROR2		(1<<19)
 #define NV_RX2_ERROR3		(1<<20)
@@ -1483,7 +1481,7 @@ static int phy_init(struct net_device *dev)
 	}
 
 	/* phy vendor specific configuration */
-	if ((np->phy_oui == PHY_OUI_CICADA)) {
+	if (np->phy_oui == PHY_OUI_CICADA) {
 		if (init_cicada(dev, np, phyinterface)) {
 			netdev_info(dev, "%s: phy init failed\n",
 				    pci_name(np->pci_dev));
@@ -1755,19 +1753,19 @@ nv_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *storage)
 
 	/* software stats */
 	do {
-		syncp_start = u64_stats_fetch_begin_bh(&np->swstats_rx_syncp);
+		syncp_start = u64_stats_fetch_begin_irq(&np->swstats_rx_syncp);
 		storage->rx_packets       = np->stat_rx_packets;
 		storage->rx_bytes         = np->stat_rx_bytes;
 		storage->rx_dropped       = np->stat_rx_dropped;
 		storage->rx_missed_errors = np->stat_rx_missed_errors;
-	} while (u64_stats_fetch_retry_bh(&np->swstats_rx_syncp, syncp_start));
+	} while (u64_stats_fetch_retry_irq(&np->swstats_rx_syncp, syncp_start));
 
 	do {
-		syncp_start = u64_stats_fetch_begin_bh(&np->swstats_tx_syncp);
+		syncp_start = u64_stats_fetch_begin_irq(&np->swstats_tx_syncp);
 		storage->tx_packets = np->stat_tx_packets;
 		storage->tx_bytes   = np->stat_tx_bytes;
 		storage->tx_dropped = np->stat_tx_dropped;
-	} while (u64_stats_fetch_retry_bh(&np->swstats_tx_syncp, syncp_start));
+	} while (u64_stats_fetch_retry_irq(&np->swstats_tx_syncp, syncp_start));
 
 	/* If the nic supports hw counters then retrieve latest values */
 	if (np->driver_data & DEV_HAS_STATISTICS_V123) {
@@ -2200,6 +2198,7 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ring_desc *start_tx;
 	struct ring_desc *prev_tx;
 	struct nv_skb_map *prev_tx_ctx;
+	struct nv_skb_map *tmp_tx_ctx = NULL, *start_tx_ctx = NULL;
 	unsigned long flags;
 
 	/* add fragments to entries count */
@@ -2232,7 +2231,7 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (pci_dma_mapping_error(np->pci_dev,
 					  np->put_tx_ctx->dma)) {
 			/* on DMA mapping error - drop the packet */
-			kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			u64_stats_update_begin(&np->swstats_tx_syncp);
 			np->stat_tx_dropped++;
 			u64_stats_update_end(&np->swstats_tx_syncp);
@@ -2261,12 +2260,31 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		do {
 			prev_tx = put_tx;
 			prev_tx_ctx = np->put_tx_ctx;
+			if (!start_tx_ctx)
+				start_tx_ctx = tmp_tx_ctx = np->put_tx_ctx;
+
 			bcnt = (frag_size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : frag_size;
 			np->put_tx_ctx->dma = skb_frag_dma_map(
 							&np->pci_dev->dev,
 							frag, offset,
 							bcnt,
 							DMA_TO_DEVICE);
+			if (dma_mapping_error(&np->pci_dev->dev, np->put_tx_ctx->dma)) {
+
+				/* Unwind the mapped fragments */
+				do {
+					nv_unmap_txskb(np, start_tx_ctx);
+					if (unlikely(tmp_tx_ctx++ == np->last_tx_ctx))
+						tmp_tx_ctx = np->first_tx_ctx;
+				} while (tmp_tx_ctx != np->put_tx_ctx);
+				dev_kfree_skb_any(skb);
+				np->put_tx_ctx = start_tx_ctx;
+				u64_stats_update_begin(&np->swstats_tx_syncp);
+				np->stat_tx_dropped++;
+				u64_stats_update_end(&np->swstats_tx_syncp);
+				return NETDEV_TX_OK;
+			}
+
 			np->put_tx_ctx->dma_len = bcnt;
 			np->put_tx_ctx->dma_single = 0;
 			put_tx->buf = cpu_to_le32(np->put_tx_ctx->dma);
@@ -2327,7 +2345,8 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 	struct ring_desc_ex *start_tx;
 	struct ring_desc_ex *prev_tx;
 	struct nv_skb_map *prev_tx_ctx;
-	struct nv_skb_map *start_tx_ctx;
+	struct nv_skb_map *start_tx_ctx = NULL;
+	struct nv_skb_map *tmp_tx_ctx = NULL;
 	unsigned long flags;
 
 	/* add fragments to entries count */
@@ -2361,7 +2380,7 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 		if (pci_dma_mapping_error(np->pci_dev,
 					  np->put_tx_ctx->dma)) {
 			/* on DMA mapping error - drop the packet */
-			kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			u64_stats_update_begin(&np->swstats_tx_syncp);
 			np->stat_tx_dropped++;
 			u64_stats_update_end(&np->swstats_tx_syncp);
@@ -2392,11 +2411,29 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 			prev_tx = put_tx;
 			prev_tx_ctx = np->put_tx_ctx;
 			bcnt = (frag_size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : frag_size;
+			if (!start_tx_ctx)
+				start_tx_ctx = tmp_tx_ctx = np->put_tx_ctx;
 			np->put_tx_ctx->dma = skb_frag_dma_map(
 							&np->pci_dev->dev,
 							frag, offset,
 							bcnt,
 							DMA_TO_DEVICE);
+
+			if (dma_mapping_error(&np->pci_dev->dev, np->put_tx_ctx->dma)) {
+
+				/* Unwind the mapped fragments */
+				do {
+					nv_unmap_txskb(np, start_tx_ctx);
+					if (unlikely(tmp_tx_ctx++ == np->last_tx_ctx))
+						tmp_tx_ctx = np->first_tx_ctx;
+				} while (tmp_tx_ctx != np->put_tx_ctx);
+				dev_kfree_skb_any(skb);
+				np->put_tx_ctx = start_tx_ctx;
+				u64_stats_update_begin(&np->swstats_tx_syncp);
+				np->stat_tx_dropped++;
+				u64_stats_update_end(&np->swstats_tx_syncp);
+				return NETDEV_TX_OK;
+			}
 			np->put_tx_ctx->dma_len = bcnt;
 			np->put_tx_ctx->dma_single = 0;
 			put_tx->bufhigh = cpu_to_le32(dma_high(np->put_tx_ctx->dma));
@@ -2795,7 +2832,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					}
 					/* framing errors are soft errors */
 					else if ((flags & NV_RX_ERROR_MASK) == NV_RX_FRAMINGERR) {
-						if (flags & NV_RX_SUBSTRACT1)
+						if (flags & NV_RX_SUBTRACT1)
 							len--;
 					}
 					/* the rest are hard errors */
@@ -2826,7 +2863,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					}
 					/* framing errors are soft errors */
 					else if ((flags & NV_RX2_ERROR_MASK) == NV_RX2_FRAMINGERR) {
-						if (flags & NV_RX2_SUBSTRACT1)
+						if (flags & NV_RX2_SUBTRACT1)
 							len--;
 					}
 					/* the rest are hard errors */
@@ -2900,7 +2937,7 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 				}
 				/* framing errors are soft errors */
 				else if ((flags & NV_RX2_ERROR_MASK) == NV_RX2_FRAMINGERR) {
-					if (flags & NV_RX2_SUBSTRACT1)
+					if (flags & NV_RX2_SUBTRACT1)
 						len--;
 				}
 				/* the rest are hard errors */
@@ -2922,15 +2959,15 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 			vlanflags = le32_to_cpu(np->get_rx.ex->buflow);
 
 			/*
-			 * There's need to check for NETIF_F_HW_VLAN_RX here.
-			 * Even if vlan rx accel is disabled,
+			 * There's need to check for NETIF_F_HW_VLAN_CTAG_RX
+			 * here. Even if vlan rx accel is disabled,
 			 * NV_RX3_VLAN_TAG_PRESENT is pseudo randomly set.
 			 */
-			if (dev->features & NETIF_F_HW_VLAN_RX &&
+			if (dev->features & NETIF_F_HW_VLAN_CTAG_RX &&
 			    vlanflags & NV_RX3_VLAN_TAG_PRESENT) {
 				u16 vid = vlanflags & NV_RX3_VLAN_TAG_MASK;
 
-				__vlan_hwaccel_put_tag(skb, vid);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 			}
 			napi_gro_receive(&np->napi, skb);
 			u64_stats_update_begin(&np->swstats_rx_syncp);
@@ -3893,7 +3930,7 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 {
 	struct fe_priv *np = get_nvpriv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	int ret = 1;
+	int ret;
 	int i;
 	irqreturn_t (*handler)(int foo, void *data);
 
@@ -3909,14 +3946,18 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 	if (np->msi_flags & NV_MSI_X_CAPABLE) {
 		for (i = 0; i < (np->msi_flags & NV_MSI_X_VECTORS_MASK); i++)
 			np->msi_x_entry[i].entry = i;
-		ret = pci_enable_msix(np->pci_dev, np->msi_x_entry, (np->msi_flags & NV_MSI_X_VECTORS_MASK));
-		if (ret == 0) {
+		ret = pci_enable_msix_range(np->pci_dev,
+					    np->msi_x_entry,
+					    np->msi_flags & NV_MSI_X_VECTORS_MASK,
+					    np->msi_flags & NV_MSI_X_VECTORS_MASK);
+		if (ret > 0) {
 			np->msi_flags |= NV_MSI_X_ENABLED;
 			if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT && !intr_test) {
 				/* Request irq for rx handling */
 				sprintf(np->name_rx, "%s-rx", dev->name);
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector,
-						nv_nic_irq_rx, IRQF_SHARED, np->name_rx, dev) != 0) {
+				ret = request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector,
+						  nv_nic_irq_rx, IRQF_SHARED, np->name_rx, dev);
+				if (ret) {
 					netdev_info(dev,
 						    "request_irq failed for rx %d\n",
 						    ret);
@@ -3926,8 +3967,9 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 				}
 				/* Request irq for tx handling */
 				sprintf(np->name_tx, "%s-tx", dev->name);
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector,
-						nv_nic_irq_tx, IRQF_SHARED, np->name_tx, dev) != 0) {
+				ret = request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector,
+						  nv_nic_irq_tx, IRQF_SHARED, np->name_tx, dev);
+				if (ret) {
 					netdev_info(dev,
 						    "request_irq failed for tx %d\n",
 						    ret);
@@ -3937,8 +3979,9 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 				}
 				/* Request irq for link and timer handling */
 				sprintf(np->name_other, "%s-other", dev->name);
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector,
-						nv_nic_irq_other, IRQF_SHARED, np->name_other, dev) != 0) {
+				ret = request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector,
+						  nv_nic_irq_other, IRQF_SHARED, np->name_other, dev);
+				if (ret) {
 					netdev_info(dev,
 						    "request_irq failed for link %d\n",
 						    ret);
@@ -3954,7 +3997,9 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 				set_msix_vector_map(dev, NV_MSI_X_VECTOR_OTHER, NVREG_IRQ_OTHER);
 			} else {
 				/* Request irq for all interrupts */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, handler, IRQF_SHARED, dev->name, dev) != 0) {
+				ret = request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector,
+						  handler, IRQF_SHARED, dev->name, dev);
+				if (ret) {
 					netdev_info(dev,
 						    "request_irq failed %d\n",
 						    ret);
@@ -3968,13 +4013,15 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 				writel(0, base + NvRegMSIXMap1);
 			}
 			netdev_info(dev, "MSI-X enabled\n");
+			return 0;
 		}
 	}
-	if (ret != 0 && np->msi_flags & NV_MSI_CAPABLE) {
+	if (np->msi_flags & NV_MSI_CAPABLE) {
 		ret = pci_enable_msi(np->pci_dev);
 		if (ret == 0) {
 			np->msi_flags |= NV_MSI_ENABLED;
-			if (request_irq(np->pci_dev->irq, handler, IRQF_SHARED, dev->name, dev) != 0) {
+			ret = request_irq(np->pci_dev->irq, handler, IRQF_SHARED, dev->name, dev);
+			if (ret) {
 				netdev_info(dev, "request_irq failed %d\n",
 					    ret);
 				pci_disable_msi(np->pci_dev);
@@ -3988,13 +4035,12 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 			/* enable msi vector 0 */
 			writel(NVREG_MSI_VECTOR_0_ENABLED, base + NvRegMSIIrqMask);
 			netdev_info(dev, "MSI enabled\n");
+			return 0;
 		}
 	}
-	if (ret != 0) {
-		if (request_irq(np->pci_dev->irq, handler, IRQF_SHARED, dev->name, dev) != 0)
-			goto out_err;
 
-	}
+	if (request_irq(np->pci_dev->irq, handler, IRQF_SHARED, dev->name, dev) != 0)
+		goto out_err;
 
 	return 0;
 out_free_tx:
@@ -4239,8 +4285,8 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (np->duplex)
 			ecmd->duplex = DUPLEX_FULL;
 	} else {
-		speed = -1;
-		ecmd->duplex = -1;
+		speed = SPEED_UNKNOWN;
+		ecmd->duplex = DUPLEX_UNKNOWN;
 	}
 	ethtool_cmd_speed_set(ecmd, speed);
 	ecmd->autoneg = np->autoneg;
@@ -4777,7 +4823,7 @@ static netdev_features_t nv_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	/* vlan is dependent on rx checksum offload */
-	if (features & (NETIF_F_HW_VLAN_TX|NETIF_F_HW_VLAN_RX))
+	if (features & (NETIF_F_HW_VLAN_CTAG_TX|NETIF_F_HW_VLAN_CTAG_RX))
 		features |= NETIF_F_RXCSUM;
 
 	return features;
@@ -4789,12 +4835,12 @@ static void nv_vlan_mode(struct net_device *dev, netdev_features_t features)
 
 	spin_lock_irq(&np->lock);
 
-	if (features & NETIF_F_HW_VLAN_RX)
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
 		np->txrxctl_bits |= NVREG_TXRXCTL_VLANSTRIP;
 	else
 		np->txrxctl_bits &= ~NVREG_TXRXCTL_VLANSTRIP;
 
-	if (features & NETIF_F_HW_VLAN_TX)
+	if (features & NETIF_F_HW_VLAN_CTAG_TX)
 		np->txrxctl_bits |= NVREG_TXRXCTL_VLANINS;
 	else
 		np->txrxctl_bits &= ~NVREG_TXRXCTL_VLANINS;
@@ -4831,7 +4877,7 @@ static int nv_set_features(struct net_device *dev, netdev_features_t features)
 		spin_unlock_irq(&np->lock);
 	}
 
-	if (changed & (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX))
+	if (changed & (NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX))
 		nv_vlan_mode(dev, features);
 
 	return 0;
@@ -5025,7 +5071,6 @@ static int nv_loopback_test(struct net_device *dev)
 	pkt_len = ETH_DATA_LEN;
 	tx_skb = netdev_alloc_skb(dev, pkt_len);
 	if (!tx_skb) {
-		netdev_err(dev, "netdev_alloc_skb() failed during loopback test\n");
 		ret = 0;
 		goto out;
 	}
@@ -5112,8 +5157,10 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	int result;
-	memset(buffer, 0, nv_get_sset_count(dev, ETH_SS_TEST)*sizeof(u64));
+	int result, count;
+
+	count = nv_get_sset_count(dev, ETH_SS_TEST);
+	memset(buffer, 0, count * sizeof(u64));
 
 	if (!nv_link_test(dev)) {
 		test->flags |= ETH_TEST_FL_FAILED;
@@ -5157,7 +5204,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 			return;
 		}
 
-		if (!nv_loopback_test(dev)) {
+		if (count > NV_TEST_COUNT_BASE && !nv_loopback_test(dev)) {
 			test->flags |= ETH_TEST_FL_FAILED;
 			buffer[3] = 1;
 		}
@@ -5581,6 +5628,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	spin_lock_init(&np->lock);
 	spin_lock_init(&np->hwstats_lock);
 	SET_NETDEV_DEV(dev, &pci_dev->dev);
+	u64_stats_init(&np->swstats_rx_syncp);
+	u64_stats_init(&np->swstats_tx_syncp);
 
 	init_timer(&np->oom_kick);
 	np->oom_kick.data = (unsigned long) dev;
@@ -5667,7 +5716,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	np->vlanctl_bits = 0;
 	if (id->driver_data & DEV_HAS_VLAN) {
 		np->vlanctl_bits = NVREG_VLANCONTROL_ENABLE;
-		dev->hw_features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
+		dev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX |
+				    NETIF_F_HW_VLAN_CTAG_TX;
 	}
 
 	dev->features |= dev->hw_features;
@@ -5716,7 +5766,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		dev->netdev_ops = &nv_netdev_ops_optimized;
 
 	netif_napi_add(dev, &np->napi, nv_napi_poll, RX_WORK_PER_LOOP);
-	SET_ETHTOOL_OPS(dev, &ops);
+	dev->ethtool_ops = &ops;
 	dev->watchdog_timeo = NV_WATCHDOG_TIMEO;
 
 	pci_set_drvdata(pci_dev, dev);
@@ -5958,7 +6008,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		 dev->features & NETIF_F_HIGHDMA ? "highdma " : "",
 		 dev->features & (NETIF_F_IP_CSUM | NETIF_F_SG) ?
 			"csum " : "",
-		 dev->features & (NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX) ?
+		 dev->features & (NETIF_F_HW_VLAN_CTAG_RX |
+				  NETIF_F_HW_VLAN_CTAG_TX) ?
 			"vlan " : "",
 		 dev->features & (NETIF_F_LOOPBACK) ?
 			"loopback " : "",
@@ -5976,7 +6027,6 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 out_error:
 	if (phystate_orig)
 		writel(phystate|NVREG_ADAPTCTL_RUNNING, base + NvRegAdapterControl);
-	pci_set_drvdata(pci_dev, NULL);
 out_freering:
 	free_rings(dev);
 out_unmap:
@@ -6047,7 +6097,6 @@ static void nv_remove(struct pci_dev *pci_dev)
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
 	free_netdev(dev);
-	pci_set_drvdata(pci_dev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -6136,7 +6185,7 @@ static void nv_shutdown(struct pci_dev *pdev)
 #define nv_shutdown NULL
 #endif /* CONFIG_PM */
 
-static DEFINE_PCI_DEVICE_TABLE(pci_tbl) = {
+static const struct pci_device_id pci_tbl[] = {
 	{	/* nForce Ethernet Controller */
 		PCI_DEVICE(0x10DE, 0x01C3),
 		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER,
@@ -6300,7 +6349,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci_tbl) = {
 	{0,},
 };
 
-static struct pci_driver driver = {
+static struct pci_driver forcedeth_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= pci_tbl,
 	.probe		= nv_probe,
@@ -6308,16 +6357,6 @@ static struct pci_driver driver = {
 	.shutdown	= nv_shutdown,
 	.driver.pm	= NV_PM_OPS,
 };
-
-static int __init init_nic(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit exit_nic(void)
-{
-	pci_unregister_driver(&driver);
-}
 
 module_param(max_interrupt_work, int, 0);
 MODULE_PARM_DESC(max_interrupt_work, "forcedeth maximum events handled per interrupt");
@@ -6339,11 +6378,8 @@ module_param(debug_tx_timeout, bool, 0);
 MODULE_PARM_DESC(debug_tx_timeout,
 		 "Dump tx related registers and ring when tx_timeout happens");
 
+module_pci_driver(forcedeth_pci_driver);
 MODULE_AUTHOR("Manfred Spraul <manfred@colorfullife.com>");
 MODULE_DESCRIPTION("Reverse Engineered nForce ethernet driver");
 MODULE_LICENSE("GPL");
-
 MODULE_DEVICE_TABLE(pci, pci_tbl);
-
-module_init(init_nic);
-module_exit(exit_nic);

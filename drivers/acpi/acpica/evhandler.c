@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,7 @@ acpi_status acpi_ev_install_region_handlers(void)
 		}
 	}
 
-      unlock_and_exit:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }
@@ -354,36 +354,43 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 
 		switch (space_id) {
 		case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+
 			handler = acpi_ex_system_memory_space_handler;
 			setup = acpi_ev_system_memory_region_setup;
 			break;
 
 		case ACPI_ADR_SPACE_SYSTEM_IO:
+
 			handler = acpi_ex_system_io_space_handler;
 			setup = acpi_ev_io_space_region_setup;
 			break;
 
 		case ACPI_ADR_SPACE_PCI_CONFIG:
+
 			handler = acpi_ex_pci_config_space_handler;
 			setup = acpi_ev_pci_config_region_setup;
 			break;
 
 		case ACPI_ADR_SPACE_CMOS:
+
 			handler = acpi_ex_cmos_space_handler;
 			setup = acpi_ev_cmos_region_setup;
 			break;
 
 		case ACPI_ADR_SPACE_PCI_BAR_TARGET:
+
 			handler = acpi_ex_pci_bar_space_handler;
 			setup = acpi_ev_pci_bar_region_setup;
 			break;
 
 		case ACPI_ADR_SPACE_DATA_TABLE:
+
 			handler = acpi_ex_data_table_space_handler;
 			setup = NULL;
 			break;
 
 		default:
+
 			status = AE_BAD_PARAMETER;
 			goto unlock_and_exit;
 		}
@@ -524,6 +531,6 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 					acpi_ev_install_handler, NULL,
 					handler_obj, NULL);
 
-      unlock_and_exit:
+unlock_and_exit:
 	return_ACPI_STATUS(status);
 }

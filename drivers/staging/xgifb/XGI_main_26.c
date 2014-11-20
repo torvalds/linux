@@ -60,15 +60,16 @@ static inline void dumpVGAReg(void)
 
 static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 		struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned char modeno, unsigned char rateindex)
+		unsigned char modeno)
 {
 	unsigned short ModeNo = modeno;
 	unsigned short ModeIdIndex = 0, ClockIndex = 0;
 	unsigned short RefreshRateTableIndex = 0;
 	int Clock;
+
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
-	XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr);
+	XGI_SearchModeID(ModeNo, &ModeIdIndex);
 
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
@@ -82,7 +83,7 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 
 static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 		struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned char modeno, unsigned char rateindex,
+		unsigned char modeno,
 		u32 *left_margin, u32 *right_margin, u32 *upper_margin,
 		u32 *lower_margin, u32 *hsync_len, u32 *vsync_len, u32 *sync,
 		u32 *vmode)
@@ -95,8 +96,9 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	unsigned short HRE, HBE, HRS, HDE;
 	unsigned char sr_data, cr_data, cr_data2;
 	int B, C, D, F, temp, j;
+
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
-	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr))
+	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex))
 		return 0;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
@@ -216,6 +218,7 @@ void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 	XGI_Pr->P3c8 = BaseAddr + 0x18;
 	XGI_Pr->P3c9 = BaseAddr + 0x19;
 	XGI_Pr->P3da = BaseAddr + 0x2A;
+	XGI_Pr->Part0Port = BaseAddr + XGI_CRT2_PORT_00;
 	/* Digital video interface registers (LCD) */
 	XGI_Pr->Part1Port = BaseAddr + SIS_CRT2_PORT_04;
 	/* 301 TV Encoder registers */
@@ -585,13 +588,11 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 		}
 		i++;
 	}
-	if (xgifb_info->rate_idx > 0) {
+	if (xgifb_info->rate_idx > 0)
 		return xgifb_info->rate_idx;
-	} else {
-		pr_info("Unsupported rate %d for %dx%d\n",
-		       rate, xres, yres);
-		return 0;
-	}
+	pr_info("Unsupported rate %d for %dx%d\n",
+		rate, xres, yres);
+	return 0;
 }
 
 static void XGIfb_search_tvstd(const char *name)
@@ -1754,8 +1755,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Unable request memory size %x\n",
 		       xgifb_info->video_size);
 		dev_err(&pdev->dev,
-			"Fatal error: Unable to reserve frame buffer memory. "
-			"Is there another framebuffer driver active?\n");
+			"Fatal error: Unable to reserve frame buffer memory. Is there another framebuffer driver active?\n");
 		ret = -ENODEV;
 		goto error_disable;
 	}
@@ -1980,12 +1980,10 @@ static int xgifb_probe(struct pci_dev *pdev,
 	fb_info->var.pixclock = (u32) (1000000000 /
 			XGIfb_mode_rate_to_dclock(&xgifb_info->dev_info,
 				hw_info,
-				XGIbios_mode[xgifb_info->mode_idx].mode_no,
-				xgifb_info->rate_idx));
+				XGIbios_mode[xgifb_info->mode_idx].mode_no));
 
 	if (XGIfb_mode_rate_to_ddata(&xgifb_info->dev_info, hw_info,
 		XGIbios_mode[xgifb_info->mode_idx].mode_no,
-		xgifb_info->rate_idx,
 		&fb_info->var.left_margin,
 		&fb_info->var.right_margin,
 		&fb_info->var.upper_margin,
@@ -2072,7 +2070,6 @@ static void xgifb_remove(struct pci_dev *pdev)
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
 	pci_disable_device(pdev);
 	framebuffer_release(fb_info);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver xgifb_driver = {
@@ -2090,23 +2087,19 @@ static struct pci_driver xgifb_driver = {
 
 module_param(mode, charp, 0);
 MODULE_PARM_DESC(mode,
-	"Selects the desired default display mode in the format XxYxDepth "
-	"(eg. 1024x768x16).");
+	"Selects the desired default display mode in the format XxYxDepth (eg. 1024x768x16).");
 
 module_param(forcecrt2type, charp, 0);
 MODULE_PARM_DESC(forcecrt2type,
-	"Force the second display output type. Possible values are NONE, "
-	"LCD, TV, VGA, SVIDEO or COMPOSITE.");
+	"Force the second display output type. Possible values are NONE, LCD, TV, VGA, SVIDEO or COMPOSITE.");
 
 module_param(vesa, int, 0);
 MODULE_PARM_DESC(vesa,
-	"Selects the desired default display mode by VESA mode number "
-	"(eg. 0x117).");
+	"Selects the desired default display mode by VESA mode number (eg. 0x117).");
 
 module_param(filter, int, 0);
 MODULE_PARM_DESC(filter,
-	"Selects TV flicker filter type (only for systems with a SiS301 video bridge). "
-	"Possible values 0-7. Default: [no filter]).");
+	"Selects TV flicker filter type (only for systems with a SiS301 video bridge). Possible values 0-7. Default: [no filter]).");
 
 static int __init xgifb_init(void)
 {

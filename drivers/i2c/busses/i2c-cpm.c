@@ -23,26 +23,22 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/stddef.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/of_i2c.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/cpm.h>
 
@@ -338,6 +334,14 @@ static int cpm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	tptr = 0;
 	rptr = 0;
 
+	/*
+	 * If there was a collision in the last i2c transaction,
+	 * Set I2COM_MASTER as it was cleared during collision.
+	 */
+	if (in_be16(&tbdf->cbd_sc) & BD_SC_CL) {
+		out_8(&cpm->i2c_reg->i2com, I2COM_MASTER);
+	}
+
 	while (tptr < num) {
 		pmsg = &msgs[tptr];
 		dev_dbg(&adap->dev, "R: %d T: %d\n", rptr, tptr);
@@ -440,7 +444,7 @@ static int cpm_i2c_setup(struct cpm_i2c *cpm)
 
 	init_waitqueue_head(&cpm->i2c_wait);
 
-	cpm->irq = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
+	cpm->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
 	if (!cpm->irq)
 		return -EINVAL;
 
@@ -646,7 +650,7 @@ static int cpm_i2c_probe(struct platform_device *ofdev)
 
 	cpm->ofdev = ofdev;
 
-	dev_set_drvdata(&ofdev->dev, cpm);
+	platform_set_drvdata(ofdev, cpm);
 
 	cpm->adap = cpm_ops;
 	i2c_set_adapdata(&cpm->adap, cpm);
@@ -673,11 +677,6 @@ static int cpm_i2c_probe(struct platform_device *ofdev)
 	dev_dbg(&ofdev->dev, "hw routines for %s registered.\n",
 		cpm->adap.name);
 
-	/*
-	 * register OF I2C devices
-	 */
-	of_i2c_register_devices(&cpm->adap);
-
 	return 0;
 out_shut:
 	cpm_i2c_shutdown(cpm);
@@ -689,7 +688,7 @@ out_free:
 
 static int cpm_i2c_remove(struct platform_device *ofdev)
 {
-	struct cpm_i2c *cpm = dev_get_drvdata(&ofdev->dev);
+	struct cpm_i2c *cpm = platform_get_drvdata(ofdev);
 
 	i2c_del_adapter(&cpm->adap);
 

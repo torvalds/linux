@@ -36,7 +36,7 @@
 #include <linux/bitops.h>
 #include <linux/scatterlist.h>
 #include <linux/crypto.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/unaligned.h>
 
 #include <linux/netdevice.h>
@@ -45,11 +45,11 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-#include <linux/ieee80211.h>
+#include <net/cfg80211.h>
 #include <net/iw_handler.h>
 
 #include "airo.h"
@@ -57,7 +57,7 @@
 #define DRV_NAME "airo"
 
 #ifdef CONFIG_PCI
-static DEFINE_PCI_DEVICE_TABLE(card_ids) = {
+static const struct pci_device_id card_ids[] = {
 	{ 0x14b9, 1, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0x14b9, 0x4500, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0x14b9, 0x4800, PCI_ANY_ID, PCI_ANY_ID, },
@@ -1893,7 +1893,8 @@ static int airo_open(struct net_device *dev) {
 
 	if (ai->wifidev != dev) {
 		clear_bit(JOB_DIE, &ai->jobs);
-		ai->airo_thread_task = kthread_run(airo_thread, dev, dev->name);
+		ai->airo_thread_task = kthread_run(airo_thread, dev, "%s",
+						   dev->name);
 		if (IS_ERR(ai->airo_thread_task))
 			return (int)PTR_ERR(ai->airo_thread_task);
 
@@ -2684,7 +2685,8 @@ static struct net_device *init_wifidev(struct airo_info *ai,
 					struct net_device *ethdev)
 {
 	int err;
-	struct net_device *dev = alloc_netdev(0, "wifi%d", wifi_setup);
+	struct net_device *dev = alloc_netdev(0, "wifi%d", NET_NAME_UNKNOWN,
+					      wifi_setup);
 	if (!dev)
 		return NULL;
 	dev->ml_priv = ethdev->ml_priv;
@@ -2692,7 +2694,7 @@ static struct net_device *init_wifidev(struct airo_info *ai,
 	dev->base_addr = ethdev->base_addr;
 	dev->wireless_data = ethdev->wireless_data;
 	SET_NETDEV_DEV(dev, ethdev->dev.parent);
-	memcpy(dev->dev_addr, ethdev->dev_addr, dev->addr_len);
+	eth_hw_addr_inherit(dev, ethdev);
 	err = register_netdev(dev);
 	if (err<0) {
 		free_netdev(dev);
@@ -2784,7 +2786,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	CapabilityRid cap_rid;
 
 	/* Create the network device object. */
-	dev = alloc_netdev(sizeof(*ai), "", ether_setup);
+	dev = alloc_netdev(sizeof(*ai), "", NET_NAME_UNKNOWN, ether_setup);
 	if (!dev) {
 		airo_print_err("", "Couldn't alloc_etherdev");
 		return NULL;
@@ -4506,108 +4508,75 @@ static int setup_proc_entry( struct net_device *dev,
 	apriv->proc_entry = proc_mkdir_mode(apriv->proc_name, airo_perm,
 					    airo_entry);
 	if (!apriv->proc_entry)
-		goto fail;
-	apriv->proc_entry->uid = proc_kuid;
-	apriv->proc_entry->gid = proc_kgid;
+		return -ENOMEM;
+	proc_set_user(apriv->proc_entry, proc_kuid, proc_kgid);
 
 	/* Setup the StatsDelta */
 	entry = proc_create_data("StatsDelta", S_IRUGO & proc_perm,
 				 apriv->proc_entry, &proc_statsdelta_ops, dev);
 	if (!entry)
-		goto fail_stats_delta;
-	entry->uid = proc_kuid;
-	entry->gid = proc_kgid;
+		goto fail;
+	proc_set_user(entry, proc_kuid, proc_kgid);
 
 	/* Setup the Stats */
 	entry = proc_create_data("Stats", S_IRUGO & proc_perm,
 				 apriv->proc_entry, &proc_stats_ops, dev);
 	if (!entry)
-		goto fail_stats;
-	entry->uid = proc_kuid;
-	entry->gid = proc_kgid;
+		goto fail;
+	proc_set_user(entry, proc_kuid, proc_kgid);
 
 	/* Setup the Status */
 	entry = proc_create_data("Status", S_IRUGO & proc_perm,
 				 apriv->proc_entry, &proc_status_ops, dev);
 	if (!entry)
-		goto fail_status;
-	entry->uid = proc_kuid;
-	entry->gid = proc_kgid;
+		goto fail;
+	proc_set_user(entry, proc_kuid, proc_kgid);
 
 	/* Setup the Config */
 	entry = proc_create_data("Config", proc_perm,
 				 apriv->proc_entry, &proc_config_ops, dev);
 	if (!entry)
-		goto fail_config;
-	entry->uid = proc_kuid;
-	entry->gid = proc_kgid;
+		goto fail;
+	proc_set_user(entry, proc_kuid, proc_kgid);
 
 	/* Setup the SSID */
 	entry = proc_create_data("SSID", proc_perm,
 				 apriv->proc_entry, &proc_SSID_ops, dev);
 	if (!entry)
-		goto fail_ssid;
-	entry->uid = proc_kuid;
-	entry->gid = proc_kgid;
+		goto fail;
+	proc_set_user(entry, proc_kuid, proc_kgid);
 
 	/* Setup the APList */
 	entry = proc_create_data("APList", proc_perm,
 				 apriv->proc_entry, &proc_APList_ops, dev);
 	if (!entry)
-		goto fail_aplist;
-	entry->uid = proc_kuid;
-	entry->gid = proc_kgid;
+		goto fail;
+	proc_set_user(entry, proc_kuid, proc_kgid);
 
 	/* Setup the BSSList */
 	entry = proc_create_data("BSSList", proc_perm,
 				 apriv->proc_entry, &proc_BSSList_ops, dev);
 	if (!entry)
-		goto fail_bsslist;
-	entry->uid = proc_kuid;
-	entry->gid = proc_kgid;
+		goto fail;
+	proc_set_user(entry, proc_kuid, proc_kgid);
 
 	/* Setup the WepKey */
 	entry = proc_create_data("WepKey", proc_perm,
 				 apriv->proc_entry, &proc_wepkey_ops, dev);
 	if (!entry)
-		goto fail_wepkey;
-	entry->uid = proc_kuid;
-	entry->gid = proc_kgid;
-
+		goto fail;
+	proc_set_user(entry, proc_kuid, proc_kgid);
 	return 0;
 
-fail_wepkey:
-	remove_proc_entry("BSSList", apriv->proc_entry);
-fail_bsslist:
-	remove_proc_entry("APList", apriv->proc_entry);
-fail_aplist:
-	remove_proc_entry("SSID", apriv->proc_entry);
-fail_ssid:
-	remove_proc_entry("Config", apriv->proc_entry);
-fail_config:
-	remove_proc_entry("Status", apriv->proc_entry);
-fail_status:
-	remove_proc_entry("Stats", apriv->proc_entry);
-fail_stats:
-	remove_proc_entry("StatsDelta", apriv->proc_entry);
-fail_stats_delta:
-	remove_proc_entry(apriv->proc_name, airo_entry);
 fail:
+	remove_proc_subtree(apriv->proc_name, airo_entry);
 	return -ENOMEM;
 }
 
 static int takedown_proc_entry( struct net_device *dev,
-				struct airo_info *apriv ) {
-	if ( !apriv->proc_entry->namelen ) return 0;
-	remove_proc_entry("Stats",apriv->proc_entry);
-	remove_proc_entry("StatsDelta",apriv->proc_entry);
-	remove_proc_entry("Status",apriv->proc_entry);
-	remove_proc_entry("Config",apriv->proc_entry);
-	remove_proc_entry("SSID",apriv->proc_entry);
-	remove_proc_entry("APList",apriv->proc_entry);
-	remove_proc_entry("BSSList",apriv->proc_entry);
-	remove_proc_entry("WepKey",apriv->proc_entry);
-	remove_proc_entry(apriv->proc_name,airo_entry);
+				struct airo_info *apriv )
+{
+	remove_proc_subtree(apriv->proc_name, airo_entry);
 	return 0;
 }
 
@@ -4663,8 +4632,7 @@ static ssize_t proc_write( struct file *file,
 static int proc_status_open(struct inode *inode, struct file *file)
 {
 	struct proc_data *data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *apriv = dev->ml_priv;
 	CapabilityRid cap_rid;
 	StatusRid status_rid;
@@ -4746,8 +4714,7 @@ static int proc_stats_rid_open( struct inode *inode,
 				u16 rid )
 {
 	struct proc_data *data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *apriv = dev->ml_priv;
 	StatsRid stats;
 	int i, j;
@@ -4809,8 +4776,7 @@ static inline int sniffing_mode(struct airo_info *ai)
 static void proc_config_on_close(struct inode *inode, struct file *file)
 {
 	struct proc_data *data = file->private_data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *ai = dev->ml_priv;
 	char *line;
 
@@ -5021,8 +4987,7 @@ static const char *get_rmode(__le16 mode)
 static int proc_config_open(struct inode *inode, struct file *file)
 {
 	struct proc_data *data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *ai = dev->ml_priv;
 	int i;
 	__le16 mode;
@@ -5112,8 +5077,7 @@ static int proc_config_open(struct inode *inode, struct file *file)
 static void proc_SSID_on_close(struct inode *inode, struct file *file)
 {
 	struct proc_data *data = file->private_data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *ai = dev->ml_priv;
 	SsidRid SSID_rid;
 	int i;
@@ -5148,8 +5112,7 @@ static void proc_SSID_on_close(struct inode *inode, struct file *file)
 
 static void proc_APList_on_close( struct inode *inode, struct file *file ) {
 	struct proc_data *data = file->private_data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *ai = dev->ml_priv;
 	APListRid APList_rid;
 	int i;
@@ -5283,8 +5246,7 @@ static int set_wep_tx_idx(struct airo_info *ai, u16 index, int perm, int lock)
 
 static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *ai = dev->ml_priv;
 	int i, rc;
 	char key[16];
@@ -5335,8 +5297,7 @@ static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 static int proc_wepkey_open( struct inode *inode, struct file *file )
 {
 	struct proc_data *data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *ai = dev->ml_priv;
 	char *ptr;
 	WepKeyRid wkr;
@@ -5384,8 +5345,7 @@ static int proc_wepkey_open( struct inode *inode, struct file *file )
 static int proc_SSID_open(struct inode *inode, struct file *file)
 {
 	struct proc_data *data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *ai = dev->ml_priv;
 	int i;
 	char *ptr;
@@ -5428,8 +5388,7 @@ static int proc_SSID_open(struct inode *inode, struct file *file)
 
 static int proc_APList_open( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *ai = dev->ml_priv;
 	int i;
 	char *ptr;
@@ -5468,8 +5427,7 @@ static int proc_APList_open( struct inode *inode, struct file *file ) {
 
 static int proc_BSSList_open( struct inode *inode, struct file *file ) {
 	struct proc_data *data;
-	struct proc_dir_entry *dp = PDE(inode);
-	struct net_device *dev = dp->data;
+	struct net_device *dev = PDE_DATA(inode);
 	struct airo_info *ai = dev->ml_priv;
 	char *ptr;
 	BSSListRid BSSList_rid;
@@ -5613,7 +5571,6 @@ static void airo_pci_remove(struct pci_dev *pdev)
 	airo_print_info(dev->name, "Unregistering...");
 	stop_airo_card(dev, 1);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state)
@@ -5706,10 +5663,8 @@ static int __init airo_init_module( void )
 
 	airo_entry = proc_mkdir_mode("driver/aironet", airo_perm, NULL);
 
-	if (airo_entry) {
-		airo_entry->uid = proc_kuid;
-		airo_entry->gid = proc_kgid;
-	}
+	if (airo_entry)
+		proc_set_user(airo_entry, proc_kuid, proc_kgid);
 
 	for (i = 0; i < 4 && io[i] && irq[i]; i++) {
 		airo_print_info("", "Trying to configure ISA adapter at irq=%d "
@@ -5843,7 +5798,7 @@ static int airo_set_freq(struct net_device *dev,
 
 		/* Hack to fall through... */
 		fwrq->e = 0;
-		fwrq->m = ieee80211_freq_to_dsss_chan(f);
+		fwrq->m = ieee80211_frequency_to_channel(f);
 	}
 	/* Setting by channel number */
 	if((fwrq->m > 1000) || (fwrq->e > 0))
@@ -5887,7 +5842,8 @@ static int airo_get_freq(struct net_device *dev,
 
 	ch = le16_to_cpu(status_rid.channel);
 	if((ch > 0) && (ch < 15)) {
-		fwrq->m = ieee80211_dsss_chan_to_freq(ch) * 100000;
+		fwrq->m = 100000 *
+			ieee80211_channel_to_frequency(ch, IEEE80211_BAND_2GHZ);
 		fwrq->e = 1;
 	} else {
 		fwrq->m = ch;
@@ -6944,7 +6900,8 @@ static int airo_get_range(struct net_device *dev,
 	k = 0;
 	for(i = 0; i < 14; i++) {
 		range->freq[k].i = i + 1; /* List index */
-		range->freq[k].m = ieee80211_dsss_chan_to_freq(i + 1) * 100000;
+		range->freq[k].m = 100000 *
+		     ieee80211_channel_to_frequency(i + 1, IEEE80211_BAND_2GHZ);
 		range->freq[k++].e = 1;	/* Values in MHz -> * 10^5 * 10 */
 	}
 	range->num_frequency = k;
@@ -7343,7 +7300,8 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	/* Add frequency */
 	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = le16_to_cpu(bss->dsChannel);
-	iwe.u.freq.m = ieee80211_dsss_chan_to_freq(iwe.u.freq.m) * 100000;
+	iwe.u.freq.m = 100000 *
+	      ieee80211_channel_to_frequency(iwe.u.freq.m, IEEE80211_BAND_2GHZ);
 	iwe.u.freq.e = 1;
 	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
 					  &iwe, IW_EV_FREQ_LEN);
@@ -7860,7 +7818,6 @@ static int readrids(struct net_device *dev, aironet_ioctl *comp) {
 	case AIRORRID:      ridcode = comp->ridnum;     break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	if ((iobuf = kmalloc(RIDSIZE, GFP_KERNEL)) == NULL)

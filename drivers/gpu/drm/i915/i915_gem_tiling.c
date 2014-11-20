@@ -87,11 +87,18 @@
 void
 i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 8 || IS_VALLEYVIEW(dev)) {
+		/*
+		 * On BDW+, swizzling is not used. We leave the CPU memory
+		 * controller in charge of optimizing memory accesses without
+		 * the extra address manipulation GPU side.
+		 *
+		 * VLV and CHV don't have GPU swizzling.
+		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 	} else if (INTEL_INFO(dev)->gen >= 6) {
@@ -217,9 +224,12 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		tile_width = 512;
 
 	/* check maximum stride & object size */
-	if (INTEL_INFO(dev)->gen >= 4) {
-		/* i965 stores the end address of the gtt mapping in the fence
-		 * reg, so dont bother to check the size */
+	/* i965+ stores the end address of the gtt mapping in the fence
+	 * reg, so dont bother to check the size */
+	if (INTEL_INFO(dev)->gen >= 7) {
+		if (stride / 128 > GEN7_FENCE_MAX_PITCH_VAL)
+			return false;
+	} else if (INTEL_INFO(dev)->gen >= 4) {
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
 			return false;
 	} else {
@@ -235,6 +245,9 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		}
 	}
 
+	if (stride < tile_width)
+		return false;
+
 	/* 965+ just needs multiples of tile width */
 	if (INTEL_INFO(dev)->gen >= 4) {
 		if (stride & (tile_width - 1))
@@ -243,9 +256,6 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	}
 
 	/* Pre-965 needs power of two tile widths */
-	if (stride < tile_width)
-		return false;
-
 	if (stride & (stride - 1))
 		return false;
 
@@ -265,18 +275,18 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 		return true;
 
 	if (INTEL_INFO(obj->base.dev)->gen == 3) {
-		if (obj->gtt_offset & ~I915_FENCE_START_MASK)
+		if (i915_gem_obj_ggtt_offset(obj) & ~I915_FENCE_START_MASK)
 			return false;
 	} else {
-		if (obj->gtt_offset & ~I830_FENCE_START_MASK)
+		if (i915_gem_obj_ggtt_offset(obj) & ~I830_FENCE_START_MASK)
 			return false;
 	}
 
 	size = i915_gem_get_gtt_size(obj->base.dev, obj->base.size, tiling_mode);
-	if (obj->gtt_space->size != size)
+	if (i915_gem_obj_ggtt_size(obj) != size)
 		return false;
 
-	if (obj->gtt_offset & (size - 1))
+	if (i915_gem_obj_ggtt_offset(obj) & (size - 1))
 		return false;
 
 	return true;
@@ -291,7 +301,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		   struct drm_file *file)
 {
 	struct drm_i915_gem_set_tiling *args = data;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
 
@@ -305,7 +315,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	if (obj->pin_count) {
+	if (i915_gem_obj_is_pinned(obj) || obj->framebuffer_references) {
 		drm_gem_object_unreference_unlocked(&obj->base);
 		return -EBUSY;
 	}
@@ -354,25 +364,13 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 * has to also include the unfenced register the GPU uses
 		 * whilst executing a fenced command for an untiled object.
 		 */
-
-		obj->map_and_fenceable =
-			obj->gtt_space == NULL ||
-			(obj->gtt_offset + obj->base.size <= dev_priv->gtt.mappable_end &&
-			 i915_gem_object_fence_ok(obj, args->tiling_mode));
-
-		/* Rebind if we need a change of alignment */
-		if (!obj->map_and_fenceable) {
-			u32 unfenced_alignment =
-				i915_gem_get_gtt_alignment(dev, obj->base.size,
-							    args->tiling_mode,
-							    false);
-			if (obj->gtt_offset & (unfenced_alignment - 1))
-				ret = i915_gem_object_unbind(obj);
-		}
+		if (obj->map_and_fenceable &&
+		    !i915_gem_object_fence_ok(obj, args->tiling_mode))
+			ret = i915_gem_object_ggtt_unbind(obj);
 
 		if (ret == 0) {
 			obj->fence_dirty =
-				obj->fenced_gpu_access ||
+				obj->last_fenced_seqno ||
 				obj->fence_reg != I915_FENCE_REG_NONE;
 
 			obj->tiling_mode = args->tiling_mode;
@@ -389,7 +387,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	/* Try to preallocate memory required to save swizzling on put-pages */
 	if (i915_gem_object_needs_bit17_swizzle(obj)) {
 		if (obj->bit_17 == NULL) {
-			obj->bit_17 = kmalloc(BITS_TO_LONGS(obj->base.size >> PAGE_SHIFT) *
+			obj->bit_17 = kcalloc(BITS_TO_LONGS(obj->base.size >> PAGE_SHIFT),
 					      sizeof(long), GFP_KERNEL);
 		}
 	} else {
@@ -411,7 +409,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 		   struct drm_file *file)
 {
 	struct drm_i915_gem_get_tiling *args = data;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
@@ -473,34 +471,35 @@ i915_gem_swizzle_page(struct page *page)
 void
 i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
-	struct scatterlist *sg;
-	int page_count = obj->base.size >> PAGE_SHIFT;
+	struct sg_page_iter sg_iter;
 	int i;
 
 	if (obj->bit_17 == NULL)
 		return;
 
-	for_each_sg(obj->pages->sgl, sg, page_count, i) {
-		struct page *page = sg_page(sg);
+	i = 0;
+	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
+		struct page *page = sg_page_iter_page(&sg_iter);
 		char new_bit_17 = page_to_phys(page) >> 17;
 		if ((new_bit_17 & 0x1) !=
 		    (test_bit(i, obj->bit_17) != 0)) {
 			i915_gem_swizzle_page(page);
 			set_page_dirty(page);
 		}
+		i++;
 	}
 }
 
 void
 i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
-	struct scatterlist *sg;
+	struct sg_page_iter sg_iter;
 	int page_count = obj->base.size >> PAGE_SHIFT;
 	int i;
 
 	if (obj->bit_17 == NULL) {
-		obj->bit_17 = kmalloc(BITS_TO_LONGS(page_count) *
-					   sizeof(long), GFP_KERNEL);
+		obj->bit_17 = kcalloc(BITS_TO_LONGS(page_count),
+				      sizeof(long), GFP_KERNEL);
 		if (obj->bit_17 == NULL) {
 			DRM_ERROR("Failed to allocate memory for bit 17 "
 				  "record\n");
@@ -508,11 +507,12 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 		}
 	}
 
-	for_each_sg(obj->pages->sgl, sg, page_count, i) {
-		struct page *page = sg_page(sg);
-		if (page_to_phys(page) & (1 << 17))
+	i = 0;
+	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
+		if (page_to_phys(sg_page_iter_page(&sg_iter)) & (1 << 17))
 			__set_bit(i, obj->bit_17);
 		else
 			__clear_bit(i, obj->bit_17);
+		i++;
 	}
 }

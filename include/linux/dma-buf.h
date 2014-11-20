@@ -30,6 +30,8 @@
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
+#include <linux/fence.h>
+#include <linux/wait.h>
 
 struct device;
 struct dma_buf;
@@ -112,7 +114,10 @@ struct dma_buf_ops {
  * @file: file pointer used for sharing buffers across, and for refcounting.
  * @attachments: list of dma_buf_attachment that denotes all devices attached.
  * @ops: dma_buf_ops associated with this buffer object.
+ * @exp_name: name of the exporter; useful for debugging.
+ * @list_node: node for dma_buf accounting and debugging.
  * @priv: exporter specific private data for this buffer object.
+ * @resv: reservation object linked to this dma-buf
  */
 struct dma_buf {
 	size_t size;
@@ -123,7 +128,20 @@ struct dma_buf {
 	struct mutex lock;
 	unsigned vmapping_counter;
 	void *vmap_ptr;
+	const char *exp_name;
+	struct list_head list_node;
 	void *priv;
+	struct reservation_object *resv;
+
+	/* poll support */
+	wait_queue_head_t poll;
+
+	struct dma_buf_poll_cb_t {
+		struct fence_cb cb;
+		wait_queue_head_t *poll;
+
+		unsigned long active;
+	} cb_excl, cb_shared;
 };
 
 /**
@@ -162,8 +180,14 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 							struct device *dev);
 void dma_buf_detach(struct dma_buf *dmabuf,
 				struct dma_buf_attachment *dmabuf_attach);
-struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
-			       size_t size, int flags);
+
+struct dma_buf *dma_buf_export_named(void *priv, const struct dma_buf_ops *ops,
+			       size_t size, int flags, const char *,
+			       struct reservation_object *);
+
+#define dma_buf_export(priv, ops, size, flags, resv)	\
+	dma_buf_export_named(priv, ops, size, flags, KBUILD_MODNAME, resv)
+
 int dma_buf_fd(struct dma_buf *dmabuf, int flags);
 struct dma_buf *dma_buf_get(int fd);
 void dma_buf_put(struct dma_buf *dmabuf);
@@ -185,5 +209,6 @@ int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 		 unsigned long);
 void *dma_buf_vmap(struct dma_buf *);
 void dma_buf_vunmap(struct dma_buf *, void *vaddr);
-
+int dma_buf_debugfs_create_file(const char *name,
+				int (*write)(struct seq_file *));
 #endif /* __DMA_BUF_H__ */

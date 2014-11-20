@@ -131,7 +131,7 @@ static const struct nla_policy irda_nl_policy[IRDA_NL_ATTR_MAX + 1] = {
 	[IRDA_NL_ATTR_MODE] = { .type = NLA_U32 },
 };
 
-static struct genl_ops irda_nl_ops[] = {
+static const struct genl_ops irda_nl_ops[] = {
 	{
 		.cmd = IRDA_NL_CMD_SET_MODE,
 		.doit = irda_nl_set_mode,
@@ -149,8 +149,7 @@ static struct genl_ops irda_nl_ops[] = {
 
 int irda_nl_register(void)
 {
-	return genl_register_family_with_ops(&irda_nl_family,
-		irda_nl_ops, ARRAY_SIZE(irda_nl_ops));
+	return genl_register_family_with_ops(&irda_nl_family, irda_nl_ops);
 }
 
 void irda_nl_unregister(void)

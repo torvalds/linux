@@ -10,6 +10,7 @@
 
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/math64.h>
 #include <linux/ratelimit.h>
 
 struct dm_dev;
@@ -22,7 +23,6 @@ typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
 
 union map_info {
 	void *ptr;
-	unsigned long long ll;
 };
 
 /*
@@ -79,11 +79,26 @@ typedef int (*dm_ioctl_fn) (struct dm_target *ti, unsigned int cmd,
 typedef int (*dm_merge_fn) (struct dm_target *ti, struct bvec_merge_data *bvm,
 			    struct bio_vec *biovec, int max_size);
 
+/*
+ * These iteration functions are typically used to check (and combine)
+ * properties of underlying devices.
+ * E.g. Does at least one underlying device support flush?
+ *      Does any underlying device not support WRITE_SAME?
+ *
+ * The callout function is called once for each contiguous section of
+ * an underlying device.  State can be maintained in *data.
+ * Return non-zero to stop iterating through any further devices.
+ */
 typedef int (*iterate_devices_callout_fn) (struct dm_target *ti,
 					   struct dm_dev *dev,
 					   sector_t start, sector_t len,
 					   void *data);
 
+/*
+ * This function must iterate through each section of device used by the
+ * target until it encounters a non-zero return code, which it then returns.
+ * Returns zero if no callout returned non-zero.
+ */
 typedef int (*dm_iterate_devices_fn) (struct dm_target *ti,
 				      iterate_devices_callout_fn fn,
 				      void *data);
@@ -100,12 +115,6 @@ typedef int (*dm_busy_fn) (struct dm_target *ti);
 
 void dm_error(const char *message);
 
-/*
- * Combine device limits.
- */
-int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
-			 sector_t start, sector_t len, void *data);
-
 struct dm_dev {
 	struct block_device *bdev;
 	fmode_t mode;
@@ -117,7 +126,7 @@ struct dm_dev {
  * are opened/closed correctly.
  */
 int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
-						 struct dm_dev **result);
+		  struct dm_dev **result);
 void dm_put_device(struct dm_target *ti, struct dm_dev *d);
 
 /*
@@ -275,8 +284,8 @@ struct dm_target_callbacks {
 struct dm_target_io {
 	struct dm_io *io;
 	struct dm_target *ti;
-	union map_info info;
 	unsigned target_bio_nr;
+	unsigned *len_ptr;
 	struct bio clone;
 };
 
@@ -387,15 +396,16 @@ int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid);
 struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct dm_target *ti);
 int dm_noflush_suspending(struct dm_target *ti);
-union map_info *dm_get_mapinfo(struct bio *bio);
+void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors);
 union map_info *dm_get_rq_mapinfo(struct request *rq);
+
+struct queue_limits *dm_get_queue_limits(struct mapped_device *md);
 
 /*
  * Geometry functions.
  */
 int dm_get_geometry(struct mapped_device *md, struct hd_geometry *geo);
 int dm_set_geometry(struct mapped_device *md, struct hd_geometry *geo);
-
 
 /*-----------------------------------------------------------------
  * Functions for manipulating device-mapper tables.
@@ -431,9 +441,9 @@ int __must_check dm_set_target_max_io_len(struct dm_target *ti, sector_t len);
 /*
  * Table reference counting.
  */
-struct dm_table *dm_get_live_table(struct mapped_device *md);
-void dm_table_get(struct dm_table *t);
-void dm_table_put(struct dm_table *t);
+struct dm_table *dm_get_live_table(struct mapped_device *md, int *srcu_idx);
+void dm_put_live_table(struct mapped_device *md, int srcu_idx);
+void dm_sync_table(struct mapped_device *md);
 
 /*
  * Queries
@@ -447,6 +457,11 @@ struct mapped_device *dm_table_get_md(struct dm_table *t);
  * Trigger an event.
  */
 void dm_table_event(struct dm_table *t);
+
+/*
+ * Run the queue for request-based targets.
+ */
+void dm_table_run_md_queue_async(struct dm_table *t);
 
 /*
  * The device must be suspended before calling this method.
@@ -534,6 +549,14 @@ extern struct ratelimit_state dm_ratelimit_state;
 #define DM_MAPIO_SUBMITTED	0
 #define DM_MAPIO_REMAPPED	1
 #define DM_MAPIO_REQUEUE	DM_ENDIO_REQUEUE
+
+#define dm_sector_div64(x, y)( \
+{ \
+	u64 _res; \
+	(x) = div64_u64_rem(x, y, &_res); \
+	_res; \
+} \
+)
 
 /*
  * Ceiling(n / sz)

@@ -52,9 +52,9 @@ unsigned int saa_debug;
 module_param_named(debug, saa_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
-unsigned int fw_debug;
+static unsigned int fw_debug;
 module_param(fw_debug, int, 0644);
-MODULE_PARM_DESC(fw_debug, "Firware debug level def:2");
+MODULE_PARM_DESC(fw_debug, "Firmware debug level def:2");
 
 unsigned int encoder_buffers = SAA7164_MAX_ENCODER_BUFFERS;
 module_param(encoder_buffers, int, 0644);
@@ -72,7 +72,7 @@ static unsigned int card[]  = {[0 ... (SAA7164_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card, "card type");
 
-unsigned int print_histogram = 64;
+static unsigned int print_histogram = 64;
 module_param(print_histogram, int, 0644);
 MODULE_PARM_DESC(print_histogram, "print histogram values once");
 
@@ -80,7 +80,7 @@ unsigned int crc_checking = 1;
 module_param(crc_checking, int, 0644);
 MODULE_PARM_DESC(crc_checking, "enable crc sanity checking on buffers");
 
-unsigned int guard_checking = 1;
+static unsigned int guard_checking = 1;
 module_param(guard_checking, int, 0644);
 MODULE_PARM_DESC(guard_checking,
 	"enable dma sanity checking for buffer overruns");
@@ -1196,6 +1196,12 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 	if (NULL == dev)
 		return -ENOMEM;
 
+	err = v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev);
+	if (err < 0) {
+		dev_err(&pci_dev->dev, "v4l2_device_register failed\n");
+		goto fail_free;
+	}
+
 	/* pci init */
 	dev->pci = pci_dev;
 	if (pci_enable_device(pci_dev)) {
@@ -1226,7 +1232,7 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 	}
 
 	err = request_irq(pci_dev->irq, saa7164_irq,
-		IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+		IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n", dev->name,
 			pci_dev->irq);
@@ -1348,9 +1354,11 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 		if (fw_debug) {
 			dev->kthread = kthread_run(saa7164_thread_function, dev,
 				"saa7164 debug");
-			if (!dev->kthread)
+			if (IS_ERR(dev->kthread)) {
+				dev->kthread = NULL;
 				printk(KERN_ERR "%s() Failed to create "
 					"debug kernel thread\n", __func__);
+			}
 		}
 
 	} /* != BOARD_UNKNOWN */
@@ -1367,6 +1375,7 @@ fail_fw:
 fail_irq:
 	saa7164_dev_unregister(dev);
 fail_free:
+	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 	return err;
 }
@@ -1432,13 +1441,13 @@ static void saa7164_finidev(struct pci_dev *pci_dev)
 
 	/* unregister stuff */
 	free_irq(pci_dev->irq, dev);
-	pci_set_drvdata(pci_dev, NULL);
 
 	mutex_lock(&devlist);
 	list_del(&dev->devlist);
 	mutex_unlock(&devlist);
 
 	saa7164_dev_unregister(dev);
+	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 }
 

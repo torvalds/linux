@@ -25,6 +25,7 @@
 #include <linux/time.h>
 #include <linux/io.h>
 #include <mach/hardware.h>
+#include <mach/at91x40.h>
 #include <asm/mach/time.h>
 
 #include "at91_tc.h"
@@ -33,7 +34,7 @@
 	__raw_readl(AT91_IO_P2V(AT91_TC) + field)
 
 #define at91_tc_write(field, value) \
-	__raw_writel(value, AT91_IO_P2V(AT91_TC) + field);
+	__raw_writel(value, AT91_IO_P2V(AT91_TC) + field)
 
 /*
  *	3 counter/timer units present.
@@ -57,7 +58,7 @@ static irqreturn_t at91x40_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction at91x40_timer_irq = {
 	.name		= "at91_tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_TIMER,
 	.handler	= at91x40_timer_interrupt
 };
 

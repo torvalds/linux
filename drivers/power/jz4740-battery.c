@@ -73,7 +73,7 @@ static long jz_battery_read_voltage(struct jz_battery *battery)
 
 	mutex_lock(&battery->lock);
 
-	INIT_COMPLETION(battery->read_completion);
+	reinit_completion(&battery->read_completion);
 
 	enable_irq(battery->irq);
 	battery->cell->enable(battery->pdev);
@@ -292,7 +292,7 @@ static int jz_battery_probe(struct platform_device *pdev)
 			jz_battery);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq %d\n", ret);
-		goto err;
+		return ret;
 	}
 	disable_irq(jz_battery->irq);
 
@@ -349,8 +349,6 @@ err_free_gpio:
 		gpio_free(jz_battery->pdata->gpio_charge);
 err_free_irq:
 	free_irq(jz_battery->irq, jz_battery);
-err:
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 

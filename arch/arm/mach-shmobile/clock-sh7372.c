@@ -21,7 +21,8 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
-#include <mach/common.h>
+#include "clock.h"
+#include "common.h"
 
 /* SH7372 registers */
 #define FRQCRA		IOMEM(0xe6150000)
@@ -83,39 +84,12 @@ struct clk sh7372_extal2_clk = {
 	.rate		= 48000000,
 };
 
-/* A fixed divide-by-2 block */
-static unsigned long div2_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 2;
-}
+SH_CLK_RATIO(div2, 1, 2);
 
-static struct sh_clk_ops div2_clk_ops = {
-	.recalc		= div2_recalc,
-};
-
-/* Divide dv_clki by two */
-struct clk sh7372_dv_clki_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh7372_dv_clki_clk,
-};
-
-/* Divide extal1 by two */
-static struct clk extal1_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh7372_extal1_clk,
-};
-
-/* Divide extal2 by two */
-static struct clk extal2_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh7372_extal2_clk,
-};
-
-/* Divide extal2 by four */
-static struct clk extal2_div4_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &extal2_div2_clk,
-};
+SH_FIXED_RATIO_CLKg(sh7372_dv_clki_div2_clk,	sh7372_dv_clki_clk,	div2);
+SH_FIXED_RATIO_CLK(extal1_div2_clk,		sh7372_extal1_clk,	div2);
+SH_FIXED_RATIO_CLK(extal2_div2_clk,		sh7372_extal2_clk,	div2);
+SH_FIXED_RATIO_CLK(extal2_div4_clk,		extal2_div2_clk,	div2);
 
 /* PLLC0 and PLLC1 */
 static unsigned long pllc01_recalc(struct clk *clk)
@@ -147,10 +121,7 @@ static struct clk pllc1_clk = {
 };
 
 /* Divide PLLC1 by two */
-static struct clk pllc1_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &pllc1_clk,
-};
+SH_FIXED_RATIO_CLK(pllc1_div2_clk,	pllc1_clk,	div2);
 
 /* PLLC2 */
 
@@ -171,15 +142,15 @@ static void pllc2_table_rebuild(struct clk *clk)
 	/* Initialise PLLC2 frequency table */
 	for (i = 0; i < ARRAY_SIZE(pllc2_freq_table) - 2; i++) {
 		pllc2_freq_table[i].frequency = clk->parent->rate * (i + 20) * 2;
-		pllc2_freq_table[i].index = i;
+		pllc2_freq_table[i].driver_data = i;
 	}
 
 	/* This is a special entry - switching PLL off makes it a repeater */
 	pllc2_freq_table[i].frequency = clk->parent->rate;
-	pllc2_freq_table[i].index = i;
+	pllc2_freq_table[i].driver_data = i;
 
 	pllc2_freq_table[++i].frequency = CPUFREQ_TABLE_END;
-	pllc2_freq_table[i].index = i;
+	pllc2_freq_table[i].driver_data = i;
 }
 
 static unsigned long pllc2_recalc(struct clk *clk)
@@ -342,7 +313,7 @@ static struct clk_div4_table div4_table = {
 };
 
 enum { DIV4_I, DIV4_ZG, DIV4_B, DIV4_M1, DIV4_CSIR,
-       DIV4_ZTR, DIV4_ZT, DIV4_ZX, DIV4_HP,
+       DIV4_ZX, DIV4_HP,
        DIV4_ISPB, DIV4_S, DIV4_ZB, DIV4_ZB3, DIV4_CP,
        DIV4_DDRP, DIV4_NR };
 
@@ -355,8 +326,6 @@ static struct clk div4_clks[DIV4_NR] = {
 	[DIV4_B] = DIV4(FRQCRA, 8, 0x6fff, CLK_ENABLE_ON_INIT),
 	[DIV4_M1] = DIV4(FRQCRA, 4, 0x6fff, CLK_ENABLE_ON_INIT),
 	[DIV4_CSIR] = DIV4(FRQCRA, 0, 0x6fff, 0),
-	[DIV4_ZTR] = DIV4(FRQCRB, 20, 0x6fff, 0),
-	[DIV4_ZT] = DIV4(FRQCRB, 16, 0x6fff, 0),
 	[DIV4_ZX] = DIV4(FRQCRB, 12, 0x6fff, 0),
 	[DIV4_HP] = DIV4(FRQCRB, 4, 0x6fff, 0),
 	[DIV4_ISPB] = DIV4(FRQCRC, 20, 0x6fff, 0),
@@ -516,8 +485,6 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("b_clk", &div4_clks[DIV4_B]),
 	CLKDEV_CON_ID("m1_clk", &div4_clks[DIV4_M1]),
 	CLKDEV_CON_ID("csir_clk", &div4_clks[DIV4_CSIR]),
-	CLKDEV_CON_ID("ztr_clk", &div4_clks[DIV4_ZTR]),
-	CLKDEV_CON_ID("zt_clk", &div4_clks[DIV4_ZT]),
 	CLKDEV_CON_ID("zx_clk", &div4_clks[DIV4_ZX]),
 	CLKDEV_CON_ID("hp_clk", &div4_clks[DIV4_HP]),
 	CLKDEV_CON_ID("ispb_clk", &div4_clks[DIV4_ISPB]),
@@ -537,10 +504,6 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("spu_clk", &div6_clks[DIV6_SPU]),
 	CLKDEV_CON_ID("vou_clk", &div6_clks[DIV6_VOU]),
 	CLKDEV_CON_ID("hdmi_clk", &div6_reparent_clks[DIV6_HDMI]),
-	CLKDEV_ICK_ID("dsit_clk", "sh-mipi-dsi.0", &div6_clks[DIV6_DSIT]),
-	CLKDEV_ICK_ID("dsit_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSIT]),
-	CLKDEV_ICK_ID("dsip_clk", "sh-mipi-dsi.0", &div6_clks[DIV6_DSI0P]),
-	CLKDEV_ICK_ID("dsip_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSI1P]),
 
 	/* MSTP32 clocks */
 	CLKDEV_DEV_ID("i2c-sh_mobile.2", &mstp_clks[MSTP001]), /* IIC2 */
@@ -552,8 +515,6 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("uio_pdrv_genirq.1", &mstp_clks[MSTP128]), /* VEU0 */
 	CLKDEV_DEV_ID("sh_mobile_ceu.0", &mstp_clks[MSTP127]), /* CEU */
 	CLKDEV_DEV_ID("sh-mobile-csi2.0", &mstp_clks[MSTP126]), /* CSI2 */
-	CLKDEV_DEV_ID("sh_tmu.0", &mstp_clks[MSTP125]), /* TMU00 */
-	CLKDEV_DEV_ID("sh_tmu.1", &mstp_clks[MSTP125]), /* TMU01 */
 	CLKDEV_DEV_ID("sh-mipi-dsi.0", &mstp_clks[MSTP118]), /* DSITX0 */
 	CLKDEV_DEV_ID("sh_mobile_lcdc_fb.1", &mstp_clks[MSTP117]), /* LCDC1 */
 	CLKDEV_DEV_ID("i2c-sh_mobile.0", &mstp_clks[MSTP116]), /* IIC0 */
@@ -602,17 +563,23 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("r8a66597_hcd.1", &mstp_clks[MSTP406]), /* USB1 */
 	CLKDEV_DEV_ID("r8a66597_udc.1", &mstp_clks[MSTP406]), /* USB1 */
 	CLKDEV_DEV_ID("renesas_usbhs.1", &mstp_clks[MSTP406]), /* USB1 */
-	CLKDEV_DEV_ID("sh_cmt.4", &mstp_clks[MSTP405]), /* CMT4 */
-	CLKDEV_DEV_ID("sh_cmt.3", &mstp_clks[MSTP404]), /* CMT3 */
 	CLKDEV_DEV_ID("sh_keysc.0", &mstp_clks[MSTP403]), /* KEYSC */
-	CLKDEV_DEV_ID("sh_cmt.2", &mstp_clks[MSTP400]), /* CMT2 */
 
+	/* ICK */
+	CLKDEV_ICK_ID("dsit_clk", "sh-mipi-dsi.0", &div6_clks[DIV6_DSIT]),
+	CLKDEV_ICK_ID("dsit_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSIT]),
+	CLKDEV_ICK_ID("dsip_clk", "sh-mipi-dsi.0", &div6_clks[DIV6_DSI0P]),
+	CLKDEV_ICK_ID("dsip_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSI1P]),
 	CLKDEV_ICK_ID("hdmi", "sh_mobile_lcdc_fb.1",
 		      &div6_reparent_clks[DIV6_HDMI]),
 	CLKDEV_ICK_ID("ick", "sh-mobile-hdmi", &div6_reparent_clks[DIV6_HDMI]),
 	CLKDEV_ICK_ID("icka", "sh_fsi2", &div6_reparent_clks[DIV6_FSIA]),
 	CLKDEV_ICK_ID("ickb", "sh_fsi2", &div6_reparent_clks[DIV6_FSIB]),
+	CLKDEV_ICK_ID("fck", "sh-tmu.0", &mstp_clks[MSTP125]), /* TMU0 */
 	CLKDEV_ICK_ID("spu2", "sh_fsi2", &mstp_clks[MSTP223]),
+	CLKDEV_ICK_ID("fck", "sh-cmt-32-fast.4", &mstp_clks[MSTP405]), /* CMT4 */
+	CLKDEV_ICK_ID("fck", "sh-cmt-32-fast.3", &mstp_clks[MSTP404]), /* CMT3 */
+	CLKDEV_ICK_ID("fck", "sh-cmt-32-fast.2", &mstp_clks[MSTP400]), /* CMT2 */
 	CLKDEV_ICK_ID("diva", "sh_fsi2", &fsidivs[FSIDIV_A]),
 	CLKDEV_ICK_ID("divb", "sh_fsi2", &fsidivs[FSIDIV_B]),
 	CLKDEV_ICK_ID("xcka", "sh_fsi2", &fsiack_clk),
@@ -654,5 +621,4 @@ void __init sh7372_clock_init(void)
 		shmobile_clk_init();
 	else
 		panic("failed to setup sh7372 clocks\n");
-
 }

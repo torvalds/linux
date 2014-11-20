@@ -39,18 +39,13 @@
 bool llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
 		     struct llist_head *head)
 {
-	struct llist_node *entry, *old_entry;
+	struct llist_node *first;
 
-	entry = head->first;
-	for (;;) {
-		old_entry = entry;
-		new_last->next = entry;
-		entry = cmpxchg(&head->first, old_entry, new_first);
-		if (entry == old_entry)
-			break;
-	}
+	do {
+		new_last->next = first = ACCESS_ONCE(head->first);
+	} while (cmpxchg(&head->first, first, new_first) != first);
 
-	return old_entry == NULL;
+	return !first;
 }
 EXPORT_SYMBOL_GPL(llist_add_batch);
 
@@ -86,3 +81,25 @@ struct llist_node *llist_del_first(struct llist_head *head)
 	return entry;
 }
 EXPORT_SYMBOL_GPL(llist_del_first);
+
+/**
+ * llist_reverse_order - reverse order of a llist chain
+ * @head:	first item of the list to be reversed
+ *
+ * Reverse the order of a chain of llist entries and return the
+ * new first entry.
+ */
+struct llist_node *llist_reverse_order(struct llist_node *head)
+{
+	struct llist_node *new_head = NULL;
+
+	while (head) {
+		struct llist_node *tmp = head;
+		head = head->next;
+		tmp->next = new_head;
+		new_head = tmp;
+	}
+
+	return new_head;
+}
+EXPORT_SYMBOL_GPL(llist_reverse_order);

@@ -27,7 +27,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <linux/init.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -298,7 +297,7 @@ static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 	ret = twl_i2c_read_u8(TWL_MODULE_PIH, &pih_isr,
 			      REG_PIH_ISR_P1);
 	if (ret) {
-		pr_warning("twl4030: I2C error %d reading PIH ISR\n", ret);
+		pr_warn("twl4030: I2C error %d reading PIH ISR\n", ret);
 		return IRQ_NONE;
 	}
 
@@ -339,7 +338,7 @@ static int twl4030_init_sih_modules(unsigned line)
 	irq_line = line;
 
 	/* disable all interrupts on our line */
-	memset(buf, 0xff, sizeof buf);
+	memset(buf, 0xff, sizeof(buf));
 	sih = sih_modules;
 	for (i = 0; i < nr_sih_modules; i++, sih++) {
 		/* skip USB -- it's funky */
@@ -397,13 +396,17 @@ static int twl4030_init_sih_modules(unsigned line)
 			status = twl_i2c_read(sih->module, rxbuf,
 				sih->mask[line].isr_offset, sih->bytes_ixr);
 			if (status < 0)
-				pr_err("twl4030: err %d initializing %s %s\n",
+				pr_warn("twl4030: err %d initializing %s %s\n",
 					status, sih->name, "ISR");
 
-			if (!sih->set_cor)
+			if (!sih->set_cor) {
 				status = twl_i2c_write(sih->module, buf,
 					sih->mask[line].isr_offset,
 					sih->bytes_ixr);
+				if (status < 0)
+					pr_warn("twl4030: write failed: %d\n",
+						status);
+			}
 			/*
 			 * else COR=1 means read sufficed.
 			 * (for most SIH modules...)
@@ -537,16 +540,13 @@ static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 		/* Modify only the bits we know must change */
 		while (edge_change) {
 			int		i = fls(edge_change) - 1;
-			struct irq_data	*idata;
 			int		byte = i >> 2;
 			int		off = (i & 0x3) * 2;
 			unsigned int	type;
 
-			idata = irq_get_irq_data(i + agent->irq_base);
-
 			bytes[byte] &= ~(0x03 << off);
 
-			type = irqd_get_trigger_type(idata);
+			type = irq_get_trigger_type(i + agent->irq_base);
 			if (type & IRQ_TYPE_EDGE_RISING)
 				bytes[byte] |= BIT(off + 1);
 			if (type & IRQ_TYPE_EDGE_FALLING)
@@ -573,6 +573,7 @@ static struct irq_chip twl4030_sih_irq_chip = {
 	.irq_set_type	= twl4030_sih_set_type,
 	.irq_bus_lock	= twl4030_sih_bus_lock,
 	.irq_bus_sync_unlock = twl4030_sih_bus_sync_unlock,
+	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
 
 /*----------------------------------------------------------------------*/
@@ -649,7 +650,7 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 	if (status < 0)
 		return status;
 
-	agent = kzalloc(sizeof *agent, GFP_KERNEL);
+	agent = kzalloc(sizeof(*agent), GFP_KERNEL);
 	if (!agent)
 		return -ENOMEM;
 

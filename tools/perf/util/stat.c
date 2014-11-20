@@ -10,6 +10,12 @@ void update_stats(struct stats *stats, u64 val)
 	delta = val - stats->mean;
 	stats->mean += delta / stats->n;
 	stats->M2 += delta*(val - stats->mean);
+
+	if (val > stats->max)
+		stats->max = val;
+
+	if (val < stats->min)
+		stats->min = val;
 }
 
 double avg_stats(struct stats *stats)
@@ -37,7 +43,7 @@ double stddev_stats(struct stats *stats)
 {
 	double variance, variance_mean;
 
-	if (!stats->n)
+	if (stats->n < 2)
 		return 0.0;
 
 	variance = stats->M2 / (stats->n - 1);

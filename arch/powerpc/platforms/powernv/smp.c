@@ -30,6 +30,9 @@
 #include <asm/cputhreads.h>
 #include <asm/xics.h>
 #include <asm/opal.h>
+#include <asm/runlatch.h>
+#include <asm/code-patching.h>
+#include <asm/dbell.h>
 
 #include "powernv.h"
 
@@ -40,47 +43,88 @@
 #define DBG(fmt...)
 #endif
 
-static void __cpuinit pnv_smp_setup_cpu(int cpu)
+static void pnv_smp_setup_cpu(int cpu)
 {
 	if (cpu != boot_cpuid)
 		xics_setup_cpu();
+
+#ifdef CONFIG_PPC_DOORBELL
+	if (cpu_has_feature(CPU_FTR_DBELL))
+		doorbell_setup_this_cpu();
+#endif
 }
 
-static int pnv_smp_cpu_bootable(unsigned int nr)
-{
-	/* Special case - we inhibit secondary thread startup
-	 * during boot if the user requests it.
-	 */
-	if (system_state < SYSTEM_RUNNING && cpu_has_feature(CPU_FTR_SMT)) {
-		if (!smt_enabled_at_boot && cpu_thread_in_core(nr) != 0)
-			return 0;
-		if (smt_enabled_at_boot
-		    && cpu_thread_in_core(nr) >= smt_enabled_at_boot)
-			return 0;
-	}
-
-	return 1;
-}
-
-int pnv_smp_kick_cpu(int nr)
+static int pnv_smp_kick_cpu(int nr)
 {
 	unsigned int pcpu = get_hard_smp_processor_id(nr);
-	unsigned long start_here = __pa(*((unsigned long *)
-					  generic_secondary_smp_init));
+	unsigned long start_here =
+			__pa(ppc_function_entry(generic_secondary_smp_init));
 	long rc;
 
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
-	/* On OPAL v2 the CPU are still spinning inside OPAL itself,
-	 * get them back now
+	/*
+	 * If we already started or OPALv2 is not supported, we just
+	 * kick the CPU via the PACA
 	 */
-	if (!paca[nr].cpu_start && firmware_has_feature(FW_FEATURE_OPALv2)) {
-		pr_devel("OPAL: Starting CPU %d (HW 0x%x)...\n", nr, pcpu);
-		rc = opal_start_cpu(pcpu, start_here);
-		if (rc != OPAL_SUCCESS)
-			pr_warn("OPAL Error %ld starting CPU %d\n",
+	if (paca[nr].cpu_start || !firmware_has_feature(FW_FEATURE_OPALv2))
+		goto kick;
+
+	/*
+	 * At this point, the CPU can either be spinning on the way in
+	 * from kexec or be inside OPAL waiting to be started for the
+	 * first time. OPAL v3 allows us to query OPAL to know if it
+	 * has the CPUs, so we do that
+	 */
+	if (firmware_has_feature(FW_FEATURE_OPALv3)) {
+		uint8_t status;
+
+		rc = opal_query_cpu_status(pcpu, &status);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("OPAL Error %ld querying CPU %d state\n",
 				rc, nr);
+			return -ENODEV;
+		}
+
+		/*
+		 * Already started, just kick it, probably coming from
+		 * kexec and spinning
+		 */
+		if (status == OPAL_THREAD_STARTED)
+			goto kick;
+
+		/*
+		 * Available/inactive, let's kick it
+		 */
+		if (status == OPAL_THREAD_INACTIVE) {
+			pr_devel("OPAL: Starting CPU %d (HW 0x%x)...\n",
+				 nr, pcpu);
+			rc = opal_start_cpu(pcpu, start_here);
+			if (rc != OPAL_SUCCESS) {
+				pr_warn("OPAL Error %ld starting CPU %d\n",
+					rc, nr);
+				return -ENODEV;
+			}
+		} else {
+			/*
+			 * An unavailable CPU (or any other unknown status)
+			 * shouldn't be started. It should also
+			 * not be in the possible map but currently it can
+			 * happen
+			 */
+			pr_devel("OPAL: CPU %d (HW 0x%x) is unavailable"
+				 " (status %d)...\n", nr, pcpu, status);
+			return -ENODEV;
+		}
+	} else {
+		/*
+		 * On OPAL v2, we just kick it and hope for the best,
+		 * we must not test the error from opal_start_cpu() or
+		 * we would fail to get CPUs from kexec.
+		 */
+		opal_start_cpu(pcpu, start_here);
 	}
+ kick:
 	return smp_generic_kick_cpu(nr);
 }
 
@@ -120,16 +164,20 @@ static void pnv_smp_cpu_kill_self(void)
 	 */
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
 	while (!generic_check_cpu_restart(cpu)) {
-		power7_nap();
-		if (!generic_check_cpu_restart(cpu)) {
+		ppc64_runlatch_off();
+		power7_nap(1);
+		ppc64_runlatch_on();
+
+		/* Clear the IPI that woke us up */
+		icp_native_flush_interrupt();
+		local_paca->irq_happened &= PACA_IRQ_HARD_DIS;
+		mb();
+
+		if (cpu_core_split_required())
+			continue;
+
+		if (!generic_check_cpu_restart(cpu))
 			DBG("CPU%d Unexpected exit while offline !\n", cpu);
-			/* We may be getting an IPI, so we re-enable
-			 * interrupts to process it, it will be ignored
-			 * since we aren't online (hopefully)
-			 */
-			local_irq_enable();
-			local_irq_disable();
-		}
 	}
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) | LPCR_PECE1);
 	DBG("CPU%d coming online...\n", cpu);
@@ -143,7 +191,7 @@ static struct smp_ops_t pnv_smp_ops = {
 	.probe		= xics_smp_probe,
 	.kick_cpu	= pnv_smp_kick_cpu,
 	.setup_cpu	= pnv_smp_setup_cpu,
-	.cpu_bootable	= pnv_smp_cpu_bootable,
+	.cpu_bootable	= smp_generic_cpu_bootable,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable	= pnv_smp_cpu_disable,
 	.cpu_die	= generic_cpu_die,

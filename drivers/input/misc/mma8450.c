@@ -123,9 +123,9 @@ static void mma8450_poll(struct input_polled_dev *dev)
 	if (ret < 0)
 		return;
 
-	x = ((buf[1] << 4) & 0xff0) | (buf[0] & 0xf);
-	y = ((buf[3] << 4) & 0xff0) | (buf[2] & 0xf);
-	z = ((buf[5] << 4) & 0xff0) | (buf[4] & 0xf);
+	x = ((int)(s8)buf[1] << 4) | (buf[0] & 0xf);
+	y = ((int)(s8)buf[3] << 4) | (buf[2] & 0xf);
+	z = ((int)(s8)buf[5] << 4) | (buf[4] & 0xf);
 
 	input_report_abs(dev->input, ABS_X, x);
 	input_report_abs(dev->input, ABS_Y, y);
@@ -168,7 +168,7 @@ static void mma8450_close(struct input_polled_dev *dev)
  * I2C init/probing/exit functions
  */
 static int mma8450_probe(struct i2c_client *c,
-				   const struct i2c_device_id *id)
+			 const struct i2c_device_id *id)
 {
 	struct input_polled_dev *idev;
 	struct mma8450 *m;
@@ -203,6 +203,8 @@ static int mma8450_probe(struct i2c_client *c,
 		dev_err(&c->dev, "failed to register polled input device\n");
 		goto err_free_mem;
 	}
+
+	i2c_set_clientdata(c, m);
 
 	return 0;
 

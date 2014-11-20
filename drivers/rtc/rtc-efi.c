@@ -17,6 +17,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/stringify.h>
 #include <linux/time.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
@@ -35,7 +36,7 @@ static inline int
 compute_yday(efi_time_t *eft)
 {
 	/* efi_time_t.month is in the [1-12] so, we need -1 */
-	return rtc_year_days(eft->day - 1, eft->month - 1, eft->year);
+	return rtc_year_days(eft->day, eft->month - 1, eft->year);
 }
 /*
  * returns day of the week [0-6] 0=Sunday
@@ -48,8 +49,8 @@ compute_wday(efi_time_t *eft)
 	int y;
 	int ndays = 0;
 
-	if (eft->year < 1998) {
-		pr_err("EFI year < 1998, invalid date\n");
+	if (eft->year < EFI_RTC_EPOCH) {
+		pr_err("EFI year < " __stringify(EFI_RTC_EPOCH) ", invalid date\n");
 		return -1;
 	}
 
@@ -78,19 +79,36 @@ convert_to_efi_time(struct rtc_time *wtime, efi_time_t *eft)
 	eft->timezone	= EFI_UNSPECIFIED_TIMEZONE;
 }
 
-static void
+static bool
 convert_from_efi_time(efi_time_t *eft, struct rtc_time *wtime)
 {
 	memset(wtime, 0, sizeof(*wtime));
+
+	if (eft->second >= 60)
+		return false;
 	wtime->tm_sec  = eft->second;
+
+	if (eft->minute >= 60)
+		return false;
 	wtime->tm_min  = eft->minute;
+
+	if (eft->hour >= 24)
+		return false;
 	wtime->tm_hour = eft->hour;
+
+	if (!eft->day || eft->day > 31)
+		return false;
 	wtime->tm_mday = eft->day;
+
+	if (!eft->month || eft->month > 12)
+		return false;
 	wtime->tm_mon  = eft->month - 1;
 	wtime->tm_year = eft->year - 1900;
 
 	/* day of the week [0-6], Sunday=0 */
 	wtime->tm_wday = compute_wday(eft);
+	if (wtime->tm_wday < 0)
+		return false;
 
 	/* day in the year [1-365]*/
 	wtime->tm_yday = compute_yday(eft);
@@ -106,6 +124,8 @@ convert_from_efi_time(efi_time_t *eft, struct rtc_time *wtime)
 	default:
 		wtime->tm_isdst = -1;
 	}
+
+	return true;
 }
 
 static int efi_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
@@ -122,7 +142,8 @@ static int efi_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	if (status != EFI_SUCCESS)
 		return -EINVAL;
 
-	convert_from_efi_time(&eft, &wkalrm->time);
+	if (!convert_from_efi_time(&eft, &wkalrm->time))
+		return -EIO;
 
 	return rtc_valid_tm(&wkalrm->time);
 }
@@ -163,7 +184,8 @@ static int efi_read_time(struct device *dev, struct rtc_time *tm)
 		return -EINVAL;
 	}
 
-	convert_from_efi_time(&eft, tm);
+	if (!convert_from_efi_time(&eft, tm))
+		return -EIO;
 
 	return rtc_valid_tm(tm);
 }
@@ -191,7 +213,7 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 {
 	struct rtc_device *rtc;
 
-	rtc = rtc_device_register("rtc-efi", &dev->dev, &efi_rtc_ops,
+	rtc = devm_rtc_device_register(&dev->dev, "rtc-efi", &efi_rtc_ops,
 					THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -201,36 +223,17 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __exit efi_rtc_remove(struct platform_device *dev)
-{
-	struct rtc_device *rtc = platform_get_drvdata(dev);
-
-	rtc_device_unregister(rtc);
-
-	return 0;
-}
-
 static struct platform_driver efi_rtc_driver = {
 	.driver = {
 		.name = "rtc-efi",
 		.owner = THIS_MODULE,
 	},
-	.remove = __exit_p(efi_rtc_remove),
 };
 
-static int __init efi_rtc_init(void)
-{
-	return platform_driver_probe(&efi_rtc_driver, efi_rtc_probe);
-}
+module_platform_driver_probe(efi_rtc_driver, efi_rtc_probe);
 
-static void __exit efi_rtc_exit(void)
-{
-	platform_driver_unregister(&efi_rtc_driver);
-}
-
-module_init(efi_rtc_init);
-module_exit(efi_rtc_exit);
-
+MODULE_ALIAS("platform:rtc-efi");
 MODULE_AUTHOR("dann frazier <dannf@hp.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("EFI RTC driver");
+MODULE_ALIAS("platform:rtc-efi");

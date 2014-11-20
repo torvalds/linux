@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/vmalloc.h>
+#include <linux/aio.h>
 #include "logger.h"
 
 #include <asm/ioctls.h>
@@ -68,6 +69,8 @@ static LIST_HEAD(log_list);
  * @log:	The associated log
  * @list:	The associated entry in @logger_log's list
  * @r_off:	The current read head offset.
+ * @r_all:	Reader can read all entries
+ * @r_ver:	Reader ABI version
  *
  * This object lives from open to release, so we don't need additional
  * reference counting. The structure is protected by log->mutex.
@@ -76,6 +79,8 @@ struct logger_reader {
 	struct logger_log	*log;
 	struct list_head	list;
 	size_t			r_off;
+	bool			r_all;
+	int			r_ver;
 };
 
 /* logger_offset - returns index 'n' into the log via (optimized) modulus */
@@ -103,14 +108,37 @@ static inline struct logger_log *file_get_log(struct file *file)
 {
 	if (file->f_mode & FMODE_READ) {
 		struct logger_reader *reader = file->private_data;
+
 		return reader->log;
-	} else
-		return file->private_data;
+	}
+	return file->private_data;
 }
 
 /*
- * get_entry_len - Grabs the length of the payload of the next entry starting
- * from 'off'.
+ * get_entry_header - returns a pointer to the logger_entry header within
+ * 'log' starting at offset 'off'. A temporary logger_entry 'scratch' must
+ * be provided. Typically the return value will be a pointer within
+ * 'logger->buf'.  However, a pointer to 'scratch' may be returned if
+ * the log entry spans the end and beginning of the circular buffer.
+ */
+static struct logger_entry *get_entry_header(struct logger_log *log,
+		size_t off, struct logger_entry *scratch)
+{
+	size_t len = min(sizeof(struct logger_entry), log->size - off);
+
+	if (len != sizeof(struct logger_entry)) {
+		memcpy(((void *) scratch), log->buffer + off, len);
+		memcpy(((void *) scratch) + len, log->buffer,
+			sizeof(struct logger_entry) - len);
+		return scratch;
+	}
+
+	return (struct logger_entry *) (log->buffer + off);
+}
+
+/*
+ * get_entry_msg_len - Grabs the length of the message of the entry
+ * starting from from 'off'.
  *
  * An entry length is 2 bytes (16 bits) in host endian order.
  * In the log, the length does not include the size of the log entry structure.
@@ -118,20 +146,44 @@ static inline struct logger_log *file_get_log(struct file *file)
  *
  * Caller needs to hold log->mutex.
  */
-static __u32 get_entry_len(struct logger_log *log, size_t off)
+static __u32 get_entry_msg_len(struct logger_log *log, size_t off)
 {
-	__u16 val;
+	struct logger_entry scratch;
+	struct logger_entry *entry;
 
-	/* copy 2 bytes from buffer, in memcpy order, */
-	/* handling possible wrap at end of buffer */
+	entry = get_entry_header(log, off, &scratch);
+	return entry->len;
+}
 
-	((__u8 *)&val)[0] = log->buffer[off];
-	if (likely(off+1 < log->size))
-		((__u8 *)&val)[1] = log->buffer[off+1];
-	else
-		((__u8 *)&val)[1] = log->buffer[0];
+static size_t get_user_hdr_len(int ver)
+{
+	if (ver < 2)
+		return sizeof(struct user_logger_entry_compat);
+	return sizeof(struct logger_entry);
+}
 
-	return sizeof(struct logger_entry) + val;
+static ssize_t copy_header_to_user(int ver, struct logger_entry *entry,
+					 char __user *buf)
+{
+	void *hdr;
+	size_t hdr_len;
+	struct user_logger_entry_compat v1;
+
+	if (ver < 2) {
+		v1.len      = entry->len;
+		v1.__pad    = 0;
+		v1.pid      = entry->pid;
+		v1.tid      = entry->tid;
+		v1.sec      = entry->sec;
+		v1.nsec     = entry->nsec;
+		hdr         = &v1;
+		hdr_len     = sizeof(struct user_logger_entry_compat);
+	} else {
+		hdr         = entry;
+		hdr_len     = sizeof(struct logger_entry);
+	}
+
+	return copy_to_user(buf, hdr, hdr_len);
 }
 
 /*
@@ -145,15 +197,31 @@ static ssize_t do_read_log_to_user(struct logger_log *log,
 				   char __user *buf,
 				   size_t count)
 {
+	struct logger_entry scratch;
+	struct logger_entry *entry;
 	size_t len;
+	size_t msg_start;
 
 	/*
-	 * We read from the log in two disjoint operations. First, we read from
-	 * the current read head offset up to 'count' bytes or to the end of
+	 * First, copy the header to userspace, using the version of
+	 * the header requested
+	 */
+	entry = get_entry_header(log, reader->r_off, &scratch);
+	if (copy_header_to_user(reader->r_ver, entry, buf))
+		return -EFAULT;
+
+	count -= get_user_hdr_len(reader->r_ver);
+	buf += get_user_hdr_len(reader->r_ver);
+	msg_start = logger_offset(log,
+		reader->r_off + sizeof(struct logger_entry));
+
+	/*
+	 * We read from the msg in two disjoint operations. First, we read from
+	 * the current msg head offset up to 'count' bytes or to the end of
 	 * the log, whichever comes first.
 	 */
-	len = min(count, log->size - reader->r_off);
-	if (copy_to_user(buf, log->buffer + reader->r_off, len))
+	len = min(count, log->size - msg_start);
+	if (copy_to_user(buf, log->buffer + msg_start, len))
 		return -EFAULT;
 
 	/*
@@ -164,9 +232,34 @@ static ssize_t do_read_log_to_user(struct logger_log *log,
 		if (copy_to_user(buf + len, log->buffer, count - len))
 			return -EFAULT;
 
-	reader->r_off = logger_offset(log, reader->r_off + count);
+	reader->r_off = logger_offset(log, reader->r_off +
+		sizeof(struct logger_entry) + count);
 
-	return count;
+	return count + get_user_hdr_len(reader->r_ver);
+}
+
+/*
+ * get_next_entry_by_uid - Starting at 'off', returns an offset into
+ * 'log->buffer' which contains the first entry readable by 'euid'
+ */
+static size_t get_next_entry_by_uid(struct logger_log *log,
+		size_t off, kuid_t euid)
+{
+	while (off != log->w_off) {
+		struct logger_entry *entry;
+		struct logger_entry scratch;
+		size_t next_len;
+
+		entry = get_entry_header(log, off, &scratch);
+
+		if (uid_eq(entry->euid, euid))
+			return off;
+
+		next_len = sizeof(struct logger_entry) + entry->len;
+		off = logger_offset(log, off + next_len);
+	}
+
+	return off;
 }
 
 /*
@@ -178,7 +271,7 @@ static ssize_t do_read_log_to_user(struct logger_log *log,
  *	- If there are no log entries to read, blocks until log is written to
  *	- Atomically reads exactly one log entry
  *
- * Optimal read size is LOGGER_ENTRY_MAX_LEN. Will set errno to EINVAL if read
+ * Will set errno to EINVAL if read
  * buffer is insufficient to hold next entry.
  */
 static ssize_t logger_read(struct file *file, char __user *buf,
@@ -219,6 +312,10 @@ start:
 
 	mutex_lock(&log->mutex);
 
+	if (!reader->r_all)
+		reader->r_off = get_next_entry_by_uid(log,
+			reader->r_off, current_euid());
+
 	/* is there still something to read or did we race? */
 	if (unlikely(log->w_off == reader->r_off)) {
 		mutex_unlock(&log->mutex);
@@ -226,7 +323,8 @@ start:
 	}
 
 	/* get the size of the next entry */
-	ret = get_entry_len(log, reader->r_off);
+	ret = get_user_hdr_len(reader->r_ver) +
+		get_entry_msg_len(log, reader->r_off);
 	if (count < ret) {
 		ret = -EINVAL;
 		goto out;
@@ -252,7 +350,8 @@ static size_t get_next_entry(struct logger_log *log, size_t off, size_t len)
 	size_t count = 0;
 
 	do {
-		size_t nr = get_entry_len(log, off);
+		size_t nr = sizeof(struct logger_entry) +
+			get_entry_msg_len(log, off);
 		off = logger_offset(log, off + nr);
 		count += nr;
 	} while (count < len);
@@ -312,69 +411,18 @@ static void fix_up_readers(struct logger_log *log, size_t len)
 }
 
 /*
- * do_write_log - writes 'len' bytes from 'buf' to 'log'
- *
- * The caller needs to hold log->mutex.
- */
-static void do_write_log(struct logger_log *log, const void *buf, size_t count)
-{
-	size_t len;
-
-	len = min(count, log->size - log->w_off);
-	memcpy(log->buffer + log->w_off, buf, len);
-
-	if (count != len)
-		memcpy(log->buffer, buf + len, count - len);
-
-	log->w_off = logger_offset(log, log->w_off + count);
-
-}
-
-/*
- * do_write_log_user - writes 'len' bytes from the user-space buffer 'buf' to
- * the log 'log'
- *
- * The caller needs to hold log->mutex.
- *
- * Returns 'count' on success, negative error code on failure.
- */
-static ssize_t do_write_log_from_user(struct logger_log *log,
-				      const void __user *buf, size_t count)
-{
-	size_t len;
-
-	len = min(count, log->size - log->w_off);
-	if (len && copy_from_user(log->buffer + log->w_off, buf, len))
-		return -EFAULT;
-
-	if (count != len)
-		if (copy_from_user(log->buffer, buf + len, count - len))
-			/*
-			 * Note that by not updating w_off, this abandons the
-			 * portion of the new entry that *was* successfully
-			 * copied, just above.  This is intentional to avoid
-			 * message corruption from missing fragments.
-			 */
-			return -EFAULT;
-
-	log->w_off = logger_offset(log, log->w_off + count);
-
-	return count;
-}
-
-/*
- * logger_aio_write - our write method, implementing support for write(),
+ * logger_write_iter - our write method, implementing support for write(),
  * writev(), and aio_write(). Writes are our fast path, and we try to optimize
  * them above all else.
  */
-static ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
-			 unsigned long nr_segs, loff_t ppos)
+static ssize_t logger_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct logger_log *log = file_get_log(iocb->ki_filp);
-	size_t orig = log->w_off;
 	struct logger_entry header;
 	struct timespec now;
-	ssize_t ret = 0;
+	size_t len, count, w_off;
+
+	count = min_t(size_t, iocb->ki_nbytes, LOGGER_ENTRY_MAX_PAYLOAD);
 
 	now = current_kernel_time();
 
@@ -382,7 +430,9 @@ static ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	header.tid = current->pid;
 	header.sec = now.tv_sec;
 	header.nsec = now.tv_nsec;
-	header.len = min_t(size_t, iocb->ki_left, LOGGER_ENTRY_MAX_PAYLOAD);
+	header.euid = current_euid();
+	header.len = count;
+	header.hdr_size = sizeof(struct logger_entry);
 
 	/* null writes succeed, return zero */
 	if (unlikely(!header.len))
@@ -398,33 +448,38 @@ static ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	 */
 	fix_up_readers(log, sizeof(struct logger_entry) + header.len);
 
-	do_write_log(log, &header, sizeof(struct logger_entry));
+	len = min(sizeof(header), log->size - log->w_off);
+	memcpy(log->buffer + log->w_off, &header, len);
+	memcpy(log->buffer, (char *)&header + len, sizeof(header) - len);
 
-	while (nr_segs-- > 0) {
-		size_t len;
-		ssize_t nr;
+	/* Work with a copy until we are ready to commit the whole entry */
+	w_off =  logger_offset(log, log->w_off + sizeof(struct logger_entry));
 
-		/* figure out how much of this vector we can keep */
-		len = min_t(size_t, iov->iov_len, header.len - ret);
+	len = min(count, log->size - w_off);
 
-		/* write out this segment's payload */
-		nr = do_write_log_from_user(log, iov->iov_base, len);
-		if (unlikely(nr < 0)) {
-			log->w_off = orig;
-			mutex_unlock(&log->mutex);
-			return nr;
-		}
-
-		iov++;
-		ret += nr;
+	if (copy_from_iter(log->buffer + w_off, len, from) != len) {
+		/*
+		 * Note that by not updating log->w_off, this abandons the
+		 * portion of the new entry that *was* successfully
+		 * copied, just above.  This is intentional to avoid
+		 * message corruption from missing fragments.
+		 */
+		mutex_unlock(&log->mutex);
+		return -EFAULT;
 	}
 
+	if (copy_from_iter(log->buffer, count - len, from) != count - len) {
+		mutex_unlock(&log->mutex);
+		return -EFAULT;
+	}
+
+	log->w_off = logger_offset(log, w_off + count);
 	mutex_unlock(&log->mutex);
 
 	/* wake up any blocked readers */
 	wake_up_interruptible(&log->wq);
 
-	return ret;
+	return len;
 }
 
 static struct logger_log *get_log_from_minor(int minor)
@@ -463,6 +518,10 @@ static int logger_open(struct inode *inode, struct file *file)
 			return -ENOMEM;
 
 		reader->log = log;
+		reader->r_ver = 1;
+		reader->r_all = in_egroup_p(inode->i_gid) ||
+			capable(CAP_SYSLOG);
+
 		INIT_LIST_HEAD(&reader->list);
 
 		mutex_lock(&log->mutex);
@@ -522,6 +581,10 @@ static unsigned int logger_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &log->wq, wait);
 
 	mutex_lock(&log->mutex);
+	if (!reader->r_all)
+		reader->r_off = get_next_entry_by_uid(log,
+			reader->r_off, current_euid());
+
 	if (log->w_off != reader->r_off)
 		ret |= POLLIN | POLLRDNORM;
 	mutex_unlock(&log->mutex);
@@ -529,11 +592,26 @@ static unsigned int logger_poll(struct file *file, poll_table *wait)
 	return ret;
 }
 
+static long logger_set_version(struct logger_reader *reader, void __user *arg)
+{
+	int version;
+
+	if (copy_from_user(&version, arg, sizeof(int)))
+		return -EFAULT;
+
+	if ((version < 1) || (version > 2))
+		return -EINVAL;
+
+	reader->r_ver = version;
+	return 0;
+}
+
 static long logger_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct logger_log *log = file_get_log(file);
 	struct logger_reader *reader;
-	long ret = -ENOTTY;
+	long ret = -EINVAL;
+	void __user *argp = (void __user *) arg;
 
 	mutex_lock(&log->mutex);
 
@@ -558,8 +636,14 @@ static long logger_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		reader = file->private_data;
+
+		if (!reader->r_all)
+			reader->r_off = get_next_entry_by_uid(log,
+				reader->r_off, current_euid());
+
 		if (log->w_off != reader->r_off)
-			ret = get_entry_len(log, reader->r_off);
+			ret = get_user_hdr_len(reader->r_ver) +
+				get_entry_msg_len(log, reader->r_off);
 		else
 			ret = 0;
 		break;
@@ -568,10 +652,31 @@ static long logger_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EBADF;
 			break;
 		}
+		if (!(in_egroup_p(file_inode(file)->i_gid) ||
+				capable(CAP_SYSLOG))) {
+			ret = -EPERM;
+			break;
+		}
 		list_for_each_entry(reader, &log->readers, list)
 			reader->r_off = log->w_off;
 		log->head = log->w_off;
 		ret = 0;
+		break;
+	case LOGGER_GET_VERSION:
+		if (!(file->f_mode & FMODE_READ)) {
+			ret = -EBADF;
+			break;
+		}
+		reader = file->private_data;
+		ret = reader->r_ver;
+		break;
+	case LOGGER_SET_VERSION:
+		if (!(file->f_mode & FMODE_READ)) {
+			ret = -EBADF;
+			break;
+		}
+		reader = file->private_data;
+		ret = logger_set_version(reader, argp);
 		break;
 	}
 
@@ -583,7 +688,7 @@ static long logger_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static const struct file_operations logger_fops = {
 	.owner = THIS_MODULE,
 	.read = logger_read,
-	.aio_write = logger_aio_write,
+	.write_iter = logger_write_iter,
 	.poll = logger_poll,
 	.unlocked_ioctl = logger_ioctl,
 	.compat_ioctl = logger_ioctl,
@@ -592,8 +697,8 @@ static const struct file_operations logger_fops = {
 };
 
 /*
- * Log size must be a power of two, greater than LOGGER_ENTRY_MAX_LEN,
- * and less than LONG_MAX minus LOGGER_ENTRY_MAX_LEN.
+ * Log size must must be a power of two, and greater than
+ * (LOGGER_ENTRY_MAX_PAYLOAD + sizeof(struct logger_entry)).
  */
 static int __init create_log(char *log_name, int size)
 {
@@ -637,13 +742,16 @@ static int __init create_log(char *log_name, int size)
 	if (unlikely(ret)) {
 		pr_err("failed to register misc device for log '%s'!\n",
 				log->misc.name);
-		goto out_free_log;
+		goto out_free_misc_name;
 	}
 
 	pr_info("created %luK log '%s'\n",
 		(unsigned long) log->size >> 10, log->misc.name);
 
 	return 0;
+
+out_free_misc_name:
+	kfree(log->misc.name);
 
 out_free_log:
 	kfree(log);

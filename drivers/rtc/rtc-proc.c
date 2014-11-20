@@ -110,7 +110,7 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
 static int rtc_proc_open(struct inode *inode, struct file *file)
 {
 	int ret;
-	struct rtc_device *rtc = PDE(inode)->data;
+	struct rtc_device *rtc = PDE_DATA(inode);
 
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;

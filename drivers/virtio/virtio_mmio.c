@@ -219,13 +219,14 @@ static void vm_reset(struct virtio_device *vdev)
 /* Transport interface */
 
 /* the notify function used when creating a virt queue */
-static void vm_notify(struct virtqueue *vq)
+static bool vm_notify(struct virtqueue *vq)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
 
 	/* We write the queue's selector into the notification register to
 	 * signal the other end */
 	writel(vq->index, vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
+	return true;
 }
 
 /* Notify all virtqueues on an interrupt. */
@@ -233,8 +234,6 @@ static irqreturn_t vm_interrupt(int irq, void *opaque)
 {
 	struct virtio_mmio_device *vm_dev = opaque;
 	struct virtio_mmio_vq_info *info;
-	struct virtio_driver *vdrv = container_of(vm_dev->vdev.dev.driver,
-			struct virtio_driver, driver);
 	unsigned long status;
 	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
@@ -243,9 +242,8 @@ static irqreturn_t vm_interrupt(int irq, void *opaque)
 	status = readl(vm_dev->base + VIRTIO_MMIO_INTERRUPT_STATUS);
 	writel(status, vm_dev->base + VIRTIO_MMIO_INTERRUPT_ACK);
 
-	if (unlikely(status & VIRTIO_MMIO_INT_CONFIG)
-			&& vdrv && vdrv->config_changed) {
-		vdrv->config_changed(&vm_dev->vdev);
+	if (unlikely(status & VIRTIO_MMIO_INT_CONFIG)) {
+		virtio_config_changed(&vm_dev->vdev);
 		ret = IRQ_HANDLED;
 	}
 
@@ -470,7 +468,7 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 
 	/* Check magic value */
 	magic = readl(vm_dev->base + VIRTIO_MMIO_MAGIC_VALUE);
-	if (memcmp(&magic, "virt", 4) != 0) {
+	if (magic != ('v' | 'i' << 8 | 'r' << 16 | 't' << 24)) {
 		dev_warn(&pdev->dev, "Wrong magic value 0x%08lx!\n", magic);
 		return -ENODEV;
 	}

@@ -1,5 +1,6 @@
 # UAPI Header export list
 header-y += tc_csum.h
+header-y += tc_defact.h
 header-y += tc_gact.h
 header-y += tc_ipt.h
 header-y += tc_mirred.h

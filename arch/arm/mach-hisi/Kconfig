@@ -1,0 +1,45 @@
+config ARCH_HISI
+	bool "Hisilicon SoC Support"
+	depends on ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select POWER_RESET
+	select POWER_RESET_HISI
+	select POWER_SUPPLY
+
+if ARCH_HISI
+
+menu "Hisilicon platform type"
+
+config ARCH_HI3xxx
+	bool "Hisilicon Hi36xx family" if ARCH_MULTI_V7
+	select CACHE_L2X0
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select PINCTRL
+	select PINCTRL_SINGLE
+	help
+	  Support for Hisilicon Hi36xx SoC family
+
+config ARCH_HIP04
+	bool "Hisilicon HiP04 Cortex A15 family" if ARCH_MULTI_V7
+	select ARM_ERRATA_798181 if SMP
+	select HAVE_ARM_ARCH_TIMER
+	select MCPM if SMP
+	select MCPM_QUAD_CLUSTER if SMP
+	help
+	  Support for Hisilicon HiP04 SoC family
+
+config ARCH_HIX5HD2
+	bool "Hisilicon X5HD2 family" if ARCH_MULTI_V7
+	select CACHE_L2X0
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select PINCTRL
+	select PINCTRL_SINGLE
+	help
+	  Support for Hisilicon HIX5HD2 SoC family
+endmenu
+
+endif

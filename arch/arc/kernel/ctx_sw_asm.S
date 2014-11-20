@@ -10,9 +10,11 @@
  *  -This is the more "natural" hand written assembler
  */
 
+#include <linux/linkage.h>
 #include <asm/entry.h>       /* For the SAVE_* macros */
 #include <asm/asm-offsets.h>
-#include <asm/linkage.h>
+
+#define KSP_WORD_OFF 	((TASK_THREAD + THREAD_KSP) / 4)
 
 ;################### Low Level Context Switch ##########################
 
@@ -28,8 +30,13 @@ __switch_to:
 	SAVE_CALLEE_SAVED_KERNEL
 
 	/* Save the now KSP in task->thread.ksp */
-	st.as  sp, [r0, (TASK_THREAD + THREAD_KSP)/4]
-
+#if KSP_WORD_OFF  <= 255
+	st.as  sp, [r0, KSP_WORD_OFF]
+#else
+	/* Workaround for NR_CPUS=4k as ST.as can only take s9 offset */
+	add2	r24, r0, KSP_WORD_OFF
+	st	sp, [r24]
+#endif
 	/*
 	* Return last task in r0 (return reg)
 	* On ARC, Return reg = First Arg reg = r0.
@@ -55,4 +62,4 @@ __switch_to:
 	ld.ab   blink, [sp, 4]
 	j       [blink]
 
-ARC_EXIT __switch_to
+END(__switch_to)

@@ -158,6 +158,15 @@ static inline unsigned long nx842_get_scatterlist_size(
 	return sl->entry_nr * sizeof(struct nx842_slentry);
 }
 
+static inline unsigned long nx842_get_pa(void *addr)
+{
+	if (is_vmalloc_addr(addr))
+		return page_to_phys(vmalloc_to_page(addr))
+		       + offset_in_page(addr);
+	else
+		return __pa(addr);
+}
+
 static int nx842_build_scatterlist(unsigned long buf, int len,
 			struct nx842_scatterlist *sl)
 {
@@ -168,7 +177,7 @@ static int nx842_build_scatterlist(unsigned long buf, int len,
 
 	entry = sl->entries;
 	while (len) {
-		entry->ptr = __pa(buf);
+		entry->ptr = nx842_get_pa((void *)buf);
 		nextpage = ALIGN(buf + 1, NX842_HW_PAGE_SIZE);
 		if (nextpage < buf + len) {
 			/* we aren't at the end yet */
@@ -370,8 +379,8 @@ int nx842_compress(const unsigned char *in, unsigned int inlen,
 	op.flags = NX842_OP_COMPRESS;
 	csbcpb = &workmem->csbcpb;
 	memset(csbcpb, 0, sizeof(*csbcpb));
-	op.csbcpb = __pa(csbcpb);
-	op.out = __pa(slout.entries);
+	op.csbcpb = nx842_get_pa(csbcpb);
+	op.out = nx842_get_pa(slout.entries);
 
 	for (i = 0; i < hdr->blocks_nr; i++) {
 		/*
@@ -401,13 +410,13 @@ int nx842_compress(const unsigned char *in, unsigned int inlen,
 		 */
 		if (likely(max_sync_size == NX842_HW_PAGE_SIZE)) {
 			/* Create direct DDE */
-			op.in = __pa(inbuf);
+			op.in = nx842_get_pa((void *)inbuf);
 			op.inlen = max_sync_size;
 
 		} else {
 			/* Create indirect DDE (scatterlist) */
 			nx842_build_scatterlist(inbuf, max_sync_size, &slin);
-			op.in = __pa(slin.entries);
+			op.in = nx842_get_pa(slin.entries);
 			op.inlen = -nx842_get_scatterlist_size(&slin);
 		}
 
@@ -565,7 +574,7 @@ int nx842_decompress(const unsigned char *in, unsigned int inlen,
 	op.flags = NX842_OP_DECOMPRESS;
 	csbcpb = &workmem->csbcpb;
 	memset(csbcpb, 0, sizeof(*csbcpb));
-	op.csbcpb = __pa(csbcpb);
+	op.csbcpb = nx842_get_pa(csbcpb);
 
 	/*
 	 * max_sync_size may have changed since compression,
@@ -597,12 +606,12 @@ int nx842_decompress(const unsigned char *in, unsigned int inlen,
 		if (likely((inbuf & NX842_HW_PAGE_MASK) ==
 			((inbuf + hdr->sizes[i] - 1) & NX842_HW_PAGE_MASK))) {
 			/* Create direct DDE */
-			op.in = __pa(inbuf);
+			op.in = nx842_get_pa((void *)inbuf);
 			op.inlen = hdr->sizes[i];
 		} else {
 			/* Create indirect DDE (scatterlist) */
 			nx842_build_scatterlist(inbuf, hdr->sizes[i] , &slin);
-			op.in = __pa(slin.entries);
+			op.in = nx842_get_pa(slin.entries);
 			op.inlen = -nx842_get_scatterlist_size(&slin);
 		}
 
@@ -613,12 +622,12 @@ int nx842_decompress(const unsigned char *in, unsigned int inlen,
 		 */
 		if (likely(max_sync_size == NX842_HW_PAGE_SIZE)) {
 			/* Create direct DDE */
-			op.out = __pa(outbuf);
+			op.out = nx842_get_pa((void *)outbuf);
 			op.outlen = max_sync_size;
 		} else {
 			/* Create indirect DDE (scatterlist) */
 			nx842_build_scatterlist(outbuf, max_sync_size, &slout);
-			op.out = __pa(slout.entries);
+			op.out = nx842_get_pa(slout.entries);
 			op.outlen = -nx842_get_scatterlist_size(&slout);
 		}
 
@@ -927,28 +936,14 @@ static int nx842_OF_upd(struct property *new_prop)
 		goto error_out;
 	}
 
-	/* Set ptr to new property if provided */
-	if (new_prop) {
-		/* Single property */
-		if (!strncmp(new_prop->name, "status", new_prop->length)) {
-			status = new_prop;
-
-		} else if (!strncmp(new_prop->name, "ibm,max-sg-len",
-					new_prop->length)) {
-			maxsglen = new_prop;
-
-		} else if (!strncmp(new_prop->name, "ibm,max-sync-cop",
-					new_prop->length)) {
-			maxsyncop = new_prop;
-
-		} else {
-			/*
-			 * Skip the update, the property being updated
-			 * has no impact.
-			 */
-			goto out;
-		}
-	}
+	/*
+	 * If this is a property update, there are only certain properties that
+	 * we care about. Bail if it isn't in the below list
+	 */
+	if (new_prop && (strncmp(new_prop->name, "status", new_prop->length) ||
+		         strncmp(new_prop->name, "ibm,max-sg-len", new_prop->length) ||
+		         strncmp(new_prop->name, "ibm,max-sync-cop", new_prop->length)))
+		goto out;
 
 	/* Perform property updates */
 	ret = nx842_OF_upd_status(new_devdata, status);
@@ -1188,12 +1183,7 @@ static int __init nx842_probe(struct vio_dev *viodev,
 	}
 
 	rcu_read_lock();
-	if (dev_set_drvdata(&viodev->dev, rcu_dereference(devdata))) {
-		rcu_read_unlock();
-		dev_err(&viodev->dev, "failed to set driver data for device\n");
-		ret = -1;
-		goto error;
-	}
+	dev_set_drvdata(&viodev->dev, rcu_dereference(devdata));
 	rcu_read_unlock();
 
 	if (sysfs_create_group(&viodev->dev.kobj, &nx842_attribute_group)) {
@@ -1225,7 +1215,7 @@ static int __exit nx842_remove(struct vio_dev *viodev)
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
 	of_reconfig_notifier_unregister(&nx842_of_nb);
-	rcu_assign_pointer(devdata, NULL);
+	RCU_INIT_POINTER(devdata, NULL);
 	spin_unlock_irqrestore(&devdata_mutex, flags);
 	synchronize_rcu();
 	dev_set_drvdata(&viodev->dev, NULL);
@@ -1243,7 +1233,7 @@ static struct vio_device_id nx842_driver_ids[] = {
 static struct vio_driver nx842_driver = {
 	.name = MODULE_NAME,
 	.probe = nx842_probe,
-	.remove = nx842_remove,
+	.remove = __exit_p(nx842_remove),
 	.get_desired_dma = nx842_get_desired_dma,
 	.id_table = nx842_driver_ids,
 };
@@ -1276,7 +1266,7 @@ static void __exit nx842_exit(void)
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
-	rcu_assign_pointer(devdata, NULL);
+	RCU_INIT_POINTER(devdata, NULL);
 	spin_unlock_irqrestore(&devdata_mutex, flags);
 	synchronize_rcu();
 	if (old_devdata)

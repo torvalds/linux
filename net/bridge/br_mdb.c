@@ -9,6 +9,7 @@
 #include <net/netlink.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
+#include <net/addrconf.h>
 #endif
 
 #include "br_private.h"
@@ -61,7 +62,8 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 
 	for (i = 0; i < mdb->max; i++) {
 		struct net_bridge_mdb_entry *mp;
-		struct net_bridge_port_group *p, **pp;
+		struct net_bridge_port_group *p;
+		struct net_bridge_port_group __rcu **pp;
 		struct net_bridge_port *port;
 
 		hlist_for_each_entry_rcu(mp, &mdb->mhash[i], hlist[mdb->ver]) {
@@ -253,7 +255,7 @@ static bool is_valid_mdb_entry(struct br_mdb_entry *entry)
 			return false;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (entry->addr.proto == htons(ETH_P_IPV6)) {
-		if (!ipv6_is_transient_multicast(&entry->addr.u.ip6))
+		if (ipv6_addr_is_ll_all_nodes(&entry->addr.u.ip6))
 			return false;
 #endif
 	} else
@@ -382,7 +384,7 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	return ret;
 }
 
-static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct br_mdb_entry *entry;
@@ -414,16 +416,20 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 	if (!netif_running(br->dev) || br->multicast_disabled)
 		return -EINVAL;
 
-	if (timer_pending(&br->multicast_querier_timer))
-		return -EBUSY;
-
 	ip.proto = entry->addr.proto;
-	if (ip.proto == htons(ETH_P_IP))
+	if (ip.proto == htons(ETH_P_IP)) {
+		if (timer_pending(&br->ip4_other_query.timer))
+			return -EBUSY;
+
 		ip.u.ip4 = entry->addr.u.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
-	else
+	} else {
+		if (timer_pending(&br->ip6_other_query.timer))
+			return -EBUSY;
+
 		ip.u.ip6 = entry->addr.u.ip6;
 #endif
+	}
 
 	spin_lock_bh(&br->multicast_lock);
 	mdb = mlock_dereference(br->mdb, br);
@@ -458,7 +464,7 @@ unlock:
 	return err;
 }
 
-static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net_device *dev;
 	struct br_mdb_entry *entry;

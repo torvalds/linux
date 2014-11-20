@@ -11,45 +11,37 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip.h>
+#include "../../drivers/irqchip/irqchip.h"
 #include <asm/sections.h>
 #include <asm/irq.h>
 #include <asm/mach_desc.h>
 
 /*
  * Early Hardware specific Interrupt setup
+ * -Platform independent, needed for each CPU (not foldable into init_IRQ)
  * -Called very early (start_kernel -> setup_arch -> setup_processor)
- * -Platform Independent (must for any ARC700)
- * -Needed for each CPU (hence not foldable into init_IRQ)
  *
  * what it does ?
- * -setup Vector Table Base Reg - in case Linux not linked at 0x8000_0000
- * -Disable all IRQs (on CPU side)
  * -Optionally, setup the High priority Interrupts as Level 2 IRQs
  */
-void __init arc_init_IRQ(void)
+void arc_init_IRQ(void)
 {
 	int level_mask = 0;
 
-	write_aux_reg(AUX_INTR_VEC_BASE, _int_vec_base_lds);
-
-	/* Disable all IRQs: enable them as devices request */
-	write_aux_reg(AUX_IENABLE, 0);
-
        /* setup any high priority Interrupts (Level2 in ARCompact jargon) */
-#ifdef CONFIG_ARC_IRQ3_LV2
-	level_mask |= (1 << 3);
-#endif
-#ifdef CONFIG_ARC_IRQ5_LV2
-	level_mask |= (1 << 5);
-#endif
-#ifdef CONFIG_ARC_IRQ6_LV2
-	level_mask |= (1 << 6);
-#endif
+	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ3_LV2) << 3;
+	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ5_LV2) << 5;
+	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ6_LV2) << 6;
 
-	if (level_mask) {
+	/*
+	 * Write to register, even if no LV2 IRQs configured to reset it
+	 * in case bootloader had mucked with it
+	 */
+	write_aux_reg(AUX_IRQ_LEV, level_mask);
+
+	if (level_mask)
 		pr_info("Level-2 interrupts bitset %x\n", level_mask);
-		write_aux_reg(AUX_IRQ_LEV, level_mask);
-	}
 }
 
 /*
@@ -63,20 +55,28 @@ void __init arc_init_IRQ(void)
  * below, per IRQ.
  */
 
-static void arc_mask_irq(struct irq_data *data)
+static void arc_irq_mask(struct irq_data *data)
 {
-	arch_mask_irq(data->irq);
+	unsigned int ienb;
+
+	ienb = read_aux_reg(AUX_IENABLE);
+	ienb &= ~(1 << data->irq);
+	write_aux_reg(AUX_IENABLE, ienb);
 }
 
-static void arc_unmask_irq(struct irq_data *data)
+static void arc_irq_unmask(struct irq_data *data)
 {
-	arch_unmask_irq(data->irq);
+	unsigned int ienb;
+
+	ienb = read_aux_reg(AUX_IENABLE);
+	ienb |= (1 << data->irq);
+	write_aux_reg(AUX_IENABLE, ienb);
 }
 
 static struct irq_chip onchip_intc = {
 	.name           = "ARC In-core Intc",
-	.irq_mask	= arc_mask_irq,
-	.irq_unmask	= arc_unmask_irq,
+	.irq_mask	= arc_irq_mask,
+	.irq_unmask	= arc_irq_unmask,
 };
 
 static int arc_intc_domain_map(struct irq_domain *d, unsigned int irq,
@@ -97,15 +97,13 @@ static const struct irq_domain_ops arc_intc_domain_ops = {
 
 static struct irq_domain *root_domain;
 
-void __init init_onchip_IRQ(void)
+static int __init
+init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 {
-	struct device_node *intc = NULL;
+	if (parent)
+		panic("DeviceTree incore intc not a root irq controller\n");
 
-	intc = of_find_compatible_node(NULL, NULL, "snps,arc700-intc");
-	if(!intc)
-		panic("DeviceTree Missing incore intc\n");
-
-	root_domain = irq_domain_add_legacy(intc, NR_IRQS, 0, 0,
+	root_domain = irq_domain_add_legacy(intc, NR_CPU_IRQS, 0, 0,
 					    &arc_intc_domain_ops, NULL);
 
 	if (!root_domain)
@@ -113,7 +111,11 @@ void __init init_onchip_IRQ(void)
 
 	/* with this we don't need to export root_domain */
 	irq_set_default_host(root_domain);
+
+	return 0;
 }
+
+IRQCHIP_DECLARE(arc_intc, "snps,arc700-intc", init_onchip_IRQ);
 
 /*
  * Late Interrupt system init called from start_kernel for Boot CPU only
@@ -123,11 +125,12 @@ void __init init_onchip_IRQ(void)
  */
 void __init init_IRQ(void)
 {
-	init_onchip_IRQ();
-
 	/* Any external intc can be setup here */
 	if (machine_desc->init_irq)
 		machine_desc->init_irq();
+
+	/* process the entire interrupt tree in one go */
+	irqchip_init();
 
 #ifdef CONFIG_SMP
 	/* Master CPU can initialize it's side of IPI */
@@ -150,22 +153,30 @@ void arch_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-int __init get_hw_config_num_irq(void)
+void arc_request_percpu_irq(int irq, int cpu,
+                            irqreturn_t (*isr)(int irq, void *dev),
+                            const char *irq_nm,
+                            void *percpu_dev)
 {
-	uint32_t val = read_aux_reg(ARC_REG_VECBASE_BCR);
+	/* Boot cpu calls request, all call enable */
+	if (!cpu) {
+		int rc;
 
-	switch (val & 0x03) {
-	case 0:
-		return 16;
-	case 1:
-		return 32;
-	case 2:
-		return 8;
-	default:
-		return 0;
+		/*
+		 * These 2 calls are essential to making percpu IRQ APIs work
+		 * Ideally these details could be hidden in irq chip map function
+		 * but the issue is IPIs IRQs being static (non-DT) and platform
+		 * specific, so we can't identify them there.
+		 */
+		irq_set_percpu_devid(irq);
+		irq_modify_status(irq, IRQ_NOAUTOEN, 0);  /* @irq, @clr, @set */
+
+		rc = request_percpu_irq(irq, isr, irq_nm, percpu_dev);
+		if (rc)
+			panic("Percpu IRQ request failed for %d\n", irq);
 	}
 
-	return 0;
+	enable_percpu_irq(irq, 0);
 }
 
 /*

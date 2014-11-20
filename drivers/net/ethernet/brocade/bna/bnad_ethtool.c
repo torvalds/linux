@@ -266,8 +266,8 @@ bnad_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 		ethtool_cmd_speed_set(cmd, SPEED_10000);
 		cmd->duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(cmd, -1);
-		cmd->duplex = -1;
+		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		cmd->duplex = DUPLEX_UNKNOWN;
 	}
 	cmd->transceiver = XCVR_EXTERNAL;
 	cmd->maxtxpkt = 0;
@@ -997,10 +997,8 @@ bnad_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	unsigned long flags = 0;
 	int ret = 0;
 
-	/* Check if the flash read request is valid */
-	if (eeprom->magic != (bnad->pcidev->vendor |
-			     (bnad->pcidev->device << 16)))
-		return -EFAULT;
+	/* Fill the magic value */
+	eeprom->magic = bnad->pcidev->vendor | (bnad->pcidev->device << 16);
 
 	/* Query the flash partition based on the offset */
 	flash_part = bnad_get_flash_partition_by_offset(bnad,
@@ -1131,10 +1129,11 @@ static const struct ethtool_ops bnad_ethtool_ops = {
 	.get_eeprom = bnad_get_eeprom,
 	.set_eeprom = bnad_set_eeprom,
 	.flash_device = bnad_flash_device,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 void
 bnad_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &bnad_ethtool_ops);
+	netdev->ethtool_ops = &bnad_ethtool_ops;
 }

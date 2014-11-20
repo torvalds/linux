@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -199,7 +198,7 @@ static int puv3_i2c_probe(struct platform_device *pdev)
 
 	adapter = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
 	if (adapter == NULL) {
-		dev_err(&pdev->dev, "can't allocate inteface!\n");
+		dev_err(&pdev->dev, "can't allocate interface!\n");
 		rc = -ENOMEM;
 		goto fail_nomem;
 	}
@@ -234,24 +233,18 @@ static int puv3_i2c_remove(struct platform_device *pdev)
 {
 	struct i2c_adapter *adapter = platform_get_drvdata(pdev);
 	struct resource *mem;
-	int rc;
 
-	rc = i2c_del_adapter(adapter);
-	if (rc) {
-		dev_err(&pdev->dev, "Adapter '%s' delete fail\n",
-				adapter->name);
-		return rc;
-	}
+	i2c_del_adapter(adapter);
 
 	put_device(&pdev->dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
 
-	return rc;
+	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int puv3_i2c_suspend(struct device *dev)
 {
 	int poll_count;

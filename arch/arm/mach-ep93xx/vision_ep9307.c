@@ -23,7 +23,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/mmc_spi.h>
@@ -224,62 +224,15 @@ static struct ep93xx_spi_chip_ops vision_spi_flash_hw = {
 #define VISION_SPI_MMC_WP	EP93XX_GPIO_LINE_F(0)
 #define VISION_SPI_MMC_CD	EP93XX_GPIO_LINE_EGPIO15
 
-static struct gpio vision_spi_mmc_gpios[] = {
-	{ VISION_SPI_MMC_WP, GPIOF_DIR_IN, "mmc_spi:wp" },
-	{ VISION_SPI_MMC_CD, GPIOF_DIR_IN, "mmc_spi:cd" },
-};
-
-static int vision_spi_mmc_init(struct device *pdev,
-			irqreturn_t (*func)(int, void *), void *pdata)
-{
-	int err;
-
-	err = gpio_request_array(vision_spi_mmc_gpios,
-				 ARRAY_SIZE(vision_spi_mmc_gpios));
-	if (err)
-		return err;
-
-	err = gpio_set_debounce(VISION_SPI_MMC_CD, 1);
-	if (err)
-		goto exit_err;
-
-	err = request_irq(gpio_to_irq(VISION_SPI_MMC_CD), func,
-			IRQ_TYPE_EDGE_BOTH, "mmc_spi:cd", pdata);
-	if (err)
-		goto exit_err;
-
-	return 0;
-
-exit_err:
-	gpio_free_array(vision_spi_mmc_gpios, ARRAY_SIZE(vision_spi_mmc_gpios));
-	return err;
-
-}
-
-static void vision_spi_mmc_exit(struct device *pdev, void *pdata)
-{
-	free_irq(gpio_to_irq(VISION_SPI_MMC_CD), pdata);
-	gpio_free_array(vision_spi_mmc_gpios, ARRAY_SIZE(vision_spi_mmc_gpios));
-}
-
-static int vision_spi_mmc_get_ro(struct device *pdev)
-{
-	return !!gpio_get_value(VISION_SPI_MMC_WP);
-}
-
-static int vision_spi_mmc_get_cd(struct device *pdev)
-{
-	return !gpio_get_value(VISION_SPI_MMC_CD);
-}
-
 static struct mmc_spi_platform_data vision_spi_mmc_data = {
-	.init		= vision_spi_mmc_init,
-	.exit		= vision_spi_mmc_exit,
-	.get_ro		= vision_spi_mmc_get_ro,
-	.get_cd		= vision_spi_mmc_get_cd,
 	.detect_delay	= 100,
 	.powerup_msecs	= 100,
 	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.flags		= MMC_SPI_USE_CD_GPIO | MMC_SPI_USE_RO_GPIO,
+	.cd_gpio	= VISION_SPI_MMC_CD,
+	.cd_debounce	= 1,
+	.ro_gpio	= VISION_SPI_MMC_WP,
+	.caps2		= MMC_CAP2_RO_ACTIVE_HIGH,
 };
 
 static int vision_spi_mmc_hw_setup(struct spi_device *spi)

@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
+#include <linux/spinlock.h>
 
 #include "wlcore.h"
 #include "debug.h"
@@ -85,42 +86,61 @@ void wl1271_free_tx_id(struct wl1271 *wl, int id)
 EXPORT_SYMBOL(wl1271_free_tx_id);
 
 static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
+						 struct wl12xx_vif *wlvif,
 						 struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
+
+	hdr = (struct ieee80211_hdr *)(skb->data +
+				       sizeof(struct wl1271_tx_hw_descr));
+	if (!ieee80211_is_auth(hdr->frame_control))
+		return;
 
 	/*
 	 * add the station to the known list before transmitting the
 	 * authentication response. this way it won't get de-authed by FW
 	 * when transmitting too soon.
 	 */
-	hdr = (struct ieee80211_hdr *)(skb->data +
-				       sizeof(struct wl1271_tx_hw_descr));
-	if (ieee80211_is_auth(hdr->frame_control))
-		wl1271_acx_set_inconnection_sta(wl, hdr->addr1);
+	wl1271_acx_set_inconnection_sta(wl, wlvif, hdr->addr1);
+
+	/*
+	 * ROC for 1 second on the AP channel for completing the connection.
+	 * Note the ROC will be continued by the update_sta_state callbacks
+	 * once the station reaches the associated state.
+	 */
+	wlcore_update_inconn_sta(wl, wlvif, NULL, true);
+	wlvif->pending_auth_reply_time = jiffies;
+	cancel_delayed_work(&wlvif->pending_auth_complete_work);
+	ieee80211_queue_delayed_work(wl->hw,
+				&wlvif->pending_auth_complete_work,
+				msecs_to_jiffies(WLCORE_PEND_AUTH_ROC_TIMEOUT));
 }
 
 static void wl1271_tx_regulate_link(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif,
 				    u8 hlid)
 {
-	bool fw_ps, single_link;
+	bool fw_ps;
 	u8 tx_pkts;
 
 	if (WARN_ON(!test_bit(hlid, wlvif->links_map)))
 		return;
 
-	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
+	fw_ps = test_bit(hlid, &wl->ap_fw_ps_map);
 	tx_pkts = wl->links[hlid].allocated_pkts;
-	single_link = (wl->active_link_count == 1);
 
 	/*
 	 * if in FW PS and there is enough data in FW we can put the link
 	 * into high-level PS and clean out its TX queues.
 	 * Make an exception if this is the only connected link. In this
 	 * case FW-memory congestion is less of a problem.
+	 * Note that a single connected STA means 2*ap_count + 1 active links,
+	 * since we must account for the global and broadcast AP links
+	 * for each AP. The "fw_ps" check assures us the other link is a STA
+	 * connected to the AP. Otherwise the FW would not set the PSM bit.
 	 */
-	if (!single_link && fw_ps && tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
+	if (wl->active_link_count > (wl->ap_count*2 + 1) && fw_ps &&
+	    tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
 		wl12xx_ps_link_start(wl, wlvif, hlid, true);
 }
 
@@ -214,8 +234,13 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		wl->tx_blocks_available -= total_blocks;
 		wl->tx_allocated_blocks += total_blocks;
 
-		/* If the FW was empty before, arm the Tx watchdog */
-		if (wl->tx_allocated_blocks == total_blocks)
+		/*
+		 * If the FW was empty before, arm the Tx watchdog. Also do
+		 * this on the first Tx after resume, as we always cancel the
+		 * watchdog on suspend.
+		 */
+		if (wl->tx_allocated_blocks == total_blocks ||
+		    test_and_clear_bit(WL1271_FLAG_REINIT_TX_WDOG, &wl->flags))
 			wl12xx_rearm_tx_watchdog_locked(wl);
 
 		ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
@@ -337,6 +362,10 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	    ieee80211_has_protected(frame_control))
 		tx_attr |= TX_HW_ATTR_HOST_ENCRYPT;
 
+	/* send EAPOL frames as voice */
+	if (control->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO)
+		tx_attr |= TX_HW_ATTR_EAPOL_FRAME;
+
 	desc->tx_attr = cpu_to_le16(tx_attr);
 
 	wlcore_hw_set_tx_desc_csum(wl, desc, skb);
@@ -381,7 +410,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		is_wep = (cipher == WLAN_CIPHER_SUITE_WEP40) ||
 			 (cipher == WLAN_CIPHER_SUITE_WEP104);
 
-		if (unlikely(is_wep && wlvif->default_key != idx)) {
+		if (WARN_ON(is_wep && wlvif && wlvif->default_key != idx)) {
 			ret = wl1271_set_default_wep_key(wl, wlvif, idx);
 			if (ret < 0)
 				return ret;
@@ -399,7 +428,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	wl1271_tx_fill_hdr(wl, wlvif, skb, extra, info, hlid);
 
 	if (!is_dummy && wlvif && wlvif->bss_type == BSS_TYPE_AP_BSS) {
-		wl1271_tx_ap_update_inconnection_sta(wl, skb);
+		wl1271_tx_ap_update_inconnection_sta(wl, wlvif, skb);
 		wl1271_tx_regulate_link(wl, wlvif, hlid);
 	}
 
@@ -540,11 +569,11 @@ static struct sk_buff *wlcore_vif_dequeue_high_prio(struct wl1271 *wl,
 	int i, h, start_hlid;
 
 	/* start from the link after the last one */
-	start_hlid = (wlvif->last_tx_hlid + 1) % WL12XX_MAX_LINKS;
+	start_hlid = (wlvif->last_tx_hlid + 1) % wl->num_links;
 
 	/* dequeue according to AC, round robin on each link */
-	for (i = 0; i < WL12XX_MAX_LINKS; i++) {
-		h = (start_hlid + i) % WL12XX_MAX_LINKS;
+	for (i = 0; i < wl->num_links; i++) {
+		h = (start_hlid + i) % wl->num_links;
 
 		/* only consider connected stations */
 		if (!test_bit(h, wlvif->links_map))
@@ -639,6 +668,7 @@ next:
 
 	}
 
+out:
 	if (!skb &&
 	    test_and_clear_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags)) {
 		int q;
@@ -652,7 +682,6 @@ next:
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
 
-out:
 	return skb;
 }
 
@@ -668,8 +697,8 @@ static void wl1271_skb_queue_head(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		skb_queue_head(&wl->links[hlid].tx_queue[q], skb);
 
 		/* make sure we dequeue the same packet next time */
-		wlvif->last_tx_hlid = (hlid + WL12XX_MAX_LINKS - 1) %
-				      WL12XX_MAX_LINKS;
+		wlvif->last_tx_hlid = (hlid + wl->num_links - 1) %
+				      wl->num_links;
 	}
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
@@ -702,7 +731,7 @@ void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids)
 	timeout = wl->conf.rx_streaming.duration;
 	wl12xx_for_each_wlvif_sta(wl, wlvif) {
 		bool found = false;
-		for_each_set_bit(hlid, active_hlids, WL12XX_MAX_LINKS) {
+		for_each_set_bit(hlid, active_hlids, wl->num_links) {
 			if (test_bit(hlid, wlvif->links_map)) {
 				found  = true;
 				break;
@@ -739,7 +768,7 @@ int wlcore_tx_work_locked(struct wl1271 *wl)
 	struct wl1271_tx_hw_descr *desc;
 	u32 buf_offset = 0, last_len = 0;
 	bool sent_packets = false;
-	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
+	unsigned long active_hlids[BITS_TO_LONGS(WLCORE_MAX_LINKS)] = {0};
 	int ret = 0;
 	int bus_ret = 0;
 	u8 hlid;
@@ -928,25 +957,6 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 
 	wl->stats.retry_count += result->ack_failures;
 
-	/*
-	 * update sequence number only when relevant, i.e. only in
-	 * sessions of TKIP, AES and GEM (not in open or WEP sessions)
-	 */
-	if (info->control.hw_key &&
-	    (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP ||
-	     info->control.hw_key->cipher == WLAN_CIPHER_SUITE_CCMP ||
-	     info->control.hw_key->cipher == WL1271_CIPHER_SUITE_GEM)) {
-		u8 fw_lsb = result->tx_security_sequence_number_lsb;
-		u8 cur_lsb = wlvif->tx_security_last_seq_lsb;
-
-		/*
-		 * update security sequence number, taking care of potential
-		 * wrap-around
-		 */
-		wlvif->tx_security_seq += (fw_lsb - cur_lsb) & 0xff;
-		wlvif->tx_security_last_seq_lsb = fw_lsb;
-	}
-
 	/* remove private header from packet */
 	skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
 
@@ -1060,8 +1070,9 @@ void wl12xx_tx_reset_wlvif(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	int i;
 
 	/* TX failure */
-	for_each_set_bit(i, wlvif->links_map, WL12XX_MAX_LINKS) {
-		if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
+	for_each_set_bit(i, wlvif->links_map, wl->num_links) {
+		if (wlvif->bss_type == BSS_TYPE_AP_BSS &&
+		    i != wlvif->ap.bcast_hlid && i != wlvif->ap.global_hlid) {
 			/* this calls wl12xx_free_link */
 			wl1271_free_sta(wl, wlvif, i);
 		} else {
@@ -1083,7 +1094,7 @@ void wl12xx_tx_reset(struct wl1271 *wl)
 
 	/* only reset the queues if something bad happened */
 	if (wl1271_tx_total_queue_count(wl) != 0) {
-		for (i = 0; i < WL12XX_MAX_LINKS; i++)
+		for (i = 0; i < wl->num_links; i++)
 			wl1271_tx_reset_link_queues(wl, i);
 
 		for (i = 0; i < NUM_TX_QUEUES; i++)
@@ -1176,7 +1187,7 @@ void wl1271_tx_flush(struct wl1271 *wl)
 		       WL1271_TX_FLUSH_TIMEOUT / 1000);
 
 	/* forcibly flush all Tx buffers on our queues */
-	for (i = 0; i < WL12XX_MAX_LINKS; i++)
+	for (i = 0; i < wl->num_links; i++)
 		wl1271_tx_reset_link_queues(wl, i);
 
 out_wake:
@@ -1304,7 +1315,7 @@ bool wlcore_is_queue_stopped_by_reason_locked(struct wl1271 *wl,
 {
 	int hwq = wlcore_tx_get_mac80211_queue(wlvif, queue);
 
-	WARN_ON_ONCE(!spin_is_locked(&wl->wl_lock));
+	assert_spin_locked(&wl->wl_lock);
 	return test_bit(reason, &wl->queue_stop_reasons[hwq]);
 }
 
@@ -1313,6 +1324,6 @@ bool wlcore_is_queue_stopped_locked(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 {
 	int hwq = wlcore_tx_get_mac80211_queue(wlvif, queue);
 
-	WARN_ON_ONCE(!spin_is_locked(&wl->wl_lock));
+	assert_spin_locked(&wl->wl_lock);
 	return !!wl->queue_stop_reasons[hwq];
 }

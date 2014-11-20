@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <crypto/sha.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 static inline u32 Ch(u32 x, u32 y, u32 z)
 {
@@ -42,7 +43,7 @@ static inline u32 Maj(u32 x, u32 y, u32 z)
 
 static inline void LOAD_OP(int I, u32 *W, const u8 *input)
 {
-	W[I] = __be32_to_cpu( ((__be32*)(input))[I] );
+	W[I] = get_unaligned_be32((__u32 *)input + I);
 }
 
 static inline void BLEND_OP(int I, u32 *W)
@@ -210,9 +211,8 @@ static void sha256_transform(u32 *state, const u8 *input)
 
 	/* clear any sensitive info... */
 	a = b = c = d = e = f = g = h = t1 = t2 = 0;
-	memset(W, 0, 64 * sizeof(u32));
+	memzero_explicit(W, 64 * sizeof(u32));
 }
-
 
 static int sha224_init(struct shash_desc *desc)
 {
@@ -246,7 +246,7 @@ static int sha256_init(struct shash_desc *desc)
 	return 0;
 }
 
-static int sha256_update(struct shash_desc *desc, const u8 *data,
+int crypto_sha256_update(struct shash_desc *desc, const u8 *data,
 			  unsigned int len)
 {
 	struct sha256_state *sctx = shash_desc_ctx(desc);
@@ -277,6 +277,7 @@ static int sha256_update(struct shash_desc *desc, const u8 *data,
 
 	return 0;
 }
+EXPORT_SYMBOL(crypto_sha256_update);
 
 static int sha256_final(struct shash_desc *desc, u8 *out)
 {
@@ -293,10 +294,10 @@ static int sha256_final(struct shash_desc *desc, u8 *out)
 	/* Pad out to 56 mod 64. */
 	index = sctx->count & 0x3f;
 	pad_len = (index < 56) ? (56 - index) : ((64+56) - index);
-	sha256_update(desc, padding, pad_len);
+	crypto_sha256_update(desc, padding, pad_len);
 
 	/* Append length (before padding) */
-	sha256_update(desc, (const u8 *)&bits, sizeof(bits));
+	crypto_sha256_update(desc, (const u8 *)&bits, sizeof(bits));
 
 	/* Store state in digest */
 	for (i = 0; i < 8; i++)
@@ -315,7 +316,7 @@ static int sha224_final(struct shash_desc *desc, u8 *hash)
 	sha256_final(desc, D);
 
 	memcpy(hash, D, SHA224_DIGEST_SIZE);
-	memset(D, 0, SHA256_DIGEST_SIZE);
+	memzero_explicit(D, SHA256_DIGEST_SIZE);
 
 	return 0;
 }
@@ -339,7 +340,7 @@ static int sha256_import(struct shash_desc *desc, const void *in)
 static struct shash_alg sha256_algs[2] = { {
 	.digestsize	=	SHA256_DIGEST_SIZE,
 	.init		=	sha256_init,
-	.update		=	sha256_update,
+	.update		=	crypto_sha256_update,
 	.final		=	sha256_final,
 	.export		=	sha256_export,
 	.import		=	sha256_import,
@@ -355,7 +356,7 @@ static struct shash_alg sha256_algs[2] = { {
 }, {
 	.digestsize	=	SHA224_DIGEST_SIZE,
 	.init		=	sha224_init,
-	.update		=	sha256_update,
+	.update		=	crypto_sha256_update,
 	.final		=	sha224_final,
 	.descsize	=	sizeof(struct sha256_state),
 	.base		=	{

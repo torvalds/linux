@@ -259,7 +259,7 @@ start_ap:
 	 * Switch into virtual mode:
 	 */
 	movl r16=(IA64_PSR_IT|IA64_PSR_IC|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_DFH|IA64_PSR_BN \
-		  |IA64_PSR_DI|IA64_PSR_AC)
+		  |IA64_PSR_DI)
 	;;
 	mov cr.ipsr=r16
 	movl r17=1f
@@ -416,8 +416,6 @@ start_ap:
 
 default_setup_hook = 0		// Currently nothing needs to be done.
 
-	.weak xen_setup_hook
-
 	.global hypervisor_type
 hypervisor_type:
 	data8		PARAVIRT_HYPERVISOR_TYPE_DEFAULT
@@ -426,7 +424,6 @@ hypervisor_type:
 
 hypervisor_setup_hooks:
 	data8		default_setup_hook
-	data8		xen_setup_hook
 num_hypervisor_hooks = (. - hypervisor_setup_hooks) / 8
 	.previous
 
@@ -1035,7 +1032,7 @@ END(ia64_delay_loop)
  * Return a CPU-local timestamp in nano-seconds.  This timestamp is
  * NOT synchronized across CPUs its return value must never be
  * compared against the values returned on another CPU.  The usage in
- * kernel/sched.c ensures that.
+ * kernel/sched/core.c ensures that.
  *
  * The return-value of sched_clock() is NOT supposed to wrap-around.
  * If it did, it would cause some scheduling hiccups (at the worst).

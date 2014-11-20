@@ -26,6 +26,7 @@
 #define __TWL_H_
 
 #include <linux/types.h>
+#include <linux/phy/phy.h>
 #include <linux/input/matrix_keypad.h>
 
 /*
@@ -174,6 +175,9 @@ static inline int twl_class_is_ ##class(void)	\
 TWL_CLASS_IS(4030, TWL4030_CLASS_ID)
 TWL_CLASS_IS(6030, TWL6030_CLASS_ID)
 
+/* Set the regcache bypass for the regmap associated with the nodule */
+int twl_set_regcache_bypass(u8 mod_no, bool enable);
+
 /*
  * Read and write several 8-bit registers at once.
  */
@@ -189,6 +193,18 @@ static inline int twl_i2c_write_u8(u8 mod_no, u8 val, u8 reg) {
 
 static inline int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg) {
 	return twl_i2c_read(mod_no, val, reg, 1);
+}
+
+static inline int twl_i2c_write_u16(u8 mod_no, u16 val, u8 reg) {
+	val = cpu_to_le16(val);
+	return twl_i2c_write(mod_no, (u8*) &val, reg, 2);
+}
+
+static inline int twl_i2c_read_u16(u8 mod_no, u16 *val, u8 reg) {
+	int ret;
+	ret = twl_i2c_read(mod_no, (u8*) val, reg, 2);
+	*val = le16_to_cpu(*val);
+	return ret;
 }
 
 int twl_get_type(void);
@@ -482,7 +498,10 @@ static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
 #define RES_GRP_ALL		0x7	/* All resource groups */
 
 #define RES_TYPE2_R0		0x0
+#define RES_TYPE2_R1		0x1
+#define RES_TYPE2_R2		0x2
 
+#define RES_TYPE_R0		0x0
 #define RES_TYPE_ALL		0x7
 
 /* Resource states */
@@ -615,6 +634,7 @@ enum twl4030_usb_mode {
 struct twl4030_usb_data {
 	enum twl4030_usb_mode	usb_mode;
 	unsigned long		features;
+	struct phy_init_data	*init_data;
 
 	int		(*phy_init)(struct device *dev);
 	int		(*phy_exit)(struct device *dev);
@@ -654,11 +674,11 @@ struct twl4030_power_data {
 	struct twl4030_script **scripts;
 	unsigned num;
 	struct twl4030_resconfig *resource_config;
+	struct twl4030_resconfig *board_config;
 #define TWL4030_RESCONFIG_UNDEF	((u8)-1)
 	bool use_poweroff;	/* Board is wired for TWL poweroff */
 };
 
-extern void twl4030_power_init(struct twl4030_power_data *triton2_scripts);
 extern int twl4030_remove_script(u8 flags);
 extern void twl4030_power_off(void);
 
@@ -666,8 +686,6 @@ struct twl4030_codec_data {
 	unsigned int digimic_delay; /* in ms */
 	unsigned int ramp_delay_value;
 	unsigned int offset_cncl_path;
-	unsigned int check_defaults:1;
-	unsigned int reset_registers:1;
 	unsigned int hs_extmute:1;
 	int hs_extmute_gpio;
 };
@@ -726,7 +744,7 @@ struct twl4030_platform_data {
 	struct regulator_init_data		*clk32kg;
 	struct regulator_init_data              *v1v8;
 	struct regulator_init_data              *v2v1;
-	/* TWL6025 LDO regulators */
+	/* TWL6032 LDO regulators */
 	struct regulator_init_data		*ldo1;
 	struct regulator_init_data		*ldo2;
 	struct regulator_init_data		*ldo3;
@@ -736,7 +754,7 @@ struct twl4030_platform_data {
 	struct regulator_init_data		*ldo7;
 	struct regulator_init_data		*ldoln;
 	struct regulator_init_data		*ldousb;
-	/* TWL6025 DCDC regulators */
+	/* TWL6032 DCDC regulators */
 	struct regulator_init_data		*smps3;
 	struct regulator_init_data		*smps4;
 	struct regulator_init_data		*vio6025;
@@ -753,7 +771,7 @@ struct twl_regulator_driver_data {
 #define TPS_SUBSET		BIT(1)	/* tps659[23]0 have fewer LDOs */
 #define TWL5031			BIT(2)  /* twl5031 has different registers */
 #define TWL6030_CLASS		BIT(3)	/* TWL6030 class */
-#define TWL6025_SUBCLASS	BIT(4)  /* TWL6025 has changed registers */
+#define TWL6032_SUBCLASS	BIT(4)  /* TWL6032 has changed registers */
 #define TWL4030_ALLOW_UNSUPPORTED BIT(5) /* Some voltages are possible
 					  * but not officially supported.
 					  * This flag is necessary to
@@ -840,20 +858,20 @@ static inline int twl4030charger_usb_en(int enable) { return 0; }
 #define TWL6030_REG_CLK32KG	48
 
 /* LDOs on 6025 have different names */
-#define TWL6025_REG_LDO2	49
-#define TWL6025_REG_LDO4	50
-#define TWL6025_REG_LDO3	51
-#define TWL6025_REG_LDO5	52
-#define TWL6025_REG_LDO1	53
-#define TWL6025_REG_LDO7	54
-#define TWL6025_REG_LDO6	55
-#define TWL6025_REG_LDOLN	56
-#define TWL6025_REG_LDOUSB	57
+#define TWL6032_REG_LDO2	49
+#define TWL6032_REG_LDO4	50
+#define TWL6032_REG_LDO3	51
+#define TWL6032_REG_LDO5	52
+#define TWL6032_REG_LDO1	53
+#define TWL6032_REG_LDO7	54
+#define TWL6032_REG_LDO6	55
+#define TWL6032_REG_LDOLN	56
+#define TWL6032_REG_LDOUSB	57
 
 /* 6025 DCDC supplies */
-#define TWL6025_REG_SMPS3	58
-#define TWL6025_REG_SMPS4	59
-#define TWL6025_REG_VIO		60
+#define TWL6032_REG_SMPS3	58
+#define TWL6032_REG_SMPS4	59
+#define TWL6032_REG_VIO		60
 
 
 #endif /* End of __TWL4030_H */

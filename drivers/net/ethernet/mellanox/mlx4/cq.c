@@ -34,7 +34,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/hardirq.h>
 #include <linux/export.h>
 
@@ -128,8 +127,6 @@ int mlx4_cq_modify(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		return PTR_ERR(mailbox);
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->cq_max_count = cpu_to_be16(count);
 	cq_context->cq_period    = cpu_to_be16(period);
 
@@ -153,8 +150,6 @@ int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		return PTR_ERR(mailbox);
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->logsize_usrpage = cpu_to_be32(ilog2(entries) << 24);
 	cq_context->log_page_size   = mtt->page_shift - 12;
 	mtt_addr = mlx4_mtt_addr(dev, mtt);
@@ -178,11 +173,11 @@ int __mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn)
 	if (*cqn == -1)
 		return -ENOMEM;
 
-	err = mlx4_table_get(dev, &cq_table->table, *cqn);
+	err = mlx4_table_get(dev, &cq_table->table, *cqn, GFP_KERNEL);
 	if (err)
 		goto err_out;
 
-	err = mlx4_table_get(dev, &cq_table->cmpt_table, *cqn);
+	err = mlx4_table_get(dev, &cq_table->cmpt_table, *cqn, GFP_KERNEL);
 	if (err)
 		goto err_put;
 	return 0;
@@ -191,7 +186,7 @@ err_put:
 	mlx4_table_put(dev, &cq_table->table, *cqn);
 
 err_out:
-	mlx4_bitmap_free(&cq_table->bitmap, *cqn);
+	mlx4_bitmap_free(&cq_table->bitmap, *cqn, MLX4_NO_RR);
 	return err;
 }
 
@@ -221,7 +216,7 @@ void __mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
 
 	mlx4_table_put(dev, &cq_table->cmpt_table, cqn);
 	mlx4_table_put(dev, &cq_table->table, cqn);
-	mlx4_bitmap_free(&cq_table->bitmap, cqn);
+	mlx4_bitmap_free(&cq_table->bitmap, cqn, MLX4_NO_RR);
 }
 
 static void mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
@@ -240,9 +235,10 @@ static void mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
 		__mlx4_cq_free_icm(dev, cqn);
 }
 
-int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
-		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq,
-		  unsigned vector, int collapsed)
+int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
+		  struct mlx4_mtt *mtt, struct mlx4_uar *uar, u64 db_rec,
+		  struct mlx4_cq *cq, unsigned vector, int collapsed,
+		  int timestamp_en)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_cq_table *cq_table = &priv->cq_table;
@@ -273,9 +269,10 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 	}
 
 	cq_context = mailbox->buf;
-	memset(cq_context, 0, sizeof *cq_context);
-
 	cq_context->flags	    = cpu_to_be32(!!collapsed << 18);
+	if (timestamp_en)
+		cq_context->flags  |= cpu_to_be32(1 << 19);
+
 	cq_context->logsize_usrpage = cpu_to_be32((ilog2(nent) << 24) | uar->index);
 	cq_context->comp_eqn	    = priv->eq_table.eq[vector].eqn;
 	cq_context->log_page_size   = mtt->page_shift - MLX4_ICM_PAGE_SHIFT;
@@ -296,6 +293,7 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 	atomic_set(&cq->refcount, 1);
 	init_completion(&cq->free);
 
+	cq->irq = priv->eq_table.eq[cq->vector].irq;
 	return 0;
 
 err_radix:

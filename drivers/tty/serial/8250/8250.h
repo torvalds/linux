@@ -12,15 +12,16 @@
  */
 
 #include <linux/serial_8250.h>
+#include <linux/serial_reg.h>
 #include <linux/dmaengine.h>
 
 struct uart_8250_dma {
+	/* Filter function */
 	dma_filter_fn		fn;
+
+	/* Parameter to the filter function */
 	void			*rx_param;
 	void			*tx_param;
-
-	int			rx_chan_id;
-	int			tx_chan_id;
 
 	struct dma_slave_config	rxconf;
 	struct dma_slave_config	txconf;
@@ -60,6 +61,7 @@ struct serial8250_config {
 	unsigned short	fifo_size;
 	unsigned short	tx_loadsz;
 	unsigned char	fcr;
+	unsigned char	rxtrig_bytes[UART_FCR_R_TRIG_MAX_STATE];
 	unsigned int	flags;
 };
 
@@ -70,6 +72,7 @@ struct serial8250_config {
 #define UART_CAP_UUE	(1 << 12)	/* UART needs IER bit 6 set (Xscale) */
 #define UART_CAP_RTOIE	(1 << 13)	/* UART needs IER bit 4 set (Xscale, Tegra) */
 #define UART_CAP_HFIFO	(1 << 14)	/* UART has a "hidden" FIFO */
+#define UART_CAP_RPM	(1 << 15)	/* Runtime PM is active while idle */
 
 #define UART_BUG_QUOT	(1 << 0)	/* UART has buggy quot LSB */
 #define UART_BUG_TXEN	(1 << 1)	/* UART has buggy TX IIR status */
@@ -110,6 +113,8 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 	up->dl_write(up, value);
 }
 
+struct uart_8250_port *serial8250_get_port(int line);
+
 #if defined(__alpha__) && !defined(CONFIG_PCI)
 /*
  * Digital did something really horribly wrong with the OUT1 and OUT2
@@ -117,13 +122,6 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
  * is cleared, the machine locks up with endless interrupts.
  */
 #define ALPHA_KLUDGE_MCR  (UART_MCR_OUT2 | UART_MCR_OUT1)
-#elif defined(CONFIG_SBC8560)
-/*
- * WindRiver did something similarly broken on their SBC8560 board. The
- * UART tristates its IRQ output while OUT2 is clear, but they pulled
- * the interrupt line _up_ instead of down, so if we register the IRQ
- * while the UART is in that state, we die in an IRQ storm. */
-#define ALPHA_KLUDGE_MCR (UART_MCR_OUT2)
 #else
 #define ALPHA_KLUDGE_MCR 0
 #endif

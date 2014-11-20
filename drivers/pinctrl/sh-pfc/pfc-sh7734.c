@@ -14,57 +14,30 @@
 
 #include "sh_pfc.h"
 
-#define CPU_32_PORT(fn, pfx, sfx)				\
-	PORT_10(fn, pfx, sfx), PORT_10(fn, pfx##1, sfx),	\
-	PORT_10(fn, pfx##2, sfx), PORT_1(fn, pfx##30, sfx),	\
-	PORT_1(fn, pfx##31, sfx)
+#define PORT_GP_12(bank, fn, sfx)					\
+	PORT_GP_1(bank, 0, fn, sfx),  PORT_GP_1(bank, 1, fn, sfx),	\
+	PORT_GP_1(bank, 2, fn, sfx),  PORT_GP_1(bank, 3, fn, sfx),	\
+	PORT_GP_1(bank, 4, fn, sfx),  PORT_GP_1(bank, 5, fn, sfx),	\
+	PORT_GP_1(bank, 6, fn, sfx),  PORT_GP_1(bank, 7, fn, sfx),	\
+	PORT_GP_1(bank, 8, fn, sfx),  PORT_GP_1(bank, 9, fn, sfx),	\
+	PORT_GP_1(bank, 10, fn, sfx), PORT_GP_1(bank, 11, fn, sfx)
 
-#define CPU_32_PORT5(fn, pfx, sfx)				\
-	PORT_1(fn, pfx##0, sfx), PORT_1(fn, pfx##1, sfx),	\
-	PORT_1(fn, pfx##2, sfx), PORT_1(fn, pfx##3, sfx),	\
-	PORT_1(fn, pfx##4, sfx), PORT_1(fn, pfx##5, sfx),	\
-	PORT_1(fn, pfx##6, sfx), PORT_1(fn, pfx##7, sfx),	\
-	PORT_1(fn, pfx##8, sfx), PORT_1(fn, pfx##9, sfx),	\
-	PORT_1(fn, pfx##10, sfx), PORT_1(fn, pfx##11, sfx)
+#define CPU_ALL_PORT(fn, sfx)						\
+	PORT_GP_32(0, fn, sfx),						\
+	PORT_GP_32(1, fn, sfx),						\
+	PORT_GP_32(2, fn, sfx),						\
+	PORT_GP_32(3, fn, sfx),						\
+	PORT_GP_32(4, fn, sfx),						\
+	PORT_GP_12(5, fn, sfx)
 
-/* GPSR0 - GPSR5 */
-#define CPU_ALL_PORT(fn, pfx, sfx)				\
-	CPU_32_PORT(fn, pfx##_0_, sfx),			\
-	CPU_32_PORT(fn, pfx##_1_, sfx),				\
-	CPU_32_PORT(fn, pfx##_2_, sfx),				\
-	CPU_32_PORT(fn, pfx##_3_, sfx),				\
-	CPU_32_PORT(fn, pfx##_4_, sfx),				\
-	CPU_32_PORT5(fn, pfx##_5_, sfx)
+#undef _GP_DATA
+#define _GP_DATA(bank, pin, name, sfx)					\
+	PINMUX_DATA(name##_DATA, name##_FN, name##_IN, name##_OUT)
 
-#define _GP_GPIO(pfx, sfx) PINMUX_GPIO(GPIO_GP##pfx, GP##pfx##_DATA)
-#define _GP_DATA(pfx, sfx) PINMUX_DATA(GP##pfx##_DATA, GP##pfx##_FN,	\
-				       GP##pfx##_IN, GP##pfx##_OUT)
-
-#define _GP_INOUTSEL(pfx, sfx) GP##pfx##_IN, GP##pfx##_OUT
-#define _GP_INDT(pfx, sfx) GP##pfx##_DATA
-
-#define GP_ALL(str)	CPU_ALL_PORT(_PORT_ALL, GP, str)
-#define PINMUX_GPIO_GP_ALL()	CPU_ALL_PORT(_GP_GPIO, , unused)
-#define PINMUX_DATA_GP_ALL()	CPU_ALL_PORT(_GP_DATA, , unused)
-
-#define PORT_10_REV(fn, pfx, sfx)	\
-	PORT_1(fn, pfx##9, sfx), PORT_1(fn, pfx##8, sfx),	\
-	PORT_1(fn, pfx##7, sfx), PORT_1(fn, pfx##6, sfx),	\
-	PORT_1(fn, pfx##5, sfx), PORT_1(fn, pfx##4, sfx),	\
-	PORT_1(fn, pfx##3, sfx), PORT_1(fn, pfx##2, sfx),	\
-	PORT_1(fn, pfx##1, sfx), PORT_1(fn, pfx##0, sfx)
-
-#define CPU_32_PORT_REV(fn, pfx, sfx)	\
-	PORT_1(fn, pfx##31, sfx), PORT_1(fn, pfx##30, sfx),	\
-	PORT_10_REV(fn, pfx##2, sfx), PORT_10_REV(fn, pfx##1, sfx),	\
-	PORT_10_REV(fn, pfx, sfx)
-
-#define GP_INOUTSEL(bank) CPU_32_PORT_REV(_GP_INOUTSEL, _##bank##_, unused)
-#define GP_INDT(bank) CPU_32_PORT_REV(_GP_INDT, _##bank##_, unused)
-
-#define PINMUX_IPSR_DATA(ipsr, fn) PINMUX_DATA(fn##_MARK, FN_##ipsr, FN_##fn)
-#define PINMUX_IPSR_MODSEL_DATA(ipsr, fn, ms) PINMUX_DATA(fn##_MARK, FN_##ms, \
-							  FN_##ipsr, FN_##fn)
+#define _GP_INOUTSEL(bank, pin, name, sfx)	name##_IN, name##_OUT
+#define _GP_INDT(bank, pin, name, sfx)		name##_DATA
+#define GP_INOUTSEL(bank)	PORT_GP_32_REV(bank, _GP_INOUTSEL, unused)
+#define GP_INDT(bank)		PORT_GP_32_REV(bank, _GP_INDT, unused)
 
 enum {
 	PINMUX_RESERVED = 0,
@@ -609,7 +582,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static pinmux_enum_t pinmux_data[] = {
+static const u16 pinmux_data[] = {
 	PINMUX_DATA_GP_ALL(), /* PINMUX_DATA(GP_M_N_DATA, GP_M_N_FN...), */
 
 	PINMUX_DATA(CLKOUT_MARK, FN_CLKOUT),
@@ -1384,9 +1357,13 @@ static pinmux_enum_t pinmux_data[] = {
 	PINMUX_IPSR_DATA(IP11_28, ST_CLKOUT),
 };
 
-static struct pinmux_gpio pinmux_gpios[] = {
+static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
+};
 
+#define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
+
+static const struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(CLKOUT), GPIO_FN(BS), GPIO_FN(CS0), GPIO_FN(EX_CS0),
 	GPIO_FN(RD), GPIO_FN(WE0), GPIO_FN(WE1),
 	GPIO_FN(SCL0), GPIO_FN(PENC0), GPIO_FN(USB_OVC0),
@@ -1665,7 +1642,7 @@ static struct pinmux_gpio pinmux_gpios[] = {
 	GPIO_FN(SCL1), GPIO_FN(SCIF_CLK_C),
 };
 
-static struct pinmux_cfg_reg pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ PINMUX_CFG_REG("GPSR0", 0xFFFC0004, 32, 1) {
 		GP_0_31_FN, FN_IP2_2_0,
 		GP_0_30_FN, FN_IP1_31_29,
@@ -2434,7 +2411,7 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
-static struct pinmux_data_reg pinmux_data_regs[] = {
+static const struct pinmux_data_reg pinmux_data_regs[] = {
 	/* GPIO 0 - 5*/
 	{ PINMUX_DATA_REG("INDT0", 0xFFC4000C, 32) { GP_INDT(0) } },
 	{ PINMUX_DATA_REG("INDT1", 0xFFC4100C, 32) { GP_INDT(1) } },
@@ -2451,22 +2428,20 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 	{ },
 };
 
-struct sh_pfc_soc_info sh7734_pinmux_info = {
+const struct sh_pfc_soc_info sh7734_pinmux_info = {
 	.name = "sh7734_pfc",
 
 	.unlock_reg = 0xFFFC0000,
 
-	.reserved_id = PINMUX_RESERVED,
-	.data = { PINMUX_DATA_BEGIN, PINMUX_DATA_END },
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },
-	.mark = { PINMUX_MARK_BEGIN, PINMUX_MARK_END },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
-	.first_gpio = GPIO_GP_0_0,
-	.last_gpio = GPIO_FN_ST_CLKOUT,
+	.pins = pinmux_pins,
+	.nr_pins = ARRAY_SIZE(pinmux_pins),
+	.func_gpios = pinmux_func_gpios,
+	.nr_func_gpios = ARRAY_SIZE(pinmux_func_gpios),
 
-	.gpios = pinmux_gpios,
 	.cfg_regs = pinmux_config_regs,
 	.data_regs = pinmux_data_regs,
 

@@ -1,0 +1,46 @@
+Kernel driver htu21
+===================
+
+Supported chips:
+  * Measurement Specialties HTU21D
+    Prefix: 'htu21'
+    Addresses scanned: none
+    Datasheet: Publicly available at the Measurement Specialties website
+    http://www.meas-spec.com/downloads/HTU21D.pdf
+
+
+Author:
+  William Markezana <william.markezana@meas-spec.com>
+
+Description
+-----------
+
+The HTU21D is a humidity and temperature sensor in a DFN package of
+only 3 x 3 mm footprint and 0.9 mm height.
+
+The devices communicate with the I2C protocol. All sensors are set to the
+same I2C address 0x40, so an entry with I2C_BOARD_INFO("htu21", 0x40) can
+be used in the board setup code.
+
+This driver does not auto-detect devices. You will have to instantiate the
+devices explicitly. Please see Documentation/i2c/instantiating-devices
+for details.
+
+sysfs-Interface
+---------------
+
+temp1_input - temperature input
+humidity1_input - humidity input
+
+Notes
+-----
+
+The driver uses the default resolution settings of 12 bit for humidity and 14
+bit for temperature, which results in typical measurement times of 11 ms for
+humidity and 44 ms for temperature. To keep self heating below 0.1 degree
+Celsius, the device should not be active for more than 10% of the time. For
+this reason, the driver performs no more than two measurements per second and
+reports cached information if polled more frequently.
+
+Different resolutions, the on-chip heater, using the CRC checksum and reading
+the serial number are not supported yet.

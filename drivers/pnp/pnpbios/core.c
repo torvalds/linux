@@ -312,18 +312,19 @@ static int __init insert_device(struct pnp_bios_node *node)
 	struct list_head *pos;
 	struct pnp_dev *dev;
 	char id[8];
+	int error;
 
 	/* check if the device is already added */
 	list_for_each(pos, &pnpbios_protocol.devices) {
 		dev = list_entry(pos, struct pnp_dev, protocol_list);
 		if (dev->number == node->handle)
-			return -1;
+			return -EEXIST;
 	}
 
 	pnp_eisa_id_to_string(node->eisa_id & PNP_EISA_ID_MASK, id);
 	dev = pnp_alloc_dev(&pnpbios_protocol, node->handle, id);
 	if (!dev)
-		return -1;
+		return -ENOMEM;
 
 	pnpbios_parse_data_stream(dev, node);
 	dev->active = pnp_is_active(dev);
@@ -342,7 +343,12 @@ static int __init insert_device(struct pnp_bios_node *node)
 	if (!dev->active)
 		pnp_init_resources(dev);
 
-	pnp_add_device(dev);
+	error = pnp_add_device(dev);
+	if (error) {
+		put_device(&dev->dev);
+		return error;
+	}
+
 	pnpbios_interface_attach_device(node);
 
 	return 0;
@@ -513,10 +519,6 @@ static int __init pnpbios_init(void)
 {
 	int ret;
 
-#if defined(CONFIG_PPC)
-	if (check_legacy_ioport(PNPBIOS_BASE))
-		return -ENODEV;
-#endif
 	if (pnpbios_disabled || dmi_check_system(pnpbios_dmi_table) ||
 	    paravirt_enabled()) {
 		printk(KERN_INFO "PnPBIOS: Disabled\n");
@@ -570,10 +572,7 @@ fs_initcall(pnpbios_init);
 static int __init pnpbios_thread_init(void)
 {
 	struct task_struct *task;
-#if defined(CONFIG_PPC)
-	if (check_legacy_ioport(PNPBIOS_BASE))
-		return 0;
-#endif
+
 	if (pnpbios_disabled)
 		return 0;
 

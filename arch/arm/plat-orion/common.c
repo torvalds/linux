@@ -22,6 +22,7 @@
 #include <linux/platform_data/dma-mv_xor.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <mach/bridge-regs.h>
+#include <plat/common.h>
 
 /* Create a clkdev entry for a given device/clk */
 void __init orion_clkdev_add(const char *con_id, const char *dev_id,
@@ -238,6 +239,7 @@ static __init void ge_complete(
 	struct mv643xx_eth_shared_platform_data *orion_ge_shared_data,
 	struct resource *orion_ge_resource, unsigned long irq,
 	struct platform_device *orion_ge_shared,
+	struct platform_device *orion_ge_mvmdio,
 	struct mv643xx_eth_platform_data *eth_data,
 	struct platform_device *orion_ge)
 {
@@ -247,19 +249,19 @@ static __init void ge_complete(
 	orion_ge->dev.platform_data = eth_data;
 
 	platform_device_register(orion_ge_shared);
+	if (orion_ge_mvmdio)
+		platform_device_register(orion_ge_mvmdio);
 	platform_device_register(orion_ge);
 }
 
 /*****************************************************************************
  * GE00
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge00_shared_data;
+static struct mv643xx_eth_shared_platform_data orion_ge00_shared_data;
 
 static struct resource orion_ge00_shared_resources[] = {
 	{
 		.name	= "ge00 base",
-	}, {
-		.name	= "ge00 err irq",
 	},
 };
 
@@ -269,6 +271,19 @@ static struct platform_device orion_ge00_shared = {
 	.dev		= {
 		.platform_data	= &orion_ge00_shared_data,
 	},
+};
+
+static struct resource orion_ge_mvmdio_resources[] = {
+	{
+		.name	= "ge00 mvmdio base",
+	}, {
+		.name	= "ge00 mvmdio err irq",
+	},
+};
+
+static struct platform_device orion_ge_mvmdio = {
+	.name		= "orion-mdio",
+	.id		= -1,
 };
 
 static struct resource orion_ge00_resources[] = {
@@ -295,26 +310,25 @@ void __init orion_ge00_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned int tx_csum_limit)
 {
 	fill_resources(&orion_ge00_shared, orion_ge00_shared_resources,
-		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+		       mapbase + 0x2000, SZ_16K - 1, NO_IRQ);
+	fill_resources(&orion_ge_mvmdio, orion_ge_mvmdio_resources,
+			mapbase + 0x2004, 0x84 - 1, irq_err);
 	orion_ge00_shared_data.tx_csum_limit = tx_csum_limit;
 	ge_complete(&orion_ge00_shared_data,
 		    orion_ge00_resources, irq, &orion_ge00_shared,
+		    &orion_ge_mvmdio,
 		    eth_data, &orion_ge00);
 }
 
 /*****************************************************************************
  * GE01
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge01_shared_data = {
-	.shared_smi	= &orion_ge00_shared,
-};
+static struct mv643xx_eth_shared_platform_data orion_ge01_shared_data;
 
 static struct resource orion_ge01_shared_resources[] = {
 	{
 		.name	= "ge01 base",
-	}, {
-		.name	= "ge01 err irq",
-	},
+	}
 };
 
 static struct platform_device orion_ge01_shared = {
@@ -349,31 +363,28 @@ void __init orion_ge01_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned int tx_csum_limit)
 {
 	fill_resources(&orion_ge01_shared, orion_ge01_shared_resources,
-		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+		       mapbase + 0x2000, SZ_16K - 1, NO_IRQ);
 	orion_ge01_shared_data.tx_csum_limit = tx_csum_limit;
 	ge_complete(&orion_ge01_shared_data,
 		    orion_ge01_resources, irq, &orion_ge01_shared,
+		    NULL,
 		    eth_data, &orion_ge01);
 }
 
 /*****************************************************************************
  * GE10
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge10_shared_data = {
-	.shared_smi	= &orion_ge00_shared,
-};
+static struct mv643xx_eth_shared_platform_data orion_ge10_shared_data;
 
 static struct resource orion_ge10_shared_resources[] = {
 	{
 		.name	= "ge10 base",
-	}, {
-		.name	= "ge10 err irq",
-	},
+	}
 };
 
 static struct platform_device orion_ge10_shared = {
 	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 1,
+	.id		= 2,
 	.dev		= {
 		.platform_data	= &orion_ge10_shared_data,
 	},
@@ -388,8 +399,8 @@ static struct resource orion_ge10_resources[] = {
 
 static struct platform_device orion_ge10 = {
 	.name		= MV643XX_ETH_NAME,
-	.id		= 1,
-	.num_resources	= 2,
+	.id		= 2,
+	.num_resources	= 1,
 	.resource	= orion_ge10_resources,
 	.dev		= {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
@@ -402,30 +413,27 @@ void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long irq_err)
 {
 	fill_resources(&orion_ge10_shared, orion_ge10_shared_resources,
-		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+		       mapbase + 0x2000, SZ_16K - 1, NO_IRQ);
 	ge_complete(&orion_ge10_shared_data,
 		    orion_ge10_resources, irq, &orion_ge10_shared,
+		    NULL,
 		    eth_data, &orion_ge10);
 }
 
 /*****************************************************************************
  * GE11
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge11_shared_data = {
-	.shared_smi	= &orion_ge00_shared,
-};
+static struct mv643xx_eth_shared_platform_data orion_ge11_shared_data;
 
 static struct resource orion_ge11_shared_resources[] = {
 	{
 		.name	= "ge11 base",
-	}, {
-		.name	= "ge11 err irq",
 	},
 };
 
 static struct platform_device orion_ge11_shared = {
 	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 1,
+	.id		= 3,
 	.dev		= {
 		.platform_data	= &orion_ge11_shared_data,
 	},
@@ -440,8 +448,8 @@ static struct resource orion_ge11_resources[] = {
 
 static struct platform_device orion_ge11 = {
 	.name		= MV643XX_ETH_NAME,
-	.id		= 1,
-	.num_resources	= 2,
+	.id		= 3,
+	.num_resources	= 1,
 	.resource	= orion_ge11_resources,
 	.dev		= {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
@@ -454,9 +462,10 @@ void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long irq_err)
 {
 	fill_resources(&orion_ge11_shared, orion_ge11_shared_resources,
-		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+		       mapbase + 0x2000, SZ_16K - 1, NO_IRQ);
 	ge_complete(&orion_ge11_shared_data,
 		    orion_ge11_resources, irq, &orion_ge11_shared,
+		    NULL,
 		    eth_data, &orion_ge11);
 }
 
@@ -490,7 +499,7 @@ void __init orion_ge00_switch_init(struct dsa_platform_data *d, int irq)
 
 	d->netdev = &orion_ge00.dev;
 	for (i = 0; i < d->nr_chips; i++)
-		d->chip[i].mii_bus = &orion_ge00_shared.dev;
+		d->chip[i].host_dev = &orion_ge00_shared.dev;
 	orion_switch_device.dev.platform_data = d;
 
 	platform_device_register(&orion_switch_device);
@@ -586,14 +595,16 @@ void __init orion_spi_1_init(unsigned long mapbase)
 /*****************************************************************************
  * Watchdog
  ****************************************************************************/
-static struct resource orion_wdt_resource =
-		DEFINE_RES_MEM(TIMER_PHYS_BASE, 0x28);
+static struct resource orion_wdt_resource[] = {
+		DEFINE_RES_MEM(TIMER_PHYS_BASE, 0x04),
+		DEFINE_RES_MEM(RSTOUTn_MASK_PHYS, 0x04),
+};
 
 static struct platform_device orion_wdt_device = {
 	.name		= "orion_wdt",
 	.id		= -1,
-	.num_resources	= 1,
-	.resource	= &orion_wdt_resource,
+	.num_resources	= ARRAY_SIZE(orion_wdt_resource),
+	.resource	= orion_wdt_resource,
 };
 
 void __init orion_wdt_init(void)
@@ -658,14 +669,9 @@ void __init orion_xor0_init(unsigned long mapbase_low,
 	orion_xor0_shared_resources[3].start = irq_1;
 	orion_xor0_shared_resources[3].end = irq_1;
 
-	/*
-	 * two engines can't do memset simultaneously, this limitation
-	 * satisfied by removing memset support from one of the engines.
-	 */
 	dma_cap_set(DMA_MEMCPY, orion_xor0_channels_data[0].cap_mask);
 	dma_cap_set(DMA_XOR, orion_xor0_channels_data[0].cap_mask);
 
-	dma_cap_set(DMA_MEMSET, orion_xor0_channels_data[1].cap_mask);
 	dma_cap_set(DMA_MEMCPY, orion_xor0_channels_data[1].cap_mask);
 	dma_cap_set(DMA_XOR, orion_xor0_channels_data[1].cap_mask);
 
@@ -724,14 +730,9 @@ void __init orion_xor1_init(unsigned long mapbase_low,
 	orion_xor1_shared_resources[3].start = irq_1;
 	orion_xor1_shared_resources[3].end = irq_1;
 
-	/*
-	 * two engines can't do memset simultaneously, this limitation
-	 * satisfied by removing memset support from one of the engines.
-	 */
 	dma_cap_set(DMA_MEMCPY, orion_xor1_channels_data[0].cap_mask);
 	dma_cap_set(DMA_XOR, orion_xor1_channels_data[0].cap_mask);
 
-	dma_cap_set(DMA_MEMSET, orion_xor1_channels_data[1].cap_mask);
 	dma_cap_set(DMA_MEMCPY, orion_xor1_channels_data[1].cap_mask);
 	dma_cap_set(DMA_XOR, orion_xor1_channels_data[1].cap_mask);
 

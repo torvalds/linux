@@ -1,9 +1,6 @@
 dvb_usb_v2-objs := dvb_usb_core.o dvb_usb_urb.o usb_urb.o
 obj-$(CONFIG_DVB_USB_V2) += dvb_usb_v2.o
 
-dvb_usb_cypress_firmware-objs := cypress_firmware.o
-obj-$(CONFIG_DVB_USB_CYPRESS_FIRMWARE) += dvb_usb_cypress_firmware.o
-
 dvb-usb-af9015-objs := af9015.o
 obj-$(CONFIG_DVB_USB_AF9015) += dvb-usb-af9015.o
 
@@ -25,9 +22,6 @@ obj-$(CONFIG_DVB_USB_CE6230) += dvb-usb-ce6230.o
 dvb-usb-ec168-objs := ec168.o
 obj-$(CONFIG_DVB_USB_EC168) += dvb-usb-ec168.o
 
-dvb-usb-it913x-objs := it913x.o
-obj-$(CONFIG_DVB_USB_IT913X) += dvb-usb-it913x.o
-
 dvb-usb-lmedm04-objs := lmedm04.o
 obj-$(CONFIG_DVB_USB_LME2510) += dvb-usb-lmedm04.o
 
@@ -43,7 +37,10 @@ obj-$(CONFIG_DVB_USB_MXL111SF) += mxl111sf-tuner.o
 dvb-usb-rtl28xxu-objs := rtl28xxu.o
 obj-$(CONFIG_DVB_USB_RTL28XXU) += dvb-usb-rtl28xxu.o
 
+dvb-usb-dvbsky-objs := dvbsky.o
+obj-$(CONFIG_DVB_USB_DVBSKY) += dvb-usb-dvbsky.o
+
 ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends
 ccflags-y += -I$(srctree)/drivers/media/tuners
-
+ccflags-y += -I$(srctree)/drivers/media/common

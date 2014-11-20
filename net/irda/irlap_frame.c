@@ -544,7 +544,7 @@ static void irlap_recv_discovery_xid_cmd(struct irlap_cb *self,
 		/*
 		 *  We now have some discovery info to deliver!
 		 */
-		discovery = kmalloc(sizeof(discovery_t), GFP_ATOMIC);
+		discovery = kzalloc(sizeof(discovery_t), GFP_ATOMIC);
 		if (!discovery) {
 			IRDA_WARNING("%s: unable to malloc!\n", __func__);
 			return;
@@ -622,7 +622,7 @@ void irlap_send_rd_frame(struct irlap_cb *self)
 	frame = (struct rd_frame *)skb_put(tx_skb, 2);
 
 	frame->caddr = self->caddr;
-	frame->caddr = RD_RSP | PF_BIT;
+	frame->control = RD_RSP | PF_BIT;
 
 	irlap_queue_xmit(self, tx_skb);
 }

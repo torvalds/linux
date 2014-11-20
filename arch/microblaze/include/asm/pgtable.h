@@ -13,9 +13,6 @@
 
 #include <asm/setup.h>
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 #ifndef __ASSEMBLY__
 extern int mem_init_done;
 #endif

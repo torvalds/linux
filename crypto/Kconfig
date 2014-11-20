@@ -23,7 +23,8 @@ comment "Crypto core or helper"
 
 config CRYPTO_FIPS
 	bool "FIPS 200 compliance"
-	depends on CRYPTO_ANSI_CPRNG && !CRYPTO_MANAGER_DISABLE_TESTS
+	depends on (CRYPTO_ANSI_CPRNG || CRYPTO_DRBG) && !CRYPTO_MANAGER_DISABLE_TESTS
+	depends on MODULE_SIG
 	help
 	  This options enables the fips boot option which is
 	  required if you want to system to operate in a FIPS 200
@@ -157,6 +158,20 @@ config CRYPTO_CRYPTD
 	  converts an arbitrary synchronous software crypto algorithm
 	  into an asynchronous algorithm that executes in a kernel thread.
 
+config CRYPTO_MCRYPTD
+	tristate "Software async multi-buffer crypto daemon"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	select CRYPTO_WORKQUEUE
+	help
+	  This is a generic software asynchronous crypto daemon that
+	  provides the kernel thread to assist multi-buffer crypto
+	  algorithms for submitting jobs and flushing jobs in multi-buffer
+	  crypto algorithms.  Multi-buffer crypto algorithms are executed
+	  in the context of this kernel thread and drivers can post
+	  their crypto request asynchronously to be processed by this daemon.
+
 config CRYPTO_AUTHENC
 	tristate "Authenc support"
 	select CRYPTO_AEAD
@@ -174,9 +189,8 @@ config CRYPTO_TEST
 	help
 	  Quick & dirty crypto test module.
 
-config CRYPTO_ABLK_HELPER_X86
+config CRYPTO_ABLK_HELPER
 	tristate
-	depends on X86
 	select CRYPTO_CRYPTD
 
 config CRYPTO_GLUE_HELPER_X86
@@ -198,6 +212,7 @@ config CRYPTO_GCM
 	select CRYPTO_CTR
 	select CRYPTO_AEAD
 	select CRYPTO_GHASH
+	select CRYPTO_NULL
 	help
 	  Support for Galois/Counter Mode (GCM) and Galois Message
 	  Authentication Code (GMAC). Required for IPSec.
@@ -282,6 +297,17 @@ config CRYPTO_XTS
 
 comment "Hash modes"
 
+config CRYPTO_CMAC
+	tristate "CMAC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  Cipher-based Message Authentication Code (CMAC) specified by
+	  The National Institute of Standards and Technology (NIST).
+
+	  https://tools.ietf.org/html/rfc4493
+	  http://csrc.nist.gov/publications/nistpubs/800-38B/SP_800-38B.pdf
+
 config CRYPTO_HMAC
 	tristate "HMAC support"
 	select CRYPTO_HASH
@@ -322,19 +348,9 @@ config CRYPTO_CRC32C
 	  by iSCSI for header and data digests and by others.
 	  See Castagnoli93.  Module will be crc32c.
 
-config CRYPTO_CRC32C_X86_64
-	bool
-	depends on X86 && 64BIT
-	select CRYPTO_HASH
-	help
-	  In Intel processor with SSE4.2 supported, the processor will
-	  support CRC32C calculation using hardware accelerated CRC32
-	  instruction optimized with PCLMULQDQ instruction when available.
-
 config CRYPTO_CRC32C_INTEL
 	tristate "CRC32c INTEL hardware acceleration"
 	depends on X86
-	select CRYPTO_CRC32C_X86_64 if 64BIT
 	select CRYPTO_HASH
 	help
 	  In Intel processor with SSE4.2 supported, the processor will
@@ -373,6 +389,25 @@ config CRYPTO_CRC32_PCLMUL
 	  instruction. This option will create 'crc32-plcmul' module,
 	  which will enable any routine to use the CRC-32-IEEE 802.3 checksum
 	  and gain better performance as compared with the table implementation.
+
+config CRYPTO_CRCT10DIF
+	tristate "CRCT10DIF algorithm"
+	select CRYPTO_HASH
+	help
+	  CRC T10 Data Integrity Field computation is being cast as
+	  a crypto transform.  This allows for faster crc t10 diff
+	  transforms to be used if they are available.
+
+config CRYPTO_CRCT10DIF_PCLMUL
+	tristate "CRCT10DIF PCLMULQDQ hardware acceleration"
+	depends on X86 && 64BIT && CRC_T10DIF
+	select CRYPTO_HASH
+	help
+	  For x86_64 processors with SSE4.2 and PCLMULQDQ supported,
+	  CRC T10 DIF PCLMULQDQ computation can be hardware
+	  accelerated PCLMULQDQ instruction. This option will create
+	  'crct10dif-plcmul' module, which is faster when computing the
+	  crct10dif checksum as compared with the generic table implementation.
 
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
@@ -471,14 +506,36 @@ config CRYPTO_SHA1
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
 config CRYPTO_SHA1_SSSE3
-	tristate "SHA1 digest algorithm (SSSE3/AVX)"
+	tristate "SHA1 digest algorithm (SSSE3/AVX/AVX2)"
 	depends on X86 && 64BIT
 	select CRYPTO_SHA1
 	select CRYPTO_HASH
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
 	  using Supplemental SSE3 (SSSE3) instructions or Advanced Vector
-	  Extensions (AVX), when available.
+	  Extensions (AVX/AVX2), when available.
+
+config CRYPTO_SHA256_SSSE3
+	tristate "SHA256 digest algorithm (SSSE3/AVX/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  SHA-256 secure hash standard (DFIPS 180-2) implemented
+	  using Supplemental SSE3 (SSSE3) instructions, or Advanced Vector
+	  Extensions version 1 (AVX1), or Advanced Vector Extensions
+	  version 2 (AVX2) instructions, when available.
+
+config CRYPTO_SHA512_SSSE3
+	tristate "SHA512 digest algorithm (SSSE3/AVX/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA512
+	select CRYPTO_HASH
+	help
+	  SHA-512 secure hash standard (DFIPS 180-2) implemented
+	  using Supplemental SSE3 (SSSE3) instructions, or Advanced Vector
+	  Extensions version 1 (AVX1), or Advanced Vector Extensions
+	  version 2 (AVX2) instructions, when available.
 
 config CRYPTO_SHA1_SPARC64
 	tristate "SHA1 digest algorithm (SPARC64)"
@@ -498,12 +555,39 @@ config CRYPTO_SHA1_ARM
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
 	  using optimized ARM assembler.
 
+config CRYPTO_SHA1_ARM_NEON
+	tristate "SHA1 digest algorithm (ARM NEON)"
+	depends on ARM && KERNEL_MODE_NEON
+	select CRYPTO_SHA1_ARM
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using optimized ARM NEON assembly, when NEON instructions are
+	  available.
+
 config CRYPTO_SHA1_PPC
 	tristate "SHA1 digest algorithm (powerpc)"
 	depends on PPC
 	help
 	  This is the powerpc hardware accelerated implementation of the
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+
+config CRYPTO_SHA1_MB
+	tristate "SHA1 digest algorithm (x86_64 Multi-Buffer, Experimental)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	select CRYPTO_MCRYPTD
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using multi-buffer technique.  This algorithm computes on
+	  multiple data lanes concurrently with SIMD instructions for
+	  better throughput.  It should not be enabled by default but
+	  used when there is significant amount of work to keep the keep
+	  the data lanes filled to get performance benefit.  If the data
+	  lanes remain unfilled, a flush operation will be initiated to
+	  process the crypto jobs, adding a slight latency.
 
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
@@ -546,6 +630,21 @@ config CRYPTO_SHA512_SPARC64
 	help
 	  SHA-512 secure hash standard (DFIPS 180-2) implemented
 	  using sparc64 crypto instructions, when available.
+
+config CRYPTO_SHA512_ARM_NEON
+	tristate "SHA384 and SHA512 digest algorithm (ARM NEON)"
+	depends on ARM && KERNEL_MODE_NEON
+	select CRYPTO_SHA512
+	select CRYPTO_HASH
+	help
+	  SHA-512 secure hash standard (DFIPS 180-2) implemented
+	  using ARM NEON instructions, when available.
+
+	  This version of SHA implements a 512 bit hash with 256 bits of
+	  security against collision attacks.
+
+	  This code also includes SHA-384, a 384 bit hash with 192 bits
+	  of security against collision attacks.
 
 config CRYPTO_TGR192
 	tristate "Tiger digest algorithms"
@@ -652,8 +751,9 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_AES_X86_64 if 64BIT
 	select CRYPTO_AES_586 if !64BIT
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_ALGAPI
+	select CRYPTO_GLUE_HELPER_X86 if 64BIT
 	select CRYPTO_LRW
 	select CRYPTO_XTS
 	help
@@ -731,6 +831,22 @@ config CRYPTO_AES_ARM
 	  The AES specifies three key sizes: 128, 192 and 256 bits
 
 	  See <http://csrc.nist.gov/encryption/aes/> for more information.
+
+config CRYPTO_AES_ARM_BS
+	tristate "Bit sliced AES using NEON instructions"
+	depends on ARM && KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES_ARM
+	select CRYPTO_ABLK_HELPER
+	help
+	  Use a faster and more secure NEON based implementation of AES in CBC,
+	  CTR and XTS modes
+
+	  Bit sliced AES gives around 45% speedup on Cortex-A15 for CTR mode
+	  and for XTS mode encryption, CBC and XTS mode decryption speedup is
+	  around 25%. (CBC encryption speed is not affected by this driver.)
+	  This implementation does not rely on any lookup tables so it is
+	  believed to be invulnerable to cache timing attacks.
 
 config CRYPTO_ANUBIS
 	tristate "Anubis cipher algorithm"
@@ -835,13 +951,36 @@ config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	depends on CRYPTO
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_CAMELLIA_X86_64
 	select CRYPTO_LRW
 	select CRYPTO_XTS
 	help
 	  Camellia cipher algorithm module (x86_64/AES-NI/AVX).
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
+config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
+	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX2)"
+	depends on X86 && 64BIT
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_CAMELLIA_X86_64
+	select CRYPTO_CAMELLIA_AESNI_AVX_X86_64
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Camellia cipher algorithm module (x86_64/AES-NI/AVX2).
 
 	  Camellia is a symmetric key block cipher developed jointly
 	  at NTT and Mitsubishi Electric Corporation.
@@ -886,7 +1025,7 @@ config CRYPTO_CAST5_AVX_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_CAST_COMMON
 	select CRYPTO_CAST5
 	help
@@ -909,7 +1048,7 @@ config CRYPTO_CAST6_AVX_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_CAST_COMMON
 	select CRYPTO_CAST6
@@ -936,6 +1075,19 @@ config CRYPTO_DES_SPARC64
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3),
 	  optimized using SPARC64 crypto opcodes.
+
+config CRYPTO_DES3_EDE_X86_64
+	tristate "Triple DES EDE cipher algorithm (x86-64)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_DES
+	help
+	  Triple DES EDE (FIPS 46-3) algorithm.
+
+	  This module provides implementation of the Triple DES EDE cipher
+	  algorithm that is optimized for x86-64 processors. Two versions of
+	  algorithm are provided; regular processing one input block and
+	  one that processes three blocks parallel.
 
 config CRYPTO_FCRYPT
 	tristate "FCrypt cipher algorithm"
@@ -1027,7 +1179,7 @@ config CRYPTO_SERPENT_SSE2_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_LRW
@@ -1049,7 +1201,7 @@ config CRYPTO_SERPENT_SSE2_586
 	depends on X86 && !64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_LRW
@@ -1071,7 +1223,7 @@ config CRYPTO_SERPENT_AVX_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_LRW
@@ -1084,6 +1236,29 @@ config CRYPTO_SERPENT_AVX_X86_64
 
 	  This module provides the Serpent cipher algorithm that processes
 	  eight blocks parallel using the AVX instruction set.
+
+	  See also:
+	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+
+config CRYPTO_SERPENT_AVX2_X86_64
+	tristate "Serpent cipher algorithm (x86_64/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
+	select CRYPTO_ABLK_HELPER
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_SERPENT
+	select CRYPTO_SERPENT_AVX_X86_64
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+
+	  Keys are allowed to be from 0 to 256 bits in length, in steps
+	  of 8 bits.
+
+	  This module provides Serpent cipher algorithm that processes 16
+	  blocks parallel using AVX2 instruction set.
 
 	  See also:
 	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
@@ -1186,7 +1361,7 @@ config CRYPTO_TWOFISH_AVX_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_ABLK_HELPER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
@@ -1246,6 +1421,22 @@ config CRYPTO_842
 	help
 	  This is the 842 algorithm.
 
+config CRYPTO_LZ4
+	tristate "LZ4 compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZ4_COMPRESS
+	select LZ4_DECOMPRESS
+	help
+	  This is the LZ4 algorithm.
+
+config CRYPTO_LZ4HC
+	tristate "LZ4HC compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZ4HC_COMPRESS
+	select LZ4_DECOMPRESS
+	help
+	  This is the LZ4 high compression mode algorithm.
+
 comment "Random Number Generation"
 
 config CRYPTO_ANSI_CPRNG
@@ -1258,6 +1449,40 @@ config CRYPTO_ANSI_CPRNG
 	  for cryptographic modules.  Uses the Algorithm specified in
 	  ANSI X9.31 A.2.4. Note that this option must be enabled if
 	  CRYPTO_FIPS is selected
+
+menuconfig CRYPTO_DRBG_MENU
+	tristate "NIST SP800-90A DRBG"
+	help
+	  NIST SP800-90A compliant DRBG. In the following submenu, one or
+	  more of the DRBG types must be selected.
+
+if CRYPTO_DRBG_MENU
+
+config CRYPTO_DRBG_HMAC
+	bool "Enable HMAC DRBG"
+	default y
+	select CRYPTO_HMAC
+	help
+	  Enable the HMAC DRBG variant as defined in NIST SP800-90A.
+
+config CRYPTO_DRBG_HASH
+	bool "Enable Hash DRBG"
+	select CRYPTO_HASH
+	help
+	  Enable the Hash DRBG variant as defined in NIST SP800-90A.
+
+config CRYPTO_DRBG_CTR
+	bool "Enable CTR DRBG"
+	select CRYPTO_AES
+	help
+	  Enable the CTR DRBG variant as defined in NIST SP800-90A.
+
+config CRYPTO_DRBG
+	tristate
+	default CRYPTO_DRBG_MENU if (CRYPTO_DRBG_HMAC || CRYPTO_DRBG_HASH || CRYPTO_DRBG_CTR)
+	select CRYPTO_RNG
+
+endif	# if CRYPTO_DRBG_MENU
 
 config CRYPTO_USER_API
 	tristate
@@ -1279,6 +1504,9 @@ config CRYPTO_USER_API_SKCIPHER
 	help
 	  This option enables the user-spaces interface for symmetric
 	  key cipher algorithms.
+
+config CRYPTO_HASH_INFO
+	bool
 
 source "drivers/crypto/Kconfig"
 source crypto/asymmetric_keys/Kconfig

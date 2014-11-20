@@ -1,0 +1,11 @@
+config SND_SOC_ROCKCHIP
+	tristate "ASoC support for Rockchip"
+	depends on COMPILE_TEST || ARCH_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Rockchip SoCs' Audio interfaces. You will also need to
+	  select the audio interfaces to support below.
+
+config SND_SOC_ROCKCHIP_I2S
+	tristate

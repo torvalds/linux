@@ -45,6 +45,7 @@ cpuflags-$(CONFIG_M5441x)	:= $(call cc-option,-mcpu=54455,-mcfv4e)
 cpuflags-$(CONFIG_M54xx)	:= $(call cc-option,-mcpu=5475,-m5200)
 cpuflags-$(CONFIG_M5407)	:= $(call cc-option,-mcpu=5407,-m5200)
 cpuflags-$(CONFIG_M532x)	:= $(call cc-option,-mcpu=532x,-m5307)
+cpuflags-$(CONFIG_M537x)	:= $(call cc-option,-mcpu=537x,-m5307)
 cpuflags-$(CONFIG_M5307)	:= $(call cc-option,-mcpu=5307,-m5200)
 cpuflags-$(CONFIG_M528x)	:= $(call cc-option,-mcpu=528x,-m5307)
 cpuflags-$(CONFIG_M5275)	:= $(call cc-option,-mcpu=5275,-m5307)
@@ -91,9 +92,9 @@ endif
 #
 head-y				:= arch/m68k/kernel/head.o
 head-$(CONFIG_SUN3)		:= arch/m68k/kernel/sun3-head.o
-head-$(CONFIG_M68360)		:= arch/m68k/platform/68360/head.o
-head-$(CONFIG_M68000)		:= arch/m68k/platform/68000/head.o
-head-$(CONFIG_COLDFIRE)		:= arch/m68k/platform/coldfire/head.o
+head-$(CONFIG_M68360)		:= arch/m68k/68360/head.o
+head-$(CONFIG_M68000)		:= arch/m68k/68000/head.o
+head-$(CONFIG_COLDFIRE)		:= arch/m68k/coldfire/head.o
 
 core-y				+= arch/m68k/kernel/	arch/m68k/mm/
 libs-y				+= arch/m68k/lib/
@@ -113,9 +114,9 @@ core-$(CONFIG_NATFEAT)		+= arch/m68k/emu/
 core-$(CONFIG_M68040)		+= arch/m68k/fpsp040/
 core-$(CONFIG_M68060)		+= arch/m68k/ifpsp060/
 core-$(CONFIG_M68KFPU_EMU)	+= arch/m68k/math-emu/
-core-$(CONFIG_M68360)		+= arch/m68k/platform/68360/
-core-$(CONFIG_M68000)		+= arch/m68k/platform/68000/
-core-$(CONFIG_COLDFIRE)		+= arch/m68k/platform/coldfire/
+core-$(CONFIG_M68360)		+= arch/m68k/68360/
+core-$(CONFIG_M68000)		+= arch/m68k/68000/
+core-$(CONFIG_COLDFIRE)		+= arch/m68k/coldfire/
 
 
 all:	zImage

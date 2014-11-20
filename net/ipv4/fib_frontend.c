@@ -243,14 +243,14 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 				 u8 tos, int oif, struct net_device *dev,
 				 int rpf, struct in_device *idev, u32 *itag)
 {
-	int ret, no_addr, accept_local;
+	int ret, no_addr;
 	struct fib_result res;
 	struct flowi4 fl4;
 	struct net *net;
 	bool dev_match;
 
 	fl4.flowi4_oif = 0;
-	fl4.flowi4_iif = oif;
+	fl4.flowi4_iif = oif ? : LOOPBACK_IFINDEX;
 	fl4.daddr = src;
 	fl4.saddr = dst;
 	fl4.flowi4_tos = tos;
@@ -258,16 +258,17 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 
 	no_addr = idev->ifa_list == NULL;
 
-	accept_local = IN_DEV_ACCEPT_LOCAL(idev);
 	fl4.flowi4_mark = IN_DEV_SRC_VMARK(idev) ? skb->mark : 0;
 
 	net = dev_net(dev);
 	if (fib_lookup(net, &fl4, &res))
 		goto last_resort;
-	if (res.type != RTN_UNICAST) {
-		if (res.type != RTN_LOCAL || !accept_local)
-			goto e_inval;
-	}
+	if (res.type != RTN_UNICAST &&
+	    (res.type != RTN_LOCAL || !IN_DEV_ACCEPT_LOCAL(idev)))
+		goto e_inval;
+	if (!rpf && !fib_num_tclassid_users(dev_net(dev)) &&
+	    (dev->ifindex != oif || !IN_DEV_TX_REDIRECTS(idev)))
+		goto last_resort;
 	fib_combine_itag(itag, &res);
 	dev_match = false;
 
@@ -321,6 +322,7 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	int r = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
 
 	if (!r && !fib_num_tclassid_users(dev_net(dev)) &&
+	    IN_DEV_ACCEPT_LOCAL(idev) &&
 	    (dev->ifindex != oif || !IN_DEV_TX_REDIRECTS(idev))) {
 		*itag = 0;
 		return 0;
@@ -604,7 +606,7 @@ errout:
 	return err;
 }
 
-static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
@@ -626,7 +628,7 @@ errout:
 	return err;
 }
 
-static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
@@ -659,7 +661,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 
 	if (nlmsg_len(cb->nlh) >= sizeof(struct rtmsg) &&
 	    ((struct rtmsg *) nlmsg_data(cb->nlh))->rtm_flags & RTM_F_CLONED)
-		return ip_rt_dump(skb, cb);
+		return skb->len;
 
 	s_h = cb->args[0];
 	s_e = cb->args[1];
@@ -933,7 +935,6 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 		local_bh_disable();
 
 		frn->tb_id = tb->tb_id;
-		rcu_read_lock();
 		frn->err = fib_table_lookup(tb, &fl4, &res, FIB_LOOKUP_NOREF);
 
 		if (!frn->err) {
@@ -942,7 +943,6 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 			frn->type = res.type;
 			frn->scope = res.scope;
 		}
-		rcu_read_unlock();
 		local_bh_enable();
 	}
 }
@@ -957,16 +957,16 @@ static void nl_fib_input(struct sk_buff *skb)
 
 	net = sock_net(skb->sk);
 	nlh = nlmsg_hdr(skb);
-	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
-	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn)))
+	if (skb->len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len ||
+	    nlmsg_len(nlh) < sizeof(*frn))
 		return;
 
-	skb = skb_clone(skb, GFP_KERNEL);
+	skb = netlink_skb_clone(skb, GFP_KERNEL);
 	if (skb == NULL)
 		return;
 	nlh = nlmsg_hdr(skb);
 
-	frn = (struct fib_result_nl *) NLMSG_DATA(nlh);
+	frn = (struct fib_result_nl *) nlmsg_data(nlh);
 	tb = fib_get_table(net, frn->tb_id_in);
 
 	nl_fib_lookup(frn, tb);
@@ -1038,7 +1038,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 
 static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
 
@@ -1049,6 +1049,8 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 	}
 
 	in_dev = __in_dev_get_rtnl(dev);
+	if (!in_dev)
+		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UP:

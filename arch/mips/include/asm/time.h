@@ -52,13 +52,12 @@ extern int (*perf_irq)(void);
  */
 extern unsigned int __weak get_c0_compare_int(void);
 extern int r4k_clockevent_init(void);
+extern int gic_clockevent_init(void);
 
 static inline int mips_clockevent_init(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
-	extern int smtc_clockevent_init(void);
-
-	return smtc_clockevent_init();
+#if   defined(CONFIG_CEVT_GIC)
+	return (gic_clockevent_init() | r4k_clockevent_init());
 #elif defined(CONFIG_CEVT_R4K)
 	return r4k_clockevent_init();
 #else
@@ -69,13 +68,11 @@ static inline int mips_clockevent_init(void)
 /*
  * Initialize the count register as a clocksource
  */
-#ifdef CONFIG_CSRC_R4K
 extern int init_r4k_clocksource(void);
-#endif
 
 static inline int init_mips_clocksource(void)
 {
-#if defined(CONFIG_CSRC_R4K) && !defined(CONFIG_CSRC_GIC)
+#ifdef CONFIG_CSRC_R4K
 	return init_r4k_clocksource();
 #else
 	return 0;

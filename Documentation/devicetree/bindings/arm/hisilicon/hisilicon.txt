@@ -1,0 +1,80 @@
+Hisilicon Platforms Device Tree Bindings
+----------------------------------------------------
+
+Hi4511 Board
+Required root node properties:
+	- compatible = "hisilicon,hi3620-hi4511";
+
+HiP04 D01 Board
+Required root node properties:
+	- compatible = "hisilicon,hip04-d01";
+
+
+Hisilicon system controller
+
+Required properties:
+- compatible : "hisilicon,sysctrl"
+- reg : Register address and size
+
+Optional properties:
+- smp-offset : offset in sysctrl for notifying slave cpu booting
+		cpu 1, reg;
+		cpu 2, reg + 0x4;
+		cpu 3, reg + 0x8;
+		If reg value is not zero, cpun exit wfi and go
+- resume-offset : offset in sysctrl for notifying cpu0 when resume
+- reboot-offset : offset in sysctrl for system reboot
+
+Example:
+
+	/* for Hi3620 */
+	sysctrl: system-controller@fc802000 {
+		compatible = "hisilicon,sysctrl";
+		reg = <0xfc802000 0x1000>;
+		smp-offset = <0x31c>;
+		resume-offset = <0x308>;
+		reboot-offset = <0x4>;
+	};
+
+-----------------------------------------------------------------------
+Hisilicon CPU controller
+
+Required properties:
+- compatible : "hisilicon,cpuctrl"
+- reg : Register address and size
+
+The clock registers and power registers of secondary cores are defined
+in CPU controller, especially in HIX5HD2 SoC.
+
+-----------------------------------------------------------------------
+PCTRL: Peripheral misc control register
+
+Required Properties:
+- compatible: "hisilicon,pctrl"
+- reg: Address and size of pctrl.
+
+Example:
+
+	/* for Hi3620 */
+	pctrl: pctrl@fca09000 {
+		compatible = "hisilicon,pctrl";
+		reg = <0xfca09000 0x1000>;
+	};
+
+-----------------------------------------------------------------------
+Fabric:
+
+Required Properties:
+- compatible: "hisilicon,hip04-fabric";
+- reg: Address and size of Fabric
+
+-----------------------------------------------------------------------
+Bootwrapper boot method (software protocol on SMP):
+
+Required Properties:
+- compatible: "hisilicon,hip04-bootwrapper";
+- boot-method: Address and size of boot method.
+  [0]: bootwrapper physical address
+  [1]: bootwrapper size
+  [2]: relocation physical address
+  [3]: relocation size

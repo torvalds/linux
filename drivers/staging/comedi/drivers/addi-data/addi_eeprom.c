@@ -20,14 +20,9 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
  * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
  * for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * You should also find the complete GPL in the COPYING file accompanying
- * this source code.
  */
+
+#include <linux/delay.h>
 
 #define NVRAM_USER_DATA_START	0x100
 
@@ -184,7 +179,7 @@ static void addi_eeprom_read_di_info(struct comedi_device *dev,
 				     unsigned long iobase,
 				     unsigned short addr)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	char *type = this_board->pc_EepromChip;
 	unsigned short tmp;
@@ -205,7 +200,7 @@ static void addi_eeprom_read_do_info(struct comedi_device *dev,
 				     unsigned long iobase,
 				     unsigned short addr)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	char *type = this_board->pc_EepromChip;
 	unsigned short tmp;
@@ -223,7 +218,7 @@ static void addi_eeprom_read_timer_info(struct comedi_device *dev,
 {
 	struct addi_private *devpriv = dev->private;
 #if 0
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	char *type = this_board->pc_EepromChip;
 	unsigned short offset = 0;
 	unsigned short ntimers;
@@ -264,7 +259,7 @@ static void addi_eeprom_read_ao_info(struct comedi_device *dev,
 				     unsigned long iobase,
 				     unsigned short addr)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	char *type = this_board->pc_EepromChip;
 	unsigned short tmp;
@@ -283,7 +278,7 @@ static void addi_eeprom_read_ai_info(struct comedi_device *dev,
 				     unsigned long iobase,
 				     unsigned short addr)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	char *type = this_board->pc_EepromChip;
 	unsigned short offset;
@@ -302,7 +297,7 @@ static void addi_eeprom_read_ai_info(struct comedi_device *dev,
 	devpriv->s_EeParameters.ui_MinDelaytimeNs = tmp * 1000;
 
 	tmp = addi_eeprom_readw(iobase, type, addr + 20);
-	devpriv->s_EeParameters.i_Dma = (tmp >> 13) & 0x01;
+	/* dma = (tmp >> 13) & 0x01; */
 
 	tmp = addi_eeprom_readw(iobase, type, addr + 72) & 0xff;
 	if (tmp) {		/* > 0 */
@@ -320,7 +315,7 @@ static void addi_eeprom_read_ai_info(struct comedi_device *dev,
 static void addi_eeprom_read_info(struct comedi_device *dev,
 				  unsigned long iobase)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	char *type = this_board->pc_EepromChip;
 	unsigned short size;
 	unsigned char nfuncs;

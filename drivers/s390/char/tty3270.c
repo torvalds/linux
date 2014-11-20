@@ -125,10 +125,7 @@ static void tty3270_resize_work(struct work_struct *work);
  */
 static void tty3270_set_timer(struct tty3270 *tp, int expires)
 {
-	if (expires == 0)
-		del_timer(&tp->timer);
-	else
-		mod_timer(&tp->timer, jiffies + expires);
+	mod_timer(&tp->timer, jiffies + expires);
 }
 
 /*
@@ -744,7 +741,6 @@ tty3270_free_view(struct tty3270 *tp)
 {
 	int pages;
 
-	del_timer_sync(&tp->timer);
 	kbd_free(tp->kbd);
 	raw3270_request_free(tp->kreset);
 	raw3270_request_free(tp->read);
@@ -810,7 +806,7 @@ static void tty3270_resize_work(struct work_struct *work)
 	struct winsize ws;
 
 	screen = tty3270_alloc_screen(tp->n_rows, tp->n_cols);
-	if (!screen)
+	if (IS_ERR(screen))
 		return;
 	/* Switch to new output size */
 	spin_lock_bh(&tp->view.lock);
@@ -877,6 +873,7 @@ tty3270_free(struct raw3270_view *view)
 {
 	struct tty3270 *tp = container_of(view, struct tty3270, view);
 
+	del_timer_sync(&tp->timer);
 	tty3270_free_screen(tp->screen, tp->view.rows);
 	tty3270_free_view(tp);
 }
@@ -915,7 +912,7 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 	int i, rc;
 
 	/* Check if the tty3270 is already there. */
-	view = raw3270_find_view(&tty3270_fn, tty->index);
+	view = raw3270_find_view(&tty3270_fn, tty->index + RAW3270_FIRSTMINOR);
 	if (!IS_ERR(view)) {
 		tp = container_of(view, struct tty3270, view);
 		tty->driver_data = tp;
@@ -927,21 +924,22 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		tp->inattr = TF_INPUT;
 		return tty_port_install(&tp->port, driver, tty);
 	}
-	if (tty3270_max_index < tty->index)
-		tty3270_max_index = tty->index;
+	if (tty3270_max_index < tty->index + 1)
+		tty3270_max_index = tty->index + 1;
 
 	/* Allocate tty3270 structure on first open. */
 	tp = tty3270_alloc_view();
 	if (IS_ERR(tp))
 		return PTR_ERR(tp);
 
-	rc = raw3270_add_view(&tp->view, &tty3270_fn, tty->index);
+	rc = raw3270_add_view(&tp->view, &tty3270_fn,
+			      tty->index + RAW3270_FIRSTMINOR);
 	if (rc) {
 		tty3270_free_view(tp);
 		return rc;
 	}
 
-	tp->screen = tty3270_alloc_screen(tp->view.cols, tp->view.rows);
+	tp->screen = tty3270_alloc_screen(tp->view.rows, tp->view.cols);
 	if (IS_ERR(tp->screen)) {
 		rc = PTR_ERR(tp->screen);
 		raw3270_put_view(&tp->view);
@@ -1844,17 +1842,17 @@ static const struct tty_operations tty3270_ops = {
 	.set_termios = tty3270_set_termios
 };
 
-void tty3270_create_cb(int minor)
+static void tty3270_create_cb(int minor)
 {
-	tty_register_device(tty3270_driver, minor, NULL);
+	tty_register_device(tty3270_driver, minor - RAW3270_FIRSTMINOR, NULL);
 }
 
-void tty3270_destroy_cb(int minor)
+static void tty3270_destroy_cb(int minor)
 {
-	tty_unregister_device(tty3270_driver, minor);
+	tty_unregister_device(tty3270_driver, minor - RAW3270_FIRSTMINOR);
 }
 
-struct raw3270_notifier tty3270_notifier =
+static struct raw3270_notifier tty3270_notifier =
 {
 	.create = tty3270_create_cb,
 	.destroy = tty3270_destroy_cb,
@@ -1884,7 +1882,8 @@ static int __init tty3270_init(void)
 	driver->driver_name = "tty3270";
 	driver->name = "3270/tty";
 	driver->major = IBM_TTY3270_MAJOR;
-	driver->minor_start = 0;
+	driver->minor_start = RAW3270_FIRSTMINOR;
+	driver->name_base = RAW3270_FIRSTMINOR;
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;

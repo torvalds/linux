@@ -17,7 +17,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -104,10 +103,8 @@ static void keyspan_pda_wakeup_write(struct work_struct *work)
 	struct keyspan_pda_private *priv =
 		container_of(work, struct keyspan_pda_private, wakeup_work);
 	struct usb_serial_port *port = priv->port;
-	struct tty_struct *tty = tty_port_tty_get(&port->port);
-	if (tty)
-		tty_wakeup(tty);
-	tty_kref_put(tty);
+
+	tty_port_tty_wakeup(&port->port);
 }
 
 static void keyspan_pda_request_unthrottle(struct work_struct *work)
@@ -192,7 +189,7 @@ exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		dev_err(&port->dev,
-			"%s - usb_submit_urb failed with result %d",
+			"%s - usb_submit_urb failed with result %d\n",
 			__func__, retval);
 }
 
@@ -595,12 +592,10 @@ static void keyspan_pda_dtr_rts(struct usb_serial_port *port, int on)
 {
 	struct usb_serial *serial = port->serial;
 
-	if (serial->dev) {
-		if (on)
-			keyspan_pda_set_modem_info(serial, (1<<7) | (1<< 2));
-		else
-			keyspan_pda_set_modem_info(serial, 0);
-	}
+	if (on)
+		keyspan_pda_set_modem_info(serial, (1 << 7) | (1 << 2));
+	else
+		keyspan_pda_set_modem_info(serial, 0);
 }
 
 
@@ -651,13 +646,8 @@ error:
 }
 static void keyspan_pda_close(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
-
-	if (serial->dev) {
-		/* shutdown our bulk reads and writes */
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->interrupt_in_urb);
-	}
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 }
 
 

@@ -436,7 +436,7 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	wm831x_rtc->rtc = rtc_device_register("wm831x", &pdev->dev,
+	wm831x_rtc->rtc = devm_rtc_device_register(&pdev->dev, "wm831x",
 					      &wm831x_rtc_ops, THIS_MODULE);
 	if (IS_ERR(wm831x_rtc->rtc)) {
 		ret = PTR_ERR(wm831x_rtc->rtc);
@@ -460,15 +460,6 @@ err:
 	return ret;
 }
 
-static int wm831x_rtc_remove(struct platform_device *pdev)
-{
-	struct wm831x_rtc *wm831x_rtc = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(wm831x_rtc->rtc);
-
-	return 0;
-}
-
 static const struct dev_pm_ops wm831x_rtc_pm_ops = {
 	.suspend = wm831x_rtc_suspend,
 	.resume = wm831x_rtc_resume,
@@ -482,7 +473,6 @@ static const struct dev_pm_ops wm831x_rtc_pm_ops = {
 
 static struct platform_driver wm831x_rtc_driver = {
 	.probe = wm831x_rtc_probe,
-	.remove = wm831x_rtc_remove,
 	.driver = {
 		.name = "wm831x-rtc",
 		.pm = &wm831x_rtc_pm_ops,

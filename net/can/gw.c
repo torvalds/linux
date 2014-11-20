@@ -146,6 +146,7 @@ struct cgw_job {
 		/* tbc */
 	};
 	u8 gwtype;
+	u8 limit_hops;
 	u16 flags;
 };
 
@@ -402,6 +403,11 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 
 	/* put the incremented hop counter in the cloned skb */
 	cgw_hops(nskb) = cgw_hops(skb) + 1;
+
+	/* first processing of this CAN frame -> adjust to private hop limit */
+	if (gwj->limit_hops && cgw_hops(nskb) == 1)
+		cgw_hops(nskb) = max_hops - gwj->limit_hops + 1;
+
 	nskb->dev = gwj->dst.dev;
 
 	/* pointer to modifiable CAN frame */
@@ -445,9 +451,9 @@ static inline void cgw_unregister_filter(struct cgw_job *gwj)
 }
 
 static int cgw_notifier(struct notifier_block *nb,
-			unsigned long msg, void *data)
+			unsigned long msg, void *ptr)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
@@ -466,7 +472,7 @@ static int cgw_notifier(struct notifier_block *nb,
 			if (gwj->src.dev == dev || gwj->dst.dev == dev) {
 				hlist_del(&gwj->list);
 				cgw_unregister_filter(gwj);
-				kfree(gwj);
+				kmem_cache_free(cgw_cache, gwj);
 			}
 		}
 	}
@@ -508,6 +514,11 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
 	}
 
 	/* check non default settings of attributes */
+
+	if (gwj->limit_hops) {
+		if (nla_put_u8(skb, CGW_LIM_HOPS, gwj->limit_hops) < 0)
+			goto cancel;
+	}
 
 	if (gwj->mod.modtype.and) {
 		memcpy(&mb.cf, &gwj->mod.modframe.and, sizeof(mb.cf));
@@ -606,11 +617,12 @@ static const struct nla_policy cgw_policy[CGW_MAX+1] = {
 	[CGW_SRC_IF]	= { .type = NLA_U32 },
 	[CGW_DST_IF]	= { .type = NLA_U32 },
 	[CGW_FILTER]	= { .len = sizeof(struct can_filter) },
+	[CGW_LIM_HOPS]	= { .type = NLA_U8 },
 };
 
 /* check for common and gwtype specific attributes */
 static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
-			  u8 gwtype, void *gwtypeattr)
+			  u8 gwtype, void *gwtypeattr, u8 *limhops)
 {
 	struct nlattr *tb[CGW_MAX+1];
 	struct cgw_frame_mod mb;
@@ -624,6 +636,13 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			  cgw_policy);
 	if (err < 0)
 		return err;
+
+	if (tb[CGW_LIM_HOPS]) {
+		*limhops = nla_get_u8(tb[CGW_LIM_HOPS]);
+
+		if (*limhops < 1 || *limhops > max_hops)
+			return -EINVAL;
+	}
 
 	/* check for AND/OR/XOR/SET modifications */
 
@@ -778,14 +797,14 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 	return 0;
 }
 
-static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
-			  void *arg)
+static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh)
 {
 	struct rtcanmsg *r;
 	struct cgw_job *gwj;
+	u8 limhops = 0;
 	int err = 0;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (nlmsg_len(nlh) < sizeof(*r))
@@ -809,7 +828,8 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
 	gwj->flags = r->flags;
 	gwj->gwtype = r->gwtype;
 
-	err = cgw_parse_attr(nlh, &gwj->mod, CGW_TYPE_CAN_CAN, &gwj->ccgw);
+	err = cgw_parse_attr(nlh, &gwj->mod, CGW_TYPE_CAN_CAN, &gwj->ccgw,
+			     &limhops);
 	if (err < 0)
 		goto out;
 
@@ -819,34 +839,29 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
 	if (!gwj->ccgw.src_idx || !gwj->ccgw.dst_idx)
 		goto out;
 
-	gwj->src.dev = dev_get_by_index(&init_net, gwj->ccgw.src_idx);
+	gwj->src.dev = __dev_get_by_index(&init_net, gwj->ccgw.src_idx);
 
 	if (!gwj->src.dev)
 		goto out;
 
-	/* check for CAN netdev not using header_ops - see gw_rcv() */
-	if (gwj->src.dev->type != ARPHRD_CAN || gwj->src.dev->header_ops)
-		goto put_src_out;
+	if (gwj->src.dev->type != ARPHRD_CAN)
+		goto out;
 
-	gwj->dst.dev = dev_get_by_index(&init_net, gwj->ccgw.dst_idx);
+	gwj->dst.dev = __dev_get_by_index(&init_net, gwj->ccgw.dst_idx);
 
 	if (!gwj->dst.dev)
-		goto put_src_out;
+		goto out;
 
-	/* check for CAN netdev not using header_ops - see gw_rcv() */
-	if (gwj->dst.dev->type != ARPHRD_CAN || gwj->dst.dev->header_ops)
-		goto put_src_dst_out;
+	if (gwj->dst.dev->type != ARPHRD_CAN)
+		goto out;
+
+	gwj->limit_hops = limhops;
 
 	ASSERT_RTNL();
 
 	err = cgw_register_filter(gwj);
 	if (!err)
 		hlist_add_head_rcu(&gwj->list, &cgw_list);
-
-put_src_dst_out:
-	dev_put(gwj->dst.dev);
-put_src_out:
-	dev_put(gwj->src.dev);
 out:
 	if (err)
 		kmem_cache_free(cgw_cache, gwj);
@@ -864,20 +879,21 @@ static void cgw_remove_all_jobs(void)
 	hlist_for_each_entry_safe(gwj, nx, &cgw_list, list) {
 		hlist_del(&gwj->list);
 		cgw_unregister_filter(gwj);
-		kfree(gwj);
+		kmem_cache_free(cgw_cache, gwj);
 	}
 }
 
-static int cgw_remove_job(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
+static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct cgw_job *gwj = NULL;
 	struct hlist_node *nx;
 	struct rtcanmsg *r;
 	struct cf_mod mod;
 	struct can_can_gw ccgw;
+	u8 limhops = 0;
 	int err = 0;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (nlmsg_len(nlh) < sizeof(*r))
@@ -891,7 +907,7 @@ static int cgw_remove_job(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 	if (r->gwtype != CGW_TYPE_CAN_CAN)
 		return -EINVAL;
 
-	err = cgw_parse_attr(nlh, &mod, CGW_TYPE_CAN_CAN, &ccgw);
+	err = cgw_parse_attr(nlh, &mod, CGW_TYPE_CAN_CAN, &ccgw, &limhops);
 	if (err < 0)
 		return err;
 
@@ -911,6 +927,9 @@ static int cgw_remove_job(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 		if (gwj->flags != r->flags)
 			continue;
 
+		if (gwj->limit_hops != limhops)
+			continue;
+
 		if (memcmp(&gwj->mod, &mod, sizeof(mod)))
 			continue;
 
@@ -920,7 +939,7 @@ static int cgw_remove_job(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 
 		hlist_del(&gwj->list);
 		cgw_unregister_filter(gwj);
-		kfree(gwj);
+		kmem_cache_free(cgw_cache, gwj);
 		err = 0;
 		break;
 	}

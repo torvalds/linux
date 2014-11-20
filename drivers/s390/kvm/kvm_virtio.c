@@ -166,11 +166,15 @@ static void kvm_reset(struct virtio_device *vdev)
  * make a hypercall.  We hand the address  of the virtqueue so the Host
  * knows which virtqueue we're talking about.
  */
-static void kvm_notify(struct virtqueue *vq)
+static bool kvm_notify(struct virtqueue *vq)
 {
+	long rc;
 	struct kvm_vqconfig *config = vq->priv;
 
-	kvm_hypercall1(KVM_S390_VIRTIO_NOTIFY, config->address);
+	rc = kvm_hypercall1(KVM_S390_VIRTIO_NOTIFY, config->address);
+	if (rc < 0)
+		return false;
+	return true;
 }
 
 /*
@@ -402,15 +406,8 @@ static void kvm_extint_handler(struct ext_code ext_code,
 
 	switch (param) {
 	case VIRTIO_PARAM_CONFIG_CHANGED:
-	{
-		struct virtio_driver *drv;
-		drv = container_of(vq->vdev->dev.driver,
-				   struct virtio_driver, driver);
-		if (drv->config_changed)
-			drv->config_changed(vq->vdev);
-
+		virtio_config_changed(vq->vdev);
 		break;
-	}
 	case VIRTIO_PARAM_DEV_ADD:
 		schedule_work(&hotplug_work);
 		break;
@@ -443,36 +440,37 @@ static int __init test_devices_support(unsigned long addr)
 }
 /*
  * Init function for virtio
- * devices are in a single page above top of "normal" mem
+ * devices are in a single page above top of "normal" + standby mem
  */
 static int __init kvm_devices_init(void)
 {
 	int rc;
+	unsigned long total_memory_size = sclp_get_rzm() * sclp_get_rnmax();
 
 	if (!MACHINE_IS_KVM)
 		return -ENODEV;
 
-	if (test_devices_support(real_memory_size) < 0)
+	if (test_devices_support(total_memory_size) < 0)
 		return -ENODEV;
 
-	rc = vmem_add_mapping(real_memory_size, PAGE_SIZE);
+	rc = vmem_add_mapping(total_memory_size, PAGE_SIZE);
 	if (rc)
 		return rc;
 
-	kvm_devices = (void *) real_memory_size;
+	kvm_devices = (void *) total_memory_size;
 
 	kvm_root = root_device_register("kvm_s390");
 	if (IS_ERR(kvm_root)) {
 		rc = PTR_ERR(kvm_root);
 		printk(KERN_ERR "Could not register kvm_s390 root device");
-		vmem_remove_mapping(real_memory_size, PAGE_SIZE);
+		vmem_remove_mapping(total_memory_size, PAGE_SIZE);
 		return rc;
 	}
 
 	INIT_WORK(&hotplug_work, hotplug_devices);
 
-	service_subclass_irq_register();
-	register_external_interrupt(0x2603, kvm_extint_handler);
+	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
+	register_external_irq(EXT_IRQ_CP_SERVICE, kvm_extint_handler);
 
 	scan_devices();
 	return 0;

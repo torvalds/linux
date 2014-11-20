@@ -14,6 +14,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/mfd/max8998-private.h>
 
 struct max8998_irq_data {
@@ -99,7 +100,8 @@ static struct max8998_irq_data max8998_irqs[] = {
 static inline struct max8998_irq_data *
 irq_to_max8998_irq(struct max8998_dev *max8998, int irq)
 {
-	return &max8998_irqs[irq - max8998->irq_base];
+	struct irq_data *data = irq_get_irq_data(irq);
+	return &max8998_irqs[data->hwirq];
 }
 
 static void max8998_irq_lock(struct irq_data *data)
@@ -176,8 +178,14 @@ static irqreturn_t max8998_irq_thread(int irq, void *data)
 
 	/* Report */
 	for (i = 0; i < MAX8998_IRQ_NR; i++) {
-		if (irq_reg[max8998_irqs[i].reg - 1] & max8998_irqs[i].mask)
-			handle_nested_irq(max8998->irq_base + i);
+		if (irq_reg[max8998_irqs[i].reg - 1] & max8998_irqs[i].mask) {
+			irq = irq_find_mapping(max8998->irq_domain, i);
+			if (WARN_ON(!irq)) {
+				disable_irq_nosync(max8998->irq);
+				return IRQ_NONE;
+			}
+			handle_nested_irq(irq);
+		}
 	}
 
 	return IRQ_HANDLED;
@@ -185,27 +193,40 @@ static irqreturn_t max8998_irq_thread(int irq, void *data)
 
 int max8998_irq_resume(struct max8998_dev *max8998)
 {
-	if (max8998->irq && max8998->irq_base)
-		max8998_irq_thread(max8998->irq_base, max8998);
+	if (max8998->irq && max8998->irq_domain)
+		max8998_irq_thread(max8998->irq, max8998);
 	return 0;
 }
+
+static int max8998_irq_domain_map(struct irq_domain *d, unsigned int irq,
+					irq_hw_number_t hw)
+{
+	struct max8997_dev *max8998 = d->host_data;
+
+	irq_set_chip_data(irq, max8998);
+	irq_set_chip_and_handler(irq, &max8998_irq_chip, handle_edge_irq);
+	irq_set_nested_thread(irq, 1);
+#ifdef CONFIG_ARM
+	set_irq_flags(irq, IRQF_VALID);
+#else
+	irq_set_noprobe(irq);
+#endif
+	return 0;
+}
+
+static struct irq_domain_ops max8998_irq_domain_ops = {
+	.map = max8998_irq_domain_map,
+};
 
 int max8998_irq_init(struct max8998_dev *max8998)
 {
 	int i;
-	int cur_irq;
 	int ret;
+	struct irq_domain *domain;
 
 	if (!max8998->irq) {
 		dev_warn(max8998->dev,
 			 "No interrupt specified, no interrupts\n");
-		max8998->irq_base = 0;
-		return 0;
-	}
-
-	if (!max8998->irq_base) {
-		dev_err(max8998->dev,
-			"No interrupt base specified, no interrupts\n");
 		return 0;
 	}
 
@@ -221,19 +242,13 @@ int max8998_irq_init(struct max8998_dev *max8998)
 	max8998_write_reg(max8998->i2c, MAX8998_REG_STATUSM1, 0xff);
 	max8998_write_reg(max8998->i2c, MAX8998_REG_STATUSM2, 0xff);
 
-	/* register with genirq */
-	for (i = 0; i < MAX8998_IRQ_NR; i++) {
-		cur_irq = i + max8998->irq_base;
-		irq_set_chip_data(cur_irq, max8998);
-		irq_set_chip_and_handler(cur_irq, &max8998_irq_chip,
-					 handle_edge_irq);
-		irq_set_nested_thread(cur_irq, 1);
-#ifdef CONFIG_ARM
-		set_irq_flags(cur_irq, IRQF_VALID);
-#else
-		irq_set_noprobe(cur_irq);
-#endif
+	domain = irq_domain_add_simple(NULL, MAX8998_IRQ_NR,
+			max8998->irq_base, &max8998_irq_domain_ops, max8998);
+	if (!domain) {
+		dev_err(max8998->dev, "could not create irq domain\n");
+		return -ENODEV;
 	}
+	max8998->irq_domain = domain;
 
 	ret = request_threaded_irq(max8998->irq, NULL, max8998_irq_thread,
 				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,

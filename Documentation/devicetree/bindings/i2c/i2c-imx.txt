@@ -1,7 +1,10 @@
 * Freescale Inter IC (I2C) and High Speed Inter IC (HS-I2C) for i.MX
 
 Required properties:
-- compatible : Should be "fsl,<chip>-i2c"
+- compatible :
+  - "fsl,imx1-i2c" for I2C compatible with the one integrated on i.MX1 SoC
+  - "fsl,imx21-i2c" for I2C compatible with the one integrated on i.MX21 SoC
+  - "fsl,vf610-i2c" for I2C compatible with the one integrated on Vybrid vf610 SoC
 - reg : Should contain I2C/HS-I2C registers location and length
 - interrupts : Should contain I2C/HS-I2C interrupt
 

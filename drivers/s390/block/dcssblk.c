@@ -26,7 +26,7 @@
 #define DCSS_BUS_ID_SIZE 20
 
 static int dcssblk_open(struct block_device *bdev, fmode_t mode);
-static int dcssblk_release(struct gendisk *disk, fmode_t mode);
+static void dcssblk_release(struct gendisk *disk, fmode_t mode);
 static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
 static int dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
 				 void **kaddr, unsigned long *pfn);
@@ -304,12 +304,6 @@ dcssblk_load_segment(char *name, struct segment_info **seg_info)
 	return rc;
 }
 
-static void dcssblk_unregister_callback(struct device *dev)
-{
-	device_unregister(dev);
-	put_device(dev);
-}
-
 /*
  * device attribute for switching shared/nonshared (exclusive)
  * operation (show + store)
@@ -397,7 +391,13 @@ removeseg:
 	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
-	rc = device_schedule_callback(dev, dcssblk_unregister_callback);
+	up_write(&dcssblk_devices_sem);
+
+	if (device_remove_file_self(dev, attr)) {
+		device_unregister(dev);
+		put_device(dev);
+	}
+	return rc;
 out:
 	up_write(&dcssblk_devices_sem);
 	return rc;
@@ -593,7 +593,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->start = dcssblk_find_lowest_addr(dev_info);
 	dev_info->end = dcssblk_find_highest_addr(dev_info);
 
-	dev_set_name(&dev_info->dev, dev_info->segment_name);
+	dev_set_name(&dev_info->dev, "%s", dev_info->segment_name);
 	dev_info->dev.release = dcssblk_release_segment;
 	dev_info->dev.groups = dcssblk_dev_attr_groups;
 	INIT_LIST_HEAD(&dev_info->lh);
@@ -781,16 +781,15 @@ out:
 	return rc;
 }
 
-static int
+static void
 dcssblk_release(struct gendisk *disk, fmode_t mode)
 {
 	struct dcssblk_dev_info *dev_info = disk->private_data;
 	struct segment_info *entry;
-	int rc;
 
 	if (!dev_info) {
-		rc = -ENODEV;
-		goto out;
+		WARN_ON(1);
+		return;
 	}
 	down_write(&dcssblk_devices_sem);
 	if (atomic_dec_and_test(&dev_info->use_count)
@@ -803,31 +802,28 @@ dcssblk_release(struct gendisk *disk, fmode_t mode)
 		dev_info->save_pending = 0;
 	}
 	up_write(&dcssblk_devices_sem);
-	rc = 0;
-out:
-	return rc;
 }
 
 static void
 dcssblk_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct dcssblk_dev_info *dev_info;
-	struct bio_vec *bvec;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
 	unsigned long index;
 	unsigned long page_addr;
 	unsigned long source_addr;
 	unsigned long bytes_done;
-	int i;
 
 	bytes_done = 0;
 	dev_info = bio->bi_bdev->bd_disk->private_data;
 	if (dev_info == NULL)
 		goto fail;
-	if ((bio->bi_sector & 7) != 0 || (bio->bi_size & 4095) != 0)
+	if ((bio->bi_iter.bi_sector & 7) != 0 ||
+	    (bio->bi_iter.bi_size & 4095) != 0)
 		/* Request is not page-aligned. */
 		goto fail;
-	if (((bio->bi_size >> 9) + bio->bi_sector)
-			> get_capacity(bio->bi_bdev->bd_disk)) {
+	if (bio_end_sector(bio) > get_capacity(bio->bi_bdev->bd_disk)) {
 		/* Request beyond end of DCSS segment. */
 		goto fail;
 	}
@@ -847,22 +843,22 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 		}
 	}
 
-	index = (bio->bi_sector >> 3);
-	bio_for_each_segment(bvec, bio, i) {
+	index = (bio->bi_iter.bi_sector >> 3);
+	bio_for_each_segment(bvec, bio, iter) {
 		page_addr = (unsigned long)
-			page_address(bvec->bv_page) + bvec->bv_offset;
+			page_address(bvec.bv_page) + bvec.bv_offset;
 		source_addr = dev_info->start + (index<<12) + bytes_done;
-		if (unlikely((page_addr & 4095) != 0) || (bvec->bv_len & 4095) != 0)
+		if (unlikely((page_addr & 4095) != 0) || (bvec.bv_len & 4095) != 0)
 			// More paranoia.
 			goto fail;
 		if (bio_data_dir(bio) == READ) {
 			memcpy((void*)page_addr, (void*)source_addr,
-				bvec->bv_len);
+				bvec.bv_len);
 		} else {
 			memcpy((void*)source_addr, (void*)page_addr,
-				bvec->bv_len);
+				bvec.bv_len);
 		}
-		bytes_done += bvec->bv_len;
+		bytes_done += bvec.bv_len;
 	}
 	bio_endio(bio, 0);
 	return;

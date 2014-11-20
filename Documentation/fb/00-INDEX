@@ -5,6 +5,8 @@ please mail me.
 
 00-INDEX
 	- this file.
+api.txt
+	- The frame buffer API between applications and buffer devices.
 arkfb.txt
 	- info on the fbdev driver for ARK Logic chips.
 aty128fb.txt
@@ -51,12 +53,16 @@ sh7760fb.txt
 	- info on the SH7760/SH7763 integrated LCDC Framebuffer driver.
 sisfb.txt
 	- info on the framebuffer device driver for various SiS chips.
+sm501.txt
+	- info on the framebuffer device driver for sm501 videoframebuffer.
 sstfb.txt
 	- info on the frame buffer driver for 3dfx' Voodoo Graphics boards.
 tgafb.txt
 	- info on the TGA (DECChip 21030) frame buffer driver.
 tridentfb.txt
 	info on the framebuffer driver for some Trident chip based cards.
+udlfb.txt
+	- Driver for DisplayLink USB 2.0 chips.
 uvesafb.txt
 	- info on the userspace VESA (VBE2+ compliant) frame buffer device.
 vesafb.txt

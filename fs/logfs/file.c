@@ -159,7 +159,8 @@ static int logfs_writepage(struct page *page, struct writeback_control *wbc)
 	return __logfs_writepage(page);
 }
 
-static void logfs_invalidatepage(struct page *page, unsigned long offset)
+static void logfs_invalidatepage(struct page *page, unsigned int offset,
+				 unsigned int length)
 {
 	struct logfs_block *block = logfs_block(page);
 
@@ -263,15 +264,15 @@ const struct inode_operations logfs_reg_iops = {
 };
 
 const struct file_operations logfs_reg_fops = {
-	.aio_read	= generic_file_aio_read,
-	.aio_write	= generic_file_aio_write,
+	.read_iter	= generic_file_read_iter,
+	.write_iter	= generic_file_write_iter,
 	.fsync		= logfs_fsync,
 	.unlocked_ioctl	= logfs_ioctl,
 	.llseek		= generic_file_llseek,
 	.mmap		= generic_file_readonly_mmap,
 	.open		= generic_file_open,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
+	.read		= new_sync_read,
+	.write		= new_sync_write,
 };
 
 const struct address_space_operations logfs_reg_aops = {

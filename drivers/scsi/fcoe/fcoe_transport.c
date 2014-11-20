@@ -96,20 +96,47 @@ int fcoe_link_speed_update(struct fc_lport *lport)
 	struct ethtool_cmd ecmd;
 
 	if (!__ethtool_get_settings(netdev, &ecmd)) {
-		lport->link_supported_speeds &=
-			~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
+		lport->link_supported_speeds &= ~(FC_PORTSPEED_1GBIT  |
+		                                  FC_PORTSPEED_10GBIT |
+		                                  FC_PORTSPEED_20GBIT |
+		                                  FC_PORTSPEED_40GBIT);
+
 		if (ecmd.supported & (SUPPORTED_1000baseT_Half |
-				      SUPPORTED_1000baseT_Full))
+		                      SUPPORTED_1000baseT_Full |
+		                      SUPPORTED_1000baseKX_Full))
 			lport->link_supported_speeds |= FC_PORTSPEED_1GBIT;
-		if (ecmd.supported & SUPPORTED_10000baseT_Full)
-			lport->link_supported_speeds |=
-				FC_PORTSPEED_10GBIT;
+
+		if (ecmd.supported & (SUPPORTED_10000baseT_Full   |
+		                      SUPPORTED_10000baseKX4_Full |
+		                      SUPPORTED_10000baseKR_Full  |
+		                      SUPPORTED_10000baseR_FEC))
+			lport->link_supported_speeds |= FC_PORTSPEED_10GBIT;
+
+		if (ecmd.supported & (SUPPORTED_20000baseMLD2_Full |
+		                      SUPPORTED_20000baseKR2_Full))
+			lport->link_supported_speeds |= FC_PORTSPEED_20GBIT;
+
+		if (ecmd.supported & (SUPPORTED_40000baseKR4_Full |
+		                      SUPPORTED_40000baseCR4_Full |
+		                      SUPPORTED_40000baseSR4_Full |
+		                      SUPPORTED_40000baseLR4_Full))
+			lport->link_supported_speeds |= FC_PORTSPEED_40GBIT;
+
 		switch (ethtool_cmd_speed(&ecmd)) {
 		case SPEED_1000:
 			lport->link_speed = FC_PORTSPEED_1GBIT;
 			break;
 		case SPEED_10000:
 			lport->link_speed = FC_PORTSPEED_10GBIT;
+			break;
+		case 20000:
+			lport->link_speed = FC_PORTSPEED_20GBIT;
+			break;
+		case 40000:
+			lport->link_speed = FC_PORTSPEED_40GBIT;
+			break;
+		default:
+			lport->link_speed = FC_PORTSPEED_UNKNOWN;
 			break;
 		}
 		return 0;
@@ -180,24 +207,10 @@ void fcoe_ctlr_get_lesb(struct fcoe_ctlr_device *ctlr_dev)
 {
 	struct fcoe_ctlr *fip = fcoe_ctlr_device_priv(ctlr_dev);
 	struct net_device *netdev = fcoe_get_netdev(fip->lp);
-	struct fcoe_fc_els_lesb *fcoe_lesb;
-	struct fc_els_lesb fc_lesb;
+	struct fc_els_lesb *fc_lesb;
 
-	__fcoe_get_lesb(fip->lp, &fc_lesb, netdev);
-	fcoe_lesb = (struct fcoe_fc_els_lesb *)(&fc_lesb);
-
-	ctlr_dev->lesb.lesb_link_fail =
-		ntohl(fcoe_lesb->lesb_link_fail);
-	ctlr_dev->lesb.lesb_vlink_fail =
-		ntohl(fcoe_lesb->lesb_vlink_fail);
-	ctlr_dev->lesb.lesb_miss_fka =
-		ntohl(fcoe_lesb->lesb_miss_fka);
-	ctlr_dev->lesb.lesb_symb_err =
-		ntohl(fcoe_lesb->lesb_symb_err);
-	ctlr_dev->lesb.lesb_err_block =
-		ntohl(fcoe_lesb->lesb_err_block);
-	ctlr_dev->lesb.lesb_fcs_error =
-		ntohl(fcoe_lesb->lesb_fcs_error);
+	fc_lesb = (struct fc_els_lesb *)(&ctlr_dev->lesb);
+	__fcoe_get_lesb(fip->lp, fc_lesb, netdev);
 }
 EXPORT_SYMBOL_GPL(fcoe_ctlr_get_lesb);
 
@@ -704,7 +717,7 @@ static struct net_device *fcoe_if_to_netdev(const char *buffer)
 static int libfcoe_device_notification(struct notifier_block *notifier,
 				    ulong event, void *ptr)
 {
-	struct net_device *netdev = ptr;
+	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -721,7 +734,6 @@ ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
 {
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
-	struct fcoe_ctlr_device *ctlr_dev = NULL;
 	int rc = 0;
 	int err;
 
@@ -768,9 +780,8 @@ ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
 		goto out_putdev;
 	}
 
-	LIBFCOE_TRANSPORT_DBG("transport %s %s to create fcoe on %s.\n",
-			      ft->name, (ctlr_dev) ? "succeeded" : "failed",
-			      netdev->name);
+	LIBFCOE_TRANSPORT_DBG("transport %s succeeded to create fcoe on %s.\n",
+			      ft->name, netdev->name);
 
 out_putdev:
 	dev_put(netdev);

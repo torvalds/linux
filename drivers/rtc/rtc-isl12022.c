@@ -16,6 +16,9 @@
 #include <linux/rtc.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/err.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #define DRV_VERSION "0.1"
 
@@ -252,12 +255,11 @@ static int isl12022_probe(struct i2c_client *client,
 {
 	struct isl12022 *isl12022;
 
-	int ret = 0;
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	isl12022 = kzalloc(sizeof(struct isl12022), GFP_KERNEL);
+	isl12022 = devm_kzalloc(&client->dev, sizeof(struct isl12022),
+				GFP_KERNEL);
 	if (!isl12022)
 		return -ENOMEM;
 
@@ -265,37 +267,21 @@ static int isl12022_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, isl12022);
 
-	isl12022->rtc = rtc_device_register(isl12022_driver.driver.name,
-					    &client->dev,
-					    &isl12022_rtc_ops,
-					    THIS_MODULE);
-
-	if (IS_ERR(isl12022->rtc)) {
-		ret = PTR_ERR(isl12022->rtc);
-		goto exit_kfree;
-	}
-
-	return 0;
-
-exit_kfree:
-	kfree(isl12022);
-
-	return ret;
+	isl12022->rtc = devm_rtc_device_register(&client->dev,
+					isl12022_driver.driver.name,
+					&isl12022_rtc_ops, THIS_MODULE);
+	return PTR_ERR_OR_ZERO(isl12022->rtc);
 }
 
-static int isl12022_remove(struct i2c_client *client)
-{
-	struct isl12022 *isl12022 = i2c_get_clientdata(client);
-
-	rtc_device_unregister(isl12022->rtc);
-	kfree(isl12022);
-
-	return 0;
-}
+#ifdef CONFIG_OF
+static const struct of_device_id isl12022_dt_match[] = {
+	{ .compatible = "isl,isl12022" },
+	{ },
+};
+#endif
 
 static const struct i2c_device_id isl12022_id[] = {
 	{ "isl12022", 0 },
-	{ "rtc8564", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl12022_id);
@@ -303,9 +289,11 @@ MODULE_DEVICE_TABLE(i2c, isl12022_id);
 static struct i2c_driver isl12022_driver = {
 	.driver		= {
 		.name	= "rtc-isl12022",
+#ifdef CONFIG_OF
+		.of_match_table = of_match_ptr(isl12022_dt_match),
+#endif
 	},
 	.probe		= isl12022_probe,
-	.remove		= isl12022_remove,
 	.id_table	= isl12022_id,
 };
 

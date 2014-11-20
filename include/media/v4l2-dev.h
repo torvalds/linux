@@ -24,7 +24,8 @@
 #define VFL_TYPE_VBI		1
 #define VFL_TYPE_RADIO		2
 #define VFL_TYPE_SUBDEV		3
-#define VFL_TYPE_MAX		4
+#define VFL_TYPE_SDR		4
+#define VFL_TYPE_MAX		5
 
 /* Is this a receiver, transmitter or mem-to-mem? */
 /* Ignored for VFL_TYPE_SUBDEV. */
@@ -43,8 +44,6 @@ struct v4l2_ctrl_handler;
 #define V4L2_FL_REGISTERED	(0)
 /* file->private_data points to struct v4l2_fh */
 #define V4L2_FL_USES_V4L2_FH	(1)
-/* Use the prio field of v4l2_fh for core priority checking */
-#define V4L2_FL_USE_FH_PRIO	(2)
 
 /* Priority helper functions */
 
@@ -96,9 +95,9 @@ struct video_device
 	struct device dev;		/* v4l device */
 	struct cdev *cdev;		/* character device */
 
-	/* Set either parent or v4l2_dev if your driver uses v4l2_device */
-	struct device *parent;		/* device parent */
 	struct v4l2_device *v4l2_dev;	/* v4l2_device parent */
+	/* Only set parent if that can't be deduced from v4l2_dev */
+	struct device *dev_parent;	/* device parent */
 
 	/* Control handler associated with this device node. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
@@ -129,7 +128,6 @@ struct video_device
 
 	/* Video standard vars */
 	v4l2_std_id tvnorms;		/* Supported tv norms */
-	v4l2_std_id current_norm;	/* Current tvnorm */
 
 	/* callbacks */
 	void (*release)(struct video_device *vdev);

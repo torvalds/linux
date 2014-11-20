@@ -1,15 +1,15 @@
 /*
    md.h : kernel internal structure of the Linux MD driver
           Copyright (C) 1996-98 Ingo Molnar, Gadi Oxman
-	  
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    You should have received a copy of the GNU General Public License
    (for example /usr/src/linux/COPYING); if not, write to the Free
-   Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
+   Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #ifndef _MD_MD_H
@@ -56,7 +56,7 @@ struct md_rdev {
 	__u64		sb_events;
 	sector_t	data_offset;	/* start of data in array */
 	sector_t	new_data_offset;/* only relevant while reshaping */
-	sector_t 	sb_start;	/* offset of the super block (in 512byte sectors) */
+	sector_t	sb_start;	/* offset of the super block (in 512byte sectors) */
 	int		sb_size;	/* bytes in the superblock */
 	int		preferred_minor;	/* autorun support */
 
@@ -106,7 +106,7 @@ struct md_rdev {
 					   */
 	struct work_struct del_work;	/* used for delayed sysfs removal */
 
-	struct sysfs_dirent *sysfs_state; /* handle for 'state'
+	struct kernfs_node *sysfs_state; /* handle for 'state'
 					   * sysfs entry */
 
 	struct badblocks {
@@ -129,6 +129,9 @@ struct md_rdev {
 enum flag_bits {
 	Faulty,			/* device is known to have a fault */
 	In_sync,		/* device is in_sync with rest of array */
+	Bitmap_sync,		/* ..actually, not quite In_sync.  Need a
+				 * bitmap-based recovery to get fully in sync
+				 */
 	Unmerged,		/* device is being added to array and should
 				 * be considerred for bvec_merge_fn but not
 				 * yet for actual IO
@@ -204,12 +207,16 @@ struct mddev {
 	struct md_personality		*pers;
 	dev_t				unit;
 	int				md_minor;
-	struct list_head 		disks;
+	struct list_head		disks;
 	unsigned long			flags;
 #define MD_CHANGE_DEVS	0	/* Some device status has changed */
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
 #define MD_CHANGE_PENDING 2	/* switch from 'clean' to 'active' in progress */
+#define MD_UPDATE_SB_FLAGS (1 | 2 | 4)	/* If these are set, md_update_sb needed */
 #define MD_ARRAY_FIRST_USE 3    /* First use of array, needs initialization */
+#define MD_STILL_CLOSED	4	/* If set, then array has not been opened since
+				 * md_ioctl checked on it.
+				 */
 
 	int				suspended;
 	atomic_t			active_io;
@@ -218,7 +225,7 @@ struct mddev {
 						       * are happening, so run/
 						       * takeover/stop are not safe
 						       */
-	int				ready; /* See when safe to pass 
+	int				ready; /* See when safe to pass
 						* IO requests down */
 	struct gendisk			*gendisk;
 
@@ -232,7 +239,7 @@ struct mddev {
 					minor_version,
 					patch_version;
 	int				persistent;
-	int 				external;	/* metadata is
+	int				external;	/* metadata is
 							 * managed externally */
 	char				metadata_type[17]; /* externally set*/
 	int				chunk_sectors;
@@ -241,7 +248,7 @@ struct mddev {
 	char				clevel[16];
 	int				raid_disks;
 	int				max_disks;
-	sector_t			dev_sectors; 	/* used size of
+	sector_t			dev_sectors;	/* used size of
 							 * component devices */
 	sector_t			array_sectors; /* exported array size */
 	int				external_size; /* size managed
@@ -268,6 +275,14 @@ struct mddev {
 
 	struct md_thread		*thread;	/* management thread */
 	struct md_thread		*sync_thread;	/* doing resync or reconstruct */
+
+	/* 'last_sync_action' is initialized to "none".  It is set when a
+	 * sync operation (i.e "data-check", "requested-resync", "resync",
+	 * "recovery", or "reshape") is started.  It holds this value even
+	 * when the sync thread is "frozen" (interrupted) or "idle" (stopped
+	 * or finished).  It is overwritten when a new sync operation is begun.
+	 */
+	char				*last_sync_action;
 	sector_t			curr_resync;	/* last block scheduled */
 	/* As resync requests can complete out of order, we cannot easily track
 	 * how much resync has been completed.  So we occasionally pause until
@@ -297,7 +312,7 @@ struct mddev {
 	int				parallel_resync;
 
 	int				ok_start_degraded;
-	/* recovery/resync flags 
+	/* recovery/resync flags
 	 * NEEDED:   we might need to start a resync/recover
 	 * RUNNING:  a thread is running, or about to be started
 	 * SYNC:     actually doing a resync, not a recovery
@@ -364,10 +379,10 @@ struct mddev {
 	sector_t			resync_max;	/* resync should pause
 							 * when it gets here */
 
-	struct sysfs_dirent		*sysfs_state;	/* handle for 'array_state'
+	struct kernfs_node		*sysfs_state;	/* handle for 'array_state'
 							 * file in sysfs.
 							 */
-	struct sysfs_dirent		*sysfs_action;  /* handle for 'sync_action' */
+	struct kernfs_node		*sysfs_action;  /* handle for 'sync_action' */
 
 	struct work_struct del_work;	/* used for delayed sysfs removal */
 
@@ -377,20 +392,20 @@ struct mddev {
 
 	unsigned int			safemode;	/* if set, update "clean" superblock
 							 * when no writes pending.
-							 */ 
+							 */
 	unsigned int			safemode_delay;
 	struct timer_list		safemode_timer;
-	atomic_t			writes_pending; 
+	atomic_t			writes_pending;
 	struct request_queue		*queue;	/* for plugging ... */
 
-	struct bitmap                   *bitmap; /* the bitmap for the device */
+	struct bitmap			*bitmap; /* the bitmap for the device */
 	struct {
 		struct file		*file; /* the bitmap file */
 		loff_t			offset; /* offset from superblock of
 						 * start of bitmap. May be
 						 * negative, but not '0'
 						 * For external metadata, offset
-						 * from start of device. 
+						 * from start of device.
 						 */
 		unsigned long		space; /* space available at this offset */
 		loff_t			default_offset; /* this is the offset to use when
@@ -406,7 +421,7 @@ struct mddev {
 		int			external;
 	} bitmap_info;
 
-	atomic_t 			max_corr_read_errors; /* max read retries */
+	atomic_t			max_corr_read_errors; /* max read retries */
 	struct list_head		all_mddevs;
 
 	struct attribute_group		*to_remove;
@@ -424,7 +439,6 @@ struct mddev {
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 };
 
-
 static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 {
 	int faulty = test_bit(Faulty, &rdev->flags);
@@ -434,7 +448,7 @@ static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 
 static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sectors)
 {
-        atomic_add(nr_sectors, &bdev->bd_contains->bd_disk->sync_io);
+	atomic_add(nr_sectors, &bdev->bd_contains->bd_disk->sync_io);
 }
 
 struct md_personality
@@ -448,7 +462,7 @@ struct md_personality
 	int (*stop)(struct mddev *mddev);
 	void (*status)(struct seq_file *seq, struct mddev *mddev);
 	/* error_handler must set ->faulty and clear ->in_sync
-	 * if appropriate, and should abort recovery if needed 
+	 * if appropriate, and should abort recovery if needed
 	 */
 	void (*error_handler)(struct mddev *mddev, struct md_rdev *rdev);
 	int (*hot_add_disk) (struct mddev *mddev, struct md_rdev *rdev);
@@ -478,7 +492,6 @@ struct md_personality
 	void *(*takeover) (struct mddev *mddev);
 };
 
-
 struct md_sysfs_entry {
 	struct attribute attr;
 	ssize_t (*show)(struct mddev *, char *);
@@ -486,13 +499,13 @@ struct md_sysfs_entry {
 };
 extern struct attribute_group md_bitmap_group;
 
-static inline struct sysfs_dirent *sysfs_get_dirent_safe(struct sysfs_dirent *sd, char *name)
+static inline struct kernfs_node *sysfs_get_dirent_safe(struct kernfs_node *sd, char *name)
 {
 	if (sd)
-		return sysfs_get_dirent(sd, NULL, name);
+		return sysfs_get_dirent(sd, name);
 	return sd;
 }
-static inline void sysfs_notify_dirent_safe(struct sysfs_dirent *sd)
+static inline void sysfs_notify_dirent_safe(struct kernfs_node *sd)
 {
 	if (sd)
 		sysfs_notify_dirent(sd);
@@ -545,7 +558,7 @@ struct md_thread {
 	void			(*run) (struct md_thread *thread);
 	struct mddev		*mddev;
 	wait_queue_head_t	wqueue;
-	unsigned long           flags;
+	unsigned long		flags;
 	struct task_struct	*tsk;
 	unsigned long		timeout;
 	void			*private;
@@ -567,6 +580,7 @@ extern struct md_thread *md_register_thread(
 extern void md_unregister_thread(struct md_thread **threadp);
 extern void md_wakeup_thread(struct md_thread *thread);
 extern void md_check_recovery(struct mddev *mddev);
+extern void md_reap_sync_thread(struct mddev *mddev);
 extern void md_write_start(struct mddev *mddev, struct bio *bi);
 extern void md_write_end(struct mddev *mddev);
 extern void md_done_sync(struct mddev *mddev, int blocks, int ok);
@@ -578,7 +592,7 @@ extern void md_flush_request(struct mddev *mddev, struct bio *bio);
 extern void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 			   sector_t sector, int size, struct page *page);
 extern void md_super_wait(struct mddev *mddev);
-extern int sync_page_io(struct md_rdev *rdev, sector_t sector, int size, 
+extern int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 			struct page *page, int rw, bool metadata_op);
 extern void md_do_sync(struct md_thread *thread);
 extern void md_new_event(struct mddev *mddev);
@@ -589,7 +603,6 @@ extern int md_check_no_bitmap(struct mddev *mddev);
 extern int md_integrity_register(struct mddev *mddev);
 extern void md_integrity_add_rdev(struct md_rdev *rdev, struct mddev *mddev);
 extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
-extern void restore_bitmap_write_access(struct file *file);
 
 extern void mddev_init(struct mddev *mddev);
 extern int md_run(struct mddev *mddev);
@@ -604,7 +617,6 @@ extern struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
 				   struct mddev *mddev);
 extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 				   struct mddev *mddev);
-extern void md_trim_bio(struct bio *bio, int offset, int size);
 
 extern void md_unplug(struct blk_plug_cb *cb, bool from_schedule);
 static inline int mddev_check_plugged(struct mddev *mddev)

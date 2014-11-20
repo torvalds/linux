@@ -157,24 +157,23 @@ static const struct backlight_ops locomobl_data = {
 	.update_status  = locomolcd_set_intensity,
 };
 
-#ifdef CONFIG_PM
-static int locomolcd_suspend(struct locomo_dev *dev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int locomolcd_suspend(struct device *dev)
 {
 	locomolcd_flags |= LOCOMOLCD_SUSPENDED;
 	locomolcd_set_intensity(locomolcd_bl_device);
 	return 0;
 }
 
-static int locomolcd_resume(struct locomo_dev *dev)
+static int locomolcd_resume(struct device *dev)
 {
 	locomolcd_flags &= ~LOCOMOLCD_SUSPENDED;
 	locomolcd_set_intensity(locomolcd_bl_device);
 	return 0;
 }
-#else
-#define locomolcd_suspend	NULL
-#define locomolcd_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(locomolcd_pm_ops, locomolcd_suspend, locomolcd_resume);
 
 static int locomolcd_probe(struct locomo_dev *ldev)
 {
@@ -230,13 +229,12 @@ static int locomolcd_remove(struct locomo_dev *dev)
 
 static struct locomo_driver poodle_lcd_driver = {
 	.drv = {
-		.name = "locomo-backlight",
+		.name	= "locomo-backlight",
+		.pm	= &locomolcd_pm_ops,
 	},
 	.devid	= LOCOMO_DEVID_BACKLIGHT,
 	.probe	= locomolcd_probe,
 	.remove	= locomolcd_remove,
-	.suspend = locomolcd_suspend,
-	.resume = locomolcd_resume,
 };
 
 static int __init locomolcd_init(void)

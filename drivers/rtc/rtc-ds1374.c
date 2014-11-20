@@ -65,7 +65,7 @@ struct ds1374 {
 static struct i2c_driver ds1374_driver;
 
 static int ds1374_read_rtc(struct i2c_client *client, u32 *time,
-                           int reg, int nbytes)
+			   int reg, int nbytes)
 {
 	u8 buf[4];
 	int ret;
@@ -90,7 +90,7 @@ static int ds1374_read_rtc(struct i2c_client *client, u32 *time,
 }
 
 static int ds1374_write_rtc(struct i2c_client *client, u32 time,
-                            int reg, int nbytes)
+			    int reg, int nbytes)
 {
 	u8 buf[4];
 	int i;
@@ -119,8 +119,7 @@ static int ds1374_check_rtc_status(struct i2c_client *client)
 
 	if (stat & DS1374_REG_SR_OSF)
 		dev_warn(&client->dev,
-		         "oscillator discontinuity flagged, "
-		         "time unreliable\n");
+			 "oscillator discontinuity flagged, time unreliable\n");
 
 	stat &= ~(DS1374_REG_SR_OSF | DS1374_REG_SR_AF);
 
@@ -347,7 +346,7 @@ static int ds1374_probe(struct i2c_client *client,
 	struct ds1374 *ds1374;
 	int ret;
 
-	ds1374 = kzalloc(sizeof(struct ds1374), GFP_KERNEL);
+	ds1374 = devm_kzalloc(&client->dev, sizeof(struct ds1374), GFP_KERNEL);
 	if (!ds1374)
 		return -ENOMEM;
 
@@ -359,36 +358,27 @@ static int ds1374_probe(struct i2c_client *client,
 
 	ret = ds1374_check_rtc_status(client);
 	if (ret)
-		goto out_free;
+		return ret;
 
 	if (client->irq > 0) {
-		ret = request_irq(client->irq, ds1374_irq, 0,
-		                  "ds1374", client);
+		ret = devm_request_irq(&client->dev, client->irq, ds1374_irq, 0,
+					"ds1374", client);
 		if (ret) {
 			dev_err(&client->dev, "unable to request IRQ\n");
-			goto out_free;
+			return ret;
 		}
 
 		device_set_wakeup_capable(&client->dev, 1);
 	}
 
-	ds1374->rtc = rtc_device_register(client->name, &client->dev,
-	                                  &ds1374_rtc_ops, THIS_MODULE);
+	ds1374->rtc = devm_rtc_device_register(&client->dev, client->name,
+						&ds1374_rtc_ops, THIS_MODULE);
 	if (IS_ERR(ds1374->rtc)) {
-		ret = PTR_ERR(ds1374->rtc);
 		dev_err(&client->dev, "unable to register the class device\n");
-		goto out_irq;
+		return PTR_ERR(ds1374->rtc);
 	}
 
 	return 0;
-
-out_irq:
-	if (client->irq > 0)
-		free_irq(client->irq, client);
-
-out_free:
-	kfree(ds1374);
-	return ret;
 }
 
 static int ds1374_remove(struct i2c_client *client)
@@ -400,16 +390,14 @@ static int ds1374_remove(struct i2c_client *client)
 		ds1374->exiting = 1;
 		mutex_unlock(&ds1374->mutex);
 
-		free_irq(client->irq, client);
+		devm_free_irq(&client->dev, client->irq, client);
 		cancel_work_sync(&ds1374->work);
 	}
 
-	rtc_device_unregister(ds1374->rtc);
-	kfree(ds1374);
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ds1374_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -427,19 +415,15 @@ static int ds1374_resume(struct device *dev)
 		disable_irq_wake(client->irq);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ds1374_pm, ds1374_suspend, ds1374_resume);
-
-#define DS1374_PM (&ds1374_pm)
-#else
-#define DS1374_PM NULL
-#endif
 
 static struct i2c_driver ds1374_driver = {
 	.driver = {
 		.name = "rtc-ds1374",
 		.owner = THIS_MODULE,
-		.pm = DS1374_PM,
+		.pm = &ds1374_pm,
 	},
 	.probe = ds1374_probe,
 	.remove = ds1374_remove,

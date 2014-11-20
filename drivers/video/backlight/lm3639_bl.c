@@ -76,10 +76,13 @@ static int lm3639_chip_init(struct lm3639_chip_data *pchip)
 		goto out;
 
 	/* output pins config. */
-	if (!pdata->init_brt_led)
-		reg_val = pdata->fled_pins | pdata->bled_pins;
-	else
-		reg_val = pdata->fled_pins | pdata->bled_pins | 0x01;
+	if (!pdata->init_brt_led) {
+		reg_val = pdata->fled_pins;
+		reg_val |= pdata->bled_pins;
+	} else {
+		reg_val = pdata->fled_pins;
+		reg_val |= pdata->bled_pins | 0x01;
+	}
 
 	ret = regmap_update_bits(pchip->regmap, REG_ENABLE, 0x79, reg_val);
 	if (ret < 0)
@@ -251,7 +254,6 @@ static void lm3639_torch_brightness_set(struct led_classdev *cdev,
 	return;
 out:
 	dev_err(pchip->dev, "i2c failed to access register\n");
-	return;
 }
 
 /* flash */
@@ -290,7 +292,6 @@ static void lm3639_flash_brightness_set(struct led_classdev *cdev,
 	return;
 out:
 	dev_err(pchip->dev, "i2c failed to access register\n");
-	return;
 }
 
 static const struct regmap_config lm3639_regmap = {
@@ -304,7 +305,7 @@ static int lm3639_probe(struct i2c_client *client,
 {
 	int ret;
 	struct lm3639_chip_data *pchip;
-	struct lm3639_platform_data *pdata = client->dev.platform_data;
+	struct lm3639_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct backlight_properties props;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -346,8 +347,9 @@ static int lm3639_probe(struct i2c_client *client,
 	props.brightness = pdata->init_brt_led;
 	props.max_brightness = pdata->max_brt_led;
 	pchip->bled =
-	    backlight_device_register("lm3639_bled", pchip->dev, pchip,
-				      &lm3639_bled_ops, &props);
+	    devm_backlight_device_register(pchip->dev, "lm3639_bled",
+					   pchip->dev, pchip, &lm3639_bled_ops,
+					   &props);
 	if (IS_ERR(pchip->bled)) {
 		dev_err(&client->dev, "fail : backlight register\n");
 		ret = PTR_ERR(pchip->bled);
@@ -357,7 +359,7 @@ static int lm3639_probe(struct i2c_client *client,
 	ret = device_create_file(&(pchip->bled->dev), &dev_attr_bled_mode);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed : add sysfs entries\n");
-		goto err_bled_mode;
+		goto err_out;
 	}
 
 	/* flash */
@@ -388,8 +390,6 @@ err_torch:
 	led_classdev_unregister(&pchip->cdev_flash);
 err_flash:
 	device_remove_file(&(pchip->bled->dev), &dev_attr_bled_mode);
-err_bled_mode:
-	backlight_device_unregister(pchip->bled);
 err_out:
 	return ret;
 }
@@ -404,10 +404,8 @@ static int lm3639_remove(struct i2c_client *client)
 		led_classdev_unregister(&pchip->cdev_torch);
 	if (&pchip->cdev_flash)
 		led_classdev_unregister(&pchip->cdev_flash);
-	if (pchip->bled) {
+	if (pchip->bled)
 		device_remove_file(&(pchip->bled->dev), &dev_attr_bled_mode);
-		backlight_device_unregister(pchip->bled);
-	}
 	return 0;
 }
 
@@ -429,6 +427,6 @@ static struct i2c_driver lm3639_i2c_driver = {
 module_i2c_driver(lm3639_i2c_driver);
 
 MODULE_DESCRIPTION("Texas Instruments Backlight+Flash LED driver for LM3639");
-MODULE_AUTHOR("Daniel Jeong <daniel.jeong@ti.com>");
-MODULE_AUTHOR("G.Shark Jeong <gshark.jeong@gmail.com>");
+MODULE_AUTHOR("Daniel Jeong <gshark.jeong@gmail.com>");
+MODULE_AUTHOR("Ldd Mlp <ldd-mlp@list.ti.com>");
 MODULE_LICENSE("GPL v2");

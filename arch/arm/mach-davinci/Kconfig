@@ -39,7 +39,6 @@ config ARCH_DAVINCI_DA830
 config ARCH_DAVINCI_DA850
 	bool "DA850/OMAP-L138/AM18x based system"
 	select ARCH_DAVINCI_DA8XX
-	select ARCH_HAS_CPUFREQ
 	select CP_INTC
 
 config ARCH_DAVINCI_DA8XX
@@ -50,11 +49,6 @@ config ARCH_DAVINCI_DM365
 	bool "DaVinci 365 based system"
 	select AINTC
 	select ARCH_DAVINCI_DMx
-
-config ARCH_DAVINCI_TNETV107X
-	bool "TNETV107X based system"
-	select CPU_V6
-	select CP_INTC
 
 comment "DaVinci Board Type"
 
@@ -214,18 +208,6 @@ config DA850_WL12XX
 	  Say Y if you want to use a wl1271 expansion card connected to the
 	  AM18x EVM.
 
-config GPIO_PCA953X
-	default MACH_DAVINCI_DA850_EVM
-
-config KEYBOARD_GPIO_POLLED
-	default MACH_DAVINCI_DA850_EVM
-
-config MACH_TNETV107X
-	bool "TI TNETV107X Reference Platform"
-	default ARCH_DAVINCI_TNETV107X
-	depends on ARCH_DAVINCI_TNETV107X
-	help
-	  Say Y here to select the TI TNETV107X Evaluation Module.
 
 config MACH_MITYOMAPL138
 	bool "Critical Link MityDSP-L138/MityARM-1808 SoM"

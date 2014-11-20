@@ -35,7 +35,8 @@
 #include <linux/of_iommu.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/tegra-ahb.h>
+
+#include <soc/tegra/ahb.h>
 
 #include <asm/page.h>
 #include <asm/cacheflush.h>
@@ -731,7 +732,7 @@ static int smmu_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	unsigned long pfn = __phys_to_pfn(pa);
 	unsigned long flags;
 
-	dev_dbg(as->smmu->dev, "[%d] %08lx:%08x\n", as->asid, iova, pa);
+	dev_dbg(as->smmu->dev, "[%d] %08lx:%pa\n", as->asid, iova, &pa);
 
 	if (!pfn_valid(pfn))
 		return -ENOMEM;
@@ -757,7 +758,7 @@ static size_t smmu_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 }
 
 static phys_addr_t smmu_iommu_iova_to_phys(struct iommu_domain *domain,
-					   unsigned long iova)
+					   dma_addr_t iova)
 {
 	struct smmu_as *as = domain->priv;
 	unsigned long *pte;
@@ -772,16 +773,16 @@ static phys_addr_t smmu_iommu_iova_to_phys(struct iommu_domain *domain,
 	pfn = *pte & SMMU_PFN_MASK;
 	WARN_ON(!pfn_valid(pfn));
 	dev_dbg(as->smmu->dev,
-		"iova:%08lx pfn:%08lx asid:%d\n", iova, pfn, as->asid);
+		"iova:%08llx pfn:%08lx asid:%d\n", (unsigned long long)iova,
+		 pfn, as->asid);
 
 	spin_unlock_irqrestore(&as->lock, flags);
 	return PFN_PHYS(pfn);
 }
 
-static int smmu_iommu_domain_has_cap(struct iommu_domain *domain,
-				     unsigned long cap)
+static bool smmu_iommu_capable(enum iommu_cap cap)
 {
-	return 0;
+	return false;
 }
 
 static int smmu_iommu_attach_dev(struct iommu_domain *domain,
@@ -946,7 +947,8 @@ static void smmu_iommu_domain_destroy(struct iommu_domain *domain)
 	dev_dbg(smmu->dev, "smmu_as@%p\n", as);
 }
 
-static struct iommu_ops smmu_iommu_ops = {
+static const struct iommu_ops smmu_iommu_ops = {
+	.capable	= smmu_iommu_capable,
 	.domain_init	= smmu_iommu_domain_init,
 	.domain_destroy	= smmu_iommu_domain_destroy,
 	.attach_dev	= smmu_iommu_attach_dev,
@@ -954,7 +956,6 @@ static struct iommu_ops smmu_iommu_ops = {
 	.map		= smmu_iommu_map,
 	.unmap		= smmu_iommu_unmap,
 	.iova_to_phys	= smmu_iommu_iova_to_phys,
-	.domain_has_cap	= smmu_iommu_domain_has_cap,
 	.pgsize_bitmap	= SMMU_IOMMU_PGSIZES,
 };
 
@@ -1176,8 +1177,6 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 		struct resource *res;
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (!res)
-			return -ENODEV;
 		smmu->regs[i] = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(smmu->regs[i]))
 			return PTR_ERR(smmu->regs[i]);
@@ -1255,12 +1254,12 @@ static int tegra_smmu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-const struct dev_pm_ops tegra_smmu_pm_ops = {
+static const struct dev_pm_ops tegra_smmu_pm_ops = {
 	.suspend	= tegra_smmu_suspend,
 	.resume		= tegra_smmu_resume,
 };
 
-static struct of_device_id tegra_smmu_of_match[] = {
+static const struct of_device_id tegra_smmu_of_match[] = {
 	{ .compatible = "nvidia,tegra30-smmu", },
 	{ },
 };

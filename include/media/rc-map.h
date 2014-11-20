@@ -1,7 +1,7 @@
 /*
  * rc-map.h - define RC map names used by RC drivers
  *
- * Copyright (c) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ enum rc_type {
 	RC_TYPE_RC6_6A_24	= 15,	/* Philips RC6-6A-24 protocol */
 	RC_TYPE_RC6_6A_32	= 16,	/* Philips RC6-6A-32 protocol */
 	RC_TYPE_RC6_MCE		= 17,	/* MCE (Philips RC6-6A-32 subtype) protocol */
+	RC_TYPE_SHARP		= 18,	/* Sharp protocol */
+	RC_TYPE_XMP		= 19,	/* XMP protocol */
 };
 
 #define RC_BIT_NONE		0
@@ -51,6 +53,8 @@ enum rc_type {
 #define RC_BIT_RC6_6A_24	(1 << RC_TYPE_RC6_6A_24)
 #define RC_BIT_RC6_6A_32	(1 << RC_TYPE_RC6_6A_32)
 #define RC_BIT_RC6_MCE		(1 << RC_TYPE_RC6_MCE)
+#define RC_BIT_SHARP		(1 << RC_TYPE_SHARP)
+#define RC_BIT_XMP		(1 << RC_TYPE_XMP)
 
 #define RC_BIT_ALL	(RC_BIT_UNKNOWN | RC_BIT_OTHER | RC_BIT_LIRC | \
 			 RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ | \
@@ -58,7 +62,19 @@ enum rc_type {
 			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
 			 RC_BIT_NEC | RC_BIT_SANYO | RC_BIT_MCE_KBD | \
 			 RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
-			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE)
+			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE | RC_BIT_SHARP | \
+			 RC_BIT_XMP)
+
+
+#define RC_SCANCODE_UNKNOWN(x)			(x)
+#define RC_SCANCODE_OTHER(x)			(x)
+#define RC_SCANCODE_NEC(addr, cmd)		(((addr) << 8) | (cmd))
+#define RC_SCANCODE_NECX(addr, cmd)		(((addr) << 8) | (cmd))
+#define RC_SCANCODE_NEC32(data)			((data) & 0xffffffff)
+#define RC_SCANCODE_RC5(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC5_SZ(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC6_0(sys, cmd)		(((sys) << 8) | (cmd))
+#define RC_SCANCODE_RC6_6A(vendor, sys, cmd)	(((vendor) << 16) | ((sys) << 8) | (cmd))
 
 struct rc_map_table {
 	u32	scancode;
@@ -111,6 +127,7 @@ void rc_map_init(void);
 #define RC_MAP_BUDGET_CI_OLD             "rc-budget-ci-old"
 #define RC_MAP_CINERGY_1400              "rc-cinergy-1400"
 #define RC_MAP_CINERGY                   "rc-cinergy"
+#define RC_MAP_DELOCK_61959              "rc-delock-61959"
 #define RC_MAP_DIB0700_NEC_TABLE         "rc-dib0700-nec"
 #define RC_MAP_DIB0700_RC5_TABLE         "rc-dib0700-rc5"
 #define RC_MAP_DIGITALNOW_TINYTWIN       "rc-digitalnow-tinytwin"
@@ -118,6 +135,7 @@ void rc_map_init(void);
 #define RC_MAP_DM1105_NEC                "rc-dm1105-nec"
 #define RC_MAP_DNTV_LIVE_DVBT_PRO        "rc-dntv-live-dvbt-pro"
 #define RC_MAP_DNTV_LIVE_DVB_T           "rc-dntv-live-dvb-t"
+#define RC_MAP_DVBSKY                    "rc-dvbsky"
 #define RC_MAP_EMPTY                     "rc-empty"
 #define RC_MAP_EM_TERRATEC               "rc-em-terratec"
 #define RC_MAP_ENCORE_ENLTV2             "rc-encore-enltv2"
@@ -172,6 +190,7 @@ void rc_map_init(void);
 #define RC_MAP_RC5_TV                    "rc-rc5-tv"
 #define RC_MAP_RC6_MCE                   "rc-rc6-mce"
 #define RC_MAP_REAL_AUDIO_220_32_KEYS    "rc-real-audio-220-32-keys"
+#define RC_MAP_REDDO                     "rc-reddo"
 #define RC_MAP_SNAPSTREAM_FIREFLY        "rc-snapstream-firefly"
 #define RC_MAP_STREAMZAP                 "rc-streamzap"
 #define RC_MAP_TBS_NEC                   "rc-tbs-nec"
@@ -191,6 +210,7 @@ void rc_map_init(void);
 #define RC_MAP_VIDEOMATE_TV_PVR          "rc-videomate-tv-pvr"
 #define RC_MAP_WINFAST                   "rc-winfast"
 #define RC_MAP_WINFAST_USBII_DELUXE      "rc-winfast-usbii-deluxe"
+#define RC_MAP_SU3000                    "rc-su3000"
 
 /*
  * Please, do not just append newer Remote Controller names at the end.

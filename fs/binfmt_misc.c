@@ -23,6 +23,7 @@
 #include <linux/binfmts.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
+#include <linux/string_helpers.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>
 #include <linux/namei.h>
@@ -61,7 +62,22 @@ static struct file_system_type bm_fs_type;
 static struct vfsmount *bm_mnt;
 static int entry_count;
 
-/* 
+/*
+ * Max length of the register string.  Determined by:
+ *  - 7 delimiters
+ *  - name:   ~50 bytes
+ *  - type:   1 byte
+ *  - offset: 3 bytes (has to be smaller than BINPRM_BUF_SIZE)
+ *  - magic:  128 bytes (512 in escaped form)
+ *  - mask:   128 bytes (512 in escaped form)
+ *  - interp: ~50 bytes
+ *  - flags:  5 bytes
+ * Round that up a bit, and then back off to hold the internal data
+ * (like struct Node).
+ */
+#define MAX_REGISTER_LENGTH 1920
+
+/*
  * Check if we support the binfmt
  * if we do, return the node, else NULL
  * locking is done in load_misc_binary
@@ -234,24 +250,6 @@ static char *scanarg(char *s, char del)
 	return s;
 }
 
-static int unquote(char *from)
-{
-	char c = 0, *s = from, *p = from;
-
-	while ((c = *s++) != '\0') {
-		if (c == '\\' && *s == 'x') {
-			s++;
-			c = toupper(*s++);
-			*p = (c - (isdigit(c) ? '0' : 'A' - 10)) << 4;
-			c = toupper(*s++);
-			*p++ |= c - (isdigit(c) ? '0' : 'A' - 10);
-			continue;
-		}
-		*p++ = c;
-	}
-	return p - from;
-}
-
 static char * check_special_flags (char * sfs, Node * e)
 {
 	char * p = sfs;
@@ -296,7 +294,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 
 	/* some sanity checks */
 	err = -EINVAL;
-	if ((count < 11) || (count > 256))
+	if ((count < 11) || (count > MAX_REGISTER_LENGTH))
 		goto out;
 
 	err = -ENOMEM;
@@ -354,8 +352,9 @@ static Node *create_entry(const char __user *buffer, size_t count)
 		p[-1] = '\0';
 		if (!e->mask[0])
 			e->mask = NULL;
-		e->size = unquote(e->magic);
-		if (e->mask && unquote(e->mask) != e->size)
+		e->size = string_unescape_inplace(e->magic, UNESCAPE_HEX);
+		if (e->mask &&
+		    string_unescape_inplace(e->mask, UNESCAPE_HEX) != e->size)
 			goto Einval;
 		if (e->size + e->offset > BINPRM_BUF_SIZE)
 			goto Einval;
@@ -412,12 +411,12 @@ static int parse_command(const char __user *buffer, size_t count)
 {
 	char s[4];
 
-	if (!count)
-		return 0;
 	if (count > 3)
 		return -EINVAL;
 	if (copy_from_user(s, buffer, count))
 		return -EFAULT;
+	if (!count)
+		return 0;
 	if (s[count-1] == '\n')
 		count--;
 	if (count == 1 && s[0] == '0')
@@ -672,6 +671,7 @@ static ssize_t bm_status_write(struct file * file, const char __user * buffer,
 
 			mutex_unlock(&root->d_inode->i_mutex);
 			dput(root);
+			break;
 		default: return res;
 	}
 	return count;

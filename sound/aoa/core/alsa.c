@@ -23,13 +23,12 @@ int aoa_alsa_init(char *name, struct module *mod, struct device *dev)
 		/* cannot be EEXIST due to usage in aoa_fabric_register */
 		return -EBUSY;
 
-	err = snd_card_create(index, name, mod, sizeof(struct aoa_card),
-			      &alsa_card);
+	err = snd_card_new(dev, index, name, mod, sizeof(struct aoa_card),
+			   &alsa_card);
 	if (err < 0)
 		return err;
 	aoa_card = alsa_card->private_data;
 	aoa_card->alsa_card = alsa_card;
-	alsa_card->dev = dev;
 	strlcpy(alsa_card->driver, "AppleOnbdAudio", sizeof(alsa_card->driver));
 	strlcpy(alsa_card->shortname, name, sizeof(alsa_card->shortname));
 	strlcpy(alsa_card->longname, name, sizeof(alsa_card->longname));
@@ -60,7 +59,7 @@ void aoa_alsa_cleanup(void)
 	}
 }
 
-int aoa_snd_device_new(snd_device_type_t type,
+int aoa_snd_device_new(enum snd_device_type type,
 		       void * device_data, struct snd_device_ops * ops)
 {
 	struct snd_card *card = aoa_get_card();

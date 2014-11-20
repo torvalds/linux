@@ -760,7 +760,7 @@ static irqreturn_t solos_irq(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-void solos_bh(unsigned long card_arg)
+static void solos_bh(unsigned long card_arg)
 {
 	struct solos_card *card = (void *)card_arg;
 	uint32_t card_flags;
@@ -1278,6 +1278,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			card->dma_bounce = kmalloc(card->nr_ports * BUF_SIZE, GFP_KERNEL);
 			if (!card->dma_bounce) {
 				dev_warn(&card->dev->dev, "Failed to allocate DMA bounce buffers\n");
+				err = -ENOMEM;
 				/* Fallback to MMIO doesn't work */
 				goto out_unmap_both;
 			}
@@ -1335,7 +1336,6 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	
  out_unmap_both:
 	kfree(card->dma_bounce);
-	pci_set_drvdata(dev, NULL);
 	pci_iounmap(dev, card->buffers);
  out_unmap_config:
 	pci_iounmap(dev, card->config_regs);
@@ -1457,7 +1457,6 @@ static void fpga_remove(struct pci_dev *dev)
 	pci_release_regions(dev);
 	pci_disable_device(dev);
 
-	pci_set_drvdata(dev, NULL);
 	kfree(card);
 }
 

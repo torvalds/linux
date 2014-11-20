@@ -111,9 +111,9 @@ again:
  *	Handle device status changes.
  */
 static int ax25_device_event(struct notifier_block *this, unsigned long event,
-	void *ptr)
+			     void *ptr)
 {
-	struct net_device *dev = (struct net_device *)ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
@@ -1435,7 +1435,7 @@ out:
 static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 			struct msghdr *msg, size_t len)
 {
-	struct sockaddr_ax25 *usax = (struct sockaddr_ax25 *)msg->msg_name;
+	DECLARE_SOCKADDR(struct sockaddr_ax25 *, usax, msg->msg_name);
 	struct sock *sk = sock->sk;
 	struct sockaddr_ax25 sax;
 	struct sk_buff *skb;
@@ -1636,12 +1636,13 @@ static int ax25_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
 
-	if (msg->msg_namelen != 0) {
-		struct sockaddr_ax25 *sax = (struct sockaddr_ax25 *)msg->msg_name;
+	if (msg->msg_name) {
 		ax25_digi digi;
 		ax25_address src;
 		const unsigned char *mac = skb_mac_header(skb);
+		DECLARE_SOCKADDR(struct sockaddr_ax25 *, sax, msg->msg_name);
 
+		memset(sax, 0, sizeof(struct full_sockaddr_ax25));
 		ax25_addr_parse(mac + 1, skb->data - mac - 1, &src, NULL,
 				&digi, NULL, NULL);
 		sax->sax25_family = AF_AX25;
@@ -1734,7 +1735,7 @@ static int ax25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			res = -EFAULT;
 			break;
 		}
-		if (amount > AX25_NOUID_BLOCK) {
+		if (amount < 0 || amount > AX25_NOUID_BLOCK) {
 			res = -EINVAL;
 			break;
 		}
@@ -1973,7 +1974,7 @@ static struct packet_type ax25_packet_type __read_mostly = {
 };
 
 static struct notifier_block ax25_dev_notifier = {
-	.notifier_call =ax25_device_event,
+	.notifier_call = ax25_device_event,
 };
 
 static int __init ax25_init(void)

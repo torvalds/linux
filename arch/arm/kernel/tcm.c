@@ -17,7 +17,6 @@
 #include <asm/mach/map.h>
 #include <asm/memory.h>
 #include <asm/system_info.h>
-#include "tcm.h"
 
 static struct gen_pool *tcm_pool;
 static bool dtcm_present;
@@ -53,7 +52,7 @@ static struct map_desc dtcm_iomap[] __initdata = {
 		.virtual	= DTCM_OFFSET,
 		.pfn		= __phys_to_pfn(DTCM_OFFSET),
 		.length		= 0,
-		.type		= MT_MEMORY_DTCM
+		.type		= MT_MEMORY_RW_DTCM
 	}
 };
 
@@ -62,7 +61,7 @@ static struct map_desc itcm_iomap[] __initdata = {
 		.virtual	= ITCM_OFFSET,
 		.pfn		= __phys_to_pfn(ITCM_OFFSET),
 		.length		= 0,
-		.type		= MT_MEMORY_ITCM
+		.type		= MT_MEMORY_RWX_ITCM,
 	}
 };
 

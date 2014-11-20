@@ -76,4 +76,3 @@ void rtl92se_suspend(struct ieee80211_hw *hw);
 void rtl92se_resume(struct ieee80211_hw *hw);
 
 #endif
-

@@ -33,11 +33,9 @@
 #include <linux/mfd/core.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
-#include <linux/clk/tegra.h>
 
 #include "nvec.h"
 
@@ -84,7 +82,7 @@ enum nvec_sleep_subcmds {
 
 static struct nvec_chip *nvec_power_handle;
 
-static struct mfd_cell nvec_devices[] = {
+static const struct mfd_cell nvec_devices[] = {
 	{
 		.name = "nvec-kbd",
 		.id = 1,
@@ -122,6 +120,20 @@ int nvec_register_notifier(struct nvec_chip *nvec, struct notifier_block *nb,
 	return atomic_notifier_chain_register(&nvec->notifier_list, nb);
 }
 EXPORT_SYMBOL_GPL(nvec_register_notifier);
+
+/**
+ * nvec_unregister_notifier - Unregister a notifier with nvec
+ * @nvec: A &struct nvec_chip
+ * @nb: The notifier block to unregister
+ *
+ * Unregisters a notifier with @nvec. The notifier will be removed from the
+ * atomic notifier chain.
+ */
+int nvec_unregister_notifier(struct nvec_chip *nvec, struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&nvec->notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(nvec_unregister_notifier);
 
 /**
  * nvec_status_notifier - The final notifier
@@ -185,7 +197,7 @@ static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec,
  *
  * Free the given message
  */
-inline void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg)
+void nvec_msg_free(struct nvec_chip *nvec, struct nvec_msg *msg)
 {
 	if (msg != &nvec->tx_scratch)
 		dev_vdbg(nvec->dev, "INFO: Free %ti\n", msg - nvec->msg_pool);
@@ -220,8 +232,7 @@ static size_t nvec_msg_size(struct nvec_msg *msg)
 		return 2;
 	else if (event_length == NVEC_3BYTES)
 		return 3;
-	else
-		return 0;
+	return 0;
 }
 
 /**
@@ -352,10 +363,10 @@ static void nvec_toggle_global_events(struct nvec_chip *nvec, bool state)
  */
 static void nvec_event_mask(char *ev, u32 mask)
 {
-	ev[3] = mask >> 16 && 0xff;
-	ev[4] = mask >> 24 && 0xff;
-	ev[5] = mask >> 0  && 0xff;
-	ev[6] = mask >> 8  && 0xff;
+	ev[3] = mask >> 16 & 0xff;
+	ev[4] = mask >> 24 & 0xff;
+	ev[5] = mask >> 0  & 0xff;
+	ev[6] = mask >> 8  & 0xff;
 }
 
 /**
@@ -666,9 +677,9 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 			nvec->rx->data[nvec->rx->pos++] = received;
 		else
 			dev_err(nvec->dev,
-				"RX buffer overflow on %p: "
-				"Trying to write byte %u of %u\n",
-				nvec->rx, nvec->rx->pos, NVEC_MSG_SIZE);
+				"RX buffer overflow on %p: Trying to write byte %u of %u\n",
+				nvec->rx, nvec->rx ? nvec->rx->pos : 0,
+				NVEC_MSG_SIZE);
 		break;
 	default:
 		nvec->state = 0;
@@ -720,9 +731,9 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 
 	clk_prepare_enable(nvec->i2c_clk);
 
-	tegra_periph_reset_assert(nvec->i2c_clk);
+	reset_control_assert(nvec->rst);
 	udelay(2);
-	tegra_periph_reset_deassert(nvec->i2c_clk);
+	reset_control_deassert(nvec->rst);
 
 	val = I2C_CNFG_NEW_MASTER_SFM | I2C_CNFG_PACKET_MODE_EN |
 	    (0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
@@ -737,8 +748,6 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 	writel(0, nvec->base + I2C_SL_ADDR2);
 
 	enable_irq(nvec->irq);
-
-	clk_disable_unprepare(nvec->i2c_clk);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -758,11 +767,31 @@ static void nvec_power_off(void)
 	nvec_write_async(nvec_power_handle, ap_pwr_down, 2);
 }
 
+/*
+ *  Parse common device tree data
+ */
+static int nvec_i2c_parse_dt_pdata(struct nvec_chip *nvec)
+{
+	nvec->gpio = of_get_named_gpio(nvec->dev->of_node, "request-gpios", 0);
+
+	if (nvec->gpio < 0) {
+		dev_err(nvec->dev, "no gpio specified");
+		return -ENODEV;
+	}
+
+	if (of_property_read_u32(nvec->dev->of_node, "slave-addr",
+				&nvec->i2c_addr)) {
+		dev_err(nvec->dev, "no i2c address specified");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int tegra_nvec_probe(struct platform_device *pdev)
 {
 	int err, ret;
 	struct clk *i2c_clk;
-	struct nvec_platform_data *pdata = pdev->dev.platform_data;
 	struct nvec_chip *nvec;
 	struct nvec_msg *msg;
 	struct resource *res;
@@ -771,58 +800,46 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		unmute_speakers[] = { NVEC_OEM0, 0x10, 0x59, 0x95 },
 		enable_event[7] = { NVEC_SYS, CNF_EVENT_REPORTING, true };
 
-	nvec = devm_kzalloc(&pdev->dev, sizeof(struct nvec_chip), GFP_KERNEL);
-	if (nvec == NULL) {
-		dev_err(&pdev->dev, "failed to reserve memory\n");
-		return -ENOMEM;
+	if (!pdev->dev.of_node) {
+		dev_err(&pdev->dev, "must be instantiated using device tree\n");
+		return -ENODEV;
 	}
+
+	nvec = devm_kzalloc(&pdev->dev, sizeof(struct nvec_chip), GFP_KERNEL);
+	if (nvec == NULL)
+		return -ENOMEM;
+
 	platform_set_drvdata(pdev, nvec);
 	nvec->dev = &pdev->dev;
 
-	if (pdata) {
-		nvec->gpio = pdata->gpio;
-		nvec->i2c_addr = pdata->i2c_addr;
-	} else if (nvec->dev->of_node) {
-		nvec->gpio = of_get_named_gpio(nvec->dev->of_node,
-					"request-gpios", 0);
-		if (nvec->gpio < 0) {
-			dev_err(&pdev->dev, "no gpio specified");
-			return -ENODEV;
-		}
-		if (of_property_read_u32(nvec->dev->of_node,
-					"slave-addr", &nvec->i2c_addr)) {
-			dev_err(&pdev->dev, "no i2c address specified");
-			return -ENODEV;
-		}
-	} else {
-		dev_err(&pdev->dev, "no platform data\n");
-		return -ENODEV;
-	}
+	err = nvec_i2c_parse_dt_pdata(nvec);
+	if (err < 0)
+		return err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
-
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
+	nvec->irq = platform_get_irq(pdev, 0);
+	if (nvec->irq < 0) {
 		dev_err(&pdev->dev, "no irq resource?\n");
 		return -ENODEV;
 	}
 
-	i2c_clk = clk_get(&pdev->dev, "div-clk");
+	i2c_clk = devm_clk_get(&pdev->dev, "div-clk");
 	if (IS_ERR(i2c_clk)) {
 		dev_err(nvec->dev, "failed to get controller clock\n");
 		return -ENODEV;
 	}
 
+	nvec->rst = devm_reset_control_get(&pdev->dev, "i2c");
+	if (IS_ERR(nvec->rst)) {
+		dev_err(nvec->dev, "failed to get controller reset\n");
+		return PTR_ERR(nvec->rst);
+	}
+
 	nvec->base = base;
-	nvec->irq = res->start;
 	nvec->i2c_clk = i2c_clk;
 	nvec->rx = &nvec->msg_pool[0];
 
@@ -855,9 +872,6 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 
 	tegra_init_i2c_slave(nvec);
 
-	clk_prepare_enable(i2c_clk);
-
-
 	/* enable event reporting */
 	nvec_toggle_global_events(nvec, true);
 
@@ -878,7 +892,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	}
 
 	ret = mfd_add_devices(nvec->dev, -1, nvec_devices,
-			      ARRAY_SIZE(nvec_devices), base, 0, NULL);
+			      ARRAY_SIZE(nvec_devices), NULL, 0, NULL);
 	if (ret)
 		dev_err(nvec->dev, "error adding subdevices\n");
 
@@ -902,8 +916,11 @@ static int tegra_nvec_remove(struct platform_device *pdev)
 
 	nvec_toggle_global_events(nvec, false);
 	mfd_remove_devices(nvec->dev);
+	nvec_unregister_notifier(nvec, &nvec->nvec_status_notifier);
 	cancel_work_sync(&nvec->rx_work);
 	cancel_work_sync(&nvec->tx_work);
+	/* FIXME: needs check wether nvec is responsible for power off */
+	pm_power_off = NULL;
 
 	return 0;
 }
@@ -942,7 +959,7 @@ static int nvec_resume(struct device *dev)
 }
 #endif
 
-static const SIMPLE_DEV_PM_OPS(nvec_pm_ops, nvec_suspend, nvec_resume);
+static SIMPLE_DEV_PM_OPS(nvec_pm_ops, nvec_suspend, nvec_resume);
 
 /* Match table for of_platform binding */
 static const struct of_device_id nvidia_nvec_of_match[] = {

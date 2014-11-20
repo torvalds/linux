@@ -36,15 +36,18 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-ctrls.h>
 #include <media/tuner.h>
 #include <media/rc-core.h>
 #include <media/ir-kbd-i2c.h>
-#include <media/videobuf-dma-sg.h>
+#include <media/videobuf2-dma-sg.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
-#include <media/videobuf-dvb.h>
+#include <media/videobuf2-dvb.h>
 #endif
+#include "tda8290.h"
 
 #define UNSET (-1U)
 
@@ -334,6 +337,8 @@ struct saa7134_card_ir {
 #define SAA7134_BOARD_KWORLD_PC150U         189
 #define SAA7134_BOARD_ASUSTeK_PS3_100      190
 #define SAA7134_BOARD_HAWELL_HW_9004V1      191
+#define SAA7134_BOARD_AVERMEDIA_A706		192
+#define SAA7134_BOARD_WIS_VOYAGER           193
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -364,6 +369,7 @@ enum saa7134_mpeg_type {
 	SAA7134_MPEG_UNUSED,
 	SAA7134_MPEG_EMPRESS,
 	SAA7134_MPEG_DVB,
+	SAA7134_MPEG_GO7007,
 };
 
 enum saa7134_mpeg_ts_type {
@@ -390,7 +396,7 @@ struct saa7134_board {
 	unsigned char		rds_addr;
 
 	unsigned int            tda9887_conf;
-	unsigned int            tuner_config;
+	struct tda829x_config   tda829x_conf;
 
 	/* peripheral I/O */
 	enum saa7134_video_out  video_out;
@@ -403,9 +409,15 @@ struct saa7134_board {
 #define card_has_radio(dev)   (NULL != saa7134_boards[dev->board].radio.name)
 #define card_is_empress(dev)  (SAA7134_MPEG_EMPRESS == saa7134_boards[dev->board].mpeg)
 #define card_is_dvb(dev)      (SAA7134_MPEG_DVB     == saa7134_boards[dev->board].mpeg)
+#define card_is_go7007(dev)   (SAA7134_MPEG_GO7007  == saa7134_boards[dev->board].mpeg)
 #define card_has_mpeg(dev)    (SAA7134_MPEG_UNUSED  != saa7134_boards[dev->board].mpeg)
 #define card(dev)             (saa7134_boards[dev->board])
 #define card_in(dev,n)        (saa7134_boards[dev->board].inputs[n])
+
+#define V4L2_CID_PRIVATE_INVERT      (V4L2_CID_USER_SAA7134_BASE + 0)
+#define V4L2_CID_PRIVATE_Y_ODD       (V4L2_CID_USER_SAA7134_BASE + 1)
+#define V4L2_CID_PRIVATE_Y_EVEN      (V4L2_CID_USER_SAA7134_BASE + 2)
+#define V4L2_CID_PRIVATE_AUTOMUTE    (V4L2_CID_USER_SAA7134_BASE + 3)
 
 /* ----------------------------------------------------------- */
 /* device / file handle status                                 */
@@ -413,6 +425,7 @@ struct saa7134_board {
 #define RESOURCE_OVERLAY       1
 #define RESOURCE_VIDEO         2
 #define RESOURCE_VBI           4
+#define RESOURCE_EMPRESS       8
 
 #define INTERLACE_AUTO         0
 #define INTERLACE_ON           1
@@ -443,17 +456,15 @@ struct saa7134_thread {
 /* buffer for one video/vbi/ts frame */
 struct saa7134_buf {
 	/* common v4l buffer stuff -- must be first */
-	struct videobuf_buffer vb;
+	struct vb2_buffer vb2;
 
 	/* saa7134 specific */
-	struct saa7134_format   *fmt;
 	unsigned int            top_seen;
 	int (*activate)(struct saa7134_dev *dev,
 			struct saa7134_buf *buf,
 			struct saa7134_buf *next);
 
-	/* page tables */
-	struct saa7134_pgtable  *pt;
+	struct list_head	entry;
 };
 
 struct saa7134_dmaqueue {
@@ -462,31 +473,8 @@ struct saa7134_dmaqueue {
 	struct list_head           queue;
 	struct timer_list          timeout;
 	unsigned int               need_two;
-};
-
-/* video filehandle status */
-struct saa7134_fh {
-	struct saa7134_dev         *dev;
-	unsigned int               radio;
-	enum v4l2_buf_type         type;
-	unsigned int               resources;
-	enum v4l2_priority	   prio;
-	struct pm_qos_request	   qos_request;
-
-	/* video overlay */
-	struct v4l2_window         win;
-	struct v4l2_clip           clips[8];
-	unsigned int               nclips;
-
-	/* video capture */
-	struct saa7134_format      *fmt;
-	unsigned int               width,height;
-	struct videobuf_queue      cap;
-	struct saa7134_pgtable     pt_cap;
-
-	/* vbi capture */
-	struct videobuf_queue      vbi;
-	struct saa7134_pgtable     pt_vbi;
+	unsigned int               seq_nr;
+	struct saa7134_pgtable     pt;
 };
 
 /* dmasound dsp status */
@@ -512,7 +500,10 @@ struct saa7134_dmasound {
 	unsigned int               blksize;
 	unsigned int               bufsize;
 	struct saa7134_pgtable     pt;
-	struct videobuf_dmabuf     dma;
+	void			   *vaddr;
+	struct scatterlist	   *sglist;
+	int                        sglen;
+	int                        nr_pages;
 	unsigned int               dma_blk;
 	unsigned int               read_offset;
 	unsigned int               read_count;
@@ -523,7 +514,6 @@ struct saa7134_dmasound {
 /* ts/mpeg status */
 struct saa7134_ts {
 	/* TS capture */
-	struct saa7134_pgtable     pt_ts;
 	int                        nr_packets;
 	int                        nr_bufs;
 };
@@ -535,6 +525,8 @@ struct saa7134_mpeg_ops {
 	int                        (*init)(struct saa7134_dev *dev);
 	int                        (*fini)(struct saa7134_dev *dev);
 	void                       (*signal_change)(struct saa7134_dev *dev);
+	void                       (*irq_ts_done)(struct saa7134_dev *dev,
+						  unsigned long status);
 };
 
 /* global device status */
@@ -542,7 +534,6 @@ struct saa7134_dev {
 	struct list_head           devlist;
 	struct mutex               lock;
 	spinlock_t                 slock;
-	struct v4l2_prio_state     prio;
 	struct v4l2_device         v4l2_dev;
 	/* workstruct for loading modules */
 	struct work_struct request_module_wk;
@@ -590,22 +581,47 @@ struct saa7134_dev {
 	struct saa7134_format      *ovfmt;
 	unsigned int               ovenable;
 	enum v4l2_field            ovfield;
+	struct v4l2_window         win;
+	struct v4l2_clip           clips[8];
+	unsigned int               nclips;
+	struct v4l2_fh		   *overlay_owner;
+
 
 	/* video+ts+vbi capture */
 	struct saa7134_dmaqueue    video_q;
+	struct vb2_queue           video_vbq;
 	struct saa7134_dmaqueue    vbi_q;
-	unsigned int               video_fieldcount;
-	unsigned int               vbi_fieldcount;
+	struct vb2_queue           vbi_vbq;
+	enum v4l2_field		   field;
+	struct saa7134_format      *fmt;
+	unsigned int               width, height;
+	unsigned int               vbi_hlen, vbi_vlen;
+	struct pm_qos_request	   qos_request;
+
+	/* SAA7134_MPEG_* */
+	struct saa7134_ts          ts;
+	struct saa7134_dmaqueue    ts_q;
+	enum v4l2_field		   ts_field;
+	int                        ts_started;
+	struct saa7134_mpeg_ops    *mops;
+
+	/* SAA7134_MPEG_EMPRESS only */
+	struct video_device        *empress_dev;
+	struct v4l2_subdev	   *empress_sd;
+	struct vb2_queue           empress_vbq;
+	struct work_struct         empress_workqueue;
+	int                        empress_started;
+	struct v4l2_ctrl_handler   empress_ctrl_handler;
 
 	/* various v4l controls */
 	struct saa7134_tvnorm      *tvnorm;              /* video */
 	struct saa7134_tvaudio     *tvaudio;
+	struct v4l2_ctrl_handler   ctrl_handler;
 	unsigned int               ctl_input;
 	int                        ctl_bright;
 	int                        ctl_contrast;
 	int                        ctl_hue;
 	int                        ctl_saturation;
-	int                        ctl_freq;
 	int                        ctl_mute;             /* audio */
 	int                        ctl_volume;
 	int                        ctl_invert;           /* private */
@@ -628,26 +644,14 @@ struct saa7134_dev {
 	int                        last_carrier;
 	int                        nosignal;
 	unsigned int               insuspend;
+	struct v4l2_ctrl_handler   radio_ctrl_handler;
 
 	/* I2C keyboard data */
 	struct IR_i2c_init_data    init_data;
 
-	/* SAA7134_MPEG_* */
-	struct saa7134_ts          ts;
-	struct saa7134_dmaqueue    ts_q;
-	int                        ts_started;
-	struct saa7134_mpeg_ops    *mops;
-
-	/* SAA7134_MPEG_EMPRESS only */
-	struct video_device        *empress_dev;
-	struct videobuf_queue      empress_tsq;
-	atomic_t 		   empress_users;
-	struct work_struct         empress_workqueue;
-	int                        empress_started;
-
 #if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
 	/* SAA7134_MPEG_DVB only */
-	struct videobuf_dvb_frontends frontends;
+	struct vb2_dvb_frontends frontends;
 	int (*original_demod_sleep)(struct dvb_frontend *fe);
 	int (*original_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
 	int (*original_set_high_voltage)(struct dvb_frontend *fe, long arg);
@@ -701,12 +705,21 @@ struct saa7134_dev {
 	_rc;								\
 })
 
+static inline bool is_empress(struct file *file)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct saa7134_dev *dev = video_get_drvdata(vdev);
+
+	return vdev->queue == &dev->empress_vbq;
+}
+
 /* ----------------------------------------------------------- */
 /* saa7134-core.c                                              */
 
 extern struct list_head  saa7134_devlist;
 extern struct mutex saa7134_devlist_lock;
 extern int saa7134_no_overlay;
+extern bool saa7134_userptr;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
 void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value);
@@ -729,7 +742,7 @@ void saa7134_buffer_finish(struct saa7134_dev *dev, struct saa7134_dmaqueue *q,
 			   unsigned int state);
 void saa7134_buffer_next(struct saa7134_dev *dev, struct saa7134_dmaqueue *q);
 void saa7134_buffer_timeout(unsigned long data);
-void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf);
+void saa7134_stop_streaming(struct saa7134_dev *dev, struct saa7134_dmaqueue *q);
 
 int saa7134_set_dmabits(struct saa7134_dev *dev);
 
@@ -763,10 +776,26 @@ extern unsigned int video_debug;
 extern struct video_device saa7134_video_template;
 extern struct video_device saa7134_radio_template;
 
-int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, struct v4l2_control *c);
-int saa7134_g_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, struct v4l2_control *c);
-int saa7134_queryctrl(struct file *file, void *priv, struct v4l2_queryctrl *c);
-int saa7134_s_std_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, v4l2_std_id *id);
+void saa7134_vb2_buffer_queue(struct vb2_buffer *vb);
+int saa7134_vb2_start_streaming(struct vb2_queue *vq, unsigned int count);
+void saa7134_vb2_stop_streaming(struct vb2_queue *vq);
+
+int saa7134_s_std(struct file *file, void *priv, v4l2_std_id id);
+int saa7134_g_std(struct file *file, void *priv, v4l2_std_id *id);
+int saa7134_querystd(struct file *file, void *priv, v4l2_std_id *std);
+int saa7134_enum_input(struct file *file, void *priv, struct v4l2_input *i);
+int saa7134_g_input(struct file *file, void *priv, unsigned int *i);
+int saa7134_s_input(struct file *file, void *priv, unsigned int i);
+int saa7134_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *cap);
+int saa7134_g_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *t);
+int saa7134_s_tuner(struct file *file, void *priv,
+					const struct v4l2_tuner *t);
+int saa7134_g_frequency(struct file *file, void *priv,
+					struct v4l2_frequency *f);
+int saa7134_s_frequency(struct file *file, void *priv,
+					const struct v4l2_frequency *f);
 
 int saa7134_videoport_init(struct saa7134_dev *dev);
 void saa7134_set_tvnorm_hw(struct saa7134_dev *dev);
@@ -775,6 +804,7 @@ int saa7134_video_init1(struct saa7134_dev *dev);
 int saa7134_video_init2(struct saa7134_dev *dev);
 void saa7134_irq_video_signalchange(struct saa7134_dev *dev);
 void saa7134_irq_video_done(struct saa7134_dev *dev, unsigned long status);
+void saa7134_video_fini(struct saa7134_dev *dev);
 
 
 /* ----------------------------------------------------------- */
@@ -782,7 +812,16 @@ void saa7134_irq_video_done(struct saa7134_dev *dev, unsigned long status);
 
 #define TS_PACKET_SIZE 188 /* TS packets 188 bytes */
 
-extern struct videobuf_queue_ops saa7134_ts_qops;
+int saa7134_ts_buffer_init(struct vb2_buffer *vb2);
+int saa7134_ts_buffer_prepare(struct vb2_buffer *vb2);
+void saa7134_ts_buffer_finish(struct vb2_buffer *vb2);
+int saa7134_ts_queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+			   unsigned int *nbuffers, unsigned int *nplanes,
+			   unsigned int sizes[], void *alloc_ctxs[]);
+int saa7134_ts_start_streaming(struct vb2_queue *vq, unsigned int count);
+void saa7134_ts_stop_streaming(struct vb2_queue *vq);
+
+extern struct vb2_ops saa7134_ts_qops;
 
 int saa7134_ts_init1(struct saa7134_dev *dev);
 int saa7134_ts_fini(struct saa7134_dev *dev);
@@ -799,7 +838,7 @@ int saa7134_ts_stop(struct saa7134_dev *dev);
 /* ----------------------------------------------------------- */
 /* saa7134-vbi.c                                               */
 
-extern struct videobuf_queue_ops saa7134_vbi_qops;
+extern struct vb2_ops saa7134_vbi_qops;
 extern struct video_device saa7134_vbi_template;
 
 int saa7134_vbi_init1(struct saa7134_dev *dev);

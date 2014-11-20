@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -75,7 +74,7 @@ int uflash_devinit(struct platform_device *op, struct device_node *dp)
 
 	up->name = of_get_property(dp, "model", NULL);
 	if (up->name && 0 < strlen(up->name))
-		up->map.name = (char *)up->name;
+		up->map.name = up->name;
 
 	up->map.phys = op->resource[0].start;
 

@@ -6411,12 +6411,12 @@ static bool DAC960_V2_ExecuteUserCommand(DAC960_Controller_T *Controller,
 					.ScatterGatherSegments[0]
 					.SegmentByteCount =
 	    CommandMailbox->ControllerInfo.DataTransferSize;
-	  DAC960_ExecuteCommand(Command);
-	  while (Controller->V2.NewControllerInformation->PhysicalScanActive)
-	    {
-	      DAC960_ExecuteCommand(Command);
-	      sleep_on_timeout(&Controller->CommandWaitQueue, HZ);
-	    }
+	  while (1) {
+	    DAC960_ExecuteCommand(Command);
+	    if (!Controller->V2.NewControllerInformation->PhysicalScanActive)
+		break;
+	    msleep(1000);
+	  }
 	  DAC960_UserCritical("Discovery Completed\n", Controller);
  	}
     }
@@ -6473,7 +6473,7 @@ static int dac960_initial_status_proc_show(struct seq_file *m, void *v)
 
 static int dac960_initial_status_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dac960_initial_status_proc_show, PDE(inode)->data);
+	return single_open(file, dac960_initial_status_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations dac960_initial_status_proc_fops = {
@@ -6519,7 +6519,7 @@ static int dac960_current_status_proc_show(struct seq_file *m, void *v)
 
 static int dac960_current_status_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dac960_current_status_proc_show, PDE(inode)->data);
+	return single_open(file, dac960_current_status_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations dac960_current_status_proc_fops = {
@@ -6540,14 +6540,14 @@ static int dac960_user_command_proc_show(struct seq_file *m, void *v)
 
 static int dac960_user_command_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dac960_user_command_proc_show, PDE(inode)->data);
+	return single_open(file, dac960_user_command_proc_show, PDE_DATA(inode));
 }
 
 static ssize_t dac960_user_command_proc_write(struct file *file,
 				       const char __user *Buffer,
 				       size_t Count, loff_t *pos)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) PDE(file_inode(file))->data;
+  DAC960_Controller_T *Controller = PDE_DATA(file_inode(file));
   unsigned char CommandBuffer[80];
   int Length;
   if (Count > sizeof(CommandBuffer)-1) return -EINVAL;
@@ -6741,11 +6741,11 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
 	ErrorCode = -ENOMEM;
 	if (DataTransferLength > 0)
 	  {
-	    DataTransferBuffer = pci_alloc_consistent(Controller->PCIDevice,
-				DataTransferLength, &DataTransferBufferDMA);
+	    DataTransferBuffer = pci_zalloc_consistent(Controller->PCIDevice,
+                                                       DataTransferLength,
+                                                       &DataTransferBufferDMA);
 	    if (DataTransferBuffer == NULL)
 	    	break;
-	    memset(DataTransferBuffer, 0, DataTransferLength);
 	  }
 	else if (DataTransferLength < 0)
 	  {
@@ -6877,11 +6877,11 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
     	ErrorCode = -ENOMEM;
 	if (DataTransferLength > 0)
 	  {
-	    DataTransferBuffer = pci_alloc_consistent(Controller->PCIDevice,
-				DataTransferLength, &DataTransferBufferDMA);
+	    DataTransferBuffer = pci_zalloc_consistent(Controller->PCIDevice,
+                                                       DataTransferLength,
+                                                       &DataTransferBufferDMA);
 	    if (DataTransferBuffer == NULL)
 	    	break;
-	    memset(DataTransferBuffer, 0, DataTransferLength);
 	  }
 	else if (DataTransferLength < 0)
 	  {
@@ -6899,14 +6899,14 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
 	RequestSenseLength = UserCommand.RequestSenseLength;
 	if (RequestSenseLength > 0)
 	  {
-	    RequestSenseBuffer = pci_alloc_consistent(Controller->PCIDevice,
-			RequestSenseLength, &RequestSenseBufferDMA);
+	    RequestSenseBuffer = pci_zalloc_consistent(Controller->PCIDevice,
+                                                       RequestSenseLength,
+                                                       &RequestSenseBufferDMA);
 	    if (RequestSenseBuffer == NULL)
 	      {
 		ErrorCode = -ENOMEM;
 		goto Failure2;
 	      }
-	    memset(RequestSenseBuffer, 0, RequestSenseLength);
 	  }
 	spin_lock_irqsave(&Controller->queue_lock, flags);
 	while ((Command = DAC960_AllocateCommand(Controller)) == NULL)
@@ -7035,18 +7035,16 @@ static long DAC960_gam_ioctl(struct file *file, unsigned int Request,
 		ErrorCode = -EFAULT;
 		break;
 	}
-	while (Controller->V2.HealthStatusBuffer->StatusChangeCounter
-	       == HealthStatusBuffer.StatusChangeCounter &&
-	       Controller->V2.HealthStatusBuffer->NextEventSequenceNumber
-	       == HealthStatusBuffer.NextEventSequenceNumber)
-	  {
-	    interruptible_sleep_on_timeout(&Controller->HealthStatusWaitQueue,
-					   DAC960_MonitoringTimerInterval);
-	    if (signal_pending(current)) {
-	    	ErrorCode = -EINTR;
-	    	break;
-	    }
-	  }
+	ErrorCode = wait_event_interruptible_timeout(Controller->HealthStatusWaitQueue,
+			!(Controller->V2.HealthStatusBuffer->StatusChangeCounter
+			    == HealthStatusBuffer.StatusChangeCounter &&
+			  Controller->V2.HealthStatusBuffer->NextEventSequenceNumber
+			    == HealthStatusBuffer.NextEventSequenceNumber),
+			DAC960_MonitoringTimerInterval);
+	if (ErrorCode == -ERESTARTSYS) {
+		ErrorCode = -EINTR;
+		break;
+	}
 	if (copy_to_user(GetHealthStatus.HealthStatusBuffer,
 			 Controller->V2.HealthStatusBuffer,
 			 sizeof(DAC960_V2_HealthStatusBuffer_T)))

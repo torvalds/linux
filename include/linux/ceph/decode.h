@@ -137,14 +137,14 @@ bad:
 static inline void ceph_decode_timespec(struct timespec *ts,
 					const struct ceph_timespec *tv)
 {
-	ts->tv_sec = le32_to_cpu(tv->tv_sec);
-	ts->tv_nsec = le32_to_cpu(tv->tv_nsec);
+	ts->tv_sec = (__kernel_time_t)le32_to_cpu(tv->tv_sec);
+	ts->tv_nsec = (long)le32_to_cpu(tv->tv_nsec);
 }
 static inline void ceph_encode_timespec(struct ceph_timespec *tv,
 					const struct timespec *ts)
 {
-	tv->tv_sec = cpu_to_le32(ts->tv_sec);
-	tv->tv_nsec = cpu_to_le32(ts->tv_nsec);
+	tv->tv_sec = cpu_to_le32((u32)ts->tv_sec);
+	tv->tv_nsec = cpu_to_le32((u32)ts->tv_nsec);
 }
 
 /*

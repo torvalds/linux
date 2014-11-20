@@ -20,6 +20,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
+#include <drm/drm_vma_manager.h>
 
 #include "omap_drv.h"
 #include "omap_dmm_tiler.h"
@@ -152,24 +153,24 @@ static struct {
 static void evict_entry(struct drm_gem_object *obj,
 		enum tiler_fmt fmt, struct usergart_entry *entry)
 {
-	if (obj->dev->dev_mapping) {
-		struct omap_gem_object *omap_obj = to_omap_bo(obj);
-		int n = usergart[fmt].height;
-		size_t size = PAGE_SIZE * n;
-		loff_t off = mmap_offset(obj) +
-				(entry->obj_pgoff << PAGE_SHIFT);
-		const int m = 1 + ((omap_obj->width << fmt) / PAGE_SIZE);
-		if (m > 1) {
-			int i;
-			/* if stride > than PAGE_SIZE then sparse mapping: */
-			for (i = n; i > 0; i--) {
-				unmap_mapping_range(obj->dev->dev_mapping,
-						off, PAGE_SIZE, 1);
-				off += PAGE_SIZE * m;
-			}
-		} else {
-			unmap_mapping_range(obj->dev->dev_mapping, off, size, 1);
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	int n = usergart[fmt].height;
+	size_t size = PAGE_SIZE * n;
+	loff_t off = mmap_offset(obj) +
+			(entry->obj_pgoff << PAGE_SHIFT);
+	const int m = 1 + ((omap_obj->width << fmt) / PAGE_SIZE);
+
+	if (m > 1) {
+		int i;
+		/* if stride > than PAGE_SIZE then sparse mapping: */
+		for (i = n; i > 0; i--) {
+			unmap_mapping_range(obj->dev->anon_inode->i_mapping,
+					    off, PAGE_SIZE, 1);
+			off += PAGE_SIZE * m;
 		}
+	} else {
+		unmap_mapping_range(obj->dev->anon_inode->i_mapping,
+				    off, size, 1);
 	}
 
 	entry->obj = NULL;
@@ -232,11 +233,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 
 	WARN_ON(omap_obj->pages);
 
-	/* TODO: __GFP_DMA32 .. but somehow GFP_HIGHMEM is coming from the
-	 * mapping_gfp_mask(mapping) which conflicts w/ GFP_DMA32.. probably
-	 * we actually want CMA memory for it all anyways..
-	 */
-	pages = _drm_gem_get_pages(obj, GFP_KERNEL);
+	pages = drm_gem_get_pages(obj);
 	if (IS_ERR(pages)) {
 		dev_err(obj->dev->dev, "could not get pages: %ld\n", PTR_ERR(pages));
 		return PTR_ERR(pages);
@@ -270,7 +267,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	return 0;
 
 free_pages:
-	_drm_gem_put_pages(obj, pages, true, false);
+	drm_gem_put_pages(obj, pages, true, false);
 
 	return ret;
 }
@@ -294,7 +291,7 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 	kfree(omap_obj->addrs);
 	omap_obj->addrs = NULL;
 
-	_drm_gem_put_pages(obj, omap_obj->pages, true, false);
+	drm_gem_put_pages(obj, omap_obj->pages, true, false);
 	omap_obj->pages = NULL;
 }
 
@@ -308,21 +305,20 @@ uint32_t omap_gem_flags(struct drm_gem_object *obj)
 static uint64_t mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
+	int ret;
+	size_t size;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	if (!obj->map_list.map) {
-		/* Make it mmapable */
-		size_t size = omap_gem_mmap_size(obj);
-		int ret = _drm_gem_create_mmap_offset_size(obj, size);
-
-		if (ret) {
-			dev_err(dev->dev, "could not allocate mmap offset\n");
-			return 0;
-		}
+	/* Make it mmapable */
+	size = omap_gem_mmap_size(obj);
+	ret = drm_gem_create_mmap_offset_size(obj, size);
+	if (ret) {
+		dev_err(dev->dev, "could not allocate mmap offset\n");
+		return 0;
 	}
 
-	return (uint64_t)obj->map_list.hash.key << PAGE_SHIFT;
+	return drm_vma_node_offset_addr(&obj->vma_node);
 }
 
 uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj)
@@ -629,21 +625,6 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 }
 
 /**
- * omap_gem_dumb_destroy	-	destroy a dumb buffer
- * @file: client file
- * @dev: our DRM device
- * @handle: the object handle
- *
- * Destroy a handle that was created via omap_gem_dumb_create.
- */
-int omap_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-		uint32_t handle)
-{
-	/* No special work needed, drop the reference and see what falls out */
-	return drm_gem_handle_delete(file, handle);
-}
-
-/**
  * omap_gem_dumb_map	-	buffer mapping for dumb interface
  * @file: our drm client file
  * @dev: drm device
@@ -806,7 +787,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 			omap_obj->paddr = tiler_ssptr(block);
 			omap_obj->block = block;
 
-			DBG("got paddr: %08x", omap_obj->paddr);
+			DBG("got paddr: %pad", &omap_obj->paddr);
 		}
 
 		omap_obj->paddr_cnt++;
@@ -995,18 +976,14 @@ int omap_gem_resume(struct device *dev)
 #ifdef CONFIG_DEBUG_FS
 void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
-	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	uint64_t off = 0;
+	uint64_t off;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	off = drm_vma_node_start(&obj->vma_node);
 
-	if (obj->map_list.map)
-		off = (uint64_t)obj->map_list.hash.key;
-
-	seq_printf(m, "%08x: %2d (%2d) %08llx %08Zx (%2d) %p %4d",
+	seq_printf(m, "%08x: %2d (%2d) %08llx %pad (%2d) %p %4d",
 			omap_obj->flags, obj->name, obj->refcount.refcount.counter,
-			off, omap_obj->paddr, omap_obj->paddr_cnt,
+			off, &omap_obj->paddr, omap_obj->paddr_cnt,
 			omap_obj->vaddr, omap_obj->roll);
 
 	if (omap_obj->flags & OMAP_BO_TILED) {
@@ -1066,10 +1043,10 @@ static inline bool is_waiting(struct omap_gem_sync_waiter *waiter)
 {
 	struct omap_gem_object *omap_obj = waiter->omap_obj;
 	if ((waiter->op & OMAP_GEM_READ) &&
-			(omap_obj->sync->read_complete < waiter->read_target))
+			(omap_obj->sync->write_complete < waiter->write_target))
 		return true;
 	if ((waiter->op & OMAP_GEM_WRITE) &&
-			(omap_obj->sync->write_complete < waiter->write_target))
+			(omap_obj->sync->read_complete < waiter->read_target))
 		return true;
 	return false;
 }
@@ -1202,9 +1179,7 @@ int omap_gem_op_sync(struct drm_gem_object *obj, enum omap_gem_op op)
 			}
 		}
 		spin_unlock(&sync_lock);
-
-		if (waiter)
-			kfree(waiter);
+		kfree(waiter);
 	}
 	return ret;
 }
@@ -1245,6 +1220,8 @@ int omap_gem_op_async(struct drm_gem_object *obj, enum omap_gem_op op,
 		}
 
 		spin_unlock(&sync_lock);
+
+		kfree(waiter);
 	}
 
 	/* no waiting.. */
@@ -1290,11 +1267,6 @@ unlock:
 	return ret;
 }
 
-int omap_gem_init_object(struct drm_gem_object *obj)
-{
-	return -EINVAL;          /* unused */
-}
-
 /* don't call directly.. called from GEM core when it is time to actually
  * free the object..
  */
@@ -1309,8 +1281,7 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	list_del(&omap_obj->mm_list);
 
-	if (obj->map_list.map)
-		drm_gem_free_mmap_offset(obj);
+	drm_gem_free_mmap_offset(obj);
 
 	/* this means the object is still pinned.. which really should
 	 * not happen.  I think..
@@ -1370,6 +1341,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_gem_object *omap_obj;
 	struct drm_gem_object *obj = NULL;
+	struct address_space *mapping;
 	size_t size;
 	int ret;
 
@@ -1427,13 +1399,16 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		omap_obj->height = gsize.tiled.height;
 	}
 
-	if (flags & (OMAP_BO_DMA|OMAP_BO_EXT_MEM))
-		ret = drm_gem_private_object_init(dev, obj, size);
-	else
+	if (flags & (OMAP_BO_DMA|OMAP_BO_EXT_MEM)) {
+		drm_gem_private_object_init(dev, obj, size);
+	} else {
 		ret = drm_gem_object_init(dev, obj, size);
+		if (ret)
+			goto fail;
 
-	if (ret)
-		goto fail;
+		mapping = file_inode(obj->filp)->i_mapping;
+		mapping_set_gfp_mask(mapping, GFP_USER | __GFP_DMA32);
+	}
 
 	return obj;
 
@@ -1489,8 +1464,8 @@ void omap_gem_init(struct drm_device *dev)
 			entry->paddr = tiler_ssptr(block);
 			entry->block = block;
 
-			DBG("%d:%d: %dx%d: paddr=%08x stride=%d", i, j, w, h,
-					entry->paddr,
+			DBG("%d:%d: %dx%d: paddr=%pad stride=%d", i, j, w, h,
+					&entry->paddr,
 					usergart[i].stride_pfn << PAGE_SHIFT);
 		}
 	}

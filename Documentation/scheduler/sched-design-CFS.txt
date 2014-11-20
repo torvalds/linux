@@ -66,9 +66,7 @@ rq->cfs.load value, which is the sum of the weights of the tasks queued on the
 runqueue.
 
 CFS maintains a time-ordered rbtree, where all runnable tasks are sorted by the
-p->se.vruntime key (there is a subtraction using rq->cfs.min_vruntime to
-account for possible wraparounds).  CFS picks the "leftmost" task from this
-tree and sticks to it.
+p->se.vruntime key. CFS picks the "leftmost" task from this tree and sticks to it.
 As the system progresses forwards, the executed tasks are put into the tree
 more and more to the right --- slowly but surely giving a chance for every task
 to become the "leftmost task" and thus get on the CPU within a deterministic

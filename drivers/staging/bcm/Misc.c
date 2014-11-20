@@ -21,13 +21,13 @@ static void default_wimax_protocol_initialize(struct bcm_mini_adapter *Adapter)
 	Adapter->LinkStatus = SYNC_UP_REQUEST;
 	Adapter->TransferMode = IP_PACKET_ONLY_MODE;
 	Adapter->usBestEffortQueueIndex = -1;
-	return;
 }
 
 int InitAdapter(struct bcm_mini_adapter *psAdapter)
 {
 	int i = 0;
 	int Status = STATUS_SUCCESS;
+
 	BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Initialising Adapter = %p", psAdapter);
 
 	if (psAdapter == NULL) {
@@ -53,7 +53,7 @@ int InitAdapter(struct bcm_mini_adapter *psAdapter)
 	init_waitqueue_head(&psAdapter->ioctl_fw_dnld_wait_queue);
 	init_waitqueue_head(&psAdapter->lowpower_mode_wait_queue);
 	psAdapter->waiting_to_fw_download_done = TRUE;
-	psAdapter->fw_download_done = FALSE;
+	psAdapter->fw_download_done = false;
 
 	default_wimax_protocol_initialize(psAdapter);
 	for (i = 0; i < MAX_CNTRL_PKTS; i++) {
@@ -96,6 +96,7 @@ int InitAdapter(struct bcm_mini_adapter *psAdapter)
 void AdapterFree(struct bcm_mini_adapter *Adapter)
 {
 	int count;
+
 	beceem_protocol_reset(Adapter);
 	vendorextnExit(Adapter);
 
@@ -158,6 +159,7 @@ static int create_worker_threads(struct bcm_mini_adapter *psAdapter)
 static struct file *open_firmware_file(struct bcm_mini_adapter *Adapter, const char *path)
 {
 	struct file *flp = filp_open(path, O_RDONLY, S_IRWXU);
+
 	if (IS_ERR(flp)) {
 		pr_err(DRV_NAME "Unable To Open File %s, err %ld", path, PTR_ERR(flp));
 		flp = NULL;
@@ -210,7 +212,7 @@ exit_download:
  * @ingroup ctrl_pkt_functions
  * This function copies the contents of given buffer
  * to the control packet and queues it for transmission.
- * @note Do not acquire the spinock, as it it already acquired.
+ * @note Do not acquire the spinlock, as it it already acquired.
  * @return  SUCCESS/FAILURE.
  * Arguments:
  * Logical Adapter
@@ -255,7 +257,7 @@ int CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 
 		if (Adapter->bShutStatus == TRUE) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "SYNC UP IN SHUTDOWN..Device WakeUp\n");
-			if (Adapter->bTriedToWakeUpFromlowPowerMode == FALSE) {
+			if (Adapter->bTriedToWakeUpFromlowPowerMode == false) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Waking up for the First Time..\n");
 				Adapter->usIdleModePattern = ABORT_SHUTDOWN_MODE; /* change it to 1 for current support. */
 				Adapter->bWakeUpDevice = TRUE;
@@ -281,7 +283,7 @@ int CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 			pLeader->Status == CM_CONTROL_NEWDSX_MULTICLASSIFIER_REQ) {
 
 			if ((pLeader->Status == LINK_UP_CONTROL_REQ) && (pLinkReq->szData[0] == LINK_DOWN_REQ_PAYLOAD))	{
-				if ((pLinkReq->szData[1] == LINK_SYNC_DOWN_SUBTYPE)) {
+				if (pLinkReq->szData[1] == LINK_SYNC_DOWN_SUBTYPE) {
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Link Down Sent in Idle Mode\n");
 					Adapter->usIdleModePattern = ABORT_IDLE_SYNCDOWN; /* LINK DOWN sent in Idle Mode */
 				} else {
@@ -346,7 +348,7 @@ int CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 			pktlen = pLeader->PLength;
 			Status = StoreCmControlResponseMessage(Adapter, pucAddIndication, &pktlen);
 			if (Status != 1) {
-				ClearTargetDSXBuffer(Adapter, ((struct bcm_add_indication_alt *)pucAddIndication)->u16TID, FALSE);
+				ClearTargetDSXBuffer(Adapter, ((struct bcm_add_indication_alt *)pucAddIndication)->u16TID, false);
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, " Error Restoring The DSX Control Packet. Dsx Buffers on Target may not be Setup Properly ");
 				return STATUS_FAILURE;
 			}
@@ -402,6 +404,7 @@ int CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 void LinkMessage(struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_link_request *pstLinkRequest = NULL;
+
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "=====>");
 	if (Adapter->LinkStatus == SYNC_UP_REQUEST && Adapter->AutoSyncup) {
 		pstLinkRequest = kzalloc(sizeof(struct bcm_link_request), GFP_ATOMIC);
@@ -456,7 +459,6 @@ void StatisticsResponse(struct bcm_mini_adapter *Adapter, void *pvBuffer)
 	Adapter->StatisticsPointer = ntohl(*(__be32 *)pvBuffer);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Stats at %x", (unsigned int)Adapter->StatisticsPointer);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s <====", __func__);
-	return;
 }
 
 /**********************************************************************
@@ -499,7 +501,7 @@ void LinkControlResponseMessage(struct bcm_mini_adapter *Adapter, PUCHAR pucBuff
 			Adapter->bETHCSEnabled = *(pucBuffer+4) & ETH_CS_MASK;
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "PHS Support Status Received In LinkUp Ack : %x\n", Adapter->bPHSEnabled);
 
-			if ((FALSE == Adapter->bShutStatus) && (FALSE == Adapter->IdleMode)) {
+			if ((false == Adapter->bShutStatus) && (false == Adapter->IdleMode)) {
 				if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
 					Adapter->DriverState = NORMAL_OPERATION;
 					wake_up(&Adapter->LEDInfo.notify_led_event);
@@ -517,8 +519,8 @@ void LinkControlResponseMessage(struct bcm_mini_adapter *Adapter, PUCHAR pucBuff
 			Adapter->LinkUpStatus = 0;
 			Adapter->LinkStatus = 0;
 			Adapter->usBestEffortQueueIndex = INVALID_QUEUE_INDEX;
-			Adapter->bTriedToWakeUpFromlowPowerMode = FALSE;
-			Adapter->IdleMode = FALSE;
+			Adapter->bTriedToWakeUpFromlowPowerMode = false;
+			Adapter->IdleMode = false;
 			beceem_protocol_reset(Adapter);
 
 			break;
@@ -534,13 +536,13 @@ void LinkControlResponseMessage(struct bcm_mini_adapter *Adapter, PUCHAR pucBuff
 		}
 	} else if (SET_MAC_ADDRESS_RESPONSE == *pucBuffer) {
 		PUCHAR puMacAddr = (pucBuffer + 1);
+
 		Adapter->LinkStatus = SYNC_UP_REQUEST;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "MAC address response, sending SYNC_UP");
 		LinkMessage(Adapter);
 		memcpy(Adapter->dev->dev_addr, puMacAddr, MAC_ADDRESS_SIZE);
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "%s <=====", __func__);
-	return;
 }
 
 void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
@@ -548,6 +550,7 @@ void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 	int status = 0, NVMAccess = 0, lowPwrAbortMsg = 0;
 	struct timeval tv;
 	struct bcm_link_request stIdleResponse = {{0} };
+
 	memset(&tv, 0, sizeof(tv));
 	stIdleResponse.Leader.Status = IDLE_MESSAGE;
 	stIdleResponse.Leader.PLength = IDLE_MODE_PAYLOAD_LENGTH;
@@ -578,7 +581,7 @@ void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 
 		stIdleResponse.szData[1] = TARGET_CAN_NOT_GO_TO_IDLE_MODE; /* NACK- device access is going on. */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "HOST IS NACKING Idle mode To F/W!!!!!!!!");
-		Adapter->bPreparingForLowPowerMode = FALSE;
+		Adapter->bPreparingForLowPowerMode = false;
 	} else {
 		stIdleResponse.szData[1] = TARGET_CAN_GO_TO_IDLE_MODE; /* 2; Idle ACK */
 		Adapter->StatisticsPointer = 0;
@@ -613,7 +616,7 @@ void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 			if (Adapter->bDoSuspend == TRUE)
 				Bcm_kill_all_URBs((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
 		} else {
-			Adapter->bPreparingForLowPowerMode = FALSE;
+			Adapter->bPreparingForLowPowerMode = false;
 		}
 
 		if (!NVMAccess)
@@ -624,9 +627,9 @@ void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 	}
 
 	status = CopyBufferToControlPacket(Adapter, &stIdleResponse);
-	if ((status != STATUS_SUCCESS)) {
+	if (status != STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "fail to send the Idle mode Request\n");
-		Adapter->bPreparingForLowPowerMode = FALSE;
+		Adapter->bPreparingForLowPowerMode = false;
 		StartInterruptUrb((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
 	}
 	do_gettimeofday(&tv);
@@ -651,8 +654,8 @@ void DumpPackInfo(struct bcm_mini_adapter *Adapter)
 
 	for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "*********** Showing Details Of Queue %d***** ******", uiLoopIndex);
-		if (FALSE == Adapter->PackInfo[uiLoopIndex].bValid) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "bValid is FALSE for %X index\n", uiLoopIndex);
+		if (false == Adapter->PackInfo[uiLoopIndex].bValid) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "bValid is false for %X index\n", uiLoopIndex);
 			continue;
 		}
 
@@ -770,8 +773,6 @@ void DumpPackInfo(struct bcm_mini_adapter *Adapter)
 
 	for (uiLoopIndex = 0; uiLoopIndex < MIBS_MAX_HIST_ENTRIES; uiLoopIndex++)
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Adapter->aTxPktSizeHist[%x] = %x\n", uiLoopIndex, Adapter->aTxPktSizeHist[uiLoopIndex]);
-
-	return;
 }
 
 int reset_card_proc(struct bcm_mini_adapter *ps_adapter)
@@ -783,7 +784,7 @@ int reset_card_proc(struct bcm_mini_adapter *ps_adapter)
 	int bytes;
 
 	psIntfAdapter = ((struct bcm_interface_adapter *)(ps_adapter->pvInterfaceAdapter));
-	ps_adapter->bDDRInitDone = FALSE;
+	ps_adapter->bDDRInitDone = false;
 
 	if (ps_adapter->chip_id >= T3LPB) {
 		/* SYS_CFG register is write protected hence for modifying this reg value, it should be read twice before */
@@ -803,7 +804,7 @@ int reset_card_proc(struct bcm_mini_adapter *ps_adapter)
 	if (ps_adapter->chip_id >= T3LPB) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Resetting UMA-B\n");
 		retval = usb_reset_device(psIntfAdapter->udev);
-		psIntfAdapter->psAdapter->StopAllXaction = FALSE;
+		psIntfAdapter->psAdapter->StopAllXaction = false;
 
 		if (retval != STATUS_SUCCESS) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Reset failed with ret value :%d", retval);
@@ -888,7 +889,7 @@ int reset_card_proc(struct bcm_mini_adapter *ps_adapter)
 	wrmalt(ps_adapter, 0x0f01186c, &uiResetValue, sizeof(uiResetValue));
 
 err_exit:
-	psIntfAdapter->psAdapter->StopAllXaction = FALSE;
+	psIntfAdapter->psAdapter->StopAllXaction = false;
 	return retval;
 }
 
@@ -968,7 +969,7 @@ int InitCardAndDownloadFirmware(struct bcm_mini_adapter *ps_adapter)
 		return -EIO;
 	}
 
-	if (FALSE == ps_adapter->AutoFirmDld) {
+	if (false == ps_adapter->AutoFirmDld) {
 		BCM_DEBUG_PRINT(ps_adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "AutoFirmDld Disabled in CFG File..\n");
 		/* If Auto f/w download is disable, register the control interface, */
 		/* register the control interface after the mailbox. */
@@ -1094,7 +1095,7 @@ void beceem_parse_target_struct(struct bcm_mini_adapter *Adapter)
 
 	if (ntohl(Adapter->pstargetparams->m_u32PhyParameter2) & AUTO_SYNC_DISABLE) {
 		pr_info(DRV_NAME ": AutoSyncup is Disabled\n");
-		Adapter->AutoSyncup = FALSE;
+		Adapter->AutoSyncup = false;
 	} else {
 		pr_info(DRV_NAME ": AutoSyncup is Enabled\n");
 		Adapter->AutoSyncup = TRUE;
@@ -1105,7 +1106,7 @@ void beceem_parse_target_struct(struct bcm_mini_adapter *Adapter)
 		Adapter->AutoLinkUp = TRUE;
 	} else {
 		pr_info(DRV_NAME ": Disabling autolink up");
-		Adapter->AutoLinkUp = FALSE;
+		Adapter->AutoLinkUp = false;
 	}
 	/* Setting the DDR Setting.. */
 	Adapter->DDRSetting = (ntohl(Adapter->pstargetparams->HostDrvrConfig6) >> 8)&0x0F;
@@ -1117,7 +1118,7 @@ void beceem_parse_target_struct(struct bcm_mini_adapter *Adapter)
 		Adapter->AutoFirmDld = TRUE;
 	} else {
 		pr_info(DRV_NAME ": Disabling Auto Firmware Download\n");
-		Adapter->AutoFirmDld = FALSE;
+		Adapter->AutoFirmDld = false;
 	}
 	uiHostDrvrCfg6 = ntohl(Adapter->pstargetparams->HostDrvrConfig6);
 	Adapter->bMipsConfig = (uiHostDrvrCfg6>>20)&0x01;
@@ -1153,23 +1154,23 @@ static void doPowerAutoCorrection(struct bcm_mini_adapter *psAdapter)
 	reporting_mode = ntohl(psAdapter->pstargetparams->m_u32PowerSavingModeOptions) & 0x02;
 	psAdapter->bIsAutoCorrectEnabled = !((char)(psAdapter->ulPowerSaveMode >> 3) & 0x1);
 
-	if (reporting_mode == TRUE) {
+	if (reporting_mode) {
 		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "can't do suspen/resume as reporting mode is enable");
-		psAdapter->bDoSuspend = FALSE;
+		psAdapter->bDoSuspend = false;
 	}
 
 	if (psAdapter->bIsAutoCorrectEnabled && (psAdapter->chip_id >= T3LPB)) {
 		/* If reporting mode is enable, switch PMU to PMC */
 		{
 			psAdapter->ulPowerSaveMode = DEVICE_POWERSAVE_MODE_AS_PMU_CLOCK_GATING;
-			psAdapter->bDoSuspend = FALSE;
+			psAdapter->bDoSuspend = false;
 		}
 
 		/* clearing space bit[15..12] */
 		psAdapter->pstargetparams->HostDrvrConfig6 &= ~(htonl((0xF << 12)));
 		/* placing the power save mode option */
 		psAdapter->pstargetparams->HostDrvrConfig6 |= htonl((psAdapter->ulPowerSaveMode << 12));
-	} else if (psAdapter->bIsAutoCorrectEnabled == FALSE) {
+	} else if (psAdapter->bIsAutoCorrectEnabled == false) {
 		/* remove the autocorrect disable bit set before dumping. */
 		psAdapter->ulPowerSaveMode &= ~(1 << 3);
 		psAdapter->pstargetparams->HostDrvrConfig6 &= ~(htonl(1 << 15));
@@ -1224,6 +1225,7 @@ int rdmalt(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, unsigned in
 int wrmWithLock(struct bcm_mini_adapter *Adapter, unsigned int uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	int status = STATUS_SUCCESS;
+
 	down(&Adapter->rdmwrmsync);
 
 	if ((Adapter->IdleMode == TRUE) ||
@@ -1282,6 +1284,7 @@ exit:
 static void HandleShutDownModeWakeup(struct bcm_mini_adapter *Adapter)
 {
 	int clear_abort_pattern = 0, Status = 0;
+
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "====>\n");
 	/* target has woken up From Shut Down */
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "Clearing Shut Down Software abort pattern\n");
@@ -1302,8 +1305,8 @@ static void HandleShutDownModeWakeup(struct bcm_mini_adapter *Adapter)
 		wake_up(&Adapter->LEDInfo.notify_led_event);
 	}
 
-	Adapter->bTriedToWakeUpFromlowPowerMode = FALSE;
-	Adapter->bShutStatus = FALSE;
+	Adapter->bTriedToWakeUpFromlowPowerMode = false;
+	Adapter->bShutStatus = false;
 	wake_up(&Adapter->lowpower_mode_wait_queue);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "<====\n");
 }
@@ -1341,7 +1344,7 @@ static void SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "Device Access is going on NACK the Shut Down MODE\n");
 		stShutdownResponse.szData[2] = SHUTDOWN_NACK_FROM_DRIVER; /* NACK- device access is going on. */
-		Adapter->bPreparingForLowPowerMode = FALSE;
+		Adapter->bPreparingForLowPowerMode = false;
 	} else {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "Sending SHUTDOWN MODE ACK\n");
 		stShutdownResponse.szData[2] = SHUTDOWN_ACK_FROM_DRIVER; /* ShutDown ACK */
@@ -1374,7 +1377,7 @@ static void SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 			if (Adapter->bDoSuspend == TRUE)
 				Bcm_kill_all_URBs((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
 		} else {
-			Adapter->bPreparingForLowPowerMode = FALSE;
+			Adapter->bPreparingForLowPowerMode = false;
 		}
 
 		if (!NVMAccess)
@@ -1385,9 +1388,9 @@ static void SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 	}
 
 	Status = CopyBufferToControlPacket(Adapter, &stShutdownResponse);
-	if ((Status != STATUS_SUCCESS)) {
+	if (Status != STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "fail to send the Idle mode Request\n");
-		Adapter->bPreparingForLowPowerMode = FALSE;
+		Adapter->bPreparingForLowPowerMode = false;
 		StartInterruptUrb((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
 	}
 }
@@ -1418,7 +1421,6 @@ static void HandleShutDownModeRequest(struct bcm_mini_adapter *Adapter, PUCHAR p
 	}
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "<====\n");
-	return;
 }
 
 void ResetCounters(struct bcm_mini_adapter *Adapter)
@@ -1430,16 +1432,17 @@ void ResetCounters(struct bcm_mini_adapter *Adapter)
 	Adapter->LinkStatus = 0;
 	atomic_set(&Adapter->cntrlpktCnt, 0);
 	atomic_set(&Adapter->TotalPacketCount, 0);
-	Adapter->fw_download_done = FALSE;
+	Adapter->fw_download_done = false;
 	Adapter->LinkStatus = 0;
-	Adapter->AutoLinkUp = FALSE;
-	Adapter->IdleMode = FALSE;
-	Adapter->bShutStatus = FALSE;
+	Adapter->AutoLinkUp = false;
+	Adapter->IdleMode = false;
+	Adapter->bShutStatus = false;
 }
 
 struct bcm_classifier_rule *GetFragIPClsEntry(struct bcm_mini_adapter *Adapter, USHORT usIpIdentification, ULONG SrcIP)
 {
 	unsigned int uiIndex = 0;
+
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
 		if ((Adapter->astFragmentedPktClassifierTable[uiIndex].bUsed) &&
 			(Adapter->astFragmentedPktClassifierTable[uiIndex].usIpIdentification == usIpIdentification) &&
@@ -1454,6 +1457,7 @@ struct bcm_classifier_rule *GetFragIPClsEntry(struct bcm_mini_adapter *Adapter, 
 void AddFragIPClsEntry(struct bcm_mini_adapter *Adapter, struct bcm_fragmented_packet_info *psFragPktInfo)
 {
 	unsigned int uiIndex = 0;
+
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
 		if (!Adapter->astFragmentedPktClassifierTable[uiIndex].bUsed) {
 			memcpy(&Adapter->astFragmentedPktClassifierTable[uiIndex], psFragPktInfo, sizeof(struct bcm_fragmented_packet_info));
@@ -1465,6 +1469,7 @@ void AddFragIPClsEntry(struct bcm_mini_adapter *Adapter, struct bcm_fragmented_p
 void DelFragIPClsEntry(struct bcm_mini_adapter *Adapter, USHORT usIpIdentification, ULONG SrcIp)
 {
 	unsigned int uiIndex = 0;
+
 	for (uiIndex = 0; uiIndex < MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES; uiIndex++) {
 		if ((Adapter->astFragmentedPktClassifierTable[uiIndex].bUsed) &&
 			(Adapter->astFragmentedPktClassifierTable[uiIndex].usIpIdentification == usIpIdentification) &&
@@ -1521,13 +1526,14 @@ void update_per_sf_desc_cnts(struct bcm_mini_adapter *Adapter)
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Invalid VCID : %x\n", Adapter->PackInfo[iIndex].usVCID_Value);
 		}
 	}
-	atomic_set(&Adapter->uiMBupdate, FALSE);
+	atomic_set(&Adapter->uiMBupdate, false);
 }
 
 void flush_queue(struct bcm_mini_adapter *Adapter, unsigned int iQIndex)
 {
 	struct sk_buff *PacketToDrop = NULL;
 	struct net_device_stats *netstats = &Adapter->dev->stats;
+
 	spin_lock_bh(&Adapter->PackInfo[iQIndex].SFQueueLock);
 
 	while (Adapter->PackInfo[iQIndex].FirstTxQueue && atomic_read(&Adapter->TotalPacketCount)) {
@@ -1551,14 +1557,15 @@ void flush_queue(struct bcm_mini_adapter *Adapter, unsigned int iQIndex)
 static void beceem_protocol_reset(struct bcm_mini_adapter *Adapter)
 {
 	int i;
+
 	if (netif_msg_link(Adapter))
 		pr_notice(PFX "%s: protocol reset\n", Adapter->dev->name);
 
 	netif_carrier_off(Adapter->dev);
 	netif_stop_queue(Adapter->dev);
 
-	Adapter->IdleMode = FALSE;
-	Adapter->LinkUpStatus = FALSE;
+	Adapter->IdleMode = false;
+	Adapter->LinkUpStatus = false;
 	ClearTargetDSXBuffer(Adapter, 0, TRUE);
 	/* Delete All Classifier Rules */
 
@@ -1568,7 +1575,7 @@ static void beceem_protocol_reset(struct bcm_mini_adapter *Adapter)
 	flush_all_queues(Adapter);
 
 	if (Adapter->TimerActive == TRUE)
-		Adapter->TimerActive = FALSE;
+		Adapter->TimerActive = false;
 
 	memset(Adapter->astFragmentedPktClassifierTable, 0, sizeof(struct bcm_fragmented_packet_info) * MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES);
 

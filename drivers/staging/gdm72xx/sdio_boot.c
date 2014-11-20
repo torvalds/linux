@@ -13,7 +13,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
@@ -27,6 +26,7 @@
 #include <linux/firmware.h>
 
 #include "gdm_sdio.h"
+#include "sdio_boot.h"
 
 #define TYPE_A_HEADER_SIZE	4
 #define TYPE_A_LOOKAHEAD_SIZE   16
@@ -41,11 +41,11 @@ static u8 *tx_buf;
 
 static int ack_ready(struct sdio_func *func)
 {
-	unsigned long start = jiffies;
+	unsigned long wait = jiffies + HZ;
 	u8 val;
 	int ret;
 
-	while ((jiffies - start) < HZ) {
+	while (time_before(jiffies, wait)) {
 		val = sdio_readb(func, 0x13, &ret);
 		if (val & 0x01)
 			return 1;

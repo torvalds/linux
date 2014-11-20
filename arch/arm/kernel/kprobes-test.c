@@ -110,10 +110,13 @@
  *
  *	@ TESTCASE_START
  *	bl	__kprobes_test_case_start
- *	@ start of inline data...
+ *	.pushsection .rodata
+ *	"10:
  *	.ascii "mov r0, r7"	@ text title for test case
  *	.byte	0
- *	.align	2
+ *	.popsection
+ *	@ start of inline data...
+ *	.word	10b		@ pointer to title in .rodata section
  *
  *	@ TEST_ARG_REG
  *	.byte	ARG_TYPE_REG
@@ -201,10 +204,14 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/kprobes.h>
-
+#include <linux/errno.h>
+#include <linux/stddef.h>
+#include <linux/bug.h>
 #include <asm/opcodes.h>
 
 #include "kprobes.h"
+#include "probes-arm.h"
+#include "probes-thumb.h"
 #include "kprobes-test.h"
 
 
@@ -221,6 +228,7 @@ static int pre_handler_called;
 static int post_handler_called;
 static int jprobe_func_called;
 static int kretprobe_handler_called;
+static int tests_failed;
 
 #define FUNC_ARG1 0x12345678
 #define FUNC_ARG2 0xabcdef
@@ -457,6 +465,13 @@ static int run_api_tests(long (*func)(long, long))
 
 	pr_info("    jprobe\n");
 	ret = test_jprobe(func);
+#if defined(CONFIG_THUMB2_KERNEL) && !defined(MODULE)
+	if (ret == -EINVAL) {
+		pr_err("FAIL: Known longtime bug with jprobe on Thumb kernels\n");
+		tests_failed = ret;
+		ret = 0;
+	}
+#endif
 	if (ret < 0)
 		return ret;
 
@@ -959,7 +974,7 @@ void __naked __kprobes_test_case_start(void)
 	__asm__ __volatile__ (
 		"stmdb	sp!, {r4-r11}				\n\t"
 		"sub	sp, sp, #"__stringify(TEST_MEMORY_SIZE)"\n\t"
-		"bic	r0, lr, #1  @ r0 = inline title string	\n\t"
+		"bic	r0, lr, #1  @ r0 = inline data		\n\t"
 		"mov	r1, sp					\n\t"
 		"bl	kprobes_test_case_start			\n\t"
 		"bx	r0					\n\t"
@@ -1329,22 +1344,22 @@ static void test_case_failed(const char *message)
 static unsigned long next_instruction(unsigned long pc)
 {
 #ifdef CONFIG_THUMB2_KERNEL
-	if ((pc & 1) && !is_wide_instruction(*(u16 *)(pc - 1)))
+	if ((pc & 1) &&
+	    !is_wide_instruction(__mem_to_opcode_thumb16(*(u16 *)(pc - 1))))
 		return pc + 2;
 	else
 #endif
 	return pc + 4;
 }
 
-static uintptr_t __used kprobes_test_case_start(const char *title, void *stack)
+static uintptr_t __used kprobes_test_case_start(const char **title, void *stack)
 {
 	struct test_arg *args;
 	struct test_arg_end *end_arg;
 	unsigned long test_code;
 
-	args = (struct test_arg *)PTR_ALIGN(title + strlen(title) + 1, 4);
-
-	current_title = title;
+	current_title = *title++;
+	args = (struct test_arg *)title;
 	current_args = args;
 	current_stack = stack;
 
@@ -1374,13 +1389,13 @@ static uintptr_t __used kprobes_test_case_start(const char *title, void *stack)
 
 	if (test_case_is_thumb) {
 		u16 *p = (u16 *)(test_code & ~1);
-		current_instruction = p[0];
+		current_instruction = __mem_to_opcode_thumb16(p[0]);
 		if (is_wide_instruction(current_instruction)) {
-			current_instruction <<= 16;
-			current_instruction |= p[1];
+			u16 instr2 = __mem_to_opcode_thumb16(p[1]);
+			current_instruction = __opcode_thumb32_compose(current_instruction, instr2);
 		}
 	} else {
-		current_instruction = *(u32 *)test_code;
+		current_instruction = __mem_to_opcode_arm(*(u32 *)test_code);
 	}
 
 	if (current_title[0] == '.')
@@ -1608,7 +1623,7 @@ static int __init run_all_tests(void)
 		goto out;
 
 	pr_info("ARM instruction simulation\n");
-	ret = run_test_cases(kprobe_arm_test_cases, kprobe_decode_arm_table);
+	ret = run_test_cases(kprobe_arm_test_cases, probes_decode_arm_table);
 	if (ret)
 		goto out;
 
@@ -1631,13 +1646,13 @@ static int __init run_all_tests(void)
 
 	pr_info("16-bit Thumb instruction simulation\n");
 	ret = run_test_cases(kprobe_thumb16_test_cases,
-				kprobe_decode_thumb16_table);
+				probes_decode_thumb16_table);
 	if (ret)
 		goto out;
 
 	pr_info("32-bit Thumb instruction simulation\n");
 	ret = run_test_cases(kprobe_thumb32_test_cases,
-				kprobe_decode_thumb32_table);
+				probes_decode_thumb32_table);
 	if (ret)
 		goto out;
 #endif
@@ -1666,6 +1681,8 @@ static int __init run_all_tests(void)
 #endif
 
 out:
+	if (ret == 0)
+		ret = tests_failed;
 	if (ret == 0)
 		pr_info("Finished kprobe tests OK\n");
 	else

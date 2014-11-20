@@ -12,16 +12,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 #include <linux/delay.h>
 #include <media/v4l2-common.h>
@@ -573,7 +563,7 @@ static int csi2_configure(struct isp_csi2_device *csi2)
 	if (csi2->contexts[0].enabled || csi2->ctrl.if_enable)
 		return -EBUSY;
 
-	pad = media_entity_remote_source(&csi2->pads[CSI2_PAD_SINK]);
+	pad = media_entity_remote_pad(&csi2->pads[CSI2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
 	pdata = sensor->host_priv;
 
@@ -695,7 +685,7 @@ static void csi2_isr_buffer(struct isp_csi2_device *csi2)
 	if (buffer == NULL)
 		return;
 
-	csi2_set_outaddr(csi2, buffer->isp_addr);
+	csi2_set_outaddr(csi2, buffer->dma);
 	csi2_ctx_enable(isp, csi2, 0, 1);
 }
 
@@ -812,7 +802,7 @@ static int csi2_queue(struct isp_video *video, struct isp_buffer *buffer)
 	struct isp_device *isp = video->isp;
 	struct isp_csi2_device *csi2 = &isp->isp_csi2a;
 
-	csi2_set_outaddr(csi2, buffer->isp_addr);
+	csi2_set_outaddr(csi2, buffer->dma);
 
 	/*
 	 * If streaming was enabled before there was a buffer queued
@@ -1245,7 +1235,8 @@ static int csi2_init_entities(struct isp_csi2_device *csi2)
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	pads[CSI2_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
-	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+				    | MEDIA_PAD_FL_MUST_CONNECT;
 
 	me->ops = &csi2_media_ops;
 	ret = media_entity_init(me, CSI2_PADS_NUM, pads, 0);

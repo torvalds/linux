@@ -30,7 +30,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -51,7 +50,6 @@
 #define CYBERJACK_PRODUCT_ID	0x0100
 
 /* Function prototypes */
-static void cyberjack_disconnect(struct usb_serial *serial);
 static int cyberjack_port_probe(struct usb_serial_port *port);
 static int cyberjack_port_remove(struct usb_serial_port *port);
 static int  cyberjack_open(struct tty_struct *tty,
@@ -79,7 +77,6 @@ static struct usb_serial_driver cyberjack_device = {
 	.description =		"Reiner SCT Cyberjack USB card reader",
 	.id_table =		id_table,
 	.num_ports =		1,
-	.disconnect =		cyberjack_disconnect,
 	.port_probe =		cyberjack_port_probe,
 	.port_remove =		cyberjack_port_remove,
 	.open =			cyberjack_open,
@@ -130,18 +127,12 @@ static int cyberjack_port_remove(struct usb_serial_port *port)
 {
 	struct cyberjack_private *priv;
 
+	usb_kill_urb(port->interrupt_in_urb);
+
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
 
 	return 0;
-}
-
-static void cyberjack_disconnect(struct usb_serial *serial)
-{
-	int i;
-
-	for (i = 0; i < serial->num_ports; ++i)
-		usb_kill_urb(serial->port[i]->interrupt_in_urb);
 }
 
 static int  cyberjack_open(struct tty_struct *tty,
@@ -166,11 +157,8 @@ static int  cyberjack_open(struct tty_struct *tty,
 
 static void cyberjack_close(struct usb_serial_port *port)
 {
-	if (port->serial->dev) {
-		/* shutdown any bulk reads that might be going on */
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->read_urb);
-	}
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->read_urb);
 }
 
 static int cyberjack_write(struct tty_struct *tty,
@@ -232,7 +220,7 @@ static int cyberjack_write(struct tty_struct *tty,
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result) {
 			dev_err(&port->dev,
-				"%s - failed submitting write urb, error %d",
+				"%s - failed submitting write urb, error %d\n",
 				__func__, result);
 			/* Throw away data. No better idea what to do with it. */
 			priv->wrfilled = 0;
@@ -290,13 +278,13 @@ static void cyberjack_read_int_callback(struct urb *urb)
 
 		old_rdtodo = priv->rdtodo;
 
-		if (old_rdtodo + size < old_rdtodo) {
+		if (old_rdtodo > SHRT_MAX - size) {
 			dev_dbg(dev, "To many bulk_in urbs to do.\n");
 			spin_unlock(&priv->lock);
 			goto resubmit;
 		}
 
-		/* "+=" is probably more fault tollerant than "=" */
+		/* "+=" is probably more fault tolerant than "=" */
 		priv->rdtodo += size;
 
 		dev_dbg(dev, "%s - rdtodo: %d\n", __func__, priv->rdtodo);

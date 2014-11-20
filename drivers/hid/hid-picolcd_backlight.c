@@ -18,8 +18,6 @@
  ***************************************************************************/
 
 #include <linux/hid.h>
-#include "usbhid/usbhid.h"
-#include <linux/usb.h>
 
 #include <linux/fb.h>
 #include <linux/backlight.h>
@@ -46,7 +44,7 @@ static int picolcd_set_brightness(struct backlight_device *bdev)
 	spin_lock_irqsave(&data->lock, flags);
 	hid_set_field(report->field[0], 0, data->lcd_power == FB_BLANK_UNBLANK ? data->lcd_brightness : 0);
 	if (!(data->status & PICOLCD_FAILED))
-		usbhid_submit_report(data->hdev, report, USB_DIR_OUT);
+		hid_hw_request(data->hdev, report, HID_REQ_SET_REPORT);
 	spin_unlock_irqrestore(&data->lock, flags);
 	return 0;
 }

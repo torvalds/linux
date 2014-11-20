@@ -118,7 +118,7 @@ static inline void set_io_port_base(unsigned long base)
  */
 static inline unsigned long virt_to_phys(volatile const void *address)
 {
-	return (unsigned long)address - PAGE_OFFSET + PHYS_OFFSET;
+	return __pa(address);
 }
 
 /*
@@ -169,6 +169,11 @@ static inline void * isa_bus_to_virt(unsigned long address)
 
 extern void __iomem * __ioremap(phys_t offset, phys_t size, unsigned long flags);
 extern void __iounmap(const volatile void __iomem *addr);
+
+#ifndef CONFIG_PCI
+struct pci_dev;
+static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
+#endif
 
 static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 	unsigned long flags)
@@ -326,7 +331,7 @@ static inline void pfx##write##bwlq(type val,				\
 		if (irq)						\
 			local_irq_save(__flags);			\
 		__asm__ __volatile__(					\
-			".set	mips3"		"\t\t# __writeq""\n\t"	\
+			".set	arch=r4000"	"\t\t# __writeq""\n\t"	\
 			"dsll32 %L0, %L0, 0"			"\n\t"	\
 			"dsrl32 %L0, %L0, 0"			"\n\t"	\
 			"dsll32 %M0, %M0, 0"			"\n\t"	\
@@ -356,7 +361,7 @@ static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 		if (irq)						\
 			local_irq_save(__flags);			\
 		__asm__ __volatile__(					\
-			".set	mips3"		"\t\t# __readq" "\n\t"	\
+			".set	arch=r4000"	"\t\t# __readq" "\n\t"	\
 			"ld	%L0, %1"			"\n\t"	\
 			"dsra32 %M0, %L0, 0"			"\n\t"	\
 			"sll	%L0, %L0, 0"			"\n\t"	\
@@ -448,6 +453,11 @@ __BUILDIO(q, u64)
 #define readw_relaxed			readw
 #define readl_relaxed			readl
 #define readq_relaxed			readq
+
+#define writeb_relaxed			writeb
+#define writew_relaxed			writew
+#define writel_relaxed			writel
+#define writeq_relaxed			writeq
 
 #define readb_be(addr)							\
 	__raw_readb((__force unsigned *)(addr))
@@ -574,7 +584,7 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
  *
  * This API used to be exported; it now is for arch code internal use only.
  */
-#ifdef CONFIG_DMA_NONCOHERENT
+#if defined(CONFIG_DMA_NONCOHERENT) || defined(CONFIG_DMA_MAYBE_COHERENT)
 
 extern void (*_dma_cache_wback_inv)(unsigned long start, unsigned long size);
 extern void (*_dma_cache_wback)(unsigned long start, unsigned long size);
@@ -593,7 +603,7 @@ extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 #define dma_cache_inv(start,size)	\
 	do { (void) (start); (void) (size); } while (0)
 
-#endif /* CONFIG_DMA_NONCOHERENT */
+#endif /* CONFIG_DMA_NONCOHERENT || CONFIG_DMA_MAYBE_COHERENT */
 
 /*
  * Read a 32-bit register that requires a 64-bit read cycle on the bus.

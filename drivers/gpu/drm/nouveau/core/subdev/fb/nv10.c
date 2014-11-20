@@ -24,24 +24,7 @@
  *
  */
 
-#include <subdev/fb.h>
-
-struct nv10_fb_priv {
-	struct nouveau_fb base;
-};
-
-static int
-nv10_fb_vram_init(struct nouveau_fb *pfb)
-{
-	u32 cfg0 = nv_rd32(pfb, 0x100200);
-	if (cfg0 & 0x00000001)
-		pfb->ram.type = NV_MEM_TYPE_DDR1;
-	else
-		pfb->ram.type = NV_MEM_TYPE_SDRAM;
-
-	pfb->ram.size = nv_rd32(pfb, 0x10020c) & 0xff000000;
-	return 0;
-}
+#include "nv04.h"
 
 void
 nv10_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
@@ -70,35 +53,19 @@ nv10_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 	nv_rd32(pfb, 0x100240 + (i * 0x10));
 }
 
-static int
-nv10_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
-{
-	struct nv10_fb_priv *priv;
-	int ret;
-
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.memtype_valid = nv04_fb_memtype_valid;
-	priv->base.ram.init = nv10_fb_vram_init;
-	priv->base.tile.regions = 8;
-	priv->base.tile.init = nv10_fb_tile_init;
-	priv->base.tile.fini = nv10_fb_tile_fini;
-	priv->base.tile.prog = nv10_fb_tile_prog;
-	return nouveau_fb_preinit(&priv->base);
-}
-
-struct nouveau_oclass
-nv10_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0x10),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv10_fb_ctor,
+struct nouveau_oclass *
+nv10_fb_oclass = &(struct nv04_fb_impl) {
+	.base.base.handle = NV_SUBDEV(FB, 0x10),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv04_fb_ctor,
 		.dtor = _nouveau_fb_dtor,
 		.init = _nouveau_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
-};
+	.base.memtype = nv04_fb_memtype_valid,
+	.base.ram = &nv10_ram_oclass,
+	.tile.regions = 8,
+	.tile.init = nv10_fb_tile_init,
+	.tile.fini = nv10_fb_tile_fini,
+	.tile.prog = nv10_fb_tile_prog,
+}.base.base;

@@ -173,7 +173,7 @@ static inline u16 Mk16(u8 hi, u8 lo)
 
 static inline u16 Mk16_le(u16 *v)
 {
-	return le16_to_cpu(*v);
+	return *v;
 }
 
 
@@ -285,6 +285,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 #ifdef __BIG_ENDIAN
 	{
 		int i;
+
 		for (i = 0; i < 6; i++)
 			PPK[i] = (PPK[i] << 8) | (PPK[i] >> 8);
 	}
@@ -389,6 +390,7 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 crc;
 	struct scatterlist sg;
 	int plen;
+
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
@@ -427,7 +429,7 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "TKIP: replay detected: STA="
 				       " %pM previous TSC %08x%04x received "
-				      "TSC %08x%04x\n",hdr->addr2,
+				      "TSC %08x%04x\n", hdr->addr2,
 				      tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
 			}
 			tkey->dot11RSNAStatsTKIPReplays++;
@@ -617,6 +619,7 @@ static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
 
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct rtllib_hdr_4addr *hdr;
+
 		hdr = (struct rtllib_hdr_4addr *) skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from %pM keyidx=%d\n",
@@ -693,6 +696,7 @@ static int rtllib_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 		/* Return the sequence number of the last transmitted frame. */
 		u16 iv16 = tkey->tx_iv16;
 		u32 iv32 = tkey->tx_iv32;
+
 		if (iv16 == 0)
 			iv32--;
 		iv16--;
@@ -708,30 +712,31 @@ static int rtllib_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 }
 
 
-static char *rtllib_tkip_print_stats(char *p, void *priv)
+static void rtllib_tkip_print_stats(struct seq_file *m, void *priv)
 {
 	struct rtllib_tkip_data *tkip = priv;
-	p += sprintf(p, "key[%d] alg=TKIP key_set=%d "
-		     "tx_pn=%02x%02x%02x%02x%02x%02x "
-		     "rx_pn=%02x%02x%02x%02x%02x%02x "
-		     "replays=%d icv_errors=%d local_mic_failures=%d\n",
-		     tkip->key_idx, tkip->key_set,
-		     (tkip->tx_iv32 >> 24) & 0xff,
-		     (tkip->tx_iv32 >> 16) & 0xff,
-		     (tkip->tx_iv32 >> 8) & 0xff,
-		     tkip->tx_iv32 & 0xff,
-		     (tkip->tx_iv16 >> 8) & 0xff,
-		     tkip->tx_iv16 & 0xff,
-		     (tkip->rx_iv32 >> 24) & 0xff,
-		     (tkip->rx_iv32 >> 16) & 0xff,
-		     (tkip->rx_iv32 >> 8) & 0xff,
-		     tkip->rx_iv32 & 0xff,
-		     (tkip->rx_iv16 >> 8) & 0xff,
-		     tkip->rx_iv16 & 0xff,
-		     tkip->dot11RSNAStatsTKIPReplays,
-		     tkip->dot11RSNAStatsTKIPICVErrors,
-		     tkip->dot11RSNAStatsTKIPLocalMICFailures);
-	return p;
+
+	seq_printf(m,
+		   "key[%d] alg=TKIP key_set=%d "
+		   "tx_pn=%02x%02x%02x%02x%02x%02x "
+		   "rx_pn=%02x%02x%02x%02x%02x%02x "
+		   "replays=%d icv_errors=%d local_mic_failures=%d\n",
+		   tkip->key_idx, tkip->key_set,
+		   (tkip->tx_iv32 >> 24) & 0xff,
+		   (tkip->tx_iv32 >> 16) & 0xff,
+		   (tkip->tx_iv32 >> 8) & 0xff,
+		   tkip->tx_iv32 & 0xff,
+		   (tkip->tx_iv16 >> 8) & 0xff,
+		   tkip->tx_iv16 & 0xff,
+		   (tkip->rx_iv32 >> 24) & 0xff,
+		   (tkip->rx_iv32 >> 16) & 0xff,
+		   (tkip->rx_iv32 >> 8) & 0xff,
+		   tkip->rx_iv32 & 0xff,
+		   (tkip->rx_iv16 >> 8) & 0xff,
+		   tkip->rx_iv16 & 0xff,
+		   tkip->dot11RSNAStatsTKIPReplays,
+		   tkip->dot11RSNAStatsTKIPICVErrors,
+		   tkip->dot11RSNAStatsTKIPLocalMICFailures);
 }
 
 static struct lib80211_crypto_ops rtllib_crypt_tkip = {
@@ -752,13 +757,13 @@ static struct lib80211_crypto_ops rtllib_crypt_tkip = {
 };
 
 
-int __init rtllib_crypto_tkip_init(void)
+static int __init rtllib_crypto_tkip_init(void)
 {
 	return lib80211_register_crypto_ops(&rtllib_crypt_tkip);
 }
 
 
-void __exit rtllib_crypto_tkip_exit(void)
+static void __exit rtllib_crypto_tkip_exit(void)
 {
 	lib80211_unregister_crypto_ops(&rtllib_crypt_tkip);
 }

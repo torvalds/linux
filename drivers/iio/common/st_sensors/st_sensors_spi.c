@@ -29,7 +29,6 @@ static unsigned int st_sensors_spi_get_irq(struct iio_dev *indio_dev)
 static int st_sensors_spi_read(struct st_sensor_transfer_buffer *tb,
 	struct device *dev, u8 reg_addr, int len, u8 *data, bool multiread_bit)
 {
-	struct spi_message msg;
 	int err;
 
 	struct spi_transfer xfers[] = {
@@ -51,10 +50,7 @@ static int st_sensors_spi_read(struct st_sensor_transfer_buffer *tb,
 	else
 		tb->tx_buf[0] = reg_addr | ST_SENSORS_SPI_READ;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	err = spi_sync(to_spi_device(dev), &msg);
+	err = spi_sync_transfer(to_spi_device(dev), xfers, ARRAY_SIZE(xfers));
 	if (err)
 		goto acc_spi_read_error;
 
@@ -83,7 +79,6 @@ static int st_sensors_spi_read_multiple_byte(
 static int st_sensors_spi_write_byte(struct st_sensor_transfer_buffer *tb,
 				struct device *dev, u8 reg_addr, u8 data)
 {
-	struct spi_message msg;
 	int err;
 
 	struct spi_transfer xfers = {
@@ -96,9 +91,7 @@ static int st_sensors_spi_write_byte(struct st_sensor_transfer_buffer *tb,
 	tb->tx_buf[0] = reg_addr;
 	tb->tx_buf[1] = data;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers, &msg);
-	err = spi_sync(to_spi_device(dev), &msg);
+	err = spi_sync_transfer(to_spi_device(dev), &xfers, 1);
 	mutex_unlock(&tb->buf_lock);
 
 	return err;

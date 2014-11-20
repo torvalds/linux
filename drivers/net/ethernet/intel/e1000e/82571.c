@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 /* 82571EB Gigabit Ethernet Controller
  * 82571EB Gigabit Ethernet Controller (Copper)
@@ -77,24 +70,24 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		return 0;
 	}
 
-	phy->addr			 = 1;
-	phy->autoneg_mask		 = AUTONEG_ADVERTISE_SPEED_DEFAULT;
-	phy->reset_delay_us		 = 100;
+	phy->addr = 1;
+	phy->autoneg_mask = AUTONEG_ADVERTISE_SPEED_DEFAULT;
+	phy->reset_delay_us = 100;
 
-	phy->ops.power_up		 = e1000_power_up_phy_copper;
-	phy->ops.power_down		 = e1000_power_down_phy_copper_82571;
+	phy->ops.power_up = e1000_power_up_phy_copper;
+	phy->ops.power_down = e1000_power_down_phy_copper_82571;
 
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
-		phy->type		 = e1000_phy_igp_2;
+		phy->type = e1000_phy_igp_2;
 		break;
 	case e1000_82573:
-		phy->type		 = e1000_phy_m88;
+		phy->type = e1000_phy_m88;
 		break;
 	case e1000_82574:
 	case e1000_82583:
-		phy->type		 = e1000_phy_bm;
+		phy->type = e1000_phy_bm;
 		phy->ops.acquire = e1000_get_hw_semaphore_82574;
 		phy->ops.release = e1000_put_hw_semaphore_82574;
 		phy->ops.set_d0_lplu_state = e1000_set_d0_lplu_state_82574;
@@ -102,7 +95,6 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_PHY;
-		break;
 	}
 
 	/* This can only be done after all function pointers are setup. */
@@ -184,7 +176,7 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 	default:
 		nvm->type = e1000_nvm_eeprom_spi;
 		size = (u16)((eecd & E1000_EECD_SIZE_EX_MASK) >>
-				  E1000_EECD_SIZE_EX_SHIFT);
+			     E1000_EECD_SIZE_EX_SHIFT);
 		/* Added to a constant, "size" becomes the left-shift value
 		 * for setting word_size.
 		 */
@@ -193,7 +185,7 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 		/* EEPROM access above 16k is unsupported */
 		if (size > 14)
 			size = 14;
-		nvm->word_size	= 1 << size;
+		nvm->word_size = 1 << size;
 		break;
 	}
 
@@ -339,7 +331,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	static int global_quad_port_a; /* global port a indication */
+	static int global_quad_port_a;	/* global port a indication */
 	struct pci_dev *pdev = adapter->pdev;
 	int is_port_b = er32(STATUS) & E1000_STATUS_FUNC_1;
 	s32 rc;
@@ -429,7 +421,6 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		break;
 	case e1000_82573:
 		return e1000e_get_phy_id(hw);
-		break;
 	case e1000_82574:
 	case e1000_82583:
 		ret_val = e1e_rphy(hw, MII_PHYSID1, &phy_id);
@@ -437,7 +428,7 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 			return ret_val;
 
 		phy->id = (u32)(phy_id << 16);
-		udelay(20);
+		usleep_range(20, 40);
 		ret_val = e1e_rphy(hw, MII_PHYSID2, &phy_id);
 		if (ret_val)
 			return ret_val;
@@ -447,7 +438,6 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_PHY;
-		break;
 	}
 
 	return 0;
@@ -482,7 +472,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 		if (!(swsm & E1000_SWSM_SMBI))
 			break;
 
-		udelay(50);
+		usleep_range(50, 100);
 		i++;
 	}
 
@@ -499,7 +489,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 		if (er32(SWSM) & E1000_SWSM_SWESMBI)
 			break;
 
-		udelay(50);
+		usleep_range(50, 100);
 	}
 
 	if (i == fw_timeout) {
@@ -526,6 +516,7 @@ static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw)
 	swsm &= ~(E1000_SWSM_SMBI | E1000_SWSM_SWESMBI);
 	ew32(SWSM, swsm);
 }
+
 /**
  *  e1000_get_hw_semaphore_82573 - Acquire hardware semaphore
  *  @hw: pointer to the HW structure
@@ -846,9 +837,9 @@ static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
 	}
 
 	for (i = 0; i < words; i++) {
-		eewr = (data[i] << E1000_NVM_RW_REG_DATA) |
-		       ((offset+i) << E1000_NVM_RW_ADDR_SHIFT) |
-		       E1000_NVM_RW_REG_START;
+		eewr = ((data[i] << E1000_NVM_RW_REG_DATA) |
+			((offset + i) << E1000_NVM_RW_ADDR_SHIFT) |
+			E1000_NVM_RW_REG_START);
 
 		ret_val = e1000e_poll_eerd_eewr_done(hw, E1000_NVM_POLL_WRITE);
 		if (ret_val)
@@ -875,8 +866,7 @@ static s32 e1000_get_cfg_done_82571(struct e1000_hw *hw)
 	s32 timeout = PHY_CFG_TIMEOUT;
 
 	while (timeout) {
-		if (er32(EEMNGCTL) &
-		    E1000_NVM_CFG_DONE_PORT_0)
+		if (er32(EEMNGCTL) & E1000_NVM_CFG_DONE_PORT_0)
 			break;
 		usleep_range(1000, 2000);
 		timeout--;
@@ -1003,8 +993,6 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	default:
 		break;
 	}
-	if (ret_val)
-		e_dbg("Cannot acquire MDIO ownership\n");
 
 	ctrl = er32(CTRL);
 
@@ -1013,16 +1001,23 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	/* Must release MDIO ownership and mutex after MAC reset. */
 	switch (hw->mac.type) {
+	case e1000_82573:
+		/* Release mutex only if the hw semaphore is acquired */
+		if (!ret_val)
+			e1000_put_hw_semaphore_82573(hw);
+		break;
 	case e1000_82574:
 	case e1000_82583:
-		e1000_put_hw_semaphore_82574(hw);
+		/* Release mutex only if the hw semaphore is acquired */
+		if (!ret_val)
+			e1000_put_hw_semaphore_82574(hw);
 		break;
 	default:
 		break;
 	}
 
 	if (hw->nvm.type == e1000_nvm_flash_hw) {
-		udelay(10);
+		usleep_range(10, 20);
 		ctrl_ext = er32(CTRL_EXT);
 		ctrl_ext |= E1000_CTRL_EXT_EE_RST;
 		ew32(CTRL_EXT, ctrl_ext);
@@ -1095,9 +1090,9 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 
 	/* Initialize identification LED */
 	ret_val = mac->ops.id_led_init(hw);
+	/* An error is not fatal and we should not stop init due to this */
 	if (ret_val)
 		e_dbg("Error initializing identification LED\n");
-		/* This is not fatal and we should not stop init due to this */
 
 	/* Disabling VLAN filtering */
 	e_dbg("Initializing the IEEE VLAN\n");
@@ -1122,9 +1117,8 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 
 	/* Set the transmit descriptor write-back policy */
 	reg_data = er32(TXDCTL(0));
-	reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
-		   E1000_TXDCTL_FULL_TX_DESC_WB |
-		   E1000_TXDCTL_COUNT_DESC;
+	reg_data = ((reg_data & ~E1000_TXDCTL_WTHRESH) |
+		    E1000_TXDCTL_FULL_TX_DESC_WB | E1000_TXDCTL_COUNT_DESC);
 	ew32(TXDCTL(0), reg_data);
 
 	/* ...for both queues. */
@@ -1140,9 +1134,9 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 		break;
 	default:
 		reg_data = er32(TXDCTL(1));
-		reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
-			   E1000_TXDCTL_FULL_TX_DESC_WB |
-			   E1000_TXDCTL_COUNT_DESC;
+		reg_data = ((reg_data & ~E1000_TXDCTL_WTHRESH) |
+			    E1000_TXDCTL_FULL_TX_DESC_WB |
+			    E1000_TXDCTL_COUNT_DESC);
 		ew32(TXDCTL(1), reg_data);
 		break;
 	}
@@ -1179,7 +1173,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 
 	/* Transmit Arbitration Control 0 */
 	reg = er32(TARC(0));
-	reg &= ~(0xF << 27); /* 30:27 */
+	reg &= ~(0xF << 27);	/* 30:27 */
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
@@ -1391,7 +1385,7 @@ bool e1000_check_phy_82574(struct e1000_hw *hw)
 	ret_val = e1e_rphy(hw, E1000_RECEIVE_ERROR_COUNTER, &receive_errors);
 	if (ret_val)
 		return false;
-	if (receive_errors == E1000_RECEIVE_ERROR_MAX)  {
+	if (receive_errors == E1000_RECEIVE_ERROR_MAX) {
 		ret_val = e1e_rphy(hw, E1000_BASE1000T_STATUS, &status_1kbt);
 		if (ret_val)
 			return false;
@@ -1461,7 +1455,6 @@ static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 		break;
 	default:
 		return -E1000_ERR_PHY;
-		break;
 	}
 
 	if (ret_val)
@@ -1530,7 +1523,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 	status = er32(STATUS);
 	er32(RXCW);
 	/* SYNCH bit and IV bit are sticky */
-	udelay(10);
+	usleep_range(10, 20);
 	rxcw = er32(RXCW);
 
 	if ((rxcw & E1000_RXCW_SYNCH) && !(rxcw & E1000_RXCW_IV)) {
@@ -1633,7 +1626,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			 * the IV bit and restart Autoneg
 			 */
 			for (i = 0; i < AN_RETRY_COUNT; i++) {
-				udelay(10);
+				usleep_range(10, 20);
 				rxcw = er32(RXCW);
 				if ((rxcw & E1000_RXCW_SYNCH) &&
 				    (rxcw & E1000_RXCW_C))
@@ -1899,6 +1892,7 @@ static const struct e1000_mac_operations e82571_mac_ops = {
 	.config_collision_dist	= e1000e_config_collision_dist_generic,
 	.read_mac_addr		= e1000_read_mac_addr_82571,
 	.rar_set		= e1000e_rar_set_generic,
+	.rar_get_count		= e1000e_rar_get_count_generic,
 };
 
 static const struct e1000_phy_operations e82_phy_ops_igp = {
@@ -2058,6 +2052,7 @@ const struct e1000_info e1000_82583_info = {
 				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
 	.flags2			= FLAG2_DISABLE_ASPM_L0S
+				  | FLAG2_DISABLE_ASPM_L1
 				  | FLAG2_NO_DISABLE_RX,
 	.pba			= 32,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
@@ -2066,4 +2061,3 @@ const struct e1000_info e1000_82583_info = {
 	.phy_ops		= &e82_phy_ops_bm,
 	.nvm_ops		= &e82571_nvm_ops,
 };
-

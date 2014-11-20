@@ -79,7 +79,6 @@
 
 struct vt8500_rtc {
 	void __iomem		*regbase;
-	struct resource		*res;
 	int			irq_alarm;
 	struct rtc_device	*rtc;
 	spinlock_t		lock;		/* Protects this structure */
@@ -209,6 +208,7 @@ static const struct rtc_class_ops vt8500_rtc_ops = {
 static int vt8500_rtc_probe(struct platform_device *pdev)
 {
 	struct vt8500_rtc *vt8500_rtc;
+	struct resource	*res;
 	int ret;
 
 	vt8500_rtc = devm_kzalloc(&pdev->dev,
@@ -219,40 +219,22 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&vt8500_rtc->lock);
 	platform_set_drvdata(pdev, vt8500_rtc);
 
-	vt8500_rtc->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!vt8500_rtc->res) {
-		dev_err(&pdev->dev, "No I/O memory resource defined\n");
-		return -ENXIO;
-	}
-
 	vt8500_rtc->irq_alarm = platform_get_irq(pdev, 0);
 	if (vt8500_rtc->irq_alarm < 0) {
 		dev_err(&pdev->dev, "No alarm IRQ resource defined\n");
-		return -ENXIO;
+		return vt8500_rtc->irq_alarm;
 	}
 
-	vt8500_rtc->res = devm_request_mem_region(&pdev->dev,
-					vt8500_rtc->res->start,
-					resource_size(vt8500_rtc->res),
-					"vt8500-rtc");
-	if (vt8500_rtc->res == NULL) {
-		dev_err(&pdev->dev, "failed to request I/O memory\n");
-		return -EBUSY;
-	}
-
-	vt8500_rtc->regbase = devm_ioremap(&pdev->dev, vt8500_rtc->res->start,
-				      resource_size(vt8500_rtc->res));
-	if (!vt8500_rtc->regbase) {
-		dev_err(&pdev->dev, "Unable to map RTC I/O memory\n");
-		ret = -EBUSY;
-		goto err_return;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	vt8500_rtc->regbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(vt8500_rtc->regbase))
+		return PTR_ERR(vt8500_rtc->regbase);
 
 	/* Enable RTC and set it to 24-hour mode */
 	writel(VT8500_RTC_CR_ENABLE,
 	       vt8500_rtc->regbase + VT8500_RTC_CR);
 
-	vt8500_rtc->rtc = rtc_device_register("vt8500-rtc", &pdev->dev,
+	vt8500_rtc->rtc = devm_rtc_device_register(&pdev->dev, "vt8500-rtc",
 					      &vt8500_rtc_ops, THIS_MODULE);
 	if (IS_ERR(vt8500_rtc->rtc)) {
 		ret = PTR_ERR(vt8500_rtc->rtc);
@@ -266,13 +248,11 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can't get irq %i, err %d\n",
 			vt8500_rtc->irq_alarm, ret);
-		goto err_unreg;
+		goto err_return;
 	}
 
 	return 0;
 
-err_unreg:
-	rtc_device_unregister(vt8500_rtc->rtc);
 err_return:
 	return ret;
 }
@@ -281,12 +261,8 @@ static int vt8500_rtc_remove(struct platform_device *pdev)
 {
 	struct vt8500_rtc *vt8500_rtc = platform_get_drvdata(pdev);
 
-	rtc_device_unregister(vt8500_rtc->rtc);
-
 	/* Disable alarm matching */
 	writel(0, vt8500_rtc->regbase + VT8500_RTC_IS);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -302,7 +278,7 @@ static struct platform_driver vt8500_rtc_driver = {
 	.driver		= {
 		.name	= "vt8500-rtc",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(wmt_dt_ids),
+		.of_match_table = wmt_dt_ids,
 	},
 };
 

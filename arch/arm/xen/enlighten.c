@@ -2,6 +2,7 @@
 #include <xen/events.h>
 #include <xen/grant_table.h>
 #include <xen/hvm.h>
+#include <xen/interface/vcpu.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/memory.h>
 #include <xen/interface/hvm/params.h>
@@ -9,15 +10,20 @@
 #include <xen/platform_pci.h>
 #include <xen/xenbus.h>
 #include <xen/page.h>
+#include <xen/interface/sched.h>
 #include <xen/xen-ops.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
+#include <asm/system_misc.h>
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
+#include <linux/cpuidle.h>
+#include <linux/cpufreq.h>
+#include <linux/cpu.h>
 
 #include <linux/mm.h>
 
@@ -32,6 +38,7 @@ struct shared_info xen_dummy_shared_info;
 struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
 
 DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
+static struct vcpu_info __percpu *xen_vcpu_info;
 
 /* These are unused until we support booting "pre-ballooned" */
 unsigned long xen_released_pages;
@@ -90,7 +97,7 @@ static int remap_pte_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
 	struct remap_data *info = data;
 	struct page *page = info->pages[info->index++];
 	unsigned long pfn = page_to_pfn(page);
-	pte_t pte = pfn_pte(pfn, info->prot);
+	pte_t pte = pte_mkspecial(pfn_pte(pfn, info->prot));
 
 	if (map_foreign_page(pfn, info->fgmfn, info->domid))
 		return -EFAULT;
@@ -148,6 +155,68 @@ int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);
 
+static void xen_percpu_init(void)
+{
+	struct vcpu_register_vcpu_info info;
+	struct vcpu_info *vcpup;
+	int err;
+	int cpu = get_cpu();
+
+	pr_info("Xen: initializing cpu%d\n", cpu);
+	vcpup = per_cpu_ptr(xen_vcpu_info, cpu);
+
+	info.mfn = __pa(vcpup) >> PAGE_SHIFT;
+	info.offset = offset_in_page(vcpup);
+
+	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
+	BUG_ON(err);
+	per_cpu(xen_vcpu, cpu) = vcpup;
+
+	enable_percpu_irq(xen_events_irq, 0);
+	put_cpu();
+}
+
+static void xen_restart(enum reboot_mode reboot_mode, const char *cmd)
+{
+	struct sched_shutdown r = { .reason = SHUTDOWN_reboot };
+	int rc;
+	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
+	BUG_ON(rc);
+}
+
+static void xen_power_off(void)
+{
+	struct sched_shutdown r = { .reason = SHUTDOWN_poweroff };
+	int rc;
+	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
+	BUG_ON(rc);
+}
+
+static int xen_cpu_notification(struct notifier_block *self,
+				unsigned long action,
+				void *hcpu)
+{
+	switch (action) {
+	case CPU_STARTING:
+		xen_percpu_init();
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block xen_cpu_notifier = {
+	.notifier_call = xen_cpu_notification,
+};
+
+static irqreturn_t xen_arm_callback(int irq, void *arg)
+{
+	xen_hvm_evtchn_do_upcall();
+	return IRQ_HANDLED;
+}
+
 /*
  * see Documentation/devicetree/bindings/arm/xen.txt for the
  * documentation of the Xen Device Tree format.
@@ -163,6 +232,7 @@ static int __init xen_guest_init(void)
 	const char *version = NULL;
 	const char *xen_prefix = "xen,xen-";
 	struct resource res;
+	phys_addr_t grant_frames;
 
 	node = of_find_compatible_node(NULL, NULL, "xen,xen");
 	if (!node) {
@@ -179,13 +249,23 @@ static int __init xen_guest_init(void)
 	}
 	if (of_address_to_resource(node, GRANT_TABLE_PHYSADDR, &res))
 		return 0;
-	xen_hvm_resume_frames = res.start >> PAGE_SHIFT;
+	grant_frames = res.start;
 	xen_events_irq = irq_of_parse_and_map(node, 0);
-	pr_info("Xen %s support found, events_irq=%d gnttab_frame_pfn=%lx\n",
-			version, xen_events_irq, xen_hvm_resume_frames);
+	pr_info("Xen %s support found, events_irq=%d gnttab_frame=%pa\n",
+			version, xen_events_irq, &grant_frames);
+
+	if (xen_events_irq < 0)
+		return -ENODEV;
+
 	xen_domain_type = XEN_HVM_DOMAIN;
 
 	xen_setup_features();
+
+	if (!xen_feature(XENFEAT_grant_map_identity)) {
+		pr_warn("Please upgrade your Xen.\n"
+				"If your platform has any non-coherent DMA devices, they won't work properly.\n");
+	}
+
 	if (xen_feature(XENFEAT_dom0))
 		xen_start_info->flags |= SIF_INITDOMAIN|SIF_PRIVILEGED;
 	else
@@ -209,46 +289,67 @@ static int __init xen_guest_init(void)
 
 	/* xen_vcpu is a pointer to the vcpu_info struct in the shared_info
 	 * page, we use it in the event channel upcall and in some pvclock
-	 * related functions. We don't need the vcpu_info placement
-	 * optimizations because we don't use any pv_mmu or pv_irq op on
-	 * HVM.
+	 * related functions. 
 	 * The shared info contains exactly 1 CPU (the boot CPU). The guest
 	 * is required to use VCPUOP_register_vcpu_info to place vcpu info
-	 * for secondary CPUs as they are brought up. */
-	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
+	 * for secondary CPUs as they are brought up.
+	 * For uniformity we use VCPUOP_register_vcpu_info even on cpu0.
+	 */
+	xen_vcpu_info = __alloc_percpu(sizeof(struct vcpu_info),
+			                       sizeof(struct vcpu_info));
+	if (xen_vcpu_info == NULL)
+		return -ENOMEM;
 
+	if (gnttab_setup_auto_xlat_frames(grant_frames)) {
+		free_percpu(xen_vcpu_info);
+		return -ENOMEM;
+	}
 	gnttab_init();
 	if (!xen_initial_domain())
 		xenbus_probe(NULL);
 
-	return 0;
-}
-core_initcall(xen_guest_init);
-
-static irqreturn_t xen_arm_callback(int irq, void *arg)
-{
-	xen_hvm_evtchn_do_upcall();
-	return IRQ_HANDLED;
-}
-
-static int __init xen_init_events(void)
-{
-	if (!xen_domain() || xen_events_irq < 0)
-		return -ENODEV;
+	/*
+	 * Making sure board specific code will not set up ops for
+	 * cpu idle and cpu freq.
+	 */
+	disable_cpuidle();
+	disable_cpufreq();
 
 	xen_init_IRQ();
 
 	if (request_percpu_irq(xen_events_irq, xen_arm_callback,
-			"events", xen_vcpu)) {
-		pr_err("Error requesting IRQ %d\n", xen_events_irq);
+			       "events", &xen_vcpu)) {
+		pr_err("Error request IRQ %d\n", xen_events_irq);
 		return -EINVAL;
 	}
 
-	enable_percpu_irq(xen_events_irq, 0);
+	xen_percpu_init();
+
+	register_cpu_notifier(&xen_cpu_notifier);
 
 	return 0;
 }
-postcore_initcall(xen_init_events);
+early_initcall(xen_guest_init);
+
+static int __init xen_pm_init(void)
+{
+	if (!xen_domain())
+		return -ENODEV;
+
+	pm_power_off = xen_power_off;
+	arm_pm_restart = xen_restart;
+
+	return 0;
+}
+late_initcall(xen_pm_init);
+
+
+/* empty stubs */
+void xen_arch_pre_suspend(void) { }
+void xen_arch_post_suspend(int suspend_cancelled) { }
+void xen_timer_resume(void) { }
+void xen_arch_resume(void) { }
+
 
 /* In the hypervisor.S file. */
 EXPORT_SYMBOL_GPL(HYPERVISOR_event_channel_op);
@@ -259,4 +360,7 @@ EXPORT_SYMBOL_GPL(HYPERVISOR_sched_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_hvm_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_memory_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_physdev_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_vcpu_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_tmem_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_multicall);
 EXPORT_SYMBOL_GPL(privcmd_call);

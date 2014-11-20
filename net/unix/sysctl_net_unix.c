@@ -15,7 +15,7 @@
 
 #include <net/af_unix.h>
 
-static ctl_table unix_table[] = {
+static struct ctl_table unix_table[] = {
 	{
 		.procname	= "max_dgram_qlen",
 		.data		= &init_net.unx.sysctl_max_dgram_qlen,

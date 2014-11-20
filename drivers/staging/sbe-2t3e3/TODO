@@ -1,6 +1,0 @@
-TODO:
-	- additional cleaning and tests
-	- wait for the new configuration interface in generic HDLC layer and
-	  when available, convert the driver to it
-
-Please send patches to Krzysztof Halasa <khc@pm.waw.pl>.

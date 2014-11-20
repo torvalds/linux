@@ -79,8 +79,10 @@ enum chips {
 
 /* Each client has this additional data */
 struct adm1021_data {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
 	enum chips type;
+
+	const struct attribute_group *groups[3];
 
 	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
@@ -96,43 +98,63 @@ struct adm1021_data {
 	u8 remote_temp_offset_prec;
 };
 
-static int adm1021_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id);
-static int adm1021_detect(struct i2c_client *client,
-			  struct i2c_board_info *info);
-static void adm1021_init_client(struct i2c_client *client);
-static int adm1021_remove(struct i2c_client *client);
-static struct adm1021_data *adm1021_update_device(struct device *dev);
-
 /* (amalysh) read only mode, otherwise any limit's writing confuse BIOS */
 static bool read_only;
 
+static struct adm1021_data *adm1021_update_device(struct device *dev)
+{
+	struct adm1021_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 
-static const struct i2c_device_id adm1021_id[] = {
-	{ "adm1021", adm1021 },
-	{ "adm1023", adm1023 },
-	{ "max1617", max1617 },
-	{ "max1617a", max1617a },
-	{ "thmc10", thmc10 },
-	{ "lm84", lm84 },
-	{ "gl523sm", gl523sm },
-	{ "mc1066", mc1066 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, adm1021_id);
+	mutex_lock(&data->update_lock);
 
-/* This is the driver that will be inserted */
-static struct i2c_driver adm1021_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "adm1021",
-	},
-	.probe		= adm1021_probe,
-	.remove		= adm1021_remove,
-	.id_table	= adm1021_id,
-	.detect		= adm1021_detect,
-	.address_list	= normal_i2c,
-};
+	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
+	    || !data->valid) {
+		int i;
+
+		dev_dbg(dev, "Starting adm1021 update\n");
+
+		for (i = 0; i < 2; i++) {
+			data->temp[i] = 1000 *
+				(s8) i2c_smbus_read_byte_data(
+					client, ADM1021_REG_TEMP(i));
+			data->temp_max[i] = 1000 *
+				(s8) i2c_smbus_read_byte_data(
+					client, ADM1021_REG_TOS_R(i));
+			if (data->type != lm84) {
+				data->temp_min[i] = 1000 *
+				  (s8) i2c_smbus_read_byte_data(client,
+							ADM1021_REG_THYST_R(i));
+			}
+		}
+		data->alarms = i2c_smbus_read_byte_data(client,
+						ADM1021_REG_STATUS) & 0x7c;
+		if (data->type == adm1023) {
+			/*
+			 * The ADM1023 provides 3 extra bits of precision for
+			 * the remote sensor in extra registers.
+			 */
+			data->temp[1] += 125 * (i2c_smbus_read_byte_data(
+				client, ADM1023_REG_REM_TEMP_PREC) >> 5);
+			data->temp_max[1] += 125 * (i2c_smbus_read_byte_data(
+				client, ADM1023_REG_REM_TOS_PREC) >> 5);
+			data->temp_min[1] += 125 * (i2c_smbus_read_byte_data(
+				client, ADM1023_REG_REM_THYST_PREC) >> 5);
+			data->remote_temp_offset =
+				i2c_smbus_read_byte_data(client,
+						ADM1023_REG_REM_OFFSET);
+			data->remote_temp_offset_prec =
+				i2c_smbus_read_byte_data(client,
+						ADM1023_REG_REM_OFFSET_PREC);
+		}
+		data->last_updated = jiffies;
+		data->valid = 1;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
+}
 
 static ssize_t show_temp(struct device *dev,
 			 struct device_attribute *devattr, char *buf)
@@ -182,10 +204,10 @@ static ssize_t set_temp_max(struct device *dev,
 			    const char *buf, size_t count)
 {
 	int index = to_sensor_dev_attr(devattr)->index;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adm1021_data *data = i2c_get_clientdata(client);
+	struct adm1021_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	long temp;
-	int err;
+	int reg_val, err;
 
 	err = kstrtol(buf, 10, &temp);
 	if (err)
@@ -193,10 +215,11 @@ static ssize_t set_temp_max(struct device *dev,
 	temp /= 1000;
 
 	mutex_lock(&data->update_lock);
-	data->temp_max[index] = clamp_val(temp, -128, 127);
+	reg_val = clamp_val(temp, -128, 127);
+	data->temp_max[index] = reg_val * 1000;
 	if (!read_only)
 		i2c_smbus_write_byte_data(client, ADM1021_REG_TOS_W(index),
-					  data->temp_max[index]);
+					  reg_val);
 	mutex_unlock(&data->update_lock);
 
 	return count;
@@ -207,10 +230,10 @@ static ssize_t set_temp_min(struct device *dev,
 			    const char *buf, size_t count)
 {
 	int index = to_sensor_dev_attr(devattr)->index;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adm1021_data *data = i2c_get_clientdata(client);
+	struct adm1021_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	long temp;
-	int err;
+	int reg_val, err;
 
 	err = kstrtol(buf, 10, &temp);
 	if (err)
@@ -218,10 +241,11 @@ static ssize_t set_temp_min(struct device *dev,
 	temp /= 1000;
 
 	mutex_lock(&data->update_lock);
-	data->temp_min[index] = clamp_val(temp, -128, 127);
+	reg_val = clamp_val(temp, -128, 127);
+	data->temp_min[index] = reg_val * 1000;
 	if (!read_only)
 		i2c_smbus_write_byte_data(client, ADM1021_REG_THYST_W(index),
-					  data->temp_min[index]);
+					  reg_val);
 	mutex_unlock(&data->update_lock);
 
 	return count;
@@ -238,8 +262,8 @@ static ssize_t set_low_power(struct device *dev,
 			     struct device_attribute *devattr,
 			     const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adm1021_data *data = i2c_get_clientdata(client);
+	struct adm1021_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	char low_power;
 	unsigned long val;
 	int err;
@@ -284,15 +308,11 @@ static DEVICE_ATTR(low_power, S_IWUSR | S_IRUGO, show_low_power, set_low_power);
 
 static struct attribute *adm1021_attributes[] = {
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp2_max.dev_attr.attr,
-	&sensor_dev_attr_temp2_min.dev_attr.attr,
 	&sensor_dev_attr_temp2_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp2_min_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp2_fault.dev_attr.attr,
 	&dev_attr_alarms.attr,
 	&dev_attr_low_power.attr,
@@ -301,6 +321,18 @@ static struct attribute *adm1021_attributes[] = {
 
 static const struct attribute_group adm1021_group = {
 	.attrs = adm1021_attributes,
+};
+
+static struct attribute *adm1021_min_attributes[] = {
+	&sensor_dev_attr_temp1_min.dev_attr.attr,
+	&sensor_dev_attr_temp2_min.dev_attr.attr,
+	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_min_alarm.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group adm1021_min_group = {
+	.attrs = adm1021_min_attributes,
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
@@ -312,8 +344,7 @@ static int adm1021_detect(struct i2c_client *client,
 	int conv_rate, status, config, man_id, dev_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("adm1021: detect failed, "
-			 "smbus byte data not supported!\n");
+		pr_debug("detect failed, smbus byte data not supported!\n");
 		return -ENODEV;
 	}
 
@@ -324,7 +355,7 @@ static int adm1021_detect(struct i2c_client *client,
 
 	/* Check unused bits */
 	if ((status & 0x03) || (config & 0x3F) || (conv_rate & 0xF8)) {
-		pr_debug("adm1021: detect failed, chip not detected!\n");
+		pr_debug("detect failed, chip not detected!\n");
 		return -ENODEV;
 	}
 
@@ -332,71 +363,74 @@ static int adm1021_detect(struct i2c_client *client,
 	man_id = i2c_smbus_read_byte_data(client, ADM1021_REG_MAN_ID);
 	dev_id = i2c_smbus_read_byte_data(client, ADM1021_REG_DEV_ID);
 
+	if (man_id < 0 || dev_id < 0)
+		return -ENODEV;
+
 	if (man_id == 0x4d && dev_id == 0x01)
 		type_name = "max1617a";
 	else if (man_id == 0x41) {
 		if ((dev_id & 0xF0) == 0x30)
 			type_name = "adm1023";
-		else
+		else if ((dev_id & 0xF0) == 0x00)
 			type_name = "adm1021";
+		else
+			return -ENODEV;
 	} else if (man_id == 0x49)
 		type_name = "thmc10";
 	else if (man_id == 0x23)
 		type_name = "gl523sm";
 	else if (man_id == 0x54)
 		type_name = "mc1066";
-	/* LM84 Mfr ID in a different place, and it has more unused bits */
-	else if (conv_rate == 0x00
-		 && (config & 0x7F) == 0x00
-		 && (status & 0xAB) == 0x00)
-		type_name = "lm84";
-	else
-		type_name = "max1617";
+	else {
+		int lte, rte, lhi, rhi, llo, rlo;
 
-	pr_debug("adm1021: Detected chip %s at adapter %d, address 0x%02x.\n",
+		/* extra checks for LM84 and MAX1617 to avoid misdetections */
+
+		llo = i2c_smbus_read_byte_data(client, ADM1021_REG_THYST_R(0));
+		rlo = i2c_smbus_read_byte_data(client, ADM1021_REG_THYST_R(1));
+
+		/* fail if any of the additional register reads failed */
+		if (llo < 0 || rlo < 0)
+			return -ENODEV;
+
+		lte = i2c_smbus_read_byte_data(client, ADM1021_REG_TEMP(0));
+		rte = i2c_smbus_read_byte_data(client, ADM1021_REG_TEMP(1));
+		lhi = i2c_smbus_read_byte_data(client, ADM1021_REG_TOS_R(0));
+		rhi = i2c_smbus_read_byte_data(client, ADM1021_REG_TOS_R(1));
+
+		/*
+		 * Fail for negative temperatures and negative high limits.
+		 * This check also catches read errors on the tested registers.
+		 */
+		if ((s8)lte < 0 || (s8)rte < 0 || (s8)lhi < 0 || (s8)rhi < 0)
+			return -ENODEV;
+
+		/* fail if all registers hold the same value */
+		if (lte == rte && lte == lhi && lte == rhi && lte == llo
+		    && lte == rlo)
+			return -ENODEV;
+
+		/*
+		 * LM84 Mfr ID is in a different place,
+		 * and it has more unused bits.
+		 */
+		if (conv_rate == 0x00
+		    && (config & 0x7F) == 0x00
+		    && (status & 0xAB) == 0x00) {
+			type_name = "lm84";
+		} else {
+			/* fail if low limits are larger than high limits */
+			if ((s8)llo > lhi || (s8)rlo > rhi)
+				return -ENODEV;
+			type_name = "max1617";
+		}
+	}
+
+	pr_debug("Detected chip %s at adapter %d, address 0x%02x.\n",
 		 type_name, i2c_adapter_id(adapter), client->addr);
 	strlcpy(info->type, type_name, I2C_NAME_SIZE);
 
 	return 0;
-}
-
-static int adm1021_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
-{
-	struct adm1021_data *data;
-	int err;
-
-	data = devm_kzalloc(&client->dev, sizeof(struct adm1021_data),
-			    GFP_KERNEL);
-	if (!data) {
-		pr_debug("adm1021: detect failed, devm_kzalloc failed!\n");
-		return -ENOMEM;
-	}
-
-	i2c_set_clientdata(client, data);
-	data->type = id->driver_data;
-	mutex_init(&data->update_lock);
-
-	/* Initialize the ADM1021 chip */
-	if (data->type != lm84 && !read_only)
-		adm1021_init_client(client);
-
-	/* Register sysfs hooks */
-	err = sysfs_create_group(&client->dev.kobj, &adm1021_group);
-	if (err)
-		return err;
-
-	data->hwmon_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto error;
-	}
-
-	return 0;
-
-error:
-	sysfs_remove_group(&client->dev.kobj, &adm1021_group);
-	return err;
 }
 
 static void adm1021_init_client(struct i2c_client *client)
@@ -408,68 +442,58 @@ static void adm1021_init_client(struct i2c_client *client)
 	i2c_smbus_write_byte_data(client, ADM1021_REG_CONV_RATE_W, 0x04);
 }
 
-static int adm1021_remove(struct i2c_client *client)
+static int adm1021_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
-	struct adm1021_data *data = i2c_get_clientdata(client);
+	struct device *dev = &client->dev;
+	struct adm1021_data *data;
+	struct device *hwmon_dev;
 
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &adm1021_group);
+	data = devm_kzalloc(dev, sizeof(struct adm1021_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
-	return 0;
+	data->client = client;
+	data->type = id->driver_data;
+	mutex_init(&data->update_lock);
+
+	/* Initialize the ADM1021 chip */
+	if (data->type != lm84 && !read_only)
+		adm1021_init_client(client);
+
+	data->groups[0] = &adm1021_group;
+	if (data->type != lm84)
+		data->groups[1] = &adm1021_min_group;
+
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
+							   data, data->groups);
+
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static struct adm1021_data *adm1021_update_device(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adm1021_data *data = i2c_get_clientdata(client);
+static const struct i2c_device_id adm1021_id[] = {
+	{ "adm1021", adm1021 },
+	{ "adm1023", adm1023 },
+	{ "max1617", max1617 },
+	{ "max1617a", max1617a },
+	{ "thmc10", thmc10 },
+	{ "lm84", lm84 },
+	{ "gl523sm", gl523sm },
+	{ "mc1066", mc1066 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, adm1021_id);
 
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
-	    || !data->valid) {
-		int i;
-
-		dev_dbg(&client->dev, "Starting adm1021 update\n");
-
-		for (i = 0; i < 2; i++) {
-			data->temp[i] = 1000 *
-				(s8) i2c_smbus_read_byte_data(
-					client, ADM1021_REG_TEMP(i));
-			data->temp_max[i] = 1000 *
-				(s8) i2c_smbus_read_byte_data(
-					client, ADM1021_REG_TOS_R(i));
-			data->temp_min[i] = 1000 *
-				(s8) i2c_smbus_read_byte_data(
-					client, ADM1021_REG_THYST_R(i));
-		}
-		data->alarms = i2c_smbus_read_byte_data(client,
-						ADM1021_REG_STATUS) & 0x7c;
-		if (data->type == adm1023) {
-			/*
-			 * The ADM1023 provides 3 extra bits of precision for
-			 * the remote sensor in extra registers.
-			 */
-			data->temp[1] += 125 * (i2c_smbus_read_byte_data(
-				client, ADM1023_REG_REM_TEMP_PREC) >> 5);
-			data->temp_max[1] += 125 * (i2c_smbus_read_byte_data(
-				client, ADM1023_REG_REM_TOS_PREC) >> 5);
-			data->temp_min[1] += 125 * (i2c_smbus_read_byte_data(
-				client, ADM1023_REG_REM_THYST_PREC) >> 5);
-			data->remote_temp_offset =
-				i2c_smbus_read_byte_data(client,
-						ADM1023_REG_REM_OFFSET);
-			data->remote_temp_offset_prec =
-				i2c_smbus_read_byte_data(client,
-						ADM1023_REG_REM_OFFSET_PREC);
-		}
-		data->last_updated = jiffies;
-		data->valid = 1;
-	}
-
-	mutex_unlock(&data->update_lock);
-
-	return data;
-}
+static struct i2c_driver adm1021_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "adm1021",
+	},
+	.probe		= adm1021_probe,
+	.id_table	= adm1021_id,
+	.detect		= adm1021_detect,
+	.address_list	= normal_i2c,
+};
 
 module_i2c_driver(adm1021_driver);
 

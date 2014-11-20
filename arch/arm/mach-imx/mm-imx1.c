@@ -39,7 +39,6 @@ void __init mx1_map_io(void)
 void __init imx1_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX1);
-	mxc_arch_reset_init(MX1_IO_ADDRESS(MX1_WDT_BASE_ADDR));
 	imx_iomuxv1_init(MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR),
 			MX1_NUM_GPIO_PORT);
 }
@@ -51,6 +50,9 @@ void __init mx1_init_irq(void)
 
 void __init imx1_soc_init(void)
 {
+	mxc_arch_reset_init(MX1_IO_ADDRESS(MX1_WDT_BASE_ADDR));
+	mxc_device_init();
+
 	mxc_register_gpio("imx1-gpio", 0, MX1_GPIO1_BASE_ADDR, SZ_256,
 						MX1_GPIO_INT_PORTA, 0);
 	mxc_register_gpio("imx1-gpio", 1, MX1_GPIO2_BASE_ADDR, SZ_256,
