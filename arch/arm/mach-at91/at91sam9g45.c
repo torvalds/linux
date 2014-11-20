@@ -254,6 +254,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID(NULL, "atmel_tdes", &aestdessha_clk),
 	CLKDEV_CON_DEV_ID(NULL, "atmel_aes", &aestdessha_clk),
 	CLKDEV_CON_DEV_ID(NULL, "at91sam9rl-pwm", &pwm_clk),
+	CLKDEV_CON_DEV_ID(NULL, "rtc-at91sam9.0", &clk32k),
 	/* more usart lookup table for DT entries */
 	CLKDEV_CON_DEV_ID("usart", "ffffee00.serial", &mck),
 	CLKDEV_CON_DEV_ID("usart", "fff8c000.serial", &usart0_clk),
@@ -280,6 +281,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID(NULL, "fffff600.gpio", &pioC_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffff800.gpio", &pioDE_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffffa00.gpio", &pioDE_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffffd20.rtc", &clk32k),
 
 	CLKDEV_CON_ID("pioA", &pioA_clk),
 	CLKDEV_CON_ID("pioB", &pioB_clk),

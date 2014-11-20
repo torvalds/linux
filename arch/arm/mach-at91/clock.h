@@ -34,6 +34,7 @@ struct clk {
 extern int __init clk_register(struct clk *clk);
 extern struct clk mck;
 extern struct clk utmi_clk;
+extern struct clk clk32k;
 
 #define CLKDEV_CON_ID(_id, _clk)			\
 	{						\
