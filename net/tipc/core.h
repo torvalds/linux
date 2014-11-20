@@ -41,6 +41,7 @@
 
 #include <linux/tipc.h>
 #include <linux/tipc_config.h>
+#include <linux/tipc_netlink.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>

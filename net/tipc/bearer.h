@@ -1,7 +1,7 @@
 /*
  * net/tipc/bearer.h: Include file for TIPC bearer code
  *
- * Copyright (c) 1996-2006, 2013, Ericsson AB
+ * Copyright (c) 1996-2006, 2013-2014, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -38,6 +38,8 @@
 #define _TIPC_BEARER_H
 
 #include "bcast.h"
+#include "netlink.h"
+#include <net/genetlink.h>
 
 #define MAX_BEARERS	2
 #define MAX_MEDIA	2
@@ -175,6 +177,9 @@ extern struct tipc_media eth_media_info;
 #ifdef CONFIG_TIPC_MEDIA_IB
 extern struct tipc_media ib_media_info;
 #endif
+
+int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info);
 
 int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);

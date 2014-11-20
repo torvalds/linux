@@ -1,7 +1,7 @@
 /*
  * net/tipc/bearer.c: TIPC bearer code
  *
- * Copyright (c) 1996-2006, 2013, Ericsson AB
+ * Copyright (c) 1996-2006, 2013-2014, Ericsson AB
  * Copyright (c) 2004-2006, 2010-2013, Wind River Systems
  * All rights reserved.
  *
@@ -37,6 +37,7 @@
 #include "core.h"
 #include "config.h"
 #include "bearer.h"
+#include "link.h"
 #include "discover.h"
 
 #define MAX_ADDR_STR 60
@@ -47,6 +48,17 @@ static struct tipc_media * const media_info_array[] = {
 	&ib_media_info,
 #endif
 	NULL
+};
+
+static const struct nla_policy
+tipc_nl_bearer_policy[TIPC_NLA_BEARER_MAX + 1]	= {
+	[TIPC_NLA_BEARER_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_BEARER_NAME] = {
+		.type = NLA_STRING,
+		.len = TIPC_MAX_BEARER_NAME
+	},
+	[TIPC_NLA_BEARER_PROP]			= { .type = NLA_NESTED },
+	[TIPC_NLA_BEARER_DOMAIN]		= { .type = NLA_U32 }
 };
 
 struct tipc_bearer __rcu *bearer_list[MAX_BEARERS + 1];
@@ -626,4 +638,89 @@ void tipc_bearer_stop(void)
 			bearer_list[i] = NULL;
 		}
 	}
+}
+
+int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	char *name;
+	struct tipc_bearer *bearer;
+	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
+
+	if (!info->attrs[TIPC_NLA_BEARER])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
+			       info->attrs[TIPC_NLA_BEARER],
+			       tipc_nl_bearer_policy);
+	if (err)
+		return err;
+
+	if (!attrs[TIPC_NLA_BEARER_NAME])
+		return -EINVAL;
+
+	name = nla_data(attrs[TIPC_NLA_BEARER_NAME]);
+
+	rtnl_lock();
+	bearer = tipc_bearer_find(name);
+	if (!bearer) {
+		rtnl_unlock();
+		return -EINVAL;
+	}
+
+	bearer_disable(bearer, false);
+	rtnl_unlock();
+
+	return 0;
+}
+
+int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	char *bearer;
+	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
+	u32 domain;
+	u32 prio;
+
+	prio = TIPC_MEDIA_LINK_PRI;
+	domain = tipc_own_addr & TIPC_CLUSTER_MASK;
+
+	if (!info->attrs[TIPC_NLA_BEARER])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
+			       info->attrs[TIPC_NLA_BEARER],
+			       tipc_nl_bearer_policy);
+	if (err)
+		return err;
+
+	if (!attrs[TIPC_NLA_BEARER_NAME])
+		return -EINVAL;
+
+	bearer = nla_data(attrs[TIPC_NLA_BEARER_NAME]);
+
+	if (attrs[TIPC_NLA_BEARER_DOMAIN])
+		domain = nla_get_u32(attrs[TIPC_NLA_BEARER_DOMAIN]);
+
+	if (attrs[TIPC_NLA_BEARER_PROP]) {
+		struct nlattr *props[TIPC_NLA_PROP_MAX + 1];
+
+		err = tipc_nl_parse_link_prop(attrs[TIPC_NLA_BEARER_PROP],
+					      props);
+		if (err)
+			return err;
+
+		if (props[TIPC_NLA_PROP_PRIO])
+			prio = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
+	}
+
+	rtnl_lock();
+	err = tipc_enable_bearer(bearer, domain, prio);
+	if (err) {
+		rtnl_unlock();
+		return err;
+	}
+	rtnl_unlock();
+
+	return 0;
 }

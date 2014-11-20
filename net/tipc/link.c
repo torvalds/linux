@@ -40,6 +40,7 @@
 #include "name_distr.h"
 #include "discover.h"
 #include "config.h"
+#include "netlink.h"
 
 #include <linux/pkt_sched.h>
 
@@ -49,6 +50,14 @@
 static const char *link_co_err = "Link changeover error, ";
 static const char *link_rst_msg = "Resetting link ";
 static const char *link_unk_evt = "Unknown link event ";
+
+/* Properties valid for media, bearar and link */
+static const struct nla_policy tipc_nl_prop_policy[TIPC_NLA_PROP_MAX + 1] = {
+	[TIPC_NLA_PROP_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_PROP_PRIO]		= { .type = NLA_U32 },
+	[TIPC_NLA_PROP_TOL]		= { .type = NLA_U32 },
+	[TIPC_NLA_PROP_WIN]		= { .type = NLA_U32 }
+};
 
 /*
  * Out-of-range value for link session numbers
@@ -2375,4 +2384,42 @@ static void link_print(struct tipc_link *l_ptr, const char *str)
 		pr_cont(":WW\n");
 	else
 		pr_cont("\n");
+}
+
+/* Parse and validate nested (link) properties valid for media, bearer and link
+ */
+int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[])
+{
+	int err;
+
+	err = nla_parse_nested(props, TIPC_NLA_PROP_MAX, prop,
+			       tipc_nl_prop_policy);
+	if (err)
+		return err;
+
+	if (props[TIPC_NLA_PROP_PRIO]) {
+		u32 prio;
+
+		prio = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
+		if (prio > TIPC_MAX_LINK_PRI)
+			return -EINVAL;
+	}
+
+	if (props[TIPC_NLA_PROP_TOL]) {
+		u32 tol;
+
+		tol = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
+		if ((tol < TIPC_MIN_LINK_TOL) || (tol > TIPC_MAX_LINK_TOL))
+			return -EINVAL;
+	}
+
+	if (props[TIPC_NLA_PROP_WIN]) {
+		u32 win;
+
+		win = nla_get_u32(props[TIPC_NLA_PROP_WIN]);
+		if ((win < TIPC_MIN_LINK_WIN) || (win > TIPC_MAX_LINK_WIN))
+			return -EINVAL;
+	}
+
+	return 0;
 }
