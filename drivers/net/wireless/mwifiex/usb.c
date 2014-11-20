@@ -27,6 +27,11 @@ static struct mwifiex_if_ops usb_ops;
 static struct semaphore add_remove_card_sem;
 
 static struct usb_device_id mwifiex_usb_table[] = {
+	/* 8766 */
+	{USB_DEVICE(USB8XXX_VID, USB8766_PID_1)},
+	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8766_PID_2,
+				       USB_CLASS_VENDOR_SPEC,
+				       USB_SUBCLASS_VENDOR_SPEC, 0xff)},
 	/* 8797 */
 	{USB_DEVICE(USB8XXX_VID, USB8797_PID_1)},
 	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8797_PID_2,
@@ -354,10 +359,12 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 
 	/* PID_1 is used for firmware downloading only */
 	switch (id_product) {
+	case USB8766_PID_1:
 	case USB8797_PID_1:
 	case USB8897_PID_1:
 		card->usb_boot_state = USB8XXX_FW_DNLD;
 		break;
+	case USB8766_PID_2:
 	case USB8797_PID_2:
 	case USB8897_PID_2:
 		card->usb_boot_state = USB8XXX_FW_READY;
@@ -786,6 +793,11 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
 		strcpy(adapter->fw_name, USB8897_DEFAULT_FW_NAME);
 		break;
+	case USB8766_PID_1:
+	case USB8766_PID_2:
+		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
+		strcpy(adapter->fw_name, USB8766_DEFAULT_FW_NAME);
+		break;
 	case USB8797_PID_1:
 	case USB8797_PID_2:
 	default:
@@ -1060,5 +1072,6 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex USB Driver version" USB_VERSION);
 MODULE_VERSION(USB_VERSION);
 MODULE_LICENSE("GPL v2");
+MODULE_FIRMWARE(USB8766_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(USB8797_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(USB8897_DEFAULT_FW_NAME);

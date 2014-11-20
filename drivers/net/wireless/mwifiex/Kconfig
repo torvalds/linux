@@ -31,7 +31,7 @@ config MWIFIEX_PCIE
 	  mwifiex_pcie.
 
 config MWIFIEX_USB
-	tristate "Marvell WiFi-Ex Driver for USB8797/8897"
+	tristate "Marvell WiFi-Ex Driver for USB8766/8797/8897"
 	depends on MWIFIEX && USB
 	select FW_LOADER
 	---help---
