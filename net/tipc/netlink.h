@@ -37,6 +37,7 @@
 #define _TIPC_NETLINK_H
 
 extern struct genl_family tipc_genl_v2_family;
+int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***buf);
 
 struct tipc_nl_msg {
 	struct sk_buff *skb;

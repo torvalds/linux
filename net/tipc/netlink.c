@@ -74,6 +74,7 @@ static const struct nla_policy tipc_nl_policy[TIPC_NLA_MAX + 1] = {
 	[TIPC_NLA_UNSPEC]	= { .type = NLA_UNSPEC, },
 	[TIPC_NLA_BEARER]	= { .type = NLA_NESTED, },
 	[TIPC_NLA_SOCK]		= { .type = NLA_NESTED, },
+	[TIPC_NLA_PUBL]		= { .type = NLA_NESTED, }
 };
 
 /* Legacy ASCII API */
@@ -130,8 +131,24 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 		.cmd	= TIPC_NL_SOCK_GET,
 		.dumpit	= tipc_nl_sk_dump,
 		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_PUBL_GET,
+		.dumpit	= tipc_nl_publ_dump,
+		.policy = tipc_nl_policy,
 	}
 };
+
+int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)
+{
+	u32 maxattr = tipc_genl_v2_family.maxattr;
+
+	*attr = tipc_genl_v2_family.attrbuf;
+	if (!*attr)
+		return -EOPNOTSUPP;
+
+	return nlmsg_parse(nlh, GENL_HDRLEN, *attr, maxattr, tipc_nl_policy);
+}
 
 int tipc_netlink_start(void)
 {

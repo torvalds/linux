@@ -46,6 +46,7 @@ enum {
 	TIPC_NL_BEARER_GET,
 	TIPC_NL_BEARER_SET,
 	TIPC_NL_SOCK_GET,
+	TIPC_NL_PUBL_GET,
 
 	__TIPC_NL_CMD_MAX,
 	TIPC_NL_CMD_MAX = __TIPC_NL_CMD_MAX - 1
@@ -56,6 +57,7 @@ enum {
 	TIPC_NLA_UNSPEC,
 	TIPC_NLA_BEARER,		/* nest */
 	TIPC_NLA_SOCK,			/* nest */
+	TIPC_NLA_PUBL,			/* nest */
 
 	__TIPC_NLA_MAX,
 	TIPC_NLA_MAX = __TIPC_NLA_MAX - 1
@@ -82,6 +84,22 @@ enum {
 
 	__TIPC_NLA_SOCK_MAX,
 	TIPC_NLA_SOCK_MAX = __TIPC_NLA_SOCK_MAX - 1
+};
+
+/* Publication info */
+enum {
+	TIPC_NLA_PUBL_UNSPEC,
+
+	TIPC_NLA_PUBL_TYPE,		/* u32 */
+	TIPC_NLA_PUBL_LOWER,		/* u32 */
+	TIPC_NLA_PUBL_UPPER,		/* u32 */
+	TIPC_NLA_PUBL_SCOPE,		/* u32 */
+	TIPC_NLA_PUBL_NODE,		/* u32 */
+	TIPC_NLA_PUBL_REF,		/* u32 */
+	TIPC_NLA_PUBL_KEY,		/* u32 */
+
+	__TIPC_NLA_PUBL_MAX,
+	TIPC_NLA_PUBL_MAX = __TIPC_NLA_PUBL_MAX - 1
 };
 
 /* Nest, connection info */
