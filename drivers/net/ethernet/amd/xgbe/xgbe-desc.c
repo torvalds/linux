@@ -532,7 +532,6 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 		}
 		rdata->skb_dma = skb_dma;
 		rdata->skb_dma_len = packet->header_len;
-		rdata->tx.tso_header = 1;
 
 		offset = packet->header_len;
 
