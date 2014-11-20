@@ -37,6 +37,8 @@
 #ifndef _TIPC_BCAST_H
 #define _TIPC_BCAST_H
 
+#include "netlink.h"
+
 #define MAX_NODES 4096
 #define WSIZE 32
 #define TIPC_BCLINK_RESET 1
@@ -100,4 +102,6 @@ void tipc_bcbearer_sort(struct tipc_node_map *nm_ptr, u32 node, bool action);
 uint  tipc_bclink_get_mtu(void);
 int tipc_bclink_xmit(struct sk_buff *buf);
 void tipc_bclink_wakeup_users(void);
+int tipc_nl_add_bc_link(struct tipc_nl_msg *msg);
+
 #endif

@@ -240,6 +240,8 @@ void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window);
 void tipc_link_retransmit(struct tipc_link *l_ptr,
 			  struct sk_buff *start, u32 retransmits);
 
+int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb);
+int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[]);
 
 /*

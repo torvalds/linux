@@ -767,6 +767,117 @@ void tipc_bcbearer_sort(struct tipc_node_map *nm_ptr, u32 node, bool action)
 	tipc_bclink_unlock();
 }
 
+int __tipc_nl_add_bc_link_stat(struct sk_buff *skb, struct tipc_stats *stats)
+{
+	int i;
+	struct nlattr *nest;
+
+	struct nla_map {
+		__u32 key;
+		__u32 val;
+	};
+
+	struct nla_map map[] = {
+		{TIPC_NLA_STATS_RX_INFO, stats->recv_info},
+		{TIPC_NLA_STATS_RX_FRAGMENTS, stats->recv_fragments},
+		{TIPC_NLA_STATS_RX_FRAGMENTED, stats->recv_fragmented},
+		{TIPC_NLA_STATS_RX_BUNDLES, stats->recv_bundles},
+		{TIPC_NLA_STATS_RX_BUNDLED, stats->recv_bundled},
+		{TIPC_NLA_STATS_TX_INFO, stats->sent_info},
+		{TIPC_NLA_STATS_TX_FRAGMENTS, stats->sent_fragments},
+		{TIPC_NLA_STATS_TX_FRAGMENTED, stats->sent_fragmented},
+		{TIPC_NLA_STATS_TX_BUNDLES, stats->sent_bundles},
+		{TIPC_NLA_STATS_TX_BUNDLED, stats->sent_bundled},
+		{TIPC_NLA_STATS_RX_NACKS, stats->recv_nacks},
+		{TIPC_NLA_STATS_RX_DEFERRED, stats->deferred_recv},
+		{TIPC_NLA_STATS_TX_NACKS, stats->sent_nacks},
+		{TIPC_NLA_STATS_TX_ACKS, stats->sent_acks},
+		{TIPC_NLA_STATS_RETRANSMITTED, stats->retransmitted},
+		{TIPC_NLA_STATS_DUPLICATES, stats->duplicates},
+		{TIPC_NLA_STATS_LINK_CONGS, stats->link_congs},
+		{TIPC_NLA_STATS_MAX_QUEUE, stats->max_queue_sz},
+		{TIPC_NLA_STATS_AVG_QUEUE, stats->queue_sz_counts ?
+			(stats->accu_queue_sz / stats->queue_sz_counts) : 0}
+	};
+
+	nest = nla_nest_start(skb, TIPC_NLA_LINK_STATS);
+	if (!nest)
+		return -EMSGSIZE;
+
+	for (i = 0; i <  ARRAY_SIZE(map); i++)
+		if (nla_put_u32(skb, map[i].key, map[i].val))
+			goto msg_full;
+
+	nla_nest_end(skb, nest);
+
+	return 0;
+msg_full:
+	nla_nest_cancel(skb, nest);
+
+	return -EMSGSIZE;
+}
+
+int tipc_nl_add_bc_link(struct tipc_nl_msg *msg)
+{
+	int err;
+	void *hdr;
+	struct nlattr *attrs;
+	struct nlattr *prop;
+
+	if (!bcl)
+		return 0;
+
+	tipc_bclink_lock();
+
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+			  NLM_F_MULTI, TIPC_NL_LINK_GET);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	attrs = nla_nest_start(msg->skb, TIPC_NLA_LINK);
+	if (!attrs)
+		goto msg_full;
+
+	/* The broadcast link is always up */
+	if (nla_put_flag(msg->skb, TIPC_NLA_LINK_UP))
+		goto attr_msg_full;
+
+	if (nla_put_flag(msg->skb, TIPC_NLA_LINK_BROADCAST))
+		goto attr_msg_full;
+	if (nla_put_string(msg->skb, TIPC_NLA_LINK_NAME, bcl->name))
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_RX, bcl->next_in_no))
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_TX, bcl->next_out_no))
+		goto attr_msg_full;
+
+	prop = nla_nest_start(msg->skb, TIPC_NLA_LINK_PROP);
+	if (!prop)
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_WIN, bcl->queue_limit[0]))
+		goto prop_msg_full;
+	nla_nest_end(msg->skb, prop);
+
+	err = __tipc_nl_add_bc_link_stat(msg->skb, &bcl->stats);
+	if (err)
+		goto attr_msg_full;
+
+	tipc_bclink_unlock();
+	nla_nest_end(msg->skb, attrs);
+	genlmsg_end(msg->skb, hdr);
+
+	return 0;
+
+prop_msg_full:
+	nla_nest_cancel(msg->skb, prop);
+attr_msg_full:
+	nla_nest_cancel(msg->skb, attrs);
+msg_full:
+	tipc_bclink_unlock();
+	genlmsg_cancel(msg->skb, hdr);
+
+	return -EMSGSIZE;
+}
 
 int tipc_bclink_stats(char *buf, const u32 buf_size)
 {

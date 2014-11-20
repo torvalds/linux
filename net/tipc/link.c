@@ -36,6 +36,7 @@
 
 #include "core.h"
 #include "link.h"
+#include "bcast.h"
 #include "socket.h"
 #include "name_distr.h"
 #include "discover.h"
@@ -50,6 +51,22 @@
 static const char *link_co_err = "Link changeover error, ";
 static const char *link_rst_msg = "Resetting link ";
 static const char *link_unk_evt = "Unknown link event ";
+
+static const struct nla_policy tipc_nl_link_policy[TIPC_NLA_LINK_MAX + 1] = {
+	[TIPC_NLA_LINK_UNSPEC]		= { .type = NLA_UNSPEC },
+	[TIPC_NLA_LINK_NAME] = {
+		.type = NLA_STRING,
+		.len = TIPC_MAX_LINK_NAME
+	},
+	[TIPC_NLA_LINK_MTU]		= { .type = NLA_U32 },
+	[TIPC_NLA_LINK_BROADCAST]	= { .type = NLA_FLAG },
+	[TIPC_NLA_LINK_UP]		= { .type = NLA_FLAG },
+	[TIPC_NLA_LINK_ACTIVE]		= { .type = NLA_FLAG },
+	[TIPC_NLA_LINK_PROP]		= { .type = NLA_NESTED },
+	[TIPC_NLA_LINK_STATS]		= { .type = NLA_NESTED },
+	[TIPC_NLA_LINK_RX]		= { .type = NLA_U32 },
+	[TIPC_NLA_LINK_TX]		= { .type = NLA_U32 }
+};
 
 /* Properties valid for media, bearar and link */
 static const struct nla_policy tipc_nl_prop_policy[TIPC_NLA_PROP_MAX + 1] = {
@@ -2422,4 +2439,274 @@ int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[])
 	}
 
 	return 0;
+}
+
+int __tipc_nl_add_stats(struct sk_buff *skb, struct tipc_stats *s)
+{
+	int i;
+	struct nlattr *stats;
+
+	struct nla_map {
+		u32 key;
+		u32 val;
+	};
+
+	struct nla_map map[] = {
+		{TIPC_NLA_STATS_RX_INFO, s->recv_info},
+		{TIPC_NLA_STATS_RX_FRAGMENTS, s->recv_fragments},
+		{TIPC_NLA_STATS_RX_FRAGMENTED, s->recv_fragmented},
+		{TIPC_NLA_STATS_RX_BUNDLES, s->recv_bundles},
+		{TIPC_NLA_STATS_RX_BUNDLED, s->recv_bundled},
+		{TIPC_NLA_STATS_TX_INFO, s->sent_info},
+		{TIPC_NLA_STATS_TX_FRAGMENTS, s->sent_fragments},
+		{TIPC_NLA_STATS_TX_FRAGMENTED, s->sent_fragmented},
+		{TIPC_NLA_STATS_TX_BUNDLES, s->sent_bundles},
+		{TIPC_NLA_STATS_TX_BUNDLED, s->sent_bundled},
+		{TIPC_NLA_STATS_MSG_PROF_TOT, (s->msg_length_counts) ?
+			s->msg_length_counts : 1},
+		{TIPC_NLA_STATS_MSG_LEN_CNT, s->msg_length_counts},
+		{TIPC_NLA_STATS_MSG_LEN_TOT, s->msg_lengths_total},
+		{TIPC_NLA_STATS_MSG_LEN_P0, s->msg_length_profile[0]},
+		{TIPC_NLA_STATS_MSG_LEN_P1, s->msg_length_profile[1]},
+		{TIPC_NLA_STATS_MSG_LEN_P2, s->msg_length_profile[2]},
+		{TIPC_NLA_STATS_MSG_LEN_P3, s->msg_length_profile[3]},
+		{TIPC_NLA_STATS_MSG_LEN_P4, s->msg_length_profile[4]},
+		{TIPC_NLA_STATS_MSG_LEN_P5, s->msg_length_profile[5]},
+		{TIPC_NLA_STATS_MSG_LEN_P6, s->msg_length_profile[6]},
+		{TIPC_NLA_STATS_RX_STATES, s->recv_states},
+		{TIPC_NLA_STATS_RX_PROBES, s->recv_probes},
+		{TIPC_NLA_STATS_RX_NACKS, s->recv_nacks},
+		{TIPC_NLA_STATS_RX_DEFERRED, s->deferred_recv},
+		{TIPC_NLA_STATS_TX_STATES, s->sent_states},
+		{TIPC_NLA_STATS_TX_PROBES, s->sent_probes},
+		{TIPC_NLA_STATS_TX_NACKS, s->sent_nacks},
+		{TIPC_NLA_STATS_TX_ACKS, s->sent_acks},
+		{TIPC_NLA_STATS_RETRANSMITTED, s->retransmitted},
+		{TIPC_NLA_STATS_DUPLICATES, s->duplicates},
+		{TIPC_NLA_STATS_LINK_CONGS, s->link_congs},
+		{TIPC_NLA_STATS_MAX_QUEUE, s->max_queue_sz},
+		{TIPC_NLA_STATS_AVG_QUEUE, s->queue_sz_counts ?
+			(s->accu_queue_sz / s->queue_sz_counts) : 0}
+	};
+
+	stats = nla_nest_start(skb, TIPC_NLA_LINK_STATS);
+	if (!stats)
+		return -EMSGSIZE;
+
+	for (i = 0; i <  ARRAY_SIZE(map); i++)
+		if (nla_put_u32(skb, map[i].key, map[i].val))
+			goto msg_full;
+
+	nla_nest_end(skb, stats);
+
+	return 0;
+msg_full:
+	nla_nest_cancel(skb, stats);
+
+	return -EMSGSIZE;
+}
+
+/* Caller should hold appropriate locks to protect the link */
+int __tipc_nl_add_link(struct tipc_nl_msg *msg, struct tipc_link *link)
+{
+	int err;
+	void *hdr;
+	struct nlattr *attrs;
+	struct nlattr *prop;
+
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_v2_family,
+			  NLM_F_MULTI, TIPC_NL_LINK_GET);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	attrs = nla_nest_start(msg->skb, TIPC_NLA_LINK);
+	if (!attrs)
+		goto msg_full;
+
+	if (nla_put_string(msg->skb, TIPC_NLA_LINK_NAME, link->name))
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_DEST,
+			tipc_cluster_mask(tipc_own_addr)))
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_MTU, link->max_pkt))
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_RX, link->next_in_no))
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_TX, link->next_out_no))
+		goto attr_msg_full;
+
+	if (tipc_link_is_up(link))
+		if (nla_put_flag(msg->skb, TIPC_NLA_LINK_UP))
+			goto attr_msg_full;
+	if (tipc_link_is_active(link))
+		if (nla_put_flag(msg->skb, TIPC_NLA_LINK_ACTIVE))
+			goto attr_msg_full;
+
+	prop = nla_nest_start(msg->skb, TIPC_NLA_LINK_PROP);
+	if (!prop)
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_PRIO, link->priority))
+		goto prop_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_TOL, link->tolerance))
+		goto prop_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_WIN,
+			link->queue_limit[TIPC_LOW_IMPORTANCE]))
+		goto prop_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_PRIO, link->priority))
+		goto prop_msg_full;
+	nla_nest_end(msg->skb, prop);
+
+	err = __tipc_nl_add_stats(msg->skb, &link->stats);
+	if (err)
+		goto attr_msg_full;
+
+	nla_nest_end(msg->skb, attrs);
+	genlmsg_end(msg->skb, hdr);
+
+	return 0;
+
+prop_msg_full:
+	nla_nest_cancel(msg->skb, prop);
+attr_msg_full:
+	nla_nest_cancel(msg->skb, attrs);
+msg_full:
+	genlmsg_cancel(msg->skb, hdr);
+
+	return -EMSGSIZE;
+}
+
+/* Caller should hold node lock  */
+int __tipc_nl_add_node_links(struct tipc_nl_msg *msg, struct tipc_node *node,
+			     u32 *prev_link)
+{
+	u32 i;
+	int err;
+
+	for (i = *prev_link; i < MAX_BEARERS; i++) {
+		*prev_link = i;
+
+		if (!node->links[i])
+			continue;
+
+		err = __tipc_nl_add_link(msg, node->links[i]);
+		if (err)
+			return err;
+	}
+	*prev_link = 0;
+
+	return 0;
+}
+
+int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct tipc_node *node;
+	struct tipc_nl_msg msg;
+	u32 prev_node = cb->args[0];
+	u32 prev_link = cb->args[1];
+	int done = cb->args[2];
+	int err;
+
+	if (done)
+		return 0;
+
+	msg.skb = skb;
+	msg.portid = NETLINK_CB(cb->skb).portid;
+	msg.seq = cb->nlh->nlmsg_seq;
+
+	rcu_read_lock();
+
+	if (prev_node) {
+		node = tipc_node_find(prev_node);
+		if (!node) {
+			/* We never set seq or call nl_dump_check_consistent()
+			 * this means that setting prev_seq here will cause the
+			 * consistence check to fail in the netlink callback
+			 * handler. Resulting in the last NLMSG_DONE message
+			 * having the NLM_F_DUMP_INTR flag set.
+			 */
+			cb->prev_seq = 1;
+			goto out;
+		}
+
+		list_for_each_entry_continue_rcu(node, &tipc_node_list, list) {
+			tipc_node_lock(node);
+			err = __tipc_nl_add_node_links(&msg, node, &prev_link);
+			tipc_node_unlock(node);
+			if (err)
+				goto out;
+
+			prev_node = node->addr;
+		}
+	} else {
+		err = tipc_nl_add_bc_link(&msg);
+		if (err)
+			goto out;
+
+		list_for_each_entry_rcu(node, &tipc_node_list, list) {
+			tipc_node_lock(node);
+			err = __tipc_nl_add_node_links(&msg, node, &prev_link);
+			tipc_node_unlock(node);
+			if (err)
+				goto out;
+
+			prev_node = node->addr;
+		}
+	}
+	done = 1;
+out:
+	rcu_read_unlock();
+
+	cb->args[0] = prev_node;
+	cb->args[1] = prev_link;
+	cb->args[2] = done;
+
+	return skb->len;
+}
+
+int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info)
+{
+	struct sk_buff *ans_skb;
+	struct tipc_nl_msg msg;
+	struct tipc_link *link;
+	struct tipc_node *node;
+	char *name;
+	int bearer_id;
+	int err;
+
+	if (!info->attrs[TIPC_NLA_LINK_NAME])
+		return -EINVAL;
+
+	name = nla_data(info->attrs[TIPC_NLA_LINK_NAME]);
+	node = tipc_link_find_owner(name, &bearer_id);
+	if (!node)
+		return -EINVAL;
+
+	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!ans_skb)
+		return -ENOMEM;
+
+	msg.skb = ans_skb;
+	msg.portid = info->snd_portid;
+	msg.seq = info->snd_seq;
+
+	tipc_node_lock(node);
+	link = node->links[bearer_id];
+	if (!link) {
+		err = -EINVAL;
+		goto err_out;
+	}
+
+	err = __tipc_nl_add_link(&msg, link);
+	if (err)
+		goto err_out;
+
+	tipc_node_unlock(node);
+
+	return genlmsg_reply(ans_skb, info);
+
+err_out:
+	tipc_node_unlock(node);
+	nlmsg_free(ans_skb);
+
+	return err;
 }
