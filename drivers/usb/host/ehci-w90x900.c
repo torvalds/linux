@@ -75,8 +75,10 @@ static int usb_w90x900_probe(const struct hc_driver *driver,
 	__raw_writel(val, ehci->regs+PHY1_CTR);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
+	if (irq < 0) {
+		retval = irq;
 		goto err2;
+	}
 
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval != 0)
