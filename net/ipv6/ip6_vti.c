@@ -95,6 +95,7 @@ vti6_tnl_lookup(struct net *net, const struct in6_addr *remote,
 	unsigned int hash = HASH(remote, local);
 	struct ip6_tnl *t;
 	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
+	struct in6_addr any;
 
 	for_each_vti6_tunnel_rcu(ip6n->tnls_r_l[hash]) {
 		if (ipv6_addr_equal(local, &t->parms.laddr) &&
@@ -102,6 +103,22 @@ vti6_tnl_lookup(struct net *net, const struct in6_addr *remote,
 		    (t->dev->flags & IFF_UP))
 			return t;
 	}
+
+	memset(&any, 0, sizeof(any));
+	hash = HASH(&any, local);
+	for_each_vti6_tunnel_rcu(ip6n->tnls_r_l[hash]) {
+		if (ipv6_addr_equal(local, &t->parms.laddr) &&
+		    (t->dev->flags & IFF_UP))
+			return t;
+	}
+
+	hash = HASH(remote, &any);
+	for_each_vti6_tunnel_rcu(ip6n->tnls_r_l[hash]) {
+		if (ipv6_addr_equal(remote, &t->parms.raddr) &&
+		    (t->dev->flags & IFF_UP))
+			return t;
+	}
+
 	t = rcu_dereference(ip6n->tnls_wc[0]);
 	if (t && (t->dev->flags & IFF_UP))
 		return t;
