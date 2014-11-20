@@ -215,12 +215,11 @@ static const struct pci_device_id adv_pci1724_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, adv_pci1724_pci_table);
 
 static struct pci_driver adv_pci1724_pci_driver = {
-	.name = "adv_pci1724",
-	.id_table = adv_pci1724_pci_table,
-	.probe = adv_pci1724_pci_probe,
-	.remove = comedi_pci_auto_unconfig,
+	.name		= "adv_pci1724",
+	.id_table	= adv_pci1724_pci_table,
+	.probe		= adv_pci1724_pci_probe,
+	.remove		= comedi_pci_auto_unconfig,
 };
-
 module_comedi_pci_driver(adv_pci1724_driver, adv_pci1724_pci_driver);
 
 MODULE_AUTHOR("Frank Mori Hess <fmh6jj@gmail.com>");
