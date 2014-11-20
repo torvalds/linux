@@ -596,15 +596,9 @@ static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 			     uint8_t value)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	static const int num_caldac_channels = 8;
 	static const int bitstream_length = 11;
 	unsigned int bitstream = ((address & 0x7) << 8) | value;
 	static const int caldac_8800_udelay = 1;
-
-	if (address >= num_caldac_channels) {
-		dev_err(dev->class_dev, "illegal caldac channel\n");
-		return -1;
-	}
 
 	if (value == devpriv->caldac_value[address])
 		return 1;
