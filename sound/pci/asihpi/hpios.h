@@ -41,10 +41,6 @@ HPI Operating System Specific macros for Linux Kernel driver
 
 #define HPI_NO_OS_FILE_OPS
 
-#ifdef CONFIG_64BIT
-#define HPI64BIT
-#endif
-
 /** Details of a memory area allocated with  pci_alloc_consistent
 Need all info for parameters to pci_free_consistent
 */
