@@ -158,62 +158,27 @@ static int set_dac(struct comedi_device *dev, unsigned mode, unsigned channel,
 	return 0;
 }
 
-static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
+static int adv_pci1724_insn_write(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	int channel = CR_CHAN(insn->chanspec);
-	int retval;
+	unsigned long mode = (unsigned long)s->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int ret;
 	int i;
 
 	/* turn off synchronous mode */
 	outl(0, dev->iobase + SYNC_OUTPUT_REG);
 
 	for (i = 0; i < insn->n; ++i) {
-		retval = set_dac(dev, DAC_NORMAL_MODE, channel, data[i]);
-		if (retval < 0)
-			return retval;
-		s->readback[channel] = data[i];
-	}
-	return insn->n;
-}
+		unsigned int val = data[i];
 
-static int offset_write_insn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
-{
-	int channel = CR_CHAN(insn->chanspec);
-	int retval;
-	int i;
+		ret = set_dac(dev, mode, chan, val);
+		if (ret < 0)
+			return ret;
 
-	/* turn off synchronous mode */
-	outl(0, dev->iobase + SYNC_OUTPUT_REG);
-
-	for (i = 0; i < insn->n; ++i) {
-		retval = set_dac(dev, DAC_OFFSET_MODE, channel, data[i]);
-		if (retval < 0)
-			return retval;
-		s->readback[channel] = data[i];
-	}
-
-	return insn->n;
-}
-
-static int gain_write_insn(struct comedi_device *dev,
-			   struct comedi_subdevice *s,
-			   struct comedi_insn *insn, unsigned int *data)
-{
-	int channel = CR_CHAN(insn->chanspec);
-	int retval;
-	int i;
-
-	/* turn off synchronous mode */
-	outl(0, dev->iobase + SYNC_OUTPUT_REG);
-
-	for (i = 0; i < insn->n; ++i) {
-		retval = set_dac(dev, DAC_GAIN_MODE, channel, data[i]);
-		if (retval < 0)
-			return retval;
-		s->readback[channel] = data[i];
+		s->readback[chan] = val;
 	}
 
 	return insn->n;
@@ -237,7 +202,8 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->n_chan = 32;
 	s->maxdata = 0x3fff;
 	s->range_table = &ao_ranges_1724;
-	s->insn_write = ao_winsn;
+	s->insn_write = adv_pci1724_insn_write;
+	s->private = (void *)DAC_NORMAL_MODE;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
@@ -249,7 +215,8 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = 32;
 	s->maxdata = 0x3fff;
-	s->insn_write = offset_write_insn;
+	s->insn_write = adv_pci1724_insn_write;
+	s->private = (void *)DAC_OFFSET_MODE;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
@@ -261,7 +228,8 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = 32;
 	s->maxdata = 0x3fff;
-	s->insn_write = gain_write_insn;
+	s->insn_write = adv_pci1724_insn_write;
+	s->private = (void *)DAC_GAIN_MODE;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
