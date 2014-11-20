@@ -3609,7 +3609,7 @@ static void vlv_display_irq_uninstall(struct drm_i915_private *dev_priv)
 
 	vlv_display_irq_reset(dev_priv);
 
-	dev_priv->irq_mask = 0;
+	dev_priv->irq_mask = ~0;
 }
 
 static void valleyview_irq_uninstall(struct drm_device *dev)
