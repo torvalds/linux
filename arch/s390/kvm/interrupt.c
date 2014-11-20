@@ -977,34 +977,6 @@ static int __inject_prog(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	return 0;
 }
 
-int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
-{
-	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
-	struct kvm_s390_irq irq;
-
-	spin_lock(&li->lock);
-	irq.u.pgm.code = code;
-	__inject_prog(vcpu, &irq);
-	BUG_ON(waitqueue_active(li->wq));
-	spin_unlock(&li->lock);
-	return 0;
-}
-
-int kvm_s390_inject_prog_irq(struct kvm_vcpu *vcpu,
-			     struct kvm_s390_pgm_info *pgm_info)
-{
-	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
-	struct kvm_s390_irq irq;
-	int rc;
-
-	spin_lock(&li->lock);
-	irq.u.pgm = *pgm_info;
-	rc = __inject_prog(vcpu, &irq);
-	BUG_ON(waitqueue_active(li->wq));
-	spin_unlock(&li->lock);
-	return rc;
-}
-
 static int __inject_pfault_init(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
