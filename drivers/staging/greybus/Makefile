@@ -23,6 +23,9 @@ KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
 PWD			:= $(shell pwd)
 
+# add -Wall to try to catch everything we can.
+ccFlags-y := -Wall
+
 all: module
 
 module:
