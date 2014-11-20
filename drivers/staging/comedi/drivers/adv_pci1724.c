@@ -61,42 +61,17 @@ supported PCI devices are configured as comedi devices automatically.
  * PCI bar 2 Register I/O map (dev->iobase)
  */
 #define PCI1724_DAC_CTRL_REG		0x00
+#define PCI1724_DAC_CTRL_GX(x)		(1 << (20 + ((x) / 8)))
+#define PCI1724_DAC_CTRL_CX(x)		(((x) % 8) << 16)
+#define PCI1724_DAC_CTRL_MODE_GAIN	(1 << 14)
+#define PCI1724_DAC_CTRL_MODE_OFFSET	(2 << 14)
+#define PCI1724_DAC_CTRL_MODE_NORMAL	(3 << 14)
+#define PCI1724_DAC_CTRL_MODE_MASK	(3 << 14)
+#define PCI1724_DAC_CTRL_DATA(x)	(((x) & 0x3fff) << 0)
 #define PCI1724_SYNC_OUTPUT_REG		0x04
 #define PCI1724_EEPROM_CTRL_REG		0x08
 #define PCI1724_SYNC_OUTPUT_TRIG_REG	0x0c
 #define PCI1724_BOARD_ID_REG		0x10
-
-/* bit definitions for registers */
-enum dac_control_contents {
-	DAC_DATA_MASK = 0x3fff,
-	DAC_DESTINATION_MASK = 0xc000,
-	DAC_NORMAL_MODE = 0xc000,
-	DAC_OFFSET_MODE = 0x8000,
-	DAC_GAIN_MODE = 0x4000,
-	DAC_CHANNEL_SELECT_MASK = 0xf0000,
-	DAC_GROUP_SELECT_MASK = 0xf00000
-};
-
-static uint32_t dac_data_bits(uint16_t dac_data)
-{
-	return dac_data & DAC_DATA_MASK;
-}
-
-static uint32_t dac_channel_select_bits(unsigned channel)
-{
-	return (channel << 16) & DAC_CHANNEL_SELECT_MASK;
-}
-
-static uint32_t dac_group_select_bits(unsigned group)
-{
-	return (1 << (20 + group)) & DAC_GROUP_SELECT_MASK;
-}
-
-static uint32_t dac_channel_and_group_select_bits(unsigned comedi_channel)
-{
-	return dac_channel_select_bits(comedi_channel % 8) |
-		dac_group_select_bits(comedi_channel / 8);
-}
 
 enum sync_output_contents {
 	SYNC_MODE = 0x1,
@@ -140,24 +115,24 @@ static int adv_pci1724_insn_write(struct comedi_device *dev,
 {
 	unsigned long mode = (unsigned long)s->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int ctrl;
 	int ret;
 	int i;
+
+	ctrl = PCI1724_DAC_CTRL_GX(chan) | PCI1724_DAC_CTRL_CX(chan) | mode;
 
 	/* turn off synchronous mode */
 	outl(0, dev->iobase + PCI1724_SYNC_OUTPUT_REG);
 
 	for (i = 0; i < insn->n; ++i) {
 		unsigned int val = data[i];
-		unsigned int ctrl;
 
 		ret = comedi_timeout(dev, s, insn, adv_pci1724_dac_idle, 0);
 		if (ret)
 			return ret;
 
-		ctrl = mode;
-		ctrl |= dac_channel_and_group_select_bits(chan);
-		ctrl |= dac_data_bits(val);
-		outl(ctrl, dev->iobase + PCI1724_DAC_CTRL_REG);
+		outl(ctrl | PCI1724_DAC_CTRL_DATA(val),
+		     dev->iobase + PCI1724_DAC_CTRL_REG);
 
 		s->readback[chan] = val;
 	}
@@ -184,7 +159,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->maxdata = 0x3fff;
 	s->range_table = &ao_ranges_1724;
 	s->insn_write = adv_pci1724_insn_write;
-	s->private = (void *)DAC_NORMAL_MODE;
+	s->private = (void *)PCI1724_DAC_CTRL_MODE_NORMAL;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
@@ -197,7 +172,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->n_chan = 32;
 	s->maxdata = 0x3fff;
 	s->insn_write = adv_pci1724_insn_write;
-	s->private = (void *)DAC_OFFSET_MODE;
+	s->private = (void *)PCI1724_DAC_CTRL_MODE_OFFSET;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
@@ -210,7 +185,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->n_chan = 32;
 	s->maxdata = 0x3fff;
 	s->insn_write = adv_pci1724_insn_write;
-	s->private = (void *)DAC_GAIN_MODE;
+	s->private = (void *)PCI1724_DAC_CTRL_MODE_GAIN;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
