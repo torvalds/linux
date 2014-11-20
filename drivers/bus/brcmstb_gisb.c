@@ -192,7 +192,7 @@ static struct attribute_group gisb_arb_sysfs_attr_group = {
 	.attrs = gisb_arb_sysfs_attrs,
 };
 
-static int brcmstb_gisb_arb_probe(struct platform_device *pdev)
+static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 {
 	struct device_node *dn = pdev->dev.of_node;
 	struct brcmstb_gisb_arb_device *gdev;
@@ -273,7 +273,6 @@ static const struct of_device_id brcmstb_gisb_arb_of_match[] = {
 };
 
 static struct platform_driver brcmstb_gisb_arb_driver = {
-	.probe	= brcmstb_gisb_arb_probe,
 	.driver = {
 		.name	= "brcm-gisb-arb",
 		.owner	= THIS_MODULE,
@@ -283,7 +282,8 @@ static struct platform_driver brcmstb_gisb_arb_driver = {
 
 static int __init brcm_gisb_driver_init(void)
 {
-	return platform_driver_register(&brcmstb_gisb_arb_driver);
+	return platform_driver_probe(&brcmstb_gisb_arb_driver,
+				     brcmstb_gisb_arb_probe);
 }
 
 module_init(brcm_gisb_driver_init);
