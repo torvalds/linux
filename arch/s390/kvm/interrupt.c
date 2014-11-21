@@ -851,7 +851,17 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	dst_vcpu = kvm_get_vcpu(kvm, sigcpu);
 	li = &dst_vcpu->arch.local_int;
 	spin_lock(&li->lock);
-	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
+	switch (inti->type) {
+	case KVM_S390_MCHK:
+		atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
+		break;
+	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
+		atomic_set_mask(CPUSTAT_IO_INT, li->cpuflags);
+		break;
+	default:
+		atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
+		break;
+	}
 	spin_unlock(&li->lock);
 	kvm_s390_vcpu_wakeup(kvm_get_vcpu(kvm, sigcpu));
 unlock_fi:
