@@ -18,6 +18,14 @@
  */
 ENTRY(armada_370_xp_cpu_resume)
 ARM_BE8(setend	be )			@ go BE8 if entered LE
+	/*
+	 * Disable the MMU that might have been enabled in BootROM if
+	 * this code is used in the resume path of a suspend/resume
+	 * cycle.
+	 */
+	mrc	p15, 0, r1, c1, c0, 0
+	bic	r1, #1
+	mcr	p15, 0, r1, c1, c0, 0
 	bl	ll_add_cpu_to_smp_group
 	bl	ll_enable_coherency
 	b	cpu_resume
