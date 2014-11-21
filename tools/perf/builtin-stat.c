@@ -443,7 +443,8 @@ static int read_cb(struct perf_evsel *evsel, int cpu, int thread __maybe_unused,
 	case AGGR_CORE:
 	case AGGR_SOCKET:
 	case AGGR_NONE:
-		perf_evsel__compute_deltas(evsel, cpu, count);
+		if (!evsel->snapshot)
+			perf_evsel__compute_deltas(evsel, cpu, count);
 		perf_counts_values__scale(count, scale, NULL);
 		evsel->counts->cpu[cpu] = *count;
 		update_shadow_stats(evsel, count->values);
@@ -479,7 +480,8 @@ static int read_counter_aggr(struct perf_evsel *counter)
 	if (read_counter(counter))
 		return -1;
 
-	perf_evsel__compute_deltas(counter, -1, aggr);
+	if (!counter->snapshot)
+		perf_evsel__compute_deltas(counter, -1, aggr);
 	perf_counts_values__scale(aggr, scale, &counter->counts->scaled);
 
 	for (i = 0; i < 3; i++)
