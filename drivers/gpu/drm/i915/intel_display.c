@@ -8058,12 +8058,21 @@ static void skylake_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_config *pipe_config)
 {
-	u32 temp;
+	u32 temp, dpll_ctl1;
 
 	temp = I915_READ(DPLL_CTRL2) & DPLL_CTRL2_DDI_CLK_SEL_MASK(port);
 	pipe_config->ddi_pll_sel = temp >> (port * 3 + 1);
 
 	switch (pipe_config->ddi_pll_sel) {
+	case SKL_DPLL0:
+		/*
+		 * On SKL the eDP DPLL (DPLL0 as we don't use SSC) is not part
+		 * of the shared DPLL framework and thus needs to be read out
+		 * separately
+		 */
+		dpll_ctl1 = I915_READ(DPLL_CTRL1);
+		pipe_config->dpll_hw_state.ctrl1 = dpll_ctl1 & 0x3f;
+		break;
 	case SKL_DPLL1:
 		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL1;
 		break;
