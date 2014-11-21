@@ -132,7 +132,7 @@ static struct sst_platform_info byt_rvp_platform_data = {
 /* Cherryview (Cherrytrail and Braswell) uses same mrfld dpcm fw as Baytrail,
  * so pdata is same as Baytrail.
  */
-struct sst_platform_info chv_platform_data = {
+static struct sst_platform_info chv_platform_data = {
 	.probe_data = &byt_fwparse_info,
 	.ipc_info = &byt_ipc_info,
 	.lib_info = &byt_lib_dnld_info,
