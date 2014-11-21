@@ -26,10 +26,10 @@ typedef int		(*svc_thread_fn)(void *);
 
 /* statistics for svc_pool structures */
 struct svc_pool_stats {
-	unsigned long	packets;
+	atomic_long_t	packets;
 	unsigned long	sockets_queued;
-	unsigned long	threads_woken;
-	unsigned long	threads_timedout;
+	atomic_long_t	threads_woken;
+	atomic_long_t	threads_timedout;
 };
 
 /*

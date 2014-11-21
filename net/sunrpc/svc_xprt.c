@@ -362,7 +362,7 @@ static void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 	pool = svc_pool_for_cpu(xprt->xpt_server, cpu);
 	spin_lock_bh(&pool->sp_lock);
 
-	pool->sp_stats.packets++;
+	atomic_long_inc(&pool->sp_stats.packets);
 
 	if (!list_empty(&pool->sp_threads)) {
 		rqstp = list_entry(pool->sp_threads.next,
@@ -383,7 +383,7 @@ static void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 		svc_xprt_get(xprt);
 		wake_up_process(rqstp->rq_task);
 		rqstp->rq_xprt = xprt;
-		pool->sp_stats.threads_woken++;
+		atomic_long_inc(&pool->sp_stats.threads_woken);
 	} else {
 		dprintk("svc: transport %p put into queue\n", xprt);
 		list_add_tail(&xprt->xpt_ready, &pool->sp_sockets);
@@ -669,7 +669,7 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 
 		spin_lock_bh(&pool->sp_lock);
 		if (!time_left)
-			pool->sp_stats.threads_timedout++;
+			atomic_long_inc(&pool->sp_stats.threads_timedout);
 
 		xprt = rqstp->rq_xprt;
 		if (!xprt) {
@@ -1306,10 +1306,10 @@ static int svc_pool_stats_show(struct seq_file *m, void *p)
 
 	seq_printf(m, "%u %lu %lu %lu %lu\n",
 		pool->sp_id,
-		pool->sp_stats.packets,
+		(unsigned long)atomic_long_read(&pool->sp_stats.packets),
 		pool->sp_stats.sockets_queued,
-		pool->sp_stats.threads_woken,
-		pool->sp_stats.threads_timedout);
+		(unsigned long)atomic_long_read(&pool->sp_stats.threads_woken),
+		(unsigned long)atomic_long_read(&pool->sp_stats.threads_timedout));
 
 	return 0;
 }
