@@ -979,8 +979,30 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 		return ret;
 
 	ret = iwl_mvm_scan_offload_start(mvm, vif, nd_config, &mvm->nd_ies);
+	if (ret)
+		return ret;
 
-	return ret;
+	if (WARN_ON(mvm->nd_match_sets))
+		return -EBUSY;
+
+	/* save the sched scan matchsets for later reporting */
+	if (nd_config->n_match_sets) {
+		mvm->nd_match_sets = kmemdup(nd_config->match_sets,
+					     sizeof(*nd_config->match_sets) *
+					     nd_config->n_match_sets,
+					     GFP_KERNEL);
+		if (mvm->nd_match_sets)
+			mvm->n_nd_match_sets = nd_config->n_match_sets;
+	}
+
+	return 0;
+}
+
+static void iwl_mvm_free_nd(struct iwl_mvm *mvm)
+{
+	kfree(mvm->nd_match_sets);
+	mvm->nd_match_sets = NULL;
+	mvm->n_nd_match_sets = 0;
 }
 
 static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
@@ -1094,8 +1116,10 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	iwl_trans_d3_suspend(mvm->trans, test);
  out:
-	if (ret < 0)
+	if (ret < 0) {
 		ieee80211_restart_hw(mvm->hw);
+		iwl_mvm_free_nd(mvm);
+	}
  out_noreset:
 	mutex_unlock(&mvm->mutex);
 
@@ -1653,14 +1677,15 @@ out_free_resp:
 static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif)
 {
-	struct cfg80211_wowlan_nd_info net_detect = {};
+	struct cfg80211_wowlan_nd_info *net_detect = NULL;
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
 	struct cfg80211_wowlan_wakeup *wakeup_report = &wakeup;
 	struct iwl_wowlan_status *fw_status;
-	u32 matched_profiles;
+	unsigned long matched_profiles;
 	u32 reasons = 0;
+	int i, n_matches;
 
 	fw_status = iwl_mvm_get_wakeup_status(mvm, vif);
 	if (!IS_ERR_OR_NULL(fw_status))
@@ -1678,10 +1703,46 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		goto out;
 	}
 
-	wakeup.net_detect = &net_detect;
+	if (mvm->n_nd_match_sets) {
+		n_matches = hweight_long(matched_profiles);
+	} else {
+		IWL_ERR(mvm, "no net detect match information available\n");
+		n_matches = 0;
+	}
+
+	net_detect = kzalloc(sizeof(*net_detect) +
+			     (n_matches * sizeof(net_detect->matches[0])),
+			     GFP_KERNEL);
+	if (!net_detect || !n_matches)
+		goto out_report_nd;
+
+	for_each_set_bit(i, &matched_profiles, mvm->n_nd_match_sets) {
+		struct cfg80211_wowlan_nd_match *match;
+
+		match = kzalloc(sizeof(*match), GFP_KERNEL);
+		if (!match)
+			goto out_report_nd;
+
+		match->ssid.ssid_len = mvm->nd_match_sets[i].ssid.ssid_len;
+		memcpy(match->ssid.ssid, mvm->nd_match_sets[i].ssid.ssid,
+		       match->ssid.ssid_len);
+
+		net_detect->matches[net_detect->n_matches++] = match;
+	}
+
+out_report_nd:
+	wakeup.net_detect = net_detect;
 out:
+	iwl_mvm_free_nd(mvm);
+
 	mutex_unlock(&mvm->mutex);
 	ieee80211_report_wowlan_wakeup(vif, wakeup_report, GFP_KERNEL);
+
+	if (net_detect) {
+		for (i = 0; i < net_detect->n_matches; i++)
+			kfree(net_detect->matches[i]);
+		kfree(net_detect);
+	}
 }
 
 static void iwl_mvm_read_d3_sram(struct iwl_mvm *mvm)
