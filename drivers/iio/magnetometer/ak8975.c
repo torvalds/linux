@@ -81,6 +81,58 @@
 #define AK8975_MAX_REGS			AK8975_REG_ASAZ
 
 /*
+ * AK09912 Register definitions
+ */
+#define AK09912_REG_WIA1		0x00
+#define AK09912_REG_WIA2		0x01
+#define AK09912_DEVICE_ID		0x04
+#define AK09911_DEVICE_ID		0x05
+
+#define AK09911_REG_INFO1		0x02
+#define AK09911_REG_INFO2		0x03
+
+#define AK09912_REG_ST1			0x10
+
+#define AK09912_REG_ST1_DRDY_SHIFT	0
+#define AK09912_REG_ST1_DRDY_MASK	(1 << AK09912_REG_ST1_DRDY_SHIFT)
+
+#define AK09912_REG_HXL			0x11
+#define AK09912_REG_HXH			0x12
+#define AK09912_REG_HYL			0x13
+#define AK09912_REG_HYH			0x14
+#define AK09912_REG_HZL			0x15
+#define AK09912_REG_HZH			0x16
+#define AK09912_REG_TMPS		0x17
+
+#define AK09912_REG_ST2			0x18
+#define AK09912_REG_ST2_HOFL_SHIFT	3
+#define AK09912_REG_ST2_HOFL_MASK	(1 << AK09912_REG_ST2_HOFL_SHIFT)
+
+#define AK09912_REG_CNTL1		0x30
+
+#define AK09912_REG_CNTL2		0x31
+#define AK09912_REG_CNTL_MODE_POWER_DOWN	0x00
+#define AK09912_REG_CNTL_MODE_ONCE	0x01
+#define AK09912_REG_CNTL_MODE_SELF_TEST	0x10
+#define AK09912_REG_CNTL_MODE_FUSE_ROM	0x1F
+#define AK09912_REG_CNTL2_MODE_SHIFT	0
+#define AK09912_REG_CNTL2_MODE_MASK	(0x1F << AK09912_REG_CNTL2_MODE_SHIFT)
+
+#define AK09912_REG_CNTL3		0x32
+
+#define AK09912_REG_TS1			0x33
+#define AK09912_REG_TS2			0x34
+#define AK09912_REG_TS3			0x35
+#define AK09912_REG_I2CDIS		0x36
+#define AK09912_REG_TS4			0x37
+
+#define AK09912_REG_ASAX		0x60
+#define AK09912_REG_ASAY		0x61
+#define AK09912_REG_ASAZ		0x62
+
+#define AK09912_MAX_REGS		AK09912_REG_ASAZ
+
+/*
  * Miscellaneous values.
  */
 #define AK8975_MAX_CONVERSION_TIMEOUT	500
@@ -130,22 +182,38 @@ static long ak8975_raw_to_gauss(u16 data)
 }
 
 /*
- * For AK8963, same calculation, but the device is less sensitive:
+ * For AK8963 and AK09911, same calculation, but the device is less sensitive:
  *
  * H is in the range of +-8190.  The magnetometer has a range of
  * +-4912uT.  To go from the raw value to uT is:
  *
  * HuT = H * 4912/8190, or roughly, 6/10, instead of 3/10.
  */
-static long ak8963_raw_to_gauss(u16 data)
+
+static long ak8963_09911_raw_to_gauss(u16 data)
 {
 	return (((long)data + 128) * 6000) / 256;
+}
+
+/*
+ * For AK09912, same calculation, except the device is more sensitive:
+ *
+ * H is in the range of -32752 to 32752.  The magnetometer has a range of
+ * +-4912uT.  To go from the raw value to uT is:
+ *
+ * HuT = H * 4912/32752, or roughly, 3/20, instead of 3/10.
+ */
+static long ak09912_raw_to_gauss(u16 data)
+{
+	return (((long)data + 128) * 1500) / 256;
 }
 
 /* Compatible Asahi Kasei Compass parts */
 enum asahi_compass_chipset {
 	AK8975,
 	AK8963,
+	AK09911,
+	AK09912,
 	AK_MAX_TYPE
 };
 
@@ -212,7 +280,7 @@ static struct ak_def ak_def_array[AK_MAX_TYPE] = {
 	},
 	{
 		.type = AK8963,
-		.raw_to_gauss = ak8963_raw_to_gauss,
+		.raw_to_gauss = ak8963_09911_raw_to_gauss,
 		.range = 8190,
 		.ctrl_regs = {
 			AK8975_REG_ST1,
@@ -235,6 +303,56 @@ static struct ak_def ak_def_array[AK_MAX_TYPE] = {
 			AK8975_REG_HYL,
 			AK8975_REG_HZL},
 	},
+	{
+		.type = AK09911,
+		.raw_to_gauss = ak8963_09911_raw_to_gauss,
+		.range = 8192,
+		.ctrl_regs = {
+			AK09912_REG_ST1,
+			AK09912_REG_ST2,
+			AK09912_REG_CNTL2,
+			AK09912_REG_ASAX,
+			AK09912_MAX_REGS},
+		.ctrl_masks = {
+			AK09912_REG_ST1_DRDY_MASK,
+			AK09912_REG_ST2_HOFL_MASK,
+			0,
+			AK09912_REG_CNTL2_MODE_MASK},
+		.ctrl_modes = {
+			AK09912_REG_CNTL_MODE_POWER_DOWN,
+			AK09912_REG_CNTL_MODE_ONCE,
+			AK09912_REG_CNTL_MODE_SELF_TEST,
+			AK09912_REG_CNTL_MODE_FUSE_ROM},
+		.data_regs = {
+			AK09912_REG_HXL,
+			AK09912_REG_HYL,
+			AK09912_REG_HZL},
+	},
+	{
+		.type = AK09912,
+		.raw_to_gauss = ak09912_raw_to_gauss,
+		.range = 32752,
+		.ctrl_regs = {
+			AK09912_REG_ST1,
+			AK09912_REG_ST2,
+			AK09912_REG_CNTL2,
+			AK09912_REG_ASAX,
+			AK09912_MAX_REGS},
+		.ctrl_masks = {
+			AK09912_REG_ST1_DRDY_MASK,
+			AK09912_REG_ST2_HOFL_MASK,
+			0,
+			AK09912_REG_CNTL2_MODE_MASK},
+		.ctrl_modes = {
+			AK09912_REG_CNTL_MODE_POWER_DOWN,
+			AK09912_REG_CNTL_MODE_ONCE,
+			AK09912_REG_CNTL_MODE_SELF_TEST,
+			AK09912_REG_CNTL_MODE_FUSE_ROM},
+		.data_regs = {
+			AK09912_REG_HXL,
+			AK09912_REG_HYL,
+			AK09912_REG_HZL},
+	}
 };
 
 /*
@@ -253,6 +371,52 @@ struct ak8975_data {
 	unsigned long		flags;
 	u8			cntl_cache;
 };
+
+/*
+ * Return 0 if the i2c device is the one we expect.
+ * return a negative error number otherwise
+ */
+static int ak8975_who_i_am(struct i2c_client *client,
+			   enum asahi_compass_chipset type)
+{
+	u8 wia_val[2];
+	int ret;
+
+	/*
+	 * Signature for each device:
+	 * Device   |  WIA1      |  WIA2
+	 * AK09912  |  DEVICE_ID |  AK09912_DEVICE_ID
+	 * AK09911  |  DEVICE_ID |  AK09911_DEVICE_ID
+	 * AK8975   |  DEVICE_ID |  NA
+	 * AK8963   |  DEVICE_ID |  NA
+	 */
+	ret = i2c_smbus_read_i2c_block_data(client, AK09912_REG_WIA1,
+					    2, wia_val);
+	if (ret < 0) {
+		dev_err(&client->dev, "Error reading WIA\n");
+		return ret;
+	}
+
+	if (wia_val[0] != AK8975_DEVICE_ID)
+		return -ENODEV;
+
+	switch (type) {
+	case AK8975:
+	case AK8963:
+		return 0;
+	case AK09911:
+		if (wia_val[1] == AK09911_DEVICE_ID)
+			return 0;
+		break;
+	case AK09912:
+		if (wia_val[1] == AK09912_DEVICE_ID)
+			return 0;
+		break;
+	default:
+		dev_err(&client->dev, "Type %d unknown\n", type);
+	}
+	return -ENODEV;
+}
 
 /*
  * Helper function to write to CNTL register.
@@ -329,20 +493,7 @@ static int ak8975_setup(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ak8975_data *data = iio_priv(indio_dev);
-	u8 device_id;
 	int ret;
-
-	/* Confirm that the device we're talking to is really an AK8975. */
-	ret = i2c_smbus_read_byte_data(client, AK8975_REG_WIA);
-	if (ret < 0) {
-		dev_err(&client->dev, "Error reading WIA\n");
-		return ret;
-	}
-	device_id = ret;
-	if (device_id != AK8975_DEVICE_ID) {
-		dev_err(&client->dev, "Device ak8975 not found\n");
-		return -ENODEV;
-	}
 
 	/* Write the fused rom access mode. */
 	ret = ak8975_set_mode(data, FUSE_ROM);
@@ -554,6 +705,8 @@ static const struct acpi_device_id ak_acpi_match[] = {
 	{"AK8975", AK8975},
 	{"AK8963", AK8963},
 	{"INVN6500", AK8963},
+	{"AK09911", AK09911},
+	{"AK09912", AK09912},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, ak_acpi_match);
@@ -633,6 +786,11 @@ static int ak8975_probe(struct i2c_client *client,
 	}
 
 	data->def = &ak_def_array[chipset];
+	err = ak8975_who_i_am(client, data->def->type);
+	if (err < 0) {
+		dev_err(&client->dev, "Unexpected device\n");
+		return err;
+	}
 	dev_dbg(&client->dev, "Asahi compass chip %s\n", name);
 
 	/* Perform some basic start-of-day setup of the device. */
@@ -655,6 +813,8 @@ static int ak8975_probe(struct i2c_client *client,
 static const struct i2c_device_id ak8975_id[] = {
 	{"ak8975", AK8975},
 	{"ak8963", AK8963},
+	{"ak09911", AK09911},
+	{"ak09912", AK09912},
 	{}
 };
 
@@ -665,6 +825,10 @@ static const struct of_device_id ak8975_of_match[] = {
 	{ .compatible = "ak8975", },
 	{ .compatible = "asahi-kasei,ak8963", },
 	{ .compatible = "ak8963", },
+	{ .compatible = "asahi-kasei,ak09911", },
+	{ .compatible = "ak09911", },
+	{ .compatible = "asahi-kasei,ak09912", },
+	{ .compatible = "ak09912", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ak8975_of_match);
