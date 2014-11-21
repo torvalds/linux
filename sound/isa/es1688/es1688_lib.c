@@ -614,8 +614,7 @@ static int snd_es1688_free(struct snd_es1688 *chip)
 {
 	if (chip->hardware != ES1688_HW_UNDEF)
 		snd_es1688_init(chip, 0);
-	if (chip->res_port)
-		release_and_free_resource(chip->res_port);
+	release_and_free_resource(chip->res_port);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *) chip);
 	if (chip->dma8 >= 0) {
