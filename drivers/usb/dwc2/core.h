@@ -688,8 +688,9 @@ struct dwc2_hsotg {
 	u8 ctrl_buff[8];
 
 	struct usb_gadget gadget;
+	unsigned int enabled:1;
 	unsigned int connected:1;
-	unsigned int setup;
+	unsigned int setup:1;
 	unsigned long last_rst;
 	struct s3c_hsotg_ep *eps;
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
