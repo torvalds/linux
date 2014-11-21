@@ -16,6 +16,13 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/interface.h>
 
+bool xen_arch_need_swiotlb(struct device *dev,
+			   unsigned long pfn,
+			   unsigned long mfn)
+{
+	return (pfn != mfn);
+}
+
 int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 				 unsigned int address_bits,
 				 dma_addr_t *dma_handle)
