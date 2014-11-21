@@ -34,6 +34,8 @@ struct dwc3_exynos {
 	struct device		*dev;
 
 	struct clk		*clk;
+	struct clk		*susp_clk;
+
 	struct regulator	*vdd33;
 	struct regulator	*vdd10;
 };
@@ -140,6 +142,13 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(exynos->clk);
 
+	exynos->susp_clk = devm_clk_get(dev, "usbdrd30_susp_clk");
+	if (IS_ERR(exynos->susp_clk)) {
+		dev_dbg(dev, "no suspend clk specified\n");
+		exynos->susp_clk = NULL;
+	}
+	clk_prepare_enable(exynos->susp_clk);
+
 	exynos->vdd33 = devm_regulator_get(dev, "vdd33");
 	if (IS_ERR(exynos->vdd33)) {
 		ret = PTR_ERR(exynos->vdd33);
@@ -181,6 +190,7 @@ err4:
 err3:
 	regulator_disable(exynos->vdd33);
 err2:
+	clk_disable_unprepare(exynos->susp_clk);
 	clk_disable_unprepare(exynos->clk);
 	return ret;
 }
@@ -193,6 +203,7 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
 
+	clk_disable_unprepare(exynos->susp_clk);
 	clk_disable_unprepare(exynos->clk);
 
 	regulator_disable(exynos->vdd33);
