@@ -166,8 +166,8 @@ try_again:
 		if (ret == -EPROBE_DEFER)
 			dev_dbg(cpu_dev, "cpu%d clock not ready, retry\n", cpu);
 		else
-			dev_err(cpu_dev, "failed to get cpu%d clock: %d\n", ret,
-				cpu);
+			dev_err(cpu_dev, "failed to get cpu%d clock: %d\n", cpu,
+				ret);
 	} else {
 		*cdev = cpu_dev;
 		*creg = cpu_reg;

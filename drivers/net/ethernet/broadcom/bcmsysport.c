@@ -1110,7 +1110,8 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 	/* We just need one DMA descriptor which is DMA-able, since writing to
 	 * the port will allocate a new descriptor in its internal linked-list
 	 */
-	p = dma_zalloc_coherent(kdev, 1, &ring->desc_dma, GFP_KERNEL);
+	p = dma_zalloc_coherent(kdev, sizeof(struct dma_desc), &ring->desc_dma,
+				GFP_KERNEL);
 	if (!p) {
 		netif_err(priv, hw, priv->netdev, "DMA alloc failed\n");
 		return -ENOMEM;
@@ -1174,6 +1175,13 @@ static void bcm_sysport_fini_tx_ring(struct bcm_sysport_priv *priv,
 	if (!(reg & TDMA_DISABLED))
 		netdev_warn(priv->netdev, "TDMA not stopped!\n");
 
+	/* ring->cbs is the last part in bcm_sysport_init_tx_ring which could
+	 * fail, so by checking this pointer we know whether the TX ring was
+	 * fully initialized or not.
+	 */
+	if (!ring->cbs)
+		return;
+
 	napi_disable(&ring->napi);
 	netif_napi_del(&ring->napi);
 
@@ -1183,7 +1191,8 @@ static void bcm_sysport_fini_tx_ring(struct bcm_sysport_priv *priv,
 	ring->cbs = NULL;
 
 	if (ring->desc_dma) {
-		dma_free_coherent(kdev, 1, ring->desc_cpu, ring->desc_dma);
+		dma_free_coherent(kdev, sizeof(struct dma_desc),
+				  ring->desc_cpu, ring->desc_dma);
 		ring->desc_dma = 0;
 	}
 	ring->size = 0;

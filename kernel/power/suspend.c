@@ -146,7 +146,7 @@ static int platform_suspend_prepare(suspend_state_t state)
 
 static int platform_suspend_prepare_late(suspend_state_t state)
 {
-	return state == PM_SUSPEND_FREEZE && freeze_ops->prepare ?
+	return state == PM_SUSPEND_FREEZE && freeze_ops && freeze_ops->prepare ?
 		freeze_ops->prepare() : 0;
 }
 
@@ -164,7 +164,7 @@ static void platform_resume_noirq(suspend_state_t state)
 
 static void platform_resume_early(suspend_state_t state)
 {
-	if (state == PM_SUSPEND_FREEZE && freeze_ops->restore)
+	if (state == PM_SUSPEND_FREEZE && freeze_ops && freeze_ops->restore)
 		freeze_ops->restore();
 }
 

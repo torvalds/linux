@@ -194,6 +194,7 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 {
 	struct fsnotify_mark *lmark, *last = NULL;
 	int ret = 0;
+	int cmp;
 
 	mark->flags |= FSNOTIFY_MARK_FLAG_INODE;
 
@@ -219,11 +220,8 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 			goto out;
 		}
 
-		if (mark->group->priority < lmark->group->priority)
-			continue;
-
-		if ((mark->group->priority == lmark->group->priority) &&
-		    (mark->group < lmark->group))
+		cmp = fsnotify_compare_groups(lmark->group, mark->group);
+		if (cmp < 0)
 			continue;
 
 		hlist_add_before_rcu(&mark->i.i_list, &lmark->i.i_list);

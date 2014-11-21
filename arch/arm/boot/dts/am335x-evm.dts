@@ -489,7 +489,7 @@
 			reg = <0x00060000 0x00020000>;
 		};
 		partition@4 {
-			label = "NAND.u-boot-spl";
+			label = "NAND.u-boot-spl-os";
 			reg = <0x00080000 0x00040000>;
 		};
 		partition@5 {
