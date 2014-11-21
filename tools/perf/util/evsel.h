@@ -233,6 +233,13 @@ static inline bool perf_evsel__match2(struct perf_evsel *e1,
 	 (a)->attr.type == (b)->attr.type &&	\
 	 (a)->attr.config == (b)->attr.config)
 
+typedef int (perf_evsel__read_cb_t)(struct perf_evsel *evsel,
+				    int cpu, int thread,
+				    struct perf_counts_values *count);
+
+int perf_evsel__read_cb(struct perf_evsel *evsel, int cpu, int thread,
+			perf_evsel__read_cb_t cb);
+
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 			      int cpu, int thread, bool scale);
 
