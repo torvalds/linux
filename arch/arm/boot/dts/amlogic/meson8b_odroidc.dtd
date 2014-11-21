@@ -760,6 +760,7 @@ void root_func(){
     audio_spdif_codec{
         compatible = "amlogic,aml-spdif-codec";
         dev_name = "spdif-dit.0";
+        pinctrl-names = "aml_audio_spdif";
         status = "okay";
     };
 
