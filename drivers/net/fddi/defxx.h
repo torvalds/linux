@@ -1481,9 +1481,11 @@ typedef union
 
 #define PI_ESIC_K_CSR_IO_LEN		0x40		/* 64 bytes */
 #define PI_ESIC_K_BURST_HOLDOFF_LEN	0x04		/* 4 bytes */
+#define PI_ESIC_K_ESIC_CSR_LEN		0x40		/* 64 bytes */
 
 #define PI_DEFEA_K_CSR_IO		0x000
 #define PI_DEFEA_K_BURST_HOLDOFF	0x040
+#define PI_ESIC_K_ESIC_CSR		0xC80
 
 #define PI_ESIC_K_SLOT_ID            	0xC80
 #define PI_ESIC_K_SLOT_CNTRL		0xC84
@@ -1556,7 +1558,7 @@ typedef union
 #define PI_BURST_HOLDOFF_V_RESERVED	1
 #define PI_BURST_HOLDOFF_V_MEM_MAP	0
 
-/* Define the implicit mask of the Memory Address Mask Register.  */
+/* Define the implicit mask of the Memory Address Compare registers.  */
 
 #define PI_MEM_ADD_MASK_M		0x3ff
 
