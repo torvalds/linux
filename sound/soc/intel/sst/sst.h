@@ -30,6 +30,7 @@
 #define SST_DRV_NAME "intel_sst_driver"
 #define SST_MRFLD_PCI_ID 0x119A
 #define SST_BYT_ACPI_ID	0x80860F28
+#define SST_CHV_ACPI_ID	0x808622A8
 
 #define SST_SUSPEND_DELAY 2000
 #define FW_CONTEXT_MEM (64*1024)

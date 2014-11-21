@@ -129,6 +129,17 @@ static struct sst_platform_info byt_rvp_platform_data = {
 	.platform = "sst-mfld-platform",
 };
 
+/* Cherryview (Cherrytrail and Braswell) uses same mrfld dpcm fw as Baytrail,
+ * so pdata is same as Baytrail.
+ */
+struct sst_platform_info chv_platform_data = {
+	.probe_data = &byt_fwparse_info,
+	.ipc_info = &byt_ipc_info,
+	.lib_info = &byt_lib_dnld_info,
+	.res_info = &byt_rvp_res_info,
+	.platform = "sst-mfld-platform",
+};
+
 static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 {
 	struct resource *rsrc;
@@ -337,8 +348,16 @@ static struct sst_machines sst_acpi_bytcr[] = {
 	{},
 };
 
+/* Cherryview-based platforms: CherryTrail and Braswell */
+static struct sst_machines sst_acpi_chv[] = {
+	{"10EC5670", "cht-bsw", "cht-bsw-rt5672", NULL, "fw_sst_22a8.bin",
+						&chv_platform_data },
+	{},
+};
+
 static const struct acpi_device_id sst_acpi_ids[] = {
 	{ "80860F28", (unsigned long)&sst_acpi_bytcr},
+	{ "808622A8", (unsigned long) &sst_acpi_chv},
 	{ },
 };
 
