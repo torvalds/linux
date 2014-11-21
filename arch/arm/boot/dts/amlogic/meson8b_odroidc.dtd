@@ -819,9 +819,6 @@ void root_func(){
             "Ext Spk","LOUTL",
             "Ext Spk","LOUTR";
         sleep_time = <130>;
-        mute_gpio = "GPIO_BSD_EN";
-        //mute_inv;
-        hp_paraments = <800 300 0 5 1>;
         pinctrl-names = "aml_snd_m8";
         pinctrl-0 = <&audio_pins>;
         status = "okay";
