@@ -5388,7 +5388,8 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	struct ptp_clock_event event;
-	u32 ack = 0, tsicr = rd32(E1000_TSICR);
+	struct timespec ts;
+	u32 ack = 0, tsauxc, sec, nsec, tsicr = rd32(E1000_TSICR);
 
 	if (tsicr & TSINTR_SYS_WRAP) {
 		event.type = PTP_CLOCK_PPS;
@@ -5403,6 +5404,54 @@ static void igb_tsync_interrupt(struct igb_adapter *adapter)
 		/* retrieve hardware timestamp */
 		schedule_work(&adapter->ptp_tx_work);
 		ack |= E1000_TSICR_TXTS;
+	}
+
+	if (tsicr & TSINTR_TT0) {
+		spin_lock(&adapter->tmreg_lock);
+		ts = timespec_add(adapter->perout[0].start,
+				  adapter->perout[0].period);
+		wr32(E1000_TRGTTIML0, ts.tv_nsec);
+		wr32(E1000_TRGTTIMH0, ts.tv_sec);
+		tsauxc = rd32(E1000_TSAUXC);
+		tsauxc |= TSAUXC_EN_TT0;
+		wr32(E1000_TSAUXC, tsauxc);
+		adapter->perout[0].start = ts;
+		spin_unlock(&adapter->tmreg_lock);
+		ack |= TSINTR_TT0;
+	}
+
+	if (tsicr & TSINTR_TT1) {
+		spin_lock(&adapter->tmreg_lock);
+		ts = timespec_add(adapter->perout[1].start,
+				  adapter->perout[1].period);
+		wr32(E1000_TRGTTIML1, ts.tv_nsec);
+		wr32(E1000_TRGTTIMH1, ts.tv_sec);
+		tsauxc = rd32(E1000_TSAUXC);
+		tsauxc |= TSAUXC_EN_TT1;
+		wr32(E1000_TSAUXC, tsauxc);
+		adapter->perout[1].start = ts;
+		spin_unlock(&adapter->tmreg_lock);
+		ack |= TSINTR_TT1;
+	}
+
+	if (tsicr & TSINTR_AUTT0) {
+		nsec = rd32(E1000_AUXSTMPL0);
+		sec  = rd32(E1000_AUXSTMPH0);
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = 0;
+		event.timestamp = sec * 1000000000ULL + nsec;
+		ptp_clock_event(adapter->ptp_clock, &event);
+		ack |= TSINTR_AUTT0;
+	}
+
+	if (tsicr & TSINTR_AUTT1) {
+		nsec = rd32(E1000_AUXSTMPL1);
+		sec  = rd32(E1000_AUXSTMPH1);
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = 1;
+		event.timestamp = sec * 1000000000ULL + nsec;
+		ptp_clock_event(adapter->ptp_clock, &event);
+		ack |= TSINTR_AUTT1;
 	}
 
 	/* acknowledge the interrupts */
