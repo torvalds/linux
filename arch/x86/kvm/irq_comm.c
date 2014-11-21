@@ -35,12 +35,8 @@ static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
 			   struct kvm *kvm, int irq_source_id, int level,
 			   bool line_status)
 {
-#ifdef CONFIG_X86
 	struct kvm_pic *pic = pic_irqchip(kvm);
 	return kvm_pic_set_irq(pic, e->irqchip.pin, irq_source_id, level);
-#else
-	return -1;
-#endif
 }
 
 static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
@@ -194,9 +190,7 @@ int kvm_request_irq_source_id(struct kvm *kvm)
 	}
 
 	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
-#ifdef CONFIG_X86
 	ASSERT(irq_source_id != KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID);
-#endif
 	set_bit(irq_source_id, bitmap);
 unlock:
 	mutex_unlock(&kvm->irq_lock);
@@ -207,9 +201,7 @@ unlock:
 void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 {
 	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
-#ifdef CONFIG_X86
 	ASSERT(irq_source_id != KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID);
-#endif
 
 	mutex_lock(&kvm->irq_lock);
 	if (irq_source_id < 0 ||
@@ -222,9 +214,7 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 		goto unlock;
 
 	kvm_ioapic_clear_all(kvm->arch.vioapic, irq_source_id);
-#ifdef CONFIG_X86
 	kvm_pic_clear_all(pic_irqchip(kvm), irq_source_id);
-#endif
 unlock:
 	mutex_unlock(&kvm->irq_lock);
 }
@@ -314,16 +304,11 @@ out:
 	  .u.irqchip = { .irqchip = KVM_IRQCHIP_IOAPIC, .pin = (irq) } }
 #define ROUTING_ENTRY1(irq) IOAPIC_ROUTING_ENTRY(irq)
 
-#ifdef CONFIG_X86
-#  define PIC_ROUTING_ENTRY(irq) \
+#define PIC_ROUTING_ENTRY(irq) \
 	{ .gsi = irq, .type = KVM_IRQ_ROUTING_IRQCHIP,	\
 	  .u.irqchip = { .irqchip = SELECT_PIC(irq), .pin = (irq) % 8 } }
-#  define ROUTING_ENTRY2(irq) \
+#define ROUTING_ENTRY2(irq) \
 	IOAPIC_ROUTING_ENTRY(irq), PIC_ROUTING_ENTRY(irq)
-#else
-#  define ROUTING_ENTRY2(irq) \
-	IOAPIC_ROUTING_ENTRY(irq)
-#endif
 
 static const struct kvm_irq_routing_entry default_routing[] = {
 	ROUTING_ENTRY2(0), ROUTING_ENTRY2(1),
