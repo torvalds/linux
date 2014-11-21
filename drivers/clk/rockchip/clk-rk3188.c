@@ -664,7 +664,7 @@ static struct rockchip_clk_branch rk3188_clk_branches[] __initdata = {
 			RK2928_CLKSEL_CON(30), 0, 2, DFLAGS,
 			RK2928_CLKGATE_CON(3), 6, GFLAGS),
 	DIV(0, "sclk_hsicphy_12m", "sclk_hsicphy_480m", 0,
-			RK2928_CLKGATE_CON(11), 8, 6, DFLAGS),
+			RK2928_CLKSEL_CON(11), 8, 6, DFLAGS),
 
 	MUX(0, "i2s_src", mux_pll_src_gpll_cpll_p, 0,
 			RK2928_CLKSEL_CON(2), 15, 1, MFLAGS),
