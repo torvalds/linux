@@ -150,9 +150,6 @@ extern int radeon_backlight;
 /* number of hw syncs before falling back on blocking */
 #define RADEON_NUM_SYNCS			4
 
-/* number of hw syncs before falling back on blocking */
-#define RADEON_NUM_SYNCS			4
-
 /* hardcode those limit for now */
 #define RADEON_VA_IB_OFFSET			(1 << 20)
 #define RADEON_VA_RESERVED_SIZE			(8 << 20)
@@ -363,14 +360,15 @@ struct radeon_fence_driver {
 };
 
 struct radeon_fence {
-	struct fence base;
+	struct fence		base;
 
-	struct radeon_device		*rdev;
-	uint64_t			seq;
+	struct radeon_device	*rdev;
+	uint64_t		seq;
 	/* RB, DMA, etc. */
-	unsigned			ring;
+	unsigned		ring;
+	bool			is_vm_update;
 
-	wait_queue_t			fence_wake;
+	wait_queue_t		fence_wake;
 };
 
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
@@ -458,6 +456,7 @@ struct radeon_bo_va {
 	struct list_head		bo_list;
 	uint32_t			flags;
 	uint64_t			addr;
+	struct radeon_fence		*last_pt_update;
 	unsigned			ref_count;
 
 	/* protected by vm mutex */
@@ -576,10 +575,9 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
  * Semaphores.
  */
 struct radeon_semaphore {
-	struct radeon_sa_bo		*sa_bo;
-	signed				waiters;
-	uint64_t			gpu_addr;
-	struct radeon_fence		*sync_to[RADEON_NUM_RINGS];
+	struct radeon_sa_bo	*sa_bo;
+	signed			waiters;
+	uint64_t		gpu_addr;
 };
 
 int radeon_semaphore_create(struct radeon_device *rdev,
@@ -588,18 +586,31 @@ bool radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
 				  struct radeon_semaphore *semaphore);
 bool radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
 				struct radeon_semaphore *semaphore);
-void radeon_semaphore_sync_fence(struct radeon_semaphore *semaphore,
-				 struct radeon_fence *fence);
-int radeon_semaphore_sync_resv(struct radeon_device *rdev,
-			       struct radeon_semaphore *semaphore,
-			       struct reservation_object *resv,
-			       bool shared);
-int radeon_semaphore_sync_rings(struct radeon_device *rdev,
-				struct radeon_semaphore *semaphore,
-				int waiting_ring);
 void radeon_semaphore_free(struct radeon_device *rdev,
 			   struct radeon_semaphore **semaphore,
 			   struct radeon_fence *fence);
+
+/*
+ * Synchronization
+ */
+struct radeon_sync {
+	struct radeon_semaphore *semaphores[RADEON_NUM_SYNCS];
+	struct radeon_fence	*sync_to[RADEON_NUM_RINGS];
+	struct radeon_fence	*last_vm_update;
+};
+
+void radeon_sync_create(struct radeon_sync *sync);
+void radeon_sync_fence(struct radeon_sync *sync,
+		       struct radeon_fence *fence);
+int radeon_sync_resv(struct radeon_device *rdev,
+		     struct radeon_sync *sync,
+		     struct reservation_object *resv,
+		     bool shared);
+int radeon_sync_rings(struct radeon_device *rdev,
+		      struct radeon_sync *sync,
+		      int waiting_ring);
+void radeon_sync_free(struct radeon_device *rdev, struct radeon_sync *sync,
+		      struct radeon_fence *fence);
 
 /*
  * GART structures, functions & helpers
@@ -818,7 +829,7 @@ struct radeon_ib {
 	struct radeon_fence		*fence;
 	struct radeon_vm		*vm;
 	bool				is_const_ib;
-	struct radeon_semaphore		*semaphore;
+	struct radeon_sync		sync;
 };
 
 struct radeon_ring {
@@ -895,33 +906,37 @@ struct radeon_vm_pt {
 	uint64_t			addr;
 };
 
+struct radeon_vm_id {
+	unsigned		id;
+	uint64_t		pd_gpu_addr;
+	/* last flushed PD/PT update */
+	struct radeon_fence	*flushed_updates;
+	/* last use of vmid */
+	struct radeon_fence	*last_id_use;
+};
+
 struct radeon_vm {
-	struct rb_root			va;
-	unsigned			id;
+	struct mutex		mutex;
+
+	struct rb_root		va;
 
 	/* BOs moved, but not yet updated in the PT */
-	struct list_head		invalidated;
+	struct list_head	invalidated;
 
 	/* BOs freed, but not yet updated in the PT */
-	struct list_head		freed;
+	struct list_head	freed;
 
 	/* contains the page directory */
-	struct radeon_bo		*page_directory;
-	uint64_t			pd_gpu_addr;
-	unsigned			max_pde_used;
+	struct radeon_bo	*page_directory;
+	unsigned		max_pde_used;
 
 	/* array of page tables, one for each page directory entry */
-	struct radeon_vm_pt		*page_tables;
+	struct radeon_vm_pt	*page_tables;
 
-	struct radeon_bo_va		*ib_bo_va;
+	struct radeon_bo_va	*ib_bo_va;
 
-	struct mutex			mutex;
-	/* last fence for cs using this vm */
-	struct radeon_fence		*fence;
-	/* last flush or NULL if we still need to flush */
-	struct radeon_fence		*last_flush;
-	/* last use of vmid */
-	struct radeon_fence		*last_id_use;
+	/* for id and flush management per ring */
+	struct radeon_vm_id	ids[RADEON_NUM_RINGS];
 };
 
 struct radeon_vm_manager {
@@ -1494,6 +1509,10 @@ struct radeon_dpm_fan {
 	u8 t_hyst;
 	u32 cycle_delay;
 	u16 t_max;
+	u8 control_mode;
+	u16 default_max_fan_pwm;
+	u16 default_fan_output_sensitivity;
+	u16 fan_output_sensitivity;
 	bool ucode_fan_control;
 };
 
@@ -1794,7 +1813,8 @@ struct radeon_asic_ring {
 	void (*hdp_flush)(struct radeon_device *rdev, struct radeon_ring *ring);
 	bool (*emit_semaphore)(struct radeon_device *rdev, struct radeon_ring *cp,
 			       struct radeon_semaphore *semaphore, bool emit_wait);
-	void (*vm_flush)(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+	void (*vm_flush)(struct radeon_device *rdev, struct radeon_ring *ring,
+			 unsigned vm_id, uint64_t pd_addr);
 
 	/* testing functions */
 	int (*ring_test)(struct radeon_device *rdev, struct radeon_ring *cp);
@@ -2846,7 +2866,7 @@ static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 #define radeon_ring_ib_execute(rdev, r, ib) (rdev)->asic->ring[(r)]->ib_execute((rdev), (ib))
 #define radeon_ring_ib_parse(rdev, r, ib) (rdev)->asic->ring[(r)]->ib_parse((rdev), (ib))
 #define radeon_ring_is_lockup(rdev, r, cp) (rdev)->asic->ring[(r)]->is_lockup((rdev), (cp))
-#define radeon_ring_vm_flush(rdev, r, vm) (rdev)->asic->ring[(r)]->vm_flush((rdev), (r), (vm))
+#define radeon_ring_vm_flush(rdev, r, vm_id, pd_addr) (rdev)->asic->ring[(r)->idx]->vm_flush((rdev), (r), (vm_id), (pd_addr))
 #define radeon_ring_get_rptr(rdev, r) (rdev)->asic->ring[(r)->idx]->get_rptr((rdev), (r))
 #define radeon_ring_get_wptr(rdev, r) (rdev)->asic->ring[(r)->idx]->get_wptr((rdev), (r))
 #define radeon_ring_set_wptr(rdev, r) (rdev)->asic->ring[(r)->idx]->set_wptr((rdev), (r))
@@ -2962,7 +2982,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 				       struct radeon_vm *vm, int ring);
 void radeon_vm_flush(struct radeon_device *rdev,
                      struct radeon_vm *vm,
-                     int ring);
+		     int ring, struct radeon_fence *fence);
 void radeon_vm_fence(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_fence *fence);

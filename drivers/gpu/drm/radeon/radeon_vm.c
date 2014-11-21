@@ -143,7 +143,7 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 	list[0].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].tv.bo = &vm->page_directory->tbo;
-	list[0].tv.shared = false;
+	list[0].tv.shared = true;
 	list[0].tiling_flags = 0;
 	list[0].handle = 0;
 	list_add(&list[0].tv.head, head);
@@ -157,7 +157,7 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 		list[idx].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].tv.bo = &list[idx].robj->tbo;
-		list[idx].tv.shared = false;
+		list[idx].tv.shared = true;
 		list[idx].tiling_flags = 0;
 		list[idx].handle = 0;
 		list_add(&list[idx++].tv.head, head);
@@ -182,15 +182,18 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 				       struct radeon_vm *vm, int ring)
 {
 	struct radeon_fence *best[RADEON_NUM_RINGS] = {};
+	struct radeon_vm_id *vm_id = &vm->ids[ring];
+
 	unsigned choices[2] = {};
 	unsigned i;
 
 	/* check if the id is still valid */
-	if (vm->last_id_use && vm->last_id_use == rdev->vm_manager.active[vm->id])
+	if (vm_id->id && vm_id->last_id_use &&
+	    vm_id->last_id_use == rdev->vm_manager.active[vm_id->id])
 		return NULL;
 
 	/* we definately need to flush */
-	radeon_fence_unref(&vm->last_flush);
+	vm_id->pd_gpu_addr = ~0ll;
 
 	/* skip over VMID 0, since it is the system VM */
 	for (i = 1; i < rdev->vm_manager.nvm; ++i) {
@@ -198,8 +201,8 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 
 		if (fence == NULL) {
 			/* found a free one */
-			vm->id = i;
-			trace_radeon_vm_grab_id(vm->id, ring);
+			vm_id->id = i;
+			trace_radeon_vm_grab_id(i, ring);
 			return NULL;
 		}
 
@@ -211,8 +214,8 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 
 	for (i = 0; i < 2; ++i) {
 		if (choices[i]) {
-			vm->id = choices[i];
-			trace_radeon_vm_grab_id(vm->id, ring);
+			vm_id->id = choices[i];
+			trace_radeon_vm_grab_id(choices[i], ring);
 			return rdev->vm_manager.active[choices[i]];
 		}
 	}
@@ -228,6 +231,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
  * @rdev: radeon_device pointer
  * @vm: vm we want to flush
  * @ring: ring to use for flush
+ * @updates: last vm update that is waited for
  *
  * Flush the vm (cayman+).
  *
@@ -235,15 +239,21 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
  */
 void radeon_vm_flush(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
-		     int ring)
+		     int ring, struct radeon_fence *updates)
 {
 	uint64_t pd_addr = radeon_bo_gpu_offset(vm->page_directory);
+	struct radeon_vm_id *vm_id = &vm->ids[ring];
 
-	/* if we can't remember our last VM flush then flush now! */
-	if (!vm->last_flush || pd_addr != vm->pd_gpu_addr) {
-		trace_radeon_vm_flush(pd_addr, ring, vm->id);
-		vm->pd_gpu_addr = pd_addr;
-		radeon_ring_vm_flush(rdev, ring, vm);
+	if (pd_addr != vm_id->pd_gpu_addr || !vm_id->flushed_updates ||
+	    radeon_fence_is_earlier(vm_id->flushed_updates, updates)) {
+
+		trace_radeon_vm_flush(pd_addr, ring, vm->ids[ring].id);
+		radeon_fence_unref(&vm_id->flushed_updates);
+		vm_id->flushed_updates = radeon_fence_ref(updates);
+		vm_id->pd_gpu_addr = pd_addr;
+		radeon_ring_vm_flush(rdev, &rdev->ring[ring],
+				     vm_id->id, vm_id->pd_gpu_addr);
+
 	}
 }
 
@@ -263,18 +273,13 @@ void radeon_vm_fence(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_fence *fence)
 {
-	radeon_fence_unref(&vm->fence);
-	vm->fence = radeon_fence_ref(fence);
+	unsigned vm_id = vm->ids[fence->ring].id;
 
-	radeon_fence_unref(&rdev->vm_manager.active[vm->id]);
-	rdev->vm_manager.active[vm->id] = radeon_fence_ref(fence);
+	radeon_fence_unref(&rdev->vm_manager.active[vm_id]);
+	rdev->vm_manager.active[vm_id] = radeon_fence_ref(fence);
 
-	radeon_fence_unref(&vm->last_id_use);
-	vm->last_id_use = radeon_fence_ref(fence);
-
-        /* we just flushed the VM, remember that */
-        if (!vm->last_flush)
-                vm->last_flush = radeon_fence_ref(fence);
+	radeon_fence_unref(&vm->ids[fence->ring].last_id_use);
+	vm->ids[fence->ring].last_id_use = radeon_fence_ref(fence);
 }
 
 /**
@@ -387,35 +392,25 @@ static void radeon_vm_set_pages(struct radeon_device *rdev,
 static int radeon_vm_clear_bo(struct radeon_device *rdev,
 			      struct radeon_bo *bo)
 {
-        struct ttm_validate_buffer tv;
-        struct ww_acquire_ctx ticket;
-        struct list_head head;
 	struct radeon_ib ib;
 	unsigned entries;
 	uint64_t addr;
 	int r;
 
-        memset(&tv, 0, sizeof(tv));
-        tv.bo = &bo->tbo;
-	tv.shared = false;
-
-        INIT_LIST_HEAD(&head);
-        list_add(&tv.head, &head);
-
-        r = ttm_eu_reserve_buffers(&ticket, &head, true);
-        if (r)
+	r = radeon_bo_reserve(bo, false);
+	if (r)
 		return r;
 
-        r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-        if (r)
-                goto error;
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+	if (r)
+		goto error_unreserve;
 
 	addr = radeon_bo_gpu_offset(bo);
 	entries = radeon_bo_size(bo) / 8;
 
 	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib, NULL, 256);
 	if (r)
-                goto error;
+		goto error_unreserve;
 
 	ib.length_dw = 0;
 
@@ -425,15 +420,16 @@ static int radeon_vm_clear_bo(struct radeon_device *rdev,
 
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r)
-                goto error;
+		goto error_free;
 
-	ttm_eu_fence_buffer_objects(&ticket, &head, &ib.fence->base);
+	ib.fence->is_vm_update = true;
+	radeon_bo_fence(bo, ib.fence, false);
+
+error_free:
 	radeon_ib_free(rdev, &ib);
 
-	return 0;
-
-error:
-	ttm_eu_backoff_reservation(&ticket, &head);
+error_unreserve:
+	radeon_bo_unreserve(bo);
 	return r;
 }
 
@@ -449,7 +445,7 @@ error:
  * Validate and set the offset requested within the vm address space.
  * Returns 0 for success, error for failure.
  *
- * Object has to be reserved!
+ * Object has to be reserved and gets unreserved by this function!
  */
 int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			  struct radeon_bo_va *bo_va,
@@ -575,7 +571,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 	}
 
 	mutex_unlock(&vm->mutex);
-	return radeon_bo_reserve(bo_va->bo, false);
+	return 0;
 }
 
 /**
@@ -699,17 +695,15 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 	if (ib.length_dw != 0) {
 		radeon_asic_vm_pad_ib(rdev, &ib);
 
-		radeon_semaphore_sync_resv(rdev, ib.semaphore, pd->tbo.resv, false);
-		radeon_semaphore_sync_fence(ib.semaphore, vm->last_id_use);
+		radeon_sync_resv(rdev, &ib.sync, pd->tbo.resv, true);
 		WARN_ON(ib.length_dw > ndw);
 		r = radeon_ib_schedule(rdev, &ib, NULL, false);
 		if (r) {
 			radeon_ib_free(rdev, &ib);
 			return r;
 		}
-		radeon_fence_unref(&vm->fence);
-		vm->fence = radeon_fence_ref(ib.fence);
-		radeon_fence_unref(&vm->last_flush);
+		ib.fence->is_vm_update = true;
+		radeon_bo_fence(pd, ib.fence, false);
 	}
 	radeon_ib_free(rdev, &ib);
 
@@ -826,7 +820,7 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 		unsigned nptes;
 		uint64_t pte;
 
-		radeon_semaphore_sync_resv(rdev, ib->semaphore, pt->tbo.resv, false);
+		radeon_sync_resv(rdev, &ib->sync, pt->tbo.resv, true);
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
@@ -860,6 +854,31 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 				    last_pte + 8 * count,
 				    last_dst, flags);
 	}
+}
+
+/**
+ * radeon_vm_fence_pts - fence page tables after an update
+ *
+ * @vm: requested vm
+ * @start: start of GPU address range
+ * @end: end of GPU address range
+ * @fence: fence to use
+ *
+ * Fence the page tables in the range @start - @end (cayman+).
+ *
+ * Global and local mutex must be locked!
+ */
+static void radeon_vm_fence_pts(struct radeon_vm *vm,
+				uint64_t start, uint64_t end,
+				struct radeon_fence *fence)
+{
+	unsigned i;
+
+	start >>= radeon_vm_block_size;
+	end >>= radeon_vm_block_size;
+
+	for (i = start; i <= end; ++i)
+		radeon_bo_fence(vm->page_tables[i].bo, fence, false);
 }
 
 /**
@@ -961,6 +980,13 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 		return r;
 	ib.length_dw = 0;
 
+	if (!(bo_va->flags & RADEON_VM_PAGE_VALID)) {
+		unsigned i;
+
+		for (i = 0; i < RADEON_NUM_RINGS; ++i)
+			radeon_sync_fence(&ib.sync, vm->ids[i].last_id_use);
+	}
+
 	radeon_vm_update_ptes(rdev, vm, &ib, bo_va->it.start,
 			      bo_va->it.last + 1, addr,
 			      radeon_vm_page_flags(bo_va->flags));
@@ -968,16 +994,16 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	radeon_asic_vm_pad_ib(rdev, &ib);
 	WARN_ON(ib.length_dw > ndw);
 
-	radeon_semaphore_sync_fence(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
 		return r;
 	}
-	radeon_fence_unref(&vm->fence);
-	vm->fence = radeon_fence_ref(ib.fence);
+	ib.fence->is_vm_update = true;
+	radeon_vm_fence_pts(vm, bo_va->it.start, bo_va->it.last + 1, ib.fence);
+	radeon_fence_unref(&bo_va->last_pt_update);
+	bo_va->last_pt_update = radeon_fence_ref(ib.fence);
 	radeon_ib_free(rdev, &ib);
-	radeon_fence_unref(&vm->last_flush);
 
 	return 0;
 }
@@ -1002,6 +1028,7 @@ int radeon_vm_clear_freed(struct radeon_device *rdev,
 	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status) {
 		r = radeon_vm_bo_update(rdev, bo_va, NULL);
 		radeon_bo_unref(&bo_va->bo);
+		radeon_fence_unref(&bo_va->last_pt_update);
 		kfree(bo_va);
 		if (r)
 			return r;
@@ -1060,6 +1087,7 @@ void radeon_vm_bo_rmv(struct radeon_device *rdev,
 		bo_va->bo = radeon_bo_ref(bo_va->bo);
 		list_add(&bo_va->vm_status, &vm->freed);
 	} else {
+		radeon_fence_unref(&bo_va->last_pt_update);
 		kfree(bo_va);
 	}
 
@@ -1103,13 +1131,14 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	const unsigned align = min(RADEON_VM_PTB_ALIGN_SIZE,
 		RADEON_VM_PTE_COUNT * 8);
 	unsigned pd_size, pd_entries, pts_size;
-	int r;
+	int i, r;
 
-	vm->id = 0;
 	vm->ib_bo_va = NULL;
-	vm->fence = NULL;
-	vm->last_flush = NULL;
-	vm->last_id_use = NULL;
+	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		vm->ids[i].id = 0;
+		vm->ids[i].flushed_updates = NULL;
+		vm->ids[i].last_id_use = NULL;
+	}
 	mutex_init(&vm->mutex);
 	vm->va = RB_ROOT;
 	INIT_LIST_HEAD(&vm->invalidated);
@@ -1165,11 +1194,13 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 		if (!r) {
 			list_del_init(&bo_va->bo_list);
 			radeon_bo_unreserve(bo_va->bo);
+			radeon_fence_unref(&bo_va->last_pt_update);
 			kfree(bo_va);
 		}
 	}
 	list_for_each_entry_safe(bo_va, tmp, &vm->freed, vm_status) {
 		radeon_bo_unref(&bo_va->bo);
+		radeon_fence_unref(&bo_va->last_pt_update);
 		kfree(bo_va);
 	}
 
@@ -1179,9 +1210,10 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 
 	radeon_bo_unref(&vm->page_directory);
 
-	radeon_fence_unref(&vm->fence);
-	radeon_fence_unref(&vm->last_flush);
-	radeon_fence_unref(&vm->last_id_use);
+	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		radeon_fence_unref(&vm->ids[i].flushed_updates);
+		radeon_fence_unref(&vm->ids[i].last_id_use);
+	}
 
 	mutex_destroy(&vm->mutex);
 }

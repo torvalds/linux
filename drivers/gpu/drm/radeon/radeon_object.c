@@ -821,3 +821,22 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
 }
+
+/**
+ * radeon_bo_fence - add fence to buffer object
+ *
+ * @bo: buffer object in question
+ * @fence: fence to add
+ * @shared: true if fence should be added shared
+ *
+ */
+void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
+                     bool shared)
+{
+	struct reservation_object *resv = bo->tbo.resv;
+
+	if (shared)
+		reservation_object_add_shared_fence(resv, &fence->base);
+	else
+		reservation_object_add_excl_fence(resv, &fence->base);
+}
