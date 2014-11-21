@@ -7,7 +7,6 @@ menuconfig ARCH_BERLIN
 	select DW_APB_TIMER_OF
 	select GENERIC_IRQ_CHIP
 	select PINCTRL
-	select RESET_CONTROLLER
 
 if ARCH_BERLIN
 
