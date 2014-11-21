@@ -954,40 +954,6 @@ int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 	return 0;
 }
 
-int __perf_evsel__read(struct perf_evsel *evsel,
-		       int ncpus, int nthreads, bool scale)
-{
-	size_t nv = scale ? 3 : 1;
-	int cpu, thread;
-	struct perf_counts_values *aggr = &evsel->counts->aggr, count;
-
-	if (evsel->system_wide)
-		nthreads = 1;
-
-	aggr->val = aggr->ena = aggr->run = 0;
-
-	for (cpu = 0; cpu < ncpus; cpu++) {
-		for (thread = 0; thread < nthreads; thread++) {
-			if (FD(evsel, cpu, thread) < 0)
-				continue;
-
-			if (readn(FD(evsel, cpu, thread),
-				  &count, nv * sizeof(u64)) < 0)
-				return -errno;
-
-			aggr->val += count.val;
-			if (scale) {
-				aggr->ena += count.ena;
-				aggr->run += count.run;
-			}
-		}
-	}
-
-	perf_evsel__compute_deltas(evsel, -1, aggr);
-	perf_counts_values__scale(aggr, scale, &evsel->counts->scaled);
-	return 0;
-}
-
 static int get_group_fd(struct perf_evsel *evsel, int cpu, int thread)
 {
 	struct perf_evsel *leader = evsel->leader;

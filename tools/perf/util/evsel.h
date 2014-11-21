@@ -271,35 +271,6 @@ static inline int perf_evsel__read_on_cpu_scaled(struct perf_evsel *evsel,
 	return __perf_evsel__read_on_cpu(evsel, cpu, thread, true);
 }
 
-int __perf_evsel__read(struct perf_evsel *evsel, int ncpus, int nthreads,
-		       bool scale);
-
-/**
- * perf_evsel__read - Read the aggregate results on all CPUs
- *
- * @evsel - event selector to read value
- * @ncpus - Number of cpus affected, from zero
- * @nthreads - Number of threads affected, from zero
- */
-static inline int perf_evsel__read(struct perf_evsel *evsel,
-				    int ncpus, int nthreads)
-{
-	return __perf_evsel__read(evsel, ncpus, nthreads, false);
-}
-
-/**
- * perf_evsel__read_scaled - Read the aggregate results on all CPUs, scaled
- *
- * @evsel - event selector to read value
- * @ncpus - Number of cpus affected, from zero
- * @nthreads - Number of threads affected, from zero
- */
-static inline int perf_evsel__read_scaled(struct perf_evsel *evsel,
-					  int ncpus, int nthreads)
-{
-	return __perf_evsel__read(evsel, ncpus, nthreads, true);
-}
-
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *sample);
 
