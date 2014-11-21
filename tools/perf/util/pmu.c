@@ -163,6 +163,24 @@ error:
 	return -1;
 }
 
+static int
+perf_pmu__parse_per_pkg(struct perf_pmu_alias *alias, char *dir, char *name)
+{
+	char path[PATH_MAX];
+	int fd;
+
+	snprintf(path, PATH_MAX, "%s/%s.per-pkg", dir, name);
+
+	fd = open(path, O_RDONLY);
+	if (fd == -1)
+		return -1;
+
+	close(fd);
+
+	alias->per_pkg = true;
+	return 0;
+}
+
 static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FILE *file)
 {
 	struct perf_pmu_alias *alias;
@@ -181,6 +199,7 @@ static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FI
 	INIT_LIST_HEAD(&alias->terms);
 	alias->scale = 1.0;
 	alias->unit[0] = '\0';
+	alias->per_pkg = false;
 
 	ret = parse_events_terms(&alias->terms, buf);
 	if (ret) {
@@ -194,6 +213,7 @@ static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FI
 	 */
 	perf_pmu__parse_unit(alias, dir, name);
 	perf_pmu__parse_scale(alias, dir, name);
+	perf_pmu__parse_per_pkg(alias, dir, name);
 
 	list_add_tail(&alias->list, list);
 
@@ -208,6 +228,8 @@ static inline bool pmu_alias_info_file(char *name)
 	if (len > 5 && !strcmp(name + len - 5, ".unit"))
 		return true;
 	if (len > 6 && !strcmp(name + len - 6, ".scale"))
+		return true;
+	if (len > 8 && !strcmp(name + len - 8, ".per-pkg"))
 		return true;
 
 	return false;
@@ -649,6 +671,8 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 	struct perf_pmu_alias *alias;
 	int ret;
 
+	info->per_pkg = false;
+
 	/*
 	 * Mark unit and scale as not set
 	 * (different from default values, see below)
@@ -667,6 +691,9 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 		ret = check_unit_scale(alias, &info->unit, &info->scale);
 		if (ret)
 			return ret;
+
+		if (alias->per_pkg)
+			info->per_pkg = true;
 
 		list_del(&term->list);
 		free(term);
