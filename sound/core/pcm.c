@@ -216,6 +216,8 @@ static char *snd_pcm_format_names[] = {
 	FORMAT(DSD_U8),
 	FORMAT(DSD_U16_LE),
 	FORMAT(DSD_U32_LE),
+	FORMAT(DSD_U16_BE),
+	FORMAT(DSD_U32_BE),
 };
 
 const char *snd_pcm_format_name(snd_pcm_format_t format)
