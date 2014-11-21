@@ -231,6 +231,7 @@ struct drm_atomic_state;
  * struct drm_crtc_state - mutable CRTC state
  * @enable: whether the CRTC should be enabled, gates all other state
  * @mode_changed: for use by helpers and drivers when computing state updates
+ * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @last_vblank_count: for helpers and drivers to capture the vblank of the
  * 	update to ensure framebuffer cleanup isn't done too early
  * @planes_changed: for use by helpers and drivers when computing state updates
@@ -246,6 +247,13 @@ struct drm_crtc_state {
 	/* computed state bits used by helpers and drivers */
 	bool planes_changed : 1;
 	bool mode_changed : 1;
+
+	/* attached planes bitmask:
+	 * WARNING: transitional helpers do not maintain plane_mask so
+	 * drivers not converted over to atomic helpers should not rely
+	 * on plane_mask being accurate!
+	 */
+	u32 plane_mask;
 
 	/* last_vblank_count: for vblank waits before cleanup */
 	u32 last_vblank_count;
@@ -438,7 +446,7 @@ struct drm_crtc {
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_connector_state {
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc;  /* do not write directly, use drm_atomic_set_crtc_for_connector() */
 
 	struct drm_encoder *best_encoder;
 
@@ -673,8 +681,8 @@ struct drm_connector {
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_plane_state {
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb;
+	struct drm_crtc *crtc;   /* do not write directly, use drm_atomic_set_crtc_for_plane() */
+	struct drm_framebuffer *fb;  /* do not write directly, use drm_atomic_set_fb_for_plane() */
 	struct fence *fence;
 
 	/* Signed dest location allows it to be partially off screen */

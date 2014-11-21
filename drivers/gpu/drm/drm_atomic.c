@@ -344,7 +344,8 @@ EXPORT_SYMBOL(drm_atomic_get_connector_state);
 
 /**
  * drm_atomic_set_crtc_for_plane - set crtc for plane
- * @plane_state: atomic state object for the plane
+ * @state: the incoming atomic state
+ * @plane: the plane whose incoming state to update
  * @crtc: crtc to use for the plane
  *
  * Changing the assigned crtc for a plane requires us to grab the lock and state
@@ -357,19 +358,34 @@ EXPORT_SYMBOL(drm_atomic_get_connector_state);
  * sequence must be restarted. All other errors are fatal.
  */
 int
-drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
-			      struct drm_crtc *crtc)
+drm_atomic_set_crtc_for_plane(struct drm_atomic_state *state,
+			      struct drm_plane *plane, struct drm_crtc *crtc)
 {
+	struct drm_plane_state *plane_state =
+			drm_atomic_get_plane_state(state, plane);
 	struct drm_crtc_state *crtc_state;
+
+	if (WARN_ON(IS_ERR(plane_state)))
+		return PTR_ERR(plane_state);
+
+	if (plane_state->crtc) {
+		crtc_state = drm_atomic_get_crtc_state(plane_state->state,
+						       plane_state->crtc);
+		if (WARN_ON(IS_ERR(crtc_state)))
+			return PTR_ERR(crtc_state);
+
+		crtc_state->plane_mask &= ~(1 << drm_plane_index(plane));
+	}
+
+	plane_state->crtc = crtc;
 
 	if (crtc) {
 		crtc_state = drm_atomic_get_crtc_state(plane_state->state,
 						       crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
+		crtc_state->plane_mask |= (1 << drm_plane_index(plane));
 	}
-
-	plane_state->crtc = crtc;
 
 	if (crtc)
 		DRM_DEBUG_KMS("Link plane state %p to [CRTC:%d]\n",
