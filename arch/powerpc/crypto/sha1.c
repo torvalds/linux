@@ -154,4 +154,4 @@ module_exit(sha1_powerpc_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA1 Secure Hash Algorithm");
 
-MODULE_ALIAS("sha1-powerpc");
+MODULE_ALIAS_CRYPTO("sha1-powerpc");
