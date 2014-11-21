@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/syscore_ops.h>
 
 #include "common.h"
 
@@ -177,14 +178,17 @@ struct clk_gating_ctrl {
 	spinlock_t *lock;
 	struct clk **gates;
 	int num_gates;
+	void __iomem *base;
+	u32 saved_reg;
 };
 
 #define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
 
+static struct clk_gating_ctrl *ctrl;
+
 static struct clk *clk_gating_get_src(
 	struct of_phandle_args *clkspec, void *data)
 {
-	struct clk_gating_ctrl *ctrl = (struct clk_gating_ctrl *)data;
 	int n;
 
 	if (clkspec->args_count < 1)
@@ -199,14 +203,34 @@ static struct clk *clk_gating_get_src(
 	return ERR_PTR(-ENODEV);
 }
 
+static int mvebu_clk_gating_suspend(void)
+{
+	ctrl->saved_reg = readl(ctrl->base);
+	return 0;
+}
+
+static void mvebu_clk_gating_resume(void)
+{
+	writel(ctrl->saved_reg, ctrl->base);
+}
+
+static struct syscore_ops clk_gate_syscore_ops = {
+	.suspend = mvebu_clk_gating_suspend,
+	.resume = mvebu_clk_gating_resume,
+};
+
 void __init mvebu_clk_gating_setup(struct device_node *np,
 				   const struct clk_gating_soc_desc *desc)
 {
-	struct clk_gating_ctrl *ctrl;
 	struct clk *clk;
 	void __iomem *base;
 	const char *default_parent = NULL;
 	int n;
+
+	if (ctrl) {
+		pr_err("mvebu-clk-gating: cannot instantiate more than one gatable clock device\n");
+		return;
+	}
 
 	base = of_iomap(np, 0);
 	if (WARN_ON(!base))
@@ -224,6 +248,8 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 
 	/* lock must already be initialized */
 	ctrl->lock = &ctrl_gating_lock;
+
+	ctrl->base = base;
 
 	/* Count, allocate, and register clock gates */
 	for (n = 0; desc[n].name;)
@@ -245,6 +271,8 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 	}
 
 	of_clk_add_provider(np, clk_gating_get_src, ctrl);
+
+	register_syscore_ops(&clk_gate_syscore_ops);
 
 	return;
 gates_out:
