@@ -5,6 +5,9 @@
 #include <linux/dma-attrs.h>
 #include <linux/dma-mapping.h>
 
+void __xen_dma_map_page(struct device *hwdev, struct page *page,
+	     dma_addr_t dev_addr, unsigned long offset, size_t size,
+	     enum dma_data_direction dir, struct dma_attrs *attrs);
 void __xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir,
 		struct dma_attrs *attrs);
@@ -32,7 +35,15 @@ static inline void xen_dma_map_page(struct device *hwdev, struct page *page,
 	     dma_addr_t dev_addr, unsigned long offset, size_t size,
 	     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
-	__generic_dma_ops(hwdev)->map_page(hwdev, page, offset, size, dir, attrs);
+	bool local = PFN_DOWN(dev_addr) == page_to_pfn(page);
+	/* Dom0 is mapped 1:1, so if pfn == mfn the page is local otherwise
+	 * is a foreign page grant-mapped in dom0. If the page is local we
+	 * can safely call the native dma_ops function, otherwise we call
+	 * the xen specific function. */
+	if (local)
+		__generic_dma_ops(hwdev)->map_page(hwdev, page, offset, size, dir, attrs);
+	else
+		__xen_dma_map_page(hwdev, page, dev_addr, offset, size, dir, attrs);
 }
 
 static inline void xen_dma_unmap_page(struct device *hwdev, dma_addr_t handle,
