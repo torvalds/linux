@@ -2075,6 +2075,70 @@ static struct omap_hwmod dra7xx_uart6_hwmod = {
 	},
 };
 
+/* uart7 */
+static struct omap_hwmod dra7xx_uart7_hwmod = {
+	.name		= "uart7",
+	.class		= &dra7xx_uart_hwmod_class,
+	.clkdm_name	= "l4per2_clkdm",
+	.main_clk	= "uart7_gfclk_mux",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = DRA7XX_CM_L4PER2_UART7_CLKCTRL_OFFSET,
+			.context_offs = DRA7XX_RM_L4PER2_UART7_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
+/* uart8 */
+static struct omap_hwmod dra7xx_uart8_hwmod = {
+	.name		= "uart8",
+	.class		= &dra7xx_uart_hwmod_class,
+	.clkdm_name	= "l4per2_clkdm",
+	.main_clk	= "uart8_gfclk_mux",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = DRA7XX_CM_L4PER2_UART8_CLKCTRL_OFFSET,
+			.context_offs = DRA7XX_RM_L4PER2_UART8_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
+/* uart9 */
+static struct omap_hwmod dra7xx_uart9_hwmod = {
+	.name		= "uart9",
+	.class		= &dra7xx_uart_hwmod_class,
+	.clkdm_name	= "l4per2_clkdm",
+	.main_clk	= "uart9_gfclk_mux",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = DRA7XX_CM_L4PER2_UART9_CLKCTRL_OFFSET,
+			.context_offs = DRA7XX_RM_L4PER2_UART9_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
+/* uart10 */
+static struct omap_hwmod dra7xx_uart10_hwmod = {
+	.name		= "uart10",
+	.class		= &dra7xx_uart_hwmod_class,
+	.clkdm_name	= "wkupaon_clkdm",
+	.main_clk	= "uart10_gfclk_mux",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = DRA7XX_CM_WKUPAON_UART10_CLKCTRL_OFFSET,
+			.context_offs = DRA7XX_RM_WKUPAON_UART10_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
 /*
  * 'usb_otg_ss' class
  *
@@ -3095,6 +3159,38 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per1__uart6 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* l4_per2 -> uart7 */
+static struct omap_hwmod_ocp_if dra7xx_l4_per2__uart7 = {
+	.master		= &dra7xx_l4_per2_hwmod,
+	.slave		= &dra7xx_uart7_hwmod,
+	.clk		= "l3_iclk_div",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* l4_per2 -> uart8 */
+static struct omap_hwmod_ocp_if dra7xx_l4_per2__uart8 = {
+	.master		= &dra7xx_l4_per2_hwmod,
+	.slave		= &dra7xx_uart8_hwmod,
+	.clk		= "l3_iclk_div",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* l4_per2 -> uart9 */
+static struct omap_hwmod_ocp_if dra7xx_l4_per2__uart9 = {
+	.master		= &dra7xx_l4_per2_hwmod,
+	.slave		= &dra7xx_uart9_hwmod,
+	.clk		= "l3_iclk_div",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* l4_wkup -> uart10 */
+static struct omap_hwmod_ocp_if dra7xx_l4_wkup__uart10 = {
+	.master		= &dra7xx_l4_wkup_hwmod,
+	.slave		= &dra7xx_uart10_hwmod,
+	.clk		= "wkupaon_iclk_mux",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 /* l4_per3 -> usb_otg_ss1 */
 static struct omap_hwmod_ocp_if dra7xx_l4_per3__usb_otg_ss1 = {
 	.master		= &dra7xx_l4_per3_hwmod,
@@ -3259,6 +3355,10 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_per1__uart4,
 	&dra7xx_l4_per1__uart5,
 	&dra7xx_l4_per1__uart6,
+	&dra7xx_l4_per2__uart7,
+	&dra7xx_l4_per2__uart8,
+	&dra7xx_l4_per2__uart9,
+	&dra7xx_l4_wkup__uart10,
 	&dra7xx_l4_per3__usb_otg_ss1,
 	&dra7xx_l4_per3__usb_otg_ss2,
 	&dra7xx_l4_per3__usb_otg_ss3,

@@ -1018,14 +1018,6 @@
 		reg = <0x1120>;
 	};
 
-	dss_fck: dss_fck {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&l3_div_ck>;
-		ti,bit-shift = <1>;
-		reg = <0x1120>;
-	};
-
 	fdif_fck: fdif_fck {
 		#clock-cells = <0>;
 		compatible = "ti,divider-clock";

@@ -895,7 +895,7 @@
 				reg = <0x58002000 0x1000>;
 				status = "disabled";
 				ti,hwmods = "dss_rfbi";
-				clocks = <&dss_dss_clk>, <&dss_fck>;
+				clocks = <&dss_dss_clk>, <&l3_div_ck>;
 				clock-names = "fck", "ick";
 			};
 

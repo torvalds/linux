@@ -421,6 +421,7 @@ static struct omap_hwmod omap54xx_dss_dispc_hwmod = {
 	.opt_clks	= dss_dispc_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_dispc_opt_clks),
 	.dev_attr	= &dss_dispc_dev_attr,
+	.parent_hwmod	= &omap54xx_dss_hwmod,
 };
 
 /*
@@ -462,6 +463,7 @@ static struct omap_hwmod omap54xx_dss_dsi1_a_hwmod = {
 	},
 	.opt_clks	= dss_dsi1_a_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_dsi1_a_opt_clks),
+	.parent_hwmod	= &omap54xx_dss_hwmod,
 };
 
 /* dss_dsi1_c */
@@ -482,6 +484,7 @@ static struct omap_hwmod omap54xx_dss_dsi1_c_hwmod = {
 	},
 	.opt_clks	= dss_dsi1_c_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_dsi1_c_opt_clks),
+	.parent_hwmod	= &omap54xx_dss_hwmod,
 };
 
 /*
@@ -521,6 +524,7 @@ static struct omap_hwmod omap54xx_dss_hdmi_hwmod = {
 	},
 	.opt_clks	= dss_hdmi_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_hdmi_opt_clks),
+	.parent_hwmod	= &omap54xx_dss_hwmod,
 };
 
 /*
@@ -560,6 +564,7 @@ static struct omap_hwmod omap54xx_dss_rfbi_hwmod = {
 	},
 	.opt_clks	= dss_rfbi_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_rfbi_opt_clks),
+	.parent_hwmod	= &omap54xx_dss_hwmod,
 };
 
 /*
