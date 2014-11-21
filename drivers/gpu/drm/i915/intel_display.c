@@ -10907,7 +10907,6 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	}
 	intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
 			       "[modeset]");
-	to_intel_crtc(crtc)->new_config = pipe_config;
 
 out:
 	return pipe_config;
@@ -10932,6 +10931,9 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		return -ENOMEM;
 
 	*saved_mode = crtc->mode;
+
+	if (modeset_pipes)
+		to_intel_crtc(crtc)->new_config = pipe_config;
 
 	/*
 	 * See if the config requires any additional preparation, e.g.
@@ -11466,12 +11468,12 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		ret = PTR_ERR(pipe_config);
 		goto fail;
 	} else if (pipe_config) {
-		if (to_intel_crtc(set->crtc)->new_config->has_audio !=
+		if (pipe_config->has_audio !=
 		    to_intel_crtc(set->crtc)->config.has_audio)
 			config->mode_changed = true;
 
 		/* Force mode sets for any infoframe stuff */
-		if (to_intel_crtc(set->crtc)->new_config->has_infoframe ||
+		if (pipe_config->has_infoframe ||
 		    to_intel_crtc(set->crtc)->config.has_infoframe)
 			config->mode_changed = true;
 	}
