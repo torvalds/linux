@@ -103,33 +103,24 @@ static int pci1723_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-  digital i/o config/query
-*/
 static int pci1723_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int mask;
-	unsigned short mode;
+	unsigned int mask = (chan < 8) ? 0x00ff : 0xff00;
+	unsigned short mode = 0x0000;		/* assume output */
 	int ret;
-
-	if (chan < 8)
-		mask = 0x00ff;
-	else
-		mask = 0xff00;
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
 	if (ret)
 		return ret;
 
-	/* update hardware DIO mode */
-	mode = 0x0000;			/* assume output */
 	if (!(s->io_bits & 0x00ff))
-		mode |= 0x0001;		/* low byte input */
+		mode |= PCI1723_DIO_CTRL_LDIO;	/* low byte input */
 	if (!(s->io_bits & 0xff00))
-		mode |= 0x0002;		/* high byte input */
+		mode |= PCI1723_DIO_CTRL_HDIO;	/* high byte input */
 	outw(mode, dev->iobase + PCI1723_DIO_CTRL_REG);
 
 	return insn->n;
