@@ -100,6 +100,13 @@ void __xen_dma_sync_single_for_device(struct device *hwdev,
 	__xen_dma_page_cpu_to_dev(hwdev, handle, size, dir);
 }
 
+bool xen_arch_need_swiotlb(struct device *dev,
+			   unsigned long pfn,
+			   unsigned long mfn)
+{
+	return ((pfn != mfn) && !is_device_dma_coherent(dev));
+}
+
 int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 				 unsigned int address_bits,
 				 dma_addr_t *dma_handle)
