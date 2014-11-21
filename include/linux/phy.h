@@ -433,6 +433,7 @@ struct phy_device {
  *   by this PHY
  * flags: A bitfield defining certain other features this PHY
  *   supports (like interrupts)
+ * driver_data: static driver data
  *
  * The drivers must implement config_aneg and read_status.  All
  * other functions are optional. Note that none of these
@@ -448,6 +449,7 @@ struct phy_driver {
 	unsigned int phy_id_mask;
 	u32 features;
 	u32 flags;
+	const void *driver_data;
 
 	/*
 	 * Called to issue a PHY software reset
