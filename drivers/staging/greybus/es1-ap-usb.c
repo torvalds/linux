@@ -450,7 +450,7 @@ static void cport_out_callback(struct urb *urb)
 	 *
 	 * This protocol is "needed" due to some hardware restrictions on the
 	 * current generation of Unipro controllers.  Think about it for a
-	 * minute, this is a USB driver, talking to a Unipro bridge, impediance
+	 * minute, this is a USB driver, talking to a Unipro bridge, impedance
 	 * mismatch is huge, yet the Unipro controller are even more
 	 * underpowered than this little USB controller.  We rely on the round
 	 * trip to keep stalls in the Unipro controllers from happening so that

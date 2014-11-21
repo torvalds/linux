@@ -165,7 +165,7 @@ static int get_tech(struct gb_battery *gb)
 
 	/*
 	 * Map greybus values to power_supply values.  Hopefully these are
-	 * "identical" which should allow gcc to optomize the code away to
+	 * "identical" which should allow gcc to optimize the code away to
 	 * nothing.
 	 */
 	technology = le32_to_cpu(tech_response.technology);
@@ -209,7 +209,7 @@ static int get_status(struct gb_battery *gb)
 
 	/*
 	 * Map greybus values to power_supply values.  Hopefully these are
-	 * "identical" which should allow gcc to optomize the code away to
+	 * "identical" which should allow gcc to optimize the code away to
 	 * nothing.
 	 */
 	battery_status = le16_to_cpu(status_response.battery_status);

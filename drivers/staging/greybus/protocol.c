@@ -38,7 +38,7 @@ static struct gb_protocol *_gb_protocol_find(u8 id, u8 major, u8 minor)
 	return NULL;
 }
 
-/* Returns true if protocol was succesfully registered, false otherwise */
+/* Returns true if protocol was successfully registered, false otherwise */
 bool gb_protocol_register(struct gb_protocol *protocol)
 {
 	struct gb_protocol *existing;
@@ -93,7 +93,7 @@ bool gb_protocol_register(struct gb_protocol *protocol)
  * XXX Currently this fails (and reports an error to the caller) if
  * XXX the protocol is currently in use.  We may want to forcefully
  * XXX kill off a protocol and all its active users at some point.
- * XXX But I think that's better handled by quescing modules that
+ * XXX But I think that's better handled by quiescing modules that
  * XXX have users and having those users drop their reference.
  *
  * Returns true if successful, false otherwise.

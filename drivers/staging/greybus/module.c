@@ -68,7 +68,7 @@ struct device_type greybus_module_type = {
 };
 
 /*
- * A Greybus module represents a user-replacable component on an Ara
+ * A Greybus module represents a user-replicable component on an Ara
  * phone.
  *
  * Create a gb_module structure to represent a discovered module.

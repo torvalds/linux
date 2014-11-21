@@ -816,7 +816,7 @@ static void gb_uart_connection_exit(struct gb_connection *connection)
 
 	tty_unregister_device(gb_tty_driver, gb_tty->minor);
 
-	/* FIXME - free transmit / recieve buffers */
+	/* FIXME - free transmit / receive buffers */
 
 	tty_port_put(&gb_tty->port);
 

@@ -46,7 +46,7 @@ static void release_manifest_descriptors(void)
 
 /*
  * Validate the given descriptor.  Its reported size must fit within
- * the number of bytes reamining, and it must have a recognized
+ * the number of bytes remaining, and it must have a recognized
  * type.  Check that the reported size is at least as big as what
  * we expect to see.  (It could be bigger, perhaps for a new version
  * of the format.)

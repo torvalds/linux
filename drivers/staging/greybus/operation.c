@@ -146,7 +146,7 @@ static void gb_message_cancel(struct gb_message *message)
 }
 
 /*
- * An operations's response message has arrived.  If no callback was
+ * An operation's response message has arrived.  If no callback was
  * supplied it was submitted for asynchronous completion, so we notify
  * any waiters.  Otherwise we assume calling the completion is enough
  * and nobody else will be waiting.
@@ -169,7 +169,6 @@ int gb_operation_wait(struct gb_operation *operation)
 	if (ret < 0)
 		gb_message_cancel(operation->request);
 	return ret;
-
 }
 
 static void gb_operation_request_handle(struct gb_operation *operation)
@@ -299,9 +298,8 @@ static void gb_operation_message_free(struct gb_message *message)
 }
 
 /*
- * Map an enum gb_operation_status value (which is represted in a
- * message as a single back a single byte) to an appropriate Linux
- * negative errno.
+ * Map an enum gb_operation_status value (which is represented in a
+ * message as a single byte) to an appropriate Linux negative errno.
  */
 int gb_operation_status_map(u8 status)
 {
@@ -329,7 +327,7 @@ int gb_operation_status_map(u8 status)
 
 /*
  * Create a Greybus operation to be sent over the given connection.
- * The request buffer will big enough for a payload of the given
+ * The request buffer will be big enough for a payload of the given
  * size.  Outgoing requests must specify the size of the response
  * buffer size, which must be sufficient to hold all expected
  * response data.
@@ -544,7 +542,7 @@ void gb_connection_recv_request(struct gb_connection *connection,
 /*
  * We've received data that appears to be an operation response
  * message.  Look up the operation, and record that we've received
- * its repsonse.
+ * its response.
  *
  * This is called in interrupt context, so just copy the incoming
  * data into the response buffer and handle the rest via workqueue.

@@ -39,7 +39,7 @@ static int greybus_module_match(struct device *dev, struct device_driver *drv)
 	id = gb_module_match_id(gmod, driver->id_table);
 	if (id)
 		return 1;
-	/* FIXME - Dyanmic ids? */
+	/* FIXME - Dynamic ids? */
 	return 0;
 }
 
