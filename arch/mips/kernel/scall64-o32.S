@@ -541,8 +541,4 @@ sys_call_table:
 	PTR	compat_sys_process_vm_writev
 	PTR	sys_kcmp
 	PTR	sys_finit_module
-	sys sys_ni_syscall	/* sys_sched_setattr */
-	sys sys_ni_syscall	/* sys_sched_getattr */		/* 4350 */
-	sys sys_ni_syscall	/* sys_renameat2 */
-	sys	sys_seccomp
-	.size	sys32_call_table,.-sys32_call_table
+	.size	sys_call_table,.-sys_call_table

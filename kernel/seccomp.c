@@ -97,7 +97,7 @@ u32 seccomp_bpf_load(int off)
 	if (off == BPF_DATA(nr))
 		return syscall_get_nr(current, regs);
 	if (off == BPF_DATA(arch))
-		return syscall_get_arch(current, regs);
+		return syscall_get_arch();
 	if (off >= BPF_DATA(args[0]) && off < BPF_DATA(args[6])) {
 		unsigned long value;
 		int arg = (off - BPF_DATA(args[0])) / sizeof(u64);
@@ -204,7 +204,6 @@ static int seccomp_check_filter(struct sock_filter *filter, unsigned int flen)
 static u32 seccomp_run_filters(int syscall)
 {
 	struct seccomp_filter *f = ACCESS_ONCE(current->seccomp.filter);
-	struct seccomp_data sd;
 	u32 ret = SECCOMP_RET_ALLOW;
 
 	/* Ensure unexpected behavior doesn't result in failing open. */
@@ -214,15 +213,13 @@ static u32 seccomp_run_filters(int syscall)
 	/* Make sure cross-thread synced filter points somewhere sane. */
 	smp_read_barrier_depends();
 
-	populate_seccomp_data(&sd);
-
 	/*
 	 * All filters in the list are evaluated and the lowest BPF return
 	 * value always takes priority (ignoring the DATA).
 	 */
 	for (; f; f = f->prev) {
-		u32 cur_ret = SK_RUN_FILTER(f->prog, (void *)&sd);
-
+		u32 cur_ret = sk_run_filter(NULL, f->insns);
+		
 		if ((cur_ret & SECCOMP_RET_ACTION) < (ret & SECCOMP_RET_ACTION))
 			ret = cur_ret;
 	}
@@ -232,7 +229,7 @@ static u32 seccomp_run_filters(int syscall)
 
 static inline bool seccomp_may_assign_mode(unsigned long seccomp_mode)
 {
-	BUG_ON(!spin_is_locked(&current->sighand->siglock));
+	assert_spin_locked(&current->sighand->siglock);
 
 	if (current->seccomp.mode && current->seccomp.mode != seccomp_mode)
 		return false;
@@ -243,14 +240,14 @@ static inline bool seccomp_may_assign_mode(unsigned long seccomp_mode)
 static inline void seccomp_assign_mode(struct task_struct *task,
 				       unsigned long seccomp_mode)
 {
-	BUG_ON(!spin_is_locked(&task->sighand->siglock));
+	assert_spin_locked(&task->sighand->siglock);
 
 	task->seccomp.mode = seccomp_mode;
 	/*
 	 * Make sure TIF_SECCOMP cannot be set before the mode (and
 	 * filter) is set.
 	 */
-	smp_mb__before_atomic();
+	smp_mb();
 	set_tsk_thread_flag(task, TIF_SECCOMP);
 }
 
@@ -282,7 +279,7 @@ static inline pid_t seccomp_can_sync_threads(void)
 	struct task_struct *thread, *caller;
 
 	BUG_ON(!mutex_is_locked(&current->signal->cred_guard_mutex));
-	BUG_ON(!spin_is_locked(&current->sighand->siglock));
+	assert_spin_locked(&current->sighand->siglock);
 
 	/* Validate all threads being eligible for synchronization. */
 	caller = current;
@@ -323,7 +320,7 @@ static inline void seccomp_sync_threads(void)
 	struct task_struct *thread, *caller;
 
 	BUG_ON(!mutex_is_locked(&current->signal->cred_guard_mutex));
-	BUG_ON(!spin_is_locked(&current->sighand->siglock));
+	assert_spin_locked(&current->sighand->siglock);
 
 	/* Synchronize all threads. */
 	caller = current;
@@ -372,15 +369,18 @@ static inline void seccomp_sync_threads(void)
 static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 {
 	struct seccomp_filter *filter;
-	unsigned long fp_size;
-	struct sock_filter *fp;
-	int new_len;
+	unsigned long fp_size = fprog->len * sizeof(struct sock_filter);
+	unsigned long total_insns = fprog->len;
 	long ret;
 
 	if (fprog->len == 0 || fprog->len > BPF_MAXINSNS)
 		return ERR_PTR(-EINVAL);
 	BUG_ON(INT_MAX / fprog->len < sizeof(struct sock_filter));
-	fp_size = fprog->len * sizeof(struct sock_filter);
+
+	for (filter = current->seccomp.filter; filter; filter = filter->prev)
+		total_insns += filter->len + 4;  /* include a 4 instr penalty */
+	if (total_insns > MAX_INSNS_PER_PATH)
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Installing a seccomp filter requires that the task have
@@ -388,14 +388,18 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 	 * This avoids scenarios where unprivileged tasks can affect the
 	 * behavior of privileged children.
 	 */
-	if (!current->no_new_privs &&
+	if (!task_no_new_privs(current) &&
 	    security_capable_noaudit(current_cred(), current_user_ns(),
 				     CAP_SYS_ADMIN) != 0)
 		return ERR_PTR(-EACCES);
 
-	fp = kzalloc(fp_size, GFP_KERNEL|__GFP_NOWARN);
-	if (!fp)
-		return ERR_PTR(-ENOMEM);
+	/* Allocate a new seccomp_filter */
+	filter = kzalloc(sizeof(struct seccomp_filter) + fp_size,
+			 GFP_KERNEL|__GFP_NOWARN);
+	if (!filter)
+		return ERR_PTR(-ENOMEM);;
+	atomic_set(&filter->usage, 1);
+	filter->len = fprog->len;
 
 	/* Copy the instructions from fprog. */
 	ret = -EFAULT;
@@ -410,32 +414,12 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 	/* Check and rewrite the fprog for seccomp use */
 	ret = seccomp_check_filter(filter->insns, filter->len);
 	if (ret)
-		goto free_prog;
-
-	/* Allocate a new seccomp_filter */
-	ret = -ENOMEM;
-	filter = kzalloc(sizeof(struct seccomp_filter) +
-			 sizeof(struct sock_filter_int) * new_len,
-			 GFP_KERNEL|__GFP_NOWARN);
-	if (!filter)
-		goto free_prog;
-
-	ret = sk_convert_filter(fp, fprog->len, filter->insnsi, &new_len);
-	if (ret)
-		goto free_filter;
-	kfree(fp);
-
-	atomic_set(&filter->usage, 1);
-	filter->len = new_len;
+		goto fail;
 
 	return filter;
 
-free_filter_prog:
-	kfree(filter->prog);
-free_filter:
+fail:
 	kfree(filter);
-free_prog:
-	kfree(fp);
 	return ERR_PTR(ret);
 }
 
@@ -482,12 +466,12 @@ static long seccomp_attach_filter(unsigned int flags,
 	unsigned long total_insns;
 	struct seccomp_filter *walker;
 
-	BUG_ON(!spin_is_locked(&current->sighand->siglock));
+	assert_spin_locked(&current->sighand->siglock);
 
 	/* Validate resulting filter length. */
-	total_insns = filter->prog->len;
+	total_insns = filter->len;
 	for (walker = current->seccomp.filter; walker; walker = walker->prev)
-		total_insns += walker->prog->len + 4;  /* 4 instr penalty */
+		total_insns += walker->len + 4;  /* 4 instr penalty */
 	if (total_insns > MAX_INSNS_PER_PATH)
 		return -ENOMEM;
 
@@ -527,7 +511,6 @@ void get_seccomp_filter(struct task_struct *tsk)
 static inline void seccomp_filter_free(struct seccomp_filter *filter)
 {
 	if (filter) {
-		sk_filter_free(filter->prog);
 		kfree(filter);
 	}
 }
@@ -559,7 +542,7 @@ static void seccomp_send_sigsys(int syscall, int reason)
 	info.si_code = SYS_SECCOMP;
 	info.si_call_addr = (void __user *)KSTK_EIP(current);
 	info.si_errno = reason;
-	info.si_arch = syscall_get_arch(current, task_pt_regs(current));
+	info.si_arch = syscall_get_arch();
 	info.si_syscall = syscall;
 	force_sig_info(SIGSYS, &info, current);
 }

@@ -25,9 +25,9 @@
 #include <asm/asm-offsets.h>
 #include <asm/errno.h>
 #include <asm/esr.h>
+#include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/unistd32.h>
 
 /*
  * Bad Abort numbers
@@ -666,6 +666,10 @@ __sys_trace:
 	mov	x0, sp
 	bl	syscall_trace_enter
 	adr	lr, __sys_trace_return		// return address
+	cmp	w0, #RET_SKIP_SYSCALL_TRACE	// skip syscall and tracing?
+	b.eq	ret_to_user
+	cmp	w0, #RET_SKIP_SYSCALL		// skip syscall?
+	b.eq	__sys_trace_return_skipped
 	uxtw	scno, w0			// syscall number (possibly new)
 	mov	x1, sp				// pointer to regs
 	cmp	scno, sc_nr			// check upper syscall limit
@@ -679,6 +683,7 @@ __sys_trace:
 
 __sys_trace_return:
 	str	x0, [sp]			// save returned x0
+__sys_trace_return_skipped:			// x0 already in regs[0]
 	mov	x0, sp
 	bl	syscall_trace_exit
 	b	ret_to_user

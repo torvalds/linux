@@ -916,7 +916,7 @@ enum ptrace_syscall_dir {
 	PTRACE_SYSCALL_EXIT,
 };
 
-static int tracehook_report_syscall(struct pt_regs *regs,
+static void tracehook_report_syscall(struct pt_regs *regs,
 				    enum ptrace_syscall_dir dir)
 {
 	unsigned long ip;
@@ -934,7 +934,6 @@ static int tracehook_report_syscall(struct pt_regs *regs,
 		current_thread_info()->syscall = -1;
 
 	regs->ARM_ip = ip;
-	return current_thread_info()->syscall;
 }
 
 asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
@@ -946,7 +945,9 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 		return -1;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		scno = tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
+		tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
+
+	scno = current_thread_info()->syscall;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_enter(regs, scno);
