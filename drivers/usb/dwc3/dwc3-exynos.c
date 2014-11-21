@@ -35,6 +35,7 @@ struct dwc3_exynos {
 
 	struct clk		*clk;
 	struct clk		*susp_clk;
+	struct clk		*axius_clk;
 
 	struct regulator	*vdd33;
 	struct regulator	*vdd10;
@@ -149,6 +150,17 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(exynos->susp_clk);
 
+	if (of_device_is_compatible(node, "samsung,exynos7-dwusb3")) {
+		exynos->axius_clk = devm_clk_get(dev, "usbdrd30_axius_clk");
+		if (IS_ERR(exynos->axius_clk)) {
+			dev_err(dev, "no AXI UpScaler clk specified\n");
+			return -ENODEV;
+		}
+		clk_prepare_enable(exynos->axius_clk);
+	} else {
+		exynos->axius_clk = NULL;
+	}
+
 	exynos->vdd33 = devm_regulator_get(dev, "vdd33");
 	if (IS_ERR(exynos->vdd33)) {
 		ret = PTR_ERR(exynos->vdd33);
@@ -190,6 +202,7 @@ err4:
 err3:
 	regulator_disable(exynos->vdd33);
 err2:
+	clk_disable_unprepare(exynos->axius_clk);
 	clk_disable_unprepare(exynos->susp_clk);
 	clk_disable_unprepare(exynos->clk);
 	return ret;
@@ -203,6 +216,7 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
 
+	clk_disable_unprepare(exynos->axius_clk);
 	clk_disable_unprepare(exynos->susp_clk);
 	clk_disable_unprepare(exynos->clk);
 
@@ -214,6 +228,7 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 
 static const struct of_device_id exynos_dwc3_match[] = {
 	{ .compatible = "samsung,exynos5250-dwusb3" },
+	{ .compatible = "samsung,exynos7-dwusb3" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_dwc3_match);
@@ -223,6 +238,7 @@ static int dwc3_exynos_suspend(struct device *dev)
 {
 	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
 
+	clk_disable(exynos->axius_clk);
 	clk_disable(exynos->clk);
 
 	regulator_disable(exynos->vdd33);
@@ -248,6 +264,7 @@ static int dwc3_exynos_resume(struct device *dev)
 	}
 
 	clk_enable(exynos->clk);
+	clk_enable(exynos->axius_clk);
 
 	/* runtime set active to reflect active state. */
 	pm_runtime_disable(dev);
