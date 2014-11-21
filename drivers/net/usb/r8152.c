@@ -1032,7 +1032,6 @@ static void read_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	struct rx_agg *agg;
 	struct r8152 *tp;
-	int result;
 
 	agg = urb->context;
 	if (!agg)
@@ -1083,16 +1082,7 @@ static void read_bulk_callback(struct urb *urb)
 		break;
 	}
 
-	result = r8152_submit_rx(tp, agg, GFP_ATOMIC);
-	if (result == -ENODEV) {
-		set_bit(RTL8152_UNPLUG, &tp->flags);
-		netif_device_detach(tp->netdev);
-	} else if (result) {
-		spin_lock(&tp->rx_lock);
-		list_add_tail(&agg->list, &tp->rx_done);
-		spin_unlock(&tp->rx_lock);
-		tasklet_schedule(&tp->tl);
-	}
+	r8152_submit_rx(tp, agg, GFP_ATOMIC);
 }
 
 static void write_bulk_callback(struct urb *urb)
@@ -1680,7 +1670,6 @@ static void rx_bottom(struct r8152 *tp)
 		int len_used = 0;
 		struct urb *urb;
 		u8 *rx_data;
-		int ret;
 
 		list_del_init(cursor);
 
@@ -1733,13 +1722,7 @@ find_next_rx:
 		}
 
 submit:
-		ret = r8152_submit_rx(tp, agg, GFP_ATOMIC);
-		if (ret && ret != -ENODEV) {
-			spin_lock_irqsave(&tp->rx_lock, flags);
-			list_add_tail(&agg->list, &tp->rx_done);
-			spin_unlock_irqrestore(&tp->rx_lock, flags);
-			tasklet_schedule(&tp->tl);
-		}
+		r8152_submit_rx(tp, agg, GFP_ATOMIC);
 	}
 }
 
@@ -1806,11 +1789,28 @@ static void bottom_half(unsigned long data)
 static
 int r8152_submit_rx(struct r8152 *tp, struct rx_agg *agg, gfp_t mem_flags)
 {
+	int ret;
+
 	usb_fill_bulk_urb(agg->urb, tp->udev, usb_rcvbulkpipe(tp->udev, 1),
 			  agg->head, agg_buf_sz,
 			  (usb_complete_t)read_bulk_callback, agg);
 
-	return usb_submit_urb(agg->urb, mem_flags);
+	ret = usb_submit_urb(agg->urb, mem_flags);
+	if (ret == -ENODEV) {
+		set_bit(RTL8152_UNPLUG, &tp->flags);
+		netif_device_detach(tp->netdev);
+	} else if (ret) {
+		struct urb *urb = agg->urb;
+		unsigned long flags;
+
+		urb->actual_length = 0;
+		spin_lock_irqsave(&tp->rx_lock, flags);
+		list_add_tail(&agg->list, &tp->rx_done);
+		spin_unlock_irqrestore(&tp->rx_lock, flags);
+		tasklet_schedule(&tp->tl);
+	}
+
+	return ret;
 }
 
 static void rtl_drop_queued_tx(struct r8152 *tp)
@@ -1999,6 +1999,25 @@ static int rtl_start_rx(struct r8152 *tp)
 		ret = r8152_submit_rx(tp, &tp->rx_info[i], GFP_KERNEL);
 		if (ret)
 			break;
+	}
+
+	if (ret && ++i < RTL8152_MAX_RX) {
+		struct list_head rx_queue;
+		unsigned long flags;
+
+		INIT_LIST_HEAD(&rx_queue);
+
+		do {
+			struct rx_agg *agg = &tp->rx_info[i++];
+			struct urb *urb = agg->urb;
+
+			urb->actual_length = 0;
+			list_add_tail(&agg->list, &rx_queue);
+		} while (i < RTL8152_MAX_RX);
+
+		spin_lock_irqsave(&tp->rx_lock, flags);
+		list_splice_tail(&rx_queue, &tp->rx_done);
+		spin_unlock_irqrestore(&tp->rx_lock, flags);
 	}
 
 	return ret;
