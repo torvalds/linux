@@ -7736,3 +7736,25 @@ int dwc_otg_check_haps_status(dwc_otg_core_if_t *core_if)
 	}
 
 }
+
+void dwc_otg_set_force_mode(dwc_otg_core_if_t *core_if, int mode)
+{
+	gusbcfg_data_t usbcfg = {.d32 = 0 };
+
+	usbcfg.d32 = DWC_READ_REG32(&core_if->core_global_regs->gusbcfg);
+	switch (mode) {
+	case USB_MODE_FORCE_HOST:
+		usbcfg.b.force_host_mode = 1;
+		usbcfg.b.force_dev_mode = 0;
+		break;
+	case USB_MODE_FORCE_DEVICE:
+		usbcfg.b.force_host_mode = 0;
+		usbcfg.b.force_dev_mode = 1;
+		break;
+	case USB_MODE_NORMAL:
+		usbcfg.b.force_host_mode = 0;
+		usbcfg.b.force_dev_mode = 0;
+		break;
+	}
+	DWC_WRITE_REG32(&core_if->core_global_regs->gusbcfg, usbcfg.d32);
+}
