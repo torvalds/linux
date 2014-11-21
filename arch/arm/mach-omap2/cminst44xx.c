@@ -514,9 +514,8 @@ static struct cm_ll_data omap4xxx_cm_ll_data = {
 	.module_disable		= &omap4_cminst_module_disable,
 };
 
-int __init omap4_cm_init(void)
+int __init omap4_cm_init(const struct omap_prcm_init_data *data)
 {
-	omap2_cm_base_init();
 	omap_cm_base_init();
 
 	return cm_register(&omap4xxx_cm_ll_data);

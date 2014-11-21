@@ -20,6 +20,7 @@
 
 #include "cm2xxx.h"
 #include "cm3xxx.h"
+#include "cm33xx.h"
 #include "cm44xx.h"
 #include "clock.h"
 
@@ -37,6 +38,7 @@ void __iomem *cm_base;
 void __iomem *cm2_base;
 
 #define CM_NO_CLOCKS		0x1
+#define CM_SINGLE_INSTANCE	0x2
 
 /**
  * omap2_set_globals_cm - set the CM/CM2 base addresses (for early use)
@@ -218,21 +220,32 @@ int cm_unregister(struct cm_ll_data *cld)
 	return 0;
 }
 
-static struct omap_prcm_init_data cm_data = {
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
+	defined(CONFIG_SOC_DRA7XX)
+static struct omap_prcm_init_data cm_data __initdata = {
 	.index = TI_CLKM_CM,
+	.init = omap4_cm_init,
 };
 
-static struct omap_prcm_init_data cm2_data = {
+static struct omap_prcm_init_data cm2_data __initdata = {
 	.index = TI_CLKM_CM2,
+	.init = omap4_cm_init,
 };
+#endif
 
-static struct omap_prcm_init_data omap2_prcm_data = {
+#ifdef CONFIG_ARCH_OMAP2
+static struct omap_prcm_init_data omap2_prcm_data __initdata = {
 	.index = TI_CLKM_CM,
-	.flags = CM_NO_CLOCKS,
+	.init = omap2xxx_cm_init,
+	.flags = CM_NO_CLOCKS | CM_SINGLE_INSTANCE,
 };
+#endif
 
-static struct omap_prcm_init_data omap3_cm_data = {
+#ifdef CONFIG_ARCH_OMAP3
+static struct omap_prcm_init_data omap3_cm_data __initdata = {
 	.index = TI_CLKM_CM,
+	.init = omap3xxx_cm_init,
+	.flags = CM_SINGLE_INSTANCE,
 
 	/*
 	 * IVA2 offset is a negative value, must offset the cm_base address
@@ -240,28 +253,53 @@ static struct omap_prcm_init_data omap3_cm_data = {
 	 */
 	.offset = -OMAP3430_IVA2_MOD,
 };
+#endif
 
-static struct omap_prcm_init_data am3_prcm_data = {
+#if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_TI81XX)
+static struct omap_prcm_init_data am3_prcm_data __initdata = {
 	.index = TI_CLKM_CM,
-	.flags = CM_NO_CLOCKS,
+	.flags = CM_NO_CLOCKS | CM_SINGLE_INSTANCE,
+	.init = am33xx_cm_init,
 };
+#endif
 
-static struct omap_prcm_init_data am4_prcm_data = {
+#ifdef CONFIG_SOC_AM43XX
+static struct omap_prcm_init_data am4_prcm_data __initdata = {
 	.index = TI_CLKM_CM,
-	.flags = CM_NO_CLOCKS,
+	.flags = CM_NO_CLOCKS | CM_SINGLE_INSTANCE,
+	.init = omap4_cm_init,
 };
+#endif
 
-static const struct of_device_id omap_cm_dt_match_table[] = {
+static const struct of_device_id omap_cm_dt_match_table[] __initconst = {
+#ifdef CONFIG_ARCH_OMAP2
 	{ .compatible = "ti,omap2-prcm", .data = &omap2_prcm_data },
+#endif
+#ifdef CONFIG_ARCH_OMAP3
 	{ .compatible = "ti,omap3-cm", .data = &omap3_cm_data },
+#endif
+#ifdef CONFIG_ARCH_OMAP4
 	{ .compatible = "ti,omap4-cm1", .data = &cm_data },
 	{ .compatible = "ti,omap4-cm2", .data = &cm2_data },
+#endif
+#ifdef CONFIG_SOC_OMAP5
 	{ .compatible = "ti,omap5-cm-core-aon", .data = &cm_data },
 	{ .compatible = "ti,omap5-cm-core", .data = &cm2_data },
+#endif
+#ifdef CONFIG_SOC_DRA7XX
 	{ .compatible = "ti,dra7-cm-core-aon", .data = &cm_data },
 	{ .compatible = "ti,dra7-cm-core", .data = &cm2_data },
+#endif
+#ifdef CONFIG_SOC_AM33XX
 	{ .compatible = "ti,am3-prcm", .data = &am3_prcm_data },
+#endif
+#ifdef CONFIG_SOC_AM43XX
 	{ .compatible = "ti,am4-prcm", .data = &am4_prcm_data },
+#endif
+#ifdef CONFIG_SOC_TI81XX
+	{ .compatible = "ti,dm814-prcm", .data = &am3_prcm_data },
+	{ .compatible = "ti,dm816-prcm", .data = &am3_prcm_data },
+#endif
 	{ }
 };
 
@@ -293,6 +331,12 @@ int __init omap2_cm_base_init(void)
 			cm2_base = mem + data->offset;
 
 		data->mem = mem;
+
+		data->np = np;
+
+		if (data->init && (data->flags & CM_SINGLE_INSTANCE ||
+				   (cm_base && cm2_base)))
+			data->init(data);
 	}
 
 	return 0;

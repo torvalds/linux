@@ -770,7 +770,13 @@ int __init omap2_prm_base_init(void)
 
 int __init omap2_prcm_base_init(void)
 {
-	return omap2_prm_base_init();
+	int ret;
+
+	ret = omap2_prm_base_init();
+	if (ret)
+		return ret;
+
+	return omap2_cm_base_init();
 }
 
 /**
