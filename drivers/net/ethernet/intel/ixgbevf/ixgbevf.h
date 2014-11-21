@@ -58,8 +58,9 @@ struct ixgbevf_tx_buffer {
 };
 
 struct ixgbevf_rx_buffer {
-	struct sk_buff *skb;
 	dma_addr_t dma;
+	struct page *page;
+	unsigned int page_offset;
 };
 
 struct ixgbevf_stats {
@@ -91,9 +92,10 @@ struct ixgbevf_ring {
 	void *desc;			/* descriptor ring memory */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
 	unsigned int size;		/* length in bytes */
-	unsigned int count;		/* amount of descriptors */
-	unsigned int next_to_use;
-	unsigned int next_to_clean;
+	u16 count;			/* amount of descriptors */
+	u16 next_to_use;
+	u16 next_to_clean;
+	u16 next_to_alloc;
 
 	union {
 		struct ixgbevf_tx_buffer *tx_buffer_info;
@@ -109,12 +111,11 @@ struct ixgbevf_ring {
 
 	u64 hw_csum_rx_error;
 	u8 __iomem *tail;
+	struct sk_buff *skb;
 
 	u16 reg_idx; /* holds the special value that gets the hardware register
 		      * offset associated with this ring, which is different
 		      * for DCB and RSS modes */
-
-	u16 rx_buf_len;
 	int queue_index; /* needed for multiqueue queue management */
 };
 
@@ -133,12 +134,10 @@ struct ixgbevf_ring {
 
 /* Supported Rx Buffer Sizes */
 #define IXGBEVF_RXBUFFER_256   256    /* Used for packet split */
-#define IXGBEVF_RXBUFFER_2K    2048
-#define IXGBEVF_RXBUFFER_4K    4096
-#define IXGBEVF_RXBUFFER_8K    8192
-#define IXGBEVF_RXBUFFER_10K   10240
+#define IXGBEVF_RXBUFFER_2048  2048
 
 #define IXGBEVF_RX_HDR_SIZE IXGBEVF_RXBUFFER_256
+#define IXGBEVF_RX_BUFSZ    IXGBEVF_RXBUFFER_2048
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
@@ -429,11 +428,6 @@ enum ixbgevf_state_t {
 	__IXGBEVF_REMOVING,
 	__IXGBEVF_WORK_INIT,
 };
-
-struct ixgbevf_cb {
-	struct sk_buff *prev;
-};
-#define IXGBE_CB(skb) ((struct ixgbevf_cb *)(skb)->cb)
 
 enum ixgbevf_boards {
 	board_82599_vf,
