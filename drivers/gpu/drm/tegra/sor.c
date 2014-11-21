@@ -267,8 +267,7 @@ static int tegra_sor_wakeup(struct tegra_sor *sor)
 		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 
-	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+	tegra_dc_commit(dc);
 
 	timeout = jiffies + msecs_to_jiffies(250);
 
@@ -1080,8 +1079,7 @@ static int tegra_output_sor_disable(struct tegra_output *output)
 		value &= ~SOR_ENABLE;
 		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 
-		tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-		tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+		tegra_dc_commit(dc);
 	}
 
 	err = tegra_sor_power_down(sor);

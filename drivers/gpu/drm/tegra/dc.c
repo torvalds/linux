@@ -65,7 +65,7 @@ static void tegra_dc_cursor_commit(struct tegra_dc *dc)
  * into the ACTIVE copy, either immediately if the display controller is in
  * STOP mode, or at the next frame boundary otherwise.
  */
-static void tegra_dc_commit(struct tegra_dc *dc)
+void tegra_dc_commit(struct tegra_dc *dc)
 {
 	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);

@@ -658,8 +658,7 @@ static int tegra_output_dsi_enable(struct tegra_output *output)
 		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 
-	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+	tegra_dc_commit(dc);
 
 	/* enable DSI controller */
 	tegra_dsi_enable(dsi);
@@ -778,8 +777,7 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 		value &= ~DSI_ENABLE;
 		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 
-		tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-		tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+		tegra_dc_commit(dc);
 	}
 
 	err = tegra_dsi_wait_idle(dsi, 100);

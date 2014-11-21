@@ -997,8 +997,7 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 
-	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+	tegra_dc_commit(dc);
 
 	/* TODO: add HDCP support */
 
@@ -1042,8 +1041,7 @@ static int tegra_output_hdmi_disable(struct tegra_output *output)
 		value &= ~HDMI_ENABLE;
 		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 
-		tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-		tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+		tegra_dc_commit(dc);
 	}
 
 	clk_disable_unprepare(hdmi->clk);
