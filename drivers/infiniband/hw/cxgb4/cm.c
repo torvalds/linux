@@ -1640,7 +1640,8 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 		__state_set(&ep->com, MPA_REQ_RCVD);
 
 		/* drive upcall */
-		mutex_lock(&ep->parent_ep->com.mutex);
+		mutex_lock_nested(&ep->parent_ep->com.mutex,
+				  SINGLE_DEPTH_NESTING);
 		if (ep->parent_ep->com.state != DEAD) {
 			if (connect_request_upcall(ep))
 				abort_connection(ep, skb, GFP_KERNEL);
