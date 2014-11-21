@@ -110,6 +110,9 @@ struct thread_map;
 struct perf_evlist;
 struct record_opts;
 
+void perf_counts_values__scale(struct perf_counts_values *count,
+			       bool scale, s8 *pscaled);
+
 void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu,
 				struct perf_counts_values *count);
 
