@@ -2154,6 +2154,10 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 		if (ret)
 			fs_info->qgroup_flags |=
 					BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
+		ret = update_qgroup_limit_item(trans, quota_root, qgroup);
+		if (ret)
+			fs_info->qgroup_flags |=
+					BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
 		spin_lock(&fs_info->qgroup_lock);
 	}
 	if (fs_info->quota_enabled)
