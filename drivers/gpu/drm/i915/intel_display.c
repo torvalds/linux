@@ -2803,6 +2803,9 @@ static void intel_update_primary_planes(struct drm_device *dev)
 
 void intel_prepare_reset(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc;
+
 	/* no reset support for gen2 */
 	if (IS_GEN2(dev))
 		return;
@@ -2812,6 +2815,15 @@ void intel_prepare_reset(struct drm_device *dev)
 		return;
 
 	drm_modeset_lock_all(dev);
+
+	/*
+	 * Disabling the crtcs gracefully seems nicer. Also the
+	 * g33 docs say we should at least disable all the planes.
+	 */
+	for_each_intel_crtc(dev, crtc) {
+		if (crtc->active)
+			dev_priv->display.crtc_disable(&crtc->base);
+	}
 }
 
 void intel_finish_reset(struct drm_device *dev)

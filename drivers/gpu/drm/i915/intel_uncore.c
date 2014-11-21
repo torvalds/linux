@@ -1371,8 +1371,6 @@ static int g4x_reset_complete(struct drm_device *dev)
 
 static int g33_do_reset(struct drm_device *dev)
 {
-	/* FIXME spec says to turn off all planes and wait 1 usec before reset */
-
 	pci_write_config_byte(dev->pdev, I915_GDRST, GRDOM_RESET_ENABLE);
 	return wait_for(g4x_reset_complete(dev), 500);
 }
