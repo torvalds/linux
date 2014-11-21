@@ -1343,7 +1343,6 @@ static struct subsys_interface cpufreq_interface = {
 void cpufreq_suspend(void)
 {
 	struct cpufreq_policy *policy;
-	int cpu;
 
 	if (!cpufreq_driver)
 		return;
@@ -1353,20 +1352,15 @@ void cpufreq_suspend(void)
 
 	pr_debug("%s: Suspending Governors\n", __func__);
 
-	for_each_possible_cpu(cpu) {
-		if (!cpu_online(cpu))
-			continue;
+	policy = cpufreq_cpu_get(0);
 
-		policy = cpufreq_cpu_get(cpu);
-
-		if (__cpufreq_governor(policy, CPUFREQ_GOV_STOP))
-			pr_err("%s: Failed to stop governor for policy: %p\n",
-				__func__, policy);
-		else if (cpufreq_driver->suspend
-		    && cpufreq_driver->suspend(policy))
-			pr_err("%s: Failed to suspend driver: %p\n", __func__,
-				policy);
-	}
+	if (__cpufreq_governor(policy, CPUFREQ_GOV_STOP))
+		pr_err("%s: Failed to stop governor for policy: %p\n",
+			__func__, policy);
+	else if (cpufreq_driver->suspend
+	    && cpufreq_driver->suspend(policy))
+		pr_err("%s: Failed to suspend driver: %p\n", __func__,
+			policy);
 
 	cpufreq_suspended = true;
 }
@@ -1380,7 +1374,6 @@ void cpufreq_suspend(void)
 void cpufreq_resume(void)
 {
 	struct cpufreq_policy *policy;
-	int cpu;
 
 	if (!cpufreq_driver)
 		return;
@@ -1392,29 +1385,18 @@ void cpufreq_resume(void)
 
 	cpufreq_suspended = false;
 
-	for_each_possible_cpu(cpu) {
-		if (!cpu_online(cpu))
-			continue;
+	policy = cpufreq_cpu_get(0);
 
-		policy = cpufreq_cpu_get(cpu);
+	if (__cpufreq_governor(policy, CPUFREQ_GOV_START)
+	    || __cpufreq_governor(policy, CPUFREQ_GOV_LIMITS))
+		pr_err("%s: Failed to start governor for policy: %p\n",
+			__func__, policy);
+	else if (cpufreq_driver->resume
+	    && cpufreq_driver->resume(policy))
+		pr_err("%s: Failed to resume driver: %p\n", __func__,
+			policy);
 
-		if (__cpufreq_governor(policy, CPUFREQ_GOV_START)
-		    || __cpufreq_governor(policy, CPUFREQ_GOV_LIMITS))
-			pr_err("%s: Failed to start governor for policy: %p\n",
-				__func__, policy);
-		else if (cpufreq_driver->resume
-		    && cpufreq_driver->resume(policy))
-			pr_err("%s: Failed to resume driver: %p\n", __func__,
-				policy);
-
-		/*
-		 * schedule call cpufreq_update_policy() for boot CPU, i.e. last
-		 * policy in list. It will verify that the current freq is in
-		 * sync with what we believe it to be.
-		 */
-		if (cpu == 0)
-			schedule_work(&policy->update);
-	}
+	schedule_work(&policy->update);
 }
 
 /**
