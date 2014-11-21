@@ -15,17 +15,7 @@ config ARCH_AT91RM9200
 	select AT91_USE_OLD_CLK
 	select OLD_IRQ_AT91
 
-config ARCH_AT91SAM9261
-	bool "AT91SAM9261 or AT91SAM9G10"
-	select SOC_AT91SAM9261
-	select AT91_USE_OLD_CLK
-	select OLD_IRQ_AT91
-
 endchoice
-
-config ARCH_AT91SAM9G10
-	bool
-	select ARCH_AT91SAM9261
 
 # ----------------------------------------------------------
 
@@ -109,30 +99,6 @@ config MACH_ECO920
 	bool "eco920"
 	help
 	  Select this if you are using the eco920 board
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91SAM9261
-
-comment "AT91SAM9261 Board Type"
-
-config MACH_AT91SAM9261EK
-	bool "Atmel AT91SAM9261-EK Evaluation Kit"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT91SAM9261-EK Evaluation Kit.
-	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3820>
-
-comment "AT91SAM9G10 Board Type"
-
-config MACH_AT91SAM9G10EK
-	bool "Atmel AT91SAM9G10-EK Evaluation Kit"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT91SAM9G10-EK Evaluation Kit.
-	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4588>
-
 endif
 
 # ----------------------------------------------------------

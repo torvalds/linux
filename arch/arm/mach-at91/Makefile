@@ -21,7 +21,6 @@ obj-$(CONFIG_SOC_SAMA5D3)	+= sama5d3.o
 obj-$(CONFIG_SOC_SAMA5D4)	+= sama5d4.o
 
 obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200_devices.o
-obj-$(CONFIG_ARCH_AT91SAM9261)	+= at91sam9261_devices.o
 
 # AT91RM9200 board-specific support
 obj-$(CONFIG_MACH_ONEARM)	+= board-1arm.o
@@ -37,10 +36,6 @@ obj-$(CONFIG_MACH_ECBAT91)	+= board-ecbat91.o
 obj-$(CONFIG_MACH_YL9200)	+= board-yl-9200.o
 obj-$(CONFIG_MACH_CPUAT91)	+= board-cpuat91.o
 obj-$(CONFIG_MACH_ECO920)	+= board-eco920.o
-
-# AT91SAM9261 board-specific support
-obj-$(CONFIG_MACH_AT91SAM9261EK) += board-sam9261ek.o
-obj-$(CONFIG_MACH_AT91SAM9G10EK) += board-sam9261ek.o
 
 # AT91SAM board with device-tree
 obj-$(CONFIG_MACH_AT91RM9200_DT) += board-dt-rm9200.o
