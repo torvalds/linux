@@ -119,17 +119,6 @@ static bool is_flow_key_valid(const struct sw_flow_key *key)
 	return !!key->eth.type;
 }
 
-static int make_writable(struct sk_buff *skb, int write_len)
-{
-	if (!pskb_may_pull(skb, write_len))
-		return -ENOMEM;
-
-	if (!skb_cloned(skb) || skb_clone_writable(skb, write_len))
-		return 0;
-
-	return pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-}
-
 static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 		     const struct ovs_action_push_mpls *mpls)
 {
@@ -171,14 +160,11 @@ static int pop_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 	struct ethhdr *hdr;
 	int err;
 
-	err = make_writable(skb, skb->mac_len + MPLS_HLEN);
+	err = skb_ensure_writable(skb, skb->mac_len + MPLS_HLEN);
 	if (unlikely(err))
 		return err;
 
-	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->csum = csum_sub(skb->csum,
-				     csum_partial(skb_mpls_header(skb),
-						  MPLS_HLEN, 0));
+	skb_postpull_rcsum(skb, skb_mpls_header(skb), MPLS_HLEN);
 
 	memmove(skb_mac_header(skb) + MPLS_HLEN, skb_mac_header(skb),
 		skb->mac_len);
@@ -204,7 +190,7 @@ static int set_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 	__be32 *stack;
 	int err;
 
-	err = make_writable(skb, skb->mac_len + MPLS_HLEN);
+	err = skb_ensure_writable(skb, skb->mac_len + MPLS_HLEN);
 	if (unlikely(err))
 		return err;
 
@@ -220,100 +206,34 @@ static int set_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 	return 0;
 }
 
-/* remove VLAN header from packet and update csum accordingly. */
-static int __pop_vlan_tci(struct sk_buff *skb, __be16 *current_tci)
-{
-	struct vlan_hdr *vhdr;
-	int err;
-
-	err = make_writable(skb, VLAN_ETH_HLEN);
-	if (unlikely(err))
-		return err;
-
-	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->csum = csum_sub(skb->csum, csum_partial(skb->data
-					+ (2 * ETH_ALEN), VLAN_HLEN, 0));
-
-	vhdr = (struct vlan_hdr *)(skb->data + ETH_HLEN);
-	*current_tci = vhdr->h_vlan_TCI;
-
-	memmove(skb->data + VLAN_HLEN, skb->data, 2 * ETH_ALEN);
-	__skb_pull(skb, VLAN_HLEN);
-
-	vlan_set_encap_proto(skb, vhdr);
-	skb->mac_header += VLAN_HLEN;
-
-	if (skb_network_offset(skb) < ETH_HLEN)
-		skb_set_network_header(skb, ETH_HLEN);
-
-	/* Update mac_len for subsequent MPLS actions */
-	skb_reset_mac_len(skb);
-	return 0;
-}
-
 static int pop_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 {
-	__be16 tci;
 	int err;
 
-	if (likely(vlan_tx_tag_present(skb))) {
-		skb->vlan_tci = 0;
-	} else {
-		if (unlikely(skb->protocol != htons(ETH_P_8021Q) ||
-			     skb->len < VLAN_ETH_HLEN))
-			return 0;
-
-		err = __pop_vlan_tci(skb, &tci);
-		if (err)
-			return err;
-	}
-	/* move next vlan tag to hw accel tag */
-	if (likely(skb->protocol != htons(ETH_P_8021Q) ||
-		   skb->len < VLAN_ETH_HLEN)) {
+	err = skb_vlan_pop(skb);
+	if (vlan_tx_tag_present(skb))
+		invalidate_flow_key(key);
+	else
 		key->eth.tci = 0;
-		return 0;
-	}
-
-	invalidate_flow_key(key);
-	err = __pop_vlan_tci(skb, &tci);
-	if (unlikely(err))
-		return err;
-
-	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(tci));
-	return 0;
+	return err;
 }
 
 static int push_vlan(struct sk_buff *skb, struct sw_flow_key *key,
 		     const struct ovs_action_push_vlan *vlan)
 {
-	if (unlikely(vlan_tx_tag_present(skb))) {
-		u16 current_tag;
-
-		/* push down current VLAN tag */
-		current_tag = vlan_tx_tag_get(skb);
-
-		if (!__vlan_put_tag(skb, skb->vlan_proto, current_tag))
-			return -ENOMEM;
-		/* Update mac_len for subsequent MPLS actions */
-		skb->mac_len += VLAN_HLEN;
-
-		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->csum = csum_add(skb->csum, csum_partial(skb->data
-					+ (2 * ETH_ALEN), VLAN_HLEN, 0));
-
+	if (vlan_tx_tag_present(skb))
 		invalidate_flow_key(key);
-	} else {
+	else
 		key->eth.tci = vlan->vlan_tci;
-	}
-	__vlan_hwaccel_put_tag(skb, vlan->vlan_tpid, ntohs(vlan->vlan_tci) & ~VLAN_TAG_PRESENT);
-	return 0;
+	return skb_vlan_push(skb, vlan->vlan_tpid,
+			     ntohs(vlan->vlan_tci) & ~VLAN_TAG_PRESENT);
 }
 
 static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *key,
 			const struct ovs_key_ethernet *eth_key)
 {
 	int err;
-	err = make_writable(skb, ETH_HLEN);
+	err = skb_ensure_writable(skb, ETH_HLEN);
 	if (unlikely(err))
 		return err;
 
@@ -415,8 +335,8 @@ static int set_ipv4(struct sk_buff *skb, struct sw_flow_key *key,
 	struct iphdr *nh;
 	int err;
 
-	err = make_writable(skb, skb_network_offset(skb) +
-				 sizeof(struct iphdr));
+	err = skb_ensure_writable(skb, skb_network_offset(skb) +
+				  sizeof(struct iphdr));
 	if (unlikely(err))
 		return err;
 
@@ -453,8 +373,8 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *key,
 	__be32 *saddr;
 	__be32 *daddr;
 
-	err = make_writable(skb, skb_network_offset(skb) +
-			    sizeof(struct ipv6hdr));
+	err = skb_ensure_writable(skb, skb_network_offset(skb) +
+				  sizeof(struct ipv6hdr));
 	if (unlikely(err))
 		return err;
 
@@ -496,7 +416,7 @@ static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *key,
 	return 0;
 }
 
-/* Must follow make_writable() since that can move the skb data. */
+/* Must follow skb_ensure_writable() since that can move the skb data. */
 static void set_tp_port(struct sk_buff *skb, __be16 *port,
 			 __be16 new_port, __sum16 *check)
 {
@@ -526,8 +446,8 @@ static int set_udp(struct sk_buff *skb, struct sw_flow_key *key,
 	struct udphdr *uh;
 	int err;
 
-	err = make_writable(skb, skb_transport_offset(skb) +
-				 sizeof(struct udphdr));
+	err = skb_ensure_writable(skb, skb_transport_offset(skb) +
+				  sizeof(struct udphdr));
 	if (unlikely(err))
 		return err;
 
@@ -551,8 +471,8 @@ static int set_tcp(struct sk_buff *skb, struct sw_flow_key *key,
 	struct tcphdr *th;
 	int err;
 
-	err = make_writable(skb, skb_transport_offset(skb) +
-				 sizeof(struct tcphdr));
+	err = skb_ensure_writable(skb, skb_transport_offset(skb) +
+				  sizeof(struct tcphdr));
 	if (unlikely(err))
 		return err;
 
@@ -577,7 +497,7 @@ static int set_sctp(struct sk_buff *skb, struct sw_flow_key *key,
 	int err;
 	unsigned int sctphoff = skb_transport_offset(skb);
 
-	err = make_writable(skb, sctphoff + sizeof(struct sctphdr));
+	err = skb_ensure_writable(skb, sctphoff + sizeof(struct sctphdr));
 	if (unlikely(err))
 		return err;
 
@@ -872,8 +792,6 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 
 		case OVS_ACTION_ATTR_PUSH_VLAN:
 			err = push_vlan(skb, key, nla_data(a));
-			if (unlikely(err)) /* skb already freed. */
-				return err;
 			break;
 
 		case OVS_ACTION_ATTR_POP_VLAN:

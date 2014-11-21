@@ -402,7 +402,7 @@ static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_
 
 	/* map MBIM session to VLAN */
 	if (tci)
-		vlan_put_tag(skb, htons(ETH_P_8021Q), tci);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), tci);
 err:
 	return skb;
 }

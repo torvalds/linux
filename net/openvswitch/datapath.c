@@ -425,11 +425,10 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		if (!nskb)
 			return -ENOMEM;
 
-		nskb = __vlan_put_tag(nskb, nskb->vlan_proto, vlan_tx_tag_get(nskb));
+		nskb = __vlan_hwaccel_push_inside(nskb);
 		if (!nskb)
 			return -ENOMEM;
 
-		nskb->vlan_tci = 0;
 		skb = nskb;
 	}
 

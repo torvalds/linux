@@ -175,14 +175,10 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 			goto err_free_rt;
 	}
 
-	if (vlan_tx_tag_present(skb)) {
-		if (unlikely(!__vlan_put_tag(skb,
-					     skb->vlan_proto,
-					     vlan_tx_tag_get(skb)))) {
-			err = -ENOMEM;
-			goto err_free_rt;
-		}
-		skb->vlan_tci = 0;
+	skb = vlan_hwaccel_push_inside(skb);
+	if (unlikely(!skb)) {
+		err = -ENOMEM;
+		goto err_free_rt;
 	}
 
 	/* Push Tunnel header. */
