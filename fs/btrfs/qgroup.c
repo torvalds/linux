@@ -644,9 +644,8 @@ out:
 }
 
 static int update_qgroup_limit_item(struct btrfs_trans_handle *trans,
-				    struct btrfs_root *root, u64 qgroupid,
-				    u64 flags, u64 max_rfer, u64 max_excl,
-				    u64 rsv_rfer, u64 rsv_excl)
+				    struct btrfs_root *root,
+				    struct btrfs_qgroup *qgroup)
 {
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -657,7 +656,7 @@ static int update_qgroup_limit_item(struct btrfs_trans_handle *trans,
 
 	key.objectid = 0;
 	key.type = BTRFS_QGROUP_LIMIT_KEY;
-	key.offset = qgroupid;
+	key.offset = qgroup->qgroupid;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -673,11 +672,11 @@ static int update_qgroup_limit_item(struct btrfs_trans_handle *trans,
 	l = path->nodes[0];
 	slot = path->slots[0];
 	qgroup_limit = btrfs_item_ptr(l, slot, struct btrfs_qgroup_limit_item);
-	btrfs_set_qgroup_limit_flags(l, qgroup_limit, flags);
-	btrfs_set_qgroup_limit_max_rfer(l, qgroup_limit, max_rfer);
-	btrfs_set_qgroup_limit_max_excl(l, qgroup_limit, max_excl);
-	btrfs_set_qgroup_limit_rsv_rfer(l, qgroup_limit, rsv_rfer);
-	btrfs_set_qgroup_limit_rsv_excl(l, qgroup_limit, rsv_excl);
+	btrfs_set_qgroup_limit_flags(l, qgroup_limit, qgroup->lim_flags);
+	btrfs_set_qgroup_limit_max_rfer(l, qgroup_limit, qgroup->max_rfer);
+	btrfs_set_qgroup_limit_max_excl(l, qgroup_limit, qgroup->max_excl);
+	btrfs_set_qgroup_limit_rsv_rfer(l, qgroup_limit, qgroup->rsv_rfer);
+	btrfs_set_qgroup_limit_rsv_excl(l, qgroup_limit, qgroup->rsv_excl);
 
 	btrfs_mark_buffer_dirty(l);
 
@@ -1184,15 +1183,6 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 		ret = -ENOENT;
 		goto out;
 	}
-	ret = update_qgroup_limit_item(trans, quota_root, qgroupid,
-				       limit->flags, limit->max_rfer,
-				       limit->max_excl, limit->rsv_rfer,
-				       limit->rsv_excl);
-	if (ret) {
-		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
-		btrfs_info(fs_info, "unable to update quota limit for %llu",
-		       qgroupid);
-	}
 
 	spin_lock(&fs_info->qgroup_lock);
 	qgroup->lim_flags = limit->flags;
@@ -1201,6 +1191,14 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 	qgroup->rsv_rfer = limit->rsv_rfer;
 	qgroup->rsv_excl = limit->rsv_excl;
 	spin_unlock(&fs_info->qgroup_lock);
+
+	ret = update_qgroup_limit_item(trans, quota_root, qgroup);
+	if (ret) {
+		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
+		btrfs_info(fs_info, "unable to update quota limit for %llu",
+		       qgroupid);
+	}
+
 out:
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
@@ -2276,20 +2274,19 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	}
 
 	if (inherit && inherit->flags & BTRFS_QGROUP_INHERIT_SET_LIMITS) {
-		ret = update_qgroup_limit_item(trans, quota_root, objectid,
-					       inherit->lim.flags,
-					       inherit->lim.max_rfer,
-					       inherit->lim.max_excl,
-					       inherit->lim.rsv_rfer,
-					       inherit->lim.rsv_excl);
-		if (ret)
-			goto unlock;
-
 		dstgroup->lim_flags = inherit->lim.flags;
 		dstgroup->max_rfer = inherit->lim.max_rfer;
 		dstgroup->max_excl = inherit->lim.max_excl;
 		dstgroup->rsv_rfer = inherit->lim.rsv_rfer;
 		dstgroup->rsv_excl = inherit->lim.rsv_excl;
+
+		ret = update_qgroup_limit_item(trans, quota_root, dstgroup);
+		if (ret) {
+			fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
+			btrfs_info(fs_info, "unable to update quota limit for %llu",
+			       dstgroup->qgroupid);
+			goto unlock;
+		}
 	}
 
 	if (srcid) {
