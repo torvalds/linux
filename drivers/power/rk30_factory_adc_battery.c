@@ -61,7 +61,7 @@ do {\
 #define	TIMER_MS_COUNTS		 1000	
 #define	SLOPE_SECOND_COUNTS	               15	
 #define	DISCHARGE_MIN_SECOND	               30
-#define	CHARGE_MIN_SECOND	               30	
+#define	CHARGE_MIN_SECOND	               45	
 #define	CHARGE_MID_SECOND	               90	
 #define	CHARGE_MAX_SECOND	               250
 #define   CHARGE_FULL_DELAY_TIMES          10     
