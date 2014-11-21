@@ -999,23 +999,6 @@ config FB_ATMEL
 	help
 	  This enables support for the AT91/AT32 LCD Controller.
 
-config FB_INTSRAM
-	bool "Frame Buffer in internal SRAM"
-	depends on FB_ATMEL && ARCH_AT91SAM9261
-	help
-	  Say Y if you want to map Frame Buffer in internal SRAM. Say N if you want
-	  to let frame buffer in external SDRAM.
-
-config FB_ATMEL_STN
-	bool "Use a STN display with AT91/AT32 LCD Controller"
-	depends on FB_ATMEL && (MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK)
-	default n
-	help
-	  Say Y if you want to connect a STN LCD display to the AT91/AT32 LCD
-	  Controller. Say N if you want to connect a TFT.
-
-	  If unsure, say N.
-
 config FB_NVIDIA
 	tristate "nVidia Framebuffer Support"
 	depends on FB && PCI
