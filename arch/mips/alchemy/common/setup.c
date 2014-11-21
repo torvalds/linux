@@ -70,7 +70,7 @@ void __init plat_mem_setup(void)
 	iomem_resource.end = IOMEM_RESOURCE_END;
 }
 
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_PCI)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_PCI)
 /* This routine should be valid for all Au1x based boards */
 phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 {

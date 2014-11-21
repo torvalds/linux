@@ -69,7 +69,7 @@ extern int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 # define VMALLOC_END	(FIXADDR_START-2*PAGE_SIZE)
 #endif
 
-#ifdef CONFIG_64BIT_PHYS_ADDR
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %016Lx.\n", __FILE__, __LINE__, pte_val(e))
 #else
@@ -103,7 +103,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 	pmd_val(*pmdp) = ((unsigned long) invalid_pte_table);
 }
 
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 #define pte_pfn(x)		((unsigned long)((x).pte_high >> 6))
 static inline pte_t
@@ -126,7 +126,7 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #define pte_pfn(x)		((unsigned long)((x).pte >> _PFN_SHIFT))
 #define pfn_pte(pfn, prot)	__pte(((unsigned long long)(pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #endif
-#endif /* defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32) */
+#endif /* defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32) */
 
 #define __pgd_offset(address)	pgd_index(address)
 #define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
@@ -177,7 +177,7 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #else
 
 /* Swap entries must have VALID and GLOBAL bits cleared. */
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 #define __swp_type(x)		(((x).val >> 2) & 0x1f)
 #define __swp_offset(x)		 ((x).val >> 7)
 #define __swp_entry(type,offset)	\
@@ -187,9 +187,9 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #define __swp_offset(x)		 ((x).val >> 13)
 #define __swp_entry(type,offset)	\
 		((swp_entry_t)	{ ((type) << 8) | ((offset) << 13) })
-#endif /* defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32) */
+#endif /* defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32) */
 
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 /*
  * Bits 0 and 1 of pte_high are taken, use the rest for the page offset...
  */
@@ -216,7 +216,7 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 
 #endif
 
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 #define __pte_to_swp_entry(pte) ((swp_entry_t) { (pte).pte_high })
 #define __swp_entry_to_pte(x)	((pte_t) { 0, (x).val })
 #else

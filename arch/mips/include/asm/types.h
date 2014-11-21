@@ -22,7 +22,7 @@
 /*
  * Don't use phys_t.  You've been warned.
  */
-#ifdef CONFIG_64BIT_PHYS_ADDR
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
 typedef unsigned long long phys_t;
 #else
 typedef unsigned long phys_t;

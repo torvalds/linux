@@ -63,7 +63,7 @@ choice
 
 config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
-	select 64BIT_PHYS_ADDR
+	select ARCH_PHYS_ADDR_T_64BIT
 	select CEVT_R4K
 	select CSRC_R4K
 	select IRQ_CPU
@@ -771,7 +771,7 @@ config MIKROTIK_RB532
 config CAVIUM_OCTEON_SOC
 	bool "Cavium Networks Octeon SoC based boards"
 	select CEVT_R4K
-	select 64BIT_PHYS_ADDR
+	select ARCH_PHYS_ADDR_T_64BIT
 	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -813,7 +813,7 @@ config NLM_XLR_BOARD
 	select SWAP_IO_SPACE
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
-	select 64BIT_PHYS_ADDR
+	select ARCH_PHYS_ADDR_T_64BIT
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select DMA_COHERENT
@@ -839,7 +839,7 @@ config NLM_XLP_BOARD
 	select HW_HAS_PCI
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
-	select 64BIT_PHYS_ADDR
+	select ARCH_PHYS_ADDR_T_64BIT
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
@@ -979,7 +979,7 @@ config FW_CFE
 	bool
 
 config ARCH_DMA_ADDR_T_64BIT
-	def_bool (HIGHMEM && 64BIT_PHYS_ADDR) || 64BIT
+	def_bool (HIGHMEM && ARCH_PHYS_ADDR_T_64BIT) || 64BIT
 
 config DMA_MAYBE_COHERENT
 	select DMA_NONCOHERENT
@@ -2124,11 +2124,8 @@ config SB1_PASS_2_1_WORKAROUNDS
 	default y
 
 
-config 64BIT_PHYS_ADDR
-	bool
-
 config ARCH_PHYS_ADDR_T_64BIT
-       def_bool 64BIT_PHYS_ADDR
+       bool
 
 config CPU_HAS_SMARTMIPS
 	depends on SYS_SUPPORTS_SMARTMIPS
