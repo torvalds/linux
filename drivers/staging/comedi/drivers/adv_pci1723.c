@@ -144,6 +144,7 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
+	unsigned int val;
 	int ret;
 	int i;
 
@@ -195,22 +196,12 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	s->insn_config	= pci1723_dio_insn_config;
 	s->insn_bits	= pci1723_dio_insn_bits;
 
-	/* read DIO config */
-	switch (inw(dev->iobase + PCI1723_DIO_CTRL_REG) & 0x03) {
-	case 0x00:	/* low byte output, high byte output */
-		s->io_bits = 0xFFFF;
-		break;
-	case 0x01:	/* low byte input, high byte output */
-		s->io_bits = 0xFF00;
-		break;
-	case 0x02:	/* low byte output, high byte input */
-		s->io_bits = 0x00FF;
-		break;
-	case 0x03:	/* low byte input, high byte input */
-		s->io_bits = 0x0000;
-		break;
-	}
-	/* read DIO port state */
+	/* get initial DIO direction and state */
+	val = inw(dev->iobase + PCI1723_DIO_CTRL_REG);
+	if (!(val & PCI1723_DIO_CTRL_LDIO))
+		s->io_bits |= 0x00ff;	/* low byte output */
+	if (!(val & PCI1723_DIO_CTRL_HDIO))
+		s->io_bits |= 0xff00;	/* high byte output */
 	s->state = inw(dev->iobase + PCI1723_DIO_DATA_REG);
 
 	return 0;
