@@ -89,33 +89,6 @@ struct pci1723_private {
 	unsigned short ao_data[8];	/* data output buffer */
 };
 
-/*
- * The pci1723 card reset;
- */
-static int pci1723_reset(struct comedi_device *dev)
-{
-	struct pci1723_private *devpriv = dev->private;
-	int i;
-
-	outw(PCI1723_SYNC_CTRL_SYNC, dev->iobase + PCI1723_SYNC_CTRL_REG);
-
-	for (i = 0; i < 8; i++) {
-		/* set all outputs to 0V */
-		devpriv->ao_data[i] = 0x8000;
-		outw(devpriv->ao_data[i], dev->iobase + PCI1723_AO_REG(i));
-		/* set all ranges to +/- 10V */
-		outw(PCI1723_CTRL_RANGE(0) | PCI1723_CTRL_CHAN(i),
-		     PCI1723_CTRL_REG);
-	}
-
-	outw(0, dev->iobase + PCI1723_RANGE_STROBE_REG);
-	outw(0, dev->iobase + PCI1723_SYNC_STROBE_REG);
-
-	outw(PCI1723_SYNC_CTRL_ASYNC, dev->iobase + PCI1723_SYNC_CTRL_REG);
-
-	return 0;
-}
-
 static int pci1723_insn_read_ao(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -201,6 +174,7 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	struct pci1723_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
+	int i;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -225,6 +199,21 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= pci1723_ao_write_winsn;
 	s->insn_read	= pci1723_insn_read_ao;
+
+	/* synchronously reset all analog outputs to 0V, +/-10V range */
+	outw(PCI1723_SYNC_CTRL_SYNC, dev->iobase + PCI1723_SYNC_CTRL_REG);
+	for (i = 0; i < s->n_chan; i++) {
+		outw(PCI1723_CTRL_RANGE(0) | PCI1723_CTRL_CHAN(i),
+		     PCI1723_CTRL_REG);
+		outw(0, dev->iobase + PCI1723_RANGE_STROBE_REG);
+
+		devpriv->ao_data[i] = 0x8000;
+		outw(devpriv->ao_data[i], dev->iobase + PCI1723_AO_REG(i));
+	}
+	outw(0, dev->iobase + PCI1723_SYNC_STROBE_REG);
+
+	/* disable syncronous control */
+	outw(PCI1723_SYNC_CTRL_ASYNC, dev->iobase + PCI1723_SYNC_CTRL_REG);
 
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DIO;
@@ -253,8 +242,6 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	}
 	/* read DIO port state */
 	s->state = inw(dev->iobase + PCI1723_DIO_DATA_REG);
-
-	pci1723_reset(dev);
 
 	return 0;
 }
