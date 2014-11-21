@@ -1,6 +1,4 @@
 /*
- * Device Tree support for Rockchip RK3288
- *
  * Copyright (C) 2014 ROCKCHIP, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -36,6 +34,7 @@
 #include <asm/mach/map.h>
 #include "cpu_axi.h"
 #include "loader.h"
+#include "rk3126b.h"
 #define CPU 312x
 #include "sram.h"
 #include "pm.h"
@@ -152,6 +151,9 @@ static void __init rk3126_dt_map_io(void)
 	rockchip_soc_id = ROCKCHIP_SOC_RK3126;
 
 	rk312x_dt_map_io();
+
+	if (readl_relaxed(RK_GRF_VIRT + RK312X_GRF_CHIP_TAG) == 0x3136)
+		rockchip_soc_id = ROCKCHIP_SOC_RK3126B;
 }
 
 static void __init rk3128_dt_map_io(void)
@@ -351,13 +353,52 @@ static void __init rk312x_reserve(void)
 	/* reserve memory for ION */
 	rockchip_ion_reserve();
 }
+
 #ifdef CONFIG_PM
-static void __init rk321x_init_suspend(void);
+static u32 rk_pmu_pwrdn_st;
+
+static void rk_pm_soc_pd_suspend(void)
+{
+	rk_pmu_pwrdn_st = pmu_readl(RK312X_PMU_PWRDN_ST);
+	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_GPU])))
+		rk312x_sys_set_power_domain(PD_GPU, false);
+
+	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIO])))
+		rk312x_sys_set_power_domain(PD_VIO, false);
+
+	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIDEO])))
+		rk312x_sys_set_power_domain(PD_VIDEO, false);
+}
+
+static void rk_pm_soc_pd_resume(void)
+{
+	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIDEO])))
+		rk312x_sys_set_power_domain(PD_VIDEO, true);
+
+	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIO])))
+		rk312x_sys_set_power_domain(PD_VIO, true);
+
+	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_GPU])))
+		rk312x_sys_set_power_domain(PD_GPU, true);
+}
+
+static void __init rk312x_init_suspend(void)
+{
+	pr_info("%s\n", __func__);
+	rkpm_pie_init();
+	rk312x_suspend_init();
+}
 #endif
+
 static void __init rk312x_init_late(void)
 {
 #ifdef CONFIG_PM
-	rk321x_init_suspend();
+	rockchip_suspend_init();
+	if (soc_is_rk3126b())
+		rk3126b_init_suspend();
+	else
+		rk312x_init_suspend();
+	rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend, rk_pm_soc_pd_resume);
 #endif
 	if (rockchip_jtag_enabled)
 		clk_prepare_enable(clk_get_sys(NULL, "clk_jtag"));
@@ -413,6 +454,8 @@ static int __init rk312x_pie_init(void)
 
 	if (!cpu_is_rk312x())
 		return 0;
+	if (soc_is_rk3126b())
+		return 0;
 
 	err = rockchip_pie_init();
 	if (err)
@@ -436,7 +479,7 @@ arch_initcall(rk312x_pie_init);
 #include "ddr_rk3126.c"
 static int __init rk312x_ddr_init(void)
 {
-	if (cpu_is_rk312x()) {
+	if (soc_is_rk3128() || soc_is_rk3126()) {
 		ddr_change_freq = _ddr_change_freq;
 		ddr_round_rate = _ddr_round_rate;
 		ddr_set_auto_self_refresh = _ddr_set_auto_self_refresh;
@@ -446,38 +489,3 @@ static int __init rk312x_ddr_init(void)
 	return 0;
 }
 arch_initcall_sync(rk312x_ddr_init);
-
-#ifdef CONFIG_PM
-static u32 rk_pmu_pwrdn_st;
-static inline void rk_pm_soc_pd_suspend(void)
-{
-	rk_pmu_pwrdn_st = pmu_readl(RK312X_PMU_PWRDN_ST);
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_GPU])))
-		rk312x_sys_set_power_domain(PD_GPU, false);
-
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIO])))
-		rk312x_sys_set_power_domain(PD_VIO, false);
-
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIDEO])))
-		rk312x_sys_set_power_domain(PD_VIDEO, false);
-}
-static inline void rk_pm_soc_pd_resume(void)
-{
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIDEO])))
-		rk312x_sys_set_power_domain(PD_VIDEO, true);
-
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_VIO])))
-		rk312x_sys_set_power_domain(PD_VIO, true);
-
-	if (!(rk_pmu_pwrdn_st & BIT(pmu_st_map[PD_GPU])))
-		rk312x_sys_set_power_domain(PD_GPU, true);
-}
-static void __init rk321x_init_suspend(void)
-{
-	pr_info("%s\n", __func__);
-	rockchip_suspend_init();
-	rkpm_pie_init();
-	rk312x_suspend_init();
-	rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend, rk_pm_soc_pd_resume);
-}
-#endif

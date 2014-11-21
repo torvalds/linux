@@ -71,7 +71,7 @@ static ssize_t soc_show(struct device *dev, struct device_attribute *attr, char 
 		soc = "rk3068";
 	else if (soc_is_rk3000())
 		soc = "rk3000";
-	else if (soc_is_rk3126())
+	else if (soc_is_rk3126() || soc_is_rk3126b())
 		soc = "rk3126";
 	else if (soc_is_rk3128())
 		soc = "rk3128";

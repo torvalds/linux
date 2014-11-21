@@ -602,7 +602,7 @@ static void rkpm_save_setting(u32 ctrbits)
 #define UART_LCR	3	/* Out: Line Control Register */
 #define UART_MCR	4
 
-void slp312x_uartdbg_resume(void)
+static void slp312x_uartdbg_resume(void)
 {
 	void __iomem *b_addr = RK_DEBUG_UART_VIRT;
 	u32 pclk_id = RK312X_CLKGATE_PCLK_UART2;

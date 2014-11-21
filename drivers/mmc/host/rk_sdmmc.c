@@ -1540,8 +1540,7 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
         int gpio_cd = mmc_gpio_get_cd(mmc);
         int gpio_val;
 
-        if (cpu_is_rk312x() &&
-                soc_is_rk3126() &&
+        if ((soc_is_rk3126() || soc_is_rk3126b()) &&
                 (mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)) {
                 gpio_cd = slot->cd_gpio;
                 if (gpio_is_valid(gpio_cd)) {
@@ -3434,8 +3433,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
         }
 
         /* We assume only low-level chip use gpio_cd */
-        if (cpu_is_rk312x() &&
-                soc_is_rk3126() &&
+        if ((soc_is_rk3126() || soc_is_rk3126b()) &&
                 (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)) {
                 slot->cd_gpio = of_get_named_gpio(host->dev->of_node, "cd-gpios", 0);
                 if (gpio_is_valid(slot->cd_gpio)) {
@@ -4189,7 +4187,7 @@ int dw_mci_suspend(struct dw_mci *host)
                 mci_writel(host, CTRL, 0x00);
 
                 /* Soc rk3126 already in gpio_cd mode */
-                if (!(cpu_is_rk312x() && soc_is_rk3126())) {
+                if (!soc_is_rk3126() && !soc_is_rk3126b()) {
                         dw_mci_of_get_cd_gpio(host->dev, 0, host->mmc);
                         enable_irq_wake(host->mmc->slot.cd_irq);
                 }
@@ -4219,7 +4217,7 @@ int dw_mci_resume(struct dw_mci *host)
     	/*only for sdmmc controller*/
 	if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
                 /* Soc rk3126 already in gpio_cd mode */
-                if (!(cpu_is_rk312x() && soc_is_rk3126())) {
+                if (!soc_is_rk3126() && !soc_is_rk3126b()) {
                         disable_irq_wake(host->mmc->slot.cd_irq);
                         mmc_gpio_free_cd(host->mmc);
                 }
