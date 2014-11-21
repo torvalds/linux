@@ -91,7 +91,7 @@ do {\
 
 
 
-#define BATT_FILENAME "/data/bat_last_capacity.dat"
+//#define BATT_FILENAME "/data/bat_last_capacity.dat"
 
 
 #define BATTERY_APK 
@@ -103,6 +103,7 @@ int    gVoltageCnt = 3400;
 int    gDoubleVoltageCnt = 6800;
 unsigned long gSecondsCnt = 0;
 char gDischargeFlag[4] = {"on "};
+static int    g_old_cap = -1;
 
 #if 1
 #define BATT_MAX_VOL_VALUE	4250/*Full  charge volatge*/
@@ -341,11 +342,36 @@ static ssize_t rkbatt_restore_flag_attrs(struct device *dev,
 	}
 	return size;
 }
+
+static ssize_t rkbatt_show_oldcap_attrs(struct device *dev, struct device_attribute *attr, char *buf) 
+{				 
+	return sprintf(buf, "%d\n", g_old_cap);
+}
+
+static ssize_t rkbatt_restore_oldcap_attrs(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	int old_cap;
+	
+	sscanf(buf, "%d", &old_cap);
+	
+	if(old_cap >= 0 && old_cap <= 100)
+	{
+		g_old_cap = old_cap;
+	}
+	else
+	{
+		dev_err(dev, "rk29adc_restore_oldcap_attrs err\n");
+	}
+	return size;
+}
+
+
 static struct device_attribute rkbatt_attrs[] = {
 	__ATTR(state, 0664, rkbatt_show_state_attrs, rkbatt_restore_state_attrs),
 	__ATTR(debug, 0664, rkbatt_show_debug_attrs, rkbatt_restore_debug_attrs),
 	__ATTR(value, 0555, rkbatt_show_value_attrs, rkbatt_restore_value_attrs),
 	__ATTR(flag,  0555, rkbatt_show_flag_attrs,  rkbatt_restore_flag_attrs),
+	__ATTR(oldcap, 0664, rkbatt_show_oldcap_attrs, rkbatt_restore_oldcap_attrs),
 };
 
 static int rk_adc_battery_iio_read(struct rk30_adc_battery_platform_data *data)
@@ -385,6 +411,7 @@ error:
 
 #endif
 
+#if 0
 static int rk30_adc_battery_load_capacity(void)
 {
 	char value[4];
@@ -417,6 +444,7 @@ static void rk30_adc_battery_put_capacity(int loadcapacity)
 	sys_write(fd, (const char __user *)value, 4);
 	sys_close(fd);
 }
+#endif
 static BLOCKING_NOTIFIER_HEAD(adc_battery_chain_head);
 
 int register_adc_battery_notifier(struct notifier_block *nb)
@@ -1349,12 +1377,13 @@ static void rk30_adc_battery_poweron_capacity_check(struct rk30_adc_battery_data
 	new_capacity = bat ->bat_capacity;
 		
 	while( cnt -- ){
-	    old_capacity = rk30_adc_battery_load_capacity();
-	    if( old_capacity >= 0 ){
+	    old_capacity = g_old_cap;   // rk30_adc_battery_load_capacity();
+	    if( old_capacity != -1 ){
 	        break ;
 	    }
 	    msleep(100);
 	}
+        printk("func:%s; line:%d; old_capacity = %d; new_capacity = %d\n", __func__, __LINE__, old_capacity, new_capacity);
 
 	if ((old_capacity < 0) || (old_capacity > 100)){
 		old_capacity = new_capacity;
@@ -1369,7 +1398,7 @@ static void rk30_adc_battery_poweron_capacity_check(struct rk30_adc_battery_data
 	//chargeing state
 		bat->bat_capacity = (old_capacity < 10) ? (old_capacity + 2) : old_capacity;
 	}else{
-			bat ->bat_capacity = old_capacity + 5;
+			bat ->bat_capacity = old_capacity;
 		if(bat->bat_capacity == 100)
 			bat->bat_capacity = 99;
 		if(bat->bat_capacity == 0)
@@ -1751,7 +1780,7 @@ static void rk30_adc_battery_timer_work(struct work_struct *work)
 
 			}
 		}
-		rk30_adc_battery_put_capacity(bat ->bat_capacity);
+		// rk30_adc_battery_put_capacity(bat ->bat_capacity);
 		power_supply_changed(&bat ->bat);
 		power_supply_changed(&bat ->ac);
 #if  defined (CONFIG_BATTERY_RK30_USB_CHARGE)
@@ -2374,7 +2403,8 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 //	data->wq = create_singlethread_workqueue("adc_battd");
 	INIT_DELAYED_WORK(&data->delay_work, rk30_adc_battery_timer_work);
 
-	if (1 == data->pdata->save_capacity) {
+	//if (1 == data->pdata->save_capacity) {
+	if (1) {
 		queue_delayed_work(data->wq, &data->delay_work, msecs_to_jiffies(TIMER_MS_COUNTS*10));
 		data ->poweron_check = 1;
 	}else{
