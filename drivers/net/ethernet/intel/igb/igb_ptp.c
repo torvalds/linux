@@ -900,12 +900,15 @@ void igb_ptp_stop(struct igb_adapter *adapter)
 void igb_ptp_reset(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	unsigned long flags;
 
 	if (!(adapter->flags & IGB_FLAG_PTP))
 		return;
 
 	/* reset the tstamp_config */
 	igb_ptp_set_timestamp_mode(adapter, &adapter->tstamp_config);
+
+	spin_lock_irqsave(&adapter->tmreg_lock, flags);
 
 	switch (adapter->hw.mac.type) {
 	case e1000_82576:
@@ -917,23 +920,24 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 	case e1000_i350:
 	case e1000_i210:
 	case e1000_i211:
-		/* Enable the timer functions and interrupts. */
 		wr32(E1000_TSAUXC, 0x0);
 		wr32(E1000_TSIM, TSYNC_INTERRUPTS);
 		wr32(E1000_IMS, E1000_IMS_TS);
 		break;
 	default:
 		/* No work to do. */
-		return;
+		goto out;
 	}
 
 	/* Re-initialize the timer. */
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211)) {
 		struct timespec ts = ktime_to_timespec(ktime_get_real());
 
-		igb_ptp_settime_i210(&adapter->ptp_caps, &ts);
+		igb_ptp_write_i210(adapter, &ts);
 	} else {
 		timecounter_init(&adapter->tc, &adapter->cc,
 				 ktime_to_ns(ktime_get_real()));
 	}
+out:
+	spin_unlock_irqrestore(&adapter->tmreg_lock, flags);
 }
