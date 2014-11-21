@@ -32,13 +32,6 @@ struct mdp4_kms {
 
 	int rev;
 
-	/* Shadow value for MDP4_LAYERMIXER_IN_CFG.. since setup for all
-	 * crtcs/encoders is in one shared register, we need to update it
-	 * via read/modify/write.  But to avoid getting confused by power-
-	 * on-default values after resume, use this shadow value instead:
-	 */
-	uint32_t mixer_cfg;
-
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
 
