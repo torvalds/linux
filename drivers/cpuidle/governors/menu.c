@@ -405,7 +405,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * the measured amount of time is less than the exit latency,
 	 * assume the state was never reached and the exit latency is 0.
 	 */
-	if (unlikely(!(target->flags & CPUIDLE_FLAG_TIME_VALID))) {
+	if (unlikely(target->flags & CPUIDLE_FLAG_TIME_INVALID)) {
 		/* Use timer value as is */
 		measured_us = data->next_timer_us;
 

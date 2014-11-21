@@ -55,7 +55,6 @@ static struct cpuidle_driver calxeda_idle_driver = {
 		{
 			.name = "PG",
 			.desc = "Power Gate",
-			.flags = CPUIDLE_FLAG_TIME_VALID,
 			.exit_latency = 30,
 			.power_usage = 50,
 			.target_residency = 200,

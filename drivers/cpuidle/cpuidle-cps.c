@@ -79,7 +79,6 @@ static struct cpuidle_driver cps_driver = {
 			.enter	= cps_nc_enter,
 			.exit_latency		= 200,
 			.target_residency	= 450,
-			.flags	= CPUIDLE_FLAG_TIME_VALID,
 			.name	= "nc-wait",
 			.desc	= "non-coherent MIPS wait",
 		},
@@ -87,8 +86,7 @@ static struct cpuidle_driver cps_driver = {
 			.enter	= cps_nc_enter,
 			.exit_latency		= 300,
 			.target_residency	= 700,
-			.flags	= CPUIDLE_FLAG_TIME_VALID |
-				  CPUIDLE_FLAG_TIMER_STOP,
+			.flags	= CPUIDLE_FLAG_TIMER_STOP,
 			.name	= "clock-gated",
 			.desc	= "core clock gated",
 		},
@@ -96,8 +94,7 @@ static struct cpuidle_driver cps_driver = {
 			.enter	= cps_nc_enter,
 			.exit_latency		= 600,
 			.target_residency	= 1000,
-			.flags	= CPUIDLE_FLAG_TIME_VALID |
-				  CPUIDLE_FLAG_TIMER_STOP,
+			.flags	= CPUIDLE_FLAG_TIMER_STOP,
 			.name	= "power-gated",
 			.desc	= "core power gated",
 		},
