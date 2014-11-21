@@ -982,10 +982,10 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	if (WARN_ON(mvm->nd_match_sets))
+	if (WARN_ON(mvm->nd_match_sets || mvm->nd_channels))
 		return -EBUSY;
 
-	/* save the sched scan matchsets for later reporting */
+	/* save the sched scan matchsets... */
 	if (nd_config->n_match_sets) {
 		mvm->nd_match_sets = kmemdup(nd_config->match_sets,
 					     sizeof(*nd_config->match_sets) *
@@ -995,6 +995,14 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 			mvm->n_nd_match_sets = nd_config->n_match_sets;
 	}
 
+	/* ...and the sched scan channels for later reporting */
+	mvm->nd_channels = kmemdup(nd_config->channels,
+				   sizeof(*nd_config->channels) *
+				   nd_config->n_channels,
+				   GFP_KERNEL);
+	if (mvm->nd_channels)
+		mvm->n_nd_channels = nd_config->n_channels;
+
 	return 0;
 }
 
@@ -1003,6 +1011,9 @@ static void iwl_mvm_free_nd(struct iwl_mvm *mvm)
 	kfree(mvm->nd_match_sets);
 	mvm->nd_match_sets = NULL;
 	mvm->n_nd_match_sets = 0;
+	kfree(mvm->nd_channels);
+	mvm->nd_channels = NULL;
+	mvm->n_nd_channels = 0;
 }
 
 static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
@@ -1640,7 +1651,14 @@ out_unlock:
 	return false;
 }
 
-static u32 iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm)
+struct iwl_mvm_nd_query_results {
+	u32 matched_profiles;
+	struct iwl_scan_offload_profile_match matches[IWL_SCAN_MAX_PROFILES];
+};
+
+static int
+iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
+				struct iwl_mvm_nd_query_results *results)
 {
 	struct iwl_scan_offload_profiles_query *query;
 	struct iwl_host_cmd cmd = {
@@ -1652,22 +1670,26 @@ static u32 iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm)
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret) {
 		IWL_ERR(mvm, "failed to query matched profiles (%d)\n", ret);
-		return 0;
+		return ret;
 	}
 
 	/* RF-kill already asserted again... */
-	if (!cmd.resp_pkt)
+	if (!cmd.resp_pkt) {
+		ret = -ERFKILL;
 		goto out_free_resp;
+	}
 
 	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
 	if (len < sizeof(*query)) {
 		IWL_ERR(mvm, "Invalid scan offload profiles query response!\n");
+		ret = -EIO;
 		goto out_free_resp;
 	}
 
 	query = (void *)cmd.resp_pkt->data;
 
-	ret = le32_to_cpu(query->matched_profiles);
+	results->matched_profiles = le32_to_cpu(query->matched_profiles);
+	memcpy(results->matches, query->matches, sizeof(results->matches));
 
 out_free_resp:
 	iwl_free_resp(&cmd);
@@ -1682,10 +1704,11 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		.pattern_idx = -1,
 	};
 	struct cfg80211_wowlan_wakeup *wakeup_report = &wakeup;
+	struct iwl_mvm_nd_query_results query;
 	struct iwl_wowlan_status *fw_status;
 	unsigned long matched_profiles;
 	u32 reasons = 0;
-	int i, n_matches;
+	int i, j, n_matches, ret;
 
 	fw_status = iwl_mvm_get_wakeup_status(mvm, vif);
 	if (!IS_ERR_OR_NULL(fw_status))
@@ -1697,12 +1720,13 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	if (reasons != IWL_WOWLAN_WAKEUP_BY_NON_WIRELESS)
 		goto out;
 
-	matched_profiles = iwl_mvm_netdetect_query_results(mvm);
-	if (!matched_profiles) {
+	ret = iwl_mvm_netdetect_query_results(mvm, &query);
+	if (ret || !query.matched_profiles) {
 		wakeup_report = NULL;
 		goto out;
 	}
 
+	matched_profiles = query.matched_profiles;
 	if (mvm->n_nd_match_sets) {
 		n_matches = hweight_long(matched_profiles);
 	} else {
@@ -1717,17 +1741,34 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		goto out_report_nd;
 
 	for_each_set_bit(i, &matched_profiles, mvm->n_nd_match_sets) {
+		struct iwl_scan_offload_profile_match *fw_match;
 		struct cfg80211_wowlan_nd_match *match;
+		int n_channels = 0;
 
-		match = kzalloc(sizeof(*match), GFP_KERNEL);
+		fw_match = &query.matches[i];
+
+		for (j = 0; j < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN; j++)
+			n_channels += hweight8(fw_match->matching_channels[j]);
+
+		match = kzalloc(sizeof(*match) +
+				(n_channels * sizeof(*match->channels)),
+				GFP_KERNEL);
 		if (!match)
 			goto out_report_nd;
+
+		net_detect->matches[net_detect->n_matches++] = match;
 
 		match->ssid.ssid_len = mvm->nd_match_sets[i].ssid.ssid_len;
 		memcpy(match->ssid.ssid, mvm->nd_match_sets[i].ssid.ssid,
 		       match->ssid.ssid_len);
 
-		net_detect->matches[net_detect->n_matches++] = match;
+		if (mvm->n_nd_channels < n_channels)
+			continue;
+
+		for (j = 0; j < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN * 8; j++)
+			if (fw_match->matching_channels[j / 8] & (BIT(j % 8)))
+				match->channels[match->n_channels++] =
+					mvm->nd_channels[j]->center_freq;
 	}
 
 out_report_nd:

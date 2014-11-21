@@ -687,6 +687,8 @@ struct iwl_mvm {
 	struct ieee80211_scan_ies nd_ies;
 	struct cfg80211_match_set *nd_match_sets;
 	int n_nd_match_sets;
+	struct ieee80211_channel **nd_channels;
+	int n_nd_channels;
 	bool net_detect;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	u32 d3_wake_sysassert; /* must be u32 for debugfs_create_bool */
