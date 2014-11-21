@@ -95,7 +95,7 @@ static __le32* cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
 	for (line = 0; line < lines; line++) {
 		while (offset && offset >= sg_dma_len(sg)) {
 			offset -= sg_dma_len(sg);
-			sg++;
+			sg = sg_next(sg);
 		}
 		if (lpi && line>0 && !(line % lpi))
 			sol = RISC_SOL | RISC_IRQ1 | RISC_CNT_INC;
@@ -114,13 +114,13 @@ static __le32* cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
 			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
 			todo -= (sg_dma_len(sg)-offset);
 			offset = 0;
-			sg++;
+			sg = sg_next(sg);
 			while (todo > sg_dma_len(sg)) {
 				*(rp++)=cpu_to_le32(RISC_WRITE|
 						    sg_dma_len(sg));
 				*(rp++)=cpu_to_le32(sg_dma_address(sg));
 				todo -= sg_dma_len(sg);
-				sg++;
+				sg = sg_next(sg);
 			}
 			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_EOL|todo);
 			*(rp++)=cpu_to_le32(sg_dma_address(sg));
