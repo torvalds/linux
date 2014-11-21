@@ -706,8 +706,22 @@ int adau17x1_set_micbias_voltage(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(adau17x1_set_micbias_voltage);
 
+bool adau17x1_precious_register(struct device *dev, unsigned int reg)
+{
+	/* SigmaDSP parameter memory */
+	if (reg < 0x400)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(adau17x1_precious_register);
+
 bool adau17x1_readable_register(struct device *dev, unsigned int reg)
 {
+	/* SigmaDSP parameter memory */
+	if (reg < 0x400)
+		return true;
+
 	switch (reg) {
 	case ADAU17X1_CLOCK_CONTROL:
 	case ADAU17X1_PLL_CONTROL:

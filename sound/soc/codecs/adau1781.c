@@ -472,6 +472,7 @@ const struct regmap_config adau1781_regmap_config = {
 	.num_reg_defaults	= ARRAY_SIZE(adau1781_reg_defaults),
 	.readable_reg		= adau1781_readable_register,
 	.volatile_reg		= adau17x1_volatile_register,
+	.precious_reg		= adau17x1_precious_register,
 	.cache_type		= REGCACHE_RBTREE,
 };
 EXPORT_SYMBOL_GPL(adau1781_regmap_config);
