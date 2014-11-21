@@ -41,7 +41,9 @@ void meson_common_restart(char mode,const char *cmd)
 {
     u32 reboot_reason = MESON_NORMAL_BOOT;
     if (cmd) {
-        if (strcmp(cmd, "charging_reboot") == 0)
+        if (strcmp(cmd, "poweroff") == 0)
+            reboot_reason = LINUX_REBOOT_CMD_POWER_OFF;
+        else if (strcmp(cmd, "charging_reboot") == 0)
             reboot_reason = MESON_CHARGING_REBOOT;
         else if (strcmp(cmd, "recovery") == 0 || strcmp(cmd, "factory_reset") == 0)
             reboot_reason = MESON_FACTORY_RESET_REBOOT;
@@ -71,8 +73,7 @@ void meson_power_off_prepare(void)
 
 void meson_power_off(void)
 {
-	printk("meson power off \n");
-	meson_common_restart('h',"charging_reboot");
+        meson_common_restart('h', "poweroff");
 }
 
 void meson_power_idle(void)
