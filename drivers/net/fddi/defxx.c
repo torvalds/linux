@@ -856,6 +856,12 @@ static void dfx_bus_uninit(struct net_device *dev)
 		val = inb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 		val &= ~PI_CONFIG_STAT_0_M_INT_ENB;
 		outb(val, base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
+
+		/* Disable the board.  */
+		outb(0, base_addr + PI_ESIC_K_SLOT_CNTRL);
+
+		/* Disable memory and port decoders.  */
+		outb(0, base_addr + PI_ESIC_K_FUNCTION_CNTRL);
 	}
 	if (dfx_bus_pci) {
 		/* Disable interrupts at PCI bus interface chip (PFI) */
