@@ -2302,6 +2302,14 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 		dstgroup->excl_cmpr = level_size;
 		srcgroup->excl = level_size;
 		srcgroup->excl_cmpr = level_size;
+
+		/* inherit the limit info */
+		dstgroup->lim_flags = srcgroup->lim_flags;
+		dstgroup->max_rfer = srcgroup->max_rfer;
+		dstgroup->max_excl = srcgroup->max_excl;
+		dstgroup->rsv_rfer = srcgroup->rsv_rfer;
+		dstgroup->rsv_excl = srcgroup->rsv_excl;
+
 		qgroup_dirty(fs_info, dstgroup);
 		qgroup_dirty(fs_info, srcgroup);
 	}
