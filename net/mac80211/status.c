@@ -730,6 +730,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_bar *bar;
 	int rtap_len;
 	int shift = 0;
+	int tid = IEEE80211_NUM_TIDS;;
 
 	rates_idx = ieee80211_tx_get_rates(hw, info, &retry_count);
 
@@ -773,7 +774,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 		if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
 		    (ieee80211_is_data_qos(fc))) {
-			u16 tid, ssn;
+			u16 ssn;
 			u8 *qc;
 
 			qc = ieee80211_get_qos_ctl(hdr);
@@ -782,10 +783,14 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 						& IEEE80211_SCTL_SEQ);
 			ieee80211_send_bar(&sta->sdata->vif, hdr->addr1,
 					   tid, ssn);
+		} else if (ieee80211_is_data_qos(fc)) {
+			u8 *qc = ieee80211_get_qos_ctl(hdr);
+
+			tid = qc[0] & 0xf;
 		}
 
 		if (!acked && ieee80211_is_back_req(fc)) {
-			u16 tid, control;
+			u16 control;
 
 			/*
 			 * BAR failed, store the last SSN and retry sending
@@ -813,6 +818,12 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			if (!acked)
 				sta->tx_retry_failed++;
 			sta->tx_retry_count += retry_count;
+
+			if (ieee80211_is_data_present(fc)) {
+				if (!acked)
+					sta->tx_msdu_failed[tid]++;
+				sta->tx_msdu_retries[tid] += retry_count;
+			}
 		}
 
 		rate_control_tx_status(local, sband, sta, skb);

@@ -1843,6 +1843,37 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
 	}
 
+	sinfo->filled |= BIT(NL80211_STA_INFO_TID_STATS);
+	for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++) {
+		struct cfg80211_tid_stats *tidstats = &sinfo->pertid[i];
+
+		if (!(tidstats->filled & BIT(NL80211_TID_STATS_RX_MSDU))) {
+			tidstats->filled |= BIT(NL80211_TID_STATS_RX_MSDU);
+			tidstats->rx_msdu = sta->rx_msdu[i];
+		}
+
+		if (!(tidstats->filled & BIT(NL80211_TID_STATS_TX_MSDU))) {
+			tidstats->filled |= BIT(NL80211_TID_STATS_TX_MSDU);
+			tidstats->tx_msdu = sta->tx_msdu[i];
+		}
+
+		if (!(tidstats->filled &
+				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES)) &&
+		    local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+			tidstats->filled |=
+				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES);
+			tidstats->tx_msdu_retries = sta->tx_msdu_retries[i];
+		}
+
+		if (!(tidstats->filled &
+				BIT(NL80211_TID_STATS_TX_MSDU_FAILED)) &&
+		    local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+			tidstats->filled |=
+				BIT(NL80211_TID_STATS_TX_MSDU_FAILED);
+			tidstats->tx_msdu_failed = sta->tx_msdu_failed[i];
+		}
+	}
+
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
 		sinfo->filled |= BIT(NL80211_STA_INFO_LLID) |
