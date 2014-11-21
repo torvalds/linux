@@ -428,7 +428,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 		unsigned long size,
 		pgprot_t prot)
 {
-	phys_t phys_addr_high = fixup_bigphys_addr(pfn << PAGE_SHIFT, size);
+	phys_addr_t phys_addr_high = fixup_bigphys_addr(pfn << PAGE_SHIFT, size);
 	return remap_pfn_range(vma, vaddr, phys_addr_high >> PAGE_SHIFT, size, prot);
 }
 #define io_remap_pfn_range io_remap_pfn_range

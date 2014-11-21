@@ -20,12 +20,12 @@
 #ifndef __ASSEMBLY__
 
 /*
- * Don't use phys_t.  You've been warned.
+ * Don't use phys_addr_t.  You've been warned.
  */
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
-typedef unsigned long long phys_t;
+typedef unsigned long long phys_addr_t;
 #else
-typedef unsigned long phys_t;
+typedef unsigned long phys_addr_t;
 #endif
 
 #endif /* __ASSEMBLY__ */

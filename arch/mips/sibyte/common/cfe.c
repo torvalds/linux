@@ -49,8 +49,8 @@
 #endif
 
 #define SIBYTE_MAX_MEM_REGIONS 8
-phys_t board_mem_region_addrs[SIBYTE_MAX_MEM_REGIONS];
-phys_t board_mem_region_sizes[SIBYTE_MAX_MEM_REGIONS];
+phys_addr_t board_mem_region_addrs[SIBYTE_MAX_MEM_REGIONS];
+phys_addr_t board_mem_region_sizes[SIBYTE_MAX_MEM_REGIONS];
 unsigned int board_mem_region_count;
 
 int cfe_cons_handle;

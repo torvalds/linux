@@ -98,16 +98,16 @@ extern unsigned long mips_machtype;
 struct boot_mem_map {
 	int nr_map;
 	struct boot_mem_map_entry {
-		phys_t addr;	/* start of memory segment */
-		phys_t size;	/* size of memory segment */
+		phys_addr_t addr;	/* start of memory segment */
+		phys_addr_t size;	/* size of memory segment */
 		long type;		/* type of memory segment */
 	} map[BOOT_MEM_MAP_MAX];
 };
 
 extern struct boot_mem_map boot_mem_map;
 
-extern void add_memory_region(phys_t start, phys_t size, long type);
-extern void detect_memory_region(phys_t start, phys_t sz_min,  phys_t sz_max);
+extern void add_memory_region(phys_addr_t start, phys_addr_t size, long type);
+extern void detect_memory_region(phys_addr_t start, phys_addr_t sz_min,  phys_addr_t sz_max);
 
 extern void prom_init(void);
 extern void prom_free_prom_memory(void);
