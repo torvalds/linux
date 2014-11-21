@@ -45,7 +45,6 @@ struct svc_pool_stats {
 struct svc_pool {
 	unsigned int		sp_id;	    	/* pool id; also node id on NUMA */
 	spinlock_t		sp_lock;	/* protects all fields */
-	struct list_head	sp_threads;	/* idle server threads */
 	struct list_head	sp_sockets;	/* pending sockets */
 	unsigned int		sp_nrthreads;	/* # of threads in pool */
 	struct list_head	sp_all_threads;	/* all server threads */
@@ -221,7 +220,6 @@ static inline void svc_putu32(struct kvec *iov, __be32 val)
  * processed.
  */
 struct svc_rqst {
-	struct list_head	rq_list;	/* idle list */
 	struct list_head	rq_all;		/* all threads list */
 	struct rcu_head		rq_rcu_head;	/* for RCU deferred kfree */
 	struct svc_xprt *	rq_xprt;	/* transport ptr */
@@ -264,6 +262,7 @@ struct svc_rqst {
 						 * to prevent encrypting page
 						 * cache pages */
 #define	RQ_VICTIM	(5)			/* about to be shut down */
+#define	RQ_BUSY		(6)			/* request is busy */
 	unsigned long		rq_flags;	/* flags field */
 
 	void *			rq_argp;	/* decoded arguments */
@@ -285,6 +284,7 @@ struct svc_rqst {
 	struct auth_domain *	rq_gssclient;	/* "gss/"-style peer info */
 	struct svc_cacherep *	rq_cacherep;	/* cache info */
 	struct task_struct	*rq_task;	/* service thread */
+	spinlock_t		rq_lock;	/* per-request lock */
 };
 
 #define SVC_NET(svc_rqst)	(svc_rqst->rq_xprt->xpt_net)

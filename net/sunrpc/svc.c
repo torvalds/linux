@@ -476,7 +476,6 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 				i, serv->sv_name);
 
 		pool->sp_id = i;
-		INIT_LIST_HEAD(&pool->sp_threads);
 		INIT_LIST_HEAD(&pool->sp_sockets);
 		INIT_LIST_HEAD(&pool->sp_all_threads);
 		spin_lock_init(&pool->sp_lock);
@@ -614,12 +613,14 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 		goto out_enomem;
 
 	serv->sv_nrthreads++;
+	__set_bit(RQ_BUSY, &rqstp->rq_flags);
+	spin_lock_init(&rqstp->rq_lock);
+	rqstp->rq_server = serv;
+	rqstp->rq_pool = pool;
 	spin_lock_bh(&pool->sp_lock);
 	pool->sp_nrthreads++;
 	list_add_rcu(&rqstp->rq_all, &pool->sp_all_threads);
 	spin_unlock_bh(&pool->sp_lock);
-	rqstp->rq_server = serv;
-	rqstp->rq_pool = pool;
 
 	rqstp->rq_argp = kmalloc_node(serv->sv_xdrsize, GFP_KERNEL, node);
 	if (!rqstp->rq_argp)

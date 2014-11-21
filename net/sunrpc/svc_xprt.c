@@ -310,25 +310,6 @@ char *svc_print_addr(struct svc_rqst *rqstp, char *buf, size_t len)
 }
 EXPORT_SYMBOL_GPL(svc_print_addr);
 
-/*
- * Queue up an idle server thread.  Must have pool->sp_lock held.
- * Note: this is really a stack rather than a queue, so that we only
- * use as many different threads as we need, and the rest don't pollute
- * the cache.
- */
-static void svc_thread_enqueue(struct svc_pool *pool, struct svc_rqst *rqstp)
-{
-	list_add(&rqstp->rq_list, &pool->sp_threads);
-}
-
-/*
- * Dequeue an nfsd thread.  Must have pool->sp_lock held.
- */
-static void svc_thread_dequeue(struct svc_pool *pool, struct svc_rqst *rqstp)
-{
-	list_del(&rqstp->rq_list);
-}
-
 static bool svc_xprt_has_something_to_do(struct svc_xprt *xprt)
 {
 	if (xprt->xpt_flags & ((1<<XPT_CONN)|(1<<XPT_CLOSE)))
@@ -343,6 +324,7 @@ static void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 	struct svc_pool *pool;
 	struct svc_rqst	*rqstp;
 	int cpu;
+	bool queued = false;
 
 	if (!svc_xprt_has_something_to_do(xprt))
 		return;
@@ -360,37 +342,60 @@ static void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 
 	cpu = get_cpu();
 	pool = svc_pool_for_cpu(xprt->xpt_server, cpu);
-	spin_lock_bh(&pool->sp_lock);
 
 	atomic_long_inc(&pool->sp_stats.packets);
 
-	if (!list_empty(&pool->sp_threads)) {
-		rqstp = list_entry(pool->sp_threads.next,
-				   struct svc_rqst,
-				   rq_list);
-		dprintk("svc: transport %p served by daemon %p\n",
-			xprt, rqstp);
-		svc_thread_dequeue(pool, rqstp);
-		if (rqstp->rq_xprt)
-			printk(KERN_ERR
-				"svc_xprt_enqueue: server %p, rq_xprt=%p!\n",
-				rqstp, rqstp->rq_xprt);
-		/* Note the order of the following 3 lines:
-		 * We want to assign xprt to rqstp->rq_xprt only _after_
-		 * we've woken up the process, so that we don't race with
-		 * the lockless check in svc_get_next_xprt().
+redo_search:
+	/* find a thread for this xprt */
+	rcu_read_lock();
+	list_for_each_entry_rcu(rqstp, &pool->sp_all_threads, rq_all) {
+		/* Do a lockless check first */
+		if (test_bit(RQ_BUSY, &rqstp->rq_flags))
+			continue;
+
+		/*
+		 * Once the xprt has been queued, it can only be dequeued by
+		 * the task that intends to service it. All we can do at that
+		 * point is to try to wake this thread back up so that it can
+		 * do so.
 		 */
-		svc_xprt_get(xprt);
-		wake_up_process(rqstp->rq_task);
-		rqstp->rq_xprt = xprt;
+		if (!queued) {
+			spin_lock_bh(&rqstp->rq_lock);
+			if (test_and_set_bit(RQ_BUSY, &rqstp->rq_flags)) {
+				/* already busy, move on... */
+				spin_unlock_bh(&rqstp->rq_lock);
+				continue;
+			}
+
+			/* this one will do */
+			rqstp->rq_xprt = xprt;
+			svc_xprt_get(xprt);
+			spin_unlock_bh(&rqstp->rq_lock);
+		}
+		rcu_read_unlock();
+
 		atomic_long_inc(&pool->sp_stats.threads_woken);
-	} else {
+		wake_up_process(rqstp->rq_task);
+		put_cpu();
+		return;
+	}
+	rcu_read_unlock();
+
+	/*
+	 * We didn't find an idle thread to use, so we need to queue the xprt.
+	 * Do so and then search again. If we find one, we can't hook this one
+	 * up to it directly but we can wake the thread up in the hopes that it
+	 * will pick it up once it searches for a xprt to service.
+	 */
+	if (!queued) {
+		queued = true;
 		dprintk("svc: transport %p put into queue\n", xprt);
+		spin_lock_bh(&pool->sp_lock);
 		list_add_tail(&xprt->xpt_ready, &pool->sp_sockets);
 		pool->sp_stats.sockets_queued++;
+		spin_unlock_bh(&pool->sp_lock);
+		goto redo_search;
 	}
-
-	spin_unlock_bh(&pool->sp_lock);
 	put_cpu();
 }
 
@@ -408,21 +413,26 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 EXPORT_SYMBOL_GPL(svc_xprt_enqueue);
 
 /*
- * Dequeue the first transport.  Must be called with the pool->sp_lock held.
+ * Dequeue the first transport, if there is one.
  */
 static struct svc_xprt *svc_xprt_dequeue(struct svc_pool *pool)
 {
-	struct svc_xprt	*xprt;
+	struct svc_xprt	*xprt = NULL;
 
 	if (list_empty(&pool->sp_sockets))
 		return NULL;
 
-	xprt = list_entry(pool->sp_sockets.next,
-			  struct svc_xprt, xpt_ready);
-	list_del_init(&xprt->xpt_ready);
+	spin_lock_bh(&pool->sp_lock);
+	if (likely(!list_empty(&pool->sp_sockets))) {
+		xprt = list_first_entry(&pool->sp_sockets,
+					struct svc_xprt, xpt_ready);
+		list_del_init(&xprt->xpt_ready);
+		svc_xprt_get(xprt);
 
-	dprintk("svc: transport %p dequeued, inuse=%d\n",
-		xprt, atomic_read(&xprt->xpt_ref.refcount));
+		dprintk("svc: transport %p dequeued, inuse=%d\n",
+			xprt, atomic_read(&xprt->xpt_ref.refcount));
+	}
+	spin_unlock_bh(&pool->sp_lock);
 
 	return xprt;
 }
@@ -497,16 +507,21 @@ void svc_wake_up(struct svc_serv *serv)
 
 	pool = &serv->sv_pools[0];
 
-	spin_lock_bh(&pool->sp_lock);
-	if (!list_empty(&pool->sp_threads)) {
-		rqstp = list_entry(pool->sp_threads.next,
-				   struct svc_rqst,
-				   rq_list);
+	rcu_read_lock();
+	list_for_each_entry_rcu(rqstp, &pool->sp_all_threads, rq_all) {
+		/* skip any that aren't queued */
+		if (test_bit(RQ_BUSY, &rqstp->rq_flags))
+			continue;
+		rcu_read_unlock();
 		dprintk("svc: daemon %p woken up.\n", rqstp);
 		wake_up_process(rqstp->rq_task);
-	} else
-		set_bit(SP_TASK_PENDING, &pool->sp_flags);
-	spin_unlock_bh(&pool->sp_lock);
+		return;
+	}
+	rcu_read_unlock();
+
+	/* No free entries available */
+	set_bit(SP_TASK_PENDING, &pool->sp_flags);
+	smp_wmb();
 }
 EXPORT_SYMBOL_GPL(svc_wake_up);
 
@@ -617,22 +632,47 @@ static int svc_alloc_arg(struct svc_rqst *rqstp)
 	return 0;
 }
 
+static bool
+rqst_should_sleep(struct svc_rqst *rqstp)
+{
+	struct svc_pool		*pool = rqstp->rq_pool;
+
+	/* did someone call svc_wake_up? */
+	if (test_and_clear_bit(SP_TASK_PENDING, &pool->sp_flags))
+		return false;
+
+	/* was a socket queued? */
+	if (!list_empty(&pool->sp_sockets))
+		return false;
+
+	/* are we shutting down? */
+	if (signalled() || kthread_should_stop())
+		return false;
+
+	/* are we freezing? */
+	if (freezing(current))
+		return false;
+
+	return true;
+}
+
 static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 {
 	struct svc_xprt *xprt;
 	struct svc_pool		*pool = rqstp->rq_pool;
 	long			time_left = 0;
 
+	/* rq_xprt should be clear on entry */
+	WARN_ON_ONCE(rqstp->rq_xprt);
+
 	/* Normally we will wait up to 5 seconds for any required
 	 * cache information to be provided.
 	 */
 	rqstp->rq_chandle.thread_wait = 5*HZ;
 
-	spin_lock_bh(&pool->sp_lock);
 	xprt = svc_xprt_dequeue(pool);
 	if (xprt) {
 		rqstp->rq_xprt = xprt;
-		svc_xprt_get(xprt);
 
 		/* As there is a shortage of threads and this request
 		 * had to be queued, don't allow the thread to wait so
@@ -640,51 +680,38 @@ static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp, long timeout)
 		 */
 		rqstp->rq_chandle.thread_wait = 1*HZ;
 		clear_bit(SP_TASK_PENDING, &pool->sp_flags);
-	} else {
-		if (test_and_clear_bit(SP_TASK_PENDING, &pool->sp_flags)) {
-			xprt = ERR_PTR(-EAGAIN);
-			goto out;
-		}
-		/*
-		 * We have to be able to interrupt this wait
-		 * to bring down the daemons ...
-		 */
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		/* No data pending. Go to sleep */
-		svc_thread_enqueue(pool, rqstp);
-		spin_unlock_bh(&pool->sp_lock);
-
-		if (!(signalled() || kthread_should_stop())) {
-			time_left = schedule_timeout(timeout);
-			__set_current_state(TASK_RUNNING);
-
-			try_to_freeze();
-
-			xprt = rqstp->rq_xprt;
-			if (xprt != NULL)
-				return xprt;
-		} else
-			__set_current_state(TASK_RUNNING);
-
-		spin_lock_bh(&pool->sp_lock);
-		if (!time_left)
-			atomic_long_inc(&pool->sp_stats.threads_timedout);
-
-		xprt = rqstp->rq_xprt;
-		if (!xprt) {
-			svc_thread_dequeue(pool, rqstp);
-			spin_unlock_bh(&pool->sp_lock);
-			dprintk("svc: server %p, no data yet\n", rqstp);
-			if (signalled() || kthread_should_stop())
-				return ERR_PTR(-EINTR);
-			else
-				return ERR_PTR(-EAGAIN);
-		}
+		return xprt;
 	}
-out:
-	spin_unlock_bh(&pool->sp_lock);
-	return xprt;
+
+	/*
+	 * We have to be able to interrupt this wait
+	 * to bring down the daemons ...
+	 */
+	set_current_state(TASK_INTERRUPTIBLE);
+	clear_bit(RQ_BUSY, &rqstp->rq_flags);
+	smp_mb();
+
+	if (likely(rqst_should_sleep(rqstp)))
+		time_left = schedule_timeout(timeout);
+	else
+		__set_current_state(TASK_RUNNING);
+
+	try_to_freeze();
+
+	spin_lock_bh(&rqstp->rq_lock);
+	set_bit(RQ_BUSY, &rqstp->rq_flags);
+	spin_unlock_bh(&rqstp->rq_lock);
+
+	xprt = rqstp->rq_xprt;
+	if (xprt != NULL)
+		return xprt;
+
+	if (!time_left)
+		atomic_long_inc(&pool->sp_stats.threads_timedout);
+
+	if (signalled() || kthread_should_stop())
+		return ERR_PTR(-EINTR);
+	return ERR_PTR(-EAGAIN);
 }
 
 static void svc_add_new_temp_xprt(struct svc_serv *serv, struct svc_xprt *newxpt)
