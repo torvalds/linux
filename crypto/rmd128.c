@@ -327,3 +327,4 @@ module_exit(rmd128_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Adrian-Ken Rueegsegger <ken@codelabs.ch>");
 MODULE_DESCRIPTION("RIPEMD-128 Message Digest");
+MODULE_ALIAS_CRYPTO("rmd128");

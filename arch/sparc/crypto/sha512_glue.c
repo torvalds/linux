@@ -222,7 +222,7 @@ module_exit(sha512_sparc64_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA-384 and SHA-512 Secure Hash Algorithm, sparc64 sha512 opcode accelerated");
 
-MODULE_ALIAS("sha384");
-MODULE_ALIAS("sha512");
+MODULE_ALIAS_CRYPTO("sha384");
+MODULE_ALIAS_CRYPTO("sha512");
 
 #include "crop_devid.c"

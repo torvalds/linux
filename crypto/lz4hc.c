@@ -104,3 +104,4 @@ module_exit(lz4hc_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("LZ4HC Compression Algorithm");
+MODULE_ALIAS_CRYPTO("lz4hc");
