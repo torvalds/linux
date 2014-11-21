@@ -443,20 +443,20 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	u32 params[7], vals[7];
 	int v;
 
-	params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ(SGE_CONTROL));
-	params[1] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ(SGE_HOST_PAGE_SIZE));
-	params[2] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ(SGE_FL_BUFFER_SIZE0));
-	params[3] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ(SGE_FL_BUFFER_SIZE1));
-	params[4] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ(SGE_TIMER_VALUE_0_AND_1));
-	params[5] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ(SGE_TIMER_VALUE_2_AND_3));
-	params[6] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ(SGE_TIMER_VALUE_4_AND_5));
+	params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ_V(SGE_CONTROL));
+	params[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ_V(SGE_HOST_PAGE_SIZE));
+	params[2] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ_V(SGE_FL_BUFFER_SIZE0));
+	params[3] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ_V(SGE_FL_BUFFER_SIZE1));
+	params[4] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ_V(SGE_TIMER_VALUE_0_AND_1));
+	params[5] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ_V(SGE_TIMER_VALUE_2_AND_3));
+	params[6] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ_V(SGE_TIMER_VALUE_4_AND_5));
 	v = t4vf_query_params(adapter, 7, params, vals);
 	if (v)
 		return v;
@@ -479,8 +479,8 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	 * right value.
 	 */
 	if (!is_t4(adapter->params.chip)) {
-		params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
-			     FW_PARAMS_PARAM_XYZ(SGE_CONTROL2_A));
+		params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+			     FW_PARAMS_PARAM_XYZ_V(SGE_CONTROL2_A));
 		v = t4vf_query_params(adapter, 1, params, vals);
 		if (v != FW_SUCCESS) {
 			dev_err(adapter->pdev_dev,
@@ -491,10 +491,10 @@ int t4vf_get_sge_params(struct adapter *adapter)
 		sge_params->sge_control2 = vals[0];
 	}
 
-	params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ(SGE_INGRESS_RX_THRESHOLD));
-	params[1] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ(SGE_CONM_CTRL));
+	params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ_V(SGE_INGRESS_RX_THRESHOLD));
+	params[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+		     FW_PARAMS_PARAM_XYZ_V(SGE_CONM_CTRL));
 	v = t4vf_query_params(adapter, 2, params, vals);
 	if (v)
 		return v;
@@ -517,8 +517,8 @@ int t4vf_get_vpd_params(struct adapter *adapter)
 	u32 params[7], vals[7];
 	int v;
 
-	params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-		     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CCLK));
+	params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		     FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_CCLK));
 	v = t4vf_query_params(adapter, 1, params, vals);
 	if (v)
 		return v;
@@ -540,10 +540,10 @@ int t4vf_get_dev_params(struct adapter *adapter)
 	u32 params[7], vals[7];
 	int v;
 
-	params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-		     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_FWREV));
-	params[1] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-		     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_TPREV));
+	params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		     FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_FWREV));
+	params[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		     FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_TPREV));
 	v = t4vf_query_params(adapter, 2, params, vals);
 	if (v)
 		return v;
@@ -659,22 +659,22 @@ int t4vf_get_vfres(struct adapter *adapter)
 	 * Extract VF resource limits and return success.
 	 */
 	word = be32_to_cpu(rpl.niqflint_niq);
-	vfres->niqflint = FW_PFVF_CMD_NIQFLINT_GET(word);
-	vfres->niq = FW_PFVF_CMD_NIQ_GET(word);
+	vfres->niqflint = FW_PFVF_CMD_NIQFLINT_G(word);
+	vfres->niq = FW_PFVF_CMD_NIQ_G(word);
 
 	word = be32_to_cpu(rpl.type_to_neq);
-	vfres->neq = FW_PFVF_CMD_NEQ_GET(word);
-	vfres->pmask = FW_PFVF_CMD_PMASK_GET(word);
+	vfres->neq = FW_PFVF_CMD_NEQ_G(word);
+	vfres->pmask = FW_PFVF_CMD_PMASK_G(word);
 
 	word = be32_to_cpu(rpl.tc_to_nexactf);
-	vfres->tc = FW_PFVF_CMD_TC_GET(word);
-	vfres->nvi = FW_PFVF_CMD_NVI_GET(word);
-	vfres->nexactf = FW_PFVF_CMD_NEXACTF_GET(word);
+	vfres->tc = FW_PFVF_CMD_TC_G(word);
+	vfres->nvi = FW_PFVF_CMD_NVI_G(word);
+	vfres->nexactf = FW_PFVF_CMD_NEXACTF_G(word);
 
 	word = be32_to_cpu(rpl.r_caps_to_nethctrl);
-	vfres->r_caps = FW_PFVF_CMD_R_CAPS_GET(word);
-	vfres->wx_caps = FW_PFVF_CMD_WX_CAPS_GET(word);
-	vfres->nethctrl = FW_PFVF_CMD_NETHCTRL_GET(word);
+	vfres->r_caps = FW_PFVF_CMD_R_CAPS_G(word);
+	vfres->wx_caps = FW_PFVF_CMD_WX_CAPS_G(word);
+	vfres->nethctrl = FW_PFVF_CMD_NETHCTRL_G(word);
 
 	return 0;
 }

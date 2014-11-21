@@ -761,7 +761,8 @@ enum fw_ldst_func_mod_index {
 
 struct fw_ldst_cmd {
 	__be32 op_to_addrspace;
-#define FW_LDST_CMD_ADDRSPACE(x) ((x) << 0)
+#define FW_LDST_CMD_ADDRSPACE_S		0
+#define FW_LDST_CMD_ADDRSPACE_V(x)	((x) << FW_LDST_CMD_ADDRSPACE_S)
 	__be32 cycles_to_len16;
 	union fw_ldst {
 		struct fw_ldst_addrval {
@@ -817,15 +818,33 @@ struct fw_ldst_cmd {
 	} u;
 };
 
-#define FW_LDST_CMD_MSG(x)	((x) << 31)
-#define FW_LDST_CMD_PADDR(x)	((x) << 8)
-#define FW_LDST_CMD_MMD(x)	((x) << 0)
-#define FW_LDST_CMD_FID(x)	((x) << 15)
-#define FW_LDST_CMD_CTL(x)	((x) << 0)
-#define FW_LDST_CMD_RPLCPF(x)	((x) << 0)
-#define FW_LDST_CMD_LC		(1U << 4)
-#define FW_LDST_CMD_NACCESS(x)	((x) << 0)
-#define FW_LDST_CMD_FN(x)	((x) << 0)
+#define FW_LDST_CMD_MSG_S       31
+#define FW_LDST_CMD_MSG_V(x)	((x) << FW_LDST_CMD_MSG_S)
+
+#define FW_LDST_CMD_PADDR_S     8
+#define FW_LDST_CMD_PADDR_V(x)	((x) << FW_LDST_CMD_PADDR_S)
+
+#define FW_LDST_CMD_MMD_S       0
+#define FW_LDST_CMD_MMD_V(x)	((x) << FW_LDST_CMD_MMD_S)
+
+#define FW_LDST_CMD_FID_S       15
+#define FW_LDST_CMD_FID_V(x)	((x) << FW_LDST_CMD_FID_S)
+
+#define FW_LDST_CMD_CTL_S       0
+#define FW_LDST_CMD_CTL_V(x)	((x) << FW_LDST_CMD_CTL_S)
+
+#define FW_LDST_CMD_RPLCPF_S    0
+#define FW_LDST_CMD_RPLCPF_V(x)	((x) << FW_LDST_CMD_RPLCPF_S)
+
+#define FW_LDST_CMD_LC_S        4
+#define FW_LDST_CMD_LC_V(x)     ((x) << FW_LDST_CMD_LC_S)
+#define FW_LDST_CMD_LC_F	FW_LDST_CMD_LC_V(1U)
+
+#define FW_LDST_CMD_FN_S        0
+#define FW_LDST_CMD_FN_V(x)	((x) << FW_LDST_CMD_FN_S)
+
+#define FW_LDST_CMD_NACCESS_S           0
+#define FW_LDST_CMD_NACCESS_V(x)	((x) << FW_LDST_CMD_NACCESS_S)
 
 struct fw_reset_cmd {
 	__be32 op_to_write;
@@ -834,11 +853,12 @@ struct fw_reset_cmd {
 	__be32 halt_pkd;
 };
 
-#define FW_RESET_CMD_HALT_SHIFT    31
-#define FW_RESET_CMD_HALT_MASK     0x1
-#define FW_RESET_CMD_HALT(x)       ((x) << FW_RESET_CMD_HALT_SHIFT)
-#define FW_RESET_CMD_HALT_GET(x)  \
-	(((x) >> FW_RESET_CMD_HALT_SHIFT) & FW_RESET_CMD_HALT_MASK)
+#define FW_RESET_CMD_HALT_S	31
+#define FW_RESET_CMD_HALT_M     0x1
+#define FW_RESET_CMD_HALT_V(x)	((x) << FW_RESET_CMD_HALT_S)
+#define FW_RESET_CMD_HALT_G(x)  \
+	(((x) >> FW_RESET_CMD_HALT_S) & FW_RESET_CMD_HALT_M)
+#define FW_RESET_CMD_HALT_F	FW_RESET_CMD_HALT_V(1U)
 
 enum fw_hellow_cmd {
 	fw_hello_cmd_stage_os		= 0x0
@@ -848,21 +868,41 @@ struct fw_hello_cmd {
 	__be32 op_to_write;
 	__be32 retval_len16;
 	__be32 err_to_clearinit;
-#define FW_HELLO_CMD_ERR	    (1U << 31)
-#define FW_HELLO_CMD_INIT	    (1U << 30)
-#define FW_HELLO_CMD_MASTERDIS(x)   ((x) << 29)
-#define FW_HELLO_CMD_MASTERFORCE(x) ((x) << 28)
-#define FW_HELLO_CMD_MBMASTER_MASK   0xfU
-#define FW_HELLO_CMD_MBMASTER_SHIFT  24
-#define FW_HELLO_CMD_MBMASTER(x)     ((x) << FW_HELLO_CMD_MBMASTER_SHIFT)
-#define FW_HELLO_CMD_MBMASTER_GET(x) \
-	(((x) >> FW_HELLO_CMD_MBMASTER_SHIFT) & FW_HELLO_CMD_MBMASTER_MASK)
-#define FW_HELLO_CMD_MBASYNCNOTINT(x)	((x) << 23)
-#define FW_HELLO_CMD_MBASYNCNOT(x)  ((x) << 20)
-#define FW_HELLO_CMD_STAGE(x)       ((x) << 17)
-#define FW_HELLO_CMD_CLEARINIT      (1U << 16)
 	__be32 fwrev;
 };
+
+#define FW_HELLO_CMD_ERR_S      31
+#define FW_HELLO_CMD_ERR_V(x)   ((x) << FW_HELLO_CMD_ERR_S)
+#define FW_HELLO_CMD_ERR_F	FW_HELLO_CMD_ERR_V(1U)
+
+#define FW_HELLO_CMD_INIT_S     30
+#define FW_HELLO_CMD_INIT_V(x)  ((x) << FW_HELLO_CMD_INIT_S)
+#define FW_HELLO_CMD_INIT_F	FW_HELLO_CMD_INIT_V(1U)
+
+#define FW_HELLO_CMD_MASTERDIS_S	29
+#define FW_HELLO_CMD_MASTERDIS_V(x)	((x) << FW_HELLO_CMD_MASTERDIS_S)
+
+#define FW_HELLO_CMD_MASTERFORCE_S      28
+#define FW_HELLO_CMD_MASTERFORCE_V(x)	((x) << FW_HELLO_CMD_MASTERFORCE_S)
+
+#define FW_HELLO_CMD_MBMASTER_S		24
+#define FW_HELLO_CMD_MBMASTER_M		0xfU
+#define FW_HELLO_CMD_MBMASTER_V(x)	((x) << FW_HELLO_CMD_MBMASTER_S)
+#define FW_HELLO_CMD_MBMASTER_G(x)	\
+	(((x) >> FW_HELLO_CMD_MBMASTER_S) & FW_HELLO_CMD_MBMASTER_M)
+
+#define FW_HELLO_CMD_MBASYNCNOTINT_S    23
+#define FW_HELLO_CMD_MBASYNCNOTINT_V(x)	((x) << FW_HELLO_CMD_MBASYNCNOTINT_S)
+
+#define FW_HELLO_CMD_MBASYNCNOT_S       20
+#define FW_HELLO_CMD_MBASYNCNOT_V(x)	((x) << FW_HELLO_CMD_MBASYNCNOT_S)
+
+#define FW_HELLO_CMD_STAGE_S		17
+#define FW_HELLO_CMD_STAGE_V(x)		((x) << FW_HELLO_CMD_STAGE_S)
+
+#define FW_HELLO_CMD_CLEARINIT_S        16
+#define FW_HELLO_CMD_CLEARINIT_V(x)     ((x) << FW_HELLO_CMD_CLEARINIT_S)
+#define FW_HELLO_CMD_CLEARINIT_F	FW_HELLO_CMD_CLEARINIT_V(1U)
 
 struct fw_bye_cmd {
 	__be32 op_to_write;
@@ -974,9 +1014,17 @@ struct fw_caps_config_cmd {
 	__be32 finicsum;
 };
 
-#define FW_CAPS_CONFIG_CMD_CFVALID          (1U << 27)
-#define FW_CAPS_CONFIG_CMD_MEMTYPE_CF(x)    ((x) << 24)
-#define FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(x) ((x) << 16)
+#define FW_CAPS_CONFIG_CMD_CFVALID_S    27
+#define FW_CAPS_CONFIG_CMD_CFVALID_V(x) ((x) << FW_CAPS_CONFIG_CMD_CFVALID_S)
+#define FW_CAPS_CONFIG_CMD_CFVALID_F    FW_CAPS_CONFIG_CMD_CFVALID_V(1U)
+
+#define FW_CAPS_CONFIG_CMD_MEMTYPE_CF_S		24
+#define FW_CAPS_CONFIG_CMD_MEMTYPE_CF_V(x)	\
+	((x) << FW_CAPS_CONFIG_CMD_MEMTYPE_CF_S)
+
+#define FW_CAPS_CONFIG_CMD_MEMADDR64K_CF_S      16
+#define FW_CAPS_CONFIG_CMD_MEMADDR64K_CF_V(x)	\
+	((x) << FW_CAPS_CONFIG_CMD_MEMADDR64K_CF_S)
 
 /*
  * params command mnemonics
@@ -1072,20 +1120,29 @@ enum fw_params_param_dmaq {
 	FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH = 0x13,
 };
 
-#define FW_PARAMS_MNEM(x)      ((x) << 24)
-#define FW_PARAMS_PARAM_X(x)   ((x) << 16)
-#define FW_PARAMS_PARAM_Y_SHIFT  8
-#define FW_PARAMS_PARAM_Y_MASK   0xffU
-#define FW_PARAMS_PARAM_Y(x)     ((x) << FW_PARAMS_PARAM_Y_SHIFT)
-#define FW_PARAMS_PARAM_Y_GET(x) (((x) >> FW_PARAMS_PARAM_Y_SHIFT) &\
-		FW_PARAMS_PARAM_Y_MASK)
-#define FW_PARAMS_PARAM_Z_SHIFT  0
-#define FW_PARAMS_PARAM_Z_MASK   0xffu
-#define FW_PARAMS_PARAM_Z(x)     ((x) << FW_PARAMS_PARAM_Z_SHIFT)
-#define FW_PARAMS_PARAM_Z_GET(x) (((x) >> FW_PARAMS_PARAM_Z_SHIFT) &\
-		FW_PARAMS_PARAM_Z_MASK)
-#define FW_PARAMS_PARAM_XYZ(x) ((x) << 0)
-#define FW_PARAMS_PARAM_YZ(x)  ((x) << 0)
+#define FW_PARAMS_MNEM_S	24
+#define FW_PARAMS_MNEM_V(x)	((x) << FW_PARAMS_MNEM_S)
+
+#define FW_PARAMS_PARAM_X_S     16
+#define FW_PARAMS_PARAM_X_V(x)	((x) << FW_PARAMS_PARAM_X_S)
+
+#define FW_PARAMS_PARAM_Y_S	8
+#define FW_PARAMS_PARAM_Y_M	0xffU
+#define FW_PARAMS_PARAM_Y_V(x)	((x) << FW_PARAMS_PARAM_Y_S)
+#define FW_PARAMS_PARAM_Y_G(x)	(((x) >> FW_PARAMS_PARAM_Y_S) &\
+		FW_PARAMS_PARAM_Y_M)
+
+#define FW_PARAMS_PARAM_Z_S	0
+#define FW_PARAMS_PARAM_Z_M	0xffu
+#define FW_PARAMS_PARAM_Z_V(x)	((x) << FW_PARAMS_PARAM_Z_S)
+#define FW_PARAMS_PARAM_Z_G(x)	(((x) >> FW_PARAMS_PARAM_Z_S) &\
+		FW_PARAMS_PARAM_Z_M)
+
+#define FW_PARAMS_PARAM_XYZ_S		0
+#define FW_PARAMS_PARAM_XYZ_V(x)	((x) << FW_PARAMS_PARAM_XYZ_S)
+
+#define FW_PARAMS_PARAM_YZ_S		0
+#define FW_PARAMS_PARAM_YZ_V(x)		((x) << FW_PARAMS_PARAM_YZ_S)
 
 struct fw_params_cmd {
 	__be32 op_to_vfn;
@@ -1096,8 +1153,11 @@ struct fw_params_cmd {
 	} param[7];
 };
 
-#define FW_PARAMS_CMD_PFN(x) ((x) << 8)
-#define FW_PARAMS_CMD_VFN(x) ((x) << 0)
+#define FW_PARAMS_CMD_PFN_S     8
+#define FW_PARAMS_CMD_PFN_V(x)	((x) << FW_PARAMS_CMD_PFN_S)
+
+#define FW_PARAMS_CMD_VFN_S     0
+#define FW_PARAMS_CMD_VFN_V(x)	((x) << FW_PARAMS_CMD_VFN_S)
 
 struct fw_pfvf_cmd {
 	__be32 op_to_vfn;
@@ -1111,46 +1171,82 @@ struct fw_pfvf_cmd {
 	__be32 r4;
 };
 
-#define FW_PFVF_CMD_PFN(x) ((x) << 8)
-#define FW_PFVF_CMD_VFN(x) ((x) << 0)
+#define FW_PFVF_CMD_PFN_S	8
+#define FW_PFVF_CMD_PFN_V(x)	((x) << FW_PFVF_CMD_PFN_S)
 
-#define FW_PFVF_CMD_NIQFLINT(x) ((x) << 20)
-#define FW_PFVF_CMD_NIQFLINT_GET(x) (((x) >> 20) & 0xfff)
+#define FW_PFVF_CMD_VFN_S       0
+#define FW_PFVF_CMD_VFN_V(x)	((x) << FW_PFVF_CMD_VFN_S)
 
-#define FW_PFVF_CMD_NIQ(x) ((x) << 0)
-#define FW_PFVF_CMD_NIQ_GET(x) (((x) >> 0) & 0xfffff)
+#define FW_PFVF_CMD_NIQFLINT_S          20
+#define FW_PFVF_CMD_NIQFLINT_M          0xfff
+#define FW_PFVF_CMD_NIQFLINT_V(x)	((x) << FW_PFVF_CMD_NIQFLINT_S)
+#define FW_PFVF_CMD_NIQFLINT_G(x)	\
+	(((x) >> FW_PFVF_CMD_NIQFLINT_S) & FW_PFVF_CMD_NIQFLINT_M)
 
-#define FW_PFVF_CMD_TYPE (1 << 31)
-#define FW_PFVF_CMD_TYPE_GET(x) (((x) >> 31) & 0x1)
+#define FW_PFVF_CMD_NIQ_S       0
+#define FW_PFVF_CMD_NIQ_M       0xfffff
+#define FW_PFVF_CMD_NIQ_V(x)	((x) << FW_PFVF_CMD_NIQ_S)
+#define FW_PFVF_CMD_NIQ_G(x)	\
+	(((x) >> FW_PFVF_CMD_NIQ_S) & FW_PFVF_CMD_NIQ_M)
 
-#define FW_PFVF_CMD_CMASK(x) ((x) << 24)
-#define FW_PFVF_CMD_CMASK_MASK 0xf
-#define FW_PFVF_CMD_CMASK_GET(x) (((x) >> 24) & FW_PFVF_CMD_CMASK_MASK)
+#define FW_PFVF_CMD_TYPE_S      31
+#define FW_PFVF_CMD_TYPE_M      0x1
+#define FW_PFVF_CMD_TYPE_V(x)   ((x) << FW_PFVF_CMD_TYPE_S)
+#define FW_PFVF_CMD_TYPE_G(x)	\
+	(((x) >> FW_PFVF_CMD_TYPE_S) & FW_PFVF_CMD_TYPE_M)
+#define FW_PFVF_CMD_TYPE_F      FW_PFVF_CMD_TYPE_V(1U)
 
-#define FW_PFVF_CMD_PMASK(x) ((x) << 20)
-#define FW_PFVF_CMD_PMASK_MASK 0xf
-#define FW_PFVF_CMD_PMASK_GET(x) (((x) >> 20) & FW_PFVF_CMD_PMASK_MASK)
+#define FW_PFVF_CMD_CMASK_S     24
+#define FW_PFVF_CMD_CMASK_M	0xf
+#define FW_PFVF_CMD_CMASK_V(x)	((x) << FW_PFVF_CMD_CMASK_S)
+#define FW_PFVF_CMD_CMASK_G(x)	\
+	(((x) >> FW_PFVF_CMD_CMASK_S) & FW_PFVF_CMD_CMASK_M)
 
-#define FW_PFVF_CMD_NEQ(x) ((x) << 0)
-#define FW_PFVF_CMD_NEQ_GET(x) (((x) >> 0) & 0xfffff)
+#define FW_PFVF_CMD_PMASK_S     20
+#define FW_PFVF_CMD_PMASK_M	0xf
+#define FW_PFVF_CMD_PMASK_V(x)	((x) << FW_PFVF_CMD_PMASK_S)
+#define FW_PFVF_CMD_PMASK_G(x) \
+	(((x) >> FW_PFVF_CMD_PMASK_S) & FW_PFVF_CMD_PMASK_M)
 
-#define FW_PFVF_CMD_TC(x) ((x) << 24)
-#define FW_PFVF_CMD_TC_GET(x) (((x) >> 24) & 0xff)
+#define FW_PFVF_CMD_NEQ_S       0
+#define FW_PFVF_CMD_NEQ_M       0xfffff
+#define FW_PFVF_CMD_NEQ_V(x)	((x) << FW_PFVF_CMD_NEQ_S)
+#define FW_PFVF_CMD_NEQ_G(x)	\
+	(((x) >> FW_PFVF_CMD_NEQ_S) & FW_PFVF_CMD_NEQ_M)
 
-#define FW_PFVF_CMD_NVI(x) ((x) << 16)
-#define FW_PFVF_CMD_NVI_GET(x) (((x) >> 16) & 0xff)
+#define FW_PFVF_CMD_TC_S        24
+#define FW_PFVF_CMD_TC_M        0xff
+#define FW_PFVF_CMD_TC_V(x)	((x) << FW_PFVF_CMD_TC_S)
+#define FW_PFVF_CMD_TC_G(x)	(((x) >> FW_PFVF_CMD_TC_S) & FW_PFVF_CMD_TC_M)
 
-#define FW_PFVF_CMD_NEXACTF(x) ((x) << 0)
-#define FW_PFVF_CMD_NEXACTF_GET(x) (((x) >> 0) & 0xffff)
+#define FW_PFVF_CMD_NVI_S       16
+#define FW_PFVF_CMD_NVI_M       0xff
+#define FW_PFVF_CMD_NVI_V(x)	((x) << FW_PFVF_CMD_NVI_S)
+#define FW_PFVF_CMD_NVI_G(x)	(((x) >> FW_PFVF_CMD_NVI_S) & FW_PFVF_CMD_NVI_M)
 
-#define FW_PFVF_CMD_R_CAPS(x) ((x) << 24)
-#define FW_PFVF_CMD_R_CAPS_GET(x) (((x) >> 24) & 0xff)
+#define FW_PFVF_CMD_NEXACTF_S           0
+#define FW_PFVF_CMD_NEXACTF_M           0xffff
+#define FW_PFVF_CMD_NEXACTF_V(x)	((x) << FW_PFVF_CMD_NEXACTF_S)
+#define FW_PFVF_CMD_NEXACTF_G(x)	\
+	(((x) >> FW_PFVF_CMD_NEXACTF_S) & FW_PFVF_CMD_NEXACTF_M)
 
-#define FW_PFVF_CMD_WX_CAPS(x) ((x) << 16)
-#define FW_PFVF_CMD_WX_CAPS_GET(x) (((x) >> 16) & 0xff)
+#define FW_PFVF_CMD_R_CAPS_S    24
+#define FW_PFVF_CMD_R_CAPS_M    0xff
+#define FW_PFVF_CMD_R_CAPS_V(x) ((x) << FW_PFVF_CMD_R_CAPS_S)
+#define FW_PFVF_CMD_R_CAPS_G(x) \
+	(((x) >> FW_PFVF_CMD_R_CAPS_S) & FW_PFVF_CMD_R_CAPS_M)
 
-#define FW_PFVF_CMD_NETHCTRL(x) ((x) << 0)
-#define FW_PFVF_CMD_NETHCTRL_GET(x) (((x) >> 0) & 0xffff)
+#define FW_PFVF_CMD_WX_CAPS_S           16
+#define FW_PFVF_CMD_WX_CAPS_M           0xff
+#define FW_PFVF_CMD_WX_CAPS_V(x)	((x) << FW_PFVF_CMD_WX_CAPS_S)
+#define FW_PFVF_CMD_WX_CAPS_G(x)	\
+	(((x) >> FW_PFVF_CMD_WX_CAPS_S) & FW_PFVF_CMD_WX_CAPS_M)
+
+#define FW_PFVF_CMD_NETHCTRL_S          0
+#define FW_PFVF_CMD_NETHCTRL_M          0xffff
+#define FW_PFVF_CMD_NETHCTRL_V(x)	((x) << FW_PFVF_CMD_NETHCTRL_S)
+#define FW_PFVF_CMD_NETHCTRL_G(x)	\
+	(((x) >> FW_PFVF_CMD_NETHCTRL_S) & FW_PFVF_CMD_NETHCTRL_M)
 
 enum fw_iq_type {
 	FW_IQ_TYPE_FL_INT_CAP,

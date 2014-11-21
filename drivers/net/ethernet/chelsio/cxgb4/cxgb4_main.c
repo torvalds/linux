@@ -141,7 +141,7 @@ static unsigned int pfvfres_pmask(struct adapter *adapter,
 	 * Give PF's access to all of the ports.
 	 */
 	if (vf == 0)
-		return FW_PFVF_CMD_PMASK_MASK;
+		return FW_PFVF_CMD_PMASK_M;
 
 	/*
 	 * For VFs, we'll assign them access to the ports based purely on the
@@ -512,9 +512,10 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 		u32 name, value;
 		int err;
 
-		name = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-			FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH) |
-			FW_PARAMS_PARAM_YZ(txq->q.cntxt_id));
+		name = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			FW_PARAMS_PARAM_X_V(
+				FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH) |
+			FW_PARAMS_PARAM_YZ_V(txq->q.cntxt_id));
 		value = enable ? i : 0xffffffff;
 
 		/* Since we can be called while atomic (from "interrupt
@@ -2717,9 +2718,10 @@ static int set_rspq_intr_params(struct sge_rspq *q,
 		new_idx = closest_thres(&adap->sge, cnt);
 		if (q->desc && q->pktcnt_idx != new_idx) {
 			/* the queue has already been created, update it */
-			v = FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-			    FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_IQ_INTCNTTHRESH) |
-			    FW_PARAMS_PARAM_YZ(q->cntxt_id);
+			v = FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			    FW_PARAMS_PARAM_X_V(
+					FW_PARAMS_PARAM_DMAQ_IQ_INTCNTTHRESH) |
+			    FW_PARAMS_PARAM_YZ_V(q->cntxt_id);
 			err = t4_set_params(adap, adap->fn, adap->fn, 0, 1, &v,
 					    &new_idx);
 			if (err)
@@ -4870,11 +4872,11 @@ static u32 t4_read_pcie_cfg4(struct adapter *adap, int reg)
 		htonl(FW_CMD_OP_V(FW_LDST_CMD) |
 		      FW_CMD_REQUEST_F |
 		      FW_CMD_READ_F |
-		      FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FUNC_PCIE));
+		      FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_FUNC_PCIE));
 	ldst_cmd.cycles_to_len16 = htonl(FW_LEN16(ldst_cmd));
-	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS(1);
+	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS_V(1);
 	ldst_cmd.u.pcie.ctrl_to_fn =
-		(FW_LDST_CMD_LC | FW_LDST_CMD_FN(adap->fn));
+		(FW_LDST_CMD_LC_F | FW_LDST_CMD_FN_V(adap->fn));
 	ldst_cmd.u.pcie.r = reg;
 	ret = t4_wr_mbox(adap, adap->mbox, &ldst_cmd, sizeof(ldst_cmd),
 			 &ldst_cmd);
@@ -5148,8 +5150,8 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		if (cf->size >= FLASH_CFG_MAX_SIZE)
 			ret = -ENOMEM;
 		else {
-			params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-			     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
+			params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			     FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_CF));
 			ret = t4_query_params(adapter, adapter->mbox,
 					      adapter->fn, 0, 1, params, val);
 			if (ret == 0) {
@@ -5167,8 +5169,8 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 				size_t size = cf->size & ~0x3;
 				__be32 *data = (__be32 *)cf->data;
 
-				mtype = FW_PARAMS_PARAM_Y_GET(val[0]);
-				maddr = FW_PARAMS_PARAM_Z_GET(val[0]) << 16;
+				mtype = FW_PARAMS_PARAM_Y_G(val[0]);
+				maddr = FW_PARAMS_PARAM_Z_G(val[0]) << 16;
 
 				spin_lock(&adapter->win0_lock);
 				ret = t4_memory_rw(adapter, 0, mtype, maddr,
@@ -5209,9 +5211,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		      FW_CMD_REQUEST_F |
 		      FW_CMD_READ_F);
 	caps_cmd.cfvalid_to_len16 =
-		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
-		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
-		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) |
+		htonl(FW_CAPS_CONFIG_CMD_CFVALID_F |
+		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF_V(mtype) |
+		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF_V(maddr >> 16) |
 		      FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
@@ -5377,7 +5379,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 			  PFRES_NEQ, PFRES_NETHCTRL,
 			  PFRES_NIQFLINT, PFRES_NIQ,
 			  PFRES_TC, PFRES_NVI,
-			  FW_PFVF_CMD_CMASK_MASK,
+			  FW_PFVF_CMD_CMASK_M,
 			  pfvfres_pmask(adapter, adapter->fn, 0),
 			  PFRES_NEXACTF,
 			  PFRES_R_CAPS, PFRES_WX_CAPS);
@@ -5422,7 +5424,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 						  VFRES_NEQ, VFRES_NETHCTRL,
 						  VFRES_NIQFLINT, VFRES_NIQ,
 						  VFRES_TC, VFRES_NVI,
-						  FW_PFVF_CMD_CMASK_MASK,
+						  FW_PFVF_CMD_CMASK_M,
 						  pfvfres_pmask(
 						  adapter, pf, vf),
 						  VFRES_NEXACTF,
@@ -5686,8 +5688,8 @@ static int adap_init0(struct adapter *adap)
 	 * and portvec ...
 	 */
 	v =
-	    FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-	    FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_PORTVEC);
+	    FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+	    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PORTVEC);
 	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1, &v, &port_vec);
 	if (ret < 0)
 		goto bye;
@@ -5723,8 +5725,9 @@ static int adap_init0(struct adapter *adap)
 			 * Find out whether we're dealing with a version of
 			 * the firmware which has configuration file support.
 			 */
-			params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-				     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
+			params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+				     FW_PARAMS_PARAM_X_V(
+					     FW_PARAMS_PARAM_DEV_CF));
 			ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1,
 					      params, val);
 
@@ -5784,14 +5787,14 @@ static int adap_init0(struct adapter *adap)
 	 * Grab some of our basic fundamental operating parameters.
 	 */
 #define FW_PARAM_DEV(param) \
-	(FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) | \
-	FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_##param))
+	(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) | \
+	FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_##param))
 
 #define FW_PARAM_PFVF(param) \
-	FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) | \
-	FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_##param)|  \
-	FW_PARAMS_PARAM_Y(0) | \
-	FW_PARAMS_PARAM_Z(0)
+	FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) | \
+	FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_##param)|  \
+	FW_PARAMS_PARAM_Y_V(0) | \
+	FW_PARAMS_PARAM_Z_V(0)
 
 	params[0] = FW_PARAM_PFVF(EQ_START);
 	params[1] = FW_PARAM_PFVF(L2T_START);
