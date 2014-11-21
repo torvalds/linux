@@ -1548,7 +1548,7 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
                         gpio_val = gpio_get_value(gpio_cd);
                         msleep(10);
                         if (gpio_val == gpio_get_value(gpio_cd)) {
-                                gpio_cd = gpio_get_value(gpio_cd) == 0 ? 1 : 0;
+                                gpio_cd = (gpio_val == 0 ? 1 : 0);
                                 if (gpio_cd == 0) {
                                         /* Enable force_jtag wihtout card in slot, ONLY for NCD-package */
                                         grf_writel((0x1 << 24) | (1 << 8), RK312X_GRF_SOC_CON0);
@@ -2980,11 +2980,11 @@ static void dw_mci_work_routine_card(struct work_struct *work)
                 if (!(IS_ERR(host->pins_udbg)) && !(IS_ERR(host->pins_default))) {
                          if (present) {
                                 if (pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
-                                        dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
+                                        dev_err(host->dev, "%s: Default pinctrl setting failed!\n",
                                                 mmc_hostname(host->mmc));
                          } else {
                                 if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
-                                        dev_err(host->dev, "%s: Default pinctrl setting failed!\n",
+                                        dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
                                                 mmc_hostname(host->mmc));
                         }
                 }
@@ -4206,6 +4206,8 @@ EXPORT_SYMBOL(dw_mci_remove);
 extern int get_wifi_chip_type(void);
 int dw_mci_suspend(struct dw_mci *host)
 {
+	struct dw_mci_slot *slot = mmc_priv(host->mmc);
+
 	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
 		(get_wifi_chip_type() == WIFI_ESP8089))
 		return 0;
@@ -4216,9 +4218,17 @@ int dw_mci_suspend(struct dw_mci *host)
         /*only for sdmmc controller*/
         if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
                 disable_irq(host->irq);
-                if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
-                        MMC_DBG_ERR_FUNC(host->mmc, "Idle pinctrl setting failed! [%s]",
-                                                mmc_hostname(host->mmc));
+                if (test_bit(DW_MMC_CARD_PRESENT, &slot->flags)) {
+			if (!IS_ERR(host->pins_idle) &&
+				pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+				MMC_DBG_ERR_FUNC(host->mmc, "Idle pinctrl setting failed! [%s]",
+							mmc_hostname(host->mmc));
+		} else {
+			if (IS_ERR(host->pins_udbg) && !IS_ERR(host->pins_idle) &&
+				pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+				MMC_DBG_ERR_FUNC(host->mmc, "Idle pinctrl setting failed! [%s]",
+							mmc_hostname(host->mmc));
+		}
 
                 mci_writel(host, RINTSTS, 0xFFFFFFFF);
                 mci_writel(host, INTMASK, 0x00);
@@ -4236,7 +4246,7 @@ EXPORT_SYMBOL(dw_mci_suspend);
 
 int dw_mci_resume(struct dw_mci *host)
 {
-	int i, ret, retry_cnt = 0;
+	int i, ret;
 	u32 regs;
         struct dw_mci_slot *slot;
 
@@ -4259,9 +4269,18 @@ int dw_mci_resume(struct dw_mci *host)
                         disable_irq_wake(host->mmc->slot.cd_irq);
                         mmc_gpio_free_cd(host->mmc);
                 }
-		if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
-                        MMC_DBG_ERR_FUNC(host->mmc, "Default pinctrl setting failed! [%s]",
-                                                mmc_hostname(host->mmc));
+
+		if (test_bit(DW_MMC_CARD_PRESENT, &slot->flags)) {
+			if (!IS_ERR(host->pins_default) &&
+				pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+				MMC_DBG_ERR_FUNC(host->mmc, "Default pinctrl setting failed! [%s]",
+						mmc_hostname(host->mmc));
+		} else {
+			if (IS_ERR(host->pins_udbg) && !IS_ERR(host->pins_default) &&
+				pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+				MMC_DBG_ERR_FUNC(host->mmc, "Default pinctrl setting failed! [%s]",
+						mmc_hostname(host->mmc));
+		}
 
 		/* Disable jtag*/
 		if(cpu_is_rk3288())
@@ -4307,7 +4326,7 @@ int dw_mci_resume(struct dw_mci *host)
 	mci_writel(host, INTMASK, regs);
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
 	/*only for sdmmc controller*/
-	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)&& (!retry_cnt)){
+	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)){
 		enable_irq(host->irq);	
 	}   
 
