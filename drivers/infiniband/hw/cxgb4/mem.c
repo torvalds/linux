@@ -369,9 +369,11 @@ static int register_mem(struct c4iw_dev *rhp, struct c4iw_pd *php,
 	int ret;
 
 	ret = write_tpt_entry(&rhp->rdev, 0, &stag, 1, mhp->attr.pdid,
-			      FW_RI_STAG_NSMR, mhp->attr.perms,
+			      FW_RI_STAG_NSMR, mhp->attr.len ?
+			      mhp->attr.perms : 0,
 			      mhp->attr.mw_bind_enable, mhp->attr.zbva,
-			      mhp->attr.va_fbo, mhp->attr.len, shift - 12,
+			      mhp->attr.va_fbo, mhp->attr.len ?
+			      mhp->attr.len : -1, shift - 12,
 			      mhp->attr.pbl_size, mhp->attr.pbl_addr);
 	if (ret)
 		return ret;
