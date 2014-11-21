@@ -1302,10 +1302,10 @@ int t4vf_iq_free(struct adapter *adapter, unsigned int iqtype,
 	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_IQ_CMD) |
 				    FW_CMD_REQUEST_F |
 				    FW_CMD_EXEC_F);
-	cmd.alloc_to_len16 = cpu_to_be32(FW_IQ_CMD_FREE |
+	cmd.alloc_to_len16 = cpu_to_be32(FW_IQ_CMD_FREE_F |
 					 FW_LEN16(cmd));
 	cmd.type_to_iqandstindex =
-		cpu_to_be32(FW_IQ_CMD_TYPE(iqtype));
+		cpu_to_be32(FW_IQ_CMD_TYPE_V(iqtype));
 
 	cmd.iqid = cpu_to_be16(iqid);
 	cmd.fl0id = cpu_to_be16(fl0id);
@@ -1328,9 +1328,9 @@ int t4vf_eth_eq_free(struct adapter *adapter, unsigned int eqid)
 	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_EQ_ETH_CMD) |
 				    FW_CMD_REQUEST_F |
 				    FW_CMD_EXEC_F);
-	cmd.alloc_to_len16 = cpu_to_be32(FW_EQ_ETH_CMD_FREE |
+	cmd.alloc_to_len16 = cpu_to_be32(FW_EQ_ETH_CMD_FREE_F |
 					 FW_LEN16(cmd));
-	cmd.eqid_pkd = cpu_to_be32(FW_EQ_ETH_CMD_EQID(eqid));
+	cmd.eqid_pkd = cpu_to_be32(FW_EQ_ETH_CMD_EQID_V(eqid));
 	return t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), NULL);
 }
 

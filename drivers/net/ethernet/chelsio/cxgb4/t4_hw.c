@@ -3715,10 +3715,10 @@ int t4_iq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_IQ_CMD) | FW_CMD_REQUEST_F |
-			    FW_CMD_EXEC_F | FW_IQ_CMD_PFN(pf) |
-			    FW_IQ_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_IQ_CMD_FREE | FW_LEN16(c));
-	c.type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE(iqtype));
+			    FW_CMD_EXEC_F | FW_IQ_CMD_PFN_V(pf) |
+			    FW_IQ_CMD_VFN_V(vf));
+	c.alloc_to_len16 = htonl(FW_IQ_CMD_FREE_F | FW_LEN16(c));
+	c.type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE_V(iqtype));
 	c.iqid = htons(iqid);
 	c.fl0id = htons(fl0id);
 	c.fl1id = htons(fl1id);
@@ -3742,10 +3742,10 @@ int t4_eth_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_ETH_CMD) | FW_CMD_REQUEST_F |
-			    FW_CMD_EXEC_F | FW_EQ_ETH_CMD_PFN(pf) |
-			    FW_EQ_ETH_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_FREE | FW_LEN16(c));
-	c.eqid_pkd = htonl(FW_EQ_ETH_CMD_EQID(eqid));
+			    FW_CMD_EXEC_F | FW_EQ_ETH_CMD_PFN_V(pf) |
+			    FW_EQ_ETH_CMD_VFN_V(vf));
+	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_FREE_F | FW_LEN16(c));
+	c.eqid_pkd = htonl(FW_EQ_ETH_CMD_EQID_V(eqid));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -3766,10 +3766,10 @@ int t4_ctrl_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_CTRL_CMD) | FW_CMD_REQUEST_F |
-			    FW_CMD_EXEC_F | FW_EQ_CTRL_CMD_PFN(pf) |
-			    FW_EQ_CTRL_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_EQ_CTRL_CMD_FREE | FW_LEN16(c));
-	c.cmpliqid_eqid = htonl(FW_EQ_CTRL_CMD_EQID(eqid));
+			    FW_CMD_EXEC_F | FW_EQ_CTRL_CMD_PFN_V(pf) |
+			    FW_EQ_CTRL_CMD_VFN_V(vf));
+	c.alloc_to_len16 = htonl(FW_EQ_CTRL_CMD_FREE_F | FW_LEN16(c));
+	c.cmpliqid_eqid = htonl(FW_EQ_CTRL_CMD_EQID_V(eqid));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -3790,10 +3790,10 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_OFLD_CMD) | FW_CMD_REQUEST_F |
-			    FW_CMD_EXEC_F | FW_EQ_OFLD_CMD_PFN(pf) |
-			    FW_EQ_OFLD_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_FREE | FW_LEN16(c));
-	c.eqid_pkd = htonl(FW_EQ_OFLD_CMD_EQID(eqid));
+			    FW_CMD_EXEC_F | FW_EQ_OFLD_CMD_PFN_V(pf) |
+			    FW_EQ_OFLD_CMD_VFN_V(vf));
+	c.alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_FREE_F | FW_LEN16(c));
+	c.eqid_pkd = htonl(FW_EQ_OFLD_CMD_EQID_V(eqid));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
