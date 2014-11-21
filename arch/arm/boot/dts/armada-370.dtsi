@@ -154,6 +154,21 @@
 				interrupts = <91>;
 			};
 
+			/*
+			 * Default UART pinctrl setting without RTS/CTS, can
+			 * be overwritten on board level if a different
+			 * configuration is used.
+			 */
+			uart0: serial@12000 {
+				pinctrl-0 = <&uart0_pins>;
+				pinctrl-names = "default";
+			};
+
+			uart1: serial@12100 {
+				pinctrl-0 = <&uart1_pins>;
+				pinctrl-names = "default";
+			};
+
 			system-controller@18200 {
 				compatible = "marvell,armada-370-xp-system-controller";
 				reg = <0x18200 0x100>;
@@ -280,6 +295,16 @@
 		marvell,pins = "mpp49", "mpp50",
 			       "mpp51", "mpp52";
 		marvell,function = "spi1";
+	};
+
+	uart0_pins: uart0-pins {
+		marvell,pins = "mpp0", "mpp1";
+		marvell,function = "uart0";
+	};
+
+	uart1_pins: uart1-pins {
+		marvell,pins = "mpp41", "mpp42";
+		marvell,function = "uart1";
 	};
 
 	sdio_pins1: sdio-pins1 {
