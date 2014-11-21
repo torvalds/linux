@@ -56,7 +56,13 @@
 
 //#define USE_EXTERNAL_DAC 1
 #define DRV_NAME "aml_snd_m8"
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+#define HP_DET                  0
+#else
 #define HP_DET                  1
+#endif
+
 extern int ext_codec;
 extern struct device *spdif_dev;
 
@@ -541,12 +547,14 @@ static const struct snd_kcontrol_new aml_asoc_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Ext Spk"),
 };
 
+#if HP_DET
 static struct snd_soc_jack_pin jack_pins[] = {
     {
         .pin = "HP",
         .mask = SND_JACK_HEADPHONE,
     }
 };
+#endif
 
 static const struct snd_kcontrol_new aml_m8_controls[] = {
 	//SOC_DAPM_PIN_SWITCH("Ext Spk"),
@@ -576,7 +584,9 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
     struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct aml_audio_private_data * p_aml_audio;
     int ret = 0;
+#if HP_DET
     int hp_paraments[5];
+#endif
 	
     printk(KERN_DEBUG "enter %s \n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
