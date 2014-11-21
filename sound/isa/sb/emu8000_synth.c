@@ -105,8 +105,7 @@ static int snd_emu8000_delete_device(struct snd_seq_device *dev)
 		snd_device_free(dev->card, hw->pcm);
 	if (hw->emu)
 		snd_emux_free(hw->emu);
-	if (hw->memhdr)
-		snd_util_memhdr_free(hw->memhdr);
+	snd_util_memhdr_free(hw->memhdr);
 	hw->emu = NULL;
 	hw->memhdr = NULL;
 	return 0;
