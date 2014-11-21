@@ -444,11 +444,18 @@ static int read_counter_aggr(struct perf_evsel *counter)
  */
 static int read_counter(struct perf_evsel *counter)
 {
-	int cpu;
+	int nthreads = thread_map__nr(evsel_list->threads);
+	int ncpus = perf_evsel__nr_cpus(counter);
+	int cpu, thread;
 
-	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
-		if (perf_evsel__read_cb(counter, cpu, 0, read_cb))
-			return -1;
+	if (counter->system_wide)
+		nthreads = 1;
+
+	for (thread = 0; thread < nthreads; thread++) {
+		for (cpu = 0; cpu < ncpus; cpu++) {
+			if (perf_evsel__read_cb(counter, cpu, thread, read_cb))
+				return -1;
+		}
 	}
 
 	return 0;
