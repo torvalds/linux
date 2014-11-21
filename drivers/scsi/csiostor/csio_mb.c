@@ -1126,7 +1126,7 @@ csio_mb_dump_fw_dbg(struct csio_hw *hw, __be64 *cmd)
 {
 	struct fw_debug_cmd *dbg = (struct fw_debug_cmd *)cmd;
 
-	if ((FW_DEBUG_CMD_TYPE_GET(ntohl(dbg->op_type))) == 1) {
+	if ((FW_DEBUG_CMD_TYPE_G(ntohl(dbg->op_type))) == 1) {
 		csio_info(hw, "FW print message:\n");
 		csio_info(hw, "\tdebug->dprtstridx = %d\n",
 			    ntohs(dbg->u.prt.dprtstridx));

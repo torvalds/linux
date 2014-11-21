@@ -188,9 +188,9 @@ static void t4_report_fw_error(struct adapter *adap)
 	u32 pcie_fw;
 
 	pcie_fw = t4_read_reg(adap, MA_PCIE_FW);
-	if (pcie_fw & FW_PCIE_FW_ERR)
+	if (pcie_fw & PCIE_FW_ERR)
 		dev_err(adap->pdev_dev, "Firmware reports adapter error: %s\n",
-			reason[FW_PCIE_FW_EVAL_GET(pcie_fw)]);
+			reason[PCIE_FW_EVAL_G(pcie_fw)]);
 }
 
 /*
@@ -993,10 +993,10 @@ static int should_install_fs_fw(struct adapter *adap, int card_fw_usable,
 install:
 	dev_err(adap->pdev_dev, "firmware on card (%u.%u.%u.%u) is %s, "
 		"installing firmware %u.%u.%u.%u on card.\n",
-		FW_HDR_FW_VER_MAJOR_GET(c), FW_HDR_FW_VER_MINOR_GET(c),
-		FW_HDR_FW_VER_MICRO_GET(c), FW_HDR_FW_VER_BUILD_GET(c), reason,
-		FW_HDR_FW_VER_MAJOR_GET(k), FW_HDR_FW_VER_MINOR_GET(k),
-		FW_HDR_FW_VER_MICRO_GET(k), FW_HDR_FW_VER_BUILD_GET(k));
+		FW_HDR_FW_VER_MAJOR_G(c), FW_HDR_FW_VER_MINOR_G(c),
+		FW_HDR_FW_VER_MICRO_G(c), FW_HDR_FW_VER_BUILD_G(c), reason,
+		FW_HDR_FW_VER_MAJOR_G(k), FW_HDR_FW_VER_MINOR_G(k),
+		FW_HDR_FW_VER_MICRO_G(k), FW_HDR_FW_VER_BUILD_G(k));
 
 	return 1;
 }
@@ -1068,12 +1068,12 @@ int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
 			"driver compiled with %d.%d.%d.%d, "
 			"card has %d.%d.%d.%d, filesystem has %d.%d.%d.%d\n",
 			state,
-			FW_HDR_FW_VER_MAJOR_GET(d), FW_HDR_FW_VER_MINOR_GET(d),
-			FW_HDR_FW_VER_MICRO_GET(d), FW_HDR_FW_VER_BUILD_GET(d),
-			FW_HDR_FW_VER_MAJOR_GET(c), FW_HDR_FW_VER_MINOR_GET(c),
-			FW_HDR_FW_VER_MICRO_GET(c), FW_HDR_FW_VER_BUILD_GET(c),
-			FW_HDR_FW_VER_MAJOR_GET(k), FW_HDR_FW_VER_MINOR_GET(k),
-			FW_HDR_FW_VER_MICRO_GET(k), FW_HDR_FW_VER_BUILD_GET(k));
+			FW_HDR_FW_VER_MAJOR_G(d), FW_HDR_FW_VER_MINOR_G(d),
+			FW_HDR_FW_VER_MICRO_G(d), FW_HDR_FW_VER_BUILD_G(d),
+			FW_HDR_FW_VER_MAJOR_G(c), FW_HDR_FW_VER_MINOR_G(c),
+			FW_HDR_FW_VER_MICRO_G(c), FW_HDR_FW_VER_BUILD_G(c),
+			FW_HDR_FW_VER_MAJOR_G(k), FW_HDR_FW_VER_MINOR_G(k),
+			FW_HDR_FW_VER_MICRO_G(k), FW_HDR_FW_VER_BUILD_G(k));
 		ret = EINVAL;
 		goto bye;
 	}
@@ -1564,7 +1564,7 @@ static void cim_intr_handler(struct adapter *adapter)
 
 	int fat;
 
-	if (t4_read_reg(adapter, MA_PCIE_FW) & FW_PCIE_FW_ERR)
+	if (t4_read_reg(adapter, MA_PCIE_FW) & PCIE_FW_ERR)
 		t4_report_fw_error(adapter);
 
 	fat = t4_handle_intr_status(adapter, CIM_HOST_INT_CAUSE,
@@ -2074,7 +2074,7 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.op_to_viid = htonl(FW_CMD_OP_V(FW_RSS_IND_TBL_CMD) |
 			       FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
-			       FW_RSS_IND_TBL_CMD_VIID(viid));
+			       FW_RSS_IND_TBL_CMD_VIID_V(viid));
 	cmd.retval_len16 = htonl(FW_LEN16(cmd));
 
 	/* each fw_rss_ind_tbl_cmd takes up to 32 entries */
@@ -2091,13 +2091,13 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 		while (nq > 0) {
 			unsigned int v;
 
-			v = FW_RSS_IND_TBL_CMD_IQ0(*rsp);
+			v = FW_RSS_IND_TBL_CMD_IQ0_V(*rsp);
 			if (++rsp >= rsp_end)
 				rsp = rspq;
-			v |= FW_RSS_IND_TBL_CMD_IQ1(*rsp);
+			v |= FW_RSS_IND_TBL_CMD_IQ1_V(*rsp);
 			if (++rsp >= rsp_end)
 				rsp = rspq;
-			v |= FW_RSS_IND_TBL_CMD_IQ2(*rsp);
+			v |= FW_RSS_IND_TBL_CMD_IQ2_V(*rsp);
 			if (++rsp >= rsp_end)
 				rsp = rspq;
 
@@ -2131,10 +2131,10 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 			      FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
 	c.retval_len16 = htonl(FW_LEN16(c));
 	if (mode == FW_RSS_GLB_CONFIG_CMD_MODE_MANUAL) {
-		c.u.manual.mode_pkd = htonl(FW_RSS_GLB_CONFIG_CMD_MODE(mode));
+		c.u.manual.mode_pkd = htonl(FW_RSS_GLB_CONFIG_CMD_MODE_V(mode));
 	} else if (mode == FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL) {
 		c.u.basicvirtual.mode_pkd =
-			htonl(FW_RSS_GLB_CONFIG_CMD_MODE(mode));
+			htonl(FW_RSS_GLB_CONFIG_CMD_MODE_V(mode));
 		c.u.basicvirtual.synmapen_to_hashtoeplitz = htonl(flags);
 	} else
 		return -EINVAL;
@@ -2793,7 +2793,7 @@ retry:
 	if (ret < 0) {
 		if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
 			goto retry;
-		if (t4_read_reg(adap, MA_PCIE_FW) & FW_PCIE_FW_ERR)
+		if (t4_read_reg(adap, MA_PCIE_FW) & PCIE_FW_ERR)
 			t4_report_fw_error(adap);
 		return ret;
 	}
@@ -2818,7 +2818,7 @@ retry:
 	 * and we wouldn't want to fail pointlessly.  (This can happen when an
 	 * OS loads lots of different drivers rapidly at the same time).  In
 	 * this case, the Master PF returned by the firmware will be
-	 * FW_PCIE_FW_MASTER_MASK so the test below will work ...
+	 * PCIE_FW_MASTER_M so the test below will work ...
 	 */
 	if ((v & (FW_HELLO_CMD_ERR_F|FW_HELLO_CMD_INIT_F)) == 0 &&
 	    master_mbox != mbox) {
@@ -2844,7 +2844,7 @@ retry:
 			 * our retries ...
 			 */
 			pcie_fw = t4_read_reg(adap, MA_PCIE_FW);
-			if (!(pcie_fw & (FW_PCIE_FW_ERR|FW_PCIE_FW_INIT))) {
+			if (!(pcie_fw & (PCIE_FW_ERR|PCIE_FW_INIT))) {
 				if (waiting <= 0) {
 					if (retries-- > 0)
 						goto retry;
@@ -2859,9 +2859,9 @@ retry:
 			 * report errors preferentially.
 			 */
 			if (state) {
-				if (pcie_fw & FW_PCIE_FW_ERR)
+				if (pcie_fw & PCIE_FW_ERR)
 					*state = DEV_STATE_ERR;
-				else if (pcie_fw & FW_PCIE_FW_INIT)
+				else if (pcie_fw & PCIE_FW_INIT)
 					*state = DEV_STATE_INIT;
 			}
 
@@ -2870,9 +2870,9 @@ retry:
 			 * there's not a valid Master PF, grab its identity
 			 * for our caller.
 			 */
-			if (master_mbox == FW_PCIE_FW_MASTER_MASK &&
-			    (pcie_fw & FW_PCIE_FW_MASTER_VLD))
-				master_mbox = FW_PCIE_FW_MASTER_GET(pcie_fw);
+			if (master_mbox == PCIE_FW_MASTER_M &&
+			    (pcie_fw & PCIE_FW_MASTER_VLD))
+				master_mbox = PCIE_FW_MASTER_G(pcie_fw);
 			break;
 		}
 	}
@@ -2940,7 +2940,7 @@ int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset)
  *	Issues a RESET command to firmware (if desired) with a HALT indication
  *	and then puts the microprocessor into RESET state.  The RESET command
  *	will only be issued if a legitimate mailbox is provided (mbox <=
- *	FW_PCIE_FW_MASTER_MASK).
+ *	PCIE_FW_MASTER_M).
  *
  *	This is generally used in order for the host to safely manipulate the
  *	adapter without fear of conflicting with whatever the firmware might
@@ -2955,7 +2955,7 @@ static int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 	 * If a legitimate mailbox is provided, issue a RESET command
 	 * with a HALT indication.
 	 */
-	if (mbox <= FW_PCIE_FW_MASTER_MASK) {
+	if (mbox <= PCIE_FW_MASTER_M) {
 		struct fw_reset_cmd c;
 
 		memset(&c, 0, sizeof(c));
@@ -2980,8 +2980,8 @@ static int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 	 */
 	if (ret == 0 || force) {
 		t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, UPCRST);
-		t4_set_reg_field(adap, PCIE_FW, FW_PCIE_FW_HALT,
-				 FW_PCIE_FW_HALT);
+		t4_set_reg_field(adap, PCIE_FW, PCIE_FW_HALT_F,
+				 PCIE_FW_HALT_F);
 	}
 
 	/*
@@ -3020,7 +3020,7 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
 		 * doing it automatically, we need to clear the PCIE_FW.HALT
 		 * bit.
 		 */
-		t4_set_reg_field(adap, PCIE_FW, FW_PCIE_FW_HALT, 0);
+		t4_set_reg_field(adap, PCIE_FW, PCIE_FW_HALT_F, 0);
 
 		/*
 		 * If we've been given a valid mailbox, first try to get the
@@ -3029,7 +3029,7 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
 		 * valid mailbox or the RESET command failed, fall back to
 		 * hitting the chip with a hammer.
 		 */
-		if (mbox <= FW_PCIE_FW_MASTER_MASK) {
+		if (mbox <= PCIE_FW_MASTER_M) {
 			t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, 0);
 			msleep(100);
 			if (t4_fw_reset(adap, mbox,
@@ -3044,7 +3044,7 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
 
 		t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, 0);
 		for (ms = 0; ms < FW_CMD_MAX_TIMEOUT; ) {
-			if (!(t4_read_reg(adap, PCIE_FW) & FW_PCIE_FW_HALT))
+			if (!(t4_read_reg(adap, PCIE_FW) & PCIE_FW_HALT_F))
 				return 0;
 			msleep(100);
 			ms += 100;

@@ -1230,14 +1230,14 @@ static void cxgb4vf_get_drvinfo(struct net_device *dev,
 		sizeof(drvinfo->bus_info));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%u.%u.%u.%u, TP %u.%u.%u.%u",
-		 FW_HDR_FW_VER_MAJOR_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_MINOR_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_MICRO_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_BUILD_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_MAJOR_GET(adapter->params.dev.tprev),
-		 FW_HDR_FW_VER_MINOR_GET(adapter->params.dev.tprev),
-		 FW_HDR_FW_VER_MICRO_GET(adapter->params.dev.tprev),
-		 FW_HDR_FW_VER_BUILD_GET(adapter->params.dev.tprev));
+		 FW_HDR_FW_VER_MAJOR_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_MINOR_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_MICRO_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_BUILD_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_MAJOR_G(adapter->params.dev.tprev),
+		 FW_HDR_FW_VER_MINOR_G(adapter->params.dev.tprev),
+		 FW_HDR_FW_VER_MICRO_G(adapter->params.dev.tprev),
+		 FW_HDR_FW_VER_BUILD_G(adapter->params.dev.tprev));
 }
 
 /*

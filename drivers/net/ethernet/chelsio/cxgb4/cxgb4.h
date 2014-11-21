@@ -318,10 +318,10 @@ struct adapter_params {
 #include "t4fw_api.h"
 
 #define FW_VERSION(chip) ( \
-		FW_HDR_FW_VER_MAJOR_GET(chip##FW_VERSION_MAJOR) | \
-		FW_HDR_FW_VER_MINOR_GET(chip##FW_VERSION_MINOR) | \
-		FW_HDR_FW_VER_MICRO_GET(chip##FW_VERSION_MICRO) | \
-		FW_HDR_FW_VER_BUILD_GET(chip##FW_VERSION_BUILD))
+		FW_HDR_FW_VER_MAJOR_G(chip##FW_VERSION_MAJOR) | \
+		FW_HDR_FW_VER_MINOR_G(chip##FW_VERSION_MINOR) | \
+		FW_HDR_FW_VER_MICRO_G(chip##FW_VERSION_MICRO) | \
+		FW_HDR_FW_VER_BUILD_G(chip##FW_VERSION_BUILD))
 #define FW_INTFVER(chip, intf) (FW_HDR_INTFVER_##intf)
 
 struct fw_info {

@@ -585,7 +585,7 @@ int t4vf_get_rss_glb_config(struct adapter *adapter)
 	 * filtering at this point to weed out modes which don't support
 	 * VF Drivers ...
 	 */
-	rss->mode = FW_RSS_GLB_CONFIG_CMD_MODE_GET(
+	rss->mode = FW_RSS_GLB_CONFIG_CMD_MODE_G(
 			be32_to_cpu(rpl.u.manual.mode_pkd));
 	switch (rss->mode) {
 	case FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL: {
@@ -593,26 +593,26 @@ int t4vf_get_rss_glb_config(struct adapter *adapter)
 				rpl.u.basicvirtual.synmapen_to_hashtoeplitz);
 
 		rss->u.basicvirtual.synmapen =
-			((word & FW_RSS_GLB_CONFIG_CMD_SYNMAPEN) != 0);
+			((word & FW_RSS_GLB_CONFIG_CMD_SYNMAPEN_F) != 0);
 		rss->u.basicvirtual.syn4tupenipv6 =
-			((word & FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV6) != 0);
+			((word & FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV6_F) != 0);
 		rss->u.basicvirtual.syn2tupenipv6 =
-			((word & FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV6) != 0);
+			((word & FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV6_F) != 0);
 		rss->u.basicvirtual.syn4tupenipv4 =
-			((word & FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV4) != 0);
+			((word & FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV4_F) != 0);
 		rss->u.basicvirtual.syn2tupenipv4 =
-			((word & FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV4) != 0);
+			((word & FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV4_F) != 0);
 
 		rss->u.basicvirtual.ofdmapen =
-			((word & FW_RSS_GLB_CONFIG_CMD_OFDMAPEN) != 0);
+			((word & FW_RSS_GLB_CONFIG_CMD_OFDMAPEN_F) != 0);
 
 		rss->u.basicvirtual.tnlmapen =
-			((word & FW_RSS_GLB_CONFIG_CMD_TNLMAPEN) != 0);
+			((word & FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_F) != 0);
 		rss->u.basicvirtual.tnlalllookup =
-			((word  & FW_RSS_GLB_CONFIG_CMD_TNLALLLKP) != 0);
+			((word  & FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_F) != 0);
 
 		rss->u.basicvirtual.hashtoeplitz =
-			((word & FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ) != 0);
+			((word & FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ_F) != 0);
 
 		/* we need at least Tunnel Map Enable to be set */
 		if (!rss->u.basicvirtual.tnlmapen)
@@ -709,17 +709,17 @@ int t4vf_read_rss_vi_config(struct adapter *adapter, unsigned int viid,
 		u32 word = be32_to_cpu(rpl.u.basicvirtual.defaultq_to_udpen);
 
 		config->basicvirtual.ip6fourtupen =
-			((word & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN) != 0);
+			((word & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F) != 0);
 		config->basicvirtual.ip6twotupen =
-			((word & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN) != 0);
+			((word & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F) != 0);
 		config->basicvirtual.ip4fourtupen =
-			((word & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN) != 0);
+			((word & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F) != 0);
 		config->basicvirtual.ip4twotupen =
-			((word & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN) != 0);
+			((word & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F) != 0);
 		config->basicvirtual.udpen =
-			((word & FW_RSS_VI_CONFIG_CMD_UDPEN) != 0);
+			((word & FW_RSS_VI_CONFIG_CMD_UDPEN_F) != 0);
 		config->basicvirtual.defaultq =
-			FW_RSS_VI_CONFIG_CMD_DEFAULTQ_GET(word);
+			FW_RSS_VI_CONFIG_CMD_DEFAULTQ_G(word);
 		break;
 	}
 
@@ -755,16 +755,16 @@ int t4vf_write_rss_vi_config(struct adapter *adapter, unsigned int viid,
 		u32 word = 0;
 
 		if (config->basicvirtual.ip6fourtupen)
-			word |= FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN;
+			word |= FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F;
 		if (config->basicvirtual.ip6twotupen)
-			word |= FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN;
+			word |= FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F;
 		if (config->basicvirtual.ip4fourtupen)
-			word |= FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN;
+			word |= FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F;
 		if (config->basicvirtual.ip4twotupen)
-			word |= FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN;
+			word |= FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F;
 		if (config->basicvirtual.udpen)
-			word |= FW_RSS_VI_CONFIG_CMD_UDPEN;
-		word |= FW_RSS_VI_CONFIG_CMD_DEFAULTQ(
+			word |= FW_RSS_VI_CONFIG_CMD_UDPEN_F;
+		word |= FW_RSS_VI_CONFIG_CMD_DEFAULTQ_V(
 				config->basicvirtual.defaultq);
 		cmd.u.basicvirtual.defaultq_to_udpen = cpu_to_be32(word);
 		break;
@@ -806,7 +806,7 @@ int t4vf_config_rss_range(struct adapter *adapter, unsigned int viid,
 	cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_RSS_IND_TBL_CMD) |
 				     FW_CMD_REQUEST_F |
 				     FW_CMD_WRITE_F |
-				     FW_RSS_IND_TBL_CMD_VIID(viid));
+				     FW_RSS_IND_TBL_CMD_VIID_V(viid));
 	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
 
 	/*
@@ -857,9 +857,9 @@ int t4vf_config_rss_range(struct adapter *adapter, unsigned int viid,
 				if (rsp >= rsp_end)
 					rsp = rspq;
 			}
-			*qp++ = cpu_to_be32(FW_RSS_IND_TBL_CMD_IQ0(qbuf[0]) |
-					    FW_RSS_IND_TBL_CMD_IQ1(qbuf[1]) |
-					    FW_RSS_IND_TBL_CMD_IQ2(qbuf[2]));
+			*qp++ = cpu_to_be32(FW_RSS_IND_TBL_CMD_IQ0_V(qbuf[0]) |
+					    FW_RSS_IND_TBL_CMD_IQ1_V(qbuf[1]) |
+					    FW_RSS_IND_TBL_CMD_IQ2_V(qbuf[2]));
 		}
 
 		/*

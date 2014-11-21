@@ -650,10 +650,10 @@ static void
 csio_hw_print_fw_version(struct csio_hw *hw, char *str)
 {
 	csio_info(hw, "%s: %u.%u.%u.%u\n", str,
-		    FW_HDR_FW_VER_MAJOR_GET(hw->fwrev),
-		    FW_HDR_FW_VER_MINOR_GET(hw->fwrev),
-		    FW_HDR_FW_VER_MICRO_GET(hw->fwrev),
-		    FW_HDR_FW_VER_BUILD_GET(hw->fwrev));
+		    FW_HDR_FW_VER_MAJOR_G(hw->fwrev),
+		    FW_HDR_FW_VER_MINOR_G(hw->fwrev),
+		    FW_HDR_FW_VER_MICRO_G(hw->fwrev),
+		    FW_HDR_FW_VER_BUILD_G(hw->fwrev));
 }
 
 /*
@@ -706,9 +706,9 @@ csio_hw_check_fw_version(struct csio_hw *hw)
 	if (ret)
 		return ret;
 
-	major = FW_HDR_FW_VER_MAJOR_GET(hw->fwrev);
-	minor = FW_HDR_FW_VER_MINOR_GET(hw->fwrev);
-	micro = FW_HDR_FW_VER_MICRO_GET(hw->fwrev);
+	major = FW_HDR_FW_VER_MAJOR_G(hw->fwrev);
+	minor = FW_HDR_FW_VER_MINOR_G(hw->fwrev);
+	micro = FW_HDR_FW_VER_MICRO_G(hw->fwrev);
 
 	if (major != FW_VERSION_MAJOR(hw)) {	/* major mismatch - fail */
 		csio_err(hw, "card FW has major version %u, driver wants %u\n",
@@ -1998,13 +1998,13 @@ csio_hw_flash_fw(struct csio_hw *hw)
 
 	hdr = (const struct fw_hdr *)fw->data;
 	fw_ver = ntohl(hdr->fw_ver);
-	if (FW_HDR_FW_VER_MAJOR_GET(fw_ver) != FW_VERSION_MAJOR(hw))
+	if (FW_HDR_FW_VER_MAJOR_G(fw_ver) != FW_VERSION_MAJOR(hw))
 		return -EINVAL;      /* wrong major version, won't do */
 
 	/*
 	 * If the flash FW is unusable or we found something newer, load it.
 	 */
-	if (FW_HDR_FW_VER_MAJOR_GET(hw->fwrev) != FW_VERSION_MAJOR(hw) ||
+	if (FW_HDR_FW_VER_MAJOR_G(hw->fwrev) != FW_VERSION_MAJOR(hw) ||
 	    fw_ver > hw->fwrev) {
 		ret = csio_hw_fw_upgrade(hw, hw->pfn, fw->data, fw->size,
 				    /*force=*/false);

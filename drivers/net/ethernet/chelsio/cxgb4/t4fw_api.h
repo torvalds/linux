@@ -613,7 +613,6 @@ struct fw_ofld_tx_data_wr {
 
 struct fw_cmd_wr {
 	__be32 op_dma;
-#define FW_CMD_WR_DMA (1U << 17)
 	__be32 len16_pkd;
 	__be64 cookie_daddr;
 };
@@ -2644,11 +2643,6 @@ struct fw_port_stats_cmd {
 	} u;
 };
 
-#define FW_PORT_STATS_CMD_NSTATS(x) ((x) << 4)
-#define FW_PORT_STATS_CMD_BG_BM(x) ((x) << 0)
-#define FW_PORT_STATS_CMD_TX(x) ((x) << 7)
-#define FW_PORT_STATS_CMD_IX(x) ((x) << 0)
-
 /* port loopback stats */
 #define FW_NUM_LB_STATS 16
 enum fw_port_lb_stats_index {
@@ -2704,22 +2698,13 @@ struct fw_port_lb_stats_cmd {
 	} u;
 };
 
-#define FW_PORT_LB_STATS_CMD_LBPORT(x) ((x) << 0)
-#define FW_PORT_LB_STATS_CMD_NSTATS(x) ((x) << 4)
-#define FW_PORT_LB_STATS_CMD_BG_BM(x) ((x) << 0)
-#define FW_PORT_LB_STATS_CMD_IX(x) ((x) << 0)
-
 struct fw_rss_ind_tbl_cmd {
 	__be32 op_to_viid;
-#define FW_RSS_IND_TBL_CMD_VIID(x) ((x) << 0)
 	__be32 retval_len16;
 	__be16 niqid;
 	__be16 startidx;
 	__be32 r3;
 	__be32 iq0_to_iq2;
-#define FW_RSS_IND_TBL_CMD_IQ0(x) ((x) << 20)
-#define FW_RSS_IND_TBL_CMD_IQ1(x) ((x) << 10)
-#define FW_RSS_IND_TBL_CMD_IQ2(x) ((x) << 0)
 	__be32 iq3_to_iq5;
 	__be32 iq6_to_iq8;
 	__be32 iq9_to_iq11;
@@ -2732,6 +2717,18 @@ struct fw_rss_ind_tbl_cmd {
 	__be32 iq30_iq31;
 	__be32 r15_lo;
 };
+
+#define FW_RSS_IND_TBL_CMD_VIID_S	0
+#define FW_RSS_IND_TBL_CMD_VIID_V(x)	((x) << FW_RSS_IND_TBL_CMD_VIID_S)
+
+#define FW_RSS_IND_TBL_CMD_IQ0_S	20
+#define FW_RSS_IND_TBL_CMD_IQ0_V(x)	((x) << FW_RSS_IND_TBL_CMD_IQ0_S)
+
+#define FW_RSS_IND_TBL_CMD_IQ1_S	10
+#define FW_RSS_IND_TBL_CMD_IQ1_V(x)	((x) << FW_RSS_IND_TBL_CMD_IQ1_S)
+
+#define FW_RSS_IND_TBL_CMD_IQ2_S	0
+#define FW_RSS_IND_TBL_CMD_IQ2_V(x)	((x) << FW_RSS_IND_TBL_CMD_IQ2_S)
 
 struct fw_rss_glb_config_cmd {
 	__be32 op_to_write;
@@ -2746,26 +2743,74 @@ struct fw_rss_glb_config_cmd {
 		struct fw_rss_glb_config_basicvirtual {
 			__be32 mode_pkd;
 			__be32 synmapen_to_hashtoeplitz;
-#define FW_RSS_GLB_CONFIG_CMD_SYNMAPEN      (1U << 8)
-#define FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV6 (1U << 7)
-#define FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV6 (1U << 6)
-#define FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV4 (1U << 5)
-#define FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV4 (1U << 4)
-#define FW_RSS_GLB_CONFIG_CMD_OFDMAPEN      (1U << 3)
-#define FW_RSS_GLB_CONFIG_CMD_TNLMAPEN      (1U << 2)
-#define FW_RSS_GLB_CONFIG_CMD_TNLALLLKP     (1U << 1)
-#define FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ  (1U << 0)
 			__be64 r8;
 			__be64 r9;
 		} basicvirtual;
 	} u;
 };
 
-#define FW_RSS_GLB_CONFIG_CMD_MODE(x)	((x) << 28)
-#define FW_RSS_GLB_CONFIG_CMD_MODE_GET(x) (((x) >> 28) & 0xf)
+#define FW_RSS_GLB_CONFIG_CMD_MODE_S	28
+#define FW_RSS_GLB_CONFIG_CMD_MODE_M	0xf
+#define FW_RSS_GLB_CONFIG_CMD_MODE_V(x)	((x) << FW_RSS_GLB_CONFIG_CMD_MODE_S)
+#define FW_RSS_GLB_CONFIG_CMD_MODE_G(x)	\
+	(((x) >> FW_RSS_GLB_CONFIG_CMD_MODE_S) & FW_RSS_GLB_CONFIG_CMD_MODE_M)
 
 #define FW_RSS_GLB_CONFIG_CMD_MODE_MANUAL	0
 #define FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL	1
+
+#define FW_RSS_GLB_CONFIG_CMD_SYNMAPEN_S	8
+#define FW_RSS_GLB_CONFIG_CMD_SYNMAPEN_V(x)	\
+	((x) << FW_RSS_GLB_CONFIG_CMD_SYNMAPEN_S)
+#define FW_RSS_GLB_CONFIG_CMD_SYNMAPEN_F	\
+	FW_RSS_GLB_CONFIG_CMD_SYNMAPEN_V(1U)
+
+#define FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV6_S		7
+#define FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV6_V(x)	\
+	((x) << FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV6_S)
+#define FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV6_F	\
+	FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV6_V(1U)
+
+#define FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV6_S		6
+#define FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV6_V(x)	\
+	((x) << FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV6_S)
+#define FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV6_F	\
+	FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV6_V(1U)
+
+#define FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV4_S		5
+#define FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV4_V(x)	\
+	((x) << FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV4_S)
+#define FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV4_F	\
+	FW_RSS_GLB_CONFIG_CMD_SYN4TUPENIPV4_V(1U)
+
+#define FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV4_S		4
+#define FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV4_V(x)	\
+	((x) << FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV4_S)
+#define FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV4_F	\
+	FW_RSS_GLB_CONFIG_CMD_SYN2TUPENIPV4_V(1U)
+
+#define FW_RSS_GLB_CONFIG_CMD_OFDMAPEN_S	3
+#define FW_RSS_GLB_CONFIG_CMD_OFDMAPEN_V(x)	\
+	((x) << FW_RSS_GLB_CONFIG_CMD_OFDMAPEN_S)
+#define FW_RSS_GLB_CONFIG_CMD_OFDMAPEN_F	\
+	FW_RSS_GLB_CONFIG_CMD_OFDMAPEN_V(1U)
+
+#define FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_S	2
+#define FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_V(x)	\
+	((x) << FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_S)
+#define FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_F	\
+	FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_V(1U)
+
+#define FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_S	1
+#define FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_V(x)	\
+	((x) << FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_S)
+#define FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_F	\
+	FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_V(1U)
+
+#define FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ_S	0
+#define FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ_V(x)	\
+	((x) << FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ_S)
+#define FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ_F	\
+	FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ_V(1U)
 
 struct fw_rss_vi_config_cmd {
 	__be32 op_to_viid;
@@ -2780,18 +2825,50 @@ struct fw_rss_vi_config_cmd {
 		struct fw_rss_vi_config_basicvirtual {
 			__be32 r6;
 			__be32 defaultq_to_udpen;
-#define FW_RSS_VI_CONFIG_CMD_DEFAULTQ(x)  ((x) << 16)
-#define FW_RSS_VI_CONFIG_CMD_DEFAULTQ_GET(x) (((x) >> 16) & 0x3ff)
-#define FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN (1U << 4)
-#define FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN  (1U << 3)
-#define FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN (1U << 2)
-#define FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN  (1U << 1)
-#define FW_RSS_VI_CONFIG_CMD_UDPEN        (1U << 0)
 			__be64 r9;
 			__be64 r10;
 		} basicvirtual;
 	} u;
 };
+
+#define FW_RSS_VI_CONFIG_CMD_VIID_S	0
+#define FW_RSS_VI_CONFIG_CMD_VIID_V(x)	((x) << FW_RSS_VI_CONFIG_CMD_VIID_S)
+
+#define FW_RSS_VI_CONFIG_CMD_DEFAULTQ_S		16
+#define FW_RSS_VI_CONFIG_CMD_DEFAULTQ_M		0x3ff
+#define FW_RSS_VI_CONFIG_CMD_DEFAULTQ_V(x)	\
+	((x) << FW_RSS_VI_CONFIG_CMD_DEFAULTQ_S)
+#define FW_RSS_VI_CONFIG_CMD_DEFAULTQ_G(x)	\
+	(((x) >> FW_RSS_VI_CONFIG_CMD_DEFAULTQ_S) & \
+	 FW_RSS_VI_CONFIG_CMD_DEFAULTQ_M)
+
+#define FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_S	4
+#define FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_V(x)	\
+	((x) << FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_S)
+#define FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F	\
+	FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_V(1U)
+
+#define FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_S	3
+#define FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_V(x)	\
+	((x) << FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_S)
+#define FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F	\
+	FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_V(1U)
+
+#define FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_S	2
+#define FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_V(x)	\
+	((x) << FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_S)
+#define FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F	\
+	FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_V(1U)
+
+#define FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_S	1
+#define FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_V(x)	\
+	((x) << FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_S)
+#define FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F	\
+	FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_V(1U)
+
+#define FW_RSS_VI_CONFIG_CMD_UDPEN_S	0
+#define FW_RSS_VI_CONFIG_CMD_UDPEN_V(x)	((x) << FW_RSS_VI_CONFIG_CMD_UDPEN_S)
+#define FW_RSS_VI_CONFIG_CMD_UDPEN_F	FW_RSS_VI_CONFIG_CMD_UDPEN_V(1U)
 
 struct fw_clip_cmd {
 	__be32 op_to_write;
@@ -2801,19 +2878,13 @@ struct fw_clip_cmd {
 	__be32 r4[2];
 };
 
-#define S_FW_CLIP_CMD_ALLOC     31
-#define M_FW_CLIP_CMD_ALLOC     0x1
-#define V_FW_CLIP_CMD_ALLOC(x)  ((x) << S_FW_CLIP_CMD_ALLOC)
-#define G_FW_CLIP_CMD_ALLOC(x)  \
-	(((x) >> S_FW_CLIP_CMD_ALLOC) & M_FW_CLIP_CMD_ALLOC)
-#define F_FW_CLIP_CMD_ALLOC     V_FW_CLIP_CMD_ALLOC(1U)
+#define FW_CLIP_CMD_ALLOC_S     31
+#define FW_CLIP_CMD_ALLOC_V(x)  ((x) << FW_CLIP_CMD_ALLOC_S)
+#define FW_CLIP_CMD_ALLOC_F     FW_CLIP_CMD_ALLOC_V(1U)
 
-#define S_FW_CLIP_CMD_FREE      30
-#define M_FW_CLIP_CMD_FREE      0x1
-#define V_FW_CLIP_CMD_FREE(x)   ((x) << S_FW_CLIP_CMD_FREE)
-#define G_FW_CLIP_CMD_FREE(x)   \
-	(((x) >> S_FW_CLIP_CMD_FREE) & M_FW_CLIP_CMD_FREE)
-#define F_FW_CLIP_CMD_FREE      V_FW_CLIP_CMD_FREE(1U)
+#define FW_CLIP_CMD_FREE_S      30
+#define FW_CLIP_CMD_FREE_V(x)   ((x) << FW_CLIP_CMD_FREE_S)
+#define FW_CLIP_CMD_FREE_F      FW_CLIP_CMD_FREE_V(1U)
 
 enum fw_error_type {
 	FW_ERROR_TYPE_EXCEPTION		= 0x0,
@@ -2852,7 +2923,6 @@ struct fw_error_cmd {
 
 struct fw_debug_cmd {
 	__be32 op_type;
-#define FW_DEBUG_CMD_TYPE_GET(x) ((x) & 0xff)
 	__be32 len16_pkd;
 	union fw_debug {
 		struct fw_debug_assert {
@@ -2875,19 +2945,35 @@ struct fw_debug_cmd {
 	} u;
 };
 
-#define FW_PCIE_FW_ERR           (1U << 31)
-#define FW_PCIE_FW_INIT          (1U << 30)
-#define FW_PCIE_FW_HALT          (1U << 29)
-#define FW_PCIE_FW_MASTER_VLD    (1U << 15)
-#define FW_PCIE_FW_MASTER_MASK   0x7
-#define FW_PCIE_FW_MASTER_SHIFT  12
-#define FW_PCIE_FW_MASTER(x)     ((x) << FW_PCIE_FW_MASTER_SHIFT)
-#define FW_PCIE_FW_MASTER_GET(x) (((x) >> FW_PCIE_FW_MASTER_SHIFT) & \
-				 FW_PCIE_FW_MASTER_MASK)
-#define FW_PCIE_FW_EVAL_MASK   0x7
-#define FW_PCIE_FW_EVAL_SHIFT  24
-#define FW_PCIE_FW_EVAL_GET(x) (((x) >> FW_PCIE_FW_EVAL_SHIFT) & \
-				 FW_PCIE_FW_EVAL_MASK)
+#define FW_DEBUG_CMD_TYPE_S	0
+#define FW_DEBUG_CMD_TYPE_M	0xff
+#define FW_DEBUG_CMD_TYPE_G(x)	\
+	(((x) >> FW_DEBUG_CMD_TYPE_S) & FW_DEBUG_CMD_TYPE_M)
+
+#define PCIE_FW_ERR_S		31
+#define PCIE_FW_ERR_V(x)	((x) << PCIE_FW_ERR_S)
+#define PCIE_FW_ERR_F		PCIE_FW_ERR_V(1U)
+
+#define PCIE_FW_INIT_S		30
+#define PCIE_FW_INIT_V(x)	((x) << PCIE_FW_INIT_S)
+#define PCIE_FW_INIT_F		PCIE_FW_INIT_V(1U)
+
+#define PCIE_FW_HALT_S          29
+#define PCIE_FW_HALT_V(x)       ((x) << PCIE_FW_HALT_S)
+#define PCIE_FW_HALT_F          PCIE_FW_HALT_V(1U)
+
+#define PCIE_FW_EVAL_S		24
+#define PCIE_FW_EVAL_M		0x7
+#define PCIE_FW_EVAL_G(x)	(((x) >> PCIE_FW_EVAL_S) & PCIE_FW_EVAL_M)
+
+#define PCIE_FW_MASTER_VLD_S	15
+#define PCIE_FW_MASTER_VLD_V(x)	((x) << PCIE_FW_MASTER_VLD_S)
+#define PCIE_FW_MASTER_VLD_F	PCIE_FW_MASTER_VLD_V(1U)
+
+#define PCIE_FW_MASTER_S	12
+#define PCIE_FW_MASTER_M	0x7
+#define PCIE_FW_MASTER_V(x)	((x) << PCIE_FW_MASTER_S)
+#define PCIE_FW_MASTER_G(x)	(((x) >> PCIE_FW_MASTER_S) & PCIE_FW_MASTER_M)
 
 struct fw_hdr {
 	u8 ver;
@@ -2915,10 +3001,25 @@ enum fw_hdr_chip {
 	FW_HDR_CHIP_T5
 };
 
-#define FW_HDR_FW_VER_MAJOR_GET(x) (((x) >> 24) & 0xff)
-#define FW_HDR_FW_VER_MINOR_GET(x) (((x) >> 16) & 0xff)
-#define FW_HDR_FW_VER_MICRO_GET(x) (((x) >> 8) & 0xff)
-#define FW_HDR_FW_VER_BUILD_GET(x) (((x) >> 0) & 0xff)
+#define FW_HDR_FW_VER_MAJOR_S	24
+#define FW_HDR_FW_VER_MAJOR_M	0xff
+#define FW_HDR_FW_VER_MAJOR_G(x) \
+	(((x) >> FW_HDR_FW_VER_MAJOR_S) & FW_HDR_FW_VER_MAJOR_M)
+
+#define FW_HDR_FW_VER_MINOR_S	16
+#define FW_HDR_FW_VER_MINOR_M	0xff
+#define FW_HDR_FW_VER_MINOR_G(x) \
+	(((x) >> FW_HDR_FW_VER_MINOR_S) & FW_HDR_FW_VER_MINOR_M)
+
+#define FW_HDR_FW_VER_MICRO_S	8
+#define FW_HDR_FW_VER_MICRO_M	0xff
+#define FW_HDR_FW_VER_MICRO_G(x) \
+	(((x) >> FW_HDR_FW_VER_MICRO_S) & FW_HDR_FW_VER_MICRO_M)
+
+#define FW_HDR_FW_VER_BUILD_S	0
+#define FW_HDR_FW_VER_BUILD_M	0xff
+#define FW_HDR_FW_VER_BUILD_G(x) \
+	(((x) >> FW_HDR_FW_VER_BUILD_S) & FW_HDR_FW_VER_BUILD_M)
 
 enum fw_hdr_intfver {
 	FW_HDR_INTFVER_NIC      = 0x00,
