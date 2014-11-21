@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2012 Altera Corporation <www.altera.com>
+ * Copyright (C) 2014 Altera Corporation <www.altera.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,11 +16,22 @@
  */
 
 /dts-v1/;
-/* First 4KB has trampoline code for secondary cores. */
-/memreserve/ 0x00000000 0x0001000;
-#include "socfpga.dtsi"
+#include "socfpga_arria10.dtsi"
 
 / {
+	model = "Altera SOCFPGA Arria 10";
+	compatible = "altr,socfpga-arria10", "altr,socfpga";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 rootwait";
+	};
+
+	memory {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x0 0x40000000>; /* 1GB */
+	};
+
 	soc {
 		clkmgr@ffd04000 {
 			clocks {
@@ -30,26 +41,8 @@
 			};
 		};
 
-		mmc0: dwmmc0@ff704000 {
-			num-slots = <1>;
-			broken-cd;
-			bus-width = <4>;
-			cap-mmc-highspeed;
-			cap-sd-highspeed;
-		};
-
-		ethernet@ff702000 {
-			phy-mode = "rgmii";
-			phy-addr = <0xffffffff>; /* probe for phy addr */
+		serial0@ffc02000 {
 			status = "okay";
 		};
-
-		sysmgr@ffd08000 {
-			cpu1-start-addr = <0xffd080c4>;
-		};
 	};
-};
-
-&watchdog0 {
-	status = "okay";
 };
