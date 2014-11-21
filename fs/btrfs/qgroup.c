@@ -2230,17 +2230,6 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	if (inherit && inherit->flags & BTRFS_QGROUP_INHERIT_SET_LIMITS) {
-		ret = update_qgroup_limit_item(trans, quota_root, objectid,
-					       inherit->lim.flags,
-					       inherit->lim.max_rfer,
-					       inherit->lim.max_excl,
-					       inherit->lim.rsv_rfer,
-					       inherit->lim.rsv_excl);
-		if (ret)
-			goto out;
-	}
-
 	if (srcid) {
 		struct btrfs_root *srcroot;
 		struct btrfs_key srckey;
@@ -2284,6 +2273,23 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	if (IS_ERR(dstgroup)) {
 		ret = PTR_ERR(dstgroup);
 		goto unlock;
+	}
+
+	if (inherit && inherit->flags & BTRFS_QGROUP_INHERIT_SET_LIMITS) {
+		ret = update_qgroup_limit_item(trans, quota_root, objectid,
+					       inherit->lim.flags,
+					       inherit->lim.max_rfer,
+					       inherit->lim.max_excl,
+					       inherit->lim.rsv_rfer,
+					       inherit->lim.rsv_excl);
+		if (ret)
+			goto unlock;
+
+		dstgroup->lim_flags = inherit->lim.flags;
+		dstgroup->max_rfer = inherit->lim.max_rfer;
+		dstgroup->max_excl = inherit->lim.max_excl;
+		dstgroup->rsv_rfer = inherit->lim.rsv_rfer;
+		dstgroup->rsv_excl = inherit->lim.rsv_excl;
 	}
 
 	if (srcid) {
