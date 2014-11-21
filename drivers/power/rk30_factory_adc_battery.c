@@ -104,6 +104,7 @@ int    gDoubleVoltageCnt = 6800;
 unsigned long gSecondsCnt = 0;
 char gDischargeFlag[4] = {"on "};
 static int    g_old_cap = -1;
+static int g_uboot_incre = 0;
 
 #if 1
 #define BATT_MAX_VOL_VALUE	4250/*Full  charge volatge*/
@@ -342,6 +343,17 @@ static ssize_t rkbatt_restore_flag_attrs(struct device *dev,
 	}
 	return size;
 }
+
+static int __init adc_bootloader_setup(char *str)
+{
+
+       if(str) {
+               printk("adc.incre is %s\n", str);
+               sscanf(str, "%d", &g_uboot_incre);
+       }
+       return 0;
+}
+early_param("adc.incre", adc_bootloader_setup);
 
 static ssize_t rkbatt_show_oldcap_attrs(struct device *dev, struct device_attribute *attr, char *buf) 
 {				 
@@ -1377,13 +1389,16 @@ static void rk30_adc_battery_poweron_capacity_check(struct rk30_adc_battery_data
 	new_capacity = bat ->bat_capacity;
 		
 	while( cnt -- ){
+		g_old_cap = g_old_cap + g_uboot_incre;
+		if(g_old_cap > 100)
+			g_old_cap = 100;
 	    old_capacity = g_old_cap;   // rk30_adc_battery_load_capacity();
 	    if( old_capacity != -1 ){
 	        break ;
 	    }
 	    msleep(100);
 	}
-        printk("func:%s; line:%d; old_capacity = %d; new_capacity = %d\n", __func__, __LINE__, old_capacity, new_capacity);
+        printk("func:%s; line:%d; old_capacity = %d; new_capacity = %d; g_uboot_incre = %d\n", __func__, __LINE__, old_capacity, new_capacity,g_uboot_incre);
 
 	if ((old_capacity < 0) || (old_capacity > 100)){
 		old_capacity = new_capacity;
