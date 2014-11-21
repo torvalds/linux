@@ -2231,7 +2231,7 @@ int __init create_segment_manager_caches(void)
 		goto fail;
 
 	sit_entry_set_slab = f2fs_kmem_cache_create("sit_entry_set",
-			sizeof(struct nat_entry_set));
+			sizeof(struct sit_entry_set));
 	if (!sit_entry_set_slab)
 		goto destory_discard_entry;
 
