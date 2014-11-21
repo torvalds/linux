@@ -510,7 +510,8 @@ dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-lenovo-ix4-300d.dtb \
 	armada-xp-matrix.dtb \
 	armada-xp-netgear-rn2120.dtb \
-	armada-xp-openblocks-ax3-4.dtb
+	armada-xp-openblocks-ax3-4.dtb \
+	armada-xp-synology-ds414.dtb
 dtb-$(CONFIG_MACH_DOVE) += dove-cm-a510.dtb \
 	dove-cubox.dtb \
 	dove-cubox-es.dtb \
