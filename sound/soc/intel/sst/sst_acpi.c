@@ -121,7 +121,7 @@ static const struct sst_res_info byt_rvp_res_info = {
 	.acpi_ipc_irq_index = 5,
 };
 
-struct sst_platform_info byt_rvp_platform_data = {
+static struct sst_platform_info byt_rvp_platform_data = {
 	.probe_data = &byt_fwparse_info,
 	.ipc_info = &byt_ipc_info,
 	.lib_info = &byt_lib_dnld_info,
