@@ -274,10 +274,11 @@ void btrfs_csum_final(u32 crc, char *result)
  * compute the csum for a btree block, and either verify it or write it
  * into the csum field of the block.
  */
-static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
+static int csum_tree_block(struct btrfs_fs_info *fs_info,
+			   struct extent_buffer *buf,
 			   int verify)
 {
-	u16 csum_size = btrfs_super_csum_size(root->fs_info->super_copy);
+	u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	char *result = NULL;
 	unsigned long len;
 	unsigned long cur_len;
@@ -321,7 +322,7 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			printk_ratelimited(KERN_WARNING
 				"BTRFS: %s checksum verify failed on %llu wanted %X found %X "
 				"level %d\n",
-				root->fs_info->sb->s_id, buf->start,
+				fs_info->sb->s_id, buf->start,
 				val, found, btrfs_header_level(buf));
 			if (result != (char *)&inline_result)
 				kfree(result);
@@ -501,7 +502,7 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
  * we only fill in the checksum field in the first page of a multi-page block
  */
 
-static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
+static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 {
 	u64 start = page_offset(page);
 	u64 found_start;
@@ -513,14 +514,14 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	found_start = btrfs_header_bytenr(eb);
 	if (WARN_ON(found_start != start || !PageUptodate(page)))
 		return 0;
-	csum_tree_block(root, eb, 0);
+	csum_tree_block(fs_info, eb, 0);
 	return 0;
 }
 
-static int check_tree_block_fsid(struct btrfs_root *root,
+static int check_tree_block_fsid(struct btrfs_fs_info *fs_info,
 				 struct extent_buffer *eb)
 {
-	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	u8 fsid[BTRFS_UUID_SIZE];
 	int ret = 1;
 
@@ -640,7 +641,7 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 		ret = -EIO;
 		goto err;
 	}
-	if (check_tree_block_fsid(root, eb)) {
+	if (check_tree_block_fsid(root->fs_info, eb)) {
 		printk_ratelimited(KERN_ERR "BTRFS (device %s): bad fsid on block %llu\n",
 			       eb->fs_info->sb->s_id, eb->start);
 		ret = -EIO;
@@ -657,7 +658,7 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 	btrfs_set_buffer_lockdep_class(btrfs_header_owner(eb),
 				       eb, found_level);
 
-	ret = csum_tree_block(root, eb, 1);
+	ret = csum_tree_block(root->fs_info, eb, 1);
 	if (ret) {
 		ret = -EIO;
 		goto err;
@@ -882,7 +883,7 @@ static int btree_csum_one_bio(struct bio *bio)
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
-		ret = csum_dirty_buffer(root, bvec->bv_page);
+		ret = csum_dirty_buffer(root->fs_info, bvec->bv_page);
 		if (ret)
 			break;
 	}
@@ -1119,10 +1120,10 @@ int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr,
 	return 0;
 }
 
-struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
+struct extent_buffer *btrfs_find_tree_block(struct btrfs_fs_info *fs_info,
 					    u64 bytenr)
 {
-	return find_extent_buffer(root->fs_info, bytenr);
+	return find_extent_buffer(fs_info, bytenr);
 }
 
 struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
@@ -1165,11 +1166,10 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 
 }
 
-void clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+void clean_tree_block(struct btrfs_trans_handle *trans,
+		      struct btrfs_fs_info *fs_info,
 		      struct extent_buffer *buf)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
-
 	if (btrfs_header_generation(buf) ==
 	    fs_info->running_transaction->transid) {
 		btrfs_assert_tree_locked(buf);
@@ -4136,7 +4136,7 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 
 		clear_extent_bits(dirty_pages, start, end, mark, GFP_NOFS);
 		while (start <= end) {
-			eb = btrfs_find_tree_block(root, start);
+			eb = btrfs_find_tree_block(root->fs_info, start);
 			start += root->nodesize;
 			if (!eb)
 				continue;
