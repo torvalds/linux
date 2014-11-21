@@ -225,6 +225,28 @@ static inline unsigned int xgbe_tx_avail_desc(struct xgbe_ring *ring)
 	return (ring->rdesc_count - (ring->cur - ring->dirty));
 }
 
+static int xgbe_maybe_stop_tx_queue(struct xgbe_channel *channel,
+				    struct xgbe_ring *ring, unsigned int count)
+{
+	struct xgbe_prv_data *pdata = channel->pdata;
+
+	if (count > xgbe_tx_avail_desc(ring)) {
+		DBGPR("  Tx queue stopped, not enough descriptors available\n");
+		netif_stop_subqueue(pdata->netdev, channel->queue_index);
+		ring->tx.queue_stopped = 1;
+
+		/* If we haven't notified the hardware because of xmit_more
+		 * support, tell it now
+		 */
+		if (ring->tx.xmit_more)
+			pdata->hw_if.tx_start_xmit(channel, ring);
+
+		return NETDEV_TX_BUSY;
+	}
+
+	return 0;
+}
+
 static int xgbe_calc_rx_buf_size(struct net_device *netdev, unsigned int mtu)
 {
 	unsigned int rx_buf_size;
@@ -876,7 +898,10 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 static void xgbe_stop(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+	struct xgbe_channel *channel;
 	struct net_device *netdev = pdata->netdev;
+	struct netdev_queue *txq;
+	unsigned int i;
 
 	DBGPR("-->xgbe_stop\n");
 
@@ -889,6 +914,15 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 
 	hw_if->disable_tx(pdata);
 	hw_if->disable_rx(pdata);
+
+	channel = pdata->channel;
+	for (i = 0; i < pdata->channel_count; i++, channel++) {
+		if (!channel->tx_ring)
+			continue;
+
+		txq = netdev_get_tx_queue(netdev, channel->queue_index);
+		netdev_tx_reset_queue(txq);
+	}
 
 	DBGPR("<--xgbe_stop\n");
 }
@@ -1156,6 +1190,12 @@ static int xgbe_prep_tso(struct sk_buff *skb, struct xgbe_packet_data *packet)
 	      packet->tcp_header_len, packet->tcp_payload_len);
 	DBGPR("  packet->mss=%u\n", packet->mss);
 
+	/* Update the number of packets that will ultimately be transmitted
+	 * along with the extra bytes for each extra packet
+	 */
+	packet->tx_packets = skb_shinfo(skb)->gso_segs;
+	packet->tx_bytes += (packet->tx_packets - 1) * packet->header_len;
+
 	return 0;
 }
 
@@ -1181,8 +1221,13 @@ static void xgbe_packet_info(struct xgbe_prv_data *pdata,
 	unsigned int len;
 	unsigned int i;
 
+	packet->skb = skb;
+
 	context_desc = 0;
 	packet->rdesc_count = 0;
+
+	packet->tx_packets = 1;
+	packet->tx_bytes = skb->len;
 
 	if (xgbe_is_tso(skb)) {
 		/* TSO requires an extra descriptor if mss is different */
@@ -1400,12 +1445,14 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct xgbe_channel *channel;
 	struct xgbe_ring *ring;
 	struct xgbe_packet_data *packet;
+	struct netdev_queue *txq;
 	unsigned long flags;
 	int ret;
 
 	DBGPR("-->xgbe_xmit: skb->len = %d\n", skb->len);
 
 	channel = pdata->channel + skb->queue_mapping;
+	txq = netdev_get_tx_queue(netdev, channel->queue_index);
 	ring = channel->tx_ring;
 	packet = &ring->packet_data;
 
@@ -1424,13 +1471,9 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	xgbe_packet_info(pdata, ring, skb, packet);
 
 	/* Check that there are enough descriptors available */
-	if (packet->rdesc_count > xgbe_tx_avail_desc(ring)) {
-		DBGPR("  Tx queue stopped, not enough descriptors available\n");
-		netif_stop_subqueue(netdev, channel->queue_index);
-		ring->tx.queue_stopped = 1;
-		ret = NETDEV_TX_BUSY;
+	ret = xgbe_maybe_stop_tx_queue(channel, ring, packet->rdesc_count);
+	if (ret)
 		goto tx_netdev_return;
-	}
 
 	ret = xgbe_prep_tso(skb, packet);
 	if (ret) {
@@ -1447,12 +1490,20 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	xgbe_prep_tx_tstamp(pdata, skb, packet);
 
+	/* Report on the actual number of bytes (to be) sent */
+	netdev_tx_sent_queue(txq, packet->tx_bytes);
+
 	/* Configure required descriptor fields for transmission */
 	hw_if->dev_xmit(channel);
 
 #ifdef XGMAC_ENABLE_TX_PKT_DUMP
 	xgbe_print_pkt(netdev, skb, true);
 #endif
+
+	/* Stop the queue in advance if there may not be enough descriptors */
+	xgbe_maybe_stop_tx_queue(channel, ring, XGBE_TX_MAX_DESCS);
+
+	ret = NETDEV_TX_OK;
 
 tx_netdev_return:
 	spin_unlock_irqrestore(&ring->lock, flags);
@@ -1747,14 +1798,14 @@ static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
 	u8 *packet;
 	unsigned int copy_len;
 
-	skb = netdev_alloc_skb_ip_align(netdev, rdata->rx_hdr.dma_len);
+	skb = netdev_alloc_skb_ip_align(netdev, rdata->rx.hdr.dma_len);
 	if (!skb)
 		return NULL;
 
-	packet = page_address(rdata->rx_hdr.pa.pages) +
-		 rdata->rx_hdr.pa.pages_offset;
-	copy_len = (rdata->hdr_len) ? rdata->hdr_len : *len;
-	copy_len = min(rdata->rx_hdr.dma_len, copy_len);
+	packet = page_address(rdata->rx.hdr.pa.pages) +
+		 rdata->rx.hdr.pa.pages_offset;
+	copy_len = (rdata->rx.hdr_len) ? rdata->rx.hdr_len : *len;
+	copy_len = min(rdata->rx.hdr.dma_len, copy_len);
 	skb_copy_to_linear_data(skb, packet, copy_len);
 	skb_put(skb, copy_len);
 
@@ -1772,14 +1823,18 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	struct xgbe_ring_data *rdata;
 	struct xgbe_ring_desc *rdesc;
 	struct net_device *netdev = pdata->netdev;
+	struct netdev_queue *txq;
 	unsigned long flags;
 	int processed = 0;
+	unsigned int tx_packets = 0, tx_bytes = 0;
 
 	DBGPR("-->xgbe_tx_poll\n");
 
 	/* Nothing to do if there isn't a Tx ring for this channel */
 	if (!ring)
 		return 0;
+
+	txq = netdev_get_tx_queue(netdev, channel->queue_index);
 
 	spin_lock_irqsave(&ring->lock, flags);
 
@@ -1791,9 +1846,18 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 		if (!hw_if->tx_complete(rdesc))
 			break;
 
+		/* Make sure descriptor fields are read after reading the OWN
+		 * bit */
+		rmb();
+
 #ifdef XGMAC_ENABLE_TX_DESC_DUMP
 		xgbe_dump_tx_desc(ring, ring->dirty, 1, 0);
 #endif
+
+		if (hw_if->is_last_desc(rdesc)) {
+			tx_packets += rdata->tx.packets;
+			tx_bytes += rdata->tx.bytes;
+		}
 
 		/* Free the SKB and reset the descriptor for re-use */
 		desc_if->unmap_rdata(pdata, rdata);
@@ -1803,14 +1867,20 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 		ring->dirty++;
 	}
 
+	if (!processed)
+		goto unlock;
+
+	netdev_tx_completed_queue(txq, tx_packets, tx_bytes);
+
 	if ((ring->tx.queue_stopped == 1) &&
 	    (xgbe_tx_avail_desc(ring) > XGBE_TX_DESC_MIN_FREE)) {
 		ring->tx.queue_stopped = 0;
-		netif_wake_subqueue(netdev, channel->queue_index);
+		netif_tx_wake_queue(txq);
 	}
 
 	DBGPR("<--xgbe_tx_poll: processed=%d\n", processed);
 
+unlock:
 	spin_unlock_irqrestore(&ring->lock, flags);
 
 	return processed;
@@ -1896,13 +1966,13 @@ read_again:
 		}
 
 		if (!context) {
-			put_len = rdata->len - len;
+			put_len = rdata->rx.len - len;
 			len += put_len;
 
 			if (!skb) {
 				dma_sync_single_for_cpu(pdata->dev,
-							rdata->rx_hdr.dma,
-							rdata->rx_hdr.dma_len,
+							rdata->rx.hdr.dma,
+							rdata->rx.hdr.dma_len,
 							DMA_FROM_DEVICE);
 
 				skb = xgbe_create_skb(pdata, rdata, &put_len);
@@ -1914,15 +1984,15 @@ read_again:
 
 			if (put_len) {
 				dma_sync_single_for_cpu(pdata->dev,
-							rdata->rx_buf.dma,
-							rdata->rx_buf.dma_len,
+							rdata->rx.buf.dma,
+							rdata->rx.buf.dma_len,
 							DMA_FROM_DEVICE);
 
 				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-						rdata->rx_buf.pa.pages,
-						rdata->rx_buf.pa.pages_offset,
-						put_len, rdata->rx_buf.dma_len);
-				rdata->rx_buf.pa.pages = NULL;
+						rdata->rx.buf.pa.pages,
+						rdata->rx.buf.pa.pages_offset,
+						put_len, rdata->rx.buf.dma_len);
+				rdata->rx.buf.pa.pages = NULL;
 			}
 		}
 

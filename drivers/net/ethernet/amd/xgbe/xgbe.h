@@ -140,6 +140,17 @@
 
 #define XGBE_TX_MAX_BUF_SIZE	(0x3fff & ~(64 - 1))
 
+/* Descriptors required for maximum contigous TSO/GSO packet */
+#define XGBE_TX_MAX_SPLIT	((GSO_MAX_SIZE / XGBE_TX_MAX_BUF_SIZE) + 1)
+
+/* Maximum possible descriptors needed for an SKB:
+ * - Maximum number of SKB frags
+ * - Maximum descriptors for contiguous TSO/GSO packet
+ * - Possible context descriptor
+ * - Possible TSO header descriptor
+ */
+#define XGBE_TX_MAX_DESCS	(MAX_SKB_FRAGS + XGBE_TX_MAX_SPLIT + 2)
+
 #define XGBE_RX_MIN_BUF_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 #define XGBE_RX_BUF_ALIGN	64
 #define XGBE_SKB_ALLOC_SIZE	256
@@ -147,6 +158,7 @@
 
 #define XGBE_MAX_DMA_CHANNELS	16
 #define XGBE_MAX_QUEUES		16
+#define XGBE_DMA_STOP_TIMEOUT	5
 
 /* DMA cache settings - Outer sharable, write-back, write-allocate */
 #define XGBE_DMA_OS_AXDOMAIN	0x2
@@ -224,6 +236,8 @@
 struct xgbe_prv_data;
 
 struct xgbe_packet_data {
+	struct sk_buff *skb;
+
 	unsigned int attributes;
 
 	unsigned int errors;
@@ -242,6 +256,9 @@ struct xgbe_packet_data {
 
 	u32 rss_hash;
 	enum pkt_hash_types rss_hash_type;
+
+	unsigned int tx_packets;
+	unsigned int tx_bytes;
 };
 
 /* Common Rx and Tx descriptor mapping */
@@ -270,6 +287,21 @@ struct xgbe_buffer_data {
 	unsigned int dma_len;
 };
 
+/* Tx-related ring data */
+struct xgbe_tx_ring_data {
+	unsigned int packets;		/* BQL packet count */
+	unsigned int bytes;		/* BQL byte count */
+};
+
+/* Rx-related ring data */
+struct xgbe_rx_ring_data {
+	struct xgbe_buffer_data hdr;	/* Header locations */
+	struct xgbe_buffer_data buf;	/* Payload locations */
+
+	unsigned short hdr_len;		/* Length of received header */
+	unsigned short len;		/* Length of received packet */
+};
+
 /* Structure used to hold information related to the descriptor
  * and the packet associated with the descriptor (always use
  * use the XGBE_GET_DESC_DATA macro to access this data from the ring)
@@ -281,13 +313,9 @@ struct xgbe_ring_data {
 	struct sk_buff *skb;		/* Virtual address of SKB */
 	dma_addr_t skb_dma;		/* DMA address of SKB data */
 	unsigned int skb_dma_len;	/* Length of SKB DMA area */
-	unsigned int tso_header;        /* TSO header indicator */
 
-	struct xgbe_buffer_data rx_hdr;	/* Header locations */
-	struct xgbe_buffer_data rx_buf; /* Payload locations */
-
-	unsigned short hdr_len;		/* Length of received header */
-	unsigned short len;		/* Length of received Rx packet */
+	struct xgbe_tx_ring_data tx;	/* Tx-related data */
+	struct xgbe_rx_ring_data rx;	/* Rx-related data */
 
 	unsigned int interrupt;		/* Interrupt indicator */
 
@@ -345,6 +373,7 @@ struct xgbe_ring {
 	union {
 		struct {
 			unsigned int queue_stopped;
+			unsigned int xmit_more;
 			unsigned short cur_mss;
 			unsigned short cur_vlan_ctag;
 		} tx;
@@ -508,6 +537,7 @@ struct xgbe_hw_if {
 	void (*tx_desc_reset)(struct xgbe_ring_data *);
 	int (*is_last_desc)(struct xgbe_ring_desc *);
 	int (*is_context_desc)(struct xgbe_ring_desc *);
+	void (*tx_start_xmit)(struct xgbe_channel *, struct xgbe_ring *);
 
 	/* For FLOW ctrl */
 	int (*config_tx_flow_control)(struct xgbe_prv_data *);
