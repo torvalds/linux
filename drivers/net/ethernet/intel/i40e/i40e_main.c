@@ -5565,11 +5565,17 @@ static void i40e_check_hang_subtask(struct i40e_pf *pf)
 			if (!(pf->flags & I40E_FLAG_MSIX_ENABLED)) {
 				wr32(&vsi->back->hw, I40E_PFINT_DYN_CTL0,
 				     (I40E_PFINT_DYN_CTL0_INTENA_MASK |
-				      I40E_PFINT_DYN_CTL0_SWINT_TRIG_MASK));
+				      I40E_PFINT_DYN_CTL0_SWINT_TRIG_MASK |
+				      I40E_PFINT_DYN_CTL0_ITR_INDX_MASK |
+				      I40E_PFINT_DYN_CTL0_SW_ITR_INDX_ENA_MASK |
+				      I40E_PFINT_DYN_CTL0_SW_ITR_INDX_MASK));
 			} else {
 				u16 vec = vsi->base_vector - 1;
 				u32 val = (I40E_PFINT_DYN_CTLN_INTENA_MASK |
-					   I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK);
+				      I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
+				      I40E_PFINT_DYN_CTLN_ITR_INDX_MASK |
+				      I40E_PFINT_DYN_CTLN_SW_ITR_INDX_ENA_MASK |
+				      I40E_PFINT_DYN_CTLN_SW_ITR_INDX_MASK);
 				for (i = 0; i < vsi->num_q_vectors; i++, vec++)
 					wr32(&vsi->back->hw,
 					     I40E_PFINT_DYN_CTLN(vec), val);
@@ -5750,13 +5756,12 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	if (oldval != val)
 		wr32(&pf->hw, pf->hw.aq.asq.len, val);
 
-	event.msg_size = I40E_MAX_AQ_BUF_SIZE;
-	event.msg_buf = kzalloc(event.msg_size, GFP_KERNEL);
+	event.buf_len = I40E_MAX_AQ_BUF_SIZE;
+	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
 	if (!event.msg_buf)
 		return;
 
 	do {
-		event.msg_size = I40E_MAX_AQ_BUF_SIZE; /* reinit each time */
 		ret = i40e_clean_arq_element(hw, &event, &pending);
 		if (ret == I40E_ERR_ADMIN_QUEUE_NO_WORK)
 			break;
@@ -5777,7 +5782,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 					le32_to_cpu(event.desc.cookie_high),
 					le32_to_cpu(event.desc.cookie_low),
 					event.msg_buf,
-					event.msg_size);
+					event.msg_len);
 			break;
 		case i40e_aqc_opc_lldp_update_mib:
 			dev_dbg(&pf->pdev->dev, "ARQ: Update LLDP MIB event received\n");

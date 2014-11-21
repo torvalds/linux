@@ -58,7 +58,7 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 
 #define I40EVF_GLOBAL_STATS_LEN ARRAY_SIZE(i40evf_gstrings_stats)
 #define I40EVF_QUEUE_STATS_LEN(_dev) \
-	(((struct i40evf_adapter *) \
+	(((struct i40evf_adapter *)\
 		netdev_priv(_dev))->num_active_queues \
 		  * 2 * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
 #define I40EVF_STATS_LEN(_dev) \
@@ -175,6 +175,7 @@ static void i40evf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 static u32 i40evf_get_msglevel(struct net_device *netdev)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
+
 	return adapter->msg_enable;
 }
 
@@ -189,6 +190,7 @@ static u32 i40evf_get_msglevel(struct net_device *netdev)
 static void i40evf_set_msglevel(struct net_device *netdev, u32 data)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
+
 	adapter->msg_enable = data;
 }
 
@@ -219,7 +221,7 @@ static void i40evf_get_drvinfo(struct net_device *netdev,
  * but the number of rings is not reported.
  **/
 static void i40evf_get_ringparam(struct net_device *netdev,
-				  struct ethtool_ringparam *ring)
+				 struct ethtool_ringparam *ring)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
@@ -280,7 +282,7 @@ static int i40evf_set_ringparam(struct net_device *netdev,
  * this functionality.
  **/
 static int i40evf_get_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+			       struct ethtool_coalesce *ec)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_vsi *vsi = &adapter->vsi;
@@ -308,7 +310,7 @@ static int i40evf_get_coalesce(struct net_device *netdev,
  * Change current coalescing settings.
  **/
 static int i40evf_set_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+			       struct ethtool_coalesce *ec)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;
@@ -621,7 +623,7 @@ static u32 i40evf_get_rxfh_indir_size(struct net_device *netdev)
  * i40evf_get_rxfh - get the rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
- * @key: hash key (will be %NULL until get_rxfh_key_size is implemented)
+ * @key: hash key
  *
  * Reads the indirection table directly from the hardware. Always returns 0.
  **/
@@ -646,7 +648,7 @@ static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
  * i40evf_set_rxfh - set the rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
- * @key: hash key (will be %NULL until get_rxfh_key_size is implemented)
+ * @key: hash key
  *
  * Returns -EINVAL if the table specifies an inavlid queue id, otherwise
  * returns 0 after programming the table.

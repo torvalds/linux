@@ -244,7 +244,7 @@ struct i40evf_adapter {
 	struct i40e_hw hw; /* defined in i40e_type.h */
 
 	enum i40evf_state_t state;
-	volatile unsigned long crit_section;
+	unsigned long crit_section;
 
 	struct work_struct watchdog_task;
 	bool netdev_registered;

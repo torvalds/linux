@@ -76,7 +76,8 @@ struct i40e_asq_cmd_details {
 /* ARQ event information */
 struct i40e_arq_event_info {
 	struct i40e_aq_desc desc;
-	u16 msg_size;
+	u16 msg_len;
+	u16 buf_len;
 	u8 *msg_buf;
 };
 
