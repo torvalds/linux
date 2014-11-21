@@ -2556,11 +2556,11 @@ void t4_mk_filtdelwr(unsigned int ftid, struct fw_filter_wr *wr, int qid)
 	memset(wr, 0, sizeof(*wr));
 	wr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER_WR));
 	wr->len16_pkd = htonl(FW_WR_LEN16_V(sizeof(*wr) / 16));
-	wr->tid_to_iq = htonl(V_FW_FILTER_WR_TID(ftid) |
-			V_FW_FILTER_WR_NOREPLY(qid < 0));
-	wr->del_filter_to_l2tix = htonl(F_FW_FILTER_WR_DEL_FILTER);
+	wr->tid_to_iq = htonl(FW_FILTER_WR_TID_V(ftid) |
+			FW_FILTER_WR_NOREPLY_V(qid < 0));
+	wr->del_filter_to_l2tix = htonl(FW_FILTER_WR_DEL_FILTER_F);
 	if (qid >= 0)
-		wr->rx_chan_rx_rpl_iq = htons(V_FW_FILTER_WR_RX_RPL_IQ(qid));
+		wr->rx_chan_rx_rpl_iq = htons(FW_FILTER_WR_RX_RPL_IQ_V(qid));
 }
 
 #define INIT_CMD(var, cmd, rd_wr) do { \

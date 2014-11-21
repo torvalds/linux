@@ -1342,49 +1342,49 @@ static int set_filter_wr(struct adapter *adapter, int fidx)
 	fwr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER_WR));
 	fwr->len16_pkd = htonl(FW_WR_LEN16_V(sizeof(*fwr)/16));
 	fwr->tid_to_iq =
-		htonl(V_FW_FILTER_WR_TID(ftid) |
-		      V_FW_FILTER_WR_RQTYPE(f->fs.type) |
-		      V_FW_FILTER_WR_NOREPLY(0) |
-		      V_FW_FILTER_WR_IQ(f->fs.iq));
+		htonl(FW_FILTER_WR_TID_V(ftid) |
+		      FW_FILTER_WR_RQTYPE_V(f->fs.type) |
+		      FW_FILTER_WR_NOREPLY_V(0) |
+		      FW_FILTER_WR_IQ_V(f->fs.iq));
 	fwr->del_filter_to_l2tix =
-		htonl(V_FW_FILTER_WR_RPTTID(f->fs.rpttid) |
-		      V_FW_FILTER_WR_DROP(f->fs.action == FILTER_DROP) |
-		      V_FW_FILTER_WR_DIRSTEER(f->fs.dirsteer) |
-		      V_FW_FILTER_WR_MASKHASH(f->fs.maskhash) |
-		      V_FW_FILTER_WR_DIRSTEERHASH(f->fs.dirsteerhash) |
-		      V_FW_FILTER_WR_LPBK(f->fs.action == FILTER_SWITCH) |
-		      V_FW_FILTER_WR_DMAC(f->fs.newdmac) |
-		      V_FW_FILTER_WR_SMAC(f->fs.newsmac) |
-		      V_FW_FILTER_WR_INSVLAN(f->fs.newvlan == VLAN_INSERT ||
+		htonl(FW_FILTER_WR_RPTTID_V(f->fs.rpttid) |
+		      FW_FILTER_WR_DROP_V(f->fs.action == FILTER_DROP) |
+		      FW_FILTER_WR_DIRSTEER_V(f->fs.dirsteer) |
+		      FW_FILTER_WR_MASKHASH_V(f->fs.maskhash) |
+		      FW_FILTER_WR_DIRSTEERHASH_V(f->fs.dirsteerhash) |
+		      FW_FILTER_WR_LPBK_V(f->fs.action == FILTER_SWITCH) |
+		      FW_FILTER_WR_DMAC_V(f->fs.newdmac) |
+		      FW_FILTER_WR_SMAC_V(f->fs.newsmac) |
+		      FW_FILTER_WR_INSVLAN_V(f->fs.newvlan == VLAN_INSERT ||
 					     f->fs.newvlan == VLAN_REWRITE) |
-		      V_FW_FILTER_WR_RMVLAN(f->fs.newvlan == VLAN_REMOVE ||
+		      FW_FILTER_WR_RMVLAN_V(f->fs.newvlan == VLAN_REMOVE ||
 					    f->fs.newvlan == VLAN_REWRITE) |
-		      V_FW_FILTER_WR_HITCNTS(f->fs.hitcnts) |
-		      V_FW_FILTER_WR_TXCHAN(f->fs.eport) |
-		      V_FW_FILTER_WR_PRIO(f->fs.prio) |
-		      V_FW_FILTER_WR_L2TIX(f->l2t ? f->l2t->idx : 0));
+		      FW_FILTER_WR_HITCNTS_V(f->fs.hitcnts) |
+		      FW_FILTER_WR_TXCHAN_V(f->fs.eport) |
+		      FW_FILTER_WR_PRIO_V(f->fs.prio) |
+		      FW_FILTER_WR_L2TIX_V(f->l2t ? f->l2t->idx : 0));
 	fwr->ethtype = htons(f->fs.val.ethtype);
 	fwr->ethtypem = htons(f->fs.mask.ethtype);
 	fwr->frag_to_ovlan_vldm =
-		(V_FW_FILTER_WR_FRAG(f->fs.val.frag) |
-		 V_FW_FILTER_WR_FRAGM(f->fs.mask.frag) |
-		 V_FW_FILTER_WR_IVLAN_VLD(f->fs.val.ivlan_vld) |
-		 V_FW_FILTER_WR_OVLAN_VLD(f->fs.val.ovlan_vld) |
-		 V_FW_FILTER_WR_IVLAN_VLDM(f->fs.mask.ivlan_vld) |
-		 V_FW_FILTER_WR_OVLAN_VLDM(f->fs.mask.ovlan_vld));
+		(FW_FILTER_WR_FRAG_V(f->fs.val.frag) |
+		 FW_FILTER_WR_FRAGM_V(f->fs.mask.frag) |
+		 FW_FILTER_WR_IVLAN_VLD_V(f->fs.val.ivlan_vld) |
+		 FW_FILTER_WR_OVLAN_VLD_V(f->fs.val.ovlan_vld) |
+		 FW_FILTER_WR_IVLAN_VLDM_V(f->fs.mask.ivlan_vld) |
+		 FW_FILTER_WR_OVLAN_VLDM_V(f->fs.mask.ovlan_vld));
 	fwr->smac_sel = 0;
 	fwr->rx_chan_rx_rpl_iq =
-		htons(V_FW_FILTER_WR_RX_CHAN(0) |
-		      V_FW_FILTER_WR_RX_RPL_IQ(adapter->sge.fw_evtq.abs_id));
+		htons(FW_FILTER_WR_RX_CHAN_V(0) |
+		      FW_FILTER_WR_RX_RPL_IQ_V(adapter->sge.fw_evtq.abs_id));
 	fwr->maci_to_matchtypem =
-		htonl(V_FW_FILTER_WR_MACI(f->fs.val.macidx) |
-		      V_FW_FILTER_WR_MACIM(f->fs.mask.macidx) |
-		      V_FW_FILTER_WR_FCOE(f->fs.val.fcoe) |
-		      V_FW_FILTER_WR_FCOEM(f->fs.mask.fcoe) |
-		      V_FW_FILTER_WR_PORT(f->fs.val.iport) |
-		      V_FW_FILTER_WR_PORTM(f->fs.mask.iport) |
-		      V_FW_FILTER_WR_MATCHTYPE(f->fs.val.matchtype) |
-		      V_FW_FILTER_WR_MATCHTYPEM(f->fs.mask.matchtype));
+		htonl(FW_FILTER_WR_MACI_V(f->fs.val.macidx) |
+		      FW_FILTER_WR_MACIM_V(f->fs.mask.macidx) |
+		      FW_FILTER_WR_FCOE_V(f->fs.val.fcoe) |
+		      FW_FILTER_WR_FCOEM_V(f->fs.mask.fcoe) |
+		      FW_FILTER_WR_PORT_V(f->fs.val.iport) |
+		      FW_FILTER_WR_PORTM_V(f->fs.mask.iport) |
+		      FW_FILTER_WR_MATCHTYPE_V(f->fs.val.matchtype) |
+		      FW_FILTER_WR_MATCHTYPEM_V(f->fs.mask.matchtype));
 	fwr->ptcl = f->fs.val.proto;
 	fwr->ptclm = f->fs.mask.proto;
 	fwr->ttyp = f->fs.val.tos;
