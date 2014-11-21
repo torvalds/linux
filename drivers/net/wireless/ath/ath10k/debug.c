@@ -17,9 +17,8 @@
 
 #include <linux/module.h>
 #include <linux/debugfs.h>
-#include <linux/version.h>
-#include <linux/vermagic.h>
 #include <linux/vmalloc.h>
+#include <linux/utsname.h>
 
 #include "core.h"
 #include "debug.h"
@@ -866,8 +865,8 @@ static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar)
 	strlcpy(dump_data->fw_ver, ar->hw->wiphy->fw_version,
 		sizeof(dump_data->fw_ver));
 
-	dump_data->kernel_ver_code = cpu_to_le32(LINUX_VERSION_CODE);
-	strlcpy(dump_data->kernel_ver, VERMAGIC_STRING,
+	dump_data->kernel_ver_code = 0;
+	strlcpy(dump_data->kernel_ver, init_utsname()->release,
 		sizeof(dump_data->kernel_ver));
 
 	dump_data->tv_sec = cpu_to_le64(crash_data->timestamp.tv_sec);
