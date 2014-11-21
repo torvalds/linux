@@ -53,7 +53,7 @@
 				reg = <0x11100 0x100>;
 			};
 
-			serial@12200 {
+			uart2: serial@12200 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x12200 0x100>;
 				reg-shift = <2>;
@@ -62,7 +62,8 @@
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
-			serial@12300 {
+
+			uart3: serial@12300 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x12300 0x100>;
 				reg-shift = <2>;
