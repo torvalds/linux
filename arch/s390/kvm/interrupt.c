@@ -30,7 +30,6 @@
 #define IOINT_SCHID_MASK 0x0000ffff
 #define IOINT_SSID_MASK 0x00030000
 #define IOINT_CSSID_MASK 0x03fc0000
-#define IOINT_AI_MASK 0x04000000
 #define PFAULT_INIT 0x0600
 #define PFAULT_DONE 0x0680
 #define VIRTIO_PARAM 0x0d00
@@ -1447,7 +1446,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 		inti->mchk.mcic = s390int->parm64;
 		break;
 	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
-		if (inti->type & IOINT_AI_MASK)
+		if (inti->type & KVM_S390_INT_IO_AI_MASK)
 			VM_EVENT(kvm, 5, "%s", "inject: I/O (AI)");
 		else
 			VM_EVENT(kvm, 5, "inject: I/O css %x ss %x schid %04x",
