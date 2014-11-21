@@ -687,6 +687,7 @@ struct dwc2_hsotg {
 	u8 ctrl_buff[8];
 
 	struct usb_gadget gadget;
+	unsigned int connected:1;
 	unsigned int setup;
 	unsigned long last_rst;
 	struct s3c_hsotg_ep *eps;
@@ -968,6 +969,7 @@ extern int s3c_hsotg_resume(struct dwc2_hsotg *dwc2);
 extern int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq);
 extern void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2);
 extern void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg);
+extern void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2);
 #else
 static inline int s3c_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
@@ -979,6 +981,7 @@ static inline int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 { return 0; }
 static inline void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2) {}
 static inline void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg) {}
+static inline void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
 #endif
 
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)

@@ -1030,7 +1030,6 @@ static int s3c_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 }
 
 static void s3c_hsotg_enqueue_setup(struct dwc2_hsotg *hsotg);
-static void s3c_hsotg_disconnect(struct dwc2_hsotg *hsotg);
 
 /**
  * s3c_hsotg_stall_ep0 - stall ep0
@@ -1108,7 +1107,6 @@ static void s3c_hsotg_process_control(struct dwc2_hsotg *hsotg,
 	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD) {
 		switch (ctrl->bRequest) {
 		case USB_REQ_SET_ADDRESS:
-			s3c_hsotg_disconnect(hsotg);
 			dcfg = readl(hsotg->regs + DCFG);
 			dcfg &= ~DCFG_DEVADDR_MASK;
 			dcfg |= (le16_to_cpu(ctrl->wValue) <<
@@ -2028,15 +2026,20 @@ static void kill_all_requests(struct dwc2_hsotg *hsotg,
  * transactions and signal the gadget driver that this
  * has happened.
  */
-static void s3c_hsotg_disconnect(struct dwc2_hsotg *hsotg)
+void s3c_hsotg_disconnect(struct dwc2_hsotg *hsotg)
 {
 	unsigned ep;
 
+	if (!hsotg->connected)
+		return;
+
+	hsotg->connected = 0;
 	for (ep = 0; ep < hsotg->num_of_eps; ep++)
 		kill_all_requests(hsotg, &hsotg->eps[ep], -ESHUTDOWN, true);
 
 	call_gadget(hsotg, disconnect);
 }
+EXPORT_SYMBOL_GPL(s3c_hsotg_disconnect);
 
 /**
  * s3c_hsotg_irq_fifoempty - TX FIFO empty interrupt handler
@@ -2289,6 +2292,7 @@ irq_retry:
 		writel(GINTSTS_ENUMDONE, hsotg->regs + GINTSTS);
 
 		s3c_hsotg_irq_enumdone(hsotg);
+		hsotg->connected = 1;
 	}
 
 	if (gintsts & (GINTSTS_OEPINT | GINTSTS_IEPINT)) {
