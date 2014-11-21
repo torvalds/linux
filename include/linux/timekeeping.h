@@ -225,17 +225,6 @@ static inline void timekeeping_clocktai(struct timespec *ts)
  */
 extern void timekeeping_inject_sleeptime64(struct timespec64 *delta);
 
-/**
- * Deprecated. Use timekeeping_inject_sleeptime64().
- */
-static inline void timekeeping_inject_sleeptime(struct timespec *delta)
-{
-	struct timespec64 delta64;
-
-	delta64 = timespec_to_timespec64(*delta);
-	timekeeping_inject_sleeptime64(&delta64);
-}
-
 /*
  * PPS accessor
  */
