@@ -1135,7 +1135,7 @@ static void wacom_clean_inputs(struct wacom *wacom)
 			input_free_device(wacom->wacom_wac.input);
 	}
 	if (wacom->wacom_wac.pad_input) {
-		if (wacom->wacom_wac.input_registered)
+		if (wacom->wacom_wac.pad_registered)
 			input_unregister_device(wacom->wacom_wac.pad_input);
 		else
 			input_free_device(wacom->wacom_wac.pad_input);
@@ -1162,6 +1162,7 @@ static int wacom_register_inputs(struct wacom *wacom)
 		error = input_register_device(input_dev);
 		if (error)
 			return error;
+		wacom_wac->input_registered = true;
 	}
 
 	error = wacom_setup_pad_input_capabilities(pad_input_dev, wacom_wac);
@@ -1174,22 +1175,23 @@ static int wacom_register_inputs(struct wacom *wacom)
 		error = input_register_device(pad_input_dev);
 		if (error)
 			goto fail_register_pad_input;
+		wacom_wac->pad_registered = true;
 
 		error = wacom_initialize_leds(wacom);
 		if (error)
 			goto fail_leds;
 	}
 
-	wacom_wac->input_registered = true;
-
 	return 0;
 
 fail_leds:
 	input_unregister_device(pad_input_dev);
 	pad_input_dev = NULL;
+	wacom_wac->pad_registered = false;
 fail_register_pad_input:
 	input_unregister_device(input_dev);
 	wacom_wac->input = NULL;
+	wacom_wac->input_registered = false;
 	return error;
 }
 

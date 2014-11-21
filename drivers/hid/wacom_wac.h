@@ -183,6 +183,7 @@ struct wacom_wac {
 	struct input_dev *input;
 	struct input_dev *pad_input;
 	bool input_registered;
+	bool pad_registered;
 	int pid;
 	int battery_capacity;
 	int num_contacts_left;
