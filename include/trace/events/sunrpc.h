@@ -418,7 +418,8 @@ TRACE_EVENT(xs_tcp_data_recv,
 		{ (1UL << RQ_LOCAL),		"RQ_LOCAL"},		\
 		{ (1UL << RQ_USEDEFERRAL),	"RQ_USEDEFERRAL"},	\
 		{ (1UL << RQ_DROPME),		"RQ_DROPME"},		\
-		{ (1UL << RQ_SPLICE_OK),	"RQ_SPLICE_OK"})
+		{ (1UL << RQ_SPLICE_OK),	"RQ_SPLICE_OK"},	\
+		{ (1UL << RQ_VICTIM),		"RQ_VICTIM"})
 
 TRACE_EVENT(svc_recv,
 	TP_PROTO(struct svc_rqst *rqst, int status),
