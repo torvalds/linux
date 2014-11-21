@@ -542,10 +542,13 @@ static int dfx_register(struct device *bdev)
 	}
 
 	/* Enable PCI device. */
-	if (dfx_bus_pci && pci_enable_device(to_pci_dev(bdev))) {
-		printk(KERN_ERR "%s: Cannot enable PCI device, aborting\n",
-		       print_name);
-		goto err_out;
+	if (dfx_bus_pci) {
+		err = pci_enable_device(to_pci_dev(bdev));
+		if (err) {
+			pr_err("%s: Cannot enable PCI device, aborting\n",
+			       print_name);
+			goto err_out;
+		}
 	}
 
 	SET_NETDEV_DEV(dev, bdev);
