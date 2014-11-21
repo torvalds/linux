@@ -105,7 +105,6 @@ static int dwc3_exynos_remove_child(struct device *dev, void *unused)
 static int dwc3_exynos_probe(struct platform_device *pdev)
 {
 	struct dwc3_exynos	*exynos;
-	struct clk		*clk;
 	struct device		*dev = &pdev->dev;
 	struct device_node	*node = dev->of_node;
 
@@ -132,15 +131,13 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk = devm_clk_get(dev, "usbdrd30");
-	if (IS_ERR(clk)) {
+	exynos->dev	= dev;
+
+	exynos->clk = devm_clk_get(dev, "usbdrd30");
+	if (IS_ERR(exynos->clk)) {
 		dev_err(dev, "couldn't get clock\n");
 		return -EINVAL;
 	}
-
-	exynos->dev	= dev;
-	exynos->clk	= clk;
-
 	clk_prepare_enable(exynos->clk);
 
 	exynos->vdd33 = devm_regulator_get(dev, "vdd33");
@@ -184,7 +181,7 @@ err4:
 err3:
 	regulator_disable(exynos->vdd33);
 err2:
-	clk_disable_unprepare(clk);
+	clk_disable_unprepare(exynos->clk);
 	return ret;
 }
 
