@@ -881,8 +881,8 @@ int i915_reset(struct drm_device *dev)
 		if (INTEL_INFO(dev)->gen > 5)
 			intel_reset_gt_powersave(dev);
 
-		if ((IS_GEN3(dev) && !IS_G33(dev)) ||
-		    (IS_GEN4(dev) && !IS_G4X(dev))) {
+
+		if (IS_GEN3(dev) || (IS_GEN4(dev) && !IS_G4X(dev))) {
 			intel_runtime_pm_disable_interrupts(dev_priv);
 			intel_runtime_pm_enable_interrupts(dev_priv);
 
