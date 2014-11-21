@@ -234,5 +234,5 @@ static struct pci_driver adv_pci1723_pci_driver = {
 module_comedi_pci_driver(adv_pci1723_driver, adv_pci1723_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Advantech PCI-1723 Comedi driver");
 MODULE_LICENSE("GPL");
