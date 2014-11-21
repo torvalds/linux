@@ -1345,27 +1345,27 @@ int i915_get_reset_stats_ioctl(struct drm_device *dev,
 	return 0;
 }
 
-static int i965_reset_complete(struct drm_device *dev)
+static int i915_reset_complete(struct drm_device *dev)
 {
 	u8 gdrst;
-	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
+	pci_read_config_byte(dev->pdev, I915_GDRST, &gdrst);
 	return (gdrst & GRDOM_RESET_STATUS) == 0;
 }
 
-static int i965_do_reset(struct drm_device *dev)
+static int i915_do_reset(struct drm_device *dev)
 {
 	/* assert reset for at least 20 usec */
-	pci_write_config_byte(dev->pdev, I965_GDRST, GRDOM_RESET_ENABLE);
+	pci_write_config_byte(dev->pdev, I915_GDRST, GRDOM_RESET_ENABLE);
 	udelay(20);
-	pci_write_config_byte(dev->pdev, I965_GDRST, 0);
+	pci_write_config_byte(dev->pdev, I915_GDRST, 0);
 
-	return wait_for(i965_reset_complete(dev), 500);
+	return wait_for(i915_reset_complete(dev), 500);
 }
 
 static int g4x_reset_complete(struct drm_device *dev)
 {
 	u8 gdrst;
-	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
+	pci_read_config_byte(dev->pdev, I915_GDRST, &gdrst);
 	return (gdrst & GRDOM_RESET_ENABLE) == 0;
 }
 
@@ -1374,7 +1374,7 @@ static int g4x_do_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	pci_write_config_byte(dev->pdev, I965_GDRST,
+	pci_write_config_byte(dev->pdev, I915_GDRST,
 			      GRDOM_RENDER | GRDOM_RESET_ENABLE);
 	ret =  wait_for(g4x_reset_complete(dev), 500);
 	if (ret)
@@ -1384,7 +1384,7 @@ static int g4x_do_reset(struct drm_device *dev)
 	I915_WRITE(VDECCLK_GATE_D, I915_READ(VDECCLK_GATE_D) | VCP_UNIT_CLOCK_GATE_DISABLE);
 	POSTING_READ(VDECCLK_GATE_D);
 
-	pci_write_config_byte(dev->pdev, I965_GDRST,
+	pci_write_config_byte(dev->pdev, I915_GDRST,
 			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
 	ret =  wait_for(g4x_reset_complete(dev), 500);
 	if (ret)
@@ -1394,7 +1394,7 @@ static int g4x_do_reset(struct drm_device *dev)
 	I915_WRITE(VDECCLK_GATE_D, I915_READ(VDECCLK_GATE_D) & ~VCP_UNIT_CLOCK_GATE_DISABLE);
 	POSTING_READ(VDECCLK_GATE_D);
 
-	pci_write_config_byte(dev->pdev, I965_GDRST, 0);
+	pci_write_config_byte(dev->pdev, I915_GDRST, 0);
 
 	return 0;
 }
@@ -1452,8 +1452,8 @@ int intel_gpu_reset(struct drm_device *dev)
 		return ironlake_do_reset(dev);
 	else if (IS_G4X(dev))
 		return g4x_do_reset(dev);
-	else if (IS_GEN4(dev))
-		return i965_do_reset(dev);
+	else if (IS_GEN4(dev) || (IS_GEN3(dev) &&  !IS_G33(dev)))
+		return i915_do_reset(dev);
 	else
 		return -ENODEV;
 }

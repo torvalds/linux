@@ -78,7 +78,7 @@
 
 
 /* Graphics reset regs */
-#define I965_GDRST 0xc0 /* PCI config register */
+#define I915_GDRST 0xc0 /* PCI config register */
 #define  GRDOM_FULL	(0<<2)
 #define  GRDOM_RENDER	(1<<2)
 #define  GRDOM_MEDIA	(3<<2)
