@@ -880,6 +880,24 @@ int i915_reset(struct drm_device *dev)
 		 */
 		if (INTEL_INFO(dev)->gen > 5)
 			intel_reset_gt_powersave(dev);
+
+		if (IS_GEN4(dev) && !IS_G4X(dev)) {
+			intel_runtime_pm_disable_interrupts(dev_priv);
+			intel_runtime_pm_enable_interrupts(dev_priv);
+
+			intel_modeset_init_hw(dev);
+
+			spin_lock_irq(&dev_priv->irq_lock);
+			if (dev_priv->display.hpd_irq_setup)
+				dev_priv->display.hpd_irq_setup(dev);
+			spin_unlock_irq(&dev_priv->irq_lock);
+
+			drm_modeset_lock_all(dev);
+			intel_modeset_setup_hw_state(dev, true);
+			drm_modeset_unlock_all(dev);
+
+			intel_hpd_init(dev_priv);
+		}
 	} else {
 		mutex_unlock(&dev->struct_mutex);
 	}
