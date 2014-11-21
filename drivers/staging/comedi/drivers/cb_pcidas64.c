@@ -3786,7 +3786,6 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = thisboard->ao_range_table;
 		s->insn_write = ao_winsn;
-		s->insn_read = comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

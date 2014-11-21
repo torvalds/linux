@@ -1075,7 +1075,6 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 	s->maxdata = (1 << thisboard->ao_bits) - 1;
 	s->range_table = thisboard->ao_range;
 	s->insn_write = pci224_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 	s->len_chanlist = s->n_chan;
 	dev->write_subdev = s;
 	s->do_cmd = pci224_ao_cmd;

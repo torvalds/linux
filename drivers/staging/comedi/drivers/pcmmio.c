@@ -732,7 +732,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0xffff;
 	s->range_table	= &pcmmio_ao_ranges;
 	s->insn_write	= pcmmio_ao_insn_write;
-	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

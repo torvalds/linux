@@ -1324,7 +1324,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			break;
 		}
 		s->insn_write	= pcl812_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

@@ -5441,7 +5441,6 @@ static int ni_E_init(struct comedi_device *dev,
 		s->range_table	= board->ao_range_table;
 		s->insn_config	= ni_ao_insn_config;
 		s->insn_write	= ni_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

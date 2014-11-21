@@ -1231,7 +1231,6 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/* ranges are per-channel, set by jumpers on the board */
 		s->range_table	= &dt282x_ao_range;
 		s->insn_write	= dt282x_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 		if (dev->irq) {
 			dev->write_subdev = s;
 			s->subdev_flags	|= SDF_CMD_WRITE;

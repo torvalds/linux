@@ -697,7 +697,6 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	s->len_chanlist	= 1;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= dt3k_ao_insn_write;
-	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

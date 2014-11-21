@@ -1051,7 +1051,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 		s->maxdata	= 0x3fff;
 		s->range_table	= &range_bipolar10;
 		s->insn_write	= apci3120_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

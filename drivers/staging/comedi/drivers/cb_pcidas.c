@@ -1478,7 +1478,6 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 		s->range_table = &cb_pcidas_ao_ranges;
 		/* default to no fifo (*insn_write) */
 		s->insn_write = cb_pcidas_ao_nofifo_winsn;
-		s->insn_read = comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

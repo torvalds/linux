@@ -1158,7 +1158,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				s->range_table = &range_unknown;
 		}
 		s->insn_write	= pcl818_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

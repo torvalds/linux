@@ -692,7 +692,6 @@ static int atmio16d_attach(struct comedi_device *dev,
 		break;
 	}
 	s->insn_write = atmio16d_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

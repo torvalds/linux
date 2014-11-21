@@ -109,6 +109,10 @@ int comedi_alloc_subdev_readback(struct comedi_subdevice *s)
 	s->readback = kcalloc(s->n_chan, sizeof(*s->readback), GFP_KERNEL);
 	if (!s->readback)
 		return -ENOMEM;
+
+	if (!s->insn_read)
+		s->insn_read = comedi_readback_insn_read;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_subdev_readback);

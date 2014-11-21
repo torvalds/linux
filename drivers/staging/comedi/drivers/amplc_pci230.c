@@ -2511,7 +2511,6 @@ static int pci230_auto_attach(struct comedi_device *dev,
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = &pci230_ao_range;
 		s->insn_write = pci230_ao_insn_write;
-		s->insn_read = comedi_readback_insn_read;
 		s->len_chanlist = 2;
 		if (dev->irq) {
 			dev->write_subdev = s;

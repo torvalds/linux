@@ -517,7 +517,6 @@ static int me_auto_attach(struct comedi_device *dev,
 		s->len_chanlist	= 4;
 		s->range_table	= &me_ao_range;
 		s->insn_write	= me_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
