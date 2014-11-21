@@ -940,6 +940,7 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct drm_device *drm = crtc->dev;
 	struct drm_plane *plane;
+	u32 value;
 
 	drm_for_each_legacy_plane(plane, &drm->mode_config.plane_list) {
 		if (plane->crtc == crtc) {
@@ -952,6 +953,11 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 			}
 		}
 	}
+
+	/* stop the display controller */
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
+	value &= ~DISP_CTRL_MODE_MASK;
+	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
 
 	drm_crtc_vblank_off(crtc);
 	tegra_dc_commit(dc);

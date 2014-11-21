@@ -1071,10 +1071,6 @@ static int tegra_output_sor_disable(struct tegra_output *output)
 		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 		*/
 
-		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
-		value &= ~DISP_CTRL_MODE_MASK;
-		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
-
 		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
 		value &= ~SOR_ENABLE;
 		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);

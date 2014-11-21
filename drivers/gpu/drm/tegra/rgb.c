@@ -143,10 +143,6 @@ static int tegra_output_rgb_disable(struct tegra_output *output)
 		   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
 	tegra_dc_writel(rgb->dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 
-	value = tegra_dc_readl(rgb->dc, DC_CMD_DISPLAY_COMMAND);
-	value &= ~DISP_CTRL_MODE_MASK;
-	tegra_dc_writel(rgb->dc, value, DC_CMD_DISPLAY_COMMAND);
-
 	tegra_dc_write_regs(rgb->dc, rgb_disable, ARRAY_SIZE(rgb_disable));
 
 	tegra_dc_commit(rgb->dc);
