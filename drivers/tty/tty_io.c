@@ -167,8 +167,7 @@ void free_tty_struct(struct tty_struct *tty)
 {
 	if (!tty)
 		return;
-	if (tty->dev)
-		put_device(tty->dev);
+	put_device(tty->dev);
 	kfree(tty->write_buf);
 	tty->magic = 0xDEADDEAD;
 	kfree(tty);
@@ -1688,8 +1687,7 @@ static void release_tty(struct tty_struct *tty, int idx)
 		tty->link->port->itty = NULL;
 	cancel_work_sync(&tty->port->buf.work);
 
-	if (tty->link)
-		tty_kref_put(tty->link);
+	tty_kref_put(tty->link);
 	tty_kref_put(tty);
 }
 
