@@ -1,7 +1,7 @@
 /*
  * net/tipc/node.h: Include file for TIPC node management routines
  *
- * Copyright (c) 2000-2006, Ericsson AB
+ * Copyright (c) 2000-2006, 2014, Ericsson AB
  * Copyright (c) 2005, 2010-2014, Wind River Systems
  * All rights reserved.
  *
@@ -144,6 +144,8 @@ int tipc_node_get_linkname(u32 bearer_id, u32 node, char *linkname, size_t len);
 void tipc_node_unlock(struct tipc_node *node);
 int tipc_node_add_conn(u32 dnode, u32 port, u32 peer_port);
 void tipc_node_remove_conn(u32 dnode, u32 port);
+
+int tipc_nl_node_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 static inline void tipc_node_lock(struct tipc_node *node)
 {

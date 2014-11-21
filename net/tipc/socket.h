@@ -36,6 +36,7 @@
 #define _TIPC_SOCK_H
 
 #include <net/sock.h>
+#include <net/genetlink.h>
 
 #define TIPC_CONNACK_INTV         256
 #define TIPC_FLOWCTRL_WIN        (TIPC_CONNACK_INTV * 2)
@@ -47,5 +48,7 @@ void tipc_sk_mcast_rcv(struct sk_buff *buf);
 void tipc_sk_reinit(void);
 int tipc_sk_ref_table_init(u32 requested_size, u32 start);
 void tipc_sk_ref_table_stop(void);
+int tipc_nl_sk_dump(struct sk_buff *skb, struct netlink_callback *cb);
+int tipc_nl_publ_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 #endif

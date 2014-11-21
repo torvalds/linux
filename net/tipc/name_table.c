@@ -1,7 +1,7 @@
 /*
  * net/tipc/name_table.c: TIPC name table code
  *
- * Copyright (c) 2000-2006, Ericsson AB
+ * Copyright (c) 2000-2006, 2014, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -41,6 +41,12 @@
 #include "subscr.h"
 
 #define TIPC_NAMETBL_SIZE 1024		/* must be a power of 2 */
+
+static const struct nla_policy
+tipc_nl_name_table_policy[TIPC_NLA_NAME_TABLE_MAX + 1] = {
+	[TIPC_NLA_NAME_TABLE_UNSPEC]	= { .type = NLA_UNSPEC },
+	[TIPC_NLA_NAME_TABLE_PUBL]	= { .type = NLA_NESTED }
+};
 
 /**
  * struct name_info - name sequence publication info
@@ -994,4 +1000,186 @@ void tipc_nametbl_stop(void)
 	kfree(table.types);
 	table.types = NULL;
 	write_unlock_bh(&tipc_nametbl_lock);
+}
+
+int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg, struct name_seq *seq,
+				 struct sub_seq *sseq, u32 *last_publ)
+{
+	void *hdr;
+	struct nlattr *attrs;
+	struct nlattr *publ;
+	struct publication *p;
+
+	if (*last_publ) {
+		list_for_each_entry(p, &sseq->info->zone_list, zone_list)
+			if (p->key == *last_publ)
+				break;
+		if (p->key != *last_publ)
+			return -EPIPE;
+	} else {
+		p = list_first_entry(&sseq->info->zone_list, struct publication,
+				     zone_list);
+	}
+
+	list_for_each_entry_from(p, &sseq->info->zone_list, zone_list) {
+		*last_publ = p->key;
+
+		hdr = genlmsg_put(msg->skb, msg->portid, msg->seq,
+				  &tipc_genl_v2_family, NLM_F_MULTI,
+				  TIPC_NL_NAME_TABLE_GET);
+		if (!hdr)
+			return -EMSGSIZE;
+
+		attrs = nla_nest_start(msg->skb, TIPC_NLA_NAME_TABLE);
+		if (!attrs)
+			goto msg_full;
+
+		publ = nla_nest_start(msg->skb, TIPC_NLA_NAME_TABLE_PUBL);
+		if (!publ)
+			goto attr_msg_full;
+
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_TYPE, seq->type))
+			goto publ_msg_full;
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_LOWER, sseq->lower))
+			goto publ_msg_full;
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_UPPER, sseq->upper))
+			goto publ_msg_full;
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_SCOPE, p->scope))
+			goto publ_msg_full;
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_NODE, p->node))
+			goto publ_msg_full;
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_REF, p->ref))
+			goto publ_msg_full;
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_KEY, p->key))
+			goto publ_msg_full;
+
+		nla_nest_end(msg->skb, publ);
+		nla_nest_end(msg->skb, attrs);
+		genlmsg_end(msg->skb, hdr);
+	}
+	*last_publ = 0;
+
+	return 0;
+
+publ_msg_full:
+	nla_nest_cancel(msg->skb, publ);
+attr_msg_full:
+	nla_nest_cancel(msg->skb, attrs);
+msg_full:
+	genlmsg_cancel(msg->skb, hdr);
+
+	return -EMSGSIZE;
+}
+
+int __tipc_nl_subseq_list(struct tipc_nl_msg *msg, struct name_seq *seq,
+			  u32 *last_lower, u32 *last_publ)
+{
+	struct sub_seq *sseq;
+	struct sub_seq *sseq_start;
+	int err;
+
+	if (*last_lower) {
+		sseq_start = nameseq_find_subseq(seq, *last_lower);
+		if (!sseq_start)
+			return -EPIPE;
+	} else {
+		sseq_start = seq->sseqs;
+	}
+
+	for (sseq = sseq_start; sseq != &seq->sseqs[seq->first_free]; sseq++) {
+		err = __tipc_nl_add_nametable_publ(msg, seq, sseq, last_publ);
+		if (err) {
+			*last_lower = sseq->lower;
+			return err;
+		}
+	}
+	*last_lower = 0;
+
+	return 0;
+}
+
+int __tipc_nl_seq_list(struct tipc_nl_msg *msg, u32 *last_type, u32 *last_lower,
+		       u32 *last_publ)
+{
+	struct hlist_head *seq_head;
+	struct name_seq *seq;
+	int err;
+	int i;
+
+	if (*last_type)
+		i = hash(*last_type);
+	else
+		i = 0;
+
+	for (; i < TIPC_NAMETBL_SIZE; i++) {
+		seq_head = &table.types[i];
+
+		if (*last_type) {
+			seq = nametbl_find_seq(*last_type);
+			if (!seq)
+				return -EPIPE;
+		} else {
+			seq = hlist_entry_safe((seq_head)->first,
+					       struct name_seq, ns_list);
+			if (!seq)
+				continue;
+		}
+
+		hlist_for_each_entry_from(seq, ns_list) {
+			spin_lock_bh(&seq->lock);
+
+			err = __tipc_nl_subseq_list(msg, seq, last_lower,
+						    last_publ);
+
+			if (err) {
+				*last_type = seq->type;
+				spin_unlock_bh(&seq->lock);
+				return err;
+			}
+			spin_unlock_bh(&seq->lock);
+		}
+		*last_type = 0;
+	}
+	return 0;
+}
+
+int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	int err;
+	int done = cb->args[3];
+	u32 last_type = cb->args[0];
+	u32 last_lower = cb->args[1];
+	u32 last_publ = cb->args[2];
+	struct tipc_nl_msg msg;
+
+	if (done)
+		return 0;
+
+	msg.skb = skb;
+	msg.portid = NETLINK_CB(cb->skb).portid;
+	msg.seq = cb->nlh->nlmsg_seq;
+
+	read_lock_bh(&tipc_nametbl_lock);
+
+	err = __tipc_nl_seq_list(&msg, &last_type, &last_lower, &last_publ);
+	if (!err) {
+		done = 1;
+	} else if (err != -EMSGSIZE) {
+		/* We never set seq or call nl_dump_check_consistent() this
+		 * means that setting prev_seq here will cause the consistence
+		 * check to fail in the netlink callback handler. Resulting in
+		 * the NLMSG_DONE message having the NLM_F_DUMP_INTR flag set if
+		 * we got an error.
+		 */
+		cb->prev_seq = 1;
+	}
+
+	read_unlock_bh(&tipc_nametbl_lock);
+
+	cb->args[0] = last_type;
+	cb->args[1] = last_lower;
+	cb->args[2] = last_publ;
+	cb->args[3] = done;
+
+	return skb->len;
 }
