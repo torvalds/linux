@@ -5387,14 +5387,26 @@ void igb_update_stats(struct igb_adapter *adapter,
 static void igb_tsync_interrupt(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 tsicr = rd32(E1000_TSICR);
+	struct ptp_clock_event event;
+	u32 ack = 0, tsicr = rd32(E1000_TSICR);
+
+	if (tsicr & TSINTR_SYS_WRAP) {
+		event.type = PTP_CLOCK_PPS;
+		if (adapter->ptp_caps.pps)
+			ptp_clock_event(adapter->ptp_clock, &event);
+		else
+			dev_err(&adapter->pdev->dev, "unexpected SYS WRAP");
+		ack |= TSINTR_SYS_WRAP;
+	}
 
 	if (tsicr & E1000_TSICR_TXTS) {
-		/* acknowledge the interrupt */
-		wr32(E1000_TSICR, E1000_TSICR_TXTS);
 		/* retrieve hardware timestamp */
 		schedule_work(&adapter->ptp_tx_work);
+		ack |= E1000_TSICR_TXTS;
 	}
+
+	/* acknowledge the interrupts */
+	wr32(E1000_TSICR, ack);
 }
 
 static irqreturn_t igb_msix_other(int irq, void *data)
