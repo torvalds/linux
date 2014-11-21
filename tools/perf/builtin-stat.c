@@ -391,6 +391,8 @@ static void update_shadow_stats(struct perf_evsel *counter, u64 *count)
 static int read_cb(struct perf_evsel *evsel, int cpu, int thread __maybe_unused,
 		   struct perf_counts_values *count)
 {
+	struct perf_counts_values *aggr = &evsel->counts->aggr;
+
 	switch (aggr_mode) {
 	case AGGR_CORE:
 	case AGGR_SOCKET:
@@ -401,6 +403,11 @@ static int read_cb(struct perf_evsel *evsel, int cpu, int thread __maybe_unused,
 		update_shadow_stats(evsel, count->values);
 		break;
 	case AGGR_GLOBAL:
+		aggr->val += count->val;
+		if (scale) {
+			aggr->ena += count->ena;
+			aggr->run += count->run;
+		}
 	default:
 		break;
 	}
@@ -408,19 +415,26 @@ static int read_cb(struct perf_evsel *evsel, int cpu, int thread __maybe_unused,
 	return 0;
 }
 
+static int read_counter(struct perf_evsel *counter);
+
 /*
  * Read out the results of a single counter:
  * aggregate counts across CPUs in system-wide mode
  */
 static int read_counter_aggr(struct perf_evsel *counter)
 {
+	struct perf_counts_values *aggr = &counter->counts->aggr;
 	struct perf_stat *ps = counter->priv;
 	u64 *count = counter->counts->aggr.values;
 	int i;
 
-	if (__perf_evsel__read(counter, perf_evsel__nr_cpus(counter),
-			       thread_map__nr(evsel_list->threads), scale) < 0)
+	aggr->val = aggr->ena = aggr->run = 0;
+
+	if (read_counter(counter))
 		return -1;
+
+	perf_evsel__compute_deltas(counter, -1, aggr);
+	perf_counts_values__scale(aggr, scale, &counter->counts->scaled);
 
 	for (i = 0; i < 3; i++)
 		update_stats(&ps->res_stats[i], count[i]);
