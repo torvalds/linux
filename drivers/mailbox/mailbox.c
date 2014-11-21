@@ -126,7 +126,7 @@ static void poll_txdone(unsigned long data)
 
 	if (resched)
 		mod_timer(&mbox->poll, jiffies +
-				msecs_to_jiffies(mbox->period));
+				msecs_to_jiffies(mbox->txpoll_period));
 }
 
 /**
@@ -251,8 +251,6 @@ int mbox_send_message(struct mbox_chan *chan, void *mssg)
 	}
 
 	msg_submit(chan);
-
-	INIT_COMPLETION(chan->tx_complete);
 
 	if (chan->txdone_method	== TXDONE_BY_POLL)
 		poll_txdone((unsigned long)chan->mbox);
