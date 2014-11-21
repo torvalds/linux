@@ -17,5 +17,6 @@ int mvebu_setup_boot_addr_wa(unsigned int crypto_eng_target,
                              phys_addr_t resume_addr_reg);
 
 void mvebu_v7_pmsu_idle_exit(void);
+void armada_370_xp_cpu_resume(void);
 
 #endif	/* __MACH_370_XP_PMSU_H */
