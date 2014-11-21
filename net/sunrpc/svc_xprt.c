@@ -322,12 +322,12 @@ static bool svc_xprt_has_something_to_do(struct svc_xprt *xprt)
 static void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 {
 	struct svc_pool *pool;
-	struct svc_rqst	*rqstp;
+	struct svc_rqst	*rqstp = NULL;
 	int cpu;
 	bool queued = false;
 
 	if (!svc_xprt_has_something_to_do(xprt))
-		return;
+		goto out;
 
 	/* Mark transport as busy. It will remain in this state until
 	 * the provider calls svc_xprt_received. We update XPT_BUSY
@@ -337,7 +337,7 @@ static void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 	if (test_and_set_bit(XPT_BUSY, &xprt->xpt_flags)) {
 		/* Don't enqueue transport while already enqueued */
 		dprintk("svc: transport %p busy, not enqueued\n", xprt);
-		return;
+		goto out;
 	}
 
 	cpu = get_cpu();
@@ -377,7 +377,7 @@ redo_search:
 		atomic_long_inc(&pool->sp_stats.threads_woken);
 		wake_up_process(rqstp->rq_task);
 		put_cpu();
-		return;
+		goto out;
 	}
 	rcu_read_unlock();
 
@@ -396,7 +396,10 @@ redo_search:
 		spin_unlock_bh(&pool->sp_lock);
 		goto redo_search;
 	}
+	rqstp = NULL;
 	put_cpu();
+out:
+	trace_svc_xprt_do_enqueue(xprt, rqstp);
 }
 
 /*
@@ -420,7 +423,7 @@ static struct svc_xprt *svc_xprt_dequeue(struct svc_pool *pool)
 	struct svc_xprt	*xprt = NULL;
 
 	if (list_empty(&pool->sp_sockets))
-		return NULL;
+		goto out;
 
 	spin_lock_bh(&pool->sp_lock);
 	if (likely(!list_empty(&pool->sp_sockets))) {
@@ -433,7 +436,8 @@ static struct svc_xprt *svc_xprt_dequeue(struct svc_pool *pool)
 			xprt, atomic_read(&xprt->xpt_ref.refcount));
 	}
 	spin_unlock_bh(&pool->sp_lock);
-
+out:
+	trace_svc_xprt_dequeue(xprt);
 	return xprt;
 }
 
@@ -515,6 +519,7 @@ void svc_wake_up(struct svc_serv *serv)
 		rcu_read_unlock();
 		dprintk("svc: daemon %p woken up.\n", rqstp);
 		wake_up_process(rqstp->rq_task);
+		trace_svc_wake_up(rqstp->rq_task->pid);
 		return;
 	}
 	rcu_read_unlock();
@@ -522,6 +527,7 @@ void svc_wake_up(struct svc_serv *serv)
 	/* No free entries available */
 	set_bit(SP_TASK_PENDING, &pool->sp_flags);
 	smp_wmb();
+	trace_svc_wake_up(0);
 }
 EXPORT_SYMBOL_GPL(svc_wake_up);
 
@@ -740,7 +746,7 @@ static int svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 		dprintk("svc_recv: found XPT_CLOSE\n");
 		svc_delete_xprt(xprt);
 		/* Leave XPT_BUSY set on the dead xprt: */
-		return 0;
+		goto out;
 	}
 	if (test_bit(XPT_LISTENER, &xprt->xpt_flags)) {
 		struct svc_xprt *newxpt;
@@ -771,6 +777,8 @@ static int svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 	}
 	/* clear XPT_BUSY: */
 	svc_xprt_received(xprt);
+out:
+	trace_svc_handle_xprt(xprt, len);
 	return len;
 }
 
