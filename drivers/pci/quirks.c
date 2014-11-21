@@ -3042,6 +3042,27 @@ static void quirk_no_bus_reset(struct pci_dev *dev)
  */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATHEROS, 0x0030, quirk_no_bus_reset);
 
+static void quirk_no_pm_reset(struct pci_dev *dev)
+{
+	/*
+	 * We can't do a bus reset on root bus devices, but an ineffective
+	 * PM reset may be better than nothing.
+	 */
+	if (!pci_is_root_bus(dev->bus))
+		dev->dev_flags |= PCI_DEV_FLAGS_NO_PM_RESET;
+}
+
+/*
+ * Some AMD/ATI GPUS (HD8570 - Oland) report that a D3hot->D0 transition
+ * causes a reset (i.e., they advertise NoSoftRst-).  This transition seems
+ * to have no effect on the device: it retains the framebuffer contents and
+ * monitor sync.  Advertising this support makes other layers, like VFIO,
+ * assume pci_reset_function() is viable for this device.  Mark it as
+ * unavailable to skip it when testing reset methods.
+ */
+DECLARE_PCI_FIXUP_CLASS_HEADER(PCI_VENDOR_ID_ATI, PCI_ANY_ID,
+			       PCI_CLASS_DISPLAY_VGA, 8, quirk_no_pm_reset);
+
 #ifdef CONFIG_ACPI
 /*
  * Apple: Shutdown Cactus Ridge Thunderbolt controller.
