@@ -61,6 +61,11 @@ ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops);
 /*
  * FTRACE_OPS_FL_* bits denote the state of ftrace_ops struct and are
  * set in the flags member.
+ * CONTROL, SAVE_REGS, SAVE_REGS_IF_SUPPORTED, RECURSION_SAFE, STUB and
+ * IPMODIFY are a kind of attribute flags which can be set only before
+ * registering the ftrace_ops, and can not be modified while registered.
+ * Changing those attribute flags after regsitering ftrace_ops will
+ * cause unexpected results.
  *
  * ENABLED - set/unset when ftrace_ops is registered/unregistered
  * DYNAMIC - set when ftrace_ops is registered to denote dynamically
@@ -101,6 +106,10 @@ ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops);
  *            The ftrace_ops trampoline can be set by the ftrace users, and
  *            in such cases the arch must not modify it. Only the arch ftrace
  *            core code should set this flag.
+ * IPMODIFY - The ops can modify the IP register. This can only be set with
+ *            SAVE_REGS. If another ops with this flag set is already registered
+ *            for any of the functions that this ops will be registered for, then
+ *            this ops will fail to register or set_filter_ip.
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
@@ -116,6 +125,7 @@ enum {
 	FTRACE_OPS_FL_REMOVING			= 1 << 10,
 	FTRACE_OPS_FL_MODIFYING			= 1 << 11,
 	FTRACE_OPS_FL_ALLOC_TRAMP		= 1 << 12,
+	FTRACE_OPS_FL_IPMODIFY			= 1 << 13,
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -310,6 +320,7 @@ bool is_ftrace_trampoline(unsigned long addr);
  *  ENABLED - the function is being traced
  *  REGS    - the record wants the function to save regs
  *  REGS_EN - the function is set up to save regs.
+ *  IPMODIFY - the record allows for the IP address to be changed.
  *
  * When a new ftrace_ops is registered and wants a function to save
  * pt_regs, the rec->flag REGS is set. When the function has been
@@ -323,10 +334,11 @@ enum {
 	FTRACE_FL_REGS_EN	= (1UL << 29),
 	FTRACE_FL_TRAMP		= (1UL << 28),
 	FTRACE_FL_TRAMP_EN	= (1UL << 27),
+	FTRACE_FL_IPMODIFY	= (1UL << 26),
 };
 
-#define FTRACE_REF_MAX_SHIFT	27
-#define FTRACE_FL_BITS		5
+#define FTRACE_REF_MAX_SHIFT	26
+#define FTRACE_FL_BITS		6
 #define FTRACE_FL_MASKED_BITS	((1UL << FTRACE_FL_BITS) - 1)
 #define FTRACE_FL_MASK		(FTRACE_FL_MASKED_BITS << FTRACE_REF_MAX_SHIFT)
 #define FTRACE_REF_MAX		((1UL << FTRACE_REF_MAX_SHIFT) - 1)

@@ -234,6 +234,11 @@ of ftrace. Here is a list of some of the key files:
 	will be displayed on the same line as the function that
 	is returning registers.
 
+	If the callback registered to be traced by a function with
+	the "ip modify" attribute (thus the regs->ip can be changed),
+	an 'I' will be displayed on the same line as the function that
+	can be overridden.
+
   function_profile_enabled:
 
 	When set it will enable all functions with either the function
