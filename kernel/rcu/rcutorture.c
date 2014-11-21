@@ -244,7 +244,7 @@ struct rcu_torture_ops {
 	int (*readlock)(void);
 	void (*read_delay)(struct torture_random_state *rrsp);
 	void (*readunlock)(int idx);
-	int (*completed)(void);
+	unsigned long (*completed)(void);
 	void (*deferred_free)(struct rcu_torture *p);
 	void (*sync)(void);
 	void (*exp_sync)(void);
@@ -296,7 +296,7 @@ static void rcu_torture_read_unlock(int idx) __releases(RCU)
 	rcu_read_unlock();
 }
 
-static int rcu_torture_completed(void)
+static unsigned long rcu_torture_completed(void)
 {
 	return rcu_batches_completed();
 }
@@ -356,7 +356,7 @@ rcu_torture_cb(struct rcu_head *p)
 		cur_ops->deferred_free(rp);
 }
 
-static int rcu_no_completed(void)
+static unsigned long rcu_no_completed(void)
 {
 	return 0;
 }
@@ -407,7 +407,7 @@ static void rcu_bh_torture_read_unlock(int idx) __releases(RCU_BH)
 	rcu_read_unlock_bh();
 }
 
-static int rcu_bh_torture_completed(void)
+static unsigned long rcu_bh_torture_completed(void)
 {
 	return rcu_batches_completed_bh();
 }
@@ -510,7 +510,7 @@ static void srcu_torture_read_unlock(int idx) __releases(&srcu_ctl)
 	srcu_read_unlock(&srcu_ctl, idx);
 }
 
-static int srcu_torture_completed(void)
+static unsigned long srcu_torture_completed(void)
 {
 	return srcu_batches_completed(&srcu_ctl);
 }
@@ -1015,8 +1015,8 @@ static void rcutorture_trace_dump(void)
 static void rcu_torture_timer(unsigned long unused)
 {
 	int idx;
-	int completed;
-	int completed_end;
+	unsigned long completed;
+	unsigned long completed_end;
 	static DEFINE_TORTURE_RANDOM(rand);
 	static DEFINE_SPINLOCK(rand_lock);
 	struct rcu_torture *p;
@@ -1073,8 +1073,8 @@ static void rcu_torture_timer(unsigned long unused)
 static int
 rcu_torture_reader(void *arg)
 {
-	int completed;
-	int completed_end;
+	unsigned long completed;
+	unsigned long completed_end;
 	int idx;
 	DEFINE_TORTURE_RANDOM(rand);
 	struct rcu_torture *p;
