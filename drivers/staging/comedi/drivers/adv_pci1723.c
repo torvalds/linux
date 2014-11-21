@@ -140,7 +140,7 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 }
 
 static int pci1723_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
@@ -163,7 +163,6 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan	= 8;
 	s->maxdata	= 0xffff;
-	s->len_chanlist	= 8;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= pci1723_ao_insn_write;
 
@@ -191,7 +190,6 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 	s->n_chan	= 16;
 	s->maxdata	= 1;
-	s->len_chanlist	= 16;
 	s->range_table	= &range_digital;
 	s->insn_config	= pci1723_dio_insn_config;
 	s->insn_bits	= pci1723_dio_insn_bits;
