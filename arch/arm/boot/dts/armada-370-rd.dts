@@ -59,18 +59,6 @@
 		};
 
 		internal-regs {
-			pinctrl {
-				fan_pins: fan-pins {
-					marvell,pins = "mpp8";
-					marvell,function = "gpio";
-				};
-
-				led_pins: led-pins {
-					marvell,pins = "mpp32";
-					marvell,function = "gpio";
-				};
-			};
-
 			serial@12000 {
 				status = "okay";
 			};
@@ -213,3 +201,15 @@
 		};
 	 };
  };
+
+&pinctrl {
+	fan_pins: fan-pins {
+		marvell,pins = "mpp8";
+		marvell,function = "gpio";
+	};
+
+	led_pins: led-pins {
+		marvell,pins = "mpp32";
+		marvell,function = "gpio";
+	};
+};

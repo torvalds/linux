@@ -54,18 +54,6 @@
 				status = "okay";
 			};
 
-			pinctrl {
-				pwr_led_pin: pwr-led-pin {
-					marvell,pins = "mpp63";
-					marvell,function = "gpo";
-				};
-
-				stat_led_pins: stat-led-pins {
-					marvell,pins = "mpp64", "mpp65";
-					marvell,function = "gpio";
-				};
-			};
-
 			gpio_leds {
 				compatible = "gpio-leds";
 				pinctrl-names = "default";
@@ -169,3 +157,16 @@
 		};
 	};
 };
+
+&pinctrl {
+	pwr_led_pin: pwr-led-pin {
+		marvell,pins = "mpp63";
+		marvell,function = "gpo";
+	};
+
+	stat_led_pins: stat-led-pins {
+		marvell,pins = "mpp64", "mpp65";
+		marvell,function = "gpio";
+	};
+};
+

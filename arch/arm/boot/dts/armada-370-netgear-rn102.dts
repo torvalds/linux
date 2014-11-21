@@ -59,48 +59,6 @@
 				status = "okay";
 			};
 
-			pinctrl {
-				power_led_pin: power-led-pin {
-					marvell,pins = "mpp57";
-					marvell,function = "gpio";
-				};
-
-				sata1_led_pin: sata1-led-pin {
-					marvell,pins = "mpp15";
-					marvell,function = "gpio";
-				};
-
-				sata2_led_pin: sata2-led-pin {
-					marvell,pins = "mpp14";
-					marvell,function = "gpio";
-				};
-
-				backup_led_pin: backup-led-pin {
-					marvell,pins = "mpp56";
-					marvell,function = "gpio";
-				};
-
-				backup_button_pin: backup-button-pin {
-					marvell,pins = "mpp58";
-					marvell,function = "gpio";
-				};
-
-				power_button_pin: power-button-pin {
-					marvell,pins = "mpp62";
-					marvell,function = "gpio";
-				};
-
-				reset_button_pin: reset-button-pin {
-					marvell,pins = "mpp6";
-					marvell,function = "gpio";
-				};
-
-				poweroff: poweroff {
-					marvell,pins = "mpp8";
-					marvell,function = "gpio";
-				};
-			};
-
 			mdio {
 				pinctrl-0 = <&mdio_pins>;
 				pinctrl-names = "default";
@@ -255,5 +213,47 @@
 		pinctrl-0 = <&poweroff>;
 		pinctrl-names = "default";
 		gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pinctrl {
+	power_led_pin: power-led-pin {
+		marvell,pins = "mpp57";
+		marvell,function = "gpio";
+	};
+
+	sata1_led_pin: sata1-led-pin {
+		marvell,pins = "mpp15";
+		marvell,function = "gpio";
+	};
+
+	sata2_led_pin: sata2-led-pin {
+		marvell,pins = "mpp14";
+		marvell,function = "gpio";
+	};
+
+	backup_led_pin: backup-led-pin {
+		marvell,pins = "mpp56";
+		marvell,function = "gpio";
+	};
+
+	backup_button_pin: backup-button-pin {
+		marvell,pins = "mpp58";
+		marvell,function = "gpio";
+	};
+
+	power_button_pin: power-button-pin {
+		marvell,pins = "mpp62";
+		marvell,function = "gpio";
+	};
+
+	reset_button_pin: reset-button-pin {
+		marvell,pins = "mpp6";
+		marvell,function = "gpio";
+	};
+
+	poweroff: poweroff {
+		marvell,pins = "mpp8";
+		marvell,function = "gpio";
 	};
 };

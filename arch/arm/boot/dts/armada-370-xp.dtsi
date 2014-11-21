@@ -171,6 +171,10 @@
 				status = "disabled";
 			};
 
+			pinctrl: pin-ctrl@18000 {
+				reg = <0x18000 0x38>;
+			};
+
 			coredivclk: corediv-clock@18740 {
 				compatible = "marvell,armada-370-corediv-clock";
 				reg = <0x18740 0xc>;
