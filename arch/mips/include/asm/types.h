@@ -14,20 +14,4 @@
 #include <asm-generic/int-ll64.h>
 #include <uapi/asm/types.h>
 
-/*
- * These aren't exported outside the kernel to avoid name space clashes
- */
-#ifndef __ASSEMBLY__
-
-/*
- * Don't use phys_addr_t.  You've been warned.
- */
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-typedef unsigned long long phys_addr_t;
-#else
-typedef unsigned long phys_addr_t;
-#endif
-
-#endif /* __ASSEMBLY__ */
-
 #endif /* _ASM_TYPES_H */
