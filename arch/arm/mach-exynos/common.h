@@ -139,8 +139,6 @@ extern void exynos_cpu_resume_ns(void);
 
 extern struct smp_operations exynos_smp_ops;
 
-extern void exynos_cpu_die(unsigned int cpu);
-
 /* PMU(Power Management Unit) support */
 
 #define PMU_TABLE_END	(-1U)
