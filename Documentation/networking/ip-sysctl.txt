@@ -1339,6 +1339,19 @@ ndisc_notify - BOOLEAN
 	1 - Generate unsolicited neighbour advertisements when device is brought
 	    up or hardware address changes.
 
+optimistic_dad - BOOLEAN
+	Whether to perform Optimistic Duplicate Address Detection (RFC 4429).
+		0: disabled (default)
+		1: enabled
+
+use_optimistic - BOOLEAN
+	If enabled, do not classify optimistic addresses as deprecated during
+	source address selection.  Preferred addresses will still be chosen
+	before optimistic addresses, subject to other ranking in the source
+	address selection algorithm.
+		0: disabled (default)
+		1: enabled
+
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
