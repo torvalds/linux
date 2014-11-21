@@ -1556,7 +1556,7 @@ typedef union
 #define PI_BURST_HOLDOFF_V_RESERVED	1
 #define PI_BURST_HOLDOFF_V_MEM_MAP	0
 
-/* Define the implicit mask of the Memory Address Mask Register.  */
+/* Define the implicit mask of the Memory Address Compare registers.  */
 
 #define PI_MEM_ADD_MASK_M		0x3ff
 
