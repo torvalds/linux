@@ -6562,8 +6562,6 @@ static int nl80211_dump_survey(struct sk_buff *skb,
 	}
 
 	while (1) {
-		struct ieee80211_channel *chan;
-
 		res = rdev_dump_survey(rdev, wdev->netdev, survey_idx, &survey);
 		if (res == -ENOENT)
 			break;
@@ -6576,9 +6574,7 @@ static int nl80211_dump_survey(struct sk_buff *skb,
 			goto out;
 		}
 
-		chan = ieee80211_get_channel(&rdev->wiphy,
-					     survey.channel->center_freq);
-		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED) {
+		if (survey.channel->flags & IEEE80211_CHAN_DISABLED) {
 			survey_idx++;
 			continue;
 		}
