@@ -1042,6 +1042,13 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 			clear_sta_flag(sta, WLAN_STA_TDLS_PEER);
 	}
 
+	/* mark TDLS channel switch support, if the AP allows it */
+	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
+	    !sdata->u.mgd.tdls_chan_switch_prohibited &&
+	    params->ext_capab_len >= 4 &&
+	    params->ext_capab[3] & WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH)
+		set_sta_flag(sta, WLAN_STA_TDLS_CHAN_SWITCH);
+
 	if (params->sta_modify_mask & STATION_PARAM_APPLY_UAPSD) {
 		sta->sta.uapsd_queues = params->uapsd_queues;
 		sta->sta.max_sp = params->max_sp;
@@ -3158,6 +3165,12 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		goto out;
 	}
 
+	ch_switch.timestamp = 0;
+	ch_switch.device_timestamp = 0;
+	ch_switch.block_tx = params->block_tx;
+	ch_switch.chandef = params->chandef;
+	ch_switch.count = params->count;
+
 	err = drv_pre_channel_switch(sdata, &ch_switch);
 	if (err)
 		goto out;
@@ -3175,12 +3188,6 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		goto out;
 	}
 
-	ch_switch.timestamp = 0;
-	ch_switch.device_timestamp = 0;
-	ch_switch.block_tx = params->block_tx;
-	ch_switch.chandef = params->chandef;
-	ch_switch.count = params->count;
-
 	err = ieee80211_set_csa_beacon(sdata, params, &changed);
 	if (err) {
 		ieee80211_vif_unreserve_chanctx(sdata);
@@ -3194,6 +3201,9 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	if (sdata->csa_block_tx)
 		ieee80211_stop_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
+
+	cfg80211_ch_switch_started_notify(sdata->dev, &sdata->csa_chandef,
+					  params->count);
 
 	if (changed) {
 		ieee80211_bss_info_change_notify(sdata, changed);
@@ -3511,6 +3521,7 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 
 	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS |
 		       IEEE80211_TX_INTFL_NL80211_FRAME_TX;
+	info->band = band;
 
 	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
 	skb->priority = 7;
@@ -3518,7 +3529,7 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 		nullfunc->qos_ctrl = cpu_to_le16(7);
 
 	local_bh_disable();
-	ieee80211_xmit(sdata, skb, band);
+	ieee80211_xmit(sdata, skb);
 	local_bh_enable();
 	rcu_read_unlock();
 
@@ -3741,6 +3752,8 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.set_rekey_data = ieee80211_set_rekey_data,
 	.tdls_oper = ieee80211_tdls_oper,
 	.tdls_mgmt = ieee80211_tdls_mgmt,
+	.tdls_channel_switch = ieee80211_tdls_channel_switch,
+	.tdls_cancel_channel_switch = ieee80211_tdls_cancel_channel_switch,
 	.probe_client = ieee80211_probe_client,
 	.set_noack_map = ieee80211_set_noack_map,
 #ifdef CONFIG_PM

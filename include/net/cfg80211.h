@@ -1437,6 +1437,10 @@ struct cfg80211_ssid {
  * @aborted: (internal) scan request was notified as aborted
  * @notified: (internal) scan request was notified as done or aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
+ * @mac_addr: MAC address used with randomisation
+ * @mac_addr_mask: MAC address mask used with randomisation, bits that
+ *	are 0 in the mask should be randomised, bits that are 1 should
+ *	be taken from the @mac_addr
  */
 struct cfg80211_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -1451,6 +1455,9 @@ struct cfg80211_scan_request {
 
 	struct wireless_dev *wdev;
 
+	u8 mac_addr[ETH_ALEN] __aligned(2);
+	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
+
 	/* internal */
 	struct wiphy *wiphy;
 	unsigned long scan_start;
@@ -1460,6 +1467,17 @@ struct cfg80211_scan_request {
 	/* keep last */
 	struct ieee80211_channel *channels[0];
 };
+
+static inline void get_random_mask_addr(u8 *buf, const u8 *addr, const u8 *mask)
+{
+	int i;
+
+	get_random_bytes(buf, ETH_ALEN);
+	for (i = 0; i < ETH_ALEN; i++) {
+		buf[i] &= ~mask[i];
+		buf[i] |= addr[i] & mask[i];
+	}
+}
 
 /**
  * struct cfg80211_match_set - sets of attributes to match
@@ -1494,6 +1512,10 @@ struct cfg80211_match_set {
  * @channels: channels to scan
  * @min_rssi_thold: for drivers only supporting a single threshold, this
  *	contains the minimum over all matchsets
+ * @mac_addr: MAC address used with randomisation
+ * @mac_addr_mask: MAC address mask used with randomisation, bits that
+ *	are 0 in the mask should be randomised, bits that are 1 should
+ *	be taken from the @mac_addr
  */
 struct cfg80211_sched_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -1507,6 +1529,9 @@ struct cfg80211_sched_scan_request {
 	struct cfg80211_match_set *match_sets;
 	int n_match_sets;
 	s32 min_rssi_thold;
+
+	u8 mac_addr[ETH_ALEN] __aligned(2);
+	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
 
 	/* internal */
 	struct wiphy *wiphy;
@@ -1940,6 +1965,7 @@ struct cfg80211_wowlan_tcp {
  * @rfkill_release: wake up when rfkill is released
  * @tcp: TCP connection establishment/wakeup parameters, see nl80211.h.
  *	NULL if not configured.
+ * @nd_config: configuration for the scan to be used for net detect wake.
  */
 struct cfg80211_wowlan {
 	bool any, disconnect, magic_pkt, gtk_rekey_failure,
@@ -1948,6 +1974,7 @@ struct cfg80211_wowlan {
 	struct cfg80211_pkt_pattern *patterns;
 	struct cfg80211_wowlan_tcp *tcp;
 	int n_patterns;
+	struct cfg80211_sched_scan_request *nd_config;
 };
 
 /**
@@ -1980,6 +2007,35 @@ struct cfg80211_coalesce {
 };
 
 /**
+ * struct cfg80211_wowlan_nd_match - information about the match
+ *
+ * @ssid: SSID of the match that triggered the wake up
+ * @n_channels: Number of channels where the match occurred.  This
+ *	value may be zero if the driver can't report the channels.
+ * @channels: center frequencies of the channels where a match
+ *	occurred (in MHz)
+ */
+struct cfg80211_wowlan_nd_match {
+	struct cfg80211_ssid ssid;
+	int n_channels;
+	u32 channels[];
+};
+
+/**
+ * struct cfg80211_wowlan_nd_info - net detect wake up information
+ *
+ * @n_matches: Number of match information instances provided in
+ *	@matches.  This value may be zero if the driver can't provide
+ *	match information.
+ * @matches: Array of pointers to matches containing information about
+ *	the matches that triggered the wake up.
+ */
+struct cfg80211_wowlan_nd_info {
+	int n_matches;
+	struct cfg80211_wowlan_nd_match *matches[];
+};
+
+/**
  * struct cfg80211_wowlan_wakeup - wakeup report
  * @disconnect: woke up by getting disconnected
  * @magic_pkt: woke up by receiving magic packet
@@ -1998,6 +2054,7 @@ struct cfg80211_coalesce {
  * @tcp_match: TCP wakeup packet received
  * @tcp_connlost: TCP connection lost or failed to establish
  * @tcp_nomoretokens: TCP data ran out of tokens
+ * @net_detect: if not %NULL, woke up because of net detect
  */
 struct cfg80211_wowlan_wakeup {
 	bool disconnect, magic_pkt, gtk_rekey_failure,
@@ -2007,6 +2064,7 @@ struct cfg80211_wowlan_wakeup {
 	s32 pattern_idx;
 	u32 packet_present_len, packet_len;
 	const void *packet;
+	struct cfg80211_wowlan_nd_info *net_detect;
 };
 
 /**
@@ -2367,6 +2425,12 @@ struct cfg80211_qos_map {
  *	(invoked with the wireless_dev mutex held)
  * @leave_ocb: leave the current OCB network
  *	(invoked with the wireless_dev mutex held)
+ *
+ * @tdls_channel_switch: Start channel-switching with a TDLS peer. The driver
+ *	is responsible for continually initiating channel-switching operations
+ *	and returning to the base channel for communication with the AP.
+ * @tdls_cancel_channel_switch: Stop channel-switching with a TDLS peer. Both
+ *	peers must be on the base channel when the call completes.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -2622,6 +2686,14 @@ struct cfg80211_ops {
 			     u16 admitted_time);
 	int	(*del_tx_ts)(struct wiphy *wiphy, struct net_device *dev,
 			     u8 tsid, const u8 *peer);
+
+	int	(*tdls_channel_switch)(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       const u8 *addr, u8 oper_class,
+				       struct cfg80211_chan_def *chandef);
+	void	(*tdls_cancel_channel_switch)(struct wiphy *wiphy,
+					      struct net_device *dev,
+					      const u8 *addr);
 };
 
 /*
@@ -2796,6 +2868,7 @@ struct ieee80211_txrx_stypes {
  * @WIPHY_WOWLAN_EAP_IDENTITY_REQ: supports wakeup on EAP identity request
  * @WIPHY_WOWLAN_4WAY_HANDSHAKE: supports wakeup on 4-way handshake failure
  * @WIPHY_WOWLAN_RFKILL_RELEASE: supports wakeup on RF-kill release
+ * @WIPHY_WOWLAN_NET_DETECT: supports wakeup on network detection
  */
 enum wiphy_wowlan_support_flags {
 	WIPHY_WOWLAN_ANY		= BIT(0),
@@ -2806,6 +2879,7 @@ enum wiphy_wowlan_support_flags {
 	WIPHY_WOWLAN_EAP_IDENTITY_REQ	= BIT(5),
 	WIPHY_WOWLAN_4WAY_HANDSHAKE	= BIT(6),
 	WIPHY_WOWLAN_RFKILL_RELEASE	= BIT(7),
+	WIPHY_WOWLAN_NET_DETECT		= BIT(8),
 };
 
 struct wiphy_wowlan_tcp_support {
@@ -2824,6 +2898,11 @@ struct wiphy_wowlan_tcp_support {
  * @pattern_max_len: maximum length of each pattern
  * @pattern_min_len: minimum length of each pattern
  * @max_pkt_offset: maximum Rx packet offset
+ * @max_nd_match_sets: maximum number of matchsets for net-detect,
+ *	similar, but not necessarily identical, to max_match_sets for
+ *	scheduled scans.
+ *	See &struct cfg80211_sched_scan_request.@match_sets for more
+ *	details.
  * @tcp: TCP wakeup support information
  */
 struct wiphy_wowlan_support {
@@ -2832,6 +2911,7 @@ struct wiphy_wowlan_support {
 	int pattern_max_len;
 	int pattern_min_len;
 	int max_pkt_offset;
+	int max_nd_match_sets;
 	const struct wiphy_wowlan_tcp_support *tcp;
 };
 
@@ -4718,6 +4798,20 @@ bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
  */
 void cfg80211_ch_switch_notify(struct net_device *dev,
 			       struct cfg80211_chan_def *chandef);
+
+/*
+ * cfg80211_ch_switch_started_notify - notify channel switch start
+ * @dev: the device on which the channel switch started
+ * @chandef: the future channel definition
+ * @count: the number of TBTTs until the channel switch happens
+ *
+ * Inform the userspace about the channel switch that has just
+ * started, so that it can take appropriate actions (eg. starting
+ * channel switch on other vifs), if necessary.
+ */
+void cfg80211_ch_switch_started_notify(struct net_device *dev,
+				       struct cfg80211_chan_def *chandef,
+				       u8 count);
 
 /**
  * ieee80211_operating_class_to_band - convert operating class to band

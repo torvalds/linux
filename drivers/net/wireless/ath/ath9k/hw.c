@@ -870,19 +870,6 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 	udelay(RTC_PLL_SETTLE_DELAY);
 
 	REG_WRITE(ah, AR_RTC_SLEEP_CLK, AR_RTC_FORCE_DERIVED_CLK);
-
-	if (AR_SREV_9340(ah) || AR_SREV_9550(ah)) {
-		if (ah->is_clk_25mhz) {
-			REG_WRITE(ah, AR_RTC_DERIVED_CLK, 0x17c << 1);
-			REG_WRITE(ah, AR_SLP32_MODE, 0x0010f3d7);
-			REG_WRITE(ah,  AR_SLP32_INC, 0x0001e7ae);
-		} else {
-			REG_WRITE(ah, AR_RTC_DERIVED_CLK, 0x261 << 1);
-			REG_WRITE(ah, AR_SLP32_MODE, 0x0010f400);
-			REG_WRITE(ah,  AR_SLP32_INC, 0x0001e800);
-		}
-		udelay(100);
-	}
 }
 
 static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
@@ -1598,16 +1585,22 @@ static void ath9k_hw_init_mfp(struct ath_hw *ah)
 		 * frames when constructing CCMP AAD. */
 		REG_RMW_FIELD(ah, AR_AES_MUTE_MASK1, AR_AES_MUTE_MASK1_FC_MGMT,
 			      0xc7ff);
-		ah->sw_mgmt_crypto = false;
+		if (AR_SREV_9271(ah) || AR_DEVID_7010(ah))
+			ah->sw_mgmt_crypto_tx = true;
+		else
+			ah->sw_mgmt_crypto_tx = false;
+		ah->sw_mgmt_crypto_rx = false;
 	} else if (AR_SREV_9160_10_OR_LATER(ah)) {
 		/* Disable hardware crypto for management frames */
 		REG_CLR_BIT(ah, AR_PCU_MISC_MODE2,
 			    AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE);
 		REG_SET_BIT(ah, AR_PCU_MISC_MODE2,
 			    AR_PCU_MISC_MODE2_NO_CRYPTO_FOR_NON_DATA_PKT);
-		ah->sw_mgmt_crypto = true;
+		ah->sw_mgmt_crypto_tx = true;
+		ah->sw_mgmt_crypto_rx = true;
 	} else {
-		ah->sw_mgmt_crypto = true;
+		ah->sw_mgmt_crypto_tx = true;
+		ah->sw_mgmt_crypto_rx = true;
 	}
 }
 
@@ -1953,6 +1946,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	REG_WRITE(ah, AR_CFG_LED, saveLedState | AR_CFG_SCLK_32KHZ);
 
 	REGWRITE_BUFFER_FLUSH(ah);
+
+	ath9k_hw_gen_timer_start_tsf2(ah);
 
 	ath9k_hw_init_desc(ah);
 
@@ -2333,7 +2328,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
-	unsigned int chip_chainmask;
 
 	u16 eeval;
 	u8 ant_div_ctl1, tx_chainmask, rx_chainmask;
@@ -2377,15 +2371,16 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	    AR_SREV_9285(ah) ||
 	    AR_SREV_9330(ah) ||
 	    AR_SREV_9565(ah))
-		chip_chainmask = 1;
-	else if (AR_SREV_9462(ah))
-		chip_chainmask = 3;
+		pCap->chip_chainmask = 1;
 	else if (!AR_SREV_9280_20_OR_LATER(ah))
-		chip_chainmask = 7;
-	else if (!AR_SREV_9300_20_OR_LATER(ah) || AR_SREV_9340(ah))
-		chip_chainmask = 3;
+		pCap->chip_chainmask = 7;
+	else if (!AR_SREV_9300_20_OR_LATER(ah) ||
+		 AR_SREV_9340(ah) ||
+		 AR_SREV_9462(ah) ||
+		 AR_SREV_9531(ah))
+		pCap->chip_chainmask = 3;
 	else
-		chip_chainmask = 7;
+		pCap->chip_chainmask = 7;
 
 	pCap->tx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_TX_MASK);
 	/*
@@ -2403,8 +2398,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		/* Use rx_chainmask from EEPROM. */
 		pCap->rx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
 
-	pCap->tx_chainmask = fixup_chainmask(chip_chainmask, pCap->tx_chainmask);
-	pCap->rx_chainmask = fixup_chainmask(chip_chainmask, pCap->rx_chainmask);
+	pCap->tx_chainmask = fixup_chainmask(pCap->chip_chainmask, pCap->tx_chainmask);
+	pCap->rx_chainmask = fixup_chainmask(pCap->chip_chainmask, pCap->rx_chainmask);
 	ah->txchainmask = pCap->tx_chainmask;
 	ah->rxchainmask = pCap->rx_chainmask;
 
@@ -2918,6 +2913,16 @@ u32 ath9k_hw_gettsf32(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_gettsf32);
 
+void ath9k_hw_gen_timer_start_tsf2(struct ath_hw *ah)
+{
+	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
+
+	if (timer_table->tsf2_enabled) {
+		REG_SET_BIT(ah, AR_DIRECT_CONNECT, AR_DC_AP_STA_EN);
+		REG_SET_BIT(ah, AR_RESET_TSF, AR_RESET_TSF2_ONCE);
+	}
+}
+
 struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
 					  void (*trigger)(void *),
 					  void (*overflow)(void *),
@@ -2928,7 +2933,11 @@ struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
 	struct ath_gen_timer *timer;
 
 	if ((timer_index < AR_FIRST_NDP_TIMER) ||
-		(timer_index >= ATH_MAX_GEN_TIMER))
+	    (timer_index >= ATH_MAX_GEN_TIMER))
+		return NULL;
+
+	if ((timer_index > AR_FIRST_NDP_TIMER) &&
+	    !AR_SREV_9300_20_OR_LATER(ah))
 		return NULL;
 
 	timer = kzalloc(sizeof(struct ath_gen_timer), GFP_KERNEL);
@@ -2941,6 +2950,11 @@ struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
 	timer->trigger = trigger;
 	timer->overflow = overflow;
 	timer->arg = arg;
+
+	if ((timer_index > AR_FIRST_NDP_TIMER) && !timer_table->tsf2_enabled) {
+		timer_table->tsf2_enabled = true;
+		ath9k_hw_gen_timer_start_tsf2(ah);
+	}
 
 	return timer;
 }

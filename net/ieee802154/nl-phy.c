@@ -30,6 +30,8 @@
 #include <linux/nl802154.h>
 
 #include "ieee802154.h"
+#include "rdev-ops.h"
+#include "core.h"
 
 static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 				  u32 seq, int flags, struct wpan_phy *phy)
@@ -203,11 +205,6 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 	if (!msg)
 		goto out_dev;
 
-	if (!phy->add_iface) {
-		rc = -EINVAL;
-		goto nla_put_failure;
-	}
-
 	if (info->attrs[IEEE802154_ATTR_HW_ADDR] &&
 	    nla_len(info->attrs[IEEE802154_ATTR_HW_ADDR]) !=
 			IEEE802154_ADDR_LEN) {
@@ -223,11 +220,13 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	dev = phy->add_iface(phy, devname, type);
+	dev = rdev_add_virtual_intf_deprecated(wpan_phy_to_rdev(phy), devname,
+					       type);
 	if (IS_ERR(dev)) {
 		rc = PTR_ERR(dev);
 		goto nla_put_failure;
 	}
+	dev_hold(dev);
 
 	if (info->attrs[IEEE802154_ATTR_HW_ADDR]) {
 		struct sockaddr addr;
@@ -257,7 +256,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 
 dev_unregister:
 	rtnl_lock(); /* del_iface must be called with RTNL lock */
-	phy->del_iface(phy, dev);
+	rdev_del_virtual_intf_deprecated(wpan_phy_to_rdev(phy), dev);
 	dev_put(dev);
 	rtnl_unlock();
 nla_put_failure:
@@ -288,8 +287,9 @@ int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info)
 	if (!dev)
 		return -ENODEV;
 
-	phy = ieee802154_mlme_ops(dev)->get_phy(dev);
+	phy = dev->ieee802154_ptr->wpan_phy;
 	BUG_ON(!phy);
+	get_device(&phy->dev);
 
 	rc = -EINVAL;
 	/* phy name is optional, but should be checked if it's given */
@@ -319,13 +319,8 @@ int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info)
 	if (!msg)
 		goto out_dev;
 
-	if (!phy->del_iface) {
-		rc = -EINVAL;
-		goto nla_put_failure;
-	}
-
 	rtnl_lock();
-	phy->del_iface(phy, dev);
+	rdev_del_virtual_intf_deprecated(wpan_phy_to_rdev(phy), dev);
 
 	/* We don't have device anymore */
 	dev_put(dev);

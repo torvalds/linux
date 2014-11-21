@@ -92,6 +92,13 @@ struct ath_ht20_40_fft_packet {
 	struct ath_radar_info radar_info;
 } __packed;
 
+struct ath_spec_scan_priv {
+	struct ath_hw *ah;
+	/* relay(fs) channel for spectral scan */
+	struct rchan *rfs_chan_spec_scan;
+	enum spectral_mode spectral_mode;
+	struct ath_spec_scan spec_config;
+};
 
 #define SPECTRAL_HT20_40_TOTAL_DATA_LEN	(sizeof(struct ath_ht20_40_fft_packet))
 
@@ -123,23 +130,15 @@ static inline u8 spectral_bitmap_weight(u8 *bins)
 	return bins[0] & 0x3f;
 }
 
-void ath9k_spectral_init_debug(struct ath_softc *sc);
-void ath9k_spectral_deinit_debug(struct ath_softc *sc);
+void ath9k_cmn_spectral_init_debug(struct ath_spec_scan_priv *spec_priv, struct dentry *debugfs_phy);
+void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv);
 
-void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw);
-int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
+void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
+				 struct ath_spec_scan_priv *spec_priv);
+int ath9k_cmn_spectral_scan_config(struct ath_common *common,
+			       struct ath_spec_scan_priv *spec_priv,
 			       enum spectral_mode spectral_mode);
-
-#ifdef CONFIG_ATH9K_DEBUGFS
-int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
+int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
 		    struct ath_rx_status *rs, u64 tsf);
-#else
-static inline int ath_process_fft(struct ath_softc *sc,
-				  struct ieee80211_hdr *hdr,
-				  struct ath_rx_status *rs, u64 tsf)
-{
-	return 0;
-}
-#endif /* CONFIG_ATH9K_DEBUGFS */
 
 #endif /* SPECTRAL_H */

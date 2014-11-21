@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 /*
  * DS bit usage
@@ -1066,6 +1067,12 @@ struct ieee80211_pspoll {
 
 /* TDLS */
 
+/* Channel switch timing */
+struct ieee80211_ch_switch_timing {
+	__le16 switch_time;
+	__le16 switch_timeout;
+} __packed;
+
 /* Link-id information element */
 struct ieee80211_tdls_lnkie {
 	u8 ie_type; /* Link Identifier IE */
@@ -1107,6 +1114,15 @@ struct ieee80211_tdls_data {
 			u8 dialog_token;
 			u8 variable[0];
 		} __packed discover_req;
+		struct {
+			u8 target_channel;
+			u8 oper_class;
+			u8 variable[0];
+		} __packed chan_switch_req;
+		struct {
+			__le16 status_code;
+			u8 variable[0];
+		} __packed chan_switch_resp;
 	} u;
 } __packed;
 
@@ -2018,6 +2034,11 @@ enum ieee80211_tdls_actioncode {
  */
 #define WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING	BIT(2)
 
+/* TDLS capabilities in the the 4th byte of @WLAN_EID_EXT_CAPABILITY */
+#define WLAN_EXT_CAPA4_TDLS_BUFFER_STA		BIT(4)
+#define WLAN_EXT_CAPA4_TDLS_PEER_PSM		BIT(5)
+#define WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH		BIT(6)
+
 /* Interworking capabilities are set in 7th bit of 4th byte of the
  * @WLAN_EID_EXT_CAPABILITY information element
  */
@@ -2029,12 +2050,16 @@ enum ieee80211_tdls_actioncode {
  */
 #define WLAN_EXT_CAPA5_TDLS_ENABLED	BIT(5)
 #define WLAN_EXT_CAPA5_TDLS_PROHIBITED	BIT(6)
+#define WLAN_EXT_CAPA5_TDLS_CH_SW_PROHIBITED	BIT(7)
 
 #define WLAN_EXT_CAPA8_OPMODE_NOTIF	BIT(6)
 #define WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED	BIT(7)
 
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
+
+/* BSS Coex IE information field bits */
+#define WLAN_BSS_COEX_INFORMATION_REQUEST	BIT(0)
 
 /**
  * enum - mesh synchronization method identifier
@@ -2416,6 +2441,30 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 	index -= indexn1;
 
 	return !!(tim->virtual_map[index] & mask);
+}
+
+/**
+ * ieee80211_get_tdls_action - get tdls packet action (or -1, if not tdls packet)
+ * @skb: the skb containing the frame, length will not be checked
+ * @hdr_size: the size of the ieee80211_hdr that starts at skb->data
+ *
+ * This function assumes the frame is a data frame, and that the network header
+ * is in the correct place.
+ */
+static inline int ieee80211_get_tdls_action(struct sk_buff *skb, u32 hdr_size)
+{
+	if (!skb_is_nonlinear(skb) &&
+	    skb->len > (skb_network_offset(skb) + 2)) {
+		/* Point to where the indication of TDLS should start */
+		const u8 *tdls_data = skb_network_header(skb) - 2;
+
+		if (get_unaligned_be16(tdls_data) == ETH_P_TDLS &&
+		    tdls_data[2] == WLAN_TDLS_SNAP_RFTYPE &&
+		    tdls_data[3] == WLAN_CATEGORY_TDLS)
+			return tdls_data[4];
+	}
+
+	return -1;
 }
 
 /* convert time units */

@@ -233,8 +233,9 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 
 	ath9k_calculate_summary_state(sc, sc->cur_chan);
 	ath_startrecv(sc);
-	ath9k_cmn_update_txpow(ah, sc->curtxpow,
-			       sc->cur_chan->txpower, &sc->curtxpow);
+	ath9k_cmn_update_txpow(ah, sc->cur_chan->cur_txpower,
+			       sc->cur_chan->txpower,
+			       &sc->cur_chan->cur_txpower);
 	clear_bit(ATH_OP_HW_RESET, &common->op_flags);
 
 	if (!sc->cur_chan->offchannel && start) {
@@ -726,7 +727,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	if (ah->led_pin >= 0) {
 		ath9k_hw_cfg_output(ah, ah->led_pin,
 				    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-		ath9k_hw_set_gpio(ah, ah->led_pin, 0);
+		ath9k_hw_set_gpio(ah, ah->led_pin,
+				  (ah->config.led_active_high) ? 1 : 0);
 	}
 
 	/*
@@ -868,7 +870,8 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	spin_lock_bh(&sc->sc_pcu_lock);
 
 	if (ah->led_pin >= 0) {
-		ath9k_hw_set_gpio(ah, ah->led_pin, 1);
+		ath9k_hw_set_gpio(ah, ah->led_pin,
+				  (ah->config.led_active_high) ? 0 : 1);
 		ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
 	}
 
@@ -1187,7 +1190,8 @@ static void ath9k_assign_hw_queues(struct ieee80211_hw *hw,
 	for (i = 0; i < IEEE80211_NUM_ACS; i++)
 		vif->hw_queue[i] = i;
 
-	if (vif->type == NL80211_IFTYPE_AP)
+	if (vif->type == NL80211_IFTYPE_AP ||
+	    vif->type == NL80211_IFTYPE_MESH_POINT)
 		vif->cab_queue = hw->queues - 2;
 	else
 		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
@@ -1339,78 +1343,6 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 	ath_dbg(common, PS, "PowerSave disabled\n");
 }
 
-void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw)
-{
-	struct ath_softc *sc = hw->priv;
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	u32 rxfilter;
-
-	if (config_enabled(CONFIG_ATH9K_TX99))
-		return;
-
-	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
-		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
-		return;
-	}
-
-	ath9k_ps_wakeup(sc);
-	rxfilter = ath9k_hw_getrxfilter(ah);
-	ath9k_hw_setrxfilter(ah, rxfilter |
-				 ATH9K_RX_FILTER_PHYRADAR |
-				 ATH9K_RX_FILTER_PHYERR);
-
-	/* TODO: usually this should not be neccesary, but for some reason
-	 * (or in some mode?) the trigger must be called after the
-	 * configuration, otherwise the register will have its values reset
-	 * (on my ar9220 to value 0x01002310)
-	 */
-	ath9k_spectral_scan_config(hw, sc->spectral_mode);
-	ath9k_hw_ops(ah)->spectral_scan_trigger(ah);
-	ath9k_ps_restore(sc);
-}
-
-int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
-			       enum spectral_mode spectral_mode)
-{
-	struct ath_softc *sc = hw->priv;
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
-		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
-		return -1;
-	}
-
-	switch (spectral_mode) {
-	case SPECTRAL_DISABLED:
-		sc->spec_config.enabled = 0;
-		break;
-	case SPECTRAL_BACKGROUND:
-		/* send endless samples.
-		 * TODO: is this really useful for "background"?
-		 */
-		sc->spec_config.endless = 1;
-		sc->spec_config.enabled = 1;
-		break;
-	case SPECTRAL_CHANSCAN:
-	case SPECTRAL_MANUAL:
-		sc->spec_config.endless = 0;
-		sc->spec_config.enabled = 1;
-		break;
-	default:
-		return -1;
-	}
-
-	ath9k_ps_wakeup(sc);
-	ath9k_hw_ops(ah)->spectral_scan_config(ah, &sc->spec_config);
-	ath9k_ps_restore(sc);
-
-	sc->spectral_mode = spectral_mode;
-
-	return 0;
-}
-
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath_softc *sc = hw->priv;
@@ -1471,8 +1403,9 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		ath_dbg(common, CONFIG, "Set power: %d\n", conf->power_level);
 		sc->cur_chan->txpower = 2 * conf->power_level;
-		ath9k_cmn_update_txpow(ah, sc->curtxpow,
-				       sc->cur_chan->txpower, &sc->curtxpow);
+		ath9k_cmn_update_txpow(ah, sc->cur_chan->cur_txpower,
+				       sc->cur_chan->txpower,
+				       &sc->cur_chan->cur_txpower);
 	}
 
 	mutex_unlock(&sc->mutex);
@@ -1727,7 +1660,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 			if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
 				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-			if (sc->sc_ah->sw_mgmt_crypto &&
+			if (sc->sc_ah->sw_mgmt_crypto_tx &&
 			    key->cipher == WLAN_CIPHER_SUITE_CCMP)
 				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 			ret = 0;
@@ -2250,14 +2183,17 @@ static int ath9k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
 	return 0;
 }
 
-static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
+static void ath9k_sw_scan_start(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				const u8 *mac_addr)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	set_bit(ATH_OP_SCANNING, &common->op_flags);
 }
 
-static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
+static void ath9k_sw_scan_complete(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -2265,6 +2201,28 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 }
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+
+static void ath9k_cancel_pending_offchannel(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	if (sc->offchannel.roc_vif) {
+		ath_dbg(common, CHAN_CTX,
+			"%s: Aborting RoC\n", __func__);
+
+		del_timer_sync(&sc->offchannel.timer);
+		if (sc->offchannel.state >= ATH_OFFCHANNEL_ROC_START)
+			ath_roc_complete(sc, true);
+	}
+
+	if (test_bit(ATH_OP_SCANNING, &common->op_flags)) {
+		ath_dbg(common, CHAN_CTX,
+			"%s: Aborting HW scan\n", __func__);
+
+		del_timer_sync(&sc->offchannel.timer);
+		ath_scan_complete(sc, true);
+	}
+}
 
 static int ath9k_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_scan_request *hw_req)
@@ -2452,6 +2410,8 @@ static int ath9k_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath_chanctx *ctx = ath_chanctx_get(conf);
 	int i;
 
+	ath9k_cancel_pending_offchannel(sc);
+
 	mutex_lock(&sc->mutex);
 
 	ath_dbg(common, CHAN_CTX,
@@ -2480,6 +2440,8 @@ static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	struct ath_chanctx *ctx = ath_chanctx_get(conf);
 	int ac;
+
+	ath9k_cancel_pending_offchannel(sc);
 
 	mutex_lock(&sc->mutex);
 
@@ -2526,18 +2488,7 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 	if (!changed)
 		goto out;
 
-	if (test_bit(ATH_OP_SCANNING, &common->op_flags)) {
-		ath_dbg(common, CHAN_CTX,
-			"%s: Aborting HW scan\n", __func__);
-
-		mutex_unlock(&sc->mutex);
-
-		del_timer_sync(&sc->offchannel.timer);
-		ath_scan_complete(sc, true);
-		flush_work(&sc->chanctx_work);
-
-		mutex_lock(&sc->mutex);
-	}
+	ath9k_cancel_pending_offchannel(sc);
 
 	go_ctx = ath_is_go_chanctx_present(sc);
 
@@ -2552,13 +2503,22 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 		beacon_int = TU_TO_USEC(cur_conf->beacon_interval);
 		spin_unlock_bh(&sc->chan_lock);
 
-		timeout = usecs_to_jiffies(beacon_int);
+		timeout = usecs_to_jiffies(beacon_int * 2);
 		init_completion(&sc->go_beacon);
 
+		mutex_unlock(&sc->mutex);
+
 		if (wait_for_completion_timeout(&sc->go_beacon,
-						timeout) == 0)
+						timeout) == 0) {
 			ath_dbg(common, CHAN_CTX,
 				"Failed to send new NoA\n");
+
+			spin_lock_bh(&sc->chan_lock);
+			sc->sched.mgd_prepare_tx = false;
+			spin_unlock_bh(&sc->chan_lock);
+		}
+
+		mutex_lock(&sc->mutex);
 	}
 
 	ath_dbg(common, CHAN_CTX,
@@ -2593,6 +2553,24 @@ void ath9k_fill_chanctx_ops(void)
 }
 
 #endif
+
+static int ath9k_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			     int *dbm)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	mutex_lock(&sc->mutex);
+	if (avp->chanctx)
+		*dbm = avp->chanctx->cur_txpower;
+	else
+		*dbm = sc->cur_chan->cur_txpower;
+	mutex_unlock(&sc->mutex);
+
+	*dbm /= 2;
+
+	return 0;
+}
 
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
@@ -2640,4 +2618,5 @@ struct ieee80211_ops ath9k_ops = {
 #endif
 	.sw_scan_start	    = ath9k_sw_scan_start,
 	.sw_scan_complete   = ath9k_sw_scan_complete,
+	.get_txpower        = ath9k_get_txpower,
 };

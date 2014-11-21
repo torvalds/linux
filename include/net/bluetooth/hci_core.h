@@ -108,6 +108,7 @@ struct smp_csrk {
 
 struct smp_ltk {
 	struct list_head list;
+	struct rcu_head rcu;
 	bdaddr_t bdaddr;
 	u8 bdaddr_type;
 	u8 authenticated;
@@ -120,6 +121,7 @@ struct smp_ltk {
 
 struct smp_irk {
 	struct list_head list;
+	struct rcu_head rcu;
 	bdaddr_t rpa;
 	bdaddr_t bdaddr;
 	u8 addr_type;
@@ -138,9 +140,9 @@ struct oob_data {
 	struct list_head list;
 	bdaddr_t bdaddr;
 	u8 hash192[16];
-	u8 randomizer192[16];
+	u8 rand192[16];
 	u8 hash256[16];
-	u8 randomizer256[16];
+	u8 rand256[16];
 };
 
 #define HCI_MAX_SHORT_NAME_LENGTH	10
@@ -646,6 +648,26 @@ static inline unsigned int hci_conn_count(struct hci_dev *hdev)
 	return c->acl_num + c->amp_num + c->sco_num + c->le_num;
 }
 
+static inline __u8 hci_conn_lookup_type(struct hci_dev *hdev, __u16 handle)
+{
+	struct hci_conn_hash *h = &hdev->conn_hash;
+	struct hci_conn *c;
+	__u8 type = INVALID_LINK;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->handle == handle) {
+			type = c->type;
+			break;
+		}
+	}
+
+	rcu_read_unlock();
+
+	return type;
+}
+
 static inline struct hci_conn *hci_conn_hash_lookup_handle(struct hci_dev *hdev,
 								__u16 handle)
 {
@@ -856,6 +878,7 @@ int hci_register_dev(struct hci_dev *hdev);
 void hci_unregister_dev(struct hci_dev *hdev);
 int hci_suspend_dev(struct hci_dev *hdev);
 int hci_resume_dev(struct hci_dev *hdev);
+int hci_reset_dev(struct hci_dev *hdev);
 int hci_dev_open(__u16 dev);
 int hci_dev_close(__u16 dev);
 int hci_dev_reset(__u16 dev);
@@ -920,10 +943,10 @@ void hci_remote_oob_data_clear(struct hci_dev *hdev);
 struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
 					  bdaddr_t *bdaddr);
 int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			    u8 *hash, u8 *randomizer);
+			    u8 *hash, u8 *rand);
 int hci_add_remote_oob_ext_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				u8 *hash192, u8 *randomizer192,
-				u8 *hash256, u8 *randomizer256);
+				u8 *hash192, u8 *rand192,
+				u8 *hash256, u8 *rand256);
 int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
@@ -1351,8 +1374,8 @@ void mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
 				    u8 status);
 void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status);
 void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
-				       u8 *randomizer192, u8 *hash256,
-				       u8 *randomizer256, u8 status);
+				       u8 *rand192, u8 *hash256, u8 *rand256,
+				       u8 status);
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		       u8 addr_type, u8 *dev_class, s8 rssi, u32 flags,
 		       u8 *eir, u16 eir_len, u8 *scan_rsp, u8 scan_rsp_len);

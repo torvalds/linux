@@ -276,6 +276,7 @@ struct ath9k_hw_capabilities {
 	u16 rts_aggr_limit;
 	u8 tx_chainmask;
 	u8 rx_chainmask;
+	u8 chip_chainmask;
 	u8 max_txchains;
 	u8 max_rxchains;
 	u8 num_gpio_pins;
@@ -329,6 +330,7 @@ struct ath9k_ops_config {
 	bool alt_mingainidx;
 	bool no_pll_pwrsave;
 	bool tx_gain_buffalo;
+	bool led_active_high;
 };
 
 enum ath9k_int {
@@ -524,6 +526,7 @@ struct ath_gen_timer {
 struct ath_gen_timer_table {
 	struct ath_gen_timer *timers[ATH_MAX_GEN_TIMER];
 	u16 timer_mask;
+	bool tsf2_enabled;
 };
 
 struct ath_hw_antcomb_conf {
@@ -753,7 +756,8 @@ struct ath_hw {
 	} eeprom;
 	const struct eeprom_ops *eep_ops;
 
-	bool sw_mgmt_crypto;
+	bool sw_mgmt_crypto_tx;
+	bool sw_mgmt_crypto_rx;
 	bool is_pciexpress;
 	bool aspm_enabled;
 	bool is_monitoring;
@@ -1035,6 +1039,7 @@ void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 			      struct ath_gen_timer *timer,
 			      u32 timer_next,
 			      u32 timer_period);
+void ath9k_hw_gen_timer_start_tsf2(struct ath_hw *ah);
 void ath9k_hw_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
 
 void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer);

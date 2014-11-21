@@ -92,8 +92,8 @@ static int ath_set_channel(struct ath_softc *sc)
 	} else {
 		/* perform spectral scan if requested. */
 		if (test_bit(ATH_OP_SCANNING, &common->op_flags) &&
-			sc->spectral_mode == SPECTRAL_CHANSCAN)
-			ath9k_spectral_scan_trigger(hw);
+			sc->spec_priv.spectral_mode == SPECTRAL_CHANSCAN)
+			ath9k_cmn_spectral_scan_trigger(common, &sc->spec_priv);
 	}
 
 	return 0;
@@ -659,6 +659,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		sc->sched.beacon_miss = 0;
 
 		if (sc->sched.state == ATH_CHANCTX_STATE_FORCE_ACTIVE ||
+		    !sc->sched.beacon_adjust ||
 		    !sc->cur_chan->tsf_val)
 			break;
 
@@ -672,7 +673,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			ath9k_hw_get_tsf_offset(&sc->cur_chan->tsf_ts, NULL);
 		tsf_time += ath9k_hw_gettsf32(ah);
 
-
+		sc->sched.beacon_adjust = false;
 		ath_chanctx_setup_timer(sc, tsf_time);
 		break;
 	case ATH_CHANCTX_EVENT_AUTHORIZED:
@@ -717,6 +718,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 
 		ath_chanctx_setup_timer(sc, tsf_time);
 		sc->sched.beacon_pending = true;
+		sc->sched.beacon_adjust = true;
 		break;
 	case ATH_CHANCTX_EVENT_ENABLE_MULTICHANNEL:
 		if (sc->cur_chan == &sc->offchannel.chan ||
@@ -900,6 +902,11 @@ void ath_offchannel_next(struct ath_softc *sc)
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_START;
 		ath_chanctx_offchan_switch(sc, sc->offchannel.roc_chan);
 	} else {
+		spin_lock_bh(&sc->chan_lock);
+		sc->sched.offchannel_pending = false;
+		sc->sched.wait_switch = false;
+		spin_unlock_bh(&sc->chan_lock);
+
 		ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc, false),
 				   NULL);
 		sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
@@ -919,8 +926,7 @@ void ath_roc_complete(struct ath_softc *sc, bool abort)
 
 	sc->offchannel.roc_vif = NULL;
 	sc->offchannel.roc_chan = NULL;
-	if (abort)
-		ieee80211_remain_on_channel_expired(sc->hw);
+	ieee80211_remain_on_channel_expired(sc->hw);
 	ath_offchannel_next(sc);
 	ath9k_ps_restore(sc);
 }
@@ -957,7 +963,7 @@ static void ath_scan_send_probe(struct ath_softc *sc,
 	struct ieee80211_tx_info *info;
 	int band = sc->offchannel.chan.chandef.chan->band;
 
-	skb = ieee80211_probereq_get(sc->hw, vif,
+	skb = ieee80211_probereq_get(sc->hw, vif->addr,
 			ssid->ssid, ssid->ssid_len, req->ie_len);
 	if (!skb)
 		return;
@@ -1051,10 +1057,8 @@ static void ath_offchannel_timer(unsigned long data)
 		break;
 	case ATH_OFFCHANNEL_ROC_START:
 	case ATH_OFFCHANNEL_ROC_WAIT:
-		ctx = ath_chanctx_get_oper_chan(sc, false);
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_DONE;
-		ieee80211_remain_on_channel_expired(sc->hw);
-		ath_chanctx_switch(sc, ctx, NULL);
+		ath_roc_complete(sc, false);
 		break;
 	default:
 		break;
@@ -1184,7 +1188,6 @@ static void ath_offchannel_channel_change(struct ath_softc *sc)
 		ieee80211_ready_on_channel(sc->hw);
 		break;
 	case ATH_OFFCHANNEL_ROC_DONE:
-		ath_roc_complete(sc, false);
 		break;
 	default:
 		break;

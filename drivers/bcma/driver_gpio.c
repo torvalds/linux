@@ -152,7 +152,7 @@ static int bcma_gpio_irq_domain_init(struct bcma_drv_cc *cc)
 					 handle_simple_irq);
 	}
 
-	hwirq = bcma_core_irq(cc->core);
+	hwirq = bcma_core_irq(cc->core, 0);
 	err = request_irq(hwirq, bcma_gpio_irq_handler, IRQF_SHARED, "gpio",
 			  cc);
 	if (err)
@@ -183,7 +183,7 @@ static void bcma_gpio_irq_domain_exit(struct bcma_drv_cc *cc)
 		return;
 
 	bcma_cc_mask32(cc, BCMA_CC_IRQMASK, ~BCMA_CC_IRQ_GPIO);
-	free_irq(bcma_core_irq(cc->core), cc);
+	free_irq(bcma_core_irq(cc->core, 0), cc);
 	for (gpio = 0; gpio < chip->ngpio; gpio++) {
 		int irq = irq_find_mapping(cc->irq_domain, gpio);
 

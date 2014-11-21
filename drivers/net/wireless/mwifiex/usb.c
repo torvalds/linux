@@ -27,6 +27,11 @@ static struct mwifiex_if_ops usb_ops;
 static struct semaphore add_remove_card_sem;
 
 static struct usb_device_id mwifiex_usb_table[] = {
+	/* 8766 */
+	{USB_DEVICE(USB8XXX_VID, USB8766_PID_1)},
+	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8766_PID_2,
+				       USB_CLASS_VENDOR_SPEC,
+				       USB_SUBCLASS_VENDOR_SPEC, 0xff)},
 	/* 8797 */
 	{USB_DEVICE(USB8XXX_VID, USB8797_PID_1)},
 	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8797_PID_2,
@@ -125,8 +130,10 @@ static int mwifiex_usb_recv(struct mwifiex_adapter *adapter,
 			dev_err(dev, "DATA: skb->len too large\n");
 			return -1;
 		}
-		skb_queue_tail(&adapter->usb_rx_data_q, skb);
+
+		skb_queue_tail(&adapter->rx_data_q, skb);
 		adapter->data_received = true;
+		atomic_inc(&adapter->rx_pending);
 		break;
 	default:
 		dev_err(dev, "%s: unknown endport %#x\n", __func__, ep);
@@ -176,7 +183,6 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 		else
 			skb_put(skb, recv_length - skb->len);
 
-		atomic_inc(&adapter->rx_pending);
 		status = mwifiex_usb_recv(adapter, skb, context->ep);
 
 		dev_dbg(adapter->dev, "info: recv_length=%d, status=%d\n",
@@ -191,7 +197,6 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 			if (card->rx_cmd_ep == context->ep)
 				return;
 		} else {
-			atomic_dec(&adapter->rx_pending);
 			if (status == -1)
 				dev_err(adapter->dev,
 					"received data processing failed!\n");
@@ -222,7 +227,13 @@ setup_for_next:
 	else
 		size = MWIFIEX_RX_DATA_BUF_SIZE;
 
-	mwifiex_usb_submit_rx_urb(context, size);
+	if (card->rx_cmd_ep == context->ep) {
+		mwifiex_usb_submit_rx_urb(context, size);
+	} else {
+		context->skb = NULL;
+		if (atomic_read(&adapter->rx_pending) <= HIGH_RX_PENDING)
+			mwifiex_usb_submit_rx_urb(context, size);
+	}
 
 	return;
 }
@@ -348,10 +359,12 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 
 	/* PID_1 is used for firmware downloading only */
 	switch (id_product) {
+	case USB8766_PID_1:
 	case USB8797_PID_1:
 	case USB8897_PID_1:
 		card->usb_boot_state = USB8XXX_FW_DNLD;
 		break;
+	case USB8766_PID_2:
 	case USB8797_PID_2:
 	case USB8897_PID_2:
 		card->usb_boot_state = USB8XXX_FW_READY;
@@ -780,6 +793,11 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
 		strcpy(adapter->fw_name, USB8897_DEFAULT_FW_NAME);
 		break;
+	case USB8766_PID_1:
+	case USB8766_PID_2:
+		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
+		strcpy(adapter->fw_name, USB8766_DEFAULT_FW_NAME);
+		break;
 	case USB8797_PID_1:
 	case USB8797_PID_2:
 	default:
@@ -962,15 +980,7 @@ static void mwifiex_submit_rx_urb(struct mwifiex_adapter *adapter, u8 ep)
 static int mwifiex_usb_cmd_event_complete(struct mwifiex_adapter *adapter,
 				       struct sk_buff *skb)
 {
-	atomic_dec(&adapter->rx_pending);
 	mwifiex_submit_rx_urb(adapter, MWIFIEX_USB_EP_CMD_EVENT);
-
-	return 0;
-}
-
-static int mwifiex_usb_data_complete(struct mwifiex_adapter *adapter)
-{
-	atomic_dec(&adapter->rx_pending);
 
 	return 0;
 }
@@ -986,6 +996,20 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 	return 0;
 }
 
+static void mwifiex_usb_submit_rem_rx_urbs(struct mwifiex_adapter *adapter)
+{
+	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
+	int i;
+	struct urb_context *ctx;
+
+	for (i = 0; i < MWIFIEX_RX_DATA_URB; i++) {
+		if (card->rx_data_list[i].skb)
+			continue;
+		ctx = &card->rx_data_list[i];
+		mwifiex_usb_submit_rx_urb(ctx, MWIFIEX_RX_DATA_BUF_SIZE);
+	}
+}
+
 static struct mwifiex_if_ops usb_ops = {
 	.register_dev =		mwifiex_register_dev,
 	.unregister_dev =	mwifiex_unregister_dev,
@@ -996,8 +1020,8 @@ static struct mwifiex_if_ops usb_ops = {
 	.dnld_fw =		mwifiex_usb_dnld_fw,
 	.cmdrsp_complete =	mwifiex_usb_cmd_event_complete,
 	.event_complete =	mwifiex_usb_cmd_event_complete,
-	.data_complete =	mwifiex_usb_data_complete,
 	.host_to_card =		mwifiex_usb_host_to_card,
+	.submit_rem_rx_urbs =	mwifiex_usb_submit_rem_rx_urbs,
 };
 
 /* This function initializes the USB driver module.
@@ -1048,5 +1072,6 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex USB Driver version" USB_VERSION);
 MODULE_VERSION(USB_VERSION);
 MODULE_LICENSE("GPL v2");
+MODULE_FIRMWARE(USB8766_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(USB8797_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(USB8897_DEFAULT_FW_NAME);

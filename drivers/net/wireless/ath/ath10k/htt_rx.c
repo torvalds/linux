@@ -291,8 +291,12 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 	htt->rx_ring.sw_rd_idx.msdu_payld = idx;
 	htt->rx_ring.fill_cnt--;
 
-	trace_ath10k_htt_rx_pop_msdu(ar, msdu->data, msdu->len +
-				     skb_tailroom(msdu));
+	dma_unmap_single(htt->ar->dev,
+			 ATH10K_SKB_CB(msdu)->paddr,
+			 msdu->len + skb_tailroom(msdu),
+			 DMA_FROM_DEVICE);
+	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt rx netbuf pop: ",
+			msdu->data, msdu->len + skb_tailroom(msdu));
 
 	return msdu;
 }
@@ -319,7 +323,6 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 	int msdu_len, msdu_chaining = 0;
 	struct sk_buff *msdu, *next;
 	struct htt_rx_desc *rx_desc;
-	u32 tsf;
 
 	lockdep_assert_held(&htt->rx_ring.lock);
 
@@ -331,14 +334,6 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 	msdu = *head_msdu = ath10k_htt_rx_netbuf_pop(htt);
 	while (msdu) {
 		int last_msdu, msdu_len_invalid, msdu_chained;
-
-		dma_unmap_single(htt->ar->dev,
-				 ATH10K_SKB_CB(msdu)->paddr,
-				 msdu->len + skb_tailroom(msdu),
-				 DMA_FROM_DEVICE);
-
-		ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt rx pop: ",
-				msdu->data, msdu->len + skb_tailroom(msdu));
 
 		rx_desc = (struct htt_rx_desc *)msdu->data;
 
@@ -430,14 +425,14 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		while (msdu_chained--) {
 			struct sk_buff *next = ath10k_htt_rx_netbuf_pop(htt);
 
-			dma_unmap_single(htt->ar->dev,
-					 ATH10K_SKB_CB(next)->paddr,
-					 next->len + skb_tailroom(next),
-					 DMA_FROM_DEVICE);
-
-			ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL,
-					"htt rx chained: ", next->data,
-					next->len + skb_tailroom(next));
+			if (!next) {
+				ath10k_warn(ar, "failed to pop chained msdu\n");
+				ath10k_htt_rx_free_msdu_chain(*head_msdu);
+				*head_msdu = NULL;
+				msdu = NULL;
+				htt->rx_confused = true;
+				break;
+			}
 
 			skb_trim(next, 0);
 			skb_put(next, min(msdu_len, HTT_RX_BUF_SIZE));
@@ -451,8 +446,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		last_msdu = __le32_to_cpu(rx_desc->msdu_end.info0) &
 				RX_MSDU_END_INFO0_LAST_MSDU;
 
-		tsf = __le32_to_cpu(rx_desc->ppdu_end.tsf_timestamp);
-		trace_ath10k_htt_rx_desc(ar, tsf, &rx_desc->attention,
+		trace_ath10k_htt_rx_desc(ar, &rx_desc->attention,
 					 sizeof(*rx_desc) - sizeof(u32));
 		if (last_msdu) {
 			msdu->next = NULL;
@@ -498,6 +492,8 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	void *vaddr;
 	size_t size;
 	struct timer_list *timer = &htt->rx_ring.refill_retry_timer;
+
+	htt->rx_confused = false;
 
 	htt->rx_ring.size = ath10k_htt_rx_ring_size(htt);
 	if (!is_power_of_2(htt->rx_ring.size)) {
@@ -588,41 +584,47 @@ static int ath10k_htt_rx_crypto_param_len(struct ath10k *ar,
 					  enum htt_rx_mpdu_encrypt_type type)
 {
 	switch (type) {
-	case HTT_RX_MPDU_ENCRYPT_WEP40:
-	case HTT_RX_MPDU_ENCRYPT_WEP104:
-		return 4;
-	case HTT_RX_MPDU_ENCRYPT_TKIP_WITHOUT_MIC:
-	case HTT_RX_MPDU_ENCRYPT_WEP128: /* not tested */
-	case HTT_RX_MPDU_ENCRYPT_TKIP_WPA:
-	case HTT_RX_MPDU_ENCRYPT_WAPI: /* not tested */
-	case HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2:
-		return 8;
 	case HTT_RX_MPDU_ENCRYPT_NONE:
 		return 0;
+	case HTT_RX_MPDU_ENCRYPT_WEP40:
+	case HTT_RX_MPDU_ENCRYPT_WEP104:
+		return IEEE80211_WEP_IV_LEN;
+	case HTT_RX_MPDU_ENCRYPT_TKIP_WITHOUT_MIC:
+	case HTT_RX_MPDU_ENCRYPT_TKIP_WPA:
+		return IEEE80211_TKIP_IV_LEN;
+	case HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2:
+		return IEEE80211_CCMP_HDR_LEN;
+	case HTT_RX_MPDU_ENCRYPT_WEP128:
+	case HTT_RX_MPDU_ENCRYPT_WAPI:
+		break;
 	}
 
-	ath10k_warn(ar, "unknown encryption type %d\n", type);
+	ath10k_warn(ar, "unsupported encryption type %d\n", type);
 	return 0;
 }
+
+#define MICHAEL_MIC_LEN 8
 
 static int ath10k_htt_rx_crypto_tail_len(struct ath10k *ar,
 					 enum htt_rx_mpdu_encrypt_type type)
 {
 	switch (type) {
 	case HTT_RX_MPDU_ENCRYPT_NONE:
+		return 0;
 	case HTT_RX_MPDU_ENCRYPT_WEP40:
 	case HTT_RX_MPDU_ENCRYPT_WEP104:
-	case HTT_RX_MPDU_ENCRYPT_WEP128:
-	case HTT_RX_MPDU_ENCRYPT_WAPI:
-		return 0;
+		return IEEE80211_WEP_ICV_LEN;
 	case HTT_RX_MPDU_ENCRYPT_TKIP_WITHOUT_MIC:
 	case HTT_RX_MPDU_ENCRYPT_TKIP_WPA:
-		return 4;
+		return IEEE80211_TKIP_ICV_LEN;
 	case HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2:
-		return 8;
+		return IEEE80211_CCMP_MIC_LEN;
+	case HTT_RX_MPDU_ENCRYPT_WEP128:
+	case HTT_RX_MPDU_ENCRYPT_WAPI:
+		break;
 	}
 
-	ath10k_warn(ar, "unknown encryption type %d\n", type);
+	ath10k_warn(ar, "unsupported encryption type %d\n", type);
 	return 0;
 }
 
@@ -899,6 +901,8 @@ static void ath10k_process_rx(struct ath10k *ar,
 		   !!(status->flag & RX_FLAG_AMSDU_MORE));
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "rx skb: ",
 			skb->data, skb->len);
+	trace_ath10k_rx_hdr(ar, skb->data, skb->len);
+	trace_ath10k_rx_payload(ar, skb->data, skb->len);
 
 	ieee80211_rx(ar->hw, skb);
 }
@@ -1176,7 +1180,6 @@ static int ath10k_unchain_msdu(struct sk_buff *msdu_head)
 
 static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 					struct sk_buff *head,
-					enum htt_rx_mpdu_status status,
 					bool channel_set,
 					u32 attention)
 {
@@ -1200,19 +1203,8 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 	}
 
 	/* Skip mgmt frames while we handle this in WMI */
-	if (status == HTT_RX_IND_MPDU_STATUS_MGMT_CTRL ||
-	    attention & RX_ATTENTION_FLAGS_MGMT_TYPE) {
+	if (attention & RX_ATTENTION_FLAGS_MGMT_TYPE) {
 		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx mgmt ctrl\n");
-		return false;
-	}
-
-	if (status != HTT_RX_IND_MPDU_STATUS_OK &&
-	    status != HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR &&
-	    status != HTT_RX_IND_MPDU_STATUS_ERR_INV_PEER &&
-	    !htt->ar->monitor_started) {
-		ath10k_dbg(ar, ATH10K_DBG_HTT,
-			   "htt rx ignoring frame w/ status %d\n",
-			   status);
 		return false;
 	}
 
@@ -1231,8 +1223,6 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 	struct ath10k *ar = htt->ar;
 	struct ieee80211_rx_status *rx_status = &htt->rx_status;
 	struct htt_rx_indication_mpdu_range *mpdu_ranges;
-	struct htt_rx_desc *rxd;
-	enum htt_rx_mpdu_status status;
 	struct ieee80211_hdr *hdr;
 	int num_mpdu_ranges;
 	u32 attention;
@@ -1280,8 +1270,6 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 				num_mpdu_ranges));
 
 	for (i = 0; i < num_mpdu_ranges; i++) {
-		status = mpdu_ranges[i].mpdu_range_status;
-
 		for (j = 0; j < mpdu_ranges[i].mpdu_count; j++) {
 			struct sk_buff *msdu_head, *msdu_tail;
 
@@ -1302,12 +1290,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 				continue;
 			}
 
-			rxd = container_of((void *)msdu_head->data,
-					   struct htt_rx_desc,
-					   msdu_payload);
-
 			if (!ath10k_htt_rx_amsdu_allowed(htt, msdu_head,
-							 status,
 							 channel_set,
 							 attention)) {
 				ath10k_htt_rx_free_msdu_chain(msdu_head);
@@ -1372,6 +1355,8 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 				      &attention);
 	spin_unlock_bh(&htt->rx_ring.lock);
 
+	tasklet_schedule(&htt->rx_replenish_task);
+
 	ath10k_dbg(ar, ATH10K_DBG_HTT_DUMP, "htt rx frag ahead\n");
 
 	if (ret) {
@@ -1433,7 +1418,7 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 	/* last fragment of TKIP frags has MIC */
 	if (!ieee80211_has_morefrags(hdr->frame_control) &&
 	    enctype == HTT_RX_MPDU_ENCRYPT_TKIP_WPA)
-		trim += 8;
+		trim += MICHAEL_MIC_LEN;
 
 	if (trim > msdu_head->len) {
 		ath10k_warn(ar, "htt rx fragment: trailer longer than the frame itself? drop\n");

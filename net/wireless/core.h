@@ -111,6 +111,7 @@ cfg80211_rdev_free_wowlan(struct cfg80211_registered_device *rdev)
 	    rdev->wiphy.wowlan_config->tcp->sock)
 		sock_release(rdev->wiphy.wowlan_config->tcp->sock);
 	kfree(rdev->wiphy.wowlan_config->tcp);
+	kfree(rdev->wiphy.wowlan_config->nd_config);
 	kfree(rdev->wiphy.wowlan_config);
 #endif
 }

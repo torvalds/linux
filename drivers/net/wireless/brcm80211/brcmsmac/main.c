@@ -1009,8 +1009,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 		if (txh)
 			trace_brcms_txdesc(&wlc->hw->d11core->dev, txh,
 					   sizeof(*txh));
-		if (p)
-			brcmu_pkt_buf_free_skb(p);
+		brcmu_pkt_buf_free_skb(p);
 	}
 
 	if (dma && queue < NFIFO) {

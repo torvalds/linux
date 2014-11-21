@@ -50,16 +50,15 @@ static inline void drv_stop(struct ieee802154_local *local)
 	local->started = false;
 }
 
-static inline int drv_set_channel(struct ieee802154_local *local,
-				  const u8 page, const u8 channel)
+static inline int
+drv_set_channel(struct ieee802154_local *local, u8 page, u8 channel)
 {
 	might_sleep();
 
 	return local->ops->set_channel(&local->hw, page, channel);
 }
 
-static inline int drv_set_tx_power(struct ieee802154_local *local,
-				   const s8 dbm)
+static inline int drv_set_tx_power(struct ieee802154_local *local, s8 dbm)
 {
 	might_sleep();
 
@@ -71,8 +70,7 @@ static inline int drv_set_tx_power(struct ieee802154_local *local,
 	return local->ops->set_txpower(&local->hw, dbm);
 }
 
-static inline int drv_set_cca_mode(struct ieee802154_local *local,
-				   const u8 cca_mode)
+static inline int drv_set_cca_mode(struct ieee802154_local *local, u8 cca_mode)
 {
 	might_sleep();
 
@@ -84,8 +82,7 @@ static inline int drv_set_cca_mode(struct ieee802154_local *local,
 	return local->ops->set_cca_mode(&local->hw, cca_mode);
 }
 
-static inline int drv_set_lbt_mode(struct ieee802154_local *local,
-				   const bool mode)
+static inline int drv_set_lbt_mode(struct ieee802154_local *local, bool mode)
 {
 	might_sleep();
 
@@ -97,8 +94,8 @@ static inline int drv_set_lbt_mode(struct ieee802154_local *local,
 	return local->ops->set_lbt(&local->hw, mode);
 }
 
-static inline int drv_set_cca_ed_level(struct ieee802154_local *local,
-				       const s32 ed_level)
+static inline int
+drv_set_cca_ed_level(struct ieee802154_local *local, s32 ed_level)
 {
 	might_sleep();
 
@@ -110,8 +107,7 @@ static inline int drv_set_cca_ed_level(struct ieee802154_local *local,
 	return local->ops->set_cca_ed_level(&local->hw, ed_level);
 }
 
-static inline int drv_set_pan_id(struct ieee802154_local *local,
-				 const __le16 pan_id)
+static inline int drv_set_pan_id(struct ieee802154_local *local, __le16 pan_id)
 {
 	struct ieee802154_hw_addr_filt filt;
 
@@ -128,8 +124,8 @@ static inline int drv_set_pan_id(struct ieee802154_local *local,
 					    IEEE802154_AFILT_PANID_CHANGED);
 }
 
-static inline int drv_set_extended_addr(struct ieee802154_local *local,
-					const __le64 extended_addr)
+static inline int
+drv_set_extended_addr(struct ieee802154_local *local, __le64 extended_addr)
 {
 	struct ieee802154_hw_addr_filt filt;
 
@@ -146,8 +142,8 @@ static inline int drv_set_extended_addr(struct ieee802154_local *local,
 					    IEEE802154_AFILT_IEEEADDR_CHANGED);
 }
 
-static inline int drv_set_short_addr(struct ieee802154_local *local,
-				     const __le16 short_addr)
+static inline int
+drv_set_short_addr(struct ieee802154_local *local, __le16 short_addr)
 {
 	struct ieee802154_hw_addr_filt filt;
 
@@ -164,8 +160,8 @@ static inline int drv_set_short_addr(struct ieee802154_local *local,
 					    IEEE802154_AFILT_SADDR_CHANGED);
 }
 
-static inline int drv_set_pan_coord(struct ieee802154_local *local,
-				    const bool is_coord)
+static inline int
+drv_set_pan_coord(struct ieee802154_local *local, bool is_coord)
 {
 	struct ieee802154_hw_addr_filt filt;
 
@@ -182,9 +178,9 @@ static inline int drv_set_pan_coord(struct ieee802154_local *local,
 					    IEEE802154_AFILT_PANC_CHANGED);
 }
 
-static inline int drv_set_csma_params(struct ieee802154_local *local,
-				      u8 min_be, u8 max_be,
-				      u8 max_csma_backoffs)
+static inline int
+drv_set_csma_params(struct ieee802154_local *local, u8 min_be, u8 max_be,
+		    u8 max_csma_backoffs)
 {
 	might_sleep();
 
@@ -197,8 +193,8 @@ static inline int drv_set_csma_params(struct ieee802154_local *local,
 					   max_csma_backoffs);
 }
 
-static inline int drv_set_max_frame_retries(struct ieee802154_local *local,
-					    s8 max_frame_retries)
+static inline int
+drv_set_max_frame_retries(struct ieee802154_local *local, s8 max_frame_retries)
 {
 	might_sleep();
 
@@ -210,8 +206,8 @@ static inline int drv_set_max_frame_retries(struct ieee802154_local *local,
 	return local->ops->set_frame_retries(&local->hw, max_frame_retries);
 }
 
-static inline int drv_set_promiscuous_mode(struct ieee802154_local *local,
-					   const bool on)
+static inline int
+drv_set_promiscuous_mode(struct ieee802154_local *local, bool on)
 {
 	might_sleep();
 

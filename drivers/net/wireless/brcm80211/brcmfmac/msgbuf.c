@@ -518,8 +518,7 @@ static int brcmf_msgbuf_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 		memcpy(buf, skb->data, (len < msgbuf->ioctl_resp_ret_len) ?
 				       len : msgbuf->ioctl_resp_ret_len);
 	}
-	if (skb)
-		brcmu_pkt_buf_free_skb(skb);
+	brcmu_pkt_buf_free_skb(skb);
 
 	return msgbuf->ioctl_resp_status;
 }

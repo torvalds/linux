@@ -25,8 +25,7 @@
 
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
-#include <net/rtnetlink.h>
-#include <linux/nl802154.h>
+#include <net/nl802154.h>
 
 #include "ieee802154_i.h"
 
@@ -42,6 +41,7 @@ static int
 ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		       struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 {
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	__le16 span, sshort;
 	int rc;
 
@@ -49,8 +49,8 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	spin_lock_bh(&sdata->mib_lock);
 
-	span = sdata->pan_id;
-	sshort = sdata->short_addr;
+	span = wpan_dev->pan_id;
+	sshort = wpan_dev->short_addr;
 
 	switch (mac_cb(skb)->dest.mode) {
 	case IEEE802154_ADDR_NONE:
@@ -65,7 +65,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		if (mac_cb(skb)->dest.pan_id != span &&
 		    mac_cb(skb)->dest.pan_id != cpu_to_le16(IEEE802154_PANID_BROADCAST))
 			skb->pkt_type = PACKET_OTHERHOST;
-		else if (mac_cb(skb)->dest.extended_addr == sdata->extended_addr)
+		else if (mac_cb(skb)->dest.extended_addr == wpan_dev->extended_addr)
 			skb->pkt_type = PACKET_HOST;
 		else
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -208,7 +208,7 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 	}
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->type != IEEE802154_DEV_WPAN ||
+		if (sdata->vif.type != NL802154_IFTYPE_NODE ||
 		    !netif_running(sdata->dev))
 			continue;
 
@@ -233,7 +233,7 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	skb->protocol = htons(ETH_P_IEEE802154);
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->type != IEEE802154_DEV_MONITOR)
+		if (sdata->vif.type != NL802154_IFTYPE_MONITOR)
 			continue;
 
 		if (!ieee802154_sdata_running(sdata))

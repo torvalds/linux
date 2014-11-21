@@ -24,9 +24,23 @@
 #define LINUX_IEEE802154_H
 
 #include <linux/types.h>
+#include <linux/random.h>
+#include <asm/byteorder.h>
 
 #define IEEE802154_MTU			127
 #define IEEE802154_MIN_PSDU_LEN		5
+
+#define IEEE802154_PAN_ID_BROADCAST	0xffff
+#define IEEE802154_ADDR_SHORT_BROADCAST	0xffff
+#define IEEE802154_ADDR_SHORT_UNSPEC	0xfffe
+
+#define IEEE802154_EXTENDED_ADDR_LEN	8
+
+#define IEEE802154_LIFS_PERIOD		40
+#define IEEE802154_SIFS_PERIOD		12
+
+#define IEEE802154_MAX_CHANNEL		26
+#define IEEE802154_MAX_PAGE		31
 
 #define IEEE802154_FC_TYPE_BEACON	0x0	/* Frame is beacon */
 #define	IEEE802154_FC_TYPE_DATA		0x1	/* Frame is data */
@@ -195,6 +209,34 @@ enum {
 static inline bool ieee802154_is_valid_psdu_len(const u8 len)
 {
 	return (len >= IEEE802154_MIN_PSDU_LEN && len <= IEEE802154_MTU);
+}
+
+/**
+ * ieee802154_is_valid_psdu_len - check if extended addr is valid
+ * @addr: extended addr to check
+ */
+static inline bool ieee802154_is_valid_extended_addr(const __le64 addr)
+{
+	/* These EUI-64 addresses are reserved by IEEE. 0xffffffffffffffff
+	 * is used internally as extended to short address broadcast mapping.
+	 * This is currently a workaround because neighbor discovery can't
+	 * deal with short addresses types right now.
+	 */
+	return ((addr != cpu_to_le64(0x0000000000000000ULL)) &&
+		(addr != cpu_to_le64(0xffffffffffffffffULL)));
+}
+
+/**
+ * ieee802154_random_extended_addr - generates a random extended address
+ * @addr: extended addr pointer to place the random address
+ */
+static inline void ieee802154_random_extended_addr(__le64 *addr)
+{
+	get_random_bytes(addr, IEEE802154_EXTENDED_ADDR_LEN);
+
+	/* toggle some bit if we hit an invalid extended addr */
+	if (!ieee802154_is_valid_extended_addr(*addr))
+		((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 0x01;
 }
 
 #endif /* LINUX_IEEE802154_H */

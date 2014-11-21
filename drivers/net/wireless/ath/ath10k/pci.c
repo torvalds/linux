@@ -1196,64 +1196,74 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 	return 0;
 }
 
-static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
+static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 {
 	struct ath10k *ar;
-	struct ath10k_pci *ar_pci;
-	struct ath10k_ce_pipe *ce_hdl;
-	u32 buf_sz;
-	struct sk_buff *netbuf;
-	u32 ce_data;
+	struct ath10k_ce_pipe *ce_pipe;
+	struct ath10k_ce_ring *ce_ring;
+	struct sk_buff *skb;
+	int i;
 
-	buf_sz = pipe_info->buf_sz;
+	ar = pci_pipe->hif_ce_state;
+	ce_pipe = pci_pipe->ce_hdl;
+	ce_ring = ce_pipe->dest_ring;
 
-	/* Unused Copy Engine */
-	if (buf_sz == 0)
+	if (!ce_ring)
 		return;
 
-	ar = pipe_info->hif_ce_state;
-	ar_pci = ath10k_pci_priv(ar);
-	ce_hdl = pipe_info->ce_hdl;
+	if (!pci_pipe->buf_sz)
+		return;
 
-	while (ath10k_ce_revoke_recv_next(ce_hdl, (void **)&netbuf,
-					  &ce_data) == 0) {
-		dma_unmap_single(ar->dev, ATH10K_SKB_CB(netbuf)->paddr,
-				 netbuf->len + skb_tailroom(netbuf),
+	for (i = 0; i < ce_ring->nentries; i++) {
+		skb = ce_ring->per_transfer_context[i];
+		if (!skb)
+			continue;
+
+		ce_ring->per_transfer_context[i] = NULL;
+
+		dma_unmap_single(ar->dev, ATH10K_SKB_CB(skb)->paddr,
+				 skb->len + skb_tailroom(skb),
 				 DMA_FROM_DEVICE);
-		dev_kfree_skb_any(netbuf);
+		dev_kfree_skb_any(skb);
 	}
 }
 
-static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
+static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 {
 	struct ath10k *ar;
 	struct ath10k_pci *ar_pci;
-	struct ath10k_ce_pipe *ce_hdl;
-	struct sk_buff *netbuf;
-	u32 ce_data;
-	unsigned int nbytes;
+	struct ath10k_ce_pipe *ce_pipe;
+	struct ath10k_ce_ring *ce_ring;
+	struct ce_desc *ce_desc;
+	struct sk_buff *skb;
 	unsigned int id;
-	u32 buf_sz;
+	int i;
 
-	buf_sz = pipe_info->buf_sz;
+	ar = pci_pipe->hif_ce_state;
+	ar_pci = ath10k_pci_priv(ar);
+	ce_pipe = pci_pipe->ce_hdl;
+	ce_ring = ce_pipe->src_ring;
 
-	/* Unused Copy Engine */
-	if (buf_sz == 0)
+	if (!ce_ring)
 		return;
 
-	ar = pipe_info->hif_ce_state;
-	ar_pci = ath10k_pci_priv(ar);
-	ce_hdl = pipe_info->ce_hdl;
+	if (!pci_pipe->buf_sz)
+		return;
 
-	while (ath10k_ce_cancel_send_next(ce_hdl, (void **)&netbuf,
-					  &ce_data, &nbytes, &id) == 0) {
-		/* no need to call tx completion for NULL pointers */
-		if (!netbuf)
+	ce_desc = ce_ring->shadow_base;
+	if (WARN_ON(!ce_desc))
+		return;
+
+	for (i = 0; i < ce_ring->nentries; i++) {
+		skb = ce_ring->per_transfer_context[i];
+		if (!skb)
 			continue;
 
-		ar_pci->msg_callbacks_current.tx_completion(ar,
-							    netbuf,
-							    id);
+		ce_ring->per_transfer_context[i] = NULL;
+		id = MS(__le16_to_cpu(ce_desc[i].flags),
+			CE_DESC_FLAGS_META_DATA);
+
+		ar_pci->msg_callbacks_current.tx_completion(ar, skb, id);
 	}
 }
 
@@ -1430,6 +1440,9 @@ static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
 
 	if (ath10k_ce_completed_recv_next(ce_state, (void **)&xfer, &ce_data,
 					  &nbytes, &transfer_id, &flags))
+		return;
+
+	if (WARN_ON_ONCE(!xfer))
 		return;
 
 	if (!xfer->wait_for_resp) {
@@ -1707,98 +1720,166 @@ static void ath10k_pci_warm_reset_si0(struct ath10k *ar)
 	msleep(10);
 }
 
-static int ath10k_pci_warm_reset(struct ath10k *ar)
+static void ath10k_pci_warm_reset_cpu(struct ath10k *ar)
 {
 	u32 val;
 
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot warm reset\n");
-
-	spin_lock_bh(&ar->data_lock);
-
-	ar->stats.fw_warm_reset_counter++;
-
-	spin_unlock_bh(&ar->data_lock);
-
-	/* debug */
-	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
-				PCIE_INTR_CAUSE_ADDRESS);
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot host cpu intr cause: 0x%08x\n",
-		   val);
-
-	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
-				CPU_INTR_ADDRESS);
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot target cpu intr cause: 0x%08x\n",
-		   val);
-
-	/* disable pending irqs */
-	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS +
-			   PCIE_INTR_ENABLE_ADDRESS, 0);
-
-	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS +
-			   PCIE_INTR_CLR_ADDRESS, ~0);
-
-	msleep(100);
-
-	/* clear fw indicator */
 	ath10k_pci_write32(ar, FW_INDICATOR_ADDRESS, 0);
 
-	/* clear target LF timer interrupts */
+	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
+				SOC_RESET_CONTROL_ADDRESS);
+	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + SOC_RESET_CONTROL_ADDRESS,
+			   val | SOC_RESET_CONTROL_CPU_WARM_RST_MASK);
+}
+
+static void ath10k_pci_warm_reset_ce(struct ath10k *ar)
+{
+	u32 val;
+
+	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
+				SOC_RESET_CONTROL_ADDRESS);
+
+	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + SOC_RESET_CONTROL_ADDRESS,
+			   val | SOC_RESET_CONTROL_CE_RST_MASK);
+	msleep(10);
+	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + SOC_RESET_CONTROL_ADDRESS,
+			   val & ~SOC_RESET_CONTROL_CE_RST_MASK);
+}
+
+static void ath10k_pci_warm_reset_clear_lf(struct ath10k *ar)
+{
+	u32 val;
+
 	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
 				SOC_LF_TIMER_CONTROL0_ADDRESS);
 	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS +
 			   SOC_LF_TIMER_CONTROL0_ADDRESS,
 			   val & ~SOC_LF_TIMER_CONTROL0_ENABLE_MASK);
+}
 
-	/* reset CE */
-	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
-				SOC_RESET_CONTROL_ADDRESS);
-	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + SOC_RESET_CONTROL_ADDRESS,
-			   val | SOC_RESET_CONTROL_CE_RST_MASK);
-	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
-				SOC_RESET_CONTROL_ADDRESS);
-	msleep(10);
+static int ath10k_pci_warm_reset(struct ath10k *ar)
+{
+	int ret;
 
-	/* unreset CE */
-	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + SOC_RESET_CONTROL_ADDRESS,
-			   val & ~SOC_RESET_CONTROL_CE_RST_MASK);
-	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
-				SOC_RESET_CONTROL_ADDRESS);
-	msleep(10);
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot warm reset\n");
 
+	spin_lock_bh(&ar->data_lock);
+	ar->stats.fw_warm_reset_counter++;
+	spin_unlock_bh(&ar->data_lock);
+
+	ath10k_pci_irq_disable(ar);
+
+	/* Make sure the target CPU is not doing anything dangerous, e.g. if it
+	 * were to access copy engine while host performs copy engine reset
+	 * then it is possible for the device to confuse pci-e controller to
+	 * the point of bringing host system to a complete stop (i.e. hang).
+	 */
 	ath10k_pci_warm_reset_si0(ar);
+	ath10k_pci_warm_reset_cpu(ar);
+	ath10k_pci_init_pipes(ar);
+	ath10k_pci_wait_for_target_init(ar);
 
-	/* debug */
-	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
-				PCIE_INTR_CAUSE_ADDRESS);
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot host cpu intr cause: 0x%08x\n",
-		   val);
+	ath10k_pci_warm_reset_clear_lf(ar);
+	ath10k_pci_warm_reset_ce(ar);
+	ath10k_pci_warm_reset_cpu(ar);
+	ath10k_pci_init_pipes(ar);
 
-	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
-				CPU_INTR_ADDRESS);
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot target cpu intr cause: 0x%08x\n",
-		   val);
-
-	/* CPU warm reset */
-	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
-				SOC_RESET_CONTROL_ADDRESS);
-	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + SOC_RESET_CONTROL_ADDRESS,
-			   val | SOC_RESET_CONTROL_CPU_WARM_RST_MASK);
-
-	val = ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS +
-				SOC_RESET_CONTROL_ADDRESS);
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot target reset state: 0x%08x\n",
-		   val);
-
-	msleep(100);
+	ret = ath10k_pci_wait_for_target_init(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to wait for target init: %d\n", ret);
+		return ret;
+	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot warm reset complete\n");
 
 	return 0;
 }
 
-static int __ath10k_pci_hif_power_up(struct ath10k *ar, bool cold_reset)
+static int ath10k_pci_chip_reset(struct ath10k *ar)
+{
+	int i, ret;
+	u32 val;
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot chip reset\n");
+
+	/* Some hardware revisions (e.g. CUS223v2) has issues with cold reset.
+	 * It is thus preferred to use warm reset which is safer but may not be
+	 * able to recover the device from all possible fail scenarios.
+	 *
+	 * Warm reset doesn't always work on first try so attempt it a few
+	 * times before giving up.
+	 */
+	for (i = 0; i < ATH10K_PCI_NUM_WARM_RESET_ATTEMPTS; i++) {
+		ret = ath10k_pci_warm_reset(ar);
+		if (ret) {
+			ath10k_warn(ar, "failed to warm reset attempt %d of %d: %d\n",
+				    i + 1, ATH10K_PCI_NUM_WARM_RESET_ATTEMPTS,
+				    ret);
+			continue;
+		}
+
+		/* FIXME: Sometimes copy engine doesn't recover after warm
+		 * reset. In most cases this needs cold reset. In some of these
+		 * cases the device is in such a state that a cold reset may
+		 * lock up the host.
+		 *
+		 * Reading any host interest register via copy engine is
+		 * sufficient to verify if device is capable of booting
+		 * firmware blob.
+		 */
+		ret = ath10k_pci_init_pipes(ar);
+		if (ret) {
+			ath10k_warn(ar, "failed to init copy engine: %d\n",
+				    ret);
+			continue;
+		}
+
+		ret = ath10k_pci_diag_read32(ar, QCA988X_HOST_INTEREST_ADDRESS,
+					     &val);
+		if (ret) {
+			ath10k_warn(ar, "failed to poke copy engine: %d\n",
+				    ret);
+			continue;
+		}
+
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot chip reset complete (warm)\n");
+		return 0;
+	}
+
+	if (ath10k_pci_reset_mode == ATH10K_PCI_RESET_WARM_ONLY) {
+		ath10k_warn(ar, "refusing cold reset as requested\n");
+		return -EPERM;
+	}
+
+	ret = ath10k_pci_cold_reset(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to cold reset: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath10k_pci_wait_for_target_init(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to wait for target after cold reset: %d\n",
+			    ret);
+		return ret;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot chip reset complete (cold)\n");
+
+	return 0;
+}
+
+static int ath10k_pci_hif_power_up(struct ath10k *ar)
 {
 	int ret;
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif power up\n");
+
+	ret = ath10k_pci_wake(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to wake up target: %d\n", ret);
+		return ret;
+	}
 
 	/*
 	 * Bring the target up cleanly.
@@ -1810,26 +1891,16 @@ static int __ath10k_pci_hif_power_up(struct ath10k *ar, bool cold_reset)
 	 * is in an unexpected state. We try to catch that here in order to
 	 * reset the Target and retry the probe.
 	 */
-	if (cold_reset)
-		ret = ath10k_pci_cold_reset(ar);
-	else
-		ret = ath10k_pci_warm_reset(ar);
-
+	ret = ath10k_pci_chip_reset(ar);
 	if (ret) {
-		ath10k_err(ar, "failed to reset target: %d\n", ret);
-		goto err;
+		ath10k_err(ar, "failed to reset chip: %d\n", ret);
+		goto err_sleep;
 	}
 
 	ret = ath10k_pci_init_pipes(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to initialize CE: %d\n", ret);
-		goto err;
-	}
-
-	ret = ath10k_pci_wait_for_target_init(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to wait for target to init: %d\n", ret);
-		goto err_ce;
+		goto err_sleep;
 	}
 
 	ret = ath10k_pci_init_config(ar);
@@ -1848,73 +1919,21 @@ static int __ath10k_pci_hif_power_up(struct ath10k *ar, bool cold_reset)
 
 err_ce:
 	ath10k_pci_ce_deinit(ar);
-	ath10k_pci_warm_reset(ar);
-err:
+
+err_sleep:
+	ath10k_pci_sleep(ar);
 	return ret;
-}
-
-static int ath10k_pci_hif_power_up_warm(struct ath10k *ar)
-{
-	int i, ret;
-
-	/*
-	 * Sometime warm reset succeeds after retries.
-	 *
-	 * FIXME: It might be possible to tune ath10k_pci_warm_reset() to work
-	 * at first try.
-	 */
-	for (i = 0; i < ATH10K_PCI_NUM_WARM_RESET_ATTEMPTS; i++) {
-		ret = __ath10k_pci_hif_power_up(ar, false);
-		if (ret == 0)
-			break;
-
-		ath10k_warn(ar, "failed to warm reset (attempt %d out of %d): %d\n",
-			    i + 1, ATH10K_PCI_NUM_WARM_RESET_ATTEMPTS, ret);
-	}
-
-	return ret;
-}
-
-static int ath10k_pci_hif_power_up(struct ath10k *ar)
-{
-	int ret;
-
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif power up\n");
-
-	/*
-	 * Hardware CUS232 version 2 has some issues with cold reset and the
-	 * preferred (and safer) way to perform a device reset is through a
-	 * warm reset.
-	 *
-	 * Warm reset doesn't always work though so fall back to cold reset may
-	 * be necessary.
-	 */
-	ret = ath10k_pci_hif_power_up_warm(ar);
-	if (ret) {
-		ath10k_warn(ar, "failed to power up target using warm reset: %d\n",
-			    ret);
-
-		if (ath10k_pci_reset_mode == ATH10K_PCI_RESET_WARM_ONLY)
-			return ret;
-
-		ath10k_warn(ar, "trying cold reset\n");
-
-		ret = __ath10k_pci_hif_power_up(ar, true);
-		if (ret) {
-			ath10k_err(ar, "failed to power up target using cold reset too (%d)\n",
-				   ret);
-			return ret;
-		}
-	}
-
-	return 0;
 }
 
 static void ath10k_pci_hif_power_down(struct ath10k *ar)
 {
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif power down\n");
 
-	ath10k_pci_warm_reset(ar);
+	/* Currently hif_power_up performs effectively a reset and hif_stop
+	 * resets the chip as well so there's no point in resetting here.
+	 */
+
+	ath10k_pci_sleep(ar);
 }
 
 #ifdef CONFIG_PM
@@ -2516,6 +2535,8 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_deinit_irq;
 	}
 
+	ath10k_pci_sleep(ar);
+
 	ret = ath10k_core_register(ar, chip_id);
 	if (ret) {
 		ath10k_err(ar, "failed to register driver core: %d\n", ret);
@@ -2567,7 +2588,6 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	ath10k_pci_deinit_irq(ar);
 	ath10k_pci_ce_deinit(ar);
 	ath10k_pci_free_pipes(ar);
-	ath10k_pci_sleep(ar);
 	ath10k_pci_release(ar);
 	ath10k_core_destroy(ar);
 }

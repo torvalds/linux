@@ -385,7 +385,7 @@ static void rate_idx_match_mask(struct ieee80211_tx_rate *rate,
 			*rate = alt_rate;
 			return;
 		}
-	} else {
+	} else if (!(rate->flags & IEEE80211_TX_RC_VHT_MCS)) {
 		/* handle legacy rates */
 		if (rate_idx_match_legacy_mask(rate, sband->n_bitrates, mask))
 			return;
@@ -696,6 +696,7 @@ int rate_control_set_rates(struct ieee80211_hw *hw,
 			   struct ieee80211_sta *pubsta,
 			   struct ieee80211_sta_rates *rates)
 {
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 	struct ieee80211_sta_rates *old;
 
 	/*
@@ -708,6 +709,8 @@ int rate_control_set_rates(struct ieee80211_hw *hw,
 	rcu_assign_pointer(pubsta->rates, rates);
 	if (old)
 		kfree_rcu(old, rcu_head);
+
+	drv_sta_rate_tbl_update(hw_to_local(hw), sta->sdata, pubsta);
 
 	return 0;
 }

@@ -576,15 +576,19 @@ ieee80211_get_vif_queues(struct ieee80211_local *local,
 	return queues;
 }
 
-void ieee80211_flush_queues(struct ieee80211_local *local,
-			    struct ieee80211_sub_if_data *sdata)
+void __ieee80211_flush_queues(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata,
+			      unsigned int queues)
 {
-	unsigned int queues;
-
 	if (!local->ops->flush)
 		return;
 
-	queues = ieee80211_get_vif_queues(local, sdata);
+	/*
+	 * If no queue was set, or if the HW doesn't support
+	 * IEEE80211_HW_QUEUE_CONTROL - flush all queues
+	 */
+	if (!queues || !(local->hw.flags & IEEE80211_HW_QUEUE_CONTROL))
+		queues = ieee80211_get_vif_queues(local, sdata);
 
 	ieee80211_stop_queues_by_reason(&local->hw, queues,
 					IEEE80211_QUEUE_STOP_REASON_FLUSH,
@@ -595,6 +599,12 @@ void ieee80211_flush_queues(struct ieee80211_local *local,
 	ieee80211_wake_queues_by_reason(&local->hw, queues,
 					IEEE80211_QUEUE_STOP_REASON_FLUSH,
 					false);
+}
+
+void ieee80211_flush_queues(struct ieee80211_local *local,
+			    struct ieee80211_sub_if_data *sdata)
+{
+	__ieee80211_flush_queues(local, sdata, 0);
 }
 
 void ieee80211_stop_vif_queues(struct ieee80211_local *local,
@@ -831,6 +841,9 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		case WLAN_EID_SECONDARY_CHANNEL_OFFSET:
 		case WLAN_EID_WIDE_BW_CHANNEL_SWITCH:
 		case WLAN_EID_CHAN_SWITCH_PARAM:
+		case WLAN_EID_EXT_CAPABILITY:
+		case WLAN_EID_CHAN_SWITCH_TIMING:
+		case WLAN_EID_LINK_ID:
 		/*
 		 * not listing WLAN_EID_CHANNEL_SWITCH_WRAPPER -- it seems possible
 		 * that if the content gets bigger it might be needed more than once
@@ -850,6 +863,24 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		elem_parse_failed = false;
 
 		switch (id) {
+		case WLAN_EID_LINK_ID:
+			if (elen + 2 != sizeof(struct ieee80211_tdls_lnkie)) {
+				elem_parse_failed = true;
+				break;
+			}
+			elems->lnk_id = (void *)(pos - 2);
+			break;
+		case WLAN_EID_CHAN_SWITCH_TIMING:
+			if (elen != sizeof(struct ieee80211_ch_switch_timing)) {
+				elem_parse_failed = true;
+				break;
+			}
+			elems->ch_sw_timing = (void *)pos;
+			break;
+		case WLAN_EID_EXT_CAPABILITY:
+			elems->ext_capab = pos;
+			elems->ext_capab_len = elen;
+			break;
 		case WLAN_EID_SSID:
 			elems->ssid = pos;
 			elems->ssid_len = elen;
@@ -1492,7 +1523,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 };
 
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
-					  u8 *dst, u32 ratemask,
+					  const u8 *src, const u8 *dst,
+					  u32 ratemask,
 					  struct ieee80211_channel *chan,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
@@ -1517,8 +1549,8 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	else
 		chandef.chan = chan;
 
-	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
-				     ssid, ssid_len, 100 + ie_len);
+	skb = ieee80211_probereq_get(&local->hw, src, ssid, ssid_len,
+				     100 + ie_len);
 	if (!skb)
 		return NULL;
 
@@ -1540,7 +1572,8 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	return skb;
 }
 
-void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
+void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata,
+			      const u8 *src, const u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
 			      u32 ratemask, bool directed, u32 tx_flags,
@@ -1548,7 +1581,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 {
 	struct sk_buff *skb;
 
-	skb = ieee80211_build_probe_req(sdata, dst, ratemask, channel,
+	skb = ieee80211_build_probe_req(sdata, src, dst, ratemask, channel,
 					ssid, ssid_len,
 					ie, ie_len, directed);
 	if (skb) {
@@ -1690,6 +1723,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	int res, i;
 	bool reconfig_due_to_wowlan = false;
 	struct ieee80211_sub_if_data *sched_scan_sdata;
+	struct cfg80211_sched_scan_request *sched_scan_req;
 	bool sched_scan_stopped = false;
 
 #ifdef CONFIG_PM
@@ -1980,13 +2014,15 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mutex_lock(&local->mtx);
 	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
 						lockdep_is_held(&local->mtx));
-	if (sched_scan_sdata && local->sched_scan_req)
+	sched_scan_req = rcu_dereference_protected(local->sched_scan_req,
+						lockdep_is_held(&local->mtx));
+	if (sched_scan_sdata && sched_scan_req)
 		/*
 		 * Sched scan stopped, but we don't want to report it. Instead,
 		 * we're trying to reschedule.
 		 */
 		if (__ieee80211_request_sched_scan_start(sched_scan_sdata,
-							 local->sched_scan_req))
+							 sched_scan_req))
 			sched_scan_stopped = true;
 	mutex_unlock(&local->mtx);
 

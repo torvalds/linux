@@ -584,6 +584,7 @@ struct rxpd {
 	 * [Bit 7] Reserved
 	 */
 	u8 ht_info;
+	u8 reserved[3];
 	u8 flags;
 } __packed;
 

@@ -159,7 +159,7 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 		if (test_bit(keyix, common->keymap))
 			rxs->flag |= RX_FLAG_DECRYPTED;
 	}
-	if (ah->sw_mgmt_crypto &&
+	if (ah->sw_mgmt_crypto_rx &&
 	    (rxs->flag & RX_FLAG_DECRYPTED) &&
 	    ieee80211_is_mgmt(fc))
 		/* Use software decrypt for management frames. */

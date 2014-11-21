@@ -2032,6 +2032,48 @@ TRACE_EVENT(rdev_del_tx_ts,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer), __entry->tsid)
 );
 
+TRACE_EVENT(rdev_tdls_channel_switch,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 const u8 *addr, u8 oper_class,
+		 struct cfg80211_chan_def *chandef),
+	TP_ARGS(wiphy, netdev, addr, oper_class, chandef),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		MAC_ENTRY(addr)
+		__field(u8, oper_class)
+		CHAN_DEF_ENTRY
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(addr, addr);
+		CHAN_DEF_ASSIGN(chandef);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " MAC_PR_FMT
+		  " oper class %d, " CHAN_DEF_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(addr),
+		  __entry->oper_class, CHAN_DEF_PR_ARG)
+);
+
+TRACE_EVENT(rdev_tdls_cancel_channel_switch,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 const u8 *addr),
+	TP_ARGS(wiphy, netdev, addr),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		MAC_ENTRY(addr)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(addr, addr);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " MAC_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(addr))
+);
+
 /*************************************************************
  *	     cfg80211 exported functions traces		     *
  *************************************************************/
@@ -2340,6 +2382,22 @@ TRACE_EVENT(cfg80211_chandef_dfs_required,
 );
 
 TRACE_EVENT(cfg80211_ch_switch_notify,
+	TP_PROTO(struct net_device *netdev,
+		 struct cfg80211_chan_def *chandef),
+	TP_ARGS(netdev, chandef),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		CHAN_DEF_ENTRY
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		CHAN_DEF_ASSIGN(chandef);
+	),
+	TP_printk(NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT,
+		  NETDEV_PR_ARG, CHAN_DEF_PR_ARG)
+);
+
+TRACE_EVENT(cfg80211_ch_switch_started_notify,
 	TP_PROTO(struct net_device *netdev,
 		 struct cfg80211_chan_def *chandef),
 	TP_ARGS(netdev, chandef),

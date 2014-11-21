@@ -690,6 +690,9 @@ minstrel_aggr_check(struct ieee80211_sta *pubsta, struct sk_buff *skb)
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 	u16 tid;
 
+	if (skb_get_queue_mapping(skb) == IEEE80211_AC_VO)
+		return;
+
 	if (unlikely(!ieee80211_is_data_qos(hdr->frame_control)))
 		return;
 
@@ -698,9 +701,6 @@ minstrel_aggr_check(struct ieee80211_sta *pubsta, struct sk_buff *skb)
 
 	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
 	if (likely(sta->ampdu_mlme.tid_tx[tid]))
-		return;
-
-	if (skb_get_queue_mapping(skb) == IEEE80211_AC_VO)
 		return;
 
 	ieee80211_start_tx_ba_session(pubsta, tid, 5000);

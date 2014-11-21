@@ -60,7 +60,7 @@ static void ieee802154_xmit_worker(struct work_struct *work)
 	if (res)
 		goto err_tx;
 
-	ieee802154_xmit_complete(&local->hw, skb);
+	ieee802154_xmit_complete(&local->hw, skb, false);
 
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;

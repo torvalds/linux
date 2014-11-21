@@ -509,6 +509,10 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	struct tid_ampdu_tx *tid_tx;
 	int ret = 0;
 
+	if (WARN(sta->reserved_tid == tid,
+		 "Requested to start BA session on reserved tid=%d", tid))
+		return -EINVAL;
+
 	trace_api_start_tx_ba_session(pubsta, tid);
 
 	if (WARN_ON_ONCE(!local->ops->ampdu_action))
@@ -764,6 +768,9 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 		ret = -ENOENT;
 		goto unlock;
 	}
+
+	WARN(sta->reserved_tid == tid,
+	     "Requested to stop BA session on reserved tid=%d", tid);
 
 	if (test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
 		/* already in progress stopping it */

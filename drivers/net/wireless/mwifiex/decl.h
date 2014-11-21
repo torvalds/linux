@@ -85,6 +85,11 @@
 #define MWIFIEX_TDLS_CREATE_LINK              0x02
 #define MWIFIEX_TDLS_CONFIG_LINK              0x03
 
+#define MWIFIEX_TDLS_RSSI_HIGH		50
+#define MWIFIEX_TDLS_RSSI_LOW		55
+#define MWIFIEX_TDLS_MAX_FAIL_COUNT      4
+#define MWIFIEX_AUTO_TDLS_IDLE_TIME     10
+
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
 	MWIFIEX_BSS_TYPE_UAP = 1,

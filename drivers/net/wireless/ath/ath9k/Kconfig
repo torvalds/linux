@@ -3,6 +3,8 @@ config ATH9K_HW
 config ATH9K_COMMON
 	tristate
 	select ATH_COMMON
+	select DEBUG_FS
+	select RELAY
 config ATH9K_DFS_DEBUGFS
 	def_bool y
 	depends on ATH9K_DEBUGFS && ATH9K_DFS_CERTIFIED

@@ -28,7 +28,6 @@
 #include "debug.h"
 #include "mci.h"
 #include "dfs.h"
-#include "spectral.h"
 
 struct ath_node;
 struct ath_vif;
@@ -347,6 +346,7 @@ struct ath_chanctx {
 
 	int flush_timeout;
 	u16 txpower;
+	u16 cur_txpower;
 	bool offchannel;
 	bool stopped;
 	bool active;
@@ -381,6 +381,7 @@ enum ath_chanctx_state {
 
 struct ath_chanctx_sched {
 	bool beacon_pending;
+	bool beacon_adjust;
 	bool offchannel_pending;
 	bool wait_switch;
 	bool force_noa_update;
@@ -931,6 +932,7 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 #define ATH9K_PCI_AR9565_2ANT     0x0100
 #define ATH9K_PCI_NO_PLL_PWRSAVE  0x0200
 #define ATH9K_PCI_KILLER          0x0400
+#define ATH9K_PCI_LED_ACT_HI      0x0800
 
 /*
  * Default cache line size, in bytes.
@@ -987,7 +989,6 @@ struct ath_softc {
 	u8 gtt_cnt;
 	u32 intrstatus;
 	u16 ps_flags; /* PS_* */
-	u16 curtxpow;
 	bool ps_enabled;
 	bool ps_idle;
 	short nbcnvifs;
@@ -1028,10 +1029,8 @@ struct ath_softc {
 	struct dfs_pattern_detector *dfs_detector;
 	u64 dfs_prev_pulse_ts;
 	u32 wow_enabled;
-	/* relay(fs) channel for spectral scan */
-	struct rchan *rfs_chan_spec_scan;
-	enum spectral_mode spectral_mode;
-	struct ath_spec_scan spec_config;
+
+	struct ath_spec_scan_priv spec_priv;
 
 	struct ieee80211_vif *tx99_vif;
 	struct sk_buff *tx99_skb;
