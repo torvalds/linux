@@ -1275,6 +1275,17 @@ int drm_atomic_helper_disable_plane(struct drm_plane *plane)
 	struct drm_plane_state *plane_state;
 	int ret = 0;
 
+	/*
+	 * FIXME: Without plane->crtc set we can't get at the implicit legacy
+	 * acquire context. The real fix will be to wire the acquire ctx through
+	 * everywhere we need it, but meanwhile prevent chaos by just skipping
+	 * this noop. The critical case is the cursor ioctls which a) only grab
+	 * crtc/cursor-plane locks (so we need the crtc to get at the right
+	 * acquire context) and b) can try to disable the plane multiple times.
+	 */
+	if (!plane->crtc)
+		return 0;
+
 	state = drm_atomic_state_alloc(plane->dev);
 	if (!state)
 		return -ENOMEM;
