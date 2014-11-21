@@ -3299,6 +3299,27 @@ static void alc269_fixup_hp_gpio_led(struct hda_codec *codec,
 	}
 }
 
+static void alc286_fixup_hp_gpio_led(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+	static const struct hda_verb gpio_init[] = {
+		{ 0x01, AC_VERB_SET_GPIO_MASK, 0x22 },
+		{ 0x01, AC_VERB_SET_GPIO_DIRECTION, 0x22 },
+		{}
+	};
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->gen.vmaster_mute.hook = alc_fixup_gpio_mute_hook;
+		spec->gen.cap_sync_hook = alc_fixup_gpio_mic_mute_hook;
+		spec->gpio_led = 0;
+		spec->mute_led_polarity = 0;
+		spec->gpio_mute_led_mask = 0x02;
+		spec->gpio_mic_led_mask = 0x20;
+		snd_hda_add_verbs(codec, gpio_init);
+	}
+}
+
 /* turn on/off mic-mute LED per capture hook */
 static void alc269_fixup_hp_cap_mic_mute_hook(struct hda_codec *codec,
 					       struct snd_kcontrol *kcontrol,
@@ -4238,6 +4259,7 @@ enum {
 	ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED,
 	ALC282_FIXUP_ASPIRE_V5_PINS,
 	ALC280_FIXUP_HP_GPIO4,
+	ALC286_FIXUP_HP_GPIO_LED,
 };
 
 static const struct hda_fixup alc269_fixups[] = {
@@ -4705,6 +4727,10 @@ static const struct hda_fixup alc269_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc280_fixup_hp_gpio4,
 	},
+	[ALC286_FIXUP_HP_GPIO_LED] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc286_fixup_hp_gpio_led,
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
@@ -4745,6 +4771,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x226a, "HP", ALC269_FIXUP_HP_MUTE_LED_MIC1),
 	SND_PCI_QUIRK(0x103c, 0x226b, "HP", ALC269_FIXUP_HP_MUTE_LED_MIC1),
 	SND_PCI_QUIRK(0x103c, 0x226e, "HP", ALC269_FIXUP_HP_MUTE_LED_MIC1),
+	SND_PCI_QUIRK(0x103c, 0x2271, "HP", ALC286_FIXUP_HP_GPIO_LED),
 	SND_PCI_QUIRK(0x103c, 0x229e, "HP", ALC269_FIXUP_HP_MUTE_LED_MIC1),
 	SND_PCI_QUIRK(0x103c, 0x22b2, "HP", ALC269_FIXUP_HP_MUTE_LED_MIC1),
 	SND_PCI_QUIRK(0x103c, 0x22b7, "HP", ALC269_FIXUP_HP_MUTE_LED_MIC1),
