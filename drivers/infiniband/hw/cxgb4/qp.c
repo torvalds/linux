@@ -1538,9 +1538,9 @@ err:
 	set_state(qhp, C4IW_QP_STATE_ERROR);
 	free = 1;
 	abort = 1;
-	wake_up(&qhp->wait);
 	BUG_ON(!ep);
 	flush_qp(qhp);
+	wake_up(&qhp->wait);
 out:
 	mutex_unlock(&qhp->mutex);
 
