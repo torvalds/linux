@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
+#include <linux/mutex.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -2866,6 +2867,7 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 		return -EINVAL;
 	}
 
+	mutex_lock(&hsotg->init_mutex);
 	WARN_ON(hsotg->driver);
 
 	driver->driver.bus = NULL;
@@ -2891,9 +2893,12 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 
 	dev_info(hsotg->dev, "bound driver %s\n", driver->driver.name);
 
+	mutex_unlock(&hsotg->init_mutex);
+
 	return 0;
 
 err:
+	mutex_unlock(&hsotg->init_mutex);
 	hsotg->driver = NULL;
 	return ret;
 }
@@ -2914,6 +2919,8 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget)
 	if (!hsotg)
 		return -ENODEV;
 
+	mutex_lock(&hsotg->init_mutex);
+
 	/* all endpoints should be shutdown */
 	for (ep = 1; ep < hsotg->num_of_eps; ep++)
 		s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
@@ -2930,6 +2937,8 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget)
 	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	clk_disable(hsotg->clk);
+
+	mutex_unlock(&hsotg->init_mutex);
 
 	return 0;
 }
@@ -2959,6 +2968,7 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 
 	dev_dbg(hsotg->dev, "%s: is_on: %d\n", __func__, is_on);
 
+	mutex_lock(&hsotg->init_mutex);
 	spin_lock_irqsave(&hsotg->lock, flags);
 	if (is_on) {
 		clk_enable(hsotg->clk);
@@ -2970,6 +2980,7 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 	spin_unlock_irqrestore(&hsotg->lock, flags);
+	mutex_unlock(&hsotg->init_mutex);
 
 	return 0;
 }
@@ -3572,6 +3583,8 @@ int s3c_hsotg_suspend(struct dwc2_hsotg *hsotg)
 	unsigned long flags;
 	int ret = 0;
 
+	mutex_lock(&hsotg->init_mutex);
+
 	if (hsotg->driver)
 		dev_info(hsotg->dev, "suspending usb gadget %s\n",
 			 hsotg->driver->driver.name);
@@ -3594,6 +3607,8 @@ int s3c_hsotg_suspend(struct dwc2_hsotg *hsotg)
 		clk_disable(hsotg->clk);
 	}
 
+	mutex_unlock(&hsotg->init_mutex);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(s3c_hsotg_suspend);
@@ -3602,6 +3617,8 @@ int s3c_hsotg_resume(struct dwc2_hsotg *hsotg)
 {
 	unsigned long flags;
 	int ret = 0;
+
+	mutex_lock(&hsotg->init_mutex);
 
 	if (hsotg->driver) {
 		dev_info(hsotg->dev, "resuming usb gadget %s\n",
@@ -3618,6 +3635,8 @@ int s3c_hsotg_resume(struct dwc2_hsotg *hsotg)
 	s3c_hsotg_core_init_disconnected(hsotg);
 	s3c_hsotg_core_connect(hsotg);
 	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	mutex_unlock(&hsotg->init_mutex);
 
 	return ret;
 }

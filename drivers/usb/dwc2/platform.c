@@ -40,6 +40,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_device.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 
 #include <linux/usb/of.h>
@@ -212,6 +213,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	hsotg->dr_mode = of_usb_get_dr_mode(dev->dev.of_node);
 
 	spin_lock_init(&hsotg->lock);
+	mutex_init(&hsotg->init_mutex);
 	retval = dwc2_gadget_init(hsotg, irq);
 	if (retval)
 		return retval;
