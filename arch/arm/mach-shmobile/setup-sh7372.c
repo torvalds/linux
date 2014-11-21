@@ -60,6 +60,7 @@ static struct map_desc sh7372_io_desc[] __initdata = {
 
 void __init sh7372_map_io(void)
 {
+	debug_ll_io_init();
 	iotable_init(sh7372_io_desc, ARRAY_SIZE(sh7372_io_desc));
 }
 

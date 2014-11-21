@@ -664,6 +664,64 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on Rockchip RK32xx based platforms.
 
+	config DEBUG_R7S72100_SCIF2
+		bool "Kernel low-level debugging messages via SCIF2 on R7S72100"
+		depends on ARCH_R7S72100
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  via SCIF2 on Renesas RZ/A1H (R7S72100).
+
+	config DEBUG_RCAR_GEN1_SCIF0
+		bool "Kernel low-level debugging messages via SCIF0 on R8A7778"
+		depends on ARCH_R8A7778
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  via SCIF0 on Renesas R-Car M1A (R8A7778).
+
+	config DEBUG_RCAR_GEN1_SCIF2
+		bool "Kernel low-level debugging messages via SCIF2 on R8A7779"
+		depends on ARCH_R8A7779
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  via SCIF2 on Renesas R-Car H1 (R8A7779).
+
+	config DEBUG_RCAR_GEN2_SCIF0
+		bool "Kernel low-level debugging messages via SCIF0 on R8A7790/R8A7791/R8A7793)"
+		depends on ARCH_R8A7790 || ARCH_R8A7791 || ARCH_R8A7793
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  via SCIF0 on Renesas R-Car H2 (R8A7790), M2-W (R8A7791), or
+		  M2-N (R8A7793).
+
+	config DEBUG_RCAR_GEN2_SCIF2
+		bool "Kernel low-level debugging messages via SCIF2 on R8A7794"
+		depends on ARCH_R8A7794
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  via SCIF2 on Renesas R-Car E2 (R8A7794).
+
+	config DEBUG_RMOBILE_SCIFA0
+		bool "Kernel low-level debugging messages via SCIFA0 on R8A73A4/SH7372"
+		depends on ARCH_R8A73A4 || ARCH_SH7372
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  via SCIFA0 on Renesas R-Mobile APE6 (R8A73A4) or SH-Mobile
+		  AP4 (SH7372).
+
+	config DEBUG_RMOBILE_SCIFA1
+		bool "Kernel low-level debugging messages via SCIFA1 on R8A7740"
+		depends on ARCH_R8A7740
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  via SCIFA1 on Renesas R-Mobile A1 (R8A7740).
+
+	config DEBUG_RMOBILE_SCIFA4
+		bool "Kernel low-level debugging messages via SCIFA4 on SH73A0"
+		depends on ARCH_SH73A0
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  via SCIFA4 on Renesas SH-Mobile AG5 (SH73A0).
+
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
@@ -1105,6 +1163,14 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX6SX_UART
 	default "debug/msm.S" if DEBUG_MSM_UART || DEBUG_QCOM_UARTDM
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
+	default "debug/renesas-scif.S" if DEBUG_R7S72100_SCIF2
+	default "debug/renesas-scif.S" if DEBUG_RCAR_GEN1_SCIF0
+	default "debug/renesas-scif.S" if DEBUG_RCAR_GEN1_SCIF2
+	default "debug/renesas-scif.S" if DEBUG_RCAR_GEN2_SCIF0
+	default "debug/renesas-scif.S" if DEBUG_RCAR_GEN2_SCIF2
+	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA0
+	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA1
+	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA4
 	default "debug/s3c24xx.S" if DEBUG_S3C24XX_UART
 	default "debug/s5pv210.S" if DEBUG_S5PV210_UART
 	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
@@ -1199,6 +1265,12 @@ config DEBUG_UART_PHYS
 	default 0xd4018000 if DEBUG_MMP_UART3
 	default 0xe0000000 if ARCH_SPEAR13XX
 	default 0xe4007000 if DEBUG_HIP04_UART
+	default 0xe6c40000 if DEBUG_RMOBILE_SCIFA0
+	default 0xe6c50000 if DEBUG_RMOBILE_SCIFA1
+	default 0xe6c80000 if DEBUG_RMOBILE_SCIFA4
+	default 0xe6e58000 if DEBUG_RCAR_GEN2_SCIF2
+	default 0xe6e60000 if DEBUG_RCAR_GEN2_SCIF0
+	default 0xe8008000 if DEBUG_R7S72100_SCIF2
 	default 0xf0000be0 if ARCH_EBSA110
 	default 0xf040ab00 if DEBUG_BRCMSTB_UART
 	default 0xf1012000 if DEBUG_MVEBU_UART_ALTERNATE
@@ -1212,13 +1284,19 @@ config DEBUG_UART_PHYS
 	default 0xff690000 if DEBUG_RK32_UART2
 	default 0xffc02000 if DEBUG_SOCFPGA_UART
 	default 0xffd82340 if ARCH_IOP13XX
+	default 0xffe40000 if DEBUG_RCAR_GEN1_SCIF0
+	default 0xffe42000 if DEBUG_RCAR_GEN1_SCIF2
 	default 0xfff36000 if DEBUG_HIGHBANK_UART
 	default 0xfffe8600 if DEBUG_UART_BCM63XX
 	default 0xfffff700 if ARCH_IOP33X
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
 		DEBUG_LL_UART_EFM32 || \
 		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_MESON_UARTAO || \
-		DEBUG_MSM_UART || DEBUG_QCOM_UARTDM || DEBUG_S3C24XX_UART || \
+		DEBUG_MSM_UART || DEBUG_QCOM_UARTDM || DEBUG_R7S72100_SCIF2 || \
+		DEBUG_RCAR_GEN1_SCIF0 || DEBUG_RCAR_GEN1_SCIF2 || \
+		DEBUG_RCAR_GEN2_SCIF0 || DEBUG_RCAR_GEN2_SCIF2 || \
+		DEBUG_RMOBILE_SCIFA0 || DEBUG_RMOBILE_SCIFA1 || \
+		DEBUG_RMOBILE_SCIFA4 || DEBUG_S3C24XX_UART || \
 		DEBUG_UART_BCM63XX
 
 config DEBUG_UART_VIRT
