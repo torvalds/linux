@@ -248,6 +248,7 @@
 	};
 	
         adc-battery {
+        		status = "okay";
                 compatible = "rk30-adc-battery";
                 io-channels = <&adc 0>, <&adc 3>;
                 dc_det_gpio = <&gpio2 GPIO_B1 GPIO_ACTIVE_LOW>;
