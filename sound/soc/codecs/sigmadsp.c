@@ -235,7 +235,7 @@ static int sigma_fw_load_control(struct sigmadsp *sigmadsp,
 
 	ctrl->addr = le16_to_cpu(ctrl_chunk->addr);
 	ctrl->num_bytes = num_bytes;
-	ctrl->samplerates = chunk->samplerates;
+	ctrl->samplerates = le32_to_cpu(chunk->samplerates);
 
 	list_add_tail(&ctrl->head, &sigmadsp->ctrl_list);
 
@@ -266,7 +266,7 @@ static int sigma_fw_load_data(struct sigmadsp *sigmadsp,
 
 	data->addr = le16_to_cpu(data_chunk->addr);
 	data->length = length;
-	data->samplerates = chunk->samplerates;
+	data->samplerates = le32_to_cpu(chunk->samplerates);
 	memcpy(data->data, data_chunk->data, length);
 	list_add_tail(&data->head, &sigmadsp->data_list);
 
@@ -329,7 +329,7 @@ static int sigmadsp_fw_load_v2(struct sigmadsp *sigmadsp,
 		if (length > fw->size - pos || length < sizeof(*chunk))
 			return -EINVAL;
 
-		switch (chunk->tag) {
+		switch (le32_to_cpu(chunk->tag)) {
 		case SIGMA_FW_CHUNK_TYPE_DATA:
 			ret = sigma_fw_load_data(sigmadsp, chunk, length);
 			break;
