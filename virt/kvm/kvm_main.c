@@ -2582,8 +2582,6 @@ static long kvm_vm_ioctl(struct file *filp,
 		break;
 	default:
 		r = kvm_arch_vm_ioctl(filp, ioctl, arg);
-		if (r == -ENOTTY)
-			r = kvm_vm_ioctl_assigned_device(kvm, ioctl, arg);
 	}
 out:
 	return r;
