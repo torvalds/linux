@@ -55,6 +55,8 @@
 
 			uart2: serial@12200 {
 				compatible = "snps,dw-apb-uart";
+				pinctrl-0 = <&uart2_pins>;
+				pinctrl-names = "default";
 				reg = <0x12200 0x100>;
 				reg-shift = <2>;
 				interrupts = <43>;
@@ -65,6 +67,8 @@
 
 			uart3: serial@12300 {
 				compatible = "snps,dw-apb-uart";
+				pinctrl-0 = <&uart3_pins>;
+				pinctrl-names = "default";
 				reg = <0x12300 0x100>;
 				reg-shift = <2>;
 				interrupts = <44>;
@@ -234,5 +238,15 @@
 		marvell,pins = "mpp30", "mpp31", "mpp32",
 			       "mpp33", "mpp34", "mpp35";
 		marvell,function = "sd0";
+	};
+
+	uart2_pins: uart2-pins {
+		marvell,pins = "mpp42", "mpp43";
+		marvell,function = "uart2";
+	};
+
+	uart3_pins: uart3-pins {
+		marvell,pins = "mpp44", "mpp45";
+		marvell,function = "uart3";
 	};
 };
