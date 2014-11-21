@@ -1834,8 +1834,13 @@ struct fw_eq_ofld_cmd {
 #define FW_VIID_PFN_M           0x7
 #define FW_VIID_PFN_G(x)        (((x) >> FW_VIID_PFN_S) & FW_VIID_PFN_M)
 
-#define FW_VIID_VIVLD_GET(x) (((x) >> 7) & 0x1)
-#define FW_VIID_VIN_GET(x) (((x) >> 0) & 0x7F)
+#define FW_VIID_VIVLD_S		7
+#define FW_VIID_VIVLD_M		0x1
+#define FW_VIID_VIVLD_G(x)	(((x) >> FW_VIID_VIVLD_S) & FW_VIID_VIVLD_M)
+
+#define FW_VIID_VIN_S		0
+#define FW_VIID_VIN_M		0x7F
+#define FW_VIID_VIN_G(x)	(((x) >> FW_VIID_VIN_S) & FW_VIID_VIN_M)
 
 struct fw_vi_cmd {
 	__be32 op_to_vfn;
@@ -1855,15 +1860,35 @@ struct fw_vi_cmd {
 	__be64 r10;
 };
 
-#define FW_VI_CMD_PFN(x) ((x) << 8)
-#define FW_VI_CMD_VFN(x) ((x) << 0)
-#define FW_VI_CMD_ALLOC (1U << 31)
-#define FW_VI_CMD_FREE (1U << 30)
-#define FW_VI_CMD_VIID(x) ((x) << 0)
-#define FW_VI_CMD_VIID_GET(x) ((x) & 0xfff)
-#define FW_VI_CMD_PORTID(x) ((x) << 4)
-#define FW_VI_CMD_PORTID_GET(x) (((x) >> 4) & 0xf)
-#define FW_VI_CMD_RSSSIZE_GET(x) (((x) >> 0) & 0x7ff)
+#define FW_VI_CMD_PFN_S		8
+#define FW_VI_CMD_PFN_V(x)	((x) << FW_VI_CMD_PFN_S)
+
+#define FW_VI_CMD_VFN_S		0
+#define FW_VI_CMD_VFN_V(x)	((x) << FW_VI_CMD_VFN_S)
+
+#define FW_VI_CMD_ALLOC_S	31
+#define FW_VI_CMD_ALLOC_V(x)	((x) << FW_VI_CMD_ALLOC_S)
+#define FW_VI_CMD_ALLOC_F	FW_VI_CMD_ALLOC_V(1U)
+
+#define FW_VI_CMD_FREE_S	30
+#define FW_VI_CMD_FREE_V(x)	((x) << FW_VI_CMD_FREE_S)
+#define FW_VI_CMD_FREE_F	FW_VI_CMD_FREE_V(1U)
+
+#define FW_VI_CMD_VIID_S	0
+#define FW_VI_CMD_VIID_M	0xfff
+#define FW_VI_CMD_VIID_V(x)	((x) << FW_VI_CMD_VIID_S)
+#define FW_VI_CMD_VIID_G(x)	(((x) >> FW_VI_CMD_VIID_S) & FW_VI_CMD_VIID_M)
+
+#define FW_VI_CMD_PORTID_S	4
+#define FW_VI_CMD_PORTID_M	0xf
+#define FW_VI_CMD_PORTID_V(x)	((x) << FW_VI_CMD_PORTID_S)
+#define FW_VI_CMD_PORTID_G(x)	\
+	(((x) >> FW_VI_CMD_PORTID_S) & FW_VI_CMD_PORTID_M)
+
+#define FW_VI_CMD_RSSSIZE_S	0
+#define FW_VI_CMD_RSSSIZE_M	0x7ff
+#define FW_VI_CMD_RSSSIZE_G(x)	\
+	(((x) >> FW_VI_CMD_RSSSIZE_S) & FW_VI_CMD_RSSSIZE_M)
 
 /* Special VI_MAC command index ids */
 #define FW_VI_MAC_ADD_MAC		0x3FF
@@ -1899,16 +1924,37 @@ struct fw_vi_mac_cmd {
 	} u;
 };
 
-#define FW_VI_MAC_CMD_VIID(x) ((x) << 0)
-#define FW_VI_MAC_CMD_FREEMACS(x) ((x) << 31)
-#define FW_VI_MAC_CMD_HASHVECEN (1U << 23)
-#define FW_VI_MAC_CMD_HASHUNIEN(x) ((x) << 22)
-#define FW_VI_MAC_CMD_VALID (1U << 15)
-#define FW_VI_MAC_CMD_PRIO(x) ((x) << 12)
-#define FW_VI_MAC_CMD_SMAC_RESULT(x) ((x) << 10)
-#define FW_VI_MAC_CMD_SMAC_RESULT_GET(x) (((x) >> 10) & 0x3)
-#define FW_VI_MAC_CMD_IDX(x) ((x) << 0)
-#define FW_VI_MAC_CMD_IDX_GET(x) (((x) >> 0) & 0x3ff)
+#define FW_VI_MAC_CMD_VIID_S	0
+#define FW_VI_MAC_CMD_VIID_V(x)	((x) << FW_VI_MAC_CMD_VIID_S)
+
+#define FW_VI_MAC_CMD_FREEMACS_S	31
+#define FW_VI_MAC_CMD_FREEMACS_V(x)	((x) << FW_VI_MAC_CMD_FREEMACS_S)
+
+#define FW_VI_MAC_CMD_HASHVECEN_S	23
+#define FW_VI_MAC_CMD_HASHVECEN_V(x)	((x) << FW_VI_MAC_CMD_HASHVECEN_S)
+#define FW_VI_MAC_CMD_HASHVECEN_F	FW_VI_MAC_CMD_HASHVECEN_V(1U)
+
+#define FW_VI_MAC_CMD_HASHUNIEN_S	22
+#define FW_VI_MAC_CMD_HASHUNIEN_V(x)	((x) << FW_VI_MAC_CMD_HASHUNIEN_S)
+
+#define FW_VI_MAC_CMD_VALID_S		15
+#define FW_VI_MAC_CMD_VALID_V(x)	((x) << FW_VI_MAC_CMD_VALID_S)
+#define FW_VI_MAC_CMD_VALID_F	FW_VI_MAC_CMD_VALID_V(1U)
+
+#define FW_VI_MAC_CMD_PRIO_S	12
+#define FW_VI_MAC_CMD_PRIO_V(x)	((x) << FW_VI_MAC_CMD_PRIO_S)
+
+#define FW_VI_MAC_CMD_SMAC_RESULT_S	10
+#define FW_VI_MAC_CMD_SMAC_RESULT_M	0x3
+#define FW_VI_MAC_CMD_SMAC_RESULT_V(x)	((x) << FW_VI_MAC_CMD_SMAC_RESULT_S)
+#define FW_VI_MAC_CMD_SMAC_RESULT_G(x)	\
+	(((x) >> FW_VI_MAC_CMD_SMAC_RESULT_S) & FW_VI_MAC_CMD_SMAC_RESULT_M)
+
+#define FW_VI_MAC_CMD_IDX_S	0
+#define FW_VI_MAC_CMD_IDX_M	0x3ff
+#define FW_VI_MAC_CMD_IDX_V(x)	((x) << FW_VI_MAC_CMD_IDX_S)
+#define FW_VI_MAC_CMD_IDX_G(x)	\
+	(((x) >> FW_VI_MAC_CMD_IDX_S) & FW_VI_MAC_CMD_IDX_M)
 
 #define FW_RXMODE_MTU_NO_CHG	65535
 
@@ -1919,17 +1965,30 @@ struct fw_vi_rxmode_cmd {
 	__be32 r4_lo;
 };
 
-#define FW_VI_RXMODE_CMD_VIID(x) ((x) << 0)
-#define FW_VI_RXMODE_CMD_MTU_MASK 0xffff
-#define FW_VI_RXMODE_CMD_MTU(x) ((x) << 16)
-#define FW_VI_RXMODE_CMD_PROMISCEN_MASK 0x3
-#define FW_VI_RXMODE_CMD_PROMISCEN(x) ((x) << 14)
-#define FW_VI_RXMODE_CMD_ALLMULTIEN_MASK 0x3
-#define FW_VI_RXMODE_CMD_ALLMULTIEN(x) ((x) << 12)
-#define FW_VI_RXMODE_CMD_BROADCASTEN_MASK 0x3
-#define FW_VI_RXMODE_CMD_BROADCASTEN(x) ((x) << 10)
-#define FW_VI_RXMODE_CMD_VLANEXEN_MASK 0x3
-#define FW_VI_RXMODE_CMD_VLANEXEN(x) ((x) << 8)
+#define FW_VI_RXMODE_CMD_VIID_S		0
+#define FW_VI_RXMODE_CMD_VIID_V(x)	((x) << FW_VI_RXMODE_CMD_VIID_S)
+
+#define FW_VI_RXMODE_CMD_MTU_S		16
+#define FW_VI_RXMODE_CMD_MTU_M		0xffff
+#define FW_VI_RXMODE_CMD_MTU_V(x)	((x) << FW_VI_RXMODE_CMD_MTU_S)
+
+#define FW_VI_RXMODE_CMD_PROMISCEN_S	14
+#define FW_VI_RXMODE_CMD_PROMISCEN_M	0x3
+#define FW_VI_RXMODE_CMD_PROMISCEN_V(x)	((x) << FW_VI_RXMODE_CMD_PROMISCEN_S)
+
+#define FW_VI_RXMODE_CMD_ALLMULTIEN_S		12
+#define FW_VI_RXMODE_CMD_ALLMULTIEN_M		0x3
+#define FW_VI_RXMODE_CMD_ALLMULTIEN_V(x)	\
+	((x) << FW_VI_RXMODE_CMD_ALLMULTIEN_S)
+
+#define FW_VI_RXMODE_CMD_BROADCASTEN_S		10
+#define FW_VI_RXMODE_CMD_BROADCASTEN_M		0x3
+#define FW_VI_RXMODE_CMD_BROADCASTEN_V(x)	\
+	((x) << FW_VI_RXMODE_CMD_BROADCASTEN_S)
+
+#define FW_VI_RXMODE_CMD_VLANEXEN_S	8
+#define FW_VI_RXMODE_CMD_VLANEXEN_M	0x3
+#define FW_VI_RXMODE_CMD_VLANEXEN_V(x)	((x) << FW_VI_RXMODE_CMD_VLANEXEN_S)
 
 struct fw_vi_enable_cmd {
 	__be32 op_to_viid;
@@ -1939,11 +1998,21 @@ struct fw_vi_enable_cmd {
 	__be32 r4;
 };
 
-#define FW_VI_ENABLE_CMD_VIID(x) ((x) << 0)
-#define FW_VI_ENABLE_CMD_IEN(x) ((x) << 31)
-#define FW_VI_ENABLE_CMD_EEN(x) ((x) << 30)
-#define FW_VI_ENABLE_CMD_DCB_INFO(x) ((x) << 28)
-#define FW_VI_ENABLE_CMD_LED (1U << 29)
+#define FW_VI_ENABLE_CMD_VIID_S         0
+#define FW_VI_ENABLE_CMD_VIID_V(x)      ((x) << FW_VI_ENABLE_CMD_VIID_S)
+
+#define FW_VI_ENABLE_CMD_IEN_S		31
+#define FW_VI_ENABLE_CMD_IEN_V(x)	((x) << FW_VI_ENABLE_CMD_IEN_S)
+
+#define FW_VI_ENABLE_CMD_EEN_S		30
+#define FW_VI_ENABLE_CMD_EEN_V(x)	((x) << FW_VI_ENABLE_CMD_EEN_S)
+
+#define FW_VI_ENABLE_CMD_LED_S		29
+#define FW_VI_ENABLE_CMD_LED_V(x)	((x) << FW_VI_ENABLE_CMD_LED_S)
+#define FW_VI_ENABLE_CMD_LED_F	FW_VI_ENABLE_CMD_LED_V(1U)
+
+#define FW_VI_ENABLE_CMD_DCB_INFO_S	28
+#define FW_VI_ENABLE_CMD_DCB_INFO_V(x)	((x) << FW_VI_ENABLE_CMD_DCB_INFO_S)
 
 /* VI VF stats offset definitions */
 #define VI_VF_NUM_STATS	16
@@ -2043,9 +2112,14 @@ struct fw_vi_stats_cmd {
 	} u;
 };
 
-#define FW_VI_STATS_CMD_VIID(x) ((x) << 0)
-#define FW_VI_STATS_CMD_NSTATS(x) ((x) << 12)
-#define FW_VI_STATS_CMD_IX(x) ((x) << 0)
+#define FW_VI_STATS_CMD_VIID_S		0
+#define FW_VI_STATS_CMD_VIID_V(x)	((x) << FW_VI_STATS_CMD_VIID_S)
+
+#define FW_VI_STATS_CMD_NSTATS_S	12
+#define FW_VI_STATS_CMD_NSTATS_V(x)	((x) << FW_VI_STATS_CMD_NSTATS_S)
+
+#define FW_VI_STATS_CMD_IX_S	0
+#define FW_VI_STATS_CMD_IX_V(x)	((x) << FW_VI_STATS_CMD_IX_S)
 
 struct fw_acl_mac_cmd {
 	__be32 op_to_vfn;
@@ -2062,9 +2136,14 @@ struct fw_acl_mac_cmd {
 	u8 macaddr3[6];
 };
 
-#define FW_ACL_MAC_CMD_PFN(x) ((x) << 8)
-#define FW_ACL_MAC_CMD_VFN(x) ((x) << 0)
-#define FW_ACL_MAC_CMD_EN(x) ((x) << 31)
+#define FW_ACL_MAC_CMD_PFN_S	8
+#define FW_ACL_MAC_CMD_PFN_V(x)	((x) << FW_ACL_MAC_CMD_PFN_S)
+
+#define FW_ACL_MAC_CMD_VFN_S	0
+#define FW_ACL_MAC_CMD_VFN_V(x)	((x) << FW_ACL_MAC_CMD_VFN_S)
+
+#define FW_ACL_MAC_CMD_EN_S	31
+#define FW_ACL_MAC_CMD_EN_V(x)	((x) << FW_ACL_MAC_CMD_EN_S)
 
 struct fw_acl_vlan_cmd {
 	__be32 op_to_vfn;
@@ -2075,11 +2154,20 @@ struct fw_acl_vlan_cmd {
 	__be16 vlanid[16];
 };
 
-#define FW_ACL_VLAN_CMD_PFN(x) ((x) << 8)
-#define FW_ACL_VLAN_CMD_VFN(x) ((x) << 0)
-#define FW_ACL_VLAN_CMD_EN(x) ((x) << 31)
-#define FW_ACL_VLAN_CMD_DROPNOVLAN(x) ((x) << 7)
-#define FW_ACL_VLAN_CMD_FM(x) ((x) << 6)
+#define FW_ACL_VLAN_CMD_PFN_S		8
+#define FW_ACL_VLAN_CMD_PFN_V(x)	((x) << FW_ACL_VLAN_CMD_PFN_S)
+
+#define FW_ACL_VLAN_CMD_VFN_S		0
+#define FW_ACL_VLAN_CMD_VFN_V(x)	((x) << FW_ACL_VLAN_CMD_VFN_S)
+
+#define FW_ACL_VLAN_CMD_EN_S	31
+#define FW_ACL_VLAN_CMD_EN_V(x)	((x) << FW_ACL_VLAN_CMD_EN_S)
+
+#define FW_ACL_VLAN_CMD_DROPNOVLAN_S	7
+#define FW_ACL_VLAN_CMD_DROPNOVLAN_V(x)	((x) << FW_ACL_VLAN_CMD_DROPNOVLAN_S)
+
+#define FW_ACL_VLAN_CMD_FM_S	6
+#define FW_ACL_VLAN_CMD_FM_V(x)	((x) << FW_ACL_VLAN_CMD_FM_S)
 
 enum fw_port_cap {
 	FW_PORT_CAP_SPEED_100M		= 0x0001,
@@ -2101,13 +2189,14 @@ enum fw_port_cap {
 };
 
 enum fw_port_mdi {
-	FW_PORT_MDI_UNCHANGED,
-	FW_PORT_MDI_AUTO,
-	FW_PORT_MDI_F_STRAIGHT,
-	FW_PORT_MDI_F_CROSSOVER
+	FW_PORT_CAP_MDI_UNCHANGED,
+	FW_PORT_CAP_MDI_AUTO,
+	FW_PORT_CAP_MDI_F_STRAIGHT,
+	FW_PORT_CAP_MDI_F_CROSSOVER
 };
 
-#define FW_PORT_MDI(x) ((x) << 9)
+#define FW_PORT_CAP_MDI_S 9
+#define FW_PORT_CAP_MDI_V(x) ((x) << FW_PORT_CAP_MDI_S)
 
 enum fw_port_action {
 	FW_PORT_ACTION_L1_CFG		= 0x0001,
@@ -2267,52 +2356,105 @@ struct fw_port_cmd {
 	} u;
 };
 
-#define FW_PORT_CMD_READ (1U << 22)
+#define FW_PORT_CMD_READ_S	22
+#define FW_PORT_CMD_READ_V(x)	((x) << FW_PORT_CMD_READ_S)
+#define FW_PORT_CMD_READ_F	FW_PORT_CMD_READ_V(1U)
 
-#define FW_PORT_CMD_PORTID(x) ((x) << 0)
-#define FW_PORT_CMD_PORTID_GET(x) (((x) >> 0) & 0xf)
+#define FW_PORT_CMD_PORTID_S	0
+#define FW_PORT_CMD_PORTID_M	0xf
+#define FW_PORT_CMD_PORTID_V(x)	((x) << FW_PORT_CMD_PORTID_S)
+#define FW_PORT_CMD_PORTID_G(x)	\
+	(((x) >> FW_PORT_CMD_PORTID_S) & FW_PORT_CMD_PORTID_M)
 
-#define FW_PORT_CMD_ACTION(x) ((x) << 16)
-#define FW_PORT_CMD_ACTION_GET(x) (((x) >> 16) & 0xffff)
+#define FW_PORT_CMD_ACTION_S	16
+#define FW_PORT_CMD_ACTION_M	0xffff
+#define FW_PORT_CMD_ACTION_V(x)	((x) << FW_PORT_CMD_ACTION_S)
+#define FW_PORT_CMD_ACTION_G(x)	\
+	(((x) >> FW_PORT_CMD_ACTION_S) & FW_PORT_CMD_ACTION_M)
 
-#define FW_PORT_CMD_CTLBF(x) ((x) << 10)
-#define FW_PORT_CMD_OVLAN3(x) ((x) << 7)
-#define FW_PORT_CMD_OVLAN2(x) ((x) << 6)
-#define FW_PORT_CMD_OVLAN1(x) ((x) << 5)
-#define FW_PORT_CMD_OVLAN0(x) ((x) << 4)
-#define FW_PORT_CMD_IVLAN0(x) ((x) << 3)
+#define FW_PORT_CMD_OVLAN3_S	7
+#define FW_PORT_CMD_OVLAN3_V(x)	((x) << FW_PORT_CMD_OVLAN3_S)
 
-#define FW_PORT_CMD_TXIPG(x) ((x) << 19)
+#define FW_PORT_CMD_OVLAN2_S	6
+#define FW_PORT_CMD_OVLAN2_V(x)	((x) << FW_PORT_CMD_OVLAN2_S)
 
-#define FW_PORT_CMD_LSTATUS (1U << 31)
-#define FW_PORT_CMD_LSTATUS_GET(x) (((x) >> 31) & 0x1)
-#define FW_PORT_CMD_LSPEED(x) ((x) << 24)
-#define FW_PORT_CMD_LSPEED_GET(x) (((x) >> 24) & 0x3f)
-#define FW_PORT_CMD_TXPAUSE (1U << 23)
-#define FW_PORT_CMD_RXPAUSE (1U << 22)
-#define FW_PORT_CMD_MDIOCAP (1U << 21)
-#define FW_PORT_CMD_MDIOADDR_GET(x) (((x) >> 16) & 0x1f)
-#define FW_PORT_CMD_LPTXPAUSE (1U << 15)
-#define FW_PORT_CMD_LPRXPAUSE (1U << 14)
-#define FW_PORT_CMD_PTYPE_MASK 0x1f
-#define FW_PORT_CMD_PTYPE_GET(x) (((x) >> 8) & FW_PORT_CMD_PTYPE_MASK)
-#define FW_PORT_CMD_MODTYPE_MASK 0x1f
-#define FW_PORT_CMD_MODTYPE_GET(x) (((x) >> 0) & FW_PORT_CMD_MODTYPE_MASK)
+#define FW_PORT_CMD_OVLAN1_S	5
+#define FW_PORT_CMD_OVLAN1_V(x)	((x) << FW_PORT_CMD_OVLAN1_S)
 
-#define FW_PORT_CMD_DCBXDIS (1U << 7)
-#define FW_PORT_CMD_APPLY (1U <<  7)
-#define FW_PORT_CMD_ALL_SYNCD (1U << 7)
-#define FW_PORT_CMD_DCB_VERSION_GET(x) (((x) >> 8) & 0xf)
+#define FW_PORT_CMD_OVLAN0_S	4
+#define FW_PORT_CMD_OVLAN0_V(x)	((x) << FW_PORT_CMD_OVLAN0_S)
 
-#define FW_PORT_CMD_PPPEN(x) ((x) << 31)
-#define FW_PORT_CMD_TPSRC(x) ((x) << 28)
-#define FW_PORT_CMD_NCSISRC(x) ((x) << 24)
+#define FW_PORT_CMD_IVLAN0_S	3
+#define FW_PORT_CMD_IVLAN0_V(x)	((x) << FW_PORT_CMD_IVLAN0_S)
 
-#define FW_PORT_CMD_CH0(x) ((x) << 20)
-#define FW_PORT_CMD_CH1(x) ((x) << 16)
-#define FW_PORT_CMD_CH2(x) ((x) << 12)
-#define FW_PORT_CMD_CH3(x) ((x) << 8)
-#define FW_PORT_CMD_NCSICH(x) ((x) << 4)
+#define FW_PORT_CMD_TXIPG_S	3
+#define FW_PORT_CMD_TXIPG_V(x)	((x) << FW_PORT_CMD_TXIPG_S)
+
+#define FW_PORT_CMD_LSTATUS_S           31
+#define FW_PORT_CMD_LSTATUS_M           0x1
+#define FW_PORT_CMD_LSTATUS_V(x)        ((x) << FW_PORT_CMD_LSTATUS_S)
+#define FW_PORT_CMD_LSTATUS_G(x)        \
+	(((x) >> FW_PORT_CMD_LSTATUS_S) & FW_PORT_CMD_LSTATUS_M)
+#define FW_PORT_CMD_LSTATUS_F   FW_PORT_CMD_LSTATUS_V(1U)
+
+#define FW_PORT_CMD_LSPEED_S	24
+#define FW_PORT_CMD_LSPEED_M	0x3f
+#define FW_PORT_CMD_LSPEED_V(x)	((x) << FW_PORT_CMD_LSPEED_S)
+#define FW_PORT_CMD_LSPEED_G(x)	\
+	(((x) >> FW_PORT_CMD_LSPEED_S) & FW_PORT_CMD_LSPEED_M)
+
+#define FW_PORT_CMD_TXPAUSE_S		23
+#define FW_PORT_CMD_TXPAUSE_V(x)	((x) << FW_PORT_CMD_TXPAUSE_S)
+#define FW_PORT_CMD_TXPAUSE_F	FW_PORT_CMD_TXPAUSE_V(1U)
+
+#define FW_PORT_CMD_RXPAUSE_S		22
+#define FW_PORT_CMD_RXPAUSE_V(x)	((x) << FW_PORT_CMD_RXPAUSE_S)
+#define FW_PORT_CMD_RXPAUSE_F	FW_PORT_CMD_RXPAUSE_V(1U)
+
+#define FW_PORT_CMD_MDIOCAP_S		21
+#define FW_PORT_CMD_MDIOCAP_V(x)	((x) << FW_PORT_CMD_MDIOCAP_S)
+#define FW_PORT_CMD_MDIOCAP_F	FW_PORT_CMD_MDIOCAP_V(1U)
+
+#define FW_PORT_CMD_MDIOADDR_S		16
+#define FW_PORT_CMD_MDIOADDR_M		0x1f
+#define FW_PORT_CMD_MDIOADDR_G(x)	\
+	(((x) >> FW_PORT_CMD_MDIOADDR_S) & FW_PORT_CMD_MDIOADDR_M)
+
+#define FW_PORT_CMD_LPTXPAUSE_S		15
+#define FW_PORT_CMD_LPTXPAUSE_V(x)	((x) << FW_PORT_CMD_LPTXPAUSE_S)
+#define FW_PORT_CMD_LPTXPAUSE_F	FW_PORT_CMD_LPTXPAUSE_V(1U)
+
+#define FW_PORT_CMD_LPRXPAUSE_S		14
+#define FW_PORT_CMD_LPRXPAUSE_V(x)	((x) << FW_PORT_CMD_LPRXPAUSE_S)
+#define FW_PORT_CMD_LPRXPAUSE_F	FW_PORT_CMD_LPRXPAUSE_V(1U)
+
+#define FW_PORT_CMD_PTYPE_S	8
+#define FW_PORT_CMD_PTYPE_M	0x1f
+#define FW_PORT_CMD_PTYPE_G(x)	\
+	(((x) >> FW_PORT_CMD_PTYPE_S) & FW_PORT_CMD_PTYPE_M)
+
+#define FW_PORT_CMD_MODTYPE_S		0
+#define FW_PORT_CMD_MODTYPE_M		0x1f
+#define FW_PORT_CMD_MODTYPE_V(x)	((x) << FW_PORT_CMD_MODTYPE_S)
+#define FW_PORT_CMD_MODTYPE_G(x)	\
+	(((x) >> FW_PORT_CMD_MODTYPE_S) & FW_PORT_CMD_MODTYPE_M)
+
+#define FW_PORT_CMD_DCBXDIS_S		7
+#define FW_PORT_CMD_DCBXDIS_V(x)	((x) << FW_PORT_CMD_DCBXDIS_S)
+#define FW_PORT_CMD_DCBXDIS_F	FW_PORT_CMD_DCBXDIS_V(1U)
+
+#define FW_PORT_CMD_APPLY_S	7
+#define FW_PORT_CMD_APPLY_V(x)	((x) << FW_PORT_CMD_APPLY_S)
+#define FW_PORT_CMD_APPLY_F	FW_PORT_CMD_APPLY_V(1U)
+
+#define FW_PORT_CMD_ALL_SYNCD_S		7
+#define FW_PORT_CMD_ALL_SYNCD_V(x)	((x) << FW_PORT_CMD_ALL_SYNCD_S)
+#define FW_PORT_CMD_ALL_SYNCD_F	FW_PORT_CMD_ALL_SYNCD_V(1U)
+
+#define FW_PORT_CMD_DCB_VERSION_S	12
+#define FW_PORT_CMD_DCB_VERSION_M	0x7
+#define FW_PORT_CMD_DCB_VERSION_G(x)	\
+	(((x) >> FW_PORT_CMD_DCB_VERSION_S) & FW_PORT_CMD_DCB_VERSION_M)
 
 enum fw_port_type {
 	FW_PORT_TYPE_FIBER_XFI,
@@ -2331,7 +2473,7 @@ enum fw_port_type {
 	FW_PORT_TYPE_QSFP,
 	FW_PORT_TYPE_BP40_BA,
 
-	FW_PORT_TYPE_NONE = FW_PORT_CMD_PTYPE_MASK
+	FW_PORT_TYPE_NONE = FW_PORT_CMD_PTYPE_M
 };
 
 enum fw_port_module_type {
@@ -2342,11 +2484,11 @@ enum fw_port_module_type {
 	FW_PORT_MOD_TYPE_TWINAX_PASSIVE,
 	FW_PORT_MOD_TYPE_TWINAX_ACTIVE,
 	FW_PORT_MOD_TYPE_LRM,
-	FW_PORT_MOD_TYPE_ERROR		= FW_PORT_CMD_MODTYPE_MASK - 3,
-	FW_PORT_MOD_TYPE_UNKNOWN	= FW_PORT_CMD_MODTYPE_MASK - 2,
-	FW_PORT_MOD_TYPE_NOTSUPPORTED	= FW_PORT_CMD_MODTYPE_MASK - 1,
+	FW_PORT_MOD_TYPE_ERROR		= FW_PORT_CMD_MODTYPE_M - 3,
+	FW_PORT_MOD_TYPE_UNKNOWN	= FW_PORT_CMD_MODTYPE_M - 2,
+	FW_PORT_MOD_TYPE_NOTSUPPORTED	= FW_PORT_CMD_MODTYPE_M - 1,
 
-	FW_PORT_MOD_TYPE_NONE = FW_PORT_CMD_MODTYPE_MASK
+	FW_PORT_MOD_TYPE_NONE = FW_PORT_CMD_MODTYPE_M
 };
 
 enum fw_port_mod_sub_type {

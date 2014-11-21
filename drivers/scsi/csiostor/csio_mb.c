@@ -347,24 +347,24 @@ csio_mb_port(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 	     void (*cbfn) (struct csio_hw *, struct csio_mb *))
 {
 	struct fw_port_cmd *cmdp = (struct fw_port_cmd *)(mbp->mb);
-	unsigned int lfc = 0, mdi = FW_PORT_MDI(FW_PORT_MDI_AUTO);
+	unsigned int lfc = 0, mdi = FW_PORT_CAP_MDI_V(FW_PORT_CAP_MDI_AUTO);
 
 	CSIO_INIT_MBP(mbp, cmdp, tmo, hw, cbfn,  1);
 
 	cmdp->op_to_portid = htonl(FW_CMD_OP_V(FW_PORT_CMD)		|
 				   FW_CMD_REQUEST_F			|
 				   (wr ? FW_CMD_EXEC_F : FW_CMD_READ_F)	|
-				   FW_PORT_CMD_PORTID(portid));
+				   FW_PORT_CMD_PORTID_V(portid));
 	if (!wr) {
 		cmdp->action_to_len16 = htonl(
-			FW_PORT_CMD_ACTION(FW_PORT_ACTION_GET_PORT_INFO) |
+			FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_GET_PORT_INFO) |
 			FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 		return;
 	}
 
 	/* Set port */
 	cmdp->action_to_len16 = htonl(
-			FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
+			FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_L1_CFG) |
 			FW_CMD_LEN16_V(sizeof(*cmdp) / 16));
 
 	if (fc & PAUSE_RX)
@@ -1407,9 +1407,9 @@ csio_mb_fwevt_handler(struct csio_hw *hw, __be64 *cmd)
 
 	if (opcode == FW_PORT_CMD) {
 		pcmd = (struct fw_port_cmd *)cmd;
-		port_id = FW_PORT_CMD_PORTID_GET(
+		port_id = FW_PORT_CMD_PORTID_G(
 				ntohl(pcmd->op_to_portid));
-		action = FW_PORT_CMD_ACTION_GET(
+		action = FW_PORT_CMD_ACTION_G(
 				ntohl(pcmd->action_to_len16));
 		if (action != FW_PORT_ACTION_GET_PORT_INFO) {
 			csio_err(hw, "Unhandled FW_PORT_CMD action: %u\n",
@@ -1418,15 +1418,15 @@ csio_mb_fwevt_handler(struct csio_hw *hw, __be64 *cmd)
 		}
 
 		link_status = ntohl(pcmd->u.info.lstatus_to_modtype);
-		mod_type = FW_PORT_CMD_MODTYPE_GET(link_status);
+		mod_type = FW_PORT_CMD_MODTYPE_G(link_status);
 
 		hw->pport[port_id].link_status =
-			FW_PORT_CMD_LSTATUS_GET(link_status);
+			FW_PORT_CMD_LSTATUS_G(link_status);
 		hw->pport[port_id].link_speed =
-			FW_PORT_CMD_LSPEED_GET(link_status);
+			FW_PORT_CMD_LSPEED_G(link_status);
 
 		csio_info(hw, "Port:%x - LINK %s\n", port_id,
-			FW_PORT_CMD_LSTATUS_GET(link_status) ? "UP" : "DOWN");
+			FW_PORT_CMD_LSTATUS_G(link_status) ? "UP" : "DOWN");
 
 		if (mod_type != hw->pport[port_id].mod_type) {
 			hw->pport[port_id].mod_type = mod_type;

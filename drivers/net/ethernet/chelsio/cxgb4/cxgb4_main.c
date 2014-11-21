@@ -710,7 +710,7 @@ EXPORT_SYMBOL(cxgb4_dcb_enabled);
 /* Handle a Data Center Bridging update message from the firmware. */
 static void dcb_rpl(struct adapter *adap, const struct fw_port_cmd *pcmd)
 {
-	int port = FW_PORT_CMD_PORTID_GET(ntohl(pcmd->op_to_portid));
+	int port = FW_PORT_CMD_PORTID_G(ntohl(pcmd->op_to_portid));
 	struct net_device *dev = adap->port[port];
 	int old_dcb_enabled = cxgb4_dcb_enabled(dev);
 	int new_dcb_enabled;
@@ -835,15 +835,15 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 		const struct fw_port_cmd *pcmd = (const void *)p->data;
 		unsigned int cmd = FW_CMD_OP_G(ntohl(pcmd->op_to_portid));
 		unsigned int action =
-			FW_PORT_CMD_ACTION_GET(ntohl(pcmd->action_to_len16));
+			FW_PORT_CMD_ACTION_G(ntohl(pcmd->action_to_len16));
 
 		if (cmd == FW_PORT_CMD &&
 		    action == FW_PORT_ACTION_GET_PORT_INFO) {
-			int port = FW_PORT_CMD_PORTID_GET(
+			int port = FW_PORT_CMD_PORTID_G(
 					be32_to_cpu(pcmd->op_to_portid));
 			struct net_device *dev = q->adap->port[port];
 			int state_input = ((pcmd->u.info.dcbxdis_pkd &
-					    FW_PORT_CMD_DCBXDIS)
+					    FW_PORT_CMD_DCBXDIS_F)
 					   ? CXGB4_DCB_INPUT_FW_DISABLED
 					   : CXGB4_DCB_INPUT_FW_ENABLED);
 
