@@ -124,6 +124,8 @@ static inline __printf(1, 2) __cold
 void early_printk(const char *s, ...) { }
 #endif
 
+typedef int(*printk_func_t)(const char *fmt, va_list args);
+
 #ifdef CONFIG_PRINTK
 asmlinkage __printf(5, 0)
 int vprintk_emit(int facility, int level,
@@ -161,8 +163,6 @@ extern int dmesg_restrict;
 extern int kptr_restrict;
 
 extern void wake_up_klogd(void);
-
-typedef int(*printk_func_t)(const char *fmt, va_list args);
 
 void log_buf_kexec_setup(void);
 void __init setup_log_buf(int early);
