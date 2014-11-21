@@ -7526,18 +7526,18 @@ static int i40e_get_phys_port_id(struct net_device *netdev,
 	return 0;
 }
 
-#ifdef HAVE_FDB_OPS
-#ifdef USE_CONST_DEV_UC_CHAR
+/**
+ * i40e_ndo_fdb_add - add an entry to the hardware database
+ * @ndm: the input from the stack
+ * @tb: pointer to array of nladdr (unused)
+ * @dev: the net device pointer
+ * @addr: the MAC address entry being added
+ * @flags: instructions from stack about fdb operation
+ */
 static int i40e_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			    struct net_device *dev,
 			    const unsigned char *addr,
 			    u16 flags)
-#else
-static int i40e_ndo_fdb_add(struct ndmsg *ndm,
-			    struct net_device *dev,
-			    unsigned char *addr,
-			    u16 flags)
-#endif
 {
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_pf *pf = np->vsi->back;
@@ -7568,55 +7568,6 @@ static int i40e_ndo_fdb_add(struct ndmsg *ndm,
 	return err;
 }
 
-#ifndef USE_DEFAULT_FDB_DEL_DUMP
-#ifdef USE_CONST_DEV_UC_CHAR
-static int i40e_ndo_fdb_del(struct ndmsg *ndm,
-			    struct net_device *dev,
-			    const unsigned char *addr)
-#else
-static int i40e_ndo_fdb_del(struct ndmsg *ndm,
-			    struct net_device *dev,
-			    unsigned char *addr)
-#endif
-{
-	struct i40e_netdev_priv *np = netdev_priv(dev);
-	struct i40e_pf *pf = np->vsi->back;
-	int err = -EOPNOTSUPP;
-
-	if (ndm->ndm_state & NUD_PERMANENT) {
-		netdev_info(dev, "FDB only supports static addresses\n");
-		return -EINVAL;
-	}
-
-	if (pf->flags & I40E_FLAG_SRIOV_ENABLED) {
-		if (is_unicast_ether_addr(addr))
-			err = dev_uc_del(dev, addr);
-		else if (is_multicast_ether_addr(addr))
-			err = dev_mc_del(dev, addr);
-		else
-			err = -EINVAL;
-	}
-
-	return err;
-}
-
-static int i40e_ndo_fdb_dump(struct sk_buff *skb,
-			     struct netlink_callback *cb,
-			     struct net_device *dev,
-			     struct net_device *filter_dev,
-			     int idx)
-{
-	struct i40e_netdev_priv *np = netdev_priv(dev);
-	struct i40e_pf *pf = np->vsi->back;
-
-	if (pf->flags & I40E_FLAG_SRIOV_ENABLED)
-		idx = ndo_dflt_fdb_dump(skb, cb, dev, filter_dev, idx);
-
-	return idx;
-}
-
-#endif /* USE_DEFAULT_FDB_DEL_DUMP */
-#endif /* HAVE_FDB_OPS */
 static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_open		= i40e_open,
 	.ndo_stop		= i40e_close,
@@ -7650,13 +7601,7 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
 #endif
 	.ndo_get_phys_port_id	= i40e_get_phys_port_id,
-#ifdef HAVE_FDB_OPS
 	.ndo_fdb_add		= i40e_ndo_fdb_add,
-#ifndef USE_DEFAULT_FDB_DEL_DUMP
-	.ndo_fdb_del		= i40e_ndo_fdb_del,
-	.ndo_fdb_dump		= i40e_ndo_fdb_dump,
-#endif
-#endif
 };
 
 /**
