@@ -207,6 +207,8 @@
 #define INSTR_SUBCLIENT_SHIFT   27
 #define INSTR_SUBCLIENT_MASK    0x18000000
 #define   INSTR_MEDIA_SUBCLIENT 0x2
+#define INSTR_26_TO_24_MASK	0x7000000
+#define   INSTR_26_TO_24_SHIFT	24
 
 /*
  * Memory interface instructions used by the kernel
@@ -236,6 +238,7 @@
 #define MI_BATCH_BUFFER_END	MI_INSTR(0x0a, 0)
 #define MI_SUSPEND_FLUSH	MI_INSTR(0x0b, 0)
 #define   MI_SUSPEND_FLUSH_EN	(1<<0)
+#define MI_SET_APPID		MI_INSTR(0x0e, 0)
 #define MI_OVERLAY_FLIP		MI_INSTR(0x11, 0)
 #define   MI_OVERLAY_CONTINUE	(0x0<<21)
 #define   MI_OVERLAY_ON		(0x1<<21)
