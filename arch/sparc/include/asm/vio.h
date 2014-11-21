@@ -118,12 +118,18 @@ struct vio_disk_attr_info {
 	u8			vdisk_type;
 #define VD_DISK_TYPE_SLICE	0x01 /* Slice in block device	*/
 #define VD_DISK_TYPE_DISK	0x02 /* Entire block device	*/
-	u16			resv1;
+	u8			vdisk_mtype;		/* v1.1 */
+#define VD_MEDIA_TYPE_FIXED	0x01 /* Fixed device */
+#define VD_MEDIA_TYPE_CD	0x02 /* CD Device    */
+#define VD_MEDIA_TYPE_DVD	0x03 /* DVD Device   */
+	u8			resv1;
 	u32			vdisk_block_size;
 	u64			operations;
-	u64			vdisk_size;
+	u64			vdisk_size;		/* v1.1 */
 	u64			max_xfer_size;
-	u64			resv2[2];
+	u32			phys_block_size;	/* v1.2 */
+	u32			resv2;
+	u64			resv3[1];
 };
 
 struct vio_disk_desc {
@@ -259,7 +265,7 @@ static inline u32 vio_dring_avail(struct vio_dring_state *dr,
 				  unsigned int ring_size)
 {
 	return (dr->pending -
-		((dr->prod - dr->cons) & (ring_size - 1)));
+		((dr->prod - dr->cons) & (ring_size - 1)) - 1);
 }
 
 #define VIO_MAX_TYPE_LEN	32
