@@ -85,41 +85,22 @@ TODO:
 #define PCI1723_VREF_0V			(1 << 0)
 #define PCI1723_VREF_POS10V		(3 << 0)
 
-struct pci1723_private {
-	unsigned short ao_data[8];	/* data output buffer */
-};
-
-static int pci1723_insn_read_ao(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+static int pci1723_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	struct pci1723_private *devpriv = dev->private;
-	int n, chan;
-
-	chan = CR_CHAN(insn->chanspec);
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_data[chan];
-
-	return n;
-}
-
-/*
-  analog data output;
-*/
-static int pci1723_ao_write_winsn(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
-{
-	struct pci1723_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	int n;
+	int i;
 
-	for (n = 0; n < insn->n; n++) {
-		devpriv->ao_data[chan] = data[n];
-		outw(data[n], dev->iobase + PCI1723_AO_REG(chan));
+	for (i = 0; i < insn->n; i++) {
+		unsigned int val = data[i];
+
+		outw(val, dev->iobase + PCI1723_AO_REG(chan));
+		s->readback[chan] = val;
 	}
 
-	return n;
+	return insn->n;
 }
 
 /*
@@ -171,14 +152,9 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct pci1723_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -197,8 +173,11 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 0xffff;
 	s->len_chanlist	= 8;
 	s->range_table	= &range_bipolar10;
-	s->insn_write	= pci1723_ao_write_winsn;
-	s->insn_read	= pci1723_insn_read_ao;
+	s->insn_write	= pci1723_ao_insn_write;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* synchronously reset all analog outputs to 0V, +/-10V range */
 	outw(PCI1723_SYNC_CTRL_SYNC, dev->iobase + PCI1723_SYNC_CTRL_REG);
@@ -207,8 +186,8 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 		     PCI1723_CTRL_REG);
 		outw(0, dev->iobase + PCI1723_RANGE_STROBE_REG);
 
-		devpriv->ao_data[i] = 0x8000;
-		outw(devpriv->ao_data[i], dev->iobase + PCI1723_AO_REG(i));
+		outw(0x8000, dev->iobase + PCI1723_AO_REG(i));
+		s->readback[i] = 0x8000;
 	}
 	outw(0, dev->iobase + PCI1723_SYNC_STROBE_REG);
 
