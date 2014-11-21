@@ -110,6 +110,9 @@ struct thread_map;
 struct perf_evlist;
 struct record_opts;
 
+void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu,
+				struct perf_counts_values *count);
+
 int perf_evsel__object_config(size_t object_size,
 			      int (*init)(struct perf_evsel *evsel),
 			      void (*fini)(struct perf_evsel *evsel));
