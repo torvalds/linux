@@ -161,21 +161,18 @@ static void gb_operation_complete(struct gb_operation *operation)
 }
 
 /*
- * Wait for a submitted operation to complete.  Returns -RESTARTSYS
- * if the wait was interrupted.  Otherwise returns the result of the
- * operation.
+ * Wait for a submitted operation to complete.  Returns the result
+ * of the operation; this will be -EINTR if the wait was interrupted.
  */
-int gb_operation_wait(struct gb_operation *operation)
+static int gb_operation_wait(struct gb_operation *operation)
 {
 	int ret;
 
 	ret = wait_for_completion_interruptible(&operation->completion);
-	/* If interrupted, cancel the in-flight buffer */
 	if (ret < 0)
-		gb_message_cancel(operation->request);
-	else
-		ret = operation->errno;
-	return ret;
+		gb_operation_cancel(operation, -EINTR);
+
+	return operation->errno;
 }
 
 #if 0
