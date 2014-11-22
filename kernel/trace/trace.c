@@ -4224,7 +4224,7 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 	mutex_init(&iter->mutex);
 
 	/* Notify the tracer early; before we stop tracing. */
-	if (iter->trace && iter->trace->open)
+	if (iter->trace->open)
 		iter->trace->open(iter);
 
 	/* Annotate start of buffers if we had overruns */
