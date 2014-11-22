@@ -726,6 +726,11 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	account_cfs_rq_runtime(cfs_rq, delta_exec);
 }
 
+static void update_curr_fair(struct rq *rq)
+{
+	update_curr(cfs_rq_of(&rq->curr->se));
+}
+
 static inline void
 update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -1178,6 +1183,13 @@ static void task_numa_compare(struct task_numa_env *env,
 	if ((cur->flags & PF_EXITING) || is_idle_task(cur))
 		cur = NULL;
 	raw_spin_unlock_irq(&dst_rq->lock);
+
+	/*
+	 * Because we have preemption enabled we can get migrated around and
+	 * end try selecting ourselves (current == env->p) as a swap candidate.
+	 */
+	if (cur == env->p)
+		goto unlock;
 
 	/*
 	 * "imp" is the fault differential for the source task between the
@@ -7948,6 +7960,8 @@ const struct sched_class fair_sched_class = {
 	.switched_to		= switched_to_fair,
 
 	.get_rr_interval	= get_rr_interval_fair,
+
+	.update_curr		= update_curr_fair,
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	.task_move_group	= task_move_group_fair,

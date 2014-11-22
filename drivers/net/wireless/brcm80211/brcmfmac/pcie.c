@@ -19,10 +19,10 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
-#include <linux/unaligned/access_ok.h>
 #include <linux/interrupt.h>
 #include <linux/bcma/bcma.h>
 #include <linux/sched.h>
+#include <asm/unaligned.h>
 
 #include <soc.h>
 #include <chipcommon.h>

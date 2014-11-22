@@ -896,10 +896,14 @@ static void selftest_data_remove(void)
 		return;
 	}
 
-	while (last_node_index >= 0) {
+	while (last_node_index-- > 0) {
 		if (nodes[last_node_index]) {
 			np = of_find_node_by_path(nodes[last_node_index]->full_name);
-			if (strcmp(np->full_name, "/aliases") != 0) {
+			if (np == nodes[last_node_index]) {
+				if (of_aliases == np) {
+					of_node_put(of_aliases);
+					of_aliases = NULL;
+				}
 				detach_node_and_children(np);
 			} else {
 				for_each_property_of_node(np, prop) {
@@ -908,7 +912,6 @@ static void selftest_data_remove(void)
 				}
 			}
 		}
-		last_node_index--;
 	}
 }
 
@@ -921,6 +924,8 @@ static int __init of_selftest(void)
 	res = selftest_data_add();
 	if (res)
 		return res;
+	if (!of_aliases)
+		of_aliases = of_find_node_by_path("/aliases");
 
 	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-a");
 	if (!np) {

@@ -110,6 +110,7 @@ static const struct of_device_id snow_of_match[] = {
 	{ .compatible = "google,snow-audio-max98095", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, snow_of_match);
 
 static struct platform_driver snow_driver = {
 	.driver = {

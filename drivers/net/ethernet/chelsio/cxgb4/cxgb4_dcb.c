@@ -1082,7 +1082,7 @@ static int cxgb4_cee_peer_getpg(struct net_device *dev, struct cee_pg *pg)
 	pgid = be32_to_cpu(pcmd.u.dcb.pgid.pgid);
 
 	for (i = 0; i < CXGB4_MAX_PRIORITY; i++)
-		pg->prio_pg[i] = (pgid >> (i * 4)) & 0xF;
+		pg->prio_pg[7 - i] = (pgid >> (i * 4)) & 0xF;
 
 	INIT_PORT_DCB_READ_PEER_CMD(pcmd, pi->port_id);
 	pcmd.u.dcb.pgrate.type = FW_PORT_DCB_TYPE_PGRATE;

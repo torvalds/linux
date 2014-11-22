@@ -1353,6 +1353,7 @@ gss_stringify_acceptor(struct rpc_cred *cred)
 	char *string = NULL;
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
 	struct gss_cl_ctx *ctx;
+	unsigned int len;
 	struct xdr_netobj *acceptor;
 
 	rcu_read_lock();
@@ -1360,15 +1361,39 @@ gss_stringify_acceptor(struct rpc_cred *cred)
 	if (!ctx)
 		goto out;
 
-	acceptor = &ctx->gc_acceptor;
+	len = ctx->gc_acceptor.len;
+	rcu_read_unlock();
 
 	/* no point if there's no string */
-	if (!acceptor->len)
-		goto out;
-
-	string = kmalloc(acceptor->len + 1, GFP_KERNEL);
+	if (!len)
+		return NULL;
+realloc:
+	string = kmalloc(len + 1, GFP_KERNEL);
 	if (!string)
+		return NULL;
+
+	rcu_read_lock();
+	ctx = rcu_dereference(gss_cred->gc_ctx);
+
+	/* did the ctx disappear or was it replaced by one with no acceptor? */
+	if (!ctx || !ctx->gc_acceptor.len) {
+		kfree(string);
+		string = NULL;
 		goto out;
+	}
+
+	acceptor = &ctx->gc_acceptor;
+
+	/*
+	 * Did we find a new acceptor that's longer than the original? Allocate
+	 * a longer buffer and try again.
+	 */
+	if (len < acceptor->len) {
+		len = acceptor->len;
+		rcu_read_unlock();
+		kfree(string);
+		goto realloc;
+	}
 
 	memcpy(string, acceptor->data, acceptor->len);
 	string[acceptor->len] = '\0';
