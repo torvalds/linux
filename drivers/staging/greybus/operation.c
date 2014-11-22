@@ -506,9 +506,8 @@ greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
 	/* XXX Right now we assume we're an outgoing request */
 	message = gb_hd_message_find(hd, header);
 	operation = message->operation;
-	gb_connection_err(operation->connection, "send error %d\n", status);
 	operation->errno = status;
-	gb_operation_complete(operation);
+	queue_work(gb_operation_workqueue, &operation->work);
 }
 EXPORT_SYMBOL_GPL(greybus_data_sent);
 
