@@ -529,7 +529,6 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_wq *wq;
-	unsigned long flags;
 	unsigned int txq_map;
 	struct netdev_queue *txq;
 
@@ -554,14 +553,14 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	spin_lock_irqsave(&enic->wq_lock[txq_map], flags);
+	spin_lock(&enic->wq_lock[txq_map]);
 
 	if (vnic_wq_desc_avail(wq) <
 	    skb_shinfo(skb)->nr_frags + ENIC_DESC_MAX_SPLITS) {
 		netif_tx_stop_queue(txq);
 		/* This is a hard error, log it */
 		netdev_err(netdev, "BUG! Tx ring full when queue awake!\n");
-		spin_unlock_irqrestore(&enic->wq_lock[txq_map], flags);
+		spin_unlock(&enic->wq_lock[txq_map]);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -572,7 +571,7 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 	if (!skb->xmit_more || netif_xmit_stopped(txq))
 		vnic_wq_doorbell(wq);
 
-	spin_unlock_irqrestore(&enic->wq_lock[txq_map], flags);
+	spin_unlock(&enic->wq_lock[txq_map]);
 
 	return NETDEV_TX_OK;
 }
