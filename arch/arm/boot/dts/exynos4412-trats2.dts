@@ -641,6 +641,13 @@
 		};
 	};
 
+	pwm: pwm@139D0000 {
+		pinctrl-0 = <&pwm0_out>;
+		pinctrl-names = "default";
+		samsung,pwm-outputs = <0>;
+		status = "okay";
+	};
+
 	dsi_0: dsi@11C80000 {
 		vddcore-supply = <&ldo8_reg>;
 		vddio-supply = <&ldo10_reg>;
