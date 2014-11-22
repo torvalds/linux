@@ -14,6 +14,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/cpu.h>
 #include <asm/mce.h>
 
 #include "mce_amd.h"
@@ -116,6 +117,55 @@ static int inj_extcpu_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(extcpu_fops, inj_extcpu_get, inj_extcpu_set, "%llu\n");
 
+static void trigger_mce(void *info)
+{
+	asm volatile("int $18");
+}
+
+static void do_inject(void)
+{
+	u64 mcg_status = 0;
+	unsigned int cpu = i_mce.extcpu;
+	u8 b = i_mce.bank;
+
+	if (!(i_mce.inject_flags & MCJ_EXCEPTION)) {
+		amd_decode_mce(NULL, 0, &i_mce);
+		return;
+	}
+
+	get_online_cpus();
+	if (!cpu_online(cpu))
+		goto err;
+
+	/* prep MCE global settings for the injection */
+	mcg_status = MCG_STATUS_MCIP | MCG_STATUS_EIPV;
+
+	if (!(i_mce.status & MCI_STATUS_PCC))
+		mcg_status |= MCG_STATUS_RIPV;
+
+	toggle_hw_mce_inject(cpu, true);
+
+	wrmsr_on_cpu(cpu, MSR_IA32_MCG_STATUS,
+		     (u32)mcg_status, (u32)(mcg_status >> 32));
+
+	wrmsr_on_cpu(cpu, MSR_IA32_MCx_STATUS(b),
+		     (u32)i_mce.status, (u32)(i_mce.status >> 32));
+
+	wrmsr_on_cpu(cpu, MSR_IA32_MCx_ADDR(b),
+		     (u32)i_mce.addr, (u32)(i_mce.addr >> 32));
+
+	wrmsr_on_cpu(cpu, MSR_IA32_MCx_MISC(b),
+		     (u32)i_mce.misc, (u32)(i_mce.misc >> 32));
+
+	toggle_hw_mce_inject(cpu, false);
+
+	smp_call_function_single(cpu, trigger_mce, NULL, 0);
+
+err:
+	put_online_cpus();
+
+}
+
 /*
  * This denotes into which bank we're injecting and triggers
  * the injection, at the same time.
@@ -132,8 +182,7 @@ static int inj_bank_set(void *data, u64 val)
 	}
 
 	m->bank = val;
-
-	amd_decode_mce(NULL, 0, m);
+	do_inject();
 
 	return 0;
 }
