@@ -252,7 +252,8 @@ static void set_hpll_clk_out(unsigned clk)
             aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4000045a);
             break;
         case 1066:
-            WRITE_CBUS_REG(HHI_VID_PLL_CNTL, 0x42a);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6000042a);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4000042a);
             break;
         case 1058:
             WRITE_CBUS_REG(HHI_VID_PLL_CNTL, 0x422);
