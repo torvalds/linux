@@ -6888,11 +6888,12 @@ F:	drivers/scsi/osd/
 F:	include/scsi/osd_*
 F:	fs/exofs/
 
-OVERLAYFS FILESYSTEM
+OVERLAY FILESYSTEM
 M:	Miklos Szeredi <miklos@szeredi.hu>
-L:	linux-fsdevel@vger.kernel.org
+L:	linux-unionfs@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/vfs.git
 S:	Supported
-F:	fs/overlayfs/*
+F:	fs/overlayfs/
 F:	Documentation/filesystems/overlayfs.txt
 
 P54 WIRELESS DRIVER
