@@ -78,6 +78,44 @@ static int toggle_hw_mce_inject(unsigned int cpu, bool enable)
 	return err;
 }
 
+static int flags_get(void *data, u64 *val)
+{
+	struct mce *m = (struct mce *)data;
+
+	*val = m->inject_flags;
+
+	return 0;
+}
+
+static int flags_set(void *data, u64 val)
+{
+	struct mce *m = (struct mce *)data;
+
+	m->inject_flags = (u8)val;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(flags_fops, flags_get, flags_set, "%llu\n");
+
+/*
+ * On which CPU to inject?
+ */
+MCE_INJECT_GET(extcpu);
+
+static int inj_extcpu_set(void *data, u64 val)
+{
+	struct mce *m = (struct mce *)data;
+
+	if (val >= nr_cpu_ids || !cpu_online(val)) {
+		pr_err("%s: Invalid CPU: %llu\n", __func__, val);
+		return -EINVAL;
+	}
+	m->extcpu = val;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(extcpu_fops, inj_extcpu_get, inj_extcpu_set, "%llu\n");
+
 /*
  * This denotes into which bank we're injecting and triggers
  * the injection, at the same time.
@@ -119,6 +157,8 @@ struct dfs_node {
 	{ .name = "misc",	.fops = &misc_fops },
 	{ .name = "addr",	.fops = &addr_fops },
 	{ .name = "bank",	.fops = &bank_fops },
+	{ .name = "flags",	.fops = &flags_fops },
+	{ .name = "cpu",	.fops = &extcpu_fops },
 };
 
 static int __init init_mce_inject(void)
