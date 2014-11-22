@@ -137,11 +137,6 @@ static struct map_desc exynos5_iodesc[] __initdata = {
 	},
 };
 
-static void exynos_restart(enum reboot_mode mode, const char *cmd)
-{
-	__raw_writel(0x1, pmu_base_addr + EXYNOS_SWRESET);
-}
-
 static struct platform_device exynos_cpuidle = {
 	.name              = "exynos_cpuidle",
 #ifdef CONFIG_ARM_EXYNOS_CPUIDLE
@@ -366,7 +361,6 @@ DT_MACHINE_START(EXYNOS_DT, "SAMSUNG EXYNOS (Flattened Device Tree)")
 	.init_machine	= exynos_dt_machine_init,
 	.init_late	= exynos_init_late,
 	.dt_compat	= exynos_dt_compat,
-	.restart	= exynos_restart,
 	.reserve	= exynos_reserve,
 	.dt_fixup	= exynos_dt_fixup,
 MACHINE_END

@@ -11,8 +11,11 @@
 
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
 
 
 #include "exynos-pmu.h"
@@ -874,6 +877,13 @@ static void exynos5420_pmu_init(void)
 	pr_info("EXYNOS5420 PMU initialized\n");
 }
 
+static int pmu_restart_notify(struct notifier_block *this,
+		unsigned long code, void *unused)
+{
+	pmu_raw_writel(0x1, EXYNOS_SWRESET);
+
+	return NOTIFY_DONE;
+}
 
 static const struct exynos_pmu_data exynos3250_pmu_data = {
 	.pmu_config	= exynos3250_pmu_config,
@@ -932,11 +942,20 @@ static const struct of_device_id exynos_pmu_of_device_ids[] = {
 	{ /*sentinel*/ },
 };
 
+/*
+ * Exynos PMU restart notifier, handles restart functionality
+ */
+static struct notifier_block pmu_restart_handler = {
+	.notifier_call = pmu_restart_notify,
+	.priority = 128,
+};
+
 static int exynos_pmu_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pmu_base_addr = devm_ioremap_resource(dev, res);
@@ -960,6 +979,10 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 		pmu_context->pmu_data->pmu_init();
 
 	platform_set_drvdata(pdev, pmu_context);
+
+	ret = register_restart_handler(&pmu_restart_handler);
+	if (ret)
+		dev_warn(dev, "can't register restart handler err=%d\n", ret);
 
 	dev_dbg(dev, "Exynos PMU Driver probe done\n");
 	return 0;
