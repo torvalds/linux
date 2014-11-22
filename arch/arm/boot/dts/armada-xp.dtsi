@@ -212,7 +212,7 @@
 };
 
 &pinctrl {
-	pmx_ge0_gmii: pmx-ge0-gmii {
+	ge0_gmii_pins: ge0-gmii-pins {
 		marvell,pins =
 		     "mpp0",  "mpp1",  "mpp2",  "mpp3",
 		     "mpp4",  "mpp5",  "mpp6",  "mpp7",
@@ -223,7 +223,7 @@
 		marvell,function = "ge0";
 	};
 
-	pmx_ge0_rgmii: pmx-ge0-rgmii {
+	ge0_rgmii_pins: ge0-rgmii-pins {
 		marvell,pins =
 		     "mpp0", "mpp1", "mpp2", "mpp3",
 		     "mpp4", "mpp5", "mpp6", "mpp7",
@@ -231,7 +231,7 @@
 		marvell,function = "ge0";
 	};
 
-	pmx_ge1_rgmii: pmx-ge1-rgmii {
+	ge1_rgmii_pins: ge1-rgmii-pins {
 		marvell,pins =
 		     "mpp12", "mpp13", "mpp14", "mpp15",
 		     "mpp16", "mpp17", "mpp18", "mpp19",

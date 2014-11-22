@@ -84,14 +84,14 @@
 			};
 
 			ethernet@70000 {
-				pinctrl-0 = <&pmx_ge0_rgmii>;
+				pinctrl-0 = <&ge0_rgmii_pins>;
 				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
 			};
 			ethernet@74000 {
-				pinctrl-0 = <&pmx_ge1_rgmii>;
+				pinctrl-0 = <&ge1_rgmii_pins>;
 				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy1>;
@@ -116,7 +116,7 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-0 = <&pmx_keys>;
+		pinctrl-0 = <&keys_pin>;
 		pinctrl-names = "default";
 
 		button@1 {
@@ -128,15 +128,15 @@
 };
 
 &pinctrl {
-	pinctrl-0 = <&pmx_phy_int>;
+	pinctrl-0 = <&phy_int_pin>;
 	pinctrl-names = "default";
 
-	pmx_keys: pmx-keys {
+	keys_pin: keys-pin {
 		marvell,pins = "mpp33";
 		marvell,function = "gpio";
 	};
 
-	pmx_phy_int: pmx-phy-int {
+	phy_int_pin: phy-int-pin {
 		marvell,pins = "mpp32";
 		marvell,function = "gpio";
 	};
