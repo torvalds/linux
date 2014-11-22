@@ -55,6 +55,30 @@ DEFINE_SIMPLE_ATTRIBUTE(misc_fops, inj_misc_get, inj_misc_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(addr_fops, inj_addr_get, inj_addr_set, "%llx\n");
 
 /*
+ * Caller needs to be make sure this cpu doesn't disappear
+ * from under us, i.e.: get_cpu/put_cpu.
+ */
+static int toggle_hw_mce_inject(unsigned int cpu, bool enable)
+{
+	u32 l, h;
+	int err;
+
+	err = rdmsr_on_cpu(cpu, MSR_K7_HWCR, &l, &h);
+	if (err) {
+		pr_err("%s: error reading HWCR\n", __func__);
+		return err;
+	}
+
+	enable ? (l |= BIT(18)) : (l &= ~BIT(18));
+
+	err = wrmsr_on_cpu(cpu, MSR_K7_HWCR, l, h);
+	if (err)
+		pr_err("%s: error writing HWCR\n", __func__);
+
+	return err;
+}
+
+/*
  * This denotes into which bank we're injecting and triggers
  * the injection, at the same time.
  */
