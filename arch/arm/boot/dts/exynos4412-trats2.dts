@@ -706,28 +706,51 @@
 		pinctrl-0 = <&cam_port_a_clk_active &cam_port_b_clk_active>;
 		pinctrl-names = "default";
 		status = "okay";
+		assigned-clocks = <&clock CLK_MOUT_CAM0>,
+				  <&clock CLK_MOUT_CAM1>;
+		assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>,
+					 <&clock CLK_MOUT_MPLL_USER_T>;
 
 		fimc_0: fimc@11800000 {
 			status = "okay";
+			assigned-clocks = <&clock CLK_MOUT_FIMC0>,
+					<&clock CLK_SCLK_FIMC0>;
+			assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+			assigned-clock-rates = <0>, <176000000>;
 		};
 
 		fimc_1: fimc@11810000 {
 			status = "okay";
+			assigned-clocks = <&clock CLK_MOUT_FIMC1>,
+					<&clock CLK_SCLK_FIMC1>;
+			assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+			assigned-clock-rates = <0>, <176000000>;
 		};
 
 		fimc_2: fimc@11820000 {
 			status = "okay";
+			assigned-clocks = <&clock CLK_MOUT_FIMC2>,
+					<&clock CLK_SCLK_FIMC2>;
+			assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+			assigned-clock-rates = <0>, <176000000>;
 		};
 
 		fimc_3: fimc@11830000 {
 			status = "okay";
+			assigned-clocks = <&clock CLK_MOUT_FIMC3>,
+					<&clock CLK_SCLK_FIMC3>;
+			assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+			assigned-clock-rates = <0>, <176000000>;
 		};
 
 		csis_0: csis@11880000 {
 			status = "okay";
 			vddcore-supply = <&ldo8_reg>;
 			vddio-supply = <&ldo10_reg>;
-			clock-frequency = <176000000>;
+			assigned-clocks = <&clock CLK_MOUT_CSIS0>,
+					<&clock CLK_SCLK_CSIS0>;
+			assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+			assigned-clock-rates = <0>, <176000000>;
 
 			/* Camera C (3) MIPI CSI-2 (CSIS0) */
 			port@3 {
@@ -741,10 +764,13 @@
 		};
 
 		csis_1: csis@11890000 {
+			status = "okay";
 			vddcore-supply = <&ldo8_reg>;
 			vddio-supply = <&ldo10_reg>;
-			clock-frequency = <160000000>;
-			status = "okay";
+			assigned-clocks = <&clock CLK_MOUT_CSIS1>,
+					<&clock CLK_SCLK_CSIS1>;
+			assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+			assigned-clock-rates = <0>, <176000000>;
 
 			/* Camera D (4) MIPI CSI-2 (CSIS1) */
 			port@4 {
