@@ -215,20 +215,13 @@ static void gb_operation_work(struct work_struct *work)
 
 /*
  * Timeout call for the operation.
- *
- * If this fires, something went wrong, so mark the result as timed out, and
- * run the completion handler, which (hopefully) should clean up the operation
- * properly.
  */
-static void operation_timeout(struct work_struct *work)
+static void gb_operation_timeout(struct work_struct *work)
 {
 	struct gb_operation *operation;
 
 	operation = container_of(work, struct gb_operation, timeout_work.work);
-	pr_debug("%s: timeout!\n", __func__);
-
-	operation->errno = -ETIMEDOUT;
-	gb_operation_complete(operation);
+	gb_operation_cancel(operation, -ETIMEDOUT);
 }
 
 /*
@@ -376,7 +369,7 @@ gb_operation_create_common(struct gb_connection *connection, bool outgoing,
 	INIT_WORK(&operation->work, gb_operation_work);
 	operation->callback = NULL;	/* set at submit time */
 	init_completion(&operation->completion);
-	INIT_DELAYED_WORK(&operation->timeout_work, operation_timeout);
+	INIT_DELAYED_WORK(&operation->timeout_work, gb_operation_timeout);
 	kref_init(&operation->kref);
 
 	spin_lock_irq(&gb_operations_lock);
@@ -633,11 +626,11 @@ void gb_connection_recv(struct gb_connection *connection,
 }
 
 /*
- * Cancel an operation.
+ * Cancel an operation, and record the given error to indicate why.
  */
-void gb_operation_cancel(struct gb_operation *operation)
+void gb_operation_cancel(struct gb_operation *operation, int errno)
 {
-	operation->canceled = true;
+	operation->errno = errno;
 	gb_message_cancel(operation->request);
 	gb_message_cancel(operation->response);
 }

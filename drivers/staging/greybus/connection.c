@@ -212,7 +212,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	if (WARN_ON(!list_empty(&connection->operations))) {
 		list_for_each_entry_safe(operation, next,
 					 &connection->operations, links)
-			gb_operation_cancel(operation);
+			gb_operation_cancel(operation, -ESHUTDOWN);
 	}
 	spin_lock_irq(&gb_connections_lock);
 	list_del(&connection->interface_links);

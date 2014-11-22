@@ -69,7 +69,6 @@ struct gb_operation {
 	struct gb_message	*request;
 	struct gb_message	*response;
 	u16			id;
-	bool			canceled;
 
 	int			errno;		/* Operation result */
 
@@ -99,7 +98,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback);
 int gb_operation_response_send(struct gb_operation *operation);
 
-void gb_operation_cancel(struct gb_operation *operation);
+void gb_operation_cancel(struct gb_operation *operation, int errno);
 int gb_operation_wait(struct gb_operation *operation);
 
 int gb_operation_status_map(u8 status);
