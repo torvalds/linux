@@ -2181,8 +2181,7 @@ sh_mobile_lcdc_channel_fb_cleanup(struct sh_mobile_lcdc_chan *ch)
 	if (!info || !info->device)
 		return;
 
-	if (ch->sglist)
-		vfree(ch->sglist);
+	vfree(ch->sglist);
 
 	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
