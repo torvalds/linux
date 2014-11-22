@@ -143,6 +143,8 @@ static int __init eeh_setup(char *str)
 {
 	if (!strcmp(str, "off"))
 		eeh_add_flag(EEH_FORCE_DISABLED);
+	else if (!strcmp(str, "early_log"))
+		eeh_add_flag(EEH_EARLY_DUMP_LOG);
 
 	return 1;
 }

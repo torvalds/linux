@@ -39,6 +39,7 @@ struct device_node;
 #define EEH_PROBE_MODE_DEV	0x04	/* From PCI device	*/
 #define EEH_PROBE_MODE_DEVTREE	0x08	/* From device tree	*/
 #define EEH_ENABLE_IO_FOR_LOG	0x10	/* Enable IO for log	*/
+#define EEH_EARLY_DUMP_LOG	0x20	/* Dump log immediately	*/
 
 /*
  * Delay for PE reset, all in ms
