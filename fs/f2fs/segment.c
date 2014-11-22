@@ -230,7 +230,16 @@ void commit_inmem_pages(struct inode *inode, bool abort)
 		.rw = WRITE_SYNC,
 	};
 
-	f2fs_balance_fs(sbi);
+	/*
+	 * The abort is true only when f2fs_evict_inode is called.
+	 * Basically, the f2fs_evict_inode doesn't produce any data writes, so
+	 * that we don't need to call f2fs_balance_fs.
+	 * Otherwise, f2fs_gc in f2fs_balance_fs can wait forever until this
+	 * inode becomes free by iget_locked in f2fs_iget.
+	 */
+	if (!abort)
+		f2fs_balance_fs(sbi);
+
 	f2fs_lock_op(sbi);
 
 	mutex_lock(&fi->inmem_lock);
