@@ -271,8 +271,7 @@ ino_t f2fs_inode_by_name(struct inode *dir, struct qstr *qstr)
 	de = f2fs_find_entry(dir, qstr, &page);
 	if (de) {
 		res = le32_to_cpu(de->ino);
-		if (!f2fs_has_inline_dentry(dir))
-			kunmap(page);
+		f2fs_dentry_kunmap(dir, page);
 		f2fs_put_page(page, 0);
 	}
 

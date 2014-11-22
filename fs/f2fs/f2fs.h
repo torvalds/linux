@@ -1229,6 +1229,12 @@ static inline void *inline_dentry_addr(struct page *page)
 	return (void *)&(ri->i_addr[1]);
 }
 
+static inline void f2fs_dentry_kunmap(struct inode *dir, struct page *page)
+{
+	if (!f2fs_has_inline_dentry(dir))
+		kunmap(page);
+}
+
 static inline int f2fs_readonly(struct super_block *sb)
 {
 	return sb->s_flags & MS_RDONLY;
