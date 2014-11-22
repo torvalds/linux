@@ -156,23 +156,8 @@ static void gb_operation_complete(struct gb_operation *operation)
 	if (operation->callback)
 		operation->callback(operation);
 	else
-		complete_all(&operation->completion);
+		complete(&operation->completion);
 	gb_operation_put(operation);
-}
-
-/*
- * Wait for a submitted operation to complete.  Returns the result
- * of the operation; this will be -EINTR if the wait was interrupted.
- */
-static int gb_operation_wait(struct gb_operation *operation)
-{
-	int ret;
-
-	ret = wait_for_completion_interruptible(&operation->completion);
-	if (ret < 0)
-		gb_operation_cancel(operation, -EINTR);
-
-	return operation->errno;
 }
 
 #if 0
@@ -478,7 +463,12 @@ int gb_operation_request_send(struct gb_operation *operation,
 	if (ret || callback)
 		return ret;
 
-	return gb_operation_wait(operation);
+	/* Cancel the operation if interrupted */
+	ret = wait_for_completion_interruptible(&operation->completion);
+	if (ret < 0)
+		gb_operation_cancel(operation, -EINTR);
+
+	return operation->errno;
 }
 
 /*
