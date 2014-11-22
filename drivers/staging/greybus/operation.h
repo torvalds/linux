@@ -73,7 +73,7 @@ struct gb_operation {
 
 	int			errno;		/* Operation result */
 
-	struct work_struct	recv_work;
+	struct work_struct	work;
 	gb_operation_callback	callback;	/* If asynchronous */
 	struct completion	completion;	/* Used if no callback */
 	struct delayed_work	timeout_work;

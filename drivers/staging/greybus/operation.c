@@ -30,7 +30,7 @@
 static struct kmem_cache *gb_operation_cache;
 
 /* Workqueue to handle Greybus operation completions. */
-static struct workqueue_struct *gb_operation_recv_workqueue;
+static struct workqueue_struct *gb_operation_workqueue;
 
 /*
  * All operation messages (both requests and responses) begin with
@@ -177,6 +177,7 @@ int gb_operation_wait(struct gb_operation *operation)
 	return ret;
 }
 
+#if 0
 static void gb_operation_request_handle(struct gb_operation *operation)
 {
 	struct gb_protocol *protocol = operation->connection->protocol;
@@ -197,22 +198,17 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 		"unexpected incoming request type 0x%02hhx\n", header->type);
 	operation->errno = -EPROTONOSUPPORT;
 }
+#endif
 
 /*
- * Either this operation contains an incoming request, or its
- * response has arrived.  An incoming request will have a null
- * response buffer pointer (it is the responsibility of the request
- * handler to allocate and fill in the response buffer).
+ * Complete an operation in non-atomic context.  The operation's
+ * result value should have been set before queueing this.
  */
-static void gb_operation_recv_work(struct work_struct *recv_work)
+static void gb_operation_work(struct work_struct *work)
 {
 	struct gb_operation *operation;
-	bool incoming_request;
 
-	operation = container_of(recv_work, struct gb_operation, recv_work);
-	incoming_request = operation->response->header == NULL;
-	if (incoming_request)
-		gb_operation_request_handle(operation);
+	operation = container_of(work, struct gb_operation, work);
 	gb_operation_complete(operation);
 }
 
@@ -376,7 +372,7 @@ gb_operation_create_common(struct gb_connection *connection, bool outgoing,
 		operation->response->operation = operation;
 	}
 
-	INIT_WORK(&operation->recv_work, gb_operation_recv_work);
+	INIT_WORK(&operation->work, gb_operation_work);
 	operation->callback = NULL;	/* set at submit time */
 	init_completion(&operation->completion);
 	INIT_DELAYED_WORK(&operation->timeout_work, operation_timeout);
@@ -536,8 +532,9 @@ void gb_connection_recv_request(struct gb_connection *connection,
 	operation->id = operation_id;
 	memcpy(operation->request->header, data, size);
 
-	/* The rest will be handled in work queue context */
-	queue_work(gb_operation_recv_workqueue, &operation->recv_work);
+	/* XXX Right now this will just complete the operation */
+	operation->errno = -ENOSYS;
+	queue_work(gb_operation_workqueue, &operation->work);
 }
 
 /*
@@ -579,7 +576,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 		memcpy(message->header, data, size);
 
 	/* The rest will be handled in work queue context */
-	queue_work(gb_operation_recv_workqueue, &operation->recv_work);
+	queue_work(gb_operation_workqueue, &operation->work);
 }
 
 /*
@@ -628,8 +625,7 @@ void gb_operation_cancel(struct gb_operation *operation)
 {
 	operation->canceled = true;
 	gb_message_cancel(operation->request);
-	if (operation->response->header)
-		gb_message_cancel(operation->response);
+	gb_message_cancel(operation->response);
 }
 
 int gb_operation_init(void)
@@ -639,8 +635,8 @@ int gb_operation_init(void)
 	if (!gb_operation_cache)
 		return -ENOMEM;
 
-	gb_operation_recv_workqueue = alloc_workqueue("greybus_recv", 0, 1);
-	if (!gb_operation_recv_workqueue) {
+	gb_operation_workqueue = alloc_workqueue("greybus_operation", 0, 1);
+	if (!gb_operation_workqueue) {
 		kmem_cache_destroy(gb_operation_cache);
 		gb_operation_cache = NULL;
 		return -ENOMEM;
@@ -651,8 +647,8 @@ int gb_operation_init(void)
 
 void gb_operation_exit(void)
 {
-	destroy_workqueue(gb_operation_recv_workqueue);
-	gb_operation_recv_workqueue = NULL;
+	destroy_workqueue(gb_operation_workqueue);
+	gb_operation_workqueue = NULL;
 	kmem_cache_destroy(gb_operation_cache);
 	gb_operation_cache = NULL;
 }
