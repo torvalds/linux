@@ -145,21 +145,6 @@ static void gb_message_cancel(struct gb_message *message)
 	hd->driver->buffer_cancel(message->cookie);
 }
 
-/*
- * An operation's response message has arrived.  If no callback was
- * supplied it was submitted for asynchronous completion, so we notify
- * any waiters.  Otherwise we assume calling the completion is enough
- * and nobody else will be waiting.
- */
-static void gb_operation_complete(struct gb_operation *operation)
-{
-	if (operation->callback)
-		operation->callback(operation);
-	else
-		complete(&operation->completion);
-	gb_operation_put(operation);
-}
-
 #if 0
 static void gb_operation_request_handle(struct gb_operation *operation)
 {
@@ -192,7 +177,12 @@ static void gb_operation_work(struct work_struct *work)
 	struct gb_operation *operation;
 
 	operation = container_of(work, struct gb_operation, work);
-	gb_operation_complete(operation);
+	if (WARN_ON(!operation->callback))
+		return;
+
+	operation->callback(operation);
+	operation->callback = NULL;
+	gb_operation_put(operation);
 }
 
 /*
@@ -423,14 +413,22 @@ void gb_operation_put(struct gb_operation *operation)
 		kref_put(&operation->kref, _gb_operation_destroy);
 }
 
+/* Tell the requester we're done */
+static void gb_operation_sync_callback(struct gb_operation *operation)
+{
+	complete(&operation->completion);
+}
+
 /*
  * Send an operation request message.  The caller has filled in
  * any payload so the request message is ready to go.  If non-null,
  * the callback function supplied will be called when the response
- * message has arrived indicating the operation is complete.  A null
+ * message has arrived indicating the operation is complete.  In
+ * that case, the callback function is responsible for extracting
+ * the result of the operation from operation->errno if desired,
+ * and dropping the final reference to the operation.  A null
  * callback function is used for a synchronous request; return from
- * this function won't occur until the operation is complete (or an
- * interrupt occurs).
+ * this function won't occur until the operation is complete.
  */
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback)
@@ -447,7 +445,11 @@ int gb_operation_request_send(struct gb_operation *operation,
 	 */
 	gb_operation_get(operation);
 
-	operation->callback = callback;
+	/* A null callback pointer means synchronous return */
+	if (callback)
+		operation->callback = callback;
+	else
+		operation->callback = gb_operation_sync_callback;
 	gb_pending_operation_insert(operation);
 
 	/*
