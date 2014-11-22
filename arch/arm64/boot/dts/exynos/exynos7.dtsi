@@ -17,6 +17,17 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	aliases {
+		pinctrl0 = &pinctrl_alive;
+		pinctrl1 = &pinctrl_bus0;
+		pinctrl2 = &pinctrl_nfc;
+		pinctrl3 = &pinctrl_touch;
+		pinctrl4 = &pinctrl_ff;
+		pinctrl5 = &pinctrl_ese;
+		pinctrl6 = &pinctrl_fsys0;
+		pinctrl7 = &pinctrl_fsys1;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -172,6 +183,59 @@
 			status = "disabled";
 		};
 
+		pinctrl_alive: pinctrl@10580000 {
+			compatible = "samsung,exynos7-pinctrl";
+			reg = <0x10580000 0x1000>;
+
+			wakeup-interrupt-controller {
+				compatible = "samsung,exynos7-wakeup-eint";
+				interrupt-parent = <&gic>;
+				interrupts = <0 16 0>;
+			};
+		};
+
+		pinctrl_bus0: pinctrl@13470000 {
+			compatible = "samsung,exynos7-pinctrl";
+			reg = <0x13470000 0x1000>;
+			interrupts = <0 383 0>;
+		};
+
+		pinctrl_nfc: pinctrl@14cd0000 {
+			compatible = "samsung,exynos7-pinctrl";
+			reg = <0x14cd0000 0x1000>;
+			interrupts = <0 473 0>;
+		};
+
+		pinctrl_touch: pinctrl@14ce0000 {
+			compatible = "samsung,exynos7-pinctrl";
+			reg = <0x14ce0000 0x1000>;
+			interrupts = <0 474 0>;
+		};
+
+		pinctrl_ff: pinctrl@14c90000 {
+			compatible = "samsung,exynos7-pinctrl";
+			reg = <0x14c90000 0x1000>;
+			interrupts = <0 475 0>;
+		};
+
+		pinctrl_ese: pinctrl@14ca0000 {
+			compatible = "samsung,exynos7-pinctrl";
+			reg = <0x14ca0000 0x1000>;
+			interrupts = <0 476 0>;
+		};
+
+		pinctrl_fsys0: pinctrl@10e60000 {
+			compatible = "samsung,exynos7-pinctrl";
+			reg = <0x10e60000 0x1000>;
+			interrupts = <0 221 0>;
+		};
+
+		pinctrl_fsys1: pinctrl@15690000 {
+			compatible = "samsung,exynos7-pinctrl";
+			reg = <0x15690000 0x1000>;
+			interrupts = <0 203 0>;
+		};
+
 		timer {
 			compatible = "arm,armv8-timer";
 			interrupts = <1 13 0xff01>,
@@ -181,3 +245,5 @@
 		};
 	};
 };
+
+#include "exynos7-pinctrl.dtsi"
