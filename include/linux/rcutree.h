@@ -81,6 +81,9 @@ void cond_synchronize_rcu(unsigned long oldstate);
 
 extern unsigned long rcutorture_testseq;
 extern unsigned long rcutorture_vernum;
+unsigned long rcu_batches_started(void);
+unsigned long rcu_batches_started_bh(void);
+unsigned long rcu_batches_started_sched(void);
 unsigned long rcu_batches_completed(void);
 unsigned long rcu_batches_completed_bh(void);
 unsigned long rcu_batches_completed_sched(void);

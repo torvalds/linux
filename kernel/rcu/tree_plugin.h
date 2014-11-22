@@ -114,25 +114,6 @@ static void __init rcu_bootup_announce(void)
 }
 
 /*
- * Return the number of RCU-preempt batches processed thus far
- * for debug and statistics.
- */
-static unsigned long rcu_batches_completed_preempt(void)
-{
-	return rcu_preempt_state.completed;
-}
-EXPORT_SYMBOL_GPL(rcu_batches_completed_preempt);
-
-/*
- * Return the number of RCU batches processed thus far for debug & stats.
- */
-unsigned long rcu_batches_completed(void)
-{
-	return rcu_batches_completed_preempt();
-}
-EXPORT_SYMBOL_GPL(rcu_batches_completed);
-
-/*
  * Record a preemptible-RCU quiescent state for the specified CPU.  Note
  * that this just means that the task currently running on the CPU is
  * not in a quiescent state.  There might be any number of tasks blocked
@@ -931,15 +912,6 @@ static void __init rcu_bootup_announce(void)
 	pr_info("Hierarchical RCU implementation.\n");
 	rcu_bootup_announce_oddness();
 }
-
-/*
- * Return the number of RCU batches processed thus far for debug & stats.
- */
-unsigned long rcu_batches_completed(void)
-{
-	return rcu_batches_completed_sched();
-}
-EXPORT_SYMBOL_GPL(rcu_batches_completed);
 
 /*
  * Because preemptible RCU does not exist, we never have to check for

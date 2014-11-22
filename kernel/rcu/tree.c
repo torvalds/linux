@@ -315,7 +315,43 @@ static void force_quiescent_state(struct rcu_state *rsp);
 static int rcu_pending(void);
 
 /*
- * Return the number of RCU-sched batches processed thus far for debug & stats.
+ * Return the number of RCU batches started thus far for debug & stats.
+ */
+unsigned long rcu_batches_started(void)
+{
+	return rcu_state_p->gpnum;
+}
+EXPORT_SYMBOL_GPL(rcu_batches_started);
+
+/*
+ * Return the number of RCU-sched batches started thus far for debug & stats.
+ */
+unsigned long rcu_batches_started_sched(void)
+{
+	return rcu_sched_state.gpnum;
+}
+EXPORT_SYMBOL_GPL(rcu_batches_started_sched);
+
+/*
+ * Return the number of RCU BH batches started thus far for debug & stats.
+ */
+unsigned long rcu_batches_started_bh(void)
+{
+	return rcu_bh_state.gpnum;
+}
+EXPORT_SYMBOL_GPL(rcu_batches_started_bh);
+
+/*
+ * Return the number of RCU batches completed thus far for debug & stats.
+ */
+unsigned long rcu_batches_completed(void)
+{
+	return rcu_state_p->completed;
+}
+EXPORT_SYMBOL_GPL(rcu_batches_completed);
+
+/*
+ * Return the number of RCU-sched batches completed thus far for debug & stats.
  */
 unsigned long rcu_batches_completed_sched(void)
 {
@@ -324,7 +360,7 @@ unsigned long rcu_batches_completed_sched(void)
 EXPORT_SYMBOL_GPL(rcu_batches_completed_sched);
 
 /*
- * Return the number of RCU BH batches processed thus far for debug & stats.
+ * Return the number of RCU BH batches completed thus far for debug & stats.
  */
 unsigned long rcu_batches_completed_bh(void)
 {
