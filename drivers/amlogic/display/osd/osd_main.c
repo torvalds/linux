@@ -1898,6 +1898,7 @@ osd_probe(struct platform_device *pdev)
 	}
 	amlog_level(LOG_LEVEL_HIGH,"osd probe ok  \r\n");
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, NULL);
+	osddev_free_scale_enable(osd_info.index, 0);
 	return 0;
 
 failed2:
