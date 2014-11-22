@@ -104,21 +104,15 @@ static int gb_pwm_proto_version_operation(struct gb_pwm_chip *pwmc)
 		goto out;
 	}
 
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "version result %hhu",
-				  operation->result);
-	} else {
-		response = operation->response->payload;
-		if (response->major > GB_PWM_VERSION_MAJOR) {
-			pr_err("unsupported major version (%hhu > %hhu)\n",
-				response->major, GB_PWM_VERSION_MAJOR);
-			ret = -ENOTSUPP;
-			goto out;
-		}
-		pwmc->version_major = response->major;
-		pwmc->version_minor = response->minor;
+	response = operation->response->payload;
+	if (response->major > GB_PWM_VERSION_MAJOR) {
+		pr_err("unsupported major version (%hhu > %hhu)\n",
+			response->major, GB_PWM_VERSION_MAJOR);
+		ret = -ENOTSUPP;
+		goto out;
 	}
+	pwmc->version_major = response->major;
+	pwmc->version_minor = response->minor;
 out:
 	gb_operation_destroy(operation);
 
@@ -142,18 +136,10 @@ static int gb_pwm_count_operation(struct gb_pwm_chip *pwmc)
 	ret = gb_operation_request_send(operation, NULL);
 	if (ret) {
 		pr_err("line count operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "pwm count result %hhu",
-				  operation->result);
 	} else {
 		response = operation->response->payload;
 		pwmc->pwm_max = response->count;
 	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -180,17 +166,8 @@ static int gb_pwm_activate_operation(struct gb_pwm_chip *pwmc,
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("activate operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "activate result %hhu",
-				  operation->result);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -217,17 +194,8 @@ static int gb_pwm_deactivate_operation(struct gb_pwm_chip *pwmc,
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("deactivate operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "deactivate result %hhu",
-				  operation->result);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -255,17 +223,8 @@ static int gb_pwm_config_operation(struct gb_pwm_chip *pwmc,
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("config operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "config result %hhu",
-				  operation->result);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -293,17 +252,8 @@ static int gb_pwm_set_polarity_operation(struct gb_pwm_chip *pwmc,
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("set polarity operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "set polarity result %hhu",
-				  operation->result);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -330,17 +280,8 @@ static int gb_pwm_enable_operation(struct gb_pwm_chip *pwmc,
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("enable operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "enable result %hhu",
-				  operation->result);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -367,17 +308,8 @@ static int gb_pwm_disable_operation(struct gb_pwm_chip *pwmc,
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("disable operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "disable result %hhu",
-				  operation->result);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;

@@ -159,7 +159,11 @@ static void gb_operation_complete(struct gb_operation *operation)
 		complete_all(&operation->completion);
 }
 
-/* Wait for a submitted operation to complete */
+/*
+ * Wait for a submitted operation to complete.  Returns -RESTARTSYS
+ * if the wait was interrupted.  Otherwise returns the result of the
+ * operation.
+ */
 int gb_operation_wait(struct gb_operation *operation)
 {
 	int ret;
@@ -168,6 +172,8 @@ int gb_operation_wait(struct gb_operation *operation)
 	/* If interrupted, cancel the in-flight buffer */
 	if (ret < 0)
 		gb_message_cancel(operation->request);
+	else
+		ret = operation->errno;
 	return ret;
 }
 
@@ -189,7 +195,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 
 	gb_connection_err(operation->connection,
 		"unexpected incoming request type 0x%02hhx\n", header->type);
-	operation->result = GB_OP_PROTOCOL_BAD;
+	operation->errno = -EPROTONOSUPPORT;
 }
 
 /*
@@ -224,7 +230,7 @@ static void operation_timeout(struct work_struct *work)
 	operation = container_of(work, struct gb_operation, timeout_work.work);
 	pr_debug("%s: timeout!\n", __func__);
 
-	operation->result = GB_OP_TIMEOUT;
+	operation->errno = -ETIMEDOUT;
 	gb_operation_complete(operation);
 }
 
@@ -470,13 +476,10 @@ int gb_operation_request_send(struct gb_operation *operation,
 
 	/* All set, send the request */
 	ret = gb_message_send(operation->request, GFP_KERNEL);
-	if (ret)
+	if (ret || callback)
 		return ret;
 
-	if (!callback)
-		ret = gb_operation_wait(operation);
-
-	return ret;
+	return gb_operation_wait(operation);
 }
 
 /*
@@ -493,8 +496,6 @@ int gb_operation_response_send(struct gb_operation *operation)
  * This function is called when a buffer send request has completed.
  * The "header" is the message header--the beginning of what we
  * asked to have sent.
- *
- * XXX Mismatch between errno here and operation result code
  */
 void
 greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
@@ -510,7 +511,7 @@ greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
 	message = gb_hd_message_find(hd, header);
 	operation = message->operation;
 	gb_connection_err(operation->connection, "send error %d\n", status);
-	operation->result = status;	/* XXX */
+	operation->errno = status;
 	gb_operation_complete(operation);
 }
 EXPORT_SYMBOL_GPL(greybus_data_sent);
@@ -567,14 +568,14 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	if (size <= message->size) {
 		/* Transfer the operation result from the response header */
 		header = message->header;
-		operation->result = header->result;
+		operation->errno = gb_operation_status_map(header->result);
 	} else {
 		gb_connection_err(connection, "recv buffer too small");
-		operation->result = GB_OP_OVERFLOW;
+		operation->errno = -E2BIG;
 	}
 
 	/* We must ignore the payload if a bad status is returned */
-	if (operation->result == GB_OP_SUCCESS)
+	if (!operation->errno)
 		memcpy(message->header, data, size);
 
 	/* The rest will be handled in work queue context */

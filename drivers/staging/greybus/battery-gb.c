@@ -88,7 +88,7 @@ struct gb_battery_voltage_response {
  * None of the battery operation requests have any payload.  This
  * function implements all of the requests by allowing the caller to
  * supply a buffer into which the operation response should be
- * copied.
+ * copied.  If there is an error, the response buffer is left alone.
  */
 static int battery_operation(struct gb_battery *gb, int type,
 			     void *response, int response_size)
@@ -103,25 +103,10 @@ static int battery_operation(struct gb_battery *gb, int type,
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("version operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	/*
-	 * We only want to look at the status, and all requests have the same
-	 * layout for where the status is, so cast this to a random request so
-	 * we can see the status easier.
-	 */
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "operation result %hhu",
-			operation->result);
-	} else {
-		/* Good response, so copy to the caller's buffer */
+	else	/* Good response, so copy to the caller's buffer */
 		memcpy(response, operation->response->payload, response_size);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;

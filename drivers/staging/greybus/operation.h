@@ -13,7 +13,7 @@
 
 struct gb_operation;
 
-enum gb_operation_status {
+enum gb_operation_result {
 	GB_OP_SUCCESS		= 0,
 	GB_OP_INVALID		= 1,
 	GB_OP_NO_MEMORY		= 2,
@@ -71,7 +71,8 @@ struct gb_operation {
 	u16			id;
 	bool			canceled;
 
-	u8			result;
+	int			errno;		/* Operation result */
+
 	struct work_struct	recv_work;
 	gb_operation_callback	callback;	/* If asynchronous */
 	struct completion	completion;	/* Used if no callback */

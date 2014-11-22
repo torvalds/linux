@@ -116,7 +116,8 @@ struct gb_gpio_set_debounce_request {
  * This request only uses the connection field, and if successful,
  * fills in the major and minor protocol version of the target.
  */
-static int gb_gpio_proto_version_operation(struct gb_gpio_controller *gb_gpio_controller)
+static int
+gb_gpio_proto_version_operation(struct gb_gpio_controller *gb_gpio_controller)
 {
 	struct gb_connection *connection = gb_gpio_controller->connection;
 	struct gb_operation *operation;
@@ -137,24 +138,14 @@ static int gb_gpio_proto_version_operation(struct gb_gpio_controller *gb_gpio_co
 		goto out;
 	}
 
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "version result %hhu",
-			operation->result);
+	response = operation->response->payload;
+	if (response->major > GB_GPIO_VERSION_MAJOR) {
+		pr_err("unsupported major version (%hhu > %hhu)\n",
+			response->major, GB_GPIO_VERSION_MAJOR);
+		ret = -ENOTSUPP;
 	} else {
-		response = operation->response->payload;
-		if (response->major > GB_GPIO_VERSION_MAJOR) {
-			pr_err("unsupported major version (%hhu > %hhu)\n",
-				response->major, GB_GPIO_VERSION_MAJOR);
-			ret = -ENOTSUPP;
-			goto out;
-		}
 		gb_gpio_controller->version_major = response->major;
 		gb_gpio_controller->version_minor = response->minor;
-
-		pr_debug("%s: version_major = %u version_minor = %u\n", __func__,
-			  gb_gpio_controller->version_major,
-			  gb_gpio_controller->version_minor);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -180,21 +171,10 @@ static int gb_gpio_line_count_operation(struct gb_gpio_controller *gb_gpio_contr
 	ret = gb_operation_request_send(operation, NULL);
 	if (ret) {
 		pr_err("line count operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "line count result %hhu",
-			operation->result);
 	} else {
 		response = operation->response->payload;
 		gb_gpio_controller->line_max = response->count;
-
-		pr_debug("%s: count = %u\n", __func__,
-			  gb_gpio_controller->line_max + 1);
 	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -222,21 +202,10 @@ static int gb_gpio_activate_operation(struct gb_gpio_controller *gb_gpio_control
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("activate operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "activate result %hhu",
-			operation->result);
-	} else {
+	else
 		gb_gpio_controller->lines[which].active = true;
-
-		pr_debug("%s: %u is now active\n", __func__, which);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -264,20 +233,10 @@ static int gb_gpio_deactivate_operation(struct gb_gpio_controller *gb_gpio_contr
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("deactivate operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "deactivate result %hhu",
-			operation->result);
-	} else {
+	else
 		gb_gpio_controller->lines[which].active = false;
-		pr_debug("%s: %u is now inactive\n", __func__, which);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -291,6 +250,7 @@ static int gb_gpio_get_direction_operation(struct gb_gpio_controller *gb_gpio_co
 	struct gb_gpio_get_direction_request *request;
 	struct gb_gpio_get_direction_response *response;
 	int ret;
+	u8 direction;
 
 	if (which > gb_gpio_controller->line_max)
 		return -EINVAL;
@@ -310,22 +270,12 @@ static int gb_gpio_get_direction_operation(struct gb_gpio_controller *gb_gpio_co
 		goto out;
 	}
 
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "get direction result %hhu",
-			operation->result);
-	} else {
-		u8 direction;
-
-		response = operation->response->payload;
-		direction = response->direction;
-		if (direction && direction != 1)
-			pr_warn("gpio %u direction was %u (should be 0 or 1)\n",
-				which, direction);
-		gb_gpio_controller->lines[which].direction = direction ? 1 : 0;
-		pr_debug("%s: direction of %u is %s\n", __func__, which,
-			  direction ? "in" : "out");
-	}
+	response = operation->response->payload;
+	direction = response->direction;
+	if (direction && direction != 1)
+		pr_warn("gpio %u direction was %u (should be 0 or 1)\n",
+			which, direction);
+	gb_gpio_controller->lines[which].direction = direction ? 1 : 0;
 out:
 	gb_operation_destroy(operation);
 
@@ -354,20 +304,10 @@ static int gb_gpio_direction_in_operation(struct gb_gpio_controller *gb_gpio_con
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("direction in operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "direction in result %hhu",
-			operation->result);
-	} else {
+	else
 		gb_gpio_controller->lines[which].direction = 1;
-		pr_debug("%s: direction of %u is now in\n", __func__, which);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -396,21 +336,10 @@ static int gb_gpio_direction_out_operation(struct gb_gpio_controller *gb_gpio_co
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("direction out operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "direction out result %hhu",
-			operation->result);
-	} else {
+	else
 		gb_gpio_controller->lines[which].direction = 0;
-		pr_debug("%s: direction of %u is now out, value %s\n", __func__,
-			  which, value_high ? "high" : "low");
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -424,6 +353,7 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *gb_gpio_contro
 	struct gb_gpio_get_value_request *request;
 	struct gb_gpio_get_value_response *response;
 	int ret;
+	u8 value;
 
 	if (which > gb_gpio_controller->line_max)
 		return -EINVAL;
@@ -443,24 +373,12 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *gb_gpio_contro
 		goto out;
 	}
 
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "get value result %hhu",
-			operation->result);
-	} else {
-		u8 value;
-
-		response = operation->response->payload;
-		value = response->value;
-		if (value && value != 1)
-			pr_warn("gpio %u value was %u (should be 0 or 1)\n",
-				which, value);
-		gb_gpio_controller->lines[which].value = value ? 1 : 0;
-		/* XXX should this set direction to out? */
-		pr_debug("%s: value of %u is %s\n", __func__, which,
-			  gb_gpio_controller->lines[which].value ? "high" :
-			  "low");
-	}
+	response = operation->response->payload;
+	value = response->value;
+	if (value && value != 1)
+		pr_warn("gpio %u value was %u (should be 0 or 1)\n",
+			which, value);
+	gb_gpio_controller->lines[which].value = value ? 1 : 0;
 out:
 	gb_operation_destroy(operation);
 
@@ -490,23 +408,10 @@ static int gb_gpio_set_value_operation(struct gb_gpio_controller *gb_gpio_contro
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("set value operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "set value result %hhu",
-			operation->result);
-	} else {
-		/* XXX should this set direction to out? */
+	else	/* XXX should this set direction to out? */
 		gb_gpio_controller->lines[which].value = request->value;
-		pr_debug("%s: out value of %u is now %s\n", __func__, which,
-			  gb_gpio_controller->lines[which].value ? "high" :
-			  "low");
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -535,21 +440,11 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *gb_gpio_con
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
+	if (ret)
 		pr_err("set debounce operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "set debounce result %hhu",
-			operation->result);
-	} else {
-		gb_gpio_controller->lines[which].debounce_usec = le16_to_cpu(request->usec);
-		pr_debug("%s: debounce of %u is now %hu usec\n", __func__, which,
-			  gb_gpio_controller->lines[which].debounce_usec);
-	}
-out:
+	else
+		gb_gpio_controller->lines[which].debounce_usec =
+					le16_to_cpu(request->usec);
 	gb_operation_destroy(operation);
 
 	return ret;
@@ -562,7 +457,6 @@ static int gb_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 	if (offset < 0 || offset >= chip->ngpio)
 		return -EINVAL;
-	pr_debug("%s: passed check\n", __func__);
 	ret = gb_gpio_activate_operation(gb_gpio_controller, (u8)offset);
 	if (ret)
 		;	/* return ret; */

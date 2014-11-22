@@ -154,24 +154,18 @@ static int get_version(struct gb_tty *tty)
 		goto out;
 	}
 
-	if (operation->result) {
-		ret = gb_operation_status_map(operation->result);
-		gb_connection_err(tty->connection, "result %hhu",
-			operation->result);
-	} else {
-		response = operation->response->payload;
-		if (response->major > GB_UART_VERSION_MAJOR) {
-			pr_err("unsupported major version (%hhu > %hhu)\n",
-				response->major, GB_UART_VERSION_MAJOR);
-			ret = -ENOTSUPP;
-			goto out;
-		}
-		tty->version_major = response->major;
-		tty->version_minor = response->minor;
-
-		pr_debug("%s: version_major = %u version_minor = %u\n",
-			__func__, tty->version_major, tty->version_minor);
+	response = operation->response->payload;
+	if (response->major > GB_UART_VERSION_MAJOR) {
+		pr_err("unsupported major version (%hhu > %hhu)\n",
+			response->major, GB_UART_VERSION_MAJOR);
+		ret = -ENOTSUPP;
+		goto out;
 	}
+	tty->version_major = response->major;
+	tty->version_minor = response->minor;
+
+	pr_debug("%s: version_major = %u version_minor = %u\n",
+		__func__, tty->version_major, tty->version_minor);
 out:
 	gb_operation_destroy(operation);
 
@@ -198,18 +192,9 @@ static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 
 	/* Synchronous operation--no callback */
 	retval = gb_operation_request_send(operation, NULL);
-	if (retval) {
+	if (retval)
 		dev_err(&connection->dev,
 			"send data operation failed (%d)\n", retval);
-		goto out;
-	}
-
-	if (operation->result) {
-		retval = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "send data result %hhu",
-				  operation->result);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return retval;
@@ -232,18 +217,9 @@ static int send_line_coding(struct gb_tty *tty,
 
 	/* Synchronous operation--no callback */
 	retval = gb_operation_request_send(operation, NULL);
-	if (retval) {
+	if (retval)
 		dev_err(&connection->dev,
 			"send line coding operation failed (%d)\n", retval);
-		goto out;
-	}
-
-	if (operation->result) {
-		retval = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "send line coding result %hhu",
-				  operation->result);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return retval;
@@ -266,18 +242,9 @@ static int send_control(struct gb_tty *tty, u16 control)
 
 	/* Synchronous operation--no callback */
 	retval = gb_operation_request_send(operation, NULL);
-	if (retval) {
+	if (retval)
 		dev_err(&connection->dev,
 			"send control operation failed (%d)\n", retval);
-		goto out;
-	}
-
-	if (operation->result) {
-		retval = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "send control result %hhu",
-				  operation->result);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return retval;
@@ -304,18 +271,9 @@ static int send_break(struct gb_tty *tty, u8 state)
 
 	/* Synchronous operation--no callback */
 	retval = gb_operation_request_send(operation, NULL);
-	if (retval) {
+	if (retval)
 		dev_err(&connection->dev,
 			"send break operation failed (%d)\n", retval);
-		goto out;
-	}
-
-	if (operation->result) {
-		retval = gb_operation_status_map(operation->result);
-		gb_connection_err(connection, "send break result %hhu",
-				  operation->result);
-	}
-out:
 	gb_operation_destroy(operation);
 
 	return retval;
