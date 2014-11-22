@@ -66,6 +66,8 @@ static char ixgbevf_copyright[] =
 static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
 	[board_82599_vf] = &ixgbevf_82599_vf_info,
 	[board_X540_vf]  = &ixgbevf_X540_vf_info,
+	[board_X550_vf]  = &ixgbevf_X550_vf_info,
+	[board_X550EM_x_vf] = &ixgbevf_X550EM_x_vf_info,
 };
 
 /* ixgbevf_pci_tbl - PCI Device ID Table
@@ -79,6 +81,8 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
 static const struct pci_device_id ixgbevf_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF), board_82599_vf },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF), board_X540_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550_VF), board_X550_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF), board_X550EM_x_vf },
 	/* required last entry */
 	{0, }
 };
@@ -3529,7 +3533,7 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 		max_possible_frame = IXGBE_MAX_JUMBO_FRAME_SIZE;
 		break;
 	default:
-		if (adapter->hw.mac.type == ixgbe_mac_X540_vf)
+		if (adapter->hw.mac.type != ixgbe_mac_82599_vf)
 			max_possible_frame = IXGBE_MAX_JUMBO_FRAME_SIZE;
 		break;
 	}
@@ -3860,12 +3864,23 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ixgbevf_init_last_counter_stats(adapter);
 
-	/* print the MAC address */
-	hw_dbg(hw, "%pM\n", netdev->dev_addr);
+	/* print the VF info */
+	dev_info(&pdev->dev, "%pM\n", netdev->dev_addr);
+	dev_info(&pdev->dev, "MAC: %d\n", hw->mac.type);
 
-	hw_dbg(hw, "MAC: %d\n", hw->mac.type);
+	switch (hw->mac.type) {
+	case ixgbe_mac_X550_vf:
+		dev_info(&pdev->dev, "Intel(R) X550 Virtual Function\n");
+		break;
+	case ixgbe_mac_X540_vf:
+		dev_info(&pdev->dev, "Intel(R) X540 Virtual Function\n");
+		break;
+	case ixgbe_mac_82599_vf:
+	default:
+		dev_info(&pdev->dev, "Intel(R) 82599 Virtual Function\n");
+		break;
+	}
 
-	hw_dbg(hw, "Intel(R) 82599 Virtual Function\n");
 	return 0;
 
 err_register:
