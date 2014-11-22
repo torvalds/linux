@@ -296,11 +296,6 @@ static void rcu_torture_read_unlock(int idx) __releases(RCU)
 	rcu_read_unlock();
 }
 
-static unsigned long rcu_torture_completed(void)
-{
-	return rcu_batches_completed();
-}
-
 /*
  * Update callback in the pipe.  This should be invoked after a grace period.
  */
@@ -377,7 +372,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,
 	.readunlock	= rcu_torture_read_unlock,
-	.completed	= rcu_torture_completed,
+	.completed	= rcu_batches_completed,
 	.deferred_free	= rcu_torture_deferred_free,
 	.sync		= synchronize_rcu,
 	.exp_sync	= synchronize_rcu_expedited,
@@ -407,11 +402,6 @@ static void rcu_bh_torture_read_unlock(int idx) __releases(RCU_BH)
 	rcu_read_unlock_bh();
 }
 
-static unsigned long rcu_bh_torture_completed(void)
-{
-	return rcu_batches_completed_bh();
-}
-
 static void rcu_bh_torture_deferred_free(struct rcu_torture *p)
 {
 	call_rcu_bh(&p->rtort_rcu, rcu_torture_cb);
@@ -423,7 +413,7 @@ static struct rcu_torture_ops rcu_bh_ops = {
 	.readlock	= rcu_bh_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_bh_torture_read_unlock,
-	.completed	= rcu_bh_torture_completed,
+	.completed	= rcu_batches_completed_bh,
 	.deferred_free	= rcu_bh_torture_deferred_free,
 	.sync		= synchronize_rcu_bh,
 	.exp_sync	= synchronize_rcu_bh_expedited,
@@ -600,7 +590,7 @@ static struct rcu_torture_ops sched_ops = {
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
-	.completed	= rcu_no_completed,
+	.completed	= rcu_batches_completed_sched,
 	.deferred_free	= rcu_sched_torture_deferred_free,
 	.sync		= synchronize_sched,
 	.exp_sync	= synchronize_sched_expedited,
