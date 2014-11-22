@@ -88,7 +88,7 @@ void gb_connection_recv(struct gb_connection *connection,
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
 					u8 type, size_t request_size,
 					size_t response_size);
-struct gb_operation *gb_operation_get(struct gb_operation *operation);
+void gb_operation_get(struct gb_operation *operation);
 void gb_operation_put(struct gb_operation *operation);
 static inline void gb_operation_destroy(struct gb_operation *operation)
 {

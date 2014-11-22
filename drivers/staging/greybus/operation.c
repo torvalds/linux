@@ -157,6 +157,7 @@ static void gb_operation_complete(struct gb_operation *operation)
 		operation->callback(operation);
 	else
 		complete_all(&operation->completion);
+	gb_operation_put(operation);
 }
 
 /*
@@ -410,6 +411,14 @@ gb_operation_create_incoming(struct gb_connection *connection,
 }
 
 /*
+ * Get an additional reference on an operation.
+ */
+void gb_operation_get(struct gb_operation *operation)
+{
+	kref_get(&operation->kref);
+}
+
+/*
  * Destroy a previously created operation.
  */
 static void _gb_operation_destroy(struct kref *kref)
@@ -429,6 +438,10 @@ static void _gb_operation_destroy(struct kref *kref)
 	kmem_cache_free(gb_operation_cache, operation);
 }
 
+/*
+ * Drop a reference on an operation, and destroy it when the last
+ * one is gone.
+ */
 void gb_operation_put(struct gb_operation *operation)
 {
 	if (!WARN_ON(!operation))
@@ -454,11 +467,11 @@ int gb_operation_request_send(struct gb_operation *operation,
 		return -ENOTCONN;
 
 	/*
-	 * XXX
-	 * I think the order of operations is going to be
-	 * significant, and if so, we may need a mutex to surround
-	 * setting the operation id and submitting the buffer.
+	 * First, get an extra reference on the operation.
+	 * It'll be dropped when the operation completes.
 	 */
+	gb_operation_get(operation);
+
 	operation->callback = callback;
 	gb_pending_operation_insert(operation);
 
