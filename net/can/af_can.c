@@ -64,9 +64,6 @@
 
 #include "af_can.h"
 
-static __initconst const char banner[] = KERN_INFO
-	"can: controller area network core (" CAN_VERSION_STRING ")\n";
-
 MODULE_DESCRIPTION("Controller Area Network PF_CAN core");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Urs Thuermann <urs.thuermann@volkswagen.de>, "
@@ -896,7 +893,7 @@ static __init int can_init(void)
 		     offsetof(struct can_frame, data) !=
 		     offsetof(struct canfd_frame, data));
 
-	printk(banner);
+	pr_info("can: controller area network core (" CAN_VERSION_STRING ")\n");
 
 	memset(&can_rx_alldev_list, 0, sizeof(can_rx_alldev_list));
 

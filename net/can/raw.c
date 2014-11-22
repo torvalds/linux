@@ -56,8 +56,6 @@
 #include <net/net_namespace.h>
 
 #define CAN_RAW_VERSION CAN_VERSION
-static __initconst const char banner[] =
-	KERN_INFO "can: raw protocol (rev " CAN_RAW_VERSION ")\n";
 
 MODULE_DESCRIPTION("PF_CAN raw protocol");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -810,7 +808,7 @@ static __init int raw_module_init(void)
 {
 	int err;
 
-	printk(banner);
+	pr_info("can: raw protocol (rev " CAN_RAW_VERSION ")\n");
 
 	err = can_proto_register(&raw_can_proto);
 	if (err < 0)
