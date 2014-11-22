@@ -1,0 +1,39 @@
+/*
+ * SAMSUNG Exynos7 Espresso board device tree source
+ *
+ * Copyright (c) 2014 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+/dts-v1/;
+#include "exynos7.dtsi"
+
+/ {
+	model = "Samsung Exynos7 Espresso board based on EXYNOS7";
+	compatible = "samsung,exynos7-espresso", "samsung,exynos7";
+
+	aliases {
+		serial0 = &serial_2;
+	};
+
+	chosen {
+		linux,stdout-path = &serial_2;
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x0 0x40000000 0x0 0xC0000000>;
+	};
+};
+
+&fin_pll {
+	clock-frequency = <24000000>;
+};
+
+&serial_2 {
+	status = "okay";
+};
