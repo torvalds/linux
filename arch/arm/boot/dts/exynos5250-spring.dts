@@ -330,6 +330,22 @@
 	status = "okay";
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <378000>;
+
+	trackpad@4b {
+		compatible = "atmel,maxtouch";
+		reg = <0x4b>;
+		interrupt-parent = <&gpx1>;
+		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&trackpad_irq>;
+		linux,gpio-keymap = <KEY_RESERVED
+				     KEY_RESERVED
+				     KEY_RESERVED
+				     KEY_RESERVED
+				     KEY_RESERVED
+				     BTN_LEFT>;
+		wakeup-source;
+	};
 };
 
 /*
@@ -462,6 +478,13 @@
 		samsung,pins = "gpc3-0";
 		samsung,pin-function = <0>;
 		samsung,pin-pud = <3>;
+		samsung,pin-drv = <0>;
+	};
+
+	trackpad_irq: trackpad-irq {
+		samsung,pins = "gpx1-2";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
 	};
 
