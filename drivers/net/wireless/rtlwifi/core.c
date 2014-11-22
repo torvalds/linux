@@ -786,6 +786,7 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 				    unsigned int changed_flags,
 				    unsigned int *new_flags, u64 multicast)
 {
+	bool update_rcr = false;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 
@@ -806,6 +807,7 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Disable receive multicast frame\n");
 		}
+		update_rcr = true;
 	}
 
 	if (changed_flags & FIF_FCSFAIL) {
@@ -818,6 +820,8 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Disable receive FCS error frame\n");
 		}
+		if (!update_rcr)
+			update_rcr = true;
 	}
 
 	/* if ssid not set to hw don't check bssid
@@ -832,6 +836,8 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 				rtlpriv->cfg->ops->set_chk_bssid(hw, false);
 			else
 				rtlpriv->cfg->ops->set_chk_bssid(hw, true);
+			if (update_rcr)
+				update_rcr = false;
 		}
 	}
 
@@ -846,6 +852,8 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Disable receive control frame.\n");
 		}
+		if (!update_rcr)
+			update_rcr = true;
 	}
 
 	if (changed_flags & FIF_OTHER_BSS) {
@@ -858,7 +866,13 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Disable receive other BSS's frame.\n");
 		}
+		if (!update_rcr)
+			update_rcr = true;
 	}
+
+	if (update_rcr)
+		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR,
+					      (u8 *)(&mac->rx_conf));
 }
 static int rtl_op_sta_add(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif,
