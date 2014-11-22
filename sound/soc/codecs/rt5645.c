@@ -139,6 +139,7 @@ static const struct reg_default rt5645_reg[] = {
 	{ 0x76, 0x000a },
 	{ 0x77, 0x0c00 },
 	{ 0x78, 0x0000 },
+	{ 0x79, 0x0123 },
 	{ 0x80, 0x0000 },
 	{ 0x81, 0x0000 },
 	{ 0x82, 0x0000 },
@@ -334,6 +335,7 @@ static bool rt5645_readable_register(struct device *dev, unsigned int reg)
 	case RT5645_DMIC_CTRL2:
 	case RT5645_TDM_CTRL_1:
 	case RT5645_TDM_CTRL_2:
+	case RT5645_TDM_CTRL_3:
 	case RT5645_GLB_CLK:
 	case RT5645_PLL_CTRL1:
 	case RT5645_PLL_CTRL2:

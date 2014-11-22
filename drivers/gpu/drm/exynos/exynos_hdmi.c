@@ -2312,12 +2312,6 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 
 static void hdmi_unbind(struct device *dev, struct device *master, void *data)
 {
-	struct exynos_drm_display *display = get_hdmi_display(dev);
-	struct drm_encoder *encoder = display->encoder;
-	struct hdmi_context *hdata = display->ctx;
-
-	hdmi_connector_destroy(&hdata->connector);
-	encoder->funcs->destroy(encoder);
 }
 
 static const struct component_ops hdmi_component_ops = {

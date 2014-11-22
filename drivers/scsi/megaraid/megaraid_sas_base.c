@@ -4453,7 +4453,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			instance->msixentry[i].entry = i;
 		i = pci_enable_msix_range(instance->pdev, instance->msixentry,
 					  1, instance->msix_vectors);
-		if (i)
+		if (i > 0)
 			instance->msix_vectors = i;
 		else
 			instance->msix_vectors = 0;

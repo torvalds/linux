@@ -142,6 +142,10 @@ config INSTRUCTION_DECODER
 	def_bool y
 	depends on KPROBES || PERF_EVENTS || UPROBES
 
+config PERF_EVENTS_INTEL_UNCORE
+	def_bool y
+	depends on PERF_EVENTS && CPU_SUP_INTEL && PCI
+
 config OUTPUT_FORMAT
 	string
 	default "elf32-i386" if X86_32

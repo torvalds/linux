@@ -25,6 +25,7 @@ static void nft_masq_ipv6_eval(const struct nft_expr *expr,
 	struct nf_nat_range range;
 	unsigned int verdict;
 
+	memset(&range, 0, sizeof(range));
 	range.flags = priv->flags;
 
 	verdict = nf_nat_masquerade_ipv6(pkt->skb, &range, pkt->out);
@@ -39,6 +40,7 @@ static const struct nft_expr_ops nft_masq_ipv6_ops = {
 	.eval		= nft_masq_ipv6_eval,
 	.init		= nft_masq_init,
 	.dump		= nft_masq_dump,
+	.validate	= nft_masq_validate,
 };
 
 static struct nft_expr_type nft_masq_ipv6_type __read_mostly = {

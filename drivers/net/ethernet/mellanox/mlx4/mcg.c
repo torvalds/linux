@@ -955,6 +955,10 @@ static void mlx4_err_rule(struct mlx4_dev *dev, char *str,
 					cur->ib.dst_gid_msk);
 			break;
 
+		case MLX4_NET_TRANS_RULE_ID_VXLAN:
+			len += snprintf(buf + len, BUF_SIZE - len,
+					"VNID = %d ", be32_to_cpu(cur->vxlan.vni));
+			break;
 		case MLX4_NET_TRANS_RULE_ID_IPV6:
 			break;
 

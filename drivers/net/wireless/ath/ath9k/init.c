@@ -734,6 +734,32 @@ static const struct ieee80211_iface_combination if_comb[] = {
 #endif
 };
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+static void ath9k_set_mcc_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!ath9k_is_chanctx_enabled())
+		return;
+
+	hw->flags |= IEEE80211_HW_QUEUE_CONTROL;
+	hw->queues = ATH9K_NUM_TX_QUEUES;
+	hw->offchannel_tx_hw_queue = hw->queues - 1;
+	hw->wiphy->interface_modes &= ~ BIT(NL80211_IFTYPE_WDS);
+	hw->wiphy->iface_combinations = if_comb_multi;
+	hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_multi);
+	hw->wiphy->max_scan_ssids = 255;
+	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+	hw->wiphy->max_remain_on_channel_duration = 10000;
+	hw->chanctx_data_size = sizeof(void *);
+	hw->extra_beacon_tailroom =
+		sizeof(struct ieee80211_p2p_noa_attr) + 9;
+
+	ath_dbg(common, CHAN_CTX, "Use channel contexts\n");
+}
+#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
+
 static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -746,7 +772,6 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		IEEE80211_HW_SPECTRUM_MGMT |
 		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		IEEE80211_HW_SUPPORTS_RC_TABLE |
-		IEEE80211_HW_QUEUE_CONTROL |
 		IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
 
 	if (ath9k_ps_enable)
@@ -781,24 +806,6 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 	}
 
-#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
-
-	if (ath9k_is_chanctx_enabled()) {
-		hw->wiphy->interface_modes &= ~ BIT(NL80211_IFTYPE_WDS);
-		hw->wiphy->iface_combinations = if_comb_multi;
-		hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_multi);
-		hw->wiphy->max_scan_ssids = 255;
-		hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
-		hw->wiphy->max_remain_on_channel_duration = 10000;
-		hw->chanctx_data_size = sizeof(void *);
-		hw->extra_beacon_tailroom =
-			sizeof(struct ieee80211_p2p_noa_attr) + 9;
-
-		ath_dbg(common, CHAN_CTX, "Use channel contexts\n");
-	}
-
-#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
-
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
@@ -808,12 +815,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 
-	/* allow 4 queues per channel context +
-	 * 1 cab queue + 1 offchannel tx queue
-	 */
-	hw->queues = ATH9K_NUM_TX_QUEUES;
-	/* last queue for offchannel */
-	hw->offchannel_tx_hw_queue = hw->queues - 1;
+	hw->queues = 4;
 	hw->max_rates = 4;
 	hw->max_listen_interval = 10;
 	hw->max_rate_tries = 10;
@@ -837,6 +839,9 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&common->sbands[IEEE80211_BAND_5GHZ];
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+	ath9k_set_mcc_capab(sc, hw);
+#endif
 	ath9k_init_wow(hw);
 	ath9k_cmn_reload_chainmask(ah);
 

@@ -145,7 +145,7 @@ static bool match_validate(const struct sw_flow_match *match,
 	if (match->key->eth.type == htons(ETH_P_ARP)
 			|| match->key->eth.type == htons(ETH_P_RARP)) {
 		key_expected |= 1 << OVS_KEY_ATTR_ARP;
-		if (match->mask && (match->mask->key.eth.type == htons(0xffff)))
+		if (match->mask && (match->mask->key.tp.src == htons(0xff)))
 			mask_allowed |= 1 << OVS_KEY_ATTR_ARP;
 	}
 
@@ -689,6 +689,13 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match, u64 attrs,
 				ipv6_key->ipv6_frag, OVS_FRAG_TYPE_MAX);
 			return -EINVAL;
 		}
+
+		if (!is_mask && ipv6_key->ipv6_label & htonl(0xFFF00000)) {
+			OVS_NLERR("IPv6 flow label %x is out of range (max=%x).\n",
+				  ntohl(ipv6_key->ipv6_label), (1 << 20) - 1);
+			return -EINVAL;
+		}
+
 		SW_FLOW_KEY_PUT(match, ipv6.label,
 				ipv6_key->ipv6_label, is_mask);
 		SW_FLOW_KEY_PUT(match, ip.proto,

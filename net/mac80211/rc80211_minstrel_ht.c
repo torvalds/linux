@@ -252,19 +252,16 @@ minstrel_ht_sort_best_tp_rates(struct minstrel_ht_sta *mi, u8 index,
 	cur_thr = mi->groups[cur_group].rates[cur_idx].cur_tp;
 	cur_prob = mi->groups[cur_group].rates[cur_idx].probability;
 
-	tmp_group = tp_list[j - 1] / MCS_GROUP_RATES;
-	tmp_idx = tp_list[j - 1] % MCS_GROUP_RATES;
-	tmp_thr = mi->groups[tmp_group].rates[tmp_idx].cur_tp;
-	tmp_prob = mi->groups[tmp_group].rates[tmp_idx].probability;
-
-	while (j > 0 && (cur_thr > tmp_thr ||
-	      (cur_thr == tmp_thr && cur_prob > tmp_prob))) {
-		j--;
+	do {
 		tmp_group = tp_list[j - 1] / MCS_GROUP_RATES;
 		tmp_idx = tp_list[j - 1] % MCS_GROUP_RATES;
 		tmp_thr = mi->groups[tmp_group].rates[tmp_idx].cur_tp;
 		tmp_prob = mi->groups[tmp_group].rates[tmp_idx].probability;
-	}
+		if (cur_thr < tmp_thr ||
+		    (cur_thr == tmp_thr && cur_prob <= tmp_prob))
+			break;
+		j--;
+	} while (j > 0);
 
 	if (j < MAX_THR_RATES - 1) {
 		memmove(&tp_list[j + 1], &tp_list[j], (sizeof(*tp_list) *

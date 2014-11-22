@@ -198,8 +198,7 @@ struct adf_accel_dev {
 	struct dentry *debugfs_dir;
 	struct list_head list;
 	struct module *owner;
-	uint8_t accel_id;
-	uint8_t numa_node;
 	struct adf_accel_pci accel_pci_dev;
+	uint8_t accel_id;
 } __packed;
 #endif

@@ -300,9 +300,7 @@ void b43_phy_write(struct b43_wldev *dev, u16 reg, u16 value)
 
 void b43_phy_copy(struct b43_wldev *dev, u16 destreg, u16 srcreg)
 {
-	assert_mac_suspended(dev);
-	dev->phy.ops->phy_write(dev, destreg,
-		dev->phy.ops->phy_read(dev, srcreg));
+	b43_phy_write(dev, destreg, b43_phy_read(dev, srcreg));
 }
 
 void b43_phy_mask(struct b43_wldev *dev, u16 offset, u16 mask)
