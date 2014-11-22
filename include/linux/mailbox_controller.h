@@ -68,7 +68,6 @@ struct mbox_chan_ops {
  *			last TX's status after these many millisecs
  * @of_xlate:		Controller driver specific mapping of channel via DT
  * @poll:		API private. Used to poll for TXDONE on all channels.
- * @period:		API private. Polling period.
  * @node:		API private. To hook into list of controllers.
  */
 struct mbox_controller {
@@ -83,7 +82,6 @@ struct mbox_controller {
 				      const struct of_phandle_args *sp);
 	/* Internal to API */
 	struct timer_list poll;
-	unsigned period;
 	struct list_head node;
 };
 
