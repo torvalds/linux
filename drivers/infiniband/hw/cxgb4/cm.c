@@ -478,7 +478,7 @@ static void send_flowc(struct c4iw_ep *ep, struct sk_buff *skb)
 					  16)) | FW_WR_FLOWID_V(ep->hwtid));
 
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
-	flowc->mnemval[0].val = cpu_to_be32(FW_PFVF_CMD_PFN
+	flowc->mnemval[0].val = cpu_to_be32(FW_PFVF_CMD_PFN_V
 					    (ep->com.dev->rdev.lldi.pf));
 	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
 	flowc->mnemval[1].val = cpu_to_be32(ep->tx_chan);
@@ -1762,10 +1762,10 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	req->le.pport = sin->sin_port;
 	req->le.u.ipv4.pip = sin->sin_addr.s_addr;
 	req->tcb.t_state_to_astid =
-			htonl(V_FW_OFLD_CONNECTION_WR_T_STATE(TCP_SYN_SENT) |
-			V_FW_OFLD_CONNECTION_WR_ASTID(atid));
+			htonl(FW_OFLD_CONNECTION_WR_T_STATE_V(TCP_SYN_SENT) |
+			FW_OFLD_CONNECTION_WR_ASTID_V(atid));
 	req->tcb.cplrxdataack_cplpassacceptrpl =
-			htons(F_FW_OFLD_CONNECTION_WR_CPLRXDATAACK);
+			htons(FW_OFLD_CONNECTION_WR_CPLRXDATAACK_F);
 	req->tcb.tx_max = (__force __be32) jiffies;
 	req->tcb.rcv_adv = htons(1);
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
@@ -3539,7 +3539,7 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	memset(req, 0, sizeof(*req));
 	req->op_compl = htonl(V_WR_OP(FW_OFLD_CONNECTION_WR) | FW_WR_COMPL_F);
 	req->len16_pkd = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*req), 16)));
-	req->le.version_cpl = htonl(F_FW_OFLD_CONNECTION_WR_CPL);
+	req->le.version_cpl = htonl(FW_OFLD_CONNECTION_WR_CPL_F);
 	req->le.filter = (__force __be32) filter;
 	req->le.lport = lport;
 	req->le.pport = rport;
@@ -3548,9 +3548,9 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	req->tcb.rcv_nxt = htonl(rcv_isn + 1);
 	req->tcb.rcv_adv = htons(window);
 	req->tcb.t_state_to_astid =
-		 htonl(V_FW_OFLD_CONNECTION_WR_T_STATE(TCP_SYN_RECV) |
-			V_FW_OFLD_CONNECTION_WR_RCV_SCALE(cpl->tcpopt.wsf) |
-			V_FW_OFLD_CONNECTION_WR_ASTID(
+		 htonl(FW_OFLD_CONNECTION_WR_T_STATE_V(TCP_SYN_RECV) |
+			FW_OFLD_CONNECTION_WR_RCV_SCALE_V(cpl->tcpopt.wsf) |
+			FW_OFLD_CONNECTION_WR_ASTID_V(
 			GET_PASS_OPEN_TID(ntohl(cpl->tos_stid))));
 
 	/*

@@ -2092,22 +2092,22 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 				    FW_CMD_REQUEST_F |
 				    FW_CMD_WRITE_F |
 				    FW_CMD_EXEC_F);
-	cmd.alloc_to_len16 = cpu_to_be32(FW_IQ_CMD_ALLOC |
-					 FW_IQ_CMD_IQSTART(1) |
+	cmd.alloc_to_len16 = cpu_to_be32(FW_IQ_CMD_ALLOC_F |
+					 FW_IQ_CMD_IQSTART_F |
 					 FW_LEN16(cmd));
 	cmd.type_to_iqandstindex =
-		cpu_to_be32(FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
-			    FW_IQ_CMD_IQASYNCH(iqasynch) |
-			    FW_IQ_CMD_VIID(pi->viid) |
-			    FW_IQ_CMD_IQANDST(iqandst) |
-			    FW_IQ_CMD_IQANUS(1) |
-			    FW_IQ_CMD_IQANUD(SGE_UPDATEDEL_INTR) |
-			    FW_IQ_CMD_IQANDSTINDEX(intr_dest));
+		cpu_to_be32(FW_IQ_CMD_TYPE_V(FW_IQ_TYPE_FL_INT_CAP) |
+			    FW_IQ_CMD_IQASYNCH_V(iqasynch) |
+			    FW_IQ_CMD_VIID_V(pi->viid) |
+			    FW_IQ_CMD_IQANDST_V(iqandst) |
+			    FW_IQ_CMD_IQANUS_V(1) |
+			    FW_IQ_CMD_IQANUD_V(SGE_UPDATEDEL_INTR) |
+			    FW_IQ_CMD_IQANDSTINDEX_V(intr_dest));
 	cmd.iqdroprss_to_iqesize =
-		cpu_to_be16(FW_IQ_CMD_IQPCIECH(pi->port_id) |
-			    FW_IQ_CMD_IQGTSMODE |
-			    FW_IQ_CMD_IQINTCNTTHRESH(rspq->pktcnt_idx) |
-			    FW_IQ_CMD_IQESIZE(ilog2(rspq->iqe_len) - 4));
+		cpu_to_be16(FW_IQ_CMD_IQPCIECH_V(pi->port_id) |
+			    FW_IQ_CMD_IQGTSMODE_F |
+			    FW_IQ_CMD_IQINTCNTTHRESH_V(rspq->pktcnt_idx) |
+			    FW_IQ_CMD_IQESIZE_V(ilog2(rspq->iqe_len) - 4));
 	cmd.iqsize = cpu_to_be16(rspq->size);
 	cmd.iqaddr = cpu_to_be64(rspq->phys_addr);
 
@@ -2141,13 +2141,13 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		 */
 		cmd.iqns_to_fl0congen =
 			cpu_to_be32(
-				FW_IQ_CMD_FL0HOSTFCMODE(SGE_HOSTFCMODE_NONE) |
-				FW_IQ_CMD_FL0PACKEN(1) |
-				FW_IQ_CMD_FL0PADEN(1));
+				FW_IQ_CMD_FL0HOSTFCMODE_V(SGE_HOSTFCMODE_NONE) |
+				FW_IQ_CMD_FL0PACKEN_F |
+				FW_IQ_CMD_FL0PADEN_F);
 		cmd.fl0dcaen_to_fl0cidxfthresh =
 			cpu_to_be16(
-				FW_IQ_CMD_FL0FBMIN(SGE_FETCHBURSTMIN_64B) |
-				FW_IQ_CMD_FL0FBMAX(SGE_FETCHBURSTMAX_512B));
+				FW_IQ_CMD_FL0FBMIN_V(SGE_FETCHBURSTMIN_64B) |
+				FW_IQ_CMD_FL0FBMAX_V(SGE_FETCHBURSTMAX_512B));
 		cmd.fl0size = cpu_to_be16(flsz);
 		cmd.fl0addr = cpu_to_be64(fl->addr);
 	}
@@ -2255,20 +2255,21 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 				    FW_CMD_REQUEST_F |
 				    FW_CMD_WRITE_F |
 				    FW_CMD_EXEC_F);
-	cmd.alloc_to_len16 = cpu_to_be32(FW_EQ_ETH_CMD_ALLOC |
-					 FW_EQ_ETH_CMD_EQSTART |
+	cmd.alloc_to_len16 = cpu_to_be32(FW_EQ_ETH_CMD_ALLOC_F |
+					 FW_EQ_ETH_CMD_EQSTART_F |
 					 FW_LEN16(cmd));
-	cmd.viid_pkd = cpu_to_be32(FW_EQ_ETH_CMD_AUTOEQUEQE |
-				   FW_EQ_ETH_CMD_VIID(pi->viid));
+	cmd.viid_pkd = cpu_to_be32(FW_EQ_ETH_CMD_AUTOEQUEQE_F |
+				   FW_EQ_ETH_CMD_VIID_V(pi->viid));
 	cmd.fetchszm_to_iqid =
-		cpu_to_be32(FW_EQ_ETH_CMD_HOSTFCMODE(SGE_HOSTFCMODE_STPG) |
-			    FW_EQ_ETH_CMD_PCIECHN(pi->port_id) |
-			    FW_EQ_ETH_CMD_IQID(iqid));
+		cpu_to_be32(FW_EQ_ETH_CMD_HOSTFCMODE_V(SGE_HOSTFCMODE_STPG) |
+			    FW_EQ_ETH_CMD_PCIECHN_V(pi->port_id) |
+			    FW_EQ_ETH_CMD_IQID_V(iqid));
 	cmd.dcaen_to_eqsize =
-		cpu_to_be32(FW_EQ_ETH_CMD_FBMIN(SGE_FETCHBURSTMIN_64B) |
-			    FW_EQ_ETH_CMD_FBMAX(SGE_FETCHBURSTMAX_512B) |
-			    FW_EQ_ETH_CMD_CIDXFTHRESH(SGE_CIDXFLUSHTHRESH_32) |
-			    FW_EQ_ETH_CMD_EQSIZE(nentries));
+		cpu_to_be32(FW_EQ_ETH_CMD_FBMIN_V(SGE_FETCHBURSTMIN_64B) |
+			    FW_EQ_ETH_CMD_FBMAX_V(SGE_FETCHBURSTMAX_512B) |
+			    FW_EQ_ETH_CMD_CIDXFTHRESH_V(
+						SGE_CIDXFLUSHTHRESH_32) |
+			    FW_EQ_ETH_CMD_EQSIZE_V(nentries));
 	cmd.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
 	/*
@@ -2294,9 +2295,9 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 	txq->q.cidx = 0;
 	txq->q.pidx = 0;
 	txq->q.stat = (void *)&txq->q.desc[txq->q.size];
-	txq->q.cntxt_id = FW_EQ_ETH_CMD_EQID_GET(be32_to_cpu(rpl.eqid_pkd));
+	txq->q.cntxt_id = FW_EQ_ETH_CMD_EQID_G(be32_to_cpu(rpl.eqid_pkd));
 	txq->q.abs_id =
-		FW_EQ_ETH_CMD_PHYSEQID_GET(be32_to_cpu(rpl.physeqid_pkd));
+		FW_EQ_ETH_CMD_PHYSEQID_G(be32_to_cpu(rpl.physeqid_pkd));
 	txq->txq = devq;
 	txq->tso = 0;
 	txq->tx_cso = 0;

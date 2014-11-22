@@ -243,7 +243,7 @@ void cxgb4_dcb_handle_fw_update(struct adapter *adap,
 				const struct fw_port_cmd *pcmd)
 {
 	const union fw_port_dcb *fwdcb = &pcmd->u.dcb;
-	int port = FW_PORT_CMD_PORTID_GET(be32_to_cpu(pcmd->op_to_portid));
+	int port = FW_PORT_CMD_PORTID_G(be32_to_cpu(pcmd->op_to_portid));
 	struct net_device *dev = adap->port[port];
 	struct port_info *pi = netdev_priv(dev);
 	struct port_dcb_info *dcb = &pi->dcb;
@@ -256,12 +256,12 @@ void cxgb4_dcb_handle_fw_update(struct adapter *adap,
 	if (dcb_type == FW_PORT_DCB_TYPE_CONTROL) {
 		enum cxgb4_dcb_state_input input =
 			((pcmd->u.dcb.control.all_syncd_pkd &
-			  FW_PORT_CMD_ALL_SYNCD)
+			  FW_PORT_CMD_ALL_SYNCD_F)
 			 ? CXGB4_DCB_STATE_FW_ALLSYNCED
 			 : CXGB4_DCB_STATE_FW_INCOMPLETE);
 
 		if (dcb->dcb_version != FW_PORT_DCB_VER_UNKNOWN) {
-			dcb_running_version = FW_PORT_CMD_DCB_VERSION_GET(
+			dcb_running_version = FW_PORT_CMD_DCB_VERSION_G(
 				be16_to_cpu(
 				pcmd->u.dcb.control.dcb_version_to_app_state));
 			if (dcb_running_version == FW_PORT_DCB_VER_CEE1D01 ||
@@ -519,7 +519,7 @@ static void cxgb4_setpgtccfg_tx(struct net_device *dev, int tc,
 
 	INIT_PORT_DCB_WRITE_CMD(pcmd, pi->port_id);
 	if (pi->dcb.state == CXGB4_DCB_STATE_HOST)
-		pcmd.op_to_portid |= cpu_to_be32(FW_PORT_CMD_APPLY);
+		pcmd.op_to_portid |= cpu_to_be32(FW_PORT_CMD_APPLY_F);
 
 	err = t4_wr_mbox(adap, adap->mbox, &pcmd, sizeof(pcmd), &pcmd);
 	if (err != FW_PORT_DCB_CFG_SUCCESS)
@@ -583,7 +583,7 @@ static void cxgb4_setpgbwgcfg_tx(struct net_device *dev, int pgid,
 
 	INIT_PORT_DCB_WRITE_CMD(pcmd, pi->port_id);
 	if (pi->dcb.state == CXGB4_DCB_STATE_HOST)
-		pcmd.op_to_portid |= cpu_to_be32(FW_PORT_CMD_APPLY);
+		pcmd.op_to_portid |= cpu_to_be32(FW_PORT_CMD_APPLY_F);
 
 	err = t4_wr_mbox(adap, adap->mbox, &pcmd, sizeof(pcmd), &pcmd);
 
@@ -623,7 +623,7 @@ static void cxgb4_setpfccfg(struct net_device *dev, int priority, u8 pfccfg)
 
 	INIT_PORT_DCB_WRITE_CMD(pcmd, pi->port_id);
 	if (pi->dcb.state == CXGB4_DCB_STATE_HOST)
-		pcmd.op_to_portid |= cpu_to_be32(FW_PORT_CMD_APPLY);
+		pcmd.op_to_portid |= cpu_to_be32(FW_PORT_CMD_APPLY_F);
 
 	pcmd.u.dcb.pfc.type = FW_PORT_DCB_TYPE_PFC;
 	pcmd.u.dcb.pfc.pfcen = pi->dcb.pfcen;
@@ -842,7 +842,7 @@ static int __cxgb4_setapp(struct net_device *dev, u8 app_idtype, u16 app_id,
 	/* write out new app table entry */
 	INIT_PORT_DCB_WRITE_CMD(pcmd, pi->port_id);
 	if (pi->dcb.state == CXGB4_DCB_STATE_HOST)
-		pcmd.op_to_portid |= cpu_to_be32(FW_PORT_CMD_APPLY);
+		pcmd.op_to_portid |= cpu_to_be32(FW_PORT_CMD_APPLY_F);
 
 	pcmd.u.dcb.app_priority.type = FW_PORT_DCB_TYPE_APP_ID;
 	pcmd.u.dcb.app_priority.protocolid = cpu_to_be16(app_id);

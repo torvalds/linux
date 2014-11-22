@@ -45,9 +45,9 @@
 			cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) | \
 				    FW_CMD_REQUEST_F | \
 				    FW_CMD_##__op##_F | \
-				    FW_PORT_CMD_PORTID(__port)); \
+				    FW_PORT_CMD_PORTID_V(__port)); \
 		(__pcmd).action_to_len16 = \
-			cpu_to_be32(FW_PORT_CMD_ACTION(__action) | \
+			cpu_to_be32(FW_PORT_CMD_ACTION_V(__action) | \
 				    FW_LEN16(pcmd)); \
 	} while (0)
 

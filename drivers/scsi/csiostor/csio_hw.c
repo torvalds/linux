@@ -650,10 +650,10 @@ static void
 csio_hw_print_fw_version(struct csio_hw *hw, char *str)
 {
 	csio_info(hw, "%s: %u.%u.%u.%u\n", str,
-		    FW_HDR_FW_VER_MAJOR_GET(hw->fwrev),
-		    FW_HDR_FW_VER_MINOR_GET(hw->fwrev),
-		    FW_HDR_FW_VER_MICRO_GET(hw->fwrev),
-		    FW_HDR_FW_VER_BUILD_GET(hw->fwrev));
+		    FW_HDR_FW_VER_MAJOR_G(hw->fwrev),
+		    FW_HDR_FW_VER_MINOR_G(hw->fwrev),
+		    FW_HDR_FW_VER_MICRO_G(hw->fwrev),
+		    FW_HDR_FW_VER_BUILD_G(hw->fwrev));
 }
 
 /*
@@ -706,9 +706,9 @@ csio_hw_check_fw_version(struct csio_hw *hw)
 	if (ret)
 		return ret;
 
-	major = FW_HDR_FW_VER_MAJOR_GET(hw->fwrev);
-	minor = FW_HDR_FW_VER_MINOR_GET(hw->fwrev);
-	micro = FW_HDR_FW_VER_MICRO_GET(hw->fwrev);
+	major = FW_HDR_FW_VER_MAJOR_G(hw->fwrev);
+	minor = FW_HDR_FW_VER_MINOR_G(hw->fwrev);
+	micro = FW_HDR_FW_VER_MICRO_G(hw->fwrev);
 
 	if (major != FW_VERSION_MAJOR(hw)) {	/* major mismatch - fail */
 		csio_err(hw, "card FW has major version %u, driver wants %u\n",
@@ -1170,7 +1170,7 @@ csio_hw_fw_halt(struct csio_hw *hw, uint32_t mbox, int32_t force)
 		}
 
 		csio_mb_reset(hw, mbp, CSIO_MB_DEFAULT_TMO,
-			      PIORSTMODE | PIORST, FW_RESET_CMD_HALT(1),
+			      PIORSTMODE | PIORST, FW_RESET_CMD_HALT_F,
 			      NULL);
 
 		if (csio_mb_issue(hw, mbp)) {
@@ -1374,9 +1374,9 @@ csio_hw_fw_config_file(struct csio_hw *hw,
 		      FW_CMD_REQUEST_F |
 		      FW_CMD_READ_F);
 	caps_cmd->cfvalid_to_len16 =
-		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
-		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
-		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) |
+		htonl(FW_CAPS_CONFIG_CMD_CFVALID_F |
+		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF_V(mtype) |
+		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF_V(maddr >> 16) |
 		      FW_LEN16(*caps_cmd));
 
 	if (csio_mb_issue(hw, mbp)) {
@@ -1723,8 +1723,8 @@ csio_hw_check_fwconfig(struct csio_hw *hw, u32 *param)
 	 * Find out whether we're dealing with a version of
 	 * the firmware which has configuration file support.
 	 */
-	_param[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-		     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
+	_param[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		     FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_CF));
 
 	csio_mb_params(hw, mbp, CSIO_MB_DEFAULT_TMO, hw->pfn, 0,
 		       ARRAY_SIZE(_param), _param, NULL, false, NULL);
@@ -1781,8 +1781,8 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 		goto leave;
 	}
 
-	mtype = FW_PARAMS_PARAM_Y_GET(*fw_cfg_param);
-	maddr = FW_PARAMS_PARAM_Z_GET(*fw_cfg_param) << 16;
+	mtype = FW_PARAMS_PARAM_Y_G(*fw_cfg_param);
+	maddr = FW_PARAMS_PARAM_Z_G(*fw_cfg_param) << 16;
 
 	ret = csio_memory_write(hw, mtype, maddr,
 				cf->size + value_to_add, cfg_data);
@@ -1871,8 +1871,8 @@ csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
 			goto bye;
 		}
 	} else {
-		mtype = FW_PARAMS_PARAM_Y_GET(*fw_cfg_param);
-		maddr = FW_PARAMS_PARAM_Z_GET(*fw_cfg_param) << 16;
+		mtype = FW_PARAMS_PARAM_Y_G(*fw_cfg_param);
+		maddr = FW_PARAMS_PARAM_Z_G(*fw_cfg_param) << 16;
 		using_flash = 0;
 	}
 
@@ -1998,13 +1998,13 @@ csio_hw_flash_fw(struct csio_hw *hw)
 
 	hdr = (const struct fw_hdr *)fw->data;
 	fw_ver = ntohl(hdr->fw_ver);
-	if (FW_HDR_FW_VER_MAJOR_GET(fw_ver) != FW_VERSION_MAJOR(hw))
+	if (FW_HDR_FW_VER_MAJOR_G(fw_ver) != FW_VERSION_MAJOR(hw))
 		return -EINVAL;      /* wrong major version, won't do */
 
 	/*
 	 * If the flash FW is unusable or we found something newer, load it.
 	 */
-	if (FW_HDR_FW_VER_MAJOR_GET(hw->fwrev) != FW_VERSION_MAJOR(hw) ||
+	if (FW_HDR_FW_VER_MAJOR_G(hw->fwrev) != FW_VERSION_MAJOR(hw) ||
 	    fw_ver > hw->fwrev) {
 		ret = csio_hw_fw_upgrade(hw, hw->pfn, fw->data, fw->size,
 				    /*force=*/false);

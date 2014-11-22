@@ -2299,18 +2299,18 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_IQ_CMD) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
-			    FW_IQ_CMD_PFN(adap->fn) | FW_IQ_CMD_VFN(0));
-	c.alloc_to_len16 = htonl(FW_IQ_CMD_ALLOC | FW_IQ_CMD_IQSTART(1) |
+			    FW_IQ_CMD_PFN_V(adap->fn) | FW_IQ_CMD_VFN_V(0));
+	c.alloc_to_len16 = htonl(FW_IQ_CMD_ALLOC_F | FW_IQ_CMD_IQSTART_F |
 				 FW_LEN16(c));
-	c.type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
-		FW_IQ_CMD_IQASYNCH(fwevtq) | FW_IQ_CMD_VIID(pi->viid) |
-		FW_IQ_CMD_IQANDST(intr_idx < 0) | FW_IQ_CMD_IQANUD(1) |
-		FW_IQ_CMD_IQANDSTINDEX(intr_idx >= 0 ? intr_idx :
+	c.type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE_V(FW_IQ_TYPE_FL_INT_CAP) |
+		FW_IQ_CMD_IQASYNCH_V(fwevtq) | FW_IQ_CMD_VIID_V(pi->viid) |
+		FW_IQ_CMD_IQANDST_V(intr_idx < 0) | FW_IQ_CMD_IQANUD_V(1) |
+		FW_IQ_CMD_IQANDSTINDEX_V(intr_idx >= 0 ? intr_idx :
 							-intr_idx - 1));
-	c.iqdroprss_to_iqesize = htons(FW_IQ_CMD_IQPCIECH(pi->tx_chan) |
-		FW_IQ_CMD_IQGTSMODE |
-		FW_IQ_CMD_IQINTCNTTHRESH(iq->pktcnt_idx) |
-		FW_IQ_CMD_IQESIZE(ilog2(iq->iqe_len) - 4));
+	c.iqdroprss_to_iqesize = htons(FW_IQ_CMD_IQPCIECH_V(pi->tx_chan) |
+		FW_IQ_CMD_IQGTSMODE_F |
+		FW_IQ_CMD_IQINTCNTTHRESH_V(iq->pktcnt_idx) |
+		FW_IQ_CMD_IQESIZE_V(ilog2(iq->iqe_len) - 4));
 	c.iqsize = htons(iq->size);
 	c.iqaddr = cpu_to_be64(iq->phys_addr);
 
@@ -2323,12 +2323,12 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 			goto fl_nomem;
 
 		flsz = fl->size / 8 + s->stat_len / sizeof(struct tx_desc);
-		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_FL0PACKEN(1) |
-					    FW_IQ_CMD_FL0FETCHRO(1) |
-					    FW_IQ_CMD_FL0DATARO(1) |
-					    FW_IQ_CMD_FL0PADEN(1));
-		c.fl0dcaen_to_fl0cidxfthresh = htons(FW_IQ_CMD_FL0FBMIN(2) |
-				FW_IQ_CMD_FL0FBMAX(3));
+		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_FL0PACKEN_F |
+					    FW_IQ_CMD_FL0FETCHRO_F |
+					    FW_IQ_CMD_FL0DATARO_F |
+					    FW_IQ_CMD_FL0PADEN_F);
+		c.fl0dcaen_to_fl0cidxfthresh = htons(FW_IQ_CMD_FL0FBMIN_V(2) |
+				FW_IQ_CMD_FL0FBMAX_V(3));
 		c.fl0size = htons(flsz);
 		c.fl0addr = cpu_to_be64(fl->addr);
 	}
@@ -2425,19 +2425,20 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_ETH_CMD) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
-			    FW_EQ_ETH_CMD_PFN(adap->fn) | FW_EQ_ETH_CMD_VFN(0));
-	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_ALLOC |
-				 FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
-	c.viid_pkd = htonl(FW_EQ_ETH_CMD_AUTOEQUEQE |
-			   FW_EQ_ETH_CMD_VIID(pi->viid));
-	c.fetchszm_to_iqid = htonl(FW_EQ_ETH_CMD_HOSTFCMODE(2) |
-				   FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) |
-				   FW_EQ_ETH_CMD_FETCHRO(1) |
-				   FW_EQ_ETH_CMD_IQID(iqid));
-	c.dcaen_to_eqsize = htonl(FW_EQ_ETH_CMD_FBMIN(2) |
-				  FW_EQ_ETH_CMD_FBMAX(3) |
-				  FW_EQ_ETH_CMD_CIDXFTHRESH(5) |
-				  FW_EQ_ETH_CMD_EQSIZE(nentries));
+			    FW_EQ_ETH_CMD_PFN_V(adap->fn) |
+			    FW_EQ_ETH_CMD_VFN_V(0));
+	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_ALLOC_F |
+				 FW_EQ_ETH_CMD_EQSTART_F | FW_LEN16(c));
+	c.viid_pkd = htonl(FW_EQ_ETH_CMD_AUTOEQUEQE_F |
+			   FW_EQ_ETH_CMD_VIID_V(pi->viid));
+	c.fetchszm_to_iqid = htonl(FW_EQ_ETH_CMD_HOSTFCMODE_V(2) |
+				   FW_EQ_ETH_CMD_PCIECHN_V(pi->tx_chan) |
+				   FW_EQ_ETH_CMD_FETCHRO_V(1) |
+				   FW_EQ_ETH_CMD_IQID_V(iqid));
+	c.dcaen_to_eqsize = htonl(FW_EQ_ETH_CMD_FBMIN_V(2) |
+				  FW_EQ_ETH_CMD_FBMAX_V(3) |
+				  FW_EQ_ETH_CMD_CIDXFTHRESH_V(5) |
+				  FW_EQ_ETH_CMD_EQSIZE_V(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
 	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
@@ -2451,7 +2452,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 		return ret;
 	}
 
-	init_txq(adap, &txq->q, FW_EQ_ETH_CMD_EQID_GET(ntohl(c.eqid_pkd)));
+	init_txq(adap, &txq->q, FW_EQ_ETH_CMD_EQID_G(ntohl(c.eqid_pkd)));
 	txq->txq = netdevq;
 	txq->tso = txq->tx_cso = txq->vlan_ins = 0;
 	txq->mapping_err = 0;
@@ -2478,20 +2479,20 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_CTRL_CMD) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
-			    FW_EQ_CTRL_CMD_PFN(adap->fn) |
-			    FW_EQ_CTRL_CMD_VFN(0));
-	c.alloc_to_len16 = htonl(FW_EQ_CTRL_CMD_ALLOC |
-				 FW_EQ_CTRL_CMD_EQSTART | FW_LEN16(c));
-	c.cmpliqid_eqid = htonl(FW_EQ_CTRL_CMD_CMPLIQID(cmplqid));
+			    FW_EQ_CTRL_CMD_PFN_V(adap->fn) |
+			    FW_EQ_CTRL_CMD_VFN_V(0));
+	c.alloc_to_len16 = htonl(FW_EQ_CTRL_CMD_ALLOC_F |
+				 FW_EQ_CTRL_CMD_EQSTART_F | FW_LEN16(c));
+	c.cmpliqid_eqid = htonl(FW_EQ_CTRL_CMD_CMPLIQID_V(cmplqid));
 	c.physeqid_pkd = htonl(0);
-	c.fetchszm_to_iqid = htonl(FW_EQ_CTRL_CMD_HOSTFCMODE(2) |
-				   FW_EQ_CTRL_CMD_PCIECHN(pi->tx_chan) |
-				   FW_EQ_CTRL_CMD_FETCHRO |
-				   FW_EQ_CTRL_CMD_IQID(iqid));
-	c.dcaen_to_eqsize = htonl(FW_EQ_CTRL_CMD_FBMIN(2) |
-				  FW_EQ_CTRL_CMD_FBMAX(3) |
-				  FW_EQ_CTRL_CMD_CIDXFTHRESH(5) |
-				  FW_EQ_CTRL_CMD_EQSIZE(nentries));
+	c.fetchszm_to_iqid = htonl(FW_EQ_CTRL_CMD_HOSTFCMODE_V(2) |
+				   FW_EQ_CTRL_CMD_PCIECHN_V(pi->tx_chan) |
+				   FW_EQ_CTRL_CMD_FETCHRO_F |
+				   FW_EQ_CTRL_CMD_IQID_V(iqid));
+	c.dcaen_to_eqsize = htonl(FW_EQ_CTRL_CMD_FBMIN_V(2) |
+				  FW_EQ_CTRL_CMD_FBMAX_V(3) |
+				  FW_EQ_CTRL_CMD_CIDXFTHRESH_V(5) |
+				  FW_EQ_CTRL_CMD_EQSIZE_V(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
 	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
@@ -2503,7 +2504,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 		return ret;
 	}
 
-	init_txq(adap, &txq->q, FW_EQ_CTRL_CMD_EQID_GET(ntohl(c.cmpliqid_eqid)));
+	init_txq(adap, &txq->q, FW_EQ_CTRL_CMD_EQID_G(ntohl(c.cmpliqid_eqid)));
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
 	tasklet_init(&txq->qresume_tsk, restart_ctrlq, (unsigned long)txq);
@@ -2532,18 +2533,18 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_OFLD_CMD) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
-			    FW_EQ_OFLD_CMD_PFN(adap->fn) |
-			    FW_EQ_OFLD_CMD_VFN(0));
-	c.alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_ALLOC |
-				 FW_EQ_OFLD_CMD_EQSTART | FW_LEN16(c));
-	c.fetchszm_to_iqid = htonl(FW_EQ_OFLD_CMD_HOSTFCMODE(2) |
-				   FW_EQ_OFLD_CMD_PCIECHN(pi->tx_chan) |
-				   FW_EQ_OFLD_CMD_FETCHRO(1) |
-				   FW_EQ_OFLD_CMD_IQID(iqid));
-	c.dcaen_to_eqsize = htonl(FW_EQ_OFLD_CMD_FBMIN(2) |
-				  FW_EQ_OFLD_CMD_FBMAX(3) |
-				  FW_EQ_OFLD_CMD_CIDXFTHRESH(5) |
-				  FW_EQ_OFLD_CMD_EQSIZE(nentries));
+			    FW_EQ_OFLD_CMD_PFN_V(adap->fn) |
+			    FW_EQ_OFLD_CMD_VFN_V(0));
+	c.alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_ALLOC_F |
+				 FW_EQ_OFLD_CMD_EQSTART_F | FW_LEN16(c));
+	c.fetchszm_to_iqid = htonl(FW_EQ_OFLD_CMD_HOSTFCMODE_V(2) |
+				   FW_EQ_OFLD_CMD_PCIECHN_V(pi->tx_chan) |
+				   FW_EQ_OFLD_CMD_FETCHRO_F |
+				   FW_EQ_OFLD_CMD_IQID_V(iqid));
+	c.dcaen_to_eqsize = htonl(FW_EQ_OFLD_CMD_FBMIN_V(2) |
+				  FW_EQ_OFLD_CMD_FBMAX_V(3) |
+				  FW_EQ_OFLD_CMD_CIDXFTHRESH_V(5) |
+				  FW_EQ_OFLD_CMD_EQSIZE_V(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
 	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
@@ -2557,7 +2558,7 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 		return ret;
 	}
 
-	init_txq(adap, &txq->q, FW_EQ_OFLD_CMD_EQID_GET(ntohl(c.eqid_pkd)));
+	init_txq(adap, &txq->q, FW_EQ_OFLD_CMD_EQID_G(ntohl(c.eqid_pkd)));
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
 	tasklet_init(&txq->qresume_tsk, restart_ofldq, (unsigned long)txq);

@@ -974,10 +974,10 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	sprintf(hw->fwrev_str, "%u.%u.%u.%u\n",
-		    FW_HDR_FW_VER_MAJOR_GET(hw->fwrev),
-		    FW_HDR_FW_VER_MINOR_GET(hw->fwrev),
-		    FW_HDR_FW_VER_MICRO_GET(hw->fwrev),
-		    FW_HDR_FW_VER_BUILD_GET(hw->fwrev));
+		    FW_HDR_FW_VER_MAJOR_G(hw->fwrev),
+		    FW_HDR_FW_VER_MINOR_G(hw->fwrev),
+		    FW_HDR_FW_VER_MICRO_G(hw->fwrev),
+		    FW_HDR_FW_VER_BUILD_G(hw->fwrev));
 
 	for (i = 0; i < hw->num_pports; i++) {
 		ln = csio_shost_init(hw, &pdev->dev, true, NULL);

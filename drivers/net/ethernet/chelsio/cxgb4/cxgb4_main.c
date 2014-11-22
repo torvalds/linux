@@ -141,7 +141,7 @@ static unsigned int pfvfres_pmask(struct adapter *adapter,
 	 * Give PF's access to all of the ports.
 	 */
 	if (vf == 0)
-		return FW_PFVF_CMD_PMASK_MASK;
+		return FW_PFVF_CMD_PMASK_M;
 
 	/*
 	 * For VFs, we'll assign them access to the ports based purely on the
@@ -512,9 +512,10 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 		u32 name, value;
 		int err;
 
-		name = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-			FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH) |
-			FW_PARAMS_PARAM_YZ(txq->q.cntxt_id));
+		name = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			FW_PARAMS_PARAM_X_V(
+				FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH) |
+			FW_PARAMS_PARAM_YZ_V(txq->q.cntxt_id));
 		value = enable ? i : 0xffffffff;
 
 		/* Since we can be called while atomic (from "interrupt
@@ -709,7 +710,7 @@ EXPORT_SYMBOL(cxgb4_dcb_enabled);
 /* Handle a Data Center Bridging update message from the firmware. */
 static void dcb_rpl(struct adapter *adap, const struct fw_port_cmd *pcmd)
 {
-	int port = FW_PORT_CMD_PORTID_GET(ntohl(pcmd->op_to_portid));
+	int port = FW_PORT_CMD_PORTID_G(ntohl(pcmd->op_to_portid));
 	struct net_device *dev = adap->port[port];
 	int old_dcb_enabled = cxgb4_dcb_enabled(dev);
 	int new_dcb_enabled;
@@ -834,15 +835,15 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 		const struct fw_port_cmd *pcmd = (const void *)p->data;
 		unsigned int cmd = FW_CMD_OP_G(ntohl(pcmd->op_to_portid));
 		unsigned int action =
-			FW_PORT_CMD_ACTION_GET(ntohl(pcmd->action_to_len16));
+			FW_PORT_CMD_ACTION_G(ntohl(pcmd->action_to_len16));
 
 		if (cmd == FW_PORT_CMD &&
 		    action == FW_PORT_ACTION_GET_PORT_INFO) {
-			int port = FW_PORT_CMD_PORTID_GET(
+			int port = FW_PORT_CMD_PORTID_G(
 					be32_to_cpu(pcmd->op_to_portid));
 			struct net_device *dev = q->adap->port[port];
 			int state_input = ((pcmd->u.info.dcbxdis_pkd &
-					    FW_PORT_CMD_DCBXDIS)
+					    FW_PORT_CMD_DCBXDIS_F)
 					   ? CXGB4_DCB_INPUT_FW_DISABLED
 					   : CXGB4_DCB_INPUT_FW_ENABLED);
 
@@ -1342,49 +1343,49 @@ static int set_filter_wr(struct adapter *adapter, int fidx)
 	fwr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER_WR));
 	fwr->len16_pkd = htonl(FW_WR_LEN16_V(sizeof(*fwr)/16));
 	fwr->tid_to_iq =
-		htonl(V_FW_FILTER_WR_TID(ftid) |
-		      V_FW_FILTER_WR_RQTYPE(f->fs.type) |
-		      V_FW_FILTER_WR_NOREPLY(0) |
-		      V_FW_FILTER_WR_IQ(f->fs.iq));
+		htonl(FW_FILTER_WR_TID_V(ftid) |
+		      FW_FILTER_WR_RQTYPE_V(f->fs.type) |
+		      FW_FILTER_WR_NOREPLY_V(0) |
+		      FW_FILTER_WR_IQ_V(f->fs.iq));
 	fwr->del_filter_to_l2tix =
-		htonl(V_FW_FILTER_WR_RPTTID(f->fs.rpttid) |
-		      V_FW_FILTER_WR_DROP(f->fs.action == FILTER_DROP) |
-		      V_FW_FILTER_WR_DIRSTEER(f->fs.dirsteer) |
-		      V_FW_FILTER_WR_MASKHASH(f->fs.maskhash) |
-		      V_FW_FILTER_WR_DIRSTEERHASH(f->fs.dirsteerhash) |
-		      V_FW_FILTER_WR_LPBK(f->fs.action == FILTER_SWITCH) |
-		      V_FW_FILTER_WR_DMAC(f->fs.newdmac) |
-		      V_FW_FILTER_WR_SMAC(f->fs.newsmac) |
-		      V_FW_FILTER_WR_INSVLAN(f->fs.newvlan == VLAN_INSERT ||
+		htonl(FW_FILTER_WR_RPTTID_V(f->fs.rpttid) |
+		      FW_FILTER_WR_DROP_V(f->fs.action == FILTER_DROP) |
+		      FW_FILTER_WR_DIRSTEER_V(f->fs.dirsteer) |
+		      FW_FILTER_WR_MASKHASH_V(f->fs.maskhash) |
+		      FW_FILTER_WR_DIRSTEERHASH_V(f->fs.dirsteerhash) |
+		      FW_FILTER_WR_LPBK_V(f->fs.action == FILTER_SWITCH) |
+		      FW_FILTER_WR_DMAC_V(f->fs.newdmac) |
+		      FW_FILTER_WR_SMAC_V(f->fs.newsmac) |
+		      FW_FILTER_WR_INSVLAN_V(f->fs.newvlan == VLAN_INSERT ||
 					     f->fs.newvlan == VLAN_REWRITE) |
-		      V_FW_FILTER_WR_RMVLAN(f->fs.newvlan == VLAN_REMOVE ||
+		      FW_FILTER_WR_RMVLAN_V(f->fs.newvlan == VLAN_REMOVE ||
 					    f->fs.newvlan == VLAN_REWRITE) |
-		      V_FW_FILTER_WR_HITCNTS(f->fs.hitcnts) |
-		      V_FW_FILTER_WR_TXCHAN(f->fs.eport) |
-		      V_FW_FILTER_WR_PRIO(f->fs.prio) |
-		      V_FW_FILTER_WR_L2TIX(f->l2t ? f->l2t->idx : 0));
+		      FW_FILTER_WR_HITCNTS_V(f->fs.hitcnts) |
+		      FW_FILTER_WR_TXCHAN_V(f->fs.eport) |
+		      FW_FILTER_WR_PRIO_V(f->fs.prio) |
+		      FW_FILTER_WR_L2TIX_V(f->l2t ? f->l2t->idx : 0));
 	fwr->ethtype = htons(f->fs.val.ethtype);
 	fwr->ethtypem = htons(f->fs.mask.ethtype);
 	fwr->frag_to_ovlan_vldm =
-		(V_FW_FILTER_WR_FRAG(f->fs.val.frag) |
-		 V_FW_FILTER_WR_FRAGM(f->fs.mask.frag) |
-		 V_FW_FILTER_WR_IVLAN_VLD(f->fs.val.ivlan_vld) |
-		 V_FW_FILTER_WR_OVLAN_VLD(f->fs.val.ovlan_vld) |
-		 V_FW_FILTER_WR_IVLAN_VLDM(f->fs.mask.ivlan_vld) |
-		 V_FW_FILTER_WR_OVLAN_VLDM(f->fs.mask.ovlan_vld));
+		(FW_FILTER_WR_FRAG_V(f->fs.val.frag) |
+		 FW_FILTER_WR_FRAGM_V(f->fs.mask.frag) |
+		 FW_FILTER_WR_IVLAN_VLD_V(f->fs.val.ivlan_vld) |
+		 FW_FILTER_WR_OVLAN_VLD_V(f->fs.val.ovlan_vld) |
+		 FW_FILTER_WR_IVLAN_VLDM_V(f->fs.mask.ivlan_vld) |
+		 FW_FILTER_WR_OVLAN_VLDM_V(f->fs.mask.ovlan_vld));
 	fwr->smac_sel = 0;
 	fwr->rx_chan_rx_rpl_iq =
-		htons(V_FW_FILTER_WR_RX_CHAN(0) |
-		      V_FW_FILTER_WR_RX_RPL_IQ(adapter->sge.fw_evtq.abs_id));
+		htons(FW_FILTER_WR_RX_CHAN_V(0) |
+		      FW_FILTER_WR_RX_RPL_IQ_V(adapter->sge.fw_evtq.abs_id));
 	fwr->maci_to_matchtypem =
-		htonl(V_FW_FILTER_WR_MACI(f->fs.val.macidx) |
-		      V_FW_FILTER_WR_MACIM(f->fs.mask.macidx) |
-		      V_FW_FILTER_WR_FCOE(f->fs.val.fcoe) |
-		      V_FW_FILTER_WR_FCOEM(f->fs.mask.fcoe) |
-		      V_FW_FILTER_WR_PORT(f->fs.val.iport) |
-		      V_FW_FILTER_WR_PORTM(f->fs.mask.iport) |
-		      V_FW_FILTER_WR_MATCHTYPE(f->fs.val.matchtype) |
-		      V_FW_FILTER_WR_MATCHTYPEM(f->fs.mask.matchtype));
+		htonl(FW_FILTER_WR_MACI_V(f->fs.val.macidx) |
+		      FW_FILTER_WR_MACIM_V(f->fs.mask.macidx) |
+		      FW_FILTER_WR_FCOE_V(f->fs.val.fcoe) |
+		      FW_FILTER_WR_FCOEM_V(f->fs.mask.fcoe) |
+		      FW_FILTER_WR_PORT_V(f->fs.val.iport) |
+		      FW_FILTER_WR_PORTM_V(f->fs.mask.iport) |
+		      FW_FILTER_WR_MATCHTYPE_V(f->fs.val.matchtype) |
+		      FW_FILTER_WR_MATCHTYPEM_V(f->fs.mask.matchtype));
 	fwr->ptcl = f->fs.val.proto;
 	fwr->ptclm = f->fs.mask.proto;
 	fwr->ttyp = f->fs.val.tos;
@@ -1615,14 +1616,14 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	if (adapter->params.fw_vers)
 		snprintf(info->fw_version, sizeof(info->fw_version),
 			"%u.%u.%u.%u, TP %u.%u.%u.%u",
-			FW_HDR_FW_VER_MAJOR_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_MINOR_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_MICRO_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_BUILD_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_MAJOR_GET(adapter->params.tp_vers),
-			FW_HDR_FW_VER_MINOR_GET(adapter->params.tp_vers),
-			FW_HDR_FW_VER_MICRO_GET(adapter->params.tp_vers),
-			FW_HDR_FW_VER_BUILD_GET(adapter->params.tp_vers));
+			FW_HDR_FW_VER_MAJOR_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_MINOR_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_MICRO_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_BUILD_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_MAJOR_G(adapter->params.tp_vers),
+			FW_HDR_FW_VER_MINOR_G(adapter->params.tp_vers),
+			FW_HDR_FW_VER_MICRO_G(adapter->params.tp_vers),
+			FW_HDR_FW_VER_BUILD_G(adapter->params.tp_vers));
 }
 
 static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -2717,9 +2718,10 @@ static int set_rspq_intr_params(struct sge_rspq *q,
 		new_idx = closest_thres(&adap->sge, cnt);
 		if (q->desc && q->pktcnt_idx != new_idx) {
 			/* the queue has already been created, update it */
-			v = FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-			    FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_IQ_INTCNTTHRESH) |
-			    FW_PARAMS_PARAM_YZ(q->cntxt_id);
+			v = FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			    FW_PARAMS_PARAM_X_V(
+					FW_PARAMS_PARAM_DMAQ_IQ_INTCNTTHRESH) |
+			    FW_PARAMS_PARAM_YZ_V(q->cntxt_id);
 			err = t4_set_params(adap, adap->fn, adap->fn, 0, 1, &v,
 					    &new_idx);
 			if (err)
@@ -2933,7 +2935,7 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	int ret;
 	const struct firmware *fw;
 	struct adapter *adap = netdev2adap(netdev);
-	unsigned int mbox = FW_PCIE_FW_MASTER_MASK + 1;
+	unsigned int mbox = PCIE_FW_MASTER_M + 1;
 
 	ef->data[sizeof(ef->data) - 1] = '\0';
 	ret = request_firmware(&fw, ef->data, adap->pdev_dev);
@@ -3044,45 +3046,45 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		info->data = 0;
 		switch (info->flow_type) {
 		case TCP_V4_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN)
+			if (v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST |
 					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN)
+			else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case UDP_V4_FLOW:
-			if ((v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN) &&
-			    (v & FW_RSS_VI_CONFIG_CMD_UDPEN))
+			if ((v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F) &&
+			    (v & FW_RSS_VI_CONFIG_CMD_UDPEN_F))
 				info->data = RXH_IP_SRC | RXH_IP_DST |
 					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN)
+			else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case SCTP_V4_FLOW:
 		case AH_ESP_V4_FLOW:
 		case IPV4_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN)
+			if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case TCP_V6_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN)
+			if (v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST |
 					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN)
+			else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case UDP_V6_FLOW:
-			if ((v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN) &&
-			    (v & FW_RSS_VI_CONFIG_CMD_UDPEN))
+			if ((v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F) &&
+			    (v & FW_RSS_VI_CONFIG_CMD_UDPEN_F))
 				info->data = RXH_IP_SRC | RXH_IP_DST |
 					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN)
+			else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case SCTP_V6_FLOW:
 		case AH_ESP_V6_FLOW:
 		case IPV6_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN)
+			if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		}
@@ -3418,7 +3420,7 @@ int cxgb4_clip_get(const struct net_device *dev,
 	memset(&c, 0, sizeof(c));
 	c.op_to_write = htonl(FW_CMD_OP_V(FW_CLIP_CMD) |
 			FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
-	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_ALLOC | FW_LEN16(c));
+	c.alloc_to_len16 = htonl(FW_CLIP_CMD_ALLOC_F | FW_LEN16(c));
 	c.ip_hi = *(__be64 *)(lip->s6_addr);
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
@@ -3435,7 +3437,7 @@ int cxgb4_clip_release(const struct net_device *dev,
 	memset(&c, 0, sizeof(c));
 	c.op_to_write = htonl(FW_CMD_OP_V(FW_CLIP_CMD) |
 			FW_CMD_REQUEST_F | FW_CMD_READ_F);
-	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_FREE | FW_LEN16(c));
+	c.alloc_to_len16 = htonl(FW_CLIP_CMD_FREE_F | FW_LEN16(c));
 	c.ip_hi = *(__be64 *)(lip->s6_addr);
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
@@ -4870,11 +4872,11 @@ static u32 t4_read_pcie_cfg4(struct adapter *adap, int reg)
 		htonl(FW_CMD_OP_V(FW_LDST_CMD) |
 		      FW_CMD_REQUEST_F |
 		      FW_CMD_READ_F |
-		      FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FUNC_PCIE));
+		      FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_FUNC_PCIE));
 	ldst_cmd.cycles_to_len16 = htonl(FW_LEN16(ldst_cmd));
-	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS(1);
+	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS_V(1);
 	ldst_cmd.u.pcie.ctrl_to_fn =
-		(FW_LDST_CMD_LC | FW_LDST_CMD_FN(adap->fn));
+		(FW_LDST_CMD_LC_F | FW_LDST_CMD_FN_V(adap->fn));
 	ldst_cmd.u.pcie.r = reg;
 	ret = t4_wr_mbox(adap, adap->mbox, &ldst_cmd, sizeof(ldst_cmd),
 			 &ldst_cmd);
@@ -4986,8 +4988,8 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 
 	ret = t4_config_glbl_rss(adap, adap->fn,
 				 FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL,
-				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN |
-				 FW_RSS_GLB_CONFIG_CMD_TNLALLLKP);
+				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_F |
+				 FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_F);
 	if (ret < 0)
 		return ret;
 
@@ -5148,8 +5150,8 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		if (cf->size >= FLASH_CFG_MAX_SIZE)
 			ret = -ENOMEM;
 		else {
-			params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-			     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
+			params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			     FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_CF));
 			ret = t4_query_params(adapter, adapter->mbox,
 					      adapter->fn, 0, 1, params, val);
 			if (ret == 0) {
@@ -5167,8 +5169,8 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 				size_t size = cf->size & ~0x3;
 				__be32 *data = (__be32 *)cf->data;
 
-				mtype = FW_PARAMS_PARAM_Y_GET(val[0]);
-				maddr = FW_PARAMS_PARAM_Z_GET(val[0]) << 16;
+				mtype = FW_PARAMS_PARAM_Y_G(val[0]);
+				maddr = FW_PARAMS_PARAM_Z_G(val[0]) << 16;
 
 				spin_lock(&adapter->win0_lock);
 				ret = t4_memory_rw(adapter, 0, mtype, maddr,
@@ -5209,9 +5211,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		      FW_CMD_REQUEST_F |
 		      FW_CMD_READ_F);
 	caps_cmd.cfvalid_to_len16 =
-		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
-		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
-		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) |
+		htonl(FW_CAPS_CONFIG_CMD_CFVALID_F |
+		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF_V(mtype) |
+		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF_V(maddr >> 16) |
 		      FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
@@ -5363,10 +5365,10 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	adapter->flags |= RSS_TNLALLLOOKUP;
 	ret = t4_config_glbl_rss(adapter, adapter->mbox,
 				 FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL,
-				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN |
-				 FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ |
+				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_F |
+				 FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ_F |
 				 ((adapter->flags & RSS_TNLALLLOOKUP) ?
-					FW_RSS_GLB_CONFIG_CMD_TNLALLLKP : 0));
+					FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_F : 0));
 	if (ret < 0)
 		goto bye;
 
@@ -5377,7 +5379,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 			  PFRES_NEQ, PFRES_NETHCTRL,
 			  PFRES_NIQFLINT, PFRES_NIQ,
 			  PFRES_TC, PFRES_NVI,
-			  FW_PFVF_CMD_CMASK_MASK,
+			  FW_PFVF_CMD_CMASK_M,
 			  pfvfres_pmask(adapter, adapter->fn, 0),
 			  PFRES_NEXACTF,
 			  PFRES_R_CAPS, PFRES_WX_CAPS);
@@ -5422,7 +5424,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 						  VFRES_NEQ, VFRES_NETHCTRL,
 						  VFRES_NIQFLINT, VFRES_NIQ,
 						  VFRES_TC, VFRES_NVI,
-						  FW_PFVF_CMD_CMASK_MASK,
+						  FW_PFVF_CMD_CMASK_M,
 						  pfvfres_pmask(
 						  adapter, pf, vf),
 						  VFRES_NEXACTF,
@@ -5686,8 +5688,8 @@ static int adap_init0(struct adapter *adap)
 	 * and portvec ...
 	 */
 	v =
-	    FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-	    FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_PORTVEC);
+	    FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+	    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PORTVEC);
 	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1, &v, &port_vec);
 	if (ret < 0)
 		goto bye;
@@ -5723,8 +5725,9 @@ static int adap_init0(struct adapter *adap)
 			 * Find out whether we're dealing with a version of
 			 * the firmware which has configuration file support.
 			 */
-			params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-				     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
+			params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+				     FW_PARAMS_PARAM_X_V(
+					     FW_PARAMS_PARAM_DEV_CF));
 			ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1,
 					      params, val);
 
@@ -5784,14 +5787,14 @@ static int adap_init0(struct adapter *adap)
 	 * Grab some of our basic fundamental operating parameters.
 	 */
 #define FW_PARAM_DEV(param) \
-	(FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) | \
-	FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_##param))
+	(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) | \
+	FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_##param))
 
 #define FW_PARAM_PFVF(param) \
-	FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) | \
-	FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_##param)|  \
-	FW_PARAMS_PARAM_Y(0) | \
-	FW_PARAMS_PARAM_Z(0)
+	FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) | \
+	FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_##param)|  \
+	FW_PARAMS_PARAM_Y_V(0) | \
+	FW_PARAMS_PARAM_Z_V(0)
 
 	params[0] = FW_PARAM_PFVF(EQ_START);
 	params[1] = FW_PARAM_PFVF(L2T_START);
