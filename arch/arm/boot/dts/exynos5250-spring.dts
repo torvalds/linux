@@ -52,6 +52,8 @@
 	usb-hub {
 		compatible = "smsc,usb3503a";
 		reset-gpios = <&gpe1 0 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hsic_reset>;
 	};
 
 	fixed-rate-clocks {
