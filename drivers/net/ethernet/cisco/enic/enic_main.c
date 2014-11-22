@@ -283,12 +283,10 @@ static irqreturn_t enic_isr_legacy(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	if (ENIC_TEST_INTR(pba, io_intr)) {
-		if (napi_schedule_prep(&enic->napi[0]))
-			__napi_schedule(&enic->napi[0]);
-	} else {
+	if (ENIC_TEST_INTR(pba, io_intr))
+		napi_schedule_irqoff(&enic->napi[0]);
+	else
 		vnic_intr_unmask(&enic->intr[io_intr]);
-	}
 
 	return IRQ_HANDLED;
 }
@@ -313,7 +311,7 @@ static irqreturn_t enic_isr_msi(int irq, void *data)
 	 * writes).
 	 */
 
-	napi_schedule(&enic->napi[0]);
+	napi_schedule_irqoff(&enic->napi[0]);
 
 	return IRQ_HANDLED;
 }
@@ -322,7 +320,7 @@ static irqreturn_t enic_isr_msix(int irq, void *data)
 {
 	struct napi_struct *napi = data;
 
-	napi_schedule(napi);
+	napi_schedule_irqoff(napi);
 
 	return IRQ_HANDLED;
 }
