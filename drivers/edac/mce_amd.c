@@ -441,8 +441,8 @@ static bool k8_mc2_mce(u16 ec, u8 xec)
 		pr_cont(": %s error in the L2 cache tags.\n", R4_MSG(ec));
 	else if (xec == 0x0) {
 		if (TLB_ERROR(ec))
-			pr_cont(": %s error in a Page Descriptor Cache or "
-				"Guest TLB.\n", TT_MSG(ec));
+			pr_cont("%s error in a Page Descriptor Cache or Guest TLB.\n",
+				TT_MSG(ec));
 		else if (BUS_ERROR(ec))
 			pr_cont(": %s/ECC error in data read from NB: %s.\n",
 				R4_MSG(ec), PP_MSG(ec));
@@ -781,7 +781,7 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	pr_cont("]: 0x%016llx\n", m->status);
 
 	if (m->status & MCI_STATUS_ADDRV)
-		pr_emerg(HW_ERR "MC%d_ADDR: 0x%016llx\n", m->bank, m->addr);
+		pr_emerg(HW_ERR "MC%d Error Address: 0x%016llx\n", m->bank, m->addr);
 
 	if (!fam_ops)
 		goto err_code;
