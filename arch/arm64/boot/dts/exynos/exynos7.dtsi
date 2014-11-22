@@ -243,6 +243,11 @@
 				     <1 11 0xff01>,
 				     <1 10 0xff01>;
 		};
+
+		pmu_system_controller: system-controller@105c0000 {
+			compatible = "samsung,exynos7-pmu", "syscon";
+			reg = <0x105c0000 0x5000>;
+		};
 	};
 };
 
