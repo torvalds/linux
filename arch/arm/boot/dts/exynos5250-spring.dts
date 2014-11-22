@@ -383,6 +383,11 @@
 	status = "okay";
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <66000>;
+
+	temperature-sensor@4c {
+		compatible = "gmt,g781";
+		reg = <0x4c>;
+	};
 };
 
 &i2c_8 {
