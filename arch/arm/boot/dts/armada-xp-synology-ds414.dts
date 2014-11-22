@@ -308,17 +308,17 @@
 		marvell,function = "gpio";
 	};
 
-	pmx_syno_id_bit1: syno-id-bit1-pin {
+	syno_id_bit1_pin: syno-id-bit1-pin {
 		marvell,pins = "mpp28";
 		marvell,function = "gpio";
 	};
 
-	pmx_syno_id_bit2: syno-id-bit2-pin {
+	syno_id_bit2_pin: syno-id-bit2-pin {
 		marvell,pins = "mpp29";
 		marvell,function = "gpio";
 	};
 
-	pmx_fan1_alarm: fan1-alarm-pin {
+	fan1_alarm_pin: fan1-alarm-pin {
 		marvell,pins = "mpp33";
 		marvell,function = "gpio";
 	};
