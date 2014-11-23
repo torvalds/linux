@@ -636,7 +636,7 @@ int ldlm_pool_setup(struct ldlm_pool *pl, int limit)
 }
 EXPORT_SYMBOL(ldlm_pool_setup);
 
-#if defined (CONFIG_PROC_FS)
+#if defined(CONFIG_PROC_FS)
 static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 {
 	int granted, grant_rate, cancel_rate, grant_step;
