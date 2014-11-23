@@ -695,17 +695,6 @@ static struct snd_soc_dai_driver wm8940_dai = {
 	.symmetric_rates = 1,
 };
 
-static int wm8940_suspend(struct snd_soc_codec *codec)
-{
-	return wm8940_set_bias_level(codec, SND_SOC_BIAS_OFF);
-}
-
-static int wm8940_resume(struct snd_soc_codec *codec)
-{
-	wm8940_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8940_probe(struct snd_soc_codec *codec)
 {
 	struct wm8940_setup_data *pdata = codec->dev->platform_data;
@@ -736,18 +725,11 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 	return ret;
 }
 
-static int wm8940_remove(struct snd_soc_codec *codec)
-{
-	wm8940_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8940 = {
 	.probe =	wm8940_probe,
-	.remove =	wm8940_remove,
-	.suspend =	wm8940_suspend,
-	.resume =	wm8940_resume,
 	.set_bias_level = wm8940_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls =     wm8940_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8940_snd_controls),
 	.dapm_widgets = wm8940_dapm_widgets,
