@@ -1051,7 +1051,7 @@ static int ldlm_setup(void)
 			.so_req_handler		= ldlm_callback_handler,
 		},
 	};
-	ldlm_state->ldlm_cb_service = \
+	ldlm_state->ldlm_cb_service =
 			ptlrpc_register_service(&conf, ldlm_svc_proc_dir);
 	if (IS_ERR(ldlm_state->ldlm_cb_service)) {
 		CERROR("failed to start service\n");
@@ -1079,7 +1079,7 @@ static int ldlm_setup(void)
 		blp->blp_min_threads = LDLM_NTHRS_INIT;
 		blp->blp_max_threads = LDLM_NTHRS_MAX;
 	} else {
-		blp->blp_min_threads = blp->blp_max_threads = \
+		blp->blp_min_threads = blp->blp_max_threads =
 			min_t(int, LDLM_NTHRS_MAX, max_t(int, LDLM_NTHRS_INIT,
 							 ldlm_num_threads));
 	}
