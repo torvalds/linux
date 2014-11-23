@@ -1612,29 +1612,6 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rt5631_remove(struct snd_soc_codec *codec)
-{
-	rt5631_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-#ifdef CONFIG_PM
-static int rt5631_suspend(struct snd_soc_codec *codec)
-{
-	rt5631_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int rt5631_resume(struct snd_soc_codec *codec)
-{
-	rt5631_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define rt5631_suspend NULL
-#define rt5631_resume NULL
-#endif
-
 #define RT5631_STEREO_RATES SNDRV_PCM_RATE_8000_96000
 #define RT5631_FORMAT	(SNDRV_PCM_FMTBIT_S16_LE | \
 			SNDRV_PCM_FMTBIT_S20_3LE | \
@@ -1672,10 +1649,8 @@ static struct snd_soc_dai_driver rt5631_dai[] = {
 
 static struct snd_soc_codec_driver soc_codec_dev_rt5631 = {
 	.probe = rt5631_probe,
-	.remove = rt5631_remove,
-	.suspend = rt5631_suspend,
-	.resume = rt5631_resume,
 	.set_bias_level = rt5631_set_bias_level,
+	.suspend_bias_off = true,
 	.controls = rt5631_snd_controls,
 	.num_controls = ARRAY_SIZE(rt5631_snd_controls),
 	.dapm_widgets = rt5631_dapm_widgets,
