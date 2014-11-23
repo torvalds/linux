@@ -245,9 +245,8 @@ noreproc:
 	obd = class_exp2obd(lock->l_conn_export);
 
 	/* if this is a local lock, then there is no import */
-	if (obd != NULL) {
+	if (obd != NULL)
 		imp = obd->u.cli.cl_import;
-	}
 
 	/* Wait a long time for enqueue - server may have to callback a
 	   lock from another client.  Server will evict the other client if it

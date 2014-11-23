@@ -271,11 +271,10 @@ static void ldlm_pool_recalc_slv(struct ldlm_pool *pl)
 	slv = slv * slv_factor;
 	slv = dru(slv, LDLM_POOL_SLV_SHIFT, round_up);
 
-	if (slv > ldlm_pool_slv_max(limit)) {
+	if (slv > ldlm_pool_slv_max(limit))
 		slv = ldlm_pool_slv_max(limit);
-	} else if (slv < ldlm_pool_slv_min(limit)) {
+	else if (slv < ldlm_pool_slv_min(limit))
 		slv = ldlm_pool_slv_min(limit);
-	}
 
 	pl->pl_server_lock_volume = slv;
 }
@@ -1388,9 +1387,8 @@ static int ldlm_pools_thread_start(void)
 
 static void ldlm_pools_thread_stop(void)
 {
-	if (ldlm_pools_thread == NULL) {
+	if (ldlm_pools_thread == NULL)
 		return;
-	}
 
 	thread_set_flags(ldlm_pools_thread, SVC_STOPPING);
 	wake_up(&ldlm_pools_thread->t_ctl_waitq);
