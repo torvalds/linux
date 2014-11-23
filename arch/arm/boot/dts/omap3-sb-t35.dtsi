@@ -43,6 +43,16 @@
 			};
 		};
 	};
+
+	audio_amp: audio_amp {
+		compatible = "regulator-fixed";
+		regulator-name = "audio_amp";
+		pinctrl-names = "default";
+		pinctrl-0 = <&sb_t35_audio_amp>;
+		gpio = <&gpio2 29 GPIO_ACTIVE_LOW>;   /* gpio_61 */
+		enable-active-low;
+		regulator-always-on;
+	};
 };
 
 &omap3_pmx_core {
@@ -63,6 +73,12 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21c2, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c3_scl */
 			OMAP3_CORE1_IOPAD(0x21c4, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c3_sda */
+		>;
+	};
+
+	sb_t35_audio_amp: pinmux_sb_t35_audio_amp {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20c8, PIN_OUTPUT | MUX_MODE4) /* gpmc_nbe1.gpio_61 */
 		>;
 	};
 };
